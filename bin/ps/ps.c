@@ -29,6 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * ------+---------+---------+-------- + --------+---------+---------+---------*
+ * Copyright (c) 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * All rights reserved.
+ *
+ * Significant modifications made to bring `ps' options somewhat closer
+ * to the standard for `ps' as described in SingleUnixSpec-v3.
+ * ------+---------+---------+-------- + --------+---------+---------+---------*
  */
 
 #ifndef lint
@@ -56,11 +63,13 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <kvm.h>
 #include <limits.h>
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,19 +77,39 @@ __FBSDID("$FreeBSD$");
 
 #include "ps.h"
 
-#define SEP ", \t"		/* username separators */
+#define	W_SEP	" \t"		/* "Whitespace" list separators */
+#define	T_SEP	","		/* "Terminate-element" list separators */
 
 static KINFO *kinfo;
 struct varent *vhead;
 
 int	eval;			/* exit value */
 int	cflag;			/* -c */
+int	optfatal;		/* Fatal error parsing some list-option */
 int	rawcpu;			/* -C */
 int	sumrusage;		/* -S */
 int	termwidth;		/* width of screen (0 == infinity) */
 int	totwidth;		/* calculated width of requested variables */
 
 time_t	now;			/* current time(3) value */
+
+struct listinfo;
+typedef	int	addelem_rtn(struct listinfo *_inf, const char *elem);
+
+struct listinfo {
+	int		 count;
+	int		 maxcount;
+	int		 elemsize;
+	addelem_rtn	*addelem;
+	const char	*lname;
+	union {
+		gid_t	*gids;
+		pid_t	*pids;
+		dev_t	*ttys;
+		uid_t	*uids;
+		void	*ptr;
+	};
+};
 
 static int needuser, needcomm, needenv;
 #if defined(LAZY_PS)
@@ -100,8 +129,15 @@ static void	 scanvars(void);
 static void	 dynsizevars(KINFO *);
 static void	 sizevars(void);
 static void	 usage(void);
-static pid_t	*getpids(const char *, int *);
-static uid_t	*getuids(const char *, int *);
+
+static int	 addelem_gid(struct listinfo *, const char *);
+static int	 addelem_pid(struct listinfo *, const char *);
+static int	 addelem_tty(struct listinfo *, const char *);
+static int	 addelem_uid(struct listinfo *, const char *);
+static void	 add_list(struct listinfo *, const char *);
+static void	*expand_list(struct listinfo *);
+static void	 free_list(struct listinfo *);
+static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
 
 static char dfmt[] = "pid,tt,state,time,command";
 static char jfmt[] = "user,pid,ppid,pgid,jobc,state,tt,time,command";
@@ -115,23 +151,22 @@ static char Zfmt[] = "label";
 static kvm_t *kd;
 
 #if defined(LAZY_PS)
-#define PS_ARGS	"aCcefgHhjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#define	PS_ARGS	"AaCcefG:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
 #else
-#define PS_ARGS	"aCcegHhjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#define	PS_ARGS	"AaCceG:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
 #endif
 
 int
 main(int argc, char *argv[])
 {
+	struct listinfo gidlist, pgrplist, pidlist;
+	struct listinfo ruidlist, sesslist, ttylist, uidlist;
 	struct kinfo_proc *kp;
 	struct varent *vent;
 	struct winsize ws;
-	dev_t ttydev;
-	pid_t *pids;
-	uid_t *uids;
-	int all, ch, dropgid, flag, _fmt, i, lineno;
-	int nentries, nocludge, noutput, npids, nuids, pid;
-	int prtheader, showthreads, uid, wflag, what, xflg;
+	int all, ch, dropgid, elem, flag, _fmt, i, lineno;
+	int nentries, nocludge, nkept, nselectors;
+	int prtheader, showthreads, wflag, what, xkeep, xkeep_implied;
 	char *cols;
 	char errbuf[_POSIX2_LINE_MAX];
 	const char *cp, *nlistf, *memf;
@@ -170,16 +205,32 @@ main(int argc, char *argv[])
 			argv[1] = kludge_oldps_options(argv[1]);
 	}
 
-	all = _fmt = prtheader = wflag = xflg = 0;
-	npids = nuids = 0;
-	pids = uids = NULL;
-	ttydev = NODEV;
+	xkeep = -1;				/* Neither -x nor -X */
+	all = _fmt = nselectors = prtheader = wflag = xkeep_implied = 0;
+	init_list(&gidlist, addelem_gid, sizeof(gid_t), "group");
+	init_list(&pgrplist, addelem_pid, sizeof(pid_t), "process group");
+	init_list(&pidlist, addelem_pid, sizeof(pid_t), "process id");
+	init_list(&ruidlist, addelem_uid, sizeof(uid_t), "ruser");
+	init_list(&sesslist, addelem_pid, sizeof(pid_t), "session id");
+	init_list(&ttylist, addelem_tty, sizeof(dev_t), "tty");
+	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
 	dropgid = 0;
+	optfatal = 0;
 	memf = nlistf = _PATH_DEVNULL;
 	showthreads = 0;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch((char)ch) {
+		case 'A':
+			/*
+			 * Exactly the same as `-ax'.   This has been
+			 * added for compatability with SUSv3, but for
+			 * now it will not be described in the man page.
+			 */
+			nselectors++;
+			all = xkeep = 1;
+			break;
 		case 'a':
+			nselectors++;
 			all = 1;
 			break;
 		case 'C':
@@ -191,8 +242,24 @@ main(int argc, char *argv[])
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
 			break;
+		case 'G':
+			add_list(&gidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+#if 0
+		/* XXX - This SUSv3 option is still under debate. */
+		/* (it conflicts with the undocumented `-g' option) */
 		case 'g':
+			add_list(&pgrplist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+#else
+		case 'g':
+			/* Historical BSD-ish (from SunOS) option */
 			break;			/* no-op */
+#endif
 		case 'H':
 			showthreads = KERN_PROC_INC_THREAD;
 			break;
@@ -241,40 +308,54 @@ main(int argc, char *argv[])
 			break;
 #endif
 		case 'p':
-			pids = getpids(optarg, &npids);
-			xflg = 1;
+			add_list(&pidlist, optarg);
+			/*
+			 * Note: `-p' does not *set* xkeep, but any values
+			 * from pidlist are checked before xkeep is.  That
+			 * way they are always matched, even if the user
+			 * specifies `-X'.
+			 */
+			nselectors++;
 			break;
+#if 0
+		/* XXX - This un-standard option is still under debate. */
+		case 'R':
+			/* This is what SUSv3 defines as the `-U' option. */
+			add_list(&ruidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+#endif
 		case 'r':
 			sortby = SORTCPU;
 			break;
 		case 'S':
 			sumrusage = 1;
 			break;
+#if 0
+		/* XXX - This non-standard option is still under debate. */
+		/* (it conflicts with `-s' in NetBSD) */
+		case 's':
+			/* As seen on Solaris, Linux, IRIX. */
+			add_list(&sesslist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+#endif
 		case 'T':
 			if ((optarg = ttyname(STDIN_FILENO)) == NULL)
 				errx(1, "stdin: not a terminal");
 			/* FALLTHROUGH */
-		case 't': {
-			struct stat sb;
-			char *ttypath, pathbuf[PATH_MAX];
-
-			if (strcmp(optarg, "co") == 0)
-				ttypath = strdup(_PATH_CONSOLE);
-			else if (*optarg != '/')
-				(void)snprintf(ttypath = pathbuf,
-				    sizeof(pathbuf), "%s%s", _PATH_TTY, optarg);
-			else
-				ttypath = optarg;
-			if (stat(ttypath, &sb) == -1)
-				err(1, "%s", ttypath);
-			if (!S_ISCHR(sb.st_mode))
-				errx(1, "%s: not a terminal", ttypath);
-			ttydev = sb.st_rdev;
+		case 't':
+			add_list(&ttylist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
 			break;
-		}
 		case 'U':
-			uids = getuids(optarg, &nuids);
-			xflg++;		/* XXX: intuitive? */
+			/* This is what SUSv3 defines as the `-u' option. */
+			add_list(&uidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
 			break;
 		case 'u':
 			parsefmt(ufmt, 0);
@@ -295,8 +376,22 @@ main(int argc, char *argv[])
 				termwidth = 131;
 			wflag++;
 			break;
+		case 'X':
+			/*
+			 * Note that `-X' and `-x' are not standard "selector"
+			 * options. For most selector-options, we check *all*
+			 * processes to see if any are matched by the given
+			 * value(s).  After we have a set of all the matched
+			 * processes, then `-X' and `-x' govern whether we
+			 * modify that *matched* set for processes which do
+			 * not have a controlling terminal.  `-X' causes
+			 * those processes to be deleted from the matched
+			 * set, while `-x' causes them to be kept.
+			 */
+			xkeep = 0;
+			break;
 		case 'x':
-			xflg = 1;
+			xkeep = 1;
 			break;
 		case 'Z':
 			parsefmt(Zfmt, 0);
@@ -308,6 +403,12 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (optfatal)
+		exit(1);		/* Error messages already printed */
+
+	if (xkeep < 0)			/* Neither -X nor -x was specified */
+		xkeep = xkeep_implied;
 
 #define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
@@ -334,12 +435,13 @@ main(int argc, char *argv[])
 	if (!_fmt)
 		parsefmt(dfmt, 0);
 
-	/* XXX - should be cleaner */
-	if (!all && ttydev == NODEV && !npids && !nuids) {
-		if ((uids = malloc(sizeof (*uids))) == NULL)
+	if (nselectors == 0) {
+		uidlist.ptr = malloc(sizeof(uid_t));
+		if (uidlist.ptr == NULL)
 			errx(1, "malloc failed");
-		nuids = 1;
-		*uids = getuid();
+		nselectors = 1;
+		uidlist.count = uidlist.maxcount = 1;
+		*uidlist.uids = getuid();
 	}
 
 	/*
@@ -347,37 +449,126 @@ main(int argc, char *argv[])
 	 * and adjusting header widths as appropriate.
 	 */
 	scanvars();
+
 	/*
-	 * get proc list
+	 * Get process list.  If the user requested just one selector-
+	 * option, then kvm_getprocs can be asked to return just those
+	 * processes.  Otherwise, have it return all processes, and
+	 * then this routine will search that full list and select the
+	 * processes which match any of the user's selector-options.
 	 */
-	if (nuids == 1) {
-		what = KERN_PROC_UID | showthreads;
-		flag = *uids;
-	} else if (ttydev != NODEV) {
-		what = KERN_PROC_TTY | showthreads;
-		flag = ttydev;
-	} else if (npids == 1) {
-		what = KERN_PROC_PID | showthreads;
-		flag = *pids;
-	} else {
-		what = showthreads != 0 ? KERN_PROC_ALL : KERN_PROC_PROC;
-		flag = 0;
+	what = showthreads != 0 ? KERN_PROC_ALL : KERN_PROC_PROC;
+	flag = 0;
+	if (nselectors == 1) {
+		/* XXX - Apparently there's no KERN_PROC_GID flag. */
+		if (pgrplist.count == 1) {
+			what = KERN_PROC_PGRP | showthreads;
+			flag = *pgrplist.pids;
+			nselectors = 0;
+		} else if (pidlist.count == 1) {
+			what = KERN_PROC_PID | showthreads;
+			flag = *pidlist.pids;
+			nselectors = 0;
+		} else if (ruidlist.count == 1) {
+			what = KERN_PROC_RUID | showthreads;
+			flag = *ruidlist.uids;
+			nselectors = 0;
+#if 0		/* XXX - KERN_PROC_SESSION causes error in kvm_getprocs? */
+		} else if (sesslist.count == 1) {
+			what = KERN_PROC_SESSION | showthreads;
+			flag = *sesslist.pids;
+			nselectors = 0;
+#endif
+		} else if (ttylist.count == 1) {
+			what = KERN_PROC_TTY | showthreads;
+			flag = *ttylist.ttys;
+			nselectors = 0;
+		} else if (uidlist.count == 1) {
+			what = KERN_PROC_UID | showthreads;
+			flag = *uidlist.uids;
+			nselectors = 0;
+		} else if (all) {
+			/* No need for this routine to select processes. */
+			nselectors = 0;
+		}
 	}
 
 	/*
 	 * select procs
 	 */
+	nentries = -1;
 	kp = kvm_getprocs(kd, what, flag, &nentries);
 	if ((kp == 0 && nentries != 0) || nentries < 0)
 		errx(1, "%s", kvm_geterr(kd));
+	nkept = 0;
 	if (nentries > 0) {
 		if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
 			errx(1, "malloc failed");
 		for (i = nentries; --i >= 0; ++kp) {
-			kinfo[i].ki_p = kp;
+			/*
+			 * If the user specified multiple selection-criteria,
+			 * then keep any process matched by the inclusive OR
+			 * of all the selection-criteria given.
+			 */
+			if (pidlist.count > 0) {
+				for (elem = 0; elem < pidlist.count; elem++)
+					if (kp->ki_pid == pidlist.pids[elem])
+						goto keepit;
+			}
+			/*
+			 * Note that we had to process pidlist before
+			 * filtering out processes which do not have
+			 * a controlling terminal.
+			 */
+			if (xkeep == 0) {
+				if ((kp->ki_tdev == NODEV ||
+				    (kp->ki_flag & P_CONTROLT) == 0))
+					continue;
+			}
+			if (nselectors == 0)
+				goto keepit;
+			if (gidlist.count > 0) {
+				for (elem = 0; elem < gidlist.count; elem++)
+					if (kp->ki_rgid == gidlist.gids[elem])
+						goto keepit;
+			}
+			if (pgrplist.count > 0) {
+				for (elem = 0; elem < pgrplist.count; elem++)
+					if (kp->ki_pgid == pgrplist.pids[elem])
+						goto keepit;
+			}
+			if (ruidlist.count > 0) {
+				for (elem = 0; elem < ruidlist.count; elem++)
+					if (kp->ki_ruid == ruidlist.uids[elem])
+						goto keepit;
+			}
+			if (sesslist.count > 0) {
+				for (elem = 0; elem < sesslist.count; elem++)
+					if (kp->ki_sid == sesslist.pids[elem])
+						goto keepit;
+			}
+			if (ttylist.count > 0) {
+				for (elem = 0; elem < ttylist.count; elem++)
+					if (kp->ki_tdev == ttylist.ttys[elem])
+						goto keepit;
+			}
+			if (uidlist.count > 0) {
+				for (elem = 0; elem < uidlist.count; elem++)
+					if (kp->ki_uid == uidlist.uids[elem])
+						goto keepit;
+			}
+			/*
+			 * This process did not match any of the user's
+			 * selector-options, so skip the process.
+			 */
+			continue;
+
+		keepit:
+			kinfo[nkept].ki_p = kp;
 			if (needuser)
-				saveuser(&kinfo[i]);
-			dynsizevars(&kinfo[i]);
+				saveuser(&kinfo[nkept]);
+			dynsizevars(&kinfo[nkept]);
+			nkept++;
 		}
 	}
 
@@ -387,169 +578,321 @@ main(int argc, char *argv[])
 	 * print header
 	 */
 	printheader();
-	if (nentries == 0)
+	if (nkept == 0)
 		exit(1);
+
 	/*
 	 * sort proc list
 	 */
-	qsort(kinfo, nentries, sizeof(KINFO), pscomp);
+	qsort(kinfo, nkept, sizeof(KINFO), pscomp);
 	/*
-	 * for each proc, call each variable output function.
+	 * For each process, call each variable output function.
 	 */
-	noutput = 0;
-	for (i = lineno = 0; i < nentries; i++) {
-		if (xflg == 0 && ((&kinfo[i])->ki_p->ki_tdev == NODEV ||
-		    ((&kinfo[i])->ki_p->ki_flag & P_CONTROLT ) == 0))
-			continue;
-		if (npids > 1) {
-			for (pid = 0; pid < npids; pid++)
-				if ((&kinfo[i])->ki_p->ki_pid == pids[pid])
-					break;
-			if (pid == npids)
-				continue;
-		}
-		if (nuids > 1) {
-			for (uid = 0; uid < nuids; uid++)
-				if ((&kinfo[i])->ki_p->ki_uid == uids[uid])
-					break;
-			if (uid == nuids)
-				continue;
-		}
+	for (i = lineno = 0; i < nkept; i++) {
 		for (vent = vhead; vent; vent = vent->next) {
 			(vent->var->oproc)(&kinfo[i], vent);
 			if (vent->next != NULL)
 				(void)putchar(' ');
 		}
 		(void)putchar('\n');
-		noutput++;
 		if (prtheader && lineno++ == prtheader - 4) {
 			(void)putchar('\n');
 			printheader();
 			lineno = 0;
 		}
 	}
-	if (pids != NULL)
-		free(pids);
-	if (uids != NULL)
-		free(uids);
-
-	/* Check if '-p proclist' or '-u userlist' matched zero processes */
-	if (noutput == 0)
-		eval = 1;
+	free_list(&gidlist);
+	free_list(&pidlist);
+	free_list(&pgrplist);
+	free_list(&ruidlist);
+	free_list(&sesslist);
+	free_list(&ttylist);
+	free_list(&uidlist);
 
 	exit(eval);
 }
 
-#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h */
-pid_t *
-getpids(const char *arg, int *npids)
+static int
+addelem_gid(struct listinfo *inf, const char *elem)
 {
-	char copyarg[32];
-	char *copyp, *endp;
-	pid_t *pids, *morepids;
-	int alloc;
-	long tempid;
+	struct group *grp;
+	intmax_t ltemp;
+	const char *nameorID;
+	char *endp;
 
-	alloc = 0;
-	*npids = 0;
-	pids = NULL;
-	while (*arg != '\0') {
-		while (*arg != '\0' && strchr(SEP, *arg) != NULL)
-			arg++;
-		if (*arg == '\0' || strchr(SEP, *arg) != NULL)
-			tempid = 0;
-		else {
-			copyp = copyarg;
-			endp = copyarg + sizeof(copyarg) - 1;
-			while (*arg != '\0' && strchr(SEP, *arg) == NULL &&
-			    copyp <= endp)
-				*copyp++ = *arg++;
-			if (copyp > endp) {
-				*endp = '\0';
-				tempid = -1;
-				while (*arg != '\0' &&
-				    strchr(SEP, *arg) == NULL)
-					arg++;
-			} else {
-				*copyp = '\0';
-				errno = 0;
-				tempid = strtol(copyarg, &endp, 10);
-			}
-			/*
-			 * Write warning messages for any values which
-			 * would never be a valid process number.
-			 */
-			if (*endp != '\0' || tempid < 0 || copyarg == endp) {
-				warnx("invalid process number: %s", copyarg);
-				errno = ERANGE;
-			} else if (errno != 0 || tempid > BSD_PID_MAX) {
-				warnx("process number too large: %s", copyarg);
-				errno = ERANGE;
-			}
-			if (errno == ERANGE) {
-				/* Ignore this value from the given list. */
-				continue;
-			}
-		}
-		if (*npids >= alloc) {
-			alloc = (alloc + 1) << 1;
-			morepids = realloc(pids, alloc * sizeof (*pids));
-			if (morepids == NULL) {
-				free(pids);
-				errx(1, "realloc failed");
-			}
-			pids = morepids;
-		}
-		pids[(*npids)++] = tempid;
+	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
+		if (*elem == '\0')
+			warnx("Invalid (zero-length) %s name", inf->lname);
+		else
+			warnx("%s name too long: %s", inf->lname, elem);
+		optfatal = 1;
+		return (0);			/* Do not add this value */
 	}
 
-	if (!*npids)
-		errx(1, "No valid process numbers specified");
+	/*
+	 * SUSv3 states that `ps -G grouplist' should match "real-group
+	 * ID numbers", and does not mention group-names.  I do want to
+	 * also support group-names, so this tries for a group-id first,
+	 * and only tries for a name if that doesn't work.  This is the
+	 * opposite order of what is done in addelem_uid(), but in
+	 * practice the order would only matter for group-names which
+	 * are all-numeric.
+	 */
+	grp = NULL;
+	nameorID = "named";
+	errno = 0;
+	ltemp = strtol(elem, &endp, 10);
+	if (errno == 0 && *endp == '\0' && ltemp >= 0 && ltemp <= GID_MAX) {
+		nameorID = "name or ID matches";
+		grp = getgrgid((gid_t)ltemp);
+	}
+	if (grp == NULL)
+		grp = getgrnam(elem);
+	if (grp == NULL) {
+		warnx("No %s %s '%s'", inf->lname, nameorID, elem);
+		optfatal = 1;
+		return (0);			/* Do not add this value */
+	}
 
-	return (pids);
+	if (inf->count >= inf->maxcount)
+		expand_list(inf);
+	inf->gids[(inf->count)++] = grp->gr_gid;
+	return (1);
 }
 
-uid_t *
-getuids(const char *arg, int *nuids)
+#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h */
+static int
+addelem_pid(struct listinfo *inf, const char *elem)
 {
-	char name[MAXLOGNAME];
-	struct passwd *pwd;
-	uid_t *uids, *moreuids;
-	int alloc;
-	size_t l;
+	long tempid;
+	char *endp;
 
-
-	alloc = 0;
-	*nuids = 0;
-	uids = NULL;
-	for (; (l = strcspn(arg, SEP)) > 0; arg += l + strspn(arg + l, SEP)) {
-		if (l >= sizeof name) {
-			warnx("%.*s: name too long", (int)l, arg);
-			continue;
+	if (*elem == '\0')
+		tempid = 0L;
+	else {
+		errno = 0;
+		tempid = strtol(elem, &endp, 10);
+		if (*endp != '\0' || tempid < 0 || elem == endp) {
+			warnx("Invalid %s: %s", inf->lname, elem);
+			errno = ERANGE;
+		} else if (errno != 0 || tempid > BSD_PID_MAX) {
+			warnx("%s too large: %s", inf->lname, elem);
+			errno = ERANGE;
 		}
-		strncpy(name, arg, l);
-		name[l] = '\0';
-		if ((pwd = getpwnam(name)) == NULL) {
-			warnx("%s: no such user", name);
-			continue;
+		if (errno == ERANGE) {
+			optfatal = 1;
+			return (0);		/* Do not add this value */
 		}
-		if (*nuids >= alloc) {
-			alloc = (alloc + 1) << 1;
-			moreuids = realloc(uids, alloc * sizeof (*uids));
-			if (moreuids == NULL) {
-				free(uids);
-				errx(1, "realloc failed");
-			}
-			uids = moreuids;
-		}
-		uids[(*nuids)++] = pwd->pw_uid;
 	}
-	endpwent();
 
-	if (!*nuids)
-		errx(1, "No users specified");
+	if (inf->count >= inf->maxcount)
+		expand_list(inf);
+	inf->pids[(inf->count)++] = tempid;
+	return (1);
+}
+#undef	BSD_PID_MAX
 
-	return uids;
+static int
+addelem_tty(struct listinfo *inf, const char *elem)
+{
+	char pathbuf[PATH_MAX];
+	struct stat sb;
+	const char *ttypath;
+
+	if (strcmp(elem, "co") == 0)
+		ttypath = strdup(_PATH_CONSOLE);
+	else if (*elem == '/')
+		ttypath = elem;
+	else {
+		strlcpy(pathbuf, _PATH_TTY, sizeof(pathbuf));
+		strlcat(pathbuf, elem, sizeof(pathbuf));
+		ttypath = pathbuf;
+	}
+
+	if (stat(ttypath, &sb) == -1) {
+		warn("%s", ttypath);
+		optfatal = 1;
+		return (0);			/* Do not add this value */
+	}
+	if (!S_ISCHR(sb.st_mode)) {
+		warn("%s: Not a terminal", ttypath);
+		optfatal = 1;
+		return (0);			/* Do not add this value */
+	}
+
+	if (inf->count >= inf->maxcount)
+		expand_list(inf);
+	inf->ttys[(inf->count)++] = sb.st_rdev;
+	return (1);
+}
+
+static int
+addelem_uid(struct listinfo *inf, const char *elem)
+{
+	struct passwd *pwd;
+	intmax_t ltemp;
+	char *endp;
+
+	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
+		if (*elem == '\0')
+			warnx("Invalid (zero-length) %s name", inf->lname);
+		else
+			warnx("%s name too long: %s", inf->lname, elem);
+		optfatal = 1;
+		return (0);			/* Do not add this value */
+	}
+
+	/*
+	 * XXX - In the following, should the warnings be fatal errors?
+	 *	Historically they have been warnings, but I expect errors
+	 *	would be more appropriate.  A warning message might be
+	 *	missed in a long `ps' listing, and the user would not
+	 *	realize that they had mistyped a userid.  Also, Solaris
+	 *	and Linux treat these as errors.  On the other hand, I
+	 *	can imagine that some users *might* be used to the
+	 *	present behavior.
+	 */
+	pwd = getpwnam(elem);
+	if (pwd == NULL) {
+		errno = 0;
+		ltemp = strtol(elem, &endp, 10);
+		if (errno != 0 || *endp != '\0' || ltemp < 0 ||
+		    ltemp > UID_MAX)
+			warnx("No %s named '%s'", inf->lname, elem);
+		else {
+			/* The string is all digits, so it might be a userID. */
+			pwd = getpwuid((uid_t)ltemp);
+			if (pwd == NULL)
+				warnx("No %s name or ID matches '%s'",
+				    inf->lname, elem);
+		}
+	}
+	if (pwd == NULL) {
+		/* XXX: optfatal = 1;		-- (see the above XXX) */
+		return (0);			/* Do not add this value */
+	}
+
+	if (inf->count >= inf->maxcount)
+		expand_list(inf);
+	inf->uids[(inf->count)++] = pwd->pw_uid;
+	return (1);
+}
+
+static void
+add_list(struct listinfo *inf, const char *argp)
+{
+	char elemcopy[PATH_MAX];
+	const char *savep;
+	char *cp, *endp;
+	int toolong;
+
+	while (*argp != '\0') {
+		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
+			argp++;
+		savep = argp;
+		toolong = 0;
+		cp = elemcopy;
+		if (strchr(T_SEP, *argp) == NULL) {
+			endp = elemcopy + sizeof(elemcopy) - 1;
+			while (*argp != '\0' && cp <= endp &&
+			    strchr(W_SEP T_SEP, *argp) == NULL)
+				*cp++ = *argp++;
+			if (cp > endp)
+				toolong = 1;
+		}
+		if (!toolong) {
+			*cp = '\0';
+#ifndef ADD_PS_LISTRESET
+	/* This is how the standard expects lists to be handled. */
+			inf->addelem(inf, elemcopy);
+#else
+	/*
+	 * This would add a simple non-standard-but-convienent feature.
+	 *
+	 * XXX - Adding this check increased the total size of `ps' by
+	 *	3940 bytes on i386!  That's 12% of the entire program!
+	 *	The `ps.o' file grew by only about 40 bytes, but the
+	 *	final (stripped) executable in /bin/ps grew by 12%.
+	 */
+			/*
+			 * We now have a single element.  Add it to the
+			 * list, unless the element is ":".  In that case,
+			 * reset the list so previous entries are ignored.
+			 */
+			if (strcmp(elemcopy, ":") == 0)
+				inf->count = 0;
+			else
+				inf->addelem(inf, elemcopy);
+#endif
+		} else {
+			/*
+			 * The string is too long to copy.  Find the end
+			 * of the string to print out the warning message.
+			 */
+			while (*argp != '\0' && strchr(W_SEP T_SEP,
+			    *argp) == NULL)
+				argp++;
+			warnx("Value too long: %.*s", (int)(argp - savep),
+			    savep);
+			optfatal = 1;
+		}
+		/*
+		 * Skip over any number of trailing whitespace characters,
+		 * but only one (at most) trailing element-terminating
+		 * character.
+		 */
+		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
+			argp++;
+		if (*argp != '\0' && strchr(T_SEP, *argp) != NULL) {
+			argp++;
+			/* Catch case where string ended with a comma. */
+			if (*argp == '\0')
+				inf->addelem(inf, argp);
+		}
+	}
+}
+
+static void *
+expand_list(struct listinfo *inf)
+{
+	int newmax;
+	void *newlist;
+
+	newmax = (inf->maxcount + 1) << 1;
+	newlist = realloc(inf->ptr, newmax * inf->elemsize);
+	if (newlist == NULL) {
+		free(inf->ptr);
+		errx(1, "realloc to %d %ss failed", newmax,
+		    inf->lname);
+	}
+	inf->maxcount = newmax;
+	inf->ptr = newlist;
+
+	return (newlist);
+}
+
+static void
+free_list(struct listinfo *inf)
+{
+
+	inf->count = inf->elemsize = inf->maxcount = 0;
+	if (inf->ptr != NULL)
+		free(inf->ptr);
+	inf->addelem = NULL;
+	inf->lname = NULL;
+	inf->ptr = NULL;
+}
+
+static void
+init_list(struct listinfo *inf, addelem_rtn artn, int elemsize,
+    const char *lname)
+{
+
+	inf->count = inf->maxcount = 0;
+	inf->elemsize = elemsize;
+	inf->addelem = artn;
+	inf->lname = lname;
+	inf->ptr = NULL;
 }
 
 VARENT *
@@ -758,9 +1101,10 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ps [-aCHhjlmrSTuvwxZ] [-O|o fmt] [-p pid[,pid]] [-t tty]",
-	    "          [-U user[,user]] [-M core] [-N system]",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	    "usage: ps [-aCHhjlmrSTuvwXxZ] [-G gid[,gid]] [-O|o fmt]",
+	    "          [-p pid[,pid]] [-t tty[,tty]] [-U user[,user]]",
+	    "          [-M core] [-N system]",
 	    "       ps [-L]");
 	exit(1);
 }

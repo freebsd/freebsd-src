@@ -40,7 +40,11 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCcefHhjlmrSTuvwxZ
+.Op Fl aCcefHhjlmrSTuvwXxZ
+.Oo Fl G Ar gid Ns Xo
+.Op , Ns Ar gid Ns No ...
+.Xc
+.Oc
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl O Ar fmt
@@ -49,7 +53,10 @@
 .Op , Ns Ar pid Ns No ...
 .Xc
 .Oc
-.Op Fl t Ar tty
+.Oo Fl t Ar tty Ns Xo
+.Op , Ns Ar tty Ns No ...
+.Xc
+.Oc
 .Oo Fl U Ar username Ns Xo
 .Op , Ns Ar username Ns No ...
 .Xc
@@ -65,7 +72,19 @@ processes that have controlling terminals.
 This information is sorted by controlling terminal, then by process
 .Tn ID .
 .Pp
-The information displayed is selected based on a set of keywords (see the
+A different set of processes can be selected for display by using any
+combination of the
+.Fl a, G , p , T , t
+and
+.Fl U
+options.
+If more than one of these options are given, then
+.Nm
+will select all processes which are matched by at least one of the
+given options.
+.Pp
+For the processes which have been selected for display, the information
+to display is selected based on a set of keywords (see the
 .Fl L
 .Fl O
 and
@@ -86,6 +105,10 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Display information about other users' processes as well as your own.
+This will skip any processes which do not have a controlling teminal,
+unless the
+.Fl x
+option is also specified.
 This can be disabled by setting the
 .Va security.bsd.see_other_uids
 sysctl to zero.
@@ -101,6 +124,10 @@ Display the environment as well.
 .It Fl f
 Show commandline and environment information about swapped out processes.
 This option is honored only if the uid of the user is 0.
+.It Fl G
+Display information about processes which are running with the specified
+real group
+.Tn ID(s) .
 .It Fl H
 Show all of the
 .Em kernel visible
@@ -147,7 +174,7 @@ Keywords may be appended with an equals (``='') sign and a string.
 This causes the printed header to use the specified string instead of
 the standard header.
 .It Fl p
-Display information associated with the specified process
+Display information about processes which match the specified process
 .Tn ID(s) .
 .It Fl r
 Sort by current cpu usage, instead of by process
@@ -160,7 +187,7 @@ Display information about processes attached to the device associated
 with the standard input.
 .It Fl t
 Display information about processes attached to the specified terminal
-device.
+device(s).
 .It Fl U
 Display the processes belonging to the specified
 .Ar username Ns (s) .
@@ -189,8 +216,22 @@ If the
 option is specified more than once,
 .Nm
 will use as many columns as necessary without regard for your window size.
+.It Fl X
+When displaying processes matched by other options, skip any processes
+which do not have a controlling terminal.
 .It Fl x
-Display information about processes without controlling terminals.
+When displaying processes matched by other options, include processes
+which do not have a controlling terminal.
+This is the opposite of the
+.Fl X
+option.
+If both
+.Fl X
+and
+.Fl x
+are specified in the same command, then
+.Nm
+will use the one which was specified last.
 .It Fl Z
 Add label to the list of keywords for which
 .Nm
@@ -542,6 +583,14 @@ the mount point of
 .Xr pstat 8 ,
 .Xr sysctl 8 ,
 .Xr mutex 9
+.Sh STANDARDS
+For historical reasons,
+.Nm
+utility under
+.Fx
+supports a different set of options from what is described by
+.St -p1003.2 ,
+and what is supported on non-BSD operating systems.
 .Sh HISTORY
 The
 .Nm
