@@ -255,6 +255,7 @@ struct ata_pci_controller {
 #define SIIMEMIO	1
 #define SIIINTR		0x01
 #define SIISETCLK	0x02
+#define SIIBUG		0x04
 
 #define SIS_SOUTH	1
 #define SISSATA		2
