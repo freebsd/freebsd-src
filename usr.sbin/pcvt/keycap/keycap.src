@@ -1,5 +1,7 @@
-# Copyright (c) 1992, 1993, 1994 Hellmuth Michaelis, Joerg Wunsch and
-#                                Holger Veit.
+#
+# Copyright (c) 1992, 2000 Hellmuth Michaelis
+#
+# Copyright (c) 1992, 1994 Joerg Wunsch and Holger Veit
 #
 # All rights reserved.
 #
@@ -31,28 +33,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# @(#)keycap.src, 3.20, Last Edit-Date: [Wed Mar  8 20:53:01 1995]
-#
 #---------------------------------------------------------------------------
 #
 #	keyboard mappings for vt220 emulator pcvt 3.00
 #	----------------------------------------------
 #
-# 	DEC MCS and/or ISO-Latin-1 Characterset used
+#	Last Edit-Date: [Wed Mar 29 10:53:19 2000]
 #
-#	MF II Keyboards fully supported
-#	AT Keyboards lack a ALTGR Key, so they cannot be handled by
-#		the current driver implementation .... sorry
-#
-#	If you design a new entry for national keyboards, please
-#	send it to hm@hcshh.hcs.de, thank you !
-#
-#	Many entries are taken from the 386BSD patchkit 0.2.4 codrv
-#
-#---------------------------------------------------------------------------
-#
-#	-hm	patch from Thomas Gellekum
-#	-hm	renamed finnish "f8" entry to "f1"
+# $FreeBSD$
 #
 #---------------------------------------------------------------------------
 
@@ -583,6 +571,15 @@ s2|sweden2|Swedish 8bit mapping ISO 8859-1:\
 	:C45=\034:C53=:C54=:C55=:\
 	:A45=|:\
 	:C61=\000:
+
+# Swedish keyboard map with national characters.
+# Paul Pries, 5322@msg.abc.se
+# Corrected by Mats O Jansson, moj@stacken.kth.se (Some national was CP850
+# and not ISO 8859-1 as said).
+s8|sweden8|Swedish 8bit mapping ISO 8859-1 and not CP850 national characters:\
+	:A8={:A9=[:A10=]:A11=}:A12=\\:\
+	:K40=\366:S40=\326:K41=\344:S41=\304:K27=\345:S27=\305:\
+        :tc=sweden2:
 
 #
 # tg: my idiosyncratic mappings (thomas@ghpc8.ihf.rwth-aachen.de)
