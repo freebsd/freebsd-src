@@ -132,33 +132,29 @@ setlocale(category, locale)
 		if (!env || !*env || strchr(env, '/'))
 			env = "C";
 
-		(void) strncpy(new_categories[category], env, ENCODING_LEN);
-		new_categories[category][ENCODING_LEN] = '\0';
+		(void)strlcpy(new_categories[category], env, ENCODING_LEN + 1);
 		if (category == LC_ALL) {
 			for (i = 1; i < _LC_LAST; ++i) {
 				if (!(env = getenv(categories[i])) || !*env)
 					env = new_categories[LC_ALL];
-				(void)strncpy(new_categories[i], env, ENCODING_LEN);
-				new_categories[i][ENCODING_LEN] = '\0';
+				(void)strlcpy(new_categories[i], env, ENCODING_LEN + 1);
 			}
 		}
-	} else if (category != LC_ALL)  {
-		(void)strncpy(new_categories[category], locale, ENCODING_LEN);
-		new_categories[category][ENCODING_LEN] = '\0';
-	} else {
+	} else if (category != LC_ALL)
+		(void)strlcpy(new_categories[category], locale, ENCODING_LEN + 1);
+	else {
 		if ((r = strchr(locale, '/')) == NULL) {
-			for (i = 1; i < _LC_LAST; ++i) {
-				(void)strncpy(new_categories[i], locale, ENCODING_LEN);
-				new_categories[i][ENCODING_LEN] = '\0';
-			}
+			for (i = 1; i < _LC_LAST; ++i)
+				(void)strlcpy(new_categories[i], locale, ENCODING_LEN + 1);
 		} else {
 			for (i = 1; r[1] == '/'; ++r);
 			if (!r[1])
 				return (NULL);	/* Hmm, just slashes... */
 			do {
+				if (i == _LC_LAST)
+					break;  /* Too many slashes... */
 				len = r - locale > ENCODING_LEN ? ENCODING_LEN : r - locale;
-				(void)strncpy(new_categories[i], locale, len);
-				new_categories[i][len] = '\0';
+				(void)strlcpy(new_categories[i], locale, len + 1);
 				i++;
 				locale = r;
 				while (*locale == '/')
