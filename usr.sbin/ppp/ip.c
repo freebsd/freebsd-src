@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.56 1999/03/29 08:21:27 brian Exp $
+ * $Id: ip.c,v 1.57 1999/04/26 08:54:34 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -76,7 +76,7 @@
 
 static const u_short interactive_ports[32] = {
   544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
+  80, 81, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
 };
 
 #define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
