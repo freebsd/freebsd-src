@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4.2.4 1997/03/13 02:12:28 kato Exp $
+#	$Id: Makefile,v 1.4.2.5 1997/03/24 02:40:50 kato Exp $
 #
 
 PROG=	boot
@@ -14,21 +14,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
-
-# Probe the keyboard and use the serial console if the keyboard isn't found.
-.if defined(BOOT_PROBE_KEYBOARD)
-CFLAGS+=	-DPROBE_KEYBOARD
-.endif
-
-# Probe the keyboard lock and use the serial console if the keyboard is locked.
-.if defined(BOOT_PROBE_KEYBOARD_LOCK)
-CFLAGS+=	-DPROBE_KEYBOARD_LOCK
-.endif
-
-# Force use of the serial console.
-.if defined(BOOT_FORCE_COMCONSOLE)
-CFLAGS+=	-DFORCE_COMCONSOLE
-.endif
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
@@ -62,9 +47,7 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
-DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
-LDADD=		-lc
 #LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
 #		${BINDIR}/sdboot ${BINDIR}/fdboot\
 #		${BINDIR}/bootsd ${BINDIR}/bootwd\

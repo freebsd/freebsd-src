@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef PROBE_KEYBOARD
+#include "boot.h"
 
 int probe_keyboard(void)
 {
@@ -36,5 +36,3 @@ int probe_keyboard(void)
 		return 0;
 	return 1;	/* keyboard not found */
 }
-
-#endif /* PROBE_KEYBOARD */

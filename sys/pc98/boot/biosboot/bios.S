@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.1.1.1.2.2 1996/12/04 16:00:20 phk Exp $
+ *	$Id: bios.S,v 1.1.1.1.2.3 1997/01/04 16:16:06 kato Exp $
  */
 
 /*
@@ -81,9 +81,6 @@ ENTRY(biosread)
 	push	%ebx
 	push	%esi
 	push	%edi
-	push	%ecx
-	push	%edx
-	push	%es
 
 	movb	0x14(%ebp), %dl		/* sector */
 	movb	0x10(%ebp), %dh		/* head */
@@ -131,9 +128,6 @@ ENTRY(biosread)
 	xor	%eax, %eax
 	movb	%bh, %al		/* return value in %ax */
 
-	pop	%es
-	pop	%edx
-	pop	%ecx
 	pop	%edi
 	pop	%esi
 	pop	%ebx
@@ -228,12 +222,9 @@ nochar:
 ENTRY(get_diskinfo)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%es
 	push	%ebx
 	push	%esi
 	push    %edi
-	push	%ecx
-	push	%edx
 
 	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
 	call	EXT(prot_to_real)	/* enter real mode */
@@ -281,12 +272,9 @@ ok:
 	movb	%dh, %ah		/* max head */
 	movb	%dl, %al		/* max sector (and # sectors) */
 
-	pop	%edx
-	pop	%ecx
 	pop	%edi
 	pop	%esi
 	pop	%ebx
-	pop	%es
 	pop	%ebp
 	ret
 
