@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.26 1995/07/30 12:39:42 bde Exp $
+ * $Id: tty.h,v 1.27 1995/07/31 18:29:37 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -139,7 +139,7 @@ struct tty {
 #define	TS_TBLOCK	0x00040		/* Further input blocked. */
 #define	TS_TIMEOUT	0x00080		/* Wait for output char processing. */
 #define	TS_TTSTOP	0x00100		/* Output paused. */
-#if 0
+#ifdef notyet
 #define	TS_WOPEN	0x00200		/* Open in progress. */
 #endif
 #define	TS_XCLUDE	0x00400		/* Tty requires exclusivity. */
@@ -151,17 +151,10 @@ struct tty {
 #define	TS_LNCH		0x04000		/* Next character is literal. */
 #define	TS_TYPEN	0x08000		/* Retyping suspended input (PENDIN). */
 #define	TS_LOCAL	(TS_BKSL | TS_CNTTB | TS_ERASE | TS_LNCH | TS_TYPEN)
-/*
- * Snoop state,we need this as we have no other indication of
- * begin snoopped.
- */
-#define TS_SNOOP	0x10000		/* There is snoop on device */
-/*
- * States for serial devices
- */
-#define TS_CAN_BYPASS_L_RINT 0x20000    /* device in "raw" mode */
 
 /* Extras. */
+#define	TS_CAN_BYPASS_L_RINT 0x010000	/* Device in "raw" mode. */
+#define	TS_SNOOP	0x040000	/* Device is being snooped on. */
 #define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
 
 /* Character type information. */
@@ -251,10 +244,6 @@ int	 ttyinput __P((int c, struct tty *tp));
 int	 ttylclose __P((struct tty *tp, int flag));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
-int	 ttyoutput __P((int c, struct tty *tp));
-void	 ttypend __P((struct tty *tp));
-void	 ttyretype __P((struct tty *tp));
-void	 ttyrub __P((int c, struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
