@@ -441,8 +441,13 @@ buildkernel:
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
+.if defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
+.else
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
+.endif
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
