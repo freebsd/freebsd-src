@@ -171,10 +171,12 @@ userret(p, frame, oticks)
 {
 	int sig;
 
+	PROC_LOCK(p);
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
 
 	mtx_lock_spin(&sched_lock);
+	PROC_UNLOCK_NOSWITCH(p);
 	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (resched_wanted(p)) {
 		/*
@@ -191,9 +193,11 @@ userret(p, frame, oticks)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
+		PROC_LOCK(p);
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 		mtx_lock_spin(&sched_lock);
+		PROC_UNLOCK_NOSWITCH(p);
 	}
 
 	/*
@@ -201,9 +205,6 @@ userret(p, frame, oticks)
 	 */
 	if (p->p_sflag & PS_PROFIL) {
 		mtx_unlock_spin(&sched_lock);
-		/* XXX - do we need Giant? */
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		addupc_task(p, TRAPF_PC(frame),
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	} else
