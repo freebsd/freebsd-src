@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.26 1998/03/03 20:55:24 tegge Exp $
+ *	$Id: apic_vector.s,v 1.27 1998/03/03 22:56:28 tegge Exp $
  */
 
 
@@ -912,21 +912,6 @@ imasks:				/* masks for interrupt handlers */
 	.long	SWI_CAMNET_MASK, SWI_CAMBIO_MASK
 	.long	SWI_VM_MASK, 0
 	.long	SWI_CLOCK_MASK, SWI_AST_MASK
-
-/*
- * IDT vector entry points for the HWIs.
- *
- * used by:
- *   i386/isa/clock.c:		setup Xintr8254
- */
-	.globl _ivectors
-_ivectors:
-	.long	_Xintr0,  _Xintr1,  _Xintr2,  _Xintr3 
-	.long	_Xintr4,  _Xintr5,  _Xintr6,  _Xintr7
-	.long	_Xintr8,  _Xintr9,  _Xintr10, _Xintr11
-	.long	_Xintr12, _Xintr13, _Xintr14, _Xintr15 
-	.long	_Xintr16, _Xintr17, _Xintr18, _Xintr19
-	.long	_Xintr20, _Xintr21, _Xintr22, _Xintr23
 
 /* active flag for lazy masking */
 iactive:

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.17 1997/12/15 02:18:33 tegge Exp $
+ *	$Id: apic_ipl.s,v 1.18 1998/03/03 22:56:28 tegge Exp $
  */
 
 
@@ -37,15 +37,6 @@ _cil:	.long	0
 	.globl	_cml
 _cml:	.long	0
 
-/* this allows us to change the 8254 APIC pin# assignment */
-	.globl _Xintr8254
-_Xintr8254:
-	.long	_Xintr7
-
-/* used by this file, microtime.s and clock.c */
-	.globl _mask8254
-_mask8254:
-	.long	0
 
 /*
  * Routines used by splz_unpend to build an interrupt frame from a
@@ -179,44 +170,6 @@ splz_swi:
  */
 
 /*
- * generic vector function for 8254 clock
- */
-	ALIGN_TEXT
-
-	.globl	_vec8254
-_vec8254:
-	popl	%eax			/* return address */
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	movl	_mask8254, %eax		/* lazy masking */
-	notl	%eax
-	cli
-	lock				/* MP-safe */
-	andl	%eax, iactive
-	MEXITCOUNT
-	APIC_ITRACE(apic_itrace_splz, 0, APIC_ITRACE_SPLZ)
-	movl	_Xintr8254, %eax
-	jmp	%eax			/* XXX might need _Xfastintr# */
-
-
-/*
- * generic vector function for RTC clock
- */
-	ALIGN_TEXT
-vec8:
-	popl	%eax	
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	lock				/* MP-safe */
-	andl	$~IRQ_BIT(8), iactive	/* lazy masking */
-	MEXITCOUNT
-	APIC_ITRACE(apic_itrace_splz, 8, APIC_ITRACE_SPLZ)
-	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
-
-/*
  * The 'generic' vector stubs.
  */
 
@@ -243,7 +196,7 @@ __CONCAT(vec,irq_num): ;						\
 	BUILD_VEC(5)
 	BUILD_VEC(6)
 	BUILD_VEC(7)
-	/* IRQ8 is special case, done above */
+	BUILD_VEC(8)
 	BUILD_VEC(9)
 	BUILD_VEC(10)
 	BUILD_VEC(11)
