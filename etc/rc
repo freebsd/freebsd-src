@@ -705,19 +705,19 @@ esac
 case ${sendmail_enable} in
 [Yy][Ee][Ss])
 	echo -n ' sendmail'
-	/usr/sbin/sendmail ${sendmail_flags}
+	/usr/sbin/sendmail ${sendmail_flags} &
 	;;
 *)
 	case ${sendmail_outbound_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' sendmail-outbound'
-		/usr/sbin/sendmail ${sendmail_outbound_flags}
+		/usr/sbin/sendmail ${sendmail_outbound_flags} &
 		;;
 	esac
 	case ${sendmail_submit_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' sendmail-submit'
-		/usr/sbin/sendmail ${sendmail_submit_flags}
+		/usr/sbin/sendmail ${sendmail_submit_flags} &
 		;;
 	esac
 	;;
@@ -727,7 +727,7 @@ if [ -r /etc/mail/submit.cf ]; then
 	case ${sendmail_msp_queue_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' sendmail-clientmqueue'
-		/usr/sbin/sendmail ${sendmail_msp_queue_flags}
+		/usr/sbin/sendmail ${sendmail_msp_queue_flags} &
 		;;
 	esac
 fi
