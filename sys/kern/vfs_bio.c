@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.4 1994/08/02 07:43:13 davidg Exp $
+ * $Id: vfs_bio.c,v 1.5 1994/08/04 19:43:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -300,7 +300,8 @@ brelse(struct buf *bp)
 		needsbuffer = 0;
 		wakeup((caddr_t)&needsbuffer);
 	}
-	/* anyone need this very block? */
+
+	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_WANTED|B_AGE);
 		wakeup((caddr_t)bp);
@@ -321,13 +322,14 @@ brelse(struct buf *bp)
 		panic("brelse: free buffer onto another queue???");
 
 	/* enqueue */
-	/* buffers with junk contents */
+	/* buffers with no memory */
 	if(bp->b_bufsize == 0) {
 		bp->b_qindex = QUEUE_EMPTY;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+	/* buffers with junk contents */
 	} else if(bp->b_flags & (B_ERROR|B_INVAL|B_NOCACHE)) {
 		bp->b_qindex = QUEUE_AGE;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_AGE], bp, b_freelist);
@@ -363,8 +365,8 @@ struct buf *
 getnewbuf(int slpflag, int slptimeo)
 {
 	struct buf *bp;
-	int x;
-	x = splbio();
+	int s;
+	s = splbio();
 start:
 	/* can we constitute a new buffer? */
 	if (bp = bufqueues[QUEUE_EMPTY].tqh_first) {
@@ -387,7 +389,7 @@ tryfree:
 		/* wait for a free buffer of any kind */
 		needsbuffer = 1;
 		tsleep((caddr_t)&needsbuffer, PRIBIO, "newbuf", 0);
-		splx(x);
+		splx(s);
 		return (0);
 	}
 
@@ -411,7 +413,7 @@ fillbuf:
 	bp->b_flags = B_BUSY;
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-	splx(x);
+	splx(s);
 	bp->b_dev = NODEV;
 	bp->b_vp = NULL;
 	bp->b_blkno = bp->b_lblkno = 0;
@@ -466,10 +468,10 @@ struct buf *
 getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 {
 	struct buf *bp;
-	int x;
+	int s;
 	struct bufhashhdr *bh;
 
-	x = splbio();
+	s = splbio();
 loop:
 	if (bp = incore(vp, blkno)) {
 		if (bp->b_flags & B_BUSY) {
@@ -509,7 +511,7 @@ loop:
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
 	}
-	splx(x);
+	splx(s);
 	return (bp);
 }
 
@@ -564,9 +566,9 @@ allocbuf(struct buf *bp, int size)
 int
 biowait(register struct buf *bp)
 {
-	int x;
+	int s;
 
-	x = splbio();
+	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0)
 		tsleep((caddr_t)bp, PRIBIO, "biowait", 0);
 	if((bp->b_flags & B_ERROR) || bp->b_error) {
@@ -580,10 +582,10 @@ biowait(register struct buf *bp)
 			bp->b_error = EIO;
 		else
 			bp->b_flags |= B_ERROR;
-		splx(x);
+		splx(s);
 		return (bp->b_error);
 	} else {
-		splx(x);
+		splx(s);
 		return (0);
 	}
 }
@@ -603,6 +605,9 @@ biodone(register struct buf *bp)
 	if ((bp->b_flags & B_READ) == 0)  {
 		vwakeup(bp);
 	}
+
+	if (bp->b_flags & B_BOUNCE)
+		vm_bounce_free(bp);
 
 	/* call optional completion function if requested */
 	if (bp->b_flags & B_CALL) {
@@ -677,6 +682,7 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 			VM_WAIT;
 			goto tryagain;
 		}
+
 		p =  vm_page_alloc(kernel_object, pg - VM_MIN_KERNEL_ADDRESS);
 		if( !p) {
 			VM_WAIT;
@@ -684,9 +690,9 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 		}
 
 		vm_page_wire(p);
-		pmap_enter(kernel_pmap, pg, VM_PAGE_TO_PHYS(p),
-			VM_PROT_READ|VM_PROT_WRITE, 1);
+		pmap_kenter( pg, VM_PAGE_TO_PHYS(p));
 	}
+	pmap_update();
 }
 
 void
@@ -697,16 +703,11 @@ vm_hold_free_pages(vm_offset_t froma, vm_offset_t toa) {
 	vm_offset_t to = round_page(toa);
 	
 	for(pg = from ; pg < to ; pg += PAGE_SIZE) {
-		vm_offset_t pa;
-		pa = pmap_kextract(pg);
-		if( !pa) {
-			printf("No pa for va: %x\n", pg);
-		} else {
-			p = PHYS_TO_VM_PAGE( pa);
-			pmap_remove(kernel_pmap, pg, pg + PAGE_SIZE);
-			vm_page_free(p);
-		}
+		p = PHYS_TO_VM_PAGE( pmap_kextract( pg));
+		pmap_kremove( pg);
+		vm_page_free(p);
 	}
+	pmap_update();
 }
 
 void

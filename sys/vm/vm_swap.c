@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id$
+ * $Id: vm_swap.c,v 1.3 1994/08/02 07:55:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,8 @@ int	niswdev;		/* number of interleaved swap devices */
 int	niswap;			/* size of interleaved swap area */
 #endif
 
+int bswneeded;
+vm_offset_t swapbkva;		/* swap buffers kva */
 /*
  * Set up swap devices.
  * Initialize linked list of free swap
@@ -141,18 +143,6 @@ swapinit()
 		printf("swfree errno %d\n", error);	/* XXX */
 		panic("swapinit swfree 0");
 	}
-
-	/*
-	 * Now set up swap buffer headers.
-	 */
-	for (i = 0; i < nswbuf - 1; i++, sp++) {
-		TAILQ_INSERT_HEAD(&bswlist, sp, b_freelist);
-		sp->b_rcred = sp->b_wcred = p->p_ucred;
-		sp->b_vnbufs.le_next = NOLIST;
-	}
-	sp->b_rcred = sp->b_wcred = p->p_ucred;
-	sp->b_vnbufs.le_next = NOLIST;
-	sp->b_actf = NULL;
 }
 
 void

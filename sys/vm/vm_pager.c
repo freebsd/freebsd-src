@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_pager.c,v 1.3 1994/08/02 07:55:35 davidg Exp $
  */
 
 /*
@@ -72,6 +72,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/buf.h>
+#include <sys/ucred.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -98,25 +100,20 @@ struct pagerops *dfltpagerops = NULL;	/* default pager */
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-#define PAGER_MAP_SIZE	(4 * 1024 * 1024)
+#define PAGER_MAP_SIZE	(8 * 1024 * 1024)
 
 int pager_map_size = PAGER_MAP_SIZE;
 vm_map_t pager_map;
 boolean_t pager_map_wanted;
 vm_offset_t pager_sva, pager_eva;
+int bswneeded;
+vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 vm_pager_init()
 {
 	struct pagerops **pgops;
 
-	/*
-	 * Allocate a kernel submap for tracking get/put page mappings
-	 */
-/*
-	pager_map = kmem_suballoc(kernel_map, &pager_sva, &pager_eva,
-				  PAGER_MAP_SIZE, FALSE);
-*/
 	/*
 	 * Initialize known pagers
 	 */
@@ -125,6 +122,29 @@ vm_pager_init()
 			(*(*pgops)->pgo_init)();
 	if (dfltpagerops == NULL)
 		panic("no default pager");
+}
+
+void
+vm_pager_bufferinit()
+{
+	struct buf *bp;
+	int i;
+	bp = swbuf;
+	/*
+	 * Now set up swap and physical I/O buffer headers.
+	 */
+	for (i = 0; i < nswbuf - 1; i++, bp++) {
+		TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
+		bp->b_rcred = bp->b_wcred = NOCRED;
+		bp->b_vnbufs.le_next = NOLIST;
+	}
+	bp->b_rcred = bp->b_wcred = NOCRED;
+	bp->b_vnbufs.le_next = NOLIST;
+	bp->b_actf = NULL;
+
+	swapbkva = kmem_alloc_pageable( pager_map, nswbuf * MAXPHYS);
+	if( !swapbkva)
+		panic("Not enough pager_map VM space for physical buffers");
 }
 
 /*
@@ -322,3 +342,85 @@ pager_cache(object, should_cache)
 
 	return (KERN_SUCCESS);
 }
+
+/*
+ * allocate a physical buffer 
+ */
+struct buf *
+getpbuf() {
+	int s;
+	struct buf *bp;
+
+	s = splbio();
+	/* get a bp from the swap buffer header pool */
+tryagain:
+	while ((bp = bswlist.tqh_first) == NULL) {
+		bswneeded = 1;
+		tsleep((caddr_t)&bswneeded, PVM, "wswbuf", 0); 
+	}
+	TAILQ_REMOVE(&bswlist, bp, b_freelist);
+	splx(s);
+
+	bzero(bp, sizeof *bp);
+	bp->b_rcred = NOCRED;
+	bp->b_wcred = NOCRED;
+	bp->b_data = (caddr_t) (MAXPHYS * (bp-swbuf)) + swapbkva;
+	return bp;
+}
+
+/*
+ * allocate a physical buffer, if one is available
+ */
+struct buf *
+trypbuf() {
+	int s;
+	struct buf *bp;
+
+	s = splbio();
+	if ((bp = bswlist.tqh_first) == NULL) {
+		splx(s);
+		return NULL;
+	}
+	TAILQ_REMOVE(&bswlist, bp, b_freelist);
+	splx(s);
+
+	bzero(bp, sizeof *bp);
+	bp->b_rcred = NOCRED;
+	bp->b_wcred = NOCRED;
+	bp->b_data = (caddr_t) (MAXPHYS * (bp-swbuf)) + swapbkva;
+	return bp;
+}
+
+/*
+ * release a physical buffer
+ */
+void
+relpbuf(bp)
+	struct buf *bp;
+{
+	int s;
+
+	s = splbio();
+
+	if (bp->b_rcred != NOCRED) {
+		crfree(bp->b_rcred);
+		bp->b_rcred = NOCRED;
+	}
+	if (bp->b_wcred != NOCRED) {
+		crfree(bp->b_wcred);
+		bp->b_wcred = NOCRED;
+	}
+
+	if (bp->b_vp)
+		brelvp(bp);
+
+	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
+
+	if (bswneeded) {
+		bswneeded = 0;
+		wakeup((caddr_t)&bswlist);
+	}
+	splx(s);
+}
+
+

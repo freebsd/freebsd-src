@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_fault.c,v 1.3 1994/08/02 07:55:18 davidg Exp $
  */
 
 /*
@@ -267,11 +267,14 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 *	wait for it and then retry.
 			 */
 			if (m->flags & PG_BUSY) {
+				int s;
 				UNLOCK_THINGS;
+				s = splhigh();
 				if (m->flags & PG_BUSY) {
 					m->flags |= PG_WANTED;
 					tsleep((caddr_t)m,PSWP,"vmpfw",0);
 				}
+				splx(s);
 				vm_object_deallocate(first_object);
 				goto RetryFault;
 			}
@@ -282,7 +285,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 */
 
 			vm_page_lock_queues();
-			spl = splimp();
+			spl = splhigh();
 			if (m->flags & PG_INACTIVE) {
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 				m->flags &= ~PG_INACTIVE;
