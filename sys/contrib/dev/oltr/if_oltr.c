@@ -176,7 +176,7 @@ struct oltr_tx_buf {
 #define RING_BUFFER_LEN		16
 #define RING_BUFFER(x)		((RING_BUFFER_LEN - 1) & x)
 #define RX_BUFFER_LEN		2048
-#define TX_BUFFER_LEN		512
+#define TX_BUFFER_LEN		2048
 
 struct oltr_softc {
 	struct arpcom		arpcom;
@@ -718,9 +718,7 @@ oltr_intr(void *xsc)
 	if (DEBUG_MASK & DEBUG_INT)
 		printf("I");
 
-	if (TRlldInterruptService(sc->TRlldAdapter) == 0)
-		if (sc->state > OL_CLOSED)
-			printf("oltr%d: spurious interrupt\n", sc->unit);
+	TRlldInterruptService(sc->TRlldAdapter);
 
 	return;
 }
@@ -788,8 +786,8 @@ outloop:
 		goto bad;
 	}
 
-	sc->tx_avail -= sc->frame_ring[frame].FragmentCount++;
-	sc->tx_head += sc->frame_ring[frame].FragmentCount++;
+	sc->tx_avail -= sc->frame_ring[frame].FragmentCount;
+	sc->tx_head = RING_BUFFER((sc->tx_head + sc->frame_ring[frame].FragmentCount));
 	sc->tx_frame++;
 
 #if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
@@ -1268,6 +1266,13 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		}
 		break;
 	case TRLLD_STS_INIT_STATUS:
+		if (Status->Specification.InitStatus == 0x800) {
+			oltr_stop(sc);
+			ifmedia_set(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16);
+			TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
+			oltr_init(sc);
+			break;
+		}
 		printf("oltr%d: adapter init failure 0x%03x\n", sc->unit,
 		    Status->Specification.InitStatus);
 		oltr_stop(sc);
