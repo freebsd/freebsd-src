@@ -901,7 +901,7 @@ semop(td, uap)
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
 
 	if (semid < 0 || semid >= seminfo.semmni)
-		error = EINVAL;
+		return (EINVAL);
 
 	/* Allocate memory for sem_ops */
 	if (nsops <= SMALL_SOPS)
@@ -1153,7 +1153,6 @@ done2:
 	mtx_unlock(sema_mtxp);
 	if (sops != small_sops)
 		free(sops, M_SEM);
-	free(sops, M_SEM);
 	return (error);
 }
 
