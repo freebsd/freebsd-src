@@ -783,10 +783,11 @@ void
 setrunnable(struct thread *td)
 {
 	struct proc *p = td->td_proc;
+
 	mtx_lock_spin(&sched_lock);
 	switch (p->p_stat) {
 	case SZOMB: /* not a thread flag XXXKSE */
-		panic("setrunnabl(1)");
+		panic("setrunnable(1)");
 	}
 	switch (td->td_proc->p_stat) {
 	case 0:
@@ -897,7 +898,6 @@ schedclock(td)
 int
 yield(struct thread *td, struct yield_args *uap)
 {
-
 	struct ksegrp *kg = td->td_ksegrp;
 	td->td_retval[0] = 0;
 
