@@ -24,10 +24,10 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: $
+.\" $Id: atkbdc.4,v 1.1 1999/02/07 05:40:14 yokota Exp $
 .\"
-.Dd February 6, 1999
-.Dt ATKBDC 4 i386
+.Dd February 9, 1999
+.Dt ATKBDC 4
 .Os FreeBSD
 .Sh NAME
 .Nm atkbdc
@@ -46,15 +46,14 @@ pointing devices.
 This controller is required for the keyboard driver
 .Nm atkbd
 and the PS/2 pointing device driver
-.Nm psm
-to operate.
+.Nm psm .
 .Pp
 There can be only one 
 .Nm
-device in the system.
+device configured in the system.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
-There are following kernel configuration options to control the
+The following kernel configuration options can be used to control the
 .Nm
 driver.
 They may be set in the kernel configuration file 
@@ -67,13 +66,13 @@ and the pointing device driver
 .Nm psm
 may ask the
 .Nm
-driver to reset devices during the boot process.
-It sometimes takes a long while before these devices will respond to
+driver to reset these devices during the boot process.
+It sometimes takes a long time before these devices respond to
 the reset command.
 These options control how long the
 .Nm
 driver should
-wait before it eventually gives up waiting. The driver will wait
+wait before eventually giving up -- the driver will wait
 .Fa X
 *
 .Fa Y
@@ -87,7 +86,7 @@ for
 .It Em KBDIO_DEBUG=N
 Sets the debug level to 
 .Fa N .
-The default debug level is zero.
+The default value is zero, which suppresses all debugging output.
 .El
 .\".Ss Driver Flags
 .\".Sh FILES
@@ -97,7 +96,8 @@ The default debug level is zero.
 .\".Sh BUGS
 .Sh SEE ALSO
 .Xr atkbd 4 ,
-.Xr psm 4 .
+.Xr psm 4 ,
+.Xr config 8 .
 .Sh HISTORY
 The
 .Nm
@@ -106,7 +106,7 @@ driver first appeared in
 It is based on the kbdio module in
 .Fx 2.2 .
 .Sh AUTHORS
-The kbdio module and the
+The kbdio module, the
 .Nm
 driver and this manual page were written by
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
