@@ -1,11 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id$ -->
+<!-- $Id: FAQ.sgml,v 1.9 1996/10/06 17:59:23 wosch Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.8 1996/10/06 12:46:42 jkh Exp $
+<date>$Date:$
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -17,7 +17,7 @@ Any entries with a &lt;XXX&gt; are under construction.
     <sect>
       <heading>Preface</heading>
       <p>
-        Welcome to the FreeBSD 2.X FAQ !  
+        Welcome to the FreeBSD 2.X FAQ!  
 
       <sect1>
         <heading>What is the purpose of this FAQ?</heading>
