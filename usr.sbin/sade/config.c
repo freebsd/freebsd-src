@@ -246,10 +246,6 @@ configFstab(dialogMenuItem *self)
 	    fprintf(fstab, "/dev/%s\t\t%s\t\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     
-    /* And finally, a /proc. */
-    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs\trw\t\t0\t0\n");
-    Mkdir("/proc");
-
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
