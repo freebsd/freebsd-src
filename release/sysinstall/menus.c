@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.122 1997/03/10 19:38:14 jkh Exp $
+ * $Id: menus.c,v 1.123 1997/03/10 21:11:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1071,7 +1071,6 @@ DMenu MenuConfigure = {
 	NULL, diskLabelEditor },
       { "Partition",	"The disk Partition Editor",
 	NULL, diskPartitionEditor },
-      { "S Set Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "R Register",	"Register yourself or company as a FreeBSD user.", NULL, configRegister },
       { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
