@@ -28,16 +28,10 @@ extern "C" {
 
 #if defined READLINE_LIBRARY
 #  include "rlstdc.h"
+#  include "rltypedefs.h"
 #else
 #  include <readline/rlstdc.h>
-#endif
-
-#if !defined (_FUNCTION_DEF)
-#  define _FUNCTION_DEF
-typedef int Function ();
-typedef void VFunction ();
-typedef char *CPFunction ();
-typedef char **CPPFunction ();
+#  include <readline/rltypedefs.h>
 #endif
 
 #ifdef __STDC__
@@ -80,7 +74,7 @@ extern void history_set_history_state __P((HISTORY_STATE *));
 
 /* Place STRING at the end of the history list.
    The associated data field (if any) is set to NULL. */
-extern void add_history __P((char *));
+extern void add_history __P((const char *));
 
 /* A reasonably useless function, only here for completeness.  WHICH
    is the magic number that tells us which element to delete.  The
@@ -90,7 +84,7 @@ extern HIST_ENTRY *remove_history __P((int));
 /* Make the history entry at WHICH have LINE and DATA.  This returns
    the old entry so you can dispose of the data.  In the case of an
    invalid WHICH, a NULL pointer is returned. */
-extern HIST_ENTRY *replace_history_entry __P((int, char *, histdata_t));
+extern HIST_ENTRY *replace_history_entry __P((int, const char *, histdata_t));
 
 /* Clear the history list and start over. */
 extern void clear_history __P((void));
@@ -152,45 +146,45 @@ extern HIST_ENTRY *next_history __P((void));
    current_history () is the history entry, and the value of this function
    is the offset in the line of that history entry that the string was
    found in.  Otherwise, nothing is changed, and a -1 is returned. */
-extern int history_search __P((char *, int));
+extern int history_search __P((const char *, int));
 
 /* Search the history for STRING, starting at history_offset.
    The search is anchored: matching lines must begin with string.
    DIRECTION is as in history_search(). */
-extern int history_search_prefix __P((char *, int));
+extern int history_search_prefix __P((const char *, int));
 
 /* Search for STRING in the history list, starting at POS, an
    absolute index into the list.  DIR, if negative, says to search
    backwards from POS, else forwards.
    Returns the absolute index of the history element where STRING
    was found, or -1 otherwise. */
-extern int history_search_pos __P((char *, int, int));
+extern int history_search_pos __P((const char *, int, int));
 
 /* Managing the history file. */
 
 /* Add the contents of FILENAME to the history list, a line at a time.
    If FILENAME is NULL, then read from ~/.history.  Returns 0 if
    successful, or errno if not. */
-extern int read_history __P((char *));
+extern int read_history __P((const char *));
 
 /* Read a range of lines from FILENAME, adding them to the history list.
    Start reading at the FROM'th line and end at the TO'th.  If FROM
    is zero, start at the beginning.  If TO is less than FROM, read
    until the end of the file.  If FILENAME is NULL, then read from
    ~/.history.  Returns 0 if successful, or errno if not. */
-extern int read_history_range __P((char *, int, int));
+extern int read_history_range __P((const char *, int, int));
 
 /* Write the current history to FILENAME.  If FILENAME is NULL,
    then write the history list to ~/.history.  Values returned
    are as in read_history ().  */
-extern int write_history __P((char *));
+extern int write_history __P((const char *));
 
 /* Append NELEMENT entries to FILENAME.  The entries appended are from
    the end of the list minus NELEMENTs up to the end of the list. */
-extern int append_history __P((int, char *));
+extern int append_history __P((int, const char *));
 
 /* Truncate the history file, leaving only the last NLINES lines. */
-extern int history_truncate_file __P((char *, int));
+extern int history_truncate_file __P((const char *, int));
 
 /* History expansion. */
 
@@ -211,7 +205,7 @@ extern int history_expand __P((char *, char **));
 /* Extract a string segment consisting of the FIRST through LAST
    arguments present in STRING.  Arguments are broken up as in
    the shell. */
-extern char *history_arg_extract __P((int, int, char *));
+extern char *history_arg_extract __P((int, int, const char *));
 
 /* Return the text of the history event beginning at the current
    offset into STRING.  Pass STRING with *INDEX equal to the
@@ -219,27 +213,31 @@ extern char *history_arg_extract __P((int, int, char *));
    DELIMITING_QUOTE is a character that is allowed to end the string
    specification for what to search for in addition to the normal
    characters `:', ` ', `\t', `\n', and sometimes `?'. */
-extern char *get_history_event __P((char *, int *, int));
+extern char *get_history_event __P((const char *, int *, int));
 
 /* Return an array of tokens, much as the shell might.  The tokens are
    parsed out of STRING. */
-extern char **history_tokenize __P((char *));
+extern char **history_tokenize __P((const char *));
 
 /* Exported history variables. */
 extern int history_base;
 extern int history_length;
-extern int max_input_history;
+extern int history_max_entries;
 extern char history_expansion_char;
 extern char history_subst_char;
+extern char *history_word_delimiters;
 extern char history_comment_char;
 extern char *history_no_expand_chars;
 extern char *history_search_delimiter_chars;
 extern int history_quotes_inhibit_expansion;
 
+/* Backwards compatibility */
+extern int max_input_history;
+
 /* If set, this function is called to decide whether or not a particular
    history expansion should be treated as a special case for the calling
    application and not expanded. */
-extern Function *history_inhibit_expansion_function;
+extern rl_linebuf_func_t *history_inhibit_expansion_function;
 
 #ifdef __cplusplus
 }

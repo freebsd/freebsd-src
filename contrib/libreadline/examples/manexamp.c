@@ -3,10 +3,9 @@
 #include <stdio.h>
 #include <readline/readline.h>
 
-
 /* **************************************************************** */
 /*                                                                  */
-*   			How to Emulate gets ()			    */
+/*   			How to Emulate gets ()			    */
 /*                                                                  */
 /* **************************************************************** */
 
@@ -82,13 +81,12 @@ invert_case_line (count, key)
 
   for (; start != end; start += direction)
     {
-      if (uppercase_p (rl_line_buffer[start]))
-	rl_line_buffer[start] = to_lower (rl_line_buffer[start]);
-      else if (lowercase_p (rl_line_buffer[start]))
-	rl_line_buffer[start] = to_upper (rl_line_buffer[start]);
+      if (_rl_uppercase_p (rl_line_buffer[start]))
+	rl_line_buffer[start] = _rl_to_lower (rl_line_buffer[start]);
+      else if (_rl_lowercase_p (rl_line_buffer[start]))
+	rl_line_buffer[start] = _rl_to_upper (rl_line_buffer[start]);
     }
 
   /* Move point to on top of the last character changed. */
   rl_point = end - direction;
 }
-

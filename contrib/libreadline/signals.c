@@ -61,7 +61,7 @@
 #  define SIGHANDLER_RETURN return (0)
 #endif
 
-/* This typedef is equivalant to the one for Function; it allows us
+/* This typedef is equivalent to the one for Function; it allows us
    to say SigHandler *foo = signal (SIGKILL, SIG_IGN); */
 typedef RETSIGTYPE SigHandler ();
 
@@ -119,6 +119,8 @@ rl_signal_handler (sig)
 #  endif /* !HAVE_BSD_SIGNALS */
 #endif /* !HAVE_POSIX_SIGNALS */
 
+  RL_SETSTATE(RL_STATE_SIGHANDLER);
+
 #if !defined (HAVE_BSD_SIGNALS) && !defined (HAVE_POSIX_SIGNALS)
   /* Since the signal will not be blocked while we are in the signal
      handler, ignore it until rl_clear_signals resets the catcher. */
@@ -169,6 +171,7 @@ rl_signal_handler (sig)
       rl_reset_after_signal ();
     }
 
+  RL_UNSETSTATE(RL_STATE_SIGHANDLER);
   SIGHANDLER_RETURN;
 }
 
@@ -189,6 +192,7 @@ rl_sigwinch_handler (sig)
   rl_set_sighandler (SIGWINCH, rl_sigwinch_handler, &dummy_winch);
 #endif
 
+  RL_SETSTATE(RL_STATE_SIGHANDLER);
   rl_resize_terminal ();
 
   /* If another sigwinch handler has been installed, call it. */
@@ -196,6 +200,7 @@ rl_sigwinch_handler (sig)
   if (oh &&  oh != (SigHandler *)SIG_IGN && oh != (SigHandler *)SIG_DFL)
     (*oh) (sig);
 
+  RL_UNSETSTATE(RL_STATE_SIGHANDLER);
   SIGHANDLER_RETURN;
 }
 #endif  /* SIGWINCH */
@@ -358,7 +363,7 @@ rl_cleanup_after_signal ()
   _rl_clean_up_for_exit ();
   (*rl_deprep_term_function) ();
   rl_clear_signals ();
-  rl_pending_input = 0;
+  rl_clear_pending_input ();
 }
 
 /* Reset the terminal and readline state after a signal handler returns. */
@@ -378,7 +383,7 @@ rl_free_line_state ()
 {
   register HIST_ENTRY *entry;
 
-  free_undo_list ();
+  rl_free_undo_list ();
 
   entry = current_history ();
   if (entry)

@@ -4,8 +4,8 @@ dnl
 dnl report bugs to chet@po.cwru.edu
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION([for Readline 4.1, version 2.22, from autoconf version] AC_ACVERSION)
-LIBVERSION=4.1
+AC_REVISION([for Readline 4.2, version 2.26, from autoconf version] AC_ACVERSION)
+LIBVERSION=4.2
 
 AC_INIT(readline.h)
 AC_CONFIG_HEADER(config.h)
@@ -31,6 +31,7 @@ fi
 # We want these before the checks, so the checks can modify their values.
 test -z "$CFLAGS" && CFLAGS=-g auto_cflags=1
 
+AC_PROG_MAKE_SET
 AC_PROG_CC
 dnl AC_AIX
 AC_MINIX
@@ -91,6 +92,7 @@ fi
 
 case "$host_cpu" in
 *cray*)	LOCAL_CFLAGS=-DCRAY ;;
+*s390*) LOCAL_CFLAGS=-fsigned-char ;;
 esac
 
 case "$host_os" in

@@ -1,6 +1,6 @@
-@set EDITION 4.1
-@set VERSION 4.1
-@set UPDATED 2000 January 19
-@set UPDATE-MONTH January 2000
+@set EDITION 4.2-beta
+@set VERSION 4.2-beta
+@set UPDATED 2001 Mar 12
+@set UPDATE-MONTH Mar 2001
 
-@set LASTCHANGE Wed Jan 19 12:16:30 EST 2000
+@set LASTCHANGE Mon Mar 12 05:36:44 EST 2001

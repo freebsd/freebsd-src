@@ -30,6 +30,8 @@
 #  include "config.h"
 #endif
 
+#include "rlstdc.h"
+
 #if defined (_POSIX_VERSION) && !defined (TERMIOS_MISSING)
 #  define TERMIOS_TTY_DRIVER
 #else
@@ -71,7 +73,8 @@ extern char *strchr (), *strrchr ();
 #define _rl_stricmp strcasecmp
 #define _rl_strnicmp strncasecmp
 #else
-extern int _rl_stricmp (), _rl_strnicmp ();
+extern int _rl_stricmp __P((char *, char *);
+extern int _rl_strnicmp __P((char *, char *));
 #endif
 
 #if !defined (emacs_mode)
@@ -87,14 +90,14 @@ extern int _rl_stricmp (), _rl_strnicmp ();
    This is not what is wanted. */
 #if defined (CRAY)
 #  define FUNCTION_TO_KEYMAP(map, key)	(Keymap)((int)map[key].function)
-#  define KEYMAP_TO_FUNCTION(data)	(Function *)((int)(data))
+#  define KEYMAP_TO_FUNCTION(data)	(rl_command_func_t *)((int)(data))
 #else
 #  define FUNCTION_TO_KEYMAP(map, key)	(Keymap)(map[key].function)
-#  define KEYMAP_TO_FUNCTION(data)	(Function *)(data)
+#  define KEYMAP_TO_FUNCTION(data)	(rl_command_func_t *)(data)
 #endif
 
 #ifndef savestring
-extern char *xmalloc ();
+extern char *xmalloc __P((int));
 #define savestring(x) strcpy (xmalloc (1 + strlen (x)), (x))
 #endif
 

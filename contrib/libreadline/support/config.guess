@@ -168,10 +168,17 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
     *:Windows:NT:*:SP*)
 	echo intel-pc-opennt
 	exit 0 ;;
+    *:NonStop-UX:*:*)
+	echo mips-compaq-nonstopux
+	exit 0 ;;
     # end cases added for Bash
     alpha:OSF1:*:*)
-	if test $UNAME_RELEASE = "V4.0"; then
+	# TEST CHANGED FOR BASH to handle `letter version' releases
+	UNAME_MAJOR=`echo "$UNAME_RELEASE" | sed -e 's/^.\([0-9]\).*/\1/'`
+	if test X"$UNAME_MAJOR" != X"" && test $UNAME_MAJOR = 4 ; then
 		UNAME_RELEASE=`/usr/sbin/sizer -v | awk '{print $3}'`
+	elif test X"$UNAME_MAJOR" != X"" && test $UNAME_MAJOR -gt 4 ; then
+		UNAME_RELEASE=`/usr/sbin/sizer -v | awk '{print $4}'`		
 	fi
 	# A Vn.n version is a released version.
 	# A Tn.n version is a released field test version.
@@ -703,7 +710,7 @@ EOF
 	echo ${UNAME_MACHINE}-unknown-openbsd`echo ${UNAME_RELEASE}|sed -e 's/[-_].*/\./'`
 	exit 0 ;;
     i*:CYGWIN*:*)
-	echo ${UNAME_MACHINE}-pc-cygwin32
+	echo ${UNAME_MACHINE}-pc-cygwin
 	exit 0 ;;
     i*:MINGW*:*)
 	echo ${UNAME_MACHINE}-pc-mingw32
@@ -1057,6 +1064,12 @@ EOF
 	exit 0 ;;
     *:Rhapsody:*:*)
 	echo ${UNAME_MACHINE}-apple-rhapsody${UNAME_RELEASE}
+	exit 0 ;;
+    Power*:Darwin:*:*)
+	echo powerpc-apple-darwin${UNAME_RELEASE}
+	exit 0 ;;
+    *:Darwin:*:*)
+	echo ${UNAME_MACHINE}-apple-darwin${UNAME_RELEASE}
 	exit 0 ;;
 esac
 

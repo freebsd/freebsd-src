@@ -73,7 +73,8 @@ static int history_stifled;
 
 /* If HISTORY_STIFLED is non-zero, then this is the maximum number of
    entries to remember. */
-int max_input_history;
+int history_max_entries;
+int max_input_history;	/* backwards compatibility */
 
 /* The current location of the interactive history pointer.  Just makes
    life easier for outside callers. */
@@ -134,9 +135,7 @@ history_total_bytes ()
 {
   register int i, result;
 
-  result = 0;
-
-  for (i = 0; the_history && the_history[i]; i++)
+  for (i = result = 0; the_history && the_history[i]; i++)
     result += strlen (the_history[i]->line);
 
   return (result);
@@ -217,16 +216,16 @@ history_get (offset)
    is  set to NULL. */
 void
 add_history (string)
-     char *string;
+     const char *string;
 {
   HIST_ENTRY *temp;
 
-  if (history_stifled && (history_length == max_input_history))
+  if (history_stifled && (history_length == history_max_entries))
     {
       register int i;
 
       /* If the history is stifled, and history_length is zero,
-	 and it equals max_input_history, we don't save items. */
+	 and it equals history_max_entries, we don't save items. */
       if (history_length == 0)
 	return;
 
@@ -277,15 +276,15 @@ add_history (string)
 HIST_ENTRY *
 replace_history_entry (which, line, data)
      int which;
-     char *line;
+     const char *line;
      histdata_t data;
 {
-  HIST_ENTRY *temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
-  HIST_ENTRY *old_value;
+  HIST_ENTRY *temp, *old_value;
 
   if (which >= history_length)
     return ((HIST_ENTRY *)NULL);
 
+  temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
   old_value = the_history[which];
 
   temp->line = savestring (line);
@@ -303,12 +302,12 @@ remove_history (which)
      int which;
 {
   HIST_ENTRY *return_value;
+  register int i;
 
   if (which >= history_length || !history_length)
     return_value = (HIST_ENTRY *)NULL;
   else
     {
-      register int i;
       return_value = the_history[which];
 
       for (i = which; i < history_length; i++)
@@ -325,13 +324,13 @@ void
 stifle_history (max)
      int max;
 {
+  register int i, j;
+
   if (max < 0)
     max = 0;
 
   if (history_length > max)
     {
-      register int i, j;
-
       /* This loses because we cannot free the data. */
       for (i = 0, j = history_length - max; i < j; i++)
 	{
@@ -347,7 +346,7 @@ stifle_history (max)
     }
 
   history_stifled = 1;
-  max_input_history = max;
+  max_input_history = history_max_entries = max;
 }
 
 /* Stop stifling the history.  This returns the previous amount the 
@@ -359,10 +358,10 @@ unstifle_history ()
   if (history_stifled)
     {
       history_stifled = 0;
-      return (-max_input_history);
+      return (-history_max_entries);
     }
 
-  return (max_input_history);
+  return (history_max_entries);
 }
 
 int

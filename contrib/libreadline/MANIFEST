@@ -32,11 +32,13 @@ rlprivate.h	f
 rlshell.h	f
 rlstdc.h	f
 rltty.h		f
+rltypedefs.h	f
 rlwinsize.h	f
 tcap.h		f
 tilde.h		f
 xmalloc.h	f
 bind.c		f
+compat.c	f
 complete.c	f
 display.c	f
 emacs_keymap.c	f
@@ -85,6 +87,7 @@ doc/hist.texinfo	f
 doc/hstech.texinfo	f
 doc/hsuser.texinfo	f
 doc/readline.3		f
+doc/history.3		f
 doc/texi2dvi		f
 doc/texi2html		f
 examples/Makefile.in	f
@@ -111,3 +114,6 @@ doc/readline.html	f
 doc/history.html	f
 doc/rluserman.html	f
 doc/readline.0		f
+doc/history.0		f
+doc/readline_3.ps	f
+doc/history_3.ps	f

@@ -67,7 +67,7 @@
 #include "xmalloc.h"
 
 #ifndef RL_LIBRARY_VERSION
-#  define RL_LIBRARY_VERSION "4.1"
+#  define RL_LIBRARY_VERSION "4.2"
 #endif
 
 /* Evaluates its arguments multiple times. */
@@ -90,8 +90,9 @@ static void readline_default_bindings __P((void));
 /*								    */
 /* **************************************************************** */
 
-char *rl_library_version = RL_LIBRARY_VERSION;
+const char *rl_library_version = RL_LIBRARY_VERSION;
 
+/* True if this is `real' readline as opposed to some stub substitute. */
 int rl_gnu_readline_p = 1;
 
 /* A pointer to the keymap that is currently in use.
@@ -121,8 +122,13 @@ int rl_arg_sign = 1;
 /* Non-zero means we have been called at least once before. */
 static int rl_initialized;
 
+#if 0
 /* If non-zero, this program is running in an EMACS buffer. */
 static int running_in_emacs;
+#endif
+
+/* Flags word encapsulating the current readline state. */
+int rl_readline_state = RL_STATE_NONE;
 
 /* The current offset in the current input line. */
 int rl_point;
@@ -137,7 +143,7 @@ int rl_end;
 int rl_done;
 
 /* The last function executed by readline. */
-Function *rl_last_func = (Function *)NULL;
+rl_command_func_t *rl_last_func = (rl_command_func_t *)NULL;
 
 /* Top level environment for readline_internal (). */
 procenv_t readline_top_level;
@@ -153,7 +159,7 @@ FILE *rl_outstream = (FILE *)NULL;
 int readline_echoing_p = 1;
 
 /* Current prompt. */
-char *rl_prompt;
+char *rl_prompt = (char *)NULL;
 int rl_visible_prompt_length = 0;
 
 /* Set to non-zero by calling application if it has already printed rl_prompt
@@ -165,12 +171,12 @@ int rl_key_sequence_length = 0;
 
 /* If non-zero, then this is the address of a function to call just
    before readline_internal_setup () prints the first prompt. */
-Function *rl_startup_hook = (Function *)NULL;
+rl_hook_func_t *rl_startup_hook = (rl_hook_func_t *)NULL;
 
 /* If non-zero, this is the address of a function to call just before
    readline_internal_setup () returns and readline_internal starts
    reading input characters. */
-Function *rl_pre_input_hook = (Function *)NULL;
+rl_hook_func_t *rl_pre_input_hook = (rl_hook_func_t *)NULL;
 
 /* What we use internally.  You should always refer to RL_LINE_BUFFER. */
 static char *the_line;
@@ -183,7 +189,7 @@ int _rl_eof_char = CTRL ('D');
 int rl_pending_input = 0;
 
 /* Pointer to a useful terminal name. */
-char *rl_terminal_name = (char *)NULL;
+const char *rl_terminal_name = (const char *)NULL;
 
 /* Non-zero means to always use horizontal scrolling in line display. */
 int _rl_horizontal_scroll_mode = 0;
@@ -243,24 +249,37 @@ int _rl_output_meta_chars = 0;
 /* Non-zero means treat 0200 bit in terminal input as Meta bit. */
 int _rl_meta_flag = 0;	/* Forward declaration */
 
+/* Set up the prompt and expand it.  Called from readline() and
+   rl_callback_handler_install (). */
+int
+rl_set_prompt (prompt)
+     const char *prompt;
+{
+  FREE (rl_prompt);
+  rl_prompt = prompt ? savestring (prompt) : (char *)NULL;
+
+  rl_visible_prompt_length = (rl_prompt && *rl_prompt)
+				? rl_expand_prompt (rl_prompt)
+				: 0;
+  return 0;
+}
+  
 /* Read a line of input.  Prompt with PROMPT.  An empty PROMPT means
    none.  A return value of NULL means that EOF was encountered. */
 char *
 readline (prompt)
-     char *prompt;
+     const char *prompt;
 {
   char *value;
-
-  rl_prompt = prompt;
 
   /* If we are at EOF return a NULL string. */
   if (rl_pending_input == EOF)
     {
-      rl_pending_input = 0;
+      rl_clear_pending_input ();
       return ((char *)NULL);
     }
 
-  rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
+  rl_set_prompt (prompt);
 
   rl_initialize ();
   (*rl_prep_term_function) (_rl_meta_flag);
@@ -348,7 +367,7 @@ readline_internal_teardown (eof)
   /* At any rate, it is highly likely that this line has an undo list.  Get
      rid of it now. */
   if (rl_undo_list)
-    free_undo_list ();
+    rl_free_undo_list ();
 
   return (eof ? (char *)NULL : savestring (the_line));
 }
@@ -384,7 +403,9 @@ readline_internal_charloop ()
 	  rl_key_sequence_length = 0;
 	}
 
+      RL_SETSTATE(RL_STATE_READCMD);
       c = rl_read_key ();
+      RL_UNSETSTATE(RL_STATE_READCMD);
 
       /* EOF typed to a non-blank line is a <NL>. */
       if (c == EOF && rl_end)
@@ -395,6 +416,7 @@ readline_internal_charloop ()
       if (((c == _rl_eof_char && lastc != c) || c == EOF) && !rl_end)
 	{
 #if defined (READLINE_CALLBACKS)
+	  RL_SETSTATE(RL_STATE_DONE);
 	  return (rl_done = 1);
 #else
 	  eof_found = 1;
@@ -491,7 +513,7 @@ _rl_dispatch (key, map)
 {
   int r, newkey;
   char *macro;
-  Function *func;
+  rl_command_func_t *func;
 
   if (META_CHAR (key) && _rl_convert_meta_chars_to_ascii)
     {
@@ -505,7 +527,7 @@ _rl_dispatch (key, map)
 	  return (_rl_dispatch (key, map));
 	}
       else
-	ding ();
+	rl_ding ();
       return 0;
     }
 
@@ -517,7 +539,7 @@ _rl_dispatch (key, map)
     {
     case ISFUNC:
       func = map[key].function;
-      if (func != (Function *)NULL)
+      if (func)
 	{
 	  /* Special case rl_do_lowercase_version (). */
 	  if (func == rl_do_lowercase_version)
@@ -530,13 +552,15 @@ _rl_dispatch (key, map)
 #endif
 
 	  rl_dispatching = 1;
+	  RL_SETSTATE(RL_STATE_DISPATCHING);
 	  r = (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
+	  RL_UNSETSTATE(RL_STATE_DISPATCHING);
 	  rl_dispatching = 0;
 
 	  /* If we have input pending, then the last command was a prefix
 	     command.  Don't change the state of rl_last_func.  Otherwise,
 	     remember the last command executed in this variable. */
-	  if (!rl_pending_input && map[key].function != rl_digit_argument)
+	  if (rl_pending_input == 0 && map[key].function != rl_digit_argument)
 	    rl_last_func = map[key].function;
 	}
       else
@@ -547,10 +571,18 @@ _rl_dispatch (key, map)
       break;
 
     case ISKMAP:
-      if (map[key].function != (Function *)NULL)
+      if (map[key].function != 0)
 	{
 	  rl_key_sequence_length++;
+
+	  if (key == ESC)
+	    RL_SETSTATE(RL_STATE_METANEXT);
+	  RL_SETSTATE(RL_STATE_MOREINPUT);
 	  newkey = rl_read_key ();
+	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+	  if (key == ESC)
+	    RL_UNSETSTATE(RL_STATE_METANEXT);
+
 	  r = _rl_dispatch (newkey, FUNCTION_TO_KEYMAP (map, key));
 	}
       else
@@ -561,7 +593,7 @@ _rl_dispatch (key, map)
       break;
 
     case ISMACR:
-      if (map[key].function != (Function *)NULL)
+      if (map[key].function != 0)
 	{
 	  macro = savestring ((char *)map[key].function);
 	  _rl_with_macro_input (macro);
@@ -591,8 +623,11 @@ rl_initialize ()
      terminal and data structures. */
   if (!rl_initialized)
     {
+      RL_SETSTATE(RL_STATE_INITIALIZING);
       readline_initialize_everything ();
+      RL_UNSETSTATE(RL_STATE_INITIALIZING);
       rl_initialized++;
+      RL_SETSTATE(RL_STATE_INITIALIZED);
     }
 
   /* Initalize the current line information. */
@@ -600,6 +635,7 @@ rl_initialize ()
 
   /* We aren't done yet.  We haven't even gotten started yet! */
   rl_done = 0;
+  RL_UNSETSTATE(RL_STATE_DONE);
 
   /* Tell the history routines what is going on. */
   start_using_history ();
@@ -608,7 +644,7 @@ rl_initialize ()
   rl_reset_line_state ();
 
   /* No such function typed yet. */
-  rl_last_func = (Function *)NULL;
+  rl_last_func = (rl_command_func_t *)NULL;
 
   /* Parsing of key-bindings begins in an enabled state. */
   _rl_parsing_conditionalized_out = 0;
@@ -658,8 +694,10 @@ readline_initialize_everything ()
 #endif
 #endif
 
-  /* Find out if we are running in Emacs. */
-  running_in_emacs = get_env_value ("EMACS") != (char *)0;
+#if 0
+  /* Find out if we are running in Emacs -- UNUSED. */
+  running_in_emacs = sh_get_env_value ("EMACS") != (char *)0;
+#endif
 
   /* Set up input and output if they are not already set up. */
   if (!rl_instream)
@@ -679,7 +717,9 @@ readline_initialize_everything ()
     rl_line_buffer = xmalloc (rl_line_buffer_len = DEFAULT_BUFFER_SIZE);
 
   /* Initialize the terminal interface. */
-  _rl_init_terminal_io ((char *)NULL);
+  if (rl_terminal_name == 0)
+    rl_terminal_name = sh_get_env_value ("TERM");
+  _rl_init_terminal_io (rl_terminal_name);
 
   /* Bind tty characters to readline functions. */
   readline_default_bindings ();
@@ -696,8 +736,8 @@ readline_initialize_everything ()
   /* XXX */
   if (_rl_horizontal_scroll_mode && _rl_term_autowrap)
     {
-      screenwidth--;
-      screenchars -= screenheight;
+      _rl_screenwidth--;
+      _rl_screenchars -= _rl_screenheight;
     }
 
   /* Override the effect of any `set keymap' assignments in the
@@ -723,13 +763,13 @@ readline_initialize_everything ()
 static void
 readline_default_bindings ()
 {
-  rltty_set_default_bindings (_rl_keymap);
+  rl_tty_set_default_bindings (_rl_keymap);
 }
 
 static void
 bind_arrow_keys_internal ()
 {
-  Function *f;
+  rl_command_func_t *f;
 
 #if defined (__MSDOS__)
   f = rl_function_of_keyseq ("\033[0A", _rl_keymap, (int *)NULL);
@@ -797,19 +837,23 @@ rl_digit_loop ()
 
   rl_save_prompt ();
 
+  RL_SETSTATE(RL_STATE_NUMERICARG);
   sawminus = sawdigits = 0;
   while (1)
     {
       if (rl_numeric_arg > 1000000)
 	{
 	  sawdigits = rl_explicit_arg = rl_numeric_arg = 0;
-	  ding ();
+	  rl_ding ();
 	  rl_restore_prompt ();
 	  rl_clear_message ();
+	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
 	  return 1;
 	}
       rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
+      RL_SETSTATE(RL_STATE_MOREINPUT);
       key = c = rl_read_key ();
+      RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
       /* If we see a key bound to `universal-argument' after seeing digits,
 	 it ends the argument but is otherwise ignored. */
@@ -823,9 +867,12 @@ rl_digit_loop ()
 	    }
 	  else
 	    {
+	      RL_SETSTATE(RL_STATE_MOREINPUT);
 	      key = rl_read_key ();
+	      RL_UNSETSTATE(RL_STATE_MOREINPUT);
 	      rl_restore_prompt ();
 	      rl_clear_message ();
+	      RL_UNSETSTATE(RL_STATE_NUMERICARG);
 	      return (_rl_dispatch (key, _rl_keymap));
 	    }
 	}
@@ -849,10 +896,12 @@ rl_digit_loop ()
 	    rl_explicit_arg = 1;
 	  rl_restore_prompt ();
 	  rl_clear_message ();
+	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
 	  return (_rl_dispatch (key, _rl_keymap));
 	}
     }
 
+  RL_UNSETSTATE(RL_STATE_NUMERICARG);
   return 0;
 }
 
@@ -861,7 +910,7 @@ int
 rl_digit_argument (ignore, key)
      int ignore, key;
 {
-  rl_pending_input = key;
+  rl_execute_next (key);
   return (rl_digit_loop ());
 }
 
@@ -869,7 +918,7 @@ rl_digit_argument (ignore, key)
 int
 rl_discard_argument ()
 {
-  ding ();
+  rl_ding ();
   rl_clear_message ();
   _rl_init_argument ();
   return 0;
@@ -906,7 +955,7 @@ rl_universal_argument (count, key)
    function. */
 int
 rl_insert_text (string)
-     char *string;
+     const char *string;
 {
   register int i, l = strlen (string);
 
@@ -999,7 +1048,7 @@ _rl_fix_point (fix_mark_too)
 
 void
 _rl_replace_text (text, start, end)
-     char *text;
+     const char *text;
      int start, end;
 {
   rl_begin_undo_group ();
@@ -1053,7 +1102,7 @@ rl_forward (count, key)
     {
       int end = rl_point + count;
 #if defined (VI_MODE)
-      int lend = rl_end - (rl_editing_mode == vi_mode);
+      int lend = rl_end > 0 ? rl_end - (rl_editing_mode == vi_mode) : rl_end;
 #else
       int lend = rl_end;
 #endif
@@ -1061,7 +1110,7 @@ rl_forward (count, key)
       if (end > lend)
 	{
 	  rl_point = lend;
-	  ding ();
+	  rl_ding ();
 	}
       else
 	rl_point = end;
@@ -1085,7 +1134,7 @@ rl_backward (count, key)
       if (rl_point < count)
 	{
 	  rl_point = 0;
-	  ding ();
+	  rl_ding ();
 	}
       else
         rl_point -= count;
@@ -1132,12 +1181,12 @@ rl_forward_word (count, key)
       /* If we are not in a word, move forward until we are in one.
 	 Then, move forward until we hit a non-alphabetic character. */
       c = the_line[rl_point];
-      if (alphabetic (c) == 0)
+      if (rl_alphabetic (c) == 0)
 	{
 	  while (++rl_point < rl_end)
 	    {
 	      c = the_line[rl_point];
-	      if (alphabetic (c))
+	      if (rl_alphabetic (c))
 		break;
 	    }
 	}
@@ -1146,7 +1195,7 @@ rl_forward_word (count, key)
       while (++rl_point < rl_end)
 	{
 	  c = the_line[rl_point];
-	  if (alphabetic (c) == 0)
+	  if (rl_alphabetic (c) == 0)
 	    break;
 	}
       --count;
@@ -1176,12 +1225,12 @@ rl_backward_word (count, key)
 	 just before point. */
 
       c = the_line[rl_point - 1];
-      if (alphabetic (c) == 0)
+      if (rl_alphabetic (c) == 0)
 	{
 	  while (--rl_point)
 	    {
 	      c = the_line[rl_point - 1];
-	      if (alphabetic (c))
+	      if (rl_alphabetic (c))
 		break;
 	    }
 	}
@@ -1189,7 +1238,7 @@ rl_backward_word (count, key)
       while (rl_point)
 	{
 	  c = the_line[rl_point - 1];
-	  if (alphabetic (c) == 0)
+	  if (rl_alphabetic (c) == 0)
 	    break;
 	  else
 	    --rl_point;
@@ -1245,7 +1294,9 @@ rl_arrow_keys (count, c)
 {
   int ch;
 
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   ch = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
   switch (_rl_to_upper (ch))
     {
@@ -1266,7 +1317,7 @@ rl_arrow_keys (count, c)
       break;
 
     default:
-      ding ();
+      rl_ding ();
     }
   return 0;
 }
@@ -1352,7 +1403,11 @@ rl_quoted_insert (count, key)
 #if defined (HANDLE_SIGNALS)
   _rl_disable_tty_signals ();
 #endif
+
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   c = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
 #if defined (HANDLE_SIGNALS)
   _rl_restore_tty_signals ();
 #endif
@@ -1376,6 +1431,7 @@ rl_newline (count, key)
      int count, key;
 {
   rl_done = 1;
+  RL_SETSTATE(RL_STATE_DONE);
 
 #if defined (VI_MODE)
   if (rl_editing_mode == vi_mode)
@@ -1386,7 +1442,7 @@ rl_newline (count, key)
 #endif /* VI_MODE */
 
   /* If we've been asked to erase empty lines, suppress the final update,
-     since _rl_update_final calls crlf(). */
+     since _rl_update_final calls rl_crlf(). */
   if (rl_erase_empty_line && rl_point == 0 && rl_end == 0)
     return 0;
 
@@ -1419,7 +1475,7 @@ rl_rubout (count, key)
 
   if (!rl_point)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -1455,7 +1511,7 @@ rl_delete (count, key)
 
   if (rl_point == rl_end)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -1611,11 +1667,11 @@ rl_change_case (count, op)
 
 	case CapCase:
 	  the_line[start] = (inword == 0) ? _rl_to_upper (c) : _rl_to_lower (c);
-	  inword = alphabetic (the_line[start]);
+	  inword = rl_alphabetic (the_line[start]);
 	  break;
 
 	default:
-	  ding ();
+	  rl_ding ();
 	  return -1;
 	}
     }
@@ -1654,7 +1710,7 @@ rl_transpose_words (count, key)
   /* Do some check to make sure that there really are two words. */
   if ((w1_beg == w2_beg) || (w2_beg < w1_end))
     {
-      ding ();
+      rl_ding ();
       rl_point = orig_point;
       return -1;
     }
@@ -1702,7 +1758,7 @@ rl_transpose_chars (count, key)
 
   if (!rl_point || rl_end < 2)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -1746,7 +1802,7 @@ _rl_char_search_internal (count, dir, schar)
     {
       if ((dir < 0 && pos <= 0) || (dir > 0 && pos >= rl_end))
 	{
-	  ding ();
+	  rl_ding ();
 	  return -1;
 	}
 
@@ -1777,7 +1833,10 @@ _rl_char_search (count, fdir, bdir)
 {
   int c;
 
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   c = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
   if (count < 0)
     return (_rl_char_search_internal (-count, bdir, c));
   else
@@ -1810,17 +1869,17 @@ rl_backward_char_search (count, key)
 
 /* While we are editing the history, this is the saved
    version of the original line. */
-HIST_ENTRY *saved_line_for_history = (HIST_ENTRY *)NULL;
+HIST_ENTRY *_rl_saved_line_for_history = (HIST_ENTRY *)NULL;
 
 /* Set the history pointer back to the last entry in the history. */
 static void
 start_using_history ()
 {
   using_history ();
-  if (saved_line_for_history)
-    _rl_free_history_entry (saved_line_for_history);
+  if (_rl_saved_line_for_history)
+    _rl_free_history_entry (_rl_saved_line_for_history);
 
-  saved_line_for_history = (HIST_ENTRY *)NULL;
+  _rl_saved_line_for_history = (HIST_ENTRY *)NULL;
 }
 
 /* Free the contents (and containing structure) of a HIST_ENTRY. */
@@ -1837,7 +1896,7 @@ _rl_free_history_entry (entry)
 
 /* Perhaps put back the current line if it has changed. */
 int
-maybe_replace_line ()
+rl_maybe_replace_line ()
 {
   HIST_ENTRY *temp;
 
@@ -1852,42 +1911,53 @@ maybe_replace_line ()
   return 0;
 }
 
-/* Put back the saved_line_for_history if there is one. */
+/* Restore the _rl_saved_line_for_history if there is one. */
 int
-maybe_unsave_line ()
+rl_maybe_unsave_line ()
 {
   int line_len;
 
-  if (saved_line_for_history)
+  if (_rl_saved_line_for_history)
     {
-      line_len = strlen (saved_line_for_history->line);
+      line_len = strlen (_rl_saved_line_for_history->line);
 
       if (line_len >= rl_line_buffer_len)
 	rl_extend_line_buffer (line_len);
 
-      strcpy (the_line, saved_line_for_history->line);
-      rl_undo_list = (UNDO_LIST *)saved_line_for_history->data;
-      _rl_free_history_entry (saved_line_for_history);
-      saved_line_for_history = (HIST_ENTRY *)NULL;
+      strcpy (the_line, _rl_saved_line_for_history->line);
+      rl_undo_list = (UNDO_LIST *)_rl_saved_line_for_history->data;
+      _rl_free_history_entry (_rl_saved_line_for_history);
+      _rl_saved_line_for_history = (HIST_ENTRY *)NULL;
       rl_end = rl_point = strlen (the_line);
     }
   else
-    ding ();
+    rl_ding ();
   return 0;
 }
 
-/* Save the current line in saved_line_for_history. */
+/* Save the current line in _rl_saved_line_for_history. */
 int
-maybe_save_line ()
+rl_maybe_save_line ()
 {
-  if (saved_line_for_history == 0)
+  if (_rl_saved_line_for_history == 0)
     {
-      saved_line_for_history = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
-      saved_line_for_history->line = savestring (the_line);
-      saved_line_for_history->data = (char *)rl_undo_list;
+      _rl_saved_line_for_history = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
+      _rl_saved_line_for_history->line = savestring (the_line);
+      _rl_saved_line_for_history->data = (char *)rl_undo_list;
     }
   return 0;
 }
+
+int
+_rl_free_saved_history_line ()
+{
+  if (_rl_saved_line_for_history)
+    {
+      _rl_free_history_entry (_rl_saved_line_for_history);
+      _rl_saved_line_for_history = (HIST_ENTRY *)NULL;
+    }
+  return 0;
+}      
 
 /* **************************************************************** */
 /*								    */
@@ -1908,9 +1978,9 @@ int
 rl_end_of_history (count, key)
      int count, key;
 {
-  maybe_replace_line ();
+  rl_maybe_replace_line ();
   using_history ();
-  maybe_unsave_line ();
+  rl_maybe_unsave_line ();
   return 0;
 }
 
@@ -1928,7 +1998,7 @@ rl_get_next_history (count, key)
   if (count == 0)
     return 0;
 
-  maybe_replace_line ();
+  rl_maybe_replace_line ();
 
   temp = (HIST_ENTRY *)NULL;
   while (count)
@@ -1940,7 +2010,7 @@ rl_get_next_history (count, key)
     }
 
   if (temp == 0)
-    maybe_unsave_line ();
+    rl_maybe_unsave_line ();
   else
     {
       line_len = strlen (temp->line);
@@ -1975,10 +2045,10 @@ rl_get_previous_history (count, key)
     return 0;
 
   /* If we don't have a line saved, then save this one. */
-  maybe_save_line ();
+  rl_maybe_save_line ();
 
   /* If the current line has changed, save the changes. */
-  maybe_replace_line ();
+  rl_maybe_replace_line ();
 
   temp = old_temp = (HIST_ENTRY *)NULL;
   while (count)
@@ -1997,7 +2067,7 @@ rl_get_previous_history (count, key)
     temp = old_temp;
 
   if (temp == 0)
-    ding ();
+    rl_ding ();
   else
     {
       line_len = strlen (temp->line);
@@ -2053,7 +2123,7 @@ rl_exchange_point_and_mark (count, key)
 
   if (rl_mark == -1)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
   else

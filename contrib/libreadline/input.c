@@ -78,9 +78,11 @@ extern int errno;
 
 /* Non-null means it is a pointer to a function to run while waiting for
    character input. */
-Function *rl_event_hook = (Function *)NULL;
+rl_hook_func_t *rl_event_hook = (rl_hook_func_t *)NULL;
 
-Function *rl_getc_function = rl_getc;
+rl_getc_func_t *rl_getc_function = rl_getc;
+
+static int _keyboard_input_timeout = 100000;		/* 0.1 seconds; it's in usec */
 
 /* **************************************************************** */
 /*								    */
@@ -169,7 +171,7 @@ rl_gather_tyi ()
   FD_SET (tty, &readfds);
   FD_SET (tty, &exceptfds);
   timeout.tv_sec = 0;
-  timeout.tv_usec = 100000;	/* 0.1 seconds */
+  timeout.tv_usec = _keyboard_input_timeout;
   if (select (tty + 1, &readfds, (fd_set *)NULL, &exceptfds, &timeout) <= 0)
     return;	/* Nothing to read. */
 #endif
@@ -222,6 +224,18 @@ rl_gather_tyi ()
     }
 }
 
+int
+rl_set_keyboard_input_timeout (u)
+     int u;
+{
+  int o;
+
+  o = _keyboard_input_timeout;
+  if (u > 0)
+    _keyboard_input_timeout = u;
+  return (o);
+}
+
 /* Is there input available to be read on the readline input file
    descriptor?  Only works if the system has select(2) or FIONREAD. */
 int
@@ -244,7 +258,7 @@ _rl_input_available ()
   FD_SET (tty, &readfds);
   FD_SET (tty, &exceptfds);
   timeout.tv_sec = 0;
-  timeout.tv_usec = 100000;	/* 0.1 seconds */
+  timeout.tv_usec = _keyboard_input_timeout;
   return (select (tty + 1, &readfds, (fd_set *)NULL, &exceptfds, &timeout) > 0);
 #endif
 
@@ -293,6 +307,7 @@ rl_stuff_char (key)
     {
       key = NEWLINE;
       rl_pending_input = EOF;
+      RL_SETSTATE (RL_STATE_INPUTPENDING);
     }
   ibuffer[push_index++] = key;
   if (push_index >= ibuffer_len)
@@ -307,6 +322,16 @@ rl_execute_next (c)
      int c;
 {
   rl_pending_input = c;
+  RL_SETSTATE (RL_STATE_INPUTPENDING);
+  return 0;
+}
+
+/* Clear any pending input pushed with rl_execute_next() */
+int
+rl_clear_pending_input ()
+{
+  rl_pending_input = 0;
+  RL_UNSETSTATE (RL_STATE_INPUTPENDING);
   return 0;
 }
 
@@ -327,7 +352,7 @@ rl_read_key ()
   if (rl_pending_input)
     {
       c = rl_pending_input;
-      rl_pending_input = 0;
+      rl_clear_pending_input ();
     }
   else
     {
@@ -341,6 +366,8 @@ rl_read_key ()
 	  while (rl_event_hook && rl_get_char (&c) == 0)
 	    {
 	      (*rl_event_hook) ();
+	      if (rl_done)		/* XXX - experimental */
+		return ('\n');
 	      rl_gather_tyi ();
 	    }
 	}
@@ -392,7 +419,7 @@ rl_getc (stream)
 
       if (errno == X_EWOULDBLOCK || errno == X_EAGAIN)
 	{
-	  if (unset_nodelay_mode (fileno (stream)) < 0)
+	  if (sh_unset_nodelay_mode (fileno (stream)) < 0)
 	    return (EOF);
 	  continue;
 	}

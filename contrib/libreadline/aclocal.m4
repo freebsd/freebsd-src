@@ -1065,17 +1065,19 @@ fi
 ])
 
 AC_DEFUN(BASH_CHECK_GETPW_FUNCS,
-[AC_MSG_CHECKING(whether programs are able to redeclare getpw functions)
-AC_CACHE_VAL(bash_cv_can_redecl_getpw,
-[AC_TRY_COMPILE([#include <sys/types.h>
+[AC_MSG_CHECKING(whether getpw functions are declared in pwd.h)
+AC_CACHE_VAL(bash_cv_getpw_declared,
+[AC_EGREP_CPP(getpwuid,
+[
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
 #include <pwd.h>
-extern struct passwd *getpwent();
-extern struct passwd *getpwuid();
-extern struct passwd *getpwnam();],
-[struct passwd *z; z = getpwent(); z = getpwuid(0); z = getpwnam("root");],
-  bash_cv_can_redecl_getpw=yes,bash_cv_can_redecl_getpw=no)])
-AC_MSG_RESULT($bash_cv_can_redecl_getpw)
-if test $bash_cv_can_redecl_getpw = no; then
+],
+bash_cv_getpw_declared=yes,bash_cv_getpw_declared=no)])
+AC_MSG_RESULT($bash_cv_getpw_declared)
+if test $bash_cv_getpw_declared = yes; then
 AC_DEFINE(HAVE_GETPW_DECLS)
 fi
 ])
@@ -1350,12 +1352,15 @@ dnl causes system calls to be restarted after the signal is caught
 dnl
 AC_DEFUN(BASH_SYS_RESTARTABLE_SYSCALLS,
 [AC_REQUIRE([BASH_SIGNAL_CHECK])
-AC_CACHE_CHECK(for restartable system calls with posix sigaction,
+AC_CACHE_CHECK(whether posix sigaction restarts system calls by default,
 bash_cv_sys_restartable_syscalls,
 [AC_TRY_RUN(
 [/* Exit 0 (true) if wait returns something other than -1,
    i.e. the pid of the child, which means that wait was restarted
    after getting the signal.  */
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <signal.h>
 static int caught = 0;
@@ -1423,5 +1428,36 @@ AC_EGREP_HEADER(struct timeval, sys/time.h,
 AC_MSG_RESULT($bash_cv_struct_timeval)
 if test $bash_cv_struct_timeval = yes; then
   AC_DEFINE(HAVE_TIMEVAL)
+fi
+])
+
+AC_DEFUN(BASH_CHECK_RTSIGS,
+[AC_MSG_CHECKING(for unusable real-time signals due to large values)
+AC_CACHE_VAL(bash_cv_unusable_rtsigs,
+[AC_TRY_RUN([
+#include <sys/types.h>
+#include <signal.h>
+
+#ifndef NSIG
+#  define NSIG 64
+#endif
+
+main ()
+{
+  int n_sigs = 2 * NSIG;
+#ifdef SIGRTMIN
+  int rtmin = SIGRTMIN;
+#else
+  int rtmin = 0;
+#endif
+
+  exit(rtmin < n_sigs);
+}], bash_cv_unusable_rtsigs=yes, bash_cv_unusable_rtsigs=no,
+    [AC_MSG_WARN(cannot check real-time signals if cross compiling -- defaulting to yes)
+     bash_cv_unusable_rtsigs=yes]
+)])
+AC_MSG_RESULT($bash_cv_unusable_rtsigs)
+if test $bash_cv_unusable_rtsigs = yes; then
+AC_DEFINE(UNUSABLE_RT_SIGNALS)
 fi
 ])
