@@ -31,68 +31,67 @@
  * SUCH DAMAGE.
  */
 
-/*
- *  951109 - Andrew@pubnix.net - Changed to iterative buffer growing mechanism
- *				 for ifconfig -a so all interfaces are queried.
- *
- *  960101 - peter@freebsd.org - Blow away the SIOCGIFCONF code and use
- *				 sysctl() to get the structured interface conf
- *				 and parse the messages in there. REALLY UGLY!
- */
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+
+/* IP */
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
+/* IPX */
 #define	IPXIP
 #define IPTUNNEL
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 
+/* Appletalk */
 #include <netatalk/at.h>
 
+/* XNS */
 #ifdef NS
 #define	NSIP
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 #endif
 
+/* OSI */
 #ifdef ISO
 #define EON
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
 #endif
-#include <sys/protosw.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <nlist.h>
-#include <kvm.h>
-#include <fcntl.h>
 
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
@@ -116,29 +115,38 @@ int	doalias;
 int	clearaddr;
 int	newaddr = 1;
 int	s;
-kvm_t	*kvmd;
-extern	int errno;
 
-int	setifflags(), setifaddr(), setifdstaddr(), setifnetmask();
-int	setifmetric(), setifmtu(), setifbroadaddr(), setifipdst();
-int	setatrange(), setatphase(), checkatrange();
-int	notealias();
+struct	afswtch;
+
+void	Perror __P((const char *cmd));
+void	checkatrange __P((struct sockaddr_at *));
+int	ifconfig __P((int argc, char *const *argv, int af, 
+		      const struct afswtch *rafp));
+void	notealias __P((const char *, int));
+void	printb __P((const char *s, unsigned value, const char *bits));
+void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
+void	status __P((void));
+
+typedef	void c_func __P((const char *cmd, int arg));
+c_func	setatphase, setatrange;
+c_func	setifaddr, setifbroadaddr, setifdstaddr, setifnetmask;
+c_func	setifipdst;
+c_func	setifflags, setifmetric, setifmtu;
+
 #ifdef ISO
-int	setsnpaoffset(), setnsellength();
+c_func	setsnpaoffset, setnsellength;
 #endif
-int	notrailers();
 
 #define	NEXTARG		0xffffff
 
+const
 struct	cmd {
-	char	*c_name;
+	const	char *c_name;
 	int	c_parameter;		/* NEXTARG means next argv */
-	int	(*c_func)();
+	void	(*c_func) __P((const char *, int));
 } cmds[] = {
 	{ "up",		IFF_UP,		setifflags } ,
 	{ "down",	-IFF_UP,	setifflags },
-	{ "trailers",	-1,		notrailers },
-	{ "-trailers",	1,		notrailers },
 	{ "arp",	-IFF_NOARP,	setifflags },
 	{ "-arp",	IFF_NOARP,	setifflags },
 	{ "debug",	IFF_DEBUG,	setifflags },
@@ -179,23 +187,28 @@ struct	cmd {
  * XNS support liberally adapted from code written at the University of
  * Maryland principally by James O'Toole and Chris Torek.
  */
-int	in_status(), in_getaddr();
-int	ipx_status(), ipx_getaddr();
-int	at_status(), at_getaddr();
+typedef	void af_status __P((int));
+typedef	void af_getaddr __P((const char *, int));
+
+af_status	in_status, ipx_status, at_status, ether_status;
+af_getaddr	in_getaddr, ipx_getaddr, at_getaddr;
+
 #ifdef NS
-int	xns_status(), xns_getaddr();
+af_status	xns_status;
+af_getaddr	xns_getaddr;
 #endif
 #ifdef ISO
-int	iso_status(), iso_getaddr();
+af_status	iso_status;
+af_getaddr	iso_getaddr;
 #endif
-int	ether_status();
 
 /* Known address families */
-struct afswtch {
-	char *af_name;
+const
+struct	afswtch {
+	const char *af_name;
 	short af_af;
-	int (*af_status)();
-	int (*af_getaddr)();
+	af_status *af_status;
+	af_getaddr *af_getaddr;
 	int af_difaddr;
 	int af_aifaddr;
 	caddr_t af_ridreq;
@@ -220,11 +233,7 @@ struct afswtch {
 	{ 0,	0,	    0,		0 }
 };
 
-struct afswtch *afp;	/*the address family being set or asked about*/
-
-void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-int	ifconfig __P((int argc, char *argv[], int af, struct afswtch *rafp));
-
+const struct afswtch *afp;	/*the address family being set or asked about*/
 
 /*
  * Expand the compacted form of addresses as returned via the
@@ -263,18 +272,19 @@ struct sockaddr_dl *sdl;
 struct rt_addrinfo info;
 char *buf, *lim, *next;
 
-
-
+int
 main(argc, argv)
 	int argc;
-	char *argv[];
+	char *const *argv;
 {
 	int af = AF_INET;
-	struct afswtch *rafp;
+	const struct afswtch *rafp;
 
 	size_t needed;
-	int mib[6],  len;
+	int mib[6];
 	int all;
+
+	rafp = 0;
 
 	if (argc < 2) {
 		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s%s%s",
@@ -374,7 +384,7 @@ main(argc, argv)
 			exit(1);
 		}
 
-		ifconfig(argc,argv,af,rafp);
+		ifconfig(argc, argv, af, rafp);
 
 		close(s);
 
@@ -397,9 +407,9 @@ main(argc, argv)
 int
 ifconfig(argc,argv,af,rafp)
 	int argc;
-	char *argv[];
+	char *const *argv;
 	int af;
-	struct afswtch *rafp;
+	const struct afswtch *rafp;
 {
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
@@ -420,7 +430,7 @@ ifconfig(argc,argv,af,rafp)
 	}
 
 	while (argc > 0) {
-		register struct cmd *p;
+		register const struct cmd *p;
 
 		for (p = cmds; p->c_name; p++)
 			if (strcmp(*argv, p->c_name) == 0)
@@ -432,7 +442,7 @@ ifconfig(argc,argv,af,rafp)
 				if (argv[1] == NULL)
 					errx(1, "'%s' requires argument",
 					    p->c_name);
-				(*p->c_func)(argv[1]);
+				(*p->c_func)(argv[1], 0);
 				argc--, argv++;
 			} else
 				(*p->c_func)(*argv, p->c_parameter);
@@ -504,9 +514,10 @@ ifconfig(argc,argv,af,rafp)
 #define DSTADDR	3
 
 /*ARGSUSED*/
+void
 setifaddr(addr, param)
-	char *addr;
-	short param;
+	const char *addr;
+	int param;
 {
 	/*
 	 * Delay the ioctl to set the interface addr until flags are all set.
@@ -519,20 +530,26 @@ setifaddr(addr, param)
 	(*afp->af_getaddr)(addr, (doalias >= 0 ? ADDR : RIDADDR));
 }
 
-setifnetmask(addr)
-	char *addr;
+void
+setifnetmask(addr, dummy)
+	const char *addr;
+	int dummy __unused;
 {
 	(*afp->af_getaddr)(addr, MASK);
 }
 
-setifbroadaddr(addr)
-	char *addr;
+void
+setifbroadaddr(addr, dummy)
+	const char *addr;
+	int dummy __unused;
 {
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
-setifipdst(addr)
-	char *addr;
+void
+setifipdst(addr, dummy)
+	const char *addr;
+	int dummy __unused;
 {
 	in_getaddr(addr, DSTADDR);
 	setipdst++;
@@ -540,9 +557,11 @@ setifipdst(addr)
 	newaddr = 0;
 }
 #define rqtosa(x) (&(((struct ifreq *)(afp->x))->ifr_addr))
-/*ARGSUSED*/
+
+void
 notealias(addr, param)
-	char *addr;
+	const char *addr;
+	int param;
 {
 	if (setaddr && doalias == 0 && param < 0)
 		bcopy((caddr_t)rqtosa(af_addreq),
@@ -557,24 +576,18 @@ notealias(addr, param)
 }
 
 /*ARGSUSED*/
-notrailers(vname, value)
-	char *vname;
-	int value;
-{
-	printf("Note: trailers are no longer sent, but always received\n");
-}
-
-/*ARGSUSED*/
+void
 setifdstaddr(addr, param)
-	char *addr;
-	int param;
+	const char *addr;
+	int param __unused;
 {
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
+void
 setifflags(vname, value)
-	char *vname;
-	short value;
+	const char *vname;
+	int value;
 {
  	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
  		Perror("ioctl (SIOCGIFFLAGS)");
@@ -593,8 +606,10 @@ setifflags(vname, value)
 		Perror(vname);
 }
 
-setifmetric(val)
-	char *val;
+void
+setifmetric(val, dummy)
+	const char *val;
+	int dummy __unused;
 {
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
@@ -602,8 +617,10 @@ setifmetric(val)
 		perror("ioctl (set metric)");
 }
 
-setifmtu(val)
-	char *val;
+void
+setifmtu(val, dummy)
+	const char *val;
+	int dummy __unused;
 {
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
@@ -612,25 +629,28 @@ setifmtu(val)
 }
 
 #ifdef ISO
-setsnpaoffset(val)
+void
+setsnpaoffset(val, dummy)
 	char *val;
+	int dummy __unused;
 {
 	iso_addreq.ifra_snpaoffset = atoi(val);
 }
 #endif
 
 #define	IFFBITS \
-"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6NOTRAILERS\7RUNNING\10NOARP\
-\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2\20MULTICAST"
+"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6b6\7RUNNING" \
+"\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
+"\20MULTICAST"
 
 /*
  * Print the status of the interface.  If an address family was
  * specified, show it and it only; otherwise, show them all.
  */
+void
 status()
 {
-	struct afswtch *p = NULL;
-	short af = ifr.ifr_addr.sa_family;
+	const struct afswtch *p = NULL;
 	char *mynext;
 	struct if_msghdr *myifm;
 
@@ -688,19 +708,18 @@ status()
 		}
 	}
 	if (afp == NULL || afp->af_status == ether_status)
-		ether_status();
+		ether_status(0);
 	else if (afp && !p) {
 		warnx("%s has no %s IFA address!", name, afp->af_name);
 	}
 }
 
+void
 in_status(force)
 	int force;
 {
 	struct sockaddr_in *sin, null_sin;
-	char *inet_ntoa();
 	
-
 	memset(&null_sin, 0, sizeof(null_sin));
 
 	sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
@@ -723,7 +742,7 @@ in_status(force)
 	sin = (struct sockaddr_in *)info.rti_info[RTAX_NETMASK];
 	if (!sin)
 		sin = &null_sin;
-	printf("netmask 0x%x ", ntohl(sin->sin_addr.s_addr));
+	printf("netmask 0x%lx ", (unsigned long)ntohl(sin->sin_addr.s_addr));
 
 	if (flags & IFF_BROADCAST) {
 		/* note RTAX_BRD overlap with IFF_POINTOPOINT */
@@ -734,6 +753,7 @@ in_status(force)
 	putchar('\n');
 }
 
+void
 ipx_status(force)
 	int force;
 {
@@ -769,6 +789,7 @@ ipx_status(force)
 
 }
 
+void
 at_status(force)
 	int force;
 {
@@ -808,6 +829,7 @@ at_status(force)
 }
 
 #ifdef NS
+void
 xns_status(force)
 	int force;
 {
@@ -844,6 +866,7 @@ xns_status(force)
 #endif
 
 #ifdef ISO
+void
 iso_status(force)
 	int force;
 {
@@ -885,7 +908,9 @@ iso_status(force)
 }
 #endif
 
-ether_status()
+void
+ether_status(force)
+	int force __unused;
 {
 	char *cp;
 	int n;
@@ -902,11 +927,10 @@ ether_status()
 	}
 }
 
+void
 Perror(cmd)
-	char *cmd;
+	const char *cmd;
 {
-	extern int errno;
-
 	switch (errno) {
 
 	case ENXIO:
@@ -922,30 +946,29 @@ Perror(cmd)
 	}
 }
 
-struct	in_addr inet_makeaddr();
-
 #define SIN(x) ((struct sockaddr_in *) &(x))
 struct sockaddr_in *sintab[] = {
 SIN(ridreq.ifr_addr), SIN(addreq.ifra_addr),
 SIN(addreq.ifra_mask), SIN(addreq.ifra_broadaddr)};
 
+void
 in_getaddr(s, which)
-	char *s;
+	const char *s;
+	int which;
 {
 	register struct sockaddr_in *sin = sintab[which];
 	struct hostent *hp;
 	struct netent *np;
-	int val;
 
 	sin->sin_len = sizeof(*sin);
 	if (which != MASK)
 		sin->sin_family = AF_INET;
 
 	if (inet_aton(s, &sin->sin_addr))
-		;
-	else if (hp = gethostbyname(s))
+		return;
+	if ((hp = gethostbyname(s)) != 0)
 		bcopy(hp->h_addr, (char *)&sin->sin_addr, hp->h_length);
-	else if (np = getnetbyname(s))
+	else if ((np = getnetbyname(s)) != 0)
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else
 		errx(1, "%s: bad value", s);
@@ -954,10 +977,11 @@ in_getaddr(s, which)
 /*
  * Print a value a la the %b format of the kernel's printf
  */
+void
 printb(s, v, bits)
-	char *s;
-	register char *bits;
-	register unsigned short v;
+	const char *s;
+	register unsigned v;
+	register const char *bits;
 {
 	register int i, any = 0;
 	register char c;
@@ -969,7 +993,7 @@ printb(s, v, bits)
 	bits++;
 	if (bits) {
 		putchar('<');
-		while (i = *bits++) {
+		while ((i = *bits++) != '\0') {
 			if (v & (1 << (i-1))) {
 				if (any)
 					putchar(',');
@@ -989,11 +1013,12 @@ struct sockaddr_ipx *sipxtab[] = {
 SIPX(ridreq.ifr_addr), SIPX(addreq.ifra_addr),
 SIPX(addreq.ifra_mask), SIPX(addreq.ifra_broadaddr)};
 
+void
 ipx_getaddr(addr, which)
-char *addr;
+	const char *addr;
+	int which;
 {
 	struct sockaddr_ipx *sipx = sipxtab[which];
-	struct ipx_addr ipx_addr();
 
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_len = sizeof(*sipx);
@@ -1002,7 +1027,10 @@ char *addr;
 		printf("Attempt to set IPX netmask will be ineffectual\n");
 }
 
-at_getaddr(char *addr, int which)
+void
+at_getaddr(addr, which)
+	const char *addr;
+	int which;
 {
 	struct sockaddr_at *sat = (struct sockaddr_at *) &addreq.ifra_addr;
 	u_int net, node;
@@ -1018,7 +1046,11 @@ at_getaddr(char *addr, int which)
 	sat->sat_addr.s_node = node;
 }
 
-setatrange(char *range)
+/* XXX  FIXME -- should use strtoul for better parsing. */
+void
+setatrange(range, dummy)
+	const char *range;
+	int dummy __unused;
 {
 	u_short	first = 123, last = 123;
 
@@ -1030,7 +1062,10 @@ setatrange(char *range)
 	at_nr.nr_lastnet = htons(last);
 }
 
-setatphase(char *phase)
+void
+setatphase(phase, dummy)
+	const char *phase;
+	int dummy __unused;
 {
 	if (!strcmp(phase, "1"))
 		at_nr.nr_phase = 1;
@@ -1040,6 +1075,7 @@ setatphase(char *phase)
 		errx(1, "%s: illegal phase", phase);
 }
 
+void
 checkatrange(struct sockaddr_at *sat)
 {
 	if (at_nr.nr_phase == 0)
@@ -1064,11 +1100,12 @@ struct sockaddr_ns *snstab[] = {
 SNS(ridreq.ifr_addr), SNS(addreq.ifra_addr),
 SNS(addreq.ifra_mask), SNS(addreq.ifra_broadaddr)};
 
+void
 xns_getaddr(addr, which)
-char *addr;
+	const char *addr;
+	int which;
 {
 	struct sockaddr_ns *sns = snstab[which];
-	struct ns_addr ns_addr();
 
 	sns->sns_family = AF_NS;
 	sns->sns_len = sizeof(*sns);
@@ -1084,6 +1121,7 @@ struct sockaddr_iso *sisotab[] = {
 SISO(iso_ridreq.ifr_Addr), SISO(iso_addreq.ifra_addr),
 SISO(iso_addreq.ifra_mask), SISO(iso_addreq.ifra_dstaddr)};
 
+void
 iso_getaddr(addr, which)
 char *addr;
 {
@@ -1100,6 +1138,7 @@ char *addr;
 	}
 }
 
+void
 setnsellength(val)
 	char *val;
 {
@@ -1110,6 +1149,7 @@ setnsellength(val)
 		errx(1, "Setting NSEL length valid only for iso");
 }
 
+void
 fixnsel(s)
 register struct sockaddr_iso *s;
 {
@@ -1118,6 +1158,7 @@ register struct sockaddr_iso *s;
 	s->siso_tlen = nsellength;
 }
 
+void
 adjust_nsellength()
 {
 	fixnsel(sisotab[RIDADDR]);
