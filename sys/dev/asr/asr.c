@@ -2480,7 +2480,7 @@ asr_pci_map_int (
         if (sc->ha_irq_res == (struct resource *)NULL) {
                 return (0);
         }
-        if (bus_setup_intr(tag, sc->ha_irq_res, INTR_TYPE_CAM,
+        if (bus_setup_intr(tag, sc->ha_irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
           (driver_intr_t *)asr_intr, (void *)sc, &(sc->ha_intr))) {
                 return (0);
         }

@@ -366,7 +366,7 @@ mlx_attach(struct mlx_softc *sc)
 	mlx_free(sc);
 	return(ENXIO);
     }
-    error = bus_setup_intr(sc->mlx_dev, sc->mlx_irq, INTR_TYPE_BIO,  mlx_intr, sc, &sc->mlx_intr);
+    error = bus_setup_intr(sc->mlx_dev, sc->mlx_irq, INTR_TYPE_BIO | INTR_ENTROPY,  mlx_intr, sc, &sc->mlx_intr);
     if (error) {
 	device_printf(sc->mlx_dev, "can't set up interrupt\n");
 	mlx_free(sc);

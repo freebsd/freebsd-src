@@ -1169,8 +1169,9 @@ adw_attach(struct adw_softc *adw)
 	error = 0;
 	s = splcam();
 	/* Hook up our interrupt handler */
-	if ((error = bus_setup_intr(adw->device, adw->irq, INTR_TYPE_CAM,
-				    adw_intr, adw, &adw->ih)) != 0) {
+	if ((error = bus_setup_intr(adw->device, adw->irq,
+				    INTR_TYPE_CAM | INTR_ENTROPY, adw_intr,
+				    adw, &adw->ih)) != 0) {
 		device_printf(adw->device, "bus_setup_intr() failed: %d\n",
 			      error);
 		goto fail;

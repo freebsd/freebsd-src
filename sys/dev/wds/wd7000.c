@@ -539,7 +539,7 @@ wds_attach(device_t dev)
 					/*count*/ 0, RF_ACTIVE);
 	if (wp->intr_r == NULL)
 		goto bad;
-	error = bus_setup_intr(dev, wp->intr_r, INTR_TYPE_CAM,
+	error = bus_setup_intr(dev, wp->intr_r, INTR_TYPE_CAM | INTR_ENTROPY,
 			       (driver_intr_t *)wds_intr, (void *)wp,
 			       &wp->intr_cookie);
 	if (error)

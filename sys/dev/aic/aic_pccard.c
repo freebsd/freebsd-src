@@ -161,8 +161,8 @@ aic_pccard_attach(device_t dev)
 		return (error);
 	}
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM, aic_intr,
-	    aic, &sc->sc_ih);
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM|INTR_ENTROPY,
+				aic_intr, aic, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
 		aic_pccard_release_resources(dev);

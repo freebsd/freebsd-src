@@ -217,7 +217,7 @@ stg_pccard_attach(DEVPORT_PDEVICE dev)
 		return(error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       stg_pccard_intr, (void *)sc, &sc->stg_intrhand);
 	if (error) {
 		stg_release_resource(dev);

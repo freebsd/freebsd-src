@@ -196,7 +196,7 @@ amr_pci_attach(device_t dev)
         device_printf(sc->amr_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO, amr_pci_intr, sc, &sc->amr_intr)) {
+    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO | INTR_ENTROPY, amr_pci_intr, sc, &sc->amr_intr)) {
         device_printf(sc->amr_dev, "can't set up interrupt\n");
 	goto out;
     }

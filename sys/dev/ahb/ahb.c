@@ -367,7 +367,7 @@ ahbattach(device_t dev)
 		goto error_exit;
 
 	/* Enable our interrupt */
-	bus_setup_intr(dev, irq, INTR_TYPE_CAM, ahbintr, ahb, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, ahbintr, ahb, &ih);
 	return (0);
 
 error_exit:

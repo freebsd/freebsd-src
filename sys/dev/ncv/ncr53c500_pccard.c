@@ -241,7 +241,7 @@ ncv_pccard_attach(DEVPORT_PDEVICE dev)
 		return(error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       ncv_pccard_intr, (void *)sc, &sc->ncv_intrhand);
 	if (error) {
 		ncv_release_resource(dev);
