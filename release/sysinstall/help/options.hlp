@@ -15,21 +15,6 @@ NFS Slow:     User is using a slow PC or ethernet card
     the PC from becoming swamped with data.
 
 
-FTP Abort:    On transfer failure, abort
-
-    This is pretty self-explanatory.  If you're transfering from a
-    host that drops the connection or cannot provide a file, abort
-    the installation of that piece.
-
-
-FTP Reselect: On transfer failure, ask for another host
-
-    This is more useful to someone doing an interactive installation.
-    If the current host stops working, ask for a new ftp server to
-    resume the installation from.  The install will attempt to pick
-    up from where it left off on the other server, if at all possible.
-
-
 Debugging:    Turn on the extra debugging flag
 
     This turns on a lot of extra noise over on the second screen
@@ -45,17 +30,35 @@ Yes To All:   Assume "Yes" answers to all non-critical dialogs
     This flag should be used with caution.  It will essentially
     decide NOT to ask the user about any "boundry" conditions that
     might not constitute actual errors but may be warnings indicative
-    of other problems.
+    of other problems.  It's most useful to those who are doing unattended
+    installs.
 
 
-FTP username: Specify username and password instead of anonymous.
+FTP OnError:  What to do when FTP transfer errors occur.
+
+    This is pretty self-explanatory.  If you're transfering from a
+    host that drops the connection or cannot provide a file, you can
+    chose to Abort the connection, Retry the request (see next option)
+    or Reselect another FTP host, attempting to retry the request from
+    a new site.  Pressing SPACE will toggle through these options.
+
+
+FTP Retries:  How many times to retry failing FTP requests.
+
+    If FTP OnError is set to `retry', this is the number of times to
+    loop on a failing request before giving up.  If you're talking to a
+    site that's chronically overloaded (like ours!) you may wish to
+    simply set this to some large value and go to lunch or something.
+
+
+FTP username:  Specify username and password instead of anonymous.
 
     By default, the installation attempts to log in as the
     anonymous user.  If you wish to log in as someone else,
     specify the username and password with this option.
 
 
-Tape Blocksize: Specify block size in 512 byte blocks of tape.
+Tape Blocksize:  Specify block size in 512 byte blocks of tape.
 
     This defaults to 20 blocks, which should work with most
     tape drive + tar combinations.  It may not allow your particular
@@ -63,7 +66,7 @@ Tape Blocksize: Specify block size in 512 byte blocks of tape.
     adventurous among you might try experimenting with larger sizes.
 
 
-Detail Level:  How to show filenames on debug screen as they're extracted.
+Extract Detail:  How to show filenames on debug screen as they're extracted.
 
     While a distribution is being extracted, the default detail level
     of "high" will show the full file names as they're extracted.
@@ -90,6 +93,13 @@ Browser Package:  Which package to load for an HTML browser.
 Browser Exec:  Which binary to run for the HTML browser.
 
     The full pathname to the main executable in Browser Package
+
+
+Media Type:   Which media type is being used.
+
+    This is mostly informational and indicates which media type (if any)
+    was last selected in the Media menu.  It's also a convenient short-cut
+    to the media menu itself.
 
 
 Use Defaults:  Use default values.
