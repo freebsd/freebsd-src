@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.4.6 1998/01/11 14:00:07 peter Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.2.4 1998/01/15 17:35:59 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -78,7 +78,8 @@ define(`confTO_RSET', `1m')dnl
 define(`confTO_COMMAND', `5m')dnl
 define(`confTO_HOSTSTATUS', `30m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
-define(`confMAX_QUEUE_RUN_SIZE', `100')dnl
+define(`confMAX_QUEUE_RUN_SIZE', `500')dnl
+define(`confQUEUE_SORT_ORDER', `host')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confTRUSTED_USERS', `majordom')dnl
 define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
