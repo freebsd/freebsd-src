@@ -37,6 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
+ *	$Id: procfs_status.c,v 3.1 1993/12/15 09:40:17 jsp Exp $
  * $FreeBSD$
  */
 
@@ -63,6 +64,7 @@ int
 procfs_doprocstatus(PFS_FILL_ARGS)
 {
 	struct session *sess;
+	struct thread *tdfirst;
 	struct tty *tp;
 	struct ucred *cr;
 	char *pc;
@@ -124,14 +126,13 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
 
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_KSES)
 		sbuf_printf(sb, " %s", "-kse- ");
-	} else {
-		struct thread *td;
-		td = FIRST_THREAD_IN_PROC(p);
+	else {
+		tdfirst = FIRST_THREAD_IN_PROC(p);	/* XXX diff from td? */
 		sbuf_printf(sb, " %s",
-			(td->td_wchan && td->td_wmesg) ?
-			    td->td_wmesg : "nochan");
+		    (tdfirst->td_wchan && tdfirst->td_wmesg) ?
+		    tdfirst->td_wmesg : "nochan");
 	}
 
 	cr = p->p_ucred;
