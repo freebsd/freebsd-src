@@ -858,47 +858,28 @@ command if you have this kind of trouble.
 In order to analyse a panic which you suspect comes from
 .Nm
 you will need to build a debug kernel.  See the online handbook for more details
-of how to do this.  Be sure to include the
-.Nm ddb
-debugger.  To do this, put the following lines in your kernel configuration
-file:
-.Bd -literal
-options 	DDB
-options		BREAK_TO_DEBUGGER
-options		DDB_UNATTENDED
-.Ed
+of how to do this.
 .Pp
-The
-.Li DDB_UNATTENDED
-tells the kernel to reboot on a panic; otherwise it will remain in the
-.Nm ddb
-prompt until it receives input.
-.Pp
-You will need some additional steps to get symbolic information for the
+Perform the following steps to analyse a
 .Nm
-kernel loadable module:
+problem:
 .Bl -enum
 .It
-If possible, make a copy of or a link to the debug kernel at
-.Pa /var/crash/kernel.gdb,
-since the 
-.Cm gdb
-initialization file looks for it in this location.
+Copy the files
+.Pa /usr/src/sys/modules/vinum/.gdbinit.crash ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.kernel ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.serial ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum 
+and
+.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum.paths
+to the directory in which you will be performing the analysis, typically
+.Pa /var/crash .
 .It
 Make sure that you build the
 .Nm 
-module with debugging information.  This is the normal situation with the
-standard
-.Pa Makefile.
-.It
-Copy the file
-.Pa /usr/src/sys/modules/vinum/.gdbinit.crash
-to the directory in which you will be performing the analysis, typically
-.Pa /var/crash ,
-and call it
-.Pa .gdbinit .
-.It
-If the version of
+module with debugging information.  The standard
+.Pa Makefile
+builds a module with debugging symbols by default.  If the version of
 .Nm
 in
 .Pa /modules
@@ -924,40 +905,51 @@ or
 .Pa /usr/src/sys/modules/vinum/vinum.ko
 (if you have built
 .Nm
-in this directory).  Modify the
-.Pa .gdbinit
-file accordingly.
+in this directory).  Modify the file
+.Pa .gdbinit.vinum.paths
+accordingly.
 .It
-If you have not named your debug kernel
-.Pa /var/crash/kernel.gdb,
-edit
-.Pa .gdbinit
-to indicate the correct location.
-.P
-If you are remote debugging via a serial connection, copy the file
-.Pa /usr/src/sys/modules/vinum/.gdbinit.crash
-as
-.Pa .gdbinit
-to the directory in which you perform the debugging, and start it with
-.Bd -literal -offset indent
-gdb -k
+Either take a dump or use remote serial
+.Cm gdb
+to analyse the problem.  To analyse a dump, say
+.Pa /var/crash/vmcore.5 ,
+link 
+.Pa /var/crash/.gdbinit.crash
+to 
+.Pa /var/crash/.gdbinit
+and enter:
+.Bd -literal
+# cd /var/crash
+# gdb -k kernel.debug vmcore.5
 .Ed
 .Pp
-.Cd gdb
-will automatically establish the connection; the remote machine must already be
-in
+This example assumes that you have installed the correct debug kernel at
+.Pa /var/crash/kernel.debug .
+If not, substitute the correct name of the debug kernel.
+.Pp
+To perform remote serial debugging, 
+link 
+.Pa /var/crash/.gdbinit.serial
+to 
+.Pa /var/crash/.gdbinit and enter
+.Bd -literal
+# cd /var/crash
+# gdb -k kernel.debug
+.Ed
+.Pp
+In this case, the 
+.Pa .gdbinit
+file performs the functions necessary to establish connection.  The remote
+machine must already be in debug mode: enter the kernel debugger and select
 .Nm gdb .
-This
+The serial
 .Pa .gdbinit
 file expects the serial connection to run at 38400 bits per second; if you run
 at a different speed, edit the file accordingly (look for the
 .Ar remotebaud
 specification).
-.It
-Either take a dump or use
-.Cm gdb
-to analyse the problem.  Enter the output of the shell script shown above.  The
-following example shows a remote debugging session using the
+.Pp
+The following example shows a remote debugging session using the
 .Ar debug
 command of
 .Nm vinum(8):
@@ -1007,7 +999,9 @@ Debugger ("vinum debug");
 .if t .vs
 .if t .ps
 .Pp
-This is an indication that the address specifications are correct.
+This is an indication that the address specifications are correct.  If you get
+some other output, your symbols and the kernel module are out of sync, and the
+trace will be meaningless.
 .El
 .Pp
 For an initial investigation, the most important information is the output of
