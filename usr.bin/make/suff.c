@@ -1365,7 +1365,7 @@ SuffExpandChildren(void *cgnp, void *pgnp)
 			 * to find the end so we can skip over it.
 			 */
 			char	*junk;
-			size_t len;
+			size_t	len = 0;
 			Boolean	doFree;
 
 			junk = Var_Parse(cp, pgn, TRUE, &len, &doFree);

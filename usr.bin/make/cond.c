@@ -234,7 +234,7 @@ CondGetArg(char **linePtr, char **argPtr, const char *func, Boolean parens)
 	     * though perhaps we should...
 	     */
 	    char  	*cp2;
-	    size_t	len;
+	    size_t	len = 0;
 	    Boolean	doFree;
 
 	    cp2 = Var_Parse(cp, VAR_CMD, TRUE, &len, &doFree);
@@ -518,7 +518,7 @@ CondToken(Boolean doEval)
 		char	*lhs;
 		char	*rhs;
 		const char *op;
-		size_t	varSpecLen;
+		size_t	varSpecLen = 0;
 		Boolean	doFree;
 
 		/*
@@ -630,8 +630,8 @@ do_string_compare:
 			    cp++;
 			    Buf_AddByte(buf, (Byte)*cp);
 			} else if (*cp == '$') {
-			    size_t len;
-			    Boolean freeIt;
+			    size_t	len = 0;
+			    Boolean	freeIt;
 
 			    cp2 = Var_Parse(cp, VAR_CMD, doEval, &len, &freeIt);
 			    if (cp2 != var_Error) {
@@ -682,7 +682,7 @@ do_string_compare:
 		    if (*CondCvtArg(lhs, &left) != '\0')
 			goto do_string_compare;
 		    if (*rhs == '$') {
-			size_t len;
+			size_t	len = 0;
 			Boolean	freeIt;
 
 			string = Var_Parse(rhs, VAR_CMD, doEval, &len, &freeIt);
@@ -803,9 +803,9 @@ error:
 		     * Use Var_Parse to parse the spec in parens and return
 		     * True if the resulting string is empty.
 		     */
-		    size_t length;
-		    Boolean doFree;
-		    char    *val;
+		    size_t	length;
+		    Boolean	doFree;
+		    char	*val;
 
 		    condExpr += 5;
 
@@ -815,6 +815,7 @@ error:
 			continue;
 
 		    if (condExpr[arglen] != '\0') {
+			length = 0;
 			val = Var_Parse(&condExpr[arglen - 1], VAR_CMD,
 					FALSE, &length, &doFree);
 			if (val == var_Error) {
