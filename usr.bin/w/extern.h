@@ -35,6 +35,8 @@
  */
 
 
+extern	int use_ampm;
+
 struct kinfo_proc;
 void	pr_attime __P((time_t *, time_t *));
 int	pr_idle __P((time_t));
