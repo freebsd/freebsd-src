@@ -471,7 +471,7 @@ In addition,
 .Nm
 sets or knows about the following internal variables or environment
 variables:
-.Bl -tag -width ".Va MAKEFILE_LIST"
+.Bl -tag -width ".Va .MAKEFILE_LIST"
 .It Va \&$
 A single dollar sign
 .Ql \&$ ,
@@ -591,7 +591,7 @@ executes; compare with the
 .Ic .MAKEFLAGS
 special target below.
 .It Va MFLAGS
-is provided for backward compatibility and
+This variable is provided for backward compatibility and
 contains all the options from the
 .Ev MAKEFLAGS
 environment variable plus any options specified on
@@ -1439,7 +1439,7 @@ For loops are expanded before tests, so a fragment such as:
 won't work, and should be rewritten as:
 .Bd -literal -offset indent
 \&.for ARCH in ${SHARED_ARCHS}
-\&.if ${MACHINE} == ${ARCH} 
+\&.if ${MACHINE} == ${ARCH}
      ...
 \&.endif
 \&.endfor
