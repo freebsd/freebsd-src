@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <langinfo.h>
 #include <stdio.h>
 #include <utmp.h>
 #include <unistd.h>
@@ -64,12 +65,16 @@ static const char rcsid[] =
 #define MODELEN 20
 #define DATELEN 64
 #define SIXMONTHS	 ((365 / 2) * 86400)
-#define CURFRMT         "%Ef %H:%M"
-#define OLDFRMT         "%Ef  %Y"
+#define CURFRMTM	"%b %e %H:%M"
+#define OLDFRMTM	"%b %e  %Y"
+#define CURFRMTD	"%e %b %H:%M"
+#define OLDFRMTD	"%e %b  %Y"
 #ifndef UT_NAMESIZE
 #define UT_NAMESIZE	8
 #endif
 #define UT_GRPSIZE	6
+
+static int d_first = -1;
 
 /*
  * ls_list()
@@ -101,6 +106,8 @@ ls_list(arcn, now, fp)
 		return;
 	}
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	/*
 	 * user wants long mode
 	 */
@@ -111,9 +118,9 @@ ls_list(arcn, now, fp)
 	 * time format based on age compared to the time pax was started.
 	 */
 	if ((sbp->st_mtime + SIXMONTHS) <= now)
-		timefrmt = OLDFRMT;
+		timefrmt = d_first ? OLDFRMTD : OLDFRMTM;
 	else
-		timefrmt = CURFRMT;
+		timefrmt = d_first ? CURFRMTD : CURFRMTM;
 
 	/*
 	 * print file mode, link count, uid, gid and time
@@ -175,10 +182,13 @@ ls_tty(arcn)
 	char f_mode[MODELEN];
 	char *timefrmt;
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+
 	if ((arcn->sb.st_mtime + SIXMONTHS) <= time((time_t *)NULL))
-		timefrmt = OLDFRMT;
+		timefrmt = d_first ? OLDFRMTD : OLDFRMTM;
 	else
-		timefrmt = CURFRMT;
+		timefrmt = d_first ? CURFRMTD : CURFRMTM;
 
 	/*
 	 * convert time to string, and print
