@@ -227,15 +227,25 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 static __inline int
 _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 {
+	extern int _libkse_debug;
 	mcontext_t *mc;
 
 	_tcb_set(kcb, tcb);
 	mc = &tcb->tcb_tmbx.tm_context.uc_mcontext;
-	if (setmbox)
-		_thr_setcontext(mc, (intptr_t)&tcb->tcb_tmbx,
-		    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
-	else
-		_thr_setcontext(mc, 0, NULL);
+	if (_libkse_debug == 0) {
+		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
+		if (setmbox)
+			_thr_setcontext(mc, (intptr_t)&tcb->tcb_tmbx,
+			    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
+		else
+			_thr_setcontext(mc, 0, NULL);
+	} else {
+		if (setmbox)
+			kse_switchin(&tcb->tcb_tmbx, KSE_SWITCHIN_SETTMBX);
+		else
+			kse_switchin(&tcb->tcb_tmbx, 0);
+	}
+
 	/* We should not reach here. */
 	return (-1);
 }
