@@ -27,7 +27,7 @@
 #include <sys/socket.h>
 
 #include <sys/kernel.h>
-#include <net/if.h>
+
 #include <net/route.h>
 
 #include <netatalk/at.h>
