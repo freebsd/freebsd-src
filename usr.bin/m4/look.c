@@ -1,3 +1,5 @@
+/*	$OpenBSD: look.c,v 1.9 2002/02/16 21:27:48 millert Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,11 +36,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__SCCSID("@(#)look.c      8.1 (Berkeley) 6/6/93");
+__FBSDID("$FreeBSD$");
 
 /*
  * look.c
@@ -47,35 +47,39 @@ static char rcsid[] =
  */
 
 #include <sys/types.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
 
-int
+static void freent(ndptr);
+
+unsigned
 hash(name)
-register char *name;
+	const char *name;
 {
-	register unsigned long h = 0;
+	unsigned int h = 0;
 	while (*name)
 		h = (h << 5) + h + *name++;
-	return (h % HASHSIZE);
+	return (h);
 }
 
 /*
  * find name in the hash table
  */
-ndptr
+ndptr 
 lookup(name)
-char *name;
+	const char *name;
 {
-	register ndptr p;
+	ndptr p;
+	unsigned int h;
 
-	for (p = hashtab[hash(name)]; p != nil; p = p->nxtptr)
-		if (STREQ(name, p->name))
+	h = hash(name);
+	for (p = hashtab[h % HASHSIZE]; p != nil; p = p->nxtptr)
+		if (h == p->hv && STREQ(name, p->name))
 			break;
 	return (p);
 }
@@ -84,32 +88,29 @@ char *name;
  * hash and create an entry in the hash table.
  * The new entry is added in front of a hash bucket.
  */
-ndptr
+ndptr 
 addent(name)
-char *name;
+	const char *name;
 {
-	register int h;
+	unsigned int h;
 	ndptr p;
 
 	h = hash(name);
-	if ((p = malloc(sizeof(struct ndblock))) == NULL)
-		err(1, "malloc");
-	p->nxtptr = hashtab[h];
-	hashtab[h] = p;
-	if ((p->name = strdup(name)) == NULL)
-		err(1, "strdup");
+	p = (ndptr) xalloc(sizeof(struct ndblock));
+	p->nxtptr = hashtab[h % HASHSIZE];
+	hashtab[h % HASHSIZE] = p;
+	p->name = xstrdup(name);
+	p->hv = h;
 	return p;
 }
 
 static void
 freent(p)
-ndptr p;
+	ndptr p;
 {
-	if (!(p->type & STATIC)) {
-		free((char *) p->name);
-		if (p->defn != null)
-			free((char *) p->defn);
-	}
+	free((char *) p->name);
+	if (p->defn != null)
+		free((char *) p->defn);
 	free((char *) p);
 }
 
@@ -118,21 +119,21 @@ ndptr p;
  */
 void
 remhash(name, all)
-char *name;
-int all;
+	const char *name;
+	int all;
 {
-	register int h;
-	register ndptr xp, tp, mp;
+	unsigned int h;
+	ndptr xp, tp, mp;
 
 	h = hash(name);
-	mp = hashtab[h];
+	mp = hashtab[h % HASHSIZE];
 	tp = nil;
 	while (mp != nil) {
-		if (STREQ(mp->name, name)) {
+		if (mp->hv == h && STREQ(mp->name, name)) {
 			mp = mp->nxtptr;
 			if (tp == nil) {
-				freent(hashtab[h]);
-				hashtab[h] = mp;
+				freent(hashtab[h % HASHSIZE]);
+				hashtab[h % HASHSIZE] = mp;
 			}
 			else {
 				xp = tp->nxtptr;
