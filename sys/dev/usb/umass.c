@@ -938,7 +938,7 @@ USB_ATTACH(umass)
 #endif
 
 	if (sc->quirks & ALT_IFACE_1) {
-		err = usbd_set_interface(0, 1);
+		err = usbd_set_interface(uaa->iface, 1);
 		if (err) {
 			DPRINTF(UDMASS_USB, ("%s: could not switch to "
 				"Alt Interface %d\n",
