@@ -190,7 +190,8 @@ user address space.
 The socket is marked non-blocking and no connections
 are present to be accepted.
 .It Bq Er ECONNABORTED
-The socket has been closed while on the list queue.
+A connection arrived, but it was closed while waiting
+on the listen queue.
 .El
 .Sh SEE ALSO
 .Xr bind 2 ,
