@@ -280,6 +280,7 @@ struct mbstat {
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).
  */
+#define	M_COPY_PKTHDR(to, from)	m_copy_pkthdr(to, from)
 #define	m_getclr		m_get_clrd
 #define	MGET(m, how, type)	(m) = m_get((how), (type))
 #define	MGETHDR(m, how, type)	(m) = m_gethdr((how), (type))
@@ -311,21 +312,6 @@ struct mbstat {
  */
 #define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
 			    & M_EXT) || !MEXT_IS_REF(m)))
-
-/*-
- * Copy mbuf pkthdr from "from" to "to".
- * "from" must have M_PKTHDR set, and "to" must be empty.
- * aux pointer will be moved to "to".
- */
-#define	M_COPY_PKTHDR(to, from) do {					\
-	struct mbuf *_mfrom = (from);					\
-	struct mbuf *_mto = (to);					\
-									\
-	_mto->m_data = _mto->m_pktdat;					\
-	_mto->m_flags = _mfrom->m_flags & M_COPYFLAGS;			\
-	_mto->m_pkthdr = _mfrom->m_pkthdr;				\
-	_mfrom->m_pkthdr.aux = NULL;					\
-} while (0)
 
 /*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
@@ -487,6 +473,7 @@ void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
+void		 m_copy_pkthdr(struct mbuf *to, struct mbuf *from);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*copy)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);

@@ -63,6 +63,25 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
 
 /*
+ * Copy mbuf pkthdr from "from" to "to".
+ * "from" must have M_PKTHDR set, and "to" must be empty.
+ * aux pointer will be moved to "to".
+ */
+void
+m_copy_pkthdr(struct mbuf *to, struct mbuf *from)
+{
+
+#if 0
+	KASSERT(to->m_flags & M_PKTHDR,
+	    ("m_copy_pkthdr() called on non-header"));
+#endif
+	to->m_data = to->m_pktdat;
+	to->m_flags = from->m_flags & M_COPYFLAGS;
+	to->m_pkthdr = from->m_pkthdr;
+	from->m_pkthdr.aux = NULL;
+}
+
+/*
  * Lesser-used path for M_PREPEND:
  * allocate new mbuf to prepend to chain,
  * copy junk along.
