@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm_page.h>
 
-uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
+static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
 static int	ffs_sbupdate(struct ufsmount *, int);
 static int	ffs_reload(struct mount *, struct thread *);
@@ -77,7 +77,12 @@ static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
+static vfs_unmount_t ffs_unmount;
 static vfs_omount_t ffs_omount;
+static vfs_statfs_t ffs_statfs;
+static vfs_fhtovp_t ffs_fhtovp;
+static vfs_vptofh_t ffs_vptofh;
+static vfs_sync_t ffs_sync;
 
 static struct vfsops ufs_vfsops = {
 	.vfs_extattrctl =	ffs_extattrctl,
@@ -825,7 +830,7 @@ out:
 }
 
 #include <sys/sysctl.h>
-int bigcgs = 0;
+static int bigcgs = 0;
 SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
 
 /*
@@ -921,7 +926,7 @@ ffs_oldfscompat_write(fs, ump)
 /*
  * unmount system call
  */
-int
+static int
 ffs_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
@@ -1043,7 +1048,7 @@ ffs_flushfiles(mp, flags, td)
 /*
  * Get filesystem statistics.
  */
-int
+static int
 ffs_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -1093,7 +1098,7 @@ ffs_statfs(mp, sbp, td)
  *
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
-int
+static int
 ffs_sync(mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
@@ -1375,7 +1380,7 @@ ffs_vget(mp, ino, flags, vpp)
  * - check that the given client host has export rights and return
  *   those rights via. exflagsp and credanonp
  */
-int
+static int
 ffs_fhtovp(mp, fhp, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -1396,7 +1401,7 @@ ffs_fhtovp(mp, fhp, vpp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
-int
+static int
 ffs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
