@@ -1,5 +1,5 @@
-'#!/bin/sh
-#	$Id: rc,v 1.158 1998/09/30 14:44:57 cracauer Exp $
+#!/bin/sh
+#	$Id: rc,v 1.159 1998/10/08 18:47:29 des Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
