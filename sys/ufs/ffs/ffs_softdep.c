@@ -57,8 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kdb.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
@@ -147,11 +149,18 @@ static struct malloc_type *memtype[] = {
  */
 
 /*
+ * Forward declarations.
+ */
+struct inodedep_hashhead;
+struct newblk_hashhead;
+struct pagedep_hashhead;
+
+/*
  * Internal function prototypes.
  */
 static	void softdep_error(char *, int);
-static	void drain_output(struct vnode *, int);
-static	struct buf *getdirtybuf(struct buf **, struct mtx *, int);
+static	void drain_output(struct vnode *);
+static	struct buf *getdirtybuf(struct buf *, struct mtx *, int);
 static	void clear_remove(struct thread *);
 static	void clear_inodedeps(struct thread *);
 static	int flush_pagedep_deps(struct vnode *, struct mount *,
@@ -192,11 +201,17 @@ static	struct freefrag *newfreefrag(struct inode *, ufs2_daddr_t, long);
 static	void allocdirect_merge(struct allocdirectlst *,
 	    struct allocdirect *, struct allocdirect *);
 static	struct bmsafemap *bmsafemap_lookup(struct buf *);
+static	int newblk_find(struct newblk_hashhead *, struct fs *, ufs2_daddr_t,
+	    struct newblk **);
 static	int newblk_lookup(struct fs *, ufs2_daddr_t, int, struct newblk **);
+static	int inodedep_find(struct inodedep_hashhead *, struct fs *, ino_t,
+	    struct inodedep **);
 static	int inodedep_lookup(struct fs *, ino_t, int, struct inodedep **);
 static	int pagedep_lookup(struct inode *, ufs_lbn_t, int, struct pagedep **);
+static	int pagedep_find(struct pagedep_hashhead *, ino_t, ufs_lbn_t,
+	    struct mount *mp, int, struct pagedep **);
 static	void pause_timer(void *);
-static	int request_cleanup(int, int);
+static	int request_cleanup(int);
 static	int process_worklist_item(struct mount *, int);
 static	void add_to_worklist(struct worklist *);
 
@@ -209,212 +224,11 @@ static	void softdep_deallocate_dependencies(struct buf *);
 static	void softdep_move_dependencies(struct buf *, struct buf *);
 static	int softdep_count_dependencies(struct buf *bp, int);
 
-/*
- * Locking primitives.
- *
- * For a uniprocessor, all we need to do is protect against disk
- * interrupts. For a multiprocessor, this lock would have to be
- * a mutex. A single mutex is used throughout this file, though
- * finer grain locking could be used if contention warranted it.
- *
- * For a multiprocessor, the sleep call would accept a lock and
- * release it after the sleep processing was complete. In a uniprocessor
- * implementation there is no such interlock, so we simple mark
- * the places where it needs to be done with the `interlocked' form
- * of the lock calls. Since the uniprocessor sleep already interlocks
- * the spl, there is nothing that really needs to be done.
- */
-#ifndef /* NOT */ DEBUG
-static struct lockit {
-	int	lkt_spl;
-} lk = { 0 };
-#define ACQUIRE_LOCK(lk)		(lk)->lkt_spl = splbio()
-#define FREE_LOCK(lk)			splx((lk)->lkt_spl)
+static struct mtx lk;
+MTX_SYSINIT(softdep_lock, &lk, "Softdep Lock", MTX_DEF);
 
-#else /* DEBUG */
-#define NOHOLDER	((struct thread *)-1)
-#define SPECIAL_FLAG	((struct thread *)-2)
-static struct lockit {
-	int	lkt_spl;
-	struct	thread *lkt_held;
-} lk = { 0, NOHOLDER };
-
-static	void acquire_lock(struct lockit *);
-static	void free_lock(struct lockit *);
-void	softdep_panic(char *);
-
-#define ACQUIRE_LOCK(lk)		acquire_lock(lk)
-#define FREE_LOCK(lk)			free_lock(lk)
-
-static void
-acquire_lock(lk)
-	struct lockit *lk;
-{
-	struct thread *holder;
-
-	if (lk->lkt_held != NOHOLDER) {
-		holder = lk->lkt_held;
-		FREE_LOCK(lk);
-		if (holder == curthread)
-			panic("softdep_lock: locking against myself");
-		else
-			panic("softdep_lock: lock held by %p", holder);
-	}
-	lk->lkt_spl = splbio();
-	lk->lkt_held = curthread;
-}
-
-static void
-free_lock(lk)
-	struct lockit *lk;
-{
-
-	if (lk->lkt_held == NOHOLDER)
-		panic("softdep_unlock: lock not held");
-	lk->lkt_held = NOHOLDER;
-	splx(lk->lkt_spl);
-}
-
-/*
- * Function to release soft updates lock and panic.
- */
-void
-softdep_panic(msg)
-	char *msg;
-{
-
-	if (lk.lkt_held != NOHOLDER)
-		FREE_LOCK(&lk);
-	panic(msg);
-}
-#endif /* DEBUG */
-
-static	int interlocked_sleep(struct lockit *, int, void *, struct mtx *, int,
-	    const char *, int);
-
-/*
- * When going to sleep, we must save our SPL so that it does
- * not get lost if some other process uses the lock while we
- * are sleeping. We restore it after we have slept. This routine
- * wraps the interlocking with functions that sleep. The list
- * below enumerates the available set of operations.
- */
-#define	UNKNOWN		0
-#define	SLEEP		1
-#define	LOCKBUF		2
-
-static int
-interlocked_sleep(lk, op, ident, mtx, flags, wmesg, timo)
-	struct lockit *lk;
-	int op;
-	void *ident;
-	struct mtx *mtx;
-	int flags;
-	const char *wmesg;
-	int timo;
-{
-	struct thread *holder;
-	int s, retval;
-
-	s = lk->lkt_spl;
-#	ifdef DEBUG
-	if (lk->lkt_held == NOHOLDER)
-		panic("interlocked_sleep: lock not held");
-	lk->lkt_held = NOHOLDER;
-#	endif /* DEBUG */
-	switch (op) {
-	case SLEEP:
-		retval = msleep(ident, mtx, flags, wmesg, timo);
-		break;
-	case LOCKBUF:
-		retval = BUF_LOCK((struct buf *)ident, flags, mtx);
-		break;
-	default:
-		panic("interlocked_sleep: unknown operation");
-	}
-#	ifdef DEBUG
-	if (lk->lkt_held != NOHOLDER) {
-		holder = lk->lkt_held;
-		FREE_LOCK(lk);
-		if (holder == curthread)
-			panic("interlocked_sleep: locking against self");
-		else
-			panic("interlocked_sleep: lock held by %p", holder);
-	}
-	lk->lkt_held = curthread;
-#	endif /* DEBUG */
-	lk->lkt_spl = s;
-	return (retval);
-}
-
-/*
- * Place holder for real semaphores.
- */
-struct sema {
-	int	value;
-	struct	thread *holder;
-	char	*name;
-	int	prio;
-	int	timo;
-};
-static	void sema_init(struct sema *, char *, int, int);
-static	int sema_get(struct sema *, struct lockit *);
-static	void sema_release(struct sema *);
-
-static void
-sema_init(semap, name, prio, timo)
-	struct sema *semap;
-	char *name;
-	int prio, timo;
-{
-
-	semap->holder = NOHOLDER;
-	semap->value = 0;
-	semap->name = name;
-	semap->prio = prio;
-	semap->timo = timo;
-}
-
-static int
-sema_get(semap, interlock)
-	struct sema *semap;
-	struct lockit *interlock;
-{
-
-	if (semap->value++ > 0) {
-		if (interlock != NULL) {
-			interlocked_sleep(interlock, SLEEP, (caddr_t)semap,
-			    NULL, semap->prio, semap->name,
-			    semap->timo);
-			FREE_LOCK(interlock);
-		} else {
-			tsleep(semap, semap->prio, semap->name,
-			    semap->timo);
-		}
-		return (0);
-	}
-	semap->holder = curthread;
-	if (interlock != NULL)
-		FREE_LOCK(interlock);
-	return (1);
-}
-
-static void
-sema_release(semap)
-	struct sema *semap;
-{
-
-	if (semap->value <= 0 || semap->holder != curthread) {
-		if (lk.lkt_held != NOHOLDER)
-			FREE_LOCK(&lk);
-		panic("sema_release: not held");
-	}
-	if (--semap->value > 0) {
-		semap->value = 0;
-		wakeup(semap);
-	}
-	semap->holder = NOHOLDER;
-}
+#define ACQUIRE_LOCK(lk)		mtx_lock(lk)
+#define FREE_LOCK(lk)			mtx_unlock(lk)
 
 /*
  * Worklist queue management.
@@ -446,12 +260,9 @@ worklist_insert(head, item)
 	struct worklist *item;
 {
 
-	if (lk.lkt_held == NOHOLDER)
-		panic("worklist_insert: lock not held");
-	if (item->wk_state & ONWORKLIST) {
-		FREE_LOCK(&lk);
+	mtx_assert(&lk, MA_OWNED);
+	if (item->wk_state & ONWORKLIST)
 		panic("worklist_insert: already on list");
-	}
 	item->wk_state |= ONWORKLIST;
 	LIST_INSERT_HEAD(head, item, wk_list);
 }
@@ -461,12 +272,9 @@ worklist_remove(item)
 	struct worklist *item;
 {
 
-	if (lk.lkt_held == NOHOLDER)
-		panic("worklist_remove: lock not held");
-	if ((item->wk_state & ONWORKLIST) == 0) {
-		FREE_LOCK(&lk);
+	mtx_assert(&lk, MA_OWNED);
+	if ((item->wk_state & ONWORKLIST) == 0)
 		panic("worklist_remove: not on list");
-	}
 	item->wk_state &= ~ONWORKLIST;
 	LIST_REMOVE(item, wk_list);
 }
@@ -477,16 +285,10 @@ workitem_free(item, type)
 	int type;
 {
 
-	if (item->wk_state & ONWORKLIST) {
-		if (lk.lkt_held != NOHOLDER)
-			FREE_LOCK(&lk);
+	if (item->wk_state & ONWORKLIST)
 		panic("workitem_free: still on list");
-	}
-	if (item->wk_type != type) {
-		if (lk.lkt_held != NOHOLDER)
-			FREE_LOCK(&lk);
+	if (item->wk_type != type)
 		panic("workitem_free: type mismatch");
-	}
 	FREE(item, DtoM(type));
 }
 #endif /* DEBUG */
@@ -554,11 +356,9 @@ add_to_worklist(wk)
 	struct worklist *wk;
 {
 
-	if (wk->wk_state & ONWORKLIST) {
-		if (lk.lkt_held != NOHOLDER)
-			FREE_LOCK(&lk);
+	mtx_assert(&lk, MA_OWNED);
+	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: already on list");
-	}
 	wk->wk_state |= ONWORKLIST;
 	if (LIST_FIRST(&softdep_workitem_pending) == NULL)
 		LIST_INSERT_HEAD(&softdep_workitem_pending, wk, wk_list);
@@ -598,9 +398,12 @@ softdep_process_worklist(matchmnt)
 	 * is in operation to get an accurate count of the number of items
 	 * related to its mount point that are in the list.
 	 */
+	ACQUIRE_LOCK(&lk);
 	if (matchmnt == NULL) {
-		if (softdep_worklist_busy < 0)
+		if (softdep_worklist_busy < 0) {
+			FREE_LOCK(&lk);
 			return(-1);
+		}
 		softdep_worklist_busy += 1;
 	}
 
@@ -651,8 +454,11 @@ softdep_process_worklist(matchmnt)
 		 * We do not generally want to stop for buffer space, but if
 		 * we are really being a buffer hog, we will stop and wait.
 		 */
-		if (loopcount++ % 128 == 0)
+		if (loopcount++ % 128 == 0) {
+			FREE_LOCK(&lk);
 			bwillwrite();
+			ACQUIRE_LOCK(&lk);
+		}
 		/*
 		 * Never allow processing to run for more than one
 		 * second. Otherwise the other syncer tasks may get
@@ -668,6 +474,7 @@ softdep_process_worklist(matchmnt)
 		if (softdep_worklist_req && softdep_worklist_busy == 0)
 			wakeup(&softdep_worklist_req);
 	}
+	FREE_LOCK(&lk);
 	return (matchcnt);
 }
 
@@ -684,6 +491,7 @@ process_worklist_item(matchmnt, flags)
 	struct vnode *vp;
 	int matchcnt = 0;
 
+	mtx_assert(&lk, MA_OWNED);
 	/*
 	 * If we are being called because of a process doing a
 	 * copy-on-write, then it is not safe to write as we may
@@ -691,7 +499,6 @@ process_worklist_item(matchmnt, flags)
 	 */
 	if (curthread->td_pflags & TDP_COWINPROGRESS)
 		return (-1);
-	ACQUIRE_LOCK(&lk);
 	/*
 	 * Normally we just process each item on the worklist in order.
 	 * However, if we are in a situation where we cannot lock any
@@ -713,10 +520,8 @@ process_worklist_item(matchmnt, flags)
 		if (vp != NULL)
 			break;
 	}
-	if (wk == 0) {
-		FREE_LOCK(&lk);
+	if (wk == 0)
 		return (-1);
-	}
 	/*
 	 * Remove the item to be processed. If we are removing the last
 	 * item on the list, we need to recalculate the tail pointer.
@@ -784,6 +589,7 @@ process_worklist_item(matchmnt, flags)
 		    "softdep", TYPENAME(wk->wk_type));
 		/* NOTREACHED */
 	}
+	ACQUIRE_LOCK(&lk);
 	return (matchcnt);
 }
 
@@ -827,12 +633,14 @@ softdep_flushworklist(oldmnt, countp, td)
 	/*
 	 * Await our turn to clear out the queue, then serialize access.
 	 */
+	ACQUIRE_LOCK(&lk);
 	while (softdep_worklist_busy) {
 		softdep_worklist_req += 1;
-		tsleep(&softdep_worklist_req, PRIBIO, "softflush", 0);
+		msleep(&softdep_worklist_req, &lk, PRIBIO, "softflush", 0);
 		softdep_worklist_req -= 1;
 	}
 	softdep_worklist_busy = -1;
+	FREE_LOCK(&lk);
 	/*
 	 * Alternately flush the block device associated with the mount
 	 * point and process any dependencies that the flushing
@@ -849,9 +657,11 @@ softdep_flushworklist(oldmnt, countp, td)
 		if (error)
 			break;
 	}
+	ACQUIRE_LOCK(&lk);
 	softdep_worklist_busy = 0;
 	if (softdep_worklist_req)
 		wakeup(&softdep_worklist_req);
+	FREE_LOCK(&lk);
 	return (error);
 }
 
@@ -931,8 +741,33 @@ u_long	pagedep_hash;		/* size of hash table - 1 */
 #define	PAGEDEP_HASH(mp, inum, lbn) \
 	(&pagedep_hashtbl[((((register_t)(mp)) >> 13) + (inum) + (lbn)) & \
 	    pagedep_hash])
-static struct sema pagedep_in_progress;
 
+static int
+pagedep_find(pagedephd, ino, lbn, mp, flags, pagedeppp)
+	struct pagedep_hashhead *pagedephd;
+	ino_t ino;
+	ufs_lbn_t lbn;
+	struct mount *mp;
+	int flags;
+	struct pagedep **pagedeppp;
+{
+	struct pagedep *pagedep;
+
+	LIST_FOREACH(pagedep, pagedephd, pd_hash)
+		if (ino == pagedep->pd_ino &&
+		    lbn == pagedep->pd_lbn &&
+		    mp == pagedep->pd_mnt)
+			break;
+	if (pagedep) {
+		*pagedeppp = pagedep;
+		if ((flags & DEPALLOC) != 0 &&
+		    (pagedep->pd_state & ONWORKLIST) == 0)
+			return (0);
+		return (1);
+	}
+	*pagedeppp = NULL;
+	return (0);
+}
 /*
  * Look up a pagedep. Return 1 if found, 0 if not found or found
  * when asked to allocate but not associated with any buffer.
@@ -950,37 +785,25 @@ pagedep_lookup(ip, lbn, flags, pagedeppp)
 	struct pagedep *pagedep;
 	struct pagedep_hashhead *pagedephd;
 	struct mount *mp;
+	int ret;
 	int i;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("pagedep_lookup: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	mp = ITOV(ip)->v_mount;
 	pagedephd = PAGEDEP_HASH(mp, ip->i_number, lbn);
-top:
-	LIST_FOREACH(pagedep, pagedephd, pd_hash)
-		if (ip->i_number == pagedep->pd_ino &&
-		    lbn == pagedep->pd_lbn &&
-		    mp == pagedep->pd_mnt)
-			break;
-	if (pagedep) {
-		*pagedeppp = pagedep;
-		if ((flags & DEPALLOC) != 0 &&
-		    (pagedep->pd_state & ONWORKLIST) == 0)
-			return (0);
-		return (1);
+
+	ret = pagedep_find(pagedephd, ip->i_number, lbn, mp, flags, pagedeppp);
+	if (*pagedeppp || (flags & DEPALLOC) == 0)
+		return (ret);
+	FREE_LOCK(&lk);
+	MALLOC(pagedep, struct pagedep *, sizeof(struct pagedep),
+	    M_PAGEDEP, M_SOFTDEP_FLAGS|M_ZERO);
+	ACQUIRE_LOCK(&lk);
+	ret = pagedep_find(pagedephd, ip->i_number, lbn, mp, flags, pagedeppp);
+	if (*pagedeppp) {
+		FREE(pagedep, M_PAGEDEP);
+		return (ret);
 	}
-	if ((flags & DEPALLOC) == 0) {
-		*pagedeppp = NULL;
-		return (0);
-	}
-	if (sema_get(&pagedep_in_progress, &lk) == 0) {
-		ACQUIRE_LOCK(&lk);
-		goto top;
-	}
-	MALLOC(pagedep, struct pagedep *, sizeof(struct pagedep), M_PAGEDEP,
-		M_SOFTDEP_FLAGS|M_ZERO);
 	pagedep->pd_list.wk_type = D_PAGEDEP;
 	pagedep->pd_mnt = mp;
 	pagedep->pd_ino = ip->i_number;
@@ -989,9 +812,7 @@ top:
 	LIST_INIT(&pagedep->pd_pendinghd);
 	for (i = 0; i < DAHASHSZ; i++)
 		LIST_INIT(&pagedep->pd_diraddhd[i]);
-	ACQUIRE_LOCK(&lk);
 	LIST_INSERT_HEAD(pagedephd, pagedep, pd_hash);
-	sema_release(&pagedep_in_progress);
 	*pagedeppp = pagedep;
 	return (0);
 }
@@ -1004,8 +825,27 @@ static u_long	inodedep_hash;	/* size of hash table - 1 */
 static long	num_inodedep;	/* number of inodedep allocated */
 #define	INODEDEP_HASH(fs, inum) \
       (&inodedep_hashtbl[((((register_t)(fs)) >> 13) + (inum)) & inodedep_hash])
-static struct sema inodedep_in_progress;
 
+static int
+inodedep_find(inodedephd, fs, inum, inodedeppp)
+	struct inodedep_hashhead *inodedephd;
+	struct fs *fs;
+	ino_t inum;
+	struct inodedep **inodedeppp;
+{
+	struct inodedep *inodedep;
+
+	LIST_FOREACH(inodedep, inodedephd, id_hash)
+		if (inum == inodedep->id_ino && fs == inodedep->id_fs)
+			break;
+	if (inodedep) {
+		*inodedeppp = inodedep;
+		return (1);
+	}
+	*inodedeppp = NULL;
+
+	return (0);
+}
 /*
  * Look up an inodedep. Return 1 if found, 0 if not found.
  * If not found, allocate if DEPALLOC flag is passed.
@@ -1021,41 +861,28 @@ inodedep_lookup(fs, inum, flags, inodedeppp)
 {
 	struct inodedep *inodedep;
 	struct inodedep_hashhead *inodedephd;
-	int firsttry;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("inodedep_lookup: lock not held");
-#endif
-	firsttry = 1;
+	mtx_assert(&lk, MA_OWNED);
 	inodedephd = INODEDEP_HASH(fs, inum);
-top:
-	LIST_FOREACH(inodedep, inodedephd, id_hash)
-		if (inum == inodedep->id_ino && fs == inodedep->id_fs)
-			break;
-	if (inodedep) {
-		*inodedeppp = inodedep;
+
+	if (inodedep_find(inodedephd, fs, inum, inodedeppp))
 		return (1);
-	}
-	if ((flags & DEPALLOC) == 0) {
-		*inodedeppp = NULL;
+	if ((flags & DEPALLOC) == 0)
 		return (0);
-	}
 	/*
 	 * If we are over our limit, try to improve the situation.
 	 */
-	if (num_inodedep > max_softdeps && firsttry && (flags & NODELAY) == 0 &&
-	    request_cleanup(FLUSH_INODES, 1)) {
-		firsttry = 0;
-		goto top;
-	}
-	if (sema_get(&inodedep_in_progress, &lk) == 0) {
-		ACQUIRE_LOCK(&lk);
-		goto top;
-	}
-	num_inodedep += 1;
+	if (num_inodedep > max_softdeps  && (flags & NODELAY) == 0)
+		request_cleanup(FLUSH_INODES);
+	FREE_LOCK(&lk);
 	MALLOC(inodedep, struct inodedep *, sizeof(struct inodedep),
 		M_INODEDEP, M_SOFTDEP_FLAGS);
+	ACQUIRE_LOCK(&lk);
+	if (inodedep_find(inodedephd, fs, inum, inodedeppp)) {
+		FREE(inodedep, M_INODEDEP);
+		return (1);
+	}
+	num_inodedep += 1;
 	inodedep->id_list.wk_type = D_INODEDEP;
 	inodedep->id_fs = fs;
 	inodedep->id_ino = inum;
@@ -1072,9 +899,7 @@ top:
 	TAILQ_INIT(&inodedep->id_newinoupdt);
 	TAILQ_INIT(&inodedep->id_extupdt);
 	TAILQ_INIT(&inodedep->id_newextupdt);
-	ACQUIRE_LOCK(&lk);
 	LIST_INSERT_HEAD(inodedephd, inodedep, id_hash);
-	sema_release(&inodedep_in_progress);
 	*inodedeppp = inodedep;
 	return (0);
 }
@@ -1086,7 +911,26 @@ LIST_HEAD(newblk_hashhead, newblk) *newblk_hashtbl;
 u_long	newblk_hash;		/* size of hash table - 1 */
 #define	NEWBLK_HASH(fs, inum) \
 	(&newblk_hashtbl[((((register_t)(fs)) >> 13) + (inum)) & newblk_hash])
-static struct sema newblk_in_progress;
+
+static int
+newblk_find(newblkhd, fs, newblkno, newblkpp)
+	struct newblk_hashhead *newblkhd;
+	struct fs *fs;
+	ufs2_daddr_t newblkno;
+	struct newblk **newblkpp;
+{
+	struct newblk *newblk;
+
+	LIST_FOREACH(newblk, newblkhd, nb_hash)
+		if (newblkno == newblk->nb_newblkno && fs == newblk->nb_fs)
+			break;
+	if (newblk) {
+		*newblkpp = newblk;
+		return (1);
+	}
+	*newblkpp = NULL;
+	return (0);
+}
 
 /*
  * Look up a newblk. Return 1 if found, 0 if not found.
@@ -1104,27 +948,22 @@ newblk_lookup(fs, newblkno, flags, newblkpp)
 	struct newblk_hashhead *newblkhd;
 
 	newblkhd = NEWBLK_HASH(fs, newblkno);
-top:
-	LIST_FOREACH(newblk, newblkhd, nb_hash)
-		if (newblkno == newblk->nb_newblkno && fs == newblk->nb_fs)
-			break;
-	if (newblk) {
-		*newblkpp = newblk;
+	if (newblk_find(newblkhd, fs, newblkno, newblkpp))
 		return (1);
-	}
-	if ((flags & DEPALLOC) == 0) {
-		*newblkpp = NULL;
+	if ((flags & DEPALLOC) == 0)
 		return (0);
-	}
-	if (sema_get(&newblk_in_progress, 0) == 0)
-		goto top;
+	FREE_LOCK(&lk);
 	MALLOC(newblk, struct newblk *, sizeof(struct newblk),
 		M_NEWBLK, M_SOFTDEP_FLAGS);
+	ACQUIRE_LOCK(&lk);
+	if (newblk_find(newblkhd, fs, newblkno, newblkpp)) {
+		FREE(newblk, M_NEWBLK);
+		return (1);
+	}
 	newblk->nb_state = 0;
 	newblk->nb_fs = fs;
 	newblk->nb_newblkno = newblkno;
 	LIST_INSERT_HEAD(newblkhd, newblk, nb_hash);
-	sema_release(&newblk_in_progress);
 	*newblkpp = newblk;
 	return (0);
 }
@@ -1142,11 +981,8 @@ softdep_initialize()
 	max_softdeps = desiredvnodes * 4;
 	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP,
 	    &pagedep_hash);
-	sema_init(&pagedep_in_progress, "pagedep", PRIBIO, 0);
 	inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP, &inodedep_hash);
-	sema_init(&inodedep_in_progress, "inodedep", PRIBIO, 0);
 	newblk_hashtbl = hashinit(64, M_NEWBLK, &newblk_hash);
-	sema_init(&newblk_in_progress, "newblk", PRIBIO, 0);
 
 	/* hooks through which the main kernel code calls us */
 	softdep_process_worklist_hook = softdep_process_worklist;
@@ -1274,10 +1110,8 @@ softdep_setup_inomapdep(bp, ip, newinum)
 	 * the cylinder group map from which it was allocated.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(ip->i_fs, newinum, DEPALLOC|NODELAY, &inodedep))) {
-		FREE_LOCK(&lk);
+	if ((inodedep_lookup(ip->i_fs, newinum, DEPALLOC|NODELAY, &inodedep)))
 		panic("softdep_setup_inomapdep: found inode");
-	}
 	inodedep->id_buf = bp;
 	inodedep->id_state &= ~DEPCOMPLETE;
 	bmsafemap = bmsafemap_lookup(bp);
@@ -1303,9 +1137,9 @@ softdep_setup_blkmapdep(bp, fs, newblkno)
 	 * Add it to the dependency list for the buffer holding
 	 * the cylinder group map from which it was allocated.
 	 */
+	ACQUIRE_LOCK(&lk);
 	if (newblk_lookup(fs, newblkno, DEPALLOC, &newblk) != 0)
 		panic("softdep_setup_blkmapdep: found block");
-	ACQUIRE_LOCK(&lk);
 	newblk->nb_bmsafemap = bmsafemap = bmsafemap_lookup(bp);
 	LIST_INSERT_HEAD(&bmsafemap->sm_newblkhd, newblk, nb_deps);
 	FREE_LOCK(&lk);
@@ -1324,10 +1158,7 @@ bmsafemap_lookup(bp)
 	struct bmsafemap *bmsafemap;
 	struct worklist *wk;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("bmsafemap_lookup: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	LIST_FOREACH(wk, &bp->b_dep, wk_list)
 		if (wk->wk_type == D_BMSAFEMAP)
 			return (WK_BMSAFEMAP(wk));
@@ -1407,32 +1238,11 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	else
 		adp->ad_freefrag = newfreefrag(ip, oldblkno, oldsize);
 
-	if (newblk_lookup(ip->i_fs, newblkno, 0, &newblk) == 0)
-		panic("softdep_setup_allocdirect: lost block");
-
 	ACQUIRE_LOCK(&lk);
-	inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC | NODELAY, &inodedep);
-	adp->ad_inodedep = inodedep;
-
-	if (newblk->nb_state == DEPCOMPLETE) {
-		adp->ad_state |= DEPCOMPLETE;
-		adp->ad_buf = NULL;
-	} else {
-		bmsafemap = newblk->nb_bmsafemap;
-		adp->ad_buf = bmsafemap->sm_buf;
-		LIST_REMOVE(newblk, nb_deps);
-		LIST_INSERT_HEAD(&bmsafemap->sm_allocdirecthd, adp, ad_deps);
-	}
-	LIST_REMOVE(newblk, nb_hash);
-	FREE(newblk, M_NEWBLK);
-
-	WORKLIST_INSERT(&bp->b_dep, &adp->ad_list);
 	if (lbn >= NDADDR) {
 		/* allocating an indirect block */
-		if (oldblkno != 0) {
-			FREE_LOCK(&lk);
+		if (oldblkno != 0)
 			panic("softdep_setup_allocdirect: non-zero indir");
-		}
 	} else {
 		/*
 		 * Allocating a direct block.
@@ -1445,6 +1255,23 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 		    pagedep_lookup(ip, lbn, DEPALLOC, &pagedep) == 0)
 			WORKLIST_INSERT(&bp->b_dep, &pagedep->pd_list);
 	}
+	if (newblk_lookup(ip->i_fs, newblkno, 0, &newblk) == 0)
+		panic("softdep_setup_allocdirect: lost block");
+	if (newblk->nb_state == DEPCOMPLETE) {
+		adp->ad_state |= DEPCOMPLETE;
+		adp->ad_buf = NULL;
+	} else {
+		bmsafemap = newblk->nb_bmsafemap;
+		adp->ad_buf = bmsafemap->sm_buf;
+		LIST_REMOVE(newblk, nb_deps);
+		LIST_INSERT_HEAD(&bmsafemap->sm_allocdirecthd, adp, ad_deps);
+	}
+	LIST_REMOVE(newblk, nb_hash);
+	FREE(newblk, M_NEWBLK);
+
+	inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC | NODELAY, &inodedep);
+	adp->ad_inodedep = inodedep;
+	WORKLIST_INSERT(&bp->b_dep, &adp->ad_list);
 	/*
 	 * The list of allocdirects must be kept in sorted and ascending
 	 * order so that the rollback routines can quickly determine the
@@ -1471,10 +1298,8 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 		if (oldadp->ad_lbn >= lbn)
 			break;
 	}
-	if (oldadp == NULL) {
-		FREE_LOCK(&lk);
+	if (oldadp == NULL)
 		panic("softdep_setup_allocdirect: lost entry");
-	}
 	/* insert in middle of list */
 	TAILQ_INSERT_BEFORE(oldadp, adp, ad_next);
 	if (oldadp->ad_lbn == lbn)
@@ -1496,20 +1321,15 @@ allocdirect_merge(adphead, newadp, oldadp)
 	struct freefrag *freefrag;
 	struct newdirblk *newdirblk;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("allocdirect_merge: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	if (newadp->ad_oldblkno != oldadp->ad_newblkno ||
 	    newadp->ad_oldsize != oldadp->ad_newsize ||
-	    newadp->ad_lbn >= NDADDR) {
-		FREE_LOCK(&lk);
+	    newadp->ad_lbn >= NDADDR)
 		panic("%s %jd != new %jd || old size %ld != new %ld",
 		    "allocdirect_merge: old blkno",
 		    (intmax_t)newadp->ad_oldblkno,
 		    (intmax_t)oldadp->ad_newblkno,
 		    newadp->ad_oldsize, oldadp->ad_newsize);
-	}
 	newadp->ad_oldblkno = oldadp->ad_oldblkno;
 	newadp->ad_oldsize = oldadp->ad_oldsize;
 	/*
@@ -1585,7 +1405,7 @@ handle_workitem_freefrag(freefrag)
 {
 	struct ufsmount *ump = VFSTOUFS(freefrag->ff_mnt);
 
-	ffs_blkfree(ump->um_fs, ump->um_devvp, freefrag->ff_blkno,
+	ffs_blkfree(ump, ump->um_fs, ump->um_devvp, freefrag->ff_blkno,
 	    freefrag->ff_fragsize, freefrag->ff_inum);
 	FREE(freefrag, M_FREEFRAG);
 }
@@ -1626,10 +1446,10 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	else
 		adp->ad_freefrag = newfreefrag(ip, oldblkno, oldsize);
 
+	ACQUIRE_LOCK(&lk);
 	if (newblk_lookup(ip->i_fs, newblkno, 0, &newblk) == 0)
 		panic("softdep_setup_allocext: lost block");
 
-	ACQUIRE_LOCK(&lk);
 	inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC | NODELAY, &inodedep);
 	adp->ad_inodedep = inodedep;
 
@@ -1646,11 +1466,9 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	FREE(newblk, M_NEWBLK);
 
 	WORKLIST_INSERT(&bp->b_dep, &adp->ad_list);
-	if (lbn >= NXADDR) {
-		FREE_LOCK(&lk);
+	if (lbn >= NXADDR)
 		panic("softdep_setup_allocext: lbn %lld > NXADDR",
 		    (long long)lbn);
-	}
 	/*
 	 * The list of allocdirects must be kept in sorted and ascending
 	 * order so that the rollback routines can quickly determine the
@@ -1677,10 +1495,8 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 		if (oldadp->ad_lbn >= lbn)
 			break;
 	}
-	if (oldadp == NULL) {
-		FREE_LOCK(&lk);
+	if (oldadp == NULL)
 		panic("softdep_setup_allocext: lost entry");
-	}
 	/* insert in middle of list */
 	TAILQ_INSERT_BEFORE(oldadp, adp, ad_next);
 	if (oldadp->ad_lbn == lbn)
@@ -1764,8 +1580,8 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	    pagedep_lookup(ip, lbn, DEPALLOC, &pagedep) == 0)
 		WORKLIST_INSERT(&nbp->b_dep, &pagedep->pd_list);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_list);
-	FREE_LOCK(&lk);
 	setup_allocindir_phase2(bp, ip, aip);
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -1785,8 +1601,8 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 	aip = newallocindir(ip, ptrno, newblkno, 0);
 	ACQUIRE_LOCK(&lk);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_list);
-	FREE_LOCK(&lk);
 	setup_allocindir_phase2(bp, ip, aip);
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -1807,10 +1623,10 @@ setup_allocindir_phase2(bp, ip, aip)
 	struct newblk *newblk;
 	ufs2_daddr_t blkno;
 
+	mtx_assert(&lk, MA_OWNED);
 	if (bp->b_lblkno >= 0)
 		panic("setup_allocindir_phase2: not indir blk");
 	for (indirdep = NULL, newindirdep = NULL; ; ) {
-		ACQUIRE_LOCK(&lk);
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			if (wk->wk_type != D_INDIRDEP)
 				continue;
@@ -1822,12 +1638,10 @@ setup_allocindir_phase2(bp, ip, aip)
 			WORKLIST_INSERT(&bp->b_dep, &indirdep->ir_list);
 			newindirdep = NULL;
 		}
-		FREE_LOCK(&lk);
 		if (indirdep) {
 			if (newblk_lookup(ip->i_fs, aip->ai_newblkno, 0,
 			    &newblk) == 0)
 				panic("setup_allocindir: lost block");
-			ACQUIRE_LOCK(&lk);
 			if (newblk->nb_state == DEPCOMPLETE) {
 				aip->ai_state |= DEPCOMPLETE;
 				aip->ai_buf = NULL;
@@ -1855,10 +1669,8 @@ setup_allocindir_phase2(bp, ip, aip)
 						break;
 			freefrag = NULL;
 			if (oldaip != NULL) {
-				if (oldaip->ai_newblkno != aip->ai_oldblkno) {
-					FREE_LOCK(&lk);
+				if (oldaip->ai_newblkno != aip->ai_oldblkno)
 					panic("setup_allocindir_phase2: blkno");
-				}
 				aip->ai_oldblkno = oldaip->ai_oldblkno;
 				freefrag = aip->ai_freefrag;
 				aip->ai_freefrag = oldaip->ai_freefrag;
@@ -1875,13 +1687,17 @@ setup_allocindir_phase2(bp, ip, aip)
 			FREE_LOCK(&lk);
 			if (freefrag != NULL)
 				handle_workitem_freefrag(freefrag);
-		}
+		} else
+			FREE_LOCK(&lk);
 		if (newindirdep) {
+			newindirdep->ir_savebp->b_flags |= B_INVAL | B_NOCACHE;
 			brelse(newindirdep->ir_savebp);
 			WORKITEM_FREE((caddr_t)newindirdep, D_INDIRDEP);
 		}
-		if (indirdep)
+		if (indirdep) {
+			ACQUIRE_LOCK(&lk);
 			break;
+		}
 		MALLOC(newindirdep, struct indirdep *, sizeof(struct indirdep),
 			M_INDIRDEP, M_SOFTDEP_FLAGS);
 		newindirdep->ir_list.wk_type = D_INDIRDEP;
@@ -1899,6 +1715,7 @@ setup_allocindir_phase2(bp, ip, aip)
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0, 0);
 		BUF_KERNPROC(newindirdep->ir_savebp);
 		bcopy(bp->b_data, newindirdep->ir_savebp->b_data, bp->b_bcount);
+		ACQUIRE_LOCK(&lk);
 	}
 }
 
@@ -1981,8 +1798,11 @@ softdep_setup_freeblocks(ip, length, flags)
 		 * accounted for then (see softdep_filereleased()). If the
 		 * file is merely being truncated, then we account for it now.
 		 */
-		if ((ip->i_flag & IN_SPACECOUNTED) == 0)
+		if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
+			UFS_LOCK(ip->i_ump);
 			fs->fs_pendingblocks += datablocks;
+			UFS_UNLOCK(ip->i_ump);
+		}
 	}
 	if ((flags & IO_EXT) == 0) {
 		freeblks->fb_oldextsize = 0;
@@ -2018,10 +1838,8 @@ softdep_setup_freeblocks(ip, length, flags)
 	 */
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup(fs, ip->i_number, DEPALLOC, &inodedep);
-	if ((inodedep->id_state & IOSTARTED) != 0) {
-		FREE_LOCK(&lk);
+	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
-	}
 	/*
 	 * Add the freeblks structure to the list of operations that
 	 * must await the zero'ed inode being written to disk. If we
@@ -2062,27 +1880,28 @@ softdep_setup_freeblocks(ip, length, flags)
 	 * any dependencies.
 	 */
 	vp = ITOV(ip);
-	ACQUIRE_LOCK(&lk);
 	VI_LOCK(vp);
-	drain_output(vp, 1);
+	drain_output(vp);
 restart:
 	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
 			continue;
-		if ((bp = getdirtybuf(&bp, VI_MTX(vp), MNT_WAIT)) == NULL)
+		if ((bp = getdirtybuf(bp, VI_MTX(vp), MNT_WAIT)) == NULL)
 			goto restart;
+		VI_UNLOCK(vp);
+		ACQUIRE_LOCK(&lk);
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
-		bp->b_flags |= B_INVAL | B_NOCACHE;
 		FREE_LOCK(&lk);
+		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
-		ACQUIRE_LOCK(&lk);
 		VI_LOCK(vp);
 		goto restart;
 	}
 	VI_UNLOCK(vp);
+	ACQUIRE_LOCK(&lk);
 	if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
 	FREE_LOCK(&lk);
@@ -2115,6 +1934,7 @@ deallocate_dependencies(bp, inodedep)
 	struct diradd *dap;
 	int i;
 
+	mtx_assert(&lk, MA_OWNED);
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		switch (wk->wk_type) {
 
@@ -2134,19 +1954,15 @@ deallocate_dependencies(bp, inodedep)
 			 * copy, allowing the safe copy to be freed and holding
 			 * on to the real copy for later use in indir_trunc.
 			 */
-			if (indirdep->ir_state & GOINGAWAY) {
-				FREE_LOCK(&lk);
+			if (indirdep->ir_state & GOINGAWAY)
 				panic("deallocate_dependencies: already gone");
-			}
 			indirdep->ir_state |= GOINGAWAY;
 			VFSTOUFS(bp->b_vp->v_mount)->um_numindirdeps += 1;
 			while ((aip = LIST_FIRST(&indirdep->ir_deplisthd)) != 0)
 				free_allocindir(aip, inodedep);
 			if (bp->b_lblkno >= 0 ||
-			    bp->b_blkno != indirdep->ir_savebp->b_lblkno) {
-				FREE_LOCK(&lk);
+			    bp->b_blkno != indirdep->ir_savebp->b_lblkno)
 				panic("deallocate_dependencies: not indir");
-			}
 			bcopy(bp->b_data, indirdep->ir_savebp->b_data,
 			    bp->b_bcount);
 			WORKLIST_REMOVE(wk);
@@ -2191,11 +2007,9 @@ deallocate_dependencies(bp, inodedep)
 				if (wk != NULL) {
 					WORKLIST_REMOVE(wk);
 					free_newdirblk(WK_NEWDIRBLK(wk));
-				} else {
-					FREE_LOCK(&lk);
+				} else
 					panic("deallocate_dependencies: "
 					      "lost pagedep");
-				}
 			}
 			WORKLIST_REMOVE(&pagedep->pd_list);
 			LIST_REMOVE(pagedep, pd_hash);
@@ -2208,13 +2022,11 @@ deallocate_dependencies(bp, inodedep)
 
 		case D_ALLOCDIRECT:
 		case D_INODEDEP:
-			FREE_LOCK(&lk);
 			panic("deallocate_dependencies: Unexpected type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
 
 		default:
-			FREE_LOCK(&lk);
 			panic("deallocate_dependencies: Unknown type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
@@ -2235,10 +2047,7 @@ free_allocdirect(adphead, adp, delay)
 	struct newdirblk *newdirblk;
 	struct worklist *wk;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("free_allocdirect: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	if ((adp->ad_state & DEPCOMPLETE) == 0)
 		LIST_REMOVE(adp, ad_deps);
 	TAILQ_REMOVE(adphead, adp, ad_next);
@@ -2277,10 +2086,7 @@ free_newdirblk(newdirblk)
 	struct diradd *dap;
 	int i;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("free_newdirblk: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	/*
 	 * If the pagedep is still linked onto the directory buffer
 	 * dependency chain, then some of the entries on the
@@ -2334,8 +2140,11 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
 	freefile->fx_mnt = ITOV(ip)->v_mount;
-	if ((ip->i_flag & IN_SPACECOUNTED) == 0)
+	if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
+		UFS_LOCK(ip->i_ump);
 		ip->i_fs->fs_pendinginodes += 1;
+		UFS_UNLOCK(ip->i_ump);
+	}
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -2374,6 +2183,7 @@ check_inode_unwritten(inodedep)
 	struct inodedep *inodedep;
 {
 
+	mtx_assert(&lk, MA_OWNED);
 	if ((inodedep->id_state & DEPCOMPLETE) != 0 ||
 	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
 	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
@@ -2393,10 +2203,8 @@ check_inode_unwritten(inodedep)
 		FREE(inodedep->id_savedino1, M_INODEDEP);
 		inodedep->id_savedino1 = NULL;
 	}
-	if (free_inodedep(inodedep) == 0) {
-		FREE_LOCK(&lk);
+	if (free_inodedep(inodedep) == 0)
 		panic("check_inode_unwritten: busy inode");
-	}
 	return (1);
 }
 
@@ -2408,6 +2216,7 @@ free_inodedep(inodedep)
 	struct inodedep *inodedep;
 {
 
+	mtx_assert(&lk, MA_OWNED);
 	if ((inodedep->id_state & ONWORKLIST) != 0 ||
 	    (inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
 	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
@@ -2441,12 +2250,16 @@ handle_workitem_freeblocks(freeblks, flags)
 	struct inode *ip;
 	struct vnode *vp;
 	struct fs *fs;
+	struct ufsmount *ump;
 	int i, nblocks, level, bsize;
 	ufs2_daddr_t bn, blocksreleased = 0;
 	int error, allerror = 0;
 	ufs_lbn_t baselbns[NIADDR], tmpval;
+	int fs_pendingblocks;
 
-	fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
+	ump = VFSTOUFS(freeblks->fb_mnt);
+	fs = ump->um_fs;
+	fs_pendingblocks = 0;
 	tmpval = 1;
 	baselbns[0] = NDADDR;
 	for (i = 1; i < NIADDR; i++) {
@@ -2463,7 +2276,7 @@ handle_workitem_freeblocks(freeblks, flags)
 			if ((bn = freeblks->fb_eblks[i]) == 0)
 				continue;
 			bsize = sblksize(fs, freeblks->fb_oldextsize, i);
-			ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
+			ffs_blkfree(ump, fs, freeblks->fb_devvp, bn, bsize,
 			    freeblks->fb_previousinum);
 			blocksreleased += btodb(bsize);
 		}
@@ -2481,9 +2294,9 @@ handle_workitem_freeblocks(freeblks, flags)
 			if ((error = indir_trunc(freeblks, fsbtodb(fs, bn),
 			    level, baselbns[level], &blocksreleased)) == 0)
 				allerror = error;
-			ffs_blkfree(fs, freeblks->fb_devvp, bn, fs->fs_bsize,
-			    freeblks->fb_previousinum);
-			fs->fs_pendingblocks -= nblocks;
+			ffs_blkfree(ump, fs, freeblks->fb_devvp, bn,
+			    fs->fs_bsize, freeblks->fb_previousinum);
+			fs_pendingblocks += nblocks;
 			blocksreleased += nblocks;
 		}
 		/*
@@ -2493,12 +2306,15 @@ handle_workitem_freeblocks(freeblks, flags)
 			if ((bn = freeblks->fb_dblks[i]) == 0)
 				continue;
 			bsize = sblksize(fs, freeblks->fb_oldsize, i);
-			ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
+			ffs_blkfree(ump, fs, freeblks->fb_devvp, bn, bsize,
 			    freeblks->fb_previousinum);
-			fs->fs_pendingblocks -= btodb(bsize);
+			fs_pendingblocks += btodb(bsize);
 			blocksreleased += btodb(bsize);
 		}
 	}
+	UFS_LOCK(ump);
+	fs->fs_pendingblocks -= fs_pendingblocks;
+	UFS_UNLOCK(ump);
 	/*
 	 * If we still have not finished background cleanup, then check
 	 * to see if the block count needs to be adjusted.
@@ -2543,13 +2359,17 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 	struct fs *fs;
 	struct worklist *wk;
 	struct indirdep *indirdep;
+	struct ufsmount *ump;
 	ufs1_daddr_t *bap1 = 0;
 	ufs2_daddr_t nb, *bap2 = 0;
 	ufs_lbn_t lbnadd;
 	int i, nblocks, ufs1fmt;
 	int error, allerror = 0;
+	int fs_pendingblocks;
 
-	fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
+	ump = VFSTOUFS(freeblks->fb_mnt);
+	fs = ump->um_fs;
+	fs_pendingblocks = 0;
 	lbnadd = 1;
 	for (i = level; i > 0; i--)
 		lbnadd *= NINDIR(fs);
@@ -2575,16 +2395,12 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 	if (bp != NULL && (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		if (wk->wk_type != D_INDIRDEP ||
 		    (indirdep = WK_INDIRDEP(wk))->ir_savebp != bp ||
-		    (indirdep->ir_state & GOINGAWAY) == 0) {
-			FREE_LOCK(&lk);
+		    (indirdep->ir_state & GOINGAWAY) == 0)
 			panic("indir_trunc: lost indirdep");
-		}
 		WORKLIST_REMOVE(wk);
 		WORKITEM_FREE(indirdep, D_INDIRDEP);
-		if (LIST_FIRST(&bp->b_dep) != NULL) {
-			FREE_LOCK(&lk);
+		if (LIST_FIRST(&bp->b_dep) != NULL)
 			panic("indir_trunc: dangling dep");
-		}
 		VFSTOUFS(freeblks->fb_mnt)->um_numindirdeps -= 1;
 		FREE_LOCK(&lk);
 	} else {
@@ -2623,11 +2439,14 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 			     level - 1, lbn + (i * lbnadd), countp)) != 0)
 				allerror = error;
 		}
-		ffs_blkfree(fs, freeblks->fb_devvp, nb, fs->fs_bsize,
+		ffs_blkfree(ump, fs, freeblks->fb_devvp, nb, fs->fs_bsize,
 		    freeblks->fb_previousinum);
-		fs->fs_pendingblocks -= nblocks;
+		fs_pendingblocks += nblocks;
 		*countp += nblocks;
 	}
+	UFS_LOCK(ump);
+	fs->fs_pendingblocks -= fs_pendingblocks;
+	UFS_UNLOCK(ump);
 	bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
 	return (allerror);
@@ -2644,10 +2463,7 @@ free_allocindir(aip, inodedep)
 {
 	struct freefrag *freefrag;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("free_allocindir: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	if ((aip->ai_state & DEPCOMPLETE) == 0)
 		LIST_REMOVE(aip, ai_deps);
 	if (aip->ai_state & ONWORKLIST)
@@ -2814,8 +2630,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 			return (0);
 		}
 		if ((pagedep->pd_state & NEWBLOCK) != 0) {
-			WORKITEM_FREE(newdirblk, D_NEWDIRBLK);
 			FREE_LOCK(&lk);
+			WORKITEM_FREE(newdirblk, D_NEWDIRBLK);
 			return (0);
 		}
 		/*
@@ -2824,10 +2640,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 		if (inodedep_lookup(fs, dp->i_number, 0, &inodedep) == 0)
 			panic("softdep_setup_directory_add: lost inodedep");
 		adp = TAILQ_LAST(&inodedep->id_newinoupdt, allocdirectlst);
-		if (adp == NULL || adp->ad_lbn != lbn) {
-			FREE_LOCK(&lk);
+		if (adp == NULL || adp->ad_lbn != lbn)
 			panic("softdep_setup_directory_add: lost entry");
-		}
 		pagedep->pd_state |= NEWBLOCK;
 		newdirblk->db_pagedep = pagedep;
 		WORKLIST_INSERT(&adp->ad_newdirblk, &newdirblk->db_list);
@@ -2902,10 +2716,7 @@ free_diradd(dap)
 	struct inodedep *inodedep;
 	struct mkdir *mkdir, *nextmd;
 
-#ifdef DEBUG
-	if (lk.lkt_held == NOHOLDER)
-		panic("free_diradd: lock not held");
-#endif
+	mtx_assert(&lk, MA_OWNED);
 	WORKLIST_REMOVE(&dap->da_list);
 	LIST_REMOVE(dap, da_pdlist);
 	if ((dap->da_state & DIRCHG) == 0) {
@@ -2929,10 +2740,8 @@ free_diradd(dap)
 			LIST_REMOVE(mkdir, md_mkdirs);
 			WORKITEM_FREE(mkdir, D_MKDIR);
 		}
-		if ((dap->da_state & (MKDIR_PARENT | MKDIR_BODY)) != 0) {
-			FREE_LOCK(&lk);
+		if ((dap->da_state & (MKDIR_PARENT | MKDIR_BODY)) != 0)
 			panic("free_diradd: unfound ref");
-		}
 	}
 	WORKITEM_FREE(dap, D_DIRADD);
 }
@@ -3022,9 +2831,11 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * Limiting the number of dirrem structures will also limit
 	 * the number of freefile and freeblks structures.
 	 */
+	ACQUIRE_LOCK(&lk);
 	if (num_dirrem > max_softdeps / 2)
-		(void) request_cleanup(FLUSH_REMOVE, 0);
+		(void) request_cleanup(FLUSH_REMOVE);
 	num_dirrem += 1;
+	FREE_LOCK(&lk);
 	MALLOC(dirrem, struct dirrem *, sizeof(struct dirrem),
 		M_DIRREM, M_SOFTDEP_FLAGS|M_ZERO);
 	dirrem->dm_list.wk_type = D_DIRREM;
@@ -3060,15 +2871,11 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	/*
 	 * Must be ATTACHED at this point.
 	 */
-	if ((dap->da_state & ATTACHED) == 0) {
-		FREE_LOCK(&lk);
+	if ((dap->da_state & ATTACHED) == 0)
 		panic("newdirrem: not ATTACHED");
-	}
-	if (dap->da_newinum != ip->i_number) {
-		FREE_LOCK(&lk);
+	if (dap->da_newinum != ip->i_number)
 		panic("newdirrem: inum %d should be %d",
 		    ip->i_number, dap->da_newinum);
-	}
 	/*
 	 * If we are deleting a changed name that never made it to disk,
 	 * then return the dirrem describing the previous inode (which
@@ -3226,10 +3033,8 @@ softdep_change_linkcnt(ip)
 
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC, &inodedep);
-	if (ip->i_nlink < ip->i_effnlink) {
-		FREE_LOCK(&lk);
+	if (ip->i_nlink < ip->i_effnlink)
 		panic("softdep_change_linkcnt: bad delta");
-	}
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	FREE_LOCK(&lk);
 }
@@ -3276,8 +3081,10 @@ softdep_releasefile(ip)
 	extblocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
 		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
+	UFS_LOCK(ip->i_ump);
 	ip->i_fs->fs_pendingblocks += DIP(ip, i_blocks) - extblocks;
 	ip->i_fs->fs_pendinginodes += 1;
+	UFS_UNLOCK(ip->i_ump);
 	ip->i_flag |= IN_SPACECOUNTED;
 }
 
@@ -3305,10 +3112,8 @@ handle_workitem_remove(dirrem, xp)
 	}
 	ip = VTOI(vp);
 	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0){
-		FREE_LOCK(&lk);
+	if ((inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, 0, &inodedep)) == 0)
 		panic("handle_workitem_remove: lost inodedep");
-	}
 	/*
 	 * Normal file deletion.
 	 */
@@ -3316,14 +3121,12 @@ handle_workitem_remove(dirrem, xp)
 		ip->i_nlink--;
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_flag |= IN_CHANGE;
-		if (ip->i_nlink < ip->i_effnlink) {
-			FREE_LOCK(&lk);
+		if (ip->i_nlink < ip->i_effnlink)
 			panic("handle_workitem_remove: bad file delta");
-		}
 		inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
+		num_dirrem -= 1;
 		FREE_LOCK(&lk);
 		vput(vp);
-		num_dirrem -= 1;
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		return;
 	}
@@ -3337,22 +3140,22 @@ handle_workitem_remove(dirrem, xp)
 	ip->i_nlink -= 2;
 	DIP_SET(ip, i_nlink, ip->i_nlink);
 	ip->i_flag |= IN_CHANGE;
-	if (ip->i_nlink < ip->i_effnlink) {
-		FREE_LOCK(&lk);
+	if (ip->i_nlink < ip->i_effnlink)
 		panic("handle_workitem_remove: bad dir delta");
-	}
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	FREE_LOCK(&lk);
 	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
 		softdep_error("handle_workitem_remove: truncate", error);
+	ACQUIRE_LOCK(&lk);
 	/*
 	 * Rename a directory to a new parent. Since, we are both deleting
 	 * and creating a new directory entry, the link count on the new
 	 * directory should not change. Thus we skip the followup dirrem.
 	 */
 	if (dirrem->dm_state & DIRCHG) {
-		vput(vp);
 		num_dirrem -= 1;
+		FREE_LOCK(&lk);
+		vput(vp);
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		return;
 	}
@@ -3362,7 +3165,6 @@ handle_workitem_remove(dirrem, xp)
 	 * written to disk, then the on-disk inode is zero'ed. In either
 	 * case we can remove the file immediately.
 	 */
-	ACQUIRE_LOCK(&lk);
 	dirrem->dm_state = 0;
 	oldinum = dirrem->dm_oldinum;
 	dirrem->dm_oldinum = dirrem->dm_dirinum;
@@ -3398,9 +3200,11 @@ handle_workitem_freefile(freefile)
 {
 	struct fs *fs;
 	struct inodedep *idp;
+	struct ufsmount *ump;
 	int error;
 
-	fs = VFSTOUFS(freefile->fx_mnt)->um_fs;
+	ump = VFSTOUFS(freefile->fx_mnt);
+	fs = ump->um_fs;
 #ifdef DEBUG
 	ACQUIRE_LOCK(&lk);
 	error = inodedep_lookup(fs, freefile->fx_oldinum, 0, &idp);
@@ -3408,9 +3212,11 @@ handle_workitem_freefile(freefile)
 	if (error)
 		panic("handle_workitem_freefile: inodedep survived");
 #endif
+	UFS_LOCK(ump);
 	fs->fs_pendinginodes -= 1;
-	if ((error = ffs_freefile(fs, freefile->fx_devvp, freefile->fx_oldinum,
-	     freefile->fx_mode)) != 0)
+	UFS_UNLOCK(ump);
+	if ((error = ffs_freefile(VFSTOUFS(freefile->fx_mnt), fs,
+	    freefile->fx_devvp, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
@@ -3480,6 +3286,7 @@ softdep_disk_io_initiation(bp)
 	 */
 	if (bp->b_iocmd == BIO_READ)
 		panic("softdep_disk_io_initiation: read");
+	ACQUIRE_LOCK(&lk);
 	/*
 	 * Do any necessary pre-I/O processing.
 	 */
@@ -3509,18 +3316,23 @@ softdep_disk_io_initiation(bp)
 			 * dependency can be freed.
 			 */
 			if (LIST_FIRST(&indirdep->ir_deplisthd) == NULL) {
-				indirdep->ir_savebp->b_flags |=
-				    B_INVAL | B_NOCACHE;
-				brelse(indirdep->ir_savebp);
+				struct buf *bp;
+
+				bp = indirdep->ir_savebp;
+				bp->b_flags |= B_INVAL | B_NOCACHE;
 				/* inline expand WORKLIST_REMOVE(wk); */
 				wk->wk_state &= ~ONWORKLIST;
 				LIST_REMOVE(wk, wk_list);
 				WORKITEM_FREE(indirdep, D_INDIRDEP);
+				FREE_LOCK(&lk);
+				brelse(bp);
+				ACQUIRE_LOCK(&lk);
 				continue;
 			}
 			/*
 			 * Replace up-to-date version with safe version.
 			 */
+			FREE_LOCK(&lk);
 			MALLOC(indirdep->ir_saveddata, caddr_t, bp->b_bcount,
 			    M_INDIRDEP, M_SOFTDEP_FLAGS);
 			ACQUIRE_LOCK(&lk);
@@ -3529,7 +3341,6 @@ softdep_disk_io_initiation(bp)
 			bcopy(bp->b_data, indirdep->ir_saveddata, bp->b_bcount);
 			bcopy(indirdep->ir_savebp->b_data, bp->b_data,
 			    bp->b_bcount);
-			FREE_LOCK(&lk);
 			continue;
 
 		case D_MKDIR:
@@ -3544,6 +3355,7 @@ softdep_disk_io_initiation(bp)
 			/* NOTREACHED */
 		}
 	}
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -3571,17 +3383,14 @@ initiate_write_filepage(pagedep, bp)
 		return;
 	}
 	pagedep->pd_state |= IOSTARTED;
-	ACQUIRE_LOCK(&lk);
 	for (i = 0; i < DAHASHSZ; i++) {
 		LIST_FOREACH(dap, &pagedep->pd_diraddhd[i], da_pdlist) {
 			ep = (struct direct *)
 			    ((char *)bp->b_data + dap->da_offset);
-			if (ep->d_ino != dap->da_newinum) {
-				FREE_LOCK(&lk);
+			if (ep->d_ino != dap->da_newinum)
 				panic("%s: dir inum %d != new %d",
 				    "initiate_write_filepage",
 				    ep->d_ino, dap->da_newinum);
-			}
 			if (dap->da_state & DIRCHG)
 				ep->d_ino = dap->da_previous->dm_oldinum;
 			else
@@ -3590,7 +3399,6 @@ initiate_write_filepage(pagedep, bp)
 			dap->da_state |= UNDONE;
 		}
 	}
-	FREE_LOCK(&lk);
 }
 
 /*
@@ -3627,8 +3435,10 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
 		if (inodedep->id_savedino1 != NULL)
 			panic("initiate_write_inodeblock_ufs1: I/O underway");
+		FREE_LOCK(&lk);
 		MALLOC(inodedep->id_savedino1, struct ufs1_dinode *,
 		    sizeof(struct ufs1_dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
+		ACQUIRE_LOCK(&lk);
 		*inodedep->id_savedino1 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs1_dinode));
 		return;
@@ -3643,39 +3453,30 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	/*
 	 * Set the dependencies to busy.
 	 */
-	ACQUIRE_LOCK(&lk);
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
 #ifdef DIAGNOSTIC
-		if (deplist != 0 && prevlbn >= adp->ad_lbn) {
-			FREE_LOCK(&lk);
+		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
-		}
 		prevlbn = adp->ad_lbn;
 		if (adp->ad_lbn < NDADDR &&
-		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno) {
-			FREE_LOCK(&lk);
+		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno)
 			panic("%s: direct pointer #%jd mismatch %d != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn,
 			    dp->di_db[adp->ad_lbn],
 			    (intmax_t)adp->ad_newblkno);
-		}
 		if (adp->ad_lbn >= NDADDR &&
-		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno) {
-			FREE_LOCK(&lk);
+		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno)
 			panic("%s: indirect pointer #%jd mismatch %d != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn - NDADDR,
 			    dp->di_ib[adp->ad_lbn - NDADDR],
 			    (intmax_t)adp->ad_newblkno);
-		}
 		deplist |= 1 << adp->ad_lbn;
-		if ((adp->ad_state & ATTACHED) == 0) {
-			FREE_LOCK(&lk);
+		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-		}
 #endif /* DIAGNOSTIC */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
@@ -3697,24 +3498,19 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		dp->di_size = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NDADDR; i++) {
 #ifdef DIAGNOSTIC
-			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0) {
-				FREE_LOCK(&lk);
+			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep1");
-			}
 #endif /* DIAGNOSTIC */
 			dp->di_db[i] = 0;
 		}
 		for (i = 0; i < NIADDR; i++) {
 #ifdef DIAGNOSTIC
 			if (dp->di_ib[i] != 0 &&
-			    (deplist & ((1 << NDADDR) << i)) == 0) {
-				FREE_LOCK(&lk);
+			    (deplist & ((1 << NDADDR) << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep2");
-			}
 #endif /* DIAGNOSTIC */
 			dp->di_ib[i] = 0;
 		}
-		FREE_LOCK(&lk);
 		return;
 	}
 	/*
@@ -3743,7 +3539,6 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	 */
 	for (; adp; adp = TAILQ_NEXT(adp, ad_next))
 		dp->di_ib[adp->ad_lbn - NDADDR] = 0;
-	FREE_LOCK(&lk);
 }
 		
 /*
@@ -3780,8 +3575,10 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
 		if (inodedep->id_savedino2 != NULL)
 			panic("initiate_write_inodeblock_ufs2: I/O underway");
+		FREE_LOCK(&lk);
 		MALLOC(inodedep->id_savedino2, struct ufs2_dinode *,
 		    sizeof(struct ufs2_dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
+		ACQUIRE_LOCK(&lk);
 		*inodedep->id_savedino2 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs2_dinode));
 		return;
@@ -3797,29 +3594,22 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	/*
 	 * Set the ext data dependencies to busy.
 	 */
-	ACQUIRE_LOCK(&lk);
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_extupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
 #ifdef DIAGNOSTIC
-		if (deplist != 0 && prevlbn >= adp->ad_lbn) {
-			FREE_LOCK(&lk);
+		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
-		}
 		prevlbn = adp->ad_lbn;
-		if (dp->di_extb[adp->ad_lbn] != adp->ad_newblkno) {
-			FREE_LOCK(&lk);
+		if (dp->di_extb[adp->ad_lbn] != adp->ad_newblkno)
 			panic("%s: direct pointer #%jd mismatch %jd != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn,
 			    (intmax_t)dp->di_extb[adp->ad_lbn],
 			    (intmax_t)adp->ad_newblkno);
-		}
 		deplist |= 1 << adp->ad_lbn;
-		if ((adp->ad_state & ATTACHED) == 0) {
-			FREE_LOCK(&lk);
+		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-		}
 #endif /* DIAGNOSTIC */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
@@ -3839,10 +3629,8 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		dp->di_extsize = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NXADDR; i++) {
 #ifdef DIAGNOSTIC
-			if (dp->di_extb[i] != 0 && (deplist & (1 << i)) == 0) {
-				FREE_LOCK(&lk);
+			if (dp->di_extb[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep1");
-			}
 #endif /* DIAGNOSTIC */
 			dp->di_extb[i] = 0;
 		}
@@ -3868,35 +3656,27 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
 #ifdef DIAGNOSTIC
-		if (deplist != 0 && prevlbn >= adp->ad_lbn) {
-			FREE_LOCK(&lk);
+		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
-		}
 		prevlbn = adp->ad_lbn;
 		if (adp->ad_lbn < NDADDR &&
-		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno) {
-			FREE_LOCK(&lk);
+		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno)
 			panic("%s: direct pointer #%jd mismatch %jd != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn,
 			    (intmax_t)dp->di_db[adp->ad_lbn],
 			    (intmax_t)adp->ad_newblkno);
-		}
 		if (adp->ad_lbn >= NDADDR &&
-		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno) {
-			FREE_LOCK(&lk);
+		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno)
 			panic("%s indirect pointer #%jd mismatch %jd != %jd",
 			    "softdep_write_inodeblock:",
 			    (intmax_t)adp->ad_lbn - NDADDR,
 			    (intmax_t)dp->di_ib[adp->ad_lbn - NDADDR],
 			    (intmax_t)adp->ad_newblkno);
-		}
 		deplist |= 1 << adp->ad_lbn;
-		if ((adp->ad_state & ATTACHED) == 0) {
-			FREE_LOCK(&lk);
+		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-		}
 #endif /* DIAGNOSTIC */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
@@ -3918,24 +3698,19 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		dp->di_size = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NDADDR; i++) {
 #ifdef DIAGNOSTIC
-			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0) {
-				FREE_LOCK(&lk);
+			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep2");
-			}
 #endif /* DIAGNOSTIC */
 			dp->di_db[i] = 0;
 		}
 		for (i = 0; i < NIADDR; i++) {
 #ifdef DIAGNOSTIC
 			if (dp->di_ib[i] != 0 &&
-			    (deplist & ((1 << NDADDR) << i)) == 0) {
-				FREE_LOCK(&lk);
+			    (deplist & ((1 << NDADDR) << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep3");
-			}
 #endif /* DIAGNOSTIC */
 			dp->di_ib[i] = 0;
 		}
-		FREE_LOCK(&lk);
 		return;
 	}
 	/*
@@ -3964,7 +3739,6 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 */
 	for (; adp; adp = TAILQ_NEXT(adp, ad_next))
 		dp->di_ib[adp->ad_lbn - NDADDR] = 0;
-	FREE_LOCK(&lk);
 }
 
 /*
@@ -3980,6 +3754,7 @@ softdep_disk_write_complete(bp)
 	struct buf *bp;		/* describes the completed disk write */
 {
 	struct worklist *wk;
+	struct worklist *owk;
 	struct workhead reattach;
 	struct newblk *newblk;
 	struct allocindir *aip;
@@ -3994,14 +3769,17 @@ softdep_disk_write_complete(bp)
 	 */
 	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0)
 		return;
-#ifdef DEBUG
-	if (lk.lkt_held != NOHOLDER)
-		panic("softdep_disk_write_complete: lock is held");
-	lk.lkt_held = SPECIAL_FLAG;
-#endif
 	LIST_INIT(&reattach);
+	/*
+	 * This lock must not be released anywhere in this code segment.
+	 */
+	ACQUIRE_LOCK(&lk);
+	owk = NULL;
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		WORKLIST_REMOVE(wk);
+		if (wk == owk)
+			panic("duplicate worklist: %p\n", wk);
+		owk = wk;
 		switch (wk->wk_type) {
 
 		case D_PAGEDEP:
@@ -4062,10 +3840,8 @@ softdep_disk_write_complete(bp)
 
 		case D_INDIRDEP:
 			indirdep = WK_INDIRDEP(wk);
-			if (indirdep->ir_state & GOINGAWAY) {
-				lk.lkt_held = NOHOLDER;
+			if (indirdep->ir_state & GOINGAWAY)
 				panic("disk_write_complete: indirdep gone");
-			}
 			bcopy(indirdep->ir_saveddata, bp->b_data, bp->b_bcount);
 			FREE(indirdep->ir_saveddata, M_INDIRDEP);
 			indirdep->ir_saveddata = 0;
@@ -4073,10 +3849,8 @@ softdep_disk_write_complete(bp)
 			indirdep->ir_state |= ATTACHED;
 			while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != 0) {
 				handle_allocindir_partdone(aip);
-				if (aip == LIST_FIRST(&indirdep->ir_donehd)) {
-					lk.lkt_held = NOHOLDER;
+				if (aip == LIST_FIRST(&indirdep->ir_donehd))
 					panic("disk_write_complete: not gone");
-				}
 			}
 			WORKLIST_INSERT(&reattach, wk);
 			if ((bp->b_flags & B_DELWRI) == 0)
@@ -4085,7 +3859,6 @@ softdep_disk_write_complete(bp)
 			continue;
 
 		default:
-			lk.lkt_held = NOHOLDER;
 			panic("handle_disk_write_complete: Unknown type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
@@ -4098,11 +3871,7 @@ softdep_disk_write_complete(bp)
 		WORKLIST_REMOVE(wk);
 		WORKLIST_INSERT(&bp->b_dep, wk);
 	}
-#ifdef DEBUG
-	if (lk.lkt_held != SPECIAL_FLAG)
-		panic("softdep_disk_write_complete: lock lost");
-	lk.lkt_held = NOHOLDER;
-#endif
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -4121,10 +3890,8 @@ handle_allocdirect_partdone(adp)
 
 	if ((adp->ad_state & ALLCOMPLETE) != ALLCOMPLETE)
 		return;
-	if (adp->ad_buf != NULL) {
-		lk.lkt_held = NOHOLDER;
+	if (adp->ad_buf != NULL)
 		panic("handle_allocdirect_partdone: dangling dep");
-	}
 	/*
 	 * The on-disk inode cannot claim to be any larger than the last
 	 * fragment that has been written. Otherwise, the on-disk inode
@@ -4168,10 +3935,8 @@ handle_allocdirect_partdone(adp)
 			/* found our block */
 			if (listadp == adp)
 				break;
-		if (listadp == NULL) {
-			lk.lkt_held = NOHOLDER;
+		if (listadp == NULL)
 			panic("handle_allocdirect_partdone: lost dep");
-		}
 #endif /* DEBUG */
 		return;
 	}
@@ -4204,10 +3969,8 @@ handle_allocindir_partdone(aip)
 
 	if ((aip->ai_state & ALLCOMPLETE) != ALLCOMPLETE)
 		return;
-	if (aip->ai_buf != NULL) {
-		lk.lkt_held = NOHOLDER;
+	if (aip->ai_buf != NULL)
 		panic("handle_allocindir_partdone: dangling dependency");
-	}
 	indirdep = aip->ai_indirdep;
 	if (indirdep->ir_state & UNDONE) {
 		LIST_REMOVE(aip, ai_next);
@@ -4243,10 +4006,8 @@ handle_written_inodeblock(inodedep, bp)
 	struct ufs2_dinode *dp2 = NULL;
 	int hadchanges, fstype;
 
-	if ((inodedep->id_state & IOSTARTED) == 0) {
-		lk.lkt_held = NOHOLDER;
+	if ((inodedep->id_state & IOSTARTED) == 0)
 		panic("handle_written_inodeblock: not started");
-	}
 	inodedep->id_state &= ~IOSTARTED;
 	inodedep->id_state |= COMPLETE;
 	if (inodedep->id_fs->fs_magic == FS_UFS1_MAGIC) {
@@ -4284,56 +4045,46 @@ handle_written_inodeblock(inodedep, bp)
 	hadchanges = 0;
 	for (adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp; adp = nextadp) {
 		nextadp = TAILQ_NEXT(adp, ad_next);
-		if (adp->ad_state & ATTACHED) {
-			lk.lkt_held = NOHOLDER;
+		if (adp->ad_state & ATTACHED)
 			panic("handle_written_inodeblock: new entry");
-		}
 		if (fstype == UFS1) {
 			if (adp->ad_lbn < NDADDR) {
-				if (dp1->di_db[adp->ad_lbn]!=adp->ad_oldblkno) {
-					lk.lkt_held = NOHOLDER;
+				if (dp1->di_db[adp->ad_lbn]!=adp->ad_oldblkno)
 					panic("%s %s #%jd mismatch %d != %jd",
 					    "handle_written_inodeblock:",
 					    "direct pointer",
 					    (intmax_t)adp->ad_lbn,
 					    dp1->di_db[adp->ad_lbn],
 					    (intmax_t)adp->ad_oldblkno);
-				}
 				dp1->di_db[adp->ad_lbn] = adp->ad_newblkno;
 			} else {
-				if (dp1->di_ib[adp->ad_lbn - NDADDR] != 0) {
-					lk.lkt_held = NOHOLDER;
+				if (dp1->di_ib[adp->ad_lbn - NDADDR] != 0)
 					panic("%s: %s #%jd allocated as %d",
 					    "handle_written_inodeblock",
 					    "indirect pointer",
 					    (intmax_t)adp->ad_lbn - NDADDR,
 					    dp1->di_ib[adp->ad_lbn - NDADDR]);
-				}
 				dp1->di_ib[adp->ad_lbn - NDADDR] =
 				    adp->ad_newblkno;
 			}
 		} else {
 			if (adp->ad_lbn < NDADDR) {
-				if (dp2->di_db[adp->ad_lbn]!=adp->ad_oldblkno) {
-					lk.lkt_held = NOHOLDER;
+				if (dp2->di_db[adp->ad_lbn]!=adp->ad_oldblkno)
 					panic("%s: %s #%jd %s %jd != %jd",
 					    "handle_written_inodeblock",
 					    "direct pointer",
 					    (intmax_t)adp->ad_lbn, "mismatch",
 					    (intmax_t)dp2->di_db[adp->ad_lbn],
 					    (intmax_t)adp->ad_oldblkno);
-				}
 				dp2->di_db[adp->ad_lbn] = adp->ad_newblkno;
 			} else {
-				if (dp2->di_ib[adp->ad_lbn - NDADDR] != 0) {
-					lk.lkt_held = NOHOLDER;
+				if (dp2->di_ib[adp->ad_lbn - NDADDR] != 0)
 					panic("%s: %s #%jd allocated as %jd",
 					    "handle_written_inodeblock",
 					    "indirect pointer",
 					    (intmax_t)adp->ad_lbn - NDADDR,
 					    (intmax_t)
 					    dp2->di_ib[adp->ad_lbn - NDADDR]);
-				}
 				dp2->di_ib[adp->ad_lbn - NDADDR] =
 				    adp->ad_newblkno;
 			}
@@ -4344,18 +4095,14 @@ handle_written_inodeblock(inodedep, bp)
 	}
 	for (adp = TAILQ_FIRST(&inodedep->id_extupdt); adp; adp = nextadp) {
 		nextadp = TAILQ_NEXT(adp, ad_next);
-		if (adp->ad_state & ATTACHED) {
-			lk.lkt_held = NOHOLDER;
+		if (adp->ad_state & ATTACHED)
 			panic("handle_written_inodeblock: new entry");
-		}
-		if (dp2->di_extb[adp->ad_lbn] != adp->ad_oldblkno) {
-			lk.lkt_held = NOHOLDER;
+		if (dp2->di_extb[adp->ad_lbn] != adp->ad_oldblkno)
 			panic("%s: direct pointers #%jd %s %jd != %jd",
 			    "handle_written_inodeblock",
 			    (intmax_t)adp->ad_lbn, "mismatch",
 			    (intmax_t)dp2->di_extb[adp->ad_lbn],
 			    (intmax_t)adp->ad_oldblkno);
-		}
 		dp2->di_extb[adp->ad_lbn] = adp->ad_newblkno;
 		adp->ad_state &= ~UNDONE;
 		adp->ad_state |= ATTACHED;
@@ -4366,10 +4113,8 @@ handle_written_inodeblock(inodedep, bp)
 	/*
 	 * Reset the file size to its most up-to-date value.
 	 */
-	if (inodedep->id_savedsize == -1 || inodedep->id_savedextsize == -1) {
-		lk.lkt_held = NOHOLDER;
+	if (inodedep->id_savedsize == -1 || inodedep->id_savedextsize == -1)
 		panic("handle_written_inodeblock: bad size");
-	}
 	if (fstype == UFS1) {
 		if (dp1->di_size != inodedep->id_savedsize) {
 			dp1->di_size = inodedep->id_savedsize;
@@ -4420,10 +4165,8 @@ handle_written_inodeblock(inodedep, bp)
 			 * that it will be done after all the old blocks
 			 * have been freed.
 			 */
-			if (filefree != NULL) {
-				lk.lkt_held = NOHOLDER;
+			if (filefree != NULL)
 				panic("handle_written_inodeblock: filefree");
-			}
 			filefree = wk;
 			continue;
 
@@ -4446,17 +4189,14 @@ handle_written_inodeblock(inodedep, bp)
 			continue;
 
 		default:
-			lk.lkt_held = NOHOLDER;
 			panic("handle_written_inodeblock: Unknown type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
 		}
 	}
 	if (filefree != NULL) {
-		if (free_inodedep(inodedep) == 0) {
-			lk.lkt_held = NOHOLDER;
+		if (free_inodedep(inodedep) == 0)
 			panic("handle_written_inodeblock: live inodedep");
-		}
 		add_to_worklist(filefree);
 		return (0);
 	}
@@ -4505,10 +4245,8 @@ handle_written_mkdir(mkdir, type)
 	struct diradd *dap;
 	struct pagedep *pagedep;
 
-	if (mkdir->md_state != type) {
-		lk.lkt_held = NOHOLDER;
+	if (mkdir->md_state != type)
 		panic("handle_written_mkdir: bad type");
-	}
 	dap = mkdir->md_diradd;
 	dap->da_state &= ~type;
 	if ((dap->da_state & (MKDIR_PARENT | MKDIR_BODY)) == 0)
@@ -4542,10 +4280,8 @@ handle_written_filepage(pagedep, bp)
 	struct direct *ep;
 	int i, chgs;
 
-	if ((pagedep->pd_state & IOSTARTED) == 0) {
-		lk.lkt_held = NOHOLDER;
+	if ((pagedep->pd_state & IOSTARTED) == 0)
 		panic("handle_written_filepage: not started");
-	}
 	pagedep->pd_state &= ~IOSTARTED;
 	/*
 	 * Process any directory removals that have been committed.
@@ -4570,10 +4306,8 @@ handle_written_filepage(pagedep, bp)
 		for (dap = LIST_FIRST(&pagedep->pd_diraddhd[i]); dap;
 		     dap = nextdap) {
 			nextdap = LIST_NEXT(dap, da_pdlist);
-			if (dap->da_state & ATTACHED) {
-				lk.lkt_held = NOHOLDER;
+			if (dap->da_state & ATTACHED)
 				panic("handle_written_filepage: attached");
-			}
 			ep = (struct direct *)
 			    ((char *)bp->b_data + dap->da_offset);
 			ep->d_ino = dap->da_newinum;
@@ -4689,10 +4423,8 @@ softdep_update_inodeblock(ip, bp, waitfor)
 			panic("softdep_update_inodeblock: bad link count");
 		return;
 	}
-	if (inodedep->id_nlinkdelta != ip->i_nlink - ip->i_effnlink) {
-		FREE_LOCK(&lk);
+	if (inodedep->id_nlinkdelta != ip->i_nlink - ip->i_effnlink)
 		panic("softdep_update_inodeblock: bad delta");
-	}
 	/*
 	 * Changes have been initiated. Anything depending on these
 	 * changes cannot occur until this inode has been written.
@@ -4729,17 +4461,31 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	 * forced sync (e.g., an fsync on a file), we force the bitmap
 	 * to be written so that the update can be done.
 	 */
-	if ((inodedep->id_state & DEPCOMPLETE) != 0 || waitfor == 0) {
+	if (waitfor == 0) {
+		FREE_LOCK(&lk);
+		return;
+	}
+retry:
+	if ((inodedep->id_state & DEPCOMPLETE) != 0) {
 		FREE_LOCK(&lk);
 		return;
 	}
 	ibp = inodedep->id_buf;
-	ibp = getdirtybuf(&ibp, NULL, MNT_WAIT);
+	ibp = getdirtybuf(ibp, &lk, MNT_WAIT);
+	if (ibp == NULL) {
+		/*
+		 * If ibp came back as NULL, the dependency could have been
+		 * freed while we slept.  Look it up again, and check to see
+		 * that it has completed.
+		 */
+		if (inodedep_lookup(ip->i_fs, ip->i_number, 0, &inodedep) != 0)
+			goto retry;
+		FREE_LOCK(&lk);
+		return;
+	}
 	FREE_LOCK(&lk);
-	if (ibp && (error = bwrite(ibp)) != 0)
+	if ((error = bwrite(ibp)) != 0)
 		softdep_error("softdep_update_inodeblock: bwrite", error);
-	if ((inodedep->id_state & DEPCOMPLETE) == 0)
-		panic("softdep_update_inodeblock: update failed");
 }
 
 /*
@@ -4809,18 +4555,14 @@ softdep_fsync(vp)
 	    TAILQ_FIRST(&inodedep->id_extupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_newextupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
-	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL) {
-		FREE_LOCK(&lk);
+	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL)
 		panic("softdep_fsync: pending ops");
-	}
 	for (error = 0, flushparent = 0; ; ) {
 		if ((wk = LIST_FIRST(&inodedep->id_pendinghd)) == NULL)
 			break;
-		if (wk->wk_type != D_DIRADD) {
-			FREE_LOCK(&lk);
+		if (wk->wk_type != D_DIRADD)
 			panic("softdep_fsync: Unexpected type %s",
 			    TYPENAME(wk->wk_type));
-		}
 		dap = WK_DIRADD(wk);
 		/*
 		 * Flush our parent if this directory entry has a MKDIR_PARENT
@@ -4833,10 +4575,8 @@ softdep_fsync(vp)
 		mnt = pagedep->pd_mnt;
 		parentino = pagedep->pd_ino;
 		lbn = pagedep->pd_lbn;
-		if ((dap->da_state & (MKDIR_BODY | COMPLETE)) != COMPLETE) {
-			FREE_LOCK(&lk);
+		if ((dap->da_state & (MKDIR_BODY | COMPLETE)) != COMPLETE)
 			panic("softdep_fsync: dirty");
-		}
 		if ((dap->da_state & MKDIR_PARENT) ||
 		    (pagedep->pd_state & NEWBLOCK))
 			flushparent = 1;
@@ -4930,10 +4670,8 @@ softdep_fsync_mountdev(vp)
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 
-		if ((bp->b_flags & B_DELWRI) == 0) {
-			FREE_LOCK(&lk);
+		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("softdep_fsync_mountdev: not dirty");
-		}
 		/*
 		 * We are only interested in bitmaps with outstanding
 		 * dependencies.
@@ -4945,8 +4683,8 @@ softdep_fsync_mountdev(vp)
 			continue;
 		}
 		VI_UNLOCK(vp);
-		bremfree(bp);
 		FREE_LOCK(&lk);
+		bremfree(bp);
 		(void) bawrite(bp);
 		ACQUIRE_LOCK(&lk);
 		/*
@@ -4956,9 +4694,9 @@ softdep_fsync_mountdev(vp)
 		VI_LOCK(vp);
 		nbp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
 	}
-	drain_output(vp, 1);
-	VI_UNLOCK(vp);
 	FREE_LOCK(&lk);
+	drain_output(vp);
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -4994,6 +4732,7 @@ softdep_sync_metadata(ap)
 		FREE_LOCK(&lk);
 		return (error);
 	}
+	FREE_LOCK(&lk);
 	/*
 	 * For most files, the only metadata dependencies are the
 	 * cylinder group maps that allocate their inode or blocks.
@@ -5012,23 +4751,26 @@ softdep_sync_metadata(ap)
 	 * resolved. Thus the second pass is expected to end quickly.
 	 */
 	waitfor = MNT_NOWAIT;
+
 top:
 	/*
 	 * We must wait for any I/O in progress to finish so that
 	 * all potential buffers on the dirty list will be visible.
 	 */
 	VI_LOCK(vp);
-	drain_output(vp, 1);
-	bp = getdirtybuf(&TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
-	    VI_MTX(vp), MNT_WAIT);
-	if (bp == NULL) {
-		VI_UNLOCK(vp);
-		FREE_LOCK(&lk);
-		return (0);
+	drain_output(vp);
+	while ((bp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd)) != NULL) {
+		bp = getdirtybuf(bp, VI_MTX(vp), MNT_WAIT);
+		if (bp)
+			break;
 	}
+	VI_UNLOCK(vp);
+	if (bp == NULL)
+		return (0);
+loop:
 	/* While syncing snapshots, we must allow recursive lookups */
 	bp->b_lock.lk_flags |= LK_CANRECURSE;
-loop:
+	ACQUIRE_LOCK(&lk);
 	/*
 	 * As we hold the buffer locked, none of its dependencies
 	 * will disappear.
@@ -5041,7 +4783,7 @@ loop:
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
 			nbp = adp->ad_buf;
-			nbp = getdirtybuf(&nbp, NULL, waitfor);
+			nbp = getdirtybuf(nbp, &lk, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5058,7 +4800,7 @@ loop:
 			if (aip->ai_state & DEPCOMPLETE)
 				continue;
 			nbp = aip->ai_buf;
-			nbp = getdirtybuf(&nbp, NULL, waitfor);
+			nbp = getdirtybuf(nbp, &lk, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5077,7 +4819,7 @@ loop:
 				if (aip->ai_state & DEPCOMPLETE)
 					continue;
 				nbp = aip->ai_buf;
-				nbp = getdirtybuf(&nbp, NULL, MNT_WAIT);
+				nbp = getdirtybuf(nbp, &lk, MNT_WAIT);
 				if (nbp == NULL)
 					goto restart;
 				FREE_LOCK(&lk);
@@ -5127,7 +4869,7 @@ loop:
 			 * rather than panic, just flush it.
 			 */
 			nbp = WK_MKDIR(wk)->md_buf;
-			nbp = getdirtybuf(&nbp, NULL, waitfor);
+			nbp = getdirtybuf(nbp, &lk, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5148,7 +4890,7 @@ loop:
 			 * rather than panic, just flush it.
 			 */
 			nbp = WK_BMSAFEMAP(wk)->sm_buf;
-			nbp = getdirtybuf(&nbp, NULL, waitfor);
+			nbp = getdirtybuf(nbp, &lk, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5161,7 +4903,6 @@ loop:
 			continue;
 
 		default:
-			FREE_LOCK(&lk);
 			panic("softdep_sync_metadata: Unknown type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
@@ -5173,14 +4914,16 @@ loop:
 		bawrite(bp);
 		return (error);
 	}
-	VI_LOCK(vp);
-	nbp = getdirtybuf(&TAILQ_NEXT(bp, b_bobufs), VI_MTX(vp), MNT_WAIT);
-	if (nbp == NULL)
-		VI_UNLOCK(vp);
 	FREE_LOCK(&lk);
+	VI_LOCK(vp);
+	while ((nbp = TAILQ_NEXT(bp, b_bobufs)) != NULL) {
+		nbp = getdirtybuf(nbp, VI_MTX(vp), MNT_WAIT);
+		if (nbp)
+			break;
+	}
+	VI_UNLOCK(vp);
 	bp->b_lock.lk_flags &= ~LK_CANRECURSE;
 	bawrite(bp);
-	ACQUIRE_LOCK(&lk);
 	if (nbp != NULL) {
 		bp = nbp;
 		goto loop;
@@ -5191,8 +4934,6 @@ loop:
 	 */
 	if (waitfor == MNT_NOWAIT) {
 		waitfor = MNT_WAIT;
-		FREE_LOCK(&lk);
-		ACQUIRE_LOCK(&lk);
 		goto top;
 	}
 
@@ -5205,15 +4946,8 @@ loop:
 	 * all potential buffers on the dirty list will be visible.
 	 */
 	VI_LOCK(vp);
-	drain_output(vp, 1);
-	if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
-		VI_UNLOCK(vp);
-		FREE_LOCK(&lk);
-		return (0);
-	}
+	drain_output(vp);
 	VI_UNLOCK(vp);
-
-	FREE_LOCK(&lk);
 	return (0);
 }
 
@@ -5282,11 +5016,12 @@ flush_deplist(listhead, waitfor, errorp)
 	struct allocdirect *adp;
 	struct buf *bp;
 
+	mtx_assert(&lk, MA_OWNED);
 	TAILQ_FOREACH(adp, listhead, ad_next) {
 		if (adp->ad_state & DEPCOMPLETE)
 			continue;
 		bp = adp->ad_buf;
-		bp = getdirtybuf(&bp, NULL, waitfor);
+		bp = getdirtybuf(bp, &lk, waitfor);
 		if (bp == NULL) {
 			if (waitfor == MNT_NOWAIT)
 				continue;
@@ -5340,10 +5075,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			 */
 			if (dap != LIST_FIRST(diraddhdp))
 				continue;
-			if (dap->da_state & MKDIR_PARENT) {
-				FREE_LOCK(&lk);
+			if (dap->da_state & MKDIR_PARENT)
 				panic("flush_pagedep_deps: MKDIR_PARENT");
-			}
 		}
 		/*
 		 * A newly allocated directory must have its "." and
@@ -5368,7 +5101,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 				break;
 			}
 			VI_LOCK(vp);
-			drain_output(vp, 0);
+			drain_output(vp);
 			VI_UNLOCK(vp);
 			vput(vp);
 			ACQUIRE_LOCK(&lk);
@@ -5377,10 +5110,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			 */
 			if (dap != LIST_FIRST(diraddhdp))
 				continue;
-			if (dap->da_state & MKDIR_BODY) {
-				FREE_LOCK(&lk);
+			if (dap->da_state & MKDIR_BODY)
 				panic("flush_pagedep_deps: MKDIR_BODY");
-			}
 		}
 		/*
 		 * Flush the inode on which the directory entry depends.
@@ -5392,19 +5123,20 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * locate that buffer, ensure that there will be no rollback
 		 * caused by a bitmap dependency, then write the inode buffer.
 		 */
-		if (inodedep_lookup(ump->um_fs, inum, 0, &inodedep) == 0) {
-			FREE_LOCK(&lk);
+retry:
+		if (inodedep_lookup(ump->um_fs, inum, 0, &inodedep) == 0)
 			panic("flush_pagedep_deps: lost inode");
-		}
 		/*
 		 * If the inode still has bitmap dependencies,
 		 * push them to disk.
 		 */
 		if ((inodedep->id_state & DEPCOMPLETE) == 0) {
 			bp = inodedep->id_buf;
-			bp = getdirtybuf(&bp, NULL, MNT_WAIT);
+			bp = getdirtybuf(bp, &lk, MNT_WAIT);
+			if (bp == NULL)
+				goto retry;
 			FREE_LOCK(&lk);
-			if (bp && (error = bwrite(bp)) != 0)
+			if ((error = bwrite(bp)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			if (dap != LIST_FIRST(diraddhdp))
@@ -5428,10 +5160,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * If we have failed to get rid of all the dependencies
 		 * then something is seriously wrong.
 		 */
-		if (dap == LIST_FIRST(diraddhdp)) {
-			FREE_LOCK(&lk);
+		if (dap == LIST_FIRST(diraddhdp))
 			panic("flush_pagedep_deps: flush failed");
-		}
 	}
 	if (error)
 		ACQUIRE_LOCK(&lk);
@@ -5478,9 +5208,13 @@ softdep_request_cleanup(fs, vp)
 	struct fs *fs;
 	struct vnode *vp;
 {
+	struct ufsmount *ump;
 	long starttime;
 	ufs2_daddr_t needed;
+	int error;
 
+	ump = VTOI(vp)->i_ump;
+	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
 	starttime = time_second + tickdelay;
 	/*
@@ -5488,18 +5222,28 @@ softdep_request_cleanup(fs, vp)
 	 * copy-on-write, then it is not safe to update the vnode
 	 * as we may recurse into the copy-on-write routine.
 	 */
-	if (!(curthread->td_pflags & TDP_COWINPROGRESS) &&
-	    UFS_UPDATE(vp, 1) != 0)
-		return (0);
+	if (!(curthread->td_pflags & TDP_COWINPROGRESS)) {
+		UFS_UNLOCK(ump);
+		error = UFS_UPDATE(vp, 1);
+		UFS_LOCK(ump);
+		if (error != 0)
+			return (0);
+	}
 	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
 		if (time_second > starttime)
 			return (0);
+		UFS_UNLOCK(ump);
+		ACQUIRE_LOCK(&lk);
 		if (num_on_worklist > 0 &&
 		    process_worklist_item(NULL, LK_NOWAIT) != -1) {
 			stat_worklist_push += 1;
+			FREE_LOCK(&lk);
+			UFS_LOCK(ump);
 			continue;
 		}
-		request_cleanup(FLUSH_REMOVE_WAIT, 0);
+		request_cleanup(FLUSH_REMOVE_WAIT);
+		FREE_LOCK(&lk);
+		UFS_LOCK(ump);
 	}
 	return (1);
 }
@@ -5509,12 +5253,12 @@ softdep_request_cleanup(fs, vp)
  * down and speed up the I/O processing.
  */
 static int
-request_cleanup(resource, islocked)
+request_cleanup(resource)
 	int resource;
-	int islocked;
 {
 	struct thread *td = curthread;
 
+	mtx_assert(&lk, MA_OWNED);
 	/*
 	 * We never hold up the filesystem syncer process.
 	 */
@@ -5528,13 +5272,9 @@ request_cleanup(resource, islocked)
 	 * inode as that could lead to deadlock.
 	 */
 	if (num_on_worklist > max_softdeps / 10) {
-		if (islocked)
-			FREE_LOCK(&lk);
 		process_worklist_item(NULL, LK_NOWAIT);
 		process_worklist_item(NULL, LK_NOWAIT);
 		stat_worklist_push += 2;
-		if (islocked)
-			ACQUIRE_LOCK(&lk);
 		return(1);
 	}
 	/*
@@ -5569,24 +5309,17 @@ request_cleanup(resource, islocked)
 		break;
 
 	default:
-		if (islocked)
-			FREE_LOCK(&lk);
 		panic("request_cleanup: unknown type");
 	}
 	/*
 	 * Hopefully the syncer daemon will catch up and awaken us.
 	 * We wait at most tickdelay before proceeding in any case.
 	 */
-	if (islocked == 0)
-		ACQUIRE_LOCK(&lk);
 	proc_waiting += 1;
 	if (handle.callout == NULL)
 		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
-	interlocked_sleep(&lk, SLEEP, (caddr_t)&proc_waiting, NULL, PPAUSE,
-	    "softupdate", 0);
+	msleep((caddr_t)&proc_waiting, &lk, PPAUSE, "softupdate", 0);
 	proc_waiting -= 1;
-	if (islocked == 0)
-		FREE_LOCK(&lk);
 	return (1);
 }
 
@@ -5599,12 +5332,14 @@ pause_timer(arg)
 	void *arg;
 {
 
+	ACQUIRE_LOCK(&lk);
 	*stat_countp += 1;
 	wakeup_one(&proc_waiting);
 	if (proc_waiting > 0)
 		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
 	else
 		handle.callout = NULL;
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -5623,7 +5358,8 @@ clear_remove(td)
 	int error, cnt;
 	ino_t ino;
 
-	ACQUIRE_LOCK(&lk);
+	mtx_assert(&lk, MA_OWNED);
+
 	for (cnt = 0; cnt < pagedep_hash; cnt++) {
 		pagedephd = &pagedep_hashtbl[next++];
 		if (next >= pagedep_hash)
@@ -5639,19 +5375,20 @@ clear_remove(td)
 			if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp))) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
+				ACQUIRE_LOCK(&lk);
 				return;
 			}
 			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
 				softdep_error("clear_remove: fsync", error);
 			VI_LOCK(vp);
-			drain_output(vp, 0);
+			drain_output(vp);
 			VI_UNLOCK(vp);
 			vput(vp);
 			vn_finished_write(mp);
+			ACQUIRE_LOCK(&lk);
 			return;
 		}
 	}
-	FREE_LOCK(&lk);
 }
 
 /*
@@ -5671,7 +5408,7 @@ clear_inodedeps(td)
 	int error, cnt;
 	ino_t firstino, lastino, ino;
 
-	ACQUIRE_LOCK(&lk);
+	mtx_assert(&lk, MA_OWNED);
 	/*
 	 * Pick a random inode dependency to be cleared.
 	 * We will then gather up all the inodes in its block 
@@ -5714,6 +5451,7 @@ clear_inodedeps(td)
 		if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);
+			ACQUIRE_LOCK(&lk);
 			return;
 		}
 		if (ino == lastino) {
@@ -5723,14 +5461,13 @@ clear_inodedeps(td)
 			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
 				softdep_error("clear_inodedeps: fsync2", error);
 			VI_LOCK(vp);
-			drain_output(vp, 0);
+			drain_output(vp);
 			VI_UNLOCK(vp);
 		}
 		vput(vp);
 		vn_finished_write(mp);
 		ACQUIRE_LOCK(&lk);
 	}
-	FREE_LOCK(&lk);
 }
 
 /*
@@ -5810,7 +5547,6 @@ softdep_count_dependencies(bp, wantcount)
 			continue;
 
 		default:
-			FREE_LOCK(&lk);
 			panic("softdep_check_for_rollback: Unexpected type %s",
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
@@ -5823,68 +5559,54 @@ out:
 
 /*
  * Acquire exclusive access to a buffer.
- * Must be called with splbio blocked.
- * Return acquired buffer or NULL on failure.  mtx, if provided, will be
- * released on success but held on failure.
+ * Must be called with a locked mtx parameter.
+ * Return acquired buffer or NULL on failure.
  */
 static struct buf *
-getdirtybuf(bpp, mtx, waitfor)
-	struct buf **bpp;
+getdirtybuf(bp, mtx, waitfor)
+	struct buf *bp;
 	struct mtx *mtx;
 	int waitfor;
 {
-	struct buf *bp;
 	int error;
 
-	/*
-	 * XXX This code and the code that calls it need to be reviewed to
-	 * verify its use of the vnode interlock.
-	 */
-
-	for (;;) {
-		if ((bp = *bpp) == NULL)
-			return (0);
-		if (bp->b_vp == NULL)
-			kdb_backtrace();
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
-			if ((bp->b_vflags & BV_BKGRDINPROG) == 0)
-				break;
-			BUF_UNLOCK(bp);
-			if (waitfor != MNT_WAIT)
-				return (NULL);
-			/*
-			 * The mtx argument must be bp->b_vp's mutex in
-			 * this case.
-			 */
-#ifdef	DEBUG_VFS_LOCKS
-			if (bp->b_vp->v_type != VCHR)
-				ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
-#endif
-			bp->b_vflags |= BV_BKGRDWAIT;
-			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, mtx,
-			    PRIBIO, "getbuf", 0);
-			continue;
-		}
+	mtx_assert(mtx, MA_OWNED);
+	if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0) {
 		if (waitfor != MNT_WAIT)
 			return (NULL);
-		if (mtx) {
-			error = interlocked_sleep(&lk, LOCKBUF, bp, mtx,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, 0, 0);
-			mtx_lock(mtx);
-		} else
-			error = interlocked_sleep(&lk, LOCKBUF, bp, NULL,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL, 0, 0);
-		if (error != ENOLCK) {
-			FREE_LOCK(&lk);
-			panic("getdirtybuf: inconsistent lock");
-		}
+		error = BUF_LOCK(bp,
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, mtx);
+		/*
+		 * Even if we sucessfully acquire bp here, we have dropped
+		 * mtx, which may violates our guarantee.
+		 */
+		if (error == 0)
+			BUF_UNLOCK(bp);
+		else if (error != ENOLCK)
+			panic("getdirtybuf: inconsistent lock: %d", error);
+		mtx_lock(mtx);
+		return (NULL);
+	}
+	if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
+		BUF_UNLOCK(bp);
+		if (waitfor != MNT_WAIT)
+			return (NULL);
+		/*
+		 * The mtx argument must be bp->b_vp's mutex in
+		 * this case.
+		 */
+#ifdef	DEBUG_VFS_LOCKS
+		if (bp->b_vp->v_type != VCHR)
+			ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
+#endif
+		bp->b_vflags |= BV_BKGRDWAIT;
+		msleep(&bp->b_xflags, mtx, PRIBIO, "getbuf", 0);
+		return (NULL);
 	}
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		BUF_UNLOCK(bp);
 		return (NULL);
 	}
-	if (mtx)
-		mtx_unlock(mtx);
 	bremfree(bp);
 	return (bp);
 }
@@ -5896,23 +5618,17 @@ getdirtybuf(bpp, mtx, waitfor)
  * XXX: Should just be a call to bufobj_wwait().
  */
 static void
-drain_output(vp, islocked)
+drain_output(vp)
 	struct vnode *vp;
-	int islocked;
 {
 	ASSERT_VOP_LOCKED(vp, "drain_output");
 	ASSERT_VI_LOCKED(vp, "drain_output");
 
-	if (!islocked)
-		ACQUIRE_LOCK(&lk);
 	while (vp->v_bufobj.bo_numoutput) {
 		vp->v_bufobj.bo_flag |= BO_WWAIT;
-		interlocked_sleep(&lk, SLEEP,
-		    (caddr_t)&vp->v_bufobj.bo_numoutput,
+		msleep((caddr_t)&vp->v_bufobj.bo_numoutput,
 		    VI_MTX(vp), PRIBIO + 1, "drainvp", 0);
 	}
-	if (!islocked)
-		FREE_LOCK(&lk);
 }
 
 /*
