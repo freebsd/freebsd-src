@@ -236,18 +236,16 @@ if you want the removed files to be reported in your daily output.
 .Pq Vt bool
 Set to
 .Dq YES
-if you wish old files in
-.Pa /var/spool/.hoststat
-to be purged.
-.It Va daily_clean_hoststat_days
-.Pq Vt num
-Set to the number of days that files must not have been modified before
-they are deleted.
-.It Va daily_clean_hoststat_verbose
-.Pq Vt bool
-Set to
-.Dq YES
-if you want the removed files to be reported in your daily output.
+to run
+.Ic sendmail -bH
+to automatically purge stale entries from
+.Xr sendmail 8 Ns 's
+host status cache.
+Files will be deleted using the same criteria as
+.Nm sendmail
+would normally use when determining whether to believe the cached information,
+as configured in
+.Pa /etc/mail/sendmail.cf .
 .It Va daily_backup_passwd_enable
 .Pq Vt bool
 Set to
@@ -709,7 +707,8 @@ is shared or distributed.
 .Xr chkgrp 8 ,
 .Xr dump 8 ,
 .Xr newsyslog 8 ,
-.Xr periodic 8
+.Xr periodic 8 ,
+.Xr sendmail 8
 .Sh HISTORY
 The
 .Nm
