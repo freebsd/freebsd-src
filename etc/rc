@@ -54,10 +54,10 @@ export HOME PATH
 # XXX - The only purpose of duplicating it here is to catch rc_ng="YES"
 #
 if [ -r /etc/defaults/rc.conf ]; then
-        . /etc/defaults/rc.conf
-        source_rc_confs
+	. /etc/defaults/rc.conf
+	source_rc_confs
 elif [ -r /etc/rc.conf ]; then
-        . /etc/rc.conf
+	. /etc/rc.conf
 fi
 
 # Diskless setups have to depend on a different mechanism since
@@ -75,9 +75,9 @@ case ${rc_ng} in
 	load_rc_config 'XXX'
 
 	if [ "$1" = autoboot ]; then
-        	autoboot=yes
+		autoboot=yes
 		_boot="faststart"
-        	rc_fast=yes        # run_rc_command(): do fast booting
+		rc_fast=yes        # run_rc_command(): do fast booting
 	else
 		autoboot=no
 		_boot="start"
@@ -87,7 +87,7 @@ case ${rc_ng} in
 	files=`rcorder -k ${os} -s nostart /etc/rc.d/* 2>/dev/null`
 
 	for _rc_elem in ${files}; do
-        	run_rc_script ${_rc_elem} ${_boot}
+		run_rc_script ${_rc_elem} ${_boot}
 		# Local FreeBSD hack to reload the rc.conf on
 		# a return status of 2
 		if [ $? -eq 2 ]; then
@@ -158,12 +158,12 @@ chkdepend() {
 	[Yy][Ee][Ss])
 		case ${dep_val} in
 		[Yy][Ee][Ss])
-		    ;;
+			;;
 		*)
-		    eval ${dep_var}="YES"
-		    echo "DEPENDENCY NOTE: ${dep} will be enabled" \
-			 "to support ${svc}"
-		    ;;
+			eval ${dep_var}="YES"
+			echo "DEPENDENCY NOTE: ${dep} will be enabled" \
+			"to support ${svc}"
+			;;
 		esac
 		;;
 	esac
@@ -545,10 +545,10 @@ for i in ${networkfs_types}; do
 	fi
 	case "`mount -d -a -t ${fstype}`" in
 	*mount_${fstype}*)
-	       echo -n "Mounting ${fsdecr} filesystems:"
-	       mount -a -t ${fstype}
-	       echo '.'
-	       ;;
+		echo -n "Mounting ${fsdecr} filesystems:"
+		mount -a -t ${fstype}
+		echo '.'
+		;;
 	esac
 done
 
