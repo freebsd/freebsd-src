@@ -172,7 +172,7 @@ U_LONG numresppkts;		/* number of resp packets sent with data */
 U_LONG errorcounter[INFO_ERR_AUTH+1];	/* lazy way to count errors, indexed */
 					/* by the error code */
 
-#ifdef KERNEL_PLL
+#if defined(KERNEL_PLL) && !defined(NTP_SYSCALLS_LIBC)
 extern int syscall	P((int, void *, ...));
 #endif /* KERNEL_PLL */
 
