@@ -20,8 +20,6 @@ CLEANFILES+=	ncurses_def.h
 CFLAGS+= -I. -I${.CURDIR}/../libncurses -I${NCURSES}/menu -I${NCURSES}/include \
 	-Wall -DNDEBUG -DHAVE_CONFIG_H
 
-beforedepend:	ncurses_def.h
-
 ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
