@@ -45,8 +45,7 @@ to inefficiencies in the VM page scanning code as well as create issues
 later on if you add more memory to your machine.
 Finally, on larger systems
 with multiple SCSI disks (or multiple IDE disks operating on different
-controllers), we strongly recommend that you configure swap on each drive
-(up to four drives).
+controllers), we strongly recommend that you configure swap on each drive.
 The swap partitions on the drives should be approximately the same size.
 The kernel can handle arbitrary sizes but
 internal data structures scale to 4 times the largest swap partition.
