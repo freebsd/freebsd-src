@@ -179,13 +179,22 @@ to destroy the table in a way that it can be recovered.
 .It Xo
 .Nm
 .Ic migrate
-.Op Fl s
+.Op Fl fs
 .Ar device ...
 .Xc
 The
 .Ic migrate
 command allows the user to migrate an MBR-based disk partitioning into a
 GPT-based partitioning.
+By default the MBR is not migrated when it contains partitions of an unknown
+type.
+This can be overridden with the
+.Fl f
+option.
+Specifying the
+.Fl f
+option will cause unknown partitions to be ignored and any data in it
+to be lost.
 .Pp
 The
 .Fl s
