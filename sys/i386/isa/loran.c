@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.5 1998/05/29 08:04:44 phk Exp $
+ * $Id: loran.c,v 1.6 1998/06/07 20:36:40 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -214,6 +214,7 @@ static int	lorantc_magic;
 /**********************************************************************/
 
 static	int		loranprobe (struct isa_device *dvp);
+extern	void		init_tgc (void);
 static	int		loranattach (struct isa_device *isdp);
 static	void		loranenqueue (struct datapoint *);
 static	d_open_t	loranopen;
@@ -545,7 +546,7 @@ loranintr(int unit)
 /**********************************************************************/
 
 static unsigned
-loran_get_timecount(void)
+loran_get_timecount(struct timecounter *tc)
 {
 	unsigned count;
 	u_long ef;
