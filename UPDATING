@@ -184,14 +184,12 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	<boot into -stable>
 	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
 	make installworld DESTDIR=${CURRENT_ROOT}
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	cp src/sys/${ARCH}/conf/GENERIC.hints \
-		${CURRENT_ROOT}/boot/device.hints	# as needed
-	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cd src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
 	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
 	<reboot into current>
