@@ -66,11 +66,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 void
-scsp_cache_key(ap, ip, ol, op)
-	Atm_addr	*ap;
-	struct in_addr	*ip;
-	int		ol;
-	char 		*op;
+scsp_cache_key(const Atm_addr *ap, const struct in_addr *ip, int ol, char *op)
 {
 	int	i, len;
 	char	buff[32], digest[16];
