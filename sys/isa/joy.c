@@ -41,7 +41,6 @@
 #include <sys/time.h>
 #include <sys/joystick.h>
 
-#include <isa/isareg.h>
 #include <isa/isavar.h>
 #include "isa_if.h"
 
