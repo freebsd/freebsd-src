@@ -1281,6 +1281,9 @@ static driver_t fdc_driver = {
 };
 
 DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+#ifndef PC98
+DRIVER_MODULE(fdc, acpi, fdc_driver, fdc_devclass, 0, 0);
+#endif
 
 #if NCARD > 0
 
