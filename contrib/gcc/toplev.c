@@ -4746,7 +4746,7 @@ parse_options_and_default_flags (argc, argv)
       flag_rename_registers = 1;
     }
 
-  if (optimize < 2 || optimize_size)
+  if (optimize_size)
     {
       align_loops = 1;
       align_jumps = 1;
