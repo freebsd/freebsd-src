@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.128 1998/09/17 00:08:23 gibbs Exp $
+**  $Id: ncr.c,v 1.129 1998/09/17 22:29:02 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.128 1998/09/17 00:08:23 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.129 1998/09/17 22:29:02 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4104,7 +4104,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		/*
 		**	status
 		*/
-		cp->actualquirks		= 0;
+		cp->actualquirks		= QUIRK_NOMSG;
 		cp->host_status			= nego ? HS_NEGOTIATE : HS_BUSY;
 		cp->s_status			= SCSI_STATUS_ILLEGAL;
 		cp->parity_status		= 0;
