@@ -1,13 +1,9 @@
 #	/b/source/CVS/src/bin/expr/Makefile,v 1.5 1993/06/14 19:56:06 jtc Exp
-#	$Id: Makefile,v 1.7 1995/05/30 00:06:49 rgrimes Exp $
+#	$Id: Makefile,v 1.8 1996/05/07 23:14:17 wosch Exp $
 
 PROG=		expr
-SRCS=		expr.c
-CLEANFILES+=	expr.c y.tab.h
-
-expr.c:
-	${YACC} -d ${.IMPSRC}
-	mv -f y.tab.c expr.c
+SRCS=		expr.y
+CLEANFILES+=	expr.c expr.tab.h
 
 .include <bsd.prog.mk>
 
