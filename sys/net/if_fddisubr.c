@@ -83,22 +83,12 @@
 #include <netatalk/at_var.h>
 #include <netatalk/at_extern.h>
 
-#define llc_snap_org_code llc_un.type_snap.org_code
-#define llc_snap_ether_type llc_un.type_snap.ether_type
-
 extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif /* NETATALK */
 
 static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
-
-/*
- * This really should be defined in if_llc.h but in case it isn't.
- */
-#ifndef llc_snap
-#define	llc_snap	llc_un.type_snap
-#endif
 
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	{ error = (e); goto bad; }
@@ -199,8 +189,8 @@ fddi_output(ifp, m, dst, rt0)
 			senderr(ENOBUFS);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
-		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
-		llc.llc_snap_ether_type = htons(ETHERTYPE_AT);
+		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
+		llc.llc_snap.ether_type = htons(ETHERTYPE_AT);
 		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
 		type = 0;
 	    } else {
@@ -394,18 +384,18 @@ fddi_input(ifp, fh, m)
 		if (l->llc_control != LLC_UI || l->llc_ssap != LLC_SNAP_LSAP)
 			goto dropanyway;
 #ifdef NETATALK
-		if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
+		if (Bcmp(&(l->llc_snap.org_code)[0], at_org_code,
 			 sizeof(at_org_code)) == 0 &&
-		 	ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
+		 	ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
 		    inq = &atintrq2;
 		    m_adj( m, sizeof( struct llc ));
 		    schednetisr(NETISR_ATALK);
 		    break;
 		}
 
-		if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
+		if (Bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
 			 sizeof(aarp_org_code)) == 0 &&
-			ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
+			ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
 		    m_adj( m, sizeof( struct llc ));
 		    aarpinput(IFP2AC(ifp), m); /* XXX */
 		    return;
