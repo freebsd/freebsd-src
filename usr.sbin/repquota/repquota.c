@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: repquota.c,v 1.5 1997/10/13 11:05:07 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -63,6 +63,9 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <utmp.h>
+
+#define max(a,b) ((a) >= (b) ? (a) : (b))
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -216,8 +219,10 @@ repquota(fs, type, qfpathname)
 		fup->fu_dqblk = dqbuf;
 	}
 	fclose(qf);
-	printf("                        Block limits               File limits\n");
-	printf("User            used    soft    hard  grace    used  soft  hard  grace\n");
+	printf("%*s              Block limits                 File limits\n",
+		max(UT_NAMESIZE,10), " ");
+	printf("User%*s  used    soft    hard  grace    used  soft  hard  grace\n",
+		max(UT_NAMESIZE,10), " ");
 	for (id = 0; id <= highid[type]; id++) {
 		fup = lookup(id, type);
 		if (fup == 0)
@@ -225,7 +230,7 @@ repquota(fs, type, qfpathname)
 		if (fup->fu_dqblk.dqb_curinodes == 0 &&
 		    fup->fu_dqblk.dqb_curblocks == 0)
 			continue;
-		printf("%-10s", fup->fu_name);
+		printf("%-*s", max(UT_NAMESIZE,10), fup->fu_name);
 		printf("%c%c%8lu%8lu%8lu%7s",
 			fup->fu_dqblk.dqb_bsoftlimit &&
 			    fup->fu_dqblk.dqb_curblocks >=
