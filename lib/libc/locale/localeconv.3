@@ -86,16 +86,16 @@ struct lconv {
 The individual fields have the following meanings:
 .Pp
 .Bl -tag -width mon_decimal_point
-.It Fa decimal_point
+.It Va decimal_point
 The decimal point character, except for currency values,
 cannot be an empty string.
-.It Fa thousands_sep
+.It Va thousands_sep
 The separator between groups of digits
 before the decimal point, except for currency values.
-.It Fa grouping
+.It Va grouping
 The sizes of the groups of digits, except for currency values.
 This is a pointer to a vector of integers, each of size
-.Va char ,
+.Vt char ,
 representing group size from low order digit groups
 to high order (right to left).
 The list may be terminated with 0 or
@@ -105,50 +105,51 @@ the last group size before the 0 is repeated to account for all the digits.
 If the list is terminated with
 .Dv CHAR_MAX ,
 no more grouping is performed.
-.It Fa int_curr_symbol
+.It Va int_curr_symbol
 The standardized international currency symbol.
-.It Fa currency_symbol
+.It Va currency_symbol
 The local currency symbol.
-.It Fa mon_decimal_point
+.It Va mon_decimal_point
 The decimal point character for currency values.
-.It Fa mon_thousands_sep
+.It Va mon_thousands_sep
 The separator for digit groups in currency values.
-.It Fa mon_grouping
+.It Va mon_grouping
 Like
-.Fa grouping
+.Va grouping
 but for currency values.
-.It Fa positive_sign
+.It Va positive_sign
 The character used to denote nonnegative currency values,
 usually the empty string.
-.It Fa negative_sign
+.It Va negative_sign
 The character used to denote negative currency values,
 usually a minus sign.
-.It Fa int_frac_digits
+.It Va int_frac_digits
 The number of digits after the decimal point
 in an international-style currency value.
-.It Fa frac_digits
+.It Va frac_digits
 The number of digits after the decimal point
 in the local style for currency values.
-.It Fa p_cs_precedes
+.It Va p_cs_precedes
 1 if the currency symbol precedes the currency value
 for nonnegative values, 0 if it follows.
-.It Fa p_sep_by_space
+.It Va p_sep_by_space
 1 if a space is inserted between the currency symbol
 and the currency value for nonnegative values, 0 otherwise.
-.It Fa n_cs_precedes
+.It Va n_cs_precedes
 Like
-.Fa p_cs_precedes
+.Va p_cs_precedes
 but for negative values.
-.It Fa n_sep_by_space
+.It Va n_sep_by_space
 Like
-.Fa p_sep_by_space
+.Va p_sep_by_space
 but for negative values.
-.It Fa p_sign_posn
+.It Va p_sign_posn
 The location of the
-.Fa positive_sign
+.Va positive_sign
 with respect to a nonnegative quantity and the
-.Fa currency_symbol ,
+.Va currency_symbol ,
 coded as follows:
+.Pp
 .Bl -tag -width 3n -compact
 .It Li 0
 Parentheses around the entire string.
@@ -158,38 +159,38 @@ Before the string.
 After the string.
 .It Li 3
 Just before
-.Fa currency_symbol .
+.Va currency_symbol .
 .It Li 4
 Just after
-.Fa currency_symbol .
+.Va currency_symbol .
 .El
-.It Fa n_sign_posn
+.It Va n_sign_posn
 Like
-.Fa p_sign_posn
+.Va p_sign_posn
 but for negative currency values.
-.It Fa int_p_cs_precedes
+.It Va int_p_cs_precedes
 Same as
-.Fa p_cs_precedes ,
+.Va p_cs_precedes ,
 but for internationally formatted monetary quantities.
-.It Fa int_n_cs_precedes
+.It Va int_n_cs_precedes
 Same as
-.Fa n_cs_precedes ,
+.Va n_cs_precedes ,
 but for internationally formatted monetary quantities.
-.It Fa int_p_sep_by_space
+.It Va int_p_sep_by_space
 Same as
-.Fa p_sep_by_space ,
+.Va p_sep_by_space ,
 but for internationally formatted monetary quantities.
-.It Fa int_n_sep_by_space
+.It Va int_n_sep_by_space
 Same as
-.Fa n_sep_by_space ,
+.Va n_sep_by_space ,
 but for internationally formatted monetary quantities.
-.It Fa int_p_sign_posn
+.It Va int_p_sign_posn
 Same as
-.Fa p_sign_posn ,
+.Va p_sign_posn ,
 but for internationally formatted monetary quantities.
-.It Fa int_n_sign_posn
+.It Va int_n_sign_posn
 Same as
-.Fa n_sign_posn ,
+.Va n_sign_posn ,
 but for internationally formatted monetary quantities.
 .El
 .Pp
@@ -205,7 +206,7 @@ The
 .Fn localeconv
 function returns a pointer to a static object
 which may be altered by later calls to
-.Fn setlocale
+.Xr setlocale 3
 or
 .Fn localeconv .
 .Sh ERRORS

@@ -48,7 +48,10 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft size_t
-.Fn mbstowcs "wchar_t * restrict wcstring" "const char * restrict mbstring" "size_t nwchars"
+.Fo mbstowcs
+.Fa "wchar_t * restrict wcstring" "const char * restrict mbstring"
+.Fa "size_t nwchars"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn mbstowcs

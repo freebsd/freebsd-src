@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd August 7, 2003
 .Dt MSKANJI 5
 .Os
@@ -51,16 +52,16 @@ Characters from the
 X 0208 character set are encoded as two bytes.
 The first ranges from
 0x81 - 0x9F, 0xE0 - 0xEA, 0xED - 0xEE (not
-.Tn JIS Ns :
+.Tn JIS :
 .Tn NEC Ns - Ns
 selected
 .Tn IBM
 extended characters),
 0xF0 - 0xF9 (not
-.Tn JIS Ns :
+.Tn JIS :
 user defined),
 or 0xFA - 0xFC (not
-.Tn JIS Ns :
+.Tn JIS :
 .Tn IBM
 extended characters).
 The second byte ranges from 0x40 - 0xFC, excluding 0x7F (delete).
