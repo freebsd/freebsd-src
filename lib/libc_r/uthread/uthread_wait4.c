@@ -41,6 +41,8 @@ wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
 	pid_t           ret;
 
+	_thread_kern_sig_defer();
+
 	/* Perform a non-blocking wait4 syscall: */
 	while ((ret = _thread_sys_wait4(pid, istat, options | WNOHANG, rusage)) == 0 && (options & WNOHANG) == 0) {
 		/* Reset the interrupted operation flag: */
@@ -56,6 +58,9 @@ wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 			break;
 		}
 	}
+
+	_thread_kern_sig_undefer();
+
 	return (ret);
 }
 #endif
