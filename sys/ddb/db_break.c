@@ -400,6 +400,7 @@ db_alt_break(int data, int *state)
 	case KEY_CRTLB:
 		if (*state == KEY_CRTLB)
 			brk = 1;
+		/* FALLTHROUGH */
 	default:
 		*state = 0;
 		break;
