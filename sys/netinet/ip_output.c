@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.31 1996/03/11 15:13:21 davidg Exp $
+ *	$Id: ip_output.c,v 1.32 1996/03/13 08:02:43 pst Exp $
  */
 
 #include <sys/param.h>
@@ -942,6 +942,7 @@ ip_setmoptions(optname, imop, m)
 		s = splimp();
 		INADDR_TO_IFP(addr, ifp);
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
+			splx(s);
 			error = EADDRNOTAVAIL;
 			break;
 		}
