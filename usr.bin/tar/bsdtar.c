@@ -57,7 +57,7 @@ static const char	*progname;
 static char **		 rewrite_argv(int *argc, char ** src_argv,
 			     const char *optstring);
 
-const char *tar_opts = "b:C:cF:f:HhjkLlmnOoPprtUuvwXxyZz";
+const char *tar_opts = "b:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
 
 #ifdef HAVE_GETOPT_LONG
 /*
@@ -179,8 +179,9 @@ main(int argc, char **argv)
 	case 'c': case 'r': case 'u': case 'x':
 		break;
 	default:
-		fprintf(stderr,
-		    "First option must be one of: -c, -r, -t, -u, -x\n");
+		bsdtar_errc(1, 0,
+		    "First option '%c' unrecognized; "
+		    "should be -c, -r, -t, -u, -x", mode);
 		usage();
 		exit(1);
 	}
@@ -278,6 +279,10 @@ main(int argc, char **argv)
 			only_mode(mode, opt, "x");
 			umask(0);
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_PERM;
+			break;
+		case 'T': /* GNU tar */
+			only_mode(mode, opt, "c");
+			bsdtar->names_from_file = optarg;
 			break;
 		case 'U': /* GNU tar */
 			only_mode(mode, opt, "x");
