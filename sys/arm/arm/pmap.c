@@ -1668,6 +1668,8 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 	simple_unlock(&pg->mdpage.pvh_slock);
 	PMAP_HEAD_TO_MAP_UNLOCK();
 #endif
+	if (maskbits & PVF_WRITE)
+		vm_page_flag_clear(pg, PG_WRITEABLE);
 	return (count);
 }
 
@@ -1789,6 +1791,8 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 			pg->md.urw_mappings--;
 		else
 			pg->md.uro_mappings--;
+	if (TAILQ_FIRST(&pg->md.pv_list) == NULL)
+		vm_page_flag_clear(pg, PG_WRITEABLE);
 }
 
 static struct pv_entry *
@@ -3691,6 +3695,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	pmap_acquire_pmap_lock(pm);
 #endif
 
+	vm_page_lock_queues();
 	pmap_update(pm);
 	if (!pmap_is_current(pm)) {
 		cleanlist_idx = PMAP_REMOVE_CLEAN_LIST_SIZE + 1;
@@ -3847,6 +3852,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 		pmap_free_l2_bucket(pm, l2b, mappings);
 	}
 
+	vm_page_unlock_queues();
 	if (flushall)
 		cpu_tlb_flushID();
 #if 0
