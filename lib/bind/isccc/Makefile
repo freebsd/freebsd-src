@@ -15,8 +15,8 @@ SRCS=		alist.c base64.c cc.c ccmsg.c \
 
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 INCS=		${SRCDIR}/include/isccc/alist.h \
 		${SRCDIR}/include/isccc/base64.h \

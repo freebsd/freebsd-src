@@ -13,8 +13,8 @@ SRCS=		check.c getaddresses.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 INCS=		${SRCDIR}/include/bind9/check.h \
 		${SRCDIR}/include/bind9/getaddresses.h \

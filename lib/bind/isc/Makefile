@@ -37,8 +37,8 @@ SRCS+=		inet_pton.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/pthreads/include
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/assertions.h \
