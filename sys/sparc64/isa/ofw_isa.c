@@ -35,14 +35,11 @@
  * Helper functions which can be used in both ISA and EBus code.
  */
 
-#include "opt_ofw_pci.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
 #include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -100,7 +97,6 @@ ofw_isa_range_map(struct isa_ranges *range, int nrange, u_long *start,
 	    *start, *end);
 }
 
-#ifdef OFW_NEWPCI
 ofw_pci_intr_t
 ofw_isa_route_intr(device_t bridge, phandle_t node, struct ofw_bus_iinfo *ii,
     ofw_isa_intr_t intr)
@@ -122,4 +118,3 @@ ofw_isa_route_intr(device_t bridge, phandle_t node, struct ofw_bus_iinfo *ii,
 	}
 	return (mintr);
 }
-#endif /* OFW_NEWPCI */

@@ -59,7 +59,6 @@
 #include <machine/ofw_bus.h>
 #include <machine/ofw_upa.h>
 #include <machine/resource.h>
-#include <machine/cpu.h>
 
 #include <sys/rman.h>
 
@@ -80,9 +79,6 @@ static int psycho_find_intrmap(struct psycho_softc *, int, bus_addr_t *,
     bus_addr_t *, u_long *);
 static void psycho_intr_stub(void *);
 static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
-#ifndef OFW_NEWPCI
-static ofw_pci_binit_t psycho_binit;
-#endif
 
 /* Interrupt handlers */
 static void psycho_ue(void *);
@@ -114,14 +110,9 @@ static pcib_read_config_t psycho_read_config;
 static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
 static ofw_pci_intr_pending_t psycho_intr_pending;
-#ifndef OFW_NEWPCI
-static ofw_pci_guess_ino_t psycho_guess_ino;
-#endif
 static ofw_pci_get_bus_handle_t psycho_get_bus_handle;
-#ifdef OFW_NEWPCI
 static ofw_pci_get_node_t psycho_get_node;
 static ofw_pci_adjust_busrange_t psycho_adjust_busrange;
-#endif
 
 static device_method_t psycho_methods[] = {
 	/* Device interface */
@@ -146,14 +137,9 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
-#ifndef OFW_NEWPCI
-	DEVMETHOD(ofw_pci_guess_ino,	psycho_guess_ino),
-#endif
 	DEVMETHOD(ofw_pci_get_bus_handle,	psycho_get_bus_handle),
-#ifdef OFW_NEWPCI
 	DEVMETHOD(ofw_pci_get_node,	psycho_get_node),
 	DEVMETHOD(ofw_pci_adjust_busrange,	psycho_adjust_busrange),
-#endif
 
 	{ 0, 0 }
 };
@@ -297,9 +283,6 @@ psycho_attach(device_t dev)
 	struct psycho_softc *osc = NULL;
 	struct psycho_softc *asc;
 	struct upa_regs *reg;
-#ifndef OFW_NEWPCI
-	struct ofw_pci_bdesc obd;
-#endif
 	struct psycho_desc *desc;
 	phandle_t node;
 	u_int64_t csr;
@@ -583,27 +566,7 @@ psycho_attach(device_t dev)
 	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC, PCSR_SECBUS,
 	    sc->sc_secbus, 1);
 
-#ifdef OFW_NEWPCI
 	ofw_bus_setup_iinfo(node, &sc->sc_iinfo, sizeof(ofw_pci_intr_t));
-#else
-	obd.obd_bus = obd.obd_secbus = sc->sc_secbus;
-	obd.obd_subbus = sc->sc_subbus;
-	obd.obd_slot = PCS_DEVICE;
-	obd.obd_func = PCS_FUNC;
-	obd.obd_init = psycho_binit;
-	obd.obd_super = NULL;
-
-	/*
-	 * Initialize the interrupt registers of all devices hanging from
-	 * the host bridge directly or indirectly via PCI-PCI bridges.
-	 * The MI code (and the PCI spec) assume that this is done during
-	 * system initialization, however the firmware does not do this
-	 * at least on some models, and we probably shouldn't trust that
-	 * the firmware uses the same model as this driver if it does.
-	 * Additionally, set up the bus numbers and ranges.
-	 */
-	ofw_pci_init(dev, sc->sc_node, sc->sc_ign, &obd);
-#endif /* OFW_NEWPCI */
 
 	device_add_child(dev, "pci", sc->sc_secbus);
 	return (bus_generic_attach(dev));
@@ -792,21 +755,6 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 	iommu_init(name, is, tsbsize, sc->sc_dvmabase, 0);
 }
 
-#ifndef OFW_NEWPCI
-static void
-psycho_binit(device_t busdev, struct ofw_pci_bdesc *obd)
-{
-
-#ifdef PSYCHO_DEBUG
-	printf("psycho at %u/%u/%u: setting bus #s to %u/%u/%u\n",
-	    obd->obd_bus, obd->obd_slot, obd->obd_func, obd->obd_bus,
-	    obd->obd_secbus, obd->obd_subbus);
-#endif /* PSYCHO_DEBUG */
-	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
-	    PCSR_SUBBUS, obd->obd_subbus, 1);
-}
-#endif
-
 static int
 psycho_maxslots(device_t dev)
 {
@@ -815,32 +763,6 @@ psycho_maxslots(device_t dev)
 	return (PCI_SLOTMAX);
 }
 
-#ifndef OFW_NEWPCI
-/*
- * Keep a table of quirky PCI devices that need fixups before the MI PCI code
- * creates the resource lists. This needs to be moved around once other bus
- * drivers are added. Moving it to the MI code should maybe be reconsidered
- * if one of these devices appear in non-sparc64 boxen. It's likely that not
- * all BIOSes/firmwares can deal with them.
- */
-struct psycho_dquirk {
-	u_int32_t	dq_devid;
-	int		dq_quirk;
-};
-
-/* Quirk types. May be or'ed together. */
-#define	DQT_BAD_INTPIN	1	/* Intpin reg 0, but intpin used */
-
-static struct psycho_dquirk dquirks[] = {
-	{ 0x1001108e, DQT_BAD_INTPIN },	/* Sun HME (PCIO func. 1) */
-	{ 0x1101108e, DQT_BAD_INTPIN },	/* Sun GEM (PCIO2 func. 1) */
-	{ 0x1102108e, DQT_BAD_INTPIN },	/* Sun FireWire ctl. (PCIO2 func. 2) */
-	{ 0x1103108e, DQT_BAD_INTPIN },	/* Sun USB ctl. (PCIO2 func. 3) */
-};
-#endif /* !OFW_NEWPCI */
-
-#define	NDQUIRKS	(sizeof(dquirks) / sizeof(dquirks[0]))
-
 static u_int32_t
 psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	int width)
@@ -848,9 +770,6 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	struct psycho_softc *sc;
 	bus_space_handle_t bh;
 	u_long offset = 0;
-#ifndef OFW_NEWPCI
-	u_int32_t devid;
-#endif
 	u_int8_t byte;
 	u_int16_t shrt;
 	u_int32_t wrd;
@@ -884,30 +803,6 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 #endif
 		r = -1;
 	}
-
-#ifndef OFW_NEWPCI
-	if (reg == PCIR_INTPIN && r == 0) {
-		/* Check for DQT_BAD_INTPIN quirk. */
-		devid = psycho_read_config(dev, bus, slot, func,
-		    PCIR_DEVVENDOR, 4);
-		for (i = 0; i < NDQUIRKS; i++) {
-			if (dquirks[i].dq_devid == devid) {
-				/*
-				 * Need to set the intpin to a value != 0 so
-				 * that the MI code will think that this device
-				 * has an interrupt.
-				 * Just use 1 (intpin a) for now. This is, of
-				 * course, bogus, but since interrupts are
-				 * routed in advance, this does not really
-				 * matter.
-				 */
-				if ((dquirks[i].dq_quirk & DQT_BAD_INTPIN) != 0)
-					r = 1;
-				break;
-			}
-		}
-	}
-#endif /* !OFW_NEWPCI */
 	return (r);
 }
 
@@ -940,7 +835,6 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 {
-#ifdef OFW_NEWPCI
 	struct psycho_softc *sc = device_get_softc(bridge);
 	struct ofw_pci_register reg;
 	bus_addr_t intrmap;
@@ -975,24 +869,6 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	device_printf(bridge, "guessing interrupt %d for device %d/%d pin %d\n",
 	    (int)mintr, pci_get_slot(dev), pci_get_function(dev), pin);
 	return (mintr);
-#else
-	/*
-	 * XXX: ugly loathsome hack:
-	 * We can't use ofw_pci_route_intr() here; the device passed may be
-	 * the one of a bridge, so the original device can't be recovered.
-	 *
-	 * We need to use the firmware to route interrupts, however it has
-	 * no interface which could be used to interpret intpins; instead,
-	 * all assignments are done by device.
-	 *
-	 * The MI pci code will try to reroute interrupts of 0, although they
-	 * are correct; all other interrupts are preinitialized, so if we
-	 * get here, the intline is either 0 (so return 0), or we hit a
-	 * device which was not preinitialized (e.g. hotplugged stuff), in
-	 * which case we are lost.
-	 */
-	return (0);
-#endif /* OFW_NEWPCI */
 }
 
 static int
@@ -1238,33 +1114,6 @@ psycho_intr_pending(device_t dev, ofw_pci_intr_t intr)
 	return (diag != 0);
 }
 
-#ifndef OFW_NEWPCI
-static ofw_pci_intr_t
-psycho_guess_ino(device_t dev, phandle_t node, u_int slot, u_int pin)
-{
-	struct psycho_softc *sc = (struct psycho_softc *)device_get_softc(dev);
-	bus_addr_t intrmap;
-
-	/*
-	 * If this is not for one of our direct children (i.e. we are mapping
-	 * at our node), tell the interrupt mapper to go on - we need the
-	 * slot number of the device or it's topmost parent bridge to guess
-	 * the INO.
-	 */
-	if (node != sc->sc_node)
-		return (PCI_INVALID_IRQ);
-	/*
-	 * Actually guess the INO. We always assume that this is a non-OBIO
-	 * device, and use from the slot number to determine it.
-	 * We only need to do this on e450s, it seems; here, the slot numbers
-	 * for bus A are one-based, while those for bus B seemingly have an
-	 * offset of 2 (hence the factor of 3 below).
-	 */
-	intrmap = PSR_PCIA0_INT_MAP + 8 * (slot - 1 + 3 * sc->sc_half);
-	return (INTINO(PSYCHO_READ8(sc, intrmap)) + pin - 1);
-}
-#endif /* !OFW_NEWPCI */
-
 static bus_space_handle_t
 psycho_get_bus_handle(device_t dev, int type, bus_space_handle_t childhdl,
     bus_space_tag_t *tag)
@@ -1284,7 +1133,6 @@ psycho_get_bus_handle(device_t dev, int type, bus_space_handle_t childhdl,
 	}
 }
 
-#ifdef OFW_NEWPCI
 static phandle_t
 psycho_get_node(device_t bus, device_t dev)
 {
@@ -1311,7 +1159,6 @@ psycho_adjust_busrange(device_t dev, u_int subbus)
 		    PCSR_SUBBUS, subbus, 1);
 	}
 }
-#endif
 
 static bus_space_tag_t
 psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
