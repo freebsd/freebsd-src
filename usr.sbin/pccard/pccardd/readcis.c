@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: readcis.c,v 1.4 1996/04/18 04:25:15 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -164,13 +164,13 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 {
 	cp->maj_v = *p++;
 	cp->min_v = *p++;
-	strncpy(cp->manuf, p, MAXSTR - 1);
+	strncpy(cp->manuf, p, CIS_MAXSTR - 1);
 	while (*p++);
-	strncpy(cp->vers, p, MAXSTR - 1);
+	strncpy(cp->vers, p, CIS_MAXSTR - 1);
 	while (*p++);
-	strncpy(cp->add_info1, p, MAXSTR - 1);
+	strncpy(cp->add_info1, p, CIS_MAXSTR - 1);
 	while (*p++);
-	strncpy(cp->add_info2, p, MAXSTR - 1);
+	strncpy(cp->add_info2, p, CIS_MAXSTR - 1);
 }
 
 /*
