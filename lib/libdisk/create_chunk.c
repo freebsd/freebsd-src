@@ -22,6 +22,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/diskslice.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
@@ -283,12 +284,20 @@ MakeDev(struct chunk *c1, const char *path)
     struct passwd *pwd;
     uid_t owner;
     gid_t group;
+    int mib[4];
+    size_t miblen;
 
     *buf2 = '\0';
+    miblen = sizeof(mib)/sizeof(mib[0]);
     if (isDebug())
 	msgDebug("MakeDev: Called with %s on path %s\n", p, path);
     if (!strcmp(p, "X"))
 	return 0;
+    if (!sysctlnametomib("vfs.devfs.generation", &mib, &miblen)) {
+	if (isDebug())
+	    msgDebug("MakeDev: No need to mknod(2) with DEVFS.\n");
+	return 1;
+    }
 
     if (!strncmp(p, "ad", 2))
 	cmaj = 116, p += 2;
