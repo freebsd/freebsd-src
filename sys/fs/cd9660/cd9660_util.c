@@ -41,6 +41,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
