@@ -398,7 +398,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
-	char *optbuf, execname[MAXPATHLEN + 1], mntpath[MAXPATHLEN];
+	char *optbuf, execname[PATH_MAX], mntpath[PATH_MAX];
 
 #if __GNUC__
 	(void)&optbuf;
