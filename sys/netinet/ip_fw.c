@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.14.4.6 1996/02/26 15:23:32 phk Exp $
+ *	$Id: ip_fw.c,v 1.14.4.7 1996/05/06 20:32:01 phk Exp $
  */
 
 /*
@@ -462,29 +462,40 @@ add_entry(chainptr, frwl)
 
 	if (!chainptr->lh_first) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
-        } else if (ftmp->fw_number == (u_short)-1) {
+		splx(s);
+		return(0);
+	} else if (ftmp->fw_number == (u_short)-1) {
 		if (fwc)  free(fwc, M_IPFW);
 		if (ftmp) free(ftmp, M_IPFW);
 		splx(s);
 		return (EINVAL);
-        } else {
-		nbr=0;
-		for (fcp = chainptr->lh_first; fcp; fcp = fcp->chain.le_next)
-			if (fcp->rule->fw_number == (u_short)-1 || 
-			    ( ftmp->fw_number &&
-			    fcp->rule->fw_number > ftmp->fw_number)) {
-				if (!ftmp->fw_number)
-					ftmp->fw_number = nbr + 100;
-				if (fcpl) {
-					LIST_INSERT_AFTER(fcpl, fwc, chain);
-				} else {
-					LIST_INSERT_HEAD(chainptr, fwc, chain);
-				}
+	}
+
+	/* If entry number is 0, find highest numbered rule and add 100 */
+	if (ftmp->fw_number == 0) {
+		for (fcp = chainptr->lh_first; fcp; fcp = fcp->chain.le_next) {
+			if (fcp->rule->fw_number != (u_short)-1)
+				nbr = fcp->rule->fw_number;
+			else
 				break;
+		}
+		if (nbr < (u_short)-1 - 100)
+			nbr += 100;
+		ftmp->fw_number = nbr;
+	}
+
+	/* Got a valid number; now insert it, keeping the list ordered */
+	for (fcp = chainptr->lh_first; fcp; fcp = fcp->chain.le_next) {
+		if (fcp->rule->fw_number > ftmp->fw_number) {
+			if (fcpl) {
+				LIST_INSERT_AFTER(fcpl, fwc, chain);
 			} else {
-				nbr=fcp->rule->fw_number;
-				fcpl = fcp;
+				LIST_INSERT_HEAD(chainptr, fwc, chain);
 			}
+			break;
+		} else {
+			fcpl = fcp;
+		}
 	}
 
 	splx(s);
@@ -502,7 +513,7 @@ del_entry(chainptr, frwl)
 	s = splnet();
 
 	fcp = chainptr->lh_first; 
-	if (fcp->rule->fw_number != (u_short)-1) {
+	if (frwl->fw_number != (u_short)-1) {
 		for (; fcp; fcp = fcp->chain.le_next) {
 			if (fcp->rule->fw_number == frwl->fw_number) {
 				LIST_REMOVE(fcp, chain);
