@@ -14,6 +14,8 @@
 0E11	Compaq Computer Corp.
 	0001	PCI to EISA Bridge
 	0002	ISA Bridge
+	000F	CPQB1A9 StorageWorks Library Adapter (HVD)
+	00C0	Adaptec AIC-7899G 64Bit,66MHz,Dual Channel WideUltra3 SCSI
 	0508	Neteligent 4/16 TR PCI UTP/STP Controller
 	1000	Model 1000 Triflex/PCI CPU Bridge
 	2000	Model 2000 Triflex/PCI CPU Bridge
@@ -23,11 +25,12 @@
 	4000	4000 Triflex/PCI CPU Bridge
 	6010	Model 6010 HotPlug PCI Bridge
 	7020	USB Controller
-	A0EC	Fibre Channel Host Controller
+	A0EC	Original Compaq fibre Channel HBA
 	A0F0	Advanced System Management Controller
 	A0F3	Triflex PCI to ISA PnP Bridge
 	A0F7	PCI Hotplug Controller
 	A0F8	USB Open Host Controller
+	A0FC	HPFC-5166A Tachyon TL 64-bit/66-Mhz FC HBA
 	AE10	Smart-2 Array Controller
 	AE29	MIS-L PCI to ISA Bridge
 	AE2A	MPC CPU to PCI Bridge
@@ -46,11 +49,15 @@
 	B012	Netelligent 10 T/2
 	B030	Netelligent 10/100TX
 	B04A	10/100TX WOL UTP Controller
+	B060	CISS SMART2 Array Controller
 	B0C6	10/100TX Embedded WOL UTP Controller
 	B0D7	NC3121 rev. A & B
+	B178	CISSB SMART2 Array Controller
 	B196	Conexant SoftK56 Modem
 	F130	ThunderLAN / NetFlex-3/P
 	F150	NetFlex 3/P w/ BNC
+	F700	LP7000 Compaq/Emulex Fibre Channel HBA
+	F800	LP8000 Compaq/Emulex Fibre Channel HBA
 1000	LSI Logic
 	0001	53C810 Fast/Narrow SCSI I/O Cntrlr
 	0002	53C820 Fast-wide SCSI
