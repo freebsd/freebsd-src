@@ -162,13 +162,13 @@ create_includes_and_libraries() {
 	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC}/.. \
 	    make -m ${SRC}/share/mk \
 		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
-	# need to 'make obj' in a few places. This is very
-	# version-specific... The following works for 5.0
+	log "do a 'make obj' in a few places."
+	# This is very version-specific... The following works for 5.0
 	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
 		gnu/usr.bin/perl usr.bin/lex usr.sbin/config ; do
 	    (cd ${i}; eval $e obj)
 	done
-	# now make the static libraries
+	log "now make the static libraries"
 	eval $e -DNOPROFILE -DNOPIC libraries
 	(cd ${SRC}/usr.sbin/config
 	eval $e		# build binary
@@ -494,6 +494,7 @@ populate_floppy_fs() {		# OK
     else
 	log "No site-specific floppy-tree"
     fi
+
     # gzip returns an error if it fails to compress some file
     (cd $dst ; gzip -9 etc/*
 	    log "Compressed files in etc/ `echo; ls -l etc`"
@@ -585,11 +586,14 @@ populate_mfs_tree() {
     ) || fail $? crunch
 
     if [ -f ${dst}/stand/sshd ] ; then
-	log "Creating host key for sshd"
-	if [ -f ${dst}/etc/ssh_host_key ] ; then
+	log "Setting up host key for sshd:"
+	if [ -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key.gz ] ; then
 	    log "Using existing host key"
 	else
-	    ssh-keygen -f ${dst}/etc/ssh_host_key -N "" -C "root@picobsd"
+	    log "Generating new host key" 
+	    ssh-keygen -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
+		 -N "" -C "root@picobsd"
+	    gzip -9 ${BUILDDIR}/floppy.tree/etc/ssh_host_key* || true
 	fi
     fi
 
@@ -767,12 +771,9 @@ fill_floppy_image() {
     disklabel ${l_vndev} | sed -e '/  c:/{p;s/c:/a:/;}' | \
 	disklabel -R ${l_vndev} /dev/stdin
 
-    logverbose "`disklabel ${l_vndev}`"
-
     log "Newfs floppy image"
     newfs -i ${fd_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
 	     /dev/${l_vndev}a > /dev/null
-    logverbose "`disklabel ${l_vndev}`"
 
     log "Mounting floppy image"
     mount /dev/${l_vndev}a ${dst}
@@ -807,7 +808,7 @@ fi
     fi
     )
     (log "Fixing permissions"; cd ${dst}; chown -R root *)
-    rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
+    # rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
 
     df -ik ${dst} | colrm 70 > .build.reply
     free_vnode
