@@ -994,6 +994,9 @@ apm_processevent(void)
 			apm_record_event(sc, apm_event);
 			inittodr(0);	/* adjust time to RTC */
 			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_CAPABILITIESCHANGE);
+			apm_record_event(sc, apm_event);
+			break;
 		    case PMEV_NOEVENT:
 			break;
 		    default:
