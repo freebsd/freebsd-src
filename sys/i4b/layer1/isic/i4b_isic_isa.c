@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
-
-#if NISIC > 0
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -206,4 +203,3 @@ isic_isa_attach(device_t dev)
 
 	return(ret);
 }
-#endif /* NISIC > 0 */

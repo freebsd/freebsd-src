@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4b.h"
 #include "i4bipr.h"
-
-#if NI4B > 0
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1102,5 +1099,3 @@ i4b_idle_check_var_unit(call_desc_t *cd)
 		break;
 	}
 }
-
-#endif /* NI4B > 0 */

@@ -33,14 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-#include "iwic.h"
-#include "ifpi.h"
-#include "ifpi2.h"
-#include "ifpnp.h"
-#include "ihfc.h"
-#include "itjc.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -84,33 +76,19 @@
  
 unsigned int i4b_l1_debug = L1_DEBUG_DEFAULT;
 
-#if NISIC > 0
 static int l1isicunittab[MAXL1UNITS];
-#endif
 
-#if NIWIC > 0
 static int l1iwicunittab[MAXL1UNITS];
-#endif
 
-#if NIFPI > 0
 static int l1ifpiunittab[MAXL1UNITS];
-#endif
 
-#if NIFPI2 > 0
 static int l1ifpi2unittab[MAXL1UNITS];
-#endif
 
-#if NIHFC > 0
 static int l1ihfcunittab[MAXL1UNITS];
-#endif
 
-#if NIFPNP > 0
 static int l1ifpnpunittab[MAXL1UNITS];
-#endif
 
-#if NITJC > 0
 static int l1itjcunittab[MAXL1UNITS];
-#endif
 
 static int numl1units = 0;
 
@@ -167,41 +145,27 @@ getl1tab(int drv)
 {
 	switch(drv)
 	{
-#if NISIC > 0
 		case L1DRVR_ISIC:
 			return(l1isicunittab);
 			break;
-#endif
-#if NIWIC > 0
 		case L1DRVR_IWIC:
 			return(l1iwicunittab);
 			break;
-#endif
-#if NIFPI > 0
 		case L1DRVR_IFPI:
 			return(l1ifpiunittab);
 			break;
-#endif
-#if NIFPI2 > 0
 		case L1DRVR_IFPI2:
 			return(l1ifpi2unittab);
 			break;
-#endif
-#if NIHFC > 0
 		case L1DRVR_IHFC:
 			return(l1ihfcunittab);
 			break;
-#endif
-#if NIFPNP > 0
 		case L1DRVR_IFPNP:
 			return(l1ifpnpunittab);
 			break;
-#endif
-#if NITJC > 0
 		case L1DRVR_ITJC:
 			return(l1itjcunittab);
 			break;
-#endif
 		default:
 			return(NULL);
 			break;
@@ -310,41 +274,27 @@ i4b_l1_mph_status_ind(int drv_unit, int status, int parm, struct i4b_l1mux_func 
 
 			switch(L0DRVR(drv_unit))
 			{
-#if NISIC > 0
 				case L1DRVR_ISIC:
 					printf("isic%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NIWIC > 0
 				case L1DRVR_IWIC:
 					printf("iwic%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NIFPI > 0
 				case L1DRVR_IFPI:
 					printf("ifpi%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NIFPI2 > 0
 				case L1DRVR_IFPI2:
 					printf("ifpi2-%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NIFPNP > 0
 				case L1DRVR_IFPNP:
 					printf("ifpnp%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NIHFC > 0
 				case L1DRVR_IHFC:
 					printf("ihfc%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
-#if NITJC > 0
 				case L1DRVR_ITJC:
 					printf("itjc%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
-#endif
 			}
 			
 			NDBGL1(L1_PRIM, "ATTACH drv %d, drvunit %d -> unit %d", L0DRVR(drv_unit), L0UNIT(drv_unit), numl1units);

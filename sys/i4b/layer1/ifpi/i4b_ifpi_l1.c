@@ -35,10 +35,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpi.h"
-
-#if (NIFPI > 0)
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -239,5 +235,3 @@ ifpi_mph_command_req(int unit, int command, void *parm)
 
 	return(0);
 }
-
-#endif /* NIFPI > 0 */

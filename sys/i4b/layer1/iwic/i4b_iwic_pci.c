@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "iwic.h"
 #include "opt_i4b.h"
-
-#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -312,5 +309,3 @@ iwic_pci_intr(struct iwic_softc *sc)
 		}
 	}
 }
-
-#endif

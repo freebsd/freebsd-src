@@ -39,10 +39,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "itjc.h"
 #include "opt_i4b.h"
-
-#if (NITJC > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -2131,5 +2128,3 @@ itjc_recover(struct l1_softc *sc)
 	DELAY(100);
 	ISAC_WRITE(I_MASK, ISAC_IMASK);
 }
-
-#endif /* NITJC > 0 */

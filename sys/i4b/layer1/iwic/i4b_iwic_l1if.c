@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "iwic.h"
 #include "opt_i4b.h"
-
-#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -148,5 +145,3 @@ iwic_set_linktab (int unit, int channel, drvr_link_t *dlt)
 
 	bchan->iwic_drvr_linktab = dlt;
 }
-
-#endif

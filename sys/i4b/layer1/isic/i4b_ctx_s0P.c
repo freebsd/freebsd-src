@@ -40,10 +40,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610))
+#if (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610))
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -312,5 +311,5 @@ isic_attach_Cs0P(device_t dev)
 	return 0;
 }
 
-#endif /* (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610)) */
+#endif /* (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610)) */
 

@@ -40,10 +40,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpi2.h"
 #include "opt_i4b.h"
-
-#if (NIFPI2 > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1444,6 +1441,3 @@ ifpi2_recover(struct l1_softc *sc)
 	ISAC_WRITE(I_MASK, isacsx_imask);
 #endif
 }
-
-
-#endif /* NIFPI2 > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-
-#if NISIC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -399,5 +395,3 @@ isic_init_linktab(struct l1_softc *sc)
 	/* used by HDLC data transfers, i.e. ipr and isp drivers */	
 	lt->rx_mbuf = &chan->in_mbuf;	
 }
- 
-#endif /* NISIC > 0 */

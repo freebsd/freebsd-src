@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -542,5 +538,3 @@ next_state(int class, int form, int code, int val)
 		}
 	}
 }
-
-#endif /* NI4BQ931 > 0 */

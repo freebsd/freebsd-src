@@ -36,10 +36,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ihfc.h"
-
-#if (NIHFC > 0)
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -1761,5 +1757,3 @@ ihfc_test_Bread (ihfc_sc_t *sc, u_char chan)
 	S_HDLC_TMP = error;
 	S_HDLC_FLAG = ecount;
 }
-
-#endif /* NIHFC > 0 */

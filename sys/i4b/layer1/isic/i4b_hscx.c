@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-
-#if NISIC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -649,5 +645,3 @@ isic_hscx_waitxfw(struct l1_softc *sc, int h_chan)
 		NDBGL1(L1_H_XFRERR, "HSCX wait for XFW time: %d uS", (WAITTO-timeout)*50);
 	}
 }
-		
-#endif /* NISIC > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -385,5 +381,3 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	}
 	return(0);
 }
-
-#endif /* NI4BQ921 > 0 */

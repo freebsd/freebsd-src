@@ -35,8 +35,6 @@
 
 #include "i4brbch.h"
 
-#if NI4BRBCH > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -846,5 +844,3 @@ rbch_init_linktab(int unit)
 }
 
 /*===========================================================================*/
-
-#endif /* NI4BRBCH > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -326,6 +322,3 @@ T313_stop(call_desc_t *cd)
 	
 	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
-
-#endif /* NI4BQ931 > 0 */
-

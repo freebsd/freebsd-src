@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "itjc.h"
-
-#if (NITJC > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -238,5 +234,3 @@ itjc_mph_command_req(int unit, int command, void *parm)
 
 	return(0);
 }
-
-#endif /* NITJC > 0 */
