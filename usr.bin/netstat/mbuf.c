@@ -138,7 +138,7 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	}
 #endif
 
-	mlen = sizeof mbstat;
+	mlen = sizeof *mbstat;
 	if ((mbstat = malloc(mlen)) == NULL) {
 		warn("malloc: cannot allocate memory for mbstat");
 		goto err;
@@ -190,6 +190,7 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			warn("sysctl: retrieving mb_statpcpu");
 			goto err;
 		}
+		mlen = sizeof *mbstat;
 		if (sysctlbyname("kern.ipc.mbstat", mbstat, &mlen, NULL, 0)
 		    < 0) {
 			warn("sysctl: retrieving mbstat");
@@ -227,8 +228,9 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			goto err;
 		}
 		mlen = sizeof(int);
-		if (sysctlbyname("kern.smp.cpus", &ncpu, &mlen, NULL, 0) < 0) {
-			warn("sysctl: retrieving kern.smp.cpus");
+		if (sysctlbyname("kern.smp.cpus", &ncpu, &mlen, NULL, 0) < 0 &&
+		    sysctlbyname("hw.ncpu", &ncpu, &mlen, NULL, 0) < 0) {
+			warn("sysctl: retrieving number of cpus");
 			goto err;
 		}
 		mlen = sizeof(int);
