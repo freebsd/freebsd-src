@@ -87,7 +87,7 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
 
 /* Like the default, except no -lg, and no -p.  */
-#define LIB_SPEC "%{!shared:%{!pg:-lc}%{pg:-lc_p}}"
+#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:-lc}%{pthread:-lc_r}}%{pg:%{!pthread:-lc_p}%{pthread:-lc_r_p}}}"
 
 #define LINK_SPEC \
   "%{p:%e`-p' not supported; use `-pg' and gprof(1)} \
