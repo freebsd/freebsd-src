@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.2 1997/03/24 07:23:05 kato Exp $
+ *		$Id: initcpu.c,v 1.3 1997/04/19 05:25:19 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -45,6 +45,7 @@ void initializecpu(void);
 static void init_5x86(void);
 static void init_bluelightning(void);
 static void init_486dlc(void);
+static void init_cy486dx(void);
 #ifdef CPU_I486_ON_386
 static void init_i486_on_386(void);
 #endif
@@ -90,7 +91,7 @@ init_bluelightning(void)
 }
 
 /*
- * Cyrix 486 series
+ * Cyrix 486SLC/DLC/SR/DR series
  */
 static void
 init_486dlc(void)
@@ -128,6 +129,28 @@ init_486dlc(void)
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
 	invd();
 #endif /* !CYRIX_CACHE_WORKS */
+	write_eflags(eflags);
+}
+
+
+/*
+ * Cyrix 486S/DX series
+ */
+static void
+init_cy486dx(void)
+{
+	u_long	eflags;
+	u_char	ccr2;
+
+	eflags = read_eflags();
+	disable_intr();
+	invd();
+
+	ccr2 = read_cyrix_reg(CCR2);
+#ifdef SUSP_HLT
+	ccr2 |= CCR2_SUSP_HTL;
+#endif
+	write_cyrix_reg(CCR2, ccr2);
 	write_eflags(eflags);
 }
 
@@ -334,6 +357,9 @@ initializecpu(void)
 	case CPU_486DLC:
 		init_486dlc();
 		break;
+	case CPU_CY486DX:
+		init_cy486dx();
+		break;
 	case CPU_M1SC:
 		init_5x86();
 		break;
@@ -407,7 +433,7 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 		disable_intr();
 
 
-		if (cpu != CPU_M1SC) {
+		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX)) {
 			ccr0 = read_cyrix_reg(CCR0);
 		}
 		ccr1 = read_cyrix_reg(CCR1);
@@ -424,7 +450,7 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 		}
 		write_eflags(eflags);
 
-		if (cpu != CPU_M1SC)
+		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX))
 			printf("CCR0=%x, ", (u_int)ccr0);
 
 		printf("CCR1=%x, CCR2=%x, CCR3=%x",
