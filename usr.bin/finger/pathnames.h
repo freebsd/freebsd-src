@@ -26,6 +26,14 @@
  * $FreeBSD$
  */
 
+#ifndef PATHNAMES_H
+
+#define	_PATH_FORWARD	".forward"
+#define	_PATH_PLAN	".plan"
+#define	_PATH_PROJECT	".project"
+
 #ifndef _PATH_FINGERCONF
 #define _PATH_FINGERCONF "/etc/finger.conf"
 #endif /* _PATH_FINGERCONF */
+
+#endif /* PATHNAMES_H */
