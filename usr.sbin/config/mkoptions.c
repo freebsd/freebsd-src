@@ -61,6 +61,7 @@ static	struct users {
 	{ 8, 2, 512 },			/* MACHINE_PC98 */
 	{ 8, 2, 512 },			/* MACHINE_ALPHA */
 	{ 8, 2, 512 },			/* MACHINE_IA64 */
+	{ 8, 2, 512 },			/* MACHINE_POWERPC */
 };
 #define	NUSERS	(sizeof (users) / sizeof (users[0]))
 
