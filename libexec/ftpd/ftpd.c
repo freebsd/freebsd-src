@@ -2302,14 +2302,19 @@ cwd(char *path)
 void
 makedir(char *name)
 {
+	char *s;
 
 	LOGCMD("mkdir", name);
 	if (guest && noguestmkd)
 		reply(550, "%s: permission denied", name);
 	else if (mkdir(name, 0777) < 0)
 		perror_reply(550, name);
-	else
-		reply(257, "MKD command successful.");
+	else {
+		if ((s = doublequote(name)) == NULL)
+			fatalerror("Ran out of memory.");
+		reply(257, "\"%s\" directory created.", s);
+		free(s);
+	}
 }
 
 void
