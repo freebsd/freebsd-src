@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2002
+.Dd February 23, 2005
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -39,14 +39,15 @@ The
 interface is a pseudo-device which exposes certain changes to the state
 table used by
 .Xr pf 4 .
-State changes can be viewed by invoking
-.Xr tcpdump 8
-on the
-.Nm
-interface.
+.\" XXX: not yet!
+.\" State changes can be viewed by invoking
+.\" .Xr tcpdump 8
+.\" on the
+.\" .Nm
+.\" interface.
 If configured with a physical synchronisation interface,
 .Nm
-will also send state changes out on that interface using IP multicast,
+will send state changes out on that interface using IP multicast,
 and insert state changes received on that interface from other systems
 into the state table.
 .Pp
@@ -113,18 +114,19 @@ be trivial to spoof packets which create states, bypassing the pf ruleset.
 Ideally, this is a network dedicated to pfsync messages,
 i.e. a crossover cable between two firewalls.
 .Pp
-There is a one-to-one correspondence between packets seen by
-.Xr bpf 4
-on the
-.Nm
-interface, and packets sent out on the synchronisation interface, i.e.\&
-a packet with 4 state deletion messages on
-.Nm
-means that the same 4 deletions were sent out on the synchronisation
-interface.
-However, the actual packet contents may differ as the messages
-sent over the network are "compressed" where possible, containing
-only the necessary information.
+.\" XXX: not yet!
+.\" There is a one-to-one correspondence between packets seen by
+.\" .Xr bpf 4
+.\" on the
+.\" .Nm
+.\" interface, and packets sent out on the synchronisation interface, i.e.\&
+.\" a packet with 4 state deletion messages on
+.\" .Nm
+.\" means that the same 4 deletions were sent out on the synchronisation
+.\" interface.
+.\" However, the actual packet contents may differ as the messages
+.\" sent over the network are "compressed" where possible, containing
+.\" only the necessary information.
 .Sh EXAMPLES
 .Nm
 and
@@ -147,34 +149,17 @@ uses .253.
 The interfaces are configured as follows (firewall A unless otherwise
 indicated):
 .Pp
-.Pa /etc/hostname.sis0 :
+Interfaces configuration in
+.Pa /etc/rc.conf :
 .Bd -literal -offset indent
-inet 10.0.0.254 255.255.255.0 NONE
-.Ed
-.Pp
-.Pa /etc/hostname.sis1 :
-.Bd -literal -offset indent
-inet 192.168.0.254 255.255.255.0 NONE
-.Ed
-.Pp
-.Pa /etc/hostname.sis2 :
-.Bd -literal -offset indent
-inet 192.168.254.254 255.255.255.0 NONE
-.Ed
-.Pp
-.Pa /etc/hostname.carp0 :
-.Bd -literal -offset indent
-inet 10.0.0.1 255.255.255.0 10.0.0.255 vhid 1 pass foo
-.Ed
-.Pp
-.Pa /etc/hostname.carp1 :
-.Bd -literal -offset indent
-inet 192.168.0.1 255.255.255.0 192.168.0.255 vhid 2 pass bar
-.Ed
-.Pp
-.Pa /etc/hostname.pfsync0 :
-.Bd -literal -offset indent
-up syncif sis2
+cloned_interfaces="carp0 carp1"
+network_interfaces="lo0 sis0 sis1 sis2 carp0 carp1 pfsync0"
+ifconfig_sis0="10.0.0.254/24"
+ifconfig_sis1="192.168.0.254/24"
+ifconfig_sis2="192.168.254.254/24"
+ifconfig_carp0="vhid 1 pass foo 10.0.0.1/24"
+ifconfig_carp1="vhid 2 pass bar 192.168.0.1/24"
+ifconfig_pfsync0="up syncif sis2"
 .Ed
 .Pp
 .Xr pf 4
@@ -198,11 +183,9 @@ on the backup firewall's
 interfaces should be set to something higher than
 the primary's.
 For example, if firewall B is the backup, its
-.Pa /etc/hostname.carp1
-would look like this:
+carp1 configuration would look like this:
 .Bd -literal -offset indent
-inet 192.168.0.1 255.255.255.0 192.168.0.255 vhid 2 pass bar \e
-	advskew 100
+ifconfig_carp1="vhid 2 pass bar advskew 100 192.168.0.1/24"
 .Ed
 .Pp
 The following must also be added to
@@ -210,19 +193,28 @@ The following must also be added to
 .Bd -literal -offset indent
 net.inet.carp.preempt=1
 .Ed
+.Sh BUGS
+Possibility to view state changes using
+.Xr tcpdump 8
+has not been ported from
+.Ox
+yet.
 .Sh SEE ALSO
-.Xr bpf 4 ,
+.Xr carp 4 ,
+.Xr ifconfig 8 ,
 .Xr inet 4 ,
 .Xr inet6 4 ,
 .Xr netintro 4 ,
 .Xr pf 4 ,
-.Xr hostname.if 5 ,
 .Xr pf.conf 5 ,
 .Xr protocols 5 ,
-.Xr ifconfig 8 ,
-.Xr tcpdump 8
+.Xr rc.conf 5
 .Sh HISTORY
 The
 .Nm
 device first appeared in
 .Ox 3.3 .
+The
+.Nm
+device was imported to
+.Fx 5.3 .
