@@ -286,9 +286,9 @@ port, and some ACPI knowledge.
 ACPI is only found/supported on Intel platforms (i386/IA32 and IA64).
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
+.Xr acpiconf 8 ,
 .Xr acpidump 8 ,
-.Xr config 8 ,
-.Xr acpi 9
+.Xr config 8
 .Rs
 .%A "Compaq Computer Corporation"
 .%A "Intel Corporation"
@@ -318,10 +318,6 @@ and many other contributors.
 This manual page was written by
 .An Michael Smith Aq msmith@FreeBSD.org .
 .Sh BUGS
-The kernel device is
-.Cd device acpica
-for historical reasons.
-.Pp
 If the
 .Nm
 driver is loaded as a module when it is already linked as part of the
