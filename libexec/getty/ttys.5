@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
-.\"	$Id: ttys.5,v 1.7 1997/04/13 21:29:50 davidn Exp $
+.\"	$Id: ttys.5,v 1.8 1997/06/02 21:03:20 davidn Exp $
 .\" "
 .Dd November 17, 1996
 .Dt TTYS 5
@@ -40,14 +40,14 @@
 .Nd terminal initialization information
 .Sh DESCRIPTION
 The file
-.Nm ttys
+.Nm
 contains information that is used by various routines to initialize
 and control the use of terminal special files.
 This information is read with the
 .Xr getttyent 3
 library routines.
 There is one line in the 
-.Nm ttys
+.Nm
 file per special device file.
 Fields are separated by tabs and/or spaces.
 Fields comprised of more than one word should be enclosed in double
@@ -76,7 +76,7 @@ tty line, normally the one found in the
 .Xr termcap 5
 data base file.
 The environment variable
-.Dv TERM
+.Ev TERM
 is initialized with the value by
 either
 .Xr getty 8
@@ -99,7 +99,7 @@ deny access or enable or disable accounting facilities for
 ttys as a group.
 .Pp
 As flag values, the strings ``on'' and ``off'' specify that
-.Xr init
+.Xr init 8
 should (should not) execute the command given in the second field,
 while ``secure'' (if ``on'' is also specified) allows users with a
 uid of 0 to login on
@@ -111,7 +111,7 @@ Either of these strings may also be specified in the terminal type
 field.
 The string ``window='' may be followed by a quoted command
 string which
-.Xr init
+.Xr init 8
 will execute
 .Em before
 starting the command specified by the second field.
