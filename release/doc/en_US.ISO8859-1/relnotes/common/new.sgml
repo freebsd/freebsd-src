@@ -220,6 +220,10 @@
 
     <para>The &man.getvfsent.3; API has been removed.</para>
 
+    <para arch="sparc64">The &man.hme.4; driver now natively supports
+      long frames, so it can be used for &man.vlan.4; with full ethernet
+      MTU size.</para>
+
     <para>&man.jail.8; now supports use of raw sockets from within a jail.
       This feature is disabled by default, and controlled using the
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
