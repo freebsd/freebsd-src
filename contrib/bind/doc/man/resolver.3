@@ -16,17 +16,17 @@
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.3	6.5 (Berkeley) 6/23/90
-.\"	$Id: resolver.3,v 8.11 1999/09/13 23:33:24 vixie Exp $
+.\"	$Id: resolver.3,v 8.12 2000/07/11 06:10:55 vixie Exp $
 .\"
-.Dd October 19, 1998
+.Dd July 4, 2000
 .Dt RESOLVER @LIB_NETWORK_EXT_U@ 
 .Os BSD 4
 .Sh NAME
 .Nm res_ninit ,
-.Nm res_nisourserver ,
+.Nm res_ourserver_p ,
 .Nm fp_resstat ,
-.Nm res_npquery ,
 .Nm res_hostalias ,
+.Nm res_pquery ,
 .Nm res_nquery ,
 .Nm res_nsearch ,
 .Nm res_nquerydomain ,
@@ -36,16 +36,15 @@
 .Nm res_nmkupdate ,
 .Nm res_nclose ,
 .Nm res_nsendsigned ,
-.Nm res_nsendupdate ,
 .Nm res_findzonecut ,
 .Nm dn_comp ,
 .Nm dn_expand ,
 .Nm hstrerror ,
 .Nm res_init ,
 .Nm res_isourserver ,
-.Nm p_nquery ,
-.Mm p_query ,
-.Mm hostalias ,
+.Nm fp_nquery ,
+.Nm p_query ,
+.Nm hostalias ,
 .Nm res_query ,
 .Nm res_search ,
 .Nm res_querydomain ,
@@ -61,10 +60,10 @@
 .Fd #include <arpa/nameser.h>
 .Fd #include <resolv.h>
 .Fn res_ninit "res_state statp"
-.Fn res_nisourserver "const res_state statp" "const struct sockaddr_in *addr"
+.Fn res_ourserver_p "const res_state statp" "const struct sockaddr_in *addr"
 .Fn fp_resstat "const res_state statp" "FILE *fp"
-.Fn res_npquery "const res_state statp" "const u_char *msg" "int msglen" "FILE *fp"
 .Fn res_hostalias "const res_state statp" "const char *name" "char *buf" "size_t buflen"
+.Fn res_pquery "const res_state statp" "const u_char *msg" "int msglen" "FILE *fp"
 .Fn res_nquery "res_state statp" "const char *dname" "int class" "int type" "u_char *answer" "int anslen"
 .Fn res_nsearch "res_state statp" "const char *dname" "int class" "int type" "u_char * answer" "int anslen"
 .Fn res_nquerydomain "res_state statp" "const char *name" "const char *domain" "int class" "int type" "u_char *answer" "int anslen"
@@ -75,7 +74,6 @@
 .Fn res_nclose "res_state statp"
 .Fn res_nsendsigned "res_state statp" "const u_char *msg" "int msglen" "ns_tsig_key *key" "u_char *answer" "int anslen"
 .Fn res_findzonecut "res_state statp" "const char *dname" "ns_class class" "int options" "char *zname" "size_t zsize" "struct in_addr *addrs" "int naddrs"
-.Fn res_nsendupdate "res_state statp" "ns_updrec *rrecp_in" "ns_tsig_key *key" "char *zname" "struct in_addr addr"
 .Fn dn_comp "const char *exp_dn" "u_char *comp_dn" "int length" "u_char **dnptrs, **lastdnptr"
 .Fn dn_expand "const u_char *msg, *eomorig, *comp_dn" "char *exp_dn" "int  length"
 .Fn hstrerror "int err"
@@ -87,7 +85,7 @@
 .Fd #include <resolv.h>
 .Fn res_init "void"
 .Fn res_isourserver "const struct sockaddr_in *addr"
-.Fn p_nquery "const u_char *msg" "int msglen" "FILE *fp"
+.Fn fp_nquery "const u_char *msg" "int msglen" "FILE *fp"
 .Fn p_query "const u_char *msg" "FILE *fp"
 .Fn hostalias "const char *name"
 .Fn res_query "const char *dname" "int class, type" "u_char *answer" "int anslen"
@@ -111,7 +109,7 @@ should be set to all zeros prior to the first call to any of these functions.
 The functions
 .Fn res_init ,
 .Fn res_isourserver ,
-.Fn p_nquery ,
+.Fn fp_nquery ,
 .Fn p_query ,
 .Fn hostalias ,
 .Fn res_query ,
@@ -373,11 +371,9 @@ MUST be big enough to receive a maximum UDP response from the server or
 parts of the answer will be silently discarded.
 The default maximum UDP response size is 512 bytes.
 .Pp
-The functions
-.Fn res_nisourserver
-/
-.Fn res_isourserver
-return true when 
+The function
+.Fn res_ourserver_p
+returns true when 
 .Fa inp
 is one of the servers in
 .Fa statp->nsaddr_list
@@ -385,9 +381,7 @@ is one of the servers in
 .Fa _res.nsaddr_list .
 .Pp
 The functions
-.Fn res_npquery
-/
-.Fn p_nquery
+.Fn fp_nquery
 /
 .Fn p_query
 print out the query and any answer in
@@ -396,7 +390,7 @@ on
 .Fa fp .
 .Fn p_query
 is equivalent to
-.Fn p_nquery
+.Fn fp_nquery
 with
 .Fa msglen
 set to 512.
@@ -429,21 +423,17 @@ The functions
 take a list of ns_updrec
 .Fa rrecp_in .
 Identifies the containing zone for each record and groups the records
-according to containing zone maintaining in zone order then sends and
-update request to the servers for these zones.
-The number of zones updated is returned or -1 on error.
+according to containing zone maintaining in zone order then sends and update
+request to the servers for these zones.  The number of zones updated is
+returned or -1 on error.  Note that
+.Fn res_nupdate
+will perform TSIG authenticated dynamic update operations if the key is not
+NULL.
 .Pp
 The function
 .Fn res_findzonecut
 discovers the closest enclosing zone cut for a specified domain name,
 and finds the IP addresses of the zone's master servers.
-.Pp
-The function
-.Fn res_nsendupdate
-is used to perform TSIG authenticated dynamic update operations.
-.Fn res_nsendupdate
-sends a dynamic update to the specified IP address, authenticating the update
-if the key is not NULL.
 .Pp
 The functions 
 .Fn res_nmkupdate
