@@ -61,6 +61,7 @@ static void ata_acard_intr(void *);
 static void ata_acard_850_setmode(struct ata_device *, int);
 static void ata_acard_86X_setmode(struct ata_device *, int);
 static int ata_ali_chipinit(device_t);
+static int ata_ali_allocate(device_t);
 static void ata_ali_setmode(struct ata_device *, int);
 static int ata_amd_chipinit(device_t);
 static int ata_cyrix_chipinit(device_t);
@@ -85,7 +86,7 @@ static int ata_via_chipinit(device_t);
 static void ata_via_family_setmode(struct ata_device *, int);
 static void ata_via_southbridge_fixup(device_t);
 static int ata_promise_chipinit(device_t);
-static int ata_promise_mio_allocate(device_t, struct ata_channel *);
+static int ata_promise_mio_allocate(device_t);
 static void ata_promise_mio_intr(void *);
 static void ata_promise_sx4_intr(void *);
 static void ata_promise_mio_dmainit(struct ata_channel *);
@@ -102,7 +103,7 @@ static void ata_promise_setmode(struct ata_device *, int);
 static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
-static int ata_sii_allocate(device_t, struct ata_channel *);
+static int ata_sii_allocate(device_t);
 static void ata_sii_reset(struct ata_channel *);
 static void ata_sii_intr(void *);
 static void ata_cmd_intr(void *);
@@ -405,10 +406,14 @@ ata_ali_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ALI_5229, 0xc4, 0, ALINEW, ATA_UDMA5, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0xc2, 0, ALINEW, ATA_UDMA4, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x20, 0, ALIOLD, ATA_UDMA2, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x00, 0, ALIOLD, ATA_WDMA2, "AcerLabs Aladdin" },
+    {{ ATA_ALI_5289, 0x00, 2, ALISATA, ATA_SA150, "AcerLabs M5289" },
+     { ATA_ALI_5287, 0x00, 4, ALISATA, ATA_SA150, "AcerLabs M5287" },
+     { ATA_ALI_5281, 0x00, 2, ALISATA, ATA_SA150, "AcerLabs M5281" },
+     { ATA_ALI_5229, 0xc5, 0, ALINEW,  ATA_UDMA6, "AcerLabs M5229" },
+     { ATA_ALI_5229, 0xc4, 0, ALINEW,  ATA_UDMA5, "AcerLabs M5229" },
+     { ATA_ALI_5229, 0xc2, 0, ALINEW,  ATA_UDMA4, "AcerLabs M5229" },
+     { ATA_ALI_5229, 0x20, 0, ALIOLD,  ATA_UDMA2, "AcerLabs M5229" },
+     { ATA_ALI_5229, 0x00, 0, ALIOLD,  ATA_WDMA2, "AcerLabs M5229" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -430,18 +435,76 @@ ata_ali_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* deactivate the ATAPI FIFO and enable ATAPI UDMA */
-    if (ctlr->chip->cfg2 & ALINEW)
-	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x01, 1);
-    else
+    switch (ctlr->chip->cfg2) {
+    case ALISATA:
+	pci_write_config(dev, PCIR_COMMAND,
+			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	/* XXX SOS PHY handling missing */
+	ctlr->setmode = ata_sata_setmode;
+	ctlr->allocate = ata_ali_allocate;
+	ctlr->channels = ctlr->chip->cfg1;
+	break;
+
+    case ALINEW:
+	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
+	pci_write_config(dev, 0x53,
+			 pci_read_config(dev, 0x53, 1) | 0x01, 1);
+
+	/* enable cable detection and UDMA support on newer chips */
+	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+	ctlr->setmode = ata_ali_setmode;
+        break;
+
+    case ALIOLD:
+	/* deactivate the ATAPI FIFO and enable ATAPI UDMA */
 	pci_write_config(dev, 0x53,
 			 (pci_read_config(dev, 0x53, 1) & ~0x02) | 0x03, 1);
- 
-    /* enable cable detection and UDMA support on newer chips */
-    if (ctlr->chip->cfg2 & ALINEW)
-	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+	ctlr->setmode = ata_ali_setmode;
+	break;
+    }
+    return 0;
+}
 
-    ctlr->setmode = ata_ali_setmode;
+static int
+ata_ali_allocate(device_t dev)
+{
+    device_t parent = device_get_parent(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
+    struct resource *io = NULL, *altio = NULL;
+    int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
+    int i, rid;
+                
+    rid = PCIR_BAR(0) + (unit01 ? 8 : 0);
+    io = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+    if (!io)
+	return ENXIO;
+
+    rid = PCIR_BAR(1) + (unit01 ? 8 : 0);
+    altio = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+    if (!altio) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	return ENXIO;
+    }
+                
+    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+        ch->r_io[i].res = io;
+        ch->r_io[i].offset = i + (unit10 ? 8 : 0);
+    }
+    ch->r_io[ATA_ALTSTAT].res = altio;
+    ch->r_io[ATA_ALTSTAT].offset = 2 + (unit10 ? 4 : 0);
+    ch->r_io[ATA_IDX_ADDR].res = io;
+
+    ch->flags |= ATA_NO_SLAVE;
+         
+    if (ctlr->r_res1) {
+	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
+	    ch->r_io[i].res = ctlr->r_res1;
+	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
+	}
+    }
+
+    ata_generic_hw(ch);
     return 0;
 }
 
@@ -485,7 +548,7 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 		   ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
 	if (mode >= ATA_UDMA0) {
-	    u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f};
+	    u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0d};
 	    u_int32_t word54 = pci_read_config(gparent, 0x54, 4);
 
 	    word54 &= ~(0x000f000f << (devno << 2));
@@ -1310,14 +1373,16 @@ ata_nvidia_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    if (ctlr->chip->max_dma < ATA_SA150) {
+    if (ctlr->chip->max_dma >= ATA_SA150) {
+	pci_write_config(dev, PCIR_COMMAND,
+			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	/* XXX SOS PHY handling missing */
+	ctlr->setmode = ata_sata_setmode;
+    }
+    else {
 	/* disable prefetch, postwrite */
 	pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) & 0x0f, 1);
 	ctlr->setmode = ata_via_family_setmode;
-    }
-    else {
-	/* we need hotplug and proper reset code as well XXX SOS */
-	ctlr->setmode = ata_sata_setmode;
     }
     return 0;
 }
@@ -1580,9 +1645,10 @@ ata_promise_chipinit(device_t dev)
 }
 
 static int
-ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
+ata_promise_mio_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int offset = (ctlr->chip->cfg2 & PRSX4X) ? 0x000c0000 : 0;
     int i;
  
@@ -2552,9 +2618,10 @@ ata_sii_chipinit(device_t dev)
 }
 
 static int
-ata_sii_allocate(device_t dev, struct ata_channel *ch)
+ata_sii_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
@@ -2588,8 +2655,8 @@ ata_sii_allocate(device_t dev, struct ata_channel *ch)
 	ch->dma->boundary = 16 * DEV_BSIZE;
 	ch->dma->max_iosize = 15 * DEV_BSIZE;
     }
-    ata_generic_hw(ch);
 
+    ata_generic_hw(ch);
     return 0;
 }
 
@@ -2970,6 +3037,7 @@ ata_sis_chipinit(device_t dev)
     case SISSATA:
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	/* XXX SOS PHY handling missing */
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     default:
@@ -3113,6 +3181,7 @@ ata_via_chipinit(device_t dev)
     if (ctlr->chip->max_dma >= ATA_SA150) {
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	/* XXX SOS PHY handling missing */
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
