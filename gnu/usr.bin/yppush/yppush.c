@@ -51,7 +51,7 @@ struct dom_binding {
 #include <sys/stat.h>
 
 #ifndef _PATH_YP
-#define _PATH_YP "/var/yp"
+#define _PATH_YP "/var/yp/"
 #endif
 
 char *progname;
@@ -82,6 +82,93 @@ static CLIENT *PushClient=NULL;
 static u_int CallbackTransid;
 static u_int CallbackProg=0;
 static SVCXPRT *CallbackXprt;
+
+static inline char *
+yppush_err_string(enum yppush_status y) {
+	switch(y) {
+	case YPPUSH_SUCC:	return "Success";
+	case YPPUSH_AGE:	return "Master's version not newer";
+	case YPPUSH_NOMAP:	return "Can't find server for map";
+	case YPPUSH_NODOM:	return "Domain not supported";
+	case YPPUSH_RSRC:	return "Local resource alloc failure";
+	case YPPUSH_RPC:	return "RPC failure talking to server";
+	case YPPUSH_MADDR:	return "Can't get master address";
+	case YPPUSH_YPERR:	return "YP server/map db error";
+	case YPPUSH_BADARGS:	return "Request arguments bad";
+	case YPPUSH_DBM:	return "Local dbm operation failed";
+	case YPPUSH_FILE:	return "Local file I/O operation failed";
+	case YPPUSH_SKEW:	return "Map version skew during transfer";
+	case YPPUSH_CLEAR:	return "Can't send \"Clear\" req to local ypserv";
+	case YPPUSH_FORCE:	return "No local order number in map  use -f flag.";
+	case YPPUSH_XFRERR:	return "ypxfr error";
+	case YPPUSH_REFUSED:	return "Transfer request refused by ypserv";
+	}
+}
+
+#define YPPUSH_XFRRESPPROG ((u_long)0x40000000)
+#define YPPUSH_XFRRESPVERS ((u_long)1)
+
+#define YPPUSHPROC_NULL ((u_long)0)
+static inline void *
+__yppushproc_null_1(void * req, struct svc_req * rqstp) {
+	static int resp;
+	return &resp;
+}
+
+#define YPPUSHPROC_XFRRESP ((u_long)1)
+static inline void *
+__yppushproc_xfrresp_1(yppushresp_xfr *req, struct svc_req * rqstp) {
+	static int resp;
+	
+	if (req->status!=YPPUSH_SUCC)
+		fprintf(stderr, "%s: %s\n", progname, yppush_err_string(req->status));
+	return &resp;
+}
+
+void
+__yppush_xfrrespprog_1( struct svc_req *rqstp, SVCXPRT *transp)
+{
+	union {
+		int fill;
+	} argument;
+	char *result;
+	bool_t (*xdr_argument)(XDR *, void *), (*xdr_result)(XDR *, void *);
+	char *(*local)( void *, struct svc_req *);
+
+	switch (rqstp->rq_proc) {
+	case YPPUSHPROC_NULL:
+		xdr_argument = (bool_t (*)(XDR *, void *))xdr_void;
+		xdr_result = (bool_t (*)(XDR *, void *))xdr_void;
+		local = (char *(*)( void *, struct svc_req *)) __yppushproc_null_1;
+		break;
+
+	case YPPUSHPROC_XFRRESP:
+		xdr_argument = xdr_yppushresp_xfr;
+		xdr_result = (bool_t (*)(XDR *, void *))xdr_void;
+		local = (char *(*)( void *, struct svc_req *)) __yppushproc_xfrresp_1;
+		break;
+
+	default:
+		svcerr_noproc(transp);
+		exit(1);
+	}
+	bzero((char *)&argument, sizeof(argument));
+	if (!svc_getargs(transp, xdr_argument, &argument)) {
+		svcerr_decode(transp);
+		exit(1);
+	}
+	result = (*local)(&argument, rqstp);
+	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
+		svcerr_systemerr(transp);
+	}
+	if (!svc_freeargs(transp, xdr_argument, &argument)) {
+		(void)fprintf(stderr, "%s: unable to free arguments\n", progname);
+		exit(1);
+	if (rqstp->rq_proc!=YPPUSHPROC_NULL)
+		exit(0);
+	}
+	exit(0);
+}
 
 /*
  * This is the rpc server side idle loop
@@ -159,10 +246,10 @@ getOrderNum( void)
 	int i;
 
 	strcpy(mapPath, _PATH_YP);
-	strcat(mapPath, "/");
 	strcat(mapPath, DomainName);
 	strcat(mapPath, "/");
 	strcat(mapPath, MapName);
+
 	if ((db = dbopen(mapPath, O_RDWR|O_EXCL, PERM_SECURE, DB_HASH,
 		&openinfo)) == NULL) {
 		fprintf(stderr, "%s: %s: cannot open\n", progname, mapPath);
@@ -194,7 +281,7 @@ doPushClient( const char *targetHost)
 	struct ypreq_xfr req;
 	static struct timeval tv={0,0};
 	
-	req.map_parms.domain=DomainName ;
+	req.map_parms.domain=DomainName;
 	req.map_parms.map=(char *)MapName;
 	req.map_parms.peer=ThisHost;
 	req.map_parms.ordernum=MapOrderNum;
@@ -219,8 +306,6 @@ doPushClient( const char *targetHost)
 	return;
 }
 
-extern void yppush_xfrrespprog_1(struct svc_req *request, SVCXPRT *xprt);
-
 static bool_t
 registerServer(void)
 {
@@ -234,7 +319,7 @@ registerServer(void)
 	}
 	for (CallbackProg=0x40000000; CallbackProg<0x5fffffff; CallbackProg++) {
 		if (svc_register(CallbackXprt, CallbackProg, 1,
-			yppush_xfrrespprog_1, IPPROTO_UDP))
+			__yppush_xfrrespprog_1, IPPROTO_UDP))
 			return TRUE;
 	}
 	return FALSE;
