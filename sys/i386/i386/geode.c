@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/watchdog.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -77,6 +78,39 @@ static struct timecounter geode_timecounter = {
 	1000
 };
 
+/*
+ * The GEODE watchdog runs from a 32kHz frequency.  One period of that is
+ * 31250 nanoseconds which we round down to 2^14 nanoseconds.  The watchdog
+ * consists of a power-of-two prescaler and a 16 bit counter, so the math
+ * is quite simple.  The max timeout is 14 + 16 + 13 = 2^43 nsec ~= 2h26m.
+ */
+static void
+geode_watchdog(void *foo __unused, u_int cmd, int *error)
+{
+	u_int u, p, r;
+
+	u = cmd & WD_INTERVAL;
+	if (cmd && u >= 14 && u <= 43) {
+		u -= 14;
+		if (u > 16) {
+			p = u - 16;
+			u -= p;
+		} else {
+			p = 0;
+		}
+		if (u == 16)
+			u = (1 << u) - 1;
+		else
+			u = 1 << u;
+		r = inw(cba + 2) & 0xff00;
+		outw(cba + 2, p | 0xf0 | r);
+		outw(cba, u);
+		*error = 0;
+	} else {
+		outw(cba, 0);
+	}
+}
+
 static int
 geode_probe(device_t self)
 {
@@ -94,6 +128,8 @@ geode_probe(device_t self)
 			printf("Geode rev: %02x %02x\n",
 				inb(cba + 0x3c), inb(cba + 0x3d));
 			tc_init(&geode_timecounter);
+			EVENTHANDLER_REGISTER(watchdog_list, geode_watchdog,
+			    NULL, 0);
 		}
 	} else if (pci_get_devid(self) == 0x0510100b) {
 		gpio = pci_read_config(self, PCIR_BAR(0), 4);
