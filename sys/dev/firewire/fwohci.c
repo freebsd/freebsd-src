@@ -1230,6 +1230,7 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		DB_SIZE(dbch), dbch->ndb, BUS_DMA_WAITOK);
 	if (dbch->am == NULL) {
 		printf("fwohci_db_init: fwdma_malloc_multiseg failed\n");
+		free(db_tr, M_FW);
 		return;
 	}
 	/* Attach DB to DMA ch. */
