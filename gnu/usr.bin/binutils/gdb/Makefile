@@ -14,29 +14,31 @@ GDB_CPU=	${TARGET_ARCH}
 
 NOSHARED?=yes
 PROG=	gdb
-XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
-	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
-	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
-	coffread.c complaints.c copying.c \
-	corefile.c corelow.c cp-valprint.c dcache.c dbxread.c		\
-	demangle.c dwarfread.c dwarf2read.c elfread.c environ.c eval.c	\
-	exec.c expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c	\
-	findvar.c fork-child.c gdbarch.c gdbtypes.c \
-	infcmd.c inflow.c infptrace.c infrun.c inftarg.c language.c	\
+XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
+	blockframe.c breakpoint.c buildsym.c complaints.c completer.c	\
+	copying.c corefile.c corelow.c dcache.c doublest.c event-loop.c	\
+	event-top.c environ.c eval.c exec.c expprint.c fork-child.c	\
+	frame.c gdb-events.c gdbarch.c gdbtypes.c infcmd.c inflow.c	\
+	infptrace.c inf-loop.c infrun.c inftarg.c language.c linespec.c	\
+	main.c maint.c mdebugread.c mem-break.c memattr.c minsyms.c	\
+	objfiles.c parse.c printcmd.c regcache.c remote.c		\
+	remote-utils.c signals.c source.c stabsread.c stack.c symfile.c	\
+	symmisc.c symtab.c target.c thread.c top.c tracepoint.c		\
+	typeprint.c ui-file.c ui-out.c utils.c valarith.c valops.c	\
+	valprint.c values.c wrapper.c					\
+	cli-cmds.c cli-cmds.h cli-decode.c cli-decode.h	cli-out.c	\
+	cli-script.c cli-script.h cli-setshow.c cli-setshow.h		\
+	cli-utils.c cli-utils.h						\
+	serial.c ser-unix.c ser-tcp.c					\
+	c-exp.y c-lang.c c-typeprint.c c-valprint.c			\
+	ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c			\
+	cp-abi.c gnu-v2-abi.c gnu-v3-abi.c cp-valprint.c demangle.c	\
+	f-exp.y f-lang.c f-typeprint.c f-valprint.c findvar.c		\
 	jv-exp.y jv-lang.c jv-valprint.c jv-typeprint.c nlmread.c	\
-	m2-lang.c m2-exp.y m2-typeprint.c m2-valprint.c main.c maint.c	\
-	mdebugread.c mem-break.c minsyms.c objfiles.c parse.c		\
-	printcmd.c remote.c remote-utils.c scm-exp.c scm-lang.c		\
-	scm-valprint.c solib.c source.c stabsread.c stack.c symfile.c	\
-	symmisc.c symtab.c target.c thread.c top.c tracepoint.c \
-	typeprint.c utils.c valarith.c valops.c valprint.c values.c	\
-	serial.c ser-unix.c ser-tcp.c
-XSRCS+=	arch-utils.c cp-abi.c gnu-v2-abi.c gnu-v3-abi.c completer.c doublest.c event-loop.c	\
-	event-top.c frame.c gdb-events.c inf-loop.c linespec.c		\
-	memattr.c regcache.c signals.c solib-svr4.c solib-legacy.c	\
-	ui-file.c ui-out.c wrapper.c cli-out.c \
-	cli-cmds.c cli-cmds.h cli-decode.c cli-decode.h	cli-script.c	\
-	cli-script.h cli-setshow.c cli-setshow.h cli-utils.c cli-utils.h
+	m2-lang.c m2-exp.y m2-typeprint.c m2-valprint.c			\
+	scm-exp.c scm-lang.c scm-valprint.c				\
+	coffread.c dbxread.c dwarfread.c dwarf2read.c elfread.c		\
+	solib.c solib-svr4.c solib-legacy.c
 XSRCS+=	freebsd-uthread.c kvm-fbsd.c
 SRCS=	init.c ${XSRCS} nm.h tm.h xm.h gdbversion.c xregex.h
 
