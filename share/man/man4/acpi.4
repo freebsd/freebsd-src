@@ -309,9 +309,10 @@ the performance power profile.
 .It Va hw.acpi.cpu.economy_speed
 Sets the speed of the CPU, if it supports multiple speeds, while in
 the economy power profile.
-.It Va hw.acpi.ec.event_driven
-Enables or disables the event driven model for the embedded controller
-driver.
+.It Va hw.acpi.ec.poll_timeout
+Delay in milliseconds to wait for the EC to respond.  Try increasing this
+number if you get the error 
+.Er AE_NO_HARDWARE_RESPONSE .
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.verbose
