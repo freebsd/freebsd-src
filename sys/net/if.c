@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.26 1996/01/24 21:08:54 phk Exp $
+ * $Id: if.c,v 1.27 1996/02/06 18:51:09 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -159,6 +159,18 @@ if_attach(ifp)
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
+	}
+	/*
+	 * If they provided a slow input queue, initialize it.
+	 */
+	if (ifp->if_poll_slowq) {
+		struct ifqueue *ifq = ifp->if_poll_slowq;
+
+		bzero(ifq, sizeof *ifq);
+		ifq->ifq_maxlen = ifqmaxlen;
+#ifdef POLLING
+		ifq->if_poll_recv = if_poll_recv_slow;
+#endif
 	}
 }
 /*
