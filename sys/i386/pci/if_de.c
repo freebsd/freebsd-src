@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.5 1994/10/01 16:10:24 thomas Exp $
+ * $Id: if_de.c,v 1.6 1994/10/11 18:20:10 thomas Exp $
  *
  * $Log: if_de.c,v $
+ * Revision 1.6  1994/10/11  18:20:10  thomas
+ * new pci interface
+ * new 100mb/s prelim support
+ *
  * Revision 1.5  1994/10/01  16:10:24  thomas
  * Modifications for FreeBSD 2.0
  *
@@ -195,7 +199,14 @@ typedef struct {
 #ifndef IFF_ALTPHYS
 #define	IFF_ALTPHYS	IFF_LINK0		/* In case it isn't defined */
 #endif
+typedef enum { TULIP_DC21040, TULIP_DC21140 } tulip_chipid_t;
+const char *tulip_chipdescs[] = { 
+    "DC21040 [10Mb/s]",
+    "DC21140 [100Mb/s]",
+};
+
 tulip_softc_t *tulips[NDE];
+tulip_chipid_t tulip_chipids[NDE];
 unsigned tulip_intrs[NDE];
 
 #define	tulip_if	tulip_ac.ac_if
@@ -309,7 +320,6 @@ tulip_init(
     int unit)
 {
     tulip_softc_t *sc = tulips[unit];
-    /* XXX unsigned new_cmdmode; */
 
     if (sc->tulip_if.if_flags & IFF_UP) {
 	sc->tulip_if.if_flags |= IFF_RUNNING;
@@ -694,7 +704,7 @@ tulip_intr(
     tulip_uint32_t csr;
     unsigned spins = 0;
 
-    /* XXX tulip_intrs[unit]++; */
+    tulip_intrs[sc->tulip_unit]++;
 
     while ((csr = *sc->tulip_csrs.csr_status) & (TULIP_STS_NORMALINTR|TULIP_STS_ABNRMLINTR)) {
 	*sc->tulip_csrs.csr_status = csr & sc->tulip_intrmask;
@@ -704,7 +714,7 @@ tulip_intr(
 	    if ((csr & TULIP_STS_ERRORMASK) == TULIP_STS_ERR_PARITY) {
 		TULIP_RESET(sc);
 		tulip_init(sc->tulip_unit);
-		return (1);
+		return 1;
 	    }
 	}
 	if (csr & TULIP_STS_RXINTR)
@@ -721,7 +731,7 @@ tulip_intr(
     }
     if (spins > sc->tulip_high_intrspins)
 	sc->tulip_high_intrspins = spins;
-    return (1);
+    return 1;
 }
 
 /*
@@ -1006,8 +1016,9 @@ tulip_attach(
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
   
-    printf("%s%d: DC21040 pass %d.%d (TULIP) ethernet address %s\n", 
+    printf("%s%d: %s pass %d.%d ethernet address %s\n", 
 	   sc->tulip_name, sc->tulip_unit,
+	   tulip_chipdescs[tulip_chipids[sc->tulip_unit]],
 	   (sc->tulip_revinfo & 0xF0) >> 4,
 	   sc->tulip_revinfo & 0x0F,
 	   ether_sprintf(sc->tulip_hwaddr));
@@ -1104,12 +1115,20 @@ tulip_pci_probe(
     pcidi_t device_id)
 {
     int idx;
-    if (device_id != 0x00021011ul)
-	return (NULL);
-    for (idx = 0; idx < NDE; idx++)
-	if (tulips[idx] == NULL)
-	    return ("digital dc21040 ethernet");
-    return (NULL);
+    for (idx = 0; idx < NDE; idx++) {
+	if (tulips[idx] == NULL) {
+	    if (device_id == 0x00021011ul) {
+		tulip_chipids[idx] = TULIP_DC21040;
+		return "digital dc21040 ethernet";
+	    }
+	    if (device_id == 0x00091011ul) {
+		tulip_chipids[idx] = TULIP_DC21140;
+		return "digital dc21140 fast ethernet";
+	    }
+	    return NULL;
+	}
+    }
+    return NULL;
 }
 
 static void
@@ -1118,10 +1137,8 @@ tulip_pci_attach(
     int unit)
 {
     tulip_softc_t *sc;
-    int retval, idx /* XXX , revinfo, */;
-    /* XXX signed int csr; */
+    int retval, idx;
     vm_offset_t va_csrs, pa_csrs;
-    /* XXX int result;*/
     tulip_desc_t *rxdescs, *txdescs;
 
     sc = (tulip_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
@@ -1175,8 +1192,9 @@ tulip_pci_attach(
 	for (idx = 0; idx < 32; idx++)
 	    printf("%02x", sc->tulip_rombuf[idx]);
 	printf("\n");
-	printf("%s%d: DC21040 %d.%d ethernet address %s\n",
+	printf("%s%d: %s %d.%d ethernet address %s\n",
 	       sc->tulip_name, sc->tulip_unit,
+	       tulip_chipdescs[tulip_chipids[sc->tulip_unit]],
 	       (sc->tulip_revinfo & 0xF0) >> 4, sc->tulip_revinfo & 0x0F,
 	       "unknown");
     } else {
