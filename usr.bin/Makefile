@@ -67,9 +67,6 @@ SUBDIR=	apply \
 	jot \
 	kdump \
 	kenv \
-	key \
-	keyinfo \
-	keyinit \
 	keylogin \
 	keylogout \
 	killall \
