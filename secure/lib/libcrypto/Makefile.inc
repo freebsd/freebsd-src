@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl/crypto
-CFLAGS+= -DTERMIOS -DANSI_SOURCE -nostdinc -I${LCRYPTO_SRC} -I${.OBJDIR} -I/usr/include
+CFLAGS+= -DTERMIOS -DANSI_SOURCE -I${LCRYPTO_SRC} -I${.OBJDIR}
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 CFLAGS+= -DNO_IDEA
 .endif
