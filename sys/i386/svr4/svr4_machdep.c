@@ -113,6 +113,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 
 	memset(uc, 0, sizeof(struct svr4_ucontext));
 
+	uc->uc_link = p->p_emuldata;
 	/*
 	 * Set the general purpose registers
 	 */
@@ -140,8 +141,8 @@ svr4_getcontext(p, uc, mask, oonstack)
 	r[SVR4_X86_EDX] = tf->tf_edx;
 	r[SVR4_X86_ECX] = tf->tf_ecx;
 	r[SVR4_X86_EAX] = tf->tf_eax;
-	r[SVR4_X86_TRAPNO] = 0;
-	r[SVR4_X86_ERR] = 0;
+	r[SVR4_X86_TRAPNO] = tf->tf_trapno;
+	r[SVR4_X86_ERR] = tf->tf_err;
 	r[SVR4_X86_EIP] = tf->tf_eip;
 	r[SVR4_X86_CS] = tf->tf_cs;
 	r[SVR4_X86_UESP] = 0;
@@ -150,7 +151,13 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the signal stack
 	 */
+#if 0
 	bsd_to_svr4_sigaltstack(sf, s);
+#else
+	s->ss_sp = (void *)(((u_long) tf->tf_esp) & ~(16384 - 1));
+	s->ss_size = 16384;
+	s->ss_flags = 0;
+#endif
 
 	/*
 	 * Set the signal mask
@@ -160,7 +167,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the flags
 	 */
-	uc->uc_flags = SVR4_UC_ALL;
+	uc->uc_flags = SVR4_UC_STACK|SVR4_UC_SIGMASK|SVR4_UC_CPU;
 }
 
 
@@ -194,6 +201,9 @@ svr4_setcontext(p, uc)
 	 * Should we bother with the rest of the registers that we
 	 * set to 0 right now?
 	 */
+
+	if ((uc->uc_flags & SVR4_UC_CPU) == 0)
+		return 0;
 
 	tf = p->p_md.md_regs;
 
@@ -232,21 +242,28 @@ svr4_setcontext(p, uc)
 	tf->tf_edx = r[SVR4_X86_EDX];
 	tf->tf_ecx = r[SVR4_X86_ECX];
 	tf->tf_eax = r[SVR4_X86_EAX];
+	tf->tf_trapno = r[SVR4_X86_TRAPNO];
+	tf->tf_err = r[SVR4_X86_ERR];
 	tf->tf_eip = r[SVR4_X86_EIP];
 	tf->tf_cs = r[SVR4_X86_CS];
 	tf->tf_ss = r[SVR4_X86_SS];
 	tf->tf_esp = r[SVR4_X86_ESP];
 
+	p->p_emuldata = uc->uc_link;
 	/*
 	 * restore signal stack
 	 */
-	svr4_to_bsd_sigaltstack(s, sf);
+	if (uc->uc_flags & SVR4_UC_STACK) {
+		svr4_to_bsd_sigaltstack(s, sf);
+	}
 
 	/*
 	 * restore signal mask
 	 */
-	svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
-	p->p_sigmask = mask & ~sigcantmask;
+	if (uc->uc_flags & SVR4_UC_SIGMASK) {
+		svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
+		p->p_sigmask = mask & ~sigcantmask;
+	}
 
 	return 0; /*EJUSTRETURN;*/
 }
