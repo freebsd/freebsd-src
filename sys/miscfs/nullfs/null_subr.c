@@ -38,8 +38,6 @@
  * $FreeBSD$
  */
 
-#include "opt_debug_nullfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -77,7 +75,7 @@ nullfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_init\n");		/* printed during system boot */
 #endif
 	null_node_hashtbl = hashinit(NNULLNODECACHE, M_CACHE, &null_node_hash);
@@ -198,7 +196,7 @@ null_node_create(mp, lowervp, newvpp)
 		 * null_node_find has taken another reference
 		 * to the alias vnode.
 		 */
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 		vprint("null_node_create: exists", aliasvp);
 #endif
 		/* VREF(aliasvp); --- done in null_node_find */
@@ -208,7 +206,7 @@ null_node_create(mp, lowervp, newvpp)
 		/*
 		 * Get new vnode.
 		 */
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("null_node_create: create new alias vnode\n");
 #endif
 
@@ -235,7 +233,7 @@ null_node_create(mp, lowervp, newvpp)
 	};
 #endif
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("null_node_create: alias", aliasvp);
 	vprint("null_node_create: lower", lowervp);
 #endif
@@ -244,7 +242,7 @@ null_node_create(mp, lowervp, newvpp)
 	return (0);
 }
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 #include "opt_ddb.h"
 
 #ifdef DDB

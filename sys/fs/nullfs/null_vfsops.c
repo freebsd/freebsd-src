@@ -44,8 +44,6 @@
  * (See null_vnops.c for a description of what this does.)
  */
 
-#include "opt_debug_nullfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -96,7 +94,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	u_int size;
 	int isvnunlocked = 0;
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_mount(mp = %p)\n", (void *)mp);
 #endif
 
@@ -151,7 +149,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
 	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
-#ifdef DIAGNOSTIC
+#ifdef DEBUG
 		printf("nullfs_mount: multi null mount?\n");
 #endif
 		return (EDEADLK);
@@ -201,7 +199,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)nullfs_statfs(mp, &mp->mnt_stat, p);
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 #endif
@@ -236,7 +234,7 @@ nullfs_unmount(mp, mntflags, p)
 	int error;
 	int flags = 0;
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_unmount(mp = %p)\n", (void *)mp);
 #endif
 
@@ -259,7 +257,7 @@ nullfs_unmount(mp, mntflags, p)
 	if (error)
 		return (error);
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("alias root of lower", nullm_rootvp);
 #endif
 	/*
@@ -286,7 +284,7 @@ nullfs_root(mp, vpp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_root(mp = %p, vp = %p->%p)\n", (void *)mp,
 	    (void *)MOUNTTONULLMOUNT(mp)->nullm_rootvp,
 	    (void *)NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp));
@@ -302,7 +300,7 @@ nullfs_root(mp, vpp)
 		 * XXX
 		 * Should we check type of node?
 		 */
-#ifdef DIAGNOSTIC
+#ifdef DEBUG
 		printf("nullfs_root: multi null mount?\n");
 #endif
 		vrele(vp);
@@ -333,7 +331,7 @@ nullfs_statfs(mp, sbp, p)
 	int error;
 	struct statfs mstat;
 
-#ifdef NULLFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("nullfs_statfs(mp = %p, vp = %p->%p)\n", (void *)mp,
 	    (void *)MOUNTTONULLMOUNT(mp)->nullm_rootvp,
 	    (void *)NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp));
