@@ -34,7 +34,8 @@
  */
 #include <dev/isp/isp_freebsd.h>
 
-#ifdef	SCSI_CAM
+#if	__FreeBSD_version >= 300004
+
 static void isp_async __P((void *, u_int32_t, struct cam_path *, void *));
 static void isp_poll __P((struct cam_sim *));
 static void isp_action __P((struct cam_sim *, union ccb *));

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.97 1998/09/15 09:59:15 gibbs Exp $
+#	$Id: options,v 1.98 1998/09/15 11:44:42 phk Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -151,7 +151,6 @@ CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
-SCSI_CAM		opt_scsi.h
 SCSI_DELAY		opt_scsi.h
 SCSI_REPORT_GEOMETRY	opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h

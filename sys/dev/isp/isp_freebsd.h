@@ -35,14 +35,18 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	96
+#define	ISP_PLATFORM_VERSION_MINOR	97
 
-#include "opt_scsi.h"
-#ifdef	SCSI_CAM
+#include <sys/param.h>
+
+#ifndef	__FreeBSD_version
+#define	__FreeBSD_version	226000
+#endif
+
+#if	__FreeBSD_version >= 300004
 #include <dev/isp/isp_freebsd_cam.h>
 #else
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
@@ -54,15 +58,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <sys/kernel.h>
-
-/*
- * Now that __FreeBSD_version is in sys/param.h, we can
- * automatically handle pre-3.0 cases.
- */
-
-#ifndef	__FreeBSD_version
-#define	__FreeBSD_version	226000
-#endif
 
 #define	ISP_SCSI_XFER_T		struct scsi_xfer
 struct isposinfo {
@@ -167,5 +162,5 @@ extern void isp_attach __P((struct ispsoftc *));
 
 #define	PVS 				"Qlogic ISP Driver, FreeBSD Non-Cam"
 
-#endif	/* !SCSI_CAM */
+#endif	/* __FreeBSD_version >= 300004 */
 #endif	/* _ISP_FREEBSD_H */
