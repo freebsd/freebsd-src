@@ -1,11 +1,12 @@
-#	$Id: Makefile,v 1.6 1994/12/22 12:30:26 cgd Exp $
+#	$Id: Makefile,v 1.1.1.1 1996/01/05 09:28:11 graichen Exp $
 
 PROG=	newsyslog
 
 CFLAGS+= -DOSF
 CFLAGS+= -DCONF=\"/etc/newsyslog.conf\"
 CFLAGS+= -DPIDFILE=\"/var/run/syslog.pid\"
-CFLAGS+= -DCOMPRESS=\"/usr/bin/gzip\"
+CFLAGS+= -DCOMPRESS_PATH=\"/usr/bin/gzip\"
+CFLAGS+= -DCOMPRESS_PROG=\"gzip\"
 CFLAGS+= -DCOMPRESS_POSTFIX=\".gz\"
 
 BINOWN=	root
