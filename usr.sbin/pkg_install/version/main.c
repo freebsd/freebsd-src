@@ -100,7 +100,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_version [-hv] [-l limchar] [-L limchar] [[-X] -s string] index",
+	"usage: pkg_version [-hqv] [-l limchar] [-L limchar] [[-X] -s string] [index]",
 	"       pkg_version -t v1 v2",
 	"       pkg_version -T name pattern");
     exit(1);
