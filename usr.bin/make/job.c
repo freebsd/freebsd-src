@@ -224,9 +224,9 @@ static Shell 	*commandShell = &shells[DEFSHELL];/* this is the shell to
 						   * commands in the Makefile.
 						   * It is set by the
 						   * Job_ParseShell function */
-static char   	*shellPath = NULL,		  /* full pathname of
+char   		*shellPath = NULL,		  /* full pathname of
 						   * executable image */
-               	*shellName;	      	      	  /* last component of shell */
+               	*shellName = NULL;		  /* last component of shell */
 
 
 static int  	maxJobs;    	/* The most children we can run at once */
@@ -2332,6 +2332,22 @@ Job_Make(GNode *gn)
     (void) JobStart(gn, 0, NULL);
 }
 
+void
+Shell_Init(void)
+{
+    if (shellPath == NULL) {
+	/*
+	 * The user didn't specify a shell to use, so we are using the
+	 * default one... Both the absolute path and the last component
+	 * must be set. The last component is taken from the 'name' field
+	 * of the default shell description pointed-to by commandShell.
+	 * All default shells are located in _PATH_DEFSHELLDIR.
+	 */
+	shellName = commandShell->name;
+	shellPath = str_concat(_PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
+    }
+}
+
 /*-
  *-----------------------------------------------------------------------
  * Job_Init --
@@ -2377,18 +2393,7 @@ Job_Init(int maxproc, int maxlocal)
 	targFmt = TARG_FMT;
     }
 
-    if (shellPath == NULL) {
-	/*
-	 * The user didn't specify a shell to use, so we are using the
-	 * default one... Both the absolute path and the last component
-	 * must be set. The last component is taken from the 'name' field
-	 * of the default shell description pointed-to by commandShell.
-	 * All default shells are located in _PATH_DEFSHELLDIR.
-	 */
-	shellName = commandShell->name;
-	shellPath = str_concat(_PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
-    }
-
+    Shell_Init();
     if (commandShell->exit == NULL) {
 	commandShell->exit = "";
     }
@@ -2547,7 +2552,7 @@ JobMatchShell(char *name)
 	   match = sh;
 	}
     }
-    return(match == NULL ? sh : match);
+    return(match);
 }
 
 /*-
@@ -2601,7 +2606,7 @@ Job_ParseShell(char *line)
     char	  **argv;
     int		  argc;
     char    	  *path;
-    Shell   	  newShell;
+    Shell   	  newShell, *sh;
     Boolean 	  fullSpec = FALSE;
 
     while (isspace((unsigned char) *line)) {
@@ -2661,7 +2666,12 @@ Job_ParseShell(char *line)
 	    Parse_Error(PARSE_FATAL, "Neither path nor name specified");
 	    return(FAILURE);
 	} else {
-	    commandShell = JobMatchShell(newShell.name);
+	    if ((sh = JobMatchShell(newShell.name)) == NULL) {
+		Parse_Error(PARSE_FATAL, "%s: no matching shell",
+			    newShell.name);
+		return(FAILURE);
+	    }
+	    commandShell = sh;
 	    shellName = newShell.name;
 	}
     } else {
@@ -2685,7 +2695,12 @@ Job_ParseShell(char *line)
 	    shellName = path;
 	}
 	if (!fullSpec) {
-	    commandShell = JobMatchShell(shellName);
+	    if ((sh = JobMatchShell(shellName)) == NULL) {
+		Parse_Error(PARSE_FATAL, "%s: no matching shell",
+			    shellName);
+		return(FAILURE);
+	    }
+	    commandShell = sh;
 	} else {
 	    commandShell = (Shell *) emalloc(sizeof(Shell));
 	    *commandShell = newShell;
