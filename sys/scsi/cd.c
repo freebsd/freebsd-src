@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.35 1995/03/04 20:50:42 dufault Exp $
+ *      $Id: cd.c,v 1.36 1995/03/15 14:22:03 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -71,8 +71,6 @@ void	cdstart(u_int32 unit);
 struct scsi_data {
 	u_int32 flags;
 #define	CDINIT		0x04	/* device has been init'd */
-	u_int32 ad_info;	/* info about the adapter */
-	u_int32 cmdscount;	/* cmds allowed outstanding by board */
 	struct cd_parms {
 		u_int32 blksize;
 		u_long  disksize;	/* total number sectors */
@@ -179,16 +177,8 @@ cdattach(struct scsi_link *sc_link)
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
 
-	if (sc_link->adapter->adapter_info) {
-		cd->ad_info = ((*(sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
-		cd->cmdscount = cd->ad_info & AD_INF_MAX_CMDS;
-		if (cd->cmdscount > CDOUTSTANDING)
-			cd->cmdscount = CDOUTSTANDING;
-	} else {
-		cd->ad_info = 1;
-		cd->cmdscount = 1;
-	} 
-	sc_link->opennings = cd->cmdscount;
+	if (sc_link->opennings > CDOUTSTANDING)
+		sc_link->opennings = CDOUTSTANDING;
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -233,6 +223,15 @@ struct scsi_link *sc_link)
 	    ("cd_open: dev=0x%x (unit %d,partition %d)\n",
 		dev, unit, part));
 	/*
+	 * Check that it is still responding and ok.
+	 * if the media has been changed this will result in a
+	 * "unit attention" error which the error code will
+	 * disregard because the SDEV_OPEN flag is not yet set.
+	 * Makes sure that we know it if the media has been changed..
+	 */
+	scsi_test_unit_ready(sc_link, SCSI_SILENT);
+
+	/*
 	 * If it's been invalidated, and not everybody has closed it then
 	 * forbid re-entry.  (may have changed media)
 	 */
@@ -241,15 +240,7 @@ struct scsi_link *sc_link)
 		return (ENXIO);
 
 	/*
-	 * Check that it is still responding and ok.
-	 * if the media has been changed this will result in a
-	 * "unit attention" error which the error code will
-	 * disregard because the SDEV_OPEN flag is not yet set
-	 */
-	scsi_test_unit_ready(sc_link, SCSI_SILENT);
-
-	/*
-	 * Next time actually take notice of error returns
+	 * This time actually take notice of error returns
 	 */
 	sc_link->flags |= SDEV_OPEN;	/* unit attn errors are now errors */
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
@@ -261,10 +252,11 @@ struct scsi_link *sc_link)
 	/*
 	 * In case it is a funny one, tell it to start
 	 * not needed for some drives
+	 * failure here is ignored.
 	 */
 	scsi_start_unit(sc_link, CD_START);
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
-	SC_DEBUG(sc_link, SDEV_DB3, ("started "));
+	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 	/*
 	 * Load the physical device parameters 
 	 */
@@ -281,28 +273,32 @@ struct scsi_link *sc_link)
 	/*
 	 * Check the partition is legal
 	 */
-	if ((part >= cd->disklabel.d_npartitions)
-	    && (part != RAW_PART)) {
-		SC_DEBUG(sc_link, SDEV_DB3, ("partition %d > %d\n", part
-			,cd->disklabel.d_npartitions));
-		errcode = ENXIO;
-		goto bad;
-	}
-	/*
-	 *  Check that the partition exists
-	 */
-	if ((cd->disklabel.d_partitions[part].p_fstype == FS_UNUSED)
-	    && (part != RAW_PART)) {
-		SC_DEBUG(sc_link, SDEV_DB3, ("part %d type UNUSED\n", part));
-		errcode = ENXIO;
-		goto bad;
+	if(part != RAW_PART) {
+		/*
+	 	 *  Check that the partition CAN exist
+	 	 */
+		if (part >= cd->disklabel.d_npartitions) {
+			SC_DEBUG(sc_link, SDEV_DB3, ("partition %d > %d\n", part
+				,cd->disklabel.d_npartitions));
+			errcode = ENXIO;
+			goto bad;
+		}
+		/*
+	 	 *  and that it DOES exist
+	 	 */
+		if (cd->disklabel.d_partitions[part].p_fstype == FS_UNUSED) {
+			SC_DEBUG(sc_link, SDEV_DB3,
+					("part %d type UNUSED\n", part));
+			errcode = ENXIO;
+			goto bad;
+		}
 	}
 	cd->partflags[part] |= CDOPEN;
 	cd->openparts |= (1 << part);
 	SC_DEBUG(sc_link, SDEV_DB3, ("open complete\n"));
 	sc_link->flags |= SDEV_MEDIA_LOADED;
 	return 0;
-      bad:
+ bad:
 
 	/*
 	 *  if we would have been the only open

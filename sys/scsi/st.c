@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.29 1995/03/04 20:51:05 dufault Exp $
+ * $Id: st.c,v 1.30 1995/03/15 14:22:11 dufault Exp $
  */
 
 /*
@@ -153,13 +153,16 @@ static struct rogues gallery[] =	/* ends with an all-null entry */
 errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
 errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
 errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags)); /* AKL */
-static errval st_mode_sense __P((u_int32 unit, u_int32 flags));
+static errval st_mode_sense __P((u_int32 unit, u_int32 flags, \
+	struct tape_pages *page, u_int32 pagelen, u_int32 pagecode));
 errval	st_decide_mode __P((u_int32 unit, boolean first_read));
 errval	st_rd_blk_lim __P((u_int32 unit, u_int32 flags));
 errval	st_touch_tape __P((u_int32 unit));
 errval	st_write_filemarks __P((u_int32 unit, int32 number, u_int32 flags));
 errval	st_load __P((u_int32 unit, u_int32 type, u_int32 flags));
-errval	st_mode_select __P((u_int32 unit, u_int32 flags));
+errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
+	struct tape_pages *page, u_int32 pagelen));
+errval	st_comp __P((u_int32 unit, u_int32 mode));
 void    ststrategy();
 int32   st_chkeod();
 void	ststart(u_int32	unit);
@@ -180,6 +183,7 @@ struct scsi_data {
 	u_int32 flags;		/* see below                          */
 	u_int32 blksiz;		/* blksiz we are using                */
 	u_int32 density;	/* present density                    */
+	u_int32 comp;		/* present compression mode           */
 	u_int32 quirks;		/* quirks for the open mode           */
 	u_int32 last_dsty;	/* last density openned               */
 /*--------------------parameters reported by the device ----------------------*/
@@ -205,8 +209,10 @@ struct scsi_data {
 #define DENSITY_SET_BY_QUIRK	0x02
 #define BLKSIZE_SET_BY_USER	0x04
 #define BLKSIZE_SET_BY_QUIRK	0x08
+#define COMPRES_SET_BY_USER	0x10
+#define COMPRES_SET_BY_QUIRK	0x20
 /*--------------------storage for sense data returned by the drive------------*/
-	unsigned char sense_data[12];	/*
+	unsigned char saved_page0[PAGE_0_SENSE_DATA_SIZE];	/*
 					 * additional sense data needed
 					 * for mode sense/select.
 					 */
@@ -333,7 +339,8 @@ stattach(struct scsi_link *sc_link)
 	 * the drive. We cannot use interrupts yet, so the
 	 * request must specify this.
 	 */
-	if (st_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT)) {
+	if (st_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT,
+		NULL, 0, 0)) {
 		printf("drive offline");
 	} else {
 		printf("density code 0x%x, ", st->media_density);
@@ -678,7 +685,7 @@ st_mount_tape(dev, flags)
 	 * As we have a tape in, it should be reflected here.
 	 * If not you may need the "quirk" above.
 	 */
-	if (errno = st_mode_sense(unit, 0)) {
+	if (errno = st_mode_sense(unit, 0, NULL, 0, 0)) {
 		return errno;
 	}
 	/*
@@ -707,7 +714,7 @@ st_mount_tape(dev, flags)
 			return errno;
 		}
 	}
-	if (errno = st_mode_select(unit, 0)) {
+	if (errno = st_mode_select(unit, 0, NULL, 0)) {
 		printf("st%d: Cannot set selected mode", unit);
 		return errno;
 	}
@@ -1141,6 +1148,7 @@ struct proc *p, struct scsi_link *sc_link)
 			g->mt_type = 0x7;	/* Ultrix compat *//*? */
 			g->mt_density = st->density;
 			g->mt_blksiz = st->blksiz;
+			g->mt_comp = st->comp;
 			g->mt_density0 = st->modes[0].density;
 			g->mt_density1 = st->modes[1].density;
 			g->mt_density2 = st->modes[2].density;
@@ -1149,6 +1157,10 @@ struct proc *p, struct scsi_link *sc_link)
 			g->mt_blksiz1 = st->modes[1].blksiz;
 			g->mt_blksiz2 = st->modes[2].blksiz;
 			g->mt_blksiz3 = st->modes[3].blksiz;
+			g->mt_comp0 = 0;
+			g->mt_comp1 = 0;
+			g->mt_comp2 = 0;
+			g->mt_comp3 = 0;
 			break;
 		}
 	case MTIOCTOP:
@@ -1222,6 +1234,9 @@ struct proc *p, struct scsi_link *sc_link)
 				}
 				goto try_new_value;
 
+			case MTCOMP:	/* enable default compression */
+				errcode = st_comp(unit,number);
+				break;
 			default:
 				errcode = EINVAL;
 			}
@@ -1244,7 +1259,7 @@ try_new_value:
 	 * Check that the mode being asked for is aggreeable to the
 	 * drive. If not, put it back the way it was.
 	 */
-	if (errcode = st_mode_select(unit, 0)) {	/* put it back as it was */
+	if (errcode = st_mode_select(unit, 0, NULL, 0)) {	/* put it back as it was */
 		printf("st%d: Cannot set selected mode", unit);
 		st->density = hold_density;
 		st->blksiz = hold_blksiz;
@@ -1379,86 +1394,83 @@ st_rd_blk_lim(unit, flags)
  * ioctl (to reset original blksize)
  */
 static errval 
-st_mode_sense(unit, flags)
+st_mode_sense(unit, flags, page, pagelen, pagecode)
 	u_int32 unit, flags;
+	struct tape_pages *page;
+	u_int32 pagelen,pagecode;
 {
-	u_int32 scsi_sense_len;
+	u_int32 dat_len;
 	errval  errno;
-	char   *scsi_sense_ptr;
 	struct scsi_mode_sense scsi_cmd;
-	struct scsi_sense {
+	struct {
 		struct scsi_mode_header header;
 		struct blk_desc blk_desc;
-	} scsi_sense;
+		struct tape_pages page;
+	} dat;
 
-	struct scsi_sense_page_0 {
-		struct scsi_mode_header header;
-		struct blk_desc blk_desc;
-		unsigned char sense_data[PAGE_0_SENSE_DATA_SIZE];
-			/* Tandberg tape drives returns page 00
-			 * with the sense data, whether or not
-			 * you want it( ie the don't like you
-			 * saying you want anything less!!!!!
-			 * They also expect page 00
-			 * back when you issue a mode select
-			 */
-	} scsi_sense_page_0;
+	/* Tandberg tape drives returns page 00
+	 * with the sense data, whether or not
+	 * you want it( ie the don't like you
+	 * saying you want anything less!!!!!
+	 * They also expect page 00
+	 * back when you issue a mode select
+	 */
 	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
 	struct scsi_data *st = sc_link->sd;
 
 	/*
-	 * Define what sort of structure we're working with
+	 * Check if we need to use a default page..
 	 */
-	if (st->quirks & ST_Q_NEEDS_PAGE_0) {
-		scsi_sense_len = sizeof(scsi_sense_page_0);
-		scsi_sense_ptr = (char *) &scsi_sense_page_0;
-	} else {
-		scsi_sense_len = sizeof(scsi_sense);
-		scsi_sense_ptr = (char *) &scsi_sense;
+	if ((st->quirks & ST_Q_NEEDS_PAGE_0) && (!page)) {
+		pagelen = PAGE_0_SENSE_DATA_SIZE;
+		page = (struct tape_pages *) st->saved_page0;
+		pagecode = 0;
 	}
+	/*
+	 * Now work out the total dat size etc.
+	 */
+	dat_len = sizeof(struct scsi_mode_header)
+		+ sizeof(struct blk_desc)
+		+ (page ? pagelen : 0);
 	/*
 	 * Set up a mode sense 
 	 */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SENSE;
-	scsi_cmd.length = scsi_sense_len;
+	scsi_cmd.page = (u_char) pagecode;
+	scsi_cmd.length = dat_len;
 
 	/*
-	 * do the command, but we don't need the results
-	 * just print them for our interest's sake, if asked,
+	 * do the command, 
+	 * use the results to set blksiz, numblks and density
 	 * or if we need it as a template for the mode select
 	 * store it away.
 	 */
 	if (errno = scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
-		(u_char *) scsi_sense_ptr,
-		scsi_sense_len,
+		(u_char *) &dat,
+		dat_len,
 		ST_RETRIES,
 		5000,
 		NULL,
 		flags | SCSI_DATA_IN)) {
 		return errno;
 	}
-	st->numblks = scsi_3btou(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.nblocks);
-	st->media_blksiz = scsi_3btou(((struct scsi_sense *)scsi_sense_ptr)->blk_desc.blklen);
-	st->media_density = ((struct scsi_sense *) scsi_sense_ptr)->blk_desc.density;
-	if (((struct scsi_sense *) scsi_sense_ptr)->header.dev_spec &
-	    SMH_DSP_WRITE_PROT) {
+	st->numblks = scsi_3btou(dat.blk_desc.nblocks);
+	st->media_blksiz = scsi_3btou(dat.blk_desc.blklen);
+	st->media_density = dat.blk_desc.density;
+	if (dat.header.dev_spec & SMH_DSP_WRITE_PROT) {
 		st->flags |= ST_READONLY;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3,
 	    ("density code 0x%x, %d-byte blocks, write-%s, ",
 		st->media_density, st->media_blksiz,
 		st->flags & ST_READONLY ? "protected" : "enabled"));
-	SC_DEBUG(sc_link, SDEV_DB3,
-	    ("%sbuffered\n",
-		((struct scsi_sense *) scsi_sense_ptr)->header.dev_spec
-		& SMH_DSP_BUFF_MODE ? "" : "un"));
-	if (st->quirks & ST_Q_NEEDS_PAGE_0) {
-		bcopy(((struct scsi_sense_page_0 *) scsi_sense_ptr)->sense_data,
-		    st->sense_data,
-		    sizeof(((struct scsi_sense_page_0 *) scsi_sense_ptr)->sense_data));
+	SC_DEBUG(sc_link, SDEV_DB3, ("%sbuffered\n",
+		((dat.header.dev_spec & SMH_DSP_BUFF_MODE) ? "" : "un")));
+	if (page) {
+		bcopy(&dat.page, page, pagelen);
 	}
 	sc_link->flags |= SDEV_MEDIA_LOADED;
 	return 0;
@@ -1469,50 +1481,50 @@ st_mode_sense(unit, flags)
  * set it into the desire modes etc.
  */
 errval 
-st_mode_select(unit, flags)
+st_mode_select(unit, flags, page, pagelen)
 	u_int32 unit, flags;
+	struct tape_pages *page;
+	u_int32 pagelen;
 {
 	u_int32 dat_len;
-	char   *dat_ptr;
 	struct scsi_mode_select scsi_cmd;
-	struct dat {
+	struct {
 		struct scsi_mode_header header;
 		struct blk_desc blk_desc;
+		struct tape_pages page;
 	} dat;
-	struct dat_page_0 {
-		struct scsi_mode_header header;
-		struct blk_desc blk_desc;
-		unsigned char sense_data[PAGE_0_SENSE_DATA_SIZE];
-	} dat_page_0;
 	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
 	struct scsi_data *st = sc_link->sd;
 
 	/*
-	 * Define what sort of structure we're working with
+	 * Check if we need to use a default page..
+	 * Gee, hope we saved one before now........
 	 */
-	if (st->quirks & ST_Q_NEEDS_PAGE_0) {
-		dat_len = sizeof(dat_page_0);
-		dat_ptr = (char *) &dat_page_0;
-	} else {
-		dat_len = sizeof(dat);
-		dat_ptr = (char *) &dat;
+	if ((st->quirks & ST_Q_NEEDS_PAGE_0) && (!page)) {
+		pagelen = PAGE_0_SENSE_DATA_SIZE;
+		page = (struct tape_pages *) st->saved_page0;
 	}
+	/*
+	 * Now work out the total dat size etc.
+	 */
+	dat_len = sizeof(struct scsi_mode_header)
+		+ sizeof(struct blk_desc)
+		+ (page ? pagelen : 0);
 	/*
 	 * Set up for a mode select
 	 */
-	bzero(dat_ptr, dat_len);
+	bzero(&dat, dat_len);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SELECT;
 	scsi_cmd.length = dat_len;
-	((struct dat *) dat_ptr)->header.blk_desc_len = sizeof(struct blk_desc);
-	((struct dat *) dat_ptr)->header.dev_spec |= SMH_DSP_BUFF_MODE_ON;
-	((struct dat *) dat_ptr)->blk_desc.density = st->density;
+	dat.header.blk_desc_len = sizeof(struct blk_desc);
+	dat.header.dev_spec |= SMH_DSP_BUFF_MODE_ON;
+	dat.blk_desc.density = st->density;
 	if (st->flags & ST_FIXEDBLOCKS) {
-		scsi_uto3b(st->blksiz, ((struct dat *) dat_ptr)->blk_desc.blklen);
+		scsi_uto3b(st->blksiz, dat.blk_desc.blklen);
 	}
-	if (st->quirks & ST_Q_NEEDS_PAGE_0) {
-		bcopy(st->sense_data, ((struct dat_page_0 *) dat_ptr)->sense_data,
-		    sizeof(((struct dat_page_0 *) dat_ptr)->sense_data));
+	if (page) {
+		bcopy(page, &dat.page, pagelen);
 		/* the Tandberg tapes need the block size to */
 		/* be set on each mode sense/select. */
 	}
@@ -1522,7 +1534,7 @@ st_mode_select(unit, flags)
 	return (scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
-		(u_char *) dat_ptr,
+		(u_char *) &dat,
 		dat_len,
 		ST_RETRIES,
 		5000,
@@ -1530,6 +1542,56 @@ st_mode_select(unit, flags)
 		flags | SCSI_DATA_OUT));
 }
 
+int noisy_st = 0;
+/***************************************************************\
+* Set the compression mode of the drive to on (1) or off (0)	*
+	still doesn't work! grrr!
+\***************************************************************/
+errval	st_comp(unit,mode)
+u_int32 unit,mode;
+{
+	struct tape_pages       page;
+	int	pagesize;
+	int retval;
+	struct scsi_link *sc_link = SCSI_LINK(&st_switch, unit);
+	struct scsi_data *st = sc_link->sd;
+
+	bzero(&page, sizeof(page));
+	pagesize = sizeof(page.pages.configuration) + PAGE_HEADERLEN;
+
+	if ( retval = st_mode_sense(unit, 0,
+			&page, pagesize, ST_PAGE_CONFIGURATION))
+	{
+		printf("sense returned an error of %d\n",retval);
+		return retval;
+	}
+	if ( noisy_st)
+		printf("drive reports value of %d, setting %d\n",
+			page.pages.configuration.data_compress_alg,mode);
+
+	page.pg_code &= ST_P_CODE;
+	page.pg_length = sizeof(page.pages.configuration);
+
+	switch(mode)
+	{
+	case 0:
+		page.pages.configuration.data_compress_alg = 0;
+		break;
+	case 1:
+		page.pages.configuration.data_compress_alg = 1;
+		break;
+	default:
+		printf("st%d: bad value for compression mode\n",unit);
+		return EINVAL;
+	}
+	if ( retval = st_mode_select(unit, 0, &page, pagesize))
+	{
+		printf("select returned an error of %d\n",retval);
+		return retval;
+	}
+	st->comp = mode;
+	return 0;
+}
 /*
  * skip N blocks/filemarks/seq filemarks/eom
  */
@@ -1969,7 +2031,7 @@ st_touch_tape(unit)
 	if (!buf)
 		return (ENOMEM);
 
-	if (errno = st_mode_sense(unit, 0)) {
+	if (errno = st_mode_sense(unit, 0, NULL, 0, 0)) {
 		goto bad;
 	}
 	st->blksiz = 1024;
@@ -1983,7 +2045,7 @@ st_touch_tape(unit)
 		default:
 			readsiz = 1;
 			st->flags &= ~ST_FIXEDBLOCKS;
-		} if (errno = st_mode_select(unit, 0)) {
+		} if (errno = st_mode_select(unit, 0, NULL, 0)) {
 			goto bad;
 		}
 		st_read(unit, buf, readsiz, SCSI_SILENT);
