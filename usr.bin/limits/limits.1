@@ -243,71 +243,76 @@ space.
 .El
 .Pp
 Valid values for
-.Ar limit
-in the above set of flags consist of either the
+.Ar val
+in the above set of options consist of either the
 string
-.Em infinity ,
-.Em inf ,
-.Em unlimited
+.Dq Li infinity ,
+.Dq Li inf ,
+.Dq Li unlimited
 or
-.Em unlimit
+.Dq Li unlimit
 for an infinite (or kernel-defined maximum)
-limit, or a numeric value maybe followed by a suffix.
+limit, or a numeric value optionally followed by a suffix.
 Values which relate to size default to a value in bytes, or one of the
 following suffixes may be used as a multiplier:
 .Pp
-.Bl -tag -offset indent -width "xxxx" -compact
-.It b
+.Bl -tag -offset indent -width 4n -compact
+.It Li b
 512 byte blocks.
-.It k
+.It Li k
 kilobytes (1024 bytes).
-.It m
+.It Li m
 megabytes (1024*1024 bytes).
-.It g
+.It Li g
 gigabytes.
-.It t
+.It Li t
 terabytes.
 .El
 .Pp
 The
-.Em cputime
+.Va cputime
 resource defaults to a number of seconds, but a multiplier may be
 used, and as with size values, multiple values separated by a valid
 suffix are added together:
-.Bl -tag -offset indent -width "xxxx" -compact
-.It s
+.Pp
+.Bl -tag -offset indent -width 4n -compact
+.It Li s
 seconds.
-.It m
+.It Li m
 minutes.
-.It h
+.It Li h
 hours.
-.It d
+.It Li d
 days.
-.It w
+.It Li w
 weeks.
-.It y
+.It Li y
 365 day years.
 .El
-.Bl -tag -width indent
+.Bl -tag -width ".Fl C Ar class"
 .It Fl E
-The option
-.Sq Fl E
-causes
+Cause
 .Nm
 to completely ignore the environment it inherits.
 .It Fl a
-This option forces all resource settings to be displayed even if
+Force all resource settings to be displayed even if
 other specific resource settings have been specified.
 For example, if you wish to disable core dumps when starting up
-the usenet news system, but wish to set all other resource settings
-as well that apply to the 'news' account, you might use:
+the Usenet News system, but wish to set all other resource settings
+as well that apply to the
+.Dq Li news
+account, you might use:
 .Pp
-.Dl eval `limits -U news -aBec 0`
+.Dl "eval `limits -U news -aBec 0`"
 .Pp
 As with the
 .Xr setrlimit 2
-call, only the superuser may raise process "hard" resource limits.
-Non-root users may, however, lower them or change "soft" resource limits
+call, only the superuser may raise process
+.Dq hard
+resource limits.
+Non-root users may, however, lower them or change
+.Dq soft
+resource limits
 within to any value below the hard limit.
 When invoked to execute a program, the failure of
 .Nm
