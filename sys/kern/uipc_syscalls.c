@@ -548,7 +548,7 @@ sendit(p, s, mp, flags)
 		if (mp->msg_flags == MSG_COMPAT) {
 			register struct cmsghdr *cm;
 
-			M_PREPEND(control, sizeof(*cm), M_WAIT);
+			M_PREPEND(control, sizeof(*cm), M_TRYWAIT);
 			if (control == 0) {
 				error = ENOBUFS;
 				goto bad;
@@ -1331,7 +1331,7 @@ sockargs(mp, buf, buflen, type)
 #endif
 		return (EINVAL);
 	}
-	m = m_get(M_WAIT, type);
+	m = m_get(M_TRYWAIT, type);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = buflen;
@@ -1702,7 +1702,7 @@ retry_lookup:
 		/*
 		 * Get an mbuf header and set it up as having external storage.
 		 */
-		MGETHDR(m, M_WAIT, MT_DATA);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			sf_buf_free((void *)sf->kva, NULL);

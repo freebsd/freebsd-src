@@ -149,7 +149,7 @@ krpc_portmap(sin,  prog, vers, portp, procp)
 		return 0;
 	}
 
-	m = m_get(M_WAIT, MT_DATA);
+	m = m_get(M_TRYWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOBUFS;
 	sdata = mtod(m, struct sdata *);
@@ -275,7 +275,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	/*
 	 * Prepend RPC message header.
 	 */
-	mhead = m_gethdr(M_WAIT, MT_DATA);
+	mhead = m_gethdr(M_TRYWAIT, MT_DATA);
 	mhead->m_next = *data;
 	call = mtod(mhead, struct rpc_call *);
 	mhead->m_len = sizeof(*call);
@@ -315,7 +315,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	timo = 0;
 	for (;;) {
 		/* Send RPC request (or re-send). */
-		m = m_copym(mhead, 0, M_COPYALL, M_WAIT);
+		m = m_copym(mhead, 0, M_COPYALL, M_TRYWAIT);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;
@@ -471,9 +471,9 @@ xdr_string_encode(str, len)
 	if (mlen > MCLBYTES)		/* If too big, we just can't do it. */
 		return (NULL);
 
-	m = m_get(M_WAIT, MT_DATA);
+	m = m_get(M_TRYWAIT, MT_DATA);
 	if (mlen > MLEN) {
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			(void) m_free(m);	/* There can be only one. */
 			return (NULL);

@@ -1017,7 +1017,7 @@ unp_internalize(control, p)
 	if (newlen - control->m_len > M_TRAILINGSPACE(control)) {
 		if (control->m_flags & M_EXT)
 			return (E2BIG);
-		MCLGET(control, M_WAIT);
+		MCLGET(control, M_TRYWAIT);
 		if ((control->m_flags & M_EXT) == 0)
 			return (ENOBUFS);
 

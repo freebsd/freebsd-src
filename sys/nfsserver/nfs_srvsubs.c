@@ -588,9 +588,9 @@ nfsm_reqh(vp, procid, hsiz, bposp)
 	struct nfsmount *nmp;
 	int nqflag;
 
-	MGET(mb, M_WAIT, MT_DATA);
+	MGET(mb, M_TRYWAIT, MT_DATA);
 	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, M_WAIT);
+		MCLGET(mb, M_TRYWAIT);
 	mb->m_len = 0;
 	bpos = mtod(mb, caddr_t);
 
@@ -646,9 +646,9 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	int siz, grpsiz, authsiz;
 
 	authsiz = nfsm_rndup(auth_len);
-	MGETHDR(mb, M_WAIT, MT_DATA);
+	MGETHDR(mb, M_TRYWAIT, MT_DATA);
 	if ((authsiz + 10 * NFSX_UNSIGNED) >= MINCLSIZE) {
-		MCLGET(mb, M_WAIT);
+		MCLGET(mb, M_TRYWAIT);
 	} else if ((authsiz + 10 * NFSX_UNSIGNED) < MHLEN) {
 		MH_ALIGN(mb, authsiz + 10 * NFSX_UNSIGNED);
 	} else {
@@ -711,9 +711,9 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 		siz = auth_len;
 		while (siz > 0) {
 			if (M_TRAILINGSPACE(mb) == 0) {
-				MGET(mb2, M_WAIT, MT_DATA);
+				MGET(mb2, M_TRYWAIT, MT_DATA);
 				if (siz >= MINCLSIZE)
-					MCLGET(mb2, M_WAIT);
+					MCLGET(mb2, M_TRYWAIT);
 				mb->m_next = mb2;
 				mb = mb2;
 				mb->m_len = 0;
@@ -744,9 +744,9 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 		siz = verf_len;
 		while (siz > 0) {
 			if (M_TRAILINGSPACE(mb) == 0) {
-				MGET(mb2, M_WAIT, MT_DATA);
+				MGET(mb2, M_TRYWAIT, MT_DATA);
 				if (siz >= MINCLSIZE)
-					MCLGET(mb2, M_WAIT);
+					MCLGET(mb2, M_TRYWAIT);
 				mb->m_next = mb2;
 				mb = mb2;
 				mb->m_len = 0;
@@ -887,9 +887,9 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAIT, MT_DATA);
+				MGET(mp, M_TRYWAIT, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAIT);
+					MCLGET(mp, M_TRYWAIT);
 				mp->m_len = 0;
 				mp2->m_next = mp;
 				mp2 = mp;
@@ -919,7 +919,7 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, M_WAIT, MT_DATA);
+			MGET(mp, M_TRYWAIT, MT_DATA);
 			mp->m_len = 0;
 			mp2->m_next = mp;
 		}
@@ -968,7 +968,7 @@ nfsm_disct(mdp, dposp, siz, left, cp2)
 	} else if (siz > MHLEN) {
 		panic("nfs S too big");
 	} else {
-		MGET(mp2, M_WAIT, MT_DATA);
+		MGET(mp2, M_TRYWAIT, MT_DATA);
 		mp2->m_next = mp->m_next;
 		mp->m_next = mp2;
 		mp->m_len -= left;
@@ -1061,9 +1061,9 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, M_WAIT, MT_DATA);
+		MGET(m1, M_TRYWAIT, MT_DATA);
 		if (siz > MLEN)
-			MCLGET(m1, M_WAIT);
+			MCLGET(m1, M_TRYWAIT);
 		m1->m_len = NFSMSIZ(m1);
 		m2->m_next = m1;
 		m2 = m1;

@@ -1755,7 +1755,7 @@ md_lookup_swap(struct sockaddr_in *mdsin,	/* mountd server address */
 		u_int32_t v3[21];
 	} fattribs;
 	
-	m = m_get(M_WAIT,MT_DATA);
+	m = m_get(M_TRYWAIT,MT_DATA);
 	if (m == NULL)
 	  	return ENOBUFS;
 	

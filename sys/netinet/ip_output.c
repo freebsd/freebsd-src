@@ -1115,7 +1115,7 @@ ip_ctloutput(so, sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_HEADER);
+			MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
 			if (m == 0) {
 				error = ENOBUFS;
 				break;

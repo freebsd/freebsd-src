@@ -590,7 +590,7 @@ tryagain:
 			goto tryagain;
 		}
 		while (rep->r_flags & R_MUSTRESEND) {
-			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_WAIT);
+			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_TRYWAIT);
 			nfsstats.rpcretries++;
 			error = nfs_send(so, rep->r_nmp->nm_nam, m, rep);
 			if (error) {
@@ -1014,7 +1014,7 @@ kerbauth:
 	 * For stream protocols, insert a Sun RPC Record Mark.
 	 */
 	if (nmp->nm_sotype == SOCK_STREAM) {
-		M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
+		M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 |
 			 (m->m_pkthdr.len - NFSX_UNSIGNED));
 	}
@@ -1058,7 +1058,7 @@ tryagain:
 		if (nmp->nm_soflags & PR_CONNREQUIRED)
 			error = nfs_sndlock(rep);
 		if (!error) {
-			m2 = m_copym(m, 0, M_COPYALL, M_WAIT);
+			m2 = m_copym(m, 0, M_COPYALL, M_TRYWAIT);
 			error = nfs_send(nmp->nm_so, nmp->nm_nam, m2, rep);
 			if (nmp->nm_soflags & PR_CONNREQUIRED)
 				nfs_sndunlock(rep);
@@ -1237,7 +1237,7 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 	caddr_t bpos;
 	struct mbuf *mb, *mb2;
 
-	MGETHDR(mreq, M_WAIT, MT_DATA);
+	MGETHDR(mreq, M_TRYWAIT, MT_DATA);
 	mb = mreq;
 	/*
 	 * If this is a big reply, use a cluster else
@@ -1245,7 +1245,7 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 	 */
 	siz += RPC_REPLYSIZ;
 	if ((max_hdr + siz) >= MINCLSIZE) {
-		MCLGET(mreq, M_WAIT);
+		MCLGET(mreq, M_TRYWAIT);
 	} else
 		mreq->m_data += max_hdr;
 	tl = mtod(mreq, u_int32_t *);
@@ -1686,9 +1686,9 @@ nfs_realign(pm, hsiz)
 
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, M_WAIT, MT_DATA);
+			MGET(n, M_TRYWAIT, MT_DATA);
 			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, M_WAIT);
+				MCLGET(n, M_TRYWAIT);
 			}
 			n->m_len = 0;
 			break;
@@ -1978,7 +1978,7 @@ nfs_msg(p, server, msg)
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
  * Essentially do as much as possible non-blocking, else punt and it will
- * be called with M_WAIT from an nfsd.
+ * be called with M_TRYWAIT from an nfsd.
  */
 void
 nfsrv_rcv(so, arg, waitflag)

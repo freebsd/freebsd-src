@@ -231,12 +231,12 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
-	MGETHDR(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_TRYWAIT, MT_DATA);
 	if (m == 0)
 		return (ENOBUFS);
 	if (len > MHLEN) {
 #if BSD >= 199103
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 #else
 		MCLGET(m);
