@@ -89,11 +89,7 @@ static void rlines(FILE *, off_t, struct stat *);
  *	NOREG	cyclically read lines into a wrap-around array of buffers
  */
 void
-forward(fp, style, off, sbp)
-	FILE *fp;
-	enum STYLE style;
-	off_t off;
-	struct stat *sbp;
+forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 {
 	int ch, n, kq = -1;
 	int action = USE_SLEEP;
