@@ -96,6 +96,7 @@ static char *descrs[] = {
     "editors", "Common text editors.",
     "elisp", "Things related to Emacs Lisp.",
     "emulators", "Utilities for emulating other OS types.",
+    "french", "Ported software for French countries.",
     "ftp", "FTP client and server utilities.",
     "games", "Various and sundry amusements.",
     "german", "Ported software for Germanic countries.",
@@ -158,6 +159,7 @@ static char *descrs[] = {
     "x11-servers", "X Window System servers.",
     "x11-toolkits", "X Window System based development toolkits.",
     "x11-wm", "X Window System window managers.",
+    "zope", "Software related to the Zope language.",
     NULL, NULL,
 };
 
