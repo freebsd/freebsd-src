@@ -350,8 +350,8 @@ z8530_bus_getsig(struct uart_softc *sc)
 		mtx_lock_spin(&sc->sc_hwmtx);
 		bes = uart_getmreg(&sc->sc_bas, RR_BES);
 		mtx_unlock_spin(&sc->sc_hwmtx);
-		SIGCHG(bes & BES_CTS, sig, UART_SIG_CTS, UART_SIG_DCTS);
-		SIGCHG(bes & BES_DCD, sig, UART_SIG_DCD, UART_SIG_DDCD);
+		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
+		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 		new = sig & ~UART_SIGMASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
@@ -411,8 +411,8 @@ z8530_bus_ipend(struct uart_softc *sc)
 	if (bes & BES_RXA)
 		ipend |= UART_IPEND_RXREADY;
 	sig = sc->sc_hwsig;
-	SIGCHG(bes & BES_CTS, sig, UART_SIG_CTS, UART_SIG_DCTS);
-	SIGCHG(bes & BES_DCD, sig, UART_SIG_DCD, UART_SIG_DDCD);
+	SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
+	SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
 	if (sig & UART_SIGMASK_DELTA)
 		ipend |= UART_IPEND_SIGCHG;
 	src = uart_getmreg(bas, RR_SRC);
@@ -509,22 +509,22 @@ z8530_bus_setsig(struct uart_softc *sc, int sig)
 	do {
 		old = sc->sc_hwsig;
 		new = old;
-		if (sig & UART_SIG_DDTR) {
-			SIGCHG(sig & UART_SIG_DTR, new, UART_SIG_DTR,
-			    UART_SIG_DDTR);
+		if (sig & SER_DDTR) {
+			SIGCHG(sig & SER_DTR, new, SER_DTR,
+			    SER_DDTR);
 		}
-		if (sig & UART_SIG_DRTS) {
-			SIGCHG(sig & UART_SIG_RTS, new, UART_SIG_RTS,
-			    UART_SIG_DRTS);
+		if (sig & SER_DRTS) {
+			SIGCHG(sig & SER_RTS, new, SER_RTS,
+			    SER_DRTS);
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 
 	mtx_lock_spin(&sc->sc_hwmtx);
-	if (new & UART_SIG_DTR)
+	if (new & SER_DTR)
 		z8530->tpc |= TPC_DTR;
 	else
 		z8530->tpc &= ~TPC_DTR;
-	if (new & UART_SIG_RTS)
+	if (new & SER_RTS)
 		z8530->tpc |= TPC_RTS;
 	else
 		z8530->tpc &= ~TPC_RTS;
