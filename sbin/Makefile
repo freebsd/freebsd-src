@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.60 1998/12/27 19:43:28 sos Exp $
+#	$Id: Makefile,v 1.61 1998/12/28 11:06:21 sos Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -11,7 +11,6 @@ SUBDIR=	adjkerntz \
 	clri \
 	disklabel \
 	dmesg \
-	dset \
 	dump \
 	dumpfs \
 	dumpon \
