@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: table.c,v 1.9 1997/02/22 14:59:57 peter Exp $
+ * $Id: table.c,v 1.10 1997/05/13 11:19:26 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -86,44 +86,6 @@ _RuneLocale _DefaultRuneLocale = {
 		_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,
 	/*78*/	_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_C,
-
-#ifdef C_LOCALE_EXTEND_TO_8859_1        /* can broke some programs */
-
-/* Populated from ISO 8859-1, attempt to not violate POSIX/ANSI	*/
-
-	/*80*/	_C,		_C,		_C,		_C,
-		_C,		_C,		_C,		_C,
-	/*88*/	_C,		_C,		_C,		_C,
-		_C,		_C,		_C,		_C,
-	/*90*/	_C,		_C,		_C,		_C,
-		_C,		_C,		_C,		_C,
-	/*98*/	_C,		_C,		_C,		_C,
-		_C,		_C,		_C,		_C,
-	/*A0*/	_B|_R,		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-	/*A8*/	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-	/*B0*/	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-	/*B8*/	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
-	/*C0*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-	/*C8*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-	/*D0*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_P|_R|_G,
-	/*D8*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-	/*E0*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-	/*E8*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-	/*F0*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_P|_R|_G,
-	/*F8*/	_R|_G,		_R|_G,		_R|_G,		_R|_G,
-		_R|_G,		_R|_G,		_R|_G,		_R|_G,
-#endif /* C_LOCALE_EXTEND_TO_8859_1 */
     },
     {	0x00,	0x01,	0x02,	0x03,	0x04,	0x05,	0x06,	0x07,
      	0x08,	0x09,	0x0a,	0x0b,	0x0c,	0x0d,	0x0e,	0x0f,
