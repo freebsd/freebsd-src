@@ -74,19 +74,17 @@
 #include <sys/pcpu.h>
 #include <sys/vmmeter.h>
 
-
 #include <machine/frame.h>
 #include <machine/globals.h>
 #include <machine/intr_machdep.h>
 
-
-#define	NCPU	MAXCPU
-
 #define	MAX_STRAY_LOG	5
 
 struct	intr_handler intr_handlers[NPIL];
-struct	intr_queue intr_queues[NCPU];
+struct	intr_queue intr_queues[MAXCPU];
 struct	intr_vector intr_vectors[NIV];
+
+u_long	intr_stray_count[NIV];
 
 /* protect the intr_vectors table */
 static struct	mtx intr_table_lock;
@@ -104,14 +102,14 @@ intr_dequeue(struct trapframe *tf)
 	u_long tail;
 
 	crit = critical_enter();
-	iq = PCPU_GET(iq);
+	iq = PCPU_PTR(iq);
 	for (head = iq->iq_head;; head = next) {
 		for (tail = iq->iq_tail; tail != head;) {
 			iqe = &iq->iq_queue[tail];
-			/* XXX: add per-vector counts... */
-			atomic_add_int(&cnt.v_intr, 1);
-			if (iqe->iqe_func != NULL)
-				iqe->iqe_func(iqe->iqe_arg);
+			atomic_add_long(&intrcnt[iqe->iqe_vec], 1);
+			KASSERT(iqe->iqe_func != NULL,
+			    ("intr_dequeue: iqe->iqe_func NULL"));
+			iqe->iqe_func(iqe->iqe_arg);
 			tail = (tail + 1) & IQ_MASK;
 		}
 		iq->iq_tail = tail;
@@ -125,26 +123,33 @@ intr_dequeue(struct trapframe *tf)
 void
 intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 {
+	u_long ps;
+
+	ps = rdpr(pstate);
+	if (ps & PSTATE_IE)
+		wrpr(pstate, ps, PSTATE_IE);
 	if (vec != -1) {
 		intr_vectors[vec].iv_func = ivf;
 		intr_vectors[vec].iv_arg = iva;
 		intr_vectors[vec].iv_pri = pri;
+		intr_vectors[vec].iv_vec = vec;
 	}
 	intr_handlers[pri].ih_func = ihf;
+	wrpr(pstate, ps, 0);
 }
 
 static void
 intr_stray(void *cookie)
 {
-	int vec;
+	struct intr_vector *iv;
 
-	vec = (int)(uintptr_t)cookie;
-	if (intr_vectors[vec].iv_stray < MAX_STRAY_LOG) {
-		printf("stray interrupt %d\n", vec);
-		atomic_add_int(&intr_vectors[vec].iv_stray, 1);
-		if (intr_vectors[vec].iv_stray == MAX_STRAY_LOG)
+	iv = cookie;
+	if (intr_stray_count[iv->iv_vec] < MAX_STRAY_LOG) {
+		printf("stray interrupt %d\n", iv->iv_vec);
+		atomic_add_long(&intr_stray_count[iv->iv_vec], 1);
+		if (intr_stray_count[iv->iv_vec] >= MAX_STRAY_LOG)
 			printf("got %d stray interrupt %d's: not logging "
-			    "anymore\n", MAX_STRAY_LOG, vec);
+			    "anymore\n", MAX_STRAY_LOG, iv->iv_vec);
 	}
 }
 
@@ -164,23 +169,24 @@ intr_init()
 static void 
 sched_ithd(void *cookie)
 {
-	int vec;
+	struct intr_vector *iv;
 	int error;
 
-	vec = (uintptr_t)cookie;
+	iv = cookie;
 #ifdef notyet
-	error = ithread_schedule(intr_vectors[vec].iv_ithd);
+	error = ithread_schedule(iv->iv_ithd);
 #else
-	error = ithread_schedule(intr_vectors[vec].iv_ithd, 0);
+	error = ithread_schedule(iv->iv_ithd, 0);
 #endif
 	if (error == EINVAL)
-		intr_stray(cookie);
+		intr_stray(iv);
 }
 
 int
 inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
     int flags, void **cookiep)
 {
+	struct intr_vector *iv;
 	struct ithd *ithd;		/* descriptor for the IRQ */
 	int errcode = 0;
 	int created_ithd = 0;
@@ -189,8 +195,9 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	 * Work around a race where more than one CPU may be registering
 	 * handlers on the same IRQ at the same time.
 	 */
+	iv = &intr_vectors[vec];
 	mtx_lock_spin(&intr_table_lock);
-	ithd = intr_vectors[vec].iv_ithd;
+	ithd = iv->iv_ithd;
 	mtx_unlock_spin(&intr_table_lock);
 	if (ithd == NULL) {
 		errcode = ithread_create(&ithd, vec, 0, NULL, NULL, "intr%d:",
@@ -198,15 +205,15 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		if (errcode)
 			return (errcode);
 		mtx_lock_spin(&intr_table_lock);
-		if (intr_vectors[vec].iv_ithd == NULL) {
-			intr_vectors[vec].iv_ithd = ithd;
+		if (iv->iv_ithd == NULL) {
+			iv->iv_ithd = ithd;
 			created_ithd++;
 			mtx_unlock_spin(&intr_table_lock);
 		} else {
 			struct ithd *orphan;
 
 			orphan = ithd;
-			ithd = intr_vectors[vec].iv_ithd;
+			ithd = iv->iv_ithd;
 			mtx_unlock_spin(&intr_table_lock);
 			ithread_destroy(orphan);
 		}
@@ -216,8 +223,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	    ithread_priority(flags), flags, cookiep);
 	
 	if ((flags & INTR_FAST) == 0 || errcode) {
-		intr_setup(PIL_ITHREAD, intr_dequeue, vec, sched_ithd,
-		    (void *)(uintptr_t)vec);
+		intr_setup(PIL_ITHREAD, intr_dequeue, vec, sched_ithd, iv);
 		errcode = 0;
 	}
 
@@ -227,7 +233,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	if (flags & INTR_FAST)
 		intr_setup(PIL_FAST, intr_dequeue, vec, handler, arg);
 
-	intr_vectors[vec].iv_stray = 0;
+	intr_stray_count[vec] = 0;
 	/* XXX: name is not yet used. */
 	return (0);
 }
@@ -235,6 +241,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 int
 inthand_remove(int vec, void *cookie)
 {
+	struct intr_vector *iv;
 	int error;
 	
 	error = ithread_remove_handler(cookie);
@@ -243,13 +250,12 @@ inthand_remove(int vec, void *cookie)
 		 * XXX: maybe this should be done regardless of whether
 		 * ithread_remove_handler() succeeded?
 		 */
+		iv = &intr_vectors[vec];
 		mtx_lock_spin(&intr_table_lock);
-		if (intr_vectors[vec].iv_ithd == NULL) {
-			intr_setup(PIL_ITHREAD, intr_dequeue, vec, intr_stray,
-			    (void *)(uintptr_t)vec);
+		if (iv->iv_ithd == NULL) {
+			intr_setup(PIL_ITHREAD, intr_dequeue, vec, intr_stray, iv);
 		} else {
-			intr_setup(PIL_LOW, intr_dequeue, vec, sched_ithd,
-			    (void *)(uintptr_t)vec);
+			intr_setup(PIL_LOW, intr_dequeue, vec, sched_ithd, iv);
 		}
 		mtx_unlock_spin(&intr_table_lock);
 	}
