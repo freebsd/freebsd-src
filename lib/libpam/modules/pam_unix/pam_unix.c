@@ -84,9 +84,14 @@ __FBSDID("$FreeBSD$");
 #define PASSWORD_HASH		"md5"
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
 #define	MAX_TRIES		3
+#define	SALTSIZE		32
 
-static char password_prompt_def[] = PASSWORD_PROMPT;
-static char password_hash[] = PASSWORD_HASH;
+static void makesalt(char []);
+
+static char password_prompt_def[] =	PASSWORD_PROMPT;
+static char password_hash[] =		PASSWORD_HASH;
+static char blank[] =			"";
+static char colon[] =			":";
 
 enum {
 	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
@@ -169,7 +174,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
 		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = strdup(":");
+			encrypted = colon;
 
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
@@ -411,7 +416,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
 		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = strdup(":");
+			encrypted = colon;
 
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
@@ -452,7 +457,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			    &new_pass, "%s", NEW_PASSWORD_PROMPT_1);
 
 			if (new_pass == NULL)
-				new_pass = strdup("");
+				new_pass = blank;
 
 			if (retval == PAM_SUCCESS) {
 				new_pass_ = NULL;
@@ -460,7 +465,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				    &new_pass_, "%s", NEW_PASSWORD_PROMPT_2);
 
 				if (new_pass_ == NULL)
-					new_pass_ = strdup("");
+					new_pass_ = blank;
 
 				if (retval == PAM_SUCCESS) {
 					if (strcmp(new_pass, new_pass_) == 0) {
@@ -550,7 +555,7 @@ local_passwd(const char *user, const char *pass)
 	struct passwd *pwd;
 	struct timeval tv;
 	int pfd, tfd;
-	char *crypt_type, salt[32];
+	char *crypt_type, salt[SALTSIZE + 1];
 
 	pwd = getpwnam(user);
 	if (pwd == NULL)
@@ -568,17 +573,7 @@ local_passwd(const char *user, const char *pass)
 	if (login_setcryptfmt(lc, crypt_type, NULL) == NULL)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
-	/* Salt suitable for anything */
-	gettimeofday(&tv, 0);
-	to64(&salt[0], (tv.tv_sec ^ random()) * tv.tv_usec, 3);
-	to64(&salt[3], (getpid() ^ random()) * tv.tv_usec, 2);
-	to64(&salt[5], (getppid() ^ random()) * tv.tv_usec, 3);
-	to64(&salt[8], (getuid() ^ random()) * tv.tv_usec, 5);
-	to64(&salt[13], (getgid() ^ random()) * tv.tv_usec, 5);
-	to64(&salt[17], random() * tv.tv_usec, 5);
-	to64(&salt[22], random() * tv.tv_usec, 5);
-	salt[27] = '\0';
-
+	makesalt(salt);
 	pwd->pw_passwd = crypt(pass, salt);
 
 	pfd = pw_lock();
@@ -608,8 +603,10 @@ yp_passwd(const char *user __unused, const char *pass)
 	CLIENT *clnt;
 	login_cap_t *lc;
 	int    *status;
-	uid_t	uid;
-	char   *master, sockname[] = YP_SOCKNAME, salt[32];
+	gid_t gid;
+	pid_t pid;
+	uid_t uid;
+	char   *master, sockname[] = YP_SOCKNAME, salt[SALTSIZE + 1];
 
 	_use_yp = 1;
 
@@ -661,17 +658,8 @@ yp_passwd(const char *user __unused, const char *pass)
 	if (login_setcryptfmt(lc, "md5", NULL) == NULL)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
-	/* Salt suitable for anything */
-	gettimeofday(&tv, 0);
-	to64(&salt[0], (tv.tv_sec ^ random()) * tv.tv_usec, 3);
-	to64(&salt[3], (getpid() ^ random()) * tv.tv_usec, 2);
-	to64(&salt[5], (getppid() ^ random()) * tv.tv_usec, 3);
-	to64(&salt[8], (getuid() ^ random()) * tv.tv_usec, 5);
-	to64(&salt[13], (getgid() ^ random()) * tv.tv_usec, 5);
-	to64(&salt[17], random() * tv.tv_usec, 5);
-	to64(&salt[22], random() * tv.tv_usec, 5);
-	salt[27] = '\0';
 
+	makesalt(salt);
 	if (suser_override)
 		master_yppwd.newpw.pw_passwd = crypt(pass, salt);
 	else
@@ -720,5 +708,20 @@ yp_passwd(const char *user __unused, const char *pass)
 	    ? PAM_ABORT : PAM_SUCCESS;
 }
 #endif /* YP */
+
+/* Salt suitable for traditional DES and MD5 */
+void
+makesalt(char salt[SALTSIZE])
+{
+	int i;
+
+	/* These are not really random numbers, they are just
+	 * numbers that change to thwart construction of a
+	 * dictionary. This is exposed to the public.
+	 */
+	for (i = 0; i < SALTSIZE; i += 4)
+		to64(&salt[i], arc4random(), 4);
+	salt[SALTSIZE] = '\0';
+}
 
 PAM_MODULE_ENTRY("pam_unix");
