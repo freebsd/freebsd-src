@@ -172,7 +172,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
 		mtx_unlock(&Giant);
 		fs->vp = NULL;
 	}
-	if (dealloc)
+	if (dealloc && !fs->map->system_map)
 		VM_UNLOCK_GIANT();
 }
 
@@ -291,11 +291,14 @@ RetryFault:;
 	 *
 	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
-	mtx_lock(&Giant);
+	if (!fs.map->system_map)
+		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
-	if (debug_mpsafevm)
+	KASSERT(fs.vp == NULL || !fs.map->system_map,
+	    ("vm_fault: vnode-backed object mapped by system map"));
+	if (debug_mpsafevm && !fs.map->system_map)
 		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -369,7 +372,8 @@ RetryFault:;
 				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
 					vm_page_unlock_queues();
 				atomic_add_int(&cnt.v_intrans, 1);
-				VM_UNLOCK_GIANT();
+				if (!fs.map->system_map)
+					VM_UNLOCK_GIANT();
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -1026,13 +1030,9 @@ vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 * read-only sections.
 	 */
 	for (va = start; va < end; va += PAGE_SIZE) {
-		if (map->system_map)
-			mtx_lock(&Giant);
 		rv = vm_fault(map, va,
 		    user_wire ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE,
 		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
-		if (map->system_map)
-			mtx_unlock(&Giant);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va, fictitious);
