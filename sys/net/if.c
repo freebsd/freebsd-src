@@ -752,6 +752,7 @@ link_rtrequest(cmd, rt, info)
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
 	}
+	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
 }
 
 /*
