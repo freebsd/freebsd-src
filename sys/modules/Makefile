@@ -278,7 +278,6 @@ SUBDIR+=aic \
 	ep \
 	exca \
 	fe \
-	hea \
 	hfa \
 	iir \
 	mly \
