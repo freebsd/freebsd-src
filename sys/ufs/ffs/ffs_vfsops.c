@@ -537,7 +537,8 @@ loop:
 		ffs_load_inode(bp, ip, fs, ip->i_number);
 		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
-		vput(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -1166,7 +1167,8 @@ loop:
 		}
 		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
 			allerror = error;
-		vput(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
 			goto loop;
