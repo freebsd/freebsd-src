@@ -555,6 +555,18 @@ not supported.
 .It Dv EAI_SYSTEM
 System error returned in
 .Va errno .
+.It Dv EAI_BADHINTS
+Invalid value for
+.Fa hints .
+.It Dv EAI_PROTOCOL
+Resolved protocol is unknown.
+.It Dv EAI_RESNULL
+Argument
+.Fa res
+is
+.Dv NULL .
+.It Dv EAI_MAX
+Unknown error.
 .El
 .Pp
 If called with an appropriate argument,
