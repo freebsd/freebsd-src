@@ -630,8 +630,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt) {
-			if (!showallsockets && socheckproc(inp->inp_socket,
-			    curthread->td_proc))
+			if (cr_cansee(req->p->p_ucred, 
+			    inp->inp_socket->so_cred))
 				continue;
 			inp_list[i++] = inp;
 		}

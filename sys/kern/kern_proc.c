@@ -59,10 +59,6 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
-int ps_showallprocs = 1;
-SYSCTL_INT(_kern, OID_AUTO, ps_showallprocs, CTLFLAG_RW,
-    &ps_showallprocs, 0, "");
-
 static void pgdelete	__P((struct pgrp *));
 
 static void	orphanpg __P((struct pgrp *pg));
