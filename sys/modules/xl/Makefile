@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1999/07/06 19:23:01 des Exp $
+#	$Id: Makefile,v 1.1 1999/07/23 05:48:01 wpaul Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
@@ -8,7 +8,7 @@ CLEANFILES	+= xl.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 xl.h:
-	echo "#define NFXP 1" > xl.h
+	echo "#define NXL 1" > xl.h
 
 bpf.h:
 	echo "#define NBPF 1" > bpf.h
