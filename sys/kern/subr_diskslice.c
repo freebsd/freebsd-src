@@ -407,14 +407,6 @@ dsioctl(dev, cmd, data, flags, sspp)
 		*(struct disklabel *)data = *lp;
 		return (0);
 
-#ifdef notyet
-	case DIOCGDINFOP:
-		if (lp == NULL)
-			return (EINVAL);
-		*(struct disklabel **)data = lp;
-		return (0);
-#endif
-
 	case DIOCGPART:
 		if (lp == NULL)
 			return (EINVAL);
