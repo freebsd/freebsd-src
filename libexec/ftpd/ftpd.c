@@ -269,7 +269,8 @@ static int	*socksetup(int, char *, const char *);
 int
 main(int argc, char *argv[], char **envp)
 {
-	int addrlen, ch, on = 1, tos;
+	socklen_t addrlen;
+	int ch, on = 1, tos;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
 	char	*bindname = NULL;
@@ -1896,8 +1897,8 @@ dataconn(char *name, off_t size, char *mode)
 		*sizebuf = '\0';
 	if (pdata >= 0) {
 		union sockunion from;
-		int flags;
-		int s, fromlen = ctrl_addr.su_len;
+		socklen_t fromlen = ctrl_addr.su_len;
+		int flags, s;
 		struct timeval timeout;
 		fd_set set;
 
@@ -2820,7 +2821,8 @@ myoob(void)
 void
 passive(void)
 {
-	int len, on;
+	socklen_t len;
+	int on;
 	char *p, *a;
 
 	if (pdata >= 0)		/* close old port if one set */
@@ -2903,7 +2905,8 @@ pasv_error:
 void
 long_passive(char *cmd, int pf)
 {
-	int len, on;
+	socklen_t len;
+	int on;
 	char *p, *a;
 
 	if (pdata >= 0)		/* close old port if one set */
