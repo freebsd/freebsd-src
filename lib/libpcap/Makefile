@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.2 1995/02/21 10:46:25 olah Exp $
+# $Id: Makefile,v 1.3 1995/02/23 18:47:06 ache Exp $
 
 LIB=    pcap
 
@@ -16,10 +16,10 @@ MAN3=	pcap.3
 
 beforeinstall:
 	-cmp -s ${.CURDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
-	  ( $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/pcap.h ${DESTDIR}/usr/include; )
 	-cmp -s ${.CURDIR}/pcap-namedb.h ${DESTDIR}/usr/include/pcap-namedb.h || \
-	  ( $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/pcap-namedb.h ${DESTDIR}/usr/include; )
 
 scanner.o: tokdefs.h
