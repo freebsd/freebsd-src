@@ -730,7 +730,8 @@ number:			if ((dprec = prec) >= 0)
 			if (ch >= 'f') {	/* 'f' or 'g' */
 				if (_double == 0) {
 					/* kludge for __dtoa irregularity */
-					if (prec == 0 && (flags & ALT) == 0) {
+					if (expt >= ndig &&
+					    (flags & ALT) == 0) {
 						PRINT("0", 1);
 					} else {
 						PRINT("0.", 2);
