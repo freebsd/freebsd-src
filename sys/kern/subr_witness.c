@@ -283,8 +283,8 @@ static struct witness_order_list_entry order_lists[] = {
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
-	 */
 	{ NULL, NULL },
+	 */
 	/*
 	 * UDP/IP
 	 */
@@ -302,6 +302,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 */
 	{ "slip_mtx", &lock_class_mtx_sleep },
 	{ "slip sc_mtx", &lock_class_mtx_sleep },
+	{ NULL, NULL },
 	/*
 	 * spin locks
 	 */
