@@ -192,6 +192,7 @@ dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+dev/uart/uart_cpu_alpha.c	optional	uart
 geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 isa/atkbd_isa.c			optional	atkbd
