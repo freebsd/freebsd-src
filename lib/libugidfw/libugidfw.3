@@ -1,12 +1,12 @@
 .\" Copyright (c) 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and Network Associates
 .\" Laboratories, the Security Research Division of Network Associates,
 .\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
 .\" of the DARPA CHATS research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -15,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,14 +27,15 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.Dd JANUARY 5, 2003
+.\"
+.Dd January 5, 2003
 .Os
 .Dt LIBUGIDFW 3
 .Sh NAME
 .Nm libugidfw
-.Nd library interface to the file system firewall MAC policy
+.Nd "library interface to the file system firewall MAC policy"
 .Sh LIBRARY
 .Lb libugidfw
 .Sh SYNOPSIS
@@ -49,10 +50,10 @@ file system firewall MAC policy.
 The
 .Nm
 library defines the following functions:
-.Bl -tag -width "bsde_parse_rule_strong"
+.Bl -tag -width ".Fn bsde_parse_rule_string"
 .It Fn bsde_rule_to_string
 Converts the internal representation of a rule
-.Vt ( "struct mac_bsdextended_rule" )
+.Pq Vt "struct mac_bsdextended_rule"
 into its text representation;
 see
 .Xr bsde_rule_to_string 3 .
@@ -112,5 +113,6 @@ This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -1,12 +1,12 @@
 .\" Copyright (c) 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and Network Associates
 .\" Laboratories, the Security Research Division of Network Associates,
 .\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
 .\" of the DARPA CHATS research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -15,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,24 +27,31 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.Dd JANUARY 7, 2003
+.\"
+.Dd January 7, 2003
 .Os
 .Dt BSDE_GET_RULE 3
 .Sh NAME
 .Nm bsde_get_rule ,
 .Nm bsde_set_rule ,
 .Nm bsde_delete_rule
-.Nd file system firewall rules list management
+.Nd "file system firewall rules list management"
 .Sh LIBRARY
 .Lb libugidfw
 .Sh SYNOPSIS
 .In ugidfw.h
 .Ft int
-.Fn bsde_get_rule "int rulenum" "struct mac_bsdextended_rule *rule" "size_t errlen" "char *errstr"
+.Fo bsde_get_rule
+.Fa "int rulenum" "struct mac_bsdextended_rule *rule"
+.Fa "size_t errlen" "char *errstr"
+.Fc
 .Ft int
-.Fn bsde_set_rule "int rulenum" "struct mac_bsdextended_rule *rule" "size_t errlen" "char *errstr"
+.Fo bsde_set_rule
+.Fa "int rulenum" "struct mac_bsdextended_rule *rule"
+.Fa "size_t errlen" "char *errstr"
+.Fc
 .Ft int
 .Fn bsde_delete_rule "int rulenum" "size_t errlen" "char *errstr"
 .Sh DESCRIPTION
@@ -59,7 +66,8 @@ If an error occurs,
 is filled in with the error string
 (up to
 .Fa errlen
-characters, including the terminating NUL).
+characters, including the terminating
+.Dv NUL ) .
 .Pp
 The
 .Fn bsde_set_rule
@@ -69,7 +77,7 @@ with the specified rule
 (in
 .Vt "struct mac_bsdextended_rule"
 form, either from
-.Xr bsde_get_rule 3
+.Fn bsde_get_rule
 or
 .Xr bsde_parse_rule 3 ) .
 If an error occurs,
@@ -77,7 +85,8 @@ If an error occurs,
 is filled with the error string
 (up to
 .Fa errlen
-characters, including the terminating NUL).
+characters, including the terminating
+.Dv NUL ) .
 .Pp
 The
 .Fn bsde_delete_rule
@@ -88,19 +97,16 @@ If an error occurs,
 is filled with the error string
 (up to
 .Fa errlen
-characters, including the terminating NUL).
+characters, including the terminating
+.Dv NUL ) .
 .Sh RETURN VALUES
 The
 .Fn bsde_get_rule ,
 .Fn bsde_set_rule ,
 and
 .Fn bsde_delete_rule
-functions return
-.Li 0
-if successful;
-otherwise the value
-.Li \&-1
-is returned and the value of
+functions return 0 if successful;
+otherwise the value \-1 is returned and the value of
 .Fa *errstr
 is filled in as documented in
 .Sx DESCRIPTION .
@@ -118,5 +124,6 @@ This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
