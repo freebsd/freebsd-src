@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.34 1995/08/05 17:32:53 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.35 1995/08/14 08:29:15 gibbs Exp $
  */
 /*
  * TODO:
@@ -61,7 +61,7 @@ int     ahc_init __P((int unit));
 void    ahc_loadseq __P((u_long iobase));
 int32   ahc_scsi_cmd();
 timeout_t ahc_timeout;
-void    ahc_done();
+void    ahc_done __P((int unit, struct scb *scbp));
 struct  scb *ahc_get_scb __P((int unit, int flags));
 void    ahc_free_scb();
 void	ahc_scb_timeout __P((int unit, struct ahc_data *ahc, struct scb *scb));
@@ -2723,7 +2723,7 @@ ahc_reset_device(unit, ahc, target, channel, timedout_scb, xs_error)
 				scbp->xs->error |= xs_error;
 				if(scbp->position != timedout_scb)
 					untimeout(ahc_timeout, (caddr_t)scbp);
-				ahc_done (scbp);
+				ahc_done (unit, scbp);
 				outb(SCBPTR + iobase, scbp->position);
 				outb(SCBARRAY + iobase, SCB_NEEDDMA);
 				i--;
