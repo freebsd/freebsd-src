@@ -267,6 +267,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   int allowcmd;
   int indent;
   char arg[LINE_LEN];
+  struct prompt *op;
 
   if (*file == '/')
     snprintf(filename, sizeof filename, "%s", file);
@@ -342,9 +343,17 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           argc = command_Interpret(cp, len, argv);
           allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
           if ((!(how == SYSTEM_EXEC) && allowcmd) ||
-              ((how == SYSTEM_EXEC) && !allowcmd))
+              ((how == SYSTEM_EXEC) && !allowcmd)) {
+            /*
+             * Disable any context so that warnings are given to everyone,
+             * including syslog.
+             */
+            op = log_PromptContext;
+            log_PromptContext = NULL;
 	    command_Run(bundle, argc, (char const *const *)argv, prompt,
                         name, cx);
+            log_PromptContext = op;
+          }
         }
 
 	fclose(fp);  /* everything read - get out */
