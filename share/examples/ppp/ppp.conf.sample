@@ -175,7 +175,7 @@ examples:
 #
     enable dns
 #
-# If you don't want to tell them what's in your /etc/resolf.conf file
+# If you don't want to tell them what's in your /etc/resolv.conf file
 # with `enable dns', override the values:
 #
     set dns 10.0.0.1 10.0.0.2
