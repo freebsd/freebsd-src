@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,12 +28,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	makepath.c				20-Oct-97
+ *	makepath.c				15-May-98
  *
  */
 #include <string.h>
 #include <sys/param.h>
+#include "die.h"
 #include "makepath.h"
+#include "strbuf.h"
+
+static STRBUF	*sb;
 /*
  * makepath: make path from directory and file.
  *
@@ -43,16 +47,21 @@
  */
 char	*
 makepath(dir, file)
-char	*dir;
-char	*file;
+const char *dir;
+const char *file;
 {
-	static char	path[MAXPATHLEN+1];
-	char	*p;
+	int	length;
 
-	strcpy(path, dir);
-	p = path + strlen(path);
-	if (*(p - 1) != '/')
-		*p++ = '/';
-	strcpy(p, file);
-	return path;
+	if (sb == NULL)
+		sb = stropen();
+	strstart(sb);
+	if ((length = strlen(dir)) > MAXPATHLEN)
+		die1("path name too long. '%s'\n", dir);
+	strputs(sb, dir);
+	strunputc(sb, '/');
+	strputc(sb, '/');
+	strputs(sb, file);
+	if ((length = strlen(strvalue(sb))) > MAXPATHLEN)
+		die1("path name too long. '%s'\n", dir);
+	return strvalue(sb);
 }
