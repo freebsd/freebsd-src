@@ -656,8 +656,6 @@ vm_object_terminate(vm_object_t object)
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
 	mtx_unlock(&vm_object_list_mtx);
 
-	wakeup(object);
-
 	/*
 	 * Free the space for the object.
 	 */

@@ -428,6 +428,7 @@ retry:
 		VM_OBJECT_LOCK(object);
 		if (object->flags & OBJ_DEAD) {
 			VOP_UNLOCK(vp, 0, td);
+			vm_object_set_flag(object, OBJ_DISCONNECTWNT);
 			msleep(object, VM_OBJECT_MTX(object), PDROP | PVM,
 			    "vodead", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
