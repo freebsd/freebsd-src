@@ -101,7 +101,6 @@ int	compare __P((int, const char *, int, const char *,
 		     const struct stat *, const struct stat *));
 void	install __P((char *, char *, u_long, u_int));
 void	install_dir __P((char *));
-u_long	string_to_flags __P((char **, u_long *, u_long *));
 void	strip __P((char *));
 void	usage __P((void));
 int	trymmap __P((int));
@@ -152,7 +151,7 @@ main(argc, argv)
 			break;
 		case 'f':
 			flags = optarg;
-			if (string_to_flags(&flags, &fset, NULL))
+			if (setflags(&flags, &fset, NULL))
 				errx(EX_USAGE, "%s: invalid flag", flags);
 			iflags |= SETFLAGS;
 			break;

@@ -225,9 +225,9 @@ typeerr:		LABEL;
 	if ((s->flags & F_FLAGS) && s->st_flags != p->fts_statp->st_flags) {
 		LABEL;
 		(void)printf("%sflags (\"%s\" is not ", tab,
-		    flags_to_string(s->st_flags, "none"));
+		    getflags(s->st_flags, "none"));
 		(void)printf("\"%s\"",
-		    flags_to_string(p->fts_statp->st_flags, "none"));
+		    getflags(p->fts_statp->st_flags, "none"));
 		if (uflag)
 			if (chflags(p->fts_accpath, s->st_flags))
 				(void)printf(", not modified: %s)\n",

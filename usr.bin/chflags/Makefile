@@ -5,7 +5,5 @@ NOSHARED?=yes
 
 PROG=	chflags
 CFLAGS+=-Wall
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 
 .include <bsd.prog.mk>

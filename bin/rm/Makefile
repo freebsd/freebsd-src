@@ -2,8 +2,6 @@
 # $FreeBSD$
 
 PROG=	rm
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 
 LINKS=	${BINDIR}/rm ${BINDIR}/unlink
 MLINKS=	rm.1 unlink.1
