@@ -369,8 +369,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		return EINVAL;
 	}
 	if(!(xferq->queued < xferq->maxq)){
-		printf("%s:Discard a packet (queued=%d)\n",
-			device_get_nameunit(fc->dev), xferq->queued);
+		device_printf(fc->bdev, "Discard a packet (queued=%d)\n",
+			xferq->queued);
 		return EINVAL;
 	}
 
@@ -494,7 +494,6 @@ firewire_attach( device_t dev )
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
-	sc->fc->dev = dev;
 
 	unitmask = UNIT2MIN(device_get_unit(dev));
 
@@ -1163,7 +1162,7 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 		self_id++;
 		fc->topology_map->self_id_count ++;
 	}
-	printf("%s: %d nodes", device_get_nameunit(fc->dev), fc->max_node + 1);
+	device_printf(fc->bdev, "%d nodes", fc->max_node + 1);
 	/* CRC */
 	fc->topology_map->crc = fw_crc16(
 			(u_int32_t *)&fc->topology_map->generation,
@@ -1206,7 +1205,8 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 		}
 	}else{
 		fc->status = FWBUSMGRDONE;
-		printf("%s: BMR = %x\n", device_get_nameunit(fc->dev), CSRARC(fc, BUS_MGR_ID));
+		device_printf(fc->bdev, "BMR = %x\n",
+				CSRARC(fc, BUS_MGR_ID));
 	}
 	free(buf, M_DEVBUF);
 #if 1
@@ -1343,7 +1343,7 @@ loop:
 			TAILQ_INSERT_BEFORE(tfwdev, fwdev, link);
 		}
 
-		device_printf(fc->dev, "New %s device ID:%08x%08x\n",
+		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
 			linkspeed[fwdev->speed],
 			fc->ongoeui.hi, fc->ongoeui.lo);
 
@@ -1643,7 +1643,7 @@ fw_attach_dev(struct firewire_comm *fc)
 				continue;
 			fwdev->maxrec = (fwdev->csrrom[2] >> 12) & 0xf;
 
-			device_printf(fc->dev, "Device ");
+			device_printf(fc->bdev, "Device ");
 			switch(fwdev->spec){
 			case CSRVAL_ANSIT10:
 				switch(fwdev->ver){
@@ -1913,8 +1913,8 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 		case FWACT_CH:
 			if(fc->ir[bind->xfer->sub]->queued >=
 				fc->ir[bind->xfer->sub]->maxq){
-				printf("%s:Discard a packet %x %d\n",
-					device_get_nameunit(fc->dev),
+				device_printf(fc->bdev,
+					"Discard a packet %x %d\n",
 					bind->xfer->sub,
 					fc->ir[bind->xfer->sub]->queued);
 				goto err;
@@ -2013,8 +2013,8 @@ fw_try_bmr_callback(struct fw_xfer *xfer)
 	rfp = (struct fw_pkt *)xfer->recv.buf;
 	CSRARC(fc, BUS_MGR_ID)
 		= fc->set_bmr(fc, ntohl(rfp->mode.lres.payload[0]) & 0x3f);
-	printf("%s: new bus manager %d ",
-		device_get_nameunit(fc->dev), CSRARC(fc, BUS_MGR_ID));
+	device_printf(fc->bdev, "new bus manager %d ",
+		CSRARC(fc, BUS_MGR_ID));
 	if((htonl(rfp->mode.lres.payload[0]) & 0x3f) == fc->nodeid){
 		printf("(me)\n");
 /* If I am bus manager, optimize gapcount */
