@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.3 1998/03/09 00:25:30 jb Exp $
+# $Id: Makefile.alpha,v 1.4 1998/03/10 20:25:17 jb Exp $
 #
 # NOTE:
 #
@@ -331,6 +331,7 @@ lib-tools:
 	ln -s /usr/bin/grotty        ${WORLDTMP}/usr/bin/grotty
 	ln -s /usr/bin/pic           ${WORLDTMP}/usr/bin/pic
 	ln -s /usr/bin/tbl           ${WORLDTMP}/usr/bin/tbl
+	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Build tools to compile and install the libraries...."
 	@echo "--------------------------------------------------------------"
@@ -346,8 +347,8 @@ lib-tools:
 		usr.bin/mk_cmds		\
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d && ${MAKE} obj && \
-		${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -DBOOTSTRAP depend && \
+		${MAKE} ${MK_FLAGS} -DBOOTSTRAP all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
 
