@@ -110,7 +110,7 @@ jumbo_vm_init(void)
 	SLIST_INIT(&jumbo_kmap_inuse);
 
 	/* grab some kernel virtual address space */
-	jumbo_basekva = kmem_alloc_pageable(kernel_map,
+	jumbo_basekva = kmem_alloc_nofault(kernel_map,
 		PAGE_SIZE * JUMBO_MAX_PAGES);
 	if (jumbo_basekva == 0) {
 		vm_object_deallocate(jumbo_vm_object);
