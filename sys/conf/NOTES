@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.175 1995/04/25 03:44:04 phk Exp $
+#	$Id: LINT,v 1.176 1995/04/28 00:51:18 dufault Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -35,7 +35,7 @@ maxusers	10
 
 #
 # Under some circumstances it is necessary to make the default max
-# number of proccesses per user and open files per user more than the
+# number of processes per user and open files per user more than the
 # defaults on bootup.  (an example is a large news server in which
 # the uid, news, can sometimes need > 100 simultaneous processes running)
 options		"CHILD_MAX=128"
@@ -132,11 +132,13 @@ options		UCONSOLE
 #  try to ensure that it actually compiles.
 #
 options		INET			#Internet communications protocols
-options		ISO
 options		CCITT			#X.25 network layer
 options		NS			#Xerox NS communications protocols
-options		TPIP			#ISO TP class 4 over IP
-options		TPCONS			#ISO TP class 0 over X.25
+
+# These are currently broken and don't compile
+#options		ISO
+#options		TPIP			#ISO TP class 4 over IP
+#options		TPCONS			#ISO TP class 0 over X.25
 
 #
 # Network interfaces:
@@ -169,9 +171,11 @@ pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver(user process ppp)
 
 options		NSIP			#XNS over IP
-options		EON			#ISO CLNP over IP
 options		LLC			#X.25 link layer for Ethernets
 options		HDLC			#X.25 link layer for serial lines
+
+# broken
+#options		EON			#ISO CLNP over IP
 
 #
 # Internet family options:
