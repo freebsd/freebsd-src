@@ -143,7 +143,7 @@ static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
 static char *VarModify(char *,
-		       Boolean (*)(const char *, Boolean, Buffer, void *),
+		       Boolean (*)(const char *, Boolean, Buffer *, void *),
 		       void *);
 static int VarPrintVar(void *, void *);
 
@@ -580,10 +580,10 @@ Var_Value(char *name, GNode *ctxt, char **frp)
  *-----------------------------------------------------------------------
  */
 static char *
-VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer, void *),
+VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer *, void *),
     void *datum)
 {
-    Buffer  	  buf;	    	    /* Buffer for the new string */
+    Buffer  	  *buf;	    	    /* Buffer for the new string */
     Boolean 	  addSpace; 	    /* TRUE if need to add a space to the
 				     * buffer before adding the trimmed
 				     * word */
@@ -624,7 +624,7 @@ VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer, void *),
 static char *
 VarSortWords(char *str, int (*cmp)(const void *, const void *))
 {
-	Buffer buf;
+	Buffer *buf;
 	char **av;
 	int ac, i;
 
@@ -674,7 +674,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
     size_t *length, VarPattern *pattern)
 {
     char *cp;
-    Buffer buf = Buf_Init(0);
+    Buffer *buf = Buf_Init(0);
     size_t junk;
 
     if (length == NULL)
@@ -785,7 +785,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 char *
 Var_Quote(const char *str)
 {
-    Buffer  	  buf;
+    Buffer  	 *buf;
     /* This should cover most shells :-( */
     static char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
     char 	  *ret;
@@ -930,7 +930,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	}
     } else {
 	/* build up expanded variable name in this buffer */
-	Buffer	buf = Buf_Init(MAKE_BSIZE);
+	Buffer	*buf = Buf_Init(MAKE_BSIZE);
 
 	startc = str[1];
 	endc = startc == '(' ? ')' : '}';
@@ -1212,7 +1212,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		{
 		    VarPattern 	    pattern;
 		    char	    del;
-		    Buffer  	    buf;    	/* Buffer for patterns */
+		    Buffer  	    *buf;    	/* Buffer for patterns */
 
 		    pattern.flags = 0;
 		    del = tstr[1];
@@ -1457,7 +1457,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		}
 		case 'L':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			Buffer buf;
+			Buffer *buf;
 			buf = Buf_Init(MAKE_BSIZE);
 			for (cp = str; *cp ; cp++)
 			    Buf_AddByte(buf, (Byte)tolower(*cp));
@@ -1497,7 +1497,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    /*FALLTHRU*/
 		case 'U':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			Buffer buf;
+			Buffer *buf;
 			buf = Buf_Init(MAKE_BSIZE);
 			for (cp = str; *cp ; cp++)
 			    Buf_AddByte(buf, (Byte)toupper(*cp));
@@ -1722,7 +1722,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 char *
 Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 {
-    Buffer  	  buf;	    	    /* Buffer for forming things */
+    Buffer  	  *buf;	    	    /* Buffer for forming things */
     char    	  *val;		    /* Value to substitute for a variable */
     size_t	  length;   	    /* Length of the variable invocation */
     Boolean 	  doFree;   	    /* Set true if val should be freed */

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdlib.h>
 
+#include "buf.h"
 #include "cond.h"
 #include "dir.h"
 #include "globals.h"
@@ -189,7 +190,7 @@ CondGetArg(char **linePtr, char **argPtr, char *func, Boolean parens)
 {
     char	  *cp;
     size_t    	  argLen;
-    Buffer	  buf;
+    Buffer	  *buf;
 
     cp = *linePtr;
     if (parens) {
@@ -536,7 +537,7 @@ CondToken(Boolean doEval)
 
 		if (!isspace((unsigned char)*condExpr) &&
 		    strchr("!=><", *condExpr) == NULL) {
-		    Buffer buf;
+		    Buffer *buf;
 		    char *cp;
 
 		    buf = Buf_Init(0);
@@ -605,7 +606,7 @@ do_compare:
 		    char    *string;
 		    char    *cp, *cp2;
 		    int	    qt;
-		    Buffer  buf;
+		    Buffer  *buf;
 
 do_string_compare:
 		    if (((*op != '!') && (*op != '=')) || (op[1] != '=')) {

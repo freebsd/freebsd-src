@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "arch.h"
+#include "buf.h"
 #include "compat.h"
 #include "config.h"
 #include "dir.h"
@@ -1020,7 +1021,7 @@ Cmd_Exec(char *cmd, char **error)
     int 	pid;	    	/* PID from wait() */
     char	*res;		/* result */
     int		status;		/* command exit status */
-    Buffer	buf;		/* buffer to store the result */
+    Buffer	*buf;		/* buffer to store the result */
     char	*cp;
     size_t blen;
     ssize_t rcnt;
