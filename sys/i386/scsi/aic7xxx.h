@@ -19,6 +19,8 @@
  *    Justin T. Gibbs.
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
+ *
+ *	$Id$
  */
 
 #ifndef _AIC7XXX_H_
@@ -68,8 +70,11 @@ typedef enum {
 struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
 /*1*/   u_char control;
-#define	SCB_REJ_MDP 0x80			/* Reject MDP message */
-#define	SCB_DCE 0x40				/* Disconnect enable */
+#define	SCB_NEEDWDTR 0x80			/* Initiate Wide Negotiation */
+#define SCB_NEEDSDTR 0x40			/* Initiate Sync Negotiation */
+#define	SCB_NEEDDMA  0x08			/* SCB needs to be DMA'd from
+						 * from host memory
+						 */
 #define	SCB_TE 0x20				/* Tag enable */
 #define	SCB_WAITING 0x06
 #define	SCB_DIS 0x04
@@ -86,16 +91,17 @@ struct scb {
 /*15*/	u_char target_status;
 /*18*/	u_char residual_data_count[3];
 /*19*/	u_char residual_SG_segment_count;
-#define	SCB_DOWN_SIZE 26		/* amount to actually download */
+#define	SCB_DOWN_SIZE 19		/* amount to actually download */
 /*23*/	physaddr data			 __attribute__ ((packed));
 /*26*/  u_char datalen[3];
 #define SCB_UP_SIZE 26			/* amount to actually upload */
+/*30*/	physaddr host_scb			 __attribute__ ((packed));
 #if 0
 	/*
 	 *  No real point in transferring this to the
 	 *  SCB registers.
 	*/
-	unsigned char RESERVED[6];
+	unsigned char RESERVED[2];
 #endif
 	/*-----------------end of hardware supported fields----------------*/
 	struct scb *next;	/* in free list */
@@ -126,8 +132,10 @@ struct ahc_data {
 	struct	scb *immed_ecb;		/* an outstanding immediete command */
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
-	u_short	needsdtr;		/* Targets we initiate sync neg with */
-	u_short	needwdtr;		/* Targets we initiate wide neg with */
+	u_short	needsdtr_orig;		/* Targets we initiate sync neg with */
+	u_short	needwdtr_orig;		/* Targets we initiate wide neg with */
+	u_short	needsdtr;		/* Current list of negotiated targets */
+	u_short needwdtr;		/* Current list of negotiated targets */
 	int	numscbs;
 	u_char	maxscbs;
 	int	unpause;
