@@ -1204,6 +1204,8 @@ vm_object_split(vm_map_entry_t entry)
 	if (new_object == NULL)
 		return;
 
+	VM_OBJECT_LOCK(new_object);
+	VM_OBJECT_LOCK(orig_object);
 	source = orig_object->backing_object;
 	if (source != NULL) {
 		VM_OBJECT_LOCK(source);
@@ -1218,8 +1220,6 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + offset;
 		new_object->backing_object = source;
 	}
-	VM_OBJECT_LOCK(new_object);
-	VM_OBJECT_LOCK(orig_object);
 	for (idx = 0; idx < size; idx++) {
 	retry:
 		m = vm_page_lookup(orig_object, offidxstart + idx);
