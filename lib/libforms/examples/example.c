@@ -33,66 +33,28 @@
  */
 #include <stdio.h>
 #include <strhash.h>
+#include <ncurses.h>
 #include "../forms.h"
 
-extern hash_table *global_bindings;
+void UserRoutine(OBJECT *);
 
 main()
 {
 	struct Tuple *tuple;
-	struct Form *form;
+	struct Form *form1, *form2;
 	int res;
 
-	initscr();
-
-
-	if (form_load("example.frm") == FS_ERROR)
-		exit(0);;
-
-	form = form_start("example");
-
-	if (!form) {
-		err(-1, "No form `example' in example.frm returned");
+	if (load_objects("example.frm") == ST_ERROR)
 		exit(0);
-	}
 
-	keypad(form->window, TRUE);
-	cbreak();
-	noecho();
+	bind_tuple(root_table, "User_Routine", TT_FUNC, &UserRoutine);
 
-	tuple = form_get_tuple(global_bindings, "example", FT_FORM);
-	if (!tuple)
-		err(0, "No such form: example");
-	else
-		form = (struct Form *)tuple->addr;
+	start_object("adduser");
+}
 
-	print_status("This is the status line");
-
-	form_bind_tuple(form->bindings, "exit_form", FT_FUNC, &exit_form);
-	form_bind_tuple(form->bindings, "cancel_form", FT_FUNC, &cancel_form);
-
-	res = form_show("example");
-
-	while (form->status == FS_RUNNING) {
-		do_field(form);
-		wrefresh(form->window);
-	}
-
-	wclear(form->window);
-	wrefresh(form->window);
-
-	if  (form->status == FS_EXIT) {
-		printf("Your entries were:\n\n");
-		tuple = form_get_tuple(form->bindings, "input1", FT_FIELD_INST);
-		printf("Input 1 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
-		tuple = form_get_tuple(form->bindings, "input2", FT_FIELD_INST);
-		printf("Input 2 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
-		tuple = form_get_tuple(form->bindings, "menu1", FT_FIELD_INST);
-		res = ((struct Field *)tuple->addr)->field.menu->selected;
-		printf("Menu selected = %d, %s\n", res,
-			 ((struct Field *)tuple->addr)->field.menu->options[res]);
-	} else if (form->status == FS_CANCEL)
-		printf("You cancelled the form\n");
-
-	endwin();
+void
+UserRoutine(OBJECT *obj)
+{
+	/* Just draw a box and return */
+	exit (1);
 }
