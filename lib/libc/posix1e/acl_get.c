@@ -29,6 +29,8 @@
  * acl_get_file - syscall wrapper for retrieving ACL by filename
  * acl_get_fd - syscall wrapper for retrieving access ACL by fd
  * acl_get_fd_np - syscall wrapper for retrieving ACL by fd (non-POSIX)
+ * acl_get_perm_np() checks if a permission is in the specified
+ *                   permset (non-POSIX)
  * acl_get_permset() returns the permission set in the ACL entry
  * acl_get_qualifier() retrieves the qualifier of the tag from the ACL entry
  * acl_get_tag_type() returns the tag type for the ACL entry entry_d
@@ -101,6 +103,25 @@ acl_get_fd_np(int fd, acl_type_t type)
 	}
 
 	return (aclp);
+}
+
+int
+acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
+{
+
+	switch(perm) {
+	case ACL_READ:
+	case ACL_WRITE:
+	case ACL_EXECUTE:
+		if (*permset_d & perm)
+			return 1;
+		break;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
 }
 
 int
