@@ -1656,6 +1656,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 #endif
 		in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
+	crfree(tw->tw_cred);
+	tw->tw_cred = NULL;
 	if (reuse)
 		return (tw);
 	uma_zfree(tcptw_zone, tw);
