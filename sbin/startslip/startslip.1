@@ -39,7 +39,7 @@
 .Nm startslip
 .Nd dial up and login to a slip server
 .Sh SYNOPSIS
-.Nm startslip
+.Nm
 .Op Fl d
 .Op Fl b Ar speed
 [
@@ -79,14 +79,14 @@ and goes to wait mode.
 If carrier drops (modem control enabled) or a
 .Dv SIGHUP
 is sent to
-.Nm Ns ,
+.Nm ,
 it closes the device, calls
 .Ar downscript
 and attempts to repeat the dialup and login sequence.
 If a
 .Dv SIGTERM
 is send to
-.Nm Ns ,
+.Nm ,
 it closes the device, calls
 .Ar downscript
 and exits.

@@ -42,27 +42,27 @@
 .Nm disklabel
 .Nd read and write disk pack label
 .Sh SYNOPSIS
-.Nm disklabel
+.Nm
 .Op Fl r
 .Ar disk
-.Nm disklabel
+.Nm
 .Fl w
 .Op Fl r
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
-.Nm disklabel
+.Nm
 .Fl e
 .Op Fl r
 .Ar disk
-.Nm disklabel
+.Nm
 .Fl R
 .Op Fl r
 .Ar disk Ar protofile
-.Nm disklabel
+.Nm
 .Op Fl NW
 .Ar disk
 .Pp
-.Nm disklabel
+.Nm
 .Fl B
 .Oo
 .Fl b Ar boot1
@@ -70,7 +70,7 @@
 .Oc
 .Ar disk
 .Oo Ar disktype/auto Oc
-.Nm disklabel
+.Nm
 .Fl w
 .Fl B
 .Oo
@@ -79,7 +79,7 @@
 .Oc
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
-.Nm disklabel
+.Nm
 .Fl R
 .Fl B
 .Oo
@@ -114,7 +114,7 @@ is described under each command.
 .Ss Disk device name
 .Pp
 All 
-.Nm disklabel 
+.Nm
 forms require a disk device name, which should always be the raw
 device name representing the disk or slice.  For example
 .Pa da0
@@ -140,7 +140,7 @@ To examine or save the label on a disk drive, use
 .Nm 
 without options:
 .Pp
-.Nm disklabel
+.Nm
 .Op Fl r
 .Ar disk
 .Pp
@@ -167,13 +167,13 @@ is corrupt.
 .Pp
 To write a standard label, use the form
 .Pp
-.Nm disklabel
+.Nm
 .Fl w
 .Op Fl r
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Pp
-.Nm disklabel
+.Nm
 .Fl w
 .Op Fl r
 .Ar disk
@@ -241,7 +241,7 @@ described later on in this manual page.
 .Pp
 To edit an existing disk label, use the form
 .Pp
-.Nm disklabel
+.Nm
 .Fl e
 .Op Fl r
 .Ar disk
@@ -262,7 +262,7 @@ was specified.
 .Pp
 To restore a disk label from a file, use the form
 .Pp
-.Nm disklabel
+.Nm
 .Fl R
 .Op Fl r
 .Ar disk Ar protofile
@@ -283,14 +283,14 @@ By default, it is not possible to write to the disk label area at the beginning
 of a disk.  The disk driver silently ignores any attempt to do so.  If you need
 to write to this area (for example, to obliterate the label), use the form
 .Pp
-.Nm disklabel
+.Nm
 .Op Fl W
 .Ar disk
 .Pp
 To disallow writing to the label area after previously allowing it, use the
 command
 .Pp
-.Nm disklabel
+.Nm
 .Op Fl N
 .Ar disk
 .Ss Installing bootstraps
@@ -311,7 +311,7 @@ then install the
 .Fx
 bootblocks in the slice.
 .Pp
-.Nm disklabel
+.Nm
 .Fl B
 .Oo
 .Fl b Ar boot1
@@ -328,7 +328,7 @@ disk, such as
 This command is typically run on a slice such as 
 .Ar da0s1 .
 .Pp
-.Nm disklabel
+.Nm
 .Fl w
 .Fl B
 .Oo
@@ -346,7 +346,7 @@ If run on a base disk this command will create a
 .Dq dangerously-dedicated
 label.  This command is normally run on a slice rather then a base disk.
 .Pp
-.Nm disklabel
+.Nm
 .Fl R
 .Fl B
 .Oo
@@ -454,9 +454,9 @@ partition for /home (usally all remaining space).
 Your mileage may vary.
 .El
 .Pp
-.Nm fdisk -BI da0
+.Nm fdisk Fl BI Ar da0
 .Pp
-.Nm disklabel
+.Nm
 .Fl w
 .Fl r
 .Fl B
@@ -464,7 +464,7 @@ Your mileage may vary.
 auto
 .Pp
 .Pp
-.Nm disklabel
+.Nm
 .Fl e
 .Ar da0s1
 .Pp

@@ -41,7 +41,7 @@
 .Tn NFS
 mount requests
 .Sh SYNOPSIS
-.Nm exports
+.Nm
 .Sh DESCRIPTION
 The
 .Nm
@@ -285,7 +285,7 @@ The
 utility can be made to re-read the
 .Nm
 file by sending it a hangup signal as follows:
-.Bd -literal -offset indet
+.Bd -literal -offset indent
 kill -s HUP `cat /var/run/mountd.pid`
 .Ed
 .Pp

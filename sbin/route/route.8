@@ -39,7 +39,7 @@
 .Nm route
 .Nd manually manipulate the routing tables
 .Sh SYNOPSIS
-.Nm route
+.Nm
 .Op Fl dnqtv
 .Ar command
 .Oo
@@ -99,14 +99,16 @@ routing lookup misses, or suspected network partitionings.
 The monitor command has the syntax:
 .Pp
 .Bd -filled -offset indent -compact
-.Nm route Op Fl n
+.Nm
+.Op Fl n
 .Cm monitor
 .Ed
 .Pp
 The flush command has the syntax:
 .Pp
 .Bd -filled -offset indent -compact
-.Nm route Op Fl n
+.Nm
+.Op Fl n
 .Cm flush
 .Op Ar family
 .Ed
@@ -129,7 +131,8 @@ delineated family will be deleted.
 The other commands have the following syntax:
 .Pp
 .Bd -filled -offset indent -compact
-.Nm route Op Fl n
+.Nm
+.Op Fl n
 .Ar command
 .Op Fl net No \&| Fl host
 .Ar destination gateway
