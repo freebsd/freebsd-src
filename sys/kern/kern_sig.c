@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.41 1998/06/07 17:11:35 dfr Exp $
+ * $Id: kern_sig.c,v 1.42 1998/06/28 08:37:45 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -61,6 +61,7 @@
 #include <sys/stat.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
@@ -79,6 +80,7 @@ static int coredump     __P((struct proc *p));
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
+static char *expand_name	__P((const char*, int, int));
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
@@ -1246,6 +1248,88 @@ sigexit(p, signum)
 	/* NOTREACHED */
 }
 
+static char corefilename[MAXPATHLEN+1] = {"%N.core"};
+SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
+	      sizeof(corefilename), "process corefile name format string");
+
+/*
+ * expand_name(name, uid, pid)
+ * Expand the name described in corefilename, using name, uid, and pid.
+ * corefilename is a printf-like string, with three format specifiers:
+ *	%N	name of process ("name")
+ *	%P	process id (pid)
+ *	%U	user id (uid)
+ * For example, "%N.core" is the default; they can be disabled completely
+ * by using "/dev/null", or all core files can be stored in "/cores/%U/%N-%P".
+ * This is controlled by the sysctl variable kern.corefile (see above).
+ */
+
+static char *
+expand_name(name, uid, pid)
+const char *name; int uid; int pid; {
+	char *temp;
+	char buf[11];		/* Buffer for pid/uid -- max 4B */
+	int i, n;
+	char *format = corefilename;
+
+	temp = malloc(MAXPATHLEN + 3, M_TEMP, M_NOWAIT);
+	bzero(temp, MAXPATHLEN+3);
+	for (i = 0, n = 0; i < MAXPATHLEN && format[i]; i++) {
+		int l;
+		switch (format[i]) {
+		case '%':	/* Format character */
+			i++;
+			switch (format[i]) {
+			case '%':
+				temp[n++] = '%';
+				break;
+			case 'N':	/* process name */
+				l = strlen(name);
+				if ((n + l) > MAXPATHLEN) {
+					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					    pid, name, uid, temp, name);
+					free(temp, M_TEMP);
+					return NULL;
+				}
+				memcpy(temp+n, name, l);
+				n += l;
+				break;
+			case 'P':	/* process id */
+				sprintf(buf, "%u", pid);
+				l = strlen(buf);
+				if ((n + l) > MAXPATHLEN) {
+					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					    pid, name, uid, temp, name);
+					free(temp, M_TEMP);
+					return NULL;
+				}
+				memcpy(temp+n, buf, l);
+				n += l;
+				break;
+			case 'U':	/* user id */
+				sprintf(buf, "%u", uid);
+				l = strlen(buf);
+				if ((n + l) > MAXPATHLEN) {
+					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					    pid, name, uid, temp, name);
+					free(temp, M_TEMP);
+					return NULL;
+				}
+				memcpy(temp+n, buf, l);
+				n += l;
+				break;
+			default:
+			  	log(LOG_ERR, "Unknown format character %c in `%s'\n", format[i], format);
+			}
+			break;
+		default:
+			temp[n++] = format[i];
+		}
+	}
+	return temp;
+}
+
+
 /*
  * Dump core, into a file named "progname.core", unless the process was
  * setuid/setgid.
@@ -1260,7 +1344,7 @@ coredump(p)
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1;
-	char name[MAXCOMLEN+6];		/* progname.core */
+	char *name;			/* name of corefile */
 
 	STOPEVENT(p, S_CORE, 0);
 
@@ -1269,10 +1353,14 @@ coredump(p)
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
 	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
 		return (EFAULT);
-	sprintf(name, "%s.core", p->p_comm);
+	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	if (name == NULL)
+		return (EFAULT);	/* XXX -- not the best error */
+	
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
-	if ((error = vn_open(&nd,
-	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR)))
+	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
+	free(name, M_TEMP);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 
