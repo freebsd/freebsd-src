@@ -159,6 +159,8 @@ struct ohci_xfer {
 	u_int32_t ohci_xfer_flags;
 };
 #define OHCI_ISOC_DIRTY  0x01
+#define OHCI_XFER_ABORTING	0x02	/* xfer is aborting. */
+#define OHCI_XFER_ABORTWAIT	0x04	/* abort completion is being awaited. */
 
 #define OXFER(xfer) ((struct ohci_xfer *)(xfer))
 
