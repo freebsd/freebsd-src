@@ -3,7 +3,7 @@
 # information is shown in K-Blocks
 # setenv BLOCKSIZE	K
 # Uncomment this two lines to activate Russian locale
-# setenv LANG ru_SU.KOI8-R
+# setenv LANG ru_RU.KOI8-R
 # setenv MM_CHARSET KOI8-R
 # Uncomment this two lines to activate Italian locale
 # setenv LANG it_IT.ISO_8859-1
