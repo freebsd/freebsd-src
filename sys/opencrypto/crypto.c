@@ -95,7 +95,8 @@ MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
  * these come in from network protocols at spl0 (output path) or
  * splnet (input path).
  *
- * Requests are queued for processing by a software interrupt thread,
+ * Requests are typically passed on the driver directly, but they
+ * may also be queued for processing by a software interrupt thread,
  * cryptointr, that runs at splsoftcrypto.  This thread dispatches 
  * the requests to crypto drivers (h/w or s/w) who call crypto_done
  * when a request is complete.  Hardware crypto drivers are assumed
@@ -600,13 +601,13 @@ crypto_unblock(u_int32_t driverid, int what)
 }
 
 /*
- * Add a crypto request to a queue, to be processed by the kernel thread.
+ * Dispatch a crypto request to a driver or queue
+ * it, to be processed by the kernel thread.
  */
 int
 crypto_dispatch(struct cryptop *crp)
 {
 	u_int32_t hid = SESID2HID(crp->crp_sid);
-	struct cryptocap *cap;
 	int s, result;
 
 	cryptostats.cs_ops++;
@@ -616,25 +617,45 @@ crypto_dispatch(struct cryptop *crp)
 		nanouptime(&crp->crp_tstamp);
 #endif
 	s = splcrypto();
-	cap = crypto_checkdriver(hid);
-	if (cap && !cap->cc_qblocked) {
-		result = crypto_invoke(crp, 0);
-		if (result == ERESTART) {
+	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
+		struct cryptocap *cap;
+		/*
+		 * Caller marked the request to be processed
+		 * immediately; dispatch it directly to the
+		 * driver unless the driver is currently blocked.
+		 */
+		cap = crypto_checkdriver(hid);
+		if (cap && !cap->cc_qblocked) {
+			result = crypto_invoke(crp, 0);
+			if (result == ERESTART) {
+				/*
+				 * The driver ran out of resources, mark the
+				 * driver ``blocked'' for cryptop's and put
+				 * the op on the queue.
+				 */
+				crypto_drivers[hid].cc_qblocked = 1;
+				TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
+				cryptostats.cs_blocks++;
+			}
+		} else {
 			/*
-			 * The driver ran out of resources, mark the
-			 * driver ``blocked'' for cryptop's and put
-			 * the op on the queue.
+			 * The driver is blocked, just queue the op until
+			 * it unblocks and the swi thread gets kicked.
 			 */
-			crypto_drivers[hid].cc_qblocked = 1;
-			TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
-			cryptostats.cs_blocks++;
+			TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+			result = 0;
 		}
 	} else {
+		int wasempty = TAILQ_EMPTY(&crp_q);
 		/*
-		 * The driver is blocked, just queue the op until
-		 * it unblocks and the swi thread gets kicked.
+		 * Caller marked the request as ``ok to delay'';
+		 * queue it for the swi thread.  This is desirable
+		 * when the operation is low priority and/or suitable
+		 * for batching.
 		 */
 		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+		if (wasempty)
+			setsoftcrypto();
 		result = 0;
 	}
 	splx(s);
@@ -859,26 +880,49 @@ crypto_getreq(int num)
 void
 crypto_done(struct cryptop *crp)
 {
-	int s, wasempty;
-
 	if (crp->crp_etype != 0)
 		cryptostats.cs_errs++;
 #ifdef CRYPTO_TIMING
 	if (crypto_timing)
 		crypto_tstat(&cryptostats.cs_done, &crp->crp_tstamp);
 #endif
-	/*
-	 * The return queue is manipulated by the swi thread
-	 * and, potentially, by crypto device drivers calling
-	 * back to mark operations completed.  Thus we need
-	 * to mask both while manipulating the return queue.
-	 */
-	s = splcrypto();
-	wasempty = TAILQ_EMPTY(&crp_ret_q);
-	TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-	if (wasempty)
-		wakeup_one(&crp_ret_q);
-	splx(s);
+	if (crp->crp_flags & CRYPTO_F_CBIMM) {
+		/*
+		 * Do the callback directly.  This is ok when the
+		 * callback routine does very little (e.g. the
+		 * /dev/crypto callback method just does a wakeup).
+		 */
+#ifdef CRYPTO_TIMING
+		if (crypto_timing) {
+			/*
+			 * NB: We must copy the timestamp before
+			 * doing the callback as the cryptop is
+			 * likely to be reclaimed.
+			 */
+			struct timespec t = crp->crp_tstamp;
+			crypto_tstat(&cryptostats.cs_cb, &t);
+			crp->crp_callback(crp);
+			crypto_tstat(&cryptostats.cs_finis, &t);
+		} else
+#endif
+			crp->crp_callback(crp);
+	} else {
+		int s, wasempty;
+		/*
+		 * Normal case; queue the callback for the thread.
+		 *
+		 * The return queue is manipulated by the swi thread
+		 * and, potentially, by crypto device drivers calling
+		 * back to mark operations completed.  Thus we need
+		 * to mask both while manipulating the return queue.
+		 */
+		s = splcrypto();
+		wasempty = TAILQ_EMPTY(&crp_ret_q);
+		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
+		if (wasempty)
+			wakeup_one(&crp_ret_q);
+		splx(s);
+	}
 }
 
 /*
@@ -977,7 +1021,7 @@ cryptointr(void)
 					break;
 				} else {
 					submit = crp;
-					if (submit->crp_flags & CRYPTO_F_NODELAY)
+					if ((submit->crp_flags & CRYPTO_F_BATCH) == 0)
 						break;
 					/* keep scanning for more are q'd */
 				}
