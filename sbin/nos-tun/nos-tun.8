@@ -65,12 +65,12 @@ address set on the remote end.
 This end, a
 .Fx
 box on address 192.168.59.34:
-.Bd -literal -offset indent 4m 
+.Bd -literal -offset indent
 nos-tun -t /dev/tun0 -s 192.168.61.1 -d 192.168.61.2 192.168.56.45
 .Ed
 .Pp
 Remote cisco on address 192.168.56.45:
-.Bd -literal -offset indent 4m 
+.Bd -literal -offset indent
 interface tunnel 0
 ip address 192.168.61.2 255.255.255.252
 tunnel mode nos

@@ -652,7 +652,7 @@ The supported IP options are:
 (timestamp).
 The absence of a particular option may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 .It Cm tcpoptions Ar spec
 Match if the TCP header contains the comma separated list of
 options specified in
@@ -671,7 +671,7 @@ The supported TCP options are:
 (rfc1644 t/tcp connection count).
 The absence of a particular option may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 .It Cm established
 TCP packets only.
 Match packets that have the RST or ACK bits set.
@@ -694,7 +694,7 @@ and
 .Cm urg .
 The absence of a particular flag may be denoted
 with a
-.Ql ! .
+.Ql \&! .
 A rule which contains a
 .Cm tcpflags
 specification can never match a fragmented packet which has
