@@ -1481,7 +1481,7 @@ xl_attach(dev)
 	 */
 	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, busdma_lock_mutex, &Giant,
+	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_rx_tag);
 	if (error) {
 		printf("xl%d: failed to allocate rx dma tag\n", unit);
@@ -1501,7 +1501,7 @@ xl_attach(dev)
 	error = bus_dmamap_load(sc->xl_ldata.xl_rx_tag,
 	    sc->xl_ldata.xl_rx_dmamap, sc->xl_ldata.xl_rx_list,
 	    XL_RX_LIST_SZ, xl_dma_map_addr,
-	    &sc->xl_ldata.xl_rx_dmaaddr, 0);
+	    &sc->xl_ldata.xl_rx_dmaaddr, BUS_DMA_NOWAIT);
 	if (error) {
 		printf("xl%d: cannot get dma address of the rx ring!\n", unit);
 		bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
@@ -1513,7 +1513,7 @@ xl_attach(dev)
 
 	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, busdma_lock_mutex, &Giant,
+	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_tx_tag);
 	if (error) {
 		printf("xl%d: failed to allocate tx dma tag\n", unit);
@@ -1533,7 +1533,7 @@ xl_attach(dev)
 	error = bus_dmamap_load(sc->xl_ldata.xl_tx_tag,
 	    sc->xl_ldata.xl_tx_dmamap, sc->xl_ldata.xl_tx_list,
 	    XL_TX_LIST_SZ, xl_dma_map_addr,
-	    &sc->xl_ldata.xl_tx_dmaaddr, 0);
+	    &sc->xl_ldata.xl_tx_dmaaddr, BUS_DMA_NOWAIT);
 	if (error) {
 		printf("xl%d: cannot get dma address of the tx ring!\n", unit);
 		bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
@@ -1548,8 +1548,8 @@ xl_attach(dev)
 	 */
 	error = bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, busdma_lock_mutex,
-	    &Giant, &sc->xl_mtag);
+	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, NULL,
+	    NULL, &sc->xl_mtag);
 	if (error) {
 		printf("xl%d: failed to allocate mbuf dma tag\n", unit);
 		goto fail;
@@ -1971,7 +1971,7 @@ xl_newbuf(sc, c)
 	m_adj(m_new, ETHER_ALIGN);
 
 	error = bus_dmamap_load_mbuf(sc->xl_mtag, sc->xl_tmpmap, m_new,
-	    xl_dma_map_rxbuf, &baddr, 0);
+	    xl_dma_map_rxbuf, &baddr, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m_new);
 		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
@@ -2439,7 +2439,7 @@ xl_encap(sc, c, m_head)
  	 * of fragments or hit the end of the mbuf chain.
 	 */
 	error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map, m_head,
-	    xl_dma_map_txbuf, c->xl_ptr, 0);
+	    xl_dma_map_txbuf, c->xl_ptr, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
 		m_freem(m_head);
@@ -2467,7 +2467,7 @@ xl_encap(sc, c, m_head)
 		}
 
 		error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map,
-			m_head, xl_dma_map_txbuf, c->xl_ptr, 0);
+			m_head, xl_dma_map_txbuf, c->xl_ptr, BUS_DMA_NOWAIT);
 		if (error) {
 			m_freem(m_head);
 			printf("xl%d: can't map mbuf (error %d)\n",
