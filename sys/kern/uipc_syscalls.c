@@ -84,7 +84,15 @@ static int getsockname1 __P((struct proc *p, struct getsockname_args *uap,
 static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
 			     int compat));
 
-static SLIST_HEAD(, sf_buf) sf_freelist;
+/*
+ * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the
+ * additional sf_lock mutex.
+ */
+static struct {
+	struct sf_buf *slh_first;
+	struct mtx sf_lock;
+} sf_freelist;
+
 static vm_offset_t sf_base;
 static struct sf_buf *sf_bufs;
 static int sf_buf_alloc_want;
@@ -1327,6 +1335,8 @@ sf_buf_init(void *arg)
 {
 	int i;
 
+	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", MTX_DEF);
+	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	SLIST_INIT(&sf_freelist);
 	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP, M_NOWAIT);
@@ -1335,6 +1345,7 @@ sf_buf_init(void *arg)
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		SLIST_INSERT_HEAD(&sf_freelist, &sf_bufs[i], free_list);
 	}
+	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 }
 
 /*
@@ -1344,25 +1355,21 @@ static struct sf_buf *
 sf_buf_alloc()
 {
 	struct sf_buf *sf;
-	int s;
 
-	s = splimp();
+	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	while ((sf = SLIST_FIRST(&sf_freelist)) == NULL) {
 		sf_buf_alloc_want = 1;
-		tsleep(&sf_freelist, PVM, "sfbufa", 0);
+		msleep(&sf_freelist, &sf_freelist.sf_lock, PVM, "sfbufa", 0);
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist, free_list);
-	splx(s);
+	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 	return (sf);
 }
 
 #define dtosf(x)	(&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
 
 /*
- *
  * Detatch mapped page and release resources back to the system.
- *
- * Must be called at splimp.
  */
 static void
 sf_buf_free(caddr_t addr, void *args)
@@ -1385,15 +1392,17 @@ sf_buf_free(caddr_t addr, void *args)
 		vm_page_free(m);
 	splx(s);
 	sf->m = NULL;
+	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
 	if (sf_buf_alloc_want) {
 		sf_buf_alloc_want = 0;
 		wakeup(&sf_freelist);
 	}
+	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 }
 
 /*
- * sendfile(2).
+ * sendfile(2)
  * int sendfile(int fd, int s, off_t offset, size_t nbytes,
  *	 struct sf_hdtr *hdtr, off_t *sbytes, int flags)
  *
