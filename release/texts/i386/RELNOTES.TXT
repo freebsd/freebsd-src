@@ -133,7 +133,7 @@ awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
 
 Shortly after the receipt of a SIGINFO signal (normally control-T from
-the controlling tty), fsck_ffs will now output a line indicating the
+the controlling tty), fsck(8) will now output a line indicating the
 current phase number and progress information relevant to the current
 phase.
 
