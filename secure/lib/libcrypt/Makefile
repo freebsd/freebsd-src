@@ -1,11 +1,11 @@
 #
-# $Id: Makefile,v 1.12 1997/02/22 14:40:27 peter Exp $
+# $Id: Makefile,v 1.13 1997/09/05 12:21:22 peter Exp $
 #
 
 LCRYPTBASE=     libcrypt
 LDCRYPTBASE=    libdescrypt
 
-.if ${BINFORMAT} != elf
+.if ${OBJFORMAT} != elf
 LCRYPTSO=       $(LCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 LDCRYPTSO=      $(LDCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 .else
@@ -21,7 +21,7 @@ MAN3=	crypt.3
 CFLAGS+=	-I${.CURDIR}/../../../lib/libmd -Wall
 PRECIOUSLIB=	yes
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 SONAME=	${LCRYPTBASE}.so.$(SHLIB_MAJOR)
 .endif
 
@@ -40,7 +40,7 @@ afterinstall:
 	ln -s $(LDCRYPTSO) $(LCRYPTSO); \
 	fi
 .endif
-.if !defined(NOPIC) && defined(SHLIB_MAJOR) && ${BINFORMAT} == elf
+.if !defined(NOPIC) && defined(SHLIB_MAJOR) && ${OBJFORMAT} == elf
 	@cd $(DESTDIR)/$(LIBDIR); \
 	if [ ! -e $(LCRYPTBASE).so ]; then \
 	rm -f $(LCRYPTBASE).so; \
