@@ -54,7 +54,7 @@ int loadAliasHandlers(struct aliasHandlers *h)
             printf("Ignoring environment _PATH_ALIAS value (%s)\n", env);
         }
 
-    dl = dlopen(path, RTLD_LAZY);
+    dl = dlopen(path, 1);
     if (dl == (void *)0) {
         err = dlerror();
         logprintf("_PATH_ALIAS (%s): Invalid lib: %s\n", path, err);
