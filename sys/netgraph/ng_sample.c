@@ -73,7 +73,7 @@ static ng_rcvmsg_t	ng_xxx_rcvmsg;
 static ng_shutdown_t	ng_xxx_shutdown;
 static ng_newhook_t	ng_xxx_newhook;
 static ng_connect_t	ng_xxx_connect;
-static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
+static ng_rcvdata_t	ng_xxx_rcvdata;
 static ng_disconnect_t	ng_xxx_disconnect;
 
 /* Parse type for struct ngxxxstat */
