@@ -163,13 +163,15 @@ mount_critical_filesystems()
 	eval _fslist=\$critical_filesystems_${1}
 	for _fs in $_fslist; do
 		mount | (
-			_ismounted=no
+			_ismounted=false
 			while read what _on on _type type; do
 				if [ $on = $_fs ]; then
-					_ismounted=yes
+					_ismounted=true
 				fi
 			done
-			if [ $_ismounted = no ]; then
+			if $_ismounted; then
+				:
+			else
 				mount $_fs >/dev/null 2>&1
 			fi
 		)
@@ -742,10 +744,10 @@ $command $rc_flags $command_args"
 					# prevent restart being called more
 					# than once by any given script
 					#
-			if [ -n "$_rc_restart_done" ]; then
+			if ${_rc_restart_done:-false}; then
 				return 0
 			fi
-			_rc_restart_done=YES
+			_rc_restart_done=true
 
 			( $0 ${rc_force:+force}stop )
 			$0 ${rc_force:+force}start
@@ -840,7 +842,9 @@ load_rc_config()
 		err 3 'USAGE: load_rc_config command'
 	fi
 
-	if [ -z "$_rc_conf_loaded" ]; then
+	if ${_rc_conf_loaded:-false}; then
+		:
+	else
 		if [ -r /etc/defaults/rc.conf ]; then
 			debug "Sourcing /etc/defaults/rc.conf"
 			. /etc/defaults/rc.conf
@@ -849,7 +853,7 @@ load_rc_config()
 			debug "Sourcing /etc/rc.conf (/etc/defaults/rc.conf doesn't exist)."
 			. /etc/rc.conf
 		fi
-		_rc_conf_loaded=YES
+		_rc_conf_loaded=true
 	fi
 	if [ -f /etc/rc.conf.d/"$_command" ]; then
 		debug "Sourcing /etc/rc.conf.d/${_command}"
