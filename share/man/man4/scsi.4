@@ -5,29 +5,61 @@
 .Nm scsi
 .Nd scsi system
 .Sh SYNOPSIS
-.Nm device-driver scbus
+.Nm controller scbus0
+.Nm device cd0
+.Nm device ch0
+.Nm disk sd0
+.Nm tape st0
+.Nm device ch1 at scbus0 target 4 unit 0
 .Sh DESCRIPTION
 The
 .Em scsi
-system provides a uniform and modular system for the implimentation
+system provides a uniform and modular system for the implementation
 of drivers to control various scsi devices, and to utilise different
-scsi adapters through adapter drivers. When the system probes the 
+scsi host adapters through host adapter drivers. When the system probes the 
 .Em SCSI
 busses, it attaches any devices it finds to the appropriate
-drivers. If no driver seems appropriate, then at attaches the device to the
-uk (unknown) driver (if configured), so that user level scsi ioctls may
+drivers. If no driver seems appropriate, then it attaches the device to the
+uk (unknown) driver so that user level scsi ioctls may
 still be performed against the device.
 .Sh KERNEL CONFIGURATION
-Continuously changing. check your nearest bsd mailing list.
 The option SCSIDEBUG enables the debug ioctl.
+.Pp
+All devices and the SCSI busses support boot time allocation so that
+an upper number of devices and controllers does not need to be configured;
+.Em "device sd0"
+will suffice for any number of disk drivers.
+.Pp
+The devices are either
+.Em wired
+so they appear as a particular device unit or
+.Em counted
+so that they appear as the next available unused unit.
+.Pp
+To configure a driver in the kernel without wiring down the device use a
+config line similar to
+.Em "device ch0"
+to include the changer driver.
+.Pp
+To wire down a
+unit use a config line similar to
+.Em "device ch1 at scbus0 target 4 unit 0"
+to assign changer 1 as the changer with SCSI ID 4 SCSI logical unit 0 on
+SCSI bus 0.
+.Pp
+When you have a mixture of wired down and counted devices then the
+counting begins with the first non-wired down unit for a particular
+type.  That is, if you have a disk wired down as
+.Em "disk sd1" ,
+then the first non-wired disk shall come on line as
+.Em sd2 .
 .Sh IOCTLS
-There are a number of ioctls that will (when the next stage is complete)
-work on any 
+There are a number of ioctls that work on any 
 .Em SCSI
 device. They are defined in
 .Em sys/scsiio.h
-and can be applied against any scsi device that allows both read and write,
-though for devices such as tape, it must be applied against the control
+and can be applied against any scsi device that permits them.
+For the tape, it must be applied against the control
 device. See the manual page for each device type for more information about
 how generic scsi ioctls may be applied to a specific device.
 .Bl -tag -width DIOCSDINFO____
