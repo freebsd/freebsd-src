@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.8 1995/05/26 19:28:00 jkh Exp $
+ * $Id: config.c,v 1.9 1995/05/26 20:45:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,7 +242,7 @@ configSysconfig(void)
 	    if (!strcmp(modify, v->name)) {
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 3);
-		sprintf(lines[i], "%s=%s\n", v->name, v->value);
+		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }
 	    
 	}
@@ -269,7 +269,7 @@ configSysconfig(void)
 
 		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
 		    if (getenv(iname))
-			fprintf(fp, "%s=%s\n", iname, getenv(iname));
+			fprintf(fp, "%s=\"%s\"\n", iname, getenv(iname));
 		}
 	    }
 	}
