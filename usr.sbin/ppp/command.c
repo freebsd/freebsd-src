@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.148 1998/06/20 00:19:33 brian Exp $
+ * $Id: command.c,v 1.149 1998/06/25 22:33:15 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/20 00:19:33 $";
+const char VersionDate[] = "$Date: 1998/06/25 22:33:15 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1695,12 +1695,10 @@ AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (alias_Load() == 0)
-	return 0;
-      log_Printf(LogWARN, "Cannot load alias library\n");
-      return 1;
+      arg->bundle->AliasEnabled = 1;
+      return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
-      alias_Unload();
+      arg->bundle->AliasEnabled = 0;
       return 0;
     }
   }
@@ -1715,14 +1713,14 @@ AliasOption(struct cmdargs const *arg)
   unsigned param = (unsigned)arg->cmd->args;
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (alias_IsEnabled()) {
-	(*PacketAlias.SetMode)(param, param);
+      if (arg->bundle->AliasEnabled) {
+	PacketAliasSetMode(param, param);
 	return 0;
       }
       log_Printf(LogWARN, "alias not enabled\n");
     } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
-      if (alias_IsEnabled()) {
-	(*PacketAlias.SetMode)(0, param);
+      if (arg->bundle->AliasEnabled) {
+	PacketAliasSetMode(0, param);
 	return 0;
       }
       log_Printf(LogWARN, "alias not enabled\n");

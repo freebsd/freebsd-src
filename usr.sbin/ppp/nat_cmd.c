@@ -2,14 +2,20 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.13 1998/05/21 21:43:42 brian Exp $
+ *	$Id: alias_cmd.c,v 1.14 1998/06/15 19:05:59 brian Exp $
  */
 
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
+#include <alias.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,10 +24,24 @@
 #include "defs.h"
 #include "command.h"
 #include "log.h"
-#include "loadalias.h"
 #include "alias_cmd.h"
 #include "descriptor.h"
 #include "prompt.h"
+#include "timer.h"
+#include "fsm.h"
+#include "slcompress.h"
+#include "throughput.h"
+#include "iplist.h"
+#include "ipcp.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "mbuf.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
+#include "filter.h"
+#include "bundle.h"
 
 
 static int StrToAddr(const char *, struct in_addr *);
@@ -32,7 +52,7 @@ static int StrToAddrAndPort(const char *, struct in_addr *, u_short *, const cha
 int
 alias_RedirectPort(struct cmdargs const *arg)
 {
-  if (!alias_IsEnabled()) {
+  if (!arg->bundle->AliasEnabled) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
   } else if (arg->argc == arg->argn+3) {
@@ -76,10 +96,10 @@ alias_RedirectPort(struct cmdargs const *arg)
     }
     null_addr.s_addr = INADDR_ANY;
 
-    link = (*PacketAlias.RedirectPort)(local_addr, local_port,
-				      null_addr, 0,
-				      null_addr, alias_port,
-				      proto_constant);
+    link = PacketAliasRedirectPort(local_addr, local_port,
+				   null_addr, 0,
+				   null_addr, alias_port,
+				   proto_constant);
 
     if (link == NULL)
       prompt_Printf(arg->prompt, "port redirect: error returned by packed"
@@ -94,7 +114,7 @@ alias_RedirectPort(struct cmdargs const *arg)
 int
 alias_RedirectAddr(struct cmdargs const *arg)
 {
-  if (!alias_IsEnabled()) {
+  if (!arg->bundle->AliasEnabled) {
     prompt_Printf(arg->prompt, "alias not enabled\n");
     return 1;
   } else if (arg->argc == arg->argn+2) {
@@ -115,7 +135,7 @@ alias_RedirectAddr(struct cmdargs const *arg)
                     arg->cmd->syntax);
       return 1;
     }
-    link = (*PacketAlias.RedirectAddr)(local_addr, alias_addr);
+    link = PacketAliasRedirectAddr(local_addr, alias_addr);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
