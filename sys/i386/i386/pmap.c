@@ -2465,9 +2465,9 @@ retry:
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
 
 static int pmap_prefault_pageorder[] = {
-	-PAGE_SIZE, PAGE_SIZE,
+	-1 * PAGE_SIZE, 1 * PAGE_SIZE,
 	-2 * PAGE_SIZE, 2 * PAGE_SIZE,
-	-3 * PAGE_SIZE, 3 * PAGE_SIZE
+	-3 * PAGE_SIZE, 3 * PAGE_SIZE,
 	-4 * PAGE_SIZE, 4 * PAGE_SIZE
 };
 
