@@ -28,9 +28,24 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
+#define	HAVE_GEOM
+#ifdef HAVE_GEOM
+#include <ctype.h>
+#include <errno.h>
+#include <assert.h>
+#endif /*HAVE_GEOM*/
+
 #ifndef PC98
 #define DOSPTYP_EXTENDED        5
 #define DOSPTYP_ONTRACK         84
+#endif
+
+#ifdef DEBUG
+#define	DPRINT(x)	warn x
+#define	DPRINTX(x)	warnx x
+#else
+#define	DPRINT(x)
+#define	DPRINTX(x)
 #endif
 
 const char *chunk_n[] = {
@@ -59,10 +74,371 @@ Read_Int32(u_int32_t *p)
 }
 #endif
 
+#ifdef HAVE_GEOM
+/*
+ * XXX BEGIN HACK XXX
+ * Scan/parse the XML geom data to retrieve what we need to
+ * carry out the work of Int_Open_Disk.  This is a total hack
+ * and should be replaced with a real XML parser.
+ */
+typedef enum {
+	XML_MESH,
+	XML_MESH_END,
+	XML_CLASS,
+	XML_CLASS_END,
+	XML_GEOM,
+	XML_GEOM_END,
+	XML_CONFIG,
+	XML_CONFIG_END,
+	XML_PROVIDER,
+	XML_PROVIDER_END,
+	XML_NAME,
+	XML_NAME_END,
+	XML_INDEX,
+	XML_INDEX_END,
+	XML_LENGTH,
+	XML_LENGTH_END,
+	XML_SECLENGTH,
+	XML_SECLENGTH_END,
+	XML_SECOFFSET,
+	XML_SECOFFSET_END,
+	XML_OFFSET,
+	XML_OFFSET_END,
+	XML_TYPE,
+	XML_TYPE_END,
+
+	XML_OTHER,
+	XML_OTHER_END
+} XMLToken;
+
+#ifdef DEBUG
+static const char*
+xmltokenname(XMLToken t)
+{
+	switch (t) {
+	case XML_MESH:		return "XML_MESH";
+	case XML_MESH_END:	return "XML_MESH_END";
+	case XML_CLASS:		return "XML_CLASS";
+	case XML_CLASS_END:	return "XML_CLASS_END";
+	case XML_GEOM:		return "XML_GEOM";
+	case XML_GEOM_END:	return "XML_GEOM_END";
+	case XML_CONFIG:	return "XML_CONFIG";
+	case XML_CONFIG_END:	return "XML_CONFIG_END";
+	case XML_PROVIDER:	return "XML_PROVIDER";
+	case XML_PROVIDER_END:	return "XML_PROVIDER_END";
+	case XML_NAME:		return "XML_NAME";
+	case XML_NAME_END:	return "XML_NAME_END";
+	case XML_INDEX:		return "XML_INDEX";
+	case XML_INDEX_END:	return "XML_INDEX_END";
+	case XML_LENGTH:	return "XML_LENGTH";
+	case XML_LENGTH_END:	return "XML_LENGTH_END";
+	case XML_SECLENGTH:	return "XML_SECLENGTH";
+	case XML_SECLENGTH_END:	return "XML_SECLENGTH_END";
+	case XML_SECOFFSET:	return "XML_SECOFFSET";
+	case XML_SECOFFSET_END:	return "XML_SECOFFSET_END";
+	case XML_OFFSET:	return "XML_OFFSET";
+	case XML_OFFSET_END:	return "XML_OFFSET_END";
+	case XML_TYPE:		return "XML_TYPE";
+	case XML_TYPE_END:	return "XML_TYPE_END";
+
+	case XML_OTHER:		return "XML_OTHER";
+	case XML_OTHER_END:	return "XML_OTHER_END";
+	}
+	return "???";
+}
+#endif /*DEBUG*/
+
+/*
+ * Parse the next XML token delimited by <..>.  If the token
+ * has a "builtin terminator" (<... />) then just skip it and
+ * go the next token.
+ */
+static int
+xmltoken(const char *start, const char **next, XMLToken *t)
+{
+	const char *cp = start;
+	const char *token;
+
+again:
+	while (*cp != '<') {
+		if (*cp == '\0') {
+			*next = cp;
+			DPRINTX(("xmltoken: EOD"));
+			return 0;
+		}
+		cp++;
+	}
+	token = ++cp;
+	for (; *cp && *cp != '>' && !isspace(*cp); cp++)
+		;
+	if (*cp == '\0') {
+		*next = cp;
+		DPRINTX(("xmltoken: EOD"));
+		return 0;
+	}
+	*t = (*token == '/');
+	if (*t)
+		token++;
+	if (strncasecmp(token, "mesh", cp-token) == 0)
+		*t += XML_MESH;
+	else if (strncasecmp(token, "class", cp-token) == 0)
+		*t += XML_CLASS;
+	else if (strncasecmp(token, "geom", cp-token) == 0)
+		*t += XML_GEOM;
+	else if (strncasecmp(token, "config", cp-token) == 0)
+		*t += XML_CONFIG;
+	else if (strncasecmp(token, "provider", cp-token) == 0)
+		*t += XML_PROVIDER;
+	else if (strncasecmp(token, "name", cp-token) == 0)
+		*t += XML_NAME;
+	else if (strncasecmp(token, "index", cp-token) == 0)
+		*t += XML_INDEX;
+	else if (strncasecmp(token, "length", cp-token) == 0)
+		*t += XML_LENGTH;
+	else if (strncasecmp(token, "seclength", cp-token) == 0)
+		*t += XML_SECLENGTH;
+	else if (strncasecmp(token, "secoffset", cp-token) == 0)
+		*t += XML_SECOFFSET;
+	else if (strncasecmp(token, "offset", cp-token) == 0)
+		*t += XML_OFFSET;
+	else if (strncasecmp(token, "type", cp-token) == 0)
+		*t += XML_TYPE;
+	else
+		*t += XML_OTHER;
+	/* now collect the remainder of the string */
+	for (; *cp != '>' && *cp != '\0'; cp++)
+		;
+	if (*cp == '\0') {
+		*next = cp;
+		DPRINTX(("xmltoken: EOD"));
+		return 0;
+	}
+	if (cp > token && cp[-1] == '/') {
+		/* e.g. <geom ref="0xc1c8c100"/> */
+		start = cp+1;
+		goto again;
+	}
+	*next = cp+1;
+	DPRINTX(("xmltoken: %s \"%.*s\"", xmltokenname(*t), cp-token, token));
+	return 1;
+}
+
+/*
+ * Parse and discard XML up to the token terminator.
+ */
+static int
+discardxml(const char **next, XMLToken terminator)
+{
+	const char *xml = *next;
+	XMLToken t;
+
+	DPRINTX(("discard XML up to %s", xmltokenname(terminator)));
+	for (;;) {
+		if (xmltoken(xml, next, &t) == 0)
+			return EINVAL;
+		if (t == terminator)
+			break;
+		if ((t & 1) == 0) {
+			int error = discardxml(next, t+1);
+			if (error)
+				return error;
+		}
+		xml = *next;
+	}
+	return 0;
+}
+
+/*
+ * Parse XML from between a range of markers; e.g. <mesh> ... </mesh>.
+ * When the specified class name is located we descend looking for the
+ * geometry information given by diskname.  Once inside there we process
+ * tags calling f back for each useful one.  The arg is passed into f
+ * for use in storing the parsed data.
+ */
+static int
+parsexmlpair(
+	const char *xml,
+	const char **next,
+	const char *classname,
+	XMLToken terminator,
+	const char *diskname,
+	int (*f)(void *, XMLToken, u_int *, u_long),
+	void *arg
+)
+{
+	const char *cp;
+	XMLToken t;
+	int error;
+	u_int ix = (u_int) -1;
+
+	DPRINTX(("parse XML up to %s", xmltokenname(terminator)));
+	do {
+		if (xmltoken(xml, next, &t) == 0) {
+			error = EINVAL;
+			break;
+		}
+		if (t == terminator) {
+			error = 0;
+			break;
+		}
+		if (t & 1) {		/* </mumble> w/o matching <mumble> */
+			DPRINTX(("Unexpected token %s", xmltokenname(t)));
+			error = EINVAL;
+			break;
+		}
+		switch ((int) t) {
+		case XML_NAME:
+			for (cp = *next; *cp && *cp != '<'; cp++)
+				;
+			if (*cp == '\0') {
+				DPRINTX(("parsexmlpair: EOD"));
+				error = EINVAL;
+				goto done;
+			    }
+			DPRINTX(("parsexmlpair: \"%.*s\"", cp-*next, *next));
+			switch ((int) terminator) {
+			case XML_CLASS_END:
+				if (strncasecmp(*next, classname, cp-*next))
+					return discardxml(next, terminator);
+				break;
+			case XML_GEOM_END:
+				if (strncasecmp(*next, diskname, cp-*next))
+					return discardxml(next, terminator);
+				break;
+			}
+			break;
+		case XML_SECOFFSET:
+		case XML_SECLENGTH:
+		case XML_TYPE:
+			if (ix == (u_int) -1) {
+				DPRINTX(("parsexmlpair: slice data w/o "
+					"preceding index"));
+				error = EINVAL;
+				goto done;
+			}
+			/* fall thru... */
+		case XML_INDEX:
+			if (terminator != XML_CONFIG_END) {
+				DPRINTX(("parsexmlpair: %s in unexpected "
+				      "context: terminator %s",
+				      xmltokenname(t),
+				      xmltokenname(terminator)));
+				error = EINVAL;
+				goto done;
+			}
+			error = (*f)(arg, t, &ix, strtoul(*next, NULL, 10));
+			if (error)
+				goto done;
+			break;
+		}
+		error = parsexmlpair(*next, &xml, classname,
+				     t+1, diskname, f, arg);
+	} while (error == 0);
+done:
+	return error;
+}
+
+/*
+ * XML parser.  Just barely smart enough to handle the
+ * gibberish that geom passed back from the kernel.
+ */
+static int
+xmlparse(
+	const char *confxml,
+	const char *classname,
+	const char *diskname,
+	int (*f)(void *, XMLToken, u_int *, u_long),
+	void *arg
+)
+{
+	const char *next;
+	XMLToken t;
+	int error;
+
+	next = confxml;
+	while (xmltoken(next, &next, &t) && t != XML_MESH)
+		;
+	if (t == XML_MESH)
+		error = parsexmlpair(next, &next, classname, XML_MESH_END, diskname, f, arg);
+	else {
+		DPRINTX(("xmlparse: expecting mesh token, got %s",
+		      xmltokenname(t)));
+		error = EINVAL;
+	}
+
+	return (error ? -1 : 0);
+}
+
+/*
+ * Callback to collect slice-related data.
+ */
+static int
+assignToSlice(void *arg, XMLToken t, u_int *slice, u_long v)
+{
+	struct diskslices *ds = (struct diskslices *) arg;
+
+	switch ((int) t) {
+	case XML_INDEX:
+		*slice = BASE_SLICE + (u_int) v;
+		if (*slice >= MAX_SLICES) {
+			DPRINTX(("assignToSlice: invalid slice index %u > max %u",
+			      *slice, MAX_SLICES));
+			return EINVAL;
+		}
+		if (*slice >= ds->dss_nslices)
+			ds->dss_nslices = (*slice)+1;
+		break;
+	case XML_SECOFFSET:
+		ds->dss_slices[*slice].ds_offset = v;
+		break;
+	case XML_SECLENGTH:
+		ds->dss_slices[*slice].ds_size = v;
+		break;
+	case XML_TYPE:
+		ds->dss_slices[*slice].ds_type = v;
+		break;
+	}
+	return 0;
+}
+
+/*
+ * Callback to collect partition-related data.
+ */
+static int
+assignToPartition(void *arg, XMLToken t, u_int *part, u_long v)
+{
+	struct disklabel *dl = (struct disklabel *) arg;
+
+	switch ((int) t) {
+	case XML_INDEX:
+		*part = (u_int) v;
+		if (*part >= MAXPARTITIONS) {
+			DPRINTX(("assignToPartition: invalid partition index %u > max %u",
+			      *part, MAXPARTITIONS));
+			return EINVAL;
+		}
+		if (*part >= dl->d_npartitions)
+			dl->d_npartitions = (*part)+1;
+		break;
+	case XML_SECOFFSET:
+		dl->d_partitions[*part].p_offset = (u_int32_t) v;
+		break;
+	case XML_SECLENGTH:
+		dl->d_partitions[*part].p_size = (u_int32_t) v;
+		break;
+	case XML_TYPE:
+		dl->d_partitions[*part].p_fstype = (u_int8_t) v;
+		break;
+	}
+	return 0;
+}
+#endif /*HAVE_GEOM*/
+
 struct disk *
 Int_Open_Disk(const char *name, u_long size)
 {
-	int i,fd;
+	int i;
+	int fd = -1;
 	struct diskslices ds;
 	struct disklabel dl;
 	char device[64], *buf;
@@ -75,6 +451,11 @@ Int_Open_Disk(const char *name, u_long size)
 	void *p;
 #endif
 	u_long offset = 0;
+#ifdef HAVE_GEOM
+	char *confxml = NULL;
+	size_t xmlsize;
+	int error;
+#endif /*HAVE_GEOM*/
 
 	strlcpy(device, _PATH_DEV, sizeof(device));
 	strlcat(device, name, sizeof(device));
@@ -85,27 +466,52 @@ Int_Open_Disk(const char *name, u_long size)
 
 	fd = open(device, O_RDONLY);
 	if (fd < 0) {
-#ifdef DEBUG
-		warn("open(%s) failed", device);
-#endif
-		return 0;
+		DPRINT(("open(%s) failed", device));
+		goto bad;
 	}
 
 	memset(&dl, 0, sizeof dl);
+	memset(&ds, 0, sizeof ds);
+#ifdef HAVE_GEOM
+	/*
+	 * Read and hack-parse the XML that provides the info we need.
+	 */
+	error = sysctlbyname("kern.geom.confxml", NULL, &xmlsize, NULL, 0);
+	if (error) {
+		warn("kern.geom.confxml sysctl not available, giving up!");
+		goto bad;
+	}
+	confxml = (char *) malloc(xmlsize+1);
+	if (confxml == NULL) {
+		DPRINT(("cannot malloc memory for confxml"));
+		goto bad;
+	}
+	error = sysctlbyname("kern.geom.confxml", confxml, &xmlsize, NULL, 0);
+	if (error) {
+		DPRINT(("error reading kern.geom.confxml from the system"));
+		goto bad;
+	}
+	confxml[xmlsize] = '\0';	/* in case kernel bug is still there */
+
+	if (xmlparse(confxml, "MBR", name, assignToSlice, &ds) != 0) {
+		DPRINTX(("Error parsing MBR geometry specification."));
+		goto bad;
+	}
+	/* XXX how do I get this info from the XML? */
+	for (i = BASE_SLICE; i < ds.dss_nslices; i++) {
+		struct diskslice *dsp = &ds.dss_slices[i];
+		if (dsp->ds_offset + dsp->ds_size > ds.dss_slices[WHOLE_DISK_SLICE].ds_size)
+			ds.dss_slices[WHOLE_DISK_SLICE].ds_size = dsp->ds_offset + dsp->ds_size;
+	}
+#else /* !HAVE_GEOM */
 	if (ioctl(fd, DIOCGDINFO, &dl) < 0) {
-#ifdef DEBUG
-		warn("DIOCGDINFO(%s) failed", device);
-#endif
-		close(fd);
-		return 0;
+		DPRINT(("DIOCGDINFO(%s) failed", device));
+		goto bad;
 	}
 	i = ioctl(fd, DIOCGSLICEINFO, &ds);
 	if (i < 0) {
-#ifdef DEBUG
-		warn("DIOCGSLICEINFO(%s) failed", device);
-#endif
-		close(fd);
-		return 0;
+		DPRINT(("DIOCGSLICEINFO(%s) failed", device));
+		goto bad;
 	}
 
 #ifdef DEBUG
@@ -115,6 +521,7 @@ Int_Open_Disk(const char *name, u_long size)
 				i, ds.dss_slices[i].ds_openmask);
 	printf("\n");
 #endif
+#endif /*SADDLED_WTIH_GEOM*/
 
 /* XXX --- ds.dss_slice[WHOLE_DISK_SLICE].ds.size of MO disk is wrong!!! */
 #ifdef PC98
@@ -136,11 +543,10 @@ Int_Open_Disk(const char *name, u_long size)
 	}
 	free (buf);
 	if (sector_size > MAX_SEC_SIZE) {
-#ifdef DEBUG
-		warn("Int_Open_Disk: could not determine sector size, "
-		     "calculated %u, max %u\n", sector_size, MAX_SEC_SIZE);
-#endif
-		return NULL; /* could not determine sector size */
+		DPRINT(("Int_Open_Disk: could not determine sector size, "
+		     "calculated %u, max %u\n", sector_size, MAX_SEC_SIZE));
+		/* could not determine sector size */
+		goto bad;
 	}
 
 #ifdef PC98
@@ -179,11 +585,7 @@ Int_Open_Disk(const char *name, u_long size)
 #else
 	if (Add_Chunk(d, -offset, size, name, whole, 0, 0))
 #endif
-#ifdef DEBUG
-		warn("Failed to add 'whole' chunk");
-#else
-		{}
-#endif
+		DPRINT(("Failed to add 'whole' chunk"));
 
 #ifdef __i386__
 #ifdef PC98
@@ -201,9 +603,11 @@ Int_Open_Disk(const char *name, u_long size)
 #endif /* PC98 */
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
+		char pname[20];
 		chunk_e ce;
 		u_long flags=0;
 		int subtype=0;
+		int j;
 
 		if (! ds.dss_slices[i].ds_size)
 			continue;
@@ -254,11 +658,7 @@ Int_Open_Disk(const char *name, u_long size)
 		if (Add_Chunk(d, ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname, ce, subtype, flags))
 #endif
-#ifdef DEBUG
-			warn("failed to add chunk for slice %d", i - 1);
-#else
-			{}
-#endif
+			DPRINT(("failed to add chunk for slice %d", i - 1));
 
 #ifdef PC98
 		if ((ds.dss_slices[i].ds_type & 0x7f) != 0x14)
@@ -266,29 +666,32 @@ Int_Open_Disk(const char *name, u_long size)
 		if (ds.dss_slices[i].ds_type != 0xa5)
 #endif
 			continue;
+#ifdef HAVE_GEOM
+		if (xmlparse(confxml, "BSD", sname, assignToPartition, &dl) != 0) {
+			DPRINTX(("Error parsing MBR geometry specification."));
+			goto bad;
+		}
+#else
 		{
 		struct disklabel dl;
-		char pname[20];
-		int j, k;
+		int k;
 
 		strlcpy(pname, _PATH_DEV, sizeof(pname));
 		strlcat(pname, sname, sizeof(pname));
 		j = open(pname, O_RDONLY);
 		if (j < 0) {
-#ifdef DEBUG
-			warn("open(%s)", pname);
-#endif
+			DPRINT(("open(%s)", pname));
 			continue;
 		}
 		k = ioctl(j, DIOCGDINFO, &dl);
 		if (k < 0) {
-#ifdef DEBUG
-			warn("ioctl(%s, DIOCGDINFO)", pname);
-#endif
+			DPRINT(("ioctl(%s, DIOCGDINFO)", pname));
 			close(j);
 			continue;
 		}
 		close(j);
+		}
+#endif /*HAVE_GEOM*/
 
 		for(j = 0; j <= dl.d_npartitions; j++) {
 			if (j == RAW_PART)
@@ -318,15 +721,10 @@ Int_Open_Disk(const char *name, u_long size)
 #else
 				0) && j != 3)
 #endif
-#ifdef DEBUG
-				warn(
+				DPRINT((
 			"Failed to add chunk for partition %c [%lu,%lu]",
 			j + 'a', dl.d_partitions[j].p_offset,
-			dl.d_partitions[j].p_size);
-#else
-				{}
-#endif
-		}
+			dl.d_partitions[j].p_size));
 		}
 	}
 #endif /* __i386__ */
@@ -340,16 +738,12 @@ Int_Open_Disk(const char *name, u_long size)
 		strlcat(pname, name, sizeof(pname));
 		j = open(pname, O_RDONLY);
 		if (j < 0) {
-#ifdef DEBUG
-			warn("open(%s)", pname);
-#endif
+			DPRINT(("open(%s)", pname));
 			goto nolabel;
 		}
 		k = ioctl(j, DIOCGDINFO, &dl);
 		if (k < 0) {
-#ifdef DEBUG
-			warn("ioctl(%s, DIOCGDINFO)", pname);
-#endif
+			DPRINT(("ioctl(%s, DIOCGDINFO)", pname));
 			close(j);
 			goto nolabel;
 		}
@@ -378,14 +772,10 @@ Int_Open_Disk(const char *name, u_long size)
 				      pname,part,
 				      dl.d_partitions[j].p_fstype,
 				      0) && j != 3)
-#ifdef DEBUG
-				warn(
+				DPRINT((
 					"Failed to add chunk for partition %c [%lu,%lu]",
 					j + 'a', dl.d_partitions[j].p_offset,
-					dl.d_partitions[j].p_size);
-#else
-			{}
-#endif
+					dl.d_partitions[j].p_size));
 		}
 	nolabel:;
 	}
@@ -396,6 +786,12 @@ pc98_mo_done:
 	close(fd);
 	Fixup_Names(d);
 	return d;
+bad:
+	if (confxml != NULL)
+		free(confxml);
+	if (fd >= 0)
+		close(fd);
+	return NULL;
 }
 
 void
@@ -527,12 +923,12 @@ Disk_Names()
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
     error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
     if (!error) {
-	    disklist = (char *)malloc(listsize);
+	    disklist = (char *)malloc(listsize+1);
 	    if (disklist == NULL) {
 		    free(disks);
 		    return NULL;
 	    }
-	    memset(disklist, 0, listsize);
+	    memset(disklist, 0, listsize+1);
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
 	    if (error) {
 		    free(disklist);
@@ -559,9 +955,7 @@ Disk_Names()
 			if ((fd = open(disk, O_RDWR)) == -1)
 				continue;
 			if (ioctl(fd, DIOCGSLICEINFO, &ds) == -1) {
-#ifdef DEBUG
-				warn("DIOCGSLICEINFO %s", disk);
-#endif
+				DPRINT(("DIOCGSLICEINFO %s", disk));
 				close(fd);
 				continue;
 			}
