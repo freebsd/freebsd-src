@@ -2367,14 +2367,13 @@ static fo_stat_t	badfo_stat;
 static fo_close_t	badfo_close;
 
 struct fileops badfileops = {
-	badfo_readwrite,
-	badfo_readwrite,
-	badfo_ioctl,
-	badfo_poll,
-	badfo_kqfilter,
-	badfo_stat,
-	badfo_close,
-	0
+	.fo_read = badfo_readwrite,
+	.fo_write = badfo_readwrite,
+	.fo_ioctl = badfo_ioctl,
+	.fo_poll = badfo_poll,
+	.fo_kqfilter = badfo_kqfilter,
+	.fo_stat = badfo_stat,
+	.fo_close = badfo_close,
 };
 
 static int

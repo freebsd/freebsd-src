@@ -93,13 +93,13 @@ static	int cryptof_stat(struct file *, struct stat *,
 static	int cryptof_close(struct file *, struct thread *);
 
 static struct fileops cryptofops = {
-    cryptof_rw,
-    cryptof_rw,
-    cryptof_ioctl,
-    cryptof_poll,
-    cryptof_kqfilter,
-    cryptof_stat,
-    cryptof_close
+    .fo_read = cryptof_rw,
+    .fo_write = cryptof_rw,
+    .fo_ioctl = cryptof_ioctl,
+    .fo_poll = cryptof_poll,
+    .fo_kqfilter = cryptof_kqfilter,
+    .fo_stat = cryptof_stat,
+    .fo_close = cryptof_close
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);
