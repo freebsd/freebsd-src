@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.215 1999/07/23 03:42:23 jkh Exp $
+ * $Id: menus.c,v 1.216 1999/07/23 15:39:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,7 +254,9 @@ DMenu MenuIndex = {
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
+#ifdef __i386__
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
+#endif
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
@@ -1204,8 +1206,10 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
+#ifdef __i386__
       { "F Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
+#endif
       { "1 User Management",	"Add user and group information",
 	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "2 Console",	"Customize system console behavior",
