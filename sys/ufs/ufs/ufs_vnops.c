@@ -499,7 +499,7 @@ ufs_setattr(ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
-		if (!suser_cred(cred, SUSER_ALLOWJAIL)) {
+		if (!suser_cred(cred, 0)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
