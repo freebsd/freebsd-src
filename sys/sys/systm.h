@@ -167,9 +167,9 @@ void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
-char	*getenv __P((char *name));
-int	getenv_int __P((char *name, int *data));
-quad_t	getenv_quad __P((char *name, quad_t *data));
+char	*getenv __P((const char *name));
+int	getenv_int __P((const char *name, int *data));
+quad_t	getenv_quad __P((const char *name, quad_t *data));
 extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
