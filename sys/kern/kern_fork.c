@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id$
+ * $Id: kern_fork.c,v 1.3 1994/08/02 07:42:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -262,10 +262,16 @@ again:
 #endif
 
 	/*
+	 * set priority of child to be that of parent
+	 */
+	p2->p_estcpu = p1->p_estcpu;
+
+	/*
 	 * This begins the section where we must prevent the parent
 	 * from being swapped.
 	 */
 	p1->p_flag |= P_NOSWAP;
+
 	/*
 	 * Set return values for child before vm_fork,
 	 * so they can be copied to child stack.
