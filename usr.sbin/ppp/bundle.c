@@ -39,6 +39,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -603,7 +608,7 @@ bundle_UnlockTun(struct bundle *bundle)
 }
 
 struct bundle *
-bundle_Create(const char *prefix, int type, int unit, const char **argv)
+bundle_Create(const char *prefix, int type, int unit)
 {
   static struct bundle bundle;		/* there can be only one */
   int enoentcount, err, minunit, maxunit;
@@ -673,9 +678,6 @@ bundle_Create(const char *prefix, int type, int unit, const char **argv)
   }
 
   log_SetTun(bundle.unit);
-  bundle.argv = argv;
-  bundle.argv0 = argv[0];
-  bundle.argv1 = argv[1];
 
   ifname = strrchr(bundle.dev.Name, '/');
   if (ifname == NULL)
@@ -1097,7 +1099,6 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
-  prompt_Printf(arg->prompt, " Title:         %s\n", arg->bundle->argv[0]);
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
   prompt_Printf(arg->prompt, " Interface:     %s @ %lubps",
                 arg->bundle->iface->name, arg->bundle->bandwidth);
@@ -1660,8 +1661,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
          */
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
-        bundle->argv[0] = "session owner";
-        bundle->argv[1] = NULL;
+        ID0setproctitle("session owner");
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.
