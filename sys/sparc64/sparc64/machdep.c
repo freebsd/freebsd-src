@@ -43,8 +43,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/cons.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/cons.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -57,9 +60,6 @@
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/interrupt.h>
 #include <sys/ptrace.h>
