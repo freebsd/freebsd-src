@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id$
+# $Id: Makefile,v 1.2 1994/10/09 09:27:53 ache Exp $
 
 LIB=    ncurses
 INCDIR= /usr/include
@@ -20,7 +20,7 @@ CLEANFILES+= lib_keyname.c ${.CURDIR}/keys.tries
 beforedepend: ${.CURDIR}/keys.tries
 
 beforeinstall:
-	@cd ${.CURDIR}; for i in ncurses.h nterm.h unctrl.h termcap.h; do \
+	@cd ${.CURDIR}; for i in ncurses.h unctrl.h termcap.h; do \
 	  cmp -s $$i ${DESTDIR}${INCDIR}/$$i || \
 	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) $$i ${DESTDIR}$(INCDIR); done
 
