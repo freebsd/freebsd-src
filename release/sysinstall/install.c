@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.24 1995/10/11 00:53:58 jkh Exp $
+ * $Id: install.c,v 1.71.2.25 1995/10/11 09:57:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -467,6 +467,7 @@ installFilesystems(void)
     command_clear();
 
     /* First, create and mount the root device */
+    MakeChunkDev(rootdev, "/dev")
     if (strcmp(p->mountpoint, "/"))
 	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, p->mountpoint);
 
@@ -476,7 +477,8 @@ installFilesystems(void)
 	msgNotify("Making a new root filesystem on %s", rootdev->name);
 	i = vsystem("%s /dev/%s", p->newfs_cmd, rootdev->name);
 	if (i) {
-	    msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
+	    msgConfirm("Unable to make new root filesystem on /dev/%s!\n"
+		       "Command returned status %d", rootdev->name, i);
 	    return FALSE;
 	}
 	RootReadOnly = FALSE;
