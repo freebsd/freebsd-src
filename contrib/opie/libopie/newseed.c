@@ -1,17 +1,21 @@
 /* newseed.c: The opienewseed() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Added time.h.
 	Created by cmetz for OPIE 2.22.
 */
 
 #include "opie_cfg.h"
+#if HAVE_TIME_H
+#include <time.h>
+#endif /* HAVE_TIME_H */
 #if HAVE_STRING_H
 #include <string.h>
 #endif /* HAVE_STRING_H */

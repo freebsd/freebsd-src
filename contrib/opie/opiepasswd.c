@@ -1,7 +1,7 @@
 /* opiepasswd.c: Add/change an OTP password in the key database.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -120,7 +120,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     return 1;
   }
 
-  while ((i = getopt(argc, argv, "fhvcn:s:")) != EOF) {
+  while ((i = getopt(argc, argv, "fhvcn:s:d")) != EOF) {
     switch (i) {
     case 'v':
       opieversion();

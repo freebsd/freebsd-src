@@ -1,17 +1,19 @@
 /* passwd.c: The opiepasswd() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Removed active attack protection
+		support.
 	Modified by cmetz for OPIE 2.3. Split most of the function off
-	     and turned this into a front-end for the new __opiewriterec().
-	     Added code to compute the key from the secret. Use the opie_
-             prefix. Use new opieatob8() and opiebtoa8() return values.
+		and turned this into a front-end for the new __opiewriterec().
+		Added code to compute the key from the secret. Use the opie_
+		prefix. Use new opieatob8() and opiebtoa8() return values.
 	Created by cmetz for OPIE 2.22.
 */
 
@@ -31,7 +33,6 @@ int opiepasswd FUNCTION((old, mode, principal, n, seed, ks), struct opie *old AN
   if (old) {
     opie.opie_flags = old->opie_flags;
     opie.opie_recstart = old->opie_recstart;
-    opie.opie_extrecstart = old->opie_extrecstart;
   }
 
   opie.opie_principal = principal;
@@ -47,12 +48,6 @@ int opiepasswd FUNCTION((old, mode, principal, n, seed, ks), struct opie *old AN
       for (i = n; i; i--)
 	opiehash(key, MDX);
       if (!(opie.opie_val = opiebtoa8(opie.opie_buf, key)))
-	return -1;
-
-      if (opiekeycrunch(MDX | 0x10, key, seed, ks))
-	return -1;
-
-      if (!(opie.opie_reinitkey = opiebtoa8(opie.opie_extbuf, key)))
 	return -1;
     } else {
       if ((opieetob(key, ks) != 1) && !opieatob8(key, ks))
