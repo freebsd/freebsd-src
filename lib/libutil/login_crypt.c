@@ -31,6 +31,12 @@
 #include <login_cap.h>
 #include <unistd.h>
 
+#pragma weak crypt_set_format
+int
+crypt_set_format(const char *f) {
+	return (0);
+}
+
 const char *
 login_setcryptfmt(login_cap_t *lc, const char *def, const char *error) {
 	const char *cipher;
