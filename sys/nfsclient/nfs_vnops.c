@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.133 1999/06/28 12:34:40 peter Exp $
+ * $Id: nfs_vnops.c,v 1.134 1999/06/30 02:53:51 julian Exp $
  */
 
 
@@ -3017,7 +3017,7 @@ nfs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
 
-	printf("tag VT_NFS, fileid %ld fsid 0x%lx",
+	printf("tag VT_NFS, fileid %ld fsid 0x%x",
 		np->n_vattr.va_fileid, np->n_vattr.va_fsid);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
