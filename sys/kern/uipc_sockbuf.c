@@ -268,6 +268,8 @@ sonewconn(head, connstatus)
 		SIGIO_SLOCK();
 		sorwakeup_locked(head);
 		SIGIO_SUNLOCK();
+		wakeup((caddr_t)&head->so_timeo);
+		so->so_state |= connstatus;
 	}
 	return (so);
 }
