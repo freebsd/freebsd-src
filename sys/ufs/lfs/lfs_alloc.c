@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.7 (Berkeley) 5/14/95
- * $Id: lfs_alloc.c,v 1.17 1997/10/14 18:46:43 phk Exp $
+ * $Id: lfs_alloc.c,v 1.18 1997/10/16 10:49:41 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -215,7 +215,6 @@ lfs_vfree(pvp, ino, mode)
 	struct inode *ip;
 	struct lfs *fs;
 	ufs_daddr_t old_iaddr;
-	ino_t ino;
 
 	/* Get the inode number and file system. */
 	ip = VTOI(pvp);
