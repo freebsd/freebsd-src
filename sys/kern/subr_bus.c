@@ -1207,8 +1207,8 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 
 	if (isdefault) {
 		start = rle->start;
-		count = max(count, rle->count);
-		end = max(rle->end, start + count - 1);
+		count = ulmax(count, rle->count);
+		end = ulmax(rle->end, start + count - 1);
 	}
 
 	rle->res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
@@ -1253,6 +1253,34 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 
 	rle->res = NULL;
 	return (0);
+}
+
+int
+resource_list_print_type(struct resource_list *rl, const char *name, int type,
+    const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed, retval;
+
+	printed = 0;
+	retval = 0;
+	/* Yes, this is kinda cheating */
+	SLIST_FOREACH(rle, rl, link) {
+		if (rle->type == type) {
+			if (printed == 0)
+				retval += printf(" %s ", name);
+			else
+				retval += printf(",");
+			printed++;
+			retval += printf(format, rle->start);
+			if (rle->count > 1) {
+				retval += printf("-");
+				retval += printf(format, rle->start +
+						 rle->count - 1);
+			}
+		}
+	}
+	return retval;
 }
 
 /*
