@@ -43,7 +43,7 @@
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm rm
-.Op Fl dfiPRrW
+.Op Fl dfiPRrvW
 .Ar file ...
 .Sh DESCRIPTION
 The
@@ -99,6 +99,8 @@ that directory is skipped.
 .It Fl r
 Equivalent to
 .Fl R .
+.It Fl v
+Be verbose when deleting files, showing them as they are removed.
 .It Fl W
 Attempt to undelete the named files.
 Currently, this option can only be used to recover
@@ -109,7 +111,10 @@ The
 .Nm
 utility removes symbolic links, not the files referenced by the links.
 .Pp
-It is an error to attempt to remove the files ``.'' and ``..''.
+It is an error to attempt to remove the files
+.Dq \&.
+or
+.Dq .. .
 .Pp
 The
 .Nm
@@ -161,6 +166,9 @@ utility differs from historical implementations in that the
 .Fl f
 option only masks attempts to remove non-existent files instead of
 masking a large variety of errors.
+The 
+.Fl v
+option is non-standard and its use in scripts is not recommended.
 .Pp
 Also, historical
 .Bx

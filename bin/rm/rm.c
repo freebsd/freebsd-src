@@ -48,6 +48,8 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -56,11 +58,12 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 extern char *flags_to_string __P((u_long, char *));
 
-int dflag, eval, fflag, iflag, Pflag, Wflag, stdin_ok;
+int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
@@ -85,7 +88,7 @@ main(argc, argv)
 	int ch, rflag;
 
 	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiPRrW")) != -1)
+	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -104,6 +107,9 @@ main(argc, argv)
 		case 'R':
 		case 'r':			/* Compatibility. */
 			rflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		case 'W':
 			Wflag = 1;
@@ -219,7 +225,7 @@ rm_tree(argv)
 		    !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(p->fts_accpath,
 				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
-		if (!rval) {
+		if (rval == 0) {
 			/*
 			 * If we can't read or search the directory, may still be
 			 * able to remove it.  Don't print out the un{read,search}able
@@ -228,21 +234,35 @@ rm_tree(argv)
 			switch (p->fts_info) {
 			case FTS_DP:
 			case FTS_DNR:
-				if (!rmdir(p->fts_accpath) || (fflag && errno == ENOENT))
+				rval = rmdir(p->fts_accpath);
+				if (rval == 0 || (fflag && errno == ENOENT)) {
+					if (rval == 0 && vflag)
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
+				}
 				break;
 
 			case FTS_W:
-				if (!undelete(p->fts_accpath) ||
-			    	(fflag && errno == ENOENT))
+				rval = undelete(p->fts_accpath);
+				if (rval == 0 && (fflag && errno == ENOENT)) {
+					if (vflag)
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
+				}
 				break;
 
 			default:
 				if (Pflag)
 					rm_overwrite(p->fts_accpath, NULL);
-				if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
+				rval = unlink(p->fts_accpath);
+				if (rval == 0 || (fflag && errno == ENOENT)) {
+					if (rval == 0 && vflag)
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
+				}
 			}
 		}
 err:
@@ -295,7 +315,7 @@ rm_file(argv)
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
-		if (!rval) {
+		if (rval == 0) {
 			if (S_ISWHT(sb.st_mode))
 				rval = undelete(f);
 			else if (S_ISDIR(sb.st_mode))
@@ -310,6 +330,8 @@ rm_file(argv)
 			warn("%s", f);
 			eval = 1;
 		}
+		if (vflag && rval == 0)
+			(void)printf("%s\n", f);
 	}
 }
 
@@ -330,9 +352,10 @@ rm_overwrite(file, sbp)
 	struct stat *sbp;
 {
 	struct stat sb;
+	struct statfs fsb;
 	off_t len;
-	int fd, wlen;
-	char buf[8 * 1024];
+	int bsize, fd, wlen;
+	char *buf = NULL;
 
 	fd = -1;
 	if (sbp == NULL) {
@@ -344,11 +367,16 @@ rm_overwrite(file, sbp)
 		return;
 	if ((fd = open(file, O_WRONLY, 0)) == -1)
 		goto err;
+	if (fstatfs(fd, &fsb) == -1)
+		goto err;
+	bsize = MAX(fsb.f_iosize, 1024);
+	if ((buf = malloc(bsize)) == NULL)
+		err(1, "malloc");
 
 #define	PASS(byte) {							\
-	memset(buf, byte, sizeof(buf));					\
+	memset(buf, byte, bsize);					\
 	for (len = sbp->st_size; len > 0; len -= wlen) {		\
-		wlen = len < sizeof(buf) ? len : sizeof(buf);		\
+		wlen = len < bsize ? len : bsize;			\
 		if (write(fd, buf, wlen) != wlen)			\
 			goto err;					\
 	}								\
@@ -360,10 +388,14 @@ rm_overwrite(file, sbp)
 	if (fsync(fd) || lseek(fd, (off_t)0, SEEK_SET))
 		goto err;
 	PASS(0xff);
-	if (!fsync(fd) && !close(fd))
+	if (!fsync(fd) && !close(fd)) {
+		free(buf);
 		return;
+	}
 
 err:	eval = 1;
+	if (buf)
+		free(buf);
 	warn("%s", file);
 }
 
@@ -440,6 +472,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrW] file ...\n");
-	exit(1);
+	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrvW] file ...\n");
+	exit(EX_USAGE);
 }
