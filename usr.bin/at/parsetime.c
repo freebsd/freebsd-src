@@ -131,7 +131,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.10 1997/06/23 06:44:18 charnier Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.11 1997/06/24 06:26:32 charnier Exp $";
 
 /* Local functions */
 
@@ -409,6 +409,22 @@ assign_date(struct tm *tm, long mday, long mon, long year)
 	    year -= 1900;
 	else
 	    panic("garbled time");
+    } else {
+	struct tm *lt;
+	time_t now;
+
+	time(&now);
+	lt = localtime(&now);
+
+	/*
+	 * check if the specified year is in the next century.
+	 * allow for one year of user error as many people will
+	 * enter n - 1 at the start of year n.
+	 */
+	if (year < (lt->tm_year % 100) - 1)
+	    year += 100;
+	/* adjust for the year 2000 and beyond */
+	year += lt->tm_year - (lt->tm_year % 100);
     }
 
     if (year < 0 &&
