@@ -83,6 +83,10 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 	pru_sense_null,			/* pru_sense */
 	atm_proto_notsupp1,		/* pru_shutdown */
 	atm_proto_notsupp3,		/* pru_sockaddr */
+	NULL,				/* pru_sosend */
+	NULL,				/* pru_soreceive */
+	NULL,				/* pru_sooll */
+	pru_sosetlabel_null		/* pru_sosetlabel */
 };
 
 

@@ -54,6 +54,7 @@
 struct acl;
 struct componentname;
 struct devfs_dirent;
+struct inpcb;
 struct ipq;
 struct label;
 struct mac_policy_conf;
@@ -86,6 +87,7 @@ struct mac_policy_ops {
 	void	(*mpo_init_cred_label)(struct label *label);
 	void	(*mpo_init_devfsdirent_label)(struct label *label);
 	void	(*mpo_init_ifnet_label)(struct label *label);
+	int	(*mpo_init_inpcb_label)(struct label *label, int flag);
 	int	(*mpo_init_ipq_label)(struct label *label, int flag);
 	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
 	void	(*mpo_init_mount_label)(struct label *label);
@@ -99,6 +101,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_cred_label)(struct label *label);
 	void	(*mpo_destroy_devfsdirent_label)(struct label *label);
 	void	(*mpo_destroy_ifnet_label)(struct label *label);
+	void	(*mpo_destroy_inpcb_label)(struct label *label);
 	void	(*mpo_destroy_ipq_label)(struct label *label);
 	void	(*mpo_destroy_mbuf_label)(struct label *label);
 	void	(*mpo_destroy_mount_label)(struct label *label);
@@ -212,6 +215,9 @@ struct mac_policy_ops {
 		    struct label *bpflabel);
 	void	(*mpo_create_ifnet)(struct ifnet *ifnet,
 		    struct label *ifnetlabel);
+	void	(*mpo_create_inpcb_from_socket)(struct socket *so,
+		    struct label *solabel, struct inpcb *inp,
+		    struct label *inplabel);
 	void	(*mpo_create_ipq)(struct mbuf *fragment,
 		    struct label *fragmentlabel, struct ipq *ipq,
 		    struct label *ipqlabel);
@@ -251,6 +257,9 @@ struct mac_policy_ops {
 	void	(*mpo_update_ipq)(struct mbuf *fragment,
 		    struct label *fragmentlabel, struct ipq *ipq,
 		    struct label *ipqlabel);
+	void	(*mpo_inpcb_sosetlabel)(struct socket *so,
+		    struct label *label, struct inpcb *inp,
+		    struct label *inplabel);
 
 	/*
 	 * Labeling event operations: processes.
@@ -286,6 +295,9 @@ struct mac_policy_ops {
 	int	(*mpo_check_ifnet_transmit)(struct ifnet *ifnet,
 		    struct label *ifnetlabel, struct mbuf *m,
 		    struct label *mbuflabel);
+	int	(*mpo_check_inpcb_deliver)(struct inpcb *inp,
+		    struct label *inplabel, struct mbuf *m,
+		    struct label *mlabel);
 	int	(*mpo_check_kenv_dump)(struct ucred *cred);
 	int	(*mpo_check_kenv_get)(struct ucred *cred, char *name);
 	int	(*mpo_check_kenv_set)(struct ucred *cred, char *name,

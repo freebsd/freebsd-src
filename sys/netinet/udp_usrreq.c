@@ -469,7 +469,7 @@ udp_append(last, ip, n, off)
 	}
 #endif /*FAST_IPSEC*/
 #ifdef MAC
-	if (mac_check_socket_deliver(last->inp_socket, n) != 0) {
+	if (mac_check_inpcb_deliver(last, n) != 0) {
 		m_freem(n);
 		return;
 	}
@@ -1119,5 +1119,5 @@ struct pr_usrreqs udp_usrreqs = {
 	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect, 
 	pru_listen_notsupp, udp_peeraddr, pru_rcvd_notsupp, 
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
-	udp_sockaddr, sosend, soreceive, sopoll
+	udp_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };

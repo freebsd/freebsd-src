@@ -68,6 +68,7 @@
 #include <net/if_var.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 
 #include <vm/vm.h>
@@ -336,6 +337,13 @@ stub_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 }
 
 static void
+stub_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+
+}
+
+static void
 stub_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
@@ -416,6 +424,13 @@ stub_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
 static void
 stub_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
+{
+
+}
+
+static void
+stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
 {
 
 }
@@ -507,6 +522,14 @@ stub_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 static int
 stub_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
+{
+
+	return (0);
+}
+
+static int
+stub_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
 {
 
 	return (0);
@@ -1010,6 +1033,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_cred_label = stub_init_label,
 	.mpo_init_devfsdirent_label = stub_init_label,
 	.mpo_init_ifnet_label = stub_init_label,
+	.mpo_init_inpcb_label = stub_init_label_waitcheck,
 	.mpo_init_ipq_label = stub_init_label_waitcheck,
 	.mpo_init_mbuf_label = stub_init_label_waitcheck,
 	.mpo_init_mount_label = stub_init_label,
@@ -1022,6 +1046,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_cred_label = stub_destroy_label,
 	.mpo_destroy_devfsdirent_label = stub_destroy_label,
 	.mpo_destroy_ifnet_label = stub_destroy_label,
+	.mpo_destroy_inpcb_label = stub_destroy_label,
 	.mpo_destroy_ipq_label = stub_destroy_label,
 	.mpo_destroy_mbuf_label = stub_destroy_label,
 	.mpo_destroy_mount_label = stub_destroy_label,
@@ -1067,6 +1092,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_set_socket_peer_from_socket = stub_set_socket_peer_from_socket,
 	.mpo_create_bpfdesc = stub_create_bpfdesc,
 	.mpo_create_ifnet = stub_create_ifnet,
+	.mpo_create_inpcb_from_socket = stub_create_inpcb_from_socket,
 	.mpo_create_ipq = stub_create_ipq,
 	.mpo_create_datagram_from_ipq = stub_create_datagram_from_ipq,
 	.mpo_create_fragment = stub_create_fragment,
@@ -1082,6 +1108,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_reflect_mbuf_tcp = stub_reflect_mbuf_tcp,
 	.mpo_relabel_ifnet = stub_relabel_ifnet,
 	.mpo_update_ipq = stub_update_ipq,
+	.mpo_inpcb_sosetlabel = stub_inpcb_sosetlabel,
 	.mpo_create_cred = stub_create_cred,
 	.mpo_execve_transition = stub_execve_transition,
 	.mpo_execve_will_transition = stub_execve_will_transition,
@@ -1094,6 +1121,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_cred_visible = stub_check_cred_visible,
 	.mpo_check_ifnet_relabel = stub_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = stub_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = stub_check_inpcb_deliver,
 	.mpo_check_kenv_dump = stub_check_kenv_dump,
 	.mpo_check_kenv_get = stub_check_kenv_get,
 	.mpo_check_kenv_set = stub_check_kenv_set,

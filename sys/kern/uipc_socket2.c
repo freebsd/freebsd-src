@@ -1042,6 +1042,16 @@ pru_sense_null(struct socket *so, struct stat *sb)
 }
 
 /*
+ * For protocol types that don't keep cached copies of labels in their
+ * pcbs, provide a null sosetlabel that does a NOOP.
+ */
+void
+pru_sosetlabel_null(struct socket *so)
+{
+
+}
+
+/*
  * Make a copy of a sockaddr in a malloced buffer of type M_SONAME.
  */
 struct sockaddr *

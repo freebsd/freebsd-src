@@ -450,7 +450,7 @@ struct pr_usrreqs uipc_usrreqs = {
 	uipc_connect2, pru_control_notsupp, uipc_detach, uipc_disconnect,
 	uipc_listen, uipc_peeraddr, uipc_rcvd, pru_rcvoob_notsupp,
 	uipc_send, uipc_sense, uipc_shutdown, uipc_sockaddr,
-	sosend, soreceive, sopoll
+	sosend, soreceive, sopoll, pru_sosetlabel_null
 };
 
 int

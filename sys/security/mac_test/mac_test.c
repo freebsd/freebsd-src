@@ -81,6 +81,7 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 #define	BPFMAGIC	0xfe1ad1b6
 #define	DEVFSMAGIC	0x9ee79c32
 #define	IFNETMAGIC	0xc218b120
+#define	INPCBMAGIC	0x4440f7bb
 #define	IPQMAGIC	0x206188ef
 #define	MBUFMAGIC	0xbbefa5bb
 #define	MOUNTMAGIC	0xc7c46e47
@@ -99,6 +100,8 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 	SLOT(x) == 0, ("%s: Bad DEVFS label", __func__ ))
 #define	ASSERT_IFNET_LABEL(x)	KASSERT(SLOT(x) == IFNETMAGIC ||	\
 	SLOT(x) == 0, ("%s: Bad IFNET label", __func__ ))
+#define	ASSERT_INPCB_LABEL(x)	KASSERT(SLOT(x) == INPCBMAGIC ||	\
+	SLOT(x) == 0, ("%s: Bad INPCB label", __func__ ))
 #define	ASSERT_IPQ_LABEL(x)	KASSERT(SLOT(x) == IPQMAGIC ||	\
 	SLOT(x) == 0, ("%s: Bad IPQ label", __func__ ))
 #define	ASSERT_MBUF_LABEL(x)	KASSERT(SLOT(x) == MBUFMAGIC ||		\
@@ -132,6 +135,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_devfsdirent, CTLFLAG_RD,
 static int	init_count_ifnet;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_ifnet, CTLFLAG_RD,
     &init_count_ifnet, 0, "ifnet init calls");
+static int	init_count_inpcb;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_inpcb, CTLFLAG_RD,
+    &init_count_inpcb, 0, "inpcb init calls");
 static int	init_count_ipq;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_ipq, CTLFLAG_RD,
     &init_count_ipq, 0, "ipq init calls");
@@ -173,6 +179,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_devfsdirent, CTLFLAG_RD,
 static int	destroy_count_ifnet;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_ifnet, CTLFLAG_RD,
     &destroy_count_ifnet, 0, "ifnet destroy calls");
+static int	destroy_count_inpcb;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_inpcb, CTLFLAG_RD,
+    &destroy_count_inpcb, 0, "inpcb destroy calls");
 static int	destroy_count_ipq;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_ipq, CTLFLAG_RD,
     &destroy_count_ipq, 0, "ipq destroy calls");
@@ -265,6 +274,20 @@ mac_test_init_ifnet_label(struct label *label)
 
 	SLOT(label) = IFNETMAGIC;
 	atomic_add_int(&init_count_ifnet, 1);
+}
+
+static int
+mac_test_init_inpcb_label(struct label *label, int flag)
+{
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "mac_test_init_inpcb_label() at %s:%d", __FILE__,
+		    __LINE__);
+
+	SLOT(label) = INPCBMAGIC;
+	atomic_add_int(&init_count_inpcb, 1);
+	return (0);
 }
 
 static int
@@ -416,6 +439,20 @@ mac_test_destroy_ifnet_label(struct label *label)
 		Debugger("mac_test_destroy_ifnet: dup destroy");
 	} else {
 		Debugger("mac_test_destroy_ifnet: corrupted label");
+	}
+}
+
+static void
+mac_test_destroy_inpcb_label(struct label *label)
+{
+
+	if (SLOT(label) == INPCBMAGIC || SLOT(label) == 0) {
+		atomic_add_int(&destroy_count_inpcb, 1);
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
+		Debugger("mac_test_destroy_inpcb: dup destroy");
+	} else {
+		Debugger("mac_test_destroy_inpcb: corrupted label");
 	}
 }
 
@@ -852,6 +889,15 @@ mac_test_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 }
 
 static void
+mac_test_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+
+	ASSERT_SOCKET_LABEL(solabel);
+	ASSERT_INPCB_LABEL(inplabel);
+}
+
+static void
 mac_test_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
@@ -960,6 +1006,15 @@ mac_test_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 
 	ASSERT_MBUF_LABEL(fragmentlabel);
 	ASSERT_IPQ_LABEL(ipqlabel);
+}
+
+static void
+mac_test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+
+	ASSERT_SOCKET_LABEL(solabel);
+	ASSERT_INPCB_LABEL(inplabel);
 }
 
 /*
@@ -1089,6 +1144,17 @@ mac_test_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 
 	ASSERT_IFNET_LABEL(ifnetlabel);
 	ASSERT_MBUF_LABEL(mbuflabel);
+
+	return (0);
+}
+
+static int
+mac_test_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+
+	ASSERT_INPCB_LABEL(inplabel);
+	ASSERT_MBUF_LABEL(mlabel);
 
 	return (0);
 }
@@ -1789,6 +1855,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_cred_label = mac_test_init_cred_label,
 	.mpo_init_devfsdirent_label = mac_test_init_devfsdirent_label,
 	.mpo_init_ifnet_label = mac_test_init_ifnet_label,
+	.mpo_init_inpcb_label = mac_test_init_inpcb_label,
 	.mpo_init_ipq_label = mac_test_init_ipq_label,
 	.mpo_init_mbuf_label = mac_test_init_mbuf_label,
 	.mpo_init_mount_label = mac_test_init_mount_label,
@@ -1802,6 +1869,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_cred_label = mac_test_destroy_cred_label,
 	.mpo_destroy_devfsdirent_label = mac_test_destroy_devfsdirent_label,
 	.mpo_destroy_ifnet_label = mac_test_destroy_ifnet_label,
+	.mpo_destroy_inpcb_label = mac_test_destroy_inpcb_label,
 	.mpo_destroy_ipq_label = mac_test_destroy_ipq_label,
 	.mpo_destroy_mbuf_label = mac_test_destroy_mbuf_label,
 	.mpo_destroy_mount_label = mac_test_destroy_mount_label,
@@ -1848,6 +1916,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_set_socket_peer_from_socket = mac_test_set_socket_peer_from_socket,
 	.mpo_create_bpfdesc = mac_test_create_bpfdesc,
 	.mpo_create_ifnet = mac_test_create_ifnet,
+	.mpo_create_inpcb_from_socket = mac_test_create_inpcb_from_socket,
 	.mpo_create_datagram_from_ipq = mac_test_create_datagram_from_ipq,
 	.mpo_create_fragment = mac_test_create_fragment,
 	.mpo_create_ipq = mac_test_create_ipq,
@@ -1862,6 +1931,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_reflect_mbuf_tcp = mac_test_reflect_mbuf_tcp,
 	.mpo_relabel_ifnet = mac_test_relabel_ifnet,
 	.mpo_update_ipq = mac_test_update_ipq,
+	.mpo_inpcb_sosetlabel = mac_test_inpcb_sosetlabel,
 	.mpo_create_cred = mac_test_create_cred,
 	.mpo_execve_transition = mac_test_execve_transition,
 	.mpo_execve_will_transition = mac_test_execve_will_transition,
@@ -1874,6 +1944,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_cred_visible = mac_test_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_test_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_test_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = mac_test_check_inpcb_deliver,
 	.mpo_check_kenv_dump = mac_test_check_kenv_dump,
 	.mpo_check_kenv_get = mac_test_check_kenv_get,
 	.mpo_check_kenv_set = mac_test_check_kenv_set,

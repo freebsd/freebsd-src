@@ -271,7 +271,7 @@ static struct pr_usrreqs route_usrreqs = {
 	pru_connect2_notsupp, pru_control_notsupp, rts_detach, rts_disconnect,
 	pru_listen_notsupp, rts_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
 	rts_send, pru_sense_null, rts_shutdown, rts_sockaddr,
-	sosend, soreceive, sopoll
+	sosend, soreceive, sopoll, pru_sosetlabel_null
 };
 
 /*ARGSUSED*/

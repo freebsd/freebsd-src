@@ -134,6 +134,7 @@ struct inpcb {
 	struct	inpcbinfo *inp_pcbinfo;	/* PCB list info */
 	struct	socket *inp_socket;	/* back pointer to socket */
 					/* list for this PCB's local port */
+	struct	label *inp_label;	/* MAC label */
 	int	inp_flags;		/* generic IP/datagram flags */
 
 	struct	inpcbpolicy *inp_sp; /* for IPSEC */
@@ -369,10 +370,12 @@ struct inpcb *
 void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));
 void	in_pcbrehash(struct inpcb *);
+void	in_pcbsetsolabel(struct socket *so);
 int	in_setpeeraddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
 int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);;
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
+void	in_pcbsosetlabel(struct socket *so);
 void	in_pcbremlists(struct inpcb *inp);
 int	prison_xinpcb(struct thread *td, struct inpcb *inp);
 #endif /* _KERNEL */
