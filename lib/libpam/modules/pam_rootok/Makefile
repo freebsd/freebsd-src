@@ -24,16 +24,10 @@
 #
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
-.PATH:		${PAMDIR}/modules/pam_rootok
-
 LIB=		pam_rootok
 SHLIB_NAME=	pam_rootok.so
 SRCS=		pam_rootok.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_rootok

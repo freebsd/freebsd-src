@@ -24,21 +24,14 @@
 #
 #	$FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
 LIB=		pam_krb5
 SHLIB_NAME=	pam_krb5.so
 SRCS=		pam_krb5_auth.c pam_krb5_pass.c pam_krb5_acct.c \
 		pam_krb5_sess.c support.c compat_heimdal.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBCOM_ERR}
-LDADD+=		-lkrb5 -lgssapi -lasn1 -lroken -lcrypto -lcrypt -lcom_err \
-		-L${.OBJDIR}/../../../../kerberos5/lib/libroken
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
+DPADD=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
+		${LIBCOM_ERR} ${LIBROKEN}
+LDADD=		-lkrb5 -lgssapi -lasn1 -lcrypto -lcrypt -lcom_err \
+		-L${.OBJDIR}/../../../../kerberos5/lib/libroken -lroken 
 MAN=		pam_krb5.8
 
 .include <bsd.lib.mk>
