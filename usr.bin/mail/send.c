@@ -442,7 +442,8 @@ infix(hp, fi)
 		return(fi);
 	}
 	(void) rm(tempMail);
-	(void) puthead(hp, nfo, GTO|GSUBJECT|GCC|GBCC|GREPLYTO|GINREPLYTO|GNL|GCOMMA);
+	(void) puthead(hp, nfo,
+		       GTO|GSUBJECT|GCC|GBCC|GREPLYTO|GINREPLYTO|GNL|GCOMMA);
 	c = getc(fi);
 	while (c != EOF) {
 		(void) putc(c, nfo);
@@ -488,9 +489,9 @@ puthead(hp, fo, w)
 		fmt("Cc:", hp->h_cc, fo, w&GCOMMA), gotcha++;
 	if (hp->h_bcc != NIL && w & GBCC)
 		fmt("Bcc:", hp->h_bcc, fo, w&GCOMMA), gotcha++;
-	if (hp->h_replyto != NOSTR && w && GREPLYTO)
+	if (hp->h_replyto != NOSTR && w & GREPLYTO)
 		fprintf(fo, "Reply-To: %s\n", hp->h_replyto), gotcha++;
-	if (hp->h_inreplyto != NOSTR && w && GINREPLYTO)
+	if (hp->h_inreplyto != NOSTR && w & GINREPLYTO)
 		fprintf(fo, "In-Reply-To: <%s>\n", hp->h_inreplyto), gotcha++;
 	if (gotcha && w & GNL)
 		(void) putc('\n', fo);
