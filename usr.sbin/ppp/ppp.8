@@ -3399,6 +3399,25 @@ Refer to the description of
 in
 .Xr libalias 3
 for details of the available commands.
+.It nat punch_fw Op Ar base count
+This command tells
+.Nm
+to punch holes in the firewall for FTP or IRC DCC connections.
+This is done dynamically by installing termporary firewall rules which
+allow a particular connection (and only that connection) to go through
+the firewall.
+The rules are removed once the corresponding connection terminates.
+.Pp
+A maximum of
+.Ar count
+rules starting from rule number
+.Ar base
+will be used for punching firewall holes.
+The range will be cleared when the
+.Dq nat punch_fw
+command is run.
+.Pp
+If no arguments are given, firewall punching is disabled.
 .It nat same_ports yes|no
 When enabled, this command will tell the network address translation engine to
 attempt to avoid changing the port number on outgoing packets.
