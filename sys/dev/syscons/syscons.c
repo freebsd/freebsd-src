@@ -3364,14 +3364,14 @@ next_code:
 }
 
 static int
-scmmap(dev_t dev, vm_offset_t offset, int nprot)
+scmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
     scr_stat *scp;
 
     scp = SC_STAT(dev);
     if (scp != scp->sc->cur_scp)
 	return -1;
-    return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, nprot);
+    return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, paddr, nprot);
 }
 
 static int

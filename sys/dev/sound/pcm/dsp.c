@@ -990,11 +990,10 @@ dsp_poll(dev_t i_dev, int events, struct thread *td)
 }
 
 static int
-dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
+dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL, *c;
 	intrmask_t s;
-	int ret;
 
 	if (nprot & PROT_EXEC)
 		return -1;
@@ -1034,11 +1033,11 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 	if (!(c->flags & CHN_F_MAPPED))
 		c->flags |= CHN_F_MAPPED;
 
-	ret = atop(vtophys(sndbuf_getbufofs(c->bufsoft, offset)));
+	*paddr = vtophys(sndbuf_getbufofs(c->bufsoft, offset));
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	splx(s);
-	return ret;
+	return 0;
 }
 
 int

@@ -136,12 +136,13 @@ xrpu_close(dev_t dev, int flag, int mode, struct  thread *td)
 }
 
 static int
-xrpu_mmap(dev_t dev, vm_offset_t offset, int nprot)
+xrpu_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 	struct softc *sc = dev->si_drv1;
 	if (offset >= 0x1000000) 
 		return (-1);
-	return (i386_btop(sc->physbase + offset));
+	*paddr = sc->physbase + offset;
+	return (0);
 }
 
 static int

@@ -132,9 +132,10 @@ nokqfilter(dev, kn)
 }
 
 int
-nommap(dev, offset, nprot)
+nommap(dev, offset, paddr, nprot)
 	dev_t dev;
 	vm_offset_t offset;
+	vm_offset_t *paddr;
 	int nprot;
 {
 

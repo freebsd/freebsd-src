@@ -722,14 +722,15 @@ agp_ioctl(dev_t kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 }
 
 static int
-agp_mmap(dev_t kdev, vm_offset_t offset, int prot)
+agp_mmap(dev_t kdev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
 
 	if (offset > AGP_GET_APERTURE(dev))
 		return -1;
-	return atop(rman_get_start(sc->as_aperture) + offset);
+	*paddr = rman_get_start(sc->as_aperture) + offset;
+	return 0;
 }
 
 /* Implementation of the kernel api */

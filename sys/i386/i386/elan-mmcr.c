@@ -309,14 +309,15 @@ elan_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-elan_mmap(dev_t dev, vm_offset_t offset, int nprot)
+elan_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 
 	if (minor(dev) != ELAN_MMCR)
 		return (EOPNOTSUPP);
 	if (offset >= 0x1000) 
 		return (-1);
-	return (i386_btop(0xfffef000));
+	*paddr = 0xfffef000;
+	return (0);
 }
 
 static int

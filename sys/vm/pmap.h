@@ -119,7 +119,6 @@ void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    int pagelimit);
 boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
 void		 pmap_page_protect(vm_page_t m, vm_prot_t prot);
-vm_offset_t	 pmap_phys_address(int);
 void		 pmap_pinit(pmap_t);
 void		 pmap_pinit0(pmap_t);
 void		 pmap_pinit2(pmap_t);
