@@ -31,7 +31,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: lp.1,v 1.1 1995/01/22 17:47:24 j Exp $
+.\" $Id: lp.1,v 1.1 1995/01/23 19:22:37 joerg Exp $
 .\"
 .Dd January 22, 1995
 .Dt LP 1
@@ -103,18 +103,6 @@ command has been written by
 .if t J\(:org Wunsch.
 .if n Joerg Wunsch.
 .Sh BUGS
-The
-.Nm
-command inherits several bugs from the utilities invoked, namely it
-requires any option separated from its argument by a whitespace
-since the getopts implementation of
-.Xr sh 1
-is broken, and it does not honour dashes as input file names
-.Pq meant to use standard input
-since
-.Xr lpr 1
-ignores them.
-
 The
 .St -p1003.2
 specification does not provide any means to print non-text files.  It
