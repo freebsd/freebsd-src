@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <unistd.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #define PAM_SM_AUTH
 #define PAM_SM_ACCOUNT
@@ -160,4 +160,4 @@ pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_RETURN(PAM_IGNORE);
 }
 
-PAM_MODULE_ENTRY("pam_self");
+PAM_MODULE_ENTRY("pam_login_access");
