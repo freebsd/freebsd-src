@@ -52,7 +52,7 @@ exim : .nice.guy.example.com : allow
 exim : .evil.cracker.example.com : deny
 exim : ALL : allow
 
-# Portmapper is used for all RPC services; protect your NFS!
+# Rpcbind is used for all RPC services; protect your NFS!
 # (IP addresses rather than hostnames *MUST* be used here)
 rpcbind : 192.0.2.32/255.255.255.224 : allow
 rpcbind : 192.0.2.96/255.255.255.224 : allow
