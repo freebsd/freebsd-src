@@ -127,7 +127,12 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">The &man.cx.4; driver has been updated to version 4.4.0.
+    <para arch="i386">The &man.cx.4; driver for Cronyx Sigma synchronous /
+      asynchronous serial adapters has been updated to version 4.4.0.
+    </para>
+
+    <para arch="i386">The &man.ctau.4; driver for Cronyx Tau synchronous
+      serial adapters has been added.
     </para>
 
     <para>The &man.dcons.4; <quote>dumb console</quote> driver has
