@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.24 1996/04/07 01:15:01 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.25 1996/06/12 05:08:29 gpalmer Exp $
  */
 
 #include "param.h"
@@ -781,6 +781,42 @@ DBPRINT(("	vntodn "));
 	*dn_pp = (dn_p)vn_p->v_data;
 
 	return(0);
+}
+
+static dn_p
+findbdev(dev_t dev, dn_p dir)
+{
+	devnm_p newfp;
+	dn_p dnp;
+
+	for(newfp = dir->by.Dir.dirlist;newfp;newfp=newfp->next) {
+		dnp = newfp->dnp;
+		if (dnp->type == DEV_BDEV && dnp->by.Bdev.dev == dev) {
+			return (dnp);
+		} 
+		if (dnp->type == DEV_DIR) {
+			if (dnp = findbdev(dev, dnp))
+				return dnp;
+		}
+	}
+	return (0);
+}
+
+/* 
+ * Create a vnode for a block device.
+ * Used for root filesystem, argdev, and swap areas.
+ * Also used for memory file system special devices.
+ */
+
+int
+bdevvp(dev_t dev, struct vnode **vpp)
+{
+	dn_p	dnp = 0;
+
+	dnp=  findbdev(dev, dev_root->dnp);
+	if (!dnp)
+		return (0);
+	return (devfs_dntovn(dnp, vpp));
 }
 
 /***************************************************************\
