@@ -2490,8 +2490,7 @@ ap_init(void)
 	smp_cpus++;
 
 	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
-	if (bootverbose)
-		printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
+	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
