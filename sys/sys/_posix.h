@@ -56,13 +56,6 @@
  */
 #ifdef P1003_1B
 #define _P1003_1B_VISIBLE
-#ifndef _KPOSIX_VERSION
-#define	_KPOSIX_VERSION		199309L
-#endif
-#endif
-
-#ifndef _KPOSIX_VERSION
-#define	_KPOSIX_VERSION		199009L
 #endif
 
 #define _P1003_1B_VISIBLE_HISTORICALLY
