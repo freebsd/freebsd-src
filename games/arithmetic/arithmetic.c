@@ -292,7 +292,6 @@ penalise(value, op, operand)
 	int value, op, operand;
 {
 	struct penalty *p;
-	char *malloc();
 
 	op = opnum(op);
 	if ((p = (struct penalty *)malloc((u_int)sizeof(*p))) == NULL)
