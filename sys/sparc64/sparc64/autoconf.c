@@ -44,6 +44,5 @@ configure(void *v)
 {
 	device_add_child(root_bus, "upa", 0);
 	root_bus_configure();
-	cninit_finish();
 	cold = 0;
 }
