@@ -58,7 +58,7 @@ my %cmds = (
 
 sub message(@) {
 
-    my $msg = join(' ', "TB ***", @_);
+    my $msg = join(' ', "TB ---", @_);
     chomp($msg);
     print("$msg\n");
 }
@@ -209,9 +209,7 @@ sub logstage($) {
     my $msg = shift;
 
     chomp($msg);
-    print(STDERR "TB ", "*"x74, "\n");
-    print(STDERR strftime("TB *** %Y-%m-%d %H:%M:%S - $msg\n", localtime()));
-    print(STDERR "TB ", "*"x74, "\n");
+    print(STDERR strftime("TB --- %Y-%m-%d %H:%M:%S - $msg\n", localtime()));
 }
 
 sub sigwarn {
