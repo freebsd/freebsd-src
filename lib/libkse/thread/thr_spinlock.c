@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_spinlock.c,v 1.2 1998/05/05 21:47:58 jb Exp $
+ * $Id: uthread_spinlock.c,v 1.3 1998/06/06 07:27:06 jb Exp $
  *
  */
 
@@ -38,8 +38,9 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "spinlock.h"
 #include "pthread_private.h"
+
+extern char *__progname;
 
 /*
  * Lock a location for the running thread. Yield to allow other
@@ -48,29 +49,60 @@
  * assumes that the lock will be available very soon.
  */
 void
-_spinlock(volatile long * volatile lck)
+_spinlock(spinlock_t *lck)
 {
-	do {
-		/*
-		 * Allow other threads to run if the lock is not
-		 * available:
-		 */
-		while (*lck != 0) {
-			/* Check if already locked by the running thread: */
-			if (*lck == (long) _thread_run) {
-				char str[40];
-				snprintf(str,sizeof(str),"Warning: Thread %p attempted to lock %p which it had already locked!\n",_thread_run,lck);
-				_thread_sys_write(2,str,strlen(str));
-				return;
-			}
-
-			/* Give up the time slice: */
-			sched_yield();
-		}
-
 	/*
 	 * Try to grab the lock and loop if another thread grabs
 	 * it before we do.
 	 */
-	} while(_atomic_lock(lck,(long) _thread_run));
+	while(_atomic_lock(&lck->access_lock)) {
+		/* Give up the time slice: */
+		sched_yield();
+
+		/* Check if already locked by the running thread: */
+		if (lck->lock_owner == (long) _thread_run)
+			return;
+	}
+
+	/* The running thread now owns the lock: */
+	lck->lock_owner = (long) _thread_run;
+}
+
+/*
+ * Lock a location for the running thread. Yield to allow other
+ * threads to run if this thread is blocked because the lock is
+ * not available. Note that this function does not sleep. It
+ * assumes that the lock will be available very soon.
+ *
+ * This function checks if the running thread has already locked the
+ * location, warns if this occurs and creates a thread dump before
+ * returning.
+ */
+void
+_spinlock_debug(spinlock_t *lck, char *fname, int lineno)
+{
+	/*
+	 * Try to grab the lock and loop if another thread grabs
+	 * it before we do.
+	 */
+	while(_atomic_lock(&lck->access_lock)) {
+		/* Give up the time slice: */
+		sched_yield();
+
+		/* Check if already locked by the running thread: */
+		if (lck->lock_owner == (long) _thread_run) {
+			char str[256];
+			snprintf(str, sizeof(str), "%s - Warning: Thread %p attempted to lock %p from %s (%d) which it had already locked in %s (%d)\n", __progname, _thread_run, lck, fname, lineno, lck->fname, lck->lineno);
+			_thread_sys_write(2,str,strlen(str));
+
+			/* Create a thread dump to help debug this problem: */
+			_thread_dump_info();
+			return;
+		}
+	}
+
+	/* The running thread now owns the lock: */
+	lck->lock_owner = (long) _thread_run;
+	lck->fname = fname;
+	lck->lineno = lineno;
 }
