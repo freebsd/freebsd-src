@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd.x,v 1.8 1996/06/03 20:17:04 wpaul Exp $
+ *	$Id: ypxfrd.x,v 1.9 1996/07/02 00:35:36 wpaul Exp $
  */
 
 /*
@@ -68,7 +68,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id: ypxfrd.x,v 1.8 1996/06/03 20:17:04 wpaul Exp $";
+%static const char rcsid[] = "$Id: ypxfrd.x,v 1.9 1996/07/02 00:35:36 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
@@ -81,6 +81,9 @@ const _YPMAXPEER = 64;
 /* Suggested default -- not necesarrily the one used. */
 const YPXFRBLOCK = 32767;
 
+/*
+ * Possible return codes from the remote server.
+ */
 enum xfrstat {
 	XFR_REQUEST_OK	= 1,	/* Transfer request granted */
 	XFR_DENIED	= 2,	/* Transfer request denied */
@@ -89,16 +92,71 @@ enum xfrstat {
 	XFR_BADDB	= 5,	/* File is not a hash database */
 	XFR_READ_OK	= 6,	/* Block read successfully */
 	XFR_READ_ERR	= 7,	/* Read error during transfer */
-	XFR_DONE	= 8	/* Transfer completed */
+	XFR_DONE	= 8,	/* Transfer completed */
+	XFR_DB_ENDIAN_MISMATCH	= 9,	/* Database byte order mismatch */
+	XFR_DB_TYPE_MISMATCH	= 10	/* Database type mismatch */
+};
+
+/*
+ * Database type specifications. The client can use this to ask
+ * the server for a particular type of database or just take whatever
+ * the server has to offer.
+ */
+enum xfr_db_type {
+	XFR_DB_ASCII		= 1,	/* Flat ASCII text */
+	XFR_DB_BSD_HASH		= 2,	/* Berkeley DB, hash method */
+	XFR_DB_BSD_BTREE	= 3,	/* Berkeley DB, btree method */
+	XFR_DB_BSD_RECNO	= 4,	/* Berkeley DB, recno method */
+	XFR_DB_BSD_MPOOL	= 5,	/* Berkeley DB, mpool method */
+	XFR_DB_BSD_NDBM		= 6,	/* Berkeley DB, hash, ndbm compat */
+	XFR_DB_GNU_GDBM		= 7,	/* GNU GDBM */
+	XFR_DB_DBM		= 8,	/* Old, deprecated dbm format */
+	XFR_DB_NDBM		= 9,	/* ndbm format (used by Sun's NISv2) */
+	XFR_DB_OPAQUE		= 10,	/* Mystery format -- just pass along */
+	XFR_DB_ANY		= 11,	/* I'll take any format you've got */
+	XFR_DB_UNKNOWN		= 12	/* Unknown format */
+};
+
+/*
+ * Machine byte order specification. This allows the client to check
+ * that it's copying a map database from a machine of similar byte sex.
+ * This is necessary for handling database libraries that are fatally
+ * byte order sensitive.
+ *
+ * The XFR_ENDIAN_ANY type is for use with the Berkeley DB database
+ * formats; Berkeley DB is smart enough to make up for byte order
+ * differences, so byte sex isn't important.
+ */
+enum xfr_byte_order {
+	XFR_ENDIAN_BIG		= 1,	/* We want big endian */
+	XFR_ENDIAN_LITTLE	= 2,	/* We want little endian */
+	XFR_ENDIAN_ANY		= 3	/* We'll take whatever you got */
 };
 
 typedef string xfrdomain<_YPMAXDOMAIN>;
 typedef string xfrmap<_YPMAXMAP>;
+typedef string xfrmap_filename<_YPMAXMAP>;	/* actual name of map file */
+typedef enum xfrstat xfrstat;
+typedef enum xfr_db_type xfr_db_type;
+typedef enum xfr_byte_order xfr_byte_order;
 
-/* Ask the remote ypxfrd for a map using this structure */
+/*
+ * Ask the remote ypxfrd for a map using this structure.
+ * Note: we supply both a map name and a map file name. These are not
+ * the same thing. In the case of ndbm, maps are stored in two files:
+ * map.bykey.pag and may.bykey.dir. We may also have to deal with
+ * file extensions (on the off chance that the remote server is supporting
+ * multiple DB formats). To handle this, we tell the remote server both
+ * what map we want and, in the case of ndbm, whether we want the .dir
+ * or the .pag part. This name should not be a fully qualified path:
+ * it's up to the remote server to decide which directories to look in.
+ */
 struct ypxfr_mapname {
 	xfrmap xfrmap;
 	xfrdomain xfrdomain;
+	xfrmap_filename xfrmap_filename;
+	xfr_db_type xfr_db_type;
+	xfr_byte_order xfr_byte_order;
 };
 
 /* Read response using this structure. */
@@ -106,7 +164,7 @@ union xfr switch (bool ok) {
 case TRUE:
 	opaque xfrblock_buf<>;
 case FALSE:
-	enum xfrstat xfrstat;
+	xfrstat xfrstat;
 };
 
 program YPXFRD_FREEBSD_PROG {
