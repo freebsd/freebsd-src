@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.3 1998/09/18 01:12:46 msmith Exp $
+ *	$Id: biosdisk.c,v 1.4 1998/09/18 02:02:33 msmith Exp $
  */
 
 /*
@@ -305,33 +305,26 @@ bd_open(struct open_file *f, void *vdev)
 	    goto out;
 	}
 	lp = (struct disklabel *) (od->od_buf + LABELOFFSET);
+
 	if (lp->d_magic != DISKMAGIC) {
 	    DEBUG("no disklabel");
 	    error = ENOENT;
 	    goto out;
-
-	} else if (dev->d_kind.biosdisk.partition >= lp->d_npartitions) {
-
-	    /*
-	     * The partition supplied is out of bounds; this is fatal.
-	     */
+	}
+	if (dev->d_kind.biosdisk.partition >= lp->d_npartitions) {
 	    DEBUG("partition '%c' exceeds partitions in table (a-'%c')",
-		     'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
+		  'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
 	    error = EPART;
 	    goto out;
 
-	} else {
-
-	    /*
-	     * Complain if the partition type is wrong and it shouldn't be, but
-	     * regardless accept this partition.
-	     */
-	    if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
-		  !(od->od_flags & BD_FLOPPY))	    /* Floppies often have bogus fstype */
-		DEBUG("warning, partition marked as unused");
-
-	    od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
 	}
+
+	/* Complain if the partition type is wrong */
+	if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
+	    !(od->od_flags & BD_FLOPPY))	    /* Floppies often have bogus fstype */
+	    DEBUG("warning, partition marked as unused");
+	
+	od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
     }
     /*
      * Save our context
@@ -350,9 +343,7 @@ bd_close(struct open_file *f)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
 
-#if 0
     DEBUG("open_disk %p", od);
-#endif
 #if 0
     /* XXX is this required? (especially if disk already open...) */
     if (od->od_flags & BD_FLOPPY)
@@ -377,18 +368,14 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 	panic("bd_strategy: %d bytes I/O not multiple of block size", size);
 #endif
 
-#if 0
     DEBUG("open_disk %p", od);
-#endif
 
     if (rw != F_READ)
 	return(EROFS);
 
 
     blks = size / BIOSDISK_SECSIZE;
-#if 0
     DEBUG("read %d from %d+%d to %p", blks, od->od_boff, dblk, buf);
-#endif
 
     if (rsize)
 	*rsize = 0;
@@ -397,10 +384,8 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 	return (EIO);
     }
 #ifdef BD_SUPPORT_FRAGS
-#if 0
-    D(printf("bd_strategy: frag read %d from %d+%d+d to %p\n", 
-	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE)));
-#endif
+    DEBUG("bd_strategy: frag read %d from %d+%d+d to %p\n", 
+	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
     if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
 	DEBUG("frag read error");
 	return(EIO);
@@ -415,13 +400,14 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 static int
 bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 {
-    int		x, bpc, cyl, hd, sec;
+    int		x, bpc, cyl, hd, sec, result, resid, cnt;
+    caddr_t	p;
     
     bpc = (od->od_sec * od->od_hds);		/* blocks per cylinder */
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    
-    while (blks != 0) {
+    resid = blks;
+    p = dest;
+
+    while (resid > 0) {
 	x = dblk;
 	cyl = x / bpc;			/* block # / blocks per cylinder */
 	x %= bpc;			/* block offset into cylinder */
@@ -429,25 +415,31 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	sec = x % od->od_sec;		/* offset into track */
 
 	/* play it safe and don't cross track boundaries */
-	x = min (od->od_sec - sec, blks);
+	x = min (od->od_sec - sec, resid);
 
 	/* correct sector number for 1-based BIOS numbering */
 	sec++;
-	
+
 	/* build request  XXX support EDD requests too */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
 	v86.eax = 0x200 | x;
 	v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
 	v86.edx = (hd << 8) | od->od_unit;
-	v86.es = VTOPSEG(dest);
-	v86.ebx = VTOPOFF(dest);
+	v86.es = VTOPSEG(p);
+	v86.ebx = VTOPOFF(p);
 	v86int();
-	if (v86.efl & 0x1)
+	result = (v86.efl & 0x1);
+ 	DEBUG("%d sectors from %d/%d/%d %s", x, cyl, hd, sec - 1, result ? "failed" : "ok");
+	if (result)
 	    return(-1);
 	
-	dest + (x * BIOSDISK_SECSIZE);
+	p += (x * BIOSDISK_SECSIZE);
 	dblk += x;
-	blks -= x;
+	resid -= x;
     }
+	
+/*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
     return(0);
 }
 
@@ -470,5 +462,8 @@ bd_getgeom(struct open_disk *od)
     /* convert max head # -> # of heads */
     od->od_hds = ((v86.edx & 0xff00) >> 8) + 1;
     od->od_sec = v86.ecx & 0x3f;
+
+
+    DEBUG("unit 0x%x geometry %d/%d/%d", od->od_unit, od->od_cyl, od->od_hds, od->od_sec);
     return(0);
 }
