@@ -60,7 +60,6 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-#include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -248,7 +247,6 @@ schedcpu(arg)
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	register struct proc *p;
 	register int realstathz, s;
-	register unsigned int newcpu;
 
 	realstathz = stathz ? stathz : hz;
 	LIST_FOREACH(p, &allproc, p_list) {
@@ -281,11 +279,9 @@ schedcpu(arg)
 			(p->p_cpticks * FSCALE / realstathz)) >> FSHIFT;
 #endif
 		p->p_cpticks = 0;
-		newcpu = (u_int) decay_cpu(loadfac, p->p_estcpu) + p->p_nice;
-		p->p_estcpu = min(newcpu, UCHAR_MAX);
+		p->p_estcpu = decay_cpu(loadfac, p->p_estcpu);
 		resetpriority(p);
 		if (p->p_priority >= PUSER) {
-#define	PPQ	(128 / NQS)		/* priorities per queue */
 			if ((p != curproc) &&
 #ifdef SMP
 			    p->p_oncpu == 0xff && 	/* idle */
@@ -323,8 +319,8 @@ updatepri(p)
 	else {
 		p->p_slptime--;	/* the first time was done in schedcpu */
 		while (newcpu && --p->p_slptime)
-			newcpu = (int) decay_cpu(loadfac, newcpu);
-		p->p_estcpu = min(newcpu, UCHAR_MAX);
+			newcpu = decay_cpu(loadfac, newcpu);
+		p->p_estcpu = newcpu;
 	}
 	resetpriority(p);
 }
@@ -882,7 +878,8 @@ resetpriority(p)
 	register unsigned int newpriority;
 
 	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
-		newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
+		newpriority = PUSER + p->p_estcpu / INVERSE_ESTCPU_WEIGHT +
+		    NICE_WEIGHT * p->p_nice;
 		newpriority = min(newpriority, MAXPRI);
 		p->p_usrpri = newpriority;
 	}
@@ -903,7 +900,8 @@ sched_setup(dummy)
  * We adjust the priority of the current process.  The priority of
  * a process gets worse as it accumulates CPU time.  The cpu usage
  * estimator (p_estcpu) is increased here.  resetpriority() will
- * compute a different priority each time p_estcpu increases by 4
+ * compute a different priority each time p_estcpu increases by
+ * INVERSE_ESTCPU_WEIGHT
  * (until MAXPRI is reached).  The cpu usage estimator ramps up
  * quite quickly when the process is running (linearly), and decays
  * away exponentially, at a rate which is proportionally slower when
@@ -916,10 +914,10 @@ void
 schedclock(p)
 	struct proc *p;
 {
+
 	p->p_cpticks++;
-	if (++p->p_estcpu == 0)
-		p->p_estcpu--;
-	if ((p->p_estcpu & 3) == 0) {
+	p->p_estcpu = ESTCPULIM(p->p_estcpu + 1);
+	if ((p->p_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(p);
 		if (p->p_priority >= PUSER)
 			p->p_priority = p->p_usrpri;
