@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.48 1994/09/28 22:57:22 wollman Exp $
+#	$Id: GENERICAH,v 1.49 1994/10/03 22:32:11 phk Exp $
 #
 
 machine		"i386"
@@ -14,6 +14,7 @@ maxusers	10
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast File System
+options		PROCFS			#Process filesystem
 options		NFS			#Network File System
 options		"CD9660"		#CD ISO9660 File System
 options		"COMPAT_43"		#Compatible with BSD 4.3
