@@ -78,7 +78,7 @@ extract_plist(char *home, Package *pkg)
 	    if (Verbose)
 		printf("extract: exec cmd '%s' (lastfile = %s)\n", p->name,
 		       last_file);
-	    if (!Fake && vsystem(p->name, last_file))
+	    if (!Fake && vsystem(p->name, Directory, last_file))
 		whinge("Command '%s' failed.", p->name);
 	    break;
 
