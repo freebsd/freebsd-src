@@ -175,7 +175,7 @@ struct md_s {
 	struct vnode *vnode;
 	struct ucred *cred;
 
-	/* MD_OBJET related fields */
+	/* MD_SWAP related fields */
 	vm_object_t object;
 };
 
