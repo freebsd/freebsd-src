@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.206 1999/07/04 00:25:29 mckusick Exp $
+ * $Id: vfs_subr.c,v 1.207 1999/07/08 06:05:55 mckusick Exp $
  */
 
 /*
@@ -882,7 +882,7 @@ brelvp(bp)
  * Similarly, directory updates are more critical, so are only delayed
  * about a third the time that file data is delayed. Thus, there are
  * SYNCER_MAXDELAY queues that are processed round-robin at a rate of
- * one each second (driven off the filesystem syner process). The
+ * one each second (driven off the filesystem syncer process). The
  * syncer_delayno variable indicates the next queue that is to be processed.
  * Items that need to be processed soon are placed in this queue:
  *
@@ -1369,7 +1369,7 @@ loop:
 
 /*
  * Grab a particular vnode from the free list, increment its
- * reference count and lock it. The vnode lock bit is set the
+ * reference count and lock it. The vnode lock bit is set if the
  * vnode is being eliminated in vgone. The process is awakened
  * when the transition is completed, and an error returned to
  * indicate that the vnode is no longer usable (possibly having
