@@ -5,7 +5,7 @@
 # and is not changed in any way.  The author accepts no responsibility
 # for the use of this software.  I hate legaleese, don't you ?
 #
-# $Id: Makefile,v 2.0.1.4 1997/02/08 06:39:28 darrenr Exp $
+# $Id: Makefile,v 2.0.1.5 1997/02/16 06:17:04 darrenr Exp $
 #
 # where to put things.
 #
@@ -35,7 +35,7 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 # results: pass, block and nomatch.  This is the sort of "block unless
 # explicitly allowed" type #define switch.
 #
-POLICY=-DNOMATCH=FR_PASS
+POLICY=-DIPF_DEFAULT_PASS=FR_PASS
 #
 MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
 	"CC=$(CC)" 'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \

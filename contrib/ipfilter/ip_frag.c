@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.1.1 1997/01/09 15:14:43 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.1.2 1997/02/16 06:17:35 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -127,7 +127,6 @@ int pass;
 	fr->ipfr_ttl = fr_ipfrttl;
 	fr->ipfr_pass = pass & ~(FR_LOGFIRST|FR_LOG);
 	fr->ipfr_off = (ip->ip_off & 0x1fff) + (fin->fin_dlen >> 3);
-	*fp = fr;
 	ipfr_stats.ifs_new++;
 	ipfr_inuse++;
 	MUTEX_EXIT(&ipf_frag);
