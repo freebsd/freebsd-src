@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.10 1993/10/23 08:28:17 nate Exp $
+#	$Id: Makefile.i386,v 1.11 1993/11/07 04:41:11 wollman Exp $
 #
 # Makefile for FreeBSD
 #
@@ -67,13 +67,13 @@ PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
 
 clean:
 	rm -f eddep *386bsd tags *.o locore.i [a-uw-z]*.s \
-		errs linterrs makelinks genassym
+		errs linterrs makelinks genassym ,assym.s stamp-assym
 
-lint: /tmp param.c
-	@lint -hbxn -I. -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
-	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
-	    grep -v 'struct/union .* never defined' | \
-	    grep -v 'possible pointer alignment problem'
+#lint: /tmp param.c
+#	@lint -hbxn -I. -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
+#	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
+#	    grep -v 'struct/union .* never defined' | \
+#	    grep -v 'possible pointer alignment problem'
 
 symbols.sort: ${I386}/i386/symbols.raw
 	grep -v '^#' ${I386}/i386/symbols.raw \
@@ -95,16 +95,21 @@ autoconf.o: Makefile
 # depend on network configuration
 af.o uipc_proto.o locore.o: Makefile
 
-# depend on maxusers
-assym.s: Makefile
-
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
 
 assym.s: genassym
-	./genassym >assym.s
+	./genassym >,assym.s
+	if cmp -s assym.s ,assym.s; then \
+		rm -f ,assym.s; \
+	else \
+		rm -f assym.s; \
+		mv ,assym.s assym.s; \
+	fi
 
-genassym:
+# Some of the defines that genassym outputs may well depend on the 
+# value of kernel options.
+genassym:	Makefile
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
 		 ${I386}/i386/genassym.c -o genassym
 
