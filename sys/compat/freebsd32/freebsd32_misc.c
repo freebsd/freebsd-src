@@ -120,6 +120,7 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD4
 static void
 copy_statfs(struct statfs *in, struct statfs32 *out)
 {
@@ -146,7 +147,9 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 	bcopy(in->f_mntfromname,
 	      out->f_mntfromname, min(MNAMELEN, FREEBSD4_MNAMELEN));
 }
+#endif
 
+#ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfsstat_args *uap)
 {
@@ -179,6 +182,7 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 	}
 	return (error);
 }
+#endif
 
 struct sigaltstack32 {
 	u_int32_t	ss_sp;
@@ -869,6 +873,7 @@ freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_args *uap)
 {
@@ -895,7 +900,9 @@ freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_ar
 	}
 	return (error);
 }
+#endif
 
+#ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_args *uap)
 {
@@ -922,7 +929,9 @@ freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_
 	}
 	return (error);
 }
+#endif
 
+#ifdef COMPAT_FREEBSD4
 int
 freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatfs_args *uap)
 {
@@ -949,6 +958,7 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 	}
 	return (error);
 }
+#endif
 
 int
 freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
