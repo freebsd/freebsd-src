@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if	0
@@ -81,8 +83,6 @@ static int bsprobe __P((struct isa_device *));
 static void bs_poll(struct cam_sim *sim);
 static int bsattach(struct isa_device *);
 static ointhand2_t bsintr;
-static int bsprint __P((void *, const char *));
-static void bs_scsi_minphys __P((struct buf *));
 static int bs_dmarangecheck __P((caddr_t, unsigned));
 
 struct isa_driver bsdriver = {
@@ -207,11 +207,8 @@ bad:
 }
 #endif	/* __FreeBSD__ */
 
-#ifdef __FreeBSD__
-static int
-#else	/* __NetBSD__ */
+#ifdef __NetBSD__
 int
-#endif	/* __NetBSD__ */
 bsprint(aux, name)
 	void *aux;
 	const char *name;
@@ -221,6 +218,7 @@ bsprint(aux, name)
 		printf("%s: scsibus ", name);
 	return UNCONF;
 }
+#endif
 
 #ifdef __FreeBSD__
 static void
@@ -235,7 +233,6 @@ bsattach(dev)
 {
 	int unit = dev->id_unit;
 	struct bs_softc *bsc = bscdata[unit];
-	struct scsibus_data *scbus;
 	struct cam_devq *devq;
 
 	dev->id_ointr = bsintr;
@@ -294,6 +291,7 @@ bsintr(unit)
 /*****************************************************************
  * JULIAN SCSI <=> BS INTERFACE
  *****************************************************************/
+#ifndef __FreeBSD__
 static void
 bs_scsi_minphys(bp)
 	struct buf *bp;
@@ -303,6 +301,7 @@ bs_scsi_minphys(bp)
 		bp->b_bcount = BSDMABUFSIZ;
 	minphys(bp);
 }
+#endif
 #if 0
 XSBS_INT32T
 bs_target_open(sc, cf)
