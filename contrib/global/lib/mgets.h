@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redilogibution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +37,7 @@
 #include <stdio.h>
 #define MGETS_CONT		1
 #define MGETS_SKIPCOM		2
+#define MGETS_TAILCUT		4
 
 #ifndef __P
 #if defined(__STDC__)
@@ -46,6 +47,6 @@
 #endif
 #endif
 
-char	*mgets __P((FILE *, int, int *));
+char	*mgets __P((FILE *, int *, int));
 
 #endif /* ! _MGETS_H_ */
