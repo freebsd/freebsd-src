@@ -88,8 +88,6 @@ struct pfsnode {
 	 ((cnp)->cn_namelen == (len) && \
 	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
 
-#define KMEM_GROUP 2
-
 #define PROCFS_FILENO(pid, type) \
 	(((type) < Pproc) ? \
 			((type) + 2) : \
