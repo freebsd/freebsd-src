@@ -259,8 +259,7 @@ kse_unlink(struct kse *ke)
 		TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
 		kg->kg_idle_kses--;
 	}
-	if (--kg->kg_kses == 0)
-		ksegrp_unlink(kg);
+	--kg->kg_kses;
 	/*
 	 * Aggregate stats from the KSE
 	 */
@@ -396,6 +395,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 	struct thread *td2;
 
 	p = td->td_proc;
+
 	if (!(p->p_flag & P_SA))
 		return (EINVAL);
 
@@ -696,14 +696,18 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		      kg_startzero, kg_endzero));
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
 		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+		PROC_LOCK(p);      
 		mtx_lock_spin(&sched_lock);
 		if (p->p_numksegrps >= max_groups_per_proc) {
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			ksegrp_free(newkg);
 			return (EPROCLIM);
 		}
 		ksegrp_link(newkg, p);
+		sched_fork_ksegrp(kg, newkg);
 		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 	} else {
 		if (!first && ((td->td_flags & TDF_SA) ^ sa) != 0)
 			return (EINVAL);
@@ -748,6 +752,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 #endif
 			mtx_lock_spin(&sched_lock);
 			kse_link(newke, newkg);
+			sched_fork_kse(td->td_kse, newke);
 			/* Add engine */
 			kse_reassign(newke);
 			mtx_unlock_spin(&sched_lock);
@@ -1266,13 +1271,20 @@ thread_exit(void)
 		if (td->td_upcall)
 			upcall_remove(td);
 	
+		sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
+		sched_exit_kse(FIRST_KSE_IN_PROC(p), ke);
 		ke->ke_state = KES_UNQUEUED;
 		ke->ke_thread = NULL;
 		/* 
 		 * Decide what to do with the KSE attached to this thread.
 		 */
-		if (ke->ke_flags & KEF_EXIT)
+		if (ke->ke_flags & KEF_EXIT) {
 			kse_unlink(ke);
+			if (kg->kg_kses == 0) {
+				sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), kg);
+				ksegrp_unlink(kg);
+			}
+		}
 		else
 			kse_reassign(ke);
 		PROC_UNLOCK(p);
@@ -1484,6 +1496,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	td2->td_inhibitors = 0;
 	SIGFILLSET(td2->td_sigmask);
 	SIG_CANTMASK(td2->td_sigmask);
+	sched_fork_thread(td, td2);
 	return (td2);	/* bogus.. should be a void function */
 }
 
