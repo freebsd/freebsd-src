@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.52 1998/07/28 21:54:54 brian Exp $
+ * $Id: route.c,v 1.53 1998/08/17 06:42:40 brian Exp $
  *
  */
 
@@ -61,6 +61,7 @@
 #include "bundle.h"
 #include "route.h"
 #include "prompt.h"
+#include "iface.h"
 
 static void
 p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
@@ -361,7 +362,7 @@ route_IfDelete(struct bundle *bundle, int all)
   char *sp, *cp, *ep;
   int mib[6];
 
-  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->ifp.Index);
+  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->iface->index);
   sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
@@ -407,7 +408,7 @@ route_IfDelete(struct bundle *bundle, int all)
                 Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
       if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	  rtm->rtm_index == bundle->ifp.Index &&
+	  rtm->rtm_index == bundle->iface->index &&
 	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
         sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
         sa = (struct sockaddr *)((char *)sa + sa->sa_len);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.34 1998/08/26 17:39:36 brian Exp $
+ *	$Id: bundle.c,v 1.35 1998/09/17 00:45:25 brian Exp $
  */
 
 #include <sys/param.h>
@@ -89,6 +89,7 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "ip.h"
+#include "iface.h"
 
 #define SCATTER_SEGMENTS 4	/* version, datalink, name, physical */
 #define SOCKET_OVERHEAD	100	/* additional buffer space for large */
@@ -146,49 +147,6 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     log_DisplayPrompts();
     break;
   }
-}
-
-static int
-bundle_CleanInterface(const struct bundle *bundle)
-{
-  int s;
-  struct ifreq ifrq;
-  struct ifaliasreq ifra;
-
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    log_Printf(LogERROR, "bundle_CleanInterface: socket(): %s\n",
-              strerror(errno));
-    return (-1);
-  }
-  strncpy(ifrq.ifr_name, bundle->ifp.Name, sizeof ifrq.ifr_name - 1);
-  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-  while (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0) {
-    memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
-    strncpy(ifra.ifra_name, bundle->ifp.Name, sizeof ifra.ifra_name - 1);
-    ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
-    ifra.ifra_addr = ifrq.ifr_addr;
-    if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
-      if (ifra.ifra_addr.sa_family == AF_INET)
-        log_Printf(LogERROR, "Can't get dst for %s on %s !\n",
-                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
-                  bundle->ifp.Name);
-      close(s);
-      return 0;
-    }
-    ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-      if (ifra.ifra_addr.sa_family == AF_INET)
-        log_Printf(LogERROR, "Can't delete %s address on %s !\n",
-                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
-                  bundle->ifp.Name);
-      close(s);
-      return 0;
-    }
-  }
-  close(s);
-
-  return 1;
 }
 
 static void
@@ -387,14 +345,14 @@ bundle_LayerUp(void *v, struct fsm *fp)
     if (bundle->ncp.mp.active) {
       struct datalink *dl;
 
-      bundle->ifp.Speed = 0;
+      bundle->ifSpeed = 0;
       for (dl = bundle->links; dl; dl = dl->next)
         if (dl->state == DATALINK_OPEN)
-          bundle->ifp.Speed += modem_Speed(dl->physical);
+          bundle->ifSpeed += modem_Speed(dl->physical);
       tun_configure(bundle, bundle->ncp.mp.peer_mrru);
       bundle->autoload.running = 1;
     } else {
-      bundle->ifp.Speed = modem_Speed(p);
+      bundle->ifSpeed = modem_Speed(p);
       tun_configure(bundle, fsm2lcp(fp)->his_mru);
     }
   } else if (fp->proto == PROTO_IPCP) {
@@ -424,15 +382,15 @@ bundle_LayerDown(void *v, struct fsm *fp)
       struct datalink *dl;
       struct datalink *lost;
 
-      bundle->ifp.Speed = 0;
+      bundle->ifSpeed = 0;
       lost = NULL;
       for (dl = bundle->links; dl; dl = dl->next)
         if (fp == &dl->physical->link.lcp.fsm)
           lost = dl;
         else if (dl->state == DATALINK_OPEN)
-          bundle->ifp.Speed += modem_Speed(dl->physical);
+          bundle->ifSpeed += modem_Speed(dl->physical);
 
-      if (bundle->ifp.Speed)
+      if (bundle->ifSpeed)
         /* Don't configure down to a speed of 0 */
         tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
 
@@ -769,10 +727,11 @@ struct bundle *
 bundle_Create(const char *prefix, int type, const char **argv)
 {
   int s, enoentcount, err;
+  const char *ifname;
   struct ifreq ifrq;
   static struct bundle bundle;		/* there can be only one */
 
-  if (bundle.ifp.Name != NULL) {	/* Already allocated ! */
+  if (bundle.iface != NULL) {	/* Already allocated ! */
     log_Printf(LogALERT, "bundle_Create:  There's only one BUNDLE !\n");
     return NULL;
   }
@@ -811,24 +770,32 @@ bundle_Create(const char *prefix, int type, const char **argv)
     return NULL;
   }
 
-  bundle.ifp.Name = strrchr(bundle.dev.Name, '/');
-  if (bundle.ifp.Name == NULL)
-    bundle.ifp.Name = bundle.dev.Name;
+  ifname = strrchr(bundle.dev.Name, '/');
+  if (ifname == NULL)
+    ifname = bundle.dev.Name;
   else
-    bundle.ifp.Name++;
+    ifname++;
+
+  bundle.iface = iface_Create(ifname);
+  if (bundle.iface == NULL) {
+    close(s);
+    close(bundle.dev.fd);
+    return NULL;
+  }
 
   /*
    * Now, bring up the interface.
    */
   memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle.ifp.Name, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, ifname, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "bundle_Create: ioctl(SIOCGIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
+    iface_Destroy(bundle.iface);
+    bundle.iface = NULL;
     close(bundle.dev.fd);
-    bundle.ifp.Name = NULL;
     return NULL;
   }
   ifrq.ifr_flags |= IFF_UP;
@@ -836,22 +803,17 @@ bundle_Create(const char *prefix, int type, const char **argv)
     log_Printf(LogERROR, "bundle_Create: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
+    iface_Destroy(bundle.iface);
+    bundle.iface = NULL;
     close(bundle.dev.fd);
-    bundle.ifp.Name = NULL;
     return NULL;
   }
 
   close(s);
 
-  if ((bundle.ifp.Index = GetIfIndex(bundle.ifp.Name)) < 0) {
-    log_Printf(LogERROR, "Can't find interface index.\n");
-    close(bundle.dev.fd);
-    bundle.ifp.Name = NULL;
-    return NULL;
-  }
-  log_Printf(LogPHASE, "Using interface: %s\n", bundle.ifp.Name);
+  log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
-  bundle.ifp.Speed = 0;
+  bundle.ifSpeed = 0;
 
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
@@ -882,8 +844,9 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
     log_Printf(LogALERT, "Cannot create data link: %s\n", strerror(errno));
+    iface_Destroy(bundle.iface);
+    bundle.iface = NULL;
     close(bundle.dev.fd);
-    bundle.ifp.Name = NULL;
     return NULL;
   }
 
@@ -917,7 +880,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   memset(&bundle.choked.timer, '\0', sizeof bundle.choked.timer);
 
   /* Clean out any leftover crud */
-  bundle_CleanInterface(&bundle);
+  iface_Clear(bundle.iface, IFACE_CLEAR_ALL);
 
   bundle_LockTun(&bundle);
 
@@ -939,7 +902,7 @@ bundle_DownInterface(struct bundle *bundle)
   }
 
   memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle->ifp.Name, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, bundle->iface->name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
@@ -985,7 +948,8 @@ bundle_Destroy(struct bundle *bundle)
   /* In case we never made PHASE_NETWORK */
   bundle_Notify(bundle, EX_ERRDEAD);
 
-  bundle->ifp.Name = NULL;
+  iface_Destroy(bundle->iface);
+  bundle->iface = NULL;
 }
 
 struct rtmsg {
@@ -1032,24 +996,10 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   cp += rtdata.sin_len;
   if (cmd == RTM_ADD) {
     if (gateway.s_addr == INADDR_ANY) {
-      /* Add a route through the interface */
-      struct sockaddr_dl dl;
-      const char *iname;
-      int ilen;
-
-      iname = Index2Nam(bundle->ifp.Index);
-      ilen = strlen(iname);
-      dl.sdl_len = sizeof dl - sizeof dl.sdl_data + ilen;
-      dl.sdl_family = AF_LINK;
-      dl.sdl_index = bundle->ifp.Index;
-      dl.sdl_type = 0;
-      dl.sdl_nlen = ilen;
-      dl.sdl_alen = 0;
-      dl.sdl_slen = 0;
-      strncpy(dl.sdl_data, iname, sizeof dl.sdl_data);
-      memcpy(cp, &dl, dl.sdl_len);
-      cp += dl.sdl_len;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+      log_Printf(LogERROR, "bundle_SetRoute: Cannot add a route with"
+                 " destination 0.0.0.0\n");
+      close(s);
+      return result;
     } else {
       rtdata.sin_addr = gateway;
       memcpy(cp, &rtdata, rtdata.sin_len);
@@ -1241,7 +1191,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
   prompt_Printf(arg->prompt, " Interface:     %s @ %lubps\n",
-                arg->bundle->ifp.Name, arg->bundle->ifp.Speed);
+                arg->bundle->iface->name, arg->bundle->ifSpeed);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
@@ -1294,6 +1244,8 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_THROUGHPUT));
   prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
                 optval(arg->bundle, OPT_UTMP));
+  prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
+                optval(arg->bundle, OPT_IFACEALIAS));
 
   return 0;
 }
@@ -1635,11 +1587,6 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
 
   /* Regenerate phys_type and adjust autoload & idle timers */
   bundle_LinksRemoved(bundle);
-
-  if (omode == PHYS_AUTO && !(bundle->phys_type.all & PHYS_AUTO) &&
-      bundle->phase != PHASE_NETWORK)
-    /* No auto links left */
-    ipcp_CleanInterface(&bundle->ncp.ipcp);
 
   return 1;
 }
