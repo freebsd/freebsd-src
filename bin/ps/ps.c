@@ -98,9 +98,6 @@ static void	 scanvars __P((void));
 static void	 dynsizevars __P((KINFO *));
 static void	 sizevars __P((void));
 static void	 usage __P((void));
-#ifdef __alpha__
-static int	 get_uarea __P((struct proc *, struct pstats *));
-#endif
 
 char dfmt[] = "pid tt state time command";
 char jfmt[] = "user pid ppid pgid sess jobc state tt time command";
@@ -456,64 +453,26 @@ fmt(fn, ki, comm, maxlen)
 	return (s);
 }
 
-#ifdef __alpha__
-/*
- * This is a kludge to work around the fact that on the alpha,
- * the uarea is not mapped into the process address space.
- */
-static int get_uarea(p, pstats)
-	struct proc		*p;
-	struct pstats		*pstats;
-{
-	size_t			offset;
-	static struct user	ubuf;
-	kvm_t			*mkd;
-	int			len;
-
-	offset = (size_t)p->p_addr;
-	mkd = kvm_open(NULL, NULL, NULL, 0, NULL);
-	if (mkd == NULL)
-		return(0);
-	len = kvm_read(mkd, offset, (char *)&ubuf, sizeof(struct user));
-	kvm_close(mkd);
-	if (len != sizeof(struct user))
-		return(0);
-
-	bcopy((char *)&ubuf.u_stats, (char *)pstats, sizeof(struct pstats));
-
-	return(sizeof(struct pstats));
-}
-#endif
-
 #define UREADOK(ki)	(forceuread || (KI_PROC(ki)->p_flag & P_INMEM))
 
 static void
 saveuser(ki)
 	KINFO *ki;
 {
-	struct pstats pstats;
 	struct usave *usp;
-#ifndef __alpha__
-	struct user *u_addr = (struct user *)USRSTACK;
-#endif
 
 	usp = &ki->ki_u;
 
-#ifdef __alpha__
-	if (UREADOK(ki) && get_uarea(KI_PROC(ki), &pstats) == sizeof(pstats)) {
-#else
-	if (UREADOK(ki) && kvm_uread(kd, KI_PROC(ki), (unsigned long)&u_addr->u_stats,
-	    (char *)&pstats, sizeof(pstats)) == sizeof(pstats)) {
-#endif
+	if (KI_PROC(ki)->p_flag & P_INMEM) {
 		/*
 		 * The u-area might be swapped out, and we can't get
 		 * at it because we have a crashdump and no swap.
 		 * If it's here fill in these fields, otherwise, just
 		 * leave them 0.
 		 */
-		usp->u_start = pstats.p_start;
-		usp->u_ru = pstats.p_ru;
-		usp->u_cru = pstats.p_cru;
+		usp->u_start = KI_EPROC(ki)->e_stats.p_start;
+		usp->u_ru = KI_EPROC(ki)->e_stats.p_ru;
+		usp->u_cru = KI_EPROC(ki)->e_stats.p_cru;
 		usp->u_valid = 1;
 	} else
 		usp->u_valid = 0;
@@ -521,22 +480,22 @@ saveuser(ki)
 	 * save arguments if needed
 	 */
 	if (needcomm && (UREADOK(ki) || (KI_PROC(ki)->p_args != NULL))) {
-	    ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
-		MAXCOMLEN);
+		ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
+		    MAXCOMLEN);
 	} else if (needcomm) {
-	    ki->ki_args = malloc(strlen(KI_PROC(ki)->p_comm) + 3);
-	    sprintf(ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
-    } else {
-	    ki->ki_args = NULL;
-    }
-    if (needenv && UREADOK(ki)) {
-	    ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
-    } else if (needenv) {
-	    ki->ki_env = malloc(3);
-	    strcpy(ki->ki_env, "()");
-    } else {
-	    ki->ki_env = NULL;
-    }
+		ki->ki_args = malloc(strlen(KI_PROC(ki)->p_comm) + 3);
+		sprintf(ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
+	} else {
+		ki->ki_args = NULL;
+	}
+	if (needenv && UREADOK(ki)) {
+		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
+	} else if (needenv) {
+		ki->ki_env = malloc(3);
+		strcpy(ki->ki_env, "()");
+	} else {
+		ki->ki_env = NULL;
+	}
 }
 
 static int
