@@ -39,8 +39,7 @@
 .Nm cv_timedwait_sig ,
 .Nm cv_signal ,
 .Nm cv_broadcast ,
-.Nm cv_waitq_remove ,
-.Nm cv_waitq_empty ,
+.Nm cv_broadcastpri ,
 .Nm cv_wmesg
 .Nd kernel condition variable
 .Sh SYNOPSIS
@@ -64,9 +63,7 @@
 .Ft void
 .Fn cv_broadcast "struct cv *cvp"
 .Ft void
-.Fn cv_waitq_remove "struct thread *td"
-.Ft int
-.Fn cv_waitq_empty "struct cv *cvp"
+.Fn cv_broadcastpri "struct cv *cvp" "int pri"
 .Ft const char *
 .Fn cv_wmesg "struct cv *cvp"
 .Sh DESCRIPTION
@@ -94,12 +91,14 @@ Threads unblock waiters by calling
 .Fn cv_signal
 to unblock one waiter, or
 .Fn cv_broadcast
+or
+.Fn cv_broadcastpri
 to unblock all waiters.
-.Fn cv_waitq_remove
-removes a waiting thread from a condition variable wait queue, if it is on one.
-.Fn cv_waitq_empty
-reports whether there are any waiters on
-.Fa cvp .
+In addition to waking waiters,
+.Fn cv_broadcastpri
+ensures that all of the waiters have a priorty of at least
+.Fa pri
+by raising the priority of any threads that do not.
 .Fn cv_wmesg
 returns the description string of
 .Fa cvp ,
@@ -125,9 +124,10 @@ in conjunction with
 A thread must hold
 .Fa mp
 while calling
-.Fn cv_signal
-or
+.Fn cv_signal ,
 .Fn cv_broadcast ,
+or
+.Fn cv_broadcastpri
 even though it isn't passed as an argument.
 .Pp
 When
@@ -166,9 +166,6 @@ and
 .Fn cv_timedwait_sig
 return 0.
 Otherwise, a non-zero error code is returned.
-.Pp
-.Fn cv_waitq_empty
-returns non-zero if there are no threads on the wait queue; 0 otherwise.
 .Pp
 .Fn cv_wmesg
 returns the description string that was passed to
