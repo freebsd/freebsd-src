@@ -1469,7 +1469,7 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	configRouter, NULL, "router_enable=YES" },
       { " Rwhod",	"This machine wants to run the rwho daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
-      { " Sshd",	"This machine wants to run the ssh daemon",
+      { " SSHd",	"This machine wants to run the SSH daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "sshd_enable=YES" },
       { " TCP Extensions", "Allow RFC1323 and RFC1644 TCP extensions?",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "tcp_extensions=YES" },
@@ -2229,28 +2229,12 @@ DMenu MenuSecurity = {
     NULL,
     { { "X Exit",      "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { " Security Profile",   "Select a security profile for the system",
-	NULL, configSecurityProfile },
 #if 0
       { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
 #endif
       { " NFS port",	"Require that the NFS clients used reserved ports",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "nfs_reserved_port_only=YES" },
-      { NULL } },
-};
-
-DMenu MenuSecurityProfile = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Default system security profile",
-    "Each item in this list will set what it considers to\n"
-    "be \"appropriate\" values in that category for various\n"
-    "security-related knobs in /etc/rc.conf.",
-    "Select a canned security profile - F1 for help",
-    "security",						/* help file */
-    { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "Moderate",	"Moderate security settings.", NULL, configSecurityModerate },
-      { "Extreme",	"Very restrictive security settings.", NULL, configSecurityExtreme },
       { NULL } },
 };
 
