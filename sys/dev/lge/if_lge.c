@@ -674,7 +674,7 @@ lge_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&sc->lge_stat_ch);
 
 fail:
@@ -697,7 +697,7 @@ lge_detach(dev)
 
 	lge_reset(sc);
 	lge_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->lge_miibus);
@@ -971,7 +971,6 @@ lge_rxeof(sc, cnt)
 	struct lge_softc	*sc;
 	int			cnt;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct lge_rx_desc	*cur_rx;
@@ -1027,10 +1026,6 @@ lge_rxeof(sc, cnt)
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
 
 		/* Do IP checksum checking. */
 		if (rxsts & LGE_RXSTS_ISIP)
@@ -1046,7 +1041,7 @@ lge_rxeof(sc, cnt)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc->lge_cdata.lge_rx_cons = i;
@@ -1299,8 +1294,7 @@ lge_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 	}
 
 	sc->lge_cdata.lge_tx_prod = idx;
@@ -1508,10 +1502,6 @@ lge_ioctl(ifp, command, data)
 	s = splimp();
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > LGE_JUMBO_MTU)
 			error = EINVAL;
@@ -1553,7 +1543,7 @@ lge_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

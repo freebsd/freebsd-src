@@ -816,7 +816,7 @@ fe_attach (device_t dev)
 #endif
 
 	/* Attach and stop the interface. */
-	ether_ifattach(&sc->sc_if, ETHER_BPF_SUPPORTED);
+	ether_ifattach(&sc->sc_if, sc->arpcom.ac_enaddr);
 	fe_stop(sc);
   
   	/* Print additional info when attached.  */
@@ -1281,9 +1281,8 @@ fe_start (struct ifnet *ifp)
 		 * and only if it is in "receive everything"
 		 * mode.)
 		 */
-		if (sc->sc_if.if_bpf &&
-		    !(sc->sc_if.if_flags & IFF_PROMISC))
-			bpf_mtap(&sc->sc_if, m);
+		if (!(sc->sc_if.if_flags & IFF_PROMISC))
+			BPF_MTAP(&sc->sc_if, m);
 
 		m_freem(m);
 	}
@@ -1757,13 +1756,6 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 
 	switch (command) {
 
-	  case SIOCSIFADDR:
-	  case SIOCGIFADDR:
-	  case SIOCSIFMTU:
-		/* Just an ordinary action.  */
-		error = ether_ioctl(ifp, command, data);
-		break;
-
 	  case SIOCSIFFLAGS:
 		/*
 		 * Switch interface state between "running" and
@@ -1803,7 +1795,7 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		break;
 
 	  default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -1819,6 +1811,7 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 static int
 fe_get_packet (struct fe_softc * sc, u_short len)
 {
+	struct ifnet *ifp = &sc->sc_if;
 	struct ether_header *eh;
 	struct mbuf *m;
 
@@ -1868,7 +1861,7 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 	}
 
 	/* Initialize packet header info.  */
-	m->m_pkthdr.rcvif = &sc->sc_if;
+	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = len;
 
 	/* Set the length of this packet.  */
@@ -1890,13 +1883,8 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 		fe_insw(sc, FE_BMPR8, (u_int16_t *)eh, (len + 1) >> 1);
 	}
 
-	/* Strip off the Ethernet header.  */
-	m->m_pkthdr.len -= sizeof (struct ether_header);
-	m->m_len -= sizeof (struct ether_header);
-	m->m_data += sizeof (struct ether_header);
-
 	/* Feed the packet to upper layer.  */
-	ether_input(&sc->sc_if, eh, m);
+	(*ifp->if_input)(ifp, m);
 	return 0;
 }
 

@@ -207,7 +207,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define IOCTL_CMD_TYPE                  u_long
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
+#ifndef ETHER_ALIGN
 #define ETHER_ALIGN                     2
+#endif
 #define QTAG_TYPE                       0x8100
 
 /* Defines for printing debug information */

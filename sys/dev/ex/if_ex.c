@@ -262,7 +262,7 @@ ex_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	device_printf(sc->dev, "Ethernet address %6D\n",
 			sc->arpcom.ac_enaddr, ":");
@@ -523,9 +523,7 @@ ex_start(struct ifnet *ifp)
 			sc->tx_last = dest;
 			sc->tx_tail = next;
      	 
-			if (ifp->if_bpf != NULL) {
-				bpf_mtap(ifp, opkt);
-			}
+			BPF_MTAP(ifp, opkt);
 
 			ifp->if_timer = 2;
 			ifp->if_opackets++;
@@ -752,8 +750,7 @@ ex_rx_intr(struct ex_softc *sc)
 		} /* QQQ */
 	}
 #endif
-				m_adj(ipkt, sizeof(struct ether_header));
-				ether_input(ifp, eh, ipkt);
+				(*ifp->if_input)(ifp, ipkt);
 				ifp->if_ipackets++;
 			}
 		} else {

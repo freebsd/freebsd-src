@@ -519,8 +519,7 @@ cm_start(ifp)
 	 * (can't give the copy in A2060 card RAM to bpf, because
 	 * that RAM is just accessed as on every other byte)
 	 */
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 #ifdef CM_DEBUG
 	if (m->m_len < ARC_HDRLEN)

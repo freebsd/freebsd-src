@@ -299,7 +299,7 @@ gem_attach(sc)
 	bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_MIF_CONFIG,
 	    sc->sc_mif_config);
 	/* Attach the interface. */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
 
 #if notyet
 	/*
@@ -1546,13 +1546,11 @@ gem_rint(sc)
 		}
 		m->m_data += 2; /* We're already off by two */
 
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len - ETHER_CRC_LEN;
-		m_adj(m, sizeof(struct ether_header));
 
 		/* Pass it on. */
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	if (progress) {
@@ -1952,7 +1950,7 @@ gem_ioctl(ifp, cmd, data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
 		break;
 	default:
-		error = ENOTTY;
+		error = ENOTTY;		/* XXX EINVAL??? */
 		break;
 	}
 

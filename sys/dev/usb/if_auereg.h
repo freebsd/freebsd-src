@@ -257,7 +257,6 @@ struct aue_softc {
 #endif
 
 #define AUE_TIMEOUT		1000
-#define ETHER_ALIGN		2
 #define AUE_BUFSZ		1536
 #define AUE_MIN_FRAMELEN	60
 #define AUE_INTR_INTERVAL	100 /* ms */

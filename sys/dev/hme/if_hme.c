@@ -314,7 +314,7 @@ hme_config(struct hme_softc *sc)
 	}
 
 	/* Attach the interface. */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
 
 	callout_init(&sc->sc_tick_ch, 0);
 	return (0);
@@ -987,7 +987,6 @@ static void
 hme_read(struct hme_softc *sc, int ix, int len)
 {
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
-	struct ether_header *eh;
 	struct mbuf *m;
 	int offs;
 
@@ -1026,10 +1025,8 @@ hme_read(struct hme_softc *sc, int ix, int len)
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len + offs;
 	m_adj(m, offs);
-	eh = mtod(m, struct ether_header *);
-	m_adj(m, sizeof(struct ether_header));
 	/* Pass the packet up. */
-	ether_input(ifp, eh, m);
+	(*ifp->if_input)(ifp, m);
 }
 
 static void
@@ -1055,8 +1052,7 @@ hme_start(struct ifnet *ifp)
 			break;
 		} else {
 			enq = 1;
-			if (ifp->if_bpf)
-				bpf_mtap(ifp, m);
+			BPF_MTAP(ifp, m);
 		}
 	}
 
@@ -1376,11 +1372,6 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	s = splnet();
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_flags & IFF_RUNNING) != 0) {
@@ -1420,7 +1411,7 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_mii->mii_media, cmd);
 		break;
 	default:
-		error = ENOTTY;
+		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
 

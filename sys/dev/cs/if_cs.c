@@ -657,7 +657,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
                 ifmedia_set(&sc->media, media);
 		cs_mediaset(sc, media);
 
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	}
 
 	if (bootverbose)
@@ -750,8 +750,7 @@ cs_init(void *xsc)
 }
 
 /*
- * Get the packet from the board and send it to the upper layer
- * via ether_input().
+ * Get the packet from the board and send it to the upper layer.
  */
 static int
 cs_get_packet(struct cs_softc *sc)
@@ -811,12 +810,8 @@ cs_get_packet(struct cs_softc *sc)
 
 	if (status & (RX_IA | RX_BROADCAST) || 
 	    (ifp->if_flags & IFF_MULTICAST && status & RX_HASHED)) {
-		m->m_pkthdr.len -= sizeof(struct ether_header);
-		m->m_len -= sizeof(struct ether_header);
-		m->m_data += sizeof(struct ether_header);
-
 		/* Feed the packet to the upper layer */
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 
 		ifp->if_ipackets++;
 
@@ -961,9 +956,7 @@ cs_start(struct ifnet *ifp)
 
 			cs_write_mbufs(sc, m);
 
-			if (ifp->if_bpf) {
-				bpf_mtap(ifp, m);
-			}
+			BPF_MTAP(ifp, m);
 
 			m_freem(m);
 		}
@@ -1085,12 +1078,6 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	s=splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		/*
 		 * Switch interface state between "running" and
@@ -1132,7 +1119,8 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
                 break;
 
         default:
-		error = EINVAL;
+		ether_ioctl(ifp, command, data);
+		break;
         }
 
 	(void) splx(s);

@@ -383,7 +383,7 @@ txp_attach(dev)
 	/*
 	 * Attach us everywhere
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->sc_arpcom.ac_enaddr);
 	callout_handle_init(&sc->sc_tick);
 	return(0);
 
@@ -408,7 +408,7 @@ txp_detach(dev)
 	txp_shutdown(dev);
 
 	ifmedia_removeall(&sc->sc_ifmedia);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	for (i = 0; i < RXBUF_ENTRIES; i++)
 		free(sc->sc_rxbufs[i].rb_sd, M_DEVBUF);
@@ -736,7 +736,6 @@ txp_rx_reclaim(sc, r)
 	struct mbuf *m;
 	struct txp_swdesc *sd = NULL;
 	u_int32_t roff, woff;
-	struct ether_header *eh = NULL;
 
 	roff = *r->r_roff;
 	woff = *r->r_woff;
@@ -804,16 +803,12 @@ txp_rx_reclaim(sc, r)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 
-		eh = mtod(m, struct ether_header *);
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-
 		if (rxd->rx_stat & RX_STAT_VLAN) {
-			VLAN_INPUT_TAG(eh, m, htons(rxd->rx_vlan >> 16));
-			goto next;
+			VLAN_INPUT_TAG(ifp,
+				m, htons(rxd->rx_vlan >> 16), goto next);
 		}
 
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 
 next:
 
@@ -1103,17 +1098,7 @@ txp_ioctl(ifp, command, data)
 
 	s = splnet();
 
-	if ((error = ether_ioctl(ifp, command, data)) > 0) {
-		splx(s);
-		return error;
-	}
-
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			txp_init(sc);
@@ -1136,7 +1121,7 @@ txp_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_ifmedia, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -1314,7 +1299,7 @@ txp_start(ifp)
 	struct mbuf *m, *m0;
 	struct txp_swdesc *sd;
 	u_int32_t firstprod, firstcnt, prod, cnt;
-	struct ifvlan		*ifv;
+	struct m_tag *mtag;
 
 	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
 		return;
@@ -1351,11 +1336,10 @@ txp_start(ifp)
 		if (++cnt >= (TX_ENTRIES - 4))
 			goto oactive;
 
-		if ((m->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-		    m->m_pkthdr.rcvif != NULL) {
-			ifv = m->m_pkthdr.rcvif->if_softc;
+		mtag = VLAN_OUTPUT_TAG(ifp, m);
+		if (mtag != NULL) {
 			txd->tx_pflags = TX_PFLAGS_VLAN |
-			    (htons(ifv->ifv_tag) << TX_PFLAGS_VLANTAG_S);
+			    (htons(VLAN_TAG_VALUE(mtag)) << TX_PFLAGS_VLANTAG_S);
 		}
 
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
@@ -1394,8 +1378,7 @@ txp_start(ifp)
 
 		ifp->if_timer = 5;
 
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
+		BPF_MTAP(ifp, m);
 		WRITE_REG(sc, r->r_reg, TXP_IDX2OFFSET(prod));
 	}
 
@@ -1877,6 +1860,7 @@ txp_capabilities(sc)
 	if (rsp->rsp_par2 & rsp->rsp_par3 & OFFLOAD_VLAN) {
 		sc->sc_tx_capability |= OFFLOAD_VLAN;
 		sc->sc_rx_capability |= OFFLOAD_VLAN;
+		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 	}
 
 #if 0

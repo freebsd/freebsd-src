@@ -202,8 +202,7 @@ static int	ierint(int unit, struct ie_softc * ie);
 static int	ietint(int unit, struct ie_softc * ie);
 static int	iernr(int unit, struct ie_softc * ie);
 static void	start_receiver(int unit);
-static __inline int ieget(int, struct ie_softc *, struct mbuf **,
-			  struct ether_header *);
+static __inline int ieget(int, struct ie_softc *, struct mbuf **);
 static v_caddr_t setup_rfa(v_caddr_t ptr, struct ie_softc * ie);
 static int	mc_setup(int, v_caddr_t, volatile struct ie_sys_ctl_block *);
 static void	ie_mc_reset(int unit);
@@ -796,7 +795,7 @@ ieattach(struct isa_device *dvp)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      ie, SHUTDOWN_PRI_DEFAULT);
 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, ie->arpcom.ac_enaddr);
 	return (1);
 }
 
@@ -1122,10 +1121,9 @@ ie_packet_len(int unit, struct ie_softc * ie)
  * operation considerably.  (Provided that it works, of course.)
  */
 static __inline int
-ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
+ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 {
 	struct	mbuf *m, *top, **mymp;
-	int	i;
 	int	offset;
 	int	totlen, resid;
 	int	thismboff;
@@ -1135,12 +1133,18 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
 	if (totlen <= 0)
 		return (-1);
 
-	i = ie->rbhead;
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (!m) {
+		ie_drop_packet_buffer(unit, ie);
+		/* XXXX if_ierrors++; */
+		return (-1);
+	}
 
 	/*
 	 * Snarf the Ethernet header.
 	 */
-	bcopy((v_caddr_t) ie->cbuffs[i], (caddr_t) ehp, sizeof *ehp);
+	bcopy((v_caddr_t) ie->cbuffs[ie->rbhead], mtod(m, caddr_t),
+		sizeof (struct ether_header));
 	/* ignore cast-qual warning here */
 
 	/*
@@ -1149,25 +1153,25 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
 	 * This is only a consideration when FILTER is defined; i.e., when
 	 * we are either running BPF or doing multicasting.
 	 */
-	if (!check_eh(ie, ehp)) {
+	if (!check_eh(ie, mtod(m, struct ether_header *))) {
+		m_free(m);
 		ie_drop_packet_buffer(unit, ie);
 		ie->arpcom.ac_if.if_ierrors--;	/* just this case, it's not an
 						 * error
 						 */
 		return (-1);
 	}
-	totlen -= (offset = sizeof *ehp);
 
-	MGETHDR(*mp, M_DONTWAIT, MT_DATA);
-	if (!*mp) {
-		ie_drop_packet_buffer(unit, ie);
-		return (-1);
-	}
-	m = *mp;
+	/* XXX way too complicated, check carefully XXXX */
+
+	*mp = m;
 	m->m_pkthdr.rcvif = &ie->arpcom.ac_if;
-	m->m_len = MHLEN;
-	resid = m->m_pkthdr.len = totlen;
-	top = 0;
+	/* deduct header just copied; m_len must reflect space avail below */
+	m->m_len = MHLEN - sizeof (struct ether_header);
+	m->m_pkthdr.len = totlen;
+
+	resid = totlen - sizeof (struct ether_header);	/* remaining data */
+	top = NULL;
 	mymp = &top;
 
 	/*
@@ -1208,10 +1212,11 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
 		mymp = &m->m_next;
 	} while (resid > 0);
 
-	resid = totlen;
-	m = top;
-	thismboff = 0;
-	head = ie->rbhead;
+	resid = totlen - sizeof (struct ether_header);	/* remaining data */
+	offset = sizeof (struct ether_header);		/* packet offset */
+	m = top;					/* current mbuf */
+	thismboff = sizeof (struct ether_header);	/* offset in m */
+	head = ie->rbhead;				/* current rx buffer */
 
 	/*
 	 * Now we take the mbuf chain (hopefully only one mbuf most of the
@@ -1232,7 +1237,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
 			      mtod(m, v_caddr_t) +thismboff, (unsigned) newlen);
 			/* ignore cast-qual warning */
 			m = m->m_next;
-			thismboff = 0;	/* new mbuf, so no offset */
+			thismboff = 0;		/* new mbuf, so no offset */
 			offset += newlen;	/* we are now this far into
 						 * the packet */
 			resid -= newlen;	/* so there is this much left
@@ -1296,9 +1301,12 @@ nextbuf:
 static void
 ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 {
+	struct ifnet *ifp = &ie->arpcom.ac_if;
 	struct ie_recv_frame_desc rfd;
 	struct mbuf *m = 0;
-	struct ether_header eh;
+#ifdef DEBUG
+	struct ether_header *eh;
+#endif
 
 	bcopy((v_caddr_t) (ie->rframes[num]), &rfd,
 	      sizeof(struct ie_recv_frame_desc));
@@ -1314,19 +1322,20 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	ie->rfhead = (ie->rfhead + 1) % ie->nframes;
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
-		if (ieget(unit, ie, &m, &eh)) {
+		if (ieget(unit, ie, &m)) {
 			ie->arpcom.ac_if.if_ierrors++;	/* this counts as an
 							 * error */
 			return;
 		}
 	}
 #ifdef DEBUG
+	eh = mtod(m, struct ether_header *);
 	if (ie_debug & IED_READFRAME) {
 		printf("ie%d: frame from ether %6D type %x\n", unit,
-		       eh.ether_shost, ":", (unsigned) eh.ether_type);
+		       eh->ether_shost, ":", (unsigned) eh->ether_type);
 	}
-	if (ntohs(eh.ether_type) > ETHERTYPE_TRAIL
-	    && ntohs(eh.ether_type) < (ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER))
+	if (ntohs(eh->ether_type) > ETHERTYPE_TRAIL
+	    && ntohs(eh->ether_type) < (ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER))
 		printf("received trailer!\n");
 #endif
 
@@ -1336,7 +1345,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	/*
 	 * Finally pass this packet up to higher layers.
 	 */
-	ether_input(&ie->arpcom.ac_if, &eh, m);
+	(*ifp->if_input)(ifp, m);
 }
 
 static void
@@ -1412,9 +1421,8 @@ iestart(struct ifnet *ifp)
 		 * See if bpf is listening on this interface, let it see the
 		 * packet before we commit it to the wire.
 		 */
-		if (ie->arpcom.ac_if.if_bpf)
-			bpf_tap(&ie->arpcom.ac_if,
-				(void *)ie->xmit_cbuffs[ie->xmit_count], len);
+		BPF_TAP(&ie->arpcom.ac_if,
+			(void *)ie->xmit_cbuffs[ie->xmit_count], len);
 
 		ie->xmit_buffs[ie->xmit_count]->ie_xmit_flags =
 		    IE_XMIT_LAST|len;
@@ -2093,12 +2101,6 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-        case SIOCSIFADDR:
-        case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		/*
 		 * Note that this device doesn't have an "all multicast"
@@ -2133,7 +2135,8 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 	splx(s);

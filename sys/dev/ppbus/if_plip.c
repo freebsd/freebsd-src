@@ -459,7 +459,7 @@ lptap(struct ifnet *ifp, struct mbuf *m)
 	m0.m_next = m;
 	m0.m_len = sizeof(u_int32_t);
 	m0.m_data = (char *)&af;
-	bpf_mtap(ifp, &m0);
+	BPF_MTAP(ifp, &m0);
 }
 
 static void

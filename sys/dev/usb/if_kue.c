@@ -493,7 +493,7 @@ USB_ATTACH(kue)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->kue_desc.kue_macaddr);
 	usb_register_netisr();
 	sc->kue_dying = 0;
 
@@ -515,7 +515,7 @@ kue_detach(device_ptr_t dev)
 	sc->kue_dying = 1;
 
 	if (ifp != NULL)
-		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifdetach(ifp);
 
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_TX]);
@@ -839,8 +839,7 @@ kue_start(struct ifnet *ifp)
 	 * If there's a BPF listener, bounce a copy of this frame
 	 * to him.
 	 */
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m_head);
+	BPF_MTAP(ifp, m_head);
 
 	ifp->if_flags |= IFF_OACTIVE;
 
@@ -953,11 +952,6 @@ kue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	KUE_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -987,7 +981,7 @@ kue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
