@@ -2010,7 +2010,7 @@ mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
-    struct label *vnodelabel, mode_t acc_mode)
+    struct label *vnodelabel, int acc_mode)
 {
 	struct mac_mls *subj, *obj;
 

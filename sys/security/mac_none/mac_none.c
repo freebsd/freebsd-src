@@ -641,7 +641,7 @@ mac_none_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
 
 static int
 mac_none_check_vnode_access(struct ucred *cred, struct vnode *vp,
-    struct label *label, mode_t flags)
+    struct label *label, int acc_mode)
 {
 
 	return (0);
@@ -747,7 +747,7 @@ mac_none_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_none_check_vnode_open(struct ucred *cred, struct vnode *vp,
-    struct label *filelabel, mode_t acc_mode)
+    struct label *filelabel, int acc_mode)
 {
 
 	return (0);
