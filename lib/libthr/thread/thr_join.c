@@ -160,9 +160,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		/* Make the thread collectable by the garbage collector. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
 		_SPINUNLOCK(&pthread->lock);
+		THREAD_LIST_UNLOCK;
 		if (pthread_cond_signal(&_gc_cond) != 0)
 			PANIC("Cannot signal gc cond");
-		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 	}
 

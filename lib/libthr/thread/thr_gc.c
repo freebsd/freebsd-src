@@ -142,6 +142,13 @@ _thread_gc(pthread_addr_t arg)
 			pthread_cln = pthread;
 
 			_SPINUNLOCK(&pthread->lock);
+
+			/*
+		 	 * Retire the architecture specific id so it may be
+		 	 * used for new threads.
+			 */
+			_retire_thread(pthread_cln->arch_id);
+
 		}
 
 		/*
