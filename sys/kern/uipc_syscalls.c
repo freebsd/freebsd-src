@@ -86,11 +86,10 @@ static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
 
 /*
  * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the
- * additional sf_lock mutex.
+ * sf_freelist head with the sf_lock mutex.
  */
 static struct {
-	/* XXX: FIXME!  This is a very improper use of <sys/queue.h> */
-	struct sf_buf *slh_first;
+	SLIST_HEAD(, sf_buf) sf_head;
 	struct mtx sf_lock;
 } sf_freelist;
 
@@ -1420,13 +1419,13 @@ sf_buf_init(void *arg)
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", MTX_DEF);
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
-	SLIST_INIT(&sf_freelist);
+	SLIST_INIT(&sf_freelist.sf_head);
 	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist, &sf_bufs[i], free_list);
+		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
 	}
 	sf_buf_alloc_want = 0;
 	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
@@ -1441,11 +1440,11 @@ sf_buf_alloc()
 	struct sf_buf *sf;
 
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
-	while ((sf = SLIST_FIRST(&sf_freelist)) == NULL) {
+	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
 		sf_buf_alloc_want++;
 		msleep(&sf_freelist, &sf_freelist.sf_lock, PVM, "sfbufa", 0);
 	}
-	SLIST_REMOVE_HEAD(&sf_freelist, free_list);
+	SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 	return (sf);
 }
@@ -1477,7 +1476,7 @@ sf_buf_free(caddr_t addr, void *args)
 	splx(s);
 	sf->m = NULL;
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
-	SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
+	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	if (sf_buf_alloc_want) {
 		sf_buf_alloc_want--;
 		wakeup_one(&sf_freelist);
