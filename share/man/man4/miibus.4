@@ -43,26 +43,46 @@ their vendor specific register set.
 The following network device drivers use the
 .Nm
 interface:
-.Bl -tag -compact -width "Supported Devices"
-.It an		Aironet 4500/4800 802.11 wireless NICs
-.It aue		ADMtek USB Ethernet
-.It awi		BayStack 660 and others
-.It bge		Broadcom BCM570xx Gigabit Ethernet
-.It cue		CATC USB Ethernet
-.It dc		DEC/Intel 21143 and various workalikes
-.It ed		NE[12]000, SMC Ultra, 3c503, DS8390 cards
-.It fxp		Intel EtherExpress PRO/100B (82557, 82558)
-.It kue		Kawasaki LSI USB Ethernet
-.It pcn		AMD Am79C97x PCI 10/100
-.It rl		RealTek 8129/8139
-.It sf		Adaptec AIC-6915
-.It sis		Silicon Integrated Systems SiS 900/SiS 7016
-.It ste		Sundance ST201 (D-Link DFE-550TX)
-.It tl		Texas Instruments ThunderLAN
-.It tx		SMC EtherPower II (83c170)
-.It vr		VIA Rhine, Rhine II
-.It wb		Winbond W89C840F
-.It xl		3Com 3c90x
+.Pp
+.Bl -tag -compact -width ".Xr fxp 4"
+.It Xr an 4
+Aironet 4500/4800 802.11 wireless NICs
+.It Xr aue 4
+ADMtek USB Ethernet
+.It Xr awi 4
+BayStack 660 and others
+.It Xr bge 4
+Broadcom BCM570xx Gigabit Ethernet
+.It Xr cue 4
+CATC USB Ethernet
+.It Xr dc 4
+DEC/Intel 21143 and various workalikes
+.It Xr ed 4
+NE[12]000, SMC Ultra, 3c503, DS8390 cards
+.It Xr fxp 4
+Intel EtherExpress PRO/100B (82557, 82558)
+.It Xr kue 4
+Kawasaki LSI USB Ethernet
+.It Xr pcn 4
+AMD Am79C97x PCI 10/100
+.It Xr rl 4
+RealTek 8129/8139
+.It Xr sf 4
+Adaptec AIC-6915
+.It Xr sis 4
+Silicon Integrated Systems SiS 900/SiS 7016
+.It Xr ste 4
+Sundance ST201 (D-Link DFE-550TX)
+.It Xr tl 4
+Texas Instruments ThunderLAN
+.It Xr tx 4
+SMC EtherPower II (83c170)
+.It Xr vr 4
+VIA Rhine, Rhine II
+.It Xr wb 4
+Winbond W89C840F
+.It Xr xl 4
+3Com 3c90x
 .El
 .Sh COMPATIBILITY
 The implementation of
@@ -94,7 +114,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr tx 4 ,
 .Xr vr 4 ,
 .Xr wb 4 ,
-.Xr xl 4 .
+.Xr xl 4
 .Sh STANDARDS
 More information on MII can be found in the IEEE 802.3 Standard.
 .Sh HISTORY
