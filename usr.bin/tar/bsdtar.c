@@ -65,10 +65,13 @@ struct option {
 
 #include "bsdtar.h"
 
+#ifdef linux
+#define _PATH_DEFTAPE "/dev/st0"
+#endif
+
 #ifndef _PATH_DEFTAPE
 #define _PATH_DEFTAPE "/dev/tape"
 #endif
-
 
 static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
     const struct option **poption);
