@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.33 1998/06/16 19:40:37 brian Exp $
+ * $Id: hdlc.c,v 1.34 1998/06/27 23:48:44 brian Exp $
  *
  *	TODO:
  */
@@ -375,6 +375,7 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
 {
   struct physical *p = link2physical(l);
   u_char *cp;
+  const char *type;
 
   log_Printf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
 
@@ -438,9 +439,18 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     }
     /* Fall through */
   default:
-    log_Printf(LogPHASE, "%s protocol 0x%04x (%s)\n",
-              proto == PROTO_MP ? "Unexpected" : "Unknown",
-              proto, hdlc_Protocol2Nam(proto));
+    switch (proto) {
+      case PROTO_MP:
+      case PROTO_COMPD:
+      case PROTO_ICOMPD:
+        type = "Unexpected";
+        break;
+      default:
+        type = "Unknown";
+        break;
+    }
+    log_Printf(LogPHASE, "%s protocol 0x%04x (%s)\n", type, proto,
+               hdlc_Protocol2Nam(proto));
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
