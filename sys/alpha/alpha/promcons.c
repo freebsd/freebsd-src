@@ -83,6 +83,9 @@ void	promtimeout(void *);
 int	promparam(struct tty *, struct termios *);
 void	promstop(struct tty *, int);
 
+extern	int promcons_dly_mkdev;
+void	promcons_delayed_makedev(void);
+
 int
 promopen(dev, flag, mode, td)
 	dev_t dev;
@@ -248,9 +251,22 @@ promcnattach(int alpha_console)
 {
 	prom_consdev.cn_pri = CN_NORMAL;
 	sprintf(prom_consdev.cn_name, "promcons");
-	make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
-	cnadd(&prom_consdev);
+	if (promcons_dly_mkdev)
+		promcons_dly_mkdev++;
+	else {
+		make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
+		cnadd(&prom_consdev);
+	}
 	promcn_attached = 1;
+}
+
+void
+promcons_delayed_makedev(void)
+{
+	if (promcn_attached) {
+		make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
+		cnadd(&prom_consdev);
+	}
 }
 
 void
