@@ -1035,7 +1035,8 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		capinfo = IEEE80211_CAPINFO_ESS;
 	if (ic->ic_flags & IEEE80211_F_WEPON)
 		capinfo |= IEEE80211_CAPINFO_PRIVACY;
-	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
+	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 	if (ic->ic_flags & IEEE80211_F_SHSLOT)
 		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
