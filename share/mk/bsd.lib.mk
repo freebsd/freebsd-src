@@ -175,7 +175,6 @@ lib${LIB}_p.a: ${POBJS}
 	${RANLIB} ${.TARGET}
 .endif
 
-.if !defined(NOSHLIBS)
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
@@ -183,7 +182,6 @@ SOBJS+=		${OBJS:.o=.So}
 
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
-.endif
 
 ${SHLIB_NAME}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
@@ -263,7 +261,7 @@ _libinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 .endif
-.if !defined(NOSHLIBS) && defined(SHLIB_NAME)
+.if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
