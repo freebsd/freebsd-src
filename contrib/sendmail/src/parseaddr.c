@@ -2052,7 +2052,7 @@ remotename(name, m, flags, pstat, e)
 	static char buf[MAXNAME + 1];
 	char lbuf[MAXNAME + 1];
 	char pvpbuf[PSBUFSIZE];
-	extern char *crackaddr __P((char *));
+	extern char *crackaddr __P((char *, ENVELOPE *));
 
 	if (tTd(12, 1))
 		printf("remotename(%s)\n", name);
@@ -2075,7 +2075,7 @@ remotename(name, m, flags, pstat, e)
 	if (bitset(RF_CANONICAL, flags) || bitnset(M_NOCOMMENT, m->m_flags))
 		fancy = "\201g";
 	else
-		fancy = crackaddr(name);
+		fancy = crackaddr(name, e);
 
 	/*
 	**  Turn the name into canonical form.

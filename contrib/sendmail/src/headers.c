@@ -500,9 +500,10 @@ eatheader(e, full)
 			{
 				if (bitset(H_FROM, h->h_flags))
 				{
-					extern char *crackaddr __P((char *));
+					extern char *crackaddr __P((char *, ENVELOPE *));
 
-					expand(crackaddr(buf), buf, sizeof buf, e);
+					expand(crackaddr(buf, e), buf,
+					       sizeof buf, e);
 				}
 				h->h_value = newstr(buf);
 				h->h_flags &= ~H_DEFAULT;
@@ -802,7 +803,11 @@ priencode(p)
 **	it and replaces it with "$g".  The parse is totally ad hoc
 **	and isn't even guaranteed to leave something syntactically
 **	identical to what it started with.  However, it does leave
-**	something semantically identical.
+**	something semantically identical if possible, else at least
+**	syntactically correct.
+**
+**	For example, it changes "Real Name <real@example.com> (Comment)"
+**	to "Real Name <$g> (Comment)".
 **
 **	This algorithm has been cleaned up to handle a wider range
 **	of cases -- notably quoted and backslash escaped strings.
@@ -811,6 +816,7 @@ priencode(p)
 **
 **	Parameters:
 **		addr -- the address to be cracked.
+**		e -- the current envelope.
 **
 **	Returns:
 **		a pointer to the new version.
@@ -823,28 +829,50 @@ priencode(p)
 **		be copied if it is to be reused.
 */
 
+#define SM_HAVE_ROOM		((bp < buflim) && (buflim <= bufend))
+
+/*
+**  Append a character to bp if we have room.
+**  If not, punt and return $g.
+*/
+
+#define SM_APPEND_CHAR(c)					\
+	do							\
+	{							\
+		if (SM_HAVE_ROOM)				\
+			*bp++ = (c);				\
+		else						\
+			goto returng;				\
+	} while (0)
+
+#if MAXNAME < 10
+ERROR MAXNAME must be at least 10
+#endif /* MAXNAME < 10 */
+
 char *
-crackaddr(addr)
+crackaddr(addr, e)
 	register char *addr;
+	ENVELOPE *e;
 {
 	register char *p;
 	register char c;
-	int cmtlev;
-	int realcmtlev;
-	int anglelev, realanglelev;
-	int copylev;
-	int bracklev;
-	bool qmode;
-	bool realqmode;
-	bool skipping;
-	bool putgmac = FALSE;
-	bool quoteit = FALSE;
-	bool gotangle = FALSE;
-	bool gotcolon = FALSE;
+	int cmtlev;			/* comment level in input string */
+	int realcmtlev;			/* comment level in output string */
+	int anglelev;			/* angle level in input string */
+	int copylev;			/* 0 == in address, >0 copying */
+	int bracklev;			/* bracket level for IPv6 addr check */
+	bool addangle;			/* put closing angle in output */
+	bool qmode;			/* quoting in original string? */
+	bool realqmode;			/* quoting in output string? */
+	bool putgmac = FALSE;		/* already wrote $g */
+	bool quoteit = FALSE;		/* need to quote next character */
+	bool gotangle = FALSE;		/* found first '<' */
+	bool gotcolon = FALSE;		/* found a ':' */
 	register char *bp;
 	char *buflim;
 	char *bufhead;
 	char *addrhead;
+	char *bufend;
 	static char buf[MAXNAME + 1];
 
 	if (tTd(33, 1))
@@ -859,25 +887,22 @@ crackaddr(addr)
 	**  adjusted later if we find them.
 	*/
 
+	buflim = bufend = &buf[sizeof(buf) - 1];
 	bp = bufhead = buf;
-	buflim = &buf[sizeof buf - 7];
 	p = addrhead = addr;
-	copylev = anglelev = realanglelev = cmtlev = realcmtlev = 0;
+	copylev = anglelev = cmtlev = realcmtlev = 0;
 	bracklev = 0;
-	qmode = realqmode = FALSE;
+	qmode = realqmode = addangle = FALSE;
 
 	while ((c = *p++) != '\0')
 	{
 		/*
-		**  If the buffer is overful, go into a special "skipping"
-		**  mode that tries to keep legal syntax but doesn't actually
-		**  output things.
+		**  Try to keep legal syntax using spare buffer space
+		**  (maintained by buflim).
 		*/
 
-		skipping = bp >= buflim;
-
-		if (copylev > 0 && !skipping)
-			*bp++ = c;
+		if (copylev > 0)
+			SM_APPEND_CHAR(c);
 
 		/* check for backslash escapes */
 		if (c == '\\')
@@ -892,8 +917,8 @@ crackaddr(addr)
 				p--;
 				goto putg;
 			}
-			if (copylev > 0 && !skipping)
-				*bp++ = c;
+			if (copylev > 0)
+				SM_APPEND_CHAR(c);
 			goto putg;
 		}
 
@@ -901,8 +926,14 @@ crackaddr(addr)
 		if (c == '"' && cmtlev <= 0)
 		{
 			qmode = !qmode;
-			if (copylev > 0 && !skipping)
+			if (copylev > 0 && SM_HAVE_ROOM)
+			{
+				if (realqmode)
+					buflim--;
+				else
+					buflim++;
 				realqmode = !realqmode;
+			}
 			continue;
 		}
 		if (qmode)
@@ -914,15 +945,15 @@ crackaddr(addr)
 			cmtlev++;
 
 			/* allow space for closing paren */
-			if (!skipping)
+			if (SM_HAVE_ROOM)
 			{
 				buflim--;
 				realcmtlev++;
 				if (copylev++ <= 0)
 				{
 					if (bp != bufhead)
-						*bp++ = ' ';
-					*bp++ = c;
+						SM_APPEND_CHAR(' ');
+					SM_APPEND_CHAR(c);
 				}
 			}
 		}
@@ -932,7 +963,7 @@ crackaddr(addr)
 			{
 				cmtlev--;
 				copylev--;
-				if (!skipping)
+				if (SM_HAVE_ROOM)
 				{
 					realcmtlev--;
 					buflim++;
@@ -943,7 +974,7 @@ crackaddr(addr)
 		else if (c == ')')
 		{
 			/* syntax error: unmatched ) */
-			if (copylev > 0 && !skipping)
+			if (copylev > 0 && SM_HAVE_ROOM)
 				bp--;
 		}
 
@@ -961,7 +992,7 @@ crackaddr(addr)
 
 			/*
 			**  Check for DECnet phase IV ``::'' (host::user)
-			**  or **  DECnet phase V ``:.'' syntaxes.  The latter
+			**  or DECnet phase V ``:.'' syntaxes.  The latter
 			**  covers ``user@DEC:.tay.myhost'' and
 			**  ``DEC:.tay.myhost::user'' syntaxes (bletch).
 			*/
@@ -970,10 +1001,10 @@ crackaddr(addr)
 			{
 				if (cmtlev <= 0 && !qmode)
 					quoteit = TRUE;
-				if (copylev > 0 && !skipping)
+				if (copylev > 0)
 				{
-					*bp++ = c;
-					*bp++ = *p;
+					SM_APPEND_CHAR(c);
+					SM_APPEND_CHAR(*p);
 				}
 				p++;
 				goto putg;
@@ -984,41 +1015,43 @@ crackaddr(addr)
 			bp = bufhead;
 			if (quoteit)
 			{
-				*bp++ = '"';
+				SM_APPEND_CHAR('"');
 
 				/* back up over the ':' and any spaces */
 				--p;
-				while (isascii(*--p) && isspace(*p))
+				while (p > addr &&
+				       isascii(*--p) && isspace(*p))
 					continue;
 				p++;
 			}
 			for (q = addrhead; q < p; )
 			{
 				c = *q++;
-				if (bp < buflim)
-				{
 					if (quoteit && c == '"')
-						*bp++ = '\\';
-					*bp++ = c;
+				{
+					SM_APPEND_CHAR('\\');
+					SM_APPEND_CHAR(c);
 				}
+				else
+					SM_APPEND_CHAR(c);
 			}
 			if (quoteit)
 			{
 				if (bp == &bufhead[1])
 					bp--;
 				else
-					*bp++ = '"';
+					SM_APPEND_CHAR('"');
 				while ((c = *p++) != ':')
-				{
-					if (bp < buflim)
-						*bp++ = c;
-				}
-				*bp++ = c;
+					SM_APPEND_CHAR(c);
+				SM_APPEND_CHAR(c);
 			}
 
 			/* any trailing white space is part of group: */
-			while (isascii(*p) && isspace(*p) && bp < buflim)
-				*bp++ = *p++;
+			while (isascii(*p) && isspace(*p))
+			{
+				SM_APPEND_CHAR(*p);
+				p++;
+			}
 			copylev = 0;
 			putgmac = quoteit = FALSE;
 			bufhead = bp;
@@ -1027,10 +1060,7 @@ crackaddr(addr)
 		}
 
 		if (c == ';' && copylev <= 0 && !ColonOkInAddr)
-		{
-			if (bp < buflim)
-				*bp++ = c;
-		}
+			SM_APPEND_CHAR(c);
 
 		/* check for characters that may have to be quoted */
 		if (strchr(MustQuoteChars, c) != NULL)
@@ -1058,42 +1088,45 @@ crackaddr(addr)
 
 			/* oops -- have to change our mind */
 			anglelev = 1;
-			if (!skipping)
-				realanglelev = 1;
+			if (SM_HAVE_ROOM)
+			{
+				if (!addangle)
+					buflim--;
+				addangle = TRUE;
+			}
 
 			bp = bufhead;
 			if (quoteit)
 			{
-				*bp++ = '"';
+				SM_APPEND_CHAR('"');
 
 				/* back up over the '<' and any spaces */
 				--p;
-				while (isascii(*--p) && isspace(*p))
+				while (p > addr &&
+				       isascii(*--p) && isspace(*p))
 					continue;
 				p++;
 			}
 			for (q = addrhead; q < p; )
 			{
 				c = *q++;
-				if (bp < buflim)
-				{
 					if (quoteit && c == '"')
-						*bp++ = '\\';
-					*bp++ = c;
+				{
+					SM_APPEND_CHAR('\\');
+					SM_APPEND_CHAR(c);
 				}
+				else
+					SM_APPEND_CHAR(c);
 			}
 			if (quoteit)
 			{
 				if (bp == &buf[1])
 					bp--;
 				else
-					*bp++ = '"';
+					SM_APPEND_CHAR('"');
 				while ((c = *p++) != '<')
-				{
-					if (bp < buflim)
-						*bp++ = c;
-				}
-				*bp++ = c;
+					SM_APPEND_CHAR(c);
+				SM_APPEND_CHAR(c);
 			}
 			copylev = 0;
 			putgmac = quoteit = FALSE;
@@ -1105,13 +1138,14 @@ crackaddr(addr)
 			if (anglelev > 0)
 			{
 				anglelev--;
-				if (!skipping)
+				if (SM_HAVE_ROOM)
 				{
-					realanglelev--;
+					if (addangle)
 					buflim++;
+					addangle = FALSE;
 				}
 			}
-			else if (!skipping)
+			else if (SM_HAVE_ROOM)
 			{
 				/* syntax error: unmatched > */
 				if (copylev > 0)
@@ -1120,7 +1154,7 @@ crackaddr(addr)
 				continue;
 			}
 			if (copylev++ <= 0)
-				*bp++ = c;
+				SM_APPEND_CHAR(c);
 			continue;
 		}
 
@@ -1128,30 +1162,42 @@ crackaddr(addr)
 	putg:
 		if (copylev <= 0 && !putgmac)
 		{
-			if (bp > bufhead && bp[-1] == ')')
-				*bp++ = ' ';
-			*bp++ = MACROEXPAND;
-			*bp++ = 'g';
+			if (bp > buf && bp[-1] == ')')
+				SM_APPEND_CHAR(' ');
+			SM_APPEND_CHAR(MACROEXPAND);
+			SM_APPEND_CHAR('g');
 			putgmac = TRUE;
 		}
 	}
 
 	/* repair any syntactic damage */
-	if (realqmode)
+	if (realqmode && bp < bufend)
 		*bp++ = '"';
-	while (realcmtlev-- > 0)
+	while (realcmtlev-- > 0 && bp < bufend)
 		*bp++ = ')';
-	while (realanglelev-- > 0)
+	if (addangle && bp < bufend)
 		*bp++ = '>';
-	*bp++ = '\0';
+	*bp = '\0';
+	if (bp < bufend)
+		goto success;
 
+ returng:
+	/* String too long, punt */
+	buf[0] = '<';
+	buf[1] = MACROEXPAND;
+	buf[2]= 'g';
+	buf[3] = '>';
+	buf[4]= '\0';
+	sm_syslog(LOG_ALERT, e->e_id,
+		  "Dropped invalid comments from header address");
+
+ success:
 	if (tTd(33, 1))
 	{
 		printf("crackaddr=>`");
 		xputs(buf);
 		printf("'\n");
 	}
-
 	return (buf);
 }
 /*

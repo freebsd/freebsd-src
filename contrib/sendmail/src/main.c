@@ -2359,7 +2359,7 @@ testmodeline(line, e)
 	static int tryflags = RF_COPYNONE;
 	char exbuf[MAXLINE];
 	extern bool invalidaddr __P((char *, char *));
-	extern char *crackaddr __P((char *));
+	extern char *crackaddr __P((char *, ENVELOPE *));
 	extern void dump_class __P((STAB *, int));
 	extern void translate_dollars __P((char *));
 	extern void help __P((char *));
@@ -2681,7 +2681,7 @@ testmodeline(line, e)
 				printf("Usage: /parse address\n");
 				return;
 			}
-			q = crackaddr(p);
+			q = crackaddr(p, e);
 			printf("Cracked address = ");
 			xputs(q);
 			printf("\nParsing %s %s address\n",
