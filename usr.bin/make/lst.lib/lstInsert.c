@@ -55,9 +55,7 @@ __FBSDID("$FreeBSD$");
  *	Insert a new node with the given piece of data before the given
  *	node in the given list.
  *
- * Results:
- *	SUCCESS or FAILURE.
- *
+ * Parameters:
  *	l	list to manipulate
  *	ln	node before which to insert d
  *	d	datum to be inserted
@@ -68,24 +66,12 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-ReturnStatus
+void
 Lst_Insert(Lst *list, LstNode *ln, void *d)
 {
     LstNode *nLNode;	/* new lnode for d */
 
-    /*
-     * check validity of arguments
-     */
-    if (Lst_Valid(list) && (Lst_IsEmpty(list) && ln == NULL))
-	goto ok;
-
-    if (!Lst_Valid(list) || Lst_IsEmpty(list) || !Lst_NodeValid(ln, list)) {
-	return (FAILURE);
-    }
-
-    ok:
     nLNode = emalloc(sizeof(*nLNode));
-
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
 
@@ -105,6 +91,4 @@ Lst_Insert(Lst *list, LstNode *ln, void *d)
 	    list->firstPtr = nLNode;
 	}
     }
-
-    return (SUCCESS);
 }
