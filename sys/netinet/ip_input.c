@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.88 1998/06/06 20:45:27 julian Exp $
+ * $Id: ip_input.c,v 1.89 1998/06/06 21:49:16 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -250,7 +250,7 @@ ip_input(struct mbuf *m)
 	u_short sum;
 
 #ifdef	DIAGNOSTIC
-	if ((m->m_flags & M_PKTHDR) == 0)
+	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
 		panic("ip_input no HDR");
 #endif
 	/*
@@ -265,11 +265,6 @@ ip_input(struct mbuf *m)
 
 	if (m->m_pkthdr.len < sizeof(struct ip))
 		goto tooshort;
-
-#ifdef	DIAGNOSTIC
-	if (m->m_len < sizeof(struct ip))
-		panic("ipintr mbuf too short");
-#endif
 
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {

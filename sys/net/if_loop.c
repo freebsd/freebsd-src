@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.31 1998/04/30 19:37:00 phk Exp $
+ * $Id: if_loop.c,v 1.32 1998/06/07 17:12:03 dfr Exp $
  */
 
 /*
@@ -83,12 +83,18 @@
 #endif NETATALK
 
 #include "bpfilter.h"
+#if NBPFILTER > 0
+#include <net/bpfdesc.h>
+#endif
 
 static int loioctl __P((struct ifnet *, u_long, caddr_t));
 static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
 
 static void loopattach __P((void *));
 PSEUDO_SET(loopattach, if_loop);
+
+static int looutput __P((struct ifnet *ifp,
+		struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
 
 #ifdef TINY_LOMTU
 #define	LOMTU	(1024+512)
@@ -121,18 +127,50 @@ loopattach(dummy)
 	}
 }
 
-int
+static int
 looutput(ifp, m, dst, rt)
 	struct ifnet *ifp;
 	register struct mbuf *m;
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
+	if ((m->m_flags & M_PKTHDR) == 0)
+		panic("looutput no HDR");
+
+	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+		m_freem(m);
+		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
+		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+	}
+	ifp->if_opackets++;
+	ifp->if_obytes += m->m_pkthdr.len;
+	return(if_simloop(ifp, m, dst, 0));
+}
+
+/*
+ * if_simloop()
+ *
+ * This function is to support software emulation of hardware loopback,
+ * i.e., for interfaces with the IFF_SIMPLEX attribute. Since they can't
+ * hear their own broadcasts, we create a copy of the packet that we
+ * would normally receive via a hardware loopback.
+ *
+ * This function expects the packet to include the media header of length hlen.
+ */
+
+int
+if_simloop(ifp, m, dst, hlen)
+	struct ifnet *ifp;
+	register struct mbuf *m;
+	struct sockaddr *dst;
+	int hlen;
+{
 	int s, isr;
 	register struct ifqueue *ifq = 0;
 
 	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("looutput no HDR");
+		panic("%s: no HDR", __FUNCTION__);
+	m->m_pkthdr.rcvif = ifp;
 #if NBPFILTER > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
@@ -143,34 +181,31 @@ looutput(ifp, m, dst, rt)
 	}
 
 	if (ifp->if_bpf) {
-		/*
-		 * We need to prepend the address family as
-		 * a four byte field.  Cons up a dummy header
-		 * to pacify bpf.  This is safe because bpf
-		 * will only read from the mbuf (i.e., it won't
-		 * try to free it or keep a pointer a to it).
-		 */
-		struct mbuf m0;
+		struct mbuf m0, *n = m;
 		u_int af = dst->sa_family;
 
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-
-		bpf_mtap(ifp, &m0);
+		if (ifp->if_bpf->bif_dlt == DLT_NULL) {
+			/*
+			 * We need to prepend the address family as
+			 * a four byte field.  Cons up a dummy header
+			 * to pacify bpf.  This is safe because bpf
+			 * will only read from the mbuf (i.e., it won't
+			 * try to free it or keep a pointer a to it).
+			 */
+			m0.m_next = m;
+			m0.m_len = 4;
+			m0.m_data = (char *)&af;
+			n = &m0;
+		}
+		bpf_mtap(ifp, n);
 	}
 #endif
-	m->m_pkthdr.rcvif = ifp;
 
-	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
-		m_freem(m);
-		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
-		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
-	}
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	/* Strip away media header */
+	if (hlen > 0)
+		m_adj(m, hlen);
+
 	switch (dst->sa_family) {
-
 #ifdef INET
 	case AF_INET:
 		ifq = &ipintrq;
@@ -202,8 +237,8 @@ looutput(ifp, m, dst, rt)
 		break;
 #endif NETATALK
 	default:
-		printf("lo%d: can't handle af%d\n", ifp->if_unit,
-			dst->sa_family);
+		printf("%s: can't handle af=%d\n",
+		  __FUNCTION__, dst->sa_family);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
