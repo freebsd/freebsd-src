@@ -141,6 +141,7 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 
 void sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
+
 	SLIST_REMOVE(oidp->oid_parent, oidp, sysctl_oid, oid_link);
 }
 
@@ -397,6 +398,7 @@ extern struct linker_set sysctl_set;
 
 static void sysctl_register_all(void *arg)
 {
+
 	sysctl_register_set(&sysctl_set);
 }
 
@@ -841,6 +843,7 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, size_t l)
 static int
 sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 {
+
 	if (!req->newptr)
 		return 0;
 	if (req->newlen - req->newidx < l)
