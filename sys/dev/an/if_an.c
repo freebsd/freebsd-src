@@ -53,7 +53,6 @@
  * device and a PCMCIA to ISA or PCMCIA to PCI adapter card. There are
  * a couple of important differences though:
  *
- * - Lucent doesn't currently offer a PCI card, however Aironet does
  * - Lucent ISA card looks to the host like a PCMCIA controller with
  *   a PCMCIA WaveLAN card inserted. This means that even desktop
  *   machines need to be configured with PCMCIA support in order to
@@ -69,9 +68,7 @@
  * programmed for PCMCIA operation), both Vpp1 and Vpp2 have to be
  * set to 5 volts. FreeBSD by default doesn't set the Vpp voltages,
  * which leaves the card in ISA/PCI mode, which prevents it from
- * being activated as an PCMCIA device. Consequently, /sys/pccard/pccard.c
- * has to be patched slightly in order to enable the Vpp voltages in
- * order to make the Aironet PCMCIA cards work.
+ * being activated as an PCMCIA device.
  *
  * Note that some PCMCIA controller software packages for Windows NT
  * fail to set the voltages as well.
