@@ -517,13 +517,13 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 				mp->mnt_stat.f_syncreads++;
 		}
 	}
-	if (devsw(bp->b_dev) == NULL) {
+	dsw = devsw(bp->b_dev);
+	if (dsw == NULL) {
 		bp->b_io.bio_error = ENXIO;
 		bp->b_io.bio_flags |= BIO_ERROR;
 		biodone(&bp->b_io);
 		return (0);
 	}
-	dsw = devsw(bp->b_dev);
 	KASSERT(dsw->d_strategy != NULL,
 	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
@@ -621,7 +621,7 @@ spec_close(ap)
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
 		VI_LOCK(vp);
-		if (vcount(vp) == 2 && (vp->v_iflag & VI_XLOCK) == 0) {
+		if (count_dev(dev) == 2 && (vp->v_iflag & VI_XLOCK) == 0) {
 			td->td_proc->p_session->s_ttyvp = NULL;
 			oldvp = vp;
 		}
@@ -645,7 +645,7 @@ spec_close(ap)
 		/* Forced close. */
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
-	} else if (vcount(vp) > 1) {
+	} else if (count_dev(dev) > 1) {
 		VI_UNLOCK(vp);
 		return (0);
 	}
