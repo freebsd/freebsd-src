@@ -672,6 +672,8 @@ struct dc_softc {
 #define DC_REDUCED_MII_POLL	0x00000200
 #define DC_TX_INTR_ALWAYS	0x00000400
 #define DC_21143_NWAY		0x00000800
+#define DC_128BIT_HASH		0x00001000
+#define DC_64BIT_HASH		0x00002000
 
 /*
  * register space access macros
@@ -714,6 +716,7 @@ struct dc_softc {
 #define DC_REVISION_98713	0x00
 #define DC_REVISION_98713A	0x10
 #define DC_REVISION_98715	0x20
+#define DC_REVISION_98715AEC_C	0x25
 #define DC_REVISION_98725	0x30
 
 /*
