@@ -434,11 +434,10 @@ trap(a0, a1, a2, entry, framep)
 		case ALPHA_MMCSR_FOR:
 		case ALPHA_MMCSR_FOE:
 		case ALPHA_MMCSR_FOW:
-		{
 			pmap_emulate_reference(p, a0, user,
 			    a1 == ALPHA_MMCSR_FOW);
 			goto out;
-		}
+
 		case ALPHA_MMCSR_INVALTRANS:
 		case ALPHA_MMCSR_ACCESS:
 	    	{

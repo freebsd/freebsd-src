@@ -1189,7 +1189,6 @@ pmap_pinit0(pmap)
 	int i;
 
 	pmap->pm_lev1 = Lev1map;
-	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -1239,7 +1238,6 @@ pmap_pinit(pmap)
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
 		| PG_V | PG_KRE | PG_KWE;
 
-	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -2107,16 +2105,10 @@ validate:
 	newpte = pmap_phys_to_pte(pa) | pte_prot(pmap, prot) | PG_V | managed;
 
 	if (managed) {
-		vm_page_t om;
-
 		/*
 		 * Set up referenced/modified emulation for the new mapping
 		 */
-		om = PHYS_TO_VM_PAGE(pa);
-		if ((om->md.pv_flags & PV_TABLE_REF) == 0)
-			newpte |= PG_FOR | PG_FOW | PG_FOE;
-		else if ((om->md.pv_flags & PV_TABLE_MOD) == 0)
-			newpte |= PG_FOW;
+		newpte |= origpte & (PG_FOR | PG_FOW | PG_FOE);
 	}
 
 	if (wired)
@@ -2745,16 +2737,32 @@ pmap_phys_address(ppn)
 int
 pmap_ts_referenced(vm_page_t m)
 {
+	pv_entry_t pv;
+	pt_entry_t *pte;
+	int count;
+
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return 0;
 
-	if (m->md.pv_flags & PV_TABLE_REF) {
-		pmap_changebit(m, PG_FOR|PG_FOE|PG_FOW, TRUE);
-		m->md.pv_flags &= ~PV_TABLE_REF;
-		return 1;
+	/*
+	 * Loop over current mappings looking for any which have don't
+	 * have PG_FOR set (i.e. ones where we have taken an emulate
+	 * reference trap recently).
+	 */
+	count = 0;
+	for (pv = TAILQ_FIRST(&m->md.pv_list);
+	     pv;
+	     pv = TAILQ_NEXT(pv, pv_list)) {
+		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
+		
+		if (!(*pte & PG_FOR)) {
+			count++;
+			*pte |= PG_FOR | PG_FOE;
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		}
 	}
 
-	return 0;
+	return count;
 }
 
 /*
@@ -2766,11 +2774,25 @@ pmap_ts_referenced(vm_page_t m)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
+	pv_entry_t pv;
+	pt_entry_t *pte;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
 
-	return (m->md.pv_flags & PV_TABLE_MOD) != 0;
+	/*
+	 * A page is modified if any mapping has had its PG_FOW flag
+	 * cleared.
+	 */
+	for (pv = TAILQ_FIRST(&m->md.pv_list);
+	     pv;
+	     pv = TAILQ_NEXT(pv, pv_list)) {
+		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
+		if (!(*pte & PG_FOW))
+			return 1;
+	}
+
+	return 0;
 }
 
 /*
@@ -2779,12 +2801,24 @@ pmap_is_modified(vm_page_t m)
 void
 pmap_clear_modify(vm_page_t m)
 {
+	pv_entry_t pv;
+	pt_entry_t *pte;
+
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
-	if (m->md.pv_flags & PV_TABLE_MOD) {
-		pmap_changebit(m, PG_FOW, TRUE);
-		m->md.pv_flags &= ~PV_TABLE_MOD;
+	/*
+	 * Loop over current mappings setting PG_FOW where needed.
+	 */
+	for (pv = TAILQ_FIRST(&m->md.pv_list);
+	     pv;
+	     pv = TAILQ_NEXT(pv, pv_list)) {
+		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
+		
+		if (!(*pte & PG_FOW)) {
+			*pte |= PG_FOW;
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		}
 	}
 }
 
@@ -2809,12 +2843,24 @@ pmap_page_is_free(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
+	pv_entry_t pv;
+	pt_entry_t *pte;
+
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
-	if (m->md.pv_flags & PV_TABLE_REF) {
-		pmap_changebit(m, PG_FOR|PG_FOE|PG_FOW, TRUE);
-		m->md.pv_flags &= ~PV_TABLE_REF;
+	/*
+	 * Loop over current mappings setting PG_FOR and PG_FOE where needed.
+	 */
+	for (pv = TAILQ_FIRST(&m->md.pv_list);
+	     pv;
+	     pv = TAILQ_NEXT(pv, pv_list)) {
+		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
+		
+		if (!(*pte & (PG_FOR | PG_FOE))) {
+			*pte |= (PG_FOR | PG_FOE);
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		}
 	}
 }
 
@@ -2829,7 +2875,6 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 {
 	pt_entry_t faultoff, *pte;
 	vm_offset_t pa;
-	vm_page_t m;
 	int user_addr;
 
 	/*
@@ -2883,36 +2928,14 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	 * 	(1) always mark page as used, and
 	 *	(2) if it was a write fault, mark page as modified.
 	 */
-	m = PHYS_TO_VM_PAGE(pa);
-	m->md.pv_flags |= PV_TABLE_REF;
-	faultoff = PG_FOR | PG_FOE;
-
-	if (user_addr) {
-		mtx_lock(&Giant);
-		vm_page_flag_set(m, PG_REFERENCED);
-		mtx_unlock(&Giant);
-	}
-
 	if (write) {
-		m->md.pv_flags |= PV_TABLE_MOD;
-		vm_page_dirty(m);
-		faultoff |= PG_FOW;
+		faultoff = PG_FOR | PG_FOE | PG_FOW;
+	} else {
+		faultoff = PG_FOR | PG_FOE;
 	}
-	pmap_changebit(m, faultoff, FALSE);
-	if ((*pte & faultoff) != 0) {
-#if 1
-		/*
-		 * XXX dfr - don't think its possible in our pmap
-		 */
-		/*
-		 * This is apparently normal.  Why? -- cgd
-		 * XXX because was being called on unmanaged pages?
-		 */
-		panic("warning: pmap_changebit didn't.");
-#endif
-		*pte &= ~faultoff;
-		ALPHA_TBIS(v);
-	}
+
+	*pte = (*pte & ~faultoff);
+	ALPHA_TBIS(v);
 }
 
 /*
@@ -2975,7 +2998,6 @@ pmap_mincore(pmap, addr)
 	pmap_t pmap;
 	vm_offset_t addr;
 {
-	
 	pt_entry_t *pte;
 	int val = 0;
 	
@@ -2999,7 +3021,7 @@ pmap_mincore(pmap, addr)
 		/*
 		 * Modified by us
 		 */
-		if (m->md.pv_flags & PV_TABLE_MOD)
+		if ((*pte & PG_FOW) == 0)
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
 		/*
 		 * Modified by someone
@@ -3009,7 +3031,7 @@ pmap_mincore(pmap, addr)
 		/*
 		 * Referenced by us
 		 */
-		if (m->md.pv_flags & PV_TABLE_REF)
+		if ((*pte & (PG_FOR | PG_FOE)) == 0)
 			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
 
 		/*
