@@ -768,7 +768,7 @@ add_vif(vifcp)
 		 * to encapsulated packets.
 		 */
 		if (encap_cookie == NULL) {
-			encap_cookie = encap_attach_func(AF_INET, -1,
+			encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV4,
 				mroute_encapcheck,
 				(struct protosw *)&mroute_encap_protosw, NULL);
 
