@@ -321,7 +321,7 @@ intpr(interval, ifnetaddr, pfunc)
 			hexprint:
 				while (--n >= 0)
 					m += printf("%02x%c", *cp++ & 0xff,
-						    n > 0 ? '.' : ' ');
+						    n > 0 ? ':' : ' ');
 				m = 30 - m;
 				while (m-- > 0)
 					putchar(' ');
