@@ -71,7 +71,6 @@ static int	fifo_read __P((struct vop_read_args *));
 static int	fifo_write __P((struct vop_write_args *));
 static int	fifo_ioctl __P((struct vop_ioctl_args *));
 static int	fifo_poll __P((struct vop_poll_args *));
-static int	fifo_inactive __P((struct  vop_inactive_args *));
 static int	fifo_bmap __P((struct vop_bmap_args *));
 static int	fifo_pathconf __P((struct vop_pathconf_args *));
 static int	fifo_advlock __P((struct vop_advlock_args *));
@@ -97,7 +96,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) fifo_badop },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
+	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) fifo_badop },
@@ -107,7 +106,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
 	{ &vop_readdir_desc,		(vop_t *) fifo_badop },
@@ -456,18 +454,6 @@ fifo_poll(ap)
 			    ap->a_p);
 	}
 	return (revents);
-}
-
-static int
-fifo_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
-	return (0);
 }
 
 /*

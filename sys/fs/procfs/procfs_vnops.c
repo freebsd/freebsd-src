@@ -67,7 +67,6 @@ static int	procfs_badop __P((void));
 static int	procfs_bmap __P((struct vop_bmap_args *));
 static int	procfs_close __P((struct vop_close_args *));
 static int	procfs_getattr __P((struct vop_getattr_args *));
-static int	procfs_inactive __P((struct vop_inactive_args *));
 static int	procfs_ioctl __P((struct vop_ioctl_args *));
 static int	procfs_lookup __P((struct vop_lookup_args *));
 static int	procfs_open __P((struct vop_open_args *));
@@ -332,28 +331,6 @@ procfs_bmap(ap)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
-	return (0);
-}
-
-/*
- * procfs_inactive is called when the pfsnode
- * is vrele'd and the reference count goes
- * to zero.  (vp) will be on the vnode free
- * list, so to get it back vget() must be
- * used.
- *
- * (vp) is locked on entry, but must be unlocked on exit.
- */
-static int
-procfs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	VOP_UNLOCK(vp, 0, ap->a_p);
-
 	return (0);
 }
 
@@ -1014,7 +991,6 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) procfs_close },
 	{ &vop_create_desc,		(vop_t *) procfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) procfs_inactive },
 	{ &vop_link_desc,		(vop_t *) procfs_badop },
 	{ &vop_lookup_desc,		(vop_t *) procfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) procfs_badop },

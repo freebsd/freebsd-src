@@ -68,6 +68,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) vop_stdbwrite },
 	{ &vop_close_desc,		(vop_t *) vop_null },
 	{ &vop_fsync_desc,		(vop_t *) vop_null },
+	{ &vop_inactive_desc,		(vop_t *) vop_stdinactive },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
@@ -77,15 +78,9 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
 	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
 	{ &vop_readlink_desc,		(vop_t *) vop_einval },
-	{ &vop_reallocblks_desc,	(vop_t *) vop_eopnotsupp },
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
-	{ &vop_getacl_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_setacl_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_aclcheck_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_getextattr_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_setextattr_desc,		(vop_t *) vop_eopnotsupp },
 	{ NULL, NULL }
 };
 
@@ -269,6 +264,18 @@ vop_stdislocked(ap)
 		return 0;
 
 	return (lockstatus(l, ap->a_p));
+}
+
+int
+vop_stdinactive(ap)
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	return (0);
 }
 
 /*

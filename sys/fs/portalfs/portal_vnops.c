@@ -69,7 +69,6 @@ static int	portal_badop __P((void));
 static void	portal_closefd __P((struct proc *p, int fd));
 static int	portal_connect __P((struct socket *so, struct socket *so2));
 static int	portal_getattr __P((struct vop_getattr_args *ap));
-static int	portal_inactive __P((struct vop_inactive_args *ap));
 static int	portal_lookup __P((struct vop_lookup_args *ap));
 static int	portal_open __P((struct vop_open_args *ap));
 static int	portal_print __P((struct vop_print_args *ap));
@@ -527,18 +526,6 @@ portal_readdir(ap)
 }
 
 static int
-portal_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
-	return (0);
-}
-
-static int
 portal_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -590,7 +577,6 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) vop_null },
 	{ &vop_bmap_desc,		(vop_t *) portal_badop },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
-	{ &vop_inactive_desc,		(vop_t *) portal_inactive },
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
 	{ &vop_open_desc,		(vop_t *) portal_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
