@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
-.\"	$Id: stty.1,v 1.7 1997/03/12 15:59:22 mpp Exp $
+.\"	$Id: stty.1,v 1.8 1997/06/02 06:32:26 charnier Exp $
 .\"
 .Dd April 18, 1994
 .Dt STTY 1
@@ -48,7 +48,7 @@
 .Op operands
 .Sh DESCRIPTION
 The
-.Nm stty
+.Nm
 utility sets or reports on terminal
 characteristics for the device that is its standard input.
 If no options or operands are specified, it reports the settings of a subset
@@ -60,7 +60,7 @@ Some combinations of arguments are mutually
 exclusive on some terminal types.
 .Pp
 The following options are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Display all the current settings for the terminal to standard output
 as per
@@ -84,7 +84,7 @@ block on the open.
 .It Fl g
 Display all the current settings for the terminal to standard output
 in a form that may be used as an argument to a subsequent invocation of
-.Nm stty
+.Nm
 to restore the current terminal state as per
 .St -p1003.2 .
 .El
@@ -493,7 +493,9 @@ first rows, then columns.
 .Ss Compatibility Modes:
 .Pp
 These modes remain for compatibility with the previous version of
-the stty command.
+the
+.Nm
+command.
 .Bl -tag -width Fl
 .It Cm all
 Reports all the terminal modes as with
@@ -564,13 +566,13 @@ Same as the control character
 .El
 .Pp
 The
-.Nm stty
+.Nm
 utility exits with a value of 0 if successful, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr termios 4
 .Sh STANDARDS
 The
-.Nm stty
+.Nm
 function is expected to be
 .St -p1003.2
 compatible.  The flags
