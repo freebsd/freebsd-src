@@ -1013,8 +1013,8 @@ static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
 
-	vm_page_unhold(m);
-	if (m->hold_count == 0)
+	--m->wire_count;
+	if (m->wire_count == 0)
 		return _pmap_unwire_pte_hold(pmap, m);
 	else
 		return 0;
@@ -1043,14 +1043,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 		pmap_invalidate_page(pmap, pteva);
 	}
 
-	/*
-	 * If the page is finally unwired, simply free it.
-	 */
-	--m->wire_count;
-	if (m->wire_count == 0) {
-		vm_page_free_zero(m);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
-	}
+	vm_page_free_zero(m);
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return 1;
 }
 
@@ -1200,12 +1194,6 @@ _pmap_allocpte(pmap, ptepindex)
 		pmap_zero_page(m);
 
 	/*
-	 * Increment the hold count for the page table page
-	 * (denoting a new mapping.)
-	 */
-	m->hold_count++;
-
-	/*
 	 * Map the pagetable page into the process address space, if
 	 * it isn't already there.
 	 */
@@ -1252,7 +1240,7 @@ retry:
 	 */
 	if (ptepa) {
 		m = PHYS_TO_VM_PAGE(ptepa);
-		m->hold_count++;
+		m->wire_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has
@@ -1987,7 +1975,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * Remove extra pte reference
 		 */
 		if (mpte)
-			mpte->hold_count--;
+			mpte->wire_count--;
 
 		/*
 		 * We might be turning off write access to the page,
@@ -2094,7 +2082,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		 */
 		ptepindex = va >> PDRSHIFT;
 		if (mpte && (mpte->pindex == ptepindex)) {
-			mpte->hold_count++;
+			mpte->wire_count++;
 		} else {
 retry:
 			/*
@@ -2110,7 +2098,7 @@ retry:
 				if (ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 4MB page");
 				mpte = PHYS_TO_VM_PAGE(ptepa);
-				mpte->hold_count++;
+				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
 				if (mpte == NULL)
@@ -2351,7 +2339,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		}
 
 		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
-		if (srcmpte->hold_count == 0)
+		if (srcmpte->wire_count == 0)
 			panic("pmap_copy: source page table page is unused");
 
 		if (pdnxt > end_addr)
@@ -2384,7 +2372,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else
 					pmap_unwire_pte_hold(dst_pmap, dstmpte);
-				if (dstmpte->hold_count >= srcmpte->hold_count)
+				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
 			}
 			addr += PAGE_SIZE;

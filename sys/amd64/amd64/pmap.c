@@ -965,8 +965,8 @@ static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 
-	vm_page_unhold(m);
-	if (m->hold_count == 0)
+	--m->wire_count;
+	if (m->wire_count == 0)
 		return _pmap_unwire_pte_hold(pmap, va, m);
 	else
 		return 0;
@@ -1022,14 +1022,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		pmap_invalidate_page(pmap, pteva);
 	}
 
-	/*
-	 * If the page is finally unwired, simply free it.
-	 */
-	--m->wire_count;
-	if (m->wire_count == 0) {
-		vm_page_free_zero(m);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
-	}
+	vm_page_free_zero(m);
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return 1;
 }
 
@@ -1135,12 +1129,6 @@ _pmap_allocpte(pmap, ptepindex)
 		pmap_zero_page(m);
 
 	/*
-	 * Increment the hold count for the page table page
-	 * (denoting a new mapping.)
-	 */
-	m->hold_count++;
-
-	/*
 	 * Map the pagetable page into the process address space, if
 	 * it isn't already there.
 	 */
@@ -1170,14 +1158,14 @@ _pmap_allocpte(pmap, ptepindex)
 		if ((*pml4 & PG_V) == 0) {
 			/* Have to allocate a new pdp, recurse */
 			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index) == NULL) {
-				vm_page_unhold(m);
+				--m->wire_count;
 				vm_page_free(m);
 				return (NULL);
 			}
 		} else {
 			/* Add reference to pdp page */
 			pdppg = PHYS_TO_VM_PAGE(*pml4 & PG_FRAME);
-			pdppg->hold_count++;
+			pdppg->wire_count++;
 		}
 		pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 
@@ -1201,7 +1189,7 @@ _pmap_allocpte(pmap, ptepindex)
 		if ((*pml4 & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
 			if (_pmap_allocpte(pmap, NUPDE + pdpindex) == NULL) {
-				vm_page_unhold(m);
+				--m->wire_count;
 				vm_page_free(m);
 				return (NULL);
 			}
@@ -1213,14 +1201,14 @@ _pmap_allocpte(pmap, ptepindex)
 			if ((*pdp & PG_V) == 0) {
 				/* Have to allocate a new pd, recurse */
 				if (_pmap_allocpte(pmap, NUPDE + pdpindex) == NULL) {
-					vm_page_unhold(m);
+					--m->wire_count;
 					vm_page_free(m);
 					return (NULL);
 				}
 			} else {
 				/* Add reference to the pd page */
 				pdpg = PHYS_TO_VM_PAGE(*pdp & PG_FRAME);
-				pdpg->hold_count++;
+				pdpg->wire_count++;
 			}
 		}
 		pd = (pd_entry_t *)PHYS_TO_DMAP(*pdp & PG_FRAME);
@@ -1266,7 +1254,7 @@ retry:
 	 */
 	if (pd != 0 && (*pd & PG_V) != 0) {
 		m = PHYS_TO_VM_PAGE(*pd & PG_FRAME);
-		m->hold_count++;
+		m->wire_count++;
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has been
@@ -1916,7 +1904,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * Remove extra pte reference
 		 */
 		if (mpte)
-			mpte->hold_count--;
+			mpte->wire_count--;
 
 		/*
 		 * We might be turning off write access to the page,
@@ -2024,7 +2012,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		 */
 		ptepindex = pmap_pde_pindex(va);
 		if (mpte && (mpte->pindex == ptepindex)) {
-			mpte->hold_count++;
+			mpte->wire_count++;
 		} else {
 	retry:
 			/*
@@ -2040,7 +2028,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				if (*ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 2MB page");
 				mpte = PHYS_TO_VM_PAGE(*ptepa & PG_FRAME);
-				mpte->hold_count++;
+				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
 				if (mpte == NULL)
@@ -2297,7 +2285,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		}
 
 		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr & PG_FRAME);
-		if (srcmpte->hold_count == 0)
+		if (srcmpte->wire_count == 0)
 			panic("pmap_copy: source page table page is unused");
 
 		if (va_next > end_addr)
@@ -2330,7 +2318,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else
 					pmap_unwire_pte_hold(dst_pmap, addr, dstmpte);
-				if (dstmpte->hold_count >= srcmpte->hold_count)
+				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
 			}
 			addr += PAGE_SIZE;
