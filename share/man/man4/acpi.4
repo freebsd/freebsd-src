@@ -342,13 +342,20 @@ The counters are reset when
 is modified.
 .It Va hw.acpi.cpu.cx_lowest
 Zero-based index of the lowest CPU idle state to use.
-A value of -1 disables ACPI CPU idle states.
+A scheduling algorithm will select between 0...index for the state
+to use during the next sleep.
 To enable ACPI CPU idling control,
 .Va machdep.cpu_idle_hlt
 must be set to 1.
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.
+Each state has a type, C1-3.
+C1 is equivalent to the ia32 HLT instruction, C2 provides a deeper
+sleep with the same semantics, and C3 provides the deepest sleep
+but additionally requires bus mastering to be disabled.
+Deeper sleeps provide more power savings but increased transition
+latency when an interrupt occurs.
 .El
 .Sh COMPATIBILITY
 ACPI is only found and supported on i386/ia32, ia64, and amd64.
@@ -364,7 +371,7 @@ ACPI is only found and supported on i386/ia32, ia64, and amd64.
 .%A "Microsoft Corporation"
 .%A "Phoenix Technologies Ltd."
 .%A "Toshiba Corporation"
-.%D July 27 2000
+.%D August 25, 2003
 .%T "Advanced Configuration and Power Interface Specification"
 .%O http://acpi.info/spec.htm
 .Re
