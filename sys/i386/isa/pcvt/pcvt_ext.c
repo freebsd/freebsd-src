@@ -2385,7 +2385,7 @@ vgapage(int new_screen)
 			 * process mode.
 			 */
 			if(pcvt_is_console)
-				cnavaiable(pcvt_consptr, TRUE);
+				cnavailable(pcvt_consptr, TRUE);
 		}
 	}
 	return 0;
