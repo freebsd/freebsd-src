@@ -464,10 +464,10 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 	/* we have to be peripheral to be able to send data, so
 	 * wait for the appropriate state
 	 */
-	if (ppb->state < PPB_PERIPHERAL_NEGOCIATION)
+ 	if (ppb_1284_get_state(ppbus) < PPB_PERIPHERAL_NEGOCIATION)
 		ppb_1284_terminate(ppbus);
 
-	while (ppb->state != PPB_PERIPHERAL_IDLE) {
+ 	while (ppb_1284_get_state(ppbus) != PPB_PERIPHERAL_IDLE) {
 		/* XXX should check a variable before sleeping */
 #ifdef DEBUG_1284
 		printf("s");
