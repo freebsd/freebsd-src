@@ -344,7 +344,7 @@ int
 rresvport_af(alport, family)
 	int *alport, family;
 {
-	int i, s, len, err;
+	int s;
 	struct sockaddr_storage ss;
 	u_short *sport;
 
@@ -609,7 +609,6 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 	char hname[MAXHOSTNAMELEN];
 	/* Presumed guilty until proven innocent. */
 	int userok = 0, hostok = 0;
-	int h_error;
 #ifdef YP
 	char *ypdomain;
 
