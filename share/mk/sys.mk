@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.2 1994/08/04 21:09:27 wollman Exp $
+#	$Id: sys.mk,v 1.3 1994/08/28 14:56:07 bde Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -22,7 +22,7 @@ CFLAGS		?=	-O4
 CFLAGS		?=	-O
 .endif
 
-CXX		?=	g++
+CXX		?=	c++
 CXXFLAGS	?=	${CXXINCLUDES} ${CFLAGS}
 
 CPP		?=	cpp
