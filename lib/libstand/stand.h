@@ -182,6 +182,7 @@ extern struct open_file files[];
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #define isascii(c)	(((c) & ~0x7F) == 0)
 #define isalpha(c)	(isupper(c) || (islower(c)))
+#define isalnum(c)	(isalpha(c) || isdigit(c))
 
 static __inline int toupper(int c)
 {
