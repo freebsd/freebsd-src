@@ -93,22 +93,21 @@
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
+struct rusage;
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
-	    struct rusage *rusage);
-
-#else
+	    struct rusage *rup);
+#else /* !_KERNEL */
 #include <sys/types.h>
 
 __BEGIN_DECLS
-struct rusage;	/* forward declaration */
-
 pid_t	wait(int *);
 pid_t	waitpid(pid_t, int *, int);
 #if __BSD_VISIBLE
+struct rusage;
 pid_t	wait3(int *, int, struct rusage *);
 pid_t	wait4(pid_t, int *, int, struct rusage *);
 #endif
 __END_DECLS
-#endif
+#endif /* _KERNEL */
 
 #endif /* !_SYS_WAIT_H_ */
