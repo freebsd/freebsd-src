@@ -86,9 +86,8 @@ struct sigframe {
 		__siginfohandler_t	*sf_action;
 		__sighandler_t		*sf_handler;
 	} sf_ahu;
-	register_t	sf_sigreturn;	/* sigreturn to use */
-	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 	ucontext_t	sf_uc;		/* = *sf_ucontext */
+	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
 #endif /* !_MACHINE_SIGFRAME_H_ */
