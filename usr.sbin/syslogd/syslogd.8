@@ -40,7 +40,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl dnsuv
+.Op Fl dknsuv
 .Op Fl a Ar allowed_peer
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
@@ -112,6 +112,16 @@ into debugging mode.  This is probably only of use to developers working on
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
+.It Fl k
+Disable the translation of
+messages received with facility
+.Dq kern 
+to facility
+.Dq user .
+Usually the
+.Dq kern
+facility is reserved for messages read directly from
+.Pa /dev/klog .
 .It Fl m
 Select the number of minutes between
 .Dq mark
