@@ -189,11 +189,8 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	va_start(ap, fmt);
 	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-	if (sess != NULL) {
-		SESS_LOCK(sess);
+	if (sess != NULL)
 		SESSRELE(sess);
-		SESS_UNLOCK(sess);
-	}
 	msgbuftrigger = 1;
 }
 
