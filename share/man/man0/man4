@@ -1,12 +1,12 @@
 /usr/src/share/man/man4/man4.i386/aha.4
 /usr/src/share/man/man4/man4.i386/ahb.4
+/usr/src/share/man/man4/amr.4
 /usr/src/share/man/man4/apm.4
 /usr/src/usr.sbin/arp/arp.4
 /usr/src/share/man/man4/man4.i386/bt.4
 /usr/src/share/man/man4/clnp.4
 /usr/src/share/man/man4/cltp.4
 /usr/src/share/man/man4/man4.i386/cx.4
-/usr/src/share/man/man4/drum.4
 /usr/src/share/man/man4/man4.i386/ed.4
 /usr/src/share/man/man4/esis.4
 /usr/src/lib/libc/locale/euc.4
@@ -16,6 +16,7 @@
 /usr/src/share/man/man4/idp.4
 /usr/src/share/man/man4/man4.i386/ie.4
 /usr/src/share/man/man4/inet.4
+/usr/src/share/man/man4/inet6.4
 /usr/src/share/man/man4/ip.4
 /usr/src/sbin/ipfw/ipfirewall.4
 /usr/src/share/man/man4/man4.i386/is.4
@@ -26,6 +27,7 @@
 /usr/src/share/man/man4/man4.i386/lpt.4
 /usr/src/share/man/man4/man4.i386/mcd.4
 /usr/src/share/man/man4/man4.i386/mem.4
+/usr/src/share/man/man4/mlx.4
 /usr/src/share/man/man4/man4.i386/mse.4
 /usr/src/share/man/man4/netintro.4
 /usr/src/share/man/man4/man4.i386/npx.4
