@@ -115,12 +115,16 @@ mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 static int
 mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
+	int error;
 
 	switch (minor(dev)) {
 	case 0:
 	case 1:
-		if ((flags & FWRITE) && securelevel > 0)
-			return (EPERM);
+		if (flags & FWRITE) {
+			error = securelevel_gt(td->td_proc->p_ucred, 0);
+			if (error)
+				return error;
+		}
 		break;
 	case 32:
 #ifdef PERFMON
