@@ -75,7 +75,10 @@ struct puc_device_description {
 		int	bar;
 		int	offset;
 		u_int	serialfreq;
+		u_int	flags;
 	} ports[PUC_MAX_PORTS];
+	uint32_t	ilr_type;
+	uint32_t	ilr_offset[2];
 };
 
 #define	PUC_REG_VEND		0
@@ -86,6 +89,10 @@ struct puc_device_description {
 #define	PUC_PORT_TYPE_NONE	0
 #define	PUC_PORT_TYPE_COM	1
 #define	PUC_PORT_TYPE_LPT	2
+
+/* Interrupt Latch Register (ILR) types */
+#define	PUC_ILR_TYPE_NONE	0
+#define	PUC_ILR_TYPE_DIGI	1
 
 #define	PUC_PORT_VALID(desc, port) \
   ((port) < PUC_MAX_PORTS && (desc)->ports[(port)].type != PUC_PORT_TYPE_NONE)

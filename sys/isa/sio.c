@@ -144,6 +144,7 @@
 #define COM_NOPROBE(flags)	((flags) & COM_C_NOPROBE)
 #define COM_C_IIR_TXRDYBUG	(0x80000)
 #define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
+#define	COM_TI16754(flags)	((flags) & 0x200000)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
@@ -918,6 +919,29 @@ sioprobe(dev, xrid, rclk)
 /* EXTRA DELAY? */
 
 	/*
+	 * For the TI16754 chips, set prescaler to 1 (4 is often the
+	 * default after-reset value) as otherwise it's impossible to
+	 * get highest baudrates.
+	 */
+	if (COM_TI16754(flags)) {
+		u_char cfcr, efr;
+
+		cfcr = sio_getreg(com, com_cfcr);
+		sio_setreg(com, com_cfcr, CFCR_EFR_ENABLE);
+		efr = sio_getreg(com, com_efr);
+		/* Unlock extended features to turn off prescaler. */
+		sio_setreg(com, com_efr, efr | EFR_EFE);
+		/* Disable EFR. */
+		sio_setreg(com, com_cfcr, (cfcr != CFCR_EFR_ENABLE) ? cfcr : 0);
+		/* Turn off prescaler. */
+		sio_setreg(com, com_mcr,
+			   sio_getreg(com, com_mcr) & ~MCR_PRESCALE);
+		sio_setreg(com, com_cfcr, CFCR_EFR_ENABLE);
+		sio_setreg(com, com_efr, efr);
+		sio_setreg(com, com_cfcr, cfcr);
+	}
+
+	/*
 	 * Initialize the speed and the word size and wait long enough to
 	 * drain the maximum of 16 bytes of junk in device output queues.
 	 * The speed is undefined after a master reset and must be set
@@ -1308,6 +1332,9 @@ sioattach(dev, xrid, rclk)
 				com->st16650a = 1;
 				com->tx_fifo_size = 32;
 				printf(" ST16650A");
+			} else if (COM_TI16754(flags)) {
+				com->tx_fifo_size = 64;
+				printf(" TI16754");
 			} else {
 				com->tx_fifo_size = COM_FIFOSIZE(flags);
 				printf(" 16550A");
@@ -1320,7 +1347,7 @@ sioattach(dev, xrid, rclk)
 				break;
 			}
 #endif
-		if (!com->st16650a) {
+		if (!com->st16650a && !COM_TI16754(flags)) {
 			if (!com->tx_fifo_size)
 				com->tx_fifo_size = 16;
 			else
