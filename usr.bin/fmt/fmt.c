@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)fmt.c	8.1 (Berkeley) 7/20/93";
 #include <stdio.h>
 #include <ctype.h>
 #include <locale.h>
+#include <stdlib.h>
 
 /*
  * fmt -- format the concatenation of input files or standard input
@@ -136,9 +137,11 @@ main(argc, argv)
 fmt(fi)
 	FILE *fi;
 {
-	char linebuf[BUFSIZ], canonb[BUFSIZ];
+	static char *linebuf = 0, *canonb = 0;
 	register char *cp, *cp2, cc;
 	register int c, col;
+#define CHUNKSIZE 1024
+	static int lbufsize = 0, cbufsize = 0;
 
 	c = getc(fi);
 	while (c != EOF) {
@@ -147,7 +150,15 @@ fmt(fi)
 		 * Leave tabs for now.
 		 */
 		cp = linebuf;
-		while (c != '\n' && c != EOF && cp-linebuf < BUFSIZ-1) {
+		while (c != '\n' && c != EOF) {
+			if (cp - linebuf >= lbufsize) {
+				int offset = cp - linebuf;
+				lbufsize += CHUNKSIZE;
+				linebuf = realloc(linebuf, lbufsize);
+				if(linebuf == 0)
+					abort();
+				cp = linebuf + offset;
+			}
 			if (c == '\b') {
 				if (cp > linebuf)
 					cp--;
@@ -178,13 +189,27 @@ fmt(fi)
 		while (cc = *cp++) {
 			if (cc != '\t') {
 				col++;
-				if (cp2-canonb < BUFSIZ-1)
-					*cp2++ = cc;
+				if (cp2 - canonb >= cbufsize) {
+					int offset = cp2 - canonb;
+					cbufsize += CHUNKSIZE;
+					canonb = realloc(canonb, cbufsize);
+					if(canonb == 0)
+						abort();
+					cp2 = canonb + offset;
+				}
+				*cp2++ = cc;
 				continue;
 			}
 			do {
-				if (cp2-canonb < BUFSIZ-1)
-					*cp2++ = ' ';
+				if (cp2 - canonb >= cbufsize) {
+					int offset = cp2 - canonb;
+					cbufsize += CHUNKSIZE;
+					canonb = realloc(canonb, cbufsize);
+					if(canonb == 0)
+						abort();
+					cp2 = canonb + offset;
+				}
+				*cp2++ = ' ';
 				col++;
 			} while ((col & 07) != 0);
 		}
