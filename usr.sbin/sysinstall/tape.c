@@ -119,7 +119,7 @@ mediaShutdownTape(Device *dev)
     if (!tapeInitted)
 	return;
     if (file_readable((char *)dev->private)) {
-	msgDebug("Cleaning up results of tape extract in %s..",
+	msgDebug("Cleaning up results of tape extract in %s..\n",
 		  (char *)dev->private);
 	(void)vsystem("rm -rf %s", (char *)dev->private);
     }
