@@ -2536,7 +2536,7 @@ Parse_Init (void)
 void
 Parse_End (void)
 {
-    Lst_Destroy(targCmds, (void (*)(void *)) free);
+    Lst_Destroy(targCmds, free);
     if (targets)
 	Lst_Destroy(targets, NOFREE);
     Lst_Destroy(sysIncPath, Dir_Destroy);
