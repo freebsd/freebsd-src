@@ -32,7 +32,7 @@
 .\"     @(#)config.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd July 4, 2001
 .Dt CONFIG 8
 .Os
 .Sh NAME
@@ -49,7 +49,9 @@ This is the old version of the
 program.
 It understands the old autoconfiguration scheme
 used on the HP300, i386, DECstation, and derivative platforms.
-The new version of config is used with the
+The new version of
+.Nm
+is used with the
 SPARC platform.
 Only the version of
 .Nm
@@ -72,13 +74,14 @@ that give alternate files for a specific machine
 section below).
 .Pp
 Available options and operands:
-.Bl -tag -width SYSTEM_NAME
+.Bl -tag -width ".Ar SYSTEM_NAME"
 .It Fl d Ar destdir
 Use
 .Ar destdir
 as the output directory, instead of the default one.
-Note
-that config does not append
+Note that
+.Nm
+does not append
 .Ar SYSTEM_NAME
 to the directory given.
 .It Fl g
@@ -105,14 +108,14 @@ and other system parameters for one system configuration.
 should be run from the
 .Pa conf
 subdirectory of the system source (usually
-.Pa /sys/ARCH/conf ) ,
+.Pa /sys/ Ns Va ARCH Ns Pa /conf ) ,
 where
-.Pa ARCH
+.Va ARCH
 represents one of the architectures supported by
 .Fx .
 .Nm
 creates the directory
-.Pa ../../compile/SYSTEM_NAME
+.Pa ../../compile/ Ns Ar SYSTEM_NAME
 or the one given with the
 .Fl d
 option
@@ -153,22 +156,26 @@ should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
 .Pp
-If the option "INCLUDE_CONFIG_FILE" is used in the configuration file the
-entire input file is embedded in the new kernel.  This means that
+If the
+.Cd "options INCLUDE_CONFIG_FILE"
+is used in the configuration file the
+entire input file is embedded in the new kernel.
+This means that
 .Xr strings 1
 can be used to extract it from a kernel:
 to extract the configuration information, use the command
-.Bd -literal
-strings kernel | grep ___
-.Ed
+.Pp
+.Dl "strings kernel | grep ___"
 .Sh DEBUG KERNELS
 Traditional
 .Bx
 kernels compiled without symbols due to the heavy load on the
 system when compiling a
 .Dq debug
-kernel.  A debug kernel contains complete symbols for all the source files, and
-enables an experienced kernel programmer to analyse the cause of a problem.  The
+kernel.
+A debug kernel contains complete symbols for all the source files, and
+enables an experienced kernel programmer to analyse the cause of a problem.
+The
 debuggers available prior to
 .Bx 4.4 Lite
 were able to find some information
@@ -182,58 +189,63 @@ default with
 .Fx :
 a debug kernel takes up to 30% longer to build and
 requires about 30 MB of disk storage in the build directory, compared to about 6
-MB for a non-debug kernel.  A debug kernel is about 11 MB in size, compared to
-about 2 MB for a non-debug kernel.  This space is used both in the root file
-system and at run time in memory.  Use the
+MB for a non-debug kernel.
+A debug kernel is about 11 MB in size, compared to
+about 2 MB for a non-debug kernel.
+This space is used both in the root file
+system and at run time in memory.
+Use the
 .Fl g
-option to build a debug kernel.  With this option,
+option to build a debug kernel.
+With this option,
 .Nm
 causes two kernel files to be built in the kernel build directory:
 .Bl -bullet
 .It
-.Nm kernel.debug
+.Pa kernel.debug
 is the complete debug kernel.
 .It
-.Nm kernel
-is a copy of the kernel with the debug symbols stripped off.  This is equivalent
+.Pa kernel
+is a copy of the kernel with the debug symbols stripped off.
+This is equivalent
 to the normal non-debug kernel.
 .El
 .Pp
 There is currently little sense in installing and booting from a debug kernel,
-since the only tools available which use the symbols do not run on-line.  There
+since the only tools available which use the symbols do not run on-line.
+There
 are therefore two options for installing a debug kernel:
 .Bl -bullet
 .It
-.Nm make
-.Ar install
+.Dq Li "make install"
 installs
-.Nm kernel
+.Pa kernel
 in the root file system.
 .It
-.Nm make
-.Ar install.debug
+.Dq Li "make install.debug"
 installs
-.Nm kernel.debug
+.Pa kernel.debug
 in the root file system.
 .El
 .Sh FILES
-.Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
+.Bl -tag -width ".Pa /sys/ Ns Va ARCH Ns Pa /conf/files. Ns Ar SYSTEM_NAME" -compact
 .It Pa /sys/conf/files
 list of common files system is built from
-.It Pa /sys/i386/conf/Makefile.i386
+.It Pa /sys/conf/Makefile. Ns Va ARCH
 generic makefile for the
-.Tn i386
-.It Pa /sys/i386/conf/files.i386
+.Va ARCH
+.It Pa /sys/conf/files. Ns Va ARCH
 list of
-.Tn i386
+.Va ARCH
 specific files
-.It Pa /sys/i386/conf/files. Ns Em ERNIE
+.It Pa /sys/ Ns Va ARCH Ns Pa /conf/files. Ns Ar SYSTEM_NAME
 list of files specific to
-.Em ERNIE
-system
-.It Pa /sys/compile/SYSTEM_NAME
+.Ar SYSTEM_NAME
+on
+.Va ARCH
+.It Pa /sys/compile/ Ns Ar SYSTEM_NAME
 default kernel build directory for system
-.Pa SYSTEM_NAME .
+.Ar SYSTEM_NAME .
 .El
 .Sh SEE ALSO
 The
