@@ -153,7 +153,8 @@ apply_complete()
 	if (stat(fname, &sb) < 0)
 	    return;
 
-	sprintf(buf, "(cd %s && ctm %s%s) 2>&1", base_dir, here, fname);
+	sprintf(buf, "(cd %s && /usr/sbin/ctm %s%s) 2>&1", 
+	    base_dir, here, fname);
 	if ((ctm = popen(buf, "r")) == NULL)
 	    {
 	    err("ctm failed to apply %s", delta);
