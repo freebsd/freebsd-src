@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.12 1998/08/26 17:39:37 brian Exp $
+ *	$Id: prompt.c,v 1.13 1999/01/28 01:56:34 brian Exp $
  */
 
 #include <sys/param.h>
@@ -380,7 +380,8 @@ prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
       /* Stuff '\r' in front of '\n' 'cos we're in raw mode */
       int len = strlen(fmt);
 
-      if (len && len < sizeof nfmt - 1 && fmt[len-1] == '\n') {
+      if (len && len < sizeof nfmt - 1 && fmt[len-1] == '\n' &&
+          (len == 1 || fmt[len-2] != '\r')) {
         strcpy(nfmt, fmt);
         strcpy(nfmt + len - 1, "\r\n");
         pfmt = nfmt;

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.5 1999/01/10 01:26:30 brian Exp $
+ *  $Id: physical.h,v 1.6 1999/02/16 00:16:56 brian Exp $
  *
  */
 
@@ -34,6 +34,11 @@ struct physical {
   struct mbuf *out;            /* mbuf that suffered a short write */
   int connect_count;
   struct datalink *dl;         /* my owner */
+
+  struct {
+    u_char buf[MAX_MRU];       /* Our input data buffer */
+    size_t sz;
+  } input;
 
   struct {
     char full[40];
