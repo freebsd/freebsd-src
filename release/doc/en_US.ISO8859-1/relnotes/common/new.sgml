@@ -176,8 +176,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">A bug that even when no AT keyboard is connected,
-      &man.atkbd.4; registers an AT keyboard during console initialization
+    <para arch="i386">A bug that caused
+      &man.atkbd.4; to register an AT keyboard during console initialization,
+      even when no AT keyboard was connected,
       has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
@@ -209,7 +210,7 @@
       to connect parallel ports to the &man.ppc.4; driver.</para>
 
     <para arch="i386,pc98">The &man.safe.4; driver has been added
-      to support SafeNet 1141, 1741-based crypto accelerators.
+      to support SafeNet 1141- and 1741-based crypto accelerators.
       &merged;
 
       <warning>
