@@ -256,12 +256,14 @@ key_read(Key *ret, char **cpp)
 		blob = xmalloc(len);
 		n = uudecode(cp, blob, len);
 		if (n < 0) {
-			error("uudecode %s failed", cp);
+			error("key_read: uudecode %s failed", cp);
 			return 0;
 		}
 		k = dsa_key_from_blob(blob, n);
-		if (k == NULL)
-			 return 0;
+		if (k == NULL) {
+			error("key_read: dsa_key_from_blob %s failed", cp);
+			return 0;
+		}
 		xfree(blob);
 		if (ret->dsa != NULL)
 			DSA_free(ret->dsa);
@@ -269,10 +271,12 @@ key_read(Key *ret, char **cpp)
 		k->dsa = NULL;
 		key_free(k);
 		bits = BN_num_bits(ret->dsa->p);
-		cp = strchr(cp, '=');
-		if (cp == NULL)
-			return 0;
-		*cpp = cp + 1;
+		/* advance cp: skip whitespace and data */
+		while (*cp == ' ' || *cp == '\t')
+			cp++;
+		while (*cp != '\0' && *cp != ' ' && *cp != '\t')
+			cp++;
+		*cpp = cp;
 		break;
 	default:
 		fatal("key_read: bad key type: %d", ret->type);
