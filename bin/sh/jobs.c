@@ -783,7 +783,8 @@ dowait(block, job)
 	do {
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", pid, status));
-	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
+	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
+	    (WIFSTOPPED(status) && !iflag));
 	in_dowait--;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
