@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.3 1997/03/24 11:23:27 bde Exp $
+ * $Id: if_fea.c,v 1.4 1997/07/20 06:31:09 bde Exp $
  */
 
 /*
@@ -159,7 +159,7 @@ static struct eisa_driver pdq_eisa_driver = {
 DATA_SET(eisadriver_set, pdq_eisa_driver);
 
 
-static const char *
+static char *
 pdq_eisa_match(
     eisa_id_t type)
 {
