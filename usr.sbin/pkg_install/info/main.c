@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.13 1997/03/31 05:10:50 imp Exp $";
+	"$Id: main.c,v 1.14 1997/10/08 07:47:26 charnier Exp $";
 #endif
 
 /*
@@ -20,7 +20,7 @@ static const char rcsid[] =
  * Jordan K. Hubbard
  * 18 July 1993
  *
- * This is the add module.
+ * This is the info module.
  *
  */
 
