@@ -31,8 +31,11 @@
  * Small replacement for netstat. Uses only sysctl(3) to get the info.
  */
 
-#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
+#include <sys/param.h>
+#include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -69,6 +72,7 @@ int iflag = 0;
 int rflag = 0;
 int sflag = 0;
 int pflag = 0;
+int mflag = 0;			/* print mbuf stats */
 int wflag = 0;			/* repeat every wait seconds */
 
 extern char *optarg;
@@ -77,7 +81,7 @@ extern int optind;
 void
 usage()
 {
-	fprintf(stderr, "\n%s [-nrsi] [-p proto] [-w wait]\n", progname);
+	fprintf(stderr, "\n%s [-nmrsi] [-p proto] [-w wait]\n", progname);
 #ifdef BRIDGING
 	fprintf(stderr, "  proto: {ip|tcp|udp|icmp|bdg}\n\n");
 #else
@@ -236,7 +240,7 @@ get_flags(char *buf, int flags)
 #endif /*NEVER*/
 }
 
-int
+void
 print_routing(char *proto)
 {
 	int	mib[6];
@@ -677,9 +681,147 @@ print_icmp_stats()
 	    s.icps_bmcasttstamp);
 }
 
+static struct mbtypenames {
+        int     mt_type;
+        char    *mt_name;
+} mbtypenames[] = {
+        { MT_DATA,      "data" },
+        { MT_OOBDATA,   "oob data" },
+        { MT_CONTROL,   "ancillary data" },
+        { MT_HEADER,    "packet headers" },
+#ifdef MT_SOCKET
+        { MT_SOCKET,    "socket structures" },                  /* XXX */
+#endif
+#ifdef MT_PCB
+        { MT_PCB,       "protocol control blocks" },            /* XXX */
+#endif
+#ifdef MT_RTABLE
+        { MT_RTABLE,    "routing table entries" },              /* XXX */
+#endif
+#ifdef MT_HTABLE
+        { MT_HTABLE,    "IMP host table entries" },             /* XXX */
+#endif
+#ifdef MT_ATABLE
+        { MT_ATABLE,    "address resolution tables" },
+#endif
+        { MT_FTABLE,    "fragment reassembly queue headers" },  /* XXX */
+        { MT_SONAME,    "socket names and addresses" },
+#ifdef MT_SOOPTS
+        { MT_SOOPTS,    "socket options" },
+#endif
+#ifdef MT_RIGHTS
+        { MT_RIGHTS,    "access rights" },
+#endif
+#ifdef MT_IFADDR
+        { MT_IFADDR,    "interface addresses" },                /* XXX */
+#endif
+        { 0, 0 }
+};
+
+void
+print_mbuf_stats()
+{
+        u_long totmem, totpossible, totmbufs;
+        register int i;
+        struct mbstat mbstat;
+        struct mbtypenames *mp;
+        int name[3], nmbclusters, nmbufs, nmbtypes;
+        size_t nmbclen, nmbuflen, mbstatlen, mbtypeslen;
+        u_long *mbtypes;
+        int *seen;     /* "have we seen this type yet?" */
+         
+	if (mflag == 0)
+		return ;
+
+        mbtypes = NULL;
+        seen = NULL;
+
+        if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
+                warn("sysctl: retrieving mbtypes length");
+                goto err;
+        }
+        if ((mbtypes = malloc(mbtypeslen)) == NULL) {
+                warn("malloc: %lu bytes for mbtypes", (u_long)mbtypeslen);
+                goto err;
+        }
+                 
+        nmbtypes = mbtypeslen / sizeof(*mbtypes);
+        if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
+                warn("calloc");
+                goto err;
+        }
+                 
+	name[0] = CTL_KERN;
+	name[1] = KERN_IPC;
+	name[2] = KIPC_MBSTAT;
+	mbstatlen = sizeof mbstat;
+	if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
+		warn("sysctl: retrieving mbstat");
+		goto err;
+	}
+
+	if (sysctlbyname("kern.ipc.mbtypes",mbtypes,&mbtypeslen,NULL,0) < 0) {
+		warn("sysctl: retrieving mbtypes");
+		goto err;
+	}
+
+	name[2] = KIPC_NMBCLUSTERS;
+	nmbclen = sizeof(int);
+	if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
+		warn("sysctl: retrieving nmbclusters");
+		goto err;
+	}
+
+	nmbuflen = sizeof(int);
+	if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
+		warn("sysctl: retrieving nmbufs");
+		goto err;
+	}
+
+#undef MSIZE
+#define MSIZE           (mbstat.m_msize)
+#undef MCLBYTES
+#define MCLBYTES        (mbstat.m_mclbytes)
+
+        totmbufs = 0;
+        for (mp = mbtypenames; mp->mt_name; mp++)
+                totmbufs += mbtypes[mp->mt_type];
+        printf("%lu/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
+            mbstat.m_mbufs, nmbufs);
+        for (mp = mbtypenames; mp->mt_name; mp++)
+                if (mbtypes[mp->mt_type]) {
+                        seen[mp->mt_type] = 1;
+                        printf("\t%lu mbufs allocated to %s\n",
+                            mbtypes[mp->mt_type], mp->mt_name);
+                }
+        seen[MT_FREE] = 1;
+        for (i = 0; i < nmbtypes; i++)
+                if (!seen[i] && mbtypes[i]) {
+                        printf("\t%lu mbufs allocated to <mbuf type %d>\n",
+                            mbtypes[i], i);
+                }
+        printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
+                mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
+                nmbclusters);
+        totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
+        totpossible = nmbclusters * MCLBYTES + MSIZE * nmbufs;
+        printf("%lu Kbytes allocated to network (%lu%% of mb_map in use)\n",
+                totmem / 1024, (totmem * 100) / totpossible);
+        printf("%lu requests for memory denied\n", mbstat.m_drops);
+        printf("%lu requests for memory delayed\n", mbstat.m_wait);
+        printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
+
+err:
+        if (mbtypes != NULL)
+                free(mbtypes);
+        if (seen != NULL)
+                free(seen);
+}
+
 int
 stats(char *proto)
 {
+	print_mbuf_stats();
 	if (!sflag)
 		return 0;
 	if (pflag) {
@@ -717,10 +859,12 @@ main(int argc, char *argv[])
 {
 	char	c;
 	char	*proto = NULL;
+	int	have_flags = 0 ;
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "inrsp:w:")) != -1) {
+	while ((c = getopt(argc, argv, "imnrsp:w:")) != -1) {
+		have_flags++ ;
 		switch (c) {
 		case 'w':
 			wflag = atoi(optarg);
@@ -732,6 +876,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			iflag++;
+			break;
+		case 'm':
+			mflag++;
 			break;
 		case 's':
 			sflag++;
@@ -749,8 +896,8 @@ main(int argc, char *argv[])
 			break;
 		}
 	}
-	if (rflag == 0 && sflag == 0 && iflag == 0)
-		rflag = 1;
+	if (have_flags == 0)
+		rflag = 1;	/* default */
 	argc -= optind;
 
 	if (argc > 0) {
