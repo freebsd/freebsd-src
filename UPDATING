@@ -24,11 +24,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	`make world' as the new kernel will know about binaries using
 	the old statfs structure, but an old kernel will not know
 	about the new system calls that support the new statfs
-	structure.  Running an old kernel after a `make world' will
-	cause programs such as `df' that do a statfs system call to
-	fail with a bad system call. Marco Wertejuk <wertejuk@mwcis.com>
-	also reports that cfsd (ports/security/cfs) needs to be
-	recompiled after these changes are installed.
+	structure.
+	Note that the backwards compatibility is only present when the
+	kernel is configured with the COMPAT_FREEBSD4 option. Since
+	even /bin/sh will not run with a new kernel without said option
+	you're pretty much dead in the water without it. Make sure you
+	have COMPAT_FREEBSD4!
+	Running an old kernel after a `make world' will cause programs
+	such as `df' that do a statfs system call to fail with a bad
+	system call. Marco Wertejuk <wertejuk@mwcis.com> also reports
+	that cfsd (ports/security/cfs) needs to be recompiled after
+	these changes are installed.
 
 	****************************DANGER*******************************
 
