@@ -33,11 +33,11 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.3 1995/10/31 23:36:21 julian Exp $
+ * $Id: ipx.h,v 1.4 1995/11/04 09:02:37 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
-#define _NETIPX_IPX_H_
+#define	_NETIPX_IPX_H_
 
 /*
  * Constants and Structures
@@ -173,40 +173,40 @@ extern long ipx_pexseq;
 extern u_char ipxctlerrmap[];
 extern struct ipxpcb ipxrawpcb;
 
-#include <net/if.h>
-#include <net/route.h>
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-u_short ipx_cksum __P((struct mbuf *m, int len));
-void ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
-void ipx_abort __P((struct ipxpcb *ipxp));
-void ipx_drop __P((struct ipxpcb *ipxp, int errno));
-int ipx_output __P((struct ipxpcb *ipxp, struct mbuf *m0));
-int ipx_ctloutput __P((int req, struct socket *so, int level, int name, struct mbuf **value));
-int ipx_usrreq __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *control));
-int ipx_raw_usrreq __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *control));
-int ipx_control __P((struct socket *so, int cmd, caddr_t data, struct ifnet *ifp));
-void ipx_init __P((void));
-void ipxintr __P((void));
-void ipx_ctlinput __P((int cmd, caddr_t arg));
-void ipx_forward __P((struct mbuf *m));
-void ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
-int ipx_do_route __P((struct ipx_addr *src, struct route *ro));
-void ipx_undo_route __P((struct route *ro));
-int ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
-__END_DECLS
+struct route;
+struct socket;
+void	ipx_abort __P((struct ipxpcb *ipxp));
+u_short	ipx_cksum __P((struct mbuf *m, int len));
+int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
+			 struct ifnet *ifp));
+void	ipx_ctlinput __P((int cmd, caddr_t arg));
+int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,
+			   struct mbuf **value));
+int	ipx_do_route __P((struct ipx_addr *src, struct route *ro));
+void	ipx_drop __P((struct ipxpcb *ipxp, int errno));
+void	ipx_forward __P((struct mbuf *m));
+void	ipx_init __P((void));
+void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
+void	ipxintr __P((void));
+int	ipx_output __P((struct ipxpcb *ipxp, struct mbuf *m0));
+int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
+int	ipx_raw_usrreq __P((struct socket *so, int req, struct mbuf *m,
+			    struct mbuf *nam, struct mbuf *control));
+void	ipx_undo_route __P((struct route *ro));
+int	ipx_usrreq __P((struct socket *so, int req, struct mbuf *m,
+			struct mbuf *nam, struct mbuf *control));
+void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
 
 #else
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-extern struct ipx_addr ipx_addr __P((const char *));
-extern char *ipx_ntoa __P((struct ipx_addr));
+struct ipx_addr
+	ipx_addr __P((const char *));
+char	*ipx_ntoa __P((struct ipx_addr));
 __END_DECLS
 
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_NETIPX_IPX_H_ */

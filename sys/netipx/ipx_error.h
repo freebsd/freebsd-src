@@ -33,11 +33,11 @@
  *
  *	@(#)ipx_error.h
  *
- * $Id: ipx_error.h,v 1.3 1995/10/31 23:36:24 julian Exp $
+ * $Id: ipx_error.h,v 1.4 1995/11/04 09:02:47 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_ERROR_H_
-#define _NETIPX_IPX_ERROR_H_
+#define	_NETIPX_IPX_ERROR_H_
 
 /*
  * IPX error messages
@@ -92,19 +92,13 @@ struct	ipx_errstat {
 };
 
 #ifdef KERNEL
-
 extern struct ipx_errstat ipx_errstat;
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int ipx_err_x __P((int c));
-int ipx_echo __P((struct mbuf *m));
-void ipx_error __P((struct mbuf *om, int type, int param));
-void ipx_printhost __P((struct ipx_addr *addr));
-void ipx_err_input __P((struct mbuf *m));
-__END_DECLS
-
+int	ipx_echo __P((struct mbuf *m));
+void	ipx_err_input __P((struct mbuf *m));
+int	ipx_err_x __P((int c));
+void	ipx_error __P((struct mbuf *om, int type, int param));
+void	ipx_printhost __P((struct ipx_addr *addr));
 #endif
 
-#endif
+#endif /* !_NETIPX_IPX_ERROR_H_ */
