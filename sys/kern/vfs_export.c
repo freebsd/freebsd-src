@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id$
+ * $Id: vfs_subr.c,v 1.70 1997/02/22 09:39:34 peter Exp $
  */
 
 /*
@@ -412,6 +412,7 @@ retry:
 			panic("free vnode isn't");
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		if (vp->v_usage > 0) {
+			simple_unlock(&vp->v_interlock);
 			--vp->v_usage;
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			goto retry;
@@ -1023,8 +1024,9 @@ vref(vp)
 		 */
 		simple_unlock(&vp->v_interlock);
 		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
-		simple_lock(&vp->v_interlock);
+		return;
 	}
+	simple_unlock(&vp->v_interlock);
 }
 
 /*
@@ -1610,20 +1612,30 @@ vprint(label, vp)
  * Called when debugging the kernel.
  */
 void
-printlockedvnodes(void)
+printlockedvnodes()
 {
-	register struct mount *mp;
-	register struct vnode *vp;
+	struct proc *p = curproc;	/* XXX */
+	struct mount *mp, *nmp;
+	struct vnode *vp;
 
 	printf("Locked vnodes\n");
-	for (mp = mountlist.cqh_first; mp != (void *)&mountlist;
-	    mp = mp->mnt_list.cqe_next) {
+	simple_lock(&mountlist_slock);
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+			nmp = mp->mnt_list.cqe_next;
+			continue;
+		}
 		for (vp = mp->mnt_vnodelist.lh_first;
-		    vp != NULL;
-		    vp = vp->v_mntvnodes.le_next)
+		     vp != NULL;
+		     vp = vp->v_mntvnodes.le_next) {
 			if (VOP_ISLOCKED(vp))
-				vprint((char *) 0, vp);
+				vprint((char *)0, vp);
+		}
+		simple_lock(&mountlist_slock);
+		nmp = mp->mnt_list.cqe_next;
+		vfs_unbusy(mp, p);
 	}
+	simple_unlock(&mountlist_slock);
 }
 #endif
 
@@ -1640,8 +1652,8 @@ static int
 sysctl_vnode SYSCTL_HANDLER_ARGS
 {
 	struct proc *p = curproc;	/* XXX */
-	register struct mount *mp, *nmp;
-	struct vnode *vp;
+	struct mount *mp, *nmp;
+	struct vnode *nvp, *vp;
 	int error;
 
 #define VPTRSZ	sizeof (struct vnode *)
@@ -1652,32 +1664,41 @@ sysctl_vnode SYSCTL_HANDLER_ARGS
 		return (SYSCTL_OUT(req, 0,
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
+	simple_lock(&mountlist_slock);
 	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
-		nmp = mp->mnt_list.cqe_next;
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p))
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+			nmp = mp->mnt_list.cqe_next;
 			continue;
+		}
 again:
+		simple_lock(&mntvnode_slock);
 		for (vp = mp->mnt_vnodelist.lh_first;
-		    vp != NULL;
-		    vp = vp->v_mntvnodes.le_next) {
+		     vp != NULL;
+		     vp = nvp) {
 			/*
-			 * Check that the vp is still associated with this
-			 * filesystem.  RACE: could have been recycled onto
-			 * the same filesystem.
+			 * Check that the vp is still associated with
+			 * this filesystem.  RACE: could have been
+			 * recycled onto the same filesystem.
 			 */
 			if (vp->v_mount != mp) {
+				simple_unlock(&mntvnode_slock);
 				if (kinfo_vdebug)
 					printf("kinfo: vp changed\n");
 				goto again;
 			}
+			nvp = vp->v_mntvnodes.le_next;
+			simple_unlock(&mntvnode_slock);
 			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
-			    (error = SYSCTL_OUT(req, vp, VNODESZ))) {
-				vfs_unbusy(mp, p);
+			    (error = SYSCTL_OUT(req, vp, VNODESZ)))
 				return (error);
-			}
+			simple_lock(&mntvnode_slock);
 		}
+		simple_unlock(&mntvnode_slock);
+		simple_lock(&mountlist_slock);
+		nmp = mp->mnt_list.cqe_next;
 		vfs_unbusy(mp, p);
 	}
+	simple_unlock(&mountlist_slock);
 
 	return (0);
 }
