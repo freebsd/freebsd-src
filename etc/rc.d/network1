@@ -15,50 +15,50 @@ stop_cmd="network_stop"
 
 convert_host_conf()
 {
-    host_conf=$1; shift;
-    nsswitch_conf=$1; shift;
-    awk '                                                                   \
-        /^[:blank:]*#/       { next }                                       \
-        /(hosts|local|file)/ { nsswitch[c] = "files"; c++; next }           \
-        /(dns|bind)/         { nsswitch[c] = "dns";   c++; next }           \
-        /nis/                { nsswitch[c] = "nis";   c++; next }           \
-        { printf "Warning: unrecognized line [%s]", $0 > "/dev/stderr" }    \
-        END {                                                               \
-                printf "hosts: ";                                           \
-                for (i in nsswitch) printf "%s ", nsswitch[i];              \
-                printf "\n";                                                \
-        }' < $host_conf > $nsswitch_conf
+	host_conf=$1; shift;
+	nsswitch_conf=$1; shift;
+	awk '                                                               \
+	/^[:blank:]*#/       { next }                                       \
+	/(hosts|local|file)/ { nsswitch[c] = "files"; c++; next }           \
+	/(dns|bind)/         { nsswitch[c] = "dns";   c++; next }           \
+	/nis/                { nsswitch[c] = "nis";   c++; next }           \
+	{ printf "Warning: unrecognized line [%s]", $0 > "/dev/stderr" }    \
+	END {                                                               \
+		printf "hosts: ";                                           \
+		for (i in nsswitch) printf "%s ", nsswitch[i];              \
+		printf "\n";                                                \
+	}' < $host_conf > $nsswitch_conf
 }
 
 generate_host_conf()
 {
-    nsswitch_conf=$1; shift;
-    host_conf=$1; shift;
+	nsswitch_conf=$1; shift;
+	host_conf=$1; shift;
 
-    awk '
-BEGIN {
-    xlat["files"] = "hosts";
-    xlat["dns"] = "bind";
-    xlat["nis"] = "nis";
-    cont = 0;
-}
-sub(/^[\t ]*hosts:/, "") || cont {
-    if (!cont)
-        srcs = ""
-    sub(/#.*/, "")
-    gsub(/[][]/, " & ")
-    cont = sub(/\\$/, "")
-    srcs = srcs " " $0
-}
-END {
-    print "# Auto-generated from nsswitch.conf, do not edit"
-    ns = split(srcs, s)
-    for (n = 1; n <= ns; ++n) {
-        if (s[n] in xlat)
-            print xlat[s[n]]
-    }
-}
-' <$nsswitch_conf >$host_conf
+	awk '
+	BEGIN {
+		xlat["files"] = "hosts";
+		xlat["dns"] = "bind";
+		xlat["nis"] = "nis";
+		cont = 0;
+	}
+	sub(/^[\t ]*hosts:/, "") || cont {
+		if (!cont)
+			srcs = ""
+		sub(/#.*/, "")
+		gsub(/[][]/, " & ")
+		cont = sub(/\\$/, "")
+		srcs = srcs " " $0
+	}
+	END {
+		print "# Auto-generated from nsswitch.conf, do not edit"
+		ns = split(srcs, s)
+		for (n = 1; n <= ns; ++n) {
+			if (s[n] in xlat)
+			    print xlat[s[n]]
+		}
+	}
+	' <$nsswitch_conf >$host_conf
 }
 
 network_gif_setup() {

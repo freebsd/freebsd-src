@@ -48,7 +48,7 @@ ip6fw_start()
 
 	# Enable firewall logging
 	#
-	if checkyesno ipv6_firewall_logging ; then
+	if checkyesno ipv6_firewall_logging; then
 		echo 'IPv6 Firewall logging=YES'
 		sysctl net.inet6.ip6.fw.verbose=1 >/dev/null
 	fi

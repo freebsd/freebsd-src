@@ -28,17 +28,17 @@ NetBSD)
 	;;
 esac
 
-amd_precmd() 
+amd_precmd()
 {
 	case ${OSTYPE} in
 	FreeBSD)
-		if ! checkyesno nfs_client_enable ; then
+		if ! checkyesno nfs_client_enable; then
 			force_depend nfsclient || return 1
 		fi
 
 		if ! checkyesno rpcbind_enable  && \
 		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-                then
+		then
 			force_depend rpcbind || return 1
 		fi
 

@@ -39,7 +39,7 @@ stop_cmd=":"
 
 pccard_start()
 {
-	if checkyesno pccard_enable ; then
+	if checkyesno pccard_enable; then
 		echo -n 'Setup PC-CARD:'
 
 		case ${pccard_mem} in
@@ -51,7 +51,7 @@ pccard_start()
 			;;
 		esac
 
-		if [ -n "${pccard_beep}" ] ; then
+		if [ -n "${pccard_beep}" ]; then
 			pccardc beep ${pccard_beep} && echo -n ' beep'
 		fi
 

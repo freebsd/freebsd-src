@@ -90,7 +90,7 @@ atm2_start()
 	# XXX - required by atm3.sh. I don't like having one script depend
 	#       on variables in another script (especially in a dynamic
 	#       ordered system like this), but it's necessary for the moment.
-	# 
+	#
 	export atm_atmarpd
 	export atm_scspd
 }

@@ -30,7 +30,7 @@ ntpd_precmd()
 	fi
 
 	# If running in a chroot cage, ensure that the appropriate files
-	# exist inside the cage, as well as helper symlinks into the cage 
+	# exist inside the cage, as well as helper symlinks into the cage
 	# from outside.
 	#
 	# As this is called after the is_running and required_dir checks
