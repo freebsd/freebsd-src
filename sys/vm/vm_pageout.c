@@ -878,7 +878,7 @@ rescan0:
 				mp = NULL;
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
-				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ|LK_TIMELOCK, curthread)) {
+				if (vget(vp, LK_EXCLUSIVE|LK_TIMELOCK, curthread)) {
 					++pageout_lock_miss;
 					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
