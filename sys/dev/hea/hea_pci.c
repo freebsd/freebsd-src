@@ -97,15 +97,27 @@
 static int hea_pci_probe(device_t);
 static int hea_pci_attach(device_t);
 
-#define	ENI_VENDORID	0x111A
-#define	ENI_DEVICEID	0x0002
+#define	ENI_VENDORID		0x111A
+#define	ENI_DEVICEID_ENI155PF	0x0000
+#define	ENI_DEVICEID_ENI155PA	0x0002
+
+#define	ADP_VENDORID		0x9004
+#define	ADP_DEVICEID_AIC5900	0x5900
+#define	ADP_DEVICEID_AIC5905	0x5905
 
 struct hea_pci_type {
 	u_int16_t	vid;
 	u_int16_t	did;
 	char *		name;
 } hea_pci_devs[] = {
-	{ ENI_VENDORID, ENI_DEVICEID, "Efficent Networks ENI ATM Adapter" },
+	{ ENI_VENDORID, ENI_DEVICEID_ENI155PF,
+		"Efficient Networks 155P-MF1 (FPGA) ATM Adapter" },
+	{ ENI_VENDORID, ENI_DEVICEID_ENI155PA,
+		"Efficient Networks 155P-MF1 (ASIC) ATM Adapter" },
+	{ ADP_VENDORID, ADP_DEVICEID_AIC5900,
+		"ANA-5910/5930/5940 ATM155 & 25 LAN Adapter" },
+	{ ADP_VENDORID, ADP_DEVICEID_AIC5905,
+		"ANA-5910A/5930A/5940A ATM Adapter" },
 	{ 0, 0, NULL },
 };
 
@@ -190,6 +202,18 @@ hea_pci_attach (dev)
 
 	eup->eu_config.ac_bustype = BUS_PCI;
 	eup->eu_config.ac_busslot = (pci_get_bus(dev) << 8)| pci_get_slot(dev);
+
+	switch (pci_get_vendor(dev)) {
+	case ENI_VENDORID:
+		eup->eu_type = TYPE_ENI;	
+		break;
+	case ADP_VENDORID:
+		eup->eu_type = TYPE_ADP;	
+		break;
+	default:
+		eup->eu_type = TYPE_UNKNOWN;	
+		break;
+	}
 
 	error = hea_attach(dev);
 	if (error) {

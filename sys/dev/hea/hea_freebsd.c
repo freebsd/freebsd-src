@@ -203,24 +203,42 @@ hea_attach (device_t dev)
 		goto fail;
 	}
 
-	/*
-	 * Read the contents of the SEEPROM
-	 */
-	eni_read_seeprom(eup);
+	if (eup->eu_type == TYPE_ADP) {
+		int i;
+#define MID_ADPMACOFF   0xffc0          /* mac address offset (adaptec only) */
 
-	/*
-	 * Copy MAC address to PIF and config structures
-	 */
-	bcopy((caddr_t)&eup->eu_seeprom[SEPROM_MAC_OFF],
-	      (caddr_t)&eup->eu_pif.pif_macaddr,
-	      sizeof(struct mac_addr));
+		for (i = 0; i < sizeof(struct mac_addr); i++) {
+			eup->eu_pif.pif_macaddr.ma_data[i] =
+				bus_space_read_1(rman_get_bustag(sc->mem),
+						rman_get_bushandle(sc->mem),
+						MID_ADPMACOFF + i);
+		}
+
+	} else
+	if (eup->eu_type == TYPE_ENI) {
+		/*
+	 	 * Read the contents of the SEEPROM
+	 	 */
+		eni_read_seeprom(eup);
+
+		/*
+	 	 * Copy MAC address to PIF and config structures
+		 */
+		bcopy((caddr_t)&eup->eu_seeprom[SEPROM_MAC_OFF],
+		      (caddr_t)&eup->eu_pif.pif_macaddr,
+		      sizeof(struct mac_addr));
+		/*
+		 * Copy serial number into config space
+		 */
+		eup->eu_config.ac_serial =
+			ntohl(*(u_long *)&eup->eu_seeprom[SEPROM_SN_OFF]);
+	} else {
+		device_printf(dev, "Unknown adapter type!\n");
+		error = ENXIO;
+		goto fail;
+	}
+
 	eup->eu_config.ac_macaddr = eup->eu_pif.pif_macaddr;
-
-	/*
-	 * Copy serial number into config space
-	 */
-	eup->eu_config.ac_serial =
-		ntohl(*(u_long *)&eup->eu_seeprom[SEPROM_SN_OFF]);
 
 	/*
 	 * Setup some of the adapter configuration
