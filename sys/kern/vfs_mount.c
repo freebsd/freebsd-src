@@ -1600,8 +1600,6 @@ static int
 vfs_mountroot_ask(void)
 {
 	char name[128];
-	int i;
-	dev_t dev;
 
 	for(;;) {
 		printf("\nManual root filesystem specification:\n");
@@ -1618,15 +1616,8 @@ vfs_mountroot_ask(void)
 		if (name[0] == 0)
 			return(1);
 		if (name[0] == '?') {
-			if (!g_dev_print()) {
-				printf("Possibly valid devices for 'ufs' root:\n");
-				for (i = 0; i < NUMCDEVSW; i++) {
-					dev = makedev(i, 0);
-					if (devsw(dev) != NULL)
-						printf(" \"%s\"", devsw(dev)->d_name);
-				}
-			}
-			printf("\n");
+			printf("\nList of GEOM managed disk devices:\n  ");
+			g_dev_print();
 			continue;
 		}
 		if (!vfs_mountroot_try(name))

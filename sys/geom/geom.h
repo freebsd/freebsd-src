@@ -172,7 +172,7 @@ struct g_provider {
 };
 
 /* geom_dev.c */
-int g_dev_print(void);
+void g_dev_print(void);
 
 /* geom_dump.c */
 void g_hexdump(void *ptr, int length);
