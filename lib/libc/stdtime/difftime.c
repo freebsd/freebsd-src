@@ -1,8 +1,11 @@
-
+/*
+** This file is in the public domain, so clarified as of
+** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+*/
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)difftime.c	7.4";
+static char	elsieid[] = "@(#)difftime.c	7.7";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -45,9 +48,7 @@ const time_t	time0;
 	/*
 	** Repair delta overflow.
 	*/
-	hibit = 1;
-	while ((hibit <<= 1) > 0)
-		continue;
+	hibit = (~ (time_t) 0) << (TYPE_BIT(time_t) - 1);
 	/*
 	** The following expression rounds twice, which means
 	** the result may not be the closest to the true answer.
@@ -67,10 +68,10 @@ const time_t	time0;
 	** This problem occurs only with very large differences.
 	** It's too painful to fix this portably.
 	** We are not alone in this problem;
-	** many C compilers round twice when converting
+	** some C compilers round twice when converting
 	** large unsigned types to small floating types,
 	** so if time_t is unsigned the "return delta" above
-	** has the same double-rounding problem.
+	** has the same double-rounding problem with those compilers.
 	*/
 	return delta - 2 * (long_double) hibit;
 }
