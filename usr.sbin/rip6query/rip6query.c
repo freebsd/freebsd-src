@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,12 +36,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
+#include <errno.h>
 #include <err.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
@@ -51,11 +54,10 @@
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
+#define NI_WITHSCOPEID	0
 #endif
 
 int	s;
-extern int errno;
 struct sockaddr_in6 sin6;
 struct rip6	*ripbuf;
 
@@ -75,8 +77,6 @@ main(argc, argv)
 	struct sockaddr_in6 fsock;
 	int i, n, len, flen;
 	int c;
-	extern char *optarg;
-	extern int optind;
 	int ifidx = -1;
 	int error;
 	char pbuf[10];
@@ -114,14 +114,10 @@ main(argc, argv)
 	snprintf(pbuf, sizeof(pbuf), "%d", RIP6_PORT);
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET6;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_socktype = SOCK_DGRAM;
 	error = getaddrinfo(argv[0], pbuf, &hints, &res);
 	if (error) {
-		fprintf(stderr, "rip6query: %s: %s\n", argv[0],
-			gai_strerror(error));
-		if (error == EAI_SYSTEM)
-			errx(1, "%s", strerror(errno));
-		exit(1);
+		errx(1, "%s: %s", argv[0], gai_strerror(error));
 		/*NOTREACHED*/
 	}
 	if (res->ai_next) {
@@ -189,7 +185,7 @@ static const char *
 sa_n2a(sa)
 	struct sockaddr *sa;
 {
-	static char buf[BUFSIZ];
+	static char buf[NI_MAXHOST];
 
 	if (getnameinfo(sa, sa->sa_len, buf, sizeof(buf),
 			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0) {
@@ -202,7 +198,7 @@ static const char *
 inet6_n2a(addr)
 	struct in6_addr *addr;
 {
-	static char buf[BUFSIZ];
+	static char buf[NI_MAXHOST];
 
 	return inet_ntop(AF_INET6, addr, buf, sizeof(buf));
 }
