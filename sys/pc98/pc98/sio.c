@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.10 1997/12/30 02:54:57 kato Exp $
+ *	$Id: sio.c,v 1.8.2.11 1998/01/03 05:53:12 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -689,8 +689,9 @@ static int
 card_intr(struct pccard_devinfo *devi)
 {
 	struct com_s	*com;
+
 	com = com_addr(devi->isahd.id_unit);
-	if (com && !com_addr(devi->isahd.id_unit)->gone)
+	if (com && !com->gone)
 		siointr1(com_addr(devi->isahd.id_unit));
 	return(1);
 }
