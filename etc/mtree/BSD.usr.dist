@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.55 1996/03/24 19:20:02 paul Exp $
+#	$Id: BSD.usr.dist,v 1.56 1996/03/28 21:17:42 wollman Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -22,6 +22,8 @@
     libexec
         lpr
         ..
+	sm.bin
+	..
         uucp
         ..
     ..
