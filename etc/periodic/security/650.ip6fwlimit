@@ -38,7 +38,7 @@ then
     source_periodic_confs
 fi
 
-TMP=/var/run/_secure.$$
+TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 rc=0
 
 case "$daily_status_security_ip6fwlimit_enable" in
