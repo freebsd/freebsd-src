@@ -38,6 +38,7 @@
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
 #include <isa/isavar.h>
+#include <machine/nexusvar.h>
 
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
@@ -574,7 +575,6 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int pcifunchigh;
 	int found824xx = 0;
 	device_t child;
-	int *ivar;
 
 	if (pci_cfgopen() == 0)
 		return;
@@ -623,10 +623,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 					if (strcmp(device_get_name(devs[i]),
 					    "pcib") != 0)
 						continue;
-					ivar = device_get_ivars(devs[i]);
-					if (ivar == NULL)
-						continue;
-					if (busnum == *ivar)
+					if (nexus_get_pcibus(devs[i]) == busnum)
 						s = NULL;
 				}
 				free(devs, M_TEMP);
@@ -641,13 +638,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			child = BUS_ADD_CHILD(parent, 100,
 					      "pcib", busnum);
 			device_set_desc(child, s);
-
-			ivar = malloc(sizeof ivar[0], M_DEVBUF,
-				      M_NOWAIT);
-			if (ivar == NULL)
-				panic("out of memory");
-			device_set_ivars(child, ivar);
-			ivar[0] = busnum;
+			nexus_set_pcibus(child, busnum);
 
 			found = 1;
 			if (id == 0x12258086)
@@ -669,11 +660,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			printf(
 	"nexus_pcib_identify: no bridge found, adding pcib0 anyway\n");
 		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
-		ivar = malloc(sizeof ivar[0], M_DEVBUF, M_NOWAIT);
-		if (ivar == NULL)
-			panic("out of memory");
-		device_set_ivars(child, ivar);
-		ivar[0] = 0;
+		nexus_set_pcibus(child, 0);
 	}
 }
 
@@ -703,7 +690,7 @@ nexus_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case  PCIB_IVAR_BUS:
-		*result = *(int*) device_get_ivars(dev);
+		*result = nexus_get_pcibus(dev);
 		return 0;
 	}
 	return ENOENT;
@@ -715,7 +702,7 @@ nexus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 	switch (which) {
 	case  PCIB_IVAR_BUS:
-		*(int*) device_get_ivars(dev) = value;
+		nexus_set_pcibus(dev, value);
 		return 0;
 	}
 	return ENOENT;
