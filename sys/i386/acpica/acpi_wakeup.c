@@ -295,6 +295,8 @@ static vm_offset_t	acpi_wakeaddr = 0;
 static void
 acpi_alloc_wakeup_handler(void)
 {
+	void *wakeaddr;
+
 	if (!cold)
 		return;
 
@@ -306,12 +308,12 @@ acpi_alloc_wakeup_handler(void)
 		printf("acpi_alloc_wakeup_handler: can't create wake tag\n");
 		return;
 	}
-
-	if (bus_dmamem_alloc(acpi_waketag, (void **)&acpi_wakeaddr,
+	if (bus_dmamem_alloc(acpi_waketag, &wakeaddr,
 			     BUS_DMA_NOWAIT, &acpi_wakemap)) {
 		printf("acpi_alloc_wakeup_handler: can't alloc wake memory\n");
 		return;
 	}
+	acpi_wakeaddr = (vm_offset_t)wakeaddr;
 }
 
 SYSINIT(acpiwakeup, SI_SUB_KMEM, SI_ORDER_ANY, acpi_alloc_wakeup_handler, 0)
