@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -15,12 +15,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,15 +31,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
+/* $FreeBSD$ */
 
 #include "compile_et.h"
+#include "lex.h"
 #if 0
-RCSID("$Id: parse.y,v 1.9 1999/07/04 14:54:58 assar Exp $");
+RCSID("$Id: parse.y,v 1.11 2000/06/22 00:42:52 assar Exp $");
 #endif
 
 void yyerror (char *s);
-long name2number(const char *str);
-void error_message(char *, ...);
+static long name2number(const char *str);
 
 extern char *yytext;
 
@@ -141,7 +137,7 @@ statement	: INDEX NUMBER
 
 %%
 
-long
+static long
 name2number(const char *str)
 {
     const char *p;

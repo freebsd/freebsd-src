@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,13 +31,14 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: com_right.h,v 1.8 1998/02/17 21:19:43 bg Exp $ */
+/* $Id: com_right.h,v 1.11 2000/07/31 01:11:08 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __COM_RIGHT_H__
 #define __COM_RIGHT_H__
 
 #include <sys/cdefs.h>
+#include <stdarg.h>
 
 struct error_table {
     char const * const * msgs;
@@ -56,8 +52,7 @@ struct et_list {
 extern struct et_list *_et_list;
 
 const char *com_right __P((struct et_list *list, long code));
-void initialize_error_table_r __P((struct et_list **, const char **, int,
-				   long));
+void initialize_error_table_r __P((struct et_list **, const char **, int, long));
 void free_error_table __P((struct et_list *));
 
 #endif /* __COM_RIGHT_H__ */
