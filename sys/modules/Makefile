@@ -27,7 +27,6 @@ SUBDIR=	3dfx \
 	ed \
 	fdescfs \
 	fdc \
-	fs \
 	fxp \
 	gx \
 	if_disc \
@@ -50,6 +49,7 @@ SUBDIR=	3dfx \
 	lge \
 	libiconv \
 	libmchain \
+	linprocfs \
 	lnc \
 	lomac \
 	lpt \
@@ -69,6 +69,8 @@ SUBDIR=	3dfx \
 	ppbus \
 	ppi \
 	pps \
+	procfs \
+	pseudofs \
 	${_random} \
 	rl \
 	rp \
