@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)gettytab.h	8.2 (Berkeley) 3/30/94
- *	$Id: gettytab.h,v 1.8 1997/02/22 14:21:38 peter Exp $
+ *	$Id: gettytab.h,v 1.9 1999/04/04 04:36:50 peter Exp $
  */
 
 /*

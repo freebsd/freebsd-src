@@ -31,7 +31,7 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- *	$Id: bootptest.c,v 1.4 1997/02/22 14:21:20 peter Exp $
+ *	$Id: bootptest.c,v 1.6 1999/04/25 22:23:34 imp Exp $
  */
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
@@ -127,7 +127,7 @@ extern void bootp_print();
  * the receiver loop is started.  Die when interrupted.
  */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;

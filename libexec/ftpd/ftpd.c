@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.51 1998/06/03 11:33:44 jb Exp $";
+	"$Id: ftpd.c,v 1.55 1999/04/25 22:23:35 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -423,11 +423,12 @@ main(argc, argv, envp)
 
 			fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC
 				| O_NONBLOCK | O_EXLOCK, 0644);
-			if (fd < 0)
+			if (fd < 0) {
 				if (errno == EAGAIN)
 					errx(1, "%s: file locked", pid_file);
 				else
 					err(1, "%s", pid_file);
+			}
 			snprintf(buf, sizeof(buf),
 				"%lu\n", (unsigned long) getpid());
 			if (write(fd, buf, strlen(buf)) < 0)
@@ -542,7 +543,8 @@ main(argc, argv, envp)
 #ifndef VIRTUAL_HOSTING
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
 		fatal("Ran out of memory.");
-	(void) gethostname(hostname, MAXHOSTNAMELEN);
+	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
+	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
 	reply(220, "%s FTP server (%s) ready.", hostname, version);
 	(void) setjmp(errcatch);
@@ -1896,14 +1898,8 @@ static void
 dolog(sin)
 	struct sockaddr_in *sin;
 {
-	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
-		sizeof(struct in_addr), AF_INET);
+	realhostname(remotehost, sizeof(remotehost) - 1, &sin->sin_addr);
 
-	if (hp)
-		(void) strncpy(remotehost, hp->h_name, sizeof(remotehost));
-	else
-		(void) strncpy(remotehost, inet_ntoa(sin->sin_addr),
-		    sizeof(remotehost));
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING
 	if (thishost != firsthost)

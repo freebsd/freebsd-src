@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.14 1997/12/04 07:20:45 charnier Exp $";
+	"$Id: uucpd.c,v 1.19 1999/04/25 22:23:38 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -102,7 +102,7 @@ void dologout(void);
 int readline(char start[], int num, int passw);
 void dologin(struct passwd *pw, struct sockaddr_in *sin);
 
-void main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	environ = nenv;
 	close(1); close(2);
@@ -121,17 +121,9 @@ void main(int argc, char **argv)
 void badlogin(char *name, struct sockaddr_in *sin)
 {
 	char remotehost[MAXHOSTNAMELEN];
-	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
-		sizeof (struct in_addr), AF_INET);
 
-	if (hp) {
-		strncpy(remotehost, hp->h_name, sizeof (remotehost));
-		endhostent();
-	} else
-		strncpy(remotehost, inet_ntoa(sin->sin_addr),
-		    sizeof (remotehost));
-
-	remotehost[sizeof remotehost - 1] = '\0';
+	realhostname(remotehost, sizeof(remotehost) - 1, &sin->sin_addr);
+	remotehost[sizeof(remotehost) - 1] = '\0';
 
 	syslog(LOG_NOTICE, "LOGIN FAILURE FROM %s", remotehost);
 	syslog(LOG_AUTHPRIV|LOG_NOTICE,
@@ -150,11 +142,14 @@ void doit(struct sockaddr_in *sinp)
 	int pwdok =0;
 
 	alarm(60);
-	printf("login: "); fflush(stdout);
-	if (readline(user, sizeof user, 0) < 0) {
-		syslog(LOG_WARNING, "login read: %m");
-		_exit(1);
-	}
+	do {
+		printf("login: "); fflush(stdout);
+		errno = 0;
+		if (readline(user, sizeof user, 0) < 0) {
+			syslog(LOG_WARNING, "login read: %m");
+			_exit(1);
+		}
+	} while (user[0] == '\0');
 	/* truncate username to LOGNAMESIZE characters */
 	user[LOGNAMESIZE] = '\0';
 	pw = getpwnam(user);
@@ -171,6 +166,7 @@ void doit(struct sockaddr_in *sinp)
 	/* always ask for passwords to deter account guessing */
 	if (!pwdok || (pw->pw_passwd && *pw->pw_passwd != '\0')) {
 		printf("Password: "); fflush(stdout);
+		errno = 0;
 		if (readline(passwd, sizeof passwd, 1) < 0) {
 			syslog(LOG_WARNING, "passwd read: %m");
 			_exit(1);
@@ -247,19 +243,13 @@ void dologout(void)
 void dologin(struct passwd *pw, struct sockaddr_in *sin)
 {
 	char line[32];
-	char remotehost[MAXHOSTNAMELEN];
+	char remotehost[UT_HOSTSIZE + 1];
 	int f;
 	time_t cur_time;
-	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
-		sizeof (struct in_addr), AF_INET);
 
-	if (hp) {
-		strncpy(remotehost, hp->h_name, sizeof (remotehost));
-		endhostent();
-	} else
-		strncpy(remotehost, inet_ntoa(sin->sin_addr),
-		    sizeof (remotehost));
+	realhostname(remotehost, sizeof remotehost - 1, &sin->sin_addr);
 	remotehost[sizeof remotehost - 1] = '\0';
+
 	/* hack, but must be unique and no tty line */
 	sprintf(line, "uucp%ld", (long)getpid());
 	time(&cur_time);
