@@ -51,13 +51,13 @@ sl_init()
 {
 	StringList *sl = malloc(sizeof(StringList));
 	if (sl == NULL)
-		_err(1, "stringlist: %m");
+		err(1, "stringlist: %m");
 
 	sl->sl_cur = 0;
 	sl->sl_max = _SL_CHUNKSIZE;
 	sl->sl_str = malloc(sl->sl_max * sizeof(char *));
 	if (sl->sl_str == NULL)
-		_err(1, "stringlist: %m");
+		err(1, "stringlist: %m");
 	return sl;
 }
 
@@ -74,7 +74,7 @@ sl_add(sl, name)
 		sl->sl_max += _SL_CHUNKSIZE;
 		sl->sl_str = realloc(sl->sl_str, sl->sl_max * sizeof(char *));
 		if (sl->sl_str == NULL)
-			_err(1, "stringlist: %m");
+			err(1, "stringlist: %m");
 	}
 	sl->sl_str[sl->sl_cur++] = name;
 }
