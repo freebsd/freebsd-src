@@ -1,11 +1,6 @@
 PROG=	sort
-SRCS=	sort.c error.c version.c long-options.c getopt.c getopt1.c
+SRCS=	sort.c error.c version.c long-options.c getopt.c getopt1.c xstrtod.c
 
-CFLAGS+=-I${.CURDIR} -DDIRENT=1 -DHAVE_LONG_DOUBLE=1 -DHAVE_LONG_DOUBLE=1	\
-	-DHAVE_ST_BLKSIZE=1 -DHAVE_VPRINTF=1 -DRETSIGTYPE=void	\
-	-DSTDC_HEADERS=1 -DHAVE_STRERROR=1 -DHAVE_FCNTL_H=1	\
-	-DHAVE_LIMITS_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRING_H=1	\
-	-DHAVE_UNISTD_H=1
-
+CFLAGS+=-I${.CURDIR} -DHAVE_CONFIG_H
 
 .include <bsd.prog.mk>
