@@ -61,10 +61,9 @@ gem	sparc64
 ida	i386
 iir	i386,amd64
 ips	i386,amd64
-isp	i386,pc98,alpha,ia64,sparc64,amd64
+ixgb	i386,amd64
 mlx	i386,alpha,amd64
 mly	i386,amd64
-mpt	i386,alpha,pc98,sparc64,ia64,amd64
 my	i386,pc98
 ncr	i386,pc98,alpha,sparc64,amd64
 ncv	i386,pc98
