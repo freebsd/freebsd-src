@@ -1002,10 +1002,14 @@ pmap_kextract(vm_offset_t va)
 	return (0);
 }
 
+/*
+ * Remove a wired page from kernel virtual address space.
+ */
 void
 pmap_kremove(vm_offset_t va)
 {
-	TODO;
+
+	pmap_remove(kernel_pmap, va, roundup(va, PAGE_SIZE));
 }
 
 /*
@@ -1271,6 +1275,11 @@ pmap_phys_address(int ppn)
 	return (0);
 }
 
+/*
+ * Map a list of wired pages into kernel virtual address space.  This is
+ * intended for temporary mappings which do not need page modification or
+ * references recorded.  Existing mappings in the region are overwritten.
+ */
 void
 pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 {
@@ -1280,10 +1289,17 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
 }
 
+/*
+ * Remove page mappings from kernel virtual address space.  Intended for
+ * temporary mappings entered by pmap_qenter.
+ */
 void
 pmap_qremove(vm_offset_t va, int count)
 {
-	TODO;
+	int	i;
+
+	for (i = 0; i < count; i++, va += PAGE_SIZE)
+		pmap_kremove(va);
 }
 
 /*
@@ -1303,10 +1319,21 @@ pmap_release(pmap_t pmap)
 	TODO;
 }
 
+/*
+ * Remove the given range of addresses from the specified map.
+ */
 void
-pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	TODO;
+	struct	pvo_entry *pvo;
+	int	pteidx;
+
+	for (; sva < eva; sva += PAGE_SIZE) {
+		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
+		if (pvo != NULL) {
+			pmap_pvo_remove(pvo, pteidx);
+		}
+	}
 }
 
 void
