@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 1999
+.Dd April 1, 2000
 .Dt PSM 4
 .Os FreeBSD
 .Sh NAME
@@ -34,8 +34,6 @@
 .Nd
 PS/2 mouse style pointing device driver
 .Sh SYNOPSIS
-.Cd "options" \&"PSM_HOOKAPM\&"
-.Cd "options" \&"PSM_RESETAFTERSUSPEND\&"
 .Cd "options" \&"KBD_RESETDELAY=N\&"
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
@@ -196,28 +194,6 @@ driver.
 They may be set in the kernel configuration file 
 .Pq see Xr config 8 .
 .Bl -tag -width MOUSE
-.It Em PSM_HOOKAPM
-The built-in PS/2 pointing device of some laptop computers is somehow
-not operable immediately after the system `resumes' from 
-the power saving mode,
-though it will eventually become available. 
-There are reports that
-stimulating the device by performing I/O will help
-waking up the device quickly.
-This option will add a piece of code 
-to the 
-.Nm
-driver to hook
-the APM `resume' event and exercise some harmless I/O operations to the
-device.
-.It Em PSM_RESETAFTERSUSPEND
-This option adds more drastic action for the above problem.
-It will make the
-.Nm
-driver to reset the pointing device after the APM resume event.
-It has no effect unless the
-.Em PSM_HOOKAPM
-option is enabled as well.
 .It Em KBD_RESETDELAY=X, KBD_MAXWAIT=Y
 The
 .Nm
@@ -338,6 +314,28 @@ This flag makes
 .Nm
 driver ignore certain error conditions when probing the PS/2 mouse port.
 It should never be necessary under normal circumstances.
+.It bit 13 HOOKRESUME
+The built-in PS/2 pointing device of some laptop computers is somehow
+not operable immediately after the system `resumes' from 
+the power saving mode,
+though it will eventually become available. 
+There are reports that
+stimulating the device by performing I/O will help
+waking up the device quickly.
+This flag will enable a piece of code in the 
+.Nm
+driver to hook
+the `resume' event and exercise some harmless I/O operations on the
+device.
+.It bit 14 INITAFTERSUSPEND
+This flag adds more drastic action for the above problem.
+It will cause the
+.Nm
+driver to reset and re-initialize the pointing device
+after the `resume' event.
+It has no effect unless the
+.Em HOOKRESUME
+flag is set as well.
 .El
 .Sh IOCTLS
 There are a few 
@@ -622,8 +620,7 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLE
-.Dl "options" \&"PSM_HOOKAPM\&"
-.Dl "device psm0 at isa? tty irq 12"
+.Dl "device psm0 at isa? tty irq 12 flags 0x2000"
 .Pp
 Add the
 .Nm
@@ -745,12 +742,13 @@ and Interlink VersaPad, treat the tapping action
 as fourth button events.
 .Pp
 It is reported that Interlink VersaPad rquires both
-.Em PSM_HOOKAPM
+.Em HOOKRESUME
 and
-.Em PSM_RESETAFTERSUSPEND
-options in order to recover from suspended state.
-Add these options to your kernel configuration file if the device
-does not seem to work properly after the system is resumed.
+.Em INITAFTERSUSPEND
+flags in order to recover from suspended state.
+These flags are automatically set when VersaPad is detected by the
+.Nm
+driver.
 .Pp
 Some PS/2 mouse models from MouseSystems require to be put in the
 high resolution mode to work properly.
