@@ -144,8 +144,9 @@ cache_n_resp(msg, msglen)
 		return;
 	}
 	dprintf(4, (ddt,
-		    "ncache succeeded: d:%s, t:%d, c:%d rcode:%d ttl:%d\n",
-		    dname,type,class,dp->d_rcode, dp->d_ttl-tt.tv_sec));
+		    "ncache succeeded: [%s %s %s] rcode:%d ttl:%l\n",
+		    dname, p_type(type), p_class(class),
+		    dp->d_rcode, (long)(dp->d_ttl-tt.tv_sec)));
 	return;
 }
 

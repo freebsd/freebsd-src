@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 1.2 1994/09/22 20:45:03 pst Exp $";
+static char rcsid[] = "$Id: db_load.c,v 1.3 1995/05/30 03:48:39 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -72,15 +72,17 @@ static char rcsid[] = "$Id: db_load.c,v 1.2 1994/09/22 20:45:03 pst Exp $";
 #include <syslog.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <resolv.h>
 
 #include "named.h"
 
-static int		gettoken __P((register FILE *, char *)),
-			getnonblank __P((FILE *, char *)),
-			getprotocol __P((FILE *, char *)),
-			getservices __P((int, char *, FILE *, char *));
-static void		makename __P((char *, char *));
+static int		gettoken __P((register FILE *, const char *)),
+			getnonblank __P((FILE *, const char *)),
+			getprotocol __P((FILE *, const char *)),
+			getservices __P((int, char *, FILE *, const char *));
+static void		makename __P((char *, const char *));
 static int		empty_token = 0;
+int	getnum_error;
 
 /*
  * Map class and type names to number
@@ -91,47 +93,52 @@ struct map {
 };
 
 struct map m_class[] = {
-	"in",		C_IN,
+	{ "in",		C_IN },
 #ifdef notdef
-	"any",		C_ANY,		/* any is a QCLASS, not CLASS */
+	{ "any",	C_ANY },	/* any is a QCLASS, not CLASS */
 #endif
-	"chaos",	C_CHAOS,
-	"hs",		C_HS,
+	{ "chaos",	C_CHAOS },
+	{ "hs",		C_HS },
 };
-#define NCLASS (sizeof(m_class) / sizeof(struct map))
+#define M_CLASS_CNT (sizeof(m_class) / sizeof(struct map))
 
 struct map m_type[] = {
-	"a",		T_A,
-	"ns",		T_NS,
-	"cname",	T_CNAME,
-	"soa",		T_SOA,
-	"mb",		T_MB,
-	"mg",		T_MG,
-	"mr",		T_MR,
-	"null",		T_NULL,
-	"wks",		T_WKS,
-	"ptr",		T_PTR,
-	"hinfo",	T_HINFO,
-	"minfo",	T_MINFO,
-	"mx",		T_MX,
-	"uinfo",	T_UINFO,
-	"txt",		T_TXT,
-	"rp",		T_RP,
-	"afsdb",	T_AFSDB,
-	"x25",		T_X25,
-	"isdn",		T_ISDN,
-	"rt",		T_RT,
-	"nsap",		T_NSAP,
-	"uid",		T_UID,
-	"gid",		T_GID,
+	{ "a",		T_A },
+	{ "ns",		T_NS },
+	{ "cname",	T_CNAME },
+	{ "soa",	T_SOA },
+	{ "mb",		T_MB },
+	{ "mg",		T_MG },
+	{ "mr",		T_MR },
+	{ "null",	T_NULL },
+	{ "wks",	T_WKS },
+	{ "ptr",	T_PTR },
+	{ "hinfo",	T_HINFO },
+	{ "minfo",	T_MINFO },
+	{ "mx",		T_MX },
+	{ "uinfo",	T_UINFO },
+	{ "txt",	T_TXT },
+	{ "rp",		T_RP },
+	{ "afsdb",	T_AFSDB },
+	{ "x25",	T_X25 },
+	{ "isdn",	T_ISDN },
+	{ "rt",		T_RT },
+	{ "nsap",	T_NSAP },
+	{ "nsap_ptr",	T_NSAP_PTR },
+	{ "uid",	T_UID },
+	{ "gid",	T_GID },
+	{ "px",		T_PX },
 #ifdef notdef
-	"any",		T_ANY,		/* any is a QTYPE, not TYPE */
+	{ "any",	T_ANY },	/* any is a QTYPE, not TYPE */
 #endif
+#ifdef LOC_RR
+	{ "loc",	T_LOC },
+#endif /* LOC_RR */
 #ifdef ALLOW_T_UNSPEC
-        "unspec",       T_UNSPEC,
+	{ "unspec",	T_UNSPEC },
 #endif /* ALLOW_T_UNSPEC */
 };
-#define NTYPE (sizeof(m_type) / sizeof(struct map))
+#define M_TYPE_CNT (sizeof(m_type) / sizeof(struct map))
 
 /*
  * Parser token values
@@ -147,21 +154,22 @@ struct map m_type[] = {
 static int clev;	/* a zone deeper in a heirachy has more credability */
 
 /* int
- * db_load(filename, in_origin, zp, doinginclude)
- *	load a database from `filename' into zone `zp'.  append `origin'
- *	to all nonterminal domain names in the file.  `doinginclude' is
- *	true if this is a $INCLUDE file.
+ * db_load(filename, in_origin, zp, def_domain)
+ *	load a database from `filename' into zone `zp'.  append `in_origin'
+ *	to all nonterminal domain names in the file.  `def_domain' is the
+ *	default domain for include files or NULL for zone base files.
  * returns:
  *	-1 = can't open file
  *	0 = success
  *	>0 = number of errors encountered
  */
 int
-db_load(filename, in_origin, zp, doinginclude)
-	char *filename, *in_origin;
+db_load(filename, in_origin, zp, def_domain)
+	const char *filename, *in_origin;
 	struct zoneinfo *zp;
-	int doinginclude;
+	const char *def_domain;
 {
+	static int read_soa, read_ns;
 	register char *cp;
 	register struct map *mp;
 	char domain[MAXDNAME];
@@ -169,29 +177,36 @@ db_load(filename, in_origin, zp, doinginclude)
 	char tmporigin[MAXDNAME];
 	char buf[MAXDATA];
 	char data[MAXDATA];
-	char *cp1;
-	char *op;
+	const char *cp1, *op;
 	int c, class, type, ttl, dbflags, dataflags, multiline;
-	static int read_soa;	/* number of soa's read */
 	struct databuf *dp;
 	struct iso_addr *isoa;
 	FILE *fp;
-	int slineno, i, errs = 0, didinclude = 0;
+	int slineno, i, errs, didinclude, rrcount;
 	register u_int32_t n;
 	struct stat sb;
 	struct in_addr ina;
+#ifdef DO_WARN_SERIAL
+	u_int32_t serial;
+#endif
 
-	if (!doinginclude) {
-	    read_soa = 0;
-	    clev = db_getclev(in_origin);
+	errs = 0;
+	didinclude = 0;
+	rrcount = 0;
+	if (!def_domain) {
+		/* This is not the result of a $INCLUDE. */
+		read_soa = 0;
+		read_ns = 0;
+		clev = db_getclev(in_origin);
 	}
 
-	dprintf(1, (ddt,"db_load(%s, %s, %d, %d)\n",
-		    filename, in_origin, zp - zones, doinginclude));
+	dprintf(1, (ddt,"db_load(%s, %s, %d, %s)\n",
+		    filename, in_origin, zp - zones,
+		    def_domain ? def_domain : "Nil"));
 
 	(void) strcpy(origin, in_origin);
 	if ((fp = fopen(filename, "r")) == NULL) {
-		syslog(LOG_ERR, "%s: %m", filename);
+		syslog(LOG_NOTICE, "%s: %m", filename);
 		dprintf(1, (ddt, "db_load: error opening file %s\n",
 			    filename));
 		return (-1);
@@ -199,18 +214,26 @@ db_load(filename, in_origin, zp, doinginclude)
 	if (zp->z_type == Z_CACHE) {
 		dbflags = DB_NODATA | DB_NOHINTS;
 		dataflags = DB_F_HINT;
+#ifdef STUBS
+	} else if (zp->z_type == Z_STUB && clev == 0) {
+		dbflags = DB_NODATA | DB_NOHINTS;
+		dataflags = DB_F_HINT;
+#endif
 	} else {
 		dbflags = DB_NODATA;
 		dataflags = 0;
 	}
 	gettime(&tt);
 	if (fstat(fileno(fp), &sb) < 0) {
-		syslog(LOG_ERR, "%s: %m", filename);
+		syslog(LOG_NOTICE, "%s: %m", filename);
 		sb.st_mtime = (int)tt.tv_sec;
 	}
 	slineno = lineno;
 	lineno = 1;
-	domain[0] = '\0';
+	if (def_domain)
+		strcpy(domain, def_domain);
+	else
+		domain[0] = '\0';
 	class = zp->z_class;
 	zp->z_flags &= ~(Z_INCLUDE|Z_DB_BAD);
  	while ((c = gettoken(fp, filename)) != EOF) {
@@ -226,7 +249,7 @@ db_load(filename, in_origin, zp, doinginclude)
 				endline(fp);
 			}
 			didinclude = 1;
-			errs += db_load((char *)buf, tmporigin, zp, 1);
+			errs += db_load((char *)buf, tmporigin, zp, domain);
 			continue;
 
 		case ORIGIN:
@@ -257,7 +280,7 @@ db_load(filename, in_origin, zp, doinginclude)
 
 		case DOT:
 			domain[0] = '\0';
-			/* fall thru ... */
+			/* FALLTHROUGH */
 		case CURRENT:
 		gotdomain:
 			if (!getword((char *)buf, sizeof(buf), fp)) {
@@ -271,12 +294,9 @@ db_load(filename, in_origin, zp, doinginclude)
 				n = 0;
 				do {
 				    if (n > (INT_MAX - (*cp - '0')) / 10) {
-					syslog(LOG_ERR,
+					syslog(LOG_INFO,
 					   "%s: line %d: number > %lu\n",
-					   filename, lineno, INT_MAX);
-					dprintf(1, (ddt,
-						"%s: line %d: number > %lu\n",
-						filename, lineno, INT_MAX));
+					   filename, lineno, (u_long)INT_MAX);
 					n = INT_MAX;
 					cp++;
 				    } else
@@ -294,14 +314,14 @@ db_load(filename, in_origin, zp, doinginclude)
 				if (!getword((char *)buf, sizeof(buf), fp))
 					break;
 			}
-			for (mp = m_class; mp < m_class+NCLASS; mp++)
+			for (mp = m_class; mp < m_class+M_CLASS_CNT; mp++)
 				if (!strcasecmp((char *)buf, mp->token)) {
 					class = mp->val;
 					(void) getword((char *)buf,
 						       sizeof(buf), fp);
 					break;
 				}
-			for (mp = m_type; mp < m_type+NTYPE; mp++)
+			for (mp = m_type; mp < m_type+M_TYPE_CNT; mp++)
 				if (!strcasecmp((char *)buf, mp->token)) {
 					type = mp->val;
 					goto fndtype;
@@ -309,7 +329,7 @@ db_load(filename, in_origin, zp, doinginclude)
 			dprintf(1, (ddt, "%s: Line %d: Unknown type: %s.\n",
 				    filename, lineno, buf));
 			errs++;
- 			syslog(LOG_ERR, "%s: Line %d: Unknown type: %s.\n",
+ 			syslog(LOG_INFO, "%s: Line %d: Unknown type: %s.\n",
 				filename, lineno, buf);
 			break;
 		fndtype:
@@ -346,9 +366,10 @@ db_load(filename, in_origin, zp, doinginclude)
 			case T_ISDN:
 				n = strlen((char *)buf);
 				if (n > 255) {
-				    syslog(LOG_WARNING,
-					"%s: line %d: CPU type too long",
-					filename, lineno);
+				    syslog(LOG_INFO,
+					"%s: line %d: %s too long",
+					filename, lineno, (type == T_ISDN) ?
+					"ISDN-address" : "CPU type");
 				    n = 255;
 				}
 				data[0] = n;
@@ -363,16 +384,26 @@ db_load(filename, in_origin, zp, doinginclude)
 					i = strlen((char *)buf);
 				}
 				if (i == 0) {
-					/* goto err; */
-						/* XXX tolerate for now */
-					data[n++] = 1;
-					data[n++] = '?';
-					break;
+					if (type == T_ISDN) {
+						data[n++] = 0;
+						break;
+					}
+					else
+						/* goto err; */
+						    /* XXX tolerate for now */
+						data[n++] = 1;
+						data[n++] = '?';
+						syslog(LOG_INFO,
+						    "%s: line %d: OS-type missing",
+						    filename,
+						    empty_token ? (lineno - 1) : lineno);
+						break;
 				}
 				if (i > 255) {
-				    syslog(LOG_WARNING,
-					   "%s:%d: OS type too long",
-					   filename, lineno);
+				    syslog(LOG_INFO,
+					   "%s:%d: %s too long",
+					   filename, lineno, (type == T_ISDN) ?
+					   "ISDN-sa" : "OS type");
 				    i = 255;
 				}
 				data[n] = i;
@@ -387,7 +418,7 @@ db_load(filename, in_origin, zp, doinginclude)
 				makename(data, origin);
 				cp = data + strlen((char *)data) + 1;
 				if (!getword((char *)cp,
-					     sizeof(data) - (cp - data), fp))
+					     (sizeof data) - (cp - data), fp))
 					goto err;
 				makename(cp, origin);
 				cp += strlen((char *)cp) + 1;
@@ -396,10 +427,18 @@ db_load(filename, in_origin, zp, doinginclude)
 					break;
 				}
 				if (class != zp->z_class) {
-					syslog(LOG_WARNING,
+					errs++;
+					syslog(LOG_INFO,
 					       "%s:%d: %s",
 					       filename, lineno,
 					       "SOA class not same as zone's");
+				}
+				if (strcasecmp(zp->z_origin, domain) != 0) {
+					errs++;
+					syslog(LOG_ERR,
+			"%s: line %d: SOA for \"%s\" not at zone top \"%s\"",
+					       filename, lineno, domain,
+					       zp->z_origin);
 				}
 				c = getnonblank(fp, filename);
 				if (c == '(') {
@@ -408,10 +447,29 @@ db_load(filename, in_origin, zp, doinginclude)
 					multiline = 0;
 					ungetc(c, fp);
 				}
-				zp->z_serial = getnum(fp, filename, 1);
+#ifdef DO_WARN_SERIAL
+				serial = zp->z_serial;
+#endif
+				zp->z_serial = getnum(fp, filename,
+						      GETNUM_SERIAL);
+				if (getnum_error)
+					errs++;
 				n = (u_int32_t) zp->z_serial;
 				PUTLONG(n, cp);
-				zp->z_refresh = getnum(fp, filename, 0);
+#ifdef DO_WARN_SERIAL
+				if (serial && SEQ_GT(serial, zp->z_serial)) {
+					syslog(LOG_NOTICE,
+			"%s:%d: WARNING: new serial number < old (%lu < %lu)",
+						filename , lineno,
+						zp->z_serial, serial);
+				}
+#endif
+				zp->z_refresh = getnum(fp, filename,
+						       GETNUM_NONE);
+				if (getnum_error) {
+					errs++;
+					zp->z_refresh = INIT_REFRESH;
+				}
 				n = (u_int32_t) zp->z_refresh;
 				PUTLONG(n, cp);
 				if (zp->z_type == Z_SECONDARY
@@ -419,16 +477,31 @@ db_load(filename, in_origin, zp, doinginclude)
 				    || zp->z_type == Z_STUB
 #endif
 				    ) {
-					zp->z_time = sb.st_mtime
-						   + zp->z_refresh;
+					ns_refreshtime(zp, MIN(sb.st_mtime,
+							       tt.tv_sec));
 				}
-				zp->z_retry = getnum(fp, filename, 0);
+				zp->z_retry = getnum(fp, filename,
+						     GETNUM_NONE);
+				if (getnum_error) {
+					errs++;
+					zp->z_retry = INIT_REFRESH;
+				}
 				n = (u_int32_t) zp->z_retry;
 				PUTLONG(n, cp);
-				zp->z_expire = getnum(fp, filename, 0);
+				zp->z_expire = getnum(fp, filename,
+						      GETNUM_NONE);
+				if (getnum_error) {
+					errs++;
+					zp->z_expire = INIT_REFRESH;
+				}
 				n = (u_int32_t) zp->z_expire;
 				PUTLONG (n, cp);
-				zp->z_minimum = getnum(fp, filename, 0);
+				zp->z_minimum = getnum(fp, filename,
+						       GETNUM_NONE);
+				if (getnum_error) {
+					errs++;
+					zp->z_minimum = 120;
+				}
 				n = (u_int32_t) zp->z_minimum;
 				PUTLONG (n, cp);
 				n = cp - data;
@@ -437,6 +510,11 @@ db_load(filename, in_origin, zp, doinginclude)
 						goto err;
 				}
                                 read_soa++;
+				if (zp->z_expire < zp->z_refresh ) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA expire value is less then SOA refresh (%lu < %lu)",
+				    filename, zp->z_expire, zp->z_refresh);
+				}
 				endline(fp);
 				break;
 
@@ -468,6 +546,9 @@ db_load(filename, in_origin, zp, doinginclude)
 				break;
 
 			case T_NS:
+				if (strcasecmp(zp->z_origin, domain) == 0)
+					read_ns++;
+				/* FALLTHROUGH */
 			case T_CNAME:
 			case T_MB:
 			case T_MG:
@@ -480,7 +561,7 @@ db_load(filename, in_origin, zp, doinginclude)
 
 			case T_UINFO:
 				cp = strchr((char *)buf, '&');
-				bzero(data, sizeof(data));
+				bzero(data, sizeof data);
 				if ( cp != NULL) {
 					(void) strncpy((char *)data,
 					    (char *)buf, cp - buf);
@@ -523,19 +604,37 @@ db_load(filename, in_origin, zp, doinginclude)
 				n = (cp - data);
 				break;
 
+			case T_PX:
+				n = 0;
+				data[0] = '\0';
+				cp = buf;
+				while (isdigit(*cp))
+					n = n * 10 + (*cp++ - '0');
+				/* catch bad values */
+				if ((cp == buf) || (n > 65535))
+					goto err;
+				cp = data;
+				PUTSHORT((u_int16_t)n, cp);
+
+				if (!getword((char *)buf, sizeof(buf), fp))
+					goto err;
+				(void) strcpy((char *)cp, (char *)buf);
+				makename(cp, origin);
+				/* advance pointer to next field */
+				cp += strlen((char *)cp) +1;
+				if (!getword((char *)buf, sizeof(buf), fp))
+					goto err;
+				(void) strcpy((char *)cp, (char *)buf);
+				makename(cp, origin);
+				/* advance pointer to end of data */
+				cp += strlen((char *)cp) + 1;
+
+				/* now save length */
+				n = (cp - data);
+				break;
+
 			case T_TXT:
 			case T_X25:
-                                cp = buf + (n = strlen(buf));
-				while ((i = getc(fp), *cp = i, i != EOF)
-                                       && *cp != '\n'
-                                       && (n < MAXDATA)) {
-                                  cp++; n++;
-                                }
-                                if (*cp == '\n') /* leave \n for getword */
-                                    ungetc(*cp, fp);
-                                *cp = '\0';
-                                /* now do normal processing */
-
 				i = strlen((char *)buf);
 				cp = data;
 				cp1 = buf;
@@ -543,11 +642,11 @@ db_load(filename, in_origin, zp, doinginclude)
 				 * there is expansion here so make sure we
 				 * don't overflow data
 				 */
-				if (i > sizeof(data) * 255 / 256) {
-				    syslog(LOG_WARNING,
+				if (i > (sizeof data) * 255 / 256) {
+				    syslog(LOG_INFO,
 					"%s: line %d: TXT record truncated",
 					filename, lineno);
-				    i = sizeof(data) * 255 / 256;
+				    i = (sizeof data) * 255 / 256;
 				}
 				while (i > 255) {
 				    *cp++ = 255;
@@ -569,8 +668,28 @@ db_load(filename, in_origin, zp, doinginclude)
 				    goto err;
 				n = isoa->isoa_len;
 				bcopy(isoa->isoa_genaddr, data, n);
+  				endline(fp);
+  				break;
+#ifdef LOC_RR
+			case T_LOC:
+                                cp = buf + (n = strlen(buf));
+				*cp = ' ';
+				cp++;
+				while ((i = getc(fp), *cp = i, i != EOF)
+                                       && *cp != '\n'
+                                       && (n < MAXDATA)) {
+                                  cp++; n++;
+                                }
+                                if (*cp == '\n') /* leave \n for getword */
+                                    ungetc(*cp, fp);
+                                *cp = '\0';
+				/* now process the whole line */
+				n = loc_aton(buf, (u_char *)data);
+				if (n == 0)
+					goto err;
 				endline(fp);
 				break;
+#endif /* LOC_RR */
 #ifdef ALLOW_T_UNSPEC
                         case T_UNSPEC:
                                 {
@@ -579,25 +698,15 @@ db_load(filename, in_origin, zp, doinginclude)
 				    dprintf(1, (ddt, "loading T_UNSPEC\n"));
 				    if (rcode = atob(buf,
 						     strlen((char*)buf),
-						     data, sizeof(data),
+						     data, sizeof data,
 						     &n)) {
 					if (rcode == CONV_OVERFLOW) {
-						dprintf(1,
-							(ddt,
-				       "Load T_UNSPEC: input buffer overflow\n"
-							 )
-							);
 						errs++;
-						syslog(LOG_ERR,
+						syslog(LOG_INFO,
 				       "Load T_UNSPEC: input buffer overflow");
 					} else {
-						dprintf(1,
-							(ddt,
-				     "Load T_UNSPEC: Data in bad atob format\n"
-							 )
-							);
 						errs++;
-						syslog(LOG_ERR,
+						syslog(LOG_INFO,
 				     "Load T_UNSPEC: Data in bad atob format");
 					}
                                     }
@@ -608,9 +717,11 @@ db_load(filename, in_origin, zp, doinginclude)
 			default:
 				goto err;
 			}
+#ifndef PURGE_ZONE
 #ifdef STUBS
 			if (type == T_SOA && zp->z_type == Z_STUB)
 				continue;
+#endif
 #endif
 #ifdef NO_GLUE
 			/*
@@ -619,13 +730,12 @@ db_load(filename, in_origin, zp, doinginclude)
 			if (zp->z_type != Z_CACHE &&
 			    !samedomain(domain, zp->z_origin))
 			{
-				syslog(LOG_WARNING,
+				syslog(LOG_INFO,
 			    "%s:%d: data \"%s\" outside zone \"%s\" (ignored)",
 				       filename, lineno, domain, zp->z_origin);
 				continue;
 			}
 #endif /*NO_GLUE*/
-
 			dp = savedata(class, type, (u_int32_t)ttl,
 				      (u_char *)data, (int)n);
 			dp->d_zone = zp - zones;
@@ -643,55 +753,75 @@ db_load(filename, in_origin, zp, doinginclude)
 						domain, type);
 #endif
 				free((char*) dp);
+			} else {
+				rrcount++;
 			}
 			continue;
 
 		case ERROR:
 			break;
 		}
-	err:
+ err:
 		errs++;
-		syslog(LOG_ERR, "%s: line %d: database format error (%s)",
+		syslog(LOG_NOTICE, "%s: line %d: database format error (%s)",
 			filename, empty_token ? (lineno - 1) : lineno, buf);
-		dprintf(1, (ddt,
-			    "%s: line %d: database format error ('%s', %d)\n",
-			    filename, empty_token ? (lineno - 1) : lineno,
-			    buf, n));
-		while ((c = getc(fp)) != EOF && c != '\n')
-			;
-		if (c == '\n')
-			lineno++;
+		if (!empty_token)
+			endline(fp);
 	}
 	(void) my_fclose(fp);
 	lineno = slineno;
-	if (doinginclude == 0) {
+	if (!def_domain) {
 		if (didinclude) {
 			zp->z_flags |= Z_INCLUDE;
 			zp->z_ftime = 0;
 		} else
 			zp->z_ftime = sb.st_mtime;
 		zp->z_lastupdate = sb.st_mtime;
-		if (zp->z_type != Z_CACHE && read_soa != 1) {
-			errs++;
+		if (zp->z_type != Z_CACHE) {
+			const char *msg = NULL;
+
 			if (read_soa == 0)
-				syslog(LOG_ERR, "%s: no SOA record", filename);
-			else
-				syslog(LOG_ERR, "%s: multiple SOA records",
-				    filename);
+				msg = "no SOA RR found";
+			else if (read_soa != 1)
+				msg = "multiple SOA RRs found";
+			else if (read_ns == 0)
+				msg = "no NS RRs found at zone top";
+			else if (!rrcount)
+				msg = "no relevant RRs found";
+			if (msg != NULL) {
+				errs++;
+				syslog(LOG_NOTICE, "Zone \"%s\" (file %s): %s",
+				       zp->z_origin, filename, msg);
+			}
 		}
 	}
 #ifdef SECURE_ZONES
 	build_secure_netlist(zp);
 #endif
+	if (!def_domain)
+		syslog(LOG_INFO,
+		       "%s zone \"%s\" %s (serial %lu)",
+		       zoneTypeString(zp), zp->z_origin,
+		       errs ? "rejected due to errors" : "loaded",
+		       (u_long)zp->z_serial);
 	if (errs)
 		zp->z_flags |= Z_DB_BAD;
+#ifdef BIND_NOTIFY
+	/* XXX: this needs to be delayed, both according to the spec, and
+	 *	because the metadata needed by sysnotify() (and its sysquery())
+	 *	could be in other zones that we (at startup) havn't loaded yet.
+	 */
+	if (!errs && !def_domain &&
+	    (zp->z_type == Z_PRIMARY || zp->z_type == Z_SECONDARY))
+		sysnotify(zp->z_origin, zp->z_class, T_SOA);
+#endif
 	return (errs);
 }
 
 static int
 gettoken(fp, src)
 	register FILE *fp;
-	char *src;
+	const char *src;
 {
 	register int c;
 	char op[32];
@@ -710,10 +840,8 @@ gettoken(fp, src)
 				if (!strcasecmp("origin", op))
 					return (ORIGIN);
 			}
-			dprintf(1, (ddt,
-				    "%s: line %d: Unknown $ option: $%s\n",
-				    src, lineno, op));
-			syslog(LOG_ERR,"%s: line %d: Unknown $ option: $%s\n",
+			syslog(LOG_NOTICE,
+			       "%s: line %d: Unknown $ option: $%s\n",
 			       src, lineno, op);
 			return (ERROR);
 
@@ -849,10 +977,10 @@ smaller than "1.23" in their internal expressions.
 */
 
 int
-getnum(fp, src, is_serial)
+getnum(fp, src, opt)
 	FILE *fp;
-	char *src;
-	int is_serial;
+	const char *src;
+	int opt;
 {
 	register int c, n;
 	int seendigit = 0;
@@ -860,8 +988,10 @@ getnum(fp, src, is_serial)
 	int m = 0;
 	int allow_dots = 0;
 
+	getnum_error = 0;
 #ifdef DOTTED_SERIAL
-	allow_dots += is_serial;
+	if (opt & GETNUM_SERIAL)
+		allow_dots++;
 #endif
 	for (n = 0; (c = getc(fp)) != EOF; ) {
 		if (isspace(c)) {
@@ -880,24 +1010,39 @@ getnum(fp, src, is_serial)
 				break;
 			continue;
 		}
+		if (getnum_error)
+			continue;
 		if (!isdigit(c)) {
 			if (c == ')' && seendigit) {
 				(void) ungetc(c, fp);
 				break;
 			}
+			if (seendigit && (opt & GETNUM_SCALED) &&
+			    strchr("KkMmGg", c) != NULL) {
+				switch (c) {
+				case 'K': case 'k':
+					n *= 1024;
+					break;
+				case 'M': case 'm':
+					n *= (1024 * 1024);
+					break;
+				case 'G': case 'g':
+					n *= (1024 * 1024 * 1024);
+					break;
+				}
+				break;
+			}
 			if (seendecimal || c != '.' || !allow_dots) {
-				syslog(LOG_ERR, "%s:%d: expected a number",
+				syslog(LOG_NOTICE, "%s:%d: expected a number",
 				       src, lineno);
-				dprintf(1, (ddt, "%s:%d: expected a number",
-					    src, lineno));
-				exit(1);	/* XXX why exit here?? */
+				getnum_error = 1;
 			} else {
 				if (!seendigit)
 					n = 1;
 #ifdef SENSIBLE_DOTS
-				n = n * 10000;
+				n *= 10000;
 #else
-				n = n * 1000;
+				n *= 1000;
 #endif
 				seendigit = 1;
 				seendecimal = 1;
@@ -914,14 +1059,14 @@ getnum(fp, src, is_serial)
 #endif
 		seendigit = 1;
 	}
+	if (getnum_error)
+		return (0);
 	if (m > 9999) {
-		syslog(LOG_ERR,
+		syslog(LOG_INFO,
 		       "%s:%d: number after the decimal point exceeds 9999",
 		       src, lineno);
-		dprintf(1, (ddt,
-			"%s:%d: number after the decimal point exceeds 9999",
-			    src, lineno));
-		exit(1);	/* XXX why exit here?? */
+		getnum_error = 1;
+		return (0);
 	}
 	if (seendecimal) {
 		syslog(LOG_INFO,
@@ -934,7 +1079,7 @@ getnum(fp, src, is_serial)
 static int
 getnonblank(fp, src)
 	FILE *fp;
-	char *src;
+	const char *src;
 {
 	register int c;
 
@@ -953,8 +1098,7 @@ getnonblank(fp, src)
 		}
 		return(c);
 	}
-	syslog(LOG_ERR, "%s: line %d: unexpected EOF", src, lineno);
-	dprintf(1, (ddt, "%s: line %d: unexpected EOF", src, lineno));
+	syslog(LOG_INFO, "%s: line %d: unexpected EOF", src, lineno);
 	return (EOF);
 }
 
@@ -967,7 +1111,8 @@ getnonblank(fp, src)
  */
 static void
 makename(name, origin)
-	char *name, *origin;
+	char *name;
+	const char *origin;
 {
 	int n;
 
@@ -1000,7 +1145,7 @@ endline(fp)
 {
 	register int c;
 
-	while (c = getc(fp)) {
+	while ((c = getc(fp)) != '\0') {
 		if (c == '\n') {
 			(void) ungetc(c,fp);
 			break;
@@ -1010,13 +1155,13 @@ endline(fp)
 	}
 }
 
-#define MAXPORT 256
+#define MAXPORT 1024
 #define MAXLEN 24
 
 static int
 getprotocol(fp, src)
 	FILE *fp;
-	char *src;
+	const char *src;
 {
 	int  k;
 	char b[MAXLEN];
@@ -1024,17 +1169,18 @@ getprotocol(fp, src)
 	(void) getword(b, sizeof(b), fp);
 
 	k = protocolnumber(b);
-	if(k == -1)
-		syslog(LOG_ERR, "%s: line %d: unknown protocol: %s.",
-			src, lineno, b);
+	if (k == -1)
+		syslog(LOG_INFO, "%s: line %d: unknown protocol: %s.",
+		       src, lineno, b);
 	return(k);
 }
 
 static int
 getservices(n, data, fp, src)
 	int n;
-	char *data, *src;
+	char *data;
 	FILE *fp;
+	const char *src;
 {
 	int j, ch;
 	int k;
@@ -1066,7 +1212,7 @@ getservices(n, data, fp, src)
 		}
 		k = servicenumber(b);
 		if (k == -1) {
-			syslog(LOG_WARNING,
+			syslog(LOG_INFO,
 			       "%s: line %d: Unknown service '%s'",
 			       src, lineno, b);
 			continue;
@@ -1077,20 +1223,20 @@ getservices(n, data, fp, src)
 				maxl=k;
 		}
 		else {
-			syslog(LOG_WARNING,
-			    "%s: line %d: port no. (%d) too big\n",
-				src, lineno, k);
+			syslog(LOG_INFO,
+			       "%s: line %d: port no. (%d) too big\n",
+			       src, lineno, k);
 			dprintf(1, (ddt,
 				    "%s: line %d: port no. (%d) too big\n",
 				    src, lineno, k));
 		}
 	}
 	if (bracket)
-		syslog(LOG_WARNING, "%s: line %d: missing close paren\n",
-		    src, lineno);
+		syslog(LOG_INFO, "%s: line %d: missing close paren\n",
+		       src, lineno);
 	maxl = maxl/8+1;
 	bcopy(bm, data+n, maxl);
-	return(maxl+n);
+	return (maxl+n);
 }
 
 /* get_netlist(fp, netlistp, allow)
@@ -1106,10 +1252,13 @@ get_netlist(fp, netlistp, allow, print_tag)
 	int allow;
 	char *print_tag;
 {
-	struct netinfo *ntp = NULL, **end = netlistp;
+	struct netinfo *ntp, **end;
 	char buf[BUFSIZ], *maskp;
 	struct in_addr ina;
 
+	for (end = netlistp; *end; end = &(**end).next)
+		;
+	ntp = NULL;
 	dprintf(1, (ddt, "get_netlist(%s)", print_tag));
 	while (getword(buf, sizeof(buf), fp)) {
 		if (strlen(buf) == 0)
@@ -1121,13 +1270,13 @@ get_netlist(fp, netlistp, allow, print_tag)
 			ntp = (struct netinfo *)malloc(sizeof(struct netinfo));
 		}
 		if (!inet_aton(buf, &ntp->my_addr)) {
-			syslog(LOG_ERR, "%s contains bogus element (%s)",
+			syslog(LOG_INFO, "%s contains bogus element (%s)",
 			       print_tag, buf);
 			continue;
 		}
 		if (maskp) {
 			if (!inet_aton(maskp, &ina)) {
-				syslog(LOG_ERR,
+				syslog(LOG_INFO,
 				       "%s element %s has bad mask (%s)",
 				       print_tag, buf, maskp);
 				continue;
@@ -1148,7 +1297,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 
 		if (ntp->addr != ntp->my_addr.s_addr) {
 			ina.s_addr = ntp->addr;
-			syslog(LOG_WARNING,
+			syslog(LOG_INFO,
 			       "%s element (%s) mask problem (%s)",
 				print_tag, buf, inet_ntoa(ina));
 		}
@@ -1164,11 +1313,13 @@ get_netlist(fp, netlistp, allow, print_tag)
 #ifdef DEBUG
 	if (debug > 2)
 		for (ntp = *netlistp;  ntp != NULL;  ntp = ntp->next) {
-			fprintf(ddt, "ntp x%x addr x%x mask x%x",
-				ntp, ntp->addr, ntp->mask);
-			fprintf(ddt, " my_addr x%x", ntp->my_addr);
+			fprintf(ddt, "ntp x%lx addr x%lx mask x%lx",
+				(u_long)ntp, (u_long)ntp->addr,
+				(u_long)ntp->mask);
+			fprintf(ddt, " my_addr x%lx",
+				(u_long)ntp->my_addr.s_addr);
 			fprintf(ddt, " %s", inet_ntoa(ntp->my_addr));
-			fprintf(ddt, " next x%x\n", ntp->next);
+			fprintf(ddt, " next x%lx\n", (u_long)ntp->next);
 		}
 #endif
 }
