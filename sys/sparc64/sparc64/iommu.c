@@ -433,21 +433,6 @@ iommu_decode_fault(struct iommu_state *is, vm_offset_t phys)
 	printf("IOMMU fault virtual address %#lx\n", (u_long)va);
 }
 
-void
-iommu_decode_fault(struct iommu_state *is, vm_offset_t phys)
-{
-	bus_addr_t va;
-	long idx;
-
-	idx = phys - is->is_ptsb;
-	if (phys < is->is_ptsb ||
-	    idx > (PAGE_SIZE << is->is_tsbsize))
-		return;
-	va = is->is_dvmabase +
-	    (((bus_addr_t)idx >> IOTTE_SHIFT) << IO_PAGE_SHIFT);
-	printf("IOMMU fault virtual address %#lx\n", (u_long)va);
-}
-
 static int
 iommu_strbuf_flush_done(struct iommu_state *is)
 {
