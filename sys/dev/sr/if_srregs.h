@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Hay.
+ * Copyright (c) 1995 - 2001 John Hay.
  * Copyright (c) 1996 SDL Communications, Inc.
  * All rights reserved.
  *
@@ -119,5 +119,81 @@
 #define SR_FE_ID_NONE		0x07   /* No card present */
 #define SR_FE_ID0_SHFT		   9
 #define SR_FE_ID1_SHFT		  13
+
+/*
+ * These macros are used to hide the difference between the way the
+ * ISA N2 cards and the PCI N2 cards access the Hitachi 64570 SCA.
+ */
+#define SRC_GET8(base,off)	(*hc->src_get8)(base,(u_int)&off)
+#define SRC_GET16(base,off)	(*hc->src_get16)(base,(u_int)&off)
+#define SRC_PUT8(base,off,d)	(*hc->src_put8)(base,(u_int)&off,d)
+#define SRC_PUT16(base,off,d)	(*hc->src_put16)(base,(u_int)&off,d)
+
+/*
+ * These macros enable/disable the DPRAM and select the correct
+ * DPRAM page.
+ */
+#define SRC_GET_WIN(addr)	((addr >> SRC_WIN_SHFT) & SR_PG_MSK)
+
+#define SRC_SET_ON(iobase)	outb(iobase+SR_PCR,			     \
+					SR_PCR_MEM_WIN | inb(iobase+SR_PCR))
+#define SRC_SET_MEM(iobase,win)	outb(iobase+SR_PSR, SRC_GET_WIN(win) |	     \
+					(inb(iobase+SR_PSR) & ~SR_PG_MSK))
+#define SRC_SET_OFF(iobase)	outb(iobase+SR_PCR,			     \
+					~SR_PCR_MEM_WIN & inb(iobase+SR_PCR))
+
+/*
+ * Define the hardware (card information) structure needed to keep
+ * track of the device itself... There is only one per card.
+ */
+struct sr_hardc {
+	struct	sr_softc *sc;		/* software channels */
+	int	cunit;			/* card w/in system */
+
+	u_short	iobase;			/* I/O Base Address */
+	int	cardtype;
+	int	numports;		/* # of ports on cd */
+	int	mempages;
+	u_int	memsize;		/* DPRAM size: bytes */
+	u_int	winmsk;
+	vm_offset_t	sca_base;
+	vm_offset_t	mem_pstart;	/* start of buffer */
+	caddr_t	mem_start;		/* start of DP RAM */
+	caddr_t	mem_end;		/* end of DP RAM */
+	caddr_t	plx_base;
+
+	sca_regs	*sca;		/* register array */
+
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
+	int rid_ioport;
+	int rid_memory;
+	int rid_plx_memory;
+	int rid_irq;
+	struct resource* res_ioport;	/* resource for port range */
+	struct resource* res_memory;	/* resource for mem range */
+	struct resource* res_plx_memory;
+	struct resource* res_irq;	/* resource for irq range */
+	void	*intr_cookie;
+
+	/*
+	 * We vectorize the following functions to allow re-use between the
+	 * ISA card's needs and those of the PCI card.
+	 */
+	void    (*src_put8)(u_int base, u_int off, u_int val);
+	void    (*src_put16)(u_int base, u_int off, u_int val);
+	u_int	(*src_get8)(u_int base, u_int off);
+	u_int	(*src_get16)(u_int base, u_int off);
+};
+
+extern devclass_t sr_devclass;
+
+int sr_allocate_ioport(device_t device, int rid, u_long size);
+int sr_allocate_irq(device_t device, int rid, u_long size);
+int sr_allocate_memory(device_t device, int rid, u_long size);
+int sr_allocate_plx_memory(device_t device, int rid, u_long size);
+int sr_deallocate_resources(device_t device);
+int sr_attach(device_t device);
+int sr_detach(device_t device);
 
 #endif /* _IF_SRREGS_H_ */
