@@ -55,6 +55,7 @@ mode2str(int mode)
  	case ATA_UDMA4: return "UDMA66";
 	case ATA_UDMA5: return "UDMA100";
 	case ATA_UDMA6: return "UDMA133";
+	case ATA_SA150: return "SATA150";
 	case ATA_DMA: return "BIOSDMA";
 	default: return "???";
 	}
@@ -130,66 +131,71 @@ cap_print(struct ata_params *parm)
 	printf("heads                 %d\n", parm->heads);
 	printf("sectors/track         %d\n", parm->sectors);	
 	
-	printf("lba%ssupported         ", parm->support_lba ? " " : " not ");
+	printf("lba%ssupported         ",
+		parm->capabilities1 & ATA_SUPPORT_LBA ? " " : " not ");
 	if (lbasize)
 		printf("%d sectors\n", lbasize);
 	else
 		printf("\n");
 
 	printf("lba48%ssupported         ",
-		parm->support.address48 ? " " : " not ");
+		parm->support.command2 & ATA_SUPPORT_ADDRESS48 ? " " : " not ");
 	if (lbasize48)
 		printf("%ju sectors\n", (uintmax_t)lbasize48);	
 	else
 		printf("\n");
 
-	printf("dma%ssupported\n", parm->support_dma ? " " : " not");
+	printf("dma%ssupported\n",
+		parm->capabilities1 & ATA_SUPPORT_DMA ? " " : " not");
 
-	printf("overlap%ssupported\n", parm->support_queueing ? " " : " not ");
+	printf("overlap%ssupported\n",
+		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
   
 	printf("\nFeature                      "
 		"Support  Enable    Value   Vendor\n");
 
 	printf("write cache                    %s	%s\n",
-		parm->support.write_cache ? "yes" : "no",
-		parm->enabled.write_cache ? "yes" : "no");	
+		parm->support.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no");
 
 	printf("read ahead                     %s	%s\n",
-		parm->support.look_ahead ? "yes" : "no",
-		parm->enabled.look_ahead ? "yes" : "no");	
+		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");	
 
-	printf("dma queued                     %s	%s	%d/%02X\n",
-		parm->support.queued ? "yes" : "no",
-		parm->enabled.queued ? "yes" : "no",
-		parm->queuelen, parm->queuelen);	
+	printf("dma queued                     %s	%s	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));	
 
 	printf("SMART                          %s	%s\n",
-		parm->support.smart ? "yes" : "no",
-		parm->enabled.smart ? "yes" : "no");
+		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
 
 	printf("microcode download             %s	%s\n",
-		parm->support.microcode ? "yes" : "no",
-		parm->enabled.microcode ? "yes" : "no");	
+		parm->support.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no");	
 
 	printf("security                       %s	%s\n",
-		parm->support.security ? "yes" : "no",
-		parm->enabled.security ? "yes" : "no");	
+		parm->support.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no");	
 
 	printf("power management               %s	%s\n",
-		parm->support.power_mngt ? "yes" : "no",
-		parm->enabled.power_mngt ? "yes" : "no");	
+		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");	
 
-	printf("advanced power management      %s	%s	%d/%02X\n",
-		parm->support.apm ? "yes" : "no",
-		parm->enabled.apm ? "yes" : "no",
+	printf("advanced power management      %s	%s	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
 		parm->apm_value, parm->apm_value);
 
 	printf("automatic acoustic management  %s	%s	"
-		"%d/%02X	%d/%02X\n",
-		parm->support.auto_acoustic ? "yes" : "no",
-		parm->enabled.auto_acoustic ? "yes" : "no",
-		parm->current_acoustic, parm->current_acoustic,
-		parm->vendor_acoustic, parm->vendor_acoustic);	
+		"%d/0x%02X	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
+		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
+		ATA_ACOUSTIC_CURRENT(parm->acoustic),
+		ATA_ACOUSTIC_CURRENT(parm->acoustic),
+		ATA_ACOUSTIC_VENDOR(parm->acoustic),
+		ATA_ACOUSTIC_VENDOR(parm->acoustic));
 }
 
 int
@@ -203,7 +209,7 @@ ata_cap_print(int fd, int channel, int device)
 	bzero(&iocmd, sizeof(struct ata_cmd));
 
 	iocmd.channel = channel;
-	iocmd.device = -1;
+	iocmd.device = device;
 	iocmd.cmd = ATAGPARM;
 
 	if (ioctl(fd, IOCATA, &iocmd) < 0)
