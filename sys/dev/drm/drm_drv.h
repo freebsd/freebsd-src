@@ -829,7 +829,7 @@ int DRM(close)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	drm_file_t *priv;
 	DRM_DEVICE;
 	int retcode = 0;
-	DRMFILE filp = (void *)(DRM_CURRENTPID);
+	DRMFILE filp = (void *)(intptr_t)(DRM_CURRENTPID);
 	
 	DRM_DEBUG( "open_count = %d\n", dev->open_count );
 
@@ -907,7 +907,7 @@ int DRM(close)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 		}
 	}
 #elif __HAVE_DMA
-	DRM(reclaim_buffers)( dev, (void *)priv->pid );
+	DRM(reclaim_buffers)( dev, (void *)(intptr_t)priv->pid );
 #endif
 
 #if defined (__FreeBSD__) && (__FreeBSD_version >= 500000)
@@ -952,7 +952,7 @@ int DRM(ioctl)(dev_t kdev, u_long cmd, caddr_t data, int flags,
 	int nr = DRM_IOCTL_NR(cmd);
 	drm_file_t *priv;
 
-	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)DRM_CURRENTPID);
+	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)(intptr_t)DRM_CURRENTPID);
 
 	atomic_inc( &dev->counts[_DRM_STAT_IOCTLS] );
 	++priv->ioctl_count;
@@ -1007,7 +1007,7 @@ int DRM(ioctl)(dev_t kdev, u_long cmd, caddr_t data, int flags,
 	    !priv->authenticated))
 		return EACCES;
 
-	retcode = func(kdev, cmd, data, flags, p, (void *)DRM_CURRENTPID);
+	retcode = func(kdev, cmd, data, flags, p, (void *)(intptr_t)DRM_CURRENTPID);
 
 	return DRM_ERR(retcode);
 }
@@ -1038,7 +1038,7 @@ int DRM(lock)( DRM_IOCTL_ARGS )
 	DRM_LOCK();
 	for (;;) {
 		if (DRM(lock_take)(&dev->lock.hw_lock->lock, lock.context)) {
-			dev->lock.filp = (void *)DRM_CURRENTPID;
+			dev->lock.filp = (void *)(intptr_t)DRM_CURRENTPID;
 			dev->lock.lock_time = jiffies;
 			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 			break;  /* Got lock */
