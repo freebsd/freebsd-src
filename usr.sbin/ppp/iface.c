@@ -343,7 +343,7 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
                  end, ncprange_ntoa(&addr->ifa), strerror(errno));
     else {
       snprintf(dst, sizeof dst, "%s", ncpaddr_ntoa(&addr->peer));
-      log_Printf(LogWARN, "iface add: ioctl(SIOCDIFADDR%s, %s -> %s): %s\n",
+      log_Printf(LogWARN, "iface add: ioctl(SIOCAIFADDR%s, %s -> %s): %s\n",
                  end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
     }
   }

@@ -134,3 +134,4 @@ extern const char *ex_desc(int);
 extern void SetTitle(const char *);
 extern fd_set *mkfdset(void);
 extern void zerofdset(fd_set *);
+extern void Concatinate(char *, size_t, int, const char *const *);
