@@ -132,6 +132,8 @@ pcf_isa_attach(device_t dev)
 		device_printf(dev, "cannot reserve I/O port range\n");
 		goto error;
 	}
+	sc->bt_ioport = rman_get_bustag(sc->res_ioport);
+	sc->bh_ioport = rman_get_bushandle(sc->res_ioport);
 
 	sc->pcf_flags = device_get_flags(dev);
 
