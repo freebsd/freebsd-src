@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	9
+#define	ISP_PLATFORM_VERSION_MINOR	11
 
 
 #include <sys/param.h>
@@ -38,6 +38,7 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/bus.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -84,9 +85,9 @@ typedef struct tstate {
 
 struct isposinfo {
 	struct ispsoftc *	next;
-	u_int64_t		default_wwn;
-	char			name[8];
-	int			unit;
+	u_int64_t		default_port_wwn;
+	u_int64_t		default_node_wwn;
+	device_t		dev;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
@@ -246,8 +247,8 @@ struct isposinfo {
 
 #define	DEFAULT_IID(x)		7
 #define	DEFAULT_LOOPID(x)	109
-#define	DEFAULT_NODEWWN(isp)	(isp)->isp_osinfo.default_wwn
-#define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_wwn
+#define	DEFAULT_NODEWWN(isp)	(isp)->isp_osinfo.default_node_wwn
+#define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_port_wwn
 #define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_nodewwn
 #define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_portwwn
 
@@ -279,8 +280,7 @@ struct isposinfo {
 #define	isp_path	isp_osinfo.path
 #define	isp_sim2	isp_osinfo.sim2
 #define	isp_path2	isp_osinfo.path2
-#define	isp_unit	isp_osinfo.unit
-#define	isp_name	isp_osinfo.name
+#define	isp_dev		isp_osinfo.dev
 
 /*
  * prototypes for isp_pci && isp_freebsd to share
