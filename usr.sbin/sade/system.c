@@ -42,29 +42,29 @@ static pid_t ehs_pid;
 static int
 intr_continue(dialogMenuItem *self)
 {
-	return DITEM_LEAVE_MENU;
+    return DITEM_LEAVE_MENU;
 }
 
 static int
 intr_reboot(dialogMenuItem *self)
 {
-	systemShutdown(-1);
-	/* NOTREACHED */
-	return 0;
+    systemShutdown(-1);
+    /* NOTREACHED */
+    return 0;
 }
 
 static int
 intr_restart(dialogMenuItem *self)
 {
-	execl(StartName, StartName, (char *)NULL);
-	/* NOTREACHED */
-	return -1;
+    execl(StartName, StartName, (char *)NULL);
+    /* NOTREACHED */
+    return -1;
 }
 
 static dialogMenuItem intrmenu[] = {
-	{ "Abort",   "Abort the installation", NULL, intr_reboot },
-	{ "Restart", "Restart the installation program", NULL, intr_restart },
-	{ "Continue", "Continue the installation", NULL, intr_continue },
+    { "Abort",   "Abort the installation", NULL, intr_reboot },
+    { "Restart", "Restart the installation program", NULL, intr_restart },
+    { "Continue", "Continue the installation", NULL, intr_continue },
 };
 
 
@@ -92,7 +92,8 @@ static void
 reap_children(int sig)
 {
     int errbak = errno;
-    while ( waitpid(-1, NULL, WNOHANG) > 0 )
+
+    while (waitpid(-1, NULL, WNOHANG) > 0)
 	;
     errno = errbak;
 }
