@@ -873,15 +873,15 @@ sigreturn(p, uap)
 	ucontext_t *ucp;
 	int cs, eflags;
 
+	ucp = uap->sigcntxp;
+	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
+		return(EFAULT);
+
 	if (((struct osigcontext *)uap->sigcntxp)->sc_trapno == 0x01d516)
 		return osigreturn(p, (struct osigreturn_args *)uap);
 
 	regs = p->p_md.md_regs;
-	ucp = uap->sigcntxp;
 	eflags = ucp->uc_mcontext.mc_eflags;
-
-	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
-		return(EFAULT);
 
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
