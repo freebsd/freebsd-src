@@ -249,6 +249,7 @@ i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
+i386/isa/npx.c			mandatory	npx
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt
@@ -390,7 +391,6 @@ pc98/pc98/diskslice_machdep.c	standard
 pc98/pc98/fd.c			optional	fdc
 pc98/pc98/isa_dma.c		optional	isa
 pc98/pc98/mse.c			optional	mse
-pc98/pc98/npx.c			mandatory	npx
 pc98/pc98/olpt.c		optional	olpt
 pc98/pc98/pc98gdc.c		optional	gdc
 pc98/pc98/pc98kbd.c		optional	pckbd
