@@ -55,9 +55,7 @@
 #include <dev/acpi/aml/aml_parse.h>
 #include <dev/acpi/aml/aml_memman.h>
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-#include <machine/acpica_osd.h>
-#endif
+#include <machine/acpica_osd.h>		/* for ACPI_BUS_SPACE_IO */
 
 /*
  * ACPI pmap subsystem
@@ -114,9 +112,9 @@ static struct cdevsw acpi_cdevsw = {
 /* ACPI registers stuff */
 #define	ACPI_REGISTERS_INPUT	0
 #define	ACPI_REGISTERS_OUTPUT	1
-static void acpi_registers_input(u_int32_t ioaddr,
+static void acpi_register_input(u_int32_t ioaddr,
 				 u_int32_t *value, u_int32_t size);
-static void acpi_registers_output(u_int32_t ioaddr,
+static void acpi_register_output(u_int32_t ioaddr,
 				 u_int32_t *value, u_int32_t size);
 static void acpi_enable_disable(acpi_softc_t *sc, boolean_t enable);
 static void acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io,
@@ -287,32 +285,37 @@ acpi_pmap_vtp(vm_offset_t va)
  */
 
 static __inline void
-acpi_registers_input(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
+acpi_register_input(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 {
-	u_int32_t	val;
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+	u_int32_t		val;
+
+	bst = ACPI_BUS_SPACE_IO;
+	bsh = ioaddr;
 
 	switch (size) {
 	case 1:
-		val = OsdIn8(ioaddr);
+		val = bus_space_read_1(bst, bsh, 0);
 		break;
 	case 2:
-		val = OsdIn16(ioaddr);
+		val = bus_space_read_2(bst, bsh, 0);
 		break;
 	case 3:
-#if 1
-		val = OsdIn16(ioaddr);
-		val |= OsdIn8(ioaddr + 2) << 16;
+#if 0
+		val  = bus_space_read_2(bst, bsh, 0);
+		val |= bus_space_read_1(bst, bsh, 2) << 16;
 #else
 		/* or can we do this? */
-		val = OsdIn32(ioaddr);
-		val &= 0x00ffffff
+		val = bus_space_read_4(bst, bsh, 0);
+		val &= 0x00ffffff;
 #endif
 		break;
 	case 4:
-		val = OsdIn32(ioaddr);
+		val = bus_space_read_4(bst, bsh, 0);
 		break;
 	default:
-		ACPI_DEVPRINTF("acpi_registers_input(): invalid size\n");
+		ACPI_DEVPRINTF("acpi_register_input(): invalid size\n");
 		val = 0;
 		break;
 	}
@@ -321,28 +324,32 @@ acpi_registers_input(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 }
 
 static __inline void
-acpi_registers_output(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
+acpi_register_output(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 {
-	u_int32_t	val;
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+	u_int32_t		val;
 
 	val = *value;
+	bst = ACPI_BUS_SPACE_IO;
+	bsh = ioaddr;
 
 	switch (size) {
 	case 1:
-		OsdOut8(ioaddr, val);
+		bus_space_write_1(bst, bsh, 0, val & 0xff);
 		break;
 	case 2:
-		OsdOut16(ioaddr, val);
+		bus_space_write_2(bst, bsh, 0, val & 0xffff);
 		break;
 	case 3:
-		OsdOut16(ioaddr, val & 0xffff);
-		OsdOut8(ioaddr + 2, (val >> 16) & 0xff);
+		bus_space_write_2(bst, bsh, 0, val & 0xffff);
+		bus_space_write_1(bst, bsh, 2, (val >> 16) & 0xff);
 		break;
 	case 4:
-		OsdOut32(ioaddr, val);
+		bus_space_write_4(bst, bsh, 0, val);
 		break;
 	default:
-		ACPI_DEVPRINTF("acpi_registers_output(): invalid size\n");
+		ACPI_DEVPRINTF("acpi_register_output(): invalid size\n");
 		break;
 	}
 }
@@ -350,12 +357,14 @@ acpi_registers_output(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 static void
 acpi_enable_disable(acpi_softc_t *sc, boolean_t enable)
 {
-	u_char		val;
-	u_int32_t	ioaddr;
-	struct		FACPbody *facp;
+	u_char			val;
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+	struct			FACPbody *facp;
 
 	facp = sc->facp_body;
-	ioaddr = facp->smi_cmd;
+	bst = ACPI_BUS_SPACE_IO;
+	bsh = facp->smi_cmd;
 
 	if (enable) {
 		val = facp->acpi_enable;
@@ -363,7 +372,7 @@ acpi_enable_disable(acpi_softc_t *sc, boolean_t enable)
 		val = facp->acpi_disable;
 	}
 
-	OsdOut8(ioaddr, val);
+	bus_space_write_1(bst, bsh, 0, val);
 
 	ACPI_DEBUGPRINT("acpi_enable_disable(%d) = (%x)\n", enable, val);
 }
@@ -379,17 +388,17 @@ acpi_io_pm1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *status_a,
 	size = facp->pm1_evt_len / 2;
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->pm1a_evt_blk, status_a, size);
+		acpi_register_input(facp->pm1a_evt_blk, status_a, size);
 
 		*status_b = 0;
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_input(facp->pm1b_evt_blk, status_b, size);
+			acpi_register_input(facp->pm1b_evt_blk, status_b, size);
 		}
 	} else {
-		acpi_registers_output(facp->pm1a_evt_blk, status_a, size);
+		acpi_register_output(facp->pm1a_evt_blk, status_a, size);
 
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_output(facp->pm1b_evt_blk, status_b, size);
+			acpi_register_output(facp->pm1b_evt_blk, status_b, size);
 		}
 	}
 
@@ -410,18 +419,18 @@ acpi_io_pm1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *status_a,
 	size = facp->pm1_evt_len / 2;
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->pm1a_evt_blk + size, status_a, size);
+		acpi_register_input(facp->pm1a_evt_blk + size, status_a, size);
 
 		*status_b = 0;
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_input(facp->pm1b_evt_blk + size,
+			acpi_register_input(facp->pm1b_evt_blk + size,
 			    status_b, size);
 		}
 	} else {
-		acpi_registers_output(facp->pm1a_evt_blk + size, status_a, size);
+		acpi_register_output(facp->pm1a_evt_blk + size, status_a, size);
 
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_output(facp->pm1b_evt_blk + size,
+			acpi_register_output(facp->pm1b_evt_blk + size,
 			    status_b, size);
 		}
 	}
@@ -443,17 +452,17 @@ acpi_io_pm1_control(acpi_softc_t *sc, boolean_t io, u_int32_t *value_a,
 	size = facp->pm1_cnt_len;
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->pm1a_cnt_blk, value_a, size);
+		acpi_register_input(facp->pm1a_cnt_blk, value_a, size);
 
 		*value_b = 0;
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_input(facp->pm1b_cnt_blk, value_b, size);
+			acpi_register_input(facp->pm1b_cnt_blk, value_b, size);
 		}
 	} else {
-		acpi_registers_output(facp->pm1a_cnt_blk, value_a, size);
+		acpi_register_output(facp->pm1a_cnt_blk, value_a, size);
 
 		if (facp->pm1b_evt_blk) {
-			acpi_registers_output(facp->pm1b_cnt_blk, value_b, size);
+			acpi_register_output(facp->pm1b_cnt_blk, value_b, size);
 		}
 	}
 
@@ -477,9 +486,9 @@ acpi_io_pm2_control(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	}
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->pm2_cnt_blk, val, size);
+		acpi_register_input(facp->pm2_cnt_blk, val, size);
 	} else {
-		acpi_registers_output(facp->pm2_cnt_blk, val, size);
+		acpi_register_output(facp->pm2_cnt_blk, val, size);
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_pm2_control(%d) = (%x)\n", io, *val);
@@ -497,7 +506,7 @@ acpi_io_pm_timer(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	size = 0x4;	/* 32-bits */
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->pm_tmr_blk, val, size);
+		acpi_register_input(facp->pm_tmr_blk, val, size);
 	} else {
 		return;	/* XXX read-only */
 	}
@@ -521,9 +530,9 @@ acpi_io_gpe0_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	}
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->gpe0_blk, val, size);
+		acpi_register_input(facp->gpe0_blk, val, size);
 	} else {
-		acpi_registers_output(facp->gpe0_blk, val, size);
+		acpi_register_output(facp->gpe0_blk, val, size);
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_gpe0_status(%d) = (%x)\n", io, *val);
@@ -545,9 +554,9 @@ acpi_io_gpe0_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	}
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->gpe0_blk + size, val, size);
+		acpi_register_input(facp->gpe0_blk + size, val, size);
 	} else {
-		acpi_registers_output(facp->gpe0_blk + size, val, size);
+		acpi_register_output(facp->gpe0_blk + size, val, size);
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_gpe0_enable(%d) = (%x)\n", io, *val);
@@ -569,9 +578,9 @@ acpi_io_gpe1_status(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	}
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->gpe1_blk, val, size);
+		acpi_register_input(facp->gpe1_blk, val, size);
 	} else {
-		acpi_registers_output(facp->gpe1_blk, val, size);
+		acpi_register_output(facp->gpe1_blk, val, size);
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_gpe1_status(%d) = (%x)\n", io, *val);
@@ -593,9 +602,9 @@ acpi_io_gpe1_enable(acpi_softc_t *sc, boolean_t io, u_int32_t *val)
 	}
 
 	if (io == ACPI_REGISTERS_INPUT) {
-		acpi_registers_input(facp->gpe1_blk + size, val, size);
+		acpi_register_input(facp->gpe1_blk + size, val, size);
 	} else {
-		acpi_registers_output(facp->gpe1_blk + size, val, size);
+		acpi_register_output(facp->gpe1_blk + size, val, size);
 	}
 
 	ACPI_DEBUGPRINT("acpi_io_gpe1_enable(%d) = (%x)\n", io, *val);
@@ -671,11 +680,11 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 
 	/* get sleeping type values from ACPI namespace */
 	sc->system_state_initialized = 1;
-	for (i = 0; i < 6; i++) {
+	for (i = ACPI_S_STATE_S0; i <= ACPI_S_STATE_S5; i++) {
 		ssp.mode[i].slp_typ_a = ACPI_UNSUPPORTSLPTYP;
 		ssp.mode[i].slp_typ_b = ACPI_UNSUPPORTSLPTYP;
 		sprintf(namestr, "_S%d_", i);
-		sname = aml_find_from_namespace(aml_get_rootname(), namestr);
+		sname = aml_find_from_namespace(NULL, namestr);
 		if (sname == NULL) {
 			continue;
 		}
@@ -804,7 +813,7 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	ef = read_eflags();
 	disable_intr();
 
-	if (state > 0) {
+	if (state > ACPI_S_STATE_S0) {
 		/* clear WAK_STS bit by writing a one */
 		acpi_io_pm1_status(sc, ACPI_REGISTERS_INPUT, &val_a, &val_b);
 		if ((val_a | val_b) & ACPI_PM1_WAK_STS) {
@@ -829,7 +838,7 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	val_b  |= ACPI_CNT_SET_SLP_TYP(slp_typx) | ACPI_CNT_SLP_EN;
 	acpi_io_pm1_control(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
 
-	if (state == 0) {
+	if (state == ACPI_S_STATE_S0) {
 		goto sleep_done;
 	}
 
@@ -871,7 +880,7 @@ acpi_soft_off(void *data, int howto)
 	sc = (acpi_softc_t *) data;
 	/* wait 1sec before turning off the system power */
 	DELAY(1000*1000);
-	acpi_trans_sleeping_state(sc, 5);
+	acpi_trans_sleeping_state(sc, ACPI_S_STATE_S5);
 }
 
 static void
@@ -901,12 +910,12 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	 * XXX currently supported S1 and S5 only.
 	 */
 	switch (state) {
-	case 0:
-	case 1:
+	case ACPI_S_STATE_S0:
+	case ACPI_S_STATE_S1:
 		acpi_trans_sleeping_state(sc, state);
 		acpi_execute_wak(sc, state);
 		break;
-	case 5:
+	case ACPI_S_STATE_S5:
 		/* Power the system off using ACPI */
 		EVENTHANDLER_REGISTER(shutdown_final, acpi_soft_off, sc,
 		    SHUTDOWN_PRI_LAST);
@@ -946,12 +955,9 @@ acpi_execute_wak(acpi_softc_t *sc, u_int8_t state)
 	 * string. As the result, Battery Information, Battery Status and
 	 * Power source will be reported.
 	 */
-	aml_apply_foreach_found_objects(aml_get_rootname(), "_BIF",
-	    aml_eval_name_simple);
-	aml_apply_foreach_found_objects(aml_get_rootname(), "_BST",
-	    aml_eval_name_simple);
-	aml_apply_foreach_found_objects(aml_get_rootname(), "_PSR",
-	    aml_eval_name_simple);
+	aml_apply_foreach_found_objects(NULL, "_BIF", aml_eval_name_simple);
+	aml_apply_foreach_found_objects(NULL, "_BST", aml_eval_name_simple);
+	aml_apply_foreach_found_objects(NULL, "_PSR", aml_eval_name_simple);
 }
 
 /*
@@ -964,11 +970,11 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
 {
 
 	if (status_a & ACPI_PM1_PWRBTN_EN || status_b & ACPI_PM1_PWRBTN_EN) {
-		acpi_set_sleeping_state(sc, 5);
+		acpi_set_sleeping_state(sc, ACPI_S_STATE_S5);
 	}
 
 	if (status_a & ACPI_PM1_SLPBTN_EN || status_b & ACPI_PM1_SLPBTN_EN) {
-		acpi_set_sleeping_state(sc, 1);
+		acpi_set_sleeping_state(sc, ACPI_S_STATE_S1);
 	}
 }
 
@@ -1172,7 +1178,7 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc * p)
 
 	case ACPIIO_SETSLPSTATE:
 		state = *(int *)addr;
-		if (state >= 0 && state <= 5) {
+		if (state >= ACPI_S_STATE_S0 && state <= ACPI_S_STATE_S5) {
 			acpi_set_sleeping_state(sc, state);
 		} else {
 			error = EINVAL;

@@ -175,7 +175,11 @@ aml_apply_foreach_found_objects(struct aml_name *start, char *name,
 	va_list	ap;
 
 	shallow = 0;
-	parent = start;
+	if (start == NULL) {
+		parent = &rootname;
+	} else {
+		parent = start;
+	}
 	if (name[0] == '\\') {
 		name++;
 		parent = &rootname;
