@@ -160,6 +160,12 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
+The following NFS specific option is also available:
+.Bl -tag -width indent
+.It port=<port_number>
+Use specified port number for NFS requests.
+The default is to query the portmapper for the NFS port.
+.El
 .It Fl q
 Use the leasing extensions to the protocol to maintain cache consistency.
 This protocol, referred to as Not Quite Nfs (NQNFS),
