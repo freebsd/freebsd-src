@@ -66,6 +66,8 @@ struct ypall_callback {
 };
 
 struct dom_binding;
+struct ypmaplist;
+struct ypall_callback;
 
 __BEGIN_DECLS
 int	yp_bind(char *dom);
