@@ -250,7 +250,7 @@ vfs_mountroot_ask(void)
 		printf("                       eg. ufs:/dev/da0s1a\n");
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
-		printf("\n>>> ");
+		printf("\nmountroot> ");
 		gets(name);
 		if (name[0] == 0)
 			return(1);
