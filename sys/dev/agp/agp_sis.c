@@ -105,8 +105,6 @@ agp_sis_match(device_t dev)
 		return ("SiS 746 host to AGP bridge");
 	case 0x07601039:
 		return ("SiS 760 host to AGP bridge");
-	case 0x10221039:	/* AMD64 */
-		return NULL;
 	};
 
 	return NULL;
