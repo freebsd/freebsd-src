@@ -138,7 +138,7 @@ struct ifnet {
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
-	short	if_flags;		/* up/down, broadcast, etc. */
+	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface capabilities */
 	int	if_capenable;		/* enabled features */
 	int	if_ipending;		/* interrupts pending */

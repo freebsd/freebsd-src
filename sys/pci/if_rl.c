@@ -1187,7 +1187,7 @@ static void rl_rxeof(sc)
 
 	while((CSR_READ_1(sc, RL_COMMAND) & RL_CMD_EMPTY_RXBUF) == 0) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_ipending & IFF_POLLING) {
+		if (ifp->if_flags & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -1416,7 +1416,7 @@ static void rl_intr(arg)
 	ifp = &sc->arpcom.ac_if;
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_ipending & IFF_POLLING)
+	if  (ifp->if_flags & IFF_POLLING)
 		goto done;
 	if (ether_poll_register(rl_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, RL_IMR, 0x0000);
@@ -1654,7 +1654,7 @@ static void rl_init(xsc)
 	/*
 	 * Disable interrupts if we are polling.
 	 */
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		CSR_WRITE_2(sc, RL_IMR, 0);
 	else	/* otherwise ... */
 #endif /* DEVICE_POLLING */

@@ -1234,6 +1234,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	struct ifreq *ifr;
 	struct ifstat *ifs;
 	int error = 0;
+	int new_flags;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -1242,7 +1243,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		ifr->ifr_flags = ifp->if_flags;
+		ifr->ifr_flags = ifp->if_flags & 0xffff;
+		ifr->ifr_flagshigh = ifp->if_flags >> 16;
 		break;
 
 	case SIOCGIFCAP:
@@ -1272,22 +1274,23 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = suser(td);
 		if (error)
 			return (error);
-		ifr->ifr_prevflags = ifp->if_flags;
+		new_flags = (ifr->ifr_flags & 0xffff) |
+		    (ifr->ifr_flagshigh << 16);
 		if (ifp->if_flags & IFF_SMART) {
 			/* Smart drivers twiddle their own routes */
 		} else if (ifp->if_flags & IFF_UP &&
-		    (ifr->ifr_flags & IFF_UP) == 0) {
+		    (new_flags & IFF_UP) == 0) {
 			int s = splimp();
 			if_down(ifp);
 			splx(s);
-		} else if (ifr->ifr_flags & IFF_UP &&
+		} else if (new_flags & IFF_UP &&
 		    (ifp->if_flags & IFF_UP) == 0) {
 			int s = splimp();
 			if_up(ifp);
 			splx(s);
 		}
 		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
-			(ifr->ifr_flags &~ IFF_CANTCHANGE);
+			(new_flags &~ IFF_CANTCHANGE);
 		if (ifp->if_ioctl)
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		getmicrotime(&ifp->if_lastchange);
@@ -1438,7 +1441,7 @@ ifioctl(so, cmd, data, td)
 	struct ifnet *ifp;
 	struct ifreq *ifr;
 	int error;
-	short oif_flags;
+	int oif_flags;
 
 	switch (cmd) {
 	case SIOCGIFCONF:
@@ -1573,7 +1576,8 @@ ifpromisc(ifp, pswitch)
 			return (0);
 		ifp->if_flags &= ~IFF_PROMISC;
 	}
-	ifr.ifr_flags = ifp->if_flags;
+	ifr.ifr_flags = ifp->if_flags & 0xffff;
+	ifr.ifr_flagshigh = ifp->if_flags >> 16;
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 	if (error == 0) {
 		log(LOG_INFO, "%s%d: promiscuous mode %s\n",
@@ -1695,7 +1699,8 @@ if_allmulti(ifp, onswitch)
 	if (onswitch) {
 		if (ifp->if_amcount++ == 0) {
 			ifp->if_flags |= IFF_ALLMULTI;
-			ifr.ifr_flags = ifp->if_flags;
+			ifr.ifr_flags = ifp->if_flags & 0xffff;
+			ifr.ifr_flagshigh = ifp->if_flags >> 16;
 			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
 	} else {
@@ -1704,7 +1709,8 @@ if_allmulti(ifp, onswitch)
 		} else {
 			ifp->if_amcount = 0;
 			ifp->if_flags &= ~IFF_ALLMULTI;
-			ifr.ifr_flags = ifp->if_flags;
+			ifr.ifr_flags = ifp->if_flags & 0xffff;;
+			ifr.ifr_flagshigh = ifp->if_flags >> 16;
 			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
 	}
@@ -1919,10 +1925,12 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	 */
 	if ((ifp->if_flags & IFF_UP) != 0) {
 		ifp->if_flags &= ~IFF_UP;
-		ifr.ifr_flags = ifp->if_flags;
+		ifr.ifr_flags = ifp->if_flags & 0xffff;
+		ifr.ifr_flagshigh = ifp->if_flags >> 16;
 		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		ifp->if_flags |= IFF_UP;
-		ifr.ifr_flags = ifp->if_flags;
+		ifr.ifr_flags = ifp->if_flags & 0xffff;
+		ifr.ifr_flagshigh = ifp->if_flags >> 16;
 		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 #ifdef INET
 		/*

@@ -383,7 +383,7 @@ netisr_poll(void)
 		for (i = 0 ; i < poll_handlers ; i++) {
 			if (pr[i].handler &&
 			    pr[i].ifp->if_flags & IFF_RUNNING) {
-				pr[i].ifp->if_ipending &= ~IFF_POLLING;
+				pr[i].ifp->if_flags &= ~IFF_POLLING;
 				pr[i].handler(pr[i].ifp, POLL_DEREGISTER, 1);
 			}
 			pr[i].handler=NULL;
@@ -415,7 +415,7 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 		return 0;
 	if ( !(ifp->if_flags & IFF_UP) )	/* must be up		*/
 		return 0;
-	if (ifp->if_ipending & IFF_POLLING)	/* already polling	*/
+	if (ifp->if_flags & IFF_POLLING)	/* already polling	*/
 		return 0;
 
 	s = splhigh();
@@ -440,7 +440,7 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 	pr[poll_handlers].handler = h;
 	pr[poll_handlers].ifp = ifp;
 	poll_handlers++;
-	ifp->if_ipending |= IFF_POLLING;
+	ifp->if_flags |= IFF_POLLING;
 	splx(s);
 	if (idlepoll_sleeping)
 		wakeup(&idlepoll_sleeping);
@@ -459,14 +459,14 @@ ether_poll_deregister(struct ifnet *ifp)
 	int i;
 
 	mtx_lock(&Giant);
-	if ( !ifp || !(ifp->if_ipending & IFF_POLLING) ) {
+	if ( !ifp || !(ifp->if_flags & IFF_POLLING) ) {
 		mtx_unlock(&Giant);
 		return 0;
 	}
 	for (i = 0 ; i < poll_handlers ; i++)
 		if (pr[i].ifp == ifp) /* found it */
 			break;
-	ifp->if_ipending &= ~IFF_POLLING; /* found or not... */
+	ifp->if_flags &= ~IFF_POLLING; /* found or not... */
 	if (i == poll_handlers) {
 		mtx_unlock(&Giant);
 		printf("ether_poll_deregister: ifp not found!!!\n");
