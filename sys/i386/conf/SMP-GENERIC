@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.9 1997/10/28 07:24:35 joerg Exp $
+#	$Id: SMP-GENERIC,v 1.10 1997/10/31 22:10:02 jseger Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -83,6 +83,7 @@ controller	ncr0
 controller	amd0
 controller	ahb0
 controller	ahc0
+controller	isp0
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
