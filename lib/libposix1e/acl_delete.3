@@ -66,7 +66,7 @@ is set to indicate the error.
 If any of the following conditions occur, these functions shall return -1
 and set
 .Va errno
-to teh corresponding value:
+to the corresponding value:
 .Bl -tag -width Er
 .It Bq Er EACCES
 Search permission is denied for a component of the path prefix, or the
@@ -108,12 +108,16 @@ The file system is read-only.
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the FreeBSD POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx 
+POSIX.1e implementation
 page for more information.
 .Sh HISTORY
-POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
 .Sh AUTHORS
-Robert N M Watson
+.An Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,

@@ -48,8 +48,8 @@ storage allocated to contain the ACL is freed by a call to
 When the area is first allocated, it shall contain an an ACL that contains
 no ACL entries.
 
-This function may cause memory to be allocated.  Teh caller should free any
-releaseable memory, when the new ACL is no longer required, by calling
+This function may cause memory to be allocated.  The caller should free any
+releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
 .Va (void*)acl_t
@@ -88,12 +88,16 @@ system-imposed memory management constraints.
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the FreeBSD POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx
+POSIX.1e implementation
 page for more information.
 .Sh HISTORY
-POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
 .Sh AUTHORS
-Robert N M Watson
+.An Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
