@@ -299,16 +299,12 @@ main(int argc, char** argv)
 
 	for (i = 1; i < sections; i++) {
 		printf("section %d (%s): "
-#if defined(__alpha__)
-		    "type=%x flags=0%lx "
-		    "offs=%lx size=%lx addr=%lx\n",
-#else
 		    "type=%x flags=0%llx "
 		    "offs=%llx size=%llx addr=%llx\n",
-#endif
 		    i, shstrtab + shdr[i].sh_name,
-		    shdr[i].sh_type, shdr[i].sh_flags,
-		    shdr[i].sh_offset, shdr[i].sh_size, shdr[i].sh_addr);
+		    shdr[i].sh_type, (long long)shdr[i].sh_flags,
+		    (long long)shdr[i].sh_offset, (long long)shdr[i].sh_size,
+		    (long long)shdr[i].sh_addr);
 	}
 
 	textstart = section_start(shdr, sections, ".text");
@@ -327,15 +323,11 @@ main(int argc, char** argv)
 	bssstart  = section_start(shdr, sections, ".bss");
 	bsssize   = section_size(shdr, sections, ".bss");
 
-#if defined(__alpha__)
-	printf ("text: %lx(%lx) @%lx  data: %lx(%lx) @%lx  bss: %lx(%lx)\n",
-#else
 	printf("text: %llx(%llx) @%llx  data: %llx(%llx) @%llx  "
 	    "bss: %llx(%llx)\n",
-#endif
-	    textstart, textsize, textfpos,
-	    datastart, datasize, datafpos,
-	    bssstart, bsssize);
+	    (long long)textstart, (long long)textsize, (long long)textfpos,
+	    (long long)datastart, (long long)datasize, (long long)datafpos,
+	    (long long)bssstart, (long long)bsssize);
 
 	memset(&filehdr, 0, sizeof filehdr);
 	memset(&aouthdr, 0, sizeof aouthdr);
