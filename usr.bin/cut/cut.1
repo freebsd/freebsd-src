@@ -41,21 +41,21 @@
 .Nm cut
 .Nd select portions of each line of a file
 .Sh SYNOPSIS
-.Nm
+.Nm cut
 .Fl b Ar list
 .Op Fl n
 .Op Ar
-.Nm ""
+.Nm cut
 .Fl c Ar list
 .Op Ar
-.Nm ""
+.Nm cut
 .Fl f Ar list
 .Op Fl d Ar delim
 .Op Fl s
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm
+.Nm cut
 utility selects portions of each line (as specified by
 .Ar list  )
 from each
@@ -110,12 +110,12 @@ Unless specified, lines with no delimiters are passed through unmodified.
 .El
 .Pp
 The
-.Nm
+.Nm cut
 utility exits with 0 on success or 1 if an error occurred.
 .Sh SEE ALSO
 .Xr paste 1
 .Sh STANDARDS
 The
-.Nm
+.Nm cut
 utility conforms to
 .St -p1003.2-92 .
