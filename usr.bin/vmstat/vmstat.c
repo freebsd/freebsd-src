@@ -739,17 +739,17 @@ dointr()
 		errx(1, "malloc");
 	kread(X_INTRCNT, intrcnt, (size_t)nintr);
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
-	(void)printf("interrupt                   total       rate\n");
+	(void)printf("%-14s %20s %10s\n", "interrupt", "total", "rate");
 	inttotal = 0;
 	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
-			(void)printf("%-12s %20lu %10lu\n", intrname,
+			(void)printf("%-14s %20lu %10lu\n", intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("Total        %20llu %10llu\n", inttotal,
+	(void)printf("%-14s %20llu %10llu\n", "Total", inttotal,
 			inttotal / (u_int64_t) uptime);
 }
 
