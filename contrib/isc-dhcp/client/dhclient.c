@@ -2073,6 +2073,9 @@ void make_request (client, lease)
 	else
 		oc = (struct option_cache *)0;
 
+	if (client->sent_options != 0L)
+		option_state_dereference (&client -> sent_options, MDL);
+
 	make_client_options (client, lease, &request, oc,
 			     ((client -> state == S_REQUESTING ||
 			       client -> state == S_REBOOTING)
@@ -2095,7 +2098,6 @@ void make_request (client, lease)
 			      (struct data_string *)0,
 			      client -> config -> vendor_space_name);
 
-	option_state_dereference (&client -> sent_options, MDL);
 	if (client -> packet_length < BOOTP_MIN_LEN)
 		client -> packet_length = BOOTP_MIN_LEN;
 
