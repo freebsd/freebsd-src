@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.45 1998/03/17 02:09:49 jseger Exp $
+#	$Id: services,v 1.46 1998/04/18 10:27:08 brian Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1683,6 +1683,7 @@ fodms		7200/tcp   #FODMS FLIP
 fodms		7200/udp   #FODMS FLIP	
 dlip		7201/tcp
 dlip		7201/udp
+jetdirect	9100/tcp   #HP JetDirect card
 man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director
