@@ -112,9 +112,10 @@
 				    MP_LONG_SEQ_DIFF((x), (y)))
 
 /* Increment receive sequence number */
-#define MP_NEXT_RECV_SEQ(priv,seq)					    \
-				(((seq) + 1) & ((priv)->conf.recvShortSeq ? \
-				    MP_SHORT_SEQ_MASK : MP_LONG_SEQ_MASK))
+#define MP_NEXT_RECV_SEQ(priv,seq)					\
+				((priv)->conf.recvShortSeq ?		\
+				    MP_SHORT_EXTEND((seq) + 1) :	\
+				    MP_LONG_EXTEND((seq) + 1))
 
 /* Don't fragment transmitted packets smaller than this */
 #define MP_MIN_FRAG_LEN		6
