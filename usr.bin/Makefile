@@ -7,7 +7,8 @@
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
-SUBDIR=	apply \
+SUBDIR=	alias \
+	apply \
 	at \
 	awk \
 	banner \
