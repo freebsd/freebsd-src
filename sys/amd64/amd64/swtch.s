@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.26 1996/01/23 02:39:16 davidg Exp $
+ *	$Id: swtch.s,v 1.27 1996/01/30 12:54:15 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -519,8 +519,7 @@ ENTRY(savectx)
 
 	movl	$1,PCB_EAX(%ecx)		/* return 1 in child */
 	movl	%ebx,PCB_EBX(%ecx)
-	leal	4(%esp),%eax			/* stack minus return address */
-	movl	%eax,PCB_ESP(%ecx)
+	movl	%esp,PCB_ESP(%ecx)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
