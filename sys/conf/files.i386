@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.16 1993/10/14 17:09:55 rgrimes Exp $
+#	$Id: files.i386,v 1.17 1993/10/23 10:49:01 jkh Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -38,21 +38,16 @@ i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/pccons.c		optional	pc	device-driver
 i386/isa/sb.c			optional	sb	device-driver
 i386/isa/sio.c			optional	sio	device-driver
-i386/isa/spkr.c			optional	speaker
-i386/isa/tw.c			optional	tw	device-driver
-i386/isa/ultra14f.c		optional	uha	device-driver
-i386/isa/wd.c			optional	wd	device-driver
-i386/isa/wt.c			optional	wt	device-driver
-i386/isa/sound/soundcard.c	optional	snd	device-driver
-i386/isa/sound/dev_table.c	optional 	snd	device-driver
 i386/isa/sound/adlib_card.c	optional 	snd	device-driver
 i386/isa/sound/audio.c		optional 	snd	device-driver
+i386/isa/sound/dev_table.c	optional 	snd	device-driver
 i386/isa/sound/dmabuf.c		optional 	snd	device-driver
 i386/isa/sound/dsp.c		optional 	snd	device-driver
 i386/isa/sound/gus_card.c	optional 	snd	device-driver
-i386/isa/sound/gus_wave.c	optional 	snd	device-driver
 i386/isa/sound/gus_midi.c	optional 	snd	device-driver
 i386/isa/sound/gus_vol.c	optional 	snd	device-driver
+i386/isa/sound/gus_wave.c	optional 	snd	device-driver
+i386/isa/sound/midi.c		optional 	snd	device-driver
 i386/isa/sound/midibuf.c	optional 	snd	device-driver
 i386/isa/sound/mpu401.c		optional 	snd	device-driver
 i386/isa/sound/opl3.c		optional 	snd	device-driver
@@ -60,9 +55,14 @@ i386/isa/sound/pas2_card.c	optional 	snd	device-driver
 i386/isa/sound/pas2_midi.c	optional 	snd	device-driver
 i386/isa/sound/pas2_mixer.c	optional 	snd	device-driver
 i386/isa/sound/pas2_pcm.c	optional 	snd	device-driver
+i386/isa/sound/patmgr.c		optional 	snd	device-driver
 i386/isa/sound/pro_midi.c	optional 	snd	device-driver
 i386/isa/sound/sb_card.c	optional 	snd	device-driver
 i386/isa/sound/sb_dsp.c		optional 	snd	device-driver
 i386/isa/sound/sequencer.c	optional 	snd	device-driver
-i386/isa/sound/midi.c		optional 	snd	device-driver
-i386/isa/sound/patmgr.c		optional 	snd	device-driver
+i386/isa/sound/soundcard.c	optional	snd	device-driver
+i386/isa/spkr.c			optional	speaker
+i386/isa/tw.c			optional	tw	device-driver
+i386/isa/ultra14f.c		optional	uha	device-driver
+i386/isa/wd.c			optional	wd	device-driver
+i386/isa/wt.c			optional	wt	device-driver
