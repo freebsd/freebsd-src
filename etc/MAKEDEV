@@ -93,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.105 1995/09/16 23:15:01 ats Exp $
+#	$Id: MAKEDEV,v 1.106 1995/09/22 20:42:11 peter Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -797,45 +797,45 @@ cuaA*)
 # Digiboard PC/?? 16 port card.
 # The current scheme of minor numbering is:
 #
-#       unused{14} CARD{2} major{8} CALLOUT{1} LOCK{1} INIT{1} unused{1} PORT{4}
+#       unused{14} CARD{2} major{8} CALLOUT{1} LOCK{1} INIT{1} PORT{5}
 #
-#   PORT bitfield in future versions may be extended to 5 bits.
 #   CARD bitfield in future versions may be extended to 3 bits.
+#
+# See dgb(4)
+#
 ttyD?)
-	nports=16
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
 	major=58
 	card=`expr $i : 'tty.*\(.\)$'`
-	port=0
-	while [ $port -lt $nports ]; do
-		minor=`expr $card \* 65536 + $port`
-		name=`expr $card \* 100 + $port + 1000 | cut -c 2-4` 
+
+	for unit in $portlist
+	do
+		minor=`ttyminor $unit`
+		minor=`expr $card \* 65536 + $minor`
+		name=$card$unit
 		rm -f tty*D$name
 		mknod ttyD$name c $major $minor
-		chown root.wheel ttyD$name
 		mknod ttyiD$name c $major `expr $minor + 32`
-		chown root.wheel ttyiD$name
 		mknod ttylD$name c $major `expr $minor + 64`
-		chown root.wheel ttylD$name
-		port=`expr $port + 1`
+		chown root.wheel tty*D$name
 	done
 	;;
 cuaD?)
-	nports=16
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
 	major=58
 	card=`expr $i : 'cua.*\(.\)$'`
 	umask 7
-	port=0
-	while [ $port -lt $nports ]; do
-		minor=`expr $card \* 65536 + $port`
-		name=`expr $card \* 100 + $port + 1000 | cut -c 2-4` 
+
+	for unit in $portlist
+	do
+		minor=`ttyminor $unit`
+		minor=`expr $card \* 65536 + $minor`
+		name=$card$unit
 		rm -f cua*D$name
 		mknod cuaD$name c $major `expr $minor + 128`
-		chown uucp.dialer cuaD$name
 		mknod cuaiD$name c $major `expr $minor + 160`
-		chown uucp.dialer cuaiD$name
 		mknod cualD$name c $major `expr $minor + 192`
-		chown uucp.dialer cualD$name
-		port=`expr $port + 1`
+		chown uucp.dialer cua*D$name
 	done
 	umask 77
 	;;
