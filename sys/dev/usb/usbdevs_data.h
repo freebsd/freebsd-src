@@ -94,6 +94,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "IntelliMouse",
 	},
 	{
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_KEYBOARD,
+	    0,
+	    "Microsoft",
+	    "Keyboard",
+	},
+	{
 	    USB_VENDOR_KENSINGTON, USB_PRODUCT_KENSINGTON_MOUSEINABOX,
 	    0,
 	    "Kensington",
@@ -152,6 +158,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "3Com",
 	    "U.S.Robotics 56000 Voice USB Modem",
+	},
+	{
+	    USB_VENDOR_KONICA, USB_PRODUCT_KONICA_CAMERA,
+	    0,
+	    "Konica Corporation",
+	    "Digital Color Camera",
 	},
 	{
 	    USB_VENDOR_SHUTTLE, USB_PRODUCT_SHUTTLE_EUSB,
@@ -217,6 +229,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CHIC, USB_PRODUCT_CHIC_MOUSE1,
 	    0,
 	    "Chic Technology",
+	    "mouse",
+	},
+	{
+	    USB_VENDOR_MACALLY, USB_PRODUCT_MACALLY_MOUSE1,
+	    0,
+	    "Macally",
 	    "mouse",
 	},
 	{
@@ -346,6 +364,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_KONICA, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Konica Corporation",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_SHUTTLE, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Shuttle Technology",
@@ -403,6 +427,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CHIC, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Chic Technology",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_MACALLY, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Macally",
 	    NULL,
 	},
 	{

@@ -65,6 +65,7 @@
 #define	USB_VENDOR_ACER	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
 #define	USB_VENDOR_3COM	0x04c1		/* 3Com */
+#define	USB_VENDOR_KONICA	0x04c8		/* Konica Corporation */
 #define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
 #define	USB_VENDOR_JAZZ	0x04fa		/* Jazz */
 #define	USB_VENDOR_ATEN	0x0557		/* ATen */
@@ -75,6 +76,7 @@
 #define	USB_VENDOR_LOGITECH	0x05ac		/* Logitech */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
 #define	USB_VENDOR_CHIC	0x05fe		/* Chic Technology */
+#define	USB_VENDOR_MACALLY	0x0618		/* Macally */
 #define	USB_VENDOR_ADS	0x06e1		/* ADS Technologies */
 #define	USB_VENDOR_PLX	0x10b5		/* PLX */
 #define	USB_VENDOR_ENTREGA	0x1645		/* Entrega */
@@ -104,6 +106,7 @@
 
 /* Microsoft products */
 #define	USB_PRODUCT_MICROSOFT_INTELLIMOUSE	0x0009		/* IntelliMouse */
+#define	USB_PRODUCT_MICROSOFT_KEYBOARD	0x0009		/* Keyboard */
 
 /* Kensington products */
 #define	USB_PRODUCT_KENSINGTON_MOUSEINABOX	0x4d02		/* Mouse-in-a-Box */
@@ -130,6 +133,9 @@
 
 /* 3Com products */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
+
+/* Konica Corporation Products */
+#define	USB_PRODUCT_KONICA_CAMERA	0x0720		/* Digital Color Camera */
 
 /* Shuttle Technology products */
 #define	USB_PRODUCT_SHUTTLE_EUSB	0x0001		/* E-USB Bridge */
@@ -159,6 +165,9 @@
 
 /* Chic Technology products */
 #define	USB_PRODUCT_CHIC_MOUSE1	0x0001		/* mouse */
+
+/* Macally products */
+#define	USB_PRODUCT_MACALLY_MOUSE1	0x0101		/* mouse */
 
 /* ADS products */
 #define	USB_PRODUCT_ADS_ENET	0x0008		/* Ethernet adapter */
