@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.79 1999/02/16 11:12:42 kato Exp $
+#	$Id: options.pc98,v 1.80 1999/03/03 10:40:27 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -41,6 +41,7 @@ NINTR			opt_smp.h
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 CLK_USE_TSC_CALIBRATION		opt_clock.h
+TIMER_FREQ			opt_clock.h
 
 NO_F00F_HACK			opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
@@ -151,6 +152,7 @@ ELSA_QS1ISA		opt_i4b.h
 # isdn4bsd: passive PCI cards
 # -------------------------------
 ELSA_QS1PCI		opt_i4b.h
+AVM_A1_PCI		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive PCMCIA cards
 # -------------------------------
@@ -162,6 +164,13 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+# -------------------------------
+# oltr: build options
+# -------------------------------
+# Exclude microcode options
+OLTR_NO_TMS_MAC		opt_oltr.h
+OLTR_NO_HAWKEYE_MAC	opt_oltr.h
+OLTR_NO_BULLSEYE_MAC	opt_oltr.h
 # -------------------------------
 # EOF
 # -------------------------------
