@@ -61,6 +61,7 @@ tmpfile()
 	char *buf;
 	const char *tmpdir;
 
+	tmpdir = NULL;
 	if (issetugid() == 0)
 		tmpdir = getenv("TMPDIR");
 	if (tmpdir == NULL)
