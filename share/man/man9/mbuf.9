@@ -278,14 +278,14 @@ on failure.
 The
 .Fa how
 argument is to be set to
-.Dv M_TRYWAIT
+.Dv 0
 or
-.Dv M_DONTWAIT .
+.Dv M_NOWAIT .
 It specifies whether the caller is willing to block if necessary.
 If
 .Fa how
 is set to
-.Dv M_TRYWAIT ,
+.Dv 0 ,
 a failed allocation will result in the caller being put
 to sleep for a designated
 kern.ipc.mbuf_wait
@@ -295,14 +295,6 @@ number of ticks.
 A number of other mbuf-related
 functions and macros have the same argument because they may
 at some point need to allocate new mbufs.
-.Pp
-Programmers should be careful not to confuse the mbuf allocation flag
-.Dv M_DONTWAIT
-with the
-.Xr malloc 9
-allocation flag,
-.Dv M_NOWAIT .
-They are not the same.
 .It Fn MGETHDR mbuf how type
 Allocate an mbuf and initialize it to contain a packet header
 and internal data.
