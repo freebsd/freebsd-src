@@ -693,4 +693,4 @@ inittimecounter(void *dummy)
 	(void)timecounter->tc_get_timecount(timecounter);
 }
 
-SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_FIRST, inittimecounter, NULL)
+SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL)
