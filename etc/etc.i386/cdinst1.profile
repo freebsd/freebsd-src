@@ -47,11 +47,17 @@ while [ $CDROM_TYPE -eq 0 ]; do		# Begin of cd drive loop
 			CDROM_TYPE=2
 			echo "Found and mounted Mitsumi CD ROM drive /dev/mcd0a"
 		else
-			CDROM_TYPE=0
-			echo "No cdrom drive found, are you sure the cd is in the"
-			echo "drive and the drive is ready? Press return to make"
-			echo -n "another attempt at finding the cdrom drive."
-			read resp
+			mount -t isofs /dev/mcd1a ${CDROM_MOUNT} >/dev/null 2>&1
+			if [ $? -eq 0 ]; then
+				CDROM_TYPE=2
+				echo "Found and mounted Mitsumi CD ROM drive /dev/mcd1a"
+			else
+				CDROM_TYPE=0
+				echo "No cdrom drive found, are you sure the cd is in the"
+				echo "drive and the drive is ready? Press return to make"
+				echo -n "another attempt at finding the cdrom drive."
+				read resp
+			fi
 		fi
 	fi
 done					# End of cd drive loop
