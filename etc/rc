@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.61 1995/04/09 09:54:42 rgrimes Exp $
+#	$Id: rc,v 1.62 1995/04/11 01:22:21 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -94,7 +94,7 @@ chmod 666 /dev/tty[pqrs]*
 # clean up left-over files
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
-rm -f /var/spool/uucp/.Temp/*
+rm -rf /var/spool/uucp/.Temp/*
 rm -f /dev/log
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
