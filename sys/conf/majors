@@ -187,7 +187,7 @@ chrdev	name		comments
 167	ufm		USB Fm Radio
 168	sab		Siemens SAB82532 serial chip <jake>
 168	XXX		used by pst in RELENG_4
-169	ofwd		OpenFirmware disk <benno>
+169
 170	pst		Promise SuperTrak (uses 168 in RELENG_4)
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
