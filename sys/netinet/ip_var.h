@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.21 1996/07/10 19:44:27 julian Exp $
+ *	$Id: ip_var.h,v 1.22 1996/10/15 16:54:47 bde Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -85,9 +85,9 @@ struct	ipasfrag {
 	u_char	ipf_mff;		/* XXX overlays ip_tos: use low bit
 					 * to avoid destroying tos;
 					 * copied from (ip_off&IP_MF) */
-	short	ip_len;
+	u_short	ip_len;
 	u_short	ip_id;
-	short	ip_off;
+	u_short	ip_off;
 	u_char	ip_ttl;
 	u_char	ip_p;
 	u_short	ip_sum;
