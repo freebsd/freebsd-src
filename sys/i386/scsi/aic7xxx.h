@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.6 1995/04/23 22:04:58 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.7 1995/04/27 17:47:17 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -112,12 +112,12 @@ struct scb {
 	struct scb *next;	/* in free list */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
 	int	flags;
-#define	SCB_FREE	0x00
-#define	SCB_ACTIVE	0x01
-#define	SCB_ABORTED	0x02
-#define	SCB_IMMED	0x04
-#define	SCB_IMMED_FAIL	0x08
-#define	SCB_SENSE	0x10
+#define	SCB_FREE		0x00
+#define	SCB_ACTIVE		0x01
+#define	SCB_ABORTED		0x02
+#define	SCB_DEVICE_RESET	0x04
+#define	SCB_IMMED		0x08
+#define	SCB_SENSE		0x10
 	int	position;	/* Position in scbarray */
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */

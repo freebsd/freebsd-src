@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.14 1995/04/15 21:45:56 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.15 1995/04/27 17:44:27 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -155,6 +155,12 @@ MSG_REJECT	= 0x61				# Reject message recieved
 BAD_STATUS	= 0x71				# Bad status from target
 RESIDUAL	= 0x81				# Residual byte count != 0
 ABORT_TAG	= 0x91				# Sent an ABORT_TAG message
+AWAITING_MSG	= 0xa1				# Kernel requested to specify
+						# a message to this target
+						# (command was null), so tell
+						# it that it can fill the
+						# message buffer.
+
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
 #  device information, 32-33 and 5a-5f as well. As it turns out, the
@@ -179,8 +185,8 @@ ABORT_TAG	= 0x91				# Sent an ABORT_TAG message
 #  bank, so force a kernel panic if the target attempts a data in/out or
 #  command phase instead of corrupting something.  FLAGS also contains
 #  configuration bits so that we can optimize for TWIN and WIDE controllers
-#  as well as the MAX_SYNC bit which we set when we want to negotiate for
-#  10MHz irregardless of what the per target scratch space says.
+#  as well as the MAX_OFFSET bit which we set when we want to negotiate for
+#  maximum sync offset irregardless of what the per target scratch space says.
 #
 #  Note that SG_NEXT occupies four bytes.
 #
@@ -222,10 +228,13 @@ SCBCOUNT	= 0x52				# the actual number of SCBs
 FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
-MAX_SYNC	= 0x08
+MAX_OFFSET	= 0x08
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
 RESELECTED	= 0x80
+
+MAX_OFFSET_8BIT	= 0x0f
+MAX_OFFSET_WIDE	= 0x08
 
 ACTIVE_A	= 0x54
 ACTIVE_B	= 0x55
@@ -369,6 +378,17 @@ start_selection:
 #  Messages are stored in scratch RAM starting with a flag byte (high bit
 #  set means active message), one length byte, and then the message itself.
 #
+
+	test	SCBARRAY+11,0xff jnz identify	# 0 Length Command?
+
+#  The kernel has sent us an SCB with no command attached.  This implies
+#  that the kernel wants to send a message of some sort to this target,
+#  so we interrupt the driver, allow it to fill the message buffer, and
+#  then go back into the arbitration loop
+	mvi     INTSTAT,AWAITING_MSG
+	jmp     poll_for_work
+
+identify:
 	mov	SCBARRAY+1	call disconnect	# disconnect ok?
 
 	and	SINDEX,0x7,SCBARRAY+1		# lun
@@ -682,6 +702,7 @@ clear_a:
 complete:
 	mov	QOUTFIFO,SCBPTR
 	mvi	INTSTAT,CMDCMPLT
+	test    SCBARRAY+11,0xff jz start	# Immediate message complete
 	jmp	p_mesgin_done
 
 # If we have a residual count, interrupt and tell the host.  Other
@@ -851,6 +872,10 @@ p_mesgin_done:
 p_busfree:
 	mvi	CLRSINT1,0x40			# CLRATNO
 	clr	SIGSTATE
+
+#  if this is an immediate command, perform a psuedo command complete to
+#  notify the driver.
+	test	SCBARRAY+11,0xff	jz status_ok
 	jmp	start
 
 #  Instead of a generic bcopy routine that requires an argument, we unroll
@@ -1202,7 +1227,7 @@ ndx_dtr_2:
 mk_dtr:
 	test	SCBARRAY+0,0xc0 jz return	# NEEDWDTR|NEEDSDTR
 	test	SCBARRAY+0,NEEDWDTR jnz  mk_wdtr_16bit
-	or	FLAGS, MAX_SYNC		 # Force an offset of 15
+	or	FLAGS, MAX_OFFSET	# Force an offset of 15 or 8 if WIDE
 
 mk_sdtr:
 	mvi	DINDIR,1			# extended message
@@ -1210,16 +1235,21 @@ mk_sdtr:
 	mvi	DINDIR,1			# SDTR code
 	call	sdtr_to_rate
 	mov	DINDIR,RETURN_1			# REQ/ACK transfer period
-	test	FLAGS, MAX_SYNC	jnz mk_sdtr_max_sync
-	and	DINDIR,0xf,SINDIR		# Sync Offset
+	test	FLAGS, MAX_OFFSET jnz mk_sdtr_max_offset
+	and	DINDIR,0x0f,SINDIR		# Sync Offset
 
 mk_sdtr_done:
 	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
 
-mk_sdtr_max_sync:
-# We're initiating sync negotiation, so request the max offset we can (15)
-	mvi	DINDIR, 0x0f
-	xor	FLAGS, MAX_SYNC
+mk_sdtr_max_offset:
+# We're initiating sync negotiation, so request the max offset we can (15 or 8)
+	xor	FLAGS, MAX_OFFSET
+	test	SCSIRATE, 0x80	jnz wmax_offset	# Talking to a WIDE device?
+	mvi	DINDIR, MAX_OFFSET_8BIT
+	jmp	mk_sdtr_done
+
+wmax_offset:
+	mvi	DINDIR, MAX_OFFSET_WIDE
 	jmp	mk_sdtr_done
 
 mk_wdtr_16bit:
