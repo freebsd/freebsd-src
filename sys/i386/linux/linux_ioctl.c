@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.11.2.4 1997/12/15 21:36:41 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.11.2.5 1998/02/19 00:37:30 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,8 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+
+#define ISSIGVALID(sig)		((sig) > 0 && (sig) < NSIG)
 
 struct linux_termio {
     unsigned short c_iflag;
@@ -850,9 +852,14 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_SETMODE:
-
+      {
+	struct vt_mode *mode;
 	args->cmd = VT_SETMODE;
-	return  ioctl(p, (struct ioctl_args *)args, retval);
+	mode = (struct vt_mode *)args->arg;
+	if (!ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
+	    mode->frsig = mode->acqsig;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+      }
 
     case LINUX_VT_GETSTATE:
 
@@ -891,7 +898,32 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	    return EINVAL;
 	}
       }
+
+    case LINUX_KDGETMODE:
+	args->cmd = KDGETMODE;
+	return	ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_KDSETMODE:
+	args->cmd = KDSETMODE;
+	return	ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_KDSETLED:
+	args->cmd = KDSETLED;
+	return  ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_KDGETLED:
+	args->cmd = KDGETLED;
+	return  ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_KIOCSOUND:
+	args->cmd = KIOCSOUND;
+	return  ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_KDMKTONE:
+	args->cmd = KDMKTONE;
+	return  ioctl(p, (struct ioctl_args *)args, retval);
     }
+
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
 	    args->fd, (args->cmd&0xffff00)>>8,
 	    (args->cmd&0xffff00)>>8, args->cmd&0xff);

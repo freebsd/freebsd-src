@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.20.2.1 1997/04/28 02:55:10 msmith Exp $
+ *  $Id: linux_misc.c,v 1.20.2.2 1998/02/19 00:37:32 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,9 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+
+#include <machine/psl.h>
+#include <machine/frame.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -941,6 +944,20 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
 }
 
 int
+linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
+{
+	int error;
+
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0)
+	    return error;
+	if (securelevel > 0)
+	    return EPERM;
+	((struct trapframe *)(p->p_md.md_regs))->tf_eflags |= PSL_IOPL;
+	return 0;
+}
+
+int
 linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
 {
 	struct setpriority_args	bsd_args;
@@ -950,4 +967,3 @@ linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
 	bsd_args.prio = args->inc;
 	return setpriority(p, &bsd_args, retval);
 }
-

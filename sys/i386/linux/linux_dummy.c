@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.3 1996/03/02 19:37:52 peter Exp $
+ *  $Id: linux_dummy.c,v 1.3.4.1 1998/02/19 00:37:28 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -176,13 +176,6 @@ linux_ksyslog(struct proc *p, struct linux_ksyslog_args *args, int *retval)
     printf("Linux-emul(%d): ksyslog(%x) not supported\n",
 	p->p_pid, args->what);
     return ENOSYS;	/* EPERM - Peter - it's a root-only thing */
-}
-
-int
-linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
-{
-    printf("Linux-emul(%d): iopl() not supported\n", p->p_pid);
-    return ENOSYS;
 }
 
 int
