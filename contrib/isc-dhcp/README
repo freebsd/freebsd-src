@@ -1,81 +1,82 @@
-<C><H4>Internet Software Consortium</H4></C>
-<C><H4>Dynamic Host Configuration Protocol Distribution</H4></C>
-<C><H4>Version 2 Patchlevel 5</H4></C>
-<C><H4>September 6, 2000</H4></C>
+	    Internet Software Consortium DHCP Distribution
+			     Version 3.0.1
+			  Release Candidate 6
+			   January 17, 2002
 
-<C><H4>README FILE</H4></C>
+			     README FILE
 
-<P>You should read this file carefully before trying to install or use
-the ISC DHCP Distribution.</P>
+You should read this file carefully before trying to install or use
+the ISC DHCP Distribution.
 
-<OL>
-<C><B>TABLE OF CONTENTS</B></C>
-<DL>
-<DT><A HREF="#1"1</A><DD>WHERE TO FIND DOCUMENTATION
-<DT><A HREF="#2"2</A><DD>RELEASE STATUS
-<DT><A HREF="#3"3</A><DD>BUILDING THE DHCP DISTRIBUTION
-<DT><A HREF="#4"4</A><DD>INSTALLING THE DHCP DISTRIBUTION
-<DT><A HREF="#5"5</A><DD>USING THE DHCP DISTRIBUTION
-<DL>
-<DT><A HREF="#5.1"5.1</A><DD>LINUX
-<DL>
-<DT><A HREF="#5.1.1"5.1.1</A><DD>SO_ATTACH_FILTER UNDECLARED
-<DT><A HREF="#5.1.2"5.1.2</A><DD>PROTOCOL NOT CONFIGURED
-<DT><A HREF="#5.1.3"5.1.3</A><DD>BROADCAST
-<DT><A HREF="#5.1.4"5.1.4</A><DD>FIREWALL RULES
-<DT><A HREF="#5.1.5"5.1.5</A><DD>IP BOOTP AGENT
-<DT><A HREF="#5.1.6"5.1.6</A><DD>MULTIPLE INTERFACES
-</DL>
-<DT><A HREF="#5.2"5.2</A><DD>SCO
-<DT><A HREF="#5.3"5.3</A><DD>HP-UX
-<DT><A HREF="#5.4"5.4</A><DD>ULTRIX
-<DT><A HREF="#5.5"5.5</A><DD>FreeBSD
-<DT><A HREF="#5.6"5.6</A><DD>NeXTSTEP
-<DT><A HREF="#5.7"5.7</A><DD>SOLARIS
-</DL>
-<DT><A HREF="#6"6</A><DD>SUPPORT
-<DL>
-<DT><A HREF="#6.1"6.1</A><DD>HOW TO REPORT BUGS
-</DL>
-<DT><A HREF="#7"7</A><DD>KNOWN BUGS
+			  TABLE OF CONTENTS
 
-<H4 ID="1">Where to find documentation</H4>
+	1	WHERE TO FIND DOCUMENTATION
+	2	RELEASE STATUS
+	3	BUILDING THE DHCP DISTRIBUTION
+	 3.1	 UNPACKING IT
+	 3.2	 CONFIGURING IT
+	  3.2.1	  DYNAMIC DNS UPDATES
+	  3.2.2   LOCALLY DEFINED OPTIONS
+	 3.3	 BUILDING IT
+	4	INSTALLING THE DHCP DISTRIBUTION
+	5	USING THE DHCP DISTRIBUTION
+	 5.1	  FIREWALL RULES
+	 5.2	 LINUX
+	  5.2.1	  IF_TR.H NOT FOUND
+	  5.2.2	  SO_ATTACH_FILTER UNDECLARED
+	  5.2.3	  PROTOCOL NOT CONFIGURED
+	  5.2.4	  BROADCAST
+	  5.2.6	  IP BOOTP AGENT
+	  5.2.7	  MULTIPLE INTERFACES
+	 5.3	 SCO
+	 5.4	 HP-UX
+	 5.5	 ULTRIX
+	 5.6	 FreeBSD
+	 5.7	 NeXTSTEP
+	 5.8	 SOLARIS
+	6	SUPPORT
+	 6.1	 HOW TO REPORT BUGS
 
-<P>Documentation for this software includes this README file, the
+		      WHERE TO FIND DOCUMENTATION
+
+Documentation for this software includes this README file, the
 RELNOTES file, and the manual pages, which are in the server, common,
-client and relay subdirectories.  Internet standards relating to the
-DHCP protocol are stored in the doc subdirectory.  You will have the
-best luck reading the manual pages if you build this software and then
-install it, although you can read them directly out of the
-distribution if you need to.</P>
+client and relay subdirectories.  The README file (this file) includes
+late-breaking operational and system-specific information that you
+should read even if you don't want to read the manual pages, and that
+you should *certainly* read if you run into trouble.  Internet
+standards relating to the DHCP protocol are stored in the doc
+subdirectory.  You will have the best luck reading the manual pages if
+you build this software and then install it, although you can read
+them directly out of the distribution if you need to.
 
-<P>DHCP server documentation is in the dhcpd man page.  Information about
+DHCP server documentation is in the dhcpd man page.  Information about
 the DHCP server lease database is in the dhcpd.leases man page.
 Server configuration documentation is in the dhcpd.conf man page as
 well as the dhcp-options man page.   A sample DHCP server
 configuration is in the file server/dhcpd.conf.   The source for the
 dhcpd, dhcpd.leases and dhcpd.conf man pages is in the server/ sub-
 directory in the distribution.   The source for the dhcp-options.5
-man page is in the common/ subdirectory.</P>
+man page is in the common/ subdirectory.
 
-<P>DHCP Client documentation is in the dhclient man page.  DHCP client
+DHCP Client documentation is in the dhclient man page.  DHCP client
 configuration documentation is in the dhclient.conf man page and the
 dhcp-options man page.  The DHCP client configuration script is
 documented in the dhclient-script man page.   The format of the DHCP
 client lease database is documented in the dhclient.leases man page.
 The source for all these man pages is in the client/ subdirectory in
 the distribution.   In addition, the dhcp-options man page should be
-referred to for information about DHCP options.</P>
+referred to for information about DHCP options.
 
-<P>DHCP relay agent documentation is in the dhcrelay man page, the source
-for which is distributed in the relay/ subdirectory.</P>
+DHCP relay agent documentation is in the dhcrelay man page, the source
+for which is distributed in the relay/ subdirectory.
 
-<P>To read installed manual pages, use the man command.  Type "man page"
+To read installed manual pages, use the man command.  Type "man page"
 where page is the name of the manual page.   This will only work if
 you have installed the ISC DHCP distribution using the ``make install''
-command (described later).</P>
+command (described later).
 
-<P>If you want to read manual pages that aren't installed, you can type
+If you want to read manual pages that aren't installed, you can type
 ``nroff -man page |more'' where page is the filename of the
 unformatted manual page.  The filename of an unformatted manual page
 is the name of the manual page, followed by '.', followed by some
@@ -83,78 +84,106 @@ number - 5 for documentation about files, and 8 for documentation
 about programs.   For example, to read the dhcp-options man page,
 you would type ``nroff -man common/dhcp-options.5 |more'', assuming
 your current working directory is the top level directory of the ISC
-DHCP Distribution.</P>
+DHCP Distribution.
 
-<P>If you do not have the nroff command, you can type ``more catpage''
+If you do not have the nroff command, you can type ``more catpage''
 where catpage is the filename of the catted man page.  Catted man
 pages names are the name of the manual page followed by ".cat"
-followed by 5 or 8, as with unformatted manual pages.</P>
+followed by 5 or 8, as with unformatted manual pages.
 
-<P>Please note that until you install the manual pages, the pathnames of
+Please note that until you install the manual pages, the pathnames of
 files to which they refer will not be correct for your operating
-system.</P>
+system.
 
-<H4 ID="2">Release status</H4>
+			    RELEASE STATUS
 
-<P>This is the final release of Version 2 of the Internet Software
-Consortium DHCP Distribution.  In version 2.0, this distribution
-includes a DHCP server, a DHCP client, and a BOOTP/DHCP relay agent.
-This release is stable.</P>
+This is the second beta release of version 3.0 of the ISC DHCP
+Distribution.  Development of this release is approaching the point at
+which it will be frozen, and no significant new features will be
+added.
 
-<P>In this release, the server and relay agent currently work well on
-NetBSD, Linux after kernel version 2.0.30, FreeBSD, BSD/OS, Ultrix,
-Digital Alpha OSF/1, Solaris and SunOS 4.1.4.  On AIX, HPUX, IRIX and
-Linux 2.0.30, only a single broadcast network interface is supported.
-They also runs on QNX as long as only one broadcast network interface
-is configured and a host route is added from that interface to the
-255.255.255.255 broadcast address.</P>
+In this release, the server and relay agent are currently fully
+functional on NetBSD, Linux systems with kernel version 2.2 or later,
+FreeBSD, OpenBSD, BSD/OS, Digital Tru64 Unix and Solaris.  The
+software will also run on HP-UX, but only supports a single network
+interface.  Ports also exist for QNX, SCO, NeXTStep, and MacOS X, but
+are not in wide use, with all that implies.   We are not aware of an
+easy way to get this software running on HP-UX.
 
-<P>The DHCP client currently only knows how to configure the network on
-NetBSD, FreeBSD, BSD/os, Linux, Solaris and NextStep.  The client
-depends on a system-dependent shell script to do network
+The DHCP client currently only knows how to configure the network on
+NetBSD, FreeBSD, OpenBSD, BSD/os, Linux, Solaris and NextStep.  The
+client depends on a system-dependent shell script to do network
 configuration - support for other operating systems is simply a matter
-of porting this shell script to the new platform.</P>
+of porting this shell script to the new platform.
 
-<P>If you wish to run the DHCP Distribution on Linux, please see the
+If you are running the DHCP distribution on a machine which is a
+firewall, or if there is a firewall between your DHCP server(s) and
+DHCP clients, please read the section on firewalls which appears later
+in this document.
+
+If you wish to run the DHCP Distribution on Linux, please see the
 Linux-specific notes later in this document.  If you wish to run on an
 SCO release, please see the SCO-specific notes later in this document.
 You particularly need to read these notes if you intend to support
 Windows 95 clients.  If you are running a version of FreeBSD prior to
 2.2, please read the note on FreeBSD.  If you are running HP-UX or
-Ultrix, please read the notes for those operating systems below.
-If you are running NeXTSTEP, please see the notes on NeXTSTEP below.</P>
+Ultrix, please read the notes for those operating systems below.  If
+you are running NeXTSTEP, please see the notes on NeXTSTEP below.
 
-<P>If you start dhcpd and get a message, "no free bpf", that means you
+If you start dhcpd and get a message, "no free bpf", that means you
 need to configure the Berkeley Packet Filter into your operating
 system kernel.   On NetBSD, FreeBSD and BSD/os, type ``man bpf'' for
-information.   On Digital Unix, type ``man pfilt''.</P>
+information.   On Digital Unix, type ``man pfilt''.
 
-<H4 ID="3">Building the DHCP Distribution</H4>
 
-<P>To build the DHCP Distribution, unpack the compressed tar file using
-the tar utility and the gzip command - type something like:</P>
+		    BUILDING THE DHCP DISTRIBUTION
 
-<BLOCKQUOTE>
-	zcat dhcp-2.0pl5.tar.gz |tar xvf -
-</BLOCKQUOTE>
+			     UNPACKING IT
 
-<P>On BSD/OS, you have to type gzcat, not zcat, and you may run into
-similar problems on other operating systems.</P>
+To build the DHCP Distribution, unpack the compressed tar file using
+the tar utility and the gzip command - type something like:
 
-<P>Now, cd to the dhcp-2.0pl5 subdirectory that you've just created and
-configure the source tree by typing:</P>
+	zcat dhcp-3.0.1rc6.tar.gz |tar xvf -
 
-<BLOCKQUOTE>
+On BSD/OS, you have to type gzcat, not zcat, and you may run into
+similar problems on other operating systems.
+
+			    CONFIGURING IT
+
+Now, cd to the dhcp-3.0.1rc6 subdirectory that you've just
+created and configure the source tree by typing:
+
 		./configure
-</BLOCKQUOTE>
 
-<P>If the configure utility can figure out what sort of system you're
+If the configure utility can figure out what sort of system you're
 running on, it will create a custom Makefile for you for that
 system; otherwise, it will complain.  If it can't figure out what
 system you are using, that system is not supported - you are on
-your own.</P>
+your own.
 
-<P>Once you've run configure, just type ``make'', and after a while
+			 DYNAMIC DNS UPDATES
+
+A fully-featured implementation of dynamic DNS updates is included in
+this release.   There are no build dependencies with any BIND version
+- this version can and should just use the resolver in your C library.
+
+There is documentation for the DDNS support in the dhcpd.conf manual
+page - see the beginning of this document for information on finding
+manual pages.
+
+		       LOCALLY DEFINED OPTIONS
+
+In previous versions of the DHCP server there was a mechanism whereby
+options that were not known by the server could be configured using
+a name made up of the option code number and an identifier:
+"option-nnn"   This is no longer supported, because it is not future-
+proof.   Instead, if you want to use an option that the server doesn't
+know about, you must explicitly define it using the method described
+in the dhcp-options man page under the DEFINING NEW OPTIONS heading.
+
+			     BUILDING IT
+
+Once you've run configure, just type ``make'', and after a while
 you should have a dhcp server.  If you get compile errors on one
 of the supported systems mentioned earlier, please let us know.
 If you get warnings, it's not likely to be a problem - the DHCP
@@ -162,56 +191,96 @@ server compiles completely warning-free on as many architectures
 as we can manage, but there are a few for which this is difficult.
 If you get errors on a system not mentioned above, you will need
 to do some programming or debugging on your own to get the DHCP
-Distribution working.</P>
+Distribution working.
 
-<H4 ID="4">Installing the dhcp distribution</H4>
+		   INSTALLING THE DHCP DISTRIBUTION
 
-<P>Once you have successfully gotten the DHCP Distribution to build, you
+Once you have successfully gotten the DHCP Distribution to build, you
 can install it by typing ``make install''.   If you already have an old
 version of the DHCP Distribution installed, you may want to save it
-before typing ``make install''.</P>
+before typing ``make install''.
 
-<H4 ID="5">Using the dhcp distribution</H4>
+		     USING THE DHCP DISTRIBUTION
 
-<H4 ID="5.1">Linux</H4>
+			    FIREWALL RULES
 
-<P>There are three big LINUX issues: the all-ones broadcast address,
+If you are running the DHCP server or client on a computer that's also
+acting as a firewall, you must be sure to allow DHCP packets through
+the firewall.  In particular, your firewall rules _must_ allow packets
+from IP address 0.0.0.0 to IP address 255.255.255.255 from UDP port 68
+to UDP port 67 through.  They must also allow packets from your local
+firewall's IP address and UDP port 67 through to any address your DHCP
+server might serve on UDP port 68.  Finally, packets from relay agents
+on port 67 to the DHCP server on port 67, and vice versa, must be
+permitted.
+
+We have noticed that on some systems where we are using a packet
+filter, if you set up a firewall that blocks UDP port 67 and 68
+entirely, packets sent through the packet filter will not be blocked.
+However, unicast packets will be blocked.   This can result in strange
+behaviour, particularly on DHCP clients, where the initial packet
+exchange is broadcast, but renewals are unicast - the client will
+appear to be unable to renew until it starts broadcasting its
+renewals, and then suddenly it'll work.   The fix is to fix the
+firewall rules as described above.
+
+			   PARTIAL SERVERS
+
+If you have a server that is connected to two networks, and you only
+want to provide DHCP service on one of those networks (e.g., you are
+using a cable modem and have set up a NAT router), if you don't write
+any subnet declaration for the network you aren't supporting, the DHCP
+server will ignore input on that network interface if it can.  If it
+can't, it will refuse to run - some operating systems do not have the
+capability of supporting DHCP on machines with more than one
+interface, and ironically this is the case even if you don't want to
+provide DHCP service on one of those interfaces.
+
+				LINUX
+
+There are three big LINUX issues: the all-ones broadcast address,
 Linux 2.1 ip_bootp_agent enabling, and operations with more than one
 network interface.   There are also two potential compilation/runtime
 problems for Linux 2.1/2.2: the "SO_ATTACH_FILTER undeclared" problem
-and the "protocol not configured" problem.</P>
+and the "protocol not configured" problem.
 
-<H4 ID="5.1.1">So_attach_filter undeclared</H4>
+		       LINUX: IF_TR.H NOT FOUND
 
-<P>In addition, there is a minor issue that we will mention here because
+When you compile the distribution on Linux, you may get an error
+message indicating that the include file if_tr.h could not be found.
+If this happens, go into includes/cf/linux.h and delete the line that
+defined HAVE_TR_SUPPORT, or look into installing a new version of libc
+that includes the if_tr.h file.   We will be working on removing this
+problem in the future, but for now, if you run into it, this should be
+a viable workaround.
+
+		  LINUX: SO_ATTACH_FILTER UNDECLARED
+
+In addition, there is a minor issue that we will mention here because
 this release is so close on the heels of the Linux 2.2 release: there
 is a symlink in /usr/include that points at the linux asm headers.  It
 appears to be not uncommon that this link won't be updated correctly,
-in which case you'll get the following error when you try to build:</P>
+in which case you'll get the following error when you try to build:
 
-<BLOCKQUOTE>
    lpf.c: In function `if_register_receive':
    lpf.c:152: `SO_ATTACH_FILTER' undeclared (first use this function)
    lpf.c:152: (Each undeclared identifier is reported only once
    lpf.c:152: for each function it appears in.)
-</BLOCKQUOTE>
 
-<P>The line numbers may be different, of course.   If you see this
+The line numbers may be different, of course.   If you see this
 header, your linux asm header link is probably bad, and you should
-make sure it's pointing to correct linux source directory.</P>
+make sure it's pointing to correct linux source directory.
 
-<H4 ID="5.1.2">Protocol not configured</H4>
+		    LINUX: PROTOCOL NOT CONFIGURED
 
-<P>One additional Linux 2.1/2.2 issue: if you get the following message,
+One additional Linux 2.1/2.2 issue: if you get the following message,
 it's because your kernel doesn't have the linux packetfilter or raw
-packet socket configured:</P>
+packet socket configured:
 
-<BLOCKQUOTE>
  Make sure CONFIG_PACKET (Packet socket) and CONFIG_FILTER (Socket
  Filtering) are enabled in your kernel configuration
-</BLOCKQUOTE>
 
-<P>If this happens, you need to configure your Linux kernel to support
+If this happens, you need to configure your Linux kernel to support
 Socket Filtering and the Packet socket.  You can do this by typing
 ``make config'', ``make menuconfig'' or ``make xconfig'', and then
 enabling the Packet socket and Socket Filtering options that you'll
@@ -222,90 +291,75 @@ afterwards, so that the changes you've made are propogated to the
 kernel header files.   After you've reconfigured, you need to type
 ``make'' to build a new Linux kernel, and then install it in the
 appropriate place (probably /linux).  Make sure to save a copy of your
-old /linux.</P>
+old /linux.
 
-<P>If the preceding paragraph made no sense to you, ask your Linux
-vendor/guru for help - please don't ask us.</P>
+If the preceding paragraph made no sense to you, ask your Linux
+vendor/guru for help - please don't ask us.
 
-<P>If you set CONFIG_PACKET=m or CONFIG_FILTER=m, then you must tell the
+If you set CONFIG_PACKET=m or CONFIG_FILTER=m, then you must tell the
 kernel module loader to load the appropriate modules.  If this doesn't
 make sense to you, don't use CONFIG_whatever=m - use CONFIG_whatever=y.  
 Don't ask for help with this on the DHCP mailing list - it's a Linux
 kernel issue.   This is probably not a problem with the most recent
-Linux 2.2.x kernels.</P>
+Linux 2.2.x kernels.
 
-<H4 ID="5.1.3">Broadcast</H4>
+			   LINUX: BROADCAST
 
-<P>In order for dhcpd to work correctly with picky DHCP clients (e.g.,
+If you are running a recent version of Linux, this won't be a problem,
+but on older versions of Linux (kernel versions prior to 2.2), there
+is a potential problem with the broadcast address being sent
+incorrectly.
+
+In order for dhcpd to work correctly with picky DHCP clients (e.g.,
 Windows 95), it must be able to send packets with an IP destination
 address of 255.255.255.255.  Unfortunately, Linux changes an IP
 destination of 255.255.255.255 into the local subnet broadcast address
-(here, that's 192.5.5.223).  This isn't a problem on Linux 2.2 and
-later kernels, since we completely bypass the Linux IP stack, but on
-old versions of Linux 2.1 and all versions of Linux prior to 2.1, it
-is a problem - pickier DHCP clients connected to the same network as
-the ISC DHCP server or ISC relay agent will not see messages from the
-DHCP server.</P>
+(here, that's 192.5.5.223).
 
-<P>It is possible to work around this problem on some versions of Linux
+This isn't generally a problem on Linux 2.2 and later kernels, since
+we completely bypass the Linux IP stack, but on old versions of Linux
+2.1 and all versions of Linux prior to 2.1, it is a problem - pickier
+DHCP clients connected to the same network as the ISC DHCP server or
+ISC relay agent will not see messages from the DHCP server.   It *is*
+possible to run into trouble with this on Linux 2.2 and later if you
+are running a verson of the DHCP server that was compiled on a Linux
+2.0 system, though.
+
+It is possible to work around this problem on some versions of Linux
 by creating a host route from your network interface address to
 255.255.255.255.   The command you need to use to do this on Linux
-varies from version to version.   The easiest version is:</P>
+varies from version to version.   The easiest version is:
 
-<BLOCKQUOTE>
 	route add -host 255.255.255.255 dev eth0
-</BLOCKQUOTE>
 
-<P>On some older Linux systems, you will get an error if you try to do
+On some older Linux systems, you will get an error if you try to do
 this.   On those systems, try adding the following entry to your
-/etc/hosts file:</P>
+/etc/hosts file:
 
-<BLOCKQUOTE>
 255.255.255.255	all-ones
-</BLOCKQUOTE>
 
-<P>Then, try:</P>
+Then, try:
 
-<BLOCKQUOTE>
 	route add -host all-ones dev eth0
-</BLOCKQUOTE>
 
-<P>Another route that has worked for some users is:</P>
+Another route that has worked for some users is:
 
-<BLOCKQUOTE>
 	route add -net 255.255.255.0 dev eth0
-</BLOCKQUOTE>
 
-<P>If you are not using eth0 as your network interface, you should
-specify the network interface you *are* using in your route command.</P>
+If you are not using eth0 as your network interface, you should
+specify the network interface you *are* using in your route command.
 
-<H4 ID="5.1.4">Firewall rules</H4>
+			LINUX: IP BOOTP AGENT
 
-<P>If you are running the DHCP server or client on a Linux system that's
-also acting as a firewall, you must be sure to allow DHCP packets
-through the firewall - Linux firewalls make filtering decisions before
-they make the forwarding decision, so they will filter packets that
-are intended for the firewall itself, as well as packets intended to
-be forwarded.   In particular, your firewall rules _must_ allow
-packets from IP address 0.0.0.0 to IP address 255.255.255.255 from UDP
-port 68 to UDP port 67 through.   They must also allow packets from
-your local firewall's IP address and UDP port 67 through to any
-address your DHCP server might serve on UDP port 68.   Finally,
-packets from relay agents on port 67 to the DHCP server on port 67,
-and vice versa, must be permitted.</P>
+Some versions of the Linux 2.1 kernel apparently prevent dhcpd from
+working unless you enable it by doing the following:
 
-<H4 ID="5.1.5">IP BOOTP agent</H4>
-
-<P>Some versions of the Linux 2.1 kernel apparently prevent dhcpd from
-working unless you enable it by doing the following:</P>
-
-<BLOCKQUOTE>
 	      echo 1 >/proc/sys/net/ipv4/ip_bootp_agent
-</BLOCKQUOTE>
 
-<H4 ID="5.1.6">Multiple interfaces</H4>
 
-<P>Very old versions of the Linux kernel do not provide a networking API
+		      LINUX: MULTIPLE INTERFACES
+
+Very old versions of the Linux kernel do not provide a networking API
 that allows dhcpd to operate correctly if the system has more than one
 broadcast network interface.  However, Linux 2.0 kernels with version
 numbers greater than or equal to 2.0.31 add an API feature: the
@@ -313,100 +367,104 @@ SO_BINDTODEVICE socket option.  If SO_BINDTODEVICE is present, it is
 possible for dhcpd to operate on Linux with more than one network
 interface.  In order to take advantage of this, you must be running a
 2.0.31 or greater kernel, and you must have 2.0.31 or later system
-headers installed *before* you build the DHCP Distribution.</P>
+headers installed *before* you build the DHCP Distribution.
 
-<P>We have heard reports that you must still add routes to 255.255.255.255
+We have heard reports that you must still add routes to 255.255.255.255
 in order for the all-ones broadcast to work, even on 2.0.31 kernels.
 In fact, you now need to add a route for each interface.   Hopefully
-the Linux kernel gurus will get this straight eventually.</P>
+the Linux kernel gurus will get this straight eventually.
 
-<P>Linux 2.1 and later kernels do not use SO_BINDTODEVICE or require the
+Linux 2.1 and later kernels do not use SO_BINDTODEVICE or require the
 broadcast address hack, but do support multiple interfaces, using the
-Linux Packet Filter.</P>
+Linux Packet Filter.
 
-<H4 ID="5.2">SCO</H4>
+				 SCO
 
-<P>SCO has the same problem as Linux (described earlier).  The thing is,
+SCO has the same problem as Linux (described earlier).  The thing is,
 SCO *really* doesn't want to let you add a host route to the all-ones
-broadcast address.  One technique that has been successful on some
-versions of SCO is the very bizarre command:</P>
+broadcast address.
 
-<BLOCKQUOTE>
-	ifconfig net0 alias 10.1.1.1 netmask 8.0.0.0
-</BLOCKQUOTE>
+On more recent versions of SCO, you can do this:
 
-<P>Apparently this works because of an interaction between SCO's support
+  ifconfig net0 xxx.xxx.xxx.xxx netmask 0xNNNNNNNN broadcast 255.255.255.255
+
+If this doesn't work, you can also try the following strange hack:
+
+  ifconfig net0 alias 10.1.1.1 netmask 8.0.0.0
+
+Apparently this works because of an interaction between SCO's support
 for network classes and the weird netmask.  The 10.* network is just a
 dummy that can generally be assumed to be safe.   Don't ask why this
-works.   Just try it.   If it works for you, great.   If not, SCO is
-supposedly adding hooks to support real DHCP service in a future
-release - I have this on good authority from the people at SCO who do
-*their* DHCP server and client.</P>
+works.   Just try it.   If it works for you, great.   SCO has added
+support for doing DHCP in a more sensible way, but I have not had the
+time or cause to implement them.   If you are interested in this, and
+are able to hack your way out of a wet paper back without assistance,
+we'd appreciate it if you'd give it a try, but don't expect too much
+support from us (sorry!).
 
-<H4 ID="5.3">HP-UX</H4>
+				HP-UX
 
-<P>HP-UX has the same problem with the all-ones broadcast address that
+HP-UX has the same problem with the all-ones broadcast address that
 SCO and Linux have.   One user reported that adding the following to
 /etc/rc.config.d/netconf helped (you may have to modify this to suit
-your local configuration):</P>
+your local configuration):
 
-<BLOCKQUOTE>
 INTERFACE_NAME[0]=lan0
 IP_ADDRESS[0]=1.1.1.1
 SUBNET_MASK[0]=255.255.255.0
 BROADCAST_ADDRESS[0]="255.255.255.255"
 LANCONFIG_ARGS[0]="ether"
 DHCP_ENABLE[0]=0
-</BLOCKQUOTE>
 
-<H4 ID="5.4">Ultrix</H4>
+				ULTRIX
 
-<P>Now that we have Ultrix packet filter support, the DHCP Distribution
+Now that we have Ultrix packet filter support, the DHCP Distribution
 on Ultrix should be pretty trouble-free.  However, one thing you do
 need to be aware of is that it now requires that the pfilt device be
 configured into your kernel and present in /dev.  If you type ``man
 packetfilter'', you will get some information on how to configure your
 kernel for the packet filter (if it isn't already) and how to make an
-entry for it in /dev.</P>
+entry for it in /dev.
 
-<H4 ID="5.5">FreeBSD</H4>
+			       FreeBSD
 
-<P>Versions of FreeBSD prior to 2.2 have a bug in BPF support in that the
+Versions of FreeBSD prior to 2.2 have a bug in BPF support in that the
 ethernet driver swaps the ethertype field in the ethernet header
 downstream from BPF, which corrupts the output packet.   If you are
 running a version of FreeBSD prior to 2.2, and you find that dhcpd
 can't communicate with its clients, you should #define BROKEN_FREEBSD_BPF 
-in site.h and recompile.</P>
+in site.h and recompile.
 
-<H4 ID="5.6">NeXTStep</H4>
+                              NeXTSTEP
 
-<P>The NeXTSTEP support uses the NeXTSTEP Berkeley Packet Filter
+The NeXTSTEP support uses the NeXTSTEP Berkeley Packet Filter
 extension, which is not included in the base NextStep system.  You
-must install this extension in order to get dhcpd or dhclient to work.</P>
+must install this extension in order to get dhcpd or dhclient to work.
 
-<H4 ID="5.7">Solaris</H4>
+			       SOLARIS
 
-<P>One problem which has been observed and is not fixed in this
+One problem which has been observed and is not fixed in this
 patchlevel has to do with using DLPI on Solaris machines.  The symptom
 of this problem is that the DHCP server never receives any requests.
-If you are using Solaris 2.6, and you encounter this symptom, and
-you are running the DHCP server on a machine with a single broadcast
-network interface, you may wish to edit the includes/site.h file and
-uncomment the #define USE_SOCKETS line.  Then type ``make clean;
-make''.</P>
+This has been observed with Solaris 2.6 and Solaris 7 on Intel x86
+systems, although it may occur with other systems as well.  If you
+encounter this symptom, and you are running the DHCP server on a
+machine with a single broadcast network interface, you may wish to
+edit the includes/site.h file and uncomment the #define USE_SOCKETS
+line.  Then type ``make clean; make''.
 
-<P>The DHCP client on Solaris will only work with DLPI.  If you run it
+The DHCP client on Solaris will only work with DLPI.  If you run it
 and it just keeps saying it's sending DHCPREQUEST packets, but never
 gets a response, you may be having DLPI trouble as described above.
-If so, you are SOL.  Also, because Solaris requires you to "plumb" an
-interface before it can be detected by the DHCP client, you must
-either specify the name(s) of the interface(s) you want to configure
-on the command line, or must plumb the interfaces prior to invoking
-the DHCP client.   This can be done with ``ifconfig iface plumb'',
-where iface is the name of the interface (e.g., ``ifconfig hme0
-plumb'').</P>
+If so, we have no solution to offer at this time.  Also, because
+Solaris requires you to "plumb" an interface before it can be detected
+by the DHCP client, you must either specify the name(s) of the
+interface(s) you want to configure on the command line, or must plumb
+the interfaces prior to invoking the DHCP client.  This can be done
+with ``ifconfig iface plumb'', where iface is the name of the
+interface (e.g., ``ifconfig hme0 plumb'').
 
-<P>It should be noted that Solaris versions from 2.6 onward include a
+It should be noted that Solaris versions from 2.6 onward include a
 DHCP client that you can run with ``/sbin/ifconfig iface dhcp start''
 rather than using the ISC DHCP client.  The feature set of the Solaris
 client is different (not necessarily better or worse) than that of the
@@ -415,121 +473,177 @@ use that.  Please do not ask for help in using the Solaris DHCP client
 on Internet Software Consortium mailing lists - that's why you're
 paying Sun the big bucks.   If you're having a problem with the
 Solaris client interoperating with the ISC dhcp server, that's another
-matter, but please check with Sun first.</P>
+matter, but please check with Sun first.
 
-<H4 ID="6">Support</H4>
+			       SUPPORT
 
-<P>The Internet Software Consortium DHCP server is not a commercial
-product, and is not supported in that sense.  However, it has
-attracted a fairly sizable following on the Internet, which means that
-there are a lot of knowledgable users who may be able to help you if
-you get stuck.  These people generally read the dhcp-server@fugue.com
-mailing list.</P>
+The Internet Software Consortium DHCP server is not a commercial
+product, and is not supported by the ISC.  However, it has attracted a
+fairly sizable following on the Internet, which means that there are a
+lot of knowledgable users who may be able to help you if you get
+stuck.  These people generally read the dhcp-server@isc.org mailing
+list.
 
-<P>If you are going to use dhcpd, you should probably subscribe to the
+If you are going to use dhcpd, you should probably subscribe to the
 dhcp-server and dhcp-announce mailing lists.  If you will be using
-dhclient, you should subscribe to the dhcp-client mailing list.</P>
+dhclient, you should subscribe to the dhcp-client mailing list.
 
-<P>If you need help, you should ask on the dhcp-server or dhcp-client
-mailing list (or both) - whichever is appropriate to your
-application.   This includes reporting bugs.   Please do not report
-bugs in old software releases - fetch the latest release and see if
-the bug is still in that copy of the software, and if it's not, _then_
-report it.   It's okay to report bugs in the latest patchlevel of a
-major version that's not the most recent major version, though - for
-example, if you're running 2.0, you don't have to upgrade to 3.0
-before you can report bugs.</P>
+If you need help, you should ask on the dhcp-server or dhcp-client
+mailing list - whichever is appropriate to your application.  Support
+requests for the ISC DHCP client should go to dhcp-client@isc.org.
+Support requests for the DHCP server should go to dhcp-server@isc.org.
+If you are having trouble with a combination of the client and server,
+send the request to dhcp-server@isc.org.  Please do not cross-post to
+both lists under any circumstances.
 
-<H4 ID="6.1">Please read this readme file carefully before reporting bugs!</H4>
-<H4>How to report bugs</H4>
+WHERE TO REPORT BUGS: If you want the act of sending in a bug report
+to result in you getting help in the form of a fixed piece of
+software, you are asking for help.  Your bug report is helpful to us,
+but fundamentally you are making a support request, so please use the
+addresses described in the previous paragraphs.  If you are _sure_ that
+your problem is a bug, and not user error, or if your bug report
+includes a patch, you can send it to dhcp-bugs@isc.org without
+subscribing.   This mailing list goes into a bug tracking system, so
+you don't need to check periodically to see if we still remember the
+bug - if you haven't been notified that the bug has been closed, we
+still consider it a bug, and still have it in the system.
 
-<P>When you report bugs, please provide us complete information.   A list
-of information we need follows.   Please read it carefully, and put
-all the information you can into your initial bug report, so that we
-don't have to ask you any questions in order to figure out your
-problem.</P>
+PLEASE DO NOT REPORT BUGS IN OLD SOFTWARE RELEASES!  Fetch the latest
+release and see if the bug is still in that version of the software,
+and if it's not, _then_ report it.  It's okay to report bugs in the
+latest patchlevel of a major version that's not the most recent major
+version, though - for example, if you're running 2.0, you don't have
+to upgrade to 3.0 before you can report bugs.
 
-<UL>
-<LI>The specific operating system name and version of the
-machine on which the DHCP server or client is running.
-<LI>The specific operating system name and version of the
-machine on which the client is running, if you are having
-trouble getting a client working with the server.
-<LI>If you're running Linux, the version number we care about is
-the kernel version and maybe the library version, not the
-distribution version - e.g., while we don't mind knowing
-that you're running Redhat version mumble.foo, we must know
-what kernel version you're running, and it helps if you can
-tell us what version of the C library you're running,
-although if you don't know that off the top of your head it
-may be hard for you to figure it out, so don't go crazy
-trying.
-<LI>The specific version of the DHCP distribution you're
-running, for example 2.0b1pl19, not 2.0.
-<LI>Please explain the problem carefully, thinking through what
-you're saying to ensure that you don't assume we know
-something about your situation that we don't know.
-<LI>Include your dhcpd.conf and dhcpd.leases file if they're not
-huge (if they are huge, we may need them anyway, but don't
-send them until you're asked).
-<LI>Include a log of your server or client running until it
-encounters the problem - for example, if you are having
-trouble getting some client to get an address, restart the
-server with the -d flag and then restart the client, and
-send us what the server prints.   Likewise, with the client,
-include the output of the client as it fails to get an
-address or otherwise does the wrong thing.   Do not leave
-out parts of the output that you think aren't interesting.
-<LI>If the client or server is dumping core, please run the
-debugger and get a stack trace, and include that in your
-bug report.   For example, if your debugger is gdb, do the
-following:
+PLEASE DO NOT REPORT BUGS IF YOU ARE RUNNING A VERSION OF THE ISC
+DHCP DISTRIBUTION THAT YOU DIDN'T GET FROM THE ISC!   Free operating
+system distributions are notorious for including outdated versions of
+software, and also versions of software that were not compiled on your
+particular version of the operating system.   These versions
+frequently do not work.   Getting a source distribution from the ISC
+and installing it frequently *does* work.   Please try this *before*
+asking for help.
 
-<BLOCKQUOTE>
+PLEASE READ THIS README FILE CAREFULLY BEFORE REPORTING BUGS,
+PARTICULARLY THE SECTION BELOW ON WHAT TO INCLUDE IN A BUG REPORT OR
+HELP REQUEST.
+
+PLEASE DO NOT SEND REQUESTS FOR SUPPORT DIRECTLY TO THE ENGINEERS WHO
+WORK ON THE ISC DHCP DISTRIBUTION!  *PARTICULARLY*, DO NOT SEND MAIL
+TO THE ENGINEERS BECAUSE YOU AREN'T SURE TO WHOM YOU SHOULD SEND MAIL
+- if you aren't sure, *ask* on the dhcp-server@isc.org or
+dhcp-client@isc.org mailing list.
+
+The number of people using the DHCP Distribution is sufficiently large
+that if we take interrupts every time any one of those people runs
+into trouble, we will never get any more coding done.  If you send a
+support request directly to any ISC or Nominum engineer, we will
+forward it to the mailing list, or possibly ignore it, depending on
+how much stress we are under at the time.
+
+Please do not Cc: us on mail you send to these lists - we read both
+mailing lists, so this just means we get two copies!
+
+If your question can only be answered by one of the engineers, send it
+to the appropriate public mailing list anyway - we will answer it
+there.  When we have time.
+
+Please do not think "Oh, I don't want to bother the whole mailing list
+with this question."  If you are too embarrassed to ask publically,
+get a support contract.
+
+If you are concerned about bothering everybody on the list, that's
+great, but that's what the list is there for.  When you send mail to
+one of the engineers, you are taking resources away from everybody on
+the mailing list *anyway* - they just don't know it.
+
+We're not writing this because we don't respect you - we really do
+want to help you, and we appreciate your bug reports and comments.
+But please use the mechanisms we have in place to provide you with
+help, because otherwise you are almost certainly depriving someone
+else of our help.
+
+PLEASE DO NOT CALL US ON THE PHONE FOR HELP!  Answering the phone
+takes a lot more of our time and attention than answering email.  If
+you do call us on the phone, we will tell you to send email to the
+mailing list or buy a support contract, so please don't waste your
+time or ours.  If you have a support contract, please use the support
+channel mentioned in the support contract - otherwise you probably
+won't get timely support unless you happen to ask an interesting
+question and we happen to have some time to kill, because we can't
+tell you're a support customer if you send mail to the public mailing
+lists.
+
+		HOW TO REPORT BUGS OR REQUEST HELP
+
+When you report bugs or ask for help, please provide us complete
+information.  A list of information we need follows.  Please read it
+carefully, and put all the information you can into your initial bug
+report, so that we don't have to ask you any questions in order to
+figure out your problem.   If you need handholding support, please
+consider contacting a commercial provider of the ISC DHCP
+Distribution.
+
+      1.  The specific operating system name and version of the
+          machine on which the DHCP server or client is running.
+      2.  The specific operating system name and version of the
+          machine on which the client is running, if you are having
+          trouble getting a client working with the server.
+      3.  If you're running Linux, the version number we care about is
+          the kernel version and maybe the library version, not the
+          distribution version - e.g., while we don't mind knowing
+          that you're running Redhat version mumble.foo, we must know
+          what kernel version you're running, and it helps if you can
+          tell us what version of the C library you're running,
+          although if you don't know that off the top of your head it
+          may be hard for you to figure it out, so don't go crazy
+          trying.
+      4.  The specific version of the DHCP distribution you're
+          running, for example "2.0b1pl19", not "2.0".
+      5.  Please explain the problem carefully, thinking through what
+          you're saying to ensure that you don't assume we know
+          something about your situation that we don't know.
+      6.  Include your dhcpd.conf and dhcpd.leases file if they're not
+          huge (if they are huge, we may need them anyway, but don't
+          send them until you're asked).   Huge means more than 100
+          kilobytes each.
+      7.  Include a log of your server or client running until it
+          encounters the problem - for example, if you are having
+          trouble getting some client to get an address, restart the
+          server with the -d flag and then restart the client, and
+          send us what the server prints.   Likewise, with the client,
+          include the output of the client as it fails to get an
+          address or otherwise does the wrong thing.   Do not leave
+          out parts of the output that you think aren't interesting.
+      8.  If the client or server is dumping core, please run the
+          debugger and get a stack trace, and include that in your
+          bug report.   For example, if your debugger is gdb, do the
+          following:
+
 		gdb dhcpd dhcpd.core
 		(gdb) where
 		      [...]
 		(gdb) quit
-</BLOCKQUOTE>
 
-<P>This assumes that it's the dhcp server you're debugging, and
-that the core file is in dhcpd.core.</P>
-</UL>
+	  This assumes that it's the dhcp server you're debugging, and
+	  that the core file is in dhcpd.core.
+      9.  If you know that the problem is an actual bug, and you can
+	  reproduce the bug, you can skip steps 6 through 8 and instead
+	  capture a trace file using the -tf flag (see the man page for
+	  details).   If you do this, and there is anything in your
+	  dhcp configuration that you are not willing to make public,
+	  please send the trace file to dhcp-bugs@isc.org and NOT to
+	  dhcp-server@isc.org, because the tracefile contains your entire
+	  dhcp configuration.
 
-<P><EM>Please, <B>do not</B></EM> send queries about non-isc clients
-to the dhcp-client mailing list.   If you're asking about them on an
-ISC mailing list, it's probably because you're using the ISC DHCP
-server, so ask there. If you are having problems with a client whose
-executable is called dhcpcd, this is <EM>not</EM> the ISC DHCP client,
-and we probably can't help you with it.</P>
+PLEASE DO NOT send queries about non-isc clients to the dhcp-client
+mailing list.   If you're asking about them on an ISC mailing list,
+it's probably because you're using the ISC DHCP server, so ask there.
+If you are having problems with a client whose executable is called
+dhcpcd, this is _not_ the ISC DHCP client, and we probably can't help
+you with it.
 
-<P>Please see <A HREF="http://www.fugue.com/dhcp/lists">
-http://www.fugue.com/dhcp/lists</A> for details on how to subscribe.
-If you don't have WorldWide Web access, you can send mail to
-dhcp-request@fugue.com and tell me which lists you want to subscribe
-to, but please use the web interface if you can, since I have to
-handle the -request mailing list manually, and I will give you the
-third degree if you make me do your subscription manually.</P>
+Please see http://www.isc.org/services/public/lists/dhcp-lists.html
+for details on how to subscribe to the ISC DHCP mailing lists.
 
-<P><EM>Please do not send requests for help directly to the author!</EM>
-The number of people using the DHCP Distribution is sufficiently large
-that if we take an interrupt every time any one of those people runs into
-trouble, we will never get any more coding done.</P>
-
-<P><EM>Please do not call the author on the phone for support!</EM>
-Answering the phone takes a lot more time and attention than answering
-email.  If you do call on the phone, you will be told to send email to
-the mailing list, so there's no point in doing it.</P>
-
-<P><B>Exception:</B> if you are a support customer, you already know
-how to get in touch with us.   To become a support customer, see our
-<A HREF="/isc/ISC_HTML/services/support/index.phtml">Support web
-page</A>.
-
-<H4 ID="7">Known bugs</H4>
-
-<P>This release of the DHCP Distribution does not yet contain support for
-DHCPINFORM.  The Vendor Specific Data option is not supported.   Site-
-specific options are not supported.   All of these are supported in the
-3.0 release of the DHCP distribution, which is now in beta testing.</P>
 
