@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -61,7 +62,7 @@ main(argc, argv)
 {
 	int ch;
 	char *p;
-	char buf[MAXPATHLEN];
+	char buf[PATH_MAX];
 
 	/*
 	 * Flags for pwd are a bit strange.  The POSIX 1003.2B/D9 document
