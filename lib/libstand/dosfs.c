@@ -36,14 +36,6 @@
 
 #include "stand.h"
 
-#if 0
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#endif
-
 #include "dosfs.h"
 
 
@@ -53,7 +45,7 @@ static int	dos_read(struct open_file *fd, void *buf, size_t size, size_t *resid)
 static off_t	dos_seek(struct open_file *fd, off_t offset, int whence);
 static int	dos_stat(struct open_file *fd, struct stat *sb);
 
-struct fs_ops dos_fsops = {
+struct fs_ops dosfs_fsops = {
     "dosfs", dos_open, dos_close, dos_read, null_write, dos_seek, dos_stat
 };
 
@@ -135,6 +127,8 @@ static int namede(DOS_FS *, const char *, DOS_DE **);
 static int lookup(DOS_FS *, u_int, const char *, DOS_DE **);
 static void cp_xdnm(u_char *, DOS_XDE *);
 static void cp_sfn(u_char *, DOS_DE *);
+static off_t fsize(DOS_FS *, DOS_DE *);
+static int fatcnt(DOS_FS *, u_int);
 static int fatget(DOS_FS *, u_int *);
 static int fatend(u_int, u_int);
 static int ioread(DOS_FS *, u_int, void *, u_int);
@@ -151,7 +145,7 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
 
     bzero(fs, sizeof(DOS_FS));
     fs->fd = fd;
-    if ((err = !(fs->buf = alloc(SECSIZ)) ? errno : 0) ||
+    if ((err = !(fs->buf = malloc(SECSIZ)) ? errno : 0) ||
         (err = ioget(fs->fd, 0, fs->buf, 1)) ||
         (err = parsebs(fs, (DOS_BS *)fs->buf))) {
         (void)dosunmount(fs);
@@ -182,8 +176,8 @@ static int
 dosunmount(DOS_FS *fs)
 {
     if (fs->buf)
-        free(fs->buf, 0);
-    free(fs, 0);
+        free(fs->buf);
+    free(fs);
     return(0);
 }
 
@@ -200,7 +194,7 @@ dos_open(char *path, struct open_file *fd)
     int err = 0;
 
     /* Allocate mount structure, associate with open */
-    fs = alloc(sizeof(DOS_FS));
+    fs = malloc(sizeof(DOS_FS));
     
     if ((err = dos_mount(fs, fd)))
 	goto out;
@@ -208,18 +202,16 @@ dos_open(char *path, struct open_file *fd)
     if ((err = namede(fs, path, &de)))
 	goto out;
 
-    /* XXX we need to be able to open directories */
-    if (de->attr & FA_DIR) {
-        err = EISDIR;
-	goto out;
-    }
     clus = stclus(fs->fatsz, de);
     size = cv4(de->size);
-    if (!clus ^ !size || (clus && !okclus(fs, clus))) {
+
+    if ((!(de->attr & FA_DIR) && (!clus != !size)) ||
+	((de->attr & FA_DIR) && size) ||
+	(clus && !okclus(fs, clus))) {
         err = EINVAL;
 	goto out;
     }
-    f = alloc(sizeof(DOS_FILE));
+    f = malloc(sizeof(DOS_FILE));
     bzero(f, sizeof(DOS_FILE));
     f->fs = fs;
     fs->links++;
@@ -236,12 +228,15 @@ dos_open(char *path, struct open_file *fd)
 static int
 dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
 {
+    off_t size;
     u_int nb, off, clus, c, cnt, n;
     DOS_FILE *f = (DOS_FILE *)fd->f_fsdata;
     int err = 0;
 
     nb = (u_int)nbyte;
-    if (nb > (n = cv4(f->de.size) - f->offset))
+    if ((size = fsize(f->fs, &f->de)) == -1)
+	return EINVAL;
+    if (nb > (n = size - f->offset))
         nb = n;
     off = f->offset;
     if ((clus = stclus(f->fs->fatsz, &f->de)))
@@ -265,7 +260,9 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
         }
         if (!clus || (n = f->fs->bsize - off) > cnt)
             n = cnt;
-        if ((err = ioread(f->fs, blkoff(f->fs, c) + off, buf, n)))
+        if ((err = ioread(f->fs, (c ? blkoff(f->fs, c) :
+				      secbyt(f->fs->lsndir)) + off,
+			  buf, n)))
 	    goto out;
         f->offset += n;
         f->c = c;
@@ -275,7 +272,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
     }
  out:
     if (resid)
-	*resid = cnt;
+	*resid = nbyte - nb + cnt;
     return(err);
 }
 
@@ -321,7 +318,7 @@ dos_close(struct open_file *fd)
     DOS_FS *fs = f->fs;
 
     f->fs->links--;
-    free(f, 0);
+    free(f);
     dos_unmount(fs);
     return 0;
 }
@@ -335,11 +332,12 @@ dos_stat(struct open_file *fd, struct stat *sb)
     DOS_FILE *f = (DOS_FILE *)fd->f_fsdata;
 
     /* only important stuff */
-    sb->st_mode = 0444;
+    sb->st_mode = f->de.attr & FA_DIR ? S_IFDIR | 0555 : S_IFREG | 0444;
     sb->st_nlink = 1;
     sb->st_uid = 0;
     sb->st_gid = 0;
-    sb->st_size = cv4(f->de.size);
+    if ((sb->st_size = fsize(f->fs, &f->de)) == -1)
+	return EINVAL;
     return (0);
 }
 
@@ -562,6 +560,41 @@ cp_sfn(u_char *sfn, DOS_DE *de)
     *p = 0;
     if (*sfn == 5)
         *sfn = 0xe5;
+}
+
+/*
+ * Return size of file in bytes
+ */
+static off_t
+fsize(DOS_FS *fs, DOS_DE *de)
+{
+   u_long size;
+   u_int c;
+   int n;
+
+   if (!(size = cv4(de->size)) && de->attr & FA_DIR)
+      if (!(c = cv2(de->clus)))
+         size = fs->dirents * sizeof(DOS_DE);
+      else {
+         if ((n = fatcnt(fs, c)) == -1)
+            return n;
+         size = blkbyt(fs, n);
+      }
+   return size;
+}
+
+/*
+ * Count number of clusters in chain
+ */
+static int
+fatcnt(DOS_FS *fs, u_int c)
+{
+   int n;
+
+   for (n = 0; okclus(fs, c); n++)
+      if (fatget(fs, &c))
+	  return -1;
+   return fatend(fs->fatsz, c) ? n : -1;
 }
 
 /*
