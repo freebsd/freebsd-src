@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_bio.c,v 1.3 1994/08/02 07:52:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -329,8 +329,6 @@ again:
 	    }
 	    switch (vp->v_type) {
 	    case VREG:
-		if (n + on == biosize || uio->uio_offset == np->n_size)
-			bp->b_flags |= B_AGE;
 		break;
 	    case VLNK:
 		n = 0;

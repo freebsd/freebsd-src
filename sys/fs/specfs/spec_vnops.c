@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id$
+ * $Id: spec_vnops.c,v 1.3 1994/08/02 07:45:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -272,8 +272,6 @@ spec_read(ap)
 				return (error);
 			}
 			error = uiomove((char *)bp->b_data + on, n, uio);
-			if (n + on == bsize)
-				bp->b_flags |= B_AGE;
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
 		return (error);
@@ -352,7 +350,6 @@ spec_write(ap)
 			}
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize) {
-				bp->b_flags |= B_AGE;
 				bawrite(bp);
 			} else
 				bdwrite(bp);
