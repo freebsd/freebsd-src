@@ -41,7 +41,7 @@ _csu=csu
 .endif
 
 # libc_r is obsolete on ia64.
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc"
 .if !defined(NOLIBC_R)
 _libc_r=	libc_r
 .endif
