@@ -1,5 +1,12 @@
 .\" Copyright (c) 2001 Mark R V Murray
 .\" All rights reserved.
+.\" Copyright (c) 2001 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,6 +16,9 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -24,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2001
+.Dd November 26, 2001
 .Dt PAM_UNIX 8
 .Os
 .Sh NAME
@@ -111,6 +121,17 @@ for the entity being authenticated,
 then this option
 will forgo password prompting,
 and silently allow authentication to succeed.
+.It Cm local_pass
+Use only the local password database,
+even if NIS is in use.
+This will cause an authentication failure
+if the system is configured
+to only use NIS.
+.It Cm nis_pass
+Use only the NIS password database.
+This will cause an authentication failure
+if the system is not configured
+to use NIS.
 .El
 .Ss Ux Ss Account Management Module
 The
@@ -169,10 +190,13 @@ default
 password database.
 .El
 .Sh SEE ALSO
-.Xr passwd 1 ,
-.Xr getlogin 2 ,
 .Xr crypt 3 ,
-.Xr syslog 3 ,
+.Xr getlogin 2 ,
+.Xr getpwent 3 ,
+.Xr nsswitch.conf 5 ,
+.Xr pam 8 ,
 .Xr pam.conf 5 ,
+.Xr passwd 1 ,
 .Xr passwd 5 ,
-.Xr pam 8
+.Xr syslog 3 ,
+.Xr nis 4
