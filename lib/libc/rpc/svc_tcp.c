@@ -49,6 +49,7 @@ static char *rcsid = "$FreeBSD$";
 #include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <errno.h>
 
 /*
@@ -131,6 +132,7 @@ svctcp_create(sock, sendsize, recvsize)
 	register struct tcp_rendezvous *r;
 	struct sockaddr_in addr;
 	int len = sizeof(struct sockaddr_in);
+	int on;
 
 	if (sock == RPC_ANYSOCK) {
 		if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
@@ -138,6 +140,13 @@ svctcp_create(sock, sendsize, recvsize)
 			return ((SVCXPRT *)NULL);
 		}
 		madesock = TRUE;
+	}
+	on = 1;
+	if (ioctl(sock, FIONBIO, &on) < 0) {
+		perror("svc_tcp.c - cannot turn on non-blocking mode");
+		if (madesock)
+		       (void)close(sock);
+		return ((SVCXPRT *)NULL);
 	}
 	memset(&addr, 0, sizeof (addr));
 	addr.sin_len = sizeof(struct sockaddr_in);
@@ -233,6 +242,7 @@ rendezvous_request(xprt)
 	struct tcp_rendezvous *r;
 	struct sockaddr_in addr;
 	int len;
+	int off;
 
 	r = (struct tcp_rendezvous *)xprt->xp_p1;
     again:
@@ -247,6 +257,14 @@ rendezvous_request(xprt)
 	 * Guard against FTP bounce attacks.
 	 */
 	if (addr.sin_port == htons(20)) {
+		close(sock);
+		return (FALSE);
+	}
+	/*
+	 * The listening socket is in FIONBIO mode and we inherit it.
+	 */
+	off = 0;
+	if (ioctl(sock, FIONBIO, &off) < 0) {
 		close(sock);
 		return (FALSE);
 	}
