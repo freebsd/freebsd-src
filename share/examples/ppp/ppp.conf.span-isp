@@ -104,7 +104,7 @@
 
 default:
   set speed 115200
-  set device /dev/cuaa0 /dev/cuaa1 /dev/cuaa2 /dev/cuaa3
+  set device /dev/cuad0 /dev/cuad1 /dev/cuad2 /dev/cuad3
   set dial "ABORT BUSY ABORT NO\\sCARRIER ABORT NO\\sDIAL\\sTONE TIMEOUT 4 \
             \"\" ATZ OK-ATZ-OK ATDT\\T TIMEOUT 60 CONNECT \\c \\n"
   set login

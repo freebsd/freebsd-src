@@ -29,7 +29,7 @@
 #
 default:
  set log Phase Chat LCP IPCP CCP tun command
- set device /dev/cuaa1
+ set device /dev/cuad1
  set speed 115200
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" AT \
            OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
@@ -145,7 +145,7 @@ TA:
  set timeout 60 300	# The minimum charge period is 5 minutes, so don't
 			# hangup before then
 
- set device /dev/cuaa0	# Or whatever
+ set device /dev/cuad0	# Or whatever
  set speed 115200	# Use as high a speed as possible
 
  enable dns		# Ask the peer what to put in resolv.conf
@@ -315,7 +315,7 @@ dodgy:
 dodgynet:
     set log Phase                               # Log link uptime
     allow mode auto                             # For autoconnect only
-    set device /dev/cuaa1                       # Define modem device and speed
+    set device /dev/cuad1                       # Define modem device and speed
     set speed 115200
     deny lqr                                    # Don't support LQR
     set phone 0W1194                            # Remote system phone number,
@@ -472,7 +472,7 @@ radius-server:
 #
 direct-client:
  set dial
- set device /dev/cuaa0
+ set device /dev/cuad0
  set sp 115200
  set timeout 900
  set lqrperiod 10
@@ -651,7 +651,7 @@ callback-server:
  set cbcp
  set log +cbcp
  set redial 3 1
- set device /dev/cuaa0
+ set device /dev/cuad0
  set speed 115200
  set dial "TIMEOUT 10 \"\" AT OK-AT-OK ATDT\\T CONNECT"
 
@@ -680,7 +680,7 @@ callback-server-client-decides:
 #
 mloop:
  load loop
- set device /dev/cuaa0 /dev/cuaa1 /dev/cuaa2   # Use any of these devices
+ set device /dev/cuad0 /dev/cuad1 /dev/cuad2   # Use any of these devices
  set mode interactive
  set mrru 1500
  set mru 1504                                  # Room for the MP header

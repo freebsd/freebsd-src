@@ -37,16 +37,16 @@ target remote $arg0
 end
 
 document tr
-Debug a remote system via serial or firewire interface.  For example, specify 'tr /dev/cuaa0' to use first serial port, or 'tr localhost:5556' for default firewire port.  See also tr0, tr1 and trf commands.
+Debug a remote system via serial or firewire interface.  For example, specify 'tr /dev/cuad0' to use first serial port, or 'tr localhost:5556' for default firewire port.  See also tr0, tr1 and trf commands.
 end
 
 # Convenience functions.  These call tr.
-# debug via cuaa0
+# debug via cuad0
 define tr0
-tr /dev/cuaa0
+tr /dev/cuad0
 end
 define tr1
-tr /dev/cuaa1
+tr /dev/cuad1
 end
 # Firewire
 define trf
@@ -54,10 +54,10 @@ tr localhost:5556
 end
 
 document tr0
-Debug a remote system via serial interface /dev/cuaa0.  See also tr, tr1 and trf commands.
+Debug a remote system via serial interface /dev/cuad0.  See also tr, tr1 and trf commands.
 end
 document tr1
-Debug a remote system via serial interface /dev/cuaa1.  See also tr, tr0 and trf commands.
+Debug a remote system via serial interface /dev/cuad1.  See also tr, tr0 and trf commands.
 end
 document trf
 Debug a remote system via firewire interface at default port 5556.  See also tr, tr0 and tr1 commands.
@@ -108,7 +108,7 @@ source gdbinit.kernel
 source gdbinit.machine
 
 echo Ready to go.  Enter 'tr' to connect to the remote target\n
-echo with /dev/cuaa0, 'tr /dev/cuaa1' to connect to a different port\n
+echo with /dev/cuad0, 'tr /dev/cuad1' to connect to a different port\n
 echo or 'trf portno' to connect to the remote target with the firewire\n
 echo interface.  portno defaults to 5556.\n
 echo \n
