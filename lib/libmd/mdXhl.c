@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: mdXhl.c,v 1.4 1995/04/27 16:05:51 wollman Exp $
  *
  */
 
@@ -26,7 +26,7 @@ MDXEnd(MDX_CTX *ctx)
     char *p = malloc(33);
     unsigned char digest[16];
     static const char hex[]="0123456789abcdef";
-    
+
     if(!p) return 0;
     MDXFinal(digest,ctx);
     for(i=0;i<16;i++) {

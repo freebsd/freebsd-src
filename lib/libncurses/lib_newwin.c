@@ -66,7 +66,7 @@ int	i;
 	/*
 	** make sure window fits inside the original one
 	*/
-	if ( begy < 0 || begx < 0) 
+	if ( begy < 0 || begx < 0)
 		return NULL;
 	if ( begy + num_lines > orig->_maxy + 1
 		|| begx + num_columns > orig->_maxx + 1)
@@ -103,7 +103,7 @@ WINDOW *subwin(WINDOW *w, int l, int c, int y, int x)
 	T(("subwin(%x, %d, %d, %d, %d) called", w, l, c, y, x));
 	T(("parent has begy = %d, begx = %d", w->_begy, w->_begx));
 
-	return derwin(w, l, c, y - w->_begy, x - w->_begx); 
+	return derwin(w, l, c, y - w->_begy, x - w->_begx);
 }
 
 WINDOW *
@@ -115,24 +115,24 @@ WINDOW	*win;
 	T(("makenew(%d,%d,%d,%d)", num_lines, num_columns, begy, begx));
 
 	if ((win = (WINDOW *) malloc(sizeof(WINDOW))) == NULL)
-		return NULL;            
+		return NULL;
 
 	if ((win->_line = (chtype **) calloc(num_lines, sizeof (chtype *))) == NULL) {
 		free(win);
-		return NULL;               
+		return NULL;
 	}
 
 	if ((win->_firstchar = calloc(num_lines, sizeof(short))) == NULL) {
 		free(win);
 		free(win->_line);
-		return NULL;             
+		return NULL;
 	}
 
 	if ((win->_lastchar = calloc(num_lines, sizeof(short))) == NULL) {
 		free(win);
 		free(win->_line);
 		free(win->_firstchar);
-		return NULL;            
+		return NULL;
 	}
 
 	win->_curx       = 0;
@@ -158,7 +158,7 @@ WINDOW	*win;
 #else
 	win->_use_meta   = FALSE;
 #endif
-	win->_delay    	 = -1;   
+	win->_delay    	 = -1;
 	win->_immed	 = FALSE;
 	win->_sync	 = 0;
 	win->_parx	 = 0;

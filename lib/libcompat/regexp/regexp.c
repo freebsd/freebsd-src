@@ -335,7 +335,7 @@ int *flagp;
 	}
 
 	/* Make a closing node, and hook it on the end. */
-	ender = regnode((paren) ? CLOSE+parno : END);	
+	ender = regnode((paren) ? CLOSE+parno : END);
 	regtail(ret, ender);
 
 	/* Hook the tails of the branches to the closing node. */
@@ -567,7 +567,7 @@ int *flagp;
 		 * On entry, the char at regparse[-1] is going to go
 		 * into the string, no matter what it is.  (It could be
 		 * following a \ if we are entered from the '\' case.)
-		 * 
+		 *
 		 * Basic idea is to pick up a good char in  ch  and
 		 * examine the next char.  If it's *+? then we twiddle.
 		 * If it's \ then we frozzle.  If it's other magic char
@@ -622,7 +622,7 @@ int *flagp;
 					default:
 						/* Backup point is \, scan							 * point is after it. */
 						regprev = regparse;
-						regparse++; 
+						regparse++;
 						continue;	/* NOT break; */
 					}
 				}
@@ -1174,7 +1174,7 @@ regexp *r;
 		next = regnext(s);
 		if (next == NULL)		/* Next ptr. */
 			printf("(0)");
-		else 
+		else
 			printf("(%d)", (s-r->program)+(next-s));
 		s += 3;
 		if (op == ANYOF || op == ANYBUT || op == EXACTLY) {

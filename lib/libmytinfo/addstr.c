@@ -18,13 +18,13 @@ static char const SCCSid[] = "@(#) mytinfo addstr.c 3.2 92/02/01 public domain, 
 /*
  * I think this routine could be improved, as it is now it searches a
  * linked list of strbufs for one that has enough room left for the
- * string. The only thing else I can think of doing would be to 
+ * string. The only thing else I can think of doing would be to
  * expand a buffer by realloc and then fix the string pointers if it
  * moves.
  */
 
 static struct strbuf *strbuf = NULL;
-   
+
 struct strbuf *
 _endstr() {
 	register struct strbuf *p;
@@ -81,7 +81,7 @@ TERMINAL *p; {
 
 	q = p->strbuf;
 	while(q != NULL) {
-		p->strbuf = q->next; 
+		p->strbuf = q->next;
 		free((anyptr) q);
 		q = p->strbuf;
 	}

@@ -28,7 +28,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rwalld.c,v 1.1.1.1 1994/08/28 14:58:36 csgr Exp $";
+static char rcsid[] = "$Id: rwalld.c,v 1.2 1994/11/18 22:50:22 ats Exp $";
 #endif /* not lint */
 
 #include <unistd.h>
@@ -90,7 +90,7 @@ main(argc, argv)
                 sock = RPC_ANYSOCK;
                 proto = IPPROTO_UDP;
         }
-        
+
         if (!from_inetd) {
                 if (!nodaemon)
                         possess();

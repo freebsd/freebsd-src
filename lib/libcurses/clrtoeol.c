@@ -70,7 +70,7 @@ wclrtoeol(win)
 		}
 #ifdef DEBUG
 	__CTRACE("CLRTOEOL: minx = %d, maxx = %d, firstch = %d, lastch = %d\n",
-	    minx, maxx - win->lines[y]->line, *win->lines[y]->firstchp, 
+	    minx, maxx - win->lines[y]->line, *win->lines[y]->firstchp,
 	    *win->lines[y]->lastchp);
 #endif
 	/* Update firstch and lastch for the line. */

@@ -82,9 +82,9 @@ typedef struct fs_info {
 	off_t	fi_ifile_length;	/* length of the ifile */
 } FS_INFO;
 
-/* 
+/*
  * XXX: size (in bytes) of a segment
- *	should lfs_bsize be fsbtodb(fs,1), blksize(fs), or lfs_dsize? 
+ *	should lfs_bsize be fsbtodb(fs,1), blksize(fs), or lfs_dsize?
  */
 #define seg_size(fs) ((fs)->lfs_ssize << (fs)->lfs_bshift)
 

@@ -72,7 +72,7 @@ getusershell()
 void
 endusershell()
 {
-	
+
 	if (shells != NULL)
 		free(shells);
 	shells = NULL;

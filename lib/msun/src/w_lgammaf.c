@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_lgammaf.c,v 1.1 1994/08/10 20:35:00 jtc Exp $";
+static char rcsid[] = "$Id: w_lgammaf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -45,4 +45,4 @@ extern int signgam;
         } else
             return y;
 #endif
-}             
+}

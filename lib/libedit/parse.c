@@ -131,7 +131,7 @@ parse__escape(ptr)
 
     p = *ptr;
 
-    if (p[1] == 0) 
+    if (p[1] == 0)
 	return -1;
 
     if (*p == '\\') {
@@ -180,7 +180,7 @@ parse__escape(ptr)
 		    }
 		    c = (c << 3) | (ch - '0');
 		}
-		if ((c & 0xffffff00) != 0) 
+		if ((c & 0xffffff00) != 0)
 		    return -1;
 		--p;
 	    }

@@ -97,7 +97,7 @@ char **argv;
 			fprintf(stderr, "cannot enter: key %s\n",
 				item.data);
 			exit(1);
-		}			
+		}
 	}
 
 	(dbp->close)(dbp);

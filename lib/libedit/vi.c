@@ -59,7 +59,7 @@ cv_action(el, c)
     if (el->el_chared.c_vcmd.action & DELETE) {
 	el->el_chared.c_vcmd.action = NOP;
 	el->el_chared.c_vcmd.pos = 0;
-	
+
 	el->el_chared.c_undo.isize = 0;
 	el->el_chared.c_undo.dsize = 0;
 	kp = el->el_chared.c_undo.buf;
@@ -67,14 +67,14 @@ cv_action(el, c)
 	    *kp++ = *cp;
 	    el->el_chared.c_undo.dsize++;
 	}
-		
+
 	el->el_chared.c_undo.action = INSERT;
 	el->el_chared.c_undo.ptr  = el->el_line.buffer;
 	el->el_line.lastchar = el->el_line.buffer;
 	el->el_line.cursor   = el->el_line.buffer;
 	if (c & INSERT)
 	    el->el_map.current = el->el_map.key;
-	    
+
 	return CC_REFRESH;
     }
 
@@ -111,7 +111,7 @@ cv_paste(el, c)
     char *ptr;
     c_undo_t *un = &el->el_chared.c_undo;
 #ifdef DEBUG_PASTE
-    (void) fprintf(el->el_errfile, "Paste: %x \"%s\" +%d -%d\n", 
+    (void) fprintf(el->el_errfile, "Paste: %x \"%s\" +%d -%d\n",
 		   un->action, un->buf, un->isize, un->dsize);
 #endif
     if (un->isize == 0)
@@ -120,7 +120,7 @@ cv_paste(el, c)
     if (!c && el->el_line.cursor < el->el_line.lastchar)
 	el->el_line.cursor++;
     ptr = el->el_line.cursor;
-	
+
     c_insert(el, un->isize);
     if (el->el_line.cursor + un->isize > el->el_line.lastchar)
 	return CC_ERROR;
@@ -129,7 +129,7 @@ cv_paste(el, c)
 }
 
 
-/* vi_paste_next(): 
+/* vi_paste_next():
  *	Vi paste previous deletion to the right of the cursor
  *	[p]
  */
@@ -143,7 +143,7 @@ vi_paste_next(el, c)
 }
 
 
-/* vi_paste_prev(): 
+/* vi_paste_prev():
  *	Vi paste previous deletion to the left of the cursor
  *	[P]
  */
@@ -157,7 +157,7 @@ vi_paste_prev(el, c)
 }
 
 
-/* vi_prev_space_word(): 
+/* vi_prev_space_word():
  *	Vi move to the previous space delimited word
  *	[B]
  */
@@ -170,10 +170,10 @@ vi_prev_space_word(el, c)
     if (el->el_line.cursor == el->el_line.buffer)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv_prev_word(el, el->el_line.cursor, 
-				      el->el_line.buffer, 
-			 	      el->el_state.argument, 
-				      cv__isword); 
+    el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
+				      el->el_line.buffer,
+			 	      el->el_state.argument,
+				      cv__isword);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
 	cv_delfini(el);
@@ -184,7 +184,7 @@ vi_prev_space_word(el, c)
 }
 
 
-/* vi_prev_word(): 
+/* vi_prev_word():
  *	Vi move to the previous word
  *	[B]
  */
@@ -197,10 +197,10 @@ vi_prev_word(el, c)
     if (el->el_line.cursor == el->el_line.buffer)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv_prev_word(el, el->el_line.cursor, 
-				      el->el_line.buffer, 
-			 	      el->el_state.argument, 
-				      ce__isword); 
+    el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
+				      el->el_line.buffer,
+			 	      el->el_state.argument,
+				      ce__isword);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
 	cv_delfini(el);
@@ -211,7 +211,7 @@ vi_prev_word(el, c)
 }
 
 
-/* vi_next_space_word(): 
+/* vi_next_space_word():
  *	Vi move to the next space delimited word
  *	[W]
  */
@@ -224,9 +224,9 @@ vi_next_space_word(el, c)
     if (el->el_line.cursor == el->el_line.lastchar)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv_next_word(el, el->el_line.cursor, 
-				      el->el_line.lastchar, 
-				      el->el_state.argument, 
+    el->el_line.cursor = cv_next_word(el, el->el_line.cursor,
+				      el->el_line.lastchar,
+				      el->el_state.argument,
 				      cv__isword);
 
     if (el->el_map.type == MAP_VI)
@@ -238,7 +238,7 @@ vi_next_space_word(el, c)
     return CC_CURSOR;
 }
 
-/* vi_next_word(): 
+/* vi_next_word():
  *	Vi move to the next word
  *	[w]
  */
@@ -251,8 +251,8 @@ vi_next_word(el, c)
     if (el->el_line.cursor == el->el_line.lastchar)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv_next_word(el, el->el_line.cursor, 
-				      el->el_line.lastchar, 
+    el->el_line.cursor = cv_next_word(el, el->el_line.cursor,
+				      el->el_line.lastchar,
 				      el->el_state.argument,
 				      ce__isword);
 
@@ -267,7 +267,7 @@ vi_next_word(el, c)
 
 
 
-/* vi_change_case(): 
+/* vi_change_case():
  *	Vi change case of character under the cursor and advance one character
  *	[~]
  */
@@ -291,7 +291,7 @@ vi_change_case(el, c)
 }
 
 
-/* vi_change_meta(): 
+/* vi_change_meta():
  *	Vi change prefix command
  *	[c]
  */
@@ -309,7 +309,7 @@ vi_change_meta(el, c)
 }
 
 
-/* vi_insert_at_bol(): 
+/* vi_insert_at_bol():
  *	Vi enter insert mode at the beginning of line
  *	[I]
  */
@@ -330,7 +330,7 @@ vi_insert_at_bol(el, c)
 }
 
 
-/* vi_replace_char(): 
+/* vi_replace_char():
  *	Vi replace character under the cursor with the next character typed
  *	[r]
  */
@@ -350,7 +350,7 @@ vi_replace_char(el, c)
 }
 
 
-/* vi_replace_mode(): 
+/* vi_replace_mode():
  *	Vi enter replace mode
  *	[R]
  */
@@ -370,7 +370,7 @@ vi_replace_mode(el, c)
 }
 
 
-/* vi_substitute_char(): 
+/* vi_substitute_char():
  *	Vi replace character under the cursor and enter insert mode
  *	[r]
  */
@@ -386,7 +386,7 @@ vi_substitute_char(el, c)
 }
 
 
-/* vi_substitute_line(): 
+/* vi_substitute_line():
  *	Vi substitute entire line
  *	[S]
  */
@@ -402,7 +402,7 @@ vi_substitute_line(el, c)
 }
 
 
-/* vi_change_to_eol(): 
+/* vi_change_to_eol():
  *	Vi change to end of line
  *	[C]
  */
@@ -439,7 +439,7 @@ vi_insert(el, c)
 
 
 /* vi_add():
- *	Vi enter insert mode after the cursor 
+ *	Vi enter insert mode after the cursor
  *	[a]
  */
 protected el_action_t
@@ -481,7 +481,7 @@ vi_add_at_eol(el, c)
     el->el_line.cursor = el->el_line.lastchar;
 
     /* Mark where insertion begins */
-    el->el_chared.c_vcmd.ins = el->el_line.lastchar; 
+    el->el_chared.c_vcmd.ins = el->el_line.lastchar;
     el->el_chared.c_undo.ptr = el->el_line.lastchar;
     el->el_chared.c_undo.action = DELETE;
     return CC_CURSOR;
@@ -489,7 +489,7 @@ vi_add_at_eol(el, c)
 
 
 /* vi_delete_meta():
- *	Vi delete prefix command 
+ *	Vi delete prefix command
  *	[d]
  */
 protected el_action_t
@@ -503,8 +503,8 @@ vi_delete_meta(el, c)
 
 
 /* vi_end_word():
- *	Vi move to the end of the current space delimited word 
- *	[E] 
+ *	Vi move to the end of the current space delimited word
+ *	[E]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -515,7 +515,7 @@ vi_end_word(el, c)
     if (el->el_line.cursor == el->el_line.lastchar)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv__endword(el->el_line.cursor, el->el_line.lastchar, 
+    el->el_line.cursor = cv__endword(el->el_line.cursor, el->el_line.lastchar,
 				     el->el_state.argument);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
@@ -541,7 +541,7 @@ vi_to_end_word(el, c)
     if (el->el_line.cursor == el->el_line.lastchar)
 	return CC_ERROR;
 
-    el->el_line.cursor = cv__endword(el->el_line.cursor, el->el_line.lastchar, 
+    el->el_line.cursor = cv__endword(el->el_line.cursor, el->el_line.lastchar,
 				     el->el_state.argument);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
@@ -570,12 +570,12 @@ vi_undo(el, c)
     c_undo_t *un = &el->el_chared.c_undo;
 
 #ifdef DEBUG_UNDO
-    (void) fprintf(el->el_errfile, "Undo: %x \"%s\" +%d -%d\n", 
+    (void) fprintf(el->el_errfile, "Undo: %x \"%s\" +%d -%d\n",
 		   un->action, un->buf, un->isize, un->dsize);
 #endif
     switch (un->action) {
     case DELETE:
-	if (un->dsize == 0) 
+	if (un->dsize == 0)
 	    return CC_NORM;
 
 	(void) memcpy(un->buf, un->ptr, un->dsize);
@@ -584,7 +584,7 @@ vi_undo(el, c)
 
 	el->el_line.lastchar -= un->dsize;
 	el->el_line.cursor   =  un->ptr;
-	
+
 	un->action = INSERT;
 	un->isize = un->dsize;
 	un->dsize = 0;
@@ -592,9 +592,9 @@ vi_undo(el, c)
 
     case DELETE|INSERT:
 	size = un->isize - un->dsize;
-	if (size > 0) 
+	if (size > 0)
 	    i = un->dsize;
-	else 
+	else
 	    i = un->isize;
 	cp = un->ptr;
 	kp = un->buf;
@@ -627,7 +627,7 @@ vi_undo(el, c)
 	break;
 
     case INSERT:
-	if (un->isize == 0) 
+	if (un->isize == 0)
 	    return CC_NORM;
 
 	el->el_line.cursor = un->ptr;
@@ -639,11 +639,11 @@ vi_undo(el, c)
 	break;
 
     case CHANGE:
-	if (un->isize == 0) 
+	if (un->isize == 0)
 	    return CC_NORM;
 
 	el->el_line.cursor = un->ptr;
-	size = (int) (el->el_line.cursor - el->el_line.lastchar); 
+	size = (int) (el->el_line.cursor - el->el_line.lastchar);
 	if (size < un->isize)
 	    size = un->isize;
 	cp = un->ptr;
@@ -677,7 +677,7 @@ vi_command_mode(el, c)
     int size;
     /* [Esc] cancels pending action */
     el->el_chared.c_vcmd.ins = 0;
-    el->el_chared.c_vcmd.action = NOP;	
+    el->el_chared.c_vcmd.action = NOP;
     el->el_chared.c_vcmd.pos = 0;
 
     el->el_state.doingarg = 0;
@@ -700,7 +700,7 @@ vi_command_mode(el, c)
 }
 
 /* vi_zero():
- *	Vi move to the beginning of line 
+ *	Vi move to the beginning of line
  *	[0]
  */
 protected el_action_t
@@ -711,7 +711,7 @@ vi_zero(el, c)
     if (el->el_state.doingarg) {
 	if (el->el_state.argument > 1000000)
 	    return CC_ERROR;
-	el->el_state.argument = 
+	el->el_state.argument =
 		(el->el_state.argument * 10) + (c - '0');
 	return CC_ARGHACK;
     }
@@ -727,23 +727,23 @@ vi_zero(el, c)
 
 
 /* vi_delete_prev_char():
- * 	Vi move to previous character (backspace) 
+ * 	Vi move to previous character (backspace)
  *	[^H]
- */ 
+ */
 protected el_action_t
 /*ARGSUSED*/
 vi_delete_prev_char(el, c)
     EditLine *el;
     int c;
 {
-    if (el->el_chared.c_vcmd.ins == 0) 
+    if (el->el_chared.c_vcmd.ins == 0)
 	return CC_ERROR;
 
-    if (el->el_chared.c_vcmd.ins > 
+    if (el->el_chared.c_vcmd.ins >
 	el->el_line.cursor - el->el_state.argument)
 	return CC_ERROR;
 
-    c_delbefore(el, el->el_state.argument);	
+    c_delbefore(el, el->el_state.argument);
     el->el_line.cursor -= el->el_state.argument;
 
     return CC_REFRESH;
@@ -761,7 +761,7 @@ vi_list_or_eof(el, c)
     int c;
 {
 #ifdef notyet
-    if (el->el_line.cursor == el->el_line.lastchar && 
+    if (el->el_line.cursor == el->el_line.lastchar &&
 	el->el_line.cursor == el->el_line.buffer) {
 #endif
 	term_overwrite(el, STReof, 4);	/* then do a EOF */
@@ -779,7 +779,7 @@ vi_list_or_eof(el, c)
 
 
 /* vi_kill_line_prev():
- *	Vi cut from beginning of line to cursor 
+ *	Vi cut from beginning of line to cursor
  *	[^U]
  */
 protected el_action_t
@@ -839,7 +839,7 @@ vi_repeat_search_next(el, c)
     EditLine *el;
     int c;
 {
-    if (el->el_search.patlen == 0) 
+    if (el->el_search.patlen == 0)
 	return CC_ERROR;
     else
 	return cv_repeat_srch(el, el->el_search.patdir);
@@ -856,10 +856,10 @@ vi_repeat_search_prev(el, c)
     EditLine *el;
     int c;
 {
-    if (el->el_search.patlen == 0) 
+    if (el->el_search.patlen == 0)
 	return CC_ERROR;
     else
-	return cv_repeat_srch(el, 
+	return cv_repeat_srch(el,
 			      el->el_search.patdir == ED_SEARCH_PREV_HISTORY ?
 			      ED_SEARCH_NEXT_HISTORY : ED_SEARCH_PREV_HISTORY);
 }
@@ -961,8 +961,8 @@ vi_repeat_next_char(el, c)
     if (el->el_search.chacha == 0)
 	return CC_ERROR;
 
-    return el->el_search.chadir == CHAR_FWD ? 
-	cv_csearch_fwd(el, el->el_search.chacha, el->el_state.argument, 0) : 
+    return el->el_search.chadir == CHAR_FWD ?
+	cv_csearch_fwd(el, el->el_search.chacha, el->el_state.argument, 0) :
         cv_csearch_back(el, el->el_search.chacha, el->el_state.argument, 0);
 }
 
@@ -980,7 +980,7 @@ vi_repeat_prev_char(el, c)
     if (el->el_search.chacha == 0)
 	return CC_ERROR;
 
-    return el->el_search.chadir == CHAR_BACK ? 
-	cv_csearch_fwd(el, el->el_search.chacha, el->el_state.argument, 0) : 
+    return el->el_search.chadir == CHAR_BACK ?
+	cv_csearch_fwd(el, el->el_search.chacha, el->el_state.argument, 0) :
         cv_csearch_back(el, el->el_search.chacha, el->el_state.argument, 0);
 }

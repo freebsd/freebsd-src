@@ -1,6 +1,6 @@
 /*
  * buildpath.c
- * 
+ *
  * By Ross Ridge
  * Public Domain
  * 92/02/01 07:29:42
@@ -9,7 +9,7 @@
  * from its arguments. It returns a pointer to a structure that is used by
  * other routines as the list of file names to search for terminal
  * descriptions.  It is passed a variable number of arguments consisting
- * of file name and type pairs. The file name can actually be a list of 
+ * of file name and type pairs. The file name can actually be a list of
  * file names seperated by spaces and any environment variables specified
  * by a dollar sign ($) followed by its name are substituted in. A type
  * of 1 indicates that the file name may actually be termcap description
@@ -27,7 +27,7 @@ static const char SCCSid[] = "@(#) mytinfo buildpath.c 3.2 92/02/01 public domai
 #endif
 
 /* more memory is allocated for file names every HUNK file names */
-#define HUNK 32	
+#define HUNK 32
 
 /* characters that seperate file names in a list */
 #define SEPERATORS " :"
@@ -58,7 +58,7 @@ int type; {
 	if (files >= size) {
 		size += HUNK;
 		if (path == NULL)
-			path = (struct term_path *) 
+			path = (struct term_path *)
 				malloc(size * sizeof(struct term_path));
 		else
 			path = (struct term_path *)
@@ -77,7 +77,7 @@ int type; {
 		path[files].file = strcpy(s, file);
 	}
 	path[files].type = type;
-	
+
 	return ++files;
 }
 
@@ -155,7 +155,7 @@ va_dcl
 			if (*s == '$') {
 				s++;
 				j = 0;
-				while(*s != '\0' && (*s == '_' || isalnum(*s))) 
+				while(*s != '\0' && (*s == '_' || isalnum(*s)))
 					if (j < MAX_NAME) {
 						name[j] = *s++;
 						j++;
@@ -171,7 +171,7 @@ va_dcl
 						} else
 							break;
 					}
-				} else if (*s == '/') 
+				} else if (*s == '/')
 					s++;
 			} else {
 				if (i < MAX_BUF) {
@@ -192,7 +192,7 @@ va_dcl
 				while ((s = strsep(&p, SEPERATORS)) != NULL && *s == '\0')
 					;
 			}
-		} else 
+		} else
 			if (addfile(line, type) == 0)
 				return NULL;
 		file = va_arg(ap, char *);

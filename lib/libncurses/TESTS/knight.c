@@ -28,7 +28,7 @@ int	xpos[]={0,1,2,1,0,5,4,3,2,4,6,7,8,8,9,10,10,11,12,13,14,15,15,16,
 	13,23,25,27,27,2,3,4,5,6,7,4,3,2,1,0,1,2,5,4,5,6,6,7,8,9,8,9,10,
 	11,11,12,13,14,14,15};
 
-static char *instructions[] = 
+static char *instructions[] =
 {
 "     Knight's Tour is a board game for one player.   It is played on",
 "an eight by eight board and is based on the allowable moves that a knight",
@@ -59,7 +59,7 @@ void init(void);
 int play(void);
 void drawboard(void);
 void dosquares(void);
-void getfirst(void); 
+void getfirst(void);
 void getrc(void);
 void putstars(void);
 int evalmove(void);
@@ -73,7 +73,7 @@ int
 main ()
 {
 	init ();
-	for (;;)  
+	for (;;)
 		if (!play ()) {
 			endwin ();
 			exit (0);
@@ -91,12 +91,12 @@ init ()
 	title (1,23);
 	mvaddstr (23, 25, "Would you like instructions? ");
 	refresh();
-	if ((toupper(getch())) == 'Y') 
+	if ((toupper(getch())) == 'Y')
 		instruct();
 	clear ();
 }
 
-int 
+int
 play ()
 {
 	drawboard ();           /* clear screen and drawboard */
@@ -106,7 +106,7 @@ play ()
 		getrc();
 		if (evalmove()) {
 			putstars ();
-			if (!chkmoves()) 
+			if (!chkmoves())
 				return (endgame ());
 		}
 		else beep();
@@ -164,7 +164,7 @@ getfirst ()                             /* get first square */
 	putstars ();
 	move (23, 0);
 	clrtobot();
-}       
+}
 
 void
 getrc ()                                /* get row and column */

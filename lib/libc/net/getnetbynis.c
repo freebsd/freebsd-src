@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.1 1994/09/25 02:12:26 pst Exp $";
-static char rcsid[] = "$Id: getnetbynis.c,v 1.1 1994/09/25 02:12:26 pst Exp $";
+static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.2 1994/09/26 02:50:43 wollman Exp $";
+static char rcsid[] = "$Id: getnetbynis.c,v 1.2 1994/09/26 02:50:43 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -122,13 +122,13 @@ _getnetbynisaddr(addr, type)
 	if (type != AF_INET)
 		return (NULL);
 
-	in.s_addr = addr;	
+	in.s_addr = addr;
 	str = inet_ntoa(in);
 	cp = str + strlen(str) - 2;
 	while(!strcmp(cp, ".0")) {
 		*cp = '\0';
 		cp = str + strlen(str) - 2;
 	}
-	
+
 	return _getnetbynis(str, "networks.byaddr");
 }

@@ -83,7 +83,7 @@ getvfsbyname(const char *name)
 	}
 
 	for(i = 0; i < _vfslistlen; i++) {
-		if( ! strcmp(_vfslist[i].vfc_name, name) ) 
+		if( ! strcmp(_vfslist[i].vfc_name, name) )
 			break;
 	}
 
@@ -113,7 +113,7 @@ getvfsbytype(int type)
 	}
 
 	for(i = 0; i < _vfslistlen; i++) {
-		if(_vfslist[i].vfc_index == type) 
+		if(_vfslist[i].vfc_index == type)
 			break;
 	}
 

@@ -101,7 +101,7 @@ wscanw(win, fmt, va_alist)
 }
 
 /*
- * mvscanw, mvwscanw -- 
+ * mvscanw, mvwscanw --
  *	Implement the mvscanw commands.  Due to the variable number of
  *	arguments, they cannot be macros.  Another sigh....
  */

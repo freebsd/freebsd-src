@@ -111,7 +111,7 @@ vis(dst, c, flag, nextc)
 			goto done;
 		}
 	}
-	if (((c & 0177) == ' ') || (flag & VIS_OCTAL)) {	
+	if (((c & 0177) == ' ') || (flag & VIS_OCTAL)) {
 		*dst++ = '\\';
 		*dst++ = ((u_char)c >> 6 & 07) + '0';
 		*dst++ = ((u_char)c >> 3 & 07) + '0';
@@ -141,10 +141,10 @@ done:
 
 /*
  * strvis, strvisx - visually encode characters from src into dst
- *	
+ *
  *	Dst must be 4 times the size of src to account for possible
  *	expansion.  The length of dst, not including the trailing NULL,
- *	is returned. 
+ *	is returned.
  *
  *	Strvisx encodes exactly len bytes from src into dst.
  *	This is useful for encoding a block of data.

@@ -3,7 +3,7 @@
 /* Copyright (c) 1994 HD Associates
  * (contact: dufault@hda.com)
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the HD Associaates nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $Id: scsi.c,v 1.4 1995/04/28 19:23:49 dufault Exp $
+ * $Id: scsi.c,v 1.5 1995/05/05 20:40:02 dufault Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -108,7 +108,7 @@ scsireq_t *scsireq_new(void)
  * field_specifier : type_specifier field_width
  *       | '{' NAME '}' type_specifier field_width
  *       ;
- * 
+ *
  * field_width : DECIMAL_NUMBER
  *       ;
  *
@@ -390,15 +390,15 @@ void (*arg_put)(void *, int, void *, int, char *), void *puthook)
  * field : value
  *       | value ':' field_width
  *       ;
- * 
+ *
  * field_width : digit
  *       | 'i' digit		// i2 = 2 byte integer, i3 = 3 byte integer etc.
  *       ;
- * 
+ *
  * value : HEX_NUMBER
  *       | 'v'				// For indirection.
  *       ;
- * 
+ *
  * Notes:
  *  Bit fields are specified MSB first to match the SCSI spec.
  *
@@ -646,7 +646,7 @@ char *fmt, va_list ap)
 			else
 				value = arg_get ? (*arg_get)(gethook, field_name) : va_arg(ap, int);
 		}
-				
+
 #if 0
 		printf(
 "do_encode: ret %d fmt %c width %d value %d name \"%s\" error %d suppress %d\n",
@@ -1136,7 +1136,7 @@ int scsi_debug(FILE *f, int ret, scsireq_t *scsireq)
 			d = "Data out";
 		else
 			d = "No data transfer?";
-	
+
 		if (scsireq->cmdlen == 0)
 			fprintf(f, "Zero length command????\n");
 

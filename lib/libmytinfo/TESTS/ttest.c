@@ -6,7 +6,7 @@
  * 92/02/01 07:30:47
  *
  */
- 
+
 #define NOTLIB
 #include "defs.h"
 #include <term.h>
@@ -18,7 +18,7 @@ cup(x,y)
 int x, y; {
 	if (columns < 2 || lines < 2)
 		return -1;
-	if (cursor_address != NULL) 
+	if (cursor_address != NULL)
 		putp(tparm(cursor_address, y, x));
 	else if (cursor_home != NULL && cursor_down != NULL
 		 && cursor_right != NULL) {
@@ -68,12 +68,12 @@ clear() {
 
 void
 nl() {
-	if (newline != NULL) 
+	if (newline != NULL)
 		putp(newline);
 	else if (carriage_return != NULL && cursor_down != NULL) {
 		putp(cursor_down);
 		putp(carriage_return);
-	} else 
+	} else
 		quit(-1, "can't do a newline");
 	return;
 }
@@ -176,7 +176,7 @@ char **argv; {
 #endif
 #endif
 	def_prog_mode();
-	
+
 	clear();
 	printf("columns = %d", columns);
 	nl();
@@ -219,10 +219,10 @@ char **argv; {
 				putchar('\\');
 			}
 		} else if (carriage_return != NULL) {
-			for(i = 0; i < columns / 4 + 1; i++) 
+			for(i = 0; i < columns / 4 + 1; i++)
 				putchar('/');
 			putp(carriage_return);
-			for(i = 0; i < columns / 4 + 1; i++) 
+			for(i = 0; i < columns / 4 + 1; i++)
 				putchar('\\');
 		}
 		nl();
@@ -292,6 +292,6 @@ char **argv; {
 
 	clear();
 	reset_shell_mode();
-	
+
 	return (0);
 }

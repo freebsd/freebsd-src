@@ -42,20 +42,20 @@ char buf[BUFSIZ];
 unsigned int c;
 int incount = 0, firsttime = 0;
 bool blocking = TRUE;
-  
+
       refresh();
-  
+
      (void) printw("Delay in 10ths of a second (<CR> for blocking input)? ");
      echo();
      getstr(buf);
      noecho();
- 
+
      if (isdigit(buf[0]))
      {
  	timeout(atoi(buf) * 100);
  	blocking = FALSE;
      }
- 
+
       c = '?';
      for (;;)
      {
@@ -162,7 +162,7 @@ static void attr_test(void)
 
 static char	*colors[] =
 {
-    "black", 
+    "black",
     "red",
     "green",
     "yellow",
@@ -238,7 +238,7 @@ static void color_edit(void)
 	for (i = 0; i < COLORS; i++)
         {
 	    mvprintw(2 + i, 0, "%c %-8s:",
-		     (i == current ? '>' : ' '), 
+		     (i == current ? '>' : ' '),
 		     (i < sizeof(colors)/sizeof(colors[0]) ? colors[i] : ""));
 	    attrset(COLOR_PAIR(i));
 	    addstr("        ");
@@ -321,7 +321,7 @@ static void color_edit(void)
 	    goto changeit;
 
 	case '=':
-	    usebase = 0; 
+	    usebase = 0;
 	changeit:
 	    color_content(current, &red, &green, &blue);
 	    if (field == 0)
@@ -339,7 +339,7 @@ static void color_edit(void)
     P("");
     P("You are in the RGB value editor.  Use the arrow keys to select one of");
     P("the fields in one of the RGB triples of the current colors; the one");
-    P("currently selected will be reverse-video highlighted.");    
+    P("currently selected will be reverse-video highlighted.");
     P("");
     P("To change a field, enter the digits of the new value; they won't be");
     P("echoed.  Finish by typing `='; the change will take effect instantly.");
@@ -510,7 +510,7 @@ static void acs_display()
     mvaddstr(ACSY + 10,40, "ACS_LANTERN: "); addch(ACS_LANTERN);
     mvaddstr(ACSY + 11,40, "ACS_BLOCK: "); addch(ACS_BLOCK);
 
-#define HYBASE 	(ACSY + 13)    
+#define HYBASE 	(ACSY + 13)
     mvprintw(HYBASE + 1, 0, "High-half characters via echochar:\n");
     for (i = 0; i < 4; i++)
     {
@@ -796,7 +796,7 @@ static void panner(WINDOW *pad, int iy, int ix, int (*pgetc)(void))
 		 basey, basex,
 		 0, 0,
 		 porty - (hscroll != (WINDOW *)NULL) - 1,
-		 portx - (vscroll != (WINDOW *)NULL) - 1); 
+		 portx - (vscroll != (WINDOW *)NULL) - 1);
 	if (vscroll)
         {
 	    int lowend, i, highend;

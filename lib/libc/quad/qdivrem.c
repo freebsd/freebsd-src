@@ -198,7 +198,7 @@ __qdivrem(uq, vq, arq)
 	v2 = v[2];	/* for D3 */
 	do {
 		register digit uj0, uj1, uj2;
-		
+
 		/*
 		 * D3: Calculate qhat (\^q, in TeX notation).
 		 * Let qhat = min((u[j]*B + u[j+1])/v[1], B-1), and

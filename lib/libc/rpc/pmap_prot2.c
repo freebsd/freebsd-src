@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_prot2.c 1.3 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_prot2.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_prot2.c,v 1.1 1993/10/27 05:40:39 paul Exp $";
+static char *rcsid = "$Id: pmap_prot2.c,v 1.1 1994/08/07 18:35:57 wollman Exp $";
 #endif
 
 /*
@@ -45,7 +45,7 @@ static char *rcsid = "$Id: pmap_prot2.c,v 1.1 1993/10/27 05:40:39 paul Exp $";
 #include <rpc/pmap_prot.h>
 
 
-/* 
+/*
  * What is going on with linked lists? (!)
  * First recall the link list declaration from pmap_prot.h:
  *
@@ -54,11 +54,11 @@ static char *rcsid = "$Id: pmap_prot2.c,v 1.1 1993/10/27 05:40:39 paul Exp $";
  *	struct pmaplist *pml_map;
  * };
  *
- * Compare that declaration with a corresponding xdr declaration that 
+ * Compare that declaration with a corresponding xdr declaration that
  * is (a) pointer-less, and (b) recursive:
  *
  * typedef union switch (bool_t) {
- * 
+ *
  *	case TRUE: struct {
  *		struct pmap;
  * 		pmaplist_t foo;
@@ -71,8 +71,8 @@ static char *rcsid = "$Id: pmap_prot2.c,v 1.1 1993/10/27 05:40:39 paul Exp $";
  * the C declaration has no bool_t variable.  The bool_t can be
  * interpreted as ``more data follows me''; if FALSE then nothing
  * follows this bool_t; if TRUE then the bool_t is followed by
- * an actual struct pmap, and then (recursively) by the 
- * xdr union, pamplist_t.  
+ * an actual struct pmap, and then (recursively) by the
+ * xdr union, pamplist_t.
  *
  * This could be implemented via the xdr_union primitive, though this
  * would cause a one recursive call per element in the list.  Rather than do
@@ -109,7 +109,7 @@ xdr_pmaplist(xdrs, rp)
 		 * before we free the current object ...
 		 */
 		if (freeing)
-			next = &((*rp)->pml_next); 
+			next = &((*rp)->pml_next);
 		if (! xdr_reference(xdrs, (caddr_t *)rp,
 		    (u_int)sizeof(struct pmaplist), xdr_pmap))
 			return (FALSE);

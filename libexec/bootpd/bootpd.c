@@ -21,7 +21,7 @@ SOFTWARE.
 ************************************************************************/
 
 #ifndef lint
-static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/10 14:44:54 csgr Exp $";
+static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
 #endif
 
 /*
@@ -1235,7 +1235,7 @@ dovend_rfc1048(bp, hp, bootsize)
 			byte *p, *ep;
 			byte tag, len;
 			short msgsz = 0;
-			
+
 			p = vp + 4;
 			ep = p + BP_VEND_LEN - 4;
 			while (p < ep) {

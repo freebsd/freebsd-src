@@ -8,16 +8,16 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_log10f.c,v 1.1 1994/08/10 20:35:20 jtc Exp $";
+static char rcsid[] = "$Id: w_log10f.c,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $";
 #endif
 
-/* 
+/*
  * wrapper log10f(X)
  */
 
@@ -42,7 +42,7 @@ static char rcsid[] = "$Id: w_log10f.c,v 1.1 1994/08/10 20:35:20 jtc Exp $";
 	    if(x==(float)0.0)
 	        /* log10(0) */
 	        return (float)__kernel_standard((double)x,(double)x,118);
-	    else 
+	    else
 	        /* log10(x<0) */
 	        return (float)__kernel_standard((double)x,(double)x,119);
 	} else

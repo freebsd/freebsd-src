@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)kvm_sparc.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
- * Sparc machine dependent routines for kvm.  Hopefully, the forthcoming 
+ * Sparc machine dependent routines for kvm.  Hopefully, the forthcoming
  * vm code will one day obsolete this module.
  */
 
@@ -107,7 +107,7 @@ _kvm_initvtop(kd)
 	 */
 	off = st.st_size - ctob(btoc(sizeof(vm->segmap)));
 	errno = 0;
-	if (lseek(kd->pmfd, (off_t)off, 0) == -1 && errno != 0 || 
+	if (lseek(kd->pmfd, (off_t)off, 0) == -1 && errno != 0 ||
 	    read(kd->pmfd, (char *)vm->segmap, sizeof(vm->segmap)) < 0) {
 		_kvm_err(kd, kd->program, "cannot read segment map");
 		return (-1);
@@ -118,7 +118,7 @@ _kvm_initvtop(kd)
 	off = st.st_size - ctob(btoc(sizeof(vm->pmeg)) +
 	    btoc(sizeof(vm->segmap)));
 	errno = 0;
-	if (lseek(kd->pmfd, (off_t)off, 0) == -1 && errno != 0 || 
+	if (lseek(kd->pmfd, (off_t)off, 0) == -1 && errno != 0 ||
 	    read(kd->pmfd, (char *)vm->pmeg, sizeof(vm->pmeg)) < 0) {
 		_kvm_err(kd, kd->program, "cannot read PMEG table");
 		return (-1);
@@ -127,7 +127,7 @@ _kvm_initvtop(kd)
 	 * Make pmap_stod be an identity map so we can bootstrap it in.
 	 * We assume it's in the first contiguous chunk of physical memory.
 	 */
-	for (i = 0; i < BTSIZE; ++i) 
+	for (i = 0; i < BTSIZE; ++i)
 		vm->pmap_stod[i] = i << 4;
 
 	/*
@@ -142,7 +142,7 @@ _kvm_initvtop(kd)
 		_kvm_err(kd, kd->program, "pmap_stod: no such symbol");
 		return (-1);
 	}
-	if (kvm_read(kd, (u_long)nlist[0].n_value, 
+	if (kvm_read(kd, (u_long)nlist[0].n_value,
 		     (char *)vm->pmap_stod, sizeof(vm->pmap_stod))
 	    != sizeof(vm->pmap_stod)) {
 		_kvm_err(kd, kd->program, "cannot read pmap_stod");
@@ -194,7 +194,7 @@ _kvm_uvatop(kd, p, va, pa)
 			frame = pte & PG_PFNUM;
 		else
 			frame = HWTOSW(kd->vmst->pmap_stod, pte & PG_PFNUM);
-		*pa = (frame << PGSHIFT) | off;		
+		*pa = (frame << PGSHIFT) | off;
 		return (NBPG - off);
 	}
 invalid:
@@ -205,7 +205,7 @@ invalid:
 /*
  * Translate a kernel virtual address to a physical address using the
  * mapping information in kd->vm.  Returns the result in pa, and returns
- * the number of bytes that are contiguously available from this 
+ * the number of bytes that are contiguously available from this
  * physical address.  This routine is used only for crashdumps.
  */
 int

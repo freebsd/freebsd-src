@@ -1,5 +1,5 @@
 /*
- * term.h 
+ * term.h
  *
  * This file was generated automatically.
  *
@@ -525,7 +525,7 @@
 #define _MAX_CHUNK 640
 #endif /* OVERRIDE */
 
-/* 
+/*
  * 92/02/01 07:30:28
  * @(#) mytinfo term.tail 3.2 92/02/01 public domain, By Ross Ridge
  *
@@ -604,8 +604,8 @@ typedef struct _terminal {
 #else
 #ifdef _USE_TERMIO
 	struct termio prog_mode, shell_mode;
-#endif 
-#endif 
+#endif
+#endif
 #endif	/* else _USE_SGTTY */
 #ifdef _USE_WINSZ
 #ifdef TIOCGWINSZ

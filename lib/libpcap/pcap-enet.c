@@ -125,7 +125,7 @@ wrapup(int fd)
 		perror("tcpdump: enet ioctl EIOSTATS error");
 		exit(-1);
 	}
-	
+
 	fprintf(stderr, "%d packets queued", es.enStat_Rcnt);
 	if (es.enStat_Rdrops > 0)
 		fprintf(stderr, ", %d dropped", es.enStat_Rdrops);
@@ -133,7 +133,7 @@ wrapup(int fd)
 		fprintf(stderr, ", %d tcpdump %s", es.enStat_Reads,
 				es.enStat_Reads > 1 ? "reads" : "read");
 	if (es.enStat_MaxRead > 1)
-		fprintf(stderr, ", %d packets in largest read", 
+		fprintf(stderr, ", %d packets in largest read",
 			es.enStat_MaxRead);
 	putc('\n', stderr);
 #endif	/* IBMRTPC */

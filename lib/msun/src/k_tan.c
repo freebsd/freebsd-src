@@ -5,38 +5,38 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: k_tan.c,v 1.6 1994/08/18 23:06:16 jtc Exp $";
+static char rcsid[] = "$Id: k_tan.c,v 1.1.1.1 1994/08/19 09:39:45 jkh Exp $";
 #endif
 
 /* __kernel_tan( x, y, k )
  * kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
  * Input x is assumed to be bounded by ~pi/4 in magnitude.
  * Input y is the tail of x.
- * Input k indicates whether tan (if k=1) or 
+ * Input k indicates whether tan (if k=1) or
  * -1/tan (if k= -1) is returned.
  *
  * Algorithm
- *	1. Since tan(-x) = -tan(x), we need only to consider positive x. 
+ *	1. Since tan(-x) = -tan(x), we need only to consider positive x.
  *	2. if x < 2^-28 (hx<0x3e300000 0), return x with inexact if x!=0.
  *	3. tan(x) is approximated by a odd polynomial of degree 27 on
  *	   [0,0.67434]
  *		  	         3             27
  *	   	tan(x) ~ x + T1*x + ... + T13*x
  *	   where
- *	
+ *
  * 	        |tan(x)         2     4            26   |     -59.2
  * 	        |----- - (1+T1*x +T2*x +.... +T13*x    )| <= 2
- * 	        |  x 					| 
- * 
+ * 	        |  x 					|
+ *
  *	   Note: tan(x+y) = tan(x) + tan'(x)*y
  *		          ~ tan(x) + (1+x*x)*y
- *	   Therefore, for better accuracy in computing tan(x+y), let 
+ *	   Therefore, for better accuracy in computing tan(x+y), let
  *		     3      2      2       2       2
  *		r = x *(T2+x *(T3+x *(...+x *(T12+x *T13))))
  *	   then
@@ -51,9 +51,9 @@ static char rcsid[] = "$Id: k_tan.c,v 1.6 1994/08/18 23:06:16 jtc Exp $";
 #include "math.h"
 #include "math_private.h"
 #ifdef __STDC__
-static const double 
+static const double
 #else
-static double 
+static double
 #endif
 one   =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
 pio4  =  7.85398163397448278999e-01, /* 0x3FE921FB, 0x54442D18 */
@@ -116,7 +116,7 @@ T[] =  {
 	    return (double)(1-((hx>>30)&2))*(v-2.0*(x-(w*w/(w+v)-r)));
 	}
 	if(iy==1) return w;
-	else {		/* if allow error up to 2 ulp, 
+	else {		/* if allow error up to 2 ulp,
 			   simply return -1.0/(x+r) here */
      /*  compute -1.0/(x+r) accurately */
 	    double a,t;

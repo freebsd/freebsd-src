@@ -35,24 +35,24 @@
 static char sccsid[] = "@(#)log1p.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
-/* LOG1P(x) 
+/* LOG1P(x)
  * RETURN THE LOGARITHM OF 1+x
  * DOUBLE PRECISION (VAX D FORMAT 56 bits, IEEE DOUBLE 53 BITS)
- * CODED IN C BY K.C. NG, 1/19/85; 
+ * CODED IN C BY K.C. NG, 1/19/85;
  * REVISED BY K.C. NG on 2/6/85, 3/7/85, 3/24/85, 4/16/85.
- * 
+ *
  * Required system supported functions:
- *	scalb(x,n) 
+ *	scalb(x,n)
  *	copysign(x,y)
- *	logb(x)	
+ *	logb(x)
  *	finite(x)
  *
  * Required kernel function:
  *	log__L(z)
  *
  * Method :
- *	1. Argument Reduction: find k and f such that 
- *			1+x  = 2^k * (1+f), 
+ *	1. Argument Reduction: find k and f such that
+ *			1+x  = 2^k * (1+f),
  *	   where  sqrt(2)/2 < 1+f < sqrt(2) .
  *
  *	2. Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
@@ -65,11 +65,11 @@ static char sccsid[] = "@(#)log1p.c	8.1 (Berkeley) 6/4/93";
  *
  *	   See log__L() for the values of the coefficients.
  *
- *	3. Finally,  log(1+x) = k*ln2 + log(1+f).  
+ *	3. Finally,  log(1+x) = k*ln2 + log(1+f).
  *
  *	Remarks 1. In step 3 n*ln2 will be stored in two floating point numbers
- *		   n*ln2hi + n*ln2lo, where ln2hi is chosen such that the last 
- *		   20 bits (for VAX D format), or the last 21 bits ( for IEEE 
+ *		   n*ln2hi + n*ln2lo, where ln2hi is chosen such that the last
+ *		   20 bits (for VAX D format), or the last 21 bits ( for IEEE
  *		   double) is 0. This ensures n*ln2hi is exactly representable.
  *		2. In step 1, f may not be representable. A correction term c
  *	 	   for f is computed. It follows that the correction term for
@@ -83,7 +83,7 @@ static char sccsid[] = "@(#)log1p.c	8.1 (Berkeley) 6/4/93";
  *	only log1p(0)=0 is exact for finite argument.
  *
  * Accuracy:
- *	log1p(x) returns the exact log(1+x) nearly rounded. In a test run 
+ *	log1p(x) returns the exact log(1+x) nearly rounded. In a test run
  *	with 1,536,000 random arguments on a VAX, the maximum observed
  *	error was .846 ulps (units in the last place).
  *
@@ -114,7 +114,7 @@ ic(sqrt2, 1.4142135623730951455E0,     0, 1.6A09E667F3BCD)
 double log1p(x)
 double x;
 {
-	const static double zero=0.0, negone= -1.0, one=1.0, 
+	const static double zero=0.0, negone= -1.0, one=1.0,
 		      half=1.0/2.0, small=1.0E-20;   /* 1+small == 1 */
 	double z,s,t,c;
 	int k;
@@ -129,7 +129,7 @@ double x;
 	   /* argument reduction */
 	      if(copysign(x,one)<small) return(x);
 	      k=logb(one+x); z=scalb(x,-k); t=scalb(one,-k);
-	      if(z+t >= sqrt2 ) 
+	      if(z+t >= sqrt2 )
 		  { k += 1 ; z *= half; t *= half; }
 	      t += negone; x = z + t;
 	      c = (t-x)+z ;		/* correction term for x */
@@ -162,9 +162,9 @@ double x;
     /* end of if (finite(x)) */
 
     /* log(-INF) is NaN */
-	else if(x<0) 
+	else if(x<0)
 	     return(zero/zero);
 
     /* log(+INF) is INF */
-	else return(x);      
+	else return(x);
 }

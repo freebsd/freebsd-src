@@ -338,7 +338,7 @@ _getypgroup(struct group *gr, const char *name, char *map)
 		  return 0;
 	}
 
-	if(yp_match(_gr_yp_domain, map, name, strlen(name), 
+	if(yp_match(_gr_yp_domain, map, name, strlen(name),
 		    &result, &resultlen))
 		return 0;
 
@@ -402,5 +402,5 @@ unpack:
 	}
 	return 1;
 }
-		
+
 #endif /* YP */

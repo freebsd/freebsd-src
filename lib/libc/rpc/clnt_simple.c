@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,10 +30,10 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_simple.c 1.35 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_simple.c,v 1.1 1993/10/27 05:40:23 paul Exp $";
+static char *rcsid = "$Id: clnt_simple.c,v 1.1 1994/08/07 18:35:46 wollman Exp $";
 #endif
 
-/* 
+/*
  * clnt_simple.c
  * Simplified front end to rpc.
  *
@@ -78,7 +78,7 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	}
 	if (crp->valid && crp->oldprognum == prognum && crp->oldversnum == versnum
 		&& strcmp(crp->oldhost, host) == 0) {
-		/* reuse old client */		
+		/* reuse old client */
 	} else {
 		crp->valid = 0;
 		(void)close(crp->socket);
@@ -106,7 +106,7 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	tottimeout.tv_usec = 0;
 	clnt_stat = clnt_call(crp->client, procnum, inproc, in,
 	    outproc, out, tottimeout);
-	/* 
+	/*
 	 * if call failed, empty cache
 	 */
 	if (clnt_stat != RPC_SUCCESS)

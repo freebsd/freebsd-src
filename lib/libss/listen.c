@@ -1,9 +1,9 @@
 /*
  * Listener loop for subsystem library libss.a.
  *
- *	Header: /afs/rel-eng.athena.mit.edu/project/release/current/source/athena/athena.lib/ss/RCS/listen.c,v 1.2 90/07/12 12:28:58 epeisach Exp 
+ *	Header: /afs/rel-eng.athena.mit.edu/project/release/current/source/athena/athena.lib/ss/RCS/listen.c,v 1.2 90/07/12 12:28:58 epeisach Exp
  *	$Locker:  $
- * 
+ *
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *
  * For copyright information, see copyright.h.
@@ -138,7 +138,7 @@ void ss_abort_subsystem(sci_idx, code)
 {
     ss_info(sci_idx)->abort = 1;
     ss_info(sci_idx)->exit_status = code;
-    
+
 }
 
 int ss_quit(argc, argv, sci_idx, infop)

@@ -112,7 +112,7 @@ link_addr(addr, sdl)
 			break;
 		}
 		break;
-	} while (cp < cplim); 
+	} while (cp < cplim);
 	sdl->sdl_alen = cp - LLADDR(sdl);
 	new = cp - (char *)sdl;
 	if (new > sizeof(*sdl))
@@ -127,7 +127,7 @@ link_ntoa(sdl)
 	register const struct sockaddr_dl *sdl;
 {
 	static char obuf[64];
-	register char *out = obuf; 
+	register char *out = obuf;
 	register int i;
 	register u_char *in = (u_char *)LLADDR(sdl);
 	u_char *inlim = in + sdl->sdl_alen;

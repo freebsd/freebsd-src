@@ -46,18 +46,18 @@ static char sccsid[] = "@(#)j1.c	8.2 (Berkeley) 11/30/93";
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  *
  * ******************* WARNING ********************
  * This is an alpha version of SunPro's FDLIBM (Freely
- * Distributable Math Library) for IEEE double precision 
+ * Distributable Math Library) for IEEE double precision
  * arithmetic. FDLIBM is a basic math library written
- * in C that runs on machines that conform to IEEE 
- * Standard 754/854. This alpha version is distributed 
- * for testing purpose. Those who use this software 
- * should report any bugs to 
+ * in C that runs on machines that conform to IEEE
+ * Standard 754/854. This alpha version is distributed
+ * for testing purpose. Those who use this software
+ * should report any bugs to
  *
  *		fdlibm-comments@sunpro.eng.sun.com
  *
@@ -85,16 +85,16 @@ static char sccsid[] = "@(#)j1.c	8.2 (Berkeley) 11/30/93";
  * 	   (To avoid cancellation, use
  *		sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
  * 	    to compute the worse one.)
- *	   
+ *
  *	3 Special cases
  *		j1(nan)= nan
  *		j1(0) = 0
  *		j1(inf) = 0
- *		
+ *
  * Method -- y1(x):
- *	1. screen out x<=0 cases: y1(0)=-inf, y1(x<0)=NaN 
+ *	1. screen out x<=0 cases: y1(0)=-inf, y1(x<0)=NaN
  *	2. For x<2.
- *	   Since 
+ *	   Since
  *		y1(x) = 2/pi*(j1(x)*(ln(x/2)+Euler)-1/x-x/2+5/64*x^3-...)
  *	   therefore y1(x)-2/pi*j1(x)*ln(x)-1/x is an odd function.
  *	   We use the following function to approximate y1,
@@ -122,7 +122,7 @@ static char sccsid[] = "@(#)j1.c	8.2 (Berkeley) 11/30/93";
 
 static double pone(), qone();
 
-static double 
+static double
 huge    = 1e300,
 zero    = 0.0,
 one	= 1.0,
@@ -142,7 +142,7 @@ s05 =   1.235422744261379203512624973117299248281e-0011;
 
 #define two_129	6.80564733841876926e+038	/* 2^129 */
 #define two_m54	5.55111512312578270e-017	/* 2^-54 */
-double j1(x) 
+double j1(x)
 	double x;
 {
 	double z, s,c,ss,cc,r,u,v,y;
@@ -205,7 +205,7 @@ static double v0[5] = {
    1.665592462079920695971450872592458916421e-0011,
 };
 
-double y1(x) 
+double y1(x)
 	double x;
 {
 	double z, s, c, ss, cc, u, v;
@@ -254,10 +254,10 @@ double y1(x)
                     z = invsqrtpi*(u*ss+v*cc)/sqrt(x);
                 }
                 return z;
-        } 
+        }
         if (x <= two_m54) {    /* x < 2**-54 */
             return (-tpi/x);
-        } 
+        }
         z = x*x;
         u = u0[0]+z*(u0[1]+z*(u0[2]+z*(u0[3]+z*u0[4])));
         v = one+z*(v0[0]+z*(v0[1]+z*(v0[2]+z*(v0[3]+z*v0[4]))));
@@ -351,7 +351,7 @@ static double pone(x)
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
 	return (one + r/s);
 }
-		
+
 
 /* For x >= 8, the asymptotic expansions of qone is
  *	3/8 s - 105/1024 s^3 - ..., where s = 1/x.

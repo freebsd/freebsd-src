@@ -143,7 +143,7 @@ einval:		errno = EINVAL;
 
 	if (flags == R_SETCURSOR)
 		t->bt_rcursor = nrec;
-	
+
 	SET(t, R_MODIFIED);
 	return (__rec_ret(t, NULL, nrec, key, NULL));
 }

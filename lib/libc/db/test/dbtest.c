@@ -337,7 +337,7 @@ get(dbp, kp)
 		/* NOTREACHED */
 	case 1:
 		(void)write(ofd, NOSUCHKEY, sizeof(NOSUCHKEY) - 1);
-		(void)fprintf(stderr, "%d: %.*s: %s\n", 
+		(void)fprintf(stderr, "%d: %.*s: %s\n",
 		    lineno, kp->size, kp->data, NOSUCHKEY);
 		break;
 	}
@@ -443,7 +443,7 @@ dump(dbp, rev)
 		}
 done:	return;
 }
-	
+
 u_int
 setflags(s)
 	char *s;
@@ -476,7 +476,7 @@ setflags(s)
 	err("line %lu: %s: unknown flag", lineno, s);
 	/* NOTREACHED */
 }
-	
+
 DBTYPE
 dbtype(s)
 	char *s;
@@ -506,7 +506,7 @@ setinfo(type, s)
 	*eq++ = '\0';
 	if (!isdigit(*eq))
 		err("%s: structure set statement must be a number", s);
-		
+
 	switch(type) {
 	case DB_BTREE:
 		if (!strcmp("flags", s)) {

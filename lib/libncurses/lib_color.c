@@ -2,8 +2,8 @@
 *  details. If they are missing then this copy is in violation of    *
 *  the copyright conditions.                                        */
 
-/* lib_color.c 
- *  
+/* lib_color.c
+ *
  * Handles color emulation of SYS V curses
  *
  */
@@ -63,15 +63,15 @@ int init_color(short color, short r, short g, short b)
 			return ERR;
 		if (hue_lightness_saturation == TRUE)
 			if (r < 0 || r > 360 || g < 0 || g > 100 || b < 0 || b > 100)
-				return ERR;	
+				return ERR;
 		if (hue_lightness_saturation == FALSE)
 			if (r < 0 || r > 1000 || g < 0 ||  g > 1000 || b < 0 || b > 1000)
 				return ERR;
-				
+
 		putp(tparm(initialize_color, color, r, g, b));
 		return OK;
 	}
-	
+
 	return ERR;
 }
 
@@ -83,7 +83,7 @@ bool can_change_color()
 int has_colors()
 {
 	return ((orig_pair != NULL) && (max_colors != -1) && (max_pairs != -1)
-		&& 
+		&&
 		(((set_foreground != NULL) && (set_background != NULL)) ||
 		((set_a_foreground != NULL) && (set_a_background != NULL)))
 		);

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.2 1994/11/04 02:12:49 jkh Exp $";
+static char rcsid[] = "$Id: rusers_proc.c,v 1.3 1994/11/18 23:36:18 ats Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -146,7 +146,7 @@ getidle(char *tty, char *display)
         char devname[PATH_MAX];
         time_t now;
         u_long idle;
-        
+
         /*
          * If this is an X terminal or console, then try the
          * XIdle extension
@@ -186,17 +186,17 @@ getidle(char *tty, char *display)
 
         return(idle);
 }
-        
+
 static utmpidlearr *
 do_names_2(int all)
 {
         static utmpidlearr ut;
 	struct utmp usr;
         int nusers = 0;
-        
+
         bzero((char *)&ut, sizeof(ut));
         ut.utmpidlearr_val = &utmp_idle[0];
-        
+
 	ufp = fopen(_PATH_UTMP, "r");
         if (!ufp) {
                 syslog(LOG_ERR, "%m");
@@ -223,10 +223,10 @@ do_names_2(int all)
                         strncpy(name[nusers], usr.ut_name, UT_NAMESIZE);
                         utmp_idle[nusers].ui_utmp.ut_host = host[nusers];
                         strncpy(host[nusers], usr.ut_host, UT_HOSTSIZE);
-			
+
 			/* Make sure entries are NUL terminated */
-			line[nusers][UT_LINESIZE] = 
-			name[nusers][UT_NAMESIZE] = 
+			line[nusers][UT_LINESIZE] =
+			name[nusers][UT_NAMESIZE] =
 			host[nusers][UT_HOSTSIZE] = '\0';
                         nusers++;
                 }
@@ -270,9 +270,9 @@ do_names_1(int all)
         utmpidlearr *utidle;
         static utmparr ut;
         int i;
-        
+
         bzero((char *)&ut, sizeof(ut));
-        
+
         utidle = do_names_2(all);
         if (utidle) {
                 ut.utmparr_len = utidle->utmpidlearr_len;
@@ -280,9 +280,9 @@ do_names_1(int all)
                 for (i = 0; i < ut.utmparr_len; i++)
                         bcopy(&utmp_idle[i].ui_utmp, &old_utmp[i],
                               sizeof(old_utmp[0]));
-                
+
         }
-        
+
         return(&ut);
 }
 

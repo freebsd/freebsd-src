@@ -170,7 +170,7 @@ next:
 				continue;
 			/*
 			 * Allow match either for user's input host name
-			 * or official hostname.  Also allow match of 
+			 * or official hostname.  Also allow match of
 			 * incompletely-specified host in local domain.
 			 */
 			if (strcasecmp(host, tokval) == 0)
@@ -187,7 +187,7 @@ next:
 
 		case LOGIN:
 			if (token())
-				if (*aname == 0) { 
+				if (*aname == 0) {
 					*aname = malloc((unsigned) strlen(tokval) + 1);
 					(void) strcpy(*aname, tokval);
 				} else {
@@ -335,7 +335,7 @@ retry:
 	} else {
 		char num[8];
 		int s2, sin2len;
-		
+
 		s2 = socket(AF_INET, SOCK_STREAM, 0);
 		if (s2 < 0) {
 			(void) close(s);

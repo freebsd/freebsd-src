@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/lib/libpcap/pcap.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/pcap.c,v 1.2 1995/02/23 06:55:14 phk Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -167,6 +167,6 @@ pcap_close(pcap_t *p)
 			free(p->sf.base);
 	} else if (p->buffer != NULL)
 		free(p->buffer);
-	
+
 	free(p);
 }

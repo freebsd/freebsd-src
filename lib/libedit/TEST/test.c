@@ -87,7 +87,7 @@ complete(el, ch)
     EditLine *el;
     int ch;
 {
-    DIR *dd = opendir("."); 
+    DIR *dd = opendir(".");
     struct dirent *dp;
     const char* ptr;
     const LineInfo *lf = el_line(el);

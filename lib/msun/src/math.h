@@ -4,14 +4,14 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $Id: math.h,v 1.1 1994/08/10 20:31:49 jtc Exp $
+ * $Id: math.h,v 1.1.1.1 1994/08/19 09:39:57 jkh Exp $
  */
 
 #ifndef _MATH_H_
@@ -48,15 +48,15 @@ extern int signgam;
 enum fdversion {fdlibm_ieee = -1, fdlibm_svid, fdlibm_xopen, fdlibm_posix};
 
 #define _LIB_VERSION_TYPE enum fdversion
-#define _LIB_VERSION _fdlib_version  
+#define _LIB_VERSION _fdlib_version
 
-/* if global variable _LIB_VERSION is not desirable, one may 
- * change the following to be a constant by: 
+/* if global variable _LIB_VERSION is not desirable, one may
+ * change the following to be a constant by:
  *	#define _LIB_VERSION_TYPE const enum version
  * In that case, after one initializes the value _LIB_VERSION (see
  * s_lib_version.c) during compile time, it cannot be modified
  * in the middle of a program
- */ 
+ */
 extern  _LIB_VERSION_TYPE  _LIB_VERSION;
 
 #define _IEEE_  fdlibm_ieee
@@ -74,12 +74,12 @@ struct exception {
 
 #define	HUGE		MAXFLOAT
 
-/* 
+/*
  * set X_TLOSS = pi*2**52, which is possibly defined in <values.h>
  * (one may replace the following line by "#include <values.h>")
  */
 
-#define X_TLOSS		1.41484755040568800000e+16 
+#define X_TLOSS		1.41484755040568800000e+16
 
 #define	DOMAIN		1
 #define	SING		2

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: pcap-int.h,v 1.7 94/06/14 20:03:33 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/lib/libpcap/pcap-int.h,v 1.1.1.1 1995/01/20 04:13:06 jkh Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -83,7 +83,7 @@ struct pcap {
 	 */
 	u_char *pkt;
 
-	
+
 	/*
 	 * Placeholder for filter code if bpf not in kernel.
 	 */

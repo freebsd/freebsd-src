@@ -39,14 +39,14 @@ static char sccsid[] = "@(#)log__L.c	8.1 (Berkeley) 6/4/93";
  *		LOG(1+X) - 2S			       X
  * RETURN      ---------------  WHERE Z = S*S,  S = ------- , 0 <= Z <= .0294...
  *		      S				     2 + X
- *		     
+ *
  * DOUBLE PRECISION (VAX D FORMAT 56 bits or IEEE DOUBLE 53 BITS)
  * KERNEL FUNCTION FOR LOG; TO BE USED IN LOG1P, LOG, AND POW FUNCTIONS
- * CODED IN C BY K.C. NG, 1/19/85; 
+ * CODED IN C BY K.C. NG, 1/19/85;
  * REVISED BY K.C. Ng, 2/3/85, 4/16/85.
  *
  * Method :
- *	1. Polynomial approximation: let s = x/(2+x). 
+ *	1. Polynomial approximation: let s = x/(2+x).
  *	   Based on log(1+x) = log(1+s) - log(1-s)
  *		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
  *
@@ -54,11 +54,11 @@ static char sccsid[] = "@(#)log__L.c	8.1 (Berkeley) 6/4/93";
  *
  *	       z*(L1 + z*(L2 + z*(... (L7 + z*L8)...)))
  *
- *	   where z=s*s. (See the listing below for Lk's values.) The 
- *	   coefficients are obtained by a special Remez algorithm. 
+ *	   where z=s*s. (See the listing below for Lk's values.) The
+ *	   coefficients are obtained by a special Remez algorithm.
  *
  * Accuracy:
- *	Assuming no rounding error, the maximum magnitude of the approximation 
+ *	Assuming no rounding error, the maximum magnitude of the approximation
  *	error (absolute) is 2**(-58.49) for IEEE double, and 2**(-63.63)
  *	for VAX D format.
  *

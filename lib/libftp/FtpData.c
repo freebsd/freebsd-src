@@ -2,9 +2,9 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -26,17 +26,17 @@ STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
 
   FREE(data);
   FREE(from);
-  
+
   if ( gethostname( hostname , sizeof hostname ) == -1 )
     return EXIT(con,QUIT);
-  
+
   if ((host=(struct hostent *)gethostbyname(hostname))==0)
     return EXIT(con,QUIT);
-  
+
   data.sin_family = host -> h_addrtype;
-  
+
   bcopy(host-> h_addr_list[0],(char *)&data.sin_addr,host->h_length);
-		
+
   if ((NewSocket = socket ( AF_INET  , SOCK_STREAM , 0 ))<0)
     return EXIT(con,QUIT);
 
@@ -54,7 +54,7 @@ STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
 
   if ( getsockname ( NewSocket , (struct sockaddr *)&data , &len ) < 0 )
     return EXIT(con,QUIT);
-  
+
   if ( listen ( NewSocket , 1 ) < 0 )
     return EXIT(con,QUIT);
 
@@ -69,10 +69,10 @@ STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
       if ((i = FtpCommand ( con, "REST %d" , con -> seek , 0, EOF)) != 350 )
 	return -i;
     }
-  
-  FtpAssert(con, FtpCommand ( con , command , file , 
+
+  FtpAssert(con, FtpCommand ( con , command , file ,
 			     200, 120 , 150 , 125 , 250 , EOF ));
-  
+
   if (( Accepted_Socket = accept (NewSocket , (struct sockaddr *)&from , &fromlen )) < 0)
     {
       close(NewSocket);

@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_atanhf.c,v 1.2 1994/08/18 23:05:14 jtc Exp $";
+static char rcsid[] = "$Id: e_atanhf.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -45,14 +45,14 @@ static float zero = 0.0;
 	ix = hx&0x7fffffff;
 	if (ix>0x3f800000) 		/* |x|>1 */
 	    return (x-x)/(x-x);
-	if(ix==0x3f800000) 
+	if(ix==0x3f800000)
 	    return x/zero;
 	if(ix<0x31800000&&(huge+x)>zero) return x;	/* x<2**-28 */
 	SET_FLOAT_WORD(x,ix);
 	if(ix<0x3f000000) {		/* x < 0.5 */
 	    t = x+x;
 	    t = (float)0.5*log1pf(t+t*x/(one-x));
-	} else 
+	} else
 	    t = (float)0.5*log1pf((x+x)/(one-x));
 	if(hx>=0) return t; else return -t;
 }

@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)tanh.c	8.1 (Berkeley) 6/4/93";
 /* TANH(X)
  * RETURN THE HYPERBOLIC TANGENT OF X
  * DOUBLE PRECISION (VAX D FORMAT 56 BITS, IEEE DOUBLE 53 BITS)
- * CODED IN C BY K.C. NG, 1/8/85; 
+ * CODED IN C BY K.C. NG, 1/8/85;
  * REVISED BY K.C. NG on 2/8/85, 2/11/85, 3/7/85, 3/24/85.
  *
  * Required system supported functions :
@@ -85,7 +85,7 @@ double x;
 
 	sign=copysign(one,x);
 	x=copysign(x,one);
-	if(x < 22.0) 
+	if(x < 22.0)
 	    if( x > one )
 		return(copysign(one-two/(expm1(x+x)+two),sign));
 	    else if ( x > small )

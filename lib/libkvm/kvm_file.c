@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 /*
- * File list interface for kvm.  pstat, fstat and netstat are 
+ * File list interface for kvm.  pstat, fstat and netstat are
  * users of this code, so we've factored it out into a separate module.
  * Thus, we keep this grunge out of the other kvm applications (i.e.,
  * most other applications are interested only in open/close/read/nlist).

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: c++rt0.c,v 1.2 1994/01/29 01:58:31 jtc Exp $
+ *	$Id: c++rt0.c,v 1.1 1994/03/09 17:12:59 nate Exp $
  */
 
 /*
@@ -46,7 +46,7 @@ __dtors(void)
 {
 	unsigned long i = (unsigned long) __DTOR_LIST__[0];
 	void (**p)(void) = __DTOR_LIST__ + i;
- 
+
 	while (i--)
 		(**p--)();
 }

@@ -55,7 +55,7 @@ inet_addr(cp)
 	return (INADDR_NONE);
 }
 
-/* 
+/*
  * Check whether "cp" is a valid ascii representation
  * of an Internet address and convert to a binary address.
  * Returns 1 if the address is valid, 0 if not.
@@ -93,7 +93,7 @@ inet_aton(cp, addr)
 				continue;
 			}
 			if (base == 16 && isascii(c) && isxdigit(c)) {
-				val = (val << 4) + 
+				val = (val << 4) +
 					(c + 10 - (islower(c) ? 'a' : 'A'));
 				cp++;
 				continue;

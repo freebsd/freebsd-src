@@ -184,5 +184,5 @@ yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 		errno = EINVAL;
 		return (-1);
 	}
-	return (sysctl(mib, 2, &value, &len, NULL, 0) == -1 ? -1 : value); 
+	return (sysctl(mib, 2, &value, &len, NULL, 0) == -1 ? -1 : value);
 }

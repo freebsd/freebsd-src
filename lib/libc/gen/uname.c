@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uname.c,v 1.2 1994/10/13 20:31:19 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ uname(name)
 	len = sizeof(name->sysname);
 	oerrno = errno;
 	if (sysctl(mib, 2, &name->sysname, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM) 
+		if(errno == ENOMEM)
 			errno = oerrno;
 		else
 			rval = -1;
@@ -69,7 +69,7 @@ uname(name)
 	len = sizeof(name->nodename);
 	oerrno = errno;
 	if (sysctl(mib, 2, &name->nodename, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM) 
+		if(errno == ENOMEM)
 			errno = oerrno;
 		else
 			rval = -1;
@@ -80,7 +80,7 @@ uname(name)
 	len = sizeof(name->release);
 	oerrno = errno;
 	if (sysctl(mib, 2, &name->release, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM) 
+		if(errno == ENOMEM)
 			errno = oerrno;
 		else
 			rval = -1;

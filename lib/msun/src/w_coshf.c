@@ -8,16 +8,16 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_coshf.c,v 1.1 1994/08/10 20:33:56 jtc Exp $";
+static char rcsid[] = "$Id: w_coshf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 #endif
 
-/* 
+/*
  * wrapper coshf(x)
  */
 
@@ -37,7 +37,7 @@ static char rcsid[] = "$Id: w_coshf.c,v 1.1 1994/08/10 20:33:56 jtc Exp $";
 	float z;
 	z = __ieee754_coshf(x);
 	if(_LIB_VERSION == _IEEE_ || isnanf(x)) return z;
-	if(fabsf(x)>(float)8.9415985107e+01) {	
+	if(fabsf(x)>(float)8.9415985107e+01) {
 		/* cosh overflow */
 	        return (float)__kernel_standard((double)x,(double)x,105);
 	} else

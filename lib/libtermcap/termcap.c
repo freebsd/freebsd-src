@@ -130,8 +130,8 @@ tgetent(bp, name)
 		if (cgetset(cp) < 0)
 			return(-2);
 
-	i = cgetent(&dummy, pathvec, name);      
-	
+	i = cgetent(&dummy, pathvec, name);
+
 	if (i == 0) {
 		char *pd, *ps, *tok, *s, *tcs;
 		size_t len;
@@ -236,7 +236,7 @@ tgetstr(id, area)
 	char ids[3];
 	char *s;
 	int i;
-	
+
 	/*
 	 * XXX
 	 * This is for all the boneheaded programs that relied on tgetstr
@@ -248,7 +248,7 @@ tgetstr(id, area)
 
 	if ((i = cgetstr(tbuf, ids, &s)) < 0)
 		return NULL;
-	
+
 	strcpy(*area, s);
 	*area += i + 1;
 	return(s);

@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 1993 John Brezak
  *  All rights reserved.
- * 
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
@@ -12,7 +12,7 @@
  *     documentation and/or other materials provided with the distribution.
  *  3. The name of the author may not be used to endorse or promote products
  *     derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,12 +24,12 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
- *	$Id$
+ *
+ *	$Id: i386_get_ldt.c,v 1.2 1995/01/23 01:29:50 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: i386_get_ldt.c,v 1.2 1995/01/23 01:29:50 davidg Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <sys/cdefs.h>
@@ -50,6 +50,6 @@ i386_get_ldt(int start, union descriptor *descs, int num)
         p.start = start;
         p.descs = descs;
         p.num   = num;
-        
+
 	return sysarch(I386_GET_LDT, (char *)&p);
 }

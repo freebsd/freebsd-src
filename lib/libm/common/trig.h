@@ -67,7 +67,7 @@ static const double
 	zero = 0,
 	one = 1,
 	negone = -1,
-	half = 1.0/2.0, 
+	half = 1.0/2.0,
 	small = 1E-10,	/* 1+small**2 == 1; better values for small:
 			 *		small	= 1.5E-9 for VAX D
 			 *			= 1.2E-8 for IEEE Double
@@ -77,27 +77,27 @@ static const double
 
 /* sin__S(x*x) ... re-implemented as a macro
  * DOUBLE PRECISION (VAX D format 56 bits, IEEE DOUBLE 53 BITS)
- * STATIC KERNEL FUNCTION OF SIN(X), COS(X), AND TAN(X) 
- * CODED IN C BY K.C. NG, 1/21/85; 
+ * STATIC KERNEL FUNCTION OF SIN(X), COS(X), AND TAN(X)
+ * CODED IN C BY K.C. NG, 1/21/85;
  * REVISED BY K.C. NG on 8/13/85.
  *
  *	    sin(x*k) - x
  * RETURN  --------------- on [-PI/4,PI/4] , where k=pi/PI, PI is the rounded
- *	            x	
+ *	            x
  * value of pi in machine precision:
  *
  *	Decimal:
- *		pi = 3.141592653589793 23846264338327 ..... 
+ *		pi = 3.141592653589793 23846264338327 .....
  *    53 bits   PI = 3.141592653589793 115997963 ..... ,
- *    56 bits   PI = 3.141592653589793 227020265 ..... ,  
+ *    56 bits   PI = 3.141592653589793 227020265 ..... ,
  *
  *	Hexadecimal:
  *		pi = 3.243F6A8885A308D313198A2E....
  *    53 bits   PI = 3.243F6A8885A30  =  2 * 1.921FB54442D18
- *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2    
+ *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2
  *
  * Method:
- *	1. Let z=x*x. Create a polynomial approximation to 
+ *	1. Let z=x*x. Create a polynomial approximation to
  *	    (sin(k*x)-x)/x  =  z*(S0 + S1*z^1 + ... + S5*z^5).
  *	Then
  *      sin__S(x*x) = z*(S0 + S1*z^1 + ... + S5*z^5)
@@ -105,8 +105,8 @@ static const double
  *	The coefficient S's are obtained by a special Remez algorithm.
  *
  * Accuracy:
- *	In the absence of rounding error, the approximation has absolute error 
- *	less than 2**(-61.11) for VAX D FORMAT, 2**(-57.45) for IEEE DOUBLE. 
+ *	In the absence of rounding error, the approximation has absolute error
+ *	less than 2**(-61.11) for VAX D FORMAT, 2**(-57.45) for IEEE DOUBLE.
  *
  * Constants:
  * The hexadecimal values are the intended ones for the following constants.
@@ -149,28 +149,28 @@ ic(S5,  1.5868926979889205164E-10 , -33,  1.5CF61DF672B13)
 
 /* cos__C(x*x) ... re-implemented as a macro
  * DOUBLE PRECISION (VAX D FORMAT 56 BITS, IEEE DOUBLE 53 BITS)
- * STATIC KERNEL FUNCTION OF SIN(X), COS(X), AND TAN(X) 
- * CODED IN C BY K.C. NG, 1/21/85; 
+ * STATIC KERNEL FUNCTION OF SIN(X), COS(X), AND TAN(X)
+ * CODED IN C BY K.C. NG, 1/21/85;
  * REVISED BY K.C. NG on 8/13/85.
  *
- *	   		    x*x	
+ *	   		    x*x
  * RETURN   cos(k*x) - 1 + ----- on [-PI/4,PI/4],  where k = pi/PI,
- *	  		     2	
+ *	  		     2
  * PI is the rounded value of pi in machine precision :
  *
  *	Decimal:
- *		pi = 3.141592653589793 23846264338327 ..... 
+ *		pi = 3.141592653589793 23846264338327 .....
  *    53 bits   PI = 3.141592653589793 115997963 ..... ,
- *    56 bits   PI = 3.141592653589793 227020265 ..... ,  
+ *    56 bits   PI = 3.141592653589793 227020265 ..... ,
  *
  *	Hexadecimal:
  *		pi = 3.243F6A8885A308D313198A2E....
  *    53 bits   PI = 3.243F6A8885A30  =  2 * 1.921FB54442D18
- *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2    
+ *    56 bits   PI = 3.243F6A8885A308 =  4 * .C90FDAA22168C2
  *
  *
  * Method:
- *	1. Let z=x*x. Create a polynomial approximation to 
+ *	1. Let z=x*x. Create a polynomial approximation to
  *	    cos(k*x)-1+z/2  =  z*z*(C0 + C1*z^1 + ... + C5*z^5)
  *	then
  *      cos__C(z) =  z*z*(C0 + C1*z^1 + ... + C5*z^5)
@@ -178,9 +178,9 @@ ic(S5,  1.5868926979889205164E-10 , -33,  1.5CF61DF672B13)
  *	The coefficient C's are obtained by a special Remez algorithm.
  *
  * Accuracy:
- *	In the absence of rounding error, the approximation has absolute error 
- *	less than 2**(-64) for VAX D FORMAT, 2**(-58.3) for IEEE DOUBLE. 
- *	
+ *	In the absence of rounding error, the approximation has absolute error
+ *	less than 2**(-64) for VAX D FORMAT, 2**(-58.3) for IEEE DOUBLE.
+ *
  *
  * Constants:
  * The hexadecimal values are the intended ones for the following constants.

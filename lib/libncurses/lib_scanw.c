@@ -19,7 +19,7 @@ char buf[BUFSIZ];
 
 	if (wgetstr(win, buf) == ERR)
 	    return(ERR);
-	
+
 	return(vsscanf(buf, fmt, argp));
 }
 

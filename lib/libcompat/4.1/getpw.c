@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: getpw.c,v 1.1 1995/04/10 18:47:55 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -47,12 +47,12 @@ getpw(uid, buf)
 #endif
 {
   struct passwd *pw;
-  
+
   pw = getpwuid(uid);
   endpwent();
-  
+
   if(pw == 0) return -1;
-  
+
   strncpy(buf, pw->pw_name, L_cuserid);
   return 0;
 }

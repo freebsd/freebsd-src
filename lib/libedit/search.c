@@ -91,7 +91,7 @@ search_end(el)
 /* regerror():
  *	Handle regular expression errors
  */
-public void 
+public void
 /*ARGSUSED*/
 regerror(msg)
     const char *msg;
@@ -156,25 +156,25 @@ c_hmatch(el, str)
     (void) fprintf(el->el_errfile, "match `%s' with `%s'\n",
 		   el->el_search.patbuf, str);
 #endif /* SDEBUG */
-    
+
     return el_match(str, el->el_search.patbuf);
 }
 
 
-/* c_setpat(): 
+/* c_setpat():
  *	Set the history seatch pattern
  */
 protected void
 c_setpat(el)
     EditLine *el;
 {
-    if (el->el_state.lastcmd != ED_SEARCH_PREV_HISTORY && 
+    if (el->el_state.lastcmd != ED_SEARCH_PREV_HISTORY &&
 	el->el_state.lastcmd != ED_SEARCH_NEXT_HISTORY) {
 	el->el_search.patlen = EL_CURSOR(el) - el->el_line.buffer;
-	if (el->el_search.patlen >= EL_BUFSIZ) 
+	if (el->el_search.patlen >= EL_BUFSIZ)
 	    el->el_search.patlen = EL_BUFSIZ -1;
 	if (el->el_search.patlen >= 0)  {
-	    (void) strncpy(el->el_search.patbuf, el->el_line.buffer, 
+	    (void) strncpy(el->el_search.patbuf, el->el_line.buffer,
 			   el->el_search.patlen);
 	    el->el_search.patbuf[el->el_search.patlen] = '\0';
 	}
@@ -185,8 +185,8 @@ c_setpat(el)
     (void) fprintf(el->el_errfile, "\neventno = %d\n", el->el_history.eventno);
     (void) fprintf(el->el_errfile, "patlen = %d\n", el->el_search.patlen);
     (void) fprintf(el->el_errfile, "patbuf = \"%s\"\n", el->el_search.patbuf);
-    (void) fprintf(el->el_errfile, "cursor %d lastchar %d\n", 
-		   EL_CURSOR(el) - el->el_line.buffer, 
+    (void) fprintf(el->el_errfile, "cursor %d lastchar %d\n",
+		   EL_CURSOR(el) - el->el_line.buffer,
 		   el->el_line.lastchar - el->el_line.buffer);
 #endif
 }
@@ -213,7 +213,7 @@ ce_inc_search(el, dir)
 	newdir = dir,
         done, redo;
 
-    if (el->el_line.lastchar + sizeof(STRfwd) / sizeof(char) + 2 + 
+    if (el->el_line.lastchar + sizeof(STRfwd) / sizeof(char) + 2 +
 	el->el_search.patlen >= el->el_line.limit)
 	return CC_ERROR;
 
@@ -228,12 +228,12 @@ ce_inc_search(el, dir)
 	}
 	done = redo = 0;
 	*el->el_line.lastchar++ = '\n';
-	for (cp = newdir == ED_SEARCH_PREV_HISTORY ? STRbck : STRfwd; 
+	for (cp = newdir == ED_SEARCH_PREV_HISTORY ? STRbck : STRfwd;
 	     *cp; *el->el_line.lastchar++ = *cp++)
 	     continue;
 	*el->el_line.lastchar++ = pchar;
-	for (cp = &el->el_search.patbuf[1]; 
-	      cp < &el->el_search.patbuf[el->el_search.patlen]; 
+	for (cp = &el->el_search.patbuf[1];
+	      cp < &el->el_search.patbuf[el->el_search.patlen];
 	      *el->el_line.lastchar++ = *cp++)
 	    continue;
 	*el->el_line.lastchar = '\0';
@@ -268,7 +268,7 @@ ce_inc_search(el, dir)
 	case ED_DELETE_PREV_CHAR:
 	    if (el->el_search.patlen > 1)
 		done++;
-	    else 
+	    else
 		term_beep(el);
 	    break;
 
@@ -284,15 +284,15 @@ ce_inc_search(el, dir)
 		for (cp = &el->el_search.patbuf[1]; ; cp++)
 		    if (cp >= &el->el_search.patbuf[el->el_search.patlen]) {
 			el->el_line.cursor += el->el_search.patlen - 1;
-			cp = c__next_word(el->el_line.cursor, 
+			cp = c__next_word(el->el_line.cursor,
 					  el->el_line.lastchar, 1, ce__isword);
-			while (el->el_line.cursor < cp && 
+			while (el->el_line.cursor < cp &&
 			       *el->el_line.cursor != '\n') {
 			    if (el->el_search.patlen > EL_BUFSIZ - 3) {
 				term_beep(el);
 				break;
 			    }
-			    el->el_search.patbuf[el->el_search.patlen++] = 
+			    el->el_search.patbuf[el->el_search.patlen++] =
 				*el->el_line.cursor;
 			    *el->el_line.lastchar++ = *el->el_line.cursor++;
 			}
@@ -305,10 +305,10 @@ ce_inc_search(el, dir)
 			break;
 		    }
 		break;
-	    
+
 	    default:		/* Terminate and execute cmd */
 		endcmd[0] = ch;
-		el_push(el, endcmd); 
+		el_push(el, endcmd);
 		/*FALLTHROUGH*/
 
 	    case 0033:		/* ESC: Terminate */
@@ -319,7 +319,7 @@ ce_inc_search(el, dir)
 	    break;
 	}
 
-	while (el->el_line.lastchar > el->el_line.buffer && 
+	while (el->el_line.lastchar > el->el_line.buffer &&
 	       *el->el_line.lastchar != '\n')
 	    *el->el_line.lastchar-- = '\0';
 	*el->el_line.lastchar = '\0';
@@ -327,7 +327,7 @@ ce_inc_search(el, dir)
 	if (!done) {
 
 	    /* Can't search if unmatched '[' */
-	    for (cp = &el->el_search.patbuf[el->el_search.patlen-1], ch = ']'; 
+	    for (cp = &el->el_search.patbuf[el->el_search.patlen-1], ch = ']';
 		 cp > el->el_search.patbuf; cp--)
 		if (*cp == '[' || *cp == ']') {
 		    ch = *cp;
@@ -337,7 +337,7 @@ ce_inc_search(el, dir)
 	    if (el->el_search.patlen > 1 && ch != '[') {
 		if (redo && newdir == dir) {
 		    if (pchar == '?') {	/* wrap around */
-			el->el_history.eventno = 
+			el->el_history.eventno =
 			    newdir == ED_SEARCH_PREV_HISTORY ? 0 : 0x7fffffff;
 			if (hist_get(el) == CC_ERROR)
 			    /* el->el_history.eventno was fixed by first call */
@@ -345,7 +345,7 @@ ce_inc_search(el, dir)
 			el->el_line.cursor = newdir == ED_SEARCH_PREV_HISTORY ?
 			    el->el_line.lastchar : el->el_line.buffer;
 		    } else
-			el->el_line.cursor += 
+			el->el_line.cursor +=
 				newdir == ED_SEARCH_PREV_HISTORY ? -1 : 1;
 		}
 #ifdef ANCHOR
@@ -353,19 +353,19 @@ ce_inc_search(el, dir)
 		el->el_search.patbuf[el->el_search.patlen++] = '*';
 #endif
 		el->el_search.patbuf[el->el_search.patlen] = '\0';
-		if (el->el_line.cursor < el->el_line.buffer || 
+		if (el->el_line.cursor < el->el_line.buffer ||
 		    el->el_line.cursor > el->el_line.lastchar ||
-		    (ret = ce_search_line(el, &el->el_search.patbuf[1], 
+		    (ret = ce_search_line(el, &el->el_search.patbuf[1],
 					  newdir)) == CC_ERROR) {
 		    /* avoid c_setpat */
-		    el->el_state.lastcmd = (el_action_t) newdir; 
+		    el->el_state.lastcmd = (el_action_t) newdir;
 		    ret = newdir == ED_SEARCH_PREV_HISTORY ?
-			ed_search_prev_history(el, 0) : 
+			ed_search_prev_history(el, 0) :
 			ed_search_next_history(el, 0);
 		    if (ret != CC_ERROR) {
 			el->el_line.cursor = newdir == ED_SEARCH_PREV_HISTORY ?
 			    el->el_line.lastchar : el->el_line.buffer;
-			(void) ce_search_line(el, &el->el_search.patbuf[1], 
+			(void) ce_search_line(el, &el->el_search.patbuf[1],
 					      newdir);
 		    }
 		}
@@ -386,7 +386,7 @@ ce_inc_search(el, dir)
 
 	    ret = ce_inc_search(el, newdir);
 
-	    if (ret == CC_ERROR && pchar == '?' && oldpchar == ':') 
+	    if (ret == CC_ERROR && pchar == '?' && oldpchar == ':')
 		/* break abort of failed search at last non-failed */
 		ret = CC_NORM;
 
@@ -484,7 +484,7 @@ cv_search(el, dir)
     }
     el->el_state.lastcmd = (el_action_t) dir; /* avoid c_setpat */
     el->el_line.cursor = el->el_line.lastchar = el->el_line.buffer;
-    if ((dir == ED_SEARCH_PREV_HISTORY ? ed_search_prev_history(el, 0) : 
+    if ((dir == ED_SEARCH_PREV_HISTORY ? ed_search_prev_history(el, 0) :
 			        ed_search_next_history(el, 0)) == CC_ERROR) {
 	re_refresh(el);
 	return CC_ERROR;
@@ -522,7 +522,7 @@ ce_search_line(el, pattern, dir)
 	    }
 	return CC_ERROR;
     } else {
-	for (cp = el->el_line.cursor; *cp != '\0' && 
+	for (cp = el->el_line.cursor; *cp != '\0' &&
 	     cp < el->el_line.limit; cp++)
 	    if (el_match(cp, pattern)) {
 		el->el_line.cursor = cp;
@@ -542,7 +542,7 @@ cv_repeat_srch(el, c)
     int c;
 {
 #ifdef SDEBUG
-    (void) fprintf(el->el_errfile, "dir %d patlen %d patbuf %s\n", 
+    (void) fprintf(el->el_errfile, "dir %d patlen %d patbuf %s\n",
 		   c, el->el_search.patlen, el->el_search.patbuf);
 #endif
 
@@ -572,9 +572,9 @@ cv_csearch_back(el, ch, count, tflag)
 
     cp = el->el_line.cursor;
     while (count--) {
-	if (*cp == ch) 
+	if (*cp == ch)
 	    cp--;
-	while (cp > el->el_line.buffer && *cp != ch) 
+	while (cp > el->el_line.buffer && *cp != ch)
 	    cp--;
     }
 
@@ -609,9 +609,9 @@ cv_csearch_fwd(el, ch, count, tflag)
 
     cp = el->el_line.cursor;
     while (count--) {
-	if(*cp == ch) 
+	if(*cp == ch)
 	    cp++;
-	while (cp < el->el_line.lastchar && *cp != ch) 
+	while (cp < el->el_line.lastchar && *cp != ch)
 	    cp++;
     }
 

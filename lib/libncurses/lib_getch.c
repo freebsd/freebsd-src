@@ -62,7 +62,7 @@ int ungetch(int ch)
 		t_inc()
 	} else
 		h_dec();
-	
+
 	SP->_fifo[head] = ch;
 	T(("ungetch ok"));
 	fifo_dump();
@@ -75,7 +75,7 @@ int n;
 unsigned char ch;
 
 	if (tail == -1) return ERR;
-again:    
+again:
 	n = read(fileno(SP->_ifp), &ch, 1);
 	if (n == -1 && errno == EINTR)
 		goto again;
@@ -102,7 +102,7 @@ int
 wgetch(WINDOW *win)
 {
 bool	setHere = FALSE;	/* cbreak mode was set here */
-int	ch; 
+int	ch;
 
 	T(("wgetch(%x) called", win));
 
@@ -195,9 +195,9 @@ int timeleft = 1000;
 		peek = 0;
     	while (ptr != NULL) {
 			T(("ch = %d", ch));
-			while ((ptr != NULL) && (ptr->ch != (unsigned char)ch)) 
+			while ((ptr != NULL) && (ptr->ch != (unsigned char)ch))
 			    ptr = ptr->sibling;
-	
+
 			if (ptr != NULL)
 		    if (ptr->value != 0) {	/* sequence terminated */
 		    	T(("end of sequence"));
@@ -219,6 +219,6 @@ int timeleft = 1000;
    				ch = fifo_peek();
    			}
 		}
-    } 
+    }
     return(fifo_pull());
 }

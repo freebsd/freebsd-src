@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.2 1994/09/26 22:45:10 wollman Exp $";
-static char rcsid[] = "$Id: getnetnamadr.c,v 1.2 1994/09/26 22:45:10 wollman Exp $";
+static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.3 1995/03/24 15:51:30 ache Exp $";
+static char rcsid[] = "$Id: getnetnamadr.c,v 1.3 1995/03/24 15:51:30 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@ extern struct netent * _getnetbynisaddr __P((long, int));
 #define _PATH_NETCONF	"/etc/host.conf"
 #endif
 
-enum service_type { 
+enum service_type {
   SERVICE_NONE = 0,
   SERVICE_BIND,
   SERVICE_TABLE,

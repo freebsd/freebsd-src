@@ -75,7 +75,7 @@ __waddbytes(win, bytes, count, so)
 #ifdef DEBUG
 	__CTRACE("ADDBYTES(%0.2o, %d, %d)\n", win, y, x);
 #endif
-			
+
 			lp = win->lines[y];
 			if (lp->flags & __ISPASTEOL) {
 				lp->flags &= ~__ISPASTEOL;
@@ -96,7 +96,7 @@ newline:			if (y == win->maxy - 1) {
 				if (c == '\n')
 					break;
 			}
-				
+
 			stand = '\0';
 			if (win->flags & __WSTANDOUT || so)
 				stand |= __STANDOUT;
@@ -104,7 +104,7 @@ newline:			if (y == win->maxy - 1) {
 	__CTRACE("ADDBYTES: 1: y = %d, x = %d, firstch = %d, lastch = %d\n",
 	    y, x, *win->lines[y]->firstchp, *win->lines[y]->lastchp);
 #endif
-			if (lp->line[x].ch != c || 
+			if (lp->line[x].ch != c ||
 			    !(lp->line[x].attr & stand)) {
 				newx = x + win->ch_off;
 				if (!(lp->flags & __ISDIRTY)) {

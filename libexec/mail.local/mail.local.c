@@ -304,7 +304,7 @@ err2:		(void)ftruncate(mbfd, curoff);
 err1:		(void)close(mbfd);
 		return;
 	}
-		
+
 	/* Close and check -- NFS doesn't write until the close. */
 	if (close(mbfd)) {
 		e_to_sys(errno);

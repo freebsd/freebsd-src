@@ -187,7 +187,7 @@ doit(f, fromp)
 			exit(1);
 		}
 	}
-	
+
 	if (pwd->pw_uid == 0 || *pwd->pw_passwd == '\0') {
 		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
 		error("Login incorrect.\n");
