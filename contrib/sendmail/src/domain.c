@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.181.2.9 2003/08/11 23:23:40 gshapiro Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.194 2004/01/14 01:47:34 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.181.2.9 2003/08/11 23:23:40 gshapiro Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.194 2004/01/14 01:47:34 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -76,7 +76,6 @@ static char	MXHostBuf[MXHOSTBUFSIZE];
 #  define RES_UNC_T	unsigned char *
 # endif /* defined(__RES) && (__RES >= 19940415) */
 
-static char	*gethostalias __P((char *));
 static int	mxrand __P((char *));
 static int	fallbackmxrr __P((int, unsigned short *, char **));
 
@@ -96,11 +95,11 @@ static int	fallbackmxrr __P((int, unsigned short *, char **));
 **		number of MX records.
 **
 **	Side Effects:
-**		Populates NumFallBackMXHosts and fbhosts.
+**		Populates NumFallbackMXHosts and fbhosts.
 **		Sets renewal time (based on TTL).
 */
 
-int NumFallBackMXHosts = 0;	/* Number of fallback MX hosts (after MX expansion) */
+int NumFallbackMXHosts = 0;	/* Number of fallback MX hosts (after MX expansion) */
 static char *fbhosts[MAXMXHOSTS + 1];
 
 int
@@ -116,27 +115,27 @@ getfallbackmxrr(host)
 	if (host == NULL || *host == '\0')
 		return 0;
 #endif /* 0 */
-	if (NumFallBackMXHosts > 0 && renew > curtime())
-		return NumFallBackMXHosts;
+	if (NumFallbackMXHosts > 0 && renew > curtime())
+		return NumFallbackMXHosts;
 	if (host[0] == '[')
 	{
 		fbhosts[0] = host;
-		NumFallBackMXHosts = 1;
+		NumFallbackMXHosts = 1;
 	}
 	else
 	{
 		/* free old data */
-		for (i = 0; i < NumFallBackMXHosts; i++)
+		for (i = 0; i < NumFallbackMXHosts; i++)
 			sm_free(fbhosts[i]);
 
 		/* get new data */
-		NumFallBackMXHosts = getmxrr(host, fbhosts, NULL, false,
+		NumFallbackMXHosts = getmxrr(host, fbhosts, NULL, false,
 					     &rcode, false, &ttl);
 		renew = curtime() + ttl;
-		for (i = 0; i < NumFallBackMXHosts; i++)
+		for (i = 0; i < NumFallbackMXHosts; i++)
 			fbhosts[i] = newstr(fbhosts[i]);
 	}
-	return NumFallBackMXHosts;
+	return NumFallbackMXHosts;
 }
 
 /*
@@ -151,7 +150,7 @@ getfallbackmxrr(host)
 **		new number of MX records.
 **
 **	Side Effects:
-**		If FallBackMX was set, it appends the MX records for
+**		If FallbackMX was set, it appends the MX records for
 **		that host to mxhosts (and modifies prefs accordingly).
 */
 
@@ -163,7 +162,7 @@ fallbackmxrr(nmx, prefs, mxhosts)
 {
 	int i;
 
-	for (i = 0; i < NumFallBackMXHosts && nmx < MAXMXHOSTS; i++)
+	for (i = 0; i < NumFallbackMXHosts && nmx < MAXMXHOSTS; i++)
 	{
 		if (nmx > 0)
 			prefs[nmx] = prefs[nmx - 1] + 1;
@@ -221,7 +220,7 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 	bool seenlocal = false;
 	unsigned short pref, type;
 	unsigned short localpref = 256;
-	char *fallbackMX = FallBackMX;
+	char *fallbackMX = FallbackMX;
 	bool trycanon = false;
 	unsigned short *prefs;
 	int (*resfunc)();
@@ -342,7 +341,7 @@ getmxrr(host, mxhosts, mxprefs, droplocalhost, rcode, tryfallback, pttl)
 	ancount = ntohs((unsigned short) hp->ancount);
 
 	/* See RFC 1035 for layout of RRs. */
-	/* XXX leave room for FallBackMX ? */
+	/* XXX leave room for FallbackMX ? */
 	while (--ancount >= 0 && cp < eom && nmx < MAXMXHOSTS - 1)
 	{
 		if ((n = dn_expand((unsigned char *)&answer, eom, cp,
@@ -805,7 +804,6 @@ dns_getcanonname(host, hbsize, trymx, statp, pttl)
 	int qtype;
 	int initial;
 	int loopcnt;
-	char *xp;
 	char nbuf[SM_MAX(MAXPACKET, MAXDNAME*2+2)];
 	char *searchlist[MAXDNSRCH + 2];
 
@@ -838,24 +836,6 @@ cnameloop:
 	for (cp = host, n = 0; *cp != '\0'; cp++)
 		if (*cp == '.')
 			n++;
-
-	/*
-	**  If this is a simple name, determine whether it matches an
-	**  alias in the file defined by the environment variable HOSTALIASES.
-	*/
-
-	if (n == 0 && (xp = gethostalias(host)) != NULL)
-	{
-		if (loopcnt++ > MAXCNAMEDEPTH)
-		{
-			syserr("loop in ${HOSTALIASES} file");
-		}
-		else
-		{
-			(void) sm_strlcpy(host, xp, hbsize);
-			goto cnameloop;
-		}
-	}
 
 	/*
 	**  Build the search list.
@@ -933,14 +913,12 @@ cnameloop:
 				*/
 
 				SM_SET_H_ERRNO(TRY_AGAIN);
-# if _FFR_DONT_STOP_LOOKING
 				if (**dp == '\0')
 				{
 					if (*statp == EX_OK)
 						*statp = EX_TEMPFAIL;
 					goto nexttype;
 				}
-# endif /* _FFR_DONT_STOP_LOOKING */
 				*statp = EX_TEMPFAIL;
 
 				if (WorkAroundBrokenAAAA)
@@ -962,9 +940,7 @@ cnameloop:
 					return false;
 			}
 
-# if _FFR_DONT_STOP_LOOKING
 nexttype:
-# endif /* _FFR_DONT_STOP_LOOKING */
 			if (h_errno != HOST_NOT_FOUND)
 			{
 				/* might have another type of interest */
@@ -1188,57 +1164,5 @@ nexttype:
 	if (ttl > 0 && pttl != NULL)
 		*pttl = ttl;
 	return true;
-}
-
-static char *
-gethostalias(host)
-	char *host;
-{
-	char *fname;
-	SM_FILE_T *fp;
-	register char *p = NULL;
-	long sff = SFF_REGONLY;
-	char buf[MAXLINE];
-	static char hbuf[MAXDNAME];
-
-	if (ResNoAliases)
-		return NULL;
-	if (DontLockReadFiles)
-		sff |= SFF_NOLOCK;
-	fname = getenv("HOSTALIASES");
-	if (fname == NULL ||
-	    (fp = safefopen(fname, O_RDONLY, 0, sff)) == NULL)
-		return NULL;
-	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof buf) != NULL)
-	{
-		for (p = buf; p != '\0' && !(isascii(*p) && isspace(*p)); p++)
-			continue;
-		if (*p == 0)
-		{
-			/* syntax error */
-			continue;
-		}
-		*p++ = '\0';
-		if (sm_strcasecmp(buf, host) == 0)
-			break;
-	}
-
-	if (sm_io_eof(fp))
-	{
-		/* no match */
-		(void) sm_io_close(fp, SM_TIME_DEFAULT);
-		return NULL;
-	}
-	(void) sm_io_close(fp, SM_TIME_DEFAULT);
-
-	/* got a match; extract the equivalent name */
-	while (*p != '\0' && isascii(*p) && isspace(*p))
-		p++;
-	host = p;
-	while (*p != '\0' && !(isascii(*p) && isspace(*p)))
-		p++;
-	*p = '\0';
-	(void) sm_strlcpy(hbuf, host, sizeof hbuf);
-	return hbuf;
 }
 #endif /* NAMED_BIND */

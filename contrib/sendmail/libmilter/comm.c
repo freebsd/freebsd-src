@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,10 +9,36 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.54.2.6 2003/01/03 22:14:40 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.65 2004/07/07 21:41:30 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
+#include <sys/uio.h>
+
+static size_t Maxdatasize = MILTER_MAX_DATA_SIZE;
+
+#if _FFR_MAXDATASIZE
+/*
+**  SMFI_SETMAXDATASIZE -- set limit for milter data read/write.
+**
+**	Parameters:
+**		sz -- new limit.
+**
+**	Returns:
+**		old limit
+*/
+
+size_t
+smfi_setmaxdatasize(sz)
+	size_t sz;
+{
+	size_t old;
+
+	old = Maxdatasize;
+	Maxdatasize = sz;
+	return old;
+}
+#endif /* _FFR_MAXDATASIZE */
 
 /*
 **  MI_RD_CMD -- read a command
@@ -107,7 +133,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	expl = ntohl(expl) - 1;
 	if (expl <= 0)
 		return NULL;
-	if (expl > MILTER_CHUNK_SIZE)
+	if (expl > Maxdatasize)
 	{
 		*cmd = SMFIC_TOOBIG;
 		return NULL;
@@ -195,12 +221,94 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	*cmd = SMFIC_UNKNERR;
 	return NULL;
 }
+
+/*
+**  RETRY_WRITEV -- Keep calling the writev() system call
+**	until all the data is written out or an error occurs.
+**
+**	Parameters:
+**		fd -- socket descriptor
+**		iov -- io vector
+**		iovcnt -- number of elements in io vector
+**			must NOT exceed UIO_MAXIOV.
+**		timeout -- maximum time to wait
+**
+**	Returns:
+**		success: number of bytes written
+**		otherwise: MI_FAILURE
+*/
+
+static ssize_t
+retry_writev(fd, iov, iovcnt, timeout)
+	socket_t fd;
+	struct iovec *iov;
+	int iovcnt;
+	struct timeval *timeout;
+{
+	int i;
+	ssize_t n, written;
+	FD_WR_VAR(wrs);
+
+	written = 0;
+	for (;;)
+	{
+		while (iovcnt > 0 && iov[0].iov_len == 0)
+		{
+			iov++;
+			iovcnt--;
+		}
+		if (iovcnt <= 0)
+			return written;
+
+		/*
+		**  We don't care much about the timeout here,
+		**  it's very long anyway; correct solution would be
+		**  to take the time before the loop and reduce the
+		**  timeout after each invocation.
+		**  FD_SETSIZE is checked when socket is created.
+		*/
+
+		FD_WR_INIT(fd, wrs);
+		i = FD_WR_READY(fd, wrs, timeout);
+		if (i == 0)
+			return MI_FAILURE;
+		if (i < 0)
+		{
+			if (errno == EINTR || errno == EAGAIN)
+				continue;
+			return MI_FAILURE;
+		}
+		n = writev(fd, iov, iovcnt);
+		if (n == -1)
+		{
+			if (errno == EINTR || errno == EAGAIN)
+				continue;
+			return MI_FAILURE;
+		}
+
+		written += n;
+		for (i = 0; i < iovcnt; i++)
+		{
+			if (iov[i].iov_len > (unsigned int) n)
+			{
+				iov[i].iov_base = (char *)iov[i].iov_base + n;
+				iov[i].iov_len -= (unsigned int) n;
+				break;
+			}
+			n -= (int) iov[i].iov_len;
+			iov[i].iov_len = 0;
+		}
+		if (i == iovcnt)
+			return written;
+	}
+}
+
 /*
 **  MI_WR_CMD -- write a cmd to sd
 **
 **	Parameters:
 **		sd -- socket descriptor
-**		timeout -- maximum time to wait (currently unused)
+**		timeout -- maximum time to wait
 **		cmd -- single character command to write
 **		buf -- buffer with further data
 **		len -- length of buffer (without cmd!)
@@ -208,38 +316,6 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 **	Returns:
 **		MI_SUCCESS/MI_FAILURE
 */
-
-/*
-**  we don't care much about the timeout here, it's very long anyway
-**  FD_SETSIZE is checked when socket is created.
-**  XXX l == 0 ?
-*/
-
-#define MI_WR(data)	\
-	while (sl > 0)							\
-	{								\
-		FD_WR_INIT(sd, wrs);					\
-		ret = FD_WR_READY(sd, wrs, timeout);			\
-		if (ret == 0)						\
-			return MI_FAILURE;				\
-		if (ret < 0)						\
-		{							\
-			if (errno == EINTR)				\
-				continue;				\
-			else						\
-				return MI_FAILURE;			\
-		}							\
-		l = MI_SOCK_WRITE(sd, (void *) ((data) + i), sl);	\
-		if (l < 0)						\
-		{							\
-			if (errno == EINTR)				\
-				continue;				\
-			else						\
-				return MI_FAILURE;			\
-		}							\
-		i += l;							\
-		sl -= l;						\
-	}
 
 int
 mi_wr_cmd(sd, timeout, cmd, buf, len)
@@ -252,27 +328,32 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	size_t sl, i;
 	ssize_t l;
 	mi_int32 nl;
-	int ret;
-	FD_WR_VAR(wrs);
+	int iovcnt;
+	struct iovec iov[2];
 	char data[MILTER_LEN_BYTES + 1];
 
-	if (len > MILTER_CHUNK_SIZE)
+	if (len > Maxdatasize || (len > 0 && buf == NULL))
 		return MI_FAILURE;
+
 	nl = htonl(len + 1);	/* add 1 for the cmd char */
 	(void) memcpy(data, (void *) &nl, MILTER_LEN_BYTES);
 	data[MILTER_LEN_BYTES] = (char) cmd;
 	i = 0;
 	sl = MILTER_LEN_BYTES + 1;
 
-	/* use writev() instead to send the whole stuff at once? */
-
-	MI_WR(data);
-	if (len > 0 && buf == NULL)
+	/* set up the vector for the size / command */
+	iov[0].iov_base = (void *) data;
+	iov[0].iov_len  = sl;
+	iovcnt = 1;
+	if (len >= 0 && buf != NULL)
+	{
+		iov[1].iov_base = (void *) buf;
+		iov[1].iov_len  = len;
+		iovcnt = 2;
+	}
+    
+	l = retry_writev(sd, iov, iovcnt, timeout);
+	if (l == MI_FAILURE)
 		return MI_FAILURE;
-	if (len == 0 || buf == NULL)
-		return MI_SUCCESS;
-	i = 0;
-	sl = len;
-	MI_WR(buf);
 	return MI_SUCCESS;
 }

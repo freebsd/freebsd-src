@@ -6,9 +6,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: qtool.8,v 8.17 2002/01/29 21:55:49 ca Exp $
+.\"     $Id: qtool.8,v 8.20 2004/06/28 17:49:41 ca Exp $
 .\"
-.TH QTOOL 8 "$Date: 2002/01/29 21:55:49 $"
+.TH QTOOL 8 "$Date: 2004/06/28 17:49:41 $"
 .SH NAME
 qtool
 \- manipulate sendmail queues
@@ -56,7 +56,7 @@ Defaults to /etc/mail/sendmail.cf.
 Delete all of the messages specified by source.
 .TP
 \fB\-e\fP \fIperl_expression\fP
-Evalute \fIperl_expression\fP for each queue file as specified
+Evaluate \fIperl_expression\fP for each queue file as specified
 by \fIsource\fP. If \fIperl_expression\fP evaluates to true, then that
 queue file is moved. See below for more detail on \fIperl_expression\fP.
 .TP
@@ -101,9 +101,6 @@ The size of the control file in bytes.
 .TP
 \fBcreation_time\fP
 The time when the control file was created.
-.TP
-\fBcurrent_delay\fP
-Current delay for queue delay algorithm if _FFR_QUEUEDELAY is enabled.
 .TP
 \fBdata_file_name\fP
 The data file name (deprecated).
@@ -173,11 +170,7 @@ Original recipient (ORCPT= parameter).
 Adjusted priority of message.
 .TP
 \fBquarantine_reason\fP
-Quarantine reason for quarantined (held) envelopes if _FFR_QUARANTINE is
-enabled.
-.TP
-\fBqueue_delay\fP
-Queue delay algorithm if _FFR_QUEUEDELAY is enabled.
+Quarantine reason for quarantined (held) envelopes.
 .TP
 \fBrecipient\fP
 Array of character flags followed by colon and recipient name. Flags:

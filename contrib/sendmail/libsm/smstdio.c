@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: smstdio.c,v 1.32.2.2 2003/09/05 20:35:28 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: smstdio.c,v 1.33 2004/03/03 19:14:51 ca Exp $")
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
