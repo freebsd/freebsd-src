@@ -49,7 +49,8 @@ struct matching {
 };
 
 
-static void	add_pattern(struct match **list, const char *pattern);
+static void	add_pattern(struct bsdtar *, struct match **list,
+		    const char *pattern);
 static void	initialize_matching(struct bsdtar *);
 static int	match_exclusion(struct match *, const char *pathname);
 static int	match_inclusion(struct match *, const char *pathname);
@@ -73,7 +74,7 @@ exclude(struct bsdtar *bsdtar, const char *pattern)
 	if (bsdtar->matching == NULL)
 		initialize_matching(bsdtar);
 	matching = bsdtar->matching;
-	add_pattern(&(matching->exclusions), pattern);
+	add_pattern(bsdtar, &(matching->exclusions), pattern);
 	matching->exclusions_count++;
 }
 
@@ -85,19 +86,19 @@ include(struct bsdtar *bsdtar, const char *pattern)
 	if (bsdtar->matching == NULL)
 		initialize_matching(bsdtar);
 	matching = bsdtar->matching;
-	add_pattern(&(matching->inclusions), pattern);
+	add_pattern(bsdtar, &(matching->inclusions), pattern);
 	matching->inclusions_count++;
 	matching->inclusions_unmatched_count++;
 }
 
 static void
-add_pattern(struct match **list, const char *pattern)
+add_pattern(struct bsdtar *bsdtar, struct match **list, const char *pattern)
 {
 	struct match *match;
 
 	match = malloc(sizeof(*match) + strlen(pattern) + 1);
 	if (match == NULL)
-		bsdtar_errc(1, errno, "Out of memory");
+		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
 	if (pattern[0] == '/')
 		pattern++;
 	strcpy(match->pattern, pattern);
@@ -224,7 +225,7 @@ initialize_matching(struct bsdtar *bsdtar)
 {
 	bsdtar->matching = malloc(sizeof(*bsdtar->matching));
 	if (bsdtar->matching == NULL)
-		bsdtar_errc(1, errno, "No memory");
+		bsdtar_errc(bsdtar, 1, errno, "No memory");
 	memset(bsdtar->matching, 0, sizeof(*bsdtar->matching));
 }
 

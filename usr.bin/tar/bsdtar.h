@@ -65,6 +65,7 @@ struct bsdtar {
 	int		  fd;
 
 	/* Miscellaneous state information */
+	const char	 *progname;
 	int		  argc;
 	char		**argv;
 	size_t		  gs_width; /* For 'list_item' in read.c */
@@ -84,10 +85,10 @@ struct bsdtar {
 	struct name_cache	*uname_cache;	/* for write.c */
 };
 
-const char	*bsdtar_progname(void);
-void	bsdtar_errc(int _eval, int _code, const char *fmt, ...);
+void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
+	    const char *fmt, ...);
 void	bsdtar_strmode(struct archive_entry *entry, char *bp);
-void	bsdtar_warnc(int _code, const char *fmt, ...);
+void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	exclude(struct bsdtar *, const char *pattern);
 int	excluded(struct bsdtar *, const char *pathname);
@@ -99,6 +100,6 @@ void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
 int	unmatched_inclusions(struct bsdtar *bsdtar);
-void	usage(void);
+void	usage(struct bsdtar *);
 int	yes(const char *fmt, ...);
 
