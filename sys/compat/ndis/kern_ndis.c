@@ -87,13 +87,24 @@ __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 __stdcall static void ndis_sendrsrcavail_func(ndis_handle);
 
+struct ndis_req {
+	void			(*nr_func)(void *);
+	void			*nr_arg;
+	int			nr_exit;
+	STAILQ_ENTRY(ndis_req)	link;
+};
+
+struct ndisproc {
+	struct ndisqhead	*np_q;
+	struct proc		*np_p;
+};
+
 static int ndis_create_kthreads(void);
 static void ndis_destroy_kthreads(void);
 static void ndis_stop_thread(int);
 static int ndis_enlarge_thrqueue(int);
 static int ndis_shrink_thrqueue(int);
 static void ndis_runq(void *);
-static void ndis_intq(void *);
 
 extern struct mtx_pool *ndis_mtxpool;
 static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
@@ -102,15 +113,9 @@ static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
 struct ndisqhead ndis_itodo;
 struct ndisqhead ndis_free;
 static int ndis_jobs = 32;
-static struct proc *ndis_tproc;
-static struct proc *ndis_iproc;
 
-struct ndis_req {
-	void			(*ndis_func)(void *);
-	void			*ndis_arg;
-	int			ndis_exit;
-	STAILQ_ENTRY(ndis_req)	link;
-};
+static struct ndisproc ndis_tproc;
+static struct ndisproc ndis_iproc;
 
 /*
  * This allows us to export our symbols to other modules.
@@ -179,81 +184,41 @@ MODULE_VERSION(ndisapi, 1);
  */
 
 static void
-ndis_runq(dummy)
-	void			*dummy;
+ndis_runq(arg)
+	void			*arg;
 {
 	struct ndis_req		*r = NULL, *die = NULL;
+	struct ndisproc		*p;
+
+	p = arg;
 
 	while (1) {
-		kthread_suspend(ndis_tproc, 0);
+		kthread_suspend(p->np_p, 0);
 
 		/* Look for any jobs on the work queue. */
 
 		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
-		while(STAILQ_FIRST(&ndis_ttodo) != NULL) {
-			r = STAILQ_FIRST(&ndis_ttodo);
-			STAILQ_REMOVE_HEAD(&ndis_ttodo, link);
+		while(STAILQ_FIRST(p->np_q) != NULL) {
+			r = STAILQ_FIRST(p->np_q);
+			STAILQ_REMOVE_HEAD(p->np_q, link);
 			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
 			/* Do the work. */
 
-			if (r->ndis_func != NULL)
-				(*r->ndis_func)(r->ndis_arg);
+			if (r->nr_func != NULL)
+				(*r->nr_func)(r->nr_arg);
 
 			mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
 			STAILQ_INSERT_HEAD(&ndis_free, r, link);
 
 			/* Check for a shutdown request */
 
-			if (r->ndis_exit == TRUE)
+			if (r->nr_exit == TRUE)
 				die = r;
 		}
 		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
 		/* Bail if we were told to shut down. */
-
-		if (die != NULL)
-			break;
-	}
-
-	wakeup(die);
-	mtx_lock(&Giant);
-	kthread_exit(0);
-}
-
-static void
-ndis_intq(dummy)
-	void			*dummy;
-{
-	struct ndis_req		*r = NULL, *die = NULL;
- 
-	while (1) {
-		kthread_suspend(ndis_iproc, 0);
-
-		/* Look for any jobs on the work queue. */
-
-		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
-		while(STAILQ_FIRST(&ndis_itodo) != NULL) {
-			r = STAILQ_FIRST(&ndis_itodo);
-			STAILQ_REMOVE_HEAD(&ndis_itodo, link);
-			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
-
-			/* Do the work. */
-
-			if (r->ndis_func != NULL)
-				(*r->ndis_func)(r->ndis_arg);
-
-			mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
-			STAILQ_INSERT_HEAD(&ndis_free, r, link);
-
-			/* Check for a shutdown request */
-
-			if (r->ndis_exit == TRUE)
-				die = r;
-		}
-		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
-
-		/* Bail if this is an exit request. */
 
 		if (die != NULL)
 			break;
@@ -284,13 +249,17 @@ ndis_create_kthreads()
 		STAILQ_INSERT_HEAD(&ndis_free, r, link);
 	}
 
-	if (error == 0)
-		error = kthread_create(ndis_runq, NULL,
-		    &ndis_tproc, RFHIGHPID, 0, "ndis taskqueue");
+	if (error == 0) {
+		ndis_tproc.np_q = &ndis_ttodo;
+		error = kthread_create(ndis_runq, &ndis_tproc,
+		    &ndis_tproc.np_p, RFHIGHPID, 0, "ndis taskqueue");
+	}
 
-	if (error == 0)
-		error = kthread_create(ndis_intq, NULL,
-		    &ndis_iproc, RFHIGHPID, 0, "ndis swi");
+	if (error == 0) {
+		ndis_iproc.np_q = &ndis_itodo;
+		error = kthread_create(ndis_runq, &ndis_iproc,
+		    &ndis_iproc.np_p, RFHIGHPID, 0, "ndis swi");
+	}
 
 	if (error) {
 		while ((r = STAILQ_FIRST(&ndis_free)) != NULL) {
@@ -334,10 +303,10 @@ ndis_stop_thread(t)
 
 	if (t == NDIS_TASKQUEUE) {
 		q = &ndis_ttodo;
-		p = ndis_tproc;
+		p = ndis_tproc.np_p;
 	} else {
 		q = &ndis_itodo;
-		p = ndis_iproc;
+		p = ndis_iproc.np_p;
 	}
 
 	/* Create and post a special 'exit' job. */
@@ -345,9 +314,9 @@ ndis_stop_thread(t)
 	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
 	r = STAILQ_FIRST(&ndis_free);
 	STAILQ_REMOVE_HEAD(&ndis_free, link);
-	r->ndis_func = NULL;
-	r->ndis_arg = NULL;
-	r->ndis_exit = TRUE;
+	r->nr_func = NULL;
+	r->nr_arg = NULL;
+	r->nr_exit = TRUE;
 	STAILQ_INSERT_TAIL(q, r, link);
 	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
@@ -426,10 +395,10 @@ ndis_sched(func, arg, t)
 
 	if (t == NDIS_TASKQUEUE) {
 		q = &ndis_ttodo;
-		p = ndis_tproc;
+		p = ndis_tproc.np_p;
 	} else {
 		q = &ndis_itodo;
-		p = ndis_iproc;
+		p = ndis_iproc.np_p;
 	}
 
 	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
@@ -438,7 +407,7 @@ ndis_sched(func, arg, t)
 	 * pending. If so, don't bother queuing it again.
 	 */
 	STAILQ_FOREACH(r, q, link) {
-		if (r->ndis_func == func && r->ndis_arg == arg) {
+		if (r->nr_func == func && r->nr_arg == arg) {
 			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 			return(0);
 		}
@@ -449,9 +418,9 @@ ndis_sched(func, arg, t)
 		return(EAGAIN);
 	}
 	STAILQ_REMOVE_HEAD(&ndis_free, link);
-	r->ndis_func = func;
-	r->ndis_arg = arg;
-	r->ndis_exit = FALSE;
+	r->nr_func = func;
+	r->nr_arg = arg;
+	r->nr_exit = FALSE;
 	STAILQ_INSERT_TAIL(q, r, link);
 	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
