@@ -47,7 +47,7 @@
  */
 
 #include <isa/sioreg.h>
-#include <isa/ic/ns16550.h>
+#include <dev/ic/ns16550.h>
 #include <dev/sound/midi/midi.h>
 
 /* XXX What about a PCI uart? */
