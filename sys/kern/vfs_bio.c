@@ -3077,9 +3077,14 @@ dev_strategy(struct buf *bp)
 	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
 		panic("b_iocmd botch");
 	if (bp->b_flags & B_PHYS)
-		bp->b_io.bio_offset = bp->b_offset;
+		KASSERT(bp->b_io.bio_offset == bp->b_offset,
+		    ("bio_offset %jd wrong, should be %jd",
+		    (intmax_t)bp->b_io.bio_offset, (intmax_t)bp->b_offset));
 	else
-		bp->b_io.bio_offset = dbtob(bp->b_blkno);
+		KASSERT(bp->b_io.bio_offset == dbtob(bp->b_blkno),
+		    ("bio_offset %jd wrong, should be %jd",
+		    (intmax_t)bp->b_io.bio_offset,
+		    (intmax_t)dbtob(bp->b_blkno)));
 	bp->b_io.bio_done = bufdonebio;
 	bp->b_io.bio_caller2 = bp;
 	(*devsw(bp->b_io.bio_dev)->d_strategy)(&bp->b_io);
