@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ansi.h,v 1.5 1994/08/02 07:38:38 davidg Exp $
  */
 
-#ifndef	_ANSI_H_
-#define	_ANSI_H_
+#ifndef _MACHINE_ANSI_H_
+#define	_MACHINE_ANSI_H_
 
 /*
  * Types which are fundamental to the implementation and may appear in
@@ -70,4 +70,17 @@
 #define	_BSD_WCHAR_T_	int			/* wchar_t */
 #define	_BSD_RUNE_T_	int			/* rune_t */
 
-#endif	/* _ANSI_H_ */
+/*
+ * Frequencies of the clock ticks reported by clock() and times().  They
+ * are the same as stathz for bogus historical reasons.  They should be
+ * 1e6 because clock() and times() are implemented using getrusage() and
+ * there is no good reason why they should be less accurate.  There is
+ * the bad reason that (broken) programs might not like clock_t or
+ * CLOCKS_PER_SEC being ``double'' (``unsigned long'' is not large enough
+ * to hold the required 24 hours worth of ticks if the frequency is
+ * 1000000ul, and ``unsigned long long'' would be nonstandard).
+ */
+#define	_BSD_CLK_TCK_		128
+#define	_BSD_CLOCKS_PER_SEC_	128
+
+#endif	/* !_MACHINE_ANSI_H_ */
