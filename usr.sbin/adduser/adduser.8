@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12.2.7 1998/02/14 22:56:25 steve Exp $
+.\" $Id: adduser.8,v 1.12.2.8 1998/03/18 16:14:48 hoek Exp $
 .\"
 .Dd January 9, 1995
 .Dt ADDUSER 8
@@ -219,11 +219,11 @@ details.
 .El
 .Sh EXAMPLES
 .Pp
-$ adduser
+# adduser
 .Pp
 Start adduser in interactive mode.
 .Pp
-$ adduser -batch baerenkl guest,staff,baer '' 'Teddy II' qwerty7
+# adduser -batch baerenkl guest,staff,baer '' 'Teddy II' qwerty7
 .Pp
 Create user 'baerenkl' and  login group 'baerenkl'. Invite user 
 baerenkl into groups guest, staff and baer. Use default login class.
@@ -240,7 +240,7 @@ to
 Send user baerenkl
 a welcome message.
 .Pp
-$ adduser -uid 5000 -group guest -message no -batch vehlefan
+# adduser -uid 5000 -group guest -message no -batch vehlefan
 .Pp
 Create user 'vehlefan'. Login group is guest. Uid next available uid
 after 5000, for instance 5007. No other groups, no realname, no password.
