@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 INFO = gmp
 INFOSECTION= "Programming & development tools."

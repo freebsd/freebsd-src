@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $FreeBSD$
+# $Id$
 
 
 PATH=/bin:/usr/bin:$PATH

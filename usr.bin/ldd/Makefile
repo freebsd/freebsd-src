@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ldd
 SRCS=	ldd.c sods.c

@@ -1,6 +1,6 @@
 .\" Copyright (c) 1991, 1992 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
-.\"	$FreeBSD$
+.\"	$Id$
 .TH as 1 "21 January 1992" "cygnus support" "GNU Development Tools"
 
 .SH NAME

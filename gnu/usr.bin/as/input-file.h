@@ -20,7 +20,7 @@
 /*"input_file.c":Operating-system dependant functions to read source files.*/
 
 /*
- * $FreeBSD$
+ * $Id$
  */
 
 

@@ -68,7 +68,7 @@
 #include "lzw.h" /* just for consistency checking */
 
 #ifdef RCSID
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #endif
 
 /* ===========================================================================

@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $FreeBSD$
+# $Id$
 
 LIB=    dialog
 MAN3=	dialog.3

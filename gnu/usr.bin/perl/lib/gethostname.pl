@@ -4,7 +4,7 @@
 # Written 13-Feb-96 by Jörg Wunsch, interface business GmbH Dresden.
 # Placed in the public domain.
 #
-# $FreeBSD$
+# $Id$
 #
 
 package gethostname;

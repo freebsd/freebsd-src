@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $FreeBSD$ */
+	/* $Id$ */
 
 /*
  * This file is generated automatically.

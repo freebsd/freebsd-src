@@ -1,6 +1,6 @@
 #!/bin/sh
 # ad hoc debug tool
-# $FreeBSD$
+# $Id$
 
 x=$1
 y=$2

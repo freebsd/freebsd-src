@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $FreeBSD$
+# $Id$
 
 
 sub usage {

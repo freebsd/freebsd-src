@@ -33,7 +33,7 @@
 #
 # PS: this wrapper works also for catman(1)
 #
-# $FreeBSD$
+# $Id$
 
 PATH=/bin:/usr/bin:$PATH; export PATH
 opt= dirs= localdirs=

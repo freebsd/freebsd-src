@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ldconfig
 SRCS=	ldconfig.c shlib.c support.c
