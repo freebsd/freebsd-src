@@ -189,6 +189,13 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 	  NULL,
 	  NULL
 	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_START_NOW,
+	  "start_now",
+	  &ng_parse_uint64_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -315,6 +322,30 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* TODO validation of packets */
 			sc->packets = packets;
 			ng_source_start(sc);
+		    }
+		    break;
+		case NGM_SOURCE_START_NOW:
+		    {
+			u_int64_t packets = *(u_int64_t *)msg->data;
+			if (sc->output.hook == NULL) {
+				printf("%s: start on node with no output hook\n"
+				    , __FUNCTION__);
+				error = EINVAL;
+				break;
+			}
+			if (sc->node->nd_flags & NG_SOURCE_ACTIVE) {
+				error = EBUSY;
+				break;
+			}
+			/* TODO validation of packets */
+			sc->packets = packets;
+		        sc->output_ifp = NULL;
+
+			sc->node->nd_flags |= NG_SOURCE_ACTIVE;
+			timevalclear(&sc->stats.elapsedTime);
+			timevalclear(&sc->stats.endTime);
+			getmicrotime(&sc->stats.startTime);
+			sc->intr_ch = timeout(ng_source_intr, sc, 0);
 		    }
 		    break;
 		case NGM_SOURCE_STOP:
@@ -600,8 +631,12 @@ ng_source_intr (void *arg)
 		return;
 	}
 
-	ifq = &sc->output_ifp->if_snd;
-	packets = ifq->ifq_maxlen - ifq->ifq_len;
+	if (sc->output_ifp != NULL) {
+		ifq = &sc->output_ifp->if_snd;
+		packets = ifq->ifq_maxlen - ifq->ifq_len;
+	} else
+		packets = sc->snd_queue.ifq_len;
+
 	ng_source_send(sc, packets, NULL);
 	if (sc->packets == 0) {
 		int s = splnet();
