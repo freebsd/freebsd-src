@@ -176,6 +176,7 @@ main(argc, argv)
 	}
 #define	mask(s)	(1 << ((s) - 1))
 	omask = sigblock(mask(SIGHUP)|mask(SIGINT)|mask(SIGQUIT)|mask(SIGTERM));
+	(void) umask(07);
 	signal(SIGHUP, mcleanup);
 	signal(SIGINT, mcleanup);
 	signal(SIGQUIT, mcleanup);
@@ -190,6 +191,7 @@ main(argc, argv)
 		syslog(LOG_ERR, "ubind: %m");
 		exit(1);
 	}
+	(void) umask(0);
 	sigsetmask(omask);
 	FD_ZERO(&defreadfds);
 	FD_SET(funix, &defreadfds);
@@ -242,6 +244,10 @@ main(argc, argv)
 			domain = AF_INET, fromlen = sizeof(frominet);
 			s = accept(finet,
 			    (struct sockaddr *)&frominet, &fromlen);
+			if (frominet.sin_port == htons(20)) {
+				close(s);
+				continue;
+			}
 		}
 		if (s < 0) {
 			if (errno != EINTR)
@@ -459,9 +465,11 @@ chkhost(f)
 	register FILE *hostf;
 	int first = 1;
 	extern char *inet_ntoa();
+ 	int good = 0;
 
 	f->sin_port = ntohs(f->sin_port);
-	if (f->sin_family != AF_INET || f->sin_port >= IPPORT_RESERVED)
+ 	if (f->sin_family != AF_INET || f->sin_port >= IPPORT_RESERVED ||
+ 	    f->sin_port == htons(20))
 		fatal("Malformed from address");
 
 	/* Need real hostname for temporary filenames */
@@ -471,9 +479,23 @@ chkhost(f)
 		fatal("Host name for your address (%s) unknown",
 			inet_ntoa(f->sin_addr));
 
-	(void) strncpy(fromb, hp->h_name, sizeof(fromb));
+	(void) strncpy(fromb, hp->h_name, sizeof(fromb) - 1);
 	from[sizeof(fromb) - 1] = '\0';
 	from = fromb;
+
+	/* Check for spoof, ala rlogind */
+	hp = gethostbyname(fromb);
+	if (!hp)
+		fatal("hostname for your address (%s) unknown",
+		    inet_ntoa(f->sin_addr));
+	for (; good == 0 && hp->h_addr_list[0] != NULL; hp->h_addr_list++) {
+		if (!bcmp(hp->h_addr_list[0], (caddr_t)&f->sin_addr,
+		    sizeof(f->sin_addr)))
+			good = 1;
+	}
+	if (good == 0)
+		fatal("address for your hostname (%s) not matched",
+		    inet_ntoa(f->sin_addr));
 
 	hostf = fopen(_PATH_HOSTSEQUIV, "r");
 again:
@@ -493,15 +515,3 @@ again:
 	fatal("Your host does not have line printer access");
 	/*NOTREACHED*/
 }
-
-
-
-
-
-
-
-
-
-
-
-
