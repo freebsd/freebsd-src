@@ -101,6 +101,7 @@
 #include "datalink.h"
 #include "iface.h"
 #include "id.h"
+#include "probe.h"
 
 /* ``set'' values */
 #define	VAR_AUTHKEY	0
@@ -2573,13 +2574,19 @@ OptSet(struct cmdargs const *arg)
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
 
-  if ((cmd = ident_cmd(arg->argv[arg->argn-2], &keep, &add)) == NULL)
+  if (ident_cmd(arg->argv[arg->argn - 2], &keep, &add) == NULL)
     return 1;
+
+  if (add == NEG_ENABLED && bit == OPT_IPV6CP && !probe.ipv6_available) {
+    log_Printf(LogWARN, "IPv6 is not available on this machine\n");
+    return 1;
+  }
 
   if (add)
     arg->bundle->cfg.opt |= bit;
   else
     arg->bundle->cfg.opt &= ~bit;
+
   return 0;
 }
 

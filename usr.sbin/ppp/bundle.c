@@ -99,6 +99,7 @@
 #include "datalink.h"
 #include "iface.h"
 #include "server.h"
+#include "probe.h"
 #ifdef HAVE_DES
 #include "mppe.h"
 #endif
@@ -809,10 +810,12 @@ bundle_Create(const char *prefix, int type, int unit)
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
   bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_SROUTES | OPT_TCPMSSFIXUP |
-#ifndef NOINET6
-                   OPT_IPCP | OPT_IPV6CP |
-#endif
                    OPT_THROUGHPUT | OPT_UTMP;
+#ifndef NOINET6
+  bundle.cfg.opt |= OPT_IPCP;
+  if (probe.ipv6_available)
+    bundle.cfg.opt |= OPT_IPV6CP;
+#endif
   *bundle.cfg.label = '\0';
   bundle.cfg.ifqueue = DEF_IFQUEUE;
   bundle.cfg.choked.timeout = CHOKED_TIMEOUT;
