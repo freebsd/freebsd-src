@@ -30,8 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	$Id: sio.c,v 1.216 1998/09/26 13:59:26 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.1 1998/09/24 02:07:28 jkh Exp $
+ *	from: i386/isa sio.c,v 1.215
  */
 
 #include "opt_comconsole.h"
@@ -42,16 +43,6 @@
 #include "sio.h"
 /* #include "pnp.h" */
 #define NPNP 0
-
-#ifndef EXTRA_SIO
-#if NPNP > 0
-#define EXTRA_SIO 2
-#else
-#define EXTRA_SIO 0
-#endif
-#endif
-
-#define NSIOTOT (NSIO + EXTRA_SIO)
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -72,6 +63,7 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
@@ -85,6 +77,7 @@
 #include <machine/lock.h>
 
 #include <machine/clock.h>
+#include <machine/ipl.h>
 
 #include <isa/sioreg.h>
 
@@ -115,8 +108,17 @@
 #define enable_intr()	COM_ENABLE_INTR()
 #endif /* SMP */
 
+#ifndef EXTRA_SIO
+#if NPNP > 0
+#define EXTRA_SIO MAX_PNP_CARDS
+#else
+#define EXTRA_SIO 0
+#endif
+#endif
+
+#define NSIOTOT (NSIO + EXTRA_SIO)
+
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
-#define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
 
 #define	CALLOUT_MASK		0x80
@@ -312,19 +314,6 @@ struct com_s {
 #endif
 };
 
-/*
- * XXX public functions in drivers should be declared in headers produced
- * by `config', not here.
- */
-
-/* Interrupt handling entry point. */
-void	siopoll		__P((void));
-
-/* Device switch entry points. */
-#define	sioreset	noreset
-#define	siommap		nommap
-#define	siostrategy	nostrategy
-
 #ifdef COM_ESP
 static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
@@ -338,6 +327,7 @@ static	void	siointr1	__P((struct com_s *com));
 static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
+static	swihand_t siopoll;
 static	int	sioprobe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
@@ -379,12 +369,13 @@ static	d_ioctl_t	sioioctl;
 static	d_stop_t	siostop;
 static	d_devtotty_t	siodevtotty;
 
-#define CDEV_MAJOR 28
-static struct cdevsw sio_cdevsw = {
+#define	CDEV_MAJOR	28
+static	struct cdevsw	sio_cdevsw = {
 	sioopen,	sioclose,	sioread,	siowrite,
 	sioioctl,	siostop,	noreset,	siodevtotty,
 	ttpoll,		nommap,		NULL,		driver_name,
-	NULL,		-1,
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
 };
 
 int	comconsole = -1;
@@ -393,6 +384,7 @@ static	volatile speed_t	gdbdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 static	Port_t	siogdbiobase;
+static	bool_t	sio_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -1118,25 +1110,29 @@ determined_type: ;
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
 
+	if (!sio_registered) {
+		register_swi(SWI_TTY, siopoll);
+		sio_registered = TRUE;
+	}
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyd%n", unit);
+		UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
 	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
 		unit | CONTROL_INIT_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyid%n", unit);
+		UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
 	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
 		unit | CONTROL_LOCK_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyld%n", unit);
+		UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
 	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaa%n", unit);
+		UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
 	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaia%n", unit);
+		UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
 	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuala%n", unit);
+		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
 	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
 
@@ -1233,6 +1229,9 @@ open_top:
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
+		tp->t_ififosize = 2 * RS_IBUFSIZE;
+		tp->t_ispeedwat = (speed_t)-1;
+		tp->t_ospeedwat = (speed_t)-1;
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
@@ -1244,7 +1243,6 @@ open_top:
 		/*
 		 * XXX we should goto open_top if comparam() slept.
 		 */
-		ttsetwater(tp);
 		iobase = com->iobase;
 		if (com->hasfifo) {
 			/*
@@ -1919,7 +1917,7 @@ sioioctl(dev, cmd, data, flag, p)
 	return (0);
 }
 
-void
+static void
 siopoll()
 {
 	int		unit;
@@ -2023,7 +2021,7 @@ repeat:
 		 * call overhead).
 		 */
 		if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-			if (tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
+			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
 				|| tp->t_iflag & IXOFF)
 			    && !(tp->t_state & TS_TBLOCK))
@@ -3112,13 +3110,11 @@ error:
 
 #if NPNP > 0
 
-static struct siopnp_ids {
-	u_long vend_id;
-	char *id_str;
-} siopnp_ids[] = {
+static pnpid_t siopnp_ids[] = {
 	{ 0x5015f435, "MOT1550"},
 	{ 0x8113b04e, "Supra1381"},
 	{ 0x9012b04e, "Supra1290"},
+	{ 0x7121b04e, "SupraExpress 56i Sp"},
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
 	{ 0 }
@@ -3141,12 +3137,12 @@ DATA_SET (pnpdevice_set, siopnp);
 static char *
 siopnp_probe(u_long csn, u_long vend_id)
 {
-	struct siopnp_ids *ids;
+	pnpid_t *id;
 	char *s = NULL;
 
-	for(ids = siopnp_ids; ids->vend_id != 0; ids++) {
-		if (vend_id == ids->vend_id) {
-			s = ids->id_str;
+	for(id = siopnp_ids; id->vend_id != 0; id++) {
+		if (vend_id == id->vend_id) {
+			s = id->id_str;
 			break;
 		}
 	}
@@ -3155,7 +3151,7 @@ siopnp_probe(u_long csn, u_long vend_id)
 		struct pnp_cinfo d;
 		read_pnp_parms(&d, 0);
 		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %d is disabled.\n", csn);
+			printf("CSN %lu is disabled.\n", csn);
 			return (NULL);
 		}
 
