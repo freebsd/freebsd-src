@@ -33,7 +33,6 @@
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <string.h>
-#include <machine/bootinfo.h>
 #include <machine/elf.h>
 #include <stand.h>
 #define FREEBSD_ELF
