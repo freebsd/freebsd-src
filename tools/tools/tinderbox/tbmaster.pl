@@ -66,7 +66,7 @@ my %INITIAL_CONFIG = (
     'SUBJECT'	=> 'Tinderbox failure on %%arch%%/%%machine%%',
     'TARGETS'	=> [ 'update', 'world' ],
     'TIMEOUT'   => '',
-    'TINDERBOX'	=> '%%HOME%%/tinderbox',
+    'TINDERBOX'	=> '%%HOME%%/bin/tinderbox',
 );
 my %CONFIG;
 
