@@ -36,7 +36,7 @@
 .\"	@(#)regex.3	8.4 (Berkeley) 3/20/94
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2002
+.Dd July 6, 2004
 .Dt REGEX 3
 .Os
 .Sh NAME
@@ -725,3 +725,5 @@ behavior in such cases should not be relied on.
 .Pp
 The implementation of word-boundary matching is a bit of a kludge,
 and bugs may lurk in combinations of word-boundary matching and anchoring.
+.Pp
+The current implementation does not recognize multibyte characters.
