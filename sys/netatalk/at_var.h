@@ -58,8 +58,8 @@ struct at_aliasreq {
 
 #ifdef KERNEL
 extern struct	pr_usrreqs ddp_usrreqs;
-struct at_ifaddr	*at_ifaddr;
-struct ifqueue		atintrq1, atintrq2;
+extern struct at_ifaddr	*at_ifaddr;
+extern struct ifqueue	atintrq1, atintrq2;
 int			atdebug;
 #endif
 

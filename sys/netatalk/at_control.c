@@ -26,6 +26,8 @@
 #include <netatalk/phase2.h>
 #include <netatalk/at_extern.h>
 
+struct at_ifaddr	*at_ifaddr;
+
 static int aa_dorangeroute(struct ifaddr *ifa,
 			u_int first, u_int last, int cmd);
 static int aa_addsingleroute(struct ifaddr *ifa,
