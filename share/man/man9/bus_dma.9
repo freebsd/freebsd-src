@@ -238,6 +238,7 @@ The
 allows the type of DMA operation that will be or has been performed
 to be communicated to the system so that the correct coherency measures
 are taken.
+It is possible to combine different DMA operations by OR'ing them together.
 All operations specified below are performed from the DMA engine's
 point of view:
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
@@ -247,18 +248,12 @@ but prior to DMA read operations.
 .It Dv BUS_DMASYNC_PREWRITE
 Perform any synchronization required after an update of memory by the CPU
 but prior to DMA write operations.
-.It Dv BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE
-Perform any synchronization required prior to a combination of DMA read
-and write operations.
 .It Dv BUS_DMASYNC_POSTREAD
 Perform any synchronization required after DMA read operations, but prior
 to CPU access of the memory.
 .It Dv BUS_DMASYNC_POSTWRITE
 Perform any synchronization required after DMA write operations, but prior
 to CPU access of the memory.
-.It Dv BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after a combination of DMA read
-and write operations.
 .El
 .El
 .Sh FUNCTIONS
@@ -701,20 +696,38 @@ while allowing callers to queue up on scarce resources.
 .Sh AUTHORS
 The
 .Nm
-interface was designed and implemented by Jason R. Thorpe of the
-Numerical Aerospace Simulation Facility, NASA Ames Research Center.
+interface was designed and implemented by
+.An Jason R. Thorpe
+of the Numerical Aerospace Simulation Facility, NASA Ames Research Center.
 Additional input on the
 .Nm
-design was provided by Chris Demetriou, Charles Hannum, Ross Harvey,
-Matthew Jacob, Jonathan Stone, and Matt Thomas.
+design was provided by
+.An -nosplit
+.An Chris Demetriou ,
+.An Charles Hannum ,
+.An Ross Harvey ,
+.An Matthew Jacob ,
+.An Jonathan Stone ,
+and
+.An Matt Thomas .
 .Pp
 The
 .Nm
 interface in
 .Fx
-benefits from the contributions of Justin T. Gibbs,
-Peter Wemm, Doug Rabson, Matthew N. Dodd, Sam Leffler,
-Maxime Henrion, Jake Burkholder, Takahashi Yoshihiro,
-Scott Long and many others.
+benefits from the contributions of
+.An Justin T. Gibbs ,
+.An Peter Wemm ,
+.An Doug Rabson ,
+.An Matthew N. Dodd ,
+.An Sam Leffler ,
+.An Maxime Henrion ,
+.An Jake Burkholder ,
+.An Takahashi Yoshihiro ,
+.An Scott Long
+and many others.
 .Pp
-This manual page was written by Hiten M. Pandya and Justin T. Gibbs.
+This manual page was written by
+.An Hiten M. Pandya
+and
+.An Justin T. Gibbs .
