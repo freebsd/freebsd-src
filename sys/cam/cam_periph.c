@@ -1253,6 +1253,10 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 			}
 			*timeout = 0;
 			error = ERESTART;
+			if (bootverbose) {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("Queue Full\n");
+			}
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1262,6 +1266,10 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		 * Restart the queue after either another
 		 * command completes or a 1 second timeout.
 		 */
+		if (bootverbose) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Device Busy\n");
+		}
 	 	if (ccb->ccb_h.retry_count > 0) {
 	 		ccb->ccb_h.retry_count--;
 			error = ERESTART;
@@ -1273,9 +1281,13 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		}
 		break;
 	case SCSI_STATUS_RESERV_CONFLICT:
+		xpt_print_path(ccb->ccb_h.path);
+		printf("Reservation Conflict\n");
 		error = EIO;
 		break;
 	default:
+		xpt_print_path(ccb->ccb_h.path);
+		printf("SCSI Status 0x%x\n", ccb->csio.scsi_status);
 		error = EIO;
 		break;
 	}
@@ -1374,7 +1386,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			error = 0;
 			break;
 		case SS_RETRY:
-			action_string = "Retrying Command";
+			action_string = "Retrying Command (per Sense Data)";
 			error = ERESTART;
 			break;
 		case SS_FAIL:
@@ -1482,11 +1494,10 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 sense_error_done:
 		if ((err_action & SSQ_PRINT_SENSE) != 0
 		 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0) {
-#if 0
-			scsi_sense_print(&print_ccb->csio);
-#endif
 			cam_error_print(print_ccb, CAM_ESF_ALL, CAM_EPF_ALL);
 			xpt_print_path(ccb->ccb_h.path);
+			if (bootverbose)
+				scsi_sense_print(&print_ccb->csio);
 			printf("%s\n", action_string);
 		}
 	}
@@ -1505,7 +1516,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	const char *action_string;
 	cam_status  status;
 	int	    frozen;
-	int	    error;
+	int	    error, printed = 0;
 	int         openings;
 	u_int32_t   relsim_flags;
 	u_int32_t   timeout;
@@ -1535,10 +1546,36 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		error = EIO;	/* we have to kill the command */
 		break;
 	case CAM_REQ_CMP_ERR:
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Request completed with CAM_REQ_CMP_ERR\n");
+			printed++;
+		}
 	case CAM_CMD_TIMEOUT:
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Command timed out");
+			printed++;
+		}
 	case CAM_UNEXP_BUSFREE:
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Unexpected Bus Free");
+			printed++;
+		}
 	case CAM_UNCOR_PARITY:
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Uncorrected Parity Error");
+			printed++;
+		}
 	case CAM_DATA_RUN_ERR:
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Data Overrun");
+			printed++;
+		}
+		error = EIO;	/* we have to kill the command */
 		/* decrement the number of retries */
 		if (ccb->ccb_h.retry_count > 0) {
 			ccb->ccb_h.retry_count--;
@@ -1563,6 +1600,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 
 				ccb->ccb_h.retry_count--;
 				error = ERESTART;
+				if (bootverbose && printed == 0) {
+					xpt_print_path(ccb->ccb_h.path);
+					printf("Selection Timeout");
+					printed++;
+				}
 
 				/*
 				 * Wait a second to give the device
@@ -1607,10 +1649,23 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 * these events and should be unconditionally
 		 * retried.
 		 */
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			if (status == CAM_BDR_SENT)
+				printf("Bus Device Reset sent\n");
+			else
+				printf("Bus Reset issued\n");
+			printed++;
+		}
 		/* FALLTHROUGH */
 	case CAM_REQUEUE_REQ:
 		/* Unconditional requeue */
 		error = ERESTART;
+		if (bootverbose && printed == 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Request Requeued\n");
+			printed++;
+		}
 		break;
 	case CAM_RESRC_UNAVAIL:
 	case CAM_BUSY:
@@ -1620,6 +1675,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (ccb->ccb_h.retry_count > 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
+			if (bootverbose && printed == 0) {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("CAM Status 0x%x\n", status);
+				printed++;
+			}
 		} else {
 			error = EIO;
 			action_string = "Retries Exhausted";
