@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.37 1996/04/28 00:37:38 jkh Exp $
+ * $Id: tcpip.c,v 1.38 1996/04/30 05:25:15 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -547,8 +547,7 @@ tcpDeviceSelect(void)
 	if (RunningAsInit)
 	    tcpOpenDialog(devs[0]);
 	else
-	    msgConfirm("Since you're running multi-user, we'll assume\n"
-		       "that the network is already up.");
+	    msgDebug("Running multi-user, assuming that the network is already up\n");
 	mediaDevice = devs[0];
 	status = TRUE;
     }
