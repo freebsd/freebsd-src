@@ -39,13 +39,13 @@
 #include <sys/tree.h>
 
 #include <net/radix.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <vm/uma.h>
 #else
 #include <netinet/ip_ipsp.h>
 #endif
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <netinet/in.h>
 /*
  * XXX
@@ -134,13 +134,15 @@ struct pf_addr_wrap {
 	u_int8_t		 type;		/* PF_ADDR_* */
 };
 
+#ifdef _KERNEL
+
 struct pf_addr_dyn {
 	char			 ifname[IFNAMSIZ];
 	struct ifnet		*ifp;
 	struct pf_addr		*addr;
 	sa_family_t		 af;
-#if defined(__FreeBSD__) && defined(HOOK_HACK)
-	eventhandler_tag	hook_cookie;
+#ifdef __FreeBSD__
+	eventhandler_tag	 hook_cookie;
 #else
 	void			*hook_cookie;
 #endif
@@ -151,9 +153,7 @@ struct pf_addr_dyn {
  * Address manipulation macros
  */
 
-#ifdef _KERNEL
-
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #define splsoftnet()	splnet()
 
 #define	HTONL(x)	(x) = htonl((__uint32_t)(x))
@@ -175,7 +175,7 @@ struct pf_addr_dyn {
 		if(var) uma_zdestroy(var)
 
 extern struct mtx pf_task_mtx;
-#if defined(ALTQ)
+#ifdef ALTQ
 extern struct mtx pf_altq_mtx;
 extern int pfaltq_ref;
 #endif
@@ -1190,7 +1190,7 @@ struct pfioc_table {
 #define DIOCOSFPFLUSH	_IO('D', 78)
 #define DIOCOSFPADD	_IOWR('D', 79, struct pf_osfp_ioctl)
 #define DIOCOSFPGET	_IOWR('D', 80, struct pf_osfp_ioctl)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 struct pf_ifspeed {
 	char			ifname[IFNAMSIZ];
 	u_int32_t		baudrate;
@@ -1231,7 +1231,7 @@ extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 extern void			 pf_rule_set_qid(struct pf_rulequeue *);
 extern u_int32_t		 pf_qname_to_qid(char *);
 extern void			 pf_update_anchor_rules(void);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 extern uma_zone_t		 pf_tree_pl, pf_rule_pl, pf_addr_pl;
 extern uma_zone_t		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
 extern uma_zone_t		 pfr_ktable_pl, pfr_kentry_pl;
@@ -1339,7 +1339,7 @@ int		pf_tag_packet(struct mbuf *, struct pf_tag *, int);
 
 extern struct pf_status	pf_status;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 extern uma_zone_t	pf_frent_pl, pf_frag_pl;
 #else
 extern struct pool	pf_frent_pl, pf_frag_pl;
@@ -1351,7 +1351,7 @@ struct pf_pool_limit {
 };
 extern struct pf_pool_limit	pf_pool_limits[PF_LIMIT_MAX];
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;
 	struct ip *fr_ip;
@@ -1396,7 +1396,7 @@ struct pf_osfp_enlist *
 	pf_osfp_fingerprint_hdr(const struct ip *, const struct tcphdr *);
 void	pf_osfp_flush(void);
 int	pf_osfp_get(struct pf_osfp_ioctl *);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 int	pf_osfp_initialize(void);
 void	pf_osfp_cleanup(void);
 #else
