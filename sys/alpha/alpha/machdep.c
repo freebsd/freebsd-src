@@ -363,6 +363,7 @@ again:
 			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
 				(nbuf*BKVASIZE));
+	buffer_map->system_map = 1;
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size);
 	pager_map->system_map = 1;
