@@ -77,6 +77,7 @@ static g_orphan_t g_dev_orphan;
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.taste = g_dev_taste,
+	.orphan = g_dev_orphan,
 };
 
 void
@@ -121,7 +122,6 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		if (cp->geom->class == mp)
 			return (NULL);
 	gp = g_new_geomf(mp, pp->name);
-	gp->orphan = g_dev_orphan;
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,

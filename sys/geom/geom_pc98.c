@@ -238,8 +238,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (gp == NULL)
 		return (NULL);
 	g_topology_unlock();
-	gp->dumpconf = g_pc98_dumpconf;
-	gp->ioctl = g_pc98_ioctl;
 	do {
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
@@ -284,6 +282,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 static struct g_class g_pc98_class = {
 	.name = PC98_CLASS_NAME,
 	.taste = g_pc98_taste,
+	.dumpconf = g_pc98_dumpconf,
+	.ioctl = g_pc98_ioctl,
 };
 
 DECLARE_GEOM_CLASS(g_pc98_class, g_pc98);

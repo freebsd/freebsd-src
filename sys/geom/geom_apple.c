@@ -157,7 +157,6 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (gp == NULL)
 		return (NULL);
 	g_topology_unlock();
-	gp->dumpconf = g_apple_dumpconf;
 	do {
 		if (gp->rank != 2 && insist == 0)
 			break;
@@ -257,6 +256,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 static struct g_class g_apple_class	= {
 	.name = APPLE_CLASS_NAME,
 	.taste = g_apple_taste,
+	.dumpconf = g_apple_dumpconf,
 };
 
 DECLARE_GEOM_CLASS(g_apple_class, g_apple);

@@ -718,9 +718,6 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	}
 
 	gp = g_new_geomf(mp, "ccd%d", *unit);
-	gp->start = g_ccd_start;
-	gp->orphan = g_ccd_orphan;
-	gp->access = g_ccd_access;
 	sc = g_malloc(sizeof *sc, M_WAITOK | M_ZERO);
 	gp->softc = sc;
 	sc->sc_ndisks = *nprovider;
@@ -863,6 +860,9 @@ static struct g_class g_ccd_class = {
 	.name = "CCD",
 	.ctlreq = g_ccd_config,
 	.destroy_geom = g_ccd_destroy_geom,
+	.start = g_ccd_start,
+	.orphan = g_ccd_orphan,
+	.access = g_ccd_access,
 };
 
 DECLARE_GEOM_CLASS(g_ccd_class, g_ccd);
