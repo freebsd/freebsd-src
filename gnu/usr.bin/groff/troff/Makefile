@@ -24,7 +24,7 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${DIST_DIR}/hyphen.us \
 		${DESTDIR}${tmacdir}/hyphen.us
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${DIST_DIR}/hyphen.us-ru ${DESTDIR}${tmacdir}/hyphen.us-ru
+		${DIST_DIR}/hyphen.us-ru ${DESTDIR}${tmacdir}/locale/hyphen.us-ru
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
