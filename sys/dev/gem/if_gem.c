@@ -91,7 +91,9 @@ static void	gem_setladrf(struct gem_softc *);
 struct mbuf	*gem_get(struct gem_softc *, int, int);
 static void	gem_eint(struct gem_softc *, u_int);
 static void	gem_rint(struct gem_softc *);
+#if 0
 static void	gem_rint_timeout(void *);
+#endif
 static void	gem_tint(struct gem_softc *);
 #ifdef notyet
 static void	gem_power(int, void *);
@@ -1429,6 +1431,7 @@ gem_tint(sc)
 		device_get_name(sc->sc_dev), ifp->if_timer);
 }
 
+#if 0
 static void
 gem_rint_timeout(arg)
 	void *arg;
@@ -1436,6 +1439,7 @@ gem_rint_timeout(arg)
 
 	gem_rint((struct gem_softc *)arg);
 }
+#endif
 
 /*
  * Receive interrupt.
