@@ -72,6 +72,7 @@
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/fpu.h>
+#include <machine/mca.h>
 #include <machine/pal.h>
 #include <machine/sal.h>
 #include <machine/bootinfo.h>
@@ -240,6 +241,8 @@ cpu_startup(dummy)
 	if (!ia64_running_in_simulator())
 		panic("Mandatory 'device acpica' is missing");
 #endif
+
+	ia64_mca_init();
 }
 
 void
