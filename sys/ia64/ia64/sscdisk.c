@@ -115,9 +115,7 @@ sscstrategy(struct bio *bp)
 	sc->busy++;
 	
 	while (1) {
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
+		bp = bioq_takefirst(&sc->bio_queue);
 		splx(s);
 		if (!bp)
 			break;
