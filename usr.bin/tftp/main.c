@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
@@ -46,6 +50,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 /*
  * TFTP User Program -- Command Interface.
  */
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/file.h>
@@ -55,7 +60,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #include <arpa/inet.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -145,8 +150,6 @@ struct cmd cmdtab[] = {
 
 struct	cmd *getcmd();
 char	*tail();
-char	*index();
-char	*rindex();
 
 int
 main(argc, argv)
@@ -156,21 +159,15 @@ main(argc, argv)
 	struct sockaddr_in sin;
 
 	sp = getservbyname("tftp", "udp");
-	if (sp == 0) {
-		fprintf(stderr, "tftp: udp/tftp: unknown service\n");
-		exit(1);
-	}
+	if (sp == 0)
+		errx(1, "udp/tftp: unknown service");
 	f = socket(AF_INET, SOCK_DGRAM, 0);
-	if (f < 0) {
-		perror("tftp: socket");
-		exit(3);
-	}
+	if (f < 0)
+		err(3, "socket");
 	bzero((char *)&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
-	if (bind(f, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("tftp: bind");
-		exit(1);
-	}
+	if (bind(f, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		err(1, "bind");
 	strcpy(mode, "netascii");
 	signal(SIGINT, intr);
 	if (argc > 1) {
@@ -183,7 +180,7 @@ main(argc, argv)
 	command();
 }
 
-char    hostname[100];
+char    hostname[MAXHOSTNAMELEN];
 
 void
 setpeer(argc, argv)
@@ -364,7 +361,7 @@ put(argc, argv)
 		cp = argc == 2 ? tail(targ) : argv[1];
 		fd = open(cp, O_RDONLY);
 		if (fd < 0) {
-			fprintf(stderr, "tftp: "); perror(cp);
+			warn("%s", cp);
 			return;
 		}
 		if (verbose)
@@ -382,7 +379,7 @@ put(argc, argv)
 		strcpy(cp, tail(argv[n]));
 		fd = open(argv[n], O_RDONLY);
 		if (fd < 0) {
-			fprintf(stderr, "tftp: "); perror(argv[n]);
+			warn("%s", argv[n]);
 			continue;
 		}
 		if (verbose)
@@ -457,7 +454,7 @@ get(argc, argv)
 			cp = argc == 3 ? argv[2] : tail(src);
 			fd = creat(cp, 0644);
 			if (fd < 0) {
-				fprintf(stderr, "tftp: "); perror(cp);
+				warn("%s", cp);
 				return;
 			}
 			if (verbose)
@@ -470,7 +467,7 @@ get(argc, argv)
 		cp = tail(src);         /* new .. jdg */
 		fd = creat(cp, 0644);
 		if (fd < 0) {
-			fprintf(stderr, "tftp: "); perror(cp);
+			warn("%s", cp);
 			continue;
 		}
 		if (verbose)
