@@ -84,7 +84,16 @@ void wrap_restore_saved PROTO((void));
 
 void wrap_setup()
 {
+    /* FIXME-reentrancy: if we do a multithreaded server, will need to
+       move this to a per-connection data structure, or better yet
+       think about a cleaner solution.  */
+    static int wrap_setup_already_done = 0;
     char *homedir;
+
+    if (wrap_setup_already_done != 0)
+        return;
+    else
+        wrap_setup_already_done = 1;
 
 #ifdef CLIENT_SUPPORT
     if (!client_active)
@@ -122,6 +131,23 @@ void wrap_setup()
 	free (file);
     }
 
+    /* FIXME: calling wrap_add() below implies that the CVSWRAPPERS
+     * environment variable contains exactly one "wrapper" -- a line
+     * of the form
+     * 
+     *    FILENAME_PATTERN	FLAG  OPTS [ FLAG OPTS ...]
+     *
+     * This may disagree with the documentation, which states:
+     * 
+     *   `$CVSWRAPPERS'
+     *      A whitespace-separated list of file name patterns that CVS
+     *      should treat as wrappers. *Note Wrappers::.
+     *
+     * Does this mean the environment variable can hold multiple
+     * wrappers lines?  If so, a single call to wrap_add() is
+     * insufficient.
+     */
+
     /* Then add entries found in CVSWRAPPERS environment variable. */
     wrap_add (getenv (WRAPPER_ENV), 0);
 }
@@ -158,6 +184,61 @@ wrap_send ()
     }
 }
 #endif /* CLIENT_SUPPORT */
+
+#if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
+/* Output wrapper entries in the format of cvswrappers lines.
+ *
+ * This is useful when one side of a client/server connection wants to
+ * send its wrappers to the other; since the receiving side would like
+ * to use wrap_add() to incorporate the wrapper, it's best if the
+ * entry arrives in this format.
+ *
+ * The entries are stored in `line', which is allocated here.  Caller
+ * can free() it.
+ *
+ * If first_call_p is nonzero, then start afresh.  */
+void
+wrap_unparse_rcs_options (line, first_call_p)
+    char **line;
+    int first_call_p;
+{
+    /* FIXME-reentrancy: we should design a reentrant interface, like
+       a callback which gets handed each wrapper (a multithreaded
+       server being the most concrete reason for this, but the
+       non-reentrant interface is fairly unnecessary/ugly).  */
+    static int i;
+
+    if (first_call_p)
+        i = 0;
+
+    for (; i < wrap_count + wrap_tempcount; ++i)
+    {
+	if (wrap_list[i]->rcsOption != NULL)
+	{
+            *line = xmalloc (strlen (wrap_list[i]->wildCard)
+                             + strlen ("\t")
+                             + strlen (" -k '")
+                             + strlen (wrap_list[i]->rcsOption)
+                             + strlen ("'")
+                             + 1);  /* leave room for '\0' */
+            
+            strcpy (*line, wrap_list[i]->wildCard);
+            strcat (*line, " -k '");
+            strcat (*line, wrap_list[i]->rcsOption);
+            strcat (*line, "'");
+
+            /* We're going to miss the increment because we return, so
+               do it by hand. */
+            ++i;
+
+            return;
+	}
+    }
+
+    *line = NULL;
+    return;
+}
+#endif /* SERVER_SUPPORT || CLIENT_SUPPORT */
 
 /*
  * Open a file and read lines, feeding each line to a line parser. Arrange

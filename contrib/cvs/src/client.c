@@ -128,6 +128,7 @@ static void handle_clear_sticky PROTO((char *, int));
 static void handle_set_checkin_prog PROTO((char *, int));
 static void handle_set_update_prog PROTO((char *, int));
 static void handle_module_expansion PROTO((char *, int));
+static void handle_wrapper_rcs_option PROTO((char *, int));
 static void handle_m PROTO((char *, int));
 static void handle_e PROTO((char *, int));
 static void handle_f PROTO((char *, int));
@@ -2885,6 +2886,44 @@ client_nonexpanded_setup ()
     send_a_repository ("", CVSroot_directory, "");
 }
 
+/* Receive a cvswrappers line from the server; it must be a line
+   containing an RCS option (e.g., "*.exe   -k 'b'").
+
+   Note that this doesn't try to handle -t/-f options (which are a
+   whole separate issue which noone has thought much about, as far
+   as I know).
+
+   We need to know the keyword expansion mode so we know whether to
+   read the file in text or binary mode.  */
+
+static void
+handle_wrapper_rcs_option (args, len)
+    char *args;
+    int len;
+{
+    char *p;
+
+    /* Enforce the notes in cvsclient.texi about how the response is not
+       as free-form as it looks.  */
+    p = strchr (args, ' ');
+    if (p == NULL)
+	goto error;
+    if (*++p != '-'
+	|| *++p != 'k'
+	|| *++p != ' '
+	|| *++p != '\'')
+	goto error;
+    if (strchr (p, '\'') == NULL)
+	goto error;
+
+    /* Add server-side cvswrappers line to our wrapper list. */
+    wrap_add (args, 0);
+    return;
+ error:
+    error (0, errno, "protocol error: ignoring invalid wrappers %s", args);
+}
+
+
 static void
 handle_m (args, len)
     char *args;
@@ -3072,6 +3111,9 @@ struct response responses[] =
        rs_optional),
     RSP_LINE("Notified", handle_notified, response_type_normal, rs_optional),
     RSP_LINE("Module-expansion", handle_module_expansion, response_type_normal,
+       rs_optional),
+    RSP_LINE("Wrapper-rcsOption", handle_wrapper_rcs_option,
+       response_type_normal,
        rs_optional),
     RSP_LINE("M", handle_m, response_type_normal, rs_essential),
     RSP_LINE("Mbinary", handle_mbinary, response_type_normal, rs_optional),
@@ -4158,6 +4200,27 @@ the :server: access method is not supported by this port of CVS");
 	    else
 		error (1, 0,
 		       "This server does not support the global -l option.");
+	}
+    }
+
+    /* Find out about server-side cvswrappers.  An extra network
+       turnaround for cvs import seems to be unavoidable, unless we
+       want to add some kind of client-side place to configure which
+       filenames imply binary.  For cvs add, we could avoid the
+       problem by keeping a copy of the wrappers in CVSADM (the main
+       reason to bother would be so we could make add work without
+       contacting the server, I suspect).  */
+
+    if ((strcmp (command_name, "import") == 0)
+        || (strcmp (command_name, "add") == 0))
+    {
+	if (supported_request ("wrapper-sendme-rcsOptions"))
+	{
+	    int err;
+	    send_to_server ("wrapper-sendme-rcsOptions\012", 0);
+	    err = get_server_responses ();
+	    if (err != 0)
+		error (err, 0, "error reading from server");
 	}
     }
 

@@ -1,3 +1,17 @@
+Wed Jan 28 23:09:39 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Excluding directories): Add index entry for "!".
+
+28 Jan 1998  Karl Fogel and Jim Kingdon
+
+	* cvsclient.texi (Requests, Responses): document
+	"wrapper-sendme-rcsOptions" and "Wrapper-rcsOption".
+
+Tue Jan 27 18:37:37 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvs.texinfo (Excluding directories): New node, documenting how
+	to exclude directories using ! in an alias module.
+
 Sun Jan 18 18:23:02 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvsclient.texi (Requests): Add Kopt request.
