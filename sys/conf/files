@@ -769,6 +769,7 @@ pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
 pci/if_vx_pci.c		optional vx pci
 pci/if_wb.c		optional wb
+pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
 pci/isp_pci.c		optional isp
 pci/intpm.c		optional intpm
