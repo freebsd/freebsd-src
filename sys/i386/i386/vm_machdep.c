@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.122 1999/06/01 18:19:50 jlemon Exp $
+ *	$Id: vm_machdep.c,v 1.123 1999/07/01 13:21:35 peter Exp $
  */
 
 #include "npx.h"
@@ -575,7 +575,7 @@ vm_page_zero_idle()
 			if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 				zero_state = 1;
 		}
-		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
+		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
 		__asm __volatile("cli" : : : "memory");
 #ifdef SMP

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.61 1999/06/19 18:42:53 alc Exp $
+ * $Id: vm_page.h,v 1.62 1999/06/22 07:18:20 alc Exp $
  */
 
 /*
@@ -153,7 +153,6 @@ struct vm_page {
 #if defined(PQ_HUGECACHE)
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
 #endif
 
@@ -161,7 +160,6 @@ struct vm_page {
 #if defined(PQ_LARGECACHE)
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
 #endif
 
@@ -172,21 +170,18 @@ struct vm_page {
 #if defined(PQ_NOOPT)
 #define PQ_PRIME1 1
 #define PQ_PRIME2 1
-#define PQ_PRIME3 1
 #define PQ_L2_SIZE 1
 #endif
 
 #if defined(PQ_NORMALCACHE)
 #define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME3 11	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
 #endif
 
 #if defined(PQ_MEDIUMCACHE) || !defined(PQ_L2_SIZE)
 #define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME3 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
 #endif
 
@@ -194,7 +189,6 @@ struct vm_page {
 
 #define PQ_NONE 0
 #define PQ_FREE	1
-/* #define PQ_ZERO (1 + PQ_L2_SIZE) */
 #define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
 #define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
 #define PQ_CACHE (3 + 1*PQ_L2_SIZE)
