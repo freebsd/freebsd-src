@@ -206,7 +206,7 @@ g_slice_start(struct bio *bp)
 }
 
 void
-g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;

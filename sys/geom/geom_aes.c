@@ -56,9 +56,9 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/libkern.h>
-#include <sys/md5.h>
-#include <sys/endian.h>
 #endif
+#include <sys/endian.h>
+#include <sys/md5.h>
 #include <sys/errno.h>
 #include <geom/geom.h>
 
@@ -354,7 +354,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			u_char *p;
 
 			p = sc->master_key;
-			for (i = 0; i < sizeof sc->master_key; i ++) 
+			for (i = 0; i < (int)sizeof sc->master_key; i ++) 
 				*p++ = i;
 		}
 		if (sc->keying == KEY_RANDOM) {
@@ -363,7 +363,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			u_char *p;
 
 			p = sc->master_key;
-			for (i = 0; i < sizeof sc->master_key; i += sizeof u) {
+			for (i = 0; i < (int)sizeof sc->master_key; i += sizeof u) {
 				u = arc4random();
 				*p++ = u;
 				*p++ = u >> 8;

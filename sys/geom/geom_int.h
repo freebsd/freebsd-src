@@ -39,7 +39,6 @@ LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
 TAILQ_HEAD(event_tailq_head, g_event);
 
-extern struct g_tailq_head geoms;
 extern struct event_tailq_head events;
 extern int g_debugflags;
 
