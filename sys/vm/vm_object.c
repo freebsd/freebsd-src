@@ -1933,7 +1933,9 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 			if (m_out->valid == 0) {
 				m_in = vm_page_grab(object, bo_pindex + idx,
 						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+				vm_page_lock_queues();
 				if (m_in->valid == 0) {
+					vm_page_unlock_queues();
 					rv = vm_pager_get_pages(object, &m_in, 1, 0);
 					if (rv != VM_PAGER_OK) {
 						printf("vm_freeze_copyopts: cannot read page from file: %lx\n", (long)m_in->pindex);
@@ -1941,10 +1943,10 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 					}
 					vm_page_lock_queues();
 					vm_page_deactivate(m_in);
-					vm_page_unlock_queues();
 				}
 
 				pmap_remove_all(m_in);
+				vm_page_unlock_queues();
 				pmap_copy_page(m_in, m_out);
 				m_out->valid = m_in->valid;
 				vm_page_dirty(m_out);
