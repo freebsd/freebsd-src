@@ -384,7 +384,7 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 		return;
 	}
 
-	error = ithread_schedule(ithd, 0);	/* XXX:no preemption for now */
+	error = ithread_schedule(ithd);
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
 }
 

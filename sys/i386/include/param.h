@@ -97,6 +97,8 @@
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
 
+#define	PREEMPTION
+
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES

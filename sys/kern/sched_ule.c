@@ -1139,7 +1139,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 	td->td_last_kse = ke;
         td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-        td->td_flags &= ~TDF_NEEDRESCHED;
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_OWEPREEMPT);
 
 	/*
 	 * If the KSE has been assigned it may be in the process of switching
@@ -1623,6 +1623,15 @@ sched_add(struct thread *td)
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
 
+#ifdef SMP
+	/*
+	 * Only try to preempt if the thread is unpinned or pinned to the
+	 * current CPU.
+	 */
+	if (KSE_CAN_MIGRATE(ke) || ke->ke_cpu == PCPU_GET(cpuid))
+#endif
+	if (maybe_preempt(td))
+		return;
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 

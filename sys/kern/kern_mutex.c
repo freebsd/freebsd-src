@@ -621,7 +621,9 @@ void
 _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct turnstile *ts;
+#ifndef PREEMPTION
 	struct thread *td, *td1;
+#endif
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -646,8 +648,10 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #else
 	MPASS(ts != NULL);
 #endif
+#ifndef PREEMPTION
 	/* XXX */
 	td1 = turnstile_head(ts);
+#endif
 #ifdef MUTEX_WAKE_ALL
 	turnstile_broadcast(ts);
 	_release_lock_quick(m);
@@ -665,6 +669,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 	turnstile_unpend(ts);
 
+#ifndef PREEMPTION
 	/*
 	 * XXX: This is just a hack until preemption is done.  However,
 	 * once preemption is done we need to either wrap the
@@ -701,6 +706,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    m, (void *)m->mtx_lock);
 	}
 	mtx_unlock_spin(&sched_lock);
+#endif
 
 	return;
 }
