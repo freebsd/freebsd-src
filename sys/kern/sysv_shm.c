@@ -54,6 +54,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_inherit.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmat_args;
@@ -275,6 +276,9 @@ shmat(p, uap, retval)
 	if (rv != KERN_SUCCESS) {
 		return ENOMEM;
 	}
+	vm_map_inherit(&p->p_vmspace->vm_map,
+		attach_va, attach_va + size, VM_INHERIT_SHARE);
+
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = uap->shmid;
 	shmseg->shm_lpid = p->p_pid;
