@@ -92,6 +92,7 @@ size_t	 strlcpy(char *, const char *, size_t);
 size_t	 strlen(const char *);
 int	 strncmp(const char *, const char *, size_t);
 char	*strncpy(char *, const char *, size_t);
+char	*strsep(char **, const char *delim);
 int	 strvalid(const char *, size_t);
 
 
