@@ -34,6 +34,8 @@
 
 #ifdef CONFIG_SEQUENCER
 
+#include <sys/select.h>
+
 #include <i386/isa/sound/midi_ctrl.h>
 
 static void seq_drain_midi_queues(void);

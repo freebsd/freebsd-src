@@ -88,6 +88,7 @@
 #define SNDCARD_MAUI           23
 #define SNDCARD_PSEUDO_MSS     24
 #define SNDCARD_AWE32           25
+#define SNDCARD_NSS            26
 
 #include <sys/types.h>
 #ifndef _IOWR
