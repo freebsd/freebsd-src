@@ -26,7 +26,6 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	disk->bios_sect = sect;
 }
 
-/* XXX - parameters should change to fit for PC-98, but I'm not sure */
 void
 Sanitize_Bios_Geom(struct disk *disk)
 {
@@ -34,11 +33,19 @@ Sanitize_Bios_Geom(struct disk *disk)
 
 	sane = 1;
 
+#ifdef PC98
+	if (disk->bios_cyl >= 65536)
+#else
 	if (disk->bios_cyl > 1024)
+#endif
 		sane = 0;
 	if (disk->bios_hd > 16)
 		sane = 0;
+#ifdef PC98
+	if (disk->bios_sect >= 256)
+#else
 	if (disk->bios_sect > 63)
+#endif
 		sane = 0;
 	if (disk->bios_cyl*disk->bios_hd*disk->bios_sect != disk->chunks->size)
 		sane = 0;
@@ -50,11 +57,21 @@ Sanitize_Bios_Geom(struct disk *disk)
 	disk->bios_hd = 16;
 	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
 
+#ifdef PC98
+	if (disk->bios_cyl < 65536)
+#else
 	if (disk->bios_cyl < 1024)
+#endif
 		return;
 
 	/* Hmm, try harder... */
+#ifdef PC98
+	/* Assume standard SCSI parameter */
+	disk->bios_sect = 128;
+	disk->bios_hd = 8;
+#else
 	disk->bios_hd = 255;
+#endif
 	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
 
 	return;
