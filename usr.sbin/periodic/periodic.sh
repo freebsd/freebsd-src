@@ -25,43 +25,76 @@ if [ -r /etc/defaults/periodic.conf ]; then
     source_periodic_confs
 fi
 
-dir=$1
-run=`basename $dir`
-
-# If a full path was not specified, check the standard cron areas
-
-if [ "$dir" = "$run" ] ; then
-    dirlist=""
-    for top in /etc/periodic ${local_periodic} ; do
-	if [ -d $top/$dir ] ; then
-	    dirlist="${dirlist} $top/$dir"
-	fi
-    done
-
-# User wants us to run stuff in a particular directory
-else
-   for dir in $* ; do
-       if [ ! -d $dir ] ; then
-	   echo "$0: $dir not found" 1>&2
-	   exit 1
-       fi
-   done
-
-   dirlist="$*"
-fi
-
 host=`hostname`
 export host
-echo "Subject: $host $run run output"
+tmp_output=/var/run/periodic.$$
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a
 # README file or has been disabled).
 
-for dir in $dirlist ; do
-    for file in $dir/* ; do
-	if [ -x $file -a ! -d $file ] ; then
-	    $file
-	fi
+for arg
+do
+    # Where's our output going ?
+    eval output=\$${arg##*/}_output
+    case "$output" in
+    /*) pipe="cat >>$output";;
+    *)  pipe="mail -s '$host ${arg##*/} run output' ${output:-root}";;
+    esac
+
+    success=YES info=YES badconfig=NO	# Defaults when ${run}_* aren't YES/NO
+    for var in success info badconfig
+    do
+        case $(eval echo "\$${arg##*/}_show_$var") in
+        [Yy][Ee][Ss]) eval $var=YES;;
+        [Nn][Oo])     eval $var=NO;;
+        esac
     done
+
+    case $arg in
+    /*) if [ -d "$arg" ]
+        then
+            dirlist="$arg"
+        else
+            echo "$0: $arg not found" >&2 
+            continue
+        fi;;
+    *)  dirlist=
+        for top in /etc/periodic ${local_periodic}
+        do
+            [ -d $top/$arg ] && dirlist="$dirlist $top/$arg"
+        done;;
+    esac
+
+    {
+        empty=TRUE
+        processed=0
+        for dir in $dirlist
+        do
+            for file in $dir/*
+            do
+                if [ -x $file -a ! -d $file ]
+                then
+                    output=TRUE
+                    processed=$(($processed + 1))
+                    $file </dev/null >$tmp_output 2>&1
+                    if [ -s $tmp_output ]
+                    then
+                      case $? in
+                      0)  [ $success = NO ] && output=FALSE;;
+                      1)  [ $info = NO ] && output=FALSE;;
+                      2)  [ $badconfig = NO ] && output=FALSE;;
+                      esac
+                      [ $output = TRUE ] && { cat $tmp_output; empty=FALSE; }
+                    fi
+                    rm -f $tmp_output
+                fi
+            done
+        done
+        if [ $empty = TRUE ]
+        then
+          [ $processed = 1 ] && plural= || plural=s
+          echo "No output from the $processed file$plural processed"
+        fi
+    } | eval $pipe
 done
