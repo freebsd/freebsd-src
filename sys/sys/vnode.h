@@ -409,6 +409,17 @@ extern void	(*lease_updatetime)(int deltat);
 #define	VDESC_VPP_WILLRELE	0x0200
 
 /*
+ * A generic structure.
+ * This can be used by bypass routines to identify generic arguments.
+ */
+struct vop_generic_args {
+	struct vnodeop_desc *a_desc;
+	/* other random data follows, presumably */
+};
+
+typedef int vop_bypass_t(struct vop_generic_args *);
+
+/*
  * VDESC_NO_OFFSET is used to identify the end of the offset list
  * and in places where no such field exists.
  */
@@ -418,9 +429,9 @@ extern void	(*lease_updatetime)(int deltat);
  * This structure describes the vnode operation taking place.
  */
 struct vnodeop_desc {
-	int	 vdesc_offset;		/* offset in vector,first for speed */
 	char	*vdesc_name;		/* a readable name for debugging */
 	int	 vdesc_flags;		/* VDESC_* flags */
+	vop_bypass_t	*vdesc_call;	/* Function to call */
 
 	/*
 	 * These ops are used by bypass routines to map and locate arguments.
@@ -451,14 +462,6 @@ extern struct vnodeop_desc *vnodeop_descs[];
 #define	VOPARG_OFFSETTO(s_type, s_offset, struct_p) \
     ((s_type)(((char*)(struct_p)) + (s_offset)))
 
-/*
- * A generic structure.
- * This can be used by bypass routines to identify generic arguments.
- */
-struct vop_generic_args {
-	struct vnodeop_desc *a_desc;
-	/* other random data follows, presumably */
-};
 
 #ifdef DEBUG_VFS_LOCKS
 /*
@@ -521,9 +524,8 @@ void	vop_unlock_pre(void *a);
 /*
  * This call works for vnodes in the kernel.
  */
-#define VCALL(a, b, c) vcall((a), (b), (c))
+#define VCALL(c) ((c)->a_desc->vdesc_call(c))
 #define VDESC(OP) (& __CONCAT(OP,_desc))
-#define VOFFSET(OP) (VDESC(OP)->vdesc_offset)
 
 /*
  * VMIO support inline
@@ -674,7 +676,6 @@ int	vop_panic(struct vop_generic_args *ap);
 int	vop_stdcreatevobject(struct vop_createvobject_args *ap);
 int	vop_stddestroyvobject(struct vop_destroyvobject_args *ap);
 int	vop_stdgetvobject(struct vop_getvobject_args *ap);
-int	vcall(struct vnode *vp, u_int off, void *ap);
 
 void	vfree(struct vnode *);
 void	vput(struct vnode *vp);

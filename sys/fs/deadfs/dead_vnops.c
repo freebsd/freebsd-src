@@ -176,7 +176,7 @@ dead_ioctl(ap)
 	if (!chkvnlock(ap->a_vp))
 		return (ENOTTY);
 	/* XXX: Doesn't this just recurse back here ? */
-	return (VCALL(ap->a_vp, VOFFSET(vop_ioctl), ap));
+	return (VOP_IOCTL_AP(ap));
 }
 
 
@@ -203,7 +203,7 @@ dead_lock(ap)
 	}
 	if (!chkvnlock(vp))
 		return (0);
-	return (VCALL(vp, VOFFSET(vop_lock), ap));
+	return (VOP_LOCK_AP(ap));
 }
 
 /*
