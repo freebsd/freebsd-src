@@ -2,6 +2,126 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.6c and 0.9.6d  [9 May 2002]
+
+  *) Fix crypto/asn1/a_sign.c so that 'parameters' is omitted (not
+     encoded as NULL) with id-dsa-with-sha1.
+     [Nils Larsch <nla@trustcenter.de>; problem pointed out by Bodo Moeller]
+
+  *) Check various X509_...() return values in apps/req.c.
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Fix BASE64 decode (EVP_DecodeUpdate) for data with CR/LF ended lines:
+     an end-of-file condition would erronously be flagged, when the CRLF
+     was just at the end of a processed block. The bug was discovered when
+     processing data through a buffering memory BIO handing the data to a
+     BASE64-decoding BIO. Bug fund and patch submitted by Pavel Tsekov
+     <ptsekov@syntrex.com> and Nedelcho Stanev.
+     [Lutz Jaenicke]
+
+  *) Implement a countermeasure against a vulnerability recently found
+     in CBC ciphersuites in SSL 3.0/TLS 1.0: Send an empty fragment
+     before application data chunks to avoid the use of known IVs
+     with data potentially chosen by the attacker.
+     [Bodo Moeller]
+
+  *) Fix length checks in ssl3_get_client_hello().
+     [Bodo Moeller]
+
+  *) TLS/SSL library bugfix: use s->s3->in_read_app_data differently
+     to prevent ssl3_read_internal() from incorrectly assuming that
+     ssl3_read_bytes() found application data while handshake
+     processing was enabled when in fact s->s3->in_read_app_data was
+     merely automatically cleared during the initial handshake.
+     [Bodo Moeller; problem pointed out by Arne Ansper <arne@ats.cyber.ee>]
+
+  *) Fix object definitions for Private and Enterprise: they were not
+     recognized in their shortname (=lowercase) representation. Extend
+     obj_dat.pl to issue an error when using undefined keywords instead
+     of silently ignoring the problem (Svenning Sorensen
+     <sss@sss.dnsalias.net>).
+     [Lutz Jaenicke]
+
+  *) Fix DH_generate_parameters() so that it works for 'non-standard'
+     generators, i.e. generators other than 2 and 5.  (Previously, the
+     code did not properly initialise the 'add' and 'rem' values to
+     BN_generate_prime().)
+
+     In the new general case, we do not insist that 'generator' is
+     actually a primitive root: This requirement is rather pointless;
+     a generator of the order-q subgroup is just as good, if not
+     better.
+     [Bodo Moeller]
+ 
+  *) Map new X509 verification errors to alerts. Discovered and submitted by
+     Tom Wu <tom@arcot.com>.
+     [Lutz Jaenicke]
+
+  *) Fix ssl3_pending() (ssl/s3_lib.c) to prevent SSL_pending() from
+     returning non-zero before the data has been completely received
+     when using non-blocking I/O.
+     [Bodo Moeller; problem pointed out by John Hughes]
+
+  *) Some of the ciphers missed the strength entry (SSL_LOW etc).
+     [Ben Laurie, Lutz Jaenicke]
+
+  *) Fix bug in SSL_clear(): bad sessions were not removed (found by
+     Yoram Zahavi <YoramZ@gilian.com>).
+     [Lutz Jaenicke]
+
+  *) Add information about CygWin 1.3 and on, and preserve proper
+     configuration for the versions before that.
+     [Corinna Vinschen <vinschen@redhat.com> and Richard Levitte]
+
+  *) Make removal from session cache (SSL_CTX_remove_session()) more robust:
+     check whether we deal with a copy of a session and do not delete from
+     the cache in this case. Problem reported by "Izhar Shoshani Levi"
+     <izhar@checkpoint.com>.
+     [Lutz Jaenicke]
+
+  *) Do not store session data into the internal session cache, if it
+     is never intended to be looked up (SSL_SESS_CACHE_NO_INTERNAL_LOOKUP
+     flag is set). Proposed by Aslam <aslam@funk.com>.
+     [Lutz Jaenicke]
+
+  *) Have ASN1_BIT_STRING_set_bit() really clear a bit when the requested
+     value is 0.
+     [Richard Levitte]
+
+  *) [In 0.9.6c-engine release:]
+     Fix a crashbug and a logic bug in hwcrhk_load_pubkey()
+     [Toomas Kiisk <vix@cyber.ee> via Richard Levitte]
+
+  *) Add the configuration target linux-s390x.
+     [Neale Ferguson <Neale.Ferguson@SoftwareAG-USA.com> via Richard Levitte]
+
+  *) The earlier bugfix for the SSL3_ST_SW_HELLO_REQ_C case of
+     ssl3_accept (ssl/s3_srvr.c) incorrectly used a local flag
+     variable as an indication that a ClientHello message has been
+     received.  As the flag value will be lost between multiple
+     invocations of ssl3_accept when using non-blocking I/O, the
+     function may not be aware that a handshake has actually taken
+     place, thus preventing a new session from being added to the
+     session cache.
+
+     To avoid this problem, we now set s->new_session to 2 instead of
+     using a local variable.
+     [Lutz Jaenicke, Bodo Moeller]
+
+  *) Bugfix: Return -1 from ssl3_get_server_done (ssl3/s3_clnt.c)
+     if the SSL_R_LENGTH_MISMATCH error is detected.
+     [Geoff Thorpe, Bodo Moeller]
+
+  *) New 'shared_ldflag' column in Configure platform table.
+     [Richard Levitte]
+
+  *) Fix EVP_CIPHER_mode macro.
+     ["Dan S. Camper" <dan@bti.net>]
+
+  *) Fix ssl3_read_bytes (ssl/s3_pkt.c): To ignore messages of unknown
+     type, we must throw them away by setting rr->length to 0.
+     [D P Chang <dpc@qualys.com>]
+
  Changes between 0.9.6b and 0.9.6c  [21 dec 2001]
 
   *) Fix BN_rand_range bug pointed out by Dominikus Scherkl
