@@ -13,6 +13,7 @@
 
 <PRE>
 server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
+  [ edns <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ bogus <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ support-ixfr <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ transfers <VAR><A HREF="docdef.html">number</A></VAR>; ]
@@ -28,11 +29,19 @@ server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
 <P>The server statement defines the characteristics to be
 associated with a remote name server.</P>
 
+<P>If you discover that a server does not support EDNS you can prevent
+named making EDNS queries to it by specifying <CODE>edns no;</CODE>.
+The default value of <CODE>edns</CODE> is <CODE>yes</CODE>.
+
 <P>If you discover that a server is giving out bad data, marking it as
 <CODE>bogus</CODE> will prevent further queries to it.  The default value of
 <CODE>bogus</CODE> is <CODE>no</CODE>.  Marking a server as <CODE>bogus</CODE>
 will mark all other addresses for that server as <CODE>bogus</CODE> when
 a match is made when looking up a server's address by name. 
+
+<P>If the server supports IXFR you can tell named to attempt to perform a
+IXFR style zone transfer by specifing <CODE>support-ixfr yes</CODE>.
+The default value of <CODE>support-ixfr</CODE> is <CODE>no</CODE>.
 
 <P>The server supports two zone transfer methods.  The first,
 <CODE>one-answer</CODE>, uses one DNS message per resource record
@@ -65,7 +74,7 @@ required to be signed by this key.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: server.html,v 1.11 2000/11/08 04:15:07 marka Exp $
+Last Updated: $Id: server.html,v 1.13 2002/05/24 03:04:51 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>

@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: list.c,v 8.25 2000/12/23 08:14:46 vixie Exp $";
+static const char rcsid[] = "$Id: list.c,v 8.27 2002/04/09 05:55:17 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -258,7 +258,9 @@ ListSubr(int qtype, char *domain, char *cmd) {
 
 	ns_msg handle;
 	querybuf buf;
-	struct sockaddr_in sin;
+	struct sockaddr_storage	sa;
+	struct sockaddr_in	*sin;
+	struct sockaddr_in6	*sin6;
 	HEADER *headerPtr;
 	int msglen, amtToRead, numRead, soacnt;
 	u_int len;
@@ -269,6 +271,8 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
 		error = NO_ERRORS;
 	struct iovec iov[2];
+	AddrInfo *AddrPtr;
+	int salen = 0;
 
 	/*
 	 * Create a query packet for the requested domain name.
@@ -281,10 +285,6 @@ ListSubr(int qtype, char *domain, char *cmd) {
 		return (ERROR);
 	}
 
-	memset(&sin, 0, sizeof sin);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(nsport);
-
 	/*
 	 * Check to see if we have the address of the server or the
 	 * address of a server who knows about this domain.
@@ -293,20 +293,44 @@ ListSubr(int qtype, char *domain, char *cmd) {
 	 */
 
 	if (defaultPtr->addrList != NULL)
-		sin.sin_addr = *(struct in_addr *) defaultPtr->addrList[0];
+		AddrPtr = defaultPtr->addrList[0];
 	else
-		sin.sin_addr = *(struct in_addr *)
-			defaultPtr->servers[0]->addrList[0];
+		AddrPtr = defaultPtr->servers[0]->addrList[0];
+
+	memset(&sa, 0, sizeof sa);
+	switch (AddrPtr->addrType) {
+	case AF_INET:
+		sin = (struct sockaddr_in *)&sa;
+		sin->sin_family	= AddrPtr->addrType;
+		sin->sin_port = htons(nsport);
+		memcpy(&sin->sin_addr, AddrPtr->addr, AddrPtr->addrLen);
+#ifdef HAVE_SA_LEN
+		sin->sin_len = sizeof(*sin);
+#endif
+		salen = sizeof(struct sockaddr_in);
+		break;
+
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)&sa;
+		sin6->sin6_family = AddrPtr->addrType;
+		sin6->sin6_port	= htons(nsport);
+		memcpy(&sin6->sin6_addr, AddrPtr->addr, AddrPtr->addrLen);
+#ifdef HAVE_SA_LEN
+		sin6->sin6_len = sizeof(*sin6);
+#endif
+		salen = sizeof(struct sockaddr_in6);
+		break;
+	}
 
 	/*
 	 *  Set up a virtual circuit to the server.
 	 */
-	sockFD = socket(AF_INET, SOCK_STREAM, 0);
+	sockFD = socket(AddrPtr->addrType, SOCK_STREAM, 0);
 	if (sockFD < 0) {
 		perror("ls: socket");
 		return (ERROR);
 	}
-	if (connect(sockFD, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	if (connect(sockFD, (struct sockaddr *)&sa, salen) < 0) {
 		int e;
 
 		if (errno == ECONNREFUSED)
@@ -434,7 +458,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 					strcpy(origin, name);
 				strcpy(name_ctx, "@");
 			}
-			if (qtype == T_ANY || ns_rr_type(rr) == qtype) {
+			if (qtype == T_ANY || (int)ns_rr_type(rr) == qtype) {
 				if (ns_sprintrr(&handle, &rr, name_ctx, origin,
 						buf, sizeof buf) < 0) {
 					perror("ns_sprintrr");
@@ -530,13 +554,16 @@ Finger(string, putToFile)
     int  putToFile;
 {
 	struct servent		*sp;
-	struct sockaddr_in	sin;
+	struct sockaddr_storage	sa;
+	struct sockaddr_in	*sin;
+	struct sockaddr_in6	*sin6;
 	FILE		*f;
 	int		c;
 	int		lastc;
 	char			name[NAME_LEN];
 	char			file[PATH_MAX];
 	int		i;
+	int		salen = 0;
 
 	/*
 	 *  We need a valid current host info to get an inet address.
@@ -573,23 +600,45 @@ Finger(string, putToFile)
 	    return (ERROR);
 	}
 
-	memset(&sin, 0, sizeof sin);
-	sin.sin_family	= curHostInfo.addrType;
-	sin.sin_port	= sp->s_port;
-	memcpy(&sin.sin_addr, curHostInfo.addrList[0], curHostInfo.addrLen);
+	memset(&sa, 0, sizeof sa);
+	switch (curHostInfo.addrList[0]->addrType) {
+	case AF_INET:
+		sin = (struct sockaddr_in *)&sa;
+		sin->sin_family	= curHostInfo.addrList[0]->addrType;
+		sin->sin_port	= sp->s_port;
+		memcpy(&sin->sin_addr, curHostInfo.addrList[0]->addr,
+		       curHostInfo.addrList[0]->addrLen);
+#ifdef HAVE_SA_LEN
+		sin->sin_len = sizeof(*sin);
+#endif
+		salen = sizeof(struct sockaddr_in);
+		break;
+
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)&sa;
+		sin6->sin6_family = curHostInfo.addrList[0]->addrType;
+		sin6->sin6_port	= sp->s_port;
+		memcpy(&sin6->sin6_addr, curHostInfo.addrList[0]->addr,
+		       curHostInfo.addrList[0]->addrLen);
+#ifdef HAVE_SA_LEN
+		sin6->sin6_len = sizeof(*sin6);
+#endif
+		salen = sizeof(struct sockaddr_in6);
+		break;
+	}
 
 	/*
 	 *  Set up a virtual circuit to the host.
 	 */
 
-	sockFD = socket(curHostInfo.addrType, SOCK_STREAM, 0);
+	sockFD = socket(curHostInfo.addrList[0]->addrType, SOCK_STREAM, 0);
 	if (sockFD < 0) {
 	    fflush(stdout);
 	    perror("finger: socket");
 	    return (ERROR);
 	}
 
-	if (connect(sockFD, (struct sockaddr *)&sin, sizeof (sin)) < 0) {
+	if (connect(sockFD, (struct sockaddr *)&sa, salen) < 0) {
 	    fflush(stdout);
 	    perror("finger: connect");
 	    close(sockFD);

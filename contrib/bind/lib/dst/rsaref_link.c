@@ -1,5 +1,5 @@
 #ifdef RSAREF
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/rsaref_link.c,v 1.9 2001/04/05 22:00:04 bwelling Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/rsaref_link.c,v 1.10 2001/05/29 05:48:15 marka Exp $";
 
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -740,6 +740,19 @@ dst_rsaref_init_random_struct(R_RANDOM_STRUCT * randomstruct)
 
 
 #else 
+#include "port_before.h"
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <memory.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+
+#include "dst_internal.h"
+#include "port_after.h"
 int /* rsaref is not available */
 dst_rsaref_init()
 {

@@ -14,7 +14,7 @@
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.5	5.9 (Berkeley) 12/14/89
-.\"	$Id: resolver.5,v 8.6 1999/05/21 00:01:02 vixie Exp $
+.\"	$Id: resolver.5,v 8.9 2001/12/28 04:24:21 marka Exp $
 .\"
 .Dd November 11, 1993
 .Dt RESOLVER @FORMAT_EXT_U@ 
@@ -146,14 +146,14 @@ name server before retrying the query via a different name server.  Measured in
 seconds, the default is
 .Dv RES_TIMEOUT
 (see
-.Pa <resolv.h> ).
+.Pa <resolv.h> ) .
 .It Li attempts: Ns Ar n
 sets the number of times the resolver will send a query to its name servers
 before giving up and returning an error to the calling application.  The
 default is
 .Dv RES_DFLRETRY
 (see
-.Pa <resolv.h> ).
+.Pa <resolv.h> ) .
 .It Li rotate
 sets
 .Dv RES_ROTATE
@@ -178,6 +178,22 @@ This has the effect of trying a AAAA query before an A query inside the
 .Ft gethostbyname
 function, and of mapping IPv4 responses in IPv6 ``tunnelled form'' if no
 AAAA records are found but an A record set exists.
+.It Li no-tld-query
+sets
+.Dv RES_NOTLDQUERY
+in
+.Ft _res.options .
+This option causes
+.Fn res_nsearch
+to not attempt to resolve a unqualified name as if it were a top level  
+domain (TLD).
+This option can cause problems if the site has "localhost" as a TLD rather
+than having localhost on one or more elements of the search list.
+This option has no effect if neither
+.Dv RES_DEFNAMES
+or
+.Dv RES_DNSRCH
+is set.
 .El
 .El
 .Pp

@@ -1,4 +1,4 @@
-.\" $Id: tree.mdoc,v 8.2 1999/01/08 19:25:48 vixie Exp $
+.\" $Id: tree.mdoc,v 8.3 2001/08/08 07:50:28 marka Exp $
 .\"
 .\"Copyright (c) 1995-1999 by Internet Software Consortium
 .\"
@@ -32,15 +32,15 @@
 .Ft void *
 .Fn tree_srch "void **tree" "int (*compare)()" "void *data"
 .Ft void
-.Fn tree_add(tree, compare, data, del_uar) "void **tree" "int (*compare)()" \
+.Fn tree_add "void **tree" "int (*compare)()" \
 "void *data" "void (*del_uar)()"
 .Ft int
-.Fn tree_delete(tree, compare, data, del_uar) "void **tree" "int (*compare)()" \
+.Fn tree_delete "void **tree" "int (*compare)()" \
 "void *data" "void (*del_uar)()"
 .Ft int
-.Fn tree_trav(tree, trav_uar) "void **tree" "int (*trav_uar)()"
+.Fn tree_trav "void **tree" "int (*trav_uar)()"
 .Ft void
-.Fn tree_mung(tree, del_uar) "void **tree" "void (*del_uar)()"
+.Fn tree_mung "void **tree" "void (*del_uar)()"
 .Sh DESCRIPTION
 These functions create and manipulate a balanced binary (AVL) tree.  Each node
 of the tree contains the expected left & right subtree pointers, a short int
@@ -88,19 +88,19 @@ returns 0.
 inserts or replaces a node in the specified tree.  The tree specified by
 .Dq Fa tree
 is searched as in
-.Fn tree_srch,
+.Fn tree_srch ,
 and if a node is found to match
-.Dq Fa data,
+.Dq Fa data ,
 then the
 .Fn del_uar
 function, if non\-\s-2NULL\s+2, is called with the address of the user data
 block for the node (this routine should deallocate any dynamic memory which
 is referenced exclusively by the node); the user data pointer for the node
 is then replaced by the value of
-.Dq Fa data.
+.Dq Fa data .
 If no node is found to match, a new node is added (which may or may not
 cause a transparent rebalance operation), with a user data pointer equal to
-.Dq Fa data.
+.Dq Fa data .
 A rebalance may or may not occur, depending on where the node is added
 and what the rest of the tree looks like.
 .Fn Tree_add
@@ -110,7 +110,7 @@ pointer unless catastrophe occurs in which case it will return \s-2NULL\s+2.
 .Pp
 .Fn Tree_delete
 deletes a node from
-.Dq Fa tree.
+.Dq Fa tree .
 A rebalance may or may not occur, depending on where the node is removed from
 and what the rest of the tree looks like.
 .Fn Tree_delete
@@ -118,7 +118,7 @@ returns TRUE if a node was deleted, FALSE otherwise.
 .Pp
 .Fn Tree_trav
 traverses all of
-.Dq Fa tree,
+.Dq Fa tree ,
 calling
 .Fn trav_uar
 with the address of each user data block.  If
@@ -132,7 +132,7 @@ will return TRUE.
 .Pp
 .Fn Tree_mung
 deletes every node in
-.Dq Fa tree,
+.Dq Fa tree ,
 calling
 .Fn del_uar
 (if it is not \s-2NULL\s+2) with the user data address from each node (see

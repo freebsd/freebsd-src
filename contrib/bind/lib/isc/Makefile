@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.28 2000/12/23 08:03:00 vixie Exp $
+# $Id: Makefile,v 8.30 2001/08/14 05:58:08 marka Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -48,14 +48,14 @@ SRCS=	tree.c base64.c bitncmp.c assertions.c \
 	ctl_p.c ctl_srvr.c ctl_clnt.c \
 	eventlib.c ev_connects.c ev_files.c \
 	ev_timers.c ev_streams.c ev_waits.c \
-	movefile.c
+	hex.c movefile.c
 
 OBJS=	tree.${O} base64.${O} bitncmp.${O} assertions.${O} \
 	memcluster.${O} logging.${O} heap.${O} \
 	ctl_p.${O} ctl_srvr.${O} ctl_clnt.${O} \
 	eventlib.${O} ev_connects.${O} ev_files.${O} \
 	ev_timers.${O} ev_streams.${O} ev_waits.${O} \
-	movefile.${O}
+	hex.${O} movefile.${O}
 
 all: ${LIBBIND}
 
@@ -67,7 +67,7 @@ ${LIBBIND}: ${OBJS}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; else true ; fi
+	mkdir ${THREADED} 2> /dev/null || test -d ${THREADED} -a -w ${THREADED}
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
 	 -o ${THREADED}/$*.${O}
 	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} \

@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .\" ++Copyright++ 1993
 .\" -
 .\" Copyright (c) 1993
@@ -50,9 +51,7 @@
 .\" SOFTWARE.
 .\" -
 .\" --Copyright--
-.\" $Id: host.1,v 8.4 2000/02/29 03:50:47 vixie Exp $
-.\" $FreeBSD$
-.\"
+.\" $Id: host.1,v 8.7 2002/06/18 02:39:26 marka Exp $
 .Dd December 15, 1994
 .Dt HOST @CMD_EXT_U@
 .Os BSD 4
@@ -61,16 +60,20 @@
 .Nd look up host names using domain server
 .Sh SYNOPSIS 
 .Nm host 
-.Op Fl adlrwv
-.Op Fl c Ar class
+.Op Fl l
+.Op Fl v
+.Op Fl w
+.Op Fl r
+.Op Fl d
 .Op Fl t Ar querytype
+.Op Fl a 
 .Ar host 
 .Op Ar server 
 .Sh DESCRIPTION 
 .Ic Host
 looks for information about Internet hosts.  It gets this information
 from a set of interconnected servers that are spread across the
-country.  By default, it simply converts between host names and
+world.  By default, it simply converts between host names and
 Internet addresses.  However, with the 
 .Dq Fl t 
 or 
@@ -82,7 +85,7 @@ by the domain server.
 The arguments can be either host names or host numbers.  The program
 first attempts to interpret them as host numbers.  If this fails,
 it will treat them as host names.  A host number consists of
-four decimal numbers separated by dots, e.g. 128.6.4.194
+IPv4 dotted decimal quad (127.0.0.1) or IPv6 raw address (::1).
 A host name consists of names separated by dots, e.g. topaz.rutgers.edu.  
 Unless the name ends in a dot, the local domain
 is automatically tacked on the end.  Thus, a Rutgers user can say
@@ -156,39 +159,23 @@ There are a number of options that can be used before the
 host name.  Most of these options are meaningful only to the
 staff who have to maintain the domain database.
 .Bl -tag -width Fl
-.It Fl a 
-.Dq all ;
-this is equivalent to 
-.Dq Fl v Fl t Cm any .
-.It Fl c Ar class
-The 
-.Ar class
-to look for non-Internet data.
-.It Fl d
-Turn on debugging.  Network transactions are shown in detail.
-.It Fl l
-List a complete domain; e.g.:
-.Pp
-.D1 Ic host -l rutgers.edu
-.Pp
-will give a listing of all hosts in the rutgers.edu domain.  The 
-.Dq Fl t
-option is used to filter what information is presented, as you 
-would expect.  The default is address information, which also
-include PTR and NS records.  The command
-.Pp
-.D1 Ic host -l -v -t any rutgers.edu
-.Pp
-will give a complete download of the zone data for rutgers.edu,
-in the official master file format.  (However the SOA record is
-listed twice, for arcane reasons.)  
-.Pp
-.Sy NOTE: 
-.Dq Fl l 
-is implemented by
-doing a complete zone transfer and then filtering out the information
-that you have asked for.  This command should be used only if it
-is absolutely necessary.
+.It Fl w 
+This causes 
+.Ic host 
+to wait forever for a response.  Normally
+it will time out after approximate one minute.
+.It Fl v
+Use "verbose" format for printout.  This
+is the official domain master file format, which is documented 
+in the man page for 
+.Xr @INDOT@named @SYS_OPS_EXT@ .
+Without this option, output still follows
+this format in general terms, but some attempt is made to make it
+more intelligible to normal users.  Without 
+.Dq Fl v ,
+any "a", "mx", and "cname" records
+are written out as "has address", "mail is handled by", and
+"is a nickname for" (respectively), and TTL and class fields are not shown.
 .It Fl r
 Turn off recursion in the request.
 This means that the name server will return only data it has in
@@ -206,6 +193,7 @@ to be looked up.  The arguments are defined in the man page for
 .Xr @INDOT@named @SYS_OPS_EXT@ .
 Currently-supported types include: 
 .Dq Cm a , 
+.Dq Cm aaaa , 
 .Dq Cm ns , 
 .Dq Cm md , 
 .Dq Cm mf , 
@@ -265,7 +253,7 @@ will give a complete download of the zone data for rutgers.edu,
 in the official master file format.  (However the SOA record is
 listed twice, for arcane reasons.)  
 .Pp
-.Sy NOTE: 
+.Sy NOTE :
 .Dq Fl l 
 is implemented by
 doing a complete zone transfer and then filtering out the information
@@ -289,21 +277,17 @@ host name.  The name file must be contained in the
 .Ev HOSTALIASES 
 environment variable.
 .Sh ENVIRONMENT
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  " -compact
 .It Ev HOSTALIASES
 Name of file containing
 .Pq Ar host alias , full hostname
 pairs.
 .El
 .Sh FILES
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  " -compact
 .It Pa /etc/resolv.conf 
 See
 .Xr resolver @FORMAT_EXT@ .
-.It Ev HOSTALIASES
-Name of file containing
-.Pq Ar host alias , full hostname
-pairs.
 .El
 .Sh SEE ALSO
 .Xr @INDOT@named  @SYS_OPS_EXT@ , 

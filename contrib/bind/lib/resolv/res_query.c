@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_query.c,v 8.20 2000/02/29 05:39:12 vixie Exp $";
+static const char rcsid[] = "$Id: res_query.c,v 8.23 2001/09/24 13:50:29 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -117,7 +117,11 @@ res_nquery(res_state statp,
 	u_char buf[MAXPACKET];
 	HEADER *hp = (HEADER *) answer;
 	int n;
+	u_int oflags;
 
+	oflags = statp->_flags;
+
+again:
 	hp->rcode = NOERROR;	/* default */
 
 #ifdef DEBUG
@@ -127,6 +131,11 @@ res_nquery(res_state statp,
 
 	n = res_nmkquery(statp, QUERY, name, class, type, NULL, 0, NULL,
 			 buf, sizeof(buf));
+#ifdef RES_USE_EDNS0
+	if (n > 0 && (statp->_flags & RES_F_EDNS0ERR) == 0 &&
+	    (statp->options & (RES_USE_EDNS0|RES_USE_DNSSEC)) != 0)
+		n = res_nopt(statp, n, buf, sizeof(buf), anslen);
+#endif
 	if (n <= 0) {
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
@@ -137,6 +146,16 @@ res_nquery(res_state statp,
 	}
 	n = res_nsend(statp, buf, n, answer, anslen);
 	if (n < 0) {
+#ifdef RES_USE_EDNS0
+		/* if the query choked with EDNS0, retry without EDNS0 */
+		if ((statp->options & (RES_USE_EDNS0|RES_USE_DNSSEC)) != 0 &&
+		    ((oflags ^ statp->_flags) & RES_F_EDNS0ERR) != 0) {
+			statp->_flags |= RES_F_EDNS0ERR;
+			if (statp->options & RES_DEBUG)
+				printf(";; res_nquery: retry without EDNS0\n");
+			goto again;
+		}
+#endif
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
 			printf(";; res_query: send error\n");
@@ -193,6 +212,7 @@ res_nsearch(res_state statp,
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, root_on_list = 0;
 	int tried_as_is = 0;
+	int searched = 0;
 
 	errno = 0;
 	RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);  /* True if we never query. */
@@ -236,6 +256,7 @@ res_nsearch(res_state statp,
 		for (domain = (const char * const *)statp->dnsrch;
 		     *domain && !done;
 		     domain++) {
+			searched = 1;
 
 			if (domain[0][0] == '\0' ||
 			    (domain[0][0] == '.' && domain[0][1] == '\0'))
@@ -293,11 +314,11 @@ res_nsearch(res_state statp,
 	}
 
 	/*
-	 * If the name has any dots at all, and no earlier 'as-is' query 
-	 * for the name, and "." is not on the search list, then try an as-is
-	 * query now.
+	 * If the query has not already been tried as is then try it
+	 * unless RES_NOTLDQUERY is set and there were no dots.
 	 */
-	if (statp->ndots && !(tried_as_is || root_on_list)) {
+	if ((dots || !searched || (statp->options & RES_NOTLDQUERY) == 0) &&
+	    !(tried_as_is || root_on_list)) {
 		ret = res_nquerydomain(statp, name, NULL, class, type,
 				       answer, anslen);
 		if (ret > 0)
@@ -383,17 +404,18 @@ res_hostalias(const res_state statp, const char *name, char *dst, size_t siz) {
 	setbuf(fp, NULL);
 	buf[sizeof(buf) - 1] = '\0';
 	while (fgets(buf, sizeof(buf), fp)) {
-		for (cp1 = buf; *cp1 && !isspace(*cp1); ++cp1)
+		for (cp1 = buf; *cp1 && !isspace((unsigned char)*cp1); ++cp1)
 			;
 		if (!*cp1)
 			break;
 		*cp1 = '\0';
 		if (ns_samename(buf, name) == 1) {
-			while (isspace(*++cp1))
+			while (isspace((unsigned char)*++cp1))
 				;
 			if (!*cp1)
 				break;
-			for (cp2 = cp1 + 1; *cp2 && !isspace(*cp2); ++cp2)
+			for (cp2 = cp1 + 1; *cp2 &&
+			     !isspace((unsigned char)*cp2); ++cp2)
 				;
 			*cp2 = '\0';
 			strncpy(dst, cp1, siz - 1);

@@ -1,5 +1,4 @@
-.\" $FreeBSD$
-.\" $Id: nsupdate.8,v 8.6 2000/10/30 23:06:57 cyarnell Exp $
+.\" $Id: nsupdate.8,v 8.8 2002/04/22 04:38:04 marka Exp $
 .\"
 .\"Copyright (c) 1999 by Internet Software Consortium
 .\"
@@ -23,9 +22,9 @@
 .Nd update Internet name servers interactively
 .Sh SYNOPSIS
 .Nm nsupdate
-.Op Fl Ar k  keydir:keyname 
-.Op Fl Ar d
-.Op Fl Ar v
+.Op Fl k Ar keydir:keyname 
+.Op Fl d
+.Op Fl v
 .Op Ar filename
 .Sh DESCRIPTION
 .Ic Nsupdate
@@ -82,18 +81,14 @@ will be performed.
 .Ic Nsupdate
 understands the following input record formats:
 .Pp
-
 .Bl -hang
-
 .It Ic prereq nxdomain Va domain-name
 Requires that no RR of any type exists with name
 .Va domain-name .
-
 .It Ic prereq yxdomain Va domain-name
 Requires that at least one RR named
 .Va domain-name
 must exist.
-
 .It Xo
 .Ic prereq nxrrset Va domain-name Op class
 .Va type
@@ -102,11 +97,10 @@ Requires that no RR exists of the specified
 .Va type
 and
 .Va domain-name .
-
 .It Xo
 .Ic prereq yxrrset
-.Va domain-name Op class
-.Va type Op data...
+.Va domain-name Op Va class
+.Va type Op Va data...
 .Xc
 Requires that a RR exists of the specified
 .Va type
@@ -115,11 +109,10 @@ and
 If
 .Va data
 is specified, it must match exactly.
-
 .It Xo
 .Ic update delete
-.Va domain-name Op class
-.Va Op type Op data...
+.Va domain-name Op Va class
+.Op Va type Op Va data...
 .Xc
 Deletes RRs named
 .Va domain-name .
@@ -129,19 +122,16 @@ If
 .Va data )
 is specified,
 only matching records will be deleted.
-
 .It Xo
 .Ic update add
-.Va domain-name ttl Op class
+.Va domain-name ttl Op Va class
 .Va type data...
 .Xc
 Adds a new RR with specified
 .Va ttl , type ,
 and
 .Va data .
-
 .El
-
 .Sh EXAMPLES
 The following example illustrates the interactive use of
 .Ic nsupdate
@@ -157,7 +147,6 @@ $ nsupdate
 > update delete test.example.com A
 > update add test.example.com 3600 A 10.1.1.1
 >
-
 .Ed
 .Pp
 In this example, a CNAME alias is added to the database
@@ -169,7 +158,6 @@ $ nsupdate
 > prereq nxrrset www.example.com CNAME
 > update add www.example.com 3600 CNAME test.example.com
 >
-
 .Ed
 .Pp
 In this example, the nsupdate will be signed with the key "mykey", which
@@ -178,20 +166,15 @@ is in the directory "/var/named/keys".
 $ nsupdate -k /var/named/keys:mykey
 > update add ftp.example.com 60 A 192.168.5.1
 >
-
 .Ed
-
 .Sh DIAGNOSTICS
 .Bl -hang
-
 .It Qq send error
 Typically indicates that the authoritative nameservers could not be reached
-
 .It Qq failed update packet
 Typically indicates that the nameserver has rejected the update,
 either because the nameserver doesn't support dynamic update,
 or due to an authentication failure
-
 .It Qq res_mkupdate: packet size = Va size
 (and no other messages)
 The update was successfully received and authenticated by the nameserver.
@@ -204,8 +187,8 @@ and examine the status field in the nameserver's reply.
 .Sh FILES
 .Bl -hang
 .It Pa /etc/resolv.conf
-.El
 initial domain name and name server addresses
+.El
 .Sh SEE ALSO
 .Xr @INDOT@named @SYS_OPS_EXT@ ,
 .Xr resolver @LIB_NETWORK_EXT@ , 

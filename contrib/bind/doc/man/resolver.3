@@ -16,8 +16,7 @@
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.3	6.5 (Berkeley) 6/23/90
-.\"	$Id: resolver.3,v 8.13 2000/12/05 02:37:33 vixie Exp $
-.\" $FreeBSD$
+.\"	$Id: resolver.3,v 8.16 2001/12/28 04:24:20 marka Exp $
 .\"
 .Dd July 4, 2000
 .Dt RESOLVER @LIB_NETWORK_EXT_U@ 
@@ -60,7 +59,7 @@
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/nameser.h>
 .Fd #include <resolv.h>
-.Ft typedef struct __res_state *res_state;
+.Vt typedef struct __res_state *res_state ;
 .Pp
 .Fn res_ninit "res_state statp"
 .Fn res_ourserver_p "const res_state statp" "const struct sockaddr_in *addr"
@@ -70,18 +69,28 @@
 .Fn res_nquery "res_state statp" "const char *dname" "int class" "int type" "u_char *answer" "int anslen"
 .Fn res_nsearch "res_state statp" "const char *dname" "int class" "int type" "u_char * answer" "int anslen"
 .Fn res_nquerydomain "res_state statp" "const char *name" "const char *domain" "int class" "int type" "u_char *answer" "int anslen"
-.Fn res_nmkquery "res_state statp, int op, const char *dname" "int class" "int type" "const u_char *data" "int datalen" "const u_char *newrr" "u_char *buf" "int buflen"
+.Fo res_nmkquery
+.Fa "res_state statp"
+.Fa "int op"
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "const u_char *data"
+.Fa "int datalen"
+.Fa "const u_char *newrr"
+.Fa "u_char *buf"
+.Fa "int buflen"
+.Fc
 .Fn res_nsend "res_state statp" "const u_char *msg" "int msglen" "u_char *answer" "int anslen"
 .Fn res_nupdate "res_state statp" "ns_updrec *rrecp_in"
 .Fn res_nmkupdate "res_state statp" "ns_updrec *rrecp_in" "u_char *buf" "int buflen"
 .Fn res_nclose "res_state statp"
 .Fn res_nsendsigned "res_state statp" "const u_char *msg" "int msglen" "ns_tsig_key *key" "u_char *answer" "int anslen"
 .Fn res_findzonecut "res_state statp" "const char *dname" "ns_class class" "int options" "char *zname" "size_t zsize" "struct in_addr *addrs" "int naddrs"
-.Fn dn_comp "const char *exp_dn" "u_char *comp_dn" "int length" "u_char **dnptrs, **lastdnptr"
-.Fn dn_expand "const u_char *msg, *eomorig, *comp_dn" "char *exp_dn" "int  length"
+.Fn dn_comp "const char *exp_dn" "u_char *comp_dn" "int length" "u_char **dnptrs" "u_char **lastdnptr"
+.Fn dn_expand "const u_char *msg" "const u_char *eomorig" "const u_char *comp_dn" "char *exp_dn" "int  length"
 .Fn hstrerror "int err"
-.Sh DEPRECATED
-.nr nS 1
+.Ss DEPRECATED
 .Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/nameser.h>
@@ -91,10 +100,20 @@
 .Fn fp_nquery "const u_char *msg" "int msglen" "FILE *fp"
 .Fn p_query "const u_char *msg" "FILE *fp"
 .Fn hostalias "const char *name"
-.Fn res_query "const char *dname" "int class, type" "u_char *answer" "int anslen"
-.Fn res_search "const char *dname" "int class, type" "u_char *answer" "int anslen"
+.Fn res_query "const char *dname" "int class" "int type" "u_char *answer" "int anslen"
+.Fn res_search "const char *dname" "int class" "int type" "u_char *answer" "int anslen"
 .Fn res_querydomain "const char *name" "const char *domain" "int class" "int type" "u_char *answer" "int anslen"
-.Fn res_mkquery "int op" "const char *dname, int class, type" "const char *data" "int datalen" "struct rrec *newrr" "u_char *buf" "int buflen"
+.Fo res_mkquery
+.Fa "int op"
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "const char *data"
+.Fa "int datalen"
+.Fa "struct rrec *newrr"
+.Fa "u_char *buf"
+.Fa "int buflen"
+.Fc
 .Fn res_send "const u_char *msg" "int msglen" "u_char *answer" "int anslen"
 .Fn res_update "ns_updrec *rrecp_in"
 .Fn res_close "void"
@@ -164,7 +183,7 @@ has been called).
 Print debugging messages.
 .It Dv RES_AAONLY
 Accept authoritative answers only.
-should continue until it finds an authoritative answer or finds an error.
+Should continue until it finds an authoritative answer or finds an error.
 Currently this is not implemented.
 .It Dv RES_USEVC
 Use TCP connections for queries instead of UDP datagrams.
@@ -227,6 +246,18 @@ This option causes
 .Fn res_nsendsigned
 to leave the message unchanged after TSIG verification; otherwise the TSIG
 record would be removed and the header updated.
+.It Dv RES_NOTLDQUERY
+This option causes
+.Fn res_nsearch
+to not attempt to resolve a unqualified name as if it were a top level
+domain (TLD).
+This option can cause problems if the site has "localhost" as a TLD rather
+than having localhost on one or more elements of the search list.
+This option has no effect if neither
+.Dv RES_DEFNAMES
+or
+.Dv RES_DNSRCH
+is set.
 .El
 .Pp
 The
@@ -410,7 +441,8 @@ The functions
 /
 .Fn hostalias
 lookup up name in the file referred to by the
-.Ev HOSTALIASES files return a fully qualified hostname if found or NULL if
+.Ev HOSTALIASES
+files return a fully qualified hostname if found or NULL if
 not found or an error occurred.
 .Fn res_hostalias
 uses
@@ -560,7 +592,7 @@ value of the
 parameter.
 .Sh FILES
 .Bl -tag -width "/etc/resolv.conf    "
-.It Pa /etc/resolv.conf	
+.It Pa /etc/resolv.conf
 See 
 .Xr resolver @FORMAT_EXT@ . 
 .El

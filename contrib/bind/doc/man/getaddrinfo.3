@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
-.\"     $Id: getaddrinfo.3,v 8.1 1999/01/11 21:30:51 vixie Exp $
+.\"     $Id: getaddrinfo.3,v 8.3 2001/12/28 04:24:15 marka Exp $
 .\"
 .Dd May 25, 1995
 .Dt GETADDRINFO @LIB_NETWORK_EXT@
@@ -97,9 +97,7 @@ A
 .Pf non Dv -NULL
 .Fa nodename
 string can be either a node name or a numeric host address string
-.Po
-i.e., a dotted-decimal IPv4 address or an IPv6 hex address
-.Pc .
+(i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
 A
 .Pf non Dv -NULL
 .Fa servname
@@ -218,7 +216,8 @@ call to
 .Pq for a connection-oriented protocol
 or either
 .Fn connect ,
-.Fn sendto , or
+.Fn sendto ,
+or
 .Fn sendmsg
 .Pq for a connectionless protocol .
 In this case, if the
@@ -356,6 +355,6 @@ The
 .Fn getaddrinfo
 function is defined IEEE POSIX 1003.1g draft specification,
 and documented in ``Basic Socket Interface Extensions for IPv6''
-.Pq RFC2133 .
+(RFC2133).
 .Sh BUGS
 The text was shamelessly copied from RFC2133.

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: getservent.c,v 1.16 1999/10/13 16:39:31 vixie Exp $";
+static const char rcsid[] = "$Id: getservent.c,v 1.17 2001/11/01 07:33:16 marka Exp $";
 #endif
 
 /* Imports */
@@ -33,6 +33,7 @@ static const char rcsid[] = "$Id: getservent.c,v 1.16 1999/10/13 16:39:31 vixie 
 #include <errno.h>
 #include <resolv.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <irs.h>
 

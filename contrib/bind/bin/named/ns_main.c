@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.145 2001/03/16 12:07:57 marka Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.160 2002/06/24 07:06:55 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -99,7 +99,9 @@ char copyright[] =
 #ifdef SVR4	/* XXX */
 # include <sys/sockio.h>
 #else
+#ifndef __hpux
 # include <sys/mbuf.h>
+#endif
 #endif
 
 #include <netinet/in.h>
@@ -174,7 +176,7 @@ static	u_int16_t               nsid_c1, nsid_c2, nsid_c3;
 static	u_int16_t               nsid_state2;
 static	int                     nsid_algorithm;
 
-static	int			needs = 0, needs_exit = 0;
+static	int			needs = 0, needs_exit = 0, needs_restart = 0;
 static	handler			handlers[main_need_num];
 static	void			savedg_waitfunc(evContext, void*, const void*);
 static	void			need_waitfunc(evContext, void *, const void *);
@@ -233,14 +235,14 @@ usage() {
 	exit(1);
 }
 
-static char bad_p_option[] =
+static const char bad_p_option[] =
 "-p remote/local obsolete; use 'listen-on' in config file to specify local";
 
-static char bad_directory[] = "chdir failed for directory '%s': %s";
+static const char bad_directory[] = "chdir failed for directory '%s': %s";
 
 /*ARGSUSED*/
 int
-main(int argc, char *argv[], char *envp[]) {
+main(int argc, char *argv[]) {
 	int n;
 	char *p;
 	int ch;
@@ -281,7 +283,7 @@ main(int argc, char *argv[], char *envp[]) {
 		case 'b':
 		case 'c':
 			if (conffile != NULL)
-				freestr(conffile);
+				(void)freestr(conffile);
 			conffile = savestr(optarg, 1);
 			break;
 
@@ -309,14 +311,7 @@ main(int argc, char *argv[], char *envp[]) {
 			break;
 
 		case 'w':
-			if (chdir(optarg) < 0) {
-				syslog(LOG_CRIT, bad_directory, optarg,
-				       strerror(errno));
-				fprintf(stderr, bad_directory, optarg,
-					strerror(errno));
-				fputc('\n', stderr);
-				exit(1);
-			}
+			working_dir = savestr(optarg, 1);
 			break;
 #ifdef QRYLOG
 		case 'q':
@@ -367,7 +362,7 @@ main(int argc, char *argv[], char *envp[]) {
 
 		case 'g':
 			if (group_name != NULL)
-				freestr(group_name);
+				(void)freestr(group_name);
 			group_name = savestr(optarg, 1);
 			if (only_digits(group_name))
 				group_id = atoi(group_name);
@@ -394,7 +389,7 @@ main(int argc, char *argv[], char *envp[]) {
 
 	if (argc) {
 		if (conffile != NULL)
-			freestr(conffile);
+			(void)freestr(conffile);
 		conffile = savestr(*argv, 1);
 		argc--, argv++;
 	}
@@ -431,9 +426,21 @@ main(int argc, char *argv[], char *envp[]) {
 		}
 #else
 		fprintf(stderr, "warning: chroot() not available\n");
-		freestr(chroot_dir);
-		chroot_dir = NULL;
+		chroot_dir = freestr(chroot_dir);
 #endif
+	}
+	/*
+	 * Set working directory.
+	 */
+	if (working_dir != NULL) {
+		if (chdir(working_dir) < 0) {
+			syslog(LOG_CRIT, bad_directory, working_dir,
+			       strerror(errno));
+			fprintf(stderr, bad_directory, working_dir,
+				strerror(errno));
+			fputc('\n', stderr);
+			exit(1);
+		}
 	}
 
 	/* Establish global event context. */
@@ -551,7 +558,10 @@ main(int argc, char *argv[], char *envp[]) {
 		else
 			INSIST_ERR(errno == EINTR);
 	}
-	ns_info(ns_log_default, "named shutting down");
+	if (needs_restart)
+		ns_info(ns_log_default, "named restarting");
+	else
+		ns_info(ns_log_default, "named shutting down");
 #ifdef BIND_UPDATE
 	dynamic_about_to_exit();
 #endif
@@ -564,25 +574,56 @@ main(int argc, char *argv[], char *envp[]) {
 	else
 		shutdown_configuration();
 
-	/* Cleanup for system-dependent stuff */
-	custom_shutdown();
+	if (needs_restart)
+		execvp(saved_argv[0], saved_argv);
+	else
+		/* Cleanup for system-dependent stuff */
+		custom_shutdown();
 	
 	return (0);
 }
 
 static int
-ns_socket(int domain, int type, int protocol) {
-	int fd;
+sq_closeone(void) {
+	struct qstream *sp, *nextsp;
+	struct qstream *candidate = NULL;
+	time_t lasttime, maxctime = 0;
+	int result = 0;
 
+	gettime(&tt);
+	
+	for (sp = streamq; sp; sp = nextsp) {
+		nextsp = sp->s_next;
+		if (sp->s_refcnt)
+			continue;
+		lasttime = tt.tv_sec - sp->s_time;
+		if (lasttime >= VQEXPIRY) {
+			sq_remove(sp);
+			result = 1;
+		} else if (lasttime > maxctime) {
+			candidate = sp;
+			maxctime = lasttime;
+		}
+	}
+	if (candidate) {
+		sq_remove(candidate);
+		result = 1;
+	}
+	return (result);
+}
+
+static int
+ns_socket(int domain, int type, int protocol) {
+	int fd, tmp;
+
+ again:
 	fd = socket(domain, type, protocol);
-	if (fd == -1)
-		return (-1);
 #ifdef F_DUPFD		/* XXX */
 	/*
 	 * Leave a space for stdio to work in.
 	 */
 	if (fd >= 0 && fd <= 20) {
-		int new, tmp;
+		int new;
 		if ((new = fcntl(fd, F_DUPFD, 20)) == -1)
 			ns_notice(ns_log_default, "fcntl(fd, F_DUPFD, 20): %s",
 				  strerror(errno));
@@ -592,6 +633,11 @@ ns_socket(int domain, int type, int protocol) {
 		fd = new;
 	}
 #endif
+	tmp = errno;
+	if (errno == EMFILE)
+		if (sq_closeone())
+			goto again;
+	errno = tmp;
 	return (fd);
 }
 
@@ -608,12 +654,16 @@ stream_accept(evContext lev, void *uap, int rfd,
 	interface *ifp = uap;
 	struct qstream *sp;
 	struct iovec iov;
-	int len, n;
+	ISC_SOCKLEN_T len;
+	int n;
 	const int on = 1;
 #ifdef IP_OPTIONS	/* XXX */
 	u_char ip_opts[IP_OPT_BUF_SIZE];
 #endif
 	const struct sockaddr_in *la, *ra;
+
+	UNUSED(lalen);
+	UNUSED(ralen);
 
 	la = (const struct sockaddr_in *)lav;
 	ra = (const struct sockaddr_in *)rav;
@@ -677,25 +727,7 @@ stream_accept(evContext lev, void *uap, int rfd,
 			 * eventlib which will call us right back.
 			 */
 			if (streamq) {
-				struct qstream *nextsp;
-				struct qstream *candidate = NULL;
-				time_t lasttime, maxctime = 0;
-				
-				for (sp = streamq; sp; sp = nextsp) {
-					nextsp = sp->s_next;
-					if (sp->s_refcnt)
-						continue;
-					gettime(&tt);
-					lasttime = tt.tv_sec - sp->s_time;
-					if (lasttime >= VQEXPIRY)
-						sq_remove(sp);
-					else if (lasttime > maxctime) {
-						candidate = sp;
-						maxctime = lasttime;
-					}
-				}
-				if (candidate)
-					sq_remove(candidate);
+				(void)sq_closeone();
 				return;
 			}
 			/* fall through */
@@ -714,7 +746,7 @@ stream_accept(evContext lev, void *uap, int rfd,
 
 #ifndef CANNOT_SET_SNDBUF
 	if (setsockopt(rfd, SOL_SOCKET, SO_SNDBUF,
-		      (char*)&sbufsize, sizeof sbufsize) < 0) {
+		       (const char*)&sbufsize, sizeof sbufsize) < 0) {
 		ns_info(ns_log_default, "setsockopt(rfd, SO_SNDBUF, %d): %s",
 			sbufsize, strerror(errno));
 		(void) close(rfd);
@@ -722,13 +754,21 @@ stream_accept(evContext lev, void *uap, int rfd,
 	}
 #endif
 	if (setsockopt(rfd, SOL_SOCKET, SO_KEEPALIVE,
-		       (char *)&on, sizeof on) < 0) {
+		       (const char *)&on, sizeof on) < 0) {
 		ns_info(ns_log_default, "setsockopt(rfd, KEEPALIVE): %s",
 			strerror(errno));
 		(void) close(rfd);
 		return;
 	}
 
+#ifdef USE_FIONBIO_IOCTL
+	if (ioctl(ifp->dfd, FIONBIO, (char *) &on) == -1) {
+		ns_info(ns_log_default, "ioctl(rfd, FIONBIO): %s",
+			strerror(errno));
+		(void) close(rfd);
+		return;
+	}
+#else
 	if ((n = fcntl(rfd, F_GETFL, 0)) == -1) {
 		ns_info(ns_log_default, "fcntl(rfd, F_GETFL): %s",
 			strerror(errno));
@@ -741,6 +781,7 @@ stream_accept(evContext lev, void *uap, int rfd,
 		(void) close(rfd);
 		return;
 	}
+#endif
 
 	/*
 	 * We don't like IP options.  Turn them off if the connection came in
@@ -796,19 +837,20 @@ tcp_send(struct qinfo *qp) {
 	struct qstream *sp;
 	struct sockaddr_in src;
 	int on = 1, n;
+	int fd;
 	
 	ns_debug(ns_log_default, 1, "tcp_send");
+	if ((fd = ns_socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1)
+		return (SERVFAIL);
+	if (fd > evHighestFD(ev)) {
+		close(fd);
+		return (SERVFAIL);
+	}
 	if ((sp = sq_add()) == NULL) {
+		close(fd);
 		return (SERVFAIL);
 	}
-	if ((sp->s_rfd = ns_socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1) {
-		sq_remove(sp);
-		return (SERVFAIL);
-	}
-	if (sp->s_rfd > evHighestFD(ev)) {
-		sq_remove(sp);
-		return (SERVFAIL);
-	}
+	sp->s_rfd = fd;
 	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_REUSEADDR,
 		       (char*)&on, sizeof(on)) < 0)
 		ns_info(ns_log_default,
@@ -830,6 +872,12 @@ tcp_send(struct qinfo *qp) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
+#ifdef USE_FIONBIO_IOCTL
+	if (ioctl(sp->s_rfd, FIONBIO, (char *) &on) == -1) {
+		sq_remove(sp);
+		return (SERVFAIL);
+	}
+#else
 	if ((n = fcntl(sp->s_rfd, F_GETFL, 0)) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
@@ -838,6 +886,7 @@ tcp_send(struct qinfo *qp) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
+#endif
 	if (sq_openw(sp, qp->q_msglen + INT16SZ) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
@@ -871,6 +920,12 @@ static void
 stream_send(evContext lev, void *uap, int fd, const void *la, int lalen,
 	    const void *ra, int ralen) {
 	struct qstream *sp = uap;
+
+	UNUSED(lev);
+	UNUSED(la);
+	UNUSED(lalen);
+	UNUSED(ra);
+	UNUSED(ralen);
 
 	ns_debug(ns_log_default, 1, "stream_send");
 
@@ -922,6 +977,8 @@ static void
 stream_getlen(evContext lev, void *uap, int fd, int bytes) {
 	struct qstream *sp = uap;
 	struct iovec iov;
+
+	UNUSED(fd);
 
 	sp->flags &= ~STREAM_READ_EV;
 	if (bytes != INT16SZ) {
@@ -979,13 +1036,16 @@ stream_getlen(evContext lev, void *uap, int fd, int bytes) {
 	if (evRead(lev, sp->s_rfd, &iov, 1, stream_getmsg, sp, &sp->evID_r)
 	    == -1)
 		ns_panic(ns_log_default, 1, "evRead(fd %d): %s",
-			 (void *)sp->s_rfd, strerror(errno));
+			 sp->s_rfd, strerror(errno));
 	sp->flags |= STREAM_READ_EV;
 }
 
 static void
 stream_getmsg(evContext lev, void *uap, int fd, int bytes) {
 	struct qstream *sp = uap;
+
+	UNUSED(lev);
+	UNUSED(fd);
 
 	sp->flags &= ~STREAM_READ_EV;
 	if (bytes == -1) {
@@ -999,8 +1059,10 @@ stream_getmsg(evContext lev, void *uap, int fd, int bytes) {
 	sp->s_time = tt.tv_sec;
 
 	if (ns_wouldlog(ns_log_default,5)) {
-		ns_debug(ns_log_default, 5, "sp %#x rfd %d size %d time %d next %#x",
-			sp, sp->s_rfd, sp->s_size, sp->s_time, sp->s_next);
+		ns_debug(ns_log_default, 5,
+			 "sp %p rfd %d size %d time %ld next %p",
+			 sp, sp->s_rfd, sp->s_size, (long)sp->s_time,
+			 sp->s_next);
 		ns_debug(ns_log_default, 5, "\tbufsize %d bytes %d", sp->s_bufsize,
 			 bytes);
 	}
@@ -1034,12 +1096,15 @@ static void
 datagram_read(evContext lev, void *uap, int fd, int evmask) {
 	interface *ifp = uap;
 	struct sockaddr_in from;
-	int from_len = sizeof from;
+	ISC_SOCKLEN_T from_len = sizeof from;
 	int n, nudp;
 	union {
 		HEADER h;			/* Force alignment of 'buf'. */
-		u_char buf[PACKETSZ+1];
+		u_char buf[EDNS_MESSAGE_SZ+1];
 	} u;
+
+	UNUSED(lev);
+	UNUSED(evmask);
 
 	tt = evTimeVal(evNowTime());
 	nudp = 0;
@@ -1088,16 +1153,16 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 			 sin_ntoa(from), fd, n);
 	}
 
-	if (n > PACKETSZ) {
+	if (n > EDNS_MESSAGE_SZ) {
 		/*
 		 * The message is too big.  It's probably a response to
 		 * one of our questions, so we truncate it and press on.
 		 */
-		n = trunc_adjust(u.buf, PACKETSZ, PACKETSZ);
+		n = trunc_adjust(u.buf, EDNS_MESSAGE_SZ, EDNS_MESSAGE_SZ);
 		ns_debug(ns_log_default, 1, "truncated oversize UDP packet");
 	}
 
-	dispatch_message(u.buf, n, PACKETSZ, NULL, from, fd, ifp);
+	dispatch_message(u.buf, n, EDNS_MESSAGE_SZ, NULL, from, fd, ifp);
 	if (++nudp < nudptrans)
 		goto more;
 }
@@ -1106,8 +1171,11 @@ static void
 savedg_waitfunc(evContext ctx, void *uap, const void *tag) {
 	savedg *dg = (savedg *)uap;
 
+	UNUSED(ctx);
+	UNUSED(tag);
+
 	if (!EMPTY(iflist) && HEAD(iflist)->gen == dg->gen) {
-		u_char buf[PACKETSZ];
+		u_char buf[EDNS_MESSAGE_SZ];
 
 		memcpy(buf, dg->buf, dg->buflen);
 		dispatch_message(buf, dg->buflen, sizeof buf, NULL,
@@ -1222,8 +1290,7 @@ getnetconf(int periodic_scan) {
 	for (;;) {
 		buf = memget(bufsiz);
 		if (!buf)
-			ns_panic(ns_log_default, 1,
-				"memget(interface)", NULL);
+			ns_panic(ns_log_default, 1, "memget(interface)");
 		ifc.ifc_len = bufsiz;
 		ifc.ifc_buf = buf;
 #ifdef IRIX_EMUL_IOCTL_SIOCGIFCONF
@@ -1244,7 +1311,7 @@ getnetconf(int periodic_scan) {
 			 * buffer we will grow it just in case and
 			 * retry.
 			 */
-			if (ifc.ifc_len + 2 * sizeof(ifreq) < bufsiz)
+			if ((int)(ifc.ifc_len + 2 * sizeof(ifreq)) < bufsiz)
 				break;
 		}
 #endif
@@ -1345,7 +1412,7 @@ getnetconf(int periodic_scan) {
 				ifp = (interface *)memget(sizeof *ifp);
 				if (!ifp)
 					ns_panic(ns_log_default, 1,
-						 "memget(interface)", NULL);
+						 "memget(interface)");
 				memset(ifp, 0, sizeof *ifp);
 				INIT_LINK(ifp, link);
 				APPEND(iflist, ifp, link);
@@ -1491,8 +1558,8 @@ static int
 opensocket_d(interface *ifp) {
 	struct sockaddr_in nsa;
 	const int on = 1;
-	int m, n;
-	int fd;
+	ISC_SOCKLEN_T m;
+	int n;
 
 	memset(&nsa, 0, sizeof nsa);
 	nsa.sin_family = AF_INET;
@@ -1509,6 +1576,14 @@ opensocket_d(interface *ifp) {
 		close(ifp->dfd);
 		return (-1);
 	}
+#ifdef USE_FIONBIO_IOCTL
+	if (ioctl(ifp->dfd, FIONBIO, (char *) &on) == -1) {
+		ns_info(ns_log_default, "ioctl(ifp->dfd, FIONBIO): %s",
+			strerror(errno));
+		(void) close(ifp->dfd);
+		return (-1);
+	}
+#else
 	if ((n = fcntl(ifp->dfd, F_GETFL, 0)) == -1) {
 		ns_info(ns_log_default, "fcntl(ifp->dfd, F_GETFL): %s",
 			strerror(errno));
@@ -1521,6 +1596,7 @@ opensocket_d(interface *ifp) {
 		(void) close(ifp->dfd);
 		return (-1);
 	}
+#endif
 	if (fcntl(ifp->dfd, F_SETFD, 1) < 0) {
 		ns_error(ns_log_default, "F_SETFD: %s", strerror(errno));
 		close(ifp->dfd);
@@ -1529,7 +1605,7 @@ opensocket_d(interface *ifp) {
 	ns_debug(ns_log_default, 1, "ifp->addr %s d_dfd %d",
 		 sin_ntoa(nsa), ifp->dfd);
 	if (setsockopt(ifp->dfd, SOL_SOCKET, SO_REUSEADDR,
-	    (char *)&on, sizeof(on)) != 0) {
+		       (const char *)&on, sizeof(on)) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
 			  strerror(errno));
 		/* XXX press on regardless, this is not too serious. */
@@ -1540,12 +1616,12 @@ opensocket_d(interface *ifp) {
 	    && (m == sizeof n)
 	    && (n < drbufsize)) {
 		(void) setsockopt(ifp->dfd, SOL_SOCKET, SO_RCVBUF,
-				  (char *)&drbufsize, sizeof drbufsize);
+				  (const char *)&drbufsize, sizeof drbufsize);
 	}
 #endif /* SO_RCVBUF */
 #ifndef CANNOT_SET_SNDBUF
 	if (setsockopt(ifp->dfd, SOL_SOCKET, SO_SNDBUF,
-		      (char*)&dsbufsize, sizeof dsbufsize) < 0) {
+		       (const char*)&dsbufsize, sizeof dsbufsize) < 0) {
 		ns_info(ns_log_default,
 			"setsockopt(dfd=%d, SO_SNDBUF, %d): %s",
 			ifp->dfd, dsbufsize, strerror(errno));
@@ -1583,10 +1659,10 @@ drain_rcvbuf(evContext ctx, interface *ifp, int fd, int *mread, int *mstore) {
 	for (; *mread > 0; (*mread)--) {
 		union {
 			HEADER h;
-			u_char buf[PACKETSZ+1];
+			u_char buf[EDNS_MESSAGE_SZ+1];
 		} u;
 		struct sockaddr_in from;
-		int from_len = sizeof from;
+		ISC_SOCKLEN_T from_len = sizeof from;
 		savedg *dg;
 		int n;
 
@@ -1595,7 +1671,7 @@ drain_rcvbuf(evContext ctx, interface *ifp, int fd, int *mread, int *mstore) {
 		if (n <= 0)
 			break;		/* Socket buffer assumed empty. */
 		drop++;			/* Pessimistic assumption. */
-		if (n > PACKETSZ)
+		if (n > EDNS_MESSAGE_SZ)
 			continue;	/* Oversize message - EDNS0 needed. */
 		if (from.sin_family != AF_INET)
 			continue;	/* Not IPv4 - IPv6 needed. */
@@ -1655,7 +1731,6 @@ opensocket_s(interface *ifp) {
 	struct sockaddr_in nsa;
 	const int on = 1;
 	int n;
-	int fd;
 
 	memset(&nsa, 0, sizeof nsa);
 	nsa.sin_family = AF_INET;
@@ -1683,7 +1758,7 @@ opensocket_s(interface *ifp) {
 		return (-1);
 	}
 	if (setsockopt(ifp->sfd, SOL_SOCKET, SO_REUSEADDR,
-		       (char *)&on, sizeof on) != 0) {
+		       (const char *)&on, sizeof on) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
 			  strerror(errno));
 		/* Consider that your first warning of trouble to come. */
@@ -1728,7 +1803,8 @@ opensocket_f() {
 	static interface *prev_ifp;
 	struct sockaddr_in nsa;
 	const int on = 1;
-	int n, need_close;
+	ISC_SOCKLEN_T n;
+	int need_close;
 	interface *ifp;
 
 	need_close = 0;
@@ -1786,7 +1862,7 @@ opensocket_f() {
 	if (fcntl(ds, F_SETFD, 1) < 0)
 		ns_panic(ns_log_default, 1, "F_SETFD: %s", strerror(errno));
 	if (setsockopt(ds, SOL_SOCKET, SO_REUSEADDR,
-	    (char *)&on, sizeof on) != 0) {
+		       (const char *)&on, sizeof on) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
 			  strerror(errno));
 		/* XXX press on regardless, this is not too serious. */
@@ -1816,7 +1892,7 @@ opensocket_f() {
 
 	if (evSelectFD(ev, ds, EV_READ, datagram_read, NULL, &ds_evID) == -1)
 		ns_panic(ns_log_default, 1, "evSelectFD(fd %d): %s",
-			 (void *)ds, strerror(errno));
+			 ds, strerror(errno));
 	/* XXX: should probably use a different FileFunc that only accepts
 	 *	responses, since requests on this socket make no sense.
 	 */
@@ -1833,6 +1909,8 @@ setdebug(int new_debug) {
 	debug = new_debug;
 	log_option(log_ctx, LOG_OPTION_DEBUG, debug);
 	log_option(log_ctx, LOG_OPTION_LEVEL, debug);
+	if (old_debug && !debug)
+		log_close_debug_channels(log_ctx);
 	evSetDebug(ev, debug, log_get_stream(eventlib_channel));
 	if (debug) {
 		if (!old_debug)
@@ -2017,6 +2095,8 @@ static void
 sq_writable(evContext ctx, void *uap, int fd, int evmask) {
 	struct qstream *qs = uap;
 
+	UNUSED(ctx);
+
 	INSIST(evmask & EV_WRITE);
 	INSIST(fd == qs->s_rfd);
 	if (sq_dowrite(qs) < 0) {
@@ -2118,7 +2198,7 @@ sq_done(struct qstream *sp) {
 	if (evRead(ev, sp->s_rfd, &iov, 1, stream_getlen, sp, &sp->evID_r) ==
 	    -1)
 		ns_panic(ns_log_default, 1, "evRead(fd %d): %s",
-			 (void *)sp->s_rfd, strerror(errno));
+			 sp->s_rfd, strerror(errno));
 	sp->flags |= STREAM_READ_EV;
 }
 
@@ -2359,7 +2439,7 @@ nsid_hash(u_char *data, size_t len) {
 	 * fast.
 	 */
 	while (len-- > 0) {
-		HASHROTATE(nsid_hash_state);
+		nsid_hash_state = HASHROTATE(nsid_hash_state);
 		nsid_hash_state += *data++;
 	}
 }
@@ -2566,8 +2646,7 @@ nsid_init(void) {
 		nsid_vtable = memget(NSID_SHUFFLE_TABLE_SIZE *
 				     (sizeof(u_int16_t)) );
 		if (!nsid_vtable)
-			ns_panic(ns_log_default, 1, "memget(nsid_vtable)",
-				 NULL);
+			ns_panic(ns_log_default, 1, "memget(nsid_vtable)");
 		for (i = 0; i < NSID_SHUFFLE_TABLE_SIZE; i++) {
 			nsid_vtable[i] = nsid_state;
 			nsid_state = (((u_long) nsid_a1 * nsid_state) + nsid_c1)
@@ -2579,7 +2658,7 @@ nsid_init(void) {
 		nsid_algorithm = NSID_USE_POOL;
 		nsid_pool = memget(0x10000 * (sizeof(u_int16_t)));
 		if (!nsid_pool)
-			ns_panic(ns_log_default, 1, "memget(nsid_pool)", NULL);
+			ns_panic(ns_log_default, 1, "memget(nsid_pool)");
 		for (i = 0; ; i++) {
 			nsid_pool[i] = nsid_state;
 			nsid_state = (((u_long) nsid_a1 * nsid_state) + nsid_c1)                                     & 0xFFFF;
@@ -2632,8 +2711,10 @@ nsid_next() {
 			nsid_state = 0;
 		else
 			nsid_state++;
-	} else
-		ns_panic(ns_log_default, 1, "Unknown ID algorithm", NULL);
+	} else {
+		id = 0;	/* silence compiler */
+		ns_panic(ns_log_default, 1, "Unknown ID algorithm");
+	}
 
 	/* Now lets obfuscate ... */
 	id = (((u_long) nsid_a2 * id) + nsid_c2) & 0xFFFF;
@@ -2679,31 +2760,29 @@ deallocate_everything(void) {
 	if (chroot_dir != NULL)
 		freestr(chroot_dir);
 	chroot_dir = NULL;
+	if (working_dir != NULL)
+		freestr(working_dir);
+	working_dir = NULL;
 	if (nsid_pool != NULL)
 		memput(nsid_pool, 0x10000 * (sizeof(u_int16_t)));
 	nsid_pool = NULL;
+	if (nsid_vtable != NULL)
+		memput(nsid_vtable, NSID_SHUFFLE_TABLE_SIZE *
+				     (sizeof(u_int16_t)));
+	nsid_vtable = NULL;
 	irs_destroy();
 	if (f != NULL) {
 		memstats(f);
 		(void)fclose(f);
 	}
+	if (memactive())
+		abort();
 }
 	
 static void
 ns_restart(void) {
-	ns_info(ns_log_default, "named restarting");
-#ifdef BIND_UPDATE
-	dynamic_about_to_exit();
-#endif
-	if (server_options && server_options->pid_filename)
-		(void)unlink(server_options->pid_filename);
-	ns_logstats(ev, NULL, evNowTime(), evConsTime(0, 0));
-	if (NS_OPTION_P(OPTION_DEALLOC_ON_EXIT))
-		deallocate_everything();
-	else
-		shutdown_configuration();
-	execvp(saved_argv[0], saved_argv);
-	abort();
+	needs_restart = 1;
+	needs_exit = 1;
 }
 
 static void
@@ -2753,7 +2832,7 @@ toggle_qrylog(void) {
 
 static void
 wild(void) {
-	ns_panic(ns_log_default, 1, "wild need", NULL);
+	ns_panic(ns_log_default, 1, "wild need");
 }
 
 /*
@@ -2780,6 +2859,7 @@ init_needs(void) {
 	handlers[main_need_restart] = ns_restart;
 	handlers[main_need_reap] = reapchild;
 	handlers[main_need_noexpired] = ns_noexpired;
+	handlers[main_need_tryxfer] = tryxfer;
 }
 
 static void
@@ -2803,7 +2883,7 @@ handle_needs(void) {
 		INSIST_ERR(evDo(ev, (void *)handle_needs) != -1);
 		return;
 	}
-	ns_panic(ns_log_default, 1, "ns_handle_needs: queued == 0", NULL);
+	ns_panic(ns_log_default, 1, "ns_handle_needs: queued == 0");
 }
 
 static void
@@ -2811,6 +2891,8 @@ need_waitfunc(evContext ctx, void *uap, const void *tag) {
 	handler hand = (handler) uap;
 	time_t begin;
 	long syncdelay;
+
+	UNUSED(tag);
 
 	begin = time(NULL);
 	(*hand)();

@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: debug.c,v 8.17 2000/11/08 06:47:31 marka Exp $";
+static const char rcsid[] = "$Id: debug.c,v 8.19 2001/09/25 04:50:26 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -115,12 +115,12 @@ Fprint_query(const u_char *msg, const u_char *eom, int printHeader, FILE *file)
 	const u_char *cp;
 	const HEADER *hp;
 	int n;
-	u_int class, type;
+	u_int class, type = 0;
 
 	/*
 	 * Print header fields.
 	 */
-	hp = (HEADER *)msg;
+	hp = (const HEADER *)msg;
 	cp = msg + HFIXEDSZ;
 	if (printHeader || (res.options & RES_DEBUG2)) {
 		fprintf(file,"    HEADER:\n");
@@ -164,9 +164,9 @@ Fprint_query(const u_char *msg, const u_char *eom, int printHeader, FILE *file)
 			cp = Print_cdname(cp, msg, eom, file);
 			if (cp == NULL)
 				return;
-			type = ns_get16((u_char*)cp);
+			type = ns_get16((const u_char*)cp);
 			cp += INT16SZ;
-			class = ns_get16((u_char*)cp);
+			class = ns_get16((const u_char*)cp);
 			cp += INT16SZ;
 			fprintf(file,", type = %s", p_type(type));
 			fprintf(file,", class = %s\n", p_class(class));
@@ -219,7 +219,7 @@ Fprint_query(const u_char *msg, const u_char *eom, int printHeader, FILE *file)
 	fprintf(file,"\n------------\n");
 }
 
-const u_char *
+static const u_char *
 Print_cdname_sub(const u_char *cp, const u_char *msg, const u_char *eom,
 		 FILE *file, int format)
 {
@@ -325,16 +325,16 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 
 	case T_MX:
 		BOUNDS_CHECK(cp, INT16SZ);
-		fprintf(file,"\tpreference = %u",ns_get16((u_char*)cp));
+		fprintf(file,"\tpreference = %u",ns_get16((const u_char*)cp));
 		cp += INT16SZ;
 		fprintf(file,", mail exchanger = ");
 		goto doname;
 
 	case T_NAPTR:
 		BOUNDS_CHECK(cp, 2 * INT16SZ);
-		fprintf(file, "\torder = %u",ns_get16((u_char*)cp));
+		fprintf(file, "\torder = %u",ns_get16((const u_char*)cp));
 		cp += INT16SZ;
-		fprintf(file,", preference = %u\n", ns_get16((u_char*)cp));
+		fprintf(file,", preference = %u\n", ns_get16((const u_char*)cp));
 		cp += INT16SZ;
 		/* Flags */
 		BOUNDS_CHECK(cp, 1);
@@ -366,11 +366,11 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 
 	case T_SRV: 
 		BOUNDS_CHECK(cp, 3 * INT16SZ);
-		fprintf(file, "\tpriority = %u",ns_get16((u_char*)cp));
+		fprintf(file, "\tpriority = %u",ns_get16((const u_char*)cp));
 		cp += INT16SZ;
-		fprintf(file,", weight = %u", ns_get16((u_char*)cp));
+		fprintf(file,", weight = %u", ns_get16((const u_char*)cp));
 		cp += INT16SZ;
-		fprintf(file,", port= %u\n", ns_get16((u_char*)cp));
+		fprintf(file,", port= %u\n", ns_get16((const u_char*)cp));
 		cp += INT16SZ;
 
 		fprintf(file,"\thost = ");
@@ -378,7 +378,7 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 
         case T_PX:
 		BOUNDS_CHECK(cp, INT16SZ);
-                fprintf(file,"\tpreference = %u",ns_get16((u_char*)cp));
+                fprintf(file,"\tpreference = %u",ns_get16((const u_char*)cp));
                 cp += INT16SZ;
                 fprintf(file,", RFC 822 = ");
                 cp = Print_cdname(cp, msg, eom, file);
@@ -397,14 +397,14 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 
 	case T_RT:
 		BOUNDS_CHECK(cp, INT16SZ);
-		fprintf(file,"\tpreference = %u",ns_get16((u_char*)cp));
+		fprintf(file,"\tpreference = %u",ns_get16((const u_char*)cp));
 		cp += INT16SZ;
 		fprintf(file,", router = ");
 		goto doname;
 
 	case T_AFSDB:
 		BOUNDS_CHECK(cp, INT16SZ);
-		fprintf(file,"\tsubtype = %d",ns_get16((u_char*)cp));
+		fprintf(file,"\tsubtype = %d",ns_get16((const u_char*)cp));
 		cp += INT16SZ;
 		fprintf(file,", DCE/AFS server = ");
 		goto doname;
@@ -471,18 +471,18 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 			return (NULL);			/* compression error */
 		}
 		BOUNDS_CHECK(cp, 5 * INT32SZ);
-		fprintf(file,"\n\tserial = %lu", ns_get32((u_char*)cp));
+		fprintf(file,"\n\tserial = %lu", ns_get32((const u_char*)cp));
 		cp += INT32SZ;
-		ttl = ns_get32((u_char*)cp);
+		ttl = ns_get32((const u_char*)cp);
 		fprintf(file,"\n\trefresh = %lu (%s)", ttl, p_time(ttl));
 		cp += INT32SZ;
-		ttl = ns_get32((u_char*)cp);
+		ttl = ns_get32((const u_char*)cp);
 		fprintf(file,"\n\tretry   = %lu (%s)", ttl, p_time(ttl));
 		cp += INT32SZ;
-		ttl = ns_get32((u_char*)cp);
+		ttl = ns_get32((const u_char*)cp);
 		fprintf(file,"\n\texpire  = %lu (%s)", ttl, p_time(ttl));
 		cp += INT32SZ;
-		ttl = ns_get32((u_char*)cp);
+		ttl = ns_get32((const u_char*)cp);
 		fprintf(file,
 		    "\n\tminimum ttl = %lu (%s)\n", ttl, p_time(ttl));
 		cp += INT32SZ;

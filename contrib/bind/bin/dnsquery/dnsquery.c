@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: dnsquery.c,v 8.15 2000/12/23 08:14:32 vixie Exp $";
+static const char rcsid[] = "$Id: dnsquery.c,v 8.19 2002/04/12 03:03:48 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -30,7 +30,6 @@ static const char rcsid[] = "$Id: dnsquery.c,v 8.15 2000/12/23 08:14:32 vixie Ex
 
 #include <errno.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,21 +37,54 @@ static const char rcsid[] = "$Id: dnsquery.c,v 8.15 2000/12/23 08:14:32 vixie Ex
 
 #include "port_after.h"
 
+#include <resolv.h>
+
 extern int errno;
 extern int h_errno;
 extern char *h_errlist[];
 
 struct __res_state res;
 
+static int
+newserver(char *srv, union res_sockaddr_union *u, int ns, int max) {
+	struct addrinfo *answer = NULL;
+	struct addrinfo *cur = NULL;
+	struct addrinfo hint;
+	short port = htons(NAMESERVER_PORT);
+
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_socktype = SOCK_DGRAM;
+	if (!getaddrinfo(srv, NULL, &hint, &answer)) {
+		for (cur = answer; cur != NULL; cur = cur->ai_next) {
+			if (ns >= max)
+				break;
+			switch (cur->ai_addr->sa_family) {
+			case AF_INET6:
+				u[ns].sin6 =
+					 *(struct sockaddr_in6*)cur->ai_addr;
+				u[ns++].sin6.sin6_port = port;
+				break;
+			case AF_INET:
+				u[ns].sin = *(struct sockaddr_in*)cur->ai_addr;
+				u[ns++].sin6.sin6_port = port;
+				break;
+			}
+		}
+		freeaddrinfo(answer);
+	} else {
+		fprintf(stderr, "Bad nameserver (%s)\n", srv);
+		exit(1);
+	}
+	return (ns);
+}
+
 int
 main(int argc, char *argv[]) {
 	char name[MAXDNAME];
 	u_char answer[8*1024];
-	int c, n, i = 0;
-	u_int32_t ul;
+	int c, n;
 	int nameservers = 0, class, type, len;
-	struct in_addr q_nsaddr[MAXNS];
-	struct hostent *q_nsname;
+	union res_sockaddr_union q_nsaddr[MAXNS];
 	extern int optind, opterr;
 	extern char *optarg;
 	int stream = 0, debug = 0;
@@ -66,7 +98,7 @@ main(int argc, char *argv[]) {
 	/* if no args, exit */
 	if (argc == 1) {
 		fprintf(stderr, "Usage:  %s [-h] host [-n ns] [-t type] [-c class] [-r retry] [-p period] [-s] [-v] [-d] [-a]\n", argv[0]);
-		exit(-1);
+		exit(1);
 	}
 
 	/* handle args */
@@ -82,7 +114,7 @@ main(int argc, char *argv[]) {
 		case 'h' :	if (strlen(optarg) >= sizeof(name)) {
 					fprintf(stderr,
 						"Domain name too long (%s)\n", optarg);
-					exit(-1);
+					exit(1);
 				} else
 					strcpy(name, optarg);
 				break;
@@ -96,7 +128,7 @@ main(int argc, char *argv[]) {
 					class = proto_class;
 				else {
 				    fprintf(stderr, "Bad class (%s)\n", optarg);
-					exit(-1);
+					exit(1);
 				}
 			    }
 				break;
@@ -110,7 +142,7 @@ main(int argc, char *argv[]) {
 					type = proto_type;
 				else {
 				    fprintf(stderr, "Bad type (%s)\n", optarg);
-					exit(-1);
+					exit(1);
 				}
 			    }
 				break;
@@ -135,37 +167,22 @@ main(int argc, char *argv[]) {
 						fprintf(stderr,
 							"res_ninit() failed\n"
 							);
-						exit(-1);
+						exit(1);
 				}
-				if (nameservers >= MAXNS) break;
-				(void) inet_aton(optarg,
-						 &q_nsaddr[nameservers]);
-				if (!inet_aton(optarg, (struct in_addr *)&ul)){
-					q_nsname = gethostbyname(optarg);
-					if (q_nsname == 0) {
-						fprintf(stderr,
-						       "Bad nameserver (%s)\n",
-							optarg);
-						exit(-1);
-					}
-					memcpy(&q_nsaddr[nameservers],
-					       q_nsname->h_addr, INADDRSZ);
-				}
-				else
-					q_nsaddr[nameservers].s_addr = ul;
-				nameservers++;
+				nameservers = newserver(optarg, q_nsaddr,
+							nameservers, MAXNS);
 				break;
 
 		default : 	fprintf(stderr, 
 				"\tUsage:  %s [-n ns] [-h host] [-t type] [-c class] [-r retry] [-p period] [-s] [-v] [-d] [-a]\n", argv[0]);
-				exit(-1);
+				exit(1);
 		}
 	}
 	if (optind < argc) {
 		if (strlen(argv[optind]) >= sizeof(name)) {
 			fprintf(stderr,
 				"Domain name too long (%s)\n", argv[optind]);
-			exit(-1);
+			exit(1);
 		} else {
 			strcpy(name, argv[optind]);
 		}
@@ -176,7 +193,7 @@ main(int argc, char *argv[]) {
 	if (!(res.options & RES_INIT))
 		if (res_ninit(&res) == -1) {
 			fprintf(stderr, "res_ninit() failed\n");
-			exit(-1);
+			exit(1);
 		}
 
 	/* 
@@ -189,14 +206,8 @@ main(int argc, char *argv[]) {
 	 	res.options |= RES_USEVC;
 
 	/* if the -n flag was used, add them to the resolver's list */
-	if (nameservers != 0) {
-		res.nscount = nameservers;
-		for (i = nameservers - 1; i >= 0; i--) {
-			res.nsaddr_list[i].sin_addr.s_addr = q_nsaddr[i].s_addr;
-			res.nsaddr_list[i].sin_family = AF_INET;
-			res.nsaddr_list[i].sin_port = htons(NAMESERVER_PORT);
-		}
-	}
+	if (nameservers != 0)
+		res_setservers(&res, q_nsaddr, nameservers);
 
 	/*
 	 * if the -h arg is fully-qualified, use res_query() since
@@ -208,13 +219,13 @@ main(int argc, char *argv[]) {
 		if (n < 0) {
 			fprintf(stderr, "Query failed (h_errno = %d) : %s\n", 
 				h_errno, h_errlist[h_errno]);
-			exit(-1);
+			exit(1);
 		}
 	} else if ((n = res_nsearch(&res, name, class, type,
 				    answer, len)) < 0) {
 		fprintf(stderr, "Query failed (h_errno = %d) : %s\n", 
 			h_errno, h_errlist[h_errno]);
-		exit(-1);
+		exit(1);
 	}
 	res_pquery(&res, answer, n, stdout);
 	exit(0);

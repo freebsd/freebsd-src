@@ -1,5 +1,5 @@
 #ifdef EAY_DSS
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/eay_dss_link.c,v 1.5 2001/04/05 22:00:03 bwelling Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/eay_dss_link.c,v 1.6 2001/05/29 05:48:09 marka Exp $";
 
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -44,6 +44,7 @@ static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/eay_dss_li
 
 #include "port_after.h"
 
+
 static int dst_eay_dss_sign(const int mode, DST_KEY *dkey, void **context,
 			    const u_char *data, const int len,
 			    u_char *signature, const int sig_len);
@@ -71,7 +72,7 @@ static int dst_eay_dss_compare_keys(const DST_KEY *key1, const DST_KEY *key2);
  *	    EAY DSS related functions 
  */
 int
-dst_eay_dss_init()
+dst_eay_dss_init(void)
 {
 	if (dst_t_func[KEY_DSA] != NULL)
 		return (1);
@@ -608,8 +609,21 @@ dst_eay_dss_compare_keys(const DST_KEY *key1, const DST_KEY *key2)
 		return (0);
 }
 #else 
+#include "port_before.h"
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <memory.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+
+#include "dst_internal.h"
+#include "port_after.h"
 int
-dst_eay_dss_init() 
+dst_eay_dss_init(void) 
 {
 	return (0);
 }

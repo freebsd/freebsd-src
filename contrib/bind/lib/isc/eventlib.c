@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: eventlib.c,v 1.45 2000/02/04 07:25:39 vixie Exp $";
+static const char rcsid[] = "$Id: eventlib.c,v 1.46 2001/11/01 05:35:48 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -193,7 +193,7 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 	/* Ensure that exactly one of EV_POLL or EV_WAIT was specified. */
 	x = ((options & EV_POLL) != 0) + ((options & EV_WAIT) != 0);
 	if (x != 1)
-		ERR(EINVAL);
+		EV_ERR(EINVAL);
 
 	/* Get the time of day.  We'll do this again after select() blocks. */
 	ctx->lastEventTime = evNowTime();
@@ -248,7 +248,7 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 
 		/* Are there any events at all? */
 		if ((options & EV_WAIT) != 0 && !nextTimer && ctx->fdMax == -1)
-			ERR(ENOENT);
+			EV_ERR(ENOENT);
 
 		/* Figure out what select()'s timeout parameter should be. */
 		if ((options & EV_POLL) != 0) {
@@ -343,11 +343,11 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 				}
 				abort();
 			}
-			ERR(pselect_errno);
+			EV_ERR(pselect_errno);
 		}
 		if (x == 0 && (nextTimer == NULL || !timerPast) &&
 		    (options & EV_POLL))
-			ERR(EWOULDBLOCK);
+			EV_ERR(EWOULDBLOCK);
 		ctx->fdCount = x;
 #ifdef EVENTLIB_TIME_CHECKS
 		ctx->lastFdCount = x;

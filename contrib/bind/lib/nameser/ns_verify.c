@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_verify.c,v 8.13 2000/03/29 15:55:00 bwelling Exp $";
+static const char rcsid[] = "$Id: ns_verify.c,v 8.14 2001/05/29 05:49:40 marka Exp $";
 #endif
 
 /* Import. */
@@ -37,6 +37,7 @@ static const char rcsid[] = "$Id: ns_verify.c,v 8.13 2000/03/29 15:55:00 bwellin
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <isc/dst.h>
@@ -328,7 +329,7 @@ ns_verify_tcp_init(void *k, const u_char *querysig, int querysiglen,
 	state->key = k;
 	if (state->key->dk_alg != KEY_HMAC_MD5)
 		return (-ns_r_badkey);
-	if (querysiglen > sizeof(state->sig))
+	if (querysiglen > (int)sizeof(state->sig))
 		return (-1);
 	memcpy(state->sig, querysig, querysiglen);
 	state->siglen = querysiglen;
@@ -341,7 +342,7 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 {
 	HEADER *hp = (HEADER *)msg;
 	u_char *recstart, *rdatastart, *sigstart;
-	int sigfieldlen, otherfieldlen;
+	unsigned int sigfieldlen, otherfieldlen;
 	u_char *cp, *eom = msg + *msglen, *cp2;
 	char name[MAXDNAME], alg[MAXDNAME];
 	u_char buf[MAXDNAME];

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent_r.c,v 8.4 1999/01/18 07:46:52 vixie Exp $";
+static const char rcsid[] = "$Id: getnetgrent_r.c,v 8.6 2001/11/01 08:02:12 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -26,15 +26,18 @@ static const char rcsid[] = "$Id: getnetgrent_r.c,v 8.4 1999/01/18 07:46:52 vixi
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <netgroup.h>
+#include <stdlib.h>
 #include <port_after.h>
 
 #ifdef NGR_R_RETURN
 
 static NGR_R_RETURN 
-copy_protoent(char **, char **, char **, char *, char *, char *,
-		NGR_R_COPY_ARGS);
+copy_protoent(char **, char **, char **, const char *, const char *,
+	      const char *, NGR_R_COPY_ARGS);
 
 NGR_R_RETURN
 innetgr_r(const char *netgroup, const char *host, const char *user,
@@ -51,7 +54,7 @@ innetgr_r(const char *netgroup, const char *host, const char *user,
 
 NGR_R_RETURN
 getnetgrent_r(char **machinep, char **userp, char **domainp, NGR_R_ARGS) {
-	char *mp, *up, *dp;
+	const char *mp, *up, *dp;
 	int res = getnetgrent(&mp, &up, &dp);
 
 	if (res != 1) 
@@ -69,14 +72,27 @@ setnetgrent_r(const char *netgroup)
 #endif
 {
 	setnetgrent(netgroup);
+#ifdef NGR_R_PRIVATE
+	*buf = NULL;
+#endif
 #ifdef NGR_R_SET_RESULT
 	return (NGR_R_SET_RESULT);
 #endif
 }
 
 NGR_R_END_RETURN
-endnetgrent_r(NGR_R_ENT_ARGS) {
+#ifdef NGR_R_ENT_ARGS
+endnetgrent_r(NGR_R_ENT_ARGS)
+#else
+endnetgrent_r(void)
+#endif
+{
 	endnetgrent();
+#ifdef NGR_R_PRIVATE
+	if (*buf != NULL)
+		free(*buf);
+	*buf = NULL;
+#endif
 	NGR_R_END_RESULT(NGR_R_OK);
 }
 
@@ -84,9 +100,10 @@ endnetgrent_r(NGR_R_ENT_ARGS) {
 
 static int
 copy_protoent(char **machinep, char **userp, char **domainp,
-		char *mp, char *up, char *dp, NGR_R_COPY_ARGS) {
+	      const char *mp, const char *up, const char *dp,
+	      NGR_R_COPY_ARGS) {
 	char *cp;
-	int i, n;
+	int n;
 	int len;
 
 	/* Find out the amount of space required to store the answer. */
@@ -95,12 +112,20 @@ copy_protoent(char **machinep, char **userp, char **domainp,
 	if (up != NULL) len += strlen(up) + 1;
 	if (dp != NULL) len += strlen(dp) + 1;
 	
-	if (len > buflen) {
+#ifdef NGR_R_PRIVATE
+	free(*buf);
+	*buf = malloc(len);
+	if (*buf == NULL)
+		return(NGR_R_BAD);
+	cp = *buf;
+#else
+	if (len > (int)buflen) {
 		errno = ERANGE;
 		return (NGR_R_BAD);
 	}
-
 	cp = buf;
+#endif
+
 
 	if (mp != NULL) {
 		n = strlen(mp) + 1;

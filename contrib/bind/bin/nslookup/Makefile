@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.27 2001/01/31 08:44:43 marka Exp $
+# $Id: Makefile,v 8.28 2002/05/21 00:44:59 marka Exp $
 
 DESTDIR=
 CC= cc
@@ -31,7 +31,8 @@ A=a
 O=o
 EXE=
 LEX = lex -I
-SYSLIBS = -ll -lutil
+SYSLIBS =-lutil
+LIBL=-ll
 DESTBIN = /usr/local/bin
 DESTSBIN = /usr/local/sbin
 DESTEXEC = /usr/local/libexec
@@ -56,7 +57,7 @@ all: ${PROG}${EXE}
 
 ${PROG}${EXE}: ${OBJS} ${LIBBIND} Makefile
 	${CC} ${CDEBUG} ${LDFLAGS} ${BOUNDS} -o ${PROG}${EXE} ${OBJS} \
-		${LIBBIND} ${SYSLIBS}
+		${LIBBIND} ${LIBL} ${SYSLIBS}
 
 .c.${O}:
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c

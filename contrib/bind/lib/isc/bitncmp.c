@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: bitncmp.c,v 1.6 1999/01/08 19:25:20 vixie Exp $";
+static const char rcsid[] = "$Id: bitncmp.c,v 1.7 2001/05/29 05:49:23 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -51,8 +51,8 @@ bitncmp(const void *l, const void *r, int n) {
 	if (x)
 		return (x);
 
-	lb = ((u_char *)l)[b];
-	rb = ((u_char *)r)[b];
+	lb = ((const u_char *)l)[b];
+	rb = ((const u_char *)r)[b];
 	for (b = n % 8; b > 0; b--) {
 		if ((lb & 0x80) != (rb & 0x80)) {
 			if (lb & 0x80)

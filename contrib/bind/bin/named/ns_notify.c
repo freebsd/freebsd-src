@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.14 2001/04/01 18:38:36 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.20 2002/04/25 05:27:12 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -56,12 +56,12 @@ static const char rcsid[] = "$Id: ns_notify.c,v 8.14 2001/04/01 18:38:36 vixie E
 
 /* Types. */
 
-struct notify {
+struct pnotify {
 	char *			name;
 	ns_class		class;
 	ns_type			type;
 	evTimerID		timer;
-	LINK(struct notify)	link;
+	LINK(struct pnotify)	link;
 };
 
 /* Forward. */
@@ -71,14 +71,14 @@ static void		sysnotify_slaves(const char *, const char *,
 					 ns_class, ns_type, int, int *, int *);
 static void		sysnotify_ns(const char *, const char *,
 				     ns_class, ns_type, int, int *, int *);
-static void		free_notify(struct notify *);
+static void		free_notify(struct pnotify *);
 static void		notify_timer(evContext, void *,
 				     struct timespec, struct timespec);
 
 /* Local. */
 
-static LIST(struct notify) pending_notifies;
-static LIST(struct notify) loading_notifies;
+static LIST(struct pnotify) pending_notifies;
+static LIST(struct pnotify) loading_notifies;
 
 /* Public. */
 
@@ -91,7 +91,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	static const char no_room[] = "%s failed, cannot notify for zone %s";
 	int delay, max_delay;
 	struct zoneinfo *zp;
-	struct notify *ni;
+	struct pnotify *ni;
 
 	zp = find_auth_zone(dname, class);
 	if (zp == NULL) {
@@ -146,7 +146,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 		       evConsTime(0, 0), &ni->timer) < 0) {
 		ns_error(ns_log_notify, "evSetTimer() failed: %s",
 			 strerror(errno));
-		freestr(ni->name);
+		ni->name = freestr(ni->name);
 		memput(ni, sizeof *ni);
 		return;
 	}
@@ -162,13 +162,13 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 
 void
 notify_afterload() {
-	struct notify *ni;
+	struct pnotify *ni;
 
 	INSIST(loading == 0);
 	while ((ni = HEAD(loading_notifies)) != NULL) {
 		UNLINK(loading_notifies, ni, link);
 		ns_notify(ni->name, ni->class, ni->type);
-		freestr(ni->name);
+		ni->name = freestr(ni->name);
 		memput(ni, sizeof *ni);
 	}
 }
@@ -180,7 +180,7 @@ notify_afterload() {
 void
 ns_unnotify(void) {
 	while (!EMPTY(pending_notifies)) {
-		struct notify *ni = HEAD(pending_notifies);
+		struct pnotify *ni = HEAD(pending_notifies);
 
 		INSIST(LINKED(ni, link));
 		UNLINK(pending_notifies, ni, link);
@@ -194,7 +194,7 @@ ns_unnotify(void) {
  */
 void
 ns_stopnotify(const char *dname, ns_class class) {
-	struct notify *ni;
+	struct pnotify *ni;
 
 	ni = HEAD(pending_notifies);
 	while (ni != NULL &&
@@ -235,9 +235,9 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 			   dname);
 		return;
 	}
-	if (zp->z_notify == znotify_no ||
-	    (zp->z_notify == znotify_use_default &&    
-	     NS_OPTION_P(OPTION_NONOTIFY)))
+	if (zp->z_notify == notify_no ||
+	    (zp->z_notify == notify_use_default &&    
+	     server_options->notify == notify_no))
 		return;
 	if (zp->z_type != z_master && zp->z_type != z_slave) {
 		ns_warning(ns_log_notify, "sysnotify: %s not master or slave",
@@ -247,7 +247,11 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 	zname = zp->z_origin;
 	zserial = zp->z_serial;
 	nns = na = 0;
-	sysnotify_slaves(dname, zname, class, type, zp - zones, &nns, &na);
+	if (zp->z_notify == notify_yes ||
+	    (zp->z_notify == notify_use_default &&
+	     server_options->notify == notify_yes))
+		sysnotify_slaves(dname, zname, class, type,
+				 zp - zones, &nns, &na);
 
 	/*
 	 * Handle any global or zone-specific also-notify clauses
@@ -262,8 +266,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		for (i = 0; i < zp->z_notify_count; i++) {
 			ns_debug(ns_log_notify, 4, "notifying %s",
 				 inet_ntoa(*also_addr));
-			sysquery(dname, class, type, also_addr, 1, ns_port,
-				 NS_NOTIFY_OP);
+			sysquery(dname, class, type, also_addr, NULL, 1,
+				 ns_port, NS_NOTIFY_OP, 0);
 			also_addr++;
 		}
 		nns += zp->z_notify_count;
@@ -275,8 +279,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		for (i = 0; i < server_options->notify_count; i++) {
 			ns_debug(ns_log_notify, 3, "notifying %s",
 				 inet_ntoa(*also_addr));
-			sysquery(dname, class, type, also_addr,
-				 1, ns_port, ns_o_notify);
+			sysquery(dname, class, type, also_addr, NULL, 1,
+				 ns_port, ns_o_notify, 0);
 			also_addr++;
 		}
 		nns += server_options->notify_count;
@@ -351,18 +355,26 @@ sysnotify_ns(const char *dname, const char *aname,
 	const char *fname;
 	struct in_addr nss[NSMAX];
 	struct hashbuf *htp;
-	int is_us, nsc;
+	int is_us, nsc, auth6, neg;
 	int cname = 0;
 
 	htp = hashtab;
 	anp = nlookup(aname, &htp, &fname, 0);
 	nsc = 0;
 	is_us = 0;
+	auth6 = 0;
+	neg = 0;
 	if (anp != NULL)
 		for (adp = anp->n_data; adp; adp = adp->d_next) {
 			struct in_addr ina;
 
-			if (match(adp, class, T_CNAME)) {
+			if (adp->d_class != class)
+				continue;
+			if (adp->d_rcode == NXDOMAIN) {
+				neg = 1;
+				break;
+			}
+			if (adp->d_type == T_CNAME && adp->d_rcode == 0) {
 				cname = 1;
 				ns_error(ns_log_notify,
 					 "NS '%s' for '%s/%s' is a CNAME",
@@ -371,8 +383,18 @@ sysnotify_ns(const char *dname, const char *aname,
 					 p_class(class));
 				break;
 			}
+			if ((adp->d_type == T_AAAA || adp->d_type == ns_t_a6) &&
+			    (zones[adp->d_class].z_type == z_master ||
+			     zones[adp->d_class].z_type == z_slave)) {
+				auth6 = 1;
+				continue;
+			}
 			if (!match(adp, class, T_A))
 				continue;
+			if (adp->d_rcode) {
+				neg = 1;
+				continue;
+			}
 			if (adp->d_type == ns_t_sig)
 				continue;
 			ina = ina_get(adp->d_data);
@@ -384,23 +406,24 @@ sysnotify_ns(const char *dname, const char *aname,
 				nss[nsc++] = ina;
 		} /*next A*/
 	if (nsc == 0) {
-		if (!is_us && !cname && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
+		if (!is_us && !cname && !auth6 && !neg &&
+		    !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
 			struct qinfo *qp;
 
-			qp = sysquery(aname, class, ns_t_a, 0, 0, ns_port,
-				      ns_o_query);
+			qp = sysquery(aname, class, ns_t_a, NULL, NULL, 0,
+				      ns_port, ns_o_query, 0);
 			if (qp != NULL)
 				qp->q_notifyzone = zn;
 		}
 		return;
 	}
-	sysquery(dname, class, type, nss, nsc, ns_port, ns_o_notify);
+	sysquery(dname, class, type, nss, NULL, nsc, ns_port, ns_o_notify, 0);
 	(*nns)++;
 	*na += nsc;
 }
 
 static void
-free_notify(struct notify *ni) {
+free_notify(struct pnotify *ni) {
 	struct zoneinfo *zp;
 
 	INSIST(!LINKED(ni, link));
@@ -413,7 +436,7 @@ free_notify(struct notify *ni) {
 		evClearTimer(ev, ni->timer);
 		evInitID(&ni->timer);
 	}
-	freestr(ni->name);
+	ni->name = freestr(ni->name);
 	memput(ni, sizeof *ni);
 }
 
@@ -422,7 +445,11 @@ notify_timer(evContext ctx, void *uap,
 	     struct timespec due,
 	     struct timespec inter)
 {
-	struct notify *ni = uap;
+	struct pnotify *ni = uap;
+
+	UNUSED(ctx);
+	UNUSED(due);
+	UNUSED(inter);
 
 	INSIST(evTestID(ni->timer));
 	evInitID(&ni->timer);

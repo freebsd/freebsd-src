@@ -22,7 +22,6 @@
  * Symbol Table
  */
 
-#define SYMBOL_FREE_KEY		0x01
 #define SYMBOL_FREE_VALUE	0x02
 
 typedef union symbol_value {
@@ -52,8 +51,8 @@ void			free_symbol_table(symbol_table);
 void			dprint_symbol_table(int, symbol_table);
 int			lookup_symbol(symbol_table, const char *, int,
 				      symbol_value *);
-void			define_symbol(symbol_table, char *, int, symbol_value,
-				      unsigned int);
+void			define_symbol(symbol_table, const char *, int,
+				      symbol_value, unsigned int);
 void			undefine_symbol(symbol_table, char *, int type);
 
 /*

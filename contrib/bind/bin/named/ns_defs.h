@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.105 2001/04/01 22:41:24 marka Exp $
+ *	$Id: ns_defs.h,v 8.121 2002/06/26 03:27:19 marka Exp $
  */
 
 /*
@@ -147,6 +147,7 @@
 #define	MAX_SYNCDELAY	3	/* Presumed timeout in use by our clients. */
 #define	MAX_SYNCDRAIN	100000	/* How long we'll spin in drain_all_rcvbuf. */
 #define	MAX_SYNCSTORE	500
+#define NS_MAX_DISTANCE 3	/* maximum nameserver chaining before failure */
 
 				  /* maximum time to cache negative answers */
 #define DEFAULT_MAX_NCACHE_TTL (3*60*60)
@@ -169,34 +170,37 @@ typedef enum need {
 	main_need_qrylog,	/* toggle_qrylog() needed. */
 	main_need_debug,	/* use_desired_debug() needed. */
 	main_need_restart,	/* exec() needed. */
-	main_need_reap,		/* need to reap dead children */
-	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set */
-	main_need_num,		/* number of needs, used for array bound. */
-	main_need_tick		/* tick every second to poll for cleanup (NT)*/
+	main_need_reap,		/* need to reap dead children. */
+	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set. */
+	main_need_tryxfer,	/* attemt to start a zone transfer. */
+	main_need_num		/* MUST BE LAST. */
 } main_need;
 
 	/* What global options are set? */
-#define	OPTION_NORECURSE	0x0001	/* Don't recurse even if asked. */
-#define	OPTION_NOFETCHGLUE	0x0002	/* Don't fetch missing glue. */
-#define	OPTION_FORWARD_ONLY	0x0004	/* Don't use NS RR's, just forward. */
-#define	OPTION_FAKE_IQUERY	0x0008	/* Fake up bogus response to IQUERY. */
+#define	OPTION_NORECURSE	0x00000001 /* Don't recurse even if asked. */
+#define	OPTION_NOFETCHGLUE	0x00000002 /* Don't fetch missing glue. */
+#define	OPTION_FORWARD_ONLY	0x00000004 /* Don't use NS RR's, just forward. */
+#define	OPTION_FAKE_IQUERY	0x00000008 /* Fake up bogus response to IQUERY. */
 #ifdef BIND_NOTIFY
-#define	OPTION_NONOTIFY		0x0010	/* Turn off notify */
+/* #define	OPTION_NONOTIFY		0x00000010 */ /* Turn off notify */
+#define	OPTION_SUPNOTIFY_INITIAL 0x00000020 /* Supress initial notify */
 #endif
-#define	OPTION_NONAUTH_NXDOMAIN	0x0020	/* Generate non-auth NXDOMAINs? */
-#define	OPTION_MULTIPLE_CNAMES	0x0040	/* Allow a name to have multiple
-					 * CNAME RRs */
-#define OPTION_HOSTSTATS	0x0080	/* Maintain per-host statistics? */
-#define OPTION_DEALLOC_ON_EXIT	0x0100	/* Deallocate everything on exit? */
-#define OPTION_NODIALUP		0x0200	/* Turn off dialup support */
-#define OPTION_NORFC2308_TYPE1	0x0400	/* Prevent type1 respones (RFC 2308)
-					 * to cached negative respones */
-#define	OPTION_USE_ID_POOL	0x0800	/* Use the memory hogging query ID */
-#define	OPTION_TREAT_CR_AS_SPACE 0x1000 /* Treat CR in zone files as space */
-#define OPTION_USE_IXFR		0x2000	/* Use by delault ixfr in zone transfer */
-#define OPTION_MAINTAIN_IXFR_BASE 0x4000 /* Part of IXFR file name logic. */
-#define OPTION_HITCOUNT		0x8000	/* Keep track of each time an RR gets
-					 * hit in the database */
+#define	OPTION_NONAUTH_NXDOMAIN	0x00000040 /* Generate non-auth NXDOMAINs? */
+#define	OPTION_MULTIPLE_CNAMES	0x00000080 /* Allow a name to have multiple
+					    * CNAME RRs */
+#define OPTION_HOSTSTATS	0x00000100 /* Maintain per-host statistics? */
+#define OPTION_DEALLOC_ON_EXIT	0x00000200 /* Deallocate everything on exit? */
+#define OPTION_NODIALUP		0x00000400 /* Turn off dialup support */
+#define OPTION_NORFC2308_TYPE1	0x00000800 /* Prevent type1 respones (RFC 2308)
+					    * to cached negative respones */
+#define	OPTION_USE_ID_POOL	0x00001000 /* Use the memory hogging query ID */
+#define	OPTION_TREAT_CR_AS_SPACE 0x00002000 /* Treat CR in zone files as
+					     * space */
+#define OPTION_USE_IXFR		0x00004000 /* Use by default ixfr in zone
+					    * transfer */
+#define OPTION_MAINTAIN_IXFR_BASE 0x00008000 /* Part of IXFR file name logic. */
+#define OPTION_HITCOUNT		0x00010000 /* Keep track of each time an
+					    * RR gets hit in the database */
 
 #define	DEFAULT_OPTION_FLAGS	(OPTION_NODIALUP|OPTION_NONAUTH_NXDOMAIN|\
 				 OPTION_USE_ID_POOL|OPTION_NORFC2308_TYPE1)
@@ -236,6 +240,7 @@ typedef enum need {
 
 	/* Sequence space arithmetic. */
 #define SEQ_GT(a,b)	((int32_t)((a)-(b)) > 0)
+#define SEQ_LT(a,b)	((int32_t)((a)-(b)) < 0)
 
 #define	NS_OPTION_P(option) ((server_options == NULL) ? \
 		(panic(panic_msg_no_options, NULL), 0) : \
@@ -267,7 +272,7 @@ typedef enum need {
 enum severity { ignore, warn, fail, not_set };
 
 #ifdef BIND_NOTIFY
-enum znotify { znotify_use_default=0, znotify_yes, znotify_no };
+enum notify { notify_use_default=0, notify_yes, notify_no, notify_explicit };
 #endif
 
 enum zdialup { zdialup_use_default=0, zdialup_yes, zdialup_no };
@@ -332,6 +337,7 @@ struct zoneinfo {
 	time_t		z_ftime;	/* modification time of source file */
 	struct in_addr	z_axfr_src;	/* bind() the axfr socket to this */
 	struct in_addr	z_addr[NSMAX];	/* list of master servers for zone */
+	struct dst_key * z_keys[NSMAX];	/* tsig key associated with master */
 	u_char		z_addrcnt;	/* number of entries in z_addr[] */
 	struct in_addr	z_xaddr[NSMAX];	/* list of master servers for xfer */
 	u_char		z_xaddrcnt;	/* number of entries in z_xaddr[] */
@@ -362,7 +368,7 @@ struct zoneinfo {
 					   from us */
 	long		z_max_transfer_time_in;	/* max num seconds for AXFR */
 #ifdef BIND_NOTIFY
-	enum znotify	z_notify;	/* Notify mode */
+	enum notify	z_notify;	/* Notify mode */
 	struct in_addr *z_also_notify; /* More nameservers to notify */
 	int		z_notify_count;
 #endif
@@ -431,6 +437,7 @@ enum zonetype { z_nil, z_master, z_slave, z_hint, z_stub, z_forward,
 #define XFER_SUCCESSAXFR 4              /* named-xfr recived a xfr */
 #define XFER_SUCCESSIXFR 5              /* named-xfr recived a ixfr */
 #define XFER_SUCCESSAXFRIXFRFILE 6      /* named-xfr received AXFR for IXFR */
+#define XFER_REFUSED 7      		/* one master returned REFUSED */
 #define XFER_ISAXFR     -1              /* the last XFR is AXFR */
 #define XFER_ISIXFR     -2              /* the last XFR is IXFR */
 #define XFER_ISAXFRIXFR	-3		/* the last XFR is AXFR but we must create IXFR base */
@@ -442,7 +449,8 @@ struct qserv {
 	struct databuf	*nsdata;	/* databuf for server address */
 	struct timeval	stime;		/* time first query started */
 	unsigned int	forwarder:1;	/* this entry is for a forwarder */
-	unsigned int	nretry:31;	/* # of times addr retried */
+	unsigned int	noedns:1;	/* don't try edns */
+	unsigned int	nretry:30;	/* # of times addr retried */
 	u_int32_t	serial;		/* valid if Q_ZSERIAL */
 };
 
@@ -461,6 +469,10 @@ struct qinfo {
 			q_cmsglen,	/* len of cname message */
 			q_cmsgsize;	/* allocated size of cname message */
 	int16_t		q_dfd;		/* UDP file descriptor */
+	int16_t		q_udpsize;	/* UDP message size */
+	int		q_distance;	/* distance this query is from the
+					 * original query that the server
+					 * received. */
 	time_t		q_time;		/* time to retry */
 	time_t		q_expire;	/* time to expire */
 	struct qinfo	*q_next;	/* rexmit list (sorted by time) */
@@ -470,6 +482,7 @@ struct qinfo {
 #ifdef notyet
 	struct nameser	*q_ns[NSMAX];	/* name servers */
 #endif
+	struct dst_key *q_keys[NSMAX];	/* keys to use with this address */
 	u_char		q_naddr;	/* number of addr's in q_addr */
 	u_char		q_curaddr;	/* last addr sent to */
 	u_char		q_nusedns;	/* number of elements in q_usedns[] */
@@ -484,7 +497,7 @@ struct qinfo {
 	u_int16_t	q_class;	/* class of query */
 	u_int16_t	q_type;		/* type of query */
 #ifdef BIND_NOTIFY
-	int		q_notifyzone;	/* zone which needs another znotify()
+	int		q_notifyzone;	/* zone which needs another notify()
 					 * when the reply to this comes in.
 					 */
 #endif
@@ -497,6 +510,7 @@ struct qinfo {
 #define	Q_PRIMING	0x02		/* generated during priming phase */
 #define	Q_ZSERIAL	0x04		/* getting zone serial for xfer test */
 #define	Q_USEVC		0x08		/* forward using tcp not udp */
+#define	Q_EDNS		0x10		/* add edns opt record to answer */
 
 #define Q_NEXTADDR(qp,n) (&(qp)->q_addr[n].ns_addr)
 
@@ -597,6 +611,8 @@ struct qstream {
 		ns_tcp_tsig_state *tsig_state;	/* used by ns_sign_tcp */
 		int		tsig_skip;	/* skip calling ns_sign_tcp
 						 * during the next flush */
+		int		tsig_size;	/* need to reserve this space
+						 * for the tsig. */
 		struct qs_x_lev {		/* decompose the recursion. */
 			enum {sxl_ns, sxl_all, sxl_sub}
 					state;	/* what's this level doing? */
@@ -731,7 +747,8 @@ typedef struct rrset_order_list {
 
 
 typedef struct options {
-	u_int flags;
+	u_int32_t flags;
+	char *hostname;
 	char *version;
 	char *directory;
 	char *dump_filename;
@@ -775,6 +792,8 @@ typedef struct options {
 	u_int max_host_stats;
 	u_int lame_ttl;
 	int minroots;
+	u_int16_t preferred_glue;
+	enum notify notify;
 } *options;
 
 typedef struct key_list_element {
@@ -816,6 +835,7 @@ typedef struct server_config {
 
 #define SERVER_INFO_BOGUS	0x01
 #define SERVER_INFO_SUPPORT_IXFR	0x02
+#define SERVER_INFO_EDNS	0x04
 
 typedef struct server_info {
 	struct in_addr address;
@@ -832,8 +852,8 @@ typedef struct server_info {
  */
 
 struct ns_sym {
-	int	number;		/* Identifying number, like ns_log_default */
-	char *	name;		/* Its symbolic name, like "default" */
+	int		number;	/* Identifying number, like ns_log_default */
+	const char *	name;	/* Its symbolic name, like "default" */
 };
 
 /*
@@ -877,7 +897,7 @@ typedef struct log_config {
 } *log_config;
 
 struct map {
-	char *			token;
+	const char *		token;
 	int			val;
 };
 
@@ -908,3 +928,5 @@ enum req_action { Finish, Refuse, Return };
 #define INIT(x)
 #define DECL extern
 #endif
+
+#define EDNS_MESSAGE_SZ	4096

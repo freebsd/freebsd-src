@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: gen_ho.c,v 1.15 1999/10/13 16:39:29 vixie Exp $";
+static const char rcsid[] = "$Id: gen_ho.c,v 1.16 2001/05/29 05:48:36 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -68,6 +68,8 @@ static struct __res_state * ho_res_get(struct irs_ho *this);
 static void		ho_res_set(struct irs_ho *this,
 				   struct __res_state *res,
 				   void (*free_res)(void *));
+static struct addrinfo * ho_addrinfo(struct irs_ho *this, const char *name,
+				     const struct addrinfo *pai);
 
 static int		init(struct irs_ho *this);
 
@@ -102,6 +104,7 @@ irs_gen_ho(struct irs_acc *this) {
 	ho->minimize = ho_minimize;
 	ho->res_get = ho_res_get;
 	ho->res_set = ho_res_set;
+	ho->addrinfo = ho_addrinfo;
 	return (ho);
 }
 
@@ -326,6 +329,51 @@ ho_res_set(struct irs_ho *this, struct __res_state *res,
 
 		(*ho->res_set)(ho, pvt->res, NULL);
 	}
+}
+
+static struct addrinfo *
+ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
+{
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct irs_rule *rule;
+	struct addrinfo *rval = NULL;
+	struct irs_ho *ho;
+	int therrno = NETDB_INTERNAL;
+	int softerror = 0;
+
+	if (init(this) == -1)
+		return (NULL);
+
+	for (rule = pvt->rules; rule; rule = rule->next) {
+		ho = rule->inst->ho;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
+		errno = 0;
+		if (ho->addrinfo == NULL) /* for safety */
+			continue;
+		rval = (*ho->addrinfo)(ho, name, pai);
+		if (rval != NULL)
+			return (rval);
+		if (softerror == 0 &&
+		    pvt->res->res_h_errno != HOST_NOT_FOUND &&
+		    pvt->res->res_h_errno != NETDB_INTERNAL) {
+			softerror = 1;
+			therrno = pvt->res->res_h_errno;
+		}
+		if (rule->flags & IRS_CONTINUE)
+			continue;
+		/*
+		 * See the comments in ho_byname() explaining
+		 * the interpretation of TRY_AGAIN and ECONNREFUSED.
+		 */
+		if (pvt->res->res_h_errno != TRY_AGAIN ||
+		    errno != ECONNREFUSED)
+			break;
+	}
+	if (softerror != 0 && pvt->res->res_h_errno == HOST_NOT_FOUND)
+		RES_SET_H_ERRNO(pvt->res, therrno);
+	if (rval)
+		freeaddrinfo(rval);
+	return (NULL);
 }
 
 static int

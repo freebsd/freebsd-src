@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: gethostent_r.c,v 8.5 2000/07/11 05:46:35 vixie Exp $";
+static const char rcsid[] = "$Id: gethostent_r.c,v 8.7 2001/11/01 08:02:09 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -26,6 +26,7 @@ static const char rcsid[] = "$Id: gethostent_r.c,v 8.5 2000/07/11 05:46:35 vixie
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/param.h>
@@ -39,26 +40,50 @@ copy_hostent(struct hostent *, struct hostent *, HOST_R_COPY_ARGS);
 HOST_R_RETURN
 gethostbyname_r(const char *name,  struct hostent *hptr, HOST_R_ARGS) {
 	struct hostent *he = gethostbyname(name);
+#ifdef HOST_R_SETANSWER
+	int n = 0;
+#endif
 
 	HOST_R_ERRNO;
 
+#ifdef HOST_R_SETANSWER
+	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) == 0)
+		*answerp = NULL;
+	else
+		*answerp = hptr;
+	
+	return (n);
+#else
 	if (he == NULL)
 		return (HOST_R_BAD);
 
 	return (copy_hostent(he, hptr, HOST_R_COPY));
+#endif
 }
 
 HOST_R_RETURN
 gethostbyaddr_r(const char *addr, int len, int type,
 		struct hostent *hptr, HOST_R_ARGS) {
 	struct hostent *he = gethostbyaddr(addr, len, type);
+#ifdef HOST_R_SETANSWER
+	int n = 0;
+#endif
 
 	HOST_R_ERRNO;
 
+#ifdef HOST_R_SETANSWER
+	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) == 0)
+		*answerp = NULL;
+	else
+		*answerp = hptr;
+	
+	return (n);
+#else
 	if (he == NULL)
 		return (HOST_R_BAD);
 
 	return (copy_hostent(he, hptr, HOST_R_COPY));
+#endif
 }
 
 /*
@@ -70,13 +95,25 @@ gethostbyaddr_r(const char *addr, int len, int type,
 HOST_R_RETURN
 gethostent_r(struct hostent *hptr, HOST_R_ARGS) {
 	struct hostent *he = gethostent();
+#ifdef HOST_R_SETANSWER
+	int n = 0;
+#endif
 
 	HOST_R_ERRNO;
 
+#ifdef HOST_R_SETANSWER
+	if (he == NULL || (n = copy_hostent(he, hptr, HOST_R_COPY)) == 0)
+		*answerp = NULL;
+	else
+		*answerp = hptr;
+	
+	return (n);
+#else
 	if (he == NULL)
 		return (HOST_R_BAD);
 
 	return (copy_hostent(he, hptr, HOST_R_COPY));
+#endif
 }
 
 HOST_R_SET_RETURN
@@ -96,7 +133,7 @@ HOST_R_END_RETURN
 #ifdef HOST_R_ENT_ARGS
 endhostent_r(HOST_R_ENT_ARGS)
 #else
-endhostent_r()
+endhostent_r(void)
 #endif
 {
 	endhostent();
@@ -222,6 +259,6 @@ copy_hostent(struct hostent *he, struct hostent *hptr, HOST_R_COPY_ARGS) {
 }
 #endif /* !HOSTENT_DATA */
 #else /* HOST_R_RETURN */
-	static int gethostent_r_unknown_systemm = 0;
+	static int gethostent_r_unknown_system = 0;
 #endif /* HOST_R_RETURN */
 #endif /* !defined(_REENTRANT) || !defined(DO_PTHREADS) */
