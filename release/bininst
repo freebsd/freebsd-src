@@ -21,6 +21,8 @@ TAR=tar
 TAR_FLAGS=xvf
 TMP=/tmp
 IFCONFIG=ifconfig
+ROUTE=route
+ROUTE_FLAGS="add default"
 HOME=/
 export HOME
 
@@ -337,10 +339,10 @@ setup_network()
 	rm -f ${TMP}/inputbox.tmp.$$
 	echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
 	default_value=""
-	if network_dialog "If you have a gateway, enter its IP address (otherwise cancel)"; then
+	if network_dialog "If you have a default gateway, enter its IP address (otherwise cancel)"; then
 		gateway=$answer
-		echo "Progress <route add default $gateway>" > /dev/ttyv1
-		route add default $gateway 2>&1 > /dev/ttyv1
+		echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1
+		$ROUTE $ROUTE_FLAGS $gateway 2>&1 > /dev/ttyv1
 	fi
 
 	default_value=""
@@ -413,7 +415,7 @@ install_set()
 
 do_last_config()
 {
-	dialog --title "Aufwiedersehen!" \
+	dialog --title "Auf Wiedersehen!" \
 --msgbox "We now come to the end of the installation.  At this point in
 time, there's nothing fancy here, but for the release we plan to
 ask some additional questions about time zone setup, what sort of
