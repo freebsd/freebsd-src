@@ -3828,7 +3828,7 @@ or
 commands,
 .Nm
 will not attempt to make an immediate connection.
-.It log Ar word Op Ar word Ns No ...
+.It log Ar word Ns No ...
 Send the given word(s) to the log file with the prefix
 .Dq LOG: .
 Word substitutions are done as explained under the
