@@ -33,11 +33,10 @@
 .Nm lockdestroy
 .Nd "Destroys a lock"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/lockmgr.h>
 .Ft int
-.Fo lockdestroy
-.Fa "struct lock *lkp"
-.Fc
+.Fn lockdestroy "struct lock *lkp"
 .Sh DESCRIPTION
 The
 .Nm

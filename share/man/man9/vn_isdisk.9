@@ -33,12 +33,10 @@
 .Nm vn_isdisk
 .Nd "Checks if the vnode represents a disk"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
-.Fo vn_isdisk
-.Fa "struct vnode *vp"
-.Fa "int *errp"
-.Fc
+.Fn vn_isdisk "struct vnode *vp" "int *errp"
 .Sh DESCRIPTION
 The
 .Nm

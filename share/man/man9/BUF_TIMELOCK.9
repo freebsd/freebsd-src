@@ -33,15 +33,10 @@
 .Nm BUF_TIMELOCK
 .Nd "Locks a buffer"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/buf.h>
 .Ft int
-.Fo BUF_TIMELOCK
-.Fa "struct buf *bp"
-.Fa "int locktype"
-.Fa "char *wmesg"
-.Fa "int catch"
-.Fa "int timo"
-.Fc
+.Fn BUF_TIMELOCK "struct buf *bp" "int locktype" "char *wmesg" "int catch" "int timo"
 .Sh DESCRIPTION
 The
 .Nm
