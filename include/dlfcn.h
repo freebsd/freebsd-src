@@ -35,7 +35,9 @@
 
 #ifndef _DLFCN_H_
 #define	_DLFCN_H_
+
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
 /*
  * Modes and flags for dlopen().
@@ -48,10 +50,19 @@
 #define RTLD_TRACE	0x200	/* Trace loaded objects and exit */
 
 /*
- * Special handle arguments for dlsym().
+ * Request arguments for dlinfo().
+ */
+#define	RTLD_DI_LINKMAP		2
+#define	RTLD_DI_SERINFO		4
+#define	RTLD_DI_SERINFOSIZE	5
+#define	RTLD_DI_ORIGIN		6
+
+/*
+ * Special handle arguments for dlsym()/dlinfo().
  */
 #define RTLD_NEXT	((void *) -1)	/* Search subsequent objects */
 #define RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm */
+#define	RTLD_SELF	((void *) -3)	/* Search the caller itself. */
 
 /*
  * Structure filled in by dladdr().
@@ -63,10 +74,33 @@ typedef struct dl_info {
 	void		*dli_saddr;	/* Address of nearest symbol */
 } Dl_info;
 
+/*
+ * Avoid sys/types.h namespace pollution.
+ */
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
+/*
+ * Structures, returned by the RTLD_DI_SERINFO dlinfo() request.
+ */
+typedef struct dl_serpath {
+	char *		dls_name;	/* single search path entry */
+	unsigned int	dls_flags;	/* path information */
+} Dl_serpath;
+
+typedef struct  dl_serinfo {
+        size_t		dls_size;       /* total buffer size */
+        unsigned int	dls_cnt;        /* number of path entries */
+        Dl_serpath	dls_serpath[1]; /* there may be more than one */
+} Dl_serinfo;
+
 __BEGIN_DECLS
 int dladdr __P((const void *, Dl_info *));
 int dlclose __P((void *));
 const char *dlerror __P((void));
+int dlinfo __P((void *, int, void *));
 void dllockinit __P((void *_context,
 		     void *(*_lock_create)(void *_context),
 		     void (*_rlock_acquire)(void *_lock),
