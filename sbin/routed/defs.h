@@ -499,7 +499,7 @@ extern int	tracelevel, new_tracelevel;
 #define TRACEPACKETS (tracelevel >= 2)	/* note packets */
 #define	TRACEACTIONS (tracelevel != 0)
 extern FILE	*ftrace;		/* output trace file */
-extern char inittracename[MAXPATHLEN+1];
+extern char inittracename[PATH_MAX];
 
 extern struct radix_node_head *rhead;
 

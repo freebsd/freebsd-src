@@ -58,8 +58,8 @@ __RCSID("$NetBSD$");
 int	tracelevel, new_tracelevel;
 FILE	*ftrace;			/* output trace file */
 static const char *sigtrace_pat = "%s";
-static char savetracename[MAXPATHLEN+1];
-char	inittracename[MAXPATHLEN+1];
+static char savetracename[PATH_MAX];
+char	inittracename[PATH_MAX];
 int	file_trace;			/* 1=tracing to file, not stdout */
 
 static void trace_dump(void);
