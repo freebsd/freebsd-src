@@ -137,7 +137,7 @@ pread(td, uap)
 
 	if ((error = fget_read(td, uap->fd, &fp)) != 0)
 		return (error);
-	if (fp->f_type != DTYPE_VNODE) {
+	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
 		error = ESPIPE;
 	} else {
 		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
@@ -360,11 +360,11 @@ pwrite(td, uap)
 	int error;
 
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
-		if (fp->f_type == DTYPE_VNODE) {
+		if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
+			error = ESPIPE;
+		} else {
 			error = dofilewrite(td, fp, uap->fd, uap->buf,
 				    uap->nbyte, uap->offset, FOF_OFFSET);
-		} else {
-			error = ESPIPE;
 		}
 		fdrop(fp, td);
 	} else {
