@@ -92,6 +92,36 @@ ad_attach(struct ata_device *atadev)
     adp->heads = atadev->param->heads;
     adp->sectors = atadev->param->sectors;
     adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
+#ifdef PC98
+    /*
+     * During the BOOT process, the PC-98 BIOS sets fake geometry of
+     * xxxx/8/17 of the disk using 'INITIALIZE DEVICE PARAMETER (91h)'
+     * command.  After this command, all access to the drive must be done
+     * via the new, fake geometry, rather than the old, native format.
+     * With ATA/ATAPI-6 or later, these parameters are obsolete, but
+     * PC-98s are still using them.
+     *
+     * This only really matters when we're talking to disks using CHS
+     * mode, not LBA mode.  The CHS mode disks are still relatively
+     * common in these machines, so that case must be addressed.
+     *
+     * (ITF sets new CHS geometry to initialized disks.)
+     *
+     * obsolete54[0]:   current cylinder
+     * obsolete54[1]:   current heads
+     * obsolete54[2]:   current sectors
+     * obsolete54[3-4]: current capacities(multiplied above 3 values)
+     */
+    /* Get CHS geometry from set by Initialize Device Parameters command. */
+    if ((atadev->param->atavalid & ATA_FLAG_54_58) ||
+	(atadev->param->obsolete54[0] != 0 &&
+	 atadev->param->obsolete54[1] != 0 &&
+	 atadev->param->obsolete54[2] != 0)) {
+	adp->heads = atadev->param->obsolete54[1];
+	adp->sectors = atadev->param->obsolete54[2];
+	adp->total_secs = *(u_int32_t*)&(atadev->param->obsolete54[3]);
+    }
+#endif
 
     mtx_init(&adp->queue_mtx, "ATA disk bioqueue lock", NULL, MTX_DEF);
     bioq_init(&adp->queue);
