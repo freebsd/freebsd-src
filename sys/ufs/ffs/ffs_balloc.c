@@ -352,7 +352,7 @@ fail:
 	 */
 	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
-		ffs_blkfree(ip, *blkp, fs->fs_bsize);
+		ffs_blkfree(fs, ip->i_devvp, *blkp, fs->fs_bsize, ip->i_number);
 		deallocated += fs->fs_bsize;
 	}
 	if (allocib != NULL) {
