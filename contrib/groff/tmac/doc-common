@@ -72,6 +72,7 @@
 .nr Ev 15n
 .nr Ex 10n
 .nr Fa 12n
+.nr Fx 12n
 .nr Fl 10n
 .nr Fc 3
 .nr Fo 16n
