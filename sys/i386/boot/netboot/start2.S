@@ -2,7 +2,8 @@
 #define STACKADDR	0xe000	/* Needs to be end of bss + stacksize */
 #define KERN_CODE_SEG	0x08
 #define KERN_DATA_SEG	0x10
-#define REAL_MODE_SEG	0x18
+#define REAL_MODE_CSEG	0x18
+#define REAL_MODE_DSEG  0x20
 #define CR0_PE		1
 
 #define opsize		.byte 0x66
@@ -127,8 +128,9 @@ CURRTICKS - Get Time
 _currticks:
 	push	%ebp
 	mov	%esp,%ebp
-	push	%ecx
-	push	%edx
+	push    %ebx
+	push	%esi
+	push	%edi
 	xor	%edx,%edx
 	call	_prot_to_real
 	xor	%eax,%eax
@@ -139,8 +141,9 @@ _currticks:
 	shl	$16,%ecx
 	mov	%edx,%eax
 	or	%ecx,%eax
-	pop	%edx
-	pop	%ecx
+	pop	%edi
+	pop	%esi
+	pop	%ebx
 	pop	%ebp
 	ret
 
@@ -151,8 +154,9 @@ PUTCHAR - Print a character
 _putchar:
 	push	%ebp
 	mov	%esp,%ebp
-	push	%ecx
 	push	%ebx
+	push	%esi
+	push	%edi
 	movb	8(%ebp),%cl
 	call	_prot_to_real
 	opsize
@@ -162,8 +166,9 @@ _putchar:
 	int	$0x10
 	opsize
 	call	_real_to_prot
+	pop	%edi
+	pop	%esi
 	pop	%ebx
-	pop	%ecx
 	pop	%ebp
 	ret
 
@@ -175,6 +180,8 @@ _getchar:
 	push	%ebp
 	mov	%esp,%ebp
 	push	%ebx
+	push	%esi
+	push	%edi
 	call	_prot_to_real
 	movb	$0x0,%ah
 	int	$0x16
@@ -183,6 +190,8 @@ _getchar:
 	call	_real_to_prot
 	xor	%eax,%eax
 	movb	%bl,%al
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
@@ -195,6 +204,8 @@ _iskey:
 	push	%ebp
 	mov	%esp,%ebp
 	push	%ebx
+	push	%esi
+	push	%edi
 	call	_prot_to_real
 	xor	%ebx,%ebx
 	movb	$0x1,%ah
@@ -207,6 +218,8 @@ _iskey:
 	call	_real_to_prot
 	xor	%eax,%eax
 	movb	%bl,%al
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
@@ -298,8 +311,17 @@ _prot_to_real:
 	sub	$RELOC,%eax		/* Adjust return address */
 	push	%eax
 	sub	$RELOC,%esp		/* Adjust stack pointer */
-	ljmp	$REAL_MODE_SEG, $1f	/* jump to a 16 bit segment */
+		
+	/* Prepare %ax while we're still in a mode that gas understands. */
+	movw	$REAL_MODE_DSEG, %ax
+	
+	ljmp	$REAL_MODE_CSEG, $1f-RELOC /* jump to a 16 bit segment */
 1:
+	mov	%ax, %ds
+	mov	%ax, %ss 
+	mov	%ax, %es
+	mov	%ax, %fs
+	
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
 	opsize
@@ -417,11 +439,15 @@ gdt:
 	.word	0xffff, 0
 	.byte	0, 0x93, 0xcf, 0
 
-	/* 16 bit real mode */
-	.word	0xffff, 0
-	.byte	0, 0x9b, 0x0f, 0
+	/* 16 bit real mode code segment */
+	.word	0xffff, RELOC & 0xffff
+	.byte	(RELOC>>16), 0x9b, 0x00, (RELOC>>24)
+
+	/* 16 bit real mode data segment */
+	.word	0xffff, RELOC & 0xffff
+	.byte	(RELOC>>16), 0x93, 0x00, (RELOC>>24)
 
 	.align	4
 gdtarg:
-	.word	0x1f			/* limit */
+	.word	0x27			/* limit */
 	.long	gdt			/* addr */
