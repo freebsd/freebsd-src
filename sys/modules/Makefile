@@ -14,6 +14,8 @@ SUBDIR=	accf_data \
 	ccd \
 	cd9660 \
 	coda \
+	crypto \
+	cryptodev \
 	cue \
 	dc \
 	dummynet \
@@ -112,6 +114,7 @@ SUBDIR+=aac \
 	em \
 	fpu \
 	gnufpu \
+	hifn \
 	ibcs2 \
 	linprocfs \
 	mly \
@@ -127,6 +130,7 @@ SUBDIR+=aac \
 	stg \
 	streams \
 	svr4 \
+	ubsec \
 	vesa \
 	wi \
 	xe
