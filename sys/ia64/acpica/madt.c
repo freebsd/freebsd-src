@@ -65,10 +65,9 @@ typedef struct  /* LOCAL SAPIC */
 	UINT8		ProcessorId;		/* ACPI processor id */
 	UINT8		LocalSapicId;		/* Processor local SAPIC id */
 	UINT8		LocalSapicEid;		/* Processor local SAPIC eid */
-	UINT8		Reserved;
-	UINT32		Reserved1: 16;
+	UINT8		Reserved[3];
 	UINT32		ProcessorEnabled: 1;
-	UINT32		Reserved2: 15;
+	UINT32		FlagsReserved: 31;
 } LOCAL_SAPIC;
 
 typedef struct  /* PLATFORM INTERRUPT SOURCE */
