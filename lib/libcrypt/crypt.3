@@ -37,6 +37,8 @@
 .Sh NAME
 .Nm crypt
 .Nd Trapdoor encryption
+.Sh LIBRARY
+.Lb libcrypt
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft char *
@@ -54,12 +56,17 @@ in the hash.
 .\"
 Currently these include the
 .Tn NBS
-Data Encryption Standard (DES), MD5 or SHS.  The algorithm
-used will depend upon the format of the Salt--following the Modular
-Crypt Format (MCF)--and if DES is installed or not.
+.Tn Data Encryption Standard (DES) ,
+.Tn MD5
+or
+.Tn SHS .
+The algorithm used will depend upon the format of the Salt--following
+the Modular Crypt Format (MCF)--and if
+.Tn DES
+is installed or not.
 .Pp
 The first argument to
-.Nm crypt
+.Nm
 is the data to hash (usually a password), in a
 .Dv null Ns -terminated
 string.
@@ -67,18 +74,26 @@ The second is the salt, in one of three forms:
 .Pp
 .Bl -tag -width Traditional -compact -offset indent
 .It Extended
-If it begins with an underscore (``_'') then the DES Extended Format
+If it begins with an underscore
+.Pq Dq _
+then the
+.Tn DES
+Extended Format
 is used in interpreting both the the key and the salt, as outlined below.
 .It Modular
-If it begins with the string ``$digit$'' then the Modular Crypt Format
-is used, as outlined below.
+If it begins with the string
+.Dq $digit$
+then the Modular Crypt Format is used, as outlined below.
 .It Traditional
 If neither of the above is true, it assumes the Traditional Format,
 using the entire string as the salt (or the first portion).
 .El
 .Pp
 All routines are designed to be time-consuming.  A brief test on a
-Pentium 166/MMX shows the DES crypt to do approximately 2640 crypts
+.Tn Pentium
+166/MMX shows the
+.Tn DES
+crypt to do approximately 2640 crypts
 a CPU second and MD5 to do about 62 crypts a CPU second.
 .Ss DES Extended Format:
 .Pp
@@ -86,10 +101,17 @@ The
 .Ar key
 is divided into groups of 8 characters (the last group is null-padded)
 and the low-order 7 bits of each each character (56 bits per group) are
-used to form the DES key as follows:
-the first group of 56 bits becomes the initial DES key.
-For each additional group, the XOR of the encryption of the current DES
-key with itself and the group bits becomes the next DES key.
+used to form the
+.Tn DES
+key as follows:
+the first group of 56 bits becomes the initial
+.Tn DES
+key.
+For each additional group, the XOR of the encryption of the current
+.Tn DES
+key with itself and the group bits becomes the next
+.Tn DES
+key.
 .Pp
 The salt is a 9-character array consisting of an underscore followed
 by 4 bytes of iteration count and 4 bytes of salt.
@@ -118,7 +140,9 @@ are swapped in the
 .Tn DES
 E-box output).
 .Pp
-The DES key is used to encrypt a 64-bit constant using
+The
+.Tn DES
+key is used to encrypt a 64-bit constant using
 .Ar count
 iterations of
 .Tn DES .
@@ -153,8 +177,11 @@ Other crypt formats may be easilly added.  An example salt would be:
 .Pp
 .Ss "Traditional" crypt:
 .Pp
-The algorithm used will depend upon whether DES is installed or not.  If it is,
-DES will be used.  Otherwise, the best algorithm is used, which is currently
+The algorithm used will depend upon whether
+.Tn DES
+is installed or not.  If it is,
+.Tn DES
+will be used.  Otherwise, the best algorithm is used, which is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
@@ -191,11 +218,19 @@ The current style
 first appeared in
 .At v7 .
 .Pp
-The DES section of the code (FreeSec 1.0) was developed outside the United
-States of America as an unencumbered replacement for the U.S.-only NetBSD
+The
+.Tn DES
+section of the code (FreeSec 1.0) was developed outside the United
+States of America as an unencumbered replacement for the U.S.-only
+.Nx
 libcrypt encryption library.
 Users should be aware that this code (and programs staticly linked with it)
 may not be exported from the U.S., although it apparently can be imported.
 .Sh AUTHORS
-Originally written by David Burren <davidb@werj.com.au>, later additions
-and changes by Poul-henning Kamp, Mark R V Murray and Kris Kennaway.
+Originally written by
+.An David Burren Aq davidb@werj.com.au ,
+later additions and changes by
+.An Poul-henning Kamp ,
+.An Mark R V Murray
+and
+.An Kris Kennaway .
