@@ -95,6 +95,8 @@ struct lock {
  *   LK_DRAIN - wait for all activity on the lock to end, then mark it
  *	decommissioned. This feature is used before freeing a lock that
  *	is part of a piece of memory that is about to be freed.
+ *   LK_EXCLOTHER - return for lockstatus().  Used when another process
+ *	holds the lock exclusively.
  *
  * These are flags that are passed to the lockmgr routine.
  */
@@ -106,6 +108,7 @@ struct lock {
 #define LK_DOWNGRADE	0x00000005	/* exclusive-to-shared downgrade */
 #define LK_RELEASE	0x00000006	/* release any type of lock */
 #define LK_DRAIN	0x00000007	/* wait for all lock activity to end */
+#define LK_EXCLOTHER	0x00000008	/* other process holds lock */
 /*
  * External lock flags.
  *
@@ -187,7 +190,7 @@ int	lockmgr __P((struct lock *, u_int flags,
 			struct simplelock *, struct proc *p));
 #endif
 void	lockmgr_printinfo __P((struct lock *));
-int	lockstatus __P((struct lock *));
+int	lockstatus __P((struct lock *, struct proc *));
 int	lockcount __P((struct lock *));
 
 #ifdef SIMPLELOCK_DEBUG

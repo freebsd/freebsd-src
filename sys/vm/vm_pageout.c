@@ -852,7 +852,7 @@ rescan0:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 
-				if (VOP_ISLOCKED(vp) ||
+				if (VOP_ISLOCKED(vp, NULL) ||
 				    vp->v_data == NULL ||
 				    vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
 					if ((m->queue == PQ_INACTIVE) &&

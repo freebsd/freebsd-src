@@ -148,7 +148,8 @@ union_mount(mp, path, data, ndp, p)
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = NULL;
 
-	UDEBUG(("mount_root UPPERVP %p locked = %d\n", upperrootvp, VOP_ISLOCKED(upperrootvp)));
+	UDEBUG(("mount_root UPPERVP %p locked = %d\n", upperrootvp,
+	    VOP_ISLOCKED(upperrootvp, NULL)));
 
 	/*
 	 * Check multi union mount to avoid `lock myself again' panic.
@@ -396,7 +397,8 @@ union_root(mp, vpp)
 	 * root union_node being locked.  We let union_allocvp() deal with
 	 * it.
 	 */
-	UDEBUG(("union_root UPPERVP %p locked = %d\n", um->um_uppervp, VOP_ISLOCKED(um->um_uppervp)));
+	UDEBUG(("union_root UPPERVP %p locked = %d\n", um->um_uppervp,
+	    VOP_ISLOCKED(um->um_uppervp, NULL)));
 
 	VREF(um->um_uppervp);
 	if (um->um_lowervp)
@@ -405,7 +407,8 @@ union_root(mp, vpp)
 	error = union_allocvp(vpp, mp, NULLVP, NULLVP, NULL, 
 		    um->um_uppervp, um->um_lowervp, 1);
 	UDEBUG(("error %d\n", error));
-	UDEBUG(("union_root2 UPPERVP %p locked = %d\n", um->um_uppervp, VOP_ISLOCKED(um->um_uppervp)));
+	UDEBUG(("union_root2 UPPERVP %p locked = %d\n", um->um_uppervp,
+	    VOP_ISLOCKED(um->um_uppervp, NULL)));
 
 	return (error);
 }
