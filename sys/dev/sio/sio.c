@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.75 1995/03/28 11:13:44 ache Exp $
+ *	$Id: sio.c,v 1.76 1995/03/28 12:26:40 ache Exp $
  */
 
 #include "sio.h"
@@ -1100,6 +1100,21 @@ siointr1(com)
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
+			if (line_status & (LSR_PE|LSR_OE|LSR_FE|LSR_BI)) {
+				if (line_status & LSR_OE)
+					CE_RECORD(com, CE_OVERRUN);
+				/*
+				  Don't store PE if IGNPAR and BI if IGNBRK,
+				  this hack allows "raw" tty optimization
+				  works even if IGN* is set.
+				  Assume TTY_OE mapped to TTY_PE
+				*/
+				if (   (line_status & (LSR_PE|LSR_OE|LSR_FE))
+				    &&  (com->tp->t_iflag & IGNPAR)
+				    || (line_status & LSR_BI)
+				    &&  (com->tp->t_iflag & IGNBRK))
+					goto cont;
+			}
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
 				setsofttty();
@@ -1121,29 +1136,15 @@ siointr1(com)
 if (com->iptr - com->ibuf == 8)
 	setsofttty();
 #endif
-			      /*
-				Don't store PE if IGNPAR and BI if IGNBRK,
-				this hack allows "raw" tty optimization
-				works even if IGN* is set.
-				Assume TTY_OE mapped to TTY_PE
-			      */
-				if (   (!(line_status & (LSR_PE|LSR_OE|LSR_FE))
-				    ||  !(com->tp->t_iflag & IGNPAR))
-				    && (!(line_status & LSR_BI)
-				    ||  !(com->tp->t_iflag & IGNBRK))) {
-					ioptr[0] = recv_data;
-					ioptr[CE_INPUT_OFFSET] = line_status;
-					com->iptr = ++ioptr;
-				}
+				ioptr[0] = recv_data;
+				ioptr[CE_INPUT_OFFSET] = line_status;
+				com->iptr = ++ioptr;
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
 					outb(com->modem_ctl_port,
 					     com->mcr_image &= ~MCR_RTS);
-				/* XXX - move this out of isr */
-				if (line_status & LSR_OE)
-					CE_RECORD(com, CE_OVERRUN);
 			}
-
+		cont:
 			/*
 			 * "& 0x7F" is to avoid the gcc-1.40 generating a slow
 			 * jump from the top of the loop to here
@@ -1525,10 +1526,7 @@ repeat:
 		}
 		if (com->state & CS_ODONE) {
 			comflush(com);
-			if (linesw[tp->t_line].l_start != ttstart)
-				(*linesw[tp->t_line].l_start)(tp);
-			else
-				comstart(tp);
+			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
