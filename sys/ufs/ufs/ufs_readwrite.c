@@ -293,7 +293,13 @@ READ(ap)
 		 * However, if the short read did not cause an error,
 		 * then we want to ensure that we do not uiomove bad
 		 * or uninitialized data.
+		 *
+		 * XXX b_resid is only valid when an actual I/O has occured
+		 * and may be incorrect if the buffer is B_CACHE or if the
+		 * last op on the buffer was a failed write.  This KASSERT
+		 * is a precursor to removing it from the UFS code.
 		 */
+		KASSERT(bp->b_resid == 0, ("bp->b_resid != 0"));
 		size -= bp->b_resid;
 		if (size < xfersize) {
 			if (size == 0)
