@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.12 1998/11/30 21:39:20 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: ohci.c,v 1.4 1998/12/14 09:32:23 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -144,9 +144,9 @@ void		ohci_dump_ed __P((ohci_soft_ed_t *));
 #define OREAD4(sc, r) bus_space_read_4((sc)->iot, (sc)->ioh, (r))
 #define OREAD2(sc, r) bus_space_read_2((sc)->iot, (sc)->ioh, (r))
 #elif defined(__FreeBSD__)
-#define OWRITE4(sc, r, x) outl((sc)->sc_iobase + (r), (x))
-#define OREAD4(sc, r) inl((sc)->sc_iobase + (r))
-#define OREAD2(sc, r) inw((sc)->sc_iobase + (r))
+#define OWRITE4(sc, r, x) *(unsigned int *) ((sc)->sc_iobase + (r)) = x
+#define OREAD4(sc, r) (*(unsigned int *) ((sc)->sc_iobase + (r)))
+#define OREAD2(sc, r) (*(unsigned short *) ((sc)->sc_iobase + (r)))
 #endif
 
 /* Reverse the bits in a value 0 .. 31 */
