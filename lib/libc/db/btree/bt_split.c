@@ -361,6 +361,8 @@ bt_page(t, h, lp, rp, skip, ilen)
 	r->nextpg = h->nextpg;
 	r->prevpg = h->pgno;
 	r->flags = h->flags & P_TYPE;
+	/* XXX: Workaround for broken page data access. */
+	r->linp[0] = 0xffff;
 
 	/*
 	 * If we're splitting the last page on a level because we're appending
