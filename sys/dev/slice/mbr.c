@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: mbr.c,v 1.6 1998/06/07 19:40:31 dfr Exp $
+ *	$Id: mbr.c,v 1.7 1998/07/13 08:22:55 julian Exp $
  */
 
 #include <sys/param.h>
@@ -144,9 +144,7 @@ mbr_claim(sl_p slice)
 			return (error);
 		}
 	}
-	slice->flags |= SLF_PROBING;
 	if ((error = slice_request_block(slice, 0))) {
-		slice->flags &= ~SLF_PROBING;
 		mbr_revoke(slice->private_up); 
 	}
 	return (error);
@@ -414,7 +412,6 @@ printf(" part %d, start=%d, size=%d\n", part + 1, dp->dp_start, dp->dp_size);
 		}
 		slice_start_probe(pd->subdevs[part].slice);
 	}
-	slice->flags &= ~SLF_PROBING;
 	return (0);
 nope:
 	mbr_revoke(pd);

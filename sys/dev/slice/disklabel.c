@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.6 1998/06/07 19:40:31 dfr Exp $
+ *	$Id: disklabel.c,v 1.7 1998/07/13 08:22:54 julian Exp $
  */
 #define BAD144
 #undef BAD144
@@ -138,9 +138,7 @@ dkl_claim(sl_p slice)
 			return (error);
 		}
 	}
-	slice->flags |= SLF_PROBING;
 	if ((error = slice_request_block(slice, LABELSECTOR))) {
-		slice->flags &= ~SLF_PROBING;
 		dkl_revoke(slice->private_up); 
 	}
 	return (error);
@@ -396,7 +394,6 @@ printf(" part %c, start=%d, size=%d\n", part + 'a', dp->p_offset, dp->p_size);
 		}
 		slice_start_probe(pd->subdevs[part].slice);
 	}
-	slice->flags &= ~SLF_PROBING;
 	return (0);
 nope:
 printf("   .. nope\n");
