@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.9 1997/04/06 10:49:13 dufault Exp $
+ *	$Id: green_saver.c,v 1.10 1997/07/15 14:49:29 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -46,16 +46,48 @@ green_saver(int blank)
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
-		outb(TSIDX, 0x01); val = inb(TSREG);
-		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
-		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
-		outb(crtc_addr + 1, val & ~0x80);
+		switch (crtc_type) {
+		case KD_VGA:
+			outb(TSIDX, 0x01); val = inb(TSREG);
+			outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
+			outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
+			outb(crtc_addr + 1, val & ~0x80);
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x25);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x21);
+			break;
+		default:
+			break;
+		}
 	}
 	else {
-		outb(TSIDX, 0x01); val = inb(TSREG);
-		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
-		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
-		outb(crtc_addr + 1, val | 0x80);
+		switch (crtc_type) {
+		case KD_VGA:
+			outb(TSIDX, 0x01); val = inb(TSREG);
+			outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
+			outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
+			outb(crtc_addr + 1, val | 0x80);
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x2d);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x29);
+			break;
+		default:
+			break;
+		}
 		scrn_blanked = 0;
 	}
 }
@@ -63,8 +95,21 @@ green_saver(int blank)
 static int
 green_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (!crtc_vga)
-		return EINVAL;
+	switch (crtc_type) {
+	case KD_MONO:
+	case KD_HERCULES:
+	case KD_CGA:
+		/* 
+		 * `green' saver is not fully implemented for MDA and CGA.
+		 * It simply blanks the display instead.
+		 */
+	case KD_VGA:
+		break;
+	case KD_EGA:
+		/* EGA is yet to be supported */
+	default:
+		return ENODEV;
+	}
 	return add_scrn_saver(green_saver);
 }
 
