@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysmouse.4,v 1.6 1997/12/07 08:46:56 yokota Exp $
+.\"	$Id: sysmouse.4,v 1.7 1998/03/12 07:30:38 charnier Exp $
 .\"
 .Dd December 3, 1997
 .Dt SYSMOUSE 4 i386
@@ -91,17 +91,17 @@ if the device does not have the middle button.
 Right button status; cleared if pressed, otherwise set.
 .El
 .It Byte 2
-The first half of horizontal movement count in two's compliment; 
+The first half of horizontal movement count in two's complement; 
 -128 through 127.
 .It Byte 3
-The first half of vertical movement count in two's compliment; 
+The first half of vertical movement count in two's complement; 
 -128 through 127.
 .It Byte 4
-The second half of the horizontal movement count in two's compliment; 
+The second half of the horizontal movement count in two's complement; 
 -128 through 127. To obtain the full horizontal movement count, add
 the byte 2 and 4.
 .It Byte 5
-The second half of the vertical movement count in two's compliment; 
+The second half of the vertical movement count in two's complement; 
 -128 through 127. To obtain the full vertical movement count, add
 the byte 3 and 5.
 .El
