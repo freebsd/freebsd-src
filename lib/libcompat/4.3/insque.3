@@ -47,8 +47,10 @@ struct qelem {
 };
 .Ed
 
-.Fn insque "(caddr_t) struct qelem *elem" "(caddr_t) struct qelem *pred"
-.Fn remque "(caddr_t) struct qelem *elem"
+.Ft void
+.Fn insque "struct qelem *elem" "struct qelem *pred"
+.Ft void
+.Fn remque "struct qelem *elem"
 .Sh DESCRIPTION
 .Bf -symbolic
 The insque and remque functions are considered obsolete.
