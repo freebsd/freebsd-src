@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int
-ioctl(int fd, unsigned long request,...)
+_libc_ioctl(int fd, unsigned long request,...)
 {
 	int             ret;
 	int		*op;
@@ -76,4 +76,6 @@ ioctl(int fd, unsigned long request,...)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_ioctl, ioctl);
 #endif

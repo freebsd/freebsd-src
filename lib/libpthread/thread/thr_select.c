@@ -45,8 +45,8 @@
 #include "pthread_private.h"
 
 int 
-select(int numfds, fd_set * readfds, fd_set * writefds,
-       fd_set * exceptfds, struct timeval * timeout)
+_libc_select(int numfds, fd_set * readfds, fd_set * writefds, fd_set *
+    exceptfds, struct timeval * timeout)
 {
 	struct timespec ts;
 	int             i, ret = 0, f_wait = 1;
@@ -203,4 +203,6 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 
 	return (ret);
 }
+
+__weak_reference(_libc_select, select);
 #endif

@@ -38,8 +38,8 @@
 #include "pthread_private.h"
 
 int
-nanosleep(const struct timespec * time_to_sleep,
-		  struct timespec * time_remaining)
+_libc_nanosleep(const struct timespec * time_to_sleep,
+    struct timespec * time_remaining)
 {
 	int             ret = 0;
 	struct timespec current_time;
@@ -120,4 +120,6 @@ nanosleep(const struct timespec * time_to_sleep,
 	_thread_leave_cancellation_point();
 	return (ret);
 }
+
+__weak_reference(_libc_nanosleep, nanosleep);
 #endif

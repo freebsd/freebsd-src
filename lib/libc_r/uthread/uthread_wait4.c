@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 pid_t
-wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
+_libc_wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
 	pid_t	ret;
 
@@ -66,4 +66,6 @@ wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 
 	return (ret);
 }
+
+__weak_reference(_libc_wait4, wait4);
 #endif

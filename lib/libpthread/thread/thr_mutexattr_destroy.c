@@ -37,7 +37,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+int
+pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {

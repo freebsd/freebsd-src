@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 ssize_t
-sendmsg(int fd, const struct msghdr *msg, int flags)
+_libc_sendmsg(int fd, const struct msghdr *msg, int flags)
 {
 	int             ret;
 
@@ -69,4 +69,6 @@ sendmsg(int fd, const struct msghdr *msg, int flags)
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_sendmsg, sendmsg);
 #endif

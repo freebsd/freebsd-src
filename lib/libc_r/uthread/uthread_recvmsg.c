@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 ssize_t
-recvmsg(int fd, struct msghdr *msg, int flags)
+_libc_recvmsg(int fd, struct msghdr *msg, int flags)
 {
 	int             ret;
 
@@ -70,4 +70,6 @@ recvmsg(int fd, struct msghdr *msg, int flags)
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_recvmsg, recvmsg);
 #endif

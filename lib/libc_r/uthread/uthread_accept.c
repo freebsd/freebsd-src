@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-accept(int fd, struct sockaddr * name, socklen_t *namelen)
+_libc_accept(int fd, struct sockaddr * name, socklen_t *namelen)
 {
 	int             ret;
 
@@ -106,4 +106,6 @@ accept(int fd, struct sockaddr * name, socklen_t *namelen)
 	/* Return the socket file descriptor or -1 on error: */
 	return (ret);
 }
+
+__weak_reference(_libc_accept, accept);
 #endif

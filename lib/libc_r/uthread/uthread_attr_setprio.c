@@ -36,7 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_attr_setprio(pthread_attr_t *attr, int priority)
+int
+pthread_attr_setprio(pthread_attr_t *attr, int priority)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {

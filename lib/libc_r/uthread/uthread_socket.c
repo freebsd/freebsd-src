@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 int
-socket(int af, int type, int protocol)
+_libc_socket(int af, int type, int protocol)
 {
 	int fd;
 
@@ -55,4 +55,6 @@ socket(int af, int type, int protocol)
 	}
 	return (fd);
 }
+
+__weak_reference(_libc_socket, socket);
 #endif

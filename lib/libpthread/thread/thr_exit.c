@@ -41,7 +41,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-void _exit(int status)
+void _libc__exit(int status)
 {
 	int		flags;
 	int             i;
@@ -76,6 +76,8 @@ void _exit(int status)
 	/* Call the _exit syscall: */
 	_thread_sys__exit(status);
 }
+
+__weak_reference(_libc__exit, _exit);
 
 void
 _thread_exit(char *fname, int lineno, char *string)

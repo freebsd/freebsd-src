@@ -36,7 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
+int
+pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
 {
 	int	ret;
 

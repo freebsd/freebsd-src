@@ -243,7 +243,7 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 }
 
 static int
-init_static (pthread_mutex_t *mutex)
+init_static(pthread_mutex_t *mutex)
 {
 	int ret;
 
@@ -1219,7 +1219,7 @@ mutex_priority_adjust(pthread_mutex_t mutex)
 }
 
 static void
-mutex_rescan_owned (pthread_t pthread, pthread_mutex_t mutex)
+mutex_rescan_owned(pthread_t pthread, pthread_mutex_t mutex)
 {
 	int		active_prio, inherited_prio;
 	pthread_mutex_t	m;
