@@ -637,7 +637,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # cy: Cyclades serial driver
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
-# asc: GI1904-based hand scanners, e.g., the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
@@ -728,11 +727,6 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
-device		asc	1
-hint.asc.0.at="isa"
-hint.asc.0.port="0x3EB"
-hint.asc.0.drq="3"
-hint.asc.0.irq="10"
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
