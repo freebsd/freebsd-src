@@ -72,12 +72,11 @@ options(void)
 	struct opt *op;
 
 	/* Fake the cpu types as options. */
-	for (cp = cputype; cp != NULL; cp = cp->cpu_next) {
+	SLIST_FOREACH(cp, &cputype, cpu_next) {
 		op = (struct opt *)malloc(sizeof(*op));
 		memset(op, 0, sizeof(*op));
 		op->op_name = ns(cp->cpu_name);
-		op->op_next = opt;
-		opt = op;
+		SLIST_INSERT_HEAD(&opt, op, op_next);
 	}	
 
 	if (maxusers == 0) {
@@ -94,13 +93,12 @@ options(void)
 	op->op_name = ns("MAXUSERS");
 	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
-	op->op_next = opt;
-	opt = op;
+	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
-	for (ol = otab; ol != 0; ol = ol->o_next)
+	SLIST_FOREACH(ol, &otab, o_next)
 		do_option(ol->o_name);
-	for (op = opt; op; op = op->op_next) {
+	SLIST_FOREACH(op, &opt, op_next) {
 		if (!op->op_ownfile && strncmp(op->op_name, "DEV_", 4)) {
 			printf("%s: unknown option \"%s\"\n",
 			       PREFIX, op->op_name);
@@ -119,7 +117,8 @@ do_option(char *name)
 	char *file, *inw;
 	const char *basefile;
 	struct opt_list *ol;
-	struct opt *op, *op_head, *topp;
+	struct opt *op;
+	struct opt_head op_head;
 	FILE *inf, *outf;
 	char *value;
 	char *oldvalue;
@@ -132,7 +131,7 @@ do_option(char *name)
 	 * Check to see if the option was specified..
 	 */
 	value = NULL;
-	for (op = opt; op; op = op->op_next) {
+	SLIST_FOREACH(op, &opt, op_next) {
 		if (eq(name, op->op_name)) {
 			oldvalue = value;
 			value = op->op_value;
@@ -163,13 +162,13 @@ do_option(char *name)
 		return;
 	}
 	basefile = "";
-	for (ol = otab; ol != 0; ol = ol->o_next)
+	SLIST_FOREACH(ol, &otab, o_next)
 		if (eq(name, ol->o_name)) {
 			basefile = ol->o_file;
 			break;
 		}
 	oldvalue = NULL;
-	op_head = NULL;
+	SLIST_INIT(&op_head);
 	seen = 0;
 	tidy = 0;
 	for (;;) {
@@ -193,7 +192,7 @@ do_option(char *name)
 			invalue = value;
 			seen++;
 		}
-		for (ol = otab; ol != 0; ol = ol->o_next)
+		SLIST_FOREACH(ol, &otab, o_next)
 			if (eq(inw, ol->o_name))
 				break;
 		if (!eq(inw, name) && !ol) {
@@ -209,8 +208,7 @@ do_option(char *name)
 			bzero(op, sizeof(*op));
 			op->op_name = inw;
 			op->op_value = invalue;
-			op->op_next = op_head;
-			op_head = op;
+			SLIST_INSERT_HEAD(&op_head, op, op_next);
 		}
 
 		/* EOL? */
@@ -221,8 +219,9 @@ do_option(char *name)
 	(void) fclose(inf);
 	if (!tidy && ((value == NULL && oldvalue == NULL) ||
 	    (value && oldvalue && eq(value, oldvalue)))) {	
-		for (op = op_head; op != NULL; op = topp) {
-			topp = op->op_next;
+		while (!SLIST_EMPTY(&op_head)) {
+			op = SLIST_FIRST(&op_head);
+			SLIST_REMOVE_HEAD(&op_head, op_next);
 			free(op->op_name);
 			free(op->op_value);
 			free(op);
@@ -236,20 +235,20 @@ do_option(char *name)
 		bzero(op, sizeof(*op));
 		op->op_name = ns(name);
 		op->op_value = value ? ns(value) : NULL;
-		op->op_next = op_head;
-		op_head = op;
+		SLIST_INSERT_HEAD(&op_head, op, op_next);
 	}
 
 	outf = fopen(file, "w");
 	if (outf == 0)
 		err(1, "%s", file);
-	for (op = op_head; op != NULL; op = topp) {
+	while (!SLIST_EMPTY(&op_head)) {
+		op = SLIST_FIRST(&op_head);
 		/* was the option in the config file? */
 		if (op->op_value) {
 			fprintf(outf, "#define %s %s\n",
 				op->op_name, op->op_value);
 		}
-		topp = op->op_next;
+		SLIST_REMOVE_HEAD(&op_head, op_next);
 		free(op->op_name);
 		free(op->op_value);
 		free(op);
@@ -270,7 +269,7 @@ tooption(char *name)
 	/* "cannot happen"?  the otab list should be complete.. */
 	(void) strlcpy(nbuf, "options.h", sizeof(nbuf));
 
-	for (po = otab ; po != 0; po = po->o_next) {
+	SLIST_FOREACH(po, &otab, o_next) {
 		if (eq(po->o_name, name)) {
 			strlcpy(nbuf, po->o_file, sizeof(nbuf));
 			break;
@@ -294,7 +293,7 @@ read_options(void)
 	int first = 1;
 	char genopt[MAXPATHLEN];
 
-	otab = 0;
+	SLIST_INIT(&otab);
 	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
@@ -340,7 +339,7 @@ next:
 	}
 	val = ns(val);
 
-	for (po = otab ; po != 0; po = po->o_next) {
+	SLIST_FOREACH(po, &otab, o_next) {
 		if (eq(po->o_name, this)) {
 			printf("%s: Duplicate option %s.\n",
 			       fname, this);
@@ -352,8 +351,7 @@ next:
 	bzero(po, sizeof(*po));
 	po->o_name = this;
 	po->o_file = val;
-	po->o_next = otab;
-	otab = po;
+	SLIST_INSERT_HEAD(&otab, po, o_next);
 
 	goto next;
 }
