@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: domainname.c,v 1.8 1997/02/22 14:03:01 peter Exp $
  */
 
 #ifndef lint
@@ -51,14 +51,28 @@ static char const sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <unistd.h>
 
+extern char *__progname;
+
+void usage __P((void));
+
 int
 main(argc,argv)
 	int argc;
 	char *argv[];
 {
+	int ch;
 	char domainname[MAXHOSTNAMELEN];
 
-	argc--, argv++;
+	while ((ch = getopt(argc, argv, "")) != -1)
+		switch (ch) {
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 1)
+		usage();
 
 	if (*argv) {
 		if (setdomainname(*argv, strlen(*argv)))
@@ -69,4 +83,11 @@ main(argc,argv)
 		(void)printf("%s\n", domainname);
 	}
 	exit(0);
+}
+
+void
+usage()
+{
+	(void)fprintf(stderr, "usage: %s [ypdomain]\n", __progname);
+	exit(1);
 }
