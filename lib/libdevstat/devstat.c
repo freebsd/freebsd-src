@@ -315,6 +315,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	int retval = 0;
 	struct devinfo *dinfo;
 	const char *func_name = "devstat_getdevs";
+	struct timespec ts;
 
 	dinfo = stats->dinfo;
 
@@ -327,8 +328,8 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	oldnumdevs = dinfo->numdevs;
 	oldgeneration = dinfo->generation;
 
-	/* Get the current time when we get the stats */
-	gettimeofday(&stats->busy_time, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	stats->snap_time = ts.tv_sec + ts.tv_nsec * 1e-9;
 
 	if (kd == NULL) {
 		/* If this is our first time through, mem_ptr will be null. */
@@ -338,7 +339,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 			 * error.  Don't bother setting the error string, since
 			 * getnumdevs() has already done that for us.
 			 */
-			if ((dinfo->numdevs = getnumdevs()) < 0)
+			if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
 				return(-1);
 			
 			/*
@@ -371,9 +372,9 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 			if (errno == ENOMEM) {
 				/*
 				 * No need to set the error string here, 
-				 * getnumdevs() will do that if it fails.
+				 * devstat_getnumdevs() will do that if it fails.
 				 */
-				if ((dinfo->numdevs = getnumdevs()) < 0)
+				if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
 					return(-1);
 
 				dssize = (dinfo->numdevs * 
@@ -403,7 +404,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		 * This is of course non-atomic, but since we are working
 		 * on a core dump, the generation is unlikely to change
 		 */
-		if ((dinfo->numdevs = getnumdevs()) == -1)
+		if ((dinfo->numdevs = devstat_getnumdevs(NULL)) == -1)
 			return(-1);
 		if ((dinfo->mem_ptr = get_devstat_kvm(kd)) == NULL)
 			return(-1);
@@ -430,8 +431,8 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	 * necessary.
 	 */
 	if (oldgeneration != dinfo->generation) {
-		if (getnumdevs() != dinfo->numdevs) {
-			if ((dinfo->numdevs = getnumdevs()) < 0)
+		if (devstat_getnumdevs(NULL) != dinfo->numdevs) {
+			if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
 				return(-1);
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				sizeof(long);
@@ -1142,21 +1143,21 @@ compute_stats(struct devstat *current, struct devstat *previous,
 	       DSM_NONE));
 }
 
+
+/* This is 1/2^64 */
+#define BINTIME_SCALE 5.42101086242752217003726400434970855712890625e-20
+
 long double
-devstat_compute_etime(struct timeval cur_time, struct timeval prev_time)
+devstat_compute_etime(struct bintime *cur_time, struct bintime *prev_time)
 {
-	struct timeval busy_time;
-	u_int64_t busy_usec;
 	long double etime;
 
-	timersub(&cur_time, &prev_time, &busy_time);
-
-        busy_usec = busy_time.tv_sec;  
-        busy_usec *= 1000000;          
-        busy_usec += busy_time.tv_usec;
-        etime = busy_usec;
-        etime /= 1000000;
-
+	etime = cur_time->sec;
+	etime += cur_time->frac * BINTIME_SCALE;
+	if (prev_time != NULL) {
+		etime -= prev_time->sec;
+		etime -= prev_time->frac * BINTIME_SCALE;
+	}
 	return(etime);
 }
 
@@ -1186,21 +1187,21 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		return(-1);
 	}
 
-	totalbytesread = current->bytes_read -
-			 ((previous) ? previous->bytes_read : 0);
-	totalbyteswrite = current->bytes_written -
-			    ((previous) ? previous->bytes_written : 0);
+	totalbytesread = current->bytes[DEVSTAT_READ] -
+			 ((previous) ? previous->bytes[DEVSTAT_READ] : 0);
+	totalbyteswrite = current->bytes[DEVSTAT_WRITE] -
+			    ((previous) ? previous->bytes[DEVSTAT_WRITE] : 0);
 
 	totalbytes = totalbytesread + totalbyteswrite;
 
-	totaltransfersread = current->num_reads -
-			     ((previous) ? previous->num_reads : 0);
+	totaltransfersread = current->operations[DEVSTAT_READ] -
+			     ((previous) ? previous->operations[DEVSTAT_READ] : 0);
 
-	totaltransferswrite = current->num_writes -
-			      ((previous) ? previous->num_writes : 0);
+	totaltransferswrite = current->operations[DEVSTAT_WRITE] -
+			      ((previous) ? previous->operations[DEVSTAT_WRITE] : 0);
 
-	totaltransfersother = current->num_other -
-			      ((previous) ? previous->num_other : 0);
+	totaltransfersother = current->operations[DEVSTAT_NO_DATA] -
+			      ((previous) ? previous->operations[DEVSTAT_NO_DATA] : 0);
 
 	totaltransfers = totaltransfersread + totaltransferswrite +
 			 totaltransfersother;
@@ -1496,7 +1497,7 @@ get_devstat_kvm(kvm_t *kd)
 	char *rv = NULL;
 	const char *func_name = "get_devstat_kvm";
 
-	if ((num_devs = getnumdevs()) <= 0)
+	if ((num_devs = devstat_getnumdevs(kd)) <= 0)
 		return(NULL);
 	error = 0;
 	if (KREADNL(kd, X_DEVICE_STATQ, dhead) == -1)
@@ -1510,7 +1511,7 @@ get_devstat_kvm(kvm_t *kd)
 			 func_name);
 		return(NULL);
 	}
-	gen = getgeneration();
+	gen = devstat_getgeneration(kd);
 	memcpy(rv, &gen, sizeof(gen));
 	wp = sizeof(gen);
 	/*
@@ -1535,67 +1536,4 @@ get_devstat_kvm(kvm_t *kd)
 		wp += sizeof(ds);
 	}
 	return(rv);
-}
-
-/*
- * Compatability functions for libdevstat 2. These are deprecated and may
- * eventually be removed.
- */
-int
-getnumdevs(void)
-{
-	return(devstat_getnumdevs(NULL));
-}
-
-long
-getgeneration(void)
-{
-	return(devstat_getgeneration(NULL));
-}
-
-int
-getversion(void)
-{
-	return(devstat_getversion(NULL));
-}
-
-int
-checkversion(void)
-{
-	return(devstat_checkversion(NULL));
-}
-
-int
-getdevs(struct statinfo *stats)
-{
-	return(devstat_getdevs(NULL, stats));
-}
-
-int
-selectdevs(struct device_selection **dev_select, int *num_selected,
-	   int *num_selections, long *select_generation, 
-	   long current_generation, struct devstat *devices, int numdevs,
-	   struct devstat_match *matches, int num_matches,
-	   char **dev_selections, int num_dev_selections,
-	   devstat_select_mode select_mode, int maxshowdevs,
-	   int perf_select)
-{
-
-	return(devstat_selectdevs(dev_select, num_selected, num_selections,
-	       select_generation, current_generation, devices, numdevs,
-	       matches, num_matches, dev_selections, num_dev_selections,
-	       select_mode, maxshowdevs, perf_select));
-}
-
-int
-buildmatch(char *match_str, struct devstat_match **matches,
-	   int *num_matches)
-{
-	return(devstat_buildmatch(match_str, matches, num_matches));
-}
-
-long double
-compute_etime(struct timeval cur_time, struct timeval prev_time)
-{
-	return(devstat_compute_etime(cur_time, prev_time));
 }

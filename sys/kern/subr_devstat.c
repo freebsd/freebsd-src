@@ -156,7 +156,7 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 	ds->flags = flags;
 	ds->device_type = device_type;
 	ds->priority = priority;
-	getmicrotime(&ds->dev_creation_time);
+	binuptime(&ds->creation_time);
 }
 
 /*
@@ -183,9 +183,12 @@ devstat_remove_entry(struct devstat *ds)
 
 /*
  * Record a transaction start.
+ *
+ * See comments for devstat_end_transaction().  Ordering is very important
+ * here.
  */
 void
-devstat_start_transaction(struct devstat *ds)
+devstat_start_transaction(struct devstat *ds, struct bintime *now)
 {
 	/* sanity check */
 	if (ds == NULL)
@@ -196,9 +199,21 @@ devstat_start_transaction(struct devstat *ds)
 	 * to busy.  The start time is really the start of the latest busy
 	 * period.
 	 */
-	if (ds->busy_count == 0)
-		getmicrouptime(&ds->start_time);
-	ds->busy_count++;
+	if (ds->start_count == ds->end_count) {
+		if (now != NULL)
+			ds->busy_from = *now;
+		else
+			binuptime(&ds->busy_from);
+	}
+	ds->start_count++;
+}
+
+void
+devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
+{
+
+	binuptime(&bp->bio_t0);
+	devstat_start_transaction(ds, &bp->bio_t0);
 }
 
 void
@@ -210,35 +225,35 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 
 /*
  * Record the ending of a transaction, and incrment the various counters.
+ *
+ * Ordering in this function, and in devstat_start_transaction() is VERY
+ * important.  The idea here is to run without locks, so we are very
+ * careful to only modify some fields on the way "down" (i.e. at
+ * transaction start) and some fields on the way "up" (i.e. at transaction
+ * completion).  One exception is busy_from, which we only modify in
+ * devstat_start_transaction() when there are no outstanding transactions,
+ * and thus it can't be modified in devstat_end_transaction()
+ * simultaneously.
  */
 void
 devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
-			devstat_tag_type tag_type, devstat_trans_flags flags)
+			devstat_tag_type tag_type, devstat_trans_flags flags,
+			struct bintime *now, struct bintime *then)
 {
-	struct timeval busy_time;
+	struct bintime dt, lnow;
 
 	/* sanity check */
 	if (ds == NULL)
 		return;
 
-	getmicrouptime(&ds->last_comp_time);
-	ds->busy_count--;
+	if (now == NULL) {
+		now = &lnow;
+		binuptime(now);
+	}
 
-	/*
-	 * There might be some transactions (DEVSTAT_NO_DATA) that don't
-	 * transfer any data.
-	 */
-	if (flags == DEVSTAT_READ) {
-		ds->bytes_read += bytes;
-		ds->num_reads++;
-	} else if (flags == DEVSTAT_WRITE) {
-		ds->bytes_written += bytes;
-		ds->num_writes++;
-	} else if (flags == DEVSTAT_FREE) {
-		ds->bytes_freed += bytes;
-		ds->num_frees++;
-	} else
-		ds->num_other++;
+	/* Update byte and operations counts */
+	ds->bytes[flags] += bytes;
+	ds->operations[flags]++;
 
 	/*
 	 * Keep a count of the various tag types sent.
@@ -247,21 +262,20 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 	    tag_type != DEVSTAT_TAG_NONE)
 		ds->tag_types[tag_type]++;
 
-	/*
-	 * We only update the busy time when we go idle.  Otherwise, this
-	 * calculation would require many more clock cycles.
-	 */
-	if (ds->busy_count == 0) {
-		/* Calculate how long we were busy */
-		busy_time = ds->last_comp_time;
-		timevalsub(&busy_time, &ds->start_time);
+	if (then != NULL) {
+		/* Update duration of operations */
+		dt = *now;
+		bintime_sub(&dt, then);
+		bintime_add(&ds->duration[flags], &dt);
+	}
 
-		/* Add our busy time to the total busy time. */
-		timevaladd(&ds->busy_time, &busy_time);
-	} else if (ds->busy_count < 0)
-		printf("devstat_end_transaction: HELP!! busy_count "
-		       "for %s%d is < 0 (%d)!\n", ds->device_name,
-		       ds->unit_number, ds->busy_count);
+	/* Accumulate busy time */
+	dt = *now;
+	bintime_sub(&dt, &ds->busy_from);
+	bintime_add(&ds->busy_time, &dt);
+	ds->busy_from = *now;
+
+	ds->end_count++;
 }
 
 void
@@ -277,7 +291,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 		flg = DEVSTAT_WRITE;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				DEVSTAT_TAG_SIMPLE, flg);
+				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
 }
 
 /*
@@ -427,3 +441,6 @@ devstat_free(struct devstat *dsp)
 		}
 	}
 }
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
+    0, sizeof(struct devstat), "sizeof(struct devstat)");

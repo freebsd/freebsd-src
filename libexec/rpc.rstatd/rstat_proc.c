@@ -370,7 +370,7 @@ haveadisk(void)
 void
 updatexfers(int numdevs, int *devs)
 {
-	register int i, j, t;
+	register int i, j, k, t;
 	struct statinfo stats;
 	int num_devices = 0;
 	u_int64_t total_transfers;
@@ -400,9 +400,10 @@ updatexfers(int numdevs, int *devs)
 		      & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT)
 		 && ((stats.dinfo->devices[i].device_type
 		      & DEVSTAT_TYPE_PASS) == 0)) {
-			total_transfers = stats.dinfo->devices[i].num_reads +
-					  stats.dinfo->devices[i].num_writes +
-					  stats.dinfo->devices[i].num_other;
+			total_transfers = 0;
+			for (k = 0; k < DEVSTAT_N_TRANS_FLAGS; k++)
+				total_transfers +=
+				    stats.dinfo->devices[i].operations[k];
 			/*
 			 * XXX KDM If the total transfers for this device
 			 * are greater than the amount we can fit in a

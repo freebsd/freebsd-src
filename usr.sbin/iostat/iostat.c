@@ -407,12 +407,10 @@ main(int argc, char **argv)
 	cur.tk_nin = 0;
 
 	/*
-	 * Set the busy time to the system boot time, so the stats are
-	 * calculated since system boot.
+	 * Set the snap time to the system boot time (ie: zero), so the 
+	 * stats are calculated since system boot.
 	 */
-	if (readvar(kd, "kern.boottime", X_BOOTTIME, &cur.busy_time,
-		    sizeof(cur.busy_time)) != 0)
-		exit(1);
+	cur.snap_time = 0;
 
 	/*
 	 * If the user stops the program (control-Z) and then resumes it,
@@ -452,7 +450,7 @@ main(int argc, char **argv)
 		last.dinfo = cur.dinfo;
 		cur.dinfo = tmp_dinfo;
 
-		last.busy_time = cur.busy_time;
+		last.snap_time = cur.snap_time;
 
 		/*
 		 * Here what we want to do is refresh our device stats.
@@ -538,7 +536,7 @@ main(int argc, char **argv)
 			last.tk_nout = tmp;
 		}
 
-		etime = devstat_compute_etime(cur.busy_time, last.busy_time);
+		etime = cur.snap_time - last.snap_time;
 
 		if (etime == 0.0)
 			etime = 1.0;
