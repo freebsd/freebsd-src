@@ -1049,7 +1049,7 @@ inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
 	char line[80], *cp;
 	int width;
 
-	sprintf(line, "%.*s.", lflag ? 39 :
+	sprintf(line, "%.*s.", Wflag ? 39 :
 		(Aflag && !numeric) ? 12 : 16, inet6name(in6));
 	cp = index(line, '\0');
 	if (!numeric && port)
@@ -1058,7 +1058,7 @@ inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
 		sprintf(cp, "%.8s", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
-	width = lflag ? 45 : Aflag ? 18 : 22;
+	width = Wflag ? 45 : Aflag ? 18 : 22;
 	printf("%-*.*s ", width, width, line);
 }
 

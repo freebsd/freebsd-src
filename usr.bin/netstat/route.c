@@ -228,9 +228,9 @@ pr_family(int af)
 #define	WID_IF(af)	6	/* width of netif column */
 #else
 #define	WID_DST(af) \
-	((af) == AF_INET6 ? (lflag ? 39 : (nflag ? 33: 18)) : 18)
+	((af) == AF_INET6 ? (Wflag ? 39 : (nflag ? 33: 18)) : 18)
 #define	WID_GW(af) \
-	((af) == AF_INET6 ? (lflag ? 31 : (nflag ? 29 : 18)) : 18)
+	((af) == AF_INET6 ? (Wflag ? 31 : (nflag ? 29 : 18)) : 18)
 #define	WID_IF(af)	((af) == AF_INET6 ? 8 : 6)
 #endif /*INET6*/
 
@@ -243,8 +243,8 @@ pr_rthdr(int af)
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (af == AF_INET || lflag)
-		if (lflag)
+	if (af == AF_INET || Wflag)
+		if (Wflag)
 			printf("%-*.*s %-*.*s %-6.6s %6.6s %8.8s %6.6s %*.*s %6s\n",
 				WID_DST(af), WID_DST(af), "Destination",
 				WID_GW(af), WID_GW(af), "Gateway",
@@ -602,9 +602,9 @@ p_rtentry(struct rtentry *rt)
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
 	    WID_GW(addr.u_sa.sa_family));
 	p_flags(rt->rt_flags, "%-6.6s ");
-	if (addr.u_sa.sa_family == AF_INET || lflag) {
+	if (addr.u_sa.sa_family == AF_INET || Wflag) {
 		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
-		if (lflag) {
+		if (Wflag) {
 			if (rt->rt_rmx.rmx_mtu != 0)
 				printf("%6lu ", rt->rt_rmx.rmx_mtu);
 			else

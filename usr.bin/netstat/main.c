@@ -312,7 +312,6 @@ int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
 int	iflag;		/* show interfaces */
-int	lflag;		/* show routing table with use and ref */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
 int	nflag;		/* show addresses numerically */
@@ -401,9 +400,6 @@ main(argc, argv)
 		case 'i':
 			iflag = 1;
 			break;
-		case 'l':
-			lflag = 1;
-			break;
 		case 'L':
 			Lflag = 1;
 			break;
@@ -440,6 +436,7 @@ main(argc, argv)
 			af = AF_UNIX;
 			break;
 		case 'W':
+		case 'l':
 			Wflag = 1;
 			break;
 		case 'w':
