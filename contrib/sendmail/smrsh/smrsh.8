@@ -37,7 +37,7 @@ limits the set of programs that he or she can execute.
 Briefly,
 .I smrsh
 limits programs to be in the directory
-/usr/adm/sm.bin,
+/usr/libexec/sm.bin,
 allowing the system administrator to choose the set of acceptable commands.
 It also rejects any commands with the characters
 `\`', `<', `>', `|', `;', `&', `$', `(', `)', `\er' (carriage return),
@@ -45,16 +45,15 @@ or `\en' (newline)
 on the command line to prevent ``end run'' attacks.
 .PP
 Initial pathnames on programs are stripped,
-so forwarding to ``/usr/ucb/vacation'',
-``/usr/bin/vacation'',
+so forwarding to ``/usr/bin/vacation'',
 ``/home/server/mydir/bin/vacation'',
 and
 ``vacation''
 all actually forward to
-``/usr/adm/sm.bin/vacation''.
+``/usr/libexec/sm.bin/vacation''.
 .PP
 System administrators should be conservative about populating
-/usr/adm/sm.bin.
+/usr/libexec/sm.bin.
 Reasonable additions are
 .IR vacation (1),
 .IR procmail (1),
@@ -73,11 +72,11 @@ it simply disallows execution of arbitrary programs.
 Compilation should be trivial on most systems.
 You may need to use \-DPATH=\e"\fIpath\fP\e"
 to adjust the default search path
-(defaults to ``/bin:/usr/bin:/usr/ucb'')
+(defaults to ``/bin:/usr/bin'')
 and/or \-DCMDBIN=\e"\fIdir\fP\e"
 to change the default program directory
-(defaults to ``/usr/adm/sm.bin'').
+(defaults to ``/usr/libexec/sm.bin'').
 .SH FILES
-/usr/adm/sm.bin \- directory for restricted programs
+/usr/libexec/sm.bin \- directory for restricted programs
 .SH SEE ALSO
 sendmail(8)
