@@ -69,6 +69,15 @@ cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_ses.c	optional ses
 cam/scsi/scsi_target.c	optional targ
 cam/scsi/scsi_targ_bh.c	optional targbh
+contrib/ipfilter/netinet/fil.c		optional ipfilter inet
+contrib/ipfilter/netinet/ip_auth.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_fil.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_frag.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_log.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_nat.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_proxy.c	optional ipfilter inet
+contrib/ipfilter/netinet/ip_state.c	optional ipfilter inet
+contrib/ipfilter/netinet/mlfk_ipl.c	optional ipfilter inet
 crypto/sha1.c		optional ipsec
 crypto/des/des_cbc.c	optional ipsec ipsec_esp
 crypto/des/des_ecb.c	optional ipsec ipsec_esp
@@ -807,15 +816,6 @@ netinet/tcp_subr.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet
-netinet/ip_fil.c	optional ipfilter inet
-netinet/fil.c		optional ipfilter inet
-netinet/ip_nat.c	optional ipfilter inet
-netinet/ip_frag.c	optional ipfilter inet
-netinet/ip_state.c	optional ipfilter inet
-netinet/ip_auth.c	optional ipfilter inet
-netinet/ip_proxy.c	optional ipfilter inet
-netinet/ip_log.c	optional ipfilter inet
-netinet/mlfk_ipl.c	optional ipfilter inet
 netinet6/ah_core.c	optional ipsec
 netinet6/ah_input.c	optional ipsec
 netinet6/ah_output.c	optional ipsec
