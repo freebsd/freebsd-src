@@ -152,9 +152,7 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 		suword32(&uap->tmbx->tm_lwp, td->td_tid);
 		if (uap->flags & KSE_SWITCHIN_SETTMBX) {
 			td->td_mailbox = uap->tmbx;
-			mtx_lock_spin(&sched_lock);
-			td->td_flags |= TDF_CAN_UNBIND;
-			mtx_unlock_spin(&sched_lock);
+			td->td_pflags |= TDP_CAN_UNBIND;
 		}
 		if (td->td_proc->p_flag & P_TRACED) {
 			if (tmbx.tm_dflags & TMDF_SSTEP)
@@ -1134,7 +1132,7 @@ thread_switchout(struct thread *td)
 		ku = td->td_upcall;
 		ku->ku_owner = NULL;
 		td->td_upcall = NULL;
-		td->td_flags &= ~TDF_CAN_UNBIND;
+		td->td_pflags &= ~TDP_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
 		setrunqueue(td2);
 	}
@@ -1186,9 +1184,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 			td->td_mailbox = NULL;
 		} else {
 			td->td_mailbox = tmbx;
-			mtx_lock_spin(&sched_lock);
-			td->td_flags |= TDF_CAN_UNBIND;
-			mtx_unlock_spin(&sched_lock);
+			td->td_pflags |= TDP_CAN_UNBIND;
 			if (__predict_false(p->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
 				if (flags & TMDF_SUSPEND) {
@@ -1250,13 +1246,11 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * then it can return direct to userland.
 	 */
 	if (TD_CAN_UNBIND(td)) {
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_CAN_UNBIND;
+		td->td_pflags &= ~TDP_CAN_UNBIND;
 		if ((td->td_flags & TDF_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
 		    (kg->kg_upquantum && ticks < kg->kg_nextupcall)) {
-			mtx_unlock_spin(&sched_lock);
 			thread_update_usr_ticks(td, 0);
 			nanotime(&ts);
 			error = copyout(&ts,
@@ -1268,7 +1262,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				goto out;
 			return (0);
 		}
-		mtx_unlock_spin(&sched_lock);
 		thread_export_context(td, 0);
 		/*
 		 * There is something to report, and we own an upcall
@@ -1378,14 +1371,6 @@ out:
 		PROC_LOCK(td->td_proc);
 		psignal(td->td_proc, SIGSEGV);
 		PROC_UNLOCK(td->td_proc);
-	} else {
-		/*
-		 * Optimisation:
-		 * Ensure that we have a spare thread available,
-		 * for when we re-enter the kernel.
-		 */
-		if (td->td_standin == NULL)
-			thread_alloc_spare(td);
 	}
 
 	ku->ku_mflags = 0;
