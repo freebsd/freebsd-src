@@ -154,6 +154,7 @@
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -732,14 +733,14 @@ pmap_get_asn(pmap_t pmap)
 				printf("pmap_get_asn: generation rollover\n");
 #endif
 				PCPU_GET(current_asngen) = 1;
-				ALLPROC_LOCK(AP_SHARED);
+				sx_slock(&allproc_lock);
 				LIST_FOREACH(p, &allproc, p_list) {
 					if (p->p_vmspace) {
 						tpmap = vmspace_pmap(p->p_vmspace);
 						tpmap->pm_asn[PCPU_GET(cpuid)].gen = 0;
 					}
 				}
-				ALLPROC_LOCK(AP_RELEASE);
+				sx_sunlock(&allproc_lock);
 			}
 
 			/*
@@ -1564,14 +1565,14 @@ pmap_growkernel(vm_offset_t addr)
 			newlev1 = pmap_phys_to_pte(pa)
 				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
-			ALLPROC_LOCK(AP_SHARED);
+			sx_slock(&allproc_lock);
 			LIST_FOREACH(p, &allproc, p_list) {
 				if (p->p_vmspace) {
 					pmap = vmspace_pmap(p->p_vmspace);
 					*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
 				}
 			}
-			ALLPROC_LOCK(AP_RELEASE);
+			sx_sunlock(&allproc_lock);
 			*pte = newlev1;
 			pmap_invalidate_all(kernel_pmap);
 		}
@@ -3065,7 +3066,8 @@ pmap_pid_dump(int pid)
 	struct proc *p;
 	int npte = 0;
 	int index;
-	ALLPROC_LOCK(AP_SHARED);
+
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
@@ -3088,7 +3090,7 @@ pmap_pid_dump(int pid)
 								index = 0;
 								printf("\n");
 							}
-							ALLPROC_LOCK(AP_RELEASE);
+							sx_sunlock(&allproc_lock);
 							return npte;
 						}
 						pte = pmap_pte_quick( pmap, va);
@@ -3113,7 +3115,7 @@ pmap_pid_dump(int pid)
 			}
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	return npte;
 }
 #endif

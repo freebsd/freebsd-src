@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/resource.h>
+#include <sys/sx.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -78,7 +79,7 @@ loadav(struct loadavg *avg)
 	register int i, nrun;
 	register struct proc *p;
 
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	for (nrun = 0, p = LIST_FIRST(&allproc); p != 0; p = LIST_NEXT(p, p_list)) {
 		switch (p->p_stat) {
 		case SSLEEP:
@@ -94,7 +95,7 @@ loadav(struct loadavg *avg)
 			nrun++;
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
@@ -150,7 +151,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Calculate process statistics.
 	 */
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
@@ -208,7 +209,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (paging)
 			totalp->t_pw++;
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	/*
 	 * Calculate object memory usage statistics.
 	 */

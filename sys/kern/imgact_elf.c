@@ -50,6 +50,7 @@
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -59,7 +60,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <sys/lock.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
@@ -157,14 +157,14 @@ elf_brand_inuse(Elf_Brandinfo *entry)
 	struct proc *p;
 	int rval = FALSE;
 
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_sysent == entry->sysvec) {
 			rval = TRUE;
 			break;
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 
 	return (rval);
 }

@@ -28,11 +28,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -118,11 +120,11 @@ void
 kthread_exit(int ecode)
 {
 
-	PROCTREE_LOCK(PT_EXCLUSIVE);
+	sx_xlock(&proctree_lock);
 	PROC_LOCK(curproc);
 	proc_reparent(curproc, initproc);
 	PROC_UNLOCK(curproc);
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_xunlock(&proctree_lock);
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
 

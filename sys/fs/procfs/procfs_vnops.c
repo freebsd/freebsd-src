@@ -51,6 +51,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/mount.h>
@@ -858,7 +859,7 @@ procfs_readdir(ap)
 		int pcnt = 0;
 		struct proc *p;
 
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		p = LIST_FIRST(&allproc);
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
@@ -916,7 +917,7 @@ procfs_readdir(ap)
 		}
 #endif
 
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 		break;
 
 	    }

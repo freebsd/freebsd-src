@@ -76,6 +76,7 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1614,16 +1615,17 @@ vm_object_in_map( object)
 	vm_object_t object;
 {
 	struct proc *p;
-	ALLPROC_LOCK(AP_SHARED);
+
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
 		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
-			ALLPROC_LOCK(AP_RELEASE);
+			sx_sunlock(&allproc_lock);
 			return 1;
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	if( _vm_object_in_map( kernel_map, object, 0))
 		return 1;
 	if( _vm_object_in_map( kmem_map, object, 0))
