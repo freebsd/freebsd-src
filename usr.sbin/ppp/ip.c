@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.26 1998/05/06 23:50:11 brian Exp $
+ * $Id: ip.c,v 1.41 1998/05/21 21:45:37 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -137,6 +137,8 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
 		break;
 	      case IPPROTO_UDP:
+	      case IPPROTO_IGMP:
+	      case IPPROTO_IPIP:
 		cproto = P_UDP;
 		uh = (struct udphdr *) ptop;
 		sport = ntohs(uh->uh_sport);
@@ -286,6 +288,28 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+  case IPPROTO_IPIP:
+    if (logit && loglen < sizeof logbuf) {
+      uh = (struct udphdr *) ptop;
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	   "IPIP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+  case IPPROTO_IGMP:
+    if (logit && loglen < sizeof logbuf) {
+      uh = (struct udphdr *) ptop;
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	   "IGMP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
   case IPPROTO_TCP:
     th = (struct tcphdr *) ptop;
     if (pip->ip_tos == IPTOS_LOWDELAY)
@@ -357,6 +381,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   int nb, nw;
   struct tun_data tun;
   struct ip *pip = (struct ip *)tun.data;
+  struct ip *piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
 
   tun_fill_header(tun, AF_INET);
   cp = tun.data;
@@ -374,7 +399,8 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   }
 
 #ifndef NOALIAS
-  if (alias_IsEnabled()) {
+  if (alias_IsEnabled() && pip->ip_p != IPPROTO_IGMP &&
+      (pip->ip_p != IPPROTO_IPIP || !IN_CLASSD(ntohl(piip->ip_dst.s_addr)))) {
     struct tun_data *frag;
     int iresult;
     char *fptr;
