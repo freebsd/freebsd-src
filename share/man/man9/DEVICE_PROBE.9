@@ -48,8 +48,10 @@ If some other error happens during the probe (such as a memory
 allocation failure), an appropriate error code should be returned.
 For
 cases where more than one driver matches a device, a priority value can
-be returned.  In this case, success codes are values less than or equal
-to zero with the highest value representing the best match.  Failure
+be returned.
+In this case, success codes are values less than or equal
+to zero with the highest value representing the best match.
+Failure
 codes are represented by positive values and the regular
 .Ux
 error

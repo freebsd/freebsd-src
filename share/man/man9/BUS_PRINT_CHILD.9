@@ -41,8 +41,10 @@
 .Fn BUS_PRINT_CHILD "device_t dev" "device_t child"
 .Sh DESCRIPTION
 This is called from system code which prints out a description of a
-device.  It should describe the attachment that the child has with
-the parent.  For instance the TurboLaser bus prints which node the
+device.
+It should describe the attachment that the child has with
+the parent.
+For instance the TurboLaser bus prints which node the
 device is attached to.
 Please see
 .Xr bus_generic_print_child 9
