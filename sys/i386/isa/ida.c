@@ -1206,7 +1206,8 @@ ida_queue_buf(int unit, struct buf *bp)
 
   if (PCI_CONTROLLER(ida)) {
     qcbp->hdr.priority = 0x00;
-    qcbp->hdr.flags = 0x24;
+    qcbp->hdr.flags =
+      (sizeof(struct ida_req) + sizeof(struct ida_sgb) * IDA_MAX_SGLEN) >> 2;
   } else {
     qcbp->hdr.priority = IDA_DEF_PRIORITY;
     qcbp->hdr.flags = 0x10;
