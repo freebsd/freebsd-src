@@ -1,4 +1,4 @@
-/* $NetBSD: err.c,v 1.8 1995/10/02 17:37:00 jpo Exp $	*/
+/*	$NetBSD: err.c,v 1.8 1995/10/02 17:37:00 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl

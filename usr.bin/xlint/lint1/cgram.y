@@ -1,5 +1,5 @@
 %{
-/* $NetBSD: cgram.y,v 1.8 1995/10/02 17:31:35 jpo Exp $	*/
+/*	$NetBSD: cgram.y,v 1.8 1995/10/02 17:31:35 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
