@@ -349,7 +349,6 @@ IPV6FIREWALL_DEFAULT_TO_ACCEPT	opt_ip6fw.h
 IPSTEALTH
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h
-IPTUNNEL		opt_ipx.h
 LIBMCHAIN
 NCP			opt_ncp.h
 NETATALK		opt_atalk.h

@@ -90,16 +90,6 @@ static struct protosw ipxsw[] = {
   0,		0,		0,		0,
   &ripx_usrreqs
 },
-#ifdef IPTUNNEL
-#if 0
-{ SOCK_RAW,	&ipxdomain,	IPPROTO_IPX,	PR_ATOMIC|PR_ADDR,
-  iptun_input,	rip_output,	iptun_ctlinput,	0,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
-},
-#endif
-#endif
 };
 
 static struct	domain ipxdomain =
