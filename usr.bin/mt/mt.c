@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)mt.c	8.1 (Berkeley) 6/6/93";
 #define NEED_2ARGS	0x01
 #define ZERO_ALLOWED	0x02
 #define IS_DENSITY	0x04
+#define DISABLE_THIS	0x08
 #endif /* defined(__FreeBSD__) */
 
 struct commands {
@@ -73,7 +74,13 @@ struct commands {
 } com[] = {
 	{ "bsf",	MTBSF,	1 },
 	{ "bsr",	MTBSR,	1 },
-	{ "eof",	MTWEOF,	0 },
+#if defined(__FreeBSD__)
+	/* XXX FreeBSD considered "eof" dangerous, since it's being
+	   confused with "eom" (and is an alias for "weof" anyway) */
+	{ "eof",	MTWEOF, 0, DISABLE_THIS },
+#else
+	{ "eof",	MTWEOF, 0 },
+#endif
 	{ "fsf",	MTFSF,	1 },
 	{ "fsr",	MTFSR,	1 },
 	{ "offline",	MTOFFL,	1 },
@@ -99,6 +106,7 @@ void usage __P((void));
 void st_status (struct mtget *);
 int stringtodens (const char *s);
 const char *denstostring (int d);
+void warn_eof __P((void));
 #endif /* defined (__FreeBSD__) */
 
 int
@@ -141,6 +149,9 @@ main(argc, argv)
 #if defined(__FreeBSD__)
 	if((comp->c_flags & NEED_2ARGS) && argc != 2)
 		usage();
+	if(comp->c_flags & DISABLE_THIS) {
+		warn_eof();
+	}
 #endif /* defined(__FreeBSD__) */
 	if ((mtfd = open(tape, comp->c_ronly ? O_RDONLY : O_RDWR)) < 0)
 		err("%s: %s", tape, strerror(errno));
@@ -431,6 +442,17 @@ st_status(struct mtget *bp)
 	       denstostring(bp->mt_density2), getblksiz(bp->mt_blksiz2));
 	printf("Mode 3:         Density = %-12s Blocksize %s\n",
 	       denstostring(bp->mt_density3), getblksiz(bp->mt_blksiz3));
+}
+
+void
+warn_eof(void)
+{
+	fprintf(stderr,
+		"The \"eof\" command has been disabled.\n"
+		"Use \"weof\" if you really want to write end-of-file marks,\n"
+		"or \"eom\" if you rather want to skip to the end of "
+		"recorded medium.\n");
+	exit(1);
 }
 
 #endif /* defined (__FreeBSD__) */
