@@ -1,0 +1,526 @@
+/*
+ * Copyright (c) 1998 Mark Newton
+ * Copyright (c) 1994 Christos Zoulas
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/exec.h>
+#include <sys/lock.h>
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_extern.h>
+#include <sys/user.h>
+#include <sys/filedesc.h>
+#include <sys/kernel.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/sysproto.h>
+#include <sys/elf32.h>
+
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+#include <machine/specialreg.h>
+#include <machine/sysarch.h>
+#include <machine/vm86.h>
+#include <machine/vmparam.h>
+
+#include <svr4/svr4.h>
+#include <svr4/svr4_types.h>
+#include <svr4/svr4_signal.h>
+#include <i386/svr4/svr4_machdep.h>
+#include <svr4/svr4_ucontext.h>
+#include <svr4/svr4_proto.h>
+#include <svr4/svr4_util.h>
+#include <svr4/svr4_exec.h>
+
+#undef sigcode
+#undef szsigcode
+
+extern int svr4_szsigcode;
+extern char svr4_sigcode[];
+extern int _udatasel, _ucodesel;
+
+static void svr4_getsiginfo __P((union svr4_siginfo *, int, u_long, caddr_t));
+extern int bsd_to_svr4_sig[];
+
+#if !defined(__NetBSD__)
+  /* taken from /sys/arch/i386/include/psl.h on NetBSD-1.3 */
+# define PSL_MBZ 0xffc08028
+# define PSL_USERSTATIC (PSL_USER | PSL_MBZ | PSL_IOPL | PSL_NT | PSL_VM | PSL_VIF | PSL_VIP)
+# define USERMODE(c, f) (ISPL(c) == SEL_UPL)
+#endif
+
+#if defined(__NetBSD__)
+void
+svr4_setregs(p, epp, stack)
+	struct proc *p;
+	struct exec_package *epp;
+	u_long stack;
+{
+	register struct pcb *pcb = &p->p_addr->u_pcb;
+
+	pcb->pcb_savefpu.sv_env.en_cw = __SVR4_NPXCW__;
+	setregs(p, epp, stack);
+}
+#endif /* __NetBSD__ */
+
+void
+svr4_getcontext(p, uc, mask, oonstack)
+	struct proc *p;
+	struct svr4_ucontext *uc;
+	int mask, oonstack;
+{
+	struct trapframe *tf = p->p_md.md_regs;
+	struct sigacts *psp = p->p_sigacts;
+	svr4_greg_t *r = uc->uc_mcontext.greg;
+	struct svr4_sigaltstack *s = &uc->uc_stack;
+	struct sigaltstack *sf = &psp->ps_sigstk;
+
+	memset(uc, 0, sizeof(struct svr4_ucontext));
+
+	/*
+	 * Set the general purpose registers
+	 */
+#ifdef VM86
+	if (tf->tf_eflags & PSL_VM) {
+		r[SVR4_X86_GS] = tf->tf_vm86_gs;
+		r[SVR4_X86_FS] = tf->tf_vm86_fs;
+		r[SVR4_X86_ES] = tf->tf_vm86_es;
+		r[SVR4_X86_DS] = tf->tf_vm86_ds;
+		r[SVR4_X86_EFL] = get_vflags(p);
+	} else
+#endif
+	{
+	        __asm("movl %%gs,%w0" : "=r" (r[SVR4_X86_GS]));
+		__asm("movl %%fs,%w0" : "=r" (r[SVR4_X86_FS]));
+		r[SVR4_X86_ES] = tf->tf_es;
+		r[SVR4_X86_DS] = tf->tf_ds;
+		r[SVR4_X86_EFL] = tf->tf_eflags;
+	}
+	r[SVR4_X86_EDI] = tf->tf_edi;
+	r[SVR4_X86_ESI] = tf->tf_esi;
+	r[SVR4_X86_EBP] = tf->tf_ebp;
+	r[SVR4_X86_ESP] = tf->tf_esp;
+	r[SVR4_X86_EBX] = tf->tf_ebx;
+	r[SVR4_X86_EDX] = tf->tf_edx;
+	r[SVR4_X86_ECX] = tf->tf_ecx;
+	r[SVR4_X86_EAX] = tf->tf_eax;
+	r[SVR4_X86_TRAPNO] = 0;
+	r[SVR4_X86_ERR] = 0;
+	r[SVR4_X86_EIP] = tf->tf_eip;
+	r[SVR4_X86_CS] = tf->tf_cs;
+	r[SVR4_X86_UESP] = 0;
+	r[SVR4_X86_SS] = tf->tf_ss;
+
+	/*
+	 * Set the signal stack
+	 */
+	bsd_to_svr4_sigaltstack(sf, s);
+
+	/*
+	 * Set the signal mask
+	 */
+	bsd_to_svr4_sigset(&mask, &uc->uc_sigmask);
+
+	/*
+	 * Set the flags
+	 */
+	uc->uc_flags = SVR4_UC_ALL;
+}
+
+
+/*
+ * Set to ucontext specified.
+ * has been taken.  Reset signal mask and
+ * stack state from context.
+ * Return to previous pc and psl as specified by
+ * context left by sendsig. Check carefully to
+ * make sure that the user has not modified the
+ * psl to gain improper privileges or to cause
+ * a machine fault.
+ */
+int
+svr4_setcontext(p, uc)
+	struct proc *p;
+	struct svr4_ucontext *uc;
+{
+	struct sigacts *psp = p->p_sigacts;
+	register struct trapframe *tf;
+	svr4_greg_t *r = uc->uc_mcontext.greg;
+	struct svr4_sigaltstack *s = &uc->uc_stack;
+	struct sigaltstack *sf = &psp->ps_sigstk;
+	int mask;
+
+	/*
+	 * XXX:
+	 * Should we check the value of flags to determine what to restore?
+	 * What to do with uc_link?
+	 * What to do with floating point stuff?
+	 * Should we bother with the rest of the registers that we
+	 * set to 0 right now?
+	 */
+
+	tf = p->p_md.md_regs;
+
+	/*
+	 * Restore register context.
+	 */
+#ifdef VM86
+	if (r[SVR4_X86_EFL] & PSL_VM) {
+		tf->tf_vm86_gs = r[SVR4_X86_GS];
+		tf->tf_vm86_fs = r[SVR4_X86_FS];
+		tf->tf_vm86_es = r[SVR4_X86_ES];
+		tf->tf_vm86_ds = r[SVR4_X86_DS];
+		set_vflags(p, r[SVR4_X86_EFL]);
+	} else
+#endif
+	{
+		/*
+		 * Check for security violations.  If we're returning to
+		 * protected mode, the CPU will validate the segment registers
+		 * automatically and generate a trap on violations.  We handle
+		 * the trap, rather than doing all of the checking here.
+		 */
+		if (((r[SVR4_X86_EFL] ^ tf->tf_eflags) & PSL_USERSTATIC) != 0 ||
+		    !USERMODE(r[SVR4_X86_CS], r[SVR4_X86_EFL]))
+			return (EINVAL);
+
+		/* %fs and %gs were restored by the trampoline. */
+		tf->tf_es = r[SVR4_X86_ES];
+		tf->tf_ds = r[SVR4_X86_DS];
+		tf->tf_eflags = r[SVR4_X86_EFL];
+	}
+	tf->tf_edi = r[SVR4_X86_EDI];
+	tf->tf_esi = r[SVR4_X86_ESI];
+	tf->tf_ebp = r[SVR4_X86_EBP];
+	tf->tf_ebx = r[SVR4_X86_EBX];
+	tf->tf_edx = r[SVR4_X86_EDX];
+	tf->tf_ecx = r[SVR4_X86_ECX];
+	tf->tf_eax = r[SVR4_X86_EAX];
+	tf->tf_eip = r[SVR4_X86_EIP];
+	tf->tf_cs = r[SVR4_X86_CS];
+	tf->tf_ss = r[SVR4_X86_SS];
+	tf->tf_esp = r[SVR4_X86_ESP];
+
+	/*
+	 * restore signal stack
+	 */
+	svr4_to_bsd_sigaltstack(s, sf);
+
+	/*
+	 * restore signal mask
+	 */
+	svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
+	p->p_sigmask = mask & ~sigcantmask;
+
+	return 0; /*EJUSTRETURN;*/
+}
+
+
+static void
+svr4_getsiginfo(si, sig, code, addr)
+	union svr4_siginfo	*si;
+	int			 sig;
+	u_long			 code;
+	caddr_t			 addr;
+{
+	si->si_signo = bsd_to_svr4_sig[sig];
+	si->si_errno = 0;
+	si->si_addr  = addr;
+
+	switch (code) {
+	case T_PRIVINFLT:
+		si->si_code = SVR4_ILL_PRVOPC;
+		si->si_trap = SVR4_T_PRIVINFLT;
+		break;
+
+	case T_BPTFLT:
+		si->si_code = SVR4_TRAP_BRKPT;
+		si->si_trap = SVR4_T_BPTFLT;
+		break;
+
+	case T_ARITHTRAP:
+		si->si_code = SVR4_FPE_INTOVF;
+		si->si_trap = SVR4_T_DIVIDE;
+		break;
+
+	case T_PROTFLT:
+		si->si_code = SVR4_SEGV_ACCERR;
+		si->si_trap = SVR4_T_PROTFLT;
+		break;
+
+	case T_TRCTRAP:
+		si->si_code = SVR4_TRAP_TRACE;
+		si->si_trap = SVR4_T_TRCTRAP;
+		break;
+
+	case T_PAGEFLT:
+		si->si_code = SVR4_SEGV_ACCERR;
+		si->si_trap = SVR4_T_PAGEFLT;
+		break;
+
+	case T_ALIGNFLT:
+		si->si_code = SVR4_BUS_ADRALN;
+		si->si_trap = SVR4_T_ALIGNFLT;
+		break;
+
+	case T_DIVIDE:
+		si->si_code = SVR4_FPE_FLTDIV;
+		si->si_trap = SVR4_T_DIVIDE;
+		break;
+
+	case T_OFLOW:
+		si->si_code = SVR4_FPE_FLTOVF;
+		si->si_trap = SVR4_T_DIVIDE;
+		break;
+
+	case T_BOUND:
+		si->si_code = SVR4_FPE_FLTSUB;
+		si->si_trap = SVR4_T_BOUND;
+		break;
+
+	case T_DNA:
+		si->si_code = SVR4_FPE_FLTINV;
+		si->si_trap = SVR4_T_DNA;
+		break;
+
+	case T_FPOPFLT:
+		si->si_code = SVR4_FPE_FLTINV;
+		si->si_trap = SVR4_T_FPOPFLT;
+		break;
+
+	case T_SEGNPFLT:
+		si->si_code = SVR4_SEGV_MAPERR;
+		si->si_trap = SVR4_T_SEGNPFLT;
+		break;
+
+	case T_STKFLT:
+		si->si_code = SVR4_ILL_BADSTK;
+		si->si_trap = SVR4_T_STKFLT;
+		break;
+
+	default:
+		si->si_code = 0;
+		si->si_trap = 0;
+#ifdef DIAGNOSTIC
+		printf("sig %d code %ld\n", sig, code);
+		panic("svr4_getsiginfo");
+#endif
+		break;
+	}
+}
+
+
+/*
+ * Send an interrupt to process.
+ *
+ * Stack is set up to allow sigcode stored
+ * in u. to call routine. After the handler is
+ * done svr4 will call setcontext for us
+ * with the user context we just set up, and we
+ * will return to the user pc, psl.
+ */
+void
+svr4_sendsig(catcher, sig, mask, code)
+	sig_t catcher;
+	int sig, mask;
+	u_long code;
+{
+	register struct proc *p = curproc;
+	register struct trapframe *tf;
+	struct svr4_sigframe *fp, frame;
+	struct sigacts *psp = p->p_sigacts;
+	int oonstack;
+
+	tf = p->p_md.md_regs;
+	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+
+	/*
+	 * Allocate space for the signal handler context.
+	 */
+	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	    (psp->ps_sigonstack & sigmask(sig))) {
+		fp = (struct svr4_sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
+		    psp->ps_sigstk.ss_size - sizeof(struct svr4_sigframe));
+		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+	} else {
+		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
+	}
+
+	/* 
+	 * Build the argument list for the signal handler.
+	 * Notes:
+	 * 	- we always build the whole argument list, even when we
+	 *	  don't need to [when SA_SIGINFO is not set, we don't need
+	 *	  to pass all sf_si and sf_uc]
+	 *	- we don't pass the correct signal address [we need to
+	 *	  modify many kernel files to enable that]
+	 */
+
+	svr4_getcontext(p, &frame.sf_uc, mask, oonstack);
+	DPRINTF(("obtained ucontext\n"));
+	svr4_getsiginfo(&frame.sf_si, sig, code, (caddr_t) tf->tf_eip);
+	DPRINTF(("obtained siginfo\n"));
+	frame.sf_signum = frame.sf_si.si_signo;
+	frame.sf_sip = &fp->sf_si;
+	frame.sf_ucp = &fp->sf_uc;
+	frame.sf_handler = catcher;
+#ifdef DEBUG_SVR4
+	printf("sig = %d, sip %p, ucp = %p, handler = %p\n", 
+	       frame.sf_signum, frame.sf_sip, frame.sf_ucp, frame.sf_handler);
+#endif
+
+	if (copyout(&frame, fp, sizeof(frame)) != 0) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		sigexit(p, SIGILL);
+		/* NOTREACHED */
+	}
+#if defined(__NetBSD__)
+	/*
+	 * Build context to run handler in.
+	 */
+	tf->tf_es = GSEL(GUSERLDT_SEL, SEL_UPL);
+	tf->tf_ds = GSEL(GUSERLDT_SEL, SEL_UPL);
+	tf->tf_eip = (int)(((char *)PS_STRINGS) -
+	     svr4_szsigcode);
+	tf->tf_cs = GSEL(GUSERLDT_SEL, SEL_UPL);
+
+	tf->tf_eflags &= ~(PSL_T|PSL_VM|PSL_AC);
+	tf->tf_esp = (int)fp;
+	tf->tf_ss = GSEL(GUSERLDT_SEL, SEL_UPL);
+#else
+	tf->tf_esp = (int)fp;
+	tf->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	tf->tf_cs = _ucodesel;
+	tf->tf_ds = _udatasel;
+	tf->tf_es = _udatasel;
+	tf->tf_ss = _udatasel;
+#endif
+}
+
+
+
+int
+svr4_sys_sysarch(p, v)
+	struct proc *p;
+	struct svr4_sys_sysarch_args *v;
+{
+	struct svr4_sys_sysarch_args *uap = v;
+#ifdef USER_LDT
+	caddr_t sg = stackgap_init(p->p_emul);
+	int error;
+#endif
+	switch (uap->op) {
+	case SVR4_SYSARCH_FPHW:
+		return 0;
+
+	case SVR4_SYSARCH_DSCR:
+#ifdef USER_LDT
+		{
+			struct i386_set_ldt_args sa, *sap;
+			struct sys_sysarch_args ua;
+
+			struct svr4_ssd ssd;
+			union descriptor bsd;
+
+			if ((error = copyin(SCARG(uap, a1), &ssd,
+					    sizeof(ssd))) != 0) {
+				printf("Cannot copy arg1\n");
+				return error;
+			}
+
+			printf("s=%x, b=%x, l=%x, a1=%x a2=%x\n",
+			       ssd.selector, ssd.base, ssd.limit,
+			       ssd.access1, ssd.access2);
+
+			/* We can only set ldt's for now. */
+			if (!ISLDT(ssd.selector)) {
+				printf("Not an ldt\n");
+				return EPERM;
+			}
+
+			/* Oh, well we don't cleanup either */
+			if (ssd.access1 == 0)
+				return 0;
+
+			bsd.sd.sd_lobase = ssd.base & 0xffffff;
+			bsd.sd.sd_hibase = (ssd.base >> 24) & 0xff;
+
+			bsd.sd.sd_lolimit = ssd.limit & 0xffff;
+			bsd.sd.sd_hilimit = (ssd.limit >> 16) & 0xf;
+
+			bsd.sd.sd_type = ssd.access1 & 0x1f;
+			bsd.sd.sd_dpl =  (ssd.access1 >> 5) & 0x3;
+			bsd.sd.sd_p = (ssd.access1 >> 7) & 0x1;
+
+			bsd.sd.sd_xx = ssd.access2 & 0x3;
+			bsd.sd.sd_def32 = (ssd.access2 >> 2) & 0x1;
+			bsd.sd.sd_gran = (ssd.access2 >> 3)& 0x1;
+
+			sa.start = IDXSEL(ssd.selector);
+			sa.desc = stackgap_alloc(&sg, sizeof(union descriptor));
+			sa.num = 1;
+			sap = stackgap_alloc(&sg,
+					     sizeof(struct i386_set_ldt_args));
+
+			if ((error = copyout(&sa, sap, sizeof(sa))) != 0) {
+				printf("Cannot copyout args\n");
+				return error;
+			}
+
+			SCARG(&ua, op) = I386_SET_LDT;
+			SCARG(&ua, parms) = (char *) sap;
+
+			if ((error = copyout(&bsd, sa.desc, sizeof(bsd))) != 0) {
+				printf("Cannot copyout desc\n");
+				return error;
+			}
+
+			return sys_sysarch(p, &ua, retval);
+		}
+#endif
+
+	default:
+		printf("svr4_sysarch(%d), a1 %p\n", uap->op,
+		       uap->a1);
+		return 0;
+	}
+}
