@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: bindresvport.c,v 1.1 1994/08/07 18:35:42 wollman Exp $";
+static char *rcsid = "$Id: bindresvport.c,v 1.2 1995/05/30 05:41:13 rgrimes Exp $";
 #endif
 
 /*
@@ -41,6 +41,8 @@ static char *rcsid = "$Id: bindresvport.c,v 1.1 1994/08/07 18:35:42 wollman Exp 
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <unistd.h>
+#include <string.h>
 
 /*
  * Bind a socket to a privileged IP port

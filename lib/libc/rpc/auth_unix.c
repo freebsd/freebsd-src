@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.3 1995/03/18 17:55:03 ache Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.4 1995/05/30 05:41:12 rgrimes Exp $";
 #endif
 
 /*
@@ -47,6 +47,8 @@ static char *rcsid = "$Id: auth_unix.c,v 1.3 1995/03/18 17:55:03 ache Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
 #include <sys/param.h>
 #include <rpc/types.h>
@@ -83,7 +85,7 @@ struct audata {
 };
 #define	AUTH_PRIVATE(auth)	((struct audata *)auth->ah_private)
 
-static bool_t marshal_new_auth();
+static void marshal_new_auth();
 
 /*
  * This goop is here because some servers refuse to accept a
@@ -92,7 +94,7 @@ static bool_t marshal_new_auth();
  */
 static int authunix_maxgrouplist = 0;
 
-int
+void
 set_rpc_maxgrouplist(int num)
 {
 	authunix_maxgrouplist = num;
@@ -328,7 +330,7 @@ authunix_destroy(auth)
  * Marshals (pre-serializes) an auth struct.
  * sets private data, au_marshed and au_mpos
  */
-static bool_t
+static void
 marshal_new_auth(auth)
 	register AUTH *auth;
 {
