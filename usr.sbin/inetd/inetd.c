@@ -204,6 +204,31 @@ static const char rcsid[] =
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
+void		close_sep __P((struct servtab *));
+void		flag_signal __P((int));
+void		flag_config __P((int));
+void		config __P((void));
+int		cpmip __P((const struct servtab *, int));
+void		endconfig __P((void));
+struct servtab *enter __P((struct servtab *));
+void		freeconfig __P((struct servtab *));
+struct servtab *getconfigent __P((void));
+int		matchservent __P((const char *, const char *, const char *));
+char	       *nextline __P((FILE *));
+void		addchild __P((struct servtab *, int));
+void		flag_reapchild __P((int));
+void		reapchild __P((void));
+void		enable __P((struct servtab *));
+void		disable __P((struct servtab *));
+void		flag_retry __P((int));
+void		retry __P((void));
+int		setconfig __P((void));
+void		setup __P((struct servtab *));
+#ifdef IPSEC
+void		ipsecsetup __P((struct servtab *));
+#endif
+void		unregisterrpc __P((register struct servtab *sep));
+
 int	allow_severity;
 int	deny_severity;
 int	wrap_ex = 0;
@@ -239,8 +264,8 @@ struct	servtab *servtab;
 extern struct biltin biltins[];
 
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
-char	*CONFIG = _PATH_INETDCONF;
-char	*pid_file = _PATH_INETDPID;
+const char	*CONFIG = _PATH_INETDCONF;
+const char	*pid_file = _PATH_INETDPID;
 
 #ifdef OLD_SETPROCTITLE
 char	**Argv;
@@ -249,7 +274,7 @@ char 	*LastArg;
 
 int
 getvalue(arg, value, whine)
-	char *arg, *whine;
+	const char *arg, *whine;
 	int  *value;
 {
 	int  tmp;
@@ -294,7 +319,7 @@ main(argc, argv, envp)
 #define peermax	p_un.peer_max
 	int i;
 	struct addrinfo hints, *res;
-	char *servname;
+	const char *servname;
 	int error;
 
 
@@ -654,7 +679,7 @@ main(argc, argv, envp)
 			     * Call tcpmux to find the real service to exec.
 			     */
 			    if (sep->se_bi &&
-				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
+				sep->se_bi->bi_fn == (bi_fn_t *) tcpmux) {
 				    sep = tcpmux(ctrl);
 				    if (sep == NULL) {
 					    close(ctrl);
@@ -791,8 +816,9 @@ main(argc, argv, envp)
  * Add a signal flag to the signal flag queue for later handling
  */
 
-void flag_signal(c)
-    int c;
+void
+flag_signal(c)
+	int c;
 {
 	char ch = c;
 
@@ -873,7 +899,8 @@ flag_config(signo)
 	flag_signal('H');
 }
 
-void config()
+void
+config()
 {
 	struct servtab *sep, *new, **sepp;
 	long omask;
@@ -1070,7 +1097,7 @@ void
 unregisterrpc(sep)
 	struct servtab *sep;
 {
-        int i;
+        u_int i;
         struct servtab *sepp;
 	long omask;
 
@@ -1198,7 +1225,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		umask(mask);
 	}
         if (sep->se_rpc) {
-		int i;
+		u_int i;
 		socklen_t len = sep->se_ctrladdr_size;
 
 		if (sep->se_family != AF_INET) {
@@ -1263,8 +1290,9 @@ ipsecsetup(sep)
 	}
 
 	if (!sep->se_policy || sep->se_policy[0] == '\0') {
-		policy_in = "in entrust";
-		policy_out = "out entrust";
+		static char def_in[] = "in entrust", def_out[] = "out entrust";
+		policy_in = def_in;
+		policy_out = def_out;
 	} else {
 		if (!strncmp("in", sep->se_policy, 2))
 			policy_in = sep->se_policy;
@@ -1327,7 +1355,7 @@ close_sep(sep)
 
 int
 matchservent(name1, name2, proto)
-	char *name1, *name2, *proto;
+	const char *name1, *name2, *proto;
 {
 	char **alias, *p;
 	struct servent *se;
@@ -1931,10 +1959,12 @@ nextline(fd)
 
 char *
 newstr(cp)
-	char *cp;
+	const char *cp;
 {
-	if ((cp = strdup(cp ? cp : "")))
-		return (cp);
+	char *cr;
+
+	if ((cr = strdup(cp != NULL ? cp : "")))
+		return (cr);
 	syslog(LOG_ERR, "strdup: %m");
 	exit(EX_OSERR);
 }
@@ -1942,7 +1972,7 @@ newstr(cp)
 #ifdef OLD_SETPROCTITLE
 void
 inetd_setproctitle(a, s)
-	char *a;
+	const char *a;
 	int s;
 {
 	int size;
@@ -1966,7 +1996,7 @@ inetd_setproctitle(a, s)
 #else
 void
 inetd_setproctitle(a, s)
-	char *a;
+	const char *a;
 	int s;
 {
 	socklen_t size;
@@ -1985,13 +2015,10 @@ inetd_setproctitle(a, s)
 #endif
 
 
-/*
- * Internet services provided internally by inetd:
- */
-
-int check_loop(sa, sep)
-	struct sockaddr *sa;
-	struct servtab *sep;
+int
+check_loop(sa, sep)
+	const struct sockaddr *sa;
+	const struct servtab *sep;
 {
 	struct servtab *se2;
 	char pname[INET6_ADDRSTRLEN];
@@ -2002,13 +2029,13 @@ int check_loop(sa, sep)
 
 		switch (se2->se_family) {
 		case AF_INET:
-			if (((struct sockaddr_in *)sa)->sin_port ==
+			if (((const struct sockaddr_in *)sa)->sin_port ==
 			    se2->se_ctrladdr4.sin_port)
 				goto isloop;
 			continue;
 #ifdef INET6
 		case AF_INET6:
-			if (((struct sockaddr_in *)sa)->sin_port ==
+			if (((const struct sockaddr_in *)sa)->sin_port ==
 			    se2->se_ctrladdr4.sin_port)
 				goto isloop;
 			continue;
@@ -2034,8 +2061,8 @@ int check_loop(sa, sep)
  */
 void
 print_service(action, sep)
-	char *action;
-	struct servtab *sep;
+	const char *action;
+	const struct servtab *sep;
 {
 	fprintf(stderr,
 	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s"
@@ -2086,7 +2113,7 @@ CHash	CHashAry[CPMHSIZE];
 
 int
 cpmip(sep, ctrl)
-	struct servtab *sep;
+	const struct servtab *sep;
 	int ctrl;
 {
 	struct sockaddr_storage rss;
@@ -2106,22 +2133,22 @@ cpmip(sep, ctrl)
 		int cnt = 0;
 		CHash *chBest = NULL;
 		unsigned int ticks = t / CHTGRAN;
-		struct sockaddr_in *sin;
+		struct sockaddr_in *sin4;
 #ifdef INET6
 		struct sockaddr_in6 *sin6;
 #endif
 
-		sin = (struct sockaddr_in *)&rss;
+		sin4 = (struct sockaddr_in *)&rss;
 #ifdef INET6
 		sin6 = (struct sockaddr_in6 *)&rss;
 #endif
 		{
 			char *p;
-			int i, addrlen;
+			int addrlen;
 
 			switch (rss.ss_family) {
 			case AF_INET:
-				p = (char *)&sin->sin_addr;
+				p = (char *)&sin4->sin_addr;
 				addrlen = sizeof(struct in_addr);
 				break;
 #ifdef INET6
@@ -2145,7 +2172,7 @@ cpmip(sep, ctrl)
 
 			if (rss.ss_family == AF_INET &&
 			    ch->ch_Family == AF_INET &&
-			    sin->sin_addr.s_addr == ch->ch_Addr4.s_addr &&
+			    sin4->sin_addr.s_addr == ch->ch_Addr4.s_addr &&
 			    ch->ch_Service && strcmp(sep->se_service,
 			    ch->ch_Service) == 0) {
 				chBest = ch;
@@ -2169,11 +2196,11 @@ cpmip(sep, ctrl)
 		}
 		if ((rss.ss_family == AF_INET &&
 		     (chBest->ch_Family != AF_INET ||
-		      sin->sin_addr.s_addr != chBest->ch_Addr4.s_addr)) ||
+		      sin4->sin_addr.s_addr != chBest->ch_Addr4.s_addr)) ||
 		    chBest->ch_Service == NULL ||
 		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
-			chBest->ch_Family = sin->sin_family;
-			chBest->ch_Addr4 = sin->sin_addr;
+			chBest->ch_Family = sin4->sin_family;
+			chBest->ch_Addr4 = sin4->sin_addr;
 			if (chBest->ch_Service)
 				free(chBest->ch_Service);
 			chBest->ch_Service = strdup(sep->se_service);
