@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Thu Jan 26 14:12:21 1995]
+ * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Sun Feb 26 13:28:00 1995]
  *
  */
 
@@ -60,6 +60,7 @@
  *	-hm	PR #399, patch from Bill Sommerfeld: Return with PCVT_META_ESC
  *	-hm	allow keyboard-less kernel boot for serial consoles and such ..
  *	-hm	patch from Lon Willett for led-update and showkey()
+ *	-hm	patch from Lon Willett to fix mapping of Control-R scancode
  *
  *---------------------------------------------------------------------------*/
 
@@ -104,7 +105,7 @@ u_char rawkeybuf[80];
 
 #if PCVT_SHOWKEYS
 /*---------------------------------------------------------------------------*
- *	keyboard debugging: put kbd communication into a display buffer
+ *	keyboard debugging: put kbd communication char into some buffer
  *---------------------------------------------------------------------------*/
 static void showkey (char delim, u_char val)
 {
@@ -136,17 +137,16 @@ static void showkey (char delim, u_char val)
 #endif	/* PCVT_SHOWKEYS */
 
 /*---------------------------------------------------------------------------*
- *	function bound to control function key 12
+ *	function to switch to another virtual screen
  *---------------------------------------------------------------------------*/
 static void
 do_vgapage(int page)
 {
-	if(critical_scroll)
-		switch_page = page;
+	if(critical_scroll)		/* executing critical region ? */
+		switch_page = page;	/* yes, auto switch later */
 	else
-		vgapage(page);
+		vgapage(page);		/* no, switch now */
 }
-
 
 
 /*
@@ -208,13 +208,15 @@ update_led(void)
 #if !PCVT_NO_LED_UPDATE
 
 	/* Don't update LED's unless necessary. */
+
 	int new_ledstate = ((vsp->scroll_lock) |
 			    (vsp->num_lock * 2) |
 			    (vsp->caps_lock * 4));
 
-	if (new_ledstate != ledstate) {
-		   
-		if(kbd_cmd(KEYB_C_LEDS) != 0) {
+	if (new_ledstate != ledstate)
+	{
+		if(kbd_cmd(KEYB_C_LEDS) != 0)
+		{
 			printf("Keyboard LED command timeout\n");
 			return;
 		}
@@ -229,6 +231,7 @@ update_led(void)
 #if PCVT_UPDLED_LOSES_INTR
 		if (lost_intr_timeout_queued)
 			untimeout (check_for_lost_intr, (void *)NULL);
+
 		timeout (check_for_lost_intr, (void *)NULL, hz);
 		lost_intr_timeout_queued = 1;
 #endif /* PCVT_UPDLED_LOSES_INTR */
@@ -238,7 +241,7 @@ update_led(void)
 }
 
 /*---------------------------------------------------------------------------*
- *	set typamatic rate
+ *	set typematic rate
  *---------------------------------------------------------------------------*/
 static void
 settpmrate(int rate)
@@ -506,7 +509,7 @@ kbd_code_init(void)
 /*---------------------------------------------------------------------------*
  *	init keyboard code, this initializes the keyboard subsystem
  *	just "a bit" so the very very first ddb session is able to
- *	get proper keystrokes, in other words, it's a hack ....
+ *	get proper keystrokes - in other words, it's a hack ....
  *---------------------------------------------------------------------------*/
 void
 kbd_code_init1(void)
@@ -1321,9 +1324,11 @@ regular:
 		key = 0;
 	else
 		key = kbd_status.extended ? extscantokey[dt] : scantokey[dt];
-	if(kbd_status.ext1 && key == 58)
+
+	if(kbd_status.ext1 && key == 64)
 		/* virtual control key */
 		key = 129;
+
 	kbd_status.extended = kbd_status.ext1 = 0;
 
 #if PCVT_CTRL_ALT_DEL		/*   Check for cntl-alt-del	*/
@@ -1494,8 +1499,10 @@ regular:
 		kbd_lastkey = key;
 	
 	cp = xlatkey2ascii(key);	/* have a key */
+
 	if(cp == NULL && !noblock)
 		goto loop;
+
 	return cp;
 }
 

@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_conf.h, 3.20, Last Edit-Date: [Wed Jan 11 09:20:27 1995]
+ * @(#)pcvt_conf.h, 3.20, Last Edit-Date: [Sun Feb 26 12:48:45 1995]
  *
  */
 
@@ -43,12 +43,13 @@
  *	-hm	introduced pcvt_conf.h
  *	-hm	re-integrated selfconfiguration for NetBSD from Onno
  *	-hm	patch from Onno for NetBSD-current
+ *	-hm	removed PCVT_FAKE_SYSCONS10
  *
  *---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------
  *
- * from: Onno van der Linden    c/o   vdlinden@fwi.uva.nl
+ * from: Onno van der Linden    c/o   frank@fwi.uva.nl
  *
  * Here's an idea how to automatically detect the version of NetBSD pcvt is
  * being compiled on:
@@ -135,13 +136,15 @@
  *		PCVT_FREEBSD = 110	for FreeBSD 1.1-Release
  *		PCVT_FREEBSD = 115	for FreeBSD 1.1.5.1-Release
  *		PCVT_FREEBSD = 200	for FreeBSD 2.0-Release
- *		PCVT_FREEBSD = 299	for PRE-3.0 FreeBSD-current
+ *		PCVT_FREEBSD = 210	for FreeBSD 2.1-Release
  *
  *======================================================================*
  *			3 8 6 B S D					*
  *======================================================================*
  *		
  *	options "PCVT_386BSD" enables support for 386BSD + pk 0.2.4
+ *                            NOTE: the 386BSD pcvt is unsupported and
+ *                            will be removed in a future release
  *
  */
 	
@@ -282,8 +285,9 @@
 #endif				/* like this, try to enable this option	*/
 
 #if !defined PCVT_PCBURST	/* ---------- DEFAULT: 256 ------------ */
-# define PCVT_PCBURST 256	/* NETBSD only: this is the number of	*/
-#endif				/* characters handled as a burst in	*/
+# define PCVT_PCBURST 256	/* NETBSD and FreeBSD >= 2.0 only: this */
+#endif				/* is the number of output characters	*/
+				/* handled together as a burst in 	*/
 				/* routine pcstart(), file pcvt_drv.c	*/
 
 #if !defined PCVT_SCANSET	/* ---------- DEFAULT: 1 -------------- */
@@ -310,9 +314,9 @@
 				/* move as an ioctl call to scon ....	*/
 				
 #if !defined PCVT_NULLCHARS	/* ---------- DEFAULT: ON ------------- */
-# define PCVT_NULLCHARS 1	/* allow the keyboard to send null 	*/
-#elif PCVT_NULLCHARS != 0	/* program. this has the side effect,	*/
-# undef PCVT_NULLCHARS		/* (0x00) characters to the calling	*/
+# define PCVT_NULLCHARS 1	/* allow the keyboard to send null	*/
+#elif PCVT_NULLCHARS != 0	/* (0x00) characters to the calling	*/
+# undef PCVT_NULLCHARS		/* program. this has the side effect	*/
 # define PCVT_NULLCHARS 1	/* that every undefined key also sends	*/
 #endif				/* out nulls. take it as experimental	*/
 				/* code, this behaviour will change in	*/
@@ -347,7 +351,7 @@
 #elif PCVT_NEEDPG != 0		/* if you run a system with patchkit	*/
 # undef PCVT_NEEDPG		/* 0.2.1 or earlier you must define this*/
 # define PCVT_NEEDPG 1		/*   OBSOLETE, just for 386BSD 0.1 !!   */
-#endif
+#endif				/* will be removed in a future release  */
 
 #if !defined PCVT_SETCOLOR	/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_SETCOLOR 0	/* enable making colors settable. this	*/
@@ -424,7 +428,17 @@
 #elif PCVT_NOFASTSCROLL != 0	/* This is done by changing the CRTC	*/
 # undef PCVT_NOFASTSCROLL	/* screen start address for scrolling	*/
 # define PCVT_NOFASTSCROLL 1	/* and using 2 times the screen size as	*/
-#endif				/* buffer.				*/
+#endif				/* buffer. The fastscroll code works	*/
+				/* ONLY for VGA/EGA/CGA because it uses */
+				/* the crtc for hardware scrolling and	*/
+				/* therefore needs more than the one	*/
+				/* page video memory MDA and most 	*/
+				/* Hercules boards support.		*/
+				/* If you run pcvt ONLY on MDA/Hercules */
+				/* you should disable fastscroll to save*/
+				/* the time to decide which board you	*/
+				/* are running pcvt on at runtime.	*/
+				/*     [see roll_up() and roll_down().]	*/
 
 #if !defined PCVT_SLOW_INTERRUPT/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_SLOW_INTERRUPT 0	/* If off, protecting critical regions	*/
@@ -436,23 +450,14 @@
 #ifdef XSERVER
 
 #if !defined PCVT_USL_VT_COMPAT	/* ---------- DEFAULT: ON ------------- */
-# define PCVT_USL_VT_COMPAT 1	/* emulate some compatibility ioctls	*/
-#elif PCVT_USL_VT_COMPAT != 0	/* this is not a full USL VT compatibi-	*/
-# undef PCVT_USL_VT_COMPAT	/* lity, but just enough to fool XFree86*/
-# define PCVT_USL_VT_COMPAT 1	/* release 2 (or higher) in believing	*/
-#endif				/* it runs on syscons and thus enabling	*/
-				/* the stuff to switch VTs within an X	*/
-				/* session				*/
-
-#if !defined PCVT_FAKE_SYSCONS10/* ---------- DEFAULT: OFF ------------ */
-# define PCVT_FAKE_SYSCONS10 0	/* fake syscons 1.0; this causes XFree86*/
-#elif PCVT_FAKE_SYSCONS10 != 0	/* 2.0 to use the VT_OPENQRY ioctl in	*/
-# undef PCVT_FAKE_SYSCONS10	/* order to test for a free vt to use	*/
-# define PCVT_FAKE_SYSCONS10 1	/* This is NOT REQUIRED, and not enabled*/
-#endif				/* by default due to the possible	*/
-				/* confusion for other utilities.	*/
-				/* NB: XFree86 (tm) version 2.1 will be	*/
-				/* fixed w.r.t. VT_OPENQRY		*/
+# define PCVT_USL_VT_COMPAT 1	/* this option enables multiple virtual */
+#elif PCVT_USL_VT_COMPAT != 0	/* screen support for XFree86. If set	*/
+# undef PCVT_USL_VT_COMPAT	/* to off, support for a "classic"	*/
+# define PCVT_USL_VT_COMPAT 1	/* single screen only X server is	*/
+#endif				/* compiled in. If enabled, most of the	*/
+				/* ioctl's from SYSV/USL are supported	*/
+				/* to run multiple X servers and/or 	*/
+				/* character terminal sessions.		*/
 
 #endif /* XSERVER */				
 
