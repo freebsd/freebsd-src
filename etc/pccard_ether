@@ -1,8 +1,8 @@
 #!/bin/sh -
 #
-# pccardether interfacename [ifconfig option]
+# pccard_ether interfacename [ifconfig option]
 #
-# example: pccardether ep0 -link0
+# example: pccard_ether ep0 -link0
 #
 
 # Suck in the /etc/rc.conf variables
@@ -29,6 +29,7 @@ fi
 if [ "x${static_routes}" != "x" ]; then
 	# flush beforehand, just in case....
         route -n flush
+	arp -d -a
 	for i in ${static_routes}; do
 		eval route_args=\$route_${i}
 		route add ${route_args}
