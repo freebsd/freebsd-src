@@ -194,7 +194,7 @@ int setId;
     MCSetT	*set;
     long	lo, hi, cur, dir;
 
-    if (!cat || setId <= 0) return(NULL);
+    if (cat == NULL || setId <= 0) return(NULL);
 
     lo = 0;
     if (setId - 1 < cat->numSets) {
@@ -220,8 +220,8 @@ int setId;
 	if (hi - lo == 1) cur += dir;
 	else cur += ((hi - lo) / 2) * dir;
     }
-    if (set->invalid)
-	(void) loadSet(cat, set);
+    if (set->invalid && loadSet(cat, set) <= 0)
+	return(NULL);
     return(set);
 }
 
@@ -233,7 +233,7 @@ int msgId;
     MCMsgT	*msg;
     long	lo, hi, cur, dir;
 
-    if (!set || set->invalid || msgId <= 0) return(NULL);
+    if (set == NULL || set->invalid || msgId <= 0) return(NULL);
 
     lo = 0;
     if (msgId - 1 < set->numMsgs) {
@@ -326,7 +326,7 @@ __const char *catpath;
     off_t	nextSet;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
-    if (!cat) return(NLERR);
+    if (cat == NULL) return(NLERR);
     cat->loadType = MCLoadBySet;
 
     if ((cat->fd = _open(catpath, O_RDONLY)) < 0) {
@@ -359,7 +359,7 @@ __const char *catpath;
 
     cat->numSets = header.numSets;
     cat->sets = (MCSetT *) malloc(sizeof(MCSetT) * header.numSets);
-    if (!cat->sets) NOSPACE();
+    if (cat->sets == NULL) NOSPACE();
 
     nextSet = header.firstSet;
     for (i = 0; i < cat->numSets; ++i) {
