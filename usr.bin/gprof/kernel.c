@@ -60,4 +60,5 @@ kernel_getnfile(const char *unused, char ***defaultEs)
 	npe->value = -1;
 
 	*defaultEs = excludes;
+	return (0);
 }
