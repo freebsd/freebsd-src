@@ -35,6 +35,7 @@
  *  Code borrowed from various nexus.c and uninorth.c :-)
  */
 
+#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -55,6 +56,13 @@
 #include <machine/nexusvar.h>
 
 #include <powerpc/psim/iobusvar.h>
+
+struct iobus_softc {
+	phandle_t     sc_node;
+	vm_offset_t   sc_addr;
+	vm_offset_t   sc_size;
+	struct        rman sc_mem_rman;
+};
 
 static MALLOC_DEFINE(M_IOBUS, "iobus", "iobus device information");
 
