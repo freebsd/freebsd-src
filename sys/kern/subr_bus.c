@@ -312,9 +312,8 @@ device_sysctl_fini(device_t dev)
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
 static int devctl_disable = 0;
 TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0, sysctl_devctl_disable,
-    "I", "devctl disable");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    sysctl_devctl_disable, "I", "devctl disable");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
