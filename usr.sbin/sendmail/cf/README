@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.120 (Berkeley) 6/14/97
+		@(#)README	8.122 (Berkeley) 7/6/97
 
 
 This document describes the sendmail configuration files being used
@@ -443,8 +443,8 @@ usenet		Usenet (network news) delivery.  If this is specified,
 		and may be considered a security problem.
 
 fax		Facsimile transmission.  This is experimental and based
-		on Sam Leffler's FlexFAX software.  For more information,
-		see below.
+		on Sam Leffler's HylaFAX software.  For more information,
+		see http://www.vix.com/hylafax/.
 
 pop		Post Office Protocol.
 
@@ -1297,133 +1297,6 @@ In general, file giveaways are a mistake -- if you can turn them
 off I recommend you do so.
 
 
-+------------------+
-| FlexFAX SOFTWARE |
-+------------------+
-
-Sam Leffler's FlexFAX software is still in beta test -- but he expects a
-public version out "later this week" [as of 3/1/93].  The following
-blurb is direct from Sam:
-
-	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.7 1997/06/27 14:52:36 peter Exp $
-
-	How To Obtain This Software (in case all you get is this file)
-	--------------------------------------------------------------
-	The source code is available for public ftp on
-	    sgi.com			sgi/fax/v2.1.src.tar.Z
-		(192.48.153.1)
-
-	You can also obtain inst'able images for Silicon Graphics machines from
-	    sgi.com			sgi/fax/v2.1.inst.tar
-		(192.48.153.1)
-
-	For example,
-	    % ftp -n sgi.com
-	    ....
-	    ftp> user anonymous
-	    ... <type in password>
-	    ftp> cd sgi/fax
-	    ftp> binary
-	    ftp> get v2.1.src.tar.Z
-
-	In general, the latest version of the 2.1 release of the software is
-	always available as "v2.1.src.tar.Z" or "v2.1.inst.tar" in the ftp
-	directory.  This file is a link to the appropriate released version (so
-	don't waste your time retrieving the linked file as well!) Any files of
-	the form v2.1.*.patch are shell scripts that can be used to patch older
-	versions of the source code.  For example, the file v2.1.0.patch would
-	contain patches to update v2.1.0.tar.Z.  (Note to beta testers: this is
-	different than the naming conventions used during beta testing.) Patch
-	files only work to go between consecutive versions, so if you are
-	multiple versions behind the latest release, you will need to apply
-	each patch file between your current version and the latest.
-
-
-	Obtaining the Software by Electronic Mail
-	-----------------------------------------
-	Do not send me requests for the software; they will be ignored (without
-	response).  If you cannot use FTP at all, there is a service called
-	"ftpmail" available from gatekeeper.dec.com:  you can send e-mail to
-	this machine and it will use FTP to retrieve files for you and send you
-	the files back again via e-mail.  To find out more about the ftpmail
-	service, send a message to "ftpmail@gatekeeper.dec.com" whose body
-	consists of the single line "help".
-
-
-	Obtaining the Software Within Silicon Graphics
-	----------------------------------------------
-	Internal to Silicon Graphics there are inst'able images on the host
-	flake.asd in the directory /usr/dist.  Thus you can do something like:
-
-	    % inst -f flake.asd.sgi.com:/usr/dist/flexfax
-
-	to install the latest version of the software on your machine.
-
-
-	What to do Once You've Retrieved Stuff
-	--------------------------------------
-	The external distributions come in a compressed or uncompressed tar
-	file.  To extract the source distribution:
-
-	    % zcat v2.1.src.tar.Z | tar xf -
-
-	(uncompress and extract individual files in current directory).  To
-	unpack and install the client portion of the inst'able distribution:
-
-	    % mkdir dist
-	    % cd dist; tar xf ../v2.1.inst.tar; cd ..
-	    % inst -f dist/flexfax
-	    ...
-	    inst> go
-
-	(Note, the dist subdirectory is because some versions of inst fail if
-	the files are in the current directory.) Server binaries are also
-	included in the inst'able images as flexfax.server.*.  They are not
-	installed by default, so to get them also you need to do:
-
-	    % inst -f flexfax
-	    ...
-	    inst> install flexfax.server.*
-	    inst> go
-
-	The SGI binaries were built for Version 4.0.5H of the IRIX operating
-	system.  They should work w/o problem on earlier versions of the
-	system, but I have not fully tested this.  Also, note that to install a
-	server on an SGI machine, you need to have installed the Display
-	PostScript execution environment product (dps_eoe).  Otherwise, the fax
-	server will not be able to convert PostScript to facsimile for
-	transmission.
-
-	If you are working from the source distribution, look at the file
-	README in the top of the source tree.  If you are working from the inst
-	images, the subsystem flexfax.man.readme contains the README file and
-	other useful pieces of information--the installed files are placed in
-	the directory /usr/local/doc/flexfax).  Basically you will need to run
-	the faxaddmodem script to setup and configure your fax modem.  Consult
-	the README file and the manual page for faxaddmodem for information.
-
-
-	FlexFAX Mail List
-	-----------------
-	A mailing list for users of this software is located on sgi.com.
-	If you want to join this mailing list or have a list-related request
-	such as getting your name removed from it, send a request to
-
-	    majordomo@whizzer.wpd.sgi.com
-
-	For example, to subscribe, send the line "subscribe flexfax" in
-	the body of your message.  The line "help" will return a list of
-	the commands understood by the mailing list management software.
-
-	Submissions (including bug reports) should be directed to:
-
-	    flexfax@sgi.com
-
-	When corresponding about this software please always specify what
-	version you have, what system you're running on, and, if the problem is
-	specific to your modem, identify the modem and firmware revision.
-
-
 +--------------------------------+
 | TWEAKING CONFIGURATION OPTIONS |
 +--------------------------------+
@@ -1905,7 +1778,7 @@ MAILERS
    1	[e]smtp, relay	SMTP channel
    2	uucp-*		UNIX-to-UNIX Copy Program
    3	netnews		Network News delivery
-   4	fax		Sam Leffler's FlexFAX software
+   4	fax		Sam Leffler's HylaFAX software
    5	mail11		DECnet mailer
 
 

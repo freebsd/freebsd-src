@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.35 (Berkeley) 6/10/97";
+static char sccsid[] = "@(#)makemap.c	8.37 (Berkeley) 7/10/97";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -137,7 +137,7 @@ main(argc, argv)
 	RunAsUid = RealUid = getuid();
 	RunAsGid = RealGid = getgid();
 	pw = getpwuid(RealUid);
-	if (pw != NULL) 
+	if (pw != NULL)
 	{
 		if (strlen(pw->pw_name) > MAXNAME - 1)
 			pw->pw_name[MAXNAME] = 0;
@@ -314,7 +314,7 @@ main(argc, argv)
 
 	if (!notrunc)
 		sff |= SFF_CREAT;
-	switch (type) 
+	switch (type)
 	{
 #ifdef NEWDB
 	  case T_BTREE:
@@ -328,7 +328,7 @@ main(argc, argv)
 		strcpy(dbuf, mapname);
 		if (!ignoresafeties &&
 		    (st = safefile(dbuf, RealUid, RealGid, RealUserName,
-				   sff, S_IWUSR, &std)) != 0) 
+				   sff, S_IWUSR, &std)) != 0)
 		{
 			fprintf(stderr,
 				"%s: could not create: %s\n",
@@ -346,9 +346,8 @@ main(argc, argv)
 			exit(EX_USAGE);
 		}
 		sprintf(dbuf, "%s.dir", mapname);
-		if (!ignoresafeties &&
-		    (st = safefile(dbuf, RealUid, RealGid, RealUserName,
-				   sff, S_IWUSR, &std)) != 0) 
+		if ((st = safefile(dbuf, RealUid, RealGid, RealUserName,
+			   sff, S_IWUSR, &std)) != 0 && !ignoresafeties)
 		{
 			fprintf(stderr,
 				"%s: could not create: %s\n",
@@ -356,14 +355,20 @@ main(argc, argv)
 			exit(EX_CANTCREAT);
 		}
 		sprintf(pbuf, "%s.pag", mapname);
-		if (!ignoresafeties &&
-		    (st = safefile(pbuf, RealUid, RealGid, RealUserName,
-				   sff, S_IWUSR, &stp)) != 0) 
+		if ((st = safefile(pbuf, RealUid, RealGid, RealUserName,
+			   sff, S_IWUSR, &stp)) != 0 && !ignoresafeties)
 		{
 			fprintf(stderr,
 				"%s: could not create: %s\n",
 				pbuf, errstring(st));
 			exit(EX_CANTCREAT);
+		}
+		if (std.st_dev == stp.st_dev && std.st_ino == stp.st_ino)
+		{
+			fprintf(stderr,
+				"%s: cannot run with GDBM\n",
+				mapname);
+			exit(EX_CONFIG);
 		}
 		break;
 #endif
@@ -765,7 +770,7 @@ errstring(err)
 #if HASSTRERROR
 	return strerror(err);
 #else
-	if (err < 0 || err > sys_nerr) 
+	if (err < 0 || err > sys_nerr)
 	{
 		sprintf(errstr, "Error %d", err);
 		return errstr;
