@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.27 1996/11/09 16:46:56 joerg Exp $
+ * $Id: dmenu.c,v 1.28 1996/12/09 08:22:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,7 +36,6 @@
 
 #include "sysinstall.h"
 #include <errno.h>
-#include <sys/types.h>
 
 #define MAX_MENU		15
 
