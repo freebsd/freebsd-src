@@ -1086,20 +1086,23 @@ smp_handle_ipi(struct trapframe *frame)
 	 * secondaries that are added to the system on the fly.
 	 */
 	if (PCPU_GET(cpuid) == hwrpb->rpb_primary_cpu_id) {
-		struct pcs *cpu;
 		u_int cpuid;
 		u_int64_t txrdy;
+#ifdef DIAGNOSTIC
+		struct pcs *cpu;
 		char buf[81];
+#endif
 
 		alpha_mb();
 		while (hwrpb->rpb_txrdy != 0) {
 			cpuid = ffs(hwrpb->rpb_txrdy) - 1;
+#ifdef DIAGNOSTIC
 			cpu = LOCATE_PCS(hwrpb, cpuid);
 			bcopy(&cpu->pcs_buffer.txbuf, buf,
 			    cpu->pcs_buffer.txlen);
 			buf[cpu->pcs_buffer.txlen] = '\0';
 			printf("SMP From CPU%d: %s\n", cpuid, buf);
-
+#endif
 			do {
 				txrdy = hwrpb->rpb_txrdy;
 			} while (atomic_cmpset_64(&hwrpb->rpb_txrdy, txrdy,
@@ -1111,7 +1114,6 @@ smp_handle_ipi(struct trapframe *frame)
 static void
 release_aps(void *dummy __unused)
 {
- 	ktr_mask = (KTR_SMP|KTR_INTR|KTR_PROC|KTR_LOCK);
 	if (bootverbose)
 		printf(__func__ ": releasing secondary CPUs\n");
 	atomic_store_rel_int(&aps_ready, 1);
