@@ -917,15 +917,16 @@ readrest:
 	}
 	vm_page_wakeup(fs.m);
 	vm_page_unlock_queues();
-	mtx_lock_spin(&sched_lock);
-	if (curproc && (curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
+
+	PROC_LOCK(curproc);
+	if ((curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
 		if (hardfault) {
 			curproc->p_stats->p_ru.ru_majflt++;
 		} else {
 			curproc->p_stats->p_ru.ru_minflt++;
 		}
 	}
-	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(curproc);
 
 	/*
 	 * Unlock everything, and return
