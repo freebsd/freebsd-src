@@ -22,7 +22,7 @@ else
 	OBJFORMAT=aout;
 fi
 
-OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /modules/*.ko	\
+OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /boot/kernel/*.ko	\
 	| tr ' ' '\012'					\
 	| egrep -v '(aicasm|genassym)'`			\
 	| tr : ' ' | awk '
