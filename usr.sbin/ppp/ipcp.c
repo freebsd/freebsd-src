@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.42 1998/04/23 03:22:52 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.43 1998/04/23 18:56:14 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -526,8 +526,7 @@ ChooseHisAddr(struct bundle *bundle, const struct in_addr gw)
     LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
               f, inet_ntoa(try));
     if (ipcp_SetIPaddress(bundle, gw, try, 1) == 0) {
-      LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
-                inet_ntoa(try));
+      LogPrintf(LogIPCP, "Selected IP address %s\n", inet_ntoa(try));
       break;
     }
   }
@@ -606,7 +605,7 @@ static void
 IpcpLayerStart(struct fsm * fp)
 {
   /* We're about to start up ! */
-  LogPrintf(LogIPCP, "IpcpLayerStart.\n");
+  LogPrintf(LogIPCP, "%s: IpcpLayerStart.\n", fp->link->name);
 
   /* This is where we should be setting up the interface in DEMAND mode */
 }
@@ -615,7 +614,7 @@ static void
 IpcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  LogPrintf(LogIPCP, "IpcpLayerFinish.\n");
+  LogPrintf(LogIPCP, "%s: IpcpLayerFinish.\n", fp->link->name);
 }
 
 void
@@ -665,7 +664,7 @@ IpcpLayerDown(struct fsm *fp)
   const char *s;
 
   s = inet_ntoa(ipcp->peer_ifip);
-  LogPrintf(LogIsKept(LogLINK) ? LogLINK : LogIPCP, "IpcpLayerDown: %s\n", s);
+  LogPrintf(LogIPCP, "%s: IpcpLayerDown: %s\n", fp->link->name, s);
 
   throughput_stop(&ipcp->throughput);
   throughput_log(&ipcp->throughput, LogIPCP, NULL);
@@ -692,10 +691,9 @@ IpcpLayerUp(struct fsm *fp)
   struct ipcp *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
-  LogPrintf(LogIPCP, "IpcpLayerUp.\n");
+  LogPrintf(LogIPCP, "%s: IpcpLayerUp.\n", fp->link->name);
   snprintf(tbuff, sizeof tbuff, "myaddr = %s ", inet_ntoa(ipcp->my_ip));
-  LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
-	    tbuff, inet_ntoa(ipcp->peer_ip));
+  LogPrintf(LogIPCP, " %s hisaddr = %s\n", tbuff, inet_ntoa(ipcp->peer_ip));
 
   if (ipcp->peer_compproto >> 16 == PROTO_VJCOMP)
     sl_compress_init(&ipcp->vj.cslc, (ipcp->peer_compproto >> 8) & 255);
@@ -731,12 +729,6 @@ static int
 AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 {
   /* Is the given IP in the given range ? */
-  LogPrintf(LogDEBUG, "requested = %x\n", (unsigned)htonl(ipaddr.s_addr));
-  LogPrintf(LogDEBUG, "range = %x\n", (unsigned)htonl(prange->ipaddr.s_addr));
-  LogPrintf(LogDEBUG, "/%x\n", (unsigned)htonl(prange->mask.s_addr));
-  LogPrintf(LogDEBUG, "%x, %x\n",
-            (unsigned)htonl(prange->ipaddr.s_addr & prange->mask.s_addr),
-            (unsigned)htonl(ipaddr.s_addr & prange->mask.s_addr));
   return (prange->ipaddr.s_addr & prange->mask.s_addr) ==
     (ipaddr.s_addr & prange->mask.s_addr) && ipaddr.s_addr;
 }
@@ -761,6 +753,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
+
+    if (length == 0) {
+      LogPrintf(LogIPCP, "%s: IPCP size zero\n", fp->link->name);
+      break;
+    }
+
     if (type < NCFTYPES)
       snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes[type], length);
     else if (type > 128 && type < 128 + NCFTYPES128)
@@ -1065,8 +1063,7 @@ UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
       iplist_setrandpos(&ipcp->cfg.peer_list);
       ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->my_ip);
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
-        LogPrintf(LogWARN, "%s: None available !\n",
-                  ipcp->cfg.peer_list.src);
+        LogPrintf(LogWARN, "%s: None available !\n", ipcp->cfg.peer_list.src);
         return(0);
       }
       ipcp->cfg.peer_range.ipaddr.s_addr = ipcp->peer_ip.s_addr;

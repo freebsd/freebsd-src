@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.30 1998/04/19 23:08:15 brian Exp $
+ * $Id: fsm.c,v 1.27.2.31 1998/04/23 21:50:07 brian Exp $
  *
  *  TODO:
  */
@@ -112,10 +112,10 @@ StoppedTimeout(void *v)
 {
   struct fsm *fp = (struct fsm *)v;
 
-  LogPrintf(fp->LogLevel, "Stopped timer expired\n");
+  LogPrintf(fp->LogLevel, "%s: Stopped timer expired\n", fp->link->name);
   if (fp->OpenTimer.state == TIMER_RUNNING) {
-    LogPrintf(LogWARN, "%s: aborting open delay due to stopped timer\n",
-              fp->name);
+    LogPrintf(LogWARN, "%s: %s: aborting open delay due to stopped timer\n",
+              fp->link->name, fp->name);
     StopTimer(&fp->OpenTimer);
   }
   if (fp->state == ST_STOPPED) {
@@ -155,8 +155,8 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
 static void
 NewState(struct fsm * fp, int new)
 {
-  LogPrintf(fp->LogLevel, "State change %s --> %s\n",
-	    State2Nam(fp->state), State2Nam(new));
+  LogPrintf(fp->LogLevel, "%s: State change %s --> %s\n",
+	    fp->link->name, State2Nam(fp->state), State2Nam(new));
   if (fp->state == ST_STOPPED && fp->StoppedTimer.state == TIMER_RUNNING)
     StopTimer(&fp->StoppedTimer);
   fp->state = new;
@@ -179,8 +179,8 @@ FsmOutput(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count)
   struct mbuf *bp;
 
   if (LogIsKept(fp->LogLevel)) {
-    LogPrintf(fp->LogLevel, "Send%s(%d) state = %s\n", Code2Nam(code),
-              id, State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Send%s(%d) state = %s\n",
+              fp->link->name, Code2Nam(code), id, State2Nam(fp->state));
     switch (code) {
       case CODE_CONFIGREQ:
       case CODE_CONFIGACK:
@@ -232,8 +232,8 @@ FsmOpen(struct fsm * fp)
       NewState(fp, ST_STOPPED);
     } else if (fp->open_mode > 0) {
       if (fp->open_mode > 1)
-        LogPrintf(LogPHASE, "Entering STOPPED state for %d seconds\n",
-                  fp->open_mode);
+        LogPrintf(LogPHASE, "%s: Entering STOPPED state for %d seconds\n",
+                  fp->link->name, fp->open_mode);
       NewState(fp, ST_STOPPED);
       StopTimer(&fp->OpenTimer);
       fp->OpenTimer.load = fp->open_mode * SECTICKS;
@@ -262,6 +262,7 @@ FsmUp(struct fsm * fp)
   switch (fp->state) {
     case ST_INITIAL:
     NewState(fp, ST_CLOSED);
+    LogPrintf(fp->LogLevel, "Using \"%s\" as a transport\n", fp->link->name);
     break;
   case ST_STARTING:
     FsmInitRestartCounter(fp);
@@ -269,7 +270,8 @@ FsmUp(struct fsm * fp)
     NewState(fp, ST_REQSENT);
     break;
   default:
-    LogPrintf(fp->LogLevel, "Oops, Up at %s\n", State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Oops, Up at %s\n",
+              fp->link->name, State2Nam(fp->state));
     break;
   }
 }
@@ -431,8 +433,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   plen = plength(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
-    LogPrintf(LogERROR, "FsmRecvConfigReq: plen (%d) < flen (%d)\n",
-	      plen, flen);
+    LogPrintf(LogERROR, "%s: FsmRecvConfigReq: plen (%d) < flen (%d)\n",
+	      fp->link->name, plen, flen);
     pfree(bp);
     return;
   }
@@ -443,7 +445,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCR in %s.\n", State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Oops, RCR in %s.\n",
+              fp->link->name, State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -451,8 +454,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     pfree(bp);
     return;
   case ST_CLOSING:
-    LogPrintf(fp->LogLevel, "Error: Got ConfigReq while state = %d\n",
-              fp->state);
+    LogPrintf(fp->LogLevel, "%s: Error: Got ConfigReq while state = %s\n",
+              fp->link->name, State2Nam(fp->state));
   case ST_STOPPING:
     pfree(bp);
     return;
@@ -570,7 +573,8 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCN in %s.\n", State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Oops, RCN in %s.\n",
+              fp->link->name, State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -619,7 +623,8 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RTR in %s\n", State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Oops, RTR in %s\n",
+              fp->link->name, State2Nam(fp->state));
     break;
   case ST_CLOSED:
   case ST_STOPPED:
@@ -693,7 +698,8 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCJ in %s.\n", State2Nam(fp->state));
+    LogPrintf(fp->LogLevel, "%s: Oops, RCJ in %s.\n",
+              fp->link->name, State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -748,15 +754,16 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 
   sp = (u_short *) MBUF_CTOP(bp);
   proto = ntohs(*sp);
-  LogPrintf(fp->LogLevel, "-- Protocol 0x%04x (%s) was rejected.\n",
-            proto, hdlc_Protocol2Nam(proto));
+  LogPrintf(fp->LogLevel, "%s: -- Protocol 0x%04x (%s) was rejected!\n",
+            fp->link->name, proto, hdlc_Protocol2Nam(proto));
 
   switch (proto) {
   case PROTO_LQR:
     if (p)
       StopLqr(p, LQM_LQR);
     else
-      LogPrintf(LogERROR, "FsmRecvProtoRej: Not a physical link !\n");
+      LogPrintf(LogERROR, "%s: FsmRecvProtoRej: Not a physical link !\n",
+                fp->link->name);
     break;
   case PROTO_CCP:
     if (fp->proto == PROTO_LCP) {
@@ -778,7 +785,8 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       struct lcp *lcp = fsm2lcp(fp);
 
       if (lcp->want_mrru && lcp->his_mrru) {
-        LogPrintf(LogPHASE, "MP protocol reject is fatal !\n");
+        LogPrintf(LogPHASE, "%s: MP protocol reject is fatal !\n",
+                  fp->link->name);
         FsmClose(fp);
       }
     }
@@ -798,7 +806,8 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     cp = MBUF_CTOP(bp);
     magic = ntohl(*(u_int32_t *)cp);
     if (magic != lcp->his_magic) {
-      LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
+      LogPrintf(fp->LogLevel, "%s: RecvEchoReq: Error: His magic is bad!!\n",
+                fp->link->name);
       /* XXX: We should send terminate request */
     }
     if (fp->state == ST_OPENED) {
@@ -820,8 +829,8 @@ FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     /* Tolerate echo replies with either magic number */
     if (magic != 0 && magic != lcp->his_magic && magic != lcp->want_magic) {
       LogPrintf(LogWARN,
-                "RecvEchoRep: Bad magic: expected 0x%08x,  got: 0x%08x\n",
-	        lcp->his_magic, magic);
+                "%s: RecvEchoRep: Bad magic: expected 0x%08x, got: 0x%08x\n",
+	        fp->link->name, lcp->his_magic, magic);
       /*
        * XXX: We should send terminate request. But poor implementations may
        * die as a result.
@@ -901,13 +910,13 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
   codep = FsmCodes + lhp->code - 1;
   if (lhp->id != fp->reqid && codep->check_reqid &&
       Enabled(fp->bundle, OPT_IDCHECK)) {
-    LogPrintf(fp->LogLevel, "Recv%s(%d), dropped (expected %d)\n",
-	      codep->name, lhp->id, fp->reqid);
+    LogPrintf(fp->LogLevel, "%s: Recv%s(%d), dropped (expected %d)\n",
+	      fp->link->name, codep->name, lhp->id, fp->reqid);
     return;
   }
 
-  LogPrintf(fp->LogLevel, "Recv%s(%d) state = %s\n",
-	    codep->name, lhp->id, State2Nam(fp->state));
+  LogPrintf(fp->LogLevel, "%s: Recv%s(%d) state = %s\n",
+	    fp->link->name, codep->name, lhp->id, State2Nam(fp->state));
 
   if (LogIsKept(LogDEBUG))
     LogMemory();
@@ -925,11 +934,13 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
 void
 NullRecvResetReq(struct fsm *fp)
 {
-  LogPrintf(fp->LogLevel, "Oops - received unexpected reset req\n");
+  LogPrintf(fp->LogLevel, "%s: Oops - received unexpected reset req\n",
+            fp->link->name);
 }
 
 void
 NullRecvResetAck(struct fsm *fp, u_char id)
 {
-  LogPrintf(fp->LogLevel, "Oops - received unexpected reset ack\n");
+  LogPrintf(fp->LogLevel, "%s: Oops - received unexpected reset ack\n",
+            fp->link->name);
 }

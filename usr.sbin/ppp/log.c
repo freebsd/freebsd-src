@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.7 1998/04/10 13:19:10 brian Exp $
+ *	$Id: log.c,v 1.25.2.8 1998/04/14 23:17:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -64,7 +64,7 @@ static const char *LogNames[] = {
 
 #define MSK(n) (1<<((n)-1))
 
-static u_long LogMask = MSK(LogLINK) | MSK(LogCARRIER) | MSK(LogPHASE);
+static u_long LogMask = MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
 static struct prompt *logprompt;	/* Where to log local stuff */

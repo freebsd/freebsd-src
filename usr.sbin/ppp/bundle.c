@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.58 1998/04/23 18:56:07 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.59 1998/04/23 21:50:00 brian Exp $
  */
 
 #include <sys/types.h>
@@ -529,7 +529,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   bundle.cfg.mtu = DEF_MTU;
   bundle.phys_type = type;
 
-  bundle.links = datalink_Create("default", &bundle, &bundle.fsm, type);
+  bundle.links = datalink_Create("deflink", &bundle, &bundle.fsm, type);
   if (bundle.links == NULL) {
     LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
     close(bundle.tun_fd);

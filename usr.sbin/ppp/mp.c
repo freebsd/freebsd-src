@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.10 1998/04/23 21:50:11 brian Exp $
+ *	$Id: mp.c,v 1.1.2.11 1998/04/23 23:50:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -640,6 +640,7 @@ int
 mp_SetEnddisc(struct cmdargs const *arg)
 {
   struct mp *mp = &arg->bundle->ncp.mp;
+  struct in_addr addr;
 
   if (bundle_Phase(arg->bundle) != PHASE_DEAD) {
     LogPrintf(LogWARN, "set enddisc: Only available at phase DEAD\n");
@@ -656,22 +657,28 @@ mp_SetEnddisc(struct cmdargs const *arg)
       strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
       mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
     } else if (!strcasecmp(arg->argv[arg->argn], "ip")) {
-      memcpy(mp->cfg.enddisc.address,
-             &arg->bundle->ncp.ipcp.cfg.my_range.ipaddr.s_addr,
-             sizeof arg->bundle->ncp.ipcp.my_ip.s_addr);
+      if (arg->bundle->ncp.ipcp.my_ifip.s_addr == INADDR_ANY)
+        addr = arg->bundle->ncp.ipcp.my_ip;
+      else
+        addr = arg->bundle->ncp.ipcp.my_ifip;
+      memcpy(mp->cfg.enddisc.address, &addr.s_addr, sizeof addr.s_addr);
       mp->cfg.enddisc.class = ENDDISC_IP;
       mp->cfg.enddisc.len = sizeof arg->bundle->ncp.ipcp.my_ip.s_addr;
     } else if (!strcasecmp(arg->argv[arg->argn], "mac")) {
       struct sockaddr_dl hwaddr;
       int s;
 
+      if (arg->bundle->ncp.ipcp.my_ifip.s_addr == INADDR_ANY)
+        addr = arg->bundle->ncp.ipcp.my_ip;
+      else
+        addr = arg->bundle->ncp.ipcp.my_ifip;
+
       s = ID0socket(AF_INET, SOCK_DGRAM, 0);
       if (s < 0) {
         LogPrintf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
         return 2;
       }
-      if (get_ether_addr(s, arg->bundle->ncp.ipcp.cfg.my_range.ipaddr,
-                         &hwaddr)) {
+      if (get_ether_addr(s, addr, &hwaddr)) {
         mp->cfg.enddisc.class = ENDDISC_MAC;
         memcpy(mp->cfg.enddisc.address, hwaddr.sdl_data + hwaddr.sdl_nlen,
                hwaddr.sdl_alen);

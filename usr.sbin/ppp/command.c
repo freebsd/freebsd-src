@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.68 1998/04/23 03:22:47 brian Exp $
+ * $Id: command.c,v 1.131.2.69 1998/04/23 21:50:05 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -452,7 +452,7 @@ static struct cmdtab const Commands[] = {
   "Set parameters", "set[up] var value"},
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
   "Run a subshell", "shell|! [sh command]"},
-  {"show", NULL, ShowCommand, LOCAL_AUTH,
+  {"show", NULL, ShowCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show status and stats", "show var"},
   {"term", NULL, TerminalCommand, LOCAL_AUTH | LOCAL_CX,
   "Enter terminal mode", "term"},
@@ -513,7 +513,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/23 03:22:47 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/23 21:50:05 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1603,7 +1603,7 @@ ChooseLink(struct cmdargs const *arg)
 {
   if (arg->cx)
     return &arg->cx->physical->link;
-  else if (arg->bundle->ncp.mp.active)
+  else if (arg->bundle->ncp.mp.cfg.mrru)
     return &arg->bundle->ncp.mp.link;
   else {
     struct datalink *dl = bundle2datalink(arg->bundle, NULL);

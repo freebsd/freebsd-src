@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.44 1998/04/23 03:22:55 brian Exp $
+ * $Id: lcp.c,v 1.55.2.45 1998/04/23 18:55:50 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -269,7 +269,8 @@ LcpSendConfigReq(struct fsm *fp)
   struct mp *mp;
 
   if (!p) {
-    LogPrintf(LogERROR, "LcpSendConfigReq: Not a physical link !\n");
+    LogPrintf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
+              fp->link->name);
     return;
   }
 
@@ -360,7 +361,7 @@ LcpLayerStart(struct fsm *fp)
   /* We're about to start up ! */
   struct lcp *lcp = fsm2lcp(fp);
 
-  LogPrintf(LogLCP, "LcpLayerStart\n");
+  LogPrintf(LogLCP, "%s: LcpLayerStart\n", fp->link->name);
   lcp->LcpFailedMagic = 0;
 }
 
@@ -368,7 +369,7 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  LogPrintf(LogLCP, "LcpLayerFinish\n");
+  LogPrintf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
 }
 
 static void
@@ -378,7 +379,7 @@ LcpLayerUp(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
 
-  LogPrintf(LogLCP, "LcpLayerUp\n");
+  LogPrintf(LogLCP, "%s: LcpLayerUp\n", fp->link->name);
   async_SetLinkParams(&p->async, lcp);
   StartLqm(lcp);
   hdlc_StartTimer(&p->hdlc);
@@ -390,7 +391,7 @@ LcpLayerDown(struct fsm *fp)
   /* About to come down */
   struct physical *p = link2physical(fp->link);
 
-  LogPrintf(LogLCP, "LcpLayerDown\n");
+  LogPrintf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
   hdlc_StopTimer(&p->hdlc);
   StopLqrTimer(p);
 }
@@ -411,6 +412,11 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
+
+    if (length == 0) {
+      LogPrintf(LogLCP, "%s: LCP size zero\n", fp->link->name);
+      break;
+    }
 
     if (type < 0 || type >= NCFTYPES)
       snprintf(request, sizeof request, " <%d>[%d]", type, length);
@@ -833,11 +839,6 @@ reqreject:
         if (length != cp[1])
           length = 0;		/* force our way out of the loop */
       }
-      break;
-    }
-    /* to avoid inf. loop */
-    if (length == 0) {
-      LogPrintf(LogLCP, "LCP size zero\n");
       break;
     }
     plen -= length;

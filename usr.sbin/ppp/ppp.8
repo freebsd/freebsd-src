@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.21 1998/04/23 18:56:00 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.22 1998/04/23 23:50:40 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -938,7 +938,7 @@ ui-gate:
  set device ui-gate:ppp-in
  set dial
  set timeout 30
- set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
+ set log Phase Chat Connect hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.2.0 255.255.255.0 10.0.4.1
 .Ed
@@ -1536,7 +1536,6 @@ is able to generate the following log info either via
 or directly to the screen:
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
-.It Li Carrier	Log Chat lines with 'CARRIER'
 .It Li CCP	Generate a CCP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
@@ -1546,7 +1545,6 @@ or directly to the screen:
 .It Li ID0	Log all function calls specifically made as user id 0.
 .It Li IPCP	Generate an IPCP packet trace
 .It Li LCP	Generate an LCP packet trace
-.It Li Link	Log address assignments and link up/down events
 .It Li LQM	Generate LQR report
 .It Li Phase	Phase transition log output
 .It Li TCP/IP	Dump all TCP/IP packets
@@ -1562,7 +1560,7 @@ The
 .Dq set log
 command allows you to set the logging output level.  Multiple levels
 can be specified on a single command line.  The default is equivalent to
-.Dq set log Carrier Link Phase .
+.Dq set log Phase .
 .Pp
 It is also possible to log directly to the screen.  The syntax is
 the same except that the word
@@ -1571,7 +1569,7 @@ should immediately follow
 .Dq set log .
 The default is
 .Dq set log local
-(ie. no direct screen logging).
+(ie. only the un-maskable warning, error and alert output).
 .Pp
 If The first argument to
 .Dq set log Op local
@@ -1580,12 +1578,12 @@ not cleared, for example:
 .Bd -literal -offset indent
 PPP ON awfulhak> set log carrier link phase
 PPP ON awfulhak> show log
-Log:   Carrier Link Phase Warning Error Alert
+Log:   Phase Warning Error Alert
 Local: Warning Error Alert
-PPP ON awfulhak> set log -link +tcp/ip -warning
+PPP ON awfulhak> set log +tcp/ip -warning
 PPP ON awfulhak> set log local +command
 PPP ON awfulhak> show log
-Log:   Carrier Phase TCP/IP Warning Error Alert
+Log:   Phase TCP/IP Warning Error Alert
 Local: Command Warning Error Alert
 .Ed
 .Pp
