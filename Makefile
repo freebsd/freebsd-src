@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.200 1998/06/07 10:50:28 sos Exp $
+#	$Id: Makefile,v 1.201 1998/06/09 07:19:13 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -778,6 +778,7 @@ build-tools:
 		usr.bin/find		\
 		usr.bin/gencat		\
 		usr.bin/id		\
+		usr.bin/join		\
 		usr.bin/lorder		\
 		usr.bin/m4		\
 		usr.bin/mkdep		\
