@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.19 1994/02/13 08:29:33 davidg Exp $
+ *	$Id: pmap.c,v 1.20 1994/03/07 11:38:34 davidg Exp $
  */
 
 /*
@@ -283,7 +283,8 @@ pmap_use_pt(pmap, va)
 		return; 
 
 	pt = (vm_offset_t) vtopte(va);
-	vm_page_wire( pmap_pte_vm_page(pmap, pt));
+	/* vm_page_wire( pmap_pte_vm_page(pmap, pt)); */
+	vm_page_hold( pmap_pte_vm_page(pmap, pt));
 }
 
 /*
@@ -300,7 +301,8 @@ pmap_unuse_pt(pmap, va)
 		return; 
 
 	pt = (vm_offset_t) vtopte(va);
-	vm_page_unwire( pmap_pte_vm_page(pmap, pt));
+/*	vm_page_unwire( pmap_pte_vm_page(pmap, pt)); */
+	vm_page_unhold( pmap_pte_vm_page(pmap, pt));
 }
 
 /* [ macro again?, should I force kstack into user map here? -wfj ] */
@@ -770,9 +772,8 @@ pmap_remove_entry(pmap, pv, va)
 	vm_offset_t va;
 {
 	pv_entry_t npv;
-	int s;
 	int wired;
-	s = splimp();
+	disable_intr();
 	if (pmap == pv->pv_pmap && va == pv->pv_va) {
 		npv = pv->pv_next;
 		if (npv) {
@@ -793,7 +794,7 @@ pmap_remove_entry(pmap, pv, va)
 			free_pv_entry(npv);
 		} 
 	}
-	splx(s);
+	enable_intr();
 }
 
 /*
@@ -1408,11 +1409,11 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			}
 			
 			if ((p->flags & (PG_BUSY|PG_FICTITIOUS)) == 0 ) {
-				vm_page_wire(p);
+				vm_page_hold(p);
 				v = i386_trunc_page(((vm_offset_t)vtopte( addr+tmpoff)));
 				/* a fault might occur here */
 				*(volatile char *)v += 0;
-				vm_page_unwire(p);
+				vm_page_unhold(p);
 				pmap_enter_quick(pmap, addr+tmpoff, VM_PAGE_TO_PHYS(p));
 			}
 			p = (vm_page_t) queue_next(&p->listq);
@@ -1425,11 +1426,11 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 		for(tmpoff = 0; tmpoff < size; tmpoff += NBPG) {
 			if( p = vm_page_lookup(object, tmpoff + offset)) {
 				if( (p->flags & (PG_BUSY|PG_FICTITIOUS)) == 0) {
-					vm_page_wire(p);
+					vm_page_hold(p);
 					v = i386_trunc_page(((vm_offset_t)vtopte( addr+tmpoff)));
 					/* a fault might occur here */
 					*(volatile char *)v += 0;
-					vm_page_unwire(p);
+					vm_page_unhold(p);
 					pmap_enter_quick(pmap, addr+tmpoff, VM_PAGE_TO_PHYS(p));
 				}
 			}
@@ -1625,13 +1626,12 @@ pmap_testbit(pa, bit)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte;
-	int s;
 
 	if (!pmap_is_managed(pa))
 		return FALSE;
 
 	pv = pa_to_pvh(pa);
-	s = splimp();
+	disable_intr();
 
 	/*
 	 * Not found, check current mappings returning
@@ -1647,23 +1647,23 @@ pmap_testbit(pa, bit)
 			if (bit & PG_M ) {
 				if (pv->pv_va >= USRSTACK) {
 					if (pv->pv_va < USRSTACK+(UPAGES*NBPG)) {
-						splx(s);
+						enable_intr();
 						return TRUE;
 					}
 					else if (pv->pv_va < UPT_MAX_ADDRESS) {
-						splx(s);
+						enable_intr();
 						return FALSE;
 					}
 				}
 			}
 			pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 			if ((int) *pte & bit) {
-				splx(s);
+				enable_intr();
 				return TRUE;
 			}
 		}
 	}
-	splx(s);
+	enable_intr();
 	return(FALSE);
 }
 
@@ -1686,7 +1686,7 @@ pmap_changebit(pa, bit, setem)
 		return;
 
 	pv = pa_to_pvh(pa);
-	s = splimp();
+	disable_intr();
 
 	/*
 	 * Loop over all current mappings setting/clearing as appropos
@@ -1717,12 +1717,12 @@ pmap_changebit(pa, bit, setem)
 			}
 		}
 	}
+	enable_intr();
 	/*
 	 * tlbflush only if we need to
 	 */
 	if( reqactivate && (curproc != pageproc))
 		tlbflush();
-	splx(s);
 }
 
 /*
