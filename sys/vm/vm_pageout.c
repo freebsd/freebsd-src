@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.104 1997/12/24 15:05:25 dyson Exp $
+ * $Id: vm_pageout.c,v 1.105 1997/12/29 00:25:03 dyson Exp $
  */
 
 /*
@@ -695,11 +695,7 @@ rescan0:
 		 */
 		if ((m->flags & PG_REFERENCED) != 0) {
 			m->flags &= ~PG_REFERENCED;
-#if 0
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-#else
 			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
-#endif
 			vm_page_activate(m);
 			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;

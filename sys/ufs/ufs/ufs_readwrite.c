@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.37 1997/12/21 10:41:19 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.38 1997/12/29 01:03:50 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -108,8 +108,34 @@ READ(ap)
 		return (EFBIG);
 
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
+
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
+
+#if 1
+		if ((vfs_ioopt > 1) && vp->v_object) {
+			int nread, toread;
+			vm_object_reference(vp->v_object);
+			toread = uio->uio_resid;
+			if (toread > bytesinfile)
+				toread = bytesinfile;
+			if (toread >= PAGE_SIZE) {
+				error = uioread(toread, uio, vp->v_object, &nread);
+				if ((uio->uio_resid == 0) || (error != 0)) {
+					if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+						ip->i_flag |= IN_ACCESS;
+					vm_object_vndeallocate(vp->v_object);
+					return error;
+				}
+				if (nread > 0) {
+					vm_object_vndeallocate(vp->v_object);
+					continue;
+				}
+			}
+			vm_object_vndeallocate(vp->v_object);
+		}
+#endif
+
 		lbn = lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.87 1997/12/27 02:56:23 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.88 1997/12/29 00:22:50 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -428,8 +428,8 @@ dounmount(mp, flags, p)
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
 
+	vfs_msync(mp, MNT_WAIT);
 	mp->mnt_flag &=~ MNT_ASYNC;
-	vfs_msync(mp, MNT_NOWAIT);
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (((mp->mnt_flag & MNT_RDONLY) ||
 	     (error = VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p)) == 0) ||
@@ -919,6 +919,8 @@ open(p, uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		fp->f_flag |= FHASLOCK;
 	}
+	if ((vp->v_type == VREG) && (vp->v_object == NULL))
+		vfs_object_create(vp, p, p->p_ucred, TRUE);
 	VOP_UNLOCK(vp, 0, p);
 	p->p_retval[0] = indx;
 	return (0);
@@ -1102,14 +1104,14 @@ link(p, uap)
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	NDINIT(&nd, LOOKUP, FOLLOW|NOOBJ, UIO_USERSPACE, SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type == VDIR)
 		error = EPERM;		/* POSIX */
 	else {
-		NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, link), p);
+		NDINIT(&nd, CREATE, LOCKPARENT|NOOBJ, UIO_USERSPACE, SCARG(uap, link), p);
 		error = namei(&nd);
 		if (!error) {
 			if (nd.ni_vp != NULL) {
@@ -1161,7 +1163,7 @@ symlink(p, uap)
 	path = zalloc(namei_zone);
 	if (error = copyinstr(SCARG(uap, path), path, MAXPATHLEN, NULL))
 		goto out;
-	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, link), p);
+	NDINIT(&nd, CREATE, LOCKPARENT|NOOBJ, UIO_USERSPACE, SCARG(uap, link), p);
 	if (error = namei(&nd))
 		goto out;
 	if (nd.ni_vp) {
@@ -1266,7 +1268,7 @@ unlink(p, uap)
 
 	if (!error) {
 		VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-		error = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == vp)
@@ -1395,7 +1397,7 @@ access(p, uap)
 	t_gid = cred->cr_groups[0];
 	cred->cr_uid = p->p_cred->p_ruid;
 	cred->cr_groups[0] = p->p_cred->p_rgid;
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		goto out1;
@@ -1444,7 +1446,7 @@ ostat(p, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -1481,7 +1483,7 @@ olstat(p, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -1549,7 +1551,7 @@ stat(p, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -1584,7 +1586,7 @@ lstat(p, uap)
 	struct stat sb;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -1620,7 +1622,7 @@ pathconf(p, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -1655,7 +1657,7 @@ readlink(p, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
@@ -2196,7 +2198,7 @@ rename(p, uap)
 	if (error = namei(&fromnd))
 		return (error);
 	fvp = fromnd.ni_vp;
-	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART,
+	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART | NOOBJ,
 	    UIO_USERSPACE, SCARG(uap, to), p);
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
@@ -2235,8 +2237,9 @@ rename(p, uap)
 out:
 	if (!error) {
 		VOP_LEASE(tdvp, p, p->p_ucred, LEASE_WRITE);
-		if (fromnd.ni_dvp != tdvp)
+		if (fromnd.ni_dvp != tdvp) {
 			VOP_LEASE(fromnd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
+		}
 		if (tvp) {
 			VOP_LEASE(tvp, p, p->p_ucred, LEASE_WRITE);
 		}
