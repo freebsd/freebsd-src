@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.140 (Berkeley) 1/18/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: savemail.c,v 8.212.4.3 2000/06/13 07:16:26 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+/* $FreeBSD$ */
+
+#include <sendmail.h>
+
+
+static void	errbody __P((MCI *, ENVELOPE *, char *));
+static bool	pruneroute __P((char *));
 
 /*
 **  SAVEMAIL -- Save mail on error
@@ -39,14 +46,14 @@ static char sccsid[] = "@(#)savemail.c	8.140 (Berkeley) 1/18/1999";
 */
 
 /* defines for state machine */
-# define ESM_REPORT	0	/* report to sender's terminal */
-# define ESM_MAIL	1	/* mail back to sender */
-# define ESM_QUIET	2	/* messages have already been returned */
-# define ESM_DEADLETTER	3	/* save in ~/dead.letter */
-# define ESM_POSTMASTER	4	/* return to postmaster */
-# define ESM_USRTMP	5	/* save in /usr/tmp/dead.letter */
-# define ESM_PANIC	6	/* leave the locked queue/transcript files */
-# define ESM_DONE	7	/* the message is successfully delivered */
+#define ESM_REPORT		0	/* report to sender's terminal */
+#define ESM_MAIL		1	/* mail back to sender */
+#define ESM_QUIET		2	/* mail has already been returned */
+#define ESM_DEADLETTER		3	/* save in ~/dead.letter */
+#define ESM_POSTMASTER		4	/* return to postmaster */
+#define ESM_DEADLETTERDROP	5	/* save in DeadLetterDrop */
+#define ESM_PANIC		6	/* call loseqfile() */
+#define ESM_DONE		7	/* message is successfully delivered */
 
 
 void
@@ -61,13 +68,12 @@ savemail(e, sendbody)
 	register char *p;
 	MCI mcibuf;
 	int flags;
-	char buf[MAXLINE+1];
-	extern char *ttypath __P((void));
-	extern bool writable __P((char *, ADDRESS *, int));
+	long sff;
+	char buf[MAXLINE + 1];
 
 	if (tTd(6, 1))
 	{
-		printf("\nsavemail, errormode = %c, id = %s, ExitStat = %d\n  e_from=",
+		dprintf("\nsavemail, errormode = %c, id = %s, ExitStat = %d\n  e_from=",
 			e->e_errormode, e->e_id == NULL ? "NONE" : e->e_id,
 			ExitStat);
 		printaddr(&e->e_from, FALSE);
@@ -90,7 +96,7 @@ savemail(e, sendbody)
 		if (parseaddr(e->e_sender, &e->e_from,
 			      RF_COPYPARSE|RF_SENDERADDR, '\0', NULL, e) == NULL)
 		{
-			syserr("553 Cannot parse Postmaster!");
+			syserr("553 5.3.5 Cannot parse Postmaster!");
 			finis(TRUE, EX_SOFTWARE);
 		}
 	}
@@ -107,6 +113,8 @@ savemail(e, sendbody)
 	**	ESM_MAIL	Mail response to the sender.
 	**	ESM_DEADLETTER	Save response in ~/dead.letter.
 	**	ESM_POSTMASTER	Mail response to the postmaster.
+	**	ESM_DEADLETTERDROP
+	**			If DeadLetterDrop set, save it there.
 	**	ESM_PANIC	Save response anywhere possible.
 	*/
 
@@ -132,7 +140,8 @@ savemail(e, sendbody)
 		return;
 
 	  default:
-		syserr("554 savemail: bogus errormode x%x\n", e->e_errormode);
+		syserr("554 5.3.0 savemail: bogus errormode x%x\n",
+		       e->e_errormode);
 		state = ESM_MAIL;
 		break;
 	}
@@ -152,7 +161,7 @@ savemail(e, sendbody)
 	while (state != ESM_DONE)
 	{
 		if (tTd(6, 5))
-			printf("  state %d\n", state);
+			dprintf("  state %d\n", state);
 
 		switch (state)
 		{
@@ -182,23 +191,16 @@ savemail(e, sendbody)
 			printf("Errors occurred while sending mail.\r\n");
 			if (e->e_xfp != NULL)
 			{
-				(void) fflush(e->e_xfp);
-				fp = fopen(queuename(e, 'x'), "r");
+				(void) bfrewind(e->e_xfp);
+				printf("Transcript follows:\r\n");
+				while (fgets(buf, sizeof buf, e->e_xfp) != NULL &&
+				       !ferror(stdout))
+					(void) fputs(buf, stdout);
 			}
 			else
-				fp = NULL;
-			if (fp == NULL)
 			{
 				syserr("Cannot open %s", queuename(e, 'x'));
 				printf("Transcript of session is unavailable.\r\n");
-			}
-			else
-			{
-				printf("Transcript follows:\r\n");
-				while (fgets(buf, sizeof buf, fp) != NULL &&
-				       !ferror(stdout))
-					fputs(buf, stdout);
-				(void) xfclose(fp, "savemail transcript", e->e_id);
 			}
 			printf("Original message will be saved in dead.letter.\r\n");
 			state = ESM_DEADLETTER;
@@ -231,14 +233,14 @@ savemail(e, sendbody)
 			if (!emptyaddr(&e->e_from))
 			{
 				char from[TOBUFSIZE];
-				extern bool pruneroute __P((char *));
 
-				if (strlen(e->e_from.q_paddr) + 1 > sizeof from)
+				if (strlen(e->e_from.q_paddr) >= sizeof from)
 				{
 					state = ESM_POSTMASTER;
 					break;
 				}
-				strcpy(from, e->e_from.q_paddr);
+				(void) strlcpy(from, e->e_from.q_paddr,
+					       sizeof from);
 
 				if (!DontPruneRoutes && pruneroute(from))
 				{
@@ -248,7 +250,7 @@ savemail(e, sendbody)
 					     a = a->q_next)
 					{
 						if (sameaddr(a, &e->e_from))
-							a->q_flags |= QDONTSEND;
+							a->q_state = QS_DUPLICATE;
 					}
 				}
 				(void) sendtolist(from, NULLADDR,
@@ -267,8 +269,10 @@ savemail(e, sendbody)
 
 			/* check to see if there are any good addresses */
 			for (q = e->e_errorqueue; q != NULL; q = q->q_next)
-				if (!bitset(QBADADDR|QDONTSEND, q->q_flags))
+			{
+				if (QS_IS_SENDABLE(q->q_state))
 					break;
+			}
 			if (q == NULL)
 			{
 				/* this is an error-error */
@@ -294,12 +298,12 @@ savemail(e, sendbody)
 			*/
 
 			q = NULL;
-			if (sendtolist(DoubleBounceAddr,
-				NULLADDR, &q, 0, e) <= 0)
+			expand(DoubleBounceAddr, buf, sizeof buf, e);
+			if (sendtolist(buf, NULLADDR, &q, 0, e) <= 0)
 			{
-				syserr("553 cannot parse %s!", DoubleBounceAddr);
+				syserr("553 5.3.0 cannot parse %s!", buf);
 				ExitStat = EX_SOFTWARE;
-				state = ESM_USRTMP;
+				state = ESM_DEADLETTERDROP;
 				break;
 			}
 			flags = RTSF_PM_BOUNCE;
@@ -312,7 +316,7 @@ savemail(e, sendbody)
 			}
 
 			/* didn't work -- last resort */
-			state = ESM_USRTMP;
+			state = ESM_DEADLETTERDROP;
 			break;
 
 		  case ESM_DEADLETTER:
@@ -342,27 +346,37 @@ savemail(e, sendbody)
 
 			/* we have a home directory; write dead.letter */
 			define('z', p, e);
+
+			/* get the sender for the UnixFromLine */
+			p = macvalue('g', e);
+			define('g', e->e_sender, e);
+
 			expand("\201z/dead.letter", buf, sizeof buf, e);
-			flags = SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
+			sff = SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
 			if (RealUid == 0)
-				flags |= SFF_ROOTOK;
+				sff |= SFF_ROOTOK;
 			e->e_to = buf;
-			if (mailfile(buf, FileMailer, NULL, flags, e) == EX_OK)
+			if (writable(buf, NULL, sff) &&
+			    mailfile(buf, FileMailer, NULL, sff, e) == EX_OK)
 			{
 				int oldverb = Verbose;
 
-				Verbose = 1;
-				message("Saved message in %s", buf);
+				if (OpMode != MD_DAEMON && OpMode != MD_SMTP)
+					Verbose = 1;
+				if (Verbose > 0)
+					message("Saved message in %s", buf);
 				Verbose = oldverb;
+				define('g', p, e);
 				state = ESM_DONE;
 				break;
 			}
+			define('g', p, e);
 			state = ESM_MAIL;
 			break;
 
-		  case ESM_USRTMP:
+		  case ESM_DEADLETTERDROP:
 			/*
-			**  Log the mail in /usr/tmp/dead.letter.
+			**  Log the mail in DeadLetterDrop file.
 			*/
 
 			if (e->e_class < 0)
@@ -372,55 +386,63 @@ savemail(e, sendbody)
 			}
 
 			if ((SafeFileEnv != NULL && SafeFileEnv[0] != '\0') ||
-			    DeadLetterDrop == NULL || DeadLetterDrop[0] == '\0')
+			    DeadLetterDrop == NULL ||
+			    DeadLetterDrop[0] == '\0')
 			{
 				state = ESM_PANIC;
 				break;
 			}
 
-			flags = SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT|SFF_MUSTOWN;
-			if (!writable(DeadLetterDrop, NULL, flags) ||
+			sff = SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT|SFF_MUSTOWN;
+			if (!writable(DeadLetterDrop, NULL, sff) ||
 			    (fp = safefopen(DeadLetterDrop, O_WRONLY|O_APPEND,
-					    FileMode, flags)) == NULL)
+					    FileMode, sff)) == NULL)
 			{
 				state = ESM_PANIC;
 				break;
 			}
 
-			bzero(&mcibuf, sizeof mcibuf);
+			memset(&mcibuf, '\0', sizeof mcibuf);
 			mcibuf.mci_out = fp;
 			mcibuf.mci_mailer = FileMailer;
 			if (bitnset(M_7BITS, FileMailer->m_flags))
 				mcibuf.mci_flags |= MCIF_7BIT;
-			mcibuf.mci_contentlen = 0;
+
+			/* get the sender for the UnixFromLine */
+			p = macvalue('g', e);
+			define('g', e->e_sender, e);
 
 			putfromline(&mcibuf, e);
 			(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER);
 			(*e->e_putbody)(&mcibuf, e, NULL);
 			putline("\n", &mcibuf);
 			(void) fflush(fp);
-			if (ferror(fp))
+			if (ferror(fp) ||
+			    fclose(fp) < 0)
 				state = ESM_PANIC;
 			else
 			{
 				int oldverb = Verbose;
 
-				Verbose = 1;
-				message("Saved message in %s", DeadLetterDrop);
+				if (OpMode != MD_DAEMON && OpMode != MD_SMTP)
+					Verbose = 1;
+				if (Verbose > 0)
+					message("Saved message in %s",
+						DeadLetterDrop);
 				Verbose = oldverb;
 				if (LogLevel > 3)
 					sm_syslog(LOG_NOTICE, e->e_id,
-						"Saved message in %s",
-						DeadLetterDrop);
+						  "Saved message in %s",
+						  DeadLetterDrop);
 				state = ESM_DONE;
 			}
-			(void) xfclose(fp, "savemail", DeadLetterDrop);
+			define('g', p, e);
 			break;
 
 		  default:
-			syserr("554 savemail: unknown state %d", state);
+			syserr("554 5.3.5 savemail: unknown state %d", state);
 
-			/* fall through ... */
+			/* FALLTHROUGH */
 
 		  case ESM_PANIC:
 			/* leave the locked queue & transcript files around */
@@ -467,22 +489,21 @@ returntosender(msg, returnq, flags, e)
 	register ADDRESS *q;
 	char *p;
 	char buf[MAXNAME + 1];
-	extern void errbody __P((MCI *, ENVELOPE *, char *));
 
 	if (returnq == NULL)
-		return (-1);
+		return -1;
 
 	if (msg == NULL)
 		msg = "Unable to deliver mail";
 
 	if (tTd(6, 1))
 	{
-		printf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%lx, returnq=",
-		       msg, returndepth, (u_long) e);
+		dprintf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%lx, returnq=",
+			msg, returndepth, (u_long) e);
 		printaddr(returnq, TRUE);
 		if (tTd(6, 20))
 		{
-			printf("Sendq=");
+			dprintf("Sendq=");
 			printaddr(e->e_sendqueue, TRUE);
 		}
 	}
@@ -490,76 +511,119 @@ returntosender(msg, returnq, flags, e)
 	if (++returndepth >= MAXRETURNS)
 	{
 		if (returndepth != MAXRETURNS)
-			syserr("554 returntosender: infinite recursion on %s", returnq->q_paddr);
+			syserr("554 5.3.0 returntosender: infinite recursion on %s",
+			       returnq->q_paddr);
 		/* don't "unrecurse" and fake a clean exit */
 		/* returndepth--; */
-		return (0);
+		return 0;
 	}
 
-	define('g', e->e_from.q_paddr, e);
+	define('g', e->e_sender, e);
 	define('u', NULL, e);
 
 	/* initialize error envelope */
 	ee = newenvelope(&errenvelope, e);
 	define('a', "\201b", ee);
-	define('r', "internal", ee);
+	define('r', "", ee);
 	define('s', "localhost", ee);
 	define('_', "localhost", ee);
+#if SASL
+	define(macid("{auth_type}", NULL), "", ee);
+	define(macid("{auth_authen}", NULL), "", ee);
+	define(macid("{auth_author}", NULL), "", ee);
+	define(macid("{auth_ssf}", NULL), "", ee);
+#endif /* SASL */
+#if STARTTLS
+	define(macid("{cert_issuer}", NULL), "", ee);
+	define(macid("{cert_subject}", NULL), "", ee);
+	define(macid("{cipher_bits}", NULL), "", ee);
+	define(macid("{cipher}", NULL), "", ee);
+	define(macid("{tls_version}", NULL), "", ee);
+	define(macid("{verify}", NULL), "", ee);
+# if _FFR_TLS_1
+	define(macid("{alg_bits}", NULL), "", ee);
+	define(macid("{cn_issuer}", NULL), "", ee);
+	define(macid("{cn_subject}", NULL), "", ee);
+# endif /* _FFR_TLS_1 */
+#endif /* STARTTLS */
+
 	ee->e_puthdr = putheader;
 	ee->e_putbody = errbody;
 	ee->e_flags |= EF_RESPONSE|EF_METOO;
 	if (!bitset(EF_OLDSTYLE, e->e_flags))
 		ee->e_flags &= ~EF_OLDSTYLE;
+	if (bitset(EF_DONT_MIME, e->e_flags))
+	{
+		ee->e_flags |= EF_DONT_MIME;
+
+		/*
+		**  If we can't convert to MIME and we don't pass
+		**  8-bit, we can't send the body.
+		*/
+
+		if (bitset(EF_HAS8BIT, e->e_flags) &&
+		    !bitset(MM_PASS8BIT, MimeMode))
+			flags &= ~RTSF_SEND_BODY;
+	}
+
 	ee->e_sendqueue = returnq;
 	ee->e_msgsize = ERRORFUDGE;
-	if (bitset(RTSF_SEND_BODY, flags))
+	if (bitset(RTSF_SEND_BODY, flags) &&
+	    !bitset(PRIV_NOBODYRETN, PrivacyFlags))
 		ee->e_msgsize += e->e_msgsize;
 	else
 		ee->e_flags |= EF_NO_BODY_RETN;
 	initsys(ee);
+
+#if NAMED_BIND
+	_res.retry = TimeOuts.res_retry[RES_TO_FIRST];
+	_res.retrans = TimeOuts.res_retrans[RES_TO_FIRST];
+#endif /* NAMED_BIND */
 	for (q = returnq; q != NULL; q = q->q_next)
 	{
-		if (bitset(QBADADDR, q->q_flags))
+		if (QS_IS_BADADDR(q->q_state))
 			continue;
 
 		q->q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
 		q->q_flags |= QPINGONFAILURE;
 
-		if (!bitset(QDONTSEND, q->q_flags))
+		if (!QS_IS_DEAD(q->q_state))
 			ee->e_nrcpts++;
 
 		if (q->q_alias == NULL)
-			addheader("To", q->q_paddr, &ee->e_header);
+			addheader("To", q->q_paddr, 0, &ee->e_header);
 	}
 
 	if (LogLevel > 5)
 	{
-		if (bitset(EF_RESPONSE|EF_WARNING, e->e_flags))
+		if (bitset(EF_RESPONSE, e->e_flags))
 			p = "return to sender";
+		else if (bitset(EF_WARNING, e->e_flags))
+			p = "sender notify";
 		else if (bitset(RTSF_PM_BOUNCE, flags))
 			p = "postmaster notify";
 		else
 			p = "DSN";
 		sm_syslog(LOG_INFO, e->e_id,
-			"%s: %s: %s",
-			ee->e_id, p, shortenstring(msg, MAXSHORTSTR));
+			  "%s: %s: %s",
+			  ee->e_id, p, shortenstring(msg, MAXSHORTSTR));
 	}
 
 	if (SendMIMEErrors)
 	{
-		addheader("MIME-Version", "1.0", &ee->e_header);
+		addheader("MIME-Version", "1.0", 0, &ee->e_header);
 
 		(void) snprintf(buf, sizeof buf, "%s.%ld/%.100s",
-			ee->e_id, (long)curtime(), MyHostName);
+				ee->e_id, (long) curtime(), MyHostName);
 		ee->e_msgboundary = newstr(buf);
 		(void) snprintf(buf, sizeof buf,
 #if DSN
-			"multipart/report; report-type=delivery-status;\n\tboundary=\"%s\"",
-#else
-			"multipart/mixed; boundary=\"%s\"",
-#endif
-			ee->e_msgboundary);
-		addheader("Content-Type", buf, &ee->e_header);
+				"multipart/report; report-type=delivery-status;\n\tboundary=\"%s\"",
+#else /* DSN */
+				"multipart/mixed; boundary=\"%s\"",
+#endif /* DSN */
+				ee->e_msgboundary);
+		addheader("Content-Type", buf, 0, &ee->e_header);
 
 		p = hvalue("Content-Transfer-Encoding", e->e_header);
 		if (p != NULL && strcasecmp(p, "binary") != 0)
@@ -567,48 +631,50 @@ returntosender(msg, returnq, flags, e)
 		if (p == NULL && bitset(EF_HAS8BIT, e->e_flags))
 			p = "8bit";
 		if (p != NULL)
-			addheader("Content-Transfer-Encoding", p, &ee->e_header);
+			addheader("Content-Transfer-Encoding",
+				  p, 0, &ee->e_header);
 	}
 	if (strncmp(msg, "Warning:", 8) == 0)
 	{
-		addheader("Subject", msg, &ee->e_header);
+		addheader("Subject", msg, 0, &ee->e_header);
 		p = "warning-timeout";
 	}
 	else if (strncmp(msg, "Postmaster warning:", 19) == 0)
 	{
-		addheader("Subject", msg, &ee->e_header);
+		addheader("Subject", msg, 0, &ee->e_header);
 		p = "postmaster-warning";
 	}
 	else if (strcmp(msg, "Return receipt") == 0)
 	{
-		addheader("Subject", msg, &ee->e_header);
+		addheader("Subject", msg, 0, &ee->e_header);
 		p = "return-receipt";
 	}
 	else if (bitset(RTSF_PM_BOUNCE, flags))
 	{
-		snprintf(buf, sizeof buf, "Postmaster notify: %.*s",
-			(int)sizeof buf - 20, msg);
-		addheader("Subject", buf, &ee->e_header);
+		snprintf(buf, sizeof buf,
+			 "Postmaster notify: see transcript for details");
+		addheader("Subject", buf, 0, &ee->e_header);
 		p = "postmaster-notification";
 	}
 	else
 	{
-		snprintf(buf, sizeof buf, "Returned mail: %.*s",
-			(int)sizeof buf - 20, msg);
-		addheader("Subject", buf, &ee->e_header);
+		snprintf(buf, sizeof buf,
+			 "Returned mail: see transcript for details");
+		addheader("Subject", buf, 0, &ee->e_header);
 		p = "failure";
 	}
 	(void) snprintf(buf, sizeof buf, "auto-generated (%s)", p);
-	addheader("Auto-Submitted", buf, &ee->e_header);
+	addheader("Auto-Submitted", buf, 0, &ee->e_header);
 
 	/* fake up an address header for the from person */
 	expand("\201n", buf, sizeof buf, e);
-	if (parseaddr(buf, &ee->e_from, RF_COPYALL|RF_SENDERADDR, '\0', NULL, e) == NULL)
+	if (parseaddr(buf, &ee->e_from,
+		      RF_COPYALL|RF_SENDERADDR, '\0', NULL, e) == NULL)
 	{
-		syserr("553 Can't parse myself!");
+		syserr("553 5.3.5 Can't parse myself!");
 		ExitStat = EX_SOFTWARE;
 		returndepth--;
-		return (-1);
+		return -1;
 	}
 	ee->e_from.q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
 	ee->e_from.q_flags |= QPINGONFAILURE;
@@ -632,11 +698,12 @@ returntosender(msg, returnq, flags, e)
 	returndepth--;
 
 	/* check for delivery errors */
-	if (ee->e_parent == NULL || !bitset(EF_RESPONSE, ee->e_parent->e_flags))
+	if (ee->e_parent == NULL ||
+	    !bitset(EF_RESPONSE, ee->e_parent->e_flags))
 		return 0;
 	for (q = ee->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QQUEUEUP|QSENT, q->q_flags))
+		if (QS_IS_ATTEMPTED(q->q_state))
 			return 0;
 	}
 	return -1;
@@ -659,18 +726,20 @@ returntosender(msg, returnq, flags, e)
 **		Outputs the body of an error message.
 */
 
-void
+/* ARGSUSED2 */
+static void
 errbody(mci, e, separator)
 	register MCI *mci;
 	register ENVELOPE *e;
 	char *separator;
 {
-	register FILE *xfile;
-	char *p;
-	register ADDRESS *q = NULL;
 	bool printheader;
 	bool sendbody;
 	bool pm_notify;
+	int save_errno;
+	register FILE *xfile;
+	char *p;
+	register ADDRESS *q = NULL;
 	char buf[MAXLINE];
 
 	if (bitset(MCIF_INHEADER, mci->mci_flags))
@@ -709,8 +778,10 @@ errbody(mci, e, separator)
 	else
 	{
 		for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
-			if (bitset(QBADADDR, q->q_flags))
+		{
+			if (QS_IS_BADADDR(q->q_state))
 				break;
+		}
 	}
 	if (!pm_notify && q == NULL &&
 	    !bitset(EF_FATALERRS|EF_SENDRECEIPT, e->e_parent->e_flags))
@@ -726,33 +797,40 @@ errbody(mci, e, separator)
 		putline("", mci);
 	}
 	snprintf(buf, sizeof buf, "The original message was received at %s",
-		arpadate(ctime(&e->e_parent->e_ctime)));
+		 arpadate(ctime(&e->e_parent->e_ctime)));
 	putline(buf, mci);
 	expand("from \201_", buf, sizeof buf, e->e_parent);
 	putline(buf, mci);
+
+	/* include id in postmaster copies */
+	if (pm_notify && e->e_parent->e_id != NULL)
+	{
+		snprintf(buf, sizeof buf, "with id %s", e->e_parent->e_id);
+		putline(buf, mci);
+	}
 	putline("", mci);
 
 	/*
 	**  Output error message header (if specified and available).
 	*/
 
-	if (ErrMsgFile != NULL && !bitset(EF_SENDRECEIPT, e->e_parent->e_flags))
+	if (ErrMsgFile != NULL &&
+	    !bitset(EF_SENDRECEIPT, e->e_parent->e_flags))
 	{
 		if (*ErrMsgFile == '/')
 		{
-			int sff = SFF_ROOTOK|SFF_REGONLY;
+			long sff = SFF_ROOTOK|SFF_REGONLY;
 
 			if (DontLockReadFiles)
 				sff |= SFF_NOLOCK;
-			if (!bitset(DBS_ERRORHEADERINUNSAFEDIRPATH, DontBlameSendmail))
+			if (!bitnset(DBS_ERRORHEADERINUNSAFEDIRPATH,
+				     DontBlameSendmail))
 				sff |= SFF_SAFEDIRPATH;
 			xfile = safefopen(ErrMsgFile, O_RDONLY, 0444, sff);
 			if (xfile != NULL)
 			{
 				while (fgets(buf, sizeof buf, xfile) != NULL)
 				{
-					extern void translate_dollars __P((char *));
-
 					translate_dollars(buf);
 					expand(buf, buf, sizeof buf, e);
 					putline(buf, mci);
@@ -776,7 +854,7 @@ errbody(mci, e, separator)
 	printheader = TRUE;
 	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (!bitset(QBADADDR, q->q_flags) ||
+		if (!QS_IS_BADADDR(q->q_state) ||
 		    !bitset(QPINGONFAILURE, q->q_flags))
 			continue;
 
@@ -790,10 +868,18 @@ errbody(mci, e, separator)
 		snprintf(buf, sizeof buf, "%s",
 			 shortenstring(q->q_paddr, MAXSHORTSTR));
 		putline(buf, mci);
+		if (q->q_rstatus != NULL)
+		{
+			snprintf(buf, sizeof buf, "    (reason: %s)",
+				 shortenstring(exitstat(q->q_rstatus),
+					       MAXSHORTSTR));
+			putline(buf, mci);
+		}
 		if (q->q_alias != NULL)
 		{
 			snprintf(buf, sizeof buf, "    (expanded from: %s)",
-				shortenstring(q->q_alias->q_paddr, MAXSHORTSTR));
+				 shortenstring(q->q_alias->q_paddr,
+					       MAXSHORTSTR));
 			putline(buf, mci);
 		}
 	}
@@ -803,7 +889,7 @@ errbody(mci, e, separator)
 	printheader = TRUE;
 	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QBADADDR, q->q_flags) ||
+		if (QS_IS_BADADDR(q->q_state) ||
 		    !bitset(QPRIMARY, q->q_flags) ||
 		    !bitset(QDELAYED, q->q_flags))
 			continue;
@@ -821,7 +907,8 @@ errbody(mci, e, separator)
 		if (q->q_alias != NULL)
 		{
 			snprintf(buf, sizeof buf, "    (expanded from: %s)",
-				shortenstring(q->q_alias->q_paddr, MAXSHORTSTR));
+				 shortenstring(q->q_alias->q_paddr,
+					       MAXSHORTSTR));
 			putline(buf, mci);
 		}
 	}
@@ -831,7 +918,7 @@ errbody(mci, e, separator)
 	printheader = TRUE;
 	for (q = e->e_parent->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QBADADDR, q->q_flags) ||
+		if (QS_IS_BADADDR(q->q_state) ||
 		    !bitset(QPRIMARY, q->q_flags) ||
 		    bitset(QDELAYED, q->q_flags))
 			continue;
@@ -859,12 +946,13 @@ errbody(mci, e, separator)
 		}
 
 		snprintf(buf, sizeof buf, "%s  (%s)",
-			shortenstring(q->q_paddr, MAXSHORTSTR), p);
+			 shortenstring(q->q_paddr, MAXSHORTSTR), p);
 		putline(buf, mci);
 		if (q->q_alias != NULL)
 		{
 			snprintf(buf, sizeof buf, "    (expanded from: %s)",
-				shortenstring(q->q_alias->q_paddr, MAXSHORTSTR));
+				 shortenstring(q->q_alias->q_paddr,
+					       MAXSHORTSTR));
 			putline(buf, mci);
 		}
 	}
@@ -876,25 +964,25 @@ errbody(mci, e, separator)
 	*/
 
 	(void) fflush(stdout);
-	p = queuename(e->e_parent, 'x');
-	if ((xfile = fopen(p, "r")) == NULL)
+	if (e->e_parent->e_xfp == NULL)
 	{
-		syserr("Cannot open %s", p);
-		putline("   ----- Transcript of session is unavailable -----\n", mci);
+		putline("   ----- Transcript of session is unavailable -----\n",
+			mci);
 	}
 	else
 	{
 		printheader = TRUE;
+		(void) bfrewind(e->e_parent->e_xfp);
 		if (e->e_xfp != NULL)
 			(void) fflush(e->e_xfp);
-		while (fgets(buf, sizeof buf, xfile) != NULL)
+		while (fgets(buf, sizeof buf, e->e_parent->e_xfp) != NULL)
 		{
 			if (printheader)
-				putline("   ----- Transcript of session follows -----\n", mci);
+				putline("   ----- Transcript of session follows -----\n",
+					mci);
 			printheader = FALSE;
 			putline(buf, mci);
 		}
-		(void) xfclose(xfile, "errbody xscript", p);
 	}
 	errno = 0;
 
@@ -918,8 +1006,9 @@ errbody(mci, e, separator)
 		/* original envelope id from MAIL FROM: line */
 		if (e->e_parent->e_envid != NULL)
 		{
-			(void) snprintf(buf, sizeof buf, "Original-Envelope-Id: %.800s",
-				xuntextify(e->e_parent->e_envid));
+			(void) snprintf(buf, sizeof buf,
+					"Original-Envelope-Id: %.800s",
+					xuntextify(e->e_parent->e_envid));
 			putline(buf, mci);
 		}
 
@@ -936,14 +1025,15 @@ errbody(mci, e, separator)
 			if (e->e_parent->e_from.q_mailer == NULL ||
 			    (p = e->e_parent->e_from.q_mailer->m_mtatype) == NULL)
 				p = "dns";
-			(void) snprintf(buf, sizeof buf, "Received-From-MTA: %s; %.800s",
-				p, RealHostName);
+			(void) snprintf(buf, sizeof buf,
+					"Received-From-MTA: %s; %.800s",
+					p, RealHostName);
 			putline(buf, mci);
 		}
 
 		/* Arrival-Date: -- when it arrived here */
 		(void) snprintf(buf, sizeof buf, "Arrival-Date: %s",
-			arpadate(ctime(&e->e_parent->e_ctime)));
+				arpadate(ctime(&e->e_parent->e_ctime)));
 		putline(buf, mci);
 
 		/*
@@ -955,7 +1045,7 @@ errbody(mci, e, separator)
 			register ADDRESS *r;
 			char *action;
 
-			if (bitset(QBADADDR, q->q_flags))
+			if (QS_IS_BADADDR(q->q_state))
 				action = "failed";
 			else if (!bitset(QPRIMARY, q->q_flags))
 				continue;
@@ -980,8 +1070,9 @@ errbody(mci, e, separator)
 			/* Original-Recipient: -- passed from on high */
 			if (q->q_orcpt != NULL)
 			{
-				(void) snprintf(buf, sizeof buf, "Original-Recipient: %.800s",
-					q->q_orcpt);
+				(void) snprintf(buf, sizeof buf,
+						"Original-Recipient: %.800s",
+						q->q_orcpt);
 				putline(buf, mci);
 			}
 
@@ -991,40 +1082,71 @@ errbody(mci, e, separator)
 				p = "rfc822";
 			for (r = q; r->q_alias != NULL; r = r->q_alias)
 				continue;
-			if (strchr(r->q_user, '@') != NULL)
+			if (strcasecmp(p, "rfc822") != 0)
 			{
 				(void) snprintf(buf, sizeof buf,
-					"Final-Recipient: %s; %.800s",
-					p, r->q_user);
+						"Final-Recipient: %s; %.800s",
+						r->q_mailer->m_addrtype,
+						r->q_user);
+			}
+			else if (strchr(r->q_user, '@') != NULL)
+			{
+				(void) snprintf(buf, sizeof buf,
+						"Final-Recipient: %s; %.800s",
+						p, r->q_user);
 			}
 			else if (strchr(r->q_paddr, '@') != NULL)
 			{
+				char *qp;
+				bool b;
+
+				qp = r->q_paddr;
+				/* strip brackets from address */
+				b = FALSE;
+				if (*qp == '<')
+				{
+					b = qp[strlen(qp) - 1]  == '>';
+					if (b)
+						qp[strlen(qp) - 1] = '\0';
+					qp++;
+				}
 				(void) snprintf(buf, sizeof buf,
-					"Final-Recipient: %s; %.800s",
-					p, r->q_paddr);
+						"Final-Recipient: %s; %.800s",
+						p, qp);
+				/* undo damage */
+				if (b)
+					qp[strlen(qp)] = '>';
 			}
 			else
 			{
 				(void) snprintf(buf, sizeof buf,
-					"Final-Recipient: %s; %.700s@%.100s",
-					p, r->q_user, MyHostName);
+						"Final-Recipient: %s; %.700s@%.100s",
+						p, r->q_user, MyHostName);
 			}
 			putline(buf, mci);
 
 			/* X-Actual-Recipient: -- the real problem address */
 			if (r != q && q->q_user[0] != '\0')
 			{
-				if (strchr(q->q_user, '@') == NULL)
+				if (q->q_mailer != NULL &&
+				    q->q_mailer->m_addrtype != NULL)
+					p = q->q_mailer->m_addrtype;
+				else
+					p = "rfc822";
+
+				if (strcasecmp(p, "rfc822") == 0 &&
+				    strchr(q->q_user, '@') == NULL)
 				{
 					(void) snprintf(buf, sizeof buf,
-						"X-Actual-Recipient: %s; %.700s@%.100s",
-						p, q->q_user, MyHostName);
+							"X-Actual-Recipient: %s; %.700s@%.100s",
+							p, q->q_user,
+							MyHostName);
 				}
 				else
 				{
 					(void) snprintf(buf, sizeof buf,
-						"X-Actual-Recipient: %s; %.800s",
-						p, q->q_user);
+							"X-Actual-Recipient: %s; %.800s",
+							p, q->q_user);
 				}
 				putline(buf, mci);
 			}
@@ -1036,9 +1158,9 @@ errbody(mci, e, separator)
 			/* Status: -- what _really_ happened? */
 			if (q->q_status != NULL)
 				p = q->q_status;
-			else if (bitset(QBADADDR, q->q_flags))
+			else if (QS_IS_BADADDR(q->q_state))
 				p = "5.0.0";
-			else if (bitset(QQUEUEUP, q->q_flags))
+			else if (QS_IS_QUEUEUP(q->q_state))
 				p = "4.0.0";
 			else
 				p = "2.0.0";
@@ -1052,8 +1174,8 @@ errbody(mci, e, separator)
 				    (p = q->q_mailer->m_mtatype) == NULL)
 					p = "dns";
 				(void) snprintf(buf, sizeof buf,
-					"Remote-MTA: %s; %.800s",
-					p, q->q_statmta);
+						"Remote-MTA: %s; %.800s",
+						p, q->q_statmta);
 				p = &buf[strlen(buf) - 1];
 				if (*p == '.')
 					*p = '\0';
@@ -1067,8 +1189,8 @@ errbody(mci, e, separator)
 				if (p == NULL)
 					p = "smtp";
 				(void) snprintf(buf, sizeof buf,
-					"Diagnostic-Code: %s; %.800s",
-					p, q->q_rstatus);
+						"Diagnostic-Code: %s; %.800s",
+						p, q->q_rstatus);
 				putline(buf, mci);
 			}
 
@@ -1076,26 +1198,25 @@ errbody(mci, e, separator)
 			if (q->q_statdate == (time_t) 0L)
 				q->q_statdate = curtime();
 			(void) snprintf(buf, sizeof buf,
-				"Last-Attempt-Date: %s",
-				arpadate(ctime(&q->q_statdate)));
+					"Last-Attempt-Date: %s",
+					arpadate(ctime(&q->q_statdate)));
 			putline(buf, mci);
 
 			/* Will-Retry-Until: -- for delayed messages only */
-			if (bitset(QQUEUEUP, q->q_flags) &&
-			    !bitset(QBADADDR, q->q_flags))
+			if (QS_IS_QUEUEUP(q->q_state))
 			{
 				time_t xdate;
 
 				xdate = e->e_parent->e_ctime +
 					TimeOuts.to_q_return[e->e_parent->e_timeoutclass];
 				snprintf(buf, sizeof buf,
-					"Will-Retry-Until: %s",
-					arpadate(ctime(&xdate)));
+					 "Will-Retry-Until: %s",
+					 arpadate(ctime(&xdate)));
 				putline(buf, mci);
 			}
 		}
 	}
-#endif
+#endif /* DSN */
 
 	/*
 	**  Output text of original message
@@ -1113,33 +1234,37 @@ errbody(mci, e, separator)
 				putline("   ----- Original message follows -----\n", mci);
 			else
 				putline("   ----- Message header follows -----\n", mci);
-			(void) fflush(mci->mci_out);
 		}
 		else
 		{
 			(void) snprintf(buf, sizeof buf, "--%s",
-				e->e_msgboundary);
+					e->e_msgboundary);
 
 			putline(buf, mci);
 			(void) snprintf(buf, sizeof buf, "Content-Type: %s",
-				sendbody ? "message/rfc822"
-					 : "text/rfc822-headers");
+					sendbody ? "message/rfc822"
+						 : "text/rfc822-headers");
 			putline(buf, mci);
 
-			p = hvalue("Content-Transfer-Encoding", e->e_parent->e_header);
+			p = hvalue("Content-Transfer-Encoding",
+				   e->e_parent->e_header);
 			if (p != NULL && strcasecmp(p, "binary") != 0)
 				p = NULL;
-			if (p == NULL && bitset(EF_HAS8BIT, e->e_parent->e_flags))
+			if (p == NULL &&
+			    bitset(EF_HAS8BIT, e->e_parent->e_flags))
 				p = "8bit";
 			if (p != NULL)
 			{
-				(void) snprintf(buf, sizeof buf, "Content-Transfer-Encoding: %s",
-					p);
+				(void) snprintf(buf, sizeof buf,
+						"Content-Transfer-Encoding: %s",
+						p);
 				putline(buf, mci);
 			}
 		}
 		putline("", mci);
+		save_errno = errno;
 		putheader(mci, e->e_parent->e_header, e->e_parent, M87F_OUTER);
+		errno = save_errno;
 		if (sendbody)
 			putbody(mci, e->e_parent, e->e_msgboundary);
 		else if (e->e_msgboundary == NULL)
@@ -1160,6 +1285,7 @@ errbody(mci, e, separator)
 		putline(buf, mci);
 	}
 	putline("", mci);
+	(void) fflush(mci->mci_out);
 
 	/*
 	**  Cleanup and exit
@@ -1293,8 +1419,8 @@ xtextify(t, taboo)
 		    strchr(taboo, c) != NULL)
 		{
 			*p++ = '+';
-			*p++ = "0123456789abcdef"[c >> 4];
-			*p++ = "0123456789abcdef"[c & 0xf];
+			*p++ = "0123456789ABCDEF"[c >> 4];
+			*p++ = "0123456789ABCDEF"[c & 0xf];
 		}
 		else
 			*p++ = c;
@@ -1421,22 +1547,22 @@ xtextok(s)
 }
 /*
 **  PRUNEROUTE -- prune an RFC-822 source route
-** 
+**
 **	Trims down a source route to the last internet-registered hop.
 **	This is encouraged by RFC 1123 section 5.3.3.
-** 
+**
 **	Parameters:
 **		addr -- the address
-** 
+**
 **	Returns:
 **		TRUE -- address was modified
 **		FALSE -- address could not be pruned
-** 
+**
 **	Side Effects:
 **		modifies addr in-place
 */
 
-bool
+static bool
 pruneroute(addr)
 	char *addr;
 {
@@ -1460,14 +1586,14 @@ pruneroute(addr)
 	i = strlen(at + 1);
 	if (i >= (SIZE_T) sizeof hostbuf)
 		return FALSE;
-	strcpy(hostbuf, at + 1);
+	(void) strlcpy(hostbuf, at + 1, sizeof hostbuf);
 	hostbuf[i - 1] = '\0';
 
 	while (start)
 	{
-		if (getmxrr(hostbuf, mxhosts, FALSE, &rcode) > 0)
+		if (getmxrr(hostbuf, mxhosts, NULL, FALSE, &rcode) > 0)
 		{
-			strcpy(addr + 1, start + 1);
+			(void) strlcpy(addr + 1, start + 1, strlen(addr) - 1);
 			return TRUE;
 		}
 		c = *start;
@@ -1475,12 +1601,12 @@ pruneroute(addr)
 		comma = strrchr(addr, ',');
 		if (comma != NULL && comma[1] == '@' &&
 		    strlen(comma + 2) < (SIZE_T) sizeof hostbuf)
-			strcpy(hostbuf, comma + 2);
+			(void) strlcpy(hostbuf, comma + 2, sizeof hostbuf);
 		else
 			comma = NULL;
 		*start = c;
 		start = comma;
 	}
-#endif
+#endif /* NAMED_BIND */
 	return FALSE;
 }

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,12 +12,26 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.83 (Berkeley) 10/13/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: mci.c,v 8.133.10.3 2000/06/23 16:17:06 ca Exp $";
+#endif /* ! lint */
 
-#include "sendmail.h"
-#include <arpa/inet.h>
+/* $FreeBSD$ */
+
+#include <sendmail.h>
+
+
+#if NETINET || NETINET6
+# include <arpa/inet.h>
+#endif /* NETINET || NETINET6 */
+
 #include <dirent.h>
+
+static int	mci_generate_persistent_path __P((const char *, char *,
+						  int, bool));
+static bool	mci_load_persistent __P((MCI *));
+static void	mci_uncache __P((MCI **, bool));
+static int	mci_lock_host_statfile __P((MCI *));
+static int	mci_read_persistent __P((FILE *, MCI *));
 
 /*
 **  Mail Connection Information (MCI) Caching Module.
@@ -49,11 +64,8 @@ static char sccsid[] = "@(#)mci.c	8.83 (Berkeley) 10/13/1998";
 **	MCI structure.
 */
 
-MCI	**MciCache;		/* the open connection cache */
+static MCI	**MciCache;		/* the open connection cache */
 
-extern int	mci_generate_persistent_path __P((const char *, char *, int, bool));
-extern bool	mci_load_persistent __P((MCI *));
-extern void	mci_uncache __P((MCI **, bool));
 /*
 **  MCI_CACHE -- enter a connection structure into the open connection cache
 **
@@ -96,12 +108,13 @@ mci_cache(mci)
 		mci_uncache(mcislot, TRUE);
 
 	if (tTd(42, 5))
-		printf("mci_cache: caching %lx (%s) in slot %d\n",
-			(u_long) mci, mci->mci_host, (int)(mcislot - MciCache));
+		dprintf("mci_cache: caching %lx (%s) in slot %d\n",
+			(u_long) mci, mci->mci_host,
+			(int)(mcislot - MciCache));
 	if (tTd(91, 100))
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			"mci_cache: caching %x (%.100s) in slot %d",
-			mci, mci->mci_host, mcislot - MciCache);
+			  "mci_cache: caching %lx (%.100s) in slot %d",
+			  (u_long) mci, mci->mci_host, mcislot - MciCache);
 
 	*mcislot = mci;
 	mci->mci_flags |= MCIF_CACHED;
@@ -135,8 +148,8 @@ mci_scan(savemci)
 	{
 		/* first call */
 		MciCache = (MCI **) xalloc(MaxMciCache * sizeof *MciCache);
-		bzero((char *) MciCache, MaxMciCache * sizeof *MciCache);
-		return (&MciCache[0]);
+		memset((char *) MciCache, '\0', MaxMciCache * sizeof *MciCache);
+		return &MciCache[0];
 	}
 
 	now = curtime();
@@ -149,10 +162,16 @@ mci_scan(savemci)
 			bestmci = &MciCache[i];
 			continue;
 		}
-		if (mci->mci_lastuse + MciCacheTimeout < now && mci != savemci)
+		if ((mci->mci_lastuse + MciCacheTimeout < now ||
+		     (mci->mci_mailer != NULL &&
+		      mci->mci_mailer->m_maxdeliveries > 0 &&
+		      mci->mci_deliveries + 1 >= mci->mci_mailer->m_maxdeliveries))&&
+		    mci != savemci)
 		{
-			/* connection idle too long -- close it */
+			/* connection idle too long or too many deliveries */
 			bestmci = &MciCache[i];
+
+			/* close it */
 			mci_uncache(bestmci, TRUE);
 			continue;
 		}
@@ -178,7 +197,7 @@ mci_scan(savemci)
 **		none.
 */
 
-void
+static void
 mci_uncache(mcislot, doquit)
 	register MCI **mcislot;
 	bool doquit;
@@ -196,14 +215,16 @@ mci_uncache(mcislot, doquit)
 	mci_unlock_host(mci);
 
 	if (tTd(42, 5))
-		printf("mci_uncache: uncaching %lx (%s) from slot %d (%d)\n",
+		dprintf("mci_uncache: uncaching %lx (%s) from slot %d (%d)\n",
 			(u_long) mci, mci->mci_host,
 			(int)(mcislot - MciCache), doquit);
 	if (tTd(91, 100))
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			"mci_uncache: uncaching %x (%.100s) from slot %d (%d)",
-			mci, mci->mci_host, mcislot - MciCache, doquit);
+			  "mci_uncache: uncaching %lx (%.100s) from slot %d (%d)",
+			  (u_long) mci, mci->mci_host,
+			  mcislot - MciCache, doquit);
 
+	mci->mci_deliveries = 0;
 #if SMTP
 	if (doquit)
 	{
@@ -214,17 +235,17 @@ mci_uncache(mcislot, doquit)
 		/* only uses the envelope to flush the transcript file */
 		if (mci->mci_state != MCIS_CLOSED)
 			smtpquit(mci->mci_mailer, mci, &BlankEnvelope);
-#ifdef XLA
+# ifdef XLA
 		xla_host_end(mci->mci_host);
-#endif
+# endif /* XLA */
 	}
 	else
-#endif
+#endif /* SMTP */
 	{
 		if (mci->mci_in != NULL)
-			xfclose(mci->mci_in, "mci_uncache", "mci_in");
+			(void) fclose(mci->mci_in);
 		if (mci->mci_out != NULL)
-			xfclose(mci->mci_out, "mci_uncache", "mci_out");
+			(void) fclose(mci->mci_out);
 		mci->mci_in = mci->mci_out = NULL;
 		mci->mci_state = MCIS_CLOSED;
 		mci->mci_exitstat = EX_OK;
@@ -274,22 +295,30 @@ mci_get(host, m)
 	extern SOCKADDR CurHostAddr;
 
 	/* clear CurHostAddr so we don't get a bogus address with this name */
-	bzero(&CurHostAddr, sizeof CurHostAddr);
-#endif
+	memset(&CurHostAddr, '\0', sizeof CurHostAddr);
+#endif /* DAEMON */
 
 	/* clear out any expired connections */
 	(void) mci_scan(NULL);
 
 	if (m->m_mno < 0)
 		syserr("negative mno %d (%s)", m->m_mno, m->m_name);
+
 	s = stab(host, ST_MCI + m->m_mno, ST_ENTER);
 	mci = &s->s_mci;
-	mci->mci_host = s->s_name;
 
-	if (!mci_load_persistent(mci))
+	/*
+	**  We don't need to load the peristent data if we have data
+	**  already loaded in the cache.
+	*/
+
+	if (mci->mci_host == NULL &&
+	    (mci->mci_host = s->s_name) != NULL &&
+	    !mci_load_persistent(mci))
 	{
 		if (tTd(42, 2))
-			printf("mci_get(%s %s): lock failed\n", host, m->m_name);
+			dprintf("mci_get(%s %s): lock failed\n",
+				host, m->m_name);
 		mci->mci_exitstat = EX_TEMPFAIL;
 		mci->mci_state = MCIS_CLOSED;
 		mci->mci_statfile = NULL;
@@ -298,7 +327,7 @@ mci_get(host, m)
 
 	if (tTd(42, 2))
 	{
-		printf("mci_get(%s %s): mci_state=%d, _flags=%x, _exitstat=%d, _errno=%d\n",
+		dprintf("mci_get(%s %s): mci_state=%d, _flags=%lx, _exitstat=%d, _errno=%d\n",
 			host, m->m_name, mci->mci_state, mci->mci_flags,
 			mci->mci_exitstat, mci->mci_errno);
 	}
@@ -306,8 +335,6 @@ mci_get(host, m)
 #if SMTP
 	if (mci->mci_state == MCIS_OPEN)
 	{
-		extern int smtpprobe __P((MCI *));
-
 		/* poke the connection to see if it's still alive */
 		(void) smtpprobe(mci);
 
@@ -328,9 +355,9 @@ mci_get(host, m)
 			(void) getpeername(fileno(mci->mci_in),
 				(struct sockaddr *) &CurHostAddr, &socklen);
 		}
-# endif
+# endif /* DAEMON */
 	}
-#endif
+#endif /* SMTP */
 	if (mci->mci_state == MCIS_CLOSED)
 	{
 		time_t now = curtime();
@@ -345,6 +372,29 @@ mci_get(host, m)
 	}
 
 	return mci;
+}
+/*
+**  MCI_MATCH -- check connection cache for a particular host
+*/
+
+bool
+mci_match(host, m)
+	char *host;
+	MAILER *m;
+{
+	register MCI *mci;
+	register STAB *s;
+
+	if (m->m_mno < 0)
+		return FALSE;
+	s = stab(host, ST_MCI + m->m_mno, ST_FIND);
+	if (s == NULL)
+		return FALSE;
+
+	mci = &s->s_mci;
+	if (mci->mci_state == MCIS_OPEN)
+		return TRUE;
+	return FALSE;
 }
 /*
 **  MCI_SETSTAT -- set status codes in MCI structure.
@@ -395,7 +445,7 @@ struct mcifbits
 	int	mcif_bit;	/* flag bit */
 	char	*mcif_name;	/* flag name */
 };
-struct mcifbits	MciFlags[] =
+static struct mcifbits	MciFlags[] =
 {
 	{ MCIF_VALID,		"VALID"		},
 	{ MCIF_TEMP,		"TEMP"		},
@@ -424,7 +474,6 @@ mci_dump(mci, logit)
 	register char *p;
 	char *sep;
 	char buf[4000];
-	extern char *ctime();
 
 	sep = logit ? " " : "\n\t";
 	p = buf;
@@ -437,7 +486,7 @@ mci_dump(mci, logit)
 		snprintf(p, SPACELEFT(buf, p), "NULL");
 		goto printit;
 	}
-	snprintf(p, SPACELEFT(buf, p), "flags=%x", mci->mci_flags);
+	snprintf(p, SPACELEFT(buf, p), "flags=%lx", mci->mci_flags);
 	p += strlen(p);
 	if (mci->mci_flags != 0)
 	{
@@ -456,7 +505,7 @@ mci_dump(mci, logit)
 	snprintf(p, SPACELEFT(buf, p),
 		",%serrno=%d, herrno=%d, exitstat=%d, state=%d, pid=%d,%s",
 		sep, mci->mci_errno, mci->mci_herrno,
-		mci->mci_exitstat, mci->mci_state, mci->mci_pid, sep);
+		mci->mci_exitstat, mci->mci_state, (int) mci->mci_pid, sep);
 	p += strlen(p);
 	snprintf(p, SPACELEFT(buf, p),
 		"maxsize=%ld, phase=%s, mailer=%s,%s",
@@ -519,7 +568,7 @@ mci_dump_all(logit)
 **		mci -- containing the host we want to lock.
 **
 **	Returns:
-**		EX_OK	   -- got the lock.
+**		EX_OK	    -- got the lock.
 **		EX_TEMPFAIL -- didn't get the lock.
 */
 
@@ -530,7 +579,7 @@ mci_lock_host(mci)
 	if (mci == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_lock_host: NULL mci\n");
+			dprintf("mci_lock_host: NULL mci\n");
 		return EX_OK;
 	}
 
@@ -540,34 +589,34 @@ mci_lock_host(mci)
 	return mci_lock_host_statfile(mci);
 }
 
-int
+static int
 mci_lock_host_statfile(mci)
 	MCI *mci;
 {
-	int savedErrno = errno;
+	int save_errno = errno;
 	int retVal = EX_OK;
-	char fname[MAXPATHLEN+1];
+	char fname[MAXPATHLEN + 1];
 
 	if (HostStatDir == NULL || mci->mci_host == NULL)
 		return EX_OK;
 
 	if (tTd(56, 2))
-		printf("mci_lock_host: attempting to lock %s\n",
+		dprintf("mci_lock_host: attempting to lock %s\n",
 			mci->mci_host);
 
 	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof fname, TRUE) < 0)
 	{
 		/* of course this should never happen */
 		if (tTd(56, 2))
-			printf("mci_lock_host: Failed to generate host path for %s\n",
-			       mci->mci_host);
+			dprintf("mci_lock_host: Failed to generate host path for %s\n",
+				mci->mci_host);
 
 		retVal = EX_TEMPFAIL;
 		goto cleanup;
 	}
 
 	mci->mci_statfile = safefopen(fname, O_RDWR, FileMode,
-		   SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY|SFF_SAFEDIRPATH|SFF_CREAT);
+				      SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY|SFF_SAFEDIRPATH|SFF_CREAT);
 
 	if (mci->mci_statfile == NULL)
 	{
@@ -579,19 +628,19 @@ mci_lock_host_statfile(mci)
 	if (!lockfile(fileno(mci->mci_statfile), fname, "", LOCK_EX|LOCK_NB))
 	{
 		if (tTd(56, 2))
-			printf("mci_lock_host: couldn't get lock on %s\n",
-			       fname);
-		fclose(mci->mci_statfile);
+			dprintf("mci_lock_host: couldn't get lock on %s\n",
+				fname);
+		(void) fclose(mci->mci_statfile);
 		mci->mci_statfile = NULL;
 		retVal = EX_TEMPFAIL;
 		goto cleanup;
 	}
 
 	if (tTd(56, 12) && mci->mci_statfile != NULL)
-		printf("mci_lock_host: Sanity check -- lock is good\n");
+		dprintf("mci_lock_host: Sanity check -- lock is good\n");
 
 cleanup:
-	errno = savedErrno;
+	errno = save_errno;
 	return retVal;
 }
 /*
@@ -611,12 +660,12 @@ void
 mci_unlock_host(mci)
 	MCI *mci;
 {
-	int saveErrno = errno;
+	int save_errno = errno;
 
 	if (mci == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_unlock_host: NULL mci\n");
+			dprintf("mci_unlock_host: NULL mci\n");
 		return;
 	}
 
@@ -626,23 +675,23 @@ mci_unlock_host(mci)
 	if (!SingleThreadDelivery && mci_lock_host_statfile(mci) == EX_TEMPFAIL)
 	{
 		if (tTd(56, 1))
-			printf("mci_unlock_host: stat file already locked\n");
+			dprintf("mci_unlock_host: stat file already locked\n");
 	}
 	else
 	{
 		if (tTd(56, 2))
-			printf("mci_unlock_host: store prior to unlock\n");
+			dprintf("mci_unlock_host: store prior to unlock\n");
 
 		mci_store_persistent(mci);
 	}
 
 	if (mci->mci_statfile != NULL)
 	{
-		fclose(mci->mci_statfile);
+		(void) fclose(mci->mci_statfile);
 		mci->mci_statfile = NULL;
 	}
 
-	errno = saveErrno;
+	errno = save_errno;
 }
 /*
 **  MCI_LOAD_PERSISTENT -- load persistent host info
@@ -659,38 +708,38 @@ mci_unlock_host(mci)
 **		FALSE -- lock failed
 */
 
-bool
+static bool
 mci_load_persistent(mci)
 	MCI *mci;
 {
-	int saveErrno = errno;
+	int save_errno = errno;
 	bool locked = TRUE;
 	FILE *fp;
-	char fname[MAXPATHLEN+1];
+	char fname[MAXPATHLEN + 1];
 
 	if (mci == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_load_persistent: NULL mci\n");
+			dprintf("mci_load_persistent: NULL mci\n");
 		return TRUE;
 	}
 
 	if (IgnoreHostStatus || HostStatDir == NULL || mci->mci_host == NULL)
 		return TRUE;
-	
+
 	/* Already have the persistent information in memory */
 	if (SingleThreadDelivery && mci->mci_statfile != NULL)
 		return TRUE;
 
 	if (tTd(56, 1))
-		printf("mci_load_persistent: Attempting to load persistent information for %s\n",
-		       mci->mci_host);
-		
+		dprintf("mci_load_persistent: Attempting to load persistent information for %s\n",
+			mci->mci_host);
+
 	if (mci_generate_persistent_path(mci->mci_host, fname, sizeof fname, FALSE) < 0)
 	{
 		/* Not much we can do if the file isn't there... */
 		if (tTd(56, 1))
-			printf("mci_load_persistent: Couldn't generate host path\n");
+			dprintf("mci_load_persistent: Couldn't generate host path\n");
 		goto cleanup;
 	}
 
@@ -700,21 +749,23 @@ mci_load_persistent(mci)
 	{
 		/* I can't think of any reason this should ever happen */
 		if (tTd(56, 1))
-			printf("mci_load_persistent: open(%s): %s\n",
+			dprintf("mci_load_persistent: open(%s): %s\n",
 				fname, errstring(errno));
 		goto cleanup;
 	}
 
 	FileName = fname;
 	locked = lockfile(fileno(fp), fname, "", LOCK_SH|LOCK_NB);
-	(void) mci_read_persistent(fp, mci);
-	FileName = NULL;
 	if (locked)
-		lockfile(fileno(fp), fname, "", LOCK_UN);
-	fclose(fp);
+	{
+		(void) mci_read_persistent(fp, mci);
+		(void) lockfile(fileno(fp), fname, "", LOCK_UN);
+	}
+	FileName = NULL;
+	(void) fclose(fp);
 
 cleanup:
-	errno = saveErrno;
+	errno = save_errno;
 	return locked;
 }
 /*
@@ -736,7 +787,7 @@ cleanup:
 **		perfectly safe due to underlying stdio buffering.
 */
 
-int
+static int
 mci_read_persistent(fp, mci)
 	FILE *fp;
 	register MCI *mci;
@@ -752,7 +803,7 @@ mci_read_persistent(fp, mci)
 		syserr("mci_read_persistent: NULL mci");
 	if (tTd(56, 93))
 	{
-		printf("mci_read_persistent: fp=%lx, mci=", (u_long) fp);
+		dprintf("mci_read_persistent: fp=%lx, mci=", (u_long) fp);
 		mci_dump(mci, FALSE);
 	}
 
@@ -837,12 +888,12 @@ void
 mci_store_persistent(mci)
 	MCI *mci;
 {
-	int saveErrno = errno;
+	int save_errno = errno;
 
 	if (mci == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_store_persistent: NULL mci\n");
+			dprintf("mci_store_persistent: NULL mci\n");
 		return;
 	}
 
@@ -850,20 +901,20 @@ mci_store_persistent(mci)
 		return;
 
 	if (tTd(56, 1))
-		printf("mci_store_persistent: Storing information for %s\n",
-			   mci->mci_host);
+		dprintf("mci_store_persistent: Storing information for %s\n",
+			mci->mci_host);
 
 	if (mci->mci_statfile == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_store_persistent: no statfile\n");
+			dprintf("mci_store_persistent: no statfile\n");
 		return;
 	}
 
 	rewind(mci->mci_statfile);
 #if !NOFTRUNCATE
 	(void) ftruncate(fileno(mci->mci_statfile), (off_t) 0);
-#endif
+#endif /* !NOFTRUNCATE */
 
 	fprintf(mci->mci_statfile, "V0\n");
 	fprintf(mci->mci_statfile, "E%d\n", mci->mci_errno);
@@ -878,9 +929,9 @@ mci_store_persistent(mci)
 	fprintf(mci->mci_statfile, "U%ld\n", (long)(mci->mci_lastuse));
 	fprintf(mci->mci_statfile, ".\n");
 
-	fflush(mci->mci_statfile);
+	(void) fflush(mci->mci_statfile);
 
-	errno = saveErrno;
+	errno = save_errno;
 	return;
 }
 /*
@@ -905,6 +956,7 @@ mci_store_persistent(mci)
 **		< 0 -- if any action routine returns a negative value, that
 **			value is returned.
 **		0 -- if we successfully went to completion.
+**		> 0 -- return status from action()
 */
 
 int
@@ -922,13 +974,13 @@ mci_traverse_persistent(action, pathname)
 		return -1;
 
 	if (tTd(56, 1))
-		printf("mci_traverse: pathname is %s\n", pathname);
+		dprintf("mci_traverse: pathname is %s\n", pathname);
 
 	ret = stat(pathname, &statbuf);
 	if (ret < 0)
 	{
 		if (tTd(56, 2))
-			printf("mci_traverse: Failed to stat %s: %s\n",
+			dprintf("mci_traverse: Failed to stat %s: %s\n",
 				pathname, errstring(errno));
 		return ret;
 	}
@@ -936,12 +988,13 @@ mci_traverse_persistent(action, pathname)
 	{
 		struct dirent *e;
 		char *newptr;
-		char newpath[MAXPATHLEN+1];
+		char newpath[MAXPATHLEN + 1];
+		bool leftone, removedone;
 
 		if ((d = opendir(pathname)) == NULL)
 		{
 			if (tTd(56, 2))
-				printf("mci_traverse: opendir %s: %s\n",
+				dprintf("mci_traverse: opendir %s: %s\n",
 					pathname, errstring(errno));
 			return -1;
 		}
@@ -949,41 +1002,62 @@ mci_traverse_persistent(action, pathname)
 		if (strlen(pathname) >= sizeof newpath - MAXNAMLEN - 3)
 		{
 			if (tTd(56, 2))
-				printf("mci_traverse: path \"%s\" too long",
+				dprintf("mci_traverse: path \"%s\" too long",
 					pathname);
 			return -1;
 		}
-		strcpy(newpath, pathname);
+		(void) strlcpy(newpath, pathname, sizeof newpath);
 		newptr = newpath + strlen(newpath);
 		*newptr++ = '/';
 
-		while ((e = readdir(d)) != NULL)
+		/*
+		**  repeat until no file has been removed
+		**  this may become ugly when several files "expire"
+		**  during these loops, but it's better than doing
+		**  a rewinddir() inside the inner loop
+		*/
+		do
 		{
-			if (e->d_name[0] == '.')
-				continue;
+			leftone = removedone = FALSE;
+			while ((e = readdir(d)) != NULL)
+			{
+				if (e->d_name[0] == '.')
+					continue;
 
-			strncpy(newptr, e->d_name,
-				sizeof newpath - (newptr - newpath) - 1);
-			newpath[sizeof newpath - 1] = '\0';
+				(void) strlcpy(newptr, e->d_name,
+					       sizeof newpath -
+					       (newptr - newpath));
 
-			ret = mci_traverse_persistent(action, newpath);
+				ret = mci_traverse_persistent(action, newpath);
+				if (ret < 0)
+					break;
+				if (ret == 1)
+					leftone = TRUE;
+				if (!removedone && ret == 0 &&
+				    action == mci_purge_persistent)
+					removedone = TRUE;
+			}
 			if (ret < 0)
 				break;
-
 			/*
 			**  The following appears to be
 			**  necessary during purges, since
 			**  we modify the directory structure
 			*/
-
-			if (action == mci_purge_persistent)
+			if (removedone)
 				rewinddir(d);
-		}
+			if (tTd(56, 40))
+				dprintf("mci_traverse: path %s: ret %d removed %d left %d\n",
+					pathname, ret, removedone, leftone);
+		} while (removedone);
 
 		/* purge (or whatever) the directory proper */
-		*--newptr = '\0';
-		ret = (*action)(newpath, NULL);
-		closedir(d);
+		if (!leftone)
+		{
+			*--newptr = '\0';
+			ret = (*action)(newpath, NULL);
+		}
+		(void) closedir(d);
 	}
 	else if (S_ISREG(statbuf.st_mode))
 	{
@@ -992,7 +1066,7 @@ mci_traverse_persistent(action, pathname)
 		char *scan;
 		char host[MAXHOSTNAMELEN];
 		char *hostptr = host;
-		
+
 		/*
 		**  Reconstruct the host name from the path to the
 		**  persistent information.
@@ -1027,7 +1101,7 @@ mci_traverse_persistent(action, pathname)
 	return ret;
 }
 /*
-**  MCI_PRINT_PERSISTENT -- print persisten info
+**  MCI_PRINT_PERSISTENT -- print persistent info
 **
 **	Dump the persistent information in the file 'pathname'
 **
@@ -1066,23 +1140,23 @@ mci_print_persistent(pathname, hostname)
 	if (fp == NULL)
 	{
 		if (tTd(56, 1))
-			printf("mci_print_persistent: cannot open %s: %s\n",
+			dprintf("mci_print_persistent: cannot open %s: %s\n",
 				pathname, errstring(errno));
 		return 0;
 	}
 
 	FileName = pathname;
-	bzero(&mcib, sizeof mcib);
+	memset(&mcib, '\0', sizeof mcib);
 	if (mci_read_persistent(fp, &mcib) < 0)
 	{
 		syserr("%s: could not read status file", pathname);
-		fclose(fp);
+		(void) fclose(fp);
 		FileName = NULL;
 		return 0;
 	}
 
 	locked = !lockfile(fileno(fp), pathname, "", LOCK_EX|LOCK_NB);
-	fclose(fp);
+	(void) fclose(fp);
 	FileName = NULL;
 
 	printf("%c%-39s %12s ",
@@ -1125,7 +1199,9 @@ mci_print_persistent(pathname, hostname)
 **			NULL if this is a directory (domain).
 **
 **	Returns:
-**		0
+**		0 -- ok
+**		1 -- file not deleted (too young, incorrect format)
+**		< 0 -- some error occurred
 */
 
 int
@@ -1133,18 +1209,30 @@ mci_purge_persistent(pathname, hostname)
 	char *pathname;
 	char *hostname;
 {
+	struct stat statbuf;
 	char *end = pathname + strlen(pathname) - 1;
+	int ret;
 
 	if (tTd(56, 1))
-		printf("mci_purge_persistent: purging %s\n", pathname);
+		dprintf("mci_purge_persistent: purging %s\n", pathname);
 
+	ret = stat(pathname, &statbuf);
+	if (ret < 0)
+	{
+		if (tTd(56, 2))
+			dprintf("mci_purge_persistent: Failed to stat %s: %s\n",
+				pathname, errstring(errno));
+		return ret;
+	}
+	if (curtime() - statbuf.st_mtime < MciInfoTimeout)
+		return 1;
 	if (hostname != NULL)
 	{
 		/* remove the file */
 		if (unlink(pathname) < 0)
 		{
 			if (tTd(56, 2))
-				printf("mci_purge_persistent: failed to unlink %s: %s\n",
+				dprintf("mci_purge_persistent: failed to unlink %s: %s\n",
 					pathname, errstring(errno));
 		}
 	}
@@ -1152,18 +1240,18 @@ mci_purge_persistent(pathname, hostname)
 	{
 		/* remove the directory */
 		if (*end != '.')
-			return 0;
+			return 1;
 
 		if (tTd(56, 1))
-			printf("mci_purge_persistent: dpurge %s\n", pathname);
+			dprintf("mci_purge_persistent: dpurge %s\n", pathname);
 
 		if (rmdir(pathname) < 0)
 		{
 			if (tTd(56, 2))
-				printf("mci_purge_persistent: rmdir %s: %s\n",
+				dprintf("mci_purge_persistent: rmdir %s: %s\n",
 					pathname, errstring(errno));
 		}
-		
+
 	}
 
 	return 0;
@@ -1187,7 +1275,7 @@ mci_purge_persistent(pathname, hostname)
 **		-1 -- failure
 */
 
-int
+static int
 mci_generate_persistent_path(host, path, pathlen, createflag)
 	const char *host;
 	char *path;
@@ -1198,6 +1286,9 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	int ret = 0;
 	int len;
 	char t_host[MAXHOSTNAMELEN];
+#if NETINET6
+	struct in6_addr in6_addr;
+#endif /* NETINET6 */
 
 	/*
 	**  Rationality check the arguments.
@@ -1215,7 +1306,7 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	}
 
 	if (tTd(56, 80))
-		printf("mci_generate_persistent_path(%s): ", host);
+		dprintf("mci_generate_persistent_path(%s): ", host);
 
 	if (*host == '\0' || *host == '.')
 		return -1;
@@ -1224,9 +1315,9 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	if (strlen(host) > sizeof t_host - 1)
 		return -1;
 	if (host[0] == '[')
-		strcpy(t_host, host + 1);
-	else	
-		strcpy(t_host, host);
+		(void) strlcpy(t_host, host + 1, sizeof t_host);
+	else
+		(void) strlcpy(t_host, host, sizeof t_host);
 
 	/*
 	**  Delete any trailing dots from the hostname.
@@ -1238,9 +1329,18 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	       (elem[-1] == '.' || (host[0] == '[' && elem[-1] == ']')))
 		*--elem = '\0';
 
+#if NETINET || NETINET6
 	/* check for bogus bracketed address */
-	if (host[0] == '[' && inet_addr(t_host) == INADDR_NONE)
+	if (host[0] == '[' &&
+# if NETINET6
+	    inet_pton(AF_INET6, t_host, &in6_addr) != 1 &&
+# endif /* NETINET6 */
+# if NETINET
+	    inet_addr(t_host) == INADDR_NONE
+# endif /* NETINET */
+	    )
 		return -1;
+#endif /* NETINET || NETINET6 */
 
 	/* check for what will be the final length of the path */
 	len = strlen(HostStatDir) + 2;
@@ -1255,7 +1355,7 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	if (len > pathlen || len < 1)
 		return -1;
 
-	strcpy(path, HostStatDir);
+	(void) strlcpy(path, HostStatDir, pathlen);
 	p = path + strlen(path);
 
 	while (elem > t_host)
@@ -1286,10 +1386,10 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	if (tTd(56, 80))
 	{
 		if (ret < 0)
-			printf("FAILURE %d\n", ret);
+			dprintf("FAILURE %d\n", ret);
 		else
-			printf("SUCCESS %s\n", path);
+			dprintf("SUCCESS %s\n", path);
 	}
 
-	return (ret);
+	return ret;
 }

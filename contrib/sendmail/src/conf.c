@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,14 +12,30 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.452 (Berkeley) 1/26/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.23 2000/07/15 17:35:18 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
-# include "pathnames.h"
+/* $FreeBSD$ */
+
+#include <sendmail.h>
+#include <sendmail/pathnames.h>
+
 # include <sys/ioctl.h>
 # include <sys/param.h>
-# include <limits.h>
+
+#include <limits.h>
+#if NETINET || NETINET6
+# include <arpa/inet.h>
+#endif /* NETINET || NETINET6 */
+#if HASULIMIT && defined(HPUX11)
+# include <ulimit.h>
+#endif /* HASULIMIT && defined(HPUX11) */
+
+
+static void	setupmaps __P((void));
+static void	setupmailers __P((void));
+static int	get_num_procs_online __P((void));
+
 
 /*
 **  CONF.C -- Sendmail Configuration Tables.
@@ -54,51 +71,52 @@ static char sccsid[] = "@(#)conf.c	8.452 (Berkeley) 1/26/1999";
 
 struct hdrinfo	HdrInfo[] =
 {
-		/* originator fields, most to least significant  */
-	{ "resent-sender",		H_FROM|H_RESENT			},
-	{ "resent-from",		H_FROM|H_RESENT			},
-	{ "resent-reply-to",		H_FROM|H_RESENT			},
-	{ "sender",			H_FROM				},
-	{ "from",			H_FROM				},
-	{ "reply-to",			H_FROM				},
-	{ "errors-to",			H_FROM|H_ERRORSTO		},
-	{ "full-name",			H_ACHECK			},
-	{ "return-receipt-to",		H_RECEIPTTO			},
+		/* originator fields, most to least significant */
+	{ "resent-sender",		H_FROM|H_RESENT,	NULL	},
+	{ "resent-from",		H_FROM|H_RESENT,	NULL	},
+	{ "resent-reply-to",		H_FROM|H_RESENT,	NULL	},
+	{ "sender",			H_FROM,			NULL	},
+	{ "from",			H_FROM,			NULL	},
+	{ "reply-to",			H_FROM,			NULL	},
+	{ "errors-to",			H_FROM|H_ERRORSTO,	NULL	},
+	{ "full-name",			H_ACHECK,		NULL	},
+	{ "return-receipt-to",		H_RECEIPTTO,		NULL	},
 
 		/* destination fields */
-	{ "to",				H_RCPT				},
-	{ "resent-to",			H_RCPT|H_RESENT			},
-	{ "cc",				H_RCPT				},
-	{ "resent-cc",			H_RCPT|H_RESENT			},
-	{ "bcc",			H_RCPT|H_BCC			},
-	{ "resent-bcc",			H_RCPT|H_BCC|H_RESENT		},
-	{ "apparently-to",		H_RCPT				},
+	{ "to",				H_RCPT,			NULL	},
+	{ "resent-to",			H_RCPT|H_RESENT,	NULL	},
+	{ "cc",				H_RCPT,			NULL	},
+	{ "resent-cc",			H_RCPT|H_RESENT,	NULL	},
+	{ "bcc",			H_RCPT|H_BCC,		NULL	},
+	{ "resent-bcc",			H_RCPT|H_BCC|H_RESENT,	NULL	},
+	{ "apparently-to",		H_RCPT,			NULL	},
 
 		/* message identification and control */
-	{ "message-id",			0				},
-	{ "resent-message-id",		H_RESENT			},
-	{ "message",			H_EOH				},
-	{ "text",			H_EOH				},
+	{ "message-id",			0,			NULL	},
+	{ "resent-message-id",		H_RESENT,		NULL	},
+	{ "message",			H_EOH,			NULL	},
+	{ "text",			H_EOH,			NULL	},
 
 		/* date fields */
-	{ "date",			0				},
-	{ "resent-date",		H_RESENT			},
+	{ "date",			0,			NULL	},
+	{ "resent-date",		H_RESENT,		NULL	},
 
 		/* trace fields */
-	{ "received",			H_TRACE|H_FORCE			},
-	{ "x400-received",		H_TRACE|H_FORCE			},
-	{ "via",			H_TRACE|H_FORCE			},
-	{ "mail-from",			H_TRACE|H_FORCE			},
+	{ "received",			H_TRACE|H_FORCE,	NULL	},
+	{ "x400-received",		H_TRACE|H_FORCE,	NULL	},
+	{ "via",			H_TRACE|H_FORCE,	NULL	},
+	{ "mail-from",			H_TRACE|H_FORCE,	NULL	},
 
 		/* miscellaneous fields */
-	{ "comments",			H_FORCE|H_ENCODABLE		},
-	{ "return-path",		H_FORCE|H_ACHECK		},
-	{ "content-transfer-encoding",	H_CTE				},
-	{ "content-type",		H_CTYPE				},
-	{ "content-length",		H_ACHECK			},
-	{ "subject",			H_ENCODABLE			},
+	{ "comments",			H_FORCE|H_ENCODABLE,	NULL	},
+	{ "return-path",		H_FORCE|H_ACHECK|H_BINDLATE,	NULL	},
+	{ "content-transfer-encoding",	H_CTE,			NULL	},
+	{ "content-type",		H_CTYPE,		NULL	},
+	{ "content-length",		H_ACHECK,		NULL	},
+	{ "subject",			H_ENCODABLE,		NULL	},
+	{ "x-authentication-warning",	H_FORCE,		NULL	},
 
-	{ NULL,				0				}
+	{ NULL,				0,			NULL	}
 };
 
 
@@ -121,6 +139,7 @@ struct prival PrivacyValues[] =
 	{ "noverb",		PRIV_NOVERB		},
 	{ "authwarnings",	PRIV_AUTHWARNINGS	},
 	{ "noreceipts",		PRIV_NORECEIPTS		},
+	{ "nobodyreturn",	PRIV_NOBODYRETN		},
 	{ "goaway",		PRIV_GOAWAY		},
 	{ NULL,			0			}
 };
@@ -172,6 +191,14 @@ struct dbsval DontBlameSendmailValues[] =
 					DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE },
 	{ "runprograminunsafedirpath",	DBS_RUNPROGRAMINUNSAFEDIRPATH	},
 	{ "runwritableprogram",		DBS_RUNWRITABLEPROGRAM		},
+	{ "nonrootsafeaddr",		DBS_NONROOTSAFEADDR		},
+	{ "truststickybit",		DBS_TRUSTSTICKYBIT		},
+	{ "dontwarnforwardfileinunsafedirpath",
+					DBS_DONTWARNFORWARDFILEINUNSAFEDIRPATH },
+	{ "insufficiententropy",	DBS_INSUFFICIENTENTROPY },
+#if _FFR_UNSAFE_SASL
+	{ "groupreadablesaslfile",	DBS_GROUPREADABLESASLFILE	},
+#endif /* _FFR_UNSAFE_SASL */
 	{ NULL,				0				}
 };
 
@@ -202,39 +229,36 @@ int	DtableSize =	50;		/* max open files; reset in 4.2bsd */
 #define HOURS		* 60 MINUTES
 #define DAYS		* 24 HOURS
 
-#ifndef _PATH_VARTMP
-# define _PATH_VARTMP	"/usr/tmp/"
-#endif
-
 #ifndef MAXRULERECURSION
 # define MAXRULERECURSION	50	/* max ruleset recursion depth */
-#endif
+#endif /* ! MAXRULERECURSION */
 
 void
 setdefaults(e)
 	register ENVELOPE *e;
 {
 	int i;
+	int numprocs;
 	struct passwd *pw;
-	char buf[MAXNAME];
-	extern void setdefuser __P((void));
-	extern void setupmaps __P((void));
-	extern void setupmailers __P((void));
-	extern void setupheaders __P((void));
 
+	numprocs = get_num_procs_online();
 	SpaceSub = ' ';				/* option B */
-	QueueLA = 8;				/* option x */
-	RefuseLA = 12;				/* option X */
+	QueueLA = 8 * numprocs;			/* option x */
+	RefuseLA = 12 * numprocs;		/* option X */
 	WkRecipFact = 30000L;			/* option y */
 	WkClassFact = 1800L;			/* option z */
 	WkTimeFact = 90000L;			/* option Z */
 	QueueFactor = WkRecipFact * 20;		/* option q */
 	FileMode = (RealUid != geteuid()) ? 0644 : 0600;
 						/* option F */
+#if _FFR_QUEUE_FILE_MODE
+	QueueFileMode = (RealUid != geteuid()) ? 0644 : 0600;
+						/* option QueueFileMode */
+#endif /* _FFR_QUEUE_FILE_MODE */
 
-	if (((pw = getpwnam("mailnull")) != NULL && pw->pw_uid != 0) ||
-	    ((pw = getpwnam("sendmail")) != NULL && pw->pw_uid != 0) ||
-	    ((pw = getpwnam("daemon")) != NULL && pw->pw_uid != 0))
+	if (((pw = sm_getpwnam("mailnull")) != NULL && pw->pw_uid != 0) ||
+	    ((pw = sm_getpwnam("sendmail")) != NULL && pw->pw_uid != 0) ||
+	    ((pw = sm_getpwnam("daemon")) != NULL && pw->pw_uid != 0))
 	{
 		DefUid = pw->pw_uid;		/* option u */
 		DefGid = pw->pw_gid;		/* option g */
@@ -248,31 +272,36 @@ setdefaults(e)
 	}
 	TrustedUid = 0;
 	if (tTd(37, 4))
-		printf("setdefaults: DefUser=%s, DefUid=%d, DefGid=%d\n",
-		       DefUser != NULL ? DefUser : "<1:1>",
-		       (int) DefUid, (int) DefGid);
+		dprintf("setdefaults: DefUser=%s, DefUid=%d, DefGid=%d\n",
+			DefUser != NULL ? DefUser : "<1:1>",
+			(int) DefUid, (int) DefGid);
 	CheckpointInterval = 10;		/* option C */
 	MaxHopCount = 25;			/* option h */
-	e->e_sendmode = SM_FORK;		/* option d */
+	set_delivery_mode(SM_FORK, e);		/* option d */
 	e->e_errormode = EM_PRINT;		/* option e */
+	e->e_queuedir = NOQDIR;
+	e->e_ctime = curtime();
 	SevenBitInput = FALSE;			/* option 7 */
 	MaxMciCache = 1;			/* option k */
 	MciCacheTimeout = 5 MINUTES;		/* option K */
 	LogLevel = 9;				/* option L */
-	inittimeouts(NULL);			/* option r */
+	inittimeouts(NULL, FALSE);		/* option r */
 	PrivacyFlags = PRIV_PUBLIC;		/* option p */
-	DontBlameSendmail = DBS_SAFE;		/* DontBlameSendmail option */
+	MeToo = TRUE;				/* option m */
+	SendMIMEErrors = TRUE;			/* option f */
+	SuperSafe = TRUE;			/* option s */
+	clrbitmap(DontBlameSendmail);		/* DontBlameSendmail option */
 #if MIME8TO7
 	MimeMode = MM_CVTMIME|MM_PASS8BIT;	/* option 8 */
-#else
+#else /* MIME8TO7 */
 	MimeMode = MM_PASS8BIT;
-#endif
+#endif /* MIME8TO7 */
 	for (i = 0; i < MAXTOCLASS; i++)
 	{
 		TimeOuts.to_q_return[i] = 5 DAYS;	/* option T */
 		TimeOuts.to_q_warning[i] = 0;		/* option T */
 	}
-	ServiceSwitchFile = "/etc/service.switch";
+	ServiceSwitchFile = "/etc/mail/service.switch";
 	ServiceCacheMaxAge = (time_t) 10;
 	HostsFile = _PATH_HOSTS;
 	PidFile = newstr(_PATH_SENDMAILPID);
@@ -285,14 +314,35 @@ setdefaults(e)
 	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
 	MaxHeadersLength = MAXHDRSLEN;
-	snprintf(buf, sizeof buf, "%s%sdead.letter",
-		_PATH_VARTMP,
-		_PATH_VARTMP[sizeof _PATH_VARTMP - 2] == '/' ? "" : "/");
-	DeadLetterDrop = newstr(buf);
+	MaxForwardEntries = 0;
+#if SASL
+	AuthMechanisms = newstr(AUTH_MECHANISMS);
+#endif /* SASL */
 #ifdef HESIOD_INIT
 	HesiodContext = NULL;
-#endif
+#endif /* HESIOD_INIT */
+#if NETINET6
+	/* Detect if IPv6 is available at run time */
+	i = socket(AF_INET6, SOCK_STREAM, 0);
+	if (i >= 0)
+	{
+		InetMode = AF_INET6;
+		(void) close(i);
+	}
+	else
+		InetMode = AF_INET;
+#else /* NETINET6 */
+	InetMode = AF_INET;
+#endif /* NETINET6 */
 	ControlSocketName = NULL;
+	memset(&ConnectOnlyTo, '\0', sizeof ConnectOnlyTo);
+	DataFileBufferSize = 4096;
+	XscriptFileBufferSize = 4096;
+	for (i = 0; i < MAXRWSETS; i++)
+		RuleSetNames[i] = NULL;
+#if _FFR_MILTER
+	InputFilters[0] = NULL;
+#endif /* _FFR_MILTER */
 	setupmaps();
 	setupmailers();
 	setupheaders();
@@ -314,26 +364,30 @@ setdefuser()
 	snprintf(defuserbuf, sizeof defuserbuf, "%s",
 		defpwent == NULL ? "nobody" : defpwent->pw_name);
 	if (tTd(37, 4))
-		printf("setdefuser: DefUid=%d, DefUser=%s\n",
+		dprintf("setdefuser: DefUid=%d, DefUser=%s\n",
 		       (int) DefUid, DefUser);
 }
 /*
 **  SETUPMAILERS -- initialize default mailers
 */
 
-void
+static void
 setupmailers()
 {
 	char buf[100];
 
-	strcpy(buf, "prog, P=/bin/sh, F=lsoDq9, T=DNS/RFC822/X-Unix, A=sh -c \201u");
+	(void) strlcpy(buf, "prog, P=/bin/sh, F=lsoDq9, T=X-Unix/X-Unix/X-Unix, A=sh -c \201u",
+		sizeof buf);
 	makemailer(buf);
 
-	strcpy(buf, "*file*, P=[FILE], F=lsDFMPEouq9, T=DNS/RFC822/X-Unix, A=FILE \201u");
+	(void) strlcpy(buf, "*file*, P=[FILE], F=lsDFMPEouq9, T=X-Unix/X-Unix/X-Unix, A=FILE \201u",
+		sizeof buf);
 	makemailer(buf);
 
-	strcpy(buf, "*include*, P=/dev/null, F=su, A=INCLUDE \201u");
+	(void) strlcpy(buf, "*include*, P=/dev/null, F=su, A=INCLUDE \201u",
+		sizeof buf);
 	makemailer(buf);
+	initerrmailers();
 }
 /*
 **  SETUPMAPS -- set up map classes
@@ -357,7 +411,7 @@ setupmailers()
 		s->s_mapclass.map_store = store; \
 	}
 
-void
+static void
 setupmaps()
 {
 	register STAB *s;
@@ -370,55 +424,74 @@ setupmaps()
 	MAPDEF("btree", ".db", MCF_ALIASOK|MCF_REBUILDABLE,
 		map_parseargs, bt_map_open, db_map_close,
 		db_map_lookup, db_map_store);
-#endif
+#endif /* NEWDB */
 
 #ifdef NDBM
 	MAPDEF("dbm", ".dir", MCF_ALIASOK|MCF_REBUILDABLE,
 		map_parseargs, ndbm_map_open, ndbm_map_close,
 		ndbm_map_lookup, ndbm_map_store);
-#endif
+#endif /* NDBM */
 
 #ifdef NIS
 	MAPDEF("nis", NULL, MCF_ALIASOK,
 		map_parseargs, nis_map_open, null_map_close,
 		nis_map_lookup, null_map_store);
-#endif
+#endif /* NIS */
 
 #ifdef NISPLUS
 	MAPDEF("nisplus", NULL, MCF_ALIASOK,
 		map_parseargs, nisplus_map_open, null_map_close,
 		nisplus_map_lookup, null_map_store);
-#endif
+#endif /* NISPLUS */
+
 #ifdef LDAPMAP
-	MAPDEF("ldapx", NULL, 0,
-		ldap_map_parseargs, ldap_map_open, ldap_map_close,
-		ldap_map_lookup, null_map_store);
-#endif
+	MAPDEF("ldap", NULL, MCF_ALIASOK,
+		ldapmap_parseargs, ldapmap_open, ldapmap_close,
+		ldapmap_lookup, null_map_store);
+
+	/* Deprecated */
+	MAPDEF("ldapx", NULL, MCF_ALIASOK,
+		ldapx_map_parseargs, ldapmap_open, ldapmap_close,
+		ldapmap_lookup, null_map_store);
+#endif /* LDAPMAP */
+
+#ifdef PH_MAP
+	MAPDEF("ph", NULL, 0,
+		ph_map_parseargs, ph_map_open, ph_map_close,
+		ph_map_lookup, null_map_store);
+#endif /* PH_MAP */
+
+#if MAP_NSD
+	/* IRIX 6.5 nsd support */
+	MAPDEF("nsd", NULL, MCF_ALIASOK,
+	       map_parseargs, null_map_open, null_map_close,
+	       nsd_map_lookup, null_map_store);
+#endif /* MAP_NSD */
 
 #ifdef HESIOD
 	MAPDEF("hesiod", NULL, MCF_ALIASOK|MCF_ALIASONLY,
 		map_parseargs, hes_map_open, null_map_close,
 		hes_map_lookup, null_map_store);
-#endif
+#endif /* HESIOD */
 
 #if NETINFO
 	MAPDEF("netinfo", NULL, MCF_ALIASOK,
 		map_parseargs, ni_map_open, null_map_close,
 		ni_map_lookup, null_map_store);
-#endif
+#endif /* NETINFO */
 
 #if 0
 	MAPDEF("dns", NULL, 0,
 		dns_map_init, null_map_open, null_map_close,
 		dns_map_lookup, null_map_store);
-#endif
+#endif /* 0 */
 
 #if NAMED_BIND
 	/* best MX DNS lookup */
 	MAPDEF("bestmx", NULL, MCF_OPTFILE,
 		map_parseargs, null_map_open, null_map_close,
 		bestmx_map_lookup, null_map_store);
-#endif
+#endif /* NAMED_BIND */
 
 	MAPDEF("host", NULL, 0,
 		host_map_init, null_map_open, null_map_close,
@@ -450,14 +523,14 @@ setupmaps()
 	MAPDEF("regex", NULL, 0,
 		regex_map_init, null_map_open, null_map_close,
 		regex_map_lookup, null_map_store);
-#endif
+#endif /* MAP_REGEX */
 
 #if USERDB
 	/* user database */
 	MAPDEF("userdb", ".db", 0,
 		map_parseargs, null_map_open, null_map_close,
 		udb_map_lookup, null_map_store);
-#endif
+#endif /* USERDB */
 
 	/* arbitrary programs */
 	MAPDEF("program", NULL, MCF_ALIASOK,
@@ -479,12 +552,28 @@ setupmaps()
 		map_parseargs, null_map_open, null_map_close,
 		null_map_lookup, null_map_store);
 
-#if _FFR_MAP_SYSLOG
 	/* syslog map -- logs information to syslog */
 	MAPDEF("syslog", NULL, 0,
-	       syslog_map_parseargs, null_map_open, null_map_close,
-	       syslog_map_lookup, null_map_store);
-#endif
+		syslog_map_parseargs, null_map_open, null_map_close,
+		syslog_map_lookup, null_map_store);
+
+	/* macro storage map -- rulesets can set macros */
+	MAPDEF("macro", NULL, 0,
+		dequote_init, null_map_open, null_map_close,
+		macro_map_lookup, null_map_store);
+
+	/* arithmetic map -- add/subtract/compare */
+	MAPDEF("arith", NULL, 0,
+		dequote_init, null_map_open, null_map_close,
+		arith_map_lookup, null_map_store);
+
+	if (tTd(38, 2))
+	{
+		/* bogus map -- always return tempfail */
+		MAPDEF("bogus",	NULL, MCF_ALIASOK|MCF_OPTFILE,
+		       map_parseargs, null_map_open, null_map_close,
+		       bogus_map_lookup, null_map_store);
+	}
 }
 
 #undef MAPDEF
@@ -528,43 +617,47 @@ inithostmaps()
 		if (strcmp(maptype[i], "files") == 0 &&
 		    stab("hosts.files", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "hosts.files text -k 0 -v 1 /etc/hosts");
+			(void) strlcpy(buf, "hosts.files text -k 0 -v 1 /etc/hosts",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#if NAMED_BIND
+# if NAMED_BIND
 		else if (strcmp(maptype[i], "dns") == 0 &&
 		    stab("hosts.dns", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "hosts.dns dns A");
+			(void) strlcpy(buf, "hosts.dns dns A", sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#ifdef NISPLUS
+# endif /* NAMED_BIND */
+# ifdef NISPLUS
 		else if (strcmp(maptype[i], "nisplus") == 0 &&
 		    stab("hosts.nisplus", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "hosts.nisplus nisplus -k name -v address -d hosts.org_dir");
+			(void) strlcpy(buf, "hosts.nisplus nisplus -k name -v address hosts.org_dir",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#ifdef NIS
+# endif /* NISPLUS */
+# ifdef NIS
 		else if (strcmp(maptype[i], "nis") == 0 &&
 		    stab("hosts.nis", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "hosts.nis nis -d -k 0 -v 1 hosts.byname");
+			(void) strlcpy(buf, "hosts.nis nis -k 0 -v 1 hosts.byname",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#if NETINFO
+# endif /* NIS */
+# if NETINFO
 		else if (strcmp(maptype[i], "netinfo") == 0) &&
 		    stab("hosts.netinfo", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "hosts.netinfo netinfo -v name /machines");
+			(void) strlcpy(buf, "hosts.netinfo netinfo -v name /machines",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
+# endif /* NETINFO */
 	}
-#endif
+#endif /* 0 */
 
 	/*
 	**  Make sure we have a host map.
@@ -573,11 +666,11 @@ inithostmaps()
 	if (stab("host", ST_MAP, ST_FIND) == NULL)
 	{
 		/* user didn't initialize: set up host map */
-		strcpy(buf, "host host");
+		(void) strlcpy(buf, "host host", sizeof buf);
 #if NAMED_BIND
 		if (ConfigLevel >= 2)
-			strcat(buf, " -a.");
-#endif
+			(void) strlcat(buf, " -a. -D", sizeof buf);
+#endif /* NAMED_BIND */
 		(void) makemapentry(buf);
 	}
 
@@ -591,45 +684,49 @@ inithostmaps()
 		if (strcmp(maptype[i], "files") == 0 &&
 		    stab("aliases.files", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.files null");
+			(void) strlcpy(buf, "aliases.files null", sizeof buf);
 			(void) makemapentry(buf);
 		}
 #ifdef NISPLUS
 		else if (strcmp(maptype[i], "nisplus") == 0 &&
 		    stab("aliases.nisplus", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.nisplus nisplus -kalias -vexpansion -d mail_aliases.org_dir");
+			(void) strlcpy(buf, "aliases.nisplus nisplus -kalias -vexpansion mail_aliases.org_dir",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
+#endif /* NISPLUS */
 #ifdef NIS
 		else if (strcmp(maptype[i], "nis") == 0 &&
 		    stab("aliases.nis", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.nis nis -d mail.aliases");
+			(void) strlcpy(buf, "aliases.nis nis mail.aliases",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#ifdef NETINFO
+#endif /* NIS */
+#if NETINFO
 		else if (strcmp(maptype[i], "netinfo") == 0 &&
 		    stab("aliases.netinfo", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.netinfo netinfo -z, /aliases");
+			(void) strlcpy(buf, "aliases.netinfo netinfo -z, /aliases",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
+#endif /* NETINFO */
 #ifdef HESIOD
 		else if (strcmp(maptype[i], "hesiod") == 0 &&
 		    stab("aliases.hesiod", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.hesiod hesiod aliases");
+			(void) strlcpy(buf, "aliases.hesiod hesiod aliases",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
+#endif /* HESIOD */
 	}
 	if (stab("aliases", ST_MAP, ST_FIND) == NULL)
 	{
-		strcpy(buf, "aliases switch aliases");
+		(void) strlcpy(buf, "aliases switch aliases", sizeof buf);
 		(void) makemapentry(buf);
 	}
 
@@ -644,40 +741,43 @@ inithostmaps()
 		if (strcmp(maptype[i], "files") == 0 &&
 		    stab("users.files", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "users.files text -m -z: -k0 -v6 /etc/passwd");
+			(void) strlcpy(buf, "users.files text -m -z: -k0 -v6 /etc/passwd",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#ifdef NISPLUS
+# ifdef NISPLUS
 		else if (strcmp(maptype[i], "nisplus") == 0 &&
 		    stab("users.nisplus", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "users.nisplus nisplus -m -kname -vhome -d passwd.org_dir");
+			(void) strlcpy(buf, "users.nisplus nisplus -m -kname -vhome passwd.org_dir",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#ifdef NIS
+# endif /* NISPLUS */
+# ifdef NIS
 		else if (strcmp(maptype[i], "nis") == 0 &&
 		    stab("users.nis", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "users.nis nis -m -d passwd.byname");
+			(void) strlcpy(buf, "users.nis nis -m passwd.byname",
+				sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
-#ifdef HESIOD
+# endif /* NIS */
+# ifdef HESIOD
 		else if (strcmp(maptype[i], "hesiod") == 0) &&
 		    stab("users.hesiod", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "users.hesiod hesiod");
+			(void) strlcpy(buf, "users.hesiod hesiod", sizeof buf);
 			(void) makemapentry(buf);
 		}
-#endif
+# endif /* HESIOD */
 	}
 	if (stab("users", ST_MAP, ST_FIND) == NULL)
 	{
-		strcpy(buf, "users switch -m passwd");
+		(void) strlcpy(buf, "users switch -m passwd", sizeof buf);
 		(void) makemapentry(buf);
 	}
-#endif
+#endif /* 0 */
 }
 /*
 **  SWITCH_MAP_FIND -- find the list of types associated with a map
@@ -694,23 +794,26 @@ inithostmaps()
 **
 **	Returns:
 **		The number of map types filled in, or -1 for failure.
+**
+**	Side effects:
+**		Preserves errno so nothing in the routine clobbers it.
 */
 
 #if defined(SOLARIS) || (defined(sony_news) && defined(__svr4))
 # define _USE_SUN_NSSWITCH_
-#endif
+#endif /* defined(SOLARIS) || (defined(sony_news) && defined(__svr4)) */
 
 #ifdef _USE_SUN_NSSWITCH_
 # include <nsswitch.h>
-#endif
+#endif /* _USE_SUN_NSSWITCH_ */
 
 #if defined(ultrix) || (defined(__osf__) && defined(__alpha))
 # define _USE_DEC_SVC_CONF_
-#endif
+#endif /* defined(ultrix) || (defined(__osf__) && defined(__alpha)) */
 
 #ifdef _USE_DEC_SVC_CONF_
 # include <sys/svcinfo.h>
-#endif
+#endif /* _USE_DEC_SVC_CONF_ */
 
 int
 switch_map_find(service, maptype, mapreturn)
@@ -719,6 +822,7 @@ switch_map_find(service, maptype, mapreturn)
 	short mapreturn[MAXMAPACTIONS];
 {
 	int svcno;
+	int save_errno = errno;
 
 #ifdef _USE_SUN_NSSWITCH_
 	struct __nsw_switchconfig *nsw_conf;
@@ -749,8 +853,9 @@ switch_map_find(service, maptype, mapreturn)
 		svcno++;
 		lk = lk->next;
 	}
+	errno = save_errno;
 	return svcno;
-#endif
+#endif /* _USE_SUN_NSSWITCH_ */
 
 #ifdef _USE_DEC_SVC_CONF_
 	struct svcinfo *svcinfo;
@@ -769,7 +874,10 @@ switch_map_find(service, maptype, mapreturn)
 	else if (strcmp(service, "passwd") == 0)
 		svc = SVC_PASSWD;
 	else
+	{
+		errno = save_errno;
 		return -1;
+	}
 	for (svcno = 0; svcno < SVC_PATHSIZE; svcno++)
 	{
 		switch (svcinfo->svcpath[svc][svcno])
@@ -786,18 +894,20 @@ switch_map_find(service, maptype, mapreturn)
 			maptype[svcno] = "dns";
 			break;
 
-#ifdef SVC_HESIOD
+# ifdef SVC_HESIOD
 		  case SVC_HESIOD:
 			maptype[svcno] = "hesiod";
 			break;
-#endif
+# endif /* SVC_HESIOD */
 
 		  case SVC_LAST:
+			errno = save_errno;
 			return svcno;
 		}
 	}
+	errno = save_errno;
 	return svcno;
-#endif
+#endif /* _USE_DEC_SVC_CONF_ */
 
 #if !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_)
 	/*
@@ -814,9 +924,10 @@ switch_map_find(service, maptype, mapreturn)
 	{
 		/* (re)read service switch */
 		register FILE *fp;
-		int sff = SFF_REGONLY|SFF_OPENASROOT|SFF_NOLOCK;
+		long sff = SFF_REGONLY|SFF_OPENASROOT|SFF_NOLOCK;
 
-		if (!bitset(DBS_LINKEDSERVICESWITCHFILEINWRITABLEDIR, DontBlameSendmail))
+		if (!bitnset(DBS_LINKEDSERVICESWITCHFILEINWRITABLEDIR,
+			    DontBlameSendmail))
 			sff |= SFF_NOWLINK;
 
 		if (ConfigFileRead)
@@ -878,7 +989,7 @@ switch_map_find(service, maptype, mapreturn)
 				if (svcno < MAXMAPSTACK)
 					st->s_service[svcno] = NULL;
 			}
-			fclose(fp);
+			(void) fclose(fp);
 		}
 	}
 
@@ -894,46 +1005,56 @@ switch_map_find(service, maptype, mapreturn)
 			if (maptype[svcno++] == NULL)
 				break;
 		}
+		errno = save_errno;
 		return --svcno;
 	}
-#endif
+#endif /* !defined(_USE_SUN_NSSWITCH_) && !defined(_USE_DEC_SVC_CONF_) */
 
 #if !defined(_USE_SUN_NSSWITCH_)
 	/* if the service file doesn't work, use an absolute fallback */
 # ifdef _USE_DEC_SVC_CONF_
   punt:
-# endif
+# endif /* _USE_DEC_SVC_CONF_ */
 	for (svcno = 0; svcno < MAXMAPACTIONS; svcno++)
 		mapreturn[svcno] = 0;
 	svcno = 0;
 	if (strcmp(service, "aliases") == 0)
 	{
 		maptype[svcno++] = "files";
+# if defined(AUTO_NETINFO_ALIASES) && defined (NETINFO)
+		maptype[svcno++] = "netinfo";
+# endif /* defined(AUTO_NETINFO_ALIASES) && defined (NETINFO) */
 # ifdef AUTO_NIS_ALIASES
 #  ifdef NISPLUS
 		maptype[svcno++] = "nisplus";
-#  endif
+#  endif /* NISPLUS */
 #  ifdef NIS
 		maptype[svcno++] = "nis";
-#  endif
-# endif
+#  endif /* NIS */
+# endif /* AUTO_NIS_ALIASES */
+		errno = save_errno;
 		return svcno;
 	}
 	if (strcmp(service, "hosts") == 0)
 	{
-#  if NAMED_BIND
+# if NAMED_BIND
 		maptype[svcno++] = "dns";
-#  else
-#   if defined(sun) && !defined(BSD)
+# else /* NAMED_BIND */
+#  if defined(sun) && !defined(BSD)
 		/* SunOS */
 		maptype[svcno++] = "nis";
-#   endif
-#  endif
+#  endif /* defined(sun) && !defined(BSD) */
+# endif /* NAMED_BIND */
+# if defined(AUTO_NETINFO_HOSTS) && defined (NETINFO)
+		maptype[svcno++] = "netinfo";
+# endif /* defined(AUTO_NETINFO_HOSTS) && defined (NETINFO) */
 		maptype[svcno++] = "files";
+		errno = save_errno;
 		return svcno;
 	}
+	errno = save_errno;
 	return -1;
-#endif
+#endif /* !defined(_USE_SUN_NSSWITCH_) */
 }
 /*
 **  USERNAME -- return the user id of the logged in user.
@@ -983,12 +1104,12 @@ username()
 		}
 		if (myname == NULL || myname[0] == '\0')
 		{
-			syserr("554 Who are you?");
+			syserr("554 5.3.0 Who are you?");
 			myname = "postmaster";
 		}
 	}
 
-	return (myname);
+	return myname;
 }
 /*
 **  TTYPATH -- Get the path of the user's tty
@@ -1027,22 +1148,22 @@ ttypath()
 	    (pathn = ttyname(0)) == NULL)
 	{
 		errno = 0;
-		return (NULL);
+		return NULL;
 	}
 
 	/* see if we have write permission */
 	if (stat(pathn, &stbuf) < 0 || !bitset(S_IWOTH, stbuf.st_mode))
 	{
 		errno = 0;
-		return (NULL);
+		return NULL;
 	}
 
 	/* see if the user is logged in */
 	if (getlogin() == NULL)
-		return (NULL);
+		return NULL;
 
 	/* looks good */
-	return (pathn);
+	return pathn;
 }
 /*
 **  CHECKCOMPAT -- check for From and To person compatible.
@@ -1077,16 +1198,11 @@ checkcompat(to, e)
 	register ADDRESS *to;
 	register ENVELOPE *e;
 {
-# ifdef lint
-	if (to == NULL)
-		to++;
-# endif /* lint */
-
 	if (tTd(49, 1))
-		printf("checkcompat(to=%s, from=%s)\n",
+		dprintf("checkcompat(to=%s, from=%s)\n",
 			to->q_paddr, e->e_from.q_paddr);
 
-# ifdef EXAMPLE_CODE
+#ifdef EXAMPLE_CODE
 	/* this code is intended as an example only */
 	register STAB *s;
 
@@ -1095,12 +1211,12 @@ checkcompat(to, e)
 	    to->q_mailer == s->s_mailer)
 	{
 		usrerr("553 No ARPA mail through this machine: see your system administration");
-		/* e->e_flags |= EF_NO_BODY_RETN; to supress body on return */
+		/* e->e_flags |= EF_NO_BODY_RETN; to suppress body on return */
 		to->q_status = "5.7.1";
-		return (EX_UNAVAILABLE);
+		return EX_UNAVAILABLE;
 	}
-# endif /* EXAMPLE_CODE */
-	return (EX_OK);
+#endif /* EXAMPLE_CODE */
+	return EX_OK;
 }
 /*
 **  SETSIGNAL -- set a signal handler
@@ -1113,29 +1229,54 @@ setsignal(sig, handler)
 	int sig;
 	sigfunc_t handler;
 {
-#if defined(SYS5SIGNALS) || defined(BSD4_3)
-# ifdef BSD4_3
-	return signal(sig, handler);
-# else
-	return sigset(sig, handler);
-# endif
-#else
+	/*
+	**  First, try for modern signal calls
+	**  and restartable syscalls
+	*/
+
+# ifdef SA_RESTART
 	struct sigaction n, o;
 
-	bzero(&n, sizeof n);
-# if USE_SA_SIGACTION
+	memset(&n, '\0', sizeof n);
+#  if USE_SA_SIGACTION
 	n.sa_sigaction = (void(*)(int, siginfo_t *, void *)) handler;
 	n.sa_flags = SA_RESTART|SA_SIGINFO;
-# else
+#  else /* USE_SA_SIGACTION */
 	n.sa_handler = handler;
-#  ifdef SA_RESTART
 	n.sa_flags = SA_RESTART;
-#  endif
-# endif
+#  endif /* USE_SA_SIGACTION */
 	if (sigaction(sig, &n, &o) < 0)
 		return SIG_ERR;
 	return o.sa_handler;
-#endif
+# else /* SA_RESTART */
+
+	/*
+	**  Else check for SYS5SIGNALS or
+	**  BSD4_3 signals
+	*/
+
+#  if defined(SYS5SIGNALS) || defined(BSD4_3)
+#   ifdef BSD4_3
+	return signal(sig, handler);
+#   else /* BSD4_3 */
+	return sigset(sig, handler);
+#   endif /* BSD4_3 */
+#  else /* defined(SYS5SIGNALS) || defined(BSD4_3) */
+
+	/*
+	**  Finally, if nothing else is available,
+	**  go for a default
+	*/
+
+	struct sigaction n, o;
+
+	memset(&n, '\0', sizeof n);
+	n.sa_handler = handler;
+	if (sigaction(sig, &n, &o) < 0)
+		return SIG_ERR;
+	return o.sa_handler;
+#  endif /* defined(SYS5SIGNALS) || defined(BSD4_3) */
+# endif /* SA_RESTART */
 }
 /*
 **  BLOCKSIGNAL -- hold a signal to prevent delivery
@@ -1153,13 +1294,13 @@ int
 blocksignal(sig)
 	int sig;
 {
-#ifdef BSD4_3
-# ifndef sigmask
-#  define sigmask(s)	(1 << ((s) - 1))
-# endif
+# ifdef BSD4_3
+#  ifndef sigmask
+#   define sigmask(s)	(1 << ((s) - 1))
+#  endif /* ! sigmask */
 	return (sigblock(sigmask(sig)) & sigmask(sig)) != 0;
-#else
-# ifdef ALTOS_SYSTEM_V
+# else /* BSD4_3 */
+#  ifdef ALTOS_SYSTEM_V
 	sigfunc_t handler;
 
 	handler = sigset(sig, SIG_HOLD);
@@ -1167,17 +1308,17 @@ blocksignal(sig)
 		return -1;
 	else
 		return handler == SIG_HOLD;
-# else
+#  else /* ALTOS_SYSTEM_V */
 	sigset_t sset, oset;
 
-	sigemptyset(&sset);
-	sigaddset(&sset, sig);
+	(void) sigemptyset(&sset);
+	(void) sigaddset(&sset, sig);
 	if (sigprocmask(SIG_BLOCK, &sset, &oset) < 0)
 		return -1;
 	else
 		return sigismember(&oset, sig);
-# endif
-#endif
+#  endif /* ALTOS_SYSTEM_V */
+# endif /* BSD4_3 */
 }
 /*
 **  RELEASESIGNAL -- release a held signal
@@ -1195,10 +1336,10 @@ int
 releasesignal(sig)
 	int sig;
 {
-#ifdef BSD4_3
+# ifdef BSD4_3
 	return (sigsetmask(sigblock(0) & ~sigmask(sig)) & sigmask(sig)) != 0;
-#else
-# ifdef ALTOS_SYSTEM_V
+# else /* BSD4_3 */
+#  ifdef ALTOS_SYSTEM_V
 	sigfunc_t handler;
 
 	handler = sigset(sig, SIG_HOLD);
@@ -1206,17 +1347,17 @@ releasesignal(sig)
 		return -1;
 	else
 		return handler == SIG_HOLD;
-# else
+#  else /* ALTOS_SYSTEM_V */
 	sigset_t sset, oset;
 
-	sigemptyset(&sset);
-	sigaddset(&sset, sig);
+	(void) sigemptyset(&sset);
+	(void) sigaddset(&sset, sig);
 	if (sigprocmask(SIG_UNBLOCK, &sset, &oset) < 0)
 		return -1;
 	else
 		return sigismember(&oset, sig);
-# endif
-#endif
+#  endif /* ALTOS_SYSTEM_V */
+# endif /* BSD4_3 */
 }
 /*
 **  HOLDSIGS -- arrange to hold all signals
@@ -1263,11 +1404,11 @@ rlsesigs()
 
 #ifdef _AUX_SOURCE
 # include <compat.h>
-#endif
+#endif /* _AUX_SOURCE */
 
 #if SHARE_V1
 # include <shares.h>
-#endif
+#endif /* SHARE_V1 */
 
 void
 init_md(argc, argv)
@@ -1276,16 +1417,16 @@ init_md(argc, argv)
 {
 #ifdef _AUX_SOURCE
 	setcompat(getcompat() | COMPAT_BSDPROT);
-#endif
+#endif /* _AUX_SOURCE */
 
 #ifdef SUN_EXTENSIONS
 	init_md_sun();
-#endif
+#endif /* SUN_EXTENSIONS */
 
 #if _CONVEX_SOURCE
 	/* keep gethostby*() from stripping the local domain name */
 	set_domain_trim_off();
-#endif
+#endif /* _CONVEX_SOURCE */
 #ifdef __QNX__
 	/*
 	**  Due to QNX's network distributed nature, you can target a tcpip
@@ -1294,7 +1435,7 @@ init_md(argc, argv)
 	**  environment is clear.
 	*/
 	__sock_locate();
-#endif
+#endif /* __QNX__ */
 #if SECUREWARE || defined(_SCO_unix_)
 	set_auth_parameters(argc, argv);
 
@@ -1307,14 +1448,15 @@ init_md(argc, argv)
 
 	if (getluid() == -1)
 		setluid(0);
-# endif
-#endif
+# endif /* _SCO_unix_ */
+#endif /* SECUREWARE || defined(_SCO_unix_) */
+
 
 #ifdef VENDOR_DEFAULT
 	VendorCode = VENDOR_DEFAULT;
-#else
+#else /* VENDOR_DEFAULT */
 	VendorCode = VENDOR_BERKELEY;
-#endif
+#endif /* VENDOR_DEFAULT */
 }
 /*
 **  INIT_VENDOR_MACROS -- vendor-dependent macro initializations
@@ -1370,167 +1512,171 @@ init_vendor_macros(e)
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
 # define LA_TYPE	LA_ZERO
-#endif
+#endif /* ! LA_TYPE */
 
 #ifndef FSHIFT
 # if defined(unixpc)
 #  define FSHIFT	5
-# endif
+# endif /* defined(unixpc) */
 
 # if defined(__alpha) || defined(IRIX)
 #  define FSHIFT	10
-# endif
+# endif /* defined(__alpha) || defined(IRIX) */
 
-#endif
+#endif /* ! FSHIFT */
 
 #ifndef FSHIFT
 # define FSHIFT		8
-#endif
+#endif /* ! FSHIFT */
 
 #ifndef FSCALE
 # define FSCALE		(1 << FSHIFT)
-#endif
+#endif /* ! FSCALE */
 
 #ifndef LA_AVENRUN
 # ifdef SYSTEM5
 #  define LA_AVENRUN	"avenrun"
-# else
+# else /* SYSTEM5 */
 #  define LA_AVENRUN	"_avenrun"
-# endif
-#endif
+# endif /* SYSTEM5 */
+#endif /* ! LA_AVENRUN */
 
 /* _PATH_KMEM should be defined in <paths.h> */
 #ifndef _PATH_KMEM
 # define _PATH_KMEM	"/dev/kmem"
-#endif
+#endif /* ! _PATH_KMEM */
 
 #if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT)
 
-#include <nlist.h>
+# include <nlist.h>
 
 /* _PATH_UNIX should be defined in <paths.h> */
-#ifndef _PATH_UNIX
-# if defined(SYSTEM5)
-#  define _PATH_UNIX	"/unix"
-# else
-#  define _PATH_UNIX	"/vmunix"
-# endif
-#endif
+# ifndef _PATH_UNIX
+#  if defined(SYSTEM5)
+#   define _PATH_UNIX	"/unix"
+#  else /* defined(SYSTEM5) */
+#   define _PATH_UNIX	"/vmunix"
+#  endif /* defined(SYSTEM5) */
+# endif /* ! _PATH_UNIX */
 
-#ifdef _AUX_SOURCE
+# ifdef _AUX_SOURCE
 struct nlist	Nl[2];
-#else
+# else /* _AUX_SOURCE */
 struct nlist	Nl[] =
 {
 	{ LA_AVENRUN },
 	{ 0 },
 };
-#endif
-#define	X_AVENRUN	0
+# endif /* _AUX_SOURCE */
+# define X_AVENRUN	0
 
-int
+static int
 getla()
 {
 	static int kmem = -1;
-#if LA_TYPE == LA_INT
+# if LA_TYPE == LA_INT
 	long avenrun[3];
-#else
-# if LA_TYPE == LA_SHORT
+# else /* LA_TYPE == LA_INT */
+#  if LA_TYPE == LA_SHORT
 	short avenrun[3];
-# else
+#  else /* LA_TYPE == LA_SHORT */
 	double avenrun[3];
-# endif
-#endif
+#  endif /* LA_TYPE == LA_SHORT */
+# endif /* LA_TYPE == LA_INT */
 	extern int errno;
 	extern off_t lseek();
 
 	if (kmem < 0)
 	{
-#ifdef _AUX_SOURCE
-		strcpy(Nl[X_AVENRUN].n_name, LA_AVENRUN);
+# ifdef _AUX_SOURCE
+		(void) strlcpy(Nl[X_AVENRUN].n_name, LA_AVENRUN,
+			       sizeof Nl[X_AVENRUN].n_name);
 		Nl[1].n_name[0] = '\0';
-#endif
+# endif /* _AUX_SOURCE */
 
-#if defined(_AIX3) || defined(_AIX4)
+# if defined(_AIX3) || defined(_AIX4)
 		if (knlist(Nl, 1, sizeof Nl[0]) < 0)
-#else
+# else /* defined(_AIX3) || defined(_AIX4) */
 		if (nlist(_PATH_UNIX, Nl) < 0)
-#endif
+# endif /* defined(_AIX3) || defined(_AIX4) */
 		{
 			if (tTd(3, 1))
-				printf("getla: nlist(%s): %s\n", _PATH_UNIX,
+				dprintf("getla: nlist(%s): %s\n", _PATH_UNIX,
 					errstring(errno));
-			return (-1);
+			return -1;
 		}
 		if (Nl[X_AVENRUN].n_value == 0)
 		{
 			if (tTd(3, 1))
-				printf("getla: nlist(%s, %s) ==> 0\n",
+				dprintf("getla: nlist(%s, %s) ==> 0\n",
 					_PATH_UNIX, LA_AVENRUN);
-			return (-1);
+			return -1;
 		}
-#ifdef NAMELISTMASK
+# ifdef NAMELISTMASK
 		Nl[X_AVENRUN].n_value &= NAMELISTMASK;
-#endif
+# endif /* NAMELISTMASK */
 
 		kmem = open(_PATH_KMEM, 0, 0);
 		if (kmem < 0)
 		{
 			if (tTd(3, 1))
-				printf("getla: open(/dev/kmem): %s\n",
+				dprintf("getla: open(/dev/kmem): %s\n",
 					errstring(errno));
-			return (-1);
+			return -1;
 		}
-		(void) fcntl(kmem, F_SETFD, 1);
+		(void) fcntl(kmem, F_SETFD, FD_CLOEXEC);
 	}
 	if (tTd(3, 20))
-		printf("getla: symbol address = %#lx\n",
+		dprintf("getla: symbol address = %#lx\n",
 			(u_long) Nl[X_AVENRUN].n_value);
 	if (lseek(kmem, (off_t) Nl[X_AVENRUN].n_value, SEEK_SET) == -1 ||
 	    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
 	{
 		/* thank you Ian */
 		if (tTd(3, 1))
-			printf("getla: lseek or read: %s\n", errstring(errno));
-		return (-1);
+			dprintf("getla: lseek or read: %s\n",
+				errstring(errno));
+		return -1;
 	}
 # if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)
 	if (tTd(3, 5))
 	{
 #  if LA_TYPE == LA_SHORT
-		printf("getla: avenrun = %d", avenrun[0]);
+		dprintf("getla: avenrun = %d", avenrun[0]);
 		if (tTd(3, 15))
-			printf(", %d, %d", avenrun[1], avenrun[2]);
-#  else
-		printf("getla: avenrun = %ld", avenrun[0]);
+			dprintf(", %d, %d", avenrun[1], avenrun[2]);
+#  else /* LA_TYPE == LA_SHORT */
+		dprintf("getla: avenrun = %ld", avenrun[0]);
 		if (tTd(3, 15))
-			printf(", %ld, %ld", avenrun[1], avenrun[2]);
-#  endif
-		printf("\n");
+			dprintf(", %ld, %ld", avenrun[1], avenrun[2]);
+#  endif /* LA_TYPE == LA_SHORT */
+		dprintf("\n");
 	}
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (avenrun[0] + FSCALE/2) >> FSHIFT);
+		dprintf("getla: %d\n",
+			(int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 	return ((int) (avenrun[0] + FSCALE/2) >> FSHIFT);
-# else /* LA_TYPE == LA_FLOAT */
+# else /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) */
 	if (tTd(3, 5))
 	{
-		printf("getla: avenrun = %g", avenrun[0]);
+		dprintf("getla: avenrun = %g", avenrun[0]);
 		if (tTd(3, 15))
-			printf(", %g, %g", avenrun[1], avenrun[2]);
-		printf("\n");
+			dprintf(", %g, %g", avenrun[1], avenrun[2]);
+		dprintf("\n");
 	}
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (avenrun[0] +0.5));
+		dprintf("getla: %d\n", (int) (avenrun[0] +0.5));
 	return ((int) (avenrun[0] + 0.5));
-# endif
+# endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT) */
 }
 
-#endif /* LA_TYPE == LA_INT or LA_SHORT or LA_FLOAT */
+#endif /* (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT) */
 
 #if LA_TYPE == LA_READKSYM
 
 # include <sys/ksym.h>
 
+static int
 getla()
 {
 	static int kmem = -1;
@@ -1544,11 +1690,11 @@ getla()
 		if (kmem < 0)
 		{
 			if (tTd(3, 1))
-				printf("getla: open(/dev/kmem): %s\n",
+				dprintf("getla: open(/dev/kmem): %s\n",
 					errstring(errno));
-			return (-1);
+			return -1;
 		}
-		(void) fcntl(kmem, F_SETFD, 1);
+		(void) fcntl(kmem, F_SETFD, FD_CLOEXEC);
 	}
 	mirk.mirk_symname = LA_AVENRUN;
 	mirk.mirk_buf = avenrun;
@@ -1556,19 +1702,20 @@ getla()
 	if (ioctl(kmem, MIOC_READKSYM, &mirk) < 0)
 	{
 		if (tTd(3, 1))
-			printf("getla: ioctl(MIOC_READKSYM) failed: %s\n",
+			dprintf("getla: ioctl(MIOC_READKSYM) failed: %s\n",
 				errstring(errno));
 		return -1;
 	}
 	if (tTd(3, 5))
 	{
-		printf("getla: avenrun = %d", avenrun[0]);
+		dprintf("getla: avenrun = %d", avenrun[0]);
 		if (tTd(3, 15))
-			printf(", %d, %d", avenrun[1], avenrun[2]);
-		printf("\n");
+			dprintf(", %d, %d", avenrun[1], avenrun[2]);
+		dprintf("\n");
 	}
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (avenrun[0] + FSCALE/2) >> FSHIFT);
+		dprintf("getla: %d\n",
+			(int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 	return ((int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 }
 
@@ -1578,7 +1725,7 @@ getla()
 
 # include <sys/dg_sys_info.h>
 
-int
+static int
 getla()
 {
 	struct dg_sys_info_load_info load_info;
@@ -1587,9 +1734,9 @@ getla()
 		DG_SYS_INFO_LOAD_INFO_TYPE, DG_SYS_INFO_LOAD_VERSION_0);
 
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (load_info.one_minute + 0.5));
+		dprintf("getla: %d\n", (int) (load_info.one_minute + 0.5));
 
-	return((int) (load_info.one_minute + 0.5));
+	return ((int) (load_info.one_minute + 0.5));
 }
 
 #endif /* LA_TYPE == LA_DGUX */
@@ -1609,7 +1756,7 @@ struct pst_swapinfo;
 # include <sys/param.h>
 # include <sys/pstat.h>
 
-int
+static int
 getla()
 {
 	struct pst_dynamic pstd;
@@ -1619,7 +1766,7 @@ getla()
 		return 0;
 
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (pstd.psd_avg_1_min + 0.5));
+		dprintf("getla: %d\n", (int) (pstd.psd_avg_1_min + 0.5));
 
 	return (int) (pstd.psd_avg_1_min + 0.5);
 }
@@ -1628,7 +1775,7 @@ getla()
 
 #if LA_TYPE == LA_SUBR
 
-int
+static int
 getla()
 {
 	double avenrun[3];
@@ -1636,11 +1783,12 @@ getla()
 	if (getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0])) < 0)
 	{
 		if (tTd(3, 1))
-			perror("getla: getloadavg failed:");
-		return (-1);
+			dprintf("getla: getloadavg failed: %s",
+				errstring(errno));
+		return -1;
 	}
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (avenrun[0] +0.5));
+		dprintf("getla: %d\n", (int) (avenrun[0] +0.5));
 	return ((int) (avenrun[0] + 0.5));
 }
 
@@ -1652,13 +1800,13 @@ getla()
 **  This has been tested on NEXTSTEP release 2.1/3.X.
 */
 
-#if defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0
-# include <mach/mach.h>
-#else
-# include <mach.h>
-#endif
+# if defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0
+#  include <mach/mach.h>
+# else /* defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0 */
+#  include <mach.h>
+# endif /* defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0 */
 
-int
+static int
 getla()
 {
 	processor_set_t default_set;
@@ -1671,7 +1819,8 @@ getla()
 	if (error != KERN_SUCCESS)
 	{
 		if (tTd(3, 1))
-			perror("getla: processor_set_default failed:");
+			dprintf("getla: processor_set_default failed: %s",
+				errstring(errno));
 		return -1;
 	}
 	info_count = PROCESSOR_SET_BASIC_INFO_COUNT;
@@ -1680,11 +1829,14 @@ getla()
 			       &info_count) != KERN_SUCCESS)
 	{
 		if (tTd(3, 1))
-			perror("getla: processor_set_info failed:");
+			dprintf("getla: processor_set_info failed: %s",
+				errstring(errno));
 		return -1;
 	}
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (info.load_average + (LOAD_SCALE / 2)) / LOAD_SCALE);
+		dprintf("getla: %d\n",
+			(int) ((info.load_average + (LOAD_SCALE / 2)) /
+			       LOAD_SCALE));
 	return (int) (info.load_average + (LOAD_SCALE / 2)) / LOAD_SCALE;
 }
 
@@ -1702,9 +1854,9 @@ getla()
 
 # ifndef _PATH_LOADAVG
 #  define _PATH_LOADAVG	"/proc/loadavg"
-# endif
+# endif /* ! _PATH_LOADAVG */
 
-int
+static int
 getla()
 {
 	double avenrun;
@@ -1715,22 +1867,22 @@ getla()
 	if (fp == NULL)
 	{
 		if (tTd(3, 1))
-			printf("getla: fopen(%s): %s\n",
+			dprintf("getla: fopen(%s): %s\n",
 				_PATH_LOADAVG, errstring(errno));
 		return -1;
 	}
 	result = fscanf(fp, "%lf", &avenrun);
-	fclose(fp);
+	(void) fclose(fp);
 	if (result != 1)
 	{
 		if (tTd(3, 1))
-			printf("getla: fscanf() = %d: %s\n",
+			dprintf("getla: fscanf() = %d: %s\n",
 				result, errstring(errno));
 		return -1;
 	}
 
 	if (tTd(3, 1))
-		printf("getla(): %.2f\n", avenrun);
+		dprintf("getla(): %.2f\n", avenrun);
 
 	return ((int) (avenrun + 0.5));
 }
@@ -1738,7 +1890,8 @@ getla()
 #endif /* LA_TYPE == LA_PROCSTR */
 
 #if LA_TYPE == LA_IRIX6
-#include <sys/sysmp.h>
+
+# include <sys/sysmp.h>
 
 int getla(void)
 {
@@ -1751,42 +1904,43 @@ int getla(void)
 		if (kmem < 0)
 		{
 			if (tTd(3, 1))
-				printf("getla: open(%s): %s\n", _PATH_KMEM,
+				dprintf("getla: open(%s): %s\n", _PATH_KMEM,
 					errstring(errno));
 			return -1;
 		}
-		(void) fcntl(kmem, F_SETFD, 1);
+		(void) fcntl(kmem, F_SETFD, FD_CLOEXEC);
 	}
 
-	if (lseek(kmem, (sysmp(MP_KERNADDR, MPKA_AVENRUN) & 0x7fffffff), SEEK_SET) == -1 || 
-	    read(kmem, (char *)avenrun, sizeof(avenrun)) < sizeof(avenrun)) 
+	if (lseek(kmem, (sysmp(MP_KERNADDR, MPKA_AVENRUN) & 0x7fffffff), SEEK_SET) == -1 ||
+	    read(kmem, (char *)avenrun, sizeof(avenrun)) < sizeof(avenrun))
 	{
 		if (tTd(3, 1))
-			printf("getla: lseek or read: %s\n",
-			       errstring(errno));
+			dprintf("getla: lseek or read: %s\n",
+				errstring(errno));
 		return -1;
 	}
 	if (tTd(3, 5))
 	{
-		printf("getla: avenrun = %ld", (long int) avenrun[0]);
+		dprintf("getla: avenrun = %ld", (long int) avenrun[0]);
 		if (tTd(3, 15))
-			printf(", %ld, %ld",
-			       (long int) avenrun[1], (long int) avenrun[2]);
-		printf("\n");
+			dprintf(", %ld, %ld",
+				(long int) avenrun[1], (long int) avenrun[2]);
+		dprintf("\n");
 	}
 
 	if (tTd(3, 1))
-		printf("getla: %d\n", (int) (avenrun[0] + FSCALE/2) >> FSHIFT);
+		dprintf("getla: %d\n",
+			(int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 	return ((int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 
 }
-#endif
+#endif /* LA_TYPE == LA_IRIX6 */
 
 #if LA_TYPE == LA_KSTAT
 
-#include <kstat.h>
+# include <kstat.h>
 
-int
+static int
 getla()
 {
 	static kstat_ctl_t *kc = NULL;
@@ -1799,7 +1953,7 @@ getla()
 	if (kc == NULL)
 	{
 		if (tTd(3, 1))
-			printf("getla: kstat_open(): %s\n",
+			dprintf("getla: kstat_open(): %s\n",
 				errstring(errno));
 		return -1;
 	}
@@ -1808,14 +1962,14 @@ getla()
 	if (ksp == NULL)
 	{
 		if (tTd(3, 1))
-			printf("getla: kstat_lookup(): %s\n",
+			dprintf("getla: kstat_lookup(): %s\n",
 				errstring(errno));
 		return -1;
 	}
 	if (kstat_read(kc, ksp, NULL) < 0)
 	{
 		if (tTd(3, 1))
-			printf("getla: kstat_read(): %s\n",
+			dprintf("getla: kstat_read(): %s\n",
 				errstring(errno));
 		return -1;
 	}
@@ -1839,9 +1993,9 @@ getla()
 
 # ifndef _PATH_AVENRUN
 #  define _PATH_AVENRUN	"/dev/table/avenrun"
-# endif
+# endif /* ! _PATH_AVENRUN */
 
-int
+static int
 getla()
 {
 	static int afd = -1;
@@ -1868,10 +2022,10 @@ getla()
 	r = read(afd, &avenrun, sizeof avenrun);
 
 	if (tTd(3, 5))
-		printf("getla: avenrun = %d\n", avenrun);
+		dprintf("getla: avenrun = %d\n", avenrun);
 	loadav = (int) (avenrun + FSCALE/2) >> FSHIFT;
 	if (tTd(3, 1))
-		printf("getla: %d\n", loadav);
+		dprintf("getla: %d\n", loadav);
 	return loadav;
 }
 
@@ -1890,34 +2044,35 @@ int getla()
 	if (table(TBL_LOADAVG, 0, &tab, 1, sizeof(tab)) == -1)
 	{
 		if (tTd(3, 1))
-			printf("getla: table %s\n", errstring(errno));
-		return (-1);
+			dprintf("getla: table %s\n", errstring(errno));
+		return -1;
 	}
 
 	if (tTd(3, 1))
-		printf("getla: scale = %d\n", tab.tl_lscale);
+		dprintf("getla: scale = %d\n", tab.tl_lscale);
 
 	if (tab.tl_lscale)
-		ave = (tab.tl_avenrun.l[0] + (tab.tl_lscale/2)) / tab.tl_lscale;
+		ave = ((tab.tl_avenrun.l[2] + (tab.tl_lscale/2)) /
+		       tab.tl_lscale);
 	else
-		ave = (int) (tab.tl_avenrun.d[0] + 0.5);
+		ave = (int) (tab.tl_avenrun.d[2] + 0.5);
 
 	if (tTd(3, 1))
-		printf("getla: %d\n", ave);
+		dprintf("getla: %d\n", ave);
 
 	return ave;
 }
 
-#endif
+#endif /* LA_TYPE == LA_ALPHAOSF */
 
 #if LA_TYPE == LA_ZERO
 
-int
+static int
 getla()
 {
 	if (tTd(3, 1))
-		printf("getla: ZERO\n");
-	return (0);
+		dprintf("getla: ZERO\n");
+	return 0;
 }
 
 #endif /* LA_TYPE == LA_ZERO */
@@ -1947,12 +2102,12 @@ getla()
 
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
-static char  rcsid[] = "@(#)$Id: getloadavg.c,v 1.16 1991/06/21 12:51:15 paul Exp $";
-#endif /* !lint */
+static char  rcsid[] = "@(#)$OrigId: getloadavg.c,v 1.16 1991/06/21 12:51:15 paul Exp $";
+#endif /* ! lint */
 
 #ifdef apollo
 # undef volatile
-#    include <apollo/base.h>
+# include <apollo/base.h>
 
 /* ARGSUSED */
 int getloadavg( call_data )
@@ -1964,9 +2119,40 @@ int getloadavg( call_data )
      long loadav[3];
      proc1_$get_loadav(loadav, &st);
      *avenrun = loadav[0] / (double) (1 << 16);
-     return(0);
+     return 0;
 }
-#   endif /* apollo */
+#endif /* apollo */
+/*
+**  SM_GETLA -- get the current load average and set macro
+**
+**	Parameters:
+**		e -- the envelope for the load average macro.
+**
+**	Returns:
+**		The current load average as an integer.
+**
+**	Side Effects:
+**		Sets the load average macro ({load_avg}) if
+**		envelope e is not NULL.
+*/
+
+int
+sm_getla(e)
+	ENVELOPE *e;
+{
+	register int la;
+
+	la = getla();
+	if (e != NULL)
+	{
+		char labuf[8];
+
+		snprintf(labuf, sizeof labuf, "%d", CurrentLA);
+		define(macid("{load_avg}", NULL), newstr(labuf), e);
+	}
+	return la;
+}
+
 /*
 **  SHOULDQUEUE -- should this message be queued or sent?
 **
@@ -1974,7 +2160,7 @@ int getloadavg( call_data )
 **
 **	Parameters:
 **		pri -- the priority of the message in question.
-**		ctime -- the message creation time.
+**		ct -- the message creation time.
 **
 **	Returns:
 **		TRUE -- if this message should be queued up for the
@@ -1985,42 +2171,43 @@ int getloadavg( call_data )
 **		none.
 */
 
-extern int	get_num_procs_online __P((void));
-
+/* ARGSUSED1 */
 bool
-shouldqueue(pri, ctime)
+shouldqueue(pri, ct)
 	long pri;
-	time_t ctime;
+	time_t ct;
 {
 	bool rval;
-	int queuela = QueueLA * get_num_procs_online();
 
 	if (tTd(3, 30))
-		printf("shouldqueue: CurrentLA=%d, pri=%ld: ", CurrentLA, pri);
-	if (CurrentLA < queuela)
+		dprintf("shouldqueue: CurrentLA=%d, pri=%ld: ",
+			CurrentLA, pri);
+	if (CurrentLA < QueueLA)
 	{
 		if (tTd(3, 30))
-			printf("FALSE (CurrentLA < QueueLA)\n");
-		return (FALSE);
+			dprintf("FALSE (CurrentLA < QueueLA)\n");
+		return FALSE;
 	}
 #if 0	/* this code is reported to cause oscillation around RefuseLA */
 	if (CurrentLA >= RefuseLA && QueueLA < RefuseLA)
 	{
 		if (tTd(3, 30))
-			printf("TRUE (CurrentLA >= RefuseLA)\n");
-		return (TRUE);
+			dprintf("TRUE (CurrentLA >= RefuseLA)\n");
+		return TRUE;
 	}
-#endif
-	rval = pri > (QueueFactor / (CurrentLA - queuela + 1));
+#endif /* 0 */
+	rval = pri > (QueueFactor / (CurrentLA - QueueLA + 1));
 	if (tTd(3, 30))
-		printf("%s (by calculation)\n", rval ? "TRUE" : "FALSE");
+		dprintf("%s (by calculation)\n", rval ? "TRUE" : "FALSE");
 	return rval;
 }
 /*
 **  REFUSECONNECTIONS -- decide if connections should be refused
 **
 **	Parameters:
-**		port -- port number (for error messages only)
+**		name -- daemon name (for error messages only)
+**		e -- the current envelope.
+**		d -- number of daemon
 **
 **	Returns:
 **		TRUE if incoming SMTP connections should be refused
@@ -2032,58 +2219,48 @@ shouldqueue(pri, ctime)
 */
 
 bool
-refuseconnections(port)
-	int port;
+refuseconnections(name, e, d)
+	char *name;
+	ENVELOPE *e;
+	int d;
 {
-	int refusela = RefuseLA * get_num_procs_online();
 	time_t now;
-	static time_t lastconn = (time_t) 0;
-	static int conncnt = 0;
-	extern bool enoughdiskspace __P((long));
+	static time_t lastconn[MAXDAEMONS];
+	static int conncnt[MAXDAEMONS];
+
 
 #ifdef XLA
 	if (!xla_smtp_ok())
 		return TRUE;
-#endif
+#endif /* XLA */
 
 	now = curtime();
-	if (now != lastconn)
+	if (now != lastconn[d])
 	{
-		lastconn = now;
-		conncnt = 0;
+		lastconn[d] = now;
+		conncnt[d] = 0;
 	}
-	else if (conncnt++ > ConnRateThrottle && ConnRateThrottle > 0)
+	else if (conncnt[d]++ > ConnRateThrottle && ConnRateThrottle > 0)
 	{
 		/* sleep to flatten out connection load */
-		sm_setproctitle(TRUE, "deferring connections on port %d: %d per second",
-			port, ConnRateThrottle);
-		if (LogLevel >= 14)
+		sm_setproctitle(TRUE, e, "deferring connections on daemon %s: %d per second",
+				name, ConnRateThrottle);
+		if (LogLevel >= 9)
 			sm_syslog(LOG_INFO, NOQID,
-				"deferring connections on port %d: %d per second",
-				port, ConnRateThrottle);
-		sleep(1);
+				"deferring connections on daemon %s: %d per second",
+				name, ConnRateThrottle);
+		(void) sleep(1);
 	}
 
 	CurrentLA = getla();
-	if (CurrentLA >= refusela)
+	if (RefuseLA > 0 && CurrentLA >= RefuseLA)
 	{
-		sm_setproctitle(TRUE, "rejecting connections on port %d: load average: %d",
-			port, CurrentLA);
-		if (LogLevel >= 14)
+		sm_setproctitle(TRUE, e, "rejecting connections on daemon %s: load average: %d",
+				name, CurrentLA);
+		if (LogLevel >= 9)
 			sm_syslog(LOG_INFO, NOQID,
-				"rejecting connections on port %d: load average: %d",
-				port, CurrentLA);
-		return TRUE;
-	}
-
-	if (!enoughdiskspace(MinBlocksFree + 1))
-	{
-		sm_setproctitle(TRUE, "rejecting connections on port %d: min free: %d",
-			port, MinBlocksFree);
-		if (LogLevel >= 14)
-			sm_syslog(LOG_INFO, NOQID,
-				"rejecting connections on port %d: min free: %d",
-				port, MinBlocksFree);
+				"rejecting connections on daemon %s: load average: %d",
+				name, CurrentLA);
 		return TRUE;
 	}
 
@@ -2092,12 +2269,12 @@ refuseconnections(port)
 		proc_list_probe();
 		if (CurChildren >= MaxChildren)
 		{
-			sm_setproctitle(TRUE, "rejecting connections on port %d: %d children, max %d",
-				port, CurChildren, MaxChildren);
-			if (LogLevel >= 14)
+			sm_setproctitle(TRUE, e, "rejecting connections on daemon %s: %d children, max %d",
+					name, CurChildren, MaxChildren);
+			if (LogLevel >= 9)
 				sm_syslog(LOG_INFO, NOQID,
-					"rejecting connections on port %d: %d children, max %d",
-					port, CurChildren, MaxChildren);
+					"rejecting connections on daemon %s: %d children, max %d",
+					name, CurChildren, MaxChildren);
 			return TRUE;
 		}
 	}
@@ -2130,37 +2307,38 @@ refuseconnections(port)
 
 #ifndef SPT_TYPE
 # define SPT_TYPE	SPT_REUSEARGV
-#endif
+#endif /* ! SPT_TYPE */
+
 
 #if SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN
 
 # if SPT_TYPE == SPT_PSTAT
 #  include <sys/pstat.h>
-# endif
+# endif /* SPT_TYPE == SPT_PSTAT */
 # if SPT_TYPE == SPT_PSSTRINGS
 #  include <machine/vmparam.h>
 #  include <sys/exec.h>
 #  ifndef PS_STRINGS	/* hmmmm....  apparently not available after all */
 #   undef SPT_TYPE
 #   define SPT_TYPE	SPT_REUSEARGV
-#  else
+#  else /* ! PS_STRINGS */
 #   ifndef NKPDE			/* FreeBSD 2.0 */
 #    define NKPDE 63
 typedef unsigned int	*pt_entry_t;
-#   endif
-#  endif
-# endif
+#   endif /* ! NKPDE */
+#  endif /* ! PS_STRINGS */
+# endif /* SPT_TYPE == SPT_PSSTRINGS */
 
 # if SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV
 #  define SETPROC_STATIC	static
-# else
+# else /* SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV */
 #  define SETPROC_STATIC
-# endif
+# endif /* SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV */
 
 # if SPT_TYPE == SPT_SYSMIPS
 #  include <sys/sysmips.h>
 #  include <sys/sysnews.h>
-# endif
+# endif /* SPT_TYPE == SPT_SYSMIPS */
 
 # if SPT_TYPE == SPT_SCO
 #  include <sys/immu.h>
@@ -2169,26 +2347,29 @@ typedef unsigned int	*pt_entry_t;
 #  include <sys/fs/s5param.h>
 #  if PSARGSZ > MAXLINE
 #   define SPT_BUFSIZE	PSARGSZ
-#  endif
-# endif
+#  endif /* PSARGSZ > MAXLINE */
+# endif /* SPT_TYPE == SPT_SCO */
 
 # ifndef SPT_PADCHAR
 #  define SPT_PADCHAR	' '
-# endif
+# endif /* ! SPT_PADCHAR */
 
 #endif /* SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN */
 
-# ifndef SPT_BUFSIZE
-#  define SPT_BUFSIZE	MAXLINE
-# endif
+#ifndef SPT_BUFSIZE
+# define SPT_BUFSIZE	MAXLINE
+#endif /* ! SPT_BUFSIZE */
 
 /*
 **  Pointers for setproctitle.
 **	This allows "ps" listings to give more useful information.
 */
 
-char		**Argv = NULL;		/* pointer to argument vector */
-char		*LastArgv = NULL;	/* end of argv */
+static char	**Argv = NULL;		/* pointer to argument vector */
+static char	*LastArgv = NULL;	/* end of argv */
+#if SPT_TYPE != SPT_BUILTIN
+static void	setproctitle __P((const char *, ...));
+#endif /* SPT_TYPE != SPT_BUILTIN */
 
 void
 initsetproctitle(argc, argv, envp)
@@ -2218,57 +2399,52 @@ initsetproctitle(argc, argv, envp)
 	Argv = argv;
 
 	/*
-	**  Determine how much space we can use for setproctitle.  
+	**  Determine how much space we can use for setproctitle.
 	**  Use all contiguous argv and envp pointers starting at argv[0]
- 	*/
+	*/
 	for (i = 0; i < argc; i++)
 	{
-		if (i==0 || LastArgv + 1 == argv[i])
+		if (i == 0 || LastArgv + 1 == argv[i])
 			LastArgv = argv[i] + strlen(argv[i]);
-		else
-			continue;
 	}
-	for (i=0; envp[i] != NULL; i++)
+	for (i = 0; LastArgv != NULL && envp[i] != NULL; i++)
 	{
 		if (LastArgv + 1 == envp[i])
 			LastArgv = envp[i] + strlen(envp[i]);
-		else
-			continue;
 	}
 }
 
 #if SPT_TYPE != SPT_BUILTIN
 
-
 /*VARARGS1*/
-void
+static void
 # ifdef __STDC__
 setproctitle(const char *fmt, ...)
-# else
+# else /* __STDC__ */
 setproctitle(fmt, va_alist)
 	const char *fmt;
 	va_dcl
-# endif
+# endif /* __STDC__ */
 {
 # if SPT_TYPE != SPT_NONE
-	register char *p;
 	register int i;
+	register char *p;
 	SETPROC_STATIC char buf[SPT_BUFSIZE];
 	VA_LOCAL_DECL
 #  if SPT_TYPE == SPT_PSTAT
 	union pstun pst;
-#  endif
+#  endif /* SPT_TYPE == SPT_PSTAT */
 #  if SPT_TYPE == SPT_SCO
 	off_t seek_off;
 	static int kmem = -1;
 	static int kmempid = -1;
 	struct user u;
-#  endif
+#  endif /* SPT_TYPE == SPT_SCO */
 
 	p = buf;
 
 	/* print sendmail: heading for grep */
-	(void) strcpy(p, "sendmail: ");
+	(void) strlcpy(p, "sendmail: ", SPACELEFT(buf, p));
 	p += strlen(p);
 
 	/* print the argument string */
@@ -2281,14 +2457,14 @@ setproctitle(fmt, va_alist)
 #  if SPT_TYPE == SPT_PSTAT
 	pst.pst_command = buf;
 	pstat(PSTAT_SETCMD, pst, i, 0, 0);
-#  endif
+#  endif /* SPT_TYPE == SPT_PSTAT */
 #  if SPT_TYPE == SPT_PSSTRINGS
 	PS_STRINGS->ps_nargvstr = 1;
 	PS_STRINGS->ps_argvstr = buf;
-#  endif
+#  endif /* SPT_TYPE == SPT_PSSTRINGS */
 #  if SPT_TYPE == SPT_SYSMIPS
 	sysmips(SONY_SYSNEWS, NEWS_SETPSARGS, buf);
-#  endif
+#  endif /* SPT_TYPE == SPT_SYSMIPS */
 #  if SPT_TYPE == SPT_SCO
 	if (kmem < 0 || kmempid != getpid())
 	{
@@ -2297,30 +2473,33 @@ setproctitle(fmt, va_alist)
 		kmem = open(_PATH_KMEM, O_RDWR, 0);
 		if (kmem < 0)
 			return;
-		(void) fcntl(kmem, F_SETFD, 1);
+		(void) fcntl(kmem, F_SETFD, FD_CLOEXEC);
 		kmempid = getpid();
 	}
 	buf[PSARGSZ - 1] = '\0';
 	seek_off = UVUBLK + (off_t) u.u_psargs - (off_t) &u;
 	if (lseek(kmem, (off_t) seek_off, SEEK_SET) == seek_off)
 		(void) write(kmem, buf, PSARGSZ);
-#  endif
+#  endif /* SPT_TYPE == SPT_SCO */
 #  if SPT_TYPE == SPT_REUSEARGV
+	if (LastArgv == NULL)
+		return;
+
 	if (i > LastArgv - Argv[0] - 2)
 	{
 		i = LastArgv - Argv[0] - 2;
 		buf[i] = '\0';
 	}
-	(void) strcpy(Argv[0], buf);
+	(void) strlcpy(Argv[0], buf, i + 1);
 	p = &Argv[0][i];
 	while (p < LastArgv)
 		*p++ = SPT_PADCHAR;
 	Argv[1] = NULL;
-#  endif
+#  endif /* SPT_TYPE == SPT_REUSEARGV */
 #  if SPT_TYPE == SPT_CHANGEARGV
 	Argv[0] = buf;
 	Argv[1] = 0;
-#  endif
+#  endif /* SPT_TYPE == SPT_CHANGEARGV */
 # endif /* SPT_TYPE != SPT_NONE */
 }
 
@@ -2333,6 +2512,7 @@ setproctitle(fmt, va_alist)
 **
 **	Parameters:
 **		status -- whether or not to store as process status
+**		e -- the current envelope.
 **		fmt -- a printf style format string.
 **		a, b, c -- possible parameters to fmt.
 **
@@ -2342,26 +2522,36 @@ setproctitle(fmt, va_alist)
 
 /*VARARGS2*/
 void
-# ifdef __STDC__
-sm_setproctitle(bool status, const char *fmt, ...)
-# else
-sm_setproctitle(status, fmt, va_alist)
+#ifdef __STDC__
+sm_setproctitle(bool status, ENVELOPE *e, const char *fmt, ...)
+#else /* __STDC__ */
+sm_setproctitle(status, e, fmt, va_alist)
 	bool status;
+	ENVELOPE *e;
 	const char *fmt;
 	va_dcl
-#endif
+#endif /* __STDC__ */
 {
 	char buf[SPT_BUFSIZE];
-
 	VA_LOCAL_DECL
+
 	/* print the argument string */
 	VA_START(fmt);
-	(void) vsnprintf(buf, SPT_BUFSIZE, fmt, ap);
+	(void) vsnprintf(buf, sizeof buf, fmt, ap);
 	VA_END;
 
 	if (status)
 		proc_list_set(getpid(), buf);
-	setproctitle("%s", buf);
+
+	if (ProcTitlePrefix != NULL)
+	{
+		char prefix[SPT_BUFSIZE];
+
+		expand(ProcTitlePrefix, prefix, sizeof prefix, e);
+		setproctitle("%s: %s", prefix, buf);
+	}
+	else
+		setproctitle("%s", buf);
 }
 /*
 **  WAITFOR -- wait for a particular process id.
@@ -2381,37 +2571,37 @@ int
 waitfor(pid)
 	pid_t pid;
 {
-#ifdef WAITUNION
+# ifdef WAITUNION
 	union wait st;
-#else
+# else /* WAITUNION */
 	auto int st;
-#endif
+# endif /* WAITUNION */
 	pid_t i;
-#if defined(ISC_UNIX) || defined(_SCO_unix_)
+# if defined(ISC_UNIX) || defined(_SCO_unix_)
 	int savesig;
-#endif
+# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
 
 	do
 	{
 		errno = 0;
-#if defined(ISC_UNIX) || defined(_SCO_unix_)
+# if defined(ISC_UNIX) || defined(_SCO_unix_)
 		savesig = releasesignal(SIGCHLD);
-#endif
+# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
 		i = wait(&st);
-#if defined(ISC_UNIX) || defined(_SCO_unix_)
+# if defined(ISC_UNIX) || defined(_SCO_unix_)
 		if (savesig > 0)
 			blocksignal(SIGCHLD);
-#endif
+# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
 		if (i > 0)
-			proc_list_drop(i);
+			(void) proc_list_drop(i);
 	} while ((i >= 0 || errno == EINTR) && i != pid);
 	if (i < 0)
 		return -1;
-#ifdef WAITUNION
+# ifdef WAITUNION
 	return st.w_status;
-#else
+# else /* WAITUNION */
 	return st;
-#endif
+# endif /* WAITUNION */
 }
 /*
 **  REAPCHILD -- pick up the body of my child, lest it become a zombie
@@ -2424,21 +2614,25 @@ waitfor(pid)
 **
 **	Side Effects:
 **		Picks up extant zombies.
+**		Control socket exits may restart/shutdown daemon.
 */
 
+/* ARGSUSED0 */
 SIGFUNC_DECL
 reapchild(sig)
 	int sig;
 {
-	int olderrno = errno;
+	int save_errno = errno;
+	int st;
 	pid_t pid;
-# ifdef HASWAITPID
+#if HASWAITPID
 	auto int status;
 	int count;
 
 	count = 0;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
 	{
+		st = status;
 		if (count++ > 1000)
 		{
 			if (LogLevel > 0)
@@ -2447,14 +2641,13 @@ reapchild(sig)
 					pid, status);
 			break;
 		}
-		proc_list_drop(pid);
-	}
-# else
+#else /* HASWAITPID */
 # ifdef WNOHANG
 	union wait status;
 
 	while ((pid = wait3(&status, WNOHANG, (struct rusage *) NULL)) > 0)
-		proc_list_drop(pid);
+	{
+		st = status.w_status;
 # else /* WNOHANG */
 	auto int status;
 
@@ -2466,13 +2659,33 @@ reapchild(sig)
 	*/
 
 	if ((pid = wait(&status)) > 0)
-		proc_list_drop(pid);
+	{
+		st = status;
 # endif /* WNOHANG */
-# endif
-# ifdef SYS5SIGNALS
+#endif /* HASWAITPID */
+		/* Drop PID and check if it was a control socket child */
+		if (proc_list_drop(pid) == PROC_CONTROL &&
+		    WIFEXITED(st))
+		{
+			/* if so, see if we need to restart or shutdown */
+			if (WEXITSTATUS(st) == EX_RESTART)
+			{
+				/* emulate a SIGHUP restart */
+				sighup(0);
+				/* NOTREACHED */
+			}
+			else if (WEXITSTATUS(st) == EX_SHUTDOWN)
+			{
+				/* emulate a SIGTERM shutdown */
+				intsig(0);
+				/* NOTREACHED */
+			}
+		}
+	}
+#ifdef SYS5SIGNALS
 	(void) setsignal(SIGCHLD, reapchild);
-# endif
-	errno = olderrno;
+#endif /* SYS5SIGNALS */
+	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
 /*
@@ -2489,7 +2702,7 @@ reapchild(sig)
 **		none.
 */
 
-#ifdef NEEDPUTENV
+#if NEEDPUTENV
 
 # if NEEDPUTENV == 2		/* no setenv(3) call available */
 
@@ -2498,10 +2711,10 @@ putenv(str)
 	char *str;
 {
 	char **current;
-	int matchlen, envlen=0;
+	int matchlen, envlen = 0;
 	char *tmp;
 	char **newenv;
-	static int first=1;
+	static bool first = TRUE;
 	extern char **environ;
 
 	/*
@@ -2518,13 +2731,15 @@ putenv(str)
 	 * Search for an existing string in the environment and find the
 	 * length of environ.  If found, replace and exit.
 	 */
-	for (current=environ; *current; current++) {
+	for (current = environ; *current; current++)
+	{
 		++envlen;
 
-		if (strncmp(str, *current, matchlen) == 0) {
+		if (strncmp(str, *current, matchlen) == 0)
+		{
 			/* found it, now insert the new version */
 			*current = (char *)str;
-			return(0);
+			return 0;
 		}
 	}
 
@@ -2532,28 +2747,31 @@ putenv(str)
 	 * There wasn't already a slot so add space for a new slot.
 	 * If this is our first time through, use malloc(), else realloc().
 	 */
-	if (first) {
+	if (first)
+	{
 		newenv = (char **) malloc(sizeof(char *) * (envlen + 2));
 		if (newenv == NULL)
-			return(-1);
+			return -1;
 
-		first=0;
+		first = FALSE;
 		(void) memcpy(newenv, environ, sizeof(char *) * envlen);
-	} else {
+	}
+	else
+	{
 		newenv = (char **) realloc((char *)environ, sizeof(char *) * (envlen + 2));
 		if (newenv == NULL)
-			return(-1);
+			return -1;
 	}
 
 	/* actually add in the new entry */
 	environ = newenv;
 	environ[envlen] = (char *)str;
-	environ[envlen+1] = NULL;
+	environ[envlen + 1] = NULL;
 
-	return(0);
+	return 0;
 }
 
-#else			/* implement putenv() in terms of setenv() */
+# else /* NEEDPUTENV == 2 */
 
 int
 putenv(env)
@@ -2569,13 +2787,13 @@ putenv(env)
 	l = p - env;
 	if (l > sizeof nbuf - 1)
 		l = sizeof nbuf - 1;
-	bcopy(env, nbuf, l);
+	memmove(nbuf, env, l);
 	nbuf[l] = '\0';
 	return setenv(nbuf, ++p, 1);
 }
 
-# endif
-#endif
+# endif /* NEEDPUTENV == 2 */
+#endif /* NEEDPUTENV */
 /*
 **  UNSETENV -- remove a variable from the environment
 **
@@ -2595,7 +2813,7 @@ putenv(env)
 **		Modifies environ.
 */
 
-#ifndef HASUNSETENV
+#if !HASUNSETENV
 
 void
 unsetenv(name)
@@ -2616,7 +2834,7 @@ unsetenv(name)
 		*pp = pp[1];
 }
 
-#endif
+#endif /* !HASUNSETENV */
 /*
 **  GETDTABLESIZE -- return number of file descriptors
 **
@@ -2634,33 +2852,33 @@ unsetenv(name)
 
 #ifdef SOLARIS
 # include <sys/resource.h>
-#endif
+#endif /* SOLARIS */
 
 int
 getdtsize()
 {
-#ifdef RLIMIT_NOFILE
+# ifdef RLIMIT_NOFILE
 	struct rlimit rl;
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) >= 0)
 		return rl.rlim_cur;
-#endif
+# endif /* RLIMIT_NOFILE */
 
-# ifdef HASGETDTABLESIZE
+# if HASGETDTABLESIZE
 	return getdtablesize();
-# else
+# else /* HASGETDTABLESIZE */
 #  ifdef _SC_OPEN_MAX
 	return sysconf(_SC_OPEN_MAX);
-#  else
+#  else /* _SC_OPEN_MAX */
 	return NOFILE;
-#  endif
-# endif
+#  endif /* _SC_OPEN_MAX */
+# endif /* HASGETDTABLESIZE */
 }
 /*
 **  UNAME -- get the UUCP name of this system.
 */
 
-#ifndef HASUNAME
+#if !HASUNAME
 
 int
 uname(name)
@@ -2680,7 +2898,7 @@ uname(name)
 		if (n != NULL)
 			*n = '\0';
 		if (name->nodename[0] != '\0')
-			return (0);
+			return 0;
 	}
 
 	/* try /usr/include/whoami.h -- has a #define somewhere */
@@ -2689,15 +2907,17 @@ uname(name)
 		char buf[MAXLINE];
 
 		while (fgets(buf, MAXLINE, file) != NULL)
+		{
 			if (sscanf(buf, "#define sysname \"%*[^\"]\"",
 					NODE_LENGTH, name->nodename) > 0)
 				break;
+		}
 		(void) fclose(file);
 		if (name->nodename[0] != '\0')
-			return (0);
+			return 0;
 	}
 
-#ifdef TRUST_POPEN
+#  if 0
 	/*
 	**  Popen is known to have security holes.
 	*/
@@ -2711,20 +2931,20 @@ uname(name)
 		if (n != NULL)
 			*n = '\0';
 		if (name->nodename[0] != '\0')
-			return (0);
+			return 0;
 	}
-#endif
+#  endif /* 0 */
 
-	return (-1);
+	return -1;
 }
-#endif /* HASUNAME */
+#endif /* !HASUNAME */
 /*
 **  INITGROUPS -- initialize groups
 **
 **	Stub implementation for System V style systems
 */
 
-#ifndef HASINITGROUPS
+#if !HASINITGROUPS
 
 initgroups(name, basegid)
 	char *name;
@@ -2733,7 +2953,7 @@ initgroups(name, basegid)
 	return 0;
 }
 
-#endif
+#endif /* !HASINITGROUPS */
 /*
 **  SETGROUPS -- set group list
 **
@@ -2750,17 +2970,17 @@ setgroups(ngroups, grouplist)
 	return 0;
 }
 
-#endif
+#endif /* ! NGROUPS_MAX */
 /*
 **  SETSID -- set session id (for non-POSIX systems)
 */
 
-#ifndef HASSETSID
+#if !HASSETSID
 
 pid_t
 setsid __P ((void))
 {
-#ifdef TIOCNOTTY
+#  ifdef TIOCNOTTY
 	int fd;
 
 	fd = open("/dev/tty", O_RDWR, 0);
@@ -2769,33 +2989,33 @@ setsid __P ((void))
 		(void) ioctl(fd, (int) TIOCNOTTY, (char *) 0);
 		(void) close(fd);
 	}
-#endif /* TIOCNOTTY */
-# ifdef SYS5SETPGRP
+#  endif /* TIOCNOTTY */
+#  ifdef SYS5SETPGRP
 	return setpgrp();
-# else
+#  else /* SYS5SETPGRP */
 	return setpgid(0, getpid());
-# endif
+#  endif /* SYS5SETPGRP */
 }
 
-#endif
+#endif /* !HASSETSID */
 /*
 **  FSYNC -- dummy fsync
 */
 
-#ifdef NEEDFSYNC
+#if NEEDFSYNC
 
 fsync(fd)
 	int fd;
 {
 # ifdef O_SYNC
 	return fcntl(fd, F_SETFL, O_SYNC);
-# else
+# else /* O_SYNC */
 	/* nothing we can do */
 	return 0;
-# endif
+# endif /* O_SYNC */
 }
 
-#endif
+#endif /* NEEDFSYNC */
 /*
 **  DGUX_INET_ADDR -- inet_addr for DG/UX
 **
@@ -2806,7 +3026,7 @@ fsync(fd)
 
 #ifdef DGUX_5_4_2
 
-#undef inet_addr
+# undef inet_addr
 
 long
 dgux_inet_addr(host)
@@ -2818,12 +3038,12 @@ dgux_inet_addr(host)
 	return haddr.s_addr;
 }
 
-#endif
+#endif /* DGUX_5_4_2 */
 /*
 **  GETOPT -- for old systems or systems with bogus implementations
 */
 
-#ifdef NEEDGETOPT
+#if NEEDGETOPT
 
 /*
  * Copyright (c) 1985 Regents of the University of California.
@@ -2837,29 +3057,27 @@ dgux_inet_addr(host)
 **  to reset if invoked by the program to scan args for a 2nd time
 */
 
-#if defined(LIBC_SCCS) && !defined(lint)
+# if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getopt.c	4.3 (Berkeley) 3/9/86";
-#endif /* LIBC_SCCS and not lint */
-
-#include <stdio.h>
+# endif /* defined(LIBC_SCCS) && !defined(lint) */
 
 /*
  * get option letter from argument vector
  */
-#ifdef _CONVEX_SOURCE
+# ifdef _CONVEX_SOURCE
 extern int	optind, opterr, optopt;
 extern char	*optarg;
-#else
+# else /* _CONVEX_SOURCE */
 int	opterr = 1;		/* if error message should be printed */
 int	optind = 1;		/* index into parent argv vector */
 int	optopt = 0;		/* character checked for validity */
 char	*optarg = NULL;		/* argument associated with option */
-#endif
+# endif /* _CONVEX_SOURCE */
 
-#define BADCH	(int)'?'
-#define EMSG	""
-#define tell(s)	if (opterr) {fputs(*nargv,stderr);fputs(s,stderr); \
-		fputc(optopt,stderr);fputc('\n',stderr);return(BADCH);}
+# define BADCH	(int)'?'
+# define EMSG	""
+# define tell(s)	if (opterr) {fputs(*nargv,stderr);fputs(s,stderr); \
+			fputc(optopt,stderr);fputc('\n',stderr);return(BADCH);}
 
 int
 getopt(nargc,nargv,ostr)
@@ -2900,21 +3118,21 @@ getopt(nargc,nargv,ostr)
 			place = EMSG;
 			tell(": option requires an argument -- ");
 		}
-	 	else optarg = nargv[optind];	/* white space */
+		else optarg = nargv[optind];	/* white space */
 		place = EMSG;
 		++optind;
 	}
 	return(optopt);			/* dump back option letter */
 }
 
-#endif
+#endif /* NEEDGETOPT */
 /*
 **  VFPRINTF, VSPRINTF -- for old 4.3 BSD systems missing a real version
 */
 
-#ifdef NEEDVPRINTF
+#if NEEDVPRINTF
 
-#define MAXARG	16
+# define MAXARG	16
 
 vfprintf(fp, fmt, ap)
 	FILE *fp;
@@ -2948,7 +3166,7 @@ vsprintf(s, fmt, ap)
 			bp[12], bp[13], bp[14], bp[15]);
 }
 
-#endif
+#endif /* NEEDVPRINTF */
 /*
 **  USERSHELLOK -- tell if a user's shell is ok for unrestricted use
 **
@@ -2965,52 +3183,52 @@ vsprintf(s, fmt, ap)
 
 # ifndef _PATH_SHELLS
 #  define _PATH_SHELLS	"/etc/shells"
-# endif
+# endif /* ! _PATH_SHELLS */
 
 # if defined(_AIX3) || defined(_AIX4)
 #  include <userconf.h>
 #  if _AIX4 >= 40200
 #   include <userpw.h>
-#  endif
+#  endif /* _AIX4 >= 40200 */
 #  include <usersec.h>
-# endif
+# endif /* defined(_AIX3) || defined(_AIX4) */
 
-char	*DefaultUserShells[] =
+static char	*DefaultUserShells[] =
 {
 	"/bin/sh",		/* standard shell */
 	"/usr/bin/sh",
 	"/bin/csh",		/* C shell */
 	"/usr/bin/csh",
-#ifdef __hpux
-# ifdef V4FS
+# ifdef __hpux
+#  ifdef V4FS
 	"/usr/bin/rsh",		/* restricted Bourne shell */
 	"/usr/bin/ksh",		/* Korn shell */
 	"/usr/bin/rksh",	/* restricted Korn shell */
 	"/usr/bin/pam",
 	"/usr/bin/keysh",	/* key shell (extended Korn shell) */
 	"/usr/bin/posix/sh",
-# else
+#  else /* V4FS */
 	"/bin/rsh",		/* restricted Bourne shell */
 	"/bin/ksh",		/* Korn shell */
 	"/bin/rksh",		/* restricted Korn shell */
 	"/bin/pam",
 	"/usr/bin/keysh",	/* key shell (extended Korn shell) */
 	"/bin/posix/sh",
-# endif
-#endif
-#if defined(_AIX3) || defined(_AIX4)
+#  endif /* V4FS */
+# endif /* __hpux */
+# if defined(_AIX3) || defined(_AIX4)
 	"/bin/ksh",		/* Korn shell */
 	"/usr/bin/ksh",
 	"/bin/tsh",		/* trusted shell */
 	"/usr/bin/tsh",
 	"/bin/bsh",		/* Bourne shell */
 	"/usr/bin/bsh",
-#endif
-#if defined(__svr4__) || defined(__svr5__)
+# endif /* defined(_AIX3) || defined(_AIX4) */
+# if defined(__svr4__) || defined(__svr5__)
 	"/bin/ksh",		/* Korn shell */
 	"/usr/bin/ksh",
-#endif
-#ifdef sgi
+# endif /* defined(__svr4__) || defined(__svr5__) */
+# ifdef sgi
 	"/sbin/sh",		/* SGI's shells really live in /sbin */
 	"/sbin/csh",
 	"/bin/ksh",		/* Korn shell */
@@ -3018,11 +3236,11 @@ char	*DefaultUserShells[] =
 	"/usr/bin/ksh",
 	"/bin/tcsh",		/* Extended csh */
 	"/usr/bin/tcsh",
-#endif
+# endif /* sgi */
 	NULL
 };
 
-#endif
+#endif /* !HASGETUSERSHELL */
 
 #define WILDCARD_SHELL	"/SENDMAIL/ANY/SHELL/"
 
@@ -3031,7 +3249,7 @@ usershellok(user, shell)
 	char *user;
 	char *shell;
 {
-#if HASGETUSERSHELL
+# if HASGETUSERSHELL
 	register char *p;
 	extern char *getusershell();
 
@@ -3045,10 +3263,10 @@ usershellok(user, shell)
 			break;
 	endusershell();
 	return p != NULL;
-#else
-# if USEGETCONFATTR
+# else /* HASGETUSERSHELL */
+#  if USEGETCONFATTR
 	auto char *v;
-# endif
+#  endif /* USEGETCONFATTR */
 	register FILE *shellf;
 	char buf[MAXLINE];
 
@@ -3056,7 +3274,7 @@ usershellok(user, shell)
 	    ConfigLevel <= 1)
 		return TRUE;
 
-# if USEGETCONFATTR
+#  if USEGETCONFATTR
 	/*
 	**  Naturally IBM has a "better" idea.....
 	**
@@ -3080,14 +3298,14 @@ usershellok(user, shell)
 		}
 		return FALSE;
 	}
-# endif
+#  endif /* USEGETCONFATTR */
 
 	shellf = fopen(_PATH_SHELLS, "r");
 	if (shellf == NULL)
 	{
 		/* no /etc/shells; see if it is one of the std shells */
 		char **d;
-		
+
 		if (errno != ENOENT && LogLevel > 3)
 			sm_syslog(LOG_ERR, NOQID,
 				  "usershellok: cannot open %s: %s",
@@ -3116,13 +3334,13 @@ usershellok(user, shell)
 		*p = '\0';
 		if (strcmp(shell, q) == 0 || strcmp(WILDCARD_SHELL, q) == 0)
 		{
-			fclose(shellf);
+			(void) fclose(shellf);
 			return TRUE;
 		}
 	}
-	fclose(shellf);
+	(void) fclose(shellf);
 	return FALSE;
-#endif
+# endif /* HASGETUSERSHELL */
 }
 /*
 **  FREEDISKSPACE -- see how much free space is on the queue filesystem
@@ -3135,7 +3353,7 @@ usershellok(user, shell)
 **			block size is stored.
 **
 **	Returns:
-**		The number of bytes free on the queue filesystem.
+**		The number of blocks free on the queue filesystem.
 **		-1 if the statfs call fails.
 **
 **	Side effects:
@@ -3153,83 +3371,83 @@ usershellok(user, shell)
 
 #ifndef SFS_TYPE
 # define SFS_TYPE	SFS_NONE
-#endif
+#endif /* ! SFS_TYPE */
 
 #if SFS_TYPE == SFS_USTAT
 # include <ustat.h>
-#endif
+#endif /* SFS_TYPE == SFS_USTAT */
 #if SFS_TYPE == SFS_4ARGS || SFS_TYPE == SFS_STATFS
 # include <sys/statfs.h>
-#endif
+#endif /* SFS_TYPE == SFS_4ARGS || SFS_TYPE == SFS_STATFS */
 #if SFS_TYPE == SFS_VFS
 # include <sys/vfs.h>
-#endif
+#endif /* SFS_TYPE == SFS_VFS */
 #if SFS_TYPE == SFS_MOUNT
 # include <sys/mount.h>
-#endif
+#endif /* SFS_TYPE == SFS_MOUNT */
 #if SFS_TYPE == SFS_STATVFS
 # include <sys/statvfs.h>
-#endif
+#endif /* SFS_TYPE == SFS_STATVFS */
 
 long
 freediskspace(dir, bsize)
 	char *dir;
 	long *bsize;
 {
-#if SFS_TYPE != SFS_NONE
-# if SFS_TYPE == SFS_USTAT
+# if SFS_TYPE != SFS_NONE
+#  if SFS_TYPE == SFS_USTAT
 	struct ustat fs;
 	struct stat statbuf;
-#  define FSBLOCKSIZE	DEV_BSIZE
-#  define SFS_BAVAIL	f_tfree
-# else
-#  if defined(ultrix)
+#   define FSBLOCKSIZE	DEV_BSIZE
+#   define SFS_BAVAIL	f_tfree
+#  else /* SFS_TYPE == SFS_USTAT */
+#   if defined(ultrix)
 	struct fs_data fs;
-#   define SFS_BAVAIL	fd_bfreen
-#   define FSBLOCKSIZE	1024L
-#  else
-#   if SFS_TYPE == SFS_STATVFS
+#    define SFS_BAVAIL	fd_bfreen
+#    define FSBLOCKSIZE	1024L
+#   else /* defined(ultrix) */
+#    if SFS_TYPE == SFS_STATVFS
 	struct statvfs fs;
-#    define FSBLOCKSIZE	fs.f_frsize
-#   else
+#     define FSBLOCKSIZE	fs.f_frsize
+#    else /* SFS_TYPE == SFS_STATVFS */
 	struct statfs fs;
-#    define FSBLOCKSIZE	fs.f_bsize
-#   endif
-#  endif
-# endif
-# ifndef SFS_BAVAIL
-#  define SFS_BAVAIL f_bavail
-# endif
+#     define FSBLOCKSIZE	fs.f_bsize
+#    endif /* SFS_TYPE == SFS_STATVFS */
+#   endif /* defined(ultrix) */
+#  endif /* SFS_TYPE == SFS_USTAT */
+#  ifndef SFS_BAVAIL
+#   define SFS_BAVAIL f_bavail
+#  endif /* ! SFS_BAVAIL */
 
-# if SFS_TYPE == SFS_USTAT
+#  if SFS_TYPE == SFS_USTAT
 	if (stat(dir, &statbuf) == 0 && ustat(statbuf.st_dev, &fs) == 0)
-# else
-#  if SFS_TYPE == SFS_4ARGS
+#  else /* SFS_TYPE == SFS_USTAT */
+#   if SFS_TYPE == SFS_4ARGS
 	if (statfs(dir, &fs, sizeof fs, 0) == 0)
-#  else
-#   if SFS_TYPE == SFS_STATVFS
+#   else /* SFS_TYPE == SFS_4ARGS */
+#    if SFS_TYPE == SFS_STATVFS
 	if (statvfs(dir, &fs) == 0)
-#   else
-#    if defined(ultrix)
+#    else /* SFS_TYPE == SFS_STATVFS */
+#     if defined(ultrix)
 	if (statfs(dir, &fs) > 0)
-#    else
+#     else /* defined(ultrix) */
 	if (statfs(dir, &fs) == 0)
-#    endif
-#   endif
-#  endif
-# endif
+#     endif /* defined(ultrix) */
+#    endif /* SFS_TYPE == SFS_STATVFS */
+#   endif /* SFS_TYPE == SFS_4ARGS */
+#  endif /* SFS_TYPE == SFS_USTAT */
 	{
 		if (bsize != NULL)
 			*bsize = FSBLOCKSIZE;
 		if (fs.SFS_BAVAIL <= 0)
 			return 0;
 		else if (fs.SFS_BAVAIL > LONG_MAX)
-			return LONG_MAX;
+			return (long) LONG_MAX;
 		else
 			return (long) fs.SFS_BAVAIL;
 	}
-#endif
-	return (-1);
+# endif /* SFS_TYPE != SFS_NONE */
+	return -1;
 }
 /*
 **  ENOUGHDISKSPACE -- is there enough free space on the queue fs?
@@ -3240,6 +3458,7 @@ freediskspace(dir, bsize)
 **		msize -- the size to check against.  If zero, we don't yet
 **		know how big the message will be, so just check for
 **		a "reasonable" amount.
+**		log -- log message?
 **
 **	Returns:
 **		TRUE if there is enough space.
@@ -3247,22 +3466,25 @@ freediskspace(dir, bsize)
 */
 
 bool
-enoughdiskspace(msize)
+enoughdiskspace(msize, log)
 	long msize;
+	bool log;
 {
-	long bfree, bsize;
+	long bfree;
+	long bsize;
 
 	if (MinBlocksFree <= 0 && msize <= 0)
 	{
 		if (tTd(4, 80))
-			printf("enoughdiskspace: no threshold\n");
+			dprintf("enoughdiskspace: no threshold\n");
 		return TRUE;
 	}
 
-	if ((bfree = freediskspace(QueueDir, &bsize)) >= 0)
+	bfree = freediskspace(QueueDir, &bsize);
+	if (bfree >= 0)
 	{
 		if (tTd(4, 80))
-			printf("enoughdiskspace: bavail=%ld, need=%ld\n",
+			dprintf("enoughdiskspace: bavail=%ld, need=%ld\n",
 				bfree, msize);
 
 		/* convert msize to block count */
@@ -3272,7 +3494,7 @@ enoughdiskspace(msize)
 
 		if (bfree < msize)
 		{
-			if (LogLevel > 0)
+			if (log && LogLevel > 0)
 				sm_syslog(LOG_ALERT, CurEnv->e_id,
 					"low on space (have %ld, %s needs %ld in %s)",
 					bfree,
@@ -3282,7 +3504,7 @@ enoughdiskspace(msize)
 		}
 	}
 	else if (tTd(4, 80))
-		printf("enoughdiskspace failure: min=%ld, need=%ld: %s\n",
+		dprintf("enoughdiskspace failure: min=%ld, need=%ld: %s\n",
 			MinBlocksFree, msize, errstring(errno));
 	return TRUE;
 }
@@ -3316,73 +3538,76 @@ transienterror(err)
 	  case ENOSPC:			/* No space left on device */
 #ifdef ETIMEDOUT
 	  case ETIMEDOUT:		/* Connection timed out */
-#endif
+#endif /* ETIMEDOUT */
 #ifdef ESTALE
 	  case ESTALE:			/* Stale NFS file handle */
-#endif
+#endif /* ESTALE */
 #ifdef ENETDOWN
 	  case ENETDOWN:		/* Network is down */
-#endif
+#endif /* ENETDOWN */
 #ifdef ENETUNREACH
 	  case ENETUNREACH:		/* Network is unreachable */
-#endif
+#endif /* ENETUNREACH */
 #ifdef ENETRESET
 	  case ENETRESET:		/* Network dropped connection on reset */
-#endif
+#endif /* ENETRESET */
 #ifdef ECONNABORTED
 	  case ECONNABORTED:		/* Software caused connection abort */
-#endif
+#endif /* ECONNABORTED */
 #ifdef ECONNRESET
 	  case ECONNRESET:		/* Connection reset by peer */
-#endif
+#endif /* ECONNRESET */
 #ifdef ENOBUFS
 	  case ENOBUFS:			/* No buffer space available */
-#endif
+#endif /* ENOBUFS */
 #ifdef ESHUTDOWN
 	  case ESHUTDOWN:		/* Can't send after socket shutdown */
-#endif
+#endif /* ESHUTDOWN */
 #ifdef ECONNREFUSED
 	  case ECONNREFUSED:		/* Connection refused */
-#endif
+#endif /* ECONNREFUSED */
 #ifdef EHOSTDOWN
 	  case EHOSTDOWN:		/* Host is down */
-#endif
+#endif /* EHOSTDOWN */
 #ifdef EHOSTUNREACH
 	  case EHOSTUNREACH:		/* No route to host */
-#endif
+#endif /* EHOSTUNREACH */
 #ifdef EDQUOT
 	  case EDQUOT:			/* Disc quota exceeded */
-#endif
+#endif /* EDQUOT */
 #ifdef EPROCLIM
 	  case EPROCLIM:		/* Too many processes */
-#endif
+#endif /* EPROCLIM */
 #ifdef EUSERS
 	  case EUSERS:			/* Too many users */
-#endif
+#endif /* EUSERS */
 #ifdef EDEADLK
 	  case EDEADLK:			/* Resource deadlock avoided */
-#endif
+#endif /* EDEADLK */
 #ifdef EISCONN
 	  case EISCONN:			/* Socket already connected */
-#endif
+#endif /* EISCONN */
 #ifdef EINPROGRESS
 	  case EINPROGRESS:		/* Operation now in progress */
-#endif
+#endif /* EINPROGRESS */
 #ifdef EALREADY
 	  case EALREADY:		/* Operation already in progress */
-#endif
+#endif /* EALREADY */
 #ifdef EADDRINUSE
 	  case EADDRINUSE:		/* Address already in use */
-#endif
+#endif /* EADDRINUSE */
 #ifdef EADDRNOTAVAIL
 	  case EADDRNOTAVAIL:		/* Can't assign requested address */
-#endif
+#endif /* EADDRNOTAVAIL */
 #ifdef ETXTBSY
 	  case ETXTBSY:			/* (Apollo) file locked */
-#endif
+#endif /* ETXTBSY */
 #if defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR))
 	  case ENOSR:			/* Out of streams resources */
-#endif
+#endif /* defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR)) */
+#ifdef ENOLCK
+	  case ENOLCK:			/* No locks available */
+#endif /* ENOLCK */
 	  case E_SM_OPENTIMEOUT:	/* PSEUDO: open timed out */
 		return TRUE;
 	}
@@ -3422,7 +3647,7 @@ lockfile(fd, filename, ext, type)
 	if (ext == NULL)
 		ext = "";
 
-	bzero(&lfd, sizeof lfd);
+	memset(&lfd, '\0', sizeof lfd);
 	if (bitset(LOCK_UN, type))
 		lfd.l_type = F_UNLCK;
 	else if (bitset(LOCK_EX, type))
@@ -3436,7 +3661,7 @@ lockfile(fd, filename, ext, type)
 		action = F_SETLKW;
 
 	if (tTd(55, 60))
-		printf("lockfile(%s%s, action=%d, type=%d): ",
+		dprintf("lockfile(%s%s, action=%d, type=%d): ",
 			filename, ext, action, lfd.l_type);
 
 	while ((i = fcntl(fd, action, &lfd)) < 0 && errno == EINTR)
@@ -3444,13 +3669,13 @@ lockfile(fd, filename, ext, type)
 	if (i >= 0)
 	{
 		if (tTd(55, 60))
-			printf("SUCCESS\n");
+			dprintf("SUCCESS\n");
 		return TRUE;
 	}
 	save_errno = errno;
 
 	if (tTd(55, 60))
-		printf("(%s) ", errstring(save_errno));
+		dprintf("(%s) ", errstring(save_errno));
 
 	/*
 	**  On SunOS, if you are testing using -oQ/tmp/mqueue or
@@ -3464,40 +3689,41 @@ lockfile(fd, filename, ext, type)
 	if (save_errno == EINVAL)
 	{
 		if (tTd(55, 60))
-			printf("SUCCESS\n");
+			dprintf("SUCCESS\n");
 		return TRUE;
 	}
 
-	if (!bitset(LOCK_NB, type) || (save_errno != EACCES && save_errno != EAGAIN))
+	if (!bitset(LOCK_NB, type) ||
+	    (save_errno != EACCES && save_errno != EAGAIN))
 	{
 		int omode = -1;
 #  ifdef F_GETFL
 		(void) fcntl(fd, F_GETFL, &omode);
 		errno = save_errno;
-#  endif
+#  endif /* F_GETFL */
 		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
 		dumpfd(fd, TRUE, TRUE);
 	}
-# else
+# else /* !HASFLOCK */
 	if (ext == NULL)
 		ext = "";
 
 	if (tTd(55, 60))
-		printf("lockfile(%s%s, type=%o): ", filename, ext, type);
+		dprintf("lockfile(%s%s, type=%o): ", filename, ext, type);
 
 	while ((i = flock(fd, type)) < 0 && errno == EINTR)
 		continue;
 	if (i >= 0)
 	{
 		if (tTd(55, 60))
-			printf("SUCCESS\n");
+			dprintf("SUCCESS\n");
 		return TRUE;
 	}
 	save_errno = errno;
 
 	if (tTd(55, 60))
-		printf("(%s) ", errstring(save_errno));
+		dprintf("(%s) ", errstring(save_errno));
 
 	if (!bitset(LOCK_NB, type) || save_errno != EWOULDBLOCK)
 	{
@@ -3505,14 +3731,14 @@ lockfile(fd, filename, ext, type)
 #  ifdef F_GETFL
 		(void) fcntl(fd, F_GETFL, &omode);
 		errno = save_errno;
-#  endif
+#  endif /* F_GETFL */
 		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
 		dumpfd(fd, TRUE, TRUE);
 	}
-# endif
+# endif /* !HASFLOCK */
 	if (tTd(55, 60))
-		printf("FAIL\n");
+		dprintf("FAIL\n");
 	errno = save_errno;
 	return FALSE;
 }
@@ -3571,19 +3797,19 @@ lockfile(fd, filename, ext, type)
 
 #ifndef IS_SAFE_CHOWN
 # define IS_SAFE_CHOWN	> 0
-#endif
+#endif /* ! IS_SAFE_CHOWN */
 
 bool
 chownsafe(fd, safedir)
 	int fd;
 	bool safedir;
 {
-#if (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \
+# if (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \
     (defined(_PC_CHOWN_RESTRICTED) || defined(_GNU_TYPES_H))
 	int rval;
 
 	/* give the system administrator a chance to override */
-	if (bitset(DBS_ASSUMESAFECHOWN, DontBlameSendmail))
+	if (bitnset(DBS_ASSUMESAFECHOWN, DontBlameSendmail))
 		return TRUE;
 
 	/*
@@ -3594,14 +3820,14 @@ chownsafe(fd, safedir)
 
 	errno = 0;
 	rval = fpathconf(fd, _PC_CHOWN_RESTRICTED);
-# if SAFENFSPATHCONF
+#  if SAFENFSPATHCONF
 	return errno == 0 && rval IS_SAFE_CHOWN;
-# else
+#  else /* SAFENFSPATHCONF */
 	return safedir && errno == 0 && rval IS_SAFE_CHOWN;
-# endif
-#else
-	return bitset(DBS_ASSUMESAFECHOWN, DontBlameSendmail);
-#endif
+#  endif /* SAFENFSPATHCONF */
+# else /* (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \ */
+	return bitnset(DBS_ASSUMESAFECHOWN, DontBlameSendmail);
+# endif /* (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \ */
 }
 /*
 **  RESETLIMITS -- reset system controlled resource limits
@@ -3618,12 +3844,12 @@ chownsafe(fd, safedir)
 #if HASSETRLIMIT
 # ifdef RLIMIT_NEEDS_SYS_TIME_H
 #  include <sys/time.h>
-# endif
+# endif /* RLIMIT_NEEDS_SYS_TIME_H */
 # include <sys/resource.h>
-#endif
+#endif /* HASSETRLIMIT */
 #ifndef FD_SETSIZE
 # define FD_SETSIZE	256
-#endif
+#endif /* ! FD_SETSIZE */
 
 void
 resetlimits()
@@ -3637,13 +3863,13 @@ resetlimits()
 # ifdef RLIMIT_NOFILE
 	lim.rlim_cur = lim.rlim_max = FD_SETSIZE;
 	(void) setrlimit(RLIMIT_NOFILE, &lim);
-# endif
-#else
+# endif /* RLIMIT_NOFILE */
+#else /* HASSETRLIMIT */
 # if HASULIMIT
 	(void) ulimit(2, 0x3fffff);
 	(void) ulimit(4, FD_SETSIZE);
-# endif
-#endif
+# endif /* HASULIMIT */
+#endif /* HASSETRLIMIT */
 	errno = 0;
 }
 /*
@@ -3660,7 +3886,6 @@ getcfname()
 		return ConfFile;
 #if NETINFO
 	{
-		extern char *ni_propval __P((char *, char *, char *, char *, int));
 		char *cflocation;
 
 		cflocation = ni_propval("/locations", NULL, "sendmail",
@@ -3668,7 +3893,7 @@ getcfname()
 		if (cflocation != NULL)
 			return cflocation;
 	}
-#endif
+#endif /* NETINFO */
 
 	return _PATH_SENDMAILCF;
 }
@@ -3707,7 +3932,7 @@ setvendor(vendor)
 		VendorCode = VENDOR_SUN;
 		return TRUE;
 	}
-#endif
+#endif /* SUN_EXTENSIONS */
 
 #if defined(VENDOR_NAME) && defined(VENDOR_CODE)
 	if (strcasecmp(vendor, VENDOR_NAME) == 0)
@@ -3715,7 +3940,7 @@ setvendor(vendor)
 		VendorCode = VENDOR_CODE;
 		return TRUE;
 	}
-#endif
+#endif /* defined(VENDOR_NAME) && defined(VENDOR_CODE) */
 
 	return FALSE;
 }
@@ -3735,20 +3960,20 @@ getvendor(vendorcode)
 {
 #if defined(VENDOR_NAME) && defined(VENDOR_CODE)
 	/*
-	**  Can't have the same switch case twice so need to 
+	**  Can't have the same switch case twice so need to
 	**  handle VENDOR_CODE outside of switch.  It might
 	**  match one of the existing VENDOR_* codes.
 	*/
 
 	if (vendorcode == VENDOR_CODE)
 		return VENDOR_NAME;
-#endif
+#endif /* defined(VENDOR_NAME) && defined(VENDOR_CODE) */
 
 	switch (vendorcode)
 	{
 		case VENDOR_BERKELEY:
 			return "Berkeley";
-		
+
 		case VENDOR_SUN:
 			return "Sun";
 
@@ -3780,7 +4005,7 @@ getvendor(vendorcode)
 
 #if SHARE_V1
 int	DefShareUid;	/* default share uid to run as -- unused??? */
-#endif
+#endif /* SHARE_V1 */
 
 void
 vendor_pre_defaults(e)
@@ -3789,15 +4014,19 @@ vendor_pre_defaults(e)
 #if SHARE_V1
 	/* OTHERUID is defined in shares.h, do not be alarmed */
 	DefShareUid = OTHERUID;
-#endif
+#endif /* SHARE_V1 */
 #if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_pre_defaults(e);
-#endif
+#endif /* defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES) */
 #ifdef apollo
-	/* stupid domain/os can't even open /etc/sendmail.cf without this */
+	/*
+	**  stupid domain/os can't even open
+	**  /etc/mail/sendmail.cf without this
+	*/
+
 	setuserenv("ISP", NULL);
 	setuserenv("SYSTYPE", NULL);
-#endif
+#endif /* apollo */
 }
 
 
@@ -3807,14 +4036,14 @@ vendor_post_defaults(e)
 {
 #ifdef __QNX__
 	char *p;
-	
+
 	/* Makes sure the SOCK environment variable remains */
 	if (p = getextenv("SOCK"))
 		setuserenv("SOCK", p);
-#endif
+#endif /* __QNX__ */
 #if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_post_defaults(e);
-#endif
+#endif /* defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES) */
 }
 /*
 **  VENDOR_DAEMON_SETUP -- special vendor setup needed for daemon mode
@@ -3824,6 +4053,9 @@ void
 vendor_daemon_setup(e)
 	ENVELOPE *e;
 {
+#if HASSETLOGIN
+	(void) setlogin(RunAsUserName);
+#endif /* HASSETLOGIN */
 #if SECUREWARE
 	if (getluid() != -1)
 	{
@@ -3848,18 +4080,18 @@ void
 vendor_set_uid(uid)
 	UID_T uid;
 {
-	/* 
+	/*
 	**  We need to setup the share groups (lnodes)
-	**  and and auditing inforation (luid's)
+	**  and add auditing information (luid's)
 	**  before we loose our ``root''ness.
 	*/
 #if SHARE_V1
 	if (setupshares(uid, syserr) != 0)
 		syserr("Unable to set up shares");
-#endif
+#endif /* SHARE_V1 */
 #if SECUREWARE
 	(void) setup_secure(uid);
-#endif
+#endif /* SECUREWARE */
 }
 /*
 **  VALIDATE_CONNECTION -- check connection for rationality
@@ -3883,7 +4115,7 @@ vendor_set_uid(uid)
 /* tcpwrappers does no logging, but you still have to declare these -- ugh */
 int	allow_severity	= LOG_INFO;
 int	deny_severity	= LOG_NOTICE;
-#endif
+#endif /* TCPWRAPPERS */
 
 #if DAEMON
 char *
@@ -3892,38 +4124,32 @@ validate_connection(sap, hostname, e)
 	char *hostname;
 	ENVELOPE *e;
 {
-#if TCPWRAPPERS
+# if TCPWRAPPERS
 	char *host;
-#endif
+# endif /* TCPWRAPPERS */
 
 	if (tTd(48, 3))
-		printf("validate_connection(%s, %s)\n",
+		dprintf("validate_connection(%s, %s)\n",
 			hostname, anynet_ntoa(sap));
 
-	if (rscheck("check_relay", hostname, anynet_ntoa(sap), e) != EX_OK)
+	if (rscheck("check_relay", hostname, anynet_ntoa(sap),
+		    e, TRUE, TRUE, 4) != EX_OK)
 	{
 		static char reject[BUFSIZ*2];
 		extern char MsgBuf[];
 
 		if (tTd(48, 4))
-			printf("  ... validate_connection: BAD (rscheck)\n");
+			dprintf("  ... validate_connection: BAD (rscheck)\n");
 
-		if (strlen(MsgBuf) > 5)
-		{
-			if (isascii(MsgBuf[0]) && isdigit(MsgBuf[0]) &&
-			    isascii(MsgBuf[1]) && isdigit(MsgBuf[1]) &&
-			    isascii(MsgBuf[2]) && isdigit(MsgBuf[2]))
-				strcpy(reject, &MsgBuf[4]);
-			else
-				strcpy(reject, MsgBuf);
-		}
+		if (strlen(MsgBuf) >= 3)
+			(void) strlcpy(reject, MsgBuf, sizeof reject);
 		else
-			strcpy(reject, "Access denied");
+			(void) strlcpy(reject, "Access denied", sizeof reject);
 
 		return reject;
 	}
 
-#if TCPWRAPPERS
+# if TCPWRAPPERS
 	if (hostname[0] == '[' && hostname[strlen(hostname) - 1] == ']')
 		host = "unknown";
 	else
@@ -3931,20 +4157,20 @@ validate_connection(sap, hostname, e)
 	if (!hosts_ctl("sendmail", host, anynet_ntoa(sap), STRING_UNKNOWN))
 	{
 		if (tTd(48, 4))
-			printf("  ... validate_connection: BAD (tcpwrappers)\n");
+			dprintf("  ... validate_connection: BAD (tcpwrappers)\n");
 		if (LogLevel >= 4)
-			sm_syslog(LOG_NOTICE, NOQID,
+			sm_syslog(LOG_NOTICE, e->e_id,
 				"tcpwrappers (%s, %s) rejection",
 				host, anynet_ntoa(sap));
 		return "Access denied";
 	}
-#endif
+# endif /* TCPWRAPPERS */
 	if (tTd(48, 4))
-		printf("  ... validate_connection: OK\n");
+		dprintf("  ... validate_connection: OK\n");
 	return NULL;
 }
 
-#endif
+#endif /* DAEMON */
 /*
 **  STRTOL -- convert string to long integer
 **
@@ -3953,11 +4179,11 @@ validate_connection(sap, hostname, e)
 **	This is taken verbatim from the 4.4-Lite C library.
 */
 
-#ifdef NEEDSTRTOL
+#if NEEDSTRTOL
 
-#if defined(LIBC_SCCS) && !defined(lint)
+# if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
+# endif /* defined(LIBC_SCCS) && !defined(lint) */
 
 /*
  * Convert a string to a long integer.
@@ -4044,10 +4270,10 @@ strtol(nptr, endptr, base)
 		acc = -acc;
 	if (endptr != 0)
 		*endptr = (char *)(any ? s - 1 : nptr);
-	return (acc);
+	return acc;
 }
 
-#endif
+#endif /* NEEDSTRTOL */
 /*
 **  STRSTR -- find first substring in string
 **
@@ -4061,7 +4287,7 @@ strtol(nptr, endptr, base)
 **		NULL if little is not contained in big.
 */
 
-#ifdef NEEDSTRSTR
+#if NEEDSTRSTR
 
 char *
 strstr(big, little)
@@ -4084,7 +4310,7 @@ strstr(big, little)
 	return NULL;
 }
 
-#endif
+#endif /* NEEDSTRSTR */
 /*
 **  SM_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
 **
@@ -4092,13 +4318,71 @@ strstr(big, little)
 **	routines.  For example, Solaris versions at least through 2.3
 **	don't properly deliver a canonical h_name field.  This tries to
 **	work around these problems.
+**
+**	Support IPv6 as well as IPv4.
 */
 
-struct hostent *
-sm_gethostbyname(name)
+#if NETINET6 && NEEDSGETIPNODE && __RES < 19990909
+
+# ifndef AI_DEFAULT
+#  define AI_DEFAULT	0	/* dummy */
+# endif /* ! AI_DEFAULT */
+# ifndef AI_ADDRCONFIG
+#  define AI_ADDRCONFIG	0	/* dummy */
+# endif /* ! AI_ADDRCONFIG */
+# ifndef AI_V4MAPPED
+#  define AI_V4MAPPED	0	/* dummy */
+# endif /* ! AI_V4MAPPED */
+# ifndef AI_ALL
+#  define AI_ALL	0	/* dummy */
+# endif /* ! AI_ALL */
+
+static struct hostent *
+getipnodebyname(name, family, flags, err)
 	char *name;
+	int family;
+	int flags;
+	int *err;
+{
+	bool resv6 = TRUE;
+	struct hostent *h;
+
+	if (family == AF_INET6)
+	{
+		/* From RFC2133, section 6.1 */
+		resv6 = bitset(RES_USE_INET6, _res.options);
+		_res.options |= RES_USE_INET6;
+	}
+	h_errno = 0;
+	h = gethostbyname(name);
+	*err = h_errno;
+	if (family == AF_INET6 && !resv6)
+		_res.options &= ~RES_USE_INET6;
+	return h;
+}
+
+static struct hostent *
+getipnodebyaddr(addr, len, family, err)
+	char *addr;
+	int len;
+	int family;
+	int *err;
 {
 	struct hostent *h;
+
+	h_errno = 0;
+	h = gethostbyaddr(addr, len, family);
+	*err = h_errno;
+	return h;
+}
+#endif /* NEEDSGETIPNODE && NETINET6 && __RES < 19990909 */
+
+struct hostent *
+sm_gethostbyname(name, family)
+	char *name;
+	int family;
+{
+	struct hostent *h = NULL;
 #if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4))
 # if SOLARIS == 20300 || SOLARIS == 203
 	static struct hostent hp;
@@ -4106,28 +4390,44 @@ sm_gethostbyname(name)
 	extern struct hostent *_switch_gethostbyname_r();
 
 	if (tTd(61, 10))
-		printf("_switch_gethostbyname_r(%s)... ", name);
+		dprintf("_switch_gethostbyname_r(%s)... ", name);
 	h = _switch_gethostbyname_r(name, &hp, buf, sizeof(buf), &h_errno);
-# else
+# else /* SOLARIS == 20300 || SOLARIS == 203 */
 	extern struct hostent *__switch_gethostbyname();
 
 	if (tTd(61, 10))
-		printf("__switch_gethostbyname(%s)... ", name);
+		dprintf("__switch_gethostbyname(%s)... ", name);
 	h = __switch_gethostbyname(name);
-# endif
-#else
+# endif /* SOLARIS == 20300 || SOLARIS == 203 */
+#else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	int nmaps;
+# if NETINET6
+	int flags = AI_DEFAULT|AI_ALL;
+	int err;
+# endif /* NETINET6 */
+	int save_errno;
 	char *maptype[MAXMAPSTACK];
 	short mapreturn[MAXMAPACTIONS];
 	char hbuf[MAXNAME];
 
 	if (tTd(61, 10))
-		printf("gethostbyname(%s)... ", name);
+		dprintf("sm_gethostbyname(%s, %d)... ", name, family);
+
+# if NETINET6
+#  if ADDRCONFIG_IS_BROKEN
+	flags &= ~AI_ADDRCONFIG;
+#  endif /* ADDRCONFIG_IS_BROKEN */
+	h = getipnodebyname(name, family, flags, &err);
+	h_errno = err;
+# else /* NETINET6 */
 	h = gethostbyname(name);
+# endif /* NETINET6 */
+
+	save_errno = errno;
 	if (h == NULL)
 	{
 		if (tTd(61, 10))
-			printf("failure\n");
+			dprintf("failure\n");
 
 		nmaps = switch_map_find("hosts", maptype, mapreturn);
 		while (--nmaps >= 0)
@@ -4138,27 +4438,77 @@ sm_gethostbyname(name)
 		{
 			/* try short name */
 			if (strlen(name) > (SIZE_T) sizeof hbuf - 1)
+			{
+				errno = save_errno;
 				return NULL;
-			strcpy(hbuf, name);
+			}
+			(void) strlcpy(hbuf, name, sizeof hbuf);
 			shorten_hostname(hbuf);
 
 			/* if it hasn't been shortened, there's no point */
 			if (strcmp(hbuf, name) != 0)
 			{
 				if (tTd(61, 10))
-					printf("gethostbyname(%s)... ", hbuf);
+					dprintf("sm_gethostbyname(%s, %d)... ",
+					       hbuf, family);
+
+# if NETINET6
+				h = getipnodebyname(hbuf, family,
+						    AI_V4MAPPED|AI_ALL,
+						    &err);
+				h_errno = err;
+				save_errno = errno;
+# else /* NETINET6 */
 				h = gethostbyname(hbuf);
+				save_errno = errno;
+# endif /* NETINET6 */
 			}
 		}
 	}
-#endif
+#endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	if (tTd(61, 10))
 	{
 		if (h == NULL)
-			printf("failure\n");
+			dprintf("failure\n");
 		else
-			printf("%s\n", h->h_name);
+		{
+			dprintf("%s\n", h->h_name);
+			if (tTd(61, 11))
+			{
+#if NETINET6
+				struct in6_addr ia6;
+				char buf6[INET6_ADDRSTRLEN];
+#else /* NETINET6 */
+				struct in_addr ia;
+#endif /* NETINET6 */
+				int i;
+
+				if (h->h_aliases != NULL)
+					for (i = 0; h->h_aliases[i] != NULL;
+					     i++)
+						dprintf("\talias: %s\n",
+							h->h_aliases[i]);
+				for (i = 0; h->h_addr_list[i] != NULL; i++)
+				{
+					char *addr;
+
+#if NETINET6
+					memmove(&ia6, h->h_addr_list[i],
+						IN6ADDRSZ);
+					addr = anynet_ntop(&ia6,
+							   buf6, sizeof buf6);
+#else /* NETINET6 */
+					memmove(&ia, h->h_addr_list[i],
+						INADDRSZ);
+					addr = (char *) inet_ntoa(ia);
+#endif /* NETINET6 */
+					if (addr != NULL)
+						dprintf("\taddr: %s\n", addr);
+				}
+			}
+		}
 	}
+	errno = save_errno;
 	return h;
 }
 
@@ -4168,50 +4518,62 @@ sm_gethostbyaddr(addr, len, type)
 	int len;
 	int type;
 {
+	struct hostent *hp;
 #if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204)
 # if SOLARIS == 20300 || SOLARIS == 203
-	static struct hostent hp;
+	static struct hostent he;
 	static char buf[1000];
 	extern struct hostent *_switch_gethostbyaddr_r();
 
-	return _switch_gethostbyaddr_r(addr, len, type, &hp, buf, sizeof(buf), &h_errno);
-# else
+	hp = _switch_gethostbyaddr_r(addr, len, type, &he, buf, sizeof(buf), &h_errno);
+# else /* SOLARIS == 20300 || SOLARIS == 203 */
 	extern struct hostent *__switch_gethostbyaddr();
 
-	return __switch_gethostbyaddr(addr, len, type);
-# endif
-#else
-	return gethostbyaddr(addr, len, type);
-#endif
+	hp = __switch_gethostbyaddr(addr, len, type);
+# endif /* SOLARIS == 20300 || SOLARIS == 203 */
+#else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) */
+# if NETINET6
+	int err;
+# endif /* NETINET6 */
+
+# if NETINET6
+	hp = getipnodebyaddr(addr, len, type, &err);
+	h_errno = err;
+# else /* NETINET6 */
+	hp = gethostbyaddr(addr, len, type);
+# endif /* NETINET6 */
+	return hp;
+#endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) */
 }
 /*
 **  SM_GETPW{NAM,UID} -- wrapper for getpwnam and getpwuid
 */
 
+
 struct passwd *
 sm_getpwnam(user)
 	char *user;
 {
-#ifdef _AIX4
+# ifdef _AIX4
 	extern struct passwd *_getpwnam_shadow(const char *, const int);
 
 	return _getpwnam_shadow(user, 0);
-#else
+# else /* _AIX4 */
 	return getpwnam(user);
-#endif
+# endif /* _AIX4 */
 }
 
 struct passwd *
 sm_getpwuid(uid)
 	UID_T uid;
 {
-#if defined(_AIX4) && 0
+# if defined(_AIX4) && 0
 	extern struct passwd *_getpwuid_shadow(const int, const int);
 
 	return _getpwuid_shadow(uid,0);
-#else
+# else /* defined(_AIX4) && 0 */
 	return getpwuid(uid);
-#endif
+# endif /* defined(_AIX4) && 0 */
 }
 /*
 **  SECUREWARE_SETUP_SECURE -- Convex SecureWare setup
@@ -4242,7 +4604,7 @@ secureware_setup_secure(uid)
 
 	if (getluid() != -1)
 		return;
-	
+
 	if ((rc = set_secure_info(uid)) != SSI_GOOD_RETURN)
 	{
 		switch (rc)
@@ -4267,7 +4629,7 @@ secureware_setup_secure(uid)
 			syserr("Could not set kernel privs, uid = %d", uid);
 
 		  default:
-			syserr("Unknown return code (%d) from set_secure_info(%d)", 
+			syserr("Unknown return code (%d) from set_secure_info(%d)",
 				rc, uid);
 			break;
 		}
@@ -4276,7 +4638,7 @@ secureware_setup_secure(uid)
 }
 #endif /* SECUREWARE */
 /*
-**  ADD_LOCAL_HOST_NAMES -- Add a hostname to class 'w' based on IP address
+**  ADD_HOSTNAMES -- Add a hostname to class 'w' based on IP address
 **
 **	Add hostnames to class 'w' based on the IP address read from
 **	the network interface.
@@ -4288,28 +4650,37 @@ secureware_setup_secure(uid)
 **		0 if successful, -1 if host lookup fails.
 */
 
-int
+static int
 add_hostnames(sa)
 	SOCKADDR *sa;
 {
 	struct hostent *hp;
+	char **ha;
+	char hnb[MAXHOSTNAMELEN];
 
 	/* lookup name with IP address */
 	switch (sa->sa.sa_family)
 	{
+#if NETINET
 		case AF_INET:
 			hp = sm_gethostbyaddr((char *) &sa->sin.sin_addr,
 				sizeof(sa->sin.sin_addr), sa->sa.sa_family);
 			break;
+#endif /* NETINET */
+
+#if NETINET6
+		case AF_INET6:
+			hp = sm_gethostbyaddr((char *) &sa->sin6.sin6_addr,
+				sizeof(sa->sin6.sin6_addr), sa->sa.sa_family);
+			break;
+#endif /* NETINET6 */
 
 		default:
-#if _FFR_LOG_UNSUPPORTED_FAMILIES
-			/* XXX: Give warning about unsupported family */
+			/* Give warning about unsupported family */
 			if (LogLevel > 3)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "Unsupported address family %d: %.100s",
 					  sa->sa.sa_family, anynet_ntoa(sa));
-#endif
 			return -1;
 	}
 
@@ -4317,15 +4688,20 @@ add_hostnames(sa)
 	{
 		int save_errno = errno;
 
-		if (LogLevel > 3)
+		if (LogLevel > 3 &&
+#if NETINET6
+		    !(sa->sa.sa_family == AF_INET6 &&
+		      IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr)) &&
+#endif /* NETINET6 */
+		    TRUE)
 			sm_syslog(LOG_WARNING, NOQID,
 				"gethostbyaddr(%.100s) failed: %d\n",
 				anynet_ntoa(sa),
 #if NAMED_BIND
 				h_errno
-#else
+#else /* NAMED_BIND */
 				-1
-#endif
+#endif /* NAMED_BIND */
 				);
 		errno = save_errno;
 		return -1;
@@ -4336,19 +4712,37 @@ add_hostnames(sa)
 	{
 		setclass('w', (char *) hp->h_name);
 		if (tTd(0, 4))
-			printf("\ta.k.a.: %s\n", hp->h_name);
+			dprintf("\ta.k.a.: %s\n", hp->h_name);
+
+		if (snprintf(hnb, sizeof hnb, "[%s]", hp->h_name) < sizeof hnb
+		    && !wordinclass((char *) hnb, 'w'))
+			setclass('w', hnb);
+	}
+	else
+	{
+		if (tTd(0, 43))
+			dprintf("\ta.k.a.: %s (already in $=w)\n", hp->h_name);
 	}
 
 	/* save all it aliases name */
-	while (*hp->h_aliases)
+	for (ha = hp->h_aliases; ha != NULL && *ha != NULL; ha++)
 	{
-		if (!wordinclass(*hp->h_aliases, 'w'))
+		if (!wordinclass(*ha, 'w'))
 		{
-			setclass('w', *hp->h_aliases);
+			setclass('w', *ha);
 			if (tTd(0, 4))
-				printf("\ta.k.a.: %s\n", *hp->h_aliases);
+				dprintf("\ta.k.a.: %s\n", *ha);
+			if (snprintf(hnb, sizeof hnb,
+				     "[%s]", *ha) < sizeof hnb &&
+			    !wordinclass((char *) hnb, 'w'))
+				setclass('w', hnb);
 		}
-		hp->h_aliases++;
+		else
+		{
+			if (tTd(0, 43))
+				dprintf("\ta.k.a.: %s (already in $=w)\n",
+					*ha);
+		}
 	}
 	return 0;
 }
@@ -4365,23 +4759,206 @@ add_hostnames(sa)
 **		Loads $=w with the names of all the interfaces.
 */
 
+#if !NETINET
+# define SIOCGIFCONF_IS_BROKEN	1 /* XXX */
+#endif /* !NETINET */
+
 #if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
 struct rtentry;
 struct mbuf;
-# include <arpa/inet.h>
 # ifndef SUNOS403
 #  include <sys/time.h>
-# endif
-# if _AIX4 >= 40300
+# endif /* ! SUNOS403 */
+# if (_AIX4 >= 40300) && !defined(_NET_IF_H)
 #  undef __P
-# endif
+# endif /* (_AIX4 >= 40300) && !defined(_NET_IF_H) */
 # include <net/if.h>
-#endif
+#endif /* defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN */
 
 void
 load_if_names()
 {
-#if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
+#if NETINET6 && defined(SIOCGLIFCONF)
+	int s;
+	int i;
+	struct lifconf lifc;
+	struct lifnum lifn;
+	int numifs;
+
+	s = socket(InetMode, SOCK_DGRAM, 0);
+	if (s == -1)
+		return;
+
+	/* get the list of known IP address from the kernel */
+#   ifdef SIOCGLIFNUM
+	lifn.lifn_family = AF_UNSPEC;
+	lifn.lifn_flags = 0;
+	if (ioctl(s, SIOCGLIFNUM, (char *)&lifn) < 0)
+	{
+		/* can't get number of interfaces -- fall back */
+		if (tTd(0, 4))
+			dprintf("SIOCGLIFNUM failed: %s\n", errstring(errno));
+		numifs = -1;
+	}
+	else
+	{
+		numifs = lifn.lifn_count;
+		if (tTd(0, 42))
+			dprintf("system has %d interfaces\n", numifs);
+	}
+	if (numifs < 0)
+#   endif /* SIOCGLIFNUM */
+		numifs = MAXINTERFACES;
+
+	if (numifs <= 0)
+	{
+		close(s);
+		return;
+	}
+	lifc.lifc_len = numifs * sizeof (struct lifreq);
+	lifc.lifc_buf = xalloc(lifc.lifc_len);
+	lifc.lifc_family = AF_UNSPEC;
+	lifc.lifc_flags = 0;
+	if (ioctl(s, SIOCGLIFCONF, (char *)&lifc) < 0)
+	{
+		if (tTd(0, 4))
+			dprintf("SIOCGLIFCONF failed: %s\n", errstring(errno));
+		close(s);
+		return;
+	}
+
+	/* scan the list of IP address */
+	if (tTd(0, 40))
+		dprintf("scanning for interface specific names, lifc_len=%d\n",
+			lifc.lifc_len);
+
+	for (i = 0; i < lifc.lifc_len; )
+	{
+		struct lifreq *ifr = (struct lifreq *)&lifc.lifc_buf[i];
+		SOCKADDR *sa = (SOCKADDR *) &ifr->lifr_addr;
+		char *addr;
+		struct in6_addr ia6;
+		struct in_addr ia;
+#   ifdef SIOCGLIFFLAGS
+		struct lifreq ifrf;
+#   endif /* SIOCGLIFFLAGS */
+		char ip_addr[256];
+		char buf6[INET6_ADDRSTRLEN];
+		int af = ifr->lifr_addr.ss_family;
+
+		/*
+		**  We must close and recreate the socket each time
+		**  since we don't know what type of socket it is now
+		**  (each status function may change it).
+		*/
+
+		(void) close(s);
+
+		s = socket(af, SOCK_DGRAM, 0);
+		if (s == -1)
+			return;
+
+		/*
+		**  If we don't have a complete ifr structure,
+		**  don't try to use it.
+		*/
+
+		if ((lifc.lifc_len - i) < sizeof *ifr)
+			break;
+
+#   ifdef BSD4_4_SOCKADDR
+		if (sa->sa.sa_len > sizeof ifr->lifr_addr)
+			i += sizeof ifr->lifr_name + sa->sa.sa_len;
+		else
+#   endif /* BSD4_4_SOCKADDR */
+			i += sizeof *ifr;
+
+		if (tTd(0, 20))
+			dprintf("%s\n", anynet_ntoa(sa));
+
+		if (af != AF_INET && af != AF_INET6)
+			continue;
+
+#   ifdef SIOCGLIFFLAGS
+		memset(&ifrf, '\0', sizeof(struct lifreq));
+		(void) strlcpy(ifrf.lifr_name, ifr->lifr_name,
+			       sizeof(ifrf.lifr_name));
+		if (ioctl(s, SIOCGLIFFLAGS, (char *) &ifrf) < 0)
+		{
+			if (tTd(0, 4))
+				dprintf("SIOCGLIFFLAGS failed: %s\n",
+					errstring(errno));
+			continue;
+		}
+		else if (tTd(0, 41))
+			dprintf("\tflags: %lx\n",
+				(unsigned long)ifrf.lifr_flags);
+
+		if (!bitset(IFF_UP, ifrf.lifr_flags))
+			continue;
+#   endif /* SIOCGLIFFLAGS */
+
+		ip_addr[0] = '\0';
+
+		/* extract IP address from the list*/
+		switch (af)
+		{
+		  case AF_INET6:
+			ia6 = sa->sin6.sin6_addr;
+			if (ia6.s6_addr == in6addr_any.s6_addr)
+			{
+				addr = anynet_ntop(&ia6, buf6, sizeof buf6);
+				message("WARNING: interface %s is UP with %s address",
+					ifr->lifr_name,
+					addr == NULL ? "(NULL)" : addr);
+				continue;
+			}
+
+			/* save IP address in text from */
+			addr = anynet_ntop(&ia6, buf6, sizeof buf6);
+			if (addr != NULL)
+				(void) snprintf(ip_addr, sizeof ip_addr,
+						"[%.*s]",
+						sizeof ip_addr - 3, addr);
+			break;
+
+		  case AF_INET:
+			ia = sa->sin.sin_addr;
+			if (ia.s_addr == INADDR_ANY ||
+			    ia.s_addr == INADDR_NONE)
+			{
+				message("WARNING: interface %s is UP with %s address",
+					ifr->lifr_name, inet_ntoa(ia));
+				continue;
+			}
+
+			/* save IP address in text from */
+			(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
+					sizeof ip_addr - 3, inet_ntoa(ia));
+			break;
+		}
+
+		if (*ip_addr == '\0')
+			continue;
+
+		if (!wordinclass(ip_addr, 'w'))
+		{
+			setclass('w', ip_addr);
+			if (tTd(0, 4))
+				dprintf("\ta.k.a.: %s\n", ip_addr);
+		}
+
+#   ifdef SIOCGLIFFLAGS
+		/* skip "loopback" interface "lo" */
+		if (bitset(IFF_LOOPBACK, ifrf.lifr_flags))
+			continue;
+#   endif /* SIOCGLIFFLAGS */
+		(void) add_hostnames(sa);
+	}
+	free(lifc.lifc_buf);
+	close(s);
+#else /* NETINET6 && defined(SIOCGLIFCONF) */
+# if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
 	int s;
 	int i;
 	struct ifconf ifc;
@@ -4392,23 +4969,23 @@ load_if_names()
 		return;
 
 	/* get the list of known IP address from the kernel */
-# if defined(SIOCGIFNUM) && !SIOCGIFNUM_IS_BROKEN
+#  if defined(SIOCGIFNUM) && !SIOCGIFNUM_IS_BROKEN
 	if (ioctl(s, SIOCGIFNUM, (char *) &numifs) < 0)
 	{
 		/* can't get number of interfaces -- fall back */
 		if (tTd(0, 4))
-			printf("SIOCGIFNUM failed: %s\n", errstring(errno));
+			dprintf("SIOCGIFNUM failed: %s\n", errstring(errno));
 		numifs = -1;
 	}
 	else if (tTd(0, 42))
-		printf("system has %d interfaces\n", numifs);
+		dprintf("system has %d interfaces\n", numifs);
 	if (numifs < 0)
-# endif
-		numifs = 512;
+#  endif /* defined(SIOCGIFNUM) && !SIOCGIFNUM_IS_BROKEN */
+		numifs = MAXINTERFACES;
 
 	if (numifs <= 0)
 	{
-		close(s);
+		(void) close(s);
 		return;
 	}
 	ifc.ifc_len = numifs * sizeof (struct ifreq);
@@ -4416,71 +4993,128 @@ load_if_names()
 	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0)
 	{
 		if (tTd(0, 4))
-			printf("SIOGIFCONF failed: %s\n", errstring(errno));
-		close(s);
+			dprintf("SIOCGIFCONF failed: %s\n", errstring(errno));
+		(void) close(s);
 		return;
 	}
 
 	/* scan the list of IP address */
 	if (tTd(0, 40))
-		printf("scanning for interface specific names, ifc_len=%d\n",
+		dprintf("scanning for interface specific names, ifc_len=%d\n",
 			ifc.ifc_len);
 
 	for (i = 0; i < ifc.ifc_len; )
 	{
+		int af;
 		struct ifreq *ifr = (struct ifreq *) &ifc.ifc_buf[i];
 		SOCKADDR *sa = (SOCKADDR *) &ifr->ifr_addr;
+#   if NETINET6
+		char *addr;
+		struct in6_addr ia6;
+#   endif /* NETINET6 */
 		struct in_addr ia;
-#ifdef SIOCGIFFLAGS
+#   ifdef SIOCGIFFLAGS
 		struct ifreq ifrf;
-#endif
+#   endif /* SIOCGIFFLAGS */
 		char ip_addr[256];
-		extern char *inet_ntoa();
+#   if NETINET6
+		char buf6[INET6_ADDRSTRLEN];
+#   endif /* NETINET6 */
 
-#ifdef BSD4_4_SOCKADDR
+		/*
+		**  If we don't have a complete ifr structure,
+		**  don't try to use it.
+		*/
+
+		if ((ifc.ifc_len - i) < sizeof *ifr)
+			break;
+
+#   ifdef BSD4_4_SOCKADDR
 		if (sa->sa.sa_len > sizeof ifr->ifr_addr)
 			i += sizeof ifr->ifr_name + sa->sa.sa_len;
 		else
-#endif
+#   endif /* BSD4_4_SOCKADDR */
 			i += sizeof *ifr;
 
 		if (tTd(0, 20))
-			printf("%s\n", anynet_ntoa(sa));
+			dprintf("%s\n", anynet_ntoa(sa));
 
-		if (ifr->ifr_addr.sa_family != AF_INET)
+		af = ifr->ifr_addr.sa_family;
+		if (af != AF_INET
+#   if NETINET6
+		    && af != AF_INET6
+#   endif /* NETINET6 */
+		    )
 			continue;
 
-#ifdef SIOCGIFFLAGS
-		bzero(&ifrf, sizeof(struct ifreq));
-		strncpy(ifrf.ifr_name, ifr->ifr_name, sizeof(ifrf.ifr_name));
-		ioctl(s, SIOCGIFFLAGS, (char *) &ifrf);
+#   ifdef SIOCGIFFLAGS
+		memset(&ifrf, '\0', sizeof(struct ifreq));
+		(void) strlcpy(ifrf.ifr_name, ifr->ifr_name,
+			       sizeof(ifrf.ifr_name));
+		(void) ioctl(s, SIOCGIFFLAGS, (char *) &ifrf);
 		if (tTd(0, 41))
-			printf("\tflags: %x\n", ifrf.ifr_flags);
-# define IFRFREF ifrf
-#else
-# define IFRFREF (*ifr)
-#endif
+			dprintf("\tflags: %lx\n",
+				(unsigned long) ifrf.ifr_flags);
+#    define IFRFREF ifrf
+#   else /* SIOCGIFFLAGS */
+#    define IFRFREF (*ifr)
+#   endif /* SIOCGIFFLAGS */
+
 		if (!bitset(IFF_UP, IFRFREF.ifr_flags))
 			continue;
 
+		ip_addr[0] = '\0';
+
 		/* extract IP address from the list*/
-		ia = sa->sin.sin_addr;
-		if (ia.s_addr == INADDR_ANY || ia.s_addr == INADDR_NONE)
+		switch (af)
 		{
-			message("WARNING: interface %s is UP with %s address",
-				ifr->ifr_name, inet_ntoa(ia));
-			continue;
+		  case AF_INET:
+			ia = sa->sin.sin_addr;
+			if (ia.s_addr == INADDR_ANY ||
+			    ia.s_addr == INADDR_NONE)
+			{
+				message("WARNING: interface %s is UP with %s address",
+					ifr->ifr_name, inet_ntoa(ia));
+				continue;
+			}
+
+			/* save IP address in text from */
+			(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
+					(int) sizeof ip_addr - 3,
+					inet_ntoa(ia));
+			break;
+
+#   if NETINET6
+		  case AF_INET6:
+			ia6 = sa->sin6.sin6_addr;
+			if (ia6.s6_addr == in6addr_any.s6_addr)
+			{
+				addr = anynet_ntop(&ia6, buf6, sizeof buf6);
+				message("WARNING: interface %s is UP with %s address",
+					ifr->ifr_name,
+					addr == NULL ? "(NULL)" : addr);
+				continue;
+			}
+
+			/* save IP address in text from */
+			addr = anynet_ntop(&ia6, buf6, sizeof buf6);
+			if (addr != NULL)
+				(void) snprintf(ip_addr, sizeof ip_addr,
+						"[%.*s]",
+						(int) sizeof ip_addr - 3, addr);
+			break;
+
+#   endif /* NETINET6 */
 		}
 
-		/* save IP address in text from */
-		(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
-			(int)sizeof ip_addr - 3,
-			inet_ntoa(ia));
+		if (ip_addr[0] == '\0')
+			continue;
+
 		if (!wordinclass(ip_addr, 'w'))
 		{
 			setclass('w', ip_addr);
 			if (tTd(0, 4))
-				printf("\ta.k.a.: %s\n", ip_addr);
+				dprintf("\ta.k.a.: %s\n", ip_addr);
 		}
 
 		/* skip "loopback" interface "lo" */
@@ -4490,9 +5124,37 @@ load_if_names()
 		(void) add_hostnames(sa);
 	}
 	free(ifc.ifc_buf);
-	close(s);
-# undef IFRFREF
-#endif
+	(void) close(s);
+#  undef IFRFREF
+# endif /* defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN */
+#endif /* NETINET6 && defined(SIOCGLIFCONF) */
+}
+/*
+**  ISLOOPBACK -- is socket address in the loopback net?
+**
+**	Parameters:
+**		sa -- socket address.
+**
+**	Returns:
+**		TRUE -- is socket address in the loopback net?
+**		FALSE -- otherwise
+**
+*/
+
+bool
+isloopback(sa)
+	SOCKADDR sa;
+{
+#if NETINET6
+	if (IN6_IS_ADDR_LOOPBACK(&sa.sin6.sin6_addr))
+		return TRUE;
+#else /* NETINET6 */
+	/* XXX how to correctly extract IN_LOOPBACKNET part? */
+	if (((ntohl(sa.sin.sin_addr.s_addr) & IN_CLASSA_NET)
+	     >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+		return TRUE;
+#endif /* NETINET6 */
+	return FALSE;
 }
 /*
 **  GET_NUM_PROCS_ONLINE -- return the number of processors currently online
@@ -4504,19 +5166,68 @@ load_if_names()
 **		The number of processors online.
 */
 
-int
+static int
 get_num_procs_online()
 {
 	int nproc = 0;
 
-#if _FFR_SCALE_LA_BY_NUM_PROCS
-#ifdef _SC_NPROCESSORS_ONLN
+#ifdef USESYSCTL
+# if defined(CTL_HW) && defined(HW_NCPU)
+	size_t sz;
+	int mib[2];
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_NCPU;
+	sz = (size_t) sizeof nproc;
+	(void) sysctl(mib, 2, &nproc, &sz, NULL, 0);
+# endif /* defined(CTL_HW) && defined(HW_NCPUS) */
+#else /* USESYSCTL */
+# ifdef _SC_NPROCESSORS_ONLN
 	nproc = (int) sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-#endif
+# else /* _SC_NPROCESSORS_ONLN */
+#  ifdef __hpux
+#   include <sys/pstat.h>
+	struct pst_dynamic psd;
+
+	if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) != -1)
+		nproc = psd.psd_proc_cnt;
+#  endif /* __hpux */
+# endif /* _SC_NPROCESSORS_ONLN */
+#endif /* USESYSCTL */
+
 	if (nproc <= 0)
 		nproc = 1;
 	return nproc;
+}
+/*
+**  SEED_RANDOM -- seed the random number generator
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none
+*/
+
+void
+seed_random()
+{
+#if HASSRANDOMDEV
+	srandomdev();
+#else /* HASSRANDOMDEV */
+	long seed;
+	struct timeval t;
+
+	seed = (long) getpid();
+	if (gettimeofday(&t, NULL) >= 0)
+		seed += t.tv_sec + t.tv_usec;
+
+# if HASRANDOM
+	(void) srandom(seed);
+# else /* HASRANDOM */
+	(void) srand((unsigned int) seed);
+# endif /* HASRANDOM */
+#endif /* HASSRANDOMDEV */
 }
 /*
 **  SM_SYSLOG -- syslog wrapper to keep messages under SYSLOG_BUFSIZE
@@ -4533,61 +5244,61 @@ get_num_procs_online()
 
 /* VARARGS3 */
 void
-# ifdef __STDC__
+#ifdef __STDC__
 sm_syslog(int level, const char *id, const char *fmt, ...)
-# else
+#else /* __STDC__ */
 sm_syslog(level, id, fmt, va_alist)
 	int level;
 	const char *id;
 	const char *fmt;
 	va_dcl
-#endif
+#endif /* __STDC__ */
 {
 	static char *buf = NULL;
-	static size_t bufsize = MAXLINE;
+	static size_t bufsize;
 	char *begin, *end;
+	int save_errno;
 	int seq = 1;
 	int idlen;
+	char buf0[MAXLINE];
 	extern int SnprfOverflow;
 	extern int SyslogErrno;
 	extern char *DoprEnd;
 	VA_LOCAL_DECL
-	extern void sm_dopr __P((char *, const char *, va_list));
-	
-	SyslogErrno = errno;
+
+	save_errno = SyslogErrno = errno;
 	if (id == NULL)
-	{
 		id = "NOQUEUE";
-		idlen = 9;
-	}
 	else if (strcmp(id, NOQID) == 0)
-	{
 		id = "";
-		idlen = 0;
-	}
-	else
-		idlen = strlen(id + 2);
-bufalloc:
+	idlen = strlen(id);
+
 	if (buf == NULL)
-		buf = (char *) xalloc(sizeof(char) * bufsize);
-
-	/* do a virtual vsnprintf into buf */
-	VA_START(fmt);
-	buf[0] = 0;
-	DoprEnd = buf + bufsize - 1;
-	SnprfOverflow = 0;
-	sm_dopr(buf, fmt, ap);
-	*DoprEnd = '\0';
-	VA_END;
-	/* end of virtual vsnprintf */
-
-	if (SnprfOverflow)
 	{
+		buf = buf0;
+		bufsize = sizeof buf0;
+	}
+
+	for (;;)
+	{
+		/* do a virtual vsnprintf into buf */
+		VA_START(fmt);
+		buf[0] = 0;
+		DoprEnd = buf + bufsize - 1;
+		SnprfOverflow = 0;
+		sm_dopr(buf, fmt, ap);
+		*DoprEnd = '\0';
+		VA_END;
+		/* end of virtual vsnprintf */
+
+		if (SnprfOverflow == 0)
+			break;
+
 		/* String too small, redo with correct size */
 		bufsize += SnprfOverflow + 1;
-		free(buf);
-		buf = NULL;
-		goto bufalloc;
+		if (buf != buf0)
+			free(buf);
+		buf = xalloc(bufsize * sizeof (char));
 	}
 	if ((strlen(buf) + idlen + 1) < SYSLOG_BUFSIZE)
 	{
@@ -4596,22 +5307,25 @@ bufalloc:
 			syslog(level, "%s", buf);
 		else
 			syslog(level, "%s: %s", id, buf);
-#else
+#else /* LOG */
 		/*XXX should do something more sensible */
 		if (*id == '\0')
 			fprintf(stderr, "%s\n", buf);
 		else
 			fprintf(stderr, "%s: %s\n", id, buf);
-#endif
+#endif /* LOG */
+		if (buf == buf0)
+			buf = NULL;
+		errno = save_errno;
 		return;
 	}
 
 	begin = buf;
 	while (*begin != '\0' &&
-	       (strlen(begin) + idlen + 5) > SYSLOG_BUFSIZE) 
+	       (strlen(begin) + idlen + 5) > SYSLOG_BUFSIZE)
 	{
 		char save;
-	
+
 		if (seq == 999)
 		{
 			/* Too many messages */
@@ -4635,24 +5349,29 @@ bufalloc:
 		*end = 0;
 #if LOG
 		syslog(level, "%s[%d]: %s ...", id, seq++, begin);
-#else
+#else /* LOG */
 		fprintf(stderr, "%s[%d]: %s ...\n", id, seq++, begin);
-#endif
+#endif /* LOG */
 		*end = save;
 		begin = end;
 	}
 	if (seq == 999)
 #if LOG
-		syslog(level, "%s[%d]: log terminated, too many parts", id, seq);
-#else
-		fprintf(stderr, "%s[%d]: log terminated, too many parts\n", id, seq);
-#endif
+		syslog(level, "%s[%d]: log terminated, too many parts",
+			id, seq);
+#else /* LOG */
+		fprintf(stderr, "%s[%d]: log terminated, too many parts\n",
+			id, seq);
+#endif /* LOG */
 	else if (*begin != '\0')
 #if LOG
 		syslog(level, "%s[%d]: %s", id, seq, begin);
-#else
+#else /* LOG */
 		fprintf(stderr, "%s[%d]: %s\n", id, seq, begin);
-#endif
+#endif /* LOG */
+	if (buf == buf0)
+		buf = NULL;
+	errno = save_errno;
 }
 /*
 **  HARD_SYSLOG -- call syslog repeatedly until it works
@@ -4668,20 +5387,20 @@ bufalloc:
 # ifdef V4FS
 #  define XCNST	const
 #  define CAST	(const char *)
-# else
+# else /* V4FS */
 #  define XCNST
 #  define CAST
-# endif
+# endif /* V4FS */
 
 void
 # ifdef __STDC__
 hard_syslog(int pri, XCNST char *msg, ...)
-# else
+# else /* __STDC__ */
 hard_syslog(pri, msg, va_alist)
 	int pri;
 	XCNST char *msg;
 	va_dcl
-# endif
+# endif /* __STDC__ */
 {
 	int i;
 	char buf[SYSLOG_BUFSIZE];
@@ -4696,18 +5415,18 @@ hard_syslog(pri, msg, va_alist)
 }
 
 # undef CAST
-#endif
+#endif /* defined(__hpux) && !defined(HPUX11) */
+#if NEEDLOCAL_HOSTNAME_LENGTH
 /*
 **  LOCAL_HOSTNAME_LENGTH
 **
 **	This is required to get sendmail to compile against BIND 4.9.x
 **	on Ultrix.
+**
+**	Unfortunately, a Compaq Y2K patch kit provides it without
+**	bumping __RES in /usr/include/resolv.h so we can't automatically
+**	figure out whether it is needed.
 */
-
-#if defined(ultrix) && NAMED_BIND
-
-# include <resolv.h>
-# if __RES >= 19931104 && __RES < 19950621
 
 int
 local_hostname_length(hostname)
@@ -4720,15 +5439,15 @@ local_hostname_length(hostname)
 	len_host = strlen(hostname);
 	len_domain = strlen(_res.defdname);
 	if (len_host > len_domain &&
-	    (strcasecmp(hostname + len_host - len_domain,_res.defdname) == 0) &&
+	    (strcasecmp(hostname + len_host - len_domain,
+			_res.defdname) == 0) &&
 	    hostname[len_host - len_domain - 1] == '.')
 		return len_host - len_domain - 1;
 	else
 		return 0;
 }
+#endif /* NEEDLOCAL_HOSTNAME_LENGTH */
 
-# endif
-#endif
 /*
 **  Compile-Time options
 */
@@ -4737,88 +5456,106 @@ char	*CompileOptions[] =
 {
 #ifdef HESIOD
 	"HESIOD",
-#endif
+#endif /* HESIOD */
 #if HES_GETMAILHOST
 	"HES_GETMAILHOST",
-#endif
+#endif /* HES_GETMAILHOST */
 #ifdef LDAPMAP
 	"LDAPMAP",
-#endif
+#endif /* LDAPMAP */
+#ifdef MAP_NSD
+	"MAP_NSD",
+#endif /* MAP_NSD */
 #ifdef MAP_REGEX
 	"MAP_REGEX",
-#endif
+#endif /* MAP_REGEX */
 #if LOG
 	"LOG",
-#endif
+#endif /* LOG */
 #if MATCHGECOS
 	"MATCHGECOS",
-#endif
+#endif /* MATCHGECOS */
 #if MIME7TO8
 	"MIME7TO8",
-#endif
+#endif /* MIME7TO8 */
 #if MIME8TO7
 	"MIME8TO7",
-#endif
+#endif /* MIME8TO7 */
 #if NAMED_BIND
 	"NAMED_BIND",
-#endif
+#endif /* NAMED_BIND */
 #ifdef NDBM
 	"NDBM",
-#endif
+#endif /* NDBM */
 #if NETINET
 	"NETINET",
-#endif
+#endif /* NETINET */
+#if NETINET6
+	"NETINET6",
+#endif /* NETINET6 */
 #if NETINFO
 	"NETINFO",
-#endif
+#endif /* NETINFO */
 #if NETISO
 	"NETISO",
-#endif
+#endif /* NETISO */
 #if NETNS
 	"NETNS",
-#endif
+#endif /* NETNS */
 #if NETUNIX
 	"NETUNIX",
-#endif
+#endif /* NETUNIX */
 #if NETX25
 	"NETX25",
-#endif
+#endif /* NETX25 */
 #ifdef NEWDB
 	"NEWDB",
-#endif
+#endif /* NEWDB */
 #ifdef NIS
 	"NIS",
-#endif
+#endif /* NIS */
 #ifdef NISPLUS
 	"NISPLUS",
-#endif
+#endif /* NISPLUS */
+#ifdef PH_MAP
+	"PH_MAP",
+#endif /* PH_MAP */
 #if QUEUE
 	"QUEUE",
-#endif
+#endif /* QUEUE */
+#if SASL
+	"SASL",
+#endif /* SASL */
 #if SCANF
 	"SCANF",
-#endif
+#endif /* SCANF */
+#if SFIO
+	"SFIO",
+#endif /* SFIO */
 #if SMTP
 	"SMTP",
-#endif
+#endif /* SMTP */
 #if SMTPDEBUG
 	"SMTPDEBUG",
-#endif
+#endif /* SMTPDEBUG */
+#if STARTTLS
+	"STARTTLS",
+#endif /* STARTTLS */
 #ifdef SUID_ROOT_FILES_OK
 	"SUID_ROOT_FILES_OK",
-#endif
+#endif /* SUID_ROOT_FILES_OK */
 #if TCPWRAPPERS
 	"TCPWRAPPERS",
-#endif
+#endif /* TCPWRAPPERS */
 #if USERDB
 	"USERDB",
-#endif
+#endif /* USERDB */
 #if XDEBUG
 	"XDEBUG",
-#endif
+#endif /* XDEBUG */
 #ifdef XLA
 	"XLA",
-#endif
+#endif /* XLA */
 	NULL
 };
 
@@ -4831,108 +5568,133 @@ char	*OsCompileOptions[] =
 {
 #if BOGUS_O_EXCL
 	"BOGUS_O_EXCL",
-#endif
+#endif /* BOGUS_O_EXCL */
+#if FAST_PID_RECYCLE
+	"FAST_PID_RECYCLE",
+#endif /* FAST_PID_RECYCLE */
+#if HASFCHOWN
+	"HASFCHOWN",
+#endif /* HASFCHOWN */
 #if HASFCHMOD
 	"HASFCHMOD",
-#endif
+#endif /* HASFCHMOD */
 #if HASFLOCK
 	"HASFLOCK",
-#endif
+#endif /* HASFLOCK */
 #if HASGETDTABLESIZE
 	"HASGETDTABLESIZE",
-#endif
+#endif /* HASGETDTABLESIZE */
 #if HASGETUSERSHELL
 	"HASGETUSERSHELL",
-#endif
+#endif /* HASGETUSERSHELL */
 #if HASINITGROUPS
 	"HASINITGROUPS",
-#endif
+#endif /* HASINITGROUPS */
 #if HASLSTAT
 	"HASLSTAT",
-#endif
+#endif /* HASLSTAT */
+#if HASRANDOM
+	"HASRANDOM",
+#endif /* HASRANDOM */
+#if HASSETLOGIN
+	"HASSETLOGIN",
+#endif /* HASSETLOGIN */
 #if HASSETREUID
 	"HASSETREUID",
-#endif
+#endif /* HASSETREUID */
 #if HASSETRLIMIT
 	"HASSETRLIMIT",
-#endif
+#endif /* HASSETRLIMIT */
 #if HASSETSID
 	"HASSETSID",
-#endif
+#endif /* HASSETSID */
 #if HASSETUSERCONTEXT
 	"HASSETUSERCONTEXT",
-#endif
+#endif /* HASSETUSERCONTEXT */
 #if HASSETVBUF
 	"HASSETVBUF",
-#endif
+#endif /* HASSETVBUF */
 #if HASSNPRINTF
 	"HASSNPRINTF",
-#endif
+#endif /* HASSNPRINTF */
 #if HAS_ST_GEN
 	"HAS_ST_GEN",
-#endif
+#endif /* HAS_ST_GEN */
+#if HASSRANDOMDEV
+	"HASSRANDOMDEV",
+#endif /* HASSRANDOMDEV */
+#if HASURANDOMDEV
+	"HASURANDOMDEV",
+#endif /* HASURANDOMDEV */
 #if HASSTRERROR
 	"HASSTRERROR",
-#endif
+#endif /* HASSTRERROR */
 #if HASULIMIT
 	"HASULIMIT",
-#endif
+#endif /* HASULIMIT */
 #if HASUNAME
 	"HASUNAME",
-#endif
+#endif /* HASUNAME */
 #if HASUNSETENV
 	"HASUNSETENV",
-#endif
+#endif /* HASUNSETENV */
 #if HASWAITPID
 	"HASWAITPID",
-#endif
+#endif /* HASWAITPID */
 #if IDENTPROTO
 	"IDENTPROTO",
-#endif
+#endif /* IDENTPROTO */
 #if IP_SRCROUTE
 	"IP_SRCROUTE",
-#endif
+#endif /* IP_SRCROUTE */
 #if O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL
 	"LOCK_ON_OPEN",
-#endif
+#endif /* O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL */
 #if NEEDFSYNC
 	"NEEDFSYNC",
-#endif
+#endif /* NEEDFSYNC */
 #if NOFTRUNCATE
 	"NOFTRUNCATE",
-#endif
+#endif /* NOFTRUNCATE */
 #if RLIMIT_NEEDS_SYS_TIME_H
 	"RLIMIT_NEEDS_SYS_TIME_H",
-#endif
+#endif /* RLIMIT_NEEDS_SYS_TIME_H */
 #if SAFENFSPATHCONF
 	"SAFENFSPATHCONF",
-#endif
+#endif /* SAFENFSPATHCONF */
 #if SECUREWARE
 	"SECUREWARE",
-#endif
+#endif /* SECUREWARE */
 #if SHARE_V1
 	"SHARE_V1",
-#endif
+#endif /* SHARE_V1 */
 #if SIOCGIFCONF_IS_BROKEN
 	"SIOCGIFCONF_IS_BROKEN",
-#endif
+#endif /* SIOCGIFCONF_IS_BROKEN */
 #if SIOCGIFNUM_IS_BROKEN
 	"SIOCGIFNUM_IS_BROKEN",
-#endif
+#endif /* SIOCGIFNUM_IS_BROKEN */
+#if SNPRINTF_IS_BROKEN
+	"SNPRINTF_IS_BROKEN",
+#endif /* SNPRINTF_IS_BROKEN */
+#if SO_REUSEADDR_IS_BROKEN
+	"SO_REUSEADDR_IS_BROKEN",
+#endif /* SO_REUSEADDR_IS_BROKEN */
 #if SYS5SETPGRP
 	"SYS5SETPGRP",
-#endif
+#endif /* SYS5SETPGRP */
 #if SYSTEM5
 	"SYSTEM5",
-#endif
+#endif /* SYSTEM5 */
 #if USE_SA_SIGACTION
 	"USE_SA_SIGACTION",
-#endif
+#endif /* USE_SA_SIGACTION */
 #if USE_SIGLONGJMP
 	"USE_SIGLONGJMP",
-#endif
+#endif /* USE_SIGLONGJMP */
 #if USESETEUID
 	"USESETEUID",
-#endif
+#endif /* USESETEUID */
 	NULL
 };
+
