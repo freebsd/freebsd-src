@@ -113,6 +113,7 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
 
 static int	mac_mls_slot;
 #define	SLOT(l)	((struct mac_mls *)LABEL_TO_SLOT((l), mac_mls_slot).l_ptr)
+#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_mls_slot).l_ptr = (val))
 
 static uma_zone_t	zone_mls;
 
@@ -467,14 +468,14 @@ static void
 mac_mls_init_label(struct label *label)
 {
 
-	SLOT(label) = mls_alloc(M_WAITOK);
+	SLOT_SET(label, mls_alloc(M_WAITOK));
 }
 
 static int
 mac_mls_init_label_waitcheck(struct label *label, int flag)
 {
 
-	SLOT(label) = mls_alloc(flag);
+	SLOT_SET(label, mls_alloc(flag));
 	if (SLOT(label) == NULL)
 		return (ENOMEM);
 
@@ -486,7 +487,7 @@ mac_mls_destroy_label(struct label *label)
 {
 
 	mls_free(SLOT(label));
-	SLOT(label) = NULL;
+	SLOT_SET(label, NULL);
 }
 
 /*
