@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.70 1999/04/29 05:48:32 roger Exp $ */
+/* $Id: brooktree848.c,v 1.71 1999/04/29 09:57:47 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -367,6 +367,11 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     Added support for BCTV audio mux.
                     All submitted by Hiroki Mori <mori@infocity.co.jp> 
 
+1.63    29 Apr 1999 Roger Hardiman <roger@freebsd.org>
+                    Added initial code for VBI capture based on work by
+                    Hiroki Mori <mori@infocity.co.jp> and reworked by myself.
+                    This allows software decoding of teletext, intercast and
+                    subtitles via /dev/vbi.
 */
 
 #define DDB(x) x
@@ -476,9 +481,30 @@ static void	bktr_intr __P((void *arg));
 #endif
 #define BROOKTREE_ALLOC		(BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
 
+/* Definitions for VBI capture.
+ * There are 16 VBI lines in a PAL video field (32 in a frame),
+ * and we take 2044 samples from each line (placed in a 2048 byte buffer
+ * for alignment).
+ * VBI lines are held in a circular buffer before being read by a
+ * user program from /dev/vbi.
+ */
+
+#define MAX_VBI_LINES	      16   /* Maximum for all vidoe formats */
+#define VBI_LINE_SIZE         2048 /* Store upto 2048 bytes per line */
+#define VBI_BUFFER_ITEMS      20   /* Number of frames we buffer */
+#define VBI_DATA_SIZE         (VBI_LINE_SIZE * MAX_VBI_LINES * 2)
+#define VBI_BUFFER_SIZE       (VBI_DATA_SIZE * VBI_BUFFER_ITEMS)
+
+
 /*  Defines for fields  */
 #define ODD_F  0x01
 #define EVEN_F 0x02
+
+/* Defines for userland processes blocked in this driver */
+#define BKTR_SLEEP (caddr_t)bktr      /* use memory address of bktr structure */
+#define VBI_SLEEP  (caddr_t)(bktr+1)  /* use memory address of bktr structure + 1 */
+				      /* (ok as the bktr structure is > 1 byte) */
+
 
 #ifdef __FreeBSD__
 
@@ -501,11 +527,7 @@ static struct	pci_device bktr_device = {
 	&bktr_count
 };
 
-#ifdef COMPAT_PCI_DRIVER
-COMPAT_PCI_DRIVER (bktr, bktr_device);
-#else
 DATA_SET (pcidevice_set, bktr_device);
-#endif /* COMPAT_PCI_DRIVER */
 
 static	d_open_t	bktr_open;
 static	d_close_t	bktr_close;
@@ -540,6 +562,7 @@ static int bktr_spl;
 static int bktr_intr_returning_1(void *arg) { bktr_intr(arg); return (1);}
 #define disable_intr() { bktr_spl = splhigh(); }
 #define enable_intr() { splx(bktr_spl); }
+static void vbidecode(bktr_ptr_t bktr);
 
 static int
 bktr_pci_match(pci_devaddr_t *pa)
@@ -615,22 +638,29 @@ struct devsw bktrsw = {
 
 static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_AUTO             (0x0) - don't matter. */
-  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_AUTO },
+  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_AUTO,
+    16,  1600 },
 /* # define BT848_IFORM_F_NTSCM            (0x1) */
-  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
+    16, 1600 },
 /* # define BT848_IFORM_F_NTSCJ            (0x2) */
-  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
+    16, 1600 },
 /* # define BT848_IFORM_F_PALBDGHI         (0x3) */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
+  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1,
+    16,  2044 },
 /* # define BT848_IFORM_F_PALM             (0x4) */
-  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
-/*{ 625, 32, 576,  910, 186, 922, 640,  780, 25, 0x68, 0x5d, BT848_IFORM_X_XT0 }, */
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
+    16, 1600 },
 /* # define BT848_IFORM_F_PALN             (0x5) */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
+  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1,
+    16, 2044 },
 /* # define BT848_IFORM_F_SECAM            (0x6) */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0xa0, BT848_IFORM_X_XT1 },  
+  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0xa0, BT848_IFORM_X_XT1,  
+    16, 2044 },
 /* # define BT848_IFORM_F_RSVD             (0x7) - ???? */
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0 },
+  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0,
+    16, 2044 },
 };
 
 /*
@@ -1200,6 +1230,7 @@ static bool_t   split(bktr_reg_t *, volatile u_long **, int, u_long, int,
  */
 static int	video_open( bktr_ptr_t bktr );
 static int	video_close( bktr_ptr_t bktr );
+static int      video_read( bktr_ptr_t bktr, dev_t dev, struct uio *uio );
 static int	video_ioctl( bktr_ptr_t bktr, int unit,
 			     int cmd, caddr_t arg, struct proc* pr );
 
@@ -1222,6 +1253,12 @@ static int	tv_freq( bktr_ptr_t bktr, int frequency );
 static int	do_afc( bktr_ptr_t bktr, int addr, int frequency );
 #endif /* TUNER_AFC */
 
+/*
+ * vbi specific functions.
+ */
+static int      vbi_open( bktr_ptr_t bktr );
+static int      vbi_close( bktr_ptr_t bktr );
+static int      vbi_read( bktr_ptr_t bktr, dev_t dev, struct uio *uio );
 
 /*
  * audio specific functions.
@@ -1428,6 +1465,15 @@ bktr_attach( ATTACH_ARGS )
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 	}
 
+	bktr->vbidata  = get_bktr_mem(unit, VBI_DATA_SIZE);
+
+	bktr->vbibuffer = get_bktr_mem(unit, VBI_BUFFER_SIZE);
+
+	bktr->vbiinsert = 0;
+	bktr->vbistart = 0;
+	bktr->vbisize = 0;
+	bktr->vbiflags = 0;
+ 
 	/* read the pci id and determine the card type */
 	fun = pci_conf_read(tag, PCI_ID_REG);
         rev = pci_conf_read(tag, PCIR_REVID) & 0x000000ff;
@@ -1480,6 +1526,34 @@ bktr_attach( ATTACH_ARGS )
 
 }
 
+/* Copy the vbi lines from 'vbidata' into the circular buffer, 'vbibuffer'.
+ * The circular buffer holds 'n' fixed size data blocks. 
+ * vbisize   is the number of bytes in the circular buffer 
+ * vbiread   is the point we reading data out of the circular buffer 
+ * vbiinsert is the point we insert data into the circular buffer 
+ */
+static void vbidecode(bktr_ptr_t bktr) {
+        unsigned char *dest;
+
+	/* Check if there is room in the buffer to insert the data. */
+	if (bktr->vbisize + VBI_DATA_SIZE > VBI_BUFFER_SIZE) return;
+
+	/* Copy the VBI data into the next free slot in the buffer. */
+	/* 'dest' is the point in vbibuffer where we want to insert new data */
+        dest = (unsigned char *)bktr->vbibuffer + bktr->vbiinsert;
+
+	/* block copy the vbi data into the buffer */
+        memcpy(dest, (unsigned char*)bktr->vbidata, VBI_DATA_SIZE);
+
+	/* Increment the vbiinsert pointer */
+	/* This can wrap around */
+	bktr->vbiinsert += VBI_DATA_SIZE;
+	bktr->vbiinsert = (bktr->vbiinsert % VBI_BUFFER_SIZE);
+
+	/* And increase the amount of vbi data in the buffer */
+	bktr->vbisize = bktr->vbisize + VBI_DATA_SIZE;
+}
+
 
 /*
  * interrupt handling routine complete bktr_read() if using interrupts.
@@ -1529,6 +1603,8 @@ bktr_intr( void *arg )
 	/* printf( " STATUS %x %x %x \n",
 		dstatus, bktr_status, bt848->risc_count );
 	*/
+
+
 	/* if risc was disabled re-start process again */
 	if ( !(bktr_status & BT848_INT_RISC_EN) ||
 	     ((bktr_status &(BT848_INT_FBUS   |
@@ -1576,16 +1652,18 @@ bktr_intr( void *arg )
 				  BT848_INT_FMTCHG;
 
 		bt848->cap_ctl = bktr->bktr_cap_ctl;
-
 		return;
 	}
 
+	/* If this is not a RISC program interrupt, return */
 	if (!(bktr_status & BT848_INT_RISCI))
 		return;
+
 /**
 	printf( "intr status %x %x %x\n",
 		bktr_status, dstatus, bt848->risc_count );
  */
+	
 
 	/*
 	 * Disable future interrupts if a capture mode is not selected.
@@ -1664,6 +1742,14 @@ bktr_intr( void *arg )
 				microtime(ts);
 			}
 		}
+	
+		/*
+		 * Process the VBI data if it is being captured
+		 */
+		if (bktr->vbiflags & VBI_CAPTURE) {
+                	vbidecode(bktr);
+                	wakeup(VBI_SLEEP);
+		}
 
 		/*
 		 * Wake up the user in single capture mode.
@@ -1675,7 +1761,7 @@ bktr_intr( void *arg )
 
 			/* disable risc, leave fifo running */
 			bt848->gpio_dma_ctl = FIFO_ENABLED;
-			wakeup((caddr_t)bktr);
+			wakeup(BKTR_SLEEP);
 		}
 
 		/*
@@ -1730,6 +1816,7 @@ bktr_intr( void *arg )
 
 #define VIDEO_DEV	0x00
 #define TUNER_DEV	0x01
+#define VBI_DEV		0x02
 
 /*
  * 
@@ -1785,6 +1872,9 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 
 	case TUNER_DEV:
 		return( tuner_open( bktr ) );
+
+	case VBI_DEV:
+		return( vbi_open( bktr ) );
 	}
 
 	return( ENXIO );
@@ -1904,6 +1994,24 @@ video_open( bktr_ptr_t bktr )
 	return( 0 );
 }
 
+static int
+vbi_open( bktr_ptr_t bktr )
+{
+	if (bktr->vbiflags & VBI_OPEN)		/* device is busy */
+		return( EBUSY );
+
+	bktr->vbiflags |= VBI_OPEN;
+
+	/* reset the VBI circular buffer pointers and clear the buffers */
+	bktr->vbiinsert = 0;
+	bktr->vbistart = 0;
+	bktr->vbisize = 0;
+
+	bzero((caddr_t) bktr->vbibuffer, VBI_BUFFER_SIZE);
+	bzero((caddr_t) bktr->vbidata,  VBI_DATA_SIZE);
+
+	return( 0 );
+}
 
 /*
  * 
@@ -1959,6 +2067,10 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 
 	case TUNER_DEV:
 		return( tuner_close( bktr ) );
+
+	case VBI_DEV:
+		return( vbi_close( bktr ) );
+
 	}
 
 	return( ENXIO );
@@ -2012,6 +2124,14 @@ tuner_close( bktr_ptr_t bktr )
 	return( 0 );
 }
 
+static int
+vbi_close( bktr_ptr_t bktr )
+{
+
+	bktr->vbiflags &= ~VBI_OPEN;
+
+	return( 0 );
+}
 
 /*
  * 
@@ -2020,19 +2140,39 @@ int
 bktr_read( dev_t dev, struct uio *uio, int ioflag )
 {
 	bktr_ptr_t	bktr;
-	bt848_ptr_t	bt848;
 	int		unit;
-	int		status;
-	int		count;
 	
-	if (MINOR(minor(dev)) > 0)
-		return( ENXIO );
-
 	unit = UNIT(minor(dev));
 	if (unit >= NBKTR)	/* unit out of range */
 		return( ENXIO );
 
 	bktr = &(brooktree[unit]);
+
+	switch ( MINOR( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_read( bktr, dev, uio ) );
+
+	case VBI_DEV:
+		return( vbi_read( bktr, dev, uio ) );
+	}
+
+        return( ENXIO );
+}
+
+
+/*
+ *
+ */
+static int
+video_read(bktr_ptr_t bktr, dev_t dev, struct uio *uio)
+{
+        bt848_ptr_t     bt848;
+        int             unit;
+        int             status;
+        int             count;
+
+        unit = UNIT(minor(dev));
+
         bt848 = bktr->base;
 
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
@@ -2064,7 +2204,7 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
                           BT848_INT_FMTCHG;
 
 
-	status = tsleep((caddr_t)bktr, BKTRPRI, "captur", 0);
+	status = tsleep(BKTR_SLEEP, BKTRPRI, "captur", 0);
 	if (!status)		/* successful capture */
 		status = uiomove((caddr_t)bktr->bigbuf, count, uio);
 	else
@@ -2075,6 +2215,49 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 	return( status );
 }
 
+/*
+ * Read VBI data from the vbi circular buffer
+ * The buffer holds vbi data blocks which are the same size
+ * vbiinsert is the position we will insert the next item into the buffer
+ * vbistart is the actual position in the buffer we want to read from
+ * vbisize is the exact number of bytes in the buffer left to read 
+ */
+static int
+vbi_read(bktr_ptr_t bktr, dev_t dev, struct uio *uio)
+{
+	int             readsize, readsize2;
+	int             status;
+
+	if(bktr->vbisize == 0)
+		status = tsleep(VBI_SLEEP, BKTRPRI, "vbi", 0);
+
+	readsize = (int)uio->uio_iov->iov_len;
+
+	/* We cannot read more bytes than there are in the circular buffer */
+	if (readsize > bktr->vbisize) readsize = bktr->vbisize;
+
+	/* Check if we can read this number of bytes without having to wrap around the circular buffer */
+	if((bktr->vbistart + readsize) >= VBI_BUFFER_SIZE) {
+		/* We need to wrap around */
+
+                readsize2 = VBI_BUFFER_SIZE - bktr->vbistart;
+                status = uiomove((caddr_t)bktr->vbibuffer + bktr->vbistart, readsize2, uio);
+                status += uiomove((caddr_t)bktr->vbibuffer, (readsize - readsize2), uio);
+        } else {
+		/* We do not need to wrap around */
+                status = uiomove((caddr_t)bktr->vbibuffer + bktr->vbistart, readsize, uio);
+        }
+
+	/* Update the number of bytes left to read */
+        bktr->vbisize -= readsize;
+
+	/* Update vbistart */
+        bktr->vbistart += readsize;
+	bktr->vbistart = bktr->vbistart % VBI_BUFFER_SIZE; /* wrap around if needed */
+
+        return( status );
+
+}
 
 /*
  * 
@@ -2110,6 +2293,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 
 	case TUNER_DEV:
 		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
+
 	}
 
 	return( ENXIO );
@@ -2440,7 +2624,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 					  BT848_INT_FMTCHG;
 
 			bt848->cap_ctl = bktr->bktr_cap_ctl;
-			error = tsleep((caddr_t)bktr, BKTRPRI, "captur", hz);
+			error = tsleep(BKTR_SLEEP, BKTRPRI, "captur", hz);
 			if (error && (error != ERESTART)) {
 				/*  Here if we didn't get complete frame  */
 #ifdef DIAGNOSTIC
@@ -2535,6 +2719,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 				unit, geo->columns);
 			error = EINVAL;
 		}
+
 		if (geo->rows <= 0) {
 			printf(
 			"bktr%d: ioctl: %d: rows must be greater than zero.\n",
@@ -2549,6 +2734,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 				unit, geo->rows);
 			error = EINVAL;
 		}
+
 		if (geo->frames > 32) {
 			printf("bktr%d: ioctl: too many frames.\n", unit);
 
@@ -3325,8 +3511,8 @@ dump_bt848( bt848_ptr_t bt848 )
  */
 #define BKTR_FM1      0x6	/* packed data to follow */
 #define BKTR_FM3      0xe	/* planar data to follow */
-#define BKTR_VRE      0x4	/* even field to follow */
-#define BKTR_VRO      0xC	/* odd field to follow */
+#define BKTR_VRE      0x4	/* Marks the end of the even field */
+#define BKTR_VRO      0xC	/* Marks the end of the odd field */
 #define BKTR_PXV      0x0	/* valid word (never used) */
 #define BKTR_EOL      0x1	/* last dword, 4 bytes */
 #define BKTR_SOL      0x2	/* first dword */
@@ -3341,6 +3527,8 @@ dump_bt848( bt848_ptr_t bt848 )
 #define OP_SOL	      (1 << 27)		/* first instr for scanline */
 #define OP_EOL	      (1 << 26)
 
+#define BKTR_RESYNC   (1 << 15)
+#define BKTR_GEN_IRQ  (1 << 24)
 bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     int i;
     bktr_clip_t * clip_node;
@@ -3550,9 +3738,8 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 
 	buffer = target_buffer;
 
-
 	/* contruct sync : for video packet format */
-	*dma_prog++ = OP_SYNC  | 1 << 15 | BKTR_FM1;
+	*dma_prog++ = OP_SYNC  | BKTR_RESYNC | BKTR_FM1;
 
 	/* sync, mode indicator packed data */
 	*dma_prog++ = 0;  /* NULL WORD */
@@ -3588,7 +3775,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	switch (i_flag) {
 	case 1:
 		/* sync vre */
-		*dma_prog++ = OP_SYNC | 1 << 24 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -3597,7 +3784,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 
 	case 2:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC | 1 << 24 | BKTR_VRE;
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_VRE;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -3606,7 +3793,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 
 	case 3:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 15 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP; ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
@@ -3619,9 +3806,8 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 
 		dma_prog = (u_long *) bktr->odd_dma_prog;
 
-
 		/* sync vre IRQ bit */
-		*dma_prog++ = OP_SYNC |  1 << 15 | BKTR_FM1;
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
                 width = cols;
 		for (i = 0; i < (rows/interlace); i++) {
@@ -3654,7 +3840,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	}
 
 	/* sync vre IRQ bit */
-	*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRE;
+	*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRE;
 	*dma_prog++ = 0;  /* NULL WORD */
 	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
@@ -4171,6 +4357,8 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 
 	rows = bktr->rows;
 	cols = bktr->cols;
+
+	bktr->vbiflags &= ~VBI_CAPTURE;	/* default - no vbi capture */
 
 	if ( pf_int->public.type == METEOR_PIXTYPE_RGB ) {
 		rgb_prog(bktr, i_flag, cols, rows, interlace);
@@ -5992,7 +6180,7 @@ do_afc( bktr_ptr_t bktr, int addr, int frequency )
 	origFrequency = frequency;
 
 	/* wait for first setting to take effect */
-	tsleep( (caddr_t)bktr, PZERO, "tuning", hz/8 );
+	tsleep( BKTR_SLEEP, PZERO, "tuning", hz/8 );
 
 	if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
 		return( -1 );
@@ -6206,7 +6394,7 @@ temp_mute( bktr_ptr_t bktr, int flag )
 		set_audio( bktr, AUDIO_MUTE );		/* prevent 'click' */
 	}
 	else {
-		tsleep( (caddr_t)bktr, PZERO, "tuning", hz/8 );
+		tsleep( BKTR_SLEEP, PZERO, "tuning", hz/8 );
 		if ( muteState == FALSE )
 			set_audio( bktr, AUDIO_UNMUTE );
 	}
