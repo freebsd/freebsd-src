@@ -667,6 +667,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
 	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
+	{0x36033610, NULL},     /* DAV0336 - DAVICOM 336PNP MODEM */
 	{0x0000aa1a, NULL},	/* FUJ0000 - FUJITSU Modem 33600 PNP/I2 */
 	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
 	{0x0303c31e, NULL},	/* GVC0303 - MaxTech 33.6 PnP D/F/V */
@@ -679,6 +680,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
 	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
 	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
+	{0x0f804f3f, NULL},	/* OZO800f - Zoom 2812 (56k Modem) */
 	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
 	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
