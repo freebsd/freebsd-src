@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 1999
+.Dd January 19, 2000
 .Dt AIO_CANCEL 2
 .Os
 .Sh NAME
@@ -33,21 +33,41 @@
 .Sh SYNOPSIS
 .Fd #include <aio.h>
 .Ft int
-.Fn aio_cancel "int something" "struct aiocb * iocb"
+.Fn aio_cancel "int fildes" "struct aiocb * iocb"
 .Sh DESCRIPTION
 The
 .Fn aio_cancel
-function is supposed to cancel the specified outstanding asynchronous
-I/O request.
+function cancels the outstanding asynchronous
+I/O request for the file descriptor specified in
+.Ar fildes .
+If
+.Ar iocb
+is specified, only that specific asynchronous I/O request is cancelled.
+.Pp
+Normal asynchronous notification occurs for cancelled requests.  Requests
+complete with an error result of
+.Dv ECANCELED .
+.Sh RESTRICTIONS
+The
 .Fn aio_cancel
-is not implemented at this time, and always fails returning
-.Dv ENOSYS .
+function does not cancel asynchronous I/O requests for raw disk devices.  The
+.Fn aio_cancel
+function will always return
+.Dv AIO_NOTCANCELED
+for file descriptors associated with raw disk devices.
 .Sh RETURN VALUES
-When
+The
 .Fn aio_cancel
-inevitably fails, it returns
-.Dv ENOSYS
-to signify it is not supported.
+function returns -1 to indicate an error, or one of the following:
+.Bl -tag -width Dv
+.It Bq Dv AIO_CANCELED
+All outstanding requests meeting the criteria specified were cancelled.
+.It Bq Dv AIO_NOTCANCELED
+Some requests were not cancelled, status for the requests should be
+checked with aio_error(2).
+.It Bq Dv AIO_ALLDONE
+All of the requests meeting the criteria have finished.
+.El
 .Sh SEE ALSO
 .Xr aio_error 2 ,
 .Xr aio_read 2 ,
@@ -55,24 +75,35 @@ to signify it is not supported.
 .Xr aio_suspend 2 ,
 .Xr aio_write 2 .
 .Sh ERRORS
-The
+An error return from
 .Fn aio_cancel
-function currently always fails, due to:
+indicates:
 .Bl -tag -width Er
-.It Bq Er ENOSYS
-this operation is not implemented at this time.
+.It Bq Er EBADF
+.Ar fildes
+is an invalid file descriptor.
 .El
 .Sh STANDARDS
-.Nm
-fails to conform to the
+The
+.Fn aio_cancel
+function is expected to conform to the
 .St -p1003.2
 standard.
 .Sh HISTORY
 The
-.Nm
+.Fn aio_cancel
 function first appeared in
 .Fx 3.0 .
+The first functional implemenation of
+.Fn aio_cancel
+appeared in
+.Fx 4.0 .
 .Sh AUTHORS
 This
-manual page was written by
+manual page was originally written by
 .An Wes Peters Aq wes@softweyr.com .
+.An Christopher M Sedore Aq cmsedore@maxwell.syr.edu
+updated it when
+.Fn aio_cancel
+was implemented for FreeBSD 4.0.
+
