@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 			break;
 	}
 	if (sblock_try[i] == -1) {
-		fprintf(stderr, "Cannot find special_device\n");
+		fprintf(stderr, "Cannot find file system superblock\n");
 		exit(2);
 	}
 	bsize = sbp->fs_bsize;
