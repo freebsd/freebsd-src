@@ -70,8 +70,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD}
 	${SYSTEM_LD_TAIL}
 
-.if !exists(.depend)
-${SYSTEM_OBJS}: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
+.if !exists(${.OBJDIR}/.depend)
+${SYSTEM_OBJS}: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND:M*.h} \
+    ${MFILES:T:S/.m$/.h/}
 .endif
 
 LNFILES=	${CFILES:T:S/.c$/.ln/}
@@ -206,34 +207,17 @@ kernel-reinstall:
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
-config.o:
+config.o env.o hints.o majors.o vers.o vnode_if.o:
 	${NORMAL_C}
 
-config.ln:
+config.ln env.ln hints.ln majors.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}
 
-env.o:	env.c
-	${NORMAL_C}
-
-env.ln:	env.c
-	${NORMAL_LINT}
-
-hints.o:	hints.c
-	${NORMAL_C}
-
-hints.ln:	hints.c
-	${NORMAL_LINT}
+majors.c: $S/conf/majors $S/conf/majors.awk
+	${AWK} -f $S/conf/majors.awk $S/conf/majors > ${.TARGET}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT}
-
-# XXX strictly, everything depends on Makefile because changes to ${PROF}
-# only appear there, but we don't handle that.
-vers.o:
-	${NORMAL_C}
-
-vers.ln:
-	${NORMAL_LINT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
@@ -241,19 +225,7 @@ vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
 
-vnode_if.o:
-	${NORMAL_C}
-
-vnode_if.ln:
-	${NORMAL_LINT}
-
-majors.c: $S/conf/majors $S/conf/majors.awk
-	${AWK} -f $S/conf/majors.awk $S/conf/majors > majors.c
-
-majors.o:
-	${NORMAL_C}
-
-majors.ln:
-	${NORMAL_LINT}
+# XXX strictly, everything depends on Makefile because changes to ${PROF}
+# only appear there, but we don't handle that.
 
 .include "kern.mk"
