@@ -297,7 +297,7 @@ heath_receive(rbufp)
 	 * be avoided if the engineers had been required to write a
 	 * device driver before finalizing the timecode format.
 	 *
-	 * Yes, I know this code incorrectly thinks that 2000 is a leap
+	 * Yes, I know this code incorrectly thinks that 2100 is a leap
 	 * year; but, the latest year that can be set by the DIPswitches
 	 * is 1997 anyay. Life is short.
 	 */
