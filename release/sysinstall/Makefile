@@ -9,7 +9,7 @@ CLEANFILES+=	keymap.tmp keymap.h
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
-SRCS=	anonFTP.c cdrom.c command.c config.c devices.c \
+SRCS=	anonFTP.c cdrom.c command.c config.c devices.c kget.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c index.c install.c installUpgrade.c keymap.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c mouse.c \
