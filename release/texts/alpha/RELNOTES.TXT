@@ -198,6 +198,8 @@ release for FreeBSD/alpha.
 Numerous fixes have been applied to improve the security of FreeBSD code
 as part of the FreeBSD Auditing Project.
 
+FreeBSD's threads library, libc_r, has had many features and performance
+improvements added, which makes it almost completely POSIX-compliant.
 
 2. Supported Configurations
 ---------------------------
