@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.7 1995/04/21 18:04:22 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.8 1995/04/26 19:03:05 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -177,14 +177,14 @@ int incode;
 	switch(incode) {
 	case 0:
 		return "Success";
-	case 1:
+	case YPBIND_ERR_ERR:
 		return "Internal ypbind error";
-	case 2:
+	case YPBIND_ERR_NOSERV:
 		return "Domain not bound";
-	case 3:
+	case YPBIND_ERR_RESC:
 		return "System resource allocation failure";
 	}
-	sprintf(err, "Unknown ypbind error %d\n", incode);
+	sprintf(err, "Unknown ypbind error: #%d\n", incode);
 	return err;
 }
 
