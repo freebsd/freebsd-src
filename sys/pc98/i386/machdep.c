@@ -103,7 +103,6 @@
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/globals.h>
-#include <machine/intrcnt.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
