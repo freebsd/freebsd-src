@@ -6,15 +6,12 @@ GPROFDIR=	${.CURDIR}/../../../contrib/gperf
 
 SUBDIR=	doc
 
-PROG=	gperf
+PROG_GCC=	gperf
 SRCS=	bool-array.cc gen-perf.cc hash-table.cc iterator.cc key-list.cc \
 	list-node.cc main.cc new.cc options.cc read-line.cc trace.cc \
 	vectors.cc version.cc
 SRCS+=	hash.cc getopt.c getopt1.c
 
 CXXFLAGS+=	-I${GPROFDIR}/lib -I${.CURDIR}
-
-DPADD+=	${LIBSTDCPLUSPLUS}
-LDADD+=	-lstdc++
 
 .include <bsd.prog.mk>

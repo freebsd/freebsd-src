@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		pre-grohtml
+PROG_CXX=	pre-grohtml
 SRCS=		pre-html.cc pushbackbuffer.cc
-DPADD=		${LIBGROFF} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBGROFF} -lstdc++
+DPADD=		${LIBGROFF}
+LDADD=		${LIBGROFF}
 NOMAN=		YES
 
 .include <bsd.prog.mk>

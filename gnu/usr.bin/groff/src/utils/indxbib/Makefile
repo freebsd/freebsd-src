@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		indxbib
+PROG_CXX=	indxbib
 SRCS=		indxbib.cc signal.c
-DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBBIB} ${LIBGROFF} -lm -lstdc++
+DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
+LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 beforeinstall:
