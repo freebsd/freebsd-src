@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.13 1999/05/31 11:24:25 phk Exp $
+ *	$Id: ata-disk.c,v 1.14 1999/06/25 09:02:59 sos Exp $
  */
 
 #include "ata.h"
@@ -67,11 +67,6 @@ static d_strategy_t	adstrategy;
 static d_psize_t	adpsize;
 static d_dump_t         addump;
 
-#if 0	/* the boot code needs to be fixed to boot arbitrary devices */
-#define DRIVER_NAME "ad"
-#else
-#define DRIVER_NAME "wd"
-#endif
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
 	/* close */	adclose,
@@ -84,7 +79,7 @@ static struct cdevsw ad_cdevsw = {
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	adstrategy,
-	/* name */	DRIVER_NAME,
+	/* name */	"ad",
 	/* parms */	noparms,
 	/* maj */	116,
 	/* dump */	addump,
@@ -755,7 +750,8 @@ ad_drvinit(void)
 	fakewd_cdevsw = ad_cdevsw;
 	fakewd_cdevsw.d_maj = 3;
 	fakewd_cdevsw.d_bmaj = 0;
-        cdevsw_add(&fakewd_cdevsw);	/* grap wd entries too */
+	fakewd_cdevsw.d_name = "wd";
+        cdevsw_add(&fakewd_cdevsw);	/* grab wd entries too */
         ad_devsw_installed = 1;
     }
     /* register callback for when interrupts are enabled */
