@@ -260,11 +260,8 @@ ubsec_attach(device_t dev)
 	u_int32_t cmd, i;
 	int rid;
 
-	KASSERT(sc != NULL, ("ubsec_attach: null software carrier!"));
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
-
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "crypto driver", MTX_DEF);
 
 	SIMPLEQ_INIT(&sc->sc_queue);
 	SIMPLEQ_INIT(&sc->sc_qchip);
@@ -346,7 +343,7 @@ ubsec_attach(device_t dev)
 	 * NB: Network code assumes we are blocked with splimp()
 	 *     so make sure the IRQ is mapped appropriately.
 	 */
-	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
+	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			   ubsec_intr, sc, &sc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
 		goto bad2;
@@ -399,6 +396,10 @@ ubsec_attach(device_t dev)
 
 		SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
 	}
+	mtx_init(&sc->sc_mcr1lock, device_get_nameunit(dev),
+		"mcr1 operations", MTX_DEF);
+	mtx_init(&sc->sc_freeqlock, device_get_nameunit(dev),
+		"mcr1 free q", MTX_DEF);
 
 	device_printf(sc->sc_dev, "%s\n", ubsec_partname(sc));
 
@@ -467,6 +468,8 @@ skip_rng:
 	;
 	}
 #endif /* UBSEC_NO_RNG */
+	mtx_init(&sc->sc_mcr2lock, device_get_nameunit(dev),
+		"mcr2 operations", MTX_DEF);
 
 	if (sc->sc_flags & UBS_FLAGS_KEY) {
 		sc->sc_statmask |= BS_STAT_MCR2_DONE;
@@ -488,7 +491,6 @@ bad2:
 bad1:
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
 bad:
-	mtx_destroy(&sc->sc_mtx);
 	return (ENXIO);
 }
 
@@ -500,11 +502,11 @@ ubsec_detach(device_t dev)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
 
-	KASSERT(sc != NULL, ("ubsec_detach: null software carrier"));
-
 	/* XXX wait/abort active ops */
 
-	UBSEC_LOCK(sc);
+	/* disable interrupts */
+	WRITE_REG(sc, BS_CTRL, READ_REG(sc, BS_CTRL) &~
+		(BS_CTRL_MCR2INT | BS_CTRL_MCR1INT | BS_CTRL_DMAERR));
 
 	callout_stop(&sc->sc_rngto);
 
@@ -523,6 +525,7 @@ ubsec_detach(device_t dev)
 		ubsec_dma_free(sc, &q->q_dma->d_alloc);
 		free(q, M_DEVBUF);
 	}
+	mtx_destroy(&sc->sc_mcr1lock);
 #ifndef UBSEC_NO_RNG
 	if (sc->sc_flags & UBS_FLAGS_RNG) {
 		ubsec_dma_free(sc, &sc->sc_rng.rng_q.q_mcr);
@@ -530,6 +533,7 @@ ubsec_detach(device_t dev)
 		ubsec_dma_free(sc, &sc->sc_rng.rng_buf);
 	}
 #endif /* UBSEC_NO_RNG */
+	mtx_destroy(&sc->sc_mcr2lock);
 
 	bus_generic_detach(dev);
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
@@ -537,10 +541,6 @@ ubsec_detach(device_t dev)
 
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
-
-	UBSEC_UNLOCK(sc);
-
-	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
@@ -565,7 +565,6 @@ ubsec_suspend(device_t dev)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
 
-	KASSERT(sc != NULL, ("ubsec_suspend: null software carrier"));
 #ifdef notyet
 	/* XXX stop the device and save PCI settings */
 #endif
@@ -579,7 +578,6 @@ ubsec_resume(device_t dev)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
 
-	KASSERT(sc != NULL, ("ubsec_resume: null software carrier"));
 #ifdef notyet
 	/* XXX retore PCI settings and start the device */
 #endif
@@ -599,14 +597,10 @@ ubsec_intr(void *arg)
 	struct ubsec_dma *dmap;
 	int npkts = 0, i;
 
-	UBSEC_LOCK(sc);
-
 	stat = READ_REG(sc, BS_STAT);
 	stat &= sc->sc_statmask;
-	if (stat == 0) {
-		UBSEC_UNLOCK(sc);
+	if (stat == 0)
 		return;
-	}
 
 	WRITE_REG(sc, BS_STAT, stat);		/* IACK */
 
@@ -614,6 +608,7 @@ ubsec_intr(void *arg)
 	 * Check to see if we have any packets waiting for us
 	 */
 	if ((stat & BS_STAT_MCR1_DONE)) {
+		mtx_lock(&sc->sc_mcr1lock);
 		while (!SIMPLEQ_EMPTY(&sc->sc_qchip)) {
 			q = SIMPLEQ_FIRST(&sc->sc_qchip);
 			dmap = q->q_dma;
@@ -639,13 +634,13 @@ ubsec_intr(void *arg)
 			}
 			ubsec_callback(sc, q);
 		}
-
 		/*
 		 * Don't send any more packet to chip if there has been
 		 * a DMAERR.
 		 */
 		if (!(stat & BS_STAT_DMAERR))
 			ubsec_feed(sc);
+		mtx_unlock(&sc->sc_mcr1lock);
 	}
 
 	/*
@@ -656,6 +651,7 @@ ubsec_intr(void *arg)
 		struct ubsec_q2 *q2;
 		struct ubsec_mcr *mcr;
 
+		mtx_lock(&sc->sc_mcr2lock);
 		while (!SIMPLEQ_EMPTY(&sc->sc_qchip2)) {
 			q2 = SIMPLEQ_FIRST(&sc->sc_qchip2);
 
@@ -677,6 +673,7 @@ ubsec_intr(void *arg)
 			if (!(stat & BS_STAT_DMAERR))
 				ubsec_feed2(sc);
 		}
+		mtx_unlock(&sc->sc_mcr2lock);
 	}
 
 	/*
@@ -693,8 +690,10 @@ ubsec_intr(void *arg)
 		}
 #endif /* UBSEC_DEBUG */
 		ubsecstats.hst_dmaerr++;
+		mtx_lock(&sc->sc_mcr1lock);
 		ubsec_totalreset(sc);
 		ubsec_feed(sc);
+		mtx_unlock(&sc->sc_mcr1lock);
 	}
 
 	if (sc->sc_needwakeup) {		/* XXX check high watermark */
@@ -707,8 +706,6 @@ ubsec_intr(void *arg)
 		sc->sc_needwakeup &= ~wakeup;
 		crypto_unblock(sc->sc_cid, wakeup);
 	}
-
-	UBSEC_UNLOCK(sc);
 }
 
 /*
@@ -843,7 +840,6 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	SHA1_CTX sha1ctx;
 	int i, sesn;
 
-	KASSERT(sc != NULL, ("ubsec_newsession: null softc"));
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
 
@@ -895,9 +891,9 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 			sc->sc_nsessions++;
 		}
 	}
-
 	bzero(ses, sizeof(struct ubsec_session));
 	ses->ses_used = 1;
+
 	if (encini) {
 		/* get an IV, network byte order */
 		/* XXX may read fewer than requested */
@@ -977,19 +973,21 @@ static int
 ubsec_freesession(void *arg, u_int64_t tid)
 {
 	struct ubsec_softc *sc = arg;
-	int session;
+	int session, ret;
 	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
 
-	KASSERT(sc != NULL, ("ubsec_freesession: null softc"));
 	if (sc == NULL)
 		return (EINVAL);
 
 	session = UBSEC_SESSION(sid);
-	if (session >= sc->sc_nsessions)
-		return (EINVAL);
+	if (session < sc->sc_nsessions) {
+		bzero(&sc->sc_sessions[session],
+			sizeof(sc->sc_sessions[session]));
+		ret = 0;
+	} else
+		ret = EINVAL;
 
-	bzero(&sc->sc_sessions[session], sizeof(sc->sc_sessions[session]));
-	return (0);
+	return (ret);
 }
 
 static void
@@ -1032,17 +1030,16 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		return (EINVAL);
 	}
 
-	UBSEC_LOCK(sc);
-
+	mtx_lock(&sc->sc_freeqlock);
 	if (SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
 		ubsecstats.hst_queuefull++;
 		sc->sc_needwakeup |= CRYPTO_SYMQ;
-		UBSEC_UNLOCK(sc);
+		mtx_unlock(&sc->sc_freeqlock);
 		return (ERESTART);
 	}
 	q = SIMPLEQ_FIRST(&sc->sc_freequeue);
 	SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q, q_next);
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_freeqlock);
 
 	dmap = q->q_dma; /* Save dma pointer */
 	bzero(q, sizeof(struct ubsec_q));
@@ -1509,14 +1506,14 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		    offsetof(struct ubsec_dmachunk, d_ctx),
 		    sizeof(struct ubsec_pktctx));
 
-	UBSEC_LOCK(sc);
+	mtx_lock(&sc->sc_mcr1lock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue, q, q_next);
 	sc->sc_nqueue++;
 	ubsecstats.hst_ipackets++;
 	ubsecstats.hst_ibytes += dmap->d_alloc.dma_size;
 	if ((hint & CRYPTO_HINT_MORE) == 0 || sc->sc_nqueue >= UBS_MAX_AGGR)
 		ubsec_feed(sc);
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr1lock);
 	return (0);
 
 errout:
@@ -1533,9 +1530,9 @@ errout:
 			bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
 		}
 
-		UBSEC_LOCK(sc);
+		mtx_lock(&sc->sc_freeqlock);
 		SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
-		UBSEC_UNLOCK(sc);
+		mtx_unlock(&sc->sc_freeqlock);
 	}
 	if (err != ERESTART) {
 		crp->crp_etype = err;
@@ -1606,7 +1603,9 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 			    crp->crp_mac, 12);
 		break;
 	}
+	mtx_lock(&sc->sc_freeqlock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
+	mtx_unlock(&sc->sc_freeqlock);
 	crypto_done(crp);
 }
 
@@ -1778,9 +1777,9 @@ ubsec_rng(void *vsc)
 	struct ubsec_mcr *mcr;
 	struct ubsec_ctx_rngbypass *ctx;
 
-	UBSEC_LOCK(sc);
+	mtx_lock(&sc->sc_mcr2lock);
 	if (rng->rng_used) {
-		UBSEC_UNLOCK(sc);
+		mtx_unlock(&sc->sc_mcr2lock);
 		return;
 	}
 	sc->sc_nqueue2++;
@@ -1811,7 +1810,7 @@ ubsec_rng(void *vsc)
 	rng->rng_used = 1;
 	ubsec_feed2(sc);
 	ubsecstats.hst_rng++;
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr2lock);
 
 	return;
 
@@ -1820,7 +1819,7 @@ out:
 	 * Something weird happened, generate our own call back.
 	 */
 	sc->sc_nqueue2--;
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr2lock);
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 }
 #endif /* UBSEC_NO_RNG */
@@ -2302,11 +2301,11 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	ubsec_dma_sync(&me->me_epb, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	mtx_lock(&sc->sc_mcr2lock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &me->me_q, q_next);
 	ubsec_feed2(sc);
 	ubsecstats.hst_modexp++;
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr2lock);
 
 	return (0);
 
@@ -2504,10 +2503,10 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	ubsec_dma_sync(&me->me_epb, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	mtx_lock(&sc->sc_mcr2lock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &me->me_q, q_next);
 	ubsec_feed2(sc);
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr2lock);
 
 	return (0);
 
@@ -2698,11 +2697,11 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	ubsec_dma_sync(&rp->rpr_msgout, BUS_DMASYNC_PREREAD);
 
 	/* Enqueue and we're done... */
-	UBSEC_LOCK(sc);
+	mtx_lock(&sc->sc_mcr2lock);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &rp->rpr_q, q_next);
 	ubsec_feed2(sc);
 	ubsecstats.hst_modexpcrt++;
-	UBSEC_UNLOCK(sc);
+	mtx_unlock(&sc->sc_mcr2lock);
 	return (0);
 
 errout:
