@@ -9,20 +9,16 @@
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa protocols rpcsvc rpc
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
-	dirent.h \
-	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fmtmsg.h fstab.h \
-	fts.h getopt.h glob.h grp.h \
-	hesiod.h histedit.h ieeefp.h ifaddrs.h inttypes.h iso646.h kenv.h \
-	langinfo.h \
-	libgen.h limits.h link.h locale.h malloc.h memory.h monetary.h mpool.h \
-	ndbm.h netconfig.h netdb.h nl_types.h nlist.h nsswitch.h objformat.h \
-	paths.h pthread.h pthread_np.h pwd.h \
-	ranlib.h readpassphrase.h regex.h regexp.h resolv.h rune.h runetype.h \
-	search.h setjmp.h sgtty.h \
-	signal.h stab.h stdbool.h stddef.h stdio.h stdlib.h strhash.h \
-	string.h stringlist.h strings.h sysexits.h tar.h time.h timeconv.h \
-	timers.h ttyent.h ulimit.h unistd.h utime.h utmp.h vis.h wchar.h \
-	wctype.h
+	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
+	fts.h getopt.h glob.h grp.h hesiod.h histedit.h ieeefp.h ifaddrs.h \
+	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
+	locale.h malloc.h memory.h monetary.h mpool.h ndbm.h netconfig.h \
+	netdb.h nl_types.h nlist.h nsswitch.h objformat.h paths.h pthread.h \
+	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h regexp.h \
+	resolv.h rune.h runetype.h search.h setjmp.h sgtty.h signal.h stab.h \
+	stdbool.h stddef.h stdio.h stdlib.h strhash.h string.h stringlist.h \
+	strings.h sysexits.h tar.h time.h timeconv.h timers.h ttyent.h \
+	ulimit.h unistd.h utime.h utmp.h uuid.h vis.h wchar.h wctype.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
