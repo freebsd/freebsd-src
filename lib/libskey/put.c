@@ -10,7 +10,7 @@ static void insert __P((char *s, int x, int start, int length));
 static int wsrch __P((char *w,int low,int high));
 
 /* Dictionary for integer-word translations */
-char Wp[2048][4] = {
+static char Wp[2048][4] = {
 "A",
 "ABE",
 "ACE",
