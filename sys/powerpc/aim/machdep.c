@@ -234,12 +234,9 @@ extern char	kernel_text[], _end[];
 extern void	*trapcode, *trapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
-extern void	*isitrap, *isisize;
 extern void	*decrint, *decrsize;
-extern void	*tlbimiss, *tlbimsize;
-extern void	*tlbdlmiss, *tlbdlmsize;
-extern void	*tlbdsmiss, *tlbdsmsize;
 extern void     *extint, *extsize;
+extern void	*ddblow, *ddbsize;
 
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
@@ -284,9 +281,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
+	bcopy(&trapcode, (void *)EXC_RST,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
-	bcopy(&isitrap,  (void *)EXC_ISI,  (size_t)&isisize);
+	bcopy(&trapcode, (void *)EXC_ISI,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_ALI,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_PGM,  (size_t)&trapsize);
@@ -294,6 +292,14 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_TRC,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_FPA,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
+#ifdef DDB
+	bcopy(&ddblow,   (void *)EXC_PGM,  (size_t)&ddbsize);
+	bcopy(&ddblow,   (void *)EXC_TRC,  (size_t)&ddbsize);
+	bcopy(&ddblow,   (void *)EXC_BPT,  (size_t)&ddbsize);
+#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
@@ -735,7 +741,6 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
-	pcpu->pc_current_asngen = 1;
 }
 
 /*
