@@ -559,7 +559,7 @@ the
 sysctl rather than disable delayed acks.
 .Pp
 The
-.Va net.inet.tcp.inflight_enable
+.Va net.inet.tcp.inflight.enable
 sysctl turns on bandwidth delay product limiting for all TCP connections.
 The system will attempt to calculate the bandwidth delay product for each
 connection and limit the amount of data queued to the network to just the
@@ -569,9 +569,9 @@ if you are serving data over modems, GigE, or high speed WAN links (or
 any other link with a high bandwidth*delay product), especially if you are
 also using window scaling or have configured a large send window.
 If you enable this option, you should also be sure to set
-.Va net.inet.tcp.inflight_debug
+.Va net.inet.tcp.inflight.debug
 to 0 (disable debugging), and for production use setting
-.Va net.inet.tcp.inflight_min
+.Va net.inet.tcp.inflight.min
 to at least 6144 may be beneficial.
 Note however, that setting high
 minimums may effectively disable bandwidth limiting depending on the link.
@@ -587,7 +587,7 @@ It does not
 affect data reception (downloading).
 .Pp
 Adjusting
-.Va net.inet.tcp.inflight_stab
+.Va net.inet.tcp.inflight.stab
 is not recommended.
 This parameter defaults to 20, representing 2 maximal packets added
 to the bandwidth delay product window calculation.
@@ -599,7 +599,7 @@ the inflight algorithm).
 In such cases you may
 wish to try reducing this parameter to 15, 10, or 5, and you may also
 have to reduce
-.Va net.inet.tcp.inflight_min
+.Va net.inet.tcp.inflight.min
 (for example, to 3500) to get the desired effect.
 Reducing these parameters
 should be done as a last resort only.
