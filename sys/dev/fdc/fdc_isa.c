@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 M. Warner Losh.
  * All rights reserved.
  *
@@ -61,7 +61,7 @@ fdctl_wr_isa(fdc_p fdc, u_int8_t v)
 	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
 
-static int
+int
 fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
 	int ispnp, nports;
@@ -191,7 +191,6 @@ static int
 fdc_isa_probe(device_t dev)
 {
 	int	error, ic_type;
-	int	ispnp;
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
@@ -202,8 +201,6 @@ fdc_isa_probe(device_t dev)
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
 	if (error == ENXIO)
 		return (ENXIO);
-	ispnp = (error == 0);
-	
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_isa_alloc_resources(dev, fdc);
@@ -211,11 +208,9 @@ fdc_isa_probe(device_t dev)
 		goto out;
 
 	/* Check that the controller is working. */
-	if (!ispnp) {
-		error = fdc_initial_reset(fdc);
-		if (error)
-			goto out;
-	}
+	error = fdc_initial_reset(fdc);
+	if (error)
+		goto out;
 
 	/* Try to determine a more specific device type. */
 	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
@@ -266,8 +261,20 @@ fdc_isa_attach(device_t dev)
 			break;
 		}
 	}
-	fdc_isa_alloc_resources(dev, fdc);
-	return (fdc_attach(dev));
+
+	error = fdc_isa_alloc_resources(dev, fdc);
+	if (error)
+		goto out;
+	error = fdc_attach(dev);
+	if (error)
+		goto out;
+	error = fdc_hints_probe(dev);
+	if (error)
+		goto out;
+out:
+	if (error)
+		fdc_release_resources(fdc);
+	return (error);
 }
 
 static device_method_t fdc_methods[] = {
@@ -295,4 +302,3 @@ static driver_t fdc_driver = {
 };
 
 DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
-DRIVER_MODULE(fdc, acpi, fdc_driver, fdc_devclass, 0, 0);
