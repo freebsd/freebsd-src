@@ -158,6 +158,7 @@ void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
 			int flags));
 int	lockmgr __P((__volatile struct lock *, u_int flags,
 			struct simplelock *, struct proc *p));
+void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *));
 
 #ifdef SIMPLELOCK_DEBUG
