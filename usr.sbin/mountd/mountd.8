@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.13 1998/07/15 06:21:39 charnier Exp $
+.\"	$Id: mountd.8,v 1.14 1998/10/15 13:37:35 mckay Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -116,12 +116,12 @@ detects that the running kernel does not include
 support, it will attempt to load a loadable kernel module containing
 .Tn NFS
 code, using
-.Xr modload 8
+.Xr kldload 8
 by way of
 .Xr vfsload 3 .
 If this fails, or no
 .Tn NFS
-LKM was available,
+KLD was available,
 .Nm
 exits with an error.
 .Sh FILES
@@ -136,7 +136,7 @@ the current list of remote mounted filesystems
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr exports 5 ,
-.Xr modload 8 ,
+.Xr kldload 8 ,
 .Xr nfsd 8 ,
 .Xr portmap 8 ,
 .Xr showmount 8
