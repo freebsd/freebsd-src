@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.15 1994/11/26 19:23:48 bde Exp $
+ * $Id: tty.c,v 1.16 1994/12/04 01:01:45 ache Exp $
  */
 
 #include <sys/param.h>
@@ -906,6 +906,18 @@ ttioctl(tp, cmd, data, flag)
 			pgsignal(tp->t_pgrp, SIGWINCH, 1);
 		}
 		break;
+	case TIOCSDRAINWAIT:
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0) {
+			splx(s);
+			return (EPERM);
+		}
+		tp->t_timeout = *(int *)data * hz;
+		wakeup((caddr_t)&tp->t_outq);
+		break;
+	case TIOCGDRAINWAIT:
+		*(int *)data = tp->t_timeout / hz;
+		break;
 	default:
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		return (ttcompat(tp, cmd, data, flag));
@@ -983,7 +995,8 @@ ttywait(tp)
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
 			SET(tp->t_state, TS_ASLEEP);
-			error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
+			error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH,
+					 ttyout, tp->t_timeout);
 			if (error)
 				break;
 		}

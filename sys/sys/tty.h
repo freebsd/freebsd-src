@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.6 1994/10/02 17:25:02 phk Exp $
+ * $Id: tty.h,v 1.7 1994/11/26 19:24:13 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -76,6 +76,7 @@ struct tty {
 	dev_t	t_dev;			/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */
+	int     t_timeout;              /* Timeout for ttywait() */
 	struct	pgrp *t_pgrp;		/* Foreground process group. */
 	struct	session *t_session;	/* Enclosing session. */
 	struct	selinfo t_rsel;		/* Tty read/oob select. */

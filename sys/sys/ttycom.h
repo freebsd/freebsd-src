@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.5 1994/09/13 03:19:19 phk Exp $
+ * $Id: ttycom.h,v 1.6 1994/11/30 15:02:43 davidg Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_
@@ -122,14 +122,14 @@ struct winsize {
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
 #define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
-#define TIOCMSBIDIR	_IOW('t', 93, int)	/* modem: set bidir cap. */
-#define TIOCMGBIDIR	_IOR('t', 92, int)	/* modem: get bidir cap. */
 #define TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
 #define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
 #define TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* get timestamp of 
 						last interrupt for xntp. */
 #define TIOCDSIMICROCODE _IO('t', 88)		/* Download microcode to
 						DSI Softmodem */
+#define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
+#define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	TABLDISC	3		/* tablet discipline */
