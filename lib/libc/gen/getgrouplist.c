@@ -85,6 +85,7 @@ getgrouplist(uname, agroup, groups, grpcnt)
 			}
 		}
 skip:
+		;
 	}
 	endgrent();
 	*grpcnt = ngroups;
