@@ -179,6 +179,7 @@ geom/geom_mbr_enc.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard
 i386/acpica/OsdEnvironment.c	optional	acpi
+i386/acpica/acpi_asus.c		optional	acpi_asus acpi
 i386/acpica/acpi_machdep.c	optional	acpi
 i386/acpica/acpi_toshiba.c	optional	acpi_toshiba acpi
 i386/acpica/acpi_wakeup.c	optional	acpi
