@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.30 1997/09/02 20:05:57 bde Exp $
+ *	$Id: uipc_socket.c,v 1.31 1997/09/14 02:34:14 peter Exp $
  */
 
 #include <sys/param.h>
@@ -360,7 +360,8 @@ sosend(so, addr, uio, top, control, flags, p)
 	dontroute =
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0 &&
 	    (so->so_proto->pr_flags & PR_ATOMIC);
-	p->p_stats->p_ru.ru_msgsnd++;
+	if (p)
+		p->p_stats->p_ru.ru_msgsnd++;
 	if (control)
 		clen = control->m_len;
 #define	snderr(errno)	{ error = errno; splx(s); goto release; }
