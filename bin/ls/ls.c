@@ -461,7 +461,6 @@ traverse(int argc, char *argv[], int options)
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
-		default:
 		}
 	if (errno)
 		err(1, "fts_read");
