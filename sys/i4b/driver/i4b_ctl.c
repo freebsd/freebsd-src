@@ -27,9 +27,11 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
+ *	$Id: i4b_ctl.c,v 1.30 1999/12/13 21:25:23 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Tue Jun  8 09:27:15 1999]
+ *	last edit-date: [Mon Dec 13 21:38:15 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -58,6 +60,18 @@
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__ */
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -93,22 +107,22 @@ static d_poll_t		i4bctlpoll;
 
 #define CDEV_MAJOR 55
 
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4bctl_cdevsw = {
-	/* open */	i4bctlopen,
-	/* close */	i4bctlclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	i4bctlioctl,
-	/* poll */	POLLFIELD,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"i4bctl",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* open */      i4bctlopen,
+	/* close */     i4bctlclose,
+	/* read */      noread,
+	/* write */     nowrite,
+	/* ioctl */     i4bctlioctl,
+	/* poll */      POLLFIELD,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "i4bctl",
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     0,
+	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4bctl_cdevsw = 
@@ -122,6 +136,12 @@ PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
 
 #define PDEVSTATIC	static
 #endif /* __FreeBSD__ */
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token;
+#endif
+#endif
 
 #ifndef __FreeBSD__
 #define PDEVSTATIC	/* */
@@ -142,7 +162,7 @@ int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 static void
 i4bctlinit(void *unused)
 {
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4bctl_cdevsw);
 #else
 	dev_t dev = makedev(CDEV_MAJOR, 0);
@@ -195,7 +215,20 @@ i4bctlattach()
 #ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4bctl: ISDN system control port attached\n");
 #endif
+
+#if defined(__FreeBSD__)
+#if __FreeBSD__ == 3
+
+#ifdef DEVFS
+	devfs_token = devfs_add_devswf(&i4bctl_cdevsw, 0, DV_CHR,
+				       UID_ROOT, GID_WHEEL, 0600,
+				       "i4bctl");
+#endif
+
+#else
 	make_dev(&i4bctl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4bctl");
+#endif
+#endif
 }
 
 /*---------------------------------------------------------------------------*
@@ -267,7 +300,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                 case I4B_CTL_GET_HSCXSTAT:
                 {
                         hscxstat_t *hst;
-                        struct isic_softc *sc;
+                        struct l1_softc *sc;
                         hst = (hscxstat_t *)data;
 
                         if( hst->unit < 0		||
@@ -282,7 +315,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #ifndef __FreeBSD__
 			sc = isic_find_sc(hst->unit);
 #else
-			sc = &isic_sc[hst->unit];
+			sc = &l1_sc[hst->unit];
 #endif
 			hst->vfr = sc->sc_chan[hst->chan].stat_VFR;
 			hst->rdo = sc->sc_chan[hst->chan].stat_RDO;
@@ -296,7 +329,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                 case I4B_CTL_CLR_HSCXSTAT:
                 {
                         hscxstat_t *hst;
-                        struct isic_softc *sc;
+                        struct l1_softc *sc;
                         hst = (hscxstat_t *)data;
 
                         if( hst->unit < 0		||
@@ -311,7 +344,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #ifndef __FreeBSD__
 			sc = isic_find_sc(hst->unit);
 #else
-			sc = &isic_sc[hst->unit];
+			sc = &l1_sc[hst->unit];
 #endif
 
 			sc->sc_chan[hst->chan].stat_VFR = 0;

@@ -27,9 +27,11 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
+ *	$Id: i4b_ipr.c,v 1.55 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Jul 22 19:46:53 1999]
+ *	last edit-date: [Mon Dec 13 21:38:51 1999]
  *
  *---------------------------------------------------------------------------*
  *
@@ -194,6 +196,9 @@ struct ipr_softc {
 #ifdef I4BIPRADJFRXP
 	int		sc_first_pkt;	/* flag, first rxd packet	*/
 #endif
+#if IPR_LOG
+	int		sc_log_first;	/* log first n packets          */
+#endif
 
 #ifdef IPR_VJ
 	struct slcompress sc_compr;	/* tcp compression data		*/
@@ -330,6 +335,9 @@ i4biprattach()
 		sc->sc_loutb = 0;
 		sc->sc_fn = 1;
 #endif
+#if IPR_LOG
+		sc->sc_log_first = IPR_LOG;
+#endif
 
 #ifdef	IPR_VJ
 #ifdef __FreeBSD__
@@ -455,6 +463,14 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		i4b_l4_dialout(BDRV_IPR, unit);
 		sc->sc_state = ST_DIALING;
 	}
+
+#if IPR_LOG
+	if(sc->sc_log_first > 0)
+	{
+		--(sc->sc_log_first);
+		i4b_l4_packet_ind(BDRV_IPR, unit, 1, m );
+	}
+#endif
 
 	/* update access time */
 	
@@ -801,6 +817,10 @@ ipr_disconnect(int unit, void *cdp)
 #if I4BIPRACCT
 	sc->sc_if.if_timer = 0;
 #endif
+#if IPR_LOG
+	/* show next IPR_LOG packets again */
+	sc->sc_log_first = IPR_LOG;
+#endif
 
 	i4b_l4_accounting(BDRV_IPR, cd->driver_unit, ACCT_FINAL,
 		 sc->sc_ioutb, sc->sc_iinb, 0, 0, sc->sc_outb, sc->sc_inb);
@@ -996,6 +1016,13 @@ error:
 #if I4BIPRACCT
 	/* NB. do the accounting after decompression!		*/
 	sc->sc_inb += m->m_pkthdr.len;
+#endif
+#if IPR_LOG
+	if(sc->sc_log_first > 0)
+	{
+		--(sc->sc_log_first);
+		i4b_l4_packet_ind(BDRV_IPR, unit, 0, m );
+	}
 #endif
 
 #if NBPFILTER > 0 || NBPF > 0

@@ -27,9 +27,11 @@
  *	i4b_q931.h - Q931 handling header file
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_q931.h,v 1.8 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:33:56 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:05:44 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -114,3 +116,5 @@
 #define MSG_ALERT_LEN		4	/* length of a alert message */
 
 #endif /* _I4B_Q931_H_ */
+
+/* EOF */

@@ -27,9 +27,11 @@
  *	i4b_l2if.c - Layer 3 interface to Layer 2
  *	-------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l2if.c,v 1.18 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Tue May 25 11:55:15 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:04:48 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

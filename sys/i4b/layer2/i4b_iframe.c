@@ -27,9 +27,11 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_iframe.c,v 1.22 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Fri May 28 15:52:41 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:03:16 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -236,7 +240,8 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 		if(!(IF_QEMPTY(&l2sc->i_queue)))
 		{
 			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("re-scheduling IFQU call!\n"));
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#if defined(__FreeBSD__)
 			l2sc->IFQU_callout = timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);
 #else
 			timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);

@@ -27,9 +27,11 @@
  *	i4b_l4timer.c - timer and timeout handling for layer 4
  *	--------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l4timer.c,v 1.15 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 21 09:49:08 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:06:39 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -38,11 +40,13 @@
 #if NI4B > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -84,7 +88,7 @@ T400_start(call_desc_t *cd)
 	DBGL4(L4_MSG, "T400_start", ("cr = %d\n", cd->cr));
 	cd->T400 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	cd->T400_callout = timeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd, T400DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd, T400DEF);
@@ -102,7 +106,7 @@ T400_stop(call_desc_t *cd)
 
 	if(cd->T400 == TIMER_ACTIVE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd, cd->T400_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)T400_timeout, (void *)cd);
