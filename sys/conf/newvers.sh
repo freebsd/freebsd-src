@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.26.2.30 1998/11/29 12:00:34 jkh Exp $
+# $FreeBSD$
 
 TYPE="FreeBSD"
 REVISION="2.2.8"

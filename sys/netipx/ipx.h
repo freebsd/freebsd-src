@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.7 1996/01/30 22:58:48 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETIPX_IPX_H_

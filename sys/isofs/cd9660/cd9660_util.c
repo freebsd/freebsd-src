@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.1 (Berkeley) 1/21/94
- * $Id: cd9660_util.c,v 1.5 1995/07/16 10:20:56 joerg Exp $
+ * $FreeBSD$
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */

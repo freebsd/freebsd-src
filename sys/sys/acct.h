@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.4 (Berkeley) 1/9/95
- * $Id: acct.h,v 1.7 1996/02/25 09:30:11 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_ACCT_H_

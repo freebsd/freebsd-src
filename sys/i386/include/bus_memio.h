@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_memio.h,v 1.1 1998/01/15 07:32:54 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_BUS_MEMIO_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.36.2.3 1997/10/05 21:41:05 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.15.2.1 1998/03/06 23:44:48 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_IPL_H_

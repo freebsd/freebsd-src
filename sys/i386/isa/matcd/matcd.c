@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.20.2.1 1998/03/08 01:46:26 jkh Exp $ */
+/* $FreeBSD$ */
 
 /*---------------------------------------------------------------------------
 	Include declarations

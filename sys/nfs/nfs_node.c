@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.13.2.3 1999/06/07 00:20:56 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

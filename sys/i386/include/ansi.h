@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.9 1996/04/13 14:25:06 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_ANSI_H_

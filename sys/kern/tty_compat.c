@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.18 1995/11/18 11:07:00 bde Exp $
+ * $FreeBSD$
  */
 
 /*

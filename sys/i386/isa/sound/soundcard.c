@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.43.2.1 1996/11/09 21:09:58 phk Exp $
+ * $FreeBSD$
  */
 
 #include <i386/isa/sound/sound_config.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.6 1996/03/11 02:23:56 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_TYPES_H_

@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.1.2.1 1997/04/04 16:48:12 kato Exp $
+ * $FreeBSD$
  */
 
 #include "pci.h"

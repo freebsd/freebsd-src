@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.6.2.1 1996/12/21 18:46:21 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

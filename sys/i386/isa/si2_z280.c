@@ -25,7 +25,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $Id$
+ * $FreeBSD$
  */
 
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */

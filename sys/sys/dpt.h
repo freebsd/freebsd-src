@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.2 1998/04/15 17:47:28 bde Exp $"
+#ident "$FreeBSD$"
 
 #ifndef _DPT_H
 #define _DPT_H

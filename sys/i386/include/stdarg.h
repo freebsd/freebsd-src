@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
- * $Id: stdarg.h,v 1.6 1995/01/24 16:22:52 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef _STDARG_H_

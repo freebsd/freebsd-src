@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $Id: sockio.h,v 1.7 1996/09/22 14:57:44 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_SOCKIO_H_

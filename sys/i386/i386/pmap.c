@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128.2.6 1997/06/26 00:05:16 tegge Exp $
+ * $FreeBSD$
  */
 
 /*

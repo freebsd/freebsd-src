@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.55 1996/09/06 23:06:54 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $Id: vnode_pager.h,v 1.7 1995/12/11 04:58:34 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_VNODE_PAGER_

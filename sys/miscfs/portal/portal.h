@@ -35,7 +35,7 @@
  *
  *	@(#)portal.h	8.4 (Berkeley) 1/21/94
  *
- * $Id: portal.h,v 1.1.1.1 1994/05/24 10:05:06 rgrimes Exp $
+ * $FreeBSD$
  */
 
 struct portal_args {

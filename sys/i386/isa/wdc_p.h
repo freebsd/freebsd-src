@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #define Q_CMD640B	0x00000001 /* CMD640B quirk: serialize IDE channels */

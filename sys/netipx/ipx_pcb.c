@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.5 1996/03/11 15:13:53 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

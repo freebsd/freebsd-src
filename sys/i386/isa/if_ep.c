@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.53.2.5 1998/04/18 23:25:08 nate Exp $
+ * $FreeBSD$
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

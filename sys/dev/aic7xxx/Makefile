@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.2.2 1997/09/03 04:25:04 gibbs Exp $
+# $FreeBSD$
 
 PROG=	aicasm
 

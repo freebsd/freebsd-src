@@ -33,7 +33,7 @@
  *
  *	@(#)spx_timer.h
  *
- * $Id: spx_timer.h,v 1.5 1996/01/30 22:58:53 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_

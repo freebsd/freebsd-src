@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.21.2.2 1997/10/27 00:39:15 jkh Exp $
+ * $FreeBSD$
  */
 
 

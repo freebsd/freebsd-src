@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.36 1996/09/13 23:54:03 pst Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_TCP_VAR_H_

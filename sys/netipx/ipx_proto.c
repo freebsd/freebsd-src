@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.5 1996/05/08 04:38:22 gpalmer Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

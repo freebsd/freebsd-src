@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.5 1996/12/18 16:42:06 davidn Exp $
+ *  dgreg.h $FreeBSD$
  *
  *  Digiboard driver.
  *

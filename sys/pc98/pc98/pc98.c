@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.12 1998/05/27 16:49:14 kato Exp $
+ * $FreeBSD$
  */
 
 /*

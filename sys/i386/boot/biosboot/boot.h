@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.14.2.1 1997/07/01 05:55:46 pst Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/*	$Id: direntry.h,v 1.12 1998/02/26 06:45:42 msmith Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-

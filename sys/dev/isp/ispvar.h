@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.16.2.1 1999/07/02 23:58:46 mjacob Exp $ */
+/* $FreeBSD$ */
 /* release_6_5_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.

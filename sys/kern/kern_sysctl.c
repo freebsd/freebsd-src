@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.66 1996/09/03 22:26:31 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.9.2.2 1997/06/20 10:27:43 kato Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_SPECIALREG_H_

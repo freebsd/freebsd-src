@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.55.2.2 1998/02/28 04:18:12 steve Exp $
+ * $FreeBSD$
  */
 
 /*

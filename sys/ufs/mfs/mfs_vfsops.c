@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.22.2.5 1998/05/07 19:04:15 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

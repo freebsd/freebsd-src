@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.49.2.3 1998/07/07 05:22:36 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *      $Id: ip_output.c,v 1.44.2.14 1999/03/18 18:34:20 luigi Exp $
+ * $FreeBSD$
  */
 
 #define _IP_VHL

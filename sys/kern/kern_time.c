@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.18.2.1 1997/05/10 05:34:36 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp.h,v 1.5 1995/02/14 02:35:14 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_TCP_H_

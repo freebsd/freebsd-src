@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.22.2.3 1998/05/26 11:38:48 dg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

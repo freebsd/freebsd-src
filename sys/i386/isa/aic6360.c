@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.24.2.2 1997/10/30 00:38:17 nate Exp $
+ * $FreeBSD$
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_prot.h,v 1.5 1995/12/07 12:48:27 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

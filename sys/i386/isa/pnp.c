@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.4.2.1 1998/01/08 12:32:32 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

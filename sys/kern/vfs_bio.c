@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.13 1998/10/19 16:53:52 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

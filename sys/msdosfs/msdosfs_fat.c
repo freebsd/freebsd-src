@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.21 1998/04/15 17:46:42 bde Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-

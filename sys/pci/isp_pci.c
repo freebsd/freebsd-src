@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.24.2.2 1999/07/05 20:28:16 mjacob Exp $ */
+/* $FreeBSD$ */
 /* release_6_2_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.

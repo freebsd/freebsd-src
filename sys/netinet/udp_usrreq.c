@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.30.2.2 1997/03/03 09:24:40 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

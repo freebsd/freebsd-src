@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.10 1996/03/11 02:25:04 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_NAMEI_H_

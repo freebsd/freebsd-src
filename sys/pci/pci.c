@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.8 1998/05/06 19:12:26 gibbs Exp $
+** $FreeBSD$
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()

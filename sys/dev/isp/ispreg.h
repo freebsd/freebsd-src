@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $FreeBSD$ */
 /* release_5_11_99 */
 /*
  * Machine Independent (well, as best as possible) register

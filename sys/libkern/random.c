@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)random.c	8.1 (Berkeley) 6/10/93
- * $Id: random.c,v 1.3 1995/03/17 06:15:39 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/libkern.h>

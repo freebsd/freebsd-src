@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vsio.h	8.1 (Berkeley) 6/2/93
- * $Id: vsio.h,v 1.3 1994/08/21 04:42:16 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_VSIO_H_

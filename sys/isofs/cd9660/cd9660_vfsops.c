@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.15.4.2 1998/01/02 16:46:15 joerg Exp $
+ * $FreeBSD$
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */

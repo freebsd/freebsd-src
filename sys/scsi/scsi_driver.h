@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.7 1996/09/06 23:09:14 phk Exp $
+ * $FreeBSD$
  *
  */
 #ifndef _SCSI__DRIVER_H_

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.16 1996/05/23 00:45:52 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

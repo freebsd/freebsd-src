@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.20.2.1 1996/12/22 23:21:21 joerg Exp $
+ * $FreeBSD$
  */
 
 #include "opt_rlimit.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.13 1996/08/31 16:52:44 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_LIBKERN_H_

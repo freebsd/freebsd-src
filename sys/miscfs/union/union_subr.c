@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id: union_subr.c,v 1.7 1995/08/17 11:53:50 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

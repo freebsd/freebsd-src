@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.7 1995/11/09 08:13:40 bde Exp $
+ * $FreeBSD$
  */
 
 /*

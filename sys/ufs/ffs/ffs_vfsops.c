@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.41.2.1 1996/11/13 20:18:21 phk Exp $
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"

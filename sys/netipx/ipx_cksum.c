@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_cksum.c
  *
- * $Id: ipx_cksum.c,v 1.3 1995/11/04 09:02:40 julian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

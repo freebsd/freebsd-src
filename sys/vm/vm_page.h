@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.33 1996/10/06 22:26:13 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

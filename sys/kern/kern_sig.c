@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.26.2.1 1996/12/21 18:57:24 bde Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ktrace.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_cksum.c,v 1.4 1995/12/03 11:16:39 bde Exp $
+ * $FreeBSD$
  */
 
 #ifdef KERNEL

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: udivdi3.c,v 1.2 1994/08/02 07:44:44 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <libkern/quad.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37.2.5 1997/12/18 09:42:41 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.8 1998/06/17 15:29:09 kato Exp $
+** $FreeBSD$
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **

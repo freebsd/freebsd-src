@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: lfs_subr.c,v 1.6 1995/01/09 16:05:23 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

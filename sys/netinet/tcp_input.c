@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54.2.12 1998/09/17 04:35:58 luigi Exp $
+ * $FreeBSD$
  */
 
 #include "opt_tcpdebug.h"

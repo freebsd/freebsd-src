@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.22.2.1 1998/05/06 19:15:41 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_KERNEL_H_

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.9 1998/05/06 19:12:44 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include "opt_bounce.h"

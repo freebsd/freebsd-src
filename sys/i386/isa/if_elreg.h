@@ -4,7 +4,7 @@
  * of the software, derivative works or modified versions, and any
  * portions thereof.
  *
- * $Id: if_elreg.h,v 1.3 1996/01/30 22:55:41 mpp Exp $
+ * $FreeBSD$
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 

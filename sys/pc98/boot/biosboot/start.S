@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.2 1996/07/23 07:45:37 asami Exp $
+ * $FreeBSD$
  */
 
 /*

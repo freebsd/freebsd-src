@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.19 1996/01/13 23:27:43 phk Exp $
+ * $FreeBSD$
  */
 
 /*

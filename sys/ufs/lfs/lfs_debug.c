@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_debug.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_debug.c,v 1.3 1995/05/30 08:15:16 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifdef DEBUG

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.5 1996/07/12 05:44:30 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_PIPE_H_

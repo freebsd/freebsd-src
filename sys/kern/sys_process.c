@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.24 1996/06/02 06:24:27 dyson Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

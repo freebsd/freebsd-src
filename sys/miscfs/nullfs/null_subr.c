@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: null_subr.c,v 1.5 1995/12/03 14:54:22 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

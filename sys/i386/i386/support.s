@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41.2.6 1997/01/25 03:23:09 dyson Exp $
+ * $FreeBSD$
  */
 
 #include "npx.h"

@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ppp_defs.h,v 1.5 1997/08/19 14:10:46 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _PPP_DEFS_H_

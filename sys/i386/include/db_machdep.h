@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.9 1995/12/03 10:40:16 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_DB_MACHDEP_H_

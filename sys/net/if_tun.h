@@ -13,7 +13,7 @@
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_TUN_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.59.2.1 1997/06/20 10:27:42 kato Exp $
+ * $FreeBSD$
  */
 
 /*

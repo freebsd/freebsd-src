@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.34.2.2 1997/05/14 16:43:56 tegge Exp $
+ * $FreeBSD$
  */
 
 /*

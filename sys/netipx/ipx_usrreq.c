@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.7.2.1 1996/11/25 07:18:10 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

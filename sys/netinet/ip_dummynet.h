@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.1.2.1 1998/09/17 04:01:20 luigi Exp $
+ * $FreeBSD$
  */
 
 #ifndef _IP_DUMMYNET_H

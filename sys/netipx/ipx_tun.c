@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_tun.c
  *
- * $Id: ipx_tun.c,v 1.4 1996/03/11 15:13:55 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

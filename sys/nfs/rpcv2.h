@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
- * $Id: rpcv2.h,v 1.4 1995/06/27 11:07:02 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NFS_RPCV2_H_

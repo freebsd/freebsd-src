@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $Id: exec.h,v 1.4 1994/08/09 14:39:56 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_EXEC_H_

@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.26.2.2 1998/03/06 23:44:52 julian Exp $
+ * $FreeBSD$
  */
 
 /*

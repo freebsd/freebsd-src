@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.9 1999/08/04 19:22:45 dima Exp $
+ * $FreeBSD$
  */
 
 /*

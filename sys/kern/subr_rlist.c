@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.19.2.1 1998/07/07 05:23:48 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

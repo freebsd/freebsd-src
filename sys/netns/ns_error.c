@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_error.c,v 1.3 1995/05/30 08:12:22 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.5 1996/08/31 14:48:04 bde Exp $
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

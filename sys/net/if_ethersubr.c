@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.26.2.4 1997/10/29 00:33:48 julian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

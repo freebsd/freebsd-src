@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.19 1998/08/10 16:58:18 kato Exp $
+# $FreeBSD$
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

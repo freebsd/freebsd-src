@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_changer.h,v 1.10 1997/03/06 15:36:15 joerg Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -58,7 +58,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_changer.h,v 1.7 1995/05/30 08:13:30 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SCSI_SCSI_CHANGER_H

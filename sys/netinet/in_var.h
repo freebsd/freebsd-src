@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.16 1996/02/05 20:35:59 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_IN_VAR_H_

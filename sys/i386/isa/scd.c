@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.25.2.1 1998/05/06 19:09:11 gibbs Exp $ */
+/* $FreeBSD$ */
 
 /* Please send any comments to micke@dynas.se */
 

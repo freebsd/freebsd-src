@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $Id: dirent.h,v 1.5 1996/02/24 04:48:20 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_DIRENT_H_

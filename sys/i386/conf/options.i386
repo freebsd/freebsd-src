@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.18 1998/08/10 09:00:09 yokota Exp $
+# $FreeBSD$
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

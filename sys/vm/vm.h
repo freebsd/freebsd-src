@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.8 1995/12/07 12:48:07 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef VM_H

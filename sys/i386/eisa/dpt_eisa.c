@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.1.2.1 1998/05/17 21:07:37 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

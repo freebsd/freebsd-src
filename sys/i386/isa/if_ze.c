@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.33.2.5 1997/10/30 00:38:20 nate Exp $
+ * $FreeBSD$
  */
 
 /* XXX - Don't mix different PCCARD support code */

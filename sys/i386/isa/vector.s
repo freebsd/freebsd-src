@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.21.2.3 1998/03/06 23:45:00 julian Exp $
+ * $FreeBSD$
  */
 
 /*

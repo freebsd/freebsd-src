@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_arregs.h,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
+ * $FreeBSD$
  */
 #ifndef _IF_ARREGS_H_
 #define _IF_ARREGS_H_

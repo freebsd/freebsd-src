@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7.2.10 1998/05/06 20:12:30 gibbs Exp $
+ * $FreeBSD$
  *
  */
 

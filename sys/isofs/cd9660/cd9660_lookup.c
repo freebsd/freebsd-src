@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.10 1996/10/20 21:01:42 alex Exp $
+ * $FreeBSD$
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */
