@@ -55,7 +55,8 @@ and
 files into the format used to generate the
 .Pa netid.byname
 .Tn NIS
-map. This map is used to hold credential information for both users
+map.
+This map is used to hold credential information for both users
 and hosts in a operating system independent format.
 .Pp
 The
@@ -65,7 +66,8 @@ them out.
 .Pp
 The
 .Nm
-command prints its results on the standard output. It is usually called
+command prints its results on the standard output.
+It is usually called
 only by
 .Pa /var/yp/Makefile
 when rebuilding the
@@ -82,25 +84,31 @@ Normally,
 .Nm
 prints a warning message when it encounters a duplicate netid.
 This flag turns on 'quiet' mode, allowing the warnings to be
-suppressed. Other error messages may still be generated.
+suppressed.
+Other error messages may still be generated.
 .It Fl g Ar group_file
 Specify the location of the group information
-file. The compiled-in default is
+file.
+The compiled-in default is
 .Pa /etc/group .
 .It Fl p Ar passwd_file
 Specify the location of the passwd information
-file. The compiled-in default is
+file.
+The compiled-in default is
 .Pa /etc/passwd .
 .It Fl h Ar hosts_file
 Specify the location of the hosts database
-file. The compiled-in default is
+file.
+The compiled-in default is
 .Pa /etc/hosts .
 .It Fl n Ar netid_file
 Specify the location of the netid information
-file. The compiled-in default is
+file.
+The compiled-in default is
 .Pa /etc/netid .
 Note that no error is generated if the netid database can't be
-found. The netid database is not likely to be present on most systems
+found.
+The netid database is not likely to be present on most systems
 until
 .Tn Secure RPC
 support is added to
@@ -108,11 +116,13 @@ support is added to
 .It Fl d Ar domain
 By default, the
 .Nm
-command uses the system domainname when generating netid records. If
+command uses the system domainname when generating netid records.
+If
 the system domainname is not set, the domain must be specified on the
 command line with the
 .Fl d
-flag. If the domainname is set, the
+flag.
+If the domainname is set, the
 .Fl d
 flag may be used to override it.
 .El
