@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1999/01/26 22:31:23 billf Exp $";
+	"$Id: main.c,v 1.23 1999/01/28 20:17:32 billf Exp $";
 #endif
 
 /*
@@ -26,6 +26,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <sys/param.h>
+#include <sys/utsname.h>
 #include <objformat.h>
 #include "lib.h"
 #include "add.h"
@@ -187,18 +188,25 @@ static char *
 getpackagesite(char binform[1024])
 {
     int reldate;
+    static char sitepath[MAXPATHLEN];
+    struct utsname u;
 
     reldate = getosreldate();
 
-    if (reldate == 300005)
-  	return "i386/packages-3.0/";
-    else if (300004 > reldate && reldate >= 300000)
-	return "i386/packages-3.0-aout/Latest/" ;
-    else if (300004 < reldate) 
-	return !strcmp(binform, "elf") ? "i386/packages-3-stable/Latest/" :
-		"i386/packages-3.0-aout/Latest/";
+    uname(&u);
+    strcpy(sitepath, u.machine);
 
-    return("");
+    if (reldate == 300005)
+  	strcat(sitepath, "/packages-3.0/");
+    else if (300000 < reldate && reldate <= 300004)
+	strcat(sitepath, "/packages-3.0-aout/Latest/");
+    else if (300004 < reldate && reldate < 400000)
+	strcat(sitepath, !strcmp(binform, "elf") ? "/packages-3-stable/Latest/" :
+		"/packages-3.0-aout/Latest/");
+    else
+	strcat(sitepath, "/packages-current/Latest/");
+
+    return sitepath;
 
 }
 
