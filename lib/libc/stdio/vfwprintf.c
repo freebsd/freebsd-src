@@ -39,7 +39,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.45 2002/09/06 11:23:55 tjr Exp ");
+__FBSDID("$FreeBSD$");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -406,8 +406,10 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
 #define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
-static wchar_t *cvt(double, int, int, char *, int *, wchar_t, int *,
-	    wchar_t **);
+extern char *__dtoa(double, int, int, int *, int *, char **);
+extern void __freedtoa(char *s);
+
+static wchar_t *cvt(double, int, int, char *, int *, wchar_t, int *);
 static int exponent(wchar_t *, int, wchar_t);
 
 #else /* no FLOATING_POINT */
@@ -807,8 +809,8 @@ fp_begin:		if (prec == -1)
 				free(dtoaresult);
 				dtoaresult = NULL;
 			}
-			cp = cvt(_double, prec, flags, &softsign,
-				&expt, ch, &ndig, &dtoaresult);
+			dtoaresult = cp = cvt(_double, prec, flags, &softsign,
+				&expt, ch, &ndig);
 			if (ch == 'g' || ch == 'G') {
 				if (expt <= -4 || expt > prec)
 					ch = (ch == 'g') ? 'e' : 'E';
@@ -1472,11 +1474,9 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 
 #ifdef FLOATING_POINT
 
-extern char *__dtoa(double, int, int, int *, int *, char **, char **);
-
 static wchar_t *
 cvt(double value, int ndigits, int flags, char *sign, int *decpt,
-    wchar_t ch, int *length, wchar_t **dtoaresultp)
+    wchar_t ch, int *length)
 {
 	int i, mode, dsgn;
 	wchar_t *digits, *bp, *result, *rve;
@@ -1494,14 +1494,13 @@ cvt(double value, int ndigits, int flags, char *sign, int *decpt,
 			ndigits++;
 		mode = 2;		/* ndigits significant digits */
 	}
-	__dtoa(value, mode, ndigits, decpt, &dsgn, &trve, &tresult);
+	tresult = __dtoa(value, mode, ndigits, decpt, &dsgn, &trve);
 	if ((result = malloc((trve - tresult + 1) * sizeof(*result))) == NULL)
 		abort();		/* XXX handle better */
 	for (i = 0; i < trve - tresult + 1; i++)
 		result[i] = (wchar_t)(unsigned char)tresult[i];
 	rve = result + (trve - tresult);
-	free(tresult);
-	*dtoaresultp = result;
+	__freedtoa(tresult);
 	digits = result;
 	*sign = dsgn != 0;
 	if ((ch != 'g' && ch != 'G') || flags & ALT) {
