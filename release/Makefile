@@ -965,7 +965,8 @@ doc.1:
 		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' \
-	    INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
+	    INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc \
+	    URLS_ABSOLUTE=YES	
 	touch ${.TARGET}
 
 #
