@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"

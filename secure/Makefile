@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 # lib must be first, or it will not work.  This is because we reference
 # the lib's in the directory where they are built from the binaries we

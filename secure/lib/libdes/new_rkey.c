@@ -77,7 +77,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $FreeBSD$
  */
 
 /* 21-Nov-95 - eay - I've finally put this into libdes, I have made a

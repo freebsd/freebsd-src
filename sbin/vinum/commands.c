@@ -38,7 +38,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.24 1999/08/24 02:31:19 grog Exp $ */
+/* $FreeBSD$ */
 
 #include <ctype.h>
 #include <errno.h>

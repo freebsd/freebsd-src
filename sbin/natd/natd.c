@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.11.2.4 1999/05/16 11:59:52 brian Exp $
+ * $FreeBSD$
  */
 
 #define SYSLOG_NAMES

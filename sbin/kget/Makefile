@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1999/03/26 21:27:01 nate Exp $
+# $FreeBSD$
 #
 PROG=	kget
 CFLAGS+= -I${.CURDIR}/../../sys/i386

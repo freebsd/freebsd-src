@@ -8,7 +8,7 @@
 # Redirect the output from this to a file - and make a cup of coffee while
 # it runs. This program is a CPU Hog!
 #
-# $Id$
+# $FreeBSD$
 #
 
 for ($i = 0; $i < (1024*32); $i++) {

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1999/06/24 08:13:21 obrien Exp $
+# $FreeBSD$
 
 DIST_DIR= ${.CURDIR}/../../contrib/isc-dhcp
 
