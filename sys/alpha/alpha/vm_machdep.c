@@ -122,6 +122,9 @@ cpu_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
 	int flags;
 {
+	struct user *up;
+	struct trapframe *p2tf;
+
 	if ((flags & RFPROC) == 0)
 		return;
 
@@ -170,50 +173,41 @@ cpu_fork(p1, p2, flags)
 #endif
 
 	/*
-	 * create the child's kernel stack, from scratch.
+	 * Create the child's kernel stack, from scratch.
+	 *
+	 * Pick a stack pointer, leaving room for a trapframe;
+	 * copy trapframe from parent so return to user mode
+	 * will be to right address, with correct registers.
 	 */
-	{
-		struct user *up = p2->p_addr;
-		struct trapframe *p2tf;
+	p2->p_frame = (struct trapframe *)
+	    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
+	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
 
-		/*
-		 * Pick a stack pointer, leaving room for a trapframe;
-		 * copy trapframe from parent so return to user mode
-		 * will be to right address, with correct registers.
-		 */
-		p2tf = p2->p_frame = (struct trapframe *)
-		    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-		bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
+	/*
+	 * Set up return-value registers as fork() libc stub expects.
+	 */
+	p2tf = p2->p_frame;
+	p2tf->tf_regs[FRAME_V0] = 0; 	/* child's pid (linux) 	*/
+	p2tf->tf_regs[FRAME_A3] = 0;	/* no error 		*/
+	p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
 
-		/*
-		 * Set up return-value registers as fork() libc stub expects.
-		 */
-		p2tf->tf_regs[FRAME_V0] = 0; 	/* child's pid (linux) 	*/
-		p2tf->tf_regs[FRAME_A3] = 0;	/* no error 		*/
-		p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
-
-		/*
-		 * Arrange for continuation at fork_return(), which
-		 * will return to exception_return().  Note that the child
-		 * process doesn't stay in the kernel for long!
-		 * 
-		 * This is an inlined version of cpu_set_kpc.
-		 */
-		up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
-		up->u_pcb.pcb_context[0] =
-		    (u_int64_t)fork_return;		/* s0: a0 */
-		up->u_pcb.pcb_context[1] =
-		    (u_int64_t)exception_return;	/* s1: ra */
-		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a1 */
-		up->u_pcb.pcb_context[7] =
-		    (u_int64_t)fork_trampoline;	/* ra: assembly magic */
+	/*
+	 * Arrange for continuation at fork_return(), which
+	 * will return to exception_return().  Note that the child
+	 * process doesn't stay in the kernel for long!
+	 */
+	up = p2->p_addr;
+	up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
+	up->u_pcb.pcb_context[0] = (u_int64_t)fork_return;	/* s0: a0 */
+	up->u_pcb.pcb_context[1] = (u_int64_t)exception_return;	/* s1: ra */
+	up->u_pcb.pcb_context[2] = (u_long) p2;			/* s2: a1 */
+	up->u_pcb.pcb_context[7] = (u_int64_t)fork_trampoline;	/* ra: magic */
 #ifdef SMP
-		/*
-		 * We start off at a nesting level of 1 within the kernel.
-		 */
-		p2->p_md.md_kernnest = 1;
+	/*
+	 * We start off at a nesting level of 1 within the kernel.
+	 */
+	p2->p_md.md_kernnest = 1;
 #endif
-	}
 }
 
 /*
