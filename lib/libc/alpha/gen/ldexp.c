@@ -1,4 +1,5 @@
 /*	$NetBSD: ldexp.c,v 1.1 1995/02/10 17:50:24 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
