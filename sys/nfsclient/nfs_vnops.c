@@ -2361,7 +2361,8 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 #endif
 	MALLOC(sp, struct sillyrename *, sizeof (struct sillyrename),
 		M_NFSREQ, M_WAITOK);
-	sp->s_cred = crdup(cnp->cn_cred);
+	crhold(cnp->cn_cred);
+	sp->s_cred = cnp->cn_cred;
 	sp->s_dvp = dvp;
 	VREF(dvp);
 
