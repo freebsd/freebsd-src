@@ -36,4 +36,16 @@
 #  endif
 #endif
 
+#if !defined (__STDC__) && !defined (__cplusplus)
+#  if defined (__GNUC__)	/* gcc with -traditional */
+#    if !defined (const)
+#      define const __const
+#    endif /* !const */
+#  else /* !__GNUC__ */
+#    if !defined (const)
+#      define const
+#    endif /* !const */
+#  endif /* !__GNUC__ */
+#endif /* !__STDC__ && !__cplusplus */
+
 #endif /* !_RL_STDC_H_ */

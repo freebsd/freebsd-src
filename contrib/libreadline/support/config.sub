@@ -173,7 +173,7 @@ case $basic_machine in
 		| mips64vr4300 | mips64vr4300el | mips64vr4100 | mips64vr4100el \
 		| mips64vr5000 | miprs64vr5000el | mcore \
 		| sparc | sparclet | sparclite | sparc64 | sparcv9 | v850 | c4x \
-	        | thumb | d10v)
+	        | thumb | d10v | s390)
 		basic_machine=$basic_machine-unknown
 		;;
 	m88110 | m680[12346]0 | m683?2 | m68360 | m5200 | z8k | v70 | h8500 | w65)
@@ -676,6 +676,10 @@ case $basic_machine in
 	rtpc | rtpc-*)
 		basic_machine=romp-ibm
 		;;
+	s390-*)
+		basic_machine=s390-ibm
+		os=-linux
+		;;
         sa29200)
                 basic_machine=a29k-amd
                 os=-udi
@@ -946,13 +950,13 @@ case $os in
 	      | -lynxos* | -bosx* | -nextstep* | -cxux* | -aout* | -elf* | -oabi* \
 	      | -ptx* | -coff* | -ecoff* | -winnt* | -domain* | -vsta* \
 	      | -udi* | -eabi* | -lites* | -ieee* | -go32* | -aux* \
-	      | -cygwin32* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
+	      | -cygwin* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
 	      | -mingw32* | -linux-gnu* | -uxpv* | -beos* | -mpeix* | -udk* \
 	      | -interix* | -uwin* | -rhapsody* | -openstep* | -oskit*)
 	# Remember, each alternative MUST END IN *, to match a version number.
 		;;
 	# BEGIN CASES ADDED FOR Bash
-	-qnx* | -powerux* | -superux* )
+	-qnx* | -powerux* | -superux* | -darwin* | -nonstopux*)
 		;;
 	# END CASES ADDED FOR Bash
         -sim | -es1800* | -hms* | -xray | -os68k* | -none* | -v88r* \

@@ -1,4 +1,4 @@
-/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* config.h.in.  Maintained by hand. */
 
 /* Define if on MINIX.  */
 #undef _MINIX
@@ -124,7 +124,6 @@
 
 #undef HAVE_POSIX_SIGSETJMP
 
-/* config.h.bot */
 /* modify settings or make new ones based on what autoconf tells us. */
 
 /* Ultrix botches type-ahead when switching from canonical to

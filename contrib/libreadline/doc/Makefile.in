@@ -63,13 +63,13 @@ GROFF       = groff
 
 DVIOBJ = readline.dvi history.dvi rluserman.dvi
 INFOOBJ = readline.info history.info rluserman.info
-PSOBJ = readline.ps history.ps rluserman.ps
+PSOBJ = readline.ps history.ps rluserman.ps readline_3.ps history_3.ps
 HTMLOBJ = readline.html history.html rluserman.html
-TEXTOBJ = readline.0
+TEXTOBJ = readline.0 history.0
 
 INTERMEDIATE_OBJ = rlman.dvi hist.dvi rluserman.dvi
 
-CREATED_DOCS = $(DVIOBJ) $(INFOOBJ) $(PSOBJ) $(HTMLOBJ) $(TEXTOBJ)
+DIST_DOCS = $(DVIOBJ) $(PSOBJ) $(HTMLOBJ) $(INFOOBJ) $(TEXTOBJ)
 
 .SUFFIXES:      .0 .3 .ps .txt .dvi
 
@@ -133,19 +133,28 @@ text:	$(TEXTOBJ)
 
 readline.0: readline.3
 
+readline_3.ps: readline.3
+	${RM} $@
+	${GROFF} -man < $(srcdir)/readline.3 > $@ 
+
+history.0: history.3
+
+history_3.ps: history.3
+	${RM} $@
+	${GROFF} -man < $(srcdir)/history.3 > $@ 
+
 clean:
 	$(RM) *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps *.pgs \
 	      *.fns *.kys *.tps *.vrs *.bt *.bts *.o core
 
 distclean: clean
-	$(RM) $(CREATED_DOCS)
 	$(RM) $(INTERMEDIATE_OBJ)
 	$(RM) Makefile
 
 mostlyclean: clean
 
 maintainer-clean: clean
-	$(RM) $(CREATED_DOCS)
+	$(RM) $(DIST_DOCS)
 	$(RM) $(INTERMEDIATE_OBJ)
 	$(RM) Makefile
 
@@ -173,9 +182,11 @@ install:	installdirs
 		install-info --dir-file=$(infodir)/dir $(infodir)/history.info ; \
 	else true; fi
 	-${INSTALL_DATA} $(srcdir)/readline.3 $(man3dir)/readline.3
+	-${INSTALL_DATA} $(srcdir)/history.3 $(man3dir)/history.3
 
 uninstall:
 	$(RM) $(infodir)/readline.info
 	$(RM) $(infodir)/rluserman.info
 	$(RM) $(infodir)/history.info
 	$(RM) $(man3dir)/readline.3
+	$(RM) $(man3dir)/history.3

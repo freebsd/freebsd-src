@@ -52,7 +52,7 @@
    text read in at each end of line.  The terminal is kept prepped and
    signals handled all the time, except during calls to the user's function. */
 
-VFunction *rl_linefunc;		/* user callback function */
+rl_vcpfunc_t *rl_linefunc;		/* user callback function */
 static int in_handler;		/* terminal_prepped and signals set? */
 
 /* Make sure the terminal is set up, initialize readline, and prompt. */
@@ -78,11 +78,10 @@ _rl_callback_newline ()
 /* Install a readline handler, set up the terminal, and issue the prompt. */
 void
 rl_callback_handler_install (prompt, linefunc)
-     char *prompt;
-     VFunction *linefunc;
+     const char *prompt;
+     rl_vcpfunc_t *linefunc;
 {
-  rl_prompt = prompt;
-  rl_visible_prompt_length = rl_prompt ? rl_expand_prompt (rl_prompt) : 0;
+  rl_set_prompt (prompt);
   rl_linefunc = linefunc;
   _rl_callback_newline ();
 }
@@ -102,24 +101,33 @@ rl_callback_read_char ()
 
   eof = readline_internal_char ();
 
-  if (rl_done)
+  /* We loop in case some function has pushed input back with rl_execute_next. */
+  for (;;)
     {
-      line = readline_internal_teardown (eof);
+      if (rl_done)
+	{
+	  line = readline_internal_teardown (eof);
 
-      (*rl_deprep_term_function) ();
+	  (*rl_deprep_term_function) ();
 #if defined (HANDLE_SIGNALS)
-      rl_clear_signals ();
+	  rl_clear_signals ();
 #endif
-      in_handler = 0;
-      (*rl_linefunc) (line);
+	  in_handler = 0;
+	  (*rl_linefunc) (line);
 
-    /* If the user did not clear out the line, do it for him. */
-    if (rl_line_buffer[0])
-      _rl_init_line_state ();
+	  /* If the user did not clear out the line, do it for him. */
+	  if (rl_line_buffer[0])
+	    _rl_init_line_state ();
 
-    /* Redisplay the prompt if readline_handler_{install,remove} not called. */
-      if (in_handler == 0 && rl_linefunc)
-	_rl_callback_newline ();
+	  /* Redisplay the prompt if readline_handler_{install,remove}
+	     not called. */
+	  if (in_handler == 0 && rl_linefunc)
+	    _rl_callback_newline ();
+	}
+      if (rl_pending_input)
+	eof = readline_internal_char ();
+      else
+        break;
     }
 }
 
