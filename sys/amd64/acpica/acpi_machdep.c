@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
+static int intr_model = ACPI_INTR_PIC;
+
 int
 acpi_machdep_init(device_t dev)
 {
@@ -43,5 +45,15 @@ acpi_machdep_init(device_t dev)
 
 	acpi_install_wakeup_handler(sc);
 
+	if (intr_model != ACPI_INTR_PIC)
+		acpi_SetIntrModel(intr_model);
+
 	return (0);
+}
+
+void
+acpi_SetDefaultIntrModel(int model)
+{
+
+	intr_model = model;
 }
