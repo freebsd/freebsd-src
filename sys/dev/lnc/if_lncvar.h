@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <i386/isa/ic/Am7990.h>
+#include <dev/lnc/if_lncreg.h>
 
 /*
  * Initialize multicast address hashing registers to accept
