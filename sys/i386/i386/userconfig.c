@@ -240,6 +240,7 @@ static DEV_INFO device_info[] = {
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
+{"ex",          "Intel EtherExpress Pro/10 Ethernet adapter",	0,	CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
 {"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
 {"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
