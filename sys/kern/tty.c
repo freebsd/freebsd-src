@@ -68,13 +68,13 @@
  */
 
 #include "opt_compat.h"
-#include "opt_uconsole.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/sx.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #include <sys/ioctl_compat.h>
@@ -849,13 +849,23 @@ ttioctl(tp, cmd, data, flag)
 	}
 	case TIOCCONS:			/* become virtual console */
 		if (*(int *)data) {
+			struct nameidata nid;
+
 			if (constty && constty != tp &&
 			    ISSET(constty->t_state, TS_CONNECTED))
 				return (EBUSY);
-#ifndef	UCONSOLE
-			if ((error = suser(td)) != 0)
+
+			/* Ensure user can open the real console. */
+			NDINIT(&nid, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE,
+			    "/dev/console", td);
+			if ((error = namei(&nid)) != 0)
 				return (error);
-#endif
+			NDFREE(&nid, NDF_ONLY_PNBUF);
+			error = VOP_ACCESS(nid.ni_vp, VREAD, td->td_ucred, td);
+			vput(nid.ni_vp);
+			if (error)
+				return (error);
+
 			constty = tp;
 		} else if (tp == constty)
 			constty = NULL;
