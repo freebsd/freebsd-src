@@ -1,11 +1,11 @@
 #
 # Bmakefile for GNU info
 #
-# $id$
+# $Id$
 #
 
 PROG= texindex 
-
+NOMAN=yes
 SRCS+= texindex.c getopt1.c getopt.c  
 .PATH: ${.CURDIR}/../info
 
