@@ -14,6 +14,7 @@ SUBDIR=	geom_apple \
 	geom_nop \
 	geom_pc98 \
 	geom_raid3 \
+	geom_shsec \
 	geom_stripe \
 	geom_sunlabel \
 	geom_uzip \
