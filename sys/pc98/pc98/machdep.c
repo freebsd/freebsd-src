@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.120 1999/06/21 11:14:27 kato Exp $
+ *	$Id: machdep.c,v 1.121 1999/06/28 13:08:59 kato Exp $
  */
 
 #include "apm.h"
@@ -1874,12 +1874,12 @@ init386(first)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
-	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	ltr(gsel_tss);
 	private_tss = 0;
 	tss_gdt = &gdt[GPROC0_SEL].sd;
 	common_tssd = *tss_gdt;
+	common_tss.tss_ioopt = (sizeof common_tss) << 16;
+	ltr(gsel_tss);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
