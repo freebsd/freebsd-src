@@ -66,7 +66,7 @@ struct domain		atalkdomain = {
     AF_APPLETALK,	"appletalk",	0,	0,	0,
     atalksw, &atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
     0, rn_inithead,
-    ((caddr_t) &((struct sockaddr_at *) 0)->sat_addr - (caddr_t)0),
+    8 * (u_long) &((struct sockaddr_at *) 0)->sat_addr,
     sizeof(struct sockaddr_at)
 };
 
