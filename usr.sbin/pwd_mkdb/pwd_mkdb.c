@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -85,7 +89,7 @@ void	error __P((char *));
 void	cp __P((char *, char *, mode_t mode));
 void	mv __P((char *, char *));
 int	scan __P((FILE *, struct passwd *));
-void	usage __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -278,7 +282,7 @@ main(argc, argv)
 		if (!Cflag && 
 		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
 			yp_enabled = 1;
-#define	COMPACT(e)	t = e; while (*p++ = *t++);
+#define	COMPACT(e)	t = e; while ((*p++ = *t++));
 		if (!Cflag && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			/* Create insecure data. */
@@ -538,7 +542,7 @@ error(name)
 	char *name;
 {
 
-	warn(name);
+	warn("%s", name);
 	cleanup();
 	exit(1);
 }
@@ -563,10 +567,11 @@ cleanup()
 	}
 }
 
-void
+static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: pwd_mkdb [-c] [-p] [-d <dest dir>] [-u <local username>] file\n");
+	(void)fprintf(stderr,
+"usage: pwd_mkdb [-c] [-p] [-d <dest dir>] [-u <local username>] file\n");
 	exit(1);
 }
