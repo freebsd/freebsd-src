@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.31 1998/09/14 22:46:04 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.32 1998/09/15 21:46:34 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -891,7 +891,8 @@ each_writable_segment(p, func, closure)
 		vm_object_t backobj;
 
 		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP) ||
-		    !(entry->protection & VM_PROT_WRITE))
+		    (entry->protection & (VM_PROT_READ|VM_PROT_WRITE)) !=
+		    (VM_PROT_READ|VM_PROT_WRITE))
 			continue;
 
 		/* Find the deepest backing object. */
