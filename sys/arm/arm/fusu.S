@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
+ENTRY(fuword32)
 ENTRY(fuword)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -81,8 +82,6 @@ ENTRY(fuword)
 	mov	r0, r3
 	mov	pc, lr
 
-ENTRY(fuword32)
-	bl	_C_LABEL(fuword)
 /*
  * fusword(caddr_t uaddr);
  * Fetch a short from the user's address space.
