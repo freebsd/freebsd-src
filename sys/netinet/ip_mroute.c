@@ -588,8 +588,6 @@ static void
 ip_mrouter_reset(void)
 {
     bzero((caddr_t)mfctable, sizeof(mfctable));
-    MFC_LOCK_INIT();
-    VIF_LOCK_INIT();
     bzero((caddr_t)nexpire, sizeof(nexpire));
 
     pim_assert = 0;
@@ -604,6 +602,8 @@ ip_mrouter_reset(void)
 
     callout_init(&tbf_reprocess_ch, CALLOUT_MPSAFE);
 }
+
+static struct mtx mrouter_mtx;		/* used to synch init/done work */
 
 /*
  * Enable multicast routing
@@ -621,10 +621,12 @@ ip_mrouter_init(struct socket *so, int version)
     if (version != 1)
 	return ENOPROTOOPT;
 
-    if (ip_mrouter != NULL)
-	return EADDRINUSE;
+    mtx_lock(&mrouter_mtx);
 
-    ip_mrouter_reset();
+    if (ip_mrouter != NULL) {
+	mtx_unlock(&mrouter_mtx);
+	return EADDRINUSE;
+    }
 
     callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT, expire_upcalls, NULL);
 
@@ -633,6 +635,8 @@ ip_mrouter_init(struct socket *so, int version)
     callout_reset(&bw_meter_ch, BW_METER_PERIOD, expire_bw_meter_process, NULL);
 
     ip_mrouter = so;
+
+    mtx_unlock(&mrouter_mtx);
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_init\n");
@@ -652,6 +656,13 @@ X_ip_mrouter_done(void)
     struct ifreq ifr;
     struct mfc *rt;
     struct rtdetq *rte;
+
+    mtx_lock(&mrouter_mtx);
+
+    if (ip_mrouter == NULL) {
+	mtx_unlock(&mrouter_mtx);
+	return EINVAL;
+    }
 
     /*
      * Detach/disable hooks to the reset of the system.
@@ -690,7 +701,7 @@ X_ip_mrouter_done(void)
     bzero((caddr_t)viftable, sizeof(viftable));
     numvifs = 0;
     pim_assert = 0;
-    VIF_LOCK_DESTROY();
+    VIF_UNLOCK();
 
     /*
      * Free all multicast forwarding cache entries.
@@ -717,9 +728,10 @@ X_ip_mrouter_done(void)
 	}
     }
     bzero((caddr_t)mfctable, sizeof(mfctable));
+    bzero((caddr_t)nexpire, sizeof(nexpire));
     bw_upcalls_n = 0;
     bzero(bw_meter_timers, sizeof(bw_meter_timers));
-    MFC_LOCK_DESTROY();
+    MFC_UNLOCK();
 
     /*
      * Reset de-encapsulation cache
@@ -729,6 +741,8 @@ X_ip_mrouter_done(void)
 #ifdef PIM
     reg_vif_num = VIFI_INVALID;
 #endif
+
+    mtx_unlock(&mrouter_mtx);
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_done\n");
@@ -3358,13 +3372,12 @@ pim_input_to_daemon:
 static int
 ip_mroute_modevent(module_t mod, int type, void *unused)
 {
-    int s;
-
     switch (type) {
     case MOD_LOAD:
-	s = splnet();
+	mtx_init(&mrouter_mtx, "mrouter initialization", NULL, MTX_DEF);
+	MFC_LOCK_INIT();
+	VIF_LOCK_INIT();
 	ip_mrouter_reset();
-	/* XXX synchronize setup */
 	ip_mcast_src = X_ip_mcast_src;
 	ip_mforward = X_ip_mforward;
 	ip_mrouter_done = X_ip_mrouter_done;
@@ -3400,6 +3413,9 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	legal_vif_num = NULL;
 	mrt_ioctl = NULL;
 	rsvp_input_p = NULL;
+	VIF_LOCK_DESTROY();
+	MFC_LOCK_DESTROY();
+	mtx_destroy(&mrouter_mtx);
 	break;
     }
     return 0;
