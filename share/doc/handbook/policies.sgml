@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.1 1996/06/30 18:01:25 phk Exp $ -->
+<!-- $Id: policies.sgml,v 1.2 1996/07/03 04:23:26 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -34,7 +34,7 @@ software, for tracking new versions, as appropriate.
 <p>Changes to directories which have a maintainer defined shall be
 sent to the
 maintainer for review before being committed.  Only if the maintainer does not respond
-for un unacceptable period of time, to several emails, will it be
+for an unacceptable period of time, to several emails, will it be
 acceptable to commit changes without review by the maintainer.
 However, it is suggested that you try and have the changes reviewed 
 by someone else if at all possible.
@@ -42,19 +42,6 @@ by someone else if at all possible.
 <p>It is of course not acceptable to add a person or group as maintainer
 unless they agree to assume this duty.  On the other hand it doesn't
 have to be a committer and it can easily be a group of people.
-
-<p>Some software distributions have attacked this problem by
-providing configuration scripts. Some of these are very clever, but
-they have an unfortunate tendency to triumphantly announce that your
-system is something you've never heard of and then ask you lots of
-questions that sound like a final exam in system-level Unix
-programming (``Does your system's gethitlist function return a const
-pointer to a fromboz or a pointer to a const fromboz? Do you have
-Foonix style unacceptable exception handling? And if not, why not?'').
-
-<p>Fortunately, with the Ports collection, all the hard work involved
-has already been done, and you can just type 'make install' and get a
-working program.
 
 <sect><heading>Contributed software</heading>
 
