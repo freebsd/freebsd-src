@@ -36,6 +36,10 @@ Report problems and direct all questions to:
 
 
 /* $Log: rlog.c,v $
+ * Revision 1.2  1993/08/06  16:47:16  nate
+ * Have rlog output be much easier to parse.  (Added one line which is not
+ * used by any CVS/RCS commands)
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:17  jkh
  * Updated GNU utilities
  *
@@ -194,10 +198,10 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.2 1993/08/06 16:47:16 nate Exp $")
 {
 	static char const cmdusage[] =
-		"\nrlog usage: rlog -{bhLRt} -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
+		"\nrlog usage: rlog -{bhLRt} [-v[string]] -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
 
 	register FILE *out;
 	char *a, **newargv;
@@ -210,11 +214,14 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $")
 	struct lock const *currlock;
 	int descflag, selectflag;
 	int onlylockflag;  /* print only files with locks */
+	int versionlist;
+	char *vstring;
 	int onlyRCSflag;  /* print only RCS file name */
 	unsigned revno;
 
         descflag = selectflag = true;
-	onlylockflag = onlyRCSflag = false;
+	versionlist = onlylockflag = onlyRCSflag = false;
+	vstring=0;
 	out = stdout;
 	suffixes = X_DEFAULT;
 
@@ -277,6 +284,11 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $")
 			setRCSversion(*argv);
 			break;
 
+		case 'v':
+			versionlist = true;
+			vstring = a;
+			break;
+
                 default:
 			faterror("unknown option: %s%s", *argv, cmdusage);
 
@@ -325,6 +337,11 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $")
             /* do nothing if -L is given and there are no locks*/
 	    if (onlylockflag && !Locks)
 		continue;
+
+	    if ( versionlist ) {
+		aprintf(out, "%s%s %s\n", vstring, workfilename, Head->num);
+		continue;
+	    }
 
 	    if ( onlyRCSflag ) {
 		aprintf(out, "%s\n", RCSfilename);
