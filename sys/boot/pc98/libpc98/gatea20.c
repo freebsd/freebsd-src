@@ -5,10 +5,10 @@
 
 /* extracted from freebsd:sys/i386/boot/biosboot/io.c */
 
-#include <sys/types.h>
+#include <stand.h>
 #include <machine/cpufunc.h>
 
-#include <stand.h>
+#include <bootstrap.h>
 
 #include "libi386.h"
 
@@ -40,7 +40,7 @@ void gateA20()
 #else   /* IBM PC */
 #ifdef	IBM_L40
 	outb(0x92, 0x2);
-#else	IBM_L40
+#else	/* !IBM_L40 */
 	while (inb(K_STATUS) & K_IBUF_FUL);
 	while (inb(K_STATUS) & K_OBUF_FUL)
 		(void)inb(K_RDWR);
@@ -51,7 +51,7 @@ void gateA20()
 	outb(K_RDWR, x_20);
 	delay(100);
 	while (inb(K_STATUS) & K_IBUF_FUL);
-#endif	IBM_L40
+#endif	/* IBM_L40 */
 #endif  /* IBM PC */
 	__asm("popfl");
 }
