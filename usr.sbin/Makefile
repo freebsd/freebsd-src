@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.130 1998/09/15 11:44:44 phk Exp $
+#	$Id: Makefile,v 1.131 1998/09/16 09:33:23 dfr Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -139,7 +139,6 @@ SUBDIR+=kvm_mkdb \
 	kbdcontrol \
 	kbdmap \
 	moused \
-	ncrcontrol \
 	pstat \
 	rtprio \
 	vidcontrol
