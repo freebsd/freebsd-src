@@ -79,9 +79,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	Support for systems with an 80386 CPU has been removed.  Please
 	use FreeBSD 5.x or earlier on systems with an 80386.
 
-20041104:
-	FreeBSD 5.3 shipped here.
-
 20041110:
 	We have had a hack which would mount the root filesystem
 	R/W if the device were named 'md*'.  As part of the vnode
@@ -89,6 +86,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	building systems which use preloaded MD root filesystems
 	may need to insert a "/sbin/mount -u -o rw /dev/md0 /" in
 	their /etc/rc scripts.
+
+20041104:
+	FreeBSD 5.3 shipped here.
 
 20041102:
 	The size of struct tcpcb has changed again due to the removal
