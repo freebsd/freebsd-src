@@ -51,8 +51,9 @@ is unusable until re-initialized by another call to
 .Sh RETURN VALUES
 .Rv -std sem_destroy
 .Sh ERRORS
+The
 .Fn sem_destroy
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa sem
@@ -63,10 +64,12 @@ There are currently threads blocked on the semaphore that
 points to.
 .El
 .Sh SEE ALSO
-.Xr sem_init 3
+.Xr sem_init 3 ,
+.Xr sem 4
 .Sh STANDARDS
+The
 .Fn sem_destroy
-conforms to
+function conforms to
 .St -p1003.1-96 .
 .Pp
 POSIX does not define the behavior of
