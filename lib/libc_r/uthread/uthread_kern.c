@@ -113,8 +113,10 @@ _thread_kern_sched(ucontext_t *ucp)
 
 	/* Check if this function was called from the signal handler: */
 	if (ucp != NULL) {
+#if 0
 		/* XXX - Save FP registers? */
 		FP_SAVE_UC(ucp);
+#endif
 		called_from_handler = 1;
 		DBG_MSG("Entering scheduler due to signal\n");
 	}
@@ -156,8 +158,10 @@ _thread_kern_sched(ucontext_t *ucp)
 		if (ucp == NULL)
 			return;
 		else {
+#if 0
 			/* XXX - Restore FP registers? */
 			FP_RESTORE_UC(ucp);
+#endif
 
 			/*
 			 * Set the process signal mask in the context; it
