@@ -365,7 +365,8 @@ mac_prepare_type(struct mac **mac, const char *name)
 			return (mac_prepare(mac, ld->ld_labels));
 	}
 
-	return (ENOENT);		/* XXXMAC: ENOLABEL */
+	errno = ENOENT;
+	return (-1);		/* XXXMAC: ENOLABEL */
 }
 
 int
