@@ -35,13 +35,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -77,7 +76,7 @@ static char	 *compile_text __P((void));
 static char	 *compile_tr __P((char *, char **));
 static struct s_command
 		**compile_stream __P((struct s_command **));
-static char	 *duptoeol __P((char *, char *));
+static char	 *duptoeol __P((char *, const char *));
 static void	  enterlabel __P((struct s_command *));
 static struct s_command
 		 *findlabel __P((char *));
@@ -157,7 +156,7 @@ static struct s_command **
 compile_stream(link)
 	struct s_command **link;
 {
-	register char *p;
+	char *p;
 	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
 	struct s_command *cmd, *cmd2, *stack;
 	struct s_format *fp;
@@ -465,7 +464,8 @@ compile_subst(p, s)
 	struct s_subst *s;
 {
 	static char lbuf[_POSIX2_LINE_MAX + 1];
-	int asize, ref, size;
+	int asize, size;
+	u_char ref;
 	char c, *text, *op, *sp;
 	int more = 0;
 
@@ -722,8 +722,8 @@ compile_addr(p, a)
  */
 static char *
 duptoeol(s, ctype)
-	register char *s;
-	char *ctype;
+	char *s;
+	const char *ctype;
 {
 	size_t len;
 	int ws;
@@ -784,9 +784,9 @@ static void
 enterlabel(cp)
 	struct s_command *cp;
 {
-	register struct labhash **lhp, *lh;
-	register u_char *p;
-	register u_int h, c;
+	struct labhash **lhp, *lh;
+	u_char *p;
+	u_int h, c;
 
 	for (h = 0, p = (u_char *)cp->t; (c = *p) != 0; p++)
 		h = (h << 5) + h + c;
@@ -811,9 +811,9 @@ static struct s_command *
 findlabel(name)
 	char *name;
 {
-	register struct labhash *lh;
-	register u_char *p;
-	register u_int h, c;
+	struct labhash *lh;
+	u_char *p;
+	u_int h, c;
 
 	for (h = 0, p = (u_char *)name; (c = *p) != 0; p++)
 		h = (h << 5) + h + c;
@@ -833,8 +833,8 @@ findlabel(name)
 static void
 uselabel()
 {
-	register struct labhash *lh, *next;
-	register int i;
+	struct labhash *lh, *next;
+	int i;
 
 	for (i = 0; i < LHSZ; i++) {
 		for (lh = labels[i]; lh != NULL; lh = next) {
