@@ -692,7 +692,7 @@ including the following:
     AmbiCom 10BaseT card
     BayNetworks NETGEAR FA410TXC Fast Ethernet
     CNet BC40 adapter
-    COREGA Ether PCC-T/EtherII PCC-T
+    COREGA Ether PCC-T/EtherII PCC-T/FEther PCC-TXF
     Compex Net-A adapter
     CyQ've ELA-010
     D-Link DE-650/660
