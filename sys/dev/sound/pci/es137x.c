@@ -69,6 +69,8 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1371_PCI_ID 0x13711274
 #define ES1371_PCI_ID2 0x13713274
 
+#define ES_BUFFSIZE 4096
+
 /* device private data */
 struct es_info;
 
@@ -85,6 +87,7 @@ struct es_info {
 	bus_space_handle_t sh;
 	bus_dma_tag_t	parent_dmat;
 
+	device_t dev;
 	int num;
 	/* Contents of board's registers */
 	u_long		ctrl;
@@ -375,6 +378,12 @@ eschan_trigger(void *data, int go)
 			es->sctrl |= SCTRL_P2INTEN | (b << SCTRL_SH_P2ENDINC);
 			bus_space_write_4(es->st, es->sh,
 					  ES1370_REG_DAC2_SCOUNT, cnt);
+			/* start at beginning of buffer */
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
+					  ES1370_REG_DAC2_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh,
+					  ES1370_REG_DAC2_FRAMECNT & 0xff,
+				  	  (ch->buffer->bufsize >> 2) - 1);
 		} else es->ctrl &= ~CTRL_DAC2_EN;
 	} else {
 		if (go == PCMTRIG_START) {
@@ -383,6 +392,12 @@ eschan_trigger(void *data, int go)
 			es->sctrl |= SCTRL_R1INTEN;
 			bus_space_write_4(es->st, es->sh,
 					  ES1370_REG_ADC_SCOUNT, cnt);
+			/* start at beginning of buffer */
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
+					  ES1370_REG_ADC_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh,
+					  ES1370_REG_ADC_FRAMECNT & 0xff,
+				  	  (ch->buffer->bufsize >> 2) - 1);
 		} else es->ctrl &= ~CTRL_ADC_EN;
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
@@ -395,17 +410,17 @@ eschan_getptr(void *data)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
-	if (ch->dir == PCMDIR_PLAY) {
-		bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_DAC2_FRAMECNT >> 8);
-		return (bus_space_read_4(es->st, es->sh,
-				         ES1370_REG_DAC2_FRAMECNT & 0xff) >> 14) & 0x3fffc;
-	} else {
-		bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_ADC_FRAMECNT >> 8);
-		return (bus_space_read_4(es->st, es->sh,
-				         ES1370_REG_ADC_FRAMECNT & 0xff) >> 14) & 0x3fffc;
-	}
+	u_int32_t reg, cnt;
+
+	if (ch->dir == PCMDIR_PLAY)
+		reg = ES1370_REG_DAC2_FRAMECNT;
+	else
+		reg = ES1370_REG_ADC_FRAMECNT;
+
+	bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, reg >> 8);
+	cnt = bus_space_read_4(es->st, es->sh, reg & 0x000000ff) >> 16;
+	/* cnt is longwords */
+	return cnt << 2;
 }
 
 static pcmchan_caps *
@@ -733,6 +748,7 @@ es_pci_attach(device_t dev)
 	}
 	bzero(es, sizeof *es);
 
+	es->dev = dev;
 	mapped = 0;
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
@@ -771,12 +787,12 @@ es_pci_attach(device_t dev)
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 		}
-	  	codec = ac97_create(dev, es, es1371_rdcodec, es1371_wrcodec);
+	  	codec = ac97_create(dev, es, NULL, es1371_rdcodec, es1371_wrcodec);
 	  	if (codec == NULL) goto bad;
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
 	  	/*	  ac97_mixer.init = NULL;  */
-	  	mixer_init(d, &ac97_mixer, codec);
+		if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
 		ct = &es1371_chantemplate;
 	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
 	  	if (-1 == es1370_init(es)) {

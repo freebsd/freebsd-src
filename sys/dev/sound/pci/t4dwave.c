@@ -487,10 +487,15 @@ trchan_trigger(void *data, int go)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
+
 	if (go == PCMTRIG_EMLDMAWR) return 0;
 	if (ch->index >= 0) {
-		if (go == PCMTRIG_START) tr_startch(tr, ch->index);
-		else tr_stopch(tr, ch->index);
+		if (go == PCMTRIG_START) {
+			tr_rdch(tr, ch->index, ch);
+			ch->cso = 0;
+   			tr_wrch(tr, ch->index, ch);
+			tr_startch(tr, ch->index);
+		} else tr_stopch(tr, ch->index);
 	} else {
 		u_int32_t i = tr_rd(tr, TR_REG_SBCTRL, 1) & ~7;
 		tr_wr(tr, TR_REG_SBCTRL, i | (go == PCMTRIG_START)? 1 : 0, 1);
@@ -628,9 +633,9 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, tr, tr_rdcd, tr_wrcd);
+	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
 	if (codec == NULL) goto bad;
-	mixer_init(d, &ac97_mixer, codec);
+	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
