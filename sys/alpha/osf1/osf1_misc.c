@@ -64,6 +64,7 @@
 #include <alpha/osf1/osf1.h>
 #include <sys/proc.h>
 #include <sys/module.h>
+#include <sys/bus.h>
 
 #include <vm/vm.h>
 #include <alpha/osf1/exec_ecoff.h>

@@ -54,6 +54,7 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
+#include <sys/bus.h>
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
@@ -109,7 +110,7 @@ dec_eb64plus_init()
 	platform.cons_init 		= dec_eb64plus_cons_init;
 	platform.pci_intr_init 		= dec_eb64plus_intr_init;
 	/* SRM handles PCI interrupt mapping */
-	platform.pci_intr_map  		= NULL;	
+	platform.pci_intr_route 	= NULL;	
 	/* see ../pci/pci_eb64plus_intr.s for intr. dis/enable */
 	platform.pci_intr_disable 	= eb64plus_intr_disable;
 	platform.pci_intr_enable 	= eb64plus_intr_enable;

@@ -71,7 +71,7 @@ int	alpha_platform_pci_setup_intr(device_t dev, device_t child,
 				      void **cookiep);
 int	alpha_platform_pci_teardown_intr(device_t dev, device_t child,
 					 struct resource *irq, void *cookie);
+int	alpha_pci_route_interrupt(device_t bus, device_t dev, int pin);
 #endif
-void	alpha_platform_assign_pciintr(struct pcicfg *cfg);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -1,0 +1,161 @@
+/*-
+ * Copyright (c) 1994,1995 Stefan Esser, Wolfgang StanglMeier
+ * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2000 BSDi
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
+ */
+
+/*
+ * PCI:ISA bridge support
+ */
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
+static int	isab_probe(device_t dev);
+static int	isab_attach(device_t dev);
+
+static device_method_t isab_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,		isab_probe),
+    DEVMETHOD(device_attach,		isab_attach),
+    DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+    DEVMETHOD(device_suspend,		bus_generic_suspend),
+    DEVMETHOD(device_resume,		bus_generic_resume),
+
+    /* Bus interface */
+    DEVMETHOD(bus_print_child,		bus_generic_print_child),
+    DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+    DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+    DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+    DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+    { 0, 0 }
+};
+
+static driver_t isab_driver = {
+    "isab",
+    isab_methods,
+    0,
+};
+
+static devclass_t isab_devclass;
+
+DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
+
+/*
+ * XXX we need to add a quirk list here for bridges that don't correctly
+ *     report themselves.
+ */
+static int
+isab_probe(device_t dev)
+{
+    int		matched = 0;
+
+    /*
+     * Try for a generic match based on class/subclass.
+     */
+    if ((pci_get_class(dev) == PCIC_BRIDGE) &&
+	(pci_get_subclass(dev) == PCIS_BRIDGE_ISA))
+	matched = 1;
+    /*
+     * Some bridges don't report the ISA bus correctly.
+     * (Note that some of the devices listed here probably do, we will
+     *  kvetch about this below and request updates.)
+     */
+    switch (pci_get_devid(dev)) {
+    case 0x04848086:	/* Intel 82378ZB/82378IB */
+    case 0x122e8086:	/* Intel 82371FB */
+    case 0x70008086:	/* Intel 82371SB */
+    case 0x71108086:	/* Intel 82371AB */
+    case 0x71988086:	/* Intel 82443MX */
+    case 0x24108086:	/* Intel 82801AA (ICH) */
+    case 0x24208086:	/* Intel 82801AB (ICH0) */
+    case 0x24408086:	/* Intel 82801BA (ICH2) */
+    case 0x00061004:	/* VLSI 82C593 */
+    case 0x05861106:	/* VIA 82C586 */
+    case 0x05961106:	/* VIA 82C596 PCI-ISA */
+    case 0x06861106:	/* VIA 82C686 PCI-ISA */
+	/* AcerLabs -- vendor 0x10b9 */
+	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
+	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+    case 0x153310b9:	/* AcerLabs M1533 */
+    case 0x154310b9:	/* AcerLabs M1543 */
+    case 0x00081039:	/* SiS 85c503 */
+    case 0x00001078:	/* Cyrix Cx5510 */
+    case 0x01001078:	/* Cyrix Cx5530 */
+    case 0xc7001045:	/* OPTi 82C700 (FireStar) */
+    case 0x00011033:	/* NEC 0001 (C-bus) */
+    case 0x002c1033:	/* NEC 002C (C-bus) */
+    case 0x003b1033:	/* NEC 003B (C-bus) */
+    case 0x886a1060:	/* UMC UM8886 ISA */
+    case 0x02001166:	/* ServerWorks IB6566 PCI */
+	matched = 1;
+	/*
+	 * Report redundant matches (debugging)
+	 */
+	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
+	    (pci_get_subclass(dev) == PCIS_BRIDGE_ISA)) {
+	    printf("** REDUNDANT ISA BRIDGE MATCH FOR DEVICE 0x%08x\n", pci_get_devid(dev));
+	    printf("** Please report to msmith@freebsd.org\n");
+	}
+	break;
+	
+    default:
+	break;
+    }
+
+    if (matched) {
+	device_set_desc(dev, "PCI-ISA bridge");
+	return(-10000);
+    }
+    return(ENXIO);
+}
+
+static int
+isab_attach(device_t dev)
+{
+    device_t	child;
+
+    /*
+     * Attach an ISA bus.  Note that we can only have one ISA bus.
+     */
+    child = device_add_child(dev, "isa", 0);
+    if (child != NULL)
+	return(bus_generic_attach(dev));
+
+    return(0);
+}
+

@@ -1,0 +1,334 @@
+/*-
+ * Copyright (c) 1994,1995 Stefan Esser, Wolfgang StanglMeier
+ * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2000 BSDi
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
+ */
+
+/*
+ * PCI:PCI bridge support.
+ */
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+
+#include <machine/resource.h>
+
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
+#include "pcib_if.h"
+
+/*
+ * Bridge-specific data.
+ */
+struct pcib_softc 
+{
+    device_t	dev;
+    u_int8_t	secbus;		/* secondary bus number */
+    u_int8_t	subbus;		/* subordinate bus number */
+    pci_addr_t	pmembase;	/* base address of prefetchable memory */
+    pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
+    u_int32_t	membase;	/* base address of memory window */
+    u_int32_t	memlimit;	/* topmost address of memory window */
+    u_int32_t	iobase;		/* base address of port window */
+    u_int32_t	iolimit;	/* topmost address of port window */
+    u_int16_t	secstat;	/* secondary bus status register */
+    u_int16_t	bridgectl;	/* bridge control register */
+    u_int8_t	seclat;		/* secondary bus latency timer */
+};
+
+static int		pcib_probe(device_t dev);
+static int		pcib_attach(device_t dev);
+static int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
+static int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
+static struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
+					    u_long start, u_long end, u_long count, u_int flags);
+static int		pcib_maxslots(device_t dev);
+static u_int32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width);
+static void		pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width);
+static int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
+
+static device_method_t pcib_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,		pcib_probe),
+    DEVMETHOD(device_attach,		pcib_attach),
+    DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+    DEVMETHOD(device_suspend,		bus_generic_suspend),
+    DEVMETHOD(device_resume,		bus_generic_resume),
+
+    /* Bus interface */
+    DEVMETHOD(bus_print_child,		bus_generic_print_child),
+    DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
+    DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
+    DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
+    DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+    DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+    DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+    /* pcib interface */
+    DEVMETHOD(pcib_maxslots,		pcib_maxslots),
+    DEVMETHOD(pcib_read_config,		pcib_read_config),
+    DEVMETHOD(pcib_write_config,	pcib_write_config),
+    DEVMETHOD(pcib_route_interrupt,	pcib_route_interrupt),
+
+    { 0, 0 }
+};
+
+static driver_t pcib_driver = {
+    "pcib",
+    pcib_methods,
+    sizeof(struct pcib_softc),
+};
+
+static devclass_t pcib_devclass;
+
+DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+
+/*
+ * Generic device interface
+ */
+static int
+pcib_probe(device_t dev)
+{
+    if ((pci_get_class(dev) == PCIC_BRIDGE) &&
+	(pci_get_subclass(dev) == PCIS_BRIDGE_PCI)) {
+	device_set_desc(dev, "PCI-PCI bridge");
+	return(-10000);
+    }
+    return(ENXIO);
+}
+
+static int
+pcib_attach(device_t dev)
+{
+    struct pcib_softc	*sc;
+    device_t		pcib, child;
+    int			b, s, f;
+
+    sc = device_get_softc(dev);
+    sc->dev = dev;
+    pcib = device_get_parent(dev);
+    b = pci_get_bus(dev);
+    s = pci_get_slot(dev);
+    f = pci_get_function(dev);
+
+    sc->secbus    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECBUS_1, 1);
+    sc->subbus    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SUBBUS_1, 1);
+    sc->secstat   = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_1, 2);
+    sc->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_1, 2);
+    sc->seclat    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_1, 1);
+    sc->iobase    = PCI_PPBIOBASE(PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASEH_1, 2),
+				  PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASEL_1, 1));
+    sc->iolimit   = PCI_PPBIOLIMIT(PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMITH_1, 2),
+				   PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMITL_1, 1));
+    sc->membase   = PCI_PPBMEMBASE(0, PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMBASE_1, 2));
+    sc->memlimit  = PCI_PPBMEMLIMIT(0, PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMLIMIT_1, 2));
+    sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEH_1, 4),
+				   PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEL_1, 2));
+    sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f,PCIR_PMLIMITH_1, 4),
+				    PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMLIMITL_1, 2));
+
+    if (bootverbose) {
+	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
+	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
+	device_printf(dev, "  I/O decode        0x%x-0x%x\n", sc->iobase, sc->iolimit);
+	device_printf(dev, "  memory decode     0x%x-0x%x\n", sc->membase, sc->memlimit);
+	device_printf(dev, "  prefetched decode 0x%x-0x%x\n", sc->pmembase, sc->pmemlimit);
+    }
+
+    /*
+     * XXX If the secondary bus number is zero, we should assign a bus number
+     *     since the BIOS hasn't, then initialise the bridge.
+     */
+
+    /*
+     * XXX If the subordinate bus number is less than the secondary bus number,
+     *     we should pick a better value.  One sensible alternative would be to
+     *     pick 255; the only tradeoff here is that configuration transactions
+     *     would be more widely routed than absolutely necessary.
+     */
+
+    if (sc->secbus != 0) {
+	child = device_add_child(dev, "pci", -1);
+	if (child != NULL)
+	    return(bus_generic_attach(dev));
+    } 
+
+    /* no secondary bus; we should have fixed this */
+    return(0);
+}
+
+static int
+pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+    struct pcib_softc	*sc = device_get_softc(dev);
+    
+    switch (which) {
+    case PCIB_IVAR_BUS:
+	*result = sc->secbus;
+	return(0);
+    }
+    return(ENOENT);
+}
+
+static int
+pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+    struct pcib_softc	*sc = device_get_softc(dev);
+
+    switch (which) {
+    case PCIB_IVAR_BUS:
+	sc->secbus = value;
+	break;
+    }
+    return(ENOENT);
+}
+
+/*
+ * We have to trap resource allocation requests and ensure that the bridge
+ * is set up to, or capable of handling them.
+ */
+static struct resource *
+pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
+		    u_long start, u_long end, u_long count, u_int flags)
+{
+    struct pcib_softc	*sc = device_get_softc(dev);
+
+    /*
+     * If this is a "default" allocation against this rid, we can't work
+     * out where it's coming from (we should actually never see these) so we
+     * just have to punt.
+     */
+    if ((start == 0) && (end == ~0)) {
+	device_printf(dev, "can't decode default resource id %d for %s%d, bypassing\n",
+		      *rid, device_get_name(child), device_get_unit(child));
+    } else {
+	/*
+	 * Fail the allocation for this range if it's not supported.
+	 * 
+	 * XXX we should probably just fix up the bridge decode and soldier on.
+	 */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	    if ((start < sc->iobase) || (end > sc->iolimit)) {
+		device_printf(dev, "device %s%d requested unsupported I/O range 0x%lx-0x%lx"
+			      " (decoding 0x%x-0x%x)\n",
+			      device_get_name(child), device_get_unit(child), start, end,
+			      sc->iobase, sc->iolimit);
+		return(NULL);
+	    }
+	    break;
+
+	    /*
+	     * XXX will have to decide whether the device making the request is asking
+	     *     for prefetchable memory or not.  If it's coming from another bridge
+	     *     down the line, do we assume not, or ask the bridge to pass in another
+	     *     flag as the request bubbles up?
+	     */
+	case SYS_RES_MEMORY:
+	    if (((start < sc->membase) || (end > sc->memlimit)) &&
+		((start < sc->pmembase) || (end > sc->pmemlimit))) {
+		device_printf(dev, "device %s%d requested unsupported memory range 0x%lx-0x%lx"
+			      " (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
+			      device_get_name(child), device_get_unit(child), start, end,
+			      sc->membase, sc->memlimit, sc->pmembase, sc->pmemlimit);
+		return(NULL);
+	    }
+	default:
+	}
+    }
+    device_printf(sc->dev, "resource request type %d 0x%lx-0x%lx decodes OK\n",
+		  type, start, end);
+    /*
+     * Bridge is OK decoding this resource, so pass it up.
+     */
+    return(bus_generic_alloc_resource(dev, child, type, rid, start, end, count, flags));
+}
+
+/*
+ * PCIB interface.
+ */
+static int
+pcib_maxslots(device_t dev)
+{
+    return(31);
+}
+
+/*
+ * Since we are a child of a PCI bus, its parent must support the pcib interface.
+ */
+static u_int32_t
+pcib_read_config(device_t dev, int b, int s, int f, int reg, int width)
+{
+    return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
+}
+
+static void
+pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width)
+{
+    PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
+}
+
+/*
+ * Route an interrupt across a PCI bridge.
+ */
+static int
+pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+{
+    device_t	bus;
+    int		parent_intpin;
+    int		intnum;
+
+    /*	
+     *
+     * The PCI standard defines a swizzle of the child-side device/intpin to
+     * the parent-side intpin as follows.
+     *
+     * device = device on child bus
+     * child_intpin = intpin on child bus slot (0-3)
+     * parent_intpin = intpin on parent bus slot (0-3)
+     *
+     * parent_intpin = (device + child_intpin) % 4
+     */
+    parent_intpin = (pci_get_slot(pcib) + (pin - 1)) % 4;
+
+    /*
+     * Our parent is a PCI bus.  Its parent must export the pcib interface
+     * which includes the ability to route interrupts.
+     */
+    bus = device_get_parent(pcib);
+    intnum = PCIB_ROUTE_INTERRUPT(device_get_parent(bus), pcib, parent_intpin + 1);
+    device_printf(pcib, "routed slot %d INT%c to irq %d\n", pci_get_slot(dev), 
+		  'A' + pin - 1, intnum);
+    return(intnum);
+}
