@@ -151,7 +151,6 @@ Write_Disk(struct disk *d1)
 			dp[j].dp_ssect = 0xff;
 			dp[j].dp_shd = 0xff;
 			dp[j].dp_scyl = 0xff;
-			
 		} else {
 			dp[j].dp_ssect = i % d1->bios_sect;
 			i -= dp[j].dp_ssect++;
@@ -163,26 +162,22 @@ Write_Disk(struct disk *d1)
 			i -= dp[j].dp_scyl;
 			dp[j].dp_ssect |= i >> 2;
 		}
+
 		printf("S:%lu = (%x/%x/%x)", 
 			c1->offset,dp[j].dp_scyl,dp[j].dp_shd,dp[j].dp_ssect);
 
 		i = c1->end;
-		if (i >= 1024*d1->bios_sect*d1->bios_hd) {
-			dp[j].dp_esect = 0xff;
-			dp[j].dp_ehd = 0xff;
-			dp[j].dp_ecyl = 0xff;
-		} else {
-			dp[j].dp_esect = i % d1->bios_sect;
-			i -= dp[j].dp_esect++;
-			i /= d1->bios_sect;	
-			dp[j].dp_ehd =  i % d1->bios_hd;
-			i -= dp[j].dp_ehd;
-			i /= d1->bios_hd;
-			dp[j].dp_ecyl = i;
-			i -= dp[j].dp_ecyl;
-			dp[j].dp_esect |= i >> 2;
-			
-		}
+		dp[j].dp_esect = i % d1->bios_sect;
+		i -= dp[j].dp_esect++;
+		i /= d1->bios_sect;	
+		dp[j].dp_ehd =  i % d1->bios_hd;
+		i -= dp[j].dp_ehd;
+		i /= d1->bios_hd;
+		if (i>1023) i = 1023;
+		dp[j].dp_ecyl = i;
+		i -= dp[j].dp_ecyl;
+		dp[j].dp_esect |= i >> 2;
+
 		printf("  E:%lu = (%x/%x/%x)\n", 
 			c1->end,dp[j].dp_ecyl,dp[j].dp_ehd,dp[j].dp_esect);
 
