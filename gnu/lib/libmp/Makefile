@@ -1,12 +1,10 @@
 #
-# $Id: Makefile,v 1.13 1998/01/25 09:45:00 jb Exp $
+# $Id: Makefile,v 1.14 1998/03/12 13:03:06 bde Exp $
 #
 
 LIB=	mp
 
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
-
-CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
 .if ${MACHINE_ARCH} == "alpha"
 .PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic \
@@ -33,6 +31,8 @@ CFLAGS+=	-I${GMPDIR}/mpn/m68k -I${GMPDIR}/mpz -DBERKELEY_MP
 MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
 
 .endif
+
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
 MPN_SRC_C=	add_n.c addmul_1.c bdivmod.c cmp.c divmod_1.c divrem.c \
 		divrem_1.c dump.c gcd.c gcd_1.c gcdext.c get_str.c hamdist.c \
