@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.16 1998/01/21 18:41:44 jkh Exp $
+#	$Id: GENERIC,v 1.77.2.17 1998/03/06 23:44:22 julian Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -141,12 +141,10 @@ device fxp0
 device tx0
 device vx0
 
-device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
-device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
+device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector ieintr
-device ie1 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
-device ex0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector exintr
+device ex0 at isa? port? net irq? vector exintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
