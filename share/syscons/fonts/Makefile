@@ -15,6 +15,8 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	iso04-8x8.fnt iso04-8x14.fnt iso04-8x16.fnt iso04-wide-8x16.fnt \
 	iso04-vga9-8x8.fnt iso04-vga9-8x14.fnt iso04-vga9-8x16.fnt \
 	iso04-vga9-wide-8x16.fnt \
+	iso05-8x8.fnt iso05-8x14.fnt iso05-8x16.fnt \
+	iso07-8x8.fnt iso07-8x14.fnt iso07-8x16.fnt \
 	iso08-8x8.fnt iso08-8x14.fnt iso08-8x16.fnt \
 	iso09-8x16.fnt \
 	iso15-8x8.fnt iso15-8x14.fnt iso15-8x16.fnt \
