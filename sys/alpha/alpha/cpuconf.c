@@ -32,7 +32,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/device.h>
 #include <sys/systm.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>

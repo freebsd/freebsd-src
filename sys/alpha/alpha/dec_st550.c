@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.
  * All rights reserved.
@@ -40,7 +41,6 @@
 #include <sys/bus.h>
 #include <machine/intr.h>
 
-#include <sys/device.h>
 #include <sys/termios.h>
 
 #include <machine/rpb.h>

@@ -1,4 +1,5 @@
 /* $NetBSD: tlsbmem.c,v 1.6 1998/01/12 10:21:25 thorpej Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1997 by Matthew Jacob
@@ -41,7 +42,6 @@ __KERNEL_RCSID(0, "$NetBSD: tlsbmem.c,v 1.6 1998/01/12 10:21:25 thorpej Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/device.h>
 #include <sys/malloc.h>
 
 #include <machine/autoconf.h>

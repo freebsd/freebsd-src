@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/device.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/conf.h>
