@@ -1,0 +1,119 @@
+<!--
+   $Id: pam_mail.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+-->
+
+<sect1>The last login module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_lastlog/
+
+<tag><bf>Author:</bf></tag>
+Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author
+
+<tag><bf>Management groups provided:</bf></tag>
+auth
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+uses information contained in the <tt>/var/log/wtmp</tt> file.
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This session module maintains the <tt>/var/log/wtmp</tt> file.  Adding
+an open entry when called via the <tt>pam_open_seesion()</tt> function
+and completing it when <tt>pam_close_session()</tt> is called.  This
+module can also display a line of information about the last login of
+the user.  If an application already performs these tasks, it is not
+necessary to use this module.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/; <tt/nodate/; <tt/noterm/; <tt/nohost/; <tt/silent/;
+<tt/never/
+
+<tag><bf>Description:</bf></tag>
+
+<p>
+This module can be used to provide a ``Last login on ...''
+message. when the user logs into the system from what ever application
+uses the PAM libraries.  In addition, the module maintains the
+<tt>/var/log/wtmp</tt> file.
+
+<p>
+The behavior of this module can be modified with one of the following
+flags:
+
+<p>
+<itemize>
+<item><tt/debug/
+- write more information to <tt/syslog(3)/.
+
+<item><tt/nodate/
+- neglect to give the date of the last login when displaying
+information about the last login on the system.
+
+<item><tt/noterm/ 
+- neglect to diplay the terminal name on which the last login was
+attempt.
+
+<item><tt/nohost/
+- neglect to indicate from which host the last login was attempted.
+
+<item><tt/silent/
+- neglect to inform the user about any previous login: just update
+the <tt>/var/log/wtmp</tt> file.
+
+<item><tt/never/
+- if the <tt>/var/log/wtmp</tt> file does not contain any old entries
+for the user, indicate that the user has never previously logged in
+with a ``welcome..." message.
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+This module can be used to indicate that the user has new mail when
+they <em/login/ to the system. Here is a sample entry for your
+<tt>/etc/pam.conf</tt> file:
+<tscreen>
+<verb>
+#
+# do we have any mail?
+#
+login	session	 optional	pam_lastlog.so
+</verb>
+</tscreen>
+
+<p>
+Note, some applications may perform this function themselves. In such
+cases, this module is not necessary.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

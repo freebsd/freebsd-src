@@ -1,0 +1,170 @@
+<!--
+
+   $Id: module.sgml-template,v 1.1 1996/11/30 20:59:32 morgan Exp $
+   
+   This template file was written by Andrew G. Morgan
+					<morgan@parc.power.net>
+
+[
+	Text that should be deleted/replaced, is enclosed within 
+		'[' .. ']'
+	marks. For example, this text should be deleted!
+]
+
+-->
+
+<sect1> [*Familiar full name of module*, eg. The "allow all" module.]
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+[
+	insert the name of the module
+
+	Blank is not permitted.
+]
+
+<tag><bf>Author[s]:</bf></tag>
+
+[
+	Insert author names here
+
+	Blank is not permitted. If in doubt, put "unknown" if the
+	author wishes to remain anonymous, put "anonymous".
+]
+
+<tag><bf>Maintainer:</bf></tag>
+	
+[
+	Insert names and date-begun of most recent maintainer.
+]
+
+<tag><bf>Management groups provided:</bf></tag>
+
+[
+	list the subset of four management groups supported by the
+	module. Choose from: account; authentication; password;
+	session.
+
+	Blank entries are not permitted. Explicitly list all of the
+	management groups. In the future more may be added to libpam!
+]
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+
+[
+	Indicate whether this module contains code that can perform
+	reversible (strong) encryption. This field is primarily to
+	ensure that people redistributing it are not unwittingly
+	breaking laws...
+
+	Modules may also require the presence of some local library
+	that performs the necessary encryption via some standard API.
+	In this case "uses API" can be included in this field. The
+	library in question should be added to the system requirements
+	below.
+
+	Blank = no cryptography is used by module.
+]
+	
+<tag><bf>Security rating:</bf></tag>
+
+[
+	Initially, this field should be left blank. If someone takes
+	it upon themselves to test the strength of the module, it can
+	later be filled.
+
+	Blank = unknown.
+]
+
+<tag><bf>Clean code base:</bf></tag>
+
+[
+	This will probably be filled by the libpam maintainer.
+	It can be considered to be a public humiliation list. :*)
+
+	I am of the opinion that "gcc -with_all_those_flags" is
+	trying to tell us something about whether the program
+	works as intended. Since there is currently no Security
+	evaluation procedure for modules IMHO this is not a
+	completely unreasonable indication (a lower bound anyway)
+	of the reliability of a module.
+
+	This field would indicate the number and flavor of
+	warnings that gcc barfs up when trying to compile the
+	module as part of the tree. Is this too tyrannical?
+
+	Blank = Linux-PAM maintainer has not tested it :)
+]
+
+<tag><bf>System dependencies:</bf></tag>
+
+[
+	here we list config files, dynamic libraries needed, system
+	resources, kernel options.. etc.
+
+	Blank = nothing more than libc required.
+]
+
+<tag><bf>Network aware:</bf></tag>
+
+[
+	Does the module base its behavior on probing a network
+	connection? Does it expect to be protected by the
+	application?
+
+	Blank = Ignorance of network.
+]
+
+</descrip>
+
+<sect2>Overview of module
+
+[
+	some text describing the intended actions of the module
+	general comments mainly (specifics in sections
+	below).
+]
+
+[
+
+	[ now we have a <sect2> level subsection for each of the
+	  management groups. Include as many as there are groups
+	  listed above in the synopsis ]
+
+<sect2>[ Account | Authentication | Password | Session ] component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+[
+	List the supported arguments (leave their description for the
+	description below.
+
+	Blank = no arguments are read and nothing is logged to syslog
+		about any arguments that are passed. Note, this
+		behavior is contrary to the RFC!
+]
+
+<tag><bf>Description:</bf></tag>
+
+[
+	This component of the module performs the task of ...
+]
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+[
+	Here we list some doos and don'ts for this module.
+]
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

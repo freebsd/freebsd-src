@@ -1,0 +1,166 @@
+<!--
+   $Id: pam_time.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+-->
+
+<sect1>Time control
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_time/
+
+<tag><bf>Author:</bf></tag>
+Andrew G. Morgan <tt>&lt;morgan@parc.power.net&gt;</tt>
+
+<tag><bf>Maintainer:</bf></tag>
+Author
+
+<tag><bf>Management groups provided:</bf></tag>
+account
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+Requires a configuration file <tt>/etc/security/time.conf</tt>
+
+<tag><bf>Network aware:</bf></tag>
+Through the <tt/PAM_TTY/ item only
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+Running a well regulated system occasionally involves restricting
+access to certain services in a selective manner.  This module offers
+some time control for access to services offered by a system.  Its
+actions are determined with a configuration file.  This module can be
+configured to deny access to (individual) users based on their name,
+the time of day, the day of week, the service they are applying for
+and their terminal from which they are making their request.
+
+<sect2>Account component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+<tag><bf>Description:</bf></tag>
+
+This module bases its actions on the rules listed in its configuration
+file: <tt>/etc/security/pam.conf</tt>.  Each rule has the following
+form,
+<tscreen>
+<em/services/<tt/;/<em/ttys/<tt/;/<em/users/<tt/;/<em/times/
+</tscreen>
+In words, each rule occupies a line, terminated with a newline or the
+beginning of a comment; a `<tt/#/'.  It contains four fields separated
+with semicolons, `<tt/;/'. The fields are as follows:
+
+<p>
+<itemize>
+<item><em/services/ -
+a logic list of service names that are affected by this rule.
+
+<item><em/ttys/ -
+a logic list of terminal names indicating those terminals covered by
+the rule.
+
+<item><em/user/ -
+a logic list of usernames to which this rule applies
+
+<p>
+By a logic list we mean a sequence of tokens (associated with the
+appropriate <tt/PAM_/ item), containing no more than one wildcard
+character; `<tt/*/', and optionally prefixed with a negation operator;
+`<tt/!/'. Such a sequence is concatenated with one of two logical
+operators: <tt/&amp;/ (logical AND) and <tt/|/ (logical OR).  Two
+examples are: <tt>!morgan&amp;!root</tt>, indicating that this rule
+does not apply to the user <tt>morgan</tt> nor to <tt>root</tt>; and
+<tt>tty*&amp;!ttyp*</tt>, which indicates that the rule applies only
+to console terminals but not pseudoterminals.
+
+<item><em/times/ - a logic list of times at which this rule
+applies. The format of each element is a day/time-range. The days are
+specified by a sequence of two character entries.  For example,
+<tt/MoTuSa/, indicates Monday Tuesday and Saturday.  Note that
+repeated days are <em/unset/; <tt/MoTuMo/ indicates Tuesday, and
+<tt/MoWk/ means all weekdays bar Monday.  The two character
+combinations accepted are,
+<tscreen>
+<verb>
+Mo Tu We Th Fr Sa Su Wk Wd Al
+</verb>
+</tscreen>
+The last two of these being <em/weekend/ days and <em/all 7 days/ of
+the week respectively.
+
+<p>
+The time range part is a pair of 24-hour times, <em/HHMM/, separated
+by a hyphen -- indicating the start and finish time for the rule.  If
+the finsish time is smaller than the start time, it is assumed to
+apply on the following day. For an example, <tt/Mo1800-0300/ indicates
+that the permitted times are Monday night from 6pm to 3am the
+following morning.
+
+</itemize>
+
+<p>
+Note, that the given time restriction is only applied when the first
+three fields are satisfied by a user's application for service.
+
+<p>
+For convenience and readability a rule can be extended beyond a single
+line with a `<tt>&bsol;</tt><em/newline/'.
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+The use of this module is initiated with an entry in the
+<bf/Linux-PAM/ configuration file of the following type:
+<tscreen>
+<verb>
+#
+# apply pam_time accounting to login requests
+#
+login	account	 required	pam_time.so
+</verb>
+</tscreen>
+where, here we are applying the module to the <em/login/ application.
+
+<p>
+Some examples of rules that can be placed in the
+<tt>/etc/security/time.conf</tt> configuration file are the following:
+<descrip>
+
+<tag><tt>login ; tty* &amp ; !ttyp* ; !root ; !Al0000-2400</tt></tag>
+all users except for <tt/root/ are denied access to console-login at
+all times.
+
+<tag><tt>games ; * ; !waster ; Wd0000-2400 | Wk1800-0800</tt></tag>
+games (configured to use Linux-PAM) are only to be accessed out of
+working hours.  This rule does not apply to the user <tt/waster/.
+
+</descrip>
+
+<p>
+Note, currently there is no daemon enforcing the end of a session.
+This needs to be remedied.
+
+<p>
+Poorly formatted rules are logged as errors using <tt/syslog(3)/.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

@@ -1,0 +1,83 @@
+<!--
+   $Id: pam_permit.sgml,v 1.2 1997/02/15 18:20:12 morgan Exp $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+-->
+
+<sect1>The promiscuous module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+pam_permit
+
+<tag><bf>Author:</bf></tag>
+Andrew G. Morgan, &lt;morgan@parc.power.net&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Linux-PAM maintainer.
+
+<tag><bf>Management groups provided:</bf></tag>
+account; authentication; password; session
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+VERY LOW. Use with extreme caution.
+
+<tag><bf>Clean code base:</bf></tag>
+Clean.
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module is very dangerous. It should be used with extreme
+caution. Its action is always to permit access. It does nothing else.
+
+<sect2>Account+Authentication+Password+Session components
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+<tag><bf>Description:</bf></tag>
+
+No matter what management group, the action of this module is to
+simply return <tt/PAM_SUCCESS/ -- operation successful.
+
+<p>
+In the case of authentication, the user's name will be acquired. Many
+applications become confused if this name is unknown.
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+It is seldom a good idea to use this module. However, it does have
+some legitimate uses.  For example, if the system-administrator wishes
+to turn off the account management on a workstation, and at the same
+time continue to allow logins, then she might use the following
+configuration file entry for login:
+<tscreen>
+<verb>
+#
+# add this line to your other login entries to disable account
+# management, but continue to permit users to log in...
+#
+login	account	 required	pam_permit.so
+</verb>
+</tscreen>
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

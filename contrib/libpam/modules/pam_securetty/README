@@ -1,0 +1,9 @@
+pam_securetty:
+	Allows root logins only if the user is logging in on a
+	"secure" tty, as defined by the listing in /etc/securetty
+
+	Also checks to make sure that /etc/securetty is a plain
+	file and not world writable.
+
+	- Elliot Lee <sopwith@redhat.com>, Red Hat Software.
+		July 25, 1996.
