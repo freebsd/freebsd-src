@@ -1,43 +1,42 @@
 /*
- * 
+ *
  * rsa.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Fri Mar  3 22:07:06 1995 ylo
- * 
+ *
  * Description of the RSA algorithm can be found e.g. from the following sources:
- * 
+ *
  *   Bruce Schneier: Applied Cryptography.  John Wiley & Sons, 1994.
- * 
+ *
  *   Jennifer Seberry and Josed Pieprzyk: Cryptography: An Introduction to
  *   Computer Security.  Prentice-Hall, 1989.
- * 
+ *
  *   Man Young Rhee: Cryptography and Secure Data Communications.  McGraw-Hill,
  *   1994.
- * 
+ *
  *   R. Rivest, A. Shamir, and L. M. Adleman: Cryptographic Communications
  *   System and Method.  US Patent 4,405,829, 1983.
- * 
+ *
  *   Hans Riesel: Prime Numbers and Computer Methods for Factorization.
  *   Birkhauser, 1994.
- * 
+ *
  *   The RSA Frequently Asked Questions document by RSA Data Security, Inc., 1995.
- * 
+ *
  *   RSA in 3 lines of perl by Adam Back <aba@atlax.ex.ac.uk>, 1995, as included
  *   below:
- * 
- *     [gone - had to be deleted - what a pity]
- * 
- * $FreeBSD$
  *
+ *     [gone - had to be deleted - what a pity]
+ *
+ * $FreeBSD$
 */
 
 #include "includes.h"
-RCSID("$Id: rsa.c,v 1.12 2000/02/21 21:47:31 markus Exp $");
+RCSID("$Id: rsa.c,v 1.14 2000/04/14 10:30:32 markus Exp $");
 
 #include "rsa.h"
 #include "ssh.h"
@@ -112,7 +111,7 @@ rsa_generate_key(RSA *prv, RSA *pub, unsigned int bits)
 void
 rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 {
-	char *inbuf, *outbuf;
+	unsigned char *inbuf, *outbuf;
 	int len, ilen, olen;
 
 	if (BN_num_bits(key->e) < 2 || !BN_is_odd(key->e))
@@ -143,7 +142,7 @@ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 void
 rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 {
-	char *inbuf, *outbuf;
+	unsigned char *inbuf, *outbuf;
 	int len, ilen, olen;
 
 	olen = BN_num_bytes(key->n);

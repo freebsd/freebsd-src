@@ -1,23 +1,23 @@
 /*
- * 
+ *
  * auth-rsa.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Mon Mar 27 01:46:52 1995 ylo
- * 
+ *
  * RSA-based authentication.  This code determines whether to admit a login
  * based on RSA authentication.  This file also contains functions to check
  * validity of the host key.
- * 
+ *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$Id: auth-rsa.c,v 1.18 2000/02/11 10:59:11 markus Exp $");
+RCSID("$Id: auth-rsa.c,v 1.23 2000/04/29 18:11:51 markus Exp $");
 
 #include "rsa.h"
 #include "packet.h"
@@ -25,6 +25,7 @@ RCSID("$Id: auth-rsa.c,v 1.18 2000/02/11 10:59:11 markus Exp $");
 #include "ssh.h"
 #include "mpaux.h"
 #include "uidswap.h"
+#include "match.h"
 #include "servconf.h"
 
 #include <openssl/rsa.h>
@@ -61,10 +62,9 @@ extern unsigned char session_id[16];
  */
 
 int
-auth_rsa_challenge_dialog(BIGNUM *e, BIGNUM *n)
+auth_rsa_challenge_dialog(RSA *pk)
 {
 	BIGNUM *challenge, *encrypted_challenge;
-	RSA *pk;
 	BN_CTX *ctx;
 	unsigned char buf[32], mdbuf[16], response[16];
 	MD5_CTX md;
@@ -77,19 +77,11 @@ auth_rsa_challenge_dialog(BIGNUM *e, BIGNUM *n)
 	/* Generate a random challenge. */
 	BN_rand(challenge, 256, 0, 0);
 	ctx = BN_CTX_new();
-	BN_mod(challenge, challenge, n, ctx);
+	BN_mod(challenge, challenge, pk->n, ctx);
 	BN_CTX_free(ctx);
-
-	/* Create the public key data structure. */
-	pk = RSA_new();
-	pk->e = BN_new();
-	BN_copy(pk->e, e);
-	pk->n = BN_new();
-	BN_copy(pk->n, n);
 
 	/* Encrypt the challenge with the public key. */
 	rsa_public_encrypt(encrypted_challenge, challenge, pk);
-	RSA_free(pk);
 
 	/* Send the encrypted challenge to the client. */
 	packet_start(SSH_SMSG_AUTH_RSA_CHALLENGE);
@@ -141,7 +133,7 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 	FILE *f;
 	unsigned long linenum = 0;
 	struct stat st;
-	BIGNUM *e, *n;
+	RSA *pk;
 
 	/* Temporarily use the user's uid. */
 	temporarily_use_uid(pw->pw_uid);
@@ -194,6 +186,7 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 			}
 		}
 		if (fail) {
+			fclose(f);
 			log(buf);
 			packet_send_debug(buf);
 			restore_uid();
@@ -203,8 +196,9 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 	/* Flag indicating whether authentication has succeeded. */
 	authenticated = 0;
 
-	e = BN_new();
-	n = BN_new();
+	pk = RSA_new();
+	pk->e = BN_new();
+	pk->n = BN_new();
 
 	/*
 	 * Go though the accepted keys, looking for the current key.  If
@@ -242,29 +236,29 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 			options = NULL;
 
 		/* Parse the key from the line. */
-		if (!auth_rsa_read_key(&cp, &bits, e, n)) {
+		if (!auth_rsa_read_key(&cp, &bits, pk->e, pk->n)) {
 			debug("%.100s, line %lu: bad key syntax",
 			      SSH_USER_PERMITTED_KEYS, linenum);
 			packet_send_debug("%.100s, line %lu: bad key syntax",
-				          SSH_USER_PERMITTED_KEYS, linenum);
+					  SSH_USER_PERMITTED_KEYS, linenum);
 			continue;
 		}
 		/* cp now points to the comment part. */
 
 		/* Check if the we have found the desired key (identified by its modulus). */
-		if (BN_cmp(n, client_n) != 0)
+		if (BN_cmp(pk->n, client_n) != 0)
 			continue;
 
 		/* check the real bits  */
-		if (bits != BN_num_bits(n))
+		if (bits != BN_num_bits(pk->n))
 			log("Warning: %s, line %ld: keysize mismatch: "
 			    "actual %d vs. announced %d.",
-			    file, linenum, BN_num_bits(n), bits);
+			    file, linenum, BN_num_bits(pk->n), bits);
 
 		/* We have found the desired key. */
 
 		/* Perform the challenge-response dialog for this key. */
-		if (!auth_rsa_challenge_dialog(e, n)) {
+		if (!auth_rsa_challenge_dialog(pk)) {
 			/* Wrong response. */
 			verbose("Wrong response to RSA authentication challenge.");
 			packet_send_debug("Wrong response to RSA authentication challenge.");
@@ -467,8 +461,7 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 	/* Close the file. */
 	fclose(f);
 
-	BN_clear_free(n);
-	BN_clear_free(e);
+	RSA_free(pk);
 
 	if (authenticated)
 		packet_send_debug("RSA authentication accepted.");

@@ -1,16 +1,16 @@
 /*
- * 
+ *
  * includes.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Thu Mar 23 16:29:37 1995 ylo
- * 
+ *
  * This file includes most of the needed system headers.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -67,30 +67,5 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
  * make <stdin> uni-directional !
  */
 /* #define USE_PIPES 1 */
-
-#if defined(__FreeBSD__) && __FreeBSD__ <= 3
-/*
- * Data types.
- */
-typedef u_char          sa_family_t;
-typedef u_int32_t       socklen_t;
-
-/*
- * bsd-api-new-02a: protocol-independent placeholder for socket addresses
- */
-#define	_SS_MAXSIZE	128
-#define	_SS_ALIGNSIZE	(sizeof(int64_t))
-#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) * 2)
-#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) * 2 - \
-				_SS_PAD1SIZE - _SS_ALIGNSIZE)
-
-struct sockaddr_storage {
-	u_char		ss_len;		/* address length */
-	sa_family_t	ss_family;	/* address family */
-	char		__ss_pad1[_SS_PAD1SIZE];
-	int64_t		__ss_align;	/* force desired structure storage alignment */
-	char		__ss_pad2[_SS_PAD2SIZE];
-};
-#endif
 
 #endif				/* INCLUDES_H */

@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* RCSID("$Id: nchan.h,v 1.5 1999/11/24 16:15:25 markus Exp $"); */
+/* RCSID("$Id: nchan.h,v 1.7 2000/04/03 07:07:15 markus Exp $"); */
 
 #ifndef NCHAN_H
 #define NCHAN_H
@@ -72,15 +72,25 @@
 #define CHAN_OUTPUT_WAIT_IEOF		0x40
 #define CHAN_OUTPUT_CLOSED		0x80
 
-/* EVENTS for the input state */
-void    chan_rcvd_oclose(Channel * c);
-void    chan_read_failed(Channel * c);
-void    chan_ibuf_empty(Channel * c);
+#define CHAN_CLOSE_SENT			0x01
+#define CHAN_CLOSE_RCVD			0x02
 
-/* EVENTS for the output state */
-void    chan_rcvd_ieof(Channel * c);
-void    chan_write_failed(Channel * c);
-void    chan_obuf_empty(Channel * c);
+
+/* Channel EVENTS */
+typedef void    chan_event_fn(Channel * c);
+
+/* for the input state */
+extern chan_event_fn	*chan_rcvd_oclose;
+extern chan_event_fn	*chan_read_failed;
+extern chan_event_fn	*chan_ibuf_empty;
+
+/* for the output state */
+extern chan_event_fn	*chan_rcvd_ieof;
+extern chan_event_fn	*chan_write_failed;
+extern chan_event_fn	*chan_obuf_empty;
+
+extern chan_event_fn	*chan_delete_if_full_closed;
 
 void    chan_init_iostates(Channel * c);
+void	chan_init(void);
 #endif

@@ -1,3 +1,7 @@
+
+[ Please note that this file has not been updated for OpenSSH and 
+  covers the ssh-1.2.12 release from Dec 1995 only. ]
+
 Ssh (Secure Shell) is a program to log into another computer over a
 network, to execute commands in a remote machine, and to move files
 from one machine to another.  It provides strong authentication and

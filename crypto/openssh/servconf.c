@@ -1,30 +1,31 @@
 /*
- * 
+ *
  * servconf.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Mon Aug 21 15:48:58 1995 ylo
- * 
+ *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$Id: servconf.c,v 1.30 2000/02/24 18:22:16 markus Exp $");
+RCSID("$Id: servconf.c,v 1.41 2000/05/22 18:42:01 markus Exp $");
 
 #include "ssh.h"
 #include "servconf.h"
 #include "xmalloc.h"
+#include "compat.h"
 
 /* add listen address */
 void add_listen_addr(ServerOptions *options, char *addr);
 
 /* Initializes the server options to their default values. */
 
-void 
+void
 initialize_server_options(ServerOptions *options)
 {
 	memset(options, 0, sizeof(*options));
@@ -32,6 +33,8 @@ initialize_server_options(ServerOptions *options)
 	options->ports_from_cmdline = 0;
 	options->listen_addrs = NULL;
 	options->host_key_file = NULL;
+	options->host_dsa_key_file = NULL;
+	options->pid_file = NULL;
 	options->server_key_bits = -1;
 	options->login_grace_time = -1;
 	options->key_regeneration_time = -1;
@@ -49,6 +52,7 @@ initialize_server_options(ServerOptions *options)
 	options->rhosts_authentication = -1;
 	options->rhosts_rsa_authentication = -1;
 	options->rsa_authentication = -1;
+	options->dsa_authentication = -1;
 #ifdef KRB4
 	options->krb4_authentication = -1;
 	options->krb4_or_local_passwd = -1;
@@ -72,11 +76,14 @@ initialize_server_options(ServerOptions *options)
 	options->num_deny_users = 0;
 	options->num_allow_groups = 0;
 	options->num_deny_groups = 0;
+	options->ciphers = NULL;
+	options->protocol = SSH_PROTO_UNKNOWN;
+	options->gateway_ports = -1;
 	options->connections_per_period = 0;
 	options->connections_period = 0;
 }
 
-void 
+void
 fill_default_server_options(ServerOptions *options)
 {
 	if (options->num_ports == 0)
@@ -85,6 +92,10 @@ fill_default_server_options(ServerOptions *options)
 		add_listen_addr(options, NULL);
 	if (options->host_key_file == NULL)
 		options->host_key_file = HOST_KEY_FILE;
+	if (options->host_dsa_key_file == NULL)
+		options->host_dsa_key_file = HOST_DSA_KEY_FILE;
+	if (options->pid_file == NULL)
+		options->pid_file = SSH_DAEMON_PID_FILE;
 	if (options->server_key_bits == -1)
 		options->server_key_bits = 768;
 	if (options->login_grace_time == -1)
@@ -102,7 +113,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 1;
+		options->x11_forwarding = 0;
 	if (options->x11_display_offset == -1)
 		options->x11_display_offset = 10;
 	if (options->strict_modes == -1)
@@ -119,6 +130,8 @@ fill_default_server_options(ServerOptions *options)
 		options->rhosts_rsa_authentication = 0;
 	if (options->rsa_authentication == -1)
 		options->rsa_authentication = 1;
+	if (options->dsa_authentication == -1)
+		options->dsa_authentication = 1;
 #ifdef KRB4
 	if (options->krb4_authentication == -1)
 		options->krb4_authentication = (access(KEYFILE, R_OK) == 0);
@@ -149,6 +162,10 @@ fill_default_server_options(ServerOptions *options)
 		options->permit_empty_passwd = 0;
 	if (options->use_login == -1)
 		options->use_login = 0;
+	if (options->protocol == SSH_PROTO_UNKNOWN)
+		options->protocol = SSH_PROTO_1|SSH_PROTO_2;
+	if (options->gateway_ports == -1)
+		options->gateway_ports = 0;
 }
 
 #define WHITESPACE " \t\r\n"
@@ -175,7 +192,8 @@ typedef enum {
 	sPrintMotd, sIgnoreRhosts, sX11Forwarding, sX11DisplayOffset,
 	sStrictModes, sEmptyPasswd, sRandomSeedFile, sKeepAlives, sCheckMail,
 	sUseLogin, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
-	sIgnoreUserKnownHosts, sConnectionsPerPeriod
+	sIgnoreUserKnownHosts, sHostDSAKeyFile, sCiphers, sProtocol, sPidFile,
+	sGatewayPorts, sDSAAuthentication, sConnectionsPerPeriod
 } ServerOpCodes;
 
 /* Textual representation of the tokens. */
@@ -185,6 +203,8 @@ static struct {
 } keywords[] = {
 	{ "port", sPort },
 	{ "hostkey", sHostKeyFile },
+	{ "hostdsakey", sHostDSAKeyFile },
+ 	{ "pidfile", sPidFile },
 	{ "serverkeybits", sServerKeyBits },
 	{ "logingracetime", sLoginGraceTime },
 	{ "keyregenerationinterval", sKeyRegenerationTime },
@@ -194,6 +214,7 @@ static struct {
 	{ "rhostsauthentication", sRhostsAuthentication },
 	{ "rhostsrsaauthentication", sRhostsRSAAuthentication },
 	{ "rsaauthentication", sRSAAuthentication },
+	{ "dsaauthentication", sDSAAuthentication },
 #ifdef KRB4
 	{ "kerberos4authentication", sKrb4Authentication },
 	{ "kerberos4orlocalpasswd", sKrb4OrLocalPasswd },
@@ -227,6 +248,9 @@ static struct {
 	{ "denyusers", sDenyUsers },
 	{ "allowgroups", sAllowGroups },
 	{ "denygroups", sDenyGroups },
+	{ "ciphers", sCiphers },
+	{ "protocol", sProtocol },
+	{ "gatewayports", sGatewayPorts },
 	{ "connectionsperperiod", sConnectionsPerPeriod },
 	{ NULL, 0 }
 };
@@ -236,7 +260,7 @@ static struct {
  * returns if the token is not known.
  */
 
-static ServerOpCodes 
+static ServerOpCodes
 parse_token(const char *cp, const char *filename,
 	    int linenum)
 {
@@ -254,7 +278,7 @@ parse_token(const char *cp, const char *filename,
 /*
  * add listen address
  */
-void 
+void
 add_listen_addr(ServerOptions *options, char *addr)
 {
 	extern int IPv4or6;
@@ -284,7 +308,7 @@ add_listen_addr(ServerOptions *options, char *addr)
 
 /* Reads the server configuration file. */
 
-void 
+void
 read_server_config(ServerOptions *options, const char *filename)
 {
 	FILE *f;
@@ -320,7 +344,7 @@ read_server_config(ServerOptions *options, const char *filename)
 				    "ListenAdress.\n", filename, linenum);
 			if (options->num_ports >= MAX_PORTS)
 				fatal("%s line %d: too many ports.\n",
-			            filename, linenum);
+				    filename, linenum);
 			cp = strtok(NULL, WHITESPACE);
 			if (!cp)
 				fatal("%s line %d: missing port number.\n",
@@ -363,11 +387,25 @@ parse_int:
 			break;
 
 		case sHostKeyFile:
-			charptr = &options->host_key_file;
+		case sHostDSAKeyFile:
+			charptr = (opcode == sHostKeyFile ) ?
+			    &options->host_key_file : &options->host_dsa_key_file;
 			cp = strtok(NULL, WHITESPACE);
 			if (!cp) {
 				fprintf(stderr, "%s line %d: missing file name.\n",
-					filename, linenum);
+				    filename, linenum);
+				exit(1);
+			}
+			if (*charptr == NULL)
+				*charptr = tilde_expand_filename(cp, getuid());
+			break;
+
+		case sPidFile:
+			charptr = &options->pid_file;
+			cp = strtok(NULL, WHITESPACE);
+			if (!cp) {
+				fprintf(stderr, "%s line %d: missing file name.\n",
+				    filename, linenum);
 				exit(1);
 			}
 			if (*charptr == NULL)
@@ -439,6 +477,10 @@ parse_flag:
 
 		case sRSAAuthentication:
 			intptr = &options->rsa_authentication;
+			goto parse_flag;
+
+		case sDSAAuthentication:
+			intptr = &options->dsa_authentication;
 			goto parse_flag;
 
 #ifdef KRB4
@@ -517,13 +559,17 @@ parse_flag:
 			intptr = &options->use_login;
 			goto parse_flag;
 
+		case sGatewayPorts:
+			intptr = &options->gateway_ports;
+			goto parse_flag;
+
 		case sLogFacility:
 			intptr = (int *) &options->log_facility;
 			cp = strtok(NULL, WHITESPACE);
 			value = log_facility_number(cp);
 			if (value == (SyslogFacility) - 1)
 				fatal("%.200s line %d: unsupported log facility '%s'\n",
-				  filename, linenum, cp ? cp : "<NONE>");
+				    filename, linenum, cp ? cp : "<NONE>");
 			if (*intptr == -1)
 				*intptr = (SyslogFacility) value;
 			break;
@@ -534,7 +580,7 @@ parse_flag:
 			value = log_level_number(cp);
 			if (value == (LogLevel) - 1)
 				fatal("%.200s line %d: unsupported log level '%s'\n",
-				  filename, linenum, cp ? cp : "<NONE>");
+				    filename, linenum, cp ? cp : "<NONE>");
 			if (*intptr == -1)
 				*intptr = (LogLevel) value;
 			break;
@@ -542,8 +588,8 @@ parse_flag:
 		case sAllowUsers:
 			while ((cp = strtok(NULL, WHITESPACE))) {
 				if (options->num_allow_users >= MAX_ALLOW_USERS)
-					fatal("%.200s line %d: too many allow users.\n", filename,
-					    linenum);
+					fatal("%.200s line %d: too many allow users.\n",
+					    filename, linenum);
 				options->allow_users[options->num_allow_users++] = xstrdup(cp);
 			}
 			break;
@@ -551,8 +597,8 @@ parse_flag:
 		case sDenyUsers:
 			while ((cp = strtok(NULL, WHITESPACE))) {
 				if (options->num_deny_users >= MAX_DENY_USERS)
-					fatal("%.200s line %d: too many deny users.\n", filename,
-					    linenum);
+					fatal("%.200s line %d: too many deny users.\n",
+					    filename, linenum);
 				options->deny_users[options->num_deny_users++] = xstrdup(cp);
 			}
 			break;
@@ -560,8 +606,8 @@ parse_flag:
 		case sAllowGroups:
 			while ((cp = strtok(NULL, WHITESPACE))) {
 				if (options->num_allow_groups >= MAX_ALLOW_GROUPS)
-					fatal("%.200s line %d: too many allow groups.\n", filename,
-					    linenum);
+					fatal("%.200s line %d: too many allow groups.\n",
+					    filename, linenum);
 				options->allow_groups[options->num_allow_groups++] = xstrdup(cp);
 			}
 			break;
@@ -569,10 +615,34 @@ parse_flag:
 		case sDenyGroups:
 			while ((cp = strtok(NULL, WHITESPACE))) {
 				if (options->num_deny_groups >= MAX_DENY_GROUPS)
-					fatal("%.200s line %d: too many deny groups.\n", filename,
-					    linenum);
+					fatal("%.200s line %d: too many deny groups.\n",
+					    filename, linenum);
 				options->deny_groups[options->num_deny_groups++] = xstrdup(cp);
 			}
+			break;
+
+		case sCiphers:
+			cp = strtok(NULL, WHITESPACE);
+			if (!cp)
+				fatal("%s line %d: Missing argument.", filename, linenum);
+			if (!ciphers_valid(cp))
+				fatal("%s line %d: Bad SSH2 cipher spec '%s'.",
+				    filename, linenum, cp ? cp : "<NONE>");
+			if (options->ciphers == NULL)
+				options->ciphers = xstrdup(cp);
+			break;
+
+		case sProtocol:
+			intptr = &options->protocol;
+			cp = strtok(NULL, WHITESPACE);
+			if (!cp)
+				fatal("%s line %d: Missing argument.", filename, linenum);
+			value = proto_spec(cp);
+			if (value == SSH_PROTO_UNKNOWN)
+				fatal("%s line %d: Bad protocol spec '%s'.",
+				      filename, linenum, cp ? cp : "<NONE>");
+			if (*intptr == SSH_PROTO_UNKNOWN)
+				*intptr = value;
 			break;
 
 		case sConnectionsPerPeriod:
@@ -594,12 +664,14 @@ parse_flag:
 			fatal("%.200s line %d: Missing handler for opcode %s (%d)\n",
 				filename, linenum, cp, opcode);
 		}
-		if (strtok(NULL, WHITESPACE) != NULL)
-			fatal("%.200s line %d: garbage at end of line.\n", filename,
-			    linenum);
+		if (strtok(NULL, WHITESPACE) != NULL) {
+			fatal("%.200s line %d: garbage at end of line.\n",
+				filename, linenum);
+		}
 	}
 	fclose(f);
-	if (bad_options > 0)
+	if (bad_options > 0) {
 		fatal("%.200s: terminating, %d bad configuration options\n",
 			filename, bad_options);
+	}
 }

@@ -30,7 +30,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: fingerprint.c,v 1.4 1999/11/24 16:15:25 markus Exp $");
+RCSID("$Id: fingerprint.c,v 1.6 2000/04/12 09:39:10 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -48,7 +48,7 @@ fingerprint(BIGNUM *e, BIGNUM *n)
 	static char retval[80];
 	MD5_CTX md;
 	unsigned char d[16];
-	char *buf;
+	unsigned char *buf;
 	int nlen, elen;
 
 	nlen = BN_num_bytes(n);

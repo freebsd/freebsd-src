@@ -1,22 +1,24 @@
 /*
- * 
+ *
  * bufaux.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Mar 29 02:24:47 1995 ylo
- * 
+ *
  * Auxiliary functions for storing and retrieving various data types to/from
  * Buffers.
+ *
+ * SSH2 packet format added by Markus Friedl
  *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$Id: bufaux.c,v 1.7 1999/11/24 19:53:44 markus Exp $");
+RCSID("$Id: bufaux.c,v 1.11 2000/04/14 10:30:30 markus Exp $");
 
 #include "ssh.h"
 #include <openssl/bn.h>
@@ -33,7 +35,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 {
 	int bits = BN_num_bits(value);
 	int bin_size = (bits + 7) / 8;
-	char *buf = xmalloc(bin_size);
+	char unsigned *buf = xmalloc(bin_size);
 	int oi;
 	char msg[2];
 
@@ -47,7 +49,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 	PUT_16BIT(msg, bits);
 	buffer_append(buffer, msg, 2);
 	/* Store the binary data. */
-	buffer_append(buffer, buf, oi);
+	buffer_append(buffer, (char *)buf, oi);
 
 	memset(buf, 0, bin_size);
 	xfree(buf);
@@ -69,7 +71,7 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 	bytes = (bits + 7) / 8;
 	if (buffer_len(buffer) < bytes)
 		fatal("buffer_get_bignum: input buffer too small");
-	bin = buffer_ptr(buffer);
+	bin = (unsigned char*) buffer_ptr(buffer);
 	BN_bin2bn(bin, bytes, value);
 	buffer_consume(buffer, bytes);
 
@@ -77,9 +79,53 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 }
 
 /*
+ * Stores an BIGNUM in the buffer in SSH2 format.
+ */
+void
+buffer_put_bignum2(Buffer *buffer, BIGNUM *value)
+{
+	int bytes = BN_num_bytes(value) + 1;
+	unsigned char *buf = xmalloc(bytes);
+	int oi;
+	int hasnohigh = 0;
+	buf[0] = '\0';
+	/* Get the value of in binary */
+	oi = BN_bn2bin(value, buf+1);
+	if (oi != bytes-1)
+		fatal("buffer_put_bignum: BN_bn2bin() failed: oi %d != bin_size %d",
+		      oi, bytes);
+	hasnohigh = (buf[1] & 0x80) ? 0 : 1;
+	if (value->neg) {
+		/**XXX should be two's-complement */
+		int i, carry;
+		unsigned char *uc = buf;
+		log("negativ!");
+		for(i = bytes-1, carry = 1; i>=0; i--) {
+			uc[i] ^= 0xff;
+			if(carry)
+				carry = !++uc[i];
+		}
+	}
+	buffer_put_string(buffer, buf+hasnohigh, bytes-hasnohigh);
+	memset(buf, 0, bytes);
+	xfree(buf);
+}
+
+int
+buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
+{
+	/**XXX should be two's-complement */
+	int len;
+	unsigned char *bin = (unsigned char *)buffer_get_string(buffer, (unsigned int *)&len);
+	BN_bin2bn(bin, len, value);
+	xfree(bin);
+	return len;
+}
+
+/*
  * Returns an integer from the buffer (4 bytes, msb first).
  */
-unsigned int 
+unsigned int
 buffer_get_int(Buffer *buffer)
 {
 	unsigned char buf[4];
@@ -90,7 +136,7 @@ buffer_get_int(Buffer *buffer)
 /*
  * Stores an integer in the buffer in 4 bytes, msb first.
  */
-void 
+void
 buffer_put_int(Buffer *buffer, unsigned int value)
 {
 	char buf[4];
@@ -130,17 +176,22 @@ buffer_get_string(Buffer *buffer, unsigned int *length_ptr)
 /*
  * Stores and arbitrary binary string in the buffer.
  */
-void 
+void
 buffer_put_string(Buffer *buffer, const void *buf, unsigned int len)
 {
 	buffer_put_int(buffer, len);
 	buffer_append(buffer, buf, len);
 }
+void
+buffer_put_cstring(Buffer *buffer, const char *s)
+{
+	buffer_put_string(buffer, s, strlen(s));
+}
 
 /*
  * Returns a character from the buffer (0 - 255).
  */
-int 
+int
 buffer_get_char(Buffer *buffer)
 {
 	char ch;
@@ -151,7 +202,7 @@ buffer_get_char(Buffer *buffer)
 /*
  * Stores a character in the buffer.
  */
-void 
+void
 buffer_put_char(Buffer *buffer, int value)
 {
 	char ch = value;
