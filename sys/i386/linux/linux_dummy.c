@@ -68,7 +68,6 @@ DUMMY(lock);
 DUMMY(mpx);
 DUMMY(ulimit);
 DUMMY(olduname);
-DUMMY(ustat);
 DUMMY(ksyslog);
 DUMMY(uname);
 DUMMY(vhangup);
