@@ -485,8 +485,13 @@ vn_statfile(fp, sb, td)
 	struct thread *td;
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
+	int error;
 
-	return vn_stat(vp, sb, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vn_stat(vp, sb, td);
+	VOP_UNLOCK(vp, 0, td);
+
+	return (error);
 }
 
 int
@@ -617,7 +622,9 @@ vn_ioctl(fp, com, data, td)
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+			VOP_UNLOCK(vp, 0, td);
 			if (error)
 				return (error);
 			*(int *)data = vattr.va_size - fp->f_offset;
