@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.363 1998/07/19 05:31:35 jkh Exp $
+#	$Id: Makefile,v 1.364 1998/08/11 03:59:12 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -31,6 +31,9 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 RELEASESRCMODULE?=	src
 RELEASEDOCMODULE?=	doc
 RELEASEPORTSMODULE?=	ports
+
+# Unless set elsewhere, indicate the object format we'll be using.
+BINFORMAT?=		aout
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
@@ -344,7 +347,7 @@ release.5:
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
 			echo -n "Running $$i dist creation script... "; \
-			env RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
+			env BINFORMAT=${BINFORMAT} RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
 			echo "Done."; \
 		fi \
 	done \
@@ -352,7 +355,7 @@ release.5:
 	# Create symlinks for the MD5-based crypt lib, too.  The
 	# automatically created links still point to the DES stuff,
 	# which went into its own distribution.
-	for i in ${RD}/trees/bin/usr/lib/libscrypt* ; do \
+	for i in ${RD}/trees/bin/usr/lib/${BINFORMAT}/libscrypt* ; do \
 		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
 		rm -f $$c ; \
 		ln -s `basename $$i` $$c ; \
