@@ -24,7 +24,7 @@ cat << __NO_newvers_sh
 #define HOST_OS_NAME "`uname -s | tr '[A-Z]' '[a-z]'``uname -r | sed -e 's/\..*$//'`"
 
 /* Define only version of host machine (eg. 2.5.1) */
-#define HOST_OS_VERSION "`uname -r`"
+#define HOST_OS_VERSION "`uname -r | sed -e 's/[-([:alpha:]].*//'`"
 
 __NO_newvers_sh
 fi
