@@ -66,6 +66,7 @@
 #include <sys/systm.h>		/* for printf() in EXCEPTION() */
 #endif
 #include <sys/proc.h>
+#include <machine/cpufunc.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
