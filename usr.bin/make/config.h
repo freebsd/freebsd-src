@@ -114,4 +114,8 @@
 # ifndef RANLIBMAG
 #  define RANLIBMAG "__.SYMDEF"
 # endif
+#else
+# ifndef RANLIBMAG
+#  define RANLIBMAG "/"
+# endif
 #endif
