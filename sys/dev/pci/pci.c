@@ -1498,8 +1498,9 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	    		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	}
 	else {
-		/* if (bootverbose) */
-		device_printf(child, "BAD BAR: skipping checks\n");
+		if (bootverbose)
+			device_printf(child,
+			    "ZERO BAR: resource checks suppressed.\n");
 	}
 	
 	/*
