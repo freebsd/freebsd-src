@@ -481,8 +481,30 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	PAM_LOG("Environment saved");
 
-	/* connect to the agent */
-	ac = ssh_get_authentication_connection();
+	/*
+	 * Connect to the agent.
+	 *
+	 * XXX Because ssh_get_authentication_connection() gets the
+	 * XXX agent parameters from the environment, we have to
+	 * XXX temporarily replace the environment with the PAM
+	 * XXX environment list.  This is a hack.
+	 */
+	{
+		extern char **environ;
+		char **saved, **evp;
+		
+		saved = environ;
+		if ((environ = pam_getenvlist(pamh)) == NULL) {
+			environ = saved;
+			syslog(LOG_ERR, "%s: %m", MODULE_NAME);
+			PAM_RETURN(PAM_BUF_ERR);
+		}
+		ac = ssh_get_authentication_connection();
+		for (evp = environ; *evp; evp++)
+			free(*evp);
+		free(environ);
+		environ = saved;
+	}
 	if (!ac) {
 		syslog(LOG_ERR, "%s: %s: %m", MODULE_NAME, agent_socket);
 		PAM_RETURN(PAM_SESSION_ERR);
