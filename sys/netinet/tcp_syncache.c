@@ -289,13 +289,14 @@ syncache_insert(sc, sch)
 	struct syncache_head *sch;
 {
 	struct syncache *sc2;
-	int s, i;
+	int i;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	/*
 	 * Make sure that we don't overflow the per-bucket
 	 * limit or the total cache size limit.
 	 */
-	s = splnet();
 	if (sch->sch_length >= tcp_syncache.bucket_limit) {
 		/*
 		 * The bucket is full, toss the oldest element.
@@ -329,7 +330,6 @@ syncache_insert(sc, sch)
 	sch->sch_length++;
 	tcp_syncache.cache_count++;
 	tcpstat.tcps_sc_added++;
-	splx(s);
 }
 
 static void
@@ -337,7 +337,7 @@ syncache_drop(sc, sch)
 	struct syncache *sc;
 	struct syncache_head *sch;
 {
-	int s;
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	if (sch == NULL) {
 #ifdef INET6
@@ -352,8 +352,6 @@ syncache_drop(sc, sch)
 		}
 	}
 
-	s = splnet();
-
 	TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 	sch->sch_length--;
 	tcp_syncache.cache_count--;
@@ -361,7 +359,6 @@ syncache_drop(sc, sch)
 	TAILQ_REMOVE(&tcp_syncache.timerq[sc->sc_rxtslot], sc, sc_timerq);
 	if (TAILQ_EMPTY(&tcp_syncache.timerq[sc->sc_rxtslot]))
 		callout_stop(&tcp_syncache.tt_timerq[sc->sc_rxtslot]);
-	splx(s);
 
 	syncache_free(sc);
 }
@@ -377,14 +374,12 @@ syncache_timer(xslot)
 	intptr_t slot = (intptr_t)xslot;
 	struct syncache *sc, *nsc;
 	struct inpcb *inp;
-	int s;
 
-	s = splnet();
 	INP_INFO_WLOCK(&tcbinfo);
         if (callout_pending(&tcp_syncache.tt_timerq[slot]) ||
             !callout_active(&tcp_syncache.tt_timerq[slot])) {
-		INP_INFO_WUNLOCK(&tcbinfo);
-                splx(s);
+		/* XXX can this happen? */
+		INP_INFO_WLOCK(&tcbinfo);
                 return;
         }
         callout_deactivate(&tcp_syncache.tt_timerq[slot]);
@@ -421,8 +416,7 @@ syncache_timer(xslot)
 	if (nsc != NULL)
 		callout_reset(&tcp_syncache.tt_timerq[slot],
 		    nsc->sc_rxttime - ticks, syncache_timer, (void *)(slot));
-	INP_INFO_WUNLOCK(&tcbinfo);
-	splx(s);
+	INP_INFO_WLOCK(&tcbinfo);
 }
 
 /*
@@ -435,39 +429,32 @@ syncache_lookup(inc, schp)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
-	int s;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 #ifdef INET6
 	if (inc->inc_isipv6) {
 		sch = &tcp_syncache.hashbase[
 		    SYNCACHE_HASH6(inc, tcp_syncache.hashmask)];
 		*schp = sch;
-		s = splnet();
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-			if (ENDPTS6_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie)) {
-				splx(s);
+			if (ENDPTS6_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
 				return (sc);
-			}
 		}
-		splx(s);
 	} else
 #endif
 	{
 		sch = &tcp_syncache.hashbase[
 		    SYNCACHE_HASH(inc, tcp_syncache.hashmask)];
 		*schp = sch;
-		s = splnet();
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
 #ifdef INET6
 			if (sc->sc_inc.inc_isipv6)
 				continue;
 #endif
-			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie)) {
-				splx(s);
+			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
 				return (sc);
-			}
 		}
-		splx(s);
 	}
 	return (NULL);
 }
@@ -484,6 +471,8 @@ syncache_chkrst(inc, th)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	sc = syncache_lookup(inc, &sch);
 	if (sc == NULL)
@@ -515,6 +504,8 @@ syncache_badack(inc)
 	struct syncache *sc;
 	struct syncache_head *sch;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+
 	sc = syncache_lookup(inc, &sch);
 	if (sc != NULL) {
 		syncache_drop(sc, sch);
@@ -529,6 +520,8 @@ syncache_unreach(inc, th)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	/* we are called at splnet() here */
 	sc = syncache_lookup(inc, &sch);
@@ -568,6 +561,9 @@ syncache_socket(sc, lso, m)
 	struct socket *so;
 	struct tcpcb *tp;
 
+	GIANT_REQUIRED;			/* XXX until socket locking */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+
 	/*
 	 * Ok, create the full blown connection, and set things up
 	 * as they would have been set up if we had created the
@@ -581,13 +577,14 @@ syncache_socket(sc, lso, m)
 		 * retransmits the ACK,
 		 */
 		tcpstat.tcps_listendrop++;
-		goto abort;
+		goto abort2;
 	}
 #ifdef MAC
 	mac_set_socket_peer_from_mbuf(m, so);
 #endif
 
 	inp = sotoinpcb(so);
+	INP_LOCK(inp);
 
 	/*
 	 * Insert new socket into hash list.
@@ -745,10 +742,14 @@ syncache_socket(sc, lso, m)
                 tp->snd_cwnd = tp->t_maxseg;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
 
+	INP_UNLOCK(inp);
+
 	tcpstat.tcps_accepts++;
 	return (so);
 
 abort:
+	INP_UNLOCK(inp);
+abort2:
 	if (so != NULL)
 		(void) soabort(so);
 	return (NULL);
@@ -771,6 +772,8 @@ syncache_expand(inc, th, sop, m)
 	struct syncache *sc;
 	struct syncache_head *sch;
 	struct socket *so;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	sc = syncache_lookup(inc, &sch);
 	if (sc == NULL) {
@@ -847,7 +850,9 @@ syncache_add(inc, to, th, sop, m)
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	struct rmxp_tao *taop;
-	int i, s, win;
+	int i, win;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	so = *sop;
 	tp = sototcpcb(so);
@@ -895,11 +900,10 @@ syncache_add(inc, to, th, sop, m)
 #else
 		if (syncache_respond(sc, m) == 0) {
 #endif
-		        s = splnet();
+			/* NB: guarded by INP_INFO_WLOCK(&tcbinfo) */
 			TAILQ_REMOVE(&tcp_syncache.timerq[sc->sc_rxtslot],
 			    sc, sc_timerq);
 			SYNCACHE_TIMEOUT(sc, sc->sc_rxtslot);
-		        splx(s);
 		 	tcpstat.tcps_sndacks++;
 			tcpstat.tcps_sndtotal++;
 		}
@@ -914,7 +918,7 @@ syncache_add(inc, to, th, sop, m)
 		 * Treat this as if the cache was full; drop the oldest 
 		 * entry and insert the new one.
 		 */
-		s = splnet();
+		/* NB: guarded by INP_INFO_WLOCK(&tcbinfo) */
 		for (i = SYNCACHE_MAXREXMTS; i >= 0; i--) {
 			sc = TAILQ_FIRST(&tcp_syncache.timerq[i]);
 			if (sc != NULL)
@@ -922,7 +926,6 @@ syncache_add(inc, to, th, sop, m)
 		}
 		sc->sc_tp->ts_recent = ticks;
 		syncache_drop(sc, NULL);
-		splx(s);
 		tcpstat.tcps_sc_zonefail++;
 		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
 		if (sc == NULL) {
@@ -1086,6 +1089,7 @@ syncache_respond(sc, m)
 	struct ip *ip = NULL;
 	struct rtentry *rt;
 	struct tcphdr *th;
+	struct inpcb *inp;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
@@ -1142,8 +1146,10 @@ syncache_respond(sc, m)
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
+	inp = sc->sc_tp->t_inpcb;
+	INP_LOCK(inp);
 #ifdef MAC
-	mac_create_mbuf_from_socket(sc->sc_tp->t_inpcb->inp_socket, m);
+	mac_create_mbuf_from_socket(inp->inp_socket, m);
 #endif
 
 #ifdef INET6
@@ -1171,8 +1177,8 @@ syncache_respond(sc, m)
 		ip->ip_p = IPPROTO_TCP;
 		ip->ip_src = sc->sc_inc.inc_laddr;
 		ip->ip_dst = sc->sc_inc.inc_faddr;
-		ip->ip_ttl = sc->sc_tp->t_inpcb->inp_ip_ttl;   /* XXX */
-		ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
+		ip->ip_ttl = inp->inp_ip_ttl;   /* XXX */
+		ip->ip_tos = inp->inp_ip_tos;   /* XXX */
 
 		/*
 		 * See if we should do MTU discovery.  Route lookups are
@@ -1244,8 +1250,7 @@ syncache_respond(sc, m)
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen, tlen - hlen);
 		ip6->ip6_hlim = in6_selecthlim(NULL,
 		    ro6->ro_rt ? ro6->ro_rt->rt_ifp : NULL);
-		error = ip6_output(m, NULL, ro6, 0, NULL, NULL,
-				sc->sc_tp->t_inpcb);
+		error = ip6_output(m, NULL, ro6, 0, NULL, NULL, inp);
 	} else
 #endif
 	{
@@ -1263,9 +1268,9 @@ syncache_respond(sc, m)
 			    mtod(m, void *), th, 0);
 		}
 #endif
-		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL,
-				sc->sc_tp->t_inpcb);
+		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL,inp);
 	}
+	INP_UNLOCK(inp);
 	return (error);
 }
 
@@ -1332,6 +1337,8 @@ syncookie_generate(struct syncache *sc)
 	int idx, i;
 	struct md5_add add;
 
+	/* NB: single threaded; could add INP_INFO_WLOCK_ASSERT(&tcbinfo) */
+
 	idx = ((ticks << SYNCOOKIE_TIMESHIFT) / hz) & SYNCOOKIE_WNDMASK;
 	if (tcp_secret[idx].ts_expire < ticks) {
 		for (i = 0; i < 4; i++)
@@ -1379,6 +1386,8 @@ syncookie_lookup(inc, th, so)
 	u_int32_t data;
 	int wnd, idx;
 	struct md5_add add;
+
+	/* NB: single threaded; could add INP_INFO_WLOCK_ASSERT(&tcbinfo) */
 
 	data = (th->th_ack - 1) ^ (th->th_seq - 1);	/* remove ISS */
 	idx = data & SYNCOOKIE_WNDMASK;
