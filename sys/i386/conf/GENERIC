@@ -126,7 +126,7 @@ device		ciss		# Compaq SmartRAID 5* series
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
-device		aacp		# SCSI passthrough for aac (requires CAM)
+#device		aacp		# SCSI passthrough for aac (requires CAM)
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
