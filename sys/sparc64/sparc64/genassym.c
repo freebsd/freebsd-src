@@ -146,6 +146,7 @@ ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
 ASSYM(PC_IQ, offsetof(struct pcpu, pc_iq));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
