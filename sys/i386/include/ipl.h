@@ -53,8 +53,8 @@
 #define	SWI_CAMBIO	(NHWI + 3)
 #define	SWI_VM		(NHWI + 4)
 #define	SWI_TQ		(NHWI + 5)
-#define	SWI_CLOCK	30
-#define	NSWI		(32 - NHWI)
+#define	SWI_CLOCK	(NHWI + 6)
+#define	NSWI		7
 
 /*
  * Corresponding interrupt-pending bits for ipending.
