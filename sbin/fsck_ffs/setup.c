@@ -421,6 +421,8 @@ readsb(listerr)
 	altsblock.fs_contigdirs = sblock.fs_contigdirs;
 	altsblock.fs_avgfilesize = sblock.fs_avgfilesize;
 	altsblock.fs_avgfpdir = sblock.fs_avgfpdir;
+	altsblock.fs_pendingblocks = sblock.fs_pendingblocks;
+	altsblock.fs_pendinginodes = sblock.fs_pendinginodes;
 	memmove(altsblock.fs_fsmnt, sblock.fs_fsmnt, sizeof sblock.fs_fsmnt);
 	memmove(altsblock.fs_snapinum, sblock.fs_snapinum,
 		sizeof sblock.fs_snapinum);
