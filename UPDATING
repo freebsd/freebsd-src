@@ -7,8 +7,8 @@ ITEMS:'
 
 20000621:
 	Scott Flatman <sf@aracnet.com> sent in a decent writeup on
-	the config file update proceedure.
-		http://people.freebsd.org/~imp/config-upd.hmtl
+	the config file update procedure.
+		http://people.freebsd.org/~imp/config-upd.html
 
 20000620:
 	Binutils 2.10 have hit the tree, or will shortly.  As soon
