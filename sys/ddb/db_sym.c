@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.21 1998/06/07 17:09:38 dfr Exp $
+ *	$Id: db_sym.c,v 1.22 1998/06/10 10:56:13 dfr Exp $
  */
 
 /*
@@ -256,7 +256,7 @@ db_symbol_values(sym, namep, valuep)
 		return;
 	}
 
-	X_db_symbol_values(sym, namep, &value);
+	X_db_symbol_values(db_last_symtab, sym, namep, &value);
 
 	if (db_symbol_is_ambiguous(sym))
 		*namep = db_qualify(sym, db_last_symtab->name);
