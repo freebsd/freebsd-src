@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.8 1995/09/13 17:23:55 markm Exp $
+#	$Id: Makefile,v 1.9 1995/09/14 04:05:02 gibbs Exp $
 
 LIB=	krb
 CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -DBSD42
@@ -19,7 +19,7 @@ SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 
 LDADD+=	-lcom_err
 
-beforeinstall:
+beforeinstall: krb_err.c
 	-cd ${.OBJDIR}; cmp -s krb_err.h \
 	    ${DESTDIR}/usr/include/kerberosIV/krb_err.h || \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 krb_err.h \
