@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
  */
 
 
+#include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -554,6 +555,22 @@ ndis_encode_parm(block, oid, type, parm)
 	return(NDIS_STATUS_SUCCESS);
 }
 
+static int
+my_strcasecmp(s1, s2, len)
+        const char              *s1;
+        const char              *s2;
+        int                     len;
+{
+        int                     i;
+
+        for (i = 0; i < len; i++) {
+                if (toupper(s1[i]) != toupper(s2[i]))
+                        return(1);
+        }
+
+        return(0);
+}
+
 __stdcall static void
 ndis_read_cfg(status, parm, cfg, key, type)
 	ndis_status		*status;
@@ -589,7 +606,8 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	 */
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
 		oidp = e->entry;
-		if (strcmp(oidp->oid_name, keystr) == 0) {
+		if (my_strcasecmp(oidp->oid_name,
+		    keystr, strlen(keystr)) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
 				free(keystr, M_DEVBUF);
 				*status = NDIS_STATUS_FAILURE;
@@ -685,7 +703,8 @@ ndis_write_cfg(status, cfg, key, parm)
 
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
 		oidp = e->entry;
-		if (strcmp(oidp->oid_name, keystr) == 0) {
+		if (my_strcasecmp(oidp->oid_name,
+		    keystr, strlen(keystr)) == 0) {
 			/* Found it, set the value. */
 			strcpy((char *)oidp->oid_arg1, val);
 			free(keystr, M_DEVBUF);
