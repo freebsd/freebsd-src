@@ -474,13 +474,13 @@ print_part(int i)
 		part_mb,
 		partp->dp_flag,
 		partp->dp_flag == ACTIVE ? " (active)" : "");
-	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
+	printf("\tbeg: cyl %d/ head %d/ sector %d;\n\tend: cyl %d/ head %d/ sector %d\n"
 		,DPCYL(partp->dp_scyl, partp->dp_ssect)
-		,DPSECT(partp->dp_ssect)
 		,partp->dp_shd
+		,DPSECT(partp->dp_ssect)
 		,DPCYL(partp->dp_ecyl, partp->dp_esect)
-		,DPSECT(partp->dp_esect)
-		,partp->dp_ehd);
+		,partp->dp_ehd
+		,DPSECT(partp->dp_esect));
 }
 
 
