@@ -55,7 +55,6 @@ static const char rcsid[] =
 #define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
-static          int randinit;
 static		char locked_str[] = "*LOCKED*";
 
 static int      print_user(struct passwd * pwd, int pretty, int v7);
@@ -1013,16 +1012,8 @@ pw_pwcrypt(char *password)
 	/*
 	 * Calculate a salt value
 	 */
-	if (!randinit) {
-		randinit = 1;
-#ifdef __FreeBSD__
-		srandomdev();
-#else
-		srandom((unsigned long) (time(NULL) ^ getpid()));
-#endif
-	}
 	for (i = 0; i < 8; i++)
-		salt[i] = chars[random() % 63];
+		salt[i] = chars[arc4random() % 63];
 	salt[i] = '\0';
 
 	return strcpy(buf, crypt(password, salt));
@@ -1086,15 +1077,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 
 	switch (cnf->default_password) {
 	case -1:		/* Random password */
-		if (!randinit) {
-			randinit = 1;
-#ifdef __FreeBSD__
-			srandomdev();
-#else
-			srandom((unsigned long) (time(NULL) ^ getpid()));
-#endif
-		}
-		l = (random() % 8 + 8);	/* 8 - 16 chars */
+		l = (arc4random() % 8 + 8);	/* 8 - 16 chars */
 		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
 			pwbuf[i] = chars[rndbuf[i] % (sizeof(chars)-1)];
