@@ -71,6 +71,7 @@ struct fixup_entry {
 
 struct extract {
 	mode_t			 umask;
+	mode_t			 default_dir_mode;
 	struct archive_string	 mkdirpath;
 	struct fixup_entry	*fixup_list;
 
@@ -157,6 +158,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	}
 	extract = a->extract;
 	umask(extract->umask = umask(0)); /* Read the current umask. */
+	extract->default_dir_mode = DEFAULT_DIR_MODE & ~extract->umask;
 	extract->pst = NULL;
 	restore_pwd = -1;
 
@@ -385,6 +387,7 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 	const struct stat *st;
 	char *p;
 	size_t len;
+	mode_t mode;
 
 	extract = a->extract;
 
@@ -399,8 +402,12 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 		p[--len] = '\0'; /* Remove trailing "/" */
 	/* Recursively try to build the path. */
 	st = archive_entry_stat(entry);
+	mode = st->st_mode;
+	/* Obey umask unless ARCHIVE_EXTRACT_PERM for explicit dirs. */
+	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
+		mode &= ~extract->umask;
 	extract->pst = NULL; /* Invalidate cached stat data. */
-	if (mkdirpath_recursive(a, p, st, st->st_mode, flags))
+	if (mkdirpath_recursive(a, p, st, mode, flags))
 		return (ARCHIVE_WARN);
 	archive_entry_set_mode(entry, 0700);
 	return (restore_metadata(a, entry, flags));
@@ -428,7 +435,7 @@ mkdirpath(struct archive *a, const char *path)
 
 	/* Recursively try to build the path. */
 	if (mkdirpath_recursive(a, extract->mkdirpath.s,
-	    NULL, DEFAULT_DIR_MODE, 0))
+	    NULL, extract->default_dir_mode, 0))
 		return (ARCHIVE_WARN);
 	return (ARCHIVE_OK);
 }
@@ -463,7 +470,7 @@ mkdirpath_recursive(struct archive *a, char *path,
 		le->name = strdup(path);
 
 		if (mode != writable_mode) {
-			le->mode = mode & ~extract->umask;
+			le->mode = mode;
 			le->fixup |= FIXUP_MODE;
 			mode = writable_mode;
 		}
@@ -522,7 +529,9 @@ mkdirpath_recursive(struct archive *a, char *path,
 	p = strrchr(path, '/');
 	if (p != NULL) {
 		*p = '\0';	/* Terminate path name. */
-		r = mkdirpath_recursive(a, path, NULL, DEFAULT_DIR_MODE, 0);
+		/* Note that implicit dirs always obey the umask. */
+		r = mkdirpath_recursive(a, path, NULL,
+		    extract->default_dir_mode, 0);
 		*p = '/';	/* Restore the '/' we just overwrote. */
 		if (r != ARCHIVE_OK)
 			return (r);
