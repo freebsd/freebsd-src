@@ -198,7 +198,8 @@ parse(char *string)
 
 		if (!(kind&CTLFLAG_WR))
 			if (kind & CTLFLAG_TUN) {
-				fprintf(stderr, "Tunable values are set in /boot/loader.conf and require a reboot to take effect.\n");
+				fprintf(stderr, "Tunable values are set in"
+		" /boot/loader.conf and require a reboot to take effect.\n");
 				errx(1, "oid '%s' is a tunable.", bufp);
 			} else {
 				errx(1, "oid '%s' is read only", bufp);
