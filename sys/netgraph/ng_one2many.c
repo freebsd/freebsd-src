@@ -379,7 +379,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_one2many_link *src;
-	struct ng_one2many_link *dst;
+	struct ng_one2many_link *dst = NULL;
 	int error = 0;
 	int linkNum;
 	int i;
@@ -453,8 +453,9 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			panic("%s: invalid xmitAlg", __FUNCTION__);
 #endif
 		}
-	} else
+	} else {
 		dst = &priv->one;
+	}
 
 	/* Update transmit stats */
 	dst->stats.xmitPackets++;

@@ -310,6 +310,7 @@ struct ng_node {
 #define NG_WORKQ	0x00000002	/* node is on the work queue */
 #define NG_FORCE_WRITER	0x00000004	/* Never multithread this node */
 #define NG_CLOSING	0x00000008	/* ng_rmnode() at work */
+#define NG_REALLY_DIE	0x00000010	/* "persistant" node is unloading */
 #define NGF_TYPE1	0x10000000	/* reserved for type specific storage */
 #define NGF_TYPE2	0x20000000	/* reserved for type specific storage */
 #define NGF_TYPE3	0x40000000	/* reserved for type specific storage */
@@ -332,6 +333,8 @@ void	ng_unref_node(node_p node); /* don't move this */
 #define _NG_NODE_NUMHOOKS(node)	((node)->nd_numhooks + 0) /* rvalue */
 #define _NG_NODE_FORCE_WRITER(node)					\
 	do{ node->nd_flags |= NG_FORCE_WRITER; }while (0)
+#define _NG_NODE_REALLY_DIE(node)					\
+	do{ node->nd_flags |= (NG_REALLY_DIE|NG_INVALID); }while (0)
 /*
  * The hook iterator.
  * This macro will call a function of type ng_fn_eachhook for each
@@ -456,6 +459,13 @@ _ng_node_force_writer(node_p node, char *file, int line)
 	_NG_NODE_FORCE_WRITER(node);
 }
 
+static __inline void
+_ng_node_really_die(node_p node, char *file, int line)
+{
+	_chknode(node, file, line);
+	_NG_NODE_REALLY_DIE(node);
+}
+
 static __inline hook_p
 _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 						char *file, int line)
@@ -476,6 +486,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_IS_VALID(node)		_ng_node_is_valid(node, _NN_)
 #define NG_NODE_NOT_VALID(node)		_ng_node_not_valid(node, _NN_)
 #define NG_NODE_FORCE_WRITER(node) 	_ng_node_force_writer(node, _NN_)
+#define NG_NODE_REALLY_DIE(node) 	_ng_node_really_die(node, _NN_)
 #define NG_NODE_NUMHOOKS(node)		_ng_node_numhooks(node, _NN_)
 #define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			      \
 	do {								      \
@@ -494,6 +505,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_IS_VALID(node)		_NG_NODE_IS_VALID(node)	
 #define NG_NODE_NOT_VALID(node)		_NG_NODE_NOT_VALID(node)	
 #define NG_NODE_FORCE_WRITER(node) 	_NG_NODE_FORCE_WRITER(node)
+#define NG_NODE_REALLY_DIE(node) 	_NG_NODE_REALLY_DIE(node)
 #define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)	
 #define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			\
 		_NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)
@@ -540,7 +552,7 @@ typedef struct ng_meta *meta_p;
  ***********************************************************************
  *
  */
-typedef	int	ng_item_fn(node_p node, hook_p hook, void *arg1, int arg2);
+typedef	void	ng_item_fn(node_p node, hook_p hook, void *arg1, int arg2);
 struct ng_item {
 	u_long	el_flags;
 	item_p	el_next;
@@ -597,16 +609,37 @@ struct ng_item {
 #define	_NGI_FN(i) ((i)->body.fn.fn_fn)
 #define	_NGI_ARG1(i) ((i)->body.fn.fn_arg1)
 #define	_NGI_ARG2(i) ((i)->body.fn.fn_arg2)
+#define	_NGI_NODE(i) ((i)->el_dest)
+#define	_NGI_HOOK(i) ((i)->el_hook)
+#define	_NGI_SET_HOOK(i,h) do { _NGI_HOOK(i) = h; h = NULL;} while (0)
+#define	_NGI_CLR_HOOK(i)   do {						\
+		hook_p hook = _NGI_HOOK(i);				\
+		if (hook) {						\
+			_NG_HOOK_UNREF(hook);				\
+			_NGI_HOOK(i) = NULL;				\
+		}							\
+	} while (0)
+#define	_NGI_SET_NODE(i,n) do { _NGI_NODE(i) = n; n = NULL;} while (0)
+#define	_NGI_CLR_NODE(i)   do {						\
+		node_p node = _NGI_NODE(i);				\
+		if (node) {						\
+			_NG_NODE_UNREF(node);				\
+			_NGI_NODE(i) = NULL;				\
+		}							\
+	} while (0)
 
 #ifdef NETGRAPH_DEBUG /*----------------------------------------------*/
 void				dumpitem(item_p item, char *file, int line);
 static __inline void		_ngi_check(item_p item, char *file, int line) ;
 static __inline struct mbuf **	_ngi_m(item_p item, char *file, int line) ;
 static __inline meta_p *	_ngi_meta(item_p item, char *file, int line) ;
-static __inline ng_ID_t *	_ngi_retaddr(item_p item, char *file,
-							int line) ;
-static __inline struct ng_mesg **	_ngi_msg(item_p item, char *file,
-							int line) ;
+static __inline ng_ID_t *	_ngi_retaddr(item_p item, char *file, int line);
+static __inline struct ng_mesg ** _ngi_msg(item_p item, char *file, int line) ;
+static __inline ng_item_fn **	_ngi_fn(item_p item, char *file, int line) ;
+static __inline void **		_ngi_arg1(item_p item, char *file, int line) ;
+static __inline int *		_ngi_arg2(item_p item, char *file, int line) ;
+static __inline node_p		_ngi_node(item_p item, char *file, int line);
+static __inline hook_p		_ngi_hook(item_p item, char *file, int line);
 
 static __inline void
 _ngi_check(item_p item, char *file, int line) 
@@ -668,6 +701,20 @@ _ngi_arg2(item_p item, char *file, int line)
 	return (&_NGI_ARG2(item));
 }
 
+static __inline node_p
+_ngi_node(item_p item, char *file, int line)
+{
+	_ngi_check(item, file, line);
+	return (_NGI_NODE(item));
+}
+
+static __inline hook_p
+_ngi_hook(item_p item, char *file, int line)
+{
+	_ngi_check(item, file, line);
+	return (_NGI_HOOK(item));
+}
+
 #define NGI_M(i)	(*_ngi_m(i, _NN_))
 #define NGI_META(i)	(*_ngi_meta(i, _NN_))
 #define NGI_MSG(i)	(*_ngi_msg(i, _NN_))
@@ -675,24 +722,16 @@ _ngi_arg2(item_p item, char *file, int line)
 #define NGI_FN(i)	(*_ngi_fn(i, _NN_))
 #define NGI_ARG1(i)	(*_ngi_arg1(i, _NN_))
 #define NGI_ARG2(i)	(*_ngi_arg2(i, _NN_))
-
-#define NGI_GET_M(i,m)							\
-	do {								\
-		m = NGI_M(i);						\
-		_NGI_M(i) = NULL;					\
-	} while (0)
-
-#define NGI_GET_META(i,m)						\
-	do {								\
-		m = NGI_META(i);					\
-		_NGI_META(i) = NULL;					\
-	} while (0)
-
-#define NGI_GET_MSG(i,m)						\
-	do {								\
-		m = NGI_MSG(i);						\
-		_NGI_MSG(i) = NULL;					\
-	} while (0)
+#define NGI_HOOK(i)	_ngi_hook(i, _NN_)
+#define NGI_NODE(i)	_ngi_node(i, _NN_)
+#define	NGI_SET_HOOK(i,h)						\
+	do { _ngi_check(i, _NN_); _NGI_SET_HOOK(i, h); } while (0)
+#define	NGI_CLR_HOOK(i)							\
+	do { _ngi_check(i, _NN_); _NGI_CLR_HOOK(i); } while (0)
+#define	NGI_SET_NODE(i,n)						\
+	do { _ngi_check(i, _NN_); _NGI_SET_NODE(i, n); } while (0)
+#define	NGI_CLR_NODE(i)							\
+	do { _ngi_check(i, _NN_); _NGI_CLR_NODE(i); } while (0)
 
 #define NG_FREE_ITEM(item)						\
 	do {								\
@@ -715,15 +754,48 @@ _ngi_arg2(item_p item, char *file, int line)
 #define NGI_FN(i)	_NGI_FN(i)
 #define NGI_ARG1(i)	_NGI_ARG1(i)
 #define NGI_ARG2(i)	_NGI_ARG2(i)
-
-#define NGI_GET_M(i,m)       do {m = NGI_M(i); NGI_M(i) = NULL;      } while (0)
-#define NGI_GET_META(i,m)    do {m = NGI_META(i); NGI_META(i) = NULL;} while (0)
-#define NGI_GET_MSG(i,m)     do {m = NGI_MSG(i); NGI_MSG(i) = NULL;  } while (0)
+#define	NGI_NODE(i)	_NGI_NODE(i)
+#define	NGI_HOOK(i)	_NGI_HOOK(i)
+#define	NGI_SET_HOOK(i,h) _NGI_SET_HOOK(i,h)
+#define	NGI_CLR_HOOK(i)	  _NGI_CLR_HOOK(i)
+#define	NGI_SET_NODE(i,n) _NGI_SET_NODE(i,n)
+#define	NGI_CLR_NODE(i)	  _NGI_CLR_NODE(i)
 
 #define	NG_FREE_ITEM(item)	ng_free_item((item))
 #define	SAVE_LINE(item)		do {} while (0)
 
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
+
+#define NGI_GET_M(i,m)							\
+	do {								\
+		(m) = NGI_M(i);						\
+		_NGI_M(i) = NULL;					\
+	} while (0)
+
+#define NGI_GET_META(i,m)						\
+	do {								\
+		(m) = NGI_META(i);					\
+		_NGI_META(i) = NULL;					\
+	} while (0)
+
+#define NGI_GET_MSG(i,m)						\
+	do {								\
+		(m) = NGI_MSG(i);					\
+		_NGI_MSG(i) = NULL;					\
+	} while (0)
+
+#define NGI_GET_NODE(i,n)	/* YOU NOW HAVE THE REFERENCE */	\
+	do {								\
+		(n) = NGI_NODE(i);					\
+		_NGI_NODE(i) = NULL;					\
+	} while (0)
+
+#define NGI_GET_HOOK(i,h)						\
+	do {								\
+		(h) = NGI_HOOK(i);					\
+		_NGI_HOOK(i) = NULL;					\
+	} while (0)
+
 	
 /**********************************************************************
 * Data macros.  Send, manipulate and free.
@@ -796,15 +868,10 @@ _ngi_arg2(item_p item, char *file, int line)
 		(item) = NULL;						\
 	} while (0)
 
-
-/* Note that messages can be static (e.g. in ng_rmnode_self()) */
-/* XXX flag should not be user visible  */
 #define NG_FREE_MSG(msg)						\
 	do {								\
 		if ((msg)) {						\
-			if ((msg->header.flags & NGF_STATIC) == 0) {	\
-				FREE((msg), M_NETGRAPH_MSG);		\
-			}						\
+			FREE((msg), M_NETGRAPH_MSG);		\
 			(msg) = NULL;					\
 		}	 						\
 	} while (0)
