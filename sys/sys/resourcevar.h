@@ -85,15 +85,20 @@ struct plimit {
 #define	LIM_UNLOCK(lim)		mtx_unlock((lim)->pl_mtx)
 #define	LIM_LOCK_ASSERT(lim, f)	mtx_assert((lim)->pl_mtx, (f))
 
-/*
+/*-
  * Per uid resource consumption
+ *
+ * Locking guide:
+ * (a) Constant from inception
+ * (b) Locked by ui_mtxp
+ * (c) Locked by global uihashtbl_mtx
  */
 struct uidinfo {
-	LIST_ENTRY(uidinfo) ui_hash;
-	rlim_t	ui_sbsize;		/* socket buffer space consumed */
-	long	ui_proccnt;		/* number of processes */
-	uid_t	ui_uid;			/* uid */
-	u_int	ui_ref;			/* reference count */
+	LIST_ENTRY(uidinfo) ui_hash;	/* (c) hash chain of uidinfos */
+	rlim_t	ui_sbsize;		/* (b) socket buffer space consumed */
+	long	ui_proccnt;		/* (b) number of processes */
+	uid_t	ui_uid;			/* (a) uid */
+	u_int	ui_ref;			/* (b) reference count */
 	struct mtx *ui_mtxp;		/* protect all counts/limits */
 };
 
