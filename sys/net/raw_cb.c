@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_cb.c,v 1.13 1997/09/02 01:18:44 bde Exp $
+ *	$Id: raw_cb.c,v 1.14 1997/10/28 15:58:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -125,6 +125,8 @@ raw_disconnect(rp)
 }
 
 #ifdef notdef
+#include <sys/mbuf.h>
+
 int
 raw_bind(so, nam)
 	register struct socket *so;
