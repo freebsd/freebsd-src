@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.11 1995/12/25 02:53:33 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.13 1996/01/06 19:59:41 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +49,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.11 1995/12/25 02:53:33 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.13 1996/01/06 19:59:41 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -72,7 +72,8 @@ static void ypxfr_exit(retval, temp)
 
 	/* Clean up no matter what happened previously. */
 	if (temp != NULL) {
-		(void)(dbp->close)(dbp);
+		if (dbp != NULL)
+			(void)(dbp->close)(dbp);
 		if (unlink(temp) == -1) {
 			yp_error("failed to unlink %s",strerror(errno));
 		}
@@ -312,8 +313,9 @@ the local domain name isn't set");
 					    	 ypxfr_mapname,
 					     	ypxfr_source_host,
 					     	ypxfr_use_yplib)) == NULL) {
-			yp_error("failed to find master of %s in domain %s",
-				  ypxfr_mapname, ypxfr_source_domain);
+			yp_error("failed to find master of %s in domain %s: %s",
+				  ypxfr_mapname, ypxfr_source_domain,
+				  ypxfrerr_string(yp_errno));
 			ypxfr_exit(YPXFR_MADDR,NULL);
 		}
 	}
@@ -330,8 +332,8 @@ the local domain name isn't set");
 	if ((ypxfr_order = ypxfr_get_order(ypxfr_source_domain,
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
-		yp_error("failed to get order number of %s",
-						ypxfr_mapname);
+		yp_error("failed to get order number of %s: %s",
+				ypxfr_mapname, ypxfrerr_string(yp_errno));
 		ypxfr_exit(YPXFR_YPERR,NULL);
 	}
 
@@ -445,13 +447,14 @@ the local domain name isn't set");
 	}
 
 	(void)(dbp->close)(dbp);
+	dbp = NULL; /* <- yes, it seems this is necessary. */
 
 	/* Peek at the order number again and check for skew. */
 	if ((ypxfr_skew_check = ypxfr_get_order(ypxfr_source_domain,
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
-		yp_error("failed to get order number of %s",
-						ypxfr_mapname);
+		yp_error("failed to get order number of %s: %s",
+				ypxfr_mapname, ypxfrerr_string(yp_errno));
 		ypxfr_exit(YPXFR_YPERR,&ypxfr_temp_map);
 	}
 
