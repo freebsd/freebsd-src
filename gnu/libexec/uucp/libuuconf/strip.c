@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_strip_rcsid[] = "$Id$";
+const char _uuconf_strip_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get information about what types of global information should be

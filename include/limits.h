@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.2 (Berkeley) 1/4/94
- *	$Id: limits.h,v 1.8 1998/03/08 22:29:56 dufault Exp $
+ * $FreeBSD$
  */
 
 #ifndef _LIMITS_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.6 1998/10/11 18:13:41 markm Exp $
+# $FreeBSD$
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 

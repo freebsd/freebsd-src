@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.30.2.1 1999/08/18 19:15:44 obrien Exp $
+# $FreeBSD$
 
 SUBDIR = history readline
 

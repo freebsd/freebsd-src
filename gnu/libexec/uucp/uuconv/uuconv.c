@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char uuconv_rcsid[] = "$Id$";
+const char uuconv_rcsid[] = "$FreeBSD$";
 #endif
 
 #include "getopt.h"

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \

@@ -1,5 +1,5 @@
 #	from: Makefile.inc,v 1.1 1993/09/03 19:04:23 jtc Exp
-#	$Id: Makefile.inc,v 1.13 1999/04/04 21:46:24 dt Exp $
+# $FreeBSD$
 
 SRCS+=	i386_get_ioperm.c i386_get_ldt.c i386_set_ioperm.c i386_set_ldt.c \
 	i386_vm86.c

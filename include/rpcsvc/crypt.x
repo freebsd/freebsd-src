@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id$";
+%static const char rcsid[] = "$FreeBSD$";
 %#endif
 #endif
 

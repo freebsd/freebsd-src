@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.3 1998/06/03 18:57:59 peter Exp $
+# $FreeBSD$
 #
 
 .include "${.CURDIR}/../../Makefile.inc0"

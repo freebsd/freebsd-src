@@ -98,7 +98,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$Id: rcskeep.c,v 1.6 1997/02/22 15:47:38 peter Exp $")
+libId(keepId, "$FreeBSD$")
 
 static int badly_terminated P((void));
 static int checknum P((char const*));

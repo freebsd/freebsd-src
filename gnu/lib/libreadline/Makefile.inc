@@ -1,4 +1,4 @@
-#       $Id: Makefile.inc,v 1.1.2.1 1999/08/18 19:15:44 obrien Exp $
+# $FreeBSD$
 
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0

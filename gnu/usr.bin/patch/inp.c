@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.6 1997/10/23 02:44:21 ache Exp $
+/* $FreeBSD$
  *
  * $Log: inp.c,v $
+ * Revision 1.8  1998/01/21 14:37:20  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.6  1997/10/23 02:44:21  ache
  * Add (unsigned char) cast to ctype macros
  *

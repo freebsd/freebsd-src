@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1999/05/02 15:29:44 markm Exp $
+# $FreeBSD$
 #
 
 PROG=	perl

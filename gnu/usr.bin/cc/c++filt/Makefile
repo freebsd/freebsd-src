@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/07/08 00:14:15 bde Exp $
+# $FreeBSD$
 #
 
 PROG =	c++filt

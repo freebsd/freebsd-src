@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/10/03 03:59:47 jdp Exp $
+# $FreeBSD$
 #
 
 SUBDIR=		libiberty libbfd libopcodes libbinutils \

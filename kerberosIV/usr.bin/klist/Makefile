@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		klist
 MAN1=		${KRB4DIR}/man/klist.1

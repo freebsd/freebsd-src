@@ -36,7 +36,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %static const char rcsid[] =
-%	"$Id: yp.x,v 1.10 1997/11/20 07:18:07 charnier Exp $";
+%	"$FreeBSD$";
 %#endif /* not lint */
 #endif
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #endif
 static char rcsid[] =
-	"$Id: sleep.c,v 1.23 1998/09/05 08:01:26 jb Exp $";
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>

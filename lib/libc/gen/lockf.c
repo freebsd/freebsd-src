@@ -38,7 +38,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[]=
-	"$Id$";
+  "$FreeBSD$";
 #endif
 
 #include <errno.h>

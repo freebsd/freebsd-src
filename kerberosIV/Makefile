@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 

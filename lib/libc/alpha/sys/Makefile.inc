@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.4 1999/04/04 21:46:18 dt Exp $
+# $FreeBSD$
 
 MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S \
 	sbrk.S setlogin.S sigpending.S sigprocmask.S sigreturn.S \

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/05/04 22:01:27 jb Exp $
+# $FreeBSD$
 #
 
 GASES=		${MACHINE_ARCH} ${CROSS_TOOLS} ${CROSS_TARGETS}

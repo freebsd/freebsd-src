@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 LIB=	intl
 INTERNALLIB= true

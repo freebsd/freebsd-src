@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: zmore,v 1.4 1999/05/28 13:23:24 kris Exp $
+# $FreeBSD$
 
 if test "`echo -n a`" = "-n a"; then
   # looks like a SysV system:

@@ -50,7 +50,7 @@
 
 /*
  *	From: Id: nameser.h,v 8.16 1998/02/06 00:35:58 halley Exp
- *	$Id$
+ * $FreeBSD$
  */
 
 #ifndef _ARPA_NAMESER_H_

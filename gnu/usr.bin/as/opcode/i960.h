@@ -18,7 +18,7 @@
  * appropriate.
  */
 
-/* $Id$ */
+/* $FreeBSD$ */
 
 #define CTRL	0
 #define COBR	1

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/02/22 15:45:03 peter Exp $
+# $FreeBSD$
 
 INFO = gcc cpp reno gxxint
 

@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.6 1997/02/22 14:58:29 peter Exp $
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>

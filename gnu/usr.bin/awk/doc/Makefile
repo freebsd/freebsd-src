@@ -1,6 +1,6 @@
 # Makefile copyright James Raynard (jraynard@freebsd.org) 1997
 #
-# $Id: Makefile,v 1.5 1997/10/11 17:05:07 jraynard Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../../contrib/awk/doc
 

@@ -8,7 +8,7 @@
  * The target dependent functions should be defined in tailor.c.
  */
 
-/* $Id$ */
+/* $FreeBSD$ */
 
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS

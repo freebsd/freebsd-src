@@ -139,7 +139,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$Id: uurate.c,v 1.6 1997/02/22 15:27:02 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1998/09/26 16:17:05 markm Exp $
+# $FreeBSD$
 #
 
 PROG=	miniperl

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kpropd
 MAN8=		${KRB4DIR}/man/kpropd.8

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1998/06/04 06:50:57 bde Exp $
+# $FreeBSD$
 #
 
 .include "../Makefile.inc0"

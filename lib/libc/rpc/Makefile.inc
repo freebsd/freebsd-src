@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id: Makefile.inc,v 1.12 1997/10/21 08:41:09 bde Exp $
+# $FreeBSD$
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 
