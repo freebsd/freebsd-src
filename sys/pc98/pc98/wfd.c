@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.4 1998/01/29 06:42:12 msmith Exp $
+ *      $Id: wfd.c,v 1.5 1998/01/29 19:02:51 pst Exp $
  */
 
 /*
@@ -40,21 +40,17 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/file.h>
-#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/cdio.h>
-#include <machine/ioctl_fd.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
 #include <i386/isa/atapi.h>
-#include <i386/isa/fdc.h>
 
 static	d_open_t	wfdbopen;
 static	d_close_t	wfdbclose;
