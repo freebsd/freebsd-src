@@ -357,3 +357,10 @@ if the data is needed for future use, it should be
 copied before any subsequent calls overwrite it.
 Only the Internet
 address format is currently understood.
+.Pp
+.Fn gethostbyname2
+cannot perform
+.Dv AF_INET6
+lookups over NIS.
+.Xr getaddrinfo 3
+must be used instead.
