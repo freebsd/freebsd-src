@@ -99,6 +99,8 @@
 #define EEPROM_MFG_PRODUCT      0x6     /* Product code */
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
+# define ADDR_CFG_EISA		0x1f
+# define ADDR_CFG_MASK		0x1f
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
 #define EEPROM_OEM_ADDR0        0xa
 #define EEPROM_OEM_ADDR1        0xb
