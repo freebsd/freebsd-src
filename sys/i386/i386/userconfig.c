@@ -2425,8 +2425,6 @@ visuserconfig(void)
  * $FreeBSD$
  */
 
-#include "scbus.h"
-
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
 #define PARM_ADDR	0x3
