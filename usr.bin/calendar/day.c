@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: day.c,v 1.10 1997/09/18 14:06:43 phk Exp $
+ *	$Id: day.c,v 1.11 1997/10/26 12:51:30 wosch Exp $
  */
 
 
@@ -55,7 +55,7 @@ char dayname[10];
 
 /* 1-based month, 0-based days, cumulative */
 int daytab[][14] = {
-	{ 0, -1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364 }, 
+	{ 0, -1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364 },
 	{ 0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
 };
 
@@ -174,7 +174,7 @@ time_t Mktime (dp)
 		errx(1, "strdup failed in Mktime");
     (void)time(&t);
     tp = localtime(&t);
-    
+
     len = strlen(date);
     tm.tm_sec = 0;
     tm.tm_min = 0;
@@ -204,8 +204,8 @@ time_t Mktime (dp)
 	    tm.tm_year -= 1900;
     }
 
-#if DEBUG
-    printf("Mktime: %d %d %d %s\n", (int)mktime(&tm), (int)t, len,
+#ifdef DEBUG
+    fprintf(stderr, "Mktime: %d %d %d %s\n", (int)mktime(&tm), (int)t, len,
 	   asctime(&tm));
 #endif
     free(date);
@@ -231,7 +231,7 @@ isnow(endp, monthp, dayp, varp)
 {
 	int day, flags, month = 0, v1, v2;
 
-	/* 
+	/*
 	 * CONVENTION
 	 *
 	 * Month:     1-12
@@ -242,32 +242,32 @@ isnow(endp, monthp, dayp, varp)
 	 */
 
 	flags = 0;
-	
+
 	/* read first field */
 	/* didn't recognize anything, skip it */
 	if (!(v1 = getfield(endp, &endp, &flags)))
 		return (0);
 
 	/* Easter or Easter depending days */
-	if (flags & F_EASTER) 
+	if (flags & F_EASTER)
 	    day = v1 - 1; /* days since January 1 [0-365] */
 
-	 /* 
-	  * 1. {Weekday,Day} XYZ ... 
+	 /*
+	  * 1. {Weekday,Day} XYZ ...
 	  *
-	  *    where Day is > 12 
-	  */  
+	  *    where Day is > 12
+	  */
 	else if (flags & F_ISDAY || v1 > 12) {
 
 		/* found a day; day: 1-31 or weekday: 1-7 */
 		day = v1;
 
 		/* {Day,Weekday} {Month,Monthname} ... */
-		/* if no recognizable month, assume just a day alone 
+		/* if no recognizable month, assume just a day alone
 		 * in other words, find month or use current month */
 		if (!(month = getfield(endp, &endp, &flags)))
 			month = tp->tm_mon + 1;
-	} 
+	}
 
 	/* 2. {Monthname} XYZ ... */
 	else if (flags & F_ISMONTH) {
@@ -277,7 +277,7 @@ isnow(endp, monthp, dayp, varp)
 		/* if no recognizable day, assume the first day in month */
 		if (!(day = getfield(endp, &endp, &flags)))
 			day = 1;
-	} 
+	}
 
 	/* Hm ... */
 	else {
@@ -291,7 +291,7 @@ isnow(endp, monthp, dayp, varp)
 			day = v1;
 			month = v2;
 			*varp = 0;
-		} 
+		}
 
 		/* {Month} {Weekday,Day} ...  */
 		else {
@@ -303,12 +303,12 @@ isnow(endp, monthp, dayp, varp)
 		}
 	}
 
-	/* convert Weekday into *next*  Day, 
-	 * e.g.: 'Sunday' -> 22 
+	/* convert Weekday into *next*  Day,
+	 * e.g.: 'Sunday' -> 22
 	 *       'SundayLast' -> ??
 	 */
 	if (flags & F_ISDAY) {
-#if DEBUG
+#ifdef DEBUG
 	    fprintf(stderr, "\nday: %d %s month %d\n", day, endp, month);
 #endif
 
@@ -321,22 +321,23 @@ isnow(endp, monthp, dayp, varp)
 		    v1 = day/10 - 1;          /* offset -4 ... -1 */
 	            day = 10 + (day % 10);    /* day 1 ... 7 */
 
-		    /* day, eg '22th' */
+		    /* day, eg '22nd' */
 		    v2 = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
 
 		    /* (month length - day) / 7 + 1 */
-		    if (((int)((cumdays[month+1] - 
+		    if (cumdays[month+1] - cumdays[month] >= v2
+			&& ((int)((cumdays[month+1] -
 		               cumdays[month] - v2) / 7) + 1) == -v1)
 			/* bingo ! */
 			day = v2;
-		    
+
 		    /* set to yesterday */
 		    else {
 			day = tp->tm_mday - 1;
 			if (day == 0)
 			    return (0);
 		    }
-		} 
+		}
 
 		/* first, second ... +1 ... +5 */
 		else {
@@ -365,7 +366,7 @@ isnow(endp, monthp, dayp, varp)
 		*varp = 1;
 	    }
 	}
-	   
+
 	if (!(flags & F_EASTER)) {
 	    *monthp = month;
 	    *dayp = day;
@@ -379,18 +380,18 @@ isnow(endp, monthp, dayp, varp)
 	    *varp = 1;
 	}
 
-#if DEBUG 
-	fprintf(stderr, "day2: day %d(%d) yday %d\n", *dayp, day, tp->tm_yday);
+#ifdef DEBUG
+	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day, cumdays[month], tp->tm_yday);
 #endif
 	/* if today or today + offset days */
-	if (day >= tp->tm_yday - f_dayBefore && 
+	if (day >= tp->tm_yday - f_dayBefore &&
 	    day <= tp->tm_yday + offset + f_dayAfter)
 		return (1);
 
 	/* if number of days left in this year + days to event in next year */
 	if (yrdays - tp->tm_yday + day <= offset + f_dayAfter ||
 	    /* a year backward, eg. 6 Jan and 10 days before -> 27. Dec */
-	    tp->tm_yday + day - f_dayBefore < 0 
+	    tp->tm_yday + day - f_dayBefore < 0
 	    )
 		return (1);
 	return (0);
@@ -438,7 +439,7 @@ getday(s)
 
 /* return offset for variable weekdays
  * -1 -> last weekday in month
- * +1 -> first weekday in month 
+ * +1 -> first weekday in month
  * ... etc ...
  */
 int
@@ -454,7 +455,7 @@ getdayvar(s)
 	/* Sun+1 or Wednesday-2
 	 *    ^              ^   */
 
-	/* printf ("x: %s %s %d\n", s, s + offset - 2, offset); */
+	/* fprintf(stderr, "x: %s %s %d\n", s, s + offset - 2, offset); */
 	switch(*(s + offset - 2)) {
 	case '-':
 	    return(-(atoi(s + offset - 1)));
@@ -463,12 +464,12 @@ getdayvar(s)
 	    return(atoi(s + offset - 1));
 	    break;
 	}
-	    
 
-	/* 
+
+	/*
 	 * some aliases: last, first, second, third, fourth
 	 */
-	
+
 	/* last */
 	if      (offset > 4 && !strcasecmp(s + offset - 4, "last"))
 	    return(-1);
