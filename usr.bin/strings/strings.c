@@ -47,13 +47,14 @@ static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define DEF_LEN		4		/* default minimum string length */
-#define ISSTR(ch)	(isascii(ch) && (isprint(ch) || ch == '\t'))
+#define ISSTR(ch)       (isalnum(ch) || ispunct(ch) || isascii(ch) && isprint(ch) || ch == '\t')
 
 typedef struct exec	EXEC;		/* struct exec cast */
 
@@ -78,6 +79,8 @@ main(argc, argv)
 	short asdata, oflg, fflg;
 	u_char *bfr;
 	char *file, *p;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	/*
 	 * for backward compatibility, allow '-' to specify 'a' flag; no
