@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.5 1999/03/15 01:17:26 wpaul Exp $
+ *	$Id: if_vlan.c,v 1.6 1999/03/15 01:21:59 wpaul Exp $
  */
 
 /*
@@ -84,6 +84,7 @@
 #include <netinet/if_ether.h>
 #endif
 
+SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_8021_VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
