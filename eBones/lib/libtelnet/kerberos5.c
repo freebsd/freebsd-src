@@ -1,7 +1,7 @@
 /*
  *	$Source: /home/ncvs/src/secure/lib/libtelnet/kerberos5.c,v $
- *	$Author: csgr $
- *	$Id: kerberos5.c,v 1.1.1.1 1994/08/12 22:02:59 csgr Exp $
+ *	$Author: rgrimes $
+ *	$Id: kerberos5.c,v 1.2 1995/05/30 06:11:54 rgrimes Exp $
  */
 
 #if !defined(lint) && !defined(SABER)
@@ -9,7 +9,7 @@ static
 #ifdef __STDC__
 const
 #endif
-char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.1.1.1 1994/08/12 22:02:59 csgr Exp $";
+char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.2 1995/05/30 06:11:54 rgrimes Exp $";
 #endif /* lint */
 
 /*-
@@ -46,7 +46,7 @@ char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.1.1.1 1994/08/12 22:02:59 csgr 
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)kerberos5.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)kerberos5.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -203,7 +203,7 @@ kerberos5_send(ap)
 	ksum.checksum_type = CKSUMTYPE_CRC32;
 	ksum.contents = sum;
 	ksum.length = sizeof(sum);
-	bzero((Voidptr )sum, sizeof(sum));
+	memset((Voidptr )sum, 0, sizeof(sum));
 
         if (!UserNameRequested) {
                 if (auth_debug_mode) {
@@ -256,7 +256,7 @@ kerberos5_send(ap)
 	}
 
 
-	bzero((char *)&creds, sizeof(creds));
+	memset((char *)&creds, 0, sizeof(creds));
 	creds.server = server;
 
 	if (r = krb5_cc_get_principal(ccache, &creds.client)) {
@@ -305,12 +305,12 @@ kerberos5_send(ap)
 	    if (newkey->keytype != KEYTYPE_DES) {
 		if (creds.keyblock.keytype == KEYTYPE_DES)
 		    /* use the session key in credentials instead */
-		    memcpy((char *)session_key,
+		    memmove((char *)session_key,
 			   (char *)creds.keyblock.contents, sizeof(Block));
 		else
 		    /* XXX ? */;
 	    } else {
-		memcpy((char *)session_key, (char *)newkey->contents,
+		memmove((char *)session_key, (char *)newkey->contents,
 		       sizeof(Block));
 	    }
 	    krb5_free_keyblock(newkey);
@@ -455,12 +455,14 @@ kerberos5_is(ap, data, cnt)
 		free(name);
 	    	if (authdat->authenticator->subkey &&
 		    authdat->authenticator->subkey->keytype == KEYTYPE_DES) {
-		    bcopy((Voidptr )authdat->authenticator->subkey->contents,
-			  (Voidptr )session_key, sizeof(Block));
+		    memmove((Voidptr )session_key,
+			   (Voidptr )authdat->authenticator->subkey->contents,
+			   sizeof(Block));
 		} else if (authdat->ticket->enc_part2->session->keytype ==
 			   KEYTYPE_DES) {
-		    bcopy((Voidptr )authdat->ticket->enc_part2->session->contents,
-			  (Voidptr )session_key, sizeof(Block));
+		    memmove((Voidptr )session_key,
+			(Voidptr )authdat->ticket->enc_part2->session->contents,
+			sizeof(Block));
 		} else
 		    break;
 
