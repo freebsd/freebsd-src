@@ -36,17 +36,13 @@
 .Nm
 .Fl a Ar selector
 .Nm
-.Fl r Ar selector
-.Op Fl b | Fl h
-.Ar sel addr Ns Op : Ns Ar addr
+.Fl r Oo Fl b | h Oc Ar selector addr Ns Op : Ns Ar addr2
 .Nm
-.Fl w Ar selector
-.Op Fl b | Fl h
-.Ar sel addr Ns Op Ar value
+.Fl w Oo Fl b | h Oc Ar selector addr value
 .Sh DESCRIPTION
 The
 .Nm
-command provides a command line interface to the functionality provided by
+utility provides a command line interface to the functionality provided by
 .Pa /dev/pci Ns 's
 .Xr ioctl 2
 interface.
@@ -142,19 +138,19 @@ non-zero indicates that it does not.
 The
 .Fl r
 option reads a configuration space register at byte offset
-.Ar reg
+.Ar addr
 of device
 .Ar selector
 and prints out its value in hexadecimal.
-The optional second
-.Ar reg2
+The optional second address
+.Ar addr2
 specifies a range to read.
 The
 .Fl w
 option writes the
 .Ar value
 into a configuration space register at byte offset
-.Ar reg
+.Ar addr
 of device
 .Ar selector .
 For both operations, the flags
@@ -179,7 +175,7 @@ This path can be overridden by setting the environment variable
 .Sh HISTORY
 The
 .Nm
-command appeared first in
+utility appeared first in
 .Fx 2.2 .
 The
 .Fl a
@@ -191,7 +187,7 @@ KLD support in
 .An -nosplit
 The
 .Nm
-facility was written by
+utility was written by
 .An Stefan Esser
 and
 .An Garrett Wollman .
