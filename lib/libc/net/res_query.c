@@ -191,7 +191,6 @@ res_search(name, class, type, answer, anslen)
 	int anslen;		/* size of answer */
 {
 	const char *cp, * const *domain;
-	HEADER *hp = (HEADER *) answer;
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
@@ -271,11 +270,24 @@ res_search(name, class, type, answer, anslen)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
-				if (hp->rcode == SERVFAIL) {
-					/* try next search element, if any */
-					got_servfail++;
-					break;
-				}
+				/*
+				 * This can occur due to a server failure
+				 * (that is, all listed servers have failed),
+				 * or all listed servers have timed out.
+				 * ((HEADER *)answer)->rcode may not be set
+				 * to SERVFAIL in the case of a timeout.
+				 *
+				 * Either way we must terminate the search
+				 * and return TRY_AGAIN in order to avoid
+				 * non-deterministic return codes.  For
+				 * example, loaded name servers or races
+				 * against network startup/validation (dhcp,
+				 * ppp, etc) can cause the search to timeout
+				 * on one search element, e.g. 'fu.bar.com',
+				 * and return a definitive failure on the
+				 * next search element, e.g. 'fu.'.
+				 */
+				++got_servfail;
 				/* FALLTHROUGH */
 			default:
 				/* anything else implies that we're done */
