@@ -77,6 +77,8 @@
 /* useful macros */
 #define CARDBUS_CIS_ADDR(x)						\
 	(CARDBUS_CIS_ADDRMASK & (x))
+#define CARDBUS_CIS_SPACE(x)						\
+	(CARDBUS_CIS_ASIMASK & (x))
 #define CARDBUS_CIS_ASI_BAR(x)						\
 	(((CARDBUS_CIS_ASIMASK & (x))-1)*4+0x10)
 #define CARDBUS_CIS_ASI_ROM_IMAGE(x)					\
