@@ -53,6 +53,7 @@ struct pcb_ldt {
 
 #ifdef _KERNEL
 
+int i386_extend_pcb __P((struct proc *));
 void set_user_ldt __P((struct pcb *));
 struct pcb_ldt *user_ldt_alloc __P((struct pcb *, int));
 void user_ldt_free __P((struct pcb *));
