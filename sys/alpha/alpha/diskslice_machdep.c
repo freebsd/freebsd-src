@@ -36,7 +36,7 @@
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
  *	from: i386/isa Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp
- *	$Id: diskslice_machdep.c,v 1.3 1998/08/11 07:17:36 dfr Exp $
+ *	$Id: diskslice_machdep.c,v 1.4 1998/10/06 08:38:58 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -458,4 +458,17 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
+}
+
+void
+alpha_fix_srm_checksum(bp)
+	struct buf *bp;
+{
+	u_int64_t *p = (u_int64_t *) bp->b_data;
+	u_int64_t sum = 0;
+	int i;
+
+	for (i = 0; i < 63; i++)
+		sum += p[i];
+	p[63] = sum;
 }
