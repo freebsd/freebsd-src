@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.15 1997/02/22 14:11:10 peter Exp $
+ * $Id: attr.c,v 1.8.2.8 1997/03/28 23:07:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,18 +60,36 @@ attr_parse(Attribs *attr, FILE *fp)
 {
     char hold_n[MAX_NAME+1];
     char hold_v[MAX_VALUE+1];
-    int n, v;
-    enum { LOOK, COMMENT, NAME, VALUE, COMMIT } state;
-    int lno, num_attribs;
-    int ch;
+    char buf[BUFSIZ];
+    int bp, n, v, max;
+    enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
+    int num_attribs;
+    int ch = 0;
 
-    n = v = lno = num_attribs = 0;
+    n = v = num_attribs = bp = max = 0;
     state = LOOK;
-    while (state == COMMIT || (fread(&ch, 1, 1, fp) == 1)) {
-	/* Count lines */
-	if (ch == '\n')
-	    ++lno;
+    while (state != STOP) {
+	if (state != COMMIT) {
+	    if (bp == max)
+		state = FILL;
+	    else
+		ch = buf[bp++];
+	}
 	switch(state) {
+	case FILL:
+	    if ((max = fread(buf, 1, sizeof buf, fp)) <= 0) {
+		state = STOP;
+		break;
+	    }
+	    else {
+		state = LOOK;
+		if (isDebug())
+		    msgDebug("Read %d characters from attributes file on state FILL\n", max);
+		ch = buf[0];
+		bp = 1;
+	    }
+	    /* Fall through deliberately since we already have a character and state == LOOK */
+
 	case LOOK:
 	    if (isspace(ch))
 		continue;
@@ -81,11 +99,18 @@ attr_parse(Attribs *attr, FILE *fp)
 		continue;
 	    }
 	    else if (isalpha(ch) || ch == '_') {
-		hold_n[n++] = ch;
-		state = NAME;
+		if (n >= MAX_NAME) {
+		    msgDebug("Attribute name overflow at character %d, ignoring entry..\n", n);
+		    n = 0;
+		    state = COMMENT;
+		}
+		else {
+		    hold_n[n++] = ch;
+		    state = NAME;
+		}
 	    }
 	    else {
-		msgDebug("Parse config: Invalid character '%c' at line %d\n", ch, lno);
+		msgDebug("Parse config: Invalid character '%c (%0x)'\n", ch, ch);
 		state = COMMENT;	/* Ignore the rest of the line */
 	    }
 	    break;
@@ -96,15 +121,17 @@ attr_parse(Attribs *attr, FILE *fp)
 	    break;
 
 	case NAME:
-	    if (ch == '\n') {
+	    if (ch == '\n' || !ch) {
 		hold_n[n] = '\0';
-		hold_v[v = 0] = '\0';
+		hold_v[0] = '\0';
+		v = n = 0;
 		state = COMMIT;
 	    }
 	    else if (isspace(ch))
 		continue;
 	    else if (ch == '=') {
 		hold_n[n] = '\0';
+		v = n = 0;
 		state = VALUE;
 	    }
 	    else
@@ -114,26 +141,39 @@ attr_parse(Attribs *attr, FILE *fp)
 	case VALUE:
 	    if (v == 0 && isspace(ch))
 		continue;
-	    else if (ch == '{') {
-		/* multiline value */
-		while (fread(&ch, 1, 1, fp) == 1 && ch != '}') {
-		    if (v == MAX_VALUE)
-			msgFatal("Value length overflow at line %d", lno);
-		    hold_v[v++] = ch;
-		}
+	    else if (ch == '{')
+		state = MVALUE;
+	    else if (ch == '\n' || !ch) {
 		hold_v[v] = '\0';
-		state = COMMIT;
-	    }
-	    else if (ch == '\n') {
-		hold_v[v] = '\0';
+		v = n = 0;
 		state = COMMIT;
 	    }
 	    else {
-		if (v == MAX_VALUE)
-		    msgFatal("Value length overflow at line %d", lno);
+		if (v >= MAX_VALUE) {
+		    msgDebug("Value length overflow at character %d\n", v);
+		    state = COMMENT;
+		    v = n = 0;
+		    break;
+		}
 		else
 		    hold_v[v++] = ch;
 	    }
+	    break;
+
+	case MVALUE:
+	    /* multiline value */
+	    if (v >= MAX_VALUE) {
+		msgDebug("Value length overflow at character %d\n", v);
+		state = COMMENT;
+		n = v = 0;
+	    }
+	    else if (ch == '}') {
+		hold_v[v] = '\0';
+		v = n = 0;
+		state = COMMIT;
+	    }
+	    else
+		hold_v[v++] = ch;
 	    break;
 
 	case COMMIT:
@@ -141,12 +181,14 @@ attr_parse(Attribs *attr, FILE *fp)
 	    SAFE_STRCPY(attr[num_attribs].value, hold_v);
 	    state = LOOK;
 	    v = n = 0;
-	    if (++num_attribs >= MAX_ATTRIBS)
-		msgFatal("Attribute limit overflow; encountered a bad attributes file!");
+	    if (++num_attribs >= MAX_ATTRIBS) {
+		msgDebug("Attribute limit overflow at %d; encountered a bad attributes file!\n", num_attribs);
+		return DITEM_FAILURE;
+	    }
 	    break;
 
 	default:
-	    msgFatal("Unknown state at line %d??", lno);
+	    msgFatal("Unknown state in attr_parse??");
 	}
     }
     attr[num_attribs].name[0] = NULL; /* end marker */

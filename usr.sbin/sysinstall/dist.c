@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.103 1997/03/15 18:01:35 jkh Exp $
+ * $Id: dist.c,v 1.73.2.23 1997/03/25 02:45:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -390,7 +390,6 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist, buf[BUFSIZ];
     const char *tmp;
     FILE *fp;
-    Attribs *dist_attr;
     WINDOW *w = savescr();
     struct timeval start, stop;
     struct sigaction old, new;
@@ -432,7 +431,6 @@ distExtract(char *parent, Distribution *me)
 	 * Try to get distribution as multiple pieces, locating and parsing an
 	 * info file which tells us how many we need for this distribution.
 	 */
-	dist_attr = NULL;
 	numchunks = 0;
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 
@@ -457,6 +455,7 @@ distExtract(char *parent, Distribution *me)
 	}
 	else if (fp > 0) {
 	    int status;
+	    Attribs *dist_attr;
 
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);

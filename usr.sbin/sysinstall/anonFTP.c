@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.21 1997/02/07 04:25:16 jkh Exp $
+ * $Id: anonFTP.c,v 1.22 1997/03/09 22:25:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -168,7 +168,7 @@ createFtpUser(void)
 	return DITEM_SUCCESS; 	/* succeeds if already exists */
     }
     
-    sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
+    sprintf(pwline, "%s:*:%s:%d::0:0:%s:%s:/nonexistent\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
     
     fptr = fopen(_PATH_MASTERPASSWD,"a");
     if (! fptr) {
