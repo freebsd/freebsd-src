@@ -359,7 +359,7 @@ static const struct CARDTYPE cards[] = {
 
 struct bt848_card_sig bt848_card_signature[1]= {
   /* IMS TURBO TV : card 5 */
-    {  5,9, {00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 02, 00, 00, 00, 00}}
+    {  5,9, {00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 02, 00, 00, 00}}
 
 
 };
