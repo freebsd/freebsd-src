@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
@@ -57,7 +58,9 @@
 #include <net/if_ieee80211.h>
 
 #include <dev/pccard/pccardvar.h>
+#if __FreeBSD_version >= 500000
 #include <dev/pccard/pccarddevs.h>
+#endif
 
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/wi_hostap.h>
@@ -71,9 +74,22 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int wi_pccard_match(device_t);
 static int wi_pccard_probe(device_t);
 static int wi_pccard_attach(device_t);
+
+#if __FreeBSD_version < 500000
+static device_method_t wi_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		wi_pccard_probe),
+	DEVMETHOD(device_attach,	wi_pccard_attach),
+	DEVMETHOD(device_detach,	wi_generic_detach),
+	DEVMETHOD(device_shutdown,	wi_shutdown),
+
+	{ 0, 0 }
+};
+
+#else
+static int wi_pccard_match(device_t);
 
 static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
@@ -90,6 +106,8 @@ static device_method_t wi_pccard_methods[] = {
 	{ 0, 0 }
 };
 
+#endif
+
 static driver_t wi_pccard_driver = {
 	"wi",
 	wi_pccard_methods,
@@ -98,6 +116,7 @@ static driver_t wi_pccard_driver = {
 
 DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
 
+#if __FreeBSD_version >= 500000
 static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(3COM, 3CRWE737A, 0),
 	PCMCIA_CARD(3COM, 3CRWE777A, 0),
@@ -150,6 +169,7 @@ wi_pccard_match(dev)
 	}
 	return ENXIO;
 }
+#endif
 
 static int
 wi_pccard_probe(dev)

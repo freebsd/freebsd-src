@@ -54,12 +54,9 @@
  * programs the Hermes controller directly, using information gleaned
  * from the HCF Light code and corresponding documentation.
  *
- * This driver supports both the PCMCIA and ISA versions of the
- * WaveLAN/IEEE cards. Note however that the ISA card isn't really
- * anything of the sort: it's actually a PCMCIA bridge adapter
- * that fits into an ISA slot, into which a PCMCIA WaveLAN card is
- * inserted. Consequently, you need to use the pccard support for
- * both the ISA and PCMCIA adapters.
+ * This driver supports the ISA, PCMCIA and PCI versions of the Lucent
+ * WaveLan cards (based on the Hermes chipset), as well as the newer
+ * Prism 2 chipsets with firmware from Intersil and Symbol.
  */
 
 #include <sys/param.h>
@@ -78,6 +75,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <net/if.h>
@@ -180,14 +178,15 @@ wi_generic_detach(dev)
 {
 	struct wi_softc		*sc;
 	struct ifnet		*ifp;
+	int			s;
 
 	sc = device_get_softc(dev);
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->wi_gone) {
 		device_printf(dev, "already unloaded\n");
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return(ENODEV);
 	}
 
@@ -201,8 +200,10 @@ wi_generic_detach(dev)
 	wi_free(dev);
 	sc->wi_gone = 1;
 
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
+#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->wi_mtx);
+#endif
 
 	return(0);
 }
@@ -215,6 +216,7 @@ wi_generic_attach(device_t dev)
 	struct wi_ltv_gen	gen;
 	struct ifnet		*ifp;
 	int			error;
+	int			s;
 
 	/* XXX maybe we need the splimp stuff here XXX */
 	sc = device_get_softc(dev);
@@ -229,9 +231,11 @@ wi_generic_attach(device_t dev)
 		return (error);
 	}
 
+#if __FreeBSD_version >= 500000
 	mtx_init(&sc->wi_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	WI_LOCK(sc);
+#endif
+	WI_LOCK(sc, s);
 
 	/* Reset the NIC. */
 	wi_reset(sc);
@@ -370,7 +374,7 @@ wi_generic_attach(device_t dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->wi_stat_ch);
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 
 	return(0);
 }
@@ -749,7 +753,7 @@ wi_inquire(xsc)
 {
 	struct wi_softc		*sc;
 	struct ifnet		*ifp;
-	int s;
+	int			s;
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
@@ -760,9 +764,9 @@ wi_inquire(xsc)
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
-	s = splimp();
+	WI_LOCK(sc, s);
 	wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_COUNTERS, 0, 0);
-	splx(s);
+	WI_UNLOCK(sc, s);
 
 	return;
 }
@@ -827,15 +831,16 @@ wi_intr(xsc)
 	struct wi_softc		*sc = xsc;
 	struct ifnet		*ifp;
 	u_int16_t		status;
+	int			s;
 
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->wi_gone || !(ifp->if_flags & IFF_UP)) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
@@ -885,7 +890,7 @@ wi_intr(xsc)
 		wi_start(ifp);
 	}
 
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 
 	return;
 }
@@ -899,6 +904,11 @@ wi_cmd(sc, cmd, val0, val1, val2)
 	int			val2;
 {
 	int			i, s = 0;
+	static volatile int count  = 0;
+	
+	if (count > 1)
+		panic("Hey partner, hold on there!");
+	count++;
 
 	/* wait for the busy bit to clear */
 	for (i = 500; i > 0; i--) {	/* 5s */
@@ -909,6 +919,7 @@ wi_cmd(sc, cmd, val0, val1, val2)
 	}
 	if (i == 0) {
 		device_printf(sc->dev, "wi_cmd: busy bit won't clear.\n" );
+		count--;
 		return(ETIMEDOUT);
 	}
 
@@ -931,19 +942,21 @@ wi_cmd(sc, cmd, val0, val1, val2)
 			if ((s & WI_CMD_CODE_MASK) != (cmd & WI_CMD_CODE_MASK))
 				return(EIO);
 #endif
-			if (s & WI_STAT_CMD_RESULT)
+			if (s & WI_STAT_CMD_RESULT) {
+				count--;
 				return(EIO);
+			}
 			break;
 		}
 		DELAY(WI_DELAY);
 	}
 
+	count--;
 	if (i == WI_TIMEOUT) {
 		device_printf(sc->dev,
 		    "timeout in wi_cmd 0x%04x; event status 0x%04x\n", cmd, s);
 		return(ETIMEDOUT);
 	}
-
 	return(0);
 }
 
@@ -1395,7 +1408,11 @@ wi_setmulti(sc)
 		return;
 	}
 
+#if __FreeBSD_version < 500000
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#else
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#endif
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (i < 16) {
@@ -1515,10 +1532,15 @@ wi_ioctl(ifp, command, data)
 	struct wi_req		wreq;
 	struct ifreq		*ifr;
 	struct ieee80211req	*ireq;
+#if __FreeBSD_version >= 500000
 	struct thread		*td = curthread;
+#else
+	struct proc		*td = curproc;		/* Little white lie */
+#endif
+	int			s;
 
 	sc = ifp->if_softc;
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 	ifr = (struct ifreq *)data;
 	ireq = (struct ieee80211req *)data;
 
@@ -1881,7 +1903,7 @@ wi_ioctl(ifp, command, data)
 		break;
 	}
 out:
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 
 	return(error);
 }
@@ -1894,11 +1916,12 @@ wi_init(xsc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct wi_ltv_macaddr	mac;
 	int			id = 0;
+	int			s;
 
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 
 	if (sc->wi_gone) {
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
@@ -2012,7 +2035,7 @@ wi_init(xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->wi_stat_ch = timeout(wi_inquire, sc, hz * 60);
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 
 	return;
 }
@@ -2161,24 +2184,25 @@ wi_start(ifp)
 	struct wi_frame		tx_frame;
 	struct ether_header	*eh;
 	int			id;
+	int			s;
 
 	sc = ifp->if_softc;
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 
 	if (sc->wi_gone) {
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
 	if (ifp->if_flags & IFF_OACTIVE) {
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
 nextpkt:
 	IF_DEQUEUE(&ifp->if_snd, m0);
 	if (m0 == NULL) {
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
@@ -2292,7 +2316,7 @@ nextpkt:
 	 */
 	ifp->if_timer = 5;
 
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 	return;
 }
 
@@ -2340,11 +2364,12 @@ wi_stop(sc)
 	struct wi_softc		*sc;
 {
 	struct ifnet		*ifp;
+	int			s;
 
-	WI_LOCK(sc);
+	WI_LOCK(sc, s);
 
 	if (sc->wi_gone) {
-		WI_UNLOCK(sc);
+		WI_UNLOCK(sc, s);
 		return;
 	}
 
@@ -2366,7 +2391,7 @@ wi_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
-	WI_UNLOCK(sc);
+	WI_UNLOCK(sc, s);
 	return;
 }
 
