@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.33 1998/02/13 05:25:37 bde Exp $
+ *	$Id: sys_machdep.c,v 1.34 1998/03/23 19:52:34 jlemon Exp $
  *
  */
 
@@ -169,9 +169,9 @@ i386_extend_pcb(struct proc *p)
 }
 
 struct i386_ioperm_args {
-	u_short start;
-	u_short length;
-	u_char enable;
+	u_int start;
+	u_int length;
+	int enable;
 };
 
 static int
@@ -205,7 +205,7 @@ i386_set_ioperm(p, args)
 	if (ua.start + ua.length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
-	for (i = ua.start; i < (int)(ua.start + ua.length) + 1; i++) {
+	for (i = ua.start; i < ua.start + ua.length; i++) {
 		if (ua.enable) 
 			iomap[i >> 3] &= ~(1 << (i & 7));
 		else
