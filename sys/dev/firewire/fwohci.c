@@ -585,7 +585,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 int
 fwohci_init(struct fwohci_softc *sc, device_t dev)
 {
-	int i;
+	int i, mver;
 	u_int32_t reg;
 	u_int8_t ui[8];
 
@@ -593,11 +593,12 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	TASK_INIT(&sc->fwohci_task_complete, 0, fwohci_complete, sc);
 #endif
 
+/* OHCI version */
 	reg = OREAD(sc, OHCI_VERSION);
+	mver = (reg >> 16) & 0xff;
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
-			(reg>>16) & 0xff, reg & 0xff, (reg>>24) & 1);
-
-	if (((reg>>16) & 0xff) < 1) {
+			mver, reg & 0xff, (reg>>24) & 1);
+	if (mver < 1 || mver > 9) {
 		device_printf(dev, "invalid OHCI version\n");
 		return (ENXIO);
 	}
