@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)kvm_getprocs.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .Dd June 4, 1993
 .Dt KVM_GETPROCS 3
@@ -45,8 +46,7 @@
 .Nd access user process state
 .Sh SYNOPSIS
 .Fd #include <kvm.h>
-.Fd #include <sys/kinfo.h>
-.Fd #include <sys/kinfo_proc.h>
+.Fd #include <sys/sysctl.h>
 .\" .Fa kvm_t *kd
 .br
 .Ft struct kinfo_proc *
@@ -69,24 +69,24 @@ returned.  The value of
 describes the filtering predicate as follows:
 .Pp
 .Bl -tag -width 20n -offset indent -compact
-.It Sy KINFO_PROC_ALL
+.It Sy KERN_PROC_ALL
 all processes
-.It Sy KINFO_PROC_PID
+.It Sy KERN_PROC_PID
 processes with process id 
 .Fa arg
-.It Sy KINFO_PROC_PGRP
+.It Sy KERN_PROC_PGRP
 processes with process group
 .Fa arg
-.It Sy KINFO_PROC_SESSION
+.It Sy KERN_PROC_SESSION
 processes with session
 .Fa arg
-.It Sy KINFO_PROC_TTY
+.It Sy KERN_PROC_TTY
 processes with tty
 .Fa arg
-.It Sy KINFO_PROC_UID
+.It Sy KERN_PROC_UID
 processes with effective user id
 .Fa arg
-.It Sy KINFO_PROC_RUID
+.It Sy KERN_PROC_RUID
 processes with real user id
 .Fa arg
 .El
