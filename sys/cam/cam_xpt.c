@@ -199,10 +199,20 @@ struct xpt_quirk_entry {
 #define	CAM_QUIRK_NOLUNS	0x01
 #define	CAM_QUIRK_NOSERIAL	0x02
 #define	CAM_QUIRK_HILUNS	0x04
+#define	CAM_QUIRK_NOHILUNS	0x08
 	u_int mintags;
 	u_int maxtags;
 };
 #define	CAM_SCSI2_MAXLUN	8
+/*
+ * If we're not quirked to search <= the first 8 luns
+ * and we are either quirked to search above lun 8,
+ * or we're > SCSI-2, we can look for luns above lun 8.
+ */
+#define	CAN_SRCH_HI(dv)					\
+  (((dv->quirk->quirks & CAM_QUIRK_NOHILUNS) == 0) 	\
+  && ((dv->quirk->quirks & CAM_QUIRK_HILUNS)		\
+  || SID_ANSI_REV(&dv->inq_data) > SCSI_REV_2))
 
 typedef enum {
 	XPT_FLAG_OPEN		= 0x01
@@ -5294,7 +5304,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			s = splcam();
 			device = TAILQ_FIRST(&target->ed_entries);
 			if (device != NULL) {
-				phl = device->quirk->quirks & CAM_QUIRK_HILUNS;
+				phl = CAN_SRCH_HI(device);
 				if (device->lun_id == 0)
 					device = TAILQ_NEXT(device, links);
 			}
@@ -5310,8 +5320,8 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 			if ((device->quirk->quirks & CAM_QUIRK_NOLUNS) == 0) {
 				/* Try the next lun */
-				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
-				    (device->quirk->quirks & CAM_QUIRK_HILUNS))
+				if (lun_id < (CAM_SCSI2_MAXLUN-1)
+				  || CAN_SRCH_HI(device))
 					lun_id++;
 			}
 		}
