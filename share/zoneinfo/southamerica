@@ -1,4 +1,4 @@
-# @(#)southamerica	7.40
+# @(#)southamerica	7.42
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -9,7 +9,7 @@
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -125,6 +125,29 @@ Rule	Arg	2000	only	-	Mar	Sun>=1	0:00	0	-
 # de la Rua on March 2, 2000, because it would make people spend more energy
 # in the winter time, rather than less.  The change took effect on March 3.
 #
+# From Mariano Absatz (2001-06-06):
+# one of the major newspapers here in Argentina said that the 1999
+# Timezone Law (which never was effectively applied) will (would?) be
+# in effect.... The article is at
+# http://ar.clarin.com/diario/2001-06-06/e-01701.htm
+# ... The Law itself is "Ley No 25155", sanctioned on 1999-08-25, enacted
+# 1999-09-17, and published 1999-09-21.  The official publication is at:
+# http://www.boletin.jus.gov.ar/BON/Primera/1999/09-Septiembre/21/PDF/BO21-09-99LEG.PDF
+# Regretfully, you have to subscribe (and pay) for the on-line version....
+#
+# (2001-06-12):
+# the timezone for Argentina will not change next Sunday.
+# Apparently it will do so on Sunday 24th....
+# http://ar.clarin.com/diario/2001-06-12/s-03501.htm
+#
+# (2001-06-25):
+# Last Friday (yes, the last working day before the date of the change), the
+# Senate annulled the 1999 law that introduced the changes later postponed.
+# http://www.clarin.com.ar/diario/2001-06-22/s-03601.htm
+# It remains the vote of the Deputies..., but it will be the same....
+# This kind of things had always been done this way in Argentina.
+# We are still -03:00 all year round in all of the country.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
 # Buenos Aires (BA), Capital Federal (CF), Santa Cruz (SC),
@@ -206,7 +229,7 @@ Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12	# Oranjestad
 # Bolivia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/La_Paz	-4:32:36 -	LMT	1890
-			-4:32:36 -	LPMT	1931 Oct 15 # La Paz Mean Time
+			-4:32:36 -	CMT	1931 Oct 15 # Calamarca MT
 			-4:32:36 1:00	BOST	1932 Mar 21 # Bolivia ST
 			-4:00	-	BOT	# Bolivia Time
 
@@ -382,8 +405,14 @@ Rule	Brazil	2000	only	-	Feb	27	 0:00	0	-
 # repeals DST in PE and RR, effective 2000-10-15 00:00.
 # Decree <a href="http://pcdsh01.on.br/Dec3632.jpg">3,632</a> (2000-10-17)
 # repeals DST in SE, AL, PB, RN, CE, PI and MA, effective 2000-10-22 00:00.
+# Decree <a href="http://pcdsh01.on.br/figuras/HV3916.gif">3,916</a>
+# (2001-09-13) reestablishes DST in AL, CE, MA, PB, PE, PI, RN, SE.
 #
-# These give only one year's rules.  After that, the rules are guesses
+# The latest decree listed above says that the following states observe DST:
+# AL, BA, CE, DF, ES, GO, MA, MG, MS, MT,
+# PB, PE, PI, PR, RJ, RN, RS, SC, SE, SP, TO.
+#
+# For dates after mid-2002, the following rules are guesses
 # and are quite possibly wrong, but are more likely than no DST at all.
 Rule	Brazil	2000	max	-	Oct	Sun>=8	 0:00	1:00	S
 Rule	Brazil	2001	max	-	Feb	Sun>=15	 0:00	0	-
@@ -409,14 +438,16 @@ Zone America/Fortaleza	-2:34:00 -	LMT	1914
 			-3:00	Brazil	BR%sT	1990 Sep 17
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 22
-			-3:00	-	BRT
+			-3:00	-	BRT	2001 Sep 13
+			-3:00	Brazil	BR%sT
 #
 # Pernambuco (PE) (except Atlantic islands)
 Zone America/Recife	-2:19:36 -	LMT	1914
 			-3:00	Brazil	BR%sT	1990 Sep 17
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 15
-			-3:00	-	BRT
+			-3:00	-	BRT	2001 Sep 13
+			-3:00	Brazil	BR%sT
 #
 # Tocantins (TO)
 Zone America/Araguaina	-3:12:48 -	LMT	1914
@@ -431,7 +462,8 @@ Zone America/Maceio	-2:22:52 -	LMT	1914
 			-3:00	Brazil	BR%sT	1996 Sep  4
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 22
-			-3:00	-	BRT
+			-3:00	-	BRT	2001 Sep 13
+			-3:00	Brazil	BR%sT
 #
 # Bahia (BA), Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
 # Espirito Santo (ES), Rio de Janeiro (RJ), Sao Paulo (SP), Parana (PR),
@@ -441,7 +473,7 @@ Zone America/Sao_Paulo	-3:06:28 -	LMT	1914
 			-3:00	1:00	BRST	1964
 			-3:00	Brazil	BR%sT
 #
-# Mato Grosso, Mato Grosso do Sul
+# Mato Grosso (MT), Mato Grosso do Sul (MS)
 Zone America/Cuiaba	-3:44:20 -	LMT	1914
 			-4:00	Brazil	AM%sT
 #
@@ -493,16 +525,26 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 # Because of the same drought, the government decided to end DST later,
 # on April 3, (one-time change).
 
-# From Gwillim Law (2001-02-20):
-# I came across a Chilean on-line newspaper, La Tercera.  Its
-# <a href="http://www.tercera.cl/diario/1998/03/13/extras.html">
-# 1998-03-13 issue
-# </a>, says (my translation):
-# "At 24:00 (midnight) tomorrow (Saturday) - 22:00 in the insular
-# territory [Easter Island, Juan Fernandez, etc.] - winter time will
-# begin in the entire country."
+# From Gwillim Law (2001-05-04):
+# I came across another article in "La Tercera" about Chilean DST.
+# <http://www.tercera.cl/diario/2000/10/13/t-extras.html>
+# It clearly confirms my earlier suggestion, that DST begins at 22:00
+# on Easter Island....  But it also seems to be saying that the
+# observance of DST in Chile began in 1966, rather than 1969 as
+# ... [Shanks] has it....
+#
+# My translation:
+#
+# "The Chilean Army has announced that summer time will begin tomorrow,
+# Saturday, October 14 in continental Chile, insular Chile, and
+# Antarctica, as provided by Supreme Decree 25 of January 11, 1966.
+# By the preceding, official time in continental Chile and Chilean
+# Antarctic, and official time in Western Insular Chile, which applies
+# to Easter Island and Sala y Gomez Island, will be set forward at
+# midnight and at 22:00, respectively, by 20 minutes."
 
-# From Paul Eggert (2001-02-21):
+# From Paul Eggert (2001-05-04):
+# Go with this article in preference to Shanks's 1969 date for modern DST.
 # Assume this rule has been used since DST was introduced in the islands.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -510,8 +552,8 @@ Rule	Chile	1918	only	-	Sep	 1	0:00	1:00	S
 Rule	Chile	1919	only	-	Jul	 2	0:00	0	-
 Rule	Chile	1927	1931	-	Sep	 1	0:00	1:00	S
 Rule	Chile	1928	1932	-	Apr	 1	0:00	0	-
-Rule	Chile	1969	1997	-	Oct	Sun>=9	4:00u	1:00	S
-Rule	Chile	1970	1998	-	Mar	Sun>=9	3:00u	0	-
+Rule	Chile	1966	1997	-	Oct	Sun>=9	4:00u	1:00	S
+Rule	Chile	1967	1998	-	Mar	Sun>=9	3:00u	0	-
 Rule	Chile	1998	only	-	Sep	27	4:00u	1:00	S
 Rule	Chile	1999	only	-	Apr	 4	3:00u	0	-
 Rule	Chile	1999	max	-	Oct	Sun>=9	4:00u	1:00	S
@@ -528,10 +570,9 @@ Zone Pacific/Easter	-7:17:28 -	LMT	1890	    # Mataveri
 			-7:00	Chile	EAS%sT	1982 Mar 14 # Easter I Time
 			-6:00	Chile	EAS%sT
 #
-# Whitman says Juan Fernandez Is are like America/Santiago.
-# San Ambrosio, San Felix
-# no information; probably like America/Santiago
-
+# Sala y Gomez Island is like Pacific/Easter.
+# Other Chilean locations, including Juan Fernandez Is, San Ambrosio,
+# San Felix, and Antarctic bases, are like America/Santiago.
 
 # Colombia
 # Shanks specifies 24:00 for 1992 transition times; go with IATA,
@@ -717,7 +758,7 @@ Rule	Peru	1994	only	-	Jan	 1	0:00	1:00	S
 Rule	Peru	1994	only	-	Apr	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Lima	-5:08:12 -	LMT	1890
-			-5:09	-	LMT	1908 Jul 28 # Lima Mean Time
+			-5:08:36 -	LMT	1908 Jul 28 # Lima Mean Time?
 			-5:00	Peru	PE%sT	# Peru Time
 
 # South Georgia
@@ -802,6 +843,6 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 # Venezuela
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
-			-4:27:44 -	CMT	1912 Feb 12  # Caracas Mean Time
+			-4:27:40 -	CMT	1912 Feb 12 # Caracas Mean Time?
 			-4:30	-	VET	1965	     # Venezuela Time
 			-4:00	-	VET
