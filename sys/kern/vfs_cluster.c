@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.25 1995/11/19 19:54:19 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.26 1995/11/19 20:42:25 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -366,13 +366,9 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 				m = bogus_page;
 			}
 			if ((bp->b_npages == 0) ||
-				(bp->b_bufsize & PAGE_MASK) == 0) {
+				(bp->b_pages[bp->b_npages] != m)) {
 				bp->b_pages[bp->b_npages] = m;
 				bp->b_npages++;
-			} else {
-				if ( tbp->b_npages > 1) {
-					panic("cluster_rbuild: page unaligned filesystems not supported");
-				}
 			}
 		}
 		bp->b_bcount += tbp->b_bcount;
