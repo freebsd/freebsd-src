@@ -59,12 +59,6 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-# Select the correct set of tools. Can't set OBJFORMAT here because it
-# doesn't get exported into the environment, and if it were exported
-# then it might break building of utilities.
-FMT=		-elf
-CFLAGS+=	${FMT}
-
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
 CFLAGS+=	-malign-functions=4
@@ -93,11 +87,11 @@ SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o config.o \
 	setdef1.o hack.So
-SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
+SYSTEM_LD= @${LD} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
-	${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
+	${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/conf/ldscript.$M
 
 %BEFORE_DEPEND
@@ -161,7 +155,7 @@ locore.o: $S/$M/$M/locore.s assym.s
 # in the a.out ld.  For now, this works.
 hack.So: Makefile
 	touch hack.c
-	${CC} ${FMT} -shared -nostdlib hack.c -o hack.So
+	${CC} -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
 
 .ORDER: setdefs.h setdef0.c setdef1.c
