@@ -155,7 +155,7 @@ int	sprintf(char *buf, const char *, ...) __printflike(2, 3);
 int	uprintf(const char *, ...) __printflike(1, 2);
 int	vprintf(const char *, __va_list) __printflike(1, 0);
 int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
-int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0); 
+int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
 int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
 int	sscanf(const char *, char const *, ...) __nonnull(1) __nonnull(2);
@@ -232,10 +232,10 @@ int	setenv(const char *name, const char *value);
 int	unsetenv(const char *name);
 int	testenv(const char *name);
 
-#ifdef APM_FIXUP_CALLTODO 
+#ifdef APM_FIXUP_CALLTODO
 struct timeval;
-void	adjust_timeout_calltodo(struct timeval *time_change); 
-#endif /* APM_FIXUP_CALLTODO */ 
+void	adjust_timeout_calltodo(struct timeval *time_change);
+#endif /* APM_FIXUP_CALLTODO */
 
 #include <sys/libkern.h>
 
@@ -283,7 +283,7 @@ static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }
 
-/* 
+/*
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */

@@ -117,7 +117,7 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 	 * via some other means.  If we have, bail since otherwise
 	 * we're going to end up duplicating it.
 	 */
-	if ((pci_devclass = devclass_find("pci")) && 
+	if ((pci_devclass = devclass_find("pci")) &&
 		devclass_get_device(pci_devclass, 0))
 		return;
 
@@ -136,7 +136,7 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 		 */
 		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
-		if ((hdrtype & PCIM_MFDEV) && 
+		if ((hdrtype & PCIM_MFDEV) &&
 		    (!found_orion || hdrtype != 0xff))
 			pcifunchigh = PCI_FUNCMAX;
 		else
@@ -394,12 +394,12 @@ DRIVER_MODULE(hostb, pci, pci_hostb_driver, pci_hostb_devclass, 0, 0);
 
 /*
  * Install placeholder to claim the resources owned by the
- * PCI bus interface.  This could be used to extract the 
+ * PCI bus interface.  This could be used to extract the
  * config space registers in the extreme case where the PnP
  * ID is available and the PCI BIOS isn't, but for now we just
  * eat the PnP ID and do nothing else.
  *
- * XXX we should silence this probe, as it will generally confuse 
+ * XXX we should silence this probe, as it will generally confuse
  * people.
  */
 static struct isa_pnp_id pcibus_pnp_ids[] = {
@@ -411,7 +411,7 @@ static int
 pcibus_pnp_probe(device_t dev)
 {
 	int result;
-	
+
 	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, pcibus_pnp_ids)) <= 0)
 		device_quiet(dev);
 	return(result);
