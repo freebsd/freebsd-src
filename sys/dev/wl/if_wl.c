@@ -252,6 +252,7 @@ struct wl_softc{
     void		*intr_cookie;
     bus_space_tag_t	bt;
     bus_space_handle_t	bh;
+    struct mtx		wl_mtx;
     struct callout_handle	watchdog_ch;
 #ifdef WLCACHE
     int 	w_sigitems;     /* number of cached entries */
@@ -261,6 +262,9 @@ struct wl_softc{
     int w_wrapindex;   		/* next "free" cache entry */
 #endif
 };
+
+#define WL_LOCK(_sc)	mtx_lock(&(_sc)->wl_mtx)
+#define WL_UNLOCK(_sc)	mtx_unlock(&(_sc)->wl_mtx)
 
 static int	wlprobe(device_t);
 static int	wlattach(device_t);
@@ -385,7 +389,7 @@ wlprobe(device_t device)
     short		base;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
-    unsigned long	junk, oldpri, sirq;
+    unsigned long	junk, sirq;
     int			error, irq;
 
     error = ISA_PNP_PROBE(device_get_parent(device), device, wl_ids);
@@ -404,12 +408,10 @@ wlprobe(device_t device)
      */
 #define PCMD(base, hacr) outw((base), (hacr))
 
-    oldpri = splimp();
     PCMD(base, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);				/* >> 4 clocks at 6MHz */
     PCMD(base, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);	                	/* >> 4 clocks at 6MHz */
-    splx(oldpri);
 
     /* clear reset command and set PIO#1 in autoincrement mode */
     PCMD(base, HACR_DEFAULT);
@@ -482,6 +484,9 @@ wlattach(device_t device)
 
     sc = device_get_softc(device);
     ifp = &sc->wl_if;
+
+    mtx_init(&sc->wl_mtx, device_get_nameunit(device), MTX_NETWORK_LOCK,
+	MTX_DEF | MTX_RECURSE);
 
     error = wl_allocate_resources(device);
     if (error) {
@@ -584,6 +589,8 @@ wldetach(device_t device)
     ifp = &sc->wl_if;
     ether_ifdetach(ifp);
 
+    WL_LOCK(sc);
+
     /* reset the board */
     sc->hacr = HACR_RESET;
     CMD(sc);
@@ -597,6 +604,8 @@ wldetach(device_t device)
 
     bus_generic_detach(device);
     wl_deallocate_resources(device);
+    WL_UNLOCK(sc);
+    mtx_destroy(&sc->wl_mtx);
     return (0);
 }
 
@@ -789,7 +798,6 @@ wlinit(void *xsc)
     struct wl_softc	*sc = xsc;
     struct ifnet	*ifp = &sc->wl_if;
     int			stat;
-    u_long		oldpri;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -797,7 +805,6 @@ wlinit(void *xsc)
 #endif
     if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0)
 	return;
-    oldpri = splimp();
     if ((stat = wlhwrst(sc)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
 	/* 
@@ -814,7 +821,6 @@ wlinit(void *xsc)
     } else {
 	printf("wl%d init(): trouble resetting board.\n", sc->unit);
     }
-    splx(oldpri);
 }
 
 /*
@@ -957,6 +963,7 @@ wlstart(struct ifnet *ifp)
     short		base = sc->base;
     int			scb_status, cu_status, scb_command;
 
+    WL_LOCK(sc);
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlstart()\n",unit);
@@ -989,6 +996,7 @@ wlstart(struct ifnet *ifp)
 #endif 
 	    if (xmt_watch) printf("!!");
 	} else {
+	    WL_UNLOCK(sc);
 	    return;	/* genuinely still busy */
 	}
     } else if ((scb_status & 0x0700) == SCB_CUS_ACTV ||
@@ -998,6 +1006,7 @@ wlstart(struct ifnet *ifp)
 	       unit, scb_status, cu_status);
 #endif
 	if (xmt_watch) printf("wl%d: busy?!",unit);
+	WL_UNLOCK(sc);
 	return;		/* hey, why are we busy? */
     }
 
@@ -1019,6 +1028,7 @@ wlstart(struct ifnet *ifp)
     } else {
 	sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
     }
+    WL_UNLOCK(sc);
     return;
 }
 
@@ -1212,7 +1222,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     struct wl_softc	*sc = ifp->if_softc;
     short		base = sc->base;
     short		mode = 0;
-    int			opri, error = 0;
+    int			error = 0;
     struct thread	*td = curthread;	/* XXX */
     int			irq, irqval, i, isroot;
     caddr_t		up;
@@ -1221,11 +1231,11 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     char * 	        cpt;
 #endif
 
+    WL_LOCK(sc);
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlioctl()\n",unit);
 #endif
-    opri = splimp();
     switch (cmd) {
     case SIOCSIFFLAGS:
 	if (ifp->if_flags & IFF_ALLMULTI) {
@@ -1292,8 +1302,10 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    /* don't hand the DES key out to non-root users */
 	    if ((i > WLPSA_DESKEY) && (i < (WLPSA_DESKEY + 8)) && !isroot)
 		continue;
-	    if (subyte((up + i), sc->psa[i]))
+	    if (subyte((up + i), sc->psa[i])) {
+		WL_UNLOCK(sc);
 		return(EFAULT);
+	    }
 	}
 	break;
 
@@ -1309,8 +1321,10 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	
 	/* check validity of input range */
 	for (i = 0; i < 0x40; i++)
-	    if (fubyte(up + i) < 0)
+	    if (fubyte(up + i) < 0) {
+		WL_UNLOCK(sc);
 		return(EFAULT);
+	    }
 
 	/* check IRQ value */
 	irqval = fubyte(up+WLPSA_IRQNO);
@@ -1383,12 +1397,16 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    MMC_WRITE(MMC_EECTRL,		/* 2.4 Gz: EEPROM read	    */
 			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz:		    */
 	    DELAY(40);				/* 2.4 Gz		    */
-	    if (subyte(up + 2*i  ,		/* 2.4 Gz: pass low byte of */
-		 wlmmcread(base,MMC_EEDATALrv))	/* 2.4 Gz: EEPROM word      */
-	       ) return(EFAULT);		/* 2.4 Gz:		    */
+	    if (subyte(up + 2*i,		/* 2.4 Gz: pass low byte of */
+		wlmmcread(base,MMC_EEDATALrv))) {/* 2.4 Gz: EEPROM word      */
+		WL_UNLOCK(sc);
+	        return(EFAULT);			/* 2.4 Gz:		    */
+	    }
 	    if (subyte(up + 2*i+1,		/* 2.4 Gz: pass hi byte of  */
-		 wlmmcread(base,MMC_EEDATALrv))	/* 2.4 Gz: EEPROM word      */
-	       ) return(EFAULT);		/* 2.4 Gz:		    */
+		wlmmcread(base,MMC_EEDATALrv)))	{/* 2.4 Gz: EEPROM word      */
+		WL_UNLOCK(sc);
+	        return(EFAULT);			/* 2.4 Gz:		    */
+	    }
 	}
 	break;
 
@@ -1414,8 +1432,10 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	size = sc->w_sigitems * sizeof(struct w_sigcache);
 	
 	for (i = 0; i < size; i++) {
-	    if (subyte((up + i), *cpt++))
+	    if (subyte((up + i), *cpt++)) {
+		WL_UNLOCK(sc);
 		return(EFAULT);
+	    }
 	}
 	break;
 #endif
@@ -1424,7 +1444,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
         error = ether_ioctl(ifp, cmd, data);
 	break;
     }
-    splx(opri);
+    WL_UNLOCK(sc);
     return (error);
 }
 
@@ -1446,8 +1466,10 @@ wlwatchdog(void *vsc)
     int unit = sc->unit;
 
     log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
+    WL_LOCK(sc);
     sc->wl_ac.ac_if.if_oerrors++;
     wlinit(sc);
+    WL_UNLOCK(sc);
 }
 
 /*
@@ -1470,6 +1492,7 @@ wlintr(void *arg)
     int			ac_status;
     u_short		int_type, int_type1;
 
+    WL_LOCK(sc);
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: wlintr() called\n", sc->unit);
@@ -1486,6 +1509,7 @@ wlintr(void *arg)
 	   printf("wlintr: int_type %x, dump follows\n", int_type);
 	   wldump(unit);
 	   */
+	WL_UNLOCK(sc);
 	return;
     }
 
@@ -1590,6 +1614,7 @@ wlintr(void *arg)
 	    wlstart(&(sc->wl_if));
 	}
     }
+    WL_UNLOCK(sc);
     return;
 }
 
@@ -2368,7 +2393,7 @@ static void
 wlsetpsa(struct wl_softc *sc)
 {
     short	base = sc->base;
-    int		i, oldpri;
+    int		i;
     u_short	crc;
 
     crc = wlpsacrc(sc->psa);	/* calculate CRC of PSA */
@@ -2376,8 +2401,6 @@ wlsetpsa(struct wl_softc *sc)
     sc->psa[WLPSA_CRCHIGH] = (crc >> 8) & 0xff;
     sc->psa[WLPSA_CRCOK] = 0x55;	/* default to 'bad' until programming complete */
 
-    oldpri = splimp();		/* ick, long pause */
-    
     PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
     PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
     
@@ -2396,8 +2419,6 @@ wlsetpsa(struct wl_softc *sc)
     
     PCMD(base, HACR_DEFAULT);
     PCMD(base, HACR_DEFAULT);
-    
-    splx(oldpri);
 }
 
 /* 
