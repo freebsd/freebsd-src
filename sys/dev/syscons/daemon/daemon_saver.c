@@ -50,13 +50,13 @@
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
-static char *message;
+static u_char *message;
 static int messagelen;
 static int blanked;
 
 /* Who is the author of this ASCII pic? */
 
-static char *daemon_pic[] = {
+static u_char *daemon_pic[] = {
         "             ,        ,",
 	"            /(        )`",
 	"            \\ \\___   / |",
@@ -79,7 +79,7 @@ static char *daemon_pic[] = {
 	NULL
 };
 
-static char *daemon_attr[] = {
+static u_char *daemon_attr[] = {
         "             R        R",
 	"            RR        RR",
 	"            R RRRR   R R",
@@ -107,11 +107,11 @@ static char *daemon_attr[] = {
  * should do alphanumerics too, but I'm too lazy. <cshenton@it.hq.nasa.gov>
  */
 
-static char
-xflip_symbol(char symbol)
+static u_char
+xflip_symbol(u_char symbol)
 {
-	static const char lchars[] = "`'(){}[]\\/<>";
-	static const char rchars[] = "'`)(}{][/\\><";
+	static const u_char lchars[] = "`'(){}[]\\/<>";
+	static const u_char rchars[] = "'`)(}{][/\\><";
 	int pos;
 
 	for (pos = 0; lchars[pos] != '\0'; pos++)
@@ -199,7 +199,7 @@ clear_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
 }
 
 static void
-draw_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
+draw_string(sc_softc_t *sc, int xpos, int ypos, int xoff, u_char *s, int len)
 {
 	int x;
 
@@ -258,7 +258,7 @@ daemon_saver(video_adapter_t *adp, int blank)
 		blanked = 1;
 
  		clear_daemon(sc, dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
-		clear_string(sc, txpos, typos, toff, (char *)message, tlen);
+		clear_string(sc, txpos, typos, toff, message, tlen);
 
 		if (++moved_daemon) {
 			/*
@@ -364,7 +364,7 @@ daemon_saver(video_adapter_t *adp, int blank)
 			tlen = scp->xsize - txpos;
 
  		draw_daemon(sc, dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
-		draw_string(sc, txpos, typos, toff, (char *)message, tlen);
+		draw_string(sc, txpos, typos, toff, message, tlen);
 	} else {
 #ifdef PC98
 		if (epson_machine_id == 0x20) {
