@@ -96,7 +96,7 @@ svr4_sys_ioctl(p, uap)
 
 	svr4_decode_cmd(SCARG(uap, com), dir, &c, &num, &argsiz);
 
-	DPRINTF(("svr4_ioctl[%x](%d, _IO%s(%c, %d, %d), %p);\n", SCARG(uap, com), SCARG(uap, fd),
+	DPRINTF(("svr4_ioctl[%lx](%d, _IO%s(%c, %d, %d), %p);\n", SCARG(uap, com), SCARG(uap, fd),
 	    dir, c, num, argsiz, SCARG(uap, data)));
 #endif
 	retval = p->p_retval;
@@ -112,7 +112,7 @@ svr4_sys_ioctl(p, uap)
 
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
-	        struct socket *so = fp->f_data;
+	        struct socket *so = (struct socket *)fp->f_data;
 		DPRINTF(("<<< IN: so_state = 0x%x\n", so->so_state));
 	}
 #endif
@@ -153,7 +153,7 @@ svr4_sys_ioctl(p, uap)
 	}
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
-	        struct socket *so = fp->f_data;
+	        struct socket *so = (struct socket *)fp->f_data;
 		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif

@@ -299,7 +299,7 @@ svr4_sys_sigaction(p, uap)
 		for (i = 0; i < 4; i++) 
 			DPRINTF(("\tssa_mask[%d] = %lx\n", i,
 						nisa->ssa_mask.bits[i]));
-		DPRINTF(("\tssa_handler = %lx\n", nisa->ssa_handler));
+		DPRINTF(("\tssa_handler = %p\n", nisa->ssa_handler));
 	}
 #endif
 
