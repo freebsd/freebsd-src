@@ -99,6 +99,7 @@
 #ifndef NOATM
 #include "atm.h"
 #endif
+#include "tcpmss.h"
 
 #define PPPOTCPLINE "ppp"
 
@@ -1052,6 +1053,7 @@ physical_SetupStack(struct physical *p, const char *who, int how)
   link_Stack(&p->link, &lqrlayer);
   link_Stack(&p->link, &ccplayer);
   link_Stack(&p->link, &vjlayer);
+  link_Stack(&p->link, &tcpmsslayer);
 #ifndef NONAT
   link_Stack(&p->link, &natlayer);
 #endif
