@@ -11,11 +11,15 @@
  */
 
 #include <sys/libkern.h>
-#include <sys/time.h>
+
+#define	ARC4_MAXRUNS 64
 
 static u_int8_t arc4_i, arc4_j;
 static int arc4_initialized = 0;
+static int arc4_numruns = 0;
 static u_int8_t arc4_sbox[256];
+
+extern u_int read_random (void *, u_int);
 
 static __inline void
 arc4_swap(u_int8_t *a, u_int8_t *b)
@@ -28,29 +32,38 @@ arc4_swap(u_int8_t *a, u_int8_t *b)
 }	
 
 /*
+ * Stir our S-box.
+ */
+static void
+arc4_randomstir (void)
+{
+	u_int8_t key[256];
+	int r, n;
+
+	r = read_random(key, sizeof(key));
+	for (n = r; n < sizeof(key); n++)
+		key[n] = key[n % r];
+
+	for (n = 0; n < 256; n++)
+	{
+		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
+		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
+	}
+}
+
+/*
  * Initialize our S-box to its beginning defaults.
  */
 static void
 arc4_init(void)
 {
-	struct timespec ts;
-	u_int8_t key[256];
 	int n;
-
-	for (n = 0; n < 256; n++)
-		arc4_sbox[n] = (u_int8_t) n;
-
-	nanotime(&ts);
-	srandom(ts.tv_sec ^ ts.tv_nsec);
-	for (n = 0; n < 256; n++)
-		key[n] = random() % 256;
 
 	arc4_i = arc4_j = 0;
 	for (n = 0; n < 256; n++)
-	{
-		arc4_j = arc4_j + arc4_sbox[n] + key[n];
-		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
-	}
+		arc4_sbox[n] = (u_int8_t) n;
+
+	arc4_randomstir();
 	arc4_initialized = 1;
 }
 
@@ -79,6 +92,11 @@ arc4random(void)
 	/* Initialize array if needed. */
 	if (!arc4_initialized)
 		arc4_init();
+	if (++arc4_numruns > ARC4_MAXRUNS)
+	{
+		arc4_randomstir();
+		arc4_numruns = 0;
+	}
 
 	ret = arc4_randbyte();
 	ret |= arc4_randbyte() << 8;
