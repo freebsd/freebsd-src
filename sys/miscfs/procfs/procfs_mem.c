@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.33 1998/06/07 17:11:57 dfr Exp $
+ *	$Id: procfs_mem.c,v 1.34 1998/07/15 02:32:19 bde Exp $
  */
 
 /*
@@ -253,7 +253,7 @@ procfs_rwmem(curp, p, uio)
 		/*
 		 * release the page and the object
 		 */
-		vm_page_unwire(m);
+		vm_page_unwire(m, 1);
 		vm_object_deallocate(object);
 
 		object = NULL;
