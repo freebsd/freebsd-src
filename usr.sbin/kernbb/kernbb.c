@@ -6,17 +6,20 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: kernbb.c,v 1.3 1995/10/22 19:45:28 phk Exp $
- *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
-#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define MAXBB 32768
 
@@ -71,11 +74,9 @@ main()
 		kvm_read(kv,l3,&bb,sizeof bb);
 		if (!bb.ncounts)
 			continue;
-		if (bb.ncounts > MAXBB) {
-			fprintf(stderr,"found %lu counts above limit of %u\n",
+		if (bb.ncounts > MAXBB)
+			errx(1, "found %lu counts above limit of %u",
 				bb.ncounts, MAXBB);
-			exit (1);
-		}
 		kvm_read(kv,bb.lineno,lineno, bb.ncounts * sizeof lineno[0]);
 		kvm_read(kv,bb.counts,counts, bb.ncounts * sizeof counts[0]);
 		kvm_read(kv,bb.addr,  addr,   bb.ncounts * sizeof addr[0]);
