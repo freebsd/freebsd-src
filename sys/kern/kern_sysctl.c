@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.58 1995/12/17 21:11:22 phk Exp $
+ * $Id: kern_sysctl.c,v 1.60 1996/02/25 07:03:59 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0,
 	"High kernel, proc, limits &c");
 SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0,
 	"Virtual memory");
-SYSCTL_NODE(, CTL_FS,	  fs,     CTLFLAG_RW, 0,
+SYSCTL_NODE(, CTL_VFS,	  vfs,     CTLFLAG_RW, 0,
 	"File system");
 SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
 	"Network, (see socket.h)");
