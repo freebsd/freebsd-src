@@ -380,6 +380,62 @@ struct ovfsconf {
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
 
+struct vfsidctl {
+	int		vc_vers;	/* should be VFSIDCTL_VERS1 (below) */
+	fsid_t		vc_fsid;	/* fsid to operate on. */
+	void		*vc_ptr;	/* pointer to data structure. */
+	size_t		vc_len;		/* sizeof said structure. */
+	u_int32_t	vc_spare[12];	/* spare (must be zero). */
+};
+
+/* vfsidctl API version. */
+#define VFS_CTL_VERS1	0x01
+
+/*
+ * New style VFS sysctls, do not reuse/conflict with the namespace for
+ * private sysctls.
+ */
+#define VFS_CTL_STATFS	0x00010001	/* statfs */
+#define VFS_CTL_UMOUNT	0x00010002	/* unmount */
+#define VFS_CTL_QUERY	0x00010003	/* anything wrong? (vfsquery) */
+#define VFS_CTL_NEWADDR	0x00010004	/* reconnect to new address */
+#define VFS_CTL_TIMEO	0x00010005	/* set timeout for vfs notification */
+#define VFS_CTL_NOLOCKS	0x00010006	/* disable file locking */
+
+struct vfsquery {
+	u_int32_t	vq_flags;
+	u_int32_t	vq_spare[31];
+};
+
+/* vfsquery flags */
+#define VQ_NOTRESP	0x0001	/* server down */
+#define VQ_NEEDAUTH	0x0002	/* server bad auth */
+#define VQ_LOWDISK	0x0004	/* we're low on space */
+#define VQ_MOUNT	0x0008	/* new filesystem arrived */
+#define VQ_UNMOUNT	0x0010	/* filesystem has left */
+#define VQ_DEAD		0x0020	/* filesystem is dead, needs force unmount */
+#define VQ_ASSIST	0x0040	/* filesystem needs assistance from external
+				   program */
+#define VQ_NOTRESPLOCK	0x0080	/* server lockd down */
+#define VQ_FLAG0100	0x0100	/* placeholder */
+#define VQ_FLAG0200	0x0200	/* placeholder */
+#define VQ_FLAG0400	0x0400	/* placeholder */
+#define VQ_FLAG0800	0x0800	/* placeholder */
+#define VQ_FLAG1000	0x1000	/* placeholder */
+#define VQ_FLAG2000	0x2000	/* placeholder */
+#define VQ_FLAG4000	0x4000	/* placeholder */
+#define VQ_FLAG8000	0x8000	/* placeholder */
+
+#ifdef _KERNEL
+/* Point a sysctl request at a vfsidctl's data. */
+#define VCTLTOREQ(vc, req)						\
+	do {								\
+		(req)->newptr = (vc)->vc_ptr;				\
+		(req)->newlen = (vc)->vc_len;				\
+		(req)->newidx = 0;					\
+	} while (0)
+#endif
+
 struct iovec;
 struct uio;
 
@@ -397,6 +453,7 @@ extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
  */
 struct mount_args;
 struct nameidata;
+struct sysctl_req;
 
 typedef int vfs_mount_t(struct mount *mp, char *path, caddr_t data,
 			struct nameidata *ndp, struct thread *td);
@@ -422,6 +479,7 @@ typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
 		    const char *attrname, struct thread *td);
 typedef	int vfs_nmount_t(struct mount *mp, struct nameidata *ndp,
 		    struct thread *td);
+typedef int vfs_sysctl_t(struct mount *mp, struct sysctl_req *req);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -440,6 +498,7 @@ struct vfsops {
 	vfs_extattrctl_t	*vfs_extattrctl;
 	/* Additions below are not binary compatible with 5.0 and below. */
 	vfs_nmount_t		*vfs_nmount;
+	vfs_sysctl_t		*vfs_sysctl;
 };
 
 #define VFS_NMOUNT(MP, NDP, P)    (*(MP)->mnt_op->vfs_nmount)(MP, NDP, P)
@@ -460,6 +519,9 @@ struct vfsops {
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
 #define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
+#define VFS_SYSCTL(MP, REQ) \
+    	((MP) == NULL ? ENOTSUP : \
+	 (*(MP)->mnt_op->vfs_sysctl)(MP, REQ))
 
 #include <sys/module.h>
 
@@ -486,6 +548,7 @@ extern	char *mountrootfsname;
 int	dounmount(struct mount *, int, struct thread *);
 int	kernel_mount(struct iovec *, u_int, int);
 int	kernel_vmount(int flags, ...);
+void	vfs_event_signal(fsid_t *, u_int32_t, void *);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *, const char *, char *, int, void *);
