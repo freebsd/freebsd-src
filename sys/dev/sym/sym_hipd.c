@@ -89,6 +89,8 @@
 #include <sys/malloc.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #ifdef FreeBSD_Bus_Io_Abstraction
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -783,7 +785,8 @@ static m_pool_s *___cre_dma_pool(bus_dma_tag_t dev_dmat)
 			       BUS_SPACE_MAXADDR_32BIT,
 			       BUS_SPACE_MAXADDR_32BIT,
 			       NULL, NULL, MEMO_CLUSTER_SIZE, 1,
-			       MEMO_CLUSTER_SIZE, 0, &mp->dmat)) {
+			       MEMO_CLUSTER_SIZE, 0,
+			       busdma_lock_mutex, &Giant, &mp->dmat)) {
 			mp->getp = ___dma_getp;
 #ifdef	MEMO_FREE_UNUSED
 			mp->freep = ___dma_freep;
@@ -9130,7 +9133,8 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 				BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 				NULL, NULL,
 				BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG,
-				(1<<24), 0, &np->data_dmat)) {
+				(1<<24), 0, busdma_lock_mutex, &Giant,
+				&np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
 	}

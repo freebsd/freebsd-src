@@ -957,6 +957,17 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 /*
+ * A function that performs driver-specific syncronization on behalf of
+ * busdma.
+ */
+typedef enum {
+        BUS_DMA_LOCK    = 0x01,
+        BUS_DMA_UNLOCK  = 0x02,
+} bus_dma_lock_op_t;
+
+typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
+  
+/*
  * Method table for a bus_dma_tag.
  */
 struct bus_dma_methods {
@@ -996,13 +1007,15 @@ struct bus_dma_tag {
 	int		dt_flags;
 	int		dt_ref_count;
 	int		dt_map_count;
+	bus_dma_lock_t	*dt_lockfunc;
+	void *		*dt_lockfuncarg;
 
 	struct bus_dma_methods	*dt_mt;
 };
 
 int bus_dma_tag_create(bus_dma_tag_t, bus_size_t, bus_size_t, bus_addr_t,
     bus_addr_t, bus_dma_filter_t *, void *, bus_size_t, int, bus_size_t,
-    int, bus_dma_tag_t *);
+    int, bus_dma_lock_t *, void *, bus_dma_tag_t *);
 
 int bus_dma_tag_destroy(bus_dma_tag_t);
 
@@ -1025,4 +1038,8 @@ int bus_dma_tag_destroy(bus_dma_tag_t);
 #define	bus_dmamem_free(t, v, m)					\
 	((t)->dt_mt->dm_dmamem_free((t), (v), (m)))
 
+/*
+ * Generic helper function for manipulating mutexes.
+ */
+void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
 #endif /* !_MACHINE_BUS_H_ */

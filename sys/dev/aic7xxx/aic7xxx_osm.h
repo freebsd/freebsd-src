@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#15 $
+ * $Id: aic7xxx_osm.h,v 1.22 2003/06/10 03:25:24 gibbs Exp $
  *
  * $FreeBSD$
  */
@@ -122,7 +122,7 @@ typedef union ccb *ahc_io_ctx_t;
 	bus_dma_tag_create(parent_tag, alignment, boundary,		\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)
+			   busdma_lock_mutex, &Giant, dma_tagp)
 
 #define ahc_dma_tag_destroy(ahc, tag)					\
 	bus_dma_tag_destroy(tag)

@@ -340,6 +340,8 @@ hifn_attach(device_t dev)
 			       MAX_SCATTER,		/* nsegments */
 			       HIFN_MAX_SEGLEN,		/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
 			       &sc->sc_dmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto fail_io1;

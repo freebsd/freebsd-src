@@ -1481,7 +1481,8 @@ xl_attach(dev)
 	 */
 	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, &sc->xl_ldata.xl_rx_tag);
+	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, busdma_lock_mutex, &Giant,
+	    &sc->xl_ldata.xl_rx_tag);
 	if (error) {
 		printf("xl%d: failed to allocate rx dma tag\n", unit);
 		goto fail;
@@ -1512,7 +1513,8 @@ xl_attach(dev)
 
 	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, &sc->xl_ldata.xl_tx_tag);
+	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, busdma_lock_mutex, &Giant,
+	    &sc->xl_ldata.xl_tx_tag);
 	if (error) {
 		printf("xl%d: failed to allocate tx dma tag\n", unit);
 		goto fail;
@@ -1546,7 +1548,8 @@ xl_attach(dev)
 	 */
 	error = bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, &sc->xl_mtag);
+	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, busdma_lock_mutex,
+	    &Giant, &sc->xl_mtag);
 	if (error) {
 		printf("xl%d: failed to allocate mbuf dma tag\n", unit);
 		goto fail;

@@ -128,6 +128,8 @@ static int ips_pci_attach(device_t dev)
 				/* numsegs   */	IPS_MAX_SG_ELEMENTS,
 				/* maxsegsize*/	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&sc->adapter_dmatag) != 0) {
                 printf("IPS can't alloc dma tag\n");
                 goto error;

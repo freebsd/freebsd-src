@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -131,6 +133,8 @@ isa_dmainit(chan, bouncebufsize)
 			       /*maxsize*/bouncebufsize,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
 			       /*flags*/BUS_DMA_ISA,
+			       /*lockfunc*/busdma_lock_mutex,
+			       /*lockarg*/&Giant,
 			       &dma_tag[chan]) != 0) {
 		panic("isa_dmainit: unable to create dma tag\n");
 	}

@@ -62,6 +62,8 @@ struct bus_dma_tag {
 	int		  flags;
 	int		  ref_count;
 	int		  map_count;
+	bus_dma_lock_t	 *lockfunc;
+	void		 *lockfuncarg;
 };
 
 struct bounce_page {
@@ -90,7 +92,6 @@ struct bus_dmamap {
 	bus_size_t	       buflen;		/* unmapped buffer length */
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
-	struct mtx	      *callback_mtx;
 	STAILQ_ENTRY(bus_dmamap) links;
 };
 
@@ -136,6 +137,46 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 	return (retval);
 }
 
+/*
+ * Convenience function for manipulating driver locks from busdma (during
+ * busdma_swi, for example).  Drivers that don't provide their own locks
+ * should specify &Giant to dmat->lockfuncarg.  Drivers that use their own
+ * non-mutex locking scheme don't have to use this at all.
+ */
+void
+busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
+{
+	struct mtx *dmtx;
+
+	dmtx = (struct mtx *)arg;
+	switch (op) {
+	case BUS_DMA_LOCK:
+		mtx_lock(dmtx);
+		break;
+	case BUS_DMA_UNLOCK:
+		mtx_unlock(dmtx);
+		break;
+	default:
+		panic("Unknown operation 0x%x for busdma_lock_mutex!", op);
+	}
+}
+
+/*
+ * dflt_lock should never get called.  It gets put into the dma tag when
+ * lockfunc == NULL, which is only valid if the maps that are associated
+ * with the tag are meant to never be defered.
+ * XXX Should have a way to identify which driver is responsible here.
+ */
+static void
+dflt_lock(void *arg, bus_dma_lock_op_t op)
+{
+#ifdef INVARIANTS
+	panic("driver error: busdma dflt_lock called");
+#else
+	printf("DRIVER_ERROR: busdma dflt_lock called\n");
+#endif
+}
+
 #define BUS_DMA_MIN_ALLOC_COMP BUS_DMA_BUS4
 /*
  * Allocate a device specific dma_tag.
@@ -145,7 +186,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
-		   bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat)
+		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+		   void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
@@ -171,6 +213,13 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->flags = flags;
 	newtag->ref_count = 1; /* Count ourself */
 	newtag->map_count = 0;
+	if (lockfunc != NULL) {
+		newtag->lockfunc = lockfunc;
+		newtag->lockfuncarg = lockfuncarg;
+	} else {
+		newtag->lockfunc = dflt_lock;
+		newtag->lockfuncarg = NULL;
+	}
 	
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
@@ -862,18 +911,18 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 void
 busdma_swi(void)
 {
+	bus_dma_tag_t dmat;
 	struct bus_dmamap *map;
 
 	mtx_lock(&bounce_lock);
 	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
 		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
 		mtx_unlock(&bounce_lock);
-		if (map->callback_mtx != NULL)
-			mtx_lock(map->callback_mtx);
+		dmat = map->dmat;
+		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_LOCK);
 		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
 				map->callback, map->callback_arg, /*flags*/0);
-		if (map->callback_mtx != NULL)
-			mtx_unlock(map->callback_mtx);
+		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_UNLOCK);
 		mtx_lock(&bounce_lock);
 	}
 	mtx_unlock(&bounce_lock);

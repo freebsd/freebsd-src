@@ -553,7 +553,7 @@ psycho_attach(device_t dev)
 	sc->sc_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
 	sc->sc_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
 	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
-	    0x3ffffffff, 0xff, 0xffffffff, 0, &sc->sc_dmat) != 0)
+	    0x3ffffffff, 0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_dmat) != 0)
 		panic("psycho_attach: bus_dma_tag_create failed");
 	/* Customize the tag. */
 	sc->sc_dmat->dt_cookie = sc->sc_is;

@@ -39,6 +39,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus_pio.h>
@@ -268,6 +270,8 @@ adw_pci_attach(device_t dev)
 			/* nsegments	*/ ~0,
 			/* maxsegsz	*/ ADW_PCI_MAX_DMA_COUNT,
 			/* flags	*/ 0,
+			/* lockfunc	*/ busdma_lock_mutex,
+			/* lockarg	*/ &Giant,
 			&adw->parent_dmat);
 
 	adw->init_level++;

@@ -303,6 +303,8 @@ ida_eisa_attach(device_t dev)
 		/* nsegments	*/	IDA_NSEG,
 		/* maxsegsize	*/	BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/	BUS_DMA_ALLOCNOW,
+		/* lockfunc	*/	NULL,
+		/* lockarg	*/	NULL,
 		&ida->parent_dmat);
 
 	if (error != 0) {

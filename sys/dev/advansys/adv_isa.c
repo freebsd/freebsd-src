@@ -50,6 +50,8 @@
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h> 
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -230,6 +232,8 @@ adv_isa_probe(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ maxsegsz,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&adv->parent_dmat); 
 
 		if (error != 0) {
@@ -256,6 +260,8 @@ adv_isa_probe(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&overrun_dmat) != 0) {
 				adv_free(adv);
 				bus_release_resource(dev, SYS_RES_IOPORT, 0,

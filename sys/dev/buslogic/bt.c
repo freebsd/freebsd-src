@@ -45,6 +45,8 @@
 #include <sys/systm.h> 
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
  
@@ -723,6 +725,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ BT_NSEG,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&bt->buffer_dmat) != 0) {
 		goto error_exit;
 	}
@@ -742,6 +746,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&bt->mailbox_dmat) != 0) {
 		goto error_exit;
         }
@@ -782,6 +788,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&bt->ccb_dmat) != 0) {
 		goto error_exit;
         }
@@ -816,6 +824,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&bt->sg_dmat) != 0) {
 		goto error_exit;
         }

@@ -189,6 +189,8 @@ dpt_isa_attach (device_t dev)
 				/* nsegments */	~0,
 				/* maxsegsz  */	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
+				/* lockfunc  */ busdma_lock_mutex,
+				/* lockarg   */ &Giant,
 				&dpt->parent_dmat) != 0) {
 		error = ENXIO;
 		goto bad;

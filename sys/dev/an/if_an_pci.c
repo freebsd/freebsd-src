@@ -216,6 +216,8 @@ an_attach_pci(dev)
 			       1,			/* nsegments */
 			       0xffff,			/* maxsegsize XXX */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
 			       &sc->an_dtag);
 		if (error) {
 			printf("an%d: couldn't get DMA region\n", unit);

@@ -191,27 +191,28 @@ hme_config(struct hme_softc *sc)
 
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, size, HME_NTXDESC + HME_NRXDESC + 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->sc_pdmatag);
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
 	if (error)
 		return (error);
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 2048, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, &sc->sc_cdmatag);
+	    1, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, busdma_lock_mutex,
+	    &Giant, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ptag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, max(0x10, sc->sc_burst), 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    HME_NRXDESC, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
-	    &sc->sc_rdmatag);
+	    NULL, NULL, &sc->sc_rdmatag);
 	if (error)
 		goto fail_ctag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, max(0x10, sc->sc_burst), 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    HME_NTXDESC, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
-	    &sc->sc_tdmatag);
+	    NULL, NULL, &sc->sc_tdmatag);
 	if (error)
 		goto fail_rtag;
 

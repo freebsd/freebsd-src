@@ -553,6 +553,8 @@ wds_attach(device_t dev)
 				   /*maxsize*/ sizeof(* wp->dx),
 				   /*nsegments*/ 1,
 				   /*maxsegsz*/ sizeof(* wp->dx), /*flags*/ 0,
+				   /*lockfunc*/busdma_lock_mutex,
+				   /*lockarg*/&Giant,
 				   &wp->bustag);
 	if (error)
 		goto bad;

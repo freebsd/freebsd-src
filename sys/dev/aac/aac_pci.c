@@ -248,6 +248,7 @@ aac_pci_attach(device_t dev)
 			       AAC_MAXSGENTRIES,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
+			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_parent_dmat)) {
 		device_printf(sc->aac_dev, "can't allocate parent DMA tag\n");
 		goto out;

@@ -1097,7 +1097,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 
 	ISP_UNLOCK(isp);
 	if (bus_dma_tag_create(NULL, 1, slim+1, alim, alim,
-	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &pcs->dmat)) {
+	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, 
+	    busdma_lock_mutex, &Giant, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		ISP_LOCK(isp);
 		return(1);
@@ -1131,7 +1132,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 
 	ns = (len / PAGE_SIZE) + 1;
 	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, alim, alim,
-	    NULL, NULL, len, ns, slim, 0, &isp->isp_cdmat)) {
+	    NULL, NULL, len, ns, slim, 0, busdma_lock_mutex, &Giant,
+	    &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");
 		free(pcs->dmaps, M_DEVBUF);

@@ -34,6 +34,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -255,6 +257,8 @@ aha_isa_attach(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
+				/* lockfunc	*/ busdma_lock_mutex,
+				/* lockarg	*/ &Giant,
 				&aha->parent_dmat) != 0) {
                 aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);

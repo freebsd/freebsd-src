@@ -367,6 +367,7 @@ ubsec_attach(device_t dev)
 			       UBS_MAX_SCATTER,		/* nsegments */
 			       0xffff,			/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->sc_dmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad4;
@@ -1851,6 +1852,7 @@ ubsec_dma_malloc(
 			       1,			/* nsegments */
 			       size,			/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL, NULL,		/* lockfunc, lockarg */
 			       &dma->dma_tag);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "

@@ -214,7 +214,8 @@ hatm_alloc_dmamem(struct hatm_softc *sc, const char *what, struct dmamem *mem)
 	error = bus_dma_tag_create(sc->parent_tag, mem->align, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, mem->size, 1,
-	    BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW, &mem->tag);
+	    BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
+	    busdma_lock_mutex, &Giant, &mem->tag);
 	if (error) {
 		if_printf(&sc->ifatm.ifnet, "DMA tag create (%s)\n", what);
 		return (error);
@@ -1712,7 +1713,8 @@ hatm_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->parent_tag)) {
+	    BUS_SPACE_MAXSIZE_32BIT, 0,
+	    busdma_lock_mutex, &Giant, &sc->parent_tag)) {
 		device_printf(dev, "could not allocate DMA tag\n");
 		error = ENOMEM;
 		goto failed;
@@ -1722,7 +1724,8 @@ hatm_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    MBUF_ALLOC_SIZE, 1,
-	    MBUF_ALLOC_SIZE, 0, &sc->mbuf_tag)) {
+	    MBUF_ALLOC_SIZE, 0,
+	    busdma_lock_mutex, &Giant, &sc->mbuf_tag)) {
 		device_printf(dev, "could not allocate mbuf DMA tag\n");
 		error = ENOMEM;
 		goto failed;
@@ -1738,7 +1741,7 @@ hatm_attach(device_t dev)
 	if (bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    HE_MAX_PDU, 3 * HE_CONFIG_MAX_TPD_PER_PACKET, HE_MAX_PDU, 0,
-	    &sc->tx_tag)) {
+	    busdma_lock_mutex, &Giant, &sc->tx_tag)) {
 		device_printf(dev, "could not allocate TX tag\n");
 		error = ENOMEM;
 		goto failed;

@@ -233,8 +233,15 @@ aac_attach(struct aac_softc *sc)
 	if ((error = aac_check_firmware(sc)) != 0)
 		return(error);
 
-	/* Init the sync fib lock */
+	/*
+	 * Initialize locks
+	 */
 	AAC_LOCK_INIT(&sc->aac_sync_lock, "AAC sync FIB lock");
+	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
+	AAC_LOCK_INIT(&sc->aac_io_lock, "AAC I/O lock");
+	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
+	TAILQ_INIT(&sc->aac_container_tqh);
+
 
 	/*
 	 * Initialise the adapter.
@@ -246,14 +253,6 @@ aac_attach(struct aac_softc *sc)
 	 * Print a little information about the controller.
 	 */
 	aac_describe_controller(sc);
-
-	/*
-	 * Initialize locks
-	 */
-	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
-	TAILQ_INIT(&sc->aac_container_tqh);
-	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
-	AAC_LOCK_INIT(&sc->aac_io_lock, "AAC I/O lock");
 
 	/*
 	 * Register to probe our containers later.
@@ -1450,6 +1449,8 @@ aac_init(struct aac_softc *sc)
 			       AAC_MAXSGENTRIES,	/* nsegments */
 			       MAXBSIZE,		/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &sc->aac_io_lock,	/* lockfuncarg */
 			       &sc->aac_buffer_dmat)) {
 		device_printf(sc->aac_dev, "can't allocate buffer DMA tag\n");
 		goto out;
@@ -1471,6 +1472,7 @@ aac_init(struct aac_softc *sc)
 			       AAC_FIB_COUNT *
 			       sizeof(struct aac_fib),	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_fib_dmat)) {
 		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
 		goto out;
@@ -1490,6 +1492,7 @@ aac_init(struct aac_softc *sc)
 			       1,			/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
+			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_common_dmat)) {
 		device_printf(sc->aac_dev,
 			      "can't allocate common structure DMA tag\n");

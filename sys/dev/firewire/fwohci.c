@@ -1187,7 +1187,9 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			/*maxsize*/ dbch->xferq.psize,
 			/*nsegments*/ dbch->ndesc > 3 ? dbch->ndesc - 2 : 1,
 			/*maxsegsz*/ MAX_REQCOUNT,
-			/*flags*/ 0, &dbch->dmat))
+			/*flags*/ 0,
+			/*lockfunc*/busdma_lock_mutex,
+			/*lockarg*/&Giant, &dbch->dmat))
 		return;
 
 	/* allocate DB entries and attach one to each DMA channels */

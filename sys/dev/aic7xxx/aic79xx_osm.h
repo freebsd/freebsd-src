@@ -109,7 +109,7 @@ typedef union ccb *ahd_io_ctx_t;
 	bus_dma_tag_create(parent_tag, alignment, boundary,		\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)
+			   busdma_lock_mutex, &Giant, dma_tagp)
 
 #define ahd_dma_tag_destroy(ahd, tag)					\
 	bus_dma_tag_destroy(tag)

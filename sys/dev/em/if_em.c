@@ -1804,6 +1804,8 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                                1,                       /* nsegments */
                                size,                    /* maxsegsize */
                                BUS_DMA_ALLOCNOW,        /* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
                                &dma->dma_tag);
         if (r != 0) {
                 printf("em%d: em_dma_malloc: bus_dma_tag_create failed; "
@@ -1908,6 +1910,8 @@ em_setup_transmit_structures(struct adapter * adapter)
                                EM_MAX_SCATTER,          /* nsegments */
                                MCLBYTES * 8,            /* maxsegsize */
                                BUS_DMA_ALLOCNOW,        /* flags */ 
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
                                &adapter->txtag)) {
                 printf("em%d: Unable to allocate TX DMA tag\n", adapter->unit);
                 return (ENOMEM);
@@ -2283,6 +2287,8 @@ em_allocate_receive_structures(struct adapter * adapter)
                                1,                       /* nsegments */
                                MCLBYTES,                /* maxsegsize */
                                BUS_DMA_ALLOCNOW,        /* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockarg */
                                &adapter->rxtag);
         if (error != 0) {
                 printf("em%d: em_allocate_receive_structures: "
