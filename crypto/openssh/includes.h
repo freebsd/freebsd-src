@@ -63,8 +63,10 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 /*
  * Define this to use pipes instead of socketpairs for communicating with the
  * client program.  Socketpairs do not seem to work on all systems.
+ * Although pipes are bi-directional in FreeBSD, using pipes here will
+ * make <stdin> uni-directional !
  */
-#define USE_PIPES 1
+/* #define USE_PIPES 1 */
 
 #if defined(__FreeBSD__) && __FreeBSD__ <= 3
 /*
