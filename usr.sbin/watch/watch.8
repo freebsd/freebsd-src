@@ -9,9 +9,9 @@
 .Nd snoop on another tty line
 .Sh SYNOPSYS
 .Nm watch
-.Op Fl ciot
+.Op Fl ciotW
 .Ar tty
-.\"  watch [-ciot] [<tty name>]
+.\"  watch [-ciotW] [<tty name>]
 .Sh DESCRIPTION
 .Nm Watch
 allows the superuser to examine all data coming through a specified tty.
@@ -45,6 +45,8 @@ For more info see
 .Xr snp 4 .
 .It Fl t
 Print the date and time when observation of a given tty is started.
+.It Fl W
+Allow write access to observed tty.
 .It Ar tty
 Tty may be specified as an tty-style device, such as a pseudo tty device,
 a virtual console, or a serial line, etc.

@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -31,6 +32,7 @@
 #define MSG_OFLOW	"Snoop stopped due to overflow. Reconnecting."
 #define MSG_CLOSED	"Snoop stopped due to tty close. Reconnecting."
 #define MSG_CHANGE	"Snoop device change by user request."
+#define MSG_NOWRITE	"Snoop device change due to write failure."
 
 
 #define DEV_NAME_LEN	1024	/* for /dev/ttyXX++ */
@@ -44,6 +46,7 @@ int             opt_reconn_close = 0;
 int             opt_reconn_oflow = 0;
 int             opt_interactive = 1;
 int             opt_timestamp = 0;
+int		opt_write = 0;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
@@ -112,12 +115,18 @@ fatal(buf)
 int
 open_snp()
 {
-	char            *snp = "/dev/snpX";
+	char            snp[] = {"/dev/snpX"};
 	char            c;
-	int             f;
+	int             f, mode;
+
+	if (opt_write)
+		mode = O_RDWR;
+	else
+		mode = O_RDONLY;
+
 	for (c = '0'; c <= '9'; c++) {
 		snp[8] = c;
-		if ((f = open(snp, O_RDONLY)) < 0)
+		if ((f = open(snp, mode)) < 0)
 			continue;
 		return f;
 	}
@@ -139,7 +148,7 @@ cleanup()
 void
 show_usage()
 {
-	printf("watch -[ciot] [tty name]\n");
+	printf("watch -[ciotW] [tty name]\n");
 	exit(1);
 }
 
@@ -199,10 +208,13 @@ set_dev(name)
 	struct stat	sb;
 
 	if (strlen(name) > 5 && !strncmp(name, "/dev/", 5))
-		strcpy(buf, &(name[5]));
-	else
 		strcpy(buf, name);
-
+	else {
+		if (strlen(name) == 2)
+			sprintf(buf, "/dev/tty%s", name);
+		else
+			sprintf(buf, "/dev/%s", name);
+	}
 
 	if (stat(buf, &sb) < 0)
 		fatal("Bad device name.");
@@ -238,6 +250,7 @@ ask_dev(dev_name, msg)
 	set_tty();
 }
 
+#define READB_LEN	5
 
 void
 main(ac, av)
@@ -246,7 +259,7 @@ main(ac, av)
 {
 	int             res, nread, b_size = MIN_SIZE;
 	extern int      optind;
-	char            ch, *buf;
+	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
 
 	if (getuid() != 0)
@@ -258,8 +271,11 @@ main(ac, av)
 		opt_interactive = 0;
 
 
-	while ((ch = getopt(ac, av, "ciot")) != EOF)
+	while ((ch = getopt(ac, av, "Wciot")) != EOF)
 		switch (ch) {
+		case 'W':
+			opt_write = 1;
+			break;
 		case 'c':
 			opt_reconn_close = 1;
 			break;
@@ -304,16 +320,32 @@ main(ac, av)
 		FD_SET(snp_io, &fd_s);
 		res = select(snp_io + 1, &fd_s, NULL, NULL, NULL);
 		if (opt_interactive && FD_ISSET(std_in, &fd_s)) {
-			switch (ch = getchar()) {
+
+			if ((res = ioctl(std_in, FIONREAD, &nread)) != 0)
+				fatal("ioctl() failed.");
+			if (nread > READB_LEN)
+				nread = READB_LEN;
+			if (read(std_in,chb,nread)!=nread)
+				fatal("read (stdin) failed.");
+
+			switch (chb[0]) {
 			case CHR_CLEAR:
 				clear();
 				break;
 			case CHR_SWITCH:
-				/* detach_snp(); */
+				detach_snp();
 				ask_dev(dev_name, MSG_CHANGE);
 				set_dev(dev_name);
 				break;
 			default:
+				if (opt_write) {
+					if (write(snp_io,chb,nread) != nread) {
+						detach_snp();
+						ask_dev(dev_name, MSG_NOWRITE);
+						set_dev(dev_name);
+					}
+				}
+					
 			}
 		}
 		if (!FD_ISSET(snp_io, &fd_s))
