@@ -61,17 +61,19 @@ SysKonnect SK-9D41 (1000baseSX)
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
 copper cable, except for the SysKonnect SK-9D41 which supports only
 1000Mbps over multimode fiber.
-The BCM570x builds upon the technology of the Alteon Tigon II. It has
-two R4000 CPU cores and is PCI v2.2 and PCI-X v1.0 compliant. It
-supports IP, TCP
+The BCM570x builds upon the technology of the Alteon Tigon II.
+It has two R4000 CPU cores and is PCI v2.2 and PCI-X v1.0 compliant.
+It supports IP, TCP
 and UDP checksum checksum offload for both receive and transmit,
 multiple RX and TX DMA rings for QoS applications, rules-based
 receive filtering, and VLAN tag stripping/insertion as well as
-a 256-bit multicast hash filter. Additional features may be
+a 256-bit multicast hash filter.
+Additional features may be
 provided via value-add firmware updates.
 The BCM570x supports TBI (ten bit interface) and GMII
 transceivers, which means it can be used with either copper of 1000baseX
-fiber applications. Note however the device only supports a single
+fiber applications.
+Note however the device only supports a single
 speed in TBI mode.
 .Pp
 Most cards also use the Broadcom BCM5401 or BCM5411 10/100/1000
@@ -90,7 +92,7 @@ such as file transfers and data streaming.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width 10baseTXUTP
+.Bl -tag -width ".Cm 10baseT/UTP"
 .It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
@@ -134,7 +136,7 @@ modes are supported.
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width full-duplex
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex
@@ -144,7 +146,7 @@ Force half duplex operation.
 The
 .Nm
 driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width link0
+.Bl -tag -width ".Cm link0"
 .It Cm link0
 With 1000baseTX cards, establishing a link between two ports requires
 that one port be configured as a master and the other a slave.
@@ -196,7 +198,7 @@ the network connection (cable).
 The
 .Nm
 device driver first appeared in
-.Fx 5.0 .
+.Fx 4.5 .
 .Sh AUTHORS
 The
 .Nm
