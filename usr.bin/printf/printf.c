@@ -89,7 +89,7 @@ static const char rcsid[] =
 }
 
 static int	 asciicode(void);
-static void	 escape(char *);
+static int	 escape(char *);
 static int	 getchr(void);
 static double	 getdouble(void);
 static int	 getint(int *);
@@ -110,7 +110,7 @@ main(argc, argv)
 	char *argv[];
 {
 	static const char *skip1, *skip2;
-	int ch, end, fieldwidth, precision;
+	int ch, chopped, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
 
 #ifndef BUILTIN
@@ -142,7 +142,7 @@ main(argc, argv)
 	skip1 = "#-+ 0";
 	skip2 = "0123456789";
 
-	escape(fmt = format = *argv);		/* backslash interpretation */
+	chopped = escape(fmt = format = *argv);	/* backslash interpretation */
 	gargv = ++argv;
 	for (;;) {
 		end = 0;
@@ -150,6 +150,10 @@ main(argc, argv)
 next:		for (start = fmt;; ++fmt) {
 			if (!*fmt) {
 				/* avoid infinite loop */
+				if (chopped) {
+					(void)printf("%s", start);
+					return (0);
+				}
 				if (end == 1) {
 					warnx1("missing format character",
 					    NULL, NULL);
@@ -209,6 +213,21 @@ next:		for (start = fmt;; ++fmt) {
 		nextch = *++fmt;
 		*fmt = '\0';
 		switch(convch) {
+		case 'b': {
+			char *p;
+			int getout;
+
+			if ((p = strdup(getstr())) == NULL)
+				err(1, NULL);
+			getout = escape(p);
+			*(fmt - 1) = 's';
+			PF(start, p)
+			*(fmt - 1) = 'b';
+			free(p);
+			if (getout)
+				return (0);
+			break;
+		}
 		case 'c': {
 			char p;
 
@@ -227,11 +246,10 @@ next:		for (start = fmt;; ++fmt) {
 			quad_t p;
 			char *f;
 
-			if ((f = mklong(start, convch)) == NULL)
-				return (1);
-			if (getquad(&p))
-				return (1);
-			PF(f, p);
+			if ((f = mklong(start, convch)) != NULL &&
+			    !getquad(&p)) {
+				PF(f, p);
+			}
 			break;
 		}
 		case 'e': case 'E': case 'f': case 'g': case 'G': {
@@ -280,7 +298,7 @@ mklong(str, ch)
 	return (copy);
 }
 
-static void
+static int
 escape(fmt)
 	register char *fmt;
 {
@@ -296,7 +314,7 @@ escape(fmt)
 		case '\0':		/* EOS, user error */
 			*store = '\\';
 			*++store = '\0';
-			return;
+			return (0);
 		case '\\':		/* backslash */
 		case '\'':		/* single quote */
 			*store = *fmt;
@@ -307,6 +325,9 @@ escape(fmt)
 		case 'b':		/* backspace */
 			*store = '\b';
 			break;
+		case 'c':
+			*store = '\0';
+			return (1);
 		case 'f':		/* form-feed */
 			*store = '\f';
 			break;
@@ -325,7 +346,7 @@ escape(fmt)
 					/* octal constant */
 		case '0': case '1': case '2': case '3':
 		case '4': case '5': case '6': case '7':
-			for (c = 3, value = 0;
+			for (c = *fmt == '0' ? 4 : 3, value = 0;
 			    c-- && *fmt >= '0' && *fmt <= '7'; ++fmt) {
 				value <<= 3;
 				value += *fmt - '0';
@@ -339,6 +360,7 @@ escape(fmt)
 		}
 	}
 	*store = '\0';
+	return (0);
 }
 
 static int
@@ -357,7 +379,6 @@ getstr()
 	return (*gargv++);
 }
 
-static const char *Number = "+-.0123456789";
 static int
 getint(ip)
 	int *ip;
@@ -366,10 +387,8 @@ getint(ip)
 
 	if (getquad(&val))
 		return (1);
-	if (val < INT_MIN || val > INT_MAX) {
+	if (val < INT_MIN || val > INT_MAX)
 		warnx3("%s: %s", *gargv, strerror(ERANGE));
-		return (1);
-	}
 	*ip = (int)val;
 	return (0);
 }
@@ -385,39 +404,49 @@ getquad(lp)
 		*lp = 0;
 		return (0);
 	}
-	if (strchr(Number, **gargv)) {
-		errno = 0;
-		val = strtoq(*gargv, &ep, 0);
-		if (*ep != '\0') {
-			warnx2("%s: illegal number", *gargv, NULL);
-			return (1);
-		}
-		if (errno == ERANGE)
-			if (val == QUAD_MAX) {
-				warnx3("%s: %s", *gargv, strerror(ERANGE));
-				return (1);
-			}
-			if (val == QUAD_MIN) {
-				warnx3("%s: %s", *gargv, strerror(ERANGE));
-				return (1);
-			}
 
-		*lp = val;
-		++gargv;
+	if (**gargv == '"' || **gargv == '\'') {
+		*lp = (quad_t)asciicode();
 		return (0);
 	}
-	*lp =  (long)asciicode();
+
+	errno = 0;
+	val = strtoq(*gargv, &ep, 0);
+	if (ep == *gargv)
+		warnx2("%s: expected numeric value", *gargv, NULL);
+	else if (*ep != '\0')
+		warnx2("%s: not completely converted", *gargv, NULL);
+	if (errno == ERANGE)
+		warnx3("%s: %s", *gargv, strerror(ERANGE));
+	*lp = val;
+	++gargv;
 	return (0);
 }
 
 static double
 getdouble()
 {
+	double val;
+	char *ep;
+
 	if (!*gargv)
 		return ((double)0);
-	if (strchr(Number, **gargv))
-		return (atof(*gargv++));
-	return ((double)asciicode());
+
+	if (**gargv == '"' || **gargv == '\'') {
+		val = (double)asciicode();
+		return (val);
+	}
+
+	errno = 0;
+	val = strtod(*gargv, &ep);
+	if (ep == *gargv)
+		warnx2("%s: expected numeric value", *gargv, NULL);
+	else if (*ep != '\0')
+		warnx2("%s: not completely converted", *gargv, NULL);
+	if (errno == ERANGE)
+		warnx3("%s: %s", *gargv, strerror(ERANGE));
+	++gargv;
+	return (val);
 }
 
 static int
