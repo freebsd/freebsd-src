@@ -57,7 +57,7 @@
  */
 /* ASI offsets for I$ diagnostic access */
 #define	ICDA_SET_SHIFT		13
-#define	ICDA_SET_MASK		(1UL << 13)
+#define	ICDA_SET_MASK		(1UL << ICDA_SET_SHIFT)
 #define	ICDA_SET(a)		(((a) << ICDA_SET_SHIFT) & ICDA_SET_MASK)
 /* I$ tag/valid format */
 #define	ICDT_TAG_SHIFT		8
@@ -110,6 +110,7 @@ void	ecache_inval_phys __P((vm_offset_t, vm_offset_t));
 struct cacheinfo {
 	int	c_enabled;		/* true => cache is enabled */
 	int 	ic_size;		/* instruction cache */
+	int	ic_set;
 	int	ic_l2set;
 	int 	ic_assoc;
 	int 	ic_linesize;
