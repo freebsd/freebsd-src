@@ -82,7 +82,7 @@ extern const fenv_t	__fe_dfl_env;
 #define	_ENABLE_MASK	((FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
 			 FE_OVERFLOW | FE_UNDERFLOW) >> _FPUSW_SHIFT)
 
-#define	__mffs(__env)	__asm("mffs %0" : "=f" (*(__env)))
+#define	__mffs(__env)	__asm __volatile("mffs %0" : "=f" (*(__env)))
 #define	__mtfsf(__env)	__asm __volatile("mtfsf 255,%0" : : "f" (__env))
 
 union __fpscr {

@@ -68,7 +68,7 @@ extern const fenv_t	__fe_dfl_env;
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
 
 #define	__ldxfsr(__r)	__asm __volatile("ldx %0, %%fsr" : : "m" (__r))
-#define	__stxfsr(__r)	__asm("stx %%fsr, %0" : "=m" (*(__r)))
+#define	__stxfsr(__r)	__asm __volatile("stx %%fsr, %0" : "=m" (*(__r)))
 
 static __inline int
 feclearexcept(int __excepts)
