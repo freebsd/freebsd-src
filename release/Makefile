@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
-# make release CHROOTDIR=/some/dir BUILDNAME=somename CVSROOT=/cvs/dir \
-#	[ RELEASETAG=tag ]
+# make release [BUILDNAME=somename] CHROOTDIR=/some/dir CVSROOT=/cvs/dir \
+#     [RELEASETAG=tag]
 #
 # Where "/some/dir" is the pathname of a directory on a some filesystem with
 # at least 1000MB of free space, "somename" is what you want the release to
@@ -9,8 +9,8 @@
 # which CVS "tag" name should be used when checking out the sources to build
 # the release (default is HEAD).
 #
-# Please note: the md(4) driver must be compiled into your kernel
-# or available as a kld(4)-style kernel module,
+# Please note: the md(4) driver must be present in the kernel
+# (either by being compiled in or loaded as a kld(4) module),
 # otherwise the target 'release.9' and possibly others will fail.
 #
 # Note:  "/some/dir" cannot reside on a filesystem mounted with
@@ -317,7 +317,7 @@ CVS_PORTSARGS=	-P
 CVS_PORTSARGS+=	-r ${PORTSRELEASETAG}
 .endif
 
-rerelease release:
+release rerelease:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
@@ -1125,5 +1125,3 @@ doMFSKERN:
 		${BOOTINODE} ${BOOTLABEL}
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
-
-.include <bsd.prog.mk>
