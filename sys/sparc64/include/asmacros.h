@@ -84,10 +84,12 @@
 	bne,pn	%icc, 9b ; \
 	 mov	r3, r2
 
-#define	PCPU(member)	%g7 + PC_ ## member
-#define	PCPU_ADDR(member, reg) add %g7, PC_ ## member, reg
+#define	PCPU(member)	PCPU_REG + PC_ ## member
+#define	PCPU_ADDR(member, reg) \
+	add	PCPU_REG, PC_ ## member, reg
 
-#define	DEBUGGER()	ta %xcc, 1
+#define	DEBUGGER() \
+	ta	%xcc, 1
 
 #define	PANIC(msg, r1) \
 	.sect	.rodata ; \
