@@ -96,12 +96,12 @@ NETGRAPH_INIT(pppoe, &typestruct);
  */
 enum state {
     PPPOE_SNONE=0,	/* [both] Initial state */
+    PPPOE_LISTENING,	/* [Daemon] Listening for discover initiation pkt */
     PPPOE_SINIT,	/* [Client] Sent discovery initiation */
-    PPPOE_PRIMED,	/* [Server] Received discovery initiation */
-    PPPOE_SOFFER,	/* [Server] Sent offer message */
+    PPPOE_PRIMED,	/* [Server] Awaiting PADI from daemon */
+    PPPOE_SOFFER,	/* [Server] Sent offer message  (got PADI)*/
     PPPOE_SREQ,		/* [Client] Sent a Request */
-    PPPOE_LISTENING,	/* [Server] Listening for discover initiation msg */
-    PPPOE_NEWCONNECTED,	/* [Both] Connection established, No data received */
+    PPPOE_NEWCONNECTED,	/* [Server] Connection established, No data received */
     PPPOE_CONNECTED,	/* [Both] Connection established, Data received */
     PPPOE_DEAD		/* [Both] */
 };
@@ -831,7 +831,7 @@ AAA
 				 */
 				printf("packet fragmented\n");
 				LEAVE(EMSGSIZE);
-			 }
+			}
 
 			switch(code) {
 			case	PADI_CODE:
@@ -973,8 +973,8 @@ AAA
 				insert_tag(sp, utag);	/* ac_cookie */
 				scan_tags(sp, ph);
 				make_packet(sp);
-				sendpacket(sp);
 				sp->state = PPPOE_NEWCONNECTED;
+				sendpacket(sp);
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to 
@@ -1243,7 +1243,7 @@ ng_pppoe_connect(hook_p hook)
 /*
  * Hook disconnection
  *
- * Clean up all dangling links and infirmation about the session/hook.
+ * Clean up all dangling links and information about the session/hook.
  * For this type, removal of the last link destroys the node
  */
 static int
@@ -1282,18 +1282,28 @@ AAA
 
 			/* generate a packet of that type */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			m->m_pkthdr.rcvif = NULL;
-			m->m_pkthdr.len = m->m_len = sizeof(*wh);
-			bcopy((caddr_t)wh, mtod(m, caddr_t), sizeof(*wh));
-			/* Add a General error message and adjust sizes */
-			wh = mtod(m, struct pppoe_full_hdr *);
-			tag = wh->ph.tag;
-			tag->tag_type = PTT_GEN_ERR;
-			tag->tag_len = htons((u_int16_t)msglen);
-			strncpy(tag->tag_data, SIGNOFF, msglen);
-			m->m_pkthdr.len = (m->m_len += sizeof(*tag) + msglen);
-			wh->ph.length = htons(sizeof(*tag) + msglen);
-			NG_SEND_DATA(error, privp->ethernet_hook, m, dummy);
+			if(m == NULL)
+				printf("pppoe: Session out of mbufs\n");
+			else {
+				m->m_pkthdr.rcvif = NULL;
+				m->m_pkthdr.len = m->m_len = sizeof(*wh);
+				bcopy((caddr_t)wh, mtod(m, caddr_t),
+				    sizeof(*wh));
+				/*
+				 * Add a General error message and adjust
+				 * sizes
+				 */
+				wh = mtod(m, struct pppoe_full_hdr *);
+				tag = wh->ph.tag;
+				tag->tag_type = PTT_GEN_ERR;
+				tag->tag_len = htons((u_int16_t)msglen);
+				strncpy(tag->tag_data, SIGNOFF, msglen);
+				m->m_pkthdr.len = (m->m_len += sizeof(*tag) +
+				    msglen);
+				wh->ph.length = htons(sizeof(*tag) + msglen);
+				NG_SEND_DATA(error, privp->ethernet_hook, m,
+				    dummy);
+			}
 		}
 		if (sp->neg) {
 			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
@@ -1382,9 +1392,14 @@ AAA
 	case	PPPOE_LISTENING:
 	case	PPPOE_DEAD:
 	case	PPPOE_SNONE:
-	case	PPPOE_NEWCONNECTED:
 	case	PPPOE_CONNECTED:
 		printf("pppoe: sendpacket: unexpected state\n");
+		break;
+
+	case	PPPOE_NEWCONNECTED:
+		/* send the PADS without a timeout - we're now connected */
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		NG_SEND_DATA( error, privp->ethernet_hook, m0, dummy);
 		break;
 
 	case	PPPOE_PRIMED:
