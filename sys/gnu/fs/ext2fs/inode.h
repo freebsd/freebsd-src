@@ -36,14 +36,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.12 1997/02/22 09:47:42 peter Exp $
+ * $Id: inode.h,v 1.13 1997/03/03 16:25:46 bde Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
 #define	_UFS_UFS_INODE_H_
 
-#include <ufs/ufs/dir.h>
 #include <ufs/ufs/dinode.h>
+
+/*
+ * This must agree with the definition in <ufs/ufs/dir.h>.
+ */
+#define	doff_t		int32_t
 
 /*
  * The inode is used to describe each active (or recently active) file in the
