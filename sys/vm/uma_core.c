@@ -835,8 +835,10 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	 * This looks a little weird since we're getting one page at a time
 	 */
 	while (bytes > 0) {
+		VM_OBJECT_LOCK(zone->uz_obj);
 		p = vm_page_alloc(zone->uz_obj, pages,
 		    VM_ALLOC_INTERRUPT);
+		VM_OBJECT_UNLOCK(zone->uz_obj);
 		if (p == NULL)
 			return (NULL);
 
