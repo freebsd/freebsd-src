@@ -214,8 +214,15 @@ encap4_input(m, va_alist)
 	}
 
 	/* for backward compatibility - messy... */
+	/* XXX
+	 * I THINK they meant to call ip_input()
+	 * The original code called ipip_input()
+	 * which just calls rip_input()
+	 * which makes no sense.
+	 * (It is also not compiled in in LINT)
+	 */
 	if (proto == IPPROTO_IPV4) {
-		ipip_input(m, off);
+		ip_input(m, off);
 		return;
 	}
 
