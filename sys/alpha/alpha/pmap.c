@@ -2887,10 +2887,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	m->md.pv_flags |= PV_TABLE_REF;
 	faultoff = PG_FOR | PG_FOE;
 
-	if (user_addr && mtx_trylock(&vm_mtx)) {
+	if (user_addr)
 		vm_page_flag_set(m, PG_REFERENCED);
-		mtx_unlock(&vm_mtx);
-	}
 
 	if (write) {
 		m->md.pv_flags |= PV_TABLE_MOD;
