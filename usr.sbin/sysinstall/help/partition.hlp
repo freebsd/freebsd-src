@@ -27,7 +27,7 @@ filesystems:
 
         Name    Purpose                 Min Size?       Optional?
         ----    -------                 ---------       ---------
-        /       Root filesystem         20MB            No
+        /       Root filesystem         118MB           No
         swap    Swap space              2 * MEM         No
         /usr    System & user files     80MB or more    Yes
 
