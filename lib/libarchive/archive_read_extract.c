@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <tar.h>
 #include <unistd.h>
+#ifdef LINUX
+#include <ext2fs/ext2_fs.h>
+#include <sys/ioctl.h>
+#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -440,7 +444,11 @@ archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
 		return (ARCHIVE_OK);
 
 	/* Unlink failed. It's okay if it failed because it's already a dir. */
-	if (errno != EPERM) {
+	/*
+	 * BSD returns EPERM for unlink on an dir,
+	 * Linux returns EISDIR
+	 */
+	if (errno != EPERM && errno != EISDIR) {
 		archive_set_error(a, errno, "Couldn't create dir");
 		return (ARCHIVE_WARN);
 	}
@@ -782,29 +790,31 @@ set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 static int
 set_fflags(struct archive *a, struct archive_entry *entry)
 {
-	char		*fflags;
-	const char	*fflagsc;
-	char		*fflags_p;
 	const char	*name;
 	int		 ret;
 	unsigned long	 set, clear;
 	struct stat	 st;
+#ifdef LINUX
+	struct stat	 *stp;
+	int		 fd;
+	int		 err;
+	unsigned long newflags, oldflags;
+#endif
 
 	name = archive_entry_pathname(entry);
-
 	ret = ARCHIVE_OK;
-	fflagsc = archive_entry_fflags(entry);
-	if (fflagsc == NULL)
-		return (ARCHIVE_OK);
-
-	fflags = strdup(fflagsc);
-	if (fflags == NULL)
-		return (ARCHIVE_WARN);
+	archive_entry_fflags(entry, &set, &clear);
+	if (set == 0  && clear == 0)
+		return (ret);
 
 #ifdef HAVE_CHFLAGS
-	fflags_p = fflags;
-	if (strtofflags(&fflags_p, &set, &clear) == 0  &&
-	    stat(name, &st) == 0) {
+	/*
+	 * XXX Is the stat here really necessary?  Or can I just use
+	 * the 'set' flags directly?  In particular, I'm not sure
+	 * about the correct approach if we're overwriting an existing
+	 * file that already has flags on it. XXX
+	 */
+	if (stat(name, &st) == 0) {
 		st.st_flags &= ~clear;
 		st.st_flags |= set;
 		if (chflags(name, st.st_flags) != 0) {
@@ -814,8 +824,45 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 		}
 	}
 #endif
+	/* Linux has flags too, but no chflags syscall */
+#ifdef LINUX
+	/*
+	 * Linux has no define for the flags that are only settable
+	 * by the root user...
+	 */
+#define	SF_MASK                 (EXT2_IMMUTABLE_FL|EXT2_APPEND_FL)
 
-	free(fflags);
+	/*
+	 * XXX As above, this would be way simpler if we didn't have
+	 * to read the current flags from disk. XXX
+	 */
+	stp = archive_entry_stat(entry);
+	if ((S_ISREG(stp->st_mode) || S_ISDIR(stp->st_mode)) &&
+	    ((fd = open(name, O_RDONLY|O_NONBLOCK)) >= 0)) {
+		err = 1;
+		if (fd >= 0 && (ioctl(fd, EXT2_IOC_GETFLAGS, &oldflags) >= 0)) {
+			newflags = (oldflags & ~clear) | set;
+			if (ioctl(fd, EXT2_IOC_SETFLAGS, &newflags) >= 0) {
+				err = 0;
+			} else if (errno == EPERM) {
+				if (ioctl(fd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
+					newflags &= ~SF_MASK;
+					oldflags &= SF_MASK;
+					newflags |= oldflags;
+					if (ioctl(fd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+						err = 0;
+				}
+			}
+		}
+		close(fd);
+		if (err) {
+			archive_set_error(a, errno,
+			    "Failed to set file flags");
+			ret = ARCHIVE_WARN;
+		}
+	}
+#endif
+
 	return (ret);
 }
 

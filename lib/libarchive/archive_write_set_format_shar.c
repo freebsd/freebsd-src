@@ -423,7 +423,7 @@ archive_write_shar_finish_entry(struct archive *a)
 			    archive_entry_pathname(shar->entry));
 		}
 
-		if ((p = archive_entry_fflags(shar->entry)) != NULL) {
+		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
 			shar_printf(a, "chflags %s %s\n", p,
 			    archive_entry_pathname(shar->entry));
 		}
