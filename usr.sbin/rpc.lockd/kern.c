@@ -41,6 +41,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,10 +61,6 @@
 
 #define DAEMON_USERNAME	"daemon"
 
-#define nfslockdans(_v, _ansp)	\
-	((_ansp)->la_vers = _v, \
-	nfsclnt(NFSCLNT_LOCKDANS, _ansp))
-
 /* Lock request owner. */
 typedef struct __owner {
 	pid_t	 pid;				/* Process ID. */
@@ -79,6 +76,15 @@ int	lock_request(LOCKD_MSG *);
 int	test_request(LOCKD_MSG *);
 void	show(LOCKD_MSG *);
 int	unlock_request(LOCKD_MSG *);
+static	int	devfd;
+
+static int
+nfslockdans(int vers, struct lockd_ans *ansp)
+{
+
+	ansp->la_vers = vers;
+	return (write(devfd, ansp, sizeof *ansp));
+}
 
 /*
  * will break because fifo needs to be repopened when EOF'd
@@ -104,7 +110,6 @@ void
 client_cleanup(void)
 {
 	(void)lockd_seteuid(0);
-	(void)unlink(_PATH_LCKFIFO);
 	exit(-1);
 }
 
@@ -118,21 +123,18 @@ client_request(void)
 {
 	LOCKD_MSG msg;
 	fd_set rdset;
-	int fd, nr, ret;
+	int nr, ret;
 	pid_t child;
 	uid_t daemon_uid;
 	mode_t old_umask;
 	struct passwd *pw;
 
-	/* Recreate the NLM fifo. */
-	(void)unlink(_PATH_LCKFIFO);
-	old_umask = umask(S_IXGRP|S_IXOTH);
-	if (mkfifo(_PATH_LCKFIFO, S_IWUSR | S_IRUSR)) {
-		syslog(LOG_ERR, "mkfifo: %s: %m", _PATH_LCKFIFO);
-		exit (1);
+	/* Open the dev . */
+	devfd = open(_PATH_DEV _PATH_NFSLCKDEV, O_RDWR | O_NONBLOCK);
+	if (devfd < 0) {
+		syslog(LOG_ERR, "open: %s: %m", _PATH_NFSLCKDEV);
+		goto err;
 	}
-	umask(old_umask);
-
 	/*
 	 * Create a separate process, the client code is really a separate
 	 * daemon that shares a lot of code.
@@ -154,11 +156,6 @@ client_request(void)
 	owner.pid = getpid();
 	(void)gethostname(hostname, sizeof(hostname) - 1);
 
-	/* Open the fifo for reading. */
-	if ((fd = open(_PATH_LCKFIFO, O_RDONLY | O_NONBLOCK)) == -1) {
-		syslog(LOG_ERR, "open: %s: %m", _PATH_LCKFIFO);
-		goto err;
-	}
 	pw = getpwnam(DAEMON_USERNAME);
 	if (pw == NULL) {
 		syslog(LOG_ERR, "getpwnam: %s: %m", DAEMON_USERNAME);
@@ -169,16 +166,8 @@ client_request(void)
 	(void)lockd_seteuid(daemon_uid);
 
 	for (;;) {
-		/* Wait for contact... fifo's return EAGAIN when read with 
-		 * no data
-		 */
-		/* Set up the select. */
-		FD_ZERO(&rdset);
-		FD_SET(fd, &rdset);
-		(void)select(fd + 1, &rdset, NULL, NULL, NULL);
-
 		/* Read the fixed length message. */
-		if ((nr = read(fd, &msg, sizeof(msg))) == sizeof(msg)) {
+		if ((nr = read(devfd, &msg, sizeof(msg))) == sizeof(msg)) {
 			if (d_args)
 				show(&msg);
 
@@ -221,19 +210,18 @@ client_request(void)
 			}
 		} else if (nr == -1) {
 			if (errno != EAGAIN) {
-				syslog(LOG_ERR, "read: %s: %m", _PATH_LCKFIFO);
+				syslog(LOG_ERR, "read: %s: %m", _PATH_NFSLCKDEV);
 				goto err;
 			}
 		} else if (nr != 0) {
 			syslog(LOG_ERR,
-			    "%s: discard %d bytes", _PATH_LCKFIFO, nr);
+			    "%s: discard %d bytes", _PATH_NFSLCKDEV, nr);
 		}
 	}
 
 	/* Reached only on error. */
 err:
 	(void)lockd_seteuid(0);
-	(void)unlink(_PATH_LCKFIFO);
 	_exit (1);
 }
 
