@@ -3,6 +3,5 @@
 
 KMOD=		ng_lmi
 SRCS= 		ng_lmi.c
-MAN4=		ng_lmi.4
 
 .include <bsd.kmod.mk>

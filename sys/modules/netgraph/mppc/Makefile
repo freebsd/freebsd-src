@@ -3,7 +3,6 @@
 
 KMOD=		ng_mppc
 SRCS= 		ng_mppc.c opt_netgraph.h
-MAN4=		ng_mppc.4
 
 NETGRAPH_MPPC_COMPRESSION?=	0
 NETGRAPH_MPPC_ENCRYPTION?=	1

@@ -3,7 +3,6 @@
 
 KMOD=		ng_vjc
 SRCS= 		ng_vjc.c slcompress.c
-MAN4=		ng_vjc.4
 
 .PATH:		${.CURDIR}/../../../net
 
