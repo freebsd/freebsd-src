@@ -190,7 +190,7 @@ not_squish(plan)
 			int notlevel = 1;
 
 			node = yanknode(&plan);
-			while (node->type == N_NOT) {
+			while ((node != NULL) && (node->type == N_NOT)) {
 				++notlevel;
 				node = yanknode(&plan);
 			}
