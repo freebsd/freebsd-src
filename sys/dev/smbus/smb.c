@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.12 1999/05/30 16:51:37 phk Exp $
+ *	$Id: smb.c,v 1.13 1999/05/31 11:25:05 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -276,5 +276,4 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-DEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR, NOMAJ,
-			smb_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, smb_cdevsw, 0, 0);
