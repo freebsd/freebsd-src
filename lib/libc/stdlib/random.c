@@ -142,6 +142,8 @@ __FBSDID("$FreeBSD$");
  */
 #define	MAX_TYPES	5		/* max number of types above */
 
+#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
+
 static long degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
 static long seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
@@ -264,19 +266,20 @@ void
 srandom(x)
 	unsigned long x;
 {
-	long i;
+	long i, lim;
 
+	state[0] = x;
 	if (rand_type == TYPE_0)
-		state[0] = x;
+		lim = NSHUFF;
 	else {
-		state[0] = x;
 		for (i = 1; i < rand_deg; i++)
 			state[i] = good_rand(state[i - 1]);
 		fptr = &state[rand_sep];
 		rptr = &state[0];
-		for (i = 0; i < 10 * rand_deg; i++)
-			(void)random();
+		lim = 10 * rand_deg;
 	}
+	for (i = 0; i < lim; i++)
+		(void)random();
 }
 
 /*
