@@ -195,7 +195,6 @@ ddp_abort(struct socket *so)
 	if (ddp == NULL) {
 		return (EINVAL);
 	}
-	soisdisconnected(so);
 	s = splnet();
 	at_pcbdetach(so, ddp);
 	splx(s);
