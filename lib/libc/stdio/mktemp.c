@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: mktemp.c,v 1.11 1998/10/20 12:36:36 peter Exp $";
+		"$Id: mktemp.c,v 1.12 1998/10/20 15:33:21 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -50,7 +50,17 @@ static const char rcsid[] =
 
 char *_mktemp __P((char *));
 
-static int _gettemp __P((char *, int *, int));
+static int _gettemp __P((char *, int *, int, int));
+
+int
+mkstemps(path, slen)
+	char *path;
+	int slen;
+{
+	int fd;
+
+	return (_gettemp(path, &fd, 0, slen) ? fd : -1);
+}
 
 int
 mkstemp(path)
@@ -58,21 +68,21 @@ mkstemp(path)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0) ? fd : -1);
+	return (_gettemp(path, &fd, 0, 0) ? fd : -1);
 }
 
 char *
 mkdtemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
+	return(_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
 }
 
 char *
 _mktemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 0) ? path : (char *)NULL);
+	return(_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
 }
 
 #ifdef UNSAFE_WARN
@@ -88,12 +98,13 @@ mktemp(path)
 }
 
 static int
-_gettemp(path, doopen, domkdir)
+_gettemp(path, doopen, domkdir, slen)
 	char *path;
 	register int *doopen;
 	int domkdir;
+	int slen;
 {
-	register char *start, *trv;
+	register char *start, *trv, *suffp;
 	struct stat sbuf;
 	int pid, rval;
 
@@ -105,7 +116,13 @@ _gettemp(path, doopen, domkdir)
 	pid = getpid();
 	for (trv = path; *trv; ++trv)
 		;
+	trv -= slen;
+	suffp = trv;
 	--trv;
+	if (trv < path) {
+		errno = EINVAL;
+		return (0);
+	}
 	while (*trv == 'X' && pid != 0) {
 		*trv-- = (pid % 10) + '0';
 		pid /= 10;
