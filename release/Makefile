@@ -355,6 +355,8 @@ release.3:
 #
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
+# It also prevents ls linking against termcap by disabling color support.
+# See /usr/src/bin/ls/Makefile.
 release.4:
 	@mkdir -p /stand
 	cp ${.CURDIR}/boot_crunch.conf.generic ${.OBJDIR}/boot_crunch.conf
