@@ -198,7 +198,8 @@ static inline int undossify_input PARAMS ((register char *, size_t));
 
 /* Functions we'll use to search. */
 static void (*compile) PARAMS ((char const *, size_t));
-static size_t (*execute) PARAMS ((char const *, size_t, size_t *, int));
+static size_t (*execute) PARAMS ((char const *, size_t, struct mb_cache *,
+				  size_t *, int));
 
 /* Like error, but suppress the diagnostic if requested.  */
 static void
@@ -583,7 +584,7 @@ print_offset_sep (uintmax_t pos, char sep)
 }
 
 static void
-prline (char const *beg, char const *lim, int sep)
+prline (char const *beg, char const *lim, int sep, struct mb_cache *mb_cache)
 {
   if (out_file)
     printf ("%s%c", filename, sep & filename_mask);
@@ -606,7 +607,8 @@ prline (char const *beg, char const *lim, int sep)
     {
       size_t match_size;
       size_t match_offset;
-      while ((match_offset = (*execute) (beg, lim - beg, &match_size, 1))
+      while ((match_offset = (*execute) (beg, lim - beg, mb_cache,
+					 &match_size, 1))
 	  != (size_t) -1)
         {
 	  char const *b = beg + match_offset;
@@ -640,7 +642,8 @@ prline (char const *beg, char const *lim, int sep)
 	  int i;
 	  for (i = 0; i < lim - beg; i++)
 	    ibeg[i] = tolower (beg[i]);
-	  while ((match_offset = (*execute) (ibeg, ilim-ibeg, &match_size, 1))
+	  while ((match_offset = (*execute) (ibeg, ilim-ibeg, mb_cache,
+					     &match_size, 1))
 		 != (size_t) -1)
 	    {
 	      char const *b = beg + match_offset;
@@ -658,7 +661,8 @@ prline (char const *beg, char const *lim, int sep)
 	  lastout = lim;
 	  return;
 	}
-      while (lim-beg && (match_offset = (*execute) (beg, lim - beg, &match_size, 1))
+      while (lim-beg && (match_offset = (*execute) (beg, lim - beg, mb_cache,
+						    &match_size, 1))
 	     != (size_t) -1)
 	{
 	  char const *b = beg + match_offset;
@@ -686,7 +690,7 @@ prline (char const *beg, char const *lim, int sep)
 /* Print pending lines of trailing context prior to LIM. Trailing context ends
    at the next matching line when OUTLEFT is 0.  */
 static void
-prpending (char const *lim)
+prpending (char const *lim, struct mb_cache *mb_cache)
 {
   if (!lastout)
     lastout = bufbeg;
@@ -696,9 +700,10 @@ prpending (char const *lim)
       size_t match_size;
       --pending;
       if (outleft
-	  || (((*execute) (lastout, nl - lastout, &match_size, 0) == (size_t) -1)
+	  || (((*execute) (lastout, nl - lastout, mb_cache,
+			   &match_size, 0) == (size_t) -1)
 	      == !out_invert))
-	prline (lastout, nl + 1, '-');
+	prline (lastout, nl + 1, '-', mb_cache);
       else
 	pending = 0;
     }
@@ -707,7 +712,8 @@ prpending (char const *lim)
 /* Print the lines between BEG and LIM.  Deal with context crap.
    If NLINESP is non-null, store a count of lines between BEG and LIM.  */
 static void
-prtext (char const *beg, char const *lim, int *nlinesp)
+prtext (char const *beg, char const *lim, int *nlinesp,
+	struct mb_cache *mb_cache)
 {
   static int used;		/* avoid printing "--" before any output */
   char const *bp, *p;
@@ -715,7 +721,7 @@ prtext (char const *beg, char const *lim, int *nlinesp)
   int i, n;
 
   if (!out_quiet && pending > 0)
-    prpending (beg);
+    prpending (beg, mb_cache);
 
   p = beg;
 
@@ -739,7 +745,7 @@ prtext (char const *beg, char const *lim, int *nlinesp)
 	{
 	  char const *nl = memchr (p, eol, beg - p);
 	  nl++;
-	  prline (p, nl, '-');
+	  prline (p, nl, '-', mb_cache);
 	  p = nl;
 	}
     }
@@ -752,7 +758,7 @@ prtext (char const *beg, char const *lim, int *nlinesp)
 	  char const *nl = memchr (p, eol, lim - p);
 	  nl++;
 	  if (!out_quiet)
-	    prline (p, nl, ':');
+	    prline (p, nl, ':', mb_cache);
 	  p = nl;
 	}
       *nlinesp = n;
@@ -762,7 +768,7 @@ prtext (char const *beg, char const *lim, int *nlinesp)
     }
   else
     if (!out_quiet)
-      prline (beg, lim, ':');
+      prline (beg, lim, ':', mb_cache);
 
   pending = out_quiet ? 0 : out_after;
   used = 1;
@@ -772,7 +778,7 @@ prtext (char const *beg, char const *lim, int *nlinesp)
    between matching lines if OUT_INVERT is true).  Return a count of
    lines printed. */
 static int
-grepbuf (char const *beg, char const *lim)
+grepbuf (char const *beg, char const *lim, struct mb_cache *mb_cache)
 {
   int nlines, n;
   register char const *p;
@@ -781,7 +787,8 @@ grepbuf (char const *beg, char const *lim)
 
   nlines = 0;
   p = beg;
-  while ((match_offset = (*execute) (p, lim - p, &match_size, 0)) != (size_t) -1)
+  while ((match_offset = (*execute) (p, lim - p, mb_cache,
+				     &match_size, 0)) != (size_t) -1)
     {
       char const *b = p + match_offset;
       char const *endp = b + match_size;
@@ -790,7 +797,7 @@ grepbuf (char const *beg, char const *lim)
 	break;
       if (!out_invert)
 	{
-	  prtext (b, endp, (int *) 0);
+	  prtext (b, endp, (int *) 0, mb_cache);
 	  nlines++;
           outleft--;
 	  if (!outleft || done_on_match)
@@ -803,7 +810,7 @@ grepbuf (char const *beg, char const *lim)
 	}
       else if (p < b)
 	{
-	  prtext (p, b, &n);
+	  prtext (p, b, &n, mb_cache);
 	  nlines += n;
           outleft -= n;
 	  if (!outleft)
@@ -813,7 +820,7 @@ grepbuf (char const *beg, char const *lim)
     }
   if (out_invert && p < lim)
     {
-      prtext (p, lim, &n);
+      prtext (p, lim, &n, mb_cache);
       nlines += n;
       outleft -= n;
     }
@@ -833,7 +840,9 @@ grep (int fd, char const *file, struct stats *stats)
   char *beg;
   char *lim;
   char eol = eolbyte;
+  struct mb_cache mb_cache;
 
+  memset (&mb_cache, 0, sizeof (mb_cache));
   if (!reset (fd, file, stats))
     return 0;
 
@@ -908,9 +917,9 @@ grep (int fd, char const *file, struct stats *stats)
       if (beg < lim)
 	{
 	  if (outleft)
-	    nlines += grepbuf (beg, lim);
+	    nlines += grepbuf (beg, lim, &mb_cache);
 	  if (pending)
-	    prpending (lim);
+	    prpending (lim, &mb_cache);
 	  if((!outleft && !pending) || (nlines && done_on_match && !out_invert))
 	    goto finish_grep;
 	}
@@ -938,6 +947,11 @@ grep (int fd, char const *file, struct stats *stats)
 	totalcc = add_count (totalcc, buflim - bufbeg - save);
       if (out_line)
 	nlscan (beg);
+      if (mb_cache.wcs_buf)
+	free (mb_cache.wcs_buf);
+      if (mb_cache.mblen_buf)
+	free (mb_cache.mblen_buf);
+      memset (&mb_cache, 0, sizeof (mb_cache));
       if (! fillbuf (save, stats))
 	{
 	  if (! is_EISDIR (errno, file))
@@ -949,9 +963,9 @@ grep (int fd, char const *file, struct stats *stats)
     {
       *buflim++ = eol;
       if (outleft)
-	nlines += grepbuf (bufbeg + save - residue, buflim);
+	nlines += grepbuf (bufbeg + save - residue, buflim, &mb_cache);
       if (pending)
-        prpending (buflim);
+        prpending (buflim, &mb_cache);
     }
 
  finish_grep:
@@ -959,6 +973,11 @@ grep (int fd, char const *file, struct stats *stats)
   out_quiet -= not_text;
   if ((not_text & ~out_quiet) && nlines != 0)
     printf (_("Binary file %s matches\n"), filename);
+
+  if (mb_cache.wcs_buf)
+    free (mb_cache.wcs_buf);
+  if (mb_cache.mblen_buf)
+    free (mb_cache.mblen_buf);
   return nlines;
 }
 
