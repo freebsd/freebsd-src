@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	gdb
+PROG=	gdb${GDB_SUFFIX}
 SRCS=	gdb.c
 
 BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
