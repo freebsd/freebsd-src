@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.22 1995/05/12 19:17:25 wollman Exp $
+ * $Id: sysctl.h,v 1.23 1995/05/30 08:14:36 rgrimes Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -202,16 +202,7 @@ struct kinfo_proc {
 		struct	session *e_sess;	/* session pointer */
 		struct	pcred e_pcred;		/* process credentials */
 		struct	ucred e_ucred;		/* current credentials */
-#ifdef sparc
-		struct {
-			segsz_t	vm_rssize;	/* resident set size */
-			segsz_t	vm_tsize;	/* text size */
-			segsz_t	vm_dsize;	/* data size */
-			segsz_t	vm_ssize;	/* stack size */
-		} e_vm;
-#else
 		struct	vmspace e_vm;		/* address space */
-#endif
 		pid_t	e_ppid;			/* parent process id */
 		pid_t	e_pgid;			/* process group id */
 		short	e_jobc;			/* job control counter */
