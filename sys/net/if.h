@@ -157,10 +157,21 @@ struct if_data {
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
 	    IFF_POLLING)
 
+/*
+ * Some convenience macros used for setting ifi_baudrate.
+ * XXX 1000 vs. 1024? --thorpej@netbsd.org
+ */
+#define	IF_Kbps(x)	((x) * 1000)		/* kilobits/sec. */
+#define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
+#define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
+
 /* Capabilities that interfaces can advertise. */
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
 #define IFCAP_TXCSUM		0x0002  /* can offload checksum on TX */
 #define IFCAP_NETCONS		0x0004  /* can be a network console */
+#define	IFCAP_VLAN_MTU		0x0008	/* VLAN-compatible MTU */
+#define	IFCAP_VLAN_HWTAGGING	0x0010	/* hardware VLAN tag support */
+#define	IFCAP_JUMBO_MTU		0x0020	/* 9000 byte MTU supported */
 
 #define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
 
