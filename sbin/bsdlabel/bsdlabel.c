@@ -125,6 +125,7 @@ static int	installboot;	/* non-zero if we should install a boot program */
 static int	allfields;	/* present all fields in edit */
 static char const *xxboot;	/* primary boot */
 
+static off_t mbroffset;
 static int labeloffset = LABELOFFSET + LABELSECTOR * DEV_BSIZE;
 static int bbsize = BBSIZE;
 static int alphacksum =
@@ -343,6 +344,9 @@ writelabel(void)
 	lp->d_checksum = dkcksum(lp);
 	if (installboot)
 		readboot();
+	for (i = 0; i < lab.d_npartitions; i++)
+		if (lab.d_partitions[i].p_size)
+			lab.d_partitions[i].p_offset += mbroffset;
 	bsd_disklabel_le_enc(bootarea + labeloffset, lp);
 	if (alphacksum) {
 		/* Generate the bootblock checksum for the SRM console.  */
@@ -397,8 +401,10 @@ writelabel(void)
 static int
 readlabel(int flag)
 {
-	int f;
+	int f, i;
 	int error;
+	struct gctl_req *grq;
+	char const *errstr;
 
 	f = open(specname, O_RDONLY);
 	if (f < 0)
@@ -410,6 +416,24 @@ readlabel(int flag)
 	error = bsd_disklabel_le_dec(bootarea + labeloffset, &lab, MAXPARTITIONS);
 	if (flag && error)
 		errx(1, "%s: no valid label found", specname);
+
+	grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+	gctl_ro_param(grq, "class", -1, "BSD");
+	gctl_ro_param(grq, "geom", -1, dkname);
+	gctl_ro_param(grq, "verb", -1, "read mbroffset");
+	gctl_rw_param(grq, "mbroffset", sizeof(mbroffset), &mbroffset);
+	errstr = gctl_issue(grq);
+	if (errstr != NULL) {
+		warnx("%s", errstr);
+		mbroffset = 0;
+		gctl_free(grq);
+		return (error);
+	}
+	mbroffset /= lab.d_secsize;
+	if (lab.d_partitions[RAW_PART].p_offset == mbroffset)
+		for (i = 0; i < lab.d_npartitions; i++)
+			if (lab.d_partitions[i].p_size)
+				lab.d_partitions[i].p_offset -= mbroffset;
 	return (error);
 }
 
