@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.27 1998/07/11 10:28:47 bde Exp $
+ *	$Id: imgact_elf.c,v 1.28 1998/07/15 05:00:26 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -586,13 +586,20 @@ exec_elf_imgact(struct image_params *imgp)
 		}
 	}
 	if (i == MAX_BRANDS) {
+#ifndef __alpha__
 		uprintf("ELF binary type not known\n");
-#ifdef __alpha__
-		uprintf("assuming FreeBSD\n");
-		i = 0;
-#else
 		error = ENOEXEC;
 		goto fail;
+#else
+		i = 0;		/* assume freebsd */
+		imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
+		if (interp) {
+			strcpy(path, elf_brand_list[i]->emul_path);
+			strcat(path, elf_brand_list[i]->interp_path);
+			UPRINTF("interpreter=<%s> %s\n",
+				elf_brand_list[i]->interp_path,
+				elf_brand_list[i]->emul_path);
+		}
 #endif
 	}
 	if (interp) {
