@@ -342,7 +342,7 @@ runningbufwakeup(struct buf *bp)
 static __inline void
 bufcountwakeup(void) 
 {
-	atomic_subtract_int(&numfreebuffers, 1);
+	atomic_add_int(&numfreebuffers, 1);
 	mtx_lock(&nblock);
 	if (needsbuffer) {
 		needsbuffer &= ~VFS_BIO_NEED_ANY;
