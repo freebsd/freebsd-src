@@ -290,7 +290,7 @@ intr(signo)
 			fprintf(msg, "record %qu\n", lastrec);
 	}
 	fprintf(msg, "interrupt at file %d: record %qu\n", filen, record);
-	fprintf(msg, "total length: %lld bytes\n", (intmax_t)(tsize + size));
+	fprintf(msg, "total length: %ju bytes\n", (uintmax_t)(tsize + size));
 	exit(1);
 }
 
