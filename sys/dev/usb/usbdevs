@@ -563,6 +563,9 @@ product COREGA FETHER_USB_TXS	0x000d	FEther USB-TXS
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
 
+/* Crystalfontz products */
+product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
+
 /* Cambridge Silicon Radio Ltd. products */
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
 product	CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
