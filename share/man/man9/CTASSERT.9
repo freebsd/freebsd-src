@@ -33,19 +33,18 @@
 .Nm CTASSERT
 .Nd compile time assertion macro
 .Sh SYNOPSIS
-.Pp
 .In sys/param.h
 .In sys/systm.h
 .Fn CTASSERT expression
 .Sh DESCRIPTION
 The
-.Nm
+.Fn CTASSERT
 macro evaluates
 .Fa expression
 at compile time and causes a compiler error if it is false.
 .Pp
 The
-.Nm
+.Fn CTASSERT
 macro is useful for asserting the size or alignment of important
 data structures and variables during compilation, which would
 otherwise cause the code to fail at run time.
@@ -53,12 +52,11 @@ otherwise cause the code to fail at run time.
 Assert that the size of the
 .Vt uuid
 structure is 16 bytes.
-.Bd -literal -offset indent
-CTASSERT(sizeof(struct uuid) == 16);
-.Ed
+.Pp
+.Dl "CTASSERT(sizeof(struct uuid) == 16);"
 .Sh SEE ALSO
 .Xr KASSERT 9
 .Sh AUTHORS
 This manual page was written by
 .An Hiten M. Pandya
-.Aq hmp@FreeBSD.ORG .
+.Aq hmp@FreeBSD.org .

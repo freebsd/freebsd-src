@@ -35,19 +35,19 @@
 .In sys/param.h
 .In sys/bus.h
 .Ft int
-.Fn device_printf "device_t dev" "const char *fmt" "..."
+.Fn device_printf "device_t dev" "const char *fmt" ...
 .Sh DESCRIPTION
 The
-.Xr device_printf 9
+.Fn device_printf
 function is a convenience interface to the
 .Xr printf 9
 function.
 It outputs the name of the
-.Ar dev
+.Fa dev
 device, followed by a colon and a space, and then what
 .Xr printf 9
-woult print if you passed
-.Ar fmt
+would print if you passed
+.Fa fmt
 and the remaining arguments to it.
 .Sh RETURN VALUES
 The
