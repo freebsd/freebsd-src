@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.152 1997/07/05 19:35:22 pst Exp $
+#	$Id: Makefile,v 1.153 1997/07/18 03:49:47 asami Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -9,7 +9,7 @@ BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	inetd.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
 	rc rc.conf rc.firewall rc.local rc.network rc.pccard rc.serial \
-	etc.${MACHINE}/rc.${MACHINE} \
+	rc.shutdown etc.${MACHINE}/rc.${MACHINE} \
 	remote security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
