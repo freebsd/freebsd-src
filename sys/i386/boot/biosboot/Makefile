@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.47 1996/10/08 22:35:48 bde Exp $
+#	$Id: Makefile,v 1.48 1996/10/08 22:41:31 bde Exp $
 #
 
 PROG=	boot
@@ -18,10 +18,9 @@ CFLAGS+=	${CWARNFLAGS}
 #CFLAGS+=	-DPROBE_KEYBOARD
 
 # Probe the keyboard lock and use the serial console if the keyboard is locked.
-CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+#CFLAGS+=	-DPROBE_KEYBOARD_LOCK
 
-# Force use of the serial console (after probing the keyboard if
-# PROBE_KEYBOARD is defined).
+# Force use of the serial console.
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
 # Enable code to take the default boot string from a fixed location on the
