@@ -624,11 +624,11 @@ ENTRY(lgdt)
 	nop
 1:
 	movl	$KDSEL, %eax
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	%ax,%fs		/* Beware, use wrmsr to set 64 bit base */
-	mov	%ax,%gs
-	mov	%ax,%ss
+	movl	%eax,%ds
+	movl	%eax,%es
+	movl	%eax,%fs	/* Beware, use wrmsr to set 64 bit base */
+	movl	%eax,%gs
+	movl	%eax,%ss
 
 	/* reload code selector by turning return into intersegmental return */
 	popq	%rax
