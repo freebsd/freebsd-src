@@ -48,6 +48,8 @@
 	.align	4
 astpending:
 	.long	0
+cpassert:
+	.asciz	"attempting to return from kernel with no current pmap"
 
 /*
  * Data used during primary/secondary traps/interrupts
@@ -634,7 +636,12 @@ _C_LABEL(ipkdbsize) = .-_C_LABEL(ipkdblow)
 /* Restore user & kernel access SR: */					\
 	mfsprg	2,0;							\
 	lwz	2,PC_CURPMAP(2);					\
-	lwz	3,PM_SR+0(2);						\
+	cmpwi	cr4,2,0;		/* is curpmap NULL? */		\
+	bne	cr4,2f;							\
+	lis	3,cpassert@ha;		/* if it is, panic */		\
+	addi	3,3,cpassert@l;						\
+	b	panic;							\
+2:	lwz	3,PM_SR+0(2);						\
 	mtsr	0,3;			/* restore SR0 */		\
 	lwz	3,PM_SR+4(2);						\
 	mtsr	1,3;			/* restore SR1 */		\
