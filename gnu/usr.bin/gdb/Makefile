@@ -1,3 +1,3 @@
-SUBDIR= bfd libiberty mmalloc gdb
+SUBDIR= bfd libiberty mmalloc gdb doc
 
 .include <bsd.subdir.mk>
