@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: xtend.c,v 1.7 1999/08/08 07:05:46 stark Exp $";
+	"$Id: xtend.c,v 1.6.2.1 1999/08/08 07:12:28 stark Exp $";
 #endif /* not lint */
 
 /*
@@ -285,14 +285,10 @@ char *argv[];
 	processpacket(rpkt);
       }
     } else if(FD_ISSET(user, &fs) && User != NULL) {
-      if(User != NULL) {
-	if(user_command()) {
-	  fprintf(Log, "%s:  Closing user connection\n", thedate());
-	  fclose(User);
-	  User = NULL;
-	}
-      } else {
-	/* "Can't" happen */
+      if(user_command()) {
+	fprintf(Log, "%s:  Closing user connection\n", thedate());
+	fclose(User);
+	User = NULL;
       }
     } else if(FD_ISSET(sock, &fs)) {  /* Accept a connection */
       if (User == NULL) {
