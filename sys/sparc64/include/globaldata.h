@@ -59,6 +59,12 @@ struct globaldata {
 #endif
 	struct	intr_queue *gd_iq;
 	struct	intr_vector *gd_ivt;
+
+	/* Watch point support. */
+	u_int	gd_wp_insn;
+	u_long	gd_wp_pstate;
+	u_long	gd_wp_va;
+	int	gd_wp_mask;
 };
 
 #endif	/* _KERNEL */
