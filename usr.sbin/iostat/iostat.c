@@ -102,7 +102,6 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/dkstat.h>
 #include <sys/sysctl.h>
 
 #include <err.h>

@@ -43,7 +43,6 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
-#include <sys/dkstat.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <machine/resource.h>
