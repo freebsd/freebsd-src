@@ -547,6 +547,14 @@ struct ed_ring	{
 #define ED_VENDOR_3COM		0x01		/* 3Com */
 
 /*
+ * Compile-time config flags
+ */
+/*
+ * this sets the default for enabling/disablng the tranceiver
+ */
+#define ED_FLAGS_DISABLE_TRANCEIVER 0x01
+
+/*
  *		Definitions for Western digital/SMC WD80x3 series ASIC
  */
 /*

@@ -16,7 +16,32 @@
 /*
  * Modification history
  *
- * $Log$
+ * $Log:	if_ed.c,v $
+ * Revision 1.7  93/06/22  04:45:01  davidg
+ * (no additional changes) Second beta release
+ * 
+ * Revision 1.6  93/06/22  04:40:35  davidg
+ * minor definition fix to ed_reset()
+ * 
+ * Revision 1.5  93/06/22  04:37:39  davidg
+ * fixed some comments
+ * 
+ * Revision 1.4  93/06/22  04:34:34  davidg
+ * added support to use the LLC0 'link-level control' flag
+ * to disable the tranceiver for AUI operation on 3Com boards.
+ * The default for this flag can be set in the kernel config
+ * file - 'flags 0x01' sets the flag (disables the tranceiver).
+ * 
+ * Revision 1.3  93/06/17  03:57:28  davidg
+ * fixed some printf's
+ * 
+ * Revision 1.2  93/06/17  03:26:49  davidg
+ * fixed 3c503 code to determine 8/16bit board
+ * changed attach printf to work with Interim-0.1.5 and NetBSD
+ * 
+ * Revision 1.1  93/06/14  22:21:24  davidg
+ * Beta release of device driver for SMC/WD80x3 and 3C503 ethernet boards.
+ * 
  * 
  */
  
@@ -433,21 +458,10 @@ type_3Com:
 	 */
 	outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_RST);
 	/*
-	 * Verify that reset bit was set
-	 */
-	if ((inb(sc->asic_addr + ED_3COM_CR) & ED_3COM_CR_RST) == 0)
-		return (0);
-	/*
 	 * Wait for a while, then un-reset it
 	 */
 	DELAY(5000);
 	outb(sc->asic_addr + ED_3COM_CR, 0);
-
-	/*
-	 * Verify that the bit cleared
-	 */
-	if (inb(sc->asic_addr + ED_3COM_CR) & ED_3COM_CR_RST)
-		return (0);
 
 	/*
 	 * Wait a bit for the NIC to recover from the reset
@@ -455,23 +469,33 @@ type_3Com:
 	DELAY(5000);
 
 	/*
+	 * The 3Com ASIC defaults to rather strange settings for the CR after
+	 *	a reset - it's important to set it so that the NIC I/O
+	 *	registers are mapped. The above setting of it to '0' only
+	 *	resets the reset condition - the CR is *not* set to zeros.
+	 */
+	outb(sc->asic_addr + ED_3COM_CR, 0);
+
+	/*
 	 * Determine if this is an 8bit or 16bit board
 	 */
-	/* XXX - either this code is broken...or the hardware is... */
-	/*	it always comes up 8bit */
+
 	/*
 	 * select page 0 registers
 	 */
         outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
+
 	/*
 	 * Attempt to clear WTS bit. If it doesn't clear, then this is a
 	 *	16bit board.
 	 */
 	outb(sc->nic_addr + ED_P0_DCR, 0);
+
 	/*
 	 * select page 2 registers
 	 */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_2|ED_CR_RD2|ED_CR_STP);
+
 	/*
 	 * The 3c503 forces the WTS bit to a one if this is a 16bit board
 	 */
@@ -480,13 +504,10 @@ type_3Com:
 	else
 		memwidth = 8;
 
-#if 0
-printf(" (%dbit)",memwidth);
-#endif
 	/*
 	 * select page 0 registers
 	 */
-        outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
+        outb(sc->nic_addr + ED_P2_CR, ED_CR_RD2|ED_CR_STP);
 
 	sc->txb_cnt = 1;
 
@@ -524,7 +545,7 @@ printf(" (%dbit)",memwidth);
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
 		break;
 	default:
-		printf("ed0: Invalid irq configuration\n");
+		printf("ed%d: Invalid irq configuration\n", isa_dev->id_unit);
 		return(0);
 	}
 
@@ -557,13 +578,19 @@ printf(" (%dbit)",memwidth);
 		sc->arpcom.ac_enaddr[i] = inb(sc->nic_addr + i);
 
 	/*
-	 * Unmap PROM - select NIC registers
+	 * Unmap PROM - select NIC registers. Tranceiver remains disabled at
+	 *	this point. It's enabled in ed_init so that the attach code
+	 *	is given a chance to set the default based on a compile-time
+	 *	config option
 	 */
 	outb(sc->asic_addr + ED_3COM_CR, 0);
 
-	/*
-	 * Zero memory and verify that it is clear
-	 */
+#if 0
+printf("Starting write\n");
+for (i = 0; i < 8192; ++i)
+	bzero(sc->smem_start, 8192);
+printf("Done.\n");
+#endif
 #if 0
 { char	test_buf[1024];
 printf("starting write\n");
@@ -576,6 +603,9 @@ printf("done.\n");
 }
 #endif
 
+	/*
+	 * Zero memory and verify that it is clear
+	 */
 	bzero(sc->smem_start, memsize);
 
 	for (i = 0; i < memsize; ++i)
@@ -612,13 +642,22 @@ ed_attach(isa_dev)
 	ifp->if_unit = isa_dev->id_unit;
 	ifp->if_name = "ed" ;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS ;
 	ifp->if_init = ed_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
 	ifp->if_reset = ed_reset;
 	ifp->if_watchdog = ed_watchdog;
+
+	/*
+	 * Set default state for LLC0 flag (used to disable the tranceiver
+	 *	for AUI operation), based on compile-time config option.
+	 */
+	if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS
+			| IFF_LLC0);
+	else
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
 
 	if_attach(ifp);
 
@@ -635,11 +674,11 @@ ed_attach(isa_dev)
 		ifa = ifa->ifa_next;
 
 	/*
-	 * If we find an AF_LINK type entry, we well fill in the hardware addr
+	 * If we find an AF_LINK type entry we fill in the hardware address
 	 */
 	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
 		/*
-		 * Fill in the link level address for this interface
+		 * Fill in the link-level address for this interface
 		 */
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		sdl->sdl_type = IFT_ETHER;
@@ -651,15 +690,17 @@ ed_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf(" enet %s type %s", ether_sprintf(sc->arpcom.ac_enaddr),
-		sc->type_str);
+	printf("ed%d: address %s, type %s (%dbit) %s\n", isa_dev->id_unit,
+		ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
+		sc->memwidth, ((sc->vendor == ED_VENDOR_3COM) &&
+			(ifp->if_flags & IFF_LLC0)) ? "tranceiver disabled" : "");
 }
  
 /*
  * Reset interface.
  */
 int
-ed_reset(unit, uban)
+ed_reset(unit)
 	int unit;
 {
 	int s;
@@ -838,6 +879,16 @@ ed_init(unit)
 	 * Take interface out of loopback
 	 */
 	outb(sc->nic_addr + ED_P0_TCR, 0);
+
+	/*
+	 * If this is a 3Com board, the tranceiver must be software enabled
+	 *	(there is no settable hardware default).
+	 */
+	if ((sc->vendor == ED_VENDOR_3COM) && (ifp->if_flags & IFF_LLC0)) {
+		outb(sc->asic_addr + ED_3COM_CR, 0);
+	} else {
+		outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+	}
 
 	/*
 	 * Set 'running' flag, and clear output active flag.
@@ -1221,6 +1272,10 @@ edintr(unit)
 		 */
 		if (isr & ED_ISR_RXE) {
 			++sc->arpcom.ac_if.if_ierrors;
+#ifdef ED_DEBUG
+			printf("ed%d: receive error %x\n", unit,
+				inb(sc->nic_addr + ED_P0_RSR));
+#endif
 		}
 
 		/*
@@ -1421,14 +1476,26 @@ ed_ioctl(ifp, command, data)
 			 */
 			outb(sc->nic_addr + ED_P0_RCR,
 				ED_RCR_PRO|ED_RCR_AM|ED_RCR_AB);
-		} else
+		} else {
 			/*
 			 * XXX - for multicasts to work, we would need to
 			 *	rewrite the multicast hashing array with the
 			 *	proper hash (would have been destroyed above).
 			 */
 			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
+		}
 #endif
+		/*
+		 * An unfortunate hack to provide the (required) software control
+		 *	of the tranceiver for 3Com boards. The LLC0 flag disables
+		 *	the tranceiver if set.
+		 */
+		if ((sc->vendor == ED_VENDOR_3COM) && (ifp->if_flags & IFF_LLC0)) {
+			outb(sc->asic_addr + ED_3COM_CR, 0);
+		} else {
+			outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+		}
+
 		break;
 
 	default:
