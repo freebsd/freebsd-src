@@ -147,6 +147,7 @@ net/bpf_filter.c	optional bpfilter
 net/if.c		standard
 net/if_disc.c		optional disc
 net/if_ethersubr.c	optional ether
+net/if_fddisubr.c	optional fddi
 net/if_loop.c		optional loop
 net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
@@ -277,6 +278,10 @@ pci/if_de.c		optional de device-driver
 pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pcisupport.c	optional pci
+pci/if_pdq.c		optional fea device-driver
+pci/pdq.c		optional fea device-driver
+pci/if_pdq.c		optional fpa device-driver
+pci/pdq.c		optional fpa device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/scsi_base.c	optional scbus

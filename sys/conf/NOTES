@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.154 1995/03/12 23:43:14 swallace Exp $
+#	$Id: LINT,v 1.155 1995/03/13 18:49:24 swallace Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -144,6 +144,7 @@ options		TPCONS			#ISO TP class 0 over X.25
 #  The `ether' pseudo-device provides generic code to handle
 #  Ethernets; it is mandatory when a Ethernet device driver is
 #  configured.
+#  The 'fddi' pseudo-device provides generic code to support FDDI.
 #  The `sppp' pseudo-device serves a similar role for certain types
 #  of synchronous PPP links (like `cx').
 #  The `sl' pseudo-device implements the Serial Line IP (SLIP) service.
@@ -158,6 +159,7 @@ options		TPCONS			#ISO TP class 0 over X.25
 #  The `tun' pseudo-device implements the User Process PPP (iijppp)
 #
 pseudo-device	ether			#Generic Ethernet
+pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
 pseudo-device	sl	2		#Serial Line IP
@@ -492,6 +494,7 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
+# fea: DEC DEFEA EISA FDDI adapter
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
@@ -504,11 +507,12 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
-device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
-device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
-device ep0 at isa? port 0x300 net irq 10 vector epintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
+device fea0 at isa? net irq ? vector feaintr
+device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
+device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
@@ -626,10 +630,14 @@ device		apm0	at isa?
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
+# The `fpa' device provides support for the Digital DEFPA PCI FDDI
+# adapter. pseudo-device fddi is also needed.
+#
 # The PROBE_VERBOSE option enables a long listing of chip set registers
 # for supported PCI chip sets (currently only intel Saturn and Mercury).
 # 
 controller	pci0
 device		ncr0
 device		de0
+device		fpa0
 options		PROBE_VERBOSE
