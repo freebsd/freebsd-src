@@ -94,5 +94,6 @@ int
 procfs_validregs(p)
 	struct proc *p;
 {
+
 	return ((p->p_flag & P_SYSTEM) == 0);
 }

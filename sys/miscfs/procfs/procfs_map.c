@@ -173,6 +173,7 @@ case OBJT_DEVICE:
 	}
 	if (map != &curproc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
+
 	return error;
 }
 

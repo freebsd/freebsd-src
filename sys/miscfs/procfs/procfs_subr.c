@@ -250,7 +250,7 @@ procfs_rw(ap)
 	int rtval;
 
 	p = PFIND(pfs->pfs_pid);
-	if (p == 0)
+	if (p == NULL)
 		return (EINVAL);
 	if (p->p_pid == 1 && securelevel > 0 && uio->uio_rw == UIO_WRITE)
 		return (EACCES);
