@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	xinstall
-SRCS=	stat_flags.c xinstall.c
+SRCS=	xinstall.c
 MAN1=	install.1
-.PATH:	${.CURDIR}/../../bin/ls
+LDADD=	-lutil
 
 install: maninstall
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
