@@ -37,7 +37,7 @@
 #define NTFS
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <ntfs/ntfsmount.h>
+#include <fs/ntfs/ntfsmount.h>
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>

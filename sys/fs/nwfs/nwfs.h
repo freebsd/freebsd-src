@@ -36,7 +36,7 @@
 #define _NWFS_H_
 
 #include <netncp/ncp.h>
-#include <nwfs/nwfs_mount.h>
+#include <fs/nwfs/nwfs_mount.h>
 
 #define NR_OPEN 0
 #define	NW_NSB_DOS	(1 << NW_NS_DOS)

@@ -246,7 +246,7 @@ struct linux_statfs_buf {
 };
 
 #ifndef VT_NWFS
-#define	VT_NWFS	VT_TFS	/* XXX - bug compatibility with sys/nwfs/nwfs_node.h */
+#define	VT_NWFS	VT_TFS	/* XXX - bug compatibility with sys/fs/nwfs/nwfs_node.h */
 #endif
 
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L

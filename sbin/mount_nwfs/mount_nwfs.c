@@ -51,7 +51,7 @@
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_rcfile.h>
-#include <nwfs/nwfs_mount.h>
+#include <fs/nwfs/nwfs_mount.h>
 #include "mntopts.h"
 
 #define	NWFS_VFSNAME	"nwfs"

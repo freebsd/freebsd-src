@@ -64,7 +64,7 @@
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_rcfile.h>
-#include <nwfs/nwfs.h>
+#include <fs/nwfs/nwfs.h>
 
 static char *server_name; /* need a better way ! */
 

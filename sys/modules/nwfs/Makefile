@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../nwfs
+.PATH: ${.CURDIR}/../../fs/nwfs
 
 KMOD=	nwfs
 
