@@ -50,8 +50,8 @@
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
-static int	devfs_mount(struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td);
+static int	devfs_mount(struct mount *mp, struct nameidata *ndp,
+				  struct thread *td);
 static int	devfs_unmount(struct mount *mp, int mntflags,
 				  struct thread *td);
 static int	devfs_root(struct mount *mp, struct vnode **vpp);
@@ -62,10 +62,8 @@ static int	devfs_statfs(struct mount *mp, struct statfs *sbp,
  * Mount the filesystem
  */
 static int
-devfs_mount(mp, path, data, ndp, td)
+devfs_mount(mp, ndp, td)
 	struct mount *mp;
-	char *path;
-	caddr_t data;
 	struct nameidata *ndp;
 	struct thread *td;
 {
@@ -180,7 +178,7 @@ devfs_statfs(mp, sbp, td)
 }
 
 static struct vfsops devfs_vfsops = {
-	devfs_mount,
+	NULL,
 	vfs_stdstart,
 	devfs_unmount,
 	devfs_root,
@@ -194,6 +192,7 @@ static struct vfsops devfs_vfsops = {
 	vfs_stdinit,
 	vfs_stduninit,
 	vfs_stdextattrctl,
+	devfs_mount,
 };
 
 VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC);

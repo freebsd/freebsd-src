@@ -510,7 +510,8 @@ start_init(void *dummy)
 		if (error == EEXIST)
 			error = 0;
 		if (error == 0)
-			error = vfs_mount(td, "devfs", "/dev", 0, 0);
+			error = kernel_vmount(0, "fstype", "devfs",
+			    "fspath", "/dev", NULL);
 		if (error != 0)
 			init_does_devfs = 1;
 	}
