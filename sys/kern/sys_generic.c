@@ -714,8 +714,10 @@ select(p, uap)
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
 			error = copyin(uap->name, ibits[x], ncpbytes);	\
-			if (error != 0)					\
+			if (error != 0)	{				\
+				PROC_LOCK(p);				\
 				goto done;				\
+			}						\
 		}							\
 	} while (0)
 	getbits(in, 0);
@@ -728,10 +730,13 @@ select(p, uap)
 	if (uap->tv) {
 		error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
 			sizeof (atv));
-		if (error)
+		if (error) {
+			PROC_LOCK(p);
 			goto done;
+		}
 		if (itimerfix(&atv)) {
 			error = EINVAL;
+			PROC_LOCK(p);
 			goto done;
 		}
 		getmicrouptime(&rtv);
@@ -741,10 +746,13 @@ select(p, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
+	PROC_LOCK(p);
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = selscan(p, ibits, obits, uap->nd);
+	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
@@ -763,13 +771,15 @@ retry:
 	}
 	p->p_flag &= ~P_SELECT;
 
-	error = tsleep((caddr_t)&selwait, PSOCK | PCATCH, "select", timo);
+	error = msleep((caddr_t)&selwait, &p->p_mtx, PSOCK | PCATCH, "select",
+	    timo);
 	
 	splx(s);
 	if (error == 0)
 		goto retry;
 done:
 	p->p_flag &= ~P_SELECT;
+	PROC_UNLOCK(p);
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -860,6 +870,7 @@ poll(p, uap)
 	else
 		bits = smallbits;
 	error = copyin(SCARG(uap, fds), bits, ni);
+	PROC_LOCK(p);
 	if (error)
 		goto done;
 	if (SCARG(uap, timeout) != INFTIM) {
@@ -879,7 +890,9 @@ poll(p, uap)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
+	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
@@ -897,12 +910,14 @@ retry:
 		goto retry;
 	}
 	p->p_flag &= ~P_SELECT;
-	error = tsleep((caddr_t)&selwait, PSOCK | PCATCH, "poll", timo);
+	error = msleep((caddr_t)&selwait, &p->p_mtx, PSOCK | PCATCH, "poll",
+	    timo);
 	splx(s);
 	if (error == 0)
 		goto retry;
 done:
 	p->p_flag &= ~P_SELECT;
+	PROC_UNLOCK(p);
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -1001,11 +1016,16 @@ selrecord(selector, sip)
 	mypid = selector->p_pid;
 	if (sip->si_pid == mypid)
 		return;
-	if (sip->si_pid && (p = pfind(sip->si_pid)) &&
-	    p->p_wchan == (caddr_t)&selwait)
-		sip->si_flags |= SI_COLL;
-	else
-		sip->si_pid = mypid;
+	if (sip->si_pid && (p = pfind(sip->si_pid))) {
+		mtx_enter(&sched_lock, MTX_SPIN);
+	    	if (p->p_wchan == (caddr_t)&selwait) {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			sip->si_flags |= SI_COLL;
+			return;
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+	}
+	sip->si_pid = mypid;
 }
 
 /*
@@ -1016,7 +1036,6 @@ selwakeup(sip)
 	register struct selinfo *sip;
 {
 	register struct proc *p;
-	int s;
 
 	if (sip->si_pid == 0)
 		return;
@@ -1028,16 +1047,18 @@ selwakeup(sip)
 	p = pfind(sip->si_pid);
 	sip->si_pid = 0;
 	if (p != NULL) {
-		s = splhigh();
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_wchan == (caddr_t)&selwait) {
 			if (p->p_stat == SSLEEP)
 				setrunnable(p);
 			else
 				unsleep(p);
-		} else if (p->p_flag & P_SELECT)
+			mtx_exit(&sched_lock, MTX_SPIN);
+		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			PROC_LOCK(p);
 			p->p_flag &= ~P_SELECT;
-		mtx_exit(&sched_lock, MTX_SPIN);
-		splx(s);
+			PROC_UNLOCK(p);
+		}
 	}
 }
