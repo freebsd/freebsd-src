@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.46 1996/09/28 06:00:59 bde Exp $
+#	$Id: bsd.lib.mk,v 1.46.2.1 1997/02/05 05:07:34 pst Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -70,7 +70,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .s.o:
-	${CC} -x asssembler-with-cpp ${CFLAGS:M-[ID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp ${CFLAGS:M-[ID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
