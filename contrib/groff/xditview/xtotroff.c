@@ -207,7 +207,7 @@ static usage(prog)
 	char	*prog;
 {
 	fprintf (stderr,
-		 "usage: %s [-g] [-r resolution] [-s pointsize FontMap\n",
+		 "usage: %s [-g] [-r resolution] [-s pointsize] FontMap\n",
 		 prog);
 	exit (1);
 }

@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+Copyright (C) 1994, 1995, 1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -29,6 +29,10 @@ grolj4 \- groff driver for HP Laserjet 4 family
 .B grolj4
 [
 .B \-lv
+] [
+.B \-d
+[\c
+.IR n ]
 ] [
 .BI \-c n
 ] [
@@ -67,6 +71,12 @@ copies of each page.
 .TP
 .B \-l
 Print the document with a landscape orientation.
+.TP
+.BI "\-d [" n ]
+Use duplex mode 
+.IR n :
+1\ is long-side binding; 2\ is short-side binding;
+default is\ 1.
 .TP
 .BI \-p size
 Set the paper size to

@@ -1,5 +1,5 @@
 .\"------------
-.\" $Id: 0.MT,v 1.27 1995/04/24 05:37:50 jh Exp $
+.\" $Id: 0.MT,v 1.32 1999/09/03 05:33:13 jh Exp $
 .\" Cover sheet. Memorandum type 0-3 and "string".
 .\"------------
 .if !r Au .nr Au 1
@@ -11,11 +11,11 @@ subject:
 .sp -1.1
 .S
 .PGFORM
-.B
+.ft \\*[@sdf_font]
 .ll 9c
 .fi
 .cov*title
-.R
+.ft
 .ll
 .nf
 .if d cov*title-charge-case \fBCharge Case \\*[cov*title-charge-case]\fP
@@ -32,7 +32,7 @@ subject:
 .S
 .sp -1
 .in 0.8c
-.B
+.ft \\*[@sdf_font]
 .nr cov*i 0 1
 .while \\n+[cov*i]<=\\n[cov*au] \{\
 .	cov@print-au1 \\n[cov*i] 1
@@ -45,17 +45,17 @@ subject:
 .	\}
 .	if \\n[cov*i]<\\n[cov*au] .SP 1
 .\}
-.R
+.ft
 .if r cov*mt-tm-max \{\
 .	SP 1
 .	nr cov*i 0 1
-.	B
+.	ft \\*[@sdf_font]
 TM
 .	in 1.5c
 .	sp -1
 .	while \\n+[cov*i]<\\n[cov*mt-tm-max] \\*[cov*mt-tm!\\n[cov*i]]
 .	in
-.	R
+.	ft
 .\}
 .fi
 .PGFORM
@@ -83,7 +83,7 @@ TM
 .S
 .sp -1
 .in 0.8c
-.B "\\*[cov*new-date]"
+\f[\\*[@sdf_font]]\\*[cov*new-date]\fP
 .br
 .fi
 .PGFORM
