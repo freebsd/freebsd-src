@@ -146,6 +146,7 @@ main(int argc, char **argv)
 		else {		/* look for the file in the expected places */
 		    if (!(cp = fileFindByPath(NULL, *argv)))
 			/* let pkg_do() fail later, so that error is reported */
+			pkgs[ch] = strcpy(pkgnames[ch], *argv);
 		    else
 			pkgs[ch] = strcpy(pkgnames[ch], cp);
 		}
