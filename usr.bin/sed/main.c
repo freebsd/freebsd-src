@@ -114,7 +114,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int c, fflag;
-	char *tmp_arg;
+	char *temp_arg;
 
 	(void) setlocale(LC_ALL, "");
 
