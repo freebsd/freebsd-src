@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.37 1999/07/23 02:01:19 hosokawa Exp $";
+	"$Id: cardd.c,v 1.38 1999/07/23 08:53:20 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -553,6 +553,7 @@ setup_slot(struct slot *sp)
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
 	drv.irqmask = 1 << sp->irq;
+	drv.flags = sp->config->flags;
 	if (sp->flags & MEM_ASSIGNED) {
 		drv.mem = sp->mem.addr;
 		drv.memsize = sp->mem.size;
