@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 1997
+.Dd May 10, 2002
 .Dt RMUSER 8
 .Os
 .Sh NAME
@@ -35,11 +35,13 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl y
-.Op Ar username
+.Op Fl f Ar file
+.Op Ar username ...
 .Sh DESCRIPTION
 The
 .Nm
-utility
+utility removes one or more users submitted on the command line
+or from a file. In removing a user from the system, this utility
 .Pp
 .Bl -enum
 .It
@@ -77,29 +79,27 @@ the group is removed; this complements
 per-user unique groups).
 .El
 .Pp
-The
+The 
 .Nm
-utility
-politely refuses to remove users whose uid is 0 (typically root), since
+utility refuses to remove users whose uid is 0 (typically root), since
 certain actions (namely, killing all the user's processes, and perhaps
 removing the user's home directory) would cause damage to a running system.
 If it is necessary to remove a user whose uid is 0, see
 .Xr vipw 8
-for information on directly editing the password file, by which the desired
-user's
-.Xr passwd 5
-entry may be removed manually.
+for information on directly editing the password file
 .Pp
-If not running "affirmatively" (i.e., option
+If
+.Nm
+was not invoked with the
 .Fl y
-is not specified),
-.Nm
-shows the selected user's password file entry and asks for confirmation
-that you wish to remove the user.  If the user's home directory is owned
-by the user,
-.Nm
-asks whether you wish to remove the user's home directory and everything
-below.
+switch it will
+show the selected user's password file entry and ask for confirmation
+that the user be removed.  It will then ask for confirmation to delete
+the user's home directory. If the answer is in the affirmative, the home
+directory and any files and subdirectories under it will be deleted only if
+they are owned by the user. See
+.Xr pw 8
+for more details.
 .Pp
 As
 .Nm
@@ -112,13 +112,27 @@ Available options:
 .Pp
 .Bl -tag -width username
 .It Fl y
-Affirm - any question that would be asked is answered implicitly in
-the affirmative (i.e., yes).  A username must also be specified on the
-command line if this option is used.
-.It Ar \&username
-Identifies the user to be removed; if not present,
+Implicitly answer "yes" to any and all prompts. Currently this includes
+prompts on whether to remove the specified user and whether to remove
+the home directory. This option requires that either the
+.Fl f
+option be used or one or more user names be given as commmand line
+arguments.
+.It Fl f
+The
 .Nm
-interactively asks for the user to be removed.
+utility will get a list of users to be removed from
+.Ar file ,
+which will contain one user per line. Anything following a hash mark (#),
+including the hash mark itself, is considered a comment and will not
+be processed. If the file is owned by anyone other than a user with
+uid 0 or is writeable by anyone other than the owner
+.Nm
+will refuse to continue.
+.It Ar \&username
+Identifies one or more users to be removed; if not present,
+.Nm
+interactively asks for one or more users to be removed.
 .El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
@@ -137,12 +151,13 @@ interactively asks for the user to be removed.
 .Xr group 5 ,
 .Xr passwd 5 ,
 .Xr adduser 8 ,
+.Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8
 .Sh HISTORY
 The
 .Nm
-utility appeared in
+command appeared in
 .Fx 2.2 .
 .\" .Sh AUTHOR
 .\" Guy Helmer, Ames, Iowa
@@ -152,9 +167,7 @@ The
 utility does not comprehensively search the filesystem for all files
 owned by the removed user and remove them; to do so on a system
 of any size is prohibitively slow and I/O intensive.
-The
-.Nm
-utility also is unable to remove symbolic links that were created by the
+It is also unable to remove symbolic links that were created by the
 user in
 .Pa /tmp
 or
