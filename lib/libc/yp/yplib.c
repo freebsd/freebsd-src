@@ -293,7 +293,7 @@ _yp_dobind(char *dom, struct dom_binding **ypdb)
 	int new = 0, r;
 	int retries = 0;
 	struct sockaddr_in check;
-	int checklen = sizeof(struct sockaddr_in);
+	socklen_t checklen = sizeof(struct sockaddr_in);
 
 	/* Not allowed; bad doggie. Bad. */
 	if (strchr(dom, '/') != NULL)
@@ -559,7 +559,7 @@ static void
 _yp_unbind(struct dom_binding *ypb)
 {
 	struct sockaddr_in check;
-	int checklen = sizeof(struct sockaddr_in);
+	socklen_t checklen = sizeof(struct sockaddr_in);
 
 	if (ypb->dom_client != NULL) {
 		/* Check the socket -- may have been hosed by the caller. */

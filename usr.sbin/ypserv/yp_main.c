@@ -229,7 +229,7 @@ main(int argc, char *argv[])
 	int sock;
 	int proto = 0;
 	struct sockaddr_in saddr;
-	int asize = sizeof (saddr);
+	socklen_t asize = sizeof (saddr);
 	int ch;
 
 	while ((ch = getopt(argc, argv, "hdnp:")) != -1) {
