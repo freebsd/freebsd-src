@@ -412,8 +412,8 @@ chdir_verify_path(char *path, char *obpath)
 	return 0;
 }
 
-void
-catch_child(int sig)
+static void
+catch_child(int sig __unused)
 {
 }
 
