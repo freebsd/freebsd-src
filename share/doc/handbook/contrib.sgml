@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.89 1996/05/29 17:16:24 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.90 1996/06/03 02:29:38 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -168,7 +168,7 @@
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
 	  <item>Brian Clapper &lt;bmc@telebase.com&gt;
-	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
+	  <item>Brian Tao &lt;taob@io.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
