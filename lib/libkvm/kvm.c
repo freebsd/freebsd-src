@@ -157,6 +157,7 @@ _kvm_malloc(kd, n)
 
 	if ((p = malloc(n)) == NULL)
 		_kvm_err(kd, kd->program, strerror(errno));
+	memset(p, 0, n);
 	return (p);
 }
 
@@ -275,6 +276,7 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 		(void)strcpy(errout, strerror(errno));
 		return (0);
 	}
+	memset(kd, 0, sizeof(*kd));
 	kd->program = 0;
 	return (_kvm_open(kd, uf, mf, sf, flag, errout));
 }
@@ -295,6 +297,7 @@ kvm_open(uf, mf, sf, flag, errstr)
 				      errstr, strerror(errno));
 		return (0);
 	}
+	memset(kd, 0, sizeof(*kd));
 	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, sf, flag, NULL));
 }
