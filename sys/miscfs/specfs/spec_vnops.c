@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.76 1998/10/31 15:31:24 peter Exp $
+ * $Id: spec_vnops.c,v 1.77 1998/12/07 21:58:33 archie Exp $
  */
 
 #include <sys/param.h>
@@ -379,11 +379,11 @@ spec_write(ap)
 				bp = getblk(vp, bn, bsize, 0, 0);
 			else
 				error = bread(vp, bn, bsize, NOCRED, &bp);
-			n = min(n, bsize - bp->b_resid);
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
+			n = min(n, bsize - bp->b_resid);
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize)
 				bawrite(bp);
