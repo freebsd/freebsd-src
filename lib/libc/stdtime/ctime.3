@@ -42,9 +42,9 @@
 .Nm difftime ,
 .Nm gmtime ,
 .Nm localtime ,
-.Nm mktime
-.Nd transform binary date and time value to
-.Tn ASCII
+.Nm mktime ,
+.Nm timegm
+.Nd transform binary date and time values
 .Sh SYNOPSIS
 .Fd #include <time.h>
 .Vt extern char *tzname[2];
@@ -60,6 +60,8 @@
 .Fn gmtime "const time_t *clock"
 .Ft time_t
 .Fn mktime "struct tm *tm"
+.Ft time_t
+.Fn timegm "struct tm *tm"
 .Sh DESCRIPTION
 The functions
 .Fn ctime ,
@@ -177,6 +179,15 @@ are determined.
 .Fn Mktime
 returns the specified calendar time; if the calendar time cannot be
 represented, it returns \-1;
+.Pp
+The function
+.Fn timegm
+is
+.Fn mktime
+analog, but assume that broke-down time expressed as UTC (not local) time.
+This function also set
+.Fa tm_isdst
+field to 0.
 .Pp
 The
 .Fn difftime
