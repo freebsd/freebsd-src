@@ -68,7 +68,7 @@ and the video card driver
 .Pq Xr vga 4
 and so requires both of them to be configured in the system.
 .Pp
-There can be only one 
+There can be only one
 .Nm
 device defined in the system.
 .Ss Virtual Terminals
@@ -83,17 +83,17 @@ are placed in the background.
 In order to use virtual terminals, they must be individually
 marked ``on'' in
 .Pa /etc/ttys
-so that 
+so that
 .Xr getty 8
 will recognize them to be active and run
-.Xr login 1 
+.Xr login 1
 to let the user to login to the system.
 By default, only the first eight virtual terminals are activated in
 .Pa /etc/ttys .
 .Pp
 You press the
 .Dv Alt
-key and a switch key to switch between 
+key and a switch key to switch between
 virtual terminals.
 The following table summarizes the correspondence between the switch
 key and the virtual terminal.
@@ -116,7 +116,7 @@ This can be changed by the kernel configuration option
 (see below).
 .Pp
 Note that the X server usually requires a virtual terminal for display
-purposes, so at least one terminal must be left unused by 
+purposes, so at least one terminal must be left unused by
 .Xr getty 8
 so that it can be used by the X server.
 .Ss Key Definitions and Function Key Strings
@@ -136,18 +136,18 @@ for the keymap file.
 .Pp
 You may want to set the
 .Ar keymap
-variable in 
+variable in
 .Pa /etc/rc.conf.local
 to the desired keymap file so that it will be automatically loaded
 when the system starts up.
 .Ss Software Font
 For most modern video cards, e.g. VGA, the
 .Nm
-driver and the video card driver allow the user to change 
+driver and the video card driver allow the user to change
 the font used on the screen.
 The
 .Xr vidcontrol 1
-command can be used to load a font file from 
+command can be used to load a font file from
 .Pa /usr/share/syscons/fonts .
 .Pp
 The font comes in various sizes: 8x8, 8x14 and 8x16.
@@ -158,7 +158,7 @@ It is better to always load these three sizes of the same font.
 .Pp
 You may set
 .Ar font8x8 ,
-.Ar font8x14 
+.Ar font8x14
 and
 .Ar font8x16
 variables in
@@ -186,7 +186,7 @@ and enable the mouse cursor in the virtual terminal via
 .Pp
 Pressing the mouse button 1 (usually the left button) will start selection.
 Releasing the button 1 will end the selection process.
-The selected text will be marked by inverting foreground and 
+The selected text will be marked by inverting foreground and
 background colors.
 You can press the button 3 (usually the right button) to extend
 the selected region.
@@ -208,19 +208,19 @@ The
 driver allows the user to browse the output which has ``scrolled off''
 from the top of the screen.
 .Pp
-Press the ``slock'' key (usually 
-.Dv ScrllLock 
-and/or 
-.Dv Pause 
-keys on many AT Enhanced keyboards) and the terminal is 
+Press the ``slock'' key (usually
+.Dv ScrllLock
+and/or
+.Dv Pause
+keys on many AT Enhanced keyboards) and the terminal is
 in the ``back scrolling'' mode.
-It is indicated by the 
+It is indicated by the
 .Dv Scroll Lock
 LED.
-Use arrow keys, 
-.Dv Page Up/Down 
-keys and 
-.Dv Home/End 
+Use arrow keys,
+.Dv Page Up/Down
+keys and
+.Dv Home/End
 keys to scroll buffered terminal output.
 Press the ``slock'' key again to get back to the normal terminal mode.
 .Pp
@@ -260,21 +260,21 @@ Note that if you use the
 option then you must also use this option if you wish to be able to use
 the mouse.
 .It Dv SC_DISABLE_DDBKEY
-This option disables the ``debug'' key (by default, it is 
+This option disables the ``debug'' key (by default, it is
 .Dv Alt-Esc ,
 or
 .Dv Ctl-PrintScreen
 ).
 It will prevent the user from
-entering the kernel debugger DDB by pressing the key combination.  
-DDB will still be invoked when the kernel panics or hits a break point 
+entering the kernel debugger DDB by pressing the key combination.
+DDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
 .It Dv SC_DISABLE_REBOOT
-This option disables the ``reboot'' key (by default, it is 
+This option disables the ``reboot'' key (by default, it is
 .Dv Ctl-Alt-Del
 ), so that the casual user may not accidentally reboot the system.
 .It Dv SC_HISTORY_SIZE=N
-Sets the size of back scroll buffer to 
+Sets the size of back scroll buffer to
 .Fa N
 lines.
 The default value is 100.
@@ -284,7 +284,7 @@ Unless the
 option above is specified, the
 The
 .Nm
-driver reserves four consecutive character codes in order to display the 
+driver reserves four consecutive character codes in order to display the
 mouse cursor in the virtual terminals in some systems.
 This option specifies the first character code to
 .Fa C
@@ -300,7 +300,7 @@ See the
 .Dv VESA800X600
 flag below.
 .It Dv SC_TWOBUTTON_MOUSE
-If you have a two button mouse, you may want to add this option 
+If you have a two button mouse, you may want to add this option
 to use the right button of the mouse to paste text.
 See
 .Sx Mouse Support and Copy-and-Paste
@@ -318,7 +318,7 @@ below.
 .It Dv SC_DFLT_FONT
 This option will specify the default font.
 Available fonts are: iso, iso2, koi8-r, cp437, cp850, cp865 and cp866.
-16-line, 14-line and 8-line font data will be compiled in.  
+16-line, 14-line and 8-line font data will be compiled in.
 Without this option, the
 .Nm
 driver will use whatever font already loaded in the video card,
@@ -385,18 +385,18 @@ time
 .\"blinking underline (aka destructive) cursor
 .\".El
 .\".It bit 6 (QUIET_BELL)
-.\"This option suppresses the bell, whether audible or visual, 
+.\"This option suppresses the bell, whether audible or visual,
 .\"if it is rung in a background virtual terminal.
 .It 0x0080 (VESA800X600)
 This option puts the video card in the VESA 800x600 dots, 16 color
 mode.
 It may be useful for laptop computers for which the 800x600 mode
 is otherwise unsupported by the X server.
-Note that in order for this flag to work, the kernel must be 
+Note that in order for this flag to work, the kernel must be
 compiled with the
 .Dv SC_PIXEL_MODE
 option explained above.
-.\"Note also that the ``copy-and-paste'' function is not currently supported 
+.\"Note also that the ``copy-and-paste'' function is not currently supported
 .\"in this mode and the mouse pointer will not be displayed.
 .It 0x0100 (AUTODETECT_KBD)
 This option instructs the syscons driver to periodically scan
@@ -419,7 +419,7 @@ key map files
 screen map files
 .El
 .Sh EXAMPLES
-As the 
+As the
 .Nm
 driver requires the keyboard driver and the video card driver,
 the kernel configuration file should contain the following lines.
@@ -430,7 +430,7 @@ device atkbd0 at atkbdc? irq 1
 device vga0 at isa? conflicts
 device sc0 at isa?
 
-pseudo-device splash
+device splash
 .Ed
 .Pp
 If you do not intend to load the splash image or use the screen saver,
@@ -441,8 +441,8 @@ Note that the keyboard controller driver
 is required by the keyboard driver
 .Nm atkbd .
 .Pp
-The following lines will set the default colors. 
-The normal text will be green on black background. 
+The following lines will set the default colors.
+The normal text will be green on black background.
 The reversed text will be yellow on green background.
 Note that you cannot put any white space inside the quoted string,
 because of the current implementation of
@@ -451,7 +451,7 @@ because of the current implementation of
 .Dl "options SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
 .Dl "options SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
 .Pp
-The following lines will set the default colors of the kernel message. 
+The following lines will set the default colors of the kernel message.
 The kernel message will be printed bright red on black background.
 The reversed message will be black on red background.
 .Pp
@@ -460,7 +460,7 @@ The reversed message will be black on red background.
 .Pp
 The following example adds the font files
 .Pa cp850-8x16.fnt ,
-.Pa cp850-8x14.font 
+.Pa cp850-8x14.font
 and
 .Pa cp850-8x8.font
 to the kernel.

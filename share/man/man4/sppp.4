@@ -32,7 +32,7 @@
 .Nm sppp
 .Nd point to point protocol network layer for synchronous lines
 .Sh SYNOPSIS
-.Cd "pseudo-device sppp"
+.Cd "device sppp"
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,7 +69,7 @@ mode.  This means, the administrative
 event to the LCP layer will be delayed until after the lower layers
 signals an
 .Em Up
-event (rise of 
+event (rise of
 .Dq carrier ) .
 This can be used by lower layers to support
 a dialin connection where the physical layer isn't available

@@ -10,7 +10,7 @@
 .Sh SYNOPSIS
 .Cd "device cx0 at isa? port 0x240 irq 15 drq 7"
 .Cd "device cx1 at isa? port 0x260 irq 12 drq 6"
-.Cd pseudo-device sppp
+.Cd device sppp
 .Pp
 The base i/o port address should be set by jumpers on the board.
 The DMA i/o channel and interrupt request numbers are configured
@@ -36,23 +36,23 @@ Channels
 0
 .It Cronyx-Sigma-400
 4, 5, 6, 7
-.It Cronyx-Sigma-500       
+.It Cronyx-Sigma-500
 0, 4, 5, 6, 7
-.It Cronyx-Sigma-401       
+.It Cronyx-Sigma-401
 0, 1, 2, 3
-.It Cronyx-Sigma-404       
+.It Cronyx-Sigma-404
 0, 1, 2, 3
-.It Cronyx-Sigma-410       
+.It Cronyx-Sigma-410
 0, 1, 2, 3
-.It Cronyx-Sigma-440       
+.It Cronyx-Sigma-440
 0, 1, 2, 3
-.It Cronyx-Sigma-703       
+.It Cronyx-Sigma-703
 0, 1, 2, 4, 5, 6, 7
-.It Cronyx-Sigma-801       
+.It Cronyx-Sigma-801
 0, 1, 2, 3, 4, 5, 6, 7
-.It Cronyx-Sigma-810       
+.It Cronyx-Sigma-810
 0, 1, 2, 3, 4, 5, 6, 7
-.It Cronyx-Sigma-840       
+.It Cronyx-Sigma-840
 0, 1, 2, 3, 4, 5, 6, 7
 .El
 .Pp
@@ -82,15 +82,15 @@ sh MAKEDEV cronyx ttyx0 ttyx1 ttyy0
 .Ed
 .Sh "Asynchronous driver"
 The asynchronous channel device files have the names:
-.Pa /dev/ttyx# 
-- for adapter cx0, 
-.Pa /dev/ttyy# 
+.Pa /dev/ttyx#
+- for adapter cx0,
+.Pa /dev/ttyy#
 - for adapter cx1,
-.Pa /dev/ttyz# 
+.Pa /dev/ttyz#
 - for cx2.
 Here # is the channel number in hexadecimal form, 0-9-a-f.
 .Pp
-The driver fulfills the following standard ioctl requests (see 
+The driver fulfills the following standard ioctl requests (see
 .Xr ioctl 2 ) :
 .Pp
 .Bl -tag -width TIOCXXXXX -compact
@@ -104,32 +104,32 @@ on the first
 .Xr open 2
 and could be changed by
 .Dv TIOCCDTR ,
-.Dv TIOCSDTR , 
-.Dv TIOCMSET , 
-.Dv TIOCMBIS , 
-.Dv TIOCMBIC 
+.Dv TIOCSDTR ,
+.Dv TIOCMSET ,
+.Dv TIOCMBIS ,
+.Dv TIOCMBIC
 ioctl calls.
 .It TIOCCDTR
 Clear DTR signal (DTR := 0).
 .It TIOCMSET
 Set the given values of DTR and RTS signals (<DTR:RTS> := data).
 The signals DTR and RTS are controlled by
-.Dv TIOCM_DTR 
+.Dv TIOCM_DTR
 and
 .Dv TIOCM_RTS
 bits of the data argument of the ioctl system call.
 .It TIOCMBIS
 Set DTR and RTS signals (<DTR:RTS> |= data).
-The signals DTR and RTS are controlled by 
-.Dv TIOCM_DTR 
-and 
+The signals DTR and RTS are controlled by
+.Dv TIOCM_DTR
+and
 .Dv TIOCM_RTS
 bits of the data argument of the ioctl system call.
 .It TIOCMBIC
 Clear DTR and RTS signals (<DTR:RTS> &= ~data).
-The signals DTR and RTS are controlled by 
+The signals DTR and RTS are controlled by
 .Dv TIOCM_DTR
-and 
+and
 .Dv TIOCM_RTS
 bits of the data argument of the ioctl system call.
 .It TIOCMGET
@@ -137,30 +137,30 @@ Determine the state of the modem signals of the line.
 After the call the data argument contains the following bits:
 .Pp
 .Bl -tag -width TIOCM_XXX -compact
-.It TIOCM_LE 
+.It TIOCM_LE
 always set (Line Enabled)
-.It TIOCM_DSR 
+.It TIOCM_DSR
 Data Set Ready signal received
-.It TIOCM_CTS 
+.It TIOCM_CTS
 Clear To Send signal received
-.It TIOCM_CD  
+.It TIOCM_CD
 Data Carrier Detect signal received
-.It TIOCM_DTR 
+.It TIOCM_DTR
 Data Terminal Ready signal transmitted
-.It TIOCM_RTS 
+.It TIOCM_RTS
 Request To Send signal transmitted
 .El
 .El
 .Sh "Synchronous driver"
 The synchronous channels and universal channels, turned to the synchronous
-mode by the 
+mode by the
 .Xr cxconfig 8
 utility, are accessible as network
 interfaces named ``cx#'' where # is the channel number, 0..47.
-All standard network interface parameters could be set by 
+All standard network interface parameters could be set by
 .Xr ifconfig 8
 utility.
-The 
+The
 .Xr cxconfig 8
 command is used to change some extended channel
 options, and also for setting the high-level software protocol
@@ -168,7 +168,7 @@ options, and also for setting the high-level software protocol
 .Pp
 The universal channels could be used both in asynchronous and synchronous modes.
 By default the asynchronous mode is set.
-The mode could be changed by 
+The mode could be changed by
 .Xr cxconfig 8
 utility.
 The mode is blocked while the channel is busy (an asynchronous channel
@@ -184,14 +184,14 @@ The version of the driver for BSD/386 (BSDI) operating system
 also supports the usage of the general set of synchronous
 protocols, implemented inside the OS.
 The external protocol set could be selected by ``cxconfig ext'' command
-(see 
+(see
 .Xr cxconfig 8 ) .
 .Sh "Channel Options Management"
-The 
+The
 .Xr cxconfig 8
 utility is used for setting the channels options.
 The channel options are generally set at the start of the operating
-system (for example, from the file 
+system (for example, from the file
 .Pa /etc/rc ) .
 Note, that not all options have a sense for every particular
 case, and an attempt to set some of them can hang up the channel or
