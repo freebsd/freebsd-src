@@ -74,7 +74,7 @@ do_authloop(Authctxt *authctxt)
 	char info[1024];
 	u_int dlen;
 	u_int ulen;
-	int type = 0;
+	int prev, type = 0;
 	struct passwd *pw = authctxt->pw;
 
 	debug("Attempting authentication for %s%.100s.",
@@ -104,7 +104,19 @@ do_authloop(Authctxt *authctxt)
 		info[0] = '\0';
 
 		/* Get a packet from the client. */
+		prev = type;
 		type = packet_read();
+
+		/*
+		 * If we started challenge-response authentication but the
+		 * next packet is not a response to our challenge, release
+		 * the resources allocated by get_challenge() (which would
+		 * normally have been released by verify_response() had we
+		 * received such a response)
+		 */
+		if (prev == SSH_CMSG_AUTH_TIS &&
+		    type != SSH_CMSG_AUTH_TIS_RESPONSE)
+			abandon_challenge_response(authctxt);
 
 		/* Process the packet. */
 		switch (type) {
