@@ -1,4 +1,4 @@
-/*   Login code for S/KEY Authentication.  S/KEY is a trademark
+*   Login code for S/KEY Authentication.  S/KEY is a trademark
  *   of Bellcore.
  *
  *   Mink is the former name of the S/KEY authentication system.
@@ -22,11 +22,11 @@
 #include "skey.h"
 #include "pathnames.h"
 
-static char *skipspace();
+static char *skipspace __P((char *));
 
 #define setpriority(x,y,z)	/* nothing */
 
-static char *month[12] = {
+static const char *month[12] = {
 	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
