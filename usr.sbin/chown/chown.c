@@ -255,17 +255,21 @@ chownerr(file)
 	gid_t groups[NGROUPS_MAX];
 
 	/* Check for chown without being root. */
-	if (errno != EPERM ||
-	    (uid != (uid_t)-1 && euid == (uid_t)-1 && (euid = geteuid()) != 0))
-		err(1, "%s", file);
+	if (errno != EPERM || (uid != (uid_t)-1 &&
+	    euid == (uid_t)-1 && (euid = geteuid()) != 0)) {
+		warn("%s", file);
+		return;
+	}
 
 	/* Check group membership; kernel just returns EPERM. */
 	if (gid != (gid_t)-1 && ngroups == -1 &&
 	    euid == (uid_t)-1 && (euid = geteuid()) != 0) {
 		ngroups = getgroups(NGROUPS_MAX, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
-		if (ngroups < 0)
-			errx(1, "you are not a member of group %s", gname);
+		if (ngroups < 0) {
+			warnx("you are not a member of group %s", gname);
+			return;
+		}
 	}
 	warn("%s", file);
 }
