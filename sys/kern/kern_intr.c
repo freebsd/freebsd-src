@@ -356,7 +356,9 @@ ok:
 int
 ithread_schedule(struct ithd *ithread, int do_switch)
 {
+#if 0
 	struct int_entropy entropy;
+#endif
 	struct thread *td;
 	struct thread *ctd;
 	struct proc *p;
@@ -368,6 +370,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		return (EINVAL);
 
 	ctd = curthread;
+#if 0
 	/*
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
@@ -378,6 +381,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
 		    RANDOM_INTERRUPT);
 	}
+#endif
 
 	td = ithread->it_td;
 	p = td->td_proc;
