@@ -31,14 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.8 1996/02/29 00:07:11 hsu Exp $
+ * $Id: file.h,v 1.7 1996/03/11 02:16:40 hsu Exp $
  */
 
 #ifndef _SYS_FILE_H_
-#define _SYS_FILE_H_
+#define	_SYS_FILE_H_
 
 #include <sys/fcntl.h>
+#ifndef KERNEL
 #include <sys/unistd.h>
+#endif
 
 #ifdef KERNEL
 #include <sys/queue.h>
@@ -84,4 +86,4 @@ extern int nfiles;		/* actual number of open files */
 
 #endif /* KERNEL */
 
-#endif
+#endif /* !SYS_FILE_H */

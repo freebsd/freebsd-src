@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.12 1996/06/12 03:37:29 davidg Exp $
+ * $Id: portal_vnops.c,v 1.13 1996/06/12 05:09:59 gpalmer Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/stat.h>

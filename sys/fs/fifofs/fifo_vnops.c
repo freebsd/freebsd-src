@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.15 1995/12/14 09:53:03 phk Exp $
+ * $Id: fifo_vnops.c,v 1.16 1996/02/13 18:16:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/namei.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
