@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.48 1998/11/15 21:35:09 guido Exp $
+ *	$Id: tcp_subr.c,v 1.49 1998/12/07 21:58:42 archie Exp $
  */
 
 #include "opt_compat.h"
@@ -93,6 +93,9 @@ static void	tcp_notify __P((struct inpcb *, int));
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
+ *
+ * Note that this can be overridden by the kernel environment
+ * variable net.inet.tcp.tcbhashsize
  */
 #ifndef TCBHASHSIZE
 #define TCBHASHSIZE	512
@@ -124,14 +127,21 @@ struct	inp_tp {
 void
 tcp_init()
 {
-
+	int hashsize;
+	
 	tcp_iss = random();	/* wrong, but better than a constant */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
-	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
-	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB,
+	if (!(getenv_int("net.inet.tcp.tcbhashsize", &hashsize)))
+		hashsize = TCBHASHSIZE;
+	if ((1 << ffs(hashsize)) != hashsize) {
+		printf("WARNING: TCB hash size not a power of 2\n");
+		hashsize = 512; /* safe default */
+	}
+	tcbinfo.hashbase = hashinit(hashsize, M_PCB, &tcbinfo.hashmask);
+	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
 					&tcbinfo.porthashmask);
 	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), maxsockets,
 				 ZONE_INTERRUPT, 0);
