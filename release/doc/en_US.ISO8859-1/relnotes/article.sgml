@@ -1812,6 +1812,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>[atm]</literal> tags for addresses on interfaces of
       those types.</para>
 
+    <para>The &man.asa.1; utility, to interpret FORTRAN
+      carriage-control characters, has been added.</para>
+
     <para>&man.at.1; now supports the <option>-r</option> command-line
       option to remove jobs and the <option>-t</option> option to
       specify times in POSIX time format.</para>
@@ -2587,6 +2590,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       flag to read a patch from a file, rather than standard
       input. &merged;</para>
 
+    <para>The &man.pathchk.1; utility, which checks pathnames for
+      validity or portability between POSIX systems, has been
+      added.</para>
+
     <para>&man.pax.1; has received a number of enhancements, including
       &man.cpio.1; functionality, &man.tar.1; compatibility
       enhancements, <option>-z</option> and <option>-Z</option> flags
@@ -2732,6 +2739,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.savecore.8; now works correctly on machines with 2 GB
       or more of RAM. &merged;</para>
+
+    <para>The &man.sccs.1; front-end to the Source Code Control System
+      has been revived.</para>
 
     <para>&man.sed.1; now takes a <option>-E</option> option for
       extended regular expression support. &merged;</para>
@@ -2953,6 +2963,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       set their output files.  &man.uuencode.1; can now be made to do base64 encoding
       when given the <option>-m</option> flag, while &man.uudecode.1;
       can now automatically decode base64 files. &merged;</para>
+
+    <para>The base64 capabilities of &man.uuencode.1; and
+      &man.uudecode.1; can now be automatically enabled by invoking
+      these utilities as &man.b64encode.1; and &man.b64decode.1;
+      respectively.</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
       parameter to select custom text geometry in the
@@ -3176,7 +3191,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	2002.</para>
 
       <para><application>ncurses</application> has been updated to
-	5.2-20010512.</para>
+	5.2-20020518.</para>
 
       <para>The <application>NTP</application> suite of programs has
 	been updated to 4.1.0. &merged;</para>
@@ -3210,6 +3225,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  </warning>
 
 	</para>
+
+      <para><application>GNU ptx</application> has been removed from
+        the base system.  It is not used anywhere in the base system,
+        and has not been recently updated or maintained.  Users
+        requiring its functionality can install this utility as a part
+        of the <filename role="package">textproc/textutils</filename>
+        port.</para>
 
       <para>&man.routed.8; has been updated to version
 	2.22. &merged;</para>
