@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.5.2.4 1998/01/03 05:52:52 kato Exp $
+$Id: majors.pc98,v 1.5.2.5 1998/01/31 11:38:34 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -14,7 +14,7 @@ The most "complete" version of this will be the one in FreeBSD-current.
 
 blkdev	name		comments
 0	wd		ST506 disk controller (with IDE extensions)
-1	??		unassigned?		
+1	wfd		ATAPI Floppy client of "ata"
 2	fd		floppy disk
 3	wt		QIC-02/36 tape
 4	sd		SCSI "disk" type
@@ -37,7 +37,6 @@ blkdev	name		comments
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 23	worm		SCSI "worm type"
-24	wfd		ATAPI floppy client of "ata"
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
