@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.3 (Berkeley) 12/13/94
- * $Id$
+ * $Id: reboot.h,v 1.16 1997/02/22 09:45:45 peter Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -82,6 +82,9 @@
 #define B_CONTROLLERSHIFT	20
 #define B_CONTROLLERMASK	0xf
 #define	B_CONTROLLER(val)	(((val)>>B_CONTROLLERSHIFT) & B_CONTROLLERMASK)
+#define B_SLICESHIFT		20
+#define B_SLICEMASK		0xff
+#define B_SLICE(val)		(((val)>>B_SLICESHIFT) & B_SLICEMASK)
 #define B_UNITSHIFT		16
 #define B_UNITMASK		0xf
 #define	B_UNIT(val)		(((val) >> B_UNITSHIFT) & B_UNITMASK)
