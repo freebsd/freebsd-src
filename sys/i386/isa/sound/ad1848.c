@@ -46,6 +46,8 @@
  * 
  * Modified: Riccardo Facchetti  24 Mar 1995 - Added the Audio Excel DSP 16
  * initialization routine.
+ *
+ * $FreeBSD$
  */
 
 #define DEB(x)
@@ -1709,9 +1711,11 @@ attach_mss(struct address_info * hw_config)
 	if (bits == -1)
 	    return ;
 
+#ifndef PC98
 	outb(config_port, bits | 0x40);
 	if ((inb(version_port) & 0x40) == 0)
 	    printf("[IRQ Conflict?]");
+#endif
 
 	/* Write IRQ+DMA setup */
 	outb(config_port, bits | dma_bits[hw_config->dma]);
