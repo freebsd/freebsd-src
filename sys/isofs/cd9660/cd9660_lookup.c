@@ -436,7 +436,7 @@ cd9660_blkatoff(vp, offset, res, bpp)
 			    &bp->b_blkno, NULL, NULL);
 		if (error) {
                         bp->b_error = error;
-                        bp->b_flags |= BIO_ERROR;
+                        bp->b_ioflags |= BIO_ERROR;
                         brelse(bp);
 			*bpp = NULL;
                         return (error);
