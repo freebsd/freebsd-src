@@ -105,8 +105,14 @@ int i2d_RSAPublicKey(RSA *a, unsigned char **pp)
 		bs.length=BN_bn2bin(num[i],bs.data);
 		i2d_ASN1_INTEGER(&bs,&p);
 		}
-	Free((char *)bs.data);
+	Free(bs.data);
 	*pp=p;
 	return(t);
 	}
+#else /* !NO_RSA */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif

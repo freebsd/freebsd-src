@@ -34,13 +34,13 @@ SDIRS=	md2 md5 sha mdc2 hmac ripemd \
 GENERAL=Makefile README crypto-lib.com install.com
 
 LIB= $(TOP)/libcrypto.a
-LIBSRC=	cryptlib.c mem.c cversion.c ex_data.c tmdiff.c cpt_err.c
-LIBOBJ= cryptlib.o mem.o cversion.o ex_data.o tmdiff.o cpt_err.o
+LIBSRC=	cryptlib.c mem.c mem_dbg.c cversion.c ex_data.c tmdiff.c cpt_err.c ebcdic.c
+LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o tmdiff.o cpt_err.o ebcdic.o
 
 SRC= $(LIBSRC)
 
 EXHEADER= crypto.h tmdiff.h opensslv.h opensslconf.h ebcdic.h
-HEADER=	cryptlib.h buildinf.h $(EXHEADER)
+HEADER=	cryptlib.h buildinf.h md32_common.h $(EXHEADER)
 
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 
@@ -56,6 +56,11 @@ buildinf.h: ../Makefile.ssl
 	echo "  #define PLATFORM \"$(PLATFORM)\""; \
 	echo "  #define DATE \"`date`\""; \
 	echo "#endif" ) >buildinf.h
+
+testapps:
+	if echo ${SDIRS} | fgrep ' des '; \
+	then cd des && $(MAKE) CC='$(CC)' INCLUDES='${INCLUDES}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' des; fi
+	cd pkcs7 && $(MAKE) CC='$(CC)' INCLUDES='${INCLUDES}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' testapps
 
 subdirs:
 	@for i in $(SDIRS) ;\
@@ -122,7 +127,7 @@ lint:
 	done;
 
 depend:
-	if [ ! -e buildinf.h ]; then touch buildinf.h; fi # fake buildinf.h if it does not exist
+	if [ ! -f buildinf.h ]; then touch buildinf.h; fi # fake buildinf.h if it does not exist
 	$(MAKEDEPEND) $(INCLUDE) $(DEPFLAG) $(PROGS) $(LIBSRC)
 	if [ ! -s buildinf.h ]; then rm buildinf.h; fi
 	@for i in $(SDIRS) ;\
@@ -151,29 +156,40 @@ dclean:
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
 cpt_err.o: ../include/openssl/crypto.h ../include/openssl/err.h
-cpt_err.o: ../include/openssl/opensslv.h ../include/openssl/stack.h
+cpt_err.o: ../include/openssl/opensslv.h ../include/openssl/safestack.h
+cpt_err.o: ../include/openssl/stack.h
 cryptlib.o: ../include/openssl/bio.h ../include/openssl/buffer.h
 cryptlib.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
 cryptlib.o: ../include/openssl/e_os2.h ../include/openssl/err.h
 cryptlib.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-cryptlib.o: ../include/openssl/stack.h cryptlib.h
+cryptlib.o: ../include/openssl/safestack.h ../include/openssl/stack.h
+cryptlib.o: cryptlib.h
 cversion.o: ../include/openssl/bio.h ../include/openssl/buffer.h
 cversion.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
 cversion.o: ../include/openssl/e_os2.h ../include/openssl/err.h
 cversion.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-cversion.o: ../include/openssl/stack.h buildinf.h cryptlib.h
+cversion.o: ../include/openssl/safestack.h ../include/openssl/stack.h
+cversion.o: buildinf.h cryptlib.h
 ex_data.o: ../include/openssl/bio.h ../include/openssl/buffer.h
 ex_data.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
 ex_data.o: ../include/openssl/e_os2.h ../include/openssl/err.h
 ex_data.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
-ex_data.o: ../include/openssl/opensslv.h ../include/openssl/stack.h cryptlib.h
+ex_data.o: ../include/openssl/opensslv.h ../include/openssl/safestack.h
+ex_data.o: ../include/openssl/stack.h cryptlib.h
 mem.o: ../include/openssl/bio.h ../include/openssl/buffer.h
 mem.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
 mem.o: ../include/openssl/e_os2.h ../include/openssl/err.h
-mem.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
-mem.o: ../include/openssl/opensslv.h ../include/openssl/stack.h cryptlib.h
+mem.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
+mem.o: ../include/openssl/safestack.h ../include/openssl/stack.h cryptlib.h
+mem_dbg.o: ../include/openssl/bio.h ../include/openssl/buffer.h
+mem_dbg.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
+mem_dbg.o: ../include/openssl/e_os2.h ../include/openssl/err.h
+mem_dbg.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
+mem_dbg.o: ../include/openssl/opensslv.h ../include/openssl/safestack.h
+mem_dbg.o: ../include/openssl/stack.h cryptlib.h
 tmdiff.o: ../include/openssl/bio.h ../include/openssl/buffer.h
 tmdiff.o: ../include/openssl/crypto.h ../include/openssl/e_os.h
 tmdiff.o: ../include/openssl/e_os2.h ../include/openssl/err.h
 tmdiff.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-tmdiff.o: ../include/openssl/stack.h ../include/openssl/tmdiff.h cryptlib.h
+tmdiff.o: ../include/openssl/safestack.h ../include/openssl/stack.h
+tmdiff.o: ../include/openssl/tmdiff.h cryptlib.h
