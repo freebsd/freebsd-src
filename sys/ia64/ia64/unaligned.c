@@ -106,6 +106,23 @@ greg_ptr(mcontext_t *mc, int gr)
 	return ((void*)(p + gr));
 }
 
+static uint64_t
+rdreg(uint64_t *addr)
+{
+	if ((uintptr_t)addr < VM_MAX_ADDRESS)
+		return (fuword(addr));
+	return (*addr);
+}
+
+static void
+wrreg(uint64_t *addr, uint64_t val)
+{
+	if ((uintptr_t)addr < VM_MAX_ADDRESS)
+		suword(addr, val);
+	else
+		*addr = val;
+}
+
 static int
 fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 {
@@ -122,7 +139,7 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
 		if (reg == NULL)
 			return (EINVAL);
-		suword(reg, buf.i);
+		wrreg(reg, buf.i);
 		break;
 	case ASM_OP_LDFD:
 		copyin((void*)va, (void*)&buf.d, 8);
@@ -140,7 +157,7 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		reg = greg_ptr(mc, (int)i->i_oper[3].o_value);
 		if (reg == NULL)
 			return (EINVAL);
-		postinc = fuword(reg);
+		postinc = rdreg(reg);
 	} else
 		postinc = (i->i_oper[3].o_type == ASM_OPER_IMM)
 		    ? i->i_oper[3].o_value : 0;
@@ -148,8 +165,8 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		reg = greg_ptr(mc, (int)i->i_oper[3].o_value);
 		if (reg == NULL)
 			return (EINVAL);
-		postinc += fuword(reg);
-		suword(reg, postinc);
+		postinc += rdreg(reg);
+		wrreg(reg, postinc);
 	}
 	return (0);
 }
