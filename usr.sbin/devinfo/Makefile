@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	devinfo
+DPADD=	${LIBDEVINFO}
 LDADD=	-ldevinfo
-CFLAGS=	-Wall
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>
