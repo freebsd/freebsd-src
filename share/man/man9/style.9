@@ -161,15 +161,10 @@ by size, and then by alphabetical order.  The first category normally
 doesn't apply, but there are exceptions.  Each one gets its own line.
 Try to make the structure
 readable by aligning the member names using either one or two tabs
-depending upon your judgement.
+depending upon your judgment.
 You should use one tab if it suffices to align most of the member names.
 Names following extremely long types
-should be separated from it by a single space, i.e. use
-.Ql "int^I^Ix;"
-and
-.Ql "struct foo^I*x;"
-but
-.Ql "struct verylongtypename *baz;" .
+should be separated by a single space.
 .Pp
 Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
@@ -192,7 +187,7 @@ the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
 struct foo {
-	LIST_ENTRY(foo)	link;		/* Queue macro for foo lists. */
+	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
 	struct mumble	amumble;	/* Comment for mumble. */
 	int		bar;		/* Try to align the comments. */
 	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
