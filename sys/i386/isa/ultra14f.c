@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.19 1994/05/27 04:02:08 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.20 1994/08/13 03:50:17 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -277,7 +277,7 @@ struct scsi_adapter uha_switch =
 	0,
 	uha_adapter_info,
 	"uha",
-	0, 0
+	{ 0, 0 }
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
@@ -289,7 +289,7 @@ struct scsi_device uha_dev =
     NULL,			/* Use default 'done' routine */
     "uha",
     0,
-    0, 0
+    { 0, 0 }
 };
 
 #endif /*KERNEL */

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.28 1994/08/13 03:49:52 wollman Exp $
+ *      $Id: aha1542.c,v 1.29 1994/08/14 21:06:00 ats Exp $
  */
 
 /*
@@ -327,7 +327,7 @@ struct scsi_adapter aha_switch =
     0,
     aha_adapter_info,
     "aha",
-    0, 0
+    { 0, 0 } 
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
@@ -339,7 +339,7 @@ struct scsi_device aha_dev =
     NULL,			/* Use default 'done' routine */
     "aha",
     0,
-    0, 0
+    { 0, 0 }
 };
 
 struct isa_driver ahadriver =
