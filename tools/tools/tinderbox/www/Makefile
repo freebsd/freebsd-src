@@ -1,13 +1,15 @@
 # $FreeBSD$
 
 CGI		 = index.cgi
-DATA		 = tb.css valid-css.gif valid-xhtml10.png
+DATA		 = tb.css daemon.png valid-css.png valid-xhtml10.png
 WWWDIR		?= ${HOME}/public_html
+WWWOWN		?= ${USER}
+WWWGRP		?= ${USER}
 
 realinstall:
-	${INSTALL} -m 0755 ${.CURDIR}/${CGI} ${WWWDIR}
+	${INSTALL} -m0755 -o${WWWOWN} -g${WWWGRP} ${.CURDIR}/${CGI} ${WWWDIR}
 .for FILE in ${DATA}
-	${INSTALL} -m 0644 ${.CURDIR}/${FILE} ${WWWDIR}
+	${INSTALL} -m0644 -o${WWWOWN} -g${WWWGRP} ${.CURDIR}/${FILE} ${WWWDIR}
 .endfor
 
 .include <bsd.prog.mk>
