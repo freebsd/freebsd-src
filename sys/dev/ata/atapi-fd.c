@@ -331,8 +331,8 @@ afd_partial_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
 
-    if (request->result) {
-	bp->b_error = request->result;
+    if (request->error) {
+	bp->b_error = request->error;
 	bp->b_flags |= B_ERROR;
     }
     bp->b_resid += request->bytecount;
@@ -345,8 +345,8 @@ afd_done(struct atapi_request *request)
     struct buf *bp = request->bp;
     struct afd_softc *fdp = request->driver;
 
-    if (request->result || (bp->b_flags & B_ERROR)) {
-	bp->b_error = request->result;
+    if (request->error || (bp->b_flags & B_ERROR)) {
+	bp->b_error = request->error;
 	bp->b_flags |= B_ERROR;
     }
     else
