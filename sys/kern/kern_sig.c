@@ -45,6 +45,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/namei.h>
@@ -52,7 +53,6 @@
 #include <sys/event.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
-#include <sys/systm.h>
 #include <sys/acct.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
