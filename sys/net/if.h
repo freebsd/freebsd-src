@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: if.h,v 1.45 1997/02/22 09:40:58 peter Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -153,6 +153,7 @@ struct	ifreq {
 		int	ifru_metric;
 		int	ifru_mtu;
 		int	ifru_phys;
+		int	ifru_media;
 		caddr_t	ifru_data;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
@@ -162,6 +163,7 @@ struct	ifreq {
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
+#define ifr_media	ifr_ifru.ifru_media	/* physical media */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
 };
 
@@ -172,6 +174,15 @@ struct ifaliasreq {
 	struct	sockaddr ifra_mask;
 };
 
+struct ifmediareq {
+	char	ifm_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	int	ifm_current;		/* current media options */
+	int	ifm_mask;		/* don't care mask */
+	int	ifm_status;		/* media status */
+	int	ifm_active;		/* active options */
+	int	ifm_count;		/* # entries in ifm_ulist array */
+	int	*ifm_ulist;		/* media words */
+};
 /*
  * Structure used in SIOCGIFCONF request.
  * Used to retrieve interface configuration
