@@ -1,5 +1,6 @@
-#	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
+#	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
+#	$Id$
 
-.PATH: ${.CURDIR}/db/mpool
+.PATH: ${.CURDIR}/../libc/db/mpool
 
 SRCS+=	mpool.c
