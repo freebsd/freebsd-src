@@ -372,9 +372,9 @@ Features:
 	  1.5 Gbytes max
 - on-board Fast Ethernet based on:
   - MX5 uses a 21142 or 21143 Ethernet chip dependent on the version of the
-    PCI riser card, 
-  - MiataGL has a 21143 chip)
-  the bulkhead can be 10/100 UTP, or 10 UTP/BNC.
+    PCI riser card 
+  - MiataGL has a 21143 chip
+  - the bulkhead can be 10/100 UTP, or 10 UTP/BNC
 - 2x on-board [E]IDE based on:
   - MX5: CMD646
   - MiataGL: Cypress 82C693
@@ -382,7 +382,7 @@ Features:
 - expansion: 2 64-bit PCI slots
 	     3 32-bit PCI slots (behind a DEC PCI-PCI bridge chip)
 	     3 ISA slots (physically shared with the 32 bit PCI slots, via
-		          a Intel 82378IB PCI to ISA bridge chip)
+		          an Intel 82378IB PCI to ISA bridge chip)
 - 2x 16550A serial port
 - 1x parallel port 
 - PS/2 keyboard & mouse port
@@ -518,18 +518,18 @@ of its much narrower memory bus.
 They are called 'Birds' because their internal DEC code names were bird
 names:
 
-	DEC3000/400     'Sandpiper' 133MHz CPU, desktop
-	DEC3000/500     'Flamingo'  150MHz CPU, floor standing
-	DEC3000/500X    'Hot Pink'  200MHz CPU, floor standing
-	DEC3000/600                 175MHz CPU, desktop
-	DEC3000/700,         	    225MHz CPU, floor standing
-	DEC3000/800,	            200MHz CPU, floor standing
-	DEC3000/900,	            275MHz CPU, floor standing
+	DEC3000/400     Sandpiper 	133MHz CPU, desktop
+	DEC3000/500     Flamingo  	150MHz CPU, floor standing
+	DEC3000/500X    Hot Pink  	200MHz CPU, floor standing
+	DEC3000/600     Sandpiper+  	175MHz CPU, desktop
+	DEC3000/700,    Sandpiper45 	225MHz CPU, floor standing
+	DEC3000/800,	Flamingo Ultra  200MHz CPU, floor standing
+	DEC3000/900,	Flamingo45  	275MHz CPU, floor standing
 
-	DEC3000/300 	'Pelican'   150MHz CPU, desktop, 2 TC slots
-        DEC3000/300X                175MHz CPU, desktop, 2 TC slots
-	DEC3000/300LX	            125MHz CPU, desktop, 2 TC slots
-	DEC3000/300L	            100MHz CPU, desktop, no TC slots
+	DEC3000/300 	Pelican 	150MHz CPU, desktop, 2 TC slots
+        DEC3000/300X    Pelican+ 	175MHz CPU, desktop, 2 TC slots
+	DEC3000/300LX	Pelica+   	125MHz CPU, desktop, 2 TC slots
+	DEC3000/300L	            	100MHz CPU, desktop, no TC slots
 		
 
 Features:
@@ -773,7 +773,7 @@ workstations for the lower end. The 200 and 250 series is a desktop box, the
 400 series is a desk-side mini-tower.
 
 Features:
-- 21064 or 21064A CPU
+- 21064 or 21064A CPU at speeds of 166 to 333 MHz
 - DECchip 21071-AA (core logic chip-set) consisting of:
     Cache/memory controller (one 21071-CA chip)
     PCI interface (one 21071-DA chip)
@@ -827,7 +827,7 @@ For the AlphaStation-[24][05]00 machines the kernel config file must contain:
 
 
 *
-* AlphaStation 500 and 600
+* AlphaStation 500 and 600 ("Alcor" & "Maverick" for EV5, "Bret" for EV56)
 *
 AS500 and 600 were the high-end EV5 / PCI based workstations. EV6 based
 machines have in the meantime taken their place as front runners. AS500 is
@@ -835,8 +835,8 @@ a desktop in a dark blue case (TopGun blue), AS600 is a sturdy desk-side box.
 AS600 has a nice LCD panel to observe the early stages of SRM startup.
 
 Features:
-- 21164 EV5 CPU at 333, 400 or 500 MHz (AS500)
-		at 266 or 300 MHz (AS600)
+- 21164 EV5 CPU at 266, 300, 333, 366, 400, 433, 466, or 500 MHz (AS500)
+		at 266, 300 or 333 MHz (AS600)
 - 21171 or 21172 (Alcor) core logic chip-set
 - cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
 	 4 Mb L3 / Bcache (AS600 at 300 MHz)
@@ -919,8 +919,8 @@ CPU was later rebranded as a DIGITAL Server 3300[R], AS800 with an EV5/500 MHz
 CPU was later rebranded as a DIGITAL Server 3305[R].
 
 Features:
-- 21064 EV4 CPU at 200, 233 or 266 MHz
-  21164 EV5 CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)
+- 21064 EV4[5] CPU at 200, 233 or 266 MHz
+  21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)
 - cache:
 - memory bus: 128 bit with ECC
 - memory:
@@ -1236,8 +1236,8 @@ different maximum memory size. Some of the boxes come with an integral
 StorageWorks shelf to house hotswap SCSI disks. 
 
 Features:
-- 21064 EV4 CPU[s] at 200, 233, 275 MHz
-- 21164 EV5 CPU[s]s at 250, 300, 375 MHz
+- 21064 EV4[5] CPU[s] at 200, 233, 275 MHz
+- 21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz
 - cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
 - embedded floppy controller
 - embedded 10Mbit 21040 ethernet
@@ -1249,8 +1249,9 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
       testing / test hardware.
 
 CPU:
-The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz.
-Currently FreeBSD only uses one CPU in a multiprocessor machine.
+The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz. Maximum
+number of CPUs is 4.  Currently FreeBSD only uses one CPU in a multiprocessor 
+machine. 
 
 Memory:
 The machines use dedicated memory boards. These boards live on a 128 bit 
@@ -1306,7 +1307,7 @@ A trailing R on the partnumber means a rackmount variant.
 
 Features:
 - 21164 EV5 CPUs at 266, 300 MHz
-  21164A EV56 CPUs at 400, 466, 533 and 600 Mhz
+  21164A EV56 CPUs at 400, 466, 533, 600 and 666 Mhz
 - cache: 4 Mbytes per CPU (EV5 300 MHz was also available cache-less)
 	 8 Mbytes (EV5 600Mhz only)
 - memory bus: 128 bit with ECC
@@ -1316,8 +1317,7 @@ Features:
 - PS/2 style keyboard & mouse port
 
 CPU:
-Rawhide is very much a multiprocessor machine. Currently FreeBSD only
-uses one CPU.
+Rawhide is a multiprocessor machine. Currently FreeBSD only uses one CPU.
 
 Memory:
 Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
@@ -1351,6 +1351,61 @@ Power:
 The system employs an I2C based power controller system. If you want to be
 sure all power is removed from the system pull the mains cables from the
 system.
+
+The kernel config file must contain:
+       options         DEC_KN300
+       cpu             EV5
+
+*
+* AlphaServer 1200 ("Tincup") and AlphaStation 1200 ("DaVinci")
+*
+
+The AlphaServer 1200 machine is the successor to the AlphaServer 1000A.
+It uses the same enclosure the 1000A uses, but the logic is based on the
+AlphaServer 4000 design. These are multi-CPU machines, up to 2 CPUs can 
+be in a single machine.  Basic disk storage is housed in a StorageWorks shelves
+The AS1200 intended for the NT market are designated DIGITAL Server 5300 
+(5/400 CPU) and DIGITAL Server 5305 (5/533 CPU).
+
+Features:
+- 21164A EV56 CPUs at 400 or 533 Mhz
+- cache: 4 Mbytes per CPU 
+- memory bus: 128 bit with ECC
+	      DIMM memory on two memory daughter boards
+- embedded floppy controller
+- 2 serial ports
+- 1 parallel port
+- PS/2 style keyboard & mouse port 
+
+CPU:
+AS1200 is a multiprocessor-capable machine. Currently FreeBSD only uses one CPU.
+
+Memory:
+AS1200 uses 2 memory daughter cards. On each of these cards are 8 DIMM slots. 
+DIMMs must be installed in pairs. The maximum memory size is 4 Gbytes. 
+Slots must be filled in order and slot 0 must contain the largest size 
+DIMM if different sized DIMMs are used. AS1200 employs fixed starting 
+addresses for DIMMs, each DIMM pair starts at a 512 Mbyte boundary.
+This means that if DIMMs smaller than 256 Mbyte are used the system's
+physical memory map will contain 'holes'. Supported DIMM sizes are 64 Mbytes 
+and 256 Mbytes. The DIMMs are 72 bit SDRAM based, as the system employs ECC.
+
+Embedded SCSI:
+AS1200 has an embedded NCR810 Fast SCSI bus.
+
+Expansion:
+AS1200 has 5 64-bit PCI slots, one 1 32-bit PCI slot and one EISA slot
+(which is physically shared with one of the 64-bit PCI slots).
+There are 2 seperate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
+slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
+PCI/EISA bridge that drives things like the serial and parallel ports, 
+keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an NCR810 SCSI chip. 
+
+Power:
+The system employs an I2C based power controller system. If you want to be
+sure all power is removed from the system pull the mains cables from the
+system. Tincup uses dual power supplies in load-sharing mode and not 
+as a redundancy pair.
 
 The kernel config file must contain:
        options         DEC_KN300
@@ -1536,7 +1591,7 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
-- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
+- FibreChannel: the Qlogic QL2x00 FibreChannel host adapters are fully
 supported.
 
 - Ethernet: if you want to boot your Alpha over the Ethernet you will 
@@ -1570,7 +1625,7 @@ http://www.netbsd.org proved to be an invaluable source of information.
 If it wasn't for NetBSD/alpha there probably would not be a FreeBSD/alpha
 in the first place. 
 
-People who kindly helped me with creating this document:
+People who kindly helped me creating this document:
 
 - Nick Maniscalco <nmanisca@vt.edu>
 - Andrew Gallatin <gallatin@cs.duke.edu>
@@ -1586,3 +1641,4 @@ People who kindly helped me with creating this document:
 - Wouter Brackman, Compaq
 - Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
 - Peter van Dijk <petervd@vuurwerk.nl>
+- Lodewijk van den Berg, Compaq
