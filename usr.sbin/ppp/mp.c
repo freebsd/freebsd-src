@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.6 1998/04/20 00:20:40 brian Exp $
+ *	$Id: mp.c,v 1.1.2.7 1998/04/23 03:22:59 brian Exp $
  */
 
 #include <sys/types.h>
@@ -82,23 +82,23 @@ static int
 mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
 {
   if (mp->local_is12bit) {
-    header->seq = *(u_int16_t *)MBUF_CTOP(m);
+    header->seq = ntohs(*(u_int16_t *)MBUF_CTOP(m));
     if (header->seq & 0x3000) {
       LogPrintf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
     }
-    header->begin = header->seq & 0x8000;
-    header->end = header->seq & 0x4000;
+    header->begin = header->seq & 0x8000 ? 1 : 0;
+    header->end = header->seq & 0x4000 ? 1 : 0;
     header->seq &= 0x0fff;
     return 2;
   } else {
-    header->seq = *(u_int32_t *)MBUF_CTOP(m);
+    header->seq = ntohl(*(u_int32_t *)MBUF_CTOP(m));
     if (header->seq & 0x3f000000) {
       LogPrintf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
     }
-    header->begin = header->seq & 0x80000000;
-    header->end = header->seq & 0x40000000;
+    header->begin = header->seq & 0x80000000 ? 1 : 0;
+    header->end = header->seq & 0x40000000 ? 1 : 0;
     header->seq &= 0x00ffffff;
     return 4;
   }
@@ -188,7 +188,7 @@ mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
     mp->peer_is12bit = peer_shortseq;
 
     /* Re-point our IPCP layer at our MP link */
-    ipcp_Init(&mp->bundle->ncp.ipcp, mp->bundle, &mp->link, &mp->bundle->fsm);
+    ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
 
     /* Our lcp's already up 'cos of the NULL parent */
     FsmUp(&mp->link.ccp.fsm);
@@ -270,6 +270,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
 
         /* Zap all older fragments */
         while (mp->inbufs != q) {
+          LogPrintf(LogDEBUG, "Drop frag\n");
           next = mp->inbufs->pnext;
           pfree(mp->inbufs);
           mp->inbufs = next;
@@ -283,13 +284,15 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         do {
           mp_ReadHeader(mp, mp->inbufs, &h);
           if (h.begin) {
+            /* We might be able to process this ! */
             h.seq--;  /* We're gonna look for fragment with h.seq+1 */
             break;
           }
           next = mp->inbufs->pnext;
+          LogPrintf(LogDEBUG, "Drop frag %u\n", h.seq);
           pfree(mp->inbufs);
           mp->inbufs = next;
-        } while (h.seq >= mp->seq.min_in || h.end);
+        } while (mp->inbufs && (h.seq >= mp->seq.min_in || h.end));
 
         /*
          * Continue processing things from here.
@@ -311,11 +314,14 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
       int len;
       u_short proto = 0;
       u_char ch;
+      u_long first = -1;
 
       do {
         *frag = mp->inbufs;
         mp->inbufs = mp->inbufs->pnext;
         len = mp_ReadHeader(mp, *frag, &h);
+        if (first == -1)
+          first = h.seq;
         (*frag)->offset += len;
         (*frag)->cnt -= len;
         (*frag)->pnext = NULL;
@@ -341,7 +347,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         } else
           do
             frag = &(*frag)->next;
-          while ((*frag)->next != NULL);
+          while (*frag != NULL);
       } while (!h.end);
 
       if (q) {
@@ -350,6 +356,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
           proto = proto << 8;
           proto += ch;
         } while (!(proto & 1));
+        LogPrintf(LogERROR, "MP: Reassembled frags %ld-%lu\n",
+                  first, (u_long)h.seq);
         hdlc_DecodePacket(mp->bundle, proto, q, &mp->link);
       }
 
@@ -386,24 +394,25 @@ static void
 mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
 {
   struct mbuf *mo;
-  u_char *cp;
-  u_int32_t *seq32;
-  u_int16_t *seq16;
 
+  /* Stuff an MP header on the front of our packet and send it */
   mo = mballoc(4, MB_MP);
   mo->next = m;
-  cp = MBUF_CTOP(mo);
-  seq32 = (u_int32_t *)cp;
-  seq16 = (u_int16_t *)cp;
-  *seq32 = 0;
-  *cp = (begin << 7) | (end << 6);
   if (mp->peer_is12bit) {
-    *seq16 |= (u_int16_t)mp->seq.out;
+    u_int16_t *seq16;
+
+    seq16 = (u_int16_t *)MBUF_CTOP(mo);
+    *seq16 = htons((begin << 15) | (end << 14) | (u_int16_t)mp->seq.out);
     mo->cnt = 2;
   } else {
-    *seq32 |= (u_int32_t)mp->seq.out;
+    u_int32_t *seq32;
+
+    seq32 = (u_int32_t *)MBUF_CTOP(mo);
+    *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->seq.out);
     mo->cnt = 4;
   }
+  LogPrintf(LogERROR, "MP[frag %d]: Send %d bytes on %s\n",
+            mp->seq.out, plength(mo), l->name);
   mp->seq.out = inc_seq(mp, mp->seq.out);
 
   HdlcOutput(l, PRI_NORMAL, PROTO_MP, mo);
@@ -463,7 +472,7 @@ mp_FillQueues(struct bundle *bundle)
       mp_Output(mp, &dl->physical->link, mo, begin, end);
       begin = 0;
     }
-    if (looped)
+    if (!dl || looped)
       break;
   }
 

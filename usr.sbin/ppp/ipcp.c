@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.41 1998/04/21 01:02:15 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.42 1998/04/23 03:22:52 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -374,6 +374,12 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 
   throughput_init(&ipcp->throughput);
   ipcp_Setup(ipcp);
+}
+
+void
+ipcp_SetLink(struct ipcp *ipcp, struct link *l)
+{
+  ipcp->fsm.link = l;
 }
 
 void

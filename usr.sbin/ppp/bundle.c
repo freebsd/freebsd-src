@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.56 1998/04/20 00:21:24 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.57 1998/04/23 03:22:44 brian Exp $
  */
 
 #include <sys/types.h>
@@ -780,8 +780,6 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
     mp_Init(&bundle->ncp.mp, bundle);
-    ipcp_Init(&bundle->ncp.ipcp, bundle, &bundle->links->physical->link,
-              &bundle->fsm);
   }
 }
 
@@ -873,7 +871,11 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " MTU:        %d\n", arg->bundle->cfg.mtu);
+  prompt_Printf(arg->prompt, " MTU:        ");
+  if (arg->bundle->cfg.mtu)
+    prompt_Printf(arg->prompt, "%d\n", arg->bundle->cfg.mtu);
+  else
+    prompt_Printf(arg->prompt, "unspecified\n");
 
   prompt_Printf(arg->prompt, " ID check:   %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
