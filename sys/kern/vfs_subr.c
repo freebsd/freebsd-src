@@ -1578,7 +1578,7 @@ sched_sync(void)
 		if (syncer_state != SYNCER_RUNNING &&
 		    starttime != time_second) {
 			if (first_printf) {
-				printf("\nSyncer syncing, vnodes remaining...");
+				printf("\nSyncing disks, vnodes remaining...");
 				first_printf = 0;
 			}
 			printf("%d ", net_worklist_len);
