@@ -79,8 +79,6 @@ SRCS+=	tree.c bitncmp.c assertions.c \
 #	base64.c
 
 INTERNALLIB=		true
-NOPIC=			true
-INTERNALSTATICLIB=	true
 
 .include <bsd.lib.mk>
 

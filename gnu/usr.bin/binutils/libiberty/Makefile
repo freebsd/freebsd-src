@@ -15,9 +15,6 @@ SRCS+=	basename.c
 .endif
 WARNS=	1
 CFLAGS+=	-DHAVE_CONFIG_H
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 
 .include <bsd.lib.mk>
