@@ -13,6 +13,12 @@
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,31 +29,27 @@
 
 #define APMDEV	"/dev/apm"
 
-static char *cmdname;
-
 void
 usage()
 {
-	fprintf(stderr, "usage: %s [-ablsz] [-d 1|0]\n", cmdname);
+	fprintf(stderr, "%s\n%s\n",
+		"usage: apm [-ablsz] [-d 1|0]",
+		"       zzz");
 	exit(1);
 }
 
 void 
 apm_suspend(int fd)
 {
-	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1) {
-		perror(cmdname);
-		exit(1);
-	}
+	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1)
+		err(1, NULL);
 }
 
 void 
 apm_getinfo(int fd, apm_info_t aip)
 {
-	if (ioctl(fd, APMIO_GETINFO, aip) == -1) {
-		perror(cmdname);
-		exit(1);
-	}
+	if (ioctl(fd, APMIO_GETINFO, aip) == -1)
+		err(1, NULL);
 }
 
 void 
@@ -93,15 +95,10 @@ print_all_info(apm_info_t aip)
 void 
 apm_display(int fd, int newstate)
 {
-	if (ioctl(fd, APMIO_DISPLAY, &newstate) == -1) {
-		perror(cmdname);
-		exit(1);
-	}
+	if (ioctl(fd, APMIO_DISPLAY, &newstate) == -1)
+		err(1, NULL);
 }
 
-
-extern char *optarg;
-extern int optind;
 
 int 
 main(int argc, char *argv[])
@@ -109,6 +106,8 @@ main(int argc, char *argv[])
 	int	c, fd;
 	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
 	int     display = 0, batt_life = 0, ac_status = 0;
+	char	*cmdname;
+
 
 	if ((cmdname = strrchr(argv[0], '/')) != NULL)
 		cmdname++;
@@ -133,7 +132,7 @@ main(int argc, char *argv[])
 		case 'd':
 			display = *optarg - '0';
 			if (display < 0 || display > 1) {
-				fprintf(stderr, "%s: Argument of option '-%c' is invalid.\n", cmdname, c);
+				warnx("argument of option '-%c' is invalid", c);
 				usage();
 			}
 			display++;
@@ -161,7 +160,7 @@ main(int argc, char *argv[])
 finish_option:
 	fd = open(APMDEV, O_RDWR);
 	if (fd == -1) {
-		fprintf(stderr, "%s: Can't open %s.\n", cmdname, APMDEV);
+		warnx("can't open %s", APMDEV);
 		return 1;
 	}
 	if (sleep)
