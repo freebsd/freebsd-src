@@ -2,8 +2,6 @@
 PROG= ncal
 SRCS= ncal.c
 
-CFLAGS+=	-Wall -Wmissing-prototypes -fstrict-prototypes -ansi -pedantic
-
 DPADD+=		${LIBCALENDAR}
 LDADD+=		-lcalendar
 
