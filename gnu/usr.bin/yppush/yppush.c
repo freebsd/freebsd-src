@@ -18,27 +18,8 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id$
+	$Id: yppush.c,v 1.1 1995/01/31 09:47:10 wpaul Exp $
 */
-/*
- *	$Author: root $
- *	$Log: yppush.c,v $
- * Revision 2.0  1994/01/06  16:58:08  root
- * Version 2.0
- *
- * Revision 1.4  1994/01/02  23:00:59  root
- * Use -v flag
- *
- * Revision 1.3  1994/01/02  21:59:08  root
- * Strict prototypes
- *
- * Revision 1.2  1994/01/02  20:10:08  root
- * Added GPL notice
- *
- * Revision 1.1  1994/01/02  18:04:08  root
- * Initial revision
- *
- */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +49,10 @@ struct dom_binding {
 #include <db.h>
 #include <limits.h>
 #include <sys/stat.h>
+
+#ifndef _PATH_YP
+#define _PATH_YP "/var/yp"
+#endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 HASHINFO openinfo = {
