@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: io.c,v 1.19 1998/10/30 00:38:15 grog Exp grog $
+ * $Id: io.c,v 1.18 1998/10/05 02:20:59 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -754,9 +754,15 @@ save_config(void)
 
 	if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
 	||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
+	    printf("Removing incomplete drive, index %d\n", driveno);
+	    if (drive->vp)				    /* how can it be open without a name? */
+		close_drive(drive);
 	    free_drive(drive);				    /* get rid of it */
 	    break;
 	}
+	if ((drive->vp == NULL)				    /* drive not open */
+	&&(drive->state > drive_down))			    /* and it thinks it's not down */
+	    set_drive_state(driveno, drive_down, setstate_force | setstate_noupdate); /* tell it what's what */
 	if (drive->state != drive_down) {
 #if (__FreeBSD__ >= 3)
 	    getmicrotime(&drive->label.last_update);	    /* time of last update is now */
