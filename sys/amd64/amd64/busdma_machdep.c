@@ -639,7 +639,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
 					   map, links);
 			busdma_swi_pending = 1;
-			sched_swi(vm_ih, SWI_NOSWITCH);
+			swi_sched(vm_ih, SWI_NOSWITCH);
 		}
 	}
 	splx(s);
