@@ -48,7 +48,23 @@ the number of references to this filesystem
 (usually the number of mounts, but one greater for filesystems which
 cannot be unloaded or which are statically linked into the kernel)
 .It vfc_flags
-flag bits, of which none are currently defined
+flag bits
+.El
+.Pp
+The flags are defined as follows:
+.Bl -tag -width VFCF_SYNTHETIC
+.It Dv VFCF_STATIC
+statically compiled into kernel
+.It Dv VFCF_NETWORK
+may get data over the network
+.It Dv VFCF_READONLY
+writes are not implemented
+.It Dv VFCF_SYNTHETIC
+data does not represent real files
+.It Dv VFCF_LOOPBACK
+aliases some other mounted FS
+.It Dv VFCF_UNICODE
+stores file names as Unicode
 .El
 .Pp
 The
