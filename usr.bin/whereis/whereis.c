@@ -49,9 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
+#define	NO_BIN_FOUND	1
+#define	NO_MAN_FOUND	2
+#define	NO_SRC_FOUND	4
+
 typedef const char *ccharp;
 
-int opt_b, opt_m, opt_q, opt_s, opt_u, opt_x;
+int opt_a, opt_b, opt_m, opt_q, opt_s, opt_u, opt_x;
 ccharp *bindirs, *mandirs, *sourcedirs;
 char **query;
 
@@ -84,7 +88,7 @@ void
 usage(void)
 {
 	errx(EX_USAGE,
-	     "usage: whereis [-bmqsux] [-BMS dir... -f] name ...");
+	     "usage: whereis [-abmqsux] [-BMS dir... -f] name ...");
 }
 
 /*
@@ -100,7 +104,7 @@ scanopts(int argc, char **argv)
 	ccharp **dirlist;
 
 	opt_f = 0;
-	while ((c = getopt(argc, argv, "BMSbfmqsux")) != -1)
+	while ((c = getopt(argc, argv, "BMSabfmqsux")) != -1)
 		switch (c) {
 		case 'B':
 			dirlist = &bindirs;
@@ -124,6 +128,10 @@ scanopts(int argc, char **argv)
 				decolonify(argv[optind], dirlist, &i);
 				optind++;
 			}
+			break;
+
+		case 'a':
+			opt_a = 1;
 			break;
 
 		case 'b':
@@ -353,7 +361,7 @@ main(int argc, char **argv)
 	int unusual, i, printed;
 	char *bin, buf[BUFSIZ], *cp, *cp2, *man, *name, *src;
 	ccharp *dp;
-	size_t s;
+	size_t nlen, olen, s;
 	struct stat sb;
 	regex_t re, re2;
 	regmatch_t matches[2];
@@ -412,7 +420,7 @@ main(int argc, char **argv)
 			 * Binaries have to match exactly, and must be regular
 			 * executable files.
 			 */
-			unusual++;
+			unusual = unusual | NO_BIN_FOUND;
 			for (dp = bindirs; *dp != NULL; dp++) {
 				cp = malloc(strlen(*dp) + 1 + s + 1);
 				if (cp == NULL)
@@ -424,9 +432,23 @@ main(int argc, char **argv)
 				    (sb.st_mode & S_IFMT) == S_IFREG &&
 				    (sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
 				    != 0) {
-					unusual--;
-					bin = cp;
-					break;
+					unusual = unusual & ~NO_BIN_FOUND;
+					if (bin == NULL) {
+						bin = strdup(cp);
+					} else {
+						olen = strlen(bin);
+						nlen = strlen(cp);
+						bin = realloc(bin, 
+							      olen + nlen + 2);
+						if (bin == 0)
+							abort();
+						strcat(bin, " ");
+						strcat(bin, cp);
+					}
+					if (!opt_a) {
+						free(cp);
+						break;
+					}
 				}
 				free(cp);
 			}
@@ -436,46 +458,76 @@ main(int argc, char **argv)
 			/*
 			 * Ask the man command to perform the search for us.
 			 */
-			unusual++;
-			cp = malloc(sizeof MANWHEREISCMD - 2 + s);
+			unusual = unusual | NO_MAN_FOUND;
+			if (opt_a)
+				cp = malloc(sizeof MANWHEREISALLCMD - 2 + s);
+			else
+				cp = malloc(sizeof MANWHEREISCMD - 2 + s);
+
 			if (cp == NULL)
 				abort();
-			sprintf(cp, MANWHEREISCMD, name);
-			if ((p = popen(cp, "r")) != NULL &&
-			    fgets(buf, BUFSIZ - 1, p) != NULL &&
-			    pclose(p) == 0) {
-				unusual--;
-				if ((cp2 = strchr(buf, '\n')) != NULL)
-					*cp2 = '\0';
-				if (regexec(&re, buf, 2, matches, 0) == 0 &&
-				    (rlen = matches[1].rm_eo - matches[1].rm_so)
-				    > 0) {
-					/*
-					 * man -w found compressed
-					 * page, need to pick up
-					 * source page name.
-					 */
-					cp2 = malloc(rlen + 1);
-					if (cp2 == NULL)
-						abort();
-					memcpy(cp2, buf + matches[1].rm_so,
-					       rlen);
-					cp2[rlen] = '\0';
-					man = cp2;
-				} else {
-					/*
-					 * man -w found plain source
-					 * page, use it.
-					 */
-					s = strlen(buf);
-					cp2 = malloc(s + 1);
-					if (cp2 == NULL)
-						abort();
-					strcpy(cp2, buf);
-					man = cp2;
+
+			if (opt_a)
+				sprintf(cp, MANWHEREISALLCMD, name);
+			else
+				sprintf(cp, MANWHEREISCMD, name);
+
+			if ((p = popen(cp, "r")) != NULL) {
+			    
+				while (fgets(buf, BUFSIZ - 1, p) != NULL) {
+					unusual = unusual & ~NO_MAN_FOUND;
+				
+					if ((cp2 = strchr(buf, '\n')) != NULL)
+						*cp2 = '\0';
+					if (regexec(&re, buf, 2, 
+						    matches, 0) == 0 &&
+					    (rlen = matches[1].rm_eo - 
+					     matches[1].rm_so) > 0) {
+						/*
+						 * man -w found formated
+						 * page, need to pick up
+						 * source page name.
+						 */
+						cp2 = malloc(rlen + 1);
+						if (cp2 == NULL)
+							abort();
+						memcpy(cp2, 
+						       buf + matches[1].rm_so,
+						       rlen);
+						cp2[rlen] = '\0';
+					} else {
+						/*
+						 * man -w found plain source
+						 * page, use it.
+						 */
+						s = strlen(buf);
+						cp2 = malloc(s + 1);
+						if (cp2 == NULL)
+							abort();
+						strcpy(cp2, buf);
+					}
+
+					if (man == NULL) {
+						man = strdup(cp2);
+					} else {
+						olen = strlen(man);
+						nlen = strlen(cp2);
+						man = realloc(man, 
+							      olen + nlen + 2);
+						if (man == 0)
+							abort();
+						strcat(man, " ");
+						strcat(man, cp2);
+					}
+
+					free(cp2);
+					
+					if (!opt_a)
+						break;
 				}
+				pclose(p);
+				free(cp);
 			}
-			free(cp);
 		}
 
 		if (opt_s) {
@@ -483,7 +535,7 @@ main(int argc, char **argv)
 			 * Sources match if a subdir with the exact
 			 * name is found.
 			 */
-			unusual++;
+			unusual = unusual | NO_SRC_FOUND;
 			for (dp = sourcedirs; *dp != NULL; dp++) {
 				cp = malloc(strlen(*dp) + 1 + s + 1);
 				if (cp == NULL)
@@ -493,9 +545,23 @@ main(int argc, char **argv)
 				strcat(cp, name);
 				if (stat(cp, &sb) == 0 &&
 				    (sb.st_mode & S_IFMT) == S_IFDIR) {
-					unusual--;
-					src = cp;
-					break;
+					unusual = unusual & ~NO_SRC_FOUND;
+					if (src == NULL) {
+						src = strdup(cp);
+					} else {
+						olen = strlen(src);
+						nlen = strlen(cp);
+						src = realloc(src, 
+							      olen + nlen + 2);
+						if (src == 0)
+							abort();
+						strcat(src, " ");
+						strcat(src, cp);
+					}
+					if (!opt_a) {
+						free(cp);
+						break;
+					}
 				}
 				free(cp);
 			}
@@ -511,7 +577,7 @@ main(int argc, char **argv)
 			 * with one of our source directories, and at
 			 * least one further level of subdirectories.
 			 */
-			if (opt_x || src)
+			if (opt_x || (src && !opt_a))
 				goto done_sources;
 
 			cp = malloc(sizeof LOCATECMD - 2 + s);
@@ -520,12 +586,12 @@ main(int argc, char **argv)
 			sprintf(cp, LOCATECMD, name);
 			if ((p = popen(cp, "r")) == NULL)
 				goto done_sources;
-			while (src == NULL &&
+			while ((src == NULL || opt_a) &&
 			       (fgets(buf, BUFSIZ - 1, p)) != NULL) {
 				if ((cp2 = strchr(buf, '\n')) != NULL)
 					*cp2 = '\0';
 				for (dp = sourcedirs;
-				     src == NULL && *dp != NULL;
+				     (src == NULL || opt_a) && *dp != NULL;
 				     dp++) {
 					cp2 = malloc(strlen(*dp) + 9);
 					if (cp2 == NULL)
@@ -546,8 +612,21 @@ main(int argc, char **argv)
 					if (regexec(&re2, buf, 0,
 						    (regmatch_t *)NULL, 0)
 					    == 0) {
-						unusual--;
-						src = buf;
+						unusual = unusual & 
+						          ~NO_SRC_FOUND;
+						if (src == NULL) {
+							src = strdup(buf);
+						} else {
+							olen = strlen(src);
+							nlen = strlen(buf);
+							src = realloc(src, 
+								      olen + 
+								      nlen + 2);
+							if (src == 0)
+								abort();
+							strcat(src, " ");
+							strcat(src, buf);
+						}
 					}
 					regfree(&re2);
 				}

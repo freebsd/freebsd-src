@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2002
+.Dd August 18, 2002
 .Dt WHEREIS 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd locate programs
 .Sh SYNOPSIS
 .Nm
-.Op Fl bmqsux
+.Op Fl abmqsux
 .Op Fl BMS Ar dir Ar ... Fl f
 .Ar program ...
 .Sh DESCRIPTION
@@ -94,6 +94,8 @@ option.
 Specify directories to search for program sources.  Requires the
 .Fl f
 option.
+.It Fl a
+Report all matches instead of only the first of each requested type.
 .It Fl b
 Search for binaries.
 .It Fl f
@@ -119,8 +121,8 @@ Search for source directories.
 .It Fl u
 Search for
 .Dq unusual
-entries.  A file is said to be unusual if it does not have one entry
-of each requested type.
+entries.  A file is said to be unusual if it does not have at least
+one entry of each requested type.
 Only the name of the unusual entry is printed.
 .It Fl x
 Do not use
@@ -174,3 +176,9 @@ It is believed to be compatible with the version that was shipping with
 through
 .Fx 4.5
 though.
+.Pp
+The
+.Nm
+utility can report some unrelated source entries when the
+.Fl a
+option is specified.
