@@ -368,8 +368,9 @@ ktrgenio(ktr, len)
 		else
 			screenwidth = 80;
 	}
-	printf("fd %d %s %d bytes\n", ktr->ktr_fd,
-		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen);
+	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
+		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
+		datalen == 1 ? "" : "s");
 	if (maxdata && datalen > maxdata)
 		datalen = maxdata;
 	(void)printf("       \"");
