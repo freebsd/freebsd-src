@@ -107,7 +107,8 @@ file_open(struct archive *a, void *client_data)
 	}
 
 	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open");
+		archive_set_error(a, errno, "Failed to open '%s'",
+		    mine->filename);
 		return (ARCHIVE_FATAL);
 	}
 
