@@ -40,6 +40,15 @@ static char sccsid[] = "@(#)getnetgrent.c	8.1 (Berkeley) 6/4/93";
 
 #include <stdio.h>
 #include <strings.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#ifdef YP
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+static int _netgr_yp_enabled;
+#endif
 
 #define _PATH_NETGROUP "/etc/netgroup"
 
@@ -77,9 +86,6 @@ static struct {
 };
 static FILE *netf = (FILE *)0;
 static int parse_netgrp();
-#ifdef YP
-static int _netgr_yp_enabled;
-#endif
 static struct linelist *read_for_group();
 void setnetgrent(), endnetgrent();
 int getnetgrent(), innetgr();
