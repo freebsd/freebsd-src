@@ -27,72 +27,80 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2002
+.Dd February 28, 2003
 .Dt STYLE.MAKEFILE 5
 .Os
 .Sh NAME
 .Nm style.Makefile
-.Nd "FreeBSD Makefile file style guide"
+.Nd
+.Fx
+.Pa Makefile
+file style guide
 .Sh DESCRIPTION
-This file specifies the preferred style for Makefiles in the
+This file specifies the preferred style for makefiles in the
 .Fx
 source tree.
-.Pp
-.Bl -bullet -compact
+.Bl -bullet
 .It
-All Makefiles should have an SCM ID at the start of the file,
+All makefiles should have an SCM ID at the start of the file,
 followed by a blank line.
 .Bd -literal
-# $FreeBSD$
+# $FreeBSD\&$
 
 .Ed
 .It
-\&.PATH: comes next if needed, and is spelled
-.Pa ".PATH: <ascii space>"
+.Cm .PATH :
+comes next if needed, and is spelled
+.Dq Li ".PATH: " ,
+with a single
+.Tn ASCII
+space after a colon.
 .It
-Special variables (i.e., LIB, SRCS, MLINKS, etc..) are listed in order
-of 'product',
+Special variables (i.e.,
+.Va LIB , SRCS , MLINKS ,
+etc.) are listed in order of
+.Dq product ,
 then building and installing a binary.
 The general order is:
-.Va PROG/LIB/SCRIPT
+.Va PROG Ns / Ns Va LIB Ns / Ns Va SCRIPT
 .Va FILES
 .Va LINKS
-.Va [NO]MAN
-.Va MLINK
+.Oo Va NO Oc Ns Va MAN
+.Va MLINKS
 .Va INCS
-.Va SRC
+.Va SRCS
 .Va WARNS
 .Va CFLAGS
 .Va DPADD
-.Va LDADD
+.Va LDADD .
 .It
 Omit
-.Va SRC
+.Va SRCS
 when using
-.Pa bsd.prog.mk
+.Aq Pa bsd.prog.mk
 and there is a single source file named the same as the
 .Va PROG .
 .It
 Omit
 .Va MAN
 when using
-.Pa bsd.prog.mk
-and the man page is named the same as the
-.Va PROG
+.Aq Pa bsd.prog.mk
+and the manual page is named the same as the
+.Va PROG ,
 and is in section 1.
 .It
-All variable assignment is spelled
-.Pa "VAR=" ,
-i.e. no space between the variable name and the
-.Pa "=" .
+All variable assignments are spelled
+.Dq Va VAR Ns Ic = ,
+i.e., no space between the variable name and the
+.Ic = .
 Keep values sorted alphabetically, if possible.
 .It
-Don't use
-.Pa "+="
+Do not use
+.Ic +=
 to set variables that are only set once
 (or to set variables for the first time).
 .It
-Don't use vertical whitespace in simple Makefiles,
+Do not use vertical whitespace in simple makefiles,
 but do use it to group locally related things in more complex/longer ones.
 .It
 .Va WARNS
@@ -112,50 +120,71 @@ statements as
 is an important thing.
 .It
 Unconditional
-.Pa "NO_WERROR=yes"
-should not be used.
-It defeats the purpose of
+.Dq Li "NO_WERROR= yes"
+should not be used,
+it defeats the purpose of
 .Va WARNS .
 .It
 .Va CFLAGS
 is spelled
-.Pa "CFLAGS+=<ascii space>" .
+.Dq Li "CFLAGS+= " .
 .It
-Listing -D's before -I's in
+Listing
+.Fl D Ns 's
+before
+.Fl I Ns 's
+in
 .Va CFLAGS
-is preferred for alphabetical ordering and to make -D's easier to see.
-The -D's often affect conditional compilation,
-and -I's tend to be quite long.
+is preferred for alphabetical ordering and to make
+.Fl D Ns 's
+easier to see.
+The
+.Fl D Ns 's
+often affect conditional compilation,
+and
+.Fl I Ns 's
+tend to be quite long.
 .It
-Don't use GCC'isms (such as -g and -Wall) in
+Do not use GCCisms (such as
+.Fl g
+and
+.Fl Wall )
+in
 .Va CFLAGS .
 .It
-Typically there is one <ascii tab> between
-.Pa "VAR="
+Typically, there is one
+.Tn ASCII
+tab between
+.Va VAR Ns Ic =
 and the value in order to start the value in column 9.
-An <ascii space> is allowed for VAR names that extend beyond column 9.
-A lack of whitespace also is allowed for very long VAR names.
-.Bd -literal
+An
+.Tn ASCII
+space is allowed for variable names that extend beyond column 9.
+A lack of whitespace is also allowed for very long variable names.
 .It
-".include <bsd.*.mk>"
+.Ic .include Aq Pa bsd.*.mk
 goes last.
 .El
-.Ed
 .Pp
 The desire to express a logical grouping often means not obeying some of the
 above.
-.Pp
-The simplist program Makefile is:
-.Bd -literal
-# $FreeBSD$
+.Sh EXAMPLE
+The simplest program
+.Pa Makefile
+is:
+.Bd -literal -offset indent
+# $FreeBSD\&$
 
 PROG=	foo
 
 \&.include <bsd.prog.mk>
+.Ed
 .Pp
-The simplist library Makefile is:
-.Bd -literal
-# $FreeBSD$
+The simplest library
+.Pa Makefile
+is:
+.Bd -literal -offset indent
+# $FreeBSD\&$
 
 LIB=	foo
 SHLIB_MAJOR= 1
@@ -163,16 +192,16 @@ MAN=	libfoo.3
 SRCS=	foo.c
 
 \&.include <bsd.lib.mk>
-.Pp
+.Ed
 .Sh SEE ALSO
-.Xr make 1
+.Xr make 1 ,
 .Xr style 9
 .Sh HISTORY
-This man page is inspired from the same source as
+This manual page is inspired from the same source as
 .Xr style 9
-man page in
+manual page in
 .Fx .
 .Sh BUGS
 There are few hard and fast style rules here.
-The style of many things are too dependent on the context of the whole Makefile,
+The style of many things is too dependent on the context of the whole makefile,
 or the lines surrounding it.
