@@ -293,9 +293,12 @@ _dns_grscan(rv, cb_data, ap)
 		}
 
 						/* only check first elem */
-		if (copyline(hp[0]) == 0)
-			return NS_UNAVAIL;
+		r = copyline(hp[0]);
 		hesiod_free_list(context, hp);
+		if (r == 0) {
+			r = NS_UNAVAIL;
+			break;
+		}
 		if (matchline(search, gid, name)) {
 			r = NS_SUCCESS;
 			break;
@@ -360,9 +363,10 @@ _nis_grscan(rv, cb_data, ap)
 			return NS_UNAVAIL;
 		}
 		data[datalen] = '\0';			/* clear trailing \n */
-		if (copyline(data) == 0)
-			return NS_UNAVAIL;
+		r = copyline(data);
 		free(data);
+		if (r == 0)
+			return NS_UNAVAIL;
 		if (matchline(search, gid, name))
 			return NS_SUCCESS;
 		else
@@ -410,9 +414,10 @@ _nis_grscan(rv, cb_data, ap)
 			}
 		}
 		data[datalen] = '\0';			/* clear trailing \n */
-		if (copyline(data) == 0)
-			return NS_UNAVAIL;
+		r = copyline(data);
 		free(data);
+		if (r == 0)
+			return NS_UNAVAIL;
 		if (matchline(search, gid, name))
 			return NS_SUCCESS;
 	}
