@@ -76,7 +76,7 @@ int	umodemdebug = 1;
 #endif
 
 struct umodem_softc {
-	bdevice sc_dev;			/* base device */
+	USBBASEDEVICE sc_dev;		/* base device */
 	usbd_interface_handle sc_ctl;	/* control interface */
 	usbd_interface_handle sc_data;	/* data interface */
 	uByte	cmCaps;
