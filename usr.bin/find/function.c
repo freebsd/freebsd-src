@@ -360,7 +360,7 @@ c_mXXdepth(OPTION *option, char ***argvp)
  *	Show files with EXTENDED ACL attributes.
  */
 int
-f_acl(PLAN *plan__unused, FTSENT *entry)
+f_acl(PLAN *plan __unused, FTSENT *entry)
 {
 	int match, entries;
 	acl_entry_t ae;
@@ -397,7 +397,7 @@ f_acl(PLAN *plan__unused, FTSENT *entry)
 }
 
 PLAN *
-c_acl(OPTION *option, char ***argvp__unused)
+c_acl(OPTION *option, char ***argvp __unused)
 {
 	ftsoptions &= ~FTS_NOSTAT;
 	return (palloc(option));
