@@ -48,12 +48,7 @@ breakpoint(void)
 }
 
 #define	HAVE_INLINE_FFS
-
-static __inline int
-ffs(int mask)
-{
-	return (__builtin_ffs(mask));
-}
+#define	ffs(x)	__builtin_ffs(x)
 
 #endif
 
