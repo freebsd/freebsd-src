@@ -518,7 +518,7 @@ STATIC struct job *
 getjob(char *name)
 {
 	int jobno;
-	struct job *jp;
+	struct job *found, *jp;
 	int pid;
 	int i;
 
@@ -539,9 +539,28 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 #if JOBS
 		} else if (name[1] == '%' && name[2] == '\0') {
 			goto currentjob;
+		} else if (name[1] == '+' && name[2] == '\0') {
+			goto currentjob;
+		} else if (name[1] == '-' && name[2] == '\0') {
+			if ((jp = getcurjob(NULL)) == NULL ||
+			    (jp = getcurjob(jp)) == NULL)
+				error("No previous job");
+			return (jp);
 #endif
+		} else if (name[1] == '?') {
+			found = NULL;
+			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
+				if (jp->used && jp->nprocs > 0
+				 && strstr(jp->ps[0].cmd, name + 2) != NULL) {
+					if (found)
+						error("%s: ambiguous", name);
+					found = jp;
+				}
+			}
+			if (found != NULL)
+				return (found);
 		} else {
-			struct job *found = NULL;
+			found = NULL;
 			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 				if (jp->used && jp->nprocs > 0
 				 && prefix(name + 1, jp->ps[0].cmd)) {
