@@ -87,6 +87,8 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #define	MAXPACKET	(65536 - 60 - 8)/* max packet size */
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	NROUTES		9		/* number of record route slots */
+#define	FLOOD_BACKOFF	20000		/* usecs to back off if flooding */
+					/* reports we are out of buffer space */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -135,6 +137,7 @@ long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
 int interval = 1;		/* interval between packets */
+int finish_up = 0;		/* We've been told to finish up */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -145,7 +148,7 @@ double tsum = 0.0;		/* sum of all times, for doing average */
 int reset_kerninfo;
 
 char *pr_addr();
-void catcher(), finish(), status();
+void catcher(), finish(), status(), stopit();
 
 main(argc, argv)
 	int argc;
@@ -414,7 +417,7 @@ main(argc, argv)
 	else
 		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 
-	(void)signal(SIGINT, finish);
+	(void)signal(SIGINT, stopit);
 	(void)signal(SIGALRM, catcher);
 	(void)signal(SIGINFO, status);
 
@@ -430,7 +433,7 @@ main(argc, argv)
 	if ((options & F_FLOOD) == 0)
 		catcher();		/* start things going */
 
-	for (;;) {
+	while (finish_up == 0) {
 		struct sockaddr_in from;
 		register int cc;
 		int fromlen;
@@ -461,6 +464,19 @@ main(argc, argv)
 }
 
 /*
+ * Stopit --
+ * 
+ * set the global bit that cause everything to quit..
+ * do rNOT quit and exit from the signal handler!
+ */
+void
+stopit()
+{
+	finish_up = 1;
+}
+
+
+/*
  * catcher --
  *	This routine causes another PING to be transmitted, and then
  * schedules another SIGALRM for 1 second from now.
@@ -486,7 +502,7 @@ catcher()
 				waittime = 1;
 		} else
 			waittime = MAXWAIT;
-		(void)signal(SIGALRM, finish);
+		(void)signal(SIGALRM, stopit);
 		(void)alarm((u_int)waittime);
 	}
 }
@@ -527,10 +543,15 @@ pinger()
 	    sizeof(struct sockaddr));
 
 	if (i < 0 || i != cc)  {
-		if (i < 0)
+		if (i < 0) {
+			if ((options & F_FLOOD) && (errno == ENOBUFS)) {
+				usleep(FLOOD_BACKOFF);
+				return;
+			}
 			perror("ping: sendto");
+		}
 		(void)printf("ping: wrote %s %d chars, ret=%d\n",
-		    hostname, cc, i);
+		    				hostname, cc, i);
 	}
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
