@@ -79,18 +79,6 @@ hotroot(void)
 	return hot;
 }
 
-/*VARARGS*/
-void
-errexit(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	(void) vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	exit(8);
-}
-
 static void
 vmsg(int fatal, const char *fmt, va_list ap)
 {
