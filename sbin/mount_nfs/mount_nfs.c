@@ -326,7 +326,6 @@ main(argc, argv)
 				altflags |= ALTF_NFSV3;
 			getmntopts(optarg, mopts, &mntflags, &altflags);
 			set_flags(&altflags, &nfsargsp->flags, FALSE);
-printf("altflags= %x, optarg = %s\n", altflags, optarg);
 			/*
 			 * Handle altflags which don't map directly to
 			 * mount flags.
