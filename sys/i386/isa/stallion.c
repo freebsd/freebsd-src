@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.12 1997/07/20 14:10:12 bde Exp $
+ * $Id: stallion.c,v 1.13 1997/09/14 03:19:25 peter Exp $
  */
 
 /*****************************************************************************/
@@ -1067,13 +1067,13 @@ STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  *	process this command (if they can).
  */
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return(error);
 
 	x = spltty();
 	error = ttioctl(tp, cmd, data, flag);
 	stl_ttyoptim(portp, &tp->t_termios);
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		splx(x);
 		return(error);
 	}

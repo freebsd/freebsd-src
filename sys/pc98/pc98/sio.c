@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.42 1997/11/03 02:30:45 kato Exp $
+ *	$Id: sio.c,v 1.43 1997/11/25 09:42:26 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2237,12 +2237,12 @@ sioioctl(dev, cmd, data, flag, p)
 			dt->c_ospeed = tp->t_ospeed;
 	}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 	s = spltty();
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp, &tp->t_termios, com);
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		splx(s);
 		return (error);
 	}

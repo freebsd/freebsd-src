@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.22 1997/03/24 12:03:03 bde Exp $
+ * $Id: tty_compat.c,v 1.23 1997/08/02 14:31:39 bde Exp $
  */
 
 /*
@@ -263,7 +263,7 @@ ttcompat(tp, com, data, flag)
 		return (ttioctl(tp, TIOCCONS, data, flag));
 
 	default:
-		return (-1);
+		return (ENOIOCTL);
 	}
 	return (0);
 }

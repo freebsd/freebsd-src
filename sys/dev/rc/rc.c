@@ -1097,11 +1097,11 @@ struct proc     *p;
 	struct tty                     *tp = rc->rc_tp;
 
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp, &tp->t_termios, rc);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 	s = spltty();
 

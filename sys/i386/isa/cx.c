@@ -434,10 +434,10 @@ int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #else
 	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag);
 #endif
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 	error = ttioctl (tp, cmd, data, flag);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return (error);
 
 	s = spltty ();
