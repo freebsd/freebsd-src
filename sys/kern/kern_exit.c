@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.30 1996/03/11 06:03:22 hsu Exp $
+ * $Id: kern_exit.c,v 1.31 1996/04/07 17:38:56 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -271,7 +271,7 @@ exit1(p, rv)
 	 * The address space is released by "vmspace_free(p->p_vmspace)";
 	 * This is machine-dependent, as we may have to change stacks
 	 * or ensure that the current one isn't reallocated before we
-	 * finish.  cpu_exit will end with a call to cpu_swtch(), finishing
+	 * finish.  cpu_exit will end with a call to cpu_switch(), finishing
 	 * our execution (pun intended).
 	 */
 	cpu_exit(p);
