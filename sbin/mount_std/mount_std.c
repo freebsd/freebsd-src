@@ -48,8 +48,10 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/uio.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +76,7 @@ main(argc, argv)
 	int ch, mntflags;
 	char mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
+	struct iovec iov[4];
 	int error;
 
 	/*
@@ -121,7 +124,25 @@ main(argc, argv)
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(argv[1], mntpath);
 
-	if (mount(vfc.vfc_name, mntpath, mntflags, NULL))
+	error = mount(vfc.vfc_name, mntpath, mntflags, NULL);
+
+	/*
+	 * Try with the new mount syscall in the case
+	 * this filesystem has been converted.
+	 */
+	if (error && errno == EOPNOTSUPP) {
+		iov[0].iov_base = "fstype";
+		iov[0].iov_len = sizeof("fstype");
+		iov[1].iov_base = vfc.vfc_name;
+		iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+		iov[2].iov_base = "fspath";
+		iov[2].iov_len = sizeof("fstype");
+		iov[3].iov_base = mntpath;
+		iov[3].iov_len = strlen(mntpath) + 1;
+		error = nmount(iov, 4, mntflags);
+	}
+
+	if (error)
 		err(EX_OSERR, NULL);
 	exit(0);
 }
