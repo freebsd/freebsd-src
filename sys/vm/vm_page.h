@@ -233,8 +233,6 @@ extern struct mtx vm_page_queue_free_mtx;
 /*
  * These are the flags defined for vm_page.
  *
- * Note: PG_FILLED and PG_DIRTY are added for the filesystems.
- *
  * Note: PG_UNMANAGED (used by OBJT_PHYS) indicates that the page is
  * 	 not under PV management but otherwise should be treated as a
  *	 normal page.  Pages not under PV management cannot be paged out
