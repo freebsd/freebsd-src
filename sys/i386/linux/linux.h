@@ -492,6 +492,10 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_SETOWN		8
 #define	LINUX_F_GETOWN		9
 
+#define	LINUX_F_GETLK64		12
+#define	LINUX_F_SETLK64		13
+#define	LINUX_F_SETLKW64	14
+
 #define	LINUX_F_RDLCK		0
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
