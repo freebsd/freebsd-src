@@ -79,6 +79,7 @@
 #include <sys/sysctl.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 
 #include <vm/vm.h>
 
@@ -99,6 +100,13 @@ SYSCTL_INT(_security_mac_portacl, OID_AUTO, suser_exempt, CTLFLAG_RW,
     &mac_portacl_suser_exempt, 0, "Privilege permits binding of any port");
 TUNABLE_INT("security.mac.portacl.suser_exempt",
     &mac_portacl_suser_exempt);
+
+static int	mac_portacl_autoport_exempt = 1;
+SYSCTL_INT(_security_mac_portacl, OID_AUTO, autoport_exempt, CTLFLAG_RW,
+    &mac_portacl_autoport_exempt, 0, "Allow automatic allocation through "
+    "binding port 0 if not IP_PORTRANGELOW");
+TUNABLE_INT("security.mac.portacl.autoport_exempt",
+    &mac_portacl_autoport_exempt);
 
 static int	mac_portacl_port_high = 1023;
 SYSCTL_INT(_security_mac_portacl, OID_AUTO, port_high, CTLFLAG_RW,
@@ -434,6 +442,7 @@ check_socket_bind(struct ucred *cred, struct socket *so,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
 	struct sockaddr_in *sin;
+	struct inpcb *inp;
 	int family, type;
 	u_int16_t port;
 
@@ -460,6 +469,20 @@ check_socket_bind(struct ucred *cred, struct socket *so,
 	type = so->so_type;
 	sin = (struct sockaddr_in *) sockaddr;
 	port = ntohs(sin->sin_port);
+
+	/*
+	 * Sockets are frequently bound with a specific IP address but a port
+	 * number of '0' to request automatic port allocation.  This is often
+	 * desirable as long as IP_PORTRANGELOW isn't set, which might permit
+	 * automatic allocation of a "privileged" port.  The autoport exempt
+	 * flag exempts port 0 allocation from rule checking as long as a low
+	 * port isn't required.
+	 */
+	if (mac_portacl_autoport_exempt && port == 0) {
+		inp = sotoinpcb(so);
+		if ((inp->inp_flags & INP_LOWPORT) == 0)
+			return (0);
+	}
 
 	return (rules_check(cred, family, type, port));
 }
