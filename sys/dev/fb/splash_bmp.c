@@ -609,6 +609,7 @@ bmp_Draw(video_adapter_t *adp)
     /* set the palette for our image */
     (*vidsw[adp->va_index]->load_palette)(adp, (u_char *)&bmp_info.palette);
 
+#if 0
 #ifndef PC98
     /* XXX: this is ugly, but necessary for EGA/VGA 1bpp/4bpp modes */
     if ((adp->va_type == KD_EGA) || (adp->va_type == KD_VGA)) {
@@ -627,6 +628,7 @@ bmp_Draw(video_adapter_t *adp)
 	if (bmp_info.sdepth == 1)
 	    outw(TSIDX, 0x0102);		/* unmask plane #0 */
     }
+#endif
 #endif
 
     for (line = 0; (line < bmp_info.height) && bmp_info.index; line++) {
