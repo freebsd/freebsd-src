@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.5.2.3 1995/06/02 15:30:47 jkh Exp $
+ * $Id: decode.c,v 1.6.2.5 1995/11/03 12:02:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,15 +56,15 @@ decode(DMenu *menu, char *name)
     return tmp;
 }
 
-Boolean
+int
 dispatch(DMenuItem *tmp, char *name)
 {
-    Boolean failed = FALSE;
+    int val = RET_SUCCESS;
 
     switch (tmp->type) {
-	/* We want to simply display a file */
+	/* We want to simply display a help file */
     case DMENU_DISPLAY_FILE:
-	systemDisplayFile((char *)tmp->ptr);
+	systemDisplayHelp((char *)tmp->ptr);
 	break;
 
 	/* It's a sub-menu; recurse on it */
@@ -72,7 +72,7 @@ dispatch(DMenuItem *tmp, char *name)
 	(void)dmenuOpenSimple((DMenu *)tmp->ptr);
 	break;
 
-	/* Execute it as a system command */
+	/* Execute it as a direct exec */
     case DMENU_SYSTEM_COMMAND:
 	(void)systemExecute((char *)tmp->ptr);
 	break;
@@ -86,14 +86,16 @@ dispatch(DMenuItem *tmp, char *name)
 	break;
 
     case DMENU_CALL:
-	failed = (((int (*)())tmp->ptr)(name));
+	val = (((int (*)())tmp->ptr)(name));
 	break;
 
     case DMENU_CANCEL:
-	return TRUE;
+	val = RET_DONE;
+	break;
 
     case DMENU_SET_VARIABLE:
 	variable_set((char *)tmp->ptr);
+	msgInfo("Set %s", tmp->ptr);
 	break;
 
     case DMENU_SET_FLAG:
@@ -110,10 +112,10 @@ dispatch(DMenuItem *tmp, char *name)
     default:
 	msgFatal("Don't know how to deal with menu type %d", tmp->type);
     }
-    return failed;
+    return val;
 }
 
-Boolean
+int
 decode_and_dispatch_multiple(DMenu *menu, char *names)
 {
     DMenuItem *tmp;
@@ -140,7 +142,7 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 	if (!*names)
 	    return FALSE;
 	if ((tmp = decode(menu, names)) != NULL) {
-	    if (dispatch(tmp, names))
+	    if (dispatch(tmp, names) != RET_SUCCESS)
 		++errors;
 	}
 	else
@@ -148,6 +150,5 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 		     names, menu->title);
 	names = cp;
     }
-    return errors ? TRUE : FALSE;
+    return errors;
 }
-

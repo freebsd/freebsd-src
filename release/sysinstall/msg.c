@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.28.2.2 1995/06/02 15:31:31 jkh Exp $
+ * $Id: msg.c,v 1.29.2.8 1995/10/22 21:38:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,9 +52,9 @@
 Boolean
 isDebug(void)
 {
-    if (OptFlags & OPT_DEBUG)
-	return TRUE;
-    return FALSE;
+    char *cp;
+
+    return (cp = variable_get(VAR_DEBUG)) && strcmp(cp, "no");
 }
 
 /* Whack up an informational message on the status line, in stand-out */
@@ -216,7 +216,7 @@ msgConfirm(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
@@ -264,7 +264,7 @@ msgYesNo(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
@@ -298,7 +298,7 @@ msgGetInput(char *buf, char *fmt, ...)
 	input_buffer[0] = '\0';
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
@@ -349,5 +349,20 @@ msgWeHaveOutput(char *fmt, ...)
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
     free(errstr);
     if (OnVTY)
-	msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
+	msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
+}
+
+/* Simple versions of msgConfirm() and msgNotify() for calling from scripts */
+int
+msgSimpleConfirm(char *str)
+{
+    msgConfirm(str);
+    return RET_SUCCESS;
+}
+
+int
+msgSimpleNotify(char *str)
+{
+    msgNotify(str);
+    return RET_SUCCESS;
 }

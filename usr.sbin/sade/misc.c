@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.11.2.2 1995/06/01 22:32:06 jkh Exp $
+ * $Id: misc.c,v 1.12.2.8 1995/11/04 15:08:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,6 +45,7 @@
 #include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -76,8 +77,22 @@ string_concat(char *one, char *two)
 {
     static char tmp[FILENAME_MAX];
 
+    /* Yes, we're deliberately cavalier about not checking for overflow */
     strcpy(tmp, one);
     strcat(tmp, two);
+    return tmp;
+}
+
+/* Concatenate three strings into static storage */
+char *
+string_concat3(char *one, char *two, char *three)
+{
+    static char tmp[FILENAME_MAX];
+
+    /* Yes, we're deliberately cavalier about not checking for overflow */
+    strcpy(tmp, one);
+    strcat(tmp, two);
+    strcat(tmp, three);
     return tmp;
 }
 
@@ -101,6 +116,53 @@ string_skipwhite(char *str)
     return str;
 }
 
+/* copy optionally and allow second arg to be null */
+char *
+string_copy(char *s1, char *s2)
+{
+    if (!s1)
+	return NULL;
+    if (!s2)
+	s1[0] = '\0';
+    else
+	strcpy(s1, s2);
+    return s1;
+}
+
+Boolean
+directoryExists(const char *dirname)
+{
+    DIR *tptr;
+
+    if (!dirname)
+	return FALSE;
+    if (!strlen(dirname))
+	return FALSE;
+
+    tptr = opendir(dirname);
+    if (!tptr)
+	return (FALSE);
+
+    closedir(tptr);
+    return (TRUE);
+}
+
+char *
+pathBaseName(const char *path)
+{
+    char *pt;
+    char *ret = (char *)path;
+
+    pt = strrchr(path,(int)'/');
+
+    if (pt != 0)			/* if there is a slash */
+    {
+	ret = ++pt;			/* start the file after it */
+    }
+    
+    return(ret);
+}
+
 /* A free guaranteed to take NULL ptrs */
 void
 safe_free(void *ptr)
@@ -120,6 +182,7 @@ safe_malloc(size_t size)
     ptr = malloc(size);
     if (!ptr)
 	msgFatal("Out of memory!");
+    bzero(ptr, size);
     return ptr;
 }
 
@@ -179,8 +242,8 @@ Mkdir(char *ipath, void *data)
     int final=0;
     char *p, *path;
 
-    if (access(ipath, R_OK) == 0)
-	return 0;
+    if (file_readable(ipath))
+	return RET_SUCCESS;
 
     path = strdup(ipath);
     if (isDebug())
@@ -196,20 +259,22 @@ Mkdir(char *ipath, void *data)
 	*p = '\0';
 	if (stat(path, &sb)) {
 	    if (errno != ENOENT) {
+		dialog_clear();
 		msgConfirm("Couldn't stat directory %s: %s", path, strerror(errno));
-		return 1;
+		return RET_FAIL;
 	    }
 	    if (isDebug())
 		msgDebug("mkdir(%s..)\n", path);
 	    if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+		dialog_clear();
 		msgConfirm("Couldn't create directory %s: %s", path,strerror(errno));
-		return 1;
+		return RET_FAIL;
 	    }
 	}
 	*p = '/';
     }
     free(path);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -230,16 +295,18 @@ Mount(char *mountp, void *dev)
     memset(&ufsargs,0,sizeof ufsargs);
 
     if (Mkdir(mountpoint, NULL)) {
+	dialog_clear();
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
-	return 1;
+	return RET_FAIL;
     }
     if (isDebug())
 	msgDebug("mount %s %s\n", device, mountpoint);
     bzero(&ufsargs, sizeof(ufsargs));
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
-	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
-	return 1;
+	dialog_clear();
+	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
+	return RET_FAIL;
     }
-    return 0;
+    return RET_SUCCESS;
 }

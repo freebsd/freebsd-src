@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6 1995/06/11 19:30:11 rgrimes Exp $
+ * $Id: tape.c,v 1.6.2.11 1995/11/15 06:59:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,42 +49,61 @@
 
 static Boolean tapeInitted;
 
+char *
+mediaTapeBlocksize(void)
+{
+    char *cp = variable_get(VAR_TAPE_BLOCKSIZE);
+
+    return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
+}
+
 Boolean
 mediaInitTape(Device *dev)
 {
     int i;
-
     if (tapeInitted)
 	return TRUE;
 
+    msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
     Mkdir(dev->private, NULL);
     if (chdir(dev->private))
-	    return FALSE;
-    msgConfirm("Insert tape into %s and press return", dev->description);
+	return FALSE;
+    /* We know the tape is already in the drive, so go for it */
     msgNotify("Attempting to extract from %s...", dev->description);
-    if (!strcmp(dev->name, "ft0"))
-	i = vsystem("ft | cpio -iduVm -H tar");
+    if (!strcmp(dev->name, "rft0"))
+	i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
     else
-	i = vsystem("cpio -iduVm -H tar -I %s", dev->devname);
+	i = vsystem("cpio -idum %s --block-size %s -I %s", cpioVerbosity(), mediaTapeBlocksize(), dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
+	msgDebug("Tape initialized successfully.\n");
 	return TRUE;
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Tape extract command failed with status %d!", i);
+    }
     return FALSE;
 }
 
 int
-mediaGetTape(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetTape(Device *dev, char *file, Boolean tentative)
 {
     char buf[PATH_MAX];
+    int fd;
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
+    msgDebug("Request for %s from tape (looking in %s)\n", file, buf);
     if (file_readable(buf))
-    	return open(buf, O_RDONLY);
-    sprintf(buf, "%s/dists/%s", (char *)dev->private, file);
-    return open(buf, O_RDONLY);
+	fd = open(buf, O_RDONLY);
+    else {
+	sprintf(buf, "%s/dists/%s", (char *)dev->private, file);
+	fd = open(buf, O_RDONLY);
+    }
+    /* Nuke the files behind us to save space */
+    if (fd != -1)
+	unlink(buf);
+    return fd;
 }
 
 void
@@ -92,7 +111,8 @@ mediaShutdownTape(Device *dev)
 {
     if (!tapeInitted)
 	return;
-    if (!access(dev->private, X_OK)) {
+    msgDebug("Shutdown of tape device - %s will be cleaned\n", dev->private);
+    if (file_readable(dev->private)) {
 	msgNotify("Cleaning up results of tape extract..");
 	(void)vsystem("rm -rf %s", (char *)dev->private);
     }

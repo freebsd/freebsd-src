@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.6.2.1 1995/07/21 10:53:52 rgrimes Exp $
+ * $Id: dos.c,v 1.7 1995/09/18 16:52:26 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitDOS(Device *dev)
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (Mkdir("/dos", NULL))
+    if (Mkdir("/dos", NULL) != RET_SUCCESS)
 	return FALSE;
 
     memset(&args, 0, sizeof(args));
@@ -75,22 +75,32 @@ mediaInitDOS(Device *dev)
     args.mask = 0777;
 
     if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on /dos: %s (%u)\n", args.fspec, strerror(errno), errno);
+	dialog_clear();
+	msgConfirm("Error mounting %s on /dos: %s (%u)", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
+    else
+	msgDebug("Mounted DOS device (%s) on /dos.\n", args.fspec);
     DOSMounted = TRUE;
     return TRUE;
 }
 
 int
-mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetDOS(Device *dev, char *file, Boolean tentative)
 {
     char		buf[PATH_MAX];
 
+    msgDebug("Request for %s from DOS\n", file);
     snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
-    if (!access(buf, R_OK))
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dos/%s", file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dos/dists/%s", file);
     return open(buf, O_RDONLY);
 }
 
@@ -99,11 +109,13 @@ mediaShutdownDOS(Device *dev)
 {
     if (!RunningAsInit || !DOSMounted)
 	return;
-    msgDebug("Unmounting /dos\n");
-    if (unmount("/dos", MNT_FORCE) != 0)
-	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));
+    msgDebug("Unmounting %s from /dos\n", dev->name);
+    if (unmount("/dos", MNT_FORCE) != 0) {
+	dialog_clear();
+	msgConfirm("Could not unmount the DOS partition: %s", strerror(errno));
+    }
     if (isDebug())
-	msgDebug("Unmount returned\n");
+	msgDebug("Unmount successful\n");
     DOSMounted = FALSE;
     return;
 }

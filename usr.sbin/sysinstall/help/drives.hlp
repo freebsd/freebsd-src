@@ -1,7 +1,7 @@
 If you are going to actually install some portion of FreeBSD on a
 drive then PLEASE BE VERY CERTAIN that the Geometry reported in the
-Partition Editor (see Installation Menu) is the correct one for your
-drive and controller combination!
+Partition Editor is the correct one for your drive and controller
+combination!
 
 IDE drives often have a certain geometry set during the PC BIOS setup,
 or (in the case of larger IDE drives) have their geometry "remapped"

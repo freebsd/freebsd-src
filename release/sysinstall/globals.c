@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.9.2.2 1995/06/05 03:15:38 jkh Exp $
+ * $Id: globals.c,v 1.10.2.1 1995/10/21 14:06:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,9 +55,7 @@ Boolean		ColorDisplay;
 Boolean		OnVTY;
 Variable	*VarHead; /* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
-unsigned int	OptFlags;	/* Option flags */
 int		BootMgr;
-char		*InstallPrefix;  /* Always install under here */
 
 /*
  * Yes, I know some of these are already automatically initialized as
@@ -73,6 +71,4 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
-    OptFlags = 0;
-    InstallPrefix = NULL;
 }
