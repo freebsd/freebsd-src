@@ -135,13 +135,14 @@ scanfiles(argv, cooked)
 {
 	int i = 0;
 	char *path;
+	FILE *fp;
 
 	while ((path = argv[i]) != NULL || i == 0) {
 		int fd;
 
 		if (path == NULL || strcmp(path, "-") == 0) {
 			filename = "stdin";
-			fd = 0;
+			fd = STDIN_FILENO;
 		} else {
 			filename = path;
 			fd = open(path, O_RDONLY);
@@ -154,12 +155,17 @@ scanfiles(argv, cooked)
 			warn("%s", path);
 			rval = 1;
 		} else if (cooked) {
-			FILE *fp = fdopen(fd, "r");
-			cook_cat(fp);
-			fclose(fp);
+			if (fd == STDIN_FILENO)
+				cook_cat(stdin);
+			else {
+				fp = fdopen(fd, "r");
+				cook_cat(fp);
+				fclose(fp);
+			}
 		} else {
 			raw_cat(fd);
-			close(fd);
+			if (fd != STDIN_FILENO)
+				close(fd);
 		}
 		if (path == NULL)
 			break;
@@ -172,6 +178,10 @@ cook_cat(fp)
 	register FILE *fp;
 {
 	register int ch, gobble, line, prev;
+
+	/* Reset EOF condition on stdin. */
+	if (fp == stdin && feof(stdin))
+		clearerr(stdin);
 
 	line = gobble = 0;
 	for (prev = '\n'; (ch = getc(fp)) != EOF; prev = ch) {
