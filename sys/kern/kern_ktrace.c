@@ -457,7 +457,8 @@ ktrwrite(vp, kth, uio)
 {
 	struct uio auio;
 	struct iovec aiov[2];
-	register struct proc *p = curproc;	/* XXX */
+	struct proc *p = curproc;	/* XXX */
+	struct mount *mp;
 	int error;
 
 	if (vp == NULL)
@@ -479,6 +480,7 @@ ktrwrite(vp, kth, uio)
 		if (uio != NULL)
 			kth->ktr_len += uio->uio_resid;
 	}
+	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	(void)VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, p->p_ucred);
@@ -487,6 +489,7 @@ ktrwrite(vp, kth, uio)
 		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, p->p_ucred);
 	}
 	VOP_UNLOCK(vp, 0, p);
+	vn_finished_write(mp);
 	if (!error)
 		return;
 	/*

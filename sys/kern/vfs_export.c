@@ -453,6 +453,7 @@ getnewvnode(tag, mp, vops, vpp)
 	int s, count;
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp = NULL;
+	struct mount *vnmp;
 	vm_object_t object;
 
 	/*
@@ -491,7 +492,14 @@ getnewvnode(tag, mp, vops, vpp)
 			vp = NULL;
 			continue;
 		}
-		break;
+		/*
+		 * Skip over it if its filesystem is being suspended.
+		 */
+		if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
+			break;
+		simple_unlock(&vp->v_interlock);
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		vp = NULL;
 	}
 	if (vp) {
 		vp->v_flag |= VDOOMED;
@@ -504,6 +512,7 @@ getnewvnode(tag, mp, vops, vpp)
 		} else {
 			simple_unlock(&vp->v_interlock);
 		}
+		vn_finished_write(vnmp);
 
 #ifdef INVARIANTS
 		{
@@ -515,6 +524,8 @@ getnewvnode(tag, mp, vops, vpp)
 			if (vp->v_numoutput)
 				panic("Clean vnode has pending I/O's");
 			splx(s);
+			if (vp->v_writecount != 0)
+				panic("Non-zero write count");
 		}
 #endif
 		vp->v_flag = 0;
@@ -523,7 +534,6 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_cstart = 0;
 		vp->v_clen = 0;
 		vp->v_socket = 0;
-		vp->v_writecount = 0;	/* XXX */
 	} else {
 		simple_unlock(&vnode_free_list_slock);
 		vp = (struct vnode *) zalloc(vnode_zone);
@@ -946,6 +956,7 @@ sched_sync(void)
 {
 	struct synclist *slp;
 	struct vnode *vp;
+	struct mount *mp;
 	long starttime;
 	int s;
 	struct proc *p = updateproc;
@@ -970,10 +981,12 @@ sched_sync(void)
 		splx(s);
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
-			if (VOP_ISLOCKED(vp, NULL) == 0) {
+			if (VOP_ISLOCKED(vp, NULL) == 0 &&
+			    vn_start_write(vp, &mp, V_NOWAIT) == 0) {
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 				(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
 				VOP_UNLOCK(vp, 0, p);
+				vn_finished_write(mp);
 			}
 			s = splbio();
 			if (LIST_FIRST(slp) == vp) {
@@ -1386,6 +1399,7 @@ vrele(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
+	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
 
 	simple_lock(&vp->v_interlock);
 
@@ -1427,6 +1441,7 @@ vput(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vput: null vp"));
+	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
 	simple_lock(&vp->v_interlock);
 
@@ -1632,6 +1647,8 @@ vclean(vp, flags, p)
 	 * If the flush fails, just toss the buffers.
 	 */
 	if (flags & DOCLOSE) {
+		if (TAILQ_FIRST(&vp->v_dirtyblkhd) != NULL)
+			(void) vn_write_suspend_wait(vp, V_WAIT);
 		if (vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0) != 0)
 			vinvalbuf(vp, 0, NOCRED, p, 0, 0);
 	}
@@ -2785,12 +2802,18 @@ sync_fsync(ap)
 		simple_unlock(&mountlist_slock);
 		return (0);
 	}
+	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
+		vfs_unbusy(mp, p);
+		simple_unlock(&mountlist_slock);
+		return (0);
+	}
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
 	VFS_SYNC(mp, MNT_LAZY, ap->a_cred, p);
 	if (asyncflag)
 		mp->mnt_flag |= MNT_ASYNC;
+	vn_finished_write(mp);
 	vfs_unbusy(mp, p);
 	return (0);
 }

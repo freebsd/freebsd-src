@@ -1165,6 +1165,8 @@ brelse(struct buf * bp)
 	BUF_UNLOCK(bp);
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	bp->b_ioflags &= ~BIO_ORDERED;
+	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
+		panic("brelse: not dirty");
 	splx(s);
 }
 
@@ -1225,6 +1227,8 @@ bqrelse(struct buf * bp)
 	BUF_UNLOCK(bp);
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	bp->b_ioflags &= ~BIO_ORDERED;
+	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
+		panic("bqrelse: not dirty");
 	splx(s);
 }
 
@@ -1420,7 +1424,7 @@ getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
 	int isspecial;
 	static int flushingbufs;
 
-	if (curproc && (curproc->p_flag & P_BUFEXHAUST) == 0)
+	if (curproc && (curproc->p_flag & (P_COWINPROGRESS|P_BUFEXHAUST)) == 0)
 		isspecial = 0;
 	else
 		isspecial = 1;

@@ -88,6 +88,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
+	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
@@ -415,16 +416,29 @@ spec_strategy(ap)
 	struct buf *bp;
 	struct vnode *vp;
 	struct mount *mp;
+	int error;
 
 	bp = ap->a_bp;
-	if ((bp->b_iocmd == BIO_WRITE) && (LIST_FIRST(&bp->b_dep)) != NULL)
-		buf_start(bp);
-
+	vp = ap->a_vp;
+	if ((bp->b_iocmd == BIO_WRITE)) {
+		if (vp->v_mount != NULL &&
+		    (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+			panic("spec_strategy: bad I/O");
+		if (LIST_FIRST(&bp->b_dep) != NULL)
+			buf_start(bp);
+		if ((vp->v_flag & VCOPYONWRITE) &&
+		    (error = VOP_COPYONWRITE(vp, bp)) != 0 &&
+		    error != EOPNOTSUPP) {
+			bp->b_io.bio_error = error;
+			bp->b_io.bio_flags |= BIO_ERROR;
+			biodone(&bp->b_io);
+			return (0);
+		}
+	}
 	/*
 	 * Collect statistics on synchronous and asynchronous read
 	 * and write counts for disks that have associated filesystems.
 	 */
-	vp = ap->a_vp;
 	if (vn_isdisk(vp, NULL) && (mp = vp->v_specmountpoint) != NULL) {
 		if (bp->b_iocmd == BIO_WRITE) {
 			if (bp->b_lock.lk_lockholder == LK_KERNPROC)

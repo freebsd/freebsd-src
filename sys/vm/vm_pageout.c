@@ -777,6 +777,7 @@ rescan0:
 			int written;
 			int swap_pageouts_ok;
 			struct vnode *vp = NULL;
+			struct mount *mp;
 
 			object = m->object;
 
@@ -853,9 +854,13 @@ rescan0:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 
+				mp = NULL;
+				if (vp->v_type == VREG)
+					vn_start_write(vp, &mp, V_NOWAIT);
 				if (VOP_ISLOCKED(vp, NULL) ||
 				    vp->v_data == NULL ||
 				    vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
+					vn_finished_write(mp);
 					if ((m->queue == PQ_INACTIVE) &&
 						(m->hold_count == 0) &&
 						(m->busy == 0) &&
@@ -878,6 +883,7 @@ rescan0:
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vput(vp);
+					vn_finished_write(mp);
 					continue;
 				}
 	
@@ -888,6 +894,7 @@ rescan0:
 				 */
 				if (m->busy || (m->flags & PG_BUSY)) {
 					vput(vp);
+					vn_finished_write(mp);
 					continue;
 				}
 
@@ -902,6 +909,7 @@ rescan0:
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vput(vp);
+					vn_finished_write(mp);
 					continue;
 				}
 			}
@@ -913,8 +921,10 @@ rescan0:
 			 * start the cleaning operation.
 			 */
 			written = vm_pageout_clean(m);
-			if (vp)
+			if (vp) {
 				vput(vp);
+				vn_finished_write(mp);
+			}
 
 			maxlaunder -= written;
 		}

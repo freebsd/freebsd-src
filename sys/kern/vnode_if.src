@@ -394,6 +394,22 @@ vop_strategy {
 };
 
 #
+#% getwritemount vp	= = =
+#
+vop_getwritemount {
+	IN struct vnode *vp;
+	OUT struct mount **mpp;
+};
+
+#
+#% copyonwrite  vp	L L L
+#
+vop_copyonwrite {
+	IN struct vnode *vp;
+	IN struct buf *bp;
+};
+
+#
 #% print	vp	= = =
 #
 vop_print {

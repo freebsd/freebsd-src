@@ -850,6 +850,7 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 {
 	int rtval;
 	struct vnode *vp;
+	struct mount *mp;
 	int bytes = count * PAGE_SIZE;
 
 	/*
@@ -872,11 +873,15 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	 */
 
 	vp = object->handle;
+	if (vp->v_type != VREG)
+		mp = NULL;
+	(void)vn_start_write(vp, &mp, V_WAIT);
 	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
 	if (rtval == EOPNOTSUPP) {
 	    printf("vnode_pager: *** WARNING *** stale FS putpages\n");
 	    rtval = vnode_pager_generic_putpages( vp, m, bytes, sync, rtvals);
 	}
+	vn_finished_write(mp);
 }
 
 

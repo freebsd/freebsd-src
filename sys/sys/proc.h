@@ -285,6 +285,7 @@ struct	proc {
 /* Marked a kernel thread */
 #define	P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
 #define	P_KTHREADP	0x200000 /* Process is really a kernel thread */
+#define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress */
 
 #define	P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 

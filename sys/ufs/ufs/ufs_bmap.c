@@ -47,6 +47,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+#include <sys/stat.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -115,7 +116,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct indir a[NIADDR+1], *xap;
 	ufs_daddr_t daddr;
 	long metalbn;
-	int error, maxrun, num;
+	int error, num, maxrun = 0;
 
 	ip = VTOI(vp);
 	mp = vp->v_mount;
@@ -127,6 +128,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 #endif
 
 	if (runp) {
+		maxrun = mp->mnt_iosize_max / mp->mnt_stat.f_iosize - 1;
 		*runp = 0;
 	}
 
@@ -134,7 +136,6 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		*runb = 0;
 	}
 
-	maxrun = mp->mnt_iosize_max / mp->mnt_stat.f_iosize - 1;
 
 	xap = ap == NULL ? a : ap;
 	if (!nump)
@@ -146,9 +147,12 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	num = *nump;
 	if (num == 0) {
 		*bnp = blkptrtodb(ump, ip->i_db[bn]);
-		if (*bnp == 0)
-			*bnp = -1;
-		else if (runp) {
+		if (*bnp == 0) {
+			if (ip->i_flags & SF_SNAPSHOT)
+				*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
+			else
+				*bnp = -1;
+		} else if (runp) {
 			daddr_t bnb = bn;
 			for (++bn; bn < NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
@@ -226,8 +230,13 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	if (bp)
 		bqrelse(bp);
 
-	daddr = blkptrtodb(ump, daddr);
-	*bnp = daddr == 0 ? -1 : daddr;
+	*bnp = blkptrtodb(ump, daddr);
+	if (*bnp == 0) {
+		if (ip->i_flags & SF_SNAPSHOT)
+			*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
+		else
+			*bnp = -1;
+	}
 	return (0);
 }
 

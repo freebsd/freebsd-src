@@ -1599,6 +1599,7 @@ coredump(p)
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1, flags;
+	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
 	
@@ -1619,6 +1620,7 @@ coredump(p)
 	if (limit == 0)
 		return 0;
 
+restart:
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
@@ -1628,6 +1630,14 @@ coredump(p)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
+	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+		VOP_UNLOCK(vp, 0, p);
+		if ((error = vn_close(vp, FWRITE, cred, p)) != 0)
+			return (error);
+		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
+			return (error);
+		goto restart;
+	}
 
 	/* Don't dump to non-regular files or files with links. */
 	if (vp->v_type != VREG ||
@@ -1647,6 +1657,7 @@ coredump(p)
 
 out:
 	VOP_UNLOCK(vp, 0, p);
+	vn_finished_write(mp);
 	error1 = vn_close(vp, FWRITE, cred, p);
 	if (error == 0)
 		error = error1;

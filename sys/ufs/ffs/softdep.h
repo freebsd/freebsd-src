@@ -382,7 +382,7 @@ struct freefrag {
 	struct	worklist ff_list;	/* id_inowait or delayed worklist */
 #	define	ff_state ff_list.wk_state /* owning user; should be uid_t */
 	struct	vnode *ff_devvp;	/* filesystem device vnode */
-	struct	fs *ff_fs;		/* addr of superblock */
+	struct	mount *ff_mnt;		/* associated mount point */
 	ufs_daddr_t ff_blkno;		/* fragment physical block number */
 	long	ff_fragsize;		/* size of fragment being deleted */
 	ino_t	ff_inum;		/* owning inode number */
@@ -398,7 +398,7 @@ struct freeblks {
 	struct	worklist fb_list;	/* id_inowait or delayed worklist */
 	ino_t	fb_previousinum;	/* inode of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
-	struct	fs *fb_fs;		/* addr of superblock */
+	struct	mount *fb_mnt;		/* associated mount point */
 	off_t	fb_oldsize;		/* previous file size */
 	off_t	fb_newsize;		/* new file size */
 	int	fb_chkcnt;		/* used to check cnt of blks released */
@@ -418,7 +418,7 @@ struct freefile {
 	mode_t	fx_mode;		/* mode of inode */
 	ino_t	fx_oldinum;		/* inum of the unlinked file */
 	struct	vnode *fx_devvp;	/* filesystem device vnode */
-	struct	fs *fx_fs;		/* addr of superblock */
+	struct	mount *fx_mnt;		/* associated mount point */
 };
 
 /*

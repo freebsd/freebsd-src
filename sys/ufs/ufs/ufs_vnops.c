@@ -702,6 +702,8 @@ ufs_remove(ap)
 	int error;
 
 	ip = VTOI(vp);
+	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+		ffs_snapremove(vp);
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(dvp)->i_flags & APPEND)) {
 		error = EPERM;
@@ -2215,6 +2217,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) ufs_open },
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
+	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
