@@ -56,8 +56,8 @@
 # define	SIOCFRSYN	_IOW('r', 73, u_int)
 # define	SIOCFRZST	_IOWR('r', 74, struct friostat *)
 # define	SIOCZRLST	_IOWR('r', 75, struct frentry *)
-# define	SIOCAUTHW	_IOWR('r', 76, struct frauth_t *)
-# define	SIOCAUTHR	_IOWR('r', 77, struct frauth_t *)
+# define	SIOCAUTHW	_IOWR('r', 76, struct frauth *)
+# define	SIOCAUTHR	_IOWR('r', 77, struct frauth *)
 # define	SIOCATHST	_IOWR('r', 78, struct fr_authstat *)
 # define	SIOCSTLCK	_IOWR('r', 79, u_int)
 # define	SIOCSTPUT	_IOWR('r', 80, struct ipstate_save *)
@@ -81,8 +81,8 @@
 # define	SIOCFRSYN	_IOW(r, 73, u_int)
 # define	SIOCFRZST	_IOWR(r, 74, struct friostat *)
 # define	SIOCZRLST	_IOWR(r, 75, struct frentry *)
-# define	SIOCAUTHW	_IOWR(r, 76, struct frauth_t *)
-# define	SIOCAUTHR	_IOWR(r, 77, struct frauth_t *)
+# define	SIOCAUTHW	_IOWR(r, 76, struct frauth *)
+# define	SIOCAUTHR	_IOWR(r, 77, struct frauth *)
 # define	SIOCATHST	_IOWR(r, 78, struct fr_authstat *)
 # define	SIOCSTLCK	_IOWR(r, 79, u_int)
 # define	SIOCSTPUT	_IOWR(r, 80, struct ipstate_save *)
@@ -136,12 +136,11 @@ typedef	struct	fr_info	{
 	void	*fin_ifp;		/* interface packet is `on' */
 	struct	fr_ip	fin_fi;		/* IP Packet summary */
 	u_short	fin_data[2];		/* TCP/UDP ports, ICMP code/type */
-	u_char	fin_out;		/* in or out ? 1 == out, 0 == in */
-	u_char	fin_rev;		/* state only: 1 = reverse */
+	u_int	fin_out;		/* in or out ? 1 == out, 0 == in */
 	u_short	fin_hlen;		/* length of IP header in bytes */
+	u_char	fin_rev;		/* state only: 1 = reverse */
 	u_char	fin_tcpf;		/* TCP header flags (SYN, ACK, etc) */
-	/* From here on is packet specific */
-	u_char	fin_icode;		/* ICMP error to return */
+	u_int	fin_icode;		/* ICMP error to return */
 	u_32_t	fin_rule;		/* rule # last matched */
 	u_32_t	fin_group;		/* group number, -1 for none */
 	struct	frentry *fin_fr;	/* last matching rule */
@@ -150,6 +149,7 @@ typedef	struct	fr_info	{
 	u_short	fin_off;
 	u_short	fin_dlen;		/* length of data portion of packet */
 	u_short	fin_id;			/* IP packet id field */
+	u_int	fin_misc;
 	void	*fin_mp;		/* pointer to pointer to mbuf */
 #if SOLARIS
 	void	*fin_qfm;		/* pointer to mblk where pkt starts */
@@ -170,6 +170,11 @@ typedef	struct	fr_info	{
  */
 #define	FI_CSIZE	offsetof(fr_info_t, fin_icode)
 #define	FI_LCSIZE	offsetof(fr_info_t, fin_dp)
+
+/*
+ * For fin_misc
+ */
+#define	FM_BADSTATE	0x00000001
 
 /*
  * Size for copying cache fr_info structure
@@ -422,10 +427,10 @@ typedef	struct	iplog	{
 typedef	struct	ipflog	{
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
         (defined(OpenBSD) && (OpenBSD >= 199603))
-	u_char	fl_ifname[LIFNAMSIZ];
+	char	fl_ifname[LIFNAMSIZ];
 #else
 	u_int	fl_unit;
-	u_char	fl_ifname[LIFNAMSIZ];
+	char	fl_ifname[LIFNAMSIZ];
 #endif
 	u_char	fl_plen;	/* extra data after hlen */
 	u_char	fl_hlen;	/* length of IP headers saved */

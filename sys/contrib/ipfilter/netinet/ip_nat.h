@@ -277,6 +277,8 @@ typedef	struct	natlog {
 			    (sd) = (s2) - (s1); \
 			    (sd) = ((sd) & 0xffff) + ((sd) >> 16); }
 
+#define	NAT_SYSSPACE		0x80000000
+#define	NAT_LOCKHELD		0x40000000
 
 extern	u_int	ipf_nattable_sz;
 extern	u_int	ipf_natrules_sz;

@@ -43,7 +43,8 @@ typedef struct icmpstate {
 typedef	struct	tcpdata	{
 	u_32_t	td_end;
 	u_32_t	td_maxend;
-	u_short	td_maxwin;
+	u_32_t	td_maxwin;
+	u_char	td_wscale;
 } tcpdata_t;
 
 typedef	struct tcpstate {
@@ -59,20 +60,22 @@ typedef struct ipstate {
 	struct	ipstate	*is_hnext;
 	struct	ipstate	**is_phnext;
 	struct	ipstate	**is_me;
+	frentry_t	*is_rule;
+	U_QUAD_T	is_pkts;
+	U_QUAD_T	is_bytes;
+	union	i6addr	is_src;
+	union	i6addr	is_dst;
+	void	*is_ifp[4];
 	u_long	is_age;
 	u_int	is_frage[2];	/* age from filter rule, forward & reverse */
 	u_int	is_pass;
-	U_QUAD_T	is_pkts;
-	U_QUAD_T	is_bytes;
-	void	*is_ifp[4];
-	frentry_t	*is_rule;
-	union	i6addr	is_src;
-	union	i6addr	is_dst;
 	u_char	is_p;			/* Protocol */
-	u_char	is_v;
-	u_int	is_hv;
+	u_char	is_v;			/* IP version */
+	u_char	is_fsm;			/* 1 = following FSM, 0 = not */
+	u_char	is_xxx;			/* pad */
+	u_int	is_hv;			/* hash value for this in the table */
 	u_32_t	is_rulen;		/* rule number */
-	u_32_t	is_flags;
+	u_32_t	is_flags;		/* flags for this structure */
 	u_32_t	is_opt;			/* packet options set */
 	u_32_t	is_optmsk;		/*    "      "    mask */
 	u_short	is_sec;			/* security options set */
@@ -101,6 +104,8 @@ typedef struct ipstate {
 #define is_dend		is_tcp.ts_data[1].td_end
 #define is_maxswin	is_tcp.ts_data[0].td_maxwin
 #define is_maxdwin	is_tcp.ts_data[1].td_maxwin
+#define is_swscale	is_tcp.ts_data[0].td_wscale
+#define is_dwscale	is_tcp.ts_data[1].td_wscale
 #define is_maxsend	is_tcp.ts_data[0].td_maxend
 #define is_maxdend	is_tcp.ts_data[1].td_maxend
 #define	is_sport	is_tcp.ts_sport
@@ -192,7 +197,7 @@ extern	ipstate_t *fr_addstate __P((ip_t *, fr_info_t *, ipstate_t **, u_int));
 extern	frentry_t *fr_checkstate __P((ip_t *, fr_info_t *));
 extern	void	ip_statesync __P((void *));
 extern	void	fr_timeoutstate __P((void));
-extern	void	fr_tcp_age __P((u_long *, u_char *, fr_info_t *, int));
+extern	int	fr_tcp_age __P((u_long *, u_char *, fr_info_t *, int, int));
 extern	void	fr_stateunload __P((void));
 extern	void	ipstate_log __P((struct ipstate *, u_int));
 #if defined(__NetBSD__) || defined(__OpenBSD__)
