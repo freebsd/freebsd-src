@@ -8,7 +8,7 @@ NOOBJ=	noobj
 
 all clean cleandir depend lint tags:
 
-FILES=	BSDPAN.pm BSDPAN/Override.pm ExtUtils/MM_Unix.pm ExtUtils/Packlist.pm
+FILES=	BSDPAN.pm BSDPAN/Override.pm Config.pm ExtUtils/MM_Unix.pm ExtUtils/Packlist.pm
 
 .for file in ${FILES}
 beforeinstall::
