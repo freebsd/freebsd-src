@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hash.h	8.3 (Berkeley) 5/31/94
+ * $FreeBSD$
  */
 
 /* Operations */
@@ -104,7 +105,7 @@ typedef struct htab	 {		/* Memory resident data structure */
 	int		cbucket;	/* Current bucket */
 	int		cndx;		/* Index of next item on cpage */
 	int		error;		/* Error Number -- for DBM 
-					 * compatability */
+					 * compatibility */
 	int		new_file;	/* Indicates if fd is backing store 
 					 * or no */
 	int		save_file;	/* Indicates whether we need to flush 
