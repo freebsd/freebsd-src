@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.103 1994/10/30 20:57:07 joerg Exp $
+#	$Id: LINT,v 1.104 1994/11/02 01:11:03 wollman Exp $
 #
 
 #
@@ -102,11 +102,6 @@ options		KTRACE			#kernel tracing
 # programming errors.
 #
 options		DIAGNOSTIC
-
-#
-# Enable the in-kernel boot-time device configuration utility (boot with -c)
-#
-options		USERCONFIG
 
 
 #####################################################################
