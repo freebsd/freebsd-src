@@ -179,15 +179,15 @@ g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct th
 	int error;
 
 	error = 0;
+	bzero(&ga, sizeof ga);
 	gcp = (struct geomconfiggeom *)data;
 	ga.class = g_idclass(&gcp->class);
 	if (ga.class == NULL)
 		return (EINVAL);
 	if (ga.class->create_geom == NULL)
 		return (EOPNOTSUPP);
+	ga.geom = g_idgeom(&gcp->geom);
 	ga.provider = g_idprovider(&gcp->provider);
-	if (ga.provider == NULL)
-		return (EINVAL);
 	ga.len = gcp->len;
 	if (gcp->len > 64 * 1024)
 		return (EINVAL);
@@ -197,8 +197,14 @@ g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct th
 		ga.ptr = g_malloc(gcp->len, M_WAITOK);
 		copyin(gcp->ptr, ga.ptr, gcp->len);
 	}
+	ga.flag = gcp->flag;
 	error = ga.class->create_geom(&ga);
-	gcp->geom = (uintptr_t)ga.geom;
+	gcp->class.u.id = (uintptr_t)ga.class;
+	gcp->class.len = 0;
+	gcp->geom.u.id = (uintptr_t)ga.geom;
+	gcp->geom.len = 0;
+	gcp->provider.u.id = (uintptr_t)ga.provider;
+	gcp->provider.len = 0;
 	return(error);
 }
 
