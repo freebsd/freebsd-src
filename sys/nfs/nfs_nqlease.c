@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.7 1994/10/17 17:47:34 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.8 1995/01/09 16:05:06 davidg Exp $
  */
 
 /*
@@ -924,7 +924,7 @@ nqnfs_callback(nmp, mrep, md, dpos)
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	m_freem(mrep);
-	error = nfs_nget(nmp->nm_mountp, fhp, &np);
+	error = nfs_nget(nmp->nm_mountp, &nfh, &np);
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
