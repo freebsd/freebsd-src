@@ -30,13 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: rndcontrol.c,v 1.3 1995/12/27 11:40:47 markm Exp $
  *
  */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <machine/random.h>
 
