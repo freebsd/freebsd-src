@@ -929,12 +929,12 @@ docompat:
 			    errnop);
 			break;
 		case nss_lt_id:
-			rv = _nsdispatch(discard, dtab, NSDB_GROUP_COMPAT,
+			rv = _nsdispatch(&discard, dtab, NSDB_GROUP_COMPAT,
 			    "getgrgid_r", compatsrc, gid, grp, buffer, bufsize,
 			    errnop);
 			break;
 		case nss_lt_name:
-			rv = _nsdispatch(discard, dtab, NSDB_GROUP_COMPAT,
+			rv = _nsdispatch(&discard, dtab, NSDB_GROUP_COMPAT,
 			    "getgrnam_r", compatsrc, name, grp, buffer,
 			    bufsize, errnop);
 			break;
@@ -945,7 +945,7 @@ docompat:
 		break;
 	case COMPAT_MODE_NAME:
 		set_lookup_type(dtab, nss_lt_name);
-		rv = _nsdispatch(discard, dtab, NSDB_GROUP_COMPAT,
+		rv = _nsdispatch(&discard, dtab, NSDB_GROUP_COMPAT,
 		    "getgrnam_r", compatsrc, st->name, grp, buffer, bufsize,
 		    errnop);
 		switch (rv) {
