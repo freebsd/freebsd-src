@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.663.2.5
+    Original revision: 1.663.2.13
 -->
 
 <articleinfo>
@@ -47,31 +47,9 @@
     これは &os; に最近追加、変更、削除された機能について解説したものであり、
     &os; の前のバージョンからのアップグレードについても言及しています。</para>
 
-<![ %release.type.snapshot [
-
-  <para>このリリースノートが対応する &release.type; 配布物は、
-    &release.branch; 開発ブランチの &release.prev; から
-    将来の &release.next; の間に位置します。
-    このブランチのあらかじめコンパイルされたバイナリ &release.type;
-    配布物は <ulink url="&release.url;"></ulink> に公開されています。
-  </para>
-
-]]>
-
-<![ %release.type.release [
-
-  <para>この &os; &release.current; 配布物は &release.type; 配布物です。
-    この配布物はあらゆるミラーの <ulink url="&release.url;"></ulink>
-    で見つけることができます。
-    この (もしくは他の) &os; の &release.type; 配布物を取得する方法
-    は
-    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD ハンドブック</ulink>
-    の
-    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
-      付録 <quote>FreeBSD を取得する</quote></ulink>
-    を参照してください。</para>
-
-]]>
+  <para>この &os; &release.current; 配布物は
+    <quote>ポイントリリース</quote> であり、&os; &release.base; で発見された
+    いくつかの問題 (主にバグ) の修正をおこなったものです。</para>
 
   <para>&os; &release.type; の &release.branch;
     系列をはじめて利用するユーザは、まず <quote>&os;
@@ -129,6 +107,9 @@
     それらはたとえば文書の修正や改良、ごく影響の小さいバグの修正、
     監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正、
     ソースコードの整理などです。</para>
+
+  <para>&new.521; という印は、このポイントリリースで追加された
+    リリースノートの項目を表しています。</para>
 
   <sect2 id="security">
     <title>セキュリティ勧告</title>
@@ -211,6 +192,34 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>
       をご覧ください。
       &merged;</para>
+
+    <para>&new.521;
+      ファイルシステムのスナップショットを作成すると、
+      対象ファイルシステムのフラグが初期値に戻ってしまうという、
+      &man.mksnap.ffs.8; のバグが修正されました。
+      これによる影響の大小はシステムの利用形態によりますが、
+      拡張アクセス制御リストを無効にしたり、信頼できないファイルシステムに
+      置かれている setuid 実行ファイルの実行が可能になるおそれがあります。
+      &man.dump.8; の <option>-L</option> オプションも、
+      &man.mksnap.ffs.8; を利用するため、このバグによる影響を受けます。
+      ただし通常、&man.mksnap.ffs.8; を実行可能なのは
+      スーパユーザと <groupname>operator</groupname> のメンバのみです。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>
+      をご覧ください。</para>
+
+    <para>&new.521;
+      System V 共有メモリインタフェース
+      (のうち &man.shmat.2; システムコール) において、
+      未割当のカーネルメモリを参照する共有メモリセグメントをつくることができる、
+      というバグが修正されました。
+      ローカルの攻撃者がこれを悪用すると、カーネルメモリの一部に不正にアクセスすることが
+      可能になるため、結果としてセキュリティ上重要な情報の漏洩、アクセス制御機構の迂回や
+      高い権限の不正な獲得などに利用されるおそれがあります。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>
+      をご覧ください。&merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -235,6 +244,9 @@
       &man.cx.4; ドライバが大きく修正・改良されました。この更新で
       ユーザランドの設定ユーティリティ cxconfig は、&man.sconfig.8;
       というユーティリティに置き換えられました。</para>
+
+    <para>&new.521; &man.devfs.5; の path ルールがディレクトリに対しても
+      正しく動作するようになりました。</para>
 
     <para arch="i386,pc98">DRM カーネルモジュールが
       DRI CVS リポジトリの 2003 年 11 月 12 日時点のコードに更新されました。
@@ -343,7 +355,9 @@
     <sect3 id="boot">
       <title>ブートローダの変更</title>
 
-      <para></para>
+      <para arch="i386">&new.521;
+        BIOS に問題があるシステムでも、USB CDROM ドライブからの起動で
+        <filename>cdboot</filename> が動作するようになりました。</para>
 
        <!-- Above this line, order bootloader changes by keyword-->
 
@@ -366,6 +380,10 @@
 
       <para>&man.bge.4; にあったバグが修正され、
         10Mbps で正常に動作するようになりました。</para>
+
+      <para arch="sparc64">&new.521; &man.dc.4; ドライバが
+	OpenFirmware に MAC アドレスを格納している
+	Davicom 製のカードに対応しました。</para>
 
       <para>&man.em.4; ドライバが、ドライバを再コンパイルしなくても、
 	割込みの遅延量を sysctl 変数を利用して調整できるようになりました。</para>
@@ -398,6 +416,9 @@
       <para>&man.sk.4; ドライバが SK-9521 V2.0 と 3COM 3C940 ベースの
 	Gigabit Ethernet NIC に対応しました。
         &merged;</para>
+
+      <para>&new.521; &man.sk.4; ドライバのマルチキャストモードおよび
+	プロミスキャスモードに関係するバグが修正されました。</para>
 
       <para>新しく &man.utopia.4; ドライバが追加されました。
 	これは、多くの ATM-PHY チップで使われている
@@ -529,12 +550,26 @@
         </listitem>
       </itemizedlist>
 
-      <para>IPv6 および IPSec のコードおける数多くの修正と更新が、
+      <para>IPv6 および IPsec のコードおける数多くの修正と更新が、
 	KAME プロジェクトから統合されました。</para>
+
+      <para>&new.521; KAME プロジェクトから統合された IPsec
+	の実装に含まれていたバグが修正されました。このバグは、
+	まだ参照されているメモリオブジェクトを開放してしまうもので、
+	セキュリティポリシデータベース (SPD; Security Policy Database)
+	をフラッシュした後に異常な動作をしたり
+	カーネルパニックが発生するという症状を引き起こします。</para>
 
       <para>IPv6 Advanced Sockets API 対応が RFC 2292 ではなく
 	RFC 3542 (別名 RFC 2292bis) に準拠しました。
 	この API を使っているアプリケーションも、それに応じて更新されています。</para>
+
+      <para>&new.521; <literal>PFIL_HOOKS</literal> オプションが
+	<filename>GENERIC</filename> カーネルにおいて
+	デフォルトで有効になりました。
+	これにより、<application>IPFilter</application> が
+	カーネルモジュールとして読み込まれた時にも、正しく動作するように
+	なりました。</para>
 
       <para>RFC 3484 に含まれているソースアドレス選択 (source address selection)
 	機能が追加されました。アドレス選択ポリシの設定には、
@@ -545,6 +580,23 @@
 	以降に発生する同一の送信元アドレス・送信先アドレスの接続において、
 	より適切な初期値を与えることを可能にします。
 	経路表に格納されていた、同じような情報は削除されました。</para>
+
+      <para>&os; の TCP 実装に TCP セグメントのサイズと速度を制限するという形で、
+	ある種の TCP MSS 資源枯渇攻撃に対する対策が追加されました。
+	ひとつ目は TCP セグメントサイズの最大と最小を制限するもので、
+	sysctl 変数 <varname>net.inet.tcp.minmss</varname> (デフォルトは
+	<literal>216</literal>) で制御することができます。
+	ふたつ目は、セグメントの平均サイズが
+	<varname>net.inet.tcp.minmss</varname> より小さい接続の
+	最大通信速度を制限するもので、
+	<varname>net.inet.tcp.minmssoverload</varname>
+	変数で制御することができます。
+	設定されたパケット速度を超える接続は、reset されて切断されます。
+	この機能は &release.base; リリースサイクルの終りごろに追加されたため、
+	デフォルトでは、この接続速度の制限は無効になっていますが、
+	<varname>net.inet.tcp.minmssoverload</varname> に 0 でない
+	値を設定することで、手動で有効にすることができます。</para>
+
    </sect3>
 
     <sect3 id="disks">
@@ -560,6 +612,10 @@
 	自動的に利用できるようになっていましたが、
 	現在は、明示的にカーネルコンフィグファイルに
 	<literal>device ataraid</literal> を追加する必要があります。</para>
+
+      <para>&new.521; &man.ata.4; ドライバにあったバグの数々が修正されました。
+	特に、マスタ/スレーブ接続のデバイス検出が改善され、
+	タイムアウトによる問題などが解決しています。</para>
 
       <para>&man.ccd.4; が raw ディスクおよび、その他の
         &man.geom.4; プロバイダに対して動作するようになりました。</para>
@@ -604,6 +660,9 @@
 	<literal>UDF_ICONV</literal>
 	をカーネルコンフィグファイルに指定してください。</para>
 
+      <para>&new.521; まれに I/O が固まった状態に陥るという GEOM の
+	バグが修正されました。</para>
+
       <para>smbfs が 15 文字の NetBIOS 名で正しく動作するのを阻害していた
 	いくつかの一つ違い (off-by-one) の誤りが修正されました。</para>
 
@@ -640,6 +699,11 @@
 	NFSv4 に対応しました。
 	詳細は、&man.mount.nfs4.8; および
 	&man.idmapd.8; のマニュアルページをご覧ください。</para>
+
+      <para>&new.521; NFSv4 クライアントが NFSv3 のみ、あるいは NFSv2 のみに
+	対応したサーバに NFSv4 操作をおこなおうとした場合にパニックする
+	バグが修正されました。</para>
+
     </sect3>
 
     <sect3 id="mm">
@@ -755,6 +819,12 @@
       すべて <filename>libcrypto</filename>
       を使うように変更されています。</para>
 
+    <para arch="pc98">&new.521; <filename>libdisk</filename> が
+      正しい PC98 ディスクパーティションタイプを使用するようになりました。
+      これにより、&man.sysinstall.8; のディスクパーティションエディタで
+      ディスク全体を使用する単一の &os; パーティションを正しく作成できる
+      ようになりました。</para>
+
     <para>カーネルに読み込み可能な文字集合変換テーブルの操作をおこなう
       <filename>libkiconv</filename> ライブラリが追加されました。</para>
 
@@ -806,6 +876,11 @@
 
     <para>(以前はシェルスクリプトだった) &man.nologin.8; プログラムが
       C 言語で再実装されました。</para>
+
+    <para>&new.521; NSS サポートのバグが修正されました。
+      <filename role="package">net/nss_ldap</filename> などの
+      サードパーティ製 NSS モジュールを使い、大量のメンバリストを含む
+      グループが存在する場合に発生する問題が解決しています。</para>
 
     <para>&man.rc.conf.5; にある、&man.ntpd.8; の起動オプションを設定する変数
       <varname>ntpd_flags</varname> がデフォルトで
@@ -896,9 +971,17 @@
     <para><application>BIND</application> がバージョン 8.3.4
       から、バージョン 8.3.7 に更新されました。&merged;</para>
 
+    <para>&new.521; <application>CVS</application> のバージョン
+      1.11.10 および 1.11.11 から、セキュリティの改善部分が
+      統合されました。具体的には、
+      ある形式で書かれた不正なモジュールのリクエストは拒否されるようになったこと、
+      <command>cvs pserver</command> モードを使用した場合に
+      <username>root</username> による認証は拒否され
+      &man.syslog.3; 経由で記録が残るようになったことが含まれます。</para>
+
     <para><application>GCC</application> が、バージョン 3.2.2
       から、2003 年 11 月 6 日における 3.3.3 の
-      post release snapshot に更新されました。
+      pre release snapshot に更新されました。
 
       <note>
         <para><application>GCC</application> の前のバージョンは、
@@ -970,6 +1053,13 @@
     <para><application>KDE</application> の対応リリースが
       3.1.2 から 3.1.4 に更新されました。
       &merged;</para>
+
+    <para>&new.521; <filename role="package">sysutils/kdeadmin3</filename>
+      port とその package がバージョン 3.1.4_1 に更新されました。
+      この更新では <application>KUser</application> を使うとシステム
+      パスワードファイルから <username>root</username> ユーザが
+      削除されてしまう可能性のあるバグが修正されています。</para>
+
   </sect2>
 
   <sect2 id="doc">

@@ -5,10 +5,13 @@
 
     $FreeBSD$
 
-    Original revision: 1.3
+    Original revision: 1.3.6.1
 -->
 
 <!-- Text constants which probably don't need to be changed.-->
+
+<!-- Notes new to our first point release (hopefully there'll only be one!) -->
+<!ENTITY new.521 "[5.2.1]">
 
 <!-- The marker for MFCs. -->
 <!ENTITY merged "[MFC บั]">
