@@ -33,14 +33,14 @@
  * 
  *	@(#)ipx.c
  *
- * $Id$
+ * $Id: ipx.c,v 1.7 1997/02/22 09:41:51 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/socket.h>

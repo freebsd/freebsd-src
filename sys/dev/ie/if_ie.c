@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ie.c,v 1.39 1997/02/22 09:36:29 peter Exp $
  */
 
 /*
@@ -114,7 +114,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 

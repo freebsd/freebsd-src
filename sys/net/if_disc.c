@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: if_disc.c,v 1.16 1997/02/22 09:40:59 peter Exp $
  */
 
 /*
@@ -45,7 +45,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/time.h>
 
 #include <net/if.h>

@@ -8,7 +8,7 @@
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>

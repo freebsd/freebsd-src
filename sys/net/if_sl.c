@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.50 1997/03/11 19:39:21 bde Exp $
+ * $Id: if_sl.c,v 1.51 1997/03/23 03:37:15 bde Exp $
  */
 
 /*
@@ -77,7 +77,7 @@
 #include <sys/buf.h>
 #include <sys/dkstat.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
