@@ -94,11 +94,14 @@ int setfault(faultbuf);	/* defined in locore.S */
 int badaddr(void *, size_t);
 int badaddr_read(void *, size_t, int *);
 
+extern char	*syscallnames[];
+
 void
 trap(frame)
 	struct trapframe *frame;
 {
 	struct thread *td = PCPU_GET(curthread);
+	struct thread *fputhread;
 	struct proc *p = td->td_proc;
 	int type = frame->exc;
 	int ftype, rv;
@@ -363,24 +366,15 @@ syscall_bad:
 		break;
 
 	case EXC_FPU|EXC_USER:
-#if 0
-		curcpu()->ci_ev_fpu.ev_count++;
-#endif
-#if 0
-		if (fpuproc) {
-			curcpu()->ci_ev_fpusw.ev_count++;
-			save_fpu(fpuproc);
+		if ((fputhread = PCPU_GET(fputhread)) != NULL) {
+			KASSERT(fputhread != td,
+			    ("floating-point already enabled"));
+			save_fpu(fputhread);
 		}
-#endif
-#if defined(MULTIPROCESSOR)
-		if (p->p_addr->u_pcb.pcb_fpcpu)
-			save_fpu_proc(p);
-#endif
-#if 0
-		fpuproc = p;
-		p->p_addr->u_pcb.pcb_fpcpu = curcpu();
-		enable_fpu(p);
-#endif
+		PCPU_SET(fputhread, td);
+		td->td_pcb->pcb_fpcpu = PCPU_GET(cpuid);
+		enable_fpu(td);
+		frame->srr1 |= PSL_FP;
 		break;
 
 #ifdef ALTIVEC
@@ -483,6 +477,7 @@ brain_damage2:
 		panic("trap");
 	}
 
+#if 0
 	/* Take pending signals. */
 	{
 		int sig;
@@ -490,15 +485,15 @@ brain_damage2:
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 	}
+#endif
 
 	/*
 	 * If someone stole the fp or vector unit while we were away,
 	 * disable it
 	 */
-#if 0
-	if (p != fpuproc || p->p_addr->u_pcb.pcb_fpcpu != curcpu())
+	if (td != PCPU_GET(fputhread) ||
+	    td->td_pcb->pcb_fpcpu != PCPU_GET(cpuid))
 		frame->srr1 &= ~PSL_FP;
-#endif
 #ifdef ALTIVEC
 	if (p != vecproc)
 		frame->srr1 &= ~PSL_VEC;
