@@ -199,11 +199,11 @@ struct ng_type {
 
 #define NG_SEND_DATA_RET(error, hook, m, a)				\
 	do {								\
-		struct mbuf *ret_m = NULL;				\
-		meta_p ret_meta = NULL;					\
-		(error) = ng_send_dataq((hook), (m), (a), &ret_m, &ret_meta);\
-		(m) = ret_m;						\
-		(a) = ret_meta;						\
+		struct mbuf *rm = NULL;					\
+		meta_p ra = NULL;					\
+		(error) = ng_send_data((hook), (m), (a), &rm, &ra);	\
+		(m) = rm;						\
+		(a) = ra;						\
 	} while (0)
 
 /* Free metadata */
