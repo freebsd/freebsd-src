@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.85 1997/12/16 00:32:35 brian Exp $
+.\" $Id: ppp.8,v 1.86 1997/12/17 21:21:40 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1985,7 +1985,22 @@ label is assumed.
 .It passwd pass
 Specify the password required for access to the full
 .Nm
-command set.
+command set.  This password is required when connecting to the diagnostic
+port (see the
+.Dq set server
+command).
+.Ar Pass
+may be specified either on the
+.Dq set server
+command line or by putting an entry in
+.Pa /var/log/ppp.secret
+for the local host.  The value of
+.Ar pass
+is not logged when
+.Ar command
+logging is active, instead, the literal string
+.Dq ********
+is logged.
 
 .It quit|bye [all]
 Exit
