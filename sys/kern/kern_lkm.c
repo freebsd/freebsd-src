@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.16 1995/10/04 03:42:39 julian Exp $
+ * $Id: kern_lkm.c,v 1.17 1995/11/06 00:35:50 bde Exp $
  */
 
 /*
@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -80,6 +81,12 @@ static int	lkm_state = LKMS_IDLE;
 
 static struct lkm_table	lkmods[MAXLKMS];	/* table of loaded modules */
 static struct lkm_table	*curp;			/* global for in-progress ops */
+
+static int	_lkm_dev __P((struct lkm_table *lkmtp, int cmd));
+static int	_lkm_exec __P((struct lkm_table *lkmtp, int cmd));
+static int	_lkm_vfs __P((struct lkm_table *lkmtp, int cmd));
+static int	_lkm_syscall __P((struct lkm_table *lkmtp, int cmd));
+static void	lkmunreserve __P((void));
 
 /*ARGSUSED*/
 int
@@ -295,7 +302,9 @@ lkmcioctl(dev, cmd, data, flag, p)
 			return ENXIO;
 		}
 
-		curp->entry = (int (*)()) (*((int *) (data)));
+		/* XXX gack */
+		curp->entry = (int (*) __P((struct lkm_table *, int, int)))
+			      (*((int *)data));
 
 		/* call entry(load)... (assigns "private" portion) */
 		err = (*(curp->entry))(curp, LKM_E_LOAD, LKM_VERSION);
@@ -539,7 +548,8 @@ _lkm_syscall(lkmtp, cmd)
 			 * Search the table looking for a slot...
 			 */
 			for (i = 0; i < aout_sysvec.sv_size; i++)
-				if (aout_sysvec.sv_table[i].sy_call == lkmnosys)
+				if (aout_sysvec.sv_table[i].sy_call ==
+				    (sy_call_t *)lkmnosys)
 					break;		/* found it! */
 			/* out of allocable slots? */
 			if (i == aout_sysvec.sv_size) {
@@ -969,4 +979,13 @@ lkmdispatch(lkmtp, cmd)
 	}
 
 	return(err);
+}
+
+int
+lkm_nullcmd(lkmtp, cmd)
+	struct lkm_table *lkmtp;
+	int cmd;
+{
+
+	return (0);
 }
