@@ -17,6 +17,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* Declare the GNU tar archive format.  */
 #include "tar.h"
 
@@ -152,6 +154,9 @@ GLOBAL int dereference_option;
 /* Patterns that match file names to be excluded.  */
 GLOBAL struct exclude *excluded;
 
+/* Boolean value.  */
+GLOBAL int fast_read_option;
+
 /* Specified file containing names to work on.  */
 GLOBAL const char *files_from_option;
 
@@ -195,6 +200,9 @@ GLOBAL struct mode_change *mode_option;
 
 /* Boolean value.  */
 GLOBAL int multi_volume_option;
+
+/* Boolean value.  */
+GLOBAL int namelist_freed;
 
 /* The same variable hold the time, whether mtime or ctime.  Just fake a
    non-existing option, for making the code clearer, elsewhere.  */

@@ -19,6 +19,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "system.h"
 
 #include <signal.h>
@@ -1540,7 +1542,7 @@ new_volume (enum access_mode access)
 		  child = xfork ();
 		  if (child == 0)
 		    {
-		      execlp (shell, "-sh", "-i", 0);
+		      execlp (shell, "-sh", "-i", (char *) 0);
 		      exec_fatal (shell);
 		    }
 		  else
