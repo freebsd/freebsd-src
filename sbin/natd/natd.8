@@ -31,6 +31,7 @@
 .Op Fl log_denied
 .Op Fl log_facility Ar facility_name
 .Op Fl punch_fw Ar firewall_range
+.Op Fl log_ipfw_denied
 .Ek
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
@@ -461,6 +462,12 @@ rules starting from the rule number
 .Ar basenumber
 will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
+.It Fl log_ipfw_denied
+Log when a packet can not be re-injected because an
+.Xr ipfw 8
+rule blocks it.
+This is the default with
+.Fl verbose .
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
