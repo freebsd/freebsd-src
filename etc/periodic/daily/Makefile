@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/08/12 18:23:26 pst Exp $
+#	$Id: Makefile,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
 
 BIN=    100.clean-disks \
 	110.clean-tmps \
@@ -19,6 +19,7 @@ BIN=    100.clean-disks \
 	430.status-rwho \
 	440.status-mailq \
 	450.status-security \
+	460.status-mail-rejects \
 	999.local
 
 .include <bsd.prog.mk>

@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# $Id$
+#
+if [ -d /etc/mail -a -f /var/log/maillog ]; then
+    echo
+    echo Checking for rejected mail:
+
+    start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+    grep "^$start.*reject=" /var/log/maillog
+fi
