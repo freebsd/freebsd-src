@@ -84,6 +84,8 @@ agp_amd64_match(device_t dev)
 		return ("SiS 755 host to AGP bridge");
 	case 0x02041106:
 		return ("VIA 8380 host to PCI bridge");
+	case 0x02821106:
+		return ("VIA K8T800Pro host to PCI bridge");
 	case 0x31881106:
 		return ("VIA 8385 host to PCI bridge");
 	};
