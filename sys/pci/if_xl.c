@@ -610,8 +610,7 @@ static void xl_miibus_statchg(dev)
 	/* Set ASIC's duplex mode to match the PHY. */
 	XL_SEL_WIN(3);
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
-			(CSR_READ_1(sc, XL_W3_MAC_CTRL) | XL_MACCTRL_DUPLEX));
+		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, XL_MACCTRL_DUPLEX);
 	else
 		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
 			(CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
@@ -994,8 +993,7 @@ static void xl_setmode(sc, media)
 			IFM_SUBTYPE(media) == IFM_100_FX) {
 		printf("full duplex\n");
 		XL_SEL_WIN(3);
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
-			(CSR_READ_1(sc, XL_W3_MAC_CTRL) | XL_MACCTRL_DUPLEX));
+		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, XL_MACCTRL_DUPLEX);
 	} else {
 		printf("half duplex\n");
 		XL_SEL_WIN(3);
@@ -2652,13 +2650,6 @@ static void xl_init(xsc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_START);
 	else
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
-
-	/*
-	 * Allow reception of large packets to make
-	 * people who use 802.1q VLANs happy.
-	 */
-	CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
-		(CSR_READ_1(sc, XL_W3_MAC_CTRL) | XL_MACCTRL_LARGE_PACK));
 
 	/* increase packet size to allow reception of 802.1q or ISL packets */
 	 if (sc->xl_type == XL_TYPE_905B) 
