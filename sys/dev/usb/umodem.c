@@ -83,7 +83,7 @@ struct umodem_softc {
 	uByte	acmCaps;
 };
 
-void umodem_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
+void umodem_intr __P((usbd_xfer_handle, usbd_private_handle, usbd_status));
 void umodem_disco __P((void *));
 
 USB_DECLARE_DRIVER(umodem);
