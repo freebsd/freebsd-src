@@ -54,6 +54,7 @@
 #include <sys/bus.h>
 #include "bus_if.h"
 #endif
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
