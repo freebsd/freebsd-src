@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.18 1994/12/03 10:02:53 bde Exp $
+ *	$Id: cpu.h,v 1.19 1994/12/03 10:18:24 bde Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -54,7 +54,7 @@
 
 #define	cpu_exec(p)	/* nothing */
 #define cpu_swapin(p)	/* nothing */
-#define cpu_setstack(p, ap)		(p)->p_md.md_regs = ap
+#define cpu_setstack(p, ap)		(p)->p_md.md_regs[SP] = ap
 #define cpu_set_init_frame(p, fp)	(p)->p_md.md_regs = fp
 
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
