@@ -67,8 +67,8 @@
 .Op Fl g Ar group
 .Op Fl G Ar grouplist
 .Op Fl k Ar dir
-.Op Fl u Ar min,max
-.Op Fl i Ar min,max
+.Op Fl u Ar min , Ns Ar max
+.Op Fl i Ar min , Ns Ar max
 .Op Fl w Ar method
 .Op Fl s Ar shell
 .Op Fl y Ar path
@@ -207,7 +207,8 @@ in any order.
 (For example,
 .Ar showuser , 
 .Ar usershow , 
-.Ar show user , and
+.Ar show user ,
+and
 .Ar user show
 all mean the same thing.)
 This flexibility is useful for interactive scripts calling
@@ -575,7 +576,10 @@ Set the default
 directory, from which prototype shell and other initialization files are copied when
 .Nm
 creates a user's home directory.
-.It Fl u Ar min,max , Fl i Ar min,max
+.It Xo
+.Fl u Ar min , Ns Ar max ,
+.Fl i Ar min , Ns Ar max
+.Xc
 These options set the minimum and maximum user and group ids allocated for new accounts
 and groups created by
 .Nm .

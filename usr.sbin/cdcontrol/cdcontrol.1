@@ -20,7 +20,6 @@ as
 or
 .Pa mcd0 . 
 .Pp
-
 If no command is given, then
 .Nm
 enters an interactive mode, reading commands from the standard input.
@@ -56,7 +55,11 @@ to track
 .Ar last_track .
 The first track has number 1.
 Can be omitted in all cases.
-.It Cm play Ar start_m:start_s.start_f Op Ar end_m:end_s.end_f
+.It Cm play Xo
+.Ar start_m : Ns Ar start_s . Ns Ar start_f
+.Oo Ar end_m : Ns Ar end_s . Ns
+.Ar end_f Oc
+.Xc
 Play from the absolute address
 (MSF) defined by 
 .Ar start_m
@@ -145,12 +148,17 @@ Quit the program.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width CDROM
+.Pp
+.Bl -tag -width CD_DRIVE -compact
 .It Ev CDROM
 The cd device to use if one isn't specified with the
 .Fl f
 flag.
-.It Ev CD_DRIVE Ev CDPLAY Ev DISC Ev MUSIC_CD
+.Pp
+.It Ev CDPLAY
+.It Ev CD_DRIVE
+.It Ev DISC
+.It Ev MUSIC_CD
 These variables have been deprecated in favour of
 .Ev CDROM .
 .El

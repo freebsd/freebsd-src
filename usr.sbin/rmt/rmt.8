@@ -61,7 +61,7 @@ a status indication.  All responses are in
 and in
 one of two forms. 
 Successful commands have responses of:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Sm off
 .Sy A Ar number No \en
 .Sm on
@@ -72,7 +72,7 @@ is an
 .Tn ASCII
 representation of a decimal number.
 Unsuccessful commands are responded to with:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Sm off
 .Xo Sy E Ar error-number
 .No \en Ar error-message
@@ -100,6 +100,7 @@ indicates that a newline should be supplied:
 .It Xo Sy \&O Ar device
 .No \en Ar mode No \en
 .Xc
+.Sm on
 Open the specified 
 .Ar device
 using the indicated
@@ -114,11 +115,14 @@ number suitable for passing to
 .Xr open 2 .
 If a device had already been opened, it is
 closed before a new open is performed.
+.Sm off
 .It Xo Sy C Ar device No \en
 .Xc
+.Sm on
 Close the currently open device.  The
 .Ar device
 specified is ignored.
+.Sm off
 .It Xo Sy L
 .Ar whence No \en
 .Ar offset No \en
@@ -195,7 +199,6 @@ an ``ack'' is sent with the size of the
 status buffer, then the status buffer is
 sent (in binary).
 .El
-.Sm on
 .Pp
 Any other command causes 
 .Nm

@@ -37,7 +37,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c Ar configfile
-.Op Fl d Op debug_level Op ,debug_level
+.Oo
+.Fl d
+.Sm off
+.Op Ar debug_level Op , Ar ...
+.Sm on
+.Oc
 .Op Fl f
 .Sh DESCRIPTION
 .Nm Pim6sd
@@ -61,15 +66,21 @@ all debug messages will be printed out.
 A subset of the messages to be printed out can be specified
 as arguments of the option.
 Valid debug levels are
-.Ic mld_proto, mld_timer, mld_member, mld, switch, trace, mtrace, traceroute,
-.Ic timeout, callout, pkt, packets, interfaces, vif, kernel, cache, mfc,
-.Ic k_cache, k_mfc, rsrr, pim_detail, pim_hello, pim_neighbors, pim_register,
-.Ic registers, pim_join_prune, pim_j_p, pim_jp, pim_bootstrap, pim_bsr, bsr,
-.Ic bootstrap, pim_asserts, pim_cand_rp, pim_c_rp, pim_rp, rp, pim_routes,
-.Ic pim_routing, pim_mrt, pim_timers, pim_rpf, rpf, pim, routes, routing,
-.Ic mrt, routers, mrouters, neighbors, timers,
+.Ic mld_proto , mld_timer , mld_member , mld ,
+.Ic switch , trace , mtrace , traceroute ,
+.Ic timeout , callout , pkt , packets ,
+.Ic interfaces , vif , kernel , cache ,
+.Ic mfc , k_cache , k_mfc , rsrr ,
+.Ic pim_detail , pim_hello , pim_neighbors , pim_register ,
+.Ic registers , pim_join_prune , pim_j_p , pim_jp ,
+.Ic pim_bootstrap , pim_bsr , bsr , bootstrap ,
+.Ic pim_asserts , pim_cand_rp , pim_c_rp , pim_rp ,
+.Ic rp , pim_routes , pim_routing , pim_mrt ,
+.Ic pim_timers , pim_rpf , rpf , pim ,
+.Ic routes , routing , mrt , routers ,
+.Ic mrouters , neighbors , timers ,
 and
-.Ic asserts.
+.Ic asserts .
 .It Fl f
 Do not become daemon, run in foreground. This option is for debugging
 use.
@@ -108,7 +119,7 @@ reset its debug level.
 The
 .Nm
 program puts its logs to a separate file
-.Pa Pq /var/log/pim6sd.log .
+.Pq Pa /var/log/pim6sd.log .
 The log level can be configured by the
 .Fl d
 command line option or the configuration file.
