@@ -125,20 +125,20 @@ FreeBSD 3.0                  |    v            |             |
  |   FreeBSD 3.4             |    |            |             |
  |           |               |    |            |           BSD/OS 4.1
 FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
- |           |               |    |            |             v
- |           |               |    |            |
- |   FreeBSD 3.5             |    |        OpenBSD 2.7
- |           |               |    |            |
- |   FreeBSD 3.5.1           |    |            |
- |                           |    |            |
- *---FreeBSD 4.1             |    |            |
- |      |                    |    |            |
- |   FreeBSD 4.1.1           |    |            |
- |      |                    |    |            |
- |   FreeBSD 4.2             | NetBSD 1.4.3    |
- |      |                    |             OpenBSD 2.8
- |      v                 NetBSD 1.5           |
- |                           |                 |
+ |           |               |    |            |             |
+ |           |               |    |            |             |
+ |   FreeBSD 3.5             |    |        OpenBSD 2.7       |
+ |           |               |    |            |             |
+ |   FreeBSD 3.5.1           |    |            |             |
+ |                           |    |            |             |
+ *---FreeBSD 4.1             |    |            |             |
+ |      |                    |    |            |             |
+ |   FreeBSD 4.1.1           |    |            |             |
+ |      |                    |    |            |             |
+ |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
+ |      |                    |             OpenBSD 2.8     BSD/OS 4.2
+ |      v                 NetBSD 1.5           |             |
+ |                           |                 |             v
  |                           |                 |
 FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
  |                           |                 |
@@ -322,6 +322,7 @@ FreeBSD 3.5.1		2000-07-28 [FBD]
 FreeBSD 4.1.1		2000-09-25 [FBD] (a network-only patch release)
 FreeBSD 4.2  		2000-11-21 [FBD]
 NetBSD 1.4.3		2000-11-25 [NBD] (patch release)
+BSD/OS 4.2		2000-11-29 [BSDI]
 OpenBSD 2.8		2000-12-01 [OBD]
 NetBSD 1.5              2000-12-06 [NBD]
 
