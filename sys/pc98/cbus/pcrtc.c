@@ -637,23 +637,30 @@ int
 rtcin(reg)
 	int reg;
 {
+	int s;
 	u_char val;
 
+	s = splhigh();
 	outb(IO_RTC, reg);
 	inb(0x84);
 	val = inb(IO_RTC + 1);
 	inb(0x84);
+	splx(s);
 	return (val);
 }
 
 static __inline void
 writertc(u_char reg, u_char val)
 {
+	int s;
+
+	s = splhigh();
 	inb(0x84);
 	outb(IO_RTC, reg);
 	inb(0x84);
 	outb(IO_RTC + 1, val);
 	inb(0x84);		/* XXX work around wrong order in rtcin() */
+	splx(s);
 }
 
 static __inline int
@@ -1134,7 +1141,11 @@ inittodr(time_t base)
 
 	/* wait for time update to complete */
 	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP);
+	s = splhigh();
+	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
+		splx(s);
+		s = splhigh();
+	}
 
 	days = 0;
 #ifdef USE_RTC_CENTURY
@@ -1144,8 +1155,10 @@ inittodr(time_t base)
 	if (year < 1970)
 		year += 100;
 #endif
-	if (year < 1970)
+	if (year < 1970) {
+		splx(s);
 		goto wrong_time;
+	}
 	month = readrtc(RTC_MONTH);
 	for (m = 1; m < month; m++)
 		days += daysinmonth[m-1];
@@ -1168,12 +1181,11 @@ inittodr(time_t base)
 	y = time_second - sec;
 	if (y <= -2 || y >= 2) {
 		/* badly off, adjust it */
-		s = splclock();
 		ts.tv_sec = sec;
 		ts.tv_nsec = 0;
 		set_timecounter(&ts);
-		splx(s);
 	}
+	splx(s);
 	return;
 
 wrong_time:
