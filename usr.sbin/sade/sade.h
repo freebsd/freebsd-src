@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.91 1996/12/11 09:35:05 jkh Exp $
+ * $Id: sysinstall.h,v 1.92 1996/12/11 18:23:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,8 +179,8 @@ typedef struct _variable {
 #define MAX_VALUE	256
 
 typedef struct _attribs {
-    char *name;
-    char *value;
+    char name[MAX_NAME];
+    char value[MAX_VALUE];
 } Attribs;
 
 typedef enum {
@@ -211,7 +211,6 @@ typedef struct _device {
     Boolean enabled;
     Boolean (*init)(struct _device *dev);
     FILE * (*get)(struct _device *dev, char *file, Boolean probe);
-    Boolean (*close)(struct _device *dev, FILE *fp);
     void (*shutdown)(struct _device *dev);
     void *private;
     unsigned int flags;
@@ -355,7 +354,6 @@ extern int	configAnonFTP(dialogMenuItem *self);
 extern char	*attr_match(Attribs *attr, char *name);
 extern int	attr_parse_file(Attribs *attr, char *file);
 extern int	attr_parse(Attribs *attr, FILE *fp);
-extern void	attr_free(Attribs *attr);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);

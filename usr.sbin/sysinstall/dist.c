@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.81 1996/12/11 09:34:57 jkh Exp $
+ * $Id: dist.c,v 1.82 1996/12/11 18:23:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -389,7 +389,7 @@ distExtract(char *parent, Distribution *me)
 	if (fp > 0) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
-	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (DITEM_STATUS(attr_parse(dist_attr, fp)) == DITEM_FAILURE)
 		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
@@ -400,7 +400,6 @@ distExtract(char *parent, Distribution *me)
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
-	    attr_free(dist_attr);
 	    fclose(fp);
 	    if (!numchunks)
 		continue;
