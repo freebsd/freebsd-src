@@ -193,6 +193,12 @@
 	could cause erratic behavior or kernel panics after flushing
 	the Security Policy Database (SPD).</para>
 
+      <para>The <literal>PFIL_HOOKS</literal> option is now enabled by
+	default in the <filename>GENERIC</filename> kernel.  The most
+	notable effect of this change is to make
+	<application>IPFilter</application> work correctly when loaded
+	as a kernel module.</para>
+
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
 	congestion window sizes), TCP bandwidth-delay product
