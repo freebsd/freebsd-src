@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.70 1999/07/08 06:05:56 mckusick Exp $
+ * $Id: vfs_vnops.c,v 1.71 1999/07/26 06:25:18 alc Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
+#include <sys/buf.h>
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 
@@ -563,6 +564,7 @@ vn_closefile(fp, p)
 	struct proc *p;
 {
 
+	fp->f_ops = &badfileops;
 	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
 		fp->f_cred, p));
 }
