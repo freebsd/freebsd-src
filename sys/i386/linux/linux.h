@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.21 1998/08/31 06:55:02 jkh Exp $
+ *	$Id: linux.h,v 1.22 1998/09/30 01:42:53 jfieber Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -124,7 +124,7 @@ struct trapframe;
 #define LINUX_SIGTRAP		 5
 #define LINUX_SIGABRT		 6
 #define LINUX_SIGIOT		 6
-#define LINUX_SIGUNUSED	 	 7
+#define LINUX_SIGBUS		 7
 #define LINUX_SIGFPE		 8
 #define LINUX_SIGKILL		 9
 #define LINUX_SIGUSR1		10
@@ -140,17 +140,16 @@ struct trapframe;
 #define LINUX_SIGTSTP		20
 #define LINUX_SIGTTIN		21
 #define LINUX_SIGTTOU		22
-#define LINUX_SIGIO		23
-#define LINUX_SIGPOLL		LINUX_SIGIO
-#define LINUX_SIGURG		LINUX_SIGIO
+#define LINUX_SIGURG		23
 #define LINUX_SIGXCPU		24
 #define LINUX_SIGXFSZ		25
 #define LINUX_SIGVTALRM		26
 #define LINUX_SIGPROF		27
 #define LINUX_SIGWINCH		28
-#define LINUX_SIGLOST		29
+#define LINUX_SIGIO		29
+#define LINUX_SIGPOLL		LINUX_SIGIO
 #define LINUX_SIGPWR		30
-#define LINUX_SIGBUS		LINUX_SIGUNUSED
+#define LINUX_SIGUNUSED		31
 #define LINUX_NSIG		32
 
 /* sigaction flags */
