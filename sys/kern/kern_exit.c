@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.65 1998/01/22 17:29:45 dyson Exp $
+ * $Id: kern_exit.c,v 1.66 1998/04/06 08:26:03 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -248,12 +248,6 @@ exit1(p, rv)
 		sp->s_leader = NULL;
 	}
 	fixjobc(p, p->p_pgrp, 0);
-	if (p->p_limit->p_refcnt > 1 &&
-	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
-		p->p_limit->p_refcnt--;
-		p->p_limit = limcopy(p->p_limit);
-	}
-	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	(void)acct_process(p);
 #ifdef KTRACE
 	/*
