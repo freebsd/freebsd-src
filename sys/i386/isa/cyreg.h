@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: cyreg.h,v 1.1 1995/07/05 12:15:51 bde Exp $
  */
 
 /*
@@ -40,7 +40,7 @@
 #define	CY16_RESET		0x1400
 #define	CY_CLEAR_INTR		0x1800	/* intr ack address */
 
-#define	CY_MAX_CD1400s		4	/* for Cyclom-16Y */
+#define	CY_MAX_CD1400s		8	/* for Cyclom-32Y */
 
 #define	CY_CLOCK		25000000	/* baud rate clock */
 
