@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.5 1998/12/14 10:31:58 hm Exp $ 
+ *	$Id: i4b_tel_ioctl.h,v 1.7 1999/02/16 10:40:18 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:37:36 1998]
+ *      last edit-date: [Sun Feb 14 10:39:19 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,6 +40,7 @@
 
 #define CVT_NONE	0		/* no format conversion	*/
 #define CVT_ALAW2ULAW	1		/* kernel A-law, userland mu-law */
+#define CVT_ALAW_CANON	2		/* kernel A-law, userland canonical A-law */
       
 /*---------------------------------------------------------------------------*
  *	get / set audio format 

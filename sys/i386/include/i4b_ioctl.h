@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.58 1998/12/22 19:48:24 hm Exp $ 
+ *	$Id: i4b_ioctl.h,v 1.69 1999/03/01 09:04:15 hm Exp $ 
  *
- *      last edit-date: [Tue Dec 22 20:33:46 1998]
+ *      last edit-date: [Mon Mar  1 10:01:15 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,8 +46,8 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		70		/* release number	*/
-#define STEP		00		/* release step		*/
+#define	REL		71		/* release number	*/
+#define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -99,6 +99,7 @@
 #define	CARD_TYPEP_ELSAMLIMC	16	/* ELSA MicroLink ISDN/MC	*/
 #define	CARD_TYPEP_ELSAMLMCALL	17	/* ELSA MicroLink MCall		*/
 #define	CARD_TYPEP_ITKIX1	18	/* ITK ix1 micro 		*/
+#define CARD_TYPEP_AVMA1PCI	19	/* AVM FRITZ!CARD PCI		*/
 
 /*
  * in case you add support for more cards, please update:
@@ -109,7 +110,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		18	/* max type */
+#define CARD_TYPEP_MAX		19	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -147,6 +148,7 @@
 #define BDRV_TEL	1       /* telephone (speech) interface driver  */
 #define BDRV_IPR	2       /* IP over raw HDLC interface driver    */
 #define BDRV_ISPPP	3       /* sync Kernel PPP interface driver     */
+#define BDRV_IBC	4       /* BSD/OS point to point driver		*/
 
 /*---------------------------------------------------------------------------*
  * B channel protocol
@@ -165,7 +167,25 @@ typedef	unsigned int cause_t;		/* 32 bit unsigned int	*/
 #define CDID_UNUSED	0	/* cdid is invalid and unused		*/
 #define CDID_MAX	99999	/* highest valid cdid, wraparound to 1	*/
 
+/*---------------------------------------------------------------------------*
+ *	The shorthold algorithm to use
+ *---------------------------------------------------------------------------*/
+typedef enum msg_shorthold_algorithm {
+	msg_alg__fix_unit_size,	/* timeout algorithm for fix unit charging */
+	msg_alg__var_unit_size	/* timeout algorithm for variable unit charging */
+} msg_shorthold_algorithm_t;
  
+/*---------------------------------------------------------------------------*
+ *	The shorthold data struct
+ *---------------------------------------------------------------------------*/
+typedef struct {
+	msg_shorthold_algorithm_t shorthold_algorithm;	/* shorthold algorithm to use */
+	int	unitlen_time;	/* length of a charging unit		*/
+	int	idle_time;	/* time without activity on b ch	*/
+	int	earlyhup_time;	/* safety area at end of unit		*/
+} msg_shorthold_t;
+
+
 /****************************************************************************
 
 	outgoing call:
@@ -432,7 +452,6 @@ typedef struct {
  *	"ioctl" messages from userland -> kernel
  *===========================================================================* 
  *===========================================================================*/
- 
 
 /*---------------------------------------------------------------------------*
  *	request a unique cdid (to setup an outgoing call)
@@ -455,9 +474,7 @@ typedef struct {
 	int		bprot;		/* b channel protocol		     */
 	int		driver;		/* driver to route b channel data to */
 	int		driver_unit;	/*      unit number for above driver */
-	int		unitlen_time;	/* length of a charging unit	     */
-	int		idle_time;	/* time without activity on b ch     */
-	int		earlyhup_time;	/* safety area at end of unit	     */
+	msg_shorthold_t	shorthold_data;	/* the shorthold data		     */
 	int		unitlen_method;	/* how to calculate the unitlength   */
 #define  ULEN_METHOD_STATIC  0	/* use unitlen_time value (see above) */
 #define  ULEN_METHOD_DYNAMIC 1	/* use AOCD */	
@@ -533,9 +550,7 @@ typedef struct {
  *---------------------------------------------------------------------------*/
 typedef struct {
 	int	cdid;		/* call descriptor id			*/
-	int	unitlen_time;	/* length of a charging unit		*/
-	int	idle_time;	/* time without activity on b ch	*/
-	int	earlyhup_time;	/* safety area at end of unit		*/
+	msg_shorthold_t	shorthold_data;
 } msg_timeout_upd_t;
 	
 #define	I4B_TIMEOUT_UPD		_IOW('4', 6, msg_timeout_upd_t)
