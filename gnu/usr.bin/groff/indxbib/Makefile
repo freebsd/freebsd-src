@@ -9,13 +9,9 @@ DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBM}
 MANDEPEND=	indxbib.1
 CLEANFILES+=	${MANDEPEND}
 
-# Ugh - I can't grab /usr/share from ../../../share/Makefile.inc
-# since I've already grabbed a BINDIR file for installing indxbib.
-# Sigh... Hardcode it.  	- jkh
-#
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${DIST_DIR}/eign ${DESTDIR}${SHAREDIR}/dict
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${DIST_DIR}/eign ${DESTDIR}${SHAREDIR}/dict/
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
