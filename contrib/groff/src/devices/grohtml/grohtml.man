@@ -1,4 +1,4 @@
-.ig \"-*- nroff -*-
+.ig
 Copyright (C) 1999-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of this
@@ -37,8 +37,10 @@ grohtml \- html driver for groff
 .el .RB "[\ " "\\$1" "\ ]"
 ..
 .OP \-v?lrn
+.OP \-D dir
 .OP \-F dir
 .OP \-i resolution
+.OP \-I image stem
 .OP \-o image vertical offset
 .RI "[\ " files\|.\|.\|. "\ ]"
 .br
@@ -88,8 +90,9 @@ Turns off the automatic header and footer line (html rule).
 .TP
 .B -n
 Generate simple heading anchors whenever a section/number heading is found.
-Without the option the anchor value is the textual heading. This can cause problems
-when a heading contains a `?' on some brousers (netscape).
+Without the option the anchor value is the textual heading.
+This can cause problems when a heading contains a `?' on some brousers
+(netscape).
 This flag is automatically turned on if a heading contains an image.
 .TP
 .BI \-F dir
@@ -101,9 +104,22 @@ is the name of the device, usually
 .BR html .
 .TP
 .BI \-i resolution
-select the resolution for all images.
+Select the resolution for all images.
 By default this is 80 pixels per inch.
 Example: -i100 indicates 100 pixels per inch.
+.TP
+.BI \-I stem
+Determine the image stem name.
+If omitted grohtml uses
+.BI grohtml- XXX
+.RI ( XXX
+is the process ID).
+.TP
+.BI \-D dir
+Inform
+.B grohtml
+to place all image files into directory
+.IR dir .
 .TP
 .B \-v
 Print the version number.
@@ -120,7 +136,10 @@ and
 mounted at font positions 1 to 4.
 .SH DEPENDENCIES
 .B grohtml
-is dependent upon the png utilities and gs.
+is dependent upon the png utilities
+.RB ( \&\%pnmcut ,\  \%pnmtopng )
+and GhostScript
+.RB ( gs ).
 Images are generated whenever a table, picture, equation or line is
 encountered.
 .SH BUGS
@@ -135,3 +154,7 @@ It is still alpha code.
 .BR groff_out (@MAN5EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

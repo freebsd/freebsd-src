@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -65,7 +65,7 @@ int over_box::compute_metrics(int style)
     set_script_size();
     printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
   }
-  int mark_uid;
+  int mark_uid = 0;
   int res = num->compute_metrics(style);
   if (res)
     mark_uid = num->uid;

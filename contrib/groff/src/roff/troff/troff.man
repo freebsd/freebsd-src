@@ -1,4 +1,4 @@
-.ig \"-*- nroff -*-
+.ig
 Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
@@ -739,6 +739,12 @@ requests only create a new object if the name of the macro, diversion
 or string diversion is currently undefined or if it is defined to be a
 request; normally they modify the value of an existing object.
 .TP
+.BI .am1\  xx\ yy
+Similar to
+.BR .am , 
+but compatibility mode is switched off during execution.
+On entry, the current compatibility mode is saved and restored at exit.
+.TP
 .BI .asciify\  xx
 This request `unformats' the diversion
 .I xx
@@ -809,6 +815,10 @@ requests.
 Be sure not to confuse this with the
 .B br
 request.
+.TP
+.B .brp
+This is the same as
+.BR \ep .
 .TP
 .BI .cflags\  n\ c1\ c2\|.\|.\|.
 Characters
@@ -965,6 +975,12 @@ is equivalent to
 .B
 \&.de aa bb
 .RE
+.TP
+.BI .de1\  xx\ yy
+Similar to
+.BR .de , 
+but compatibility mode is switched off during execution.
+On entry, the current compatibility mode is saved and restored at exit.
 .TP
 .BI .do\  xxx
 Interpret
@@ -1709,8 +1725,7 @@ one twelfth of the spacewidth parameter for the current font.
 Initially both the word space size and the sentence
 space size are 12.
 Contrary to UNIX troff, GNU troff handles this request in nroff mode
-also (if not in compatibility mode); a given value is then rounded down
-to the nearest multiple of\~12.
+also; a given value is then rounded down to the nearest multiple of\~12.
 The sentence space size is used in two circumstances:
 if the end of a sentence occurs at the end of a line in fill mode, then
 both an inter-word space and a sentence space will be added;
@@ -1856,6 +1871,12 @@ request that caused a trap to be sprung.
 Useful in conjunction with the
 .B \en[.trunc]
 register.
+.TP
+.B \en[.ns]
+.B 1
+if no-space mode is active,
+.B 0
+otherwise.
 .TP
 .B \en[.pn]
 The number of the next page:
@@ -2445,6 +2466,10 @@ necessary.
 .SH "SEE ALSO"
 .
 .
+.BR groff (@MAN7EXT@)
+-- This is a short but complete reference of all requests, registers, and
+escapes.
+.PP
 .BR groff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
@@ -2460,3 +2485,7 @@ necessary.
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1515,7 +1515,7 @@ macro generates text for use in the
 .Sx RETURN VALUES
 section.
 .Pp
-.Dl Usage: .Rv Oo -std Oc Ao function Ac ...
+.Dl Usage: .Rv Oo -std Oc Ao function Ac
 .Pp
 For example,
 .Ql ".Rv -std atexit"
@@ -1524,7 +1524,7 @@ produces:
 .Bd -ragged -offset -indent
 \# a small hack to suppress a warning message
 .ds section-old "\*[section]
-.ds section 2
+.ds section 3
 .Rv -std atexit
 .ds section "\*[section-old]
 .Ed
@@ -3945,3 +3945,7 @@ and certainly should be able to.
 .\" .Xr nroff
 .\" the right margin adjustment is normally ragged and the problem is
 .\" not as severe.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

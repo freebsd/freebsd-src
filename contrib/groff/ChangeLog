@@ -1,3 +1,449 @@
+2001-07-07  Werner LEMBERG  <wl@gnu.org>
+
+	* src/utils/indxbib/indxbib.cc (main): Change type of `name_max'
+	to size_t.
+
+2001-07-06  Ruslan Ermilov  <ru@FreeBSD.org>
+
+	* tmac/doc.tmac (Rv): Make `Rv' really not parseable.
+	Fix synopsis.
+	* tmac/groff_mdoc.man: Fix synopsis.
+
+2001-07-05  Ruslan Ermilov  <ru@FreeBSD.org>
+
+	* tmac/doc.tmac (doc-inset-list, doc-hang-list, doc-ohang-list):
+	Restore `doc-Pa-font'.
+
+2001-07-04  Werner LEMBERG  <wl@gnu.org>
+
+	* src/utils/indxbib/dirnamemax.c: Moved to ...
+	* src/libs/libgroff/maxfilename.cc: Here.
+	s/dir_name_max/file_name_max/.
+	Add copyright.
+	* src/include/lib.h: Add file_name_max.
+	* src/utils/indxbib/indxbib.cc: Updated.
+	* src/utils/indxbib/Makefile.sub, src/libs/libgroff/Makefile.sub:
+	Updated.
+
+	* src/libs/libgroff/tmpfile.cc (TMPFILE_PREFIX) [__MSDOS__]: Define
+	as empty.
+	(xtmpfile) [_MSC_VER]: Removed -- MSVC has mktemp().
+
+	* src/preproc/html/pre-html.cc (PAGE_TEMPLATE, PS_TEMPLATE,
+	REGION_TEMPLATE): New macros.
+	(createAllPages, makeTempFiles): Use them.
+	Include `nonposix.h'.
+	(html_system): New function.
+	(createAllPages, createImage): Use it.
+	Use EXE_EXT.
+
+	* tmac/www.tmac: Fix typos.
+
+2001-07-03  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/www.tmac: Disable hyphenation in normal text only if output
+	device is html.
+	(URL, FTP, MAILTO): Disable hyphenation of actual URL with `\%'.
+	* tmac/groff_mwww.man, NEWS: Updated.
+
+2001-07-03  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* tmac/www.tmac (.IMAGE): Add fourth parameter to specify vertical
+	image location.
+
+2001-07-02  Ruslan Ermilov  <ru@FreeBSD.org>
+
+	* tmac/doc-common, tmac/doc.tmac (doc-display-ft-stack,
+	doc-display-ps-stack): Implement font and font size stack for
+	displays.
+
+2001-07-02  Werner LEMBERG  <wl@gnu.org>
+
+	* REVISION: Increased to 2.
+	* src/roff/troff/input.cc (read_size): Fix special case `\s[0]'.
+
+	* src/groff/grog/grog.pl (process): Handle `Oo' and `Oc' not at the
+	beginning of a line.
+	* src/groff/grog/grog.sh: Ditto.
+
+2001-06-29  Peter Marquardt  <wwwutz@molgen.mpg.de>
+
+	* src/preproc/eqn/neqn.sh: Put `export' keyword in a new line to
+	make it portable.
+
+2001-06-27  Werner LEMBERG  <wl@gnu.org>
+
+	Fix problems with preprocessor string for `man' program.
+
+	* *.man: Don't use `s' in preprocessor string --  it doesn't exist.
+	Updated/added copyright.
+	Moved Emacs's local variable to identify nroff mode to the end of
+	the file; add local variable if missing.
+
+2001-06-26  Andras Salamon  <andras@cs.wits.ac.za>
+
+	* aclocal.m4: Replace AC_LANG_SAVE + AC_LANG_CPLUSPLUS with
+	AC_LANG_PUSH(C++) and AC_LANG_RESTORE with AC_LANG_POP(C++).
+	* configure: Regenerated.
+
+2001-06-25  Andras Salamon  <andras@cs.wits.ac.za>
+
+	* aclocal.m4 (GROFF_PAGE): Fix page detection code.
+	* configure: Regenerated.
+
+2001-06-24  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/homepage.ms: Don't include arkup.tmac (which no longer exists)
+	but www.tmac.
+	* doc/pic.ms: Fix typos.
+
+Version 1.17.1 released
+=======================
+
+2001-06-21  Golubev I. N.  <gin@mo.msk.ru>
+
+	* aclocal.m4 (GROFF_NEED_DECLARATION): Fix inclusion of strings.h.
+	* configure: Updated.
+
+2001-06-20  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* src/roff/preproc/html/pre-html.cc (make_message): Fix incorrect
+	image names.
+	* src/roff/troff/dic.cc (blank_line): Add html tag.
+
+2001-06-19  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* src/roff/troff/input.cc (do_suppress): Fix typo.
+
+2001-06-18  Gaius Mulley  <gaius@glam.ac.uk>
+
+	Added two new options (-D and -I) to specify image names and a
+	subdirectory to place the images in.
+
+	Change syntax from \\Ox to \\O[x].
+
+	* src/devices/grohtml/post-html.cc (main): Add options.
+	(usage): Updated.
+	* src/preproc/html/pre-html.cc: Include `stdarg.h'.
+	Use `NULL' instead of `0' for null string pointers.
+	(MAX_RETRIES): New macro.
+	(lengthOfintToStr, intToStr, make_message): New functions.
+	(makeFileName): Make function static.
+	Implement -D and -I options.
+	(checkImageDir): New function.
+	(write_end_image, write_start_image): Use new syntax of \O.
+	(createAllPages, removeAllPages): Implement -D and -I options.  Use
+	make_message().
+	(createImage): Use make_message().
+	(addps4html): Add guard for malloc().
+	(usage, scanArguments): Updated.
+	(makeTempFiles): Use mkstemp().
+	(removeTempFiles): Use unlink().
+	(findPrefix): Add guard for malloc().
+	(main): Updated.
+	* src/roff/troff/input.cc (get_delim_file_name): New function to
+	parse \O.
+	(do_suppress): Updated to parse new syntax.
+	* src/devices/grohtml/grohtml.man: Updated.
+	* tmac/www.tmac: Updated to new syntax.
+
+	* NEWS: Updated.
+
+2001-06-15  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/grog/Makefile.sub: Remove NAMEPREFIX.
+
+	* src/devices/grohtml/grohtml.man: Minor improvements.
+
+2001-06-14  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/html/Makefile.sub: Remove NAMEPREFIX.
+
+2001-06-11  Werner LEMBERG  <wl@gnu.org>
+
+	* man/roff.man, mann/groff.man: Use '\" instead of .\" in the first
+	line to specify preprocessor options -- mandb 2.3.1 only recognizes
+	the former.
+	* src/preproc/grn/grn.man: Add proper '\" string.
+
+2001-06-11  OKAZAKI Tetsurou  <okazaki@be.to>
+
+	* test-groff: Don't use PATH but GROFF_BIN_PATH.
+
+2001-06-08  Werner LEMBERG  <wl@gnu.org>
+
+	Updated to autoconf 2.50.
+
+	* configure.in: Renamed to...
+	* configure.ac: This.
+	* aclocal.m4 (AC_OUTPUT_MAKE_DEFS): Removed.
+	(GROFF_OS390): Updated.
+	* configure: Regenerated.
+
+2001-05-18  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/env.c, src/roff/troff/env.h,
+	src/roff/troff/input.cc, src/roff/troff/troff.man: Undo `ss' change
+	from 2000-12-21.
+
+2001-05-17  Jeffrey Friedl  <jfriedl@yahoo-inc.com>
+
+	* src/roff/troff/input.cc (read_size): Fix special case `\s0'.
+
+2001-05-16  Bruce Lilly  <blilly@erols.com>
+
+	* contrib/mm/m.tmac (TH): Fix incorrect error message.
+
+2001-05-16  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/input.cc (read_size): Emit warning if value becomes
+	less than or equal zero; set it to 1 then.
+	* src/roff/troff/node.h (node::node): Initialize `last'.
+
+2001-05-08  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/an-old.tmac: Make predefined strings work in compatibility
+	mode.
+	Add troff version guard.
+	* tmac/doc.tmac: Simplify version guard.
+
+2001-05-07  Werner LEMBERG  <wl@gnu.org>
+
+	The .ns and .rs requests are now honoured not only in the top-level
+	but in all diversions (similar to UNIX troff).
+
+	This change is based on a patch from Tadziu Hoffmann
+	<hoffmann@usm.uni-muenchen.de>.
+
+	* src/roff/troff/div.h (diversion): Add `no_space_mode' member.
+	(top_level_diversion): Remove `no_space_mode' member.
+	* src/roff/troff/div.cc (diversion::diversion,
+	top_level_diversion::top_level_diversion): Updated.
+	(macro_diversion::output): Reset `no_space_mode'.
+	(no_space, restore_spacing): Use `curdiv' unconditionally.
+	(space_request, blank_line): Check `curdiv->no_space_mode'.
+	(no_space_mode_reg::get_value, no_space_mode_reg::get_string): Use
+	`curdiv' unconditionally.
+	* NEWS, src/roff/troff/troff.man, man/groff.man, doc/groff.texinfo:
+	Updated.
+
+2001-05-06  Werner LEMBERG  <wl@gnu.org>
+
+	Added two new requests `de1' and `am1' which are similar to `de' and
+	`am' with the difference that compatibility mode is saved on entry,
+	switched off during macro execution, and restored on exit.
+
+	* src/roff/troff/input.h: Added two new special characters
+	(COMPATIBLE_SAVE, COMPATIBLE_RESTORE).
+	* src/roff/troff/input.cc (input_iterator): Added two member
+	functions `save_compatible_flag' and `get_compatible_flag'.
+	(input_stack): Ditto.
+	(string_iterator): Ditto.  Also add private member
+	`saved_compatible_flag'.
+	(token::next): Use COMPATIBLE_SAVE and COMPATIBLE_RESTORE.
+	(calling_mode): New enumeration.
+	(do_define_macro): Use it.  Insert COMPATIBLE_SAVE and
+	COMPATIBLE_RESTORE at the beginning and end of macro, respectively.
+	(define_macro, define_indirect_macro, append_macro, ignore): Use
+	`calling_mode'.
+	(define_nocomp_macro, append_nocomp_macro): New functions.
+	(init_input_requests): Updated.
+	(do_request): Rename local variable `saved_compatible_flag' to
+	`old_compatible_flag'.
+	* NEWS, src/roff/troff/troff.man, man/groff.man: Document it.
+
+	* tmac/an-old.tmac: Use `de1' instead of `de' request for all
+	public and trap-invoked macros.  As a consequence, the man macros
+	work in compatibility mode also.
+
+2001-05-06  Solar Designer  <solar@openwall.com>
+
+	* Makefile.in: Use $(mandir).
+
+2001-05-06  Alexios Zavras  <zvr@pobox.com>
+
+	* src/utils/afmtodit/afmtodit.pl: Fix serious typo.
+
+2001-05-05  Werner LEMBERG  <wl@gnu.org>
+
+	Added `.ns' number register: Returns 1 in no-space mode (if in
+	top-level diversion), 0 otherwise.
+
+	* src/roff/troff/div.cc (no_space_mode_reg): New class.
+	(init_div_requests): Updated.
+	* NEWS, src/roff/troff/troff.man, man/groff.man, doc/groff.texinfo:
+	Document it.
+
+2001-05-04  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/nroff/nroff.man: Improved documentation (especially
+	locales).
+
+2001-05-02  Werner LEMBERG  <wl@gnu.org>
+
+	Added `brp' request: This is \p as a request.
+
+	* src/roff/troff/env.cc (environment::do_break): Add parameter
+	`spread'.
+	(do_break_request): New function (was `break_request').
+	(break_request): Calls `do_break_request'.
+	(break_spread_request): New; calls `do_break_request'.
+	(init_env_requests): Updated.
+	* src/roff/troff/env.h: Updated.
+	* NEWS, src/roff/troff/troff.man, man/groff.man: Document it.
+
+	* REVISION: Increased to 1.
+	* win32-diffs: Updated.
+
+2001-05-01  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/an-old.tmac: Fix minor compatibility mode issue.
+	* tmac/troffrc-end: Make it really work in compatibility mode.
+
+2001-04-27  Werner LEMBERG  <wl@gnu.org>
+
+	* src/utils/lkbib/lkbib.cc: Switch inclusion order of stdio.h and
+	stdlib.h.
+
+2001-04-22  Werner LEMBERG  <wl@gnu.org>
+
+	* src/libs/libgroff/getopt.c, src/include/getopt.h: Updating to
+	latest versions from glibc CVS archive.
+
+	* MORE.STUFF: Updated, using a patch from Kees Zeelenberg
+	<c.zeelenberg@hccnet.nl>.
+
+2001-04-21  Werner LEMBERG  <wl@gnu.org>
+
+	* configure.in: Move check for mkstemp() to...
+	* aclocal.m4 (GROFF_MKSTEMP): This new function.
+	* configure: Regenerated.
+
+	* src/include/groff-getopt.h: Don't use variable names in
+	declarations.
+
+	* src/devices/grohtml/html-chars.h: Removed.  It isn't used.
+	* src/devices/grohtml/Makefile.sub,
+	src/devices/grohtml/post-html.cc: Updated.
+
+2001-04-21  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	* configure.in: Add special check for mkstemp().
+	* src/libs/libgroff/tmpfile.cc: Use it.
+	* src/utils/indxbib/indxbib.cc: Ditto.
+	* src/utils/pfbtops/pfbtops.c (main): Don't use C++ comment style.
+	* src/devices/grolbp/lbp.h (lbpprintf, lbpputs, vdmprintf): Use
+	`const'.
+
+2001-04-20  Bruce Lilly  <blilly@erols.com>
+
+	`Version_string' as C++ object was not visible to linker from C
+	object files.
+	Add `const' to `Version_string'.
+
+	* src/utils/pfbtops/pfbtops.c (main), src/roff/groff/groff.cc
+	(main), src/roff/troff/input.cc (main), src/preproc/tbl/main.cc
+	(main), src/preproc/pic/main.cc (main), src/preproc/eqn/main.cc
+	(main), src/preproc/grn/main.cc (main), src/preproc/html/pre-html.cc
+	(scanArguments), src/preproc/refer/refer.cc (main),
+	src/preproc/soelim/soelim.cc (main), src/devices/grotty/tty.cc
+	(main), src/devices/grodvi/dvi.cc (main), src/devices/grolj4/lj4.cc
+	(main), src/devices/grohtml/post-html.cc (main),
+	src/devices/grolbp/lbp.cc (main), src/utils/tfmtodit/tfmtodit.cc
+	(main), src/utils/hpftodit/hpftodit.cc (main),
+	src/utils/lookbib/lookbib.cc (main), src/utils/indxbib/indxbib.cc
+	(main), src/utils/lkbib/lkbib.cc (main),
+	src/utils/addftinfo/addftinfo.cc (main): Implement it.
+
+	* src/roff/groff/pipeline.c: Add _UWIN.
+	* src/include/nonposix.h: Ditto.
+
+2001-04-20  Werner LEMBERG  <wl@gnu.org>
+
+	* src/include/lib.h: Use HAVE_STRERROR.
+	* src/roff/groff/pipeline.c: Ditto.
+	* src/preproc/html/pre-html.cc: Remove declaration of `strerror'.
+	* src/libs/libgroff/Makefile.sub (version.cc): Add `extern "C"'.
+	* src/utils/pfbtops/pfbtops.c: Add copyright notice.
+	* win32-diffs: Updated.
+	* src/utils/hpftodit/hpftodit.cc (read_map): Fix compiler warning.
+
+2001-04-19  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/html/pre-html.cc (scanArguments): Use `troff_command'
+	instead of hardwired `"troff"'.
+	(char_buffer::read_file): Remove unused variables.
+	(char_buffer::write_file_troff): Ditto.
+	(char_buffer::write_file_html): Ditto.
+	(generateImages): Ditto.
+	(abs): Removed.
+	* src/utils/addftinfo/addftinfo.cc (main): Fix compilation problem.
+
+	* src/include/lib.h: Don't include `groff-getopt.h' for UWIN.
+
+	* src/libs/libgroff/font.cc (font::load_desc): Fix compiler warning.
+	* src/libs/libbib/index.cc (index_search_item_iterator::get_tag,
+	index_search_item::search1): Ditto.
+	* src/roff/troff/node.h (width_list): Reorder members.
+	* src/roff/troff/input.cc (do_define_macro): Fix compiler warning.
+	(lookup_warning): Ditto.
+	(prepend_string): Commented out.
+	* src/roff/troff/dictionary.cc (is_good_size): Fix compiler warning.
+	* src/roff/troff/reg.cc (number_value_to_ascii): Ditto.
+	* src/preproc/tbl/main.cc (process_format): Ditto.
+	* src/preproc/pic/pic.y (define_variable, reset, reset_all): Fix
+	compiler warnings.
+	* src/preproc/pic/pic.cc: Updated.
+	* src/preproc/eqn/lex.cc (init_table): Fix compiler warnings.
+	* src/preproc/eqn/over.cc (over_box::compute_metrics): Ditto.
+	* src/preproc/refer/command.cc (execute_command): Ditto.
+	* src/preproc/refer/ref.cc (sortify_title, find_month): Ditto.
+	* src/preproc/refer/token.cc (lookup_token): Ditto.
+	* src/preproc/soelim/soelim.cc: Ditto.
+	* src/preproc/html/pushbackbuffer.cc (ERROR): Ditto.
+	(isHexDigit): Commented out.
+	(pushBackBuffer::isString): Remove unused variable.
+	* src/devices/grops/ps.cc (ps_printer::special): Fix compiler
+	warning.
+	* src/devices/grops/psrm.cc (resource_manager::lookup_font,
+	resource_manager::read_resource_arg, read_one_of, parse_extensions):
+	Ditto.
+	* src/devices/grodvi/dvi.cc (dvi_printer::draw): Ditto.
+	* src/devices/grolj4/lj4.cc (lj4_font::handle_unknown_font_command,
+	lookup_paper_size): Ditto.
+	* src/devices/grohtml/post-html.cc (is_subsection): Commented out.
+	(text_glob, element_list): Reorder members.
+	* src/devices/grohtml/html-text.cc (html_text::do_pre): Remove
+	compiler warning.
+	* src/devices/grohtml/html-text.h (html_text::emit_space): Change
+	return value to `void'.
+	* src/devices/grohtml/output.cc (word_list::word_list): Fix order
+	of initializers.
+	* src/devices/grohtml/html.h (simple_output::check_newline,
+	simple_output::space_or_newline, simple_output::enable_newlines):
+	Add return value.
+	* src/devices/grolbp/lbp.cc (wp54charset, set_papersize): Remove
+	compiler warnings.
+	* src/utils/tfmtodit/tfmtodit.cc (tfm::load, gf::load, main): Ditto.
+	* src/utils/hpftodit/hpftodit.cc (File::seek, read_symbol_sets,
+	output_ligatures, output_charset, read_map): Ditto.
+	* src/utils/lookbib/lookbib.cc (main): Ditto.
+	* src/utils/indxbib/indxbib.cc (main, fwrite_or_die): Ditto.
+	(do_file): Fix typo (`=' -> `==').
+	* src/utils/lkbib/lkbib.cc (main): Remove compiler warning.
+	* src/utils/addftinfo/addftinfo.cc (main): Ditto.
+
+2001-04-18  Ruslan Ermilov  <ru@FreeBSD.org>
+
+	* src/roff/nroff/nroff.sh: Adding -p (pic) and -t (tbl) options.
+	Fix usage of GROFF_BIN_PATH.
+	* src/roff/nroff/nroff.man: Updated.
+
+2001-04-18  Werner LEMBERG  <wl@gnu.org>
+
+	* NEWS: Fixing typos.
+	Updated.
+
 Version 1.17 released
 =====================
 
@@ -54,7 +500,7 @@ Version 1.17 released
 	* doc/groff.texinfo: Fixes, additions.
 	* MORE.STUFF: Updated.
 
-2001-04-12  Gaius Mulley <gaius@glam.ac.uk>
+2001-04-12  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* src/devices/grohtml/grohtml.man: Updated manual page regarding
 	simple anchor.
@@ -245,7 +691,7 @@ Version 1.17 released
 	* tmac/doc.tmac (Cd): Simplify code.
 	* tmac/groff_mdoc.man: Document some behaviour of `Cd' request.
 
-2001-04-06  Werner Lemberg  <wl@gnu.org>
+2001-04-06  Werner LEMBERG  <wl@gnu.org>
 
 	Implement continuous underlining for nroff mode.  To do that, a new
 	request in the ditroff language has been added: `x u N' (N is 0
@@ -1530,7 +1976,7 @@ Version 1.17 released
 
 	* src/roff/troff/troff.man, NEWS, man/groff.man: Updated.
 
-2000-09-22  Ricardo Soares Guimarães <ricardo@conectiva.com.br>
+2000-09-22  Ricardo Soares Guimarães  <ricardo@conectiva.com.br>
 
 	Adding a new option -P and new environment variable GROPS_PROLOGUE
 	to grops, selecting a different prologue file (minor modifications
@@ -2526,7 +2972,7 @@ Version 1.16 released
 
 	* tmac/eqnrc: Small fixes.
 
-2000-03-05  Abramo Bagnara <abramo@alsa-project.org>
+2000-03-05  Abramo Bagnara  <abramo@alsa-project.org>
 
 	Adding a request `evc' to copy environments.
 
@@ -3118,7 +3564,7 @@ Version 1.16 released
 	* Makefile.in: Added $(tmac_m) again since the Makefile in `mm'
 	expects this variable
 
-2000-01-01  Gaius Mulley <gaius@glam.ac.uk>
+2000-01-01  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* doc/Makefile: Added instructions to create HTML and text
 	versions of some files.
@@ -3284,7 +3730,7 @@ Version 1.12 released
 
 	* pfbtops/Makefile.sub: On AIX, -lm is needed also.
 
-1999-12-03  Gaius Mulley <gaius@glam.ac.uk>
+1999-12-03  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* doc/Makefile: Added rule for generation pic.html.
 
@@ -3294,7 +3740,7 @@ Version 1.12 released
 
 	* tmac/tmac.html: Fixed suppression of headers.
 
-1999-11-16  Gaius Mulley <gaius@glam.ac.uk>
+1999-11-16  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* tmac/tmac.html: Fixing horizontal arrows.
 
@@ -3303,7 +3749,7 @@ Version 1.12 released
 	* tmac/tmac.an: Improved support for grohtml; better indentation,
 	no footers/headers.
 
-1999-10-31  Gaius Mulley <gaius@glam.ac.uk>
+1999-10-31  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* tmac/tmac.arkup: Added CDFTP macro
 
@@ -3312,7 +3758,7 @@ Version 1.12 released
 
 	* tmac/troffrc: Some additions for HTML stuff.
 
-1999-10-06  Gaius Mulley <gaius@glam.ac.uk>
+1999-10-06  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* tmac/tmac.html: Small changes.
 
@@ -3320,7 +3766,7 @@ Version 1.12 released
 
 	* doc/groff.texinfo: Minor fixes.
 
-1999-09-26  Gaius Mulley <gaius@glam.ac.uk>
+1999-09-26  Gaius Mulley  <gaius@glam.ac.uk>
 
 	* devhtml/TR: Changed spacewidth to 3.
 

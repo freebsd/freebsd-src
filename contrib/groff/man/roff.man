@@ -1,13 +1,11 @@
-.\" t                      -*- nroff -*- 
+'\" t
 .ig
 roff.7
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
-
-Last update: 17 May 2000
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
@@ -539,3 +537,7 @@ free UNIX 7 found at
 .I http://cm.bell-labs.com/cm/cs/cstr.html
 and the collection of the late Richard S. Stevens at 
 .IR http://www.kohala.com/start/troff/ .
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

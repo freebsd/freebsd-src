@@ -25,7 +25,7 @@ $prog =~ s@.*/@@;
 do 'getopts.pl';
 do Getopts('ve:sd:i:a:n');
 
-if (opt_v) {
+if ($opt_v) {
     print "GNU afmtodit (groff) version @VERSION@\n";
     exit 0;
 }

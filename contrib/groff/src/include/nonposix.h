@@ -27,7 +27,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 # define setmode(f,m) _setmode(f,m)
 #endif
 
-#if defined(__MSDOS__) || (defined(_WIN32) && !defined(__CYGWIN32__))
+#if defined(__MSDOS__) \
+    || (defined(_WIN32) && !defined(_UWIN) && !defined(__CYGWIN32__))
 
 /* Binary I/O nuisances.  Note: "setmode" is right for DJGPP and
    Borland; Windows compilers might need _setmode or some such.  */
