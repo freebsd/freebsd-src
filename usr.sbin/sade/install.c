@@ -662,7 +662,7 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
-    Boolean need_bin = FALSE;
+    Boolean need_bin;
 
     if (!Dists) {
 	if (!msgYesNo("No distributions are selected for installation!  Do you\n"
@@ -702,13 +702,10 @@ installCommit(dialogMenuItem *self)
 	    return i;
     }
 
-    if (Dists & DIST_BIN)
-	need_bin = TRUE;
+    need_bin = Dists & DIST_BIN;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
-	if (!need_bin || !(Dists & DIST_BIN))
-	    i = installFixup(self);
-    }
+    if (DITEM_STATUS(i) == DITEM_SUCCESS && (!need_bin || !(Dists & DIST_BIN)))
+	i = installFixup(self);
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RECREATE;
 }
@@ -838,7 +835,7 @@ installFilesystems(dialogMenuItem *self)
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    if (swapdev) {
+    if (swapdev && RunningAsInit) {
 	/* As the very first thing, try to get ourselves some swap space */
 	sprintf(dname, "/dev/%s", swapdev->name);
 	if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
@@ -857,7 +854,7 @@ installFilesystems(dialogMenuItem *self)
 	}
     }
 
-    if (rootdev) {
+    if (rootdev && RunningAsInit) {
 	/* Next, create and/or mount the root device */
 	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
@@ -910,11 +907,13 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE;
 	}
-	if (root && (root->newfs || upgrade)) {
+	if (RunningAsInit && root && (root->newfs || upgrade)) {
 	    Mkdir("/mnt/dev");
 	    if (!Fake)
 		MakeDevDisk(disk, "/mnt/dev");
 	}
+	else if (!RunningAsInit && !Fake)
+	    MakeDevDisk(disk, "/dev");
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
@@ -927,9 +926,9 @@ installFilesystems(dialogMenuItem *self)
 			    continue;
 
 			if (tmp->newfs)
-			    command_shell_add(tmp->mountpoint, "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
+			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
-			    command_shell_add(tmp->mountpoint, "fsck -y /mnt/dev/r%s", c2->name);
+			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
@@ -938,7 +937,7 @@ installFilesystems(dialogMenuItem *self)
 
 			if (c2 == swapdev)
 			    continue;
-			sprintf(fname, "/mnt/dev/%s", c2->name);
+			sprintf(fname, "%s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			i = (Fake || swapon(fname));
 			if (!i)
 			    msgNotify("Added %s as an additional swap device", fname);
@@ -950,19 +949,21 @@ installFilesystems(dialogMenuItem *self)
 	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
-		sprintf(name, "/mnt%s", ((PartInfo *)c1->private_data)->mountpoint);
+		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
 		Mkdir(name);
 	    }
 	}
     }
 
-    msgNotify("Copying initial device files..");
-    /* Copy the boot floppy's dev files */
-    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
-	msgConfirm("Couldn't clone the /dev files!");
-	return DITEM_FAILURE;
+    if (RunningAsInit) {
+	msgNotify("Copying initial device files..");
+	/* Copy the boot floppy's dev files */
+	if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
+	    msgConfirm("Couldn't clone the /dev files!");
+	    return DITEM_FAILURE;
+	}
     }
-    
+
     command_sort();
     command_execute();
     return DITEM_SUCCESS;
