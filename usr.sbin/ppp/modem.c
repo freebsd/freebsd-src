@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.37 1998/03/16 22:54:12 brian Exp $
+ * $Id: modem.c,v 1.77.2.38 1998/03/18 21:53:48 brian Exp $
  *
  *  TODO:
  */
@@ -125,7 +125,6 @@ modem_Create(const char *name, struct datalink *dl)
 
   p->fd = -1;
   p->mbits = 0;
-  p->abort = 0;
   p->dev_is_modem = 0;
   p->out = NULL;
   p->connect_count = 0;
@@ -288,11 +287,7 @@ modem_Timeout(void *data)
   StopTimer(&to->modem->link.Timer);
   StartTimer(&to->modem->link.Timer);
 
-  if (to->modem->abort) {
-    /* Something went horribly wrong */
-    to->modem->abort = 0;
-    link_Close(&to->modem->link, to->bundle, 0, 0);
-  } else if (to->modem->dev_is_modem) {
+  if (to->modem->dev_is_modem) {
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
@@ -893,7 +888,7 @@ modem_StartOutput(struct link *l, struct bundle *bundle)
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
-        modem->abort = 1;
+        link_Close(&modem->link, bundle, 0, 0);
       }
     }
   }
