@@ -32,8 +32,13 @@ __FBSDID("$FreeBSD$");
 int
 archive_read_support_compression_all(struct archive *a)
 {
+#if HAVE_BZLIB_H
 	archive_read_support_compression_bzip2(a);
+#endif
+	/* The decompress code doesn't use an outside library. */
 	archive_read_support_compression_compress(a);
+#if HAVE_ZLIB_H
 	archive_read_support_compression_gzip(a);
+#endif
 	return (ARCHIVE_OK);
 }
