@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.22 1995/06/05 15:17:15 jkh Exp $
+ * $Id: menus.c,v 1.41.2.23 1995/06/05 22:18:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -346,7 +346,7 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL,	distSetEverything, 0, 0		},
       { "Custom",	"Specify your own distribution set [?]",
 	DMENU_SUBMENU,	&MenuDistributions, 0, 0	},
-      { "Reset",	"Reset selected distribution list to None",
+      { "Clear",	"Reset selected distribution list to None",
 	DMENU_CALL,	distReset, 0, 0			},
       { NULL } },
 };
