@@ -14,7 +14,7 @@
 **	Please go to him for support -- since I (Eric) don't run LDAP, I
 **	can't help you at all.
 **
-**	@(#)ldap_map.h	8.9 (Berkeley) 5/19/98
+**	@(#)ldap_map.h	8.10 (Berkeley) 9/14/1998
 */
 
 #ifndef _LDAP_MAP_H
@@ -61,7 +61,7 @@ typedef struct ldap_map_struct	LDAP_MAP_STRUCT;
 #define DEFAULT_LDAP_MAP_DEREF		LDAP_DEREF_NEVER
 #define DEFAULT_LDAP_MAP_SIZELIMIT	0
 #define DEFAULT_LDAP_MAP_ATTRSONLY	0
-#define LDAP_MAP_MAX_FILTER		256
+#define LDAP_MAP_MAX_FILTER		1024
 #ifdef LDAP_REFERRALS
 # define DEFAULT_LDAP_MAP_LDAP_OPTIONS	LDAP_OPT_REFERRALS
 #else /* LDAP_REFERRALS */

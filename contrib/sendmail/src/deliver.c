@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.353 (Berkeley) 6/30/98";
+static char sccsid[] = "@(#)deliver.c	8.366 (Berkeley) 12/18/1998";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -360,7 +360,7 @@ sendall(e, mode)
 			if (mode != SM_VERIFY && bitset(EF_HAS_DF, e->e_flags))
 				dup_queue_file(e, ee, 'd');
 			openxscript(ee);
-			if (LogLevel > 4)
+			if (mode != SM_VERIFY && LogLevel > 4)
 				sm_syslog(LOG_INFO, ee->e_id,
 					"clone %s, owner=%s",
 					e->e_id, owner);
@@ -552,7 +552,7 @@ sendall(e, mode)
 # else
 			e->e_id = NULL;
 # endif /* HASFLOCK */
-			finis();
+			finis(TRUE, ExitStat);
 		}
 
 		/* be sure to give error messages in child */
@@ -570,6 +570,15 @@ sendall(e, mode)
 
 		mci_flush(FALSE, NULL);
 
+		/*
+		**  Since the delivery may happen in a child and the parent
+		**  does not wait, the parent may close the maps thereby
+		**  removing any shared memory used by the map.  Therefore,
+		**  open a copy of the maps for the delivery process.
+		*/
+
+		initmaps(FALSE, e);
+
 # if HASFLOCK
 		break;
 # else
@@ -586,7 +595,7 @@ sendall(e, mode)
 			ee->e_sibling = sibling;
 		}
 		(void) dowork(e->e_id, FALSE, FALSE, e);
-		finis();
+		finis(TRUE, ExitStat);
 # endif /* !HASFLOCK */
 	}
 
@@ -604,7 +613,7 @@ sendall(e, mode)
 
 	Verbose = oldverbose;
 	if (mode == SM_FORK)
-		finis();
+		finis(TRUE, ExitStat);
 }
 
 void
@@ -1091,13 +1100,30 @@ deliver(e, firstto)
 				e->e_from.q_paddr, to->q_paddr, e);
 		if (rcode == EX_OK)
 		{
-			/* do in-code checking */
-			rcode = checkcompat(to, e);
+			/* do in-code checking if not discarding */
+			if (!bitset(EF_DISCARD, e->e_flags))
+				rcode = checkcompat(to, e);
 		}
 		if (rcode != EX_OK)
 		{
 			markfailure(e, to, NULL, rcode);
 			giveresponse(rcode, m, NULL, ctladdr, xstart, e);
+			continue;
+		}
+		if (bitset(EF_DISCARD, e->e_flags))
+		{
+			if (tTd(10, 5))
+			{
+				printf("deliver: discarding recipient ");
+				printaddr(to, FALSE);
+			}
+
+			/*
+			**  Remove discard bit to prevent discard of
+			**  future recipients
+			*/
+			e->e_flags &= ~EF_DISCARD;
+
 			continue;
 		}
 
@@ -1409,7 +1435,7 @@ tryhost:
 			}
 
 			/* try the connection */
-			setproctitle("%s %s: %s", e->e_id, hostbuf, "user open");
+			sm_setproctitle(TRUE, "%s %s: %s", e->e_id, hostbuf, "user open");
 			if (port == 0)
 				message("Connecting to %s via %s...",
 					hostbuf, m->m_name);
@@ -2096,7 +2122,7 @@ do_transfer:
 				rcode = smtpgetstat(m, mci, e);
 			if (rcode == EX_OK)
 			{
-				if (strlen(to->q_paddr) + strlen(tobuf) + 2 >= sizeof tobuf)
+				if (strlen(to->q_paddr) + strlen(tobuf) + 2 > sizeof tobuf)
 				{
 					syserr("LMTP tobuf overflow");
 				}
@@ -2827,7 +2853,7 @@ putfromline(mci, e)
 			char hname[MAXNAME];
 
 		    	/*
-			** If we can construct a UUCP path, do so
+			**  If we can construct a UUCP path, do so
 			*/
 
 			at = strrchr(buf, '@');
@@ -2882,6 +2908,7 @@ putbody(mci, e, separator)
 	char *separator;
 {
 	char buf[MAXLINE];
+	char *boundaries[MAXMIMENESTING + 1];
 
 	/*
 	**  Output the body of the message
@@ -2923,8 +2950,6 @@ putbody(mci, e, separator)
 #if MIME8TO7
 	if (bitset(MCIF_CVT8TO7, mci->mci_flags))
 	{
-		char *boundaries[MAXMIMENESTING + 1];
-
 		/*
 		**  Do 8 to 7 bit MIME conversion.
 		*/
@@ -2952,6 +2977,13 @@ putbody(mci, e, separator)
 		mime7to8(mci, e->e_header, e);
 	}
 # endif
+	else if (MaxMimeHeaderLength > 0 || MaxMimeFieldLength > 0)
+	{
+		/* Use mime8to7 to check multipart for MIME header overflows */
+		boundaries[0] = NULL;
+		mci->mci_flags |= MCIF_INHEADER;
+		mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER|M87F_NO8TO7);
+	}
 	else
 #endif
 	{
@@ -2966,7 +2998,6 @@ putbody(mci, e, separator)
 		size_t eol_len;
 		char peekbuf[10];
 
-		/* we can pass it through unmodified */
 		if (bitset(MCIF_INHEADER, mci->mci_flags))
 		{
 			putline("", mci);
@@ -3292,6 +3323,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		/* child -- actually write to file */
 		struct stat stb;
 		MCI mcibuf;
+		int err;
 		volatile int oflags = O_WRONLY|O_APPEND;
 
 		if (e->e_lockfp != NULL)
@@ -3315,7 +3347,11 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 			ev = NULL;
 
 #ifdef HASLSTAT
-		if (lstat(filename, &stb) < 0)
+		if (bitset(DBS_FILEDELIVERYTOSYMLINK, DontBlameSendmail))
+			err = stat(filename, &stb);
+		else
+			err = lstat(filename, &stb);
+		if (err < 0)
 #else
 		if (stat(filename, &stb) < 0)
 #endif

@@ -1,4 +1,4 @@
-#	@(#)PowerUX	8.5	(Berkeley)	2/12/98
+#	@(#)PowerUX	8.5	(Berkeley)	2/12/1998
 define(`confENVDEF', `-D__svr4__ ')
 define(`confLIBS', `-Bstatic -lsocket -lnsl -lelf -lgen')
 define(`confMBINDIR', `/usr/local/etc')

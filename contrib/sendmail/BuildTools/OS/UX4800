@@ -1,4 +1,4 @@
-#	@(#)UX4800	8.8	(Berkeley)	3/12/98
+#	@(#)UX4800	8.8	(Berkeley)	3/12/1998
 define(`confCC', `/usr/abiccs/bin/cc -KOlimit=900')
 define(`confBEFORE', `sysexits.h ndbm.h')
 define(`confMAPDEF', `-DNDBM -DNIS		# without NEWDB')

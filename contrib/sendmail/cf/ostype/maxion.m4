@@ -15,12 +15,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)maxion.m4	8.10 (Berkeley) 5/19/98')
+VERSIONID(`@(#)maxion.m4	8.11 (Berkeley) 10/6/1998')
 
-define(`ALIAS_FILE',        `/etc/ucbmail/aliases')dnl
-define(`HELP_FILE',         `/etc/ucbmail/sendmail.hf')dnl
+define(`ALIAS_FILE',        ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/ucbmail/aliases'))dnl
+define(`HELP_FILE',         ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/ucbmail/sendmail.hf'))dnl
 define(`QUEUE_DIR',         `/var/spool/mqueue')dnl
-define(`STATUS_FILE',       `/var/adm/log/sendmail.st')dnl
+define(`STATUS_FILE',       ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/adm/log/sendmail.st'))dnl
 define(`LOCAL_MAILER_PATH', `/usr/bin/mail')dnl
 define(`LOCAL_MAILER_FLAGS',`rmn9')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl

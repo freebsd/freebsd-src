@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)useful.h	8.12 (Berkeley) 5/19/98
+ *	@(#)useful.h	8.12 (Berkeley) 5/19/1998
  */
 
 # include <sys/types.h>

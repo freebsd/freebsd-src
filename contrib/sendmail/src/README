@@ -8,7 +8,7 @@
 # the sendmail distribution.
 #
 #
-#	@(#)README	8.206 (Berkeley) 6/30/98
+#	@(#)README	8.209 (Berkeley) 10/6/1998
 #
 
 This directory contains the source files for sendmail(TM).
@@ -844,6 +844,12 @@ Digital UNIX (formerly DEC OSF/1)
 
 	This warning can be ignored.
 
+	Digital UNIX's linker checks /usr/ccs/lib/ before /usr/lib/.
+	If you have installed a new version of BIND in /usr/include
+	and /usr/lib, you will experience difficulties as Digital ships
+	libresolv.a in /usr/ccs/lib/ as well.  Be sure to replace both
+	copies of libresolv.a.
+
 IRIX
 	The header files on SGI IRIX are completely prototyped, and as
 	a result you can sometimes get some warning messages during
@@ -1071,6 +1077,13 @@ Linux
 	/usr/local/include (resolv.h, etc) you *should* be adding -lresolv
 	to LIBS.  Data structures may change and you'd be asking for a
 	core dump.
+
+AIX 4.2
+	The AIX m4 implements a different mechanism for ifdef which is
+	inconsistent with other versions of m4.  Therefore, it will not
+	work properly with the sendmail Build architecture or m4
+	configuration method.  To work around this problem, please use
+	GNU m4 from ftp://ftp.gnu.org/pub/gnu/.
 
 AIX 3.x
 	This version of sendmail does not support MB, MG, and MR resource
@@ -1439,4 +1452,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.206, last update 6/30/98 22:08:36)
+(Version 8.209, last update 10/6/1998 17:10:21)

@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)sendmail.h	8.280 (Berkeley) 6/5/98
+ *	@(#)sendmail.h	8.292 (Berkeley) 11/21/1998
  */
 
 /*
@@ -19,7 +19,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.280		6/5/98";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.292		11/21/1998";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -684,6 +684,7 @@ MAP
 	char		*map_domain;	/* the (nominal) NIS domain */
 	char		*map_rebuild;	/* program to run to do auto-rebuild */
 	time_t		map_mtime;	/* last database modification time */
+	pid_t		map_pid;	/* PID of process which opened map */
 	int		map_lockfd;	/* auxiliary lock file descriptor */
 	short		map_specificity;	/* specificity of aliases */
 	MAP		*map_stack[MAXMAPSTACK];   /* list for stacked maps */
@@ -1008,6 +1009,7 @@ extern bool	filechanged __P((char *, int, struct stat *));
 #define M87F_OUTER		0	/* outer context */
 #define M87F_NO8BIT		0x0001	/* can't have 8-bit in this section */
 #define M87F_DIGEST		0x0002	/* processing multipart/digest */
+#define M87F_NO8TO7		0x0004	/* don't do 8->7 bit conversions */
 
 
 /*
@@ -1077,6 +1079,7 @@ extern char	*validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
 #define VENDOR_SUN	2	/* Sun-native configuration file */
 #define VENDOR_HP	3	/* Hewlett-Packard specific config syntax */
 #define VENDOR_IBM	4	/* IBM specific config syntax */
+#define VENDOR_SENDMAIL	5	/* Sendmail, Inc. specific config syntax */
 
 EXTERN int	VendorCode;	/* vendor-specific operation enhancements */
 
@@ -1097,7 +1100,6 @@ extern void	vendor_daemon_setup __P((ENVELOPE *));
 #define DBS_GROUPWRITABLEALIASFILE			0x00000010
 #define DBS_WORLDWRITABLEALIASFILE			0x00000020
 #define DBS_FORWARDFILEINUNSAFEDIRPATH			0x00000040
-#define DBS_INCLUDEFILEINUNSAFEDIRPATH			0x00000060
 #define DBS_MAPINUNSAFEDIRPATH				0x00000080
 #define DBS_LINKEDALIASFILEINWRITABLEDIR		0x00000100
 #define DBS_LINKEDCLASSFILEINWRITABLEDIR		0x00000200
@@ -1120,6 +1122,7 @@ extern void	vendor_daemon_setup __P((ENVELOPE *));
 #define DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE		0x04000000
 #define DBS_RUNPROGRAMINUNSAFEDIRPATH			0x08000000
 #define DBS_RUNWRITABLEPROGRAM				0x10000000
+#define DBS_INCLUDEFILEINUNSAFEDIRPATH			0x20000000
 
 /* struct defining such things */
 struct dbsval
@@ -1183,7 +1186,7 @@ EXTERN gid_t	RealGid;	/* real gid of caller */
 EXTERN uid_t	DefUid;		/* default uid to run as */
 EXTERN gid_t	DefGid;		/* default gid to run as */
 EXTERN char	*DefUser;	/* default user to run as (from DefUid) */
-EXTERN uid_t	TrustedFileUid;	/* uid of trusted owner of files and dirs */
+EXTERN uid_t	TrustedUid;	/* uid of trusted user for files and startup */
 EXTERN MODE_T	OldUmask;	/* umask when sendmail starts up */
 EXTERN int	Verbose;	/* set if blow-by-blow desired */
 EXTERN int	Errors;		/* set if errors (local to single pass) */
@@ -1221,6 +1224,7 @@ EXTERN char	SpaceSub;	/* substitution for <lwsp> */
 EXTERN int	PrivacyFlags;	/* privacy flags */
 EXTERN char	*ConfFile;	/* location of configuration file [conf.c] */
 EXTERN char	*PidFile;	/* location of proc id file [conf.c] */
+EXTERN char	*ControlSocketName; /* control socket filename [control.c] */
 extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
 EXTERN long	WkClassFact;	/* multiplier for message class -> priority */
 EXTERN long	WkRecipFact;	/* multiplier for # of recipients -> priority */
@@ -1285,10 +1289,13 @@ EXTERN char	*DoubleBounceAddr;	/* where to send double bounces */
 EXTERN char	**ExternalEnviron;	/* input environment */
 EXTERN char	*UserEnviron[MAXUSERENVIRON + 1];
 					/* saved user environment */
+EXTERN int	MaxMimeHeaderLength;	/* maximum MIME header length */
+EXTERN int	MaxMimeFieldLength;	/* maximum MIME field length */
+
 extern int	errno;
 
 /*
-** Queue Run Limitations
+**  Queue Run Limitations
 */
 struct queue_char
 {
@@ -1400,7 +1407,7 @@ extern char	*denlstring __P((char *, bool, bool));
 extern void	makelower __P((char *));
 extern bool	rebuildaliases __P((MAP *, bool));
 extern void	readaliases __P((MAP *, FILE *, bool, bool));
-extern void	finis __P((void));
+extern void	finis __P((bool, volatile int));
 extern void	setsender __P((char *, ENVELOPE *, char **, int, bool));
 extern void	xputs __P((const char *));
 extern void	logsender __P((ENVELOPE *, char *));
@@ -1428,9 +1435,12 @@ extern void	xfclose __P((FILE *, char *, char *));
 extern int	switch_map_find __P((char *, char *[], short []));
 extern void	shorten_hostname __P((char []));
 extern int	waitfor __P((pid_t));
-extern void	proc_list_add __P((pid_t));
+extern void	proc_list_add __P((pid_t, char *));
+extern void	proc_list_set __P((pid_t, char *));
 extern void	proc_list_drop __P((pid_t));
 extern void	proc_list_clear __P((void));
+extern void	proc_list_display __P((FILE *));
+extern void	proc_list_probe __P((void));
 extern void	buffer_errors __P((void));
 extern void	flush_errors __P((bool));
 extern void	putline __P((char *, MCI *));
@@ -1468,6 +1478,8 @@ extern bool	path_is_dir __P((char *, bool));
 extern pid_t	dowork __P((char *, bool, bool, ENVELOPE *));
 extern int	drop_privileges __P((bool));
 extern void	fill_fd __P((int, char *));
+extern void	closecontrolsocket  __P((bool));
+extern void	clrcontrol  __P((void));
 
 extern const char	*errstring __P((int));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
@@ -1491,6 +1503,7 @@ extern void		usrerr __P((const char *, ...));
 extern void		message __P((const char *, ...));
 extern void		nmessage __P((const char *, ...));
 extern void		setproctitle __P((const char *, ...));
+extern void		sm_setproctitle __P((bool, const char *, ...));
 extern void		sm_syslog __P((int, const char *, const char *, ...));
 
 #if !HASSNPRINTF

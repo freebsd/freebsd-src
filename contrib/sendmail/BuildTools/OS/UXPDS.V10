@@ -1,4 +1,4 @@
-#	@(#)UXPDS.V10	8.9	(Berkeley)	3/12/98
+#	@(#)UXPDS.V10	8.9	(Berkeley)	3/12/1998
 define(`confCC', `/usr/ccs/bin/cc')
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-DUXPDS=10 ')

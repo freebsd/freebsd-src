@@ -23,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)mailspool.cs.mc	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)mailspool.cs.mc	8.9 (Berkeley) 5/19/1998')
 OSTYPE(sunos4.1)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

@@ -12,7 +12,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bitdomain.m4	8.13 (Berkeley) 5/19/98')
+VERSIONID(`@(#)bitdomain.m4	8.14 (Berkeley) 10/6/1998')
 divert(-1)
 
-define(`BITDOMAIN_TABLE', ifelse(_ARG_, `', DATABASE_MAP_TYPE` -o /etc/bitdomain', `_ARG_'))dnl
+define(`BITDOMAIN_TABLE', ifelse(_ARG_, `', 
+				 ifdef(`_USE_ETC_MAIL_',
+				       DATABASE_MAP_TYPE` -o /etc/mail/bitdomain',
+				       DATABASE_MAP_TYPE` -o /etc/bitdomain'),
+				 `_ARG_'))dnl

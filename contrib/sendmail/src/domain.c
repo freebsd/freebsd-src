@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.77 (Berkeley) 6/4/98 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.80 (Berkeley) 12/17/1998 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.77 (Berkeley) 6/4/98 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.80 (Berkeley) 12/17/1998 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -451,7 +451,7 @@ bestmx_map_lookup(map, name, av, statp)
 	int i, len = 0;
 	char *p;
 	char *mxhosts[MAXMXHOSTS + 1];
-	char buf[MXHOSTBUFSIZE + 1];
+	char buf[PSBUFSIZE / 2];
 
 	_res.options &= ~(RES_DNSRCH|RES_DEFNAMES);
 	nmx = getmxrr(name, mxhosts, FALSE, &rcode);
@@ -464,8 +464,8 @@ bestmx_map_lookup(map, name, av, statp)
 		return map_rewrite(map, mxhosts[0], strlen(mxhosts[0]), av);
 
 	/*
-	** We were given a -z flag (return all MXs) and there are multiple
-	** ones.  We need to build them all into a list.
+	**  We were given a -z flag (return all MXs) and there are multiple
+	**  ones.  We need to build them all into a list.
 	*/
 	p = buf;
 	for (i = 0; i < nmx; i++)
@@ -663,7 +663,7 @@ cnameloop:
 					qtype = T_A;
 					continue;
 				}
-				else if (qtype == T_A && !gotmx && trymx)
+				else if (qtype == T_A && !gotmx && (trymx || **dp == '\0'))
 				{
 					qtype = T_MX;
 					continue;
@@ -824,7 +824,7 @@ cnameloop:
 
 		if (qtype == T_ANY)
 			qtype = T_A;
-		else if (qtype == T_A && !gotmx && trymx)
+		else if (qtype == T_A && !gotmx && (trymx || **dp == '\0'))
 			qtype = T_MX;
 		else
 		{

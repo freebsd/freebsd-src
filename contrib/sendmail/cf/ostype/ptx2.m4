@@ -14,11 +14,11 @@ divert(-1)
 # Support for DYNIX/ptx 2.x.
 
 divert(0)
-VERSIONID(`@(#)ptx2.m4	8.11 (Berkeley) 5/19/98')
+VERSIONID(`@(#)ptx2.m4	8.12 (Berkeley) 10/6/1998')
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
-define(`ALIAS_FILE', /usr/lib/aliases)dnl
-ifdef(`HELP_FILE',,`define(`HELP_FILE', /usr/lib/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /usr/lib/sendmail.st)')dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/aliases'))dnl
+ifdef(`HELP_FILE',,`define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/lib/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',,`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/lib/sendmail.st'))')dnl
 define(`LOCAL_MAILER_PATH', `/bin/mail')dnl
 define(`LOCAL_MAILER_FLAGS', `fmn9')dnl
 define(`LOCAL_SHELL_FLAGS', `eu')dnl

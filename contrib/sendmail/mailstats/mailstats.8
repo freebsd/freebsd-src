@@ -5,7 +5,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)mailstats.8	8.5 (Berkeley) 5/19/98
+.\"	@(#)mailstats.8	8.8 (Berkeley) 11/13/1998
 .\"
 .Dd April 25, 1996
 .Dt MAILSTATS 1
@@ -16,6 +16,7 @@
 .Sh SYNOPSIS
 .Nm mailstats
 .Op Fl o
+.if \nP .Op Fl p
 .Op Fl C Ar cffile
 .Op Fl f Ar stfile
 .Sh DESCRIPTION
@@ -41,6 +42,10 @@ Kbytes from the mailer.
 Number of messages to the mailer.
 .It Sy bytes_to
 Kbytes to the mailer.
+.It Sy msgsrej
+Number of messages rejected.
+.It Sy msgsdis
+Number of messages discarded.
 .It Sy Mailer
 The name of the mailer.
 .El
@@ -64,6 +69,11 @@ specified in the
 .Nm sendmail
 .Dq cf
 file.
+.if \nP \
+\{
+.It Fl p
+Output information in program-readable mode and clear statistics.
+.\}
 .It Fl o
 Don't display the name of the mailer in the output.
 .El
@@ -73,12 +83,14 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh FILES
 .Bl -tag -width /var/log/sendmail.stXX -compact
-.It Pa /etc/sendmail.cf
+.ie \nP .It Pa /etc/mail/sendmail.cf
+.el .It Pa /etc/sendmail.cf
 The default
 .Nm sendmail
 .Dq cf
 file.
-.It Pa /var/log/sendmail.st
+.ie \nP .It Pa /etc/mail/statistics
+.el .It Pa /var/log/sendmail.st
 The default
 .Nm sendmail
 statistics file.

@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.16	(Berkeley)	6/18/98
+#	@(#)Makefile.m4	8.17	(Berkeley)	7/12/1998
 #
 
 # C compiler
@@ -34,7 +34,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of rmail binary (usually /usr/sbin or /usr/etc)
-BINDIR=	${DESTDIR}ifdef(`confUBINDIR', `confUBINDIR', `/usr/bin')
+UBINDIR=${DESTDIR}ifdef(`confUBINDIR', `confUBINDIR', `/usr/bin')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -90,7 +90,7 @@ install:
 force-install: install-rmail install-docs
 
 install-rmail: rmail
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} rmail ${BINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} rmail ${UBINDIR}
 
 install-docs: rmail.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

@@ -7,7 +7,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     @(#)makemap.8	8.10 (Berkeley) 5/19/98
+.\"     @(#)makemap.8	8.12 (Berkeley) 11/13/1998
 .\"
 .Dd November 16, 1992
 .Dt MAKEMAP 8
@@ -18,8 +18,10 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl N
+.if \nP .Op Fl c Ar cachesize
 .Op Fl d
 .Op Fl f
+.if \nP .Op Fl l
 .Op Fl o
 .Op Fl r
 .Op Fl s
@@ -76,6 +78,11 @@ Include the null byte that terminates strings
 in the map.
 This must match the \-N flag in the sendmail.cf
 ``K'' line.
+.if \nP \
+\{\
+.It Fl c
+Use the specified hash and B-Tree cache size.
+.\}
 .It Fl d
 Allow duplicate keys in the map.
 This is only allowed on B-Tree format maps.
@@ -90,6 +97,11 @@ This is intended to mesh with the
 \fBK\fP
 line in sendmail.cf.
 The value is never case folded.
+.if \nP \
+\{\
+.It Fl l
+List supported map types.
+.\}
 .It Fl o
 Append to an old file.
 This allows you to augment an existing file.

@@ -1,4 +1,4 @@
-#	@(#)maxion	8.6	(Berkeley)	3/12/98
+#	@(#)maxion	8.6	(Berkeley)	3/12/1998
 define(`confCC', `/usr/ucb/cc')
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confLIBDIRS', `-L/usr/ucblib')

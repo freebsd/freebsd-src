@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)cs-hpux9.mc	8.11 (Berkeley) 5/19/98')
+VERSIONID(`@(#)cs-hpux9.mc	8.11 (Berkeley) 5/19/1998')
 OSTYPE(hpux9)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 define(`MAIL_HUB', mailspool.CS.Berkeley.EDU)dnl

@@ -1,4 +1,4 @@
-#	@(#)PTX	8.6	(Berkeley)	3/12/98
+#	@(#)PTX	8.6	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM')
 define(`confOPTIMIZE', `-g')
 define(`confLIBS', `-lsocket -linet -lelf -lnsl -lseq')

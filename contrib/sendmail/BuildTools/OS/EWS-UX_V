@@ -1,4 +1,4 @@
-#	@(#)EWS-UX_V	8.6	(Berkeley)	3/12/98
+#	@(#)EWS-UX_V	8.6	(Berkeley)	3/12/1998
 define(`confCC', `/usr/abiccs/bin/cc -KOlimit=900')
 define(`confBEFORE', `sysexits.h ndbm.h ndbm.o')
 define(`confMAPDEF', `-DNDBM -DNIS')

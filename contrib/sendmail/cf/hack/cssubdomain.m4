@@ -11,7 +11,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)cssubdomain.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)cssubdomain.m4	8.6 (Berkeley) 5/19/1998')
 
 divert(2)
 # find possible (old & new) versions of our name via short circuit hack

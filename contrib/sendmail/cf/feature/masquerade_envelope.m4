@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)masquerade_envelope.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)masquerade_envelope.m4	8.6 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_MASQUERADE_ENVELOPE_', 1)

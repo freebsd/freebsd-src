@@ -14,7 +14,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.66 (Berkeley) 5/19/98";
+static char sccsid[] = "@(#)mime.c	8.70 (Berkeley) 11/10/1998";
 #endif /* not lint */
 
 /*
@@ -225,7 +225,8 @@ mime8to7(mci, header, e, boundaries, flags)
 	**	Do a recursive descent into the message.
 	*/
 
-	if (strcasecmp(type, "multipart") == 0 && !bitset(M87F_NO8BIT, flags))
+	if (strcasecmp(type, "multipart") == 0 &&
+	    (!bitset(M87F_NO8BIT, flags) || bitset(M87F_NO8TO7, flags)))
 	{
 		int blen;
 
@@ -379,7 +380,7 @@ mime8to7(mci, header, e, boundaries, flags)
 	*/
 
 	sectionsize = sectionhighbits = 0;
-	if (!bitset(M87F_NO8BIT, flags))
+	if (!bitset(M87F_NO8BIT|M87F_NO8TO7, flags))
 	{
 		/* remember where we were */
 		offset = ftell(e->e_dfp);
@@ -441,8 +442,13 @@ mime8to7(mci, header, e, boundaries, flags)
 	if (sectionhighbits == 0)
 	{
 		/* no encoding necessary */
-		if (cte != NULL)
+		if (cte != NULL && bitset(MCIF_INMIME, mci->mci_flags))
 		{
+			/*
+			**  Skip _unless_ in MIME mode; see putheader() for the
+			**  counterpart where this is skipped _if_ in MIME mode.
+			*/
+
 			snprintf(buf, sizeof buf,
 				"Content-Transfer-Encoding: %.200s", cte);
 			putline(buf, mci);
@@ -662,15 +668,22 @@ mime_getchar(fp, boundaries, btp)
 	static bool atbol = TRUE;	/* at beginning of line */
 	static int bt = MBT_SYNTAX;	/* boundary type of next EOF */
 	static u_char buf[128];		/* need not be a full line */
+	int start = 0;			/* indicates position of - in buffer */
 
-	if (buflen > 0)
+	if (buflen == 1 && *bp == '\n')
+	{
+		/* last \n in buffer may be part of next MIME boundary */
+		c = *bp;
+	}
+	else if (buflen > 0)
 	{
 		buflen--;
 		return *bp++;
 	}
+	else 
+		c = getc(fp);
 	bp = buf;
 	buflen = 0;
-	c = getc(fp);
 	if (c == '\n')
 	{
 		/* might be part of a MIME boundary */
@@ -682,6 +695,7 @@ mime_getchar(fp, boundaries, btp)
 			ungetc(c, fp);
 			return c;
 		}
+		start = 1;
 	}
 	if (c != EOF)
 		*bp++ = c;
@@ -710,7 +724,7 @@ mime_getchar(fp, boundaries, btp)
 			*bp++ = c;
 		}
 		*bp = '\0';
-		bt = mimeboundary((char *) &buf[1], boundaries);
+		bt = mimeboundary((char *) &buf[start], boundaries);
 		switch (bt)
 		{
 		  case MBT_FINAL:

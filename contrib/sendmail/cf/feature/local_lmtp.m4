@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)local_lmtp.m4	8.5 (Berkeley) 5/19/98')
+VERSIONID(`@(#)local_lmtp.m4	8.5 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`LOCAL_MAILER_PATH',
