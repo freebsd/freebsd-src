@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.1 1997/01/30 21:43:44 wollman Exp $
+ *	$Id: util.c,v 1.2 1997/02/02 09:16:37 bde Exp $
  */
 
 #include <sys/types.h>
@@ -129,9 +129,7 @@ percent_decode(const char *uri)
 {
 	char *rv, *s;
 
-	rv = s = malloc(strlen(uri) + 1);
-	if (rv == 0)
-		err(EX_OSERR, "malloc");
+	rv = s = safe_malloc(strlen(uri) + 1);
 
 	while (*uri) {
 		if (*uri == '%' && uri[1] 
@@ -183,6 +181,20 @@ parse_host_port(const char *s, char **hostname, int *port)
 }
 
 /*
+ * safe_malloc is like malloc, but aborts on error.
+ */
+void *
+safe_malloc(size_t len)
+{
+	void *rv;
+
+	rv = malloc(len);
+	if (rv == 0)
+		err(EX_OSERR, "malloc(%qu)", (u_quad_t)len);
+	return rv;
+}
+
+/*
  * safe_strdup is like strdup, but aborts on error.
  */
 char *
@@ -190,9 +202,7 @@ safe_strdup(const char *orig)
 {
 	char *s;
 
-	s = malloc(strlen(orig) + 1);
-	if (s == 0)
-		err(EX_OSERR, "malloc");
+	s = safe_malloc(strlen(orig) + 1);
 	strcpy(s, orig);
 	return s;
 }
@@ -206,9 +216,7 @@ safe_strndup(const char *orig, size_t len)
 {
 	char *s;
 
-	s = malloc(len + 1);
-	if (s == 0)
-		err(EX_OSERR, "malloc");
+	s = safe_malloc(len + 1);
 	s[0] = '\0';
 	strncat(s, orig, len);
 	return s;
@@ -223,15 +231,14 @@ static const char base64[] =
 char *
 to_base64(const unsigned char *buf, size_t len)
 {
-	char *s = malloc((4 * (len + 1)) / 3 + 1), *rv;
+	char *s, *rv;
 	unsigned tmp;
 
-	if (s == 0)
-		err(EX_OSERR, "malloc");
+	s = safe_malloc((4 * (len + 1)) / 3 + 1);
 
 	rv = s;
 	while (len >= 3) {
-		tmp = buf[0] << 16 | buf[1] << 8 || buf[2];
+		tmp = buf[0] << 16 | buf[1] << 8 | buf[2];
 		s[0] = base64[tmp >> 18];
 		s[1] = base64[(tmp >> 12) & 077];
 		s[2] = base64[(tmp >> 6) & 077];
@@ -249,14 +256,17 @@ to_base64(const unsigned char *buf, size_t len)
 		s[1] = base64[(tmp >> 12) & 077];
 		s[2] = base64[(tmp >> 6) & 077];
 		s[3] = '=';
+		s[4] = '\0';
 		break;
 	case 1:
 		tmp = buf[0] << 16;
 		s[0] = base64[(tmp >> 18) & 077];
 		s[1] = base64[(tmp >> 12) & 077];
 		s[2] = s[3] = '=';
+		s[4] = '\0';
 		break;
 	case 0:
+		s[0] = '\0';
 		break;
 	}
 

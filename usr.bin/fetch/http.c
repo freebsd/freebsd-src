@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.1 1997/01/30 21:43:41 wollman Exp $
+ *	$Id: http.c,v 1.2 1997/01/31 19:55:50 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -45,6 +45,7 @@
 #include <unistd.h>
 
 #include <sys/param.h>		/* for MAXHOSTNAMELEN */
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -55,14 +56,6 @@
 
 #include "fetch.h"
 
-static int http_parse(struct fetch_state *fs, const char *uri);
-static int http_proxy_parse(struct fetch_state *fs, const char *uri);
-static int http_close(struct fetch_state *fs);
-static int http_retrieve(struct fetch_state *fs);
-
-struct uri_scheme http_scheme =
-	{ "http", http_parse, http_proxy_parse, "HTTP_PROXY", "http" };
-
 struct http_state {
 	char *http_hostname;
 	char *http_remote_request;
@@ -72,6 +65,34 @@ struct http_state {
 	char *http_proxy_authentication;
 	unsigned http_port;
 	int http_redirected;
+};
+
+struct http_auth {
+	TAILQ_ENTRY(http_auth) ha_link;
+	char *ha_scheme;
+	char *ha_realm;
+	char *ha_params;
+	const struct http_auth_method *ha_ham;
+};
+TAILQ_HEAD(http_auth_head, http_auth);
+
+static int http_parse(struct fetch_state *fs, const char *uri);
+static int http_proxy_parse(struct fetch_state *fs, const char *uri);
+static int http_close(struct fetch_state *fs);
+static int http_retrieve(struct fetch_state *fs);
+static int basic_doauth(struct fetch_state *fs, struct http_auth *ha, int prx);
+
+struct uri_scheme http_scheme =
+	{ "http", http_parse, http_proxy_parse, "HTTP_PROXY", "http" };
+
+struct http_auth_head http_auth, http_proxy_auth;
+
+struct http_auth_method {
+	const char *ham_scheme;
+	int (*ham_doauth)(struct fetch_state *, struct http_auth *, int);
+} http_auth_methods[] = {
+	{ "basic", basic_doauth },
+	{ 0, 0 }
 };
 
 /* We are only concerned with headers we might receive. */
@@ -93,7 +114,11 @@ static enum http_header http_parse_header(char *line, char **valuep);
 static int check_md5(FILE *fp, char *base64ofmd5);
 static int http_first_line(const char *line);
 static int parse_http_content_range(char *orig, off_t *first, off_t *total);
+static int process_http_auth(struct fetch_state *fs, char *hdr, int autherr);
+static struct http_auth *find_http_auth(struct http_auth_head *list,
+					const char *scheme, const char *realm);
 static time_t parse_http_date(char *datestring);
+static void setup_http_auth(void);
 
 static int 
 http_parse(struct fetch_state *fs, const char *uri)
@@ -146,9 +171,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 
 	p = slash + 1;
 
-	https = malloc(sizeof *https);
-	if (https == 0)
-		err(EX_OSERR, "malloc");
+	https = safe_malloc(sizeof *https);
 
 	/*
 	 * Now, we have a copy of the hostname in hostname, the specified port
@@ -181,6 +204,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 			fs->fs_outputfile = p;
 	}
 	https->http_redirected = 0;
+	https->http_authentication = https->http_proxy_authentication = 0;
 
 	fs->fs_proto = https;
 	fs->fs_close = http_close;
@@ -202,7 +226,7 @@ http_proxy_parse(struct fetch_state *fs, const char *uri)
 	char *file;
 	int rv;
 
-	https = malloc(sizeof *https);
+	https = safe_malloc(sizeof *https);
 	https->http_remote_request = safe_strdup(uri);
 
 	env = getenv("HTTP_PROXY");
@@ -249,6 +273,7 @@ out:
 	}
 	https->http_decoded_file = percent_decode(file);
 	https->http_redirected = 0;
+	https->http_authentication = https->http_proxy_authentication = 0;
 	free(file);
 	if (fs->fs_outputfile == 0) {
 		slash = strrchr(https->http_decoded_file, '/');
@@ -272,6 +297,10 @@ http_close(struct fetch_state *fs)
 	free(https->http_remote_request);
 	free(https->http_decoded_file);
 	free(https->http_host_header);
+	if (https->http_authentication)
+		free(https->http_authentication);
+	if (https->http_proxy_authentication)
+		free(https->http_proxy_authentication);
 	free(https);
 	fs->fs_outputfile = 0;
 	return 0;
@@ -339,7 +368,7 @@ http_retrieve(struct fetch_state *fs)
 	int s;
 	struct sockaddr_in sin;
 	struct msghdr msg;
-#define NIOV	16	/* max is currently 12 */
+#define NIOV	16	/* max is currently 14 */
 	struct iovec iov[NIOV];
 	int n, status;
 	const char *env;
@@ -350,14 +379,17 @@ http_retrieve(struct fetch_state *fs)
 	time_t last_modified, when_to_retry;
 	char *base64ofmd5;
 	static char buf[BUFFER_SIZE];
-	int to_stdout, restarting, redirection, retrying;
+	int to_stdout, restarting, redirection, retrying, autherror;
 	char rangebuf[sizeof("Range: bytes=18446744073709551616-\r\n")];
+
+	setup_http_auth();
 
 	https = fs->fs_proto;
 	to_stdout = (strcmp(fs->fs_outputfile, "-") == 0);
 	restarting = fs->fs_restart;
 	redirection = 0;
 	retrying = 0;
+	autherror = 0;
 
 	/*
 	 * Figure out the timeout.  Prefer the -T command-line value,
@@ -386,6 +418,7 @@ http_retrieve(struct fetch_state *fs)
 	sin.sin_len = sizeof sin;
 	sin.sin_port = htons(https->http_port);
 
+	fs->fs_status = "looking up hostname";
 	if (inet_aton(https->http_hostname, &sin.sin_addr) == 0) {
 		struct hostent *hp;
 
@@ -399,6 +432,7 @@ http_retrieve(struct fetch_state *fs)
 		memcpy(&sin.sin_addr, hp->h_addr_list[0], sizeof sin.sin_addr);
 	}
 
+	fs->fs_status = "creating request message";
 	msg.msg_name = (caddr_t)&sin;
 	msg.msg_namelen = sizeof sin;
 	msg.msg_iov = iov;
@@ -433,6 +467,10 @@ retry:
 	addstr(iov, n, "Accept: */*\r\n");
 	addstr(iov, n, https->http_host_header);
 	addstr(iov, n, "Connection: close\r\n");
+	if (https->http_proxy_authentication)
+		addstr(iov, n, https->http_proxy_authentication);
+	if (https->http_authentication)
+		addstr(iov, n, https->http_authentication);
 	if (fs->fs_mirror) {
 		struct stat stab;
 
@@ -490,15 +528,17 @@ retry:
 		return EX_OSERR;
 	}
 
+	fs->fs_status = "sending request message";
 	setup_sigalrm();
 	alarm(timo);
 	if (sendmsg(s, &msg, MSG_EOF) < 0) {
-		warn("%s", https->http_hostname);
+		warn("sendmsg: %s", https->http_hostname);
 		fclose(remote);
 		return EX_OSERR;
 	}
 
 got100reply:
+	fs->fs_status = "reading reply status";
 	alarm(timo);
 	line = fgetln(remote, &linelen);
 	alarm(0);
@@ -533,6 +573,7 @@ got100reply:
 			unsetup_sigalrm();
 			return EX_OSERR;
 		}
+		fs->fs_status = "retrieving from HTTP/0.9 server";
 		display(fs, -1, 0);
 
 		do {
@@ -602,9 +643,15 @@ got100reply:
 		}
 		goto spewerror;
 	case 401:		/* Unauthorized */
+		if (https->http_authentication)
+			goto spewerror;
+		autherror = 401;
+		break;
 	case 407:		/* Proxy Authentication Required */
-		/* XXX implement authentication */
-
+		if (https->http_proxy_authentication)
+			goto spewerror;
+		autherror = 407;
+		break;
 	case 503:		/* Service Unavailable */
 		if (!fs->fs_auto_retry)
 			goto spewerror;
@@ -632,6 +679,7 @@ spewerror:
 	base64ofmd5 = 0;
 	new_location = 0;
 	restart_from = 0;
+	fs->fs_status = "parsing reply headers";
 
 	while((line = fgetln(remote, &linelen)) != 0) {
 		char *value, *ep;
@@ -722,9 +770,34 @@ doretry:
 			}
 			break;
 				
+		case ht_www_authenticate:
+			if (autherror != 401)
+				break;
+
+			status = process_http_auth(fs, value, autherror);
+			if (status != 0)
+				goto cantauth;
+			break;
+
+		case ht_proxy_authenticate:
+			if (autherror != 407)
+				break;
+			status = process_http_auth(fs, value, autherror);
+			if (status != 0)
+				goto cantauth;
+			break;
+
 		default:
 			break;
 		}
+	}
+	if (autherror == 401 && https->http_authentication)
+		goto doretry;
+	if (autherror == 407 && https->http_proxy_authentication)
+		goto doretry;
+	if (autherror) {
+		line = (char *)"HTTP/1.1 401 Unauthorized";
+		goto spewerror;
 	}
 
 	if (retrying) {
@@ -741,6 +814,7 @@ doretry:
 
 		warnx("%s: service unavailable; retrying in %d seconds",
 		      https->http_hostname, howlong);
+		fs->fs_status = "waiting to retry";
 		sleep(howlong);
 		goto doretry;
 	}
@@ -749,6 +823,7 @@ doretry:
 		fclose(remote);
 		if (base64ofmd5)
 			free(base64ofmd5);
+		fs->fs_status = "processing redirection";
 		status = http_redirect(fs, new_location, redirection == 301);
 		free(new_location);
 		return status;
@@ -761,6 +836,8 @@ doretry:
 		return EX_PROTOCOL;
 	}
 		
+	fs->fs_status = "retrieving file from HTTP/1.x server";
+
 	/*
 	 * OK, if we got here, then we have finished parsing the header
 	 * and have read the `\r\n' line which denotes the end of same.
@@ -818,12 +895,14 @@ doretry:
 		 * we are getting, not the whole thing.
 		 */
 		fseek(local, restart_from, SEEK_SET);
+		fs->fs_status = "computing MD5 message digest";
 		status = check_md5(local, base64ofmd5);
 		free(base64ofmd5);
 	}
 
-	unsetup_sigalrm();
 	fclose(local);
+out:
+	unsetup_sigalrm();
 	fclose(remote);
 
 	if (status != 0)
@@ -833,6 +912,14 @@ doretry:
 
 	return status;
 #undef addstr
+
+cantauth:
+	warnx("%s: cannot authenticate with %s %s",
+	      fs->fs_outputfile, 
+	      (autherror == 401) ? "server" : "proxy",
+	      https->http_hostname);
+	status = EX_NOPERM;
+	goto out;
 }
 
 /*
@@ -1199,5 +1286,266 @@ parse_http_content_range(char *orig, off_t *restart_from, off_t *total_length)
 
 	*restart_from = first;
 	*total_length = last;
+	return 0;
+}
+
+/*
+ * Do HTTP authentication.  We only do ``basic'' right now, but
+ * MD5 ought to be fairly easy.  The hard part is actually teasing
+ * apart the header, which is fairly badly designed (so what else is
+ * new?).
+ */
+static char *
+getauthparam(char *params, const char *name)
+{
+	char *rv;
+	enum state { normal, quoted } state;
+	while (*params) {
+		if (strncasecmp(params, name, strlen(name)) == 0
+		    && params[strlen(name)] == '=')
+			break;
+		state = normal;
+		while (*params) {
+			if (state == normal && *params == ',')
+				break;
+			if (*params == '\"')
+				state = (state == quoted) ? normal : quoted;
+			if (*params == '\\' && params[1] != '\0')
+				params++;
+			params++;
+		}
+	}
+
+	if (*params == '\0')
+		return 0;
+	params += strlen(name) + 1;
+	rv = params;
+	state = normal;
+	while (*params) {
+		if (state == normal && *params == ',')
+			break;
+		if (*params == '\"')
+			state = (state == quoted) ? normal : quoted;
+		if (*params == '\\' && params[1] != '\0')
+			params++;
+		params++;
+	}
+	if (params[-1] == '\"')
+		params[-1] = '\0';
+	else
+		params[0] = '\0';
+
+	if (*rv == '\"')
+		rv++;
+	return rv;
+}
+	
+static int
+process_http_auth(struct fetch_state *fs, char *hdr, int autherr)
+{
+	enum state { normal, quoted } state;
+	char *scheme, *params, *nscheme, *realm;
+	struct http_auth *ha;
+
+	do {
+		scheme = params = hdr;
+		/* Look for end of scheme name. */
+		while (*params && !isspace(*params))
+			params++;
+		
+		if (*params == '\0')
+			return EX_PROTOCOL;
+
+		/* Null-terminate scheme and skip whitespace. */
+		while (*params && isspace(*params))
+			*params++ = '\0';
+
+		/* Semi-parse parameters to find their end. */
+		nscheme = params;
+		state = normal;
+		while (*nscheme) {
+			if (state == normal && isspace(*nscheme))
+				break;
+			if (*nscheme == '\"')
+				state = (state == quoted) ? normal : quoted;
+			if (*nscheme == '\\' && nscheme[1] != '\0')
+				nscheme++;
+			nscheme++;
+		}
+
+		/* Null-terminate parameters and skip whitespace. */
+		while (*nscheme && isspace(*nscheme))
+			*nscheme++ = '\0';
+
+		realm = getauthparam(params, "realm");
+		if (realm == 0) {
+			scheme = nscheme;
+			continue;
+		}
+
+		if (autherr == 401)
+			ha = find_http_auth(&http_auth, scheme, realm);
+		else
+			ha = find_http_auth(&http_proxy_auth, scheme, realm);
+
+		if (ha)
+			return ha->ha_ham->ham_doauth(fs, ha, autherr == 407);
+	} while (*scheme);
+	return EX_NOPERM;
+}
+
+static void
+parse_http_auth_env(const char *env, struct http_auth_head *ha_tqh)
+{
+	char *nenv, *p, *scheme, *realm, *params;
+	struct http_auth *ha;
+	struct http_auth_method *ham;
+
+	nenv = alloca(strlen(env) + 1);
+	strcpy(nenv, env);
+
+	while ((p = strsep(&nenv, " \t")) != 0) {
+		scheme = strsep(&p, ":");
+		if (scheme == 0 || *scheme == '\0')
+			continue;
+		realm = strsep(&p, ":");
+		if (realm == 0 || *realm == '\0')
+			continue;
+		params = (p && *p) ? p : 0;
+		for (ham = http_auth_methods; ham->ham_scheme; ham++) {
+			if (strcasecmp(scheme, ham->ham_scheme) == 0)
+				break;
+		}
+		if (ham == 0)
+			continue;
+		ha = safe_malloc(sizeof *ha);
+		ha->ha_scheme = safe_strdup(scheme);
+		ha->ha_realm = safe_strdup(realm);
+		ha->ha_params = params ? safe_strdup(params) : 0;
+		ha->ha_ham = ham;
+		TAILQ_INSERT_TAIL(ha_tqh, ha, ha_link);
+	}
+}
+
+/*
+ * Look up an authentication method.  Automatically clone wildcards
+ * into fully-specified entries.
+ */
+static struct http_auth *
+find_http_auth(struct http_auth_head *tqh, const char *scm, const char *realm)
+{
+	struct http_auth *ha;
+
+	for (ha = tqh->tqh_first; ha; ha = ha->ha_link.tqe_next) {
+		if (strcasecmp(ha->ha_scheme, scm) == 0
+		    && strcasecmp(ha->ha_realm, realm) == 0)
+			return ha;
+	}
+
+	for (ha = tqh->tqh_first; ha; ha = ha->ha_link.tqe_next) {
+		if (strcasecmp(ha->ha_scheme, scm) == 0
+		    && strcmp(ha->ha_realm, "*") == 0)
+			break;
+	}
+	if (ha != 0) {
+		struct http_auth *ha2;
+
+		ha2 = safe_malloc(sizeof *ha2);
+		ha2->ha_scheme = safe_strdup(scm);
+		ha2->ha_realm = safe_strdup(realm);
+		ha2->ha_params = ha->ha_params ? safe_strdup(ha->ha_params) :0;
+		ha2->ha_ham = ha->ha_ham;
+		TAILQ_INSERT_TAIL(tqh, ha2, ha_link);
+		ha = ha2;
+	}
+
+	return ha;
+}
+			
+static void
+setup_http_auth(void)
+{
+	const char *envar;
+	static int once;
+
+	if (once)
+		return;
+	once = 1;
+
+	TAILQ_INIT(&http_auth);
+	TAILQ_INIT(&http_proxy_auth);
+	envar = getenv("HTTP_AUTH");
+	if (envar)
+		parse_http_auth_env(envar, &http_auth);
+	
+	envar = getenv("HTTP_PROXY_AUTH");
+	if (envar)
+		parse_http_auth_env(envar, &http_proxy_auth);
+}
+
+static int
+basic_doauth(struct fetch_state *fs, struct http_auth *ha, int isproxy)
+{
+	struct http_state *https = fs->fs_proto;
+	char *user;
+	char *pass;
+	char *enc;
+	char **hdr;
+	size_t userlen;
+	FILE *fp;
+
+	if (!isatty(0) && 
+	    (ha->ha_params == 0 || strchr(ha->ha_params, ':') == 0))
+		return EX_NOPERM;
+		
+	fp = fopen("/dev/tty", "r+");
+	if (fp == 0) {
+		warn("opening /dev/tty");
+		return EX_OSERR;
+	}
+	if (ha->ha_params == 0) {
+		fprintf(fp, "Enter `basic' user name for realm `%s': ",
+			ha->ha_realm);
+		fflush(fp);
+		user = fgetln(stdin, &userlen);
+		if (user == 0 || userlen < 1) { /* longer name? */
+			fclose(fp);
+			return EX_NOPERM;
+		}
+		if (user[userlen - 1] == '\n')
+			user[userlen - 1] = '\0';
+		else
+			user[userlen] = '\0';
+		user = safe_strdup(user);
+		pass = 0;
+	} else if ((pass = strchr(ha->ha_params, ':')) == 0) {
+		user = safe_strdup(ha->ha_params);
+		free(ha->ha_params);
+	}
+
+	if (pass == 0) {
+		pass = getpass("Password: ");
+		ha->ha_params = safe_malloc(strlen(user) + 2 + strlen(pass));
+		strcpy(ha->ha_params, user);	
+		strcat(ha->ha_params, ":");
+		strcat(ha->ha_params, pass);
+	}
+
+	enc = to_base64(ha->ha_params, strlen(ha->ha_params));
+
+	hdr = isproxy ? &https->http_proxy_authentication 
+		: &https->http_authentication;
+	if (*hdr)
+		free(*hdr);
+	*hdr = safe_malloc(sizeof("Proxy-Authorization: basic \r\n") 
+			   + strlen(enc));
+	if (isproxy)
+		strcpy(*hdr, "Proxy-Authorization");
+	else
+		strcpy(*hdr, "Authorization");
+	strcat(*hdr, ": Basic ");
+	strcat(*hdr, enc);
+	strcat(*hdr, "\r\n");
+	free(enc);
 	return 0;
 }
