@@ -1150,7 +1150,6 @@ thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 		td->td_upcall = NULL;
 		td->td_pflags &= ~TDP_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
-#ifdef SCHED_4BSD
 		if (flags & SW_INVOL || nextthread) {
 			setrunqueue(td2, SRQ_YIELDING);
 		} else {
@@ -1159,9 +1158,6 @@ thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 			 */
 			return td2;
 		}
-#else
-		setrunqueue(td2, SRQ_YIELDING);
-#endif
 	}
 	return (nextthread);
 }
