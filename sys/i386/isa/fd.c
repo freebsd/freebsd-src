@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.53 1995/03/12 22:40:56 joerg Exp $
+ *	$Id: fd.c,v 1.54 1995/03/16 18:11:59 bde Exp $
  *
  */
 
@@ -367,7 +367,7 @@ fdc_err(fdcu_t fdcu, const char *s)
 {
 	fdc_data[fdcu].fdc_errs++;
 	if(fdc_data[fdcu].fdc_errs < FDC_ERRMAX)
-		printf("fdc%d: %s: ", fdcu, s);
+		printf("fdc%d: %s", fdcu, s);
 	else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
 		printf("fdc%d: too many errors, not logging any more\n",
 		       fdcu);
@@ -429,7 +429,7 @@ fd_sense_drive_status(fdc_p fdc, int *st3p)
 
 	if (fd_cmd(fdc->fdcu, 2, NE7CMD_SENSED, fdc->fdu, 1, &st3))
 	{
-		return fdc_err(fdc->fdcu, "Sense Drive Status failed.\n");
+		return fdc_err(fdc->fdcu, "Sense Drive Status failed\n");
 	}
 	if (st3p)
 		*st3p = st3;
@@ -515,7 +515,7 @@ fdprobe(struct isa_device *dev)
 	fdcu_t	fdcu = dev->id_unit;
 	if(fdc_data[fdcu].flags & FDC_ATTACHED)
 	{
-		printf("fdc: same unit (%d) used multiple times\n", fdcu);
+		printf("fdc%d: unit used multiple times\n", fdcu);
 		return 0;
 	}
 
@@ -561,7 +561,6 @@ fdattach(struct isa_device *dev)
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
-	printf("fdc%d: ", fdcu);
 
 	/* check for each floppy drive */
 	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
@@ -607,22 +606,23 @@ fdattach(struct isa_device *dev)
 		if (ic_type == 0 &&
 		    fd_cmd(fdcu, 1, NE7CMD_VERSION, 1, &ic_type) == 0)
 		{
+			printf("fdc%d: ", fdcu);
 			ic_type = (u_char)ic_type;
 			switch( ic_type ) {
 			case 0x80:
-				printf("(NEC 765)");
+				printf("NEC 765\n");
 				fdc->fdct = FDC_NE765;
 				break;
 			case 0x81:
-				printf("(Intel 82077)");
+				printf("Intel 82077\n");
 				fdc->fdct = FDC_I82077;
 				break;
 			case 0x90:
-				printf("(NEC 72065B)");
+				printf("NEC 72065B\n");
 				fdc->fdct = FDC_NE72065;
 				break;
 			default:
-				printf("(unknown IC type %02x)", ic_type);
+				printf("unknown IC type %02x\n", ic_type);
 				fdc->fdct = FDC_UNKNOWN;
 				break;
 			}
@@ -676,31 +676,31 @@ fdattach(struct isa_device *dev)
 		fd->fdc = fdc;
 		fd->fdsu = fdsu;
 		fd->options = 0;
-		printf(" [%d: fd%d: ", fdsu, fdu);
+		printf("fd%d: ", fdsu, fdu);
 		
 		switch (fdt) {
 		case RTCFDT_12M:
-			printf("1.2MB 5.25in]");
+			printf("1.2MB 5.25in\n");
 			fd->type = FD_1200;
 			break;
 		case RTCFDT_144M:
-			printf("1.44MB 3.5in]");
+			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
 			break;
 		case RTCFDT_288M:
-			printf("2.88MB 3.5in - 1.44MB mode]");
+			printf("2.88MB 3.5in - 1.44MB mode\n");
 			fd->type = FD_1440;
 			break;
 		case RTCFDT_360K:
-			printf("360KB 5.25in]");
+			printf("360KB 5.25in\n");
 			fd->type = FD_360;
 			break;
 		case RTCFDT_720K:
-			printf("720KB 3.5in]");
+			printf("720KB 3.5in\n");
 			fd->type = FD_720;
 			break;
 		default:
-			printf("unknown]");
+			printf("unknown\n");
 			fd->type = NO_TYPE;
 			break;
 		}
@@ -708,16 +708,15 @@ fdattach(struct isa_device *dev)
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
+			fd->dkunit = dk_ndrive++;
 			/*
 			 * XXX assume rate is FDC_500KBPS.
 			 */
 			dk_wpms[dk_ndrive] = 500000 / 8 / 2;
-			fd->dkunit = dk_ndrive++;
 		} else {
 			fd->dkunit = -1;
 		}
 	}
-	printf("\n");
 
 	return (1);
 }
@@ -850,9 +849,9 @@ in_fdc(fdcu_t fdcu)
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
-			return fdc_err(fdcu, "ready for output in input");
+			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
-		return fdc_err(fdcu, "input ready timeout");
+		return fdc_err(fdcu, "input ready timeout\n");
 #ifdef	DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
@@ -873,9 +872,9 @@ fd_in(fdcu_t fdcu, int *ptr)
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
-			return fdc_err(fdcu, "ready for output in input");
+			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
-		return fdc_err(fdcu, "input ready timeout");
+		return fdc_err(fdcu, "input ready timeout\n");
 #ifdef	DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
@@ -898,12 +897,12 @@ out_fdc(fdcu_t fdcu, int x)
 	/* Check that the direction bit is set */
 	i = 100000;
 	while ((inb(baseport+FDSTS) & NE7_DIO) && i-- > 0);
-	if (i <= 0) return fdc_err(fdcu, "direction bit not set");
+	if (i <= 0) return fdc_err(fdcu, "direction bit not set\n");
 
 	/* Check that the floppy controller is ready for a command */
 	i = 100000;
 	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0);
-	if (i <= 0) return fdc_err(fdcu, "output ready timeout");
+	if (i <= 0) return fdc_err(fdcu, "output ready timeout\n");
 
 	/* Send the command and return */
 	outb(baseport+FDDATA, x);
@@ -1049,7 +1048,7 @@ fdstrategy(struct buf *bp)
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
 			printf(
-		"fdstrat: fd%d: bad request blkno = %lu, bcount = %ld\n",
+		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
 			       fdu, (u_long)bp->b_blkno, bp->b_bcount);
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
@@ -1221,7 +1220,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		fdc->state = DEVIDLE;
 		if(fdc->fd)
 		{
-			printf("unexpected valid fd pointer (fdu = %d)\n",
+			printf("fd%d: unexpected valid fd pointer\n",
 			       fdc->fdu);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -1234,7 +1233,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 	{
-		printf("confused fd pointers\n");
+		printf("fd%d: confused fd pointers\n", fdu);
 	}
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
