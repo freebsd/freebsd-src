@@ -208,13 +208,13 @@ struct pcic_pci_table
 	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6832,
 	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
-	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
-	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6834,
 	  "Cirrus Logic PD6834 PCI-CardBus Bridge",
-	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
@@ -223,16 +223,16 @@ struct pcic_pci_table
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6832,
 	  "O2micro 6832/6833 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6860,
 	  "O2micro 6836/6860 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6872,
 	  "O2micro 6812/6872 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6912,
 	  "O2micro 6912 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6922,
 	  "O2micro 6922 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
@@ -241,94 +241,94 @@ struct pcic_pci_table
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C465,
 	  "Ricoh RL5C465 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C475,
 	  "Ricoh RL5C475 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C476,
 	  "Ricoh RL5C476 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C477,
 	  "Ricoh RL5C477 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C478,
 	  "Ricoh RL5C478 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1031,
 	  "TI PCI-1031 PCI-PCMCIA Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1130,
 	  "TI PCI-1130 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1131,
 	  "TI PCI-1131 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1210,
 	  "TI PCI-1210 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1211,
 	  "TI PCI-1211 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1220,
 	  "TI PCI-1220 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1221,
 	  "TI PCI-1221 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1225,
 	  "TI PCI-1225 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1250,
 	  "TI PCI-1250 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1251,
 	  "TI PCI-1251 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1251B,
 	  "TI PCI-1251B PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1260,
 	  "TI PCI-1260 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1260B,
 	  "TI PCI-1260B PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1410,
 	  "TI PCI-1410 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1420,
 	  "TI PCI-1420 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1421,
 	  "TI PCI-1421 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1450,
 	  "TI PCI-1450 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1451,
 	  "TI PCI-1451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4410,
 	  "TI PCI-4410 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4450,
 	  "TI PCI-4450 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4451,
 	  "TI PCI-4451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95,
 	  "Toshiba ToPIC95 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_topic_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95B,
 	  "Toshiba ToPIC95B PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_topic_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC97,
 	  "Toshiba ToPIC97 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_topic_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC100,
 	  "Toshiba ToPIC100 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_topic_chip },
+	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
 	{ 0, NULL, 0, 0, NULL }
 };
 
@@ -824,6 +824,18 @@ pcic_pci_topic_init(device_t dev)
 	u_int32_t	device_id;
 
 	device_id = pci_get_devid(dev);
+	reg = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
+	reg |= (TOPIC_SLOT_CTRL_SLOTON | TOPIC_SLOT_CTRL_SLOTEN | 
+	    TOPIC_SLOT_CTRL_ID_LOCK | TOPIC_SLOT_CTRL_CARDBUS);
+	reg &= ~TOPIC_SLOT_CTRL_SWDETECT;
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+		reg |= TOPIC97_SLOT_CTRL_PCIINT;
+		reg &= ~(TOPIC97_SLOT_CTRL_STSIRQP | TOPIC97_SLOT_CTRL_IRQP);
+	}
+	pci_write_config(dev, TOPIC_SLOT_CTRL, reg, 4);
+	pcic_pci_cardbus_init(dev);
+
 	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
 	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
 		/*
@@ -836,15 +848,6 @@ pcic_pci_topic_init(device_t dev)
 		pcic_setb(&sc->slots[0], PCIC_TOPIC_FCR,
 		    PCIC_FCR_3V_EN | PCIC_FCR_VS_EN);
 	}
-	reg = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
-	reg |= (TOPIC_SLOT_CTRL_SLOTON | TOPIC_SLOT_CTRL_SLOTEN | 
-	    TOPIC_SLOT_CTRL_ID_LOCK | TOPIC_SLOT_CTRL_CARDBUS);
-	reg &= ~TOPIC_SLOT_CTRL_SWDETECT;
-	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
-	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97)
-		reg &= ~(TOPIC97_SLOT_CTRL_STSIRQP | TOPIC97_SLOT_CTRL_IRQP);
-	pci_write_config(dev, TOPIC_SLOT_CTRL, reg, 4);
-	pcic_pci_cardbus_init(dev);
 }
 
 static void
@@ -936,7 +939,7 @@ pcic_cd_change(void *arg)
 
 	sc->cd_present = 1;
 	if (bootverbose && (stat & CB_SS_BADVCC) != 0)
-		device_printf(sc->dev, "BAD Vcc request\n");
+		device_printf(sc->dev, "BAD Vcc request: 0x%x\n", stat);
 	if ((stat & CB_SS_16BIT) == 0)
 		device_printf(sp->sc->dev, "Card type %s is unsupported\n",
 		    pcic_pci_cardtype(stat));
@@ -1232,9 +1235,8 @@ pcic_pci_attach(device_t dev)
 			/* By default, assume we're a D step compatible */
 			sp->controller = PCIC_I82365SL_DF;
 			sp->revision = 0;
-			sc->flags = PCIC_DF_POWER;
+			sc->flags = PCIC_CARDBUS_POWER;
 		}
-		/* sc->flags = PCIC_CARDBUS_POWER; */
 		sp->slt = (struct slot *) 1;
 		sc->csc_route = pcic_intr_path;
 		sc->func_route = pcic_intr_path;
