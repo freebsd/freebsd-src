@@ -119,7 +119,9 @@ SUPFLAGS+=	-h ${SUPHOST}
 .endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
+.if !defined(OSRELDATE)
 OSRELDATE!=	sysctl -n kern.osreldate
+.endif
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
 TARGET?=	${MACHINE}
