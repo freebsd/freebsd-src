@@ -3090,6 +3090,8 @@ process_command (argc, argv)
       add_prefix (&exec_prefixes, "/usr/libexec/elf/", "BINUTILS",
 		  0, 0, NULL_PTR);
       break;
+    case OBJFMT_UNKNOWN:
+      fatal ("object format unknown");
     }
   add_prefix (&exec_prefixes, "/usr/libexec/", "GCC",
 	      0, 0, warn_std_ptr);
@@ -3184,6 +3186,8 @@ process_command (argc, argv)
     case OBJFMT_ELF:
       putenv("OBJFORMAT=elf");
       break;
+    case OBJFMT_UNKNOWN:
+      fatal ("object format unknown");
     }
 #endif
 
