@@ -99,20 +99,36 @@ esac
 case "$osvers" in
 0.*|1.0*) ;;
 
-3.0*)   objformat=`/usr/bin/objformat`
-        if [ x$objformat = xelf ]; then
-            libpth="/usr/lib /usr/local/lib"
+# allow a 2.2.* a.out --> 3.0 ELF to work.
+2.2*) objformat=`objformat`
+	if [ x$objformat = xelf ]; then
+	    libpth="/usr/lib /usr/local/lib"
             glibpth="/usr/lib /usr/local/lib"
-            ldflags="-Wl,-E "
-            lddlflags="-shared "
-        else
-            if [ -e /usr/lib/aout ]; then
-                libpth="/usr/lib/aout /usr/local/lib /usr/lib"
-                glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
-            fi
-            lddlflags='-Bshareable'
-        fi
-        cccdlflags='-DPIC -fpic'
+	    ldflags="-Wl,-E "
+	    lddlflags="-shared "
+	else
+	    if [ -e /usr/lib/aout ]; then
+		libpth="/usr/lib/aout /usr/local/lib /usr/lib"
+		glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+	    fi
+	    lddlflags='-Bshareable'
+	fi
+	cccdlflags='-DPIC -fpic'
+	;;
+3.0*)	objformat=`objformat`
+	if [ x$objformat = xelf ]; then
+	    libpth="/usr/lib /usr/local/lib"
+	    glibpth="/usr/lib /usr/local/lib"
+	    ldflags="-Wl,-E "
+	    lddlflags="-shared "
+	else
+	    if [ -e /usr/lib/aout ]; then
+		libpth="/usr/lib/aout /usr/local/lib /usr/lib"
+		glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+	    fi
+	    lddlflags='-Bshareable'
+	fi
+	cccdlflags='-DPIC -fpic'
         ;;
 
 *)	cccdlflags='-DPIC -fpic'
