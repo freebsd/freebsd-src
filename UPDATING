@@ -22,6 +22,20 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20021023:
+	Alphas with kernels from between 20020830 and 20021023 and/or
+	rtld (ld-elf.so.1) older than 20021023 may experience problems
+	with groff while doing a buildworld (kernel: "out of memory",
+	fixed in rev 1.129 of kern/imgact_elf.c; rtld: "too few PT_LOAD
+	segments", fixed in rev 1.8 of libexec/rtld-elf/map_object.c).
+
+	So, to successfully upgrade your Alpha, you must either
+	upgrade your kernel and rtld first (which might be a bit
+	tricky), or avoid running the bootstrapped groff during the
+	"transitional" buildworld.  To avoid running groff during the
+	transitional upgrade run make buildworld with -DNOMAN,
+	-DNO_SHAREDOCS, and -DNO_LPR.
+
 20020831:
 	gcc has been upgraded to 3.2.  It is not all binary compatible
 	with earlier versions of gcc for c++ programs.  All c++
