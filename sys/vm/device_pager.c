@@ -236,6 +236,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		vm_page_free(m[i]);
 	vm_page_unlock_queues();
 	vm_page_insert(page, object, offset);
+	m[reqpage] = page;
 
 	return (VM_PAGER_OK);
 }
