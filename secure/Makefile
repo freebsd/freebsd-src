@@ -4,8 +4,6 @@
 # the lib's in the directory where they are built from the binaries we
 # want to build.
 
-MAINTAINER=	markm
-
 SUBDIR= lib libexec usr.bin usr.sbin
 
 SDIR= ${.CURDIR}/..
