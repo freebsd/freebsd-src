@@ -15,14 +15,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.h,v 1.11 1997/11/16 22:15:09 brian Exp $
+ * $Id: os.h,v 1.12 1997/11/22 03:37:42 brian Exp $
  *
  *	TODO:
  */
 
 extern char *IfDevName;
 
-extern int OsSetIpaddress(struct in_addr, struct in_addr, struct in_addr);
+extern int  OsSetIpaddress(struct in_addr, struct in_addr);
+extern int  OsTrySetIpaddress(struct in_addr, struct in_addr);
 extern int  OsInterfaceDown(int);
 extern int  OpenTunnel(int *);
 extern void OsLinkup(void);

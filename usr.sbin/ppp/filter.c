@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.18 1997/11/12 18:47:30 brian Exp $
+ * $Id: filter.c,v 1.19 1997/11/22 03:37:30 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -75,9 +75,11 @@ ParseAddr(int argc,
     LogPrintf(LogWARN, "ParseAddr: address/mask is expected.\n");
     return (0);
   }
-  pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
 
-  cp = strchr(*argv, '/');
+  if (pmask)
+    pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
+
+  cp = pmask || pwidth ? strchr(*argv, '/') : NULL;
   len = cp ? cp - *argv : strlen(*argv);
 
   if (strncasecmp(*argv, "HISADDR", len) == 0)
@@ -106,8 +108,11 @@ ParseAddr(int argc,
     bits = 32;
   }
 
-  *pwidth = bits;
-  pmask->s_addr = htonl(netmasks[bits]);
+  if (pwidth)
+    *pwidth = bits;
+
+  if (pmask)
+    pmask->s_addr = htonl(netmasks[bits]);
 
   return (1);
 }
