@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R_)
 #include <pthread_np.h>
 #endif
 
@@ -62,12 +62,13 @@ sigwaiter (void *arg)
 
 	while (sigcounts[SIGINT] == 0) {
 		if (sigwait (&wait_mask, &signo) != 0) {
-			printf ("Unable to wait for signal, errno %d\n",
-				errno);
+			fprintf (stderr,
+			    "Unable to wait for signal, errno %d\n",
+			    errno);
 			exit (1);
 		}
 		sigcounts[signo]++;
-		printf ("Sigwait caught signal %d\n", signo);
+		fprintf (stderr, "Sigwait caught signal %d\n", signo);
 
 		/* Allow the main thread to prevent the sigwait. */
 		pthread_mutex_lock (&waiter_mutex);
@@ -82,7 +83,7 @@ sigwaiter (void *arg)
 static void
 sighandler (int signo)
 {
-	printf ("  -> Signal handler caught signal %d\n", signo);
+	fprintf (stderr, "  -> Signal handler caught signal %d\n", signo);
 
 	if ((signo >= 0) && (signo <= NSIG))
 		sigcounts[signo]++;
@@ -92,7 +93,8 @@ static void
 send_thread_signal (pthread_t tid, int signo)
 {
 	if (pthread_kill (tid, signo) != 0) {
-		printf ("Unable to send thread signal, errno %d.\n", errno);
+		fprintf (stderr, "Unable to send thread signal, errno %d.\n",
+		    errno);
 		exit (1);
 	}
 }
@@ -101,7 +103,8 @@ static void
 send_process_signal (int signo)
 {
 	if (kill (getpid (), signo) != 0) {
-		printf ("Unable to send process signal, errno %d.\n", errno);
+		fprintf (stderr, "Unable to send process signal, errno %d.\n",
+		    errno);
 		exit (1);
 	}
 }
@@ -154,7 +157,7 @@ int main (int argc, char *argv[])
 	if ((pthread_attr_init (&pattr) != 0) ||
 	    (pthread_attr_setdetachstate (&pattr,
 	    PTHREAD_CREATE_JOINABLE) != 0)) {
-		printf ("Unable to initialize thread attributes.\n");
+		fprintf (stderr, "Unable to initialize thread attributes.\n");
 		exit (1);
 	}
 
@@ -163,7 +166,7 @@ int main (int argc, char *argv[])
 	 */
 	if ((pthread_mutexattr_init (&mattr) != 0) ||
 	    (pthread_mutex_init (&waiter_mutex, &mattr) != 0)) {
-		printf ("Unable to create waiter mutex.\n");
+		fprintf (stderr, "Unable to create waiter mutex.\n");
 		exit (1);
 	}
 
@@ -171,10 +174,10 @@ int main (int argc, char *argv[])
 	 * Create the sigwaiter thread.
 	 */
 	if (pthread_create (&tid, &pattr, sigwaiter, NULL) != 0) {
-		printf ("Unable to create thread.\n");
+		fprintf (stderr, "Unable to create thread.\n");
 		exit (1);
 	}
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R_)
 	pthread_set_name_np (tid, "sigwaiter");
 #endif
 
@@ -187,7 +190,8 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGIO);
 	sleep (1);
 	if (sigcounts[SIGIO] != 0)
-		printf ("FAIL: sigwait wakes up for ignored signal SIGIO.\n");
+		fprintf (stderr,
+		    "FAIL: sigwait wakes up for ignored signal SIGIO.\n");
 
 	/*
 	 * Verify that a signal with a default action of ignore, for
@@ -198,7 +202,7 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGURG);
 	sleep (1);
 	if (sigcounts[SIGURG] != 2)
-		printf ("FAIL: sigwait doesn't wake up for SIGURG.\n");
+		fprintf (stderr, "FAIL: sigwait doesn't wake up for SIGURG.\n");
 
 	/*
 	 * Verify that a signal with a default action that terminates
@@ -209,7 +213,8 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGUSR1);
 	sleep (1);
 	if (sigcounts[SIGUSR1] != 2)
-		printf ("FAIL: sigwait doesn't wake up for SIGUSR1.\n");
+		fprintf (stderr,
+		    "FAIL: sigwait doesn't wake up for SIGUSR1.\n");
 
 	/*
 	 * Verify that if we install a signal handler for a previously
@@ -230,7 +235,7 @@ int main (int argc, char *argv[])
 	send_thread_signal (tid, SIGHUP);
 	sleep (1);
 	if (sigcounts[SIGHUP] != 2)
-		printf ("FAIL: sigwait doesn't wake up for SIGHUP.\n");
+		fprintf (stderr, "FAIL: sigwait doesn't wake up for SIGHUP.\n");
 
 	/*
 	 * Verify that a pending signal in the waiters mask will
@@ -248,7 +253,7 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGHUP);
 	sleep (1);
 	if (sigcounts[SIGHUP] != 1)
-		printf ("FAIL: sigwait doesn't wake up for SIGHUP.\n");
+		fprintf (stderr, "FAIL: sigwait doesn't wake up for SIGHUP.\n");
 	/*
 	 * Add SIGHUP to the process pending signals.  Since there is
 	 * a signal handler installed for SIGHUP and this signal is
@@ -260,7 +265,8 @@ int main (int argc, char *argv[])
 	pthread_mutex_unlock (&waiter_mutex);
 	sleep (1);
 	if (sigcounts[SIGHUP] != 2)
-		printf ("FAIL: sigwait doesn't return for pending SIGHUP.\n");
+		fprintf (stderr,
+		    "FAIL: sigwait doesn't return for pending SIGHUP.\n");
 
 	/*
 	 * Repeat the above test using pthread_kill and SIGUSR1.
@@ -271,21 +277,23 @@ int main (int argc, char *argv[])
 	send_thread_signal (tid, SIGUSR1);
 	sleep (1);
 	if (sigcounts[SIGUSR1] != 1)
-		printf ("FAIL: sigwait doesn't wake up for SIGUSR1.\n");
+		fprintf (stderr,
+		    "FAIL: sigwait doesn't wake up for SIGUSR1.\n");
 	/* Add SIGHUP to the waiters pending signals. */
 	send_thread_signal (tid, SIGUSR1);
 	/* Release the waiter thread and allow him to run. */
 	pthread_mutex_unlock (&waiter_mutex);
 	sleep (1);
 	if (sigcounts[SIGUSR1] != 2)
-		printf ("FAIL: sigwait doesn't return for pending SIGUSR1.\n");
+		fprintf (stderr,
+		    "FAIL: sigwait doesn't return for pending SIGUSR1.\n");
 
 	/*
 	 * Verify that we can still kill the process for a signal
 	 * not being waited on by sigwait.
 	 */
 	send_process_signal (SIGPIPE);
-	printf ("FAIL: SIGPIPE did not terminate process.\n");
+	fprintf (stderr, "FAIL: SIGPIPE did not terminate process.\n");
 
 	/*
 	 * Wait for the thread to finish.
