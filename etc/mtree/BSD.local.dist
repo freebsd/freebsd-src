@@ -247,6 +247,8 @@
             ..
             ru_SU.CP866
             ..
+	    ru_SU.ISO_8859-5
+            ..
             ru_SU.KOI8-R
             ..
             sl_SI.ISO_8859-2
