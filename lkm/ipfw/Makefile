@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/02/24 13:41:56 phk Exp $
+#	$Id: Makefile,v 1.5 1996/06/23 14:27:52 bde Exp $
 
 .PATH:	${.CURDIR}/../../sys/netinet
 KMOD=	ipfw_mod
@@ -9,6 +9,9 @@ CFLAGS+= -DIPFIREWALL -DIPFIREWALL_MODULE
 #If you want it verbose
 #CFLAGS+= -DIPFIREWALL_VERBOSE
 #CFLAGS+= -DIPFIREWALL_VERBOSE_LIMIT=100
+#
+#If you want it to pass all packets by default
+#CFLAGS+= -DIPFIREWALL_DEFAULT_TO_ACCEPT
 #
 
 .include <bsd.kmod.mk>
