@@ -1,9 +1,9 @@
 /*
- * lsvfs - lsit loaded VFSes
+ * lsvfs - list loaded VFSes
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.4 1995/03/16 20:29:11 wollman Exp $
+ * $Id: lsvfs.c,v 1.5 1995/03/16 21:43:03 wollman Exp $
  */
 
 #include <sys/types.h>
