@@ -83,16 +83,11 @@ g_up_procbody(void)
 {
 	struct proc *p = g_up_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
-	struct mtx mymutex;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
-	mtx_lock(&mymutex);
 	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_up(tp);
-		msleep(&g_wait_up, &mymutex, PRIBIO, "g_up", hz/10);
 	}
 }
 
@@ -109,16 +104,11 @@ g_down_procbody(void)
 {
 	struct proc *p = g_down_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
-	struct mtx mymutex;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
-	mtx_lock(&mymutex);
 	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_down(tp);
-		msleep(&g_wait_down, &mymutex, PRIBIO, "g_down", hz/10);
 	}
 }
 
