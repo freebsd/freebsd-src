@@ -42,13 +42,15 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.6 1996/03/08 06:29:07 bde Exp $
+ *	$Id: probe_keyboard.c,v 1.7 1996/09/26 20:52:13 pst Exp $
  */
 
 #ifdef PROBE_KEYBOARD
 
 #include <machine/console.h>
 #include <machine/cpufunc.h>
+#include <i386/isa/kbdio.h>
+#include <i386/isa/isa.h>
 #include "boot.h"
 
 int
@@ -58,9 +60,9 @@ probe_keyboard(void)
 	unsigned char val;
 
 	/* flush any noise in the buffer */
-	while (inb(KB_STAT) & KB_BUF_FULL) {
+	while (inb(IO_KBD + KBD_STATUS_PORT) & KBDS_BUFFER_FULL) {
 		delay1ms();
-		(void) inb(KB_DATA);
+		(void) inb(IO_KBD + KBD_DATA_PORT);
 	}
 
 	/* Try to reset keyboard hardware */
@@ -69,14 +71,16 @@ probe_keyboard(void)
 #ifdef DEBUG
 		printf("%d ", retries);
 #endif
-		while ((inb(KB_STAT) & KB_READY) == KB_READY) delay1ms();
-		outb(KB_DATA, KB_RESET);
+		while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_CONTROLLER_BUSY) ==
+				KBDS_CONTROLLER_BUSY)
+			delay1ms();
+		outb(IO_KBD + KBD_DATA_PORT, KBDC_RESET_KBD);
 		for (i=0; i<1000; i++) {
 			delay1ms();
-			val = inb(KB_DATA);
-			if (val == KB_ACK || val == KB_ECHO)
+			val = inb(IO_KBD + KBD_DATA_PORT);
+			if (val == KBD_ACK || val == KBD_ECHO)
 				goto gotack;
-			if (val == KB_RESEND)
+			if (val == KBD_RESEND)
 				break;
 		}
 	}
@@ -92,17 +96,18 @@ gotres:
 	}
 gotack:
 	delay1ms();
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0) delay1ms();
+	while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_CONTROLLER_BUSY) == 0)
+		delay1ms();
 	delay1ms();
 #ifdef DEBUG
 	printf("ACK ");
 #endif
-	val = inb(KB_DATA);
-	if (val == KB_ACK)
+	val = inb(IO_KBD + KBD_DATA_PORT);
+	if (val == KBD_ACK)
 		goto gotack;
-	if (val == KB_RESEND)
+	if (val == KBD_RESEND)
 		goto again;
-	if (val != KB_RESET_DONE) {
+	if (val != KBD_RESET_DONE) {
 #ifdef DEBUG
 		printf("stray val %d\n", val);
 #endif
