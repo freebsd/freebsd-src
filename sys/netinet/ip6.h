@@ -213,6 +213,7 @@ struct ip6_frag {
 
 #define IPV6_MMTU	1280	/* minimal MTU and reassembly. 1024 + 256 */
 #define IPV6_MAXPACKET	65535	/* ip6 max packet size without Jumbo payload*/
+#define IPV6_MAXOPTHDR	2048	/* max option header size, 256 64-bit words */
 
 #ifdef _KERNEL
 /*
