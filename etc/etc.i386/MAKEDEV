@@ -83,7 +83,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.84 1995/04/26 08:07:30 bde Exp $
+#	$Id: MAKEDEV,v 1.85 1995/04/28 00:51:02 dufault Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -623,6 +623,28 @@ tty0?|ttyd?|tty?)
 	mknod ttyid$unit c 28 `expr $m + 32`
 	mknod ttyld$unit c 28 `expr $m + 64`
 	chown root.wheel tty*d$unit
+	;;
+
+cuac?)
+	umask 7
+	unit=`expr $i : 'cua.*\(.\)$'`
+	rm -f cua*c$unit
+	m=`ttyminor $unit`
+	mknod cuac$unit c 48 `expr $m + 128`
+	mknod cuaic$unit c 48 `expr $m + 32 + 128`
+	mknod cualc$unit c 48 `expr $m + 64 + 128`
+	chown uucp.dialer cua*c$unit
+	umask 77
+	;;
+
+ttyc?)
+	unit=`expr $i : 'tty.*\(.\)$'`
+	rm -f tty*c$unit
+	m=`ttyminor $unit`
+	mknod ttyc$unit c 48 $m
+	mknod ttyic$unit c 48 `expr $m + 32`
+	mknod ttylc$unit c 48 `expr $m + 64`
+	chown root.wheel tty*c$unit
 	;;
 
 cuar?)
