@@ -40,22 +40,28 @@ MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
 		${SRCDIR}/Magdir/[a-z]*
 
-all: file magic magic.mgc magic.mime.mgc
+all: ${PROG} magic.mgc magic.mime.mgc
 
 magic: ${MAGFILES}
 	cat ${.ALLSRC} > ${.TARGET}
 
-magic.mgc: file magic
-	./${PROG} -C -m magic
+magic.mgc: mkmagic magic
+	./mkmagic magic
 
-magic.mime.mgc: file magic.mime
+magic.mime.mgc: mkmagic magic.mime
 	ln -sf ${SRCDIR}/magic.mime magic.mime.PITA
-	./${PROG} -C -m magic.mime.PITA
+	./mkmagic magic.mime.PITA
 	mv magic.mime.PITA.mgc magic.mime.mgc
 
 CLEANFILES+=	print-hacked.c
 print-hacked.c: print.c
 	sed -e 's|daylight|0/*daylight*/|g' ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	mkmagic
+build-tools: mkmagic
+mkmagic: apprentice.c print-hacked.c
+	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
+	    -I${.CURDIR} -I${SRCDIR} -o ${.TARGET} ${.ALLSRC}
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MAGICMODE} \
