@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.27 1999/06/03 12:42:10 yokota Exp $";
+	"$Id: moused.c,v 1.28 1999/07/12 15:16:14 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -213,6 +213,7 @@ static symtab_t	rmodels[] = {
     { "EasyScroll",	MOUSE_MODEL_EASYSCROLL },
     { "MouseMan+",	MOUSE_MODEL_MOUSEMANPLUS },
     { "Kidspad",	MOUSE_MODEL_KIDSPAD },
+    { "VersaPad",	MOUSE_MODEL_VERSAPAD },
     { "generic",	MOUSE_MODEL_GENERIC },
     { NULL, 		MOUSE_MODEL_UNKNOWN },
 };
@@ -318,6 +319,8 @@ static symtab_t pnpprod[] = {
     /* MS Kidts Trackball */
     { "PNP0F1E",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
 #endif
+    /* Interlink VersaPad */
+    { "LNK0001",	MOUSE_PROTO_VERSAPAD,	MOUSE_MODEL_VERSAPAD },
 
     { NULL,		MOUSE_PROTO_UNKNOWN,	MOUSE_MODEL_GENERIC },
 };
@@ -340,6 +343,7 @@ static unsigned short rodentcflags[] =
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* sysmouse */
     (CS7	           | CREAD | CLOCAL | HUPCL ),	/* X10 MouseRemote */
     (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL ),	/* kidspad etc. */
+    (CS8		   | CREAD | CLOCAL | HUPCL ),	/* VersaPad */
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
 #endif
@@ -894,6 +898,7 @@ static unsigned char proto[][7] = {
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* sysmouse */
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
     {	0x80,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* KIDSPAD */
+    {	0xc3,	0xc0,	0x00,	0x00,	6,    0x00,  0xff }, /* VersaPad */
 #if notyet
     {	0xf8,	0x80,	0x00,	0x00,	5,   ~0x2f,  0x10 }, /* Mariqua */
 #endif
@@ -1031,6 +1036,7 @@ r_model(int model)
 static void
 r_init(void)
 {
+    unsigned char buf[16];	/* scrach buffer */
     fd_set fds;
     char *s;
     char c;
@@ -1205,6 +1211,37 @@ r_init(void)
 	break;
 
 
+    case MOUSE_PROTO_VERSAPAD:
+	tcsendbreak(rodent.mfd, 0);	/* send break for 400 msec */
+	i = FREAD;
+	ioctl(rodent.mfd, TIOCFLUSH, &i);
+	for (i = 0; i < 7; ++i) {
+	    FD_ZERO(&fds);
+	    FD_SET(rodent.mfd, &fds);
+	    if (select(FD_SETSIZE, &fds, NULL, NULL, NULL) <= 0)
+		break;
+	    read(rodent.mfd, &c, 1);
+	    buf[i] = c;
+	}
+	debug("%s\n", buf);
+	if ((buf[0] != 'V') || (buf[1] != 'P')|| (buf[7] != '\r'))
+	    break;
+	setmousespeed(9600, rodent.baudrate, rodentcflags[rodent.rtype]);
+	tcsendbreak(rodent.mfd, 0);	/* send break for 400 msec again */
+	for (i = 0; i < 7; ++i) {
+	    FD_ZERO(&fds);
+	    FD_SET(rodent.mfd, &fds);
+	    if (select(FD_SETSIZE, &fds, NULL, NULL, NULL) <= 0)
+		break;
+	    read(rodent.mfd, &c, 1);
+	    debug("%c", c);
+	    if (c != buf[i])
+		break;
+	}
+	i = FREAD;
+	ioctl(rodent.mfd, TIOCFLUSH, &i);
+	break;
+
     default:
 	setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
 	break;
@@ -1271,8 +1308,33 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	MOUSE_BUTTON6DOWN, 
 	MOUSE_BUTTON7DOWN, 
     };
+    /* for serial VersaPad */
+    static int butmapversa[8] = { /* VersaPad */
+	0, 
+	0, 
+	MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN, 
+	MOUSE_BUTTON1DOWN, 
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+    };
+    /* for PS/2 VersaPad */
+    static int butmapversaps2[8] = { /* VersaPad */
+	0, 
+	MOUSE_BUTTON3DOWN, 
+	0, 
+	MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN, 
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN, 
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+    };
     static int           pBufP = 0;
     static unsigned char pBuf[8];
+    static int		 prev_x, prev_y;
+    static int		 on = FALSE;
+    int			 x, y;
 
     debug("received char 0x%x",(int)rBuf);
     if (rodent.rtype == MOUSE_PROTO_KIDSPAD)
@@ -1483,6 +1545,30 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	act->dy = (pBuf[0] & MOUSE_MM_YPOSITIVE) ? - pBuf[2] :   pBuf[2];
 	break;
       
+    case MOUSE_PROTO_VERSAPAD:		/* VersaPad */
+	act->button = butmapversa[(pBuf[0] & MOUSE_VERSA_BUTTONS) >> 3];
+	act->button |= (pBuf[0] & MOUSE_VERSA_TAP) ? MOUSE_BUTTON4DOWN : 0;
+	act->dx = act->dy = 0;
+	if (!(pBuf[0] & MOUSE_VERSA_IN_USE)) {
+	    on = FALSE;
+	    break;
+	}
+	x = (pBuf[2] << 6) | pBuf[1];
+	if (x & 0x800)
+	    x -= 0x1000;
+	y = (pBuf[4] << 6) | pBuf[3];
+	if (y & 0x800)
+	    y -= 0x1000;
+	if (on) {
+	    act->dx = prev_x - x;
+	    act->dy = prev_y - y;
+	} else {
+	    on = TRUE;
+	}
+	prev_x = x;
+	prev_y = y;
+	break;
+
     case MOUSE_PROTO_BUS:		/* Bus */
     case MOUSE_PROTO_INPORT:		/* InPort */
 	act->button = butmapmsc[(~pBuf[0]) & MOUSE_MSC_BUTTONS];
@@ -1562,6 +1648,30 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	case MOUSE_MODEL_THINK:
 	    /* the fourth button state in the first byte */
 	    act->button |= (pBuf[0] & MOUSE_PS2_TAP) ? MOUSE_BUTTON4DOWN : 0;
+	    break;
+	case MOUSE_MODEL_VERSAPAD:
+	    act->button = butmapversaps2[pBuf[0] & MOUSE_PS2VERSA_BUTTONS];
+	    act->button |=
+		(pBuf[0] & MOUSE_PS2VERSA_TAP) ? MOUSE_BUTTON4DOWN : 0;
+	    act->dx = act->dy = 0;
+	    if (!(pBuf[0] & MOUSE_PS2VERSA_IN_USE)) {
+		on = FALSE;
+		break;
+	    }
+	    x = ((pBuf[4] << 8) & 0xf00) | pBuf[1];
+	    if (x & 0x800)
+		x -= 0x1000;
+	    y = ((pBuf[4] << 4) & 0xf00) | pBuf[2];
+	    if (y & 0x800)
+		y -= 0x1000;
+	    if (on) {
+		act->dx = prev_x - x;
+		act->dy = prev_y - y;
+	    } else {
+		on = TRUE;
+	    }
+	    prev_x = x;
+	    prev_y = y;
 	    break;
 	case MOUSE_MODEL_GENERIC:
 	default:
