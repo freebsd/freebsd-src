@@ -8,34 +8,25 @@
  *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
- * without modifications are expressly permitted by Sandvine Inc.;
-provided,
+ * without modifications are expressly permitted by Sandvine Inc.; provided,
  * however, that:
- * 1. Any and all reproductions of the source or object code must include
-the
- *    copyright notice above and the following disclaimer of warranties;
-and
+ * 1. Any and all reproductions of the source or object code must include the
+ *    copyright notice above and the following disclaimer of warranties; and
  * 2. No rights are granted, in any manner or form, to use Sandvine Inc.
- *    trademarks, including the mark "SANDVINE" on advertising,
-endorsements,
- *    or otherwise except as such appears in the above copyright notice or
-in
+ *    trademarks, including the mark "SANDVINE" on advertising, endorsements,
+ *    or otherwise except as such appears in the above copyright notice or in
  *    the software.
  *
  * THIS SOFTWARE IS BEING PROVIDED BY SANDVINE "AS IS", AND TO THE MAXIMUM
- * EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR
-WARRANTIES,
- * EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT
-LIMITATION,
- * ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR
+ * EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR WARRANTIES,
+ * EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT LIMITATION,
+ * ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
  * PURPOSE, OR NON-INFRINGEMENT.  SANDVINE DOES NOT WARRANT, GUARANTEE, OR
  * MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE
  * USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY
  * OR OTHERWISE.  IN NO EVENT SHALL SANDVINE BE LIABLE FOR ANY DAMAGES
  * RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
- * WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY,
+ * WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
  * PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
