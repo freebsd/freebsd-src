@@ -216,6 +216,8 @@ struct kseq {
 	LIST_ENTRY(kseq)	ksq_siblings;	/* Next in kseq group. */
 	struct kseq_group	*ksq_group;	/* Our processor group. */
 	volatile struct kse	*ksq_assigned;	/* assigned by another CPU. */
+#else
+	int		ksq_sysload;		/* For loadavg, !ITHD load. */
 #endif
 };
 
@@ -355,9 +357,11 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
 	kseq->ksq_load++;
-#ifdef SMP
 	if (class != PRI_ITHD)
+#ifdef SMP
 		kseq->ksq_group->ksg_load++;
+#else
+		kseq->ksq_sysload++;
 #endif
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		CTR6(KTR_ULE,
@@ -376,9 +380,11 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare--;
-#ifdef SMP
 	if (class != PRI_ITHD)
+#ifdef SMP
 		kseq->ksq_group->ksg_load--;
+#else
+		kseq->ksq_sysload--;
 #endif
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
@@ -1166,8 +1172,10 @@ sched_switch(struct thread *td)
 			} else 
 				kseq_runq_add(KSEQ_SELF(), ke);
 		} else {
-			if (ke->ke_runq)
+			if (ke->ke_runq) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			} else if ((td->td_flags & TDF_IDLETD) == 0)
+				backtrace();
 			/*
 			 * We will not be on the run queue. So we must be
 			 * sleeping or similar.
@@ -1713,6 +1721,22 @@ sched_unbind(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_kse->ke_flags &= ~KEF_BOUND;
+}
+
+int
+sched_load(void)
+{
+#ifdef SMP
+	int total;
+	int i;
+
+	total = 0;
+	for (i = 0; i <= ksg_maxid; i++)
+		total += KSEQ_GROUP(i)->ksg_load;
+	return (total);
+#else
+	return (KSEQ_SELF()->ksq_sysload);
+#endif
 }
 
 int
