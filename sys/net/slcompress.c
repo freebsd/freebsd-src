@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.9 1997/02/22 09:41:16 peter Exp $
+ * $Id: slcompress.c,v 1.10 1997/06/22 02:19:53 brian Exp $
  */
 
 /*
@@ -44,8 +44,8 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/systm.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -74,10 +74,15 @@ sl_compress_init(comp, max_state)
 	register u_int i;
 	register struct cstate *tstate = comp->tstate;
 
-	if (max_state == -1)
+	if (max_state == -1) {
 		max_state = MAX_STATES - 1;
-	bzero((char *)comp, sizeof(*comp));
-	for (i = max_state; i > 0; --i) {
+		bzero((char *)comp, sizeof(*comp));
+	} else {
+		/* Don't reset statistics */
+		bzero((char *)comp->tstate, sizeof(comp->tstate));
+		bzero((char *)comp->rstate, sizeof(comp->rstate));
+	}
+  	for (i = max_state; i > 0; --i) {
 		tstate[i].cs_id = i;
 		tstate[i].cs_next = &tstate[i - 1];
 	}
@@ -95,7 +100,7 @@ sl_compress_init(comp, max_state)
  * form).
  */
 #define ENCODE(n) { \
-	if ((u_short)(n) >= 256) { \
+	if ((u_int16_t)(n) >= 256) { \
 		*cp++ = 0; \
 		cp[1] = (n); \
 		cp[0] = (n) >> 8; \
@@ -105,7 +110,7 @@ sl_compress_init(comp, max_state)
 	} \
 }
 #define ENCODEZ(n) { \
-	if ((u_short)(n) >= 256 || (u_short)(n) == 0) { \
+	if ((u_int16_t)(n) >= 256 || (u_int16_t)(n) == 0) { \
 		*cp++ = 0; \
 		cp[1] = (n); \
 		cp[0] = (n) >> 8; \
@@ -120,7 +125,7 @@ sl_compress_init(comp, max_state)
 		(f) = htonl(ntohl(f) + ((cp[1] << 8) | cp[2])); \
 		cp += 3; \
 	} else { \
-		(f) = htonl(ntohl(f) + (u_long)*cp++); \
+		(f) = htonl(ntohl(f) + (u_int32_t)*cp++); \
 	} \
 }
 
@@ -129,7 +134,7 @@ sl_compress_init(comp, max_state)
 		(f) = htons(ntohs(f) + ((cp[1] << 8) | cp[2])); \
 		cp += 3; \
 	} else { \
-		(f) = htons(ntohs(f) + (u_long)*cp++); \
+		(f) = htons(ntohs(f) + (u_int32_t)*cp++); \
 	} \
 }
 
@@ -138,7 +143,7 @@ sl_compress_init(comp, max_state)
 		(f) = htons((cp[1] << 8) | cp[2]); \
 		cp += 3; \
 	} else { \
-		(f) = htons((u_long)*cp++); \
+		(f) = htons((u_int32_t)*cp++); \
 	} \
 }
 
@@ -167,7 +172,7 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 	if ((ip->ip_off & htons(0x3fff)) || m->m_len < 40)
 		return (TYPE_IP);
 
-	th = (struct tcphdr *)&((int *)ip)[hlen];
+	th = (struct tcphdr *)&((int32_t *)ip)[hlen];
 	if ((th->th_flags & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK)
 		return (TYPE_IP);
 	/*
@@ -180,7 +185,7 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 	INCR(sls_packets)
 	if (ip->ip_src.s_addr != cs->cs_ip.ip_src.s_addr ||
 	    ip->ip_dst.s_addr != cs->cs_ip.ip_dst.s_addr ||
-	    *(int *)th != ((int *)&cs->cs_ip)[cs->cs_ip.ip_hl]) {
+	    *(int32_t *)th != ((int32_t *)&cs->cs_ip)[cs->cs_ip.ip_hl]) {
 		/*
 		 * Wasn't the first -- search for it.
 		 *
@@ -201,7 +206,8 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 			INCR(sls_searches)
 			if (ip->ip_src.s_addr == cs->cs_ip.ip_src.s_addr
 			    && ip->ip_dst.s_addr == cs->cs_ip.ip_dst.s_addr
-			    && *(int *)th == ((int *)&cs->cs_ip)[cs->cs_ip.ip_hl])
+			    && *(int32_t *)th ==
+			    ((int32_t *)&cs->cs_ip)[cs->cs_ip.ip_hl])
 				goto found;
 		} while (cs != lastcs);
 
@@ -245,16 +251,16 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 	 * different between the previous & current datagram, we send the
 	 * current datagram `uncompressed'.
 	 */
-	oth = (struct tcphdr *)&((int *)&cs->cs_ip)[hlen];
+	oth = (struct tcphdr *)&((int32_t *)&cs->cs_ip)[hlen];
 	deltaS = hlen;
 	hlen += th->th_off;
 	hlen <<= 2;
 	if (hlen > m->m_len)
 	    return TYPE_IP;
 
-	if (((u_short *)ip)[0] != ((u_short *)&cs->cs_ip)[0] ||
-	    ((u_short *)ip)[3] != ((u_short *)&cs->cs_ip)[3] ||
-	    ((u_short *)ip)[4] != ((u_short *)&cs->cs_ip)[4] ||
+	if (((u_int16_t *)ip)[0] != ((u_int16_t *)&cs->cs_ip)[0] ||
+	    ((u_int16_t *)ip)[3] != ((u_int16_t *)&cs->cs_ip)[3] ||
+	    ((u_int16_t *)ip)[4] != ((u_int16_t *)&cs->cs_ip)[4] ||
 	    th->th_off != oth->th_off ||
 	    (deltaS > 5 &&
 	     BCMP(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
@@ -279,7 +285,7 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		 * with it. */
 		 goto uncompressed;
 
-	deltaS = (u_short)(ntohs(th->th_win) - ntohs(oth->th_win));
+	deltaS = (u_int16_t)(ntohs(th->th_win) - ntohs(oth->th_win));
 	if (deltaS) {
 		ENCODE(deltaS);
 		changes |= NEW_W;
@@ -429,10 +435,10 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	 * header (we assume the packet we were handed has enough space to
 	 * prepend 128 bytes of header).
 	 */
-	if ((int)cp & 3) {
+	if ((long)cp & 3) {
 		if (len > 0)
-			(void) ovbcopy(cp, (caddr_t)((int)cp &~ 3), len);
-		cp = (u_char *)((int)cp &~ 3);
+			(void) ovbcopy(cp, (caddr_t)((long)cp &~ 3), len);
+		cp = (u_char *)((long)cp &~ 3);
 	}
 	cp -= hlen;
 	len += hlen;
@@ -463,7 +469,7 @@ sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
 	register struct tcphdr *th;
 	register struct cstate *cs;
 	register struct ip *ip;
-	register u_short *bp;
+	register u_int16_t *bp;
 	register u_int vjlen;
 
 	switch (type) {
@@ -483,7 +489,7 @@ sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
 		if (hlen + sizeof(struct tcphdr) > buflen)
 			goto bad;
 		hlen += ((struct tcphdr *)&((char *)ip)[hlen])->th_off << 2;
-		if (hlen > MAX_HDR)
+		if (hlen > MAX_HDR || hlen > buflen)
 			goto bad;
 		BCOPY(ip, &cs->cs_ip, hlen);
 		cs->cs_hlen = hlen;
@@ -578,7 +584,7 @@ sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
 	cs->cs_ip.ip_len = htons(total_len);
 
 	/* recompute the ip header checksum */
-	bp = (u_short *) &cs->cs_ip;
+	bp = (u_int16_t *) &cs->cs_ip;
 	cs->cs_ip.ip_sum = 0;
 		for (changes = 0; hlen > 0; hlen -= 2)
 			changes += *bp++;
