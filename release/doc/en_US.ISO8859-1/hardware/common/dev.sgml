@@ -310,22 +310,23 @@
       <quote>C</quote>, <quote>S</quote>, and <quote>A</quote> Series
       Host Adapters (&man.bt.4; driver)
 
-    <note arch="i386">
-      <para>BusLogic/Mylex <quote>Flashpoint</quote> adapters are not yet
-      supported.</para>
-    </note>
-    <note arch="i386">
-      <para>AMI FastDisk controllers that are true BusLogic
-      MultiMaster clones are also supported.</para>
-    </note>
-    
-    <note arch="i386">
-      <para>The Buslogic/Bustek BT-640 and Storage Dimensions SDC3211B
-      and SDC3211F Microchannel (MCA) bus adapters are also
-      supported.</para>
-    </note>
+      <note arch="i386">
+	<para>BusLogic/Mylex <quote>Flashpoint</quote> adapters are not yet
+	  supported.</para>
+      </note>
 
-    </para>
+      <note arch="i386">
+	<para>AMI FastDisk controllers that are true BusLogic
+	  MultiMaster clones are also supported.</para>
+      </note>
+   
+      <note arch="i386">
+        <para>The Buslogic/Bustek BT-640 and Storage Dimensions
+	  SDC3211B and SDC3211F Microchannel (MCA) bus adapters are
+	  also supported.</para>
+      </note>
+
+      </para>
 
     <para arch="i386">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
     SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
