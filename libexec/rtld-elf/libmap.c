@@ -59,7 +59,7 @@ lm_init (void)
 		while (isspace(*cp)) cp++;
 
 		/* Found a comment or EOL */
-		if (iseol(*cp)) goto next;
+		if (iseol(*cp)) continue;
 
 		/* Found a constraint selector */
 		if (*cp == '[') {
@@ -69,17 +69,19 @@ lm_init (void)
 			while (isspace(*cp)) cp++;
 
 			/* Found comment, EOL or end of selector */
-			if  (iseol(*cp) || *cp == ']') goto next;
+			if  (iseol(*cp) || *cp == ']')
+				continue;
 
-			p = cp;
+			p = cp++;
 			/* Skip to end of word */
-			while (!isspace(*cp) && !iseol(*cp) && *cp != ']') cp++;
+			while (!isspace(*cp) && !iseol(*cp) && *cp != ']')
+				cp++;
 
 			/* Skip and zero out trailing space */
 			while (isspace(*cp)) *cp++ = '\0';
 
 			/* Check if there is a closing brace */
-			if (*cp != ']') goto next;
+			if (*cp != ']') continue;
 
 			/* Terminate string if there was no trailing space */
 			*cp++ = '\0';
@@ -89,38 +91,37 @@ lm_init (void)
 			 * from this point to the end of the line.   
 			 */
 			while(isspace(*cp++));
-			if (*cp != '\0' && *cp != '#') goto next;
+			if (!iseol(*cp)) continue;
 
-			if (strlen(p) > 0) {
-				bzero(prog, MAXPATHLEN);
-				strncpy(prog, p, strlen(p));
-				p = prog;
-			}
-			goto next;
+			strcpy(prog, p);
+			p = prog;
+			continue;
 		}
 
 		/* Parse the 'from' candidate. */
-		f = cp;
+		f = cp++;
 		while (!isspace(*cp) && !iseol(*cp)) cp++;
-		*cp++ = '\0';
 
 		/* Skip and zero out the trailing whitespace */
 		while (isspace(*cp)) *cp++ = '\0';
 
 		/* Found a comment or EOL */
-		if (iseol(*cp)) goto next;
+		if (iseol(*cp)) continue;
 
 		/* Parse 'to' mapping */
-		t = cp;
+		t = cp++;
 		while (!isspace(*cp) && !iseol(*cp)) cp++;
-		*cp++ = '\0';
+		
+		/* Skip and zero out the trailing whitespace */
+		while (isspace(*cp)) *cp++ = '\0';
 
-		if ((strlen(f) > 0) && (strlen(t) > 0))
-			lm_add(p, strdup(f), strdup(t));
-next:
-		bzero(line, sizeof(line));
+		/* Should be no extra tokens at this point */
+		if (!iseol(*cp)) continue;
+
+		*cp = '\0';
+		lm_add(p, strdup(f), strdup(t));
 	}
-	(void)fclose(fp);
+	fclose(fp);
 	return;
 }
 
