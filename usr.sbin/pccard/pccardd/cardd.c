@@ -573,6 +573,8 @@ char c;
 off_t offs;
 int	rw_flags;
 
+	memset(&io,0,sizeof io);
+	memset(&drv,0,sizeof drv);
 	offs = sp->cis->reg_addr;
 	rw_flags = MDF_ATTR;
 	ioctl(sp->fd, PIOCRWFLAG, &rw_flags);
@@ -588,10 +590,11 @@ int	rw_flags;
 	c = sp->config->index;
 	write(sp->fd, &c, sizeof(c));
 #ifdef	DEBUG
-	printf("Setting config reg at offs 0x%x (=) 0x%x to 0x%x\n",
-		offs, sp->cis->reg_addr, c);
+	printf("Setting config reg at offs 0x%x to 0x%x\n",
+		offs, c);
 	printf("Reset time = %d ms\n", sp->card->reset_time);
 #endif
+	sleep(5);
 	usleep(sp->card->reset_time*1000);
 /*
  *	If other config registers exist, set them up.
@@ -640,9 +643,10 @@ int	rw_flags;
 			}
  */
 #ifdef	DEBUG
-		printf("Assigning I/O window 0, start 0x%x, size 0x%x\n",
-			io.start, io.size);
+		printf("Assigning I/O window 0, start 0x%x, size 0x%x flags 0x%x\n",
+			io.start, io.size,io.flags);
 #endif
+		io.flags |= IODF_ACTIVE;
 		if (ioctl(sp->fd, PIOCSIO, &io))
 			{
 			logerr("ioctl (PIOCSIO)");
@@ -652,6 +656,8 @@ int	rw_flags;
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
 	drv.irqmask = 1 << sp->irq;
+	drv.irqmask = 0;
+	drv.flags = 0x80;
 	if (sp->mem.size)
 		{
 		drv.mem = sp->mem.addr;
@@ -667,8 +673,8 @@ int	rw_flags;
 	else
 		drv.iobase = 0;
 #ifdef	DEBUG
-	fprintf(stderr, "Assign %s%d, io 0x%x, mem 0x%x, %d bytes, irq %x\n",
-	   drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, drv.irqmask);
+	fprintf(stderr, "Assign %s%d, io 0x%x, mem 0x%x, %d bytes, irq %x, flags %x\n",
+	   drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, drv.irqmask, drv.flags);
 #endif /* DEBUG */
 /*
  *	If the driver fails to be connected to the device,
