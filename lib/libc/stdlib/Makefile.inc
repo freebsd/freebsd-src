@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.13 1997/10/21 08:41:13 bde Exp $
+#	$Id: Makefile.inc,v 1.14 1998/02/20 08:41:46 jb Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
@@ -7,8 +7,17 @@
 MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c heapsort.c labs.c ldiv.c \
 	malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
-	realpath.c setenv.c strhash.c strtod.c strtol.c strtoq.c strtoul.c \
+	realpath.c setenv.c strhash.c strtol.c strtoq.c strtoul.c \
 	strtouq.c system.c
+
+.if ${MACHINE_ARCH} == "alpha"
+#  XXX Temporary until the assumption that a long is 32-bits is resolved
+#  XXX FreeBSD's code. NetBSD kludged this with Long = int32_t and
+#  XXX ULong = u_int32_t
+SRCS+=	netbsd_strtod.c
+.else
+SRCS+=	strtod.c
+.endif
 
 # machine-dependent stdlib sources
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc"
