@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ip_input.c,v 1.1.1.2 1997/04/03 10:39:25 darrenr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -319,7 +319,19 @@ tooshort:
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
+#if defined(IPFILTER) || defined(IPFILTER_LKM)
+	/*
+	 * Check if we want to allow this packet to be processed.
+	 * Consider it to be bad if not.
+	 */
+	if (fr_check) {
+		struct	mbuf	*m1 = m;
 
+		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
+			return;
+		ip = mtod(m = m1, struct ip *);
+	}
+#endif
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
 		int action;
@@ -345,20 +357,6 @@ tooshort:
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
 		return;
-#endif
-
-#if defined(IPFILTER) || defined(IPFILTER_LKM)
-	/*
-	 * Check if we want to allow this packet to be processed.
-	 * Consider it to be bad if not.
-	 */
-	if (fr_check) {
-		struct	mbuf	*m1 = m;
-
-		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
-			goto next;
-		ip = mtod(m = m1, struct ip *);
-	}
 #endif
 
 	/*

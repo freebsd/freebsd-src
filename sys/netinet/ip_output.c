@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.52 1997/02/28 19:40:48 fenner Exp $
+ *	$Id: ip_output.c,v 1.1.1.2 1997/04/03 10:39:32 darrenr Exp $
  */
 
 #define _IP_VHL
@@ -75,14 +75,16 @@ static void	ip_mloopback
 	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *));
 static int	ip_getmoptions
 	__P((int, struct ip_moptions *, struct mbuf **));
-static int	ip_optcopy __P((struct ip *, struct ip *));
 static int	ip_pcbopts __P((struct mbuf **, struct mbuf *));
 static int	ip_setmoptions
 	__P((int, struct ip_moptions **, struct mbuf *));
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
+int	ip_optcopy __P((struct ip *, struct ip *));
 extern int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
 extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+#else
+static int	ip_optcopy __P((struct ip *, struct ip *));
 #endif
 
 
@@ -580,7 +582,10 @@ ip_insertoptions(m, opt, phlen)
  * Copy options from ip to jp,
  * omitting those not copied during fragmentation.
  */
-static int
+#if !defined(IPFILTER) && !defined(IPFILTER_LKM)
+static
+#endif
+int
 ip_optcopy(ip, jp)
 	struct ip *ip, *jp;
 {
