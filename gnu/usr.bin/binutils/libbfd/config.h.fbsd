@@ -257,7 +257,7 @@
 /* #undef HAVE_WIN32_PSTATUS_T */
 
 /* Name of host specific header file to include in trad-core.c. */
-#define TRAD_HEADER 
+#define TRAD_HEADER !!TRAD_HEADER!!
 
 /* Use mmap if it's available? */
 /* #undef USE_MMAP */
