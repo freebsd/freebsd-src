@@ -86,6 +86,8 @@ static int ext2_unmount __P((struct mount *, int, struct proc *));
 static int ext2_vget __P((struct mount *, ino_t, struct vnode **));
 static int ext2_vptofh __P((struct vnode *, struct fid *));
 
+malloc_type_t M_EXT2NODE = { "EXT2 nodes", "EXT2 Filsystem inodes"};
+
 static struct vfsops ext2fs_vfsops = {
 	ext2_mount,
 	ufs_start,		/* empty function */
@@ -618,6 +620,7 @@ ext2_mountfs(devvp, mp, p)
 	}
 	ump = bsd_malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
+	ump->um_malloctype = M_EXT2NODE;
 	/* I don't know whether this is the right strategy. Note that
 	   we dynamically allocate both a ext2_sb_info and a ext2_super_block
 	   while Linux keeps the super block in a locked buffer
@@ -916,7 +919,7 @@ ext2_vget(mp, ino, vpp)
 	struct buf *bp;
 	struct vnode *vp;
 	dev_t dev;
-	int i, type, error;
+	int i, error;
 	int used_blocks;
 
 	ump = VFSTOUFS(mp);
@@ -946,12 +949,7 @@ restart:
 		*vpp = NULL;
 		return (error);
 	}
-	/* I don't really know what this 'type' does. I suppose it's some kind
-	 * of memory accounting. Let's just book this memory on FFS's account 
-	 * If I'm not mistaken, this stuff isn't implemented anyway in Lites
-	 */
-	type = ump->um_devvp->v_tag == VT_MFS ? M_MFSNODE : M_FFSNODE; /* XXX */
-	MALLOC(ip, struct inode *, sizeof(struct inode), type, M_WAITOK);
+	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
 #ifndef __FreeBSD__
 	insmntque(vp, mp);
 #endif
