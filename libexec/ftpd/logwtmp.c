@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: logwtmp.c,v 1.3 1996/09/22 21:53:28 wosch Exp $
  */
 
 #ifndef lint
@@ -59,7 +59,7 @@ static int fd = -1;
  * after login, but before logout).
  */
 void
-logwtmp(line, name, host)
+ftpd_logwtmp(line, name, host)
 	char *line, *name, *host;
 {
 	struct utmp ut;
