@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.58 1999/04/27 11:17:36 phk Exp $
+ *	$Id: raw_ip.c,v 1.59 1999/05/03 23:57:30 billf Exp $
  */
 
 #include <sys/param.h>
@@ -293,6 +293,7 @@ rip_ctloutput(so, sopt)
 		case IP_FW_DEL:
 		case IP_FW_FLUSH:
 		case IP_FW_ZERO:
+		case IP_FW_RESETLOG:
 			if (ip_fw_ctl_ptr == 0)
 				error = ENOPROTOOPT;
 			else
