@@ -32,6 +32,7 @@
 
 #include "mbr.h"
 #include "sysinstall.h"
+#include "bootarea.h"
 
 struct disklabel *avail_disklabels;
 int *avail_fds;
@@ -52,7 +53,6 @@ int dialog_active = 0;
 void exit_sysinstall();
 void exit_prompt();
 extern char *part_type(int);
-extern int disk_size(struct disklabel *);
 
 char selection[30];
 char boot1[] = BOOT1;
@@ -326,8 +326,8 @@ stage1()
 	if (write_mbr(avail_fds[inst_disk], mbr) == -1)
 		Fatal(errmsg);
 	if (write_bootblocks(avail_fds[inst_disk],
-						  mbr->dospart[inst_part].dp_start,
-						  avail_disklabels[inst_disk].d_bbsize) == -1)
+		  mbr->dospart[inst_part].dp_start,
+		  avail_disklabels[inst_disk].d_bbsize) == -1)
 		Fatal(errmsg);
 
 	/* close all the open disks */
