@@ -47,15 +47,14 @@ void
 _thread_seterrno(pthread_t thread, int error)
 {
 	/* Check for the initial thread: */
-	if (thread == _thread_initial) {
+	if (thread == _thread_initial)
 		/* The initial thread always uses the global error variable: */
 		errno = error;
-	} else {
+	else
 		/*
 		 * Threads other than the initial thread always use the error
 		 * field in the thread structureL 
 		 */
 		thread->error = error;
-	}
 }
 #endif

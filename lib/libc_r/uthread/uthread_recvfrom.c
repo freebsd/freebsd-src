@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,18 +43,20 @@ recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from, int *
 {
 	int             ret;
 
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		while ((ret = _thread_sys_recvfrom(fd, buf, len, flags, from, from_len)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
+				_thread_run->interrupted = 0;
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (errno == EINTR) {
+				if (_thread_run->interrupted) {
 					/* Return an error status: */
+					errno = EINTR;
 					ret = -1;
 					break;
 				}
@@ -63,7 +65,7 @@ recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from, int *
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

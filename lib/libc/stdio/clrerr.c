@@ -39,25 +39,18 @@
 static char sccsid[] = "@(#)clrerr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: clrerr.c,v 1.6 1998/04/11 07:40:41 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #undef	clearerr
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 void
 clearerr(fp)
 	FILE *fp;
 {
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	__sclearerr(fp);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 }

@@ -1,10 +1,11 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.9 1998/03/01 17:43:14 jkh Exp $
+#	$Id: Makefile.inc,v 1.22.2.10 1998/06/28 05:22:25 jdp Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
-SRCS+=	alarm.c arc4random.c assert.c clock.c closedir.c confstr.c \
+SRCS+=	_spinlock_stub.c alarm.c arc4random.c assert.c \
+	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
 	exec.c fnmatch.c frexp.c fstab.c ftok.c fts.c \
 	getbootfile.c getbsize.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1996-98 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ int pthread_single_np __P((void));
 int pthread_suspend_np __P((pthread_t));
 int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t attr));
 int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *attr, int kind));
+void pthread_set_name_np __P((pthread_t, char *));
 __END_DECLS
 
 #endif

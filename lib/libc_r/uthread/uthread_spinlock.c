@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_spinlock.c,v 1.3 1998/06/06 07:27:06 jb Exp $
+ * $Id: uthread_spinlock.c,v 1.4 1998/06/09 23:13:10 jb Exp $
  *
  */
 
 #include <stdio.h>
+#include <sys/time.h>
 #include <sched.h>
 #include <unistd.h>
 #include <pthread.h>

@@ -55,11 +55,11 @@ ftruncate(fd, length)
 
 #ifdef _THREAD_SAFE
 	int retval;
-	if (_thread_fd_lock(fd, FD_RDWR, NULL,__FILE__,__LINE__) != 0) {
+	if (_FD_LOCK(fd, FD_RDWR, NULL) != 0) {
 		retval = -1;
 	} else {
 	    retval = __syscall((quad_t)SYS_ftruncate, fd, 0, length);
-	    _thread_fd_unlock(fd, FD_RDWR);
+	    _FD_UNLOCK(fd, FD_RDWR);
 	}
 	return(retval);
 #else

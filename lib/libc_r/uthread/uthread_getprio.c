@@ -38,36 +38,19 @@
 int
 pthread_getprio(pthread_t pthread)
 {
-	int             rval = 0;
-	int             status;
-	pthread_t       pthread_p;
+	int ret;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
-	/* Point to the first thread in the list: */
-	pthread_p = _thread_link_list;
-
-	/* Enter a loop to search for the thread: */
-	while (pthread_p != NULL && pthread_p != pthread) {
-		/* Point to the next thread: */
-		pthread_p = pthread_p->nxt;
-	}
-
-	/* Check if the thread pointer is NULL: */
-	if (pthread == NULL || pthread_p == NULL) {
-		/* Return an invalid argument error: */
-		errno = EINVAL;
-		rval = -1;
-	} else {
+	/* Find the thread in the list of active threads: */
+	if ((ret = _find_thread(pthread)) == 0)
 		/* Get the thread priority: */
-		rval = pthread->pthread_priority;
+		ret = pthread->pthread_priority;
+	else {
+		/* Invalid thread: */
+		errno = ret;
+		ret = -1;
 	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the thread priority or an error status: */
-	return (rval);
+	return (ret);
 }
 #endif

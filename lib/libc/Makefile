@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-#	$Id: Makefile,v 1.16.2.3 1997/06/23 23:12:42 julian Exp $
+#	$Id: Makefile,v 1.16.2.4 1998/02/12 01:45:58 nate Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -9,11 +9,16 @@
 LIB=c
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 1
-CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
+CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS -I${.CURDIR}/include
 AINC=	-I${.CURDIR}/${MACHINE}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
+
+#
+# Don't bother hiding any syscalls (like libc_r does).
+#
+HIDDEN_SYSCALLS=
 
 #
 # Include make rules that are shared with libc_r.

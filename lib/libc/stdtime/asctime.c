@@ -14,13 +14,31 @@ static char	elsieid[] = "@(#)asctime.c	7.7";
 #include "private.h"
 #include "tzfile.h"
 
+#ifndef _THREAD_SAFE
+static char *asctime_r __P((const struct tm *, char *));
+#endif
+
 /*
 ** A la X3J11, with core dump avoidance.
 */
 
+
 char *
 asctime(timeptr)
-register const struct tm *	timeptr;
+const struct tm *	timeptr;
+{
+	static char		result[3 * 2 + 5 * INT_STRLEN_MAXIMUM(int) +
+					3 + 2 + 1 + 1];
+	return(asctime_r(timeptr, result));
+}
+
+#ifndef _THREAD_SAFE
+static
+#endif
+char *
+asctime_r(timeptr, result)
+const struct tm *	timeptr;
+char *result;
 {
 	static const char	wday_name[][3] = {
 		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
@@ -36,8 +54,6 @@ register const struct tm *	timeptr;
 	** three explicit spaces, two explicit colons, a newline,
 	** and a trailing ASCII nul).
 	*/
-	static char		result[3 * 2 + 5 * INT_STRLEN_MAXIMUM(int) +
-					3 + 2 + 1 + 1];
 	register const char *	wn;
 	register const char *	mn;
 

@@ -39,26 +39,19 @@
 static char sccsid[] = "@(#)fgetc.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fgetc.c,v 1.6 1998/04/11 07:40:42 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 int
 fgetc(fp)
 	FILE *fp;
 {
 	int retval;
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	retval = __sgetc(fp);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (retval);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.1.2.2 1998/02/13 01:35:56 julian Exp $
+ * $Id: uthread_write.c,v 1.1.2.3 1998/05/26 22:07:27 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -45,13 +45,28 @@ ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
 	int	blocking;
+	int	type;
 	ssize_t n;
 	ssize_t num = 0;
 	ssize_t	ret;
 
+	/* POSIX says to do just this: */
+	if (nbytes == 0)
+		return (0);
+
 	/* Lock the file descriptor for write: */
-	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for write: */
+		if (type != O_WRONLY && type != O_RDWR) {
+			/* File is not open for write: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_WRITE);
+			return (-1);
+		}
+
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
@@ -78,7 +93,7 @@ write(int fd, const void *buf, size_t nbytes)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || num < nbytes)) {
+			    errno == EAGAIN)) || (n >= 0 && num < nbytes))) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -112,7 +127,7 @@ write(int fd, const void *buf, size_t nbytes)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }

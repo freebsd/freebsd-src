@@ -1,10 +1,11 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.6.2.1 1997/06/24 03:51:36 julian Exp $
+#	$Id: Makefile.inc,v 1.6.2.2 1998/04/13 23:20:52 steve Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
 
-SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
+SRCS+=	_flock_stub.c \
+	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	fgetc.c fgetln.c fgetpos.c fgets.c fileno.c findfp.c flags.c fopen.c \
 	fprintf.c fpurge.c fputc.c fputs.c fread.c freopen.c fscanf.c \
 	fseek.c fsetpos.c ftell.c funopen.c fvwrite.c fwalk.c fwrite.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_readv.c,v 1.3 1997/04/01 22:44:16 jb Exp $
+ * $Id: uthread_readv.c,v 1.1.2.1 1997/06/24 00:28:07 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -45,16 +45,25 @@ ssize_t
 readv(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	ret;
-	int	status;
+	int	type;
 
 	/* Lock the file descriptor for read: */
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for read: */
+		if (type != O_RDONLY && type != O_RDWR) {
+			/* File is not open for read: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_READ);
+			return (-1);
+		}
+
 		/* Perform a non-blocking readv syscall: */
 		while ((ret = _thread_sys_readv(fd, iov, iovcnt)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_kern_sig_block(&status);
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -69,6 +78,7 @@ readv(int fd, const struct iovec * iov, int iovcnt)
 				 * interrupted by a signal
 				 */
 				if (_thread_run->interrupted) {
+					errno = EINTR;
 					ret = -1;
 					break;
 				}
@@ -76,7 +86,7 @@ readv(int fd, const struct iovec * iov, int iovcnt)
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

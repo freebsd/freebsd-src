@@ -80,6 +80,12 @@
 #define PTHREAD_EXPLICIT_SCHED      0
 
 /*
+ * Flags for read/write lock attributes
+ */
+#define PTHREAD_PROCESS_PRIVATE     0
+#define PTHREAD_PROCESS_SHARED      1	
+
+/*
  * Forward structure definitions.
  *
  * These are mostly opaque to the user.
@@ -91,6 +97,8 @@ struct pthread_cond_attr;
 struct pthread_mutex;
 struct pthread_mutex_attr;
 struct pthread_once;
+struct pthread_rwlock;
+struct pthread_rwlockattr;
 struct sched_param;
 
 /*
@@ -108,6 +116,8 @@ typedef struct	pthread_cond		*pthread_cond_t;
 typedef struct	pthread_cond_attr	*pthread_condattr_t;
 typedef int     			pthread_key_t;
 typedef struct	pthread_once		pthread_once_t;
+typedef struct	pthread_rwlock		*pthread_rwlock_t;
+typedef struct	pthread_rwlockattr	*pthread_rwlockattr_t;
 
 /*
  * Additional type definitions:
@@ -142,6 +152,7 @@ struct pthread_once {
  */
 #define PTHREAD_MUTEX_INITIALIZER	NULL
 #define PTHREAD_COND_INITIALIZER	NULL
+#define PTHREAD_RWLOCK_INITIALIZER	NULL
 
 /*
  * Default attribute arguments (draft 4, deprecated).
@@ -232,6 +243,20 @@ int		pthread_mutex_trylock __P((pthread_mutex_t *));
 int		pthread_mutex_unlock __P((pthread_mutex_t *));
 int		pthread_once __P((pthread_once_t *,
 			void (*init_routine) (void)));
+int		pthread_rwlock_destroy __P((pthread_rwlock_t *));
+int		pthread_rwlock_init __P((pthread_rwlock_t *,
+			const pthread_rwlockattr_t *));
+int		pthread_rwlock_rdlock __P((pthread_rwlock_t *));
+int		pthread_rwlock_tryrdlock __P((pthread_rwlock_t *));
+int		pthread_rwlock_trywrlock __P((pthread_rwlock_t *));
+int		pthread_rwlock_unlock __P((pthread_rwlock_t *));
+int		pthread_rwlock_wrlock __P((pthread_rwlock_t *));
+int		pthread_rwlockattr_init __P((pthread_rwlockattr_t *));
+int		pthread_rwlockattr_getpshared __P((const pthread_rwlockattr_t *,
+			int *));
+int		pthread_rwlockattr_setpshared __P((pthread_rwlockattr_t *,
+			int *));
+int		pthread_rwlockattr_destroy __P((pthread_rwlockattr_t *));
 pthread_t	pthread_self __P((void));
 int		pthread_setcancelstate __P((int, int *));
 int		pthread_setcanceltype __P((int, int *));

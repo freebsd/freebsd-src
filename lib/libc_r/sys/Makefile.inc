@@ -1,5 +1,5 @@
-#	$Id: Makefile.inc,v 1.5.2.1 1997/06/24 00:27:44 julian Exp $
+#	$Id: Makefile.inc,v 1.5.2.2 1998/06/29 19:18:14 dt Exp $
 
 .PATH:	 ${.CURDIR}/sys
 
-SRCS+= uthread_error.c
+SRCS+= uthread_error.c _atomic_lock.S

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_read.c,v 1.3 1997/04/01 22:44:15 jb Exp $
+ * $Id: uthread_read.c,v 1.1.2.1 1997/06/24 00:28:06 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -45,16 +45,29 @@ ssize_t
 read(int fd, void *buf, size_t nbytes)
 {
 	int	ret;
-	int	status;
+	int	type;
+
+	/* POSIX says to do just this: */
+	if (nbytes == 0)
+		return (0);
 
 	/* Lock the file descriptor for read: */
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for read: */
+		if (type != O_RDONLY && type != O_RDWR) {
+			/* File is not open for read: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_READ);
+			return (-1);
+		}
+
 		/* Perform a non-blocking read syscall: */
 		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_kern_sig_block(&status);
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -69,6 +82,7 @@ read(int fd, void *buf, size_t nbytes)
 				 * interrupted by a signal
 				 */
 				if (_thread_run->interrupted) {
+					errno = EINTR;
 					ret = -1;
 					break;
 				}
@@ -76,7 +90,7 @@ read(int fd, void *buf, size_t nbytes)
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

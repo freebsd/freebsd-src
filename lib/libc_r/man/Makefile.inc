@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.4 1998/07/31 09:09:19 phk Exp $
+# $Id: Makefile.inc,v 1.1.2.1 1998/07/31 16:00:54 des Exp $
 
 # POSIX thread man files
 
@@ -26,5 +26,14 @@ MAN3+=	pthread_cleanup_pop.3 \
 	pthread_mutex_trylock.3 \
 	pthread_mutex_unlock.3 \
 	pthread_once.3 \
+	pthread_rwlock_destroy.3 \
+	pthread_rwlock_init.3 \
+	pthread_rwlock_rdlock.3 \
+	pthread_rwlock_unlock.3 \
+	pthread_rwlock_wrlock.3 \
+	pthread_rwlockattr_destroy.3 \
+	pthread_rwlockattr_getpshared.3 \
+	pthread_rwlockattr_init.3 \
+	pthread_rwlockattr_setpshared.3 \
 	pthread_self.3 \
 	pthread_setspecific.3

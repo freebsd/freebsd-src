@@ -39,17 +39,26 @@
 #include "pthread_private.h"
 
 /* Static variables: */
-static struct pthread_key key_table[PTHREAD_KEYS_MAX];
+static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
 int
 pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
-		if (key_table[(*key)].count == 0) {
-			key_table[(*key)].count++;
+		/* Lock the key table entry: */
+		_SPINLOCK(&key_table[*key].lock);
+
+		if (key_table[(*key)].allocated == 0) {
+			key_table[(*key)].allocated = 1;
 			key_table[(*key)].destructor = destructor;
+
+			/* Unlock the key table entry: */
+			_SPINUNLOCK(&key_table[*key].lock);
 			return (0);
 		}
+
+		/* Unlock the key table entry: */
+		_SPINUNLOCK(&key_table[*key].lock);
 	}
 	return (EAGAIN);
 }
@@ -57,29 +66,21 @@ pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 int
 pthread_key_delete(pthread_key_t key)
 {
-	int             ret;
-	int             status;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
+	int ret = 0;
 
 	if (key < PTHREAD_KEYS_MAX) {
-		switch (key_table[key].count) {
-		case 1:
-			key_table[key].destructor = NULL;
-			key_table[key].count = 0;
-		case 0:
-			ret = 0;
-			break;
-		default:
-			ret = EBUSY;
-		}
-	} else {
-		ret = EINVAL;
-	}
+		/* Lock the key table entry: */
+		_SPINLOCK(&key_table[key].lock);
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+		if (key_table[key].allocated)
+			key_table[key].allocated = 0;
+		else
+			ret = EINVAL;
+
+		/* Unlock the key table entry: */
+		_SPINUNLOCK(&key_table[key].lock);
+	} else
+		ret = EINVAL;
 	return (ret);
 }
 
@@ -89,36 +90,42 @@ _thread_cleanupspecific(void)
 	void           *data;
 	int             key;
 	int             itr;
-	int             status;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
+	void		(*destructor)( void *);
 
 	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
 		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
 			if (_thread_run->specific_data_count) {
-				if (_thread_run->specific_data[key]) {
-					data = (void *) _thread_run->specific_data[key];
-					_thread_run->specific_data[key] = NULL;
-					_thread_run->specific_data_count--;
-					if (key_table[key].destructor) {
-						key_table[key].destructor(data);
+				/* Lock the key table entry: */
+				_SPINLOCK(&key_table[key].lock);
+				destructor = NULL;
+
+				if (key_table[key].allocated) {
+					if (_thread_run->specific_data[key]) {
+						data = (void *) _thread_run->specific_data[key];
+						_thread_run->specific_data[key] = NULL;
+						_thread_run->specific_data_count--;
+						destructor = key_table[key].destructor;
 					}
-					key_table[key].count--;
 				}
+
+				/* Unlock the key table entry: */
+				_SPINUNLOCK(&key_table[key].lock);
+
+				/*
+				 * If there is a destructore, call it
+				 * with the key table entry unlocked:
+				 */
+				if (destructor)
+					destructor(data);
 			} else {
 				free(_thread_run->specific_data);
-
-				/* Unblock signals: */
-				_thread_kern_sig_unblock(status);
+				_thread_run->specific_data = NULL;
 				return;
 			}
 		}
 	}
+	_thread_run->specific_data = NULL;
 	free(_thread_run->specific_data);
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 }
 
 static inline const void **
@@ -136,51 +143,29 @@ pthread_setspecific(pthread_key_t key, const void *value)
 {
 	pthread_t       pthread;
 	int             ret = 0;
-	int             status;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	/* Point to the running thread: */
 	pthread = _thread_run;
 
-	/*
-	 * Enter a loop for signal handler threads to find the parent thread
-	 * which has the specific data associated with it: 
-	 */
-	while (pthread->parent_thread != NULL) {
-		/* Point to the parent thread: */
-		pthread = pthread->parent_thread;
-	}
-
-	if ((pthread->specific_data) || (pthread->specific_data = pthread_key_allocate_data())) {
-		if ((key < PTHREAD_KEYS_MAX) && (key_table)) {
-			if (key_table[key].count) {
+	if ((pthread->specific_data) ||
+	    (pthread->specific_data = pthread_key_allocate_data())) {
+		if (key < PTHREAD_KEYS_MAX) {
+			if (key_table[key].allocated) {
 				if (pthread->specific_data[key] == NULL) {
-					if (value != NULL) {
+					if (value != NULL)
 						pthread->specific_data_count++;
-						key_table[key].count++;
-					}
 				} else {
-					if (value == NULL) {
+					if (value == NULL)
 						pthread->specific_data_count--;
-						key_table[key].count--;
-					}
 				}
 				pthread->specific_data[key] = value;
 				ret = 0;
-			} else {
+			} else
 				ret = EINVAL;
-			}
-		} else {
+		} else
 			ret = EINVAL;
-		}
-	} else {
+	} else
 		ret = ENOMEM;
-	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 	return (ret);
 }
 
@@ -188,33 +173,15 @@ void *
 pthread_getspecific(pthread_key_t key)
 {
 	pthread_t       pthread;
-	int             status;
 	void		*data;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	/* Point to the running thread: */
 	pthread = _thread_run;
 
-	/*
-	 * Enter a loop for signal handler threads to find the parent thread
-	 * which has the specific data associated with it: 
-	 */
-	while (pthread->parent_thread != NULL) {
-		/* Point to the parent thread: */
-		pthread = pthread->parent_thread;
-	}
-
-	/* Check for errors: */
-	if (pthread == NULL) {
-		/* Return an invalid argument error: */
-		data = NULL;
-	}
 	/* Check if there is specific data: */
-	else if (pthread->specific_data != NULL && (key < PTHREAD_KEYS_MAX) && (key_table)) {
+	if (pthread->specific_data != NULL && key < PTHREAD_KEYS_MAX) {
 		/* Check if this key has been used before: */
-		if (key_table[key].count) {
+		if (key_table[key].allocated) {
 			/* Return the value: */
 			data = (void *) pthread->specific_data[key];
 		} else {
@@ -224,13 +191,9 @@ pthread_getspecific(pthread_key_t key)
 			 */
 			data = NULL;
 		}
-	} else {
+	} else
 		/* No specific data has been created, so just return NULL: */
 		data = NULL;
-	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 	return (data);
 }
 #endif
