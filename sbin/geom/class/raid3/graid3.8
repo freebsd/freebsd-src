@@ -81,14 +81,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for RAID3 arrays configuration.
-After a device creation, all components are detected and configured
+utility is used for RAID3 array configuration.
+After a device is created, all components are detected and configured
 automatically.
-All operations like failure detection, stale components detection, rebuild
-of stale components etc.\& are done automatically as well.
+All operations such as failure detection, stale component detection, rebuild
+of stale components, etc.\& are also done automatically.
 The
 .Nm
-utility uses on-disk metadata (the last provider's sector) to store all needed
+utility uses on-disk metadata (the provider's last sector) to store all needed
 information.
 .Pp
 The first argument to
@@ -97,8 +97,9 @@ indicates an action to be performed:
 .Bl -tag -width ".Cm configure"
 .It Cm label
 Create a RAID3 device.
-The last given component will contain parity data, all the rest - regular data.
-Number of components has to be equal to 3, 5, 9, 17, etc\&. (2^n + 1).
+The last given component will contain parity data, whilst the others
+will all contain regular data.
+The number of components must be equal to 3, 5, 9, 17, etc\&. (2^n + 1).
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl h"
@@ -108,23 +109,23 @@ Hardcode providers' names in metadata.
 Turn off autosynchronization of stale components.
 .It Fl r
 Use parity component for reading in round-robin fashion.
-Without this option parity component is not used at all for reading operations
-when device is in complete state.
+Without this option the parity component is not used at all for reading operations
+when the device is in a complete state.
 With this option specified random I/O read operations are even 40% faster,
 but sequential reads are slower.
-One cannot not use this options if
+One cannot use this option if the
 .Fl w
 option is also specified.
 .It Fl w
 Use verify reading feature.
-When reading from device in complete state, read data also from parity component
+When reading from a device in a complete state, also read data from the parity component
 and verify the data by comparing XORed regular data with parity data.
-If verification fails,
+If verification fails, an
 .Er EIO
-error is returned and value of sysctl
+error is returned and the value of the
 .Va kern.geom.raid3.stat.parity_mismatch
-is increased.
-One cannot not use this options if
+sysctl is increased.
+One cannot use this option if the
 .Fl r
 option is also specified.
 .El
@@ -154,13 +155,13 @@ Turn off verify reading.
 .El
 .It Cm rebuild
 Rebuild the given component forcibly.
-If autosynchronization wasn't turn off for the given device, this command
-hopefully will not be used.
+If autosynchronization was not turned off for the given device, this command
+should be unnecessary.
 .It Cm insert
-Add the given component to the existing array, if one of the component was
+Add the given component to the existing array, if one of the components was
 removed previously with the
 .Cm remove
-command or one component is missing and will not be connected again.
+command or if one component is missing and will not be connected again.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl h"
@@ -178,7 +179,7 @@ Additional options include:
 Stop the given array even if it is opened.
 .El
 .It Cm list
-List every currently configured devices, if a list of devices is passed as a
+List every currently configured device; if a list of devices is passed as a
 parameter then only those devices will be shown.
 .It Cm load
 Load
@@ -196,7 +197,7 @@ Additional options include:
 Be more verbose.
 .El
 .Sh EXAMPLES
-Use 3 disks to setup a RAID3 array (use round-robin reading feature).
+Use 3 disks to setup a RAID3 array (with the round-robin reading feature).
 Create a file system, mount it, then unmount it and stop device:
 .Bd -literal -offset indent
 graid3 label -v -r data da0 da1 da2
@@ -209,7 +210,7 @@ graid3 unload
 .Ed
 .Pp
 .Pp
-Create a RAID3 array, but do not use automatic sunchronization feature.
+Create a RAID3 array, but do not use the automatic synchronization feature.
 Rebuild parity component:
 .Bd -literal -offset indent
 graid3 label -n data da0 da1 da2
@@ -238,4 +239,6 @@ utility appeared in
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
 .Sh BUGS
-There should be a section with implementation description.
+There should be a section with an implementation description.
+.Pp
+Documentation for sysctls kern.geom.raid3.* is missing.

@@ -64,8 +64,8 @@
 The
 .Nm
 utility is used for setting up transparent providers on existing ones.
-Its main purpose is testing other GEOM classes, as it allows force providers
-removal and I/O errors simulation with a given probability.
+Its main purpose is testing other GEOM classes, as it allows forced provider
+removal and I/O error simulation with a given probability.
 It is also a good starting point for implementing new GEOM classes.
 .Pp
 The first argument to
@@ -74,7 +74,7 @@ indicates an action to be performed:
 .Bl -tag -width ".Cm configure"
 .It Cm create
 Set up a transparent provider on the given devices.
-If operation succeded, new provider should appear with name
+If the operation succeeds, the new provider should appear with name
 .Pa /dev/ Ns Ao Ar dev Ac Ns Pa .nop .
 The kernel module
 .Pa geom_nop.ko
@@ -127,14 +127,14 @@ The default value is shown next to each variable.
 Debug level of the
 .Nm NOP
 GEOM class.
-This can be set to a number between 0 and 2, both included.
+This can be set to a number between 0 and 2 inclusive.
 If set to 0 minimal debug information is printed, and if set to 2 the
-maximum amount of debug information in printed.
+maximum amount of debug information is printed.
 .El
 .Sh EXAMPLES
 The following example shows how to create a transparent provider for disk
 .Pa /dev/da0
-with 50% failure probability and destroy it.
+with 50% failure probability, and how to destroy it.
 .Bd -literal -offset indent
 gnop create -v -f 50 da0
 gnop destroy -v da0.nop

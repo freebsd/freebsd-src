@@ -78,7 +78,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for setting up stripe on two or more disks.
+utility is used for setting up a stripe on two or more disks.
 The striped device can be configured using two different methods:
 .Dq manual
 or
@@ -102,7 +102,9 @@ Set up a striped device from the given devices with specified
 .Ar name .
 This is the
 .Dq manual
-method.
+method and the stripe will not exist after a reboot (see
+.Cm DESCRIPTION
+above).
 The kernel module
 .Pa geom_stripe.ko
 will be loaded if it is not loaded already.
@@ -116,7 +118,7 @@ The kernel module
 .Pa geom_stripe.ko
 will be loaded if it is not loaded already.
 .It Cm stop
-Turn off existing striped device by its
+Turn off an existing striped device by its
 .Ar name .
 This command does not touch on-disk metadata!
 .It Cm destroy
@@ -145,7 +147,10 @@ Force the removal of the specified striped device.
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl s Ar stripesize
-Specifies size of stripe block.
+Specifies size of stripe block in bytes.
+The
+.Ar stripesize
+must be a multiple of the largest sector size of all the providers.
 .It Fl v
 Be more verbose.
 .El
@@ -161,10 +166,10 @@ The default value is shown next to each variable.
 Debug level of the
 .Nm STRIPE
 GEOM class.
-This can be set to a number between 0 and 3, both included.
+This can be set to a number between 0 and 3 inclusive.
 If set to 0 minimal debug information is printed, and if set to 3 the
 maximum amount of debug information in printed.
-.It Va kern.geom.stripe.fast : No 1
+.It Va kern.geom.stripe.fast : No 0
 If set to a non-zero value enable
 .Dq "fast mode"
 instead of the normal
@@ -173,11 +178,11 @@ Compared to
 .Dq "economic mode"
 .Dq "fast mode"
 uses more memory, but it is much faster for smaller stripe sizes.
-If enough memory cannot be allocated
+If enough memory cannot be allocated,
 .Nm STRIPE
 will fall back to
 .Dq "economic mode" .
-.It Va kern.geom.stripe.maxmem : No 1310720
+.It Va kern.geom.stripe.maxmem : No 13107200
 Maximum amount of memory that can be consumed by
 .Dq "fast mode"
 (in bytes).
@@ -186,18 +191,20 @@ This
 variable is read-only and can only be set as a tunable in
 .Xr loader.conf 5 .
 .It Va kern.geom.stripe.fast_failed
-How many times
+A count of how many times
 .Dq "fast mode"
-failed because of insufficient amount of memory.
-If this value is big, you should considern increasing
+has failed due to an insufficient amount of memory.
+If this value is large, you should consider increasing the
 .Va kern.geom.stripe.maxmem
 value.
 .El
 .Sh EXAMPLES
-The following example shows how to set up striped device from four disks
-for automatic configuration, create a file system on it, and mount it:
+The following example shows how to set up a striped device from four disks with a
+4 KB stripe size for automatic configuration,
+create a file system on it,
+and mount it:
 .Bd -literal -offset indent
-gstripe label -v -s 4096 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
+gstripe label -v -s 131072 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
 newfs /dev/stripe/data
 mount /dev/stripe/data /mnt
 [...]
@@ -207,9 +214,25 @@ gstripe unload
 .Ed
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
+.Sh COMPATIBILITY
+.Nm
+interleave is in number of bytes,
+unlike
+.Xr ccdconfig 8
+and
+.Xr atacontrol 8
+which uses number of sectors.
+A a
+.Xr ccdconfig 8
+.Ar ileave
+of `128' is 64 KB (128 512B sectors).
+The same stripe interleave would be specified as '65536' for
+.Nm .
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr loader.conf 5 ,
+.Xr atacontrol 8 ,
+.Xr ccdconfig 8 ,
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
