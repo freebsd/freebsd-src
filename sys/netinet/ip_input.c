@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.63 1997/06/02 05:02:36 julian Exp $
+ * $Id: ip_input.c,v 1.64 1997/07/25 03:58:21 brian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -110,7 +110,17 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
 	&ipintrq.ifq_drops, 0, "");
 
 struct ipstat ipstat;
-static struct ipq ipq;
+
+/* Packet reassembly stuff */
+#define IPREASS_NHASH_LOG2      6
+#define IPREASS_NHASH           (1 << IPREASS_NHASH_LOG2)
+#define IPREASS_HMASK           (IPREASS_NHASH - 1)
+#define IPREASS_HASH(x,y) \
+	((((x) & 0xF | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
+
+static struct ipq ipq[IPREASS_NHASH];
+static int    nipq = 0;         /* total # of reass queues */
+static int    maxnipq;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -171,7 +181,7 @@ static void	 ip_enq __P((struct ipasfrag *, struct ipasfrag *));
 static void	 ip_forward __P((struct mbuf *, int));
 static void	 ip_freef __P((struct ipq *));
 static struct ip *
-	 ip_reass __P((struct ipasfrag *, struct ipq *));
+	 ip_reass __P((struct ipasfrag *, struct ipq *, struct ipq *));
 static struct in_ifaddr *
 	 ip_rtaddr __P((struct in_addr));
 static void	ipintr __P((void));
@@ -196,7 +206,12 @@ ip_init()
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
-	ipq.next = ipq.prev = &ipq;
+
+	for (i = 0; i < IPREASS_NHASH; i++)
+	    ipq[i].next = ipq[i].prev = &ipq[i];
+
+	maxnipq = nmbclusters/4;
+
 	ip_id = time.tv_sec & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
 #ifdef IPFIREWALL
@@ -221,7 +236,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip;
 	struct ipq *fp;
 	struct in_ifaddr *ia;
-	int hlen;
+	int    i, hlen;
 	u_short sum;
 
 #ifdef	DIAGNOSTIC
@@ -476,19 +491,37 @@ ours:
 			}
 			ip = mtod(m, struct ip *);
 		}
+		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 		/*
 		 * Look for queue of fragments
 		 * of this datagram.
 		 */
-		for (fp = ipq.next; fp != &ipq; fp = fp->next)
+		for (fp = ipq[sum].next; fp != &ipq[sum]; fp = fp->next)
 			if (ip->ip_id == fp->ipq_id &&
 			    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
 			    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
 			    ip->ip_p == fp->ipq_p)
 				goto found;
-		fp = 0;
-found:
 
+		fp = 0;
+
+		/* check if there's a place for the new queue */
+		if (nipq > maxnipq) {
+		    /*
+		     * drop something from the tail of the current queue
+		     * before proceeding further
+		     */
+		    if (ipq[sum].prev == &ipq[sum]) {   /* gak */
+			for (i = 0; i < IPREASS_NHASH; i++) {
+			    if (ipq[i].prev != &ipq[i]) {
+				ip_freef(ipq[i].prev);
+				break;
+			    }
+			}
+		    } else
+			ip_freef(ipq[sum].prev);
+		}
+found:
 		/*
 		 * Adjust ip_len to not reflect header,
 		 * set ip_mff if more fragments are expected,
@@ -507,7 +540,7 @@ found:
 		 */
 		if (((struct ipasfrag *)ip)->ipf_mff & 1 || ip->ip_off) {
 			ipstat.ips_fragments++;
-			ip = ip_reass((struct ipasfrag *)ip, fp);
+			ip = ip_reass((struct ipasfrag *)ip, fp, &ipq[sum]);
 			if (ip == 0)
 				return;
 			ipstat.ips_reassembled++;
@@ -583,9 +616,10 @@ NETISR_SET(NETISR_IP, ipintr);
  * is given as fp; otherwise have to make a chain.
  */
 static struct ip *
-ip_reass(ip, fp)
+ip_reass(ip, fp, where)
 	register struct ipasfrag *ip;
 	register struct ipq *fp;
+	struct   ipq    *where;
 {
 	register struct mbuf *m = dtom(ip);
 	register struct ipasfrag *q;
@@ -607,7 +641,8 @@ ip_reass(ip, fp)
 		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
-		insque(fp, &ipq);
+		insque(fp, where);
+		nipq++;
 		fp->ipq_ttl = IPFRAGTTL;
 		fp->ipq_p = ip->ip_p;
 		fp->ipq_id = ip->ip_id;
@@ -733,6 +768,7 @@ insert:
 	((struct ip *)ip)->ip_src = fp->ipq_src;
 	((struct ip *)ip)->ip_dst = fp->ipq_dst;
 	remque(fp);
+	nipq--;
 	(void) m_free(dtom(fp));
 	m = dtom(ip);
 	m->m_len += (ip->ip_hl << 2);
@@ -769,6 +805,7 @@ ip_freef(fp)
 	}
 	remque(fp);
 	(void) m_free(dtom(fp));
+	nipq--;
 }
 
 /*
@@ -808,18 +845,19 @@ ip_slowtimo()
 {
 	register struct ipq *fp;
 	int s = splnet();
+	int i;
 
-	fp = ipq.next;
-	if (fp == 0) {
-		splx(s);
-		return;
-	}
-	while (fp != &ipq) {
-		--fp->ipq_ttl;
-		fp = fp->next;
-		if (fp->prev->ipq_ttl == 0) {
-			ipstat.ips_fragtimeout++;
-			ip_freef(fp->prev);
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		fp = ipq[i].next;
+		if (fp == 0)
+			continue;
+		while (fp != &ipq[i]) {
+			--fp->ipq_ttl;
+			fp = fp->next;
+			if (fp->prev->ipq_ttl == 0) {
+				ipstat.ips_fragtimeout++;
+				ip_freef(fp->prev);
+			}
 		}
 	}
 	splx(s);
@@ -831,11 +869,14 @@ ip_slowtimo()
 void
 ip_drain()
 {
-	while (ipq.next != &ipq) {
-		ipstat.ips_fragdropped++;
-		ip_freef(ipq.next);
-	}
+	int     i;
 
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		while (ipq[i].next != &ipq[i]) {
+			ipstat.ips_fragdropped++;
+			ip_freef(ipq[i].next);
+		}
+	}
 	in_rtqdrain();
 }
 
