@@ -2,8 +2,8 @@
 
 PROG=	scsi_target
 SRCS=	scsi_target.h scsi_target.c scsi_cmds.c
-DPADD=	${LIBCAM}
-LDADD=	-lcam
+DPADD=	${LIBCAM} ${LIBSBUF}
+LDADD=	-lcam -lsbuf
 
 MAN=	scsi_target.8
 
