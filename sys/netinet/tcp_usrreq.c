@@ -755,7 +755,7 @@ tcp_connect(tp, nam, p)
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
-	tp->iss = tcp_rndiss_next();
+	tp->iss = tcp_new_isn();
 	tcp_sendseqinit(tp);
 
 	/*
@@ -841,7 +841,7 @@ tcp6_connect(tp, nam, p)
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
-	tp->iss = tcp_rndiss_next();
+	tp->iss = tcp_new_isn();
 	tcp_sendseqinit(tp);
 
 	/*
