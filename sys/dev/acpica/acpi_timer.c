@@ -157,6 +157,8 @@ acpi_timer_probe(device_t dev)
 	    (u_long)AcpiGbl_FADT->XPmTmrBlk.Address);
 	return (ENXIO);
     }
+    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
+    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
     if (AcpiGbl_FADT->TmrValExt != 0)
 	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
     else
