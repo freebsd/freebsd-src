@@ -72,6 +72,11 @@ if [ -n "$LOGFILES" ]; then
 	/usr/bin/touch $LOGFILES
 fi
 
+echo "+++ create lastlog"
+/usr/bin/touch /var/log/lastlog
+
+if
+
 # Since we are starting with a very fresh /etc on an MFS:
 if [ -d /conf/default/etc ]; then
 	newaliases
