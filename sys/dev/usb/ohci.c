@@ -5,6 +5,9 @@
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
  *	$NetBSD: ohci.c,v 1.128 2002/09/27 15:37:35 provos Exp $
  *	$NetBSD: ohci.c,v 1.129 2002/09/29 20:58:25 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.130 2002/09/29 20:59:30 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.131 2002/09/30 16:36:19 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.132 2002/12/07 06:52:11 toshii Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -1333,7 +1336,7 @@ ohci_softintr(void *v)
 	usbd_xfer_handle xfer;
 	int len, cc, s;
 
-	DPRINTFN(10,("ohci_softintr: enter\n:"));
+	DPRINTFN(10,("ohci_softintr: enter\n"));
 
 	sc->sc_bus.intr_context++;
 
