@@ -108,7 +108,7 @@ other authentication methods.
 The Internet Software Consortium's DHCP client has been added to the 
 base system.
  
-Sendmail upgraded to version 8.9.2.
+Sendmail upgraded to version 8.9.3.
 
 AMD, texinfo, global and many other various utilities updated.
 
