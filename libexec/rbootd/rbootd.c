@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rbootd.c	8.1 (Berkeley) 6/4/93
- *	$Id: rbootd.c,v 1.6 1997/03/28 15:48:14 imp Exp $
+ *	$Id: rbootd.c,v 1.7 1997/06/29 19:00:15 steve Exp $
  *
  * From: Utah Hdr: rbootd.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -297,7 +297,7 @@ main(argc, argv)
 void
 DoTimeout()
 {
-	register RMPCONN *rtmp;
+	RMPCONN *rtmp;
 	struct timeval now;
 
 	(void) gettimeofday(&now, (struct timezone *)0);
@@ -333,9 +333,9 @@ DoTimeout()
 
 CLIENT *
 FindClient(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
-	register CLIENT *ctmp;
+	CLIENT *ctmp;
 
 	for (ctmp = Clients; ctmp != NULL; ctmp = ctmp->next)
 		if (bcmp((char *)&rconn->rmp.hp_hdr.saddr[0],
