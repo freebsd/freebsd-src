@@ -171,6 +171,7 @@ struct g_provider {
 	u_int			flags;
 #define G_PF_CANDELETE		0x1
 #define G_PF_WITHER		0x2
+#define G_PF_ORPHAN		0x4
 };
 
 /* geom_dev.c */

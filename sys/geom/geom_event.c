@@ -106,8 +106,12 @@ g_orphan_provider(struct g_provider *pp, int error)
 	KASSERT(error != 0,
 	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
 	     pp, pp->name));
+	
 	pp->error = error;
 	mtx_lock(&g_eventlock);
+	KASSERT(!(pp->flags & G_PF_ORPHAN),
+	    ("g_orphan_provider(%p(%s)), already an orphan", pp, pp->name));
+	pp->flags |= G_PF_ORPHAN;
 	TAILQ_INSERT_TAIL(&g_doorstep, pp, orphan);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
@@ -122,9 +126,13 @@ static void
 g_orphan_register(struct g_provider *pp)
 {
 	struct g_consumer *cp, *cp2;
+	int wf;
 
 	g_trace(G_T_TOPOLOGY, "g_orphan_register(%s)", pp->name);
 	g_topology_assert();
+
+	wf = pp->flags & G_PF_WITHER;
+	pp->flags &= ~G_PF_WITHER;
 
 	/*
 	 * Tell all consumers the bad news.
@@ -139,8 +147,10 @@ g_orphan_register(struct g_provider *pp)
 		cp->geom->orphan(cp);
 		cp = cp2;
 	}
-	if (LIST_EMPTY(&pp->consumers) && (pp->flags & G_PF_WITHER))
+	if (LIST_EMPTY(&pp->consumers) && wf)
 		g_destroy_provider(pp);
+	else
+		pp->flags |= wf;
 #ifdef notyet
 	cp = LIST_FIRST(&pp->consumers);
 	if (cp != NULL)
