@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: lkm.4,v 1.9 1997/02/22 13:24:36 peter Exp $
 .\"
 .Dd January 17, 1996
 .Dt LKM 4
@@ -145,13 +145,19 @@ able to detect this failure, it will panic immediately.
 When system internal interfaces change, old modules often cannot
 detect this, and such modules when loaded will often cause crashes or
 mysterious failures.
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-facility was originally implemented by Terrence R. Lambert.  Loadable
-filesystems were implemented by Garrett Wollman, and loadable
-execution classes were implemented by David Greenman, Soren Schmidt,
-and Garrett Wollman.
+facility was originally implemented by
+.An Terrence R. Lambert .
+Loadable filesystems were implemented by
+.An Garrett Wollman ,
+and loadable
+execution classes were implemented by
+.An David Greenman ,
+.An Soren Schmidt ,
+and
+.An Garrett Wollman .
 .Sh HISTORY
 The
 .Nm
