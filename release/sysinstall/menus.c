@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.8 1999/02/14 20:14:35 jkh Exp $
+ * $Id: menus.c,v 1.180.2.9 1999/02/14 21:35:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,12 @@
  */
 
 #include "sysinstall.h"
+
+#ifdef __alpha__
+#define _AR(str) str "alpha/"
+#else	/* i386 */
+#define _AR(str) str "i386/"
+#endif
 
 /* Miscellaneous work routines for menus */
 static int
@@ -482,13 +488,13 @@ DMenu MenuMediaFTP = {
     "Select a site that's close!",
     "install",
     { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
+	VAR_FTP_PATH _AR("=ftp://ftp.freebsd.org/pub/FreeBSD/releases/") },
       { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=other" },
       { "4.0 SNAP Server", "current.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://current.freebsd.org/pub/FreeBSD/" },
+	VAR_FTP_PATH _AR("=ftp://current.freebsd.org/pub/FreeBSD/snapshots/") },
       { "3.0 SNAP Server", "releng3.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://releng3.freebsd.org/pub/FreeBSD/" },
+	VAR_FTP_PATH _AR("=ftp://releng3.freebsd.org/pub/FreeBSD/snapshots/") },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
       { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
