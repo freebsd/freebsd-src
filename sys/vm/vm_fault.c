@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.9 1994/10/15 13:33:07 davidg Exp $
+ * $Id: vm_fault.c,v 1.10 1994/10/22 02:18:01 davidg Exp $
  */
 
 /*
@@ -325,12 +325,10 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			}
 #endif
 				
-			if ((cnt.v_free_count < cnt.v_free_min) &&
-				swap_pager_full && !object->shadow && (!object->pager || 
+			if (swap_pager_full && !object->shadow && (!object->pager || 
 				(object->pager && object->pager->pg_type == PG_SWAP &&
 				!vm_pager_has_page(object->pager, offset+object->paging_offset)))) {
-				if (vaddr < VM_MAXUSER_ADDRESS &&
-						curproc && curproc->p_pid >= 48) /* XXX */ {
+				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) /* XXX */ {
 					printf("Process %lu killed by vm_fault -- out of swap\n", (u_long)curproc->p_pid);
 					psignal(curproc, SIGKILL);
 					curproc->p_estcpu = 0;
@@ -654,12 +652,16 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 					 *	If the page is being brought
 					 *	in, wait for it and then retry.
 					 */
-					PAGE_ASSERT_WAIT(copy_m, !change_wiring); 
 					RELEASE_PAGE(m);
 					copy_object->ref_count--;
 					vm_object_unlock(copy_object);
 					UNLOCK_THINGS;
-					thread_block("fltcpy");
+					spl = splhigh();
+					if( copy_m->flags & (PG_BUSY|PG_VMIO)) {
+						copy_m->flags |= PG_WANTED;
+						tsleep((caddr_t)copy_m,PSWP,"vmpfwc",0);
+					}
+					splx(spl);
 					vm_object_deallocate(first_object);
 					goto RetryFault;
 				}
