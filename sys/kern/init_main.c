@@ -424,8 +424,8 @@ proc0_init(void *dummy __unused)
 	limit0.pl_rlimit[RLIMIT_RSS].rlim_max = i;
 	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
 	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
-	limit0.p_cpulimit = RLIM_INFINITY;
 	limit0.p_refcnt = 1;
+	p->p_cpulimit = RLIM_INFINITY;
 
 	/* Allocate a prototype map so we have something to fork. */
 	pmap_pinit0(vmspace_pmap(&vmspace0));

@@ -573,6 +573,7 @@ struct proc {
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
+	rlim_t		p_cpulimit;	/* (j) Current CPU limit in seconds. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
