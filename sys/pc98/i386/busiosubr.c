@@ -197,6 +197,14 @@ i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
 /*************************************************************************
  * map
  *************************************************************************/
+int
+i386_memio_map(bus_space_tag_t t, bus_addr_t bpa, bus_size_t size, int flags,
+	       bus_space_handle_t *bshp)
+{
+
+	return i386_bus_space_handle_alloc(t, bpa, size, bshp);
+}
+
 void
 i386_memio_unmap(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
 {
