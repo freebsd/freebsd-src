@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.31 1997/10/26 01:03:58 brian Exp $
+ * $Id: vars.c,v 1.32 1997/10/29 01:19:51 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -40,7 +40,7 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.3";
-char VarLocalVersion[] = "$Date: 1997/10/26 01:03:58 $";
+char VarLocalVersion[] = "$Date: 1997/10/29 01:19:51 $";
 int Utmp = 0;
 int ipInOctets = 0;
 int ipOutOctets = 0;
@@ -172,21 +172,24 @@ LocalAuthCommand(struct cmdtab * list, int argc, char **argv)
   else
     pass = *argv;
 
-  switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
-  case INVALID:
-    pppVars.lauth = LOCAL_NO_AUTH;
-    break;
-  case VALID:
-    pppVars.lauth = LOCAL_AUTH;
-    break;
-  case NOT_FOUND:
-    pppVars.lauth = LOCAL_AUTH;
-    LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
-    break;
-  default:
-    pppVars.lauth = LOCAL_NO_AUTH;
-    LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
-    return 1;
-  }
+  if (VarHaveLocalAuthKey)
+    VarLocalAuth = strcmp(VarLocalAuthKey, pass) ? LOCAL_NO_AUTH : LOCAL_AUTH;
+  else
+    switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
+    case INVALID:
+      VarLocalAuth = LOCAL_NO_AUTH;
+      break;
+    case VALID:
+      VarLocalAuth = LOCAL_AUTH;
+      break;
+    case NOT_FOUND:
+      VarLocalAuth = LOCAL_AUTH;
+      LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
+      break;
+    default:
+      VarLocalAuth = LOCAL_NO_AUTH;
+      LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
+      return 1;
+    }
   return 0;
 }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.31 1997/10/26 01:03:59 brian Exp $
+ * $Id: vars.h,v 1.32 1997/11/09 14:18:55 brian Exp $
  *
  *	TODO:
  */
@@ -80,6 +80,8 @@ struct pppvars {
   char login_script[SCRIPT_LEN]; /* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
+  char local_auth_key[50];		/* Local auth passwd */
+  int have_local_auth_key;		/* Local auth passwd specified ? */
 #ifdef HAVE_DES
   int use_MSChap;		/* Use MSCHAP encryption */
 #endif
@@ -110,6 +112,8 @@ struct pppvars {
 #define	VarRetryTimeout		pppVars.retry_timeout
 #define	VarAuthKey		pppVars.auth_key
 #define	VarAuthName		pppVars.auth_name
+#define	VarLocalAuthKey		pppVars.local_auth_key
+#define	VarHaveLocalAuthKey	pppVars.have_local_auth_key
 #ifdef HAVE_DES
 #define	VarMSChap		pppVars.use_MSChap
 #endif

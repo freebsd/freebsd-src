@@ -1,5 +1,5 @@
 /*
- * $Id: server.c,v 1.7 1997/11/09 06:22:47 brian Exp $
+ * $Id: server.c,v 1.8 1997/11/09 14:18:51 brian Exp $
  */
 
 #include <sys/param.h>
@@ -26,7 +26,7 @@
 #include "log.h"
 #include "id.h"
 
-int server = -2;
+int server = -1;
 
 static struct sockaddr_un ifsun;
 static char *rm;
@@ -61,9 +61,11 @@ ServerLocalOpen(const char *name, mode_t mask)
     return 3;
   }
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
-  mask = umask(mask);
+  if (mask != (mode_t)-1)
+    mask = umask(mask);
   if (bind(s, (struct sockaddr *) & ifsun, sizeof(ifsun)) < 0) {
-    umask(mask);
+    if (mask != (mode_t)-1)
+      umask(mask);
     LogPrintf(LogERROR, "Local: bind: %s\n", strerror(errno));
     if (errno == EADDRINUSE && VarTerm)
       fprintf(VarTerm, "Wait for a while, then try again.\n");
@@ -71,7 +73,8 @@ ServerLocalOpen(const char *name, mode_t mask)
     ID0unlink(name);
     return 4;
   }
-  umask(mask);
+  if (mask != (mode_t)-1)
+    umask(mask);
   if (listen(s, 5) != 0) {
     LogPrintf(LogERROR, "Local: Unable to listen to socket - OS overload?\n");
     close(s);
