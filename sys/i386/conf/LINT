@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.62 1998/10/30 20:52:24 des Exp $
+#	$Id: LINT,v 1.286.2.63 1998/11/09 16:16:37 luigi Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -363,7 +363,16 @@ options PPP_FILTER 			#enable bpf filtering (needs bpfilter)
 # means that you won't get stuck if the kernel and /sbin/ipfw binary get
 # out of sync.
 #
-# IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
+# IPDIVERT enables the divert IP sockets, used by ``ipfw divert.''
+# See ipfw(8) and divert(4) man pages for details.
+#
+# IPFW_DIVERT_RESTART alters the interpretation of the "sin_port" field
+# when writing a packet to a divert socket. Without this option, "sin_port"
+# indicates that "divert port" ipfw rules should be ignored, where
+# "port" is the (host-order) value of "sin_port". With this option, this
+# field is the ipfw rule number at which to (re)start when checking
+# the packet, minus one. Note that 3.X kernels do not have this option,
+# and always behave as if IPFW_DIVERT_RESTART were defined.
 #
 # TCPDEBUG is undocumented.
 #
@@ -375,6 +384,7 @@ options         IPFIREWALL_VERBOSE      #print information about
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
 options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
+options		IPFW_DIVERT_RESTART	#divert writeback specifies ipfw rule
 options		TCPDEBUG
 
 #
