@@ -63,6 +63,8 @@
 
 #define	BSD_CLASS_NAME "BSD"
 
+#define ALPHA_LABEL_OFFSET	64
+
 /*
  * Our private data about one instance.  All the rest is handled by the
  * slice code and stored in its softc, so this is just the stuff
@@ -479,7 +481,8 @@ g_bsd_ioctl(void *arg)
 	u_char *buf;
 	off_t secoff;
 	u_int secsize;
-	int error;
+	int error, i;
+	uint64_t sum;
 
 	/* We don't need topology for now. */
 	g_topology_unlock();
@@ -521,6 +524,12 @@ g_bsd_ioctl(void *arg)
 	}
 	dl = &ms->ondisk;
 	g_bsd_leenc_disklabel(buf + secoff, dl);
+	if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
+		sum = 0;
+		for (i = 0; i < 63; i++)
+			sum += g_dec_le8(buf + i * 8);
+		g_enc_le8(buf + 504, sum);
+	}
 	error = g_write_data(cp, ms->labeloffset - secoff, buf, secsize);
 	g_free(buf);
 	g_io_deliver(bp, error);
@@ -717,9 +726,10 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		/* First look for a label at the start of the second sector. */
 		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
 
-		/* Next, look for it 64 bytes into the first sector. */
+		/* Next, look for alpha labels */
 		if (error)
-			error = g_bsd_try(gsp, cp, secsize, ms, 64);
+			error = g_bsd_try(gsp, cp, secsize, ms,
+			    ALPHA_LABEL_OFFSET);
 
 		/* If we didn't find a label, punt. */
 		if (error)
