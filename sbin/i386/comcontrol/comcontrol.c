@@ -48,7 +48,8 @@ int main(int argc, char *argv[])
 	int     res = 0;
 	int     dtrwait = -1, drainwait = -1;
 
-	if ((argc < 2) || (argc > 5)) usage(argv[0]);
+	if (argc < 2)
+		usage(argv[0]);
 
 	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
 	if (fd < 0) {
