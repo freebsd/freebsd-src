@@ -62,6 +62,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_getschedparam.3 \
 	pthread_attr.3 pthread_attr_getschedpolicy.3 \
 	pthread_attr.3 pthread_attr_getscope.3 \
+	pthread_attr.3 pthread_attr_getstack.3 \
 	pthread_attr.3 pthread_attr_getstackaddr.3 \
 	pthread_attr.3 pthread_attr_getstacksize.3 \
 	pthread_attr.3 pthread_attr_init.3 \
@@ -71,6 +72,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_setschedparam.3 \
 	pthread_attr.3 pthread_attr_setschedpolicy.3 \
 	pthread_attr.3 pthread_attr_setscope.3 \
+	pthread_attr.3 pthread_attr_setsstack.3 \
 	pthread_attr.3 pthread_attr_setstackaddr.3 \
 	pthread_attr.3 pthread_attr_setstacksize.3 \
 	pthread_condattr.3 pthread_condattr_init.3 \
@@ -79,17 +81,14 @@ MLINKS+= \
 	pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 	pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
 	pthread_mutexattr.3 pthread_mutexattr_getprotocol.3 \
-	pthread_mutexattr.3 pthread_mutexattr_getpshared.3 \
 	pthread_mutexattr.3 pthread_mutexattr_gettype.3 \
 	pthread_mutexattr.3 pthread_mutexattr_setprioceiling.3 \
 	pthread_mutexattr.3 pthread_mutexattr_setprotocol.3 \
-	pthread_mutexattr.3 pthread_mutexattr_setpshared.3 \
 	pthread_mutexattr.3 pthread_mutexattr_settype.3 \
 	pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3 \
 	pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3 \
 	pthread_schedparam.3 pthread_getschedparam.3 \
 	pthread_schedparam.3 pthread_setschedparam.3 \
-	pthread_testcancel.3 pthread_getcancelstate.3 \
 	pthread_testcancel.3 pthread_setcancelstate.3 \
 	pthread_testcancel.3 pthread_setcanceltype.3 \
 	sem_open.3 sem_close.3 \
