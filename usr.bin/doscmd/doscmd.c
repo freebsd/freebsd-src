@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.2 1997/08/15 23:41:23 jlemon Exp $
+ * $Id: doscmd.c,v 1.3 1997/09/30 22:03:40 jlemon Exp $
  */
 
 #include <sys/types.h>
@@ -257,7 +257,7 @@ main(int argc, char **argv)
 	N_PUTVEC(R_CS, R_IP, video_vector);
     }
 
-    sc.sc_mask = 0;
+    sigemptyset(&sc.sc_mask);
     sc.sc_onstack = 0;
 
     if (tmode)
