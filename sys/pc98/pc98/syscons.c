@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.126 1999/08/23 13:45:28 kato Exp $
+ *  $Id: syscons.c,v 1.127 1999/08/27 07:26:25 julian Exp $
  */
 
 #include "sc.h"
@@ -3437,9 +3437,6 @@ scinit(int unit, int flags)
 #else
     static u_short sc_buffer[ROW*COL*2];/* XXX */
 #endif
-#ifdef DEVFS
-    static void	*main_devfs_token[MAXCONS];
-#endif
 #ifndef SC_NO_FONT_LOADING
     static u_char font_8[256*8];
     static u_char font_14[256*14];
@@ -3527,9 +3524,6 @@ scinit(int unit, int flags)
 	if (flags & SC_KERNEL_CONSOLE) {
 	    sc->vtys = sizeof(main_vtys)/sizeof(main_vtys[0]);
 	    sc->tty = main_tty;
-#ifdef DEVFS
-	    sc->devfs_token = main_devfs_token;
-#endif
 	    sc->console = main_vtys;
 	    scp = main_vtys[0] = &main_console;
 	    init_scp(sc, sc->first_vty, scp);
@@ -3540,10 +3534,6 @@ scinit(int unit, int flags)
 	    sc->vtys = MAXCONS;
 	    sc->tty = malloc(sizeof(struct tty)*MAXCONS, M_DEVBUF, M_WAITOK);
 	    bzero(sc->tty, sizeof(struct tty)*MAXCONS);
-#ifdef DEVFS
-	    sc->devfs_token = malloc(sizeof(void *)*MAXCONS,
-				     M_DEVBUF, M_WAITOK);
-#endif
 	    sc->console = malloc(sizeof(struct scr_stat *)*MAXCONS,
 				 M_DEVBUF, M_WAITOK);
 	    scp = sc->console[0] = alloc_scp(sc, sc->first_vty);
@@ -3670,9 +3660,6 @@ scterm(int unit, int flags)
     if (!(flags & SC_KERNEL_CONSOLE)) {
 	free(sc->console, M_DEVBUF);
 	free(sc->tty, M_DEVBUF);
-#ifdef DEVFS
-	free(sc->devfs_token, M_DEVBUF);
-#endif
 #ifndef SC_NO_FONT_LOADING
 	free(sc->font_8, M_DEVBUF);
 	free(sc->font_14, M_DEVBUF);
