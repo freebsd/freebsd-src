@@ -31,8 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.112 1999/01/22 16:50:45 wollman Exp $
- *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
+ *	$Id: ip_input.c,v 1.113 1999/01/27 22:42:25 dillon Exp $
  */
 
 #define	_IP_VHL
@@ -290,14 +289,6 @@ ip_input(struct mbuf *m)
 	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
 		panic("ip_input no HDR");
 #endif
-	/*
-	 * If no IP addresses have been set yet but the interfaces
-	 * are receiving, can't do anything with incoming packets yet.
-	 * XXX This is broken! We should be able to receive broadcasts
-	 * and multicasts even without any local addresses configured.
-	 */
-	if (TAILQ_EMPTY(&in_ifaddrhead))
-		goto bad;
 	ipstat.ips_total++;
 
 	if (m->m_pkthdr.len < sizeof(struct ip))
@@ -465,7 +456,14 @@ pass:
 
 	/*
 	 * Check our list of addresses, to see if the packet is for us.
+	 * If we don't have any addresses, assume any unicast packet
+	 * we receive might be for us (and let the upper layers deal
+	 * with it).
 	 */
+	if (TAILQ_EMPTY(&in_ifaddrhead) &&
+	    (m->m_flags & (M_MCAST|M_BCAST)) == 0)
+		goto ours;
+
 	for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
 					ia = TAILQ_NEXT(ia, ia_link)) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
