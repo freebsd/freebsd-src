@@ -80,7 +80,6 @@ main(argc, argv)
 {
 	extern int optind;
 	int ch;
-	char *s;
 
 	while ((ch = getopt(argc, argv, "-a")) != EOF)
 		switch (ch) {
@@ -111,11 +110,8 @@ main(argc, argv)
 				cal();
 			(void)seteuid(0);
 		}
-	else {
-		if ((s = getenv("HOME")) != NULL)
-			chdir(s);
+	else
 		cal();
-	}
 	exit(0);
 }
 
