@@ -382,7 +382,6 @@ sb_callback(snddev_info *d, int reason)
 	 * the proper initialization for each one.
 	 */
 	if (PLAIN_SB16(d->bd_flags)) {
-	    u_char c, c1 ;
 
 	    /* the original SB16 (non-PnP, or PnP, or Vibra16C)
 	     * can do full duplex using one 16-bit channel
@@ -500,7 +499,6 @@ sb_callback(snddev_info *d, int reason)
                  * the second one takes the next...
                  * The default is to be ready for play.
                  */
-                int swap = 0 ;
 		DEB(printf("start %s -- now dma %d:%d\n",
 			rd ? "rd" : "wr",
 			d->dbuf_out.chan, d->dbuf_in.chan););
@@ -767,8 +765,6 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 		break ;
 	    }
 		else if (ess_major == 0x68 && (ess_minor & 0xf0) == 0x80) {
-			u_char cfg;
-			u_char bits;
 			int rev = ess_minor & 0xf;
 
 			if (rev >= 8)
@@ -1232,7 +1228,6 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
 {   
     struct pnp_cinfo d ;
     snddev_info tmp_d ; /* patched copy of the basic snddev_info */
-    int the_irq = 0 ; 
     
     tmp_d = sb_op_desc;
     snddev_last_probed = &tmp_d;
