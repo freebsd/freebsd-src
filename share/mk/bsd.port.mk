@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.222 1996/08/20 10:00:33 asami Exp $
+# $Id: bsd.port.mk,v 1.223 1996/08/24 09:28:48 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1221,7 +1221,7 @@ misc-depends:
 .if !target(depends-list)
 depends-list:
 	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
-		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
+		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
 		(cd $$dir ; ${MAKE} package-name depends-list); \
 	done
 .endif
