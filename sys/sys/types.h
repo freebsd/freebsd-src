@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.18 1997/02/22 09:46:18 peter Exp $
+ * $Id: types.h,v 1.19 1997/04/13 15:27:12 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -79,17 +79,6 @@ typedef	u_int32_t	uid_t;		/* user id */
 #ifdef KERNEL
 typedef	int		boolean_t;
 typedef	struct vm_page	*vm_page_t;
-#endif
-
-/*
- * This belongs in unistd.h, but is placed here to ensure that programs
- * casting the second parameter of lseek to off_t will get the correct
- * version of lseek.
- */
-#ifndef KERNEL
-__BEGIN_DECLS
-off_t	 lseek __P((int, off_t, int));
-__END_DECLS
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -154,6 +143,33 @@ typedef	struct fd_set {
 #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
 #define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
 #define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
+
+/*
+ * These declarations belong elsewhere, but are repeated here and in
+ * <stdio.h> to give broken programs a better chance of working with
+ * 64-bit off_t's.
+ */
+#ifndef KERNEL
+#include <sys/cdefs.h>
+__BEGIN_DECLS
+#ifndef _FTRUNCATE_DECLARED
+#define	_FTRUNCATE_DECLARED
+int	 ftruncate __P((int, off_t));
+#endif
+#ifndef _LSEEK_DECLARED
+#define	_LSEEK_DECLARED
+off_t	 lseek __P((int, off_t, int));
+#endif
+#ifndef _MMAP_DECLARED
+#define	_MMAP_DECLARED
+caddr_t	 mmap __P((caddr_t, size_t, int, int, int, off_t));
+#endif
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
+int	 truncate __P((const char *, off_t));
+#endif
+__END_DECLS
+#endif /* !KERNEL */
 
 #if defined(__STDC__) && defined(KERNEL)
 /*
