@@ -281,11 +281,9 @@ cpu_switch_load_gs:
 	movl    %eax,%dr0
 	movl	%dr7,%eax                	/* load dr7 so as not to */
 	andl    $0x0000fc00,%eax         	/* disturb reserved bits */
-	pushl   %ebx
-	movl    PCB_DR7(%edx),%ebx
-	andl	$~0x0000fc00,%ebx	/* re-enable the restored watchpoints */
-	orl     %ebx,%eax
-	popl	%ebx
+	movl    PCB_DR7(%edx),%ecx
+	andl	$~0x0000fc00,%ecx	/* re-enable the restored watchpoints */
+	orl     %ecx,%eax
 	movl    %eax,%dr7
 1:
 	ret
