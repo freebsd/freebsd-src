@@ -1,5 +1,9 @@
-MANDIR=/usr/man
-TMPDIR=/usr/man/tmp
+#!/bin/sh
+#
+# $FreeBSD$
+
+MANDIR=/usr/share/man
+TMPDIR=/usr/share/man/tmp
 TOOLS=$MANDIR/tools
 
 trap "rm $TMPDIR/tmp.$$ ; exit" 2 3 15
