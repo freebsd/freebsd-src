@@ -190,15 +190,12 @@ struct uma_bucket {
 typedef struct uma_bucket * uma_bucket_t;
 
 struct uma_cache {
-	struct mtx	uc_lock;	/* Spin lock on this cpu's bucket */
 	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
 	u_int64_t	uc_allocs;	/* Count of allocations */
 };
 
 typedef struct uma_cache * uma_cache_t;
-
-#define LOCKNAME_LEN	16		/* Length of the name for cpu locks */
 
 /*
  * Zone management structure 
@@ -207,7 +204,6 @@ typedef struct uma_cache * uma_cache_t;
  *
  */
 struct uma_zone {
-	char		uz_lname[LOCKNAME_LEN];	/* Text name for the cpu lock */
 	char		*uz_name;	/* Text name of the zone */
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones */
 	u_int32_t	uz_align;	/* Alignment mask */
@@ -292,26 +288,15 @@ void uma_large_free(uma_slab_t slab);
 #define	ZONE_LOCK(z)	mtx_lock(&(z)->uz_lock)
 #define ZONE_UNLOCK(z)	mtx_unlock(&(z)->uz_lock)
 
-#define	CPU_LOCK_INIT(z, cpu, lc)				\
-	do {							\
-		if ((lc))					\
-			mtx_init(&(z)->uz_cpu[(cpu)].uc_lock,	\
-			    (z)->uz_lname, (z)->uz_lname,	\
-			    MTX_DEF | MTX_DUPOK);		\
-		else						\
-			mtx_init(&(z)->uz_cpu[(cpu)].uc_lock,	\
-			    (z)->uz_lname, "UMA cpu",		\
-			    MTX_DEF | MTX_DUPOK);		\
-	} while (0)
+#define	CPU_LOCK_INIT(cpu)					\
+	mtx_init(&uma_pcpu_mtx[(cpu)], "UMA pcpu", "UMA pcpu",	\
+	    MTX_DEF | MTX_DUPOK)
 
-#define	CPU_LOCK_FINI(z, cpu)	\
-	mtx_destroy(&(z)->uz_cpu[(cpu)].uc_lock)
+#define CPU_LOCK(cpu)						\
+	mtx_lock(&uma_pcpu_mtx[(cpu)])
 
-#define CPU_LOCK(z, cpu)	\
-	mtx_lock(&(z)->uz_cpu[(cpu)].uc_lock)
-
-#define CPU_UNLOCK(z, cpu)	\
-	mtx_unlock(&(z)->uz_cpu[(cpu)].uc_lock)
+#define CPU_UNLOCK(cpu)						\
+	mtx_unlock(&uma_pcpu_mtx[(cpu)])
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup
