@@ -56,10 +56,10 @@ The default value is whatever the host system's
 reports.
 .It Fl b Ar BRANCH , Fl -branch Ns = Ns Ar BRANCH
 The branch to specify to
-.Xr cvs 1 ,
-using the
-.Fl r
-option, when checking out sources.
+.Xr cvs 1
+or
+.Xr cvsup 1
+when updating the source tree.
 The default is to use
 .Fl A
 instead, to get the head.
@@ -68,12 +68,21 @@ Specifying
 as the argument to
 .Fl -branch
 is equivalent to leaving it unspecified.
+.It Fl c Ar NAME , Fl -cvsup Ns = Ns Ar NAME
+The name of the
+.Xr cvsup 1
+server from which to update the source tree
+.Cm update
+command is specified.
+The default is to use
+.Xr cvs 1
+instead.
 .It Fl d Ar DATE , Fl -date Ns = Ns Ar DATE
 The date to specify to
-.Xr cvs 1 ,
-using the
-.Fl D
-option, when checking out sources.
+.Xr cvs 1
+or
+.Xr cvsup 1
+when updating the source tree.
 As a special case, the value
 .Dq today
 corresponds to midnight UTC the day the run starts.
@@ -121,7 +130,7 @@ The default is to not apply any patches.
 .It Fl r Ar DIR , Fl -repository Ns = Ns Ar DIR
 The location of the
 .Xr cvs 1
-repository from which to check out sources if the
+repository from which to update the source tree if the
 .Cm update
 command is specified.
 The default is
