@@ -188,8 +188,9 @@ spec_open(ap)
 		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
-	dev_ref(dev);
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
@@ -201,9 +202,9 @@ spec_open(ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-	cdevsw_rel(dsw);
-	if (error != 0)
-		dev_rel(dev);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (error)
@@ -260,14 +261,18 @@ spec_read(ap)
 	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
 	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
-	cdevsw_rel(dsw);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
@@ -304,14 +309,18 @@ spec_write(ap)
 	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_write() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
-	cdevsw_rel(dsw);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
@@ -343,7 +352,9 @@ spec_ioctl(ap)
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_ioctl() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_ioctl(dev, ap->a_command,
@@ -352,7 +363,9 @@ spec_ioctl(ap)
 	} else 
 		error = dsw->d_ioctl(dev, ap->a_command,
 		    ap->a_data, ap->a_fflag, ap->a_td);
-	cdevsw_rel(dsw);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);
@@ -376,14 +389,18 @@ spec_poll(ap)
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_poll() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		/* XXX: not yet DROP_GIANT(); */
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
 		/* XXX: not yet PICKUP_GIANT(); */
 	} else
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
-	cdevsw_rel(dsw);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	return(error);
 }
 
@@ -403,14 +420,18 @@ spec_kqfilter(ap)
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_kqfilter() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_kqfilter(dev, ap->a_kn);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_kqfilter(dev, ap->a_kn);
-	cdevsw_rel(dsw);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	return (error);
 }
 
@@ -595,15 +616,18 @@ spec_close(ap)
 	VI_UNLOCK(vp);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	cdevsw_ref(dsw);
+	dev_lock();
+	dev->si_threadcount++;
+	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-	cdevsw_rel(dsw);
-	dev_rel(dev);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 	return (error);
 }
 
