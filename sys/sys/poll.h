@@ -100,7 +100,7 @@ __BEGIN_DECLS
  * XXX poll() has "unsigned long" nfds on SVR4, not unsigned as on the
  * other BSDs.
  */
-int	poll __P((struct pollfd *_pfd, unsigned _nfds, int _timeout));
+int	poll __P((struct pollfd *_pfd, unsigned int _nfds, int _timeout));
 __END_DECLS
 
 #endif /* !_KERNEL */
