@@ -551,7 +551,7 @@ returntosender(msg, returnq, flags, e)
 		addheader("MIME-Version", "1.0", &ee->e_header);
 
 		(void) snprintf(buf, sizeof buf, "%s.%ld/%.100s",
-			ee->e_id, curtime(), MyHostName);
+			ee->e_id, (long)curtime(), MyHostName);
 		ee->e_msgboundary = newstr(buf);
 		(void) snprintf(buf, sizeof buf,
 #if DSN
@@ -588,14 +588,14 @@ returntosender(msg, returnq, flags, e)
 	else if (bitset(RTSF_PM_BOUNCE, flags))
 	{
 		snprintf(buf, sizeof buf, "Postmaster notify: %.*s",
-			sizeof buf - 20, msg);
+			(int)sizeof buf - 20, msg);
 		addheader("Subject", buf, &ee->e_header);
 		p = "postmaster-notification";
 	}
 	else
 	{
 		snprintf(buf, sizeof buf, "Returned mail: %.*s",
-			sizeof buf - 20, msg);
+			(int)sizeof buf - 20, msg);
 		addheader("Subject", buf, &ee->e_header);
 		p = "failure";
 	}
