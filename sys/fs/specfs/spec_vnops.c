@@ -49,6 +49,7 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -515,6 +516,9 @@ strategy_init(void)
 }
 SYSINIT(strategy, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, strategy_init, NULL)
 
+static int doslowdown = 0;
+SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
+
 /*
  * Just call the device strategy routine
  */
@@ -543,7 +547,7 @@ spec_strategy(ap)
 	/*
 	 * Slow down disk requests for niced processes.
 	 */
-	if (td && td->td_ksegrp->kg_nice > 0) {
+	if (doslowdown && td && td->td_ksegrp->kg_nice > 0) {
 		mtx_lock(&strategy_mtx);
 		msleep(&strategy_mtx, &strategy_mtx,
 		    PPAUSE | PCATCH | PDROP, "ioslow",
