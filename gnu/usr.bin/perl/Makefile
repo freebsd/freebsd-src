@@ -11,7 +11,6 @@ MAINTAINER=markm@freebsd.org
 .BEGIN:
 .ifmake depend || all
 	if [ \! -f ${.OBJDIR}/build-tools ] ; then \
-		${ECHO} TESTING TESTING TESTING ; \
 		cd ${.CURDIR}/libperl && ${MAKE} depend && ${MAKE} all ; \
 		cd ${.CURDIR}/miniperl && ${MAKE} depend && ${MAKE} all ; \
 		touch ${.OBJDIR}/build-tools ; \
