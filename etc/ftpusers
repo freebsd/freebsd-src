@@ -7,9 +7,13 @@ toor
 daemon
 operator
 bin
+tty
+kmem
 games
 news
 man
+bind
 uucp
 xten
+pop
 nobody
