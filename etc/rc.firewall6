@@ -256,7 +256,7 @@ case ${ipv6_firewall_type} in
 	#${fw6cmd} add pass udp from fe80::/10 521 to fe80::/10 521
 
 	# Allow ICMPv6 destination unreach
-	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1
 
 	# Allow NS/NA/toobig (don't filter it out)
 	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2,135,136
