@@ -1038,7 +1038,7 @@ installFilesystems(dialogMenuItem *self)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
+	    else if ((c1->type == fat || c1->type == efi) && c1->private_data && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
