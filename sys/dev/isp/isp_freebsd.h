@@ -113,6 +113,7 @@ typedef struct tstate {
 	int bus;
 	u_int32_t hold;
 	int atio_count;
+	int inot_count;
 } tstate_t;
 
 #define	LUN_HASH_SIZE			32
