@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -59,10 +60,9 @@ int	fflag;
 int	sflag;
 
 void	c_cut __P((FILE *, char *));
-void	err __P((const char *, ...));
 void	f_cut __P((FILE *, char *));
 void	get_list __P((char *));
-void	usage __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -110,7 +110,7 @@ main(argc, argv)
 	if (*argv)
 		for (; *argv; ++argv) {
 			if (!(fp = fopen(*argv, "r")))
-				err("%s: %s\n", *argv, strerror(errno));
+				err(1, "%s", *argv);
 			fcn(fp, *argv);
 			(void)fclose(fp);
 		}
@@ -160,11 +160,11 @@ get_list(list)
 			}
 		}
 		if (*p)
-			err("[-cf] list: illegal list value\n");
+			errx(1, "[-cf] list: illegal list value");
 		if (!stop || !start)
-			err("[-cf] list: values may not include zero\n");
+			errx(1, "[-cf] list: values may not include zero");
 		if (stop > _POSIX2_LINE_MAX)
-			err("[-cf] list: %d too large (max %d)\n",
+			errx(1, "[-cf] list: %d too large (max %d)",
 			    stop, _POSIX2_LINE_MAX);
 		if (maxval < stop)
 			maxval = stop;
@@ -223,7 +223,7 @@ f_cut(fp, fname)
 		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
 			if (!(ch = *p))
-				err("%s: line too long.\n", fname);
+				errx(1, "%s: line too long", fname);
 			/* this should work if newline is delimiter */
 			if (ch == sep)
 				isdelim = 1;
@@ -260,39 +260,11 @@ f_cut(fp, fname)
 	}
 }
 
-void
+static void
 usage()
 {
-	(void)fprintf(stderr,
-"usage:\tcut -c list [file1 ...]\n\tcut -f list [-s] [-d delim] [file ...]\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+		"usage: cut -c list [file1 ...]",
+		"       cut -f list [-s] [-d delim] [file ...]");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "cut: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
