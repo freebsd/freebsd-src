@@ -600,10 +600,13 @@ static pt_entry_t *
 get_ptbase(pmap)
 	pmap_t pmap;
 {
-	pd_entry_t frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
+	pd_entry_t frame;
 
 	/* are we current address space or kernel? */
-	if (pmap == kernel_pmap || frame == (PTDpde & PG_FRAME))
+	if (pmap == kernel_pmap)
+		return PTmap;
+	frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
+	if (frame == (PTDpde & PG_FRAME))
 		return PTmap;
 	/* otherwise, we are alternate address space */
 	if (frame != (APTDpde & PG_FRAME)) {
