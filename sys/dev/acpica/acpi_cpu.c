@@ -1046,7 +1046,7 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
     struct sbuf	 sb;
     char	 buf[128];
     int		 i;
-    uint64_t	 fract, sum, whole;
+    uintmax_t	 fract, sum, whole;
 
     sum = 0;
     for (i = 0; i < cpu_cx_count; i++)
@@ -1054,7 +1054,7 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
     sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
     for (i = 0; i < cpu_cx_count; i++) {
 	if (sum > 0) {
-	    whole = cpu_cx_stats[i] * 100;
+	    whole = (uintmax_t)cpu_cx_stats[i] * 100;
 	    fract = (whole % sum) * 100;
 	    sbuf_printf(&sb, "%u.%02u%% ", (u_int)(whole / sum),
 		(u_int)(fract / sum));
