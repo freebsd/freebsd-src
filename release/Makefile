@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.487 1999/05/16 08:07:34 phk Exp $
+#	$Id: Makefile,v 1.488 1999/05/16 12:21:54 phk Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -22,8 +22,8 @@ BASE = 4.0
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
-# If this is a RELEASE, then set
-#RELEASETAG=RELENG_2_2
+# If this is a -stable snapshot, then set
+#RELEASETAG=RELENG_3
 
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
