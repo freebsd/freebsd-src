@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.51 1997/07/26 13:54:01 kato Exp $
+ *  $Id: syscons.c,v 1.52 1997/08/09 01:54:51 kato Exp $
  */
 
 #include "sc.h"
@@ -1425,7 +1425,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
 	}
 	return 0;
-#endif /* PC98 */
 
     case SW_VGA_MODEX:
 	if (!crtc_vga || video_mode_ptr == NULL)
@@ -1444,6 +1443,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
 	}
 	return 0;
+#endif /* PC98 */
 
     case VT_SETMODE:    	/* set screen switcher mode */
     {
