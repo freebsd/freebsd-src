@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.8.4.2 1996/06/05 02:36:37 jkh Exp $
+#	$Id: security,v 1.8.4.3 1996/06/17 09:17:12 jkh Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -10,7 +10,7 @@ host=`hostname -s`
 echo "Subject: $host security check output"
 
 LOG=/var/log
-TMP=/tmp/_secure.$$
+TMP=/var/run/_secure.$$
 
 umask 027
 
