@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.14 1995/11/29 20:40:36 wollman Exp $
+#	$Id: rc.i386,v 1.15 1996/01/31 15:02:54 mpp Exp $
 #	Do i386 specific processing
 #
 
@@ -90,6 +90,12 @@ if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver'
 	modstat | grep _saver || \
 		modload -u -o /tmp/saver_mod -q /lkm/${saver}_saver_mod.o
+fi
+
+# mouse daemon
+if [ "X${mousedtype}" != XNO ] ; then
+	echo -n ' moused'
+	moused ${mousedflags} -p ${mousedport} -t ${mousedtype}
 fi
 
 echo '.'
