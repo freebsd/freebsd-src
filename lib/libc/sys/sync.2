@@ -69,13 +69,13 @@ attributes.
 .Xr fsync 2 ,
 .Xr syncer 4 ,
 .Xr sync 8
-.Sh BUGS
-The
-.Fn sync
-system call
-may return before the buffers are completely flushed.
 .Sh HISTORY
 The
 .Fn sync
 function appeared in
 .At v6 .
+.Sh BUGS
+The
+.Fn sync
+system call
+may return before the buffers are completely flushed.

@@ -164,6 +164,10 @@ There is insufficient swap space for the new process.
 .Xr minherit 2 ,
 .Xr vfork 2 ,
 .Xr rfork_thread 3
+.Sh HISTORY
+The
+.Fn rfork
+function first appeared in Plan9.
 .Sh BUGS
 .Fx
 does not yet implement a native
@@ -180,7 +184,3 @@ The
 .Xr rfork_thread 3
 function can often be used instead of
 .Fn clone .
-.Sh HISTORY
-The
-.Fn rfork
-function first appeared in Plan9.

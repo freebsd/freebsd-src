@@ -237,10 +237,6 @@ definitions are explicitly removed.
 .Xr open 2 ,
 .Xr read 2 ,
 .Xr write 2
-.Sh BUGS
-The standard buffered functions do not interact well with certain other
-library and system functions, especially
-.Xr vfork 2 .
 .Sh STANDARDS
 The
 .Nm
@@ -331,3 +327,7 @@ library conforms to
 .It "vwprintf	formatted wide character output conversion"
 .It "wprintf	formatted wide character output conversion"
 .El
+.Sh BUGS
+The standard buffered functions do not interact well with certain other
+library and system functions, especially
+.Xr vfork 2 .

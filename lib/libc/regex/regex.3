@@ -588,14 +588,6 @@ and
 beginning and ending subexpressions in obsolete
 .Pq Dq basic
 REs are anchors, not ordinary characters.
-.Sh SEE ALSO
-.Xr grep 1 ,
-.Xr re_format 7
-.Pp
-.St -p1003.2 ,
-sections 2.8 (Regular Expression Notation)
-and
-B.5 (C Binding for Regular Expression Matching).
 .Sh DIAGNOSTICS
 Non-zero error codes from
 .Fn regcomp
@@ -655,6 +647,14 @@ invalid argument, e.g.\& negative-length string
 .It Dv REG_ILLSEQ
 illegal byte sequence (bad multibyte character)
 .El
+.Sh SEE ALSO
+.Xr grep 1 ,
+.Xr re_format 7
+.Pp
+.St -p1003.2 ,
+sections 2.8 (Regular Expression Notation)
+and
+B.5 (C Binding for Regular Expression Matching).
 .Sh HISTORY
 Originally written by
 .An Henry Spencer .

@@ -188,13 +188,6 @@ writes the error message into
 The
 .Fn kvm_close
 function returns 0 on success and -1 on failure.
-.Sh BUGS
-There should not be two open calls.
-The ill-defined error semantics
-of the Sun library and the desire to have a backward-compatible library
-for
-.Bx
-left little choice.
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr kvm 3 ,
@@ -207,3 +200,10 @@ left little choice.
 .Xr kvm_write 3 ,
 .Xr kmem 4 ,
 .Xr mem 4
+.Sh BUGS
+There should not be two open calls.
+The ill-defined error semantics
+of the Sun library and the desire to have a backward-compatible library
+for
+.Bx
+left little choice.

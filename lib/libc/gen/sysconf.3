@@ -195,10 +195,6 @@ argument is invalid.
 .Xr pathconf 2 ,
 .Xr confstr 3 ,
 .Xr sysctl 3
-.Sh BUGS
-The value for _SC_STREAM_MAX is a minimum maximum, and required to be
-the same as ANSI C's FOPEN_MAX, so the returned value is a ridiculously
-small and misleading number.
 .Sh STANDARDS
 Except for the fact that values returned by
 .Fn sysconf
@@ -210,3 +206,7 @@ The
 .Fn sysconf
 function first appeared in
 .Bx 4.4 .
+.Sh BUGS
+The value for _SC_STREAM_MAX is a minimum maximum, and required to be
+the same as ANSI C's FOPEN_MAX, so the returned value is a ridiculously
+small and misleading number.

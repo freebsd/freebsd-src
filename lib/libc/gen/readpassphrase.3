@@ -92,30 +92,9 @@ If an error is encountered, the terminal state is restored and
 a
 .Dv NULL
 pointer is returned.
-.Sh ERRORS
-.Bl -tag -width Er
-.It Bq Er EINTR
-The
-.Fn readpassphrase
-function was interrupted by a signal.
-.It Bq Er EINVAL
-The
-.Fa bufsiz
-argument was zero.
-.It Bq Er EIO
-The process is a member of a background process attempting to read
-from its controlling terminal, the process is ignoring or blocking
-the
-.Dv SIGTTIN
-signal or the process group is orphaned.
-.It Bq Er EMFILE
-The process has already reached its limit for open file descriptors.
-.It Bq Er ENFILE
-The system file table is full.
-.It Bq Er ENOTTY
-There is no controlling terminal and the
-.Dv RPP_REQUIRE_TTY
-flag was specified.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/tty" -compact
+.It Pa /dev/tty
 .El
 .Sh EXAMPLES
 The following code fragment will read a passphrase from
@@ -172,9 +151,30 @@ from a background process) are treated specially.
 When the process is resumed after it has been stopped,
 .Fn readpassphrase
 will reprint the prompt and the user may then enter a passphrase.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/tty" -compact
-.It Pa /dev/tty
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINTR
+The
+.Fn readpassphrase
+function was interrupted by a signal.
+.It Bq Er EINVAL
+The
+.Fa bufsiz
+argument was zero.
+.It Bq Er EIO
+The process is a member of a background process attempting to read
+from its controlling terminal, the process is ignoring or blocking
+the
+.Dv SIGTTIN
+signal or the process group is orphaned.
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOTTY
+There is no controlling terminal and the
+.Dv RPP_REQUIRE_TTY
+flag was specified.
 .El
 .Sh SEE ALSO
 .Xr sigaction 2 ,

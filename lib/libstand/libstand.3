@@ -651,8 +651,6 @@ pointers should be terminated with a NULL.
 Devices are exported by the supporting code via the array
 .Vt struct devsw *devsw[]
 which is a NULL terminated array of pointers to device switch structures.
-.Sh BUGS
-The lack of detailed memory usage data is unhelpful.
 .Sh HISTORY
 The
 .Nm
@@ -678,3 +676,5 @@ The reorganisation and port to
 .Fx 3.0 ,
 the environment functions and this manpage were written by
 .An Mike Smith Aq msmith@FreeBSD.org .
+.Sh BUGS
+The lack of detailed memory usage data is unhelpful.

@@ -397,6 +397,13 @@ The current implementation assumes a one-to-one relationship between
 interfaces and links, which is not necessarily true according to the
 specification.
 .\"
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/hosts
+.It Pa /etc/nsswitch.conf
+.It Pa /etc/resolv.conf
+.El
+.\"
 .Sh EXAMPLES
 The following code tries to connect to
 .Dq Li www.kame.net
@@ -504,13 +511,6 @@ if (nsock == 0) {
 freeaddrinfo(res0);
 .Ed
 .\"
-.Sh FILES
-.Bl -tag -width /etc/nsswitch.conf -compact
-.It Pa /etc/hosts
-.It Pa /etc/nsswitch.conf
-.It Pa /etc/resolv.conf
-.El
-.\"
 .Sh DIAGNOSTICS
 Error return status from
 .Fn getaddrinfo
@@ -606,9 +606,6 @@ indicate an unknown error.
 .%D June 2000
 .Re
 .\"
-.Sh HISTORY
-The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-.\"
 .Sh STANDARDS
 The
 .Fn getaddrinfo
@@ -617,6 +614,9 @@ function is defined in
 and documented in
 .Dq Basic Socket Interface Extensions for IPv6
 (RFC2553).
+.\"
+.Sh HISTORY
+The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 .\"
 .Sh BUGS
 Although the current implementation is otherwise thread-safe, using

@@ -33,6 +33,10 @@ A hash
 .Pq Dq Li #
 indicates the beginning of a comment; characters up to the end of
 the line are not interpreted by routines which search the file.
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/nsswitch.conf
+.El
 .Sh EXAMPLES
 Below is an example of an RPC database:
 .Bd -literal
@@ -51,9 +55,5 @@ status		100024
 bootparam	100026
 keyserv		100029	keyserver
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/nsswitch.conf -compact
-.It Pa /etc/nsswitch.conf
-.El
 .Sh SEE ALSO
 .Xr getrpcent 3

@@ -133,16 +133,6 @@ could not be found or the
 is
 .Dv ENTER
 and the table is full.
-.Sh ERRORS
-The
-.Fn hcreate
-and
-.Fn hsearch
-functions may fail if:
-.Bl -tag -width Er
-.It Bq Er ENOMEM
-Insufficient storage space is available.
-.El
 .Sh EXAMPLES
 The following example reads in strings followed by two numbers
 and stores them in a hash table, discarding duplicates.
@@ -200,6 +190,16 @@ main(void)
 	return 0;
 }
 .Ed
+.Sh ERRORS
+The
+.Fn hcreate
+and
+.Fn hsearch
+functions may fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
 .Sh SEE ALSO
 .Xr bsearch 3 ,
 .Xr lsearch 3 ,

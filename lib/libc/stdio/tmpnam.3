@@ -156,6 +156,30 @@ return a pointer to a file name on success, and a
 .Dv NULL
 pointer
 on error.
+.Sh COMPATIBILITY
+These interfaces are provided from System V and
+.Tn ANSI
+compatibility only.
+.Pp
+Most historic implementations of these functions provide
+only a limited number of possible temporary file names
+(usually 26)
+before file names will start being recycled.
+System V implementations of these functions
+(and of
+.Xr mktemp 3 )
+use the
+.Xr access 2
+system call to determine whether or not the temporary file
+may be created.
+This has obvious ramifications for setuid or setgid programs,
+complicating the portable use of these interfaces in such programs.
+.Pp
+The
+.Fn tmpfile
+interface should not be used in software expected to be used on other systems
+if there is any possibility that the user does not wish the temporary file to
+be publicly readable and writable.
 .Sh ERRORS
 The
 .Fn tmpfile
@@ -202,30 +226,6 @@ It is strongly suggested that
 be used in place of these functions.
 (See
 the FSA.)
-.Sh COMPATIBILITY
-These interfaces are provided from System V and
-.Tn ANSI
-compatibility only.
-.Pp
-Most historic implementations of these functions provide
-only a limited number of possible temporary file names
-(usually 26)
-before file names will start being recycled.
-System V implementations of these functions
-(and of
-.Xr mktemp 3 )
-use the
-.Xr access 2
-system call to determine whether or not the temporary file
-may be created.
-This has obvious ramifications for setuid or setgid programs,
-complicating the portable use of these interfaces in such programs.
-.Pp
-The
-.Fn tmpfile
-interface should not be used in software expected to be used on other systems
-if there is any possibility that the user does not wish the temporary file to
-be publicly readable and writable.
 .Sh SEE ALSO
 .Xr mkstemp 3 ,
 .Xr mktemp 3

@@ -880,11 +880,6 @@ is provided for error checking purposes.
 This function can be used if an already-aliased packet needs to have its
 original IP header restored for further processing (e.g.\& logging).
 .Ed
-.Sh BUGS
-PPTP aliasing does not work when more than one internal client
-connects to the same external server at the same time, because
-PPTP requires a single TCP control connection to be established
-between any two IP addresses.
 .Sh AUTHORS
 .An Charles Mott Aq cm@linktel.net ,
 versions 1.0 - 1.8, 2.0 - 2.4.
@@ -1016,3 +1011,8 @@ If this results in a conflict, then port numbers are randomly chosen until
 a unique aliasing link can be established.
 In an alternate operating mode, the first choice of an aliasing port is also
 random and unrelated to the local port number.
+.Sh BUGS
+PPTP aliasing does not work when more than one internal client
+connects to the same external server at the same time, because
+PPTP requires a single TCP control connection to be established
+between any two IP addresses.

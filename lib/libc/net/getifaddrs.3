@@ -142,16 +142,6 @@ for any of the errors specified for the library routines
 .Xr malloc 3
 or
 .Xr sysctl 3 .
-.Sh BUGS
-If both
-.In net/if.h
-and
-.In ifaddrs.h
-are being included,
-.In net/if.h
-.Em must
-be included before
-.In ifaddrs.h .
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr socket 2 ,
@@ -163,3 +153,13 @@ The
 .Nm
 implementation first appeared in BSDi
 .Bsx .
+.Sh BUGS
+If both
+.In net/if.h
+and
+.In ifaddrs.h
+are being included,
+.In net/if.h
+.Em must
+be included before
+.In ifaddrs.h .

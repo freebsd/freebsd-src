@@ -268,6 +268,9 @@ Upon an error the return value of the function is -1.
 Note: Addresses are indexed starting at 1, and flags starting at 0,
 to maintain consistency with the terminology and figures in RFC2460.
 .\"
+.Sh EXAMPLES
+RFC2292 gives comprehensive examples in chapter 8.
+.\"
 .Sh DIAGNOSTICS
 The
 .Fn inet6_rthdr_space
@@ -298,9 +301,6 @@ and
 functions
 return -1 on error.
 .\"
-.Sh EXAMPLES
-RFC2292 gives comprehensive examples in chapter 8.
-.\"
 .Sh SEE ALSO
 .Rs
 .%A W. Stevens
@@ -317,14 +317,14 @@ RFC2292 gives comprehensive examples in chapter 8.
 .%D December 1998
 .Re
 .\"
-.Sh HISTORY
-The implementation first appeared in KAME advanced networking kit.
-.\"
 .Sh STANDARDS
 The functions
 are documented in
 .Dq Advanced Sockets API for IPv6
 (RFC2292).
+.\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.
 .\"
 .Sh BUGS
 The text was shamelessly copied from RFC2292.
