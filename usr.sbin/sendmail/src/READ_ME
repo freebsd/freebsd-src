@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.130 (Berkeley) 11/10/96
+#	@(#)READ_ME	8.132 (Berkeley) 12/1/96
 #
 
 This directory contains the source files for sendmail.
@@ -175,6 +175,10 @@ LDAPMAP		Lightweight Directory Lookup Protocol support.  You will
 >>>  OVERRIDE calls to ndbm routines -- in particular, if you leave ndbm.h
 >>>  in, you can find yourself using the new db package even if you don't
 >>>  define NEWDB.
+>>>
+>>>  Further note: DO NOT remove your existing /usr/include/ndbm.h --
+>>>  you need that one.  But do not install an updated ndbm.h in
+>>>  /usr/include, /usr/local/include, or anywhere else.
 
 If NEWDB and NDBM are defined (but not NIS), then sendmail will read
 NDBM format alias files, but the next time a newaliases is run the
@@ -790,6 +794,23 @@ Ultrix
 	IDENT on in the configuration file by setting the "ident" timeout
 	to 30 seconds.
 
+Solaris 2.5.1 (SunOS 5.5.1)
+	Apparently patch 103663-01 installs a new /usr/include/resolv.h
+	file that defines the __P macro without checking to see if it is
+	already defined.  This causes compile warnings such as:
+
+	   In file included from daemon.c:51:
+	   /usr/include/resolv.h:208: warning: `__P' redefined
+	   cdefs.h:58: warning: this is the location of the previous definition
+
+	If you are running with this patch, create a file in the
+	obj.SunOS.5.5.1.* directory that reads:
+
+	   #undef __P
+	   #include "/usr/include/resolv.h"
+
+	... And then file a bug report with Sun.
+
 OSF/1
 	If you are compiling on OSF/1 (DEC Alpha), you must use
 	-L/usr/shlib (otherwise it core dumps on startup).  You may also
@@ -1377,4 +1398,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.130, last update 11/10/96 11:15:30)
+(Version 8.132, last update 12/1/96 09:34:37)

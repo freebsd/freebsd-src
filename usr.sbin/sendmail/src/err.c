@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.50 (Berkeley) 9/20/96";
+static char sccsid[] = "@(#)err.c	8.52 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -432,7 +432,7 @@ putoutmsg(msg, holdmsg, heldmsg)
 	else
 		fprintf(OutChannel, "%s\n", &msg[4]);
 	if (TrafficLogFile != NULL)
-		fprintf(TrafficLogFile, "%05d >>> %s\n", getpid(),
+		fprintf(TrafficLogFile, "%05d >>> %s\n", (int) getpid(),
 			(OpMode == MD_SMTP || OpMode == MD_DAEMON) ? msg : &msg[4]);
 	if (msg[3] == ' ')
 		(void) fflush(OutChannel);
@@ -631,7 +631,7 @@ errstring(errnum)
 	extern char *sys_errlist[];
 	extern int sys_nerr;
 # endif
-# ifdef SMTP
+# if SMTP
 	extern char *SmtpPhase;
 # endif /* SMTP */
 

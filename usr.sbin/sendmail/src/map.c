@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.144 (Berkeley) 11/16/96";
+static char sccsid[] = "@(#)map.c	8.146 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -1323,7 +1323,8 @@ db_map_store(map, lhs, rhs)
 				data.size = data.size + old.size + 1;
 				data.data = buf;
 				if (tTd(38, 9))
-					printf("db_map_store append=%s\n", data.data);
+					printf("db_map_store append=%s\n",
+					       (char *) data.data);
 			}
 		}
 		stat = db->put(db, &key, &data, 0);
@@ -1344,7 +1345,7 @@ db_map_close(map)
 	register DB *db = map->map_db2;
 
 	if (tTd(38, 9))
-		printf("db_map_close(%s, %s, %x)\n",
+		printf("db_map_close(%s, %s, %lx)\n",
 			map->map_mname, map->map_file, map->map_mflags);
 
 	if (bitset(MF_WRITABLE, map->map_mflags))
@@ -3406,7 +3407,7 @@ impl_map_close(map)
 	MAP *map;
 {
 	if (tTd(38, 9))
-		printf("impl_map_close(%s, %s, %x)\n",
+		printf("impl_map_close(%s, %s, %lx)\n",
 			map->map_mname, map->map_file, map->map_mflags);
 #ifdef NEWDB
 	if (bitset(MF_IMPL_HASH, map->map_mflags))
@@ -3598,6 +3599,7 @@ prog_map_lookup(map, name, av, statp)
 			printf(" %s", argv[i]);
 		printf("\n");
 	}
+	(void) blocksignal(SIGCHLD);
 	pid = prog_open(argv, &fd, CurEnv);
 	if (pid < 0)
 	{
@@ -3646,6 +3648,7 @@ prog_map_lookup(map, name, av, statp)
 	/* wait for the process to terminate */
 	close(fd);
 	stat = waitfor(pid);
+	(void) releasesignal(SIGCHLD);
 
 	if (stat == -1)
 	{
