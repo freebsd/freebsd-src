@@ -156,7 +156,10 @@
 
       <para>Additional mirror sites are always welcome.  Contact
 	<email>freebsd-admin@FreeBSD.org</email> for more details on
-	becoming an official mirror site.</para>
+	becoming an official mirror site.  You can also find useful
+        information for mirror sites at the <ulink
+        URL="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
+        FreeBSD</ulink> article.</para>
 
       <para>Mirrors generally contain the floppy disk images necessary
 	to begin an installation, as well as the distribution files
