@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.11 1995/05/08 01:27:07 jkh Exp $
+ * $Id: disks.c,v 1.12 1995/05/08 10:20:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -602,7 +602,7 @@ write_disks(void)
 	}
 	dialog_clear();
 	if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall these changes to disk?")) {
-	    /* Write_Disk(Disks[i]); */
+	    Write_Disk(Disks[i]);
 	    return 0;
 	}
     }
