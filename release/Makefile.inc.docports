@@ -17,11 +17,14 @@ MINIMALDOCPORTS= \
 	ports/devel/gmake \
 	ports/devel/libtool \
 	ports/devel/pkgconfig \
+	ports/graphics/gd \
 	ports/graphics/peps \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
 	ports/graphics/png \
+	ports/graphics/scr2png \
 	ports/graphics/tiff \
+	ports/print/freetype2 \
 	ports/print/ghostscript6 \
 	ports/textproc/docbook \
 	ports/textproc/docbook-241 \
