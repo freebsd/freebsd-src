@@ -48,6 +48,20 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_OGAIN]	= 50,
 };
 
+static char* snd_mixernames[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+
+static int
+mixer_lookup(char *devname)
+{
+	int i;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		if (strncmp(devname, snd_mixernames[i],
+		    strlen(snd_mixernames[i])) == 0)
+			return i;
+	return -1;
+}
+
 static int
 mixer_set(snd_mixer *mixer, unsigned dev, unsigned lev)
 {
@@ -254,39 +268,82 @@ mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
 	return ENXIO;
 }
 
-static int hwvol_step = 5;
-SYSCTL_INT(_hw_snd, OID_AUTO, hwvol_step, CTLFLAG_RW, &hwvol_step, 0, "");
+static int
+sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
+{
+	char devname[32];
+	int error, dev;
+	snd_mixer *m;
 
-static int hwvol_mixer = SOUND_MIXER_VOLUME;
-SYSCTL_INT(_hw_snd, OID_AUTO, hwvol_mixer, CTLFLAG_RW, &hwvol_mixer, 0, "");
+	m = oidp->oid_arg1;
+	strncpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
+	error = sysctl_handle_string(oidp, &devname[0], sizeof(devname), req);
+	if (error == 0 && req->newptr != NULL) {
+		dev = mixer_lookup(devname);
+		if (dev == -1)
+			return EINVAL;
+		else
+			m->hwvol_mixer = dev;
+	}
+	return error;
+}
+
+int
+mixer_hwinit(device_t dev)
+{
+    	snddev_info *d;
+	snd_mixer *m;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+	m->hwvol_mixer = SOUND_MIXER_VOLUME;
+	m->hwvol_step = 5;
+	SYSCTL_ADD_INT(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+            OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
+	SYSCTL_ADD_PROC(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+            OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
+	    sysctl_hw_snd_hwvol_mixer, "A", "")
+	return 0;
+}
 
 void
 mixer_hwmute(device_t dev)
 {
     	snddev_info *d;
+	snd_mixer *m;
 
 	d = device_get_softc(dev);
-	mixer_set(d->mixer, hwvol_mixer, 0);
+	m = d->mixer;
+	if (m->muted) {
+		m->muted = 0;
+		mixer_set(m, m->hwvol_mixer, m->mute_level);
+	} else {
+		m->muted++;
+		m->mute_level = mixer_get(m, m->hwvol_mixer);
+		mixer_set(m, m->hwvol_mixer, 0);
+	}
 }
 
 void
 mixer_hwstep(device_t dev, int left_step, int right_step)
 {
     	snddev_info *d;
+	snd_mixer *m;
 	int level, left, right;
 
 	d = device_get_softc(dev);
-	level = mixer_get(d->mixer, hwvol_mixer);
+	m = d->mixer;
+	level = mixer_get(m, m->hwvol_mixer);
 	if (level != -1) {
 		left = level & 0xff;
 		right = level >> 8;
-		left += left_step * hwvol_step;
+		left += left_step * m->hwvol_step;
 		if (left < 0)
 			left = 0;
-		right += right_step * hwvol_step;
+		right += right_step * m->hwvol_step;
 		if (right < 0)
 			right = 0;
-		mixer_set(d->mixer, hwvol_mixer, left | right << 8);
+		mixer_set(m, m->hwvol_mixer, left | right << 8);
 	}
 }
 

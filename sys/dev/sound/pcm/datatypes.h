@@ -40,6 +40,10 @@ struct _snd_mixer {
 	const char *name;
 	void *devinfo;
 	int busy;
+	int muted;
+	int hwvol_mixer;
+	int hwvol_step;
+	u_int32_t mute_level;
 	u_int32_t devs;
 	u_int32_t recdevs;
 	u_int32_t recsrc;
@@ -133,6 +137,8 @@ struct _snddev_info {
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
 };
 
 /*****************************************************************************/
