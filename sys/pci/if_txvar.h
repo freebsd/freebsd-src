@@ -1,3 +1,6 @@
+/*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
+/*      $Id: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $ */
+
 /*-
  * Copyright (c) 1997 Semen Ustimenko
  * All rights reserved.
@@ -23,15 +26,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: smc83c170.h,v 1.14 1998/07/03 23:59:09 galv Exp $
  *
  */
 
 /*
  * Configuration
  */
-#define TX_RING_SIZE		8
-#define RX_RING_SIZE		8
+#ifndef ETHER_MAX_LEN
+#define ETHER_MAX_LEN		1518
+#endif
+#ifndef ETHER_MIN_LEN
+#define ETHER_MIN_LEN		64
+#endif
+#ifndef ETHER_CRC_LEN
+#define ETHER_CRC_LEN		4
+#endif
+#define TX_RING_SIZE		16		/* Leave this a power of 2 */
+#define RX_RING_SIZE		16		/* And this too, to do not */
+						/* confuse RX(TX)_RING_MASK */
+#define TX_RING_MASK		(TX_RING_SIZE - 1)
+#define RX_RING_MASK		(RX_RING_SIZE - 1)
 #define EPIC_FULL_DUPLEX	1
 #define EPIC_HALF_DUPLEX	0
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
@@ -178,12 +192,9 @@
 #define TXCON_FULL_DUPLEX		0x00000006
 #define TXCON_SLOT_TIME			0x00000078
 
-#if defined(EARLY_TX)
- #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
- #define TRANSMIT_THRESHOLD	0x40
-#else
- #define TXCON_DEFAULT		(TXCON_SLOT_TIME)
-#endif
+#define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
+#define TRANSMIT_THRESHOLD	0x80
+
 #if defined(EARLY_RX)
  #define RXCON_DEFAULT		(RXCON_EARLY_RECEIVE_ENABLE | RXCON_SAVE_ERRORED_PACKETS)
 #else
@@ -277,12 +288,13 @@ struct epic_rx_desc {
 /* This structure defines EPIC's fragment list, maximum number of frags */
 /* is 63. Let use maximum, becouse size of struct MUST be divisor of */
 /* PAGE_SIZE, and sometimes come mbufs with more then 30 frags */
+#define EPIC_MAX_FRAGS 63
 struct epic_frag_list {
 	volatile u_int32_t		numfrags;
 	struct {
 		volatile u_int32_t	fragaddr;
 		volatile u_int32_t	fraglen;
-	} frag[63]; 
+	} frag[EPIC_MAX_FRAGS]; 
 	volatile u_int32_t		pad;		/* align on 256 bytes */
 };
 
@@ -302,6 +314,22 @@ struct epic_tx_buffer {
 
 /* Driver status structure */
 typedef struct {
+#if defined(__OpenBSD__)
+	struct device		sc_dev;
+	void			*sc_ih;
+	bus_space_tag_t		sc_st;
+	bus_space_handle_t	sc_sh;
+#else /* __FreeBSD__ */
+#if defined(EPIC_USEIOSPACE)
+	u_int32_t		iobase;
+#else
+	caddr_t			csr;
+#endif
+#endif
+#if !defined(EPIC_NOIFMEDIA)
+	struct ifmedia 		ifmedia;
+#endif
+	struct arpcom		arpcom;
 	u_int32_t		unit;
 	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
 	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
@@ -311,79 +339,68 @@ typedef struct {
 	struct epic_rx_desc	*rx_desc;
 	struct epic_tx_desc	*tx_desc;
 	struct epic_frag_list	*tx_flist;
-#if defined(_NET_IF_MEDIA_H_)
-	struct ifmedia 		ifmedia;
-#endif
-	struct arpcom		epic_ac;
 	u_int32_t		flags;
+	u_int32_t		tx_threshold;
+	u_int32_t		txcon;
 	u_int32_t		phyid;
 	u_int32_t		cur_tx;
 	u_int32_t		cur_rx;
 	u_int32_t		dirty_tx;
 	u_int32_t		pending_txs;
-#if defined(EPIC_USEIOSPACE)
-	u_int32_t		iobase;
-#else
-	caddr_t			csr;
-#endif
+	void 			*pool;
 } epic_softc_t;
 
-#define epic_if epic_ac.ac_if
-#define epic_macaddr epic_ac.ac_enaddr
+#if defined(__FreeBSD__)
+#define EPIC_FORMAT	"tx%d"
+#define EPIC_ARGS(sc)	(sc->unit)
+#define sc_if arpcom.ac_if
+#define sc_macaddr arpcom.ac_enaddr
 #if defined(EPIC_USEIOSPACE)
- #define CSR_WRITE_4(sc,reg,val) outl( (sc)->iobase + (u_int32_t)(reg), (val) )
- #define CSR_WRITE_2(sc,reg,val) outw( (sc)->iobase + (u_int32_t)(reg), (val) )
- #define CSR_WRITE_1(sc,reg,val) outb( (sc)->iobase + (u_int32_t)(reg), (val) )
- #define CSR_READ_4(sc,reg) inl( (sc)->iobase + (u_int32_t)(reg) )
- #define CSR_READ_2(sc,reg) inw( (sc)->iobase + (u_int32_t)(reg) )
- #define CSR_READ_1(sc,reg) inb( (sc)->iobase + (u_int32_t)(reg) )
+#define CSR_WRITE_4(sc,reg,val) 					\
+	outl( (sc)->iobase + (u_int32_t)(reg), (val) )
+#define CSR_WRITE_2(sc,reg,val) 					\
+	outw( (sc)->iobase + (u_int32_t)(reg), (val) )
+#define CSR_WRITE_1(sc,reg,val) 					\
+	outb( (sc)->iobase + (u_int32_t)(reg), (val) )
+#define CSR_READ_4(sc,reg) 						\
+	inl( (sc)->iobase + (u_int32_t)(reg) )
+#define CSR_READ_2(sc,reg) 						\
+	inw( (sc)->iobase + (u_int32_t)(reg) )
+#define CSR_READ_1(sc,reg) 						\
+	inb( (sc)->iobase + (u_int32_t)(reg) )
 #else
- #define CSR_WRITE_1(sc,reg,val) ((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
- #define CSR_WRITE_2(sc,reg,val) ((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
- #define CSR_WRITE_4(sc,reg,val) ((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
- #define CSR_READ_1(sc,reg) (*(u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
- #define CSR_READ_2(sc,reg) (*(u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
- #define CSR_READ_4(sc,reg) (*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
+#define CSR_WRITE_1(sc,reg,val) 					\
+	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
+#define CSR_WRITE_2(sc,reg,val) 					\
+	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
+#define CSR_WRITE_4(sc,reg,val) 					\
+	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
+#define CSR_READ_1(sc,reg) 						\
+	(*(u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
+#define CSR_READ_2(sc,reg) 						\
+	(*(u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
+#define CSR_READ_4(sc,reg) 						\
+	(*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
 #endif
+#else /* __OpenBSD__ */
+#define EPIC_FORMAT	"%s"
+#define EPIC_ARGS(sc)	(sc->sc_dev.dv_xname)
+#define sc_if	arpcom.ac_if
+#define sc_macaddr arpcom.ac_enaddr
+#define CSR_WRITE_4(sc,reg,val) 					\
+	bus_space_write_4( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
+#define CSR_WRITE_2(sc,reg,val) 					\
+	bus_space_write_2( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
+#define CSR_WRITE_1(sc,reg,val) 					\
+	bus_space_write_1( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
+#define CSR_READ_4(sc,reg) 						\
+	bus_space_read_4( (sc)->sc_st, (sc)->sc_sh, (reg) )
+#define CSR_READ_2(sc,reg) 						\
+	bus_space_read_2( (sc)->sc_st, (sc)->sc_sh, (reg) )
+#define CSR_READ_1(sc,reg) 						\
+	bus_space_read_1( (sc)->sc_st, (sc)->sc_sh, (reg) )
+#endif
+
 #define	PHY_READ_2(sc,reg)	epic_read_phy_register(sc,reg)
 #define PHY_WRITE_2(sc,reg,val)	epic_write_phy_register(sc,reg,val)
 
-static char* epic_pci_probe __P((pcici_t, pcidi_t));
-
-/* Folowing functions calls splimp() */
-static int epic_ifioctl __P((register struct ifnet *, u_long, caddr_t));
-static void epic_ifstart __P((struct ifnet *));
-static void epic_ifwatchdog __P((struct ifnet *));
-static void epic_pci_attach __P((pcici_t, int));
-static int epic_init __P((epic_softc_t *));
-static void epic_stop __P((epic_softc_t *));
-
-static int epic_ifmedia_change __P((struct ifnet *));
-static void epic_ifmedia_status __P((struct ifnet *, struct ifmediareq *));
-
-/* Following functions doesn't call splimp() */
-static void epic_intr_normal __P((void *));
-static __inline void epic_rx_done __P((epic_softc_t *));
-static __inline void epic_tx_done __P((epic_softc_t *));
-static void epic_shutdown __P((int, void *));
-
-static int epic_init_rings __P((epic_softc_t *));
-static void epic_free_rings __P((epic_softc_t *));
-static void epic_stop_activity __P((epic_softc_t *));
-static void epic_start_activity __P((epic_softc_t *));
-static void epic_set_rx_mode __P((epic_softc_t *));
-static void epic_set_mc_table __P((epic_softc_t *));
-static void epic_set_media_speed __P((epic_softc_t *));
-static void epic_init_phy __P((epic_softc_t *));
-static void epic_dump_state __P((epic_softc_t *));
-static int epic_autoneg __P((epic_softc_t *));
-
-static int epic_read_eeprom __P((epic_softc_t *,u_int16_t));
-static void epic_output_eepromw __P((epic_softc_t *, u_int16_t));
-static u_int16_t epic_input_eepromw __P((epic_softc_t *));
-static u_int8_t epic_eeprom_clock __P((epic_softc_t *,u_int8_t));
-static void epic_write_eepromreg __P((epic_softc_t *,u_int8_t));
-static u_int8_t epic_read_eepromreg __P((epic_softc_t *));
-
-static u_int16_t epic_read_phy_register __P((epic_softc_t *, u_int16_t));
-static void epic_write_phy_register __P((epic_softc_t *, u_int16_t, u_int16_t));
