@@ -23,10 +23,6 @@ BIN1=   amd.map apmd.conf auth.conf \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
-.if !defined(USE_PAM_D)
-BIN1+=	pam.conf
-.endif
-
 .if !defined(NO_I4B)
 BIN1+=	rc.isdn
 .endif
@@ -83,9 +79,7 @@ distribution:
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; )
-.if defined(USE_PAM_D)
 	( cd ${.CURDIR}/pam.d; ${MAKE} install )
-.endif
 .if !defined(NO_I4B)
 	( cd ${.CURDIR}/isdn; ${MAKE} install )
 .endif
