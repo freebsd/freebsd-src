@@ -61,7 +61,6 @@ char *out_file = "LC_COLLATE";
 }
 %token SUBSTITUTE WITH ORDER RANGE
 %token <str> STRING
-%token <str> NAME
 %token <str> CHAIN
 %token <str> DEFN
 %token <ch> CHAR
@@ -117,17 +116,6 @@ item : CHAR { __collate_char_pri_table[$1].prim = prim_pri++; }
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri++;
 }
-	| NAME {
-	u_int i;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0)
-			goto findi;
-	yyerror("Name <%s> not defined", $1);
-	findi:
-
-	__collate_char_pri_table[i].prim = prim_pri++;
-}
 	| CHAR RANGE CHAR {
 	u_int i;
 
@@ -135,68 +123,6 @@ item : CHAR { __collate_char_pri_table[$1].prim = prim_pri++; }
 		yyerror("Illegal range 0x%02x -- 0x%02x", $1, $3);
 
 	for (i = $1; i <= $3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
-}
-	| NAME RANGE CHAR {
-	u_int i, c1;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto find1;
-		}
-	yyerror("Name <%s> not defined", $1);
-	find1:
-
-	if ($3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, $3);
-
-	for (i = c1; i <= $3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
-}
-	| CHAR RANGE NAME {
-	u_int i, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto find3;
-		}
-	yyerror("Name <%s> not defined", $3);
-	find3:
-
-	if (c3 <= $1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			$1, c3);
-
-	for (i = $1; i <= c3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
-}
-	| NAME RANGE NAME {
-	u_int i, c1, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto find21;
-		}
-	yyerror("Name <%s> not defined", $1);
-	find21:
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto find23;
-		}
-	yyerror("Name <%s> not defined", $3);
-	find23:
-
-	if (c3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, c3);
-
-	for (i = c1; i <= c3; i++)
 		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
 }
 	| '{' prim_order_list '}' {
@@ -226,79 +152,6 @@ prim_sub_item : CHAR {
 	for (i = $1; i <= $3; i++)
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 }
-	| NAME RANGE CHAR {
-	u_int i, c1;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto findpsi1;
-		}
-	yyerror("Name <%s> not defined", $1);
-	findpsi1:
-
-	if ($3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, $3);
-
-	for (i = c1; i <= $3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-}
-	| CHAR RANGE NAME {
-	u_int i, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto findpsi3;
-		}
-	yyerror("Name <%s> not defined", $3);
-	findpsi3:
-
-	if (c3 <= $1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			$1, c3);
-
-	for (i = $1; i <= c3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-}
-	| NAME RANGE NAME {
-	u_int i, c1, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto findpsi21;
-		}
-	yyerror("Name <%s> not defined", $1);
-	findpsi21:
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto findpsi23;
-		}
-	yyerror("Name <%s> not defined", $3);
-	findpsi23:
-
-	if (c3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, c3);
-
-	for (i = c1; i <= c3; i++)
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-}
-	| NAME {
-	u_int i;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0)
-			goto findpsi;
-	yyerror("Name <%s> not defined", $1);
-	findpsi:
-
-	__collate_char_pri_table[i].prim = prim_pri;
-}
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
@@ -321,86 +174,6 @@ sec_sub_item : CHAR {
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
 	}
-}
-	| NAME RANGE CHAR {
-	u_int i, c1;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto findssi1;
-		}
-	yyerror("Name <%s> not defined", $1);
-	findssi1:
-
-	if ($3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, $3);
-
-	for (i = c1; i <= $3; i++) {
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
-	}
-}
-	| CHAR RANGE NAME {
-	u_int i, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto findssi3;
-		}
-	yyerror("Name <%s> not defined", $3);
-	findssi3:
-
-	if (c3 <= $1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			$1, c3);
-
-	for (i = $1; i <= c3; i++) {
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
-	}
-}
-	| NAME RANGE NAME {
-	u_int i, c1, c3;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0) {
-			c1 = i;
-			goto findssi21;
-		}
-	yyerror("Name <%s> not defined", $1);
-	findssi21:
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $3) == 0) {
-			c3 = i;
-			goto findssi23;
-		}
-	yyerror("Name <%s> not defined", $3);
-	findssi23:
-
-	if (c3 <= c1)
-		yyerror("Illegal range 0x%02x -- 0x%02x",
-			c1, c3);
-
-	for (i = c1; i <= c3; i++) {
-		__collate_char_pri_table[(u_char)i].prim = prim_pri;
-		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
-	}
-}
-	| NAME {
-	u_int i;
-
-	for (i = 0; i <= UCHAR_MAX; i++)
-		if (strcmp(charmap_table[i], $1) == 0)
-			goto findssi;
-	yyerror("Name <%s> not defined", $1);
-	findssi:
-
-	__collate_char_pri_table[i].prim = prim_pri;
-	__collate_char_pri_table[i].sec = sec_pri++;
 }
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)

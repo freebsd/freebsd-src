@@ -124,11 +124,7 @@ representation, and can be only one character in length.
 .Pp
 Symbol names cannot be specified in
 .Ar substitute
-fields. Symbol names also cannot be combined with
-any other representation, such as, <c>h, c<h>,
-<c>\ex68, or <c><h>. Symbol names can be used with
-primary and secondary ordering as in the following
-example.
+fields.
 .Pp
 The
 .Ar charmap
@@ -153,14 +149,15 @@ statement is optional.
 .Ar order order_list
 .Pp
 .Ar order_list
-is a list of symbols, separated by semi colons, that defines the collating sequence. The
+is a list of symbols, separated by semi colons, that defines the
+collating sequence. The
 special symbol
 .Ar ...
 specifies, in a short-hand
 form, symbols that are sequential in machine code
 order.
 .Pp
-A symbol can be up to two characters in length and
+An order list element
 can be represented in any one of the following
 ways:
 .Bl -bullet
@@ -208,18 +205,33 @@ Symbols
 .Ar \er ,
 .Ar \ev
 are permitted in its usual C-language meaning
+.It
+The symbol range (for example,
+.Ar a;...;z )
+.It
+Comma-separated symbols, ranges and chains enclosed in parenthesis (for example
+.Ar \&(
+.Ar sym1 ,
+.Ar sym2 ,
+.Ar ...
+.Ar \&) )
+are assigned the
+same primary ordering but different secondary
+ordering.
+.It
+Comma-separated symbols, ranges and chains enclosed in curly brackets (for example
+.Ar \&{
+.Ar sym1 ,
+.Ar sym2 ,
+.Ar ...
+.Ar \&} )
+are assigned the same primary ordering only.
 .El
 .Pp
 The backslash character
 .Ar \e
 is used for continuation. In this case, no characters are permitted
-after the backslash character. And as a quotation mark.
-.Pp
-Symbols enclosed in parentheses are assigned the
-same primary ordering but different secondary
-ordering. Symbols enclosed in curly brackets are
-assigned only the same primary ordering
-and different secondary  ordering.
+after the backslash character.
 .Sh EXIT STATUS
 .Ar colldef
 exits with the following values:
