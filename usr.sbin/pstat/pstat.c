@@ -147,27 +147,28 @@ struct {
 	{ MNT_NODEV, "nodev" },
 	{ MNT_UNION, "union" },
 	{ MNT_ASYNC, "async" },
+	{ MNT_SUIDDIR, "suiddir" },
+	{ MNT_SOFTDEP, "softdep" },
+	{ MNT_NOSYMFOLLOW, "nosymfollow" },
 	{ MNT_NOATIME, "noatime" },
+	{ MNT_NOCLUSTERR, "noclusterread" },
+	{ MNT_NOCLUSTERW, "noclusterwrite" },
 	{ MNT_EXRDONLY, "exrdonly" },
 	{ MNT_EXPORTED, "exported" },
 	{ MNT_DEFEXPORTED, "defexported" },
 	{ MNT_EXPORTANON, "exportanon" },
 	{ MNT_EXKERB, "exkerb" },
+	{ MNT_EXPUBLIC, "public" },
 	{ MNT_LOCAL, "local" },
 	{ MNT_QUOTA, "quota" },
 	{ MNT_ROOTFS, "rootfs" },
 	{ MNT_USER, "user" },
-	{ MNT_UPDATE, "update" },
-	{ MNT_DELEXPORT },
+	{ MNT_IGNORE, "ignore" },
 	{ MNT_UPDATE, "update" },
 	{ MNT_DELEXPORT, "delexport" },
 	{ MNT_RELOAD, "reload" },
 	{ MNT_FORCE, "force" },
-#if 0
-	{ MNT_UNMOUNT, "unmount" },
-	{ MNT_MWAIT, "mwait" },
-	{ MNT_WANTRDWR, "wantrdwr" },
-#endif
+	{ MNT_SNAPSHOT, "snapshot" },
 	{ 0 }
 };
 
@@ -438,12 +439,23 @@ vnode_print(avnode, vp)
 		*fp++ = 'B';
 	if (flag & VOBJBUF)
 		*fp++ = 'V';
+	if (flag & VCOPYONWRITE)
+		*fp++ = 'C';
 	if (flag & VAGE)
 		*fp++ = 'a';
 	if (flag & VOLOCK)
 		*fp++ = 'l';
 	if (flag & VOWANT)
 		*fp++ = 'w';
+	if (flag & VDOOMED)
+		*fp++ = 'D';
+	if (flag & VFREE)
+		*fp++ = 'F';
+	if (flag & VONWORKLST)
+		*fp++ = 'O';
+	if (flag & VMOUNT)
+		*fp++ = 'M';
+
 	if (flag == 0)
 		*fp++ = '-';
 	*fp = '\0';
@@ -469,20 +481,24 @@ ufs_print(vp)
 
 	KGETRET(VTOI(vp), &inode, sizeof(struct inode), "vnode's inode");
 	flag = ip->i_flag;
-	if (flag & IN_RENAME)
-		*flags++ = 'R';
-	if (flag & IN_UPDATE)
-		*flags++ = 'U';
 	if (flag & IN_ACCESS)
 		*flags++ = 'A';
 	if (flag & IN_CHANGE)
 		*flags++ = 'C';
+	if (flag & IN_UPDATE)
+		*flags++ = 'U';
 	if (flag & IN_MODIFIED)
 		*flags++ = 'M';
+	if (flag & IN_RENAME)
+		*flags++ = 'R';
 	if (flag & IN_SHLOCK)
 		*flags++ = 'S';
 	if (flag & IN_EXLOCK)
 		*flags++ = 'E';
+	if (flag & IN_HASHED)
+		*flags++ = 'H';
+	if (flag & IN_LAZYMOD)
+		*flags++ = 'L';
 	if (flag == 0)
 		*flags++ = '-';
 	*flags = '\0';
@@ -532,6 +548,16 @@ nfs_print(vp)
 		*flags++ = 'O';
 	if (flag & NQNFSEVICTED)
 		*flags++ = 'G';
+	if (flag & NACC)
+		*flags++ = 'A';
+	if (flag & NUPD)
+		*flags++ = 'U';
+	if (flag & NCHG)
+		*flags++ = 'C';
+	if (flag & NLOCKED)
+		*flags++ = 'L';
+	if (flag & NWANTED)
+		*flags++ = 'w';
 	if (flag == 0)
 		*flags++ = '-';
 	*flags = '\0';
