@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: ufs.c,v 1.12 1997/02/22 14:12:35 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,15 +49,15 @@ mediaGetUFS(Device *dev, char *file, Boolean probe)
 
     if (isDebug())
 	msgDebug("Request for %s from UFS\n", file);
-    snprintf(buf, PATH_MAX, "%s/%s", dev->private, file);
+    snprintf(buf, PATH_MAX, "%s/%s", (char *)dev->private, file);
     if (file_readable(buf))
 	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/dists/%s", dev->private, file);
+    snprintf(buf, PATH_MAX, "%s/dists/%s", (char *)dev->private, file);
     if (file_readable(buf))
 	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/%s/%s", dev->private, variable_get(VAR_RELNAME), file);
+    snprintf(buf, PATH_MAX, "%s/%s/%s", (char *)dev->private, variable_get(VAR_RELNAME), file);
     if (file_readable(buf))
 	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/%s/dists/%s", dev->private, variable_get(VAR_RELNAME), file);
+    snprintf(buf, PATH_MAX, "%s/%s/dists/%s", (char *)dev->private, variable_get(VAR_RELNAME), file);
     return fopen(buf, "r");
 }
