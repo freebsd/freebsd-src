@@ -147,6 +147,7 @@ linker_add_class(linker_class_t lc)
 	if (linker_no_more_classes == 1)
 		return (EPERM);
 	kobj_class_compile((kobj_class_t) lc);
+	((kobj_class_t)lc)->refs++;	/* prevent ops being freed */
 	TAILQ_INSERT_TAIL(&classes, lc, link);
 	return (0);
 }
