@@ -229,18 +229,18 @@
             ..
             ko_KR.EUC
             ..
-	    la_LN.ASCII
+            la_LN.ASCII
             ..
-	    la_LN.ISO_8859-1
+            la_LN.DIS_8859-15
             ..
-	    la_LN.ISO_8859-2
+            la_LN.ISO_8859-1
             ..
-	    la_LN.ISO_8859-4
-	    ..
-	    la_LN.DIS_8859-15
+            la_LN.ISO_8859-2
             ..
-	    lt_LT.ISO_8859-4
-	    ..
+            la_LN.ISO_8859-4
+            ..
+            lt_LT.ISO_8859-4
+            ..
             nl_BE.ISO_8859-1
             ..
             nl_NL.ISO_8859-1
@@ -253,7 +253,7 @@
             ..
             ru_SU.CP866
             ..
-	    ru_SU.ISO_8859-5
+            ru_SU.ISO_8859-5
             ..
             ru_SU.KOI8-R
             ..
@@ -261,8 +261,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
-	    uk_UA.KOI8-U
-	    ..
+            uk_UA.KOI8-U
+            ..
             zh_CN.EUC
             ..
             zh_TW.Big5
