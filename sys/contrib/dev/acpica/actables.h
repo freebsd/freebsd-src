@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actables.h - ACPI table management
- *       $Revision: 29 $
+ *       $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -145,6 +145,10 @@ ACPI_STATUS
 AcpiTbBuildCommonFacs (
     ACPI_TABLE_DESC         *TableInfo);
 
+UINT32
+AcpiTbGetTableCount (
+    RSDP_DESCRIPTOR         *RSDP,
+    ACPI_TABLE_HEADER       *RSDT);
 
 /*
  * tbget - Table "get" routines
@@ -171,6 +175,20 @@ AcpiTbGetTableFacs (
     ACPI_TABLE_HEADER       *BufferPtr,
     ACPI_TABLE_DESC         *TableInfo);
 
+ACPI_PHYSICAL_ADDRESS
+AcpiTbGetRsdtAddress (
+    void);
+
+ACPI_STATUS
+AcpiTbValidateRsdt (
+    ACPI_TABLE_HEADER       *TablePtr);
+
+ACPI_STATUS
+AcpiTbGetTablePointer (
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
+    UINT32                  Flags,
+    UINT32                  *Size,
+    ACPI_TABLE_HEADER       **TablePtr);
 
 /*
  * tbgetall - Get all firmware ACPI tables
@@ -242,7 +260,8 @@ AcpiTbScanMemoryForRsdp (
 
 ACPI_STATUS
 AcpiTbFindRsdp (
-    ACPI_TABLE_DESC         *TableInfo);
+    ACPI_TABLE_DESC         *TableInfo,
+    UINT32                  Flags);
 
 
 /*
@@ -257,7 +276,7 @@ ACPI_STATUS
 AcpiTbMapAcpiTable (
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     UINT32                  *Size,
-    void                    **LogicalAddress);
+    ACPI_TABLE_HEADER       **LogicalAddress);
 
 ACPI_STATUS
 AcpiTbVerifyTableChecksum (
