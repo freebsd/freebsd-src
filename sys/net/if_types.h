@@ -235,6 +235,13 @@
 #define	IFT_AAL2		   0xbb	/* ATM adaptation layer 2 */
 #define	IFT_RADIOMAC		   0xbc	/* MAC layer over radio links */
 #define	IFT_ATMRADIO		   0xbd	/* ATM over radio links */
+#define	IFT_IMT			   0xbe /* Inter-Machine Trunks */
+#define	IFT_MVL			   0xbf /* Multiple Virtual Lines DSL */
+#define	IFT_REACHDSL		   0xc0 /* Long Reach DSL */
+#define	IFT_FRDLCIENDPT		   0xc1 /* Frame Relay DLCI End Point */
+#define	IFT_ATMVCIENDPT		   0xc2 /* ATM VCI End Point */
+#define	IFT_OPTICALCHANNEL	   0xc3 /* Optical Channel */
+#define	IFT_OPTICALTRANSPORT	   0xc4 /* Optical Transport */
 
 /* not based on IANA assignments */
 #define	IFT_GIF		0xf0
