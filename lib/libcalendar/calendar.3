@@ -22,14 +22,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: calendar.3,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
 .\"
 .Dd November 29, 1997
 .Dt CALENDAR 3
 .Os
 .Sh NAME
 .Nm easterg ,
-.Nm easterj ,
+.Nm easterog ,
+.Nm easteroj ,
 .Nm gdate ,
 .Nm jdate ,
 .Nm ndaysg ,
@@ -42,7 +43,9 @@
 .Ft date *
 .Fn easterg "int year" "date *dt"
 .Ft date *
-.Fn easterj "int year" "date *dt"
+.Fn easterog "int year" "date *dt"
+.Ft date *
+.Fn easteroj "int year" "date *dt"
 .Ft date *
 .Fn gdate "int nd" "date *dt"
 .Ft date *
@@ -64,18 +67,28 @@ Programs should be linked with
 .Fl lcalendar .
 
 The functions
-.Fn easterg
+.Fn easterg ,
+.Fn easterog
 and
-.Fn easterj
+.Fn easteroj
 store the date of Easter Sunday into the structure pointed at by
 .Fa dt
 and return a pointer to this structure.
 The function
 .Fn easterg
 assumes Gregorian Calendar (adopted by most western churches after 1582) and
-.Fn easterj
-assumes Julian Calendar (Western churches before 1582 and Greek Church
+the functions
+.Fn easterog
+and
+.Fn easteroj
+compute the date of Easter Sunday according to the orthodox rules
+(Western churches before 1582, Greek and Russian Orthodox Church
 until today).
+The result returned by
+.Fn easterog
+is the date in Gregorian Calendar, whereas
+.Fn easteroj
+returns the date in Julian Calendar.
 
 The functions 
 .Fn gdate ,
