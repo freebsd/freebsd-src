@@ -15,7 +15,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/maxusers/d' \
 	-e '/DEBUG/d' \
 	-e '/SOFTUPDATES/d' \
-	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
@@ -82,7 +81,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/maxusers/d' \
 	-e '/DEBUG/d' \
 	-e '/SOFTUPDATES/d' \
-	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
