@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.2 1994/04/18 04:25:21 rgrimes Exp $
+#	$Id: cdinst1.install,v 1.3 1994/05/03 10:11:47 rgrimes Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -474,6 +474,11 @@ sc*|SC*)
 	type=ST506
 	;;
 esac
+echo -n "Install onto which drive [$drivename] "
+read resp junk
+drivename=${resp:-${drivename}}
+echo
+echo    "Disk $drivename is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
 	echo	"Please wait.  Examining device /dev/r${drivename}d..."
