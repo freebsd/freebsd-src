@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1980, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,13 +32,18 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,26 +61,23 @@ static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #include <string.h>
 #include <unistd.h>
 
+#include "extern.h"
 #include "pathnames.h"
 
 int debug, fstab_style, verbose;
 
-int	checkvfsname __P((const char *, const char **));
 char   *catopt __P((char *, const char *));
 struct statfs
        *getmntpt __P((const char *));
 int	hasopt __P((const char *, const char *));
-const char
-      **makevfslist __P((char *));
+int	ismounted __P((struct fstab *, struct statfs *, int));
+int	isremountable __P((const char *));
 void	mangle __P((char *, int *, const char **));
 int	mountfs __P((const char *, const char *, const char *,
 			int, const char *, const char *));
 void	prmount __P((struct statfs *));
 void	putfsent __P((const struct statfs *));
 void	usage __P((void));
-
-/* From mount_ufs.c. */
-int	mount_ufs __P((int, char * const *));
 
 /* Map from mount otions to printable formats. */
 static struct opt {
@@ -94,6 +96,17 @@ static struct opt {
 	{ MNT_SYNCHRONOUS,	"synchronous" },
 	{ MNT_UNION,		"union" },
 	{ NULL }
+};
+
+/*
+ * List of VFS types that can be remounted without becoming mounted on top
+ * of each other.
+ * XXX Is this list correct?
+ */
+static const char *
+remountable_fs_names[] = {
+	"ufs", "ffs", "lfs", "ext2fs",
+	0
 };
 
 int
@@ -165,7 +178,9 @@ main(argc, argv)
 	rval = 0;
 	switch (argc) {
 	case 0:
-		if (all)
+		if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
+			err(1, "getmntinfo");
+		if (all) {
 			while ((fs = getfsent()) != NULL) {
 				if (BADTYPE(fs->fs_type))
 					continue;
@@ -173,22 +188,20 @@ main(argc, argv)
 					continue;
 				if (hasopt(fs->fs_mntops, "noauto"))
 					continue;
+				if (ismounted(fs, mntbuf, mntsize))
+					continue;
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
 				    fs->fs_mntops))
 					rval = 1;
 			}
-		else if (fstab_style) {
-			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
-				err(1, "getmntinfo");
+		} else if (fstab_style) {
 			for (i = 0; i < mntsize; i++) {
 				if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
 					continue;
 				putfsent(&mntbuf[i]);
 			}
 		} else {
-			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
-				err(1, "getmntinfo");
 			for (i = 0; i < mntsize; i++) {
 				if (checkvfsname(mntbuf[i].f_fstypename,
 				    vfslist))
@@ -246,13 +259,45 @@ main(argc, argv)
 	 */
 	if (rval == 0 && getuid() == 0 &&
 	    (mountdfp = fopen(_PATH_MOUNTDPID, "r")) != NULL) {
-		if (fscanf(mountdfp, "%ld", &pid) == 1 &&
+		if (fscanf(mountdfp, "%d", &pid) == 1 &&
 		     pid > 0 && kill(pid, SIGHUP) == -1 && errno != ESRCH)
 			err(1, "signal mountd");
 		(void)fclose(mountdfp);
 	}
 
 	exit(rval);
+}
+
+int
+ismounted(fs, mntbuf, mntsize)
+	struct fstab *fs;
+	struct statfs *mntbuf;
+	int mntsize;
+{
+	int i;
+
+	if (fs->fs_file[0] == '/' && fs->fs_file[1] == '\0')
+		/* the root file system can always be remounted */
+		return (0);
+
+	for (i = mntsize - 1; i >= 0; --i)
+		if (strcmp(fs->fs_file, mntbuf[i].f_mntonname) == 0 &&
+		    (!isremountable(fs->fs_vfstype) ||
+		     strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0))
+			return (1);
+	return (0);
+}
+
+int
+isremountable(vfsname)
+	const char *vfsname;
+{
+	const char **cp;
+
+	for (cp = remountable_fs_names; *cp; cp++)
+		if (strcmp(*cp, vfsname) == 0)
+			return (1);
+	return (0);
 }
 
 int
@@ -297,6 +342,11 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	pid_t pid;
 	int argc, i, status;
 	char *optbuf, execname[MAXPATHLEN + 1], mntpath[MAXPATHLEN];
+
+#if __GNUC__
+	(void)&optbuf;
+	(void)&name;
+#endif
 
 	if (realpath(name, mntpath) != NULL && stat(mntpath, &sb) == 0) {
 		if (!S_ISDIR(sb.st_mode)) {
@@ -546,9 +596,9 @@ putfsent(ent)
 	if (ent->f_flags & MNT_NOATIME)
 		printf(",noatime");
 
-	if (fst = getfsspec(ent->f_mntfromname))
+	if ((fst = getfsspec(ent->f_mntfromname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
-	else if (fst = getfsfile(ent->f_mntonname))
+	else if ((fst = getfsfile(ent->f_mntonname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
 	else if (ent->f_type == MOUNT_UFS)
 		printf("\t1 1\n");
