@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_dnslookup.c,v 1.3.2.4 1997/11/18 07:51:58 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -453,10 +453,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 	if (q->prot_type == SOCK_DGRAM)
 		q->xid = svcudp_get_xid(q->xprt);
 	q->client_addr = q->xprt->xp_raddr;
-	if (!strchr(name, '.'))
-		q->domain = _res.dnsrch;
-	else
-		q->domain = NULL;
+	q->domain = _res.dnsrch;
 	q->id = yp_send_dns_query(name, q->type);
 
 	if (q->id == 0) {
