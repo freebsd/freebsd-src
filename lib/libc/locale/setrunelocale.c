@@ -59,7 +59,7 @@ extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
-static int		__setrunelocale(char *);
+static int		__setrunelocale(const char *);
 
 __warn_references(setrunelocale, "warning: setrunelocale() is deprecated. See setrunelocale(3).");
 int
@@ -78,11 +78,11 @@ setrunelocale(char *encoding)
 	if (ret != 0)
 		return (ret);
 
-	return (__setrunelocale(encoding));
+	return (__setrunelocale((const char *)encoding));
 }
 
 static int
-__setrunelocale(char *encoding)
+__setrunelocale(const char *encoding)
 {
 	FILE *fp;
 	char name[PATH_MAX];
@@ -166,7 +166,7 @@ __setrunelocale(char *encoding)
 int
 __wrap_setrunelocale(const char *locale)
 {
-	int ret = __setrunelocale((char *)locale);
+	int ret = __setrunelocale(locale);
 
 	if (ret != 0) {
 		errno = ret;
