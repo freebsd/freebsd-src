@@ -20,16 +20,15 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-AFLAGS+=--defsym FLAGS=${B1FLAGS} \
-	--defsym SIOPRT=${BOOT_COMCONSOLE_PORT} \
-	--defsym SIOFMT=${B2SIOFMT} \
-	--defsym SIOSPD=${BOOT_COMCONSOLE_SPEED}
-
 CFLAGS=	-Os \
 	-fno-guess-branch-probability -fomit-frame-pointer\
 	-mno-align-long-strings \
 	-mrtd \
 	-D${BOOT2_UFS} \
+	-DFLAGS=${B1FLAGS} \
+	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
+	-DSIOFMT=${B2SIOFMT} \
+	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${.CURDIR}/../../common \
 	-I${.CURDIR}/../btx/lib -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
@@ -53,10 +52,6 @@ boot1: boot1.out
 
 boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
-
-boot1.o: boot1.s
-	${CPP} ${CFLAGS} ${.CURDIR}/boot1.s | \
-	    ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
 		boot2.s boot2.s.tmp boot2.h sio.o
