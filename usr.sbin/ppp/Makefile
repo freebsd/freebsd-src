@@ -59,8 +59,6 @@ CFLAGS+=-DNOI4B
 SRCS+=	i4b.c
 .endif
 
-NONETGRAPH=	TRUE
-
 .if defined(NONETGRAPH)
 CFLAGS+=-DNONETGRAPH
 .else
