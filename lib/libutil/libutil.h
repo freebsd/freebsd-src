@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.19 1998/10/09 07:28:14 jkh Exp $
+ * $Id: libutil.h,v 1.20 1998/10/09 07:32:38 jkh Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -39,7 +39,7 @@ struct winsize;
 struct utmp;
 
 __BEGIN_DECLS
-void	setproctitle __P((const char *_fmt, ...));
+void	setproctitle __P((const char *_fmt, ...)) __printf0like(1, 2);
 void	login __P((struct utmp *_ut));
 int	login_tty __P((int _fd));
 int	logout __P((char *_line));
