@@ -32,8 +32,10 @@
 #ifndef _UFS_UFS_EXTATTR_H_
 #define	_UFS_UFS_EXTATTR_H_
 
-#define	UFS_EXTATTR_FSROOTSUBDIR	".attributes"
-#define	UFS_EXTATTR_MAXEXTATTRNAME	33	/* including null */
+#define	UFS_EXTATTR_MAGIC		0x00b5d5ec
+#define	UFS_EXTATTR_VERSION		0x00000002
+#define	UFS_EXTATTR_FSROOTSUBDIR	".attribute"
+#define	UFS_EXTATTR_MAXEXTATTRNAME	65	/* including null */
 #define	UFS_EXTATTR_MAXEXTATTRSIZE	1024	/* bytes */
 
 #define	UFS_EXTATTR_ATTR_FLAG_INUSE	0x00000001	/* attr has been set */
@@ -51,6 +53,8 @@
 #define	UFS_EXTATTR_CMD_DISABLE		0x00000004
 
 struct ufs_extattr_fileheader {
+	u_int	uef_magic;	/* magic number for sanity checking */
+	u_int	uef_version;	/* version of attribute file */
 	u_int	uef_size;	/* size of attributes, w/o header */
 	u_int	uef_read_perm;	/* permissions to read attribute */
 	u_int	uef_write_perm;	/* permissions to write attribute */
