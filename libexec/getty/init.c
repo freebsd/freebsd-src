@@ -45,8 +45,8 @@ static const char rcsid[] =
  * Melbourne getty.
  */
 #include <termios.h>
-#include "extern.h"
 #include "gettytab.h"
+#include "extern.h"
 #include "pathnames.h"
 
 static char loginmsg[] = "login: ";
