@@ -401,8 +401,10 @@ m_settype(struct mbuf *bp, int type)
 }
 
 struct mbuf *
-m_append(struct mbuf *m, const void *v, size_t sz)
+m_append(struct mbuf *bp, const void *v, size_t sz)
 {
+  struct mbuf *m = bp;
+
   if (m) {
     while (m->m_next)
       m = m->m_next;
@@ -411,7 +413,7 @@ m_append(struct mbuf *m, const void *v, size_t sz)
     else
       m->m_next = m_prepend(NULL, v, sz, 0);
   } else
-    m = m_prepend(NULL, v, sz, 0);
+    bp = m_prepend(NULL, v, sz, 0);
 
-  return m;
+  return bp;
 }
