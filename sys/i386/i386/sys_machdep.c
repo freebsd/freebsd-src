@@ -67,6 +67,9 @@ static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
 static int i386_get_ioperm	__P((struct proc *, char *));
 static int i386_set_ioperm	__P((struct proc *, char *));
+#ifdef SMP
+static void set_user_ldt_rv	__P((struct pcb *));
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -260,7 +263,8 @@ set_user_ldt(struct pcb *pcb)
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
 }
 
-void
+#ifdef SMP
+static void
 set_user_ldt_rv(struct pcb *pcb)
 {
 
@@ -271,6 +275,7 @@ set_user_ldt_rv(struct pcb *pcb)
 	set_user_ldt(pcb);
 	mtx_unlock_spin(&sched_lock);
 }
+#endif
 
 /*
  * Must be called with either sched_lock free or held but not recursed.
