@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.16.2.1 1998/09/26 17:36:10 wpaul Exp $
+ *	$Id: if_tl.c,v 1.16.2.2 1998/10/04 18:51:59 wpaul Exp $
  */
 
 /*
@@ -241,7 +241,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.16.2.1 1998/09/26 17:36:10 wpaul Exp $";
+	"$Id: if_tl.c,v 1.16.2.2 1998/10/04 18:51:59 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -2473,6 +2473,7 @@ static void tl_start(ifp)
 		evset(sc, EV_START_Q);
 #endif
 		sc->tl_cdata.tl_tx_tail->tl_next = start_tx;
+		sc->tl_cdata.tl_tx_tail = start_tx;
 	}
 
 	/*
