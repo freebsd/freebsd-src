@@ -23,7 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.h,v 1.1 1997/08/01 06:04:59 msmith Exp $
+ *      $Id$
+ *      from: i386/include/pc bios.h,v 1.2
  */
 
 /* 

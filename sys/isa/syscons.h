@@ -25,7 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.38 1998/08/03 09:09:35 yokota Exp $
+ *	$Id$
+ *	from: i386/isa syscons.h,v 1.39
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -35,7 +36,18 @@
 #define	ISMAPPED(pa, width) \
 	(((pa) <= (u_long)0x1000 - (width)) \
 	 || ((pa) >= 0xa0000 && (pa) <= 0x100000 - (width)))
+
+#if 0
 #define	pa_to_va(pa)	(KERNBASE + (pa))	/* works if ISMAPPED(pa...) */
+#endif
+
+#ifdef __i386__
+#define WRITEB(pa, b)	*(u_int8_t*)(KERNBASE + (pa)) = b
+#define READB(pa)	*(u_int8_t*)(KERNBASE + (pa))
+#else
+#define WRITEB(pa, b)	writeb(pa, b)
+#define READB(pa)	readb(pa)
+#endif
 
 /* printable chars */
 #define PRINTABLE(ch)	((ch) > 0x1b || ((ch) > 0x0d && (ch) < 0x1b) \
@@ -184,7 +196,9 @@ typedef struct scr_stat {
 	u_short		*history_pos;		/* position shown on screen */
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
+#ifdef __i386__
 	struct apmhook  r_hook;			/* reconfiguration support */
+#endif
 #ifdef SC_SPLASH_SCREEN
 	u_char		splash_save_mode;	/* saved mode for splash screen */
 #endif
