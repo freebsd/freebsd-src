@@ -1,0 +1,35 @@
+#!/bin/sh
+# install2.fs disk 'install'
+# Simplified, interactive 386bsd installation script.
+# D.E. Silvia (dsilvia@net.com)
+#
+# Installs balance of basic 386bsd system.
+#
+
+mount -at ufs
+bin/rm /.profile
+echo -n "Verbose installation? [n] "
+read resp
+
+echo Copying to disk.
+case $resp in
+	y*)
+		tarverbose=v
+		;;
+	*)
+		tarverbose=
+		;;
+esac
+
+tar cfp - . | (cd / ; tar xfp${tarverbose} -)
+
+sync
+
+echo    "OK.  All of the base files are installed."
+echo    ""
+echo    "The next step: reboot from the hard disk, and follow"
+echo    "more instrutctions."
+echo    ""
+echo    "To do this, enter 'halt' at the prompt to halt the machine."
+echo	"Once the machine has halted, remove the floppy from the disk"
+echo	"drive, and hit any key to reboot from the hard disk."
