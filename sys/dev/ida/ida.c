@@ -54,7 +54,6 @@
 #endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <dev/ida/idareg.h>

@@ -40,7 +40,6 @@
 #include <vm/vm_extern.h>
 #include <ddb/ddb.h>
 #include <machine/atomic.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/mutex.h>
 

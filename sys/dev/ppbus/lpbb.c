@@ -40,7 +40,6 @@
 #include <sys/bus.h>
 #include <sys/uio.h>
 
-#include <machine/clock.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include "ppbus_if.h"

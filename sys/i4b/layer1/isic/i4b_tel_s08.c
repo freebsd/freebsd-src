@@ -54,7 +54,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <net/if.h>

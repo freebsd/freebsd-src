@@ -42,7 +42,6 @@
 #include <net/if_arp.h>
 #include <net/if_media.h> 
 
-#include <machine/clock.h>
 
 #include <dev/ex/if_exreg.h>
 #include <dev/ex/if_exvar.h>

@@ -44,7 +44,6 @@
 #include <sys/mbuf.h>
 #include <machine/stdarg.h>
 
-#include <machine/clock.h>
 
 #include <sys/socket.h>
 #include <net/if.h>

@@ -68,7 +68,6 @@
 #include <net/bpf.h>
 #endif /* NETGRAPH */
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/if_arregs.h>

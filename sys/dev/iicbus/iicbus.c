@@ -37,7 +37,6 @@
 #include <sys/module.h>
 #include <sys/bus.h> 
 
-#include <machine/clock.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>

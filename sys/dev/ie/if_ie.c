@@ -130,7 +130,6 @@ iomem and and with 0xffff.
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>

@@ -1,5 +1,4 @@
 /*	$NecBSD: bshw.c,v 1.1 1997/07/18 09:19:03 kmatsuda Exp $	*/
-/*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
@@ -30,6 +29,8 @@
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
+ *
+ * $FreeBSD$
  */
 
 #ifdef	__NetBSD__
@@ -42,7 +43,6 @@
 #include <i386/isa/ic/i8237.h>
 #include <i386/isa/bs/bsif.h>
 #include <i386/isa/bs/bshw.lst>
-#include <machine/clock.h>
 #include <sys/cons.h>
 #endif
 

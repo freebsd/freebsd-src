@@ -57,7 +57,6 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

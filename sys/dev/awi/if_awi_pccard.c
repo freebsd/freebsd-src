@@ -43,7 +43,6 @@
 #include <net/ethernet.h>
 #include <net/if_ieee80211.h>
 
-#include <machine/clock.h>
 
 #include <dev/awi/am79c930reg.h>
 #include <dev/awi/am79c930var.h>

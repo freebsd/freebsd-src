@@ -49,7 +49,6 @@
 #include <sys/interrupt.h>
 #include <sys/ipl.h>
 
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 

@@ -117,7 +117,6 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/lptreg.h>

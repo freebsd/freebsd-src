@@ -100,7 +100,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/clock.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>

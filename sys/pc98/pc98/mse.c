@@ -54,7 +54,6 @@
 #include <sys/uio.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <sys/mouse.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

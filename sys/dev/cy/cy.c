@@ -80,7 +80,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <machine/clock.h>
 #include <machine/lock.h>
 #include <machine/psl.h>
 
