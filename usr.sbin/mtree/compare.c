@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <vis.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -350,11 +351,13 @@ ftype(u_int type)
 char *
 rlink(char *name)
 {
-	static char lbuf[MAXPATHLEN];
+	char tbuf[MAXPATHLEN];
+	static char lbuf[MAXPATHLEN * 4];
 	int len;
 
-	if ((len = readlink(name, lbuf, sizeof(lbuf) - 1)) == -1)
+	if ((len = readlink(name, tbuf, sizeof(tbuf) - 1)) == -1)
 		err(1, "line %d: %s", lineno, name);
-	lbuf[len] = '\0';
+	tbuf[len] = '\0';
+	strvis(lbuf, tbuf, VIS_WHITE | VIS_OCTAL);
 	return (lbuf);
 }
