@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.11 1995/11/14 20:34:12 phk Exp $
+ * $Id: ip_icmp.c,v 1.12 1995/11/18 13:25:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -310,7 +310,7 @@ icmp_input(m, hlen)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
-#ifdef MTUDISC
+#if 1
 		/*
 		 * MTU discovery:
 		 * If we got a needfrag and there is a host route to the
@@ -338,8 +338,8 @@ icmp_input(m, hlen)
 					mtu = ip_next_mtu(rt->rt_rmx.rmx_mtu,
 							  1);
 				if (!mtu || mtu < 296) {
-					rt->rt_rmx.rmx_mtu =
-						rt->rt_ifp->if_mtu;
+					/* rt->rt_rmx.rmx_mtu =
+						rt->rt_ifp->if_mtu; */
 					rt->rt_rmx.rmx_locks |= RTV_MTU;
 				} else if (rt->rt_rmx.rmx_mtu > mtu) {
 					rt->rt_rmx.rmx_mtu = mtu;
@@ -349,7 +349,7 @@ icmp_input(m, hlen)
 				RTFREE(rt);
 		}
 
-#endif /* MTUDISC */
+#endif
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
@@ -636,7 +636,7 @@ iptime()
 	return (htonl(t));
 }
 
-#ifdef MTUDISC
+#if 1
 /*
  * Return the next larger or smaller MTU plateau (table from RFC 1191)
  * given current value MTU.  If DIR is less than zero, a larger plateau
@@ -674,4 +674,4 @@ ip_next_mtu(mtu, dir)
 		}
 	}
 }
-#endif /* MTUDISC */
+#endif

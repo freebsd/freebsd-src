@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.19 1995/11/14 20:34:06 phk Exp $
+ * $Id: in_rmx.c,v 1.20 1995/12/02 19:37:56 bde Exp $
  */
 
 /*
@@ -65,9 +65,9 @@
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#ifndef MTUDISC
+#if 0
 #include <netinet/tcpip.h>
-#endif /* not MTUDISC */
+#endif
 
 extern int	in_inithead __P((void **head, int off));
 extern void	in_rtqdrain __P((void));
@@ -110,22 +110,22 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (!rt->rt_rmx.rmx_recvpipe && !(rt->rt_rmx.rmx_locks & RTV_RPIPE))
 		rt->rt_rmx.rmx_recvpipe = tcp_recvspace;
 
-#ifndef MTUDISC
+#if 0
 	/*
 	 * Finally, set an MTU, again duplicating logic in TCP.
 	 * The in_localaddr() business will go away when we have
 	 * proper PMTU discovery.
 	 */
-#endif /* not MTUDISC */
+#endif
 	if (!rt->rt_rmx.rmx_mtu && !(rt->rt_rmx.rmx_locks & RTV_MTU) 
 	    && rt->rt_ifp)
-#ifndef MTUDISC
+#if 0
 		rt->rt_rmx.rmx_mtu = (in_localaddr(sin->sin_addr)
 				      ? rt->rt_ifp->if_mtu
 				      : tcp_mssdflt + sizeof(struct tcpiphdr));
-#else /* MTUDISC */
+#else
 		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
-#endif /* MTUDISC */
+#endif
 
 	return rn_addroute(v_arg, n_arg, head, treenodes);
 }
