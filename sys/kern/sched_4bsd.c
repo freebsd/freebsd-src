@@ -316,30 +316,8 @@ schedcpu(void *arg)
 			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
 		      	resetpriority(kg);
 			FOREACH_THREAD_IN_GROUP(kg, td) {
-				int changedqueue;
 				if (td->td_priority >= PUSER) {
-					/*
-					 * Only change the priority
-					 * of threads that are still at their
-					 * user priority. 
-					 * XXXKSE This is problematic
-					 * as we may need to re-order
-					 * the threads on the KSEG list.
-					 */
-					changedqueue =
-					    ((td->td_priority / RQ_PPQ) !=
-					     (kg->kg_user_pri / RQ_PPQ));
-
-					td->td_priority = kg->kg_user_pri;
-					if (changedqueue && TD_ON_RUNQ(td)) {
-						/* this could be optimised */
-						remrunqueue(td);
-						td->td_priority =
-						    kg->kg_user_pri;
-						setrunqueue(td);
-					} else {
-						td->td_priority = kg->kg_user_pri;
-					}
+					sched_prio(td, kg->kg_user_pri);
 				}
 			}
 		} /* end of ksegrp loop */
@@ -491,14 +469,20 @@ sched_nice(struct ksegrp *kg, int nice)
 	resetpriority(kg);
 }
 
+/*
+ * Adjust the priority of a thread.
+ * This may include moving the thread within the KSEGRP,
+ * changing the assignment of a kse to the thread,
+ * and moving a KSE in the system run queue.
+ */
 void
 sched_prio(struct thread *td, u_char prio)
 {
-	td->td_priority = prio;
 
 	if (TD_ON_RUNQ(td)) {
-		remrunqueue(td);
-		setrunqueue(td);
+		adjustrunqueue(td, prio);
+	} else {
+		td->td_priority = prio;
 	}
 }
 
@@ -527,6 +511,7 @@ sched_switchout(struct thread *td)
 	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
 
 	td->td_lastcpu = ke->ke_oncpu;
+	td->td_last_kse = ke;
 	ke->ke_oncpu = NOCPU;
 	ke->ke_flags &= ~KEF_NEEDRESCHED;
 	/*
