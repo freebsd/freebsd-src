@@ -5,6 +5,7 @@ S=	${.CURDIR}/..
 
 PROG=	mtrace
 MAN=	mtrace.8
+BINOWN=	root
 BINMODE= 4555
 
 CFLAGS+= -I$S
