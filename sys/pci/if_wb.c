@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.36 1999/01/16 05:28:52 wpaul Exp $
+ *	$Id: if_wb.c,v 1.6 1999/01/16 06:25:58 wpaul Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.36 1999/01/16 05:28:52 wpaul Exp $";
+	"$Id: if_wb.c,v 1.6 1999/01/16 06:25:58 wpaul Exp $";
 #endif
 
 /*
@@ -1167,6 +1167,7 @@ wb_attach(config_id, unit)
 	ifp->if_watchdog = wb_watchdog;
 	ifp->if_init = wb_init;
 	ifp->if_baudrate = 10000000;
+	ifp->if_snd.ifq_maxlen = WB_TX_LIST_CNT - 1;
 
 	if (bootverbose)
 		printf("wb%d: probing for a PHY\n", sc->wb_unit);
