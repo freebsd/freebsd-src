@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.56 1996/09/24 17:47:59 bde Exp $
+ *	$Id: cpufunc.h,v 1.57 1996/09/28 04:22:46 dyson Exp $
  */
 
 /*
@@ -271,7 +271,7 @@ outw(u_int port, u_short data)
 
 
 static __inline void
-pmap_update(void)
+invltlb(void)
 {
 	u_long	temp;
 	/*
@@ -283,7 +283,7 @@ pmap_update(void)
 }
 
 static __inline void
-pmap_update_1pg(u_long addr)
+invlpg(u_long addr)
 {
 	__asm __volatile("invlpg (%0)": :"r"(addr));
 }
@@ -369,7 +369,6 @@ void	outsb		__P((u_int port, void *addr, size_t cnt));
 void	outsl		__P((u_int port, void *addr, size_t cnt));
 void	outsw		__P((u_int port, void *addr, size_t cnt));
 void	outw		__P((u_int port, u_short data));
-void	pmap_update	__P((void));
 u_long	rcr2		__P((void));
 quad_t	rdmsr		__P((u_int msr));
 quad_t	rdpmc		__P((u_int pmc));

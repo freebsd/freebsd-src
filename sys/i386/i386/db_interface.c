@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.21 1996/08/28 17:49:33 pst Exp $
+ *	$Id: db_interface.c,v 1.22 1996/08/30 17:03:45 pst Exp $
  */
 
 /*
@@ -207,7 +207,7 @@ db_write_bytes(addr, size, data)
 		*(int *)ptep1 |= /* INTEL_PTE_WRITE */ PG_RW;
 	    }
 
-	    pmap_update();
+	    invltlb();
 	}
 
 	dst = (char *)addr;
@@ -223,7 +223,7 @@ db_write_bytes(addr, size, data)
 	    if (ptep1)
 		*ptep1 = oldmap1;
 
-	    pmap_update();
+	    invltlb();
 	}
 }
 
