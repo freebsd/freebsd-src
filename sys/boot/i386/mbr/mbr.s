@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: mbr.s,v 1.1.1.1 1999/05/24 22:36:24 rnordier Exp $
+#	$Id: mbr.s,v 1.2 1999/06/19 20:40:32 rnordier Exp $
 
 # Master boot record
 

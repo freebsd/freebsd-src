@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: $
+#	$Id: mbr.m4,v 1.1.1.1 1999/05/24 22:36:24 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl
