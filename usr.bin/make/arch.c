@@ -119,8 +119,9 @@ typedef struct Arch {
     size_t	  fnamesize;  /* Size of the string table */
 } Arch;
 
-static struct ar_hdr *ArchStatMember(char *, char *, Boolean);
-static FILE *ArchFindMember(char *, char *, struct ar_hdr *, char *);
+static struct ar_hdr *ArchStatMember(const char *, const char *, Boolean);
+static FILE *ArchFindMember(const char *, const char *, struct ar_hdr *,
+	const char *);
 #if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
 #define	SVR4ARCHIVES
 static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
@@ -432,7 +433,7 @@ ArchFindArchive(const void *ar, const void *archName)
  *-----------------------------------------------------------------------
  */
 static struct ar_hdr *
-ArchStatMember(char *archive, char *member, Boolean hash)
+ArchStatMember(const char *archive, const char *member, Boolean hash)
 {
 #define	AR_MAX_NAME_LEN	    (sizeof(arh.ar_name) - 1)
     FILE *	  arch;	      /* Stream to archive */
@@ -736,11 +737,12 @@ ArchSVR4Entry(Arch *ar, char *name, size_t size, FILE *arch)
  *-----------------------------------------------------------------------
  */
 static FILE *
-ArchFindMember(char *archive, char *member, struct ar_hdr *arhPtr, char *mode)
+ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
+    const char *mode)
 {
     FILE *	  arch;	      /* Stream to archive */
     int		  size;       /* Size of archive member */
-    char	  *cp;	      /* Useful character pointer */
+    const char	  *cp;	      /* Useful character pointer */
     char	  magic[SARMAG];
     size_t	  len, tlen;
 

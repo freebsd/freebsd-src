@@ -1609,7 +1609,8 @@ SuffFindArchiveDeps(GNode *gn, Lst *slst)
     char    	*eoarch;    /* End of archive portion */
     char    	*eoname;    /* End of member portion */
     GNode   	*mem;	    /* Node for member */
-    static char	*copy[] = { /* Variables to be copied from the member node */
+    /* Variables to be copied from the member node */
+    static char *const copy[] = {
 	TARGET,	    	    /* Must be first */
 	PREFIX,	    	    /* Must be second */
     };

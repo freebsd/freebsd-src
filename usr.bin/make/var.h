@@ -110,8 +110,8 @@ Boolean VarRESubstitute(const char *, Boolean, struct Buffer *, void *);
 Boolean VarSubstitute(const char *, Boolean, struct Buffer *, void *);
 
 void Var_Delete(char *, struct GNode *);
-void Var_Set(char *, char *, struct GNode *);
-void Var_Append(char *, char *, struct GNode *);
+void Var_Set(char *, const char *, struct GNode *);
+void Var_Append(char *, const char *, struct GNode *);
 Boolean Var_Exists(char *, struct GNode *);
 char *Var_Value(char *, struct GNode *, char **);
 char *Var_Quote(const char *);
