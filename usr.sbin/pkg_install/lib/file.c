@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.22 1996/06/20 18:33:51 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.23 1996/08/01 12:13:20 jkh Exp $";
 #endif
 
 /*
@@ -204,6 +204,7 @@ fileGetURL(char *base, char *spec)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
+		strcat(cp, ".tgz");
 	    }
 	    else
 		return NULL;
@@ -268,10 +269,10 @@ fileGetURL(char *base, char *spec)
 	}
 	else
 	    printf("Error: Unable to construct a new playpen for FTP!\n");
+	fclose(ftp);
     }
     else
 	printf("Error: FTP Unable to get %s\n", fname);
-    fclose(ftp);
     return rp;
 }
 
