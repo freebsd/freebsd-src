@@ -36,12 +36,14 @@
  * Miscellaneous machine-dependent declarations.
  */
 
-extern	long	Maxmem;
-extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	void	(*bcopy_vector)(const void *from, void *to, size_t len);
-extern	int	busdma_swi_pending;
+extern	void	(*bzero_vector)(void *buf, size_t len);
 extern	int	(*copyin_vector)(const void *udaddr, void *kaddr, size_t len);
 extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
+
+extern	long	Maxmem;
+extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
+extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_fxsr;
@@ -56,7 +58,6 @@ extern	char	kstack[];
 extern	int	need_pre_dma_flush;
 extern	int	need_post_dma_flush;
 #endif
-extern	void	(*ovbcopy_vector)(const void *from, void *to, size_t len);
 extern	char	sigcode[];
 extern	int	szsigcode;
 #ifdef COMPAT_FREEBSD4

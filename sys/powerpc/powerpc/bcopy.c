@@ -151,9 +151,3 @@ bcopy(const void *src0, void *dst0, size_t length)
 	memcpy(dst0, src0, length);
 }
 
-void
-ovbcopy(const void *src0, void *dst0, size_t length)
-{
-
-	memcpy(dst0, src0, length);
-}
