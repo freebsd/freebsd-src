@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp $
+ * $Id: if_ethersubr.c,v 1.6 1995/03/16 18:14:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -245,7 +245,7 @@ ether_output(ifp, m0, dst, rt0)
 
 	case AF_UNSPEC:
 		eh = (struct ether_header *)dst->sa_data;
- 		bcopy((caddr_t)eh->ether_dhost, (caddr_t)edst, sizeof (edst));
+ 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
 		break;
 
@@ -267,10 +267,10 @@ ether_output(ifp, m0, dst, rt0)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
 	type = htons((u_short)type);
-	bcopy((caddr_t)&type,(caddr_t)&eh->ether_type,
+	(void)memcpy(&eh->ether_type, &type,
 		sizeof(eh->ether_type));
- 	bcopy((caddr_t)edst, (caddr_t)eh->ether_dhost, sizeof (edst));
- 	bcopy((caddr_t)ac->ac_enaddr, (caddr_t)eh->ether_shost,
+ 	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
+ 	(void)memcpy(eh->ether_shost, ac->ac_enaddr,
 	    sizeof(eh->ether_shost));
 	s = splimp();
 	/*

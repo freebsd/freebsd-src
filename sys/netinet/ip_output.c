@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.16 1995/04/09 01:29:22 davidg Exp $
+ * $Id: ip_output.c,v 1.17 1995/04/26 18:10:55 pst Exp $
  */
 
 #include <sys/param.h>
@@ -461,7 +461,7 @@ ip_insertoptions(m, opt, phlen)
 		m = n;
 		m->m_len = optlen + sizeof(struct ip);
 		m->m_data += max_linkhdr;
-		bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
+		(void)memcpy(mtod(m, void *), ip, sizeof(struct ip));
 	} else {
 		m->m_data -= optlen;
 		m->m_len += optlen;
@@ -469,7 +469,7 @@ ip_insertoptions(m, opt, phlen)
 		ovbcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
 	}
 	ip = mtod(m, struct ip *);
-	bcopy((caddr_t)p->ipopt_list, (caddr_t)(ip + 1), (unsigned)optlen);
+	(void)memcpy(ip + 1, p->ipopt_list, (unsigned)optlen);
 	*phlen = sizeof(struct ip) + optlen;
 	ip->ip_len += optlen;
 	return (m);
@@ -504,7 +504,7 @@ ip_optcopy(ip, jp)
 		if (optlen > cnt)
 			optlen = cnt;
 		if (IPOPT_COPIED(opt)) {
-			bcopy((caddr_t)cp, (caddr_t)dp, (unsigned)optlen);
+			(void)memcpy(dp, cp, (unsigned)optlen);
 			dp += optlen;
 		}
 	}
@@ -608,8 +608,8 @@ ip_ctloutput(op, so, level, optname, mp)
 			*mp = m = m_get(M_WAIT, MT_SOOPTS);
 			if (inp->inp_options) {
 				m->m_len = inp->inp_options->m_len;
-				bcopy(mtod(inp->inp_options, caddr_t),
-				    mtod(m, caddr_t), (unsigned)m->m_len);
+				(void)memcpy(mtod(m, void *),
+				    mtod(inp->inp_options, void *), (unsigned)m->m_len);
 			} else
 				m->m_len = 0;
 			break;
