@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttycom.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
 
 #include <vm/vm.h>
