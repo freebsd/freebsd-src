@@ -1,6 +1,7 @@
 awk '
 BEGIN {
 	print "#include <sys/param.h>"
+	print "#include <sys/queue.h>"
 	print "#include <sys/socket.h>"
 	print "#include <sys/socketvar.h>"
 	print "#include <net/route.h>"
