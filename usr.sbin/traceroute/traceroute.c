@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: traceroute.c,v 1.27 95/10/18 00:17:06 leres Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.5 1996/03/13 08:04:29 pst Exp $ (LBL)";
 #endif
 
 /*
@@ -294,6 +294,20 @@ main(int argc, char **argv)
 	int lsrr = 0;
 	u_long gw;
 	u_char optlist[MAX_IPOPTLEN], *oix;
+	int sockerrno;
+
+	/*
+	 * Do the setuid-required stuff first, then lose priveleges ASAP.
+	 * Do error checking for these two calls where they appeared in
+	 * the original code.
+	 */
+	pe = getprotobyname("icmp");
+	if (pe) {
+		s = socket(AF_INET, SOCK_RAW, pe->p_proto);
+		sockerrno = errno;
+	}
+
+	setuid(getuid());
 
 	oix = optlist;
 	bzero(optlist, sizeof(optlist));
@@ -446,11 +460,12 @@ main(int argc, char **argv)
 
 	ident = (getpid() & 0xffff) | 0x8000;
 
-	if ((pe = getprotobyname("icmp")) == NULL) {
+	if (pe == NULL) {
 		Fprintf(stderr, "icmp: unknown protocol\n");
 		exit(10);
 	}
-	if ((s = socket(AF_INET, SOCK_RAW, pe->p_proto)) < 0) {
+	if (s < 0) {
+		errno = sockerrno;
 		perror("traceroute: icmp socket");
 		exit(5);
 	}
