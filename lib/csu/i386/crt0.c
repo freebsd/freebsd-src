@@ -54,14 +54,6 @@ static char empty[1];
 char *__progname = empty;
 int	errno = 0;
 
-asm(".text");
-asm(".long 0xc000c000");
-#if 1 /* more needed for alignment on i486/gcc-2.3.3 */
-asm(".long 0xc000c000");
-asm(".long 0xc000c000");
-asm(".long 0xc000c000");
-#endif
-
 extern	unsigned char	etext;
 extern	unsigned char	eprol asm ("eprol");
 extern			start() asm("start");
