@@ -825,14 +825,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	if (base == 0)
 		return 1;
 
-	/* if this is an ATA MASTERDEV on std addresses, resources are bogus */
-	if ((pci_get_class(dev) == PCIC_STORAGE) &&
-	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
-	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) &&
-	    !(pci_get_progif(dev) &
-	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)))
-		return 1;
-
 	start = base;
 	end = base + (1 << ln2size) - 1;
 	count = 1 << ln2size;
@@ -844,6 +836,69 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	resource_list_alloc(rl, bus, dev, type, &reg, start, end, count, 0);
 	return ((ln2range == 64) ? 2 : 1);
+}
+
+static int
+pci_is_ata_legacy(device_t dev)
+{
+	/*
+	 * ATA PCI in compatibility mode are hard wired to certain
+	 * compatibility addresses.  Such entries does not contain
+	 * valid resources as they are at fixed positions to be
+	 * compatible with old ISA requirements.
+	 */
+	if ((pci_get_class(dev) == PCIC_STORAGE) &&
+	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) &&
+	    !(pci_get_progif(dev) &
+	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)))
+		return 1;
+	return 0;
+}
+
+/*
+ * The ATA PCI spec specifies that in legacy mode, the device shall
+ * decode the resources listed below.  The ata driver allocates
+ * resources in this order, and many atapci devices actually have
+ * values similar to these in the actual underlying bars.  Part of the
+ * problem is that the floppy controller and ata overlap for 1 byte,
+ * which makes it difficult to properly allocate things.
+ *
+ * My reading of the pci spec is such that this appears to be the only
+ * allowed exception to the rule that devices only decode the addresses
+ * presented in their BARs.  We also ensure that the bits that take
+ * the device out of legacy mode are set to 0 before making this
+ * reservation.
+ */
+static void
+pci_add_ata_legacy_maps(device_t pcib, device_t bus, device_t dev, int b,
+    int s, int f, struct resource_list *rl)
+{
+	int rid;
+	int type;
+
+	type = SYS_RES_IOPORT;
+	if ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MODEPRIM) == 0) {
+		rid = PCIR_BAR(0);
+		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7, 8,
+		    0);
+		rid = PCIR_BAR(1);
+		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6, 1,
+		    0);
+	}
+	if ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MODESEC) == 0) {
+		rid = PCIR_BAR(2);
+		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177, 8,
+		    0);
+		rid = PCIR_BAR(3);
+		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376, 1,
+		    0);
+	}
+	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl);
 }
 
 static void
@@ -858,8 +913,13 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 	b = cfg->bus;
 	s = cfg->slot;
 	f = cfg->func;
-	for (i = 0; i < cfg->nummaps;)
-		i += pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(i), rl);
+
+	if (pci_is_ata_legacy(dev))
+		pci_add_ata_legacy_maps(pcib, bus, dev, b, s, f, rl);
+	else
+		for (i = 0; i < cfg->nummaps;)
+			i += pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(i),
+			    rl);
 
 	for (q = &pci_quirks[0]; q->devid; q++) {
 		if (q->devid == ((cfg->device << 16) | cfg->vendor)
@@ -1468,49 +1528,43 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 
 	/*
 	 * Weed out the bogons, and figure out how large the BAR/map
-	 * is.  Note: some devices have been found that are '0' after
-	 * a write of 0xffffffff.  We view these as 'special' and
-	 * allow drivers to allocate whatever they want with them.  So
-	 * far, these BARs have only appeared in certain south bridges
-	 * and ata controllers made by VIA, nVidia and AMD.
+	 * is.  Bars that read back 0 here are bogus and unimplemented.
+	 * Note: atapci in legacy mode are special and handled elsewhere
+	 * in the code.  If you have a atapci device in legacy mode and
+	 * it fails here, that other code is broken.
 	 */
 	res = NULL;
 	map = pci_read_config(child, *rid, 4);
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
-	if (testval != 0) {
-		if (pci_maptype(testval) & PCI_MAPMEM) {
-			if (type != SYS_RES_MEMORY) {
-				device_printf(child,
-				    "failed: rid %#x is memory, requested %d\n",
-				    *rid, type);
-				goto out;
-			}
-		} else {
-			if (type != SYS_RES_IOPORT) {
-				device_printf(child,
-				    "failed: rid %#x is ioport, requested %d\n",
-				    *rid, type);
-				goto out;
-			}
-		}
-		/*
-		 * For real BARs, we need to override the size that
-		 * the driver requests, because that's what the BAR
-		 * actually uses and we would otherwise have a
-		 * situation where we might allocate the excess to
-		 * another driver, which won't work.
-		 */
-		mapsize = pci_mapsize(testval);
-		count = 1 << mapsize;
-		if (RF_ALIGNMENT(flags) < mapsize)
-	    		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
-	}
-	else {
-		if (bootverbose)
+	if (testval == 0)
+		return (NULL);
+	if (pci_maptype(testval) & PCI_MAPMEM) {
+		if (type != SYS_RES_MEMORY) {
 			device_printf(child,
-			    "ZERO BAR: resource checks suppressed.\n");
+			    "failed: rid %#x is memory, requested %d\n",
+			    *rid, type);
+			goto out;
+		}
+	} else {
+		if (type != SYS_RES_IOPORT) {
+			device_printf(child,
+			    "failed: rid %#x is ioport, requested %d\n",
+			    *rid, type);
+			goto out;
+		}
 	}
+	/*
+	 * For real BARs, we need to override the size that
+	 * the driver requests, because that's what the BAR
+	 * actually uses and we would otherwise have a
+	 * situation where we might allocate the excess to
+	 * another driver, which won't work.
+	 */
+	mapsize = pci_mapsize(testval);
+	count = 1 << mapsize;
+	if (RF_ALIGNMENT(flags) < mapsize)
+		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	
 	/*
 	 * Allocate enough resource, and then write back the
