@@ -296,7 +296,11 @@ struct timex {
 			  { "gettime", CTLTYPE_STRUCT }, \
 		      }
 
-#ifndef KERNEL
+#ifdef KERNEL
+void ntp_update_second __P((long *newsec));
+extern long time_phase;
+extern long time_adj;
+#else
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
