@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.1 1996/01/13 23:23:39 ezk Exp ezk $
+ * $Id: amd.h,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
  *
  */
 
@@ -178,18 +178,17 @@ struct mnt_map {
 
 /*
  * Mounting a file system may take a significant period of time.  The
- * problem is that if this is done in the main process thread then
- * the entire automounter could be blocked, possibly hanging lots of
- * processes on the system.  Instead we use a continuation scheme to
- * allow mounts to be attempted in a sub-process.  When the sub-process
- * exits we pick up the exit status (by convention a UN*X error number)
- * and continue in a notifier.  The notifier gets handed a data structure
- * and can then determine whether the mount was successful or not.  If
- * not, it updates the data structure and tries again until there are no
- * more ways to try the mount, or some other permanent error occurs.
- * In the mean time no RPC reply is sent, even after the mount is succesful.
- * We rely on the RPC retry mechanism to resend the lookup request which
- * can then be handled.
+ * problem is that if this is done in the main process thread then the
+ * entire automounter could be blocked, possibly hanging lots of processes
+ * on the system.  Instead we use a continuation scheme to allow mounts to
+ * be attempted in a sub-process.  When the sub-process exits we pick up the
+ * exit status (by convention a UN*X error number) and continue in a
+ * notifier.  The notifier gets handed a data structure and can then
+ * determine whether the mount was successful or not.  If not, it updates
+ * the data structure and tries again until there are no more ways to try
+ * the mount, or some other permanent error occurs.  In the mean time no RPC
+ * reply is sent, even after the mount is successful.  We rely on the RPC
+ * retry mechanism to resend the lookup request which can then be handled.
  */
 struct continuation {
   char **ivec;			/* Current mount info */

@@ -17,7 +17,7 @@ n * modification, are permitted provided that the following conditions
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@ n * modification, are permitted provided that the following conditions
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hasmntopt.c,v 5.2.2.2 1992/05/31 16:35:45 jsp Exp $
+ * $Id: hasmntopt.c,v 1.1.1.1 1998/11/05 02:04:44 ezk Exp $
  *
  */
 
@@ -84,7 +84,7 @@ nextmntopt(char **p)
     cp++;
 
   /*
-   * If separator found the overwrite with nul char.
+   * If separator found the overwrite with null char.
    */
   if (*cp) {
     *cp = '\0';

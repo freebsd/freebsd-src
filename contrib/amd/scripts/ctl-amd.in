@@ -4,6 +4,10 @@
 #
 # Package:	am-utils-6.0
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
+#
+# chkconfig: 345 72 8
+# description: amd is the Berkeley AutoMount Daemon, used for \
+#              automatic filesystem mounting
 
 # set path
 prefix=@prefix@
@@ -90,14 +94,14 @@ case "$1" in
 
 'stop')
 	# prepend space to program name to ensure only amd process dies
+	echo "killing amd..."
 	killproc " amd"
+	wait4amd2die
 	;;
 
 'restart')
 	# kill amd, wait for it to die, then restart
-	echo "killing amd..."
 	ctl-amd stop
-	wait4amd2die
 	if [ $? != 0 ]
 	then
 		echo "NOT restarting amd!"
