@@ -430,6 +430,7 @@ static device_t sis_find_bridge(dev)
 	device_t		*pci_children;
 	int			pci_childcount = 0;
 	device_t		*busp, *childp;
+	device_t		child = NULL;
 	int			i, j;
 
 	if ((pci_devclass = devclass_find("pci")) == NULL)
@@ -444,16 +445,16 @@ static device_t sis_find_bridge(dev)
 		    j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == SIS_VENDORID &&
 			    pci_get_device(*childp) == 0x0008) {
-				free(pci_devices, M_TEMP);
-				free(pci_children, M_TEMP);
-				return(*childp);
+				child = *childp;
+				goto done;
 			}
 		}
 	}
 
+done:
 	free(pci_devices, M_TEMP);
 	free(pci_children, M_TEMP);
-	return(NULL);
+	return(child);
 }
 
 static void sis_read_cmos(sc, dev, dest, off, cnt)
