@@ -333,6 +333,7 @@ struct format_op {
 	int	 df_reg[8];		/* result */
 };
 
+#ifdef _KERNEL
 /*
  * Structure used internally to retrieve information about a partition
  * on a disk.
@@ -341,6 +342,7 @@ struct partinfo {
 	struct disklabel *disklab;
 	struct partition *part;
 };
+#endif
 
 /* DOS partition table -- located in boot block */
 
@@ -404,7 +406,9 @@ struct dos_partition {
 #define DIOCGDINFO	_IOR('d', 101, struct disklabel)/* get */
 #define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
+#ifdef _KERNEL
 #define DIOCGPART	_IOW('d', 104, struct partinfo)	/* get partition */
+#endif
 #define DIOCGDVIRGIN	_IOR('d', 105, struct disklabel)/* get virgin label */
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
