@@ -177,6 +177,9 @@ loop:
 
 	case Pmeminfo:
 	case Pcpuinfo:
+	case Pstat:
+	case Puptime:
+	case Pversion:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
 				(VREAD >> 6);
@@ -253,6 +256,15 @@ linprocfs_rw(ap)
 		break;
 	case Pcpuinfo:
 		rtval = linprocfs_docpuinfo(curp, p, pfs, uio);
+		break;
+	case Pstat:
+		rtval = linprocfs_dostat(curp, p, pfs, uio);
+		break;
+	case Puptime:
+		rtval = linprocfs_douptime(curp, p, pfs, uio);
+		break;
+	case Pversion:
+		rtval = linprocfs_doversion(curp, p, pfs, uio);
 		break;
 	default:
 		rtval = EOPNOTSUPP;
