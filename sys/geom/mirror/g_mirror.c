@@ -1640,7 +1640,6 @@ static void
 g_mirror_sync_start(struct g_mirror_disk *disk)
 {
 	struct g_mirror_softc *sc;
-	struct g_consumer *cp;
 	int error;
 
 	g_topology_assert();
@@ -1649,7 +1648,6 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 	    ("Device not in RUNNING state (%s, %u).", sc->sc_name,
 	    sc->sc_state));
-	cp = disk->d_consumer;
 
 	G_MIRROR_DEBUG(0, "Device %s: rebuilding provider %s.", sc->sc_name,
 	    g_mirror_get_diskname(disk));
@@ -1678,7 +1676,6 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 static void
 g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 {
-	struct g_consumer *cp;
 
 	g_topology_assert();
 	KASSERT(disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
@@ -1694,12 +1691,10 @@ g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 		G_MIRROR_DEBUG(0, "Device %s: rebuilding provider %s stopped.",
 		    disk->d_softc->sc_name, g_mirror_get_diskname(disk));
 	}
-	cp = disk->d_sync.ds_consumer;
-	g_mirror_kill_consumer(disk->d_softc, cp);
+	g_mirror_kill_consumer(disk->d_softc, disk->d_sync.ds_consumer);
 	free(disk->d_sync.ds_data, M_MIRROR);
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_softc->sc_sync.ds_ndisks--;
-	cp = disk->d_consumer;
 	disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 }
 
