@@ -47,8 +47,6 @@
 #error Provide an bitops.h file, please !
 #endif
 
-unsigned long ext2_count_free __P((struct buffer_head *, unsigned int));
-
 #define in_range(b, first, len)		((b) >= (first) && (b) <= (first) + (len) - 1)
 
 /* got rid of get_group_desc since it can already be found in 
@@ -450,7 +448,7 @@ got_block:
 	return j;
 }
 
-unsigned long ext2_count_free_blocks (struct mount * mp)
+static unsigned long ext2_count_free_blocks (struct mount * mp)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
 #ifdef EXT2FS_DEBUG
@@ -493,7 +491,7 @@ static inline int block_in_use (unsigned long block,
 			 EXT2_BLOCKS_PER_GROUP(sb), map);
 }
 
-void ext2_check_blocks_bitmap (struct mount * mp)
+static void ext2_check_blocks_bitmap (struct mount * mp)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
 	struct buffer_head * bh;
@@ -578,4 +576,3 @@ unsigned long ext2_count_free (struct buffer_head * map, unsigned int numchars)
                         nibblemap[(map->b_data[i] >> 4) & 0xf];
         return (sum);
 }
-

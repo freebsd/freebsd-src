@@ -103,6 +103,10 @@ extern u_long nextgennumber;
  */
 #define ROOTNAME	"root_device"
 
+static int	compute_sb_data __P((struct vnode * devvp,
+				     struct ext2_super_block * es,
+				     struct ext2_sb_info * fs));
+
 int
 ext2_mountroot()
 {
