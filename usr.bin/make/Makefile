@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
-#	$Id: Makefile,v 1.5 1995/09/22 14:14:28 phk Exp $
+#	$Id: Makefile,v 1.6 1996/10/06 02:33:53 steve Exp $
 
 PROG=	make
 CFLAGS+= -I${.CURDIR}
@@ -12,7 +12,7 @@ SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
 	lstMember.c lstNext.c lstOpen.c lstRemove.c lstReplace.c lstSucc.c
 .PATH:	${.CURDIR}/lst.lib
 
-.if make(install)
+.if make (all) || make(install)
 SUBDIR+= PSD.doc
 .endif
 
