@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.21 2001/05/23 23:03:23 grog Exp grog $
+ * $Id: request.h,v 1.22 2003/04/24 04:37:08 grog Exp $
  * $FreeBSD$
  */
 
@@ -105,6 +105,7 @@ struct rqelement {
     /* Ways to find other components */
     short sdno;						    /* subdisk number */
     short driveno;					    /* drive number */
+    struct timeval launchtime;				    /* time of launch, for info function */
 };
 
 /*
