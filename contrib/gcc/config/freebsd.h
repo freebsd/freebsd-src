@@ -61,7 +61,7 @@ Boston, MA 02111-1307, USA.  */
    || !strcmp (STR, "assert") || !strcmp (STR, "dynamic-linker"))
 
 
-#define CPP_FBSD_PREDEFINES "-Dunix -D__ELF__ -D__FreeBSD__=4 -D__FreeBSD_cc_version=400001 -Asystem(unix) -Asystem(FreeBSD)"
+#define CPP_FBSD_PREDEFINES "-Dunix -D__ELF__ -D__FreeBSD__=4 -D__FreeBSD_cc_version=400002 -Asystem(unix) -Asystem(FreeBSD)"
 
 
 /* Code generation parameters.  */
