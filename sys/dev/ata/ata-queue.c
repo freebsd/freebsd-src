@@ -216,11 +216,11 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
-	if (request->bio)
+	if (request->bio && !(request->flags & ATA_R_TIMEOUT))
 	    bio_taskqueue(request->bio, (bio_task_t *)ata_completed, request);
 	else {
 	    TASK_INIT(&request->task, 0, ata_completed, request);
-	    taskqueue_enqueue(taskqueue_swi, &request->task);
+	    taskqueue_enqueue(taskqueue_thread, &request->task);
 	}
     }
 }
