@@ -82,7 +82,7 @@ char	*topdomain __P((char *));
 void	 usage __P((void));
 
 #ifdef	KERBEROS
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 #define	VERSION_SIZE	9
 #define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"

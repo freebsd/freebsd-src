@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)krcmd.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- *	$Source: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/rlogin/krcmd.c,v $
+ *	$Source: /home/ncvs/src/usr.bin/rlogin/krcmd.c,v $
  *	$Header: /mit/kerberos/ucb/mit/kcmd/RCS/krcmd.c,v 5.1
  *		89/07/25 15:38:44 kfall Exp Locker: kfall $
  * static char *rcsid_kcmd_c =
@@ -52,7 +52,7 @@ static char sccsid[] = "@(#)krcmd.c	8.1 (Berkeley) 6/6/93";
 
 #include <netinet/in.h>
 
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 
 #include <stdio.h>
