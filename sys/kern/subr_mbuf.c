@@ -933,7 +933,6 @@ mb_reclaim(void)
  * Local mbuf & cluster alloc macros and routines.
  * Local macro and function names begin with an underscore ("_").
  */
-void	_mext_free(struct mbuf *);
 void	_mclfree(struct mbuf *);
 
 #define	_m_get(m, how, type) do {					\

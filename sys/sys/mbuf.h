@@ -427,6 +427,7 @@ extern	int		nmbcnt;		/* Scale kmem_map for counter space */
 extern	int		nmbufs;		/* Maximum number of mbufs */
 extern	int		nsfbufs;	/* Number of sendfile(2) bufs */
 
+void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
 struct	mbuf 	*m_aux_add(struct mbuf *, int, int);
 struct	mbuf 	*m_aux_add2(struct mbuf *, int, int, void *);
