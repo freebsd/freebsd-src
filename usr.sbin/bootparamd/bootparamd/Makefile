@@ -2,10 +2,12 @@
 # $FreeBSD$
 
 PROG=	bootparamd
+MAN=	bootparams.5 bootparamd.8
 SRCS=	bootparamd.c main.c ${GENSRCS}
 GENSRCS=bootparam_prot.h bootparam_prot_svc.c bootparam_prot_xdr.c
-MAN=	bootparams.5 bootparamd.8
+
 CFLAGS+= -DTFTP_DIR=\"/tftpboot\" -I.
+
 CLEANFILES= ${GENSRCS}
 
 RPCSRC=	${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x

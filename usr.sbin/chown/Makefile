@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	chown
-MAN=	chgrp.1 chown.8
 LINKS=	${BINDIR}/chown /usr/bin/chgrp
+MAN=	chgrp.1 chown.8
 
 .include <bsd.prog.mk>

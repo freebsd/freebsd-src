@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	fdcontrol
-WARNS?=	2
 MAN=	fdcontrol.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

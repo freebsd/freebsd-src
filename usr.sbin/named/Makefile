@@ -3,10 +3,11 @@
 USE_LIBBIND=	true
 .include "${.CURDIR}/Makefile.inc"
 
-.PATH:	${BIND_DIR}/bin/named
-.PATH:	${BIND_DIR}/doc/man
+.PATH: ${BIND_DIR}/bin/named
+.PATH: ${BIND_DIR}/doc/man
 
 PROG=	named
+MAN=	named.conf.5 named.8 named-bootconf.8 nsupdate.8
 SRCS=	tmp_version.c pathnames.h \
 	db_dump.c db_load.c db_lookup.c db_save.c db_update.c \
 	db_glue.c db_ixfr.c db_sec.c db_tsig.c \
@@ -25,8 +26,6 @@ LIBISC:=       ${LIBISCDIR}/libisc.a
 
 DPADD+=         ${LIBISC}
 LDADD+=         ${LIBISC}
-
-MAN=	named.conf.5 named.8 named-bootconf.8 nsupdate.8
 
 DOCDIR=	/usr/share/doc/bind
 HTMLS=	acl.html address_list.html comments.html config.html controls.html \

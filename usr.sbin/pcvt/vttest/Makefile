@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-PROG=		vttest
-CFLAGS+=	-traditional -DUSEMYSTTY
-SRCS=		main.c esc.c
+PROG=	vttest
+SRCS=	main.c esc.c
+
+CFLAGS+= -traditional -DUSEMYSTTY
 
 .include <bsd.prog.mk>

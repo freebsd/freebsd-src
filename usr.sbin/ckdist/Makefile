@@ -1,9 +1,8 @@
 # $FreeBSD$
 
-PROG=	ckdist
-
 .PATH: ${.CURDIR}/../../usr.bin/cksum
 
+PROG=	ckdist
 SRCS=   ckdist.c crc.c
 
 DPADD=	${LIBMD}

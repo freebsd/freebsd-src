@@ -1,14 +1,11 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../usr.sbin/ypserv
+
 PROG=	rpc.ypxfrd
+MAN=	rpc.ypxfrd.8
 SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \
 	yp_access.c ypxfrd_main.c
-
-RPCDIR=	${.CURDIR}/../../include/rpcsvc
-
-.PATH:	${.CURDIR}/../../usr.sbin/ypserv
-
-MAN=	rpc.ypxfrd.8
 
 CFLAGS+= -I. -DXFRBLOCKSIZE=65535
 
@@ -17,6 +14,7 @@ LDADD=	-lrpcsvc
 
 CLEANFILES= ypxfrd_svc.c ypxfrd.h
 
+RPCDIR=	${.CURDIR}/../../include/rpcsvc
 RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that

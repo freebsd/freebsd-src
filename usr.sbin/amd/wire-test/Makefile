@@ -4,14 +4,13 @@
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998
 #
 # $FreeBSD$
-#
 
-.PATH:		${.CURDIR}/../../../contrib/amd/wire-test
+.PATH: ${.CURDIR}/../../../contrib/amd/wire-test
 
-PROG=		wire-test
-MAN=		wire-test.8
+PROG=	wire-test
+MAN=	wire-test.8
 
-DPADD+=		${LIBAMU}
-LDADD+=		${LIBAMU}
+DPADD=	${LIBAMU}
+LDADD=	${LIBAMU}
 
 .include <bsd.prog.mk>

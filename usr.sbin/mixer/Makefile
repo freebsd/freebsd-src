@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	mixer
-WARNS?=	2
 MAN=	mixer.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -1,12 +1,11 @@
 # $FreeBSD$
 
 PROG=	apmd
+MAN=	apmd.8
 SRCS=	apmd.c apmdlex.l apmdparse.y y.tab.h
 
 DPADD=	${LIBL}
 LDADD=	-ll
-
-MAN=	apmd.8
 
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR} #-DYY_STACK_USED

@@ -2,10 +2,12 @@
 # $FreeBSD$
 
 PROG=	callbootd
+NOMAN=	#true
 SRCS=	callbootd.c ${GENSRCS}
 GENSRCS=bootparam_prot.h bootparam_prot_clnt.c bootparam_prot_xdr.c
-NOMAN=
+
 CFLAGS+= -I.
+
 CLEANFILES= ${GENSRCS}
 
 RPCSRC=	${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x

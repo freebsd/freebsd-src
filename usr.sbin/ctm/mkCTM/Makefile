@@ -1,9 +1,10 @@
 # $FreeBSD$
 
 PROG=	mkctm
-SRCS=	mkctm.c
-LDADD= -lmd
 NOMAN=	1
+SRCS=	mkctm.c
+
+LDADD=	-lmd
 
 test:	mkctm
 	rm -f tst.out*

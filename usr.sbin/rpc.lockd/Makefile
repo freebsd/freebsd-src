@@ -1,10 +1,10 @@
-#	$FreeBSD$
 #	$NetBSD: Makefile,v 1.12 2000/08/07 16:23:31 thorpej Exp $
+# $FreeBSD$
 
 PROG=	rpc.lockd
-SRCS=	kern.c nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
 MAN=	rpc.lockd.8
 MLINKS=	rpc.lockd.8 lockd.8
+SRCS=	kern.c nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
 
 CFLAGS+= -I. -I${DESTDIR}/usr/include/rpcsvc
 

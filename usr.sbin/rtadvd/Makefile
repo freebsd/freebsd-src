@@ -11,15 +11,16 @@
 # AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
+#
 # $FreeBSD$
 
 PROG=	rtadvd
+MAN=	rtadvd.conf.5 rtadvd.8
 SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
 
-CFLAGS+=-DINET6
-LDADD+=	-lcompat
-DPADD+=	${LIBCOMPAT}
+CFLAGS+= -DINET6
 
-MAN=	rtadvd.conf.5 rtadvd.8
+LDADD=	-lcompat
+DPADD=	${LIBCOMPAT}
 
 .include <bsd.prog.mk>

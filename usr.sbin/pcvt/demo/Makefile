@@ -1,8 +1,12 @@
+# $FreeBSD$
+
 PROG=	playvt
+NOMAN=	#true
 SRCS=	playvt.c
+
 DEMOS=	chardemo.vt colors.vt sgr.vt
 DEMOS+=	outerlimit.vt twzone.vt cowscene.vt xmas.vt
-NOMAN=
+CLEANFILES+= 	${DEMOS}
 
 all: $(DEMOS) $(PROG)
 
@@ -13,8 +17,6 @@ install:
 	@${ECHO} "        \"playvt -f <filename>.vt -d<some-delay-val>\""
 
 .include <bsd.prog.mk>
-
-CLEANFILES+= 	${DEMOS}
 
 # this seems to be the lowest common denominator
 

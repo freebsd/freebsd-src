@@ -1,11 +1,12 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../timed
+
 PROG=	timedc
-SRCS=	cmds.c cmdtab.c timedc.c byteorder.c measure.c cksum.c
 MAN=	timedc.8
-BINMODE=4555
-.PATH:	${.CURDIR}/../timed
+SRCS=	cmds.c cmdtab.c timedc.c byteorder.c measure.c cksum.c
+BINMODE= 4555
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

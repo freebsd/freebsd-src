@@ -6,10 +6,11 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 PROG=	tcpslice
 SRCS=	gwtm2secs.c search.c tcpslice.c util.c version.c version.h
 CLEANFILES=	version.c version.h
+
 CFLAGS+= -I.
 
-DPADD+=	${LIBPCAP}
-LDADD+= -lpcap
+DPADD=	${LIBPCAP}
+LDADD=	-lpcap
 
 .ORDER: version.c version.h
 version.c version.h: ${TCPDUMP_DISTDIR}/VERSION

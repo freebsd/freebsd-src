@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../contrib/amd/scripts
+.PATH: ${.CURDIR}/../../../contrib/amd/scripts
 
-MAN=		amd.conf.5
+MAN=	amd.conf.5
 
 .include <bsd.prog.mk>

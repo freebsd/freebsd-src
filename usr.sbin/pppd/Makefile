@@ -1,36 +1,36 @@
 # $FreeBSD$
 
-CFLAGS+= -DHAVE_PATHS_H
-
-PROG=	pppd
-SRCS=	main.c magic.c fsm.c lcp.c ipcp.c ipxcp.c upap.c chap.c ccp.c \
-	demand.c auth.c options.c sys-bsd.c
-MAN=	pppd.8
-BINMODE=4555
-
 # as per handbook policies section
 MAINTAINER=	peter@freebsd.org
+
+PROG=	pppd
+MAN=	pppd.8
+SRCS=	main.c magic.c fsm.c lcp.c ipcp.c ipxcp.c upap.c chap.c ccp.c \
+	demand.c auth.c options.c sys-bsd.c
+BINMODE= 4555
+
+CFLAGS+= -DHAVE_PATHS_H
 
 LDADD=	-lcrypt -lutil -lmd
 DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBMD}
 
 # Support SPX/IPX - not quite ready
-#CFLAGS+=-DIPX_CHANGE
+#CFLAGS+= -DIPX_CHANGE
 #SRCS+=	ipxcp.c
 
 # Callback Control Protocol
-CFLAGS+=-DCBCP_SUPPORT
+CFLAGS+= -DCBCP_SUPPORT
 SRCS+=	cbcp.c
 
 # Filter support
-CFLAGS+=-DPPP_FILTER
+CFLAGS+= -DPPP_FILTER
 LDADD+=	-lpcap
 DPADD+=	${LIBPCAP}
 
 # MS-CHAP support.  Requires the DES library.
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DISTRIBUTION=crypto
-CFLAGS+=-DCHAPMS
+CFLAGS+= -DCHAPMS
 SRCS+=	chap_ms.c
 LDADD+=	-lcrypto
 DPADD+=	${LIBCRYPTO}
