@@ -275,7 +275,7 @@ tsunami_check_abort(void)
 	KV(TSUNAMI_CONF(h) | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
 
 #define CFGREAD(h, b, s, f, r, op, width, type)			\
-	int bus = tsunami_bus_within_hose(h, b);		\
+	int bus = tsunami_bus_within_hose(h, b) ? b : 0;	\
 	vm_offset_t va = TSUNAMI_CFGADDR(bus, s, f, r, h);	\
 	type data;						\
 	tsunami_clear_abort();					\
@@ -289,7 +289,7 @@ tsunami_check_abort(void)
 	return data;			
 
 #define CFWRITE(h, b, s, f, r, data, op, width)			\
-	int bus = tsunami_bus_within_hose(h, b);		\
+	int bus = tsunami_bus_within_hose(h, b) ? b : 0;	\
 	vm_offset_t va = TSUNAMI_CFGADDR(bus, s, f, r, h);	\
 	tsunami_clear_abort();					\
 	if (badaddr((caddr_t)va, width)) 			\
