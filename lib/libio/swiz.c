@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: swiz.c,v 1.1 1998/12/12 18:05:06 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -86,8 +86,8 @@ swiz_ioperm(u_int32_t from, u_int32_t num, int on)
     if (!on)
 	return -1;		/* XXX can't unmap yet */
 
-    start = from << 5;
-    end = (from + num) << 5;
+    start = trunc_page(from << 5);
+    end = round_page((from + num) << 5);
     addr = swiz_ports + start;
     munmap(addr, end - start);
     mmap(addr, end - start, PROT_READ|PROT_WRITE, MAP_SHARED,
