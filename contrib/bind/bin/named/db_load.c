@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: db_load.c,v 8.97 1999/10/30 03:21:35 vixie Exp $";
+static const char rcsid[] = "$Id: db_load.c,v 8.103 2000/04/21 06:54:02 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static const char rcsid[] = "$Id: db_load.c,v 8.97 1999/10/30 03:21:35 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -267,6 +267,8 @@ db_load(const char *filename, const char *in_origin,
 
 	switch (zp->z_type) {
 	case Z_PRIMARY:
+		/* Any updates should be saved before we attempt to reload. */
+		INSIST((zp->z_flags & (Z_NEED_DUMP|Z_NEED_SOAUPDATE)) == 0);
 	case Z_HINT:
 		transport = primary_trans;
 		break;
@@ -292,6 +294,7 @@ db_load(const char *filename, const char *in_origin,
 		default_warn = 1;
 		clev = nlabels(in_origin);
 		filenames = NULL;
+		zp->z_minimum = USE_MINIMUM;
 	}
 	ttl = default_ttl;
 
@@ -358,7 +361,8 @@ db_load(const char *filename, const char *in_origin,
 				endline(fp);
 			}
 			didinclude = 1;
-			errs += db_load(buf, tmporigin, zp, domain, ISNOTIXFR);
+			i = db_load(buf, tmporigin, zp, domain, ISNOTIXFR);
+			errs += (i == -1) ? 1 : i;
 			continue;
 
 		case ORIGIN:
@@ -742,7 +746,7 @@ db_load(const char *filename, const char *in_origin,
 					zp->z_minimum = 0;
 				} else
 					zp->z_minimum = n;
-				if (default_ttl == USE_MINIMUM)
+				if (ttl == USE_MINIMUM)
 					ttl = n;
 				n = cp - (char *)data;
 				if (multiline) {
@@ -750,6 +754,7 @@ db_load(const char *filename, const char *in_origin,
 					buf[1] = '\0';
 					if (buf[0] != ')')
 						ERRTO("SOA \")\"");
+					multiline = 0;
 					endline(fp);
 				}
                                 read_soa++;
@@ -971,7 +976,10 @@ db_load(const char *filename, const char *in_origin,
 			case ns_t_cert:
 		        case ns_t_sig: {
 				char *errmsg = NULL;
-				int ret = parse_sec_rdata(buf, sizeof(buf), 0,
+				int ret;
+				if (ttl == USE_MINIMUM)	/* no ttl set */
+					ttl = 0;
+				ret = parse_sec_rdata(buf, sizeof(buf), 0,
 							  data, sizeof(data),
 							  fp, zp, domain, ttl,
 							  type, domain_ctx,
@@ -1022,6 +1030,8 @@ db_load(const char *filename, const char *in_origin,
 					zp->z_origin);
 				continue;
 			}
+			if (ttl == USE_MINIMUM)	/* no ttl set */
+				ttl = 0;
 			dp = savedata(class, type, (u_int32_t)ttl,
 				      (u_char *)data, (int)n);
 			dp->d_zone = zp - zones;
@@ -1083,6 +1093,9 @@ db_load(const char *filename, const char *in_origin,
 					   zp->z_origin, filename, msg);
 			}
 		}
+		errs += purge_nonglue(zp->z_origin, 
+				      (dataflags & DB_F_HINT) ? fcachetab :
+				      hashtab, zp->z_class);
 		while (filenames) {
 			fn = filenames;
 			filenames = filenames->next;
@@ -1115,8 +1128,8 @@ db_load(const char *filename, const char *in_origin,
 void
 db_err(int err, char *domain, int type, const char *filename, int lineno) {
 	if (filename != NULL && err == CNAMEANDOTHER)
-		ns_notice(ns_log_load, "%s:%d:%s: CNAME and OTHER data error",
-			  filename, lineno, domain);
+		ns_warning(ns_log_load, "%s:%d:%s: CNAME and OTHER data error",
+			   filename, lineno, domain);
 	if (err != DATAEXISTS)
 		ns_debug(ns_log_load, 1, "update failed %s %d", 
 			 domain, type);
@@ -2078,7 +2091,8 @@ parse_sig_rr(char *buf, int buf_len, u_char *data, int data_size,
 	if (!getmlword(buf, my_buf_size, fp, 0))
 		ERRTO("Missing label count");
 	la = wordtouint32(buf);
-	if (0 == la || wordtouint32_error || 255 <= la)
+	if (wordtouint32_error || 255 <= la ||
+	    (0 == la && *domain != '\0'))
 		ERRTO("Bad label count number");
 	data[i] = (u_char) la;
 	i++;

@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_waits.c,v 8.9 1999/10/13 17:11:20 vixie Exp $";
+static const char rcsid[] = "$Id: ev_waits.c,v 8.10 2000/02/04 07:25:50 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -212,6 +212,8 @@ evNewWaitList(evContext_p *ctx) {
 	new->first = new->last = NULL;
 	new->prev = NULL;
 	new->next = ctx->waitLists;
+	if (new->next != NULL)
+		new->next->prev = new;
 	ctx->waitLists = new;
 	return (new);
 }

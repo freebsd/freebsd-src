@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.34 1999/11/11 19:39:10 cyarnell Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.36 2000/01/25 00:20:21 cyarnell Exp $";
 #endif /* not lint */
 
 /*
@@ -171,7 +171,7 @@ static char		*cname = NULL;
 static const char	*progname = "amnesia";
 static int		getclass = ns_c_in, verbose = 0, list = 0;
 static int		server_specified = 0;
-static int		gettype;
+static int		gettype = 0;
 static char		getdomain[NS_MAXDNAME];
 
 /* Forward. */
@@ -270,7 +270,7 @@ main(int argc, char **argv) {
 			/*NOTREACHED*/
 		}
 	}
-	if (gettype == 0) {
+	if ((gettype == 0) && (sigchase)) {
 		if (verbose)
 			printf ("Forcing `-t a' for signature trace.\n");
 		gettype = ns_t_a;

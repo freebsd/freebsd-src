@@ -1,4 +1,4 @@
-$Id: nslookup.help,v 8.4 1996/10/25 18:09:41 vixie Exp $
+$Id: nslookup.help,v 8.5 2000/03/30 23:25:35 vixie Exp $
 
 Commands: 	(identifiers are shown in uppercase, [] means optional)
 NAME		- print info about the host/domain NAME using default server
@@ -30,5 +30,4 @@ ls [opt] DOMAIN [> FILE] - list addresses in DOMAIN (optional: output to FILE)
     -s 		-  list well-known services
     -d 		-  list all records
     -t TYPE 	-  list records of the given type (e.g., A,CNAME,MX, etc.)
-view FILE	- sort an 'ls' output file and view it with more
 exit		- exit the program, ^D also exits
