@@ -65,7 +65,8 @@ struct  sigaction {
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
 the signal is normally blocked from further occurrence, the current process
-context is saved, and a new one is built.  A process may specify a
+context is saved, and a new one is built.
+A process may specify a
 .Em handler
 to which a signal is delivered, or specify that a signal is to be
 .Em ignored .
@@ -78,7 +79,8 @@ in which case its delivery is postponed until it is
 The action to be taken on delivery is determined at the time
 of delivery.
 Normally, signal handlers execute on the current stack
-of the process.  This may be changed, on a per-handler basis,
+of the process.
+This may be changed, on a per-handler basis,
 so that signals are taken on a special
 .Em "signal stack" .
 .Pp
@@ -89,9 +91,10 @@ but other signals may yet occur.
 A global
 .Em "signal mask"
 defines the set of signals currently blocked from delivery
-to a process.  The signal mask for a process is initialized
-from that of its parent (normally empty).  It
-may be changed with a
+to a process.
+The signal mask for a process is initialized
+from that of its parent (normally empty).
+It may be changed with a
 .Xr sigprocmask 2
 call, or when a signal is delivered to the process.
 .Pp
@@ -114,7 +117,8 @@ system call.
 When a caught signal
 is delivered, the current state of the process is saved,
 a new signal mask is calculated (as described below),
-and the signal handler is invoked.  The call to the handler
+and the signal handler is invoked.
+The call to the handler
 is arranged so that if the signal handling routine returns
 normally the process will resume execution in the context
 from before the signal's delivery.
@@ -195,8 +199,8 @@ If this bit is set when calling
 for the
 .Dv SIGCHLD
 signal, the system will not create zombie processes when children of
-the calling process exit.  If the calling process subsequently issues
-a
+the calling process exit.
+If the calling process subsequently issues a
 .Xr wait 2
 (or equivalent), it blocks until all of the calling process's child
 processes terminate, and then returns a value of \-1 with
@@ -452,7 +456,8 @@ Extension Interfaces:
 .Fn strlcat .
 .Pp
 All functions not in the above lists are considered to be unsafe
-with respect to signals.  That is to say, the behaviour of such
+with respect to signals.
+That is to say, the behaviour of such
 functions when called from a signal handler is undefined.
 In general though, signal handlers should do little more than set a
 flag; most other actions are not safe.
@@ -628,7 +633,8 @@ The
 and
 .Dv SA_RESETHAND
 flags are intended for backwards compatibility with other operating
-systems.  The
+systems.
+The
 .Dv SA_NOCLDSTOP ,
 and
 .Dv SA_NOCLDWAIT
