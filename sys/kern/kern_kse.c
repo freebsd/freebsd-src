@@ -111,6 +111,7 @@ void
 upcall_remove(struct thread *td)
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_upcall != NULL) {
 		td->td_upcall->ku_owner = NULL;
 		upcall_unlink(td->td_upcall);
@@ -653,7 +654,9 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * not help performance.
 	 */
 	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
 	if (newkg->kg_numupcalls >= ncpus) {
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		upcall_free(newku);
 		return (EPROCLIM);
@@ -675,7 +678,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * Make the new upcall available to the ksegrp.
 	 * It may or may not use it, but it's available.
 	 */
-	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
 	if (mbx.km_quantum)
