@@ -79,6 +79,13 @@ rl	i386,pc98,alpha,sparc64,amd64
 rue	i386,pc98,amd64
 sf	i386,pc98,alpha,amd64
 sk	i386,pc98,alpha,amd64
+snd_ad1816	i386,amd64
+snd_cmi	i386,amd64
+snd_cs4281	i386,amd64
+snd_ds1	i386,amd64
+snd_emu10k1	i386,amd64
+snd_es137x	i386,amd64
+snd_solo	i386,amd64
 stg	i386,pc98
 sym	i386,pc98,alpha,sparc64,amd64
 trm	i386,amd64
