@@ -1,4 +1,4 @@
-#	$Id: options,v 1.65 1998/03/08 09:56:21 julian Exp $
+#	$Id: options,v 1.66 1998/03/10 15:55:38 eivind Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -161,6 +161,7 @@ BOOTP			opt_bootp.h
 BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
+BOOTP_WIRED_TO		opt_bootp.h
 GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
