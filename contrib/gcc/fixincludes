@@ -12,6 +12,14 @@ INPUT=${2-${INPUT-/usr/include}}
 # Directory in which to store the results.
 LIB=${1?"fixincludes: output directory not specified"}
 
+# Define what target system we're fixing.
+if test -r ./Makefile; then
+	target_canonical="`sed -n -e 's,^target[ 	]*=[ 	]*\(.*\)$,\1,p' < Makefile`"
+	test -z "${target_canonical}" && target_canonical=unknown
+else
+	target_canonical=unknown
+fi
+
 # Define PWDCMD as a command to use to get the working dir
 # in the form that we want.
 PWDCMD=pwd
@@ -75,14 +83,11 @@ do
     for d in $dirs
     do
 	echo " Searching $INPUT/$d"
-	if [ "$d" != . ]
-	then
-	    d=$d/.
-	fi
 
 	# Find all directories under $d, relative to $d, excluding $d itself.
-        files="$files `find $d -type d -print | \
-		       sed -e '/\/\.$/d' -e '/^\.$/d'`"
+	# (The /. is needed after $d in case $d is a symlink.)
+        files="$files `find $d/. -type d -print | \
+		       sed -e '/\/\.$/d' -e 's@/./@/@g'`"
 	# Find all links to directories.
 	# Using `-exec test -d' in find fails on some systems,
 	# and trying to run test via sh fails on others,
@@ -90,7 +95,7 @@ do
 	# First find all the links, then test each one.
 	theselinks=
 	$LINKS && \
-	  theselinks=`find $d -type l -print`
+	  theselinks=`find $d/. -type l -print | sed -e 's@/./@/@g'`
 	for d1 in $theselinks --dummy--
 	do
 	    # If the link points to a directory,
@@ -185,7 +190,7 @@ if $LINKS; then
 	  # root area.
 	  for file2 in $files; do
 	    case $file2 in
-	      $file/./*)
+	      $file/*)
 		dupdir=${LIB}/root$x/`echo $file2 | sed -n "s|^${file}/||p"`
 		echo "Duplicating ${file}'s ${dupdir}"
 		if [ -d ${dupdir} ]
@@ -247,9 +252,10 @@ while [ $# != 0 ]; do
 # But the argument to egrep must be kept small, or many versions of egrep
 # won't be able to handle it.
 #
-# We use the pattern [!-.0-~] instead of [^/ 	] to match a noncomment
+# We use the pattern [!-.0-z{|}~] instead of [^/ 	] to match a noncomment
 # following #else or #endif because some buggy egreps think [^/] matches
 # newline, and they thus think `#else ' matches `#e[ndiflse]*[ 	]+[^/ 	]'.
+# [!-.0-~] does not work properly on AIX 4.1.
 #
 # We use the pattern [^a-zA-Z0-9_][_a-ce-km-z][a-z0-9] to match an identifier
 # following #if or #elif that is not surrounded by __.  The `a-ce-km-z'
@@ -258,12 +264,14 @@ while [ $# != 0 ]; do
 # identifiers below start with `d' or `l'.  It also greatly improves
 # performance, since many files contain lines of the form `#if ... defined ...'
 # or `#if lint'.
-    if egrep '//|[ 	_]_IO|CTRL|^#define.NULL|^#e[nl][ds][ief]*[ 	]+[!-.0-~]|^#[el]*if.*[^a-zA-Z0-9_][_a-ce-km-zA-Z][a-zA-Z0-9]' $file >/dev/null; then
+    if egrep '//|[ 	_]_IO|CTRL|^#define.NULL|^#e[nl][ds][ief]*[ 	]+[!-.0-z\{\|\}\~]|^#[el]*if.*[^a-zA-Z0-9_][_a-ce-km-zA-Z][a-zA-Z0-9]' $file >/dev/null; then
       if [ -r $file ]; then
 	cp $file $2/$file >/dev/null 2>&1	\
 	|| echo "Can't copy $file"
 	chmod +w $2/$file
 	chmod a+r $2/$file
+	# The fixinc_eol stuff is to work around a bug in the sed
+	# program on HP/UX 10.20.
 	# Here is how the sed commands in braces work.
 	# (It doesn't work to put the comments inside the sed commands.)
 		# Surround each word with spaces, to simplify matching below.
@@ -273,22 +281,26 @@ while [ $# != 0 ]; do
 	sed -e '
 				   :loop
 	  /\\$/			N
+ 	  s/\\$/\\*fixinc_eol*/
 	  /\\$/			b loop
+	  s/\\\*fixinc_eol\*/\\/g
 	  s%^\([ 	]*#[ 	]*else\)[ 	]*/[^*].*%\1%
 	  s%^\([ 	]*#[ 	]*else\)[ 	]*[^/ 	].*%\1%
 	  s%^\([ 	]*#[ 	]*endif\)[ 	]*/[^*].*%\1%
 	  s%^\([ 	]*#[ 	]*endif\)[ 	]*\*[^/].*%\1%
 	  s%^\([ 	]*#[ 	]*endif\)[ 	]*[^/* 	].*%\1%
 	  /\/\/[^*]/			s|//\(.*\)$|/*\1*/|
+	  /^[ 	]*\/\/[ 	]*/s///
 	  /[ 	]_IO[A-Z]*[ 	]*(/	s/\(_IO[A-Z]*[ 	]*(\)\(.\),/\1'\''\2'\'',/
 	  /[ 	]BSD43__IO[A-Z]*[ 	]*(/	s/(\(.\),/('\''\1'\'',/
-	  /#define._IO/			s/'\''\([cgxtf]\)'\''/\1/g
-	  /#define.BSD43__IO/		s/'\''\([cgx]\)'\''/\1/g
+	  /#[ 	]*define[ 	]*[ 	]_IO/			s/'\''\([cgxtf]\)'\''/\1/g
+	  /#[ 	]*define[ 	]*[ 	]BSD43__IO/		s/'\''\([cgx]\)'\''/\1/g
+	  /#[ 	]*define[ 	]*[ 	]DESIOC/		s/'\''\([cdgx]\)'\''/\1/g
 	  /[^A-Z0-9_]CTRL[ 	]*(/		s/\([^'\'']\))/'\''\1'\'')/
 	  /[^A-Z0-9]_CTRL[ 	]*(/		s/\([^'\'']\))/'\''\1'\'')/
-	  /#define[ 	]*[ 	]CTRL/		s/'\''\([cgx]\)'\''/\1/g
-	  /#define[ 	]*[ 	]_CTRL/		s/'\''\([cgx]\)'\''/\1/g
-	  /#define.BSD43_CTRL/		s/'\''\([cgx]\)'\''/\1/g
+	  /#[ 	]*define[ 	]*[ 	]CTRL/		s/'\''\([cgx]\)'\''/\1/g
+	  /#[ 	]*define[ 	]*[ 	]_CTRL/		s/'\''\([cgx]\)'\''/\1/g
+	  /#[ 	]*define.BSD43_CTRL/		s/'\''\([cgx]\)'\''/\1/g
 	  /#[	 ]*[el]*if/{
 		s/[a-zA-Z0-9_][a-zA-Z0-9_]*/ & /g
 
@@ -356,6 +368,13 @@ for file in sys/types.h stdlib.h sys/stdtypes.h stddef.h memory.h unistd.h; do
   if [ -r ${LIB}/$file ]; then
     echo Fixing size_t, ptrdiff_t and wchar_t in $file
     sed \
+      -e '/^[ 	]*\*[ 	]*typedef unsigned int size_t;/N'	\
+      -e 's/^\([ 	]*\*[ 	]*typedef unsigned int size_t;\n[ 	]*\*\/\)/\1\
+#ifndef __SIZE_TYPE__\
+#define __SIZE_TYPE__ long unsigned int\
+#endif\
+typedef __SIZE_TYPE__ size_t;\
+/'	\
       -e '/typedef[ 	][ 	]*[a-z_][ 	a-z_]*[ 	]size_t/i\
 #ifndef __SIZE_TYPE__\
 #define __SIZE_TYPE__ long unsigned int\
@@ -392,6 +411,37 @@ for file in sys/types.h stdlib.h sys/stdtypes.h stddef.h memory.h unistd.h; do
   fi
 done
 
+# Fix #defines under Alpha OSF/1:
+# The following files contain '#pragma extern_prefix "_FOO"' followed by
+# a '#define something(x,y,z) _FOOsomething(x,y,z)'.  The intent of these
+# statements is to reduce namespace pollution.  While these macros work
+# properly in most cases, they don't allow you to take a pointer to the
+# "something" being modified.  To get around this limitation, change these
+# statements to be of the form '#define something _FOOsomething'.
+for file in libgen.h dirent.h ftw.h grp.h ndbm.h pthread.h pwd.h signal.h standards.h stdlib.h string.h stropts.h time.h unistd.h
+do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    echo Fixing $file extern_prefix
+    sed -e 's/^[ 	]*#[ 	]*define[ 	]*\([^(]*\)\(([^)]*)\)[ 	]*\(_.\)\1\2[ 	]*$/#define \1 \3\1/' ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm ${LIB}/$file
+    else
+      # Find any include directives that use "file".
+      for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+	dir=`echo $file | sed -e s'|/[^/]*$||'`
+	required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+      done
+    fi
+  fi
+done
+ 
 # Fix one other error in this file: a mismatched quote not inside a C comment.
 file=sundev/vuid_event.h
 if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
@@ -905,17 +955,21 @@ fi
 
 if [ -r ${LIB}/$file ]; then
   echo Fixing $file
+  if grep _GCC_SIZE_T ${LIB}/$file >/dev/null
+  then size_t_pattern='<<< do not double-wrap the size_t typedef >>>'
+  else size_t_pattern='typedef[ 	a-zA-Z_]*[ 	]size_t[ 	]*;'
+  fi
   sed -e 's/int	abort/void	abort/g' \
   -e 's/int	free/void	free/g' \
   -e 's/char[ 	]*\*[ 	]*calloc/void \*	calloc/g' \
   -e 's/char[ 	]*\*[ 	]*malloc/void \*	malloc/g' \
   -e 's/char[ 	]*\*[ 	]*realloc/void \*	realloc/g' \
   -e 's/int[ 	][ 	]*exit/void	exit/g' \
-  -e '/typedef[ 	a-zA-Z_]*[ 	]size_t[ 	]*;/i\
+  -e "/$size_t_pattern/"'i\
 #ifndef _GCC_SIZE_T\
 #define _GCC_SIZE_T
 ' \
-  -e '/typedef[ 	a-zA-Z_]*[ 	]size_t[ 	]*;/a\
+  -e "/$size_t_pattern/"'a\
 #endif
 ' \
       ${LIB}/$file > ${LIB}/${file}.sed
@@ -1112,6 +1166,60 @@ if [ -r ${LIB}/$file ]; then
   fi
 fi
 
+# And also with the HP-UX 10 and HP-UX 11 sys/pci.h file
+file=sys/pci.h
+if [ -r ${LIB}/$file ]; then
+  if egrep 'System Private Structures' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+    sed -e 's|//.*$||g' $file > ${LIB}/$file
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+fi
+
+# And also with a few more HP-UX 11 headers which are only broken
+# after they are "fixed".
+file=sys/ki_iface.h
+if [ -r ${LIB}/$file ]; then
+  if egrep 'These definitions are for HP Internal developers' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+  fi
+fi
+
+file=sys/ki.h
+if [ -r ${LIB}/$file ]; then
+  if egrep '11.00 HP-UX LP64' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+  fi
+fi
+
+file=sys/ki_calls.h
+if [ -r ${LIB}/$file ]; then
+  if egrep 'KI_MAX_PROCS is an arbitrary number' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+  fi
+fi
+
+file=sys/ki_defs.h
+if [ -r ${LIB}/$file ] ; then
+  if egrep 'Kernel Instrumentation Definitions' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+  fi
+fi
+
+file=sys/time.h
+if [ -r ${LIB}/$file ] ; then
+  if egrep 'For CASPEC, look in' ${LIB}/$file > /dev/null; then
+    echo Fixing $file, overeager sed script
+    rm ${LIB}/$file
+  fi
+fi
+
 # Some IRIX header files contains the string "//"
 for file in elf_abi.h elf.h; do
   if [ -r ${LIB}/$file ]; then
@@ -1201,8 +1309,9 @@ fi
 # declaration on Sun OS 4.x.  We must only fix this on Sun OS 4.x, because
 # many other systems have similar text but correct versions of the file.
 # To ensure only Sun's is fixed, we grep for a likely unique string.
+# Fix also on sysV68 R3V7.1 (head/memory.h\t50.1\t )
 file=memory.h
-if [ -r $file ] && egrep '/\*	@\(#\)memory\.h 1\.[2-4] 8./../.. SMI; from S5R2 1\.2	\*/' $file > /dev/null; then
+if [ -r $file ] && egrep '/\*	@\(#\)(head/memory.h	50.1	 |memory\.h 1\.[2-4] 8./../.. SMI; from S5R2 1\.2	)\*/' $file > /dev/null; then
   if [ ! -r ${LIB}/$file ]; then
     cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
     chmod +w ${LIB}/$file 2>/dev/null
@@ -1231,6 +1340,31 @@ extern int memcmp();
 
 #endif /* __memory_h__ */
 EOF
+  fi
+fi
+
+# Fix return type of fread and fwrite on sysV68
+file=stdio.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo Fixing $file, fread and fwrite return type
+  sed -e 's/^\(extern int	fclose(), fflush()\), \(fread(), fwrite()\)\(.*\)$/extern unsigned int	\2;\
+\1\3/' \
+    ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
   fi
 fi
 
@@ -1299,7 +1433,7 @@ if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
 fi
 
 if [ -r ${LIB}/$file ]; then
-  if grep 'class[(]' ${LIB}/$file >/dev/null; then
+  if grep '[^a-zA-Z_]class[(]' ${LIB}/$file >/dev/null; then
     echo Fixing $file
     sed -e '/class[(]/i\
 #ifndef __cplusplus
@@ -1456,7 +1590,10 @@ if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
 fi
 if [ -r ${LIB}/$file ]; then
   echo Fixing $file
-  sed -e '/^extern.*double.*__const__.*cos(/s/__const__//' \
+  sed -e '/^extern.*double.*__const__.*sqrt(/s/__const__//' \
+      -e '/^extern.*double.*__const__.*fabs(/s/__const__//' \
+      -e '/^extern.*double.*__const__.*cos(/s/__const__//' \
+      -e '/^extern.*double.*__const__.*hypot(/s/__const__//' \
       -e '/^extern.*double.*__const__.*sin(/s/__const__//' ${LIB}/$file > ${LIB}/${file}.sed
   rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
   if cmp $file ${LIB}/$file >/dev/null 2>&1; then
@@ -1757,6 +1894,40 @@ if [ -r ${LIB}/$file ]; then
   fi
 fi
 
+# rpc/types.h on OSF1/2.0 is not C++ ready, even though NO_IMPLICIT_EXTERN_C
+# is defined for the alpha.  The problem is the declaration of malloc.
+file=rpc/types.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  mkdir ${LIB}/rpc 2>/dev/null
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+if [ -r ${LIB}/$file ]; then
+  if egrep '"C"' ${LIB}/$file >/dev/null 2>&1; then
+    true
+  else
+    echo Fixing $file
+    echo '#ifdef __cplusplus
+extern "C" {
+#endif' > ${LIB}/${file}.sed
+    cat ${LIB}/${file} >> ${LIB}/${file}.sed
+    echo '#ifdef __cplusplus
+}
+#endif' >> ${LIB}/${file}.sed 
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm -f ${LIB}/$file
+    else
+      # Find any include directives that use "file".
+      for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+        dir=`echo $file | sed -e s'|/[^/]*$||'`
+        required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+      done
+    fi
+  fi
+fi
+
 # In limits.h, put #ifndefs around things that are supposed to be defined
 # in float.h to avoid redefinition errors if float.h is included first.
 # On HP/UX this patch does not work, because on HP/UX limits.h uses
@@ -1764,6 +1935,7 @@ fi
 # comment.  Fortunately, HP/UX already uses #ifndefs in limits.h; if
 # we find a #ifndef FLT_MIN we assume that all the required #ifndefs
 # are there, and we do not add them ourselves.
+# Also fix a nested comment problem in sys/limits.h on Motorola sysV68 R3V7.1
 for file in limits.h sys/limits.h; do
   if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
     mkdir ${LIB}/sys 2>/dev/null
@@ -1813,6 +1985,7 @@ for file in limits.h sys/limits.h; do
 	  -e '/[ 	]DBL_DIG[ 	]/a\
 #endif
 '\
+	  -e '/^\(\/\*#define	HUGE_VAL	3\.[0-9e+]* *\)\/\*/s//\1/'\
 	${LIB}/$file > ${LIB}/${file}.sed
       rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
     fi
@@ -1906,6 +2079,7 @@ fi
 # Correct the return type for strlen in string.h on Lynx.
 # Correct the argument type for ffs in string.h on Alpha OSF/1 V2.0.
 # Add missing const for strdup on OSF/1 V3.0.
+# On sysV88 layout is slightly different.
 file=string.h
 if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
   cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
@@ -1924,6 +2098,8 @@ if [ -r ${LIB}/$file ]; then
       -e 's/^\(	strncmp()\),\n\(	strlen(),\)$/\1;\
 extern unsigned int\
 \2/'\
+      -e '/^extern int$/N'\
+      -e 's/^extern int\(\n	strlen(),\)/extern size_t\1/' \
     ${LIB}/$file > ${LIB}/${file}.sed
   rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
   if cmp $file ${LIB}/$file >/dev/null 2>&1; then
@@ -2021,13 +2197,17 @@ for files in curses.h; do
 
     echo Fixing $file
     sed -e '/^#[ 	]*define[ 	][ 	]*bool[ 	][ 	]*char[ 	]*$/i\
-#ifndef __cplusplus'\
+#ifndef __cplusplus
+'\
 	-e '/^#[ 	]*define[ 	][ 	]*bool[ 	][ 	]*char[ 	]*$/a\
-#endif'\
+#endif
+'\
 	-e '/^typedef[ 	][ 	]*char[ 	][ 	]*bool[ 	]*;/i\
-#ifndef __cplusplus'\
+#ifndef __cplusplus
+'\
 	-e '/^typedef[ 	][ 	]*char[ 	][ 	]*bool[ 	]*;/a\
-#endif'\
+#endif
+'\
 	${LIB}/$file > ${LIB}/${file}.sed
     rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
     if cmp $file ${LIB}/$file >/dev/null 2>&1; then
@@ -2067,6 +2247,31 @@ if [ -r ${LIB}/$file ]; then
   fi
 fi
 
+# Fix nested comments in Motorola's <limits.h> and <sys/limits.h>
+for file in limits.h sys/limits.h; do
+  if [ $target_canonical = m88k-motorola-sysv3 -o \
+       $target_canonical = m68k-motorola-sysv ]; then
+
+    if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+      cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+      chmod +w ${LIB}/$file 2>/dev/null
+      chmod a+r ${LIB}/$file 2>/dev/null
+    fi
+
+    if [ -r ${LIB}/$file ]; then
+      echo "Fixing nested comments in Motorola's $file"
+      sed \
+        -e 's@^\(#undef[ 	][ 	]*PIPE_BUF[ 	]*/\* max # bytes atomic in write to a\)$@\1 */@' \
+        -e 's@\(/\*#define	HUGE_VAL	3.40282346638528860e+38 \)\(/\*error value returned by Math lib\*/\)$@\1*/ \2@'	\
+  	  < ${LIB}/$file > ${LIB}/${file}.sed
+      rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+      if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+        rm -f ${LIB}/$file
+      fi
+    fi
+  fi
+done
+
 # Fix getopt declarations in stdio.h and stdlib.h on Alpha OSF/1 and AIX.
 for file in stdio.h stdlib.h; do
   if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
@@ -2078,6 +2283,33 @@ for file in stdio.h stdlib.h; do
   if [ -r ${LIB}/$file ]; then
     echo Fixing $file, getopt declaration
     sed -e 's/getopt(int, char \*\[\],[ ]*char \*)/getopt(int, char *const[], const char *)/' \
+      ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm -f ${LIB}/$file
+    else
+      # Find any include directives that use "file".
+      for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+        dir=`echo $file | sed -e s'|/[^/]*$||'`
+        required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+      done
+    fi
+  fi
+done
+
+# Fix __page_size* declarations in pthread.h AIX 4.1.[34].
+# The original ones fail if uninitialized externs are not common.
+# This is the default for all ANSI standard C++ compilers.
+for file in pthread.h; do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    echo Fixing $file, __page_size* declarations
+    sed -e 's/^int __page_size/extern int __page_size/' \
       ${LIB}/$file > ${LIB}/${file}.sed
     rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
     if cmp $file ${LIB}/$file >/dev/null 2>&1; then
@@ -2178,6 +2410,45 @@ do
   fi
 done
 
+# libm.a on m88k-motorola-sysv3 contains a stupid optimization for function
+# hypot(), which returns the second argument without even looking at its value
+# if the other is 0.0
+# Another drawback is that fix-header doesn't fix fabs' prototype, and I have
+#  no idea why.
+file=math.h
+if [ $target_canonical = m88k-motorola-sysv3 ]; then
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    echo Fixing $file, fabs/hypot definition
+    sed \
+      -e 's/extern double floor(), ceil(), fmod(), fabs();/extern double floor(), ceil(), fmod(), fabs _PARAMS((double));/' \
+      -e '/^extern double hypot();$/a\
+\/* Workaround a stupid Motorola optimization if one\
+   of x or y is 0.0 and the other is negative!  *\/\
+#ifdef __STDC__\
+static __inline__ double fake_hypot (double x, double y)\
+#else\
+static __inline__ double fake_hypot (x, y)\
+	double x, y;\
+#endif\
+{\
+	return fabs (hypot (x, y));\
+}\
+#define hypot	fake_hypot
+' \
+      ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm -f ${LIB}/$file
+    fi
+  fi
+fi
+
 # math.h on SunOS 4 puts the declaration of matherr before the definition
 # of struct exception, so the prototype (added by fixproto) causes havoc.
 file=math.h
@@ -2206,81 +2477,41 @@ struct exception;
   fi
 fi
 
-# assert.h on HP/UX is not C++ ready, even though NO_IMPLICIT_EXTERN_C
-# is defined on HP/UX.
-file=assert.h
-if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
-  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
-  chmod +w ${LIB}/$file 2>/dev/null
-  chmod a+r ${LIB}/$file 2>/dev/null
-fi
+# sys/mman.h on HP/UX is not C++ ready, even though
+# NO_IMPLICIT_EXTERN_C is defined on HP/UX.
+for file in sys/mman.h; do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
 
-if [ -r ${LIB}/$file ]; then
-  if egrep '"C"' ${LIB}/$file >/dev/null 2>&1 \
-     || egrep '__BEGIN_DECLS' ${LIB}/$file >/dev/null 2>&1; then
-    true
-  else
-    echo Fixing $file
-    echo '#ifdef __cplusplus
+  if [ -r ${LIB}/$file ]; then
+    if egrep '"C"' ${LIB}/$file >/dev/null 2>&1 \
+       || egrep '__BEGIN_DECLS' ${LIB}/$file >/dev/null 2>&1; then
+      true
+    else
+      echo Fixing $file
+      echo '#ifdef __cplusplus
 extern "C" {
 #endif' > ${LIB}/${file}.sed
-    cat ${LIB}/${file} >> ${LIB}/${file}.sed
-    echo '#ifdef __cplusplus
+      cat ${LIB}/${file} >> ${LIB}/${file}.sed
+      echo '#ifdef __cplusplus
 }
 #endif' >> ${LIB}/${file}.sed 
-    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+      rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    fi
     if cmp $file ${LIB}/$file >/dev/null 2>&1; then
       rm -f ${LIB}/$file
     else
       # Find any include directives that use "file".
       for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
-        dir=`echo $file | sed -e s'|/[^/]*$||'`
-        required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+	dir=`echo $file | sed -e s'|/[^/]*$||'`
+	required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
       done
     fi
   fi
-fi
-
-# check for broken assert.h that needs stdio.h or stdlib.h
-file=assert.h
-if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
-  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
-  chmod +w ${LIB}/$file 2>/dev/null
-  chmod a+r ${LIB}/$file 2>/dev/null
-fi
-
-if [ -r ${LIB}/$file ]; then
-  if grep 'stderr' ${LIB}/$file >/dev/null 2>/dev/null; then
-    if grep 'include.*stdio.h' ${LIB}/$file >/dev/null 2>/dev/null; then
-      true
-    else
-      echo "Fixing $file (needs stdio.h)"
-      echo '#ifdef __cplusplus
-#include <stdio.h>
-#endif' >>${LIB}/$file
-    fi
-  fi
-  if grep 'exit *(' ${LIB}/$file >/dev/null 2>/dev/null || 
-     grep 'abort *(' ${LIB}/$file >/dev/null 2>/dev/null; then
-    if grep 'include.*stdlib.h' ${LIB}/$file >/dev/null 2>/dev/null; then
-      true
-    else
-      echo "Fixing $file (needs stdlib.h)"
-      echo '#ifdef __cplusplus
-#include <stdlib.h>
-#endif' >>${LIB}/$file
-    fi
-  fi
-  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
-    rm -f ${LIB}/$file
-  else
-    # Find any include directives that use "file".
-    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
-      dir=`echo $file | sed -e s'|/[^/]*$||'`
-      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
-    done
-  fi
-fi
+done
 
 # Fix return value of sbrk in unistd.h on Alpha OSF/1 V2.0
 file=unistd.h
@@ -2297,6 +2528,36 @@ if [ -r ${LIB}/$file ]; then
   rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
   if cmp $file ${LIB}/$file >/dev/null 2>&1; then
     rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+
+# Fix <c_asm.h> on Digital UNIX V4.0:
+# It contains a prototype for a DEC C internal asm() function, clashing with
+# gcc's asm keyword.  So protect this with __DECC.
+file=c_asm.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo Fixing $file
+  sed -e '/^[ 	]*float[ 	]*fasm/i\
+#ifdef __DECC
+' \
+      -e '/^[ 	]*#[ 	]*pragma[ 	]*intrinsic([ 	]*dasm/a\
+#endif
+' ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm ${LIB}/$file
   else
     # Find any include directives that use "file".
     for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
@@ -2492,6 +2753,375 @@ if [ -r ${LIB}/$file ]; then
   fi
 fi
     
+# Fix hpux10.20 <sys/time.h> to avoid invalid forward decl
+file=sys/time.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  mkdir ${LIB}/sys 2>/dev/null
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  if egrep '^extern struct sigevent;' ${LIB}/$file >/dev/null 2>&1; then
+    echo Fixing $file
+    sed -e 's/^extern struct sigevent;/struct sigevent;/' ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  fi
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+    
+# Another bad dependency in VxWorks 5.2 <time.h>.
+file=time.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  mkdir ${LIB}/sys 2>/dev/null
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  if egrep VOIDFUNCPTR ${LIB}/$file >/dev/null 2>&1; then
+    if [ -r vxWorks.h ]; then
+      echo Fixing $file
+      sed -e '/VOIDFUNCPTR/i\
+#ifndef __gcc_VOIDFUNCPTR_defined\
+#ifdef __cplusplus\
+typedef void (*__gcc_VOIDFUNCPTR) (...);\
+#else\
+typedef void (*__gcc_VOIDFUNCPTR) ();\
+#endif\
+#define __gcc_VOIDFUNCPTR_defined\
+#endif
+' \
+	  -e 's/VOIDFUNCPTR/__gcc_VOIDFUNCPTR/g' \
+	${LIB}/$file > ${LIB}/${file}.sed
+      rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    fi
+  fi
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+    
+# This file in A/UX 3.0.x/3.1.x contains an __asm directive for c89; gcc
+# doesn't understand it.
+file=sys/param.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo "Fixing __asm directive in sys/param.h"
+  sed -e 's|#ifndef NOINLINE|#if !defined(NOINLINE) \&\& !defined(__GNUC__)|' \
+    ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+
+# signal.h on SunOS defines signal using (), which causes trouble when
+# compiling with g++ -pedantic.
+for file in signal.h sys/signal.h; do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    echo "Checking for bad C++ prototype in $file"
+    sed -e '/^void	(\*signal())();$/i\
+  #ifdef __cplusplus\
+  void	(*signal(...))(...);\
+  #else
+  ' \
+	-e '/^void	(\*signal())();$/a\
+  #endif
+  ' \
+      ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm -f ${LIB}/$file
+    else
+      # Find any include directives that use "file".
+      for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+	dir=`echo $file | sed -e s'|/[^/]*$||'`
+	required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+      done
+    fi
+  fi
+done
+
+# sys/signal.h on some versions of AIX uses volatile in the typedef of
+# sig_atomic_t, which causes gcc to generate a warning about duplicate
+# volatile when a sig_atomic_t variable is declared volatile, as
+# required by ANSI C.
+file=sys/signal.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo "Checking for duplicate volatile in sys/signal.h"
+  sed -e 's/typedef volatile int sig_atomic_t/typedef int sig_atomic_t/' \
+    ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+
+# Some math.h files define struct exception, which conflicts with
+# the class exception defined in the C++ file std/stdexcept.h.  We
+# redefine it to __math_exception.  This is not a great fix, but I
+# haven't been able to think of anything better.
+file=math.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo Fixing $file, exception
+  sed -e '/struct exception/i\
+#ifdef __cplusplus\
+#define exception __math_exception\
+#endif
+'\
+      -e '/struct exception/a\
+#ifdef __cplusplus\
+#undef exception\
+#endif
+' ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if egrep 'matherr()' ${LIB}/$file >/dev/null 2>&1; then
+    sed -e '/matherr/i\
+#ifdef __cplusplus\
+#define exception __math_exception\
+#endif
+'\
+        -e '/matherr/a\
+#ifdef __cplusplus\
+#undef exception\
+#endif
+' ${LIB}/$file > ${LIB}/${file}.sed
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  fi
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+fi
+
+# rpc/auth.h on SunOS needs prototypes for its AUTH->auth_ops function pointers
+# Similarly for 
+#   rpc/clnt.h CLIENT->clnt_ops
+#   rpc/svc.h SVCXPRT->xp_ops
+#   rpc/xdr.h XDR->xdr_ops
+for file in rpc/auth.h rpc/clnt.h rpc/svc.h rpc/xdr.h; do
+  # each file has a different name to replace, so if you add a file to
+  # that list please update the following case statement.
+  case "$file" in
+    rpc/auth.h)
+      prefix="ah_"
+      ;;
+    rpc/clnt.h)
+      prefix="cl_"
+      ;;
+    rpc/svc.h)
+      prefix="xp_"
+      ;;
+    rpc/xdr.h)
+      prefix="x_"
+      ;;
+    *)
+      # Oh Oh, we shouldn't be here
+      exit 1;
+      ;;
+  esac
+
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    echo "Checking for needed C++ prototype in $file"
+    sed -e 's/^\(.*\)\*\('$prefix'.*\)();\(.*\)/\
+#ifdef __cplusplus\
+\1*\2(...);\3\
+#else\
+\1*\2();\3\
+#endif/g' \
+     $LIB/$file > ${LIB}/${file}.sed
+
+    rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+    if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+      rm -f ${LIB}/$file
+    else
+      # Find any include directives that use "file".
+      for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+	dir=`echo $file | sed -e s'|/[^/]*$||'`
+	required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+      done
+    fi
+  fi
+done
+
+# sys/lc_core.h on some versions of OSF1/4.x pollutes the namespace by
+# defining regex.h types.  This causes C++ library build and usage failures.
+# Fixing this correctly requires checking and modifying 3 files.
+for file in reg_types.h regex.h sys/lc_core.h; do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+done
+if [ -r ${LIB}/reg_types.h ]; then
+  if egrep '} regex_t;' ${LIB}/reg_types.h >/dev/null 2>&1; then
+    if [ -r ${LIB}/sys/lc_core.h ]; then
+      if egrep ' regex_t ' ${LIB}/sys/lc_core.h >/dev/null 2>&1; then
+        if [ -r ${LIB}/regex.h ]; then
+	  if egrep '__regex_t' ${LIB}/regex.h >/dev/null 2>&1; then
+	    true;
+	  else
+	    echo Fixing reg_types.h, regex.h, sys/lc_core.h
+	    for file in reg_types.h sys/lc_core.h; do
+	      sed -e 's/regex_t/__regex_t/g' \
+	        -e 's/regoff_t/__regoff_t/g' \
+		-e 's/regmatch_t/__regmatch_t/g' \
+		${LIB}/$file > ${LIB}/${file}.sed
+	      rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+	    done
+	    sed -e '/#include <reg_types.h>/a\
+typedef __regex_t	regex_t;\
+typedef __regoff_t	regoff_t;\
+typedef __regmatch_t	regmatch_t;\
+' \
+	      ${LIB}/regex.h > ${LIB}/regex.h.sed
+	    rm -f ${LIB}/regex.h; mv ${LIB}/regex.h.sed ${LIB}/regex.h
+	  fi
+	fi
+      fi
+    fi
+  fi
+fi
+for file in reg_types.h regex.h sys/lc_core.h; do
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  else
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+done
+
+# AIX headers define NULL to be cast to a void pointer, which is illegal
+# in ANSI C++.
+for file in curses.h dbm.h locale.h stdio.h stdlib.h string.h time.h unistd.h sys/dir.h sys/param.h sys/types.h ; do
+  if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+    cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+    chmod +w ${LIB}/$file 2>/dev/null
+    chmod a+r ${LIB}/$file 2>/dev/null
+  fi
+
+  if [ -r ${LIB}/$file ]; then
+    if egrep '#.*define.*NULL.*void' ${LIB}/$file >/dev/null 2>&1; then
+      echo "Fixing $file, bad NULL macro"
+      sed -e 's/^#[ 	]*define[ 	]*NULL[ 	]*((void[ 	]*\*)0)/#define NULL 0/' \
+        ${LIB}/$file > ${LIB}/${file}.sed
+      rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+      if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+        rm -f ${LIB}/$file
+      else
+        # Find any include directives that use "file".
+        for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[      ]*"\([^"]*\)".*$/\1/'`; do
+  	  dir=`echo $file | sed -e s'|/[^/]*$||'`
+	  required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+        done
+      fi
+    fi
+  fi
+done
+
+# HPUX 10.x sys/param.h defines MAXINT which clashes with values.h
+file=sys/param.h
+base=`basename $file`
+if [ -r ${LIB}/$file ]; then
+  file_to_fix=${LIB}/$file
+else
+  if [ -r ${INPUT}/$file ]; then
+    file_to_fix=${INPUT}/$file
+  else
+    file_to_fix=""
+  fi
+fi
+if [ \! -z "$file_to_fix" ]; then
+  echo Checking $file_to_fix
+  sed -e '/^#[ 	]*define[ 	]*MAXINT[ 	]/i\
+#ifndef MAXINT
+'\
+      -e '/^#[ 	]*define[ 	]*MAXINT[ 	]/a\
+#endif
+' $file_to_fix > /tmp/$base
+  if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
+    true
+  else
+    echo Fixed $file_to_fix
+    rm -f ${LIB}/$file
+    cp /tmp/$base ${LIB}/$file
+    chmod a+r ${LIB}/$file
+    # Find any include directives that use "file".
+    for include in `egrep '^[       ]*#[    ]*include[      ]*"[^/]' ${LIB}/$file | sed -e 's/^[    ]*#[    ]*include[ 	]*"\([^"]*\)".*$/\1/'`; do
+      dir=`echo $file | sed -e s'|/[^/]*$||'`
+      required="$required ${INPUT} $dir/$include ${LIB}/$dir/$include"
+    done
+  fi
+  rm -f /tmp/$base
+fi
+
 
 # This loop does not appear to do anything, because it uses file
 # rather than $file when setting target.  It also appears to be
@@ -2551,5 +3181,6 @@ files=`find . -type d -print | sort -r`
 for file in $files; do
   rmdir $LIB/$file > /dev/null 2>&1
 done
+
 
 exit 0

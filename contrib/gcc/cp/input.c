@@ -29,13 +29,9 @@ Boston, MA 02111-1307, USA.  */
    lex.c for very minor efficiency gains (primarily in function
    inlining).  */
 
-#include <stdio.h>
-#include "obstack.h"
+#include "system.h"
 
 extern FILE *finput;
-
-struct pending_input *save_pending_input ();
-void restore_pending_input ();
 
 struct input_source {
   /* saved string */
@@ -43,8 +39,6 @@ struct input_source {
   int length;
   /* current position, when reading as input */
   int offset;
-  /* obstack to free this input string from when finished, if any */
-  struct obstack *obstack;
   /* linked list maintenance */
   struct input_source *next;
   /* values to restore after reading all of current string */
@@ -65,6 +59,25 @@ extern int lineno;
 #define inline
 #endif
 
+#if USE_CPPLIB
+extern unsigned char *yy_cur, *yy_lim;
+extern int yy_get_token ();
+#define GETC() (yy_cur < yy_lim ? *yy_cur++ : yy_get_token ())
+#else
+#define GETC() getc (finput)
+#endif
+
+extern void feed_input PROTO((char *, int));
+extern void put_input PROTO((int));
+extern void put_back PROTO((int));
+extern int getch PROTO((void));
+extern int input_redirected PROTO((void));
+
+static inline struct input_source * allocate_input PROTO((void));
+static inline void free_input PROTO((struct input_source *));
+static inline void end_input PROTO((void));
+static inline int sub_getch PROTO((void));
+
 static inline struct input_source *
 allocate_input ()
 {
@@ -78,7 +91,6 @@ allocate_input ()
     }
   inp = (struct input_source *) xmalloc (sizeof (struct input_source));
   inp->next = 0;
-  inp->obstack = 0;
   return inp;
 }
 
@@ -86,9 +98,6 @@ static inline void
 free_input (inp)
      struct input_source *inp;
 {
-  if (inp->obstack)
-    obstack_free (inp->obstack, inp->str);
-  inp->obstack = 0;
   inp->str = 0;
   inp->length = 0;
   inp->next = free_inputs;
@@ -102,10 +111,9 @@ static int putback_char = -1;
 
 inline
 void
-feed_input (str, len, delete)
+feed_input (str, len)
      char *str;
      int len;
-     struct obstack *delete;
 {
   struct input_source *inp = allocate_input ();
 
@@ -115,7 +123,6 @@ feed_input (str, len, delete)
 
   inp->str = str;
   inp->length = len;
-  inp->obstack = delete;
   inp->offset = 0;
   inp->next = input;
   inp->filename = input_filename;
@@ -129,6 +136,22 @@ feed_input (str, len, delete)
 struct pending_input *to_be_restored; /* XXX */
 extern int end_of_file;
 
+static inline void
+end_input ()
+{
+  struct input_source *inp = input;
+
+  end_of_file = 0;
+  input = inp->next;
+  input_filename = inp->filename;
+  lineno = inp->lineno;
+  /* Get interface/implementation back in sync.  */
+  extract_interface_info ();
+  putback_char = inp->putback_char;
+  restore_pending_input (inp->input);
+  free_input (inp);
+}
+
 static inline int
 sub_getch ()
 {
@@ -140,32 +163,20 @@ sub_getch ()
     }
   if (input)
     {
-      if (input->offset == input->length)
+      if (input->offset >= input->length)
 	{
-	  struct input_source *inp = input;
 	  my_friendly_assert (putback_char == -1, 223);
-	  to_be_restored = inp->input;
-	  input->offset++;
-	  return EOF;
-	}
-      else if (input->offset > input->length)
-	{
-	  struct input_source *inp = input;
+	  ++(input->offset);
+	  if (input->offset - input->length < 64)
+	    return EOF;
 
-	  end_of_file = 0;
-	  input = inp->next;
-	  input_filename = inp->filename;
-	  lineno = inp->lineno;
-	  /* Get interface/implementation back in sync. */
-	  extract_interface_info ();
-	  putback_char = inp->putback_char;
-	  free_input (inp);
+	  /* We must be stuck in an error-handling rule; give up.  */
+	  end_input ();
 	  return getch ();
 	}
-      if (input)
-	return input->str[input->offset++];
+      return (unsigned char)input->str[input->offset++];
     }
-  return getc (finput);
+  return GETC ();
 }
 
 inline

@@ -1,5 +1,5 @@
 /* Generate code from machine description to recognize rtl as insns.
-   Copyright (C) 1987, 88, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92, 93, 94, 95, 97, 98 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -46,8 +46,13 @@ Boston, MA 02111-1307, USA.  */
    which returns 0 if the rtl could not be split, or
    it returns the split rtl in a SEQUENCE.  */
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -57,8 +62,8 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 /* Data structure for a listhead of decision trees.  The alternatives
    to a node are kept in a doublely-linked list so we can easily add nodes
@@ -120,7 +125,7 @@ static int next_number;
 static int next_insn_code;
 
 /* Similar, but counts all expressions in the MD file; used for
-   error messages. */
+   error messages.  */
 
 static int next_index;
 
@@ -191,8 +196,7 @@ static void change_state	PROTO((char *, char *, int));
 static char *copystr		PROTO((char *));
 static void mybzero		PROTO((char *, unsigned));
 static void mybcopy		PROTO((char *, char *, unsigned));
-static char *concat		PROTO((char *, char *));
-static void fatal		PROTO((char *));
+static void fatal		PVPROTO((char *, ...)) ATTRIBUTE_PRINTF_1;
 char *xrealloc			PROTO((char *, unsigned));
 char *xmalloc			PROTO((unsigned));
 void fancy_abort		PROTO((void));
@@ -301,7 +305,7 @@ add_to_sequence (pattern, last, position)
   struct decision *this;
   char *newpos;
   register char *fmt;
-  register int i;
+  register size_t i;
   int depth = strlen (position);
   int len;
 
@@ -354,6 +358,7 @@ add_to_sequence (pattern, last, position)
     case MATCH_SCRATCH:
     case MATCH_OPERATOR:
     case MATCH_PARALLEL:
+    case MATCH_INSN2:
       new->opno = XINT (pattern, 0);
       new->code = (code == MATCH_PARALLEL ? PARALLEL : UNKNOWN);
       new->enforce_mode = 0;
@@ -498,7 +503,7 @@ add_to_sequence (pattern, last, position)
       if (GET_CODE (XEXP (pattern, 0)) == CC0)
 	break;
 
-      /* ... fall through ... */
+      /* ... fall through ...  */
       
     case COMPARE:
       /* Enforce the mode on the first operand to avoid ambiguous insns.  */
@@ -508,6 +513,9 @@ add_to_sequence (pattern, last, position)
       newpos[depth] = '1';
       new = add_to_sequence (XEXP (pattern, 1), &new->success, newpos);
       return new;
+      
+    default:
+      break;
     }
 
   fmt = GET_RTX_FORMAT (code);
@@ -572,7 +580,7 @@ not_both_true (d1, d2, toplevel)
   struct decision *p1, *p2;
 
   /* If they are both to test modes and the modes are different, they aren't
-     both true.  Similarly for codes, integer elements, and vector lengths. */
+     both true.  Similarly for codes, integer elements, and vector lengths.  */
 
   if ((d1->enforce_mode && d2->enforce_mode
        && d1->mode != VOIDmode && d2->mode != VOIDmode && d1->mode != d2->mode)
@@ -995,19 +1003,19 @@ write_subroutine (tree, type)
     printf (", pnum_clobbers");
 
   printf (")\n");
-  printf ("     register rtx x0;\n     rtx insn;\n");
+  printf ("     register rtx x0;\n     rtx insn ATTRIBUTE_UNUSED;\n");
   if (type == RECOG)
-    printf ("     int *pnum_clobbers;\n");
+    printf ("     int *pnum_clobbers ATTRIBUTE_UNUSED;\n");
 
   printf ("{\n");
   printf ("  register rtx *ro = &recog_operand[0];\n");
 
   printf ("  register rtx ");
   for (i = 1; i < max_depth; i++)
-    printf ("x%d, ", i);
+    printf ("x%d ATTRIBUTE_UNUSED, ", i);
 
-  printf ("x%d;\n", max_depth);
-  printf ("  %s tem;\n", type == SPLIT ? "rtx" : "int");
+  printf ("x%d ATTRIBUTE_UNUSED;\n", max_depth);
+  printf ("  %s tem ATTRIBUTE_UNUSED;\n", type == SPLIT ? "rtx" : "int");
   write_tree (tree, "", NULL_PTR, 1, type);
   printf (" ret0: return %d;\n}\n\n", type == SPLIT ? 0 : -1);
 }
@@ -1072,7 +1080,7 @@ write_tree_1 (tree, prevpos, afterward, type)
      In the latter case, we are branching to a node that is not the first
      node in a decision list.  We have already checked that it is possible
      for both the node we originally tested at this level and the node we
-     are branching to to be both match some pattern.  That means that they
+     are branching to to both match some pattern.  That means that they
      usually will be testing the same mode and code.  So it is normally safe
      for such labels to be inside switch statements, since the tests done
      by virtue of arriving at that label will usually already have been
@@ -1139,7 +1147,7 @@ write_tree_1 (tree, prevpos, afterward, type)
 	     seen any of the codes that are valid for the predicate, we
 	     can write a series of "case" statement, one for each possible
 	     code.  Since we are already in a switch, these redundant tests
-	     are very cheap and will reduce the number of predicate called. */
+	     are very cheap and will reduce the number of predicate called.  */
 
 	  if (p->pred >= 0)
 	    {
@@ -1286,6 +1294,8 @@ write_tree_1 (tree, prevpos, afterward, type)
 	  printf ("%sswitch (GET_MODE (x%d))\n", indents[indent], depth);
 	  printf ("%s{\n", indents[indent + 2]);
 	  indent += 4;
+	  printf ("%sdefault:\n%sbreak;\n", indents[indent - 2],
+		  indents[indent]);
 	  printf ("%scase %smode:\n", indents[indent - 2],
 		  GET_MODE_NAME (mode));
 	  modemap[(int) mode] = 1;
@@ -1301,6 +1311,8 @@ write_tree_1 (tree, prevpos, afterward, type)
 	  printf ("%sswitch (GET_CODE (x%d))\n", indents[indent], depth);
 	  printf ("%s{\n", indents[indent + 2]);
 	  indent += 4;
+	  printf ("%sdefault:\n%sbreak;\n", indents[indent - 2],
+		  indents[indent]);
 	  printf ("%scase ", indents[indent - 2]);
 	  print_code (p->code);
 	  printf (":\n");
@@ -1309,7 +1321,7 @@ write_tree_1 (tree, prevpos, afterward, type)
 	}
 
       /* Now that most mode and code tests have been done, we can write out
-	 a label for an inner node, if we haven't already. */
+	 a label for an inner node, if we haven't already.  */
       if (p->label_needed)
 	printf ("%sL%d:\n", indents[indent - 2], p->number);
 
@@ -1351,13 +1363,9 @@ write_tree_1 (tree, prevpos, afterward, type)
 	         must fit in 32 bit, thus it suffices to check only
 	         for 1 << 31 .  */
 	      HOST_WIDE_INT offset = p->elt_zero_wide == -2147483647 - 1;
-	      printf (
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-		       "XWINT (x%d, 0) == %d%s && ",
-#else
-		       "XWINT (x%d, 0) == %ld%s && ",
-#endif
-		       depth, p->elt_zero_wide + offset, offset ? "-1" : "");
+	      printf ("XWINT (x%d, 0) == ", depth);
+	      printf (HOST_WIDE_INT_PRINT_DEC, p->elt_zero_wide + offset);
+	      printf ("%s && ", offset ? "-1" : "");
 	    }
 	  if (p->veclen)
 	    printf ("XVECLEN (x%d, 0) == %d && ", depth, p->veclen);
@@ -1643,25 +1651,6 @@ mybcopy (in, out, length)
     *out++ = *in++;
 }
 
-static char *
-concat (s1, s2)
-     char *s1, *s2;
-{
-  register char *tem;
-
-  if (s1 == 0)
-    return s2;
-  if (s2 == 0)
-    return s1;
-
-  tem = (char *) xmalloc (strlen (s1) + strlen (s2) + 2);
-  strcpy (tem, s1);
-  strcat (tem, " ");
-  strcat (tem, s2);
-
-  return tem;
-}
-
 char *
 xrealloc (ptr, size)
      char *ptr;
@@ -1685,11 +1674,22 @@ xmalloc (size)
 }
 
 static void
-fatal (s)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genrecog: ");
-  fprintf (stderr, s);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   fprintf (stderr, "after %d definitions\n", next_index);
   exit (FATAL_EXIT_CODE);
@@ -1736,6 +1736,7 @@ main (argc, argv)
 from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
+  printf ("#include \"system.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"insn-config.h\"\n");
   printf ("#include \"recog.h\"\n");
@@ -1774,8 +1775,7 @@ from the machine description file `md'.  */\n\n");
    If the rtx is valid, recog returns a nonnegative number\n\
    which is the insn code number for the pattern that matched.\n");
   printf ("   This is the same as the order in the machine description of\n\
-   the entry that matched.  This number can be used as an index into\n\
-   entry that matched.  This number can be used as an index into various\n\
+   the entry that matched.  This number can be used as an index into various\n\
    insn_* tables, such as insn_templates, insn_outfun, and insn_n_operands\n\
    (found in insn-output.c).\n\n");
   printf ("   The third argument to recog is an optional pointer to an int.\n\

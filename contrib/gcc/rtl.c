@@ -1,5 +1,5 @@
 /* Allocate and read RTL for GNU C Compiler.
-   Copyright (C) 1987, 1988, 1991, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1991, 1994, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,10 +20,10 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
-#include <ctype.h>
-#include <stdio.h>
+#include "system.h"
 #include "rtl.h"
 #include "real.h"
+#include "bitmap.h"
 
 #include "obstack.h"
 #define	obstack_chunk_alloc	xmalloc
@@ -36,10 +36,6 @@ Boston, MA 02111-1307, USA.  */
    During optimization and output, this is function_obstack.  */
 
 extern struct obstack *rtl_obstack;
-
-#if HOST_BITS_PER_WIDE_INT != HOST_BITS_PER_INT
-extern long atol();
-#endif
 
 /* Indexed by rtx code, gives number of operands for an rtx with that code.
    Does NOT include rtx header data (code and links).
@@ -148,7 +144,9 @@ char *rtx_format[] = {
      "V" like "E", but optional:
 	 the containing rtx may end before this operand
      "u" a pointer to another insn
-         prints the uid of the insn.  */
+         prints the uid of the insn.
+     "b" is a pointer to a bitmap header.
+     "t" is a tree pointer. */
 
 #define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   FORMAT ,
 #include "rtl.def"		/* rtl expressions are defined here */
@@ -172,14 +170,22 @@ char *note_insn_name[] = { 0                    , "NOTE_INSN_DELETED",
 			   "NOTE_INSN_FUNCTION_END", "NOTE_INSN_SETJMP",
 			   "NOTE_INSN_LOOP_CONT", "NOTE_INSN_LOOP_VTOP",
 			   "NOTE_INSN_PROLOGUE_END", "NOTE_INSN_EPILOGUE_BEG",
-			   "NOTE_INSN_DELETED_LABEL", "NOTE_INSN_FUNCTION_BEG"};
+			   "NOTE_INSN_DELETED_LABEL", "NOTE_INSN_FUNCTION_BEG",
+			   "NOTE_INSN_EH_REGION_BEG", "NOTE_INSN_EH_REGION_END",
+			   "NOTE_REPEATED_LINE_NUMBER", "NOTE_INSN_RANGE_START",
+			   "NOTE_INSN_RANGE_END", "NOTE_INSN_LIVE" };
 
 char *reg_note_name[] = { "", "REG_DEAD", "REG_INC", "REG_EQUIV", "REG_WAS_0",
 			  "REG_EQUAL", "REG_RETVAL", "REG_LIBCALL",
 			  "REG_NONNEG", "REG_NO_CONFLICT", "REG_UNUSED",
 			  "REG_CC_SETTER", "REG_CC_USER", "REG_LABEL",
-			  "REG_DEP_ANTI", "REG_DEP_OUTPUT" };
+			  "REG_DEP_ANTI", "REG_DEP_OUTPUT", "REG_BR_PROB",
+			  "REG_EXEC_COUNT", "REG_NOALIAS", "REG_SAVE_AREA",
+			  "REG_BR_PRED", "REG_EH_CONTEXT" };
 
+static void dump_and_abort	PROTO((int, int, FILE *));
+static void read_name		PROTO((char *, FILE *));
+
 /* Allocate an rtx vector of N elements.
    Store the length, and initialize all elements to zero.  */
 
@@ -195,9 +201,10 @@ rtvec_alloc (n)
 			      + (( n - 1) * sizeof (rtunion)));
 
   /* clear out the vector */
-  PUT_NUM_ELEM(rt, n);
-  for (i=0; i < n; i++)
-    rt->elem[i].rtvec = NULL;	/* @@ not portable due to rtunion */
+  PUT_NUM_ELEM (rt, n);
+
+  for (i = 0; i < n; i++)
+    rt->elem[i].rtwint = 0;
 
   return rt;
 }
@@ -278,7 +285,8 @@ copy_rtx (orig)
     case PC:
     case CC0:
     case SCRATCH:
-      /* SCRATCH must be shared because they represent distinct values. */
+      /* SCRATCH must be shared because they represent distinct values.  */
+    case ADDRESSOF:
       return orig;
 
     case CONST:
@@ -294,6 +302,9 @@ copy_rtx (orig)
 	 the constant address may need to be reloaded.  If the mem is shared,
 	 then reloading one copy of this mem will cause all copies to appear
 	 to have been reloaded.  */
+
+    default:
+      break;
     }
 
   copy = rtx_alloc (code);
@@ -329,6 +340,18 @@ copy_rtx (orig)
 	      for (j = 0; j < XVECLEN (copy, i); j++)
 		XVECEXP (copy, i, j) = copy_rtx (XVECEXP (orig, i, j));
 	    }
+	  break;
+
+	case 'b':
+	  {
+	    bitmap new_bits = BITMAP_OBSTACK_ALLOC (rtl_obstack);
+	    bitmap_copy (new_bits, XBITMAP (orig, i));
+	    XBITMAP (copy, i) = new_bits;
+	    break;
+	  }
+
+	case 't':
+	  XTREE (copy, i) = XTREE (orig, i);
 	  break;
 
 	case 'w':
@@ -380,6 +403,8 @@ copy_most_rtx (orig, may_share)
     case PC:
     case CC0:
       return orig;
+    default:
+      break;
     }
 
   copy = rtx_alloc (code);
@@ -477,13 +502,14 @@ read_skip_spaces (infile)
      FILE *infile;
 {
   register int c;
-  while (c = getc (infile))
+  while ((c = getc (infile)))
     {
       if (c == ' ' || c == '\n' || c == '\t' || c == '\f')
 	;
       else if (c == ';')
 	{
-	  while ((c = getc (infile)) && c != '\n') ;
+	  while ((c = getc (infile)) && c != '\n' && c != EOF)
+	    ;
 	}
       else if (c == '/')
 	{
@@ -493,7 +519,7 @@ read_skip_spaces (infile)
 	    dump_and_abort ('*', c, infile);
 	  
 	  prevc = 0;
-	  while (c = getc (infile))
+	  while ((c = getc (infile)) && c != EOF)
 	    {
 	      if (prevc == '*' && c == '/')
 		break;
@@ -541,6 +567,43 @@ read_name (str, infile)
   *p = 0;
 }
 
+/* Provide a version of a function to read a long long if the system does
+   not provide one.  */
+#if HOST_BITS_PER_WIDE_INT > HOST_BITS_PER_LONG && !defined(HAVE_ATOLL) && !defined(HAVE_ATOQ)
+HOST_WIDE_INT
+atoll(p)
+    const char *p;
+{
+  int neg = 0;
+  HOST_WIDE_INT tmp_wide;
+
+  while (ISSPACE(*p))
+    p++;
+  if (*p == '-')
+    neg = 1, p++;
+  else if (*p == '+')
+    p++;
+
+  tmp_wide = 0;
+  while (ISDIGIT(*p))
+    {
+      HOST_WIDE_INT new_wide = tmp_wide*10 + (*p - '0');
+      if (new_wide < tmp_wide)
+	{
+	  /* Return INT_MAX equiv on overflow.  */
+	  tmp_wide = (~(unsigned HOST_WIDE_INT)0) >> 1;
+	  break;
+	}
+      tmp_wide = new_wide;
+      p++;
+    }
+
+  if (neg)
+    tmp_wide = -tmp_wide;
+  return tmp_wide;
+}
+#endif
+
 /* Read an rtx in printed representation from INFILE
    and return an actual rtx in core constructed accordingly.
    read_rtx is not used in the compiler proper, but rather in
@@ -648,7 +711,7 @@ read_rtx (infile)
       case 'E':
 	{
 	  register struct rtx_list *next_rtx, *rtx_list_link;
-	  struct rtx_list *list_rtx;
+	  struct rtx_list *list_rtx = NULL;
 
 	  c = read_skip_spaces (infile);
 	  if (c != '[')
@@ -748,7 +811,17 @@ read_rtx (infile)
 #if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
 	tmp_wide = atoi (tmp_char);
 #else
+#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
 	tmp_wide = atol (tmp_char);
+#else
+	/* Prefer atoll over atoq, since the former is in the ISO C9X draft. 
+	   But prefer not to use our hand-rolled function above either.  */
+#if defined(HAVE_ATOLL) || !defined(HAVE_ATOQ)
+	tmp_wide = atoll (tmp_char);
+#else
+	tmp_wide = atoq (tmp_char);
+#endif
+#endif
 #endif
 	XWINT (return_rtx, i) = tmp_wide;
 	break;
@@ -838,14 +911,3 @@ init_rtl ()
 	}
     }
 }
-
-#ifdef memset
-gcc_memset (dest, value, len)
-     char *dest;
-     int value;
-     int len;
-{
-  while (len-- > 0)
-    *dest++ = value;
-}
-#endif /* memset */

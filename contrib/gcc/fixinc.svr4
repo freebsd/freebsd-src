@@ -1,9 +1,8 @@
 #! /bin/sh
-#
-#   fixinc.svr4  --  Install modified versions of certain ANSI-incompatible
-#   native System V Release 4 system include files.
-#
-#   Written by Ron Guilmette (rfg@ncd.com).
+# Install modified versions of certain ANSI-incompatible
+# native System V Release 4 system include files.
+# Copyright (C) 1994, 1996, 1997 Free Software Foundation, Inc.
+# Contributed by Ron Guilmette (rfg@monkeys.com).
 #
 # This file is part of GNU CC.
 # 
@@ -74,7 +73,7 @@ fi
 echo 'Making directories:'
 cd ${INPUT}
 if $LINKS; then
-  files=`ls -LR | sed -n s/:$//p`
+  files=`find . -follow -type d -print 2>/dev/null | sed '/^.$/d'`
 else
   files=`find . -type d -print | sed '/^.$/d'`
 fi
@@ -99,6 +98,7 @@ if $LINKS; then
       # In case $dest is relative, get to $file's dir first.
       cd ${INPUT}
       cd `echo ./$file | sed -n 's&[^/]*$&&p'`
+      rwd=`pwd`
       # Check that the target directory exists.
       # Redirections changed to avoid bug in sh on Ultrix.
       (cd $dest) > /dev/null 2>&1
@@ -108,9 +108,22 @@ if $LINKS; then
 	x=`pwd`
 	# If link leads back into ${INPUT},
 	# make a similar link here.
-	if expr $x : "${INPUT}/.*" > /dev/null; then
+        if expr "$dest" : '[^/][^/]*' >/dev/null && [ ! -h $dest ]; then
+          echo $file '->'  $dest': Making link'
+          rm -fr ${LIB}/$file > /dev/null 2>&1
+          ln -s $dest ${LIB}/$file > /dev/null 2>&1
+	elif expr $x : "${INPUT}/.*" > /dev/null; then
 	  # Y gets the actual target dir name, relative to ${INPUT}.
 	  y=`echo $x | sed -n "s&${INPUT}/&&p"`
+	  # DOTS is the relative path from ${LIB}/$file's dir back to ${LIB}.
+	  dots=`echo "$file" |
+	    sed -e 's@^./@@' -e 's@/./@/@g' -e 's@[^/][^/]*@..@g' -e 's@..$@@'`
+	  echo $file '->' $dots$y ': Making link'
+	  rm -fr ${LIB}/$file > /dev/null 2>&1
+	  ln -s $dots$y ${LIB}/$file > /dev/null 2>&1
+	elif expr $x : "${rwd}/.*" > /dev/null; then
+	  # Y gets the actual target dir name, relative to the directory where the link is.
+	  y=`echo $x | sed -n "s&${rwd}/&&p"`
 	  # DOTS is the relative path from ${LIB}/$file's dir back to ${LIB}.
 	  dots=`echo "$file" |
 	    sed -e 's@^./@@' -e 's@/./@/@g' -e 's@[^/][^/]*@..@g' -e 's@..$@@'`
@@ -188,7 +201,9 @@ while [ $# != 0 ]; do
 	  s/__STDC__[ 	][ 	]*==[ 	][ 	]*0/!defined (__STRICT_ANSI__)/g
 	  s/__STDC__[ 	][ 	]*==[ 	][ 	]*1/defined (__STRICT_ANSI__)/g
 	  s/__STDC__[ 	][ 	]*!=[ 	][ 	]*0/defined (__STRICT_ANSI__)/g
+	  s/__STDC__[ 	][ 	]*!=[ 	][ 	]*1/!defined (__STRICT_ANSI__)/g
 	  s/__STDC__ - 0 == 0/!defined (__STRICT_ANSI__)/g
+	  s/__STDC__ - 0 == 1/defined (__STRICT_ANSI__)/g
 	  /^typedef[ 	][ 	]*[unsigned 	]*long[ 	][ 	]*[u_]*longlong_t;/s/long/long long/
 	' $2/$file > $2/$file.sed
 	mv $2/$file.sed $2/$file
@@ -475,14 +490,16 @@ else
 static\
 #else\
 extern\
-#endif'\
+#endif
+'\
   -e 's/extern \(int ftw(const.*\)$/\1/' \
   -e '/^extern int nftw/i\
 #if defined(_STYPES)\
 static\
 #else\
 extern\
-#endif'\
+#endif
+'\
   -e 's/extern \(int nftw.*\)$/\1/' \
   -e '/^extern int ftw(),/c\
 #if !defined(_STYPES)\
@@ -1028,9 +1045,11 @@ fi
 #     true
 #   else
 #     sed -e '/#ifdef INKERNEL/i\
-# #ifdef _KERNEL' \
+# #ifdef _KERNEL
+# ' \
 #     -e '/#endif[ 	]*\/\* INKERNEL \*\//a\
-# #endif /* _KERNEL */' \
+# #endif /* _KERNEL */
+# ' \
 #     $file_to_fix > ${LIB}/${file}.sed
 #     rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
 #     echo Fixed $file_to_fix
@@ -1056,10 +1075,12 @@ if [ \! -z "$file_to_fix" ]; then
     true
   else
     sed -e '/#	ifdef	__STDC__/i\
-#   if !defined (__GNUC__) && !defined (__GNUG__)' \
+#   if !defined (__GNUC__) && !defined (__GNUG__)
+' \
     -e '/#		include	<sys\/byteorder.h>/s/		/   /'\
     -e '/#   include	<sys\/byteorder.h>/i\
-#   endif /* !defined (__GNUC__) && !defined (__GNUG__) */'\
+#   endif /* !defined (__GNUC__) && !defined (__GNUG__) */
+'\
     $file_to_fix > ${LIB}/${file}.sed
     rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
     echo Fixed $file_to_fix
@@ -1335,29 +1356,41 @@ fi
 if [ \! -z "$file_to_fix" ]; then
   echo Checking $file_to_fix
   sed -e '/[ 	]FLT_MIN[ 	]/i\
-#ifndef FLT_MIN'\
+#ifndef FLT_MIN
+'\
       -e '/[ 	]FLT_MIN[ 	]/a\
-#endif'\
+#endif
+'\
       -e '/[ 	]FLT_MAX[ 	]/i\
-#ifndef FLT_MAX'\
+#ifndef FLT_MAX
+'\
       -e '/[ 	]FLT_MAX[ 	]/a\
-#endif'\
+#endif
+'\
       -e '/[ 	]FLT_DIG[ 	]/i\
-#ifndef FLT_DIG'\
+#ifndef FLT_DIG
+'\
       -e '/[ 	]FLT_DIG[ 	]/a\
-#endif'\
+#endif
+'\
       -e '/[ 	]DBL_MIN[ 	]/i\
-#ifndef DBL_MIN'\
+#ifndef DBL_MIN
+'\
       -e '/[ 	]DBL_MIN[ 	]/a\
-#endif'\
+#endif
+'\
       -e '/[ 	]DBL_MAX[ 	]/i\
-#ifndef DBL_MAX'\
+#ifndef DBL_MAX
+'\
       -e '/[ 	]DBL_MAX[ 	]/a\
-#endif'\
+#endif
+'\
       -e '/[ 	]DBL_DIG[ 	]/i\
-#ifndef DBL_DIG'\
+#ifndef DBL_DIG
+'\
       -e '/[ 	]DBL_DIG[ 	]/a\
-#endif' $file_to_fix > /tmp/$base
+#endif
+' $file_to_fix > /tmp/$base
   if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
     true
   else
@@ -1408,9 +1441,11 @@ fi
 if [ \! -z "$file_to_fix" ]; then
   echo Checking $file_to_fix
   sed -e '/define[ 	]HUGE_VAL[ 	]/i\
-#ifndef HUGE_VAL'\
+#ifndef HUGE_VAL
+'\
       -e '/define[ 	]HUGE_VAL[ 	]/a\
-#endif' $file_to_fix > /tmp/$base
+#endif
+' $file_to_fix > /tmp/$base
   if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
     true
   else
@@ -1439,9 +1474,11 @@ for file in math.h floatingpoint.h; do
   if [ \! -z "$file_to_fix" ]; then
     echo Checking $file_to_fix
     sed -e '/^#define[ 	]*__P/i\
-#ifndef __P'\
+#ifndef __P
+'\
         -e '/^#define[ 	]*__P/a\
-#endif' $file_to_fix > /tmp/$base
+#endif
+' $file_to_fix > /tmp/$base
     if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
       true
     else
@@ -1453,6 +1490,42 @@ for file in math.h floatingpoint.h; do
    rm -f /tmp/$base
   fi
 done
+
+# The Solaris math.h defines struct exception, which conflicts with
+# the class exception defined in the C++ file std/stdexcept.h.  We
+# redefine it to __math_exception.  This is not a great fix, but I
+# haven't been able to think of anything better.
+file=math.h
+base=`basename $file`
+if [ -r ${LIB}/$file ]; then
+  file_to_fix=${LIB}/$file
+else
+  if [ -r ${INPUT}/$file ]; then
+    file_to_fix=${INPUT}/$file
+  else
+    file_to_fix=""
+  fi
+fi
+if [ \! -z "$file_to_fix" ]; then
+  echo Checking $file_to_fix
+  sed -e '/struct exception/i\
+#ifdef __cplusplus\
+#define exception __math_exception\
+#endif'\
+      -e '/struct exception/a\
+#ifdef __cplusplus\
+#undef exception\
+#endif' $file_to_fix > /tmp/$base
+  if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
+    true
+  else
+    echo Fixed $file_to_fix
+    rm -f ${LIB}/$file
+    cp /tmp/$base ${LIB}/$file
+    chmod a+r ${LIB}/$file
+  fi
+  rm -f /tmp/$base
+fi
 
 echo 'Removing unneeded directories:'
 cd $LIB
@@ -1468,7 +1541,7 @@ if $LINKS; then
   for file in $files; do
     dest=`ls -ld $file | sed -n 's/.*-> //p'`
     if expr "$dest" : '[^/].*' > /dev/null; then    
-      target=${LIB}/`echo file | sed "s|[^/]*\$|$dest|"`
+      target=${LIB}/`echo $file | sed "s|[^/]*\$|$dest|"`
       if [ -f $target ]; then
         ln -s $dest ${LIB}/$file >/dev/null 2>&1
       fi

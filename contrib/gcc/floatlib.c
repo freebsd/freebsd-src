@@ -54,6 +54,7 @@ If you'd like to work on completing this, please talk to rms@gnu.ai.mit.edu.
 */
 
 /* the following deal with IEEE single-precision numbers */
+#define D_PHANTOM_BIT   0x00100000
 #define EXCESS		126
 #define SIGNBIT		0x80000000
 #define HIDDEN		(1 << 23)
@@ -93,7 +94,38 @@ union float_long
     long l;
   };
 
+   struct _ieee {
+#ifdef SWAP
+      unsigned mantissa2 : 32;
+      unsigned mantissa1 : 20;
+      unsigned exponent  : 11;
+      unsigned sign      : 1;
+#else
+      unsigned exponent  : 11;
+      unsigned sign      : 1;
+      unsigned mantissa2 : 32;
+      unsigned mantissa1 : 20;
+#endif
+   };
+
+   union _doubleu {
+      double d;
+      struct _ieee ieee;
+#ifdef SWAP
+      struct {
+         unsigned long lower;
+         long upper;
+      } l;
+#else
+      struct {
+         long upper;
+         unsigned long lower;
+      } l;
+#endif
+   };
+
 /* add two floats */
+
 float
 __addsf3 (float a1, float a2)
 {
@@ -183,6 +215,7 @@ __addsf3 (float a1, float a2)
 }
 
 /* subtract two floats */
+
 float
 __subsf3 (float a1, float a2)
 {
@@ -203,6 +236,7 @@ __subsf3 (float a1, float a2)
 }
 
 /* compare two floats */
+
 long
 __cmpsf2 (float a1, float a2)
 {
@@ -224,6 +258,7 @@ __cmpsf2 (float a1, float a2)
 }
 
 /* multiply two floats */
+
 float
 __mulsf3 (float a1, float a2)
 {
@@ -273,6 +308,7 @@ __mulsf3 (float a1, float a2)
 }
 
 /* divide two floats */
+
 float
 __divsf3 (float a1, float a2)
 {
@@ -339,6 +375,7 @@ __divsf3 (float a1, float a2)
 }
 
 /* convert int to double */
+
 double
 __floatsidf (register long a1)
 {
@@ -379,6 +416,7 @@ __floatsidf (register long a1)
 }
 
 /* negate a float */
+
 float
 __negsf2 (float a1)
 {
@@ -393,6 +431,7 @@ __negsf2 (float a1)
 }
 
 /* negate a double */
+
 double
 __negdf2 (double a1)
 {
@@ -408,6 +447,7 @@ __negdf2 (double a1)
 }
 
 /* convert float to double */
+
 double
 __extendsfdf2 (float a1)
 {
@@ -433,6 +473,7 @@ __extendsfdf2 (float a1)
 }
 
 /* convert double to float */
+
 float
 __truncdfsf2 (double a1)
 {
@@ -470,6 +511,7 @@ __truncdfsf2 (double a1)
 }
 
 /* compare two doubles */
+
 long
 __cmpdf2 (double a1, double a2)
 {
@@ -495,6 +537,7 @@ __cmpdf2 (double a1, double a2)
 }
 
 /* convert double to int */
+
 long
 __fixdfsi (double a1)
 {
@@ -523,6 +566,7 @@ __fixdfsi (double a1)
 }
 
 /* convert double to unsigned int */
+
 unsigned
 long __fixunsdfsi (double a1)
 {
@@ -553,6 +597,7 @@ long __fixunsdfsi (double a1)
 /* For now, the hard double-precision routines simply
    punt and do it in single */
 /* addtwo doubles */
+
 double
 __adddf3 (double a1, double a2)
 {
@@ -560,6 +605,7 @@ __adddf3 (double a1, double a2)
 }
 
 /* subtract two doubles */
+
 double
 __subdf3 (double a1, double a2)
 {
@@ -567,15 +613,226 @@ __subdf3 (double a1, double a2)
 }
 
 /* multiply two doubles */
+
 double
 __muldf3 (double a1, double a2)
 {
   return ((float) a1 * (float) a2);
 }
 
+/*
+ *
+ * Name:   Barrett Richardson
+ * E-mail: barrett@iglou.com
+ * When:   Thu Dec 15 10:31:11 EST 1994
+ *
+ *    callable function:
+ *
+ *       double __divdf3(double a1, double a2);
+ *
+ *       Does software divide of a1 / a2.
+ *
+ *       Based largely on __divsf3() in floatlib.c in the gcc
+ *       distribution.
+ *
+ *    Purpose: To be used in conjunction with the -msoft-float
+ *             option of gcc. You should be able to tack it to the
+ *             end of floatlib.c included in the gcc distribution,
+ *             and delete the __divdf3() already there which just 
+ *             calls the single precision function (or may just
+ *             use the floating point processor with some configurations).
+ *
+ *   You may use this code for whatever your heart desires.
+ */
+
+
+
+
+/*
+ * Compare the mantissas of two doubles.
+ * Each mantissa is in two longs.
+ * 
+ *   return      1   if x1's mantissa is greater than x2's
+ *              -1   if x1's mantissa is less than x2's
+ *               0   if the two mantissa's are equal.
+ *
+ *   The Mantissas won't fit into a 4 byte word, so they are
+ *   broken up into two parts.
+ *
+ *   This function is used internally by __divdf3()
+ */
+
+int
+__dcmp (long x1m1, long x1m2, long x2m1, long x2m2)
+{
+   if (x1m1 > x2m1)
+      return 1;
+
+   if (x1m1 < x2m1)
+      return -1;
+
+ /*  If the first word in the two mantissas were equal check the second word */
+
+   if (x1m2 > x2m2)
+      return 1;
+
+   if (x1m2 < x2m2)
+      return -1;
+
+   return 0;
+}
+
+
 /* divide two doubles */
+
 double
 __divdf3 (double a1, double a2)
 {
-  return ((float) a1 / (float) a2);
+
+   int  sign,
+        exponent,
+        bit_bucket;
+
+   register unsigned long mantissa1,
+                          mantissa2,
+                          x1m1,
+                          x1m2,
+                          x2m1,
+                          x2m2,
+                          mask;
+
+   union _doubleu x1,
+                  x2,
+                  result;
+
+
+   x1.d = a1;
+   x2.d = a2;
+
+   exponent = x1.ieee.exponent - x2.ieee.exponent + EXCESSD;
+
+   sign = x1.ieee.sign ^ x2.ieee.sign;
+
+   x2.ieee.sign = 0;  /* don't want the sign bit to affect any zero */
+                      /* comparisons when checking for zero divide  */
+
+   if (!x2.l.lower && !x2.l.upper) { /* check for zero divide */
+      result.l.lower = 0x0;
+      if (sign)
+         result.l.upper = 0xFFF00000;   /* negative infinity */
+      else
+         result.l.upper = 0x7FF00000;   /* positive infinity */
+      return result.d;
+   }
+
+   if (!x1.l.upper && !x1.l.lower)  /* check for 0.0 numerator */
+      return (0.0);
+
+   x1m1 = x1.ieee.mantissa1 | D_PHANTOM_BIT;  /* turn on phantom bit */
+   x1m2 = x1.ieee.mantissa2;
+
+   x2m1 = x2.ieee.mantissa1 | D_PHANTOM_BIT;  /* turn on phantom bit */
+   x2m2 = x2.ieee.mantissa2;
+
+   if (__dcmp(x1m1,x1m2,x2m1,x2m2) < 0) {
+
+   /* if x1's mantissa is less than x2's shift it left one and decrement */
+   /* the exponent to accommodate the change in the mantissa             */
+
+      x1m1 <<= 1;               /*                          */
+      bit_bucket = x1m2 >> 31;  /*  Shift mantissa left one */
+      x1m1 |= bit_bucket;       /*                          */
+      x1m2 <<= 1;               /*                          */
+
+      exponent--;
+   }
+
+
+   mantissa1 = 0;
+   mantissa2 = 0;
+
+
+  /* Get the first part of the results mantissa using successive */
+  /* subtraction.                                                */
+
+   mask = 0x00200000;
+   while (mask) {
+
+      if (__dcmp(x1m1,x1m2,x2m1,x2m2) >= 0) {
+
+     /* subtract x2's mantissa from x1's */
+
+         mantissa1 |= mask;   /* turn on a bit in the result */
+
+         if (x2m2 > x1m2)
+            x1m1--;
+         x1m2 -= x2m2; 
+         x1m1 -= x2m1;
+      }
+
+      x1m1 <<= 1;               /*                          */
+      bit_bucket = x1m2 >> 31;  /*  Shift mantissa left one */
+      x1m1 |= bit_bucket;       /*                          */
+      x1m2 <<= 1;               /*                          */
+
+      mask >>= 1;
+   }
+
+  /* Get the second part of the results mantissa using successive */
+  /* subtraction.                                                 */
+
+   mask = 0x80000000;
+   while (mask) {
+
+      if (__dcmp(x1m1,x1m2,x2m1,x2m2) >= 0) {
+
+     /* subtract x2's mantissa from x1's */
+
+         mantissa2 |= mask;   /* turn on a bit in the result */
+
+         if (x2m2 > x1m2)
+            x1m1--;
+         x1m2 -= x2m2; 
+         x1m1 -= x2m1;
+      }
+      x1m1 <<= 1;               /*                          */
+      bit_bucket = x1m2 >> 31;  /*  Shift mantissa left one */
+      x1m1 |= bit_bucket;       /*                          */
+      x1m2 <<= 1;               /*                          */
+
+      mask >>= 1;
+   }
+
+  /* round up by adding 1 to mantissa */
+
+   if (mantissa2 == 0xFFFFFFFF) {  /* check for over flow */
+
+   /* spill if overflow */
+
+      mantissa2 = 0;
+      mantissa1++;
+   }
+   else
+      mantissa2++;
+
+   exponent++;   /* increment exponent (mantissa must be shifted right */
+                 /* also)                                              */
+
+ /* shift mantissa right one and assume a phantom bit (which really gives */
+ /* 53 bits of precision in the mantissa)                                 */
+
+   mantissa2 >>= 1;
+   bit_bucket = mantissa1 & 1;
+   mantissa2 |= (bit_bucket << 31);
+   mantissa1 >>= 1;
+
+  /* put all the info into the result */
+
+   result.ieee.exponent  = exponent;
+   result.ieee.sign      = sign;
+   result.ieee.mantissa1 = mantissa1;
+   result.ieee.mantissa2 = mantissa2;
+
+
+   return result.d;
 }

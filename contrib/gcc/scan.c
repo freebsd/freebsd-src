@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include "scan.h"
 #include "hconfig.h"
-#include <ctype.h>
+#include "system.h"
+#include "scan.h"
 
 int lineno = 1;
 int source_lineno = 1;
@@ -49,7 +49,7 @@ sstring_append (dst, src)
      sstring *src;
 {
   register char *d, *s;
-  register count = SSTRING_LENGTH(src);
+  register int count = SSTRING_LENGTH(src);
   MAKE_SSTRING_SPACE(dst, count + 1);
   d = dst->ptr;
   s = src->base;
@@ -65,13 +65,13 @@ scan_ident (fp, s, c)
      int c;
 {
   s->ptr = s->base;
-  if (isalpha(c) || c == '_')
+  if (ISALPHA(c) || c == '_')
     {
       for (;;)
 	{
 	  SSTRING_PUT(s, c);
 	  c = getc (fp);
-	  if (c == EOF || !(isalnum(c) || c == '_'))
+	  if (c == EOF || !(ISALNUM(c) || c == '_'))
 	    break;
 	}
     }
@@ -84,6 +84,7 @@ int
 scan_string (fp, s, init)
      register FILE *fp;
      register sstring *s;
+     int init;
 {
   int c;
   for (;;)
@@ -111,7 +112,7 @@ scan_string (fp, s, init)
   return c;
 }
 
-/* Skip horizontal white spaces (spaces, tabs, and C-style comments). */
+/* Skip horizontal white spaces (spaces, tabs, and C-style comments).  */
 
 int
 skip_spaces (fp, c)
@@ -209,18 +210,18 @@ get_token (fp, s)
     }
   if (c == EOF)
     return EOF;
-  if (isdigit (c))
+  if (ISDIGIT (c))
     {
       do
 	{
 	  SSTRING_PUT(s, c);
 	  c = getc (fp);
-	} while (c != EOF && isdigit(c));
+	} while (c != EOF && ISDIGIT(c));
       ungetc (c, fp);
       c = INT_TOKEN;
       goto done;
     }
-  if (isalpha (c) || c == '_')
+  if (ISALPHA (c) || c == '_')
     {
       c = scan_ident (fp, s, c);
       ungetc (c, fp);
