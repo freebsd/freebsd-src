@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.23 1998/10/08 23:14:02 jkh Exp $";
+	"$Id: main.c,v 1.24 1999/03/09 22:04:44 brian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -348,7 +348,23 @@ main(argc, argv)
 			signal(SIGALRM, dingdong);
 			alarm(TO);
 		}
-		if ((rval = getname()) == 2) {
+		if (AL) {
+			const char *p = AL;
+			char *q = name;
+			int n = sizeof name;
+
+			while (*p && q < &name[sizeof name - 1]) {
+				if (isupper(*p))
+					upper = 1;
+				else if (islower(*p))
+					lower = 1;
+				else if (isdigit(*p))
+					digit++;
+				*q++ = *p++;
+			}
+		} else
+			rval = getname();
+		if (rval == 2) {
 			oflush();
 			alarm(0);
 			limit.rlim_max = RLIM_INFINITY;
@@ -357,7 +373,7 @@ main(argc, argv)
 			execle(PP, "ppplogin", ttyn, (char *) 0, env);
 			syslog(LOG_ERR, "%s: %m", PP);
 			exit(1);
-		} else if (rval) {
+		} else if (rval || AL) {
 			register int i;
 
 			oflush();
@@ -392,7 +408,8 @@ main(argc, argv)
 			limit.rlim_max = RLIM_INFINITY;
 			limit.rlim_cur = RLIM_INFINITY;
 			(void)setrlimit(RLIMIT_CPU, &limit);
-			execle(LO, "login", "-p", name, (char *) 0, env);
+			execle(LO, "login", AL ? "-fp" : "-p", name,
+			    (char *) 0, env);
 			syslog(LOG_ERR, "%s: %m", LO);
 			exit(1);
 		}

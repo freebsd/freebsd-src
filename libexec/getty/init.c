@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)from: init.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: init.c,v 1.9 1997/11/21 07:43:49 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -83,6 +83,7 @@ struct	gettystrs gettystrs[] = {
 	{ "if" },			/* sysv-like 'issue' filename */
 	{ "ic" },			/* modem init-chat */
 	{ "ac" },			/* modem answer-chat */
+	{ "al" },			/* user to auto-login */
 	{ 0 }
 };
 
