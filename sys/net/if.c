@@ -135,7 +135,6 @@ static struct cdevsw net_cdevsw = {
 	.d_close =	netclose,
 	.d_ioctl =	netioctl,
 	.d_name =	"net",
-	.d_maj =	MAJOR_AUTO,
 	.d_kqfilter =	netkqfilter,
 };
 

@@ -68,7 +68,6 @@ static struct cdevsw ncp_cdevsw = {
 	.d_close =	nullclose,
 	.d_ioctl =	ncp_ioctl,
 	.d_name =	"ncp",
-	.d_maj =	MAJOR_AUTO,
 };
 
 static int ncp_conn_frag_rq(struct ncp_conn *, struct thread *,
