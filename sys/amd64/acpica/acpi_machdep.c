@@ -43,7 +43,11 @@ static device_t	acpi_dev;
  * APM driver emulation 
  */
 
+#if __FreeBSD_version < 500000
+#include <sys/select.h>
+#else
 #include <sys/selinfo.h>
+#endif
 
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
