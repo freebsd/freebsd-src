@@ -36,15 +36,6 @@
  */
 #define EPIC_MAX_DEVICES	4
 
-#define	RX_TO_MBUF	1	/* Eliminates need of copy received */
-				/* packet to new allocated mbuf, */
-				/* receive directly to mbuf */
-
-#define	TX_FRAG_LIST	1	/* Eliminites need of copy xmiting */
-				/* packet to static buffer, xmit from */
-				/* mbuf directly */
-
-/*#define	EPIC_DEBUG		1*/
 #define TX_RING_SIZE	16
 #define RX_RING_SIZE	16
 #define EPIC_FULL_DUPLEX	1
@@ -324,8 +315,9 @@ typedef struct {
 #if defined(TX_FRAG_LIST)
 	struct epic_frag_list	*tx_flist;
 #endif
-
+#if defined(_NET_IF_MEDIA_H_)
 	struct ifmedia 		ifmedia;
+#endif
 	struct arpcom		epic_ac;
 	u_int32_t		phyid;
 	u_int32_t		cur_tx;
