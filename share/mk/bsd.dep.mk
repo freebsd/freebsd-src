@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.10 1997/02/22 13:56:08 peter Exp $
+#	$Id: bsd.dep.mk,v 1.11 1997/04/09 16:10:23 bde Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -24,8 +24,8 @@
 #		them in the file ${DEPENDFILE}.
 #
 #	tags:
-#		Create a tags file for the source files.
-#
+#		Create a (GLOBAL) gtags file for the source files.
+#		If HTML is defined, htags is also run after gtags.
 
 
 MKDEPCMD?=	mkdep
@@ -71,20 +71,26 @@ afterdepend:
 .endif
 .endif
 
+.if defined(NOTAGS)
+tags:
+.endif
+
 .if !target(tags)
-.if defined(SRCS)
 tags: ${SRCS} _SUBDIR
-	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:N*.h} | \
-	    sed "s;\${.CURDIR}/;;" > tags
-.else
-tags: _SUBDIR
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
 .endif
 .endif
 
 .if defined(SRCS)
 .if !target(cleandepend)
 cleandepend: _SUBDIR
-	rm -f ${DEPENDFILE} tags
+	rm -f ${DEPENDFILE}
+	rm -f ${.CURDIR}/GRTAGS ${.CURDIR}/GTAGS
+.if defined(HTML)
+	rm -rf ${.CURDIR}/HTML
+.endif
 .endif
 .endif
 
