@@ -223,7 +223,7 @@ _fetch_connect(char *host, int port, int verbose)
 	_fetch_info("connecting to %s:%d", host, port);
     
     /* set up socket address structure */
-    bzero(&sin, sizeof(sin));
+    bzero(&sin, sizeof sin);
     bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
     sin.sin_family = he->h_addrtype;
     sin.sin_port = htons(port);
