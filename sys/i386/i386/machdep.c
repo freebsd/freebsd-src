@@ -2098,6 +2098,7 @@ init386(first)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DEV_ISA
+	elcr_probe();
 	atpic_startup();
 #endif
 
