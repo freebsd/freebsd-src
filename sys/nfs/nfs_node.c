@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.27 1998/05/24 14:41:49 peter Exp $
+ * $Id: nfs_node.c,v 1.28 1998/09/29 23:15:25 mckusick Exp $
  */
 
 
@@ -107,12 +107,13 @@ nfs_nget(mntp, fhp, fhsize, npp)
 	struct nfsnode **npp;
 {
 	struct proc *p = curproc;	/* XXX */
-	struct nfsnode *np;
+	struct nfsnode *np, *np2;
 	struct nfsnodehashhead *nhpp;
 	register struct vnode *vp;
 	struct vnode *nvp;
 	int error;
 
+retry:
 	nhpp = NFSNOHASH(nfs_hash(fhp, fhsize));
 loop:
 	for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
@@ -161,6 +162,13 @@ loop:
 	/*
 	 * Insert the nfsnode in the hash queue for its new file handle
 	 */
+	for (np2 = nhpp->lh_first; np2 != 0; np2 = np2->n_hash.le_next) {
+		if (mntp != NFSTOV(np)->v_mount || np2->n_fhsize != fhsize ||
+		    bcmp((caddr_t)fhp, (caddr_t)np2->n_fhp, fhsize))
+			continue;
+		vrele(vp);
+		goto retry;
+	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	if (fhsize > NFS_SMALLFH) {
 		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
@@ -248,7 +256,8 @@ nfs_reclaim(ap)
 	if (prtactive && vp->v_usecount != 0)
 		vprint("nfs_reclaim: pushing active", vp);
 
-	LIST_REMOVE(np, n_hash);
+	if (np->n_hash.le_prev != NULL)
+		LIST_REMOVE(np, n_hash);
 
 	/*
 	 * For nqnfs, take it off the timer queue as required.
