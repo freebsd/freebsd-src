@@ -1057,7 +1057,7 @@ tcp_ctlinput(cmd, sa, vip)
 		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
-		INP_INFO_RLOCK(&tcbinfo);
+		INP_INFO_WLOCK(&tcbinfo);
 		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
 		    ip->ip_src, th->th_sport, 0, NULL);
 		if (inp != NULL)  {
@@ -1083,7 +1083,7 @@ tcp_ctlinput(cmd, sa, vip)
 #endif
 			syncache_unreach(&inc, th);
 		}
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		splx(s);
 	} else
 		in_pcbnotifyall(&tcbinfo, faddr, inetctlerrmap[cmd], notify);
