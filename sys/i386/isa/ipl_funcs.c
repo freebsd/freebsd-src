@@ -166,14 +166,27 @@ softclockpending(void)
 
 #ifdef SPL_DEBUG
 #define MAXZ		100000000
-#define SPIN_COUNT	 unsigned z = 0;
+#define SPIN_VAR	unsigned z;
+#define SPIN_RESET	z = 0;
+#if 0
 #define SPIN_SPL							\
 			if (++z >= MAXZ) {				\
+				/* XXX allow lock-free panic */		\
 				bsp_apic_ready = 0;			\
 				panic("\ncil: 0x%08x", cil);		\
 			}
+#else
+#define SPIN_SPL							\
+			if (++z >= MAXZ) {				\
+				/* XXX allow lock-free panic */		\
+				bsp_apic_ready = 0;			\
+				printf("\ncil: 0x%08x", cil);		\
+				breakpoint();				\
+			}
+#endif /* 0/1 */
 #else /* SPL_DEBUG */
-#define SPIN_COUNT
+#define SPIN_VAR
+#define SPIN_RESET
 #define SPIN_SPL
 #endif /* SPL_DEBUG */
 
@@ -185,7 +198,7 @@ softclockpending(void)
 unsigned NAME(void)							\
 {									\
 	unsigned x, y;							\
-	SPIN_COUNT;							\
+	SPIN_VAR;							\
 									\
 	if (!bsp_apic_ready) {						\
 		x = cpl;						\
@@ -202,6 +215,7 @@ unsigned NAME(void)							\
 		y OP MODIFIER;		/* desired value */		\
 		if (cil & y) {		/* not now */			\
 			IFCPL_UNLOCK();	/* allow cil to change */	\
+			SPIN_RESET;					\
 			while (cil & y)					\
 				SPIN_SPL				\
 			continue;	/* try again */			\
@@ -274,13 +288,14 @@ spl0(void)
 {
 	int unpend;
 #ifdef INTR_SPL
-	SPIN_COUNT;
+	SPIN_VAR;
 
 	for (;;) {
 		IFCPL_LOCK();
 		POSTCODE_HI(0xc);
 		if (cil & SWI_AST_MASK) {	/* not now */
 			IFCPL_UNLOCK();		/* allow cil to change */
+			SPIN_RESET;
 			while (cil & SWI_AST_MASK)
 				SPIN_SPL
 			continue;		/* try again */
@@ -304,7 +319,7 @@ splx(unsigned ipl)
 {
 	int unpend;
 #ifdef INTR_SPL
-	SPIN_COUNT;
+	SPIN_VAR;
 #endif
 
 	if (!bsp_apic_ready) {
@@ -323,6 +338,7 @@ splx(unsigned ipl)
 		POSTCODE_HI(0xf);
 		if (cil & ipl) {		/* not now */
 			IFCPL_UNLOCK();		/* allow cil to change */
+			SPIN_RESET;
 			while (cil & ipl)
 				SPIN_SPL
 			continue;		/* try again */

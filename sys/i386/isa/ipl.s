@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.13 1997/09/07 22:02:56 fsmp Exp $
+ *	$Id: ipl.s,v 1.14 1997/09/21 21:41:16 gibbs Exp $
  */
 
 
@@ -227,8 +227,15 @@ no_cil:
 	 */
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
+#if 0
 	/* XXX SMP this would leave cil set: */
 	je	doreti_next		/* "can't happen" */
+#else
+	jne	ih_ok
+	int	$3			/* _breakpoint */
+	jmp	doreti_next		/* "can't happen" */
+ih_ok:
+#endif
 	cmpl	$NHWI,%ecx
 	jae	doreti_swi
 	cli
@@ -249,6 +256,14 @@ no_cil:
 
 	ALIGN_TEXT
 doreti_swi:
+#if 1
+	cmpl	$0100, _cil
+	jne	1f
+	cmpl	$0, _inside_intr
+	jne	1f
+	int	$3
+1:
+#endif
 	pushl	%eax
 	/*
 	 * The SWI_AST handler has to run at cpl = SWI_AST_MASK and the
@@ -262,7 +277,7 @@ doreti_swi:
 #ifdef SMP
 	orl imasks(,%ecx,4), %eax
 	cli				/* prevent INT deadlock */
-	pushl	%eax			/* save cpl|cmpl */
+	pushl	%eax			/* save cpl|cml */
 	ICPL_LOCK
 #ifdef CPL_AND_CML
 	popl	_cml			/* restore cml */
