@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Find a node on a list.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------

@@ -51,7 +51,8 @@ __FBSDID("$FreeBSD$");
  *	used to determine when to stop.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -70,13 +71,11 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_Close(Lst l)
+Lst_Close(Lst list)
 {
-    List 	list = (List) l;
 
-    if (LstValid(l) == TRUE) {
+    if (Lst_Valid(list) == TRUE) {
 	list->isOpen = FALSE;
-	list->atEnd = Unknown;
+	list->atEnd = LstUnknown;
     }
 }
-

@@ -51,7 +51,8 @@ __FBSDID("$FreeBSD$");
  *	used to determine when to stop.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -69,30 +70,28 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_Next(Lst l)
+Lst_Next(Lst list)
 {
-    ListNode	tln;
-    List 	list = (List)l;
+    LstNode	tln;
 
-    if ((LstValid (l) == FALSE) ||
-	(list->isOpen == FALSE)) {
+    if ((Lst_Valid (list) == FALSE) || (list->isOpen == FALSE)) {
 	    return (NULL);
     }
 
     list->prevPtr = list->curPtr;
 
     if (list->curPtr == NULL) {
-	if (list->atEnd == Unknown) {
+	if (list->atEnd == LstUnknown) {
 	    /*
 	     * If we're just starting out, atEnd will be Unknown.
 	     * Then we want to start this thing off in the right
 	     * direction -- at the start with atEnd being Middle.
 	     */
 	    list->curPtr = tln = list->firstPtr;
-	    list->atEnd = Middle;
+	    list->atEnd = LstMiddle;
 	} else {
 	    tln = NULL;
-	    list->atEnd = Tail;
+	    list->atEnd = LstTail;
 	}
     } else {
 	tln = list->curPtr->nextPtr;
@@ -102,14 +101,14 @@ Lst_Next(Lst l)
 	    /*
 	     * If back at the front, then we've hit the end...
 	     */
-	    list->atEnd = Tail;
+	    list->atEnd = LstTail;
 	} else {
 	    /*
 	     * Reset to Middle if gone past first.
 	     */
-	    list->atEnd = Middle;
+	    list->atEnd = LstMiddle;
 	}
     }
 
-    return ((LstNode)tln);
+    return (tln);
 }

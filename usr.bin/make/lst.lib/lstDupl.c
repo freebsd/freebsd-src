@@ -47,7 +47,8 @@ __FBSDID("$FreeBSD$");
  *	elements.
  */
 
-#include    "lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -67,13 +68,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Lst
-Lst_Duplicate(Lst l, void *(*copyProc)(void *))
+Lst_Duplicate(Lst list, void *(*copyProc)(void *))
 {
     Lst 	nl;
-    ListNode  	ln;
-    List 	list = (List)l;
+    LstNode  	ln;
 
-    if (!LstValid (l)) {
+    if (!Lst_Valid (list)) {
 	return (NULL);
     }
 

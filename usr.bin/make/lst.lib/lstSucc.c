@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	return the successor to a given node
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -70,6 +71,6 @@ Lst_Succ(LstNode ln)
     if (ln == NULL) {
 	return (NULL);
     } else {
-	return ((LstNode) ((ListNode) ln)->nextPtr);
+	return (ln->nextPtr);
     }
 }

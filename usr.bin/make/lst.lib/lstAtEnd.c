@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Add a node at the end of the list
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------

@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Find a node on a list from a given starting point. Used by Lst_Find.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -66,14 +67,14 @@ __FBSDID("$FreeBSD$");
 LstNode
 Lst_FindFrom(Lst l, LstNode ln, void *d, int (*cProc)(void *, void *))
 {
-    ListNode	tln;
+    LstNode	tln;
     Boolean	found = FALSE;
 
-    if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
+    if (!Lst_Valid (l) || Lst_IsEmpty (l) || !Lst_NodeValid (ln, l)) {
 	return (NULL);
     }
 
-    tln = (ListNode)ln;
+    tln = ln;
 
     do {
 	if ((*cProc) (tln->datum, d) == 0) {
@@ -82,10 +83,10 @@ Lst_FindFrom(Lst l, LstNode ln, void *d, int (*cProc)(void *, void *))
 	} else {
 	    tln = tln->nextPtr;
 	}
-    } while (tln != (ListNode)ln && tln != NULL);
+    } while (tln != ln && tln != NULL);
 
     if (found) {
-	return ((LstNode)tln);
+	return (tln);
     } else {
 	return (NULL);
     }

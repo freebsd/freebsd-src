@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Remove the node and return its datum from the head of the list
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -66,16 +67,16 @@ void *
 Lst_DeQueue(Lst l)
 {
     void *	rd;
-    ListNode	tln;
+    LstNode	tln;
 
-    tln = (ListNode) Lst_First (l);
+    tln = Lst_First (l);
     if (tln == NULL) {
-	return ((void *) NULL);
+	return (NULL);
     }
 
     rd = tln->datum;
-    if (Lst_Remove (l, (LstNode)tln) == FAILURE) {
-	return ((void *) NULL);
+    if (Lst_Remove (l, tln) == FAILURE) {
+	return (NULL);
     } else {
 	return (rd);
     }
