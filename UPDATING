@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20031003:	p23	FreeBSD-SA-03:18.openssl
+	Corrected vulnerabilities in OpenSSL ASN.1 parsing.
+
 20031003:	p22	FreeBSD-SA-03:17.procfs
 	Correct integer underflows/overflows in procfs(5) and linprocfs(5).
 
