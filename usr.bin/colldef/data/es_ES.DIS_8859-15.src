@@ -1,6 +1,6 @@
 # Espan~ol (backward compatible with ASCII)
 #
-# $Id: es_ES.DIS_8859-15.src,v 1.3 1997/02/22 19:54:35 peter Exp $
+# $Id: es_ES.DIS_8859-15.src,v 1.1 1999/01/21 19:41:38 imp Exp $
 #
 charmap map.DIS_8859-15
 order \
