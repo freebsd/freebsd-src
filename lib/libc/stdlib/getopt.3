@@ -42,11 +42,11 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
-.Vt extern char *optarg;
-.Vt extern int   optind;
-.Vt extern int   optopt;
-.Vt extern int   opterr;
-.Vt extern int   optreset;
+.Vt extern char *optarg ;
+.Vt extern int   optind ;
+.Vt extern int   optopt ;
+.Vt extern int   opterr ;
+.Vt extern int   optreset ;
 .Ft int
 .Fn getopt "int argc" "char * const *argv" "const char *optstring"
 .Sh DESCRIPTION
@@ -142,7 +142,7 @@ returns \-1.
 If the
 .Fn getopt
 function encounters a character not found in the string
-.Va optarg
+.Va optstring
 or detects
 a missing option argument it writes an error message to the
 .Em stderr
