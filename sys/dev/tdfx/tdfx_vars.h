@@ -50,15 +50,19 @@
 #define	PCI_DEVICE_3DFX_BANSHEE		0x0003121a
 #define	PCI_DEVICE_3DFX_VOODOO3		0x0005121a
 
-#define PCI_VENDOR_ID_FREEBSD 0x0
-#define PCI_DEVICE_ID_FREEBSD 0x2
-#define PCI_COMMAND_FREEBSD 0x4
-#define PCI_REVISION_ID_FREEBSD 0x8
+#define PCI_VENDOR_ID_FREEBSD      0x0
+#define PCI_DEVICE_ID_FREEBSD      0x2
+#define PCI_COMMAND_FREEBSD        0x4
+#define PCI_REVISION_ID_FREEBSD    0x8
 #define PCI_BASE_ADDRESS_0_FREEBSD 0x10
-#define SST1_PCI_SPECIAL1_FREEBSD 0x40
-#define SST1_PCI_SPECIAL2_FREEBSD 0x44
-#define SST1_PCI_SPECIAL3_FREEBSD 0x48
-#define SST1_PCI_SPECIAL4_FREEBSD 0x54
+#define PCI_BASE_ADDRESS_1_FREEBSD 0x14
+#define PCI_PRIBUS_FREEBSD         0x18
+#define PCI_IOBASE_0_FREEBSD       0x2c
+#define PCI_IOLIMIT_0_FREEBSD      0x30
+#define SST1_PCI_SPECIAL1_FREEBSD  0x40
+#define SST1_PCI_SPECIAL2_FREEBSD  0x44
+#define SST1_PCI_SPECIAL3_FREEBSD  0x48
+#define SST1_PCI_SPECIAL4_FREEBSD  0x54
 
 #define VGA_INPUT_STATUS_1C 0x3DA
 #define VGA_MISC_OUTPUT_READ 0x3cc
@@ -85,6 +89,7 @@ struct tdfx_softc {
 	int vendor;
 	int type;
 	int addr0, addr1;
+	short pio0, pio0max;
 	unsigned char bus;
 	unsigned char dv;
 	struct file *curFile;
