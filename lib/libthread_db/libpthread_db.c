@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <link.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <proc_service.h>
 #include <thread_db.h>
+
+#include "rtld.h"
 
 #include "libpthread.h"
 #include "libpthread_db.h"
@@ -413,8 +416,7 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 	psaddr_t tcb_addr, tmbx_addr, ptr;
 	lwpid_t lwp;
 	uint32_t dflags;
-	int attrflags;
-	int ret;
+	int attrflags, locklevel, ret;
 
 	TDBG_FUNC();
 
@@ -445,40 +447,57 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
 		return (P2T(ret));
-	/*
-	 * Don't stop lwp assigned to a M:N thread, it belongs
-	 * to UTS, UTS shouldn't be stopped.
-	 */
-	if (lwp != 0 && (attrflags & PTHREAD_SCOPE_SYSTEM)) {
-		/* dont' suspend signal thread */
+
+	if (lwp != 0) {
+		/* don't suspend signal thread */
 		if (attrflags & THR_SIGNAL_THREAD)
-			return 0;
-		ptr = ta->map[th->th_tid].thr +
-	                offsetof(struct pthread, kse);
-		/* Too many indirect level :-( */
-		/* read struct kse * */
-		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
-		if (ret != 0)
-			return (P2T(ret));
-		ptr = ptr + offsetof(struct kse, k_kcb);
-		/* read k_kcb * */
-		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
-		if (ret != 0)
-			return (P2T(ret));
-		/* read kcb.kcb_kmbx.km_curthread */
-		ptr = ptr + offsetof(struct kcb, kcb_kmbx.km_curthread);
-		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
-		if (ret != 0)
-			return (P2T(ret));
-		if (ptr != 0) { /* not in critical */
-			if (suspend)
-				ret = ps_lstop(ta->ph, lwp);
-			else
-				ret = ps_lcontinue(ta->ph, lwp);
+			return (0);
+		if (attrflags & PTHREAD_SCOPE_SYSTEM) {
+			/*
+			 * don't suspend system scope thread if it is holding
+			 * some low level locks
+			 */
+			ptr = ta->map[th->th_tid].thr +
+	                	offsetof(struct pthread, kse);
+			ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
 			if (ret != 0)
 				return (P2T(ret));
+			ret = ps_pread(ta->ph, ptr + offsetof(struct kse,
+				k_locklevel), &locklevel, sizeof(int));
+			if (ret != 0)
+				return (P2T(ret));
+			if (locklevel <= 0) {
+				ptr = ta->map[th->th_tid].thr +
+					offsetof(struct pthread, locklevel);
+				ret = ps_pread(ta->ph, ptr, &locklevel,
+					sizeof(int));
+				if (ret != 0)
+					return (P2T(ret));
+			}
+			if (suspend) {
+				if (locklevel <= 0)
+					ret = ps_lstop(ta->ph, lwp);
+			} else {
+				ret = ps_lcontinue(ta->ph, lwp);
+			}
+			if (ret != 0)
+				return (P2T(ret));
+			/* FALLTHROUGH */
+		} else {
+			struct ptrace_lwpinfo pl;
+
+			if (ptrace(PT_LWPINFO, lwp, (caddr_t) &pl, sizeof(pl)))
+				return (TD_ERR);
+			if (suspend) {
+				if (!(pl.pl_flags & PL_FLAG_BOUND))
+					ret = ps_lstop(ta->ph, lwp);
+			} else {
+				ret = ps_lcontinue(ta->ph, lwp);
+			}
+			if (ret != 0)
+				return (P2T(ret));
+			/* FALLTHROUGH */
 		}
-		/* FALLTHROUGH */
 	}
 	/* read tm_dflags */
 	ret = ps_pread(ta->ph,
@@ -899,6 +918,63 @@ pt_validate(const td_thrhandle_t *th)
 	return (TD_OK);
 }
 
+td_err_e
+pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
+		    void **address)
+{
+#if 0
+	Obj_Entry *obj_entry;
+	const td_thragent_t *ta = th->th_ta;
+	psaddr_t tcb_addr, *dtv_addr, tcb_tp;
+	int tls_index, ret;
+
+	/* linkmap is a member of Obj_Entry */
+	obj_entry = (Obj_Entry *)
+		(((char *)_linkmap) - offsetof(Obj_Entry, linkmap));
+
+	/* get tlsindex of the object file */
+	ret = ps_pread(ta->ph,
+		((char *)obj_entry) + offsetof(Obj_Entry, tlsindex),
+		&tls_index, sizeof(tls_index));
+	if (ret != 0)
+		return (P2T(ret));
+
+	/* get thread tcb */
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
+		offsetof(struct pthread, tcb),
+		&tcb_addr, sizeof(tcb_addr));
+	if (ret != 0)
+		return (P2T(ret));
+
+#ifdef TLS_DTV_AT_TCB
+	/* get dtv array address */
+	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb, tcb_dtv),
+		&dtv_addr, sizeof(dtv_addr));
+	if (ret != 0)
+		return (P2T(ret));
+#else
+ #ifdef TLS_DTV_AT_TP
+	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb, tcb_tp),
+		&tcb_tp, sizeof(tcb_tp));
+	if (ret != 0)
+		return (P2T(ret));
+	ret = ps_pread(ta->ph, tcb_tp + offsetof(struct tp, tp_dtv),
+		&dtv_addr, sizeof(dtv_addr));
+ #else
+	#error "Either TLS_DTV_AT_TP or TLS_DTV_AT_TCB must be defined."
+ #endif
+#endif
+	/* now get the object's tls block base address */
+	ret = ps_pread(ta->ph, &dtv_addr[tls_index+1], address,
+		sizeof(*address));
+	if (ret != 0)
+		return (P2T(ret));
+
+	*address += offset;
+#endif
+	return (TD_OK);
+}
+
 struct ta_ops libpthread_db_ops = {
 	.to_init		= pt_init,
 	.to_ta_clear_event	= pt_ta_clear_event,
@@ -923,6 +999,7 @@ struct ta_ops libpthread_db_ops = {
 	.to_thr_setfpregs	= pt_thr_setfpregs,
 	.to_thr_setgregs	= pt_thr_setgregs,
 	.to_thr_validate	= pt_thr_validate,
+	.to_thr_tls_get_addr	= pt_thr_tls_get_addr,
 
 	/* FreeBSD specific extensions. */
 	.to_thr_sstep		= pt_thr_sstep,
