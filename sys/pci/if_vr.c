@@ -503,9 +503,7 @@ vr_miibus_statchg(device_t dev)
 	struct vr_softc		*sc = device_get_softc(dev);
 
 	mii = device_get_softc(sc->vr_miibus);
-	VR_LOCK(sc);
 	vr_setcfg(sc, mii->mii_media_active);
-	VR_UNLOCK(sc);
 }
 
 /*
@@ -1563,7 +1561,9 @@ vr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data		*mii;
 
 	mii = device_get_softc(sc->vr_miibus);
+	VR_LOCK(sc);
 	mii_pollstat(mii);
+	VR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 }
