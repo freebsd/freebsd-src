@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.36 1997/09/18 16:19:35 jkh Exp $
+ * $Id: dist.c,v 1.73.2.37 1997/09/18 17:55:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -326,7 +326,7 @@ distSetDES(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 static int
@@ -357,7 +357,7 @@ distMaybeSetDES(dialogMenuItem *self)
 	else
 	    i = DITEM_FAILURE;
     }
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 static int
@@ -441,7 +441,7 @@ distSetSrc(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 int
@@ -466,7 +466,7 @@ distSetXF86(dialogMenuItem *self)
     else
 	i = DITEM_FAILURE;
 #endif
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 static Boolean got_intr = FALSE;
