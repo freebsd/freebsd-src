@@ -2005,14 +2005,6 @@ start_all_aps(u_int boot_addr)
 		SLIST_INSERT_HEAD(&cpuhead, gd, gd_allcpu);
 		gd->gd_cpuid = x;
 		gd->gd_cpu_lockid = x << 24;
-		gd->gd_prv_CMAP1 = &SMPpt[pg + 1];
-		gd->gd_prv_CMAP2 = &SMPpt[pg + 2];
-		gd->gd_prv_CMAP3 = &SMPpt[pg + 3];
-		gd->gd_prv_PMAP1 = &SMPpt[pg + 4];
-		gd->gd_prv_CADDR1 = SMP_prvspace[x].CPAGE1;
-		gd->gd_prv_CADDR2 = SMP_prvspace[x].CPAGE2;
-		gd->gd_prv_CADDR3 = SMP_prvspace[x].CPAGE3;
-		gd->gd_prv_PADDR1 = (unsigned *)SMP_prvspace[x].PPAGE1;
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
