@@ -28,10 +28,15 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	5
-#define	ISP_PLATFORM_VERSION_MINOR	4
+#define	ISP_PLATFORM_VERSION_MINOR	5
 
+/*
+ * We're not ready for primetime yet
+ */
+#if	0
 #if	((ISP_PLATFORM_VERSION_MAJOR * 10)  + ISP_PLATFORM_VERSION_MINOR) >= 54
 #define	ISP_SMPLOCK	1
+#endif
 #endif
 
 
@@ -138,7 +143,6 @@ struct isposinfo {
 
 #define	INLINE			__inline
 
-#define	ISP2100_FABRIC		1
 #define	ISP2100_SCRLEN		0x400
 
 #define	MEMZERO			bzero
