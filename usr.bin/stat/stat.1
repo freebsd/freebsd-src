@@ -45,11 +45,10 @@
 .Nd display file status
 .Sh SYNOPSIS
 .Nm
-.Op Fl FLn
+.Op Fl FLnq
 .Oo
 .Fl f Ar format |
 .Fl l |
-.Fl q |
 .Fl r |
 .Fl s |
 .Fl x
@@ -107,6 +106,15 @@ if file is a symbolic link, and not to
 itself.
 .It Fl n
 Do not force a newline to appear at the end of each piece of output.
+.It Fl q
+Suppress failure messages if calls to
+.Xr stat 2
+or
+.Xr lstat 2
+fail.
+When run as
+.Nm readlink ,
+error messages are automatically suppressed.
 .It Fl f Ar format
 Display information using the specified format.  See the FORMATS section
 for a description of valid formats.
@@ -114,9 +122,6 @@ for a description of valid formats.
 Display output in
 .Ic ls Fl lT
 format.
-.It Fl q
-Suppress failure messages from
-.Xr stat 2 .
 .It Fl r
 Display raw information.  That is, for all the fields in the stat-structure,
 display the raw, numerical value (for example, times in seconds since the
