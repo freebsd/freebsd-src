@@ -362,7 +362,7 @@ getit(void)
 void
 DELAY(int n)
 {
-	int delta, prev_tick, tick, ticks_left, sec, usec;
+	int delta, prev_tick, tick, ticks_left;
 
 #ifdef DELAYDEBUG
 	int getit_calls = 1;
@@ -393,19 +393,30 @@ DELAY(int n)
 	 * multiplications and divisions to scale the count take a while).
 	 */
 	prev_tick = getit();
-	n -= 20;
+	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
 	 * and without any avoidable overflows.
 	 */
-	sec = n / 1000000;
-	usec = n - sec * 1000000;
-	ticks_left = sec * timer_freq
-		     + usec * (timer_freq / 1000000)
-		     + usec * ((timer_freq % 1000000) / 1000) / 1000
-		     + usec * (timer_freq % 1000) / 1000000;
-	if (n < 0)
-		ticks_left = 0;	/* XXX timer_freq is unsigned */
+	if (n <= 0)
+		ticks_left = 0;
+	else if (n < 256)
+		/*
+		 * Use fixed point to avoid a slow division by 1000000.
+		 * 39099 = 1193182 * 2^15 / 10^6 rounded to nearest.
+		 * 2^15 is the first power of 2 that gives exact results
+		 * for n between 0 and 256.
+		 */
+		ticks_left = ((u_int)n * 39099 + (1 << 15) - 1) >> 15;
+	else
+		/*
+		 * Don't bother using fixed point, although gcc-2.7.2
+		 * generates particularly poor code for the long long
+		 * division, since even the slow way will complete long
+		 * before the delay is up (unless we're interrupted).
+		 */
+		ticks_left = ((u_int)n * (long long)timer_freq + 999999)
+			     / 1000000;
 
 	while (ticks_left > 0) {
 		tick = getit();
