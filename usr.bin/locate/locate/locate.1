@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)locate.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: locate.1,v 1.4 1996/08/31 23:14:52 wosch Exp $
+.\"	$Id: locate.1,v 1.8 1997/03/06 05:11:55 jmg Exp $
 .\"
 .Dd June 6, 1993
 .Dt LOCATE 1
@@ -69,7 +69,7 @@ is matched as though it were ``*foo*''.
 Historically, locate store only characters between 32 and 127.  The
 current implementation store any character except newline ('\\n') and
 NUL ('\\0'). The 8-bit character support don't wast extra space for
-plain ASCII file names. Characters less than 32 or greather than 127
+plain ASCII file names. Characters less than 32 or greater than 127
 are stored in 2 bytes.
 
 The following options are available:
@@ -201,7 +201,7 @@ in the database.
 
 The
 .Nm
-database is not byte order independ. It is not possible
+database is not byte order independent. It is not possible
 to share the databases between machines with different byte order.
 The current 
 .Nm
