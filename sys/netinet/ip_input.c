@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.91 1998/07/02 05:49:12 julian Exp $
+ * $Id: ip_input.c,v 1.92 1998/07/06 03:20:16 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -416,7 +416,7 @@ tooshort:
 	/*
 	 * Check our list of addresses, to see if the packet is for us.
 	 */
-	for (ia = TAILQ_FIRST(in_ifaddrhead); ia;
+	for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
 					ia = TAILQ_NEXT(ia, ia_link)) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
