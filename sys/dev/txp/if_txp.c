@@ -321,6 +321,7 @@ txp_attach(dev)
 
 	sc->sc_ldata = contigmalloc(sizeof(struct txp_ldata), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	bzero(sc->sc_ldata, sizeof(struct txp_ldata));
 
 	if (txp_alloc_rings(sc)) {
 		txp_release_resources(sc);
@@ -1039,12 +1040,15 @@ txp_alloc_rings(sc)
 	sc->sc_rxbufs = (struct txp_rxbuf_desc *)&ld->txp_rxbufs;
 
 	for (i = 0; i < RXBUF_ENTRIES; i++) {
+		struct txp_swdesc *sd;
 		if (sc->sc_rxbufs[i].rb_sd != NULL)
 			continue;
 		sc->sc_rxbufs[i].rb_sd = malloc(sizeof(struct txp_swdesc),
 		    M_DEVBUF, M_NOWAIT);
 		if (sc->sc_rxbufs[i].rb_sd == NULL)
 			return(ENOBUFS);
+		sd = sc->sc_rxbufs[i].rb_sd;
+		sd->sd_mbuf = NULL;
 	}
 	sc->sc_rxbufprod = 0;
 
