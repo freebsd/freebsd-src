@@ -36,11 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.26 1996/01/08 04:30:44 peter Exp $
+ * $Id: kern_exit.c,v 1.27 1996/01/19 03:58:03 dyson Exp $
  */
 
 #include "opt_ktrace.h"
-#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
