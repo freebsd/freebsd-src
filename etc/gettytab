@@ -75,6 +75,8 @@ std.57600|57600-baud:\
 	:np:sp#57600:
 std.115200|115200-baud:\
 	:np:sp#115200:
+std.230400|230400-baud:\
+	:np:sp#230400:
 
 #
 # Entry specifying explicit device settings.  See termios(4) and
