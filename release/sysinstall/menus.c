@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.56 1996/04/28 03:27:15 jkh Exp $
+ * $Id: menus.c,v 1.57 1996/04/28 22:54:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -937,7 +937,7 @@ software not provided in the base distributions.",
 };
 
 DMenu MenuNetworking = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
     "You may have already configured one network device (and the other\n\
 various hostname/gateway/name server parameters) in the process\n\
