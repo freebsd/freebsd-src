@@ -7,10 +7,4 @@ SUBDIR= bc binutils cc cpio dc dialog diff diff3 \
 SUBDIR+=cvs
 .endif
 
-.if defined(WANT_AOUT)
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=as ld
-.endif
-.endif
-
 .include <bsd.subdir.mk>
