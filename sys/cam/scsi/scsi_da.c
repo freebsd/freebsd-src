@@ -1548,8 +1548,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					softc->state = DA_STATE_PROBE2;
 					free(rdcap, M_TEMP);
 					xpt_release_ccb(done_ccb);
-					cam_periph_unlock(periph);
-					break;
+					xpt_schedule(periph, /*priority*/5);
+					return;
 				}
 			} else {
 				block_size = scsi_4btoul(rcaplong->length);
