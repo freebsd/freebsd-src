@@ -8,13 +8,8 @@
  *
  * $FreeBSD$
  *
- * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
+ * The is a FreeBSD protype version of the "draft-mogul-pps-api-05.txt" 
  * specification for Pulse Per Second timing interfaces.  
- *
- * NOTE: There is no current maintainer for this API in FreeBSD, and
- *       the implementation will not be updated to track the newer
- *	 versions of the draft.  Contact phk@FreeBSD.org for more info.
- *
  */
 
 #ifndef _SYS_TIMEPPS_H_
