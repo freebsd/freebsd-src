@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.32 1999/08/14 06:30:15 grog Exp $
+ * $Id: vinumrequest.c,v 1.24 1999/07/05 01:53:14 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -69,7 +69,7 @@ void freedatabuf(struct rqelement *rqe);
 struct rqinfo rqinfo[RQINFO_SIZE];
 struct rqinfo *rqip = rqinfo;
 
-void 
+void
 logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 {
     int s = splhigh();
@@ -80,6 +80,8 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
     switch (type) {
     case loginfo_user_bp:
     case loginfo_user_bpl:
+    case loginfo_sdio:					    /* subdisk I/O */
+    case loginfo_sdiol:					    /* subdisk I/O launch */
 	bcopy(info.bp, &rqip->info.b, sizeof(struct buf));
 	rqip->devmajor = major(info.bp->b_dev);
 	rqip->devminor = minor(info.bp->b_dev);
@@ -112,7 +114,7 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 
 #endif
 
-void 
+void
 vinumstrategy(struct buf *bp)
 {
     int volno;
@@ -172,7 +174,7 @@ vinumstrategy(struct buf *bp)
  * are queued if they share address space with
  * a currently active revive operation.
  */
-int 
+int
 vinumstart(struct buf *bp, int reviveok)
 {
     int plexno;
@@ -300,7 +302,7 @@ vinumstart(struct buf *bp, int reviveok)
  * Call the low-level strategy routines to
  * perform the requests in a struct request
  */
-int 
+int
 launch_requests(struct request *rq, int reviveok)
 {
     struct rqgroup *rqg;
@@ -424,7 +426,7 @@ launch_requests(struct request *rq, int reviveok)
  * initializing the ones we use, and not looking at the others (index
  * >= rqg->requests).
  */
-enum requeststatus 
+enum requeststatus
 bre(struct request *rq,
     int plexno,
     daddr_t * diskaddr,
@@ -644,7 +646,7 @@ bre(struct request *rq,
  * This function is not needed for plex reads, since there's
  * no recovery if a plex read can't be satisified.
  */
-enum requeststatus 
+enum requeststatus
 build_read_request(struct request *rq,			    /* request */
     int plexindex)
 {							    /* index in the volume's plex table */
@@ -723,7 +725,7 @@ build_read_request(struct request *rq,			    /* request */
  * subdisks are not up, and -1 if the request is at least partially
  * outside the bounds of the subdisks.
  */
-enum requeststatus 
+enum requeststatus
 build_write_request(struct request *rq)
 {							    /* request */
     struct buf *bp;
@@ -753,7 +755,7 @@ build_write_request(struct request *rq)
 }
 
 /* Fill in the struct buf part of a request element. */
-enum requeststatus 
+enum requeststatus
 build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 {
     struct sd *sd;					    /* point to subdisk */
@@ -825,7 +827,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
  * Abort a request: free resources and complete the
  * user request with the specified error
  */
-int 
+int
 abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
@@ -843,14 +845,14 @@ abortrequest(struct request *rq, int error)
  *
  * Return 1 if it can, otherwise 0
  */
-int 
+int
 check_range_covered(struct request *rq)
 {
     return 1;
 }
 
 /* Perform I/O on a subdisk */
-void 
+void
 sdio(struct buf *bp)
 {
     int s;						    /* spl */
@@ -859,12 +861,16 @@ sdio(struct buf *bp)
     daddr_t endoffset;
     struct drive *drive;
 
+#if VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_sdio, (union rqinfou) bp, bp);
+#endif
     sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_flags |= B_ERROR;
-	bp->b_flags = EIO;
+	bp->b_error = EIO;
 	biodone(bp);
 	return;
     }
@@ -922,6 +928,12 @@ sdio(struct buf *bp)
 	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
+#if VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_sdiol,
+	    (union rqinfou) (struct buf *) sbp,
+	    (struct buf *) sbp);
+#endif
     BUF_STRATEGY(&sbp->b, 0);
     splx(s);
 }
@@ -942,7 +954,7 @@ sdio(struct buf *bp)
  * one in the first pleace (because it's protected), it wouldn't
  * be a problem.
  */
-int 
+int
 vinum_bounds_check(struct buf *bp, struct volume *vol)
 {
     int maxsize = vol->size;				    /* size of the partition (sectors) */
@@ -1015,13 +1027,13 @@ allocrqg(struct request *rq, int elements)
  * almost never happens, and currently it can only
  * happen to the first member of the chain.
  */
-void 
+void
 deallocrqg(struct rqgroup *rqg)
 {
     struct rqgroup *rqgc = rqg->rq->rqg;		    /* point to the request chain */
 
     if (rqg->lock)					    /* got a lock? */
-	unlockrange(rqg);				    /* yes, free it */
+	unlockrange(rqg->plexno, rqg->lock);		    /* yes, free it */
     if (rqgc == rqg)					    /* we're first in line */
 	rqg->rq->rqg = rqg->next;			    /* unhook ourselves */
     else {
