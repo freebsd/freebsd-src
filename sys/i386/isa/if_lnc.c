@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.52 1999/01/31 00:39:20 paul Exp $
+ * $Id: if_lnc.c,v 1.53 1999/01/31 00:44:37 paul Exp $
  */
 
 /*
@@ -90,6 +90,11 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
+
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 
 #ifdef PC98
@@ -597,7 +602,7 @@ lnc_rint(struct lnc_softc *sc)
 				 * ethernet and packet headers
 				 */
 				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
-				head->m_pkthdr.len = pkt_len - sizeof *eh;
+				head->m_pkthdr.len = pkt_len ;
 
 				/*
 				 * BPF expects the ether header to be in the first
@@ -611,7 +616,26 @@ lnc_rint(struct lnc_softc *sc)
 #if NBPFILTER > 0
 				if (sc->arpcom.ac_if.if_bpf)
 					bpf_mtap(&sc->arpcom.ac_if, head);
+#endif
+#ifdef BRIDGE
+				if (do_bridge) {
+				    struct ifnet *bdg_ifp ;
 
+				    bdg_ifp = bridge_in(head);
+				    if (bdg_ifp == BDG_DROP)
+					m_freem(head);
+				    else {
+					if (bdg_ifp != BDG_LOCAL)
+					    bdg_forward(&head, bdg_ifp);
+					if (  bdg_ifp == BDG_LOCAL ||
+				  	      bdg_ifp == BDG_BCAST ||
+				  	      bdg_ifp == BDG_MCAST )
+					    goto getit;
+					else if (head)
+					    m_freem(head);
+				    }
+				} else
+#endif
 				/* Check this packet is really for us */
 
 				if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
@@ -620,11 +644,12 @@ lnc_rint(struct lnc_softc *sc)
 							sizeof(eh->ether_dhost))))
 						m_freem(head);
 				else
-#endif
 				{
+getit:
 					/* Skip over the ether header */
 					head->m_data += sizeof *eh;
 					head->m_len -= sizeof *eh;
+					head->m_pkthdr.len -= sizeof *eh;
 
 					ether_input(&sc->arpcom.ac_if, eh, head);
 				}
