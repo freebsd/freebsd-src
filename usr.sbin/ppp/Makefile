@@ -23,6 +23,10 @@ CFLAGS+=-DRELEASE_CRUNCH
 CFLAGS+=-DNOKLDLOAD
 .endif
 
+.if defined(NOINET6)
+CFLAGS+=-DNOINET6
+.endif
+
 .if defined(NOALIAS) || defined(NONAT)
 CFLAGS+=-DNONAT
 .else
