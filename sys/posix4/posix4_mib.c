@@ -40,6 +40,7 @@
 #include <posix4/posix4.h>
 
 static int facility[CTL_P1003_1B_MAXID - 1];
+static int facility_initialized[CTL_P1003_1B_MAXID - 1];
 
 /* OID_AUTO isn't working with sysconf(3).  I guess I'd have to
  * modify it to do a lookup by name from the index.
@@ -92,22 +93,35 @@ P1B_SYSCTL(CTL_P1003_1B_SEM_VALUE_MAX, sem_value_max);
 P1B_SYSCTL(CTL_P1003_1B_SIGQUEUE_MAX, sigqueue_max);
 P1B_SYSCTL(CTL_P1003_1B_TIMER_MAX, timer_max);
 
+#define P31B_VALID(num)	((num) >= 1 && (num) < CTL_P1003_1B_MAXID)
+
 /* p31b_setcfg: Set the configuration
  */
 void
 p31b_setcfg(int num, int value)
 {
 
-	if (num >= 1 && num < CTL_P1003_1B_MAXID)
+	if (P31B_VALID(num)) {
 		facility[num - 1] = value;
+		facility_initialized[num - 1] = 1;
+	}
 }
 
 int
 p31b_getcfg(int num)
 {
 
-	if (num >= 1 && num < CTL_P1003_1B_MAXID)
+	if (P31B_VALID(num))
 		return (facility[num - 1]);
+	return (0);
+}
+
+int
+p31b_iscfg(int num)
+{
+
+	if (P31B_VALID(num))
+		return (facility_initialized[num - 1]);
 	return (0);
 }
 
@@ -121,6 +135,12 @@ p31b_set_standard(void *dummy)
 	p31b_setcfg(CTL_P1003_1B_MAPPED_FILES, 1);
 	p31b_setcfg(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, 1);
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
+	if (!p31b_iscfg(CTL_P1003_1B_AIO_LISTIO_MAX))
+		p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
+	if (!p31b_iscfg(CTL_P1003_1B_AIO_MAX))
+		p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
+	if (!p31b_iscfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX))
+		p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, -1);
 }
 
 SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 
