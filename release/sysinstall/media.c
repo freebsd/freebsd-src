@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.32 1996/04/13 13:31:54 jkh Exp $
+ * $Id: media.c,v 1.33 1996/04/23 01:29:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,11 +99,11 @@ mediaSetCDROM(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 static int
@@ -140,11 +140,11 @@ mediaSetFloppy(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 static int
@@ -179,11 +179,11 @@ mediaSetDOS(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 static int
@@ -220,7 +220,7 @@ mediaSetTape(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     else
 	mediaDevice = devs[0];
@@ -237,7 +237,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /*
@@ -251,12 +251,12 @@ mediaSetFTP(dialogMenuItem *self)
     char *cp;
 
     if (!dmenuOpenSimple(&MenuMediaFTP))
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     else
 	cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
@@ -268,16 +268,16 @@ mediaSetFTP(dialogMenuItem *self)
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
 	if (!cp || !*cp)
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     if (strncmp("ftp://", cp, 6)) {
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
     strcpy(ftpDevice.name, cp);
 
     if (!tcpDeviceSelect())
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
@@ -286,7 +286,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
-    return DITEM_LEAVE_MENU;
+    return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 int
@@ -493,8 +493,8 @@ int
 mediaGetType(dialogMenuItem *self)
 {
     if (!dmenuOpenSimple(&MenuMedia))
-	return DITEM_FAILURE;
-    return DITEM_SUCCESS;
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */

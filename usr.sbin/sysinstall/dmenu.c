@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.16 1996/04/13 13:31:31 jkh Exp $
+ * $Id: dmenu.c,v 1.17 1996/04/23 01:29:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,10 +51,8 @@ dmenuDisplayFile(dialogMenuItem *tmp)
 int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
-    int i;
-
-    i = dmenuOpenSimple((DMenu *)tmp->data) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RESTORE;
+    return (dmenuOpenSimple((DMenu *)(tmp->data)) ? DITEM_SUCCESS : DITEM_FAILURE) |
+	DITEM_RESTORE | DITEM_RECREATE;
 }
 
 int
@@ -201,10 +199,10 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 				    menu_height(menu, n), -n, menu->items, NULL);
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
-
+	clearok(stdscr, TRUE);
 	if (rval)
 	    return FALSE;
-	else if (cancelled || (menu->type & (DMENU_SELECTION_RETURNS | DMENU_RADIO_TYPE | DMENU_CHECKLIST_TYPE))) {
+	else if (cancelled || menu->type & DMENU_SELECTION_RETURNS) {
 	    cancelled = FALSE;
 	    return TRUE;
 	}
