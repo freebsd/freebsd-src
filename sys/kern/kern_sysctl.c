@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.16 1994/10/02 17:35:19 phk Exp $
+ * $Id: kern_sysctl.c,v 1.17 1994/10/06 21:06:30 davidg Exp $
  */
 
 /*
@@ -319,8 +319,8 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	extern char machine[], cpu_model[];
 	extern int hw_float;
 
-	/* all sysctl names at this level are terminal */
-	if (namelen != 1)
+	/* almost all sysctl names at this level are terminal */
+	if (namelen != 1 && name[0] != HW_DEVCONF)
 		return (ENOTDIR);		/* overloaded */
 
 	switch (name[0]) {
@@ -341,6 +341,9 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_rdint(oldp, oldlenp, newp, PAGE_SIZE));
 	case HW_FLOATINGPT:
 		return (sysctl_rdint(oldp, oldlenp, newp, hw_float));
+	case HW_DEVCONF:
+		return (dev_sysctl(name + 1, namelen - 1, oldp, oldlenp,
+				   newp, newlen, p));
 	default:
 		return (EOPNOTSUPP);
 	}
