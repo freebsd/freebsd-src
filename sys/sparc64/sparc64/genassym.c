@@ -102,7 +102,6 @@ ASSYM(KTR_CT3, KTR_CT3);
 ASSYM(KTR_CT4, KTR_CT4);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
-ASSYM(KTR_TIMESTAMP, offsetof(struct ktr_entry, ktr_timestamp));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
 ASSYM(KTR_PARM1, offsetof(struct ktr_entry, ktr_parm1));
 ASSYM(KTR_PARM2, offsetof(struct ktr_entry, ktr_parm2));
