@@ -62,7 +62,6 @@ struct bufarea asblk;
 static void badsb __P((int listerr, char *s));
 static int calcsb __P((char *dev, int devfd, struct fs *fs));
 static struct disklabel *getdisklabel __P((char *s, int fd));
-static int readsb __P((int listerr));
 
 /*
  * Read in a superblock finding an alternate if necessary.
@@ -74,8 +73,7 @@ setup(dev)
 	char *dev;
 {
 	long cg, size, asked, i, j;
-	long skipclean, bmapsize;
-	struct disklabel *lp;
+	long bmapsize;
 	off_t sizepb;
 	struct stat statb;
 	struct fs proto;
@@ -83,7 +81,6 @@ setup(dev)
 	havesb = 0;
 	fswritefd = -1;
 	cursnapshot = 0;
-	skipclean = fflag ? 0 : preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
 		if (bkgrdflag) {
@@ -160,18 +157,6 @@ setup(dev)
 	}
 	if (preen == 0)
 		printf("\n");
-	fsmodified = 0;
-	lfdir = 0;
-	initbarea(&sblk);
-	initbarea(&asblk);
-	sblk.b_un.b_buf = malloc(SBSIZE);
-	asblk.b_un.b_buf = malloc(SBSIZE);
-	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
-		errx(EEXIT, "cannot allocate space for superblock");
-	if ((lp = getdisklabel(NULL, fsreadfd)))
-		dev_bsize = secsize = lp->d_secsize;
-	else
-		dev_bsize = secsize = DEV_BSIZE;
 	/*
 	 * Read in the superblock, looking for alternates if necessary
 	 */
@@ -200,7 +185,7 @@ setup(dev)
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
 		bflag = 0;
 	}
-	if (skipclean && sblock.fs_clean) {
+	if (skipclean && preen && sblock.fs_clean) {
 		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
 		return (-1);
 	}
@@ -372,7 +357,7 @@ badsb:
 /*
  * Read in the super block and its summary info.
  */
-static int
+int
 readsb(listerr)
 	int listerr;
 {
@@ -488,6 +473,25 @@ badsb(listerr, s)
 	if (preen)
 		printf("%s: ", cdevname);
 	pfatal("BAD SUPER BLOCK: %s\n", s);
+}
+
+sblock_init()
+{
+	struct disklabel *lp;
+
+	fswritefd = -1;
+	fsmodified = 0;
+	lfdir = 0;
+	initbarea(&sblk);
+	initbarea(&asblk);
+	sblk.b_un.b_buf = malloc(SBSIZE);
+	asblk.b_un.b_buf = malloc(SBSIZE);
+	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
+		errx(EEXIT, "cannot allocate space for superblock");
+	if ((lp = getdisklabel(NULL, fsreadfd)))
+		dev_bsize = secsize = lp->d_secsize;
+	else
+		dev_bsize = secsize = DEV_BSIZE;
 }
 
 /*
