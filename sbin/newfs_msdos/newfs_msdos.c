@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.6 1998/12/07 14:09:17 rnordier Exp $";
+	"$Id: newfs_msdos.c,v 1.7 1999/01/03 02:18:57 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -373,11 +373,12 @@ main(int argc, char *argv[])
     if (bpb.bps < MINBPS)
 	errx(1, "bytes/sector (%u) is too small; minimum is %u",
 	     bpb.bps, MINBPS);
-    if (!(fat = opt_F))
+    if (!(fat = opt_F)) {
 	if (opt_f)
 	    fat = 12;
 	else if (!opt_e && (opt_i || opt_k))
 	    fat = 32;
+    }
     if ((fat == 32 && opt_e) || (fat != 32 && (opt_i || opt_k)))
 	errx(1, "-%c is not a legal FAT%s option",
 	     fat == 32 ? 'e' : opt_i ? 'i' : 'k',
@@ -440,7 +441,7 @@ main(int argc, char *argv[])
     }
     if (!bpb.nft)
 	bpb.nft = 2;
-    if (!fat)
+    if (!fat) {
 	if (bpb.bsec < (bpb.res ? bpb.res : bss) +
 	    howmany((RESFTE + (bpb.spc ? MINCLS16 : MAXCLS12 + 1)) *
 		    ((bpb.spc ? 16 : 12) / BPN), bpb.bps * NPB) *
@@ -459,6 +460,7 @@ main(int argc, char *argv[])
 	    fat = 16;
 	else
 	    fat = 32;
+    }
     x = bss;
     if (fat == 32) {
 	if (!bpb.infs) {
@@ -765,13 +767,14 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
 	    free(s);
 	    errno = e;
 	}
-	if (i == -1)
+	if (i == -1) {
 	    if (!dtype) {
 		warn("ioctl (GDINFO)");
 		errx(1, "%s: can't read disk label; "
 		     "disk type must be specified", fname);
 	    } else if (!(lp = getdiskbyname(dtype)))
 		errx(1, "%s: unknown disk type", dtype);
+	}
 	if (slice == -1 || part != -1) {
 	    if (part == -1)
 		part = RAW_PART;
