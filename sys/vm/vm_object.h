@@ -72,6 +72,8 @@
 #define	_VM_OBJECT_
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
 		OBJT_DEAD };
@@ -88,6 +90,7 @@ typedef u_char objtype_t;
  */
 
 struct vm_object {
+	struct mtx mtx;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	TAILQ_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
@@ -171,8 +174,10 @@ extern vm_object_t kmem_object;
 #endif				/* _KERNEL */
 
 #ifdef _KERNEL
-#define	vm_object_lock(object)		mtx_lock(&Giant)
-#define	vm_object_unlock(object)	mtx_unlock(&Giant)
+#define	vm_object_lock(object) \
+	mtx_lock((object) == kmem_object ? &kmem_object->mtx : &Giant)
+#define	vm_object_unlock(object) \
+	mtx_unlock((object) == kmem_object ? &kmem_object->mtx : &Giant)
 
 void vm_freeze_copyopts(vm_object_t, vm_pindex_t, vm_pindex_t);
 
