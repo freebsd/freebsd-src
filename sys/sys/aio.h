@@ -1,6 +1,3 @@
-#ifndef	_AIO_H_
-#define	_AIO_H_
-
 /*
  * Copyright (c) 1997 John S. Dyson.  All rights reserved.
  *
@@ -16,17 +13,21 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.7 1998/03/28 11:50:34 dufault Exp $
+ * $Id: aio.h,v 1.8 1998/04/12 03:09:43 dyson Exp $
  */
+
+#ifndef _SYS_AIO_H_
+#define	_SYS_AIO_H_
 
 #include <sys/types.h>
 #include <sys/signal.h>
+
 /*
  * Returned by aio_cancel:
  *  (Note that FreeBSD's aio is not cancellable -- yet.)
  */
 #define	AIO_CANCELED		0x1
-#define AIO_NOTCANCELED       0x2
+#define	AIO_NOTCANCELED		0x2
 #define	AIO_ALLDONE		0x3
 
 /*
@@ -79,7 +80,7 @@ struct __aiocb_private {
 typedef struct aiocb {
 	int	aio_fildes;		/* File descriptor */
 	off_t	aio_offset;		/* File offset for I/O */
-      volatile void *aio_buf;         /* I/O buffer in process space */
+	volatile void *aio_buf;         /* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
 	struct	sigevent aio_sigevent;	/* Signal to deliver */
 	int	aio_lio_opcode;		/* LIO opcode */
@@ -88,15 +89,17 @@ typedef struct aiocb {
 } aiocb_t;
 
 #ifndef KERNEL
+
+__BEGIN_DECLS
 /*
  * Asynchronously read from a file
  */
-int aio_read( struct aiocb *iocb);
+int aio_read(struct aiocb *);
 
 /*
  * Asynchronously write to file
  */
-int aio_write( struct aiocb *iocb);
+int aio_write(struct aiocb *);
 
 /*
  * List I/O Asynchronously/synchronously read/write to/from file
@@ -104,15 +107,14 @@ int aio_write( struct aiocb *iocb);
  *	"acb_list" is an array of "nacb_listent" I/O control blocks.
  *	when all I/Os are complete, the optional signal "sig" is sent.
  */
-int lio_listio( int lio_mode, struct aiocb * const acb_list[],
-	       int nacb_listent, struct sigevent *sig);
+int lio_listio(int, struct aiocb * const [], int, struct sigevent *);
 
 /*
  * Get completion status
  *	returns EINPROGRESS until I/O is complete.
  *	this routine does not block.
  */
-int aio_error( const struct aiocb *iocb);
+int aio_error(const struct aiocb *);
 
 /*
  * Finish up I/O, releasing I/O resources and returns the value
@@ -120,28 +122,29 @@ int aio_error( const struct aiocb *iocb);
  *	This routine must be called once and only once for each
  *	I/O control block who has had I/O associated with it.
  */
-ssize_t aio_return( struct aiocb *iocb);
+ssize_t aio_return(struct aiocb *);
 
 /*
  * Cancel I/O -- implemented only to return AIO_NOTCANCELLED or
  *	AIO_ALLDONE.  No cancellation operation will occur.
  */
-int aio_cancel( int fd, struct aiocb *iocb);
+int aio_cancel(int, struct aiocb *);
 
 /*
  * Suspend until all specified I/O or timeout is complete.
  */
-int aio_suspend( const struct aiocb * const acb_list[], int nacb_listent,
-               const struct timespec *tm);
+int aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 
 /*
  * Retrieve the status of the specified I/O request.
  */
-int aio_error( const struct aiocb *aiocbp);
+int aio_error(const struct aiocb *);
+
+__END_DECLS
 
 #else
 
-void	aio_proc_rundown( struct proc *p);
+void	aio_proc_rundown(struct proc *p);
 
 #endif
 
