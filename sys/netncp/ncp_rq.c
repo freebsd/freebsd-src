@@ -149,7 +149,7 @@ ncp_rq_done(struct ncp_rq *rqp)
  */
 
 static int
-ncp_rq_pathstrhelp(struct mbchain *mbp, c_caddr_t src, caddr_t dst, int len)
+ncp_rq_pathstrhelp(struct mbchain *mbp, c_caddr_t src, caddr_t dst, size_t len)
 {
 	ncp_pathcopy(src, dst, len, mbp->mb_udata);
 	return 0;
