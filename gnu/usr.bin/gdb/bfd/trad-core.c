@@ -34,7 +34,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <signal.h>
 
 #include <sys/user.h>		/* After a.out.h  */
