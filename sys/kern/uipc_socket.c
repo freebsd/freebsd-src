@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.20.2.3 1998/01/28 23:32:26 jkh Exp $
+ * $Id: uipc_socket.c,v 1.20.2.4 1998/02/19 20:20:27 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -88,6 +88,7 @@ socreate(dom, aso, type, proto, p)
 	so->so_type = type;
 	if (p->p_ucred->cr_uid == 0)
 		so->so_state = SS_PRIV;
+	so->so_uid = p->p_ucred->cr_uid;
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto);
 	if (error) {
