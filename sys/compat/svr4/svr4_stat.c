@@ -33,6 +33,7 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
@@ -474,13 +475,13 @@ svr4_sys_uname(td, uap)
 {
 	struct svr4_utsname	sut;
 	
-
 	memset(&sut, 0, sizeof(sut));
 
 	strncpy(sut.sysname, ostype, sizeof(sut.sysname));
 	sut.sysname[sizeof(sut.sysname) - 1] = '\0';
 
-	strncpy(sut.nodename, hostname, sizeof(sut.nodename));
+	strncpy(sut.nodename, getcredhostname(td->td_ucred),
+	    sizeof(sut.nodename));
 	sut.nodename[sizeof(sut.nodename) - 1] = '\0';
 
 	strncpy(sut.release, osrelease, sizeof(sut.release));
