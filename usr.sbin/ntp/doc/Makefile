@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	sheldonh
+
 DOCSDIR=	/usr/share/doc/ntp
 
 HTMLS=	accopt.htm assoc.htm authopt.htm biblio.htm build.htm clockopt.htm \
