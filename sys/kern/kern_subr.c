@@ -377,10 +377,8 @@ static void
 uio_yield()
 {
 	struct proc *p;
-	int s;
 
 	p = curproc;
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	p->p_pri.pri_level = p->p_pri.pri_user;
@@ -389,7 +387,6 @@ uio_yield()
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
-	splx(s);
 }
 
 int
