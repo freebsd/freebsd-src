@@ -582,85 +582,83 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 
 	cs_stop( sc );
 
-	if (!ifp->if_name) {
-		ifp->if_softc=sc;
-		ifp->if_unit=unit;
-		ifp->if_name="cs";
-		ifp->if_output=ether_output;
-		ifp->if_start=cs_start;
-		ifp->if_ioctl=cs_ioctl;
-		ifp->if_watchdog=cs_watchdog;
-		ifp->if_init=cs_init;
-		ifp->if_snd.ifq_maxlen= IFQ_MAXLEN;
-		/*
-                 *  MIB DATA
-                 */
-                /*
-		ifp->if_linkmib=&sc->mibdata;
-		ifp->if_linkmiblen=sizeof sc->mibdata;
-                */
+	ifp->if_softc=sc;
+	ifp->if_unit=unit;
+	ifp->if_name="cs";
+	ifp->if_output=ether_output;
+	ifp->if_start=cs_start;
+	ifp->if_ioctl=cs_ioctl;
+	ifp->if_watchdog=cs_watchdog;
+	ifp->if_init=cs_init;
+	ifp->if_snd.ifq_maxlen= IFQ_MAXLEN;
+	/*
+	 *  MIB DATA
+	 */
+	/*
+	ifp->if_linkmib=&sc->mibdata;
+	ifp->if_linkmiblen=sizeof sc->mibdata;
+	*/
 
-		ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST );
+	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST );
 
-		/*
-		 * this code still in progress (DMA support)
-		 *
+	/*
+	 * this code still in progress (DMA support)
+	 *
 
-		sc->recv_ring=malloc(CS_DMA_BUFFER_SIZE<<1, M_DEVBUF, M_NOWAIT);
-		if (sc->recv_ring == NULL) {
-			log(LOG_ERR,CS_NAME
-			"%d: Couldn't allocate memory for NIC\n", unit);
-			return(0);
-		}
-		if ((sc->recv_ring-(sc->recv_ring & 0x1FFFF))
-		    < (128*1024-CS_DMA_BUFFER_SIZE))
-		    sc->recv_ring+=16*1024;
-
-		*/
-
-		sc->buffer=malloc(ETHER_MAX_LEN-ETHER_CRC_LEN,M_DEVBUF,M_NOWAIT);
-		if (sc->buffer == NULL) {
-                        if_printf(ifp, "Couldn't allocate memory for NIC\n");
-                        return(0);
-		}
-
-		/*
-		 * Initialize the media structures.
-		 */
-		ifmedia_init(&sc->media, 0, cs_mediachange, cs_mediastatus);
-
-		if (sc->adapter_cnf & A_CNF_10B_T) {
-			ifmedia_add(&sc->media, IFM_ETHER|IFM_10_T, 0, NULL);
-			if (sc->chip_type != CS8900) {
-				ifmedia_add(&sc->media,
-					IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
-				ifmedia_add(&sc->media,
-					IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-			}
-		} 
-
-		if (sc->adapter_cnf & A_CNF_10B_2)
-			ifmedia_add(&sc->media, IFM_ETHER|IFM_10_2, 0, NULL);
-
-		if (sc->adapter_cnf & A_CNF_AUI)
-			ifmedia_add(&sc->media, IFM_ETHER|IFM_10_5, 0, NULL);
-
-                if (sc->adapter_cnf & A_CNF_MEDIA)
-                        ifmedia_add(&sc->media, IFM_ETHER|IFM_AUTO, 0, NULL);
-
-                /* Set default media from EEPROM */
-                switch (sc->adapter_cnf & A_CNF_MEDIA_TYPE) {
-                case A_CNF_MEDIA_AUTO:  media = IFM_ETHER|IFM_AUTO; break;
-                case A_CNF_MEDIA_10B_T: media = IFM_ETHER|IFM_10_T; break;
-                case A_CNF_MEDIA_10B_2: media = IFM_ETHER|IFM_10_2; break;
-                case A_CNF_MEDIA_AUI:   media = IFM_ETHER|IFM_10_5; break;
-                default: if_printf(ifp, "adapter has no media\n");
-                }
-                ifmedia_set(&sc->media, media);
-		cs_mediaset(sc, media);
-
-		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	sc->recv_ring=malloc(CS_DMA_BUFFER_SIZE<<1, M_DEVBUF, M_NOWAIT);
+	if (sc->recv_ring == NULL) {
+		log(LOG_ERR,CS_NAME
+		"%d: Couldn't allocate memory for NIC\n", unit);
+		return(0);
 	}
+	if ((sc->recv_ring-(sc->recv_ring & 0x1FFFF))
+	    < (128*1024-CS_DMA_BUFFER_SIZE))
+	    sc->recv_ring+=16*1024;
+
+	*/
+
+	sc->buffer=malloc(ETHER_MAX_LEN-ETHER_CRC_LEN,M_DEVBUF,M_NOWAIT);
+	if (sc->buffer == NULL) {
+		if_printf(ifp, "Couldn't allocate memory for NIC\n");
+		return(0);
+	}
+
+	/*
+	 * Initialize the media structures.
+	 */
+	ifmedia_init(&sc->media, 0, cs_mediachange, cs_mediastatus);
+
+	if (sc->adapter_cnf & A_CNF_10B_T) {
+		ifmedia_add(&sc->media, IFM_ETHER|IFM_10_T, 0, NULL);
+		if (sc->chip_type != CS8900) {
+			ifmedia_add(&sc->media,
+				IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+			ifmedia_add(&sc->media,
+				IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		}
+	} 
+
+	if (sc->adapter_cnf & A_CNF_10B_2)
+		ifmedia_add(&sc->media, IFM_ETHER|IFM_10_2, 0, NULL);
+
+	if (sc->adapter_cnf & A_CNF_AUI)
+		ifmedia_add(&sc->media, IFM_ETHER|IFM_10_5, 0, NULL);
+
+	if (sc->adapter_cnf & A_CNF_MEDIA)
+		ifmedia_add(&sc->media, IFM_ETHER|IFM_AUTO, 0, NULL);
+
+	/* Set default media from EEPROM */
+	switch (sc->adapter_cnf & A_CNF_MEDIA_TYPE) {
+	case A_CNF_MEDIA_AUTO:  media = IFM_ETHER|IFM_AUTO; break;
+	case A_CNF_MEDIA_10B_T: media = IFM_ETHER|IFM_10_T; break;
+	case A_CNF_MEDIA_10B_2: media = IFM_ETHER|IFM_10_2; break;
+	case A_CNF_MEDIA_AUI:   media = IFM_ETHER|IFM_10_5; break;
+	default: if_printf(ifp, "adapter has no media\n");
+	}
+	ifmedia_set(&sc->media, media);
+	cs_mediaset(sc, media);
+
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	if (bootverbose)
 		if_printf(ifp, "ethernet address %6D\n",
