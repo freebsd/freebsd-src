@@ -89,7 +89,7 @@ aout_getnfile(const char *filename, char ***defaultEs)
 	    register int j;
 
 	    for (j = 0; j < nname; j++){
-		printf("[getnfile] 0X%08x\t%s\n", nl[j].value, nl[j].name);
+		printf("[getnfile] 0X%08lx\t%s\n", nl[j].value, nl[j].name);
 	    }
 	}
 #   endif DEBUG
@@ -167,7 +167,7 @@ getsymtab(FILE *nfile, const char *filename)
 	npe->name = strtab+nbuf.n_un.n_strx;
 #	ifdef DEBUG
 	    if ( debug & AOUTDEBUG ) {
-		printf( "[getsymtab] %d %s 0x%08x\n" ,
+		printf( "[getsymtab] %d %s 0x%08lx\n" ,
 			nname , npe -> name , npe -> value );
 	    }
 #	endif DEBUG
