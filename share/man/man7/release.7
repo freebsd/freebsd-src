@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2002
+.Dd August 10, 2004
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -48,12 +48,13 @@ This command is aptly named
 Before attempting to build a release, the user is expected to be
 familiar with the contents of
 .Xr build 7 ,
-and should have experience upgrading systems from source with
-.Dq Li "make world" .
+and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" .
+a native
+.Dq Li "make buildworld"
+compiled from sources matching the currently running kernel.
 This is necessary so that the object files for a complete system can
 be installed into a clean
 .Xr chroot 8
@@ -79,25 +80,24 @@ Uses
 .Dq Li "make installworld"
 to install a clean system into a
 .Xr chroot 8
-environment on the filesystem.
+environment on the file system.
 Checks out the specified version of the source code and then rebuilds
 the entire system in the clean environment with
-.Dq Li "make world" .
+.Dq Li "make buildworld" .
 The detailed steps that follow are then executed to package up the
 different distributions, build the installation floppy disks, build
 release documentation, and so on.
 .Pp
 This target must be built as root with the
 .Va kern.securelevel
-sysctl set to -1
-.Pq "the default".
+sysctl set to \-1 (the default).
 .It Cm rerelease
 Assumes that the output of a release build has been manually modified,
 and performs the minimal number of steps to rebuild the release using
 the intermediate output of the previous
 .Dq Li "make release" .
 .It Cm floppies
-Generate a new set of boot floppies.
+Generate a new set of boot and fixit floppies.
 This will call the
 .Cm release.5 ,
 .Cm release.9 ,
@@ -127,11 +127,10 @@ and
 .Dq krb5
 distributions.
 .It Cm release.4
-.\" XXX: We build more than one kernel.  We build a stripped down
-.\" kernel for the boot media in addition to a full GENERIC kernel.
 Makes and installs the
 .Pa GENERIC
-kernel.
+kernel as well as any other kernels listed in
+.Va KERNELS .
 .It Cm release.5
 Uses
 .Xr crunchgen 1
@@ -158,7 +157,7 @@ Sets up a suitable area to build CD-ROM images in
 .It Cm iso.1
 Builds two ISO images (installation and
 .Dq live
-filesystem) from the CD-ROM release area
+file system) from the CD-ROM release area
 (disabled by default, see
 .Va MAKE_ISOS
 below).
@@ -176,7 +175,15 @@ hardware guide, and installation instructions.
 .El
 .Sh ENVIRONMENT
 Variables that must be specified:
-.Bl -tag -width ".Va RELEASETAG"
+.Bl -tag -width ".Va BUILDNAME"
+.It Va BUILDNAME
+The name of the release to be built.
+This is used to set the
+.Va RELEASE
+value in
+.Pa sys/conf/newvers.sh ,
+which affects the output of
+.Xr uname 1 .
 .It Va CHROOTDIR
 The directory to be used as the
 .Xr chroot 8
@@ -186,32 +193,17 @@ environment for the entire release build.
 .\" XXX: "we don't know how much space you'll need, but make sure you have
 .\" XXX: at least 3 GB to be safe" (I know i'm still hardcoding a number,
 .\" XXX: but at least it looks less like a decree and more like an estimate.
-This filesystem should have at least 2.3 gigabytes of free space on the
+This file system should have at least 2.3 gigabytes of free space on the
 i386 architecture.
-.It Va BUILDNAME
-The name of the release to be built.
-This is used to set the
-.Va RELEASE
-value in
-.Pa sys/conf/newvers.sh ,
-which affects the output of
-.Xr uname 1 .
 .It Va CVSROOT
 The location of the
 .Fx
 CVS repository.
-This path name is referenced to the real system root,
+This path name is in reference to the real system root,
 .Em not
 the root of the
 .Xr chroot 8
 directory tree.
-.It Va RELEASETAG
-The CVS tag corresponding to the release that is to be built.
-If undefined, the release will be built from the
-.Dv HEAD
-of the CVS tree
-(a
-.Dq "-CURRENT snapshot" ) .
 .El
 .Pp
 Optional variables:
@@ -232,6 +224,36 @@ or
 will ask
 .Xr cvs 1
 to check out or update sources as of 00:00:00 GMT, January 1 2002, respectively.
+.It Va DOC_LANG
+The list of languages and encodings the SGML-based documentation
+should be built for.
+If not set, the documentation is built for all available languages.
+.It Va DOCRELEASETAG
+The CVS tag to use when checking out the documentation tree.
+Usually,
+the head of the documentation tree is used by default.
+If
+.Va RELEASETAG
+specifies a release tag,
+then the associated release version is used as the default instead.
+.It Va KERNEL_FLAGS
+The contents of this variable are passed to
+.Xr make 1
+when building kernels during the release build.
+For example, setting this variable to
+.Dq Li "-j 4"
+will instruct
+.Xr make 1
+to execute up to four processes at a time.
+.It Va KERNELS
+Specifies a list of additional kernel configurations to compile and
+install into the
+.Dq bin
+distribution.
+Each kernel is installed into
+.Pa /boot/kernel.<config>
+so that it can be booted from the loader via
+.Dq Li "boot kernel.<config>" .
 .It Va LOCAL_PATCHES
 A patch file against
 .Pa /usr/src
@@ -267,10 +289,10 @@ default label will be
 The name used as part of the ISO file name for the CD-ROM created from
 the disc2 contents, the default will be
 .Dq Li disc2 .
+.It Va NOCDROM
+If defined, the CD-ROM stage directories will not be created.
 .It Va NODOC
-If set to
-.Dq Li YES ,
-the SGML-based documentation from the
+If defined, the SGML-based documentation from the
 .Fx
 Documentation Project will not be built.
 However, the
@@ -279,9 +301,7 @@ distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
 .It Va NOPORTS
-If set to
-.Dq Li YES
-then the Ports Collection will be omitted from the release.
+If defined, the Ports Collection will be omitted from the release.
 .It Va NOPORTREADMES
 If defined, readme files will not be created for each individual port
 in the Ports Collection.
@@ -292,6 +312,14 @@ to run
 from
 .Pa ${CHROOTDIR}/usr/ports ,
 which can be a very time consuming operation.
+.It Va PORTSRELEASETAG
+The CVS tag to use when checking out the ports tree.
+Usually,
+the head of the ports tree is used by default.
+If
+.Va RELEASETAG
+specifies a release tag,
+then the associated release version is used as the default instead.
 .It Va RELEASEDISTFILES
 The directory where the distribution files for ports required by the
 release build can be found.
@@ -302,6 +330,13 @@ If this variable is defined for
 .Dq Li "make rerelease" ,
 the source code will not be updated with
 .Dq Li "cvs update" .
+.It Va RELEASETAG
+The CVS tag corresponding to the release that is to be built.
+If undefined, the release will be built from the
+.Dv HEAD
+of the CVS tree
+(a
+.Dq "-CURRENT snapshot" ) .
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
@@ -318,6 +353,15 @@ For example, cross-building for PC98 machines requires
 .Va TARGET_ARCH Ns = Ns Li i386
 and
 .Va TARGET Ns = Ns Li pc98 .
+.It Va WORLD_FLAGS
+The contents of this variable are passed to
+.Xr make 1
+when building world during the release build.
+For example, setting this variable to
+.Dq Li "-j 4"
+will instruct
+.Xr make 1
+to execute up to four processes at a time.
 .El
 .Sh FILES
 .Bl -tag -compact
@@ -336,16 +380,16 @@ and
 .El
 .Sh EXAMPLES
 The following sequence of commands was used to build the
-.Fx 4.5
+.Fx 4.9
 release:
 .Bd -literal -offset indent
 cd /usr
-cvs co -rRELENG_4_5_0_RELEASE src
+cvs co -rRELENG_4_9_0_RELEASE src
 cd src
 make buildworld
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=4.5-RELEASE \\
-  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_5_0_RELEASE
+make release CHROOTDIR=/local3/release BUILDNAME=4.9-RELEASE \\
+  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_9_0_RELEASE
 .Ed
 .Pp
 After running these commands, a complete system suitable for FTP or
@@ -400,7 +444,7 @@ used a manual checklist, compiled by
 .An Rod Grimes ,
 to produce a release.
 Apart from being incomplete, the list put a lot of specific demands on
-available filesystems and was quite torturous to execute.
+available file systems and was quite torturous to execute.
 .Pp
 As part of the
 .Fx 2.0
@@ -427,12 +471,13 @@ and
 This manual page was written by
 .An Murray Stokely Aq murray@FreeBSD.org .
 .Sh BUGS
-Infrastructure changes are occassionally made to the FreeBSD
+Infrastructure changes are occasionally made to the
+.Fx
 documentation set in such a way that release builds on security
 branches can fail.
 To work around this, release builds can be made to checkout the
-documentation from the last fully supported release of FreeBSD.
+documentation from the last fully supported release of
+.Fx .
 For example:
-.Bd -literal -offset indent
-make release RELEASETAG=RELENG_4_5 DOCRELEASETAG=RELEASE_4_5_0 ...
-.Ed
+.Pp
+.Dl "make release RELEASETAG=RELENG_4_9 DOCRELEASETAG=RELEASE_4_9_0 ..."
