@@ -135,8 +135,12 @@
 (define_attr "neg_pool_range" "" (const_int 0))
 
 ; An assembler sequence may clobber the condition codes without us knowing.
+; If such an insn references the pool, then we have no way of knowing how,
+; so use the most conservative value for pool_range.
 (define_asm_attributes
- [(set_attr "conds" "clob")])
+ [(set_attr "conds" "clob")
+  (set_attr "length" "4")
+  (set_attr "pool_range" "250")])
 
 ; TYPE attribute is used to detect floating point instructions which, if
 ; running on a co-processor can run in parallel with other, basic instructions
@@ -3959,7 +3963,7 @@
   [(set_attr "length" "8")
    (set_attr "type" "*,load,store2")
    (set_attr "pool_range" "*,1020,*")
-   (set_attr "neg_pool_range" "*,1012,*")]
+   (set_attr "neg_pool_range" "*,1008,*")]
 )
 
 ;;; ??? This should have alternatives for constants.
@@ -4130,27 +4134,6 @@
     operands[1] = GEN_INT (val >> i);
     operands[2] = GEN_INT (i);
   }"
-)
-
-(define_expand "movaddr"
-  [(set (match_operand:SI 0 "s_register_operand" "")
-	(match_operand:DI 1 "address_operand" ""))]
-  "TARGET_ARM"
-  ""
-)
-
-(define_insn "*movaddr_insn"
-  [(set (match_operand:SI 0 "s_register_operand" "=r")
-	(match_operand:DI 1 "address_operand" "p"))]
-  "TARGET_ARM
-   && reload_completed
-   && (GET_CODE (operands[1]) == LABEL_REF
-       || (GET_CODE (operands[1]) == CONST
-	   && GET_CODE (XEXP (operands[1], 0)) == PLUS
-	   && GET_CODE (XEXP (XEXP (operands[1], 0), 0)) == LABEL_REF
-	   && GET_CODE (XEXP (XEXP (operands[1], 0), 1)) == CONST_INT))"
-  "adr%?\\t%0, %a1"
-  [(set_attr "predicable" "yes")]
 )
 
 ;; When generating pic, we need to load the symbol offset into a register.
@@ -5110,8 +5093,8 @@
    (set_attr "predicable" "yes")
    (set_attr "type"
     "load,store2,*,store2,load,ffarith,ffarith,f_load,f_store,r_mem_f,f_mem_r")
-   (set_attr "pool_range" "*,*,*,*,252,*,*,1024,*,*,*")
-   (set_attr "neg_pool_range" "*,*,*,*,244,*,*,1012,*,*,*")]
+   (set_attr "pool_range" "*,*,*,*,1020,*,*,1024,*,*,*")
+   (set_attr "neg_pool_range" "*,*,*,*,1008,*,*,1008,*,*,*")]
 )
 
 ;; Software floating point version.  This is essentially the same as movdi.
@@ -5126,8 +5109,8 @@
   "* return output_move_double (operands);"
   [(set_attr "length" "8,8,8")
    (set_attr "type" "*,load,store2")
-   (set_attr "pool_range" "252")
-   (set_attr "neg_pool_range" "244")]
+   (set_attr "pool_range" "1020")
+   (set_attr "neg_pool_range" "1008")]
 )
 
 ;;; ??? This should have alternatives for constants.
@@ -5201,7 +5184,7 @@
    (set_attr "predicable" "yes")
    (set_attr "type" "ffarith,ffarith,f_load,f_store,r_mem_f,f_mem_r,*")
    (set_attr "pool_range" "*,*,1024,*,*,*,*")
-   (set_attr "neg_pool_range" "*,*,1012,*,*,*,*")]
+   (set_attr "neg_pool_range" "*,*,1004,*,*,*,*")]
 )
 
 
@@ -6655,7 +6638,8 @@
    (use (match_operand 2 "" ""))
    (clobber (reg:SI LR_REGNUM))]
   "TARGET_THUMB
-   && operands[2] == const0_rtx && (GET_CODE (operands[0]) == SYMBOL_REF)"
+   && GET_CODE (operands[0]) == SYMBOL_REF
+   && !arm_is_longcall_p (operands[0], INTVAL (operands[2]), 1)"
   "bl\\t%a0"
   [(set_attr "length" "4")
    (set_attr "type" "call")]
@@ -6668,7 +6652,8 @@
    (use (match_operand 3 "" ""))
    (clobber (reg:SI LR_REGNUM))]
   "TARGET_THUMB
-   && operands[3] == const0_rtx && (GET_CODE (operands[1]) == SYMBOL_REF)"
+   && GET_CODE (operands[1]) == SYMBOL_REF
+   && !arm_is_longcall_p (operands[1], INTVAL (operands[3]), 1)"
   "bl\\t%a1"
   [(set_attr "length" "4")
    (set_attr "type" "call")]
@@ -8297,6 +8282,7 @@
   "TARGET_ARM
    && !BYTES_BIG_ENDIAN
    && !TARGET_MMU_TRAPS
+   && !arm_arch4
    && REGNO (operands[0]) != FRAME_POINTER_REGNUM
    && REGNO (operands[1]) != FRAME_POINTER_REGNUM
    && (GET_CODE (operands[2]) != REG
@@ -8315,6 +8301,7 @@
   "TARGET_ARM
    && !BYTES_BIG_ENDIAN
    && !TARGET_MMU_TRAPS
+   && !arm_arch4
    && REGNO (operands[0]) != FRAME_POINTER_REGNUM
    && REGNO (operands[1]) != FRAME_POINTER_REGNUM
    && (GET_CODE (operands[2]) != REG
@@ -8479,6 +8466,7 @@
   "TARGET_ARM
    && !BYTES_BIG_ENDIAN
    && !TARGET_MMU_TRAPS
+   && !arm_arch4
    && REGNO (operands[0]) != FRAME_POINTER_REGNUM
    && REGNO (operands[1]) != FRAME_POINTER_REGNUM
    && REGNO (operands[3]) != FRAME_POINTER_REGNUM"
@@ -8499,6 +8487,7 @@
   "TARGET_ARM
    && !BYTES_BIG_ENDIAN
    && !TARGET_MMU_TRAPS
+   && !arm_arch4
    && REGNO (operands[0]) != FRAME_POINTER_REGNUM
    && REGNO (operands[1]) != FRAME_POINTER_REGNUM
    && REGNO (operands[3]) != FRAME_POINTER_REGNUM"
@@ -8562,6 +8551,7 @@
   "TARGET_ARM
    && !BYTES_BIG_ENDIAN
    && !TARGET_MMU_TRAPS
+   && !arm_arch4
    && REGNO (operands[0]) != REGNO(operands[1])
    && (GET_CODE (operands[2]) != REG
        || REGNO(operands[0]) != REGNO (operands[2]))"
@@ -9136,11 +9126,28 @@
 
 ;; Miscellaneous Thumb patterns
 
-(define_insn "tablejump"
+(define_expand "tablejump"
+  [(parallel [(set (pc) (match_operand:SI 0 "register_operand" "l*r"))
+	      (use (label_ref (match_operand 1 "" "")))])]
+  "TARGET_THUMB"
+  "
+  if (flag_pic)
+    {
+      /* Hopefully, CSE will eliminate this copy.  */
+      rtx reg1 = copy_addr_to_reg (gen_rtx_LABEL_REF (Pmode, operands[1]));
+      rtx reg2 = gen_reg_rtx (SImode);
+
+      emit_insn (gen_addsi3 (reg2, operands[0], reg1));
+      operands[0] = reg2;
+    }
+  "
+)
+
+(define_insn "*thumb_tablejump"
   [(set (pc) (match_operand:SI 0 "register_operand" "l*r"))
    (use (label_ref (match_operand 1 "" "")))]
   "TARGET_THUMB"
-  "mov	pc, %0"
+  "mov\\t%|pc, %0"
   [(set_attr "length" "2")]
 )
 

@@ -59,7 +59,7 @@ extern int current_file_function_operand PARAMS ((rtx, enum machine_mode));
 extern int direct_call_operand PARAMS ((rtx, enum machine_mode));
 extern int local_symbolic_operand PARAMS ((rtx, enum machine_mode));
 extern int small_symbolic_operand PARAMS ((rtx, enum machine_mode));
-extern int some_small_symbolic_mem_operand PARAMS ((rtx, enum machine_mode));
+extern int some_small_symbolic_operand PARAMS ((rtx, enum machine_mode));
 extern int global_symbolic_operand PARAMS ((rtx, enum machine_mode));
 extern int call_operand PARAMS ((rtx, enum machine_mode));
 extern int symbolic_operand PARAMS ((rtx, enum machine_mode));
@@ -90,7 +90,7 @@ extern rtx alpha_legitimize_address PARAMS ((rtx, rtx, enum machine_mode));
 extern rtx alpha_legitimize_reload_address PARAMS ((rtx, enum machine_mode,
 						    int, int, int));
 
-extern rtx split_small_symbolic_mem_operand PARAMS ((rtx));
+extern rtx split_small_symbolic_operand PARAMS ((rtx));
 
 extern void get_aligned_mem PARAMS ((rtx, rtx *, rtx *));
 extern rtx get_unaligned_address PARAMS ((rtx, int));
@@ -163,6 +163,8 @@ extern rtx function_arg PARAMS ((CUMULATIVE_ARGS, enum machine_mode,
 #endif
 extern void alpha_start_function PARAMS ((FILE *, const char *, tree));
 extern void alpha_end_function PARAMS ((FILE *, const char *, tree));
+extern void alpha_output_mi_thunk_osf PARAMS ((FILE *, tree,
+					       HOST_WIDE_INT, tree));
 extern void alpha_encode_section_info PARAMS ((tree));
 #endif /* TREE CODE */
 

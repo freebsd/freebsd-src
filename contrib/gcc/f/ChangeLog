@@ -1,3 +1,103 @@
+2002-04-29  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* invoke.texi: Use @gol at ends of lines inside @gccoptlist.
+	* g77.texi: Update last update date.
+
+2002-04-20  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* root.texi: Remove variable version-g77.
+	* g77.texi: Remove the single use of that variable.
+
+Tue Apr 16 14:55:47 2002  Mark Mitchell  <mark@codesourcery.com>
+
+	* com.c (ffecom_expr_power_integer): Add has_scope argument to
+	call to expand_start_stmt_expr.
+
+Mon Apr 15 10:59:14 2002  Mark Mitchell  <mark@codesourcery.com>
+
+	* g77.texi: Remove Chill reference.
+
+2002-04-14  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Make-lang.in (f/target.o): Depend on diagnostic.h.
+	* target.c: Include diagnostic.h.
+ 	(ffetarget_memcpy_): Call sorry if host and target endians are
+	not matching.
+
+2002-04-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: Deprecate frontend version number;
+	update list of fixed bugs.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* version.c:  Fix misplaced leading blanks on first line.
+
+2002-03-23  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* com.c (ffecom_check_size_overflow_): Add a test
+	so that arrays too large for 32-bit byte-offset
+	addressing get caught.
+	* news.texi: Document the fixing of this problem.
+
+Mon Mar 18 18:43:22 CET 2002  Jan Hubicka  <jh@suse.cz>
+
+	* target.h (FFETARGET_32bit_longs): Undefine for x86-64.
+
+2002-02-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: List Problem Reports fixed in 3.1.
+
+2002-02-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* data.c (ffedata_eval_offset_): Only convert index,
+	low and high bound in data statements to default integer
+	if they are constants.  Use a copy of the data structure.
+
+2002-02-09  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* data.c (ffedata_eval_offset_): Convert non-default integer
+	constants to default integer kind if necessary.
+
+2002-02-09  Toon Moene  <toon@moene.indiv.nlug.nl>
+
+	* invoke.texi: Add a short debugging session
+	as an example to the documentation of -g.
+
+2002-02-06  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR fortran/4730 fortran/5473
+	* com.c (ffecom_expr_): Deal with %VAL constructs.
+	* intrin.c (ffeintrin_check_): Handle 'N' constraints for intrinsics,
+	to indicate "no larger than default kind" integers and logicals.
+	* intrin.def: Use 'N' constraints in table of intrinsics.
+	* intdoc.c: Document this constraint.
+	* intdoc.texi: Regenerated.
+	
+2002-02-04  Philipp Thomas  <pthomas@suse.de>
+
+	* implic.c lex.c stb.c ste.c stu.c: Update copyright dates.
+
+2002-02-04  Philipp Thomas  <pthomas@suse.de>
+
+	* bad.def com.c expr.c implic.c lex.c stb.c ste.c stu.c:
+	Insert comments to mark messages as not being printf style
+	where appropriate.
+
+2002-02-03  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* expr.c (ffeexpr_sym_impdoitem_): Allow other than
+	default INTEGER implied-do loop counts.
+
+2002-02-01  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* bad.def: Remove non-historical reference to version 0.6.
+	* bugs.texi: Ditto.
+	* com.c: Ditto.
+	* ffe.texi: Ditto.
+	* proj.h: Ditto.
+	* g77.texi: Ditto.
+
 2002-01-31  Joseph S. Myers  <jsm28@cam.ac.uk>
 
 	* g77spec.c (lang_specific_driver): Follow GNU Coding Standards

@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler, for SPARC running Solaris 2
-   Copyright 1992, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001 Free Software Foundation, Inc.
+   Copyright 1992, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@netcom.com).
    Additional changes by David V. Henkel-Wallace (gumby@cygnus.com).
 
@@ -23,17 +23,26 @@ Boston, MA 02111-1307, USA.  */
 
 /* Supposedly the same as vanilla sparc svr4, except for the stuff below: */
 
+/* Solaris 2 (at least as of 2.5.1) uses a 32-bit wchar_t.  */
+#undef WCHAR_TYPE
+#define WCHAR_TYPE "long int"
+
+#undef WCHAR_TYPE_SIZE
+#define WCHAR_TYPE_SIZE 32
+
 /* Solaris 2 uses a wint_t different from the default. This is required
    by the SCD 2.4.1, p. 6-83, Figure 6-66.  */
 #undef	WINT_TYPE
 #define	WINT_TYPE "long int"
 
 #undef	WINT_TYPE_SIZE
-#define	WINT_TYPE_SIZE BITS_PER_WORD
+#define	WINT_TYPE_SIZE 32
+
+#define HANDLE_PRAGMA_REDEFINE_EXTNAME 1
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES \
-"-Dsparc -Dsun -Dunix -D__svr4__ -D__SVR4 \
+"-Dsparc -Dsun -Dunix -D__svr4__ -D__SVR4 -D__PRAGMA_REDEFINE_EXTNAME \
 -Asystem=unix -Asystem=svr4"
 
 #undef CPP_SUBTARGET_SPEC
@@ -80,12 +89,12 @@ Boston, MA 02111-1307, USA.  */
 /* However it appears that Solaris 2.0 uses the same reg numbering as
    the old BSD-style system did.  */
 
-#undef DBX_REGISTER_NUMBER
 /* Same as sparc.h */
+#undef DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(REGNO) \
-  (TARGET_FLAT && REGNO == FRAME_POINTER_REGNUM ? 31 : REGNO)
+  (TARGET_FLAT && (REGNO) == HARD_FRAME_POINTER_REGNUM ? 31 : REGNO)
 
-/* We use stabs-in-elf for debugging, because that is what the native
+/* We use stabs-in-elf by default, because that is what the native
    toolchain uses.  */
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
@@ -94,6 +103,9 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_OUTPUT_SKIP
 #define ASM_OUTPUT_SKIP(FILE,SIZE)  \
   fprintf (FILE, "\t.skip %u\n", (SIZE))
+
+#undef  LOCAL_LABEL_PREFIX
+#define LOCAL_LABEL_PREFIX  "."
 
 /* This is how to output a definition of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -150,7 +162,9 @@ Boston, MA 02111-1307, USA.  */
        %{p|pg:-ldl} -lc}}"
 
 #undef  ENDFILE_SPEC
-#define ENDFILE_SPEC "crtend.o%s crtn.o%s"
+#define ENDFILE_SPEC \
+  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
+   crtend.o%s crtn.o%s"
 
 /* This should be the same as in svr4.h, except with -R added.  */
 #undef LINK_SPEC
@@ -227,7 +241,7 @@ Boston, MA 02111-1307, USA.  */
 /* Solaris allows 64 bit out and global registers in 32 bit mode.
    sparc_override_options will disable V8+ if not generating V9 code.  */
 #undef TARGET_DEFAULT
-#define TARGET_DEFAULT (MASK_EPILOGUE + MASK_FPU + MASK_V8PLUS + MASK_LONG_DOUBLE_128)
+#define TARGET_DEFAULT (MASK_FPU + MASK_V8PLUS + MASK_LONG_DOUBLE_128)
 
 /*
  * Attempt to turn on access permissions for the stack.
@@ -243,7 +257,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* This declares mprotect (used in TRANSFER_FROM_TRAMPOLINE) for
    libgcc2.c.  */
-#ifdef L_trampoline
+/* We don't want to include this because sys/mman.h is not present on
+   some non-Solaris configurations that use sol2.h.  */
+#if 0 /* def L_trampoline */
 #include <sys/mman.h>
 #endif
 

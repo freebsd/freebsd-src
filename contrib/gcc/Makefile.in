@@ -356,11 +356,8 @@ LIBGCC = libgcc.a
 INSTALL_LIBGCC = install-libgcc
 
 # Options to use when compiling libgcc2.a.
-# -g1 causes output of debug info only for file-scope entities.
-# we use this here because that should be enough, and also
-# so that -g1 will be tested.
 #
-LIBGCC2_DEBUG_CFLAGS = -g1
+LIBGCC2_DEBUG_CFLAGS = -g
 LIBGCC2_CFLAGS = -O2 $(LIBGCC2_INCLUDES) $(GCC_CFLAGS) $(TARGET_LIBGCC2_CFLAGS) $(LIBGCC2_DEBUG_CFLAGS) $(GTHREAD_FLAGS) -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED @inhibit_libc@
 
 # Additional options to use when compiling libgcc2.a.
@@ -543,7 +540,8 @@ HCONFIG_H = hconfig.h $(build_xm_file_list)
 CONFIG_H = $(GCONFIG_H) insn-constants.h insn-flags.h
 TCONFIG_H = tconfig.h $(xm_file_list)
 TARGET_H = target.h
-TARGET_DEF_H = target-def.h
+HOOKS_H = hooks.h
+TARGET_DEF_H = target-def.h $(HOOKS_H)
 TM_P_H = tm_p.h $(tm_p_file_list) tm-preds.h
 
 MACHMODE_H = machmode.h machmode.def
@@ -718,7 +716,7 @@ OBJS = alias.o bb-reorder.o bitmap.o builtins.o caller-save.o calls.o	\
  df.o diagnostic.o doloop.o dominance.o dwarf2asm.o dwarf2out.o dwarfout.o \
  emit-rtl.o except.o explow.o expmed.o expr.o final.o flow.o 		\
  fold-const.o function.o gcse.o genrtl.o ggc-common.o global.o graph.o	\
- haifa-sched.o hash.o hashtable.o ifcvt.o insn-attrtab.o insn-emit.o	\
+ haifa-sched.o hash.o hashtable.o hooks.o ifcvt.o insn-attrtab.o insn-emit.o \
  insn-extract.o insn-opinit.o insn-output.o insn-peep.o insn-recog.o	\
  integrate.o intl.o jump.o  langhooks.o lcm.o lists.o local-alloc.o 	\
  loop.o mbchar.o optabs.o params.o predict.o print-rtl.o print-tree.o	\
@@ -1001,8 +999,10 @@ libgcc.mk: config.status Makefile mklibgcc $(LIB2ADD) $(LIB2ADD_ST) xgcc$(exeext
 	SHLIB_EXT='$(SHLIB_EXT)' \
 	SHLIB_MULTILIB='$(SHLIB_MULTILIB)' \
 	SHLIB_MKMAP='$(SHLIB_MKMAP)' \
+	SHLIB_MKMAP_OPTS='$(SHLIB_MKMAP_OPTS)' \
 	SHLIB_MAPFILES='$(SHLIB_MAPFILES)' \
 	SHLIB_NM_FLAGS='$(SHLIB_NM_FLAGS)' \
+	SHLIB_SLIBDIR_SUFFIXES='$(SHLIB_SLIBDIR_SUFFIXES)' \
 	mkinstalldirs='$(SHELL) $(srcdir)/mkinstalldirs' \
 	  $(SHELL) mklibgcc > tmp-libgcc.mk
 	mv tmp-libgcc.mk libgcc.mk
@@ -1036,14 +1036,18 @@ libgcc.a: $(LIBGCC_DEPS)
 # switches.
 multilib.h: s-mlib; @true
 s-mlib: $(srcdir)/genmultilib Makefile
-	$(SHELL) $(srcdir)/genmultilib \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_OPTIONS)`" \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_DIRNAMES)`" \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_MATCHES)`" \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_EXCEPTIONS)`" \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_EXTRA_OPTS)`" \
-	  "`test @enable_multilib@ != yes || echo $(MULTILIB_EXCLUSIONS)`" \
-		> tmp-mlib.h
+	if test @enable_multilib@ = yes; then \
+	  $(SHELL) $(srcdir)/genmultilib \
+	    "$(MULTILIB_OPTIONS)" \
+	    "$(MULTILIB_DIRNAMES)" \
+	    "$(MULTILIB_MATCHES)" \
+	    "$(MULTILIB_EXCEPTIONS)" \
+	    "$(MULTILIB_EXTRA_OPTS)" \
+	    "$(MULTILIB_EXCLUSIONS)" \
+	    > tmp-mlib.h; \
+	else \
+	  $(SHELL) $(srcdir)/genmultilib '' '' '' '' '' '' > tmp-mlib.h; \
+	fi
 	$(SHELL) $(srcdir)/move-if-change tmp-mlib.h multilib.h
 	$(STAMP) s-mlib
 
@@ -1146,7 +1150,7 @@ $(srcdir)/c-parse.y: c-parse.in
 
 c-decl.o : c-decl.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(RTL_H) $(C_TREE_H) \
     $(GGC_H) $(TARGET_H) c-lex.h flags.h function.h output.h $(EXPR_H) \
-    debug.h toplev.h intl.h $(TM_P_H) tree-inline.h $(TIMEVAR_H)
+    debug.h toplev.h intl.h $(TM_P_H) tree-inline.h $(TIMEVAR_H) c-pragma.h
 c-typeck.o : c-typeck.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(C_TREE_H) \
     $(TARGET_H) flags.h intl.h output.h $(EXPR_H) $(RTL_H) toplev.h $(TM_P_H)
 c-lang.o : c-lang.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(C_TREE_H) \
@@ -1163,7 +1167,7 @@ c-aux-info.o : c-aux-info.c  $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(C_TREE_H) \
     flags.h toplev.h
 c-convert.o : c-convert.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) flags.h toplev.h
 c-pragma.o: c-pragma.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) function.h \
-    c-pragma.h toplev.h output.h $(GGC_H) $(TM_P_H)
+    c-pragma.h toplev.h output.h $(GGC_H) $(TM_P_H) $(C_COMMON_H)
 mbchar.o: mbchar.c $(CONFIG_H) $(SYSTEM_H) mbchar.h
 graph.o: graph.c $(CONFIG_H) $(SYSTEM_H) toplev.h flags.h output.h $(RTL_H) \
     function.h hard-reg-set.h $(BASIC_BLOCK_H) graph.h
@@ -1322,7 +1326,8 @@ prefix.o: prefix.c $(CONFIG_H) $(SYSTEM_H) Makefile prefix.h
 convert.o: convert.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) flags.h convert.h toplev.h
 
 langhooks.o : langhooks.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) toplev.h \
-   tree-inline.h $(RTL_H) insn-config.h integrate.h langhooks.h langhooks-def.h
+   tree-inline.h $(RTL_H) insn-config.h integrate.h langhooks.h \
+   langhooks-def.h flags.h
 tree.o : tree.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) flags.h function.h toplev.h \
    $(GGC_H) $(HASHTAB_H) $(TARGET_H) output.h $(TM_P_H) langhooks.h
 tree-dump.o: tree-dump.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(C_TREE_H) \
@@ -1335,7 +1340,7 @@ tree-inline.o : tree-inline.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(RTL_H) \
 print-tree.o : print-tree.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(GGC_H) \
    langhooks.h
 stor-layout.o : stor-layout.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) flags.h \
-   function.h $(EXPR_H) $(RTL_H) toplev.h $(GGC_H) $(TM_P_H)
+   function.h $(EXPR_H) $(RTL_H) toplev.h $(GGC_H) $(TM_P_H) $(TARGET_H)
 fold-const.o : fold-const.c $(CONFIG_H) $(SYSTEM_H) $(TREE_H) flags.h \
    toplev.h $(HASHTAB_H) $(EXPR_H) $(RTL_H) $(GGC_H) $(TM_P_H)
 diagnostic.o : diagnostic.c diagnostic.h real.h diagnostic.def \
@@ -1445,7 +1450,7 @@ cse.o : cse.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(REGS_H) hard-reg-set.h flags.h 
    $(BASIC_BLOCK_H) $(GGC_H) $(TM_P_H)
 gcse.o : gcse.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(REGS_H) hard-reg-set.h \
    flags.h real.h insn-config.h ggc.h $(RECOG_H) $(EXPR_H) $(BASIC_BLOCK_H) \
-   function.h output.h toplev.h $(TM_P_H) $(PARAMS_H)
+   function.h output.h toplev.h $(TM_P_H) $(PARAMS_H) except.h
 sibcall.o : sibcall.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(REGS_H) function.h \
    hard-reg-set.h flags.h insn-config.h $(RECOG_H) $(BASIC_BLOCK_H)
 resource.o : resource.c $(CONFIG_H) $(RTL_H) hard-reg-set.h $(SYSTEM_H) \
@@ -1488,14 +1493,14 @@ cfg.o : cfg.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) flags.h insn-config.h \
 cfgrtl.o : cfgrtl.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) flags.h insn-config.h \
    $(BASIC_BLOCK_H) $(REGS_H) hard-reg-set.h output.h toplev.h $(RECOG_H) \
    function.h except.h $(GGC_H) $(TM_P_H)
-cfganal.o : cfganal.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) \
-   $(BASIC_BLOCK_H) hard-reg-set.h $(GGC_H)
+cfganal.o : cfganal.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(BASIC_BLOCK_H) \
+   hard-reg-set.h insn-config.h $(RECOG_H) $(GGC_H) $(TM_P_H)
 cfgbuild.o : cfgbuild.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) flags.h insn-config.h \
    $(BASIC_BLOCK_H) $(REGS_H) hard-reg-set.h output.h toplev.h $(RECOG_H) \
    function.h except.h $(GGC_H) 
 cfgcleanup.o : cfgcleanup.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TIMEVAR_H)\
    $(BASIC_BLOCK_H) hard-reg-set.h output.h flags.h $(RECOG_H) toplev.h \
-   $(GGC_H) insn-config.h cselib.h $(TM_P_H)
+   $(GGC_H) insn-config.h cselib.h $(TARGET_H) $(TM_P_H)
 cfgloop.o : cfgloop.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) \
    $(BASIC_BLOCK_H) hard-reg-set.h
 dominance.o : dominance.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) hard-reg-set.h \
@@ -1523,7 +1528,7 @@ reload.o : reload.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) flags.h output.h \
 reload1.o : reload1.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) real.h flags.h \
    $(EXPR_H) $(OPTABS_H) reload.h $(REGS_H) hard-reg-set.h insn-config.h \
    $(BASIC_BLOCK_H) $(RECOG_H) output.h function.h toplev.h cselib.h $(TM_P_H) \
-   except.h
+   except.h $(TREE_H)
 caller-save.o : caller-save.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) flags.h \
    $(REGS_H) hard-reg-set.h insn-config.h $(BASIC_BLOCK_H) function.h \
    $(RECOG_H) reload.h $(EXPR_H) toplev.h $(TM_P_H)
@@ -1564,8 +1569,8 @@ predict.o: predict.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) flags.h \
    insn-config.h $(BASIC_BLOCK_H) $(REGS_H) hard-reg-set.h output.h toplev.h \
    $(RECOG_H) function.h except.h $(EXPR_H) $(TM_P_H) $(PREDICT_H)
 lists.o: lists.c $(CONFIG_H) $(SYSTEM_H) toplev.h $(RTL_H) $(GGC_H)
-bb-reorder.o : bb-reorder.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) flags.h \
-   $(BASIC_BLOCK_H) hard-reg-set.h output.h cfglayout.h
+bb-reorder.o : bb-reorder.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) \
+   flags.h $(BASIC_BLOCK_H) hard-reg-set.h output.h cfglayout.h $(TARGET_H)
 cfglayout.o : cfglayout.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) \
    insn-config.h $(BASIC_BLOCK_H) hard-reg-set.h output.h function.h \
    cfglayout.h
@@ -1575,10 +1580,11 @@ regrename.o : regrename.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) insn-config.h \
    resource.h $(OBSTACK_H) flags.h $(TM_P_H)
 ifcvt.o : ifcvt.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(REGS_H) toplev.h \
    flags.h insn-config.h function.h $(RECOG_H) $(BASIC_BLOCK_H) $(EXPR_H) \
-   output.h $(TM_P_H)
+   output.h except.h $(TM_P_H)
 dependence.o : dependence.c $(CONFIG_H) $(SYSTEM_H) $(RTL_H) $(TREE_H) \
    $(C_COMMON_H) flags.h varray.h $(EXPR_H)
 params.o : params.c $(CONFIG_H) $(SYSTEM_H) $(PARAMS_H) toplev.h
+hooks.o: hooks.c $(CONFIG_H) $(SYSTEM_H) $(HOOKS_H)
 
 $(out_object_file): $(out_file) $(CONFIG_H) $(TREE_H) $(GGC_H) \
    $(RTL_H) $(REGS_H) hard-reg-set.h real.h insn-config.h conditions.h \
@@ -2010,7 +2016,7 @@ $(srcdir)/tradcif.c: $(srcdir)/tradcif.y
 
 proto: config.status protoize$(exeext) unprotoize$(exeext) SYSCALLS.c.X
 
-PROTO_OBJS = intl.o version.o
+PROTO_OBJS = intl.o version.o cppdefault.o
 
 protoize$(exeext): protoize.o $(PROTO_OBJS) $(LIBDEPS)
 	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ protoize.o $(PROTO_OBJS) $(LIBS)
@@ -2023,16 +2029,16 @@ protoize.o: protoize.c $(srcdir)/../include/getopt.h $(CONFIG_H) $(SYSTEM_H) \
 	(SHLIB_LINK='$(SHLIB_LINK)' \
 	SHLIB_MULTILIB='$(SHLIB_MULTILIB)'; \
 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
-	  $(DRIVER_DEFINES) $(PREPROCESSOR_DEFINES) \
+	  $(DRIVER_DEFINES) \
 	  $(srcdir)/protoize.c $(OUTPUT_OPTION))
 
-unprotoize.o: unprotoize.c protoize.c $(srcdir)/../include/getopt.h \
+unprotoize.o: protoize.c $(srcdir)/../include/getopt.h \
    $(CONFIG_H) $(SYSTEM_H) Makefile version.h
 	(SHLIB_LINK='$(SHLIB_LINK)' \
 	SHLIB_MULTILIB='$(SHLIB_MULTILIB)'; \
-	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
-	  $(DRIVER_DEFINES) $(PREPROCESSOR_DEFINES) \
-	  $(srcdir)/unprotoize.c $(OUTPUT_OPTION))
+	$(CC) -c -DUNPROTOIZE $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	  $(DRIVER_DEFINES) \
+	  $(srcdir)/protoize.c $(OUTPUT_OPTION))
 
 # This info describes the target machine, so compile with GCC just built.
 SYSCALLS.c.X: $(srcdir)/sys-types.h $(srcdir)/sys-protos.h $(GCC_PASSES) \
@@ -2257,7 +2263,8 @@ docdir = $(srcdir)/doc
 doc: $(BUILD_INFO) $(GENERATED_MANPAGES) gccbug
 info: $(docdir)/cpp.info $(docdir)/gcc.info $(docdir)/gccint.info lang.info $(docdir)/cppinternals.info
 
-$(docdir)/cpp.info: $(docdir)/cpp.texi $(docdir)/include/fdl.texi
+$(docdir)/cpp.info: $(docdir)/cpp.texi $(docdir)/include/fdl.texi \
+  $(docdir)/cppenv.texi $(docdir)/cppopts.texi
 	cd $(srcdir) && $(MAKEINFO) $(MAKEINFOFLAGS) -I doc -I doc/include -o doc/cpp.info doc/cpp.texi
 
 $(docdir)/gcc.info: $(docdir)/gcc.texi $(docdir)/include/gcc-common.texi \
@@ -2268,7 +2275,7 @@ $(docdir)/gcc.info: $(docdir)/gcc.texi $(docdir)/include/gcc-common.texi \
 	 $(docdir)/contribute.texi $(docdir)/vms.texi \
 	 $(docdir)/include/funding.texi $(docdir)/gnu.texi \
 	 $(docdir)/include/gpl.texi $(docdir)/include/fdl.texi \
-	 $(docdir)/contrib.texi
+	 $(docdir)/contrib.texi $(docdir)/cppenv.texi $(docdir)/cppopts.texi
 	cd $(srcdir) && $(MAKEINFO) $(MAKEINFOFLAGS) -I doc -I doc/include -o doc/gcc.info doc/gcc.texi
 
 $(docdir)/gccint.info: $(docdir)/gccint.texi \
@@ -2292,7 +2299,8 @@ $(docdir)/cppinternals.info: $(docdir)/cppinternals.texi
 dvi: gcc.dvi gccint.dvi cpp.dvi lang.dvi cppinternals.dvi
 
 # This works with GNU Make's default rule.
-cpp.dvi: $(docdir)/cpp.texi $(docdir)/include/fdl.texi
+cpp.dvi: $(docdir)/cpp.texi $(docdir)/include/fdl.texi \
+	$(docdir)/cppenv.texi $(docdir)/cppopts.texi
 	$(TEXI2DVI) -I $(docdir) -I $(docdir)/include $(docdir)/cpp.texi
 
 gcc.dvi: $(docdir)/gcc.texi $(docdir)/include/gcc-common.texi \
@@ -2303,7 +2311,7 @@ gcc.dvi: $(docdir)/gcc.texi $(docdir)/include/gcc-common.texi \
 	 $(docdir)/contribute.texi $(docdir)/vms.texi \
 	 $(docdir)/include/funding.texi $(docdir)/gnu.texi \
 	 $(docdir)/include/gpl.texi $(docdir)/include/fdl.texi \
-	 $(docdir)/contrib.texi
+	 $(docdir)/contrib.texi $(docdir)/cppenv.texi $(docdir)/cppopts.texi
 	$(TEXI2DVI) -I $(docdir) -I $(docdir)/include $(docdir)/gcc.texi
 
 gccint.dvi: $(docdir)/gccint.texi \
@@ -2329,23 +2337,25 @@ generated-manpages: $(docdir)/gcov.1 $(docdir)/cpp.1 $(docdir)/gcc.1 \
 
 $(docdir)/gcov.1: $(docdir)/gcov.texi
 	$(STAMP) $(docdir)/gcov.1
-	-$(TEXI2POD) < $(docdir)/gcov.texi > gcov.pod
+	-$(TEXI2POD) $(docdir)/gcov.texi > gcov.pod
 	-($(POD2MAN) --section=1 gcov.pod > $(docdir)/gcov.1.T$$$$ && \
 		mv -f $(docdir)/gcov.1.T$$$$ $(docdir)/gcov.1) || \
 		(rm -f $(docdir)/gcov.1.T$$$$ && exit 1)
 	-rm -f gcov.pod
 
-$(docdir)/cpp.1: $(docdir)/cpp.texi
+$(docdir)/cpp.1: $(docdir)/cpp.texi $(docdir)/cppenv.texi \
+  $(docdir)/cppopts.texi
 	$(STAMP) $(docdir)/cpp.1
-	-$(TEXI2POD) < $(docdir)/cpp.texi > cpp.pod
+	-$(TEXI2POD) $(docdir)/cpp.texi > cpp.pod
 	-($(POD2MAN) --section=1 cpp.pod > $(docdir)/cpp.1.T$$$$ && \
 		mv -f $(docdir)/cpp.1.T$$$$ $(docdir)/cpp.1) || \
 		(rm -f $(docdir)/cpp.1.T$$$$ && exit 1)
 	-rm -f cpp.pod
 
-$(docdir)/gcc.1: $(docdir)/invoke.texi
+$(docdir)/gcc.1: $(docdir)/invoke.texi $(docdir)/cppenv.texi \
+  $(docdir)/cppopts.texi
 	$(STAMP) $(docdir)/gcc.1
-	-$(TEXI2POD) < $(docdir)/invoke.texi > gcc.pod
+	-$(TEXI2POD) $(docdir)/invoke.texi > gcc.pod
 	-($(POD2MAN) --section=1 gcc.pod > $(docdir)/gcc.1.T$$$$ && \
 		mv -f $(docdir)/gcc.1.T$$$$ $(docdir)/gcc.1) || \
 		(rm -f $(docdir)/gcc.1.T$$$$ && exit 1)
@@ -2353,7 +2363,7 @@ $(docdir)/gcc.1: $(docdir)/invoke.texi
 
 $(docdir)/gfdl.7: $(docdir)/include/fdl.texi
 	$(STAMP) $(docdir)/gfdl.7
-	-$(TEXI2POD) < $(docdir)/include/fdl.texi > gfdl.pod
+	-$(TEXI2POD) $(docdir)/include/fdl.texi > gfdl.pod
 	-($(POD2MAN) --section=7 gfdl.pod > $(docdir)/gfdl.7.T$$$$ && \
 		mv -f $(docdir)/gfdl.7.T$$$$ $(docdir)/gfdl.7) || \
 		(rm -f $(docdir)/gfdl.7.T$$$$ && exit 1)
@@ -2361,7 +2371,7 @@ $(docdir)/gfdl.7: $(docdir)/include/fdl.texi
 
 $(docdir)/gpl.7: $(docdir)/include/gpl.texi
 	$(STAMP) $(docdir)/gpl.7
-	-$(TEXI2POD) < $(docdir)/include/gpl.texi > gpl.pod
+	-$(TEXI2POD) $(docdir)/include/gpl.texi > gpl.pod
 	-($(POD2MAN) --section=7 gpl.pod > $(docdir)/gpl.7.T$$$$ && \
 		mv -f $(docdir)/gpl.7.T$$$$ $(docdir)/gpl.7) || \
 		(rm -f $(docdir)/gpl.7.T$$$$ && exit 1)
@@ -2369,7 +2379,7 @@ $(docdir)/gpl.7: $(docdir)/include/gpl.texi
 
 $(docdir)/fsf-funding.7: $(docdir)/include/funding.texi
 	$(STAMP) $(docdir)/fsf-funding.7
-	-$(TEXI2POD) < $(docdir)/include/funding.texi > fsf-funding.pod
+	-$(TEXI2POD) $(docdir)/include/funding.texi > fsf-funding.pod
 	-($(POD2MAN) --section=7 fsf-funding.pod \
 		> $(docdir)/fsf-funding.7.T$$$$ && \
 	    mv -f $(docdir)/fsf-funding.7.T$$$$ $(docdir)/fsf-funding.7) || \
@@ -2467,7 +2477,7 @@ distclean: clean $(INTL_DISTCLEAN) lang.distclean
 	-rm -f testsuite/{gcc,g++}.{log,sum}
 	-rm -f intl/libintl.h libintl.h
 	-rm -f cxxmain.c
-	-rm -f mklibgcc libgcc.map gccbug .gdbinit configargs.h
+	-rm -f mklibgcc gccbug .gdbinit configargs.h
 	-rm -f gcov.pod
 	-rm -f fixinc/Makefile
 	-rmdir ada cp f java objc fixinc intl po 2>/dev/null
@@ -2871,11 +2881,16 @@ site.exp: ./config.status Makefile
 		-e '1,/^## All variables above are.*##/ d' >> site.exp
 	-@rm -f ./tmp?
 
-CHECK_TARGETS = check-gcc @check_languages@
+CHECK_TARGETS = check-gcc check-fixinc @check_languages@
 
 check-c++ : check-g++
 check-f77 : check-g77
 check-java :
+
+check-fixinc :
+	if (autogen --ver=v) > /dev/null 2>&1 ; \
+	then cd fixinc && $(MAKE) check ; \
+	else true ; fi
 
 check: $(CHECK_TARGETS)
 

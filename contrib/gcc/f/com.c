@@ -1,5 +1,5 @@
 /* com.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
@@ -2262,8 +2262,13 @@ ffecom_check_size_overflow_ (ffesymbol s, tree type, bool dummy)
   if (TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST)
     return type;
 
+  /* An array is too large if size is negative or the type_size overflows
+     or its "upper half" is larger than 3 (which would make the signed
+     byte size and offset computations overflow).  */
+
   if ((tree_int_cst_sgn (TYPE_SIZE (type)) < 0)
-      || (!dummy && TREE_OVERFLOW (TYPE_SIZE (type))))
+      || (!dummy && (TREE_INT_CST_HIGH (TYPE_SIZE (type)) > 3
+	             || TREE_OVERFLOW (TYPE_SIZE (type)))))
     {
       ffebad_start (FFEBAD_ARRAY_LARGE);
       ffebad_string (ffesymbol_text (s));
@@ -3113,6 +3118,7 @@ ffecom_expr_ (ffebld expr, tree dest_tree, ffebld dest,
 
 	      if (ffesymbol_hook (s).assign_tree == NULL_TREE)
 		{
+		  /* xgettext:no-c-format */
 		  ffebad_start_msg ("ASSIGN'ed label cannot fit into `%A' at %0 -- using wider sibling",
 				    FFEBAD_severityWARNING);
 		  ffebad_string (ffesymbol_text (s));
@@ -3727,6 +3733,10 @@ ffecom_expr_ (ffebld expr, tree dest_tree, ffebld dest,
 
     case FFEBLD_opPERCENT_LOC:
       item = ffecom_arg_ptr_to_expr (ffebld_left (expr), &list);
+      return convert (tree_type, item);
+
+    case FFEBLD_opPERCENT_VAL:
+      item = ffecom_arg_expr (ffebld_left (expr), &list);
       return convert (tree_type, item);
 
     case FFEBLD_opITEM:
@@ -5585,7 +5595,7 @@ ffecom_expr_power_integer_ (ffebld expr)
     basetypeof_l_is_int
       = build_int_2 ((TREE_CODE (ltype) == INTEGER_TYPE), 0);
 
-    se = expand_start_stmt_expr ();
+    se = expand_start_stmt_expr (/*has_scope=*/1);
 
     ffecom_start_compstmt ();
 
@@ -11823,8 +11833,7 @@ ffecom_init_0 ()
       warning ("and pointers are %d bits wide, but g77 doesn't yet work",
 	  (int) TREE_INT_CST_LOW (TYPE_SIZE (TREE_TYPE (null_pointer_node))));
       warning ("properly unless they all are 32 bits wide");
-      warning ("Please keep this in mind before you report bugs.  g77 should");
-      warning ("support non-32-bit machines better as of version 0.6");
+      warning ("Please keep this in mind before you report bugs.");
     }
 #endif
 
@@ -15373,6 +15382,7 @@ print_containing_files (ffebadSeverity sev)
 	else
 	  str2 = "";
 
+	/* xgettext:no-c-format */
 	ffebad_start_msg ("%A from %B at %0%C", sev);
 	ffebad_here (0, ip->line, ip->column);
 	ffebad_string (str1);
@@ -15692,6 +15702,7 @@ ffecom_open_include_ (char *name, ffewhereLine l, ffewhereColumn c)
 	  if (f == NULL && errno == EACCES)
 	    {
 	      print_containing_files (FFEBAD_severityWARNING);
+	      /* xgettext:no-c-format */
 	      ffebad_start_msg ("At %0, INCLUDE file %A exists, but is not readable",
 				FFEBAD_severityWARNING);
 	      ffebad_string (fname);
@@ -15726,6 +15737,7 @@ ffecom_open_include_ (char *name, ffewhereLine l, ffewhereColumn c)
   if (indepth >= (INPUT_STACK_MAX - 1))
     {
       print_containing_files (FFEBAD_severityFATAL);
+      /* xgettext:no-c-format */
       ffebad_start_msg ("At %0, INCLUDE nesting too deep",
 			FFEBAD_severityFATAL);
       ffebad_string (fname);

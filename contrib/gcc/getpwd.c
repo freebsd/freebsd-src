@@ -1,23 +1,60 @@
 /* getpwd.c - get the working directory */
 
+/*
+
+@deftypefn Supplemental char* getpwd (void)
+
+Returns the current working directory.  This implementation caches the
+result on the assumption that the process will not call @code{chdir}
+between calls to @code{getpwd}.
+
+@end deftypefn
+
+*/
+
+#ifdef HAVE_CONFIG_H
 #include "config.h"
-#include "system.h"
+#endif
+
+#include <sys/types.h>
+
+#include <errno.h>
+#ifndef errno
+extern int errno;
+#endif
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#if HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
+/* Prototype these in case the system headers don't provide them. */
+extern char *getpwd ();
+extern char *getwd ();
+
+#include "libiberty.h"
 
 /* Virtually every UN*X system now in common use (except for pre-4.3-tahoe
    BSD systems) now provides getcwd as called for by POSIX.  Allow for
    the few exceptions to the general rule here.  */
 
-#if !(defined (POSIX) || defined (USG) || defined (VMS)) || defined (HAVE_GETWD)
+#if !defined(HAVE_GETCWD) && defined(HAVE_GETWD)
 #define getcwd(buf,len) getwd(buf)
+#endif
+
 #ifdef MAXPATHLEN
 #define GUESSPATHLEN (MAXPATHLEN + 1)
 #else
 #define GUESSPATHLEN 100
 #endif
-#else /* (defined (USG) || defined (VMS)) */
-/* We actually use this as a starting point, not a limit.  */
-#define GUESSPATHLEN 100
-#endif /* (defined (USG) || defined (VMS)) */
 
 #if !(defined (VMS) || (defined(_WIN32) && !defined(__CYGWIN__)))
 

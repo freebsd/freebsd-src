@@ -1,5 +1,5 @@
 /* Definitions for Sun Sparc64 running FreeBSD using the ELF format
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
 This file is part of GNU CC.
@@ -26,8 +26,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef  CPP_PREDEFINES
 #define CPP_PREDEFINES FBSD_CPP_PREDEFINES
 
-#define LINK_SPEC "-m elf64_sparc %(link_arch)				\
-  %{!mno-relax:%{!r:-relax}						\
+#define LINK_SPEC "%(link_arch)						\
+  %{!mno-relax:%{!r:-relax}}						\
   %{p:%e`-p' not supported; use `-pg' and gprof(1)}			\
   %{Wl,*:%*}								\
   %{assert*} %{R*} %{rpath*} %{defsym*}					\
@@ -91,22 +91,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef  TARGET_DEFAULT
 #define TARGET_DEFAULT \
-  (MASK_V9 + MASK_64BIT + MASK_PTR64 + MASK_VIS + MASK_FASTER_STRUCTS \
-   + MASK_STACK_BIAS + MASK_APP_REGS /* + MASK_EPILOGUE */ + MASK_FPU \
+  (MASK_V9 + MASK_64BIT + MASK_PTR64 /* + MASK_FASTER_STRUCTS */ \
+   + MASK_STACK_BIAS + MASK_APP_REGS + MASK_FPU \
    + MASK_LONG_DOUBLE_128 /* + MASK_HARD_QUAD */)
 
 /* The default code model.  */
 #undef  SPARC_DEFAULT_CMODEL
-#define SPARC_DEFAULT_CMODEL	CM_MEDMID
+#define SPARC_DEFAULT_CMODEL	CM_MEDLOW
 
 
 /************************[  Assembler stuff  ]********************************/
 
-/* XXX */
-#if 0
-#undef  ASM_CPU_DEFAULT_SPEC
-#define ASM_CPU_DEFAULT_SPEC "-Av9a"
-#endif
+#undef	LOCAL_LABEL_PREFIX
+#define LOCAL_LABEL_PREFIX  "."
 
 /* XXX2 */
 /* This is how to output a definition of an internal numbered label where
@@ -151,3 +148,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    RELATIVE relocations.  */
 
 /* #define DWARF_OFFSET_SIZE PTR_SIZE */
+
+#undef ENDFILE_SPEC
+#define ENDFILE_SPEC \
+  	"%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s}" \
+	FBSD_ENDFILE_SPEC
+
+/* We use GNU ld so undefine this so that attribute((init_priority)) works.  */
+#undef CTORS_SECTION_ASM_OP
+#undef DTORS_SECTION_ASM_OP

@@ -59,6 +59,9 @@ int
 c_disregard_inline_limits (fn)
      tree fn;
 {
+  if (lookup_attribute ("always_inline", DECL_ATTRIBUTES (fn)) != NULL)
+    return 1;
+
   return DECL_DECLARED_INLINE_P (fn) && DECL_EXTERNAL (fn);
 }
 
@@ -141,6 +144,10 @@ c_cannot_inline_tree_fn (fnp)
 {
   tree fn = *fnp;
   tree t;
+
+  if (flag_really_no_inline
+      && lookup_attribute ("always_inline", DECL_ATTRIBUTES (fn)) == NULL)
+    return 1;
 
   if (! function_attribute_inlinable_p (fn))
     {
@@ -317,7 +324,7 @@ finish_cdtor (body)
 
   RECHAIN_STMTS (body, COMPOUND_BODY (body));
 
-  finish_function (0);
+  finish_function (0, 0);
 }
 
 /* Called at end of parsing, but before end-of-file processing.  */

@@ -753,6 +753,7 @@ find_single_use_1 (dest, loc)
     case LABEL_REF:
     case SYMBOL_REF:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case CLOBBER:
       return 0;
 
@@ -1967,7 +1968,9 @@ offsettable_address_p (strictp, mode, y)
      of the specified mode.  We assume that if Y and Y+c are
      valid addresses then so is Y+d for all 0<d<c.  adjust_address will
      go inside a LO_SUM here, so we do so as well.  */
-  if (GET_CODE (y) == LO_SUM)
+  if (GET_CODE (y) == LO_SUM
+      && mode != BLKmode
+      && mode_sz <= GET_MODE_ALIGNMENT (mode) / BITS_PER_UNIT)
     z = gen_rtx_LO_SUM (GET_MODE (y), XEXP (y, 0),
 			plus_constant (XEXP (y, 1), mode_sz - 1));
   else
@@ -3018,8 +3021,10 @@ peephole2_optimize (dump_file)
   int i, b;
 #ifdef HAVE_conditional_execution
   sbitmap blocks;
-  int changed;
+  bool changed;
 #endif
+  bool do_cleanup_cfg = false;
+  bool do_rebuild_jump_labels = false;
 
   /* Initialize the regsets we're going to use.  */
   for (i = 0; i < MAX_INSNS_PER_PEEP2 + 1; ++i)
@@ -3029,7 +3034,7 @@ peephole2_optimize (dump_file)
 #ifdef HAVE_conditional_execution
   blocks = sbitmap_alloc (n_basic_blocks);
   sbitmap_zero (blocks);
-  changed = 0;
+  changed = false;
 #else
   count_or_remove_death_notes (NULL, 1);
 #endif
@@ -3062,8 +3067,9 @@ peephole2_optimize (dump_file)
 	  prev = PREV_INSN (insn);
 	  if (INSN_P (insn))
 	    {
-	      rtx try;
+	      rtx try, before_try, x;
 	      int match_len;
+	      rtx note;
 
 	      /* Record this insn.  */
 	      if (--peep2_current < 0)
@@ -3115,7 +3121,6 @@ peephole2_optimize (dump_file)
 			   note = XEXP (note, 1))
 			switch (REG_NOTE_KIND (note))
 			  {
-			  case REG_EH_REGION:
 			  case REG_NORETURN:
 			  case REG_SETJMP:
 			  case REG_ALWAYS_RETURN:
@@ -3145,9 +3150,65 @@ peephole2_optimize (dump_file)
 		  if (i >= MAX_INSNS_PER_PEEP2 + 1)
 		    i -= MAX_INSNS_PER_PEEP2 + 1;
 
+		  note = find_reg_note (peep2_insn_data[i].insn, 
+					REG_EH_REGION, NULL_RTX);
+
 		  /* Replace the old sequence with the new.  */
 		  try = emit_insn_after (try, peep2_insn_data[i].insn);
+		  before_try = PREV_INSN (insn);
 		  delete_insn_chain (insn, peep2_insn_data[i].insn);
+
+		  /* Re-insert the EH_REGION notes.  */
+		  if (note)
+		    {
+		      edge eh_edge;
+
+		      for (eh_edge = bb->succ; eh_edge
+			   ; eh_edge = eh_edge->succ_next)
+			if (eh_edge->flags & EDGE_EH)
+			  break;
+
+		      for (x = try ; x != before_try ; x = PREV_INSN (x))
+			if (GET_CODE (x) == CALL_INSN
+			    || (flag_non_call_exceptions
+				&& may_trap_p (PATTERN (x))
+				&& !find_reg_note (x, REG_EH_REGION, NULL)))
+			  {
+			    REG_NOTES (x)
+			      = gen_rtx_EXPR_LIST (REG_EH_REGION,
+						   XEXP (note, 0),
+						   REG_NOTES (x));
+
+			    if (x != bb->end && eh_edge)
+			      {
+				edge nfte, nehe;
+				int flags;
+
+				nfte = split_block (bb, x);
+				flags = EDGE_EH | EDGE_ABNORMAL;
+				if (GET_CODE (x) == CALL_INSN)
+				  flags |= EDGE_ABNORMAL_CALL;
+				nehe = make_edge (nfte->src, eh_edge->dest,
+						  flags);
+
+				nehe->probability = eh_edge->probability;
+				nfte->probability
+				  = REG_BR_PROB_BASE - nehe->probability;
+
+			        do_cleanup_cfg |= purge_dead_edges (nfte->dest);
+#ifdef HAVE_conditional_execution
+				SET_BIT (blocks, nfte->dest->index);
+				changed = true;
+#endif
+				bb = nfte->src;
+				eh_edge = nehe;
+			      }
+			  }
+
+		      /* Converting possibly trapping insn to non-trapping is
+			 possible.  Zap dummy outgoing edges.  */
+		      do_cleanup_cfg |= purge_dead_edges (bb);
+		    }
 
 #ifdef HAVE_conditional_execution
 		  /* With conditional execution, we cannot back up the
@@ -3156,7 +3217,7 @@ peephole2_optimize (dump_file)
 		     So record that we've made a modification to this
 		     block and update life information at the end.  */
 		  SET_BIT (blocks, b);
-		  changed = 1;
+		  changed = true;
 
 		  for (i = 0; i < MAX_INSNS_PER_PEEP2 + 1; ++i)
 		    peep2_insn_data[i].insn = NULL_RTX;
@@ -3169,25 +3230,35 @@ peephole2_optimize (dump_file)
 		  COPY_REG_SET (live, peep2_insn_data[i].live_before);
 
 		  /* Update life information for the new sequence.  */
+		  x = try;
 		  do
 		    {
-		      if (INSN_P (try))
+		      if (INSN_P (x))
 			{
 			  if (--i < 0)
 			    i = MAX_INSNS_PER_PEEP2;
-			  peep2_insn_data[i].insn = try;
-			  propagate_one_insn (pbi, try);
+			  peep2_insn_data[i].insn = x;
+			  propagate_one_insn (pbi, x);
 			  COPY_REG_SET (peep2_insn_data[i].live_before, live);
 			}
-		      try = PREV_INSN (try);
+		      x = PREV_INSN (x);
 		    }
-		  while (try != prev);
+		  while (x != prev);
 
 		  /* ??? Should verify that LIVE now matches what we
 		     had before the new sequence.  */
 
 		  peep2_current = i;
 #endif
+
+		  /* If we generated a jump instruction, it won't have
+		     JUMP_LABEL set.  Recompute after we're done.  */
+		  for (x = try; x != before_try; x = PREV_INSN (x))
+		    if (GET_CODE (x) == JUMP_INSN)
+		      {
+		        do_rebuild_jump_labels = true;
+			break;
+		      }
 		}
 	    }
 
@@ -3202,9 +3273,23 @@ peephole2_optimize (dump_file)
     FREE_REG_SET (peep2_insn_data[i].live_before);
   FREE_REG_SET (live);
 
+  if (do_rebuild_jump_labels)
+    rebuild_jump_labels (get_insns ());
+
+  /* If we eliminated EH edges, we may be able to merge blocks.  Further,
+     we've changed global life since exception handlers are no longer
+     reachable.  */
+  if (do_cleanup_cfg)
+    {
+      cleanup_cfg (0);
+      update_life_info (0, UPDATE_LIFE_GLOBAL_RM_NOTES, PROP_DEATH_NOTES);
+    }
 #ifdef HAVE_conditional_execution
-  count_or_remove_death_notes (blocks, 1);
-  update_life_info (blocks, UPDATE_LIFE_LOCAL, PROP_DEATH_NOTES);
+  else
+    {
+      count_or_remove_death_notes (blocks, 1);
+      update_life_info (blocks, UPDATE_LIFE_LOCAL, PROP_DEATH_NOTES);
+    }
   sbitmap_free (blocks);
 #endif
 }

@@ -87,7 +87,8 @@ static tree parse_field PARAMS ((tree, tree, tree, tree));
 static tree parse_bitfield0 PARAMS ((tree, tree, tree, tree, tree));
 static tree parse_bitfield PARAMS ((tree, tree, tree));
 static tree parse_method PARAMS ((tree, tree, tree));
-static void frob_specs PARAMS ((tree, tree)); 
+static void frob_specs PARAMS ((tree, tree));
+static void check_class_key PARAMS ((tree, tree));
 
 /* Cons up an empty parameter list.  */
 static inline tree
@@ -206,6 +207,19 @@ parse_method (declarator, specs_attrs, lookups)
   d = start_method (current_declspecs, declarator, prefix_attributes);
   decl_type_access_control (d);
   return d;
+}
+
+static void
+check_class_key (key, aggr)
+     tree key;
+     tree aggr;
+{
+  if (TREE_CODE (key) == TREE_LIST)
+    key = TREE_VALUE (key);
+  if ((key == union_type_node) != (TREE_CODE (aggr) == UNION_TYPE))
+    pedwarn ("`%s' tag used in naming `%#T'",
+	     key == union_type_node ? "union"
+	     : key == record_type_node ? "struct" : "class", aggr);
 }
 
 void
@@ -584,6 +598,7 @@ namespace_qualifier:
 		    $$ = lastiddecl;
 		  got_scope = $$;
 		}
+        ;
 
 any_id:
 	  unqualified_id
@@ -633,6 +648,7 @@ maybe_identifier:
 	  	{ $$ = $1; }
 	|	/* empty */
 		{ $$ = NULL_TREE; }
+        ;
 
 template_type_parm:
 	  aggr maybe_identifier
@@ -1030,9 +1046,11 @@ explicit_instantiation:
 
 begin_explicit_instantiation: 
       { begin_explicit_instantiation(); }
+        ;
 
 end_explicit_instantiation: 
       { end_explicit_instantiation(); }
+        ;
 
 /* The TYPENAME expansions are to deal with use of a template class name as
   a template within the class itself, where the template decl is hidden by
@@ -1053,6 +1071,7 @@ apparent_template_type:
 	| identifier '<' template_arg_list_opt '>'
 	    .finish_template_type
 		{ $$ = $5; }
+        ;
 
 self_template_type:
 	  SELFNAME  '<' template_arg_list_opt template_close_bracket
@@ -1068,6 +1087,7 @@ self_template_type:
 		  $$ = finish_template_type ($<ttype>-3, $<ttype>-1, 
 					     yychar == SCOPE);
 		}
+        ;
 
 template_close_bracket:
 	  '>'
@@ -1487,6 +1507,7 @@ do_id:
 		  else
 		    $$ = $<ttype>-1;
 		}
+        ;
 
 template_id:
           PFUNCNAME '<' do_id template_arg_list_opt template_close_bracket 
@@ -1592,7 +1613,7 @@ primary:
 		    pedwarn ("ISO C++ forbids braced-groups within expressions");  
 		  $<ttype>$ = begin_stmt_expr (); 
 		}
-	  compstmt ')'
+	  compstmt_or_stmtexpr ')'
                { $$ = finish_stmt_expr ($<ttype>2); }
         /* Koenig lookup support
            We could store lastiddecl in $1 to avoid another lookup,
@@ -1717,7 +1738,7 @@ primary_no_id:
 		      YYERROR;
 		    }
 		  $<ttype>$ = expand_start_stmt_expr (); }
-	  compstmt ')'
+	  compstmt_or_stmtexpr ')'
 		{ if (pedantic)
 		    pedwarn ("ISO C++ forbids braced-groups within expressions");
 		  $$ = expand_end_stmt_expr ($<ttype>2); }
@@ -1895,10 +1916,6 @@ reserved_declspecs:
 		    warning ("`%s' is not at beginning of declaration",
 			     IDENTIFIER_POINTER ($2));
 		  $$ = tree_cons (NULL_TREE, $2, $$); }
-	| reserved_declspecs attributes
-		{ $$ = tree_cons ($2, NULL_TREE, $1); }
-	| attributes
-		{ $$ = tree_cons ($1, NULL_TREE, NULL_TREE); }
 	;
 
 /* List of just storage classes and type modifiers.
@@ -1966,6 +1983,10 @@ reserved_typespecquals:
 		{ $$ = build_tree_list (NULL_TREE, $1.t); }
 	| reserved_typespecquals typespecqual_reserved
 		{ $$ = tree_cons (NULL_TREE, $2.t, $1); }
+	| reserved_typespecquals attributes
+		{ $$ = tree_cons ($2, NULL_TREE, $1); }
+	| attributes %prec EMPTY
+		{ $$ = tree_cons ($1, NULL_TREE, NULL_TREE); }
 	;
 
 /* A typespec (but not a type qualifier).
@@ -2098,7 +2119,7 @@ notype_initdcl0:
 nomods_initdcl0:
           notype_declarator maybeasm
             { /* Set things up as initdcl0_innards expects.  */
-	      $<ttype>3 = $2;
+	      $<ttype>$ = $2;
 	      $2 = $1; 
               $<ftype>1.t = NULL_TREE;
 	      $<ftype>1.lookups = NULL_TREE; }
@@ -2173,6 +2194,7 @@ maybe_init:
 		{ $$ = NULL_TREE; }
 	| '=' init
 		{ $$ = $2; }
+        ;
 
 /* If we are processing a template, we don't want to expand this
    initializer yet.  */
@@ -2237,6 +2259,7 @@ defarg_again:
 		{ replace_defarg ($1, $2); }
 	| DEFARG_MARKER error END_OF_SAVED_INPUT
 		{ replace_defarg ($1, error_mark_node); }
+        ;
 
 pending_defargs:
 	  /* empty */ %prec EMPTY
@@ -2292,6 +2315,7 @@ structsp:
 		      xref_basetypes (current_aggr, $1.t, type, $2);
 		    }
 		  $1.t = begin_class_definition (TREE_TYPE ($1.t)); 
+		  check_class_key (current_aggr, $1.t);
                   current_aggr = NULL_TREE; }
           opt.component_decl_list '}' maybe_attribute
 		{ 
@@ -2326,6 +2350,7 @@ structsp:
 		{
 		  $$.t = TREE_TYPE ($1.t);
 		  $$.new_type_flag = $1.new_type_flag;
+		  check_class_key (current_aggr, $$.t);
 		}
 	;
 
@@ -2666,6 +2691,7 @@ component_decl_1:
 		{ $$ = grokfield ($$, NULL_TREE, $4, $2, $3); }
 	| using_decl
 		{ $$ = do_class_using_decl ($1); }
+        ;
 
 /* The case of exactly one component is handled directly by component_decl.  */
 /* ??? Huh? ^^^ */
@@ -3029,14 +3055,14 @@ nested_name_specifier:
 		{ $$ = $2; }
 	| nested_name_specifier TEMPLATE explicit_template_type SCOPE
                 { got_scope = $$ 
-		    = make_typename_type ($1, $3, /*complain=*/1); }
+		    = make_typename_type ($1, $3, tf_error); }
 	/* Error handling per Core 125.  */
 	| nested_name_specifier IDENTIFIER SCOPE
                 { got_scope = $$ 
-		    = make_typename_type ($1, $2, /*complain=*/1); }
+		    = make_typename_type ($1, $2, tf_error); }
 	| nested_name_specifier PTYPENAME SCOPE
                 { got_scope = $$ 
-		    = make_typename_type ($1, $2, /*complain=*/1); }
+		    = make_typename_type ($1, $2, tf_error); }
 	;
 
 /* Why the @#$%^& do type_name and notype_identifier need to be expanded
@@ -3078,7 +3104,7 @@ typename_sub0:
 	  typename_sub1 identifier %prec EMPTY
 		{
 		  if (TYPE_P ($1))
-		    $$ = make_typename_type ($1, $2, /*complain=*/1);
+		    $$ = make_typename_type ($1, $2, tf_error);
 		  else if (TREE_CODE ($2) == IDENTIFIER_NODE)
 		    error ("`%T' is not a class or namespace", $2);
 		  else
@@ -3091,9 +3117,9 @@ typename_sub0:
 	| typename_sub1 template_type %prec EMPTY
 		{ $$ = TREE_TYPE ($2); }
 	| typename_sub1 explicit_template_type %prec EMPTY
-                { $$ = make_typename_type ($1, $2, /*complain=*/1); }
+                { $$ = make_typename_type ($1, $2, tf_error); }
 	| typename_sub1 TEMPLATE explicit_template_type %prec EMPTY
-                { $$ = make_typename_type ($1, $3, /*complain=*/1); }
+                { $$ = make_typename_type ($1, $3, tf_error); }
 	;
 
 typename_sub1:
@@ -3107,7 +3133,7 @@ typename_sub1:
 	| typename_sub1 typename_sub2
 		{
 		  if (TYPE_P ($1))
-		    $$ = make_typename_type ($1, $2, /*complain=*/1);
+		    $$ = make_typename_type ($1, $2, tf_error);
 		  else if (TREE_CODE ($2) == IDENTIFIER_NODE)
 		    error ("`%T' is not a class or namespace", $2);
 		  else
@@ -3119,10 +3145,10 @@ typename_sub1:
 		}
 	| typename_sub1 explicit_template_type SCOPE
                 { got_scope = $$ 
-		    = make_typename_type ($1, $2, /*complain=*/1); }
+		    = make_typename_type ($1, $2, tf_error); }
 	| typename_sub1 TEMPLATE explicit_template_type SCOPE
                 { got_scope = $$ 
-		    = make_typename_type ($1, $3, /*complain=*/1); }
+		    = make_typename_type ($1, $3, tf_error); }
 	;
 
 /* This needs to return a TYPE_DECL for simple names so that we don't
@@ -3324,12 +3350,17 @@ label_decl:
 		}
 	;
 
-compstmt:
+compstmt_or_stmtexpr:
 	  save_lineno '{'
                 { $<ttype>$ = begin_compound_stmt (0); }
 	  compstmtend 
                 { STMT_LINENO ($<ttype>3) = $1;
 		  finish_compound_stmt (0, $<ttype>3); }
+	;
+
+compstmt:
+	  compstmt_or_stmtexpr
+		{ last_expr_type = NULL_TREE; }
 	;
 
 simple_if:

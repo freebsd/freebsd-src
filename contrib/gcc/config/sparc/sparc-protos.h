@@ -24,6 +24,8 @@ Boston, MA 02111-1307, USA.  */
 #ifndef __SPARC_PROTOS_H__
 #define __SPARC_PROTOS_H__
 
+extern bool sparc_emitting_epilogue;
+
 #ifdef TREE_CODE
 extern struct rtx_def *function_value PARAMS ((tree, enum machine_mode, int));
 extern void function_arg_advance PARAMS ((CUMULATIVE_ARGS *,
@@ -57,10 +59,7 @@ extern int check_pic PARAMS ((int));
 extern int short_branch PARAMS ((int, int));
 extern int sparc_flat_epilogue_delay_slots PARAMS ((void));
 extern unsigned long sparc_flat_compute_frame_size PARAMS ((int));
-extern void sparc_function_profiler PARAMS ((FILE *, int));
-extern void sparc_function_block_profiler PARAMS ((FILE *, int));
-extern void sparc_block_profiler PARAMS ((FILE *, int));
-extern void sparc_function_block_profiler_exit PARAMS ((FILE *));
+extern void sparc_profile_hook PARAMS ((int));
 extern void sparc_override_options PARAMS ((void));
 extern int leaf_return_peephole_ok PARAMS ((void));
 extern void sparc_output_scratch_registers PARAMS ((FILE *));
@@ -74,6 +73,10 @@ extern enum machine_mode select_cc_mode PARAMS ((enum rtx_code, rtx, rtx));
 /* Define the function that build the compare insn for scc and bcc.  */
 extern rtx gen_compare_reg PARAMS ((enum rtx_code code, rtx, rtx));
 extern void sparc_emit_float_lib_cmp PARAMS ((rtx, rtx, enum rtx_code));
+extern void sparc_emit_floatunsdi PARAMS ((rtx [2]));
+extern void emit_tfmode_binop PARAMS ((enum rtx_code, rtx *));
+extern void emit_tfmode_unop PARAMS ((enum rtx_code, rtx *));
+extern void emit_tfmode_cvt PARAMS ((enum rtx_code, rtx *));
 /* This function handles all v9 scc insns */
 extern int gen_v9_scc PARAMS ((enum rtx_code, rtx *));
 extern void sparc_initialize_trampoline PARAMS ((rtx, rtx, rtx));
@@ -85,10 +88,10 @@ extern void sparc_emit_set_const64 PARAMS ((rtx, rtx));
 extern void sparc_emit_set_symbolic_const64 PARAMS ((rtx, rtx, rtx));
 extern int sparc_splitdi_legitimate PARAMS ((rtx, rtx));
 extern int sparc_absnegfloat_split_legitimate PARAMS ((rtx, rtx));
-extern char *output_cbranch PARAMS ((rtx, int, int, int, int, rtx));
-extern const char *output_return PARAMS ((rtx *));
+extern char *output_cbranch PARAMS ((rtx, rtx, int, int, int, int, rtx));
 extern const char *output_sibcall PARAMS ((rtx, rtx));
-extern char *output_v9branch PARAMS ((rtx, int, int, int, int, int, rtx));
+extern char *output_v9branch PARAMS ((rtx, rtx, int, int, int, int, int,
+				      rtx));
 extern void emit_v9_brxx_insn PARAMS ((enum rtx_code, rtx, rtx));
 extern void print_operand PARAMS ((FILE *, rtx, int));
 extern int mems_ok_for_ldd_peep PARAMS ((rtx, rtx, rtx));
@@ -97,6 +100,7 @@ extern int arith_4096_operand PARAMS ((rtx, enum machine_mode));
 extern int zero_operand PARAMS ((rtx, enum machine_mode));
 extern int fp_zero_operand PARAMS ((rtx, enum machine_mode));
 extern int reg_or_0_operand PARAMS ((rtx, enum machine_mode));
+extern int empty_delay_slot PARAMS ((rtx));
 extern int eligible_for_epilogue_delay PARAMS ((rtx, int));
 extern int eligible_for_return_delay PARAMS ((rtx));
 extern int eligible_for_sibcall_delay PARAMS ((rtx));
@@ -115,8 +119,8 @@ extern char *sparc_v8plus_shift PARAMS ((rtx *, rtx, const char *));
 /* Function used for V8+ code generation.  Returns 1 if the high
    32 bits of REG are 0 before INSN.  */   
 extern int sparc_check_64 PARAMS ((rtx, rtx));
-extern int sparc_return_peephole_ok PARAMS ((rtx, rtx));
 extern rtx gen_df_reg PARAMS ((rtx, int));
+extern int sparc_extra_constraint_check PARAMS ((rtx, int, int));
 #endif /* RTX_CODE */
 
 #endif /* __SPARC_PROTOS_H__ */

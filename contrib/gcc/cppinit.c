@@ -376,7 +376,8 @@ merge_include_chains (pfile)
       qtail->next = brack;
 
       /* If brack == qtail, remove brack as it's simpler.  */
-      if (INO_T_EQ (qtail->ino, brack->ino) && qtail->dev == brack->dev)
+      if (brack && INO_T_EQ (qtail->ino, brack->ino)
+	  && qtail->dev == brack->dev)
 	brack = remove_dup_dir (pfile, qtail);
     }
   else
@@ -490,6 +491,11 @@ cpp_create_reader (lang)
   CPP_OPTION (pfile, show_column) = 1;
   CPP_OPTION (pfile, tabstop) = 8;
   CPP_OPTION (pfile, operator_names) = 1;
+#if DEFAULT_SIGNED_CHAR
+  CPP_OPTION (pfile, signed_char) = 1;
+#else
+  CPP_OPTION (pfile, signed_char) = 0;
+#endif
 
   CPP_OPTION (pfile, pending) =
     (struct cpp_pending *) xcalloc (1, sizeof (struct cpp_pending));
@@ -760,6 +766,9 @@ init_builtins (pfile)
     _cpp_define_builtin (pfile, "__STDC_VERSION__ 199409L");
   else if (CPP_OPTION (pfile, c99))
     _cpp_define_builtin (pfile, "__STDC_VERSION__ 199901L");
+
+  if (CPP_OPTION (pfile, signed_char) == 0)
+    _cpp_define_builtin (pfile, "__CHAR_UNSIGNED__ 1");
 
   if (CPP_OPTION (pfile, lang) == CLK_STDC89
       || CPP_OPTION (pfile, lang) == CLK_STDC94
@@ -1075,7 +1084,7 @@ output_deps (pfile)
   const char *const deps_mode =
     CPP_OPTION (pfile, print_deps_append) ? "a" : "w";
 
-  if (CPP_OPTION (pfile, deps_file) == 0)
+  if (CPP_OPTION (pfile, deps_file)[0] == '\0')
     deps_stream = stdout;
   else
     {
@@ -1093,7 +1102,7 @@ output_deps (pfile)
     deps_phony_targets (pfile->deps, deps_stream);
 
   /* Don't close stdout.  */
-  if (CPP_OPTION (pfile, deps_file))
+  if (deps_stream != stdout)
     {
       if (ferror (deps_stream) || fclose (deps_stream) != 0)
 	cpp_fatal (pfile, "I/O error on output");
@@ -1186,7 +1195,9 @@ new_pending_directive (pend, text, handler)
   DEF_OPT("fno-show-column",          0,      OPT_fno_show_column)            \
   DEF_OPT("fpreprocessed",            0,      OPT_fpreprocessed)              \
   DEF_OPT("fshow-column",             0,      OPT_fshow_column)               \
+  DEF_OPT("fsigned-char",             0,      OPT_fsigned_char)               \
   DEF_OPT("ftabstop=",                no_num, OPT_ftabstop)                   \
+  DEF_OPT("funsigned-char",           0,      OPT_funsigned_char)             \
   DEF_OPT("h",                        0,      OPT_h)                          \
   DEF_OPT("idirafter",                no_dir, OPT_idirafter)                  \
   DEF_OPT("imacros",                  no_fil, OPT_imacros)                    \
@@ -1395,6 +1406,12 @@ cpp_handle_option (pfile, argc, argv, ignore)
 	case OPT_fno_show_column:
 	  CPP_OPTION (pfile, show_column) = 0;
 	  break;
+	case OPT_fsigned_char:
+	  CPP_OPTION (pfile, signed_char) = 1;
+	  break;
+	case OPT_funsigned_char:
+	  CPP_OPTION (pfile, signed_char) = 0;
+	  break;
 	case OPT_ftabstop:
 	  /* Silently ignore empty string, non-longs and silly values.  */
 	  if (arg[0] != '\0')
@@ -1537,7 +1554,6 @@ cpp_handle_option (pfile, argc, argv, ignore)
  		{
  		case 'M':
 		  CPP_OPTION (pfile, dump_macros) = dump_only;
-		  CPP_OPTION (pfile, no_output) = 1;
 		  break;
 		case 'N':
 		  CPP_OPTION (pfile, dump_macros) = dump_names;
@@ -1556,10 +1572,16 @@ cpp_handle_option (pfile, argc, argv, ignore)
 	  CPP_OPTION (pfile, print_deps_missing_files) = 1;
 	  break;
 	case OPT_M:
+	  /* When doing dependencies with -M or -MM, suppress normal
+	     preprocessed output, but still do -dM etc. as software
+	     depends on this.  Preprocessed output occurs if -MD, -MMD
+	     or environment var dependency generation is used.  */
 	  CPP_OPTION (pfile, print_deps) = 2;
+	  CPP_OPTION (pfile, no_output) = 1;
 	  break;
 	case OPT_MM:
 	  CPP_OPTION (pfile, print_deps) = 1;
+	  CPP_OPTION (pfile, no_output) = 1;
 	  break;
 	case OPT_MF:
 	  CPP_OPTION (pfile, deps_file) = arg;
@@ -1573,12 +1595,6 @@ cpp_handle_option (pfile, argc, argv, ignore)
 	  deps_add_target (pfile->deps, arg, opt_code == OPT_MQ);
 	  break;
 
-	  /* -MD and -MMD for cpp0 are deprecated and undocumented
-	     (use -M or -MM with -MF instead), and probably should be
-	     removed with the next major GCC version.  For the moment
-	     we allow these for the benefit of Automake 1.4, which
-	     uses these when dependency tracking is enabled.  Automake
-	     1.5 will fix this.  */
 	case OPT_MD:
 	  CPP_OPTION (pfile, print_deps) = 2;
 	  CPP_OPTION (pfile, deps_file) = arg;
@@ -1804,6 +1820,21 @@ cpp_post_options (pfile)
   if (CPP_OPTION (pfile, preprocessed))
     pfile->state.prevent_expansion = 1;
 
+  /* -dM makes no normal output.  This is set here so that -dM -dD
+     works as expected.  */
+  if (CPP_OPTION (pfile, dump_macros) == dump_only)
+    CPP_OPTION (pfile, no_output) = 1;
+
+  /* Disable -dD, -dN and -dI if we should make no normal output
+     (such as with -M). Allow -M -dM since some software relies on
+     this.  */
+  if (CPP_OPTION (pfile, no_output))
+    {
+      if (CPP_OPTION (pfile, dump_macros) != dump_only)
+	CPP_OPTION (pfile, dump_macros) = dump_none;
+      CPP_OPTION (pfile, dump_includes) = 0;
+    }
+
   /* We need to do this after option processing and before
      cpp_start_read, as cppmain.c relies on the options->no_output to
      set its callbacks correctly before calling cpp_start_read.  */
@@ -1818,7 +1849,8 @@ cpp_post_options (pfile)
     cpp_fatal (pfile, "you must additionally specify either -M or -MM");
 }
 
-/* Set up dependency-file output.  */
+/* Set up dependency-file output.  On exit, if print_deps is non-zero
+   then deps_file is not NULL; stdout is the empty string.  */
 static void
 init_dependency_output (pfile)
      cpp_reader *pfile;
@@ -1857,28 +1889,22 @@ init_dependency_output (pfile)
       else
 	output_file = spec;
 
-      /* Command line overrides environment variables.  */
+      /* Command line -MF overrides environment variables and default.  */
       if (CPP_OPTION (pfile, deps_file) == 0)
 	CPP_OPTION (pfile, deps_file) = output_file;
+
       CPP_OPTION (pfile, print_deps_append) = 1;
     }
-
-  /* If dependencies go to standard output, or -MG is used, we should
-     suppress output, including -dM, -dI etc.  */
-  if (CPP_OPTION (pfile, deps_file) == 0
-      || CPP_OPTION (pfile, print_deps_missing_files))
-    {
-      CPP_OPTION (pfile, no_output) = 1;
-      CPP_OPTION (pfile, dump_macros) = 0;
-      CPP_OPTION (pfile, dump_includes) = 0;
-    }
+  else if (CPP_OPTION (pfile, deps_file) == 0)
+    /* If -M or -MM was seen without -MF, default output to wherever
+       was specified with -o.  out_fname is non-NULL here.  */
+    CPP_OPTION (pfile, deps_file) = CPP_OPTION (pfile, out_fname);
 }
 
 /* Handle --help output.  */
 static void
 print_help ()
 {
-  fprintf (stderr, _("Usage: %s [switches] input output\n"), progname);
   /* To keep the lines from getting too long for some compilers, limit
      to about 500 characters (6 lines) per chunk.  */
   fputs (_("\
@@ -1941,6 +1967,8 @@ Switches:\n\
   fputs (_("\
   -M                        Generate make dependencies\n\
   -MM                       As -M, but ignore system header files\n\
+  -MD                       Generate make dependencies and compile\n\
+  -MMD                      As -MD, but ignore system header files\n\
   -MF <file>                Write dependency output to the given file\n\
   -MG                       Treat missing header file as generated files\n\
 "), stdout);
@@ -1952,8 +1980,8 @@ Switches:\n\
   fputs (_("\
   -D<macro>                 Define a <macro> with string '1' as its value\n\
   -D<macro>=<val>           Define a <macro> with <val> as its value\n\
-  -A<question> (<answer>)   Assert the <answer> to <question>\n\
-  -A-<question> (<answer>)  Disable the <answer> to <question>\n\
+  -A<question>=<answer>     Assert the <answer> to <question>\n\
+  -A-<question>=<answer>    Disable the <answer> to <question>\n\
   -U<macro>                 Undefine <macro> \n\
   -v                        Display the version number\n\
 "), stdout);
@@ -1970,7 +1998,7 @@ Switches:\n\
   -ftabstop=<number>        Distance between tab stops for column reporting\n\
   -P                        Do not generate #line directives\n\
   -$                        Do not allow '$' in identifiers\n\
-  -remap                    Remap file names when including files.\n\
+  -remap                    Remap file names when including files\n\
   --version                 Display version information\n\
   -h or --help              Display this information\n\
 "), stdout);

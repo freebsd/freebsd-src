@@ -35,6 +35,9 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_TOC 0
 #define TARGET_NO_TOC 1
 
+/* Handle #pragma weak and #pragma pack.  */
+#define HANDLE_SYSV_PRAGMA
+
 /* The Darwin ABI always includes AltiVec, can't be (validly) turned
    off.  */
 
@@ -57,8 +60,8 @@ Boston, MA 02111-1307, USA.  */
 #undef  FRAME_POINTER_REGNUM
 #define FRAME_POINTER_REGNUM 30
 
-#undef  PIC_OFFSET_TABLE_REGNUM
-#define PIC_OFFSET_TABLE_REGNUM 31
+#undef  RS6000_PIC_OFFSET_TABLE_REGNUM
+#define RS6000_PIC_OFFSET_TABLE_REGNUM 31
 
 /* Pad the outgoing args area to 16 bytes instead of the usual 8.  */
 
@@ -218,7 +221,10 @@ Boston, MA 02111-1307, USA.  */
    && TYPE_FIELDS (STRUCT) != 0				\
    && DECL_MODE (TYPE_FIELDS (STRUCT)) == DFmode	\
    ? MAX (MAX ((COMPUTED), (SPECIFIED)), 64)		\
+   : (TARGET_ALTIVEC && TREE_CODE (STRUCT) == VECTOR_TYPE) \
+   ? MAX (MAX ((COMPUTED), (SPECIFIED)), 128)           \
    : MAX ((COMPUTED), (SPECIFIED)))
+
 /* XXX: Darwin supports neither .quad, or .llong, but it also doesn't
    support 64 bit powerpc either, so this just keeps things happy.  */
 #define DOUBLE_INT_ASM_OP "\t.quad\t"
@@ -227,3 +233,7 @@ Boston, MA 02111-1307, USA.  */
    space/speed.  */
 #undef MAX_LONG_TYPE_SIZE
 #define MAX_LONG_TYPE_SIZE 32
+
+/* For binary compatibility with 2.95; Darwin C APIs use bool from
+   stdbool.h, which was an int-sized enum in 2.95.  */
+#define BOOL_TYPE_SIZE INT_TYPE_SIZE

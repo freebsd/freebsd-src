@@ -216,16 +216,6 @@ This should be defined if @code{WINT_TYPE} depends on target dependent flags
 which are not accessible to the preprocessor.  Otherwise, it should not
 be defined.
 
-@findex SIGNED_CHAR_SPEC
-@item SIGNED_CHAR_SPEC
-A C string constant that tells the GCC driver program options to
-pass to CPP@.  By default, this macro is defined to pass the option
-@option{-D__CHAR_UNSIGNED__} to CPP if @code{char} will be treated as
-@code{unsigned char} by @code{cc1}.
-
-Do not define this macro unless you need to override the default
-definition.
-
 @findex CC1_SPEC
 @item CC1_SPEC
 A C string constant that tells the GCC driver program options to
@@ -387,6 +377,11 @@ the argument @option{-lgcc} to tell the linker to do the search.
 This macro is similar to @code{LINK_LIBGCC_SPECIAL}, except that it does
 not affect @option{-L} options.
 
+@findex LINK_GCC_C_SEQUENCE_SPEC
+@item LINK_GCC_C_SEQUENCE_SPEC
+The sequence in which libgcc and libc are specified to the linker.
+By default this is @code{%G %L %G}.
+
 @findex LINK_COMMAND_SPEC
 @item LINK_COMMAND_SPEC
 A C string constant giving the complete command line need to execute the
@@ -394,7 +389,8 @@ linker.  When you do this, you will need to update your port each time a
 change is made to the link command line within @file{gcc.c}.  Therefore,
 define this macro only if you need to completely redefine the command
 line for invoking the linker and there is no other way to accomplish
-the effect you need.
+the effect you need.  Overriding this macro may be avoidable by overriding
+@code{LINK_GCC_C_SEQUENCE_SPEC} instead.
 
 @findex LINK_ELIMINATE_DUPLICATE_LDIRECTORIES
 @item LINK_ELIMINATE_DUPLICATE_LDIRECTORIES
@@ -697,7 +693,11 @@ string is present but empty, then no help information will be displayed
 for that option, but it will not count as an undocumented option.  The
 actual option name is made by appending @samp{-m} to the specified name.
 Non-empty description strings should be marked with @code{N_(@dots{})} for
-@command{xgettext}.  In addition to the description for @option{--help},
+@command{xgettext}.  Please do not mark empty strings because the empty
+string is reserved by GNU gettext. @code{gettext("")} returns the header entry
+of the message catalog with meta information, not the empty string.
+
+In addition to the description for @option{--help},
 more detailed documentation for each option should be added to
 @file{invoke.texi}.
 
@@ -723,8 +723,12 @@ options that have values.  Its definition is an initializer with a
 subgrouping for each command option.
 
 Each subgrouping contains a string constant, that defines the fixed part
-of the option name, the address of a variable, and a description string
-(which should again be marked with @code{N_(@dots{})}).
+of the option name, the address of a variable, and a description string.
+Non-empty description strings should be marked with @code{N_(@dots{})} for
+@command{xgettext}.  Please do not mark empty strings because the empty
+string is reserved by GNU gettext. @code{gettext("")} returns the header entry
+of the message catalog with meta information, not the empty string.
+
 The variable, type @code{char *}, is set to the variable part of the
 given option if the fixed part matches.  The actual option name is made
 by appending @samp{-m} to the specified name.  Again, each option should
@@ -1209,8 +1213,8 @@ get from @code{PCC_BITFIELD_TYPE_MATTERS}.
 
 @findex BITFIELD_NBYTES_LIMITED
 @item BITFIELD_NBYTES_LIMITED
-Like PCC_BITFIELD_TYPE_MATTERS except that its effect is limited to
-aligning a bit-field within the structure.
+Like @code{PCC_BITFIELD_TYPE_MATTERS} except that its effect is limited
+to aligning a bit-field within the structure.
 
 @findex MEMBER_TYPE_FORCES_BLK
 @item MEMBER_TYPE_FORCES_BLK (@var{field})
@@ -1339,6 +1343,20 @@ memory is controlled by @code{FLOAT_WORDS_BIG_ENDIAN}.
 
 @end table
 
+@deftypefn {Target Hook} bool TARGET_MS_BITFIELD_LAYOUT_P (tree @var{record_type})
+This target hook returns @code{true} if bit-fields in the given
+@var{record_type} are to be laid out following the rules of Microsoft
+Visual C/C++, namely: (i) a bit-field won't share the same storage
+unit with the previous bit-field if their underlying types have
+different sizes, and the bit-field will be aligned to the highest
+alignment of the underlying types of itself and of the previous
+bit-field; (ii) a zero-sized bit-field will affect the alignment of
+the whole enclosing structure, even if it is unnamed; except that
+(iii) a zero-sized bit-field will be disregarded unless it follows
+another bit-field of non-zero size.  If this hook returns @code{true},
+other macros that control bit-field layout are ignored.
+@end deftypefn
+
 @node Type Layout
 @section Layout of Source Language Data Types
 
@@ -1404,9 +1422,9 @@ used in @code{cpp}.
 
 @findex BOOL_TYPE_SIZE
 @item BOOL_TYPE_SIZE
-A C expression for the size in bits of the C++ type @code{bool} on the
-target machine.  If you don't define this, the default is
-@code{CHAR_TYPE_SIZE}.
+A C expression for the size in bits of the C++ type @code{bool} and
+C99 type @code{_Bool} on the target machine.  If you don't define
+this, and you probably shouldn't, the default is @code{CHAR_TYPE_SIZE}.
 
 @findex FLOAT_TYPE_SIZE
 @item FLOAT_TYPE_SIZE
@@ -1592,10 +1610,10 @@ in which function addresses are always even, according to
 @findex TARGET_VTABLE_USES_DESCRIPTORS
 @item TARGET_VTABLE_USES_DESCRIPTORS
 Normally, the C++ compiler uses function pointers in vtables.  This
-macro allows the target to change to use ``function descriptors'' 
+macro allows the target to change to use ``function descriptors''
 instead.  Function descriptors are found on targets for whom a
 function pointer is actually a small data structure.  Normally the
-data structure consists of the actual code address plus a data 
+data structure consists of the actual code address plus a data
 pointer to which the function's data is relative.
 
 If vtables are used, the value of this macro should be the number
@@ -1717,10 +1735,10 @@ exit, if the register is used within the function.
 @cindex call-used register
 @cindex call-clobbered register
 @cindex call-saved register
-Like @code{CALL_USED_REGISTERS} except this macro doesn't require 
-that the entire set of @code{FIXED_REGISTERS} be included.  
+Like @code{CALL_USED_REGISTERS} except this macro doesn't require
+that the entire set of @code{FIXED_REGISTERS} be included.
 (@code{CALL_USED_REGISTERS} must be a superset of @code{FIXED_REGISTERS}).
-This macro is optional.  If not specified, it defaults to the value 
+This macro is optional.  If not specified, it defaults to the value
 of @code{CALL_USED_REGISTERS}.
 
 @findex HARD_REGNO_CALL_PART_CLOBBERED
@@ -2793,7 +2811,7 @@ and @file{unwind-ia64.c}.  @var{context} is an @code{_Unwind_Context};
 for the address of the code being executed and @code{context->cfa} for
 the stack pointer value.  If the frame can be decoded, the register save
 addresses should be updated in @var{fs} and the macro should branch to
-@var{success}.  If the frame cannot be decoded, the macro should do 
+@var{success}.  If the frame cannot be decoded, the macro should do
 nothing.
 @end table
 
@@ -3262,6 +3280,22 @@ arguments pop them but other functions (such as @code{printf}) pop
 nothing (the caller pops all).  When this convention is in use,
 @var{funtype} is examined to determine whether a function takes a fixed
 number of arguments.
+
+@findex CALL_POPS_ARGS
+@item   CALL_POPS_ARGS (@var{cum})
+A C expression that should indicate the number of bytes a call sequence
+pops off the stack.  It is added to the value of @code{RETURN_POPS_ARGS}
+when compiling a function call.
+
+@var{cum} is the variable in which all arguments to the called function
+have been accumulated.
+
+On certain architectures, such as the SH5, a call trampoline is used
+that pops certain registers off the stack, depending on the arguments
+that have been passed to the function.  Since this is a property of the
+call site, not of the called function, @code{RETURN_POPS_ARGS} is not
+appropriate.
+
 @end table
 
 @node Register Arguments
@@ -3927,6 +3961,12 @@ compiler knows this regardless of @code{EXIT_IGNORE_STACK}.
 Define this macro as a C expression that is nonzero for registers that are
 used by the epilogue or the @samp{return} pattern.  The stack and frame
 pointer registers are already be assumed to be used as needed.
+
+@findex EH_USES
+@item EH_USES (@var{regno})
+Define this macro as a C expression that is nonzero for registers that are
+used by the exception handling mechanism, and so should be considered live
+on entry to an exception edge.
 
 @findex DELAY_SLOTS_FOR_EPILOGUE
 @item DELAY_SLOTS_FOR_EPILOGUE
@@ -5742,7 +5782,7 @@ Output assembly directives to switch to section @var{name}.  The section
 should have attributes as specified by @var{flags}, which is a bit mask
 of the @code{SECTION_*} flags defined in @file{output.h}.  If @var{align}
 is nonzero, it contains an alignment in bytes to be used for the section,
-otherwise some target default should be used.  Only targets that must 
+otherwise some target default should be used.  Only targets that must
 specify an alignment within the section directive need pay attention to
 @var{align} -- we will still use @code{ASM_OUTPUT_ALIGN}.
 @end deftypefn
@@ -6146,7 +6186,7 @@ itself; before and after that, output the additional assembler syntax
 for making that name global, and a newline.
 
 @findex ASM_WEAKEN_LABEL
-@item ASM_WEAKEN_LABEL
+@item ASM_WEAKEN_LABEL (@var{stream}, @var{name})
 A C statement (sans semicolon) to output to the stdio stream
 @var{stream} some commands that will make the label @var{name} weak;
 that is, available for reference from other files but only used if
@@ -6155,18 +6195,29 @@ no other definition is available.  Use the expression
 itself; before and after that, output the additional assembler syntax
 for making that name weak, and a newline.
 
-If you don't define this macro, GCC will not support weak
-symbols and you should not define the @code{SUPPORTS_WEAK} macro.
+If you don't define this macro or @code{ASM_WEAKEN_DECL}, GCC will not
+support weak symbols and you should not define the @code{SUPPORTS_WEAK}
+macro.
+
+@findex ASM_WEAKEN_DECL
+@item ASM_WEAKEN_DECL (@var{stream}, @var{decl}, @var{name}, @var{value})
+Combines (and replaces) the function of @code{ASM_WEAKEN_LABEL} and
+@code{ASM_OUTPUT_WEAK_ALIAS}, allowing access to the associated function
+or variable decl.  If @var{value} is not @code{NULL}, this C statement
+should output to the stdio stream @var{stream} assembler code which
+defines (equates) the weak symbol @var{name} to have the value
+@var{value}.  If @var{value} is @code{NULL}, it should output commands
+to make @var{name} weak.
 
 @findex SUPPORTS_WEAK
 @item SUPPORTS_WEAK
 A C expression which evaluates to true if the target supports weak symbols.
 
 If you don't define this macro, @file{defaults.h} provides a default
-definition.  If @code{ASM_WEAKEN_LABEL} is defined, the default
-definition is @samp{1}; otherwise, it is @samp{0}.  Define this macro if
-you want to control weak symbol support with a compiler flag such as
-@option{-melf}.
+definition.  If either @code{ASM_WEAKEN_LABEL} or @code{ASM_WEAKEN_DECL}
+is defined, the default definition is @samp{1}; otherwise, it is
+@samp{0}.  Define this macro if you want to control weak symbol support
+with a compiler flag such as @option{-melf}.
 
 @findex MAKE_DECL_ONE_ONLY (@var{decl})
 @item MAKE_DECL_ONE_ONLY
@@ -6453,7 +6504,7 @@ Termination functions are handled similarly.
 
 This method will be chosen as the default by @file{target-def.h} if
 @code{TARGET_ASM_NAMED_SECTION} is defined.  A target that does not
-support arbitrary sections, but does support special designated 
+support arbitrary sections, but does support special designated
 constructor and destructor sections may define @code{CTORS_SECTION_ASM_OP}
 and @code{DTORS_SECTION_ASM_OP} to achieve the same effect.
 
@@ -6563,7 +6614,7 @@ the object format requires an explicit initialization function, then a
 function called @code{_GLOBAL__DI} will be generated.
 
 This function and the following one are used by collect2 when linking a
-shared library that needs constructors or destructors, or has DWARF2 
+shared library that needs constructors or destructors, or has DWARF2
 exception tables embedded in the code.
 
 @item COLLECT_SHARED_FINI_FUNC (@var{stream}, @var{func})
@@ -6844,7 +6895,7 @@ first variant.
 
 If this macro is defined, you may use constructs of the form
 @smallexample
-@samp{@{option0|option1|option2@dots{}@}} 
+@samp{@{option0|option1|option2@dots{}@}}
 @end smallexample
 @noindent
 in the output templates of patterns (@pxref{Output Template}) or in the
@@ -8612,3 +8663,18 @@ object files that are not referenced from @code{main} and uses export
 lists.
 
 @end table
+
+@deftypefn {Target Hook} bool TARGET_CANNOT_MODIFY_JUMPS_P (void)
+This target hook returns @code{true} past the point in which new jump
+instructions could be created.  On machines that require a register for
+every jump such as the SHmedia ISA of SH5, this point would typically be
+reload, so this target hook should be defined to a function such as:
+
+@smallexample
+static bool
+cannot_modify_jumps_past_reload_p ()
+@{
+  return (reload_completed || reload_in_progress);
+@}
+@end smallexample
+@end deftypefn
