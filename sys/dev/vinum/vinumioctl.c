@@ -384,8 +384,16 @@ vinumioctl(dev_t dev,
 	    return EIO;					    /* I/O error */
 
 	switch (cmd) {
-	case DIOCGDINFO:				    /* get disk label */
+	case DIOCGDVIRGIN:				    /* get disk label */
 	    get_volume_label(vol->name, vol->plexes, vol->size, (struct disklabel *) data);
+	    break;
+
+	case DIOCGMEDIASIZE:
+	    *(off_t *)data = vol->size << DEV_BSHIFT;
+	    break;
+
+	case DIOCGSECTORSIZE:
+	    *(u_int *)data = DEV_BSIZE;
 	    break;
 
 	    /*
