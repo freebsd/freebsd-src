@@ -51,9 +51,11 @@ __RCSID("$NetBSD: fsutil.c,v 1.7 1998/07/30 17:41:03 thorpej Exp $");
 #include <errno.h>
 #include <fstab.h>
 #include <err.h>
+#include <paths.h>
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include "fsutil.h"
 
@@ -261,6 +263,47 @@ devcheck(origname)
 		printf("%s is not a char device\n", origname);
 	}
 	return (origname);
+}
+
+/*
+ * Get the mount point information for name.
+ */
+struct statfs *
+getmntpt(name)
+	const char *name;
+{
+	struct stat devstat, mntdevstat;
+	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
+	char *devname;
+	struct statfs *mntbuf, *statfsp;
+	int i, mntsize, isdev;
+
+	if (stat(name, &devstat) != 0)
+		return (NULL);
+	if (S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode))
+		isdev = 1;
+	else
+		isdev = 0;
+	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	for (i = 0; i < mntsize; i++) {
+		statfsp = &mntbuf[i];
+		devname = statfsp->f_mntfromname;
+		if (*devname != '/') {
+			strcpy(device, _PATH_DEV);
+			strcat(device, devname);
+			strcpy(statfsp->f_mntfromname, device);
+		}
+		if (isdev == 0) {
+			if (strcmp(name, statfsp->f_mntonname))
+				continue;
+			return (statfsp);
+		}
+		if (stat(devname, &mntdevstat) == 0 &&
+		    mntdevstat.st_rdev == devstat.st_rdev)
+			return (statfsp);
+	}
+	statfsp = NULL;
+	return (statfsp);
 }
 
 #if 0
