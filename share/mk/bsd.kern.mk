@@ -7,9 +7,16 @@
 # most of the remaining warnings.  Warnings introduced with -Wall will
 # also pop up, but are easier to fix.
 #
+# XXX FIXME - revert when there is a gcc3 with -fformat-extensions
+.ifndef GCC3
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-fformat-extensions -ansi
+.else
+CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
+		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
+		-Wno-format -ansi
+.endif
 #
 # The following flags are next up for working on:
 #	-W
@@ -46,4 +53,12 @@ CFLAGS+=	-mno-fp-regs -ffixed-8 -Wa,-mev56
 #
 .if ${MACHINE_ARCH} == "ia64"
 CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127
+.endif
+
+#
+# GCC 3.0 and above like to do certain optimizations based on the
+# assumption that the program is linked against libc.  Stop this.
+#
+.ifdef GCC3
+CFLAGS+=	-ffreestanding
 .endif
