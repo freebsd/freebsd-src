@@ -103,10 +103,12 @@ option will be to cause the marked section not to be ignored.
 .It Fl links
 When used with the
 .Fl f Ar html
-option, for each 
+option, this option generates a shell script named
+.Pa file.ln .
+For each 
 .Li <label id="foo">
-in the document source 
-.Nm
+in the document source,
+.Pa file.ln
 generates a symbolic link
 .Pa foo.html
 pointing to the numbered
