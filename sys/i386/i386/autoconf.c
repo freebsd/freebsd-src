@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.43 1995/11/28 03:15:53 peter Exp $
+ *	$Id: autoconf.c,v 1.44 1995/12/03 17:51:36 bde Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
@@ -343,3 +344,20 @@ setroot()
 		mindev >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
 		part + 'a');
 }
+
+static int
+sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+{
+	int error;
+	dev_t ndumpdev;
+
+	ndumpdev = dumpdev;
+	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
+	if (!error && ndumpdev != dumpdev) {
+		error = setdumpdev(ndumpdev);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "I", "");
