@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)esis.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: esis.c,v 1.2 1994/08/02 07:50:09 davidg Exp $
  */
 
 /***********************************************************
@@ -318,7 +318,7 @@ struct rtentry		*rt;			/* snpa cache info regarding next hop of
 
 	if (rt->rt_flags & RTF_GATEWAY) {
 		rd_gwnsap = &((struct sockaddr_iso *)rt->rt_gateway)->siso_addr;
-		rt = rtalloc1(rt->rt_gateway, 0);
+		rt = rtalloc1(rt->rt_gateway, 0, 0UL);
 	} else
 		rd_gwnsap = &((struct sockaddr_iso *)rt_key(rt))->siso_addr;
 	if (rt == 0 || (sdl = (struct sockaddr_dl *)rt->rt_gateway) == 0 ||
