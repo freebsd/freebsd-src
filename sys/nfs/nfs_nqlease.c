@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.16 1995/10/29 15:32:55 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.17 1995/11/21 15:51:31 bde Exp $
  */
 
 /*
@@ -78,24 +78,26 @@ time_t nqnfsstarttime = (time_t)0;
 int nqsrv_clockskew = NQ_CLOCKSKEW;
 int nqsrv_writeslack = NQ_WRITESLACK;
 int nqsrv_maxlease = NQ_MAXLEASE;
-int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
+static int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
 
 struct vop_lease_args;
 
+static int	nqsrv_cmpnam __P((struct nfssvc_sock *,struct mbuf *,
+			struct nqhost *));
 extern void	nqnfs_lease_check __P((struct vnode *vp, struct proc *p,
 				       struct ucred *cred, int flag));
 extern void	nqnfs_lease_updatetime __P((int deltat));
-extern int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
+static int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
 extern int	nqnfs_vop_lease_check __P((struct vop_lease_args *ap));
-extern void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
+static void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
 				   struct mbuf *nam));
-extern void	nqsrv_instimeq __P((struct nqlease *lp, u_long duration));
-extern void	nqsrv_locklease __P((struct nqlease *lp));
-extern void	nqsrv_send_eviction __P((struct vnode *vp, struct nqlease *lp,
+static void	nqsrv_instimeq __P((struct nqlease *lp, u_long duration));
+static void	nqsrv_locklease __P((struct nqlease *lp));
+static void	nqsrv_send_eviction __P((struct vnode *vp, struct nqlease *lp,
 					 struct nfssvc_sock *slp,
 					 struct mbuf *nam, struct ucred *cred));
-extern void	nqsrv_unlocklease __P((struct nqlease *lp));
-extern void	nqsrv_waitfor_expiry __P((struct nqlease *lp));
+static void	nqsrv_unlocklease __P((struct nqlease *lp));
+static void	nqsrv_waitfor_expiry __P((struct nqlease *lp));
 
 /*
  * Signifies which rpcs can have piggybacked lease requests
@@ -367,7 +369,7 @@ nqnfs_vop_lease_check(ap)
 /*
  * Add a host to an nqhost structure for a lease.
  */
-void
+static void
 nqsrv_addhost(lph, slp, nam)
 	register struct nqhost *lph;
 	struct nfssvc_sock *slp;
@@ -395,7 +397,7 @@ nqsrv_addhost(lph, slp, nam)
 /*
  * Update the lease expiry time and position it in the timer queue correctly.
  */
-void
+static void
 nqsrv_instimeq(lp, duration)
 	register struct nqlease *lp;
 	u_long duration;
@@ -434,7 +436,7 @@ nqsrv_instimeq(lp, duration)
  * This is somewhat messy due to the union in the nqhost structure.
  * The local host is indicated by the special value of NQLOCALSLP for slp.
  */
-int
+static int
 nqsrv_cmpnam(slp, nam, lph)
 	register struct nfssvc_sock *slp;
 	struct mbuf *nam;
@@ -475,7 +477,7 @@ nqsrv_cmpnam(slp, nam, lph)
 /*
  * Send out eviction notice messages to all other hosts for the lease.
  */
-void
+static void
 nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	struct vnode *vp;
 	register struct nqlease *lp;
@@ -586,7 +588,7 @@ nextone:
  * This will occur when all clients have sent "vacated" messages to
  * this server OR when it expires do to timeout.
  */
-void
+static void
 nqsrv_waitfor_expiry(lp)
 	register struct nqlease *lp;
 {
@@ -893,7 +895,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 /*
  * Client vacated message function.
  */
-int
+static int
 nqnfs_vacated(vp, cred)
 	register struct vnode *vp;
 	struct ucred *cred;
@@ -1205,7 +1207,7 @@ nqnfs_lease_updatetime(deltat)
 /*
  * Lock a server lease.
  */
-void
+static void
 nqsrv_locklease(lp)
 	struct nqlease *lp;
 {
@@ -1221,7 +1223,7 @@ nqsrv_locklease(lp)
 /*
  * Unlock a server lease.
  */
-void
+static void
 nqsrv_unlocklease(lp)
 	struct nqlease *lp;
 {
