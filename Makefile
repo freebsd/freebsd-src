@@ -17,13 +17,6 @@
 # upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
 # most                - Build user commands, no libraries or include files.
 # installmost         - Install user commands, no libraries or include files.
-# aout-to-elf         - Upgrade a system from a.out to elf format (see below).
-# aout-to-elf-build   - Build everything required to upgrade a system from
-#                       a.out to elf format (see below).
-# aout-to-elf-install - Install everything built by aout-to-elf-build (see
-#                       below).
-# move-aout-libs      - Move the a.out libraries into an aout sub-directory
-#                       of each elf library sub-directory.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -62,28 +55,6 @@
 # cross build world for other architectures using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
-#
-# ----------------------------------------------------------------------------
-#
-#           Upgrading an i386 system from a.out to elf format
-#
-#
-# The aout->elf transition build is performed by doing a `make upgrade' (or
-# `make aout-to-elf') or in two steps by a `make aout-to-elf-build' followed
-# by a `make aout-to-elf-install', depending on user preference.
-# You need to have at least 320 MB of free space for the object tree.
-#
-# The upgrade process checks the installed release. If this is 3.0-CURRENT,
-# it is assumed that your kernel contains all the syscalls required by the
-# current sources.
-#
-# The upgrade procedure will stop and ask for confirmation to proceed
-# several times. On each occasion, you can type Ctrl-C to abort the
-# upgrade.  Optionally, you can also start it with NOCONFIRM=yes and skip
-# the confirmation steps.
-#
-# ----------------------------------------------------------------------------
-#
 #
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
@@ -192,23 +163,6 @@ make:
 		${MMAKE} depend && \
 		${MMAKE} all && \
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
-
-#
-# Define the upgrade targets. These are listed here in alphabetical
-# order, but that's not important.
-#
-UPGRADE=	aout-to-elf aout-to-elf-build aout-to-elf-install \
-		move-aout-libs
-
-#
-# Handle the upgrade targets, using the source relative mk files.
-#
-
-upgrade:	aout-to-elf
-
-${UPGRADE} : upgrade_checks
-	@cd ${.CURDIR}; \
-		${_MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
 
 #
 # universe
