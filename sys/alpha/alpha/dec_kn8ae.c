@@ -73,8 +73,6 @@ dec_kn8ae_init(int cputype)
 }
 
 /*
- * dec_kn8ae_cons_init- not needed right now. XXX hack in SimOS console
- *
  * Info to retain:
  *
  *	The AXP 8X00 seems to encode the
