@@ -350,7 +350,7 @@ acpi_attach(device_t dev)
 	acpi_EnterDebugger();
 #endif
     flags = 0;
-    if (getenv("debug.acpi.disable") != NULL)
+    if (getenv("debug.acpi.avoid") != NULL)
 	flags = ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
     if ((status = AcpiEnableSubsystem(flags)) != AE_OK) {
 	device_printf(dev, "could not enable ACPI: %s\n", AcpiFormatException(status));
