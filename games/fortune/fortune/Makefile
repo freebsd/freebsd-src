@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	fortune
-MAN6=	fortune.6
 CFLAGS+=-DDEBUG -Wall -I${.CURDIR}/../strfile
 DPADD=	${LIBCOMPAT}
 LDADD=	-lcompat
