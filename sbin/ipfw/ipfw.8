@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2000
+.Dd May 31, 2001
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -23,14 +23,12 @@
 .Cm flush
 .Nm
 .Op Fl q
-.Es \&{ \&}
-.En Cm zero | resetlog | delete
+.Brq Cm zero | resetlog | delete
 .Op Ar number ...
 .Nm
 .Op Fl s Op Ar field
 .Op Fl adeftN
-.Es \&{ \&}
-.En Cm list | show
+.Brq Cm list | show
 .Op Ar number ...
 .Nm
 .Op Fl q
@@ -44,8 +42,7 @@
 .Ar pipe-config-options
 .Nm
 .Cm pipe
-.Es \&{ \&}
-.En Cm delete | list | show
+.Brq Cm delete | list | show
 .Op Ar number ...
 .Nm
 .Cm queue
@@ -54,8 +51,7 @@
 .Ar queue-config-options
 .Nm
 .Cm queue
-.Es \&{ \&}
-.En Cm delete | list | show
+.Brq Cm delete | list | show
 .Op Ar number ...
 .Sh DESCRIPTION
 .Nm
@@ -71,12 +67,13 @@ Each incoming or outgoing packet is passed through the
 rules.
 The number of times a packet is processed by
 .Nm
-varies -- basically,
+varies \(em basically,
 .Nm
 is invoked every time the kernel functions
-.Em ip_input() , ip_output()
+.Fn ip_input ,
+.Fn ip_output
 and
-.Em bdg_forward()
+.Fn bdg_forward
 are invoked.
 This means that packets are processed once for connections having
 only one endpoint on the local host, twice for connections with
@@ -375,9 +372,7 @@ The search terminates and the original packet is accepted
 (but see section
 .Sx BUGS
 below).
-.It Cm fwd Ar ipaddr Ns Xo
-.Op , Ns Ar port
-.Xc
+.It Cm fwd Ar ipaddr Ns Op , Ns Ar port
 Change the next-hop on matching packets to
 .Ar ipaddr ,
 which can be an IP address in dotted quad or a host name.
@@ -520,11 +515,8 @@ With the TCP and UDP protocols, optional
 may be specified as:
 .Bd -ragged -offset indent
 .Sm off
-.Eo \&{
-.Ar port |
-.Ar port No \&- Ar port |
-.Ar port : mask
-.Ec \&} Op , Ar port Op , Ar ...
+.Brq Ar port | port No \&- Ar port | port : mask
+.Op , Ar port Op , Ar ...
 .Sm on
 .Ed
 .Pp
@@ -594,7 +586,7 @@ or
 .Cm xmit
 is used instead of
 .Cm via ,
-then the only receive or transmit interface (respectively)
+then only the receive or transmit interface (respectively)
 is checked.
 By specifying both, it is possible to match packets based on
 both receive and transmit interface, e.g.:
@@ -636,10 +628,12 @@ The rule has a limited lifetime (controlled by a set of
 .Xr sysctl 8
 variables), and the lifetime is refreshed every time a matching
 packet is found.
-.Pp
-.It Cm limit {src-addr src-port dst-addr dst-port} N
-The firewall will only allow N connections with the same
-set of parameters as specified in the rule. One or more
+.It Cm limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N
+The firewall will only allow
+.Ar N
+connections with the same
+set of parameters as specified in the rule.
+One or more
 of source and destination addresses and ports can be
 specified.
 .It Cm bridged
@@ -817,8 +811,7 @@ pipe configuration format is the following:
 .Op Cm delay Ar ms-delay
 .Oo
 .Cm queue
-.Es \&{ \&}
-.En Ar slots | size
+.Brq Ar slots | size
 .Oc
 .Op Cm plr Ar loss-probability
 .Op Cm mask Ar mask-specifier
@@ -826,11 +819,7 @@ pipe configuration format is the following:
 .Oo
 .Cm red | gred
 .Sm off
-.Ar w_q No / Xo
-.Ar min_th No /
-.Ar max_th No /
-.Ar max_p
-.Xc
+.Ar w_q No / Ar min_th No / Ar max_th No / Ar max_p
 .Sm on
 .Oc
 .Ed
@@ -844,8 +833,7 @@ queue configuration format is the following:
 .Op Cm weight Ar weight
 .Oo
 .Cm queue
-.Es \&{ \&}
-.En Ar slots | size
+.Brq Ar slots | size
 .Oc
 .Op Cm plr Ar loss-probability
 .Op Cm mask Ar mask-specifier
@@ -853,11 +841,7 @@ queue configuration format is the following:
 .Oo
 .Cm red | gred
 .Sm off
-.Ar w_q No / Xo
-.Ar min_th No /
-.Ar max_th No /
-.Ar max_p
-.Xc
+.Ar w_q No / Ar min_th No / Ar max_th No / Ar max_p
 .Sm on
 .Oc
 .Ed
@@ -867,11 +851,8 @@ The following parameters can be configured for a pipe:
 .It Cm bw Ar bandwidth | device
 Bandwidth, measured in
 .Sm off
-.Oo
-.Cm K | M
-.Oc Eo \&{
-.Cm bit/s | Byte/s
-.Ec \&} .
+.Op Cm K | M
+.Brq Cm bit/s | Byte/s .
 .Sm on
 .Pp
 A value of 0 (default) means unlimited bandwidth.
@@ -896,10 +877,7 @@ with
 to reduce
 the granularity to 1ms or less).
 Default value is 0, meaning no delay.
-.It Cm queue Xo
-.Es \&{ \&}
-.En Ar slots | size Ns Cm Kbytes
-.Xc
+.It Cm queue Brq Ar slots | size Ns Cm Kbytes
 Queue size, in
 .Ar slots
 or
@@ -963,14 +941,7 @@ specifies the aggregate rate for the set of queues.
 .It Cm weight Ar weight
 Specifies the weight to be used for flows matching this queue.
 The weight must be in the range 1..100, and defaults to 1.
-.It Cm red | gred Xo
-.Sm off
-.Ar w_q No /
-.Ar min_th No /
-.Ar max_th No /
-.Ar max_p
-.Sm on
-.Xc
+.It Cm red | gred Ar w_q Ns / Ns Ar min_th Ns / Ns Ar max_th Ns / Ns Ar max_p
 Make use of the RED queue management algorithm.
 .Ar w_q
 and
@@ -1071,7 +1042,7 @@ A set of
 variables controls the behaviour of the firewall.
 These are shown below together with their default value
 (but always check with the
-.Nm sysctl
+.Xr sysctl 8
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
 .It Em net.inet.ip.fw.debug : No 1
@@ -1179,7 +1150,7 @@ you can use the following type of rules:
 .Dl "ipfw add allow tcp from any to me setup limit src-addr 4"
 .Pp
 The former (assuming it runs on a gateway) will allow each host
-on a /24 net to open at most 10 TCP connections.
+on a /24 network to open at most 10 TCP connections.
 The latter can be placed on a server to make sure that a single
 client does not use more than 4 simultaneous connections.
 .Pp

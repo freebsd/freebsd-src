@@ -102,7 +102,7 @@ The options are as follows:
 .\" old ipsec
 .\" .It Fl A
 .\" Enables transport-mode IPsec authentication header
-.\" .Pq experimental .
+.\" (experimental).
 .It Fl a Ar addrtype
 Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
 .Ar addrtype
@@ -133,7 +133,7 @@ This is an experimental option.
 Set socket buffer size.
 .It Fl c Ar count
 Stop after sending
-.Pq and receiving
+(and receiving)
 .Ar count
 .Tn ECHO_RESPONSE
 packets.
@@ -143,7 +143,7 @@ Set the
 option on the socket being used.
 .\" .It Fl E
 .\" Enables transport-mode IPsec encapsulated security payload
-.\" .Pq experimental .
+.\" (experimental).
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -196,7 +196,7 @@ Probe node information multicast group
 .Pq Li ff02::2:xxxx:xxxx .
 .Ar host
 must be string hostname of the target
-.Pq must not be a numeric IPv6 address .
+(must not be a numeric IPv6 address).
 Node information multicast group will be computed based on given
 .Ar host ,
 and will be used as the final destination.
@@ -224,16 +224,14 @@ when finished.
 .It Fl R
 Make the kernel believe that the target
 .Ar host
-.Po
-or the first
+(or the first
 .Ar hop
 if you specify
-.Ar hops
-.Pc
+.Ar hops )
 is reachable, by injecting upper-layer reachability confirmation hint.
 The option is meaningful only if the target
 .Ar host
-.Pq or the first hop
+(or the first hop)
 is a neighbor.
 .It Fl S Ar sourceaddr
 Specifies the source address of request packets.
@@ -286,7 +284,7 @@ is specified.
 IPv6 addresses for intermediate nodes,
 which will be put into type 0 routing header.
 .It Ar host
-IPv6 adddress of the final destination node.
+IPv6 address of the final destination node.
 .El
 .Pp
 When using
@@ -300,7 +298,7 @@ If duplicate packets are received, they are not included in the packet
 loss calculation, although the round trip time of these packets is used
 in calculating the round-trip time statistics.
 When the specified number of packets have been sent
-.Pq and received
+(and received)
 or if the program is terminated with a
 .Dv SIGINT ,
 a brief summary is displayed, showing the number of packets sent and
@@ -323,12 +321,14 @@ during normal operations or from automated scripts.
 .\" When a
 .\" .Ar packetsize
 .\" is given, this indicated the size of this extra piece of data
-.\" .Pq the default is 56 .
+.\" (the default is 56).
 .\" Thus the amount of data received inside of an IP packet of type
 .\" .Tn ICMP
 .\" .Tn ECHO_REPLY
 .\" will always be 8 bytes more than the requested data space
-.\" .Pq the Tn ICMP header .
+.\" (the
+.\" .Tn ICMP
+.\" header).
 .\" .Pp
 .\" If the data space is at least eight bytes large,
 .\" .Nm
@@ -343,7 +343,7 @@ Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
 inappropriate link-level retransmissions.
 Duplicates may occur in many situations and are rarely
-.Pq if ever
+(if ever)
 a good sign, although the presence of low levels of duplicates may not
 always be cause for alarm.
 Duplicates are expected when pinging a broadcast or multicast address,
@@ -354,7 +354,7 @@ Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
 .Nm
 packet's path
-.Pq in the network or in the hosts .
+(in the network or in the hosts).
 .Sh TRYING DIFFERENT DATA PATTERNS
 The
 (inter)network
@@ -390,7 +390,7 @@ returns 0 on success (the host is alive),
 and non-zero if the arguments are incorrect or the host is not responding.
 .Sh EXAMPLES
 Normally,
-.Xr ping6 8
+.Nm
 works just like
 .Xr ping 8
 would work; the following will send ICMPv6 echo request to
@@ -415,7 +415,6 @@ The following will probe addresses assigned to the destination node,
 .Bd -literal -offset indent
 ping6 -a agl dst.foo.com
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr icmp6 4 ,
@@ -442,7 +441,7 @@ ping6 -a agl dst.foo.com
 .Re
 .Sh BUGS
 There have been many discussions on why we separate
-.Xr ping6 8
+.Nm
 and
 .Xr ping 8 .
 Some people argued that it would be more convenient to uniform the

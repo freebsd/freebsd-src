@@ -34,7 +34,7 @@
 .\"
 .Dd December 11, 1993
 .Dt TUNEFS 8
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm tunefs
 .Nd tune up an existing file system
@@ -48,7 +48,7 @@
 .Op Fl m Ar minfree
 .Bk -words
 .Op Fl n Ar enable | disable
-.Op Fl o Ar optimize_preference
+.Op Fl o Ar space | time
 .Op Fl p
 .Op Fl s Ar avgfpdir
 .Ek
@@ -112,7 +112,7 @@ been deleted to get under the higher threshold.
 .It Fl n Ar enable | disable
 Turn on/off soft updates.
 An unmounted filesystem is required.
-.It Fl o Ar optimize_preference
+.It Fl o Ar space | time
 The file system can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
 fragmentation on the disk.

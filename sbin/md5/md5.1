@@ -17,7 +17,8 @@ as output a 128-bit
 .Dq fingerprint
 or
 .Dq message digest
-of the input.  It is conjectured that it is computationally infeasible to
+of the input.
+It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
 The MD5 algorithm is intended for digital signature applications, where a
@@ -28,8 +29,18 @@ in a secure manner before being encrypted with a private
 key under a public-key cryptosystem such as
 .Em RSA .
 .Pp
+MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been
+made that its security is in some doubt.
+The attacks on MD5
+are in the nature of finding
+.Dq collisions
+\(em that is, multiple
+inputs which hash to the same value; it is still unlikely for an attacker
+to be able to determine the exact original input given a hash value.
+.Pp
 The following options may be used in any combination and must
-precede any files named on the command line.  The MD5
+precede any files named on the command line.
+The MD5
 sum of each file listed on the command line is printed after the options
 are processed.
 .Bl -tag -width indent
@@ -39,11 +50,14 @@ Print a checksum of the given
 .It Fl p
 Echo stdin to stdout and appends the MD5 sum to stdout.
 .It Fl q
-Quiet mode - only the MD5 sum is printed out.  Overrides the
+Quiet mode - only the MD5 sum is printed out.
+Overrides the
 .Fl r
 option.
 .It Fl r
-Reverses the format of the output.  This helps with visual diffs.  Does nothing
+Reverses the format of the output.
+This helps with visual diffs.
+Does nothing
 when combined with the
 .Fl ptx
 options.

@@ -144,7 +144,9 @@ SCSI disk on any supported SCSI controller
 The unit number of the drive on the interface being used.
 0 for the first drive, 1 for the second drive, etc.
 .It Ar part
-The partition letter inside the BSD portion of the disk.  See
+The partition letter inside the
+.Bx
+portion of the disk.  See
 .Xr disklabel 8 .
 By convention, only partition
 .Ql a
@@ -192,7 +194,8 @@ by the
 option becomes the only console.
 .It Fl d
 enter the DDB kernel debugger
-.Pq see Xr ddb 4
+(see
+.Xr ddb 4 )
 as early as possible in kernel initialization.
 .It Fl g
 use the GDB remote debugging protocol.
@@ -223,13 +226,15 @@ options are automatically set.
 .It Fl r
 use the statically configured default for the device containing the
 root file system
-.Pq see Xr config 8 .
+(see
+.Xr config 8 ) .
 Normally, the root file system is on the device
 that the kernel was loaded from.
 .It Fl s
 boot into single-user mode; if the console is marked as
 .Dq insecure
-.Pq see Xr ttys 5 ,
+(see
+.Xr ttys 5 ) ,
 the root password must be entered.
 .It Fl v
 be verbose during device probing (and later).

@@ -497,7 +497,6 @@ Your mileage may vary.
 .Pp
 .Nm
 .Fl w
-.Fl r
 .Fl B
 .Ar da0s1
 auto
@@ -777,7 +776,7 @@ and
 .Dl dd if=/dev/zero of=/dev/da0 bs=512 count=32
 .Dl fdisk -BI da0
 .Dl dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
-.Dl disklabel -w -r -B da0s1 auto
+.Dl disklabel -w -B da0s1 auto
 .Dl disklabel -e da0s1
 .Pp
 Completely wipe any prior information on the disk, creating a new bootable

@@ -34,7 +34,7 @@
 .\"
 .Dd June 5, 1993
 .Dt SWAPON 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm swapon
 .Nd "specify additional device for paging and swapping"
@@ -76,8 +76,8 @@ available to the system for swap allocation.
 .Xr rc 8 ,
 .Xr vnconfig 8
 .Sh FILES
-.Bl -tag -width "/dev/{wd,da}?s?b" -compact
-.It Pa /dev/{wd,da}?s?b
+.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.It Pa /dev/{ad,da}?s?b
 standard paging devices
 .It Pa /dev/vn0b
 vnode disk paging device
