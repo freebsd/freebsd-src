@@ -576,16 +576,18 @@ loop:
 			goto loop;
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-  		if (vrecycle(vp, NULL, td))
-  			goto loop;
+		if (vp->v_usecount == 0) {
+			vgonel(vp, td);
+			goto loop;
+		}
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		mtx_lock(&vp->v_interlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
@@ -903,8 +905,8 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-		mtx_unlock(&mntvnode_mtx);
 		VI_LOCK(vp);
+		mtx_unlock(&mntvnode_mtx);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
