@@ -219,9 +219,7 @@ int cd9660_mountroot __P((void));
 
 extern vop_t **cd9660_vnodeop_p;
 extern vop_t **cd9660_specop_p;
-#ifdef FIFO
 extern vop_t **cd9660_fifoop_p;
-#endif
 
 static __inline int isonum_711 __P((u_char *));
 static __inline int

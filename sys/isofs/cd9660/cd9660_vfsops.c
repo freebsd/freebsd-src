@@ -758,13 +758,8 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 	 */
 	switch (vp->v_type = IFTOVT(ip->inode.iso_mode)) {
 	case VFIFO:
-#ifdef	FIFO
 		vp->v_op = cd9660_fifoop_p;
 		break;
-#else
-		vput(vp);
-		return (EOPNOTSUPP);
-#endif	/* FIFO */
 	case VCHR:
 	case VBLK:
 		/*
