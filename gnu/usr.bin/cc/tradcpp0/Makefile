@@ -19,4 +19,6 @@ tradcif.c: tradcif.y
 	    -e "s/realloc/xrealloc/g" \
 	    y.tab.c >${.TARGET}
 
+CLEANFILES=	y.tab.c tradcif.c
+
 .include <bsd.prog.mk>

@@ -28,7 +28,7 @@ objc-parse.c: c-parse.in
 	    -e "s/realloc/xrealloc/g" \
 	    objc-parse.c.in >objc-parse.c
 
-CLEANFILES+=	objc-parse.c           objc-parse.y		# insurance
+CLEANFILES=	objc-parse.c objc-parse.y
 
 #-----------------------------------------------------------------------
 

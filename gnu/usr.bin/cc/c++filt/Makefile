@@ -20,4 +20,6 @@ cplus-dem+%DIKED.c: cplus-dem.c
 	    -e 's/^xrealloc[ 	]/_DONT_xrealloc /g' \
 	    ${.ALLSRC} > ${.TARGET}
 
+CLEANFILES=	cplus-dem+%DIKED.c
+
 .include <bsd.prog.mk>
