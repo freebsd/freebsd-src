@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.19 1995/03/17 04:27:19 davidg Exp $
+**  $Id: pci.c,v 1.20 1995/03/21 23:01:01 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -61,12 +61,12 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
+#include <machine/pmap.h>
+#include <sys/devconf.h>
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
-
-#include <machine/pmap.h>
-#include <sys/devconf.h>
 
 #define PCI_MAX_IRQ	(16)
 
@@ -560,6 +560,7 @@ pci_bus_config (void)
 		pdcp -> pdc_kdc.kdc_parentdata  = &pdcp->pdc_pi;
 		pdcp -> pdc_kdc.kdc_state       = DC_UNKNOWN;
 		pdcp -> pdc_kdc.kdc_description = name;
+		pdcp -> pdc_kdc.kdc_shutdown	= dvp->pd_shutdown;
 
 		/*
 		**	And register this device
