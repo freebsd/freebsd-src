@@ -1894,7 +1894,6 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 	}
     }
 
-    Buf_AddByte(buf, '\0');
     result = (char *)Buf_GetAll(buf, (size_t *)NULL);
     Buf_Destroy(buf, FALSE);
     return (result);
