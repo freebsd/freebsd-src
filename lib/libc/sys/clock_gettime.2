@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 1997
+.Dd February 5, 2003
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -127,3 +127,9 @@ and
 .Fn clock_getres
 system calls conform to
 .St -p1003.1b-93 .
+.Sh BUGS
+The
+.Dv CLOCK_VIRTUAL
+and
+.Dv CLOCK_PROF
+timers are not yet implemented.
