@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.74 1998/05/28 09:29:59 phk Exp $
+ *	$Id: swtch.s,v 1.75 1998/07/28 17:35:09 bde Exp $
  */
 
 #include "npx.h"
@@ -274,7 +274,7 @@ _idle:
 	movl	%ecx, _common_tss + TSS_ESP0
 
 #ifdef VM86
-	btrl	%esi, _private_tss
+	cmpl	$0, _private_tss
 	je	1f
 	movl	$_common_tssd, %edi
 
@@ -400,7 +400,7 @@ idle_loop:
 	movl	%esp, _common_tss + TSS_ESP0
 
 #ifdef VM86
-	btrl	%esi, _private_tss
+	cmpl	$0, _private_tss
 	je	1f
 	movl	$_common_tssd, %edi
 
@@ -653,7 +653,7 @@ swtch_com:
 	movl	_my_tr, %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
-	btsl	%esi, _private_tss		/* mark use of private tss */
+	movl	$1, _private_tss		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
@@ -670,7 +670,7 @@ swtch_com:
 	movl	%ebx, TSS_ESP0(%eax)
 
 #ifdef VM86
-	btrl	%esi, _private_tss
+	cmpl	$0, _private_tss
 	je	3f
 	movl	$_common_tssd, %edi
 2:
