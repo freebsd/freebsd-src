@@ -1649,8 +1649,32 @@ hint.pcm.0.flags="0x0"
 
 # For PnP/PCI sound cards, no hints are required.
 
+#
+# midi: MIDI interfaces and synthesizers
+#
+
+device		midi
+
+# For non-pnp sound cards with no bridge drivers:
+hint.midi.0.at="isa"
+hint.midi.0.irq="5"
+hint.midi.0.flags="0x0"
+
+# For serial ports (this example configures port 2):
+# TODO: implement generic tty-midi interface so that we can use
+#	other uarts.
+hint.midi.0.at="isa"
+hint.midi.0.port="0x2F8"
+hint.midi.0.irq="3"
+
+#
+# seq: MIDI sequencer
+#
+
+device		seq
+
 # The bridge drivers for sound cards.  These can be seperately configured
-# for providing services to the likes of new-midi (not in the tree yet).
+# for providing services to the likes of new-midi.
 # When used with 'device pcm' they also provide pcm sound services.
 #
 # sbc:  Creative SoundBlaster ISA PnP/non-PnP

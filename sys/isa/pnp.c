@@ -54,6 +54,7 @@ struct pnp_quirk {
 	u_int32_t logical_id;	/* ID of the device with quirk */
 	int	type;
 #define PNP_QUIRK_WRITE_REG	1 /* Need to write a pnp register  */
+#define PNP_QUIRK_EXTRA_IO	2 /* Has extra io ports  */
 	int	arg1;
 	int	arg2;
 };
@@ -66,6 +67,24 @@ struct pnp_quirk pnp_quirks[] = {
 	 */
 	{ 0x0100561e /* GRV0001 */,	0,
 	  PNP_QUIRK_WRITE_REG,	0xf2,	 0xff },
+	/*
+	 * An emu8000 does not give us other than the first
+	 * port.
+	 */
+	{ 0x26008c0e /* SB16 */,	0x21008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0x42008c0e /* SB32(CTL0042) */,	0x21008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0x44008c0e /* SB32(CTL0044) */,	0x21008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0x49008c0e /* SB32(CTL0049) */,	0x21008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0xf1008c0e /* SB32(CTL00f1) */,	0x21008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0xc1008c0e /* SB64(CTL00c1) */,	0x22008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0xe4008c0e /* SB64(CTL00e4) */,	0x22008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
 
 	{ 0 }
 };
@@ -363,8 +382,8 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 /*
  * Process quirks for a logical device.. The card must be in Config state.
  */
-static void
-pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn)
+void
+pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn, struct isa_config *config)
 {
 	struct pnp_quirk *qp;
 
@@ -376,6 +395,22 @@ pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn)
 			case PNP_QUIRK_WRITE_REG:
 				pnp_write(PNP_SET_LDN, ldn);
 				pnp_write(qp->arg1, qp->arg2);
+				break;
+			case PNP_QUIRK_EXTRA_IO:
+				if (config == NULL)
+					break;
+				if (qp->arg1 != 0) {
+					config->ic_nport++;
+					config->ic_port[config->ic_nport - 1] = config->ic_port[0];
+					config->ic_port[config->ic_nport - 1].ir_start += qp->arg1;
+					config->ic_port[config->ic_nport - 1].ir_end += qp->arg1;
+				}
+				if (qp->arg2 != 0) {
+					config->ic_nport++;
+					config->ic_port[config->ic_nport - 1] = config->ic_port[0];
+					config->ic_port[config->ic_nport - 1].ir_start += qp->arg2;
+					config->ic_port[config->ic_nport - 1].ir_end += qp->arg2;
+				}
 				break;
 			}
 		}
@@ -461,7 +496,8 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 */
 			if (startres) {
 				pnp_parse_resources(dev, startres,
-						    resinfo - startres - 1);
+						    resinfo - startres - 1,
+						    p->vendor_id, logical_id, ldn);
 				dev = 0;
 				startres = 0;
 			}
@@ -471,7 +507,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 * resources.
 			 */
 			bcopy(resinfo, &logical_id, 4);
-			pnp_check_quirks(p->vendor_id, logical_id, ldn);
+			pnp_check_quirks(p->vendor_id, logical_id, ldn, NULL);
 			compat_id = 0;
 			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
 			if (desc)
@@ -502,7 +538,8 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				break;
 			}
 			pnp_parse_resources(dev, startres,
-					    resinfo - startres - 1);
+					    resinfo - startres - 1,
+					    p->vendor_id, logical_id, ldn);
 			dev = 0;
 			startres = 0;
 			scanning = 0;

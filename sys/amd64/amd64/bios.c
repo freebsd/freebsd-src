@@ -588,7 +588,8 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	isa_set_logicalid(dev, pd->devid);
 	ISA_SET_CONFIG_CALLBACK(parent, dev, pnpbios_set_config, 0);
 	pnp_parse_resources(dev, &pd->devdata[0],
-			    pd->size - sizeof(struct pnp_sysdev));
+			    pd->size - sizeof(struct pnp_sysdev),
+			    isa_get_vendorid(dev), isa_get_logicalid(dev), 0);
 	if (!device_get_desc(dev))
 	    device_set_desc_copy(dev, pnp_eisaformat(pd->devid));
 
