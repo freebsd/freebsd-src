@@ -142,7 +142,7 @@ static int in_interfaces;	/* number of external internet interfaces */
 int
 in_control(so, cmd, data, ifp)
 	struct socket *so;
-	u_long cmd;
+	int cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
 {

@@ -108,8 +108,8 @@ struct inpcb *
 void	 in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
 void	 in_pcbrehash __P((struct inpcb *));
-void	 in_setpeeraddr __P((struct inpcb *, struct mbuf *));
-void	 in_setsockaddr __P((struct inpcb *, struct mbuf *));
+int	 in_setpeeraddr __P((struct socket *so, struct mbuf *nam));
+int	 in_setsockaddr __P((struct socket *so, struct mbuf *nam));
 #endif
 
 #endif
