@@ -406,8 +406,23 @@ The maximum number of supplemental groups.
 .It Li KERN_NISDOMAINNAME
 The name of the current YP/NIS domain.
 .It Li KERN_OSRELDATE
-The system release date in YYYYMM format
-(January 1996 is encoded as 199601).
+The kernel release version in the format
+.Ar M Ns Ar mm Ns Ar R Ns Ar xx ,
+where
+.Ar M
+is the major version,
+.Ar mm
+is the two digit minor version,
+.Ar R
+is 0 if release branch, otherwise 1,
+and
+.Ar xx
+is updated when the available APIs change.
+.Pp
+The userland release version is available from
+.Aq Pa osreldate.h ;
+parse this file if you need to get the release version of
+the currently installed userland.
 .It Li KERN_OSRELEASE
 The system release string.
 .It Li KERN_OSREV
