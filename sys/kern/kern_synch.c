@@ -477,11 +477,11 @@ msleep(ident, mtx, priority, wmesg, timo)
 		}
 	}
 	mtx_lock_spin(&sched_lock);
-	if (cold || panicstr) {
+	if (cold ) {
 		/*
-		 * After a panic, or during autoconfiguration,
-		 * just give interrupts a chance, then just return;
-		 * don't run any other procs or panic below,
+		 * During autoconfiguration, just give interrupts
+		 * a chance, then just return.
+		 * Don't run any other procs or panic below,
 		 * in case this is the idle process and already asleep.
 		 */
 		if (mtx != NULL && priority & PDROP)
