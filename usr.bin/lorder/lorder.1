@@ -58,7 +58,7 @@ object modules so that all references may be resolved in a single
 pass of the loader.
 .Sh EXAMPLES
 .Bd -literal -offset indent
-ar cr library.a `lorder ${OBJS}  tsort`
+ar cr library.a `lorder ${OBJS} | tsort`
 .Ed
 .Sh SEE ALSO
 .Xr ar 1 ,
