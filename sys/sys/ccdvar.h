@@ -192,6 +192,8 @@ struct ccd_softc {
 	int		 sc_bopenmask;
 	int		 sc_copenmask;
 	int		 sc_openmask;
+	int		 sc_pick;		/* side of mirror picked */
+	daddr_t		 sc_blk[2];		/* mirror localization */
 };
 
 /* sc_flags */
