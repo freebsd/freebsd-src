@@ -12,7 +12,7 @@
 
 name="swap1"
 start_cmd='swapon -a'
-stop_cmd='swapoff -a'
+stop_cmd=':'
 
 load_rc_config swap
 run_rc_command "$1"
