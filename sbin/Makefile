@@ -9,6 +9,7 @@ SUBDIR=	adjkerntz \
 	camcontrol \
 	ccdconfig \
 	clri \
+	comcontrol \
 	dhclient \
 	disklabel \
 	dmesg \
@@ -34,6 +35,7 @@ SUBDIR=	adjkerntz \
 	mount \
 	mount_cd9660 \
 	mount_ext2fs \
+	mount_msdos \
 	mount_nfs \
 	mount_ntfs \
 	mount_null \
