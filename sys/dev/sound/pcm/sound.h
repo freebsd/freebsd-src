@@ -87,12 +87,32 @@ struct isa_device { int dummy; };
 
 #endif	/* _OS_H_ */
 
-#include <dev/sound/pcm/datatypes.h>
-#include <dev/sound/pcm/channel.h>
+struct pcm_channel;
+struct pcm_feeder;
+struct snd_dbuf;
+struct snd_mixer;
+
 #include <dev/sound/pcm/buffer.h>
+#include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+
+#define SND_STATUSLEN	64
+/* descriptor of audio device */
+struct snddev_info {
+	struct pcm_channel *play, *rec, **aplay, **arec, *fakechan;
+	int *ref;
+	unsigned playcount, reccount, chancount, maxchans;
+	struct snd_mixer *mixer;
+	unsigned flags;
+	void *devinfo;
+	device_t dev;
+	char status[SND_STATUSLEN];
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
+	struct mtx mutex;
+};
 
 #ifndef ISADMA_WRITE
 #define ISADMA_WRITE B_WRITE
@@ -127,8 +147,8 @@ struct isa_device { int dummy; };
 #define AFMT_SIGNED (AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
 #define AFMT_BIGENDIAN (AFMT_S16_BE | AFMT_U16_BE)
 
-int fkchan_setup(pcm_channel *c);
-int fkchan_kill(pcm_channel *c);
+struct pcm_channel *fkchan_setup(device_t dev);
+int fkchan_kill(struct pcm_channel *c);
 
 /*
  * Minor numbers for the sound driver.

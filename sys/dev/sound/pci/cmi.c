@@ -83,8 +83,8 @@ struct cmi_info;
 
 struct cmi_chinfo {
 	struct cmi_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 	int bps; /* bytes per sample */
 	u_int32_t fmt, spd, phys_buf;
@@ -115,7 +115,7 @@ static u_int32_t cmi_fmt[] = {
 	0
 };
 
-static pcmchan_caps cmi_caps = {5512, 48000, cmi_fmt, 0};
+static struct pcmchan_caps cmi_caps = {5512, 48000, cmi_fmt, 0};
 
 /* ------------------------------------------------------------------------- */
 /* Register Utilities */
@@ -328,7 +328,7 @@ cmi_spdif_speed(struct cmi_info *cmi, int speed) {
 /* Channel Interface implementation */
 
 static void *
-cmichan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+cmichan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct cmi_info  *cmi = devinfo;
 	struct cmi_chinfo *ch = (dir == PCMDIR_PLAY) ? &cmi->pch : &cmi->rch;
@@ -541,7 +541,7 @@ cmi_intr(void *data)
 	return;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 cmichan_getcaps(kobj_t obj, void *data)
 {
 	return &cmi_caps;
@@ -610,7 +610,7 @@ struct sb16props {
 #define MIXER_GAIN_REG_RTOL(r) (r - 1)
 
 static int
-cmimix_init(snd_mixer *m)
+cmimix_init(struct snd_mixer *m)
 {
 	struct cmi_info *cmi = mix_getdevinfo(m);
 	u_int32_t i,v;
@@ -635,7 +635,7 @@ cmimix_init(snd_mixer *m)
 }
 
 static int
-cmimix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+cmimix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct cmi_info *cmi = mix_getdevinfo(m);
 	u_int32_t r, l, max;
@@ -683,7 +683,7 @@ cmimix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-cmimix_setrecsrc(snd_mixer *m, u_int32_t src)
+cmimix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct cmi_info *cmi = mix_getdevinfo(m);
 	u_int32_t i, ml, sl;
@@ -760,7 +760,7 @@ cmi_probe(device_t dev)
 static int
 cmi_attach(device_t dev)
 {
-	snddev_info *d;
+	struct snddev_info *d;
 	struct cmi_info *cmi;
 	u_int32_t data;
 	char status[SND_STATUSLEN];
@@ -793,7 +793,7 @@ cmi_attach(device_t dev)
 	cmi->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &cmi->irqid,
 					0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!cmi->irq ||
-	    bus_setup_intr(dev, cmi->irq, INTR_TYPE_TTY, cmi_intr, cmi, &cmi->ih)){
+	    snd_setup_intr(dev, cmi->irq, 0, cmi_intr, cmi, &cmi->ih)) {
 		device_printf(dev, "cmi_attach: Unable to map interrupt\n");
 		goto bad;
 	}
@@ -877,7 +877,7 @@ static device_method_t cmi_methods[] = {
 static driver_t cmi_driver = {
 	"pcm",
 	cmi_methods,
-	sizeof(snddev_info)
+	sizeof(struct snddev_info)
 };
 
 static devclass_t pcm_devclass;

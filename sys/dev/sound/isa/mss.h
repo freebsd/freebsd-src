@@ -23,6 +23,23 @@ ahead.
  *
  */
 
+struct mixer_def {
+    	u_int regno:7;
+    	u_int polarity:1;	/* 1 means reversed */
+    	u_int bitoffs:4;
+    	u_int nbits:4;
+};
+typedef struct mixer_def mixer_ent;
+typedef struct mixer_def mixer_tab[32][2];
+
+#define MIX_ENT(name, reg_l, pol_l, pos_l, len_l, reg_r, pol_r, pos_r, len_r) \
+    	{{reg_l, pol_l, pos_l, len_l}, {reg_r, pol_r, pos_r, len_r}}
+
+#define PMIX_ENT(name, reg_l, pos_l, len_l, reg_r, pos_r, len_r) \
+    	{{reg_l, 0, pos_l, len_l}, {reg_r, 0, pos_r, len_r}}
+
+#define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
+
 /*
  * The four visible registers of the MSS :
  *

@@ -57,7 +57,7 @@ static struct cdevsw snd_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	0,
+	/* flags */	D_TRACKCLOSE,
 	/* bmaj */	-1
 };
 
@@ -229,8 +229,8 @@ int
 pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 {
     	int unit = device_get_unit(dev), idx;
-    	snddev_info *d = device_get_softc(dev);
-	pcm_channel *chns, *ch;
+    	struct snddev_info *d = device_get_softc(dev);
+	struct pcm_channel *chns, *ch;
 	char *dirs;
 	int err;
 
@@ -245,6 +245,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	ch = &chns[idx];
 	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK);
 	ch->parent = d;
+	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(dev), dirs, idx);
 	err = chn_init(ch, devinfo, dir);
 	if (err) {
 		device_printf(dev, "chn_init() for (%s:%d) failed: err = %d\n", dirs, idx, err);
@@ -269,8 +270,8 @@ static int
 pcm_killchan(device_t dev, int dir)
 {
     	int unit = device_get_unit(dev), idx;
-    	snddev_info *d = device_get_softc(dev);
-	pcm_channel *chns, *ch;
+    	struct snddev_info *d = device_get_softc(dev);
+	struct pcm_channel *chns, *ch;
 	char *dirs;
 	dev_t pdev;
 
@@ -302,7 +303,7 @@ pcm_killchan(device_t dev, int dir)
 int
 pcm_setstatus(device_t dev, char *str)
 {
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 	strncpy(d->status, str, SND_STATUSLEN);
 	return 0;
 }
@@ -310,21 +311,21 @@ pcm_setstatus(device_t dev, char *str)
 u_int32_t
 pcm_getflags(device_t dev)
 {
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 	return d->flags;
 }
 
 void
 pcm_setflags(device_t dev, u_int32_t val)
 {
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 	d->flags = val;
 }
 
 void *
 pcm_getdevinfo(device_t dev)
 {
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 	return d->devinfo;
 }
 
@@ -333,7 +334,7 @@ int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
     	int sz, unit = device_get_unit(dev);
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 
     	if (!pcm_devclass) {
     		pcm_devclass = device_get_devclass(dev);
@@ -346,14 +347,14 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
 	d->maxchans = numplay + numrec;
-    	sz = (numplay + numrec) * sizeof(pcm_channel *);
+    	sz = (numplay + numrec) * sizeof(struct pcm_channel *);
 
 	if (sz > 0) {
-		d->aplay = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
+		d->aplay = (struct pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
     		if (!d->aplay) goto no;
     		bzero(d->aplay, sz);
 
-    		d->arec = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
+    		d->arec = (struct pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
     		if (!d->arec) goto no;
     		bzero(d->arec, sz);
 
@@ -361,25 +362,21 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		d->ref = (int *)malloc(sz, M_DEVBUF, M_NOWAIT);
     		if (!d->ref) goto no;
     		bzero(d->ref, sz);
-
-		d->atype = (int *)malloc(sz, M_DEVBUF, M_NOWAIT);
-    		if (!d->atype) goto no;
-    		bzero(d->atype, sz);
 	}
 
 	if (numplay > 0) {
-    		d->play = (pcm_channel *)malloc(numplay * sizeof(pcm_channel),
+    		d->play = (struct pcm_channel *)malloc(numplay * sizeof(struct pcm_channel),
 						M_DEVBUF, M_NOWAIT);
     		if (!d->play) goto no;
-    		bzero(d->play, numplay * sizeof(pcm_channel));
+    		bzero(d->play, numplay * sizeof(struct pcm_channel));
 	} else
 		d->play = NULL;
 
 	if (numrec > 0) {
-	  	d->rec = (pcm_channel *)malloc(numrec * sizeof(pcm_channel),
+	  	d->rec = (struct pcm_channel *)malloc(numrec * sizeof(struct pcm_channel),
 				       	M_DEVBUF, M_NOWAIT);
     		if (!d->rec) goto no;
-    		bzero(d->rec, numrec * sizeof(pcm_channel));
+    		bzero(d->rec, numrec * sizeof(struct pcm_channel));
 	} else
 		d->rec = NULL;
 
@@ -397,9 +394,8 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	if (numplay == 0 || numrec == 0)
 		d->flags |= SD_F_SIMPLEX;
 
-	fkchan_setup(&d->fakechan);
-	chn_init(&d->fakechan, NULL, 0);
-	d->magic = MAGIC(unit); /* debugging... */
+	d->fakechan = fkchan_setup(dev);
+	chn_init(d->fakechan, NULL, 0);
 
     	return 0;
 no:
@@ -408,7 +404,6 @@ no:
 	if (d->arec) free(d->arec, M_DEVBUF);
 	if (d->rec) free(d->rec, M_DEVBUF);
 	if (d->ref) free(d->ref, M_DEVBUF);
-	if (d->atype) free(d->atype, M_DEVBUF);
 	return ENXIO;
 }
 
@@ -416,14 +411,8 @@ int
 pcm_unregister(device_t dev)
 {
     	int r, i, unit = device_get_unit(dev);
-    	snddev_info *d = device_get_softc(dev);
+    	struct snddev_info *d = device_get_softc(dev);
 	dev_t pdev;
-
-#ifdef SND_DYNSYSCTL
-	sysctl_remove_oid(d->sysctl_tree_top, 1, 1);
-	d->sysctl_tree_top = NULL;
-	sysctl_ctx_free(&d->sysctl_tree);
-#endif
 
 	r = 0;
 	for (i = 0; i < d->chancount; i++)
@@ -437,6 +426,11 @@ pcm_unregister(device_t dev)
 		return EBUSY;
 	}
 
+#ifdef SND_DYNSYSCTL
+	d->sysctl_tree_top = NULL;
+	sysctl_ctx_free(&d->sysctl_tree);
+#endif
+
 	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
 	destroy_dev(pdev);
 	mixer_uninit(dev);
@@ -445,17 +439,15 @@ pcm_unregister(device_t dev)
 		pcm_killchan(dev, PCMDIR_PLAY);
 	while (d->reccount > 0)
 		pcm_killchan(dev, PCMDIR_REC);
-	d->magic = 0;
 
 	if (d->aplay) free(d->aplay, M_DEVBUF);
 	if (d->play) free(d->play, M_DEVBUF);
 	if (d->arec) free(d->arec, M_DEVBUF);
 	if (d->rec) free(d->rec, M_DEVBUF);
 	if (d->ref) free(d->ref, M_DEVBUF);
-	if (d->atype) free(d->atype, M_DEVBUF);
 
-	chn_kill(&d->fakechan);
-	fkchan_kill(&d->fakechan);
+	chn_kill(d->fakechan);
+	fkchan_kill(d->fakechan);
 
 #ifdef USING_DEVFS
 	pcm_makelinks(NULL);
@@ -465,13 +457,13 @@ pcm_unregister(device_t dev)
 
 /*
  * a small utility function which, given a device number, returns
- * a pointer to the associated snddev_info struct, and sets the unit
+ * a pointer to the associated struct snddev_info struct, and sets the unit
  * number.
  */
-static snddev_info *
+static struct snddev_info *
 get_snddev_info(dev_t i_dev, int *unit, int *dev, int *chan)
 {
-	snddev_info *sc;
+	struct snddev_info *sc;
     	int u, d, c;
 
     	u = PCMUNIT(i_dev);
@@ -484,7 +476,7 @@ get_snddev_info(dev_t i_dev, int *unit, int *dev, int *chan)
     	if (u < 0) return NULL;
 
 	sc = devclass_get_softc(pcm_devclass, u);
-	if (sc == NULL || sc->magic == 0) return NULL;
+	if (sc == NULL) return NULL;
 
 	switch(d) {
     	case SND_DEV_CTL:	/* /dev/mixer handled by pcm */
@@ -508,7 +500,7 @@ static int
 sndopen(dev_t i_dev, int flags, int mode, struct proc *p)
 {
     	int dev, unit, chan;
-    	snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
 
     	DEB(printf("open snd%d subdev %d flags 0x%08x mode 0x%08x\n",
 		unit, dev, flags, mode));
@@ -537,7 +529,7 @@ static int
 sndclose(dev_t i_dev, int flags, int mode, struct proc *p)
 {
     	int dev, unit, chan;
-    	snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
 
     	DEB(printf("close snd%d subdev %d\n", unit, dev));
 
@@ -564,7 +556,7 @@ static int
 sndread(dev_t i_dev, struct uio *buf, int flag)
 {
     	int dev, unit, chan;
-    	snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
     	DEB(printf("read snd%d subdev %d flag 0x%08x\n", unit, dev, flag));
 
     	switch(dev) {
@@ -585,7 +577,7 @@ static int
 sndwrite(dev_t i_dev, struct uio *buf, int flag)
 {
     	int dev, unit, chan;
-    	snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
 
     	DEB(printf("write snd%d subdev %d flag 0x%08x\n", unit, dev & 0xf, flag));
 
@@ -604,7 +596,7 @@ static int
 sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     	int dev, chan;
-    	snddev_info *d = get_snddev_info(i_dev, NULL, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, NULL, &dev, &chan);
 
     	if (d == NULL) return ENXIO;
 
@@ -629,7 +621,7 @@ static int
 sndpoll(dev_t i_dev, int events, struct proc *p)
 {
     	int dev, chan;
-    	snddev_info *d = get_snddev_info(i_dev, NULL, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, NULL, &dev, &chan);
 
 	DEB(printf("sndpoll d 0x%p dev 0x%04x events 0x%08x\n", d, dev, events));
 
@@ -665,7 +657,7 @@ static int
 sndmmap(dev_t i_dev, vm_offset_t offset, int nprot)
 {
     	int unit, dev, chan;
-    	snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
+    	struct snddev_info *d = get_snddev_info(i_dev, &unit, &dev, &chan);
 
     	DEB(printf("sndmmap d 0x%p dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
 		   d, dev, offset, nprot));
@@ -688,7 +680,7 @@ status_init(char *buf, int size)
 {
     	int             i;
     	device_t	    dev;
-    	snddev_info     *d;
+    	struct snddev_info     *d;
 
     	snprintf(buf, size, "FreeBSD Audio Driver (newpcm) %s %s\n"
 		 "Installed devices:\n", __DATE__, __TIME__);

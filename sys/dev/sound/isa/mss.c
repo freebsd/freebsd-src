@@ -46,8 +46,8 @@ struct mss_info;
 
 struct mss_chinfo {
 	struct mss_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt, blksz;
 };
@@ -65,6 +65,7 @@ struct mss_info {
     int		     drq2_rid;
     void 	    *ih;
     bus_dma_tag_t    parent_dmat;
+    void	    *lock;
 
     char mss_indexed_regs[MSS_INDEXED_REGS];
     char opl_indexed_regs[OPL_INDEXED_REGS];
@@ -132,7 +133,7 @@ static u_int32_t mss_fmt[] = {
 	AFMT_STEREO | AFMT_A_LAW,
 	0
 };
-static pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
+static struct pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
 
 static u_int32_t guspnp_fmt[] = {
 	AFMT_U8,
@@ -143,7 +144,7 @@ static u_int32_t guspnp_fmt[] = {
 	AFMT_STEREO | AFMT_A_LAW,
 	0
 };
-static pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
+static struct pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
 
 static u_int32_t opti931_fmt[] = {
 	AFMT_U8,
@@ -152,7 +153,7 @@ static u_int32_t opti931_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
+static struct pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
@@ -169,6 +170,18 @@ static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 #define	DV_F_TRUE_MSS	0x00010000	/* mss _with_ base regs */
 
 #define FULL_DUPLEX(x) ((x)->bd_flags & BD_F_DUPLEX)
+
+static void
+mss_lock(struct mss_info *mss)
+{
+	snd_mtxlock(mss);
+}
+
+static void
+mss_unlock(struct mss_info *mss)
+{
+	snd_mtxunlock(mss);
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -280,6 +293,8 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 		bus_dma_tag_destroy(mss->parent_dmat);
 		mss->parent_dmat = 0;
     	}
+	if (mss->lock) snd_mtxfree(mss->lock);
+
      	free(mss, M_DEVBUF);
 }
 
@@ -320,6 +335,37 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 		} else mss->drq2 = mss->drq1;
 	}
     	return ok;
+}
+
+/*
+ * The various mixers use a variety of bitmasks etc. The Voxware
+ * driver had a very nice technique to describe a mixer and interface
+ * to it. A table defines, for each channel, which register, bits,
+ * offset, polarity to use. This procedure creates the new value
+ * using the table and the old value.
+ */
+
+static void
+change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval)
+{
+    	u_char mask;
+    	int shift;
+
+    	DEB(printf("ch_bits dev %d ch %d val %d old 0x%02x "
+		"r %d p %d bit %d off %d\n",
+		dev, chn, newval, *regval,
+		(*t)[dev][chn].regno, (*t)[dev][chn].polarity,
+		(*t)[dev][chn].nbits, (*t)[dev][chn].bitoffs ) );
+
+    	if ( (*t)[dev][chn].polarity == 1)	/* reverse */
+		newval = 100 - newval ;
+
+    	mask = (1 << (*t)[dev][chn].nbits) - 1;
+    	newval = (int) ((newval * mask) + 50) / 100; /* Scale it */
+    	shift = (*t)[dev][chn].bitoffs /*- (*t)[dev][LEFT_CHN].nbits + 1*/;
+
+    	*regval &= ~(mask << shift);        /* Filter out the previous value */
+    	*regval |= (newval & mask) << shift;        /* Set the new value */
 }
 
 /* -------------------------------------------------------------------- */
@@ -409,7 +455,7 @@ mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
 /* -------------------------------------------------------------------- */
 
 static int
-mssmix_init(snd_mixer *m)
+mssmix_init(struct snd_mixer *m)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
@@ -422,8 +468,10 @@ mssmix_init(snd_mixer *m)
 
 	case MD_OPTI931:
 		mix_setdevs(m, OPTI931_MIXER_DEVICES);
+		mss_lock(mss);
 		ad_write(mss, 20, 0x88);
 		ad_write(mss, 21, 0x88);
+		mss_unlock(mss);
 		break;
 
 	case MD_AD1848:
@@ -433,29 +481,35 @@ mssmix_init(snd_mixer *m)
 	case MD_GUSPNP:
 	case MD_GUSMAX:
 		/* this is only necessary in mode 3 ... */
+		mss_lock(mss);
 		ad_write(mss, 22, 0x88);
 		ad_write(mss, 23, 0x88);
+		mss_unlock(mss);
 		break;
 	}
 	return 0;
 }
 
 static int
-mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+mssmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
+	mss_lock(mss);
 	mss_mixer_set(mss, dev, left, right);
+	mss_unlock(mss);
 
 	return left | (right << 8);
 }
 
 static int
-mssmix_setrecsrc(snd_mixer *m, u_int32_t src)
+mssmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
+	mss_lock(mss);
 	src = mss_set_recsrc(mss, src);
+	mss_unlock(mss);
 	return src;
 }
 
@@ -470,7 +524,7 @@ MIXER_DECLARE(mssmix_mixer);
 /* -------------------------------------------------------------------- */
 
 static int
-ymmix_init(snd_mixer *m)
+ymmix_init(struct snd_mixer *m)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
@@ -478,18 +532,21 @@ ymmix_init(snd_mixer *m)
 	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC
 				      | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
 	/* Set master volume */
+	mss_lock(mss);
 	conf_wr(mss, OPL3SAx_VOLUMEL, 7);
 	conf_wr(mss, OPL3SAx_VOLUMER, 7);
+	mss_unlock(mss);
 
 	return 0;
 }
 
 static int
-ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+ymmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 	int t, l, r;
 
+	mss_lock(mss);
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
 		if (left) t = 15 - (left * 15) / 100;
@@ -524,15 +581,18 @@ ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	default:
 		mss_mixer_set(mss, dev, left, right);
 	}
+	mss_unlock(mss);
 
 	return left | (right << 8);
 }
 
 static int
-ymmix_setrecsrc(snd_mixer *m, u_int32_t src)
+ymmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
+	mss_lock(mss);
 	src = mss_set_recsrc(mss, src);
+	mss_unlock(mss);
 	return src;
 }
 
@@ -711,6 +771,7 @@ mss_intr(void *arg)
     	int i;
 
     	DEB(printf("mss_intr\n"));
+	mss_lock(mss);
     	ad_read(mss, 11); /* fake read of status bits */
 
     	/* loop until there are interrupts, but no more than 10 times. */
@@ -740,6 +801,7 @@ mss_intr(void *arg)
 	 	*/
 		io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
     	}
+	mss_unlock(mss);
 }
 
 /*
@@ -751,7 +813,7 @@ ad_wait_init(struct mss_info *mss, int x)
 {
     	int arg = x, n = 0; /* to shut up the compiler... */
     	for (; x > 0; x--)
-		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10);
+		if ((n = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10000);
 		else return n;
     	printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
     	return n;
@@ -760,15 +822,12 @@ ad_wait_init(struct mss_info *mss, int x)
 static int
 ad_read(struct mss_info *mss, int reg)
 {
-    	u_long   flags;
     	int             x;
 
-    	flags = spltty();
     	ad_wait_init(mss, 201000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	x = io_rd(mss, MSS_IDATA);
-    	splx(flags);
 	/* printf("ad_read %d, %x\n", reg, x); */
     	return x;
 }
@@ -776,16 +835,13 @@ ad_read(struct mss_info *mss, int reg)
 static void
 ad_write(struct mss_info *mss, int reg, u_char data)
 {
-    	u_long   flags;
-
     	int x;
+
 	/* printf("ad_write %d, %x\n", reg, data); */
-    	flags = spltty();
     	ad_wait_init(mss, 1002000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	io_wr(mss, MSS_IDATA, data);
-    	splx(flags);
 }
 
 static void
@@ -849,7 +905,6 @@ ad_enter_MCE(struct mss_info *mss)
 static void
 ad_leave_MCE(struct mss_info *mss)
 {
-    	u_long   flags;
     	u_char   prev;
 
     	if ((mss->bd_flags & BD_F_MCE_BIT) == 0) {
@@ -859,14 +914,12 @@ ad_leave_MCE(struct mss_info *mss)
 
     	ad_wait_init(mss, 1000000);
 
-    	flags = spltty();
     	mss->bd_flags &= ~BD_F_MCE_BIT;
 
     	prev = io_rd(mss, MSS_INDEX);
     	prev &= ~MSS_TRD;
     	io_wr(mss, MSS_INDEX, prev & ~MSS_MCE); /* Clear the MCE bit */
     	wait_for_calibration(mss);
-    	splx(flags);
 }
 
 static int
@@ -1011,6 +1064,7 @@ opti931_intr(void *arg)
 		return;
     	}
 #endif
+	mss_lock(mss);
     	i11 = ad_read(mss, 11); /* XXX what's for ? */
 	again:
 
@@ -1039,6 +1093,7 @@ opti931_intr(void *arg)
 	    		else DDB(printf("intr, but mc11 not set\n");)
 		}
 		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
+		mss_unlock(mss);
 		return;
     	}
 
@@ -1046,13 +1101,14 @@ opti931_intr(void *arg)
     	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) chn_intr(mss->pch.channel);
     	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
+	mss_unlock(mss);
     	DEB(printf("xxx too many loops\n");)
 }
 
 /* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-msschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct mss_info *mss = devinfo;
 	struct mss_chinfo *ch = (dir == PCMDIR_PLAY)? &mss->pch : &mss->rch;
@@ -1070,8 +1126,11 @@ static int
 msschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
 
+	mss_lock(mss);
 	mss_format(ch, format);
+	mss_unlock(mss);
 	return 0;
 }
 
@@ -1079,8 +1138,14 @@ static int
 msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
+	int r;
 
-	return mss_speed(ch, speed);
+	mss_lock(mss);
+	r = mss_speed(ch, speed);
+	mss_unlock(mss);
+
+	return r;
 }
 
 static int
@@ -1096,12 +1161,15 @@ static int
 msschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct mss_chinfo *ch = data;
+	struct mss_info *mss = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	sndbuf_isadma(ch->buffer, go);
+	mss_lock(mss);
 	mss_trigger(ch, go);
+	mss_unlock(mss);
 	return 0;
 }
 
@@ -1112,7 +1180,7 @@ msschan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 msschan_getcaps(kobj_t obj, void *data)
 {
 	struct mss_chinfo *ch = data;
@@ -1581,6 +1649,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	int pdma, rdma, flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
 
+	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
 	pdma = rman_get_start(mss->drq1);
@@ -1620,10 +1689,10 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	mixer_init(dev, (mss->bd_id == MD_YM0020)? &ymmix_mixer_class : &mssmix_mixer_class, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, opti931_intr, mss, &mss->ih);
 		break;
     	default:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &mss->ih);
+		snd_setup_intr(dev, mss->irq, INTR_MPSAFE, mss_intr, mss, &mss->ih);
     	}
     	if (pdma == rdma)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
@@ -1775,7 +1844,7 @@ static device_method_t mss_methods[] = {
 static driver_t mss_driver = {
 	"pcm",
 	mss_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
@@ -2049,7 +2118,7 @@ static device_method_t pnpmss_methods[] = {
 static driver_t pnpmss_driver = {
 	"pcm",
 	pnpmss_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
@@ -2134,7 +2203,7 @@ static device_method_t guspcm_methods[] = {
 static driver_t guspcm_driver = {
 	"pcm",
 	guspcm_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);

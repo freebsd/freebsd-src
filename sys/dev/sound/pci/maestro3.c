@@ -95,8 +95,8 @@ struct sc_info;
 struct sc_pchinfo {
 	u_int32_t	spd;
 	u_int32_t	fmt;
-	snd_dbuf	*buffer;
-	pcm_channel	*channel;
+	struct snd_dbuf	*buffer;
+	struct pcm_channel	*channel;
 	struct sc_info	*parent;
 	u_int32_t	bufsize;
 	u_int32_t	dac_data;
@@ -107,8 +107,8 @@ struct sc_pchinfo {
 struct sc_rchinfo {
 	u_int32_t	spd;
 	u_int32_t	fmt;
-	snd_dbuf	*buffer;
-	pcm_channel	*channel;
+	struct snd_dbuf	*buffer;
+	struct pcm_channel	*channel;
 	struct sc_info	*parent;
 	u_int32_t	bufsize;
 	u_int32_t	adc_data;
@@ -145,24 +145,24 @@ struct sc_info {
 /* -------------------------------------------------------------------- */
 
 /* play channel interface */
-static void *m3_pchan_init(kobj_t, void *, snd_dbuf *, pcm_channel *, int);
+static void *m3_pchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_pchan_free(kobj_t, void *);
 static int m3_pchan_setformat(kobj_t, void *, u_int32_t);
 static int m3_pchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_pchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_pchan_trigger(kobj_t, void *, int);
 static int m3_pchan_getptr(kobj_t, void *);
-static pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
+static struct pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
 
 /* record channel interface */
-static void *m3_rchan_init(kobj_t, void *, snd_dbuf *, pcm_channel *, int);
+static void *m3_rchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_rchan_free(kobj_t, void *);
 static int m3_rchan_setformat(kobj_t, void *, u_int32_t);
 static int m3_rchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_rchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_rchan_trigger(kobj_t, void *, int);
 static int m3_rchan_getptr(kobj_t, void *);
-static pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
+static struct pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
 
 /* talk to the codec - called from ac97.c */
 static int	 m3_initcd(kobj_t, void *);
@@ -200,7 +200,7 @@ static u_int32_t m3_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps m3_playcaps = {8000, 48000, m3_playfmt, 0};
+static struct pcmchan_caps m3_playcaps = {8000, 48000, m3_playfmt, 0};
 
 static kobj_method_t m3_pch_methods[] = {
 	KOBJMETHOD(channel_init,		m3_pchan_init),
@@ -222,7 +222,7 @@ static u_int32_t m3_recfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps m3_reccaps = {8000, 48000, m3_recfmt, 0};
+static struct pcmchan_caps m3_reccaps = {8000, 48000, m3_recfmt, 0};
 
 static kobj_method_t m3_rch_methods[] = {
 	KOBJMETHOD(channel_init,		m3_rchan_init),
@@ -314,7 +314,7 @@ m3_rdcd(kobj_t kobj, void *devinfo, int regno)
 		return -1;
 	}
 	m3_wr_1(sc, CODEC_COMMAND, (regno & 0x7f) | 0x80);
-	DELAY(21); /* ac97 cycle = 20.8 usec */
+	DELAY(50); /* ac97 cycle = 20.8 usec */
 	if (m3_wait(sc)) {
 		device_printf(sc->dev, "m3_rdcd timed out.\n");
 		return -1;
@@ -333,6 +333,7 @@ m3_wrcd(kobj_t kobj, void *devinfo, int regno, u_int32_t data)
 	}
 	m3_wr_2(sc, CODEC_DATA, data);
 	m3_wr_1(sc, CODEC_COMMAND, regno & 0x7f);
+	DELAY(50); /* ac97 cycle = 20.8 usec */
 	return 0;
 }
 
@@ -343,7 +344,7 @@ m3_wrcd(kobj_t kobj, void *devinfo, int regno, u_int32_t data)
 #define HI(x) (((x) & 0xffff0000) >> 16)
 
 static void *
-m3_pchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
@@ -609,7 +610,7 @@ m3_pchan_getptr(kobj_t kobj, void *chdata)
 	return (bus_crnt - bus_base); /* current byte offset of channel */
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 m3_pchan_getcaps(kobj_t kobj, void *chdata)
 {
 	struct sc_pchinfo *ch = chdata;
@@ -623,7 +624,7 @@ m3_pchan_getcaps(kobj_t kobj, void *chdata)
 /* rec channel interface */
 
 static void *
-m3_rchan_init(kobj_t kobj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -879,7 +880,7 @@ m3_rchan_getptr(kobj_t kobj, void *chdata)
 	return (bus_crnt - bus_base); /* current byte offset of channel */
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 m3_rchan_getcaps(kobj_t kobj, void *chdata)
 {
 	struct sc_rchinfo *ch = chdata;
@@ -1133,8 +1134,7 @@ m3_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, m3_intr, sc, 
-			   &sc->ih)) {
+	if (snd_setup_intr(dev, sc->irq, 0, m3_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
 	}
@@ -1192,6 +1192,7 @@ m3_pci_attach(device_t dev)
 		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;
 	}
+	mixer_hwvol_init(dev);
 
 	/* Create the buffer for saving the card state during suspend */
 	len = sizeof(u_int16_t) * (REV_B_CODE_MEMORY_LENGTH + 
@@ -1491,7 +1492,7 @@ static device_method_t m3_methods[] = {
 static driver_t m3_driver = {
 	"pcm",
 	m3_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

@@ -87,8 +87,8 @@ struct sc_info;
 /* channel registers */
 struct sc_pchinfo {
 	int run, spd, dir, fmt;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	volatile struct pbank *lslot, *rslot;
 	int lsnum, rsnum;
 	struct sc_info *parent;
@@ -96,8 +96,8 @@ struct sc_pchinfo {
 
 struct sc_rchinfo {
 	int run, spd, dir, fmt, num;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	volatile struct rbank *slot;
 	struct sc_info *parent;
 };
@@ -116,6 +116,7 @@ struct sc_info {
 	struct resource *reg, *irq;
 	int		regid, irqid;
 	void		*ih;
+	void		*lock;
 
 	void *regbase;
 	u_int32_t *pbase, pbankbase, pbanksize;
@@ -175,7 +176,7 @@ static u_int32_t ds_recfmt[] = {
 	AFMT_STEREO | AFMT_U16_LE,
 	0
 };
-static pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
+static struct pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
 
 static u_int32_t ds_playfmt[] = {
 	AFMT_U8,
@@ -184,7 +185,7 @@ static u_int32_t ds_playfmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
+static struct pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
 
 /* -------------------------------------------------------------------- */
 /* Hardware */
@@ -473,7 +474,7 @@ ds_setuprch(struct sc_rchinfo *ch)
 /* -------------------------------------------------------------------- */
 /* play channel interface */
 static void *
-ds1pchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ds1pchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
@@ -550,7 +551,9 @@ ds1pchan_trigger(kobj_t obj, void *data, int go)
 		ds_setuppch(ch);
 		ds_enapslot(sc, ch->lsnum, 1);
 		ds_enapslot(sc, ch->rsnum, stereo);
+		snd_mtxlock(sc->lock);
 		ds_wr(sc, YDSXGR_MODE, 0x00000003, 4);
+		snd_mtxunlock(sc->lock);
 	} else {
 		ch->run = 0;
 		/* ds_setuppch(ch); */
@@ -580,7 +583,7 @@ ds1pchan_getptr(kobj_t obj, void *data)
 	return ptr;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 ds1pchan_getcaps(kobj_t obj, void *data)
 {
 	return &ds_playcaps;
@@ -601,7 +604,7 @@ CHANNEL_DECLARE(ds1pchan);
 /* -------------------------------------------------------------------- */
 /* record channel interface */
 static void *
-ds1rchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ds1rchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -672,15 +675,19 @@ ds1rchan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_START) {
 		ch->run = 1;
 		ds_setuprch(ch);
+		snd_mtxlock(sc->lock);
 		x = ds_rd(sc, YDSXGR_MAPOFREC, 4);
 		x |= (ch->num == DS1_RECPRIMARY)? 0x02 : 0x01;
 		ds_wr(sc, YDSXGR_MAPOFREC, x, 4);
 		ds_wr(sc, YDSXGR_MODE, 0x00000003, 4);
+		snd_mtxunlock(sc->lock);
 	} else {
 		ch->run = 0;
+		snd_mtxlock(sc->lock);
 		x = ds_rd(sc, YDSXGR_MAPOFREC, 4);
 		x &= ~((ch->num == DS1_RECPRIMARY)? 0x02 : 0x01);
 		ds_wr(sc, YDSXGR_MAPOFREC, x, 4);
+		snd_mtxunlock(sc->lock);
 	}
 
 	return 0;
@@ -695,7 +702,7 @@ ds1rchan_getptr(kobj_t obj, void *data)
 	return ch->slot[sc->currbank].PgStart;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 ds1rchan_getcaps(kobj_t obj, void *data)
 {
 	return &ds_reccaps;
@@ -721,6 +728,7 @@ ds_intr(void *p)
 	struct sc_info *sc = (struct sc_info *)p;
 	u_int32_t i, x;
 
+	snd_mtxlock(sc->lock);
 	i = ds_rd(sc, YDSXGR_STATUS, 4);
 	if (i & 0x00008000)
 		device_printf(sc->dev, "timeout irq\n");
@@ -746,6 +754,7 @@ ds_intr(void *p)
 			ds_wr(sc, YDSXGR_MODE, i | 0x00000002, 4);
 
 	}
+	snd_mtxunlock(sc->lock);
 }
 
 /* -------------------------------------------------------------------- */
@@ -922,12 +931,12 @@ ds_pci_attach(device_t dev)
 	struct ac97_info *codec = NULL;
 	char 		status[SND_STATUSLEN];
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(sc, sizeof(*sc));
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev));
 	sc->dev = dev;
 	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	sc->type = ds_finddev(pci_get_devid(dev), subdev);
@@ -973,8 +982,7 @@ ds_pci_attach(device_t dev)
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq ||
-	    bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, ds_intr, sc, &sc->ih)) {
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ds_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -1003,6 +1011,8 @@ bad:
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->parent_dmat)
 		bus_dma_tag_destroy(sc->parent_dmat);
+	if (sc->lock)
+		snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -1041,6 +1051,7 @@ ds_pci_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	bus_dma_tag_destroy(sc->parent_dmat);
+	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
        	return 0;
 }
@@ -1057,7 +1068,7 @@ static device_method_t ds1_methods[] = {
 static driver_t ds1_driver = {
 	"pcm",
 	ds1_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;

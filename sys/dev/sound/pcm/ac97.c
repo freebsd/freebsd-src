@@ -33,6 +33,19 @@
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
+#define AC97_NAMELEN	16
+struct ac97_info {
+	kobj_t methods;
+	device_t dev;
+	void *devinfo;
+	char *id;
+	char rev;
+	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
+	struct ac97mixtable_entry mix[32];
+	char name[AC97_NAMELEN];
+	void *lock;
+};
+
 struct ac97_codecid {
 	u_int32_t id, noext:1;
 	char *name;
@@ -192,6 +205,7 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 		return -1;
 	}
 
+	snd_mtxlock(codec->lock);
 	if (rate != 0) {
 		v = rate;
 		if (codec->extstat & AC97_EXTCAP_DRA)
@@ -201,6 +215,7 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	v = rdcd(codec, which);
 	if (codec->extstat & AC97_EXTCAP_DRA)
 		v <<= 1;
+	snd_mtxunlock(codec->lock);
 	return v;
 }
 
@@ -210,8 +225,10 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 	mode &= AC97_EXTCAPS;
 	if ((mode & ~codec->extcaps) != 0)
 		return -1;
+	snd_mtxlock(codec->lock);
 	wrcd(codec, AC97_REGEXT_STAT, mode);
 	codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+	snd_mtxunlock(codec->lock);
 	return (mode == codec->extstat)? 0 : -1;
 }
 
@@ -235,7 +252,9 @@ ac97_setrecsrc(struct ac97_info *codec, int channel)
 	if (e->recidx > 0) {
 		int val = e->recidx - 1;
 		val |= val << 8;
+		snd_mtxlock(codec->lock);
 		wrcd(codec, AC97_REG_RECSEL, val);
+		snd_mtxunlock(codec->lock);
 		return 0;
 	} else
 		return -1;
@@ -280,7 +299,9 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		}
 		if (left == 0 && right == 0 && e->mute == 1)
 			val = AC97_MUTE;
+		snd_mtxlock(codec->lock);
 		wrcd(codec, reg, val);
+		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
 		/* printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable); */
@@ -318,12 +339,14 @@ ac97_initmixer(struct ac97_info *codec)
 	unsigned i, j, k, old;
 	u_int32_t id;
 
+	snd_mtxlock(codec->lock);
 	for (i = 0; i < 32; i++)
 		codec->mix[i] = ac97mixtable_default[i];
 
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
 		device_printf(codec->dev, "ac97 codec init failed\n");
+		snd_mtxunlock(codec->lock);
 		return ENODEV;
 	}
 
@@ -340,14 +363,15 @@ ac97_initmixer(struct ac97_info *codec)
 	codec->rev = id & 0x000000ff;
 	if (id == 0 || id == 0xffffffff) {
 		device_printf(codec->dev, "ac97 codec invalid or not present (id == %x)\n", id);
+		snd_mtxunlock(codec->lock);
 		return ENODEV;
 	}
 
 	codec->noext = 0;
-	codec->name = NULL;
+	codec->id = NULL;
 	for (i = 0; ac97codecid[i].id; i++) {
 		if (ac97codecid[i].id == id) {
-			codec->name = ac97codecid[i].name;
+			codec->id = ac97codecid[i].name;
 			codec->noext = ac97codecid[i].noext;
 		}
 	}
@@ -380,8 +404,8 @@ ac97_initmixer(struct ac97_info *codec)
 
 	if (bootverbose) {
 		device_printf(codec->dev, "ac97 codec id 0x%08x", id);
-		if (codec->name)
-			printf(" (%s)", codec->name);
+		if (codec->id)
+			printf(" (%s)", codec->id);
 		printf("\n");
 		device_printf(codec->dev, "ac97 codec features ");
 		for (i = j = 0; i < 10; i++)
@@ -404,6 +428,7 @@ ac97_initmixer(struct ac97_info *codec)
 
 	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
 		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+	snd_mtxunlock(codec->lock);
 	return 0;
 }
 
@@ -412,9 +437,11 @@ ac97_reinitmixer(struct ac97_info *codec)
 {
 	unsigned i;
 
+	snd_mtxlock(codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
 		device_printf(codec->dev, "ac97 codec init failed\n");
+		snd_mtxunlock(codec->lock);
 		return ENODEV;
 	}
 
@@ -432,6 +459,7 @@ ac97_reinitmixer(struct ac97_info *codec)
 
 	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
 		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+	snd_mtxunlock(codec->lock);
 	return 0;
 }
 
@@ -444,8 +472,12 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	if (codec == NULL)
 		return NULL;
 
+	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
+	codec->lock = snd_mtxcreate(codec->name);
 	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
 	if (codec->methods == NULL) {
+		snd_mtxlock(codec->lock);
+		snd_mtxfree(codec->lock);
 		free(codec, M_AC97);
 		return NULL;
 	}
@@ -458,15 +490,17 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 void
 ac97_destroy(struct ac97_info *codec)
 {
+	snd_mtxlock(codec->lock);
 	if (codec->methods != NULL)
 		kobj_delete(codec->methods, M_AC97);
+	snd_mtxfree(codec->lock);
 	free(codec, M_AC97);
 }
 
 /* -------------------------------------------------------------------- */
 
 static int
-ac97mix_init(snd_mixer *m)
+ac97mix_init(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 	u_int32_t i, mask;
@@ -490,7 +524,7 @@ ac97mix_init(snd_mixer *m)
 }
 
 static int
-ac97mix_uninit(snd_mixer *m)
+ac97mix_uninit(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 
@@ -505,7 +539,7 @@ ac97mix_uninit(snd_mixer *m)
 }
 
 static int
-ac97mix_reinit(snd_mixer *m)
+ac97mix_reinit(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 
@@ -515,7 +549,7 @@ ac97mix_reinit(snd_mixer *m)
 }
 
 static int
-ac97mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+ac97mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 
@@ -525,7 +559,7 @@ ac97mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-ac97mix_setrecsrc(snd_mixer *m, u_int32_t src)
+ac97mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	int i;
 	struct ac97_info *codec = mix_getdevinfo(m);
