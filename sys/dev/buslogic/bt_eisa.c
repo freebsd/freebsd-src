@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.3 1999/03/23 07:27:38 gibbs Exp $
+ *	$Id: bt_eisa.c,v 1.4 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -118,7 +118,7 @@ bt_eisa_alloc_resources(device_t dev)
 	 * XXX assumes that the iospace ranges are sorted in increasing
 	 * order.
 	 */
-	rid = 1;
+	rid = 0;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				  0, ~0, 1, RF_ACTIVE);
 	if (!port)
