@@ -20,6 +20,7 @@ SUBDIR=	async \
 	hub \
 	iface \
 	ip_input \
+	ipfw \
 	ksocket \
 	l2tp \
 	lmi \
