@@ -84,10 +84,11 @@ are defined in
 The
 .Fn make_dev_alias
 function takes the returned
-.Fa dev_t
+.Ft dev_t
 from
 .Fn make_dev
-and makes another (aliased) name for this device. It is an error to call
+and makes another (aliased) name for this device.
+It is an error to call
 .Fn make_dev_alias
 prior to calling
 .Fn make_dev .
@@ -98,7 +99,8 @@ function takes the returned
 .Fa dev_t
 from
 .Fn make_dev
-and destroys the registration for that device. Do not call
+and destroys the registration for that device.
+Do not call
 .Fn destroy_dev
 on devices that were created with
 .Fn make_dev_alias .
