@@ -129,11 +129,11 @@ struct	linger {
 #define	AF_NATM		29		/* native ATM access */
 #define	AF_ATM		30		/* ATM */
 #define pseudo_AF_HDRCMPLT 31		/* Used by BPF to not rewrite headers
-#define	AF_NETGRAPH	32		/* Netgraph sockets */
 					 * in interface output routine
 					 */
+#define	AF_NETGRAPH	32		/* Netgraph sockets */
 
-#define	AF_MAX		32
+#define	AF_MAX		33
 
 /*
  * Structure used by kernel to store most
