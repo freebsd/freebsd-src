@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bthidd.h,v 1.4 2004/02/26 21:44:20 max Exp $
+ * $Id: bthidd.h,v 1.6 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
@@ -39,14 +39,18 @@ struct bthid_session;
 
 struct bthid_server
 {
-	bdaddr_t			bdaddr;	/* local bdaddr */
-	int				cons;	/* /dev/consolectl */
-	int				ctrl;   /* control channel (listen) */
-	int				intr;   /* interrupt channel (listen) */
-	int				maxfd;	/* max fd in sets */
-	fd_set				rfdset;	/* read descriptor set */
-	fd_set				wfdset;	/* write descriptor set */
-	LIST_HEAD(, bthid_session)	sessions;
+	bdaddr_t			 bdaddr; /* local bdaddr */
+	int				 cons;	 /* /dev/consolectl */
+	int				 vkbd;	 /* /dev/vkbdctl */
+	char const			*script; /* keyboard switching script */
+	int				 windex; /* wired keyboard index */
+	bitstr_t			*keys;   /* pressed keys map */
+	int				 ctrl;   /* control channel (listen) */
+	int				 intr;   /* intr. channel (listen) */
+	int				 maxfd;	 /* max fd in sets */
+	fd_set				 rfdset; /* read descriptor set */
+	fd_set				 wfdset; /* write descriptor set */
+	LIST_HEAD(, bthid_session)	 sessions;
 };
 
 typedef struct bthid_server	bthid_server_t;
@@ -54,16 +58,17 @@ typedef struct bthid_server *	bthid_server_p;
 
 struct bthid_session
 {
-	bthid_server_p			srv;	/* pointer back to server */
-	int				ctrl;	/* control channel */
-	int				intr;	/* interrupt channel */
-	bdaddr_t			bdaddr;	/* remote bdaddr */
-	short				state;	/* session state */
+	bthid_server_p			 srv;	/* pointer back to server */
+	int				 ctrl;	/* control channel */
+	int				 intr;	/* interrupt channel */
+	bdaddr_t			 bdaddr;/* remote bdaddr */
+	short				 state;	/* session state */
 #define CLOSED	0
 #define	W4CTRL	1
 #define	W4INTR	2
 #define	OPEN	3
-	LIST_ENTRY(bthid_session)	next;	/* link to next */
+	bitstr_t			*keys;	/* pressed keys map */
+	LIST_ENTRY(bthid_session)	 next;	/* link to next */
 };
 
 typedef struct bthid_session	bthid_session_t;

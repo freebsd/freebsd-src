@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: server.c,v 1.5 2004/02/26 21:43:36 max Exp $
+ * $Id: server.c,v 1.7 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
@@ -42,6 +42,7 @@
 #include <usbhid.h>
 #include "bthidd.h"
 #include "bthid_config.h"
+#include "kbd.h"
 
 #undef	max
 #define	max(x, y)	(((x) > (y))? (x) : (y))
@@ -65,6 +66,25 @@ server_init(bthid_server_p srv)
 	FD_ZERO(&srv->wfdset);
 	LIST_INIT(&srv->sessions);
 
+	/* Allocate HID keycodes buffer */
+	srv->keys = bit_alloc(kbd_maxkey());
+	if (srv->keys == NULL) {
+		syslog(LOG_ERR, "Could not allocate HID keys buffer");
+		return (-1);
+	}
+	memset(srv->keys, 0, bitstr_size(kbd_maxkey()));
+
+	/* Get wired keyboard index (if was not specified) */
+	if (srv->windex == -1) {
+		srv->windex = kbd_get_index("/dev/console");
+		if (srv->windex < 0) {
+			syslog(LOG_ERR, "Could not open get wired keyboard " \
+				"index. %s (%d)", strerror(errno), errno);
+			free(srv->keys);
+			return (-1);
+		}
+	}
+
 	/* Open /dev/consolectl */
 	srv->cons = open("/dev/consolectl", O_RDWR);
 	if (srv->cons < 0) {
@@ -73,12 +93,24 @@ server_init(bthid_server_p srv)
 		return (-1);
 	}
 
+	/* Open /dev/vkbdctl */
+	srv->vkbd = open("/dev/vkbdctl", O_RDWR);
+	if (srv->vkbd < 0) {
+		syslog(LOG_ERR, "Could not open /dev/vkbdctl. %s (%d)",
+			strerror(errno), errno);
+		close(srv->cons);
+		free(srv->keys);
+		return (-1);
+	}
+
 	/* Create control socket */
 	srv->ctrl = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BLUETOOTH_PROTO_L2CAP);
 	if (srv->ctrl < 0) {
 		syslog(LOG_ERR, "Could not create control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
@@ -90,14 +122,20 @@ server_init(bthid_server_p srv)
 	if (bind(srv->ctrl, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		syslog(LOG_ERR, "Could not bind control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
+		close(srv->ctrl);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
 	if (listen(srv->ctrl, 10) < 0) {
 		syslog(LOG_ERR, "Could not listen on control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
+		close(srv->ctrl);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
@@ -107,7 +145,9 @@ server_init(bthid_server_p srv)
 		syslog(LOG_ERR, "Could not create interrupt L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
 		close(srv->ctrl);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
@@ -116,16 +156,22 @@ server_init(bthid_server_p srv)
 	if (bind(srv->intr, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		syslog(LOG_ERR, "Could not bind interrupt L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
+		close(srv->intr);
 		close(srv->ctrl);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
 	if (listen(srv->intr, 10) < 0) {
 		syslog(LOG_ERR, "Could not listen on interrupt L2CAP socket. "\
 			"%s (%d)", strerror(errno), errno);
+		close(srv->intr);
 		close(srv->ctrl);
+		close(srv->vkbd);
 		close(srv->cons);
+		free(srv->keys);
 		return (-1);
 	}
 
@@ -146,11 +192,14 @@ server_shutdown(bthid_server_p srv)
 	assert(srv != NULL);
 
 	close(srv->cons);
+	close(srv->vkbd);
 	close(srv->ctrl);
 	close(srv->intr);
 
 	while (!LIST_EMPTY(&srv->sessions))
 		session_close(LIST_FIRST(&srv->sessions));
+
+	free(srv->keys);
 
 	memset(srv, 0, sizeof(*srv));
 }

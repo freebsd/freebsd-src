@@ -26,18 +26,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parser.y,v 1.3 2004/02/13 21:46:21 max Exp $
+ * $Id: parser.y,v 1.4 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/queue.h>
 #include <bluetooth.h>
 #include <errno.h>
-#include <libusbhid.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <usbhid.h>
 
 #ifndef BTHIDCONTROL
 #include <stdarg.h>
@@ -52,7 +52,7 @@
 #define	LOGCRIT		stderr
 #define	LOGERR		stderr
 #define	LOGWARNING	stderr
-#define	EOL		"\n"
+#define	EOL	"\n"
 #endif /* ndef BTHIDCONTROL */
 
 #include "bthid_config.h"

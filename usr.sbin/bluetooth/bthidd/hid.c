@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hid.c,v 1.3 2004/02/26 21:47:35 max Exp $
+ * $Id: hid.c,v 1.4 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
@@ -40,12 +40,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include <usbhid.h>
 #include "bthidd.h"
 #include "bthid_config.h"
+#include "kbd.h"
 
 #undef	min
 #define	min(x, y)	(((x) < (y))? (x) : (y))
+
+#undef	ASIZE
+#define	ASIZE(a)	(sizeof(a)/sizeof(a[0]))
 
 /*
  * Process data from control channel
@@ -123,9 +128,10 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 	hid_item_t	h;
 	int		report_id, usage, page, val,
 			mouse_x, mouse_y, mouse_z, mouse_butt,
-			nkeys, keys[32]; /* XXX how big keys[] should be? */
+			mevents, kevents;
 
 	assert(s != NULL);
+	assert(s->srv != NULL);
 	assert(data != NULL);
 
 	if (len < 3) {
@@ -148,7 +154,7 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 	hid_device = get_hid_device(&s->bdaddr);
 	assert(hid_device != NULL);
 
-	mouse_x = mouse_y = mouse_z = mouse_butt = nkeys = 0;
+	mouse_x = mouse_y = mouse_z = mouse_butt = mevents = kevents = 0;
 
 	for (d = hid_start_parse(hid_device->desc, 1 << hid_input, -1);
 	     hid_get_item(d, &h) > 0; ) {
@@ -164,14 +170,17 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 			switch (usage) {
 			case HUG_X:
 				mouse_x = val;
+				mevents ++;
 				break;
 
 			case HUG_Y:
 				mouse_y = val;
+				mevents ++;
 				break;
 
 			case HUG_WHEEL:
 				mouse_z = -val;
+				mevents ++;
 				break;
 
 			case HUG_SYSTEM_SLEEP:
@@ -182,20 +191,24 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 			break;
 
 		case HUP_KEYBOARD:
+			kevents ++;
+
 			if (h.flags & HIO_VARIABLE) {
-				if (val && nkeys < sizeof(keys))
-					keys[nkeys ++] = usage;
+				if (val && usage < kbd_maxkey())
+					bit_set(s->srv->keys, usage);
 			} else {
-				if (val && nkeys < sizeof(keys))
-					keys[nkeys ++] = val;
+				if (val && val < kbd_maxkey())
+					bit_set(s->srv->keys, val);
+
 				data ++;
 				len --;
 
 				len = min(len, h.report_size);
 				while (len > 0) {
 					val = hid_get_data(data, &h);
-					if (val && nkeys < sizeof(keys))
-						keys[nkeys ++] = val;
+					if (val && val < kbd_maxkey())
+						bit_set(s->srv->keys, val);
+
 					data ++;
 					len --;
 				}
@@ -204,6 +217,97 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 
 		case HUP_BUTTON:
 			mouse_butt |= (val << (usage - 1));
+			mevents ++;
+			break;
+
+		case HUP_CONSUMER:
+			if (!val)
+				break;
+
+			switch (usage) {
+			case 0xb5: /* Scan Next Track */
+				val = 0x19;
+				break;
+
+			case 0xb6: /* Scan Previous Track */
+				val = 0x10;
+				break;
+
+			case 0xb7: /* Stop */
+				val = 0x24;
+				break;
+
+			case 0xcd: /* Play/Pause */
+				val = 0x22;
+				break;
+
+			case 0xe2: /* Mute */
+				val = 0x20;
+				break;
+
+			case 0xe9: /* Volume Up */
+				val = 0x30;
+				break;
+
+			case 0xea: /* Volume Down */
+				val = 0x2E;
+				break;
+
+			case 0x183: /* Media Select */
+				val = 0x6D;
+				break;
+
+			case 0x018a: /* Mail */
+				val = 0x6C;
+				break;
+
+			case 0x192: /* Calculator */
+				val = 0x21;
+				break;
+
+			case 0x194: /* My Computer */
+				val = 0x6B;
+				break;
+
+			case 0x221: /* WWW Search */
+				val = 0x65;
+				break;
+
+			case 0x223: /* WWW Home */
+				val = 0x32;
+				break;
+
+			case 0x224: /* WWW Back */
+				val = 0x6A;
+				break;
+
+			case 0x225: /* WWW Forward */
+				val = 0x69;
+				break;
+
+			case 0x226: /* WWW Stop */
+				val = 0x68;
+				break;
+
+			case 0227: /* WWW Refresh */
+				val = 0x67;
+				break;
+
+			case 0x22a: /* WWW Favorites */
+				val = 0x66;
+				break;
+
+			default:
+				val = 0;
+				break;
+			}
+
+			/* XXX FIXME - UGLY HACK */
+			if (val != 0) {
+				int	buf[4] = { 0xe0, val, 0xe0, val|0x80 };
+
+				write(s->srv->vkbd, buf, sizeof(buf));
+			}
 			break;
 
 		case HUP_MICROSOFT:
@@ -236,13 +340,17 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 	}
 	hid_end_parse(d);
 
+	/* Feed keyboard events into kernel */
+	if (kevents > 0)
+		kbd_process_keys(s);
+
 	/* 
-	 * XXX FIXME	Feed mouse and keyboard events into kernel
-	 *		The code block below works, but it is not
-	 *		good enough
+	 * XXX FIXME Feed mouse events into kernel.
+	 * The code block below works, but it is not good enough.
+	 * Need to track double-clicks etc.
 	 */
 
-	if (mouse_x != 0 || mouse_y != 0 || mouse_z != 0 || mouse_butt != 0) {
+	if (mevents > 0) {
 		struct mouse_info	mi;
 
 		mi.operation = MOUSE_ACTION;
