@@ -32,7 +32,7 @@
 .\"     from: @(#)asin.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 14, 2005
 .Dt ASIN 3
 .Os
 .Sh NAME
@@ -68,27 +68,20 @@ functions return the arc sine in the range
 .Bq -\*(Pi/2 , +\*(Pi/2
 .Ek
 radians.
-On the
-.Tn VAX ,
-and Tahoe,
-if:
+If:
 .Bd -unfilled -offset indent
 .Pf \&| Ns Ar x Ns \&| > 1
 .Ed
 .Pp
-the
-global variable
-.Va errno
-is set to
-.Er EDOM
-and
-a reserved operand fault generated.
+.Fn asin x
+raises an invalid exception and returns an \*(Na.
 .Sh SEE ALSO
 .Xr acos 3 ,
 .Xr atan 3 ,
 .Xr atan2 3 ,
 .Xr cos 3 ,
 .Xr cosh 3 ,
+.Xr fenv 3 ,
 .Xr math 3 ,
 .Xr sin 3 ,
 .Xr sinh 3 ,

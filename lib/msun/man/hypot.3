@@ -32,7 +32,7 @@
 .\"     from: @(#)hypot.3	6.7 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd May 6, 1991
+.Dd January 14, 2005
 .Dt HYPOT 3
 .Os
 .Sh NAME
@@ -98,13 +98,8 @@ and
 .Fn hypot "\*(Na" "v"
 are \*(Na for all
 .Em finite
-.Fa v ;
-with "reserved operand" in place of "\*(Na", the
-same is true on a
-.Tn VAX .
-But programmers on machines other than a
-.Tn VAX
-(if has no \*(If)
+.Fa v .
+But programmers
 might be surprised at first to discover that
 .Fn hypot "\(+-\*(If" "\*(Na"
 = +\*(If.

@@ -80,49 +80,13 @@ and the
 .Fn sqrtf
 functions return the requested square root
 unless an error occurs.
-On the
-.Tn VAX
-or
-.Tn Tahoe
-processor an attempt to take the
+An attempt to take the
 .Fn sqrt
 of negative
 .Fa x
-causes an error; in this event,
-the global variable
-.Va errno
-is set to
-.Er EDOM
-and a reserved operand fault is generated.
-.Sh ERROR (due to Roundoff etc.)
-The
-.Fn cbrt
-function
-is accurate to within 0.7
-.Em ulps .
-.Pp
-The
-.Fn sqrt
-function on a
-.Tn VAX
-is accurate to within 0.501
-.Em ulps .
-Sqrt on a machine that conforms to
-.Tn IEEE
-754 is correctly rounded
-in accordance with the rounding mode in force; the error is less than
-half an
-.Em ulp
-in the default mode (round\-to\-nearest).
-An
-.Em ulp
-is one
-.Em U Ns nit
-in the
-.Em L Ns ast
-.Em P Ns lace
-carried.
+raises an invalid exception and causes an \*(Na to be returned.
 .Sh SEE ALSO
+.Xr fenv 3 ,
 .Xr math 3
 .Sh STANDARDS
 The
