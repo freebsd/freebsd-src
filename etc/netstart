@@ -1,7 +1,11 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.29 1995/04/24 23:52:15 rgrimes Exp $
+#	$Id: netstart,v 1.30 1995/05/11 19:08:36 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
+
+# Note that almost all the user-configurable behavior is no longer in
+# this file, but rather in /etc/sysconfig.  Please check this file
+# first before contemplating any changes here.
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/sysconfig ]; then
