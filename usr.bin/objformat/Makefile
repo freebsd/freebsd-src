@@ -8,6 +8,7 @@ LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ar
 LINKS+=	${BINDIR}/objformat ${BINDIR}/as
 LINKS+=	${BINDIR}/objformat ${BINDIR}/c++filt
+LINKS+=	${BINDIR}/objformat ${BINDIR}/gasp
 LINKS+=	${BINDIR}/objformat ${BINDIR}/gdb
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ld
 LINKS+=	${BINDIR}/objformat ${BINDIR}/nm
