@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999 Jonathan Lemon
- * Copyright (c) 1999 Michael Smith
+ * Copyright (c) 1999, 2000 Michael Smith
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
-#include <sys/bio.h>
+#include <dev/amr/amr_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
@@ -48,12 +49,7 @@
 #include <dev/amr/amrio.h>
 #include <dev/amr/amrreg.h>
 #include <dev/amr/amrvar.h>
-
-#if 0
-#define debug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
-#else
-#define debug(fmt, args...)
-#endif
+#include <dev/amr/amr_tables.h>
 
 /* prototypes */
 static int amrd_probe(device_t dev);
@@ -65,7 +61,6 @@ static	d_close_t	amrd_close;
 static	d_strategy_t	amrd_strategy;
 static	d_ioctl_t	amrd_ioctl;
 
-#define AMRD_BDEV_MAJOR	35
 #define AMRD_CDEV_MAJOR	133
 
 static struct cdevsw amrd_cdevsw = {
@@ -82,12 +77,14 @@ static struct cdevsw amrd_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	D_DISK,
-		/* bmaj */	AMRD_BDEV_MAJOR
+		/* bmaj */	254
 };
 
 static devclass_t	amrd_devclass;
 static struct cdevsw	amrddisk_cdevsw;
+#ifdef FREEBSD_4
 static int		disks_registered = 0;
+#endif
 
 static device_method_t amrd_methods[] = {
     DEVMETHOD(device_probe,	amrd_probe),
@@ -110,7 +107,7 @@ amrd_open(dev_t dev, int flags, int fmt, struct proc *p)
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
     struct disklabel	*label;
 
-    debug("called");
+    debug_called(1);
 	
     if (sc == NULL)
 	return (ENXIO);
@@ -138,7 +135,7 @@ amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
 
-    debug("called");
+    debug_called(1);
 	
     if (sc == NULL)
 	return (ENXIO);
@@ -149,18 +146,7 @@ amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
-    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
-    int error;
 
-    debug("called");
-	
-    if (sc == NULL)
-	return (ENXIO);
-
-    if ((error = amr_submit_ioctl(sc->amrd_controller, sc->amrd_drive, cmd, addr, flag, p)) != ENOIOCTL) {
-	debug("amr_submit_ioctl returned %d\n", error);
-	return(error);
-    }
     return (ENOTTY);
 }
 
@@ -171,76 +157,60 @@ amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-amrd_strategy(struct bio *bp)
+amrd_strategy(struct bio *bio)
 {
-    struct amrd_softc	*sc = (struct amrd_softc *)bp->bio_dev->si_drv1;
-
-    debug("called to %s %d bytes at b_blkno 0x%x  b_pblkno 0x%x", 
-	  (bp->b_flags & B_READ) ? "read" : "write", bp->bio_bcount, bp->bio_blkno, bp->bio_pblkno);
+    struct amrd_softc	*sc = (struct amrd_softc *)bio->bio_dev->si_drv1;
 
     /* bogus disk? */
     if (sc == NULL) {
-	bp->bio_error = EINVAL;
+	bio->bio_error = EINVAL;
 	goto bad;
     }
-
-#if 0
-    /* XXX may only be temporarily offline - sleep? */
-    if (sc->amrd_drive->ld_state == AMR_SYSD_OFFLINE) {
-	bp->bio_error = ENXIO;
-	goto bad;
-    }
-#endif
 
     /* do-nothing operation */
-    if (bp->bio_bcount == 0)
+    if (bio->bio_bcount == 0)
 	goto done;
 
     devstat_start_transaction(&sc->amrd_stats);
-    amr_submit_buf(sc->amrd_controller, bp);
+    amr_submit_bio(sc->amrd_controller, bio);
     return;
 
  bad:
-    bp->bio_flags |= BIO_ERROR;
+    bio->bio_flags |= BIO_ERROR;
 
  done:
     /*
      * Correctly set the buf to indicate a completed transfer
      */
-    bp->bio_resid = bp->bio_bcount;
-    biodone(bp);
+    bio->bio_resid = bio->bio_bcount;
+    biodone(bio);
     return;
 }
 
 void
 amrd_intr(void *data)
 {
-    struct bio *bp = (struct bio *)data;
-    struct amrd_softc *sc = (struct amrd_softc *)bp->bio_dev->si_drv1;
+    struct bio *bio = (struct bio *)data;
+    struct amrd_softc *sc = (struct amrd_softc *)bio->bio_dev->si_drv1;
 
-    debug("called");
+    debug_called(2);
 
-    if (bp->bio_flags & BIO_ERROR) {
-	bp->bio_error = EIO;
-	debug("i/o error\n");
+    if (bio->bio_flags & BIO_ERROR) {
+	bio->bio_error = EIO;
+	debug(1, "i/o error\n");
     } else {
-#if 0
-	int i;
-	for (i = 0; i < 512; i += 16)
-	    debug(" %04x  %16D", i, bp->bio_data + i, " ");
-#endif
-	bp->bio_resid = 0;
+	bio->bio_resid = 0;
     }
 
-    devstat_end_transaction_bio(&sc->amrd_stats, bp);
-    biodone(bp);
+    devstat_end_transaction_bio(&sc->amrd_stats, bio);
+    biodone(bio);
 }
 
 static int
 amrd_probe(device_t dev)
 {
 
-    debug("called");
+    debug_called(1);
 	
     device_set_desc(dev, "MegaRAID logical drive");
     return (0);
@@ -251,9 +221,8 @@ amrd_attach(device_t dev)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)device_get_softc(dev);
     device_t		parent;
-    char		*state;
     
-    debug("called");
+    debug_called(1);
 
     parent = device_get_parent(dev);
     sc->amrd_controller = (struct amr_softc *)device_get_softc(parent);
@@ -261,26 +230,10 @@ amrd_attach(device_t dev)
     sc->amrd_drive = device_get_ivars(dev);
     sc->amrd_dev = dev;
 
-    switch(sc->amrd_drive->al_state) {
-    case AMRD_OFFLINE:
-	state = "offline";
-	break;
-    case AMRD_DEGRADED:
-	state = "degraded";
-	break;
-    case AMRD_OPTIMAL:
-	state = "optimal";
-	break;
-    case AMRD_DELETED:
-	state = "deleted";
-	break;
-    default:
-	state = "unknown state";
-    }
-
     device_printf(dev, "%uMB (%u sectors) RAID %d (%s)\n",
 		  sc->amrd_drive->al_size / ((1024 * 1024) / AMR_BLKSIZE),
-		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & 0xf, state);
+		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & AMR_DRV_RAID_MASK, 
+		  amr_describe_code(amr_table_drvstate, AMR_DRV_CURSTATE(sc->amrd_drive->al_state)));
 
     devstat_add_entry(&sc->amrd_stats, "amrd", sc->amrd_unit, AMR_BLKSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
@@ -289,10 +242,12 @@ amrd_attach(device_t dev)
 
     sc->amrd_dev_t = disk_create(sc->amrd_unit, &sc->amrd_disk, 0, &amrd_cdevsw, &amrddisk_cdevsw);
     sc->amrd_dev_t->si_drv1 = sc;
+#ifdef FREEBSD_4
     disks_registered++;
+#endif
 
-    /* set maximum I/O size */
-    /* dsk->si_iosize_max = ??? */;
+    /* set maximum I/O size to match the maximum s/g size */
+    sc->amrd_dev_t->si_iosize_max = (AMR_NSEG - 1) * PAGE_SIZE;
 
     return (0);
 }
@@ -302,10 +257,18 @@ amrd_detach(device_t dev)
 {
     struct amrd_softc *sc = (struct amrd_softc *)device_get_softc(dev);
 
-    debug("called");
+    debug_called(1);
+
+    if (sc->amrd_flags & AMRD_OPEN)
+	return(EBUSY);
 
     devstat_remove_entry(&sc->amrd_stats);
+#ifdef FREEBSD_4
+    if (--disks_registered == 0)
+	cdevsw_remove(&amrddisk_cdevsw);
+#else
     disk_destroy(sc->amrd_dev_t);
+#endif
     return(0);
 }
 
