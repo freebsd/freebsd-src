@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.14 1999/05/27 10:34:04 jkh Exp $
+ * $Id: install.c,v 1.223.2.15 1999/07/07 09:53:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -734,8 +734,9 @@ installFixupBin(dialogMenuItem *self)
     if (RunningAsInit) {
 	/* Fix up kernel first */
 	if (!file_readable("/kernel")) {
-	    if (file_readable("/kernel.GENERIC")) {
-		if (vsystem("cp -p /kernel.GENERIC /kernel")) {
+	    char *generic_kernel = "/kernel.GENERIC";
+	    if (file_readable(generic_kernel)) {
+		if (vsystem("cp -p %s /kernel", generic_kernel)) {
 		    msgConfirm("Unable to copy /kernel into place!");
 		    return DITEM_FAILURE;
 		}
