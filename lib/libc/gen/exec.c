@@ -110,7 +110,6 @@ int
 execlp(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	int sverrno;
 	char **argv;
 	int n;
 
