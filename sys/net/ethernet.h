@@ -82,6 +82,9 @@ struct	ether_addr {
 
 #ifdef _KERNEL
 
+struct ifnet;
+struct mbuf;
+
 extern	void (*ng_ether_input_p)(struct ifnet *ifp,
 		struct mbuf **mp, struct ether_header *eh);
 extern	void (*ng_ether_input_orphan_p)(struct ifnet *ifp,
