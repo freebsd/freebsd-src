@@ -155,6 +155,8 @@ MAN+=	pthread.3 \
 	pthread_rwlock_destroy.3 \
 	pthread_rwlock_init.3 \
 	pthread_rwlock_rdlock.3 \
+	pthread_rwlock_timedrdlock.3 \
+	pthread_rwlock_timedwrlock.3 \
 	pthread_rwlock_unlock.3 \
 	pthread_rwlock_wrlock.3 \
 	pthread_rwlockattr_destroy.3 \
