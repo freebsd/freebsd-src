@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.36 1998/04/20 13:50:21 kato Exp $
+ *	$Id: npx.c,v 1.37 1998/05/04 07:33:32 kato Exp $
  */
 
 #include "npx.h"
@@ -47,7 +47,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>
 #include <sys/proc.h>
 #ifdef NPX_DEBUG
 #include <sys/syslog.h>
