@@ -15,7 +15,9 @@
 .if ${OBJFORMAT} == elf
 .if !defined(SHLIB_NAME) && defined(LIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
-SHLIB_LINK?=	lib${LIB}.so
+.endif
+.if defined(SHLIB_NAME)
+SHLIB_LINK?=	${SHLIB_NAME:R}
 .endif
 SONAME?=	${SHLIB_NAME}
 .else
