@@ -587,6 +587,12 @@ char *(*get_userid)();
 	    else
 		strcpy(status, "RUN");
 	    break;
+	case SMTX:
+	    if (PP(pp, p_mtxname) != NULL) {
+		sprintf(status, "*%.6s", EP(pp, e_mtxname));
+	        break;
+	    }
+	    /* fall through */
 	case SSLEEP:
 	    if (PP(pp, p_wmesg) != NULL) {
 		sprintf(status, "%.6s", EP(pp, e_wmesg));
