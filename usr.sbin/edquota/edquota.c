@@ -414,12 +414,12 @@ writeprivs(quplist, outfd, name, quotatype)
 		err(1, "%s", tmpfil);
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
-		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
+		fprintf(fd, "%s: %s %u, limits (soft = %u, hard = %u)\n",
 		    qup->fsname, "blocks in use:",
 		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
-		fprintf(fd, "%s %lu, limits (soft = %lu, hard = %lu)\n",
+		fprintf(fd, "%s %u, limits (soft = %u, hard = %u)\n",
 		    "\tinodes in use:", qup->dqblk.dqb_curinodes,
 		    qup->dqblk.dqb_isoftlimit, qup->dqblk.dqb_ihardlimit);
 	}
@@ -462,7 +462,7 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " blocks in use: %lu, limits (soft = %lu, hard = %lu)",
+		    " blocks in use: %u, limits (soft = %u, hard = %u)",
 		    &dqblk.dqb_curblocks, &dqblk.dqb_bsoftlimit,
 		    &dqblk.dqb_bhardlimit);
 		if (cnt != 3) {
@@ -479,7 +479,7 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    "\tinodes in use: %lu, limits (soft = %lu, hard = %lu)",
+		    "\tinodes in use: %u, limits (soft = %u, hard = %u)",
 		    &dqblk.dqb_curinodes, &dqblk.dqb_isoftlimit,
 		    &dqblk.dqb_ihardlimit);
 		if (cnt != 3) {
