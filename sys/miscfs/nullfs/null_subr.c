@@ -35,8 +35,10 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.10 1997/04/17 11:17:28 kato Exp $
+ * $Id: null_subr.c,v 1.11 1997/08/02 14:32:04 bde Exp $
  */
+
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -197,7 +199,7 @@ null_node_create(mp, lowervp, newvpp)
 		 * to the alias vnode.
 		 */
 #ifdef NULLFS_DIAGNOSTIC
-		vprint("null_node_create: exists", NULLTOV(ap));
+		vprint("null_node_create: exists", aliasvp);
 #endif
 		/* VREF(aliasvp); --- done in null_node_find */
 	} else {
@@ -241,7 +243,14 @@ null_node_create(mp, lowervp, newvpp)
 	*newvpp = aliasvp;
 	return (0);
 }
+
 #ifdef NULLFS_DIAGNOSTIC
+#ifdef DDB
+#define	null_checkvp_barrier	1
+#else
+#define	null_checkvp_barrier	0
+#endif
+
 struct vnode *
 null_checkvp(vp, fil, lno)
 	struct vnode *vp;
