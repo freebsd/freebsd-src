@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.117 1999/08/11 15:34:47 luigi Exp $
+ *	$Id: ip_fw.c,v 1.118 1999/08/21 18:35:50 green Exp $
  */
 
 /*
@@ -1013,7 +1013,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	bzero(ftmp_ext, sizeof(*ftmp_ext)); /* play safe! */
 	bcopy(frwl, ftmp, sizeof(*ftmp));
 	if (ftmp->fw_flg & IP_FW_F_RND_MATCH)
-		ftmp_ext->dont_match_prob = (long)(ftmp->pipe_ptr) ;
+		ftmp_ext->dont_match_prob = (intptr_t)ftmp->pipe_ptr;
 
 	ftmp->fw_in_if.fu_via_if.name[FW_IFNLEN - 1] = '\0';
 	ftmp->fw_pcnt = 0L;
@@ -1357,9 +1357,9 @@ ip_fw_ctl(struct sockopt *sopt)
 		for (fcp = LIST_FIRST(&ip_fw_chain), bp = buf; fcp;
 		     fcp = LIST_NEXT(fcp, chain)) {
 			bcopy(fcp->rule, bp, sizeof *fcp->rule);
-			(long)bp->pipe_ptr =
+			bp->pipe_ptr = (intptr_t)
 			    ((struct ip_fw_ext *)fcp->rule)->dont_match_prob;
-			bp ++ ;
+			bp++;
 		}
 		error = sooptcopyout(sopt, buf, size);
 		FREE(buf, M_TEMP);
