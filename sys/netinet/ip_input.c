@@ -233,19 +233,19 @@ static struct rtcache {
 	RTCACHE_LOCK();						\
 	*(_ro) = ip_fwdcache.rc_ro;				\
 	RTCACHE_UNLOCK();					\
-} while (0);
+} while (0)
 
 /*
  * Update the cache contents.  We optimize this using
  * the routing table reference. XXX is this safe?
  */
 #define	RTCACHE_UPDATE(_ro) do {				\
-	if ((_ro)->ro_rt != ip_fwdcache.rc_ro.ro_rt) {	\
+	if ((_ro)->ro_rt != ip_fwdcache.rc_ro.ro_rt) {		\
 		RTCACHE_LOCK();					\
 		ip_fwdcache.rc_ro = *(_ro);			\
 		RTCACHE_UNLOCK();				\
 	}							\
-} while (0);
+} while (0)
 
 /*
  * XXX this is ugly -- the following two global variables are
