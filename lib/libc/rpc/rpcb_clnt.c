@@ -1,6 +1,23 @@
 /*	$NetBSD: rpcb_clnt.c,v 1.6 2000/07/16 06:41:43 itojun Exp $	*/
 
 /*
+ * The contents of this file are subject to the Sun Standards
+ * License Version 1.0 the (the "License";) You may not use
+ * this file except in compliance with the License.  You may
+ * obtain a copy of the License at lib/libc/rpc/LICENSE
+ *
+ * Software distributed under the License is distributed on
+ * an "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either
+ * express or implied.  See the License for the specific
+ * language governing rights and limitations under the License.
+ *
+ * The Original Code is Copyright 1998 by Sun Microsystems, Inc
+ *
+ * The Initial Developer of the Original Code is:  Sun
+ * Microsystems, Inc.
+ *
+ * All Rights Reserved.
+ *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -75,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 static struct timeval tottimeout = { 60, 0 };
 static const struct timeval rmttimeout = { 3, 0 };
+static struct timeval rpcbrmttime = { 15, 0 };
 
 extern bool_t xdr_wrapstring(XDR *, char **);
 
@@ -654,6 +672,47 @@ got_entry(relp, nconf)
 }
 
 /*
+ * Quick check to see if rpcbind is up.  Tries to connect over
+ * local transport.
+ */
+bool_t
+__rpcbind_is_up()
+{
+	struct netconfig *nconf;
+	struct sockaddr_un sun;
+	void *localhandle;
+	int sock;
+
+	nconf = NULL;
+	localhandle = setnetconfig();
+	while (nconf = getnetconfig(localhandle)){
+		if (nconf->nc_protofmly != NULL &&
+		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			 break;
+	}
+	if (nconf == NULL)
+		return (FALSE);
+
+	endnetconfig(localhandle);
+
+	memset(&sun, 0, sizeof sun);
+	sock = _socket(AF_LOCAL, SOCK_STREAM, 0);
+	if (sock < 0)
+		return (FALSE);
+	sun.sun_family = AF_LOCAL;
+	strncpy(sun.sun_path, _PATH_RPCBINDSOCK, sizeof(sun.sun_path));
+	sun.sun_len = SUN_LEN(&sun);
+
+	if (_connect(sock, (struct sockaddr *)&sun, sun.sun_len) < 0) {
+		_close(sock);
+		return (FALSE);
+	}
+
+	_close(sock);
+	return (TRUE);
+}
+
+/*
  * An internal function which optimizes rpcb_getaddr function.  It also
  * returns the client handle that it uses to contact the remote rpcbind.
  *
@@ -672,13 +731,15 @@ got_entry(relp, nconf)
  * starts working properly.  Also look under clnt_vc.c.
  */
 struct netbuf *
-__rpcb_findaddr(program, version, nconf, host, clpp)
+__rpcb_findaddr_timed(program, version, nconf, host, clpp, tp)
 	rpcprog_t program;
 	rpcvers_t version;
 	const struct netconfig *nconf;
 	const char *host;
 	CLIENT **clpp;
+	struct timeval *tp;
 {
+	static bool_t check_rpcbind = TRUE;
 	CLIENT *client = NULL;
 	RPCB parms;
 	enum clnt_stat clnt_st;
@@ -696,6 +757,12 @@ __rpcb_findaddr(program, version, nconf, host, clpp)
 
 	parms.r_addr = NULL;
 
+	/*
+	 * Use default total timeout if no timeout is specified.
+	 */
+	if (tp == NULL)
+		tp = &tottimeout;
+
 #ifdef PORTMAP
 	/* Try version 2 for TCP or UDP */
 	if (strcmp(nconf->nc_protofmly, NC_INET) == 0) {
@@ -710,22 +777,31 @@ __rpcb_findaddr(program, version, nconf, host, clpp)
 		 */
 		if (strcmp(nconf->nc_proto, NC_TCP) == 0) {
 			struct netconfig *newnconf;
+			void *handle;
 
-			if ((newnconf = getnetconfigent("udp")) == NULL) {
+			if ((handle = getnetconfigent("udp")) == NULL) {
+				rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
+				return (NULL);
+			}
+			if ((newnconf = __rpc_getconf(handle)) == NULL) {
+				__rpc_endconf(handle);
 				rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
 				return (NULL);
 			}
 			client = getclnthandle(host, newnconf, &parms.r_addr);
-			freenetconfigent(newnconf);
+			__rpc_endconf(handle);
 		} else {
 			client = getclnthandle(host, nconf, &parms.r_addr);
 		}
-		if (client == NULL) {
+		if (client == NULL)
 			return (NULL);
-		}
 
-		/* Set the version */
-		CLNT_CONTROL(client, CLSET_VERS, (char *)(void *)&pmapvers);
+		/*
+		 * Set version and retry timeout.
+		 */
+		CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, (char *)&rpcbrmttime);
+		CLNT_CONTROL(client, CLSET_VERS, (char *)&pmapvers);
+
 		pmapparms.pm_prog = program;
 		pmapparms.pm_vers = version;
 		pmapparms.pm_prot = strcmp(nconf->nc_proto, NC_TCP) ?
@@ -734,7 +810,7 @@ __rpcb_findaddr(program, version, nconf, host, clpp)
 		clnt_st = CLNT_CALL(client, (rpcproc_t)PMAPPROC_GETPORT,
 		    (xdrproc_t) xdr_pmap, (caddr_t)(void *)&pmapparms,
 		    (xdrproc_t) xdr_u_short, (caddr_t)(void *)&port,
-		    tottimeout);
+		    *tp);
 		if (clnt_st != RPC_SUCCESS) {
 			if ((clnt_st == RPC_PROGVERSMISMATCH) ||
 				(clnt_st == RPC_PROGUNAVAIL))
@@ -748,7 +824,7 @@ __rpcb_findaddr(program, version, nconf, host, clpp)
 			goto error;
 		}
 		port = htons(port);
-		CLNT_CONTROL(client, CLGET_SVC_ADDR, (char *)(void *)&remote);
+		CLNT_CONTROL(client, CLGET_SVC_ADDR, (char *)&remote);
 		if (((address = (struct netbuf *)
 			malloc(sizeof (struct netbuf))) == NULL) ||
 		    ((address->buf = (char *)
@@ -771,6 +847,20 @@ __rpcb_findaddr(program, version, nconf, host, clpp)
 
 try_rpcbind:
 	/*
+	 * Check if rpcbind is up.  This prevents needless delays when
+	 * accessing applications such as the keyserver while booting
+	 * disklessly.
+	 */
+	if (check_rpcbind && strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0) {
+		if (!__rpcbind_is_up()) {
+			rpc_createerr.cf_stat = RPC_PMAPFAILURE;
+			rpc_createerr.cf_error.re_errno = 0;
+			goto error;
+		}
+		check_rpcbind = FALSE;
+	}
+
+	/*
 	 * Now we try version 4 and then 3.
 	 * We also send the remote system the address we used to
 	 * contact it in case it can help to connect back with us
@@ -785,33 +875,17 @@ try_rpcbind:
 	/*
 	 * If a COTS transport is being used, try getting address via CLTS
 	 * transport.  This works only with version 4.
-	 * NOTE: This is being done for all transports EXCEPT LOOPBACK
-	 * because with loopback the cost to go to a COTS is same as
-	 * the cost to go through CLTS, plus you get the advantage of
-	 * finding out immediately if the local rpcbind process is dead.
 	 */
-#if 1
-	if ((nconf->nc_semantics == NC_TPI_COTS_ORD ||
-			nconf->nc_semantics == NC_TPI_COTS) &&
-	    (strcmp(nconf->nc_protofmly, NC_LOOPBACK) != 0)) {
-#else
-	if (client != NULL) {
-		CLNT_DESTROY(client);
-		client = NULL;
-	}
-	if (nconf->nc_semantics == NC_TPI_CLTS) {
-#endif
+	if (nconf->nc_semantics == NC_TPI_COTS_ORD ||
+			nconf->nc_semantics == NC_TPI_COTS) {
+
 		void *handle;
 		struct netconfig *nconf_clts;
 		rpcb_entry_list_ptr relp = NULL;
 
 		if (client == NULL) {
 			/* This did not go through the above PORTMAP/TCP code */
-#if 1
 			if ((handle = __rpc_setconf("datagram_v")) != NULL) {
-#else
-			if ((handle = __rpc_setconf("circuit_v")) != NULL) {
-#endif
 				while ((nconf_clts = __rpc_getconf(handle))
 					!= NULL) {
 					if (strcmp(nconf_clts->nc_protofmly,
@@ -839,10 +913,13 @@ try_rpcbind:
 			/*LINTED const castaway*/
 			parms.r_addr = (char *) &nullstring[0]; /* for XDRing */
 		}
+
+		CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, (char *)&rpcbrmttime);
+
 		clnt_st = CLNT_CALL(client, (rpcproc_t)RPCBPROC_GETADDRLIST,
 		    (xdrproc_t) xdr_rpcb, (char *)(void *)&parms,
 		    (xdrproc_t) xdr_rpcb_entry_list_ptr,
-		    (char *)(void *)&relp, tottimeout);
+		    (char *)(void *)&relp, *tp);
 		if (clnt_st == RPC_SUCCESS) {
 			if ((address = got_entry(relp, nconf)) != NULL) {
 				xdr_free((xdrproc_t) xdr_rpcb_entry_list_ptr,
@@ -873,12 +950,8 @@ try_rpcbind:
 regular_rpcbind:
 
 	/* Now the same transport is to be used to get the address */
-#if 1
 	if (client && ((nconf->nc_semantics == NC_TPI_COTS_ORD) ||
 			(nconf->nc_semantics == NC_TPI_COTS))) {
-#else
-	if (client && nconf->nc_semantics == NC_TPI_CLTS) {
-#endif
 		/* A CLTS type of client - destroy it */
 		CLNT_DESTROY(client);
 		client = NULL;
@@ -896,13 +969,14 @@ regular_rpcbind:
 	}
 
 	/* First try from start_vers and then version 3 (RPCBVERS) */
+
+	CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, (char *) &rpcbrmttime);
 	for (vers = start_vers;  vers >= RPCBVERS; vers--) {
 		/* Set the version */
 		CLNT_CONTROL(client, CLSET_VERS, (char *)(void *)&vers);
 		clnt_st = CLNT_CALL(client, (rpcproc_t)RPCBPROC_GETADDR,
 		    (xdrproc_t) xdr_rpcb, (char *)(void *)&parms,
-		    (xdrproc_t) xdr_wrapstring, (char *)(void *) &ua,
-		    tottimeout);
+		    (xdrproc_t) xdr_wrapstring, (char *)(void *) &ua, *tp);
 		if (clnt_st == RPC_SUCCESS) {
 			if ((ua == NULL) || (ua[0] == NULL)) {
 				/* address unknown */
@@ -989,8 +1063,9 @@ rpcb_getaddr(program, version, nconf, address, host)
 {
 	struct netbuf *na;
 
-	if ((na = __rpcb_findaddr(program, version, nconf,
-				host, (CLIENT **) NULL)) == NULL)
+	if ((na = __rpcb_findaddr_timed(program, version,
+	    (struct netconfig *) nconf, (char *) host,
+	    (CLIENT **) NULL, (struct timeval *) NULL)) == NULL)
 		return (FALSE);
 
 	if (na->len > address->maxlen) {

@@ -1,6 +1,23 @@
 /*	$NetBSD: clnt_generic.c,v 1.18 2000/07/06 03:10:34 christos Exp $	*/
 
 /*
+ * The contents of this file are subject to the Sun Standards
+ * License Version 1.0 the (the "License";) You may not use
+ * this file except in compliance with the License.  You may
+ * obtain a copy of the License at lib/libc/rpc/LICENSE
+ *
+ * Software distributed under the License is distributed on
+ * an "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either
+ * express or implied.  See the License for the specific
+ * language governing rights and limitations under the License.
+ *
+ * The Original Code is Copyright 1998 by Sun Microsystems, Inc
+ *
+ * The Initial Developer of the Original Code is:  Sun
+ * Microsystems, Inc.
+ *
+ * All Rights Reserved.
+ *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -29,7 +46,7 @@
  * Mountain View, California  94043
  */
 
-/* #ident	"@(#)clnt_generic.c	1.20	94/05/03 SMI" */
+/* #ident	"@(#)clnt_generic.c	1.40	99/04/21 SMI" */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_generic.c 1.4 87/08/11 (C) 1987 SMI";*/
@@ -39,17 +56,20 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ * Copyright (c) 1986-1996,1998 by Sun Microsystems, Inc.
+ * All rights reserved.
  */
 #include "namespace.h"
 #include "reentrant.h"
 #include <sys/types.h>
+#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <stdio.h>
 #include <errno.h>
 #include <netdb.h>
+#include <syslog.h>
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
 #include <string.h>
@@ -58,55 +78,79 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "rpc_com.h"
 
+extern bool_t __rpc_is_local_host(const char *);
+int __rpc_raise_fd(int);
+
+#ifndef NETIDLEN
+#define	NETIDLEN 32
+#endif
+
+
 /*
  * Generic client creation with version checking the value of
  * vers_out is set to the highest server supported value
  * vers_low <= vers_out <= vers_high  AND an error results
  * if this can not be done.
+ *
+ * It calls clnt_create_vers_timed() with a NULL value for the timeout
+ * pointer, which indicates that the default timeout should be used.
  */
 CLIENT *
-clnt_create_vers(hostname, prog, vers_out, vers_low, vers_high, nettype)
-	const char *hostname;
-	rpcprog_t prog;
-	rpcvers_t *vers_out;
-	rpcvers_t vers_low;
-	rpcvers_t vers_high;
-	const char *nettype;
+clnt_create_vers(const char *hostname, rpcprog_t prog, rpcvers_t *vers_out,
+	rpcvers_t vers_low, rpcvers_t vers_high, const char *nettype)
+{
+
+	return (clnt_create_vers_timed(hostname, prog, vers_out, vers_low,
+				vers_high, nettype, NULL));
+}
+
+/*
+ * This the routine has the same definition as clnt_create_vers(),
+ * except it takes an additional timeout parameter - a pointer to
+ * a timeval structure.  A NULL value for the pointer indicates
+ * that the default timeout value should be used.
+ */
+CLIENT *
+clnt_create_vers_timed(const char *hostname, rpcprog_t prog,
+    rpcvers_t *vers_out, rpcvers_t vers_low, rpcvers_t vers_high,
+    const char *nettype, const struct timeval *tp)
 {
 	CLIENT *clnt;
 	struct timeval to;
 	enum clnt_stat rpc_stat;
 	struct rpc_err rpcerr;
 
-	clnt = clnt_create(hostname, prog, vers_high, nettype);
+	clnt = clnt_create_timed(hostname, prog, vers_high, nettype, tp);
 	if (clnt == NULL) {
 		return (NULL);
 	}
 	to.tv_sec = 10;
 	to.tv_usec = 0;
-	rpc_stat = clnt_call(clnt, NULLPROC, (xdrproc_t) xdr_void,
-			(char *) NULL, (xdrproc_t) xdr_void, (char *) NULL, to);
+	rpc_stat = clnt_call(clnt, NULLPROC, (xdrproc_t)xdr_void,
+			(char *)NULL, (xdrproc_t)xdr_void, (char *)NULL, to);
 	if (rpc_stat == RPC_SUCCESS) {
 		*vers_out = vers_high;
 		return (clnt);
 	}
-	if (rpc_stat == RPC_PROGVERSMISMATCH) {
-		unsigned long minvers, maxvers;
+	while (rpc_stat == RPC_PROGVERSMISMATCH && vers_high > vers_low) {
+		unsigned int minvers, maxvers;
 
 		clnt_geterr(clnt, &rpcerr);
 		minvers = rpcerr.re_vers.low;
 		maxvers = rpcerr.re_vers.high;
 		if (maxvers < vers_high)
-			vers_high = (rpcvers_t)maxvers;
+			vers_high = maxvers;
+		else
+			vers_high--;
 		if (minvers > vers_low)
-			vers_low = (rpcvers_t)minvers;
+			vers_low = minvers;
 		if (vers_low > vers_high) {
 			goto error;
 		}
-		CLNT_CONTROL(clnt, CLSET_VERS, (char *)(void *)&vers_high);
-		rpc_stat = clnt_call(clnt, NULLPROC, (xdrproc_t) xdr_void,
-				(char *) NULL, (xdrproc_t) xdr_void,
-				(char *) NULL, to);
+		CLNT_CONTROL(clnt, CLSET_VERS, (char *)&vers_high);
+		rpc_stat = clnt_call(clnt, NULLPROC, (xdrproc_t)xdr_void,
+				(char *)NULL, (xdrproc_t)xdr_void,
+				(char *)NULL, to);
 		if (rpc_stat == RPC_SUCCESS) {
 			*vers_out = vers_high;
 			return (clnt);
@@ -132,23 +176,48 @@ error:
  * XXX The error message in the case of failure will be the one
  * pertaining to the last create error.
  *
- * It calls clnt_tp_create();
+ * It calls clnt_create_timed() with the default timeout.
  */
 CLIENT *
-clnt_create(hostname, prog, vers, nettype)
-	const char *hostname;				/* server name */
-	rpcprog_t prog;				/* program number */
-	rpcvers_t vers;				/* version number */
-	const char *nettype;				/* net type */
+clnt_create(const char *hostname, rpcprog_t prog, rpcvers_t vers,
+    const char *nettype)
+{
+
+	return (clnt_create_timed(hostname, prog, vers, nettype, NULL));
+}
+
+/*
+ * This the routine has the same definition as clnt_create(),
+ * except it takes an additional timeout parameter - a pointer to
+ * a timeval structure.  A NULL value for the pointer indicates
+ * that the default timeout value should be used.
+ *
+ * This function calls clnt_tp_create_timed().
+ */
+CLIENT *
+clnt_create_timed(const char *hostname, rpcprog_t prog, rpcvers_t vers,
+    const char *netclass, const struct timeval *tp)
 {
 	struct netconfig *nconf;
 	CLIENT *clnt = NULL;
 	void *handle;
 	enum clnt_stat	save_cf_stat = RPC_SUCCESS;
 	struct rpc_err	save_cf_error;
+	char nettype_array[NETIDLEN];
+	char *nettype = &nettype_array[0];
 
+	if (netclass == NULL)
+		nettype = NULL;
+	else {
+		size_t len = strlen(netclass);
+		if (len >= sizeof (nettype_array)) {
+			rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
+			return (NULL);
+		}
+		strcpy(nettype, netclass);
+	}
 
-	if ((handle = __rpc_setconf(nettype)) == NULL) {
+	if ((handle = __rpc_setconf((char *)nettype)) == NULL) {
 		rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
 		return (NULL);
 	}
@@ -162,7 +231,7 @@ clnt_create(hostname, prog, vers, nettype)
 #ifdef CLNT_DEBUG
 		printf("trying netid %s\n", nconf->nc_netid);
 #endif
-		clnt = clnt_tp_create(hostname, prog, vers, nconf);
+		clnt = clnt_tp_create_timed(hostname, prog, vers, nconf, tp);
 		if (clnt)
 			break;
 		else
@@ -178,9 +247,12 @@ clnt_create(hostname, prog, vers, nettype)
 			 *	the local loopbacks are typically the
 			 *	last ones in /etc/netconfig and the most
 			 *	likely to be unable to translate a host
-			 *	name).
+			 *	name).  We also check for a more
+			 *	meaningful error than ``unknown host
+			 *	name'' for the same reasons.
 			 */
-			if (rpc_createerr.cf_stat != RPC_N2AXLATEFAILURE) {
+			if (rpc_createerr.cf_stat != RPC_N2AXLATEFAILURE &&
+			    rpc_createerr.cf_stat != RPC_UNKNOWNHOST) {
 				save_cf_stat = rpc_createerr.cf_stat;
 				save_cf_error = rpc_createerr.cf_error;
 			}
@@ -188,10 +260,11 @@ clnt_create(hostname, prog, vers, nettype)
 
 	/*
 	 *	Attempt to return an error more specific than ``Name to address
-	 *	translation failed''
+	 *	translation failed'' or ``unknown host name''
 	 */
-	if ((rpc_createerr.cf_stat == RPC_N2AXLATEFAILURE) &&
-		(save_cf_stat != RPC_SUCCESS)) {
+	if ((rpc_createerr.cf_stat == RPC_N2AXLATEFAILURE ||
+				rpc_createerr.cf_stat == RPC_UNKNOWNHOST) &&
+					(save_cf_stat != RPC_SUCCESS)) {
 		rpc_createerr.cf_stat = save_cf_stat;
 		rpc_createerr.cf_error = save_cf_error;
 	}
@@ -203,14 +276,27 @@ clnt_create(hostname, prog, vers, nettype)
  * Generic client creation: takes (servers name, program-number, netconf) and
  * returns client handle. Default options are set, which the user can
  * change using the rpc equivalent of _ioctl()'s : clnt_control()
- * It finds out the server address from rpcbind and calls clnt_tli_create()
+ * It finds out the server address from rpcbind and calls clnt_tli_create().
+ *
+ * It calls clnt_tp_create_timed() with the default timeout.
  */
 CLIENT *
-clnt_tp_create(hostname, prog, vers, nconf)
-	const char *hostname;			/* server name */
-	rpcprog_t prog;				/* program number */
-	rpcvers_t vers;				/* version number */
-	const struct netconfig *nconf;		/* net config struct */
+clnt_tp_create(const char *hostname, rpcprog_t prog, rpcvers_t vers,
+    const struct netconfig *nconf)
+{
+
+	return (clnt_tp_create_timed(hostname, prog, vers, nconf, NULL));
+}
+
+/*
+ * This has the same definition as clnt_tp_create(), except it
+ * takes an additional parameter - a pointer to a timeval structure.
+ * A NULL value for the timeout pointer indicates that the default
+ * value for the timeout should be used.
+ */
+CLIENT *
+clnt_tp_create_timed(const char *hostname, rpcprog_t prog, rpcvers_t vers,
+    const struct netconfig *nconf, const struct timeval *tp)
 {
 	struct netbuf *svcaddr;			/* servers address */
 	CLIENT *cl = NULL;			/* client handle */
@@ -223,8 +309,9 @@ clnt_tp_create(hostname, prog, vers, nconf)
 	/*
 	 * Get the address of the server
 	 */
-	if ((svcaddr = __rpcb_findaddr(prog, vers, nconf, hostname,
-		&cl)) == NULL) {
+	if ((svcaddr = __rpcb_findaddr_timed(prog, vers,
+			(struct netconfig *)nconf, (char *)hostname,
+			&cl, (struct timeval *)tp)) == NULL) {
 		/* appropriate error number is set by rpcbind libraries */
 		return (NULL);
 	}
@@ -260,20 +347,16 @@ clnt_tp_create(hostname, prog, vers, nconf)
  * If sizes are 0; appropriate defaults will be chosen.
  */
 CLIENT *
-clnt_tli_create(fd, nconf, svcaddr, prog, vers, sendsz, recvsz)
-	int fd;				/* fd */
-	const struct netconfig *nconf;	/* netconfig structure */
-	const struct netbuf *svcaddr;	/* servers address */
-	rpcprog_t prog;			/* program number */
-	rpcvers_t vers;			/* version number */
-	u_int sendsz;			/* send size */
-	u_int recvsz;			/* recv size */
+clnt_tli_create(int fd, const struct netconfig *nconf,
+	struct netbuf *svcaddr, rpcprog_t prog, rpcvers_t vers,
+	uint sendsz, uint recvsz)
 {
 	CLIENT *cl;			/* client handle */
 	bool_t madefd = FALSE;		/* whether fd opened here */
 	long servtype;
 	int one = 1;
 	struct __rpc_sockinfo si;
+	extern int __rpc_minfd;
 
 	if (fd == RPC_ANYFD) {
 		if (nconf == NULL) {
@@ -285,12 +368,12 @@ clnt_tli_create(fd, nconf, svcaddr, prog, vers, sendsz, recvsz)
 
 		if (fd == -1)
 			goto err;
-
+		if (fd < __rpc_minfd)
+			fd = __rpc_raise_fd(fd);
 		madefd = TRUE;
 		servtype = nconf->nc_semantics;
 		if (!__rpc_fd2sockinfo(fd, &si))
 			goto err;
-
 		bindresvport(fd, NULL);
 	} else {
 		if (!__rpc_fd2sockinfo(fd, &si))
@@ -298,9 +381,8 @@ clnt_tli_create(fd, nconf, svcaddr, prog, vers, sendsz, recvsz)
 		servtype = __rpc_socktype2seman(si.si_socktype);
 		if (servtype == -1) {
 			rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
-			return NULL;
+			return (NULL);
 		}
-
 	}
 
 	if (si.si_af != ((struct sockaddr *)svcaddr->buf)->sa_family) {
@@ -309,14 +391,15 @@ clnt_tli_create(fd, nconf, svcaddr, prog, vers, sendsz, recvsz)
 	}
 
 	switch (servtype) {
-	case NC_TPI_COTS_ORD:
+	case NC_TPI_COTS:
 		cl = clnt_vc_create(fd, svcaddr, prog, vers, sendsz, recvsz);
-		if (!nconf || !cl)
-			break;
-		/* XXX fvdl - is this useful? */
-		if (strncmp(nconf->nc_protofmly, "inet", 4) == 0)
+		break;
+	case NC_TPI_COTS_ORD:
+		if (nconf && ((strcmp(nconf->nc_protofmly, "inet") == 0))) {
 			_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one,
 			    sizeof (one));
+		}
+		cl = clnt_vc_create(fd, svcaddr, prog, vers, sendsz, recvsz);
 		break;
 	case NC_TPI_CLTS:
 		cl = clnt_dg_create(fd, svcaddr, prog, vers, sendsz, recvsz);
@@ -336,7 +419,7 @@ clnt_tli_create(fd, nconf, svcaddr, prog, vers, sendsz, recvsz)
 	}
 	if (madefd) {
 		(void) CLNT_CONTROL(cl, CLSET_FD_CLOSE, NULL);
-/*		(void) CLNT_CONTROL(cl, CLSET_POP_TIMOD, (char *) NULL);  */
+/*		(void) CLNT_CONTROL(cl, CLSET_POP_TIMOD, NULL);  */
 	};
 
 	return (cl);
@@ -347,4 +430,37 @@ err:
 err1:	if (madefd)
 		(void)_close(fd);
 	return (NULL);
+}
+
+/*
+ *  To avoid conflicts with the "magic" file descriptors (0, 1, and 2),
+ *  we try to not use them.  The __rpc_raise_fd() routine will dup
+ *  a descriptor to a higher value.  If we fail to do it, we continue
+ *  to use the old one (and hope for the best).
+ */
+int __rpc_minfd = 3;
+
+int
+__rpc_raise_fd(int fd)
+{
+	int nfd;
+
+	if (fd >= __rpc_minfd)
+		return (fd);
+
+	if ((nfd = _fcntl(fd, F_DUPFD, __rpc_minfd)) == -1)
+		return (fd);
+
+	if (_fsync(nfd) == -1) {
+		_close(nfd);
+		return (fd);
+	}
+
+	if (_close(fd) == -1) {
+		/* this is okay, we will syslog an error, then use the new fd */
+		(void) syslog(LOG_ERR,
+			"could not close() fd %d; mem & fd leak", fd);
+	}
+
+	return (nfd);
 }
