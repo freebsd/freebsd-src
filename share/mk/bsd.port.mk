@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.75 1994/12/10 18:07:38 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.76 1994/12/11 14:12:30 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -365,15 +365,17 @@ pre-patch:
 patch: pre-patch ${PATCH_COOKIE}
 
 ${PATCH_COOKIE}:
-	@if [ -d ${PATCHDIR} ]; then \
 .if defined(PATCH_DEBUG)
+	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; \
+		for i in ${PATCHDIR}/patch-*; do \
 			echo "===>   Applying patch $$i" ; \
-			do ${PATCH} ${PATCH_ARGS} < $$i; \
+			${PATCH} ${PATCH_ARGS} < $$i; \
 		done; \
 	fi
+	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .else
+	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; \
 			do ${PATCH} {$PATCH_ARGS} < $$i; \
