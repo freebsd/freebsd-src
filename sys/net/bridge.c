@@ -915,6 +915,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
     struct ifnet *src;
     struct ifnet *ifp, *last;
     int shared = bdg_copy;		/* someone else is using the mbuf */
+    int error;
     struct ifnet *real_dst = dst;	/* real dst from ether_output */
     struct ip_fw_args args;
     struct ether_header save_eh;
@@ -1131,7 +1132,8 @@ forward:
 			bdg_dropped++;
 			return m0;	/* the original is still there... */
 		    }
-		    if (IF_HANDOFF(&last->if_snd, m, last))
+		    IFQ_HANDOFF(last, m, error);
+		    if (!error)
 			BDG_STAT(last, BDG_OUT);
 		    else
 			bdg_dropped++;
@@ -1155,7 +1157,8 @@ forward:
 	} else {			/* consume original */
 	    m = m0, m0 = NULL;
 	}
-	if (IF_HANDOFF(&last->if_snd, m, last))
+	IFQ_HANDOFF(last, m, error);
+	if (!error)
 	    BDG_STAT(last, BDG_OUT);
 	else
 	    bdg_dropped++;

@@ -446,9 +446,7 @@ tunoutput(
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;
-#ifdef MAC
 	int error;
-#endif
 
 	TUNDEBUG (ifp, "tunoutput\n");
 
@@ -524,7 +522,8 @@ tunoutput(
 		}
 	}
 
-	if (! IF_HANDOFF(&ifp->if_snd, m0, ifp)) {
+	IFQ_HANDOFF(ifp, m0, error);
+	if (error) {
 		ifp->if_collisions++;
 		return (ENOBUFS);
 	}
