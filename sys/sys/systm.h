@@ -101,7 +101,6 @@ int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));
 void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
-void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
 void	tablefull __P((const char *));
