@@ -609,10 +609,6 @@ execsigs(p)
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
 	/*
-	 * Clear out the td's sigmask.  Normal processes use the proc sigmask.
-	 */
-	SIGEMPTYSET(FIRST_THREAD_IN_PROC(p)->td_sigmask);
-	/*
 	 * Reset stack state to the user stack.
 	 * Clear set of signals caught on the signal stack.
 	 */
