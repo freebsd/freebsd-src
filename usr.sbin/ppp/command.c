@@ -33,11 +33,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifdef __OpenBSD__
-#include <util.h>
-#else
-#include <libutil.h>
-#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2731,7 +2726,7 @@ SetProcTitle(struct cmdargs const *arg)
   int len, remaining, f, argc = arg->argc - arg->argn;
 
   if (arg->argc == arg->argn) {
-    ID0setproctitle(NULL);
+    SetTitle(NULL);
     return 0;
   }
 
@@ -2757,7 +2752,7 @@ SetProcTitle(struct cmdargs const *arg)
   }
   *ptr = '\0';
 
-  ID0setproctitle(title);
+  SetTitle(title);
 
   return 0;
 }

@@ -35,6 +35,11 @@
 
 #include <ctype.h>
 #include <errno.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -357,4 +362,15 @@ ex_desc(int ex)
     return desc[ex];
   snprintf(num, sizeof num, "%d", ex);
   return num;
+}
+
+void
+SetTitle(const char *title)
+{
+  if (title == NULL)
+    setproctitle(NULL);
+  else if (title[0] == '-' && title[1] != '\0')
+    setproctitle("-%s", title + 1);
+  else
+    setproctitle("%s", title);
 }
