@@ -168,7 +168,7 @@ MODULE_VERSION(acpi, 100);
 SYSCTL_INT(_debug, OID_AUTO, acpi_debug_layer, CTLFLAG_RW, &AcpiDbgLayer, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, acpi_debug_level, CTLFLAG_RW, &AcpiDbgLevel, 0, "");
 static int acpi_ca_version = ACPI_CA_VERSION;
-SYSCTL_INT(_debug, OID_AUTO, acpi_ca_version, CTLFLAG_RO, &acpi_ca_version, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, acpi_ca_version, CTLFLAG_RD, &acpi_ca_version, 0, "");
 
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
