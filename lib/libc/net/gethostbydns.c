@@ -584,8 +584,12 @@ _gethostbydnsname(name, af)
 				break;
 		}
 
-	if ((n = res_search(name, C_IN, type, buf.buf, sizeof(buf))) < 0) {
+	n = res_search(name, C_IN, type, buf.buf, sizeof(buf.buf));
+	if (n < 0) {
 		dprintf("res_search failed (%d)\n", n);
+		return (NULL);
+	} else if (n > sizeof(buf.buf)) {
+		dprintf("static buffer is too small (%d)\n", n);
 		return (NULL);
 	}
 	return (gethostanswer(&buf, n, name, type));

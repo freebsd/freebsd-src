@@ -994,11 +994,7 @@ struct __res_type_list {
         int     rtl_type;
 };
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define	MAXPACKET	(64*1024)
 
 typedef union {
 	HEADER hdr;
@@ -1305,7 +1301,7 @@ _res_search_multi(name, rtl, errp)
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
 	struct __res_type_list *rtl0 = rtl;
-	querybuf buf;
+	querybuf *buf;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		*errp = NETDB_INTERNAL;
@@ -1318,17 +1314,23 @@ _res_search_multi(name, rtl, errp)
 	if (cp > name && *--cp == '.')
 		trailing_dot++;
 
+	buf = malloc(sizeof(*buf));
+	if (buf == NULL) {
+		*errp = NETDB_INTERNAL;
+		return NULL;
+	}
+
 	/* If there aren't any dots, it could be a user-level alias */
 	if (!dots && (cp = hostalias(name)) != NULL) {
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
-			ret = res_query(cp, C_IN, rtl->rtl_type, buf.buf,
-					     sizeof(buf.buf));
-			if (ret > 0) {
+			ret = res_query(cp, C_IN, rtl->rtl_type, buf->buf,
+					     sizeof(buf->buf));
+			if (ret > 0 && ret < sizeof(buf->buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
-				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+				hp = getanswer(buf, ret, name, rtl->rtl_type,
 						    &hpbuf, errp);
 				if (!hp)
 					continue;
@@ -1336,6 +1338,7 @@ _res_search_multi(name, rtl, errp)
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
+		free(buf);
 		return (hp0);
 	}
 
@@ -1348,12 +1351,12 @@ _res_search_multi(name, rtl, errp)
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
-					      buf.buf, sizeof(buf.buf));
-			if (ret > 0) {
+					      buf->buf, sizeof(buf->buf));
+			if (ret > 0 && ret < sizeof(buf->buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
-				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+				hp = getanswer(buf, ret, name, rtl->rtl_type,
 						    &hpbuf, errp);
 				if (!hp)
 					continue;
@@ -1361,8 +1364,10 @@ _res_search_multi(name, rtl, errp)
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
-		if (hp0 != NULL)
+		if (hp0 != NULL) {
+			free(buf);
 			return (hp0);
+		}
 		saved_herrno = *errp;
 		tried_as_is++;
 	}
@@ -1385,12 +1390,12 @@ _res_search_multi(name, rtl, errp)
 			    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 				ret = res_querydomain(name, *domain, C_IN,
 						      rtl->rtl_type,
-						      buf.buf, sizeof(buf.buf));
-				if (ret > 0) {
+						      buf->buf, sizeof(buf->buf));
+				if (ret > 0 && ret < sizeof(buf->buf)) {
 					hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 					    ? AF_INET6 : AF_INET;
 					hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
-					hp = getanswer(&buf, ret, name,
+					hp = getanswer(buf, ret, name,
 					    rtl->rtl_type, &hpbuf, errp);
 					if (!hp)
 						continue;
@@ -1398,8 +1403,10 @@ _res_search_multi(name, rtl, errp)
 					hp0 = _hpmerge(hp0, hp, errp);
 				}
 			}
-			if (hp0 != NULL)
+			if (hp0 != NULL) {
+				free(buf);
 				return (hp0);
+			}
 
 			/*
 			 * If no server present, give up.
@@ -1415,6 +1422,7 @@ _res_search_multi(name, rtl, errp)
 			 * fully-qualified.
 			 */
 			if (errno == ECONNREFUSED) {
+				free(buf);
 				*errp = TRY_AGAIN;
 				return (NULL);
 			}
@@ -1427,7 +1435,7 @@ _res_search_multi(name, rtl, errp)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
-				if (buf.hdr.rcode == SERVFAIL) {
+				if (buf->hdr.rcode == SERVFAIL) {
 					/* try next search element, if any */
 					got_servfail++;
 					break;
@@ -1455,12 +1463,12 @@ _res_search_multi(name, rtl, errp)
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
-					      buf.buf, sizeof(buf.buf));
-			if (ret > 0) {
+					      buf->buf, sizeof(buf->buf));
+			if (ret > 0 && ret < sizeof(buf->buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
-				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+				hp = getanswer(buf, ret, name, rtl->rtl_type,
 				    &hpbuf, errp);
 				if (!hp)
 					continue;
@@ -1468,9 +1476,13 @@ _res_search_multi(name, rtl, errp)
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
-		if (hp0 != NULL)
+		if (hp0 != NULL) {
+			free(buf);
 			return (hp0);
+		}
 	}
+
+	free(buf);
 
 	/* if we got here, we didn't satisfy the search.
 	 * if we did an initial full query, return that query's h_errno
@@ -1531,7 +1543,7 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 #ifdef INET6
 	static const char hex[] = "0123456789abcdef";
 #endif
-	querybuf buf;
+	querybuf *buf;
 	char qbuf[MAXDNAME+1];
 	char *hlist[2];
 
@@ -1584,12 +1596,27 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 		break;
 	}
 
-	n = res_query(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
-	if (n < 0) {
-		*errp = h_errno;
+	buf = malloc(sizeof(*buf));
+	if (buf == NULL) {
+		*errp = NETDB_INTERNAL;
 		return NULL;
 	}
-	hp = getanswer(&buf, n, qbuf, T_PTR, &hbuf, errp);
+
+	n = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof buf->buf);
+	if (n < 0) {
+		free(buf);
+		*errp = h_errno;
+		return NULL;
+	} else if (n > sizeof(buf->buf)) {
+		free(buf);
+		*errp = NETDB_INTERNAL;
+#if 0
+		errno = ERANGE; /* XXX is it OK to set errno here? */
+#endif
+		return NULL;
+	}
+	hp = getanswer(buf, n, qbuf, T_PTR, &hbuf, errp);
+	free(buf);
 	if (!hp)
 		return NULL;
 	hbuf.h_addrtype = af;

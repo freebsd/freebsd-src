@@ -256,7 +256,13 @@ _getnetbydnsaddr(net, net_type)
 	if (anslen < 0) {
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
-			printf("res_query failed\n");
+			printf("res_search failed\n");
+#endif
+		return (NULL);
+	} else if (anslen > sizeof(buf)) {
+#ifdef DEBUG
+		if (_res.options & RES_DEBUG)
+			printf("res_search static buffer too small\n");
 #endif
 		return (NULL);
 	}
@@ -291,7 +297,13 @@ _getnetbydnsname(net)
 	if (anslen < 0) {
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
-			printf("res_query failed\n");
+			printf("res_search failed\n");
+#endif
+		return (NULL);
+	} else if (anslen > sizeof(buf)) {
+#ifdef DEBUG
+		if (_res.options & RES_DEBUG)
+			printf("res_search static buffer too small\n");
 #endif
 		return (NULL);
 	}
