@@ -197,7 +197,8 @@ glob_match (pattern, text, dot_special)
 	{
 	  register char c1 = *t++;
 	  int invert;
-
+	  char *cp1 = p;
+	  
 	  if (c1 == '\0')
 	    return 0;
 
@@ -218,8 +219,15 @@ glob_match (pattern, text, dot_special)
 		}
 
 	      if (cstart == '\0')
-		return 0;	/* Missing ']'. */
-
+		{
+		  /* Missing ']'. */
+		  if (c1 != '[')
+		    return 0;
+		  /* matched a single bracket */
+		  p = cp1;
+		  goto breakbracket;
+		}
+	      
 	      c = *p++;
 
 	      if (c == '-')
@@ -254,6 +262,7 @@ glob_match (pattern, text, dot_special)
 	    }
 	  if (invert)
 	    return 0;
+	  breakbracket:
 	  break;
 	}
 
