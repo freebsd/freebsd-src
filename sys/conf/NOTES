@@ -544,9 +544,11 @@ options 	TCP_RESTRICT_RST	#restrict emission of TCP RST
 
 # ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
 # typically want this option as it will help protect the machine from
-# D.O.S. packet attacks.
+# D.O.S. packet attacks.  Use ICMP_BANDLIM_SUPPRESS_OUTPUT to prevent
+# bandwidth limit messages from being dumped to console.
 #
 options 	ICMP_BANDLIM
+options		ICMP_BANDLIM_SUPPRESS_OUTPUT
 
 # DUMMYNET enables the "dummynet" bandwidth limiter. You need
 # IPFIREWALL as well. See the dummynet(4) manpage for more info.
