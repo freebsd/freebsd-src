@@ -63,6 +63,10 @@
 #include <sys/resource.h>
 
 FILE *cf;						    /* config file handle */
+FILE *history;						    /* history file */
+char *historyfile;					    /* and its name */
+
+char *dateformat;					    /* format in which to store date */
 
 char buffer[BUFSIZE];					    /* buffer to read in to */
 
@@ -135,6 +139,23 @@ main(int argc, char *argv[], char *envp[])
     }
 #endif
 
+    dateformat = getenv("VINUM_DATEFORMAT");
+    if (dateformat == NULL)
+	dateformat = "%e %b %Y %H:%M:%S";
+    historyfile = getenv("VINUM_HISTORY");
+    if (historyfile == NULL)
+	historyfile = DEFAULT_HISTORYFILE;
+    history = fopen(historyfile, "a+");
+    if (history != NULL) {
+	timestamp();
+	fprintf(history, "*** " VINUMMOD " started ***\n");
+	fflush(history);				    /* before we start the daemon */
+    } else
+	fprintf(stderr,
+	    "Can't open history file %s: %s (%d)\n",
+	    historyfile,
+	    strerror(errno),
+	    errno);
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
 	if (errno == ENODEV) {				    /* not configured, */
@@ -205,6 +226,8 @@ main(int argc, char *argv[], char *envp[])
 		if (tokens)
 		    parseline(tokens, token);		    /* and do what he says */
 	    }
+	    if (history)
+		fflush(history);
 	}
     }
     return 0;						    /* normal completion */
@@ -268,6 +291,12 @@ parseline(int args, char *argv[])
     int j;
     enum keyword command;				    /* command to execute */
 
+    if (history != NULL) {				    /* save the command to history file */
+	timestamp();
+	for (i = 0; i < args; i++)			    /* all args */
+	    fprintf(history, "%s ", argv[i]);
+	fputs("\n", history);
+    }
     if ((args == 0)					    /* empty line */
     ||(*argv[0] == '#'))				    /* or a comment, */
 	return;
@@ -417,6 +446,10 @@ make_devices(void)
 	else
 	    perror(VINUMMOD ": Can't write to /dev");
 	return;
+    }
+    if (history) {
+	timestamp();
+	fprintf(history, "*** Created devices ***\n");
     }
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
@@ -711,4 +744,25 @@ start_daemon(void)
 	exit(0);					    /* when told to die */
     } else if (pid < 0)					    /* couldn't fork */
 	printf("Can't fork to check daemon\n");
+}
+
+void 
+timestamp()
+{
+    struct timeval now;
+    struct tm *date;
+    char datetext[MAXDATETEXT];
+
+    if (history != NULL) {
+	if (gettimeofday(&now, NULL) != 0) {
+	    fprintf(stderr, "Can't get time: %s\n", strerror(errno));
+	    return;
+	}
+	date = localtime(&(time_t) now.tv_sec);
+	strftime(datetext, MAXDATETEXT, dateformat, date),
+	    fprintf(history,
+	    "%s.%06ld ",
+	    datetext,
+	    now.tv_usec);
+    }
 }
