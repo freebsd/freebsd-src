@@ -153,6 +153,8 @@ main(int ac, char **av)
 					++av;
 				--ac;
 				jflag++;
+				if (!*av)
+				    	errx(1, "must specify jid");
 				jid = strtol(*av, &ep, 10);
 				if (!*av || *ep)
 					errx(1, "illegal jid: %s", *av);
