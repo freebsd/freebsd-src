@@ -296,6 +296,8 @@ char *gstrcat(char *, const char *, size_t);
 char *gstrcpy(char *, const char *, size_t);
 char *gstrncat(char *, const char *, size_t, size_t);
 
+static void usage(void);
+
 #define	FBUFSIZ	BUFSIZ
 #define	PFILELG	120
 
@@ -345,8 +347,7 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 	{
-		fprintf(stderr, "Usage: %s [flags] command [flags]\n", MyName);
-		exit(EX_USAGE);
+		usage();
 	}
 	argv[argc] = NULL;
 
@@ -392,8 +393,24 @@ main(int argc, char *argv[])
 			SccsPath = ".";
 	}
 
+	if (*argv == NULL)
+	{
+		usage();
+	}
 	i = command(argv, FALSE, "");
 	exit(i);
+}
+
+/*
+**  USAGE -- print usage
+**
+**	This function prints the usage for this program.
+*/
+static void
+usage(void)
+{
+	fprintf(stderr, "Usage: %s [flags] command [flags]\n", MyName);
+	exit(EX_USAGE);
 }
 
 /*
