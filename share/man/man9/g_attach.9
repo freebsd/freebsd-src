@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt g_attach 9
+.Os
+.Sh NAME
+.Nm g_attach ,
+.Nm g_detach
+.Nd "attach/detach consumer to/from provider"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft int
+.Fn g_attach "struct g_consumer *cp" "struct g_provider *pp"
+.Ft void
+.Fn g_detach "struct g_consumer *cp"
+.Sh DESCRIPTION
+The
+.Fn g_attach
+function attaches given consumer to given provider.
+For real provider access (ie. I/O operations), one still need to call the
+.Fn g_access_rel
+function on consumer to gain access to attached provider.
+.Pp
+The
+.Fn g_detach
+function detaches the given consumer from the corresponding provider.
+This function is used when we do not want to communicate with the
+provider anymore.
+.Sh RESTRICTIONS/CONDITIONS
+.Fn g_attach :
+.Bl -item -offset indent
+.It
+The consumer can not be attached already.
+.It
+The operation should not create a topology loop.
+.It
+The topology lock has to be held.
+.El
+.Pp
+.Fn g_detach :
+.Bl -item -offset indent
+.It
+The consumer has to be attached.
+.It
+The access count has to be 0.
+.It
+There must be no active requests.
+.It
+The topology lock has to be held.
+.El
+.Sh RETURN VALUES
+.Fn g_attach
+returns the value 0 if successful; otherwise an error code is returned.
+.Sh ERRORS
+Possible errors:
+.Bl -tag -width Er
+.It Bq Er ELOOP
+The operation creates a topology loop.
+.El
+.Sh EXAMPLES
+Create consumer, attach it to given provider, gain read access and clean up.
+.Bd -literal -offset indent
+void
+some_function(struct g_geom *mygeom, struct g_provider *pp)
+{
+	struct g_consumer *cp;
+
+	g_topology_assert();
+
+	/* Create new consumer on 'mygeom' geom. */
+	cp = g_new_consumer(mygeom);
+	if (cp == NULL)
+		return;
+	/* Attach newly created consumer to given provider. */
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return;
+	}
+	/* Open provider for reading through our consumer. */
+	if (g_access_rel(cp, 1, 0, 0) != 0) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return;
+	}
+
+	g_topology_unlock();
+	/*
+	 * Read data from provider.
+	 */
+	g_topology_lock();
+
+	/* Disconnect from provider (release access count). */
+	g_access_rel(cp, -1, 0, 0);
+	/* Detach from provider. */
+	g_detach(cp);
+	/* Destroy consumer. */
+	g_destroy_consumer(cp);
+}
+.Ed
+.Sh SEE ALSO
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr geom 4 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
