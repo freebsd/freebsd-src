@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 89 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -260,7 +260,7 @@ AcpiExPrepCommonFieldObject (
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
 
-    /* Setup granularity-based fields */
+    /* Setup width (access granularity) fields */
 
     ObjDesc->CommonField.AccessBitWidth    = (UINT8) AccessBitWidth;            /* 8, 16, 32, 64 */
     ObjDesc->CommonField.AccessByteWidth   = (UINT8) DIV_8 (AccessBitWidth);    /* 1,  2,  4,  8 */
@@ -274,6 +274,7 @@ AcpiExPrepCommonFieldObject (
         AccessBitWidth = 8;
     }
 
+
     /* 
      * BaseByteOffset is the address of the start of the field within the region.  It is
      * the byte address of the first *datum* (field-width data unit) of the field.
@@ -281,7 +282,7 @@ AcpiExPrepCommonFieldObject (
      */
     NearestByteAddress                        = ROUND_BITS_DOWN_TO_BYTES (FieldBitPosition);
     ObjDesc->CommonField.BaseByteOffset       = ROUND_DOWN (NearestByteAddress, 
-                                                            ObjDesc->CommonField.AccessByteWidth);
+                                                            DIV_8 (AccessBitWidth));
 
     /*
      * StartFieldBitOffset is the offset of the first bit of the field within a field datum.

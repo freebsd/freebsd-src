@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 11 $
+ *              $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -269,33 +269,31 @@ AcpiEnterSleepState (
 
     AcpiHwRegisterBitAccess(ACPI_WRITE, ACPI_MTX_LOCK, WAK_STS, 1);
 
+    disable();
+
     PM1AControl = (UINT16) AcpiHwRegisterRead(ACPI_MTX_LOCK, PM1_CONTROL);
-
-    /* mask off SLP_EN and SLP_TYP fields */
-
-    PM1AControl &= 0xC3FF;
-
-    /* mask in SLP_EN */
-
-    PM1AControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
-
-    PM1BControl = PM1AControl;
-
-    /* mask in SLP_TYP */
-
-    PM1AControl |= (TypeA << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
-    PM1BControl |= (TypeB << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
 
     DEBUG_PRINT(ACPI_OK, ("Entering S%d\n", SleepState));
 
-    disable();
+    /* mask off SLP_EN and SLP_TYP fields */
+    PM1AControl &= 0xC3FF;
+    PM1BControl = PM1AControl;
 
+    /* mask in SLP_TYP */
+    PM1AControl |= (TypeA << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
+    PM1BControl |= (TypeB << AcpiHwGetBitShift (SLP_TYPE_X_MASK));
+
+    /* write #1: fill in SLP_TYPE data */
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
 
-    /* one system won't work with this, one won't work without */
-    /*AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1_CONTROL,
-        (1 << AcpiHwGetBitShift (SLP_EN_MASK)));*/
+    /* mask in SLP_EN */
+    PM1AControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
+    PM1BControl |= (1 << AcpiHwGetBitShift (SLP_EN_MASK));
+
+    /* write #2: the whole tamale */
+    AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
+    AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
 
     enable();
 
