@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.80.2.4 2002/07/13 09:38:53 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/aclocal.m4,v 1.98.2.4 2004/03/28 21:04:49 fenner Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -236,9 +236,9 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     AC_MSG_CHECKING(for local pcap library)
     libpcap=FAIL
     lastdir=FAIL
-    places=`ls .. | sed -e 's,/$,,' -e 's,^,../,' | \
+    places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
 	egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
-    for dir in $places ../libpcap libpcap ; do
+    for dir in $places $srcdir/../libpcap $srcdir/libpcap ; do
 	    basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//'`
 	    if test $lastdir = $basedir ; then
 		    dnl skip alphas when an actual release is present
@@ -256,6 +256,36 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    AC_CHECK_LIB(pcap, main, libpcap="-lpcap")
 	    if test $libpcap = FAIL ; then
 		    AC_MSG_ERROR(see the INSTALL doc for more info)
+	    fi
+	    dnl
+	    dnl Good old Red Hat Linux puts "pcap.h" in
+	    dnl "/usr/include/pcap"; had the LBL folks done so,
+	    dnl that would have been a good idea, but for
+	    dnl the Red Hat folks to do so just breaks source
+	    dnl compatibility with other systems.
+	    dnl
+	    dnl We work around this by assuming that, as we didn't
+	    dnl find a local libpcap, libpcap is in /usr/lib or
+	    dnl /usr/local/lib and that the corresponding header
+	    dnl file is under one of those directories; if we don't
+	    dnl find it in either of those directories, we check to
+	    dnl see if it's in a "pcap" subdirectory of them and,
+	    dnl if so, add that subdirectory to the "-I" list.
+	    dnl
+	    AC_MSG_CHECKING(for extraneous pcap header directories)
+	    if test \( ! -r /usr/local/include/pcap.h \) -a \
+			\( ! -r /usr/include/pcap.h \); then
+		if test -r /usr/local/include/pcap/pcap.h; then
+		    d="/usr/local/include/pcap"
+		elif test -r /usr/include/pcap/pcap.h; then
+		    d="/usr/include/pcap"
+		fi
+	    fi
+	    if test -z "$d" ; then
+		AC_MSG_RESULT(not found)
+	    else
+		$2="-I$d $$2"
+		AC_MSG_RESULT(found -- -I$d added)
 	    fi
     else
 	    $1=$libpcap
@@ -280,8 +310,42 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 		    AC_MSG_RESULT(yes)
 		    LIBS="$LIBS -I:$pseexe"
 	    fi
+	    #
+	    # We need "-lodm" and "-lcfg", as libpcap requires them on
+	    # AIX, and we just build a static libpcap.a and thus can't
+	    # arrange that when you link with libpcap you automatically
+	    # link with those libraries.
+	    #
+	    LIBS="$LIBS -lodm -lcfg"
 	    ;;
-    esac])
+    esac
+
+    dnl
+    dnl Check for "pcap_list_datalinks()", "pcap_set_datalink()",
+    dnl and "pcap_datalink_name_to_val()", and use substitute versions
+    dnl if they're not present
+    dnl
+    AC_CHECK_FUNC(pcap_list_datalinks,
+	AC_DEFINE(HAVE_PCAP_LIST_DATALINKS),
+	AC_LIBOBJ(datalinks))
+    AC_CHECK_FUNC(pcap_set_datalink,
+	AC_DEFINE(HAVE_PCAP_SET_DATALINK))
+    AC_CHECK_FUNC(pcap_datalink_name_to_val,
+	[
+	    AC_DEFINE(HAVE_PCAP_DATALINK_NAME_TO_VAL)
+	    AC_CHECK_FUNC(pcap_datalink_val_to_description,
+		AC_DEFINE(HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION),
+		AC_LIBOBJ(dlnames))
+	],
+	AC_LIBOBJ(dlnames))
+
+    dnl
+    dnl Check for "pcap_breakloop()"; you can't substitute for it if
+    dnl it's absent (it has hooks into the live capture routines),
+    dnl so just define the HAVE_ value if it's there.
+    dnl
+    AC_CHECK_FUNCS(pcap_breakloop)
+])
 
 dnl
 dnl Define RETSIGTYPE and RETSIGVAL
@@ -310,10 +374,10 @@ AC_DEFUN(AC_LBL_TYPE_SIGNAL,
 	    ;;
 
     *)
-	    dnl prefer sigset() to sigaction()
-	    AC_CHECK_FUNCS(sigset)
-	    if test $ac_cv_func_sigset = no ; then
-		    AC_CHECK_FUNCS(sigaction)
+	    dnl prefer sigaction() to sigset()
+	    AC_CHECK_FUNCS(sigaction)
+	    if test $ac_cv_func_sigaction = no ; then
+		    AC_CHECK_FUNCS(sigset)
 	    fi
 	    ;;
     esac])
@@ -538,8 +602,39 @@ AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
     AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
 	[case "$host_cpu" in
 
+	#
+	# These are CPU types where:
+	#
+	#	the CPU faults on an unaligned access, but at least some
+	#	OSes that support that CPU catch the fault and simulate
+	#	the unaligned access (e.g., Alpha/{Digital,Tru64} UNIX) -
+	#	the simulation is slow, so we don't want to use it;
+	#
+	#	the CPU, I infer (from the old
+	#
 	# XXX: should also check that they don't do weird things (like on arm)
-	alpha*|arm*|hp*|mips*|sparc*|ia64)
+	#
+	#	comment) doesn't fault on unaligned accesses, but doesn't
+	#	do a normal unaligned fetch, either (e.g., presumably, ARM);
+	#
+	#	for whatever reason, the test program doesn't work
+	#	(this has been claimed to be the case for several of those
+	#	CPUs - I don't know what the problem is; the problem
+	#	was reported as "the test program dumps core" for SuperH,
+	#	but that's what the test program is *supposed* to do -
+	#	it dumps core before it writes anything, so the test
+	#	for an empty output file should find an empty output
+	#	file and conclude that unaligned accesses don't work).
+	#
+	# This run-time test won't work if you're cross-compiling, so
+	# in order to support cross-compiling for a particular CPU,
+	# we have to wire in the list of CPU types anyway, as far as
+	# I know, so perhaps we should just have a set of CPUs on
+	# which we know it doesn't work, a set of CPUs on which we
+	# know it does work, and have the script just fail on other
+	# cpu types and update it when such a failure occurs.
+	#
+	alpha*|arm*|hp*|mips*|sh*|sparc*|ia64|nv1)
 		ac_cv_lbl_unaligned_fail=yes
 		;;
 
@@ -594,7 +689,8 @@ EOF
 dnl
 dnl If using gcc and the file .devel exists:
 dnl	Compile with -g (if supported) and -Wall
-dnl	If using gcc 2, do extra prototype checking
+dnl	If using gcc 2 or later, do extra prototype checking and some other
+dnl	checks
 dnl	If an os prototype include exists, symlink os-proto.h to it
 dnl
 dnl usage:
@@ -620,7 +716,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 			    fi
 			    $1="$$1 -Wall"
 			    if test $ac_cv_lbl_gcc_vers -gt 1 ; then
-				    $1="$$1 -Wmissing-prototypes -Wstrict-prototypes"
+				    $1="$$1 -Wmissing-prototypes -Wstrict-prototypes -Wwrite-strings -W"
 			    fi
 		    fi
 	    else
@@ -657,6 +753,11 @@ dnl
 dnl results:
 dnl
 dnl	LIBS
+dnl
+dnl XXX - "AC_LBL_LIBRARY_NET" was redone to use "AC_SEARCH_LIBS"
+dnl rather than "AC_LBL_CHECK_LIB", so this isn't used any more.
+dnl We keep it around for reference purposes in case it's ever
+dnl useful in the future.
 dnl
 
 define(AC_LBL_CHECK_LIB,
@@ -1097,6 +1198,9 @@ ac_cv___attribute__=yes,
 ac_cv___attribute__=no)])
 if test "$ac_cv___attribute__" = "yes"; then
   AC_DEFINE(HAVE___ATTRIBUTE__, 1, [define if your compiler has __attribute__])
+  V_DEFS="$V_DEFS -D_U_=\"__attribute__((unused))\""
+else
+  V_DEFS="$V_DEFS -D_U_=\"\""
 fi
 AC_MSG_RESULT($ac_cv___attribute__)
 ])

@@ -20,18 +20,17 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/gmt2local.c,v 1.4.6.1 2002/06/01 23:43:53 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/gmt2local.c,v 1.7.2.2 2003/11/16 08:51:06 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/types.h>
+#include <tcpdump-stdinc.h>
 
 #include <stdio.h>
-#include <time.h>
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"

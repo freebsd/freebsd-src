@@ -15,11 +15,11 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/strcasecmp.c,v 1.3 2000/01/09 21:34:21 fenner Exp $";
+static const char rcsid[] _U_ =
+     "@(#) $Header: /tcpdump/master/tcpdump/strcasecmp.c,v 1.4.2.2 2003/11/16 08:51:57 guy Exp $";
 #endif
 
-#include <sys/types.h>
+#include <tcpdump-stdinc.h>
 
 #include "interface.h"
 

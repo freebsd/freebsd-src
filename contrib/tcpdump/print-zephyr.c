@@ -19,19 +19,19 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-zephyr.c,v 1.2.4.2 2002/07/11 07:49:19 guy Exp $";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-zephyr.c,v 1.6.2.2 2003/11/16 08:51:56 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include <tcpdump-stdinc.h>
+
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/types.h>
 
 #include "interface.h"
 
@@ -48,7 +48,7 @@ struct z_packet {
     char *inst;
     char *opcode;
     char *sender;
-    char *recipient;
+    const char *recipient;
     char *format;
     int cksum;
     int multi;
@@ -105,7 +105,7 @@ parse_field(char **pptr, int *len)
 }
 
 static const char *
-z_triple(char *class, char *inst, char *recipient)
+z_triple(char *class, char *inst, const char *recipient)
 {
     if (!*recipient)
 	recipient = "*";

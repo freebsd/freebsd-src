@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/sctpConstants.h,v 1.2 2001/06/28 10:17:22 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/sctpConstants.h,v 1.4 2003/06/03 23:49:23 guy Exp $ (LBL) */
 
 /* SCTP reference Implementation Copyright (C) 1999 Cisco And Motorola
  *
@@ -31,14 +31,14 @@
  *
  * This file is part of the SCTP reference Implementation
  *
- * 
+ *
  * Please send any bug reports or fixes you make to one of the following email
  * addresses:
- * 
+ *
  * rstewar1@email.mot.com
  * kmorneau@cisco.com
  * qxie1@email.mot.com
- * 
+ *
  * Any bugs reported given to us we will try to fix... any fixes shared will
  * be incorperated into the next SCTP release.
  */
@@ -58,7 +58,7 @@
    */
 /*#define USE_MD5 1*/
 
-/* the SCTP protocol signature 
+/* the SCTP protocol signature
  * this includes the version number
  * encoded in the last 4 bits of the
  * signature.
@@ -82,7 +82,7 @@
 /* default max I can burst out after a fast retransmit */
 #define SCTP_DEF_MAX_BURST 4
 
-/* Packet transmit states in the sent 
+/* Packet transmit states in the sent
  * field in the SCTP_transmitOnQueue struct
  */
 #define SCTP_DATAGRAM_UNSENT 		0
@@ -106,8 +106,8 @@
 #define SCTP_DATA		0x00
 #define SCTP_INITIATION		0x01
 #define SCTP_INITIATION_ACK	0x02
-#define SCTP_SELECTIVE_ACK	0x03 
-#define SCTP_HEARTBEAT_REQUEST	0x04	
+#define SCTP_SELECTIVE_ACK	0x03
+#define SCTP_HEARTBEAT_REQUEST	0x04
 #define SCTP_HEARTBEAT_ACK	0x05
 #define SCTP_ABORT_ASSOCIATION	0x06
 #define SCTP_SHUTDOWN		0x07
@@ -239,7 +239,7 @@
 #define SCTP_STARTING_MAPARRAY 10000
 
 /* Here we define the timer types used
- * by the implementation has 
+ * by the implementation has
  * arguments in the set/get timer type calls.
  */
 #define SCTP_TIMER_INIT 	0
@@ -248,7 +248,7 @@
 #define SCTP_TIMER_SHUTDOWN	3
 #define SCTP_TIMER_HEARTBEAT	4
 #define SCTP_TIMER_PMTU		5
-/* number of timer types in the base SCTP 
+/* number of timer types in the base SCTP
  * structure used in the set/get and has
  * the base default.
  */
@@ -352,7 +352,7 @@
 
 /* Events that SCTP will look for, these
  * are or'd together to declare what SCTP
- * wants. Each select mask/poll list should be 
+ * wants. Each select mask/poll list should be
  * set for the fd, if the bit is on.
  */
 #define SCTP_EVENT_READ		0x000001
@@ -361,7 +361,7 @@
 
 /* The following constant is a value for this
  * particular implemenation. It is quite arbitrary and
- * is used to limit how much data will be queued up to 
+ * is used to limit how much data will be queued up to
  * a sender, waiting for cwnd to be larger than flightSize.
  * All implementations will need this protection is some
  * way due to buffer size constraints.
@@ -371,9 +371,9 @@
 
 
 
-/* This constant (SCTP_MAX_READBUFFER) define 
+/* This constant (SCTP_MAX_READBUFFER) define
  * how big the read/write buffer is
- * when we enter the fd event notification 
+ * when we enter the fd event notification
  * the buffer is put on the stack, so the bigger
  * it is the more stack you chew up, however it
  * has got to be big enough to handle the bigest
@@ -392,7 +392,7 @@
 #define SCTP_MIN_RWND	1500
 
 #define SCTP_WINDOW_MIN	1500	/* smallest rwnd can be */
-#define SCTP_WINDOW_MAX 1048576	/* biggest I can grow rwnd to 
+#define SCTP_WINDOW_MAX 1048576	/* biggest I can grow rwnd to
 				 * My playing around suggests a
 				 * value greater than 64k does not
 				 * do much, I guess via the kernel
@@ -411,7 +411,7 @@
 					 * size to. This governs what is the
 					 * largest size we will use, of course
 					 * PMTU will raise this up to
-					 * the largest interface MTU or the 
+					 * the largest interface MTU or the
 					 * ceiling below if there is no
 					 * SIOCGIFMTU.
 					 */
@@ -514,11 +514,6 @@
 
 #define SCTP_DEAMON_PORT 9899
 
-
-#ifndef IPPROTO_SCTP
-#define IPPROTO_SCTP 132	/* the Official IANA number :-) */
-#endif
-
 /* Deamon registration message types/responses */
 #define DEAMON_REGISTER       0x01
 #define DEAMON_REGISTER_ACK   0x02
@@ -542,7 +537,7 @@
 {							\
     (ts)->tv_sec  = (tv)->tv_sec;			\
     (ts)->tv_nsec = (tv)->tv_usec * 1000;		\
-}    
+}
 #endif
 
 /* pegs */

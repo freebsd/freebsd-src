@@ -29,16 +29,17 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/missing/strlcat.c,v 1.1 2000/01/19 05:34:19 itojun Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/missing/strlcat.c,v 1.3.2.2 2003/11/16 08:52:03 guy Exp $ (LBL)";
 #endif
 
+#ifdef HAVE_CONFIG_H 
 #include <config.h>
+#endif
 
-#include <sys/types.h>
+#include <tcpdump-stdinc.h>
+
 #include <string.h>
-
-#include "interface.h"
 
 /*
  * Appends src to string dst of size siz (unlike strncat, siz is the
@@ -47,10 +48,7 @@ static const char rcsid[] =
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
 size_t
-strlcat(dst, src, siz)
-	char *dst;
-	const char *src;
-	size_t siz;
+strlcat(char *dst, const char *src, size_t siz)
 {
 	register char *d = dst;
 	register const char *s = src;
