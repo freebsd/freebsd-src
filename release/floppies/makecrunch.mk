@@ -1,18 +1,10 @@
 
 
-.if exists(../../../../release/sysinstall/sysinstall)
-SYSINSTALL=	../../../../release/sysinstall/sysinstall
-.else
-SYSINSTALL=	../../../../release/sysinstall/obj/sysinstall
-.endif
+SYSINSTALL=	${OBJTOP}/release/sysinstall/sysinstall
 
 NOCRYPT?=	yes
 
-all: ${SYSINSTALL} crunch
-
-${SYSINSTALL}:
-	@echo "you need to make sysinstall first"
-	false
+all: crunch
 
 crunch:
 	-crunchgen ${.CURDIR}/crunch.conf
