@@ -369,6 +369,8 @@ if_attach(struct ifnet *ifp)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
+	IF_AFDATA_LOCK_INIT(ifp);
+	ifp->if_afdata_initialized = 0;
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
 	IFNET_WUNLOCK();
@@ -456,10 +458,8 @@ if_attachdomain(void *dummy)
 	int s;
 
 	s = splnet();
-	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 		if_attachdomain1(ifp);
-	IFNET_RUNLOCK();
 	splx(s);
 }
 SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
@@ -472,6 +472,22 @@ if_attachdomain1(struct ifnet *ifp)
 	int s;
 
 	s = splnet();
+
+	/*
+	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
+	 * cannot lock ifp->if_afdata initialization, entirely.
+	 */
+	if (IF_AFDATA_TRYLOCK(ifp) == 0) {
+		splx(s);
+		return;
+	}
+	if (ifp->if_afdata_initialized) {
+		IF_AFDATA_UNLOCK(ifp);
+		splx(s);
+		return;
+	}
+	ifp->if_afdata_initialized = 1;
+	IF_AFDATA_UNLOCK(ifp);
 
 	/* address family dependent data region */
 	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
@@ -576,11 +592,13 @@ if_detach(struct ifnet *ifp)
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
+	IF_AFDATA_LOCK(ifp);
 	for (dp = domains; dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
+	IF_AFDATA_UNLOCK(ifp);
 
 #ifdef MAC
 	mac_destroy_ifnet(ifp);
@@ -590,6 +608,7 @@ if_detach(struct ifnet *ifp)
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	IFNET_WUNLOCK();
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
+	IF_AFDATA_DESTROY(ifp);
 	splx(s);
 }
 
