@@ -333,17 +333,16 @@ draw:
 					 cur_x, cur_y);
 			    wrefresh(dialog);
 			}
-			else if (st & DITEM_RECREATE) {
-			    delwin(save);
-			    delwin(list);
-			    delwin(dialog);
-			    goto draw;
-			}
 			delwin(save);
 			if (st & DITEM_LEAVE_MENU) {
 			    /* Allow a fire action to take us out of the menu */
 			    key = ESC;
 			    break;
+			}
+			else if (st & DITEM_RECREATE) {
+			    delwin(list);
+			    delwin(dialog);
+			    goto draw;
 			}
 		    }
 		    status[scroll + choice] = ditems[scroll + choice].checked ?
