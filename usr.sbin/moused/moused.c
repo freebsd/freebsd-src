@@ -1014,7 +1014,7 @@ usage(void)
     fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
 	"              [-a X [,Y]] [-C threshold] [-m N=M] [-w N] [-z N]",
-	"              [-t <mousetype>] [-3 [-E timeout]] -p <port>",
+	"              [-t <mousetype>] [-l level] [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <port|if|type|model|all> -p <port>");
     exit(1);
 }

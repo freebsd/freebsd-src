@@ -49,6 +49,7 @@
 .Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
+.Op Fl l Ar level
 .Op Fl 3 Op Fl E Ar timeout
 .Fl p Ar port
 .Pp
@@ -205,6 +206,15 @@ If the
 .Nm
 utility cannot determine the requested information, it prints ``unknown''
 or ``generic''.
+.It Fl l Ar level
+Specifies at which level
+.Nm
+should operate the mouse driver.
+Refer to
+.Em Operation Levels
+in
+.Xr psm 4
+for more information on this.
 .It Fl m Ar N=M
 Assign the physical button
 .Ar M
