@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20031028:
+	FreeBSD 4.9-RELEASE.
+
 20031022:
 	Support for HyperThread logical CPUs has now been enabled by
 	default.  As a result, the HTT kernel option no longer exists.
