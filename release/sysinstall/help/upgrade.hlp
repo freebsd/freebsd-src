@@ -21,11 +21,10 @@ And that's it!  This "upgrade" is not going to hold your hand in all
 major respects, it's simply provided to make one PART of the upgrade
 easier.
 
-IMPORTANT NOTE: What this upgrade procedure also may do, in fact, is
+IMPORTANT NOTE: What this upgrade procedure may also do, in fact, is
 completely destroy your system (though much more quickly than you
-would have been able to destroy it yourself) and it is simply
-impossible to guarantee that this procedure's crude form of upgrade
-automation will work in all cases.  If you do this upgrade without
-proper BACKUPS for any important data then you really must like living
-life close to the edge, that's all I can say!
-
+would have been able to destroy it yourself). It is simply impossible
+to guarantee that this procedure's crude form of upgrade automation
+will work in all cases and if you do this upgrade without proper
+BACKUPS for any important data then you really must like living life
+close to the edge, that's all I can say!
