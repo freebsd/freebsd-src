@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.1 1993/12/19 00:55:24 wollman Exp $
+ *	$Id: sysent.h,v 1.1 1994/08/24 11:47:23 sos Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -45,8 +45,10 @@ struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
 	unsigned int	sv_mask;	/* optional mask to index */
-	int		sv_sigsize;	/* size of signal table */
-	int		*sv_sigtbl;	/* table of signal translation */
+	int		sv_sigsize;	/* size of signal translation table */
+	int		*sv_sigtbl;	/* signal translation table */
+	int		sv_errsize;	/* size of signal translation table */
+	int 		*sv_errtbl;	/* errno translation table */
 };
 
 #ifdef KERNEL
