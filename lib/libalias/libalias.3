@@ -1,13 +1,11 @@
+.\" $Id$
+.\"
 .Dd July, 1997
-.Dt "libalias" 3 
+.Dt LIBALIAS 3 
 .Os 
 .Sh NAME
-.Nm "libalias"
-Packet Aliasing Library.  A collection of
-functions for aliasing and de-aliasing
-of IP packets, intended for masquerading and
-network address translation (NAT).  
-
+.Nm libalias
+.Nd packet aliasing library for masquerading and address translation (NAT)
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
@@ -15,7 +13,13 @@ network address translation (NAT).
 
 Function prototypes are given in the main body
 of the text.
-
+.Sh DESCRIPTION
+The
+.Nm
+library is a collection of
+functions for aliasing and de-aliasing
+of IP packets, intended for masquerading and
+network address translation (NAT).  
 .Sh CONTENTS
 .Bd -literal -offset left
 1. Introduction
@@ -51,7 +55,6 @@ Appendix A: Conceptual Background
     A.3 Partially Specified Links
     A.4 Dynamic Link Creation
 .Ed
-
 .Sh 1. Introduction
 This library is a moderately portable
 set of functions designed to assist
@@ -86,7 +89,6 @@ to operate in user space outside of the
 kernel, without any access to private
 kernel data structure, but the source code
 can also be ported to a kernel environment.
-
 .Sh 2. Initialization and Control
 Two specific functions, PacketAliasInit()
 and PacketAliasSetAddress(), must always be
@@ -275,7 +277,6 @@ interface rather than the external one.
 Set IPFW range allocated for punching firewall holes (with the
 PKT_ALIAS_PUNCH_FW flag).  The range will be cleared for all rules on
 initialization.
-
 .Sh 3. Packet Handling
 The packet handling functions are used to 
 modify incoming (remote->local) and outgoing
@@ -360,7 +361,6 @@ The packet was ignored and not de-aliased.
 This can happen if the protocal is unrecognized,
 or possibly an ICMP message type is not handled.
 .El
-
 .Sh 4. Port and Address Redirection
 The functions described in this section allow machines
 on the local network to be accessible in some degree
@@ -495,7 +495,6 @@ functions.  If an invalid pointer is passed to
 PacketAliasRedirectDelete(), then a program crash
 or unpredictable operation could result, so it is
 necessary to be careful using this function.
-
 .Sh 5. Fragment Handling
 The functions in this section are used to deal with
 incoming fragments.
@@ -686,7 +685,6 @@ is the pointer to a header fragment used as a
 template, and
 .Em fragment
 is the pointer to the packet to be de-aliased.
-
 .Sh 6. Miscellaneous Functions
 
 .Ss 6.1 PacketAliasSetTarget()
@@ -734,7 +732,6 @@ field should be zeroed before computing the checksum.
 Checksums can also be verified by operating on a block
 of data including its checksum.  If the checksum is
 valid, PacketAliasInternetChecksum() will return zero.
-
 .Sh 7. Authors
 Charles Mott (cmott@srv.net), versions 1.0 - 1.8, 2.0 - 2.4. 
 
@@ -742,7 +739,6 @@ Eivind Eklund (eivind@freebsd.org), versions 1.8b, 1.9 and
 2.5.  Added IRC DCC support as well as contributing a number of
 architectural improvements; added the firewall bypass
 for FTP/IRC DCC.
-
 .Sh 8. Acknowledgments
 
 Listed below, in approximate chronological
@@ -762,7 +758,6 @@ valuable comments and/or debugging assistance.
 .It Andrzej Bialeki
 .It Gordon Burditt
 .El
-
 .Sh Appendix: Conceptual Background
 This appendix is intended for those who
 are planning to modify the source code or want
