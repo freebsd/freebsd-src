@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.25 1999/04/24 20:14:01 peter Exp $ */
+/*	$Id: if_tx.c,v 1.26 1999/05/09 17:07:02 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -1373,8 +1373,10 @@ epic_set_rx_mode(
 	return;
 }
 
+#if 0
 void
-dump_phy_regs(epic_softc_t *sc) {
+dump_phy_regs(epic_softc_t *sc)
+{
 
 	printf("BMCR: 0x%04x\n", PHY_READ_2(sc, DP83840_BMCR));
 	printf("BMSR: 0x%04x\n", PHY_READ_2(sc, DP83840_BMSR));
@@ -1386,6 +1388,7 @@ dump_phy_regs(epic_softc_t *sc) {
 	printf("INTMASK: 0x%04x\n", PHY_READ_2(sc, QS6612_INTMASK));
 	printf("BPCR: 0x%04x\n", PHY_READ_2(sc, QS6612_BPCR));
 }
+#endif
 
 /*
  * Synopsis: Reset PHY and do PHY-special initialization:
