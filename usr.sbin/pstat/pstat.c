@@ -94,7 +94,7 @@ struct nlist nl[] = {
 	{"_maxfiles"},
 #define NLMANDATORYEND FNL_MAXFILE	/* names up to here are mandatory */
 #define	SCONS		NLMANDATORYEND + 1
-	{ "_cons" },
+	{ "_constty" },
 #define	SPTY		NLMANDATORYEND + 2
 	{ "_pt_tty" },
 #define	SNPTY		NLMANDATORYEND + 3
