@@ -1017,6 +1017,8 @@ discard, that is a TCP packet's fragment with a fragment offset of
 one.
 This is a valid packet, but it only has one use, to try
 to circumvent firewalls.
+When logging is enabled, these packets are
+reported as being dropped by rule -1.
 .It
 If you are logged in over a network, loading the
 .Xr kld 4
