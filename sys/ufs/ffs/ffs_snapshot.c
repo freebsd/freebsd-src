@@ -42,6 +42,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
+#include <sys/sched.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -300,7 +301,7 @@ restart:
 	 */
 	if (td->td_ksegrp->kg_nice > 0) {
 		saved_nice = td->td_ksegrp->kg_nice;
-		td->td_ksegrp->kg_nice = 0;
+		sched_nice(td->td_ksegrp, 0);
 	}
 	/*
 	 * Suspend operation on filesystem.
@@ -644,7 +645,7 @@ done:
 	bawrite(sbp);
 out:
 	if (saved_nice > 0)
-		td->td_ksegrp->kg_nice = saved_nice;
+		sched_nice(td->td_ksegrp, saved_nice);
 	if (fs->fs_active != 0) {
 		FREE(fs->fs_active, M_DEVBUF);
 		fs->fs_active = 0;
