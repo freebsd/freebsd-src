@@ -300,7 +300,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbr_dumpconf;
-	while (1) {	/* a trick to allow us to use break */
+	do {
 		if (gp->rank != 2 && insist == 0)
 			break;
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
@@ -319,7 +319,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		g_topology_unlock();
 		g_free(buf);
 		break;
-	}
+	} while (0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
@@ -407,7 +407,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	gp->dumpconf = g_mbrext_dumpconf;
 	off = 0;
 	slice = 0;
-	while (1) {	/* a trick to allow us to use break */
+	do {
 		error = g_getattr("MBR::type", cp, &i);
 		if (error || (i != DOSPTYP_EXT && i != DOSPTYP_EXTLBA))
 			break;
@@ -457,7 +457,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			off = ((off_t)dp[1].dp_start) << 9ULL;
 		}
 		break;
-	}
+	} while (0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {

@@ -170,7 +170,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_unlock();
 	gp->dumpconf = g_apple_dumpconf;
 	npart = 0;
-	while (1) {	/* a trick to allow us to use break */
+	do {
 		if (gp->rank != 2 && insist == 0)
 			break;
 
@@ -262,7 +262,7 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			g_topology_unlock();
 		}
 		break;
-	}
+	} while(0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
