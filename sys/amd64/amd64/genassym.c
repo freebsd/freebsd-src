@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.6 1993/11/13 02:24:59 davidg Exp $
+ *	$Id: genassym.c,v 1.8 1994/05/25 08:53:32 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -74,6 +74,7 @@ main()
 	printf("#define\tVM_PMAP %d\n", &vms->vm_pmap);
 	printf("#define\tP_ADDR %d\n", &p->p_addr);
 	printf("#define\tP_PRI %d\n", &p->p_priority);
+	printf("#define\tP_RTPRIO %d\n", &p->p_rtprio);
 	printf("#define\tP_STAT %d\n", &p->p_stat);
 	printf("#define\tP_WCHAN %d\n", &p->p_wchan);
 	printf("#define\tP_FLAG %d\n", &p->p_flag);

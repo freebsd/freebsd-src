@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.4 1994/08/06 07:15:04 davidg Exp $
+ * $Id: kern_fork.c,v 1.5 1994/08/18 22:35:00 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -267,6 +267,11 @@ again:
 	 * set priority of child to be that of parent
 	 */
 	p2->p_estcpu = p1->p_estcpu;
+
+	/*
+	 * copy the realtime attibute
+	 */
+	p2->p_rtprio = p1->p_rtprio;
 
 	/*
 	 * This begins the section where we must prevent the parent

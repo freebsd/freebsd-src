@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.6 1994/08/25 22:59:35 wollman Exp $
+ * $Id: proc.h,v 1.7 1994/08/28 16:53:35 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -135,7 +135,7 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
-	long	p_spare[4];		/* Pad to 256, avoid shifting eproc. */
+	long	p_spare[3];		/* Pad to 256, avoid shifting eproc. */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -165,7 +165,7 @@ struct	proc {
 	u_short	p_xstat;	/* Exit status for wait; also stop signal. */
 	u_short	p_acflag;	/* Accounting flags. */
 	struct	rusage *p_ru;	/* Exit information. XXX */
-
+	u_long	p_rtprio;	/* realtime priority */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -246,11 +246,13 @@ extern struct proc *zombproc;		/* List of zombie procs. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
+extern struct prochd qs[];
+extern struct prochd rtqs[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 struct	prochd {
 	struct	proc *ph_link;		/* Linked list of running processes. */
 	struct	proc *ph_rlink;
-} qs[NQS];
+};
 
 int	chgproccnt __P((uid_t, int));
 struct proc *pfind __P((pid_t));	/* Find process by id. */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_synch.c,v 1.3 1994/08/02 07:42:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -606,8 +606,10 @@ rqinit()
 {
 	register int i;
 
-	for (i = 0; i < NQS; i++)
+	for (i = 0; i < NQS; i++) {
 		qs[i].ph_link = qs[i].ph_rlink = (struct proc *)&qs[i];
+		rtqs[i].ph_link = rtqs[i].ph_rlink = (struct proc *)&rtqs[i];
+	}
 }
 
 /*
@@ -660,9 +662,13 @@ resetpriority(p)
 {
 	register unsigned int newpriority;
 
-	newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
-	newpriority = min(newpriority, MAXPRI);
-	p->p_usrpri = newpriority;
-	if (newpriority < curpriority)
+	if (p->p_rtprio == RTPRIO_RTOFF) {
+		newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
+		newpriority = min(newpriority, MAXPRI);
+		p->p_usrpri = newpriority;
+		if (newpriority < curpriority)
+			need_resched();
+	} else {
 		need_resched();
+	}
 }

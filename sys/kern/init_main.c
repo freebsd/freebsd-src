@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.6 1994/08/24 11:50:37 sos Exp $
+ * $Id: init_main.c,v 1.7 1994/08/27 16:14:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -362,6 +362,9 @@ start_init(p, framep)
 	 * passed a pointer to that space as main's argument.
 	 */
 	cpu_set_init_frame(p, framep);
+
+	/* XXX */
+	p->p_rtprio = RTPRIO_RTOFF;
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.

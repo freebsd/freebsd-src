@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_resource.c,v 1.3 1994/08/02 07:42:10 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -192,6 +192,64 @@ donice(curp, chgp, n)
 	(void)resetpriority(chgp);
 	return (0);
 }
+
+/* rtprio system call */
+struct rtprio_args {
+        int     who;
+        pid_t   rtprio;
+};
+
+/*
+ * Set realtime priority
+ */
+
+/* ARGSUSED */
+int
+rtprio(curp, uap, retval)
+	struct proc *curp;
+	register struct rtprio_args *uap;
+	int *retval;
+{
+	register struct proc *p;
+	register int n = uap->rtprio;
+	register struct pcred *pcred = curp->p_cred;
+
+	if (uap->who == 0)
+		p = curp;
+	else
+		p = pfind(uap->who);
+
+	if (p == 0)
+		return (ESRCH);
+
+        if (n == RTPRIO_NOCHG) {
+                *retval = (int)p->p_rtprio;
+                return(0); }
+
+	if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
+	    pcred->pc_ucred->cr_uid != p->p_ucred->cr_uid &&
+	    pcred->p_ruid != p->p_ucred->cr_uid)
+	      return (EPERM);
+
+         if (n == RTPRIO_RTOFF) {
+  	   if(suser(pcred->pc_ucred, &curp->p_acflag)&& !uap->who)
+	     return (EPERM); 
+           p->p_rtprio = RTPRIO_RTOFF;
+           *retval = RTPRIO_RTOFF;
+           return (0); }
+
+	if (n > RTPRIO_MAX)
+	   return (EINVAL);
+	if (n < RTPRIO_MIN)
+	   return (EINVAL);
+	if (suser(pcred->pc_ucred, &curp->p_acflag))
+		return (EPERM);
+
+	p->p_rtprio = n;
+
+        *retval = (int)p->p_rtprio;
+	return (0);
+};
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 struct setrlimit_args {
