@@ -118,8 +118,8 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
 #XXX pointer/int warnings
-#device		aac		# Adaptec FSA RAID
-#device		aacp		# SCSI passthrough for aac (requires CAM)
+device		aac		# Adaptec FSA RAID
+device		aacp		# SCSI passthrough for aac (requires CAM)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 device		ips		# IBM (Adaptec) ServeRAID
