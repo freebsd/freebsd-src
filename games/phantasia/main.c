@@ -367,7 +367,7 @@ initialstate()
 	error(_PATH_VOID);
 	/*NOTREACHED*/
 
-    srandom((unsigned) time((long *) NULL));	/* prime random numbers */
+    srandomdev();
 }
 /**/
 /************************************************************************
