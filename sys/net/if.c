@@ -1507,6 +1507,10 @@ ifconf(u_long cmd, caddr_t data)
 	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
 	max_len = MAXPHYS - 1;
 
+	/* Prevent hostile input from being able to crash the system */
+	if (ifc->ifc_len <= 0)
+		return (EINVAL);
+
 again:
 	if (ifc->ifc_len <= max_len) {
 		max_len = ifc->ifc_len;
