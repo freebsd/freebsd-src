@@ -49,6 +49,7 @@
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
+#include "opt_upages.h"
 /* #include "opt_userconfig.h" */
 
 #include <sys/param.h>
@@ -105,6 +106,9 @@
 #include <machine/globals.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
+#endif
+#ifdef SMP
+#include <machine/privatespace.h>
 #endif
 
 #include <i386/isa/icu.h>
