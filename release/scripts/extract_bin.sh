@@ -1,7 +1,9 @@
 #!/bin/sh
-# $Id: extract_bin.sh,v 1.4 1995/03/28 18:14:10 phk Exp $
+# $Id: extract_bin.sh,v 1.5 1995/04/09 03:44:03 jkh Exp $
+set -e
 PATH=/stand:$PATH
 DDIR=/
+
 
 # Temporary kludge for pathological bindist.
 if [ -f $DDIR/etc/sysconfig ]; then
@@ -16,6 +18,7 @@ fi
 cd /usr/share/misc
 for i in termcap vgrindefs
 do
+	echo "running cap_mkdb $i"
 	/usr/bin/cap_mkdb $i
 	/usr/sbin/chown bin.bin $i.db
 	/bin/chmod 444 $i.db
