@@ -244,13 +244,10 @@ _rl_qsort_string_compare (s1, s2)
 }
 
 #if !defined (SHELL)
-#ifdef savestring
-#undef savestring
-#endif
 /* Backwards compatibility, now that savestring has been removed from
    all `public' readline header files. */
 char *
-savestring (s)
+rl_savestring (s)
      char *s;
 {
   return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
