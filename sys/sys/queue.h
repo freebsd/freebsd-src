@@ -113,6 +113,7 @@ struct qm_trace {
 };
 
 #define TRACEBUF	struct qm_trace trace;
+#define TRASHIT(x)	do {(x) = (void *)-1} while (0)
 
 #define QMD_TRACE_HEAD(head) do {					\
 	(head)->trace.prevline = (head)->trace.lastline;		\
@@ -132,6 +133,7 @@ struct qm_trace {
 #define QMD_TRACE_ELEM(elem)
 #define QMD_TRACE_HEAD(head)
 #define TRACEBUF
+#define TRASHIT(x)
 #endif	/* QUEUE_MACRO_DEBUG */
 
 /*
@@ -468,7 +470,8 @@ struct {								\
 		QMD_TRACE_HEAD(head);					\
 	}								\
 	*(elm)->field.tqe_prev = TAILQ_NEXT((elm), field);		\
-	(elm)->field.tqe_next = (void *)-1;				\
+	TRASHIT((elm)->field.tqe_next);					\
+	TRASHIT((elm)->field.tqe_prev);					\
 	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
