@@ -133,14 +133,15 @@ init_param2(int physpages)
 {
 
 	/* Base parameters */
-	if ((maxusers = MAXUSERS) == 0) {
+	maxusers = MAXUSERS;
+	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
+	if (maxusers == 0) {
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
 		if (maxusers > 384)
 			maxusers = 384;
 	}
-	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
