@@ -124,7 +124,6 @@ ident=PNP8323 module=ed             # SMC EtherCard (All Types except 8013/A)
 ident=PNP8390 module=ed             # Generic network adapter
 
 # --SCSI, Proprietary CD Adapters--
-ident=PNPA003 module=matcd          # Panasonic proprietary CD-ROM adapter (SBPro/SB16)
 ident=PNPA02B module=scd            # Sony proprietary CD-ROM controller
 ident=PNPA030 module=mcd            # Mitsumi LU-005 Single Speed CD-ROM controller + drive
 ident=PNPA031 module=mcd            # Mitsumi FX-001 Single Speed CD-ROM controller + drive

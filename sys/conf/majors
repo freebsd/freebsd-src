@@ -63,7 +63,6 @@ chrdev	name		comments
 43	vn		vnode "disk" device
 44	gp		GPIB
 45	scd		Sony CDROM interface
-46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 47	gsc		Genius Scanner
 48	cy		Cyclades
 49	??		was ssc
