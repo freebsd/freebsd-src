@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -56,15 +60,19 @@ static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/signal.h>
-#include <sgtty.h>
-#include <pwd.h>
-#include <stdio.h>
+#include <err.h>
 #include <ctype.h>
+#include <pwd.h>
+#include <sgtty.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	TIMEOUT	15
 
 void quit(), bye(), hi();
+static void usage __P((void));
 
 struct timeval	timeout;
 struct timeval	zerotime;
@@ -73,12 +81,11 @@ long	nexttime;			/* keep the timeout time */
 int            no_timeout;                     /* lock terminal forever */
 
 /*ARGSUSED*/
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int errno, optind;
 	struct passwd *pw;
 	struct timeval timval;
 	struct itimerval ntimer, otimer;
@@ -95,19 +102,13 @@ main(argc, argv)
        while ((ch = getopt(argc, argv, "npt:")) != -1)
 		switch((char)ch) {
 		case 't':
-			if ((sectimeout = atoi(optarg)) <= 0) {
-				(void)fprintf(stderr,
-				    "lock: illegal timeout value.\n");
-				exit(1);
-			}
+			if ((sectimeout = atoi(optarg)) <= 0)
+				errx(1, "illegal timeout value");
 			break;
 		case 'p':
 			usemine = 1;
-			if (!(pw = getpwuid(getuid()))) {
-				(void)fprintf(stderr,
-				    "lock: unknown uid %d.\n", getuid());
-				exit(1);
-			}
+			if (!(pw = getpwuid(getuid())))
+				errx(1, "unknown uid %d", getuid());
 			mypw = strdup(pw->pw_passwd);
 			break;
                case 'n':
@@ -115,9 +116,7 @@ main(argc, argv)
                        break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-                           "usage: lock [-n] [-p] [-t timeout]\n");
-			exit(1);
+			usage();
 	}
 	timeout.tv_sec = sectimeout * 60;
 
@@ -126,15 +125,10 @@ main(argc, argv)
 	if (ioctl(0, TIOCGETP, &tty))	/* get information for header */
 		exit(1);
 	gethostname(hostname, sizeof(hostname));
-	if (!(ttynam = ttyname(0))) {
-		(void)printf("lock: not a terminal?\n");
-		exit(1);
-	}
-	if (gettimeofday(&timval, (struct timezone *)NULL)) {
-		(void)fprintf(stderr,
-		    "lock: gettimeofday: %s\n", strerror(errno));
-		exit(1);
-	}
+	if (!(ttynam = ttyname(0)))
+		errx(1, "not a terminal?");
+	if (gettimeofday(&timval, (struct timezone *)NULL))
+		err(1, "gettimeofday");
 	nexttime = timval.tv_sec + (sectimeout * 60);
 	timp = localtime(&timval.tv_sec);
 	ap = asctime(timp);
@@ -162,7 +156,7 @@ main(argc, argv)
 			ioctl(0, TIOCSETP, &tty);
 			exit(1);
 		}
-		s[0] = NULL;
+		s[0] = '\0';
 		mypw = s1;
 	}
 
@@ -205,6 +199,15 @@ main(argc, argv)
 			exit(1);
 	}
 	quit();
+	return(0); /* not reached */
+}
+
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: lock [-n] [-p] [-t timeout]\n");
+	exit(1);
 }
 
 void
