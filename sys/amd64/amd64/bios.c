@@ -31,8 +31,6 @@
  * Code for dealing with the BIOS in x86 PC systems.
  */
 
-#include "isa.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
