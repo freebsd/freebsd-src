@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: dmesg.c,v 1.8 1998/05/19 08:58:53 phk Exp $";
+	"$Id: dmesg.c,v 1.9 1998/06/04 06:51:14 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/msgbuf.h>
@@ -113,7 +113,7 @@ main(argc, argv)
 	if (KREAD(nl[X_MSGBUF].n_value, bufp) || KREAD((long)bufp, cur))
 		errx(1, "kvm_read: %s", kvm_geterr(kd));
 	if (cur.msg_magic != MSG_MAGIC)
-		errx(1, "magic number incorrect");
+		errx(1, "kernel message buffer has different magic number");
 	bp = malloc(cur.msg_size);
 	if (!bp)
 		errx(1, "malloc failed");
