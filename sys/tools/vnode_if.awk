@@ -37,7 +37,7 @@
 #
 # Script to produce VFS front-end sugar.
 #
-# usage: vnode_if.sh srcfile
+# usage: vnode_if.pl srcfile
 #	(where srcfile is currently /sys/kern/vnode_if.src)
 #
 
@@ -62,7 +62,7 @@ while (my $arg = shift @ARGV) {
     } elsif ($arg =~ m/\.src$/) {
 	$srcfile = $arg;
     } else {
-	print "usage: vnode_if.sh [-c] [-h] srcfile\n";
+	print "usage: vnode_if.pl [-c] [-h] srcfile\n";
 	exit(1);
     }
 }
@@ -84,7 +84,7 @@ if ($hfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
+ * Created from $FreeBSD$
  */
 
 extern struct vnodeop_desc vop_default_desc;
@@ -100,7 +100,7 @@ if ($cfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
+ * Created from $FreeBSD$
  */
 
 #include <sys/param.h>
