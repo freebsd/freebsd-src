@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40 1995/05/17 09:31:13 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.42 1995/06/17 03:14:31 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -43,6 +43,10 @@
         dict
         ..
         doc
+            FAQ
+            ..
+            handbook
+            ..
             papers
             ..
             psd
