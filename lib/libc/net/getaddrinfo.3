@@ -485,7 +485,7 @@ for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
 	}
 
 	if (bind(s[nsock], res->ai_addr, res->ai_addrlen) < 0) {
-		cause = "connect";
+		cause = "bind";
 		close(s[nsock]);
 		continue;
 	}
