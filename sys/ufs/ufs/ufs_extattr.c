@@ -336,7 +336,8 @@ ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
 	struct vnode	*vp;
 	char	local_attrname[UFS_EXTATTR_MAXEXTATTRNAME]; /* inc null */
 	char	*filename;
-	int	error, len, flags;
+	int	error, flags;
+	size_t	len;
 
 	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0)))
 		return (error);
