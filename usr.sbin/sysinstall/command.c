@@ -171,7 +171,7 @@ command_execute(void)
                    the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
 		if (isDebug())
-		    msgDebug("%p: Execute(%s, %s)", 
+		    msgDebug("%p: Execute(%s, %s)\n", 
 		        func, commandStack[i]->key, 
 			(char *)commandStack[i]->cmds[j].data);
 		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);

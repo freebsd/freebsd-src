@@ -127,7 +127,7 @@ mediaInitNetwork(Device *dev)
     cp = variable_get(ifconfig);
     if (cp) {
 	if (strcmp(cp, "DHCP")) {
-	    msgDebug("ifconfig %s %s", dev->name, cp);
+	    msgDebug("ifconfig %s %s\n", dev->name, cp);
 	    i = vsystem("ifconfig %s %s", dev->name, cp);
 	    if (i) {
 		msgConfirm("Unable to configure the %s interface!\n"
@@ -141,7 +141,7 @@ mediaInitNetwork(Device *dev)
 			   "not on your local network");
 	    }
 	    else {
-		msgDebug("Adding default route to %s.", rp);
+		msgDebug("Adding default route to %s.\n", rp);
 		vsystem("route -n add default %s", rp);
 	    }
 	}
@@ -175,13 +175,13 @@ mediaShutdownNetwork(Device *dev)
 	cp = variable_get(ifconfig);
 	if (!cp)
 	    return;
-	msgDebug("ifconfig %s down", dev->name);
+	msgDebug("ifconfig %s down\n", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
 	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
 	cp = variable_get(VAR_GATEWAY);
 	if (cp) {
-	    msgDebug("Deleting default route.");
+	    msgDebug("Deleting default route.\n");
 	    vsystem("route -n delete default");
 	}
     }
