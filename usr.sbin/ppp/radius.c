@@ -216,6 +216,25 @@ demangle(struct radius *r, const void *mangled, size_t mlen,
 }
 #endif
 
+/* XXX: This should go into librarius. */
+#ifndef NOINET6
+static uint8_t *
+rad_cvt_ipv6prefix(const void *data, size_t len)
+{
+	const size_t ipv6len = sizeof(struct in6_addr) + 2;
+	uint8_t *s;
+
+	if (len > ipv6len)
+		return NULL;
+	s = malloc(ipv6len);
+	if (s != NULL) {
+		memset(s, 0, ipv6len);
+		memcpy(s, data, len);
+	}
+	return s;
+}
+#endif
+
 /*
  * rad_continue_send_request() has given us `got' (non-zero).  Deal with it.
  */
@@ -233,6 +252,7 @@ radius_Process(struct radius *r, int got)
   u_int32_t ipaddr, vendor;
   struct in_addr ip;
 #ifndef NOINET6
+  uint8_t ipv6addr[INET6_ADDRSTRLEN];
   struct in6_addr ip6;
 #endif
 
@@ -407,6 +427,13 @@ radius_Process(struct radius *r, int got)
         break;
 
 #ifndef NOINET6
+      case RAD_FRAMED_IPV6_PREFIX:
+	free(r->ipv6prefix);
+        r->ipv6prefix = rad_cvt_ipv6prefix(data, len);
+	inet_ntop(AF_INET6, &r->ipv6prefix[2], ipv6addr, sizeof(ipv6addr));
+        log_Printf(LogPHASE, " IPv6 %s/%d\n", ipv6addr, r->ipv6prefix[1]);
+        break;
+
       case RAD_FRAMED_IPV6_ROUTE:
         /*
          * We expect a string of the format ``dest[/bits] gw [metrics]''
@@ -686,6 +713,7 @@ radius_Init(struct radius *r)
   r->msrepstr = NULL;
   r->repstr = NULL;
 #ifndef NOINET6
+  r->ipv6prefix = NULL;
   r->ipv6routes = NULL;
 #endif
   r->errstr = NULL;
@@ -718,6 +746,10 @@ radius_Destroy(struct radius *r)
   r->msrepstr = NULL;
   free(r->repstr);
   r->repstr = NULL;
+#ifndef NOINET6
+  free(r->ipv6prefix);
+  r->ipv6prefix = NULL;
+#endif
   free(r->errstr);
   r->errstr = NULL;
   free(r->mppe.recvkey);
@@ -1053,6 +1085,18 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
       log_Printf(LogERROR, "rad_put_attr: %s\n", rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
       return;
+    }
+    if (r->ipv6prefix) {
+      /*
+       * Since PPP doesn't delegate an IPv6 prefix to a peer,
+       * Framed-IPv6-Prefix may be not used, actually.
+       */
+      if (rad_put_attr(r->cx.rad, RAD_FRAMED_IPV6_PREFIX, r->ipv6prefix,
+		       sizeof(struct in6_addr) + 2) != 0) {
+	log_Printf(LogERROR, "rad_put_attr: %s\n", rad_strerror(r->cx.rad));
+	rad_close(r->cx.rad);
+	return;
+      }
     }
     break;
 #endif
