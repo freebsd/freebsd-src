@@ -3,6 +3,7 @@
 /*	Also already incorporated from NetBSD:
  *	$NetBSD: uhci.c,v 1.172 2003/02/23 04:19:26 simonb Exp $
  *	$NetBSD: uhci.c,v 1.173 2003/05/13 04:41:59 gson Exp $
+ *	$NetBSD: uhci.c,v 1.175 2003/09/12 16:18:08 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1254,7 +1255,7 @@ uhci_intr1(uhci_softc_t *sc)
 	sc->sc_bus.no_intrs++;
 	usb_schedsoftintr(&sc->sc_bus);
 
-	DPRINTFN(10, ("%s: uhci_intr: exit\n", USBDEVNAME(sc->sc_bus.bdev)));
+	DPRINTFN(15, ("%s: uhci_intr: exit\n", USBDEVNAME(sc->sc_bus.bdev)));
 
 	return (1);
 }
