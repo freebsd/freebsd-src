@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.24 1997/04/27 20:01:21 wollman Exp $
+ * $Id: nfs_socket.c,v 1.25 1997/05/13 17:25:44 dfr Exp $
  */
 
 /*
@@ -1264,7 +1264,8 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 			*tl = 0;
 		}
 	}
-	*mrq = mreq;
+	if (mrq != NULL)
+	    *mrq = mreq;
 	*mbp = mb;
 	*bposp = bpos;
 	if (err != 0 && err != NFSERR_RETVOID)
