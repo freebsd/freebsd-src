@@ -1,3 +1,172 @@
+2002-07-29  Jim Meyering  <meyering@lucent.com>
+
+	* Version 2.1.
+
+	* src/tail.c: Adjust command examples in comments to use
+	POSIX 1003.1-2001 option syntax.
+	* src/sort.c: Likewise.
+	From Paul Eggert.
+
+2002-07-28  Jim Meyering  <meyering@lucent.com>
+
+	* configure.ac: Require automake-1.6b.
+
+2002-07-20  Jim Meyering  <meyering@lucent.com>
+
+	* Version 2.0.22.
+
+	* Upgrade to cvs automake -- required to work with 2.53b.
+	* configure.ac: Require automake-1.6a.
+
+	* Upgrade to gettext-0.11.3.
+	* Upgrade to autoconf-2.53b.
+
+2002-07-02  Jim Meyering  <meyering@lucent.com>
+
+	* src/cat.c, src/cksum.c, src/comm.c, src/csplit.c, src/cut.c (usage):
+	Use the PACKAGE_BUGREPORT e-mail address, rather than hard-coding it.
+	* src/expand.c, src/fmt.c, src/fold.c, src/head.c, src/join.c: Likewise.
+	* src/md5sum.c, src/nl.c, src/od.c, src/paste.c, src/pr.c: Likewise.
+	* src/sort.c, src/split.c, src/sum.c, src/tac.c, src/tail.c: Likewise.
+	* src/tr.c, src/tsort.c, src/unexpand.c, src/uniq.c, src/wc.c: Likewise.
+
+2002-06-22  Jim Meyering  <meyering@lucent.com>
+
+	* configure.ac: Invoke AC_GNU_SOURCE very early.
+
+2002-06-15  Jim Meyering  <meyering@lucent.com>
+
+	* src/cksum.c: Include <sys/types.h> before system.h.
+
+2002-05-22  Jim Meyering  <meyering@lucent.com>
+
+	* src/od.c [struct dummy]: Renamed.  Don't rely on portability of
+	zero-length arrays.  Instead, use sizes of -1 or +1.
+	Reported by Eric Backus.
+
+2002-05-14  Jim Meyering  <meyering@lucent.com>
+
+	`od -t f8' didn't work.
+	This bug was introduced with my change of 2000-10-22 (textutils-2.0.8).
+	* src/od.c (ulonglong_t): Move declaration to precede new use.
+	[enum size_spec] (N_SIZE_SPECS): New member.
+	(width_bytes): Add initializer corresponding to ulonglong_t type.
+	(struct assert_width_bytes_matches_size_spec_decl): Declare.
+	Based on a patch from Tony Kocurko.
+
+2002-04-29  Paul Eggert  <eggert@twinsun.com>
+
+	Use ENABLE_NLS only for gettext-related stuff, not also for
+	setlocale-related stuff.  From a patch suggested by Bruno
+	Haible.
+
+	Since setlocale is now almost universal, this patch also
+	removes some of the optimizations that clutter up the code and
+	which don't help all that much even on hosts that lack
+	setlocale.
+
+	* lib/hard-locale.c: Upgrade to version used in GNU Diffutils 2.8.1.
+	* m4/prereq.m4 (jm_PREREQ_HARD_LOCALE): Check for stdlib.h.
+	Do not check for alloca.h (no longer used) or stdbool.h (was never
+	used?).  Add AM_C_PROTOTYPES since hard-locale.h uses it.
+
+	* src/sys2.h (HAVE_SETLOCALE): Define to 0 if not defined.
+	* src/comm.c (compare_files): Replace #ifdef ENABLE_NLS
+	with if (HAVE_SETLOCALE).
+	* src/join.c (keycmp): Likewise.
+	* src/sort.c (keycompare, compare): Likewise.
+
+	* src/comm.c (hard_LC_COLLATE): Define even if ! ENABLE_NLS.
+	* src/join.c (hard_LC_COLLATE): Likewise.
+	* src/sort.c (hard_LC_COLLATE): Likewise.
+
+	* src/comm.c (main): Always initialize hard_LC_COLLATE.
+	Put initialization next to other locale-related stuff.
+	* src/join.c (main): Likewise.
+	* src/sort.c (main): Likewise.
+
+	* src/sort.c: Include <langinfo.h> even if ! ENABLE_NLS.
+	(decimal_point, th_sep): Depend on HAVE_SETLOCALE, not ENABLE_NLS.
+	(main): Likewise.
+	(MONTHTAB_CONST): Remove; all uses removed.
+	(struct_month_cmp, inittables): Do not depend on ENABLE_NLS.
+	(main): hard_LC_TIME locale does not depend on ENABLE_NLS.
+
+2002-04-29  Jim Meyering  <meyering@lucent.com>
+
+	* src/tail.c (parse_obsolescent_option): Do not limit the maximum
+	line/byte count (when specified via obsolete option syntax) to be
+	less than ULONG_MAX on systems where OFF_T_MAX is larger.
+
+2002-04-28  Paul Eggert  <eggert@twinsun.com>
+
+	* src/tail.c (tail_forever): Do not treat
+	max_n_unchanged_stats_between_opens specially (as if it were
+	infinite) if it has its maximal value.  Similarly for
+	max_n_consecutive_size_changes_between_opens.
+
+2002-04-28  Jim Meyering  <meyering@lucent.com>
+
+	Avoid new warnings from gcc.
+	* src/pr.c [struct COLUMN] <name>: Declare member to be const.
+	(init_fps): Declare local variable `firstname' to be const.
+
+2002-04-25  Jim Meyering  <meyering@lucent.com>
+
+	* src/wc.c (usage): Adjust ordering to match that of default output.
+	Suggestion from Gaute Hvoslef Kvalnes.
+
+	* configure.ac (AM_GNU_GETTEXT): Add external arg.
+	(AC_CONFIG_FILES): Remove intl/Makefile.
+	* Makefile.am (SUBDIRS): Remove intl.
+	* src/Makefile.am (INCLUDES): Remove -I../intl.
+
+2002-04-15  Jim Meyering  <meyering@lucent.com>
+
+	* src/tr.c (usage): Give a verbose description of --squeeze-repeats,
+	including the mention of SET1.  Reported by Dan Jacobson.
+
+2002-04-12  Jim Meyering  <meyering@lucent.com>
+
+	* src/Makefile.am (LDADD): List ../lib/libfetish.a both before
+	and after @LIBINTL@.  Thanks to Paul Eggert for the fix and to
+	Bruno Haible for diagnosing the problem.
+
+2002-03-16  Jim Meyering  <meyering@lucent.com>
+
+	* src/Makefile.am (datadir): Don't override $(datadir)
+	which might be set by --datadir and different from $(prefix)/share.
+	Patch from Albert Chin-A-Young.
+
+2002-03-10  Jim Meyering  <meyering@lucent.com>
+
+	* configure.ac (AM_INIT_AUTOMAKE): Specify the required version
+	of automake (1.6), and options (gnits dist-bzip2), rather than...
+	* Makefile.am (AUTOMAKE_OPTIONS): ...here.  Remove definition.
+
+2002-03-09  Jim Meyering  <meyering@lucent.com>
+
+	* Makefile.am (EXTRA_DIST): Remove config/config.rpath,
+	now that automake knows about it.
+
+2002-03-05  Jim Meyering  <meyering@lucent.com>
+
+	* Makefile.am (EXTRA_DIST): Add config/config.rpath.
+
+2002-02-23  Paul Eggert  <eggert@twinsun.com>
+
+	* src/cat.c (simple_cat, cat, main): Use char * rather than
+	unsigned char *, to avoid some technical violations of the C
+	standard, and to avoid the need for casts.  I guess the
+	unsigned char * was probably there for improved performance
+	with ancient compilers, but the code wasn't using the
+	unsignedness any more.
+	Reported by Nelson H. F. Beebe.
+
+	(cat): int -> size_t for full_write arg.  This doesn't
+	fix any bugs since the buffer size is small, but it makes
+	the code a bit clearer.
+
 2002-02-18  Jim Meyering  <meyering@lucent.com>
 
 	* Version 2.0.21.
