@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.25 1996/12/19 00:41:42 nate Exp $
+ * $Id: main.c,v 1.26 1996/12/22 17:29:31 jkh Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -448,7 +448,7 @@ char **argv;
       snprintf(pid_filename, sizeof (pid_filename), "%s/ppp.tun%d.pid",
 		  _PATH_VARRUN, tunno);
       unlink(pid_filename);
-      sprintf(pid, "%d\n", (int)getpid());
+      snprintf(pid, sizeof(pid), "%d\n", (int)getpid());
 
       if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
       {

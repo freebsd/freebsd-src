@@ -96,7 +96,7 @@ char *name, *key;
     else
       (void)strncpy(utmp.ut_line, dstsystem, sizeof(utmp.ut_line));
 
-    (void)strcpy(utmp.ut_host, "auto-ppp" );
+    (void)strncpy(utmp.ut_host, "auto-ppp",sizeof(utmp.ut_host));
     login(&utmp);
     (void)setlogin( pwd->pw_name );
 

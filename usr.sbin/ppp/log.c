@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.3 1995/05/30 03:50:43 rgrimes Exp $
+ * $Id: log.c,v 1.4 1996/05/11 20:48:30 phk Exp $
  *
  */
 #include "defs.h"
@@ -146,7 +146,7 @@ vlogprintf(format, ap)
 char *format;
 va_list ap;
 {
-  vsprintf(logptr, format, ap);
+  vsnprintf(logptr, sizeof(logbuff)-(logptr-logbuff), format, ap);
   logptr += strlen(logptr);
   LogFlush();
 }
@@ -184,7 +184,7 @@ struct mbuf *bp;
   if (!(loglevel & (1 << level)))
     return;
   LogTimeStamp();
-  sprintf(logptr, "%s\n", header);
+  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), "%s\n", header);
   logptr += strlen(logptr);
   loc = 0;
   LogTimeStamp();
@@ -192,7 +192,7 @@ struct mbuf *bp;
     cp = MBUF_CTOP(bp);
     cnt = bp->cnt;
     while (cnt-- > 0) {
-      sprintf(logptr, " %02x", *cp++);
+      snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), " %02x", *cp++);
       logptr += strlen(logptr);
       if (++loc == 16) {
 	loc = 0;
@@ -221,12 +221,12 @@ int cnt;
   if (!(loglevel & (1 << level)))
     return;
   LogTimeStamp();
-  sprintf(logptr, "%s\n", header);
+  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), "%s\n", header);
   logptr += strlen(logptr);
   LogTimeStamp();
   loc = 0;
   while (cnt-- > 0) {
-    sprintf(logptr, " %02x", *ptr++);
+    snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), " %02x", *ptr++);
     logptr += strlen(logptr);
     if (++loc == 16) {
       loc = 0;
@@ -248,7 +248,8 @@ LogTimeStamp()
     mypid = getpid();
   ltime = time(0);
   ptm = localtime(&ltime);
-  sprintf(logptr, "%02d-%02d %02d:%02d:%02d [%d] ",
+  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff),
+    "%02d-%02d %02d:%02d:%02d [%d] ",
     ptm->tm_mon + 1, ptm->tm_mday,
 	ptm->tm_hour, ptm->tm_min, ptm->tm_sec, mypid);
   logptr += strlen(logptr);
