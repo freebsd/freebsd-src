@@ -234,7 +234,7 @@ icache_flush(vm_offset_t start, vm_offset_t end)
 }
 
 /*
- * Blast a I$ physical range using diagnostic accesses.
+ * Invalidate a I$ physical range using diagnostic accesses.
  * NOTE: there is a race between checking the tag and invalidating it. It
  * cannot be closed by disabling interrupts, since the fetch for the next
  * instruction may be in that line, so we don't even bother.
@@ -294,9 +294,8 @@ dcache_flush(vm_offset_t start, vm_offset_t end)
 }
 
 /*
- * Blast a D$ range using diagnostic accesses.
+ * Invalidate a D$ range using diagnostic accesses.
  * This has the same (harmless) races as icache_blast().
- * Assumes a page in the kernel map.
  */
 void
 dcache_inval(pmap_t pmap, vm_offset_t start, vm_offset_t end)
@@ -318,6 +317,32 @@ dcache_inval(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 			if (DCDT_TAG(tag) != (pa + offs) >> PAGE_SHIFT_MIN)
 				continue;
 			CDIAG_CLR(ASI_DCACHE_TAG, dca);
+		}
+	}
+}
+
+/*
+ * Invalidate a physical D$ range using diagnostic accesses.
+ * This has the same (harmless) races as icache_blast().
+ */
+void
+dcache_inval_phys(vm_offset_t start, vm_offset_t end)
+{
+	vm_offset_t pa, dca;
+	u_long tag, color, ncolors;
+
+	if (!cache.c_enabled)
+		return;
+	ncolors = 1 << (cache.dc_l2size - PAGE_SHIFT_MIN);
+	for (pa = start & ~(cache.dc_linesize - 1); pa <= end;
+	    pa += cache.dc_linesize) {
+		for (color = 0; color < ncolors; color++) {
+			dca = (color << PAGE_SHIFT_MIN) | (pa & PAGE_MASK_MIN);
+			CDIAG_RD(ASI_DCACHE_TAG, dca, tag);
+			if (DCDT_TAG(tag) == pa >> PAGE_SHIFT_MIN) {
+				CDIAG_CLR(ASI_DCACHE_TAG, dca);
+				break;
+			}
 		}
 	}
 }
@@ -360,7 +385,7 @@ ecache_flush(vm_offset_t start, vm_offset_t end)
 
 #if 0
 /*
- * Blast a E$ range using diagnostic accesses.
+ * Invalidate a E$ range using diagnostic accesses.
  * This is disabled: it suffers from the same races as dcache_blast() and
  * icache_blast_phys(), but they may be fatal here because blasting an E$ line
  * can discard modified data.
