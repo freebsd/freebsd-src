@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.85 1997/05/08 16:48:22 thomas Exp $
+ * $Id: if_de.c,v 1.86 1997/05/13 15:03:11 thomas Exp $
  *
  */
 
@@ -3833,8 +3833,10 @@ tulip_ifioctl(
 		for (media = TULIP_MEDIA_UNKNOWN; media < TULIP_MEDIA_MAX; media++) {
 		    if (sc->tulip_mediums[media] != NULL && --flags == 0) {
 			sc->tulip_flags |= TULIP_NOAUTOSENSE;
-			if (sc->tulip_media != media)
+			if (sc->tulip_media != media || (sc->tulip_flags & TULIP_DIDNWAY)) {
+			    sc->tulip_flags &= ~TULIP_DIDNWAY;
 			    tulip_linkup(sc, media);
+			}
 			break;
 		    }
 		}
