@@ -42,11 +42,15 @@
 #ifndef _GRP_H_
 #define	_GRP_H_
 
-#include <sys/types.h>
 #include <sys/cdefs.h>
 
 #ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
+#endif
+
+#ifndef _GID_T_DECLARED
+#define	_GID_T_DECLARED
+typedef	u_int32_t	gid_t;
 #endif
 
 struct group {
