@@ -379,6 +379,12 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 	 * Read capability entries.
 	 */
 	while (nextptr != 0) {
+		/* Sanity check */
+		if (nextptr > 255) {
+			printf("illegal PCI extended capability offset %d\n",
+			    nextptr);
+			return;
+		}
 		/* Find the next entry */
 		ptr = nextptr;
 		nextptr = REG(ptr + 1, 1);
