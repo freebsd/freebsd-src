@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-static int check_junk __P((struct cmdinfo *));
-static void add_ci __P((const struct cmdinfo *, struct cmdinfo *));
-static void print_ci __P((const struct cmdinfo *, const struct cmdinfo *));
+static int check_junk(const struct cmdinfo *);
+static void add_ci(const struct cmdinfo *, struct cmdinfo *);
+static void print_ci(const struct cmdinfo *, const struct cmdinfo *);
 
 static DB	*pacct_db;
 
@@ -113,8 +113,7 @@ pacct_destroy()
 }
 
 int
-pacct_add(ci)
-	const struct cmdinfo *ci;
+pacct_add(const struct cmdinfo *ci)
 {
 	DBT key, data;
 	struct cmdinfo newci;
@@ -302,8 +301,7 @@ next:		rv = DB_SEQ(pacct_db, &key, &data, R_NEXT);
 }
 
 static int
-check_junk(cip)
-	struct cmdinfo *cip;
+check_junk(const struct cmdinfo *cip)
 {
 	char *cp;
 	size_t len;
@@ -315,9 +313,7 @@ check_junk(cip)
 }
 
 static void
-add_ci(fromcip, tocip)
-	const struct cmdinfo *fromcip;
-	struct cmdinfo *tocip;
+add_ci(const struct cmdinfo *fromcip, struct cmdinfo *tocip)
 {
 	tocip->ci_calls += fromcip->ci_calls;
 	tocip->ci_etime += fromcip->ci_etime;
@@ -328,8 +324,7 @@ add_ci(fromcip, tocip)
 }
 
 static void
-print_ci(cip, totalcip)
-	const struct cmdinfo *cip, *totalcip;
+print_ci(const struct cmdinfo *cip, const struct cmdinfo *totalcip)
 {
 	double t, c;
 	int uflow;
