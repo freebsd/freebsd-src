@@ -599,7 +599,42 @@ diff_exec (file1, file2, options, out)
     char *options;
     char *out;
 {
-    char *args = xmalloc (strlen (options) + 10);
+    char *args;
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    /* If either file1 or file2 are special files, pretend they are
+       /dev/null.  Reason: suppose a file that represents a block
+       special device in one revision becomes a regular file.  CVS
+       must find the `difference' between these files, but a special
+       file contains no data useful for calculating this metric.  The
+       safe thing to do is to treat the special file as an empty file,
+       thus recording the regular file's full contents.  Doing so will
+       create extremely large deltas at the point of transition
+       between device files and regular files, but this is probably
+       very rare anyway.
+
+       There may be ways around this, but I think they are fraught
+       with danger. -twp */
+
+    if (preserve_perms &&
+	strcmp (file1, DEVNULL) != 0 &&
+	strcmp (file2, DEVNULL) != 0)
+    {
+	struct stat sb1, sb2;
+
+	if (CVS_LSTAT (file1, &sb1) < 0)
+	    error (1, errno, "cannot get file information for %s", file1);
+	if (CVS_LSTAT (file2, &sb2) < 0)
+	    error (1, errno, "cannot get file information for %s", file2);
+
+	if (!S_ISREG (sb1.st_mode) && !S_ISDIR (sb1.st_mode))
+	    file1 = DEVNULL;
+	if (!S_ISREG (sb2.st_mode) && !S_ISDIR (sb2.st_mode))
+	    file2 = DEVNULL;
+    }
+#endif
+
+    args = xmalloc (strlen (options) + 10);
     /* The first word in this string is used only for error reporting. */
     sprintf (args, "diff %s", options);
     call_diff_setup (args);
@@ -619,7 +654,31 @@ diff_execv (file1, file2, label1, label2, options, out)
     char *options;
     char *out;
 {
-    char *args = xmalloc (strlen (options) + 10);
+    char *args;
+
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    /* Pretend that special files are /dev/null for purposes of making
+       diffs.  See comments in diff_exec. */
+
+    if (preserve_perms &&
+	strcmp (file1, DEVNULL) != 0 &&
+	strcmp (file2, DEVNULL) != 0)
+    {
+	struct stat sb1, sb2;
+
+	if (CVS_LSTAT (file1, &sb1) < 0)
+	    error (1, errno, "cannot get file information for %s", file1);
+	if (CVS_LSTAT (file2, &sb2) < 0)
+	    error (1, errno, "cannot get file information for %s", file2);
+
+	if (!S_ISREG (sb1.st_mode) && !S_ISDIR (sb1.st_mode))
+	    file1 = DEVNULL;
+	if (!S_ISREG (sb2.st_mode) && !S_ISDIR (sb2.st_mode))
+	    file2 = DEVNULL;
+    }
+#endif
+
+    args = xmalloc (strlen (options) + 10);
     /* The first word in this string is used only for error reporting.  */
     /* I guess we are pretty confident that options starts with a space.  */
     sprintf (args, "diff%s", options);

@@ -448,7 +448,7 @@ do_recursion (frame)
 	{
 	    /* we will process files, so pre-parse entries */
 	    if (frame->which & W_LOCAL)
-		entries = Entries_Open (frame->aflag);
+		entries = Entries_Open (frame->aflag, NULL);
 	}
     }
 
