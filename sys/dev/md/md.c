@@ -541,6 +541,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
 	lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
+	rv = VM_PAGER_OK;
 	VM_OBJECT_LOCK(sc->object);
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
@@ -554,16 +555,31 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		if (bp->bio_cmd == BIO_READ) {
 			if (m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			if (rv == VM_PAGER_ERROR) {
+				sf_buf_free(sf);
+				vm_page_wakeup(m);
+				break;
+			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			if (rv == VM_PAGER_ERROR) {
+				sf_buf_free(sf);
+				vm_page_wakeup(m);
+				break;
+			}
 			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
 			m->valid = VM_PAGE_BITS_ALL;
 #if 0
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			if (rv == VM_PAGER_ERROR) {
+				sf_buf_free(sf);
+				vm_page_wakeup(m);
+				break;
+			}
 			bzero((void *)(sf_buf_kva(sf) + offs), len);
 			vm_page_dirty(m);
 			m->valid = VM_PAGE_BITS_ALL;
@@ -590,7 +606,7 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 	vm_object_pip_subtract(sc->object, 1);
 	vm_object_set_writeable_dirty(sc->object);
 	VM_OBJECT_UNLOCK(sc->object);
-	return (0);
+	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
 
 static void
@@ -959,6 +975,8 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->fwheads = mdio->md_fwheads;
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * npage,
 	    VM_PROT_DEFAULT, 0);
+	if (sc->object == NULL)
+		return (ENOMEM);
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
