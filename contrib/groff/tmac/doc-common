@@ -479,7 +479,7 @@
 .ds aa \&\f\\n(cF\s\\n(cZ
 .if !\\n(.$==1 .tm Usage: .Lb [library name]
 .if "\\$1"libc" \&Standard C Library (libc, -lc)
-.if "\\$1"libc_r" \&Reentrant C Library (libc_r, -pthread)
+.if "\\$1"libc_r" \&Reentrant C Library (libc_r, -lc_r)
 .if "\\$1"libcalendar" \&Calendar Arithmetic Library (libcalendar, -lcalendar)
 .if "\\$1"libcam" \&Common Access Method User Library (libcam, -lcam)
 .if "\\$1"libcompat" \&Compatibility Library (libcompat, -lcompat)
