@@ -47,6 +47,7 @@ struct Struct_Obj_Entry;
 
 Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr, const struct Struct_Obj_Entry *);
 void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
+void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 
 /* Atomic operations. */
 int cmp0_and_store_int(volatile int *, int);

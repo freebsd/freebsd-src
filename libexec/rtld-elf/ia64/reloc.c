@@ -407,6 +407,18 @@ make_function_pointer(const Elf_Sym *sym, const Obj_Entry *obj)
 	return fptrs[index];
 }
 
+void
+call_initfini_pointer(const Obj_Entry *obj, Elf_Addr target)
+{
+	struct fptr fptr;
+
+	fptr.gp = (Elf_Addr) obj->pltgot;
+	fptr.target = target;
+	dbg(" initfini: target=%p, gp=%p",
+	    (void *) fptr.target, (void *) fptr.gp);
+	((InitFunc) &fptr)();
+}
+
 /* Initialize the special PLT entries. */
 void
 init_pltgot(Obj_Entry *obj)

@@ -40,6 +40,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)
 
+#define call_initfini_pointer(obj, target) \
+	(((InitFunc)(target))())
+
 /* Atomic operations. */
 int cmp0_and_store_int(volatile int *, int);
 void atomic_add_int(volatile int *, int);
