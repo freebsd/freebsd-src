@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,6 +13,6 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)sunos4.1.m4	8.7 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: sunos4.1.m4,v 8.10 1999/02/07 07:26:24 gshapiro Exp $')
 
 define(`confEBINDIR', `/usr/lib')dnl

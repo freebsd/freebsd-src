@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)convtime.c	8.14 (Berkeley) 5/19/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: convtime.c,v 8.25 1999/06/16 21:11:26 ca Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
 /*
 **  CONVTIME -- convert time
@@ -42,12 +43,14 @@ static char sccsid[] = "@(#)convtime.c	8.14 (Berkeley) 5/19/1998";
 time_t
 convtime(p, units)
 	char *p;
-	char units;
+	int units;
 {
 	register time_t t, r;
 	register char c;
 
 	r = 0;
+	if (strcasecmp(p, "now") == 0)
+		return NOW;
 	while (*p != '\0')
 	{
 		t = 0;
@@ -67,16 +70,21 @@ convtime(p, units)
 		{
 		  case 'w':		/* weeks */
 			t *= 7;
+			/* FALLTHROUGH */
 
 		  case 'd':		/* days */
+			/* FALLTHROUGH */
 		  default:
 			t *= 24;
+			/* FALLTHROUGH */
 
 		  case 'h':		/* hours */
 			t *= 60;
+			/* FALLTHROUGH */
 
 		  case 'm':		/* minutes */
 			t *= 60;
+			/* FALLTHROUGH */
 
 		  case 's':		/* seconds */
 			break;
@@ -84,7 +92,7 @@ convtime(p, units)
 		r += t;
 	}
 
-	return (r);
+	return r;
 }
 /*
 **  PINTVL -- produce printable version of a time interval
@@ -105,7 +113,7 @@ convtime(p, units)
 **		The string returned is in a static buffer.
 */
 
-# define PLURAL(n)	((n) == 1 ? "" : "s")
+#define PLURAL(n)	((n) == 1 ? "" : "s")
 
 char *
 pintvl(intvl, brief)
@@ -117,7 +125,9 @@ pintvl(intvl, brief)
 	int wk, dy, hr, mi, se;
 
 	if (intvl == 0 && !brief)
-		return ("zero seconds");
+		return "zero seconds";
+	if (intvl == NOW)
+		return "too long";
 
 	/* decode the interval into weeks, days, hours, minutes, seconds */
 	se = intvl % 60;
@@ -149,7 +159,7 @@ pintvl(intvl, brief)
 		}
 		(void) snprintf(p, SPACELEFT(buf, p), "%02d:%02d:%02d",
 			hr, mi, se);
-		return (buf);
+		return buf;
 	}
 
 	/* use the verbose form */
