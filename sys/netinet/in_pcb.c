@@ -621,10 +621,10 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 		 * If we found a route, use the address
 		 * corresponding to the outgoing interface.
 		 */
-		if (sro.ro_rt)
+		if (sro.ro_rt) {
 			ia = ifatoia(sro.ro_rt->rt_ifa);
-		if (sro.ro_rt)
 			RTFREE(sro.ro_rt);
+		}
 		if (ia == 0) {
 			bzero(&sa, sizeof(sa));
 			sa.sin_addr = faddr;
