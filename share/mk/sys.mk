@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.40 1998/08/08 02:08:37 jb Exp $
+#	$Id: sys.mk,v 1.41 1998/08/29 01:30:13 dillon Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -88,6 +88,8 @@ PFLAGS		?=
 RC		?=	f77
 RFLAGS		?=
 
+RM		?=	rm -f
+
 SHELL		?=	sh
 
 YACC		?=	yacc
@@ -137,13 +139,13 @@ HTAGSFLAGS=
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c
-	rm -f y.tab.c
+	${RM} y.tab.c
 	mv y.tab.o ${.TARGET}
 
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c
-	rm -f lex.yy.c
+	${RM} lex.yy.c
 	mv lex.yy.o ${.TARGET}
 
 .y.c:
@@ -157,12 +159,12 @@ HTAGSFLAGS=
 .c.a:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
 	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
+	${RM} ${.PREFIX}.o
 
 .f.a:
 	${FC} ${FFLAGS} -c ${.IMPSRC}
 	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
+	${RM} ${.PREFIX}.o
 
 .else
 
@@ -200,12 +202,12 @@ HTAGSFLAGS=
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
-	rm -f y.tab.c
+	${RM} y.tab.c
 
 .l.o:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
+	${RM} ${.PREFIX}.tmp.c
 
 # XXX not -j safe
 .y.c:
@@ -221,18 +223,18 @@ HTAGSFLAGS=
 .f.out .F.out .r.out .e.out:
 	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
 	    ${LDLIBS} -o ${.TARGET}
-	rm -f ${.PREFIX}.o
+	${RM} ${.PREFIX}.o
 
 # XXX not -j safe
 .y.out:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
-	rm -f y.tab.c
+	${RM} y.tab.c
 
 .l.out:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
+	${RM} ${.PREFIX}.tmp.c
 
 .endif
 
