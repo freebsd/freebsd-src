@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.8.2.4 1998/02/15 11:32:25 jkh Exp $
+ *	$Id: jobs.c,v 1.8.2.5 1998/08/27 16:24:57 cracauer Exp $
  */
 
 #ifndef lint
@@ -86,6 +86,7 @@ int initialpgrp;		/* pgrp of shell on invocation */
 int curjob;			/* current job */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
+int in_dowait = 0;		/* are we in dowait()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 
 #if JOBS
@@ -710,9 +711,9 @@ waitforjob(jp)
 
 	INTOFF;
 	TRACE(("waitforjob(%%%d) called\n", jp - jobtab + 1));
-	while (jp->state == 0) {
-		dowait(1, jp);
-	}
+	while (jp->state == 0)
+		if (dowait(1, jp) == -1)
+			dotrap();
 #if JOBS
 	if (jp->jobctl) {
 #ifdef OLD_TTY_DRIVER
@@ -769,11 +770,13 @@ dowait(block, job)
 	int core;
 	int sig;
 
+	in_dowait++;
 	TRACE(("dowait(%d) called\n", block));
 	do {
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", pid, status));
 	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
+	in_dowait--;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
 		return -1;
