@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.22 1995/05/18 09:01:50 jkh Exp $
+ * $Id: disks.c,v 1.23 1995/05/20 10:33:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,6 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    clear();
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
@@ -129,6 +128,7 @@ diskPartition(Disk *d)
     strncpy(name, d->name, 40);
     keypad(stdscr, TRUE);
 
+    clear();
     record_chunks(d);
     while (chunking) {
 	print_chunks(d);

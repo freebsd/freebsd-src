@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.40 1995/05/20 18:37:03 jkh Exp $
+ * $Id: install.c,v 1.41 1995/05/20 19:12:11 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,21 +320,24 @@ cpio_extract(void)
 	close(CpioFD);
 
 	i = waitpid(zpid, &j, 0);
-	if (i < 0 || j) {
-	    msgConfirm("gunzip returned status of %d, error was: %s (%d)!", j, strerror(errno), errno);
+	if (i < 0 || _WSTATUS(j)) {
+	    dialog_clear();
+	    msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
 	    exit(1);
 	}
 	i = waitpid(cpid, &j, 0);
-	if (i < 0 || j) {
-	    msgConfirm("cpio returned status of %d, error was: %s (%d)!", j, strerror(errno), errno);
+	if (i < 0 || _WSTATUS(j)) {
+	    dialog_clear();
+	    msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
 	    exit(2);
 	}
 	exit(0);
     }
     else
 	i = wait(&j);
-    if (i < 0 || j || access("/mnt/OK", R_OK) == -1) {
-	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again");
+    if (i < 0 || _WSTATUS(j) || access("/mnt/OK", R_OK) == -1) {
+	dialog_clear();
+	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
 	close(CpioFD);
 	CpioFD = -1;
 	goto tryagain;
