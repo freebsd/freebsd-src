@@ -49,7 +49,8 @@ the vnode to increment
 .El
 .Pp
 Each vnode maintains a reference count of how many parts of the system
-are using the vnode.  This allows the system to detect when a vnode is
+are using the vnode.
+This allows the system to detect when a vnode is
 no longer being used and can be safely recycled for a different file.
 .Pp
 Any code in the system which is using a vnode (e.g. during the

@@ -50,13 +50,15 @@ Each vnode has three reference counts,
 and
 .Va v_writecount .
 The first is the number of clients within the kernel which are
-using this vnode.  This count is maintained by
+using this vnode.
+This count is maintained by
 .Xr vref 9 ,
 .Xr vrele 9
 and
 .Xr vput 9 .
 The second is the number of clients within the kernel who veto
-the recycling of this vnode.  This count is
+the recycling of this vnode.
+This count is
 maintained by
 .Xr vhold 9
 and
@@ -73,7 +75,8 @@ The transition to and from the freelist is handled by
 and
 .Xr vbusy 9 .
 The third is a count of the number of clients which are writing into
-the file.  It is maintained by the
+the file.
+It is maintained by the
 .Xr open 2
 and
 .Xr close 2
@@ -85,7 +88,8 @@ Any call which returns a vnode (e.g.\&
 etc.)
 will increase the
 .Va v_usecount
-of the vnode by one.  When the caller is finished with the vnode, it
+of the vnode by one.
+When the caller is finished with the vnode, it
 should release this reference by calling
 .Xr vrele 9
 (or
@@ -113,23 +117,25 @@ functionality.
 .It Dv VNON
 No type.
 .It Dv VREG
-A regular file; may be with or without VM object backing.  If you want
-to make sure this get a backing object, call
+A regular file; may be with or without VM object backing.
+If you want to make sure this get a backing object, call
 .Xr vfs_object_create 9 .
 .It Dv VDIR
 A directory.
 .It Dv VBLK
-A block device; may be with or without VM object backing.  If you want
-to make sure this get a backing object, call
+A block device; may be with or without VM object backing.
+If you want to make sure this get a backing object, call
 .Xr vfs_object_create 9 .
 .It Dv VCHR
 A character device.
 .It Dv VLNK
 A symbolic link.
 .It Dv VSOCK
-A socket.  Advisory locking won't work on this.
+A socket.
+Advisory locking won't work on this.
 .It Dv VFIFO
-A FIFO (named pipe).  Advisory locking won't work on this.
+A FIFO (named pipe).
+Advisory locking won't work on this.
 .It Dv VBAD
 An old style bad sector map
 .El
