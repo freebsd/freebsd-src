@@ -207,7 +207,7 @@ system(command)
 		return(1);
 
 	omask = sigblock(sigmask(SIGCHLD));
-	switch(pid = vfork()) {
+	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "fork");
 	case 0:				/* child */

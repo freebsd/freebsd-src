@@ -308,7 +308,7 @@ f_exec(plan, entry)
 	/* make sure find output is interspersed correctly with subprocesses */
 	fflush(stdout);
 
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:
 		err(1, "fork");
 		/* NOTREACHED */
@@ -414,7 +414,7 @@ f_execdir(plan, entry)
 	fflush(stdout);
 	fflush(stderr);
 
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:
 		err(1, "fork");
 		/* NOTREACHED */
