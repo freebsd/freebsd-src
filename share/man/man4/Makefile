@@ -186,6 +186,7 @@ MAN=	aac.4 \
 	sa.4 \
 	sbc.4 \
 	sbp.4 \
+	sbsh.4 \
 	screen.4 \
 	scsi.4 \
 	sd.4 \
@@ -299,6 +300,7 @@ MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4
 MLINKS+=rl.4 if_rl.4
+MLINKS+=sbsh.4 if_sbsh.4
 MLINKS+=scsi.4 CAM.4
 MLINKS+=scsi.4 SCSI.4
 MLINKS+=scsi.4 cam.4
