@@ -9,7 +9,7 @@ ENTRY(_start)
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0x400000 + SIZEOF_HEADERS;
+  . = kernbase + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
@@ -128,7 +128,7 @@ SECTIONS
   .init          : 
   { 
     KEEP (*(.init))
-  } = 0x400000
+  } =0x1000000
   .text      :
   {
     *(.trap)
@@ -138,11 +138,11 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t.*)
-  } = 0x400000
+  } =0x1000000
   .fini      :
   {
     KEEP (*(.fini))
-  } = 0x400000
+  } =0x1000000
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
   PROVIDE (etext = .);
