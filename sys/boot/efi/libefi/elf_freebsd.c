@@ -83,6 +83,10 @@
 #include <sys/linker.h>
 #include <machine/elf.h>
 #include <machine/bootinfo.h>
+#include <machine/pte.h>
+
+#include <efi.h>
+#include <efilib.h>
 
 #include "bootstrap.h"
 
@@ -92,30 +96,12 @@ static int	elf_exec(struct preloaded_file *amp);
 
 struct file_format ia64_elf = { elf_loadfile, elf_exec };
 
-#define PTE_MA_WB	0
-#define PTE_MA_UC	4
-#define PTE_MA_UCE	5
-#define PTE_MA_WC	6
-#define PTE_MA_NATPAGE	7
-
-#define PTE_PL_KERN	0
-#define PTE_PL_USER	3
-
-#define PTE_AR_R	0
-#define PTE_AR_RX	1
-#define PTE_AR_RW	2
-#define PTE_AR_RWX	3
-#define PTE_AR_R_RW	4
-#define PTE_AR_RX_RWX	5
-#define PTE_AR_RWX_RW	6
-#define PTE_AR_X_RX	7
-
 static __inline u_int64_t
 disable_ic()
 {
 	u_int64_t psr;
 	__asm __volatile("mov %0=psr;;" : "=r" (psr));
-	__asm __volatile("rsm psr.ic;; srlz.i;;");
+	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
 	return psr;
 }
 
@@ -126,30 +112,19 @@ restore_ic(u_int64_t psr)
 }
 
 /*
- * A short-format VHPT entry. Also matches the TLB insertion format.
+ * Entered with psr.ic and psr.i both zero.
  */
-struct ia64_pte {
-	u_int64_t	pte_p	:1;	/* bits 0..0 */
-	u_int64_t	pte_rv1	:1;	/* bits 1..1 */
-	u_int64_t	pte_ma	:3;	/* bits 2..4 */
-	u_int64_t	pte_a	:1;	/* bits 5..5 */
-	u_int64_t	pte_d	:1;	/* bits 6..6 */
-	u_int64_t	pte_pl	:2;	/* bits 7..8 */
-	u_int64_t	pte_ar	:3;	/* bits 9..11 */
-	u_int64_t	pte_ppn	:38;	/* bits 12..49 */
-	u_int64_t	pte_rv2	:2;	/* bits 50..51 */
-	u_int64_t	pte_ed	:1;	/* bits 52..52 */
-	u_int64_t	pte_ig	:11;	/* bits 53..63 */
-};
-
 void
-enter_kernel(const char* filename, u_int64_t start)
+enter_kernel(u_int64_t start, struct bootinfo *bi, UINTN mapkey)
 {
-	u_int64_t psr;
+	u_int64_t		psr;
+	EFI_STATUS		status;
 
-	printf("Entering %s at 0x%lx...\n", filename, start);
-
-	psr = disable_ic();
+	status = BS->ExitBootServices(IH, mapkey);
+	if (EFI_ERROR(status)) {
+		printf("ExitBootServices returned 0x%lx\n", status);
+		return;
+	}
 
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("mov cr.ipsr=%0"
@@ -162,8 +137,7 @@ enter_kernel(const char* filename, u_int64_t start)
 	__asm __volatile("mov cr.ifs=r0;;");
 	__asm __volatile("mov ar.rsc=0;; flushrs;;");
 
-	__asm __volatile("1: mov r8=ip;; add r8=2f-1b,r8; mov r9=%0; rfi;; 2:"
-		:: "r"(psr));
+	__asm __volatile("rfi;;");
 }
 
 static int
@@ -174,10 +148,13 @@ elf_exec(struct preloaded_file *fp)
 	struct ia64_pte		pte;
 	struct bootinfo		*bi;
 	u_int64_t		psr;
+	UINTN			mapkey;
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return(EFTYPE);			/* XXX actually EFUCKUP */
 	hdr = (Elf_Ehdr *)&(md->md_data);
+
+	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
 
 	/*
 	 * Ugly hack, similar to linux. Dump the bootinfo into a
@@ -185,7 +162,7 @@ elf_exec(struct preloaded_file *fp)
 	 */
 	bi = (struct bootinfo *) 0x508000;
 	bzero(bi, sizeof(struct bootinfo));
-	bi_load(bi, fp);
+	bi_load(bi, fp, &mapkey);
 
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
@@ -196,6 +173,8 @@ elf_exec(struct preloaded_file *fp)
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 
+	psr = disable_ic();
+
 	bzero(&pte, sizeof(pte));
 	pte.pte_p = 1;
 	pte.pte_ma = PTE_MA_WB;
@@ -204,8 +183,6 @@ elf_exec(struct preloaded_file *fp)
 	pte.pte_pl = PTE_PL_KERN;
 	pte.pte_ar = PTE_AR_RWX;
 	pte.pte_ppn = 0;
-
-	psr = disable_ic();
 
 	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_RR_BASE(7)));
 	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
@@ -218,8 +195,6 @@ elf_exec(struct preloaded_file *fp)
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 
-	restore_ic(psr);
-
 	bzero(&pte, sizeof(pte));
 	pte.pte_p = 1;
 	pte.pte_ma = PTE_MA_UC;
@@ -229,17 +204,15 @@ elf_exec(struct preloaded_file *fp)
 	pte.pte_ar = PTE_AR_RWX;
 	pte.pte_ppn = 0xffffc000000 >> 12;
 
-	psr = disable_ic();
-
 	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PHYS_TO_RR6(0xffffc000000)));
 	__asm __volatile("mov cr.itir=%0" :: "r"(26 << 2));
-	__asm __volatile("ptr.d %0,%1" :: "r"(IA64_PHYS_TO_RR6(0xffffc000000)), "r"(26<<2));
+	//__asm __volatile("ptr.d %0,%1" :: "r"(IA64_PHYS_TO_RR6(0xffffc000000)), "r"(26<<2));
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.d dtr[%0]=%1;;"
 			 :: "r"(1), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 
-	restore_ic(psr);
+	enter_kernel(hdr->e_entry, bi, mapkey);
 
-	enter_kernel(fp->f_name, hdr->e_entry);
+	restore_ic(psr);
 }
