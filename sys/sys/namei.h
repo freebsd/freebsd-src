@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.17 1997/09/07 17:08:32 bde Exp $
+ * $Id: namei.h,v 1.18 1998/01/06 05:22:51 dyson Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -169,8 +169,6 @@ struct	namecache {
 };
 
 #ifdef KERNEL
-extern u_long	nextvnodeid;
-extern u_long	numvnodes;
 
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));
