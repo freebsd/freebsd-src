@@ -212,8 +212,6 @@ Xinvltlb:
 	iret
 
 
-#ifdef BETTER_CLOCK
-
 /*
  * Executed by a CPU when it receives an Xcpucheckstate IPI from another CPU,
  *
@@ -271,7 +269,6 @@ Xcpucheckstate:
 	popl	%eax
 	iret
 
-#endif /* BETTER_CLOCK */
 
 /*
  * Executed by a CPU when it receives an Xcpuast IPI from another CPU,
@@ -502,11 +499,9 @@ stopped_cpus:
 started_cpus:
 	.long	0
 
-#ifdef BETTER_CLOCK
 	.globl checkstate_probed_cpus
 checkstate_probed_cpus:
 	.long	0	
-#endif /* BETTER_CLOCK */
 	.globl checkstate_need_ast
 checkstate_need_ast:
 	.long	0

@@ -106,10 +106,8 @@
 /* TLB shootdowns */
 #define XINVLTLB_OFFSET		(ICU_OFFSET + 112)
 
-#ifdef BETTER_CLOCK
 /* inter-cpu clock handling */
 #define XCPUCHECKSTATE_OFFSET	(ICU_OFFSET + 113)
-#endif
 
 /* inter-CPU rendezvous */
 #define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 114)
@@ -175,9 +173,7 @@ inthand_t
 
 inthand_t
 	Xinvltlb,	/* TLB shootdowns */
-#ifdef BETTER_CLOCK
 	Xcpucheckstate,	/* Check cpu state */
-#endif
 	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint,	/* handle APIC "spurious INTs" */
