@@ -248,7 +248,7 @@ set-current
 			s" NO" s" autoboot_delay" setenv
 			exit
 		then
-		rebootkey @ = if s" reboot" evaluate then
+		rebootkey @ = if 0 reboot then
 	repeat
 ;
 
