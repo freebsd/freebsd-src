@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn vflush "struct mount *mp" "int rootrefs" "int flags"
+.Fn vflush "struct mount *mp" "int rootrefs" "int flags" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Fn vflush
@@ -66,6 +66,8 @@ flag set will be skipped.
 .It Dv WRITECLOSE
 If set, only regular files currently opened for writing will be removed.
 .El
+.It Fa td
+thread performing the vflush.
 .El
 .Sh RETURN VALUES
 A value of 0 is returned if the flush is successful; otherwise,
