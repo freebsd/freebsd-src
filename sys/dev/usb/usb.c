@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.38 2000/02/02 07:33:59 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.41 2000/03/16 00:46:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -313,6 +313,9 @@ usb_event_thread(void *arg)
 #endif
 
 	DPRINTF(("usb_event_thread: start\n"));
+
+	/* Make sure first discover does something. */
+	sc->sc_bus->needs_explore = 1;
 
 	while (!sc->sc_dying) {
 #ifdef USB_DEBUG
