@@ -53,7 +53,7 @@ implements Internet Protocol version 6.
 is a collection of protocols layered atop the
 .Em Internet Protocol version 6
 .Pq Tn IPv6
-transport layer, and utilizing the IPv6 address format.
+network layer, and utilizing the IPv6 address format.
 The
 .Nm
 family provides protocol support for the
@@ -66,7 +66,7 @@ interface provides access to the
 .Tn IPv6
 protocol.
 .Sh ADDRESSING
-IPv6 addresses are 16 byte quantities, stored in network standard format
+IPv6 addresses are 16 byte quantities, stored in network standard format.
 The include file
 .Aq Pa netinet/in.h
 defines this address
@@ -103,46 +103,61 @@ call may be given as
 .Dq Dv ::
 to mean
 .Dq this host .
+The address
 .Dq Dv ::
-can be obtained by setting
+can be obtained by setting the
 .Dv sin6_addr
-field into 0, or by using the address contained in variable
+field to 0, or by using the address contained in the variable
 .Dv in6addr_any .
 .Pp
-IPv6 defines scoped address such as link-local or site-local address.
+IPv6 defines scoped addresses such as link-local or site-local addresses.
 To manipulate link-local addresses properly from the userland,
-programs must use advanced API defined in RFC2292.
-Otherwise, the address is ambiguous to the kernel and error will be generated.
-Scoped address is not for daily use at this moment both from specification
-and implementation point of view.
-Most of normal userland program
+programs must use the advanced API defined in RFC2292.
+Otherwise, the address is ambiguous to the kernel and 
+an error will be generated.
+Scoped addressing is not for daily use at this time, and is discouraged
+both by the specifications and specific implementations.
+.Pp
+FreeBSD's IPv6 implementation supports extended numeric IPv6 address 
+notation for link-local addresses,
 like
+.Dq Li fe80::1%de0
+to specify
+.Do
+.Li fe80::1
+on the
+.Li de0
+interface
+.Dc .
+This notation is supported by
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3 .
+Some of the normal userland programs, such as
 .Xr telnet 1
 or
-.Xr telnetd 8
-cannot handle scoped address properly.
-Only special programs,
-like
+.Xr ftp 8 ,
+are able to use this notation.
+With some special programs such as
 .Xr ping6 8 ,
-supports scoped address.
-For example,
-.Xr ping6 8
-has special option for specifying outgoing interface
+you can specify an outgoing interface by an extra command line option
 to disambiguate scoped addresses.
 .Pp
 Scoped addresses are handled specially in the kernel.
-Scoped addresses will have its interface index embedded into the address,
-in routing table or interface structure.
+Scoped addresses will have their interface indices embedded into the address,
+in the routing table or interface structures.
 Therefore,
-the address on some of the kernel structure is not the same as that on the wire.
-The embedded index will be visible on
+a scoped address may have a different representation in the kernel
+than on the wire.
+The embedded index will be visible in
 .Dv PF_ROUTE
-socket and results from
-.Xr ifconfig 8 ,
+sockets, kernel memory accesses via
+.Xr kvm 3
+and some other occasions.
 HOWEVER, users should never use the embedded form.
-For details please consult
+For details, please consult
 .Pa IMPLEMENTATION
-supplied with KAME kit.
+supplied with the KAME kit.
 .Sh PROTOCOLS
 The
 .Nm
@@ -283,5 +298,5 @@ and
 .Sh HISTORY
 The
 .Nm
-protocol interface are defined in RFC2553 and RFC2292.
+IPv6 APIs are defined in RFC2553 and RFC2292.
 The implementation described herein appeared in WIDE/KAME project.
