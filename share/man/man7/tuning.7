@@ -266,13 +266,15 @@ with
 softupdates can be turned on using the
 .Fl U
 option to
-.Xr newfs 8 ) .
+.Xr newfs 8 ,
+and
+.Xr sysinstall 8
+will typically enable softupdates automatically for non-root filesystems).
 Softupdates drastically improves meta-data performance, mainly file
 creation and deletion.
-We recommend enabling softupdates on all of your
-filesystems.
-There are two downsides to softupdates that you should be
-aware of.
+We recommend enabling softupdates on most filesystems; however, there
+are two limitations to softupdates that you should be aware of when
+determining whether to use softupdates on a filesystem.
 First, softupdates guarantees filesystem consistency in the
 case of a crash but could very easily be several seconds (even a minute!)
 behind updating the physical disk.
@@ -288,6 +290,8 @@ can run it out of space and cause the update to fail.
 A number of run-time
 .Xr mount 8
 options exist that can help you tune the system.
+For this reason, softupdates will not be enabled on the root file system
+during a typicaly install.
 The most obvious and most dangerous one is
 .Cm async .
 Don't ever use it, it is far too dangerous.
