@@ -140,10 +140,11 @@
       scheduler. &merged;</para>
 
     <para>Fine-grained locking to allow much of the VFS stack to run
-      without the Giant lock has been added.  It is currently enabled
-      by the loader tunable (and sysctl variable)
-      <varname>debug.mpsafevfs</varname>, which currently defaults to
-      <literal>0</literal> (disabled).</para>
+      without the Giant lock has been added.  This is enabled by default
+      on alpha, amd64, and i386 architecture, and can be disabled
+      by setting the loader tunable (and sysctl variable)
+      <varname>debug.mpsafevfs</varname> to
+      <literal>0</literal>.</para>
 
     <para arch="i386">A bug in Inter-Processor Interrupt (IPI)
       handling, which could cause SMP systems to crash under heavy
