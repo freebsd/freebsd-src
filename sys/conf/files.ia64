@@ -36,13 +36,10 @@ contrib/ia64/libuwx/src/uwx_bstream.c		standard
 contrib/ia64/libuwx/src/uwx_context.c		standard
 contrib/ia64/libuwx/src/uwx_env.c		standard
 contrib/ia64/libuwx/src/uwx_scoreboard.c	standard
-#contrib/ia64/libuwx/src/uwx_self.c		standard
-#contrib/ia64/libuwx/src/uwx_self_context.s	standard
 contrib/ia64/libuwx/src/uwx_step.c		standard
 contrib/ia64/libuwx/src/uwx_str.c		standard
 contrib/ia64/libuwx/src/uwx_swap.c		standard
 contrib/ia64/libuwx/src/uwx_trace.c		standard
-#contrib/ia64/libuwx/src/uwx_ttrace.c		standard
 contrib/ia64/libuwx/src/uwx_uinfo.c		standard
 contrib/ia64/libuwx/src/uwx_utable.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto
