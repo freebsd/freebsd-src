@@ -1,4 +1,3 @@
-/* $OpenBSD: netcat.c,v 1.76 2004/12/10 16:51:31 hshoexer Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -24,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * From: $OpenBSD: netcat.c,v 1.76 2004/12/10 16:51:31 hshoexer Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -31,12 +33,16 @@
  * *Hobbit* <hobbit@avian.org>.
  */
 
+#include <sys/limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
 #include <netinet/in.h>
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif
 #include <netinet/tcp.h>
 #include <arpa/telnet.h>
 
@@ -60,11 +66,13 @@
 #define PORT_MAX_LEN	6
 
 /* Command Line Options */
+int	Eflag;					/* Use IPsec ESP */
 int	dflag;					/* detached, no stdin */
 int	iflag;					/* Interval Flag */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
+int	oflag;					/* Once only: stop on EOF */
 char   *pflag;					/* Localport flag */
 int	rflag;					/* Random ports flag */
 char   *sflag;					/* Source Address */
@@ -94,10 +102,16 @@ int	unix_connect(char *);
 int	unix_listen(char *);
 void	usage(int);
 
+#ifdef IPSEC
+void	add_ipsec_policy(int, char *);
+
+char	*ipsec_policy[2];
+#endif
+
 int
 main(int argc, char *argv[])
 {
-	int ch, s, ret, socksv;
+	int ch, s, ret, socksv, ipsec_count;
 	char *host, *uport, *endp;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -108,6 +122,7 @@ main(int argc, char *argv[])
 	struct addrinfo proxyhints;
 
 	ret = 1;
+	ipsec_count = 0;
 	s = 0;
 	socksv = 5;
 	host = NULL;
@@ -115,7 +130,7 @@ main(int argc, char *argv[])
 	endp = NULL;
 	sv = NULL;
 
-	while ((ch = getopt(argc, argv, "46Ddhi:klnp:rSs:tUuvw:X:x:z")) != -1) {
+	while ((ch = getopt(argc, argv, "46e:DEdhi:klnop:rSs:tUuvw:X:x:z")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -139,6 +154,21 @@ main(int argc, char *argv[])
 		case 'd':
 			dflag = 1;
 			break;
+		case 'e':
+#ifdef IPSEC
+			ipsec_policy[ipsec_count++ % 2] = optarg;
+#else
+			errx(1, "IPsec support unavailable.");
+#endif
+			break;
+		case 'E':
+#ifdef IPSEC
+			ipsec_policy[0] = "in  ipsec esp/transport//require";
+			ipsec_policy[1] = "out ipsec esp/transport//require";
+#else
+			errx(1, "IPsec support unavailable.");
+#endif
+			break;
 		case 'h':
 			help();
 			break;
@@ -155,6 +185,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			nflag = 1;
+			break;
+		case 'o':
+			oflag = 1;
 			break;
 		case 'p':
 			pflag = optarg;
@@ -465,6 +498,12 @@ remote_connect(char *host, char *port, struct addrinfo hints)
 		if ((s = socket(res0->ai_family, res0->ai_socktype,
 		    res0->ai_protocol)) < 0)
 			continue;
+#ifdef IPSEC
+		if (ipsec_policy[0] != NULL)
+			add_ipsec_policy(s, ipsec_policy[0]);
+		if (ipsec_policy[1] != NULL)
+			add_ipsec_policy(s, ipsec_policy[1]);
+#endif
 
 		/* Bind to a local port or source address if specified. */
 		if (sflag || pflag) {
@@ -550,6 +589,12 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
 			err(1, NULL);
+#ifdef IPSEC
+		if (ipsec_policy[0] != NULL)
+			add_ipsec_policy(s, ipsec_policy[0]);
+		if (ipsec_policy[1] != NULL)
+			add_ipsec_policy(s, ipsec_policy[1]);
+#endif
 		if (Sflag) {
 			ret = setsockopt(s, IPPROTO_TCP, TCP_MD5SIG,
 			    &x, sizeof(x));
@@ -629,9 +674,10 @@ readwrite(int nfd)
 		}
 
 		if (!dflag && pfd[1].revents & POLLIN) {
-			if ((n = read(wfd, buf, sizeof(buf))) < 0)
+			if ((n = read(wfd, buf, sizeof(buf))) < 0 ||
+			    (oflag && n == 0)) {
 				return;
-			else if (n == 0) {
+			} else if (n == 0) {
 				shutdown(nfd, SHUT_WR);
 				pfd[1].fd = -1;
 				pfd[1].events = 0;
@@ -767,7 +813,13 @@ help(void)
 	usage(0);
 	fprintf(stderr, "\tCommand Summary:\n\
 	\t-4		Use IPv4\n\
-	\t-6		Use IPv6\n\
+	\t-6            Use IPv6\n");
+#ifdef IPSEC
+	fprintf(stderr, "\
+	\t-e policy     Use specified IPsec policy\n\
+	\t-E            Use IPsec ESP\n");
+#endif
+	fprintf(stderr, "\
 	\t-D		Enable the debug socket option\n\
 	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
@@ -788,13 +840,43 @@ help(void)
 	\t-x addr[:port]\tSpecify proxy address and port\n\
 	\t-z		Zero-I/O mode [used for scanning]\n\
 	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
+#ifdef IPSEC
+	fprintf(stderr, "See ipsec_set_policy(3) for -e argument format\n");
+#endif
 	exit(1);
 }
+
+#ifdef IPSEC
+void
+add_ipsec_policy(int s, char *policy)
+{
+	char *raw;
+	int e;
+
+	raw = ipsec_set_policy(policy, strlen(policy));
+	if (raw == NULL)
+		errx(1, "ipsec_set_policy `%s': %s", policy,
+		     ipsec_strerror());
+	e = setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY, raw,
+			ipsec_get_policylen(raw));
+	if (e < 0)
+		err(1, "ipsec policy cannot be configured");
+	free(raw);
+	if (vflag)
+		fprintf(stderr, "ipsec policy configured: `%s'\n", policy);
+	return;
+}
+#endif /* IPSEC */
 
 void
 usage(int ret)
 {
+
+#ifdef IPSEC
+	fprintf(stderr, "usage: nc [-46DEdhklnrStUuvz] [-e policy] [-i interval] [-p source_port]\n");
+#else
 	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-p source_port]\n");
+#endif
 	fprintf(stderr, "\t  [-s source_ip_address] [-w timeout] [-X proxy_version]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
 	if (ret)
