@@ -102,6 +102,15 @@ static const char *uhci_device_ich3_a = "Intel 82801CA/CAM (ICH3) USB controller
 #define PCI_UHCI_DEVICEID_ICH3_B	0x24848086
 static const char *uhci_device_ich3_b = "Intel 82801CA/CAM (ICH3) USB controller USB-B";
 
+#define PCI_UHCI_DEVICEID_ICH4_A	0x24c28086
+static const char *uhci_device_ich4_a = "Intel 82801DB (ICH4) USB controller USB-A";
+
+#define PCI_UHCI_DEVICEID_ICH4_B	0x24c48086
+static const char *uhci_device_ich4_b = "Intel 82801DB (ICH4) USB controller USB-B";
+
+#define PCI_UHCI_DEVICEID_ICH4_C	0x24c78086
+static const char *uhci_device_ich4_c = "Intel 82801DB (ICH4) USB controller USB-C";
+
 #define PCI_UHCI_DEVICEID_440MX		0x719a8086
 static const char *uhci_device_440mx = "Intel 82443MX USB controller";
 
@@ -168,6 +177,12 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich3_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_B) {
 		return (uhci_device_ich3_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_A) {
+		return (uhci_device_ich4_a);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_B) {
+		return (uhci_device_ich4_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_C) {
+		return (uhci_device_ich4_c);
 	} else if (device_id == PCI_UHCI_DEVICEID_440MX) {
 		return (uhci_device_440mx);
 	} else if (device_id == PCI_UHCI_DEVICEID_460GX) {
@@ -266,6 +281,18 @@ uhci_pci_attach(device_t self)
 		break;
 	case PCI_UHCI_DEVICEID_ICH3_B:
 		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_b);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH4_A:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_a);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH4_B:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_b);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH4_C:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_c);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_UHCI_DEVICEID_440MX:
