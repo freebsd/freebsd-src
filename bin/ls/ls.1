@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWZabcdfghiklnoqrstuw1
+.Op Fl ABCFGHLPRTWZabcdfghiklmnopqrstuwx1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -192,6 +192,8 @@ List in long format.
 (See below.)
 If the output is to a terminal, a total sum for all the file
 sizes is output on a line before the long listing.
+.It Fl m
+Stream output format; list files across the page, separated by commas.
 .It Fl n
 Display user and group IDs numerically rather than converting to a user
 or group name in a long
@@ -201,6 +203,10 @@ output.
 Include the file flags in a long
 .Pq Fl l
 output.
+.It Fl p
+Write a slash
+.Pq Ql /
+after each filename if that file is a directory.
 .It Fl q
 Force printing of non-graphic characters in file names as
 the character
@@ -232,6 +238,11 @@ or printing
 Force raw printing of non-printable characters.
 This is the default
 when output is not to a terminal.
+.It Fl x
+The same as
+.Fl C ,
+except that the multi-column output is produced with entries sorted
+across, rather than down, the columns.
 .It Fl 1
 (The numeric digit
 .Dq one . )
@@ -242,7 +253,7 @@ output is not to a terminal.
 .El
 .Pp
 The
-.Fl 1 , C ,
+.Fl 1 , C , x ,
 and
 .Fl l
 options all override each other; the last one specified determines
@@ -274,7 +285,9 @@ By default,
 lists one entry per line to standard
 output; the exceptions are to terminals or when the
 .Fl C
-option is specified.
+or
+.Fl x
+options are specified.
 .Pp
 File information is displayed with one or more
 .Ao blank Ac Ns s
@@ -481,7 +494,8 @@ utility calculates how
 many pathname text columns to display
 based on the width provided.
 (See
-.Fl C . )
+.Fl C and 
+.Fl x . )
 .It Ev LANG
 The locale to use when determining the order of day and month in the long
 .Fl l
@@ -619,17 +633,16 @@ KLD
 .Xr termcap 5 ,
 .Xr symlink 7 ,
 .Xr sticky 8
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 An
 .Nm
 command appeared in
 .At v1 .
-.Sh STANDARDS
-The
-.Nm
-utility is expected to be a superset of the
-.St -p1003.2
-specification.
 .Sh BUGS
 To maintain backward compatibility, the relationships between the many
 options are quite complex.
