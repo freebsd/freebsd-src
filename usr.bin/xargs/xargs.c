@@ -64,15 +64,15 @@ __FBSDID("$FreeBSD$");
 int tflag, rval;
 int zflag;
 
-void run __P((char **));
-static void usage __P((void));
+void		run(char **);
+static void	usage(void);
 
 static char echo[] = _PATH_ECHO;
 
+extern char *environ[];
+
 int
-main(argc, argv, env)
-	int argc;
-	char **argv, **env;
+main(int argc, char **argv)
 {
 	int ch;
 	char *p, *bbp, **bxp, *ebp, **exp, **xp;
@@ -81,7 +81,7 @@ main(argc, argv, env)
 	char **av, **avj, *argp, **ep, *replstr;
 	long arg_max;
 
-	ep = env;
+	ep = environ;
 	jfound = 0;
 	replstr = NULL;			/* set if user requests -J */
 
@@ -295,8 +295,7 @@ addch:			if (p < ebp) {
 }
 
 void
-run(argv)
-	char **argv;
+run(char **argv)
 {
 	volatile int childerr;
 	char **p;
@@ -336,7 +335,7 @@ run(argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	    "usage: xargs [-0t] [-J replstr] [-n number [-x]] [-s size]\n"
