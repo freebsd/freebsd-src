@@ -32,7 +32,11 @@
 #include <sys/systm.h>
 #include <sys/consio.h>
 
+#ifdef __sparc64__
+#include <machine/sc_machdep.h>
+#else
 #include <machine/pc/display.h>
+#endif
 
 #include <dev/syscons/syscons.h>
 #include <dev/syscons/sctermvar.h>
