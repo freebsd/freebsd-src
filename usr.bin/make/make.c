@@ -1,3 +1,5 @@
+/*	$NetBSD: make.c,v 1.9 1996/08/30 23:21:10 christos Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,7 +39,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)make.c	8.3 (Berkeley) 6/13/95";
+#if 0
+static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: make.c,v 1.9 1996/08/30 23:21:10 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -96,10 +102,10 @@ static int MakePrintStatus __P((ClientData, ClientData));
  *-----------------------------------------------------------------------
  * Make_TimeStamp --
  *	Set the cmtime field of a parent node based on the mtime stamp in its
- *	child. Called from MakeOODate via Lst_ForEach. 
+ *	child. Called from MakeOODate via Lst_ForEach.
  *
  * Results:
- *	Always returns 0. 
+ *	Always returns 0.
  *
  * Side Effects:
  *	The cmtime of the parent node will be changed if the mtime
@@ -136,7 +142,7 @@ MakeTimeStamp (pgn, cgn)
  *	will have been recreated.
  *
  * Results:
- *	TRUE if the node is out of date. FALSE otherwise. 
+ *	TRUE if the node is out of date. FALSE otherwise.
  *
  * Side Effects:
  *	The mtime field of the node and the cmtime field of its parents
@@ -153,7 +159,7 @@ Make_OODate (gn)
      * Certain types of targets needn't even be sought as their datedness
      * doesn't depend on their modification time...
      */
-    if ((gn->type & (OP_JOIN|OP_USE|OP_EXEC|OP_PHONY)) == 0) {
+    if ((gn->type & (OP_JOIN|OP_USE|OP_EXEC)) == 0) {
 	(void) Dir_MTime (gn);
 	if (DEBUG(MAKE)) {
 	    if (gn->mtime != 0) {
@@ -178,14 +184,7 @@ Make_OODate (gn)
      * These weird rules are brought to you by Backward-Compatability and
      * the strange people who wrote 'Make'.
      */
-    if (gn->type & OP_PHONY) {
-	/*
-	 * A PHONY node is always out of date
-	 */
-	if (DEBUG(MAKE))
-	    printf("phony...");
-	return TRUE;
-    } else if (gn->type & OP_USE) {
+    if (gn->type & OP_USE) {
 	/*
 	 * If the node is a USE node it is *never* out of date
 	 * no matter *what*.
@@ -214,7 +213,7 @@ Make_OODate (gn)
 	    printf(".JOIN node...");
 	}
 	oodate = gn->childMade;
-    } else if (gn->type & (OP_FORCE|OP_EXEC)) {
+    } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
 	 * A node which is the object of the force (!) operator or which has
 	 * the .EXEC attribute is always considered out-of-date.
@@ -222,6 +221,8 @@ Make_OODate (gn)
 	if (DEBUG(MAKE)) {
 	    if (gn->type & OP_FORCE) {
 		printf("! operator...");
+	    } else if (gn->type & OP_PHONY) {
+		printf(".PHONY node...");
 	    } else {
 		printf(".EXEC node...");
 	    }
@@ -339,7 +340,7 @@ Make_HandleUse (cgn, pgn)
 	     */
 	    (void) Lst_Concat (pgn->commands, cgn->commands, LST_CONCNEW);
 	}
-	
+
 	if (Lst_Open (cgn->children) == SUCCESS) {
 	    while ((ln = Lst_Next (cgn->children)) != NILLNODE) {
 		gn = (GNode *)Lst_Datum (ln);
@@ -352,7 +353,7 @@ Make_HandleUse (cgn, pgn)
 	    }
 	    Lst_Close (cgn->children);
 	}
-	
+
 	pgn->type |= cgn->type & ~(OP_OPMASK|OP_USE|OP_TRANSFORM);
 
 	/*
@@ -381,7 +382,7 @@ MakeHandleUse (pgn, cgn)
  * Make_Update  --
  *	Perform update on the parents of a node. Used by JobFinish once
  *	a node has been dealt with and by MakeStartJobs if it finds an
- *	up-to-date node. 
+ *	up-to-date node.
  *
  * Results:
  *	Always returns 0
@@ -480,7 +481,7 @@ Make_Update (cgn)
 	}
 #endif
     }
-    
+
     if (Lst_Open (cgn->parents) == SUCCESS) {
 	while ((ln = Lst_Next (cgn->parents)) != NILLNODE) {
 	    pgn = (GNode *)Lst_Datum (ln);
@@ -525,7 +526,7 @@ Make_Update (cgn)
 	    (void)Lst_EnQueue(toBeMade, (ClientData)succ);
 	}
     }
-    
+
     /*
      * Set the .PREFIX and .IMPSRC variables for all the implied parents
      * of this node.
@@ -577,9 +578,16 @@ MakeAddAllSrc (cgnp, pgnp)
     GNode	*pgn = (GNode *) pgnp;
     if ((cgn->type & (OP_EXEC|OP_USE|OP_INVISIBLE)) == 0) {
 	char *child;
-	char *p1;
+	char *p1 = NULL;
 
-	child = Var_Value(TARGET, cgn, &p1);
+	if (OP_NOP(cgn->type)) {
+	    /*
+	     * this node is only source; use the specific pathname for it
+	     */
+	    child = cgn->path ? cgn->path : cgn->name;
+	}
+	else
+	    child = Var_Value(TARGET, cgn, &p1);
 	Var_Append (ALLSRC, child, pgn);
 	if (pgn->type & OP_JOIN) {
 	    if (cgn->made == MADE) {
@@ -675,7 +683,7 @@ static Boolean
 MakeStartJobs ()
 {
     register GNode	*gn;
-    
+
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
 	if (DEBUG(MAKE)) {
@@ -708,7 +716,7 @@ MakeStartJobs ()
 		continue;
 	    }
 	}
-	
+
 	numNodes--;
 	if (Make_OODate (gn)) {
 	    if (DEBUG(MAKE)) {
@@ -733,7 +741,7 @@ MakeStartJobs ()
 		 */
 		Make_DoAllVar (gn);
 	    }
-	    
+
 	    Make_Update (gn);
 	}
     }
@@ -828,22 +836,22 @@ Make_Run (targs)
 
     examine = Lst_Duplicate(targs, NOCOPY);
     numNodes = 0;
-    
+
     /*
      * Make an initial downward pass over the graph, marking nodes to be made
      * as we go down. We call Suff_FindDeps to find where a node is and
      * to get some children for it if it has none and also has no commands.
      * If the node is a leaf, we stick it on the toBeMade queue to
      * be looked at in a minute, otherwise we add its children to our queue
-     * and go on about our business. 
+     * and go on about our business.
      */
     while (!Lst_IsEmpty (examine)) {
 	gn = (GNode *) Lst_DeQueue (examine);
-	
+
 	if (!gn->make) {
 	    gn->make = TRUE;
 	    numNodes++;
-	    
+
 	    /*
 	     * Apply any .USE rules before looking for implicit dependencies
 	     * to make sure everything has commands that should...
@@ -858,7 +866,7 @@ Make_Run (targs)
 	    }
 	}
     }
-    
+
     Lst_Destroy (examine, NOFREE);
 
     if (queryFlag) {
@@ -874,7 +882,7 @@ Make_Run (targs)
 	 * get started, nothing will happen since the remaining upward
 	 * traversal of the graph is performed by the routines in job.c upon
 	 * the finishing of a job. So we fill the Job table as much as we can
-	 * before going into our loop. 
+	 * before going into our loop.
 	 */
 	(void) MakeStartJobs();
     }
@@ -903,6 +911,6 @@ Make_Run (targs)
      */
     errors = ((errors == 0) && (numNodes != 0));
     Lst_ForEach(targs, MakePrintStatus, (ClientData) &errors);
-    
+
     return (TRUE);
 }

@@ -1,6 +1,8 @@
+/*	$NetBSD: job.h,v 1.4 1995/06/14 15:19:26 christos Exp $	*/
+
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)job.h	8.2 (Berkeley) 4/28/95
+ *	from: @(#)job.h	8.1 (Berkeley) 6/6/93
  */
 
 /*-
@@ -51,14 +53,14 @@
 /*
  * The SEL_ constants determine the maximum amount of time spent in select
  * before coming out to see if a child has finished. SEL_SEC is the number of
- * seconds and SEL_USEC is the number of micro-seconds 
+ * seconds and SEL_USEC is the number of micro-seconds
  */
 #define SEL_SEC		0
 #define SEL_USEC	500000
 
 
 /*-
- * Job Table definitions. 
+ * Job Table definitions.
  *
  * Each job has several things associated with it:
  *	1) The process id of the child shell
@@ -79,11 +81,11 @@
  *	6) An identifier provided by and for the exclusive use of the
  *	   Rmt module.
  *	7) A word of flags which determine how the module handles errors,
- *	   echoing, etc. for the job 
+ *	   echoing, etc. for the job
  *
  * The job "table" is kept as a linked Lst in 'jobs', with the number of
  * active jobs maintained in the 'nJobs' variable. At no time will this
- * exceed the value of 'maxJobs', initialized by the Job_Init function. 
+ * exceed the value of 'maxJobs', initialized by the Job_Init function.
  *
  * When a job is finished, the Make_Update function is called on each of the
  * parents of the node which was just remade. This takes care of the upward
@@ -105,7 +107,7 @@ typedef struct Job {
 				 * if we can't export it and maxLocal is 0 */
 #define JOB_IGNDOTS	0x008  	/* Ignore "..." lines when processing
 				 * commands */
-#define JOB_REMOTE	0x010	/* Job is running remotely */  
+#define JOB_REMOTE	0x010	/* Job is running remotely */
 #define JOB_FIRST	0x020	/* Job is first job for the node */
 #define JOB_REMIGRATE	0x040	/* Job needs to be remigrated */
 #define JOB_RESTART	0x080	/* Job needs to be completely restarted */
@@ -193,7 +195,7 @@ typedef struct Shell {
     char	  *errCheck;	/* string to turn error checking on */
     char	  *ignErr;	/* string to turn off error checking */
     /*
-     * command-line flags 
+     * command-line flags
      */
     char          *echo;	/* echo commands */
     char          *exit;	/* exit on error */

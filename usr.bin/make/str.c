@@ -1,3 +1,5 @@
+/*	$NetBSD: str.c,v 1.12 1996/03/29 02:17:34 jtc Exp $	*/
+
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,8 +39,12 @@
  */
 
 #ifndef lint
-static char     sccsid[] = "@(#)str.c	8.6 (Berkeley) 4/28/95";
-#endif /* not lint */
+#if 0
+static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
+#else
+static char rcsid[] = "$NetBSD: str.c,v 1.12 1996/03/29 02:17:34 jtc Exp $";
+#endif
+#endif				/* not lint */
 
 #include "make.h"
 
@@ -54,7 +60,7 @@ void
 str_init()
 {
     char *p1;
-    argv = (char **)emalloc((argmax = 50) * sizeof(char *));
+    argv = (char **)emalloc(((argmax = 50) + 1) * sizeof(char *));
     argv[0] = Var_Value(".MAKE", VAR_GLOBAL, &p1);
 }
 
@@ -67,14 +73,14 @@ str_init()
 void
 str_end()
 {
-    if (argv[0]) {
-	free(argv[0]);
+    if (argv) {
+	if (argv[0])
+	    free(argv[0]);
 	free((Address) argv);
     }
     if (buffer)
 	free(buffer);
 }
-
 
 /*-
  * str_concat --
@@ -201,9 +207,8 @@ brk_string(str, store_argc, expand)
 			*t++ = '\0';
 			if (argc == argmax) {
 				argmax *= 2;		/* ramp up fast */
-				if (!(argv = (char **)realloc(argv,
-				    argmax * sizeof(char *))))
-				enomem();
+				argv = (char **)erealloc(argv,
+				    (argmax + 1) * sizeof(char *));
 			}
 			argv[argc++] = start;
 			start = (char *)NULL;
@@ -218,7 +223,7 @@ brk_string(str, store_argc, expand)
 				ch = *++p;
 				break;
 			}
-				
+
 			switch (ch = *++p) {
 			case '\0':
 			case '\n':
@@ -255,12 +260,12 @@ done:	argv[argc] = (char *)NULL;
 
 /*
  * Str_FindSubstring -- See if a string contains a particular substring.
- * 
+ *
  * Results: If string contains substring, the return value is the location of
  * the first matching instance of substring in string.  If string doesn't
  * contain substring, the return value is NULL.  Matching is done on an exact
  * character-for-character basis with no wildcards or special characters.
- * 
+ *
  * Side effects: None.
  */
 char *
@@ -293,13 +298,13 @@ Str_FindSubstring(string, substring)
 
 /*
  * Str_Match --
- * 
+ *
  * See if a particular string matches a particular pattern.
- * 
+ *
  * Results: Non-zero is returned if string matches pattern, 0 otherwise. The
  * matching operation permits the following special characters in the
  * pattern: *?\[] (see the man page for details on what these mean).
- * 
+ *
  * Side effects: None.
  */
 int
@@ -396,8 +401,8 @@ thisCharOK:	++pattern;
 /*-
  *-----------------------------------------------------------------------
  * Str_SYSVMatch --
- *	Check word against pattern for a match (% is wild), 
- *	
+ *	Check word against pattern for a match (% is wild),
+ *
  * Results:
  *	Returns the beginning position of a match or null. The number
  *	of characters matched is returned in len.
@@ -447,7 +452,7 @@ Str_SYSVMatch(word, pattern, len)
 	    return m;
 	}
     while (*w++ != '\0');
-	    
+
     return NULL;
 }
 
@@ -458,7 +463,7 @@ Str_SYSVMatch(word, pattern, len)
  *	Substitute '%' on the pattern with len characters from src.
  *	If the pattern does not contain a '%' prepend len characters
  *	from src.
- *	
+ *
  * Results:
  *	None
  *

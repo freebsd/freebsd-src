@@ -1,3 +1,5 @@
+/*	$NetBSD: util.c,v 1.7 1996/08/30 17:59:44 thorpej Exp $	*/
+
 /*
  * Missing stuff from OS's
  */

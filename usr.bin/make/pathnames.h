@@ -1,3 +1,5 @@
+/*	$NetBSD: pathnames.h,v 1.5 1996/08/30 17:59:41 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,10 +32,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.2 (Berkeley) 4/28/95
+ *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */
 
 #define	_PATH_OBJDIR		"obj"
+#define	_PATH_OBJDIRPREFIX	"/usr/obj"
 #define	_PATH_DEFSHELLDIR	"/bin"
 #define	_PATH_DEFSYSMK		"sys.mk"
 #define	_PATH_DEFSYSPATH	"/usr/share/mk"
