@@ -27,6 +27,16 @@ esac
 
 ypbind_precmd()
 {
+	case ${OSTYPE} in
+	FreeBSD)
+		if ! checkyesno rpcbind_enable  && \
+		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+		then
+			force_depend rpcbind || return 1
+		fi
+		;;
+	esac
+
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
 		warn "domainname(1) is not set."
