@@ -2777,6 +2777,7 @@ tcp_newreno_partial_ack(tp, th)
 	 * (tp->snd_una has not yet been updated when this function is called.)
 	 */
 	tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
+	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	tp->snd_cwnd = ocwnd;
 	if (SEQ_GT(onxt, tp->snd_nxt))
