@@ -1,4 +1,6 @@
+# $FreeBSD$
+
 PROG=	brandelf
-CFLAGS+=-Wall
+CFLAGS+= -Wall
 
 .include <bsd.prog.mk>
