@@ -476,6 +476,16 @@ struct rl_softc {
 #define DLINK_DEVICEID_690TXD			0x1340
 
 /*
+ * Corega K.K vendor ID
+ */
+#define COREGA_VENDORID				0x1259
+
+/*
+ * Coreaga FEther CB-TXD device ID
+ */
+#define COREGA_DEVICEID_CBTXD			0xa117
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
