@@ -41,6 +41,7 @@
 #define	_TTYS_OFF	"off"
 #define	_TTYS_ON	"on"
 #define	_TTYS_SECURE	"secure"
+#define	_TTYS_INSECURE	"insecure"
 #define	_TTYS_WINDOW	"window"
 #define	_TTYS_GROUP	"group"
 #define _TTYS_NOGROUP	"none"
