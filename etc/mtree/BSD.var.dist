@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.11 1994/04/10 00:56:12 ache Exp $
+#	$Id: BSD.var.dist,v 1.12 1994/05/20 22:50:37 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -36,7 +36,7 @@ rwho
 ..
 spool
 	/set type=dir uname=bin gname=daemon mode=0755
-	lock	uname=uucp
+	lock    uname=uucp gname=dialer
 	..
 	lpd
 	..
@@ -44,7 +44,7 @@ spool
 	..
 	output
 	..
-	/set type=dir uname=uucp gname=daemon mode=0755
+	/set type=dir uname=uucp gname=uucp mode=0755
 	uucp
 		.Preserve	
 		..
@@ -57,7 +57,7 @@ spool
 		.Xqtdir
 		..
 	..
-	/set type=dir uname=uucp gname=daemon mode=0777
+	/set type=dir uname=uucp gname=uucp mode=0777
 	uucppublic
 	..
 ..
