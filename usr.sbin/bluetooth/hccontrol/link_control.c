@@ -951,13 +951,13 @@ struct hci_command	link_control_commands[] = {
 "\nThis command will obtain the values for the version information for the\n" \
 "remote Bluetooth unit identified by the connection handle parameter. The\n" \
 "connection handle must be a connection handle for an ACL connection.\n\n" \
-"\t<conneciton_handle> - dddd; connection handle",
+"\t<connection_handle> - dddd; connection handle",
 &hci_read_remote_version_information
 },
 {
 "read_clock_offset <connection_handle>",
-"\nThis command allows the Host to read clock offset to remote unit.\n" \
-"\t<conneciton_handle> - dddd; connection handle",
+"\nThis command allows the Host to read the clock offset from the remote unit.\n" \
+"\t<connection_handle> - dddd; connection handle",
 &hci_read_clock_offset
 },
 {
