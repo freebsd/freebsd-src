@@ -336,12 +336,12 @@ release rerelease:
 	fi
 .if defined(EXTLOCALDIR)
 	rm -rf ${CHROOTDIR}/usr/local
-	cd ${CHROOTDIR}/usr && cp -R ${EXTLOCALDIR} local
+	cd ${CHROOTDIR}/usr && cp -R -H ${EXTLOCALDIR} local
 .endif
 	rm -rf ${CHROOTDIR}/usr/src
 .if defined(EXTSRCDIR)
 	cd ${CHROOTDIR}/usr && \
-		cp -R ${EXTSRCDIR} src
+		cp -R -H ${EXTSRCDIR} src
 .else
 	cd ${CHROOTDIR}/usr && \
 		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
@@ -359,7 +359,7 @@ release rerelease:
 .if !defined(NODOC)
 	rm -rf ${CHROOTDIR}/usr/doc
 .if defined(EXTDOCDIR)
-	cd ${CHROOTDIR}/usr && cp -R ${EXTDOCDIR} doc
+	cd ${CHROOTDIR}/usr && cp -R -H ${EXTDOCDIR} doc
 .else
 	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_DOCARGS} ${RELEASEDOCMODULE}
 .endif
