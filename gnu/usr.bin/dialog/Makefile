@@ -8,7 +8,7 @@ MAN1=   dialog.1
 
 CFLAGS+= -Wall -Wstrict-prototypes
 
-DPADD+= $(LIBDIALOG) $(LIBNCURSES) $(LIBMYTINFO)
-LDADD+= -ldialog -lncurses -lmytinfo
+DPADD+= $(LIBDIALOG) $(LIBNCURSES)
+LDADD+= -ldialog -lncurses
 
 .include <bsd.prog.mk>
