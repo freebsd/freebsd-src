@@ -39,7 +39,6 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#ifdef PROCFS_DEBUG
 /*
  * Process ioctls
  */
@@ -47,7 +46,7 @@ int
 procfs_ioctl(PFS_IOCTL_ARGS)
 {
 	struct procfs_status *ps;
-	int error, sig;
+	int error, flags, sig;
 
 	PROC_LOCK(p);
 	error = 0;
@@ -59,10 +58,13 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		p->p_stops &= ~*(unsigned int *)data;
 		break;
 	case PIOCSFL:
-		/* ignore */
+		flags = *(unsigned int *)data;
+		if (flags & PF_ISUGID && (error = suser(td->td_proc)) != 0)
+			break;
+		p->p_pfsflags = flags;
 		break;
 	case PIOCGFL:
-		*(unsigned int *)data = 0; /* nope */
+		*(unsigned int *)data = p->p_pfsflags;
 		break;
 	case PIOCWAIT:
 		while (p->p_step == 0) {
@@ -82,10 +84,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->val = p->p_step ? p->p_xstat : 0;
 		break;
 	case PIOCCONT:
-		if (p->p_step)
+		if (p->p_step == 0)
 			break;
 		sig = *(int *)data;
-		if (!_SIG_VALID(sig)) {
+		if (sig != 0 && !_SIG_VALID(sig)) {
 			error = EINVAL;
 			break;
 		}
@@ -104,6 +106,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #else
 		if (sig)
 			psignal(p, sig);
+		p->p_step = 0;
 		wakeup(&p->p_step);
 #endif
 		break;
@@ -129,4 +132,3 @@ procfs_close(PFS_CLOSE_ARGS)
 	}
 	return (0);
 }
-#endif
