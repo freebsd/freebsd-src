@@ -71,7 +71,6 @@ static d_ioctl_t	acpiioctl;
 
 static struct cdevsw acpi_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	acpiopen,
 	.d_close =	acpiclose,
 	.d_ioctl =	acpiioctl,
@@ -187,6 +186,8 @@ static driver_t acpi_driver = {
 static devclass_t acpi_devclass;
 DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
 MODULE_VERSION(acpi, 1);
+
+ACPI_SERIAL_DECL(acpi, "ACPI root bus");
 
 #define ACPI_MINIMUM_AWAKETIME	5
 
@@ -547,10 +548,8 @@ acpi_attach(device_t dev)
 			      "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
-#ifdef ACPI_USE_THREADS
     if ((error = acpi_task_thread_init()))
 	goto out;
-#endif
 
     if ((error = acpi_machdep_init(dev)))
 	goto out;
@@ -757,6 +756,9 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct resource *res;
     struct rman *rm;
 
+    res = NULL;
+    ACPI_SERIAL_BEGIN(acpi);
+
     /*
      * If this is an allocation of the "default" range for a given RID, and
      * we know what the resources for this device are (i.e., they're on the
@@ -765,7 +767,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     if (start == 0UL && end == ~0UL) {
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
-	    return (NULL);
+	    goto out;
 	start = rle->start;
 	end = rle->end;
 	count = rle->count;
@@ -794,7 +796,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
 	    child);
 	if (res == NULL)
-	    return (NULL);
+	    goto out;
 
 	/* Copy the bus tag and handle from the pre-allocated resource. */
 	rman_set_bustag(res, rman_get_bustag(rle->res));
@@ -804,7 +806,8 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (flags & RF_ACTIVE)
 	    if (bus_activate_resource(child, type, *rid, res) != 0) {
 		rman_release_resource(res);
-		return (NULL);
+		res = NULL;
+		goto out;
 	    }
     }
 
@@ -823,6 +826,9 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		acpi_config_intr(child, &ares);
 	    break;
 	}
+
+out:
+    ACPI_SERIAL_END(acpi);
     return (res);
 }
 
@@ -832,6 +838,8 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
 {
     int ret;
 
+    ACPI_SERIAL_BEGIN(acpi);
+
     /*
      * If we know about this address, deactivate it and release it to the
      * local pool.  If we don't, pass this request up to the parent.
@@ -840,12 +848,14 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
-		return (ret);
+		goto out;
 	}
 	ret = rman_release_resource(r);
     } else
 	ret = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
 
+out:
+    ACPI_SERIAL_END(acpi);
     return (ret);
 }
 
@@ -1706,6 +1716,14 @@ acpi_sleep_enable(void *arg)
     ((struct acpi_softc *)arg)->acpi_sleep_disabled = 0;
 }
 
+enum acpi_sleep_state {
+    ACPI_SS_NONE,
+    ACPI_SS_GPE_SET,
+    ACPI_SS_DEV_SUSPEND,
+    ACPI_SS_SLP_PREP,
+    ACPI_SS_SLEPT,
+};
+
 /*
  * Set the system sleep state
  *
@@ -1714,20 +1732,26 @@ acpi_sleep_enable(void *arg)
 ACPI_STATUS
 acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
-    ACPI_STATUS	status = AE_OK;
+    ACPI_STATUS	status;
     UINT8	TypeA;
     UINT8	TypeB;
+    enum acpi_sleep_state slp_state;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
-    /* Avoid reentry if already attempting to suspend. */
-    if (sc->acpi_sstate != ACPI_STATE_S0)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+    status = AE_OK;
+    ACPI_LOCK(acpi);
+    if (sc->acpi_sleep_disabled) {
+	if (sc->acpi_sstate != ACPI_STATE_S0)
+	    status = AE_ERROR;
+	ACPI_UNLOCK(acpi);
+	printf("acpi: suspend request ignored (not ready yet)\n");
+	return (status);
+    }
+    sc->acpi_sleep_disabled = 1;
+    ACPI_UNLOCK(acpi);
 
-    /* We recently woke up so don't suspend again for a while. */
-    if (sc->acpi_sleep_disabled)
-	return_ACPI_STATUS (AE_OK);
-
+    slp_state = ACPI_SS_NONE;
     switch (state) {
     case ACPI_STATE_S1:
     case ACPI_STATE_S2:
@@ -1745,10 +1769,10 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	}
 
 	sc->acpi_sstate = state;
-	sc->acpi_sleep_disabled = 1;
 
 	/* Enable any GPEs as appropriate and requested by the user. */
 	acpi_wake_prep_walk(state);
+	slp_state = ACPI_SS_GPE_SET;
 
 	/*
 	 * Inform all devices that we are going to sleep.  If at least one
@@ -1758,8 +1782,11 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	 * followed by a "real thing" pass would be better, but the current
 	 * bus interface does not provide for this.
 	 */
-	if (DEVICE_SUSPEND(root_bus) != 0)
-	    return_ACPI_STATUS (AE_ERROR);
+	if (DEVICE_SUSPEND(root_bus) != 0) {
+	    device_printf(sc->acpi_dev, "device_suspend failed\n");
+	    break;
+	}
+	slp_state = ACPI_SS_DEV_SUSPEND;
 
 	status = AcpiEnterSleepStatePrep(state);
 	if (ACPI_FAILURE(status)) {
@@ -1767,6 +1794,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 			  AcpiFormatException(status));
 	    break;
 	}
+	slp_state = ACPI_SS_SLP_PREP;
 
 	if (sc->acpi_sleep_delay > 0)
 	    DELAY(sc->acpi_sleep_delay * 1000000);
@@ -1786,13 +1814,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 		break;
 	    }
 	}
-
-	/* Resume devices, re-enable GPEs and fixed events. */
-	acpi_wake_prep_walk(state);
-	AcpiLeaveSleepState((UINT8)state);
-	DEVICE_RESUME(root_bus);
-	sc->acpi_sstate = ACPI_STATE_S0;
-	acpi_enable_fixed_events(sc);
+	slp_state = ACPI_SS_SLEPT;
 	break;
     case ACPI_STATE_S5:
 	/*
@@ -1807,8 +1829,23 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	break;
     }
 
-    /* Disable a second sleep request for a short period */
-    if (sc->acpi_sleep_disabled)
+    /*
+     * Back out state according to how far along we got in the suspend
+     * process.  This handles both the error and success cases.
+     */
+    if (slp_state >= ACPI_SS_GPE_SET) {
+	acpi_wake_prep_walk(state);
+	sc->acpi_sstate = ACPI_STATE_S0;
+    }
+    if (slp_state >= ACPI_SS_DEV_SUSPEND)
+	DEVICE_RESUME(root_bus);
+    if (slp_state >= ACPI_SS_SLP_PREP)
+	AcpiLeaveSleepState(state);
+    if (slp_state >= ACPI_SS_SLEPT)
+	acpi_enable_fixed_events(sc);
+
+    /* Allow another sleep request after a while. */
+    if (state != ACPI_STATE_S5)
 	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
 
     return_ACPI_STATUS (status);
@@ -2123,10 +2160,12 @@ acpi_Enable(struct acpi_softc *sc)
     flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
 	    ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
 
+    ACPI_SERIAL_BEGIN(acpi);
     if (!sc->acpi_enabled)
 	status = AcpiEnableSubsystem(flags);
     if (ACPI_SUCCESS(status))
 	sc->acpi_enabled = 1;
+    ACPI_SERIAL_END(acpi);
 
     return_ACPI_STATUS (status);
 }
@@ -2139,10 +2178,12 @@ acpi_Disable(struct acpi_softc *sc)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     status = AE_ERROR;
+    ACPI_SERIAL_BEGIN(acpi);
     if (sc->acpi_enabled)
 	status = AcpiDisable();
     if (ACPI_SUCCESS(status))
 	sc->acpi_enabled = 0;
+    ACPI_SERIAL_END(acpi);
 
     return_ACPI_STATUS (status);
 }
@@ -2347,30 +2388,33 @@ acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
     hp->cmd = cmd;
     hp->fn = fn;
     hp->arg = arg;
+
+    ACPI_LOCK(acpi);
     if (acpi_ioctl_hooks_initted == 0) {
 	TAILQ_INIT(&acpi_ioctl_hooks);
 	acpi_ioctl_hooks_initted = 1;
     }
     TAILQ_INSERT_TAIL(&acpi_ioctl_hooks, hp, link);
+    ACPI_UNLOCK(acpi);
+
     return (0);
 }
 
-/*
- * Deregister an ioctl handler.
- */
 void	
 acpi_deregister_ioctl(u_long cmd, acpi_ioctl_fn fn)
 {
     struct acpi_ioctl_hook	*hp;
 
+    ACPI_LOCK(acpi);
     TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link)
-	if ((hp->cmd == cmd) && (hp->fn == fn))
+	if (hp->cmd == cmd && hp->fn == fn)
 	    break;
 
     if (hp != NULL) {
 	TAILQ_REMOVE(&acpi_ioctl_hooks, hp, link);
 	free(hp, M_ACPIDEV);
     }
+    ACPI_UNLOCK(acpi);
 }
 
 static int
@@ -2399,11 +2443,13 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
     /*
      * Scan the list of registered ioctls, looking for handlers.
      */
+    ACPI_LOCK(acpi);
     if (acpi_ioctl_hooks_initted)
 	TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link) {
 	    if (hp->cmd == cmd)
 		break;
 	}
+    ACPI_UNLOCK(acpi);
     if (hp)
 	return (hp->fn(cmd, addr, hp->arg));
 
@@ -2426,10 +2472,6 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	    error = ENXIO;
 	break;
     case ACPIIO_SETSLPSTATE:
-	if (!sc->acpi_enabled) {
-	    error = ENXIO;
-	    break;
-	}
 	error = EINVAL;
 	state = *(int *)addr;
 	if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
@@ -2691,6 +2733,7 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     }
 
     /* Get old values if this is a get request. */
+    ACPI_SERIAL_BEGIN(acpi);
     if (*dbg == 0) {
 	sbuf_cpy(&sb, "NONE");
     } else if (req->newptr == NULL) {
@@ -2712,6 +2755,7 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 	setenv((char *)oidp->oid_arg1, (char *)req->newptr);
 	acpi_set_debugging(NULL);
     }
+    ACPI_SERIAL_END(acpi);
 
     return (error);
 }
