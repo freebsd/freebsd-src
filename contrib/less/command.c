@@ -52,6 +52,7 @@ extern char *editor;
 extern char *editproto;
 #endif
 extern int screen_trashed;	/* The screen has been overwritten */
+extern int shift_count;
 
 static char ungot[UNGOT_SIZE];
 static char *ungotp = NULL;
@@ -1508,7 +1509,8 @@ commands()
 
 		case A_LSHIFT:
 			if (number <= 0)
-				number = 8;
+				number = (shift_count > 0) ?
+					shift_count : sc_width / 2;
 			if (number > hshift)
 				number = hshift;
 			hshift -= number;
@@ -1517,7 +1519,8 @@ commands()
 
 		case A_RSHIFT:
 			if (number <= 0)
-				number = 8;
+				number = (shift_count > 0) ?
+					shift_count : sc_width / 2;
 			hshift += number;
 			screen_trashed = 1;
 			break;
