@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.35 1996/09/02 21:33:41 se Exp $
+**  $Id: pcisupport.c,v 1.36 1996/09/05 21:34:12 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -140,6 +140,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371FB PCI-ISA bridge");
 	case 0x12308086:
 		return ("Intel 82371FB IDE interface");
+	case 0x12508086:
+		return ("Intel 82439");
 	case 0x04061039:
 		return ("SiS 85c501");
 	case 0x00081039:
