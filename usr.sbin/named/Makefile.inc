@@ -1,5 +1,5 @@
 # From: Id: Makefile.inc,v 8.4 1996/03/03 17:42:43 vixie Exp
-# $Id: Makefile.inc,v 1.5 1997/05/17 11:53:03 peter Exp $
+# $Id: Makefile.inc,v 1.6 1998/05/03 05:09:12 peter Exp $
 
 .ifndef (Mk.Inc)
 Mk.Inc?=defined
@@ -20,12 +20,14 @@ INCLUDE=	-I${BIND_DIR}/port/freebsd/include -I${BIND_DIR}/include -I.
 CFLAGS+=	${INCLUDE} ${CONFIG}
 
 .if exists(${.OBJDIR}/../../lib/libbind)
-LDADD+=	-L${.OBJDIR}/../../lib/libbind -lbind
-DPADD+= ${.OBJDIR}/../../lib/libbind/libbind.a
+LIBBINDDIR:=	${.OBJDIR}/../../lib/libbind
 .else
-LDADD+=	-L${.CURDIR}/../../lib/libbind -lbind
-DPADD+= ${.CURDIR}/../../lib/libbind/libbind.a
+LIBBINDDIR!=	cd ${.CURDIR}/../../lib/libbind; make -V .OBJDIR
 .endif
+LIBBIND:=	${LIBBINDDIR}/libbind.a
+
+DPADD+=		${LIBBIND}
+LDADD+=		${LIBBIND}
 
 CLEANFILES+= tmp_version.c pathnames.h
 
