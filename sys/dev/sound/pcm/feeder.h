@@ -57,6 +57,7 @@ u_int32_t chn_fmtchain(struct pcm_channel *c, u_int32_t *to);
 int chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc);
 int chn_removefeeder(struct pcm_channel *c);
 struct pcm_feeder *chn_findfeeder(struct pcm_channel *c, u_int32_t type);
+void feeder_printchain(struct pcm_feeder *head);
 
 #define FEEDER_DECLARE(feeder, palign, pdata) \
 static struct feeder_class feeder ## _class = { \
