@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
  */
 
 #define _PAS2_MIXER_C_
@@ -67,6 +68,8 @@ static u_short levels[SOUND_MIXER_NRDEVICES] =
 	0x4b4b,			/* SB PCM */
 	0x6464			/* Recording level */
 };
+
+void mix_write(u_char data, int ioaddr);
 
 void
 mix_write(u_char data, int ioaddr)

@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -44,7 +45,6 @@
 #define CS_OUT3(a, b, c)	{CS_OUT(a);CS_OUT(b);CS_OUT(c);}
 
 static int      mpu_base = 0, mpu_irq = 0;
-static int      mpu_detected = 0;
 
 int
 probe_cs4232_mpu(struct address_info * hw_config)

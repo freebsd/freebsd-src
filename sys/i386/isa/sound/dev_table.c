@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
  */
 
 #define _DEV_TABLE_C_
@@ -39,8 +40,6 @@ int             snd_find_driver(int type);
 static void     sndtable_init(void);
 int             sndtable_probe(int unit, struct address_info * hw_config);
 int             sndtable_init_card(int unit, struct address_info * hw_config);
-static int      sndtable_identify_card(char *name);
-static void     sound_chconf(int card_type, int ioaddr, int irq, int dma);
 static void     start_services(void);
 static void     start_cards(void);
 struct address_info *sound_getconf(int card_type);
@@ -241,49 +240,6 @@ sndtable_get_cardcount(void)
 {
     return num_audiodevs + num_mixers + num_synths + num_midis;
 }
-
-static int
-sndtable_identify_card(char *name)
-{
-    int  i, n = num_sound_drivers;
-
-    if (name == NULL)
-	return 0;
-
-    for (i = 0; i < n; i++)
-	if (sound_drivers[i].driver_id != NULL) {
-	    char           *id = sound_drivers[i].driver_id;
-	    int             j;
-
-	    for (j = 0; j < 80 && name[j] == id[j]; j++)
-		if (id[j] == 0 && name[j] == 0)	/* Match */
-		    return sound_drivers[i].card_type;
-	}
-    return 0;
-}
-
-static void
-sound_chconf(int card_type, int ioaddr, int irq, int dma)
-{
-    int   j, ptr = -1, n = num_sound_cards;
-
-    for (j = 0; j < n && ptr == -1 && snd_installed_cards[j].card_type; j++)
-	if (snd_installed_cards[j].card_type == card_type &&
-	    !snd_installed_cards[j].enabled)	/* Not already found */
-	    ptr = j;
-
-    if (ptr != -1) {
-	snd_installed_cards[ptr].enabled = 1;
-	if (ioaddr)
-	    snd_installed_cards[ptr].config.io_base = ioaddr;
-	if (irq)
-	    snd_installed_cards[ptr].config.irq = irq;
-	if (dma)
-	    snd_installed_cards[ptr].config.dma = dma;
-	snd_installed_cards[ptr].config.dma2 = -1;
-    }
-}
-
 
 struct address_info *
 sound_getconf(int card_type)
