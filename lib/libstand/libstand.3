@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: libstand.3,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
 .\"
 .Dd June 22, 1998
 .Dt LIBSTAND 3
@@ -124,6 +124,15 @@ may be used to prevent a variable being unset.
 .Pp
 Returns error messages for the subset of errno values supported by
 .Nm No .
+.It Fn "assert" "expression"
+.Pp
+Requires
+.Fd #include <assert.h>
+.It Fn "int setjmp" "jmp_buf env"
+.It Fn "void longjmp" "jmp_buf env" "int val"
+.Pp
+Require
+.Fd #include <setjmp.h>
 .El
 .Sh CHARACTER I/O
 .Bl -hang -width 10n
@@ -155,6 +164,7 @@ if successful, or -1 if a read error occurs.
 .It Fn "int printf" "const char *fmt" "..."
 .It Fn "void vprintf" "const char *fmt" "va_list ap"
 .It Fn "int sprintf" "char *buf" "const char *fmt" "..."
+.It Fn "void vsprintf" "char *buf" "const char *fmt" "va_list ap"
 .Pp
 The *printf functions implement a subset of the standard
 .Fn printf
@@ -448,6 +458,10 @@ and
 .Nm libkern
 from
 .Fx 3.0 .
+.It
+.Nm zalloc
+from
+.An Matthew Dillon Aq dillon@backplane.com
 .El
 .Pp
 The reorganisation and port to

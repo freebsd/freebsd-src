@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/10/04 08:10:29 msmith Exp $
+# $Id: Makefile,v 1.6 1998/10/06 19:23:57 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -20,9 +20,9 @@ CFLAGS+=	-mno-fp-regs
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	__main.c bcd.c bswap.c environment.c getopt.c gets.c globals.c \
-	pager.c printf.c strdup.c strerror.c strtol.c random.c sbrk.c \
-	twiddle.c zalloc.c zalloc_malloc.c
+SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
+	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
+	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
@@ -89,6 +89,11 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 # network support from libc
 .PATH:	${.CURDIR}/../libc/net
 SRCS+=	inet_ntoa.c inet_addr.c
+
+# setjmp/longjmp
+.PATH:	${.CURDIR}/../libc/${MACHINE_ARCH}/gen
+CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
+SRCS+=	setjmp.S
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
