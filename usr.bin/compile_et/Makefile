@@ -1,16 +1,9 @@
 # $FreeBSD$
 
 PROG=	compile_et
-SRCS=	compile_et.c error_table.y
-CFLAGS+=-I. -I${.CURDIR}/../../lib/libcom_err
-LFLAGS+=-l
-YFLAGS=
-DPADD=	${LIBL}
-LDADD=	-ll
-CLEANFILES=	et_lex.lex.c
-
-error_table.o: et_lex.lex.c
+SRCS=	compile_et.c parse.y lex.l getarg.c
+CFLAGS+=-I. -I${.CURDIR}/../../contrib/com_err
 
 .include <bsd.prog.mk>
 
-${DEPENDFILE}: et_lex.lex.c
+.PATH: ${.CURDIR}/../../contrib/com_err
