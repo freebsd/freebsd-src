@@ -138,6 +138,41 @@ static char stops[][3] = {
 	{ 0, 0, 0 },		/* 1f */
 };
 
+static const char *templatenames[] = {
+	"MII",		/* 00 */
+	"MII",		/* 01 */
+	"MII",		/* 02 */
+	"MII",		/* 03 */
+	"MLX",		/* 04 */
+	"MLX",		/* 05 */
+	"???",		/* 06 */
+	"???",		/* 07 */
+	"MMI",		/* 08 */
+	"MMI",		/* 09 */
+	"MMI",		/* 0a */
+	"MMI",		/* 0b */
+	"MFI",		/* 0c */
+	"MFI",		/* 0d */
+	"MMF",		/* 0e */
+	"MMF",		/* 0f */
+	"MIB",		/* 10 */
+	"MIB",		/* 11 */
+	"MBB",		/* 12 */
+	"MBB",		/* 13 */
+	"???",		/* 14 */
+	"???",		/* 15 */
+	"BBB",		/* 16 */
+	"BBB",		/* 17 */
+	"MMB",		/* 18 */
+	"MMB",		/* 19 */
+	"???",		/* 1a */
+	"???",		/* 1b */
+	"MFB",		/* 1c */
+	"MFB",		/* 1d */
+	"???",		/* 1e */
+	"???",		/* 1f */
+};
+
 const char *register_names[] = {
 	"r0",	"gp",	"r2",	"r3",
 	"r4",	"r5",	"r6",	"r7",
@@ -2839,6 +2874,10 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	if ((b.template == 4 || b.template == 5) && slot == 1)
 		slot = 2;
 
+	if (slot == 0)
+		db_printf("[%s] ", templatenames[b.template]);
+	else
+		db_printf("      ");
 	if (b.slot[slot] & 63)
 		db_printf("(p%ld) ", b.slot[slot] & 63);
 	(prints[b.template][slot])(loc, b.slot[slot], altfmt);
