@@ -49,7 +49,9 @@ or other hard disk error causes the default super-block
 to be unusable.
 .PP
 To insure that it is possible to create files as large as
-$2 sup 32$ bytes with only two levels of indirection,
+.if n 2 ** 32
+.if t $2 sup 32$
+bytes with only two levels of indirection,
 the minimum size of a file system block is 4096 bytes.
 The size of file system blocks can be any power of two
 greater than or equal to 4096.
