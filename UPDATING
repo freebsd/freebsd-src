@@ -37,13 +37,13 @@ ITEMS:'
 	your entire ports tree, or you will have problems.
 
 20001006:
-	The perl build proceedure no longer installs miniperl, nor uses
+	The perl build procedure no longer installs miniperl, nor uses
 	the installed miniperl.  It is recommended that you delete
 	/usr/bin/miniperl.
 
 20001005:
 	This weekend the ports tree will be updated to a new layout.
-	It will be in an inconsistant state until noted in the UPDATING
+	It will be in an inconsistent state until noted in the UPDATING
 	file, or with asami-san's message to the relevant mailing
 	lists.  With this new layout, you'll need to update the whole
 	tree for anything to work.
