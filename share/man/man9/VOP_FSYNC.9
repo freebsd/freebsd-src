@@ -33,14 +33,14 @@
 .Dt VOP_FSYNC 9
 .Sh NAME
 .Nm VOP_FSYNC
-.Nd flush filesystem buffers for a file
+.Nd flush file system buffers for a file
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
 .Fn VOP_FSYNC "struct vnode *vp" "struct ucred *cred" "int waitfor" "struct thread *td"
 .Sh DESCRIPTION
-This call flushes any dirty filesystem buffers for the file.
+This call flushes any dirty file system buffers for the file.
 It is used to implement the
 .Xr sync 2
 and
@@ -62,7 +62,7 @@ synchronously wait for I/O to complete
 .It Dv MNT_NOWAIT
 start all I/O, but do not wait for it
 .It Dv MNT_LAZY
-push data not written by filesystem syncer
+push data not written by file system syncer
 .El
 .It Ar td
 the calling thread
@@ -139,7 +139,7 @@ loop:
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOSPC
-The filesystem is full.
+The file system is full.
 .It Bq Er EDQUOT
 Quota exceeded.
 .El

@@ -681,7 +681,7 @@ other clients and servers.
 .Ss Key Management
 All key files are installed by default in
 .Pa /usr/local/etc ,
-which is normally in a shared filesystem
+which is normally in a shared file system
 in NFS-mounted networks and avoids installing them in each machine
 separately.
 The default can be overridden by the
@@ -693,7 +693,7 @@ A
 suitable place to install it is in
 .Pa /etc ,
 which is normally
-not in a shared filesystem.
+not in a shared file system.
 .Pp
 The recommended practice is to keep the timestamp extensions
 when installing a file and to install a link from the default name
@@ -1064,7 +1064,7 @@ statement.
 No
 .Ql \&..
 elements are allowed in this component to prevent
-filenames referring to parts outside the filesystem hierarchy
+filenames referring to parts outside the file system hierarchy
 denoted by prefix.
 .It suffix
 This part is reflects individual elements of a file set.
@@ -1735,7 +1735,7 @@ this file to replace the old version.
 This implies that
 .Xr ntpd 8
 must have write permission for the directory the
-drift file is located in, and that filesystem links, symbolic or
+drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided.
 .It Xo Ic enable
 .Oo

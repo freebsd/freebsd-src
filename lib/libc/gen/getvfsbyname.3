@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm getvfsbyname
-.Nd get information about a filesystem
+.Nd get information about a file system
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,9 +49,9 @@
 The
 .Fn getvfsbyname
 function provides access to information about a
-filesystem module that is configured in the kernel.
+file system module that is configured in the kernel.
 If successful,
-the requested filesystem
+the requested file system
 .Fa xvfsconf
 is returned in the location pointed to by
 .Fa vfc .
@@ -61,11 +61,11 @@ are defined as follows:
 .Pp
 .Bl -tag -compact -width vfc_refcount
 .It vfc_name
-the name of the filesystem
+the name of the file system
 .It vfc_typenum
-the filesystem type number assigned by the kernel
+the file system type number assigned by the kernel
 .It vfc_refcount
-the number of active mount points using the filesystem
+the number of active mount points using the file system
 .It vfc_flags
 flag bits, as described below
 .El
@@ -98,7 +98,7 @@ pointer contains an invalid address.
 .It Bq Er ENOENT
 The
 .Fa name
-specifies a filesystem that is unknown or not configured in the kernel.
+specifies a file system that is unknown or not configured in the kernel.
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,

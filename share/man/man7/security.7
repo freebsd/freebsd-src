@@ -122,7 +122,7 @@ Securing user accounts
 .It
 Securing the password file
 .It
-Securing the kernel core, raw devices, and filesystems
+Securing the kernel core, raw devices, and file systems
 .It
 Quick detection of inappropriate changes made to the system
 .It
@@ -319,7 +319,7 @@ the password file
 (see
 .Sq Checking file integrity
 below).
-.Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
+.Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILE SYSTEMS
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
 packet sniffing device driver built in.  Under
@@ -384,7 +384,7 @@ limited-access box significant access to the other machines in the business,
 usually either by doing a read-only NFS export of the other machines to the
 limited-access box, or by setting up ssh keypairs to allow the limit-access
 box to ssh to the other machines.  Except for its network traffic, NFS is
-the least visible method - allowing you to monitor the filesystems on each
+the least visible method - allowing you to monitor the file systems on each
 client box virtually undetected.  If your
 limited-access server is connected to the client boxes through a switch,
 the NFS method is often the better choice.  If your limited-access server

@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm repquota
-.Nd summarize quotas for a filesystem
+.Nd summarize quotas for a file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl g
@@ -56,12 +56,12 @@
 The
 .Nm
 utility prints a summary of the disk usage and quotas for the
-specified filesystems.
+specified file systems.
 .Pp
 Available options:
 .Bl -tag -width indent
 .It Fl a
-Print the quotas of all the filesystems listed in
+Print the quotas of all the file systems listed in
 .Pa /etc/fstab .
 .It Fl g
 Print only group quotas (the default is to print both
@@ -70,7 +70,7 @@ group and user quotas if they exist).
 Print only user quotas (the default is to print both
 group and user quotas if they exist).
 .It Fl v
-Print a header line before printing each filesystem quotas.
+Print a header line before printing each file system quotas.
 .El
 .Pp
 For each user or group, the current
@@ -83,11 +83,11 @@ use this command.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
-at the filesystem root with user quotas
+at the file system root with user quotas
 .It Pa quota.group
-at the filesystem root with group quotas
+at the file system root with group quotas
 .It Pa /etc/fstab
-for filesystem names and locations
+for file system names and locations
 .El
 .Sh SEE ALSO
 .Xr quota 1 ,

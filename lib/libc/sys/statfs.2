@@ -51,7 +51,7 @@
 .Fn Statfs
 returns information about a mounted file system.
 .Fa Path
-is the path name of any file within the mounted filesystem.
+is the path name of any file within the mounted file system.
 .Fa Buf
 is a pointer to a
 .Fn statfs
@@ -75,8 +75,8 @@ long	f_bavail;	  /* free blocks avail to non-superuser */
 long	f_files;	  /* total file nodes in file system */
 long	f_ffree;	  /* free file nodes in fs */
 fsid_t	f_fsid;		  /* file system id */
-uid_t	f_owner;	  /* user that mounted the filesystem */
-int	f_type;		  /* type of filesystem */
+uid_t	f_owner;	  /* user that mounted the file system */
+int	f_type;		  /* type of file system */
 int	f_flags;	  /* copy of mount flags */
 long    f_syncwrites;	  /* count of sync writes since mount */
 long    f_asyncwrites;	  /* count of async writes since mount */
@@ -84,40 +84,40 @@ char	f_fstypename[MFSNAMELEN];/* fs type name */
 char	f_mntonname[MNAMELEN];	 /* mount point */
 long    f_syncreads;		 /* count of sync reads since mount */
 long    f_asyncreads;		 /* count of async reads since mount */
-char	f_mntfromname[MNAMELEN]; /* mounted filesystem */
+char	f_mntfromname[MNAMELEN]; /* mounted file system */
 };
 .Ed
 The flags that may be returned include:
 .Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
-The filesystem is mounted read-only;
+The file system is mounted read-only;
 Even the super-user may not write on it.
 .It Dv MNT_NOEXEC
-Files may not be executed from the filesystem.
+Files may not be executed from the file system.
 .It Dv MNT_NOSUID
 Setuid and setgid bits on files are not honored when they are executed.
 .It Dv MNT_NODEV
-Special files in the filesystem may not be opened.
+Special files in the file system may not be opened.
 .It Dv MNT_SYNCHRONOUS
-All I/O to the filesystem is done synchronously.
+All I/O to the file system is done synchronously.
 .It Dv MNT_ASYNC
-No filesystem I/O is done synchronously.
+No file system I/O is done synchronously.
 .It Dv MNT_LOCAL
-The filesystem resides locally.
+The file system resides locally.
 .It Dv MNT_QUOTA
-The filesystem has quotas enabled on it.
+The file system has quotas enabled on it.
 .It Dv MNT_ROOTFS
-Identifies the root filesystem.
+Identifies the root file system.
 .It Dv MNT_EXRDONLY
-The filesystem is exported read-only.
+The file system is exported read-only.
 .It Dv MNT_EXPORTED
-The filesystem is exported for both reading and writing.
+The file system is exported for both reading and writing.
 .It Dv MNT_DEFEXPORTED
-The filesystem is exported for both reading and writing to any Internet host.
+The file system is exported for both reading and writing to any Internet host.
 .It Dv MNT_EXPORTANON
-The filesystem maps all remote accesses to the anonymous user.
+The file system maps all remote accesses to the anonymous user.
 .It Dv MNT_EXKERB
-The filesystem is exported with Kerberos uid mapping.
+The file system is exported with Kerberos uid mapping.
 .El
 .Pp
 Fields that are undefined for a particular file system are set to -1.

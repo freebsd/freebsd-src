@@ -345,11 +345,11 @@ and none of the
 bits match those of
 .Ar notflags .
 .It Ic -fstype Ar type
-True if the file is contained in a filesystem of type
+True if the file is contained in a file system of type
 .Ar type .
 The
 .Xr sysctl 8
-command can be used to find out the types of filesystems
+command can be used to find out the types of file systems
 that are available on the system:
 .Pp
 .Dl "sysctl vfs"
@@ -358,10 +358,10 @@ In addition, there are two pseudo-types,
 .Dq Li local
 and
 .Dq Li rdonly .
-The former matches any filesystem physically mounted on the system where
+The former matches any file system physically mounted on the system where
 the
 .Nm
-is being executed and the latter matches any filesystem which is
+is being executed and the latter matches any file system which is
 mounted read-only.
 .It Ic -group Ar gname
 True if the file belongs to the group
@@ -836,7 +836,7 @@ construct.
 .Pp
 The
 .Ic -delete
-primary does not interact well with other options that cause the filesystem
+primary does not interact well with other options that cause the file system
 tree traversal options to be changed.
 .Sh HISTORY
 A

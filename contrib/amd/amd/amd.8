@@ -82,8 +82,8 @@
 .Ar ...
 .Sh DESCRIPTION
 .Nm Amd
-is a daemon that automatically mounts filesystems whenever a file or directory
-within that filesystem is accessed.  Filesystems are automatically unmounted
+is a daemon that automatically mounts file systems whenever a file or directory
+within that file system is accessed.  File systems are automatically unmounted
 when they appear to be quiescent.
 .Pp
 .Nm Amd
@@ -97,7 +97,7 @@ are handled by
 which uses the map defined by
 .Ar mapname
 to determine how to resolve the lookup.  Generally, this will be a host name,
-some filesystem information and some mount options for the given filesystem.
+some file system information and some mount options for the given file system.
 .Pp
 In the first form depicted above,
 .Nm amd
@@ -171,7 +171,7 @@ to standard output where it can be saved into a file.
 .It Fl r
 Restart existing mounts.
 .Nm Amd
-will scan the mount file table to determine which filesystems
+will scan the mount file table to determine which file systems
 are currently mounted.  Whenever one of these would have
 been auto-mounted,
 .Nm amd
@@ -197,7 +197,7 @@ Version.  Displays version and configuration information on standard error.
 .It Fl w Ar interval
 Specify an
 .Ar interval ,
-in seconds, between attempts to dismount filesystems that have exceeded their
+in seconds, between attempts to dismount file systems that have exceeded their
 cached times.  The default is 2 minutes.
 .It Fl x Ar options
 Specify run-time logging options.  The options are a comma separated list
@@ -286,7 +286,7 @@ will not be processed.
 .Sh FILES
 .Bl -tag -width /axx
 .It Pa /.amd_mnt
-directory under which filesystems are dynamically mounted
+directory under which file systems are dynamically mounted
 .It Pa /etc/amd.conf
 default configuration file
 .El
@@ -295,7 +295,7 @@ Some care may be required when creating a mount map.
 .Pp
 Symbolic links on an
 .Tn NFS
-filesystem can be incredibly inefficient.
+file system can be incredibly inefficient.
 In most implementations of
 .Tn NFS ,
 their interpolations are not cached by

@@ -155,7 +155,7 @@ bad:
     vput(vp);
 
     /*
-     * Deallocate filesystem resources for vp.
+     * Deallocate file system resources for vp.
      */
     ...;
 
@@ -167,9 +167,9 @@ bad:
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOSPC
-The filesystem is full.
+The file system is full.
 .It Bq Er EDQUOT
-The user's filesystem space or inode quota would be exceeded.
+The user's file system space or inode quota would be exceeded.
 .El
 .Sh SEE ALSO
 .Xr VOP_LOOKUP 9

@@ -67,7 +67,7 @@ partitioning scheme,
 .Xr disklabel 5 ,
 which is used to subdivide the
 .Fx
-slices into areas for individual filesystems and swap spaces.
+slices into areas for individual file systems and swap spaces.
 For more information, see
 .Xr fdisk 8
 and
@@ -105,7 +105,7 @@ and allows the device to reorganize writes to increase efficiency and
 performance.  This performance gain comes at a price.  Should the device
 lose power while its cache contains uncommitted write operations, these
 writes will be lost.  The effect of a loss of write transactions on
-a filesystem is non-deterministic and can cause corruption.  Most
+a file system is non-deterministic and can cause corruption.  Most
 devices age write transactions to limit vulnerability to a few transactions
 recently reported as complete, but it is none-the-less recommended that
 systems with write cache enabled devices reside on an Uninterruptible

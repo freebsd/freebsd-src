@@ -151,7 +151,7 @@ for an exclusive lock.
 If creating a file with
 .Dv O_CREAT ,
 the request for the lock will never fail
-(provided that the underlying filesystem supports locking).
+(provided that the underlying file system supports locking).
 .Pp
 .Dv O_DIRECT
 may be used to minimize or eliminate the cache effects of reading and writing.
@@ -243,7 +243,7 @@ operation was interrupted by a signal.
 .Dv O_SHLOCK
 or
 .Dv O_EXLOCK
-is specified but the underlying filesystem does not support locking.
+is specified but the underlying file system does not support locking.
 .It Bq Er EWOULDBLOCK
 .Dv O_NONBLOCK
 and one of

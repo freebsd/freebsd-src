@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm fstab
-.Nd static information about the filesystems
+.Nd static information about the file systems
 .Sh SYNOPSIS
 .In fstab.h
 .Sh DESCRIPTION
@@ -49,7 +49,7 @@ systems.
 is only read by programs, and not written;
 it is the duty of the system administrator to properly create
 and maintain this file.
-Each filesystem is described on a separate line;
+Each file system is described on a separate line;
 fields on each line are separated by tabs or spaces.
 The order of records in
 .Nm
@@ -65,8 +65,8 @@ doing their thing.
 The first field,
 .Pq Fa fs_spec ,
 describes the block special device or
-remote filesystem to be mounted.
-For filesystems of type
+remote file system to be mounted.
+For file systems of type
 .Em ufs ,
 the special file name is the block special file name,
 and not the character special file name.
@@ -76,46 +76,46 @@ last ``/'' in the special file name.
 .Pp
 The second field,
 .Pq Fa fs_file ,
-describes the mount point for the filesystem.
+describes the mount point for the file system.
 For swap partitions, this field should be specified as ``none''.
 .Pp
 The third field,
 .Pq Fa fs_vfstype ,
-describes the type of the filesystem.
-The system can support various filesystem types.
-Only the root, /usr, and /tmp filesystems need be statically
+describes the type of the file system.
+The system can support various file system types.
+Only the root, /usr, and /tmp file systems need be statically
 compiled into the kernel;
 everything else will be automatically loaded at mount
 time.  (Exception: the UFS family - FFS and LFS cannot
 currently be demand-loaded.)  Some people still prefer to statically
-compile other filesystems as well.
+compile other file systems as well.
 .Pp
 The fourth field,
 .Pq Fa fs_mntops ,
-describes the mount options associated with the filesystem.
+describes the mount options associated with the file system.
 It is formatted as a comma separated list of options.
 It contains at least the type of mount (see
 .Fa fs_type
 below) plus any additional options
-appropriate to the filesystem type.  See the options flag
+appropriate to the file system type.  See the options flag
 .Pq Fl o
 in the
 .Xr mount 8
-page and the filesystem specific page, such as
+page and the file system specific page, such as
 .Xr mount_nfs 8 ,
 for additional options that may be specified.
 .Pp
 If the options ``userquota'' and/or ``groupquota'' are specified,
-the filesystem is automatically processed by the
+the file system is automatically processed by the
 .Xr quotacheck 8
 command, and user and/or group disk quotas are enabled with
 .Xr quotaon 8 .
 By default,
-filesystem quotas are maintained in files named
+file system quotas are maintained in files named
 .Pa quota.user
 and
 .Pa quota.group
-which are located at the root of the associated filesystem.
+which are located at the root of the associated file system.
 These defaults may be overridden by putting an equal sign
 and an alternative absolute pathname following the quota option.
 Thus, if the user quota file for
@@ -127,9 +127,9 @@ this location can be specified as:
 userquota=/var/quotas/tmp.user
 .Ed
 .Pp
-If the option ``noauto'' is specified, the filesystem will not be automatically
+If the option ``noauto'' is specified, the file system will not be automatically
 mounted at system startup.
-Note that, for network filesystems
+Note that, for network file systems
 of third party types
 (i.e. types supported by additional software
 not included in the base system)
@@ -139,7 +139,7 @@ the
 .Xr rc.conf 5
 variable must be used to extend the
 .Xr rc 8
-startup script's list of network filesystem types.
+startup script's list of network file system types.
 .Pp
 The type of the mount is extracted from the
 .Fa fs_mntops
@@ -150,7 +150,7 @@ field (it is not deleted from the
 field).
 If
 .Fa fs_type
-is ``rw'' or ``ro'' then the filesystem whose name is given in the
+is ``rw'' or ``ro'' then the file system whose name is given in the
 .Fa fs_file
 field is normally mounted read-write or read-only on the
 specified special file.
@@ -172,31 +172,31 @@ This is useful to show disk partitions which are currently unused.
 .Pp
 The fifth field,
 .Pq Fa fs_freq ,
-is used for these filesystems by the
+is used for these file systems by the
 .Xr dump 8
-command to determine which filesystems need to be dumped.
+command to determine which file systems need to be dumped.
 If the fifth field is not present, a value of zero is returned and
 .Nm dump
-will assume that the filesystem does not need to be dumped.
+will assume that the file system does not need to be dumped.
 .Pp
 The sixth field,
 .Pq Fa fs_passno ,
 is used by the
 .Xr fsck 8
-program to determine the order in which filesystem checks are done
+program to determine the order in which file system checks are done
 at reboot time.
-The root filesystem should be specified with a
+The root file system should be specified with a
 .Fa fs_passno
-of 1, and other filesystems should have a
+of 1, and other file systems should have a
 .Fa fs_passno
 of 2.
-Filesystems within a drive will be checked sequentially,
-but filesystems on different drives will be checked at the
+File systems within a drive will be checked sequentially,
+but file systems on different drives will be checked at the
 same time to utilize parallelism available in the hardware.
 If the sixth field is not present or is zero,
 a value of zero is returned and
 .Xr fsck 8
-will assume that the filesystem does not need to be checked.
+will assume that the file system does not need to be checked.
 .Bd -literal
 #define	FSTAB_RW	"rw"	/* read/write device */
 #define	FSTAB_RQ	"rq"	/* read/write with quotas */
@@ -206,7 +206,7 @@ will assume that the filesystem does not need to be checked.
 
 struct fstab {
 	char	*fs_spec;	/* block special device name */
-	char	*fs_file;	/* filesystem path prefix */
+	char	*fs_file;	/* file system path prefix */
 	char	*fs_vfstype;	/* File system type, ufs, nfs */
 	char	*fs_mntops;	/* Mount options ala -o */
 	char	*fs_type;	/* FSTAB_* from fs_mntops */

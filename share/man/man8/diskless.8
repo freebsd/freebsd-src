@@ -38,7 +38,7 @@ The ability to boot a machine over the network is useful for
 or
 .Em dataless
 machines, or as a temporary measure while repairing or
-re-installing filesystems on a local disk.
+re-installing file systems on a local disk.
 This file provides a general description of the interactions between
 a client and its server when a client is booting over the network.
 .Sh OPERATION
@@ -80,7 +80,7 @@ loaded using TFTP or NFS.
 .Pp
 In phase 3, the kernel uses again DHCP or BOOTP to acquire
 configuration information, and proceeds to mount the
-root filesystem and start operation.
+root file system and start operation.
 Some specific actions performed during the startup
 of a diskless system are listed in
 .Pa /etc/rc.diskless1
@@ -155,7 +155,7 @@ The files and subdirectories within
 .Pa /conf/default/etc
 are used to bootstrap the diskless environment's
 .Pa /etc
-memory filesystem.
+memory file system.
 Be sure and copy the entirety of
 .Pa /etc ,
 and not just overrides.
@@ -208,7 +208,7 @@ local startup files will not be used.
 .Pp
 While an
 .Xr md 4 Ns -backed
-filesystem is mounted on
+file system is mounted on
 .Pa /var
 by the startup scripts,
 some sites may want to disable the saving of entropy by setting
@@ -248,7 +248,7 @@ This manpage is probably incomplete.
 sometimes requires to write onto
 the root partition, so the startup scripts create and mount
 .Xr md 4 Ns -backed
-filesystems on some locations (e.g.\&
+file systems on some locations (e.g.\&
 .Pa /etc
 and
 .Pa /var ) ,

@@ -394,7 +394,7 @@ was exhausted.
 .It Er 70 ESTALE Em "Stale NFS file handle" .
 An attempt was made to access an open file (on an
 .Tn NFS
-filesystem)
+file system)
 which is now unavailable as referenced by the file descriptor.
 This may indicate the file was deleted on the
 .Tn NFS
@@ -432,11 +432,11 @@ the wrong format.
 .It Er 80 EAUTH Em "Authentication error" .
 Attempted to use an invalid authentication ticket to mount a
 .Tn NFS
-filesystem.
+file system.
 .It Er 81 ENEEDAUTH Em "Need authenticator" .
 An authentication ticket must be obtained before the given
 .Tn NFS
-filesystem may be mounted.
+file system may be mounted.
 .It Er 82 EIDRM Em "Identifier removed" .
 An IPC identifier was removed while the current process was waiting on it.
 .It Er 83 ENOMSG Em "No message of desired type" .

@@ -33,7 +33,7 @@
 .Dt VFS_STATFS 9
 .Sh NAME
 .Nm VFS_STATFS
-.Nd return filesystem status
+.Nd return file system status
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -41,17 +41,17 @@
 .Ft int
 .Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct thread *td"
 .Sh DESCRIPTION
-This call returns various pieces of information about the filesystem,
+This call returns various pieces of information about the file system,
 including recommended I/O sizes, free space, free inodes, etc.
 .Pp
 Its arguments are:
 .Bl -tag -width sbp
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar sbp
-Return parameter for the filesystem's status.
+Return parameter for the file system's status.
 .It Ar td
-The thread which is querying the filesystem.
+The thread which is querying the file system.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,

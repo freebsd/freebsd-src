@@ -42,28 +42,28 @@
 .Ft int
 .Fn vfs_modevent "module_t mod" "int type" "void *data"
 .Sh DESCRIPTION
-Each filesystem type known to the kernel has a
+Each file system type known to the kernel has a
 .Vt vfsconf
 structure that contains the
-information required to create a new mount of that filesystems type.
+information required to create a new mount of that file systems type.
 .Bd -literal
 struct vfsconf {
-	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
-	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
-	int	vfc_typenum;		/* historic filesystem type number */
+	struct	vfsops *vfc_vfsops;	/* file system operations vector */
+	char	vfc_name[MFSNAMELEN];	/* file system type name */
+	int	vfc_typenum;		/* historic file system type number */
 	int	vfc_refcount;		/* number mounted of this type */
 	int	vfc_flags;		/* permanent flags */
 	struct	vfsconf *vfc_next;	/* next in list */
 };
 .Ed
 .Pp
-When a new filesystem is mounted,
+When a new file system is mounted,
 .Xr vfs_mount 9
 does a lookup of the
 .Vt vfsconf
 structure by its name, and if it is not already registered,
 attempts to load a kernel module for it.
-The filesystem operations for the new mount point are taken from
+The file system operations for the new mount point are taken from
 .Va vfc_vfsops ,
 and
 .Va mnt_vfc
@@ -72,40 +72,40 @@ in the
 structure is made to point directly at the
 .Vt vfsconf
 structure for the
-filesystem type.
-The filesystem type number is taken from
+file system type.
+The file system type number is taken from
 .Va vfc_typenum
 which was assigned in
 .Fn vfs_register ,
 and the mount flags are taken from a mask of
 .Va vfc_flags .
-Each time a filesystem of a given type is mounted,
+Each time a file system of a given type is mounted,
 .Va vfc_refcount
 is incremented.
 .Pp
 .Fn vfs_register
 takes a new
 .Vt vfsconf
-structure and adds it to the list of existing filesystems.
+structure and adds it to the list of existing file systems.
 If the type has not already been registered, it is initialized by calling the
 .Fn vfs_init
-function in the filesystem operations vector.
+function in the file system operations vector.
 .Fn vfs_register
-also updates the oid's of any sysctl nodes for this filesystem type
+also updates the oid's of any sysctl nodes for this file system type
 to be the same as the newly assigned type number.
 .Pp
 .Fn vfs_unregister
 unlinks
 .Fa vfc
-from the list of registered filesystem types if there are currently no mounted instances.
+from the list of registered file system types if there are currently no mounted instances.
 If the
 .Fn vfs_uninit
-function in the filesystems initialization vector is defined, it is called.
+function in the file systems initialization vector is defined, it is called.
 .Pp
 .Fn vfs_modevent
 is registered by
 .Fn VFS_SET
-to handle the loading and unloading of filesystem kernel modules.
+to handle the loading and unloading of file system kernel modules.
 In the case of
 .Dv MOD_LOAD ,
 .Fn vfs_register
@@ -118,7 +118,7 @@ is called.
 .Fn vfs_register
 returns 0 if successful; otherwise,
 .Er EEXIST
-is returned indicating that the filesystem type has already been registered.
+is returned indicating that the file system type has already been registered.
 .Pp
 .Fn vfs_unregister
 returns 0 if successful.
@@ -128,7 +128,7 @@ entry can be found matching the name in
 .Fa vfc ,
 .Er EINVAL
 is returned.
-If the reference count of mounted instances of the filesystem type is not zero,
+If the reference count of mounted instances of the file system type is not zero,
 .Er EBUSY
 is returned.
 If

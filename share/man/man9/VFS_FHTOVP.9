@@ -46,19 +46,19 @@ This is used by the NFS server to turn an NFS filehandle into a vnode.
 Its arguments are:
 .Bl -tag -width vpp
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar fhp
 The filehandle to convert.
 .It Ar vpp
 Return parameter for the new locked vnode.
 .El
 .Pp
-The contents of the filehandle are defined by the filesystem and are
+The contents of the filehandle are defined by the file system and are
 not examined by any other part of the system.  It should contain
-enough information to uniquely identify a file within the filesystem
-as well as noticing when a file has been removed and the filesystem
+enough information to uniquely identify a file within the file system
+as well as noticing when a file has been removed and the file system
 resources have been reused for a new file.  For instance, UFS
-filesystem stores the inode number and inode generation counter in its
+file system stores the inode number and inode generation counter in its
 filehandle.
 .Pp
 A call to this function should generally be preceded by a call to

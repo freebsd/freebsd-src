@@ -60,9 +60,9 @@ the credentials of the caller
 .Pp
 The
 .Fa ioflag
-argument is used to give directives and hints to the filesystem.
+argument is used to give directives and hints to the file system.
 When attempting a read, the high 16 bits are used to provide a
-read-ahead hint (in units of filesystem blocks) that the filesystem
+read-ahead hint (in units of file system blocks) that the file system
 should attempt.  The low 16 bits are a bit mask which can contain
 the following flags:
 .Bl -tag -width IO_NODELOCKED
@@ -95,7 +95,7 @@ vop_read(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
     long size, xfersize, blkoffset;
     int error;
 
-    size = block size of filesystem;
+    size = block size of file system;
 
     for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 	bytesinfile = size of file - uio->uio_offset;
@@ -156,7 +156,7 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
     int error;
 
     osize = size of file;
-    size = block size of filesystem;
+    size = block size of file system;
     resid = uio->uio_resid;
     if (ioflag & IO_SYNC)
 	flags = B_SYNC;
@@ -224,7 +224,7 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 An attempt was made to write a file that exceeds the process's file size
 limit or the maximum file size.
 .It Bq Er ENOSPC
-The filesystem is full.
+The file system is full.
 .It Bq Er EPERM
 An append-only flag is set on the file, but the caller is attempting to
 write before the current end of file.

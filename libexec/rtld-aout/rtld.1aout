@@ -87,7 +87,7 @@ routine is called. Thus,
 can complete the link-editing process before the dynamic program calls upon
 services of any dynamic library.
 .Pp
-To quickly locate the required shared objects in the filesystem,
+To quickly locate the required shared objects in the file system,
 .Nm
 may use a
 .Dq hints
@@ -204,7 +204,7 @@ are recognized and have their usual meaning.
 .\" .It Ev LD_NOSTD_PATH
 .\" When set, do not include a set of built-in standard directory paths for
 .\" searching. This might be useful when running on a system with a completely
-.\" non-standard filesystem layout.
+.\" non-standard file system layout.
 .El
 .Pp
 .Sh FILES

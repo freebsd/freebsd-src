@@ -94,7 +94,7 @@ vop_getattr(struct vnode *vp, struct vattr *vap,
 {
     /*
      * Fill in the contents of *vap with information from
-     * the filesystem.
+     * the file system.
      */
     ...;
 
@@ -155,7 +155,7 @@ The file is immutable.
 .It Bq Er EACCES
 The caller does not have permission to modify the file or directory attributes.
 .It Bq Er EROFS
-The filesystem is read-only.
+The file system is read-only.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,
