@@ -34,15 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.3 (Berkeley) 8/19/94
- * $Id: quota.h,v 1.11 1997/07/13 15:43:54 bde Exp $
+ * $Id: quota.h,v 1.12 1999/03/05 09:28:33 bde Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_H_
 #define	_UFS_UFS_QUOTA_H_
-
-#ifndef KERNEL
-#include <sys/queue.h>
-#endif
 
 /*
  * Definitions for disk quotas imposed on the average user
@@ -112,6 +108,10 @@ struct dqblk {
 	time_t	  dqb_itime;		/* time limit for excessive files */
 };
 
+#ifdef KERNEL
+
+#include <sys/queue.h>
+
 /*
  * The following structure records disk usage for a user or group on a
  * filesystem. There is one allocated for each quota that exists on any
@@ -172,10 +172,10 @@ struct dquot {
 #define	DQREF(dq)	(dq)->dq_cnt++
 #endif
 
-#ifdef	KERNEL
-
 struct inode;
 struct mount;
+struct proc;
+struct ucred;
 struct vnode;
 
 int	chkdq __P((struct inode *, long, struct ucred *, int));
