@@ -176,8 +176,8 @@ grptb_start(void)
 char *
 name_uid(uid_t uid, int frc)
 {
-	register struct passwd *pw;
-	register UIDC *ptr;
+	struct passwd *pw;
+	UIDC *ptr;
 
 	if ((uidtb == NULL) && (uidtb_start() < 0))
 		return("");
@@ -247,8 +247,8 @@ name_uid(uid_t uid, int frc)
 char *
 name_gid(gid_t gid, int frc)
 {
-	register struct group *gr;
-	register GIDC *ptr;
+	struct group *gr;
+	GIDC *ptr;
 
 	if ((gidtb == NULL) && (gidtb_start() < 0))
 		return("");
@@ -317,9 +317,9 @@ name_gid(gid_t gid, int frc)
 int
 uid_name(char *name, uid_t *uid)
 {
-	register struct passwd *pw;
-	register UIDC *ptr;
-	register int namelen;
+	struct passwd *pw;
+	UIDC *ptr;
+	int namelen;
 
 	/*
 	 * return -1 for mangled names
@@ -381,9 +381,9 @@ uid_name(char *name, uid_t *uid)
 int
 gid_name(char *name, gid_t *gid)
 {
-	register struct group *gr;
-	register GIDC *ptr;
-	register int namelen;
+	struct group *gr;
+	GIDC *ptr;
+	int namelen;
 
 	/*
 	 * return -1 for mangled names

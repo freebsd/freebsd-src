@@ -54,9 +54,9 @@ static const char rcsid[] =
 #include "cpio.h"
 #include "extern.h"
 
-static int rd_nm(register ARCHD *, int);
-static int rd_ln_nm(register ARCHD *);
-static int com_rd(register ARCHD *);
+static int rd_nm(ARCHD *, int);
+static int rd_ln_nm(ARCHD *);
+static int com_rd(ARCHD *);
 
 /*
  * Routines which support the different cpio versions
@@ -92,7 +92,7 @@ cpio_strd(void)
  */
 
 int
-cpio_trail(register ARCHD *arcn)
+cpio_trail(ARCHD *arcn)
 {
 	/*
 	 * look for trailer id in file we are about to process
@@ -110,7 +110,7 @@ cpio_trail(register ARCHD *arcn)
  */
 
 static int
-com_rd(register ARCHD *arcn)
+com_rd(ARCHD *arcn)
 {
 	arcn->skip = 0;
 	arcn->pat = NULL;
@@ -182,7 +182,7 @@ cpio_endwr(void)
  */
 
 static int
-rd_nm(register ARCHD *arcn, int nsz)
+rd_nm(ARCHD *arcn, int nsz)
 {
 	/*
 	 * do not even try bogus values
@@ -212,7 +212,7 @@ rd_nm(register ARCHD *arcn, int nsz)
  */
 
 static int
-rd_ln_nm(register ARCHD *arcn)
+rd_ln_nm(ARCHD *arcn)
 {
 	/*
 	 * check the length specified for bogus values
@@ -280,10 +280,10 @@ cpio_id(char *blk, int size)
  */
 
 int
-cpio_rd(register ARCHD *arcn, register char *buf)
+cpio_rd(ARCHD *arcn, char *buf)
 {
-	register int nsz;
-	register HD_CPIO *hd;
+	int nsz;
+	HD_CPIO *hd;
 
 	/*
 	 * check that this is a valid header, if not return -1
@@ -389,10 +389,10 @@ cpio_stwr(void)
  */
 
 int
-cpio_wr(register ARCHD *arcn)
+cpio_wr(ARCHD *arcn)
 {
-	register HD_CPIO *hd;
-	register int nsz;
+	HD_CPIO *hd;
+	int nsz;
 	char hdblk[sizeof(HD_CPIO)];
 
 	/*
@@ -567,12 +567,12 @@ crc_strd(void)
  */
 
 int
-vcpio_rd(register ARCHD *arcn, register char *buf)
+vcpio_rd(ARCHD *arcn, char *buf)
 {
-	register HD_VCPIO *hd;
+	HD_VCPIO *hd;
 	dev_t devminor;
 	dev_t devmajor;
-	register int nsz;
+	int nsz;
 
 	/*
 	 * during the id phase it was determined if we were using CRC, use the
@@ -700,9 +700,9 @@ crc_stwr(void)
  */
 
 int
-vcpio_wr(register ARCHD *arcn)
+vcpio_wr(ARCHD *arcn)
 {
-	register HD_VCPIO *hd;
+	HD_VCPIO *hd;
 	unsigned int nsz;
 	char hdblk[sizeof(HD_VCPIO)];
 
@@ -885,10 +885,10 @@ bcpio_id(char *blk, int size)
  */
 
 int
-bcpio_rd(register ARCHD *arcn, register char *buf)
+bcpio_rd(ARCHD *arcn, char *buf)
 {
-	register HD_BCPIO *hd;
-	register int nsz;
+	HD_BCPIO *hd;
+	int nsz;
 
 	/*
 	 * check the header
@@ -1000,10 +1000,10 @@ bcpio_endrd(void)
  */
 
 int
-bcpio_wr(register ARCHD *arcn)
+bcpio_wr(ARCHD *arcn)
 {
-	register HD_BCPIO *hd;
-	register int nsz;
+	HD_BCPIO *hd;
+	int nsz;
 	char hdblk[sizeof(HD_BCPIO)];
 	off_t t_offt;
 	int t_int;
