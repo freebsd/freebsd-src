@@ -104,6 +104,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:dyson@FreeBSD.ORG'
   name='&lt;dyson@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.eivind  "Eivind Eklund
+  <tt><htmlurl url='mailto:perhaps@yes.no'
+  name='&lt;perhaps@yes.no&gt;'></tt>">
+
 <!ENTITY a.erich  "Eric L. Hernes
   <tt><htmlurl url='mailto:erich@FreeBSD.ORG'
   name='&lt;erich@FreeBSD.ORG&gt;'></tt>">
