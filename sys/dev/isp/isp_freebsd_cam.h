@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd_cam.h,v 1.15 1999/03/17 05:04:39 mjacob Exp $ */
-/* release_03_25_99 */
+/* $Id: isp_freebsd_cam.h,v 1.16 1999/03/25 22:52:45 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -69,6 +69,9 @@
 #ifndef	SCSI_BUSY
 #define	SCSI_BUSY	SCSI_STATUS_BUSY
 #endif
+#ifndef	SCSI_QFULL
+#define	SCSI_QFULL	SCSI_STATUS_QUEUE_FULL
+#endif
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
 struct isposinfo {
@@ -76,6 +79,8 @@ struct isposinfo {
 	int			unit;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct cam_sim		*sim2;
+	struct cam_path		*path2;
 	volatile char		simqfrozen;
 };
 #define	SIMQFRZ_RESOURCE	0x1
@@ -83,6 +88,8 @@ struct isposinfo {
 
 #define	isp_sim		isp_osinfo.sim
 #define	isp_path	isp_osinfo.path
+#define	isp_sim2	isp_osinfo.sim2
+#define	isp_path2	isp_osinfo.path2
 #define	isp_unit	isp_osinfo.unit
 #define	isp_name	isp_osinfo.name
 
@@ -110,6 +117,7 @@ struct isposinfo {
 
 #define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
+#define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_RESID(ccb)		(ccb)->resid
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
