@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 #define	KERNEL_PT_IOPXS		(KERNEL_PT_KERNEL + KERNEL_PT_KERNEL_NUM)
 
 #define	KERNEL_PT_VMDATA	(KERNEL_PT_IOPXS + 1)
-#define	KERNEL_PT_VMDATA_NUM	4
+#define	KERNEL_PT_VMDATA_NUM	10
 #define	NUM_KERNEL_PTS		(KERNEL_PT_VMDATA + KERNEL_PT_VMDATA_NUM)
 
 /* Define various stack sizes in pages */
@@ -262,8 +262,17 @@ initarm(void *arg, void *arg2)
 		freemempos -= PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		valloc_pages(kernel_pt_table[loop],
-		    L2_TABLE_SIZE / PAGE_SIZE);
+		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
+			valloc_pages(kernel_pt_table[loop],
+			    L2_TABLE_SIZE / PAGE_SIZE);
+		} else {
+			kernel_pt_table[loop].pv_pa = freemempos -
+			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
+			    L2_TABLE_SIZE_REAL;
+			kernel_pt_table[loop].pv_va = 
+			    kernel_pt_table[loop].pv_pa + 0x20000000;
+		}
+		i++;
 	}
 
 	/*
@@ -301,14 +310,14 @@ initarm(void *arg, void *arg2)
 
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00400000 - 1),
+	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	for (i = 0; i < KERNEL_PT_KERNEL_NUM; i++) {
-		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x00400000,
+		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x00100000,
 	    &kernel_pt_table[KERNEL_PT_KERNEL + i]);
 	}
 	for (loop = 0; loop < KERNEL_PT_VMDATA_NUM; ++loop)
-		pmap_link_l2pt(l1pagetable, KERNBASE + (i + loop) * 0x00400000,
+		pmap_link_l2pt(l1pagetable, KERNBASE + (i + loop) * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
