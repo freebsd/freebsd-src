@@ -384,8 +384,9 @@ buildkernel:
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx \
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} depend; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} all
+		${WMAKEENV} MACHINE=${MACHINE} KERNEL=${_kernel} \
+		    ${MAKE} depend; \
+		${WMAKEENV} MACHINE=${MACHINE} KERNEL=${_kernel} ${MAKE} all
 .endfor
 
 #
@@ -395,7 +396,8 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-		${IMAKEENV} MACHINE=${MACHINE} ${MAKE} install
+		${IMAKEENV} MACHINE=${MACHINE} KERNEL=${INSTALLKERNEL} \
+		    ${MAKE} install
 
 #
 # update
