@@ -719,6 +719,7 @@ rtc_restore(void)
 
 	/* Reenable RTC updates and interrupts. */
 	/* XXX locking is needed for RTC access? */
+	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 	writertc(RTC_STATUSB, rtc_statusb);
 }
