@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.7 1998/10/16 04:30:42 peter Exp $ 
+#       $Id: Makefile,v 1.1 1999/01/21 17:18:34 peter Exp $ 
 
 .PATH:  ${.CURDIR}/../../dev/vn
 KMOD=   vn
@@ -13,6 +13,5 @@ vn.h:
 
 opt_devfs.h:
 	touch opt_devfs.h
-	echo "#define DEVFS 1" > opt_devfs.h
 
 .include <bsd.kmod.mk>
