@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.138 1996/07/08 19:44:30 wollman Exp $
+#	$Id: files.i386,v 1.139 1996/08/27 19:45:54 pst Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -58,7 +58,7 @@ i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
-i386/i386/userconfig.c		standard
+i386/i386/userconfig.c		optional	userconfig
 i386/i386/vm_machdep.c		standard
 i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stat.c		optional 	ibcs2
