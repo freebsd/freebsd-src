@@ -49,7 +49,7 @@
  * 20 Apr 93	Bruce Evans		New npx-0.5 code
  * 25 Apr 93	Bruce Evans		New intr-0.1 code
  */
-static char rcsid[] = "$Header: /freefall/a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.5 1993/07/27 10:52:17 davidg Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.6 1993/08/09 06:16:41 rgrimes Exp $";
 
 
 #include <stddef.h>
@@ -81,6 +81,9 @@ extern vm_offset_t avail_end;
 #include "machine/specialreg.h"
 #include "i386/isa/rtc.h"
 
+#ifdef	SYSVSHM
+#include "sys/shm.h"
+#endif	/* SYSVSHM */
 
 #define	EXPECT_BASEMEM	640	/* The expected base memory*/
 #define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
