@@ -160,10 +160,9 @@ extern pmap_t	kernel_pmap;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-        pmap_t          pv_pmap;        /* pmap where mapping lies */
-        vm_offset_t     pv_va;          /* virtual address for mapping */
-        TAILQ_ENTRY(pv_entry)   pv_list;
-        vm_page_t       pv_ptem;        /* VM page for pte */
+	pmap_t          pv_pmap;        /* pmap where mapping lies */
+	vm_offset_t     pv_va;          /* virtual address for mapping */
+	TAILQ_ENTRY(pv_entry)   pv_list;
 	int		pv_flags;	/* flags (wired, etc...) */
 } *pv_entry_t;
 
