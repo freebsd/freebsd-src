@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: main.c,v 1.6 1994/05/25 06:28:14 jkh Exp $";
 #endif
 
 /*
@@ -159,6 +159,7 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-l <str>   Prefix each info catagory with <str>\n");
     fprintf(stderr, "-v         show all information\n");
     fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
+    fprintf(stderr, "-e pkg     returns 0 if pkg is installed, 1 otherwise\n");
     fprintf(stderr, "\n[no args = -c -d]\n");
     exit(1);
 }
