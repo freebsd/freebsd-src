@@ -104,8 +104,7 @@ ad_attach(struct ata_device *atadev)
 	       ((u_int32_t)atadev->param->lba_size_2 << 16);
 
     /* does this device need oldstyle CHS addressing */
-    if (!ad_version(atadev->param->version_major) || 
-	!(atadev->param->atavalid & ATA_FLAG_54_58) || !lbasize)
+    if (!ad_version(atadev->param->version_major) || !lbasize)
 	atadev->flags |= ATA_D_USE_CHS;
 
     /* use the 28bit LBA size if valid or bigger than the CHS mapping */
@@ -393,8 +392,8 @@ ad_print(struct ad_softc *adp)
 		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 		   ata_mode2str(adp->device->mode));
     }
-    else
-	ata_prtdev(adp->device,"%lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n",
+    else {
+	ata_prtdev(adp->device,"%lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s",
 		   (unsigned long long)(adp->total_secs /
 					((1024L * 1024L) / DEV_BSIZE)),
 		   adp->device->param->model,
@@ -403,8 +402,14 @@ ad_print(struct ad_softc *adp)
 		   adp->heads, adp->sectors,
 		   device_get_unit(adp->device->channel->dev),
 		   (adp->device->unit == ATA_MASTER) ? "master" : "slave",
-		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-		   ata_mode2str(adp->device->mode));
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "");
+	
+	if (adp->device->param->satacapabilities != 0x0000 &&
+            adp->device->param->satacapabilities != 0xffff)
+	    printf("SATA150\n");
+	else
+	    printf("%s\n", ata_mode2str(adp->device->mode));
+    }
 }
 
 static int

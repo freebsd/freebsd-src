@@ -188,7 +188,8 @@ ata_pci_attach(device_t dev)
 	device_add_child(dev, "ata", ATA_MASTERDEV(dev) ?
 			 unit : devclass_find_free_unit(ata_devclass, 2));
 
-    return bus_generic_attach(dev); }
+    return bus_generic_attach(dev);
+}
 
 static int
 ata_pci_detach(device_t dev)
@@ -247,55 +248,33 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (*rid) {
 	case ATA_IOADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
-		myrid = 0;
 		start = (unit ? ATA_SECONDARY : ATA_PRIMARY);
-		end = start + ATA_IOSIZE - 1;
 		count = ATA_IOSIZE;
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-					 SYS_RES_IOPORT, &myrid,
-					 start, end, count, flags);
+		end = start + count - 1;
 	    }
-	    else {
-		myrid = 0x10 + 8 * unit;
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IOPORT, &myrid,
-					 start, end, count, flags);
-	    }
+	    myrid = 0x10 + 8 * unit;
+	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+				     SYS_RES_IOPORT, &myrid,
+				     start, end, count, flags);
 	    break;
 
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
-		myrid = 0;
-		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
-		end = start + ATA_ALTIOSIZE - 1;
-		count = ATA_ALTIOSIZE;
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-					 SYS_RES_IOPORT, &myrid,
-					 start, end, count, flags);
+		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET-2;
+		count = 4;
+		end = start + count - 1;
 	    }
-	    else {
-		myrid = 0x14 + 8 * unit;
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-					 SYS_RES_IOPORT, &myrid,
-					 start, end, count, flags);
-		if (res) {
-			start = rman_get_start(res) + 2;
-			end = start + ATA_ALTIOSIZE - 1;
-			count = ATA_ALTIOSIZE;
-			BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					     SYS_RES_IOPORT, myrid, res);
-			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-						 SYS_RES_IOPORT, &myrid,
-						 start, end, count, flags);
-		}
-	    }
+	    myrid = 0x14 + 8 * unit;
+	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+	                             SYS_RES_IOPORT, &myrid,
+				     start, end, count, flags);
 	    break;
 	}
 	return res;
     }
 
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
-		if (ATA_MASTERDEV(dev)) {
+	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
 	    return alpha_platform_alloc_ide_intr(unit);
 #else
@@ -321,21 +300,13 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
     if (type == SYS_RES_IOPORT) {
 	switch (rid) {
 	case ATA_IOADDR_RID:
-	    if (ATA_MASTERDEV(dev))
-		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-					    SYS_RES_IOPORT, 0x0, r);
-	    else
-		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					    SYS_RES_IOPORT, 0x10 + 8 * unit, r);
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					SYS_RES_IOPORT, 0x10 + 8 * unit, r);
 	    break;
 
 	case ATA_ALTADDR_RID:
-	    if (ATA_MASTERDEV(dev))
-		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-					    SYS_RES_IOPORT, 0x0, r);
-	    else
-		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					    SYS_RES_IOPORT, 0x14 + 8 * unit, r);
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					SYS_RES_IOPORT, 0x14 + 8 * unit, r);
 	    break;
 	default:
 	    return ENOENT;
@@ -352,7 +323,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IRQ, rid, r);
 #endif
-	}
+        }
 	else  
 	    return 0;
     }
@@ -431,7 +402,7 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 	ch->r_io[i].offset = i;
     }
     ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = 0;
+    ch->r_io[ATA_ALTSTAT].offset = 2;
     ch->r_io[ATA_IDX_ADDR].res = io;
 
     if (ctlr->r_res1) {
@@ -449,6 +420,9 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 	else 
 	    ctlr->dmainit(ch);
     }
+
+    ata_generic_hw(ch);
+
     return 0;
 }
 
@@ -546,8 +520,6 @@ ata_pcisub_probe(device_t dev)
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
-    if (ch->reset)
-	ch->reset(ch);
     return ata_probe(dev);
 }
 
