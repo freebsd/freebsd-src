@@ -28,8 +28,11 @@
 .Dt KQUEUE 2
 .Os
 .Sh NAME
-.Nm kqueue, kevent
+.Nm kqueue ,
+.Nm kevent
 .Nd kernel event notification mechanism
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/event.h>
 .Ft int
@@ -44,18 +47,18 @@ happens or a condition holds, based on the results of small
 pieces of kernel code termed filters.
 An kevent is identified by the (ident, filter) pair; there may only
 be one unique kevent per kqueue.
-
+.Pp
 The filter is executed upon the initial registration of a kevent
 in order to detect a preexisting condition is present, and is also
 executed whenever an event is passed to the filter for evaluation.
 If the filter determines that the condition should be reported,
 then the kevent is placed on the kqueue for the user to retrieve.
-
+.Pp
 The filter is also run when the user attempts to retrieve the kevent
 from the kqueue, and if the filter indicates the condition that triggered
 the event no longer holds, the kevent is removed from the kqueue and
 is not returned. 
-
+.Pp
 Multiple events which trigger the filter do not result in multiple
 kevents being placed on the kqueue; instead, the filter will aggregate
 the events into a single struct kevent.
@@ -385,7 +388,7 @@ The specified process to attach to does not exist.
 .Xr select 2 ,
 .Xr signal 3 ,
 .Xr sigaction 2 ,
-.Xr write 2 .
+.Xr write 2
 .Sh HISTORY
 The
 .Fn kqueue
@@ -393,8 +396,8 @@ and
 .Fn kevent
 functions first appeared in
 .Fx 5.0 .
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Fn kqueue
 system and this manual page were written by
-.An Jonathan Lemon Aq jlemon@freebsd.org .
+.An Jonathan Lemon Aq jlemon@FreeBSD.org .
