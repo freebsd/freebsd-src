@@ -30,7 +30,8 @@ COMPAT_LINUX		opt_dontuse.h
 DEBUG_LINUX		opt_linux.h
 COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
-
+PECOFF_SUPPORT		opt_dontuse.h
+PECOFF_DEBUG		opt_pecoff.h
 # i386 SMP options
 APIC_IO			opt_global.h
 
