@@ -27,6 +27,7 @@
  * SUCH DAMAGE.
  *
  * at_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp
+ * $FreeBSD$
  */
 
 /* This code generates debugging traces to the radix code */
@@ -47,7 +48,7 @@ prsockaddr(void *v)
 	char *bp = &hexbuf[0];
 	u_char *cp = v;
 
-	if (v) {
+	if (v != NULL) {
 		int len = *cp;
 		u_char *cplim = cp + len;
 

@@ -39,7 +39,7 @@ static struct aarptab	aarptab[AARPTAB_SIZE];
 #define AARPTAB_HASH(a) \
     ((((a).s_net << 8) + (a).s_node) % AARPTAB_NB)
 
-#define AARPTAB_LOOK(aat,addr) { \
+#define AARPTAB_LOOK(aat, addr) { \
     int		n; \
     aat = &aarptab[ AARPTAB_HASH(addr) * AARPTAB_BSIZ ]; \
     for (n = 0; n < AARPTAB_BSIZ; n++, aat++) \
@@ -47,7 +47,7 @@ static struct aarptab	aarptab[AARPTAB_SIZE];
 	     aat->aat_ataddr.s_node == (addr).s_node) \
 	    break; \
 	if (n >= AARPTAB_BSIZ) \
-	    aat = 0; \
+	    aat = NULL; \
 }
 
 #define AARPT_AGE	(60 * 1)
@@ -233,9 +233,9 @@ aarpresolve(ac, m, destsat, desten)
 
     s = splimp();
     AARPTAB_LOOK(aat, destsat->sat_addr);
-    if (aat == 0) {			/* No entry */
+    if (aat == NULL) {			/* No entry */
 	aat = aarptnew(&destsat->sat_addr);
-	if (aat == 0) {
+	if (aat == NULL) {
 	    panic("aarpresolve: no free entry");
 	}
 	aat->aat_hold = m;
@@ -391,7 +391,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
     }
 
     AARPTAB_LOOK(aat, spa);
-    if (aat) {
+    if (aat != NULL) {
 	if (op == AARPOP_PROBE) {
 	    /*
 	     * Someone's probing for spa, dealocate the one we've got,
