@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.10 1998/03/29 07:59:10 peter Exp $
+	$Id: syscalls.master,v 1.11 1998/06/09 03:28:14 bde Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -233,7 +233,8 @@
 162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp); }
 
-163	UNIMPL	LINUX	mremap
+163	STD	LINUX	{ int linux_mremap(caddr_t addr, int old_len, \
+			    int new_len, int flags); }
 164	UNIMPL	LINUX	setresuid
 165	UNIMPL	LINUX	getresuid
 166	UNIMPL	LINUX	new_vm86
