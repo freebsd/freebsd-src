@@ -105,9 +105,11 @@
 #define	R_OK		0x04	/* test for read permission */
 
 /* whence values for lseek(2) */
+#ifndef SEEK_SET
 #define	SEEK_SET	0	/* set file offset to offset */
 #define	SEEK_CUR	1	/* set file offset to current plus offset */
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
+#endif
 
 #ifndef _POSIX_SOURCE
 /* whence values for lseek(2); renamed by POSIX 1003.1 */
