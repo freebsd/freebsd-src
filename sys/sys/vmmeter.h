@@ -103,6 +103,8 @@ struct vmmeter {
 	u_int v_vforkpages;	/* number of VM pages affected by vfork() */
 	u_int v_rforkpages;	/* number of VM pages affected by rfork() */
 	u_int v_kthreadpages;	/* number of VM pages affected by fork() by kernel */
+	u_int v_intrans_coll;	/* intransit map collisions (total) */
+	u_int v_intrans_wait;	/* intransit map collisions which blocked */
 };
 #ifdef _KERNEL
 
