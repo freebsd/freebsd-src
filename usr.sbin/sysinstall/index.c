@@ -576,8 +576,8 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
 	use_helpfile(NULL);
 	kp = top->kids;
 	if (!hasPackages && plist) {
-	    nitems = item_add(nitems, "OK", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
-	    nitems = item_add(nitems, "Install", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	    nitems = item_add(nitems, "OK", NULL, NULL, NULL, NULL, NULL, NULL, &curr, &max);
+	    nitems = item_add(nitems, "Install", NULL, NULL, NULL, NULL, NULL, NULL, &curr, &max);
 	}
 	while (kp && kp->name) {
 	    char buf[256];
@@ -590,12 +590,15 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
 		SAFE_STRCPY(buf, kp->desc);
 	    if (strlen(buf) > (_MAX_DESC - maxname))
 		buf[_MAX_DESC - maxname] = '\0';
-	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)&lists, &curr, &max);
+	    nitems = item_add(nitems, kp->name, (char *)buf, pkg_checked, 
+			      pkg_fire, pkg_selected, kp, (int *)(&lists), 
+			      &curr, &max);
 	    ++n;
 	    kp = kp->next;
 	}
 	/* NULL delimiter so item_free() knows when to stop later */
-	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+			  &curr, &max);
 
 recycle:
 	dialog_clear_norefresh();
