@@ -28,6 +28,11 @@
  * $FreeBSD$
  */
 
+#ifndef DEVD_H
+#define DEVD_H
+
+/** @warning This file needs to be purely 'C' compatible.
+ */
 struct event_proc;
 struct eps;
 __BEGIN_DECLS
@@ -47,3 +52,5 @@ __END_DECLS
 
 #define PATH_DEVCTL	"/dev/devctl"
 #define DEVCTL_MAXBUF	1025
+
+#endif /* DEVD_H */
