@@ -141,6 +141,7 @@ ext2_mountroot()
 	}
 	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
+	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_op = &ext2fs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
 	if (error = ext2_mountfs(rootvp, mp, td)) {
@@ -568,12 +569,12 @@ ext2_reload(mountp, cred, td)
 
 loop:
 	mtx_lock(&mntvnode_mtx);
-	for (vp = LIST_FIRST(&mountp->mnt_vnodelist); vp != NULL; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mountp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mountp) {
 			mtx_unlock(&mntvnode_mtx);
 			goto loop;
 		}
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
@@ -926,14 +927,14 @@ ext2_sync(mp, waitfor, cred, td)
 	 */
 	mtx_lock(&mntvnode_mtx);
 loop:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		ip = VTOI(vp);

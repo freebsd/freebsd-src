@@ -333,7 +333,7 @@ union_unmount(mp, mntflags, td)
 		/* count #vnodes held on mount list */
 		mtx_lock(&mntvnode_mtx);
 		n = 0;
-		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes)
+		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes)
 			n++;
 		mtx_unlock(&mntvnode_mtx);
 

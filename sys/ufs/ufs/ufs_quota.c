@@ -439,10 +439,10 @@ quotaon(td, mp, type, fname)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nextvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
-		nextvp = LIST_NEXT(vp, v_mntvnodes);
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
@@ -460,7 +460,7 @@ again:
 		mtx_lock(&mntvnode_mtx);
 		if (error)
 			break;
-		if (LIST_NEXT(vp, v_mntvnodes) != nextvp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -495,10 +495,10 @@ quotaoff(td, mp, type)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nextvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
-		nextvp = LIST_NEXT(vp, v_mntvnodes);
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
@@ -517,7 +517,7 @@ again:
 		dqrele(vp, dq);
 		vput(vp);
 		mtx_lock(&mntvnode_mtx);
-		if (LIST_NEXT(vp, v_mntvnodes) != nextvp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -694,10 +694,10 @@ qsync(mp)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nextvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
-		nextvp = LIST_NEXT(vp, v_mntvnodes);
+		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		if (vp->v_type == VNON) {
@@ -719,7 +719,7 @@ again:
 		}
 		vput(vp);
 		mtx_lock(&mntvnode_mtx);
-		if (LIST_NEXT(vp, v_mntvnodes) != nextvp)
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
