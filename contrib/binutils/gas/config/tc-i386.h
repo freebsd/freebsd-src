@@ -471,15 +471,17 @@ typedef struct
 modrm_byte;
 
 /* x86-64 extension prefix.  */
-typedef struct
-  {
-    unsigned int mode64;
-    unsigned int extX;		/* Used to extend modrm reg field.  */
-    unsigned int extY;		/* Used to extend SIB index field.  */
-    unsigned int extZ;		/* Used to extend modrm reg/mem, SIB base, modrm base fields.  */
-    unsigned int empty;		/* Used to old-style byte registers to new style.  */
-  }
-rex_byte;
+typedef int rex_byte;
+#define REX_OPCODE	0x40
+
+/* Indicates 64 bit operand size.  */
+#define REX_MODE64	8
+/* High extension to reg field of modrm byte.  */
+#define REX_EXTX	4
+/* High extension to SIB index field.  */
+#define REX_EXTY	2
+/* High extension to base field of modrm or SIB, or reg field of opcode.  */
+#define REX_EXTZ	1
 
 /* 386 opcode byte to code indirect addressing.  */
 typedef struct
