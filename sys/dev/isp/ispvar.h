@@ -230,10 +230,10 @@ typedef struct {
 
 typedef struct {
 	u_int32_t		isp_fwoptions	: 16,
-						: 3,
+						: 2,
 				isp_iid_set	: 1,
 				loop_seen_once	: 1,
-				isp_loopstate	: 3,	/* Current Loop State */
+				isp_loopstate	: 4,	/* Current Loop State */
 				isp_fwstate	: 3,	/* ISP F/W state */
 				isp_gotdparms	: 1,
 				isp_topo	: 3,
@@ -264,7 +264,8 @@ typedef struct {
 	struct lportdb {
 		u_int
 					loopid		: 8,
-							: 2,
+							: 1,
+					force_logout	: 1,
 					was_fabric_dev	: 1,
 					fabric_dev	: 1,
 					loggedin	: 1,
@@ -297,9 +298,9 @@ typedef struct {
 #define	LOOP_SCANNING_FABRIC	3
 #define	LOOP_FSCAN_DONE		4
 #define	LOOP_SCANNING_LOOP	5
-#define	LOOP_LSCAN_DONE		4
-#define	LOOP_SYNCING_PDB	6
-#define	LOOP_READY		7
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SYNCING_PDB	7
+#define	LOOP_READY		8
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1

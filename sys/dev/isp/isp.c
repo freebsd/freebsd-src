@@ -1685,7 +1685,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 			if (pdb.pdb_loopid == lp->loopid && lp->portid ==
 			    (u_int32_t) BITS2WORD(pdb.pdb_portid_bits) &&
 			    nwwnn == lp->node_wwn && nwwpn == lp->port_wwn &&
-			    lp->roles == nrole) {
+			    lp->roles == nrole && lp->force_logout == 0) {
 				lp->loggedin = lp->valid = 1;
 				isp_prt(isp, ISP_LOGINFO, lretained,
 				    (int) (lp - fcp->portdb),
@@ -1693,6 +1693,8 @@ isp_pdb_sync(struct ispsoftc *isp)
 				continue;
 			}
 		}
+
+		lp->force_logout = 0;
 
 		if (fcp->isp_fwstate != FW_READY ||
 		    fcp->isp_loopstate != LOOP_SYNCING_PDB) {
@@ -2075,6 +2077,8 @@ isp_scan_loop(struct ispsoftc *isp)
 		 * No need to notify anyone- go for the next one.
 		 */
 		if (i < hival) {
+			isp_prt(isp, ISP_LOGINFO, retained,
+			    fcp->portdb[i].loopid, i, fcp->portdb[i].portid);
 			continue;
 		}
 
@@ -3791,7 +3795,6 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 		}
 		return;
-
 	case RQCS_PORT_LOGGED_OUT:
 		/*
 		 * It was there (maybe)- treat as a selection timeout.
