@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.98 1996/06/02 22:28:53 dyson Exp $
+ *	$Id: pmap.c,v 1.99 1996/06/05 03:31:26 dyson Exp $
  */
 
 /*
@@ -1026,8 +1026,10 @@ pmap_remove_pte(pmap, ptq, va)
 				printf("pmap_remove: modified page not writable: va: 0x%lx, pte: 0x%lx\n", va, (int) oldpte);
 			}
 #endif
+				
 			if (va < clean_sva || va >= clean_eva) {
-				PHYS_TO_VM_PAGE(oldpte)->dirty = VM_PAGE_BITS_ALL;
+				if ((va < UPT_MIN_ADDRESS) || (va >= UPT_MAX_ADDRESS))
+					PHYS_TO_VM_PAGE(oldpte)->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
 		ppv = pa_to_pvh(oldpte);
