@@ -1,4 +1,4 @@
-.\" $Id: dnsquery.1,v 8.3 1999/01/08 18:54:21 vixie Exp $
+.\" $Id: dnsquery.1,v 8.4 2001/08/08 07:49:58 marka Exp $
 .\"
 .\"Copyright (c) 1995,1996,1999 by Internet Software Consortium
 .\"
@@ -63,25 +63,25 @@ address
 nameserver
 .It Ar CNAME
 canonical name
-.It Ar PTR	
+.It Ar PTR
 domain name pointer
-.It Ar SOA	
+.It Ar SOA
 start of authority
-.It Ar WKS	
+.It Ar WKS
 well-known service
 .It Ar HINFO
 host information
 .It Ar MINFO
 mailbox information
-.It Ar MX	
+.It Ar MX
 mail exchange
-.It Ar RP	
+.It Ar RP
 responsible person
-.It Ar MG	
+.It Ar MG
 mail group member
-.It Ar AFSDB	
+.It Ar AFSDB
 DCE or AFS server
-.It Ar ANY	
+.It Ar ANY
 wildcard
 .El
 .Pp
@@ -91,13 +91,13 @@ Note that any case may be used.  (Default:
 The class of resource records of interest.
 Classes include:
 .Bl -tag -width "CHAOS  " -compact -offset indent
-.It Ar IN	
+.It Ar IN
 Internet
-.It Ar HS	
+.It Ar HS
 Hesiod
 .It Ar CHAOS
 Chaos
-.It Ar ANY	
+.It Ar ANY
 wildcard
 .El
 .Pp
@@ -135,9 +135,9 @@ The name of the host (or domain) of interest.
 .Bl -tag -width "<arpa/nameser.h>  " -compact
 .It Pa /etc/resolv.conf 
 to get the default ns and search lists
-.It Pa <arpa/nameser.h> 	
+.It Pa <arpa/nameser.h>
 list of usable RR types and classes
-.It Pa <resolv.h>		
+.It Pa <resolv.h>
 list of resolver flags
 .El
 .Sh DIAGNOSTICS

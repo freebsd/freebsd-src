@@ -1,4 +1,4 @@
-.\" $Id: dig.1,v 8.4 1999/10/15 21:29:58 vixie Exp $
+.\" $Id: dig.1,v 8.8 2001/09/24 15:21:29 marka Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -100,7 +100,7 @@ Internet address. If this optional field is omitted,
 .Ic dig
 will attempt to use the default name server for your machine.
 .sp 1
-.Em Note:
+.Em Note :
 If a domain name is specified, this will be resolved
 using the domain name system resolver (i.e., BIND). If your
 system does not support DNS, you may 
@@ -116,7 +116,7 @@ itself can be resolved. See
 .Xr resolver @FORMAT_EXT@
 for information on 
 .Pa /etc/resolv.conf .
-.Sy WARNING: 
+.Sy WARNING :
 Changing 
 .Pa /etc/resolv.conf 
 will affect both the standard resolver library and 
@@ -190,7 +190,7 @@ all/any class information
 .Pp
 (See RFC 1035 for the complete list.)
 .Pp
-.Em Note:
+.Em Note :
 .Dq Ar Any
 can be used to specify a 
 .Em class 
@@ -323,7 +323,7 @@ environment is saved.  If not, the file
 .Dq Pa DiG.env 
 is created in the current working directory.
 .Pp
-.Em Note: 
+.Em Note :
 .Ev LOCALDEF 
 is specific to the 
 .Ic dig
@@ -521,6 +521,13 @@ print TTLs
 .Bq Cm tt
 .It Xo
 .Op Cm no 
+.Ns Cm trunc\ \ \ \ 
+.Pq Cm tr
+.Xc
+truncate origin from names
+.Bq Cm tr
+.It Xo
+.Op Cm no 
 .Ns Cm cl
 .Xc
 print class info 
@@ -566,6 +573,13 @@ print authoritative section
 .Xc
 print additional section 
 .Bq Cm ad
+.It Xo
+.Op Cm no 
+.Ns Cm dnssec\ \ \ 
+.Pq Cm \ddn
+.Xc
+set the DNSSEC OK bit in the OPT pseudo record
+.Bq Cm nodn
 .It Cm pfdef 
 set to default print flags
 .It Cm pfmin 
@@ -641,7 +655,7 @@ and
 options, above.
 .Sh FILES
 .Bl -tag -width "/etc/resolv.conf  " -compact
-.It Pa /etc/resolv.conf	
+.It Pa /etc/resolv.conf
 initial domain name and name server addresses
 .It Pa \./DiG.env
 default save file for default options
@@ -672,7 +686,8 @@ rather ad hoc genesis.
 .Ic Dig
 does not consistently exit nicely (with appropriate status)
 when a problem occurs somewhere in the resolver 
-.Po Sy NOTE: 
+.Po
+.Sy NOTE :
 most of the common exit cases are handled
 .Pc .  
 This is particularly annoying when running in
