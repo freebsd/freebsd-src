@@ -95,7 +95,6 @@
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
-#include <sys/ucred.h>
 #include <sys/socket.h>
 #ifdef ANCACHE
 #include <sys/syslog.h>
