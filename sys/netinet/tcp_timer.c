@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.4 1995/02/16 00:55:42 wollman Exp $
+ * $Id: tcp_timer.c,v 1.5 1995/04/09 01:29:27 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -120,10 +120,9 @@ tcp_slowtimo()
 			continue;
 		for (i = 0; i < TCPT_NTIMERS; i++) {
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
-				(void) tcp_usrreq(tp->t_inpcb->inp_socket,
+				if (tcp_usrreq(tp->t_inpcb->inp_socket,
 				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0);
-				if (*ipnxt->inp_list.le_prev != ip)
+				    (struct mbuf *)i, (struct mbuf *)0) == NULL)
 					goto tpgone;
 			}
 		}
