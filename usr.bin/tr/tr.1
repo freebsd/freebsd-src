@@ -80,13 +80,11 @@ Same as
 but complement the set of byte values in
 .Ar string1 .
 .It Fl d
-The
-.Fl d
-option causes characters to be deleted from the input.
+Delete characters in
+.Ar string1
+from the input.
 .It Fl s
-The
-.Fl s
-option squeezes multiple occurrences of the characters listed in the last
+Squeeze multiple occurrences of the characters listed in the last
 operand (either
 .Ar string1
 or
@@ -94,9 +92,7 @@ or
 in the input into a single instance of the character.
 This occurs after all deletion and translation is completed.
 .It Fl u
-The
-.Fl u
-option guarantees that any output is unbuffered.
+Guarantee that any output is unbuffered.
 .El
 .Pp
 In the first synopsis form, the characters in
@@ -243,8 +239,6 @@ environment variables affect the execution of
 .Nm
 as described in
 .Xr environ 7 .
-.Sh DIAGNOSTICS
-.Ex -std
 .Sh EXAMPLES
 The following examples are shown as given to the shell:
 .Pp
@@ -265,6 +259,8 @@ Remove diacritical marks from all accented variants of the letter
 .Sq e :
 .Pp
 .Dl "tr \*q[=e=]\*q \*qe\*q"
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh COMPATIBILITY
 System V has historically implemented character ranges using the syntax
 ``[c-c]'' instead of the ``c-c'' used by historic
