@@ -109,7 +109,7 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
         hdlc->lqm.echo.seq_recv = lqr.sequence;
     } else
       log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
-                (u_long)ntohl(lqr.signature), (u_long)SIGNATURE);
+                (u_long)lqr.signature, (u_long)SIGNATURE);
   } else
     log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %ld !\n",
               mbuf_Length(bp), (long)sizeof(struct echolqr));
