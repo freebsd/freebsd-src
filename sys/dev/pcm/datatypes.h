@@ -75,7 +75,8 @@ struct _snd_dbuf {
 
 typedef int (pcmfeed_init_t)(pcm_feeder *feeder);
 typedef int (pcmfeed_free_t)(pcm_feeder *feeder);
-typedef int (pcmfeed_feed_t)(pcm_feeder *feeder, u_int8_t *buffer, u_int32_t count, struct uio *stream);
+typedef int (pcmfeed_feed_t)(pcm_feeder *feeder, pcm_channel *c, u_int8_t *buffer,
+			     u_int32_t count, struct uio *stream);
 
 struct _pcm_feeder {
 	char name[16];
@@ -121,6 +122,9 @@ struct _pcm_channel {
 
 	int direction;
 	snd_dbuf buffer;
+#define	SMEGBUFSZ 4
+	u_int8_t smegbuf[SMEGBUFSZ];
+	u_int32_t smegcnt;
 	void *devinfo;
 };
 
