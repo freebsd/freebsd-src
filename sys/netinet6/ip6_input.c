@@ -1479,7 +1479,8 @@ ip6_nexthdr(m, off, proto, nxtp)
 		if (m->m_pkthdr.len < off + sizeof(fh))
 			return -1;
 		m_copydata(m, off, sizeof(fh), (caddr_t)&fh);
-		if ((ntohs(fh.ip6f_offlg) & IP6F_OFF_MASK) != 0)
+		/* IP6F_OFF_MASK = 0xfff8(BigEndian), 0xf8ff(LittleEndian) */
+		if (fh.ip6f_offlg & IP6F_OFF_MASK)
 			return -1;
 		if (nxtp)
 			*nxtp = fh.ip6f_nxt;
