@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.17 1999/02/11 07:07:27 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.18 1999/03/05 23:35:46 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1341,7 +1341,7 @@ ahc_alloc_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel)
 {
 	struct tmode_tstate *master_tstate;
 	struct tmode_tstate *tstate;
-	int i;
+	int i, s;
 
 	master_tstate = ahc->enabled_targets[ahc->our_id];
 	if (channel == 'B') {
@@ -1374,7 +1374,9 @@ ahc_alloc_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel)
 		}
 	} else
 		bzero(tstate, sizeof(*tstate));
+	s = splcam();
 	ahc->enabled_targets[scsi_id] = tstate;
+	splx(s);
 	return (tstate);
 }
 
@@ -1409,6 +1411,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 	int	   lun;
 	u_int	   target_mask;
 	char	   channel;
+	int	   s;
 
 	status = ahc_find_tmode_devs(ahc, sim, ccb, &tstate, &lstate,
 				     /* notfound_failure*/FALSE);
@@ -1468,6 +1471,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 		bzero(lstate, sizeof(*lstate));
 		SLIST_INIT(&lstate->accept_tios);
 		SLIST_INIT(&lstate->immed_notifies);
+		s = splcam();
 		pause_sequencer(ahc);
 		if (target != CAM_TARGET_WILDCARD) {
 			tstate->enabled_luns[lun] = lstate;
@@ -1531,6 +1535,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 			ahc_outb(ahc, SCSISEQ, scsiseq);
 		}
 		unpause_sequencer(ahc, /*always?*/FALSE);
+		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_print_path(ccb->ccb_h.path);
 		printf("Lun now enabled for target mode\n");
@@ -1542,12 +1547,14 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
+		s = splcam();
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		LIST_FOREACH(elm, &ahc->pending_ccbs, sim_links.le) {
 			if (elm->func_code == XPT_CONT_TARGET_IO
 			 && !xpt_path_comp(elm->path, ccb->ccb_h.path)){
 				printf("CTIO pending\n");
 				ccb->ccb_h.status = CAM_REQ_INVALID;
+				splx(s);
 				return;
 			}
 		}
@@ -1620,7 +1627,8 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 				ahc_outb(ahc, SCSISEQ, scsiseq);
 			}
 			unpause_sequencer(ahc, /*always?*/FALSE);
-		}	
+		}
+		splx(s);
 	}
 }
 
@@ -3978,11 +3986,15 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
+			int s;
+
+			s = splcam();
 			SLIST_INSERT_HEAD(&lstate->accept_tios, &ccb->ccb_h,
 					  sim_links.sle);
 			ccb->ccb_h.status = CAM_REQ_INPROG;
 			if ((ahc->flags & AHC_TQINFIFO_BLOCKED) != 0)
 				ahc_run_tqinfifo(ahc);
+			splx(s);
 			break;
 		}
 
@@ -4363,6 +4375,7 @@ ahc_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 	case AC_LOST_DEVICE:
 	{
 		struct	ahc_devinfo devinfo;
+		int	s;
 
 		ahc_compile_devinfo(&devinfo, SIM_SCSI_ID(ahc, sim),
 				    xpt_path_target_id(path),
@@ -4374,6 +4387,7 @@ ahc_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * Revert to async/narrow transfers
 		 * for the next device.
 		 */
+		s = splcam();
 		pause_sequencer(ahc);
 		ahc_set_width(ahc, &devinfo, path, MSG_EXT_WDTR_BUS_8_BIT,
 			      AHC_TRANS_GOAL|AHC_TRANS_CUR);
@@ -4381,6 +4395,7 @@ ahc_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 				 /*period*/0, /*offset*/0,
 				 AHC_TRANS_GOAL|AHC_TRANS_CUR);
 		unpause_sequencer(ahc, /*unpause always*/FALSE);
+		splx(s);
 		break;
 	}
 	default:
@@ -5142,7 +5157,7 @@ bus_reset:
 			active_scb->flags |=  SCB_DEVICE_RESET;
 			active_scb->ccb->ccb_h.timeout_ch =
 			    timeout(ahc_timeout, (caddr_t)active_scb, 2 * hz);
-			unpause_sequencer(ahc, /*unpause_always*/TRUE);
+			unpause_sequencer(ahc, /*unpause_always*/FALSE);
 		} else {
 			int	 disconnected;
 
