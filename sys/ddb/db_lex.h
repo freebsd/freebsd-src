@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.h,v 1.9 1997/02/22 09:28:25 peter Exp $
+ *	$Id: db_lex.h,v 1.10 1998/06/27 15:40:56 dfr Exp $
  */
 
 #ifndef _DDB_DB_LEX_H_
@@ -41,7 +41,7 @@ int	db_read_line __P((void));
 int	db_read_token __P((void));
 void	db_unread_token __P((int t));
 
-extern long	db_tok_number;
+extern db_expr_t	db_tok_number;
 #define	TOK_STRING_SIZE		120
 extern char	db_tok_string[TOK_STRING_SIZE];
 
