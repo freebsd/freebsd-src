@@ -1,16 +1,8 @@
-#	$Id: Makefile,v 1.19 1994/11/06 11:24:58 jkh Exp $
+#	$Id: Makefile,v 1.20 1994/11/06 23:47:04 phk Exp $
 #
 
-#For a 1.2MB boot floppy.
-#SMALL_FLOPPY=	yes
-
-.if defined(SMALL_FLOPPY)
 FDLABEL=	fd1200
 DDCOUNT=	80
-.else
-FDLABEL=	fd1440
-DDCOUNT=	96
-.endif
 
 FLOPPY=		fd0
 DDBS=		15k
@@ -26,7 +18,7 @@ CPIO1+= ftp rsh sed telnet rlogin
 
 CPIO2=  etc/services
 
-CPIO3=	extract.sh
+CPIO3=	extract.sh bininst
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
 CLEANFILES+=	boot_flp boot_${FDLABEL}.flp cpio_flp_1
@@ -47,16 +39,14 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
 
-boot.flp: boot_${FDLABEL}.flp
-
-boot_${FDLABEL}.flp:
+boot.flp: 
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
-	echo y | fdformat ${FLOPPY}
+	# echo y | fdformat ${FLOPPY}
 	disklabel -w -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
 		/dev/r${FLOPPY} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 -i 4096 -m 0 -o space /dev/r${FLOPPY}
+	newfs -c 80 -b 4096 -f 512 -i 8192 -m 0 -o space /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
@@ -71,23 +61,18 @@ boot_${FDLABEL}.flp:
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
-	install -m 500 -c ${.CURDIR}/bininst ${MNT}/stand/bininst
-.if !defined(SMALL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
-.endif
 	install -m 400 -c ${.CURDIR}/../README ${MNT}/README
-.if !defined(SMALL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
 		${MNT}/RELNOTES.FreeBSD
-.endif
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot_${FDLABEL}.flp
 	gzip -9 -v < boot_${FDLABEL}.flp > boot_${FDLABEL}.flp.gz
-	ls -l boot.flp*
+	df -k /dev/r${FLOPPY}
 
 cpio.flp:
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
@@ -102,9 +87,6 @@ crunch:
 	${MAKE} -f boot_flp.mk objs exe
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
 	${MAKE} -f cpio_flp_1.mk objs exe
-
-small.floppies:
-	${MAKE} SMALL_FLOPPY=yes crunch boot.flp cpio.flp
 
 floppies: crunch boot.flp cpio.flp
 
