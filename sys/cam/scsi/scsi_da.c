@@ -227,6 +227,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
+	{
+		/*
+		 * The CISS RAID controllers do not support SYNC_CACHE
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "COMPAQ", "RAID*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 	/* XXX USB floppy quirks temporarily enabled for 4.9R */
 	/* USB floppy devices supported by umass(4) */
 	{
