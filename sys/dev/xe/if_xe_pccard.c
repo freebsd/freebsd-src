@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
+#include <dev/pccard/pccard_cis.h>
 #include "card_if.h"
 
 /*
@@ -81,6 +82,18 @@ extern int xe_debug;
 #define XE_CARD_TYPE_FLAGS_DINGO 0x4
 #define XE_PROD_ETHER_MASK 0x0100
 #define XE_PROD_MODEM_MASK 0x1000
+
+#define XE_BOGUS_MAC_OFFSET 0x90
+
+/* MAC vendor prefix used by most Xircom cards is 00:80:c7 */
+#define XE_MAC_ADDR_0 0x00
+#define XE_MAC_ADDR_1 0x80
+#define XE_MAC_ADDR_2 0xc7
+
+/* Some (all?) REM56 cards have vendor prefix 00:10:a4 */
+#define XE_REM56_MAC_ADDR_0 0x00
+#define XE_REM56_MAC_ADDR_1 0x10
+#define XE_REM56_MAC_ADDR_2 0xa4
 
 
 struct xe_pccard_product {
@@ -172,6 +185,73 @@ xe_cemfix(device_t dev)
 }
 
 /*
+ * Fixing for CE2-class cards with bogus CIS entry for MAC address.  This
+ * should be in a type 0x22 tuple, but some cards seem to use 0x89.
+ * This function looks for a sensible MAC address tuple starting at the given
+ * offset in attribute memory, ignoring the tuple type field.
+ */
+static int
+xe_macfix(device_t dev, int offset)
+{
+	struct xe_softc *sc = (struct xe_softc *) device_get_softc(dev);
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	struct resource *r;
+	int rid, i;
+	u_int8_t cisdata[9];
+	u_int8_t required[6] = { 0x08, PCCARD_TPLFE_TYPE_LAN_NID, ETHER_ADDR_LEN,
+				 XE_MAC_ADDR_0, XE_MAC_ADDR_1, XE_MAC_ADDR_2 };
+
+	DEVPRINTF(2, (dev, "macfix\n"));
+
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
+			       ~0, 4 << 10, RF_ACTIVE);
+	if (!r) {
+		device_printf(dev, "macfix: Can't map in attribute memory\n");
+		return (-1);
+	}
+
+	bsh = rman_get_bushandle(r);
+	bst = rman_get_bustag(r);
+
+	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
+			   PCCARD_A_MEM_ATTR);
+
+	/*
+	 * Looking for (relative to offset):
+	 *
+	 *  0x00	0x??	Tuple type (ignored)
+	 *  0x02 	0x08	Tuple length (must be 8)
+	 *  0x04	0x04	Address type? (must be 4)
+	 *  0x06	0x06	Address length (must be 6)
+	 *  0x08	0x00	Manufacturer ID, byte 1
+	 *  0x0a	0x80	Manufacturer ID, byte 2
+	 *  0x0c	0xc7	Manufacturer ID, byte 3
+	 *  0x0e	0x??	Card ID, byte 1
+	 *  0x10	0x??	Card ID, byte 2
+	 *  0x12	0x??	Card ID, byte 3
+	 */
+	for (i = 0; i < 9; i++) {
+		cisdata[i] = bus_space_read_1(bst, bsh, offset + (2 * i) + 2);
+		if (i < 6 && required[i] != cisdata[i]) {
+			device_printf(dev, "macfix: Can't find valid MAC address\n");
+			bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
+			return (-1);
+		}
+	}
+	
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->arpcom.ac_enaddr[i] = cisdata[i + 3];
+	}
+	    
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
+
+	/* success! */
+	return (0);
+}
+
+/*
  * PCMCIA probe routine.
  * Identify the device.  Called from the bus driver when the card is
  * inserted or otherwise powers up.
@@ -251,6 +331,19 @@ xe_pccard_probe(device_t dev)
 
 	/* Get MAC address */
 	pccard_get_ether(dev, scp->arpcom.ac_enaddr);
+
+	/* Deal with bogus MAC address */
+	if (xpp->product.pp_vendor == PCMCIA_VENDOR_XIRCOM
+	    && scp->ce2
+	    && (scp->arpcom.ac_enaddr[0] != XE_MAC_ADDR_0
+		|| scp->arpcom.ac_enaddr[1] != XE_MAC_ADDR_1
+		|| scp->arpcom.ac_enaddr[2] != XE_MAC_ADDR_2)
+	    && xe_macfix(dev, XE_BOGUS_MAC_OFFSET) < 0) {
+		device_printf(dev,
+			      "Unable to find MAC address for your %s card\n",
+			      scp->card_type);
+		return (ENODEV);	    
+	}
 
 	/* Success */
 	return (0);
