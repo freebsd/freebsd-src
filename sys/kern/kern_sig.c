@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.13 1995/11/12 06:43:00 bde Exp $
+ * $Id: kern_sig.c,v 1.14 1995/11/18 10:01:38 bde Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -62,6 +62,11 @@
 #include <machine/cpu.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <sys/user.h>		/* for coredump */
 
 extern int killpg1	__P((struct proc *cp, int signum, int pgid, int all));

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.73 1995/12/02 18:58:44 bde Exp $
+ * $Id: vfs_bio.c,v 1.74 1995/12/04 16:48:32 phk Exp $
  */
 
 /*
@@ -40,11 +40,15 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>

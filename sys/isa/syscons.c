@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.132 1995/11/30 03:29:31 ache Exp $
+ *  $Id: syscons.c,v 1.133 1995/12/06 23:50:36 bde Exp $
  */
 
 #include "sc.h"
@@ -56,6 +56,8 @@
 #include <machine/random.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.45 1995/12/02 18:58:56 bde Exp $
+ * $Id: vfs_subr.c,v 1.46 1995/12/06 13:27:39 phk Exp $
  */
 
 /*
@@ -61,6 +61,9 @@
 #include <sys/mbuf.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 #include <sys/sysctl.h>
 
 #include <miscfs/specfs/specdev.h>

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.44 1995/11/18 06:54:11 bde Exp $
+ *	$Id: vm_machdep.c,v 1.45 1995/11/20 12:10:09 phk Exp $
  */
 
 #include "npx.h"
@@ -48,15 +48,22 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+
+#include <sys/user.h>
 
 #include <i386/isa/isa.h>
 

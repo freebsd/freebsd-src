@@ -30,6 +30,8 @@
 #   include <sys/socket.h>
 #   include <net/if.h>
 #   include <vm/vm.h>
+#   include <vm/vm_param.h>
+#   include <vm/pmap.h>
 #   ifndef __FreeBSD__
 #      include <machine/inline.h>
 #   endif

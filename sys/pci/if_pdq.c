@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.9 1995/11/04 15:05:52 bde Exp $
+ * $Id: if_pdq.c,v 1.10 1995/12/05 02:01:53 davidg Exp $
  *
  */
 
@@ -87,7 +87,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 
 #if NFPA > 0
 #include <pci/pcivar.h>

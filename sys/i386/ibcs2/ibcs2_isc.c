@@ -27,12 +27,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.4 1995/05/30 07:59:58 rgrimes Exp $
+ *	$Id: ibcs2_isc.c,v 1.5 1995/10/10 07:58:52 swallace Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
+#include <sys/proc.h>
 
 #include <machine/cpu.h>
 #include <machine/psl.h>

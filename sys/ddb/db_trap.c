@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trap.c,v 1.6 1994/10/02 19:36:21 phk Exp $
+ *	$Id: db_trap.c,v 1.7 1995/05/30 07:57:14 rgrimes Exp $
  */
 
 /*
@@ -37,6 +37,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
 #include <ddb/db_break.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.29 1995/11/09 08:17:02 bde Exp $
+ * $Id: nfs_vnops.c,v 1.30 1995/11/21 15:51:39 bde Exp $
  */
 
 /*
@@ -59,6 +59,8 @@
 #include <ufs/ufs/dir.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/vnode_pager.h>
 
 #include <miscfs/specfs/specdev.h>

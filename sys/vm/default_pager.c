@@ -28,17 +28,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: default_pager.c,v 1.2 1995/07/13 10:29:34 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
 
 #include <vm/vm.h>
-#include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/default_pager.h>
 #include <vm/swap_pager.h>
 

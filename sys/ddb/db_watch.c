@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.7 1995/11/24 14:13:42 bde Exp $
+ *	$Id: db_watch.c,v 1.8 1995/11/29 10:25:44 phk Exp $
  */
 
 /*
@@ -34,9 +34,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <vm/vm_prot.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <ddb/ddb.h>
 
-#include <vm/vm_map.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_watch.h>
 #include <ddb/db_access.h>

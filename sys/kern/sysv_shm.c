@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.11 1995/11/30 07:58:50 julian Exp $ */
+/*	$Id: sysv_shm.c,v 1.12 1995/12/04 02:26:53 jkh Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -43,8 +43,13 @@
 #include <sys/sysent.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 struct shmat_args;
 extern int shmat __P((struct proc *p, struct shmat_args *uap, int *retval));

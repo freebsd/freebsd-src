@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.27 1995/11/20 03:55:48 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.28 1995/11/20 04:53:45 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <sys/vmmeter.h>
 #include <miscfs/specfs/specdev.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 

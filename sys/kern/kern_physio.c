@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.13 1995/11/28 02:40:38 peter Exp $
+ * $Id: kern_physio.c,v 1.14 1995/12/02 18:58:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -25,6 +25,8 @@
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 static void	physwakeup __P((struct buf *bp));
 

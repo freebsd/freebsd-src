@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.20 1995/11/29 10:47:18 julian Exp $
+ *	$Id: mem.c,v 1.21 1995/11/29 14:39:26 julian Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 #include <vm/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #ifdef JREMOD
 #include <sys/kernel.h>

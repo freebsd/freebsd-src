@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.17 1995/07/29 11:44:29 bde Exp $
+ * $Id: vm_pager.c,v 1.18 1995/11/20 12:19:19 phk Exp $
  */
 
 /*
@@ -77,9 +77,13 @@
 #include <sys/ucred.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_extern.h>
 
 extern struct pagerops defaultpagerops;
 extern struct pagerops swappagerops;

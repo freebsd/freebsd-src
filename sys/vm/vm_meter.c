@@ -31,14 +31,23 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.9 1995/11/14 09:29:34 phk Exp $
+ * $Id: vm_meter.c,v 1.10 1995/12/04 16:48:58 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/vmmeter.h>
+#include <sys/queue.h>
+
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
 struct loadavg averunnable =

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.7 1995/11/24 13:53:05 bde Exp $
+ *	$Id: ddb.h,v 1.8 1995/11/29 10:25:50 phk Exp $
  */
 
 /*
@@ -38,7 +38,6 @@
 #define	_DDB_DDB_H_
 
 #include <machine/db_machdep.h>		/* type definitions */
-#include <vm/vm.h>
 
 typedef void db_cmdfcn_t __P((db_expr_t addr, boolean_t have_addr,
 			      db_expr_t count, char *modif));

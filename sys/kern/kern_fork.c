@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.13 1995/10/08 00:06:05 swallace Exp $
+ * $Id: kern_fork.c,v 1.14 1995/11/12 06:42:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <sys/ktrace.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 static int fork1(struct proc *, int, int *);
 

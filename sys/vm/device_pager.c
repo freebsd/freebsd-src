@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.14 1995/12/03 12:18:30 bde Exp $
+ * $Id: device_pager.c,v 1.15 1995/12/03 18:59:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -45,9 +45,13 @@
 #include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/device_pager.h>

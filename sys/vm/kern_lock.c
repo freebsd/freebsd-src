@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.8 1995/11/06 08:44:15 davidg Exp $
+ * $Id: kern_lock.c,v 1.9 1995/11/20 12:20:02 phk Exp $
  */
 
 /*
@@ -75,6 +75,9 @@
 #include <sys/proc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
 
 /*
  *	Routine:	lock_init
