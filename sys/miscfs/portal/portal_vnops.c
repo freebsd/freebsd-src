@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.8 1995/11/09 08:15:51 bde Exp $
+ * $Id: portal_vnops.c,v 1.9 1995/12/03 14:54:29 bde Exp $
  */
 
 /*
@@ -65,21 +65,21 @@
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
 
-extern int	portal_badop __P((void));
+static int	portal_badop __P((void));
 static void	portal_closefd __P((struct proc *p, int fd));
 static int	portal_connect __P((struct socket *so, struct socket *so2));
-extern int	portal_enotsupp __P((void));
-extern int	portal_getattr __P((struct vop_getattr_args *ap));
-extern int	portal_inactive __P((struct vop_inactive_args *ap));
-extern int	portal_lookup __P((struct vop_lookup_args *ap));
-extern int	portal_nullop __P((void));
-extern int	portal_open __P((struct vop_open_args *ap));
-extern int	portal_pathconf __P((struct vop_pathconf_args *ap));
-extern int	portal_print __P((struct vop_print_args *ap));
-extern int	portal_readdir __P((struct vop_readdir_args *ap));
-extern int	portal_reclaim __P((struct vop_reclaim_args *ap));
-extern int	portal_setattr __P((struct vop_setattr_args *ap));
-extern int	portal_vfree __P((struct vop_vfree_args *ap));
+static int	portal_enotsupp __P((void));
+static int	portal_getattr __P((struct vop_getattr_args *ap));
+static int	portal_inactive __P((struct vop_inactive_args *ap));
+static int	portal_lookup __P((struct vop_lookup_args *ap));
+static int	portal_nullop __P((void));
+static int	portal_open __P((struct vop_open_args *ap));
+static int	portal_pathconf __P((struct vop_pathconf_args *ap));
+static int	portal_print __P((struct vop_print_args *ap));
+static int	portal_readdir __P((struct vop_readdir_args *ap));
+static int	portal_reclaim __P((struct vop_reclaim_args *ap));
+static int	portal_setattr __P((struct vop_setattr_args *ap));
+static int	portal_vfree __P((struct vop_vfree_args *ap));
 
 static void
 portal_closefd(p, fd)
@@ -104,7 +104,7 @@ portal_closefd(p, fd)
  * vp is the current namei directory
  * cnp is the name to locate in that directory...
  */
-int
+static int
 portal_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -194,7 +194,7 @@ portal_connect(so, so2)
 	return (unp_connect2(so, so2));
 }
 
-int
+static int
 portal_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -427,7 +427,7 @@ bad:;
 	return (error);
 }
 
-int
+static int
 portal_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -474,7 +474,7 @@ portal_getattr(ap)
 	return (0);
 }
 
-int
+static int
 portal_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -497,7 +497,7 @@ portal_setattr(ap)
  * Fake readdir, just return empty directory.
  * It is hard to deal with '.' and '..' so don't bother.
  */
-int
+static int
 portal_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -509,7 +509,7 @@ portal_readdir(ap)
 	return (0);
 }
 
-int
+static int
 portal_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -519,7 +519,7 @@ portal_inactive(ap)
 	return (0);
 }
 
-int
+static int
 portal_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -540,7 +540,7 @@ portal_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
+static int
 portal_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -578,7 +578,7 @@ portal_pathconf(ap)
  * Print out the contents of a Portal vnode.
  */
 /* ARGSUSED */
-int
+static int
 portal_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -590,7 +590,7 @@ portal_print(ap)
 }
 
 /*void*/
-int
+static int
 portal_vfree(ap)
 	struct vop_vfree_args /* {
 		struct vnode *a_pvp;
@@ -606,7 +606,7 @@ portal_vfree(ap)
 /*
  * Portal vnode unsupported operation
  */
-int
+static int
 portal_enotsupp()
 {
 
@@ -616,7 +616,7 @@ portal_enotsupp()
 /*
  * Portal "should never get here" operation
  */
-int
+static int
 portal_badop()
 {
 
@@ -627,7 +627,7 @@ portal_badop()
 /*
  * Portal vnode null operation
  */
-int
+static int
 portal_nullop()
 {
 
@@ -676,7 +676,7 @@ portal_nullop()
 #define portal_bwrite ((int (*) __P((struct vop_bwrite_args *)))portal_enotsupp)
 
 vop_t **portal_vnodeop_p;
-struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)portal_lookup },		/* lookup */
 	{ &vop_create_desc, (vop_t *)portal_create },		/* create */
@@ -720,7 +720,7 @@ struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)portal_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc portal_vnodeop_opv_desc =
+static struct vnodeopv_desc portal_vnodeop_opv_desc =
 	{ &portal_vnodeop_p, portal_vnodeop_entries };
 
 VNODEOP_SET(portal_vnodeop_opv_desc);

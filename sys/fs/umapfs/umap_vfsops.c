@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.8 1995/05/30 08:07:18 rgrimes Exp $
+ * $Id: umap_vfsops.c,v 1.9 1995/12/03 14:54:40 bde Exp $
  */
 
 /*
@@ -56,29 +56,29 @@
 
 extern int	umapfs_init __P((void));
 
-extern int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
+static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
-extern int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
+static int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-extern int	umapfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+static int	umapfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
 				     caddr_t arg, struct proc *p));
-extern int	umapfs_root __P((struct mount *mp, struct vnode **vpp));
-extern int	umapfs_start __P((struct mount *mp, int flags, struct proc *p));
-extern int	umapfs_statfs __P((struct mount *mp, struct statfs *sbp,
+static int	umapfs_root __P((struct mount *mp, struct vnode **vpp));
+static int	umapfs_start __P((struct mount *mp, int flags, struct proc *p));
+static int	umapfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-extern int	umapfs_sync __P((struct mount *mp, int waitfor,
+static int	umapfs_sync __P((struct mount *mp, int waitfor,
 				 struct ucred *cred, struct proc *p));
-extern int	umapfs_unmount __P((struct mount *mp, int mntflags,
+static int	umapfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-extern int	umapfs_vget __P((struct mount *mp, ino_t ino,
+static int	umapfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-extern int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount umap layer
  */
-int
+static int
 umapfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -226,7 +226,7 @@ umapfs_mount(mp, path, data, ndp, p)
  * on the underlying filesystem will have been called
  * when that filesystem was mounted.
  */
-int
+static int
 umapfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -239,7 +239,7 @@ umapfs_start(mp, flags, p)
 /*
  * Free reference to umap layer
  */
-int
+static int
 umapfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -295,7 +295,7 @@ umapfs_unmount(mp, mntflags, p)
 	return (0);
 }
 
-int
+static int
 umapfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -319,7 +319,7 @@ umapfs_root(mp, vpp)
 	return (0);
 }
 
-int
+static int
 umapfs_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -330,7 +330,7 @@ umapfs_quotactl(mp, cmd, uid, arg, p)
 	return (VFS_QUOTACTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd, uid, arg, p));
 }
 
-int
+static int
 umapfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -370,7 +370,7 @@ umapfs_statfs(mp, sbp, p)
 	return (0);
 }
 
-int
+static int
 umapfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -383,7 +383,7 @@ umapfs_sync(mp, waitfor, cred, p)
 	return (0);
 }
 
-int
+static int
 umapfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -393,7 +393,7 @@ umapfs_vget(mp, ino, vpp)
 	return (VFS_VGET(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, ino, vpp));
 }
 
-int
+static int
 umapfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fidp;
@@ -406,7 +406,7 @@ umapfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	return (VFS_FHTOVP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, fidp, nam, vpp, exflagsp,credanonp));
 }
 
-int
+static int
 umapfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -414,7 +414,7 @@ umapfs_vptofh(vp, fhp)
 	return (VFS_VPTOFH(UMAPVPTOLOWERVP(vp), fhp));
 }
 
-struct vfsops umap_vfsops = {
+static struct vfsops umap_vfsops = {
 	umapfs_mount,
 	umapfs_start,
 	umapfs_unmount,

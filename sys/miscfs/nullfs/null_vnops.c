@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.9 1995/11/09 08:14:51 bde Exp $
+ * $Id: null_vnops.c,v 1.10 1995/12/03 14:54:24 bde Exp $
  */
 
 /*
@@ -163,6 +163,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -173,15 +174,17 @@
 #include <sys/buf.h>
 #include <miscfs/nullfs/null.h>
 
-int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
+	&null_bug_bypass, 0, "");
 
-extern int	null_bypass __P((struct vop_generic_args *ap));
-extern int	null_bwrite __P((struct vop_bwrite_args *ap));
-extern int	null_getattr __P((struct vop_getattr_args *ap));
-extern int	null_inactive __P((struct vop_inactive_args *ap));
-extern int	null_print __P((struct vop_print_args *ap));
-extern int	null_reclaim __P((struct vop_reclaim_args *ap));
-extern int	null_strategy __P((struct vop_strategy_args *ap));
+static int	null_bypass __P((struct vop_generic_args *ap));
+static int	null_bwrite __P((struct vop_bwrite_args *ap));
+static int	null_getattr __P((struct vop_getattr_args *ap));
+static int	null_inactive __P((struct vop_inactive_args *ap));
+static int	null_print __P((struct vop_print_args *ap));
+static int	null_reclaim __P((struct vop_reclaim_args *ap));
+static int	null_strategy __P((struct vop_strategy_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.
@@ -208,7 +211,7 @@ extern int	null_strategy __P((struct vop_strategy_args *ap));
  * - all mapped vnodes are of our vnode-type (NEEDSWORK:
  *   problems on rmdir'ing mount points and renaming?)
  */
-int
+static int
 null_bypass(ap)
 	struct vop_generic_args /* {
 		struct vnodeop_desc *a_desc;
@@ -318,7 +321,7 @@ null_bypass(ap)
 /*
  *  We handle getattr only to change the fsid.
  */
-int
+static int
 null_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -337,7 +340,7 @@ null_getattr(ap)
 }
 
 
-int
+static int
 null_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -358,7 +361,7 @@ null_inactive(ap)
 	return (0);
 }
 
-int
+static int
 null_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -382,7 +385,7 @@ null_reclaim(ap)
 }
 
 
-int
+static int
 null_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -399,7 +402,7 @@ null_print(ap)
  * vnode in its arguments.
  * This goes away with a merged VM/buffer cache.
  */
-int
+static int
 null_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -425,7 +428,7 @@ null_strategy(ap)
  * vnode in its arguments.
  * This goes away with a merged VM/buffer cache.
  */
-int
+static int
 null_bwrite(ap)
 	struct vop_bwrite_args /* {
 		struct buf *a_bp;
@@ -449,7 +452,7 @@ null_bwrite(ap)
  * Global vfs data structures
  */
 vop_t **null_vnodeop_p;
-struct vnodeopv_entry_desc null_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)null_bypass },
 
 	{ &vop_getattr_desc, (vop_t *)null_getattr },
@@ -462,7 +465,7 @@ struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 
 	{ NULL, NULL }
 };
-struct vnodeopv_desc null_vnodeop_opv_desc =
+static struct vnodeopv_desc null_vnodeop_opv_desc =
 	{ &null_vnodeop_p, null_vnodeop_entries };
 
 VNODEOP_SET(null_vnodeop_opv_desc);
