@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.27 1995/01/24 20:38:27 paul Exp $
+#	$Id: GENERIC,v 1.28 1995/01/26 05:04:34 ache Exp $
 #
 
 machine		"i386"
@@ -50,7 +50,8 @@ controller	ahc1	at isa? bio irq ? vector ahcintr
 controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
-controller	pas0	at isa? port 0x1f88 bio
+controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
 controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
 controller	scbus0

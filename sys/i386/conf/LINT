@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.130 1995/01/26 05:04:37 ache Exp $
+#	$Id: LINT,v 1.131 1995/01/26 11:00:12 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -370,14 +370,14 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 #
-# SCSI host adapters: `aha', `ahb', `aic', `bt', `pas'
+# SCSI host adapters: `aha', `ahb', `aic', `bt', `nca'
 #
 # aha: Adaptec 154x
 # ahb: Adaptec 174x
 # ahc: Adaptec 274x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
-# pas: ProAudioSpectrum cards using the NCR 5380 (slow!)
+# nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
 # uha: UltraStore 14F and 34F
 # sea: Seagate ST01/02 8 bit controller (slow!)
 # wds: Western Digital WD7000 controller (no scatter/gather!).
@@ -393,10 +393,11 @@ controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
 controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
-controller	pas0	at isa? port 0x1f88
-controller	pas1	at isa? port 0x1f84
-controller	pas2	at isa? port 0x1f8c
-controller	pas3	at isa? port 0x1e88
+controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+controller	nca1	at isa? port 0x1f84
+controller	nca2	at isa? port 0x1f8c
+controller	nca3	at isa? port 0x1e88
+controller	nca4	at isa? port 0x350 bio irq 5 vector ncaintr
 
 controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000 vector seaintr
 controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
