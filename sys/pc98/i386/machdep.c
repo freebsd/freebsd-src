@@ -2208,7 +2208,7 @@ init386(first)
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
 	lldt(_default_ldt);
 #ifdef USER_LDT
-	currentldt = _default_ldt;
+	PCPU_SET(currentldt, _default_ldt);
 #endif
 
 	/* exceptions */
