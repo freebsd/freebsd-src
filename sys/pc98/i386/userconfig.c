@@ -129,6 +129,9 @@
 #include <i386/isa/isa_device.h>
 #include "pnp.h"
 
+#undef NPNP
+#define NPNP 0
+
 #if NPNP > 0
 #include <i386/isa/pnp.h>
 #endif
@@ -427,7 +430,7 @@ static DEV_INFO device_info[] = {
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
 {"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
 {"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
-{"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
+{"si",          "Specialix SI/XIO/SX async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 #ifdef PC98
