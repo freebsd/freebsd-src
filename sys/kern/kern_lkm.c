@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.45 1997/11/06 19:29:11 phk Exp $
+ * $Id: kern_lkm.c,v 1.46 1998/01/24 02:54:34 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -946,6 +946,6 @@ static void 	lkm_drvinit(void *unused)
     	}
 }
 
+#ifndef NO_LKM
 SYSINIT(lkmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lkm_drvinit,NULL)
-
-
+#endif
