@@ -128,6 +128,13 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       &merged;</para>
 
+    <para>A buffer overflow in the TELNET client program, which could
+      allow an attacker to cause the execution of arbitrary code with
+      the privileges of the user invoking &man.telnet.1;, has been
+      fixed.  More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -822,6 +829,9 @@
     <para>The &man.rescue.8; utilities in the <filename>/rescue</filename>
       directory now include &man.bsdtar.1; instead of GNU tar.</para>
 
+    <para>The &man.restore.8; utility has regained the ability to read
+      &os; version 1 dump tapes.</para>
+
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
       removing directories or if more than 3 files are listed in the
@@ -893,13 +903,13 @@
       Korea. &merged;</para>
 
     <para>The <option>-I</option> option of the &man.xargs.1; command
-      has been changed to conform IEEE Std 1003.1-2004.
+      has been changed to conform to IEEE Std 1003.1-2004.
       The standard requires that the constructed
       arguments cannot grow larger than 255 bytes.</para>
 
     <para>A bug, which caused the last line of configuration files such as &man.hosts.5;,
       &man.services.5;, and so on to be ignored if it did not end in a newline character,
-      has been fixed.</para>
+      has been fixed. &merged;</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
