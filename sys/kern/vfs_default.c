@@ -722,26 +722,6 @@ vop_stdputpages(ap)
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
  */
-int 
-vfs_stdmount (mp, path, data, ndp, td)
-	struct mount *mp;
-	char *path;
-	caddr_t data; 
-	struct nameidata *ndp;
-	struct thread *td;
-{
-	return (0);
-}
-
-int
-vfs_stdunmount (mp, mntflags, td)
-	struct mount *mp;
-	int mntflags;
-	struct thread *td;
-{
-	return (0);
-}
-
 int
 vfs_stdroot (mp, vpp)
 	struct mount *mp;
