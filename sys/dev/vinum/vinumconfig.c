@@ -1231,7 +1231,7 @@ config_subdisk(int update)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
     if (sd->dev == NULL)
-        sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_SD_TYPE),
+        sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_RAWSD_TYPE),
 	    UID_ROOT,
 	    GID_WHEEL,
  	    S_IRUSR | S_IWUSR,
@@ -1426,7 +1426,7 @@ config_plex(int update)
     vinum_conf.plexes_used++;				    /* one more in use */
     if (plex->dev == NULL)
         plex->dev = make_dev(&vinum_cdevsw,
-	    VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
+	    VINUMRMINOR(plexno, VINUM_RAWPLEX_TYPE),
 	    UID_ROOT,
 	    GID_WHEEL,
             S_IRUSR | S_IWUSR,
