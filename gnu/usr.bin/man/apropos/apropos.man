@@ -12,20 +12,21 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
+.\" $FreeBSD$
 .Dd Jan 15, 1991
 .Dt APROPOS 1
 .Os
 .Sh NAME
-.Nm apropos , whatis
+.Nm apropos ,
+.Nm whatis
 .Nd search the whatis database
 .Sh SYNOPSIS
 .Nm apropos
 .Ar keyword ...
-.br
 .Nm whatis
 .Ar keyword ...
 .Sh DESCRIPTION
-.Nm apropos 
+.Nm
 searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
@@ -33,7 +34,7 @@ standard output.
 displays only complete word matches. 
 .Sh RETURN VALUES
 The 
-.Nm apropos
+.Nm
 utility exits 0 on success, and 1 if no keyword matched.
 .Sh SEE ALSO
 .Xr makewhatis 1 ,
