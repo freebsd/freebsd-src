@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.76 1996/08/27 20:41:02 se Exp $
+**  $Id: ncr.c,v 1.77 1996/09/06 23:08:57 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1253,7 +1253,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.76 1996/08/27 20:41:02 se Exp $\n";
+	"\n$Id: ncr.c,v 1.77 1996/09/06 23:08:57 phk Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5043,7 +5043,7 @@ void ncr_exception (ncb_p np)
 		int i;
 		np->regtime = time;
 		for (i=0; i<sizeof(np->regdump); i++)
-			((char*)&np->regdump)[i] = ((char*)np->reg)[i];
+			((char*)&np->regdump)[i] = ((volatile char*)np->reg)[i];
 		np->regdump.nc_dstat = dstat;
 		np->regdump.nc_sist  = sist;
 	};
@@ -5097,7 +5097,7 @@ void ncr_exception (ncb_p np)
 
 	printf ("\treg:\t");
 	for (i=0; i<16;i++)
-		printf (" %02x", ((u_char*)np->reg)[i]);
+		printf (" %02x", ((volatile u_char*)np->reg)[i]);
 	printf (".\n");
 
 	/*----------------------------------------
@@ -6520,7 +6520,7 @@ static int ncr_regtest (struct ncb* np)
 	**	write 0xffffffff to a read only register area,
 	**	and try to read it back.
 	*/
-	addr = (u_long*) &np->reg->nc_dstat;
+	addr = (volatile u_long*) &np->reg->nc_dstat;
 	data = 0xffffffff;
 	*addr= data;
 	data = *addr;
