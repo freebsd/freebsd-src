@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_conn.h>
 #include <netsmb/smb_tran.h>
 
+#include "opt_netsmb.h"
+
 struct smb_dialect {
 	int		d_id;
 	const char *	d_name;
@@ -80,24 +82,29 @@ smb_vc_maxread(struct smb_vc *vcp)
 	/*
 	 * Specs say up to 64k data bytes, but Windows traffic
 	 * uses 60k... no doubt for some good reason.
+	 *
+	 * Don't exceed the server's buffer size if signatures
+	 * are enabled otherwise Windows 2003 chokes. Allow space
+	 * for the SMB header & a little bit extra.
 	 */
-	if (vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_READX)
+	if ((vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_READX) &&
+	    (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE) == 0)
 		return (60*1024);
 	else
-		return (vcp->vc_sopt.sv_maxtx);
+		return (vcp->vc_sopt.sv_maxtx - SMB_HDRLEN - 64);
 }
 
 static u_int32_t
 smb_vc_maxwrite(struct smb_vc *vcp)
 {
 	/*
-	 * Specs say up to 64k data bytes, but Windows traffic
-	 * uses 60k... probably for some good reason.
+	 * See comment above.
 	 */
-	if (vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_WRITEX)
+	if ((vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_WRITEX) &&
+	    (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE) == 0)
 		return (60*1024);
 	else
-		return (vcp->vc_sopt.sv_maxtx);
+		return (vcp->vc_sopt.sv_maxtx - SMB_HDRLEN - 64);
 }
 
 static int
@@ -190,6 +197,10 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 				vcp->vc_chlen = sblen;
 				vcp->obj.co_flags |= SMBV_ENCRYPT;
 			}
+#ifdef NETSMBCRYPTO
+			if (sp->sv_sm & SMB_SM_SIGS_REQUIRE)
+				vcp->vc_hflags2 |= SMB_FLAGS2_SECURITY_SIGNATURE;
+#endif
 			vcp->vc_hflags2 |= SMB_FLAGS2_KNOWS_LONG_NAMES;
 			if (dp->d_id == SMB_DIALECT_NTLM0_12 &&
 			    sp->sv_maxtx < 4096 &&
@@ -385,6 +396,8 @@ again:
 	smb_rq_bend(rqp);
 	if (ntencpass)
 		free(ntencpass, M_SMBTEMP);
+	if (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE)
+		smb_calcmackey(vcp);
 	error = smb_rq_simple(rqp);
 	SMBSDEBUG("%d\n", error);
 	if (error) {

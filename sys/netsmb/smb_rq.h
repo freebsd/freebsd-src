@@ -54,6 +54,7 @@
 #define	SMBT2_ALLOCED		0x0004
 #define	SMBT2_RESTART		0x0008
 #define	SMBT2_NORESTART		0x0010
+#define	SMBT2_SECONDARY		0x0020	/* secondary request */
 
 #define SMBRQ_SLOCK(rqp)	smb_sl_lock(&(rqp)->sr_slock)
 #define SMBRQ_SUNLOCK(rqp)	smb_sl_unlock(&(rqp)->sr_slock)
@@ -75,6 +76,8 @@ struct smb_rq {
 	struct smb_vc * 	sr_vc;
 	struct smb_share*	sr_share;
 	u_short			sr_mid;
+	u_int32_t		sr_seqno;
+	u_int32_t		sr_rseqno;
 	struct mbchain		sr_rq;
 	u_int8_t		sr_rqflags;
 	u_int16_t		sr_rqflags2;
@@ -91,6 +94,7 @@ struct smb_rq {
 	int			sr_sendcnt;
 	struct timespec 	sr_timesent;
 	int			sr_lerror;
+	u_int8_t *		sr_rqsig;
 	u_int16_t *		sr_rqtid;
 	u_int16_t *		sr_rquid;
 	u_int8_t		sr_errclass;
@@ -103,7 +107,7 @@ struct smb_rq {
 	u_int16_t		sr_rpuid;
 	u_int16_t		sr_rpmid;
 	struct smb_slock	sr_slock;	/* short term locks */
-/*	struct smb_t2rq*sr_t2;*/
+	struct smb_t2rq *	sr_t2;
 	TAILQ_ENTRY(smb_rq)	sr_link;
 };
 
