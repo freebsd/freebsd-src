@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.29 1999/06/27 19:29:15 rnordier Exp $";
+	"$Id: fdisk.c,v 1.30 1999/08/23 11:06:19 phk Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -388,7 +388,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s%s",
-		"usage: fdisk [-Baitu] [-b bootcode] [-1234] [disk]\n",
+		"usage: fdisk [-Baeitu] [-b bootcode] [-1234] [disk]\n",
  		"       fdisk -f configfile [-itv] [disk]\n");
         exit(1);
 }
