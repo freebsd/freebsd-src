@@ -1168,12 +1168,12 @@ options 	ATA_ENABLE_ATAPI_DMA
 # This driver must be commented out because it is mutually exclusive with
 # the ata(4) driver.
 #
-#device		wdc0	at isa? port IO_WD1 irq 14
-#device		wd0	at wdc0 drive 0
-#device		wd1	at wdc0 drive 1
-#device		wdc1	at isa? port IO_WD2 irq 15
-#device		wd2	at wdc1 drive 0
-#device		wd3	at wdc1 drive 1
+device		wdc0	at isa? port IO_WD1 irq 14
+device		wd0	at wdc0 drive 0
+device		wd1	at wdc0 drive 1
+device		wdc1	at isa? port IO_WD2 irq 15
+device		wd2	at wdc1 drive 0
+device		wd3	at wdc1 drive 1
 
 #
 # This option allow you to override the default probe time for IDE
@@ -1181,16 +1181,16 @@ options 	ATA_ENABLE_ATAPI_DMA
 # the IDE specs, but may still work for you (it will work for most
 # people).
 #
-#options 	IDE_DELAY=8000	# Be optimistic about Joe IDE device
+options 	IDE_DELAY=8000	# Be optimistic about Joe IDE device
 
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller
-#device		wcd
+device		wcd
 
 # IDE floppy driver - requires wdc controller
-#device		wfd
+device		wfd
 
 # IDE tape driver - requires wdc controller
-#device		wst
+device		wst
 
 
 #

@@ -47,7 +47,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <i386/isa/atapi.h>
-#include <i386/isa/atapi-cd.h>
+#include <i386/isa/wd_cd.h>
 
 static d_open_t		acdopen;
 static d_close_t	acdclose;

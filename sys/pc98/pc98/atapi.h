@@ -15,6 +15,9 @@
  * $FreeBSD$
  */
 
+#define atapi_attach wdc_atapi_attach
+#define acdattach wdc_acdattach
+
 /*
  * Disk Controller ATAPI register definitions.
  */
