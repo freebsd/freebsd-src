@@ -653,6 +653,7 @@ Type 8: Generic Reference Clock Driver
      ELV DCF7000 (sloppy AM demodulation / 50ms)
 
      127.127.8.16-19 16
+
      Walter Schmid DCF receiver Kit (AM demodulation / 1ms)
 
      127.127.8.20-23 16
@@ -670,6 +671,10 @@ Type 8: Generic Reference Clock Driver
      127.127.8.32-35 16
 
      Trimble SV6 GPS receiver (GPS / <<1us)
+
+     127.127.8.40-43 16
+
+     RAW DCF77 100/200ms pulses (Boeder DCF77 receiver / 5ms)
 
      The reference clock support carefully monitors the state
      transitions of the receiver. All state changes and exceptional

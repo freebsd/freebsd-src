@@ -123,7 +123,7 @@ main(argc, argv)
 #define  BSD19906
 #endif /* BSD... */
 #endif /* BSD sun */
-#if defined(BSD19906)
+#if defined(BSD19906) || defined(SYS_44BSD)
 		daemon(0, 0);
 #else /* BSD19906 */
 		if (fork())

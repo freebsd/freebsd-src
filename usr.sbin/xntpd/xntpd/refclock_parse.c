@@ -6,6 +6,9 @@
  *
  * generic reference clock driver for receivers
  *
+ * Added support for the Boeder DCF77 receiver on FreeBSD
+ * by Vincenzo Capuano 1995/04/18.
+ *
  * make use of a STREAMS module for input processing where
  * available and configured. Currently the STREAMS module
  * is only available for Suns running SunOS 4.x and SunOS5.x (new - careful!)
@@ -32,6 +35,8 @@
  *
  *  FREEBSD_CONRAD    - Make very cheap "Conrad DCF77 RS-232" gadget work
  *			with FreeBSD.
+ *  BOEDER            - Make cheap "Boeder DCF77 RS-232" receiver work
+ *			with FreeBSD.
  * TTY defines:
  *  HAVE_BSD_TTYS     - currently unsupported
  *  HAVE_SYSV_TTYS    - will use termio.h
@@ -47,6 +52,7 @@
  *   - ELV DCF7000                                          (DCF)
  *   - Schmid clock                                         (DCF)
  *   - Conrad DCF77 receiver module                         (DCF)
+ *   - Boeder DCF77 receiver                                (DCF)
  *   - FAU DCF77 NTP receiver (TimeBrick)                   (DCF)
  *   - Meinberg GPS166                                      (GPS)
  *   - Trimble SV6 (TSIP and TAIP protocol)                 (GPS)
@@ -142,10 +148,10 @@ static char rcsid[]="refclock_parse.c,v 3.53 1994/03/25 13:07:39 kardel Exp";
  **/
 
 static	void	parse_init	P((void));
-static	int	parse_start	P((u_int, struct peer *));
-static	void	parse_shutdown	P((int));
+static	int	parse_start	P((int, struct peer *));
+static	void	parse_shutdown	P((int, struct peer *));
 static	void	parse_poll	P((int, struct peer *));
-static	void	parse_control	P((u_int, struct refclockstat *, struct refclockstat *));
+static	void	parse_control	P((int, struct refclockstat *, struct refclockstat *));
 
 #define	parse_buginfo	noentry
 
@@ -446,7 +452,7 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
 #define RAWDCF_FORMAT		"RAW DCF77 Timecode"
 #define RAWDCF_MAXUNSYNC	(0) /* sorry - its a true receiver - no signal - no time */
 
-#ifdef FREEBSD_CONRAD
+#if defined(FREEBSD_CONRAD) || (defined(SYS_FREEBSD) && defined(BOEDER))
 #define RAWDCF_CFLAG            (CS8|CREAD|CLOCAL)
 #else
 #define RAWDCF_CFLAG            (B50|CS8|CREAD|CLOCAL)
@@ -466,6 +472,15 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
  */
 #define CONRAD_BASEDELAY	0x420C49B0 /* ~258 ms - Conrad receiver @ 50 Baud on a Sun */
 #define CONRAD_DESCRIPTION	"RAW DCF77 CODE (Conrad DCF77 receiver module)"
+
+/*
+ * Boeder receiver
+ *
+ * simple (cheap) DCF clock - e. g. DCF77 receiver by Boeder
+ * followed by a level converter for RS232
+ */
+#define BOEDER_BASEDELAY        0x420C49B0 /* ~258 ms - Conrad receiver @ 50 Baud */
+#define BOEDER_DESCRIPTION      "RAW DCF77 CODE (BOEDER DCF77 receiver)"
 
 /*
  * TimeBrick receiver
@@ -746,6 +761,25 @@ static struct my_clockinfo
     TRIMBLETSIP_IFLAG,
     TRIMBLETSIP_OFLAG,
     TRIMBLETSIP_LFLAG
+  },
+  {				/* 127.127.8.40+<device> */
+    RAWDCF_FLAGS,
+    NO_POLL,
+    NO_INIT,
+    NO_END,
+    NO_DATA,
+    RAWDCF_ROOTDELAY,
+    BOEDER_BASEDELAY,
+    NO_PPSDELAY,
+    DCF_A_ID,
+    BOEDER_DESCRIPTION,
+    RAWDCF_FORMAT,
+    DCF_TYPE,
+    RAWDCF_MAXUNSYNC,
+    RAWDCF_CFLAG,
+    RAWDCF_IFLAG,
+    RAWDCF_OFLAG,
+    RAWDCF_LFLAG
   }
 };
 
@@ -1566,7 +1600,7 @@ local_receive(rbufp)
 
   while (count--)
     {
-      if (parse_ioread(&parse->parseio, *s++, &rbufp->recv_time))
+      if (parse_ioread(&parse->parseio, *s++, (timestamp_t *)&rbufp->recv_time))
 	{
 	  /*
 	   * got something good to eat
@@ -2108,8 +2142,9 @@ parse_init()
  * parse_shutdown - shut down a PARSE clock
  */
 static void
-parse_shutdown(unit)
+parse_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
 	register struct parseunit *parse;
 
@@ -2174,7 +2209,7 @@ parse_shutdown(unit)
  */
 static int
 parse_start(sysunit, peer)
-	u_int sysunit;
+	int sysunit;
 	struct peer *peer;
 {
   u_int unit;
@@ -2218,11 +2253,15 @@ parse_start(sysunit, peer)
    */
   (void) sprintf(parsedev, PARSEDEVICE, unit);
 
+#if defined(SYS_FREEBSD) && defined(BOEDER)
+  fd232 = open(parsedev, O_RDONLY | O_NONBLOCK, 0777);
+#else
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
 #endif
 
   fd232 = open(parsedev, O_RDWR|O_NOCTTY, 0777);
+#endif
   if (fd232 == -1)
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: open of %s failed: %m", unit, parsedev);
@@ -2311,7 +2350,7 @@ parse_start(sysunit, peer)
   if (parse->binding == (bind_t *)0)
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: io sub system initialisation failed.");
-      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
       return 0;		/* well, ok - special initialisation broke */
     }
 
@@ -2321,7 +2360,7 @@ parse_start(sysunit, peer)
   if (TTY_GETATTR(fd232, &tm) == -1)
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: tcgetattr(%d, &tm): %m", unit, fd232);
-      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
       return 0;
     }
   else
@@ -2347,14 +2386,20 @@ parse_start(sysunit, peer)
       tm.c_iflag     = clockinfo[type].cl_iflag;
       tm.c_oflag     = clockinfo[type].cl_oflag;
       tm.c_lflag     = clockinfo[type].cl_lflag;
-#ifdef FREEBSD_CONRAD
-      tm.c_ispeed    = 50;
-      tm.c_ospeed    = 50;
+#if defined(SYS_FREEBSD) && (defined(BOEDER) || defined(FREEBSD_CONRAD))
+      if (cfsetspeed(&tm, B50) == -1)
+	{
+	  syslog(LOG_ERR,
+		 "PARSE receiver #%d: parse_start: cfsetspeed(&tm, B50): %m",
+		 unit);
+	  parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
+	  return 0;
+	}
 #endif
       if (TTY_SETATTR(fd232, &tm) == -1)
 	{
 	  syslog(LOG_ERR, "PARSE receiver #%d: parse_start: tcsetattr(%d, &tm): %m", unit, fd232);
-	  parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+	  parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
 	  return 0;
 	}
     }
@@ -2389,7 +2434,7 @@ parse_start(sysunit, peer)
   if (!PARSE_SETCS(parse, &tmp_ctl))
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: parse_setcs() FAILED.", unit);
-      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
       return 0;		/* well, ok - special initialisation broke */
     }
 
@@ -2407,6 +2452,25 @@ parse_start(sysunit, peer)
 	}
       }
 #endif
+#if defined(SYS_FREEBSD) && defined(BOEDER)
+  if (fcntl(fd232, F_SETFL, fcntl(fd232, F_GETFL, 0) & ~O_NONBLOCK) == -1)
+    {
+      syslog(LOG_ERR,
+	     "PARSE receiver #%d: parse_start: fcntl(%d, F_SETFL, ...): %m",
+	     unit, fd232);
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
+      return 0;
+    }
+
+  if (ioctl(fd232, TIOCCDTR, 0) == -1)
+    {
+      syslog(LOG_ERR,
+	     "PARSE receiver #%d: parse_start: ioctl(%d, TIOCCDTR, 0): %m",
+	     unit, fd232);
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
+      return 0;
+    }
+#endif
 
   strcpy(tmp_ctl.parseformat.parse_buffer, parse->parse_type->cl_format);
   tmp_ctl.parseformat.parse_count = strlen(tmp_ctl.parseformat.parse_buffer);
@@ -2414,7 +2478,7 @@ parse_start(sysunit, peer)
   if (!PARSE_SETFMT(parse, &tmp_ctl))
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: parse_setfmt() FAILED.", unit);
-      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
       return 0;		/* well, ok - special initialisation broke */
     }
 
@@ -2437,7 +2501,7 @@ parse_start(sysunit, peer)
   if (!PARSE_SETSTAT(parse, &tmp_ctl))
     {
       syslog(LOG_ERR, "PARSE receiver #%d: parse_start: parse_setstat() FAILED.", unit);
-      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
       return 0;		/* well, ok - special initialisation broke */
     }
 
@@ -2448,7 +2512,7 @@ parse_start(sysunit, peer)
     {
       if (parse->parse_type->cl_init(parse))
 	{
-	  parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+	  parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
 	  return 0;		/* well, ok - special initialisation broke */
 	}
     }
@@ -2469,7 +2533,7 @@ parse_start(sysunit, peer)
 	    {
 	      syslog(LOG_ERR,
 		     "PARSE receiver #%d: parse_start: addclock %s fails (ABORT - clock type requires async io)", CL_UNIT(parse->unit), parsedev);
-	      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+	      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
 	      return 0;
 	    }
 	  else
@@ -2496,7 +2560,7 @@ parse_start(sysunit, peer)
 	  if (!PARSE_DISABLE(parse))
 	    {
 	      syslog(LOG_ERR, "PARSE receiver #%d: parse_start: parse_disable() FAILED", CL_UNIT(parse->unit));
-	      parse_shutdown(parse->unit); /* let our cleaning staff do the work */
+	      parse_shutdown(parse->unit, peer); /* let our cleaning staff do the work */
 	      return 0;
 	    }
 	}
@@ -2648,7 +2712,7 @@ parse_leap()
  */
 static void
 parse_control(unit, in, out)
-  u_int unit;
+  int unit;
   struct refclockstat *in;
   struct refclockstat *out;
 {
