@@ -99,6 +99,7 @@ static void device_unregister_oids(device_t dev);
 #endif
 
 extern char static_hints[];
+extern int hintmode;
 static int hints_loaded;
 
 kobj_method_t null_methods[] = {
@@ -1587,8 +1588,6 @@ hint_load(char *cp)
 	len = ep - cp;
 	if (*ep == '=')
 		ep++;
-	if (strncmp(cp, "hint.", 5) != 0)
-		return;
 	walker = cp;
 	walker += 5;
 	op = walker;
@@ -1642,18 +1641,37 @@ hints_load(void *dummy __unused)
 {
 	char	*cp;
 
-	cp = static_hints;
-	while (cp) {
-		hint_load(cp);
-		while (*cp != '\0')
+	if (hintmode == 2) {		/* default hints only */
+		cp = kern_envp;
+		while (cp) {
+			if (strncmp(cp, "hint.", 5) == 0) {
+				/* ok, we found a hint, ignore these defaults */
+				hintmode = 0;
+				break;
+			}
+			while (*cp != '\0')
+				cp++;
 			cp++;
-		cp++;
-		if (*cp == '\0')
-			break;
+			if (*cp == '\0')
+				break;
+		}
+	}
+	if (hintmode != 0) {
+		cp = static_hints;
+		while (cp) {
+			if (strncmp(cp, "hint.", 5) == 0)
+				hint_load(cp);
+			while (*cp != '\0')
+				cp++;
+			cp++;
+			if (*cp == '\0')
+				break;
+		}
 	}
 	cp = kern_envp;
 	while (cp) {
-		hint_load(cp);
+		if (strncmp(cp, "hint.", 5) == 0)
+			hint_load(cp);
 		while (*cp != '\0')
 			cp++;
 		cp++;
