@@ -50,6 +50,7 @@ struct sl_softc {
 	struct	ifnet sc_if;		/* network-visible interface */
 	struct	ifqueue sc_fastq;	/* interactive output queue */
 	struct	tty *sc_ttyp;		/* pointer to tty structure */
+	struct	mbuf *sc_mbuf;		/* pointer to mbuf containing buffer */
 	u_char	*sc_mp;			/* pointer to next available buf char */
 	u_char	*sc_ep;			/* pointer to last available buf char */
 	u_char	*sc_buf;		/* input buffer */
