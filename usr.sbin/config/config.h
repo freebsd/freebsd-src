@@ -158,8 +158,6 @@ void	options __P((void));
 void	makefile __P((void));
 void	headers __P((void));
 
-
-extern int	seen_scbus;
 extern struct	device *dtab;
 
 extern char	errbuf[80];
