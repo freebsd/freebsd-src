@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.57 1996/10/09 18:31:20 jkh Exp $
+ **      $Id: userconfig.c,v 1.58 1996/10/09 23:36:54 jkh Exp $
  **/
 
 /**
@@ -2212,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.57 1996/10/09 18:31:20 jkh Exp $
+ *      $Id: userconfig.c,v 1.58 1996/10/09 23:36:54 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2581,8 +2581,8 @@ introfunc(CmdParm *parms)
     ++y;
     putxy(2, y++, "You should go through each device category and delete all entries");
     putxy(2, y++, "(using the DELETE key) for devices which you are sure that you do");
-    puyxy(2, y++, "not have (if you're not sure, or don't know what it is, leave it in!)");
-    putyx(2, y++, "This will minimize the chances for driver conflict and also make");
+    putxy(2, y++, "not have (if you're not sure, or don't know what it is, leave it in!)");
+    putxy(2, y++, "This will minimize the chances for driver conflict and also make");
     putxy(2, y++, "the kernel boot faster since no time will be wasted in trying to");
     putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which");
     putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
