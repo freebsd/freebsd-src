@@ -18,8 +18,8 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 INCS=		${SRCDIR}/include/lwres/context.h \
 		${SRCDIR}/include/lwres/int.h \

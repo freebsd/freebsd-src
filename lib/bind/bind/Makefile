@@ -60,8 +60,8 @@ SRCS+=		herror.c res_comp.c res_data.c \
 CFLAGS+=	-I${SRCDIR}/port/freebsd/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 #INCS=		${SRCDIR}/include/isc/assertions.h \
 #		${SRCDIR}/include/isc/ctl.h \

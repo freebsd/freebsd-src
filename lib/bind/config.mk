@@ -1,54 +1,79 @@
 # $FreeBSD$
 
+# BIND version number
 CFLAGS+=	-DVERSION='"9.3.0rc4"'
 
+CFLAGS+=	-DHAVE_CONFIG_H
+
+# Get version numbers (for libraries)
 .if defined(SRCDIR) && exists(${SRCDIR}/api)
 .include	"${SRCDIR}/api"
-.endif
-
-.if defined(LIB_BIND_DIR) && exists(${LIB_BIND_DIR}/config.h)
-CFLAGS+=	-I${LIB_BIND_DIR}
-.endif
-
-.if defined(LIBINTERFACE)
 CFLAGS+=	-DLIBINTERFACE=${LIBINTERFACE}
 SHLIB_MAJOR=	${LIBINTERFACE}
-.endif
-
-.if defined(LIBREVISION)
 CFLAGS+=	-DLIBREVISION=${LIBREVISION}
 SHLIB_MINOR=	${LIBINTERFACE}
-.endif
-
-.if defined(LIBAGE)
 CFLAGS+=	-DLIBAGE=${LIBAGE}
 .endif
-
-CFLAGS+=	-DHAVE_CONFIG_H
 
 # GSSAPI support is incomplete in 9.3.0rc4
 #.if !defined(NO_KERBEROS)
 #CFLAGS+=	-DGSSAPI
 #.endif
 
+# Enable IPv6 support if available
 .if !defined(NOINET6)
 CFLAGS+=	-DWANT_IPV6
 .endif
 
-.if ${MACHINE_ARCH} == powerpc || ${MACHINE_ARCH} == sparc64
+# Enable crypto if available
+.if !defined(NOCRYPT)
+CFLAGS+=	-DOPENSSL
+.endif
+
+# Enable MD5 - BIND has its own implementation
+CFLAGS+=	-DUSE_MD5
+
+# Endianness
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
 CFLAGS+=	-DWORDS_BIGENDIAN
 .endif
 
+# Default file locations
 LOCALSTATEDIR=	/var/run
-SYSCONFDIR=	/etc
-
+SYSCONFDIR=	/etc/namedb
 CFLAGS+=	-DNS_LOCALSTATEDIR='"${LOCALSTATEDIR}"'
 CFLAGS+=	-DNS_SYSCONFDIR='"${SYSCONFDIR}"'
 CFLAGS+=	-DNAMED_CONFFILE='"${SYSCONFDIR}/named.conf"'
 CFLAGS+=	-DRNDC_CONFFILE='"${SYSCONFDIR}/rndc.conf"'
 CFLAGS+=	-DRNDC_KEYFILE='"${SYSCONFDIR}/rndc.key"'
 
+# Add correct include path for config.h
+.if defined(LIB_BIND_DIR) && exists(${LIB_BIND_DIR}/config.h)
+CFLAGS+=	-I${LIB_BIND_DIR}
+.endif
+
+# Link against BIND libraries
 BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
-		${LIBISC} ${LIBLWRES} ${LIBCRYPTO} ${LIBPTHREAD}
-BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres \
-		-lcrypto -lpthread
+		${LIBISC} ${LIBLWRES}
+BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
+
+# Link against crypto library
+.if !defined(NOCRYPT)
+CRYPTO_DPADD+=	${LIBCRYPTO}
+CRYPTO_LDADD+=	-lcrypto
+.endif
+
+# Link against POSIX threads library
+.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if defined(NOLIBC_R)
+.error "BIND requires libc_r - define NO_BIND, or undefine NOLIBC_R"
+.endif
+PTHREAD_DPADD+=	${LIBC_R}
+PTHREAD_LDADD+=	-lc_r
+.else
+.if defined(NOLIBPTHREAD)
+.error "BIND requires libpthread - define NO_BIND, or undefine NOLIBPTHREAD"
+.endif
+PTHREAD_DPADD+=	${LIBPTHREAD}
+PTHREAD_LDADD+=	-lpthread
+.endif

@@ -13,8 +13,8 @@ SRCS+=		dighost.c nslookup.c
 
 CFLAGS+=	-I${SRCDIR}/include
 
-DPADD+=		${BIND_DPADD}
-LDADD+=		${BIND_LDADD}
+DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 MAN=		nslookup.1
 

@@ -13,8 +13,8 @@ SRCS=		log.c namedconf.c parser.c version.c
 
 CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${PTHREAD_DPADD}
+LDADD=		${PTHREAD_LDADD}
 
 INCS=		${SRCDIR}/include/isccfg/cfg.h \
 		${SRCDIR}/include/isccfg/grammar.h \
