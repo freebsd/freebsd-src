@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.61 1996/04/07 13:03:06 phk Exp $
+ * $Id: kern_sysctl.c,v 1.62 1996/04/13 13:28:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -739,7 +739,7 @@ int
 userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval)
 {
 	int error = 0;
-	struct sysctl_req req;
+	struct sysctl_req req, req2;
 
 	bzero(&req, sizeof req);
 
@@ -780,8 +780,12 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 	}
 	memlock.sl_lock = 1;
 
-	error = sysctl_root(0, name, namelen, &req);
+	do {
+	    req2 = req;
+	    error = sysctl_root(0, name, namelen, &req2);
+	} while (error == EAGAIN);
 
+	req = req2;
 	if (req.lock == 2)
 		vsunlock(req.oldptr, req.oldlen, B_WRITE);
 
