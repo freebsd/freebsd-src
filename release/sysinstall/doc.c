@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.6 1995/10/26 08:55:40 jkh Exp $
+ * $Id: doc.c,v 1.7 1995/10/27 01:22:53 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -27,14 +27,6 @@ docBrowser(char *junk)
 {
     char *browser = variable_get(VAR_BROWSER_PACKAGE);
  
-    /* Make sure we were started at a reasonable time */
-    if (!strcmp(variable_get(SYSTEM_STATE), "init")) {
-	dialog_clear();
-	msgConfirm("Sorry, it's not possible to invoke the browser until the system\n"
-		   "is installed completely enough to support a copy of %s.", browser);
-	return RET_FAIL;
-    }
-
     if (!mediaVerify())
 	return RET_FAIL;
 
