@@ -93,7 +93,7 @@ _write(int fd, const void *buf, size_t nbytes)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || (n >= 0 && num < nbytes))) {
+			    errno == EAGAIN)) || (n > 0 && num < nbytes))) {
 				curthread->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -131,7 +131,7 @@ _write(int fd, const void *buf, size_t nbytes)
 			 * If there was an error, return partial success
 			 * (if any bytes were written) or else the error:
 			 */
-			} else if (n < 0) {
+			} else if (n <= 0) {
 				if (num > 0)
 					ret = num;
 				else
