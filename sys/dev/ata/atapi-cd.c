@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,6 @@ acdattach(struct atapi_softc *atp)
 {
     struct acd_softc *cdp;
     struct changer *chp;
-    char name[16];
     static int acd_cdev_done = 0;
 
     if (!acd_cdev_done) {
@@ -122,8 +121,7 @@ acdattach(struct atapi_softc *atp)
 	return -1;
     }
 
-    sprintf(name, "acd%d", cdp->lun);
-    ata_set_name(atp->controller, atp->unit, name);
+    ata_set_name(atp->controller, atp->unit, "acd", cdp->lun);
     acd_get_cap(cdp);
 
     /* if this is a changer device, allocate the neeeded lun's */
@@ -144,6 +142,7 @@ acdattach(struct atapi_softc *atp)
 			     ATPR_F_READ, 60, NULL, NULL)) {
 	    struct acd_softc *tmpcdp = cdp;
 	    struct acd_softc **cdparr;
+	    char *name;
 	    int count;
 
 	    chp->table_length = htons(chp->table_length);
@@ -156,7 +155,7 @@ acdattach(struct atapi_softc *atp)
 	    }
 	    for (count = 0; count < chp->slots; count++) {
 		if (count > 0) {
-		    tmpcdp = acd_init_lun(atp, cdp->stats);
+		    tmpcdp = acd_init_lun(atp, NULL);
 		    if (!tmpcdp) {
 			ata_printf(atp->controller,atp->unit,"out of memory\n");
 			break;
@@ -167,15 +166,19 @@ acdattach(struct atapi_softc *atp)
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
 	        acd_make_dev(tmpcdp);
+		devstat_add_entry(cdp->stats, "acd", tmpcdp->lun, DEV_BSIZE,
+				  DEVSTAT_NO_ORDERED_TAGS,
+				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
+				  DEVSTAT_PRIORITY_CD);
 	    }
-	    sprintf(name, "acd%d-%d", cdp->lun, 
-		    cdp->lun + cdp->changer_info->slots - 1);
+	    name =
+		malloc(strlen(atp->controller->dev_name[ATA_DEV(atp->unit)])+1,
+		       M_ACD, M_NOWAIT);
+	    strcpy(name, atp->controller->dev_name[ATA_DEV(atp->unit)]);
 	    ata_free_name(atp->controller, atp->unit);
-	    ata_set_name(atp->controller, atp->unit, name);
-	    devstat_add_entry(cdp->stats, name, tmpcdp->lun, DEV_BSIZE,
-			      DEVSTAT_NO_ORDERED_TAGS,
-			      DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			      DEVSTAT_PRIORITY_CD);
+	    ata_set_name(atp->controller, atp->unit, name,
+			 cdp->lun + cdp->changer_info->slots - 1);
+	    free(name, M_ACD);
 	}
     }
     else {
@@ -460,24 +463,21 @@ acd_describe(struct acd_softc *cdp)
 	}
     }
     else {
-	char chg[32];
-
-	bzero(chg, sizeof(chg));
-	if (cdp->changer_info)
-	    sprintf(chg, " with %d CD changer", cdp->changer_info->slots);
-
-	ata_printf(cdp->atp->controller, cdp->atp->unit,
-		   "%s%s <%.40s> at ata%d-%s %s\n",
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "%s ",
 		   (cdp->cap.write_dvdr) ? "DVD-R" : 
 		    (cdp->cap.write_dvdram) ? "DVD-RAM" : 
 		     (cdp->cap.write_cdrw) ? "CD-RW" :
 		      (cdp->cap.write_cdr) ? "CD-R" : 
-		       (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
-		   chg, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
-		   device_get_unit(cdp->atp->controller->dev),
-		   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
-		   ata_mode2str(cdp->atp->controller->
-				mode[ATA_DEV(cdp->atp->unit)])
+		       (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM");
+
+	if (cdp->changer_info)
+	    printf("with %d CD changer ", cdp->changer_info->slots);
+
+	printf("<%.40s> at ata%d-%s %s\n",
+	       ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
+	       device_get_unit(cdp->atp->controller->dev),
+	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
+	       ata_mode2str(cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)])
 	       );
     }
 }
@@ -628,11 +628,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	{
 	    struct ioc_read_toc_entry *te = (struct ioc_read_toc_entry *)addr;
 	    struct toc *toc = &cdp->toc;
-	    struct toc buf;
 	    int starting_track = te->starting_track;
 	    int len;
 
-	    if (!cdp->toc.hdr.ending_track) {
+	    if (!toc->hdr.ending_track) {
 		error = EIO;
 		break;
 	    }
@@ -667,8 +666,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    if (te->address_format == CD_MSF_FORMAT) {
 		struct cd_toc_entry *entry;
 
-		buf = cdp->toc;
-		toc = &buf;
+		toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT | M_ZERO);
+		bcopy(&cdp->toc, toc, sizeof(struct toc));
 		entry = toc->tab + (toc->hdr.ending_track + 1 -
 			toc->hdr.starting_track) + 1;
 		while (--entry >= toc->tab)
@@ -677,6 +676,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    }
 	    error = copyout(toc->tab + starting_track - toc->hdr.starting_track,
 			    te->data, len);
+	    if (te->address_format == CD_MSF_FORMAT)
+		free(toc, M_ACD);
 	    break;
 	}
     case CDIOREADTOCENTRY:
@@ -684,10 +685,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    struct ioc_read_toc_single_entry *te =
 		(struct ioc_read_toc_single_entry *)addr;
 	    struct toc *toc = &cdp->toc;
-	    struct toc buf;
 	    u_char track = te->track;
 
-	    if (!cdp->toc.hdr.ending_track) {
+	    if (!toc->hdr.ending_track) {
 		error = EIO;
 		break;
 	    }
@@ -711,14 +711,17 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    if (te->address_format == CD_MSF_FORMAT) {
 		struct cd_toc_entry *entry;
 
-		buf = cdp->toc;
-		toc = &buf;
+		toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT | M_ZERO);
+		bcopy(&cdp->toc, toc, sizeof(struct toc));
+
 		entry = toc->tab + (track - toc->hdr.starting_track);
 		lba2msf(ntohl(entry->addr.lba), &entry->addr.msf.minute,
 			&entry->addr.msf.second, &entry->addr.msf.frame);
 	    }
 	    bcopy(toc->tab + track - toc->hdr.starting_track,
 		  &te->entry, sizeof(struct cd_toc_entry));
+	    if (te->address_format == CD_MSF_FORMAT)
+		free(toc, M_ACD);
 	}
 	break;
 
@@ -726,15 +729,13 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	{
 	    struct ioc_read_subchannel *args =
 		(struct ioc_read_subchannel *)addr;
-	    struct cd_sub_channel_info data;
-	    int len = args->data_len;
-	    int32_t abslba, rellba;
+	    struct cd_sub_channel_info *data;
 	    int8_t ccb[16] = { ATAPI_READ_SUBCHANNEL, 0, 0x40, 1, 0, 0, 0,
 			       sizeof(cdp->subchan)>>8, sizeof(cdp->subchan),
 			       0, 0, 0, 0, 0, 0, 0 };
 
-	    if (len > sizeof(data) ||
-		len < sizeof(struct cd_sub_channel_header)) {
+	    if (args->data_len > sizeof(data) ||
+		args->data_len < sizeof(struct cd_sub_channel_header)) {
 		error = EINVAL;
 		break;
 	    }
@@ -744,27 +745,29 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 					 NULL, NULL))) {
 		break;
 	    }
-	    abslba = cdp->subchan.abslba;
-	    rellba = cdp->subchan.rellba;
+	    data = malloc(sizeof(struct cd_sub_channel_info),
+			  M_ACD, M_NOWAIT | M_ZERO);
+
 	    if (args->address_format == CD_MSF_FORMAT) {
-		lba2msf(ntohl(abslba),
-		    &data.what.position.absaddr.msf.minute,
-		    &data.what.position.absaddr.msf.second,
-		    &data.what.position.absaddr.msf.frame);
-		lba2msf(ntohl(rellba),
-		    &data.what.position.reladdr.msf.minute,
-		    &data.what.position.reladdr.msf.second,
-		    &data.what.position.reladdr.msf.frame);
+		lba2msf(ntohl(cdp->subchan.abslba),
+		    &data->what.position.absaddr.msf.minute,
+		    &data->what.position.absaddr.msf.second,
+		    &data->what.position.absaddr.msf.frame);
+		lba2msf(ntohl(cdp->subchan.rellba),
+		    &data->what.position.reladdr.msf.minute,
+		    &data->what.position.reladdr.msf.second,
+		    &data->what.position.reladdr.msf.frame);
 	    } else {
-		data.what.position.absaddr.lba = abslba;
-		data.what.position.reladdr.lba = rellba;
+		data->what.position.absaddr.lba = cdp->subchan.abslba;
+		data->what.position.reladdr.lba = cdp->subchan.rellba;
 	    }
-	    data.header.audio_status = cdp->subchan.audio_status;
-	    data.what.position.control = cdp->subchan.control & 0xf;
-	    data.what.position.addr_type = cdp->subchan.control >> 4;
-	    data.what.position.track_number = cdp->subchan.track;
-	    data.what.position.index_number = cdp->subchan.indx;
-	    error = copyout(&data, args->data, len);
+	    data->header.audio_status = cdp->subchan.audio_status;
+	    data->what.position.control = cdp->subchan.control & 0xf;
+	    data->what.position.addr_type = cdp->subchan.control >> 4;
+	    data->what.position.track_number = cdp->subchan.track;
+	    data->what.position.index_number = cdp->subchan.indx;
+	    error = copyout(data, args->data, args->data_len);
+	    free(data, M_ACD);
 	    break;
 	}
 
@@ -1125,7 +1128,6 @@ acd_start(struct atapi_softc *atp)
 
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
-printf("reject due to media change\n");
 	biofinish(bp, NULL, EIO);
 	return;
     }
@@ -1643,11 +1645,7 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
 static int
 acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
 {
-    struct {
-	u_int16_t length;
-	u_char reserved[2];
-	u_char data[12];
-    } d;
+    struct dvd_miscauth *d;
     u_int32_t lba = 0;
     int16_t length;
     int8_t ccb[16];
@@ -1685,82 +1683,85 @@ acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     ccb[8] = (length >> 8) & 0xff;
     ccb[9] = length & 0xff;
     ccb[10] = (ai->agid << 6) | ai->format;
-    bzero(&d, sizeof(d));
-    d.length = htons(length - 2);
-    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&d, length,
+
+    d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+    d->length = htons(length - 2);
+
+    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)d, length,
 			    ai->format == DVD_INVALIDATE_AGID ? 0 : ATPR_F_READ,
 			    10, NULL, NULL);
-    if (error)
+    if (error) {
+	free(d, M_ACD);
 	return error;
+    }
 
     switch (ai->format) {
     case DVD_REPORT_AGID:
-	ai->agid = d.data[3] >> 6;
+	ai->agid = d->data[3] >> 6;
 	break;
     
     case DVD_REPORT_CHALLENGE:
-	bcopy(&d.data[0], &ai->keychal[0], 10);
+	bcopy(&d->data[0], &ai->keychal[0], 10);
 	break;
     
     case DVD_REPORT_KEY1:
-	bcopy(&d.data[0], &ai->keychal[0], 5);
+	bcopy(&d->data[0], &ai->keychal[0], 5);
 	break;
     
     case DVD_REPORT_TITLE_KEY:
-	ai->cpm = (d.data[0] >> 7);
-	ai->cp_sec = (d.data[0] >> 6) & 0x1;
-	ai->cgms = (d.data[0] >> 4) & 0x3;
-	bcopy(&d.data[1], &ai->keychal[0], 5);
+	ai->cpm = (d->data[0] >> 7);
+	ai->cp_sec = (d->data[0] >> 6) & 0x1;
+	ai->cgms = (d->data[0] >> 4) & 0x3;
+	bcopy(&d->data[1], &ai->keychal[0], 5);
 	break;
     
     case DVD_REPORT_ASF:
-	ai->asf = d.data[3] & 1;
+	ai->asf = d->data[3] & 1;
 	break;
     
     case DVD_REPORT_RPC:
-	ai->reg_type = (d.data[0] >> 6);
-	ai->vend_rsts = (d.data[0] >> 3) & 0x7;
-	ai->user_rsts = d.data[0] & 0x7;
-	ai->region = d.data[1];
-	ai->rpc_scheme = d.data[2];
+	ai->reg_type = (d->data[0] >> 6);
+	ai->vend_rsts = (d->data[0] >> 3) & 0x7;
+	ai->user_rsts = d->data[0] & 0x7;
+	ai->region = d->data[1];
+	ai->rpc_scheme = d->data[2];
 	break;
     
     case DVD_INVALIDATE_AGID:
 	break;
 
     default:
-	return EINVAL;
+	error = EINVAL;
     }
-    return 0;
+    free(d, M_ACD);
+    return error;
 }
 
 static int
 acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
 {
-    struct {
-	u_int16_t length;
-	u_char reserved[2];
-	u_char data[12];
-    } d;
+    struct dvd_miscauth *d;
     int16_t length;
     int8_t ccb[16];
-
-    bzero(&d, sizeof(d));
+    int error;
 
     switch (ai->format) {
     case DVD_SEND_CHALLENGE:
 	length = 16;
-	bcopy(ai->keychal, &d.data[0], 10);
+	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	bcopy(ai->keychal, &d->data[0], 10);
 	break;
 
     case DVD_SEND_KEY2:
 	length = 12;
-	bcopy(&ai->keychal[0], &d.data[0], 5);
+	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	bcopy(&ai->keychal[0], &d->data[0], 5);
 	break;
     
     case DVD_SEND_RPC:
 	length = 8;
-	d.data[0] = ai->region;
+	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	d->data[0] = ai->region;
 	break;
 
     default:
@@ -1772,24 +1773,20 @@ acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     ccb[8] = (length >> 8) & 0xff;
     ccb[9] = length & 0xff;
     ccb[10] = (ai->agid << 6) | ai->format;
-    d.length = htons(length - 2);
-    return atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&d, length, 0,
-    			   10, NULL, NULL);
+    d->length = htons(length - 2);
+    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)d, length, 0,
+			    10, NULL, NULL);
+    free(d, M_ACD);
+    return error;
 }
 
 static int
 acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
 {
-    struct {
-	u_int16_t length;
-	u_char reserved[2];
-	u_char data[2048];
-    } d;
+    struct dvd_miscauth *d;
     u_int16_t length;
-    int error = 0;
     int8_t ccb[16];
-
-    bzero(&d, sizeof(d));
+    int error = 0;
 
     switch(s->format) {
     case DVD_STRUCT_PHYSICAL:
@@ -1826,6 +1823,9 @@ acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
 	return EINVAL;
     }
 
+    d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+    d->length = htons(length - 2);
+	
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_READ_STRUCTURE;
     ccb[6] = s->layer_num;
@@ -1833,55 +1833,57 @@ acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
     ccb[8] = (length >> 8) & 0xff;
     ccb[9] = length & 0xff;
     ccb[10] = s->agid << 6;
-    d.length = htons(length - 2);
-    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&d, length, ATPR_F_READ,
+    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)d, length, ATPR_F_READ,
     			    30, NULL, NULL);
-    if (error)
+    if (error) {
+	free(d, M_ACD);
 	return error;
+    }
 
     switch (s->format) {
     case DVD_STRUCT_PHYSICAL: {
 	struct dvd_layer *layer = (struct dvd_layer *)&s->data[0];
 
-	layer->book_type = d.data[0] >> 4;
-	layer->book_version = d.data[0] & 0xf;
-	layer->disc_size = d.data[1] >> 4;
-	layer->max_rate = d.data[1] & 0xf;
-	layer->nlayers = (d.data[2] >> 5) & 3;
-	layer->track_path = (d.data[2] >> 4) & 1;
-	layer->layer_type = d.data[2] & 0xf;
-	layer->linear_density = d.data[3] >> 4;
-	layer->track_density = d.data[3] & 0xf;
-	layer->start_sector = d.data[5] << 16 | d.data[6] << 8 | d.data[7];
-	layer->end_sector = d.data[9] << 16 | d.data[10] << 8 | d.data[11];
-	layer->end_sector_l0 = d.data[13] << 16 | d.data[14] << 8 | d.data[15];
-	layer->bca = d.data[16] >> 7;
+	layer->book_type = d->data[0] >> 4;
+	layer->book_version = d->data[0] & 0xf;
+	layer->disc_size = d->data[1] >> 4;
+	layer->max_rate = d->data[1] & 0xf;
+	layer->nlayers = (d->data[2] >> 5) & 3;
+	layer->track_path = (d->data[2] >> 4) & 1;
+	layer->layer_type = d->data[2] & 0xf;
+	layer->linear_density = d->data[3] >> 4;
+	layer->track_density = d->data[3] & 0xf;
+	layer->start_sector = d->data[5] << 16 | d->data[6] << 8 | d->data[7];
+	layer->end_sector = d->data[9] << 16 | d->data[10] << 8 | d->data[11];
+	layer->end_sector_l0 = d->data[13] << 16 | d->data[14] << 8|d->data[15];
+	layer->bca = d->data[16] >> 7;
 	break;
     }
 
     case DVD_STRUCT_COPYRIGHT:
-	s->cpst = d.data[0];
-	s->rmi = d.data[0];
+	s->cpst = d->data[0];
+	s->rmi = d->data[0];
 	break;
 
     case DVD_STRUCT_DISCKEY:
-	bcopy(&d.data[0], &s->data[0], 2048);
+	bcopy(&d->data[0], &s->data[0], 2048);
 	break;
 
     case DVD_STRUCT_BCA:
-	s->length = ntohs(d.length);
-	bcopy(&d.data[0], &s->data[0], s->length);
+	s->length = ntohs(d->length);
+	bcopy(&d->data[0], &s->data[0], s->length);
 	break;
 
     case DVD_STRUCT_MANUFACT:
-	s->length = ntohs(d.length);
-	bcopy(&d.data[0], &s->data[0], s->length);
+	s->length = ntohs(d->length);
+	bcopy(&d->data[0], &s->data[0], s->length);
 	break;
 		
     default:
-	return EINVAL;
+	error = EINVAL;
     }
-    return 0;
+    free(d, M_ACD);
+    return error;
 }
 
 static int 

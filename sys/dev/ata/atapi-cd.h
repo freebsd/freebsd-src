@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,13 @@
 struct toc {
     struct ioc_toc_header	hdr;
     struct cd_toc_entry		tab[MAXTRK + 1];
+};
+
+/* DVD CSS authentication */
+struct dvd_miscauth {
+    u_int16_t	length;
+    u_int16_t	reserved;
+    u_int8_t	data[2048];
 };
 
 /* CDROM Audio Control Parameters Page */
