@@ -814,8 +814,6 @@ run_rc_script()
 		err 3 'USAGE: run_rc_script file arg'
 	fi
 
-	trap "echo 'Reboot interrupted'; exit 1" 3
-
 	unset	name command command_args command_interpreter \
 		extra_commands pidfile procname \
 		rcvar required_dirs required_files required_vars
@@ -833,7 +831,8 @@ run_rc_script()
 			if [ -n "$rc_fast_and_loose" ]; then
 				set $_arg ; . $_file
 			else
-				( trap "echo 'Reboot interrupted'; exit 1" 3
+				( trap "echo Script $_file interrupted; kill -QUIT $$" 3
+				  trap "echo Script $_file interrupted; exit 1" 2
 				  set $_arg ; . $_file )
 			fi
 		fi
