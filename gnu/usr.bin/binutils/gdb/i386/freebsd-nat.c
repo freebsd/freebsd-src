@@ -29,6 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "value.h"
 #include "inferior.h"
 
+#if defined(HAVE_GREGSET_T) || defined(HAVE_FPREGSET_T)
+#include <sys/procfs.h>
+#endif
+
 /* this table must line up with REGISTER_NAMES in tm-i386v.h */
 /* symbols like 'tEAX' come from <machine/reg.h> */
 static int tregmap[] =
@@ -341,7 +345,7 @@ i386_float_info ()
   extern int inferior_pid;
   
   uaddr = (char *)&U_FPSTATE(u) - (char *)&u;
-  if (inferior_pid) 
+  if (inferior_pid != 0 && core_bfd == NULL) 
     {
       int *ip;
       
@@ -384,6 +388,43 @@ setup_arbitrary_frame (argc, argv)
     return create_new_frame (argv[0], argv[1]);
 }
 #endif	/* SETUP_ARBITRARY_FRAME */
+
+#ifdef HAVE_GREGSET_T
+void
+supply_gregset (gp)
+  gregset_t *gp;
+{
+  int regno = 0;
+
+  /* These must be ordered the same as REGISTER_NAMES in
+     config/i386/tm-i386.h. */
+  supply_register (regno++, (char *)&gp->r_eax);
+  supply_register (regno++, (char *)&gp->r_ecx);
+  supply_register (regno++, (char *)&gp->r_edx);
+  supply_register (regno++, (char *)&gp->r_ebx);
+  supply_register (regno++, (char *)&gp->r_esp);
+  supply_register (regno++, (char *)&gp->r_ebp);
+  supply_register (regno++, (char *)&gp->r_esi);
+  supply_register (regno++, (char *)&gp->r_edi);
+  supply_register (regno++, (char *)&gp->r_eip);
+  supply_register (regno++, (char *)&gp->r_eflags);
+  supply_register (regno++, (char *)&gp->r_cs);
+  supply_register (regno++, (char *)&gp->r_ss);
+  supply_register (regno++, (char *)&gp->r_ds);
+  supply_register (regno++, (char *)&gp->r_es);
+  supply_register (regno++, (char *)&gp->r_fs);
+  supply_register (regno++, (char *)&gp->r_gs);
+}
+#endif	/* HAVE_GREGSET_T */
+
+#ifdef HAVE_FPREGSET_T
+void
+supply_fpregset (fp)
+  fpregset_t *fp;
+{
+  memcpy (&pcb_savefpu, fp, sizeof pcb_savefpu);
+}
+#endif	/* HAVE_FPREGSET_T */
 
 /* Register that we are able to handle aout (trad-core) file formats.  */
 

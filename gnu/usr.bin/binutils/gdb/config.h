@@ -31,10 +31,10 @@
 #define STDC_HEADERS 1
 
 /* Define if fpregset_t type is available. */
-/* #undef HAVE_FPREGSET_T */
+#define HAVE_FPREGSET_T 1
 
 /* Define if gregset_t type is available. */
-/* #undef HAVE_GREGSET_T */
+#define HAVE_GREGSET_T 1
 
 /* Define if the "%Lg" format works to print long doubles. */
 #define PRINTF_HAS_LONG_DOUBLE 1
@@ -76,7 +76,7 @@
 #define HAVE_STRINGS_H 1
 
 /* Define if you have the <sys/procfs.h> header file.  */
-/* #undef HAVE_SYS_PROCFS_H */
+#define HAVE_SYS_PROCFS_H 1
 
 /* Define if you have the <termio.h> header file.  */
 /* #undef HAVE_TERMIO_H */
