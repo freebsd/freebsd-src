@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.56 1998/10/22 05:58:40 bde Exp $
+ * $Id: psm.c,v 1.57 1998/11/20 11:46:43 yokota Exp $
  */
 
 /*
@@ -86,6 +86,7 @@
 #include <machine/limits.h>
 #include <machine/mouse.h>
 
+#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
 
