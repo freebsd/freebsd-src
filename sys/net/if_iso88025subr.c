@@ -83,17 +83,16 @@
 #include <net/iso88025.h>
 
 void
-iso88025_ifattach(ifp)
-    register struct ifnet *ifp;
+iso88025_ifattach(struct ifnet *ifp)
 {
     register struct ifaddr *ifa = NULL;
     register struct sockaddr_dl *sdl;
 
     ifp->if_type = IFT_ISO88025;
-    ifp->if_addrlen = 6;
-    ifp->if_hdrlen=18;
+    ifp->if_addrlen = ISO88025_ADDR_LEN;
+    ifp->if_hdrlen = ISO88025_HDR_LEN;
     if (ifp->if_baudrate == 0)
-        ifp->if_baudrate = 16000000; /* 1, 4, or 16Mbit default? */
+        ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
 
@@ -146,7 +145,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                 /*
                  * Set the interface MTU.
                  */
-                if (ifr->ifr_mtu > ISO88025MTU) {
+                if (ifr->ifr_mtu > ISO88025_MAX_MTU) {
                         error = EINVAL;
                 } else {
                         ifp->if_mtu = ifr->ifr_mtu;
@@ -160,11 +159,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
  * ISO88025 encapsulation
  */
 int
-iso88025_output(ifp, m, dst, rt0)
-	register struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rt0;
+iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt0)
 {
 	register struct iso88025_header *th;
 	struct iso88025_header gen_th;
@@ -208,17 +203,17 @@ iso88025_output(ifp, m, dst, rt0)
 	/* Calculate routing info length based on arp table entry */
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
 		if (sdl->sdl_rcf != NULL)
-			rif_len = (ntohs(sdl->sdl_rcf) & 0x1f00) >> 8;
+			rif_len = TR_RCF_RIFLEN(sdl->sdl_rcf);
 
 	/* Generate a generic 802.5 header for the packet */
-	gen_th.ac = 0x10;
-	gen_th.fc = 0x40;
+	gen_th.ac = TR_AC;
+	gen_th.fc = TR_LLC_FRAME;
 	memcpy(gen_th.iso88025_shost, ac->ac_enaddr, sizeof(ac->ac_enaddr));
 	if (rif_len) {
-		gen_th.iso88025_shost[0] |= 0x80;
+		gen_th.iso88025_shost[0] |= TR_RII;
 		if (rif_len > 2) {
 			gen_th.rcf = sdl->sdl_rcf;
-			memcpy(gen_th.rseg, sdl->sdl_route, rif_len - 2);
+			memcpy(gen_th.rd, sdl->sdl_route, rif_len - 2);
 		}
 	}
 	
@@ -234,9 +229,8 @@ iso88025_output(ifp, m, dst, rt0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
 	        l->llc_un.type_snap.ether_type = htons(ETHERTYPE_IP);
-	        l->llc_dsap = 0xaa;
-		l->llc_ssap = 0xaa;
-		l->llc_un.type_snap.control = 0x3;
+	        l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
+		l->llc_un.type_snap.control = LLC_UI;
 		l->llc_un.type_snap.org_code[0] = 0x0;
 		l->llc_un.type_snap.org_code[1] = 0x0;
 		l->llc_un.type_snap.org_code[2] = 0x0;
@@ -294,12 +288,10 @@ iso88025_output(ifp, m, dst, rt0)
            (loop_copy != -1)) {
                 if ((m->m_flags & M_BCAST) || (loop_copy > 0)) { 
                         struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
-                        /*printf("iso88025_output: if_simloop broadcast.\n");*/
                         (void) if_simloop(ifp,
 			    n, dst->sa_family, ISO88025_HDR_LEN);
                 } else if (bcmp(th->iso88025_dhost,
                     th->iso88025_shost, ETHER_ADDR_LEN) == 0) {
-                        /*printf("iso88025_output: if_simloop to ourselves.\n");*/
                         (void) if_simloop(ifp,
 			    m, dst->sa_family, ISO88025_HDR_LEN);
                         return(0);      /* XXX */
@@ -320,7 +312,6 @@ iso88025_output(ifp, m, dst, rt0)
 	if (m->m_flags & M_MCAST)
 		ifp->if_omcasts++;
 	IF_ENQUEUE(&ifp->if_snd, m);
-        /*printf("iso88025_output: packet queued.\n");*/
         if ((ifp->if_flags & IFF_OACTIVE) == 0)
 		(*ifp->if_start)(ifp);
 	splx(s);
@@ -330,7 +321,6 @@ iso88025_output(ifp, m, dst, rt0)
 bad:
 	if (m)
 		m_freem(m);
-        /*printf("iso88025_output: something went wrong, bailing to bad.\n");*/
 	return (error);
 }
 
@@ -338,31 +328,66 @@ bad:
  * ISO 88025 de-encapsulation
  */
 void
-iso88025_input(ifp, th, m)
-	struct ifnet *ifp;
-	register struct iso88025_header *th;
-	struct mbuf *m;
+iso88025_input(struct ifnet *ifp, struct iso88025_header *th, struct mbuf *m)
 {
 	register struct ifqueue *inq;
 	u_short ether_type;
 	int s;
 	register struct llc *l = mtod(m, struct llc *);
 
-        /*printf("iso88025_input: entered.\n");*/
-
-        /*m->m_pkthdr.len = m->m_len = m->m_len - 8;*/ /* Length of LLC header in our case */
-        m->m_pkthdr.len -= 8;
-        m->m_len -= 8;
-        m->m_data += 8; /* Length of LLC header in our case */
-
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		return;
 	}
-	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*th);
+
+	switch (l->llc_control) {
+	case LLC_UI:
+		break;
+	case LLC_TEST:
+	case LLC_TEST_P:
+	{
+		struct sockaddr sa;
+		struct arpcom *ac = (struct arpcom *)ifp;
+		struct iso88025_sockaddr_data *th2;
+		int i;
+		u_char c = l->llc_dsap;
+
+		if (th->iso88025_shost[0] & TR_RII) { /* XXX */
+			printf("iso88025_input: dropping source routed LLC_TEST\n");
+			m_free(m);
+			return;
+		}
+		l->llc_dsap = l->llc_ssap;
+		l->llc_ssap = c;
+		if (m->m_flags & (M_BCAST | M_MCAST))
+			bcopy((caddr_t)ac->ac_enaddr, 
+			      (caddr_t)th->iso88025_dhost, ISO88025_ADDR_LEN);
+		sa.sa_family = AF_UNSPEC;
+		sa.sa_len = sizeof(sa);
+		th2 = (struct iso88025_sockaddr_data *)sa.sa_data;
+		for (i = 0; i < ISO88025_ADDR_LEN; i++) {
+			th2->ether_shost[i] = c = th->iso88025_dhost[i];
+			th2->ether_dhost[i] = th->iso88025_dhost[i] = th->iso88025_shost[i];
+			th->iso88025_shost[i] = c;
+		}
+		th2->ac = TR_AC;
+		th2->fc = TR_LLC_FRAME;
+		ifp->if_output(ifp, m, &sa, NULL);
+		return;
+	}
+	default:
+		printf("iso88025_input: unexpected llc control 0x%02x\n", l->llc_control);
+		m_freem(m);
+		return;
+	}
+
+        m->m_pkthdr.len -= 8;
+        m->m_len -= 8;
+        m->m_data += 8; /* Length of LLC header in our case */
+
+	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
 	if (th->iso88025_dhost[0] & 1) {
-		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)th->iso88025_dhost,
-			 sizeof(etherbroadcastaddr)) == 0)
+		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)th->iso88025_dhost, sizeof(etherbroadcastaddr)) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
@@ -372,13 +397,10 @@ iso88025_input(ifp, th, m)
 
 	ether_type = ntohs(l->llc_un.type_snap.ether_type);
 
-        /*printf("iso88025_input: source %6D dest %6D ethertype %x\n", th->iso88025_shost, ":", th->iso88025_dhost, ":", ether_type);*/
-
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
-            /*printf("iso88025_input: IP Packet\n");*/
-		th->iso88025_shost[0] &= ~(0x80); /* Turn off source route bit XXX */
+		th->iso88025_shost[0] &= ~(TR_RII); 
 		if (ipflow_fastforward(m))
 			return;
 		schednetisr(NETISR_IP);
@@ -386,7 +408,6 @@ iso88025_input(ifp, th, m)
 		break;
 
 	case ETHERTYPE_ARP:
-            /*printf("iso88025_input: ARP Packet\n");*/
 		schednetisr(NETISR_ARP);
 		inq = &arpintrq;
                 break;
@@ -403,6 +424,5 @@ iso88025_input(ifp, th, m)
                 printf("iso88025_input: Packet dropped (Queue full).\n");
 	} else
 		IF_ENQUEUE(inq, m);
-                /*printf("iso88025_input: Packet queued.\n");*/
 	splx(s);
 }
