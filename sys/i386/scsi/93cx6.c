@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.c,v 1.1 1995/07/04 21:16:11 gibbs Exp $
  */
 
 /*
@@ -82,6 +82,7 @@ struct seeprom_cmd {
  */
 int read_seeprom (u_long   offset,
 		  u_short *buf,
+		  u_int	   start_addr,
 		  int      count,
 		  u_short  CS,   /* chip select */
 		  u_short  CK,   /* clock */
@@ -98,7 +99,7 @@ int read_seeprom (u_long   offset,
 	 * Read the requested registers of the seeprom.  The loop
 	 * will range from 0 to count-1.
 	 */
-	for (k = 0; k < count; k = k + 1) {
+	for (k = start_addr; k < count + start_addr; k = k + 1) {
 		/* Send chip select for one clock cycle. */
 		outb(offset, MS | CK | CS);
 		CLOCK_PULSE(offset, RDY);
@@ -144,9 +145,10 @@ int read_seeprom (u_long   offset,
 			CLOCK_PULSE(offset, RDY);
 			temp = temp ^ CK;
 			if (inb(offset) & DI)
-				buf[k] = (buf[k] << 1) | 0x1;
+				buf[k - start_addr] = 
+					(buf[k - start_addr] << 1) | 0x1;
 			else
-				buf[k] = (buf[k] << 1);
+				buf[k - start_addr] = (buf[k - start_addr]<< 1);
 			outb(offset, temp);
 			CLOCK_PULSE(offset, RDY);
 		}
@@ -159,7 +161,6 @@ int read_seeprom (u_long   offset,
 		outb(offset, MS);
 		CLOCK_PULSE(offset, RDY);
 	}
-
 #if 0
 	printf ("Serial EEPROM:");
 	for (k = 0; k < count; k = k + 1) {
