@@ -881,4 +881,22 @@ if [ -n "$fflag" ]; then
 	fi
 else
 	input_interactive
+	while : ; do
+		echo -n "Add another user? (yes/no): "
+		read _input
+		case $_input in
+		[Yy][Ee][Ss]|[Yy][Ee]|[Yy])
+			uidstart=`get_nextuid $uidstart`
+			input_interactive
+			continue
+			;;
+		[Nn][Oo]|[Nn])
+			echo "Goodbye!"
+			;;
+		*)
+			continue
+			;;
+		esac
+		break
+	done
 fi
