@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.46 1998/03/21 11:33:57 peter Exp $
+ *	$Id: in_proto.c,v 1.47 1998/08/23 03:07:14 wollman Exp $
  */
 
 #include "opt_ipdivert.h"
@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>

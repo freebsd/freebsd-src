@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.115 1999/01/28 17:32:00 dillon Exp $
+ * $Id: vfs_syscalls.c,v 1.116 1999/01/30 12:27:00 phk Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2942,6 +2942,8 @@ struct  __getcwd_args {
 	u_int	buflen;
 };
 #endif
+
+SYSCTL_DECL(_vfs_cache);
 #define STATNODE(mode, name, var) \
 	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
 

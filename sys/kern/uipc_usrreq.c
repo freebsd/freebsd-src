@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.38 1999/01/21 08:29:04 dillon Exp $
+ *	$Id: uipc_usrreq.c,v 1.39 1999/01/21 09:02:18 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -445,14 +445,17 @@ static u_long	unpdg_recvspace = 4*1024;
 
 static int	unp_rights;			/* file descriptors in flight */
 
+SYSCTL_DECL(_net_local_stream);
 SYSCTL_INT(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW, 
 	   &unpst_sendspace, 0, "");
 SYSCTL_INT(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpst_recvspace, 0, "");
+SYSCTL_DECL(_net_local_dgram);
 SYSCTL_INT(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
 	   &unpdg_sendspace, 0, "");
 SYSCTL_INT(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpdg_recvspace, 0, "");
+SYSCTL_DECL(_net_local);
 SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
 
 static int

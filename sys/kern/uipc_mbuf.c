@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.36 1998/07/03 08:36:48 phk Exp $
+ *	$Id: uipc_mbuf.c,v 1.37 1998/07/27 03:59:48 dg Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@ int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
 
+SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
 	   &max_linkhdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,

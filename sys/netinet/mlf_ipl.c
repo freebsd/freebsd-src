@@ -84,6 +84,7 @@ extern	int	lkmenodev __P((void));
 int	xxxinit __P((struct lkm_table *, int, int));
 
 #ifdef  SYSCTL_INT
+SYSCTL_DECL(_net_inet);
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &fr_flags, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_pass, CTLFLAG_RW, &fr_pass, 0, "");

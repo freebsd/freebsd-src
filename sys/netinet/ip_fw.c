@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.102 1998/12/22 20:38:06 luigi Exp $
+ *	$Id: ip_fw.c,v 1.103 1998/12/31 07:43:29 luigi Exp $
  */
 
 /*
@@ -76,6 +76,7 @@ LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 #ifdef SYSCTL_NODE
+SYSCTL_DECL(_net_inet_ip);
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, &fw_one_pass, 0, "");
