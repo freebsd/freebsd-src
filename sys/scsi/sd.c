@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.56 1995/03/21 11:21:07 dufault Exp $
+ *      $Id: sd.c,v 1.57 1995/03/23 16:09:01 bde Exp $
  */
 
 #define SPLSD splbio
@@ -188,17 +188,18 @@ sdattach(struct scsi_link *sc_link)
 	 * -- this avoids the division below from falling over
 	 */
 	if(dp->secsiz == 0) dp->secsiz = 512;
-	printf("%ldMB (%ld %d byte sectors)",
+	printf("%luMB (%lu S), %u C %u H %u S/T %u B/S",
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
 	    dp->disksize,
+	    dp->cyls,
+	    dp->heads,
+	    dp->sectors,
 	    dp->secsiz);
 
 	if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
 	{
 		printf("\n");
 		sc_print_addr(sc_link);
-		printf("with %d cyls, %d heads, and an average %d sectors/track",
-	   	dp->cyls, dp->heads, dp->sectors);
 	}
 
 	sd->flags |= SDINIT;
