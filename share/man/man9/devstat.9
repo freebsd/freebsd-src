@@ -34,7 +34,7 @@
 .Nm devstat ,
 .Nm devstat_add_entry ,
 .Nm devstat_end_transaction ,
-.Nm devstat_end_transaction_buf ,
+.Nm devstat_end_transaction_bio ,
 .Nm devstat_remove_entry ,
 .Nm devstat_start_transaction
 .Nd kernel interface for keeping device statistics
@@ -62,9 +62,9 @@
 .Fa "devstat_trans_flags flags"
 .Fc
 .Ft void
-.Fo devstat_end_transaction_buf
+.Fo devstat_end_transaction_bio
 .Fa "struct devstat *ds"
-.Fa "struct buf *bp"
+.Fa "struct bio *bp"
 .Fc
 .Sh DESCRIPTION
 The devstat subsystem is an interface for recording device
@@ -150,11 +150,11 @@ Transaction flags indicating whether the transaction was a read, write, or
 whether no data was transferred.
 .El
 .Pp
-.Fn devstat_end_transaction_buf
+.Fn devstat_end_transaction_bio
 is a wrapper for
 .Fn devstat_end_transaction
 which pulls all the information from a 
-.Va "struct buf"
+.Va "struct bio"
 which is ready for biodone().
 .Pp
 The
