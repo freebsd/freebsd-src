@@ -499,7 +499,7 @@ sigcontext.
 The
 .Fa context
 argument to a POSIX SA_SIGINFO handler points to an instance of
-mcontext_t.
+ucontext_t.
 .Sh ERRORS
 .Fn Sigaction
 will fail and no new signal handler will be installed if one
