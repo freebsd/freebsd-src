@@ -41,6 +41,7 @@
 .Nm ng_one2many
 .Nd packet multiplexing netgraph node type
 .Sh SYNOPSIS
+.In sys/types.h
 .In netgraph/ng_one2many.h
 .Sh DESCRIPTION
 The
@@ -71,7 +72,7 @@ Packets are never delivered out a many hook that is down.
 How a link is determined to be up or down depends on the node's
 configured link failure detection algorithm.
 .Sh TRANSMIT ALGORITHMS
-At this time, the only algorithm for determing the outgoing
+At this time, the only algorithm for determining the outgoing
 .Dv many
 hook is a simple round-robin delivery algorithm.
 Packets are delivered out the many hooks in sequential order.
