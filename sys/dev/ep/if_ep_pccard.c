@@ -73,17 +73,12 @@ ep_pccard_probe(device_t dev)
 {
 	struct ep_softc *	sc = device_get_softc(dev);
 	struct ep_board *	epb = &sc->epb;
-	u_long			port_start;
-	u_long			port_count;
 	const char *		desc;
 	int			error;
 
-	error = bus_get_resource(dev, SYS_RES_IOPORT, 0,
-				 &port_start, &port_count);
-	if (error != 0)
+	error = ep_alloc(dev);
+	if (error)
 		return error;
-
-	sc->ep_io_addr = port_start;
 
 	/*
 	 * XXX - Certain (newer?) 3Com cards need epb->cmd_off ==
@@ -101,13 +96,15 @@ ep_pccard_probe(device_t dev)
 			    "failed (nonfatal)\n");
 		epb->cmd_off = 2;
 		epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-		if ((desc = ep_pccard_identify(epb->prod_id))) {
+		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 			device_printf(dev, "Unit failed to come ready or "
 			    "product ID unknown! (id 0x%x)\n", epb->prod_id);
+			ep_free(dev);
 			return (ENXIO);
 		}
 	}
-
+	device_set_desc(dev, desc);
+	ep_free(dev);
 	return (0);
 }
 
@@ -119,14 +116,14 @@ ep_pccard_identify(u_short id)
 	case 0x6055: /* 3C556 */
 		return ("3Com 3C556");
 	case 0x4057: /* 3C574 */
-		return("3Com 3C574");
+		return ("3Com 3C574");
 	case 0x4b57: /* 3C574B */
-		return("3Com 3C574B, Megahertz 3CCFE574BT or "
+		return ("3Com 3C574B, Megahertz 3CCFE574BT or "
 		    "Fast Etherlink 3C574-TX");
 	case 0x9058: /* 3C589 */
-		return("3Com Etherlink III 3C589[B/C/D]");
+		return ("3Com Etherlink III 3C589");
 	}
-	return (0);
+	return (NULL);
 }
 
 static int
@@ -161,6 +158,8 @@ ep_pccard_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->epb.cmd_off = 0;
+	sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
 	if (!ep_pccard_card_attach(&sc->epb)) {
 		sc->epb.cmd_off = 2;
 		sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
