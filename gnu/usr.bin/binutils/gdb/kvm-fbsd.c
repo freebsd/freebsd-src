@@ -415,7 +415,8 @@ ksym_maxuseraddr()
 #define	KSYM_TRAP	"calltrap"
 #define	KSYM_INTR	"Xintr"
 #define	KSYM_FASTINTR	"Xfastintr"
-#define	KSYM_SYSCALL	"Xsyscall"
+#define	KSYM_OLDSYSCALL	"Xlcall_syscall"
+#define	KSYM_SYSCALL	"Xint0x80_syscall"
 
 
 /*
@@ -444,7 +445,8 @@ struct frame_info *fr;
                    strlen(KSYM_INTR)) == 0 || strncmp (SYMBOL_NAME(sym),
                    KSYM_FASTINTR, strlen(KSYM_FASTINTR)) == 0)
                        frametype = tf_interrupt;
-               else if (strcmp (SYMBOL_NAME(sym), KSYM_SYSCALL) == 0)
+               else if (strcmp (SYMBOL_NAME(sym), KSYM_SYSCALL) == 0 ||
+			strcmp (SYMBOL_NAME(sym), KSYM_OLDSYSCALL) == 0)
                        frametype = tf_syscall;
        }
 
