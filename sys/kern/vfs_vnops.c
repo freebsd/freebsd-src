@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.25 1996/03/09 06:42:15 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.26 1996/08/21 21:55:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -374,7 +374,12 @@ vn_stat(vp, sb, p)
 	sb->st_ctimespec = vap->va_ctime;
 	sb->st_blksize = vap->va_blocksize;
 	sb->st_flags = vap->va_flags;
-	sb->st_gen = vap->va_gen;
+	if (suser (p->p_cred->pc_ucred, &p->p_acflag)) {
+	    sb->st_gen = 0;
+	} else {
+	    sb->st_gen = vap->va_gen;
+	}
+
 #if (S_BLKSIZE == 512)
 	/* Optimize this case */
 	sb->st_blocks = vap->va_bytes >> 9;
