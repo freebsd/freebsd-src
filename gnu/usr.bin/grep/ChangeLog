@@ -1,3 +1,983 @@
+2002-03-26  Bernhard Rosenkraenzer <bero@redhat.com>
+	* src/grep.c: Don't fail if we don't have an stdout fd and -q
+	  is used (happens e.g. on calls from hotplug scripts)
+	* src/grep.c: Don't hang forever if fed with an empty string to
+	  grep for and --color enabled
+	* src/grep.c: Fix infinite loop on
+	  echo "1 one" | grep -E "[0-9]*" -o
+	  echo "1 one" | grep -E "[0-9]*" --color
+	* po/*: Sync wiith translation project
+	* src/grep.c, src/Makefile.am, configure.in: Add patch from
+	  Paul Eggert <eggert@twinsun.com> to comply with ridiculous
+	  guidelines (don't act differently if invoked as egrep or fgrep)
+	* configure.in: Bump version number, require a recent autoconf
+
+2002-03-14  Bernhard Rosenkraenzer <bero@redhat.com>
+	* src/Makefile.am, po/Makefile.in.in: Support DESTDIR properly
+	* tests/bre.tests: Add fix from
+	  Peter Breitenlohner <peb@mppmu.mpg.de>
+
+2002-03-13  Bernhard Rosenkraenzer <bero@redhat.com>
+	* configure.in, m4/regex.m4, m4/malloc.m4, m4/realloc.m4:
+	  Don't set LIBOBJS directly, autoconf 2.53 doesn't like it
+	* intl/*: Sync with gettext 0.11
+	* po/*: Sync with translation project
+	* configure.in, src/Makefile.am: Don't duplicate code - make
+	  egrep and fgrep links to grep and set matcher based on
+	  application name, suggestion from
+	  Guillaume Cottenceau <gc@mandrakesoft.com>
+	* src/grep.c: (prline) Add fix for -i --color from
+	  Jim Meyering <meyering@lucent.com>
+	* configure.in: Version 2.5; release
+
+2002-01-23  Bernhard Rosenkraenzer <bero@redhat.com>
+	* configure.in: Version 2.5g
+	* Makefile.cvs, grep.spec: Add packaging tools
+	Merge djgpp changes from Andrew Cottrell <anddjgpp@ihug.coml.au>:
+	* src/grep.c: Added conditional compilation for DJGPP
+	* djgpp: remove directory as it is no longer required with DJGPP 2.03
+                 (or 2.04 when released)
+	* README.DOS: Moved djgpp/readme to readme.dos
+	* PATCHES.AC, PATCHES.AM: delete files - redundant
+	* configure.in, Makefile.am: remove djgpp directory from list
+
+2002-01-22  Bernhard Rosenkraenzer <bero@redhat.com>
+	* doc/grep.texi, doc/grep.1, NEWS: Document --label
+	* po/ru.po: Sync with translation project
+	* po/grep.pot: Sync with source
+
+2002-01-18  Bernhard Rosenkraenzer <bero@redhat.com>
+	* src/grep.c: Add --label, based on patch from Stepan Koltsov
+
+2001-11-20  Bernhard Rosenkraenzer <bero@redhat.com>
+	* autogen.sh: Don't hardcode aclocal dir
+
+2001-11-19  Bernhard Rosenkraenzer <bero@redhat.com>
+	* src/grep.c: Add --only-matching (-o) switch (see NEWS)
+	* doc/grep.texi, doc/grep.1, NEWS: Document changes
+	* configure.in, lib/Makefile.am: Don't use internal getopt if
+          we're on a system that provides a working getopt function
+
+2001-09-25  Bernhard Rosenkraenzer <bero@redhat.com>
+	* configure.in: Detect pcre correctly even when it's in
+	  non-standard locations, using pcre-config
+	* src/grep.c: Add --color={always,never,tty} argument (like in ls)
+	* src/grep.c: Turn off blinking in the default colorization
+	* src/grep.c: Add --devices (-D) switch (analogous to --directories)
+	* src/dfa.c: Fix an i18n bug: echo "A" | grep '[A-Z0-9]' wouldn't work
+	  in non-C-Locales on systems using current versions of glibc.
+	* AUTHORS: Change maintainer, credit Alain for his work until now
+	* configure.in, m4/decl.m4, m4/dosfile.m4, m4/gettext.m4,
+	  m4/init.m4, m4/install.m4, m4/largefile.m4, m4/lcmessage.m4,
+	  m4/header.m4, m4/isc-posix.m4, m4/missing.m4, m4/progtest.m4,
+	  m4/sanity.m4:
+	  Fix build with autoconf 2.5x, retain 2.1x compatibility for now
+	* autogen.sh: Add some crude hacks to make it possible to build with
+	  both autoconf 2.5x and 2.1x
+	* acconfig.h: removed (no longer required)
+	* Makefile.am: add cvs-clean target
+	* doc/grep.texi, doc/grep.1, NEWS: Document changes
+	  (--color, --devices, -D)
+	* src/dfa.c, src/grep.c: Add vim modelines
+
+2001-08-30  Alain Magloire
+
+	* configure.in: Add gl in ALL_LINGUAS.
+
+2001-08-30  Kurt D Schwehr
+
+	* doc/grep.1: Warn that grep insert a "--" between groups of matches,
+	when using the context options.
+	* doc/grep.texi: Likewised.
+
+2001-08-25  Heikki Korpela
+
+	* doc/grep.texi: Point out that some Platforms do not support
+	reading of directories and silently ignore them.
+
+2001-08-21  Alain Magloire
+
+	* lib/malloc.c: New file:
+	* lib/realloc.c: New file:
+	* lib/Makefile.am: Add malloc.c and realloc.c in EXTRA_DIST.
+
+2001-07-31  Alain Magloire
+
+	* po/*.po: New files from the translation team:
+	grep-2.5e.de.po  grep-2.5e.el.po  grep-2.5e.eo.po grep-2.5e.es.po
+	grep-2.5e.et.po  grep-2.5e.fr.po  grep-2.5e.gl.po grep-2.5e.it.po
+	grep-2.5e.pl.po  grep-2.5e.sl.po
+
+2001-07-31  Andreas Schwab
+
+	* src/grep.c: Fix all uses of error to pass a proper format
+	string.
+
+2001-07-29  Alain Magloire
+
+	* grep/src/grep.c (usage): Typos corrected.
+	Patches from Santiago Vila.
+
+2001-07-29  Alain Magloire
+
+	David Clissold, wrote:
+	a small bug in the GNU grep 2.4.2, which may have gone unnoticed
+	because it only causes a failure if building on a system with large
+	files enabled (e.g. an "off_t" is a "long long" rather than a "long").
+	savedir() takes on off_t argument, but in grepdir() the parameter
+	is cast to an (unsigned).  Well, if an off_t is larger than an int,
+	the value gets truncated.  This would not normally have an effect on a
+	little-endian platform (unless the file is >2GB), but on a big-endian
+	system it will always fail.  The external effect is that
+	"grep -r foo dir_name" fails with ENOMEM (from malloc() within
+	savedir()).
+
+	* grep/src/grep.c (grepdir): Remove the (unsigned) cast when calling
+	savedir().
+	Patch from David Clissold.
+
+2001-07-29  Alain Magloire
+
+	* grep/doc/grep.texi: In Bugs report use {n,m} for consistency.
+	* grep/doc/grep.1: Likewised.
+	Noted by Steven Lucy.
+
+2001-04-27  Isamu Hasegawa
+
+	* dfa.c (mblen_buf) : New variable contains the amount of remain
+	byte of corresponding multibyte character in the input string.
+	(SKIP_REMAIN_MB_IF_INITIAL_STATE) : Use mblen_buf.
+	(match_anychar) : Use mblen_buf.
+	(match_mb_charset) : Use mblen_buf.
+	(transit_state_consume_1char) : Use mblen_buf.
+	(transit_state) : Use inputwcs to get current (multibyte) character.
+	(dfaexec) : Add initialization of mblen_buf.
+
+2001-04-27  Isamu Hasegawa
+
+	* dfa.c (addtok) : Set appropriate value to multibyte_prop.
+	(dfastate) : Add the initialization of the variable.
+	(dfaexec) : Call transit_state if d->fail may transit by
+	multibyte characters.
+	(transit_state_singlebyte) : Clean up unnecessary code.
+	(transit_state_consume_1char) : Likewise.
+        (transit_state) : Add checking for word and newline.
+
+2001-04-19  Isamu Hasegawa
+
+	* search.c (check_multibyte_string) : Check the case when mbclen == 0.
+
+2001-04-11  Isamu Hasegawa
+
+	* search.c (check_multibyte_string) : Check the head of multibyte
+	characters, and optimize a bit.
+	(EGexecute) : Optimize a bit.
+	(Fexecute) : Fix the index.
+
+2001-04-02  Alain Magloire
+
+	* lib/regex.c: Update from GNU lib C, with the changes
+	provided by Paul Eggert.
+	* lib/posix/regex.h: Likewise.
+
+2001-02-17  Paul Eggert
+
+	Stop trying to support hosts that have nonstandard declarations for
+	mbrtowc and/or mbstate_t.  It's not worth the portability hassle.
+
+	* lib/quotearg.c (mbrtowc, mbsinit): Remove workaround macros
+	for hosts that have mbrtowc but not mbstate_t, as we now
+	insist on proper declarations for both before using mbrtowc.
+
+2001-03-18  Alain Magloire
+
+	* configure.in: Call AC_MBSTATE_T.
+	* Makefile.am: Add mbstate_t.m4
+	* m4/Makefile.am: Add mbstate_t.m4
+	* m4/mbstate_t.m4: New m4 macro.
+	* lib/strtol.c: Define CHAR_BITS.
+	Uwe H. Steinfeld, Ruslan Ermilov, Volkert Bochert, noted
+	that mbstate_t was not define for certain platforms.
+
+2001-03-18  Paul Eggert
+
+	* src/grep.c (fillbuf): Fix storage allocation performance
+	bug: buffer was doubling in size in many cases where it didn't
+	have to.
+
+2001-03-17  Paul Eggert
+
+	* src/grep.c (fillbuf): Avoid unnecessary division by 2.
+	Don't check xrealloc return value; it's guaranteed to be nonzero.
+	(fillbuf, grepdir): Use xalloc_die rather than error; it's shorter.
+
+2001-03-17  Alain Magloire
+
+	* src/grep.c (context_length_arg): error () passing wrong format.
+	Spotted by Jim Meyering.
+
+2001-03-07  Alain Magloire
+
+	* README-alpha: Removed reference to GNU tar, add the location
+	of the CVSROOT.
+
+2001-03-06  Alain Magloire
+
+	Only the Regex patterns should be split in an array, patterns[].
+	The dfa and KWset compiled patterns should remain global and the
+	patterns compiled all at once.
+
+	* src/search.c: include "error.h" and "xalloc.h" to get prototyping
+	of x*alloc() and error().
+	(kwsinit): Reverse to previous behaviour and takes no argument.
+	(kwsmusts): Likewised.
+	(Gcompile): For the regex pattern, split them and each pattern
+	is put in different compiled structure patterns[]. The patterns
+	are given to dfacomp() and kwsmusts() as is.
+	(Ecompile): Likewised.
+	(Fcompile): Reverse to the old behaviour of compiling the enire
+	patterns in one shot.
+	(EGexecute): If falling to GNU regex for the matching, loop in the
+	array of compile patterns[] to find a match.
+	(error): Many error () were call with arguments in the wrong order.
+	* tests/file.sh: Simple test to check for pattern in files.
+
+	Reaction to bug report fired by Greg Louis <glouis@dynamicro.on.ca>
+
+2001-03-06  Isamu Hasegawa
+
+	In multibyte environments, handle multibyte characters as single
+	characters in bracket expressions.
+
+	* src/dfa.h (mb_char_classes) : new structure.
+	(mbcsets): new variable.
+	(nmbcsets): new variable.
+	(mbcsets_alloc) : new variable.
+	* src/dfa.c (prtok) : handle MBCSET.
+	(fetch_wc): new function to fetch a wide character.
+	(parse_bracket_exp_mb) : new function to handle multibyte character
+	in lex().
+	(lex): invoke parse_bracket_exp_mb() for multibyte bracket expression.
+	(atom): handle MBCSET.
+	(epsclosure): likewise.
+	(dfaanalyze): likewise.
+	(dfastate): likewise.
+	(match_mb_charset): new function to judge whether a bracket match
+	with a multibyte character.
+	(check_matching_with_multibyte_ops) : handle MBCSET.
+	(dfainit): initialize new variables.
+	(dfafree): free new variables.
+
+2001-03-04  Alain Magloire
+
+	To get more in sync with other GNU utilities like GNU tar and fetish
+	all the supporting functions are now under lib.
+	Thanks to Jim Meyering, Volkert Bochert and Paul Eggert for
+	the code and the reminders.
+
+	* src/grep.c (fatal): Function removed, using error () from
+	lib/error.c instead.
+	(usage): Copyright updated.
+	(error): Function removed, using error () from lib/error.c instead,
+	adjust prototypes.
+	(prog): Global variable rename to program_name, to work with new
+	lib/error.c.
+	(xrealloc): Removed using lib/xmalloc.c.
+	(xmalloc): Removed using lib/xmalloc.c
+	(main): Register with atexit() to check for error on stdout.
+	* configure.in: Check for atexit(), call jm_MALLOC, jm_RELLOC and
+	jm_PREREQ_ERROR.
+	* tests/bre.awk: Removed the hack to drain the buffer since we
+	always fclose(stdout) atexit.
+	* tests/ere.awk: Likewise.
+	* tests/spencer1.awk: Likewise.
+	* bootstrap/Makefile.try: Update the Makefile to reflect the changes
+	in the new hierarchy.
+
+	* README-alpha: New File.
+	* m4/realloc.m4: New File.
+	* m4/malloc.m4: New File.
+	* m4/error.m4: New File.
+	* m4/Makefile.am: Updated.
+	* lib: New directory.
+	* lib/Makefile.am: New file.
+	* lib/closeout.c: New file.
+	* lib/closeout.h: New file.
+	* lib/fnmatch.c: New file.
+	* lib/fnmatch.h: New file.
+	* lib/atexit.c: New file.
+	* lib/error.c: New file.
+	* lib/error.h: New file.
+	* lib/quotearg.h: New file.
+	* lib/quotearg.c: New file.
+	* lib/xmalloc.c: New file.
+	* lib/posix: New directory.
+	* lib/posix/Makefile.am: New file.
+	* src/getopt.c: Moved to lib.
+	* src/getopt1.c: Moved to lib.
+	* src/getopt.h: Moved to lib.
+	* src/alloca.c: Moved to lib.
+	* src/exclude.c: Moved to lib.
+	* src/exclude.h: Moved to lib.
+	* src/hard-locale.h: Moved to lib.
+	* src/hard-locale.c: Moved to lib.
+	* src/isdir.c: Moved to lib.
+	* src/mechr.c: Moved to lib.
+	* src/obstack.c: Moved to lib.
+	* src/obstack.h: Moved to lib.
+	* src/regex.c: Moved to lib.
+	* src/regex.h: Moved to lib.
+	* src/posix: Moved to lib.
+	* src/posix/regex.h: Moved to lib.
+	* src/savedir.h: Moved to lib.
+	* src/savedir.c: Moved to lib.
+	* src/stpcpy.c: Moved to lib.
+	* src/strtoul.c: Moved to lib.
+	* src/strtol.c: Moved to lib.
+	* src/strtoull.c: Moved to lib.
+	* src/strtoumax.c: Moved to lib.
+	* src/xstrtol.c: Moved to lib.
+	* src/xstrtol.h: Moved to lib.
+	* src/xstrtoumax.c: Moved to lib.
+
+2001-03-01  Isamu Hasegawa
+
+	Implement the mechanism to match with multibyte characters,
+	and use it for `period' in multibyte environments.
+
+	* dfa.h (mbps): new variable.
+	* dfa.c (prtok): handle ANYCHAR.
+	(lex): use ANYCHAR for `period' in multibyte environments.
+	(atom): handle ANYCHAR.
+	(state_index): initialize mbps in multibyte environments.
+	(epsclosure): handle ANYCHAR.
+	(dfaanalyze): handle ANYCHAR.
+	(dfastate): handle ANYCHAR.
+	(realloc_trans_if_necessary): new function.
+	(transit_state_singlebyte): new function.
+	(match_anychar): new function.
+	(check_matching_with_multibyte_ops): new function.
+	(transit_state_consume_1char): new function.
+	(transit_state): new function.
+	(dfaexec): invoke transit_state if expression can match with
+	a multibyte character in multibyte environments.
+	(dfamust): handle ANYCHAR.
+
+2001-03-01  Alain Magloire
+
+	* src/exclude.c: New file.
+	* src/exclude.h: New file.
+	* src/grep.c (main): Took the GNU tar code to handle
+	the option --include, --exclude, --exclude-from.
+	Files are check for a match, with exlude_filename ().
+	New option --exclude-from.
+	* src/savedir.c: Call exclude_filename() to check for
+	file pattern exclusion or inclusion.
+	* configure.in: --disable-pcre rename to --disable-perl-regexp.
+
+
+2001-02-25  Alain Magloire
+
+	* src/dfa.c: Typo corrected.
+	Noted by Isamu Hasegawa.
+	* src/savedir.c: Typos corrected.
+
+2001-02-22  Alain Magloire
+
+	* src/savedir.c (isdir1): New function, calling isdir with
+	the correct pathname.
+
+2001-02-19  Isamu Hasegawa
+
+	Avoid incorrect state transition in multibyte environments.
+
+	* dfa.h (nmultibyte_prop): new variable.
+	(multibyte_prop): new variable.
+	* dfa.c (addtok): set inputwcs.
+	(dfastate): avoid incorrect state transition in multibyte
+	environments.
+	(dfaexec): likewise.
+	(dfainit): init multibyte_prop.
+	(dfafree): free multibyte_prop.
+	(inputwcs): new variable.
+
+2001-02-19  Isamu Hasegawa
+
+	Handle a multibyte character followed by '*', '+', and '{n,m}'
+	correctly.
+
+	* dfa.c (update_mb_len_index): new function.
+	Support for multibyte string.
+	(FETCH): call update_mb_len_index.
+	(lex): check cur_mb_index not to misunderstand multibyte characters.
+	(atom): make a tree from a multibyte character.
+	(dfaparse): initialize new variables.
+	(mbs): new variable.
+	(cur_mb_len): new variable.
+	(cur_mb_index): new variable.
+
+2001-02-18  Jim Meyering
+
+	* m4/dosfile.m4 (AC_DOSFILE): Move AC_DEFINEs out of AC_CACHE_CHECK.
+
+2001-02-17  Alain Malgoire
+
+	* doc/grep.texi: Document the new options and the new behaviour
+	back-references are local.  Use excerpt from Karl Berry regex
+	texinfo.
+
+	* bootstrap/Makefile.try: Added xstrtoumax.o xstrtoul.o hard-local.o
+
+2001-02-17  Alain Magloire
+
+	From Guglielmo 'bond' Bondioni :
+	The bug was that using a multi line file that contained REs (one per
+	line), backreferences in the REs were considered global (to the file)
+	and not local (to the line).
+	That is, \1 in line n refers to the first \(.\) in the whole file,
+	rather than in the line itself.
+
+	From Tapani Tarvainen :
+	# Re: grep -e '\(a\)\1' -e '\(b\)\1'
+	That's not the way it should work: multiple -e arguments
+	should be treated as independent patterns and back references
+	should not refer to previous ones.
+
+	From Paul Eggert :
+	GNU grep currently does not issue
+	diagnostics for the following two cases, both of which are erroneous:
+	grep -e '[' -e ']'
+	grep '[
+	]'
+	POSIX requires a diagnostic in both cases because '[' is not a valid
+	regular expression.
+
+	To overcome those problems, grep no longer pass the concatenate
+	patterns to GNU regex but rather compile each patterns separately
+	and keep the result in an array.
+
+	* src/search.c (patterns): New global variable; a structure array
+	holding the compiled patterns.
+	Declare function prototypes to minimize error.
+	(dfa, kswset, regexbuf, regs): Removed, no longer static globals, but
+	rather fields in patterns[] structure per motif.
+	(Fcompile): Alloc an entry in patterns[] to hold the regex.
+	(Ecompile): Alloc an entry per motif in the patterns[] array.
+	(Gcompile): Likewise.
+	(EGexecute): Loop through of array of patterns[] for a match.
+
+2001-02-17  Alain Magloire
+
+	From Bernd Strieder :
+	# tail -f logfile | grep important | do_something_urgent
+	# tail -f logfile | grep important | do_something_taking_very_long
+	If grep does full buffering in these cases then the urgent operation
+	does not happen as it should in the first case, and in the second case
+	time is lost due to waiting for the buffer to be filled.
+	This is clearly spoken not grep's fault in the first place, but libc's.
+	There is a heuristic in libc that make a stream line-buffered only if a
+	terminal is on the other end. This doesn't take care of the cases where
+	this connection is somehow indirect.
+
+	* src/grep.c (line_buffered): new option variable.
+	(prline): if line_buffered is set fflush() is call.
+	(usage): line_buffered new option.
+	Input from Paul Eggert, doing setvbuf() may not be portable
+	and breaks grep -z.
+
+2001-02-16  Alain Magloire
+
+	Patch from Isamu Hasegawa, for multibyte support.
+	This patch prevent kwset_matcher from following problems.
+	For example, in SJIS encoding, one character has the codepoint 0x895c.
+	So the second byte of the character can match with '\' incorrectly.
+	And in eucJP encoding, there are the characters whose codepoints are
+	0xa5b9, 0xa5c8.  On the other hand, there is one character whose
+	codepoint is 0xb9a5.  So 0xb9a5 can match with 2nd byte of 0xa5b9
+	and 1st byte of 0xa5c8.
+
+	* configure.in: Add check for mbrtowc.
+	* src/search.c (check_multibyte_string): new function.
+	Support for multibyte string.
+	(EGexecute): call check_multibyte_string when kwset is set.
+	(Fexecute): call to check_multibyte_string.
+	(MBS_SUPPORT): new macro.
+	(MB_CUR_MAX): new macro.
+
+2001-02-16  Alain Magloire
+
+	* djgpp/config.bat: Fix for 4dos.com.
+	* m4/dosfile.m4 (HAVE_DOS_FILE_CONTENTS): Was not set.
+	Bugs noted and patched by Juan Manuel Guerrero.
+
+2001-02-16  Alain Magloire
+
+	A much requested feature, the possibility to select
+	files when doing recurse :
+	# find . -name "*.c" | xargs grep main {}
+	# grep --include=*.c main .
+	# find . -not -name "*.c" | xargs grep main {}
+	# grep --exclude=*.c main .
+
+	* src/grep.c (short_options): -R equivalent to -r.
+	(#ifdef) : Fix some inconsistencies in the use of #ifdefs, prefer
+	#if defined() wen possible.
+	(long_options): Add --color, --include and exclude.
+	(Usage): Description of new options.
+	(color): Rename color variable to color_option.
+	Removed 'always|never|auto' arguments, not necessary for grep.
+	(exclude_pattern): new variable, holder for the file pattern.
+	(include_pattern): new variable, hoder for the file pattern.
+	* src/savedir.c: Signature change, take two new argmuments.
+	* doc/grep.texi: Document, new options.
+	* doc/grep.man: Document, new options.
+
+2001-02-09  Alain Magloire
+
+	* src/grep.c (long_options): Added equivalent to -r with -R.
+	* src/grep.c (usage): added --color and --colour.
+	Noted with patch from, H.Merijn Brand and Wichert Akkerman.
+
+2001-02-09  Alain Magloire
+
+	Patch from Ulrich Drepper to provide hilighting.
+
+	* src/grep.c: New option --color.
+	(color): New static var.
+	(COLOR_OPTION): new constant.
+	(grep_color): new static var.
+	(prline): Now when color is set prline() will call the current matcher
+	to find the offset of the matching string.
+	* src/savedir.c: Take advantage of _DIRENT_HAVE_TYPE if supported.
+	* src/search.c (EGexecute, Fexecute, Pexecute): Take a new argument
+	when doing exact match for the color hiligting.
+
+2000-09-01  Brian Youmans
+
+	* doc/grep.texi: Typo fixes.
+
+2000-08-30  Paul Eggert
+
+	* doc/grep.texi (Usage): Talk about what "grep -r hello *.c"
+	means.
+
+2000-08-20  Paul Eggert
+
+	Handle range expressions correctly even when they match
+	strings with two or more characters.
+
+	* src/dfa.h (CRANGE): New enum value.  Comment fix.
+
+	* src/dfa.c: Include <locale.h> if HAVE_SETLOCALE.
+	Include "hard-locale.h".
+	(prtok): Print CRANGE.
+	(hard_LC_COLLATE): New static var.
+	(lex): Return CRANGE when parsing a character range in a hard locale.
+	Don't use strcoll; it's no longer needed and wasn't correct anyway.
+	Use unsigned rather than token to hold unsigned chars.
+	(addtok): Comment fix.
+	(atom): Treat a CRANGE as if it were (.\1), approximately.
+	(dfaparse): Initialize hard_LC_COLLATE.
+
+	* src/Makefile.am (base_sources): Add hard-locale.c, hard-locale.h.
+
+	* src/hard-locale.c, src/hard-locale.h: New files, taken from
+	textutils.
+
+2000-08-20  Paul Eggert
+
+	* tests/Makefile.am (TESTS_ENVIRONMENT): Add LC_ALL=C, since
+	some of the tests assume the C locale.
+
+2000-08-16  Paul Eggert
+
+	* src/search.c (Gcompile, Ecompile): -x overrides -w, for
+	consistency with fgrep.  Don't assume that sizes fit in 'int'.
+	Fix comments to match code.
+
+2000-06-06  Paul Eggert
+
+	* src/grep.c (grepdir): Don't look at st_dev when testing for
+	Mingw32 bug.
+
+2000-06-05  Paul Eggert
+
+	Port to Mingw32, based on suggestions from Christian Groessler
+	<cpg@aladdin.de>.
+
+	* src/isdir.c: New file, taken from fileutils.
+
+	* src/Makefile.am (base_sources): Add isdir.c.
+
+	* src/grep.c (grepfile): Use isdir instead of doing it inline.
+	(grepdir): Suppress ancestor check if the directory's inode and device
+	are both zero, as that occurs only on Mingw32 which doesn't support
+	inode or device.
+
+	* src/system.h (isdir): New decl.
+	(is_EISDIR): Depend on HAVE_DIR_EACCES_BUG, not D_OK.
+	Use isdir, not access.
+
+2000-06-02  Paul Eggert
+
+	Problen noted by Gerald Stoller <gerald_stoller@hotmail.com>
+
+	* src/grep.c (main): POSIX.2 says that -q overrides -l, which
+	in turn overrides the other output options.  Fix grep to
+	behave that way.
+
+2000-05-27  Paul Eggert
+
+	Simplify and tune the buffer allocation strategy.  Do not reserve a
+	large save area: reserve only enough bytes to hold the residue, plus
+	page alignment.  Put a newline sentinel before the buffer, for speed
+	when searching backwards for newline.
+
+	* src/grep.c (ubuffer, bufsalloc, PREFERRED_SAVE_FACTOR, page_alloc):
+	Remove.  All uses changed.
+	(INITIAL_BUFSIZE): New macro.
+	(reset, fillbuf): Use simpler buffer allocation strategy.
+	(reset): Check for preposterously large pagesize that would cause
+	later calculations to overflow.
+	(fillbuf): Do not resize buffer if there's room at the end for
+	at least one more page.  This greatly increases performance when
+	reading from non-regular files that contain no newlines.
+	When growing the buffer, double its size instead of using a
+	more complicated algorithm.
+	(prtext, grep): Speed up by relying on the newline sentinel before the
+	start of the buffer.
+	(grep): When looking backwards for the last newline in a buffer,
+	stop when we hit the residue, since it can't contain a newline.
+	This avoids an O(N**2) algorithm when reading binary data from
+	a pipe.  Use a sentinel to speed up the backward search for newline.
+	(nlscan): Undo previous change; it wasn't needed and just complicates
+	and slows down the code a tad.
+
+2000-05-24  Paul Eggert
+
+	Handle very large input counts better. Bug noted by Jim Meyering.
+
+	* src/grep.c (totalcc, totalnl): Use uintmax_t, not off_t.
+	(add_count): New function.
+	(nlscan, prline, grep): Use it to check line and byte count overflows.
+	(nlscan, grep): Don't keep track of counts when not asked to; this
+	avoids unnecessary overflow diagnostics.
+	(print_offset_sep): Now takes args of type uintmax_t and char,
+	not off_t and int.
+
+2000-05-16  Paul Eggert
+
+	Problem reported by Bob Proulx <rwp@hprwp.fc.hp.com>, this patch
+	is base on his finding, with appropiate corrections.
+
+	* src/grep.c (main): Fix bug: -x and -w matched even when no
+	patterns were specified.
+	* tests/empty.sh: Test for -x and -w bug in grep 2.4.2.
+
+2000-04-24  Paul Eggert
+
+	POSIX.2 conformance fixes: grep -q now exits with status zero
+	if an input line is selected, even if an error also occurs.
+	grep -s no longer affects exit status.
+
+	* src/grep.c (suppress_errors): Move definition earlier so
+	that suppressible_error can use it.
+	(suppressible_error): New function.
+	(exit_on_match): New var.
+	(grepbuf): If exit_on_match is nonzero, exit with status zero
+	immediately.
+	(grep, grepfile, grepdir): Invoke suppressible_error.
+	(main): -q sets exit_on_match.
+
+	* doc/grep.1, doc/grep.texi, NEWS:
+	Document -q's behavior as required by POSIX.2.
+
+	* tests/status.sh:
+	Test for -q and -s behavior as conforming to POSIX.2.
+
+2000-04-20  Paul Eggert
+
+	* tests/Makefile.am (TESTS_ENVIRONMENT):
+	Set GREP_OPTIONS to the empty string.
+
+2000-04-20  Paul Eggert
+
+	* tests/status.sh: Fix typo: test -b -> test -r.
+
+2000-04-20  Paul Eggert
+
+	* src/dfa.c (lex):
+	Do not assume that [c] is equivalent to [c-c]; this isn't true
+	if LC_COLLATE specifies that some characters are equivalent.
+	(setbit_case_fold): New function.
+	(lex): Use it to simplify the code a bit.
+
+2000-04-17  Paul Eggert
+
+	Do CRLF munging only if HAVE_DOS_FILE_CONTENTS, instead of
+	having it depend on O_BINARY (which leads to incorrect results
+	on BeOS, VMS, and MacOS).
+
+	* bootstrap/Makefile.try (DEFS): Add -DHAVE_DOS_FILE_CONTENTS.
+	* src/system.h (SET_BINARY): Define only if HAVE_DOS_FILE_CONTENTS.
+	(O_BINARY): Do not define.
+
+	* m4/dosfile.m4: Define HAVE_DOS_FILE_CONTENTS if it appears we're
+	using DOS.
+
+	* src/grep.c (undossify_input, fillbuf, dosbuf.c, prline, main):
+	Depend on HAVE_DOS_FILE_CONTENTS, not O_BINARY, when handling CRLF
+	matters.
+	(grepfile, main): Depend on SET_BINARY, not O_BINARY, when
+	handling binary files on hosts that care about text versus binary.
+
+2000-04-17  Paul Eggert
+
+	* lib/getpagesize.h (getpagesize): Define to B_PAGE_SIZE if
+	__BEOS__ is defined.  Based on a fix by Bruno Haible
+	<haible@clisp.cons.org>.
+
+2000-04-17  Bruno Haible
+
+	* src/system.h [BeOS]: Ignore O_BINARY.
+	* src/getpagesize.h [BeOS]: Define getpagesize() as B_PAGE_SIZE.
+
+2000-04-10  Paul Eggert
+
+	* doc/grep.1, doc/grep.texi, NEWS: -C now requires an operand.
+	* src/grep.c (short_options, long_options, main, usage): Likewise.
+	(context_length_arg): Renamed from ck_atoi.  Now reports an error
+	and exits if the number is out of range for a context length.
+	(get_nondigit_option): New function, which checks for overflow
+	correctly, and which does not parse nonadjacent strings of digits
+	into a single number.
+	(main): Use get_nondigit_option instead of doing the code inline.
+	With -A, -B, and -C, optarg is now guaranteed to be nonzero.
+
+2000-04-08  Paul Eggert
+
+	Now that we know that the input is always terminated by a
+	newline before the matching algorithms see it, clean up the
+	matching algorithms so that they no longer need to modify the
+	input by inserting a sentinel newline, and no longer worry
+	about running off the end of the buffer due to a missing sentinel.
+
+	* src/grep.c (nlscan, prpending, prtext, grepbuf): Do not
+	worry about running off the end of the input buffer, since
+	it's now guaranteed to end in the sentinel newline.
+	* src/search.c (EGexecute, Pexecute): Likewise.
+
+	* src/dfa.c (prtok, dfasyntax, dfaparse, copy, merge, state_index,
+	epsclosure, dfaexec, dfacomp):
+	Change many instances of "T *" to "T const *", to catch
+	any inadvertent programming errors made during this conversion.
+	* src/dfa.h (dfacomp, dfaexec, dfaparse): Likewise.
+	* src/grep.c (struct stats.parent, long_options, grepdir,
+	compile, execute, fillbuf, lastnl, lastout, nlscan, prline,
+	prpending, prtext, grepbuf, grep, grepfile, grepdir): Likewise.
+	* src/grep.h (struct matcher.compile, struct matcher.execute):
+	Likewise.
+	* src/kwset.c (struct kwset.trans, kwsalloc, kwsincr, treefails,
+	treedelta, hasevery, treenext, bmexec, cwexec, kwsexec): Likewise.
+	* src/kwset.h (kwsalloc, kwsincr, kwsexec): Likewise.
+	* src/search.c (kwsmusts, Gcompile, Ecompile, EGexecute, Pcompile,
+	Pexecute): Likewise.
+
+	* src/dfa.c (dfaexec):
+	Use size_t, not char *, to avoid worrisome casts to convert
+	char const * to char *.
+	* src/dfa.h (dfaexec): Likewise.
+	* src/grep.c (execute): Likewise.
+	* src/grep.h (execute): Likewise.
+	* src/kwset.c (bmexec, cwexec, kwsexec): Likewise.
+	* src/kwset.h (struct kwsmatch.offset, kwsalloc, kwsincr,
+	kwsexec): Likewise.
+	* src/search.c (EGexecute, Fexecute, Pexecute): Likewise.
+
+	* src/dfa.h (_PTR_T): Depend on defined __STDC__, not __STDC__.
+	(PARAMS): Depend on PROTOTYPES, not __STDC__.
+
+	* src/dfa.c (dfasyntax): Last arg is unsigned char, not int.
+	* src/dfa.h (dfasyntax): Likewise.
+
+	* src/dfa.h (struct dfa): Remove member newlines; no longer needed.
+	* src/dfa.c (build_state, dfaexec, dfafree): Do not worry
+	about special newline state.
+
+	* src/search.c (matchers): Move definition to end of file, so
+	that we don't need forward decls.
+	(lastexact): Remove.
+	(kwset_exact_matches): New var; subsumes old lastexact var.
+	All uses changed.
+
+	* src/dfa.c (index): Remove macro.
+	(REALLOC_IF_NECESSARY): Skip unnecessary test.
+	(tstbit, setbit, clrbit): Declare arg to be unsigned, to help compiler.
+	(copyset, zeroset, equal): Use C builtin primitives, to help compiler.
+	(dfaexec): Do not modify input string.
+	Remove newline parameter; no longer needed.
+	(comsubs): Use strchr, not index.
+
+	* src/grep.h (matchers): Use fixed name size, not pointer (as
+	there's no need for the extra flexibility).  All uses changed.
+
+	* src/kwset.h (struct kwsmatch.offset): Renamed from beg, with
+	change of type to size_t.  All uses changed.
+
+	* src/grep.c (reset): No longer need kludge for dfaexec.  Simplify.
+	(reset, grepbuf): Adjust to new interface for 'execute'.
+	(install_matcher): List is now terminated by null compile,
+	not null name.
+	Do not invoke setrlimit if that wouldn't change the limit.
+
+	* src/dfa.c (xcalloc, xmalloc, xrealloc, prtok, tstbit, setbit,
+	clrbit, copyset, zeroset, notset, equal, charclass_index,
+	looking_at, lex, addtok, atom, nsubtoks, copytoks, closure,
+	branch, regexp, copy, insert, merge, delete, state_index,
+	build_state, build_state_zero, icatalloc, icpyalloc, istrstr,
+	ifree, freelist, enlist, comsubs, addlists, inboth):
+	Remove forward decls; no longer needed.
+	* src/grep.c (ck_atoi, usage, error, setmatcher,
+	install_matcher, prepend_args, prepend_default_options,
+	page_alloc, reset, fillbuf, grepbuf, prtext, prpending, prline,
+	print_offset_sep, nlscan, grep, grepfile): Likewise.
+	* src/kwset.c (enqueue, treefails, treedelta, hasevery,
+	treenext, bmexec, cwexec): Likewise.
+	* src/search.c (Gcompile, Ecompile, EGexecute, Fcompile, Fexecute,
+	Pcompile, Pexecute, kwsinit): Likewise.
+
+	* src/search.c (Pcompile): Do not assume newly allocated
+	storage is zeroed.
+
+2000-04-06  Paul Eggert
+
+	* doc/grep.1, doc/grep.texi, NEWS: Improve the explanation of
+	locale-dependent behavior of range expressions.  Mention
+	LC_COLLATE, since this affects range expressions.
+
+2000-03-26  Paul Eggert
+
+	* Makefile.am (ACINCLUDE_INPUTS): Add decl.m4, inttypes_h.m4,
+	uintmax_t.m4, ulonglong.m4, xstrtoumax.m4.
+	* m4/Makefile.am (EXTRA_DIST): Likewise.
+
+	* src/Makefile.am (base_sources):
+	Add xstrtol.c, xstrtol.h, xstrtoumax.c.
+	(EXTRA_DIST): Add strtol.c.
+
+	* configure.in (jm_AC_TYPE_UINTMAX_T, jm_AC_PREREQ_XSTRTOUMAX,
+	HAVE_DECL_STRTOUL, HAVE_DECL_STRTOULL): Add.
+	(AC_REPLACE_FUNCS): Add strtoul.
+
+	* src/grep.c: Include xstrtol.h.
+	(ck_atio): Use xstrtoumax and do proper overflow checking.
+	(max_count, outleft): Now off_t, not int.
+	(main): Likewise. Use xstrtoumax to convert max_count from string.
+
+	* acconfig.h (HAVE_DECL_STRTOUL, HAVE_DECL_STRTOULL): New #undefs.
+	(HAVE_STPCPY, ENABLE_NLS, HAVE_CATGETS, HAVE_GETTEXT,
+	HAVE_LC_MESSAGES): Remove.
+
+	* m4/decl.m4, m4/inttypes_h.m4, m4/uintmax_t.m4, m4/ulonglong.m4,
+	m4/xstrtoumax.m4, src/strtol.c, src/strtoul.c, src/strtoull.c,
+	src/strtoumax.c, src/xstrtol.c, src/xstrtol.h, src/xstrtoumax.c:
+	New files, taken unchanged from textutils, fileutils, sh-utils
+	and/or tar.
+
+2000-03-23  Paul Eggert
+
+	* src/search.c (Pcompile): Add support for NUL bytes in
+	Perl regular expressions.
+
+2000-03-23  Paul Eggert
+
+	* NEWS, doc/grep.1, doc/grep.texi: Change --pcre to --perl-regexp.
+	* src/grep.c (long_options, usage): Likewise.
+
+	* doc/grep.1, doc/grep.texi: Remove pgrep program.
+	* src/Makefile.am (bin_PROGRAMS): Likewise.
+	(pgrep_SOURCES): Remove.
+
+	* src/grep.c (main): Rename matcher from "pgrep" to "perl".
+	* src/search.c (matchers): Likewise.
+
+	* src/search.c: Do not include stdio.h; no longer needed.
+	(NILP): Remove.
+	(sub): No longer static.
+	(n_pcre): Remove.
+	(cre): No longer an array.  Present only if HAVE_LIBPCRE.
+	(extra): New variable.
+	(Pcompile): Use fatal to report errors.
+	This also removes a possible core dump.
+	Add checks (marked FIXME) for restrictions in pcre.
+	Use pcre_maketables for proper localized behavior.
+	(Pcompile, Pexecute): Use GNU coding style.
+	The argument is a single pattern, not a list of patterns separated
+	by newlines; this is for consistency with grep and egrep.
+	Use pcre_study for speed.
+	(Pexecute): Abort if we lack pcre.
+	Abort if pcre_exec reports an impossible error.
+	Use code similar to the rest of search.c
+	to narrow down to the line we've found.
+
+2000-03-21  Alain Magloire
+
+	* configure.in: added AC_CHECK_LIB(pcre, pcre_exec)
+	* ChangeLog: Typos corrected.
+	* src/search.c: new MACRO HAVE_LIBPCRE
+
+2000-03-21  H.Merijn Brand
+
+	* src/Makefile.am(bin_PROGRAMS): added pgrep and new macro
+	pgrep_SOURCES.
+	* src/search.c: new functions Pcompile() and Pexecute()
+	to support PCRE.  Update matcher[] array for pgrep.
+	* src/grep.c: new short and long option --pcre and -P.
+	usage() updated.
+
+2000-03-21  Bastiaan Stougie
+
+	Improvement of the -m or --max-count option. Now works for NUM > 1 and
+	prints trailing context for the last matching line.
+
+	* src/grep.c
+	(after_last_match): Is a new off_t variable that replaces inputhwm
+	to retain the correct input offset even after a call to fillbuf. Note
+	that after_last_match has a different meaning than inputhwm:
+	it always points to the offset in the input of the first byte after
+	the last matching line, and is 0 if no matching line has been found
+	yet.
+	(grep): Print trailing context after the NUMth match when the -m NUM
+	option is used.
+	(grep): Added comment. Should have been commented already.
+	(grepbuf): Now updates outleft correctly. This fixes the bug that the
+	-m NUM option did not stop after NUM lines for NUM greater than 1.
+	(grepbuf, prtext): Now update after_last_match instead of inputhwm.
+	(fillbuf): No longer updates inputhwm.
+	(prpending): When outputting trailing context of the max_count-th
+        matching line, stop at the first matching line.
+	(grepfile): Seek to after_last_match or eof, depending on the values
+        of outleft and bufmapped.
+	(usage): added the -m or --max-count option to the help message.
+	* doc/grep.texi, doc/grep.1: Document the change of the -m option.
+
+2000-03-17  Paul Eggert
+
+	Add new -m or --max-count option, based on a suggestion by
+	Bastiaan Stougie.
+
+	* doc/grep.texi, doc/grep.1: Document it.
+	* src/grep.c (short_options, long_options, main): Add it.
+	(inputhwm): New variable.
+	(fillbuf, prtext, grepbuf): Set it.
+	(bufmapped): Now a macro (defined to zero) if HAVE_MMAP is not defined.
+	(max_count, outleft): New variables.
+	(prtext, grepbuf, grep): Don't output more than outleft lines.
+	(grepfile): If grepping standard input, seek to the limit of what
+	we've read before exiting.  This fixes a bug with mmapped input,
+	and is needed for proper -m support.
+	(main): Exit immediately if -m 0 is specified.
+
 2000-03-08  Alain Magloire
 
 	* configure.in: version 2.4.2
@@ -45,7 +1025,7 @@
 2000-01-30 Alain Magloire
 
 	* doc/grep.1:  corrected typo.
-	Noted by Ruslan Ermilob.
+	Noted by Ruslan Ermilov.
 
 2000-01-30 Alain Magloire
 
@@ -171,7 +1151,7 @@
 
 2000-01-04  Paul Eggert
 
-	Inititial patch from David O'Brien.
+	Initial patch by Ruslan Ermilov.
 
 	Add --binary-files option.
 	* NEWS, doc/grep.1, doc/grep.texi: Document it.

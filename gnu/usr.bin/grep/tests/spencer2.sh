@@ -7,7 +7,7 @@ failures=0
 
 # . . . and the following by Henry Spencer.
 
-${AWK-awk} -f $srcdir/spencer1.awk $srcdir/spencer1.tests > spencer1.script
+${AWK-awk} -f $srcdir/scriptgen.awk $srcdir/spencer2.tests > tmp2.script
 
-sh spencer1.script && exit $failures
+sh tmp2.script && exit $failures
 exit 1

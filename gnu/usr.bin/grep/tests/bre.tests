@@ -17,7 +17,7 @@
 2@\(\{1\}a\)@BADRPT@TO CORRECT
 0@^*@*
 2@^\{1\}@BADRPT@TO CORRECT
-0@\{@{
+0@{@{
 1@a\(b*\)c\1d@abbcbd
 1@a\(b*\)c\1d@abbcbbbd
 1@^\(.\)\1@abc
