@@ -92,7 +92,7 @@ contrib/dev/oltr/trlldmac.c	optional	oltr
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/ed/if_ed_isa.c		optional	ed isa
-dev/eisa/eisaconf.c		count		eisa
+dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			count		splash
