@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_screen.c	8.91 (Berkeley) 8/14/94";
+static const char sccsid[] = "@(#)svi_screen.c	8.93 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -320,11 +320,15 @@ svi_dtoh(sp, emsg)
 			FREE(_HMAP(tsp), SIZE_HMAP(tsp) * sizeof(SMAP));
 			_HMAP(tsp) = NULL;
 		}
+		SIGBLOCK(sp->gp);
 		CIRCLEQ_REMOVE(&sp->gp->dq, tsp, q);
 		CIRCLEQ_INSERT_TAIL(&sp->gp->hq, tsp, q);
+		SIGUNBLOCK(sp->gp);
 	}
+	SIGBLOCK(sp->gp);
 	CIRCLEQ_REMOVE(&sp->gp->hq, sp, q);
 	CIRCLEQ_INSERT_TAIL(&sp->gp->dq, sp, q);
+	SIGUNBLOCK(sp->gp);
 	if (hidden > 1)
 		msgq(sp, M_INFO,
 	    "%s backgrounded %d screens; use :display to list the screens",

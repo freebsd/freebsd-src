@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)screen.c	8.64 (Berkeley) 8/14/94";
+static const char sccsid[] = "@(#)screen.c	8.66 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -300,7 +300,9 @@ screen_end(sp)
 	}
 
 	/* Remove the screen from the displayed queue. */
+	SIGBLOCK(sp->gp);
 	CIRCLEQ_REMOVE(&sp->gp->dq, sp, q);
+	SIGUNBLOCK(sp->gp);
 
 	/* Free the screen itself. */
 	FREE(sp, sizeof(SCR));

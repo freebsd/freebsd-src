@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ex_argv.c	8.36 (Berkeley) 8/4/94";
+static const char sccsid[] = "@(#)ex_argv.c	8.37 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>

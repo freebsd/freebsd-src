@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)svi_split.c	8.46 (Berkeley) 8/9/94";
+static const char sccsid[] = "@(#)svi_split.c	8.48 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -256,6 +256,7 @@ svi_split(sp, argv, argc)
 	}
 
 	/* Everything's initialized, put the screen on the displayed queue.*/
+	SIGBLOCK(sp->gp);
 	if (splitup) {
 		/* Link in before the parent. */
 		CIRCLEQ_INSERT_BEFORE(&sp->gp->dq, sp, tsp, q);
@@ -263,6 +264,7 @@ svi_split(sp, argv, argc)
 		/* Link in after the parent. */
 		CIRCLEQ_INSERT_AFTER(&sp->gp->dq, sp, tsp, q);
 	}
+	SIGUNBLOCK(sp->gp);
 
 	/* Clear the current information lines in both screens. */
 	MOVE(sp, INFOLINE(sp), 0);
@@ -333,8 +335,10 @@ svi_bg(csp)
 	}
 
 	/* Move the old screen to the hidden queue. */
+	SIGBLOCK(csp->gp);
 	CIRCLEQ_REMOVE(&csp->gp->dq, csp, q);
 	CIRCLEQ_INSERT_TAIL(&csp->gp->hq, csp, q);
+	SIGUNBLOCK(csp->gp);
 
 	/* Switch screens. */
 	csp->nextdisp = sp;
@@ -428,8 +432,10 @@ svi_fg(csp, name)
 	}
 
 	/* Move the old screen to the hidden queue. */
+	SIGBLOCK(csp->gp);
 	CIRCLEQ_REMOVE(&csp->gp->dq, csp, q);
 	CIRCLEQ_INSERT_TAIL(&csp->gp->hq, csp, q);
+	SIGUNBLOCK(csp->gp);
 
 	return (0);
 }
@@ -527,8 +533,10 @@ svi_swap(csp, nsp, name)
 	 * the exit will delete the old one, if we're foregrounding, the fg
 	 * code will move the old one to the hidden queue.
 	 */
+	SIGBLOCK(sp->gp);
 	CIRCLEQ_REMOVE(&sp->gp->hq, sp, q);
 	CIRCLEQ_INSERT_AFTER(&csp->gp->dq, csp, sp, q);
+	SIGUNBLOCK(sp->gp);
 
 	F_SET(sp, S_REDRAW);
 	return (0);

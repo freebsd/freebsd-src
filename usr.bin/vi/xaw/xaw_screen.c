@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)xaw_screen.c	8.6 (Berkeley) 5/21/94";
+static const char sccsid[] = "@(#)xaw_screen.c	8.7 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/queue.h>
