@@ -5,6 +5,7 @@ $ For ee patchlevel 3
 $
 $ $FreeBSD$
 $ 
+$ 
 $set 1
 $quote "
 1 "menu de configuration                 "
@@ -61,7 +62,7 @@ $quote "
 52 "ligne  : indique le numéro de ligne   0-9    : aller à la ligne \"#\"           "
 53 "tabs   : étendre les tabulations      pastabs: ne pas étendre les tabulations"
 54 "                                                                             "
-55 "  ee [-i] [-e] [-h] [fichier(s)]                                                 "
+55 "  ee [+#] [-i] [-e] [-h] [fichier(s)]                                                 "
 56 "   -i : pas de fenêtre d'info  -e : ne pas étendre les tabs   -h : pas de surbrillance"
 57 "^[ (échap.) menu  ^e rechercher...  ^y efface ligne      ^u haut   ^p page préc."
 58 "^a code ascii     ^x rechercher     ^z annul. eff. ligne ^d bas    ^n page suiv."
@@ -176,7 +177,9 @@ $quote "
 167 "sauvegarde dans le répertoire d'accueil"
 168 "configuration de ee non sauvée"
 169 "nom de fichier manquant pour ree"
-170 "appuyez sur échap. pour annuler"
 180 "menu trop large pour la fenêtre"
 181 "^^encore^^"
 182 "VVencoreVV"
+183 "16 bit characters    "
+184 "16BIT"
+185 "NO16BIT"
