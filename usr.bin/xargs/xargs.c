@@ -36,18 +36,17 @@
  * $xMach: xargs.c,v 1.6 2002/02/23 05:27:47 tim Exp $
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#if 0
 #ifndef lint
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -77,7 +76,7 @@ void		strnsubst(char **, const char *, const char *, size_t);
 static void	waitchildren(const char *, int);
 
 static char echo[] = _PATH_ECHO;
-static char **av, **bxp, **ep, **exp, **xp;
+static char **av, **bxp, **ep, **endxp, **xp;
 static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 static const char *eofstr;
 static int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
@@ -229,7 +228,7 @@ main(int argc, char *argv[])
 	 * count doesn't include the trailing NULL pointer, so the malloc
 	 * added in an extra slot.
 	 */
-	exp = (xp = bxp) + nargs;
+	endxp = (xp = bxp) + nargs;
 
 	/*
 	 * Allocate buffer space for the arguments read from stdin and the
@@ -332,9 +331,9 @@ arg2:
 		 * of input lines, as specified by -L is the same as
 		 * maxing out on arguments.
 		 */
-		if (xp == exp || p > ebp || ch == EOF ||
+		if (xp == endxp || p > ebp || ch == EOF ||
 		    (Lflag <= count && xflag) || foundeof) {
-			if (xflag && xp != exp && p > ebp)
+			if (xflag && xp != endxp && p > ebp)
 				errx(1, "insufficient space for arguments");
 			if (jfound) {
 				for (avj = argv; *avj; avj++)
