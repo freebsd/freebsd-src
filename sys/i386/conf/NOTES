@@ -635,7 +635,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # cy: Cyclades serial driver
 # digi: Digiboard driver
-# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # gsc: Genius GS-4500 hand scanner.
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
@@ -715,9 +714,6 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-device		gp
-hint.gp.0.at="isa"
-hint.gp.0.port="0x2c0"
 device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
