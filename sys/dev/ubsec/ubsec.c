@@ -426,7 +426,8 @@ ubsec_attach(device_t dev)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		callout_init(&sc->sc_rngto, 0);
+		/* NB: 1 means the callout runs w/o Giant locked */
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 skip_rng:
 	;
