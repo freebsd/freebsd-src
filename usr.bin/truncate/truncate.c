@@ -177,12 +177,15 @@ parselength(char *ls, off_t *sz)
 
 	switch (*ls) {
 	case 'G':
+	case 'g':
 		oflow = length * 1024;
 		ASSIGN_CHK_OFLOW(oflow, length);
 	case 'M':
+	case 'm':
 		oflow = length * 1024;
 		ASSIGN_CHK_OFLOW(oflow, length);
 	case 'K':
+	case 'k':
 		if (ls[1] != '\0')
 			return -1;
 		oflow = length * 1024;
