@@ -20,8 +20,7 @@
 >>16	leshort		2		executable,
 >>16	leshort		3		shared object,
 # Core handling from Peter Tobias <tobias@server.et-inf.fho-emden.de>
->>16	leshort		4		core file
->>>400  lelong          >0              (signal %d),
+>>16	leshort		4		core file,
 >>16	leshort		&0xff00		processor-specific,
 >>18	leshort		0		no machine,
 >>18	leshort		1		AT&T WE32100 - invalid byte order,
@@ -50,7 +49,6 @@
 >>16	beshort		2		executable,
 >>16	beshort		3		shared object,
 >>16	beshort		4		core file,
->>>400	lelong		>0		(signal %d),
 >>16	beshort		&0xff00		processor-specific,
 >>18	beshort		0		no machine,
 >>18	beshort		1		AT&T WE32100,
