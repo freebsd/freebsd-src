@@ -124,9 +124,7 @@ struct usbd_bus {
 #endif
 #endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 	bus_dma_tag_t		dmatag;	/* DMA tag */
-#endif
 };
 
 struct usbd_device {

@@ -360,7 +360,13 @@ MALLOC_DECLARE(M_USBHC);
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
 
-#define DECLARE_USB_DMA_T typedef char * usb_dma_t
+#define DECLARE_USB_DMA_T \
+	struct usb_dma_block; \
+	typedef struct { \
+		struct usb_dma_block *block; \
+		u_int offs; \
+		u_int len; \
+	} usb_dma_t
 
 typedef struct thread *usb_proc_ptr;
 
