@@ -125,8 +125,6 @@ static void	removechild(struct witness *parent, struct witness *child);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
 static int	blessed(struct witness *, struct witness *);
-static void	witness_display_list(void(*prnt)(const char *fmt, ...),
-				     struct witness_list *list);
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
 					   struct witness *);
 static void	witness_leveldescendents(struct witness *parent, int level);
@@ -137,9 +135,13 @@ static struct	witness_child_list_entry *witness_child_get(void);
 static void	witness_child_free(struct witness_child_list_entry *wcl);
 static struct	lock_list_entry *witness_lock_list_get(void);
 static void	witness_lock_list_free(struct lock_list_entry *lle);
-static void	witness_display(void(*)(const char *fmt, ...));
 static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 					     struct lock_object *lock);
+#if defined(DDB)
+static void	witness_display_list(void(*prnt)(const char *fmt, ...),
+				     struct witness_list *list);
+static void	witness_display(void(*)(const char *fmt, ...));
+#endif
 
 MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
 
@@ -398,6 +400,7 @@ witness_destroy(struct lock_object *lock)
 	mtx_unlock(&all_mtx);
 }
 
+#if defined(DDB)
 static void
 witness_display_list(void(*prnt)(const char *fmt, ...),
 		     struct witness_list *list)
@@ -455,6 +458,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 		prnt("%s\n", w->w_name);
 	}
 }
+#endif
 
 void
 witness_lock(struct lock_object *lock, int flags, const char *file, int line)
