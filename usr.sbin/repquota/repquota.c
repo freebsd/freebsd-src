@@ -255,7 +255,7 @@ repquota(fs, type, qfpathname)
 			fup->fu_dqblk.dqb_bsoftlimit &&
 			    fup->fu_dqblk.dqb_curblocks >=
 			    fup->fu_dqblk.dqb_bsoftlimit ?
-			    timeprt(fup->fu_dqblk.dqb_btime) : "");
+			    timeprt(fup->fu_dqblk.dqb_btime) : "-");
 		printf("  %7lu %7lu %7lu %6s\n",
 			fup->fu_dqblk.dqb_curinodes,
 			fup->fu_dqblk.dqb_isoftlimit,
@@ -263,7 +263,7 @@ repquota(fs, type, qfpathname)
 			fup->fu_dqblk.dqb_isoftlimit &&
 			    fup->fu_dqblk.dqb_curinodes >=
 			    fup->fu_dqblk.dqb_isoftlimit ?
-			    timeprt(fup->fu_dqblk.dqb_itime) : "");
+			    timeprt(fup->fu_dqblk.dqb_itime) : "-");
 		fup->fu_dqblk = zerodqblk;
 	}
 	return (0);
