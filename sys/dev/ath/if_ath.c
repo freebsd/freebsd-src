@@ -334,8 +334,8 @@ ath_detach(struct ath_softc *sc)
 	ath_hal_detach(sc->sc_ah);
 	ieee80211_ifdetach(ifp);
 
- 	ATH_TXBUF_LOCK_DESTROY(sc);
- 	ATH_TXQ_LOCK_DESTROY(sc);
+	ATH_TXBUF_LOCK_DESTROY(sc);
+	ATH_TXQ_LOCK_DESTROY(sc);
 
 	return 0;
 }
@@ -1765,7 +1765,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m0,
 				     ath_mbuf_load_cb, bf,
 				     BUS_DMA_NOWAIT);
-	if (error != 0) {
+	if (error == EFBIG) {
+		/* XXX packet requires too many descriptors */
+		bf->bf_nseg = ATH_TXDESC+1;
+	} else if (error != 0) {
 		sc->sc_stats.ast_tx_busdma++;
 		m_freem(m0);
 		return error;
