@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.29 1996/06/10 23:07:28 gpalmer Exp $
+ * $Id: if.h,v 1.30 1996/07/22 20:06:01 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -259,7 +259,7 @@ struct ifnet {
 static inline int
 if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
 {
-	IF_QDROP(ifq);
+	IF_DROP(ifq);
 	return 0;
 }
 
