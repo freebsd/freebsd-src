@@ -399,7 +399,7 @@ pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
 			}
 
 			switch (PNP_SRES_NUM(tag)) {
-			case PNP_TAG_LOGIGAL_DEVICE:
+			case PNP_TAG_LOGICAL_DEVICE:
 				/* 
 				 * A new logical device. Scan
 				 * resourcea and add device.
