@@ -21,7 +21,7 @@ SUBDIR=	apply ar banner basename biff cal calendar \
 	strings strip su talk tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
-	vgrind vis w wall wc what whereis who whois window write \
+	vgrind vi vis w wall wc what whereis who whois window write \
 	xargs xinstall xstr yacc yes ypcat ypmatch ypwhich
 
 # Cmp, look and tail all use mmap, so new-VM only.
