@@ -721,7 +721,7 @@ raced:
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
-		copyin(real_arg.array, array, count * sizeof(*array));
+		error = copyin(real_arg.array, array, count * sizeof(*array));
 		if (error)
 			break;
 		mtx_lock(sema_mtxp);
