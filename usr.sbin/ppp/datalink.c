@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.46 1998/04/24 19:16:02 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.47 1998/04/25 00:09:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -454,7 +454,7 @@ datalink_AuthOk(struct datalink *dl)
   /* XXX: Connect to another ppp instance HERE */
 
   if (dl->physical->link.lcp.want_mrru && dl->physical->link.lcp.his_mrru) {
-    if (!mp_Up(&dl->bundle->ncp.mp, &dl->peer,
+    if (!mp_Up(&dl->bundle->ncp.mp, dl->name, &dl->peer,
                dl->physical->link.lcp.want_mrru,
                dl->physical->link.lcp.his_mrru,
                dl->physical->link.lcp.want_shortseq,

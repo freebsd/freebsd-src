@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.13 1998/04/24 19:16:09 brian Exp $
+ *	$Id: mp.c,v 1.1.2.14 1998/04/24 19:16:20 brian Exp $
  */
 
 #include <sys/types.h>
@@ -192,20 +192,21 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 }
 
 int
-mp_Up(struct mp *mp, const struct peerid *peer, u_short local_mrru,
-      u_short peer_mrru, int local_shortseq, int peer_shortseq)
+mp_Up(struct mp *mp, const char *name, const struct peerid *peer,
+      u_short local_mrru, u_short peer_mrru, int local_shortseq,
+      int peer_shortseq)
 {
   if (mp->active) {
     /* We're adding a link - do a last validation on our parameters */
     if (!peerid_Equal(peer, &mp->peer)) {
-      LogPrintf(LogPHASE, "Inappropriate peer !\n");
+      LogPrintf(LogPHASE, "%s: Inappropriate peer !\n", name);
       return 0;
     }
     if (mp->local_mrru != local_mrru ||
         mp->peer_mrru != peer_mrru ||
         mp->local_is12bit != local_shortseq ||
         mp->peer_is12bit != peer_shortseq) {
-      LogPrintf(LogPHASE, "Invalid MRRU/SHORTSEQ MP parameters !\n");
+      LogPrintf(LogPHASE, "%s: Invalid MRRU/SHORTSEQ MP parameters !\n", name);
       return 0;
     }
   } else {
