@@ -234,24 +234,24 @@ ifdef(`BTXLDR_VERBOSE',`
 ')
 		movl $start.8,%esi		# Real mode stub
 		movl $MEM_STUB,%edi		# Destination
-		movl $SIZ_STUB,%ecx		# Size
+		movl $start.9-start.8,%ecx	# Size
 		rep				# Relocate
 		movsb				#  it
 		ljmp $SEL_RCODE,$MEM_STUB	# To 16-bit code
-start.8:	xorl %eax,%eax			# Data
+		.code16
+start.8:	xorw %ax,%ax			# Data
 		movb $SEL_RDATA,%al		#  selector
-		movl %eax,%ss			# Reload SS
-		movl %eax,%ds			# Reset
-		movl %eax,%es			#  other
-		movl %eax,%fs			#  segment
-		movl %eax,%gs			#  limits
+		movw %ax,%ss			# Reload SS
+		movw %ax,%ds			# Reset
+		movw %ax,%es			#  other
+		movw %ax,%fs			#  segment
+		movw %ax,%gs			#  limits
 		movl %cr0,%eax			# Switch to
-		decl %eax			#  real
+		decw %ax			#  real
 		movl %eax,%cr0			#  mode
-		.byte 0xea			# Jump to
-		.word MEM_ENTRY 		# BTX entry
-		.word 0x0			#  point
+		ljmp $0,$MEM_ENTRY		# Jump to BTX entry point
 start.9:
+		.code32
 #
 # Output message [ESI] followed by EAX in hex.
 #
