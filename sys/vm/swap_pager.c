@@ -2415,6 +2415,17 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		return;
 	}
 	bio = g_clone_bio(&bp->b_io);
+	if (bio == NULL) {
+		/*
+		 * XXX: This is better than panicing, but not much better.
+		 * XXX: Somehow this should be retried.  A more generic
+		 * XXX: implementation of ENOMEM in geom may be able to cope.
+		 */
+		bp->b_error = ENOMEM;
+		bp->b_ioflags |= BIO_ERROR;
+		bufdone(bp);
+		return;
+	}
 	bio->bio_caller2 = bp;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
