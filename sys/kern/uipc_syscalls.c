@@ -501,7 +501,7 @@ kern_connect(td, fd, sa)
 {
 	struct socket *so;
 	struct file *fp;
-	int error, s;
+	int error;
 	int interrupted = 0;
 
 	NET_LOCK_GIANT();
