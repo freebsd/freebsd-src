@@ -32,12 +32,12 @@
 
 
 struct ibcs2_ipc_perm {
-	ushort	uid;	/* user id */
-	ushort	gid;	/* group id */
-	ushort	cuid;	/* creator user id */
-	ushort	cgid;	/* creator group id */
-	ushort	mode;	/* r/w permission */
-	ushort	seq;	/* sequence # (to generate unique msg/sem/shm id) */
+	u_short	uid;	/* user id */
+	u_short	gid;	/* group id */
+	u_short	cuid;	/* creator user id */
+	u_short	cgid;	/* creator group id */
+	u_short	mode;	/* r/w permission */
+	u_short	seq;	/* sequence # (to generate unique msg/sem/shm id) */
 	key_t	key;	/* user specified msg/sem/shm key */
 };
 
