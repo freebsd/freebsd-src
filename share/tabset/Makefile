@@ -8,7 +8,9 @@ NOOBJ=	noobj
 all clean cleandir depend lint tags:
 
 install:
+	for i in ${FILES} ; do ; uudecode < $$i.uu ; done
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 	    ${DESTDIR}${BINDIR}/tabset
+	rm -f ${FILES}
 
 .include <bsd.prog.mk>
