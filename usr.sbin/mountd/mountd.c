@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.17 1997/04/01 14:15:30 bde Exp $";
+	"$Id: mountd.c,v 1.18 1997/04/09 20:17:15 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -220,6 +220,7 @@ struct ucred def_anon = {
 	1,
 	{ (gid_t) -2 }
 };
+int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
 int opt_flags;
@@ -270,8 +271,11 @@ main(argc, argv)
 		errx(1, "NFS support is not available in the running kernel");
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "dnr")) != -1)
+	while ((c = getopt(argc, argv, "2dnr")) != -1)
 		switch (c) {
+		case '2':
+			force_v2 = 1;
+			break;
 		case 'n':
 			resvport_only = 0;
 			break;
@@ -336,10 +340,14 @@ main(argc, argv)
 	}
 	pmap_unset(RPCPROG_MNT, 1);
 	pmap_unset(RPCPROG_MNT, 3);
+	if (!force_v2)
+		if (!svc_register(udptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_UDP) ||
+		    !svc_register(tcptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_TCP)) {
+			syslog(LOG_ERR, "Can't register mount");
+			exit(1);
+		}
 	if (!svc_register(udptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_UDP) ||
-	    !svc_register(udptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_UDP) ||
-	    !svc_register(tcptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_TCP) ||
-	    !svc_register(tcptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_TCP)) {
+	    !svc_register(tcptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_TCP)) {
 		syslog(LOG_ERR, "Can't register mount");
 		exit(1);
 	}
