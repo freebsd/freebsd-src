@@ -421,7 +421,7 @@ accept_listener_done(src, dst, group)
 
     IF_DEBUG(DEBUG_MLD)
 	log(LOG_INFO, 0,
-	    "accepting listener done message: src %s, dst% s, grp %s",
+	    "accepting listener done message: src %s, dst %s, grp %s",
 	    inet6_fmt(&src->sin6_addr),
 	    inet6_fmt(dst), inet6_fmt(group));
 
