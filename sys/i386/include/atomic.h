@@ -86,7 +86,7 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }
 #endif /* KLD_MODULE */
 
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR_ > 9)
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
 ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
 ATOMIC_ASM(add,	     char,  "addb %2,%0",  v)
