@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.7 2001/12/12 07:16:40 guy Exp $ (NETLAB/PEL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-sctp.c,v 1.7.2.1 2002/07/10 07:20:57 guy Exp $ (NETLAB/PEL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -74,25 +74,25 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
   const struct ip6_hdr *ip6;
 #endif
   const u_char *cp;
-  void *endPacketPtr;
+  const void *endPacketPtr;
   u_short sourcePort, destPort;
   int chunkCount;
-  struct sctpChunkDesc *chunkDescPtr;
-  void *nextChunk;
+  const struct sctpChunkDesc *chunkDescPtr;
+  const void *nextChunk;
 
-  sctpPktHdr = (struct sctpHeader*) bp;
-  endPacketPtr = ((u_char*)((u_char*)sctpPktHdr+sctpPacketLength));
+  sctpPktHdr = (const struct sctpHeader*) bp;
+  endPacketPtr = (const u_char*)sctpPktHdr+sctpPacketLength;
   
   if( (u_long) endPacketPtr > (u_long) snapend)
-    endPacketPtr = (void *) snapend;
+    endPacketPtr = (const void *) snapend;
   ip = (struct ip *)bp2;
 #ifdef INET6
   if (IP_V(ip) == 6)
-    ip6 = (struct ip6_hdr *)bp2;
+    ip6 = (const struct ip6_hdr *)bp2;
   else
     ip6 = NULL;
 #endif /*INET6*/
-  cp = (u_char *)(sctpPktHdr + 1);
+  cp = (const u_char *)(sctpPktHdr + 1);
   if (cp > snapend)
     { 
       printf("[|sctp]");
@@ -145,31 +145,32 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
   
   /* cycle through all chunks, printing information on each one */
   for (chunkCount = 0, 
-	 chunkDescPtr = (struct sctpChunkDesc *) ( (u_char*) sctpPktHdr +
-						   sizeof(struct sctpHeader));
+	 chunkDescPtr = (const struct sctpChunkDesc *)
+	    ((const u_char*) sctpPktHdr + sizeof(struct sctpHeader));
        chunkDescPtr != NULL &&
-	 ( (void *)  ((u_char *) chunkDescPtr + sizeof(struct sctpChunkDesc))
+	 ( (const void *)
+	    ((const u_char *) chunkDescPtr + sizeof(struct sctpChunkDesc))
 	   <= endPacketPtr);
        
-       chunkDescPtr = (struct sctpChunkDesc *) nextChunk, chunkCount++)
+       chunkDescPtr = (const struct sctpChunkDesc *) nextChunk, chunkCount++)
     {
       u_short align;
-      u_char *chunkEnd;
+      const u_char *chunkEnd;
       
-      chunkEnd = ((u_char*)chunkDescPtr + ntohs(chunkDescPtr->chunkLength));
+      chunkEnd = ((const u_char*)chunkDescPtr + ntohs(chunkDescPtr->chunkLength));
       
       align=ntohs(chunkDescPtr->chunkLength) % 4;
       if (align != 0)
 	align = 4 - align;
 
-      nextChunk = (void *) (chunkEnd + align);
+      nextChunk = (const void *) (chunkEnd + align);
 
       printf("\n\t%d) ", chunkCount+1);
       switch (chunkDescPtr->chunkID)
 	{
 	case SCTP_DATA :
 	  {
-	    struct sctpDataPart *dataHdrPtr;
+	    const struct sctpDataPart *dataHdrPtr;
 	    
 	    printf("[DATA] ");
 	    
@@ -195,7 +196,7 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 		 == SCTP_DATA_LAST_FRAG) )
 	      printf(" ");
 
-	    dataHdrPtr=(struct sctpDataPart*)(chunkDescPtr+1);
+	    dataHdrPtr=(const struct sctpDataPart*)(chunkDescPtr+1);
 			     
 	    printf("[TSN: %u] ", (u_int32_t)ntohl(dataHdrPtr->TSN));
 	    printf("[SID: %u] ", ntohs(dataHdrPtr->streamId));
@@ -205,12 +206,12 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 
 	    if (vflag)		/* if verbose output is specified */
 	      {		           /* at the command line */
-		char *payloadPtr;
+		const u_char *payloadPtr;
 		
 		printf("[Payload");
 
 		if (!xflag && !qflag) {
-			payloadPtr = (char *) (++dataHdrPtr);
+			payloadPtr = (const u_char *) (++dataHdrPtr);
 			printf(":");
 			default_print(payloadPtr,
 			      htons(chunkDescPtr->chunkLength)-1 -
@@ -222,10 +223,10 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	  }
 	case SCTP_INITIATION :
 	  {
-	    struct sctpInitiation *init;
+	    const struct sctpInitiation *init;
 
 	    printf("[INIT] ");
-	    init=(struct sctpInitiation*)(chunkDescPtr+1);
+	    init=(const struct sctpInitiation*)(chunkDescPtr+1);
 	    printf("[init tag: %u] ", (u_int32_t)ntohl(init->initTag));
 	    printf("[rwnd: %u] ", (u_int32_t)ntohl(init->rcvWindowCredit));
 	    printf("[OS: %u] ", ntohs(init->NumPreopenStreams));
@@ -241,10 +242,10 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	  }
 	case SCTP_INITIATION_ACK :
 	  {
-	    struct sctpInitiation *init;
+	    const struct sctpInitiation *init;
 	    
 	    printf("[INIT ACK] ");
-	    init=(struct sctpInitiation*)(chunkDescPtr+1);
+	    init=(const struct sctpInitiation*)(chunkDescPtr+1);
 	    printf("[init tag: %u] ", (u_int32_t)ntohl(init->initTag));
 	    printf("[rwnd: %u] ", (u_int32_t)ntohl(init->rcvWindowCredit));
 	    printf("[OS: %u] ", ntohs(init->NumPreopenStreams));
@@ -260,13 +261,13 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	  }
 	case SCTP_SELECTIVE_ACK:
 	  {
-	    struct sctpSelectiveAck *sack;
-	    struct sctpSelectiveFrag *frag; 
+	    const struct sctpSelectiveAck *sack;
+	    const struct sctpSelectiveFrag *frag; 
 	    int fragNo, tsnNo;
-	    u_long *dupTSN;
+	    const u_long *dupTSN;
 
 	    printf("[SACK] ");
-	    sack=(struct sctpSelectiveAck*)(chunkDescPtr+1);
+	    sack=(const struct sctpSelectiveAck*)(chunkDescPtr+1);
 	    printf("[cum ack %u] ", (u_int32_t)ntohl(sack->highestConseqTSN));
 	    printf("[a_rwnd %u] ", (u_int32_t)ntohl(sack->updatedRwnd));
 	    printf("[#gap acks %u] ", ntohs(sack->numberOfdesc));
@@ -274,10 +275,10 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	    
 	    
 	    /* print gaps */
-	    for (frag = ( (struct sctpSelectiveFrag *)
-			  ((struct sctpSelectiveAck *) sack+1)),
+	    for (frag = ( (const struct sctpSelectiveFrag *)
+			  ((const struct sctpSelectiveAck *) sack+1)),
 		   fragNo=0;
-		 (void *)frag < nextChunk && fragNo < ntohs(sack->numberOfdesc);
+		 (const void *)frag < nextChunk && fragNo < ntohs(sack->numberOfdesc);
 		 frag++, fragNo++)
 	      printf("\n\t\t[gap ack block #%d: start = %u, end = %u] ", 
 		     fragNo+1,
@@ -286,8 +287,8 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	    
 
 	    /* print duplicate TSNs */
-	    for (dupTSN = (u_long*)frag, tsnNo=0; 
-		 (void *) dupTSN < nextChunk && tsnNo<ntohs(sack->numDupTsns);
+	    for (dupTSN = (const u_long*)frag, tsnNo=0; 
+		 (const void *) dupTSN < nextChunk && tsnNo<ntohs(sack->numDupTsns);
 		 dupTSN++, tsnNo++)
 	      printf("\n\t\t[dup TSN #%u: %u] ", tsnNo+1,
 	          (u_int32_t)ntohl(*dupTSN));
@@ -296,9 +297,9 @@ void sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	  }
 	case SCTP_HEARTBEAT_REQUEST :
 	  {
-	    struct sctpHBsender *hb;
+	    const struct sctpHBsender *hb;
 
-	    hb=(struct sctpHBsender*)chunkDescPtr;
+	    hb=(const struct sctpHBsender*)chunkDescPtr;
 
 	    printf("[HB REQ] ");
 	    
