@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.9 1998/06/06 05:50:42 jkoshy Exp $
+.\" $Id: login_cap.3,v 1.10 1999/02/12 02:12:06 alex Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -147,6 +147,11 @@ functions will search for a record with an id of "default",
 with that name returned in the
 .Ar lc_class
 field.
+In addition, if the referenced user has a UID of 0 (normally,                  
+"root", although the user name is not considered) then                         
+.Fn login_getpwclass                                                           
+will search for a record with an id of "root" before it searches               
+for the record with the id of "default".
 .Pp
 The
 .Ar lc_cap
@@ -231,6 +236,7 @@ and
 .Fn login_getclass
 restricts loookup only to the system login class database in
 .Pa /etc/login.conf .
+As explained earlier,
 .Fn login_getpwclass
 only differs from
 .Fn login_getclass
