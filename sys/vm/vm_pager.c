@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -487,7 +487,7 @@ relpbuf(bp, pfreecnt)
  *
  *	io completion routine for child bp.  Currently we fudge a bit
  *	on dealing with b_resid.   Since users of these routines may issue
- *	multiple children simultaniously, sequencing of the error can be lost.
+ *	multiple children simultaneously, sequencing of the error can be lost.
  */
 
 static void
@@ -530,7 +530,7 @@ vm_pager_chain_iodone(struct buf *nbp)
  *
  *	Obtain a physical buffer and chain it to its parent buffer.  When
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
- *	automatically propogated to the parent
+ *	automatically propagated to the parent
  *
  *	Since these are brand new buffers, we do not have to clear B_INVAL
  *	and B_ERROR because they are already clear.

@@ -16,7 +16,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -128,7 +128,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 			return (NULL);
 
 	/*
-	 * Lock to prevent object creation race contion.
+	 * Lock to prevent object creation race condition.
 	 */
 	while (dev_pager_alloc_lock) {
 		dev_pager_alloc_lock_want++;
