@@ -1,4 +1,7 @@
-# alarm --- set an alarm
+# alarm.awk --- set an alarm
+#
+# Requires gettimeofday library function
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
@@ -11,7 +14,8 @@ BEGIN    \
     usage2 = sprintf("\t(%s) time ::= hh:mm", ARGV[1])
 
     if (ARGC < 2) {
-        print usage > "/dev/stderr"
+        print usage1 > "/dev/stderr"
+        print usage2 > "/dev/stderr"
         exit 1
     } else if (ARGC == 5) {
         delay = ARGV[4] + 0
@@ -37,7 +41,7 @@ BEGIN    \
         message = sprintf("\aIt is now %s!\a", ARGV[1])
     else if (index(message, "\a") == 0)
         message = "\a" message "\a"
-    # split up dest time
+    # split up alarm time
     split(ARGV[1], atime, ":")
     hour = atime[1] + 0    # force numeric
     minute = atime[2] + 0  # force numeric

@@ -1,6 +1,8 @@
-# gettimeofday --- get the time of day in a usable format
+# gettimeofday.awk --- get the time of day in a usable format
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain, May 1993
 #
+
 # Returns a string in the format of output of date(1)
 # Populates the array argument time with individual values:
 #    time["second"]       -- seconds (0 - 59)
@@ -11,17 +13,17 @@
 #    time["month"]        -- month of year (1 - 12)
 #    time["monthname"]    -- name of the month
 #    time["shortmonth"]   -- short name of the month
-#    time["year"]         -- year within century (0 - 99)
-#    time["fullyear"]     -- year with century (19xx or 20xx)
+#    time["year"]         -- year modulo 100 (0 - 99)
+#    time["fullyear"]     -- full year
 #    time["weekday"]      -- day of week (Sunday = 0)
 #    time["altweekday"]   -- day of week (Monday = 0)
-#    time["weeknum"]      -- week number, Sunday first day
-#    time["altweeknum"]   -- week number, Monday first day
 #    time["dayname"]      -- name of weekday
 #    time["shortdayname"] -- short name of weekday
 #    time["yearday"]      -- day of year (0 - 365)
 #    time["timezone"]     -- abbreviation of timezone name
 #    time["ampm"]         -- AM or PM designation
+#    time["weeknum"]      -- week number, Sunday first day
+#    time["altweeknum"]   -- week number, Monday first day
 
 function gettimeofday(time,    ret, now, i)
 {
@@ -32,8 +34,7 @@ function gettimeofday(time,    ret, now, i)
     ret = strftime("%a %b %d %H:%M:%S %Z %Y", now)
 
     # clear out target array
-    for (i in time)
-        delete time[i]
+    delete time
 
     # fill in values, force numeric values to be
     # numeric by adding 0

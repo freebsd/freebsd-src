@@ -1,286 +1,797 @@
-# Makefile for GNU Awk.
-#
-# Copyright (C) 1986, 1988-2000 the Free Software Foundation, Inc.
-# 
-# This file is part of GAWK, the GNU implementation of the
-# AWK Programming Language.
-# 
-# GAWK is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# GAWK is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+# Makefile.in generated automatically by automake 1.4a from Makefile.am
 
-@SET_MAKE@
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-MAKEINFO = makeinfo --no-split
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+SHELL = @SHELL@
 
 srcdir = @srcdir@
+top_srcdir = @top_srcdir@
 VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
 
-CC = @CC@
-YACC = @YACC@
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = .
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
 
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_STRIP_FLAG =
+transform = @program_transform_name@
 
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+
+@SET_MAKE@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AWK = @AWK@
+CATALOGS = @CATALOGS@
+CATOBJEXT = @CATOBJEXT@
+CC = @CC@
+CFLAGS = @CFLAGS@
+CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
+DATADIRNAME = @DATADIRNAME@
+DEPDIR = @DEPDIR@
+GENCAT = @GENCAT@
+GMOFILES = @GMOFILES@
+GMSGFMT = @GMSGFMT@
+GT_NO = @GT_NO@
+GT_YES = @GT_YES@
+INCLUDE_LOCALE_H = @INCLUDE_LOCALE_H@
+INSTOBJEXT = @INSTOBJEXT@
+INTLDEPS = @INTLDEPS@
+INTLLIBS = @INTLLIBS@
+INTLOBJS = @INTLOBJS@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+MKINSTALLDIRS = @MKINSTALLDIRS@
+MSGFMT = @MSGFMT@
+PACKAGE = @PACKAGE@
+POFILES = @POFILES@
+POSUB = @POSUB@
+RANLIB = @RANLIB@
+SOCKET_LIBS = @SOCKET_LIBS@
+U = @U@
+USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
+USE_NLS = @USE_NLS@
+VERSION = @VERSION@
+YACC = @YACC@
+install_sh = @install_sh@
+l = @l@
+
+#
+# Makefile.am --- automake input file for gawk
+#
+# Copyright (C) 2000-2001 the Free Software Foundation, Inc.
+#
+# This file is part of GAWK, the GNU implementation of the
+# AWK Programming Language.
+#
+# GAWK is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# GAWK is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+#
+
+# Automatic de-ANSI-fication if needed
+
+
+AUTOMAKE_OPTIONS = ansi2knr
+
+# This undocumented variable insures that aclocal runs
+# correctly after changing configure.in
+ACLOCAL_AMFLAGS = -I m4
+
+# This insures that make flags get passed down to child makes.
+AM_MAKEFLAGS = 'CFLAGS=$(CFLAGS)' 'LDFLAGS=$(LDFLAGS)'
+
+# Stuff to include in the dist that doesn't need it's own
+# Makefile.am files
+EXTRA_DIST = \
+	COPYING \
+	FUTURES \
+	INSTALL \
+	LIMITATIONS \
+	NEWS \
+	POSIX.STD \
+	PROBLEMS \
+	README_d \
+	bisonfix.sed \
+	depcomp \
+	extension \
+	fixvers \
+	m4 \
+	missing \
+	missing_d \
+	pc \
+	posix \
+	unsupported \
+	vms
+
+
+# The order to do things in.
+# Build in intl first in case we need the local gettext version.
+# Build explicitly  "." next in order to build gawk first, so
+# that `make check' without a prior `make' works.
+SUBDIRS = \
+	intl \
+	. \
+	awklib \
+	doc \
+	po \
+	test
+
+
+# what to make and install
+bin_PROGRAMS = gawk pgawk
+
+# sources for both gawk and pgawk
+base_sources = \
+	array.c \
+	awk.h \
+	awkgram.y \
+	builtin.c \
+	custom.h \
+	dfa.c \
+	dfa.h \
+	ext.c \
+	field.c \
+	gawkmisc.c \
+	getopt.c \
+	getopt.h \
+	getopt1.c \
+	io.c \
+	main.c \
+	msg.c \
+	node.c \
+	patchlev.h \
+	protos.h \
+	random.c \
+	random.h \
+	re.c \
+	regex.c \
+	regex.h \
+	replace.c \
+	version.in \
+	version.c
+
+
+gawk_SOURCES = $(base_sources) eval.c profile.c
+pgawk_SOURCES = $(base_sources) eval_p.c profile_p.c
+
+# Get extra libs as needed
+LDADD = @INTLLIBS@ @SOCKET_LIBS@
+
+# stuff for compiling gawk/pgawk
+DEFPATH = "\".:$(datadir)\""
+
+DEFS = -DDEFPATH=$(DEFPATH) -DHAVE_CONFIG_H -DGAWK -DLOCALEDIR="\"$(datadir)/locale\""
+
+INCLUDES = -I. -I$(srcdir) -I$(srcdir)/intl
+
+# We want hard links for install-exec-hook, below
+LN = ln
+subdir = .
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES = 
+PROGRAMS =  $(bin_PROGRAMS)
+
+CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
+ANSI2KNR = @ANSI2KNR@
+am_gawk_OBJECTS =  array$U.o awkgram$U.o builtin$U.o dfa$U.o ext$U.o \
+field$U.o gawkmisc$U.o getopt$U.o getopt1$U.o io$U.o main$U.o msg$U.o \
+node$U.o random$U.o re$U.o regex$U.o replace$U.o version$U.o eval$U.o \
+profile$U.o
+gawk_OBJECTS =  $(am_gawk_OBJECTS)
+gawk_LDADD = $(LDADD)
+gawk_DEPENDENCIES = 
+gawk_LDFLAGS = 
+am_pgawk_OBJECTS =  array$U.o awkgram$U.o builtin$U.o dfa$U.o ext$U.o \
+field$U.o gawkmisc$U.o getopt$U.o getopt1$U.o io$U.o main$U.o msg$U.o \
+node$U.o random$U.o re$U.o regex$U.o replace$U.o version$U.o eval_p$U.o \
+profile_p$U.o
+pgawk_OBJECTS =  $(am_pgawk_OBJECTS)
+pgawk_LDADD = $(LDADD)
+pgawk_DEPENDENCIES = 
+pgawk_LDFLAGS = 
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =  $(gawk_SOURCES) $(pgawk_SOURCES)
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+DEP_FILES =  @AMDEP@ $(DEPDIR)/array$U.Po $(DEPDIR)/awkgram$U.Po \
+$(DEPDIR)/builtin$U.Po $(DEPDIR)/dfa$U.Po $(DEPDIR)/eval$U.Po \
+$(DEPDIR)/eval_p$U.Po $(DEPDIR)/ext$U.Po $(DEPDIR)/field$U.Po \
+$(DEPDIR)/gawkmisc$U.Po $(DEPDIR)/getopt$U.Po $(DEPDIR)/getopt1$U.Po \
+$(DEPDIR)/io$U.Po $(DEPDIR)/main$U.Po $(DEPDIR)/msg$U.Po \
+$(DEPDIR)/node$U.Po $(DEPDIR)/profile$U.Po $(DEPDIR)/profile_p$U.Po \
+$(DEPDIR)/random$U.Po $(DEPDIR)/re$U.Po $(DEPDIR)/regex$U.Po \
+$(DEPDIR)/replace$U.Po $(DEPDIR)/version$U.Po
+DIST_COMMON =  README ./stamp-h.in ABOUT-NLS AUTHORS COPYING ChangeLog \
+INSTALL Makefile.am Makefile.in NEWS acconfig.h acinclude.m4 aclocal.m4 \
+ansi2knr.1 ansi2knr.c awkgram.c configh.in configure configure.in \
+depcomp install-sh missing mkinstalldirs
 
-ALLOCA = @ALLOCA@
 
-LN = ln
-LN_S = @LN_S@
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
-exec_prefix = @exec_prefix@
-prefix = @prefix@
-binprefix =
-manprefix =
+GZIP_ENV = --best
+SOURCES = $(gawk_SOURCES) $(pgawk_SOURCES)
+OBJECTS = $(am_gawk_OBJECTS) $(am_pgawk_OBJECTS)
 
-bindir = @bindir@
-libdir = @libdir@
-manexta = 1
-mandir = @mandir@/man$(manexta)
-manext = .$(manexta)
-infodir = @infodir@
-datadir = @datadir@/awk
-libexecdir = @libexecdir@/awk
-
-DEFPATH = ".:$(datadir)"
-
-SHELL = /bin/sh
-CPPFLAGS = @CPPFLAGS@
-CFLAGS = @CFLAGS@
-COMPFLAGS = -DGAWK -I. -I$(srcdir) $(CPPFLAGS) @DEFS@ $(CFLAGS)
-
-# object files
-AWKOBJS = array.o builtin.o eval.o field.o gawkmisc.o io.o main.o \
-	missing.o msg.o node.o re.o version.o
-
-ALLOBJS = $(AWKOBJS) awktab.o
-
-# LIBOBJS
-#	GNU and other stuff that gawk uses as library routines.
-LIBOBJS= getopt.o getopt1.o regex.o dfa.o random.o $(ALLOCA)
-
-# source and documentation files
-SRC = array.c builtin.c eval.c field.c gawkmisc.c io.c main.c \
-	missing.c msg.c node.c re.c version.c
-
-ALLSRC= $(SRC) awktab.c
-
-AWKSRC= awk.h awk.y custom.h $(ALLSRC) patchlevel.h protos.h random.h
-
-LIBSRC = alloca.c dfa.c dfa.h regex.c regex.h getopt.h getopt.c getopt1.c random.c
-
-COPIES = missing/system.c missing/tzset.c \
-	missing/memcmp.c missing/memcpy.c missing/memset.c \
-	missing/strncasecmp.c missing/strchr.c \
-	missing/strerror.c missing/strtod.c \
-	missing/strftime.c missing/strftime.3 
-
-DOCS= doc/gawk.1 doc/gawk.texi doc/texinfo.tex
-
-TEXFILES= doc/gawk.aux doc/gawk.cp doc/gawk.cps doc/gawk.fn doc/gawk.fns \
-	  doc/gawk.ky doc/gawk.kys doc/gawk.pg doc/gawk.pgs doc/gawk.toc \
-	  doc/gawk.tp doc/gawk.tps doc/gawk.vr doc/gawk.vrs
-
-MISC =	NEWS COPYING FUTURES Makefile.in PROBLEMS README PORTS POSIX.STD \
-	configure configure.in acconfig.h configh.in ACKNOWLEDGMENT \
-	ChangeLog INSTALL LIMITATIONS install-sh mkinstalldirs aclocal.m4 \
-	stamp-h.in
-
-OTHERS= doc pc atari vms README_d posix awklib
-
-ALLDOC= doc/gawk.dvi $(TEXFILES) doc/gawk.info*
-
-MAKEFILEIN = Makefile.in awklib/Makefile.in doc/Makefile.in test/Makefile.in
-
-# Release of gawk.  There can be no leading or trailing white space here!
-REL=3.0
-
-# clear out suffixes list
+all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .c .o
+.SUFFIXES: .c .h .o .y
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+$(ACLOCAL_M4):  configure.in  acinclude.m4 m4/arch.m4 m4/gettext.m4 \
+		m4/jm-mktime.m4 m4/largefile.m4 m4/lcmessage.m4 \
+		m4/progtest.m4 m4/socket.m4 m4/ssize_t.m4 m4/strtod.m4
+	cd $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
+
+config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
+
+config.h: stamp-h
+	@if test ! -f $@; then \
+		rm -f stamp-h; \
+		$(MAKE) stamp-h; \
+	else :; fi
+stamp-h: $(srcdir)/configh.in $(top_builddir)/config.status
+	@rm -f stamp-h stamp-hT
+	@echo timestamp > stamp-hT 2> /dev/null
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h:configh.in \
+	     $(SHELL) ./config.status
+	@mv stamp-hT stamp-h
+$(srcdir)/configh.in: $(srcdir)/./stamp-h.in
+	@if test ! -f $@; then \
+		rm -f $(srcdir)/./stamp-h.in; \
+		$(MAKE) $(srcdir)/./stamp-h.in; \
+	else :; fi
+$(srcdir)/./stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) acconfig.h
+	@rm -f $(srcdir)/./stamp-h.in $(srcdir)/./stamp-h.inT
+	@echo timestamp > $(srcdir)/./stamp-h.inT 2> /dev/null
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@mv $(srcdir)/./stamp-h.inT $(srcdir)/./stamp-h.in
+
+mostlyclean-hdr:
+
+clean-hdr:
+
+distclean-hdr:
+	-rm -f config.h
+
+maintainer-clean-hdr:
+
+mostlyclean-binPROGRAMS:
+
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+
+distclean-binPROGRAMS:
+
+maintainer-clean-binPROGRAMS:
+
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	    echo "  $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
+	     $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
+	  else :; fi; \
+	done
+
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
+	  rm -f $(DESTDIR)$(bindir)/$$f; \
+	done
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+mostlyclean-krextra:
+
+clean-krextra:
+	-rm -f ansi2knr
+
+distclean-krextra:
+
+maintainer-clean-krextra:
+ansi2knr: ansi2knr.o
+	$(LINK) ansi2knr.o $(LIBS)
+ansi2knr.o: $(CONFIG_HEADER)
+
+
+mostlyclean-kr:
+	-rm -f *_.c
+
+clean-kr:
+
+distclean-kr:
+
+maintainer-clean-kr:
+
+gawk: $(gawk_OBJECTS) $(gawk_DEPENDENCIES)
+	@rm -f gawk
+	$(LINK) $(gawk_LDFLAGS) $(gawk_OBJECTS) $(gawk_LDADD) $(LIBS)
+
+pgawk: $(pgawk_OBJECTS) $(pgawk_DEPENDENCIES)
+	@rm -f pgawk
+	$(LINK) $(pgawk_LDFLAGS) $(pgawk_OBJECTS) $(pgawk_LDADD) $(LIBS)
+array_.c: array.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/array.c; then echo $(srcdir)/array.c; else echo array.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > array_.c
+awkgram_.c: awkgram.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/awkgram.c; then echo $(srcdir)/awkgram.c; else echo awkgram.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > awkgram_.c
+builtin_.c: builtin.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/builtin.c; then echo $(srcdir)/builtin.c; else echo builtin.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > builtin_.c
+dfa_.c: dfa.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dfa.c; then echo $(srcdir)/dfa.c; else echo dfa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dfa_.c
+eval_.c: eval.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/eval.c; then echo $(srcdir)/eval.c; else echo eval.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > eval_.c
+eval_p_.c: eval_p.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/eval_p.c; then echo $(srcdir)/eval_p.c; else echo eval_p.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > eval_p_.c
+ext_.c: ext.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ext.c; then echo $(srcdir)/ext.c; else echo ext.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ext_.c
+field_.c: field.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/field.c; then echo $(srcdir)/field.c; else echo field.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > field_.c
+gawkmisc_.c: gawkmisc.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/gawkmisc.c; then echo $(srcdir)/gawkmisc.c; else echo gawkmisc.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > gawkmisc_.c
+getopt_.c: getopt.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/getopt.c; then echo $(srcdir)/getopt.c; else echo getopt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > getopt_.c
+getopt1_.c: getopt1.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/getopt1.c; then echo $(srcdir)/getopt1.c; else echo getopt1.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > getopt1_.c
+io_.c: io.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/io.c; then echo $(srcdir)/io.c; else echo io.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > io_.c
+main_.c: main.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/main.c; then echo $(srcdir)/main.c; else echo main.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > main_.c
+msg_.c: msg.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/msg.c; then echo $(srcdir)/msg.c; else echo msg.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > msg_.c
+node_.c: node.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/node.c; then echo $(srcdir)/node.c; else echo node.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > node_.c
+profile_.c: profile.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/profile.c; then echo $(srcdir)/profile.c; else echo profile.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > profile_.c
+profile_p_.c: profile_p.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/profile_p.c; then echo $(srcdir)/profile_p.c; else echo profile_p.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > profile_p_.c
+random_.c: random.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/random.c; then echo $(srcdir)/random.c; else echo random.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > random_.c
+re_.c: re.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/re.c; then echo $(srcdir)/re.c; else echo re.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > re_.c
+regex_.c: regex.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/regex.c; then echo $(srcdir)/regex.c; else echo regex.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > regex_.c
+replace_.c: replace.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/replace.c; then echo $(srcdir)/replace.c; else echo replace.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > replace_.c
+version_.c: version.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/version.c; then echo $(srcdir)/version.c; else echo version.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > version_.c
+array_.o awkgram_.o builtin_.o dfa_.o eval_.o eval_p_.o ext_.o field_.o \
+gawkmisc_.o getopt_.o getopt1_.o io_.o main_.o msg_.o node_.o \
+profile_.o profile_p_.o random_.o re_.o regex_.o replace_.o version_.o \
+: $(ANSI2KNR)
+.y.c:
+	$(YACC) $(AM_YFLAGS) $(YFLAGS) $< && mv y.tab.c $*.c
+	if test -f y.tab.h; then \
+	if cmp -s y.tab.h $*.h; then rm -f y.tab.h; else mv y.tab.h $*.h; fi; \
+	else :; fi
+
+
+# This directory's subdirectories are mostly independent; you can cd
+# into them and run `make' without going through this Makefile.
+# To change the values of `make' variables: instead of editing Makefiles,
+# (1) if the variable is set in `config.status', edit `config.status'
+#     (which will cause the Makefiles to be regenerated when you run `make');
+# (2) otherwise, pass the desired values on the `make' command line.
+
+all-recursive install-data-recursive install-exec-recursive \
+installdirs-recursive install-recursive uninstall-recursive  \
+check-recursive installcheck-recursive info-recursive dvi-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"
+
+mostlyclean-recursive clean-recursive distclean-recursive \
+maintainer-clean-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
+	  if test "$$subdir" = "."; then :; else \
+	    rev="$$subdir $$rev"; \
+	  fi; \
+	done; \
+	rev="$$rev ."; \
+	target=`echo $@ | sed s/-recursive//`; \
+	for subdir in $$rev; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done && test -z "$$fail"
+tags-recursive:
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
+	done
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	mkid -fID $$unique $(LISP)
+
+TAGS: tags-recursive $(HEADERS) $(SOURCES) configh.in $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+   if test "$$subdir" = .; then :; else \
+	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+   fi; \
+	done; \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)configh.in$$unique$(LISP)$$tags" \
+	  || etags $(ETAGS_ARGS) $$tags configh.in $$unique $(LISP)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+@AMDEP@include $(DEPDIR)/array$U.Po
+@AMDEP@include $(DEPDIR)/awkgram$U.Po
+@AMDEP@include $(DEPDIR)/builtin$U.Po
+@AMDEP@include $(DEPDIR)/dfa$U.Po
+@AMDEP@include $(DEPDIR)/eval$U.Po
+@AMDEP@include $(DEPDIR)/eval_p$U.Po
+@AMDEP@include $(DEPDIR)/ext$U.Po
+@AMDEP@include $(DEPDIR)/field$U.Po
+@AMDEP@include $(DEPDIR)/gawkmisc$U.Po
+@AMDEP@include $(DEPDIR)/getopt$U.Po
+@AMDEP@include $(DEPDIR)/getopt1$U.Po
+@AMDEP@include $(DEPDIR)/io$U.Po
+@AMDEP@include $(DEPDIR)/main$U.Po
+@AMDEP@include $(DEPDIR)/msg$U.Po
+@AMDEP@include $(DEPDIR)/node$U.Po
+@AMDEP@include $(DEPDIR)/profile$U.Po
+@AMDEP@include $(DEPDIR)/profile_p$U.Po
+@AMDEP@include $(DEPDIR)/random$U.Po
+@AMDEP@include $(DEPDIR)/re$U.Po
+@AMDEP@include $(DEPDIR)/regex$U.Po
+@AMDEP@include $(DEPDIR)/replace$U.Po
+@AMDEP@include $(DEPDIR)/version$U.Po
+
+mostlyclean-depend:
+
+clean-depend:
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+maintainer-clean-depend:
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
 
 .c.o:
-	$(CC) -c $(COMPFLAGS) $<
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
 
-# rules to build gawk
-all:	gawk awklib/all doc/all
 
-# stuff to make sure that configure has been run.
-$(srcdir)/configure:	configure.in aclocal.m4
-	cd $(srcdir) && autoconf
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
 
-# autoheader might not change confh.in, so touch a stamp file
-$(srcdir)/configh.in:	stamp-h.in
-$(srcdir)/stamp-h.in:	configure.in aclocal.m4 acconfig.h
-	cd $(srcdir) && autoheader
-	date > $(srcdir)/stamp-h.in
 
-config.h:	stamp-h
-stamp-h:	configh.in config.status
-	$(SHELL) ./config.status
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
+	GZIP=$(GZIP_ENV) gunzip -c $(distdir).tar.gz | $(AMTAR) xf -
+	chmod -R a-w $(distdir); chmod a+w $(distdir)
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	chmod a-w $(distdir)
+	dc_install_base=`CDPATH=: && cd $(distdir)/=inst && pwd` \
+	  && cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	    --with-included-gettext \
+	  && $(MAKE) $(AM_MAKEFLAGS) \
+	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
+	  && $(MAKE) $(AM_MAKEFLAGS) check \
+	  && $(MAKE) $(AM_MAKEFLAGS) install \
+	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
+	  && $(MAKE) $(AM_MAKEFLAGS) uninstall \
+	  && test `find $$dc_install_base -type f -print | wc -l` -le 1 \
+	  && $(MAKE) $(AM_MAKEFLAGS) dist \
+	  && $(MAKE) $(AM_MAKEFLAGS) distclean \
+	  && rm -f $(distdir).tar.gz \
+	  && test `find . -type f -print | wc -l` -eq 0
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
+	@banner="$(distdir).tar.gz is ready for distribution"; \
+	dashes=`echo "$$banner" | sed s/./=/g`; \
+	echo "$$dashes"; \
+	echo "$$banner"; \
+	echo "$$dashes"
+dist: distdir
+	-find $(distdir) -type d ! -perm -777 -exec chmod a+rwx {} \; -o \
+	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -444 -exec $(SHELL) $(install_sh) -c -m a+r {} {} \; \
+	|| chmod -R a+r $(distdir)
+	$(AMTAR) chof - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
+dist-all: distdir
+	-find $(distdir) -type d ! -perm -777 -exec chmod a+rwx {} \; -o \
+	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -444 -exec $(SHELL) $(install_sh) -c -m a+r {} {} \; \
+	|| chmod -R a+r $(distdir)
+	$(AMTAR) chof - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
+	mkdir $(distdir)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+	for subdir in $(SUBDIRS); do \
+	  if test "$$subdir" = .; then :; else \
+	    test -d $(distdir)/$$subdir \
+	    || mkdir $(distdir)/$$subdir \
+	    || exit 1; \
+	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(distdir) distdir=../$(distdir)/$$subdir distdir) \
+	      || exit 1; \
+	  fi; \
+	done
+	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
+info-am:
+info: info-recursive
+dvi-am:
+dvi: dvi-recursive
+check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) check-local
+check: check-recursive
+installcheck-am:
+installcheck: installcheck-recursive
+all-recursive-am: config.h
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
-Makefile:	$(MAKEFILEIN) config.status
-	$(SHELL) ./config.status
+install-exec-am: install-binPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
+install-exec: install-exec-recursive
 
-config.status:	configure
-	$(SHELL) ./config.status --recheck
+install-data-am:
+install-data: install-data-recursive
 
-# Note: if you need something at both compile time and link time, like -pg,
-# you will have to edit the Makefile manually to set LDFLAGS.
-gawk:	$(ALLOBJS) $(LIBOBJS) $(REOBJS)
-	$(CC) -o gawk $(CFLAGS) $(LDFLAGS) $(ALLOBJS) $(LIBOBJS) $(REOBJS) $(LIBS)
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-recursive
+uninstall-am: uninstall-binPROGRAMS
+uninstall: uninstall-recursive
+all-am: Makefile $(ANSI2KNR) $(PROGRAMS) config.h
+all-redirect: all-recursive-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
+installdirs: installdirs-recursive
+installdirs-am:
+	$(mkinstalldirs)  $(DESTDIR)$(bindir)
 
-$(ALLOBJS):	awk.h dfa.h regex.h config.h custom.h
 
-$(LIBOBJS):	config.h custom.h
+mostlyclean-generic:
 
-# SunOS make's (at least) VPATH doesn't do subdirectories...
-# Solaris make doesn't allow $< in the actual rule
-gawkmisc.o:	$(srcdir)/atari/gawkmisc.atr \
-		$(srcdir)/pc/gawkmisc.pc $(srcdir)/posix/gawkmisc.c \
-		$(srcdir)/vms/gawkmisc.vms
-	$(CC) -c $(COMPFLAGS) -DDEFPATH='$(DEFPATH)' $(srcdir)/gawkmisc.c
+clean-generic:
 
-getopt.o:	getopt.h
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
-getopt1.o:	getopt.h
+maintainer-clean-generic:
+	-rm -f Makefile.in
+	-test -z "awkgram.c" || rm -f awkgram.c
+mostlyclean-am:  mostlyclean-hdr mostlyclean-binPROGRAMS \
+		mostlyclean-compile mostlyclean-krextra mostlyclean-kr \
+		mostlyclean-tags mostlyclean-depend mostlyclean-generic
 
-builtin.o: random.h
+mostlyclean: mostlyclean-recursive
 
-main.o:	patchlevel.h
+clean-am:  clean-hdr clean-binPROGRAMS clean-compile clean-krextra \
+		clean-kr clean-tags clean-depend clean-generic \
+		mostlyclean-am
 
-awktab.c:	awk.y
-	$(YACC) -v $(srcdir)/awk.y && \
-	if test -f y.tab.c ; then mv y.tab.c ytab.c ; else true ; fi && \
-	sed '/^extern char .malloc(), .realloc();$$/d' ytab.c >awktab.c && \
-	rm ytab.c
+clean: clean-recursive
 
-# VMS POSIX make won't apply the default .c.o rule to awktab.o for some reason
-awktab.o:	awktab.c awk.h
-	$(CC) -c $(COMPFLAGS) $(srcdir)/awktab.c
+distclean-am:  distclean-hdr distclean-binPROGRAMS distclean-compile \
+		distclean-krextra distclean-kr distclean-tags \
+		distclean-depend distclean-generic clean-am
 
-alloca.o:	alloca.c
+distclean: distclean-recursive
+	-rm -f config.status
 
-install:	gawk info installdirs
-	-rm -f $(bindir)/gawk
-	fullname=gawk-$(REL).`./gawk '{print $$3}' $(srcdir)/patchlevel.h` ; \
-	$(INSTALL_PROGRAM) gawk $(bindir)/$$fullname ; \
-	(cd $(bindir); $(LN) $$fullname gawk)
-	(cd $(bindir); \
+maintainer-clean-am:  maintainer-clean-hdr maintainer-clean-binPROGRAMS \
+		maintainer-clean-compile maintainer-clean-krextra \
+		maintainer-clean-kr maintainer-clean-tags \
+		maintainer-clean-depend maintainer-clean-generic \
+		distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-recursive
+	-rm -f config.status
+
+.PHONY: mostlyclean-hdr distclean-hdr clean-hdr maintainer-clean-hdr \
+mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
+maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile mostlyclean-krextra distclean-krextra \
+clean-krextra maintainer-clean-krextra mostlyclean-kr distclean-kr \
+clean-kr maintainer-clean-kr install-recursive uninstall-recursive \
+install-data-recursive uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
+maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags mostlyclean-depend \
+distclean-depend clean-depend maintainer-clean-depend distdir info-am \
+info dvi-am dvi check-local check check-am installcheck-am installcheck \
+all-recursive-am install-exec-am install-exec install-data-am \
+install-data install-am install uninstall-am uninstall all-redirect \
+all-am all install-strip installdirs-am installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
+
+
+# First, add a link from gawk to gawk-X.Y.Z
+# For systems where gawk is awk, add a link to awk
+install-exec-hook:
+	(fullname=gawk-`./gawk --version | sed 1q | awk '{print $$3}'` ; \
+	cd $(DESTDIR)$(bindir); \
+	$(LN) gawk $$fullname ; \
 	if [ ! -f awk ]; \
 	then	$(LN_S) gawk awk; \
 	fi; exit 0)
-	cd doc && $(MAKE) install
-	cd awklib && $(MAKE) install
 
-installdirs: mkinstalldirs
-	$(srcdir)/mkinstalldirs $(bindir) $(datadir) \
-		$(libdir) $(infodir) $(mandir) $(libexecdir)
+# Undo the above when uninstalling
+uninstall-links:
+	(cd $(DESTDIR)$(bindir); \
+	if [ -f awk ] && cmp awk gawk > /dev/null; then rm -f awk; fi ; \
+	fullname=gawk-`./gawk --version | sed 1q | ./gawk '{print $$3}'` ; \
+	rm -f $$fullname; exit 0)
 
-install-strip:
-	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' install
+uninstall-recursive: uninstall-links
 
-uninstall:
-	(cd $(bindir); \
-	if [ -f awk ] && cmp awk gawk > /dev/null; then rm -f awk; fi)
-	(fullname=gawk-$(REL).`gawk '{print $$3}' $(srcdir)/patchlevel.h` ; \
-	cd $(bindir); \
-	if cmp gawk $$fullname; then rm -f gawk; fi ; \
-	rm -f $(bindir)/$$fullname)
-	cd doc && $(MAKE) uninstall
-	cd awklib && $(MAKE) uninstall
-	-rmdir $(datadir) $(libexecdir)
+# force there to be a gawk executable before running tests
+check-local: gawk pgawk
 
-# auxiliary rules for release maintenance
-lint:	$(ALLSRC)
-	lint -hcbax $(COMPFLAGS) $(ALLSRC)
+# A little extra clean up when making distributions.
+# FIXME: most of this rule should go away upon switching to libtool.
+dist-hook:
+	cd $(distdir)/extension ; rm -f *.o *.so
 
-xref:
-	cxref -c $(COMPFLAGS) $(ALLSRC) | grep -v '	/' >xref
+# Special rules for individual files
+awkgram.c: awkgram.y
+	$(YACC) $(AM_YFLAGS) $(YFLAGS) $< && sed -f $(srcdir)/bisonfix.sed < y.tab.c > $*.c && $(RM) y.tab.c
+	if test -f y.tab.h; then \
+	if cmp -s y.tab.h $*.h; then rm -f y.tab.h; else mv y.tab.h $*.h; fi; \
+	else :; fi
 
-mostlyclean:
-	: mostly clean does nothing for gawk
-	: use "make clean" to really clean things out
+# these force version and patchlevel to be up to date based
+# on what's in configure.in.  No-one else but me should have
+# to use them. So there.
+patchlev.h: configure.in
+	./fixvers -p
 
-clean:
-	rm -rf gawk *.o core */core y.output
-	cd doc && $(MAKE) clean
-	cd test && $(MAKE) clean
-	cd awklib && $(MAKE) clean
+version.c: configure.in version.in
+	./fixvers -v
 
-local-distclean:
-	rm -f Makefile *.orig *.rej */*.orig */*.rej awk.output \
-		gmon.out make.out config.h config.status config.cache \
-		config.log stamp-h tags TAGS *~
-
-distclean: clean local-distclean
-	cd doc && $(MAKE) distclean
-	cd awklib && $(MAKE) distclean
-	cd test && $(MAKE) distclean
-
-maintainer-clean: clean local-distclean
-	@echo "This command is intended for maintainers to use; it"
-	@echo "deletes files that may require special tools to rebuild."
-	rm -f awktab.c
-	cd doc && $(MAKE) maintainer-clean
-	cd test && $(MAKE) maintainer-clean
-	cd awklib && $(MAKE) maintainer-clean
-
-clobber:	maintainer-clean
-
-TAGS:
-	etags $(AWKSRC)
-
-tags:
-	ctags $(AWKSRC)
-
-dvi:	$(srcdir)/doc/gawk.texi
-	cd doc && $(MAKE) dvi
-
-info:	$(srcdir)/doc/gawk.texi
-	cd doc && $(MAKE) info
-
-doc/all:
-	cd doc && $(MAKE) all
-
-awklib/all: gawk
-	cd awklib && $(MAKE) CFLAGS="$(CFLAGS)" all
-
-dist:	$(AWKSRC) $(LIBSRC) $(DOCS) $(MISC) $(COPIES) awklib/stamp-eg info distclean
-	-rm -rf gawk-$(REL)*
-	dir=gawk-$(REL).`gawk '{print $$3}' patchlevel.h` && \
-	mkdir $$dir && \
-	cp -pr $(AWKSRC) $(LIBSRC) $(MISC) $$dir && \
-	mkdir $$dir/missing && \
-	cp -p $(COPIES) $$dir/missing && \
-	for i in $(OTHERS); \
-	do \
-		cp -pr $$i $$dir ; \
-	done && \
-	cp -pr test $$dir && \
-	find $$dir -type d -exec chmod 777 {} ';' && \
-	find $$dir -print | doschk && \
-	tar -cf - $$dir | gzip > $$dir.tar.gz && \
-	rm -fr $$dir
-
-awklib/stamp-eg:
-	cd awklib ; $(MAKE) stamp-eg
-
-check:	gawk
-	cd test; $(MAKE) -k
-
-test:	check
-
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

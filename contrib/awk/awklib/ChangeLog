@@ -1,3 +1,27 @@
+Sun Jun  3 13:04:44 2001  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.1.0: Release tar file made.  And there was
+	  rejoicing.
+
+2001-02-26  Paul Eggert  <eggert@twinsun.com>
+
+        * Makefile.am (stamp-eg): Use $(AWK), not awk, as the
+          native awk might not work.
+
+2001-02-26  Andreas Schwab  <schwab@suse.de>
+
+        * Makefile.am: Install igawk as script.
+
+Mon Nov  6 15:29:08 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Makefile.am: Fixed to have all functionality from before
+	  the switch to automake.
+	* extract.awk: Updated to match version in the doc.
+
+Sat Jul 26 23:08:29 1997  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Makefile.in (install-strip): new target.
+
 Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
 
 	* Release 3.0.6: Release tar file made.
@@ -7,7 +31,7 @@ Sun Jun 25 15:08:19 2000  Arnold D. Robbins  <arnold@skeeve.com>
 	* Release 3.0.5: Release tar file made.
 
 Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
-
+  
 	* Release 3.0.4: Release tar file made.  This time for sure.
 
 Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>

@@ -1,6 +1,6 @@
 # awksed.awk --- do s/foo/bar/g using just print
 #    Thanks to Michael Brennan for the idea
-
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # August 1995
 

@@ -1,13 +1,16 @@
 # cut.awk --- implement cut in awk
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
 # Options:
-#    -f list        Cut fields
-#    -d c           Field delimiter character
-#    -c list        Cut characters
+#    -f list     Cut fields
+#    -d c        Field delimiter character
+#    -c list     Cut characters
 #
-#    -s        Suppress lines without the delimiter character
+#    -s          Suppress lines without the delimiter
+#
+# Requires getopt and join library functions
 
 function usage(    e1, e2)
 {
@@ -122,7 +125,7 @@ function set_charlist(    field, i, j, f, g, t,
     nfields = j - 1
 }
 {
-    if (by_fields && suppress && $0 !~ FS)
+    if (by_fields && suppress && index($0, FS) != 0)
         next
 
     for (i = 1; i <= nfields; i++) {

@@ -1,3 +1,29 @@
+Sun Jun  3 13:04:44 2001  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.1.0: Release tar file made.  And there was
+	  rejoicing.
+
+Sun Jan 28 15:50:02 2001  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gawkmisc.c (os_restore_mode): New function.
+
+Sun Dec  3 16:53:37 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawkmisc.c (os_setbinmode): new function.
+
+Tue Nov 14 16:13:08 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawkmisc.c: Remove all includes.  Done by ../gawkmisc.c.
+
+Tue Nov  7 14:09:14 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawkmisc.c (os_is_setuid): new function.
+
+Wed Jul 30 19:53:52 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Close-on-exec changes:
+	  gawkmisc.c: (os_close_on_exec, os_isdir): new functions.
+
 Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
 
 	* Release 3.0.6: Release tar file made.
@@ -7,7 +33,7 @@ Sun Jun 25 15:08:19 2000  Arnold D. Robbins  <arnold@skeeve.com>
 	* Release 3.0.5: Release tar file made.
 
 Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
-
+ 
 	* Release 3.0.4: Release tar file made.  This time for sure.
 
 Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -30,11 +30,7 @@ static reg_syntax_t syn;
 /* make_regexp --- generate compiled regular expressions */
 
 Regexp *
-make_regexp(s, len, ignorecase, dfa)
-char *s;
-size_t len;
-int ignorecase;
-int dfa;
+make_regexp(char *s, size_t len, int ignorecase, int dfa)
 {
 	Regexp *rp;
 	const char *rerr;
@@ -82,7 +78,7 @@ int dfa;
 				 * literally in re's, so escape regexp
 				 * metacharacters.
 				 */
-				if (do_traditional && ! do_posix && (isdigit(c) || c == 'x')
+				if (do_traditional && ! do_posix && (ISDIGIT(c) || c == 'x')
 				    && strchr("()|*+?.^$\\[]", c2) != NULL)
 					*dest++ = '\\';
 				*dest++ = (char) c2;
@@ -123,7 +119,7 @@ int dfa;
 		rp->pat.translate = NULL;
 	len = dest - temp;
 	if ((rerr = re_compile_pattern(temp, len, &(rp->pat))) != NULL)
-		fatal("%s: /%s/", rerr, temp);
+		fatal("%s: /%s/", gettext(rerr), temp);
 
 	/* gack. this must be done *after* re_compile_pattern */
 	rp->pat.newline_anchor = FALSE; /* don't get \n in middle of string */
@@ -140,12 +136,8 @@ int dfa;
 /* research --- do a regexp search. use dfa if possible */
 
 int
-research(rp, str, start, len, need_start)
-Regexp *rp;
-register char *str;
-int start;
-register size_t len;
-int need_start;
+research(Regexp *rp, register char *str, int start,
+	register size_t len, int need_start)
 {
 	char *ret = str;
 	int try_backref;
@@ -169,13 +161,9 @@ int need_start;
 	}
 	if (ret) {
 		if (need_start || rp->dfa == FALSE || try_backref) {
-			int result = re_search(&(rp->pat), str, start+len,
+			int res = re_search(&(rp->pat), str, start+len,
 					start, len, &(rp->regs));
-			/* recover any space from C based alloca */
-#ifdef C_ALLOCA
-			(void) alloca(0);
-#endif
-			return result;
+			return res;
 		} else
 			return 1;
 	} else
@@ -185,8 +173,7 @@ int need_start;
 /* refree --- free up the dynamic memory used by a compiled regexp */
 
 void
-refree(rp)
-Regexp *rp;
+refree(Regexp *rp)
 {
 	free(rp->pat.buffer);
 	free(rp->pat.fastmap);
@@ -202,8 +189,7 @@ Regexp *rp;
 /* dfaerror --- print an error message for the dfa routines */
 
 void
-dfaerror(s)
-const char *s;
+dfaerror(const char *s)
 {
 	fatal("%s", s);
 }
@@ -211,8 +197,7 @@ const char *s;
 /* re_update --- recompile a dynamic regexp */
 
 Regexp *
-re_update(t)
-NODE *t;
+re_update(NODE *t)
 {
 	NODE *t1;
 
@@ -238,6 +223,7 @@ NODE *t;
 		t->re_cnt = 0;
 	if (t->re_text == NULL || (t->re_flags & CASE) != IGNORECASE) {
 		t1 = force_string(tree_eval(t->re_exp));
+		unref(t->re_text);
 		t->re_text = dupnode(t1);
 		free_temp(t1);
 	}
@@ -268,16 +254,13 @@ resetup()
 		syn |= RE_INTERVALS;
 
 	(void) re_set_syntax(syn);
-	dfasyntax(syn, FALSE);
+	dfasyntax(syn, FALSE, '\n');
 }
 
 /* avoid_dfa --- FIXME: temporary kludge function until we have a new dfa.c */
 
 int
-avoid_dfa(re, str, len)
-NODE *re;
-char *str;
-size_t len;
+avoid_dfa(NODE *re, char *str, size_t len)
 {
 	char *restr;
 	int relen;
@@ -306,4 +289,34 @@ size_t len;
 			return TRUE;
 
 	return FALSE;
+}
+
+/* reisstring --- return TRUE if the RE match is a simple string match */
+
+int
+reisstring(char *text, size_t len, Regexp *re, char *buf)
+{
+	static char metas[] = ".*+(){}[]|?^$\\";
+	int i;
+	int has_meta = FALSE;
+	int res;
+	char *matched;
+
+	/* simple checking for has meta characters in re */
+	for (i = 0; i < len; i++) {
+		if (strchr(metas, text[i]) != NULL) {
+			has_meta = TRUE;
+			break;
+		}
+	}
+
+	/* make accessable to gdb */
+	matched = &buf[RESTART(re, buf)];
+
+	if (has_meta)
+		return FALSE;	/* give up early, can't be string match */
+
+	res = STREQN(text, matched, len);
+
+	return res;
 }

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -25,21 +25,29 @@
 
 #include "awk.h"
 
+#if defined(HAVE_FCNTL_H)
+#include <fcntl.h>
+#endif
+
 /* some old compilers don't grok #elif. sigh */
 
 #if defined(MSDOS) || defined(OS2) || defined(WIN32)
 #include "gawkmisc.pc"
-#else
+#else /* not MSDOS, not OS2, not WIN32 */
 #if defined(VMS)
 #include "vms/gawkmisc.vms"
-#else
+#else /* not VMS */
 #if defined(atarist)
-#include "atari/gawkmisc.atr"
-#else
+#include "unsupported/atari/gawkmisc.atr"
+#else /* not atarist */
+#if defined(TANDEM)
+#include "tmiscc"
+#else /* not TANDEM */
 #include "posix/gawkmisc.c"
-#endif
-#endif
-#endif
+#endif /* not TANDEM */
+#endif /* not atarist */
+#endif /* not VMS */
+#endif /* not MSDOS, not OS2, not WIN32 */
 
 /* xmalloc --- provide this so that other GNU library routines work */
 
@@ -52,8 +60,7 @@ typedef char *pointer;
 extern pointer xmalloc P((size_t bytes));	/* get rid of gcc warning */
 
 pointer
-xmalloc(bytes)
-size_t bytes;
+xmalloc(size_t bytes)
 {
 	pointer p;
 
