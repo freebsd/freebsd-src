@@ -2175,6 +2175,7 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			/* FALLTHROUGH */
 		case SSD_KEY_EQUAL:
 			/* These should be filtered by the peripheral drivers */
+			print_sense = FALSE;
 			/* FALLTHROUGH */
 		case SSD_KEY_MISCOMPARE:
 			/* decrement the number of retries */
