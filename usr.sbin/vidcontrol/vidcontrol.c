@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.6 1995/01/30 21:44:07 sos Exp sos $
+ *	$Id: vidcontrol.c,v 1.7 1995/02/07 11:56:21 sos Exp $
  */
 
 #include <ctype.h>
@@ -404,9 +404,9 @@ usage()
 "                  fgcol bgcol      (set fore- & background colors)\n"
 "                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
 "                  -b color         (set border color)\n"
-"                  -c normal        (set cursor to inverting block\n"
-"                  -c blink         (set cursor to blinking inverted block\n"
-"                  -c destructive   (set cursor to blinking destructive char\n"
+"                  -c normal        (set cursor to inverting block)\n"
+"                  -c blink         (set cursor to blinking inverted block)\n"
+"                  -c destructive   (set cursor to blinking destructive char)\n"
 "                  -d               (dump screenmap to stdout)\n"
 "                  -l filename      (load srceenmap file filename)\n"
 "                  -L               (load default screenmap)\n"
