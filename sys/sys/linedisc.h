@@ -339,10 +339,6 @@ extern devfs_create_t *devfs_create_hook;
 extern devfs_destroy_t *devfs_destroy_hook;
 extern int devfs_present;
 
-/*
- * XXX: This included for when DEVFS resurfaces 
- */
-
 #define		UID_ROOT	0
 #define		UID_BIN		3
 #define		UID_UUCP	66
