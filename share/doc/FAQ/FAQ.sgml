@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.38 1997/03/19 17:17:59 obrien Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.39 1997/03/19 18:31:59 obrien Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/19 17:17:59 $
+<date>$Date: 1997/03/19 18:31:59 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -209,6 +209,58 @@ Any entries with a &lt;XXX&gt; are under construction.
           available...
         <p>
           Releases are made about every 6 months on average.
+
+      <sect1>
+	<heading>How do I make my own custom release?<label id="custrel"></heading>
+	<p>
+	  To make a release you need to do three things: First, you need to
+	  be running a kernel with the <tt/vn/ driver configured in. Add
+	  this to your kernel config file and build a new kernel:
+
+	  <verb>
+pseudo-device   vn              #Vnode driver (turns a file into a device)
+	  </verb>
+
+	  Second, you have to have the whole CVS repository at hand.
+	  To get this you can use
+            <url url="../handbook/cvsup.html" name="CVSUP">
+          but your tag value, if any, should be `.' and your release name
+          should be cvs:
+
+	  <verb>
+*default prefix=/home/ncvs base=/a host=cvsup.FreeBSD.org release=cvs delete compress use-rel=suffix
+
+## Main Source Tree
+src-all
+src-eBones
+src-secure
+
+# Other stuff
+ports-all
+www
+	  </verb>
+
+	  Then run <tt/cvsup -g supfile/ to suck all the good bits into your
+	  box...
+
+	  Finally, you need a chunk of empty space to build into. Let's
+	  say it's in <tt>/some/big/filesystem</tt>, and from the example
+	  above you've got the CVS repository in <tt>/home/ncvs</tt>:
+
+	  <verb>
+setenv CVSROOT /home/ncvs	# or export CVSROOT=/home/ncvs
+cd /usr/src/release
+make release BUILDNAME=3.0-MY-SNAP CHROOTDIR=/some/big/filesystem/release
+	  </verb>
+
+          An entire release will be built in
+	  <tt>/some/big/filesystem/release</tt>
+	  and you will have a full FTP-type installation in
+	  <tt>/some/big/filesystem/release/R/ftp</tt>
+	  when you're done.  If you want to build your SNAP along some other
+          branch than -current, you can also add <tt/RELEASETAG=SOMETAG/ to
+	  the make release command line above, e.g. <tt/RELEASETAG=RELENG_2_2/
+	  would build an up-to-the- minute 2.2 GAMMA snapshot.
 
       <sect1>
         <heading> Is FreeBSD only available for PCs?</heading>
@@ -521,6 +573,19 @@ Any entries with a &lt;XXX&gt; are under construction.
           After the installation, if you build a custom kernel, it will run
           in 4 MB. Someone has even succeeded in booting with 2 MB (the
           system was almost unusable though :-))
+
+      <sect1>
+        <heading>I've got some other special requirements, can I make my own
+	         custom install floppy?</heading>
+	<p>
+	  Currently there's no way to *just* make a custom install floppy.
+	  You have to cut a whole new release, which will include your
+	  install floppy. There's some code in
+	  <TT>/usr/src/release/floppies/Makefile</TT> that's supposed to let
+	  you *just* make those floppies, but it's not really gelled yet.
+
+	  To make a custom release, follow the instructions
+            <ref id="custrel" name="here">.
 
       <sect1>
 	<heading>Can Windows 95 co-exist with FreeBSD?</heading>
@@ -1921,14 +1986,20 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           memory as being fine, it's possible for slightly marginal memory
           to pass all memory tests, yet fail under operating conditions
           (such as during busmastering DMA from a SCSI controller like the
-          Adaptec 1542).
+          Adaptec 1542, when you're beating on memory by compiling a kernel,
+	  or just when the system's running particularly hot).
 
-	  Often the guilty party is bad cache RAM or a bad on-board cache
-	  controller. Try disabling the on-board (secondary) cache in the
-	  BIOS setup and see if that solves the problem.
+	  The SIG11 FAQ (listed below) points up slow memory as being the
+	  most common problem. Increase the number of wait states in your
+	  BIOS setup, or get faster memory.
 
-	  You may have to run with no on-board cache. This isn't a disaster,
-	  but it's certainly less than ideal.
+	  For me the guilty party has been bad cache RAM or a bad on-board
+	  cache controller. Try disabling the on-board (secondary) cache in
+	  the BIOS setup and see if that solves the problem.
+
+	  There's an extensive FAQ on this at
+	  <url url="http://www.bitwizard.nl/sig11/"
+               name="the SIG11 problem FAQ">
  
       <sect1>
         <heading>Help! X Window menus and dialog boxes don't work right!</heading>
