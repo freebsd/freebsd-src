@@ -236,13 +236,12 @@ DoInteractive(void)
 
 		/* Display any incoming data packet */
 		if (FD_ISSET(dsock, &rfds)) {
-			u_char buf[8192];
+			u_char *buf;
 			char hook[NG_HOOKSIZ];
 			int rl;
 
 			/* Read packet from socket */
-			if ((rl = NgRecvData(dsock,
-			    buf, sizeof(buf), hook)) < 0)
+			if ((rl = NgAllocRecvData(dsock, &buf, hook)) < 0)
 				err(EX_OSERR, "reading hook \"%s\"", hook);
 			if (rl == 0)
 				errx(EX_OSERR, "EOF from hook \"%s\"?", hook);
@@ -250,6 +249,7 @@ DoInteractive(void)
 			/* Write packet to stdout */
 			printf("Rec'd data packet on hook \"%s\":\n", hook);
 			DumpAscii(buf, rl);
+			free(buf);
 		}
 
 		/* Get any user input */
