@@ -89,7 +89,7 @@ static void	aac_host_response(struct aac_softc *sc);
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
 				       int nseg, int error);
 static int	aac_alloc_commands(struct aac_softc *sc);
-static void	aac_free_commands(struct aac_softc *sc);
+static void	aac_free_commands(struct aac_softc *sc, struct aac_fibmap *fm);
 static void	aac_map_command(struct aac_command *cm);
 static void	aac_unmap_command(struct aac_command *cm);
 
@@ -255,13 +255,6 @@ aac_attach(struct aac_softc *sc)
 	 * Check that the firmware on the card is supported.
 	 */
 	if ((error = aac_check_firmware(sc)) != 0)
-		return(error);
-
-	/*
-	 * Allocate command structures.  This must be done before aac_init()
-	 * in order to work around a 2120/2200 bug.
-	 */
-	if ((error = aac_alloc_commands(sc)) != 0)
 		return(error);
 
 	/* Init the sync fib lock */
@@ -434,6 +427,8 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 void
 aac_free(struct aac_softc *sc)
 {
+	struct aac_fibmap *fm;
+
 	debug_called(1);
 
 	/* remove the control device */
@@ -441,10 +436,15 @@ aac_free(struct aac_softc *sc)
 		destroy_dev(sc->aac_dev_t);
 
 	/* throw away any FIB buffers, discard the FIB DMA tag */
-	if (sc->aac_fibs != NULL)
-		aac_free_commands(sc);
+	while ((fm = TAILQ_FIRST(&sc->aac_fibmap_tqh)) != NULL) {
+		TAILQ_REMOVE(&sc->aac_fibmap_tqh, fm, fm_link);
+		aac_free_commands(sc, fm);
+		free(fm, M_AACBUF);
+	}
 	if (sc->aac_fib_dmat)
 		bus_dma_tag_destroy(sc->aac_fib_dmat);
+
+	free(sc->aac_commands, M_AACBUF);
 
 	/* destroy the common area */
 	if (sc->aac_common) {
@@ -1096,8 +1096,12 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	debug_called(3);
 
-	if ((cm = aac_dequeue_free(sc)) == NULL)
-		return(ENOMEM);
+	if ((cm = aac_dequeue_free(sc)) == NULL) {
+		if (aac_alloc_commands(sc))
+			return(ENOMEM);
+		if ((cm = aac_dequeue_free(sc)) == NULL)
+			return (ENOMEM);
+	}
 
 	*cmp = cm;
 	return(0);
@@ -1139,13 +1143,13 @@ aac_release_command(struct aac_command *cm)
 static void
 aac_map_command_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct aac_softc *sc;
+	uintptr_t	*fibphys;
 
-	sc = (struct aac_softc *)arg;
+	fibphys = (uintptr_t *)arg;
 
 	debug_called(3);
 
-	sc->aac_fibphys = segs[0].ds_addr;
+	*fibphys = segs[0].ds_addr;
 }
 
 /*
@@ -1155,44 +1159,49 @@ static int
 aac_alloc_commands(struct aac_softc *sc)
 {
 	struct aac_command *cm;
-	int i;
+	struct aac_fibmap *fm;
+	uintptr_t fibphys;
+	int i, error;
  
 	debug_called(1);
 
+	if (sc->total_fibs + AAC_FIB_COUNT > AAC_MAX_FIBS)
+		return (ENOMEM);
+
+	fm = malloc(sizeof(struct aac_fibmap), M_AACBUF, /*M_WAITOK|*/M_ZERO);
+
 	/* allocate the FIBs in DMAable memory and load them */
-	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&sc->aac_fibs,
-			     BUS_DMA_NOWAIT, &sc->aac_fibmap)) {
+	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&fm->aac_fibs,
+			     BUS_DMA_NOWAIT, &fm->aac_fibmap)) {
 		device_printf(sc->aac_dev,
 			      "Not enough contiguous memory available.\n");
 		return (ENOMEM);
 	}
 
-	/*
-	 * Work around a bug in the 2120 and 2200 that cannot DMA commands
-	 * below address 8192 in physical memory.
-	 * XXX If the padding is not needed, can it be put to use instead
-	 * of ignored?
-	 */
-	bus_dmamap_load(sc->aac_fib_dmat, sc->aac_fibmap, sc->aac_fibs, 
-			8192 + AAC_FIB_COUNT * sizeof(struct aac_fib),
-			aac_map_command_helper, sc, 0);
-
-	if (sc->aac_fibphys < 8192) {
-		sc->aac_fibs += (8192 / sizeof(struct aac_fib));
-		sc->aac_fibphys += 8192;
-	}
+	bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs, 
+			AAC_FIB_COUNT * sizeof(struct aac_fib),
+			aac_map_command_helper, &fibphys, 0);
 
 	/* initialise constant fields in the command structure */
-	bzero(sc->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
+	bzero(fm->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
 	for (i = 0; i < AAC_FIB_COUNT; i++) {
-		cm = &sc->aac_command[i];
+		cm = sc->aac_commands + sc->total_fibs + i;
+		fm->aac_commands = cm;
 		cm->cm_sc = sc;
-		cm->cm_fib = sc->aac_fibs + i;
-		cm->cm_fibphys = sc->aac_fibphys + (i * sizeof(struct aac_fib));
+		cm->cm_fib = fm->aac_fibs + i;
+		cm->cm_fibphys = (uint32_t)fibphys +
+				 (i * sizeof(struct aac_fib));
 
-		if (!bus_dmamap_create(sc->aac_buffer_dmat, 0, &cm->cm_datamap))
+		if ((error = bus_dmamap_create(sc->aac_buffer_dmat, 0,
+					       &cm->cm_datamap)) == 0)
 			aac_release_command(cm);
+		else 
+			return (error);
 	}
+
+	sc->total_fibs += AAC_FIB_COUNT;
+	TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
+
 	return (0);
 }
 
@@ -1200,18 +1209,20 @@ aac_alloc_commands(struct aac_softc *sc)
  * Free FIBs owned by this adapter.
  */
 static void
-aac_free_commands(struct aac_softc *sc)
+aac_free_commands(struct aac_softc *sc, struct aac_fibmap *fm)
 {
+	struct aac_command *cm;
 	int i;
 
 	debug_called(1);
 
-	for (i = 0; i < AAC_FIB_COUNT; i++)
-		bus_dmamap_destroy(sc->aac_buffer_dmat,
-				   sc->aac_command[i].cm_datamap);
+	for (i = 0; i < AAC_FIB_COUNT; i++) {
+		cm = fm->aac_commands + i;
+		bus_dmamap_destroy(sc->aac_buffer_dmat, cm->cm_datamap);
+	}
 
-	bus_dmamap_unload(sc->aac_fib_dmat, sc->aac_fibmap);
-	bus_dmamem_free(sc->aac_fib_dmat, sc->aac_fibs, sc->aac_fibmap);
+	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
+	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
 }
 
 /*
@@ -1364,6 +1375,7 @@ aac_init(struct aac_softc *sc)
 	time_t then;
 	u_int32_t code;
 	u_int8_t *qaddr;
+	int i;
 
 	debug_called(1);
 
@@ -1398,7 +1410,7 @@ aac_init(struct aac_softc *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       sizeof(struct aac_common), /* maxsize */
+			       8192 + sizeof(struct aac_common), /* maxsize */
 			       1,			/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
@@ -1412,10 +1424,33 @@ aac_init(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "can't allocate common structure\n");
 		return(ENOMEM);
 	}
+
+	/*
+	 * Work around a bug in the 2120 and 2200 that cannot DMA commands
+	 * below address 8192 in physical memory.
+	 * XXX If the padding is not needed, can it be put to use instead
+	 * of ignored?
+	 */
 	bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
-			sc->aac_common, sizeof(*sc->aac_common), aac_common_map,
-			sc, 0);
+			sc->aac_common, 8192 + sizeof(*sc->aac_common),
+			aac_common_map, sc, 0);
+
+	if (sc->aac_common_busaddr < 8192) {
+		(uint8_t *)sc->aac_common += 8192;
+		sc->aac_common_busaddr += 8192;
+	}
 	bzero(sc->aac_common, sizeof(*sc->aac_common));
+
+	/* Allocate some FIBs and associated command structs */
+	TAILQ_INIT(&sc->aac_fibmap_tqh);
+	sc->aac_commands = malloc(AAC_MAX_FIBS * sizeof(struct aac_command),
+				  M_AACBUF, /*M_WAITOK|*/M_ZERO);
+	for (i = 0; i < 16; i++) {
+		if (aac_alloc_commands(sc) != 0)
+			break;
+	}
+	if (sc->total_fibs == 0)
+		return (ENOMEM);
 	
 	/*
 	 * Fill in the init structure.  This tells the adapter about the
