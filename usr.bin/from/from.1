@@ -72,6 +72,11 @@ is given, the
 .Ar user Ns 's
 mailbox, is examined instead of the invoker's own mailbox.
 (Privileges are required.)
+.Sh ENVIRONMENT
+.Bl -tag -width Fl
+.It Ev MAIL
+If set, the location of the invoker's mailbox.  Otherwise, the default
+in /var/mail is used.
 .Sh FILES
 .Bl -tag -width /var/mail/* -compact
 .It Pa /var/mail/*
