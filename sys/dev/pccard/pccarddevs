@@ -448,6 +448,7 @@ vendor SYNERGY21		-1	Synergy 21
 vendor TEAC			-1	TEAC
 vendor WORKBIT2			-1	WORKBIT
 vendor YEDATA			-1 	Y-E DATA
+vendor YIS			-1	YIS Corporation
 vendor ZOOM			-1 	ZOOM
 
 product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
@@ -540,4 +541,5 @@ product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
 product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
 product XIRCOM CFE_10		{ "Xircom", "CompactCard&spEthernet", "CFE-10", "1.00" } Xircom CompactCard CFE-10
 product YEDATA EXTERNAL_FDD	{ "Y-E&spDATA", "External&spFDD", NULL, NULL } Y-E DATA External FDD
+product YIS YWL11B	{ "YIS&spCorp.", "YWL-11b", NULL, NULL } YIS Corp. YWL-11b
 product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000
