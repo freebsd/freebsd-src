@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.23 1994/09/29 21:20:12 pst Exp $
+#	$Id: Makefile,v 1.24 1994/09/30 16:08:47 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -182,6 +182,8 @@ includes:
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libmytinfo &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/libncurses &&		${MAKE}	beforeinstall
 .if defined(WANT_MSUN)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
 .endif
