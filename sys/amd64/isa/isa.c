@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.52 1995/09/15 03:10:06 davidg Exp $
+ *	$Id: isa.c,v 1.53 1995/10/22 15:07:43 bde Exp $
  */
 
 /*
@@ -61,6 +61,7 @@
 #include <machine/segments.h>
 #include <vm/vm.h>
 #include <machine/spl.h>
+#include <machine/cpu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
@@ -342,15 +343,17 @@ isa_configure() {
 #include "sl.h"
 #include "ppp.h"
 
-#if (NSL > 0) || (NPPP > 0)
+#if (NSL > 0)
 	net_imask |= tty_imask;
 	tty_imask = net_imask;
 #endif
+
 	/* bio_imask |= tty_imask ;  can some tty devices use buffers? */
-#ifdef DIAGNOSTIC
-	printf("bio_imask %x tty_imask %x net_imask %x\n",
-	       bio_imask, tty_imask, net_imask);
-#endif
+
+	if (bootverbose)
+		printf("imasks: bio %x, tty %x, net %x\n",
+			bio_imask, tty_imask, net_imask);
+
 	/*
 	 * Finish initializing intr_mask[].  Note that the partly
 	 * constructed masks aren't actually used since we're at splhigh.
@@ -933,6 +936,7 @@ update_intr_masks(void)
 {
 	int intr, n=0;
 	u_int mask,*maskptr;
+
 	for (intr=0; intr < ICU_LEN; intr ++) {
 		if (intr==2) continue;
 		maskptr = intr_mptr[intr];
