@@ -60,7 +60,7 @@
 </sect1>
 
 <!--
-	The "What's New" section of the release notes. 
+	The "What's New" section of the release notes.
 
 	Guidelines for new entries:
 
@@ -92,8 +92,33 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A programming error in the FreeBSD Linux binary
+      compatibility which allows a local attacker to read
+      or write portions of the kernel memory has been fixed.
+      For more details, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13.linux</ulink>.</para>
 
+    <para>Various remotely-exploitable vulnerabilities of
+      <application>CVS</application>'s server mode including double-free,
+      integer overflow, and buffer overflow which can result
+      in information disclosure, denial-of-service, and/or possibly
+      arbitrary code execution, have been fixed via an upgrade
+      to <application>CVS</application> 1.11.17.
+      For more details, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>.</para>
+
+    <para>A bug in the &man.fetch.1; utility which allows
+      a malicious HTTP server to cause arbitrary portions of the client's
+      memory to be overwritten, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16</ulink>.</para>
+
+    <para>A bug in &man.procfs.5; and &man.linprocfs.5;
+      which could cause a malicious local user could perform a local
+      denial of service attack by causing a system panic, or the user
+      could read parts of kernel memory, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -117,7 +142,7 @@
 
       <para arch="alpha">Support for the floppy interface is broken on
         DS10-class systems.  The kernel probes the hardware correctly but
-        the floppy does not work properly.  Booting and installing from 
+        the floppy does not work properly.  Booting and installing from
         floppies is not affected.
       </para>
 
@@ -226,8 +251,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>sendmail</application> has been updated from 
-      version 8.12.11 to version 8.13.1.</para> 
+    <para><application>sendmail</application> has been updated from
+      version 8.12.11 to version 8.13.1.</para>
 
   </sect2>
 
