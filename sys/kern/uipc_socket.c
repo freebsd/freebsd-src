@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.20 1996/10/07 04:32:26 pst Exp $
+ * $Id: uipc_socket.c,v 1.20.2.1 1996/12/03 10:48:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -350,9 +350,15 @@ sosend(so, addr, uio, top, control, flags)
 	 * if we over-committed, and we must use a signed comparison
 	 * of space and resid.  On the other hand, a negative resid
 	 * causes us to loop sending 0-length segments to the protocol.
+	 *
+	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
+	 * type sockets since that's an error.
 	 */
-	if (resid < 0)
-		return (EINVAL);
+	if (resid < 0 || so->so_type == SOCK_STREAM && (flags & MSG_EOR)) {
+		error = EINVAL;
+		goto out;
+	}
+
 	dontroute =
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0 &&
 	    (so->so_proto->pr_flags & PR_ATOMIC);
