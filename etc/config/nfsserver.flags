@@ -1,4 +1,0 @@
-# $Id$
-# This file lists the flags passed to the NFS server `nfsd' when started
-# at boot time.
--u 0,0,4 -t 0,0
