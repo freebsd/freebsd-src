@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rusers_proc.c,v 1.7 1997/11/26 07:36:50 charnier Exp $";
+	"$Id: rusers_proc.c,v 1.8 1998/01/07 07:54:17 charnier Exp $";
 #endif /* not lint */
 
 #ifdef DEBUG
@@ -287,25 +287,33 @@ do_names_1(int all)
 }
 
 utmpidlearr *
-rusersproc_names_2()
+rusersproc_names_2_svc(argp, rqstp)
+	void			*argp;
+	struct svc_req		*rqstp;
 {
         return(do_names_2(0));
 }
 
 utmpidlearr *
-rusersproc_allnames_2()
+rusersproc_allnames_2_svc(argp, rqstp)
+	void			*argp;
+	struct svc_req		*rqstp;
 {
         return(do_names_2(1));
 }
 
 utmparr *
-rusersproc_names_1()
+rusersproc_names_1_svc(argp, rqstp)
+	void			*argp;
+	struct svc_req		*rqstp;
 {
         return(do_names_1(0));
 }
 
 utmparr *
-rusersproc_allnames_1()
+rusersproc_allnames_1_svc(argp, rqstp)
+	void			*argp;
+	struct svc_req		*rqstp;
 {
         return(do_names_1(1));
 }
@@ -338,10 +346,10 @@ rusers_service(rqstp, transp)
 		xdr_result = xdr_utmpidlearr;
                 switch (rqstp->rq_vers) {
                 case RUSERSVERS_ORIG:
-                        local = (char *(*)()) rusersproc_names_1;
+                        local = (char *(*)()) rusersproc_names_1_svc;
                         break;
                 case RUSERSVERS_IDLE:
-                        local = (char *(*)()) rusersproc_names_2;
+                        local = (char *(*)()) rusersproc_names_2_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
@@ -355,10 +363,10 @@ rusers_service(rqstp, transp)
 		xdr_result = xdr_utmpidlearr;
                 switch (rqstp->rq_vers) {
                 case RUSERSVERS_ORIG:
-                        local = (char *(*)()) rusersproc_allnames_1;
+                        local = (char *(*)()) rusersproc_allnames_1_svc;
                         break;
                 case RUSERSVERS_IDLE:
-                        local = (char *(*)()) rusersproc_allnames_2;
+                        local = (char *(*)()) rusersproc_allnames_2_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
@@ -372,7 +380,7 @@ rusers_service(rqstp, transp)
 		goto leave;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
@@ -380,7 +388,7 @@ rusers_service(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument)) {
+	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}
