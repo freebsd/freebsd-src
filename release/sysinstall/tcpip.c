@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29.2.5 1995/06/02 00:52:25 jkh Exp $
+ * $Id: tcpip.c,v 1.29.2.6 1995/06/04 05:13:39 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -83,7 +83,7 @@ typedef struct _layout {
 
 static Layout layout[] = {
 { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
-      "Host name:", "The name of your machine on a network, e.g. foo.bar.com",
+      "Host name:", "Your fully-qualified hostname, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME		0
 { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
