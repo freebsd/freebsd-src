@@ -94,6 +94,7 @@ vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor LINKSYS2			0x0274  The Linksys Group
 vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
+vendor SIEMENS			0x02ac	Siemens
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
@@ -372,6 +373,9 @@ product	SAMSUNG SWL_2000N	0x0002	Samsung MagicLAN SWL-2000N
 
 /* Sandisk Products */
 product SANDISK SDCFB		0x0401 Sandisk CompactFlash Card
+
+/* Siemens */
+product SIEMENS SS1021		0x0002 Siemens SpeedStream 1021
 
 /* Simple Technology Products */
 product SIMPLETECH COMMUNICATOR288 0x0100 Simple Technology 28.8 Communicator
