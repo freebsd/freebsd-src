@@ -1192,7 +1192,7 @@ re_attach(dev)
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES;
+	ifp->if_hwassist = /*RE_CSUM_FEATURES*/0;
 	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1204,7 +1204,7 @@ re_attach(dev)
 	else
 		ifp->if_baudrate = 100000000;
 	ifp->if_snd.ifq_maxlen = RL_IFQ_MAXLEN;
-	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
 
 	callout_handle_init(&sc->rl_stat_ch);
 
