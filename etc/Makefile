@@ -42,7 +42,8 @@ BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
-NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
+NAMEDB= PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
+	make-localhost
 PPPCNF= ppp.conf
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
