@@ -55,7 +55,7 @@ typedef	int (*modeventhand_t)(module_t mod, int /*modeventtype_t*/ what,
  * Struct for registering modules statically via SYSINIT.
  */
 typedef struct moduledata {
-	char		*name;	/* module name */
+	const char	*name;	/* module name */
 	modeventhand_t	evhand;	/* event handler */
 	void		*priv;	/* extra data */
 } moduledata_t;
@@ -91,7 +91,7 @@ struct mod_metadata {
     int		md_version;		/* structure version MDTV_* */
     int		md_type;		/* type of entry MDT_* */
     void 	*md_data;		/* specific data */
-    char	*md_cval;		/* common string label */
+    const char	*md_cval;		/* common string label */
 };
 
 #ifdef _KERNEL
