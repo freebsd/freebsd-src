@@ -1777,6 +1777,8 @@ ParseDoInclude (char *file)
 	 * Pop to previous file
 	 */
 	(void) ParseEOF(0);
+    } else {
+	Var_Append(".MAKEFILE_LIST", fullname, VAR_GLOBAL);
     }
 }
 
@@ -1919,6 +1921,8 @@ ParseTraditionalInclude (char *file)
 	 * Pop to previous file
 	 */
 	(void) ParseEOF(1);
+    } else {
+	Var_Append(".MAKEFILE_LIST", fullname, VAR_GLOBAL);
     }
 }
 #endif
@@ -1945,13 +1949,16 @@ ParseEOF (int opened)
     IFile     *ifile;	/* the state on the top of the includes stack */
 
     if (Lst_IsEmpty (includes)) {
+	Var_Append(".MAKEFILE_LIST", "..", VAR_GLOBAL);
 	return (DONE);
     }
 
     ifile = (IFile *) Lst_DeQueue (includes);
     free (curFile.fname);
-    if (opened && curFile.F)
+    if (opened && curFile.F) {
 	(void) fclose (curFile.F);
+	Var_Append(".MAKEFILE_LIST", "..", VAR_GLOBAL);
+    }
     if (curFile.p) {
 	free(curFile.p->str);
 	free(curFile.p);
@@ -2378,6 +2385,8 @@ Parse_File(char *name, FILE *stream)
     curFile.F = stream;
     curFile.lineno = 0;
     fatals = 0;
+
+    Var_Append(".MAKEFILE_LIST", name, VAR_GLOBAL);
 
     do {
 	while ((line = ParseReadLine ()) != NULL) {
