@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.17.2.1 2001/01/18 04:42:11 guy Exp $
+.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.31 2001/12/29 21:57:07 guy Exp $
 .\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -28,17 +28,28 @@ pcap \- Packet Capture library
 #include <pcap.h>
 .ft
 .LP
+.nf
+.ft B
+char errbuf[PCAP_ERRBUF_SIZE];
+.ft
+.LP
 .ft B
 pcap_t *pcap_open_live(char *device, int snaplen,
 .ti +8
-int promisc, int to_ms, char *ebuf)
+int promisc, int to_ms, char *errbuf)
 pcap_t *pcap_open_dead(int linktype, int snaplen)
-pcap_t *pcap_open_offline(char *fname, char *ebuf)
+pcap_t *pcap_open_offline(char *fname, char *errbuf)
 pcap_dumper_t *pcap_dump_open(pcap_t *p, char *fname)
 .ft
 .LP
 .ft B
-char errbuf[PCAP_ERRBUF_SIZE];
+int pcap_setnonblock(pcap_t *p, int nonblock, char *errbuf);
+int pcap_getnonblock(pcap_t *p, char *errbuf);
+.ft
+.LP
+.ft B
+int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
+void pcap_freealldevs(pcap_if_t *)
 char *pcap_lookupdev(char *errbuf)
 int pcap_lookupnet(char *device, bpf_u_int32 *netp,
 .ti +8
@@ -98,9 +109,13 @@ through this mechanism.
 NOTE:
 .I errbuf
 in
-.B pcap_open_live(),
-.B pcap_open_offline(),
-.B pcap_lookupdev(),
+.BR pcap_open_live() ,
+.BR pcap_open_dead() ,
+.BR pcap_open_offline() ,
+.BR pcap_setnonblock() ,
+.BR pcap_getnonblock() ,
+.BR pcap_findalldevs() ,
+.BR pcap_lookupdev() ,
 and
 .B pcap_lookupnet()
 is assumed to be able to hold at least
@@ -134,11 +149,21 @@ is seen, but that it wait for some amount of time to allow more packets
 to arrive and to read multiple packets from the OS kernel in one
 operation.  Not all platforms support a read timeout; on platforms that
 don't, the read timeout is ignored.
-.I ebuf
-is used to return error text and is only set when
+.I errbuf
+is used to return error or warning text.  It will be set to error text when
 .B pcap_open_live()
 fails and returns
 .BR NULL .
+.I errbuf
+may also be set to warning text when
+.B pcap_open_live()
+succeds; to detect this case the caller should store a zero-length string in
+.I errbuf
+before calling
+.B pcap_open_live()
+and display the warning to the user if
+.I errbuf
+is no longer a zero-length string.
 .PP
 .B pcap_open_dead()
 is used for creating a
@@ -156,7 +181,7 @@ and
 .BR tcpslice(1) .
 The name "-" in a synonym for
 .BR stdin .
-.I ebuf
+.I errbuf
 is used to return error text and is only set when
 .B pcap_open_offline()
 fails and returns
@@ -182,6 +207,131 @@ If
 is returned,
 .B pcap_geterr()
 can be used to get the error text.
+.PP
+.B pcap_setnonblock()
+puts a capture descriptor, opened with
+.BR pcap_open_live() ,
+into ``non-blocking'' mode, or takes it out of ``non-blocking'' mode,
+depending on whether the
+.I nonblock
+argument is non-zero or zero.  It has no effect on ``savefiles''.
+If there is an error, \-1 is returned and
+.I errbuf
+is filled in with an appropriate error message; otherwise, 0 is
+returned.
+In
+``non-blocking'' mode, an attempt to read from the capture descriptor
+with
+.B pcap_dispatch()
+will, if no packets are currently available to be read, return 0
+immediately rather than blocking waiting for packets to arrive.
+.B pcap_loop()
+and
+.B pcap_next()
+will not work in ``non-blocking'' mode.
+.PP
+.B pcap_getnonblock()
+returns the current ``non-blocking'' state of the capture descriptor; it
+always returns 0 on ``savefiles''.
+If there is an error, \-1 is returned and
+.I errbuf
+is filled in with an appropriate error message.
+.PP
+.B pcap_findalldevs()
+constructs a list of network devices that can be opened with
+.BR pcap_open_live() .
+(Note that there may be network devices that cannot be opened with
+.BR pcap_open_live()
+by the
+process calling
+.BR pcap_findalldevs() ,
+because, for example, that process might not have sufficient privileges
+to open them for capturing; if so, those devices will not appear on the
+list.)
+.I alldevsp
+is set to point to the first element of the list; each element of the
+list is of type
+.BR pcap_if_t ,
+and has the following members:
+.RS
+.TP
+.B next
+if not
+.BR NULL ,
+a pointer to the next element in the list;
+.B NULL
+for the last element of the list
+.TP
+.B name
+a pointer to a string giving a name for the device to pass to
+.B pcap_open_live()
+.TP
+.B description
+if not
+.BR NULL ,
+a pointer to a string giving a human-readable description of the device
+.TP
+.B addresses
+a pointer to the first element of a list of addresses for the interface
+.TP
+.B flags
+interface flags:
+.RS
+.TP
+.B PCAP_IF_LOOPBACK
+set if the interface is a loopback interface
+.RE
+.RE
+.PP
+Each element of the list of addresses is of type
+.BR pcap_addr_t ,
+and has the following members:
+.RS
+.TP
+.B next
+if not
+.BR NULL ,
+a pointer to the next element in the list;
+.B NULL
+for the last element of the list
+.TP
+.B addr
+a pointer to a
+.B "struct sockaddr"
+containing an address
+.TP
+.B netmask
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the netmask corresponding to the address pointed to by
+.B addr
+.TP
+.B broadaddr
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the broadcast address corresponding to the address pointed
+to by
+.BR addr ;
+may be null if the interface doesn't support broadcasts
+.TP
+.B dstaddr
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the destination address corresponding to the address pointed
+to by
+.BR addr ;
+may be null if the interface isn't a point-to-point interface
+.RE
+.PP
+.B pcap_freealldevs()
+is used to free a list allocated by
+.BR pcap_findalldevs() .
 .PP
 .B pcap_lookupdev()
 returns a pointer to a network device suitable for use with
@@ -284,9 +434,15 @@ causes
 to loop forever (or at least until an error occurs).
 .PP
 .B pcap_next()
-returns a
+reads the next packet (by calling
+.B pcap_dispatch()
+with a
+.I cnt
+of 1) and returns a
 .I u_char
-pointer to the next packet.
+pointer to the data in that packet.  (The
+.I pcap_pkthdr
+struct for that packet is not supplied.)
 .PP
 .B pcap_dump()
 outputs a packet to the ``savefile'' opened with
@@ -295,6 +451,12 @@ Note that its calling arguments are suitable for use with
 .B pcap_dispatch()
 or
 .BR pcap_loop() .
+If called directly, the 
+.I user
+parameter is of type 
+.I pcap_dumper_t
+as returned by
+.BR pcap_dump_open() .
 .PP
 .B pcap_compile()
 is used to compile the string
@@ -356,8 +518,150 @@ has been made the filter program for a pcap structure by a call to
 .BR pcap_setfilter() .
 .PP
 .B pcap_datalink()
-returns the link layer type, e.g.
-.BR DLT_EN10MB .
+returns the link layer type; link layer types it can return include:
+.PP
+.RS 5
+.TP 5
+.B DLT_NULL
+BSD loopback encapsulation; the link layer header is a 4-byte field, in
+.I host
+byte order, containing a PF_ value from
+.B socket.h
+for the network-layer protocol of the packet
+.IP
+Note that ``host byte order'' is the byte order of the machine on which
+the packets are captured, and the PF_ values are for the OS of the
+machine on which the packets are captured; if a live capture is being
+done, ``host byte order'' is the byte order of the machine capturing the
+packets, and the PF_ values are those of the OS of the machine capturing
+the packets, but if a ``savefile'' is being read, the byte order and PF_
+values are
+.I not
+necessarily those of the machine reading the capture file.
+.TP 5
+.B DLT_EN10MB
+Ethernet (10Mb, 100Mb, 1000Mb, and up)
+.TP 5
+.B DLT_IEEE802
+IEEE 802.5 Token Ring
+.TP 5
+.B DLT_ARCNET
+ARCNET
+.TP 5
+.B DLT_SLIP
+SLIP; the link layer header contains, in order:
+.RS 10
+.LP
+a 1-byte flag, which is 0 for packets received by the machine and 1 for
+packets sent by the machine;
+.LP
+a 1-byte field, the upper 4 bits of which indicate the type of packet,
+as per RFC 1144:
+.RS 5
+.TP 5
+0x40
+an unmodified IP datagram (TYPE_IP);
+.TP 5
+0x70
+an uncompressed-TCP IP datagram (UNCOMPRESSED_TCP), with that byte being
+the first byte of the raw IP header on the wire, containing the
+connection number in the protocol field;
+.TP 5
+0x80
+a compressed-TCP IP datagram (COMPRESSED_TCP), with that byte being the
+first byte of the compressed TCP/IP datagram header;
+.RE
+.LP
+for UNCOMPRESSED_TCP, the rest of the modified IP header, and for
+COMPRESSED_TCP, the compressed TCP/IP datagram header;
+.RE
+.RS 5
+.LP
+for a total of 16 bytes; the uncompressed IP datagram follows the header
+.RE
+.TP 5
+.B DLT_PPP
+PPP; if the first 2 bytes are 0xff and 0x03, it's PPP in HDLC-like
+framing, with the PPP header following those two bytes, otherwise it's
+PPP without framing, and the packet begins with the PPP header
+.TP 5
+.B DLT_FDDI
+FDDI
+.TP 5
+.B DLT_ATM_RFC1483
+RFC 1483 LLC/SNAP-encapsulated ATM; the packet begins with an IEEE 802.2
+LLC header
+.TP 5
+.B DLT_RAW
+raw IP; the packet begins with an IP header
+.TP 5
+.B DLT_PPP_SERIAL
+PPP in HDLC-like framing, as per RFC 1662, or Cisco PPP with HDLC
+framing, as per section 4.3.1 of RFC 1547; the first byte will be 0xFF
+for PPP in HDLC-like framing, and will be 0x0F or 0x8F for Cisco PPP
+with HDLC framing
+.TP 5
+.B DLT_PPP_ETHER
+PPPoE; the packet begins with a PPPoE header, as per RFC 2516
+.TP 5
+.B DLT_C_HDLC
+Cisco PPP with HDLC framing, as per section 4.3.1 of RFC 1547
+.TP 5
+.B DLT_IEEE802_11
+IEEE 802.11 wireless LAN
+.TP 5
+.B DLT_LOOP
+OpenBSD loopback encapsulation; the link layer header is a 4-byte field, in
+.I network
+byte order, containing a PF_ value from OpenBSD's
+.B socket.h
+for the network-layer protocol of the packet
+.IP
+Note that, if a ``savefile'' is being read, those PF_ values are
+.I not
+necessarily those of the machine reading the capture file.
+.TP 5
+.B DLT_LINUX_SLL
+Linux "cooked" capture encapsulation; the link layer header contains, in
+order:
+.RS 10
+.LP
+a 2-byte "packet type", in network byte order, which is one of:
+.RS 5
+.TP 5
+0
+packet was sent to us by somebody else
+.TP 5
+1
+packet was broadcast by somebody else
+.TP 5
+2
+packet was multicast, but not broadcast, by somebody else
+.TP 5
+3
+packet was sent by somebody else to somebody else
+.TP 5
+4
+packet was sent by us
+.RE
+.LP
+a 2-byte field, in network byte order, containing a Linux ARPHRD_ value
+for the link layer device type;
+.LP
+a 2-byte field, in network byte order, containing the length of the
+link layer address of the sender of the packet (which could be 0);
+.LP
+an 8-byte field containing that number of bytes of the link layer header
+(if there are more than 8 bytes, only the first 8 are present);
+.LP
+a 2-byte field containing an Ethernet protocol type, in network byte
+order, or containing 1 for Novell 802.3 frames without an 802.2 LLC
+header or 4 for frames beginning with an 802.2 LLC header.
+.RE
+.TP 5
+.B DLT_LTALK
+Apple LocalTalk; the packet begins with an AppleTalk LLAP header
+.RE
 .PP
 .B pcap_snapshot()
 returns the snapshot length specified when
@@ -377,21 +681,33 @@ returns the minor number of the version of the pcap used to write the
 savefile.
 .PP
 .B pcap_file()
-returns the name of the ``savefile.''
+returns the standard I/O stream of the ``savefile,'' if a ``savefile''
+was opened with
+.BR pcap_open_offline() ,
+or NULL, if a network device was opened with
+.BR pcap_open_live() .
 .PP
-.B int pcap_stats()
+.B pcap_stats()
 returns 0 and fills in a
 .B pcap_stat
 struct. The values represent packet statistics from the start of the
-run to the time of the call. If there is an error or the under lying
+run to the time of the call. If there is an error or the underlying
 packet capture doesn't support packet statistics, \-1 is returned and
 the error text can be obtained with
 .B pcap_perror()
 or
 .BR pcap_geterr() .
+.B pcap_stats()
+is supported only on live captures, not on ``savefiles''; no statistics
+are stored in ``savefiles'', so no statistics are available when reading
+from a ``savefile''.
 .PP
 .B pcap_fileno()
-returns the file descriptor number of the ``savefile.''
+returns the file descriptor number from which captured packets are read,
+if a network device was opened with
+.BR pcap_open_live() ,
+or \-1, if a ``savefile'' was opened with
+.BR pcap_open_offline() .
 .PP
 .B pcap_perror()
 prints the text of the last pcap library error on
