@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.143
+        Original revision: 1.155
 -->
 
 <sect1 id="support">
@@ -94,7 +94,10 @@
 	  <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
 	</listitem>
 	<listitem>
-	  <para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
+	  <para>Promise SATA150 TX2/TX4 シリアル ATA/150</para>
+        </listitem>
+	<listitem>
+	  <para>Promise Ultra-33, -66, -100, -133 TX2/TX2000/TX4000</para>
         </listitem>
         <listitem>
           <para>ServerWorks ROSB4 ATA33</para>
@@ -842,10 +845,12 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+    <para arch="i386">IBM / Adaptec ServeRAID シリーズ (ips ドライバ)</para>
+
+    <para arch="i386,alpha,pc98,sparc64,ia64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (mpt ドライバ)
       <itemizedlist>
-	<listitem>
+	<listitem arch="i386,alpha,pc98,sparc64">
 	  <para>LSI FC909, FC929</para>
 	</listitem>
 	<listitem>
@@ -1602,16 +1607,19 @@
 	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
         </listitem>
         <listitem>
-	  <para>Corega Ether FEther USB-TX, FEther USB-TXS</para>
+	  <para>Corega Ether FEther USB-T, FEther USB-TX, FEther USB-TXS</para>
         </listitem>
         <listitem>
 	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
         </listitem>
         <listitem>
+	  <para>Elecom LD-USBL/TX</para>
+        </listitem>
+        <listitem>
 	  <para>Elsa Microlink USB2Ethernet</para>
         </listitem>
         <listitem>
-	  <para>I/O Data USB ETTX</para>
+	  <para>I-O Data USB ETTX</para>
         </listitem>
         <listitem>
 	  <para>Kingston KNU101TX</para>
@@ -1620,7 +1628,10 @@
 	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
         </listitem>
         <listitem>
-	  <para>Melco Inc. LUA-TX, LUA2-TX</para>
+	  <para>Melco LUA-TX, LUA2-TX</para>
+        </listitem>
+        <listitem>
+	  <para>Planex UE-200TX</para>
         </listitem>
         <listitem>
 	  <para>Siemens Speedstream</para>
@@ -1696,6 +1707,19 @@
         </listitem>
 	<listitem>
 	  <para>SMC 2102USB, 2104USB</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">RealTek RTL8150 ベースの USB Ethernet NIC
+      (&man.rue.4; ドライバ)
+
+      <itemizedlist>
+        <listitem>
+          <para>GREEN HOUSE GH-USB100B</para>
+        </listitem>
+        <listitem>
+          <para>Melco LUA-KTX</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1877,7 +1901,7 @@
         <listitem>
           <para>Intel Pro/100 S デスクトップ、サーバ、デュアルポートサーバアダプタ</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,ia64">
           <para>多くの Intel 製マザーボードに内蔵されている Ethernet NIC</para>
         </listitem>
         <listitem arch="pc98">
@@ -1980,16 +2004,16 @@
         <listitem arch="i386,alpha">
 	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Optiplex GX1 内蔵の 3C918</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell On-board 3C920</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Precision 内蔵の 3C905B</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Latitude ラップトップドッキングステーションに内蔵されている
             3C905-TX</para>
         </listitem>
@@ -2138,12 +2162,12 @@
         <listitem>
 	  <para>SysKonnect SK-9D21 および 9D41</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>DELL PowerEdge 2550 サーバに内蔵されている
             Gigabit Ethernet NIC</para>
         </listitem>
-        <listitem>
-	  <para>IBM x235 server に内蔵されている gigabit Ethernet NIC</para>
+        <listitem arch="i386">
+	  <para>IBM x235 server に内蔵されている Gigabit Ethernet NIC</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -2644,73 +2668,76 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">PCI ベースのマルチポートシリアルボード (&man.puc.4;
+    <para arch="i386,ia64">PCI ベースのマルチポートシリアルボード (&man.puc.4;
       ドライバ)
       <itemizedlist>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Actiontech 56K PCI</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Avlab Technology, PCI IO 2S および PCI IO 4S</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Comtrol RocketPort 550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Decision Computers PCCOM 4-port シリアルおよびデュアルポート RS232/422/485</para>
 	</listitem>
-	<listitem>
+	<listitem arch="ia64">
+	  <para>Diva Serial (GSP) マルチポート UART (開発ブランチでのみ対応しています。)</para>
+	</listitem>
+	<listitem arch="i386">
 	  <para>Dolphin Peripherals 4025/4035/4036</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>IC Book Labs Dreadnought 16x Lite および Pro</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Middle Digital, Weasle シリアルポート</para>
  	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Moxa Industio CP-114, Smartio C104H-PCI および C168H/PCI</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>NEC PK-UG-X001 および PK-UG-X008</para>
  	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Netmos NM9835 PCI-2S-550</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>SIIG Cyber Serial (シングルおよびデュアル) PCI 16C550/16C650/16C850</para>
 	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
  	</listitem>
-        <listitem>
+        <listitem arch="i386">
 	  <para>Titan PCI-200H および PCI-800H</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>US Robotics (3Com) 3CP5609 モデム</para>
 	</listitem>
-	<listitem>
+	<listitem arch="i386">
 	  <para>VScom PCI-400 および PCI-800</para>
  	</listitem>
       </itemizedlist>
@@ -3025,7 +3052,7 @@
       linkend="bluetooth">Bluetooth</link> の節にまとめられています。</para>
     </note>
 
-    <para arch="i386,pc98,alpha">ホストコントローラ
+    <para arch="i386,pc98,alpha,ia64">ホストコントローラ
       (&man.ohci.4; および &man.uhci.4; ドライバ)
       <itemizedlist>
         <listitem arch="i386,alpha">
@@ -3067,7 +3094,7 @@
         <listitem arch="i386,alpha">
 	  <para>VIA 83C572 USB</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,ia64">
 	  <para>UHCI もしくは OHCI を搭載したマザーボードチップセット
             (現時点で使えないものは報告されていません)</para>
 	</listitem>
@@ -3091,7 +3118,7 @@
     </para>
 
     <para arch="i386,ia64,pc98">EHCI インタフェースを使った
-      USB 2.0 コントローラ (ehci ドライバ)</para>
+      USB 2.0 コントローラ (&man.ehci.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">ハブ
       <itemizedlist>
@@ -3151,6 +3178,9 @@
 	</listitem>
         <listitem>
 	  <para>Metricom Ricochet GS USB 無線モデム</para>
+	</listitem>
+        <listitem>
+	  <para>Yamaha ブロードバンド無線ルータ RTW65b</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3253,20 +3283,141 @@
     </para>
     <para arch="i386,pc98,alpha">ストレージデバイス (&man.umass.4; ドライバ)
       <itemizedlist>
-        <listitem arch="i386,pc98">
+        <listitem>
+	  <para>ADTEC ステックドライブ AD-UST32M, 64M, 128M, 256M</para>
+	</listitem>
+	<listitem>
+	  <para>デンノー FireWire/USB2
+	    2.5 インチリムーバブル HDD ケースMIFU-25CB20</para>
+	</listitem>
+	<listitem>
+	  <para>FujiFilm Zip USB Drive ZDR100 USB A</para>
+	</listitem>
+	<listitem>
+	  <para>GREEN HOUSE USB フラッシュメモリ <quote>PicoDrive</quote>
+	    GH-UFD32M, 64M, 128M</para>
+	</listitem>
+	<listitem>
+	  <para>IBM 32MB USB メモリキー (P/N 22P5296)</para>
+	</listitem>
+	<listitem>
+	  <para>IBM ThinkPad USB ポータブル CD-ROM ドライブ (P/N 33L5151)</para>
+	</listitem>
+	<listitem>
+	  <para>I-O DATA USB 6 倍速 CD-RW ドライブ CDRW-i64/USB (CDROM 機能のみ動作)</para>
+	</listitem>
+	<listitem>
+	  <para>I-O DATA USB CD/CD-R/CD-RW/DVD-R/DVD-RW/DVD-RAM/DVD-ROM ドライブ DVR-iUH2
+	    (CDROM, DVD-RAM 機能のみ動作)</para>
+	</listitem>
+	<listitem arch="i386,pc98">
 	  <para>Iomega USB Zip 100Mb (ただし基本的な対応のみ)</para>
 	</listitem>
-        <listitem>
+	<listitem>
+	  <para>Iomega Zip750 USB2.0 ドライブ</para>
+	</listitem>
+	<listitem>
+	  <para>恵安 USB1.1/2.0 対応 3.5 インチ HDD ケース KU350A</para>
+	</listitem>
+	<listitem>
+	  <para>玄人志向 USB 2.5 インチ HDD ケース GAWAP2.5PS-USB2.0</para>
+	</listitem>
+	<listitem>
+	  <para>Logitec USB1.1/2.0 HDD ユニット SHD-E60U2</para>
+	</listitem>
+	<listitem>
+	  <para>Logitec Mobile USB Memory LMC-256UD</para>
+	</listitem>
+	<listitem>
+	  <para>Logitec 2 倍速 USB フロッピドライブ LFD-31U2</para>
+	</listitem>
+	<listitem>
+	  <para>Logitec USB/IEEE1394 DVD-RAM/R/RW ユニット LDR-N21FU2 (CDROM 機能のみ動作)</para>
+	</listitem>
+	<listitem>
 	  <para>Matshita CF-VFDU03 フロッピドライブ</para>
 	</listitem>
-        <listitem>
+	<listitem>
+	  <para>Melco USB2.0 MO ドライブ MO-CH640U2</para>
+	</listitem>
+	<listitem>
+	  <para>Melco USB/IEEE1394 ポータブル HD ドライブ HDP-i30P/CI, HDP-i40P/CI</para>
+	</listitem>
+	<listitem>
+	  <para>Melco USB フラッシュディスク <quote>PetitDrive</quote>,
+	    RUF-32M, -64M, -128M, -256M</para>
+	</listitem>
+	<listitem>
+	  <para>Melco USB2.0 フラッシュディスク <quote>PetitDrive2</quote>,
+	    RUF-256M/U2, -512M/U2</para>
+	</listitem>
+	<listitem>
+	  <para>Melco USB フラッシュディスク <quote>ClipDrive</quote>,
+	    RUF-C32M, -C64M, -C128M, -C256M, -C512M</para>
+	</listitem>
+	<listitem>
 	  <para>Microtech USB-SCSI-HD 50 USB to SCSI ケーブル</para>
 	</listitem>
-        <listitem>
+	<listitem>
+	  <para>NOVAC USB2.0 2.5/3.5 インチ HDD ケース NV-HD351U</para>
+	</listitem>
+	<listitem>
 	  <para>Panasonic フロッピドライブ</para>
 	</listitem>
-        <listitem>
+	<listitem>
+	  <para>Panasonic USB2.0 ポータブル CD-RW ドライブ KXL-RW40AN (CDROM 機能のみ動作)</para>
+	</listitem>
+	<listitem>
+	  <para>RATOC Systems USB2.0 リムーバブル HDD ケース U2-MDK1, U2-MDK1B</para>
+	</listitem>
+	<listitem>
+	  <para>Sony ポータブル CD-R/RW ドライブ CRX10U (CDROM 機能のみ動作)</para>
+	</listitem>
+	<listitem>
+	  <para>TEAC ポータブル USB CD-ROM ユニット CD-110PU/210PU</para>
+	</listitem>
+	<listitem>
 	  <para>Y-E Data フロッピドライブ (720/1.44/2.88Mb)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">オーディオデバイス (uaudio ドライバ)
+      <itemizedlist>
+	<listitem>
+	  <para>Audio-Technica USB デジタルヘッドホン ATC-HA4USB</para>
+	</listitem>
+
+	<listitem>
+	  <para>Ergo Systems AUDIOTRAK OPTOPlay USB</para>
+	</listitem>
+
+	<listitem>
+	  <para>KENWOOD MD パーソナルステレオシステム MDX-G7</para>
+	</listitem>
+
+	<listitem>
+	  <para>KENWOOD/SOTEC VH-7PC</para>
+	</listitem>
+
+	<listitem>
+	  <para>I-O DATA Analog to Digital USB オーディオアダプタ DAVOX</para>
+	</listitem>
+
+	<listitem>
+	  <para>ONKYO PC スピーカ GX-R5U(W)</para>
+	</listitem>
+
+	<listitem>
+	  <para>ONKYO USB デジタルオーディオプロセッサ SE-U55X(S)</para>
+	</listitem>
+
+	<listitem>
+	  <para>Roland UA-5 USB オーディオインタフェース <quote>Audio Capture</quote></para>
+	</listitem>
+
+	<listitem>
+	  <para>Sony PC アクティブスピーカシステム SRS-T100PC</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3412,16 +3563,27 @@
     <para arch="i386,pc98,alpha">フロッピドライブ (&man.fdc.4; ドライバ)</para>
     <para arch="i386">Genius および Mustek ハンドスキャナ</para>
     <para arch="i386">GPB および Transputer ドライバ</para>
+
+    <para arch="i386,alpha,ia64">VGA 互換ビデオカード
+      (&man.vga.4; ドライバ)
+
+      <note>
+        <para>特定のビデオカードについての情報と
+          <application>XFree86</application> との互換性は <ulink
+            url="http://www.xfree86.org/"></ulink> をご覧ください。</para>
+      </note>
+    </para>
+
     <para arch="i386,pc98,alpha,ia64">キーボード
       <itemizedlist>
         <listitem arch="i386,alpha">
-	  <para>AT スタイルキーボード</para>
+	  <para>AT スタイルキーボード (&man.atkbd.4; ドライバ)</para>
 	</listitem>
         <listitem arch="i386,alpha,ia64">
-	  <para>PS/2 キーボード</para>
+	  <para>PS/2 キーボード (&man.atkbd.4; ドライバ)</para>
 	</listitem>
         <listitem arch="pc98">
-	  <para>Standard keyboards</para>
+	  <para>標準キーボード</para>
 	</listitem>
         <listitem arch="i386,pc98,alpha">
 	  <para>USB キーボード (個々の製品については
@@ -3430,22 +3592,31 @@
       </itemizedlist>
     </para>
     <para arch="i386">Loran-C レシーバ (Dave Mills 実験用ハードウェア, loran ドライバ).</para>
-    <para arch="i386,pc98,alpha,ia64">マウス
+    <para arch="i386,pc98,alpha,ia64">ポインティングデバイス
       <itemizedlist>
         <listitem arch="i386,pc98">
-	  <para>バスマウス (&man.mse.4; ドライバ)</para>
+	  <para>バスマウスおよびその互換デバイス (&man.mse.4; ドライバ)</para>
 	</listitem>
         <listitem arch="i386,alpha,ia64">
-	  <para>PS/2 マウス (&man.psm.4; ドライバ)</para>
+	  <para>PS/2 マウスおよびラップトップのポインティングデバイスを含む
+            その互換デバイス (&man.psm.4; ドライバ)</para>
 	</listitem>
         <listitem>
-	  <para>シリアルマウス</para>
+	  <para>シリアルマウスおよびその互換デバイス</para>
 	</listitem>
         <listitem arch="i386,pc98,alpha">
 	  <para>USB マウス (個々の製品については
             <link linkend="usb">USB デバイス</link>の節に書かれています)</para>
 	</listitem>
       </itemizedlist>
+
+      <note>
+       <para>&os; でポインティングデバイスを利用する際の詳しい情報は
+         マニュアルページ &man.moused.8; に記載されています。
+         <application>XFree86</application> で利用する際の情報は
+         <ulink url="http://www.xfree86.org/"></ulink> をご覧ください。</para>
+      </note>
+
     </para>
 
     <para arch="i386,alpha"><quote>PC 標準</quote> のパラレルポート
@@ -3472,8 +3643,6 @@
 	</listitem>
       </itemizedlist>
     </para>
-
-    <para arch="i386">X-10 電源コントローラ (&man.tw.4; ドライバ)</para>
 
     <para arch="i386"><ulink url="http://www.vcc.com/">Virtual Computers</ulink> 製 HOT1 と互換性のある
       Xilinx XC6200 ベースの再構成可能ハードウェアカード
