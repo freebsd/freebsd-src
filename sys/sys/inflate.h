@@ -6,13 +6,13 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: inflate.h,v 1.4 1994/10/22 11:40:38 phk Exp $
  *
  */
 #ifndef	_SYS_INFLATE_H_
 #define	_SYS_INFLATE_H_
 
-#ifdef KERNEL
+#if defined(KERNEL) || defined(KZIP)
 
 #define GZ_EOF -1
 
@@ -48,6 +48,6 @@ struct inflate {
 
 int inflate     __P((struct inflate *));
 
-#endif	/* KERNEL */
+#endif	/* KERNEL || KZIP */
 
 #endif	/* ! _SYS_INFLATE_H_ */
