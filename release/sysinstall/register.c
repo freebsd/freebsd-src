@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.1.2.5 1997/03/25 02:45:59 jkh Exp $
+ * $Id: register.c,v 1.1.2.6 1997/05/26 04:57:42 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -178,6 +178,7 @@ handle_registration(void)
     fprintf(fp, "<version>%s</version>\n", RELEASE_NAME);
     fprintf(fp, "</entry>\n");
     fclose(fp);
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you have a working network connection and outgoing email\n"
 		  "enabled at this time?  I need to be able to reach freebsd.org\n"
 		  "in order to submit your registration.")) {
@@ -339,7 +340,8 @@ reenter:
 	goto reenter;
 
     /* OK, we've got a valid registration, now push it out */
-    handle_registration();
+    if (!cancel)
+	handle_registration();
 
     /* Clear this crap off the screen */
     delwin(ds_win);
