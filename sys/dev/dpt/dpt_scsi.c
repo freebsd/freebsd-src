@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.3 1998/02/20 13:11:45 bde Exp $"
+#ident "$Id: dpt_scsi.c,v 1.4 1998/02/25 11:56:37 bde Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -91,6 +91,10 @@
 
 #define INLINE	__inline
 #define INLINE_Q
+
+/* dpt_isa.c, dpt_eisa.c, and dpt_pci.c need this in a central place */
+
+int dpt_controllers_present = 0;
 
 /* Function Prototypes */
 
@@ -199,7 +203,8 @@ static void     dptminphys(struct buf * bp);
 static void     dpt_sintr(void);
 void            dpt_intr(void *arg);
 static char    *scsi_cmd_name(u_int8_t cmd);
-static dpt_rb_t 
+
+dpt_rb_t 
 dpt_register_buffer(int unit,
 		    u_int8_t channel,
 		    u_int8_t target,
@@ -209,7 +214,7 @@ dpt_register_buffer(int unit,
 		    u_int16_t offset,
 		    dpt_rec_buff callback,
 		    dpt_rb_op_t op);
-static int 
+int 
 dpt_send_buffer(int unit,
 		u_int8_t channel,
 		u_int8_t target,
@@ -479,7 +484,7 @@ dpt_set_target(int redo, dpt_softc_t * dpt,
                  of receipt of buffers.
  */
 
-static int
+int
 dpt_send_buffer(int unit,
 		u_int8_t channel,
 		u_int8_t target,
@@ -628,7 +633,7 @@ dpt_target_done(dpt_softc_t * dpt, int bus, dpt_ccb_t * ccb)
  * by the target mode code.
  */
 
-static dpt_rb_t
+dpt_rb_t
 dpt_register_buffer(int unit,
 		    u_int8_t channel,
 		    u_int8_t target,
@@ -697,7 +702,8 @@ valid_unit:
 				splx(ospl);
 				return (NO_RESOURCES);
 			}
-			dpt_set_target(0, dpt, channel, target, lun, mode, length, offset, ccb);
+			dpt_set_target(0, dpt, channel, target, lun, mode, length, 
+						   offset, ccb);
 			return (SUCCESSFULLY_REGISTERED);
 		} else
 			return (NOT_REGISTERED);
