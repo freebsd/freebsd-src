@@ -612,7 +612,7 @@ fd_resume(void *p)
 #ifdef USE_LIBBEGEMOT
 	if (f->id >= 0)
 		return (0);
-	if ((f->fd = poll_register(f->fd, input, f, POLL_IN)) < 0) {
+	if ((f->id = poll_register(f->fd, input, f, POLL_IN)) < 0) {
 		err = errno;
 		syslog(LOG_ERR, "select fd %d: %m", f->fd);
 		errno = err;
