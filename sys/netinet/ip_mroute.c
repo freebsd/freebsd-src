@@ -460,7 +460,7 @@ ip_mrouter_init(so)
     ip_mrouter = so;
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_init");
+	log(LOG_DEBUG, "ip_mrouter_init\n");
 
     return 0;
 }
@@ -545,7 +545,7 @@ X_ip_mrouter_done()
     splx(s);
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mrouter_done");
+	log(LOG_DEBUG, "ip_mrouter_done\n");
 
     return 0;
 }
@@ -629,7 +629,7 @@ add_vif(vifcp)
     if (numvifs <= vifcp->vifc_vifi) numvifs = vifcp->vifc_vifi + 1;
 
     if (mrtdebug)
-	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d",
+	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d\n",
 	    vifcp->vifc_vifi, 
 	    ntohl(vifcp->vifc_lcl_addr.s_addr),
 	    (vifcp->vifc_flags & VIFF_TUNNEL) ? "rmtaddr" : "mask",
@@ -683,7 +683,7 @@ del_vif(vifip)
     splx(s);
 
     if (mrtdebug)
-      log(LOG_DEBUG, "del_vif %d, numvifs %d", *vifip, numvifs);
+      log(LOG_DEBUG, "del_vif %d, numvifs %d\n", *vifip, numvifs);
 
     return 0;
 }
@@ -711,7 +711,7 @@ add_mfc(mfccp)
     /* If an entry already exists, just update the fields */
     if (rt) {
 	if (mrtdebug)
-	    log(LOG_DEBUG,"add_mfc update o %x g %x m %x p %x",
+	    log(LOG_DEBUG,"add_mfc update o %x g %x m %x p %x\n",
 		ntohl(mfccp->mfcc_origin.s_addr),
 		ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		ntohl(mfccp->mfcc_originmask.s_addr),
@@ -741,7 +741,7 @@ add_mfc(mfccp)
 
 	    if (!nstl++) {
 		if (mrtdebug)
-		    log(LOG_DEBUG,"add_mfc o %x g %x m %x p %x dbg %x",
+		    log(LOG_DEBUG,"add_mfc o %x g %x m %x p %x dbg %x\n",
 			ntohl(mfccp->mfcc_origin.s_addr),
 			ntohl(mfccp->mfcc_mcastgrp.s_addr),
 			ntohl(mfccp->mfcc_originmask.s_addr),
@@ -789,7 +789,7 @@ add_mfc(mfccp)
      */
     if (nstl == 0) {
 	if (mrtdebug)
-	    log(LOG_DEBUG,"add_mfc no upcall h %d o %x g %x m %x p %x",
+	    log(LOG_DEBUG,"add_mfc no upcall h %d o %x g %x m %x p %x\n",
 		hash, ntohl(mfccp->mfcc_origin.s_addr),
 		ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		ntohl(mfccp->mfcc_originmask.s_addr),
@@ -865,7 +865,7 @@ del_mfc(mfccp)
     hash = nethash_fc(origin.s_addr, mcastgrp.s_addr);
 
     if (mrtdebug)
-	log(LOG_DEBUG,"del_mfc orig %x mcastgrp %x",
+	log(LOG_DEBUG,"del_mfc orig %x mcastgrp %x\n",
 	    ntohl(origin.s_addr), ntohl(mcastgrp.s_addr));
 
     for (prev_mb_rt = mb_rt = mfctable[hash]
@@ -931,7 +931,7 @@ X_ip_mforward(ip, ifp, m, imo)
     int s;
 
     if (mrtdebug > 1)
-	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x",
+	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x\n",
 	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), ifp);
 
     if (ip->ip_hl < (IP_HDR_LEN + TUNNEL_LEN) >> 2 ||
@@ -972,7 +972,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    mrtstat.mrts_bad_tunnel++;
 	    if (mrtdebug)
 		log(LOG_DEBUG,
-		    "ip_mforward: bad tunnel from %u (%x %x %x %x %x %x)",
+		    "ip_mforward: bad tunnel from %u (%x %x %x %x %x %x)\n",
 		    ntohl(ip->ip_src.s_addr),
 		    ipoptions[0], ipoptions[1], ipoptions[2], ipoptions[3],
 		    *(u_long *)(&ipoptions[4]), *(u_long *)(&ipoptions[8]));
@@ -1027,7 +1027,7 @@ X_ip_mforward(ip, ifp, m, imo)
 
 	mrtstat.mrts_no_route++;
 	if (mrtdebug)
-	    log(LOG_DEBUG, "ip_mforward: no rte s %x g %x",
+	    log(LOG_DEBUG, "ip_mforward: no rte s %x g %x\n",
 		ntohl(ip->ip_src.s_addr),
 		ntohl(ip->ip_dst.s_addr));
 
@@ -1157,7 +1157,7 @@ cleanup_cache(xmb_rt)
     hash = nethash_fc(rt->mfc_origin.s_addr, rt->mfc_mcastgrp.s_addr);
 
     if (mrtdebug)
-	log(LOG_DEBUG, "ip_mforward: cleanup ipm %d h %d s %x g %x", 
+	log(LOG_DEBUG, "ip_mforward: cleanup ipm %d h %d s %x g %x\n", 
 	    ip_mrouter, hash, ntohl(rt->mfc_origin.s_addr), 
 	    ntohl(rt->mfc_mcastgrp.s_addr));
 
@@ -1225,7 +1225,7 @@ ip_mdq(m, ifp, tunnel_src, rt, imo)
 	(ifp == 0 && viftable[vifi].v_rmt_addr.s_addr != tunnel_src)) {
 	/* came in the wrong interface */
 	if (mrtdebug)
-	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d",
+	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d\n",
 		ifp, vifi); 
 	++mrtstat.mrts_wrong_if;
 	return (int)tunnel_src;
@@ -1340,7 +1340,7 @@ srcrt_send(ip, vifp, m)
     if (ip->ip_hl > (60 - TUNNEL_LEN) >> 2) {
 	mrtstat.mrts_cant_tunnel++;
 	if (mrtdebug)
-	    log(LOG_DEBUG, "srcrt_send: no room for tunnel options, from %u",
+	    log(LOG_DEBUG, "srcrt_send: no room for tunnel options, from %u\n",
 		ntohl(ip->ip_src.s_addr));
 	return;
     }
@@ -1519,7 +1519,7 @@ multiencap_decap(m)
 	mrtstat.mrts_cant_tunnel++; /*XXX*/
 	m_freem(m);
 	if (mrtdebug)
-	    log(LOG_DEBUG, "ip_mforward: no tunnel with %u",
+	    log(LOG_DEBUG, "ip_mforward: no tunnel with %u\n",
 		ntohl(ip->ip_src.s_addr));
 	return;
     }
@@ -1685,7 +1685,7 @@ tbf_dequeue(vifp,j)
     vifp->v_tbf->q_len--;
 
     if (tbfdebug > 1)
-	log(LOG_DEBUG, "tbf_dequeue: vif# %d qlen %d",vifp-viftable, i-1);
+	log(LOG_DEBUG, "tbf_dequeue: vif# %d qlen %d\n",vifp-viftable, i-1);
 }
 
 void
@@ -1746,7 +1746,7 @@ tbf_send_packet(vifp, m, imo)
 	error = ip_output(m, (struct mbuf *)0, (struct route *)0,
 			  IP_FORWARDING, imo);
 	if (mrtdebug > 1)
-	    log(LOG_DEBUG, "srcrt_send on vif %d err %d", vifp-viftable, error);
+	    log(LOG_DEBUG, "srcrt_send on vif %d err %d\n", vifp-viftable, error);
     } else if (vifp->v_flags & VIFF_TUNNEL) {
 	/* If tunnel options */
 	ip_output(m, (struct mbuf *)0, (struct route *)0,
@@ -1758,7 +1758,7 @@ tbf_send_packet(vifp, m, imo)
 	FREE(imo, M_IPMOPTS);
 
 	if (mrtdebug > 1)
-	    log(LOG_DEBUG, "phyint_send on vif %d err %d", vifp-viftable, error);
+	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n", vifp-viftable, error);
     }
     splx(s);
 }
@@ -1834,7 +1834,7 @@ priority(vifp, ip)
 		  break;
     }
 
-    if (tbfdebug > 1) log(LOG_DEBUG, "graddr%x prio%d", graddr, prio);
+    if (tbfdebug > 1) log(LOG_DEBUG, "graddr%x prio%d\n", graddr, prio);
 
     return prio;
 }
