@@ -610,14 +610,15 @@ ffs_mountfs(devvp, mp, td)
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
-	 * XXX: We don't re-VOP_OPEN in FREAD|FWRITE mode if the filesystem
-	 * XXX: is subsequently remounted, so open it FREAD|FWRITE from the
-	 * XXX: start to avoid getting trashed later on.
+	 * XXX: open the device with read and write access even if only
+	 * read access is needed now.  Write access is needed if the
+	 * filesystem is ever mounted read/write, and we don't change the
+	 * access mode for remounts.
 	 */
 #ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td, -1);
 #else
-	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td, -1);
+	error = VOP_OPEN(devvp, FREAD | FWRITE, FSCRED, td, -1);
 #endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
@@ -830,11 +831,11 @@ out:
 	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
-	/* XXX: see comment above VOP_OPEN */
+	/* XXX: see comment above VOP_OPEN. */
 #ifdef notyet
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, cred, td);
+	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, cred, td);
 #else
-	(void)VOP_CLOSE(devvp, FREAD|FWRITE, cred, td);
+	(void)VOP_CLOSE(devvp, FREAD | FWRITE, cred, td);
 #endif
 	if (ump) {
 		free(ump->um_fs, M_UFSMNT);
@@ -990,12 +991,12 @@ ffs_unmount(mp, mntflags, td)
 	ump->um_devvp->v_rdev->si_mountpoint = NULL;
 
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, td, 0, 0);
-	/* XXX: see comment above VOP_OPEN */
+	/* XXX: see comment above VOP_OPEN. */
 #ifdef notyet
-	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, td);
+	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD | FWRITE,
+	    NOCRED, td);
 #else
-	error = VOP_CLOSE(ump->um_devvp, FREAD|FWRITE, NOCRED, td);
+	error = VOP_CLOSE(ump->um_devvp, FREAD | FWRITE, NOCRED, td);
 #endif
 
 	vrele(ump->um_devvp);
