@@ -833,7 +833,7 @@ pmap_new_proc(struct proc *p)
 	pt_entry_t *ptek, oldpte;
 
 	/*
-	 * allocate object for the upages
+	 * allocate object for the upage
 	 */
 	upobj = p->p_upages_obj;
 	if (upobj == NULL) {
@@ -854,7 +854,7 @@ pmap_new_proc(struct proc *p)
 
 	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
-		 * Get a kernel stack page
+		 * Get a kernel page for the uarea
 		 */
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -864,11 +864,11 @@ pmap_new_proc(struct proc *p)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
+		oldpte = ptek[i];
+		ptek[i] = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
 		if (oldpte) {
 #ifdef I386_CPU
 			updateneeded = 1;
@@ -900,7 +900,7 @@ pmap_dispose_proc(p)
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	pt_entry_t *ptek, oldpte;
+	pt_entry_t *ptek;
 
 	upobj = p->p_upages_obj;
 	up = (vm_offset_t)p->p_uarea;
@@ -910,8 +910,7 @@ pmap_dispose_proc(p)
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-		oldpte = *(ptek + i);
-		*(ptek + i) = 0;
+		ptek[i] = 0;
 #ifndef I386_CPU
 		invlpg(up + i * PAGE_SIZE);
 #endif
@@ -1096,7 +1095,7 @@ pmap_dispose_thread(td)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
-	pt_entry_t *ptek, oldpte;
+	pt_entry_t *ptek;
 
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
@@ -1111,8 +1110,7 @@ pmap_dispose_thread(td)
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
 		vm_page_busy(m);
-		oldpte = *(ptek + i);
-		*(ptek + i) = 0;
+		ptek[i] = 0;
 #ifndef I386_CPU
 		invlpg(ks + i * PAGE_SIZE);
 #endif
@@ -1132,7 +1130,6 @@ pmap_dispose_thread(td)
 	kmem_free(kernel_map, ks, KSTACK_PAGES * PAGE_SIZE);
 #endif
 	vm_object_deallocate(ksobj);
-	td->td_kstack_obj = NULL; /* play it safe */
 }
 
 /*
