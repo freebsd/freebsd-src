@@ -78,10 +78,11 @@ struct entry {
 
 static char *options = NULL;
 static int flags = 0;
+static int forceflag = 0;
 
 int main __P((int, char *[]));
 
-static int checkfs __P((const char *, const char *, const char *, void *,
+static int checkfs __P((const char *, const char *, const char *, char *,
     pid_t *));
 static int selected __P((const char *));
 static void addoption __P((char *));
@@ -92,7 +93,7 @@ static void catopt __P((char **, const char *));
 static void mangle __P((char *, int *, const char ***, int *));
 static const char *getfslab __P((const char *));
 static void usage __P((void));
-static void *isok __P((struct fstab *));
+static int isok __P((struct fstab *));
 
 int
 main(argc, argv)
@@ -110,8 +111,14 @@ main(argc, argv)
 	TAILQ_INIT(&selhead);
 	TAILQ_INIT(&opthead);
 
-	while ((i = getopt(argc, argv, "dvpfnyl:t:T:")) != -1)
+	while ((i = getopt(argc, argv, "BdvpfFnyl:t:T:")) != -1)
 		switch (i) {
+		case 'B':
+			if (flags & CHECK_BACKGRD)
+				errx(1, "Cannot specify -B and -F.");
+			flags |= DO_BACKGRD;
+			break;
+
 		case 'd':
 			flags |= CHECK_DEBUG;
 			break;
@@ -120,12 +127,23 @@ main(argc, argv)
 			flags |= CHECK_VERBOSE;
 			break;
 
+		case 'F':
+			if (flags & DO_BACKGRD)
+				errx(1, "Cannot specify -B and -F.");
+			flags |= CHECK_BACKGRD;
+			break;
+
 		case 'p':
 			flags |= CHECK_PREEN;
 			/*FALLTHROUGH*/
 		case 'n':
-		case 'f':
 		case 'y':
+			globopt[1] = i;
+			catopt(&options, globopt);
+			break;
+
+		case 'f':
+			forceflag = 1;
 			globopt[1] = i;
 			catopt(&options, globopt);
 			break;
@@ -165,8 +183,9 @@ main(argc, argv)
 
 
 	for (; argc--; argv++) {
-		const char *spec, *type, *cp;
-		char	device[MAXPATHLEN];
+		const char *spec, *mntpt, *type, *cp;
+		char device[MAXPATHLEN];
+		struct statfs *mntp;
 
 		spec = *argv;
 		cp = strrchr(spec, '/');
@@ -175,48 +194,98 @@ main(argc, argv)
 				_PATH_DEV, spec);
 			spec = device;
 		}
+		mntp = getmntpt(spec);
+		if (mntp != NULL) {
+			spec = mntp->f_mntfromname;
+			mntpt = mntp->f_mntonname;
+		}
 		if ((fs = getfsfile(spec)) == NULL &&
 		    (fs = getfsspec(spec)) == NULL) {
 			if (vfstype == NULL)
 				vfstype = getfslab(spec);
 			type = vfstype;
-		}
-		else {
+			devcheck(spec);
+		} else {
 			spec = fs->fs_spec;
 			type = fs->fs_vfstype;
+			mntpt = fs->fs_file;
 			if (BADTYPE(fs->fs_type))
 				errx(1, "%s has unknown file system type.",
 				    spec);
 		}
+		if ((flags & CHECK_BACKGRD) &&
+		    checkfs(type, spec, mntpt, "-F", NULL) == 0) {
+			printf("%s: DEFER FOR BACKGROUND CHECKING\n", *argv);
+			continue;
+		}
+		if ((flags & DO_BACKGRD) && forceflag == 0 &&
+		    checkfs(type, spec, mntpt, "-F", NULL) != 0)
+			continue;
 
-		rval |= checkfs(type, devcheck(spec), *argv, NULL, NULL);
+		rval |= checkfs(type, spec, mntpt, NULL, NULL);
 	}
 
 	return rval;
 }
 
 
-static void *
+static int
 isok(fs)
 	struct fstab *fs;
 {
+	int i;
+
 	if (fs->fs_passno == 0)
-		return NULL;
-
+		return (0);
 	if (BADTYPE(fs->fs_type))
-		return NULL;
-
+		return (0);
 	if (!selected(fs->fs_vfstype))
-		return NULL;
-
-	return fs;
+		return (0);
+	/*
+	 * If the -B flag has been given, then process the needed
+	 * background checks. Background checks cannot be run on
+	 * filesystems that will be mounted read-only or that were
+	 * not mounted at boot time (typically those marked `noauto').
+	 * If these basic tests are passed, check with the filesystem
+	 * itself to see if it is willing to do background checking
+	 * by invoking its check program with the -F flag.
+	 */
+	if (flags & DO_BACKGRD) {
+		if (!strcmp(fs->fs_type, FSTAB_RO))
+			return (0);
+		if (getmntpt(fs->fs_spec) == NULL)
+			return (0);
+		if (checkfs(fs->fs_vfstype, fs->fs_spec, fs->fs_file, "-F", 0))
+			return (0);
+		return (1);
+	}
+	/*
+	 * If the -F flag has been given, then consider deferring the
+	 * check to background. Background checks cannot be run on
+	 * filesystems that will be mounted read-only or that will
+	 * not be mounted at boot time (e.g., marked `noauto'). If
+	 * these basic tests are passed, check with the filesystem
+	 * itself to see if it is willing to defer to background
+	 * checking by invoking its check program with the -F flag.
+	 */
+	if ((flags & CHECK_BACKGRD) == 0 || !strcmp(fs->fs_type, FSTAB_RO))
+		return (1);
+	for (i = strlen(fs->fs_mntops) - 6; i >= 0; i--)
+		if (!strncmp(&fs->fs_mntops[i], "noauto", 6))
+			break;
+	if (i >= 0)
+		return (1);
+	if (checkfs(fs->fs_vfstype, fs->fs_spec, fs->fs_file, "-F", NULL) != 0)
+		return (1);
+	printf("%s: DEFER FOR BACKGROUND CHECKING\n", fs->fs_spec);
+	return (0);
 }
 
 
 static int
-checkfs(pvfstype, spec, mntpt, auxarg, pidp)
+checkfs(pvfstype, spec, mntpt, auxopt, pidp)
 	const char *pvfstype, *spec, *mntpt;
-	void *auxarg;
+	char *auxopt;
 	pid_t *pidp;
 {
 	/* List of directories containing fsck_xxx subcommands. */
@@ -256,6 +325,10 @@ checkfs(pvfstype, spec, mntpt, auxarg, pidp)
 		catopt(&optbuf, options);
 	if (extra)
 		catopt(&optbuf, extra);
+	if (auxopt)
+		catopt(&optbuf, auxopt);
+	else if (flags & DO_BACKGRD)
+		catopt(&optbuf, "-B");
 
 	maxargc = 64;
 	argv = emalloc(sizeof(char *) * maxargc);
@@ -285,7 +358,7 @@ checkfs(pvfstype, spec, mntpt, auxarg, pidp)
 		return (1);
 
 	case 0:					/* Child. */
-		if (flags & CHECK_DEBUG)
+		if ((flags & CHECK_DEBUG) && auxopt == NULL)
 			_exit(0);
 
 		/* Go find an executable. */
