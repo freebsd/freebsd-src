@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: conf.c,v 1.6 1998/07/06 07:19:24 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -206,7 +206,7 @@ int lno;
 		if (val) {
 			char errbuf[_POSIX2_LINE_MAX];
 			regerror(val, &p->p_rx, errbuf, sizeof errbuf);
-			syslog(LOG_ERR, "%s:%s: regcomp %s: %s",
+			syslog(LOG_ERR, "%s:%d: regcomp %s: %s",
 			       conf_file, curp->p_lno, curp->p_key, errbuf);
 			regfree(&p->p_rx);
 			p->p_rxvalid = 0;
