@@ -100,8 +100,6 @@ Function *rl_symbolic_link_hook = (Function *)NULL;
 /* Non-zero means readline completion functions perform tilde expansion. */
 int rl_complete_with_tilde_expansion = 0;
 
-#define VISIBLE_STATS
-
 #if defined (VISIBLE_STATS)
 #  if !defined (X_OK)
 #    define X_OK 1
