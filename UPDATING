@@ -5,8 +5,13 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000612:
+	Peter took an axe to config(8).  Besure that you read his mail
+	on the topic before even thinking about updating.  More details
+	to follow.
+
 20000522:
-	A new set up binutils went into the tree today.  Anybdoy
+	A new set of binutils went into the tree today.  Anybody
 	building a kernel after this point is advised that they need
 	to rebuild their binutils (or better yet do a
 	buildworld/installworld) before building a new kernel.
@@ -86,14 +91,28 @@ COMMON ITEMS:
 	To build a kernel
 	-----------------
 	Update config, genassym and go:
-		config YOUR_KERNEL_HERE
+		config YOUR_KERNEL_HERE			[1]
 		cd ../../compile/YOUR_KERNEL_HERE
 		make depend && make
 		make install
+	[1] If upgrading, add -r won't hurt and sometimes helps.
 
 	To rebuild everything
 	---------------------
 	make world
+
+	To upgrade from 4.0-stable to current
+	-------------------------------------
+	make buildworld
+	make buildkernel KERNEL=YOUR_KERNEL_HERE
+	make installkernel KERNEL=YOUR_KERNEL_HERE
+	make installworld
+	<reboot>
+
+	Make sure that you've read the UPDATING file to understand
+	the tweaks to various things you need.  At this point in the
+	life cycloe of current, things change often and you are on
+	your own to cope.
 
 FORMAT:
 
