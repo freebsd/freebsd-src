@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: compare.c,v 1.8 1997/10/01 06:30:00 charnier Exp $";
+	"$Id: compare.c,v 1.9 1998/06/09 05:02:29 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ typeerr:		LABEL;
 	if (s->flags & (F_UID | F_UNAME) && s->st_uid != p->fts_statp->st_uid) {
 		LABEL;
 		(void)printf("%suser (%lu, %lu",
-		    tab, s->st_uid, p->fts_statp->st_uid);
+		    tab, (u_long)s->st_uid, (u_long)p->fts_statp->st_uid);
 		if (uflag)
 			if (chown(p->fts_accpath, s->st_uid, -1))
 				(void)printf(", not modified: %s)\n",
@@ -133,7 +133,7 @@ typeerr:		LABEL;
 	if (s->flags & (F_GID | F_GNAME) && s->st_gid != p->fts_statp->st_gid) {
 		LABEL;
 		(void)printf("%sgid (%lu, %lu",
-		    tab, s->st_gid, p->fts_statp->st_gid);
+		    tab, (u_long)s->st_gid, (u_long)p->fts_statp->st_gid);
 		if (uflag)
 			if (chown(p->fts_accpath, -1, s->st_gid))
 				(void)printf(", not modified: %s)\n",
