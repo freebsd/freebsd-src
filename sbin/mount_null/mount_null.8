@@ -39,11 +39,10 @@
 .\"
 .Dd May 1, 1995
 .Dt MOUNT_NULL 8
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm mount_null
-.Nd mount a loopback filesystem sub-tree;
-demonstrate the use of a null file system layer
+.Nd "mount a loopback filesystem sub-tree; demonstrate the use of a null file system layer"
 .Sh SYNOPSIS
 .Nm
 .Op Fl o Ar options
@@ -71,7 +70,7 @@ The
 .Nm
 filesystem differs from a traditional
 loopback file system in two respects: it is implemented using
-a stackable layers techniques, and it's 
+a stackable layers techniques, and it's
 .Do null-node Dc Ns s
 stack above
 all lower-layer vnodes, not just over directory vnodes.
@@ -102,9 +101,9 @@ for constructing new layers.
 .\"
 .\"
 .Sh INSTANTIATING NEW NULL LAYERS
-New null layers are created with 
-.Xr mount_null 8 .
-.Xr Mount_null 8
+New null layers are created with
+.Nm .
+.Nm Mount_null
 takes two arguments, the pathname
 of the lower vfs (target-pn) and the pathname where the null
 layer will appear in the namespace (mount-point-pn).  After
@@ -127,8 +126,8 @@ on the lower layer.  Finally, it replaces the null-nodes
 in the arguments and, if a vnode is returned by the operation,
 stacks a null-node on top of the returned vnode.
 .Pp
-Although bypass handles most operations, 
-.Em vop_getattr , 
+Although bypass handles most operations,
+.Em vop_getattr ,
 .Em vop_inactive ,
 .Em vop_reclaim ,
 and
@@ -157,7 +156,7 @@ are created as a result of vnode operations on
 this or other null vnode stacks.
 .Pp
 New vnode stacks come into existence as a result of
-an operation which returns a vnode.  
+an operation which returns a vnode.
 The bypass routine stacks a null-node above the new
 vnode before returning it to the caller.
 .Pp
@@ -165,24 +164,24 @@ For example, imagine mounting a null layer with
 .Bd -literal -offset indent
 mount_null /usr/include /dev/layer/null
 .Ed
-Changing directory to 
+Changing directory to
 .Pa /dev/layer/null
 will assign
 the root null-node (which was created when the null layer was mounted).
-Now consider opening 
+Now consider opening
 .Pa sys .
 A vop_lookup would be
 done on the root null-node.  This operation would bypass through
-to the lower layer which would return a vnode representing 
-the UFS 
+to the lower layer which would return a vnode representing
+the UFS
 .Pa sys .
 Null_bypass then builds a null-node
-aliasing the UFS 
+aliasing the UFS
 .Pa sys
 and returns this to the caller.
-Later operations on the null-node 
+Later operations on the null-node
 .Pa sys
-will repeat this 
+will repeat this
 process when constructing other vnode stacks.
 .\"
 .\"
@@ -194,12 +193,12 @@ then begin modifying the copy.
 can be used to easily rename
 all variables.
 .Pp
-The umap layer is an example of a layer descended from the 
+The umap layer is an example of a layer descended from the
 null layer.
 .\"
 .\"
 .Sh INVOKING OPERATIONS ON LOWER LAYERS
-There are two techniques to invoke operations on a lower layer 
+There are two techniques to invoke operations on a lower layer
 when the operation cannot be completely bypassed.  Each method
 is appropriate in different situations.  In both cases,
 it is the responsibility of the aliasing layer to make
@@ -211,7 +210,7 @@ This method is most suitable when you wish to invoke the operation
 currently being handled on the lower layer.
 It has the advantage that
 the bypass routine already must do argument mapping.
-An example of this is 
+An example of this is
 .Em null_getattrs
 in the null layer.
 .Pp
@@ -230,12 +229,14 @@ is that vnode arguments must be manually mapped.
 UCLA Technical Report CSD-910056,
 .Em "Stackable Layers: an Architecture for File System Development" .
 .Sh BUGS
-THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK) 
+THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
 AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
 OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
 .Pp
 This code also needs an owner in order to be less dangerous - serious
-hackers can apply by sending mail to hackers@freebsd.org and announcing
+hackers can apply by sending mail to
+.Aq hackers@FreeBSD.org
+and announcing
 their intent to take it over.
 .Sh HISTORY
 The
