@@ -939,7 +939,7 @@ ds_pci_attach(device_t dev)
 		return ENXIO;
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev));
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	sc->dev = dev;
 	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	sc->type = ds_finddev(pci_get_devid(dev), subdev);

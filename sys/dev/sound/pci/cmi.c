@@ -842,7 +842,7 @@ cmi_attach(device_t dev)
 		return ENXIO;
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev));
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
