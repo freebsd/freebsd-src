@@ -73,7 +73,16 @@ obvious, though two possible exceptions may be the "commerce" and
         any time.
 
 
+You may also notice that certain distributions, like "des" and "krb",
+are marked "NOT FOR EXPORT!"  This is because it's illegal to
+export them from the United States (or any other country which
+considers encryption technology to be on its restricted export
+list).  Since breaking this law only gets the _originating_ site
+(US!) in trouble, please do not load these distributions from U.S.
+servers!
 
-        
+A number of "foreign" servers do exist for the benefit of
+non-U.S. sites, one of which is "skeleton.mikom.csir.co.za".
 
-
+Please get all such export restricted software from there
+if you are outside the U.S., thanks!
