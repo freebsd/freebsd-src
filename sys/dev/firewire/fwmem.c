@@ -158,7 +158,7 @@ fwmem_write_quad(
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
-	fp->mode.wreqq.tcode = FWTCODE_RREQQ;
+	fp->mode.wreqq.tcode = FWTCODE_WREQQ;
 	fp->mode.wreqq.dst = htons(xfer->dst);
 	fp->mode.wreqq.dest_hi = htons(dst_hi);
 	fp->mode.wreqq.dest_lo = htonl(dst_lo);
@@ -240,7 +240,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 	int len;
 
 	sc = devclass_get_softc(firewire_devclass, unit);
-	fwdev = fw_noderesolve(sc->fc, fwmem_eui64);
+	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
 	if (fwdev == NULL) {
 		printf("fwmem: no such device ID:%08x%08x\n",
 			fwmem_eui64.hi, fwmem_eui64.lo);

@@ -320,7 +320,8 @@ u_int16_t fw_crc16 __P((u_int32_t *, u_int32_t));
 void fw_xfer_timeout __P((void *));
 void fw_xfer_done __P((struct fw_xfer *));
 void fw_asy_callback __P((struct fw_xfer *));
-struct fw_device *fw_noderesolve __P((struct firewire_comm *, struct fw_eui64));
+struct fw_device *fw_noderesolve_nodeid __P((struct firewire_comm *, int));
+struct fw_device *fw_noderesolve_eui64 __P((struct firewire_comm *, struct fw_eui64));
 struct fw_bind *fw_bindlookup __P((struct firewire_comm *, u_int32_t, u_int32_t));
 
 
