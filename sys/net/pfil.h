@@ -42,8 +42,7 @@ struct ifnet;
  */
 struct packet_filter_hook {
         TAILQ_ENTRY(packet_filter_hook) pfil_link;
-        int	(*pfil_func)(void *, int, struct ifnet *, int,
-				  struct mbuf **);
+	int	(*pfil_func)(void *, int, struct ifnet *, int, struct mbuf **);
 	int	pfil_flags;
 };
 

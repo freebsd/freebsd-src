@@ -83,8 +83,8 @@ struct gif_softc {
 
 /* Prototypes */
 void gif_input(struct mbuf *, int, struct ifnet *);
-int gif_output(struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct rtentry *);
+int gif_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+	       struct rtentry *);
 int gif_ioctl(struct ifnet *, u_long, caddr_t);
 
 #endif /* _KERNEL */

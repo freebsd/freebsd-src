@@ -43,12 +43,12 @@ struct compressor {
 	void	(*comp_free)(void *state);
 	/* Initialize a compressor */
 	int	(*comp_init)(void *state, u_char *options, int opt_len,
-				  int unit, int hdrlen, int debug);
+		    int unit, int hdrlen, int debug);
 	/* Reset a compressor */
 	void	(*comp_reset)(void *state);
 	/* Compress a packet */
-	int	(*compress)(void *state, PACKETPTR *mret,
-				 PACKETPTR mp, int orig_len, int max_len);
+	int	(*compress)(void *state, PACKETPTR *mret, PACKETPTR mp,
+		    int orig_len, int max_len);
 	/* Return compression statistics */
 	void	(*comp_stat)(void *state, struct compstat *stats);
 
@@ -58,12 +58,11 @@ struct compressor {
 	void	(*decomp_free)(void *state);
 	/* Initialize a decompressor */
 	int	(*decomp_init)(void *state, u_char *options, int opt_len,
-				    int unit, int hdrlen, int mru, int debug);
+		    int unit, int hdrlen, int mru, int debug);
 	/* Reset a decompressor */
 	void	(*decomp_reset)(void *state);
 	/* Decompress a packet. */
-	int	(*decompress)(void *state, PACKETPTR mp,
-				   PACKETPTR *dmpp);
+	int	(*decompress)(void *state, PACKETPTR mp, PACKETPTR *dmpp);
 	/* Update state for an incompressible packet received */
 	void	(*incomp)(void *state, PACKETPTR mp);
 	/* Return decompression statistics */

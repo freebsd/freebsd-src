@@ -100,10 +100,10 @@ struct ppp_softc {
 
 struct	ppp_softc *pppalloc(pid_t pid);
 void	pppdealloc(struct ppp_softc *sc);
-int	pppioctl(struct ppp_softc *sc, u_long cmd, caddr_t data,
-		      int flag, struct thread *td);
-int	pppoutput(struct ifnet *ifp, struct mbuf *m0,
-		       struct sockaddr *dst, struct rtentry *rtp);
+int	pppioctl(struct ppp_softc *sc, u_long cmd, caddr_t data, int flag,
+	    struct thread *td);
+int	pppoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+	    struct rtentry *rtp);
 void	ppp_restart(struct ppp_softc *sc);
 void	ppppktin(struct ppp_softc *sc, struct mbuf *m, int lost);
 struct	mbuf *ppp_dequeue(struct ppp_softc *sc);
