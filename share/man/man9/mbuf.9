@@ -63,6 +63,8 @@
 .Ft struct mbuf *
 .Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
 .Ft struct mbuf *
+.Fn m_getcl "int how" "short type" "int flags"
+.Ft struct mbuf *
 .Fn m_getclr "int how" "int type"
 .Ft struct mbuf *
 .Fn m_gethdr "int how" "int type"
@@ -327,8 +329,28 @@ or to simply perform an all-or-nothing mbuf and mbuf cluster allocation.
 A function version of
 .Fn MGETHDR
 for non-critical paths.
+.It Fn m_getcl how type flags
+Fetch an
+.Vt mbuf
+with a
+.Vt mbuf cluster
+attached to it.
+If one of the allocations fails, the entire allocation fails.
+This routine is the preferred way of fetching both the
+.Vt mbuf
+and
+.Vt mbuf cluster
+together, as it avoids having to unlock/relock between allocations.
+Returns
+.Dv NULL
+on failure.
 .It Fn m_getclr how type
-Allocate an mbuf and zero out the data region.
+Allocate an
+.Vt mbuf
+and zero out the data region.
+.It Fn m_free mbuf
+Frees
+.Vt mbuf .
 .El
 .Pp
 The functions below operate on mbuf chains.
