@@ -148,6 +148,8 @@ char	*nlistf	= NULL;
 char	*memf	= NULL;
 kvm_t	*kd;
 
+char	*usage;
+
 #define	SVAR(var) __STRING(var)	/* to force expansion */
 #define	KGET(idx, var)							\
 	KGET1(idx, &var, sizeof(var), SVAR(var))
@@ -179,7 +181,6 @@ void	ttyprt __P((struct tty *, int));
 void	ttytype __P((struct tty *, char *, int, int));
 void	ufs_header __P((void));
 int	ufs_print __P((struct vnode *));
-void	usage __P((void));
 void	vnode_header __P((void));
 void	vnode_print __P((struct vnode *, struct vnode *));
 void	vnodemode __P((void));
@@ -193,13 +194,32 @@ main(argc, argv)
 	extern int optind;
 	int ch, i, quit, ret;
 	int fileflag, swapflag, ttyflag, vnodeflag;
-	char buf[_POSIX2_LINE_MAX];
+	char buf[_POSIX2_LINE_MAX],*opts;
 
 	fileflag = swapflag = ttyflag = vnodeflag = 0;
-	while ((ch = getopt(argc, argv, "TM:N:finstv")) != EOF)
+
+	/* We will behave like good old swapinfo if thus invoked */
+	opts = strrchr(argv[0],'/');
+	if (opts)
+		opts++;
+	else
+		opts = argv[0];
+	if (!strcmp(opts,"swapinfo")) {
+		swapflag = 1;
+		opts = "k";
+		usage = "usage: swapinfo [-k] [-M core] [-N system]\n";
+	} else {
+		opts = "TM:N:fiknstv";
+		usage = "usage: pstat [-Tfknstv] [-M core] [-N system]\n";
+	}
+
+	while ((ch = getopt(argc, argv, opts)) != EOF)
 		switch (ch) {
 		case 'f':
 			fileflag = 1;
+			break;
+		case 'k':
+			putenv("BLOCKSIZE=1K");
 			break;
 		case 'M':
 			memf = optarg;
@@ -224,7 +244,8 @@ main(argc, argv)
 			vnodeflag = 1;
 			break;
 		default:
-			usage();
+			(void)fprintf(stderr, usage);
+			exit(1);
 		}
 	argc -= optind;
 	argv += optind;
@@ -249,8 +270,10 @@ main(argc, argv)
 		if (quit)
 			exit(1);
 	}
-	if (!(fileflag | vnodeflag | ttyflag | swapflag | totalflag))
-		usage();
+	if (!(fileflag | vnodeflag | ttyflag | swapflag | totalflag)) {
+		(void)fprintf(stderr, usage);
+		exit(1);
+	}
 	if (fileflag || totalflag)
 		filemode();
 	if (vnodeflag || totalflag)
@@ -1047,21 +1070,18 @@ swapmode()
 	for (i = 0; i < nswdev; i++) {
 		int xsize, xfree;
 
+		/*
+		 * Don't report statistics for partitions which have not
+		 * yet been activated via swapon(8).
+		 */
+		if (!(sw[i].sw_flags & SW_FREED)) 
+			continue;
+
 		if (!totalflag)
 			(void)printf("/dev/%-6s %*d ",
 			    devname(sw[i].sw_dev, S_IFBLK),
 			    hlen, sw[i].sw_nblks / div);
 
-		/*
-		 * Don't report statistics for partitions which have not
-		 * yet been activated via swapon(8).
-		 */
-		if (!(sw[i].sw_flags & SW_FREED)) {
-			if (totalflag)
-				continue;
-			(void)printf(" *** not available for swapping ***\n");
-			continue;
-		}
 		xsize = sw[i].sw_nblks;
 		xfree = perdev[i];
 		used = xsize - xfree;
@@ -1090,12 +1110,4 @@ swapmode()
 		    "Total", hlen, avail / div, used / div, nfree / div,
 		    (double)used / (double)avail * 100.0);
 	}
-}
-
-void
-usage()
-{
-	(void)fprintf(stderr,
-	    "usage: pstat [-Tfnstv] [-M core] [-N system]\n");
-	exit(1);
 }
