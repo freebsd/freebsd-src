@@ -74,14 +74,29 @@ fi
 # Deal with dependancies.
 	case ${amd_enable} in
 	[Yy][Ee][Ss])
-		
-		portmap_enable="YES"
+		case ${portmap_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			portmap_enable="YES"
+			echo "DEPENDENCY NOTE: portmap will be enabled" \
+			     "to support amd"
+			;;
+		esac
 		;;
 	esac
 	case ${nfs_server_enable} in
 	[Yy][Ee][Ss])
 		if [ -r /etc/exports ]; then
-			portmap_enable="YES"
+			case ${portmap_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				portmap_enable="YES"
+				echo "DEPENDENCY NOTE: portmap will be enabled" \
+				     "to support NFS"
+				;;
+			esac
 		fi
 		;;
 	esac
