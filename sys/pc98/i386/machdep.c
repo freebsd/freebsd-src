@@ -1451,92 +1451,26 @@ sdtossd(sd, ssd)
  * Total memory size may be set by the kernel environment variable
  * hw.physmem or the compile-time define MAXMEM.
  */
-#ifdef PC98
 static void
 getmemsize(int first)
 {
-	u_int	biosbasemem, biosextmem;
-	u_int	pagesinbase, pagesinext;
-	int	pa_indx;
-	int	pg_n;
-	int	speculative_mprobe;
-#ifdef DEV_NPX
-	int	msize;
-#endif
-	unsigned	under16;
-	vm_offset_t	target_page;
-
-	pc98_getmemsize(&biosbasemem, &biosextmem, &under16);
-
-#ifdef SMP
-	/* make hole for AP bootstrap code */
-	pagesinbase = mp_bootaddress(biosbasemem) / PAGE_SIZE;
+	int i, physmap_idx, pa_indx;
+	u_int basemem, extmem;
+#ifdef PC98
+	int pg_n;
+	u_int under16;
 #else
-	pagesinbase = biosbasemem * 1024 / PAGE_SIZE;
+	struct vm86frame vmf;
+	struct vm86context vmc;
 #endif
-	pagesinext = biosextmem * 1024 / PAGE_SIZE;
-
- 	Maxmem_under16M = under16 * 1024 / PAGE_SIZE;
-
-#ifndef MAXMEM
-	/*
-	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".
-	 */
-	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
-	/*
-	 * Indicate that we wish to do a speculative search for memory beyond
-	 * the end of the reported size if the indicated amount is 64MB (0x4000
-	 * pages) - which is the largest amount that the BIOS/bootblocks can
-	 * currently report. If a specific amount of memory is indicated via
-	 * the MAXMEM option or the npx0 "msize", then don't do the speculative
-	 * memory probe.
-	 */
-	if (Maxmem >= 0x4000)
-		speculative_mprobe = TRUE;
-	else
-		speculative_mprobe = FALSE;
-#else
-	Maxmem = MAXMEM/4;
-	speculative_mprobe = FALSE;
+	vm_offset_t pa, physmap[PHYSMAP_SIZE];
+	pt_entry_t pte;
+	const char *cp;
+#ifndef PC98
+	struct bios_smap *smap;
 #endif
 
-#ifdef DEV_NPX
-	if (resource_int_value("npx", 0, "msize", &msize) == 0) {
-		if (msize != 0) {
-			Maxmem = msize / 4;
-			speculative_mprobe = FALSE;
-		}
-	}
-#endif
-
-#ifdef SMP
-	/* look for the MP hardware - needed for apic addresses */
-	mp_probe();
-#endif
-
-	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap (first, 0);
-
-	/*
-	 * Size up each available chunk of physical memory.
-	 */
-
-	/*
-	 * We currently don't bother testing base memory.
-	 * XXX  ...but we probably should.
-	 */
-	pa_indx = 0;
-	if (pagesinbase > 1) {
-		phys_avail[pa_indx++] = PAGE_SIZE;	/* skip first page of memory */
-		phys_avail[pa_indx] = ptoa(pagesinbase);/* memory up to the ISA hole */
-		physmem = pagesinbase - 1;
-	} else {
-		/* point at first chunk end */
-		pa_indx++;
-	}
-
+#ifdef PC98
 	/* XXX - some of EPSON machines can't use PG_N */
 	pg_n = PG_N;
 	if (pc98_machine_type & M_EPSON_PC98) {
@@ -1551,214 +1485,20 @@ getmemsize(int first)
 			break;
 		}
 	}
-
-	speculative_mprobe = FALSE;
-#ifdef notdef	/* XXX - see below */
-	/*
-	 * Certain 'CPU accelerator' supports over 16MB memory on the machines
-	 * whose BIOS doesn't store true size.  
-	 * To support this, we don't trust BIOS values if Maxmem <= 16MB (0x1000
-	 * pages) - which is the largest amount that the OLD PC-98 can report.
-	 *
-	 * OK: PC-9801NS/R(9.6M)
-	 * OK: PC-9801DA(5.6M)+EUD-H(32M)+Cyrix 5x86
-	 * OK: PC-9821Ap(14.6M)+EUA-T(8M)+Cyrix 5x86-100
-	 * NG: PC-9821Ap(14.6M)+EUA-T(8M)+AMD DX4-100 -> freeze
-	 */
-	if (Maxmem <= 0x1000) {
-		int tmp, page_bad;
-
-		page_bad = FALSE;
-
-		/*
-		 * For Max14.6MB machines, the 0x10f0 page is same as 0x00f0,
-		 * which is BIOS ROM, by overlapping.
-		 * So, we check that page's ability of writing.
-		 */
-		target_page = ptoa(0x10f0);
-
-		/*
-		 * map page into kernel: valid, read/write, non-cacheable
-		 */
-		*(int *)CMAP1 = PG_V | PG_RW | pg_n | target_page;
-		invltlb();
-
-		tmp = *(int *)CADDR1;
-		/*
-		 * Test for alternating 1's and 0's
-		 */
-		*(volatile int *)CADDR1 = 0xaaaaaaaa;
-		if (*(volatile int *)CADDR1 != 0xaaaaaaaa)
-			page_bad = TRUE;
-		/*
-		 * Test for alternating 0's and 1's
-		 */
-		*(volatile int *)CADDR1 = 0x55555555;
-		if (*(volatile int *)CADDR1 != 0x55555555)
-			page_bad = TRUE;
-		/*
-		 * Test for all 1's
-		 */
-		*(volatile int *)CADDR1 = 0xffffffff;
-		if (*(volatile int *)CADDR1 != 0xffffffff)
-			page_bad = TRUE;
-		/*
-		 * Test for all 0's
-		 */
-		*(volatile int *)CADDR1 = 0x0;
-		if (*(volatile int *)CADDR1 != 0x0) {
-			/*
-			 * test of page failed
-			 */
-			page_bad = TRUE;
-		}
-		/*
-		 * Restore original value.
-		 */
-		*(int *)CADDR1 = tmp;
-
-		/*
-		 * Adjust Maxmem if valid/good page.
-		 */
-		if (page_bad == FALSE) {
-			/* '+ 2' is needed to make speculative_mprobe sure */
-			Maxmem = 0x1000 + 2;
-			speculative_mprobe = TRUE;
-		}
-	}
-#endif
-
-	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
-		int tmp, page_bad;
-
-		page_bad = FALSE;
-
-		/* skip system area */
-		if (target_page >= ptoa(Maxmem_under16M) &&
-				target_page < ptoa(4096))
-			continue;
-
-		/*
-		 * map page into kernel: valid, read/write, non-cacheable
-		 */
-		*(int *)CMAP1 = PG_V | PG_RW | pg_n | target_page;
-		invltlb();
-
-		tmp = *(int *)CADDR1;
-		/*
-		 * Test for alternating 1's and 0's
-		 */
-		*(volatile int *)CADDR1 = 0xaaaaaaaa;
-		if (*(volatile int *)CADDR1 != 0xaaaaaaaa) {
-			page_bad = TRUE;
-		}
-		/*
-		 * Test for alternating 0's and 1's
-		 */
-		*(volatile int *)CADDR1 = 0x55555555;
-		if (*(volatile int *)CADDR1 != 0x55555555) {
-			page_bad = TRUE;
-		}
-		/*
-		 * Test for all 1's
-		 */
-		*(volatile int *)CADDR1 = 0xffffffff;
-		if (*(volatile int *)CADDR1 != 0xffffffff) {
-			page_bad = TRUE;
-		}
-		/*
-		 * Test for all 0's
-		 */
-		*(volatile int *)CADDR1 = 0x0;
-		if (*(volatile int *)CADDR1 != 0x0) {
-			/*
-			 * test of page failed
-			 */
-			page_bad = TRUE;
-		}
-		/*
-		 * Restore original value.
-		 */
-		*(int *)CADDR1 = tmp;
-
-		/*
-		 * Adjust array of valid/good pages.
-		 */
-		if (page_bad == FALSE) {
-			/*
-			 * If this good page is a continuation of the
-			 * previous set of good pages, then just increase
-			 * the end pointer. Otherwise start a new chunk.
-			 * Note that "end" points one higher than end,
-			 * making the range >= start and < end.
-			 * If we're also doing a speculative memory
-			 * test and we at or past the end, bump up Maxmem
-			 * so that we keep going. The first bad page
-			 * will terminate the loop.
-			 */
-			if (phys_avail[pa_indx] == target_page) {
-				phys_avail[pa_indx] += PAGE_SIZE;
-				if (speculative_mprobe == TRUE &&
-				    phys_avail[pa_indx] >= (16*1024*1024))
-					Maxmem++;
-			} else {
-				pa_indx++;
-				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
-					printf("Too many holes in the physical address space, giving up\n");
-					pa_indx--;
-					break;
-				}
-				phys_avail[pa_indx++] = target_page;	/* start */
-				phys_avail[pa_indx] = target_page + PAGE_SIZE;	/* end */
-			}
-			physmem++;
-		}
-	}
-
-	*(int *)CMAP1 = 0;
-	invltlb();
-
-	/*
-	 * XXX
-	 * The last chunk must contain at least one page plus the message
-	 * buffer to avoid complicating other code (message buffer address
-	 * calculation, etc.).
-	 */
-	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
-		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
-		phys_avail[pa_indx--] = 0;
-		phys_avail[pa_indx--] = 0;
-	}
-
-	Maxmem = atop(phys_avail[pa_indx]);
-
-	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
-
-	avail_end = phys_avail[pa_indx];
-}
 #else
-static void
-getmemsize(int first)
-{
-	int i, physmap_idx, pa_indx;
-	u_int basemem, extmem;
-	struct vm86frame vmf;
-	struct vm86context vmc;
-	vm_offset_t pa, physmap[PHYSMAP_SIZE];
-	pt_entry_t pte;
-	const char *cp;
-	struct bios_smap *smap;
-
 	bzero(&vmf, sizeof(struct vm86frame));
+#endif
 	bzero(physmap, sizeof(physmap));
 
 	/*
 	 * Perform "base memory" related probes & setup
 	 */
+#ifdef PC98
+        under16 = pc98_getmemsize(&basemem, &extmem);
+#else
 	vm86_intcall(0x12, &vmf);
 	basemem = vmf.vmf_ax;
+#endif
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -1806,6 +1546,7 @@ getmemsize(int first)
 	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
 	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
 
+#ifndef PC98
 	/*
 	 * get memory map with INT 15:E820
 	 */
@@ -1901,6 +1642,7 @@ next_run:
 	 */
 	if ((extmem > 15 * 1024) && (extmem < 16 * 1024))
 		extmem = 15 * 1024;
+#endif
 
 	physmap[0] = 0;
 	physmap[1] = basemem * 1024;
@@ -1908,7 +1650,17 @@ next_run:
 	physmap[physmap_idx] = 0x100000;
 	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
 
+#ifdef PC98
+        if ((under16 != 16 * 1024) && (extmem > 15 * 1024)) {
+		/* 15M - 16M region is cut off, so need to divide chunk */
+                physmap[physmap_idx + 1] = under16 * 1024;
+                physmap_idx += 2;
+                physmap[physmap_idx] = 0x1000000;
+                physmap[physmap_idx + 1] = physmap[2] + extmem * 1024;
+        }
+#else
 physmap_done:
+#endif
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
@@ -1934,7 +1686,7 @@ physmap_done:
 #endif
 
 	/*
-	 * hw.maxmem is a size in bytes; we also allow k, m, and g suffixes
+	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
 	 * for the appropriate modifiers.  This overrides MAXMEM.
 	 */
 	if ((cp = getenv("hw.physmem")) != NULL) {
@@ -2022,7 +1774,11 @@ physmap_done:
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
 			 */
+#ifdef PC98
+			*pte = pa | PG_V | PG_RW | pg_n;
+#else
 			*pte = pa | PG_V | PG_RW | PG_N;
+#endif
 			invltlb();
 
 			tmp = *(int *)ptr;
@@ -2114,7 +1870,6 @@ physmap_done:
 
 	avail_end = phys_avail[pa_indx];
 }
-#endif
 
 void
 init386(first)
