@@ -248,9 +248,7 @@ struct	proc {
 	u_short	p_acflag;	/* Accounting flags. */
 	struct	rusage *p_ru;	/* Exit information. XXX */
 
-	int	p_nthreads;	/* number of threads (only in leader) */
 	void	*p_aioinfo;	/* ASYNC I/O info */
-	int	p_wakeup;	/* thread id */
 	struct proc *p_peers;	
 	struct proc *p_leader;
 	struct	pasleep p_asleep;	/* Used by asleep()/await(). */
@@ -299,9 +297,7 @@ struct	proc {
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 
-/* Marked a kernel thread */
 #define	P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
-#define	P_KTHREADP	0x200000 /* Process is really a kernel thread */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress */
 
 #define	P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */

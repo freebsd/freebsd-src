@@ -691,7 +691,7 @@ aio_daemon(void *uproc)
 	enterpgrp(mycp, mycp->p_pid, 1);
 
 	/* Mark special process type. */
-	mycp->p_flag |= P_SYSTEM | P_KTHREADP;
+	mycp->p_flag |= P_SYSTEM;
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
