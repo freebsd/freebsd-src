@@ -54,10 +54,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
-#define _KERNEL
 #include <sys/file.h>
-#include <sys/uio.h>
-#undef _KERNEL
 #include <sys/stat.h>
 #include <sys/stdint.h>
 #include <sys/ioctl.h>
@@ -375,12 +372,12 @@ ttyprt(struct xtty *xt)
 static void
 filemode(void)
 {
-	struct file *fp;
-	struct file *addr;
+	struct xfile *fp;
 	char *buf, flagbuf[16], *fbp;
 	int maxf, openf;
 	size_t len;
 	static char *dtypes[] = { "???", "inode", "socket" };
+	int i;
 
 	if (kd != NULL) {
 		if (kvm_read(kd, nl[NL_MAXFILES].n_value,
@@ -401,36 +398,28 @@ filemode(void)
 	}
 	if (getfiles(&buf, &len) == -1)
 		return;
-	/*
-	 * Getfiles returns in malloc'd memory a pointer to the first file
-	 * structure, and then an array of file structs (whose addresses are
-	 * derivable from the previous entry).
-	 */
-	addr = LIST_FIRST((struct filelist *)buf);
-	fp = (struct file *)(buf + sizeof(struct filelist));
-	openf = (len - sizeof(struct filelist)) / sizeof(struct file);
-
+	openf = len / sizeof *fp;
 	(void)printf("%d/%d open files\n", openf, maxf);
 	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
-	for (; (char *)fp < buf + len; addr = LIST_NEXT(fp, f_list), fp++) {
-		if ((unsigned)fp->f_type > DTYPE_SOCKET)
+	for (fp = (struct xfile *)buf, i = 0; i < openf; ++fp, ++i) {
+		if ((unsigned)fp->xf_type > DTYPE_SOCKET)
 			continue;
-		(void)printf("%8lx ", (u_long)(void *)addr);
-		(void)printf("%-8.8s", dtypes[fp->f_type]);
+		(void)printf("%8jx ", (uintmax_t)(uintptr_t)fp->xf_file);
+		(void)printf("%-8.8s", dtypes[fp->xf_type]);
 		fbp = flagbuf;
-		if (fp->f_flag & FREAD)
+		if (fp->xf_flag & FREAD)
 			*fbp++ = 'R';
-		if (fp->f_flag & FWRITE)
+		if (fp->xf_flag & FWRITE)
 			*fbp++ = 'W';
-		if (fp->f_flag & FAPPEND)
+		if (fp->xf_flag & FAPPEND)
 			*fbp++ = 'A';
-		if (fp->f_flag & FASYNC)
+		if (fp->xf_flag & FASYNC)
 			*fbp++ = 'I';
 		*fbp = '\0';
-		(void)printf("%6s  %3d", flagbuf, fp->f_count);
-		(void)printf("  %3d", fp->f_msgcount);
-		(void)printf("  %8lx", (u_long)(void *)fp->f_data);
-		(void)printf("  %jx\n", (uintmax_t)fp->f_offset);
+		(void)printf("%6s  %3d", flagbuf, fp->xf_count);
+		(void)printf("  %3d", fp->xf_msgcount);
+		(void)printf("  %8lx", (u_long)(void *)fp->xf_data);
+		(void)printf("  %jx\n", (uintmax_t)fp->xf_offset);
 	}
 	free(buf);
 }
