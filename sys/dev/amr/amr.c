@@ -328,7 +328,7 @@ amr_attach(struct amr_softc *sc)
     /*
      * Initialise per-controller queues.
      */
-    TAILQ_INIT(&sc->amr_donecmds);
+    TAILQ_INIT(&sc->amr_work);
     TAILQ_INIT(&sc->amr_freecmds);
     bufq_init(&sc->amr_bufq);
 
@@ -505,7 +505,6 @@ amr_shutdown(device_t dev)
     s = splbio();
     error = 0;
 
-
     /* assume we're going to shut down */
     sc->amr_state |= AMR_STATE_SHUTDOWN;
     for (i = 0; i < AMR_MAXLD; i++) {
@@ -604,9 +603,13 @@ amr_intr(void *arg)
 int
 amr_submit_buf(struct amr_softc *sc, struct buf *bp)
 {
+    int		s;
+
     debug("called");
 
+    s = splbio();
     bufq_insert_tail(&sc->amr_bufq, bp);
+    splx(s);
     sc->amr_waitbufs++;
     amr_startio(sc);
     return(0);
@@ -811,8 +814,7 @@ amr_flush(struct amr_softc *sc)
  * Pull as much work off the softc's work queue as possible and give it to the
  * controller.  Leave a couple of slots free for emergencies.
  *
- * Must be called at splbio or in an equivalent fashion that prevents 
- * reentry or activity on the bufq.
+ * We avoid running at splbio() whenever possible.
  */
 static void
 amr_startio(struct amr_softc *sc)
@@ -823,8 +825,10 @@ amr_startio(struct amr_softc *sc)
     int			blkcount;
     int			driveno;
     int			cmd;
+    int			s;
 
     /* spin until something prevents us from doing any work */
+    s = splbio();
     for (;;) {
 
 	/* see if there's work to be done */
@@ -841,6 +845,7 @@ amr_startio(struct amr_softc *sc)
 	/* get the buf containing our work */
 	bufq_remove(&sc->amr_bufq, bp);
 	sc->amr_waitbufs--;
+	splx(s);
 	
 	/* connect the buf to the command */
 	ac->ac_complete = amr_completeio;
@@ -883,7 +888,9 @@ amr_startio(struct amr_softc *sc)
 	    ac->ac_status = AMR_STATUS_WEDGED;
 	    amr_completeio(ac);
 	}
+	s = splbio();
     }
+    splx(s);
 }
 
 /********************************************************************************
@@ -974,8 +981,8 @@ amr_poll_command(struct amr_command *ac)
     } while ((ac->ac_status == AMR_STATUS_BUSY) && (count++ < 100000));
     s = splbio();
     if (ac->ac_status != AMR_STATUS_BUSY) {
-	TAILQ_REMOVE(&sc->amr_donecmds, ac, ac_link);
-	sc->amr_donecmdcount--;
+	TAILQ_REMOVE(&sc->amr_work, ac, ac_link);
+	sc->amr_workcount--;
 	error = 0;
     } else {
 	/* take the command out of the busy list, mark slot as bogus */
@@ -1128,6 +1135,8 @@ amr_start(struct amr_command *ac)
 	    bcopy(&ac->ac_mailbox, sc->amr_mailbox, AMR_MBOX_CMDSIZE);
 	    sc->amr_submit_command(sc);
 	    done = 1;
+	    sc->amr_workcount++;
+	    TAILQ_INSERT_TAIL(&sc->amr_work, ac, ac_link);
 
 	    /* not free, try to clean up while we wait */
 	} else {
@@ -1161,14 +1170,14 @@ amr_start(struct amr_command *ac)
 /********************************************************************************
  * Extract one or more completed commands from the controller (sc)
  *
- * Returns nonzero if work was moved to the done queue.
+ * Returns nonzero if any commands on the work queue were marked as completed.
  */
 static int
 amr_done(struct amr_softc *sc)
 {
     struct amr_command	*ac;
     struct amr_mailbox	mbox;
-    int			i, idx, s, result;
+    int			i, idx, result;
     
     debug("called");
 
@@ -1188,23 +1197,18 @@ amr_done(struct amr_softc *sc)
 		sc->amr_busycmd[idx] = NULL;
 		sc->amr_busycmdcount--;
 		
+		/* unmap data buffer */
+		amr_unmapcmd(ac);
+
 		/* aborted command? */
 		if (ac == (struct amr_command *)sc) {
 		    device_printf(sc->amr_dev, "aborted command completed (%d)\n", idx);
 		    ac = NULL;
-		    
-		    /* normally completed command, move it to the done queue */
+
+		    /* completed normally, save status */
 		} else {
-		    sc->amr_donecmdcount++;
-		    s = splbio();
-		    TAILQ_INSERT_TAIL(&sc->amr_donecmds, ac, ac_link);
-		    splx(s);
-		    /* save completion status */
 		    ac->ac_status = mbox.mb_status;
 		    debug("completed command with status %x", mbox.mb_status);
-
-		    /* unmap data buffer */
-		    amr_unmapcmd(ac);
 		}
 		result = 1;
 	    }
@@ -1227,34 +1231,38 @@ amr_complete(struct amr_softc *sc)
     count = 0;
 
     s = splbio();
-    ac = TAILQ_FIRST(&sc->amr_donecmds);
+    ac = TAILQ_FIRST(&sc->amr_work);
     while (ac != NULL) {
 	nc = TAILQ_NEXT(ac, ac_link);
-	
-	/* 
-	 * Is there a completion handler? 
-	 */
-	if (ac->ac_complete != NULL) {
 
-	    /* remove and give to completion handler */
-	    TAILQ_REMOVE(&sc->amr_donecmds, ac, ac_link);
-	    sc->amr_donecmdcount--;
-	    ac->ac_complete(ac);
+	/* Skip if command is still active */
+	if (ac->ac_status != AMR_STATUS_BUSY) {
 	    
 	    /* 
-	     * Is someone sleeping on this one?
+	     * Is there a completion handler? 
 	     */
-	} else if (ac->ac_private != NULL) {
+	    if (ac->ac_complete != NULL) {
 
-	    /* remove and wake up */
-	    TAILQ_REMOVE(&sc->amr_donecmds, ac, ac_link);
-	    sc->amr_donecmdcount--;
-	    wakeup_one(ac->ac_private);
+		/* remove and give to completion handler */
+		TAILQ_REMOVE(&sc->amr_work, ac, ac_link);
+		sc->amr_workcount--;
+		ac->ac_complete(ac);
+	    
+		/* 
+		 * Is someone sleeping on this one?
+		 */
+	    } else if (ac->ac_private != NULL) {
 
-	    /*
-	     * Leave it for a polling caller.
-	     */
-	} else {
+		/* remove and wake up */
+		TAILQ_REMOVE(&sc->amr_work, ac, ac_link);
+		sc->amr_workcount--;
+		wakeup_one(ac->ac_private);
+
+		/*
+		 * Leave it for a polling caller.
+		 */
+	    } else {
+	    }
 	}
 	ac = nc;
     }
