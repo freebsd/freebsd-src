@@ -19,7 +19,7 @@ IgnoreRhosts yes
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
 #IgnoreUserKnownHosts yes
 StrictModes yes
-X11Forwarding no
+X11Forwarding yes
 X11DisplayOffset 10
 PrintMotd yes
 KeepAlive yes
