@@ -69,7 +69,7 @@ static int viapm_debug = 0;
 #define VIAPM_INB(port) \
 	((u_char)bus_space_read_1(viapm->st, viapm->sh, port))
 #define VIAPM_OUTB(port,val) \
-	(bus_space_write_1(viapm->st, viapm->sh, port, (u_char)val))
+	(bus_space_write_1(viapm->st, viapm->sh, port, (u_char)(val)))
 
 #define VIAPM_TYP_UNKNOWN	0
 #define VIAPM_TYP_586B_3040E	1
