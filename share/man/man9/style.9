@@ -62,23 +62,28 @@ After any copyright header, there is a blank line, and the
 .Va rcsid
 for source files.
 Version control system ID tags should only exist once in a file
-(unlike this one).
+(unlike in this one).
 Non-C/C++ source files follow the example above, while C/C++ source files
 follow the one below.
-All VCS (version control system) revision identification from files obtained
+All VCS (version control system) revision identification in files obtained
 from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
-In general, keep the IDs intact, including any
-.So Li $ Sc Ns s .
-There is no reason to add
-.Qq Li "From"
-in front of foreign VCS IDs.
-Most
-.No non- Ns Fx
-VCS IDs should be indented by a tab if in a comment.
+In general, do not edit foreign IDs or their infrastructure;
+enclose both in
+.Dq Li "#if 0 ... #endif"
+to hide any uncompilable bits
+and to keep the IDs out of object files.
+Only add
+.Dq Li "From: "
+in front of foreign VCS IDs if the file is renamed.
 .Bd -literal
+#if 0
+#ifndef lint
+static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
+#endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
-__RCSID("@(#)style	1.14 (Berkeley) 4/28/95");
 __FBSDID("$FreeBSD$");
 .Ed
 .Pp
