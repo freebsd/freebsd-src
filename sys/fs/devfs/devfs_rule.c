@@ -163,7 +163,7 @@ devfs_rules_init(void)
  * Rule subsystem ioctl hook.
  */
 int
-devfs_rules_ioctl(struct mount *mp, int cmd, caddr_t data, struct thread *td)
+devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 {
 	struct devfs_mount *dm = VFSTODEVFS(mp);
 	struct devfs_ruleset *ds;
