@@ -65,6 +65,8 @@
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+#define OLD_EI_BRAND	8
+
 __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
@@ -81,12 +83,6 @@ static int exec_elf_imgact __P((struct image_params *imgp));
 
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
-
-/*
- * XXX Maximum length of an ELF brand (sysctl wants a statically-allocated
- * buffer).
- */
-#define	MAXBRANDLEN	16
 
 static struct sysentvec elf_freebsd_sysvec = {
         SYS_MAXSYSCALL,
@@ -107,7 +103,7 @@ static struct sysentvec elf_freebsd_sysvec = {
 };
 
 static Elf_Brandinfo freebsd_brand_info = {
-						"FreeBSD",
+						ELFOSABI_FREEBSD,
 						"",
 						"/usr/libexec/ld-elf.so.1",
 						&elf_freebsd_sysvec
@@ -412,9 +408,9 @@ fail:
 	return error;
 }
 
-static char fallback_elf_brand[MAXBRANDLEN+1] = { "none" };
-SYSCTL_STRING(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
-		fallback_elf_brand, sizeof(fallback_elf_brand),
+static int fallback_elf_brand = ELFOSABI_FREEBSD;
+SYSCTL_INT(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
+		&fallback_elf_brand, ELFOSABI_FREEBSD,
 		"ELF brand of last resort");
 
 static int
@@ -431,7 +427,6 @@ exec_elf_imgact(struct image_params *imgp)
 	int error, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
-	const char *brand;
 	char path[MAXPATHLEN];
 
 	/*
@@ -526,14 +521,23 @@ exec_elf_imgact(struct image_params *imgp)
 
 	imgp->entry_addr = entry;
 
-	/* If the executable has a brand, search for it in the brand list. */
 	brand_info = NULL;
-	brand = (const char *)&hdr->e_ident[EI_BRAND];
-	if (brand[0] != '\0') {
+
+	/* XXX  For now we look for the magic "FreeBSD" that we used to put
+	 * into the ELF header at the EI_ABIVERSION location.  If found use
+	 * that information rather than figuring out the ABI from proper
+	 * branding.  This should be removed for 5.0-RELEASE. The Linux caes
+	 * can be figured out from the `interp_path' field.
+	 */
+	if (strcmp("FreeBSD", (const char *)&hdr->e_ident[OLD_EI_BRAND]) == 0)
+		brand_info = &freebsd_brand_info;
+
+	/* If the executable has a brand, search for it in the brand list. */
+	if (brand_info == NULL) {
 		for (i = 0;  i < MAX_BRANDS;  i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
-			if (bi != NULL && strcmp(brand, bi->brand) == 0) {
+			if (bi != NULL && hdr->e_ident[EI_OSABI] == bi->brand) {
 				brand_info = bi;
 				break;
 			}
@@ -554,31 +558,24 @@ exec_elf_imgact(struct image_params *imgp)
 	}
 
 	/* Lacking a recognized interpreter, try the default brand */
-	if (brand_info == NULL && fallback_elf_brand[0] != '\0') {
+	if (brand_info == NULL) {
 		for (i = 0; i < MAX_BRANDS; i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
-			if (bi != NULL
-			    && strcmp(fallback_elf_brand, bi->brand) == 0) {
+			if (bi != NULL && fallback_elf_brand == bi->brand) {
 				brand_info = bi;
 				break;
 			}
 		}
 	}
 
-#ifdef __alpha__
-	/* XXX - Assume FreeBSD on the alpha. */
+	/* XXX - Assume FreeBSD after the branding method change. */
 	if (brand_info == NULL)
 		brand_info = &freebsd_brand_info;
-#endif
 
 	if (brand_info == NULL) {
-		if (brand[0] == 0)
-			uprintf("ELF binary type not known."
-			    "  Use \"brandelf\" to brand it.\n");
-		else
-			uprintf("ELF binary type \"%.*s\" not known.\n",
-			    EI_NIDENT - EI_BRAND, brand);
+		uprintf("ELF binary type \"%u\" not known.\n",
+		    hdr->e_ident[EI_OSABI]);
 		error = ENOEXEC;
 		goto fail;
 	}
@@ -932,9 +929,9 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 		ehdr->e_ident[EI_CLASS] = ELF_CLASS;
 		ehdr->e_ident[EI_DATA] = ELF_DATA;
 		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+		ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+		ehdr->e_ident[EI_ABIVERSION] = 0;
 		ehdr->e_ident[EI_PAD] = 0;
-		strncpy(ehdr->e_ident + EI_BRAND, "FreeBSD",
-		    EI_NIDENT - EI_BRAND);
 		ehdr->e_type = ET_CORE;
 		ehdr->e_machine = ELF_ARCH;
 		ehdr->e_version = EV_CURRENT;
