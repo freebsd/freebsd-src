@@ -115,10 +115,11 @@ int
 parallel(char **argv)
 {
 	LIST *lp;
-	int cnt, ich;
-	char ch, *p;
+	int cnt;
+	char ch, *buf, *p;
 	LIST *head, *tmp;
 	int opencnt, output;
+	size_t len;
 
 	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
 		if ((lp = malloc(sizeof(LIST))) == NULL)
@@ -146,7 +147,7 @@ parallel(char **argv)
 					putchar(ch);
 				continue;
 			}
-			if ((ich = getc(lp->fp)) == EOF) {
+			if ((buf = fgetln(lp->fp, &len)) == NULL) {
 				if (!--opencnt)
 					break;
 				lp->fp = NULL;
@@ -166,11 +167,9 @@ parallel(char **argv)
 						putchar(ch);
 			} else if ((ch = delim[(lp->cnt - 1) % delimcnt]))
 				putchar(ch);
-			if (ich == '\n')
-				continue;
-			do {
-				putchar(ich);
-			} while ((ich = getc(lp->fp)) != EOF && ich != '\n');
+			if (buf[len - 1] == '\n')
+				len--;
+			fwrite(buf, 1, len, stdout);
 		}
 		if (output)
 			putchar('\n');
@@ -183,8 +182,9 @@ int
 sequential(char **argv)
 {
 	FILE *fp;
-	int ch, cnt, failed, needdelim;
-	char *p;
+	int cnt, failed, needdelim;
+	char *buf, *p;
+	size_t len;
 
 	failed = 0;
 	for (; (p = *argv); ++argv) {
@@ -196,7 +196,7 @@ sequential(char **argv)
 			continue;
 		}
 		cnt = needdelim = 0;
-		while ((ch = getc(fp)) != EOF) {
+		while ((buf = fgetln(fp, &len)) != NULL) {
 			if (needdelim) {
 				needdelim = 0;
 				if (delim[cnt] != '\0')
@@ -204,10 +204,10 @@ sequential(char **argv)
 				if (++cnt == delimcnt)
 					cnt = 0;
 			}
-			if (ch != '\n')
-				putchar(ch);
-			else
-				needdelim = 1;
+			if (buf[len - 1] == '\n')
+				len--;
+			fwrite(buf, 1, len, stdout);
+			needdelim = 1;
 		}
 		if (needdelim)
 			putchar('\n');
