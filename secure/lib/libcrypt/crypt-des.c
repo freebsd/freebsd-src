@@ -36,8 +36,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
  *
@@ -57,6 +55,10 @@
  *	addressed as arrays of u_int32_t's (ie. the CPU is not picky about
  *	alignment).
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <pwd.h>
