@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAINTAINER=	guido@freebsd.org
+MAINTAINER=	darrenr@freebsd.org
 
 .PATH: ${.CURDIR}/../../contrib/ipfilter/ipsend \
        ${.CURDIR}/../../contrib/ipfilter/iplang \
