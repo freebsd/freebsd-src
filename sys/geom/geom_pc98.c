@@ -34,20 +34,12 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
-#ifndef _KERNEL
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#else
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 
 #include <sys/diskpc98.h>
 #include <geom/geom.h>

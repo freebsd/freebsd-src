@@ -45,14 +45,6 @@
 #include <sys/ioccom.h>
 #include <sys/sbuf.h>
 
-#ifdef KERNELSIM
-/*
- * The GEOM subsystem makes a few concessions in order to be able to run as a
- * user-land simulation as well as a kernel component.
- */
-#include <geom_sim.h>
-#endif
-
 struct g_class;
 struct g_geom;
 struct g_consumer;
