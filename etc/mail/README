@@ -1,5 +1,44 @@
 # $FreeBSD$
 
+		Sendmail Processes
+
+As of sendmail 8.12, in order to improve security, the sendmail binary no
+longer needs to be set-user-ID root.  Instead, a set-group-ID binary
+accepts command line mail and relays it to a full mail transfer agent via
+SMTP.  A group writable client mail queue (/var/spool/client-mqueue/ by
+default) holds the mail if an MTA can not be contacted.
+
+To accomplish this, under the default setup, an MTA must be listening on
+localhost port 25.  If the rc.conf sendmail_enable option is set to false,
+a sendmail daemon will still be started and bound only to the localhost
+interface in order to accept command line submitted mail.  If this is not
+a desirable solution, it can be disabled using the sendmail_submit_enable
+rc.conf option.  However, if both sendmail_enable and sendmail_submit_enable
+are turned off, you must do one of two things for command line submitted
+mail:
+
+1. Designate an alternative MTA for the submission agent to contact
+   by altering /etc/mail/submit.mc and using 'make submit.cf' in
+   /etc/mail/.  Change the FEATURE(msp) line to FEATURE(msp, hostname)
+   where hostname is the fully qualified hostname of the alternative MTA.
+
+Or:
+
+2. Return to using a set-user-ID root sendmail binary by changing the
+   ownership and permissions on the sendmail binary and removing the
+   /etc/mail/submit.cf file::
+	chown root /usr/libexec/sendmail/sendmail
+	chmod 4755 /usr/libexec/sendmail/sendmail
+	rm /etc/mail/submit.cf
+   If you install from source, set the SENDMAIL_SET_USER_ID flag in
+   /etc/make.conf.
+
+Also, as of 8.12, a new queue-running daemon is started to make sure mail
+doesn't remain in the client mail queue.  Be default, it simply runs the
+client mail queue every 30 minutes.  It's behavior can be adjusted by setting
+the sendmail_msp_queue_enable and sendmail_msp_queue_flags rc.conf options. 
+
+
 		Filtering out SPAM from your site
 
 Sendmail now includes excellent tools to block spam.  These tools are
