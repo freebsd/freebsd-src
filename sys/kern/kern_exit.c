@@ -367,8 +367,11 @@ exit1(struct thread *td, int rv)
 	p->p_tracecred = NULL;
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (tracevp != NULL)
+	if (tracevp != NULL) {
+		mtx_lock(&Giant);
 		vrele(tracevp);
+		mtx_unlock(&Giant);
+	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
