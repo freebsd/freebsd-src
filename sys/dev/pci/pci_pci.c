@@ -264,7 +264,7 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 static int
 pcib_is_isa_io(u_long start)
 {
-    if ((start & 0xfffUL)  > 0x3ffUL)
+    if ((start & 0xfffUL)  > 0x3ffUL || start == 0)
 	return (0);
     return (1);
 }
@@ -275,7 +275,7 @@ pcib_is_isa_io(u_long start)
 static int
 pcib_is_isa_mem(u_long start)
 {
-    if (start > 0xfffffUL)
+    if (start > 0xfffffUL || start == 0)
 	return (0);
     return (1);
 }
@@ -306,6 +306,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
+	    if (!pcib_is_isa_io(start)) {
+		if (start < sc->iobase)
+		    start = sc->iobase;
+		if (end > sc->iolimit)
+		    end = sc->iolimit;
+		if (end < start)
+		    start = 0;
+	    }
 	    if (!pcib_is_isa_io(start) &&
 	      ((start < sc->iobase) || (end > sc->iolimit))) {
 		device_printf(dev, "device %s%d requested unsupported I/O range 0x%lx-0x%lx"
@@ -326,6 +334,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	     *     flag as the request bubbles up?
 	     */
 	case SYS_RES_MEMORY:
+	    if (!pcib_is_isa_mem(start)) {
+		if (start < sc->membase && end > sc->membase)
+		    start = sc->membase;
+		if (end > sc->memlimit)
+		    end = sc->memlimit;
+		if (end < start)
+		    start = 0;
+	    }
 	    if (!pcib_is_isa_mem(start) &&
 	        (((start < sc->membase) || (end > sc->memlimit)) &&
 		((start < sc->pmembase) || (end > sc->pmemlimit)))) {
