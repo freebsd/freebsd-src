@@ -97,7 +97,7 @@ system.
 
 			    RELEASE STATUS
 
-This is the ninth release candidate of version 3.0.1 of the ISC DHCP
+This is the tenth release candidate of version 3.0.1 of the ISC DHCP
 Distribution.  Development of this release is approaching the point at
 which it will be frozen, and no significant new features will be
 added.
@@ -143,14 +143,14 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-3.0.1rc9.tar.gz |tar xvf -
+	zcat dhcp-3.0.1rc11.tar.gz |tar xvf -
 
 On BSD/OS, you have to type gzcat, not zcat, and you may run into
 similar problems on other operating systems.
 
 			    CONFIGURING IT
 
-Now, cd to the dhcp-3.0.1rc9 subdirectory that you've just
+Now, cd to the dhcp-3.0.1rc11 subdirectory that you've just
 created and configure the source tree by typing:
 
 		./configure
@@ -243,16 +243,6 @@ Linux 2.1 ip_bootp_agent enabling, and operations with more than one
 network interface.   There are also two potential compilation/runtime
 problems for Linux 2.1/2.2: the "SO_ATTACH_FILTER undeclared" problem
 and the "protocol not configured" problem.
-
-		       LINUX: IF_TR.H NOT FOUND
-
-When you compile the distribution on Linux, you may get an error
-message indicating that the include file if_tr.h could not be found.
-If this happens, go into includes/cf/linux.h and delete the line that
-defined HAVE_TR_SUPPORT, or look into installing a new version of libc
-that includes the if_tr.h file.   We will be working on removing this
-problem in the future, but for now, if you run into it, this should be
-a viable workaround.
 
 		  LINUX: SO_ATTACH_FILTER UNDECLARED
 
