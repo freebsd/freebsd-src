@@ -660,58 +660,58 @@ extern int lastpid;
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT	1		/* Priorities per nice level. */
 
-struct	proc *pfind __P((pid_t));	/* Find process by id. */
-struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
-struct	proc *zpfind __P((pid_t));	/* Find zombie process by id. */
+struct	proc *pfind(pid_t);	/* Find process by id. */
+struct	pgrp *pgfind(pid_t);	/* Find process group by id. */
+struct	proc *zpfind(pid_t);	/* Find zombie process by id. */
 
-void	ast __P((struct trapframe *framep));
-struct	thread *choosethread __P((void));
-int	cr_cansignal __P((struct ucred *cred, struct proc *proc, int signum));
-int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
-void	faultin __P((struct proc *p));
-void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
-int	fork1 __P((struct thread *, int, struct proc **));
-void	fork_exit __P((void (*)(void *, struct trapframe *), void *,
-	    struct trapframe *));
-void	fork_return __P((struct thread *, struct trapframe *));
-int	inferior __P((struct proc *p));
-int	leavepgrp __P((struct proc *p));
-void	mi_switch __P((void));
-int	p_candebug __P((struct proc *p1, struct proc *p2));
-int	p_cansee __P((struct proc *p1, struct proc *p2));
-int	p_cansched __P((struct proc *p1, struct proc *p2));
-int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
-void	procinit __P((void));
-void	proc_linkup __P((struct proc *p, struct ksegrp *kg,
-	    struct kse *ke, struct thread *td));
-void	proc_reparent __P((struct proc *child, struct proc *newparent));
-int	procrunnable __P((void));
-void	remrunqueue __P((struct thread *));
-void	resetpriority __P((struct ksegrp *));
-int	roundrobin_interval __P((void));
-void	schedclock __P((struct thread *));
-int	securelevel_ge __P((struct ucred *cr, int level));
-int	securelevel_gt __P((struct ucred *cr, int level));
-void	setrunnable __P((struct thread *));
-void	setrunqueue __P((struct thread *));
-void	setsugid __P((struct proc *p));
-void	sleepinit __P((void));
-void	stopevent __P((struct proc *, u_int, u_int));
-void	cpu_idle __P((void));
-void	cpu_switch __P((void));
-void	cpu_throw __P((void)) __dead2;
-void	unsleep __P((struct thread *));
-void	updatepri __P((struct thread *));
-void	userret __P((struct thread *, struct trapframe *, u_int));
-void	maybe_resched __P((struct thread *));
+void	ast(struct trapframe *framep);
+struct	thread *choosethread(void);
+int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
+int	enterpgrp(struct proc *p, pid_t pgid, int mksess);
+void	faultin(struct proc *p);
+void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
+int	fork1(struct thread *, int, struct proc **);
+void	fork_exit(void (*)(void *, struct trapframe *), void *,
+	    struct trapframe *);
+void	fork_return(struct thread *, struct trapframe *);
+int	inferior(struct proc *p);
+int	leavepgrp(struct proc *p);
+void	mi_switch(void);
+int	p_candebug(struct proc *p1, struct proc *p2);
+int	p_cansee(struct proc *p1, struct proc *p2);
+int	p_cansched(struct proc *p1, struct proc *p2);
+int	p_cansignal(struct proc *p1, struct proc *p2, int signum);
+void	procinit(void);
+void	proc_linkup(struct proc *p, struct ksegrp *kg,
+	    struct kse *ke, struct thread *td);
+void	proc_reparent(struct proc *child, struct proc *newparent);
+int	procrunnable(void);
+void	remrunqueue(struct thread *);
+void	resetpriority(struct ksegrp *);
+int	roundrobin_interval(void);
+void	schedclock(struct thread *);
+int	securelevel_ge(struct ucred *cr, int level);
+int	securelevel_gt(struct ucred *cr, int level);
+void	setrunnable(struct thread *);
+void	setrunqueue(struct thread *);
+void	setsugid(struct proc *p);
+void	sleepinit(void);
+void	stopevent(struct proc *, u_int, u_int);
+void	cpu_idle(void);
+void	cpu_switch(void);
+void	cpu_throw(void) __dead2;
+void	unsleep(struct thread *);
+void	updatepri(struct thread *);
+void	userret(struct thread *, struct trapframe *, u_int);
+void	maybe_resched(struct thread *);
 
-void	cpu_exit __P((struct thread *));
-void	exit1 __P((struct thread *, int)) __dead2;
-void	cpu_fork __P((struct thread *, struct proc *, struct thread *, int));
-void	cpu_set_fork_handler __P((struct thread *, void (*)(void *), void *));
-int	trace_req __P((struct proc *));
-void	cpu_wait __P((struct proc *));
-int	cpu_coredump __P((struct thread *, struct vnode *, struct ucred *));
+void	cpu_exit(struct thread *);
+void	exit1(struct thread *, int) __dead2;
+void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
+void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
+int	trace_req(struct proc *);
+void	cpu_wait(struct proc *);
+int	cpu_coredump(struct thread *, struct vnode *, struct ucred *);
 struct thread *thread_get(struct proc *);
 #endif	/* _KERNEL */
 
