@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_update.c,v 1.34 2002/04/12 06:28:52 marka Exp $";
+static const char rcsid[] = "$Id: res_update.c,v 1.35.8.2 2003/06/02 09:24:40 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -77,7 +77,7 @@ struct zonegrp {
 
 /* Forward. */
 
-static void	res_dprintf(const char *, ...);
+static void	res_dprintf(const char *, ...) ISC_FORMAT_PRINTF(1, 2);
 
 /* Macros. */
 
@@ -92,12 +92,18 @@ static void	res_dprintf(const char *, ...);
 int
 res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 	ns_updrec *rrecp;
-	u_char answer[PACKETSZ], packet[2*PACKETSZ];
+	u_char answer[PACKETSZ];
+	u_char *packet;
 	struct zonegrp *zptr, tgrp;
 	LIST(struct zonegrp) zgrps;
 	int nzones = 0, nscount = 0, n;
 	union res_sockaddr_union nsaddrs[MAXNS];
 
+	packet = malloc(NS_MAXMSG);
+	if (packet == NULL) {
+		DPRINTF(("malloc failed"));
+		return (0);
+	}
 	/* Thread all of the updates onto a list of groups. */
 	INIT_LIST(zgrps);
 	memset(&tgrp, 0, sizeof (tgrp));
@@ -150,7 +156,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 
 		/* Marshall the update message. */
 		n = res_nmkupdate(statp, HEAD(zptr->z_rrlist),
-				  packet, sizeof packet);
+				  packet, NS_MAXMSG);
 		DPRINTF(("res_mkupdate -> %d", n));
 		if (n < 0)
 			goto done;
@@ -188,6 +194,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 	if (nscount != 0)
 		res_setservers(statp, nsaddrs, nscount);
 
+	free(packet);
 	return (nzones);
 }
 

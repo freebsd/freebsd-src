@@ -20,21 +20,19 @@
  */
 
 /*
- * $Id: hesiod.h,v 1.7 1999/01/08 19:22:45 vixie Exp $
+ * $Id: hesiod.h,v 1.7.20.1 2003/06/02 05:48:04 marka Exp $
  */
 
 #ifndef _HESIOD_H_INCLUDED
 #define _HESIOD_H_INCLUDED
 
-int		hesiod_init __P((void **context));
-void		hesiod_end __P((void *context));
-char *		hesiod_to_bind __P((void *context, const char *name,
-				    const char *type));
-char **		hesiod_resolve __P((void *context, const char *name,
-				    const char *type));
-void		hesiod_free_list __P((void *context, char **list));
-struct __res_state * __hesiod_res_get __P((void *context));
-void		__hesiod_res_set __P((void *context, struct __res_state *,
+int		hesiod_init __P((void **));
+void		hesiod_end __P((void *));
+char *		hesiod_to_bind __P((void *, const char *, const char *));
+char **		hesiod_resolve __P((void *, const char *, const char *));
+void		hesiod_free_list __P((void *, char **));
+struct __res_state * __hesiod_res_get __P((void *));
+void		__hesiod_res_set __P((void *, struct __res_state *,
 				      void (*)(void *)));
 
 #endif /*_HESIOD_H_INCLUDED*/
