@@ -133,7 +133,7 @@ struct ng_ppp_frag {
 	struct timeval			timestamp;	/* time of reception */
 	struct mbuf			*data;		/* Fragment data */
 	meta_p				meta;		/* Fragment meta */
-	CIRCLEQ_ENTRY(ng_ppp_frag)	f_qent;		/* Fragment queue */
+	TAILQ_ENTRY(ng_ppp_frag)	f_qent;		/* Fragment queue */
 };
 
 /* We use integer indicies to refer to the non-link hooks */
@@ -197,7 +197,7 @@ struct ng_ppp_private {
 	int			activeLinks[NG_PPP_MAX_LINKS];	/* indicies */
 	u_int			lastLink;		/* for round robin */
 	hook_p			hooks[HOOK_INDEX_MAX];	/* non-link hooks */
-	CIRCLEQ_HEAD(ng_ppp_fraglist, ng_ppp_frag)	/* fragment queue */
+	TAILQ_HEAD(ng_ppp_fraglist, ng_ppp_frag)	/* fragment queue */
 				frags;
 	int			qlen;			/* fraq queue length */
 	struct callout_handle	fragTimer;		/* fraq queue check */
@@ -395,7 +395,7 @@ ng_ppp_constructor(node_p *nodep)
 	(*nodep)->private = priv;
 
 	/* Initialize state */
-	CIRCLEQ_INIT(&priv->frags);
+	TAILQ_INIT(&priv->frags);
 	for (i = 0; i < NG_PPP_MAX_LINKS; i++)
 		priv->links[i].seq = MP_NOSEQ;
 	callout_handle_init(&priv->fragTimer);
@@ -1134,10 +1134,10 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 
 	/* Add fragment to queue, which is sorted by sequence number */
 	inserted = 0;
-	CIRCLEQ_FOREACH_REVERSE(qent, &priv->frags, f_qent) {
+	TAILQ_FOREACH_REVERSE(qent, &priv->frags, ng_ppp_fraglist, f_qent) {
 		diff = MP_RECV_SEQ_DIFF(priv, frag->seq, qent->seq);
 		if (diff > 0) {
-			CIRCLEQ_INSERT_AFTER(&priv->frags, qent, frag, f_qent);
+			TAILQ_INSERT_AFTER(&priv->frags, qent, frag, f_qent);
 			inserted = 1;
 			break;
 		} else if (diff == 0) {	     /* should never happen! */
@@ -1148,7 +1148,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		}
 	}
 	if (!inserted)
-		CIRCLEQ_INSERT_HEAD(&priv->frags, frag, f_qent);
+		TAILQ_INSERT_HEAD(&priv->frags, frag, f_qent);
 	priv->qlen++;
 
 	/* Process the queue */
@@ -1167,18 +1167,18 @@ ng_ppp_check_packet(node_p node)
 	struct ng_ppp_frag *qent, *qnext;
 
 	/* Check for empty queue */
-	if (CIRCLEQ_EMPTY(&priv->frags))
+	if (TAILQ_EMPTY(&priv->frags))
 		return (0);
 
 	/* Check first fragment is the start of a deliverable packet */
-	qent = CIRCLEQ_FIRST(&priv->frags);
+	qent = TAILQ_FIRST(&priv->frags);
 	if (!qent->first || MP_RECV_SEQ_DIFF(priv, qent->seq, priv->mseq) > 1)
 		return (0);
 
 	/* Check that all the fragments are there */
 	while (!qent->last) {
-		qnext = CIRCLEQ_NEXT(qent, f_qent);
-		if (qnext == (void *)&priv->frags)	/* end of queue */
+		qnext = TAILQ_NEXT(qent, f_qent);
+		if (qnext == NULL)	/* end of queue */
 			return (0);
 		if (qnext->seq != MP_NEXT_RECV_SEQ(priv, qent->seq))
 			return (0);
@@ -1200,14 +1200,14 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 	struct ng_ppp_frag *qent, *qnext;
 	struct mbuf *m = NULL, *tail;
 
-	qent = CIRCLEQ_FIRST(&priv->frags);
-	KASSERT(!CIRCLEQ_EMPTY(&priv->frags) && qent->first,
+	qent = TAILQ_FIRST(&priv->frags);
+	KASSERT(!TAILQ_EMPTY(&priv->frags) && qent->first,
 	    ("%s: no packet", __FUNCTION__));
 	for (tail = NULL; qent != NULL; qent = qnext) {
-		qnext = CIRCLEQ_NEXT(qent, f_qent);
-		KASSERT(!CIRCLEQ_EMPTY(&priv->frags),
+		qnext = TAILQ_NEXT(qent, f_qent);
+		KASSERT(!TAILQ_EMPTY(&priv->frags),
 		    ("%s: empty q", __FUNCTION__));
-		CIRCLEQ_REMOVE(&priv->frags, qent, f_qent);
+		TAILQ_REMOVE(&priv->frags, qent, f_qent);
 		if (tail == NULL) {
 			tail = m = qent->data;
 			*metap = qent->meta;	/* inherit first frag's meta */
@@ -1243,15 +1243,15 @@ ng_ppp_frag_trim(node_p node)
 		int dead = 0;
 
 		/* If queue is empty, we're done */
-		if (CIRCLEQ_EMPTY(&priv->frags))
+		if (TAILQ_EMPTY(&priv->frags))
 			break;
 
 		/* Determine whether first fragment can ever be completed */
-		CIRCLEQ_FOREACH(qent, &priv->frags, f_qent) {
+		TAILQ_FOREACH(qent, &priv->frags, f_qent) {
 			if (MP_RECV_SEQ_DIFF(priv, qent->seq, priv->mseq) >= 0)
 				break;
-			qnext = CIRCLEQ_NEXT(qent, f_qent);
-			KASSERT(qnext != (void*)&priv->frags,
+			qnext = TAILQ_NEXT(qent, f_qent);
+			KASSERT(qnext != NULL,
 			    ("%s: last frag < MSEQ?", __FUNCTION__));
 			if (qnext->seq != MP_NEXT_RECV_SEQ(priv, qent->seq)
 			    || qent->last || qnext->first) {
@@ -1263,11 +1263,11 @@ ng_ppp_frag_trim(node_p node)
 			break;
 
 		/* Remove fragment and all others in the same packet */
-		while ((qent = CIRCLEQ_FIRST(&priv->frags)) != qnext) {
-			KASSERT(!CIRCLEQ_EMPTY(&priv->frags),
+		while ((qent = TAILQ_FIRST(&priv->frags)) != qnext) {
+			KASSERT(!TAILQ_EMPTY(&priv->frags),
 			    ("%s: empty q", __FUNCTION__));
 			priv->bundleStats.dropFragments++;
-			CIRCLEQ_REMOVE(&priv->frags, qent, f_qent);
+			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_DATA(qent->data, qent->meta);
 			FREE(qent, M_NETGRAPH);
 			priv->qlen--;
@@ -1310,9 +1310,9 @@ ng_ppp_frag_process(node_p node)
 		int i;
 
 		/* Get oldest fragment */
-		KASSERT(!CIRCLEQ_EMPTY(&priv->frags),
+		KASSERT(!TAILQ_EMPTY(&priv->frags),
 		    ("%s: empty q", __FUNCTION__));
-		qent = CIRCLEQ_FIRST(&priv->frags);
+		qent = TAILQ_FIRST(&priv->frags);
 
 		/* Bump MSEQ if necessary */
 		if (MP_RECV_SEQ_DIFF(priv, priv->mseq, qent->seq) < 0) {
@@ -1329,7 +1329,7 @@ ng_ppp_frag_process(node_p node)
 
 		/* Drop it */
 		priv->bundleStats.dropFragments++;
-		CIRCLEQ_REMOVE(&priv->frags, qent, f_qent);
+		TAILQ_REMOVE(&priv->frags, qent, f_qent);
 		NG_FREE_DATA(qent->data, qent->meta);
 		FREE(qent, M_NETGRAPH);
 		priv->qlen--;
@@ -1368,13 +1368,13 @@ ng_ppp_frag_checkstale(node_p node)
 	while (1) {
 
 		/* If queue is empty, we're done */
-		if (CIRCLEQ_EMPTY(&priv->frags))
+		if (TAILQ_EMPTY(&priv->frags))
 			break;
 
 		/* Find the first complete packet in the queue */
 		beg = end = NULL;
-		seq = CIRCLEQ_FIRST(&priv->frags)->seq;
-		CIRCLEQ_FOREACH(qent, &priv->frags, f_qent) {
+		seq = TAILQ_FIRST(&priv->frags)->seq;
+		TAILQ_FOREACH(qent, &priv->frags, f_qent) {
 			if (qent->first)
 				beg = qent;
 			else if (qent->seq != seq)
@@ -1401,11 +1401,11 @@ ng_ppp_frag_checkstale(node_p node)
 			break;
 
 		/* Throw away junk fragments in front of the completed packet */
-		while ((qent = CIRCLEQ_FIRST(&priv->frags)) != beg) {
-			KASSERT(!CIRCLEQ_EMPTY(&priv->frags),
+		while ((qent = TAILQ_FIRST(&priv->frags)) != beg) {
+			KASSERT(!TAILQ_EMPTY(&priv->frags),
 			    ("%s: empty q", __FUNCTION__));
 			priv->bundleStats.dropFragments++;
-			CIRCLEQ_REMOVE(&priv->frags, qent, f_qent);
+			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_DATA(qent->data, qent->meta);
 			FREE(qent, M_NETGRAPH);
 			priv->qlen--;
@@ -1992,13 +1992,12 @@ ng_ppp_frag_reset(node_p node)
 	const priv_p priv = node->private;
 	struct ng_ppp_frag *qent, *qnext;
 
-	for (qent = CIRCLEQ_FIRST(&priv->frags);
-	    qent != (void *)&priv->frags; qent = qnext) {
-		qnext = CIRCLEQ_NEXT(qent, f_qent);
+	for (qent = TAILQ_FIRST(&priv->frags); qent; qent = qnext) {
+		qnext = TAILQ_NEXT(qent, f_qent);
 		NG_FREE_DATA(qent->data, qent->meta);
 		FREE(qent, M_NETGRAPH);
 	}
-	CIRCLEQ_INIT(&priv->frags);
+	TAILQ_INIT(&priv->frags);
 	priv->qlen = 0;
 }
 
