@@ -32,7 +32,7 @@
 .Nd run periodic system functions
 .Sh SYNOPSIS
 .Nm
-.Ar directory Ns No ...
+.Ar directory ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -42,14 +42,14 @@ to execute shell scripts
 located in the specified directory.
 .Pp
 One or more of the following arguments must be specified:
-.Bl -tag -width Fl
-.It Cm daily
+.Bl -tag -width ".Pa monthly"
+.It Pa daily
 Perform the standard daily periodic executable run.
 This usually occurs early in the morning (local time).
-.It Cm weekly
+.It Pa weekly
 Perform the standard weekly periodic executable run.
 This usually occurs on Sunday mornings.
-.It Cm monthly
+.It Pa monthly
 Perform the standard monthly periodic executable run.
 This usually occurs on the first day of the month.
 .It Ar path
@@ -69,55 +69,54 @@ The
 .Nm
 program will run each executable file in the directory or directories
 specified.
-If a file does not have the executable bit set,  it is silently ignored.
+If a file does not have the executable bit set, it is silently ignored.
 .Pp
 Each script is required to exit with one of the following values:
-.Bl -tag -width XXXX
+.Bl -tag -width 4n
 .It 0
 The script has produced nothing notable in its output.
 The
-.Va <basedir>_show_success
+.Ao Ar basedir Ac Ns Va _show_success
 variable controls the masking of this output.
 .It 1
 The script has produced some notable information in its output.
 The
-.Va <basedir>_show_info
+.Ao Ar basedir Ac Ns Va _show_info
 variable controls the masking of this output.
 .It 2
 The script has produced some warnings due to invalid configuration settings.
 The
-.Va <basedir>_show_badconfig
+.Ao Ar basedir Ac Ns Va _show_badconfig
 variable controls the masking of this output.
 .It >2
 The script has produced output that must not be masked.
 .El
 .Pp
 If the relevant variable (where
-.Ar <basedir>
+.Aq Ar basedir
 is the base directory in which the script resides) is set to
-.Dq NO
+.Dq Li NO
 in
 .Pa periodic.conf ,
 .Nm
 will mask the script output.
 If the variable is not set to either
-.Dq YES
+.Dq Li YES
 or
-.Dq NO ,
+.Dq Li NO ,
 it will be given a default value as described in
 .Xr periodic.conf 5 .
 .Pp
 All remaining script output is delivered based on the value of the
-.Va <basedir>_output
+.Ao Ar basedir Ac Ns Va _output
 setting.
 .Pp
 If this is set to a path name (beginning with a
-.Dq /
-Character), output is simply logged to that file.
+.Ql /
+character), output is simply logged to that file.
 .Xr newsyslog 8
 knows about the files
-.Pa /var/log/daily.log ,
-.Pa /var/log/weekly.log
+.Pa /var/log/daily.log , /var/log/weekly.log
 and
 .Pa /var/log/monthly.log ,
 and if they exist, it will rotate them at the appropriate times.
@@ -126,14 +125,14 @@ These are therefore good values if you wish to log
 output.
 .Pp
 If the
-.Va <basedir>_output
+.Ao Ar basedir Ac Ns Va _output
 value does not begin with a
-.Dq /
+.Ql /
 and is not empty, it is assumed to contain a list of email addresses, and
 the output is mailed to them.
 .Pp
 If
-.Va <basedir>_output
+.Ao Ar basedir Ac Ns Va _output
 is not set or is empty, output is sent to standard output.
 .Sh ENVIRONMENT
 The
@@ -146,11 +145,13 @@ directories, such as
 If executables are added which depend upon other path components, each
 executable must be responsible for configuring its own appropriate environment.
 .Sh FILES
-.Bl -tag -width /etc/periodic
+.Bl -tag -width ".Pa /etc/periodic.conf"
 .It Pa /etc/crontab
 The
 .Nm
-program is typically called via entries in the system default cron table.
+program is typically called via entries in the system default
+.Xr cron 8
+table.
 .It Pa /etc/periodic
 The top level directory containing
 .Pa daily ,
@@ -164,23 +165,25 @@ The
 system registry contains variables that control the behaviour of
 .Nm
 and the standard
-.Pa daily ,
-.Pa weekly ,
+.Pa daily , weekly ,
 and
 .Pa monthly
 scripts.
 .It Pa /etc/periodic.conf
-This file contains local overrides for the default periodic configuration.
+This file contains local overrides for the default
+.Nm
+configuration.
 .El
 .Sh EXAMPLES
 The system crontab should have entries for
 .Nm
 similar to the following example:
-.Pp
-.Dl # do daily/weekly/monthly maintenance
-.Dl 0      2       *       *       *       root    periodic daily
-.Dl 0      3       *       *       6       root    periodic weekly
-.Dl 0      5       1       *       *       root    periodic monthly
+.Bd -literal -offset indent
+# do daily/weekly/monthly maintenance
+0      2       *       *       *       root    periodic daily
+0      3       *       *       6       root    periodic weekly
+0      5       1       *       *       root    periodic monthly
+.Ed
 .Pp
 The
 .Pa /etc/defaults/periodic.conf
@@ -194,18 +197,20 @@ To log
 .Nm
 output instead of receiving it as email, add the following lines to
 .Pa /etc/periodic.conf :
-.Pp
-.Dl daily_output=/var/log/daily.log
-.Dl weekly_output=/var/log/weekly.log
-.Dl monthly_output=/var/log/monthly.log
+.Bd -literal -offset indent
+daily_output=/var/log/daily.log
+weekly_output=/var/log/weekly.log
+monthly_output=/var/log/monthly.log
+.Ed
 .Pp
 To only see important information from daily periodic jobs, add the
 following lines to
 .Pa /etc/periodic.conf :
-.Pp
-.Dl daily_show_success=NO
-.Dl daily_show_info=NO
-.Dl daily_show_badconfig=NO
+.Bd -literal -offset indent
+daily_show_success=NO
+daily_show_info=NO
+daily_show_badconfig=NO
+.Ed
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr crontab 5 ,
