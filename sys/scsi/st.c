@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.50 1995/12/08 23:22:28 phk Exp $
+ * $Id: st.c,v 1.51 1995/12/09 20:42:38 phk Exp $
  */
 
 /*
@@ -163,6 +163,8 @@ static errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags));
 static errval st_mode_sense __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen, u_int32 pagecode));
 static errval	st_decide_mode __P((u_int32 unit, boolean first_read));
+static errval	st_read __P((u_int32 unit, char *buf, u_int32 size,
+	u_int32 flags));
 static errval	st_rd_blk_lim __P((u_int32 unit, u_int32 flags));
 static errval	st_touch_tape __P((u_int32 unit));
 static errval	st_write_filemarks __P((u_int32 unit, int32 number, u_int32 flags));
@@ -170,15 +172,16 @@ static errval	st_load __P((u_int32 unit, u_int32 type, u_int32 flags));
 static errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen));
 static errval	st_comp __P((u_int32 unit, u_int32 mode));
-static int32   st_chkeod();
+static int32	st_chkeod __P((u_int32 unit, boolean position, int32 *nmarks,
+	u_int32 flags));
 static void	ststart(u_int32	unit, u_int32 flags);
-static void	st_unmount();
-static errval	st_mount_tape();
-static void	st_loadquirks();
+static void	st_unmount __P((int unit, boolean eject));
+static errval	st_mount_tape __P((dev_t dev, u_int32 flags));
+static void	st_loadquirks __P((struct scsi_link *sc_link));
 #ifndef NEW_SCSICONF
-static void	st_identify_drive();
+static void	st_identify_drive __P((u_int32 unit));
 #endif
-static errval  st_interpret_sense();
+static errval	st_interpret_sense __P((struct scsi_xfer *xs));
 
 #define ESUCCESS 0
 #define NOEJECT 0
@@ -365,6 +368,9 @@ static	errval
 stattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
+#ifdef DEVFS
+	char	name[32];
+#endif
 
 	struct scsi_data *st = sc_link->sd;
 
