@@ -1,7 +1,4 @@
 /*
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
  * Generic routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *
@@ -31,6 +28,9 @@ __FBSDID("$FreeBSD$");
 /*
  * Additional Copyright (c) 2002 by Matthew Jacob under same license.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/mpt/mpt_freebsd.h>
 
