@@ -94,12 +94,13 @@ uncompress_page()
 		else
 			if [ $2 != "symbolic" ] ; then
 				echo gunzipping page $pname 1>&2
-				gunzip -c $pname > /tmp/manager.$$
+				temp=`mktemp -t manager` || exit 1
+				gunzip -c $pname > $temp
 				chmod u+w $pname
-				cp /tmp/manager.$$ $pname
+				cp $temp $pname
 				chmod 444 $pname
 				mv $pname $fname.$sect
-				rm /tmp/manager.$$
+				rm -f $temp
 			else
 				# skip symlinks - this can be
 				# a program like expn, which is
@@ -180,11 +181,13 @@ so_purge_page()
 		ln ../$2 $fname
 	else
 		echo inlining page $fname 1>&2
+		temp=`mktemp -t manager` || exit 1
 		cat $fname | \
-		(cd .. ; soelim ) > /tmp/manager.$$
+		(cd .. ; soelim ) > $temp
 		chmod u+w $fname
-		cp /tmp/manager.$$ $fname
+		cp $temp $fname
 		chmod 444 $fname
+		rm -f $temp
 	fi
 }
 
@@ -279,13 +282,14 @@ compress_page()
 		else
 			if [ $2 != "symbolic" ] ; then
 				echo gzipping page $pname 1>&2
+				temp=`mktemp -t manager` || exit 1
 				cat $pname | \
-				(cd .. ; soelim )| gzip -c -- > /tmp/manager.$$
+				(cd .. ; soelim )| gzip -c -- > $temp
 				chmod u+w $pname
-				cp /tmp/manager.$$ $pname
+				cp $temp $pname
 				chmod 444 $pname
 				mv $pname $pname.gz
-				rm /tmp/manager.$$
+				rm -f $temp
 			else
 				# skip symlink - this can be
 				# a program like expn, which is
