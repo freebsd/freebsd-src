@@ -494,7 +494,7 @@ sem_leave(p, ks)
 		DP(("sem_leave: returning\n"));
 		return (0);
 	}
-	return (-1);
+	return (EINVAL);
 }
 
 static void
@@ -590,9 +590,9 @@ kern_sem_close(td, id)
 	ks = ID_TO_SEM(id);
 	/* this is not a valid operation for unnamed sems */
 	if (ks != NULL && ks->ks_name != NULL)
-		error = sem_leave(td->td_proc, ks) == 0 ? 0 : EINVAL;
+		error = sem_leave(td->td_proc, ks);
 	mtx_unlock(&sem_lock);
-	return (-1);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
