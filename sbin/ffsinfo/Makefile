@@ -15,5 +15,7 @@ MAN=	ffsinfo.8
 
 WARNS?=	0
 CFLAGS+=-DFS_DEBUG -I${GROWFS}
+DPADD=	${LIBUFS}
+LDADD=	-lufs
  
 .include <bsd.prog.mk>               
