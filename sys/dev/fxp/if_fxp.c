@@ -511,8 +511,8 @@ fxp_attach(device_t dev)
 	 * Determine whether we must use the 503 serial interface.
 	 */
 	fxp_read_eeprom(sc, &data, 6, 1);
-	if ((data & FXP_PHY_DEVICE_MASK) != 0 &&
-	    (data & FXP_PHY_SERIAL_ONLY))
+	if (sc->revision == FXP_REV_82557 && (data & FXP_PHY_DEVICE_MASK) != 0
+	    && (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags |= FXP_FLAG_SERIAL_MEDIA;
 
 	/*
