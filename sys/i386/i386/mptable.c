@@ -341,6 +341,10 @@ void		ap_init(void);
 static int	apic_int_is_bus_type(int intr, int bus_type);
 static void	release_aps(void *dummy);
 
+static int	hlt_cpus_mask;
+static int	hlt_logical_cpus = 1;
+static struct	sysctl_ctx_list logical_cpu_clist;
+
 /*
  * initialize all the SMP locks
  */
@@ -2679,7 +2683,7 @@ forward_statclock(void)
 	if (!smp_started || cold || panicstr)
 		return;
 
-	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
+	map = PCPU_GET(other_cpus) & ~(stopped_cpus|hlt_cpus_mask);
 	if (map != 0)
 		ipi_selected(map, IPI_STATCLOCK);
 }
@@ -2711,7 +2715,7 @@ forward_hardclock(void)
 	if (!smp_started || cold || panicstr)
 		return;
 
-	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
+	map = PCPU_GET(other_cpus) & ~(stopped_cpus|hlt_cpus_mask);
 	if (map != 0)
 		ipi_selected(map, IPI_HARDCLOCK);
 }
@@ -2790,10 +2794,6 @@ release_aps(void *dummy __unused)
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
-
-static int	hlt_cpus_mask;
-static int	hlt_logical_cpus = 1;
-static struct	sysctl_ctx_list logical_cpu_clist;
 
 static int
 sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
