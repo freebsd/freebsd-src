@@ -2314,7 +2314,9 @@ implementations use "MS-CHAP" rather than MD5 when encrypting the
 challenge.  MS-CHAP is a combination of MD4 and DES.  If
 .Nm
 was built on a machine with DES libraries available, it will respond
-to MS-CHAP authentication requests, but will never request them.
+to MS-CHAP authentication requests.  See the
+.Dq MSChap
+description below.
 .It deflate
 Default: Enabled and Accepted.  This option decides if deflate
 compression will be used by the Compression Control Protocol (CCP).
