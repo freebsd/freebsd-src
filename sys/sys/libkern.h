@@ -103,7 +103,7 @@ memset(void *b, int c, size_t len)
 	if (c == 0)
 		bzero(b, len);
 	else
-		for (bb = b; len--; )
+		for (bb = (char *)b; len--; )
 			*bb++ = c;
 	return (b);
 }
