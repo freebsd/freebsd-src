@@ -48,15 +48,14 @@ mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 	const char *e;
 	rune_t r;
 
-	if (s == NULL || *s == '\0')
+	if (s == NULL)
 		/* No support for state dependent encodings. */
 		return (0);	
-
 	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE) {
 		errno = EILSEQ;
-		return (s - e);
+		return (-1);
 	}
 	if (pwc != NULL)
 		*pwc = r;
-	return (e - s);
+	return (r == 0 ? 0 : e - s);
 }
