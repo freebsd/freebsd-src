@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.46.2.1 1995/09/14 07:10:00 davidg Exp $
+ * $Id: tty.c,v 1.46.2.2 1995/11/03 08:01:04 davidg Exp $
  */
 
 /*-
@@ -215,7 +215,8 @@ ttyopen(device, tp)
 	 * the standard line discipline.
 	 */
 	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
-	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
+	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + OBUFSIZ + 100,
+			    TTMAXHIWAT + OBUFSIZ + 100);
 	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, TTYHOG);
 
 	splx(s);
@@ -1160,7 +1161,20 @@ again:
 		CLR(tp->t_state, TS_LOCAL);
 		ttwakeup(tp);
 		if (ISSET(tp->t_state, TS_TBLOCK)) {
+			if (rw & FWRITE)
+				FLUSHQ(&tp->t_outq);
 			ttyunblock(tp);
+
+			/*
+			 * Don't let leave any state that might clobber the
+			 * next line discipline (although we should do more
+			 * to send the START char).  Not clearing the state
+			 * may have caused the "putc to a clist with no
+			 * reserved cblocks" panic/printf.
+			 */
+			CLR(tp->t_state, TS_TBLOCK);
+
+#if 0 /* forget it, sleeping isn't always safe and we don't know when it is */
 			if (ISSET(tp->t_iflag, IXOFF)) {
 				/*
 				 * XXX wait a bit in the hope that the stop
@@ -1180,6 +1194,7 @@ again:
 				CLR(tp->t_state, TS_TBLOCK);
 				goto again;
 			}
+#endif
 		}
 	}
 	if (rw & FWRITE) {
@@ -1671,7 +1686,7 @@ ttycheckoutq(tp, wait)
 	hiwat = tp->t_hiwat;
 	s = spltty();
 	oldsig = wait ? curproc->p_siglist : 0;
-	if (tp->t_outq.c_cc > hiwat + 200)
+	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
 			if (tp->t_outq.c_cc <= hiwat)
