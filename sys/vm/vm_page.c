@@ -682,13 +682,11 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	int s;
 
 	s = splvm();
-	vm_page_lock_queues();
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
 	if (m->queue - m->pc == PQ_CACHE)
 		vm_page_deactivate(m);
 	vm_page_dirty(m);
-	vm_page_unlock_queues();
 	splx(s);
 }
 

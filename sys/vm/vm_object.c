@@ -1245,10 +1245,8 @@ vm_object_split(vm_map_entry_t entry)
 			goto retry;
 			
 		vm_page_busy(m);
-		vm_page_unlock_queues();
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
-		vm_page_lock_queues();
 		vm_page_busy(m);
 		vm_page_unlock_queues();
 	}
@@ -1455,7 +1453,9 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * If the page was mapped to a process, it can remain 
 			 * mapped through the rename.
 			 */
+			vm_page_lock_queues();
 			vm_page_rename(p, object, new_pindex);
+			vm_page_unlock_queues();
 			/* page automatically made dirty by rename */
 		}
 		p = next;
