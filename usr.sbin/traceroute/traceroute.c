@@ -268,7 +268,7 @@ struct opacket {
 u_char	packet[512];		/* last inbound (icmp) packet */
 struct opacket	*outpacket;	/* last output (udp) packet */
 
-int wait_for_reply __P((int, struct sockaddr_in *));
+int wait_for_reply __P((int, struct sockaddr_in *, struct timeval *));
 void send_probe __P((int, int));
 double deltaT __P((struct timeval *, struct timeval *));
 int packet_ok __P((u_char *, int, struct sockaddr_in *, int));
@@ -500,7 +500,7 @@ main(argc, argv)
 
 			(void) gettimeofday(&t1, &tz);
 			send_probe(++seq, ttl);
-			while (cc = wait_for_reply(s, &from)) {
+			while (cc = wait_for_reply(s, &from, &t1)) {
 				(void) gettimeofday(&t2, &tz);
 				if ((i = packet_ok(packet, cc, &from, seq))) {
 					if (from.sin_addr.s_addr != lastaddr) {
@@ -552,18 +552,27 @@ main(argc, argv)
 }
 
 int
-wait_for_reply(sock, from)
+wait_for_reply(sock, from, sent)
 	int sock;
 	struct sockaddr_in *from;
+	struct timeval *sent;
 {
 	fd_set fds;
-	struct timeval wait;
+	struct timeval now, wait;
 	int cc = 0;
 	int fromlen = sizeof (*from);
 
 	FD_ZERO(&fds);
 	FD_SET(sock, &fds);
-	wait.tv_sec = waittime; wait.tv_usec = 0;
+	gettimeofday(&now, NULL);
+	wait.tv_sec = (sent->tv_sec + waittime) - now.tv_sec;
+	wait.tv_usec =  sent->tv_usec - now.tv_usec;
+	if (wait.tv_usec < 0) {
+		wait.tv_usec += 1000000;
+		wait.tv_sec--;
+	}
+	if (wait.tv_sec < 0)
+		wait.tv_sec = wait.tv_usec = 0;
 
 	if (select(sock+1, &fds, (fd_set *)0, (fd_set *)0, &wait) > 0)
 		cc=recvfrom(s, (char *)packet, sizeof(packet), 0,
