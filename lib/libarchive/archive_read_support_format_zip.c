@@ -370,7 +370,7 @@ zip_read_data_deflate(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
-	size_t bytes_read;
+	ssize_t bytes_read;
 	const void *compressed_buff;
 	int r;
 
