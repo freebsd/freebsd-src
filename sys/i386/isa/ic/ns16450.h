@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns16450.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: ns16450.h,v 1.2 1993/10/16 13:48:51 rgrimes Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 #define	com_ier		1	/* interrupt enable (W) */
 #define	com_iir		2	/* interrupt identification (R) */
 #define	com_lctl	3	/* line control register (R/W) */
-#define	 com_cfcr	3	/* line control register (R/W) */
+#define	com_cfcr	3	/* line control register (R/W) */
 #define	com_mcr		4	/* modem control register (R/W) */
 #define	com_lsr		5	/* line status register (R/W) */
 #define	com_msr		6	/* modem status register (R/W) */
