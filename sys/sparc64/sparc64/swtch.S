@@ -271,7 +271,7 @@ ENTRY(savectx)
 	save	%sp, -CCFSZ, %sp
 	flushw
 	call	savefpctx
-	 mov	%i0, %o0
+	 add	%i0, PCB_UFP, %o0
 	stx	%fp, [%i0 + PCB_SP]
 	stx	%i7, [%i0 + PCB_PC]
 	ret
