@@ -66,6 +66,13 @@ METHOD int set_memory_offset {
         u_int32_t offset;
 }
 
+METHOD int get_memory_offset {
+	device_t  dev;
+	device_t  child;
+        int	  rid;
+        u_int32_t *offset;
+}
+
 #
 # pccard bridges call this method to initate the attachment of a card
 #
