@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.6 1999/01/14 22:55:03 nsouch Exp $
+ *	$Id: smb.c,v 1.7 1999/02/13 17:57:19 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -160,7 +160,7 @@ smbwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	/* not supported */
 
-	return (EINVAL);
+	return (ENODEV);
 }
 
 static int
@@ -168,7 +168,7 @@ smbread(dev_t dev, struct uio * uio, int ioflag)
 {
 	/* not supported */
 
-	return (EINVAL);
+	return (ENODEV);
 }
 
 static int
@@ -191,56 +191,59 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	switch (cmd) {
 	case SMB_QUICK_WRITE:
-		error=smbus_quick(parent, s->slave, SMB_QWRITE);
+		error = smbus_error(smbus_quick(parent, s->slave, SMB_QWRITE));
 		break;
 
 	case SMB_QUICK_READ:
-		error=smbus_quick(parent, s->slave, SMB_QREAD);
+		error = smbus_error(smbus_quick(parent, s->slave, SMB_QREAD));
 		break;
 
 	case SMB_SENDB:
-		error=smbus_sendb(parent, s->slave, s->cmd);
+		error = smbus_error(smbus_sendb(parent, s->slave, s->cmd));
 		break;
 
 	case SMB_RECVB:
-		error=smbus_recvb(parent, s->slave, &s->cmd);
+		error = smbus_error(smbus_recvb(parent, s->slave, &s->cmd));
 		break;
 
 	case SMB_WRITEB:
-		error=smbus_writeb(parent, s->slave, s->cmd, s->data.byte);
+		error = smbus_error(smbus_writeb(parent, s->slave, s->cmd,
+						s->data.byte));
 		break;
 
 	case SMB_WRITEW:
-		error=smbus_writew(parent, s->slave, s->cmd, s->data.word);
+		error = smbus_error(smbus_writew(parent, s->slave,
+						s->cmd, s->data.word));
 		break;
 
 	case SMB_READB:
 		if (s->data.byte_ptr)
-			error=smbus_readb(parent, s->slave, s->cmd,
-							s->data.byte_ptr);
+			error = smbus_error(smbus_readb(parent, s->slave,
+						s->cmd, s->data.byte_ptr));
 		break;
 
 	case SMB_READW:
 		if (s->data.word_ptr)
-			error=smbus_readw(parent, s->slave, s->cmd, s->data.word_ptr);
+			error = smbus_error(smbus_readw(parent, s->slave,
+						s->cmd, s->data.word_ptr));
 		break;
 
 	case SMB_PCALL:
 		if (s->data.process.rdata)
-			error=smbus_pcall(parent, s->slave, s->cmd,
-				s->data.process.sdata, s->data.process.rdata);
+			error = smbus_error(smbus_pcall(parent, s->slave, s->cmd,
+				s->data.process.sdata, s->data.process.rdata));
 		break;
 
 	case SMB_BWRITE:
 		if (s->count && s->data.byte_ptr)
-			error=smbus_bwrite(parent, s->slave, s->cmd, s->count,
-							s->data.byte_ptr);
+			error = smbus_error(smbus_bwrite(parent, s->slave,
+						s->cmd, s->count, s->data.byte_ptr));
 		break;
 
 	case SMB_BREAD:
 		if (s->count && s->data.byte_ptr)
-			error=smbus_bread(parent, s->slave, s->cmd, s->count,
-							s->data.byte_ptr);
+			error = smbus_error(smbus_bread(parent, s->slave,
+						s->cmd, s->count, s->data.byte_ptr));
 		break;
 		
 	default:
