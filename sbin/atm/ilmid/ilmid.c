@@ -2245,6 +2245,7 @@ lmi_object_find(Variable *var)
 	return (-1);
 }
 
+#if 0
 /******************************************************************************
  *
  *  Append instance number to OID
@@ -2268,6 +2269,7 @@ lmi_object_instance(Variable *var, int instnum)
 	oidptr[0] = curlen;
 	return (0);
 }
+#endif
 
 /******************************************************************************
  *
