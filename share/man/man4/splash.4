@@ -192,11 +192,11 @@ and include the following lines:
 .Bd -literal -offset indent
 splash_bmp_load="YES"
 bitmap_load="YES"
-bitmap_name="chuck.bmp"
+bitmap_name="/boot/chuck.bmp"
 .Ed
 .Pp
 In the above example, the file
-.Pa chuck.bmp
+.Pa /boot/chuck.bmp
 is loaded.
 In the following example, the VESA module
 is loaded so that a bitmap file which cannot be displayed in standard
@@ -205,7 +205,7 @@ VGA modes may be shown using one of the VESA video modes.
 splash_pcx_load="YES"
 vesa_load="YES"
 bitmap_load="YES"
-bitmap_name="chuck.pcx"
+bitmap_name="/boot/chuck.pcx"
 .Ed
 .Pp
 If the VESA support is statically linked to the kernel, it is not
