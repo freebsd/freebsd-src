@@ -1611,7 +1611,7 @@ devfs_freeblks(struct vop_freeblks_args *ap)
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
-	BUF_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp, 0);
 	return (0);
 }
 
@@ -1854,7 +1854,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 	cnt.v_vnodepgsin += pcount;
 
 	/* Do the input. */
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	s = splbio();
 

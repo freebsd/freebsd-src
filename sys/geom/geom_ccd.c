@@ -890,10 +890,8 @@ ccdstart(cs, bp)
 			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE) {
 				cbp[0]->cb_buf.b_vp->v_numoutput++;
 				cbp[1]->cb_buf.b_vp->v_numoutput++;
-				VOP_STRATEGY(cbp[0]->cb_buf.b_vp, 
-				    &cbp[0]->cb_buf);
-				VOP_STRATEGY(cbp[1]->cb_buf.b_vp, 
-				    &cbp[1]->cb_buf);
+				BUF_STRATEGY(&cbp[0]->cb_buf);
+				BUF_STRATEGY(&cbp[1]->cb_buf);
 			} else {
 				int pick = cs->sc_pick;
 				daddr_t range = cs->sc_size / 16;
@@ -904,8 +902,7 @@ ccdstart(cs, bp)
 					cs->sc_pick = pick = 1 - pick;
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
-				VOP_STRATEGY(cbp[pick]->cb_buf.b_vp, 
-				    &cbp[pick]->cb_buf);
+				BUF_STRATEGY(&cbp[pick]->cb_buf);
 			}
 		} else {
 			/*
@@ -913,7 +910,7 @@ ccdstart(cs, bp)
 			 */
 			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE)
 				cbp[0]->cb_buf.b_vp->v_numoutput++;
-			VOP_STRATEGY(cbp[0]->cb_buf.b_vp, &cbp[0]->cb_buf);
+			BUF_STRATEGY(&cbp[0]->cb_buf);
 		}
 		bn += btodb(rcount);
 		addr += rcount;
@@ -1210,10 +1207,7 @@ ccdiodone(ibp)
 				if (cbp->cb_buf.b_flags & B_ERROR) {
 					cbp->cb_mirror->cb_pflags |= 
 					    CCDPF_MIRROR_DONE;
-					VOP_STRATEGY(
-					    cbp->cb_mirror->cb_buf.b_vp, 
-					    &cbp->cb_mirror->cb_buf
-					);
+					BUF_STRATEGY(&cbp->cb_mirror->cb_buf);
 					putccdbuf(cbp);
 					splx(s);
 					return;

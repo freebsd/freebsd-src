@@ -1032,7 +1032,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	splx(s);
 	
 	/* Perform transfer. */
-	BUF_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp, 0);
 
 	s = splbio();
 	

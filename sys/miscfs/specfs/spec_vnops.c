@@ -435,7 +435,7 @@ spec_strategy(ap)
 	KASSERT(devsw(bp->b_dev)->d_strategy != NULL, 
 	   ("No strategy on dev %s responsible for buffer %p\n", 
 	   devtoname(bp->b_dev), bp));
-	BUF_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp, 0);
 	return (0);
 }
 
@@ -463,7 +463,7 @@ spec_freeblks(ap)
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
-	BUF_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp, 0);
 	return (0);
 }
 
@@ -677,7 +677,7 @@ spec_getpages(ap)
 	cnt.v_vnodepgsin += pcount;
 
 	/* Do the input. */
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	s = splbio();
 

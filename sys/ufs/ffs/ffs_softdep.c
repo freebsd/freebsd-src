@@ -3648,7 +3648,7 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	gotit = getdirtybuf(&inodedep->id_buf, MNT_WAIT);
 	FREE_LOCK(&lk);
 	if (gotit &&
-	    (error = VOP_BWRITE(inodedep->id_buf->b_vp, inodedep->id_buf)) != 0)
+	    (error = BUF_WRITE(inodedep->id_buf)) != 0)
 		softdep_error("softdep_update_inodeblock: bwrite", error);
 	if ((inodedep->id_state & DEPCOMPLETE) == 0)
 		panic("softdep_update_inodeblock: update failed");
@@ -3776,7 +3776,7 @@ softdep_fsync(vp)
 		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), p->p_ucred,
 		    &bp);
 		if (error == 0)
-			error = VOP_BWRITE(bp->b_vp, bp);
+			error = BUF_WRITE(bp);
 		vput(pvp);
 		if (error != 0)
 			return (error);
@@ -3921,7 +3921,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = VOP_BWRITE(nbp->b_vp, nbp)) != 0) {
+			} else if ((error = BUF_WRITE(nbp)) != 0) {
 				bawrite(bp);
 				return (error);
 			}
@@ -3938,7 +3938,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = VOP_BWRITE(nbp->b_vp, nbp)) != 0) {
+			} else if ((error = BUF_WRITE(nbp)) != 0) {
 				bawrite(bp);
 				return (error);
 			}
@@ -3955,7 +3955,7 @@ loop:
 				if (getdirtybuf(&nbp, MNT_WAIT) == 0)
 					goto restart;
 				FREE_LOCK(&lk);
-				if ((error = VOP_BWRITE(nbp->b_vp, nbp)) != 0) {
+				if ((error = BUF_WRITE(nbp)) != 0) {
 					bawrite(bp);
 					return (error);
 				}
@@ -4009,7 +4009,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = VOP_BWRITE(nbp->b_vp, nbp)) != 0) {
+			} else if ((error = BUF_WRITE(nbp)) != 0) {
 				bawrite(bp);
 				return (error);
 			}
@@ -4030,7 +4030,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = VOP_BWRITE(nbp->b_vp, nbp)) != 0) {
+			} else if ((error = BUF_WRITE(nbp)) != 0) {
 				bawrite(bp);
 				return (error);
 			}
@@ -4141,7 +4141,7 @@ flush_inodedep_deps(fs, ino)
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(bp);
-			} else if ((error = VOP_BWRITE(bp->b_vp, bp)) != 0) {
+			} else if ((error = BUF_WRITE(bp)) != 0) {
 				ACQUIRE_LOCK(&lk);
 				return (error);
 			}
@@ -4163,7 +4163,7 @@ flush_inodedep_deps(fs, ino)
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(bp);
-			} else if ((error = VOP_BWRITE(bp->b_vp, bp)) != 0) {
+			} else if ((error = BUF_WRITE(bp)) != 0) {
 				ACQUIRE_LOCK(&lk);
 				return (error);
 			}
@@ -4278,8 +4278,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			gotit = getdirtybuf(&inodedep->id_buf, MNT_WAIT);
 			FREE_LOCK(&lk);
 			if (gotit &&
-			    (error = VOP_BWRITE(inodedep->id_buf->b_vp,
-			     inodedep->id_buf)) != 0)
+			    (error = BUF_WRITE(inodedep->id_buf)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			if (dap != LIST_FIRST(diraddhdp))
@@ -4294,7 +4293,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		    fsbtodb(ump->um_fs, ino_to_fsba(ump->um_fs, inum)),
 		    (int)ump->um_fs->fs_bsize, NOCRED, &bp)) != 0)
 			break;
-		if ((error = VOP_BWRITE(bp->b_vp, bp)) != 0)
+		if ((error = BUF_WRITE(bp)) != 0)
 			break;
 		ACQUIRE_LOCK(&lk);
 		/*

@@ -374,7 +374,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    if (debug & DEBUG_LASTREQS)
 			logrq(loginfo_raid5_data, (union rqinfou) rqe, bp);
 #endif
-		    BUF_STRATEGY(&rqe->b, 0);
+		    DEV_STRATEGY(&rqe->b, 0);
 		}
 	    }
 	}
@@ -412,5 +412,5 @@ complete_raid5_write(struct rqelement *rqe)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_raid5_parity, (union rqinfou) rqe, bp);
 #endif
-    BUF_STRATEGY(&rqe->b, 0);
+    DEV_STRATEGY(&rqe->b, 0);
 }
