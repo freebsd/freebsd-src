@@ -81,7 +81,7 @@ static struct in_addr *addrs;
 /* find_local - find all IP addresses for this host */
 
 static int
-find_local(void)
+find_local()
 {
   int mib[6], n, s, alloced;
   size_t needed;
@@ -172,7 +172,8 @@ find_local(void)
 /* from_local - determine whether request comes from the local system */
 
 int
-from_local(struct sockaddr_in *addr)
+from_local(addr)
+    struct sockaddr_in *addr;
 {
     int     i;
 
@@ -190,7 +191,9 @@ from_local(struct sockaddr_in *addr)
 #ifdef TEST
 
 int
-main(int argc, char **argv)
+main(argc, argv)
+    int argc;
+    char **argv;
 {
     char   *inet_ntoa();
     int     i;

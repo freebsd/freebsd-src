@@ -63,8 +63,8 @@ static const char rcsid[] =
 #define YPPROC_DOMAIN_NONACK ((u_long) 2)
 #define MOUNTPROC_MNT	((u_long) 1)
 
-static void logit(int, struct sockaddr_in *, u_long, u_long, const char *);
-static void toggle_verboselog(int);
+static void logit __P((int, struct sockaddr_in *, u_long, u_long, const char *));
+static void toggle_verboselog __P((int));
 
 int     verboselog = 0;
 int     allow_severity = LOG_INFO;
@@ -112,7 +112,9 @@ check_startup()
 /* check_default - additional checks for NULL, DUMP, GETPORT and unknown */
 
 int
-check_default(struct sockaddr_in *addr, u_long proc, u_long prog)
+check_default(addr, proc, prog)
+    struct sockaddr_in *addr;
+    u_long proc, prog;
 {
 #ifdef HOSTS_ACCESS
     if (!(from_local(addr) || good_client(addr))) {
@@ -128,8 +130,9 @@ check_default(struct sockaddr_in *addr, u_long proc, u_long prog)
 /* check_privileged_port - additional checks for privileged-port updates */
 
 int
-check_privileged_port(struct sockaddr_in *addr, u_long proc, u_long prog,
-	u_long port)
+check_privileged_port(addr, proc, prog, port)
+    struct sockaddr_in *addr;
+    u_long proc, prog, port;
 {
 #ifdef CHECK_PORT
     if (!legal_port(addr, port)) {
@@ -143,7 +146,9 @@ check_privileged_port(struct sockaddr_in *addr, u_long proc, u_long prog,
 /* check_setunset - additional checks for update requests */
 
 int
-check_setunset(struct sockaddr_in *addr, u_long proc, u_long prog, u_long port)
+check_setunset(addr, proc, prog, port)
+    struct sockaddr_in *addr;
+    u_long proc, prog, port;
 {
     if (!from_local(addr)) {
 #ifdef HOSTS_ACCESS
@@ -162,7 +167,9 @@ check_setunset(struct sockaddr_in *addr, u_long proc, u_long prog, u_long port)
 /* check_callit - additional checks for forwarded requests */
 
 int
-check_callit(struct sockaddr_in *addr, u_long proc, u_long prog, u_long aproc)
+check_callit(addr, proc, prog, aproc)
+    struct sockaddr_in *addr;
+    u_long proc, prog, aproc;
 {
 #ifdef HOSTS_ACCESS
     if (!(from_local(addr) || good_client(addr))) {
@@ -184,7 +191,8 @@ check_callit(struct sockaddr_in *addr, u_long proc, u_long prog, u_long aproc)
 /* toggle_verboselog - toggle verbose logging flag */
 
 static void
-toggle_verboselog(int sig)
+toggle_verboselog(sig)
+    int sig;
 {
     (void) signal(sig, toggle_verboselog);
     verboselog = !verboselog;
@@ -193,8 +201,11 @@ toggle_verboselog(int sig)
 /* logit - report events of interest via the syslog daemon */
 
 static void
-logit(int severity, struct sockaddr_in *addr, u_long procnum, u_long prognum,
-    const char *text)
+logit(severity, addr, procnum, prognum, text)
+    int severity;
+    struct sockaddr_in *addr;
+    u_long procnum, prognum;
+    const char *text;
 {
     const char *procname;
     char    procbuf[4 * sizeof(u_long)];
