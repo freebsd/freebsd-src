@@ -34,6 +34,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_preemption.h"
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
@@ -553,6 +554,8 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * is higher priority than their current thread, it gets run now.
 	 */
 	ithd->it_need = 1;
+#ifdef PREEMPTION
+	/* Does not work on 4100 and PC164 */
 	if (i->disable) {
 		CTR1(KTR_INTR,
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
@@ -579,6 +582,30 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		need_resched();
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
+#else
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (ithd->it_proc->p_stat == SWAIT) {
+		/* not on the run queue and not running */
+		CTR1(KTR_INTR, "alpha_dispatch_intr: setrunqueue %d",
+		    ithd->it_proc->p_pid);
+
+		alpha_mb();	/* XXX - ??? */
+		ithd->it_proc->p_stat = SRUN;
+		setrunqueue(ithd->it_proc);
+		aston();
+	} else {
+		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
+		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
+	}
+	if (i->disable) {
+		CTR1(KTR_INTR,
+		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
+		i->disable(i->vector);
+	}
+	mtx_exit(&sched_lock, MTX_SPIN);
+
+	need_resched();
+#endif
 }
  
 void
