@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.4 1999/01/09 18:08:24 nsouch Exp $
+ *	$Id: iiconf.c,v 1.4.2.1 1999/01/26 23:21:42 roger Exp $
  *
  */
 #include <sys/param.h>
@@ -186,6 +186,28 @@ iicbus_start(device_t bus, u_char slave, int timeout)
 
 	if (sc->started)
 		return (EINVAL);		/* bus already started */
+
+	if (!(error = IICBUS_START(device_get_parent(bus), slave, timeout)))
+		sc->started = slave;
+	else
+		sc->started = 0;
+
+	return (error);
+}
+
+/*
+ * iicbus_repeated_start()
+ *
+ * Send start condition to the slave addressed by 'slave'
+ */
+int
+iicbus_repeated_start(device_t bus, u_char slave, int timeout)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+	int error = 0;
+
+	if (!sc->started)
+		return (EINVAL);     /* bus should have been already started */
 
 	if (!(error = IICBUS_START(device_get_parent(bus), slave, timeout)))
 		sc->started = slave;
