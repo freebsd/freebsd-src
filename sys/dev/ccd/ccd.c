@@ -1605,7 +1605,7 @@ ccdlookup(char *path, struct thread *td, struct vnode **vpp)
 	}
 	vp = nd.ni_vp;
 
-	if (vp->v_usecount > 1) {
+	if (vrefcnt(vp) > 1) {
 		error = EBUSY;
 		goto bad;
 	}
