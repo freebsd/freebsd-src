@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.69 1997/08/31 06:11:26 phk Exp $
+ *	$Id: boot.c,v 1.70 1998/02/01 05:24:24 yokota Exp $
  */
 
 
@@ -202,12 +202,6 @@ loadprog(void)
 	int i;
 	unsigned pad;
 	char *s, *t;
-
-
-#ifdef VESA_SUPPORT
-	if (bootinfo.bi_vesa)
-		vesa_mode(bootinfo.bi_vesa);
-#endif
 
 	read((void *)&head, sizeof(head));
 	if ( N_BADMAG(head)) {
@@ -389,10 +383,6 @@ nextarg:
 					goto nextarg;
 				if (c == 'a')
 					f |= RB_ASKNAME;
-#ifdef VESA_SUPPORT
-				if (c == 'b') 
-					bootinfo.bi_vesa = 0x102;
-#endif
 				if (c == 'C')
 					f |= RB_CDROM;
 				if (c == 'c')
