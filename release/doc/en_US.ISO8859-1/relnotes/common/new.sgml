@@ -203,7 +203,9 @@
 	has been added.  This allows the use of up to 64GB of RAM in a
 	machine, although the amount of memory usable by any single
 	process (or the &os; kernel) is unchanged.  For more
-	information, see the &man.pae.4; manual page.</para>
+	information, see the &man.pae.4; manual page.  Work on this
+	feature was sponsored by DARPA and Network Associates
+	Laboratories.</para>
 
     </sect3>
 
