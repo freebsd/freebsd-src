@@ -42,10 +42,11 @@
  * network interfaces might be added as well.
  */
 const char *
-devmenu_netif(const char *title, const char *hfile, char **devnames)
+devmenu_netif(const char *title, const char *hfile, char **devnames, 
+	      int states)
 {
 	return devmenu_common(title, hfile, devnames,
 			      "Select a network interface",
 			      "No network interfaces available",
-			      DC_CLS_NETIF);
+			      DC_CLS_NETIF, states);
 }

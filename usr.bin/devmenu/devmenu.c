@@ -36,7 +36,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: devmenu.c,v 1.1 1995/04/13 21:10:59 wollman Exp $";
 #endif
 
 #include <stdlib.h>
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include "devmenu.h"
 
 static enum dc_class interpret_class(char *str);
+static int interpret_state(char *str);
 static void dm_err_exit(int);
 static int err_writefn(void *cookie, const char *val, int nchars);
 static void usage(const char *);
@@ -68,13 +69,17 @@ main(int argc, char **argv)
 	const char *title = 0, *hfile = 0;
 	char **devnames = 0;
 	int c;
+	int states = 0;
 	const char *fn = 0;
 	const char *sel = "none";
 
-	while ((c = getopt(argc, argv, "c:t:h:nidf:")) != EOF) {
+	while ((c = getopt(argc, argv, "c:s:t:h:nidf:")) != EOF) {
 		switch(c) {
 		case 'c':
 			class |= interpret_class(optarg);
+			break;
+		case 's':
+			states |= interpret_state(optarg);
 			break;
 		case 't':
 			title = optarg;
@@ -118,25 +123,28 @@ main(int argc, char **argv)
 
 	switch(mode) {
 	case NETIF:
-		sel = devmenu_netif(title, hfile, devnames);
+		sel = devmenu_netif(title, hfile, devnames, states);
 		break;
 	case INSTALL:
 		sel = devmenu_common(title, hfile, devnames,
 				     "Select an installation device",
 				     "No installation devices found",
-				     DC_CLS_DISK | DC_CLS_RDISK | DC_CLS_TAPE);
+				     DC_CLS_DISK | DC_CLS_RDISK | DC_CLS_TAPE,
+				     states);
 		break;
 	case DISK:
 		sel = devmenu_common(title, hfile, devnames,
 				     "Select a disk",
 				     "No disks found",
-				     DC_CLS_DISK);
+				     DC_CLS_DISK,
+				     states);
 		break;
 	case GENERIC:
 		sel = devmenu_common(title, hfile, devnames,
 				     "Select a device",
 				     "No devices found",
-				     class);
+				     class,
+				     states);
 		break;
 	}
 	err_set_file(0);
@@ -178,6 +186,42 @@ interpret_class(char *str)
 	return rv;
 }
 
+static int
+interpret_state(char *str)
+{
+	int rv = 0;
+	int invert = 0;
+
+	if (*str == '!' || *str == '~') {
+		invert = 1;
+		str++;
+	}
+
+	for (; *str; str++) {
+		switch(*str) {
+		case 'u':
+		case 'U':
+			rv |= 1 << DC_UNCONFIGURED;
+			break;
+		case '?':
+			rv |= 1 << DC_UNKNOWN;
+			break;
+		case 'i':
+		case 'I':
+			rv |= 1 << DC_IDLE;
+			break;
+		case 'b':
+		case 'B':
+			rv |= 1 << DC_BUSY;
+			break;
+		default:
+			err(EX_USAGE, "unknown state `%c'", *str);
+		}
+	}
+
+	return (invert ? ~rv : rv);
+}
+
 static void
 dm_err_exit(int rval)
 {
@@ -202,5 +246,8 @@ err_writefn(void *cookie, const char *val, int nchars)
 static void
 usage(const char *argv0)
 {
-	fprintf(stderr, "%s: usage:\n%s foo\n", argv0, argv0);
+	fprintf(stderr, "%s: usage:\n"
+		"%s [-c class] [-s state] [-t title] [-h hfile] [-f outfile]"
+		"[-n] [-i] [-d]\n", argv0, argv0);
+	
 }
