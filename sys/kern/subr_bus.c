@@ -490,7 +490,8 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	device_t dev;
 	dev = devclass_get_device(dc, unit);
 	if (dev) {
-	    printf("devclass_alloc_unit: %s%d already exists, using next available unit number\n", dc->name, unit);
+	    if (bootverbose)
+	        printf("devclass_alloc_unit: %s%d already exists, using next available unit number\n", dc->name, unit);
 	    unit = -1;
 	}
     }
