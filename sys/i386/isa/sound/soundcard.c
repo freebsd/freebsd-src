@@ -126,6 +126,7 @@ struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
 struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver = {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
+struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
 struct isa_driver sscapedriver = {sndprobe, sndattach, "sscape"};
 struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
@@ -314,6 +315,8 @@ driver_to_voxunit(struct isa_driver * driver)
 	return (SNDCARD_GUS16);
     else if (driver == &mssdriver)
 	return (SNDCARD_MSS);
+    else if (driver == &cssdriver)
+	return (SNDCARD_CS4232);
     else if (driver == &sscapedriver)
 	return(SNDCARD_SSCAPE);
     else if (driver == &sscape_mssdriver)

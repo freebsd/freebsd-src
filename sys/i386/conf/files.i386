@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.180 1997/12/01 09:29:50 ahasty Exp $
+#	$Id: files.i386,v 1.181 1997/12/09 12:04:49 jamil Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -182,11 +182,14 @@ i386/isa/sound/gus_vol.c	optional	gus	device-driver
 i386/isa/sound/gus_wave.c	optional	gus	device-driver
 i386/isa/sound/ics2101.c	optional	gus	device-driver
 i386/isa/sound/sound_timer.c	optional	gus	device-driver
+i386/isa/sound/sound_timer.c	optional	css	device-driver
+i386/isa/sound/sound_timer.c	optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
 i386/isa/sound/ad1848.c		optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
+i386/isa/sound/ad1848.c		optional	css	device-driver
 i386/isa/sound/sound_timer.c    optional        mss     device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
@@ -209,7 +212,9 @@ i386/isa/sound/sb16_dsp.c	optional	sbxvi	device-driver
 i386/isa/sound/sb16_midi.c	optional	sbmidi	device-driver
 i386/isa/sound/uart6850.c	optional	uart	device-driver
 i386/isa/sound/midi_synth.c	optional	uart	device-driver
+i386/isa/sound/midi_synth.c	optional	css	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
+i386/isa/sound/midibuf.c	optional	css	device-driver
 i386/isa/sound/trix.c		optional	trix	device-driver
 i386/isa/sound/adlib_card.c     optional        trix    device-driver
 i386/isa/sound/opl3.c           optional        trix    device-driver
@@ -222,6 +227,7 @@ i386/isa/sound/mpu401.c		optional	sscape	device-driver
 i386/isa/sound/midi_synth.c	optional	sscape	device-driver
 i386/isa/sound/midibuf.c	optional	sscape	device-driver
 i386/isa/sound/awe_wave.c	optional	awe	device-driver
+i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver

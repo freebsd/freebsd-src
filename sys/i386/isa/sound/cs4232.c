@@ -112,8 +112,6 @@ probe_cs4232(struct address_info * hw_config)
 
     CS_OUT2(0x15, 0x00);	/* Select logical device 0 (WSS/SB/FM) */
     CS_OUT2(0x33, 0x00);	/* Inactivate logical dev 0 */
-    if (ad1848_detect(hw_config->io_base, NULL, hw_config->osp))
-	return 0;
 
     /*
      * Then set some config bytes. First logical device 0

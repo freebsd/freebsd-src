@@ -60,6 +60,13 @@
 #undef  CONFIG_CS4232
 #endif
 
+#include "css.h"
+#if NCSS != 0
+#define CONFIG_AD1848
+#undef  CONFIG_MSS
+#define CONFIG_CS4232
+#endif
+
 #include "sbxvi.h"
 #if NSBXVI != 0 && !defined(CONFIG_SB16)
 #define CONFIG_SB16
