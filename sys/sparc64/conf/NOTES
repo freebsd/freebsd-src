@@ -70,7 +70,6 @@ nodevice	star_saver
 nodevice	bktr
 nodevice	fdc
 nodevice	ppc
-nodevice	sound
 nodevice	"snd_ad1816"
 nodevice	"snd_als4000"
 nodevice	"snd_au88x0"

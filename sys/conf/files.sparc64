@@ -25,6 +25,8 @@ dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
+dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus
+dev/sound/sbus/cs4231.c		optional	snd_audiocs sbus
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
@@ -53,6 +55,7 @@ sparc64/fhc/fhc.c		optional	fhc
 sparc64/fhc/fhc_central.c	optional	fhc central
 sparc64/fhc/fhc_nexus.c		optional	fhc
 sparc64/isa/isa.c		optional	isa
+sparc64/isa/isa_dma.c		optional	isa
 #sparc64/isa/ofw_isa.c		optional	ebus
 #sparc64/isa/ofw_isa.c		optional	isa
 sparc64/isa/ofw_isa.c		standard
