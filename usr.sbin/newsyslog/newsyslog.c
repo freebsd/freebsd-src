@@ -79,15 +79,13 @@ static const char rcsid[] =
 #define	CE_TRIMAT	0x0020	/* trim file at a specific time. */
 #define	CE_GLOB		0x0040	/* name of the log is file name pattern. */
 
-#define NONE -1
-
 struct conf_entry {
 	char *log;		/* Name of the log */
 	char *pid_file;		/* PID file */
 	char *r_reason;		/* The reason this file is being rotated */
 	int rotate;		/* Non-zero if this file should be rotated */
-	int uid;		/* Owner of log */
-	int gid;		/* Group of log */
+	uid_t uid;		/* Owner of log */
+	gid_t gid;		/* Group of log */
 	int numlogs;		/* Number of logs to keep */
 	int size;		/* Size cutoff to trigger trimming the log */
 	int hours;		/* Hours between log trimming */
@@ -133,9 +131,8 @@ static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
 static void PRS(int argc, char **argv);
 static void usage(void);
-static void dotrim(const struct conf_entry *trim_ent, char *log,
-		int numdays, int flags, int perm, int owner_uid,
-		int group_gid, int sig);
+static void dotrim(const struct conf_entry *ent, char *log,
+		int numdays, int flags, int perm, int sig);
 static int log_trim(const char *log, const struct conf_entry *log_ent);
 static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
@@ -143,8 +140,8 @@ static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(const char *pid_file);
 static time_t parse8601(char *s, char *errline);
-static void movefile(char *from, char *to, int perm, int owner_uid,
-		int group_gid);
+static void movefile(char *from, char *to, int perm, uid_t owner_uid,
+		gid_t group_gid);
 static void createdir(char *dirpart);
 static time_t parseDWM(char *s, char *errline);
 
@@ -239,8 +236,8 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->pid_file = NULL;
 		tempwork->r_reason = NULL;
 		tempwork->rotate = 0;
-		tempwork->uid = NONE;
-		tempwork->gid = NONE;
+		tempwork->uid = (uid_t)-1;
+		tempwork->gid = (gid_t)-1;
 		tempwork->numlogs = 1;
 		tempwork->size = -1;
 		tempwork->hours = -1;
@@ -362,7 +359,7 @@ do_entry(struct conf_entry * ent)
 					    ent->log, ent->numlogs);
 			}
 			dotrim(ent, ent->log, ent->numlogs, ent->flags,
-			    ent->permissions, ent->uid, ent->gid, ent->sig);
+			    ent->permissions, ent->sig);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -686,7 +683,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				} else
 					working->uid = atoi(q);
 			} else
-				working->uid = NONE;
+				working->uid = (uid_t)-1;
 
 			q = group;
 			if (*q) {
@@ -699,7 +696,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				} else
 					working->gid = atoi(q);
 			} else
-				working->gid = NONE;
+				working->gid = (gid_t)-1;
 
 			q = parse = missing_field(sob(++parse), errline);
 			parse = son(parse);
@@ -707,8 +704,10 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				errx(1, "malformed line (missing fields):\n%s",
 				    errline);
 			*parse = '\0';
-		} else
-			working->uid = working->gid = NONE;
+		} else {
+			working->uid = (uid_t)-1;
+			working->gid = (gid_t)-1;
+		}
 
 		if (!sscanf(q, "%o", &working->permissions))
 			errx(1, "error in config file; bad permissions:\n%s",
@@ -913,8 +912,8 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
-    int perm, int owner_uid, int group_gid, int sig)
+dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
+    int perm, int sig)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
@@ -924,16 +923,6 @@ dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
-
-#ifdef _IBMR2
-	/*
-	 * AIX 3.1 has a broken fchown- if the owner_uid is -1, it will
-	 * actually change it to be owned by uid -1, instead of leaving it
-	 * as is, as it is supposed to.
-	 */
-	if (owner_uid == -1)
-		owner_uid = geteuid();
-#endif
 
 	if (archtodir) {
 		char *p;
@@ -1021,17 +1010,20 @@ dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
 		if (noaction) {
 			printf("mv %s %s\n", zfile1, zfile2);
 			printf("chmod %o %s\n", perm, zfile2);
-			printf("chown %d:%d %s\n",
-			    owner_uid, group_gid, zfile2);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				printf("chown %u:%u %s\n",
+				    ent->uid, ent->gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
 			(void) chmod(zfile2, perm);
-			(void) chown(zfile2, owner_uid, group_gid);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				if (chown(zfile2, ent->uid, ent->gid))
+					warn("can't chown %s", zfile2);
 		}
 	}
 	if (!noaction && !(flags & CE_BINARY)) {
 		/* Report the trimming to the old log */
-		(void) log_trim(log, trim_ent);
+		(void) log_trim(log, ent);
 	}
 
 	if (!_numdays) {
@@ -1044,8 +1036,8 @@ dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
 			printf("mv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, perm, owner_uid,
-				    group_gid);
+				movefile(log, file1, perm, ent->uid,
+				    ent->gid);
 			else
 				(void) rename(log, file1);
 		}
@@ -1060,12 +1052,13 @@ dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
 		fd = creat(tfile, perm);
 		if (fd < 0)
 			err(1, "can't start new log");
-		if (fchown(fd, owner_uid, group_gid))
-			err(1, "can't chmod new log file");
+		if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+			if (fchown(fd, ent->uid, ent->gid))
+			    err(1, "can't chown new log file");
 		(void) close(fd);
 		if (!(flags & CE_BINARY)) {
 			/* Add status message to new log file */
-			if (log_trim(tfile, trim_ent))
+			if (log_trim(tfile, ent))
 				err(1, "can't add status message to log");
 		}
 	}
@@ -1081,9 +1074,9 @@ dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
 
 	pid = 0;
 	need_notification = notified = 0;
-	if (trim_ent->pid_file != NULL) {
+	if (ent->pid_file != NULL) {
 		need_notification = 1;
-		pid = get_pid(trim_ent->pid_file);
+		pid = get_pid(ent->pid_file);
 	}
 	if (pid) {
 		if (noaction) {
@@ -1374,7 +1367,7 @@ parse8601(char *s, char *errline)
 
 /* physically move file */
 static void
-movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
+movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
 {
 	FILE *src, *dst;
 	int c;
@@ -1383,8 +1376,10 @@ movefile(char *from, char *to, int perm, int owner_uid, int group_gid)
 		err(1, "can't fopen %s for reading", from);
 	if ((dst = fopen(to, "w")) == NULL)
 		err(1, "can't fopen %s for writing", to);
-	if (fchown(fileno(dst), owner_uid, group_gid))
-		err(1, "can't fchown %s", to);
+	if (owner_uid != (uid_t)-1 || group_gid != (gid_t)-1) {
+		if (fchown(fileno(dst), owner_uid, group_gid))
+			err(1, "can't fchown %s", to);
+	}
 	if (fchmod(fileno(dst), perm))
 		err(1, "can't fchmod %s", to);
 
