@@ -461,7 +461,7 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
 					break;
 			if (he > hs)
-				if (fseek(fp, he - hs, SEEK_CUR) == -1)
+				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
 					break;
 		}
 		if (nw != nr) {
@@ -596,7 +596,7 @@ get_crashtime()
 void
 get_dumpsize()
 {
-	int kdumpsize;
+	int kdumpsize;	/* Number of pages in dump. */
 
 	/* Read the dump size. */
 	DumpRead(dumpfd, &kdumpsize, sizeof(kdumpsize),
