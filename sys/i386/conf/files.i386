@@ -33,7 +33,6 @@ i386/i386/trap.c		standard
 i386/i386/vm_machdep.c		standard
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha1742.c		optional	ahb	device-driver
-i386/isa/as.c			optional	as	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
 i386/isa/com.c			optional	com	device-driver
