@@ -41,7 +41,3 @@ install:
 .endif
 
 .include <bsd.prog.mk>
-all: $(DEVFILES)
-install_data: install_dev
-uninstall_sub: uninstall_dev
-install_dev: $(DEVFILES)
