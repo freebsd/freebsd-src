@@ -73,7 +73,6 @@
 316:Hutchinson:Kansas:KS
 316:Wichita:Kansas:KS
 317:Indianapolis:Indiana:IN
-317:Kokomo:Indiana:IN
 318:Alexandria:Louisiana:LA
 318:Lake Charles:Louisiana:LA
 318:Shreveport:Louisiana:LA
@@ -259,6 +258,8 @@
 719:South Fork:Colorado:CO
 757:Norfolk:Virginia:VI
 758::St Lucia:LC
+765:Kokomo:Indiana:IN
+765:Lafayette:Indiana:IN
 770:Atlanta(Metro) outside 285 beltway:Georgia:GA
 770:La Grange:Georgia:GA
 770:Marietta:Georgia:GA
