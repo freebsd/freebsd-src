@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include <wchar.h>
+
 typedef struct _pr {
 	struct _pr *nextpr;		/* next print unit */
 #define	F_ADDRESS	0x001		/* print offset */
@@ -52,6 +54,8 @@ typedef struct _pr {
 	char *cchar;			/* conversion character */
 	char *fmt;			/* printf format */
 	char *nospace;			/* no whitespace version */
+	int mbleft;			/* bytes left of multibyte char. */
+	mbstate_t mbstate;		/* conversion state */
 } PR;
 
 typedef struct _fu {
@@ -88,7 +92,7 @@ void	 badconv(char *);
 void	 badfmt(const char *);
 void	 badsfmt(void);
 void	 bpad(PR *);
-void	 conv_c(PR *, u_char *);
+void	 conv_c(PR *, u_char *, size_t);
 void	 conv_u(PR *, u_char *);
 void	 display(void);
 void	 doskip(const char *, int);
@@ -98,6 +102,7 @@ void	 newsyntax(int, char ***);
 int	 next(char **);
 void	 nomem(void);
 void	 oldsyntax(int, char ***);
+size_t	 peek(u_char *, size_t);
 void	 rewrite(FS *);
 int	 size(FS *);
 void	 usage(void);
