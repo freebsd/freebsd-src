@@ -126,6 +126,7 @@ struct nfsnode {
 	struct nfs4_fctx	n_wfc;
 	u_char			*n_name;	/* leaf name, for v4 OPEN op */
 	uint32_t		n_namelen;
+	daddr_t			ra_expect_lbn;
 };
 
 #define n_atim		n_un1.nf_atim
