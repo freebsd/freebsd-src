@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_show.c,v 1.12 1998/07/24 16:20:34 johnc Exp $
+ *	@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_show.c,v 1.12 1998/07/24 16:20:34 johnc Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -57,8 +48,17 @@ static char *RCSid = "@(#) $Id: atm_show.c,v 1.12 1998/07/24 16:20:34 johnc Exp 
 #include <netatm/atm_vc.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $");
+#endif
 
 
 /*
@@ -90,7 +90,7 @@ show_arp(argc, argv, cmdp)
 	char		**argv;
 	struct cmd	*cmdp;
 {
-	int			buf_len, arp_info_len, ip_info_len, sel;
+	int			buf_len, arp_info_len;
 	struct atminfreq	air;
 	struct air_arp_rsp	*arp_info, *arp_info_base;
 	struct sockaddr_in	*sin;
@@ -418,7 +418,7 @@ show_ip_vcc(argc, argv, cmdp)
 	char		**argv;
 	struct cmd	*cmdp;
 {
-	int			buf_len, ip_info_len, rc, sel;
+	int			buf_len, ip_info_len, rc;
 	char			*if_name = (char *)0;
 	struct atminfreq	air;
 	struct air_ip_vcc_rsp	*ip_info, *ip_info_base;
@@ -1150,17 +1150,17 @@ arp_compare(p1, p2)
 	/*
 	 * Compare the IP addresses
 	 */
-	if (rc = sin1->sin_family - sin2->sin_family)
+	if ((rc = sin1->sin_family - sin2->sin_family) != 0)
 		return(rc);
-	if (rc = sin1->sin_addr.s_addr - sin2->sin_addr.s_addr)
+	if ((rc = sin1->sin_addr.s_addr - sin2->sin_addr.s_addr) != 0)
 		return(rc);
 
 	/*
 	 * Compare the ATM addresses
 	 */
-	if (rc = c1->aap_addr.address_format - c2->aap_addr.address_format)
+	if ((rc = c1->aap_addr.address_format - c2->aap_addr.address_format) != 0)
 		return(rc);
-	if (rc = c1->aap_addr.address_length - c2->aap_addr.address_length)
+	if ((rc = c1->aap_addr.address_length - c2->aap_addr.address_length) != 0)
 		return(rc);
 	switch(c1->aap_addr.address_format) {
 	case T_ATM_ABSENT:

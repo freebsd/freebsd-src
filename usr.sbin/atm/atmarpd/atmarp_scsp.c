@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_scsp.c,v 1.6 1998/08/13 20:11:11 johnc Exp $
+ *	@(#) $Id: atmarp_scsp.c,v 1.1 1998/09/15 08:23:14 phk Exp $
  *
  */
 
@@ -35,19 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_scsp.c,v 1.6 1998/08/13 20:11:11 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -60,11 +49,23 @@ static char *RCSid = "@(#) $Id: atmarp_scsp.c,v 1.6 1998/08/13 20:11:11 johnc Ex
 #include <netatm/atm_ioctl.h>
 #include <netatm/uni/uniip_var.h>
  
+#include <errno.h>
+#include <fcntl.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
 #include "../scspd/scsp_var.h"
 #include "atmarp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atmarp_scsp.c,v 1.1 1998/09/15 08:23:14 phk Exp $");
+#endif
 
 
 /*
@@ -142,7 +143,6 @@ atmarp_scsp_cache(aip, msg)
 	/*
 	 * Free the message
 	 */
-cache_done:
 	if (smp)
 		UM_FREE(smp);
 
@@ -254,10 +254,9 @@ atmarp_scsp_update(aap, state)
 	Atmarp		*aap;
 	int		state;
 {
-	int		i, len, rc = 0;
+	int		rc = 0;
 	Atmarp_intf	*aip = aap->aa_intf;
 	Scsp_if_msg	*smp = (Scsp_if_msg *)0;
-	Scsp_atmarp_msg	*sap;
 
 	/*
 	 * Make sure the connection to SCSP is active
@@ -455,7 +454,7 @@ int
 atmarp_scsp_read(aip)
 	Atmarp_intf	*aip;
 {
-	int		len, rc;
+	int		len, rc = 0;
 	char		*buff = (char *)0;
 	Scsp_if_msg	*smp;
 	Scsp_if_msg_hdr	msg_hdr;
@@ -505,6 +504,7 @@ atmarp_scsp_read(aip)
 	switch(smp->si_type) {
 	case SCSP_CFG_RSP:
 		if (smp->si_rc != SCSP_RSP_OK) {
+			rc = EINVAL;
 			goto read_fail;
 		}
 		break;
@@ -521,7 +521,6 @@ atmarp_scsp_read(aip)
 		/*
 		 * Ignore Update Responses
 		 */
-		rc = 0;
 		break;
 	default:
 		atmarp_log(LOG_ERR, "Unexpected SCSP message received");

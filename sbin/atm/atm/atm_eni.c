@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_eni.c,v 1.8 1998/08/26 23:29:31 mks Exp $
+ *	@(#) $Id: atm_eni.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_eni.c,v 1.8 1998/08/26 23:29:31 mks Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -55,10 +46,19 @@ static char *RCSid = "@(#) $Id: atm_eni.c,v 1.8 1998/08/26 23:29:31 mks Exp $";
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
-
-#include <libatm.h>
-#include "atm.h"
 #include <dev/hea/eni_stats.h>
+
+#include <errno.h>
+#include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_eni.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 /*
@@ -241,7 +241,7 @@ print_eni_oc3(vi)
 	/*
 	 * Print the OC-3c info
 	 */
-	printf("%7d  %7d  %7d  %7d  %7d  %7d  %7d\n",
+	printf("%7ld  %7ld  %7ld  %7ld  %7ld  %7ld  %7ld\n",
 			stats->eni_st_oc3.oc3_sect_bip8,
 			stats->eni_st_oc3.oc3_path_bip8,
 			stats->eni_st_oc3.oc3_line_bip24,
@@ -282,7 +282,7 @@ print_eni_atm(vi)
 	/*
 	 * Print the ATM layer info
 	 */
-	printf("%10d  %10d\n",
+	printf("%10ld  %10ld\n",
 			stats->eni_st_atm.atm_rcvd,
 			stats->eni_st_atm.atm_xmit);
 }
@@ -318,7 +318,7 @@ print_eni_aal0(vi)
 	/*
 	 * Print the AAL 0 info
 	 */
-	printf("%10d  %10d  %10d\n",
+	printf("%10ld  %10ld  %10ld\n",
 			stats->eni_st_aal0.aal0_rcvd,
 			stats->eni_st_aal0.aal0_xmit,
 			stats->eni_st_aal0.aal0_drops);
@@ -355,7 +355,7 @@ print_eni_aal5(vi)
 	/*
 	 * Print the AAL 5 info
 	 */
-	printf("%10d  %10d  %5d  %5d  %9d  %9d  %5d  %5d  %5d\n",
+	printf("%10ld  %10ld  %5ld  %5ld  %9ld  %9ld  %5ld  %5ld  %5ld\n",
 			stats->eni_st_aal5.aal5_rcvd,
 			stats->eni_st_aal5.aal5_xmit,
 			stats->eni_st_aal5.aal5_crc_len,
@@ -397,7 +397,7 @@ print_eni_driver(vi)
         /*
          * Print the driver info
          */
-        printf ( "%5d  %5d  %5d  %5d  %5d  %5d  %5d  %5d  %5d  %5d  %5d\n",
+        printf ( "%5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld\n",
                 stats->eni_st_drv.drv_mm_toobig,
                 stats->eni_st_drv.drv_mm_nodesc,
                 stats->eni_st_drv.drv_mm_nobuf,
@@ -419,7 +419,7 @@ print_eni_driver(vi)
         /*
          * Print the driver info
          */
-        printf ( "%5d  %5d  %5d  %5d  %5d  %5d  %5d  %7d  %5d  %7d\n",
+        printf ( "%5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %5ld  %7ld  %5ld  %7ld\n",
                 stats->eni_st_drv.drv_rv_novcc,
                 stats->eni_st_drv.drv_rv_intrq,
                 stats->eni_st_drv.drv_rv_segdma,

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: cache_key.c,v 1.1 1998/07/09 21:45:27 johnc Exp $
+ *	@(#) $Id: cache_key.c,v 1.1 1998/09/15 08:22:33 phk Exp $
  *
  */
 
@@ -36,14 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: cache_key.c,v 1.1 1998/07/09 21:45:27 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -55,7 +49,13 @@ static char *RCSid = "@(#) $Id: cache_key.c,v 1.1 1998/07/09 21:45:27 johnc Exp 
 #include <netatm/atm_ioctl.h>
 
 #include <md5.h>
+#include <string.h>
+
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: cache_key.c,v 1.1 1998/09/15 08:22:33 phk Exp $");
+#endif
 
 
 /*
@@ -78,8 +78,7 @@ scsp_cache_key(ap, ip, ol, op)
 	int		ol;
 	char 		*op;
 {
-	int	i, key, len;
-	char	*cp;
+	int	i, len;
 	char	buff[32], digest[16];
 	MD5_CTX	context;
 

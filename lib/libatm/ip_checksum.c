@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ip_checksum.c,v 1.4 1998/08/11 18:11:48 johnc Exp $
+ *	@(#) $Id: ip_checksum.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -36,14 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: ip_checksum.c,v 1.4 1998/08/11 18:11:48 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -55,6 +49,10 @@ static char *RCSid = "@(#) $Id: ip_checksum.c,v 1.4 1998/08/11 18:11:48 johnc Ex
 #include <netatm/atm_ioctl.h>
 
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: ip_checksum.c,v 1.1 1998/09/15 08:22:34 phk Exp $");
+#endif
 
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_fore200.c,v 1.10 1998/08/26 23:29:31 mks Exp $
+ *	@(#) $Id: atm_fore200.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_fore200.c,v 1.10 1998/08/26 23:29:31 mks Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -55,12 +46,21 @@ static char *RCSid = "@(#) $Id: atm_fore200.c,v 1.10 1998/08/26 23:29:31 mks Exp
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
-
-#include <libatm.h>
-#include "atm.h"
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>
 #include <dev/hfa/fore_stats.h>
+
+#include <errno.h>
+#include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_fore200.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 /*
@@ -305,7 +305,7 @@ print_fore200_taxi(vi)
 	/*
 	 * Print the physical layer info
 	 */
-	printf("%10d  %12d\n",
+	printf("%10ld  %12ld\n",
 			stats->st_taxi.taxi_bad_crc,
 			stats->st_taxi.taxi_framing);
 }
@@ -341,7 +341,7 @@ print_fore200_oc3(vi)
 	/*
 	 * Print the OC-3c info
 	 */
-	printf("%7d  %7d  %7d  %7d  %7d  %7d  %7d\n",
+	printf("%7ld  %7ld  %7ld  %7ld  %7ld  %7ld  %7ld\n",
 			stats->st_oc3.oc3_sect_bip8,
 			stats->st_oc3.oc3_path_bip8,
 			stats->st_oc3.oc3_line_bip24,
@@ -382,7 +382,7 @@ print_fore200_dev(vi)
 	/*
 	 * Print the device info
 	 */
-	printf("%10d  %10d  %10d  %10d  %10d  %s\n",
+	printf("%10ld  %10ld  %10ld  %10ld  %10ld  %s\n",
 			stats->st_misc.buf1_sm_fail,
 			stats->st_misc.buf1_lg_fail,
 			stats->st_misc.buf2_sm_fail,
@@ -422,7 +422,7 @@ print_fore200_atm(vi)
 	/*
 	 * Print the ATM layer info
 	 */
-	printf("%10d  %10d  %10d  %10d  %10d  %10d\n",
+	printf("%10ld  %10ld  %10ld  %10ld  %10ld  %10ld\n",
 			stats->st_atm.atm_rcvd,
 			stats->st_atm.atm_xmit,
 			stats->st_atm.atm_vpi_range,
@@ -462,7 +462,7 @@ print_fore200_aal0(vi)
 	/*
 	 * Print the AAL 0 info
 	 */
-	printf("%10d  %10d  %10d\n",
+	printf("%10ld  %10ld  %10ld\n",
 			stats->st_aal0.aal0_rcvd,
 			stats->st_aal0.aal0_xmit,
 			stats->st_aal0.aal0_drops);
@@ -499,7 +499,7 @@ print_fore200_aal4(vi)
 	/*
 	 * Print the AAL 4 info
 	 */
-	printf("%10d  %10d  %5d  %5d  %5d  %9d  %9d  %5d  %5d\n",
+	printf("%10ld  %10ld  %5ld  %5ld  %5ld  %9ld  %9ld  %5ld  %5ld\n",
 			stats->st_aal4.aal4_rcvd,
 			stats->st_aal4.aal4_xmit,
 			stats->st_aal4.aal4_crc,
@@ -542,7 +542,7 @@ print_fore200_aal5(vi)
 	/*
 	 * Print the AAL 5 info
 	 */
-	printf("%10d  %10d  %5d  %5d  %9d  %9d  %5d  %5d  %5d\n",
+	printf("%10ld  %10ld  %5ld  %5ld  %9ld  %9ld  %5ld  %5ld  %5ld\n",
 			stats->st_aal5.aal5_rcvd,
 			stats->st_aal5.aal5_xmit,
 			stats->st_aal5.aal5_crc_len,
@@ -585,7 +585,7 @@ print_fore200_driver(vi)
 	/*
 	 * Print the driver info
 	 */
-	printf("%4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d  %4d\n",
+	printf("%4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld  %4ld\n",
 			stats->st_drv.drv_xm_notact,
 			stats->st_drv.drv_xm_full,
 			stats->st_drv.drv_xm_maxpdu,

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *      @(#) $Id: ilmid.c,v 1.2 1999/01/20 00:56:21 mks Exp $
+ *      @(#) $Id: ilmid.c,v 1.3 1999/05/23 23:18:38 imp Exp $
  *
  */
 
@@ -46,19 +46,6 @@
  */
 
 #include <sys/param.h>
-
-#ifndef	lint
-__RCSID("@(#) $Id: ilmid.c,v 1.2 1999/01/20 00:56:21 mks Exp $");
-#endif
-
-#include <err.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <time.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -75,7 +62,20 @@ __RCSID("@(#) $Id: ilmid.c,v 1.2 1999/01/20 00:56:21 mks Exp $");
 #include <dev/hfa/fore_slave.h>
 #include <dev/hfa/fore_stats.h>
 
+#include <err.h>
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <time.h>
+#include <unistd.h>
+
+#ifndef	lint
+__RCSID("@(#) $Id: ilmid.c,v 1.3 1999/05/23 23:18:38 imp Exp $");
+#endif
+
 
 #define	MAX_LEN		9180
 

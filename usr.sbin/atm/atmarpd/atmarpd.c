@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarpd.c,v 1.5 1998/08/13 20:11:13 johnc Exp $
+ *	@(#) $Id: atmarpd.c,v 1.1 1998/09/15 08:23:15 phk Exp $
  *
  */
 
@@ -35,22 +35,13 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atmarpd.c,v 1.5 1998/08/13 20:11:13 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/ttycom.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/ttycom.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
 #include <netatm/atm_if.h>
@@ -58,11 +49,22 @@ static char *RCSid = "@(#) $Id: atmarpd.c,v 1.5 1998/08/13 20:11:13 johnc Exp $"
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
 #include "../scspd/scsp_var.h"
 #include "atmarp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atmarpd.c,v 1.1 1998/09/15 08:23:15 phk Exp $");
+#endif
 
 
 /*
@@ -76,7 +78,6 @@ Atmarp_slis	*atmarp_slis_head = (Atmarp_slis *)0;
 FILE		*atmarp_log_file = (FILE *)0;
 char		*atmarp_log_file_name = (char *)0;
 Harp_timer	cache_timer, perm_timer;
-
 
 
 /*
@@ -119,7 +120,7 @@ initialize(argc, argv)
 	/*
 	 * Save program name, ignoring any path components
 	 */
-	if (prog = (char *)strrchr(argv[0], '/'))
+	if ((prog = (char *)strrchr(argv[0], '/')) != NULL)
 		prog++;
 	else
 		prog = argv[0];
@@ -317,6 +318,7 @@ daemon_bypass:
  *	none
  *
  */
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
@@ -387,7 +389,7 @@ main(argc, argv)
 			if (harp_timer_exec) {
 				timer_proc();
 				continue;
-			} else if (errno = EINTR) {
+			} else if (errno == EINTR) {
 				continue;
 			} else {
 				atmarp_log(LOG_ERR, "Select failed");

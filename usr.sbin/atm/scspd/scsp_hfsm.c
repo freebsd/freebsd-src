@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_hfsm.c,v 1.4 1998/07/16 15:59:25 johnc Exp $
+ *	@(#) $Id: scsp_hfsm.c,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -36,17 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_hfsm.c,v 1.4 1998/07/16 15:59:25 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -57,10 +48,18 @@ static char *RCSid = "@(#) $Id: scsp_hfsm.c,v 1.4 1998/07/16 15:59:25 johnc Exp 
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <syslog.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_hfsm.c,v 1.1 1998/09/15 08:23:16 phk Exp $");
+#endif
 
 
 /*
@@ -231,7 +230,6 @@ scsp_hello_act_02(dcsp, msg)
 	Scsp_msg	*msg;
 {
 	int		rc;
-	struct in_addr	addr;
 
 	/*
 	 * Cancel any current timers
@@ -488,7 +486,7 @@ scsp_hello_act_06(dcsp, msg)
 	Scsp_dcs	*dcsp;
 	Scsp_msg	*msg;
 {
-	int	rc, rcv_found;
+	int	rc = 0, rcv_found;
 	Scsp_id	*ridp;
 
 	/*
@@ -552,7 +550,6 @@ scsp_hello_act_06(dcsp, msg)
 		/*
 		 * Check the message for the local server's ID
 		 */
-		rc = 0;
 		for (ridp = &msg->sc_hello->hello_mcp.rid,
 					rcv_found = 0;
 				ridp;

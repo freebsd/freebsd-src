@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scspd.c,v 1.6 1998/08/21 18:08:25 johnc Exp $
+ *	@(#) $Id: scspd.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -36,23 +36,13 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scspd.c,v 1.6 1998/08/21 18:08:25 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/ttycom.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/ttycom.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
 #include <netatm/atm_if.h>
@@ -60,10 +50,21 @@ static char *RCSid = "@(#) $Id: scspd.c,v 1.6 1998/08/21 18:08:25 johnc Exp $";
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
  
+#include <errno.h>
+#include <fcntl.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scspd.c,v 1.1 1998/09/15 08:23:17 phk Exp $");
+#endif
 
 
 /*
@@ -151,7 +152,7 @@ initialize(argc, argv)
 	/*
 	 * Save program name, ignoring any path components
 	 */
-	if (prog = (char *)strrchr(argv[0], '/'))
+	if ((prog = (char *)strrchr(argv[0], '/')) != NULL)
 		prog++;
 	else
 		prog = argv[0];
@@ -353,6 +354,7 @@ daemon_bypass:
  *	none
  *
  */
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
@@ -493,7 +495,7 @@ main(argc, argv)
 		for (i = 0; i <= scsp_max_socket; i++) {
 			if (FD_ISSET(i, &write_set)) {
 				FD_CLR(i, &write_set);
-				if (dcsp = scsp_find_dcs(i)) {
+				if ((dcsp = scsp_find_dcs(i)) != NULL) {
 					rc = scsp_hfsm(dcsp,
 						SCSP_HFSM_VC_ESTAB,
 						(Scsp_msg *)0);
@@ -534,9 +536,9 @@ main(argc, argv)
 		 */
 		for (i = 0; i <= scsp_max_socket; i++) {
 			if (FD_ISSET(i, &read_set)) {
-				if (ssp = scsp_find_server(i)) {
+				if ((ssp = scsp_find_server(i)) != NULL) {
 					rc = scsp_server_read(ssp);
-				} else if (dcsp = scsp_find_dcs(i)) {
+				} else if ((dcsp = scsp_find_dcs(i)) != NULL) {
 					rc = scsp_dcs_read(dcsp);
 				}
 			}
