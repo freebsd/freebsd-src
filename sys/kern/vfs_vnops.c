@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -46,6 +48,7 @@
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -187,22 +190,29 @@ restart:
 		error = EOPNOTSUPP;
 		goto bad;
 	}
+	mode = 0;
+	if (fmode & (FWRITE | O_TRUNC)) {
+		if (vp->v_type == VDIR) {
+			error = EISDIR;
+			goto bad;
+		}
+		mode |= VWRITE;
+	}
+	if (fmode & FREAD)
+		mode |= VREAD;
+	if (fmode & O_APPEND)
+		mode |= VAPPEND;
+#ifdef MAC
+	error = mac_check_vnode_open(cred, vp, mode);
+	if (error)
+		goto bad;
+#endif
 	if ((fmode & O_CREAT) == 0) {
-		mode = 0;
-		if (fmode & (FWRITE | O_TRUNC)) {
-			if (vp->v_type == VDIR) {
-				error = EISDIR;
-				goto bad;
-			}
+		if (mode & VWRITE) {
 			error = vn_writechk(vp);
 			if (error)
 				goto bad;
-			mode |= VWRITE;
 		}
-		if (fmode & FREAD)
-			mode |= VREAD;
-		if (fmode & O_APPEND)
-			mode |= VAPPEND;
 		if (mode) {
 		        error = VOP_ACCESS(vp, mode, cred, td);
 			if (error)
