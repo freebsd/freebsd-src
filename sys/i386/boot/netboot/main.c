@@ -292,7 +292,7 @@ cfg_done:
 		printf("Bad executable format!\r\n");
 		longjmp(jmp_bootmenu, 1);
 	}
-	loadpoint = (char *)0x100000;
+	loadpoint = (char *)(head.a_entry & 0x00FFFFFF);
 	offset = N_TXTOFF(head);
 	printf("text=0x%X, ",head.a_text);
 	nfsload(head.a_text);
@@ -343,7 +343,9 @@ POLLKBD - Check for Interrupt from keyboard
 **************************************************************************/
 pollkbd()
 {
+#ifndef SECURE_BOOT
 	if (iskey() && (getchar() == ESC)) longjmp(jmp_bootmenu,1);
+#endif
 }
 
 /**************************************************************************
@@ -657,6 +659,18 @@ decode_rfc1048(p)
 				break;
 			case 131:       /* swap mount options */
 				bootp_string("swapopts", p);
+				break;
+			case 132:       /* any other options */
+			case 133:
+			case 134:
+			case 135:
+			case 136:
+			case 137:
+			case 138:
+			case 139:
+			case 140:
+			case 141:
+				bootp_string("", p);
 				break;
 			default:
 				printf("Unknown RFC1048-tag ");
