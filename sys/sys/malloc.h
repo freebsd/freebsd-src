@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.4 1994/09/19 15:41:55 dfr Exp $
+ * $Id: malloc.h,v 1.5 1994/10/04 06:51:36 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -44,6 +44,7 @@
  */
 #define	M_WAITOK	0x0000
 #define	M_NOWAIT	0x0001
+#define M_KERNEL	0x0002
 
 /*
  * Types of memory to be allocated
