@@ -2,8 +2,8 @@
 .\" $Id: pam_krb5.5,v 1.5 2000/01/05 00:59:56 fcusack Exp $
 .\" $FreeBSD$
 .Dd January 15, 1999
-.Dt pam_krb5 8
-.Os FreeBSD
+.Dt PAM_KRB5 8
+.Os
 .Sh NAME
 .Nm pam_krb5
 .Nd Kerberos 5 PAM module
@@ -37,17 +37,18 @@ It also supports usernames with explicit realm names.
 If a realm name is supplied, then upon a sucessful return, it
 changes the username by mapping the principal name into a local username
 (calling
-.Fn krb5_aname_to_localname Ns ).
+.Fn krb5_aname_to_localname ) .
 This typically just means
 the realm name is stripped.
 .Pp
 It prompts the user for a password and obtains a new Kerberos TGT for
-the principal. The TGT is verified by obtaining a service
+the principal.
+The TGT is verified by obtaining a service
 ticket for the local host.
 .Pp
 When prompting for the current password, the authentication
-module will use the prompt 
-.Dq Password for <principal>: .
+module will use the prompt
+.Dq Li "Password for <principal>:" .
 .Pp
 The
 .Fn pam_sm_setcred
@@ -59,41 +60,49 @@ The credentials cache should be destroyed by the user at logout with
 .Xr kdestroy 1 .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width 15n
-.It Li debug
+.Bl -tag -xwidth ".Cm use_first_pass"
+.It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
-.It Li use_first_pass
+.It Cm use_first_pass
 If the authentication module is not the first in the stack,
 and a previous module obtained the user's password, that password is
-used to authenticate the user. If this fails, the authentication
+used to authenticate the user.
+If this fails, the authentication
 module returns failure without prompting the user for a password.
 This option has no effect if the authentication module is
 the first in the stack, or if no previous modules obtained the
 user's password.
-.It Li try_first_pass
+.It Cm try_first_pass
 This option is similar to the
-.Li use_first_pass
+.Cm use_first_pass
 option, except that if the previously obtained password fails, the
 user is prompted for another password.
-.It Li forwardable
+.It Cm forwardable
 Obtain forwardable Kerberos credentials for the user.
-.It Li no_ccache
-Do not save the obtained credentials in a credentials cache. This is a
+.It Cm no_ccache
+Do not save the obtained credentials in a credentials cache.
+This is a
 useful option if the authentication module is used for services such
-as ftp or pop, where the user would not be able to destroy them. [This
+as ftp or pop, where the user would not be able to destroy them.
+[This
 is not a recommendation to use the module for those services.]
-.It Li ccache=<name>
-Use <name> as the credentials cache. <name> must be in the form
-.Li type:residual .
+.It Cm ccache Ns = Ns Ar name
+Use
+.Ar name
+as the credentials cache.
+.Ar name
+must be in the form
+.Ar type : Ns Ar residual .
 The special tokens
-.Li %u ,
-to designate the decimal uid of the user;
+.Ql %u ,
+to designate the decimal UID of the user;
 and
-.Li %p ,
-to designate the current process id; can be used in <name>.
+.Ql %p ,
+to designate the current process ID; can be used in
+.Ar name .
 .El
 .Ss Kerberos 5 Account Management Module
 The Kerberos 5 account management component
@@ -102,7 +111,9 @@ provides a function to perform account management,
 The function verifies that the authenticated principal is allowed
 to login to the local user account by calling
 .Fn krb5_kuserok
-(which checks the user's \&.k5login file).
+(which checks the user's
+.Pa .k5login
+file).
 .Ss Kerberos 5 Password Management Module
 The Kerberos 5 password management component
 provides a function to change passwords
@@ -112,16 +123,22 @@ user running the
 .Xr passwd 1
 command, or the username given as an argument) is mapped into
 a Kerberos principal name, using the same technique as in
-the authentication module. Note that if a realm name was
+the authentication module.
+Note that if a realm name was
 explicitly supplied during authentication, but not during
 a password change, the mapping
 done by the password management module may not result in the
 same principal as was used for authentication.
 .Pp
 Unlike when
-changing a unix password, the password management module will
+changing a
+.Ux
+password, the password management module will
 allow any user to change any principal's password (if the user knows
-the principal's old password, of course). Also unlike unix, root
+the principal's old password, of course).
+Also unlike
+.Ux ,
+root
 is always prompted for the principal's old password.
 .Pp
 The password management module uses the same heuristics as
@@ -130,25 +147,27 @@ to determine how to contact the Kerberos password server.
 .Pp
 The following options may be passed to the password management
 module:
-.Bl -tag -width 15n
-.It Li debug
-.Xr syslog 2
+.Bl -tag -xwidth ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
-.It Li use_first_pass
+.It Cm use_first_pass
 If the password management module is not the first in the stack,
 and a previous module obtained the user's old password, that password is
-used to authenticate the user. If this fails, the password
+used to authenticate the user.
+If this fails, the password
 management
 module returns failure without prompting the user for the old password.
 If successful, the new password entered to the previous module is also
-used as the new Kerberos password. If the new password fails,
+used as the new Kerberos password.
+If the new password fails,
 the password management module returns failure without
 prompting the user for a new password.
-.It Li try_first_pass
+.It Cm try_first_pass
 This option is similar to the
-.Li use_first_pass
+.Cm use_first_pass
 option, except that if the previously obtained old or new passwords fail,
 the user is prompted for them.
 .El
@@ -158,8 +177,10 @@ provides functions to initiate
 .Pq Fn pam_sm_open_session
 and terminate
 .Pq Fn pam_sm_close_session
-sessions. Since session management is not defined under Kerberos 5,
-both of these functions simply return success. They are provided
+sessions.
+Since session management is not defined under Kerberos 5,
+both of these functions simply return success.
+They are provided
 only because of the naming conventions for PAM modules.
 .Sh ENVIRONMENT
 .Bl -tag -width "KRB5CCNAME"
@@ -167,9 +188,11 @@ only because of the naming conventions for PAM modules.
 Location of the credentials cache.
 .El
 .Sh FILES
-.Bl -tag -width "/tmp/krb5cc_[uid]" -compact
-.It Pa /tmp/krb5cc_[uid]
-default credentials cache ([uid] is the decimal UID of the user).
+.Bl -tag -xwidth ".Pa /tmp/krb5cc_ Ns Ar uid" -compact
+.It Pa /tmp/krb5cc_ Ns Ar uid
+default credentials cache
+.Ar ( uid
+is the decimal UID of the user).
 .It Pa $HOME/.k5login
 file containing Kerberos principals that are allowed access.
 .El
@@ -178,7 +201,7 @@ file containing Kerberos principals that are allowed access.
 .Xr passwd 1 ,
 .Xr syslog 3 ,
 .Xr pam.conf 5 ,
-.Xr pam 8 .
+.Xr pam 8
 .Sh NOTES
 Applications should not call
 .Fn pam_authenticate
