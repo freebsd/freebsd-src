@@ -880,7 +880,7 @@ send:
 					       : NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-#ifdef IPSEC
+#if defined(IPSEC) && !defined(FAST_IPSEC)
 		if (ipsec_setsocket(m, so) != 0) {
 			m_freem(m);
 			error = ENOBUFS;
