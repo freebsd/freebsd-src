@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.22 1999/04/16 21:22:52 peter Exp $
+ * $Id: pci_compat.c,v 1.23 1999/04/17 08:36:07 peter Exp $
  *
  */
 
@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/linker_set.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -255,159 +254,6 @@ pci_unmap_int(pcici_t cfg)
 {
 	return (0); /* not supported, yet, since cfg doesn't know about idesc */
 }
-
-#if 0
-/* ------------------------------------------------------------------------- */
-
-/*
- * Preliminary support for "wired" PCI devices.
- * This code supports currently only devices on PCI bus 0, since the
- * mapping from PCI BIOS bus numbers to configuration file bus numbers 
- * is not yet maintained, whenever a PCI to PCI bridge is found.
- * The "bus" field of "pciwirecfg" correlates an PCI bus with the bridge 
- * it is attached to. The "biosbus" field is to be updated for each bus,
- * whose bridge is probed. An entry with bus != 0 and biosbus == 0 is
- * invalid and will be skipped in the search for a wired unit, but not
- * in the test for a free unit number.
- */
-
-typedef struct {
-	char		*name;
-	int		unit;
-	u_int8_t	bus;
-	u_int8_t	slot;
-	u_int8_t	func;
-	u_int8_t	biosbus;
-} pciwirecfg;
-
-static pciwirecfg pci_wireddevs[] = {
-	/* driver,	unit,	bus,	slot,	func,	BIOS bus */
-#ifdef PCI_DEBUG
-	{ "ncr",	2,	1,	4,	0,	0	},
-	{ "ed",		2,	1,	5,	0,	0	},
-#endif /* PCI_DEBUG */
-	/* do not delete the end marker that follows this comment !!! */
-	{ NULL }
-};
-
-/* return unit number of wired device, or -1 if no match */
-
-static int
-pci_wiredunit(pcicfgregs *cfg, char *name)
-{
-	pciwirecfg *p;
-
-	p = pci_wireddevs;
-	while (p->name != NULL) {
-		if (p->bus == cfg->bus
-		    && p->slot == cfg->slot
-		    && p->func == cfg->func
-		    && strcmp(p->name, name) == 0)
-			return (p->unit);
-		p++;
-	}
-	return (-1);
-}
-
-/* return free unit number equal or greater to the one supplied as parameter */
-
-static int
-pci_freeunit(pcicfgregs *cfg, char *name, int unit)
-{
-	pciwirecfg *p;
-
-	p = pci_wireddevs;
-	while (p->name != NULL) {
-		if (p->unit == unit && strcmp(p->name, name) == 0) {
-			p = pci_wireddevs;
-			unit++;
-		} else {
-			p++;
-		}
-	}
-	return (unit);
-}
-
-static const char *drvname;
-
-static const char*
-pci_probedrv(pcicfgregs *cfg, struct pci_device *dvp)
-{
-	if (dvp && dvp->pd_probe) {
-		pcidi_t type = (cfg->device << 16) + cfg->vendor;
-		return (dvp->pd_probe(cfg, type));
-	}
-	return (NULL);
-}
-
-static struct pci_device*
-pci_finddrv(pcicfgregs *cfg)
-{
-	struct pci_device **dvpp;
-	struct pci_device *dvp = NULL;
-
-	drvname = NULL;
-	dvpp = (struct pci_device **)pcidevice_set.ls_items;
-	while (drvname == NULL && (dvp = *dvpp++) != NULL)
-		drvname = pci_probedrv(cfg, dvp);
-	return (dvp);
-}
-
-static void
-pci_drvmessage(pcicfgregs *cfg, char *name, int unit)
-{
-	if (drvname == NULL || *drvname == '\0')
-		return;
-	printf("%s%d: <%s> rev 0x%02x", name, unit, drvname, cfg->revid);
-	if (cfg->intpin != 0)
-		printf(" int %c irq %d", cfg->intpin + 'a' -1, cfg->intline);
-	printf(" on pci%d.%d.%d\n", cfg->bus, cfg->slot, cfg->func);
-}
-
-
-void
-pci_drvattach(struct pci_devinfo *dinfo)
-{
-	struct pci_device *dvp;
-	pcicfgregs *cfg;
-
-	cfg = &dinfo->cfg;
-	dvp = pci_finddrv(cfg);
-	if (dvp != NULL) {
-		int unit;
-
-		unit = pci_wiredunit(cfg, dvp->pd_name);
-		if (unit < 0) {
-			unit = pci_freeunit(cfg, dvp->pd_name, *dvp->pd_count);
-			*dvp->pd_count = unit +1;
-		}
-		pci_drvmessage(cfg, dvp->pd_name, unit);
-		if (dvp->pd_attach)
-			dvp->pd_attach(cfg, unit);
-
-		dinfo->device = dvp;
-
-		/*
-		 * XXX KDM for some devices, dvp->pd_name winds up NULL.
-		 * I haven't investigated enough to figure out why this
-		 * would happen.
-		 */
-		if (dvp->pd_name != NULL)
-			strncpy(dinfo->conf.pd_name, dvp->pd_name,
-				sizeof(dinfo->conf.pd_name));
-		else
-			strncpy(dinfo->conf.pd_name, "????",
-				sizeof(dinfo->conf.pd_name));
-		dinfo->conf.pd_name[sizeof(dinfo->conf.pd_name) - 1] = 0;
-
-		dinfo->conf.pd_unit = unit;
-
-	}
-}
-
-/* ------------------------------------------------------------------------- */
-
-#endif
 
 #endif /* PCI_COMPAT */
 #endif /* NPCI > 0 */
