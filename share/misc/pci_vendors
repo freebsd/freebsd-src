@@ -3637,16 +3637,23 @@
 	3000	POPTOLCA
 8086	Intel Corporation
 	0008	Extended Express System Support Ctrlr
+	0309	80303 I/O Processor PCI-to-PCI Bridge Unit
+	030D	80312 I/O Companion Unit PCI-to-PCI Bridge
 	0482	82375EB PCI-EISA Bridge (PCEB)
 	0483	82424TX/ZX CPU (i486) Bridge (Saturn)
 	0484	82378ZB/IB SIO ISA Bridge
 	0486	82425EX PCI System Controller (PSC) for i486 (Aries)
 	04A3	82434LX CPU (Pentium) Bridge (Mercury)
+	0600	Storage RAID Controller
 	0960	80960RP i960 RP Microprocessor/Bridge
+	0964	i960 RP Microprocessor Bridge
 	1000	82542 Gigabit Ethernet Controller
 	1001	82543GC 10/100/1000 Ethernet Controller
+	1002	Pro 100 LAN+Modem 56 CardBus II
+	1008	82544EI/82544GC Gigabit Ethernet Controller
 	1029	PRO/100 PCI Ethernet Adapter
 	1030	82559 PCI Networking device
+	1038	82559 Networking device
 	1100	82815 Host-Hub Interface Bridge / DRAM Ctrlr
 	1101	82815 AGP Bridge
 	1102	82815 Internal Graphics Device
@@ -3658,7 +3665,7 @@
 	1131	82815/82815EM/EP AGP Bridge
 	1132	82815 Internal Graphics Device
 	1161	82806AA I/O APIC Device
-	1209	82559ER
+	1209	82559ER Ethernet Controller
 	1221	82092AA PCMCIA Bridge
 	1222	82092AA IDE Ctrlr
 	1223	SAA7116 Video Controller
@@ -3675,17 +3682,24 @@
 	1235	82437MX Mobile System Controller (MTSC)
 	1237	82441FX PCI & Memory Controller (PMC)
 	1239	82371FB IDE Interface (Triton)
+	123B	82380PB PCI to PCI Docking Bridge
 	123C	82380AB Mobile PCI-to-ISA Bridge (MISA)
 	123D	683053 Programmable Interrupt Device
+	123E	82466GX Integrated Hot-Plug Controller (IHPC)
+	123F	82466GX Integrated Hot-Plug Controller (IHPC)
 	1240	82752 AGP Graphics Accelerator
 	124B	82380FB 82380FB(MPCI2)
 	1250	82439HX System Controller (TXC)
 	1360	82806AA Hub Interface to PCI Bridge
 	1361	82806AA Advanced Interrupt Controller
 	1960	80960RP i960RP Microprocessor
+	1A20	82840
 	1A21	82840 Host-Hub Interface A Bridge / DRAM Ctrlr
+	1A22	82840
 	1A23	82840 AGP Bridge
 	1A24	82840 Hub Interface B Bridge
+	1A30	82845 Host-Hub Interface Bridge
+	1A31	82845 AGP Bridge
 	2125	82801AB AC97 Audio Controller
 	2410	82801AA LPC Interface
 	2411	82801AA IDE Controller
@@ -3701,51 +3715,83 @@
 	2425	82801AB AC97 Audio Controller
 	2426	82801AB AC97 Modem Controller
 	2428	82801AB Hub Interface-to-PCI Bridge
-	2440	82801BA LPC Interface Bridge
-	2442	82801BA/BAM USB Controller
+	2440	82801BA LPC Interface Bridge, ICH2
+	2442	82801BA/BAM USB Controller, USB-A
 	2443	82801BA/BAM SMBus Controller
-	2444	82801BA/BAM USB Controller
+	2444	82801BA/BAM USB Controller, USB-B
 	2445	82801BA/BAM AC97 Audio Controller
 	2446	82801BA/BAM AC97 Modem Controller
-	2448	82801BAM Hub Interface to PCI Bridge
+	2448	82801BAM/CAM Hub Interface to PCI Bridge
 	2449	82801BA/BAM LAN Controller
 	244A	82801BAM IDE Controller
 	244B	82801BA IDE Controller
 	244C	82801BAM LPC Interface Bridge
-	244E	82801BA Hub Interface to PCI Bridge
+	244E	82801BA/CA Hub Interface to PCI Bridge
+	2480	82801CA LPC Interface
+	2482	82801CA/CAM USB Controller
+	2483	82801CA/CAM SMBus Controller
+	2484	82801CA/CAM USB Controller
+	2485	82801CA/CAM AC97 Audio Controller
+	2486	PCTEL 2304 WT V.92 MDC Modem
+	2487	82801CA/CAM USB Controller
+	248A	82801CA/CAM UltraATA IDE Controller
+	248B	82801CA/CAM UltraATA IDE Controller
+	248C	82801CAM LPC Interface
 	2500	82820 Host-Hub Interface Bridge / DRAM Ctrlr
 	2501	82820 Host Bridge (MCH)
+	2502	82820
+	2503	82820
+	2504	82820
 	250B	82820 Host Bridge (MCH)
 	250F	82820 AGP Bridge
 	2520	82805AA Memory Translator Hub (MTH)
 	2521	82804AA Memory Repeater Hub for SDRAM (MRH-S)
 	2530	82850 Host-Hub Interface Bridge
-	2532	82850 AGP Bridge
+	2531	82860 Host-Hub Interface_A Bridge (DP mode)
+	2532	82850/82860 AGP Bridge
+	2533	82860 Hub Interface_B Bridge
+	2534	82860 Hub Interface_C Bridge
+	2535	82860 PCI Bridge
+	2536	82860 PCI Bridge
+	2539	82860 (QP mode)
+	3575	82830[MP] Host-Hub I/F Bridge / SDRAM Controller
+	3576	82830[MP] Host-AGP Bridge
+	3577	82830 Integrated Graphics Device
+	3578	82830 CPU to I/O Bridge
+	5001	PRO/DSL 2100 Modem - PPP
 	5200	PCI to PCI Bridge
 	5201	Network Controller
+	5309	80303 I/O Processor Address Translation Unit
+	530D	80312 I/O Companion Unit Address Translation
 	7000	82371SB PIIX3 PCI-to-ISA Bridge (Triton II)
 	7010	82371SB PIIX3 IDE Interface (Triton II)
 	7020	82371SB PIIX3 USB Host Controller (Triton II)
 	7030	82437VX System Controller
 	7051	PB 642365-003 Intel Business Video Conferencing Card
 	7100	82439TX System Controller (MTXC), part of 430TX chipset
-	7110	82371AB PIIX4 ISA Bridge
-	7111	82371AB PIIX4 IDE Controller
-	7112	82371AB PIIX4 USB Interface
-	7113	82371AB PIIX4 Power Management Controller
+	7110	82371AB/EB PIIX4 ISA Bridge
+	7111	82371AB/EB PIIX4 IDE Controller
+	7112	82371AB/EB PIIX4 USB Interface
+	7113	82371AB/EB PIIX4 Power Management Controller
 	7120	82810 Host-Hub Interface Bridge / DRAM Ctrlr
 	7121	82810 Graphics Device
 	7122	82810-DC100 Host-Hub Interface Bridge / DRAM Ctrlr
 	7123	82810-DC100 Graphics Device
 	7124	82810E Host-Hub Interface Bridge / DRAM Ctrlr
 	7125	82810E Graphics Device
+	7126	82810-DC133 Host Bridge and Memory Controller Hub
+	7127	82810-DC133 Graphics Device (FSB 133 MHz)
+	7128	82810-M DC-100 Host Bridge and Memory Controller Hub
+	712A	82810-M DC-133 Host Bridge and Memory Controller Hub
 	7180	82443LX/EX (PAC) Host/PCI bridge in 440LX/EX AGP chipset
 	7181	AGP device in 440LX/EX AGP chipset
+	7182	440LX/EX
 	7190	82443BX/ZX 440BX/ZX AGPset Host Bridge
 	7191	82443BX/ZX 440BX/ZX AGPset PCI-to-PCI bridge
 	7192	82443BX/ZX 440BX/ZX chipset Host-to-PCI Bridge
 	7194	82443MX I/O Controller?
 	7195	82443MX? AC97 Audio Controller
+	7196	82443MX? AC97 Modem Controller
 	7198	82443MX PCI to ISA Bridge
 	7199	82443MX EIDE Controller
 	719A	82443MX USB Universal Host Controller
@@ -3753,14 +3799,29 @@
 	71A0	82443GX Host-to-PCI Bridge
 	71A1	82443GX PCI-to-PCI Bridge (AGP)
 	71A2	82443GX Host-to-PCI Bridge
-	7600	82372FB PCI to ISA Bridge
-	7601	82372FB EIDE Controller
-	7602	82372FB PCI to USB Universal Host Controller
+	7600	82372FB/82468GX LPC/FWH Interface
+	7601	82372FB/82468GX EIDE Controller
+	7602	82372FB/82468GX USB Host Controller
+	7603	82372FB/82468GX SM Bus Controller
+	7605	82372FB IEEE1394 OpenHCI Host Controller
 	7800	82740 AGP Graphics Accelerator
-	84C4	82450KX/GX 450KX/GX PCI Bridge (Orion)
+	84C4	82454KX/GX 450KX/GX PCI Bridge (Orion)
 	84C5	82453KX/GX 450KX/GX Memory Controller (Orion)
 	84CA	82451NX 450NX PCIset Memory & I/O Controller
-	84CB	82454NX 450NX PCIset PCI Expander Bridge
+	84CB	82454NX/82467GX PCI Expander Bridge
+	84E0	82461GX System Address controller
+	84E1	82462GX System Data Controller
+	84E2	82465GX Graphics Expander Bridge
+	84E3	82463GX Memory Address Controller
+	84E4	82464GX Memory Data Controller
+	9620	I2O RAID PCI to PCI Bridge
+	9621	SRCU21 I2O 1.5 RAID Controller
+	9622	SRCUxx I2O 1.5 RAID Controller
+	9641	SRCU31 I2O 1.5 RAID Controller
+	96A1	SRCU31L I2O 1.5 RAID Controller
+	B152	S21152BB PCI to PCI Bridge
+	B154	S21154AE/BE PCI to PCI Bridge
+	B555	21555 Non-Transparent PCI-to-PCI Bridge
 	0007	82379AB ??
 	0039	21145 ??
 	0122	82437FX 430FX (Triton) System Controller
