@@ -736,7 +736,6 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ubser_softc *sc = (struct ubser_softc *)p;
 	struct tty *tp;
-	int (*rint) (int, struct tty *);
 	usbd_status err;
 	u_int32_t cc;
 	u_char *cp;
@@ -771,7 +770,6 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		goto resubmit;
 	DPRINTF(("ubserreadcb: got %d chars for serial %d\n", cc - 1, *cp));
 	tp = sc->dev[*cp]->si_tty;
-	rint = linesw[tp->t_line].l_rint;
 	cp++;
 	cc--;
 
@@ -804,7 +802,7 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		/* Give characters to tty layer. */
 		while (cc > 0) {
 			DPRINTFN(7, ("ubserreadcb: char = 0x%02x\n", *cp));
-			if ((*rint)(*cp, tp) == -1) {
+			if (ttyld_rint(tp, *cp) == -1) {
 				/* XXX what should we do? */
 				printf("%s: lost %d chars\n",
 				       USBDEVNAME(sc->sc_dev), cc);

@@ -798,9 +798,9 @@ rc_pollcard(void *arg)
 					}
 				} else {
 					for (; tptr < eptr; tptr++)
-						(*linesw[tp->t_line].l_rint)
+						ttyld_rint(tp,
 						    (tptr[0] |
-						    rc_rcsrt[tptr[INPUT_FLAGS_SHIFT] & 0xF], tp);
+						    rc_rcsrt[tptr[INPUT_FLAGS_SHIFT] & 0xF]));
 				}
 done1: ;
 			}
