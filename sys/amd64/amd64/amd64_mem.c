@@ -112,6 +112,11 @@ static int amd64_mtrrtomrt[] = {
 
 #define MTRRTOMRTLEN (sizeof(amd64_mtrrtomrt) / sizeof(amd64_mtrrtomrt[0]))
 
+/*
+ * Used in /dev/mem drivers and elsewhere
+ */
+MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
+
 static int
 amd64_mtrr2mrt(int val)
 {
