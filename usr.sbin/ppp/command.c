@@ -255,8 +255,6 @@ HelpCommand(struct cmdargs const *arg)
 static int
 IdentCommand(struct cmdargs const *arg)
 {
-  int f, max, n, pos;
-
   Concatinate(arg->cx->physical->link.lcp.cfg.ident,
               sizeof arg->cx->physical->link.lcp.cfg.ident,
               arg->argc - arg->argn, arg->argv + arg->argn);
@@ -358,7 +356,6 @@ static int
 LogCommand(struct cmdargs const *arg)
 {
   char buf[LINE_LEN];
-  int i;
 
   if (arg->argn < arg->argc) {
     char *argv[MAXARGS];
@@ -3077,8 +3074,8 @@ static int
 SetProcTitle(struct cmdargs const *arg)
 {
   static char title[LINE_LEN];
-  char *argv[MAXARGS], *ptr;
-  int len, remaining, f, argc = arg->argc - arg->argn;
+  char *argv[MAXARGS];
+  int argc = arg->argc - arg->argn;
 
   if (arg->argc == arg->argn) {
     SetTitle(NULL);
