@@ -532,6 +532,14 @@ spec_strategy(ap)
 	struct cdevsw *dsw;
 	struct thread *td = curthread;
 	
+	bp = ap->a_bp;
+	vp = ap->a_vp;
+
+	KASSERT(bp->b_iocmd == BIO_READ ||
+		bp->b_iocmd == BIO_WRITE ||
+		bp->b_iocmd == BIO_DELETE, 
+		("Wrong b_iocmd buf=%p cmd=%d", bp, bp->b_iocmd));
+
 	/*
 	 * Slow down disk requests for niced processes.
 	 */
@@ -541,8 +549,6 @@ spec_strategy(ap)
 		    PPAUSE | PCATCH | PDROP, "ioslow",
 		    td->td_ksegrp->kg_nice);
 	}
-	bp = ap->a_bp;
-	vp = ap->a_vp;
 	if (bp->b_iocmd == BIO_WRITE) {
 		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
