@@ -2095,6 +2095,7 @@ key_spddelete(so, m, mhp)
 		ipseclog((LOG_DEBUG,
 		    "key_spddelete2: attempt to remove persistent SP:%u.\n",
 		    sp->id));
+		key_freesp(sp);	/* ref gained by key_getsp */
 		return key_senderror(so, m, EPERM);
 	}
 
@@ -2172,11 +2173,12 @@ key_spddelete2(so, m, mhp)
 		ipseclog((LOG_DEBUG,
 		    "key_spddelete2: attempt to remove persistent SP:%u.\n",
 		    id));
+		key_freesp(sp);	/* ref gained by key_getspbyid */
 		return key_senderror(so, m, EPERM);
 	}
 
 	key_sp_dead(sp);
-	key_freesp(sp);	/* ref gained by key_getsp */
+	key_freesp(sp);	/* ref gained by key_getspbyid */
 	key_sp_unlink(sp);
 	sp = NULL;
 
@@ -2277,6 +2279,7 @@ key_spdget(so, m, mhp)
 	}
 
 	n = key_setdumpsp(sp, SADB_X_SPDGET, 0, mhp->msg->sadb_msg_pid);
+	key_freesp(sp);	/* ref gained by key_getspbyid */
 	if (n != NULL) {
 		m_freem(m);
 		return key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
