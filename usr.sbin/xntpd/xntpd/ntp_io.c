@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #ifndef __bsdi__
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 #if defined(__bsdi__) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) || defined(SYS_AIX)
 #include <sys/ioctl.h>
@@ -149,9 +150,6 @@ static  RETSIGTYPE sigio_handler P((int));
 static  void	block_sigio	P((void));
 static  void	unblock_sigio	P(());
 #endif
-#ifndef STREAMS_TLI
-extern	char	*inet_ntoa	P((struct in_addr));
-#endif /* STREAMS_TLI */
 
 /*
  * init_io - initialize I/O data structures and call socket creation routine
