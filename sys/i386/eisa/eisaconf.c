@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.47 1999/07/11 13:42:35 dfr Exp $
+ *	$Id: eisaconf.c,v 1.48 1999/07/29 01:02:51 mdodd Exp $
  */
 
 #include "opt_eisa.h"
@@ -83,12 +83,18 @@ struct eisa_device {
 
 
 /* Global variable, so UserConfig can change it. */
+#define MAX_COL		79
 #ifndef EISA_SLOTS
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
 #endif
 int num_eisa_slots = EISA_SLOTS;
 
 static devclass_t eisa_devclass;
+
+static void eisa_reg_print (device_t, char *, char *, int *);
+static int eisa_find_irq(struct eisa_device *e_dev, int rid);
+static struct resvaddr * eisa_find_maddr(struct eisa_device *e_dev, int rid);
+static struct resvaddr * eisa_find_ioaddr(struct eisa_device *e_dev, int rid);
 
 static int
 mainboard_probe(device_t dev)
@@ -212,15 +218,99 @@ eisa_probe_nomatch(device_t dev, device_t child)
 	return;
 }
 
+static void
+eisa_reg_print (dev, string, separator, column)
+	device_t	dev;
+	char *		string;
+	char *		separator;
+	int *		column;
+{
+	int length = strlen(string);
+
+	length += (separator ? 2 : 1);
+
+	if (((*column) + length) >= MAX_COL) {
+		printf("\n");
+		(*column) = 0;
+	} else if ((*column) != 0) {
+		if (separator) {
+			printf("%c", *separator);
+			(*column)++;
+		}
+		printf(" ");
+		(*column)++;
+	}
+
+	if ((*column) == 0) {
+		(*column) += device_printf(dev, "%s", string);
+	} else {
+		(*column) += printf("%s", string);
+	}
+
+	return;
+}
+
 static int
 eisa_print_child(device_t dev, device_t child)
 {
-	int retval = 0;
+	char			buf[81];
+	struct eisa_device *	e_dev = device_get_ivars(child);
+	int			rid;
+	int			irq;
+	struct resvaddr *	resv;
+	char			separator = ',';
+	int			column = 0;
+	int			retval = 0;
 
-	bus_print_child_header(dev, child);
+	if (device_get_desc(child)) {
+		snprintf(buf, sizeof(buf), "<%s>", device_get_desc(child));
+		eisa_reg_print(child, buf, NULL, &column);
+	}
 
-	retval += printf(" on %s slot %d", device_get_nameunit(dev),
-			 eisa_get_slot(child));
+	rid = 0;
+	while ((resv = eisa_find_ioaddr(e_dev, rid++))) {
+		if ((resv->size == 1) ||
+		    (resv->flags & RESVADDR_BITMASK)) {
+			snprintf(buf, sizeof(buf), "%s%lx",
+				((rid == 1) ? "at 0x" : "0x"),
+				resv->addr);
+		} else {
+			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
+				((rid == 1) ? "at 0x" : "0x"),
+				resv->addr,
+				(resv->addr + (resv->size - 1)));
+		}
+		eisa_reg_print(child, buf, 
+			((rid == 2) ? &separator : NULL), &column);
+	}
+
+	rid = 0;
+	while ((resv = eisa_find_maddr(e_dev, rid++))) {
+		if ((resv->size == 1) ||
+		    (resv->flags & RESVADDR_BITMASK)) {
+			snprintf(buf, sizeof(buf), "%s%lx",
+				((rid == 1) ? "at 0x" : "0x"),
+				resv->addr);
+		} else {
+			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
+				((rid == 1) ? "at 0x" : "0x"),
+				resv->addr,
+				(resv->addr + (resv->size - 1)));
+		}
+		eisa_reg_print(child, buf, 
+			((rid == 2) ? &separator : NULL), &column);
+	}
+
+	rid = 0;
+	while ((irq = eisa_find_irq(e_dev, rid++)) != -1) {
+		snprintf(buf, sizeof(buf), "irq %d", irq);
+		eisa_reg_print(child, buf, 
+			((rid == 1) ? &separator : NULL), &column);
+	}
+
+	snprintf(buf, sizeof(buf), "on %s slot %d\n",
+		device_get_nameunit(dev), eisa_get_slot(child));
+	eisa_reg_print(child, buf, NULL, &column);
 
 	return (retval);
 }
