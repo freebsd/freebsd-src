@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.39 1996/03/02 18:24:05 peter Exp $
+ * $Id: init_main.c,v 1.40 1996/03/11 06:14:38 hsu Exp $
  */
 
 #include "opt_rlimit.h"
@@ -386,7 +386,7 @@ proc0_init(dummy)
 	vmspace0.vm_refcnt = 1;
 	pmap_pinit(&vmspace0.vm_pmap);
 	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
-	    trunc_page(VM_MAX_ADDRESS), TRUE);
+	    trunc_page(USRSTACK), TRUE);
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
 
