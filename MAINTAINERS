@@ -8,10 +8,10 @@ binutils	obrien	Insists to keep BU blocked from other's unapproved
 gcc		obrien	Do not commit w/o approval until Gcc 3.1 WIP completed
 libc/posix1e	rwatson	Would like to review patches
 ATA/IDE		sos	Pre-commit review requested.
-ahc(4)		gibbs	Prefers to pre-approve commits
-NEWCARD		imp	Pre-commit review strongly requested
-OLDCARD		imp	Pre-commit review preferred
-wi		imp	Would like to review patches
+ahc(4)		gibbs	Pre-commit review requested.
+NEWCARD		imp	Pre-commit review requested.
+OLDCARD		imp	Pre-commit review requested.
+wi		imp	Pre-commit review requested.
 perl5		markm	wants to be (reasonably) sure that commits do
 			not break STABLE upgrades and cross-builds
 telnet		markm	commits _must_ be made to src/crypto/telnet
