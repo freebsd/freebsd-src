@@ -67,6 +67,8 @@ static struct
 int
 md_getboothowto(char *kargs)
 {
+    char	buf[32];
+    phandle_t	options;
     char	*cp;
     int		howto;
     int		active;
@@ -126,10 +128,10 @@ md_getboothowto(char *kargs)
     for (i = 0; howto_names[i].ev != NULL; i++)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
-    if (!strcmp(getenv("console"), "comconsole"))
-	howto |= RB_SERIAL;
-    if (!strcmp(getenv("console"), "nullconsole"))
-	howto |= RB_MUTE;
+    options = OF_finddevice("/options");
+    OF_getprop(options, "output-device", buf, sizeof(buf));
+    if (strcmp(buf, "ttya") == 0 || strcmp(buf, "ttyb") == 0)
+	    howto |= RB_SERIAL;
     return(howto);
 }
 
