@@ -46,14 +46,17 @@ SUCH DAMAGE.
 #include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+
 #include <net/bpf.h>
-#include <net/ethernet.h>
-#include <net/if_arp.h>
-#include <sys/sockio.h>
+#include <net/if_types.h>
+#include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -72,8 +75,7 @@ SUCH DAMAGE.
 #include <pci/pcireg.h>
 #include "opt_bdg.h"
 
-#include <dev/em/if_em_fxhw.h>
-#include <dev/em/if_em_phy.h>
+#include <dev/em/if_em_hw.h>
 
 /* Tunables */
 #define MAX_TXD                         256
@@ -103,6 +105,7 @@ SUCH DAMAGE.
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
 #define ETHER_ALIGN                     2
+#define QTAG_TYPE                       0x8100
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -127,8 +130,8 @@ SUCH DAMAGE.
 #define EM_RXBUFFER_16384      16384
 
 #ifdef __alpha__
-#undef vtophys
-#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
+	#undef vtophys
+	#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
 
 /* ******************************************************************************
@@ -140,18 +143,18 @@ SUCH DAMAGE.
  * ******************************************************************************/
 typedef struct _em_vendor_info_t
 {
-        unsigned int vendor_id;
-        unsigned int device_id;
-        unsigned int subvendor_id;
-        unsigned int subdevice_id;
-        unsigned int index;
+	unsigned int vendor_id;
+	unsigned int device_id;
+	unsigned int subvendor_id;
+	unsigned int subdevice_id;
+	unsigned int index;
 } em_vendor_info_t;
 
 
 struct em_tx_buffer {
-        STAILQ_ENTRY(em_tx_buffer) em_tx_entry;
-        struct mbuf    *m_head;
-        u_int32_t       num_tx_desc_used;
+	STAILQ_ENTRY(em_tx_buffer) em_tx_entry;
+	struct mbuf    *m_head;
+	u_int32_t       num_tx_desc_used;
 };
 
 
@@ -160,88 +163,88 @@ struct em_tx_buffer {
  * into which the E1000 DMA's frames. 
  * ******************************************************************************/
 struct em_rx_buffer {
-        STAILQ_ENTRY(em_rx_buffer) em_rx_entry;
-        struct mbuf    *m_head;
-        u_int64_t      buffer_addr;
+	STAILQ_ENTRY(em_rx_buffer) em_rx_entry;
+	struct mbuf    *m_head;
+	u_int64_t      buffer_addr;
 };
 
 typedef enum _XSUM_CONTEXT_T {
-        OFFLOAD_NONE,
-        OFFLOAD_TCP_IP,
-        OFFLOAD_UDP_IP
+	OFFLOAD_NONE,
+	OFFLOAD_TCP_IP,
+	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
 /* Our adapter structure */
 struct adapter {
-        struct arpcom   interface_data;
-        struct adapter *next;
-        struct adapter *prev;
-        struct em_shared_adapter shared;
+	struct arpcom   interface_data;
+	struct adapter *next;
+	struct adapter *prev;
+	struct em_hw    hw;
 
-        /* FreeBSD operating-system-specific structures */
-        struct em_osdep osdep;
-        struct device   *dev;
-        struct resource *res_memory;
-        struct resource *res_interrupt;
-        void            *int_handler_tag;
-        struct ifmedia  media;
-        struct callout_handle timer_handle;
-        u_int8_t        unit;
+	/* FreeBSD operating-system-specific structures */
+	struct em_osdep osdep;
+	struct device   *dev;
+	struct resource *res_memory;
+	struct resource *res_interrupt;
+	void            *int_handler_tag;
+	struct ifmedia  media;
+	struct callout_handle timer_handle;
+	u_int8_t        unit;
 
-        /* Info about the board itself */
-        u_int32_t       part_num;
-        u_int8_t        link_active;
-        u_int16_t       link_speed;
-        u_int16_t       link_duplex;
-        u_int32_t       tx_int_delay;
-        u_int32_t       rx_int_delay;
+	/* Info about the board itself */
+	u_int32_t       part_num;
+	u_int8_t        link_active;
+	u_int16_t       link_speed;
+	u_int16_t       link_duplex;
+	u_int32_t       tx_int_delay;
+	u_int32_t       rx_int_delay;
 
-        u_int8_t        rx_checksum;
-        XSUM_CONTEXT_T  active_checksum_context;
+	u_int8_t        rx_checksum;
+	XSUM_CONTEXT_T  active_checksum_context;
 
-        /* Transmit definitions */
-        struct em_tx_desc *first_tx_desc;
-        struct em_tx_desc *last_tx_desc;
-        struct em_tx_desc *next_avail_tx_desc;
-        struct em_tx_desc *oldest_used_tx_desc;
-        struct em_tx_desc *tx_desc_base;
-        volatile u_int16_t num_tx_desc_avail;
-        u_int16_t       num_tx_desc;
-        u_int32_t       txd_cmd;
-        struct em_tx_buffer   *tx_buffer_area;
-        STAILQ_HEAD(__em_tx_buffer_free, em_tx_buffer)  free_tx_buffer_list;
-        STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  used_tx_buffer_list;
+	/* Transmit definitions */
+	struct em_tx_desc *first_tx_desc;
+	struct em_tx_desc *last_tx_desc;
+	struct em_tx_desc *next_avail_tx_desc;
+	struct em_tx_desc *oldest_used_tx_desc;
+	struct em_tx_desc *tx_desc_base;
+	volatile u_int16_t num_tx_desc_avail;
+	u_int16_t       num_tx_desc;
+	u_int32_t       txd_cmd;
+	struct em_tx_buffer   *tx_buffer_area;
+	STAILQ_HEAD(__em_tx_buffer_free, em_tx_buffer)  free_tx_buffer_list;
+	STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  used_tx_buffer_list;
 
-        /* Receive definitions */
-        struct em_rx_desc *first_rx_desc;
-        struct em_rx_desc *last_rx_desc;
-        struct em_rx_desc *next_rx_desc_to_check;
-        struct em_rx_desc *rx_desc_base;
-        u_int16_t       num_rx_desc;
-        u_int32_t       rx_buffer_len;
-        struct em_rx_buffer   *rx_buffer_area;
-        STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  rx_buffer_list;
+	/* Receive definitions */
+	struct em_rx_desc *first_rx_desc;
+	struct em_rx_desc *last_rx_desc;
+	struct em_rx_desc *next_rx_desc_to_check;
+	struct em_rx_desc *rx_desc_base;
+	u_int16_t       num_rx_desc;
+	u_int32_t       rx_buffer_len;
+	struct em_rx_buffer   *rx_buffer_area;
+	STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  rx_buffer_list;
 
-        /* Jumbo frame */
-        struct mbuf     *fmp;
-        struct mbuf     *lmp;
+	/* Jumbo frame */
+	struct mbuf     *fmp;
+	struct mbuf     *lmp;
 
 
-        /* Misc stats maintained by the driver */
-        unsigned long   dropped_pkts;
-        unsigned long   mbuf_alloc_failed;
-        unsigned long   mbuf_cluster_failed;
-        unsigned long   xmit_pullup;
-        unsigned long   no_tx_desc_avail;
-        unsigned long   no_tx_buffer_avail1;
-        unsigned long   no_tx_buffer_avail2;
-#ifdef DBG_STATS 
-        unsigned long   no_pkts_avail;
-        unsigned long   clean_tx_interrupts;
+	/* Misc stats maintained by the driver */
+	unsigned long   dropped_pkts;
+	unsigned long   mbuf_alloc_failed;
+	unsigned long   mbuf_cluster_failed;
+	unsigned long   xmit_pullup;
+	unsigned long   no_tx_desc_avail;
+	unsigned long   no_tx_buffer_avail1;
+	unsigned long   no_tx_buffer_avail2;
+#ifdef DBG_STATS
+	unsigned long   no_pkts_avail;
+	unsigned long   clean_tx_interrupts;
 
 #endif
 
-        struct em_shared_stats stats;
+	struct em_hw_stats stats;
 };
 
 #endif                                                  /* _EM_H_DEFINED_ */
