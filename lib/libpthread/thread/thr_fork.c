@@ -48,6 +48,7 @@ _fork(void)
 	sigset_t sigset, oldset;
 	struct pthread *curthread;
 	pid_t ret;
+	int errsave;
 
 	if (!_kse_isthreaded())
 		return (__sys_fork());
@@ -71,8 +72,11 @@ _fork(void)
 		_kse_single_thread(curthread);
 		/* Kernel signal mask is restored in _kse_single_thread */
 	} else {
-		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+			errsave = errno; 
 			__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+			errno = errsave;
+		}	
 	}
 
 	/* Return the process ID: */
