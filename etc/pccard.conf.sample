@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.24.2.6 1999/05/03 19:09:58 brian Exp $
+# $Id: pccard.conf.sample,v 1.24.2.7 1999/05/04 08:39:49 brian Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -159,6 +159,14 @@ card "D-Link" "DE-660"
 	insert /etc/pccard_ether ed0 link0 -link1
 	remove /sbin/ifconfig ed0 delete
 
+#  Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
+card "Intel" "EtherExpress(TM) PRO/100 PC C"
+	config  0x1 "xe0" 10
+	insert  echo Intel EtherExpress PRO/100 Mobile Adapter/16 inserted
+	insert	/etc/pccard_ether xe0
+	remove  echo Intel EtherExpress PRO/100 Mobile Adapter/16 removed
+	remove	/etc/pccard_ether xe0 delete
+
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
 	config  0x23 "sio2" 10
@@ -301,6 +309,22 @@ card "Xircom" "CreditCard Ethernet 10/100 + "
 	config  0x1f "sio3" 10
 	insert  echo Xircom CreditCard Modem inserted
 	remove  echo Xircom CreditCard Modem removed
+
+# Xircom CreditCard Ethernet 10/100 + modem (Ethernet part)
+card "Xircom" "CreditCard Ethernet 10/100 + Modem 56"
+	config  0x17 "sio3" 10
+	insert  echo Xircom CreditCard Modem inserted
+	insert /etc/pccard_ether xe0
+	remove  echo Xircom CreditCard Modem removed
+	remove /sbin/ifconfig xe0 delete
+
+# Xircom CreditCard Ethernet 10/100
+card "Xircom" "CreditCard 10/100"
+	config  0x1 "xe0" 10
+	insert  echo Xircom CreditCard Ethernet inserted
+	insert	/etc/pccard_ether xe0
+	remove  echo Xircom CreditCard Ethernet removed
+	remove	/etc/pccard_ether xe0 delete
 
 # Xircom GlobalACCESS modem
 card "Xircom" "CreditCard Modem 56 - GlobalA"
