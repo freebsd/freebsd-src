@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.65 1999/04/27 11:16:39 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.66 1999/04/28 11:37:21 phk Exp $
  */
 
 /*
@@ -102,6 +102,7 @@ static struct proc_target {
 	{ DT_REG, N("map"), 	Pmap,		procfs_validmap },
 	{ DT_REG, N("etype"),	Ptype,		procfs_validtype },
 	{ DT_REG, N("cmdline"),	Pcmdline,	NULL },
+	{ DT_REG, N("rlimit"),	Prlimit,	NULL },
 #undef N
 };
 static const int nproc_targets = sizeof(proc_targets) / sizeof(proc_targets[0]);
@@ -577,6 +578,7 @@ procfs_getattr(ap)
 	case Pnote:
 	case Pnotepg:
 	case Pcmdline:
+	case Prlimit:
 		vap->va_nlink = 1;
 		vap->va_uid = procp->p_ucred->cr_uid;
 		vap->va_gid = procp->p_ucred->cr_gid;
