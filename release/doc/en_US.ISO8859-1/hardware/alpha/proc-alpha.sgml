@@ -1370,10 +1370,12 @@ cpu	EV4</programlisting>
 
       <para>164LX and 164SX with SRM firmware version 5.8 or later can boot 
       from Adaptec 2940-series adapters. A test with an Adaptec 3940UW
-      showed that that one is not supported however.</para>
+      showed that that one is not supported however. 164SX SRM recognises
+      Intel 8255x Ethernet cards which show up as eia. Using such a 
+      NIC allows network booting.</para>
 
-      <para>In summary: this family of machines is <quote>blessed</quote> with a 
-      challenging compatibility as far as SCSI adapters go.</para>
+      <para>In summary: this family of machines is <quote>blessed</quote> with 
+      a challenging compatibility as far as SCSI adapters go.</para>
 
       <para>On 164SX you can have a maximum of 1 Gbyte of RAM. 4 regular
       (PC100 or PC133) 256MB DIMMs are reported to work just fine. Whether 
