@@ -44,6 +44,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
+#include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
@@ -110,23 +111,20 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, int local, elf_lookup_fn lookup)
 {
 	Elf_Addr *where;
+	Elf_Half *hwhere;
 	Elf_Addr addr;
 	Elf_Addr addend;
 	Elf_Word rtype, symidx;
-	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 
 	switch (type) {
 	case ELF_RELOC_REL:
-		rel = (const Elf_Rel *)data;
-		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
-		rtype = ELF_R_TYPE(rel->r_info);
-		symidx = ELF_R_SYM(rel->r_info);
+		panic("PPC only supports RELA relocations");
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		hwhere = (Elf_Half *) (relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -137,45 +135,48 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	switch (rtype) {
 
-		case R_PPC_NONE:
-			break;
+       	case R_PPC_NONE:
+	       	break;
 
-		case R_PPC_GLOB_DAT:
-			addr = lookup(lf, symidx, 1);
+	case R_PPC_ADDR32: /* word32 S + A */
+       		addr = lookup(lf, symidx, 1);
+	       	if (addr == 0)
+	       		return -1;
+		addr += addend;
+	       	*where = addr;
+	       	break;
+
+       	case R_PPC_ADDR16_LO: /* #lo(S) */
+       		if (addend != 0) {
+	       		addr = relocbase + addend;
+		} else {
+	      		addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			addr += addend;
-			if (*where != addr)
-				*where = addr;
-			break;
+		}
+		*hwhere = addr & 0xffff;
+		break;
 
-		case R_PPC_JMP_SLOT:
-			/* No point in lazy binding for kernel modules. */
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
-				return -1;
-			if (*where != addr)
-				*where = addr;
-			break;
+	case R_PPC_ADDR16_HA: /* #ha(S) */
+       		if (addend != 0) {
+	       		addr = relocbase + addend;
+		} else {
+	       		addr = lookup(lf, symidx, 1);
+		       	if (addr == 0)
+		       		return -1;
+		}
+	       	*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
+		    & 0xffff;
+		break;
 
-		case R_PPC_RELATIVE:
-			addr = relocbase + addend + *where;
-			if (*where != addr)
-				*where = addr;
-			break;
+	case R_PPC_RELATIVE: /* word32 B + A */
+       		*where = relocbase + addend;
+	       	break;
 
-		case R_PPC_COPY:
-			/*
-			 * There shouldn't be copy relocations in kernel
-			 * objects.
-			 */
-			printf("kldload: unexpected R_COPY relocation\n");
-			return -1;
-
-		default:
-			printf("kldload: unexpected relocation type %d\n",
-			       (int) rtype);
-			return -1;
+	default:
+       		printf("kldload: unexpected relocation type %d\n",
+	       	    (int) rtype);
+		return -1;
 	}
 	return(0);
 }
@@ -200,6 +201,7 @@ int
 elf_cpu_load_file(linker_file_t lf __unused)
 {
 
+	__syncicache(lf->address, lf->size);
 	return (0);
 }
 
