@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: newfs.c,v 1.20 1998/07/15 06:28:05 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -54,6 +54,8 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/mount.h>
 
+#include <ufs/ufs/dir.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/ufsmount.h>
 
@@ -74,6 +76,8 @@ static const char rcsid[] =
 
 #if __STDC__
 #include <stdarg.h>
+#else
+#include <varargs.h>
 #endif
 
 #include "mntopts.h"
