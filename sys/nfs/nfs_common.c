@@ -1248,7 +1248,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	enum vtype vtyp;
 	u_short vmode;
 	struct timespec mtime;
-	struct vnode *nvp;
 	int v3 = NFS_ISV3(vp);
 
 	md = *mdp;
