@@ -66,7 +66,11 @@ struct clist {
 };
 
 struct tty;
+struct pps_state;
+struct cdevsw;
 
+typedef int t_open_t(struct tty *, struct cdev *);
+typedef void t_close_t(struct tty *);
 typedef void t_oproc_t(struct tty *);
 typedef void t_stop_t(struct tty *, int);
 typedef int t_param_t(struct tty *, struct termios *);
@@ -74,6 +78,10 @@ typedef int t_modem_t(struct tty *, int, int);
 typedef void t_break_t(struct tty *, int);
 typedef int t_ioctl_t(struct tty *, u_long cmd, void * data,
 		      int fflag, struct thread *td);
+/* XXX: same as d_ioctl_t in sys/conf.h to avoid #include polution */
+typedef int __d_ioctl_t(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td);
+
+
 
 /*
  * Per-tty structure.
@@ -117,11 +125,16 @@ struct tty {
 	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
 	int	t_gen;			/* Generation number. */
 	TAILQ_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
+	int	t_actout;		/* Outbound device open */
+	int	t_wopeners;		/* #threads waiting for DCD in open */
 
 	struct mtx t_mtx;
 	int	t_refcnt;
 	int	t_hotchar;		/* linedisc preferred hot char */
 	int	t_dtr_wait;		/* Inter-session DTR holddown [hz] */
+	int	t_do_timestamp;		/* flag instead ? */
+	struct	timeval t_timestamp;	/* char timestamp */
+	struct	pps_state *t_pps;	/* PPS-API stuff */
 
 	/* Driver supplied methods */
 	t_oproc_t *t_oproc;		/* Start output. */
@@ -130,6 +143,9 @@ struct tty {
 	t_modem_t *t_modem;		/* Set modem state (optional). */
 	t_break_t *t_break;		/* Set break state (optional). */
 	t_ioctl_t *t_ioctl;		/* Set ioctl handling (optional). */
+	t_open_t *t_open;		/* First open */
+	t_close_t *t_close;		/* Last close */
+	__d_ioctl_t *t_cioctl;		/* Ioctl on control devices */
 };
 
 #define	t_cc		t_termios.c_cc
@@ -279,6 +295,16 @@ struct speedtab {
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_TTYS);
 #endif
+
+/* Minor number flag bits */
+#define	MINOR_CALLOUT	0x80000000
+#define	MINOR_INIT	0x40000000
+#define	MINOR_LOCK	0x20000000
+
+#define	ISCALLOUT(dev)	(minor(dev) & MINOR_CALLOUT)
+#define	ISINIT(dev)	(minor(dev) & MINOR_INIT)
+#define	ISLOCK(dev)	(minor(dev) & MINOR_LOCK)
+
 extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
 extern	struct tty *constty;	/* Temporary virtual console. */
 extern long tk_cancc;
