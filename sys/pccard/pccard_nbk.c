@@ -158,7 +158,8 @@ pccard_print_child(device_t dev, device_t child)
 {
 	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
-	int retval = 0;
+	int	retval = 0;
+	int	flags = device_get_flags(child);
 
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at");
@@ -172,6 +173,8 @@ pccard_print_child(device_t dev, device_t child)
 		    "%ld");
 		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ,
 		    "%ld");
+		if (flags != 0)
+			retval += printf(" flags 0x%x", flags);
 		retval += printf(" slot %d", devi->slt->slotnum);
 	}
 
