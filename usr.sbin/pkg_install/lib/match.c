@@ -297,11 +297,12 @@ storecreate(struct store *store)
 	}
 	store->currlen = 0;
 	store->store = NULL;
-    } else
-	if (store->store != NULL)
+    } else if (store->store != NULL) {
 	    /* Free previously allocated memory */
 	    for (i = 0; store->store[i] != NULL; i++)
 		free(store->store[i]);
+	    store->store[0] = NULL;
+    }
     store->used = 0;
 
     return store;
