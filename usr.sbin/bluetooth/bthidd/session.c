@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: session.c,v 1.1 2004/02/12 22:46:59 max Exp $
+ * $Id: session.c,v 1.2 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
@@ -37,6 +37,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "bthidd.h"
+#include "kbd.h"
 
 /*
  * Create new session
@@ -53,10 +54,15 @@ session_open(bthid_server_p srv, bdaddr_p bdaddr)
 	if ((s = (bthid_session_p) malloc(sizeof(*s))) != NULL) {
 		s->srv = srv;  
 		memcpy(&s->bdaddr, bdaddr, sizeof(s->bdaddr));
-		s->ctrl = s->intr = -1;
+		s->ctrl = -1;
+		s->intr = -1;
 		s->state = CLOSED;
-
-		LIST_INSERT_HEAD(&srv->sessions, s, next);
+		s->keys = bit_alloc(kbd_maxkey());
+		if (s->keys == NULL) {
+			free(s);
+			s = NULL;
+		} else
+			LIST_INSERT_HEAD(&srv->sessions, s, next);
 	}
 
 	return (s);
@@ -129,6 +135,8 @@ session_close(bthid_session_p s)
 		if (s->srv->maxfd == s->ctrl)
 			s->srv->maxfd --;
 	}
+
+	free(s->keys);
 
 	memset(s, 0, sizeof(*s));
 	free(s);
