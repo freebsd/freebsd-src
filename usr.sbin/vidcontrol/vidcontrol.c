@@ -488,8 +488,8 @@ set_mouse_char(char *arg)
 	long l;
 
 	l = strtol(arg, NULL, 0);
-	if ((l < 0) || (l > UCHAR_MAX)) {
-		warnx("argument to -M must be 0 through %d", UCHAR_MAX);
+	if ((l < 0) || (l > UCHAR_MAX - 3)) {
+		warnx("argument to -M must be 0 through %d", UCHAR_MAX - 3);
 		return;
 	}
 	mouse.operation = MOUSE_MOUSECHAR;
