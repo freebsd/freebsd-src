@@ -42,7 +42,7 @@
 
 __FBSDID("$FreeBSD$");
 #ifdef __XSCALE__
-#include "bcopyinout_xscale.S"
+#include <arm/arm/bcopyinout_xscale.S>
 #else
 
 	.text
