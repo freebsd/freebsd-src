@@ -1,3 +1,22 @@
+2000-07-03  Donn Terry  (donnte@microsoft.com)
+        * libU77/aclocal.m4: check for 2 argument gettimeofday without
+	struct timezone
+
+2000-07-02  Toon Moene  <toon@moene.indiv.nluug.nl>
+	* libF77/Version.c: Bumped version number to 0.5.26.
+	* libI77/Version.c: Ditto.
+	* libU77/Version.c: Ditto.
+
+2000-06-21  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* libU77/dtime_.c, libU77/etime_.c: Include stdlib.h if
+	HAVE_STDLIB_H is defined.
+
+2000-06-11  Herman A.J. ten Brugge  <Haj.Ten.Brugge@net.HCC.nl>
+
+	* rdfmt.c (rd_L): Use if-then-else instead of case statement to
+	solve problems when sizeof(char) == sizeof(short).
+
 2000-05-18  Chris Demetriou  <cgd@sibyte.com>
 
 	* configure.in: Test for __g77_integer, __g77_uinteger,
