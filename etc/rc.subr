@@ -267,7 +267,7 @@ _find_processes()
 	fi
 
 	_proccheck='
-		ps -o "pid,command" '"$_psargs"' |
+		ps 2>/dev/null -o "pid,command" '"$_psargs"' |
 		while read _npid '"$_fp_args"'; do
 			case "$_npid" in
 			    PID)
