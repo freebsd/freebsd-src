@@ -42,7 +42,7 @@
 .Nd file system backup
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0123456789acknSu
+.Op Fl 0123456789ackLnSu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
 .Op Fl D Ar dumpdates
@@ -194,6 +194,15 @@ Use Kerberos authentication to talk to remote tape servers.  (Only
 available if this option was enabled when
 .Nm
 was compiled.)
+.It Fl L
+This option is to notify
+.Nm
+that it is dumping a live filesystem.
+To obtain a consistent dump image,
+.Nm
+takes a snapshot of the filesystem and
+then does a dump of the snapshot.
+The snapshot is removed when the dump is complete.
 .It Fl n
 Whenever
 .Nm
