@@ -95,6 +95,9 @@ processes with effective user id
 .It Sy KERN_PROC_RUID
 processes with real user id
 .Fa arg
+.It Sy KERN_PROC_INC_THREAD
+modifier to return all kernel visible threads when filtering
+by process id, process group, tty, user id, and real user id
 .El
 .Pp
 The number of processes found is returned in the reference parameter
