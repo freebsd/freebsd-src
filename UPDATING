@@ -827,7 +827,7 @@ http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
 FORMAT:
 
 This file contains a list, in reverse chronologocal order, of major
-breakages in tracking -current.  Not all things will be listed here,
+breakages in tracking -stable.  Not all things will be listed here,
 and it only starts on November 18, 1998.  If you have an earlier
 version of FreeBSD, you are on your own to get to November 18, 1998.
 
