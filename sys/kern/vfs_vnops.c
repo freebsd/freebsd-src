@@ -105,6 +105,11 @@ vn_open_cred(ndp, flagp, cmode, cred)
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
+#ifdef LOOKUP_SHARED
+	int exclusive;	/* The current intended lock state */
+
+	exclusive = 0;
+#endif
 
 restart:
 	fmode = *flagp;
@@ -143,6 +148,9 @@ restart:
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
+#ifdef LOOKUP_SHARED
+			exclusive = 1;
+#endif
 		} else {
 			if (ndp->ni_dvp == ndp->ni_vp)
 				vrele(ndp->ni_dvp);
@@ -158,8 +166,14 @@ restart:
 		}
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
+#ifdef LOOKUP_SHARED
+		ndp->ni_cnd.cn_flags =
+		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
+		    LOCKSHARED | LOCKLEAF;
+#else
 		ndp->ni_cnd.cn_flags =
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) | LOCKLEAF;
+#endif
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
@@ -198,6 +212,21 @@ restart:
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vn_canvmio(vp) == TRUE) {
+#ifdef LOOKUP_SHARED
+		int flock;
+
+		if (!exclusive && vp->v_object == NULL)
+			VOP_LOCK(vp, LK_UPGRADE, td);
+		/*
+		 * In cases where the object is marked as dead object_create
+		 * will unlock and relock exclusive.  It is safe to call in
+		 * here with a shared lock because we only examine fields that
+		 * the shared lock guarantees will be stable.  In the UPGRADE
+		 * case it is not likely that anyone has used this vnode yet
+		 * so there will be no contention.  The logic after this call
+		 * restores the requested locking state.
+		 */
+#endif
 		if ((error = vfs_object_create(vp, td, cred)) != 0) {
 			VOP_UNLOCK(vp, 0, td);
 			VOP_CLOSE(vp, fmode, cred, td);
@@ -206,6 +235,11 @@ restart:
 			*flagp = fmode;
 			return (error);
 		}
+#ifdef LOOKUP_SHARED
+		flock = VOP_ISLOCKED(vp, td);
+		if (!exclusive && flock == LK_EXCLUSIVE)
+			VOP_LOCK(vp, LK_DOWNGRADE, td);
+#endif
 	}
 
 	if (fmode & FWRITE)
