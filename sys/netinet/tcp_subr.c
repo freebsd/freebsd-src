@@ -1245,7 +1245,9 @@ tcp6_ctlinput(cmd, sa, d)
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
 		inc.inc_isipv6 = 1;
+		INP_INFO_WLOCK(&tcbinfo);
 		syncache_unreach(&inc, &th);
+		INP_INFO_WUNLOCK(&tcbinfo);
 	} else
 		in6_pcbnotify(&tcbinfo, sa, 0, (const struct sockaddr *)sa6_src,
 			      0, cmd, NULL, notify);
