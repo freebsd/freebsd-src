@@ -13,7 +13,7 @@
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
  *
- * $Id: if_tun.h,v 1.12 1998/01/26 19:52:34 brian Exp $
+ * $Id: if_tun.h,v 1.13 1998/04/17 22:36:56 des Exp $
  */
 
 #ifndef _NET_IF_TUN_H_
@@ -39,5 +39,7 @@ struct tuninfo {
 #define	TUNGDEBUG	_IOR('t', 89, int)
 #define	TUNSIFINFO	_IOW('t', 91, struct tuninfo)
 #define	TUNGIFINFO	_IOR('t', 92, struct tuninfo)
+#define	TUNSLMODE	_IOW('t', 93, int)
+#define	TUNSIFMODE	_IOW('t', 94, int)
 
 #endif /* !_NET_IF_TUN_H_ */

@@ -338,7 +338,24 @@ tunoutput(ifp, m0, dst, rt)
 
 		bpf_mtap(ifp, &m);
 	}
-#endif
+#endif /* NBPFILTER > 0 */
+
+	/* prepend sockaddr? this may abort if the mbuf allocation fails */
+	if (tp->tun_flags & TUN_LMODE) {
+		/* allocate space for sockaddr */
+		M_PREPEND(m0, dst->sa_len, M_DONTWAIT);
+
+		/* if allocation failed drop packet */
+		if (m0 == NULL){
+			s = splimp();	/* spl on queue manipulation */
+			IF_DROP(&ifp->if_snd);
+			splx(s);
+			ifp->if_oerrors++;
+			return (ENOBUFS);
+		} else {
+			bcopy(dst, m0->m_data, dst->sa_len);
+		}
+	}
 
 	switch(dst->sa_family) {
 #ifdef INET
@@ -405,6 +422,30 @@ tunioctl(dev, cmd, data, flag, p)
 		break;
 	case TUNGDEBUG:
 		*(int *)data = tundebug;
+		break;
+	case TUNSLMODE:
+		if (*(int *)data)
+			tp->tun_flags |= TUN_LMODE;
+		else 
+			tp->tun_flags &= ~TUN_LMODE;
+		break;
+	case TUNSIFMODE:
+		/* deny this if UP */
+		if (tp->tun_if.if_flags & IFF_UP)
+			return(EBUSY);
+
+		switch (*(int *)data) {
+		case IFF_POINTOPOINT:
+			tp->tun_if.if_flags |= IFF_POINTOPOINT;
+			tp->tun_if.if_flags &= ~IFF_BROADCAST;
+			break;
+		case IFF_BROADCAST:
+			tp->tun_if.if_flags &= ~IFF_POINTOPOINT;
+			tp->tun_if.if_flags |= IFF_BROADCAST;
+			break;
+		default:
+			return(EINVAL);
+		}
 		break;
 	case FIONBIO:
 		break;
