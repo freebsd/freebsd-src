@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.24 1999/04/08 23:37:46 obrien Exp $
+# $Id: Makefile,v 1.25 1999/04/09 18:46:48 bde Exp $
 #
 
 #
@@ -13,9 +13,11 @@
 # Prevent mkdep from using it, so that we don't have to give rules for
 # aliases of generated headers.
 #
-CFLAGS+=	-I${GCCDIR}/objc
+CFLAGS+=	-I.
 
 .include "../Makefile.inc"
+
+CFLAGS+=	-I${GCCDIR}/objc
 
 .PATH: ${GCCDIR} ${GCCDIR}/cp
 
