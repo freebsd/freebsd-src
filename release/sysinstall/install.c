@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.57 1995/10/26 08:55:45 jkh Exp $
+ * $Id: install.c,v 1.71.2.58 1995/10/27 01:22:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -380,21 +380,21 @@ installCommit(char *str)
     i = RET_DONE;
     if (RunningAsInit) {
 	if (installInitial() == RET_FAIL)
-	    i = RET_FAIL;
+	    return RET_FAIL;
 	else if (configFstab() == RET_FAIL)
-	    i = RET_FAIL;
+	    return RET_FAIL;
 	else if (!root_extract()) {
 	    dialog_clear();
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
-	    i = RET_FAIL;
+	    return RET_FAIL;
 	}
     }
 
-    if (i != RET_FAIL && distExtractAll(NULL) == RET_FAIL)
+    if (distExtractAll(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (i != RET_FAIL && installFixup(NULL) == RET_FAIL)
+    if (installFixup(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
     if (i != RET_FAIL && str && !strcmp(str, "express")) {
@@ -421,7 +421,7 @@ installCommit(char *str)
     }
 
     /* Write out any changes to /etc/sysconfig */
-    if (RunningAsInit)
+    if (i != RET_FAIL && RunningAsInit)
 	configSysconfig();
 
     variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
