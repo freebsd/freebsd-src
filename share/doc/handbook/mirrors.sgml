@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.49 1997/02/22 12:58:52 peter Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.50 1997/02/25 06:41:08 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -314,13 +314,15 @@ for this domain.
 
 <tag><label id="mirrors-pl">Poland</tag>
 
+In case of problems, please contact the
+<url url="mailto:hostmaster@pl.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
  
 <item>
-<url url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
-	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp@SunSITE.icm.edu.pl"
-	name="ftp@SunSITE.icm.edu.pl">.
+<url url="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
