@@ -37,6 +37,7 @@
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/devicestat.h>
+#include <sys/proc.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -370,9 +371,10 @@ passopen(dev_t dev, int flags, int fmt, struct thread *td)
 	/*
 	 * Don't allow access when we're running at a high securelevel.
 	 */
-	if (securelevel > 1) {
+	error = securelevel_gt(td->td_proc->p_ucred, 1);
+	if (error) {
 		splx(s);
-		return(EPERM);
+		return(error);
 	}
 
 	/*
