@@ -5,6 +5,11 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000704:
+	rc.shutdown and rc will now call the rc.d scripts with start
+	or stop.  This may cause some harmless warnings from older
+	rc.d scripts that haven't been updated.
+
 20000630:
 	The libfetch based version of fetch has gone into the tree.
 	Minor problems may result on some of the less popular sites,
@@ -42,6 +47,8 @@ ITEMS:'
 	Scott Flatman <sf@aracnet.com> sent in a decent writeup on
 	the config file update procedure.
 		http://people.freebsd.org/~imp/config-upd.html
+	NOTE: LINT is gone.  It has been replaced with NOTES.  NOTES
+	isn't buildable.
 
 20000620:
 	Binutils 2.10 have hit the tree, or will shortly.  As soon
