@@ -65,7 +65,7 @@ static const char rcsid[] =
 
 int	filen, guesslen, maxblk = MAXREC;
 u_int64_t	lastrec, record, size, tsize;
-FILE	*msg = stdout;
+FILE	*msg;
 
 void	*getspace __P((int));
 void	 intr __P((int));
@@ -85,6 +85,7 @@ main(argc, argv)
 	int ch, needeof;
 	char *buff, *inf;
 
+	msg = stdout;
 	guesslen = 1;
 	while ((ch = getopt(argc, argv, "cs:vx")) != -1)
 		switch((char)ch) {
