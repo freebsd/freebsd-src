@@ -280,7 +280,7 @@ astclose(dev_t dev, int flags, int fmt, struct thread *td)
     if (stp->cap.lock && count_dev(dev) == 1)
 	ast_prevent_allow(stp, 0);
 
-    stp->flags &= F_CTL_WARN;
+    stp->flags &= ~F_CTL_WARN;
 #ifdef AST_DEBUG
     ata_prtdev(stp->device, "%ju total bytes transferred\n",
 	(uintmax_t)ast_total);
