@@ -1,15 +1,31 @@
 /*
  * HISTORY
  * $Log:	scsi_all.h,v $
- * Revision 1.1.1.1  1993/06/12  14:57:27  rgrimes
- * Initial import, 0.1 + pk 0.2.4-B1
- *
+ * Revision 1.4  93/08/05  21:37:37  julian
+ * fix the definitionof the last byte of each scsi command.
+ * 
+ * Revision 1.3  93/08/01  02:39:21  julian
+ * compiles.. no mode bitfields
+ * 
+ * Revision 1.2  93/07/31  22:52:26  julian
+ * removed all bitfields
+ * 
+ * Revision 1.1  93/04/12  21:51:01  root
+ * checkin for 'jules'
+ * 
  * Revision 1.2  1992/11/20  23:07:13  julian
  * add a definition for device type T_NODEVICE
  *
  * Revision 1.1  1992/09/26  22:14:02  julian
  * Initial revision
  *
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * 
  */
 
@@ -42,6 +58,15 @@
  * SCSI command format
  */
 
+/*
+ * Define dome bits that are in ALL (or a lot of) scsi commands
+ */
+#define SCSI_CTL_LINK	0x01
+#define SCSI_CTL_FLAG	0x02
+#define SCSI_CTL_VENDOR	0xC0
+#define	SCSI_CMD_LUN	0xA0		/*these two should not be needed*/
+#define	SCSI_CMD_LUN_SHIFT	5	/* LUN in the cmd is no longer SCSI */
+
 
 struct scsi_generic
 {
@@ -52,152 +77,117 @@ struct scsi_generic
 struct scsi_test_unit_ready
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;
+	u_char	byte2;
 	u_char	unused[3];
-	u_char	link:1;
-	u_char	flag:4;
-	u_char	:3;
+	u_char	control;
 };
 
 struct scsi_send_diag
 {
 	u_char	op_code;
-	u_char	uol:1;
-	u_char	dol:1;
-	u_char	selftest:1;
-	u_char	:1;
-	u_char	pf:1;
-	u_char	lun:3;
+	u_char	byte2;
+#define	SSD_UOL		0x01
+#define	SSD_DOL		0x02
+#define	SSD_SELFTEST	0x04
+#define	SSD_PF		0x10
 	u_char	unused[1];
 	u_char	paramlen[2];
-	u_char	link:1;
-	u_char	flag:4;
-	u_char	:3;
+	u_char	control;
 };
 
 struct scsi_sense
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;	
+	u_char	byte2;
 	u_char	unused[2];
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_inquiry
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;	
+	u_char	byte2;
 	u_char	unused[2];
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_mode_sense
 {
 	u_char	op_code;
-	u_char	:3;
-	u_char	dbd:1;
-	u_char	rsvd:1;
-	u_char	lun:3;	
-	u_char	page_code:6;
-	u_char	page_ctrl:2;
+	u_char	byte2;
+#define	SMS_DBD				0x08
+	u_char	page;
+#define	SMS_PAGE_CODE 			0x3F
+#define	SMS_PAGE_CTRL 			0xC0
+#define	SMS_PAGE_CTRL_CURRENT 		0x00
+#define	SMS_PAGE_CTRL_CHANGEABLE 	0x40
+#define	SMS_PAGE_CTRL_DEFAULT 		0x80
+#define	SMS_PAGE_CTRL_SAVED 		0xC0
 	u_char	unused;
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_mode_sense_big
 {
 	u_char	op_code;
-	u_char	:3;
-	u_char	dbd:1;
-	u_char	rsvd:1;
-	u_char	lun:3;	
-	u_char	page_code:6;
-	u_char	page_ctrl:2;
+	u_char	byte2; 	/* same bits as small version */
+	u_char	page; 		/* same bits as small version */
 	u_char	unused[4];
 	u_char	length[2];
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_mode_select
 {
 	u_char	op_code;
-	u_char	sp:1;
-	u_char	:3;
-	u_char	pf:1;
-	u_char	lun:3;	
+	u_char	byte2;
+#define	SMS_SP	0x01
+#define	SMS_PF	0x10
 	u_char	unused[2];
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_mode_select_big
 {
 	u_char	op_code;
-	u_char	sp:1;
-	u_char	:3;
-	u_char	pf:1;
-	u_char	lun:3;	
+	u_char	byte2;	/* same bits as small version */
 	u_char	unused[5];
 	u_char	length[2];
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_reserve
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;	
+	u_char	byte2;
 	u_char	unused[2];
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_release
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;	
+	u_char	byte2;
 	u_char	unused[2];
 	u_char	length;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	control;
 };
 
 struct scsi_prevent
 {
 	u_char	op_code;
-	u_char	:5;
-	u_char	lun:3;
+	u_char	byte2;
 	u_char	unused[2];
-	u_char	prevent:1;
-	u_char	:7;
-	u_char	link:1;
-	u_char	flag:1;
-	u_char	:6;
+	u_char	how;
+	u_char	control;
 };
-#define	PR_PREVENT 1
-#define PR_ALLOW   0
+#define	PR_PREVENT 0x01
+#define PR_ALLOW   0x00
 
 /*
  * Opcodes
@@ -240,19 +230,31 @@ struct scsi_prevent
 
 struct scsi_inquiry_data
 {
-	u_char	device_type:5;
-	u_char	device_qualifier:3;
-	u_char	dev_qual2:7;
-	u_char	removable:1;
-	u_char	ansii_version:3;
-	u_char	:5;
+	u_char	device;
+#define	SID_TYPE	0x1F
+#define	SID_QUAL	0xE0
+#define	SID_QUAL_LU_OK	0x00
+#define	SID_QUAL_LU_OFFLINE	0x20
+#define	SID_QUAL_RSVD	0x40
+#define	SID_QUAL_BAD_LU	0x60
+	u_char	dev_qual2;
+#define	SID_QUAL2	0x7F
+#define	SID_REMOVABLE	0x80
+	u_char	version;
+#define SID_ANSII	0x07
+#define SID_ECMA	0x38
+#define SID_ISO		0xC0
 	u_char	response_format;
 	u_char	additional_length;
 	u_char	unused[2];
-	u_char	:3;
-	u_char	can_link:1;
-	u_char	can_sync:1;
-	u_char	:3;
+	u_char	flags;
+#define	SID_SftRe	0x01
+#define	SID_CmdQue	0x02
+#define	SID_Linked	0x08
+#define	SID_Sync	0x10
+#define	SID_WBus16	0x20
+#define	SID_WBus32	0x40
+#define	SID_RelAdr	0x80
 	char	vendor[8];
 	char	product[16];
 	char	revision[4];
@@ -262,37 +264,22 @@ struct scsi_inquiry_data
 
 struct	scsi_sense_data
 {
-	u_char	error_code:4;
-	u_char	error_class:3;
-	u_char	valid:1;
+	u_char	error_code;	/* same bits as new version */
 	union
 	{
 		struct
 		{
-			u_char	blockhi:5;
-			u_char	vendor:3;
+			u_char	blockhi;
 			u_char	blockmed;
 			u_char	blocklow;
 		} unextended;
 		struct
 		{
 			u_char	segment;
-			u_char	sense_key:4;
-			u_char	:1;
-			u_char	ili:1;
-			u_char	eom:1;
-			u_char	filemark:1;
+			u_char	flags;	/* same bits as new version */
 			u_char	info[4];
 			u_char	extra_len;
 			/* allocate enough room to hold new stuff
-			u_char	cmd_spec_info[4];
-			u_char	add_sense_code;
-			u_char	add_sense_code_qual;
-			u_char	fru;
-			u_char	sense_key_spec_1:7;
-			u_char	sksv:1;
-			u_char	sense_key_spec_2;
-			u_char	sense_key_spec_3;
 			( by increasing 16 to 26 below) */
 			u_char	extra_bytes[26];
 		} extended;
@@ -300,33 +287,33 @@ struct	scsi_sense_data
 };
 struct	scsi_sense_data_new
 {
-	u_char	error_code:7;
-	u_char	valid:1;
+	u_char	error_code;
+#define	SSD_ERRCODE		0x7F
+#define	SSD_ERRCODE_VALID	0x80
 	union
 	{
-		struct
+		struct	/* this is depreciated, the standard says "DON'T"*/
 		{
-			u_char	blockhi:5;
-			u_char	vendor:3;
+			u_char	blockhi;
 			u_char	blockmed;
 			u_char	blocklow;
 		} unextended;
 		struct
 		{
 			u_char	segment;
-			u_char	sense_key:4;
-			u_char	:1;
-			u_char	ili:1;
-			u_char	eom:1;
-			u_char	filemark:1;
+			u_char	flags;
+#define	SSD_KEY		0x0F
+#define	SSD_ILI		0x20
+#define	SSD_EOM		0x40
+#define	SSD_FILEMARK	0x80
 			u_char	info[4];
 			u_char	extra_len;
 			u_char	cmd_spec_info[4];
 			u_char	add_sense_code;
 			u_char	add_sense_code_qual;
 			u_char	fru;
-			u_char	sense_key_spec_1:7;
-			u_char	sksv:1;
+			u_char	sense_key_spec_1;
+#define	SSD_SCS_VALID		0x80
 			u_char	sense_key_spec_2;
 			u_char	sense_key_spec_3;
 			u_char	extra_bytes[16];
