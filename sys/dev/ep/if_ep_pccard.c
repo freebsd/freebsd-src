@@ -82,6 +82,12 @@ ep_pccard_probe(device_t dev)
 		return (error);
 
 	/*
+	 * It appears that the eeprom comes in two sizes.  There's
+	 * a 512 byte eeprom and a 2k eeprom.  Bit 13 of the eeprom
+	 * command register is supposed to contain the size of the
+	 * eeprom.
+	 */
+	/*
 	 * XXX - Certain (newer?) 3Com cards need epb->cmd_off ==
 	 * 2. Sadly, you need to have a correct cmd_off in order to
 	 * identify the card.  So we have to hit it with both and
@@ -151,15 +157,15 @@ ep_pccard_card_attach(struct ep_board * epb)
 {
 	/* Determine device type and associated MII capabilities  */
 	switch (epb->prod_id) {
-		case 0x6055:	/* 3C556 */
-		case 0x2b57:	/* 3C572BT */
-		case 0x4057:	/* 3C574 */
-		case 0x4b57:	/* 3C574B */
-		case 0x0010:	/* 3C1 */
+	case 0x6055:		/* 3C556 */
+	case 0x2b57:		/* 3C572BT */
+	case 0x4057:		/* 3C574 */
+	case 0x4b57:		/* 3C574B */
 		epb->mii_trans = 1;
 		return (1);
 	case 0x2056:		/* 3C562D/3C563D */
 	case 0x9058:		/* 3C589 */
+	case 0x0010:		/* 3C1 */
 		epb->mii_trans = 0;
 		return (1);
 	default:
@@ -201,26 +207,26 @@ ep_pccard_attach(device_t dev)
 
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
-	outw(BASE + EP_W0_ADDRESS_CFG, result & 0xc000);
+	EP_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
 
 	/* Fake IRQ must be 3 */
-	outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
+	EP_WRITE_2(sc, EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
 
-	outw(BASE + EP_W0_PRODUCT_ID, sc->epb.prod_id);
+	EP_WRITE_2(sc, EP_W0_PRODUCT_ID, sc->epb.prod_id);
 
 	if (sc->epb.mii_trans) {
 		/*
 		 * turn on the MII transciever
 		 */
 		GO_WINDOW(3);
-		outw(BASE + EP_W3_OPTIONS, 0x8040);
+		EP_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 		DELAY(1000);
-		outw(BASE + EP_W3_OPTIONS, 0xc040);
-		outw(BASE + EP_COMMAND, RX_RESET);
-		outw(BASE + EP_COMMAND, TX_RESET);
-		while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+		EP_WRITE_2(sc, EP_W3_OPTIONS, 0xc040);
+		EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
+		EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
+		while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 		DELAY(1000);
-		outw(BASE + EP_W3_OPTIONS, 0x8040);
+		EP_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 	} else
 		ep_get_media(sc);
 
