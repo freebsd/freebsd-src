@@ -387,8 +387,7 @@ fxp_attach(device_t dev)
 	s = splimp(); 
 
 	/*
-	 * Enable bus mastering. Enable memory/port space too, in case
-	 * BIOS/Prom forgot about it.
+	 * Enable bus mastering.
 	 */
 	pci_enable_busmaster(dev);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
