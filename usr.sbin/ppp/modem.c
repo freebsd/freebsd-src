@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.55 1997/09/22 00:46:56 brian Exp $
+ * $Id: modem.c,v 1.56 1997/09/22 00:55:46 brian Exp $
  *
  *  TODO:
  */
@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <time.h>
 #include <paths.h>
+#include <utmp.h>
 #ifdef __OpenBSD__
 #include <util.h>
 #else
@@ -728,6 +729,17 @@ CloseModem()
 {
   if (modem >= 0) {
     close(modem);
+    if (Utmp) {
+      struct utmp ut;
+      strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
+      ut.ut_line[sizeof(ut.ut_line)-1] = '\0';
+      if (logout(ut.ut_line))
+        logwtmp(ut.ut_line, "", ""); 
+      else
+        LogPrintf(LogERROR, "CloseModem: No longer logged in on %s\n",
+		  ut.ut_line);
+      Utmp = 0;
+    }
     UnlockModem();
     modem = -1;
   }
