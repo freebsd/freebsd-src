@@ -867,20 +867,25 @@ nd6_lookup(addr6, create, ifp)
 	rt->rt_refcnt--;
 	/*
 	 * Validation for the entry.
+	 * Note that the check for rt_llinfo is necessary because a cloned
+	 * route from a parent route that has the L flag (e.g. the default
+	 * route to a p2p interface) may have the flag, too, while the
+	 * destination is not actually a neighbor.
 	 * XXX: we can't use rt->rt_ifp to check for the interface, since
 	 *      it might be the loopback interface if the entry is for our
 	 *      own address on a non-loopback interface. Instead, we should
-	 *      use rt->rt_ifa->ifa_ifp, which would specify the REAL interface.
+	 *      use rt->rt_ifa->ifa_ifp, which would specify the REAL
+	 *      interface.
 	 */
 	if ((rt->rt_flags & RTF_GATEWAY) || (rt->rt_flags & RTF_LLINFO) == 0 ||
-	    rt->rt_gateway->sa_family != AF_LINK ||
+	    rt->rt_gateway->sa_family != AF_LINK || rt->rt_llinfo == NULL ||
 	    (ifp && rt->rt_ifa->ifa_ifp != ifp)) {
 		if (create) {
 			log(LOG_DEBUG, "nd6_lookup: failed to lookup %s (if = %s)\n",
 			    ip6_sprintf(addr6), ifp ? if_name(ifp) : "unspec");
 			/* xxx more logs... kazu */
 		}
-		return(0);
+		return(NULL);
 	}
 	return(rt);
 }
@@ -933,7 +938,7 @@ nd6_is_addr_neighbor(addr, ifp)
 	 * Even if the address matches none of our addresses, it might be
 	 * in the neighbor cache.
 	 */
-	if (nd6_lookup(&addr->sin6_addr, 0, ifp))
+	if (nd6_lookup(&addr->sin6_addr, 0, ifp) != NULL)
 		return(1);
 
 	return(0);
