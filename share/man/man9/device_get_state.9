@@ -50,7 +50,7 @@
 .Fn device_is_alive "device_t dev"
 .Sh DESCRIPTION
 The current state of a device is accessed by calling
-.Xr device_get_state 9
+.Fn device_get_state
 which returns
 .Dv DS_NOTPRESENT ,
 .Dv DS_ALIVE ,
@@ -60,27 +60,27 @@ or
 (described in
 .Xr device 9 ) .
 To test see if a device was successfully probed, call
-.Xr device_is_alive 9
+.Fn device_is_alive
 which simply returns if the state is greater or equal to
 .Dv DS_ALIVE .
 .Pp
 Each device has a busy count which is incremented when
-.Xr device_busy 9
+.Fn device_busy
 is called and decremented when
-.Xr device_unbusy 9
+.Fn device_unbusy
 is called.  Both routines return an error if the device state is less
 than
 .Dv DS_ATTACHED .
 .Pp
 When
-.Xr device_busy 9
+.Fn device_busy
 is called on a device in the
 .Dv DS_ATTACHED
 state, the device changes to the
 .Dv DS_BUSY
 state.
 When
-.Xr device_unbusy 9
+.Fn device_unbusy
 is called and after decrementing, the busy count for the device is
 zero, the device changes to the
 .Dv DS_ATTACHED

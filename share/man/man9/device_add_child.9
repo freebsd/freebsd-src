@@ -82,12 +82,12 @@ of unrelated drivers and therefore must be probed first),
 the
 .Fa order
 argument of
-.Xr device_add_child_ordered 9
+.Fn device_add_child_ordered
 should be used to specify a partial ordering.
 The new device will be added before any existing device with a greater
 order.
 If
-.Xr device_add_child 9
+.Fn device_add_child
 is used, then the new child will be added as if its order was zero.
 .Sh RETURN VALUES
 The new device if successful, NULL otherwise.

@@ -44,9 +44,9 @@
 .Fn VOP_CLOSE "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 The
-.Xr VOP_OPEN 9
+.Fn VOP_OPEN
 entry point is called before a file is accessed by a process and the
-.Xr VOP_CLOSE 9
+.Fn VOP_CLOSE
 entry point is called after a file is finished with by the process.
 .Pp
 The arguments are:
@@ -65,12 +65,12 @@ The access mode is a set of flags, including
 .Dv O_NONBLOCK ,
 .Dv O_APPEND .
 .Sh LOCKS
-.Xr VOP_OPEN 9
+.Fn VOP_OPEN
 expects
 .Fa vp
 to be locked on entry and will leave it locked on return.
 .Pp
-.Xr VOP_CLOSE 9
+.Fn VOP_CLOSE
 expects at least a reference to be associated with the vnode and does not
 care whether the vnode is locked or not.  The lock and reference state is
 left unchanged on return.  Note that

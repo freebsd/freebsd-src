@@ -101,11 +101,11 @@ otherwise be preserved in a tape-to-tape copy.
 EOD is determined by two sequential EOF marks with no data between.
 There are old systems which typically wrote three EOF's between tape
 files.
-.Xr tcopy 1
+.Nm
 will erroneously stop copying early in this case.
 .It
 When using the copy/verify option \-c
-.Xr tcopy 1
+.Nm
 does not rewind the tapes prior to start.
 A rewind is performed
 after writing prior to the verification stage.
