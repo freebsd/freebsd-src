@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.101 1995/01/14 13:20:08 bde Exp $
+ *	$Id: machdep.c,v 1.102 1995/01/17 01:15:12 bde Exp $
  */
 
 #include "npx.h"
@@ -114,7 +114,7 @@ char cpu_model[sizeof("Cy486DLC") + 1];
 /*
  * Declare these as initialized data so we can patch them.
  */
-int	nswbuf = 128;
+int	nswbuf = 0;
 #ifdef	NBUF
 int	nbuf = NBUF;
 #else
@@ -255,9 +255,12 @@ again:
 	valloc(msqids, struct msqid_ds, msginfo.msgmni);
 #endif
 
-	if (nbuf == 0)
-		nbuf = min(physmem / 30, 256);
-	nswbuf = nbuf;
+	if (nbuf == 0) {
+		nbuf = 32;
+		if( physmem > 1024)
+			nbuf += min((physmem - 1024) / 20, 1024);
+	}
+	nswbuf = min(nbuf, 128);
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
