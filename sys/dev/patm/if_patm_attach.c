@@ -204,7 +204,7 @@ patm_attach(device_t dev)
 	mtx_init(&sc->tst_lock, "tst lock", NULL, MTX_DEF);
 	cv_init(&sc->vcc_cv, "vcc_close");
 
-	callout_init(&sc->tst_callout, 1);
+	callout_init(&sc->tst_callout, CALLOUT_MPSAFE);
 
 	sysctl_ctx_init(&sc->sysctl_ctx);
 

@@ -592,7 +592,7 @@ again:
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
 
-	callout_init(&p2->p_itcallout, 1);
+	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
 #ifdef KTRACE
 	/*
