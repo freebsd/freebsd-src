@@ -156,6 +156,7 @@ ext2_readdir(ap)
         int count, error;
 
 	struct ext2_dir_entry *edp, *dp;
+	int ncookies;
 	struct dirent dstdp;
 	struct uio auio;
 	struct iovec aiov;
@@ -183,6 +184,7 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 	if (error == 0) {
 		readcnt = count - auio.uio_resid;
 		edp = (struct ext2_dir_entry *)&dirbuf[readcnt];
+		ncookies = 0;
 		for (dp = (struct ext2_dir_entry *)dirbuf; 
 			!error && uio->uio_resid > 0 && dp < edp; ) {
 			ext2_dirconv2ffs(dp, &dstdp);
@@ -194,6 +196,8 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 					error = 
 					  uiomove((caddr_t)&dstdp,
 						  dstdp.d_reclen, uio);
+					if (!error)
+						ncookies++;
 				} else
 					break;
 			} else {
@@ -203,8 +207,30 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 		}
 		/* we need to correct uio_offset */
 		uio->uio_offset = startoffset + (caddr_t)dp - dirbuf;
+
+		if (!error && ap->a_ncookies != NULL) {
+			u_long *cookies;
+			u_long *cookiep;
+			off_t off;
+
+			if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
+				panic("ext2fs_readdir: unexpected uio from NFS server");
+			MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
+			       M_WAITOK);
+			off = startoffset;
+			for (dp = (struct ext2_dir_entry *)dirbuf, cookiep = cookies;
+			     dp < edp;
+			     dp = (struct ext2_dir_entry *)((caddr_t) dp + dp->rec_len)) {
+				off += dp->rec_len;
+				*cookiep++ = (u_long) off;
+			}
+			*ap->a_ncookies = ncookies;
+			*ap->a_cookies = cookies;
+		}
 	}
 	FREE(dirbuf, M_TEMP);
+	if (ap->a_eofflag)
+		*ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
         return (error);
 }
 
