@@ -1,3 +1,8 @@
+2000-02-12  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): only set tos for AF_INET.  From
+	itojun@iijlab.net
+
 2000-02-07  Assar Westerlund  <assar@sics.se>
 
 	* libtelnet/kerberos.c (kerberos4_is): send a reject back to the

@@ -1,3 +1,11 @@
+2000-02-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 7:0:2
+
+	* getarg.c (mandoc_template): also fix no- prefix in .Sh OPTIONS
+	* getarg.c (mandoc_template): better man-stuff for negative
+	options
+
 2000-02-07  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: set version to 6:0:1
