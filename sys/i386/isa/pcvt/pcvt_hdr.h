@@ -1396,12 +1396,12 @@ static __inline void vt_selattr(struct video_state *svsp)
 				/* 0x84 to produce keyboard controller    */
 				/* access delays                          */
 #define PCVT_KBD_DELAY()          \
-	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); } \
-	{ u_char x = inb(0x84); }
+	{ (void)inb(0x84); } \
+	{ (void)inb(0x84); } \
+	{ (void)inb(0x84); } \
+	{ (void)inb(0x84); } \
+	{ (void)inb(0x84); } \
+	{ (void)inb(0x84); }
 
 #else /* PCVT_PORTIO_DELAY */
 				/* use system supplied delay function for */
