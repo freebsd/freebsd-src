@@ -810,7 +810,7 @@ Int_Open_Disk(const char *name, u_long size)
 				      dl.d_partitions[j].p_size,
 				      pname,part,
 				      dl.d_partitions[j].p_fstype,
-				      0) && j != 3)
+				      0, "") && j != 3)
 				DPRINT((
 					"Failed to add chunk for partition %c [%lu,%lu]",
 					j + 'a', dl.d_partitions[j].p_offset,
