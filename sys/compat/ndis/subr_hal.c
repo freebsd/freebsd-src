@@ -55,11 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 
-#ifdef __amd64__
-#define __stdcall
-#else
-#define __stdcall __attribute__((__stdcall__))
-#endif
 #define FUNC void(*)(void)
 
 __stdcall static void hal_stall_exec_cpu(uint32_t);
