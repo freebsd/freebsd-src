@@ -73,14 +73,16 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
 	        return EINVAL;
 
 	case SETNAME:  {  /* set hostname given string w/ len <= 7 chars */
-	        int name;
+	        int name[2];
 	        int error;
 
 		if ((error = suser(p->p_ucred, &p->p_acflag)))
 		  return (error);
-		name = KERN_HOSTNAME;
-		return (kern_sysctl(&name, 1, 0, 0, SCARG(args, arg), 7, p));
-        }
+		name[0] = CTL_KERN;
+		name[1] = KERN_HOSTNAME;
+		return (userland_sysctl(p, name, 2, 0, 0, 0, 
+			SCARG(args, arg), 7, 0));
+	}
 
 	case SI86_MEM:	/* size of physical memory */
 		*retval = ctob(physmem);
