@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.88 1999/07/23 23:45:19 alc Exp $
+ *	$Id: cpufunc.h,v 1.89 1999/08/19 00:32:48 peter Exp $
  */
 
 /*
@@ -82,40 +82,53 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-#define	HAVE_INLINE_FFS
 
-#if __GNUC__ == 2 && __GNUC_MINOR__ > 8
-#define ffs(mask) __builtin_ffs(mask)
-#else
+#define	HAVE_INLINE__BSFL
+
 static __inline int
-ffs(int mask)
+__bsfl(int mask)
 {
 	int	result;
+
 	/*
 	 * bsfl turns out to be not all that slow on 486's.  It can beaten
 	 * using a binary search to reduce to 4 bits and then a table lookup,
 	 * but only if the code is inlined and in the cache, and the code
 	 * is quite large so inlining it probably busts the cache.
-	 *
+	 */
+	__asm __volatile("bsfl %0,%0" : "=r" (result) : "0" (mask));
+	return (result);
+}
+
+#define	HAVE_INLINE_FFS
+
+static __inline int
+ffs(int mask)
+{
+	/*
 	 * Note that gcc-2's builtin ffs would be used if we didn't declare
 	 * this inline or turn off the builtin.  The builtin is faster but
 	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and 2.6.
 	 */
-	__asm __volatile("testl %0,%0; je 1f; bsfl %0,%0; incl %0; 1:"
-			 : "=r" (result) : "0" (mask));
+	 return mask == 0 ? mask : __bsfl(mask) + 1;
+}
+
+#define	HAVE_INLINE__BSRL
+
+static __inline int
+__bsrl(int mask)
+{
+	int	result;
+	__asm __volatile("bsrl %0,%0" : "=r" (result) : "0" (mask));
 	return (result);
 }
-#endif
 
 #define	HAVE_INLINE_FLS
 
 static __inline int
 fls(int mask)
 {
-	int	result;
-	__asm __volatile("testl %0,%0; je 1f; bsrl %0,%0; incl %0; 1:"
-			 : "=r" (result) : "0" (mask));
-	return (result);
+	return mask == 0 ? mask : __bsrl(mask) + 1;
 }
 
 #if __GNUC__ < 2
