@@ -178,10 +178,12 @@ devclass_t psm_devclass;
 #define PSM_CONFIG_IGNPORTERROR	0x1000  /* ignore error in aux port test */
 #define PSM_CONFIG_HOOKRESUME	0x2000	/* hook the system resume event */
 #define PSM_CONFIG_INITAFTERSUSPEND 0x4000 /* init the device at the resume event */
+#define PSM_CONFIG_SYNCHACK	0x8000 /* enable `out-of-sync' hack */
 
 #define PSM_CONFIG_FLAGS	(PSM_CONFIG_RESOLUTION 		\
 				    | PSM_CONFIG_ACCEL		\
 				    | PSM_CONFIG_NOCHECKSYNC	\
+				    | PSM_CONFIG_SYNCHACK	\
 				    | PSM_CONFIG_NOIDPROBE	\
 				    | PSM_CONFIG_NORESET	\
 				    | PSM_CONFIG_FORCETAP	\
@@ -249,6 +251,7 @@ static void psmtimeout __P((void *));
 typedef int probefunc_t __P((struct psm_softc *));
 
 static int mouse_id_proc1 __P((KBDC, int, int, int *));
+static int mouse_ext_command __P((KBDC, int));
 static probefunc_t enable_groller;
 static probefunc_t enable_gmouse;
 static probefunc_t enable_aglide; 
@@ -1901,6 +1904,15 @@ psmintr(void *arg)
             log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
 		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
 	    sc->inputbytes = 0;
+	    if (sc->config & PSM_CONFIG_SYNCHACK) {
+		/*
+		 * XXX: this is a grotesque hack to get us out of
+		 * dreaded "out of sync" error.
+		 */
+		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
+		disable_aux_dev(sc->kbdc);
+		enable_aux_dev(sc->kbdc);
+	    }
             continue;
 	}
 
@@ -2274,6 +2286,26 @@ static int mouse_id_proc1(KBDC kbdc, int res, int scale, int *status)
     return FALSE;
 }
 
+static int 
+mouse_ext_command(KBDC kbdc, int command)
+{
+    int c;
+
+    c = (command >> 6) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 4) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 2) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 0) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    return TRUE;
+}
+
 #if notyet
 /* Logitech MouseMan Cordless II */
 static int
@@ -2437,14 +2469,8 @@ enable_kmouse(struct psm_softc *sc)
 static int
 enable_mmanplus(struct psm_softc *sc)
 {
-    static char res[] = {
-	-1, PSMD_RES_LOW, PSMD_RES_HIGH, PSMD_RES_MEDIUM_HIGH,
-	PSMD_RES_MEDIUM_LOW, -1, PSMD_RES_HIGH, PSMD_RES_MEDIUM_LOW,
-	PSMD_RES_MEDIUM_HIGH, PSMD_RES_HIGH, 
-    };
     KBDC kbdc = sc->kbdc;
     int data[3];
-    int i;
 
     /* the special sequence to enable the fourth button and the roller. */
     /*
@@ -2452,16 +2478,10 @@ enable_mmanplus(struct psm_softc *sc)
      * must be called exactly three times since the last RESET command
      * before this sequence. XXX
      */
-    for (i = 0; i < sizeof(res)/sizeof(res[0]); ++i) {
-	if (res[i] < 0) {
-	    if (!set_mouse_scaling(kbdc, 1))
-		return FALSE;
-	} else {
-	    if (set_mouse_resolution(kbdc, res[i]) != res[i])
-		return FALSE;
-	}
-    }
-
+    if (!set_mouse_scaling(kbdc, 1))
+	return FALSE;
+    if (!mouse_ext_command(kbdc, 0x39) || !mouse_ext_command(kbdc, 0xdb))
+	return FALSE;
     if (get_mouse_status(kbdc, data, 1, 3) < 3)
         return FALSE;
 
@@ -2504,14 +2524,15 @@ enable_mmanplus(struct psm_softc *sc)
 static int
 enable_msexplorer(struct psm_softc *sc)
 {
-    static unsigned char rate[] = { 200, 200, 80, };
+    static unsigned char rate0[] = { 200, 100, 80, };
+    static unsigned char rate1[] = { 200, 200, 80, };
     KBDC kbdc = sc->kbdc;
     int id;
     int i;
 
     /* the special sequence to enable the extra buttons and the roller. */
-    for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i) {
-        if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
+    for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate1[i]) != rate1[i])
 	    return FALSE;
     }
     /* the device will give the genuine ID only after the above sequence */
@@ -2521,6 +2542,22 @@ enable_msexplorer(struct psm_softc *sc)
 
     sc->hw.hwid = id;
     sc->hw.buttons = 5;		/* IntelliMouse Explorer XXX */
+
+    /*
+     * XXX: this is a kludge to fool some KVM switch products
+     * which think they are clever enough to know the 4-byte IntelliMouse
+     * protocol, and assume any other protocols use 3-byte packets.
+     * They don't convey 4-byte data packets from the IntelliMouse Explorer 
+     * correctly to the host computer because of this!
+     * The following sequence is actually IntelliMouse's "wake up"
+     * sequence; it will make the KVM think the mouse is IntelliMouse
+     * when it is in fact IntelliMouse Explorer.
+     */
+    for (i = 0; i < sizeof(rate0)/sizeof(rate0[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate0[i]) != rate0[i])
+	    break;
+    }
+    id = get_aux_id(kbdc);
 
     return TRUE;
 }
@@ -2574,9 +2611,9 @@ enable_4dmouse(struct psm_softc *sc)
     }
     id = get_aux_id(kbdc);
     /*
-     * WinEasy 4D: 6
+     * WinEasy 4D, 4 Way Scroll 4D: 6
      * Cable-Free 4D: 8 (4DPLUS)
-     * 4 Way ScrollMouse 4D+: 8 (4DPLUS)
+     * WinBest 4D+, 4 Way Scroll 4D+: 8 (4DPLUS)
      */
     if (id != PSM_4DMOUSE_ID)
 	return FALSE;
