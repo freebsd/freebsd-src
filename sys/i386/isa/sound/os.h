@@ -20,6 +20,9 @@
 #include <sys/signalvar.h>
 
 #include <machine/soundcard.h>
+
+#include <i386/isa/isa_device.h>
+
 #undef DELAY
 #define DELAY(x)  tenmicrosec(x)
 typedef struct uio snd_rw_buf;

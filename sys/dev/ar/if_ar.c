@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.18 1998/04/17 22:36:33 des Exp $
+ * $Id: if_ar.c,v 1.19 1998/06/07 17:10:24 dfr Exp $
  */
 
 /*
@@ -70,6 +70,7 @@
 
 #include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
+#include <i386/isa/isa_device.h>
 
 #include "ioconf.h"
 
