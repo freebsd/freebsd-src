@@ -60,6 +60,8 @@ cx	i386
 dc	i386,pc98,alpha,sparc64,amd64
 de	i386,pc98,alpha,amd64
 dpt	i386,amd64
+el	i386
+ep	i386,pc98,amd64
 ex	i386,amd64
 fe	i386,pc98,amd64
 gem	sparc64
@@ -84,6 +86,7 @@ rue	i386,pc98,amd64
 sf	i386,pc98,alpha,amd64
 sis	i386,pc98,alpha,amd64
 sk	i386,pc98,alpha,amd64
+sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
 snd_cmi	i386,amd64
