@@ -100,6 +100,7 @@ EXTERN int Paranoid;
 EXTERN int Verbose;
 EXTERN int Exit;
 EXTERN int Force;
+EXTERN int CheckIt;
 
 
 char * String(char *s);
