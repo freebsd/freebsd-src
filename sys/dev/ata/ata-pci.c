@@ -283,6 +283,9 @@ ata_pci_match(device_t dev)
 	}
 	return NULL;
 
+    case 0x000116ca:
+    	return "Cenatek Rocket Drive controller";
+
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
     case 0x10011042:
