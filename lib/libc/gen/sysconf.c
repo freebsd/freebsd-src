@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 
 #include <errno.h>
 #include <limits.h>
@@ -176,9 +177,13 @@ do_NAME_MAX:
 		return (value);
 
 	case _SC_ASYNCHRONOUS_IO:
+#if _POSIX_ASYNCHRONOUS_IO == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_ASYNCHRONOUS_IO;
-		goto yesno;
+		break;
+#else
+		return (_POSIX_ASYNCHRONOUS_IO);
+#endif
 	case _SC_MAPPED_FILES:
 		return (_POSIX_MAPPED_FILES);
 	case _SC_MEMLOCK:
@@ -544,6 +549,23 @@ yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 #ifdef _XOPEN_XCU_VERSION
 	case _SC_XOPEN_XCU_VERSION:
 		return (_XOPEN_XCU_VERSION);
+#endif
+	case _SC_SYMLOOP_MAX:
+		return (MAXSYMLINKS);
+	case _SC_RAW_SOCKETS:
+		return (_POSIX_RAW_SOCKETS);
+	case _SC_IPV6:
+#if _POSIX_IPV6 == 0
+		sverrno = errno;
+		value = socket(PF_INET6, SOCK_DGRAM, 0);
+		errno = sverrno;
+		if (value >= 0) {
+			close(value);
+			return (200112L);
+		} else
+			return (0);
+#else
+		return (_POSIX_IPV6);
 #endif
 
 	case _SC_NPROCESSORS_CONF:
