@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2003
+.Dt LOCALE 1
+.Os
+.Sh NAME
+.Nm locale
+.Nd get locale-specific information
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl m
+.Nm
+.Op Fl ck
+.Op Ar keyword ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is supposed to provide most locale specific information to
+the standard output.
+.Pp
+When
+.Nm
+is invoked without arguments it will print out summary of current
+locale environment depending on evnironment variable settings and
+internal status. 
+.Pp
+When
+.Nm
+is invoked with arguments and no options specified it will print out
+.Em keyword Ns No 's
+value detemrined using current locale settings.
+.Pp
+The following options are available:
+.Bl -tag -width indent 
+.It Fl a
+Write names of all available locales.
+While looking for locales
+.Nm
+will respect
+.Ev PATH_LOCALE
+environment variable, and use it instead of system default locale
+directory.
+.\" .It Fl m
+.\" Write names of all available charmaps.
+.It Fl k
+Write the name and value of the selected keywords.
+.It Fl c
+Write the category name for the selcted keywords.
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Sh BUGS
+Since
+.Fx
+does not support
+.Em charpmap Ns No s
+in their
+.Em POSIX
+meaning
+.Nm
+ignores
+.Fl m
+option
+(support, but do nothing).
