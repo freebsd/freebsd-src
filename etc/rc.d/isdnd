@@ -67,8 +67,8 @@ isdnd_start()
 	if checkyesno isdn_trace; then
 		echo -n ' isdntrace'
 		nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
-		echo '.'
 	fi
+	echo '.'
 }
 
 load_rc_config $name
