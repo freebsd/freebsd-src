@@ -98,6 +98,9 @@ dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
 dev/ed/if_ed_cbus.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
+dev/em/if_em.c			optional	em
+dev/em/if_em_fxhw.c		optional	em
+dev/em/if_em_phy.c		optional	em
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
 dev/fb/splash.c			optional	splash
@@ -161,14 +164,6 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
-i386/acpica/OsdEnvironment.c	optional acpica
-i386/acpica/acpi_wakeup.c	optional	acpica
-acpi_wakecode.h			optional	acpica			\
-	dependency 	"$S/i386/acpica/acpi_wakecode.S"		\
-	compile-with	"${MAKE} -f $S/i386/acpica/Makefile MAKESRCPATH=$S/i386/acpica"	\
-	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
-#
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
