@@ -33,7 +33,6 @@
 #ifdef notyet
 
 #ifdef PC98
-#include "lnc.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
