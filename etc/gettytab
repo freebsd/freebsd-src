@@ -84,7 +84,7 @@ t1200:\
 #telebit (9600)
 #
 t9600:\
-	:nx=t2400a:tc=19200-baud:
+	:nx=t2400a:tc=9600-baud:
 t2400a:\
 	:nx=t1200a:tc=2400-baud:
 t1200a:\
