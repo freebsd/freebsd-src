@@ -35,9 +35,9 @@
 
 #include <sys/libkern.h>
 
-typedef int		 cmp_t __P((const void *, const void *));
-static __inline char	*med3 __P((char *, char *, char *, cmp_t *));
-static __inline void	 swapfunc __P((char *, char *, int, int));
+typedef int		 cmp_t(const void *, const void *);
+static __inline char	*med3(char *, char *, char *, cmp_t *);
+static __inline void	 swapfunc(char *, char *, int, int);
 
 #define min(a, b)	(a) < (b) ? a : b
 
