@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.13 1994/10/21 01:19:23 wollman Exp $
+ * $Id: vnode.h,v 1.14 1994/11/14 13:51:53 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -116,6 +116,7 @@ struct vnode {
 #define	VALIASED	0x0800	/* vnode has an alias */
 #define	VDIROP		0x1000	/* LFS: vnode is involved in a directory op */
 #define VVMIO		0x2000	/* VMIO flag */
+#define VNINACT		0x4000  /* LFS: skip ufs_inactive() in lfs_vunref */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
