@@ -26,8 +26,7 @@
  * This card has the annoying habit of "clicking" when attached and
  * detached, haven't been able to remedy this with any combination of
  * muting.
- *
- * $FreeBSD$ */
+ */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/vibes.h>
@@ -36,6 +35,8 @@
 #include <pci/pcivar.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* ------------------------------------------------------------------------- */
 /* Constants */
@@ -919,7 +920,7 @@ static device_method_t sc_methods[] = {
 static driver_t sonicvibes_driver = {
         "pcm",
         sc_methods,
-        sizeof(struct snddev_info)
+        PCM_SOFTC_SIZE
 };
 
 DRIVER_MODULE(snd_sonicvibes, pci, sonicvibes_driver, pcm_devclass, 0, 0);

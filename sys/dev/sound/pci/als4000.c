@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -43,6 +41,8 @@
 #include <pci/pcivar.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* Debugging macro's */
 #undef DEB
@@ -887,7 +887,7 @@ static device_method_t als_methods[] = {
 static driver_t als_driver = {
 	"pcm",
 	als_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_als, pci, als_driver, pcm_devclass, 0, 0);

@@ -25,11 +25,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
@@ -1851,7 +1851,7 @@ static device_method_t mss_methods[] = {
 static driver_t mss_driver = {
 	"pcm",
 	mss_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
@@ -2118,7 +2118,7 @@ static device_method_t pnpmss_methods[] = {
 static driver_t pnpmss_driver = {
 	"pcm",
 	pnpmss_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
@@ -2202,7 +2202,7 @@ static device_method_t guspcm_methods[] = {
 static driver_t guspcm_driver = {
 	"pcm",
 	guspcm_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);

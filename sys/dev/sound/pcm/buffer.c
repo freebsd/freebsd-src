@@ -22,13 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define	MIN(x, y) (((x) < (y))? (x) : (y))
 

@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -32,6 +30,8 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* PCI IDs of supported chips */
 #define AU8820_PCI_ID 0x000112eb
@@ -677,7 +677,7 @@ static device_method_t au_methods[] = {
 static driver_t au_driver = {
 	"pcm",
 	au_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_aureal, pci, au_driver, pcm_devclass, 0, 0);

@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -34,6 +32,8 @@
 
 #include <dev/sound/pci/ds1.h>
 #include <dev/sound/pci/ds1-fw.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
@@ -1068,7 +1068,7 @@ static device_method_t ds1_methods[] = {
 static driver_t ds1_driver = {
 	"pcm",
 	ds1_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_ds1, pci, ds1_driver, pcm_devclass, 0, 0);
