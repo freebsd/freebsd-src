@@ -1,5 +1,4 @@
 # $FreeBSD$
 
-# Long double is quad precision
-GDTOASRCS+=strtopQ.c
-MDSRCS+=machdep_ldisQ.c
+# Long double is 64-bits
+MDSRCS+=machdep_ldisd.c
