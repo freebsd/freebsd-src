@@ -219,6 +219,7 @@ int n;
 void
 usage()
 {
-	fprintf(stderr, "usage: m4 [-Dname[=val]] [-Uname]\n");
+	fprintf(stderr,
+"usage: m4 [-s] [-D name[=val]]... [-U name]... file...\n");
 	exit(1);
 }
