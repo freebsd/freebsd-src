@@ -418,16 +418,16 @@ static __inline int __sputc(int _c, FILE *_p) {
 
 extern int __isthreaded;
 
-#define	feof(p)		(!__isthreaded ? __sfeof(p) : feof(p))
-#define	ferror(p)	(!__isthreaded ? __sferror(p) : ferror(p))
-#define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : clearerr(p))
+#define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
+#define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))
+#define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : (clearerr)(p))
 
 #if __POSIX_VISIBLE
-#define	fileno(p)	(!__isthreaded ? __sfileno(p) : fileno(p))
+#define	fileno(p)	(!__isthreaded ? __sfileno(p) : (fileno)(p))
 #endif
 
-#define	getc(fp)	(!__isthreaded ? __sgetc(fp) : getc(fp))
-#define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : putc(x, fp))
+#define	getc(fp)	(!__isthreaded ? __sgetc(fp) : (getc)(fp))
+#define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : (putc)(x, fp))
 
 #define	getchar()	getc(stdin)
 #define	putchar(x)	putc(x, stdout)
