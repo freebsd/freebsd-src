@@ -157,7 +157,6 @@ kmstartup(dummy)
 	uintfptr_t tmp_addr;
 #endif
 
-	tcov_init();
 	/*
 	 * Round lowpc and highpc to multiples of the density we're using
 	 * so the rest of the scaling (here and in gprof) stays in ints.
@@ -563,7 +562,7 @@ tcov_init(void *foo __unused)
 	}
 }
 
-SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_SECOND, tcov_init, NULL)
+SYSINIT(tcov_init, SI_SUB_KPROF, SI_ORDER_SECOND, tcov_init, NULL)
 
 /*
  * GCC contains magic to recognize calls to for instance execve() and
