@@ -169,7 +169,7 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
   int didname;			/* true if filter header printed */
   int match;			/* true if condition matched */
   const struct filterent *fp = filter->rule;
-  char dbuff[100];
+  char dbuff[100], dstip[16];
 
   if (fp->f_action == A_NONE)
     return 0;		/* No rule is given. Permit this packet */
@@ -184,10 +184,16 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
    */
   len = ntohs(pip->ip_off) & IP_OFFMASK;	/* fragment offset */ 
   if (len > 0) {		/* Not first fragment within datagram */
-    if (len < (24 >> 3))	/* don't allow fragment to over-write header */
+    if (len < (24 >> 3)) {	/* don't allow fragment to over-write header */
+      log_Printf(LogFILTER, " error: illegal header\n");
       return 1;
+    }
     /* permit fragments on in and out filter */
-    return !filter->fragok;
+    if (!filter->fragok) {
+      log_Printf(LogFILTER, " error: illegal fragmentation\n");
+      return 1;
+    } else
+      return 0;
   }
   
   cproto = gotinfo = estab = syn = finrst = didname = 0;
@@ -221,8 +227,11 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
           switch (pip->ip_p) {
           case IPPROTO_ICMP:
             cproto = P_ICMP;
-            if (datalen < 8)	/* ICMP must be at least 8 octets */
+            if (datalen < 8) {	/* ICMP must be at least 8 octets */
+              log_Printf(LogFILTER, " error: ICMP must be at least 8 octets\n");
               return 1;
+            }
+
             ih = (const struct icmp *) ptop;
             sport = ih->icmp_type;
             estab = syn = finrst = -1;
@@ -231,16 +240,20 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
             break;
           case IPPROTO_IGMP:
             cproto = P_IGMP;
-            if (datalen < 8)	/* IGMP uses 8-octet messages */
+            if (datalen < 8) {	/* IGMP uses 8-octet messages */
+              log_Printf(LogFILTER, " error: IGMP must be at least 8 octets\n");
               return 1;
+            }
             estab = syn = finrst = -1;
             sport = ntohs(0);
             break;
 #ifdef IPPROTO_GRE
           case IPPROTO_GRE:
             cproto = P_GRE;
-            if (datalen < 2)    /* GRE uses 2-octet+ messages */
+            if (datalen < 2) {    /* GRE uses 2-octet+ messages */
+              log_Printf(LogFILTER, " error: GRE must be at least 2 octets\n");
               return 1;
+            }
             estab = syn = finrst = -1;
             sport = ntohs(0);
             break;
@@ -248,8 +261,10 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
 #ifdef IPPROTO_OSPFIGP
           case IPPROTO_OSPFIGP:
             cproto = P_OSPF;
-            if (datalen < 8)	/* IGMP uses 8-octet messages */
+            if (datalen < 8) {	/* IGMP uses 8-octet messages */
+              log_Printf(LogFILTER, " error: IGMP must be at least 8 octets\n");
               return 1;
+            }
             estab = syn = finrst = -1;
             sport = ntohs(0);
             break;
@@ -257,8 +272,11 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
           case IPPROTO_UDP:
           case IPPROTO_IPIP:
             cproto = P_UDP;
-            if (datalen < 8)	/* UDP header is 8 octets */
+            if (datalen < 8) {	/* UDP header is 8 octets */
+              log_Printf(LogFILTER, " error: UDP must be at least 8 octets\n");
               return 1;
+            }
+
             uh = (const struct udphdr *) ptop;
             sport = ntohs(uh->uh_sport);
             dport = ntohs(uh->uh_dport);
@@ -274,8 +292,10 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
              * ensures that the TCP header length isn't de-referenced if
              * the datagram is too short
              */
-            if (datalen < 20 || datalen < (th->th_off << 2))
+            if (datalen < 20 || datalen < (th->th_off << 2)) {
+              log_Printf(LogFILTER, " error: TCP header incorrect\n");
               return 1;
+            }
             sport = ntohs(th->th_sport);
             dport = ntohs(th->th_dport);
             estab = (th->th_flags & TH_ACK);
@@ -291,6 +311,7 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
             }
             break;
           default:
+            log_Printf(LogFILTER, " error: unknown protocol\n");
             return 1;		/* We'll block unknown type of packet */
           }
 
@@ -350,18 +371,46 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
       /* Take specified action */
       if (fp->f_action < A_NONE)
         fp = &filter->rule[n = fp->f_action];
-      else
+      else {
         if (fp->f_action == A_PERMIT) {
           if (psecs != NULL)
             *psecs = fp->timeout;
+          if (strcmp(filter->name, "DIAL") == 0) {
+            /* If dial filter then even print out accept packets */
+            if (log_IsKept(LogFILTER)) {
+              snprintf(dstip, sizeof dstip, "%s", inet_ntoa(pip->ip_dst));
+              log_Printf(LogFILTER, "%sbound rule = %d accept %s "
+                         "src = %s/%d dst = %s/%d\n", 
+                         filter->name, n, filter_Proto2Nam(cproto),
+                         inet_ntoa(pip->ip_src), sport, dstip, dport);
+            }
+          }
           return 0;
-        } else
-          return 1;
+        } else {
+          if (log_IsKept(LogFILTER)) {
+            snprintf(dstip, sizeof dstip, "%s", inet_ntoa(pip->ip_dst));
+            log_Printf(LogFILTER, 
+                       "%sbound rule = %d deny %s src = %s/%d dst = %s/%d\n", 
+                       filter->name, n, filter_Proto2Nam(cproto),
+                       inet_ntoa(pip->ip_src), sport, dstip, dport);
+          }
+          return 1;	
+        }		/* Explict math.  Deny this packet */
+      }
     } else {
       n++;
       fp++;
     }
   }
+
+  if (log_IsKept(LogFILTER)) {
+    snprintf(dstip, sizeof dstip, "%s", inet_ntoa(pip->ip_dst));
+    log_Printf(LogFILTER, 
+               "%sbound rule = implicit deny %s src = %s/%d dst = %s/%d\n", 
+               filter->name, filter_Proto2Nam(cproto), 
+               inet_ntoa(pip->ip_src), sport, dstip, dport);
+  }
+
   return 1;		/* No rule is mached. Deny this packet */
 }
 
