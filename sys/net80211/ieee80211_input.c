@@ -124,6 +124,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 	 *     them to go through bpf tapping at the 802.11 layer.
 	 */
 	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame)) {
+		IEEE80211_DPRINTF2(("%s: frame too short, len %u\n",
+			__func__, m->m_pkthdr.len));
 		/* XXX statistic */
 		goto out;		/* XXX */
 	}
@@ -148,8 +150,9 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 			if (!IEEE80211_ADDR_EQ(bssid, ic->ic_bss->ni_bssid) &&
 			    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 				/* not interested in */
-				IEEE80211_DPRINTF2(("%s: other bss %s\n",
-					__func__, ether_sprintf(wh->i_addr3)));
+				IEEE80211_DPRINTF2(("%s: discard frame from "
+					"bss %s\n", __func__,
+					ether_sprintf(bssid)));
 				goto out;
 			}
 			break;
@@ -600,7 +603,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				erp = frm[2];
 				break;
 			default:
-				IEEE80211_DPRINTF(("%s: element id %u/len %u "
+				IEEE80211_DPRINTF2(("%s: element id %u/len %u "
 					"ignored\n", __func__, *frm, frm[1]));
 				break;
 			}
