@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_nis.c,v 5.2.2.1 1992/02/09 15:08:32 jsp beta $
+ * $Id: info_nis.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
  *
  */
 
@@ -228,7 +228,7 @@ nis_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
   YP_ORDER_OUTORDER_TYPE order;
 
   /*
-   * Make sure domain initialised
+   * Make sure domain initialized
    */
   if (!gopt.nis_domain) {
     int error = determine_nis_domain();
@@ -341,7 +341,7 @@ nis_mtime(mnt_map *m, char *map, time_t *tp)
  * alternate code which avoids a bug in yp_all().  The bug in yp_all() is
  * that it does not close a TCP connection to ypserv, and this ypserv runs
  * out of open filedescriptors, getting into an infinite loop, thus all YP
- * clients enevtually unbind and hang too.
+ * clients eventually unbind and hang too.
  *
  * Systems known to be plagued with this bug:
  *	earlier SunOS 4.x

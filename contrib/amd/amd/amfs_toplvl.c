@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_toplvl.c,v 1.1 1997-1998/06/30 19:22:30 ezk Exp ezk $
+ * $Id: amfs_toplvl.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
  *
  */
 
@@ -158,8 +158,8 @@ mount_amfs_toplvl(char *dir, char *opts)
    * Make a ``hostname'' string for the kernel
    */
   sprintf(fs_hostname, "pid%ld@%s:%s",
-	  (long) (foreground ? mypid : getppid()),
-	  hostname,
+	  (long) (foreground ? am_mypid : getppid()),
+	  am_get_hostname(),
 	  dir);
   /*
    * Most kernels have a name length restriction (64 bytes)...

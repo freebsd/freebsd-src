@@ -28,8 +28,6 @@ against all known IP addresses of this host.
 
 - support multiple "fail-over" NFS mounts in Solaris 2.6.
 
-- add LSM file
-
 - use packaging info for various OSs (such as RPM, Redhat Package Format)
 
 - $mindelay and $maxdelay in milliseconds
@@ -56,8 +54,6 @@ through.
 
 - report netbsd/openbsd bugs in BUGS file
 
-- contribute patches to automake 1.3
-
 - reverse notion of -F and other cmd-line options, so they override the
 amd.conf file (right now amd.conf overrides cmd-line options).
 
@@ -68,3 +64,6 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 - update README
 add am-utils URL and COPYRIGHT to all distributed scripts and 
 sources and programs etc.
+
+- ion: browsable_dirs only works for nis if in [global] broken if it is file
+ maps.

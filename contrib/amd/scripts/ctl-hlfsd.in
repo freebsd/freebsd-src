@@ -4,6 +4,10 @@
 #
 # Package:	am-utils-6.0
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
+#
+# chkconfig: 345 73 7
+# description: hlfsd is a daemon similar to amd, used to redirect user
+#              mail to home directory of the user
 
 # set path
 prefix=@prefix@
@@ -90,7 +94,7 @@ case "$1" in
 	echo "killing hlfsd..."
 	ctl-hlfsd stop
 	echo "Waiting for 10 seconds..."
-	sleep 10	# hope that's enough
+	sleep 10	# hope that would be enough
 	echo "Restarting hlfsd..."
 	ctl-hlfsd start
 	;;

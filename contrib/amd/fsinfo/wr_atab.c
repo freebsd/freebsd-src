@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wr_atab.c,v 5.2.2.1 1992/02/09 15:09:44 jsp beta $
+ * $Id: wr_atab.c,v 1.1.1.1 1998/11/05 02:04:53 ezk Exp $
  *
  */
 
@@ -129,7 +129,7 @@ write_amount_info(FILE *af, automount *ap,  int sk)
       fsi_mount *mp = (fsi_mount *) dd->dd_data;
       /*
        * If the mount point and the exported volname are the
-       * same then this filesystem will be recognised by
+       * same then this filesystem will be recognized by
        * the restart code - so we don't need to put out a
        * special rule for it.
        */

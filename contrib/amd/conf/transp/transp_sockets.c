@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: transp_sockets.c,v 5.2.2.2 1992/07/18 18:57:03 jsp Exp jsp $
+ * $Id: transp_sockets.c,v 1.2 1998/11/10 16:23:41 ezk Exp $
  *
  * Socket specific utilities.
  *      -Erez Zadok <ezk@cs.columbia.edu>
@@ -206,12 +206,10 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
     plog(XLOG_FATAL, "Can't create privileged nfs port");
     return 1;
   }
-
   if ((*nfs_xprtp = svcudp_create(*soNFSp)) == NULL) {
     plog(XLOG_FATAL, "cannot create rpc/udp service");
     return 2;
   }
-
   if (!svc_register(*nfs_xprtp, NFS_PROGRAM, NFS_VERSION, dispatch_fxn, 0)) {
     plog(XLOG_FATAL, "unable to register (NFS_PROGRAM, NFS_VERSION, 0)");
     return 3;

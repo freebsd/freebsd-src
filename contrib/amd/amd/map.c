@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: map.c,v 5.2.2.2 1992/08/02 10:42:21 jsp Exp $
+ * $Id: map.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
  *
  */
 
@@ -134,7 +134,7 @@ exported_ap_realloc_map(int nsize)
  * Allocate a new mount slot and create
  * a new node.
  * Fills in the map number of the node,
- * but leaves everything else uninitialised.
+ * but leaves everything else uninitialized.
  */
 am_node *
 exported_ap_alloc(void)
@@ -297,7 +297,7 @@ mk_fattr(am_node *mp, nfsftype vntype)
 
 
 /*
- * Initialise an allocated mount node.
+ * Initialize an allocated mount node.
  * It is assumed that the mount node was b-zero'd
  * before getting here so anything that would
  * be set to zero isn't done here.
@@ -371,7 +371,7 @@ fh_to_mp3(am_nfs_fh *fhp, int *rp, int c_or_d)
    * from an old kernel cached filehandle
    * which is now out of date.
    */
-  if (fp->fhh_pid != mypid)
+  if (fp->fhh_pid != am_mypid)
     goto drop;
 
   /*
@@ -511,7 +511,7 @@ mp_to_fh(am_node *mp, am_nfs_fh *fhp)
   /*
    * Take the process id
    */
-  fp->fhh_pid = mypid;
+  fp->fhh_pid = am_mypid;
 
   /*
    * ... the map number
@@ -726,7 +726,7 @@ make_root_node(void)
   root_node->am_mnt = root_mnt;
 
   /*
-   * Initialise the root
+   * Initialize the root
    */
   if (root_mnt->mf_ops->fs_init)
     (*root_mnt->mf_ops->fs_init) (root_mnt);
@@ -893,7 +893,7 @@ free_map_if_success(int rc, int term, voidp closure)
   mf->mf_flags &= ~MFF_UNMOUNTING;
 
   /*
-   * If a timeout was defered because the underlying filesystem
+   * If a timeout was deferred because the underlying filesystem
    * was busy then arrange for a timeout as soon as possible.
    */
   if (mf->mf_flags & MFF_WANTTIMO) {

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_ops.c,v 5.2.2.1 1992/02/09 15:08:17 jsp beta $
+ * $Id: am_ops.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
  *
  */
 
@@ -315,7 +315,7 @@ reverse_option(const char *opt)
  * Caller must eventually free the string being returned.
  */
 static char *
-merge_opts(char *opts1, char *opts2)
+merge_opts(const char *opts1, const char *opts2)
 {
   mntent_t mnt2;		/* place holder for opts2 */
   char *newstr;			/* new string to return (malloc'ed) */
@@ -327,7 +327,7 @@ merge_opts(char *opts1, char *opts2)
   char *s1 = strdup(opts1);	/* copy of opts1 to munge */
 
   /* initialization */
-  mnt2.mnt_opts = opts2;
+  mnt2.mnt_opts = (char *) opts2;
   newstr = xmalloc(len);
   newstr[0] = '\0';
 
