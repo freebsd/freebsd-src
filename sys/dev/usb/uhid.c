@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.45 2001/10/26 17:58:21 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.46 2001/11/13 06:24:55 lukem Exp $	*/
 /*	$FreeBSD$	*/
 
 /* Also already merged from NetBSD:
