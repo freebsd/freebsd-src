@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.42 1995/12/03 13:45:27 bde Exp $
+ *	$Id: cpufunc.h,v 1.43 1995/12/19 14:30:42 davidg Exp $
  */
 
 /*
@@ -329,66 +329,6 @@ void	bcopyb		__P((const void *from, void *to, size_t len));
 void	bcopyw		__P((const void *from, void *to, size_t len));
 void	bcopyx		__P((const void *from, void *to, size_t len,
 			     int stride));
-
-#if 0
-/*
- * These functions in support.s are declared elsewhere.
- */
-void	bcopy		__P((const void *from, void *to, size_t len));
-void	blkclr		__P((void *buf, size_t len));
-void	bzero		__P((void *buf, size_t len));
-int	copyin		__P((void *udaddr, void *kaddr, size_t len));
-int	copyinstr	__P((void *udaddr, void *kaddr, size_t len,
-			     size_t *lencopied));
-int	copyout		__P((void *kaddr, void *udaddr, size_t len));
-int	copystr		__P((void *kfaddr, void *kdaddr, size_t len,
-			     size_t *lencopied));
-int	fubyte		__P((void *base));
-int	fuswintr	__P((void *base));
-int	fuibyte		__P((void *base));
-int	fuword		__P((void *base));
-struct	region_descriptor;
-void	lgdt		__P((struct region_descriptor *rdp));
-void	lidt		__P((struct region_descriptor *rdp));
-void	lldt		__P((u_short sel));
-/*
- * longjmp() and setjmp() are only used by ddb.  They probably shouldn't
- * shouldn't be supported in the kernel.
- */
-#include <setjmp.h>
-void	longjmp		__P((jmp_buf jb, int rv));
-void	ovbcopy		__P((const void *from, void *to, size_t len);
-int	setjmp		__P((jmp_buf jb));
-struct soft_segment_descriptor;
-union descriptor;
-int	ssdtosd		__P((struct soft_segment_descriptor *ssdp,
-			     union descriptor *sdp));
-int	subyte		__P((void *base, int byte));
-int	suibyte		__P((void *base, int byte));
-int	suswintr	__P((void *base, int word));
-int	suword		__P((void *base, int word));
-
-/*
- * These functions in support.s are declared elsewhere, but never used.
- * A silly amount of effort went into copyoutstr().  It's not worth
- * maintaining, since the string length is usually known so copyout
- * works better, or is easy to find so copyout() can be used.
- */
-int	copyoutstr	__P((void *kaddr, void *udaddr, size_t len,
-			     size_t *lencopied));
-int	fuiword		__P((void *base));
-int	suiword		__P((void *base, int word));
-
-/*
- * These functions in support.s are also in libkern.a and are declared in
- * libkern.h.
- * ffs() is built in to gcc-2 and was buggy in gcc-2.4.5 so we may may the
- * buggy version if we don't replace it by an inline.
- */
-int	bcmp		__P((const void *b1, const void *b2, size_t length));
-int	ffs		__P((int mask));
-#endif /* 0 */
-
 /*
  * These variables and functions in support.s are used.
  */
