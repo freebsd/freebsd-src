@@ -1549,7 +1549,7 @@ delete_pipe(struct dn_pipe *p)
 	/* locate pipe */
 	for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
 		 a = b , b = b->next) ;
-	if (b && b->pipe_nr != p->pipe_nr)
+	if (b == NULL || b->pipe_nr != p->pipe_nr)
 	    return EINVAL ; /* not found */
 
 	s = splnet() ;
@@ -1585,7 +1585,7 @@ delete_pipe(struct dn_pipe *p)
 	/* locate set */
 	for (a = NULL, b = all_flow_sets ; b && b->fs_nr < p->fs.fs_nr ;
 		 a = b , b = b->next) ;
-	if (b && b->fs_nr != p->fs.fs_nr)
+	if (b == NULL || b->fs_nr != p->fs.fs_nr)
 	    return EINVAL ; /* not found */
 
 	s = splnet() ;
