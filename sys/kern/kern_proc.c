@@ -80,6 +80,7 @@ struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
 struct sx pgrpsess_lock;
+struct mtx pargs_ref_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
 
@@ -94,6 +95,7 @@ procinit()
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
 	sx_init(&pgrpsess_lock, "pgrpsess");
+	mtx_init(&pargs_ref_lock, "struct pargs.ref", MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -982,23 +984,19 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	pa = p->p_args;
 	p->p_args = NULL;
 	PROC_UNLOCK(p);
-	if (pa != NULL && --pa->ar_ref == 0) 
-		FREE(pa, M_PARGS);
+	pargs_drop(pa);
 
 	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
 		return (error);
 
-	MALLOC(pa, struct pargs *, sizeof(struct pargs) + req->newlen, 
-	    M_PARGS, M_WAITOK);
-	pa->ar_ref = 1;
-	pa->ar_length = req->newlen;
+	pa = pargs_alloc(req->newlen);
 	error = SYSCTL_IN(req, pa->ar_args, req->newlen);
 	if (!error) {
 		PROC_LOCK(p);
 		p->p_args = pa;
 		PROC_UNLOCK(p);
 	} else
-		FREE(pa, M_PARGS);
+		pargs_free(pa);
 	return (error);
 }
 
