@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2005
+.Dd February 17, 2005
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -45,8 +45,9 @@
 .Fa "device_t dev"
 .Fa "struct cf_setting *sets"
 .Fa "int *count"
-.Fa "int *type"
 .Fc
+.Ft int
+.Fn cpufreq_drv_type "device_t dev" "int *type"
 .Ft int
 .Fn cpufreq_drv_set "device_t dev" "const struct cf_setting *set"
 .Ft int
@@ -182,8 +183,9 @@ Kernel drivers offering hardware-specific CPU frequency control export
 their individual settings through the
 .Nm
 driver interface.
-This involves implementing three methods:
+This involves implementing these methods:
 .Fn cpufreq_drv_settings ,
+.Fn cpufreq_drv_type ,
 .Fn cpufreq_drv_set ,
 and
 .Fn cpufreq_drv_get .
@@ -218,12 +220,19 @@ If the driver offers more settings than
 .Fa count
 will allow, it should return
 .Er E2BIG .
-The driver sets
-.Fa type
-to the type of settings it offers, either
+.Pp
+The
+.Fn cpufreq_drv_type
+method indicates the type of settings it offers, either
 .Dv CPUFREQ_TYPE_ABSOLUTE
 or
 .Dv CPUFREQ_TYPE_RELATIVE .
+Additionally, the driver may set the
+.Dv CPUFREQ_FLAG_INFO_ONLY
+flag if the settings it provides are information for other drivers only
+and cannot be passed to
+.Fn cpufreq_drv_set
+to activate them.
 .Pp
 The
 .Fn cpufreq_drv_set
