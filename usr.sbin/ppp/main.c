@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.37 1997/03/10 06:21:01 ache Exp $
+ * $Id: main.c,v 1.38 1997/03/13 12:45:30 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -187,7 +187,7 @@ int signo;
 	abort();
   }
   if (BGPid) {
-      kill (BGPid, SIGHUP);
+      kill (BGPid, SIGTERM);
       exit (EX_HANGUP);
   }
   else {
@@ -349,7 +349,7 @@ char **argv;
 
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
-  signal(SIGHUP, Hangup);
+  pending_signal(SIGHUP, LogReOpen);
   pending_signal(SIGTERM, CloseSession);
   pending_signal(SIGINT, CloseSession);
   pending_signal(SIGQUIT, CloseSession);
