@@ -41,10 +41,6 @@
 #include <sys/rtprio.h>
 
 
-#undef	UNKNOWN
-#define	UNKNOWN	"su"
-
-
 static struct login_res {
     const char *what;
     rlim_t (*who)(login_cap_t *, const char *, rlim_t, rlim_t);
@@ -124,7 +120,7 @@ static struct login_vars {
     { "lang",		"LANG",	      NULL    },
     { "charset",	"MM_CHARSET", NULL    },
     { "timezone",	"TZ",	      NULL    },
-    { "term",		"TERM",       UNKNOWN },
+    { "term",		"TERM",       NULL    },
     { NULL,		NULL,	      NULL    }
 };
 
