@@ -46,7 +46,7 @@ fi
 
 interface=$1
 shift
-startstop=$2
+startstop=$1
 shift
 
 case ${startstop} in
@@ -101,7 +101,7 @@ case ${startstop} in
 	;;
 # Stop the interface
 *)
-	/sbin/ifconfig $device delete
+	/sbin/ifconfig ${interface} delete
 	stop_dhcp
 	;;
 esac
