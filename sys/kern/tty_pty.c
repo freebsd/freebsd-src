@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.45 1997/09/02 20:05:55 bde Exp $
+ * $Id: tty_pty.c,v 1.46 1997/09/14 02:40:45 peter Exp $
  */
 
 /*
@@ -790,8 +790,10 @@ ptyioctl(dev, cmd, data, flag, p)
 
 static ptc_devsw_installed = 0;
 
+static void ptc_drvinit __P((void *unused));
 static void
-ptc_drvinit(void *unused)
+ptc_drvinit(unused)
+	void *unused;
 {
 #ifdef DEVFS
 	int i,j,k;

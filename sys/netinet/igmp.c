@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.21 1997/02/22 09:41:26 peter Exp $
+ * $Id: igmp.c,v 1.22 1997/09/02 01:19:05 bde Exp $
  */
 
 /*
@@ -83,7 +83,7 @@ static u_long igmp_all_rtrs_group;
 static struct mbuf *router_alert;
 static struct router_info *Head;
 
-static void igmp_sendpkt(struct in_multi *, int, unsigned long);
+static void igmp_sendpkt __P((struct in_multi *, int, unsigned long));
 
 void
 igmp_init()

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.11 1997/02/22 09:41:10 peter Exp $
+ * $Id: netisr.h,v 1.12 1997/05/09 12:19:05 kjc Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -74,7 +74,7 @@
 #ifdef KERNEL
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
 
-typedef void netisr_t(void);
+typedef void netisr_t __P((void));
 
 struct netisrtab {
 	int nit_num;
