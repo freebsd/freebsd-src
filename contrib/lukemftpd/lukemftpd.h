@@ -1,6 +1,6 @@
-/* $Id: lukemftpd.h,v 1.16 2001/05/09 02:04:53 lukem Exp $ */
+/* $Id: lukemftpd.h,v 1.18 2002/03/14 06:02:24 lukem Exp $ */
 
-#define	FTPD_VERSION	"lukemftpd 1.1"
+#define	FTPD_VERSION	"lukemftpd 1.2 beta 1"
 
 #include "config.h"
 

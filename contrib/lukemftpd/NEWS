@@ -1,4 +1,14 @@
 This is a brief description of the new features and fixes added to
+lukemftpd-1.2 since the release of lukemftpd-1.1.
+
+* "denyquick" keyword added to ftpd.conf(5).
+
+* "private" keyword added to ftpd.conf(5).
+
+* Hostnames in ftpusers(5) are now matched in a case-insensitive fashion.
+
+---
+This is a brief description of the new features and fixes added to
 lukemftpd-1.1 since the release of lukemftpd-1.0.
 
 * Fixed checkportcmd for the IPv4 case.

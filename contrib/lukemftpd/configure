@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Revision: 1.16 
+# From configure.in Revision: 1.17 
 
 
 
@@ -25,8 +25,8 @@ ac_default_prefix=/usr/local
 ac_help="$ac_help
 \
   --enable-ipv6           Enable IPv6 support (if your OS supports it).
-  --disable-ipv6          Disable IPv6 support (even if your OS supports it) 
-                          [default: enabled]."
+  --disable-ipv6          Disable IPv6 support (even if your OS supports it).
+                          [default: enabled]"
 ac_help="$ac_help
 \
   --enable-builtinls      Enable built-in /bin/ls.  [default: enabled]

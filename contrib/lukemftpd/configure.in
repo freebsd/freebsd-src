@@ -1,10 +1,10 @@
-dnl $Id: configure.in,v 1.16 2001/04/28 07:11:06 lukem Exp $
+dnl $Id: configure.in,v 1.17 2001/12/01 02:00:48 lukem Exp $
 dnl
 dnl configure.in --
 dnl	process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.16 $)dnl
+AC_REVISION($Revision: 1.17 $)dnl
 
 AC_INIT(lukemftpd.h)
 
@@ -13,8 +13,8 @@ dnl Arguments for which features are included
 dnl
 AC_ARG_ENABLE(ipv6, [\
   --enable-ipv6           Enable IPv6 support (if your OS supports it).
-  --disable-ipv6          Disable IPv6 support (even if your OS supports it) 
-                          [default: enabled].], 
+  --disable-ipv6          Disable IPv6 support (even if your OS supports it).
+                          [default: enabled]], 
     opt_ipv6=$enableval,
     opt_ipv6=yes)
 AC_ARG_ENABLE(builtinls, [\

@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpd.c,v 1.125 2001/04/25 01:46:26 lukem Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.138 2002/02/11 11:45:07 lukem Exp $	*/
 
 /*
  * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
@@ -527,7 +527,8 @@ sgetpwnam(const char *name)
 }
 
 static int	login_attempts;	/* number of failed login attempts */
-static int	askpasswd;	/* had user command, ask for passwd */
+static int	askpasswd;	/* had USER command, ask for PASSwd */
+static int	permitted;	/* USER permitted */
 static char	curname[10];	/* current USER name */
 
 /*
@@ -544,6 +545,9 @@ static char	curname[10];	/* current USER name */
 void
 user(const char *name)
 {
+	char	*class;
+
+	class = NULL;
 	if (logged_in) {
 		switch (curclass.type) {
 		case CLASS_GUEST:
@@ -572,6 +576,9 @@ user(const char *name)
 #endif
 
 	curclass.type = CLASS_REAL;
+	askpasswd = 0;
+	permitted = 0;
+
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
 			/* need `pw' setup for checkaccess() and checkuser () */
 		if ((pw = sgetpwnam("ftp")) == NULL)
@@ -584,34 +591,106 @@ user(const char *name)
 			reply(331,
 			    "Guest login ok, type your name as password.");
 		}
-		if (!askpasswd && logging)
-			syslog(LOG_NOTICE,
-			    "ANONYMOUS FTP LOGIN REFUSED FROM %s", remotehost);
-		return;
-	}
+		if (!askpasswd) {
+			if (logging)
+				syslog(LOG_NOTICE,
+				    "ANONYMOUS FTP LOGIN REFUSED FROM %s",
+				    remotehost);
+			end_login();
+			goto cleanup_user;
+		}
+		name = "ftp";
+	} else
+		pw = sgetpwnam(name);
 
-	pw = sgetpwnam(name);
 	if (logging)
 		strlcpy(curname, name, sizeof(curname));
 
+			/* check user in /etc/ftpusers, and setup class */
+	permitted = checkuser(_PATH_FTPUSERS, curname, 1, 0, &class);
+
+			/* check user in /etc/ftpchroot */
+	if (checkuser(_PATH_FTPCHROOT, curname, 0, 0, NULL)) {
+		if (curclass.type == CLASS_GUEST) {
+			syslog(LOG_NOTICE,
+	    "Can't change guest user to chroot class; remove entry in %s",
+			    _PATH_FTPCHROOT);
+			exit(1);
+		}
+		curclass.type = CLASS_CHROOT;
+	}
+			/* determine default class */
+	if (class == NULL) {
+		switch (curclass.type) {
+		case CLASS_GUEST:
+			class = xstrdup("guest");
+			break;
+		case CLASS_CHROOT:
+			class = xstrdup("chroot");
+			break;
+		case CLASS_REAL:
+			class = xstrdup("real");
+			break;
+		default:
+			syslog(LOG_ERR, "unknown curclass.type %d; aborting",
+			    curclass.type);
+			abort();
+		}
+	}
+			/* parse ftpd.conf, setting up various parameters */
+	parse_conf(class);
+			/* if not guest user, check for valid shell */
+	if (pw == NULL)
+		permitted = 0;
+	else {
+		const char	*cp, *shell;
+
+		if ((shell = pw->pw_shell) == NULL || *shell == 0)
+			shell = _PATH_BSHELL;
+		while ((cp = getusershell()) != NULL)
+			if (strcmp(cp, shell) == 0)
+				break;
+		endusershell();
+		if (cp == NULL && curclass.type != CLASS_GUEST)
+			permitted = 0;
+	}
+
+			/* deny quickly (after USER not PASS) if requested */
+	if (CURCLASS_FLAGS_ISSET(denyquick) && !permitted) {
+		reply(530, "User %s may not use FTP.", curname);
+		if (logging)
+			syslog(LOG_NOTICE, "FTP LOGIN REFUSED FROM %s, %s",
+			    remotehost, curname);
+		end_login();
+		goto cleanup_user;
+	}
+
+			/* if haven't asked yet (i.e, not anon), ask now */
+	if (!askpasswd) {
+		askpasswd = 1;
 #ifdef SKEY
-	if (skey_haskey(name) == 0) {
-		const char *myskey;
+		if (skey_haskey(curname) == 0) {
+			const char *myskey;
 
-		myskey = skey_keyinfo(name);
-		reply(331, "Password [%s] required for %s.",
-		    myskey ? myskey : "error getting challenge", name);
-	} else
+			myskey = skey_keyinfo(curname);
+			reply(331, "Password [ %s ] required for %s.",
+			    myskey ? myskey : "error getting challenge",
+			    curname);
+		} else
 #endif
-		reply(331, "Password required for %s.", name);
+			reply(331, "Password required for %s.", curname);
+	}
 
-	askpasswd = 1;
+ cleanup_user:
 	/*
 	 * Delay before reading passwd after first failed
 	 * attempt to slow down passwd-guessing programs.
 	 */
 	if (login_attempts)
 		sleep((unsigned) login_attempts);
+
+	if (class)
+		free(class);
 }
 
 /*
@@ -619,7 +698,7 @@ user(const char *name)
  * for a user. Each line is a shell-style glob followed by
  * `yes' or `no'.
  *
- * For backward compatability, `allow' and `deny' are synonymns
+ * For backward compatibility, `allow' and `deny' are synonymns
  * for `yes' and `no', respectively.
  *
  * Each glob is matched against the username in turn, and the first
@@ -642,7 +721,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 {
 	FILE	*fd;
 	int	 retval;
-	char	*glob, *perm, *class, *buf, *p;
+	char	*word, *perm, *class, *buf, *p;
 	size_t	 len, line;
 
 	retval = def;
@@ -656,7 +735,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 	    (buf = fparseln(fd, &len, &line, NULL, FPARSELN_UNESCCOMM |
 	    		FPARSELN_UNESCCONT | FPARSELN_UNESCESC)) != NULL;
 	    free(buf), buf = NULL) {
-		glob = perm = class = NULL;
+		word = perm = class = NULL;
 		p = buf;
 		if (len < 1)
 			continue;
@@ -665,10 +744,10 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 		if (EMPTYSTR(p))
 			continue;
 
-		NEXTWORD(p, glob);
+		NEXTWORD(p, word);
 		NEXTWORD(p, perm);
 		NEXTWORD(p, class);
-		if (EMPTYSTR(glob))
+		if (EMPTYSTR(word))
 			continue;
 		if (!EMPTYSTR(class)) {
 			if (strcasecmp(class, "all") == 0 ||
@@ -681,7 +760,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 		}
 
 					/* have a host specifier */
-		if ((p = strchr(glob, '@')) != NULL) {
+		if ((p = strchr(word, '@')) != NULL) {
 			unsigned long	net, mask, addr;
 			int		bits;
 
@@ -697,15 +776,17 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 					continue;
 
 					/* check against hostname glob */
-			} else if (fnmatch(p, remotehost, 0) != 0)
+			} else if (fnmatch(p, remotehost, FNM_CASEFOLD) != 0)
 				continue;
 		}
 
 					/* have a group specifier */
-		if ((p = strchr(glob, ':')) != NULL) {
+		if ((p = strchr(word, ':')) != NULL) {
 			gid_t	*groups, *ng;
 			int	 gsize, i, found;
 
+			if (pw == NULL)
+				continue;	/* no match for unknown user */
 			*p++ = '\0';
 			groups = NULL;
 			gsize = 16;
@@ -734,7 +815,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 		}
 
 					/* check against username glob */
-		if (fnmatch(glob, name, 0) != 0)
+		if (fnmatch(word, name, 0) != 0)
 			continue;
 
 		if (perm != NULL &&
@@ -791,6 +872,8 @@ end_login(void)
 		memset(pw->pw_passwd, 0, strlen(pw->pw_passwd));
 	pw = NULL;
 	logged_in = 0;
+	askpasswd = 0;
+	permitted = 0;
 	quietmessages = 0;
 	gidcount = 0;
 	curclass.type = CLASS_REAL;
@@ -801,12 +884,10 @@ void
 pass(const char *passwd)
 {
 	int		 rval;
-	const char	*cp, *shell;
-	char		*class, root[MAXPATHLEN];
+	char		 root[MAXPATHLEN];
 	char		*p;
 	int		 len;
 
-	class = NULL;
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
 		return;
@@ -877,22 +958,8 @@ pass(const char *passwd)
 		}
 	}
 
-			/* password ok; see if anything else prevents login */
-	if (! checkuser(_PATH_FTPUSERS, pw->pw_name, 1, 0, &class)) {
-		reply(530, "User %s may not use FTP.", pw->pw_name);
-		if (logging)
-			syslog(LOG_NOTICE, "FTP LOGIN REFUSED FROM %s, %s",
-			    remotehost, pw->pw_name);
-		goto bad;
-	}
-			/* if not guest user, check for valid shell */
-	if ((shell = pw->pw_shell) == NULL || *shell == 0)
-		shell = _PATH_BSHELL;
-	while ((cp = getusershell()) != NULL)
-		if (strcmp(cp, shell) == 0)
-			break;
-	endusershell();
-	if (cp == NULL && curclass.type != CLASS_GUEST) {
+			/* password ok; check if anything else prevents login */
+	if (! permitted) {
 		reply(530, "User %s may not use FTP.", pw->pw_name);
 		if (logging)
 			syslog(LOG_NOTICE, "FTP LOGIN REFUSED FROM %s, %s",
@@ -927,36 +994,6 @@ pass(const char *passwd)
 
 	logged_in = 1;
 
-			/* check user in /etc/ftpchroot */
-	if (checkuser(_PATH_FTPCHROOT, pw->pw_name, 0, 0, NULL)) {
-		if (curclass.type == CLASS_GUEST) {
-			syslog(LOG_NOTICE,
-	    "Can't change guest user to chroot class; remove entry in %s",
-			    _PATH_FTPCHROOT);
-			exit(1);
-		}
-		curclass.type = CLASS_CHROOT;
-	}
-	if (class == NULL) {
-		switch (curclass.type) {
-		case CLASS_GUEST:
-			class = xstrdup("guest");
-			break;
-		case CLASS_CHROOT:
-			class = xstrdup("chroot");
-			break;
-		case CLASS_REAL:
-			class = xstrdup("real");
-			break;
-		default:
-			syslog(LOG_ERR, "unknown curclass.type %d; aborting",
-			    curclass.type);
-			abort();
-		}
-	}
-
-			/* parse ftpd.conf, setting up various parameters */
-	parse_conf(class);
 	connections = 1;
 	if (dopidfile)
 		count_users();
@@ -1100,7 +1137,8 @@ pass(const char *passwd)
 			 * Display a login message, if it exists.
 			 * N.B. reply(230,) must follow the message.
 			 */
-	(void)display_file(conffilename(curclass.motd), 230);
+	if (! EMPTYSTR(curclass.motd))
+		(void)display_file(conffilename(curclass.motd), 230);
 	show_chdir_messages(230);
 	if (curclass.type == CLASS_GUEST) {
 		char *p;
@@ -1108,9 +1146,7 @@ pass(const char *passwd)
 		reply(230, "Guest login ok, access restrictions apply.");
 #if HAVE_SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
-		    "%s: anonymous/%.*s", remotehost,
-		    (int) (sizeof(proctitle) - sizeof(remotehost) -
-		    sizeof(": anonymous/")), passwd);
+		    "%s: anonymous/%s", remotehost, passwd);
 		setproctitle("%s", proctitle);
 #endif /* HAVE_SETPROCTITLE */
 		if (logging)
@@ -1137,15 +1173,11 @@ pass(const char *passwd)
 			    curclass.classname, CURCLASSTYPE);
 	}
 	(void) umask(curclass.umask);
-	goto cleanuppass;
+	return;
 
  bad:
 			/* Forget all about it... */
 	end_login();
-
- cleanuppass:
-	if (class)
-		free(class);
 }
 
 void
@@ -1157,12 +1189,14 @@ retrieve(char *argv[], const char *name)
 	int log, sendrv, closerv, stderrfd, isconversion, isdata, isls;
 	struct timeval start, finish, td, *tdp;
 	const char *dispname;
+	char *error;
 
 	sendrv = closerv = stderrfd = -1;
 	isconversion = isdata = isls = log = 0;
 	tdp = NULL;
 	dispname = name;
 	fin = dout = NULL;
+	error = NULL;
 	if (argv == NULL) {		/* if not running a command ... */
 		log = 1;
 		isdata = 1;
@@ -1206,7 +1240,8 @@ retrieve(char *argv[], const char *name)
 	byte_count = -1;
 	if (argv == NULL
 	    && (fstat(fileno(fin), &st) < 0 || !S_ISREG(st.st_mode))) {
-		reply(550, "%s: not a plain file.", dispname);
+		error = "Not a plain file";
+		reply(550, "%s: %s.", dispname, error);
 		goto done;
 	}
 	if (restart_point) {
@@ -1216,6 +1251,7 @@ retrieve(char *argv[], const char *name)
 
 			for (i = 0; i < restart_point; i++) {
 				if ((c=getc(fin)) == EOF) {
+					error = strerror(errno);
 					perror_reply(550, dispname);
 					goto done;
 				}
@@ -1223,6 +1259,7 @@ retrieve(char *argv[], const char *name)
 					i++;
 			}
 		} else if (lseek(fileno(fin), restart_point, SEEK_SET) < 0) {
+			error = strerror(errno);
 			perror_reply(550, dispname);
 			goto done;
 		}
@@ -1234,16 +1271,15 @@ retrieve(char *argv[], const char *name)
 	(void)gettimeofday(&start, NULL);
 	sendrv = send_data(fin, dout, st.st_blksize, isdata);
 	(void)gettimeofday(&finish, NULL);
-	(void) fclose(dout);		/* close now to affect timing stats */
-	dout = NULL;
+	closedataconn(dout);		/* close now to affect timing stats */
 	timersub(&finish, &start, &td);
 	tdp = &td;
  done:
 	if (log)
-		logxfer("get", byte_count, name, NULL, tdp, NULL);
+		logxfer("get", byte_count, name, NULL, tdp, error);
 	closerv = (*closefunc)(fin);
 	if (sendrv == 0) {
-		FILE *err;
+		FILE *errf;
 		struct stat sb;
 
 		if (!isls && argv != NULL && closerv != 0) {
@@ -1257,24 +1293,23 @@ retrieve(char *argv[], const char *name)
 		}
 		if (!isls && argv != NULL && stderrfd != -1 &&
 		    (fstat(stderrfd, &sb) == 0) && sb.st_size > 0 &&
-		    ((err = fdopen(stderrfd, "r")) != NULL)) {
+		    ((errf = fdopen(stderrfd, "r")) != NULL)) {
 			char *cp, line[LINE_MAX];
 
 			reply(-226, "Command error messages:");
-			rewind(err);
-			while (fgets(line, sizeof(line), err) != NULL) {
+			rewind(errf);
+			while (fgets(line, sizeof(line), errf) != NULL) {
 				if ((cp = strchr(line, '\n')) != NULL)
 					*cp = '\0';
 				reply(0, "  %s", line);
 			}
 			(void) fflush(stdout);
-			(void) fclose(err);
+			(void) fclose(errf);
 				/* a reply(226,) must follow */
 		}
 		reply(226, "Transfer complete.");
 	}
  cleanupretrieve:
-	closedataconn(dout);
 	if (stderrfd != -1)
 		(void)close(stderrfd);
 	if (isconversion)
@@ -1282,16 +1317,17 @@ retrieve(char *argv[], const char *name)
 }
 
 void
-store(const char *name, const char *mode, int unique)
+store(const char *name, const char *fmode, int unique)
 {
 	FILE *fout, *din;
 	struct stat st;
 	int (*closefunc)(FILE *);
 	struct timeval start, finish, td, *tdp;
-	char *desc;
+	char *desc, *error;
 
 	din = NULL;
-	desc = (*mode == 'w') ? "put" : "append";
+	desc = (*fmode == 'w') ? "put" : "append";
+	error = NULL;
 	if (unique && stat(name, &st) == 0 &&
 	    (name = gunique(name)) == NULL) {
 		logxfer(desc, -1, name, NULL, NULL,
@@ -1300,8 +1336,8 @@ store(const char *name, const char *mode, int unique)
 	}
 
 	if (restart_point)
-		mode = "r+";
-	fout = fopen(name, mode);
+		fmode = "r+";
+	fout = fopen(name, fmode);
 	closefunc = fclose;
 	tdp = NULL;
 	if (fout == NULL) {
@@ -1317,6 +1353,7 @@ store(const char *name, const char *mode, int unique)
 
 			for (i = 0; i < restart_point; i++) {
 				if ((c=getc(fout)) == EOF) {
+					error = strerror(errno);
 					perror_reply(550, name);
 					goto done;
 				}
@@ -1329,10 +1366,12 @@ store(const char *name, const char *mode, int unique)
 			 * writing.
 			 */
 			if (fseek(fout, 0L, SEEK_CUR) < 0) {
+				error = strerror(errno);
 				perror_reply(550, name);
 				goto done;
 			}
 		} else if (lseek(fileno(fout), restart_point, SEEK_SET) < 0) {
+			error = strerror(errno);
 			perror_reply(550, name);
 			goto done;
 		}
@@ -1349,26 +1388,25 @@ store(const char *name, const char *mode, int unique)
 			reply(226, "Transfer complete.");
 	}
 	(void)gettimeofday(&finish, NULL);
-	(void) fclose(din);		/* close now to affect timing stats */
-	din = NULL;
+	closedataconn(din);		/* close now to affect timing stats */
 	timersub(&finish, &start, &td);
 	tdp = &td;
  done:
-	logxfer(desc, byte_count, name, NULL, tdp, NULL);
+	logxfer(desc, byte_count, name, NULL, tdp, error);
 	(*closefunc)(fout);
  cleanupstore:
-	closedataconn(din);
+	;
 }
 
 static FILE *
-getdatasock(const char *mode)
+getdatasock(const char *fmode)
 {
 	int		on, s, t, tries;
 	in_port_t	port;
 
 	on = 1;
 	if (data >= 0)
-		return (fdopen(data, mode));
+		return (fdopen(data, fmode));
 	if (! dropprivs)
 		(void) seteuid((uid_t)0);
 	s = socket(ctrl_addr.su_family, SOCK_STREAM, 0);
@@ -1415,7 +1453,7 @@ getdatasock(const char *mode)
 			syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 	}
 #endif
-	return (fdopen(s, mode));
+	return (fdopen(s, fmode));
  bad:
 		/* Return the real value of errno (close may change it) */
 	t = errno;
@@ -1427,7 +1465,7 @@ getdatasock(const char *mode)
 }
 
 FILE *
-dataconn(const char *name, off_t size, const char *mode)
+dataconn(const char *name, off_t size, const char *fmode)
 {
 	char sizebuf[32];
 	FILE *file;
@@ -1474,18 +1512,18 @@ dataconn(const char *name, off_t size, const char *mode)
 #endif
 		reply(150, "Opening %s mode data connection for '%s'%s.",
 		     type == TYPE_A ? "ASCII" : "BINARY", name, sizebuf);
-		return (fdopen(pdata, mode));
+		return (fdopen(pdata, fmode));
 	}
 	if (data >= 0) {
 		reply(125, "Using existing data connection for '%s'%s.",
 		    name, sizebuf);
 		usedefault = 1;
-		return (fdopen(data, mode));
+		return (fdopen(data, fmode));
 	}
 	if (usedefault)
 		data_dest = his_addr;
 	usedefault = 1;
-	file = getdatasock(mode);
+	file = getdatasock(fmode);
 	if (file == NULL) {
 		char hbuf[NI_MAXHOST];
 		char pbuf[NI_MAXSERV];
@@ -1520,8 +1558,9 @@ void
 closedataconn(FILE *fd)
 {
 
-	if (fd != NULL)
-		(void)fclose(fd);
+	if (fd == NULL)
+		return;
+	(void)fclose(fd);
 	data = -1;
 	if (pdata >= 0)
 		(void)close(pdata);
@@ -1920,7 +1959,7 @@ statcmd(void)
 
 							/* LPSV/LPRT */
 	    {
-		int alen, af, i;
+		int alen, i;
 
 		alen = 0;
 		switch (su->su_family) {
@@ -2002,7 +2041,7 @@ statcmd(void)
 	    (LLT)otb, PLURAL(otb),
 	    (LLT)total_xfers, PLURAL(total_xfers));
 
-	if (logged_in) {
+	if (logged_in && !CURCLASS_FLAGS_ISSET(private)) {
 		struct ftpconv *cp;
 
 		reply(0, "%s", "");
@@ -2023,9 +2062,11 @@ statcmd(void)
 			reply(0, "Maximum connections: %d", curclass.limit);
 		if (curclass.limitfile)
 			reply(0, "Connection limit exceeded message file: %s",
-			    curclass.limitfile);
+			    conffilename(curclass.limitfile));
 		if (! EMPTYSTR(curclass.chroot))
 			reply(0, "Chroot format: %s", curclass.chroot);
+		reply(0, "Deny bad ftpusers(5) quickly: %sabled",
+		    CURCLASS_FLAGS_ISSET(denyquick) ? "en" : "dis");
 		if (! EMPTYSTR(curclass.homedir))
 			reply(0, "Homedir format: %s", curclass.homedir);
 		if (curclass.maxfilesize == -1)
@@ -2034,7 +2075,7 @@ statcmd(void)
 			reply(0, "Maximum file size: " LLF,
 			    (LLT)curclass.maxfilesize);
 		if (! EMPTYSTR(curclass.motd))
-			reply(0, "MotD file: %s", curclass.motd);
+			reply(0, "MotD file: %s", conffilename(curclass.motd));
 		reply(0,
 	    "Modify commands (CHMOD, DELE, MKD, RMD, RNFR, UMASK): %sabled",
 		    CURCLASS_FLAGS_ISSET(modify) ? "en" : "dis");
@@ -2113,13 +2154,16 @@ reply(int n, const char *fmt, ...)
 	else
 		cprintf(stdout, "%d ", n);
 	b = vprintf(fmt, ap);
+	va_end(ap);
 	total_bytes += b;
 	total_bytes_out += b;
 	cprintf(stdout, "\r\n");
 	(void)fflush(stdout);
 	if (debug) {
 		syslog(LOG_DEBUG, "<--- %d%c", abs(n), (n < 0) ? '-' : ' ');
+		va_start(ap, fmt);
 		vsyslog(LOG_DEBUG, fmt, ap);
+		va_end(ap);
 	}
 }
 
@@ -2624,7 +2668,7 @@ send_file_list(const char *whichf)
 	DIR *dirp = NULL;
 	struct dirent *dir;
 	FILE *dout = NULL;
-	char **dirlist, *dirname, *p;
+	char **dirlist, *dirname, *notglob, *p;
 	int simple = 0;
 	int freeglob = 0;
 	glob_t gl;
@@ -2652,8 +2696,8 @@ send_file_list(const char *whichf)
 		}
 		dirlist = gl.gl_pathv;
 	} else {
-		p = xstrdup(whichf);
-		onefile[0] = p;
+		notglob = xstrdup(whichf);
+		onefile[0] = notglob;
 		dirlist = onefile;
 		simple = 1;
 	}
@@ -2729,8 +2773,6 @@ send_file_list(const char *whichf)
 			 */
 			if (simple || (stat(nbuf, &st) == 0 &&
 			    S_ISREG(st.st_mode))) {
-				char *p;
-
 				if (dout == NULL) {
 					dout = dataconn("file list", (off_t)-1,
 						"w");
@@ -2761,8 +2803,8 @@ send_file_list(const char *whichf)
  out:
 	total_xfers++;
 	total_xfers_out++;
-	if (p)
-		free(p);
+	if (notglob)
+		free(notglob);
 	if (freeglob)
 		globfree(&gl);
 }
@@ -2788,7 +2830,8 @@ conffilename(const char *s)
  *	if elapsed != NULL, append "in xxx.yyy seconds"
  *	if error != NULL, append ": " + error
  *
- * 	if doxferlog != 0, syslog a wu-ftpd style xferlog entry
+ * 	if doxferlog != 0, bytes != -1, and command is "get", "put",
+ *	or "append", syslog a wu-ftpd style xferlog entry
  */
 void
 logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
@@ -2835,7 +2878,7 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 		/*
 		 * syslog wu-ftpd style log entry, prefixed with "xferlog: "
 		 */
-	if (!doxferlog)
+	if (!doxferlog || bytes == -1)
 		return;
 
 	if (strcmp(command, "get") == 0)
@@ -2863,7 +2906,7 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 #endif
 	    elapsed == NULL ? 0 : elapsed->tv_sec + (elapsed->tv_usec > 0),
 	    remotehost,
-	    bytes == (off_t)-1 ? 0 : (LLT) bytes,
+	    (LLT) bytes,
 	    r1,
 	    type == TYPE_A ? 'a' : 'b',
 	    "_",		/* XXX: take conversions into account? */
@@ -2883,7 +2926,7 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
  * Returns 2 if password expired, 1 if otherwise failed, 0 if ok
  */
 int
-checkpassword(const struct passwd *pw, const char *password)
+checkpassword(const struct passwd *pwent, const char *password)
 {
 	char	*orig, *new;
 	time_t	 expire;
@@ -2892,17 +2935,17 @@ checkpassword(const struct passwd *pw, const char *password)
 #endif
 
 	expire = 0;
-	if (pw == NULL)
+	if (pwent == NULL)
 		return 1;
 
 #if HAVE_GETSPNAM
-	if ((spw = getspnam(pw->pw_name)) == NULL)
+	if ((spw = getspnam(pwent->pw_name)) == NULL)
 		return 1;
 	orig = spw->sp_pwdp;
 #else
-	orig = pw->pw_passwd;		/* save existing password */
+	orig = pwent->pw_passwd;	/* save existing password */
 #if HAVE_PW_EXPIRE
-	expire = pw->pw_expire;
+	expire = pwent->pw_expire;
 #endif
 #endif /* HAVE_GETSPNAM */
 
@@ -2942,6 +2985,7 @@ cprintf(FILE *fd, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	b = vfprintf(fd, fmt, ap);
+	va_end(ap);
 	total_bytes += b;
 	total_bytes_out += b;
 }

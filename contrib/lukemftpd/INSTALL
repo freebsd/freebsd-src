@@ -40,9 +40,12 @@ script.  `configure' supports the following options:
                           BSD or GNU make may be required for this to work.
 
 * Specific options:
-  --enable-ipv6           Enable IPv6 support (if your OS supports it)
-  --disable-ipv6          Disable IPv6 support (even if your OS supports it.) 
-                          [default: enabled].
+
+  --enable-ipv6           Enable IPv6 support (if your OS supports it).
+  --disable-ipv6          Disable IPv6 support (even if your OS supports it).
+                          [default: enabled]
+  --enable-builtinls      Enable built-in /bin/ls.  [default: enabled]
+  --disable-builtinls     Disable built-in /bin/ls.
   --with-socks            Compile with SOCKS firewall traversal support.
   --with-socks5[=PATH]    Compile with SOCKS5 firewall traversal support.
   --with-socks4[=PATH]    Compile with SOCKS4 firewall traversal support.
