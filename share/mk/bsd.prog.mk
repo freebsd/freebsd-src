@@ -145,6 +145,9 @@ _SCRIPTSINS_${script:T}: ${script}
 .endfor
 .endif
 
+NLSNAME?=	${PROG}
+.include <bsd.nls.mk>
+
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
