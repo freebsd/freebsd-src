@@ -352,8 +352,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "turnstile chain", &lock_class_mtx_spin },
 	{ "td_contested", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
-	{ "entropy harvest", &lock_class_mtx_spin },
-	{ "entropy harvest buffers", &lock_class_mtx_spin },
+	{ "entropy harvest mutex", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
 	 */
