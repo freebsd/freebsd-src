@@ -3,8 +3,8 @@
 PROG=	ssh-add
 CFLAGS+=-I${SSHDIR}
 
-DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypto -lz
+DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
+LDADD=	-lssh -lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 
