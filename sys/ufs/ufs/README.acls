@@ -42,7 +42,7 @@ commands may be used to create the necessary EA backing files for
 ACLs in the file system root of each file system.  In these examples,
 the root file system is used; see README.extattr for more details.
 
-  mkdir /.attribute /.attribute/system
+  mkdir -p /.attribute/system
   cd /.attribute/system
   extattrctl initattr -p / 388 posix1e.acl_access
   extattrctl initattr -p / 388 posix1e.acl_default
