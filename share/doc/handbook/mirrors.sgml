@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: mirrors.sgml,v 1.1 1995/09/01 04:54:13 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -371,8 +371,8 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 <itemize>
 
 <item>
-<htmlurl url="ftp://skeleton.mikom.csir.co.za/pub/FreeBSD"
-	name="ftp://skeleton.mikom.csir.co.za/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.internat.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.internat.freebsd.org/pub/FreeBSD"><newline>
 	Contact: Mark Murray <htmlurl url="mailto:mark@grondar.za"
 	name="mark@grondar.za">.
 
