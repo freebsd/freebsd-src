@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.16 1996/02/08 18:27:07 mpp Exp $
+# $Id: bsd.info.mk,v 1.17 1996/03/07 23:39:45 wosch Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -17,10 +17,10 @@ MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
 
 .if !defined(NOINFOCOMPRESS)
 IFILES=	${INFO:S/$/.info.gz/g}
-all: ${IFILES}
+all: ${IFILES} _SUBDIR
 .else
 IFILES=	${INFO:S/$/.info/g}
-all: ${IFILES}
+all: ${IFILES} _SUBDIR
 .endif
 
 GZIPCMD?=	gzip
@@ -37,7 +37,7 @@ DISTRIBUTION=	info
 .endif
 
 .if !target(distribute)
-distribute:     
+distribute: _SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies     
 .endif
 
@@ -46,32 +46,13 @@ ${INFO}.info: ${SRCS}
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${SRCS:S/^/${.CURDIR}\//g} -o ${INFO}.info
 .endif
 
-depend:
+depend: _SUBDIR
 	@echo -n
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj:
-.else
-obj:
-	@cd ${.CURDIR}; rm -f obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
-clean:
+clean: _SUBDIR
 	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
-cleandir: clean
-	cd ${.CURDIR}; rm -rf obj
-
-install:
+install: _SUBDIR
 	@if [ ! -d "${DESTDIR}${BINDIR}" ]; then \
 		/bin/rm -f ${DESTDIR}${BINDIR}  ; \
 		mkdir -p ${DESTDIR}${BINDIR}  ; \
@@ -84,6 +65,8 @@ install:
 		${IFILES} ${DESTDIR}${BINDIR}
 
 .if !target(maninstall)
-maninstall:
-
+maninstall: _SUBDIR
 .endif
+
+.include <bsd.dep.mk>
+.include <bsd.obj.mk>

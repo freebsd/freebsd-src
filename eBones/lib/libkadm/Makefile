@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.8 1995/09/15 06:20:23 gibbs Exp $
+#	$Id: Makefile,v 1.9 1995/11/12 08:13:10 markm Exp $
 
 LIB=	kadm
 
@@ -19,5 +19,4 @@ beforeinstall: kadm_err.c
 .include <bsd.lib.mk>
 
 kadm_err.c: ${KADMOBJDIR}/kadm_err.h
-
 kadm_cli_wrap.o: ${KRBOBJDIR}/krb_err.h

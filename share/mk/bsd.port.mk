@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.212 1996/06/20 23:52:45 jkh Exp $
+# $Id: bsd.port.mk,v 1.213 1996/06/22 21:20:56 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -210,8 +210,8 @@
 # Support for an encapsulation in /usr/src - these are essentially simplied ports
 # and have a number of defaults we can presume right off the bat.
 .if defined(SRC_ENCAPSULATION)
-.if exists (${.CURDIR}/obj)
-WRKDIR=${.CURDIR}/obj
+.if exists (${BSDOBJDIR}/${.CURDIR})
+WRKDIR=${BSDOBJDIR}/${.CURDIR}
 .else
 NO_WRKDIR=			yes
 .endif
@@ -226,28 +226,7 @@ describe:
 
 # Finally, give us working obj and cleandir targets to make us more compatible
 # with "traditional" /usr/src ports.
-.if !target(obj)
-.if defined(NOOBJ)
-obj:
-	@${DO_NADA}
-.else
-obj:
-	@cd ${.CURDIR}; rm -rf obj; here=`pwd`; \
-		dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; ${ECHO} "$$here -> $$dest"; \
-		ln -s $$dest obj; if test -d /usr/obj -a ! -d $$dest; then mkdir -p $$dest; fi
-.endif
-.endif
-
-.if !target(cleandir)
-.if defined(NOCLEANDIR)
-cleandir:
-	@${DO_NADA}
-.else
-cleandir: clean
-	@if [ "${WRKDIR}" != "${.CURDIR}" ]; then ${RM} -rf ${WRKDIR}/; fi
-	@rm -f ${.CURDIR}/obj
-.endif
-.endif
+.include <bsd.obj.mk>
 
 .if !target(distribute)
 distribute:
@@ -1002,7 +981,7 @@ pre-clean:
 .if !target(clean)
 clean: pre-clean
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
-.if !defined(NO_WRKDIR) && !exists(${.CURDIR}/obj)
+.if !defined(NO_WRKDIR)
 	@${RM} -rf ${WRKDIR}
 .else
 	@${RM} -f ${WRKDIR}/.*_done

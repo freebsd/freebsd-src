@@ -35,15 +35,15 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkbuiltins	8.1 (Berkeley) 5/31/93
-#	$Id: mkbuiltins,v 1.2 1994/09/24 02:57:53 davidg Exp $
+#	$Id: mkbuiltins,v 1.3 1995/03/30 19:45:20 phk Exp $
 
 temp=/tmp/ka$$
 havejobs=0
 if grep '^#define JOBS[	 ]*1' shell.h > /dev/null
 then	havejobs=1
 fi
-if [ -d obj ] ; then
-	exec > obj/builtins.c
+if [ -d ${OBJDIR} ] ; then
+	exec > ${OBJDIR}/builtins.c
 else
 	exec > builtins.c
 fi
@@ -71,8 +71,8 @@ awk '{	for (i = 2 ; i <= NF ; i++) {
 echo '	NULL, 0
 };'
 
-if [ -d obj ] ; then
-	exec > obj/builtins.h
+if [ -d ${OBJDIR} ] ; then
+	exec > ${OBJDIR}/builtins.h
 else
 	exec > builtins.h
 fi

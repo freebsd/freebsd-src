@@ -1,7 +1,7 @@
 # Location of librcs
 
-.if exists(${.CURDIR}/../lib/obj)
-LIBRCS=	${.CURDIR}/../lib/obj/librcs.a
+.if exists(${.OBJDIR}/../lib)
+LIBRCS=	${.OBJDIR}/../lib/librcs.a
 .else
 LIBRCS=	${.CURDIR}/../lib/librcs.a
 .endif

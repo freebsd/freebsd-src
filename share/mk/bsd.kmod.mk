@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.21 1996/05/25 23:09:47 wosch Exp $
+#	$Id: bsd.kmod.mk,v 1.22 1996/06/17 15:11:10 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -134,25 +134,12 @@ MAN1=	${KMOD}.4
 .endif
 
 .elif !target(maninstall)
-maninstall:
+maninstall: _SUBDIR
 all-man:
 .endif
 
-_PROGSUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> $$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
-		else \
-			cd ${.CURDIR}/$${entry}; \
-		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/}); \
-	done
-.endif
-
 .MAIN: all
-all: ${PROG} all-man _PROGSUBDIR
+all: ${PROG} all-man _SUBDIR
 
 CLEANFILES+=${PROG} ${OBJS} 
 
@@ -164,7 +151,7 @@ beforeinstall:
 afterinstall:
 .endif
 
-realinstall: _PROGSUBDIR
+realinstall: _SUBDIR
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(LINKS) && !empty(LINKS)
@@ -180,7 +167,7 @@ realinstall: _PROGSUBDIR
 	done; true
 .endif
 
-install: afterinstall
+install: afterinstall _SUBDIR
 .if !defined(NOMAN)
 afterinstall: realinstall maninstall
 .else
@@ -191,12 +178,12 @@ realinstall: beforeinstall
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute:
+distribute: _SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
 .if !target(tags)
-tags: ${SRCS} _PROGSUBDIR
+tags: ${SRCS} _SUBDIR
 .if defined(PROG)
 	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC} | \
 	    sed "s;\${.CURDIR}/;;" > tags
@@ -221,8 +208,5 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 ./vnode_if.h:	vnode_if.h
 
-_DEPSUBDIR=	_PROGSUBDIR
-_SUBDIRUSE:	_PROGSUBDIR
-.include <bsd.obj.mk>
 .include <bsd.dep.mk>
-
+.include <bsd.obj.mk>

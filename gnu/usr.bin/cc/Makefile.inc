@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.12 1995/03/10 19:39:32 davidg Exp $
+# $Id: Makefile.inc,v 1.13 1995/03/11 03:48:42 nate Exp $
 #
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../include
@@ -15,8 +15,8 @@ CFLAGS+=	-DHAVE_PUTENV
 CFLAGS+=	-DGCC_NAME=\"cc\"
 CFLAGS+=	-DLINK_LIBGCC_SPECIAL_1
 
-.if exists(${.CURDIR}/../cc_int/obj)
-LIBDESTDIR=	${.CURDIR}/../cc_int/obj
+.if exists(${.OBJDIR}/../cc_int)
+LIBDESTDIR=	${.OBJDIR}/../cc_int
 .else
 LIBDESTDIR=	${.CURDIR}/../cc_int
 .endif

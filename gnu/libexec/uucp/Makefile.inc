@@ -1,17 +1,17 @@
-.if exists(${.CURDIR}/../libunix/obj)
-LIBUNIX=	$(.CURDIR)/../libunix/obj/libunix.a
+.if exists(${.OBJDIR}/../libunix)
+LIBUNIX=	$(.OBJDIR)/../libunix/libunix.a
 .else
 LIBUNIX=	$(.CURDIR)/../libunix/libunix.a
 .endif
 
-.if exists(${.CURDIR}/../libuuconf/obj)
-LIBUUCONF=	$(.CURDIR)/../libuuconf/obj/libuuconf.a
+.if exists(${.OBJDIR}/../libuuconf)
+LIBUUCONF=	$(.OBJDIR)/../libuuconf/libuuconf.a
 .else
 LIBUUCONF=	$(.CURDIR)/../libuuconf/libuuconf.a
 .endif
 
-.if exists(${.CURDIR}/../libuucp/obj)
-LIBUUCP=	$(.CURDIR)/../libuucp/obj/libuucp.a
+.if exists(${.OBJDIR}/../libuucp)
+LIBUUCP=	$(.OBJDIR)/../libuucp/libuucp.a
 .else
 LIBUUCP=	$(.CURDIR)/../libuucp/libuucp.a
 .endif

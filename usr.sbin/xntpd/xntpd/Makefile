@@ -1,20 +1,20 @@
 #
-# $Id: Makefile,v 1.6 1994/09/30 00:34:17 wollman Exp $
+# $Id: Makefile,v 1.7 1994/10/03 23:51:32 phk Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
 
-.if exists(${.CURDIR}/../lib/obj)
-LDADD+= -L${.CURDIR}/../lib/obj
-DPADD+= ${.CURDIR}/../lib/obj/libntp.a
+.if exists(${.OBJDIR}/../lib)
+LDADD+= -L${.OBJDIR}/../lib
+DPADD+= ${.OBJDIR}/../lib/libntp.a
 .else
 LDADD+= -L${.CURDIR}/../lib
 DPADD+= ${.CURDIR}/../lib/libntp.a
 .endif
 
-.if exists(${.CURDIR}/../parse/obj)
-LDADD+= -L${.CURDIR}/../parse/obj
-DPADD+= ${.CURDIR}/../parse/obj/libparse.a
+.if exists(${.OBJDIR}/../parse)
+LDADD+= -L${.OBJDIR}/../parse
+DPADD+= ${.OBJDIR}/../parse/libparse.a
 .else
 LDADD+= -L${.CURDIR}/../parse
 DPADD+= ${.CURDIR}/../parse/libparse.a
