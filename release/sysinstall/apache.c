@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.13 1996/01/21 19:38:05 jkh Exp $
+ * $Id: apache.c,v 1.14 1996/03/02 07:31:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -76,8 +76,7 @@
 /* Set up the structure to hold configuration information */
 /* Note that this is only what we could fit onto the one screen */
 
-typedef struct
-{
+typedef struct {
     char docroot[128];             /* DocumentRoot */
     char userdir[128];             /* UserDir */
     char welcome[32];              /* Welcome Doc */
@@ -125,76 +124,76 @@ typedef struct _layout {
 } Layout;
 
 static Layout layout[] = {
-{ 1, 2, 30, HOSTNAME_FIELD_LEN - 1,
+    { 1, 2, 30, HOSTNAME_FIELD_LEN - 1,
       "Host Name:",
       "What name to report this host as to client browsers",
       tconf.hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME 0
-
-{ 1, 40, 32, APACHE_EMAIL_LEN - 1,
+    
+    { 1, 40, 32, APACHE_EMAIL_LEN - 1,
       "Email Address:",
       "The email address of the site maintainer, e.g. webmaster@bar.com",
       tconf.email, STRINGOBJ, NULL },
 #define LAYOUT_EMAIL    1
-
-{ 5, 5, 20, APACHE_WELCOME_LEN - 1,
+    
+    { 5, 5, 20, APACHE_WELCOME_LEN - 1,
       "Default Document:",
       "The name of the default document found in each directory",
       tconf.welcome, STRINGOBJ, NULL },
 #define LAYOUT_WELCOME           2
-
-{ 5, 40, 14, APACHE_DEFUSER_LEN - 1,
+    
+    { 5, 40, 14, APACHE_DEFUSER_LEN - 1,
       "Default UserID:", "Default UID for access to web pages",
       tconf.defuser, STRINGOBJ, NULL },
 #define LAYOUT_DEFUSER          3
-
-{ 5, 60, 14, APACHE_DEFGROUP_LEN - 1,
+    
+    { 5, 60, 14, APACHE_DEFGROUP_LEN - 1,
       "Default Group ID:", "Default GID for access to web pages",
       tconf.defgroup, STRINGOBJ, NULL },
 #define LAYOUT_DEFGROUP          4
-
-{ 10, 4, 36, APACHE_DOCROOT_LEN - 1,
+    
+    { 10, 4, 36, APACHE_DOCROOT_LEN - 1,
       "Root Document Path:",
       "The top directory that holds the system web pages",
       tconf.docroot, STRINGOBJ, NULL },
 #define LAYOUT_DOCROOT          5
-
-{ 10, 50, 14, APACHE_USERDIR_LEN - 1,
+    
+    { 10, 50, 14, APACHE_USERDIR_LEN - 1,
       "User Directory:",
       "Personal sub-directory that holds users' web pages (eg. ~/Web)",
       tconf.userdir, STRINGOBJ, NULL },
 #define LAYOUT_USERDIR          6
-
-{ 14, 4, 28, APACHE_LOGDIR_LEN - 1,
+    
+    { 14, 4, 28, APACHE_LOGDIR_LEN - 1,
       "Log Dir:", "Directory to put httpd log files",
       tconf.logdir, STRINGOBJ, NULL },
 #define LAYOUT_LOGDIR           7
-
-{ 14, 38, 16, APACHE_ACCESSLOG_LEN - 1,
+    
+    { 14, 38, 16, APACHE_ACCESSLOG_LEN - 1,
       "Access Log:",  "Name of log file to report access",
       tconf.accesslog, STRINGOBJ, NULL },
 #define LAYOUT_ACCESSLOG    8
-
-{ 14, 60, 16, APACHE_ERRORLOG_LEN - 1,
+    
+    { 14, 60, 16, APACHE_ERRORLOG_LEN - 1,
       "Error Log:",  "Name of log file to report errors",
       tconf.errorlog, STRINGOBJ, NULL },
 #define LAYOUT_ERRORLOG   9
-
-{ 19, 15, 0, 0,
+    
+    { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
 #define LAYOUT_OKBUTTON         10
-
-{ 19, 45, 0, 0,
+    
+    { 19, 45, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
 #define LAYOUT_CANCELBUTTON     11
-{ NULL },
+    { NULL },
 };
 
 /* This is it - how to get Apache setup values */
 int
-apacheOpenDialog()
+apacheOpenDialog(void)
 {
     WINDOW              *ds_win;
     ComposeObj          *obj = NULL;
@@ -234,42 +233,41 @@ apacheOpenDialog()
     bzero(&tconf, sizeof(tconf));
     
     tmp = variable_get(VAR_DOMAINNAME);
-    if (tmp)
-    {
+    if (tmp) {
         sprintf(tconf.email, "webmaster@%s", tmp);
         sprintf(tconf.hostname, "www.%s", tmp);
     }
     
     strcpy(tconf.defuser, DEFAULT_USER);
     strcpy(tconf.defgroup, DEFAULT_GROUP);
-
+    
     strcpy(tconf.userdir, USER_HOMEDIR);
     strcpy(tconf.welcome, WELCOME_FILE);
-
+    
     strcpy(tconf.logdir, LOGS_SUBDIR);
     strcpy(tconf.accesslog, ACCESS_LOGNAME);
     strcpy(tconf.errorlog, ERROR_LOGNAME);
-
+    
     sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
     
     /* Loop over the layout list, create the objects, and add them
        onto the chain of objects that dialog uses for traversal*/
     
     n = 0;
-
+    
 #define lt layout[n]
     
     while (lt.help != NULL) {
         switch (lt.type) {
         case STRINGOBJ:
             lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-			  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X,
-			  lt.len, lt.maxlen);
+				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X,
+				  lt.len, lt.maxlen);
             break;
 	    
         case BUTTONOBJ:
             lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-			  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X);
+				  lt.y + APACHE_DIALOG_Y, lt.x + APACHE_DIALOG_X);
             break;
 	    
         default:
@@ -304,93 +302,91 @@ apacheOpenDialog()
         /* Display the help line at the bottom of the screen */
         for (i = 0; i < 79; i++)
             help_line[i] = (i < len) ? lt.help[i] : ' ';
-        help_line[i] = '\0';
-        use_helpline(help_line);
-        display_helpline(ds_win, LINES - 1, COLS - 1);
-	
-        /* Ask for libdialog to do its stuff */
-        ret = PollObj(&obj);
-	
-	
-        /* We are in the Hostname field - calculate the e-mail addr */
-	
-        if (n == LAYOUT_HOSTNAME) {
-            if ((tmp = index(tconf.hostname, '.')) != NULL) {
-                sprintf(tconf.email,"webmaster@%s",tmp+1);
-                RefreshStringObj(layout[LAYOUT_EMAIL].obj);
-            }
-        }
-	
-        /* Handle special case stuff that libdialog misses. Sigh */
-        switch (ret) {
-            /* Bail out */
-        case SEL_ESC:
-            quit = TRUE, cancel=TRUE;
-            break;
+	    help_line[i] = '\0';
+	    use_helpline(help_line);
+	    display_helpline(ds_win, LINES - 1, COLS - 1);
 	    
-            /* This doesn't work for list dialogs. Oh well. Perhaps
-               should special case the move from the OK button ``up''
-               to make it go to the interface list, but then it gets
-               awkward for the user to go back and correct screw up's
-               in the per-interface section */
+	    /* Ask for libdialog to do its stuff */
+	    ret = PollObj(&obj);
 	    
-        case KEY_UP:
-            if (obj->prev !=NULL ) {
-                obj = obj->prev;
-                --n;
-            } else {
-                obj = last;
-                n = max;
-            }
-            break;
+	    /* We are in the Hostname field - calculate the e-mail addr */
+	    if (n == LAYOUT_HOSTNAME) {
+		if ((tmp = index(tconf.hostname, '.')) != NULL) {
+		    sprintf(tconf.email,"webmaster@%s",tmp+1);
+		    RefreshStringObj(layout[LAYOUT_EMAIL].obj);
+		}
+	    }
 	    
-        case KEY_DOWN:
-            if (obj->next != NULL) {
-                obj = obj->next;
-                ++n;
-            } else {
-                obj = first;
-                n = 0;
-            }
-            break;
-	    
-        case SEL_TAB:
-            if (n < max)
-                ++n;
-            else
-                n = 0;
-            break;
-	    
-            /* The user has pressed enter over a button object */
-        case SEL_BUTTON:
-            quit = TRUE;
-            if (cancelbutton)
-                cancel = TRUE;
-            break;
-	    
-            /* Generic CR handler */
-        case SEL_CR:
-            if (n < max)
-                ++n;
-            else
-                n = 0;
-            break;
-	    
-        case SEL_BACKTAB:
-            if (n)
-                --n;
-            else
-                n = max;
-            break;
-	    
-        case KEY_F(1):
-            display_helpfile();
+	    /* Handle special case stuff that libdialog misses. Sigh */
+	    switch (ret) {
+		/* Bail out */
+	    case SEL_ESC:
+		quit = TRUE, cancel=TRUE;
+		break;
+		
+		/* This doesn't work for list dialogs. Oh well. Perhaps
+		   should special case the move from the OK button ``up''
+		   to make it go to the interface list, but then it gets
+		   awkward for the user to go back and correct screw up's
+		   in the per-interface section */
+		
+	    case KEY_UP:
+		if (obj->prev !=NULL ) {
+		    obj = obj->prev;
+		    --n;
+		} else {
+		    obj = last;
+		    n = max;
+		}
+		break;
+		
+	    case KEY_DOWN:
+		if (obj->next != NULL) {
+		    obj = obj->next;
+		    ++n;
+		} else {
+		    obj = first;
+		    n = 0;
+		}
+		break;
+		
+	    case SEL_TAB:
+		if (n < max)
+		    ++n;
+		else
+		    n = 0;
+		break;
+		
+		/* The user has pressed enter over a button object */
+	    case SEL_BUTTON:
+		quit = TRUE;
+		if (cancelbutton)
+		    cancel = TRUE;
+		break;
+		
+		/* Generic CR handler */
+	    case SEL_CR:
+		if (n < max)
+		    ++n;
+		else
+		    n = 0;
+		break;
+		
+	    case SEL_BACKTAB:
+		if (n)
+		    --n;
+		else
+		    n = max;
+		break;
+		
+	    case KEY_F(1):
+		display_helpfile();
 	    
             /* They tried some key combination we don't support - tell them! */
-        default:
-            beep();
-        }
-	
+	    default:
+		beep();
+	    }
+	    
     }
     
     /* Clear this crap off the screen */
@@ -410,10 +406,10 @@ configApache(char *unused)
     char company[64], file[128];
     char *tptr;
     FILE *fptr;
-
+    
     /* Be optimistic */
     i = RET_SUCCESS;
-
+    
     dialog_clear();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
@@ -451,25 +447,23 @@ configApache(char *unused)
 	strcpy(tconf.defuser, DEFAULT_USER);
     if (! tconf.defgroup[0])
 	strcpy(tconf.defgroup, DEFAULT_GROUP);
-
+    
     /*** If the user did not specify a directory, use default ***/
     
-    if (tconf.docroot[strlen(tconf.docroot)-1] == '/')
-	tconf.docroot[strlen(tconf.docroot)-1] = '\0';
+    if (tconf.docroot[strlen(tconf.docroot) - 1] == '/')
+	tconf.docroot[strlen(tconf.docroot) - 1] = '\0';
     
     if (!tconf.docroot[0])
 	sprintf(tconf.docroot,"%s/%s",APACHE_BASE,DATA_SUBDIR);
     
     /*** If DocRoot does not exist, create it ***/
     
-    if (!directoryExists(tconf.docroot))
+    if (!directory_exists(tconf.docroot))
 	vsystem("mkdir -p %s", tconf.docroot);
     
-    if (directoryExists(tconf.docroot))
-    {
+    if (directory_exists(tconf.docroot)) {
 	sprintf(file,"%s/%s", tconf.docroot, tconf.welcome);
-	if (!file_readable(file))
-	{
+	if (!file_readable(file)) {
 	    dialog_clear();
 	    tptr = msgGetInput(NULL,
 			       "What is your company name?");
@@ -480,21 +474,18 @@ configApache(char *unused)
 	    
 	    msgNotify("Creating sample web page...");
 	    fptr = fopen(file,"w");
-	    if (fptr)
-	    {
+	    if (fptr) {
 		fprintf(fptr,"<CENTER>\n<TITLE>Welcome Page</TITLE>\n");
 		fprintf(fptr,"<H1>Welcome to %s </H1>\n</CENTER>\n",company);
 		fprintf(fptr,"<P><HR SIZE=4>\n<CENTER>\n");
 		fprintf(fptr,"<A HREF=\"http://www.FreeBSD.org/What\">\n");
 		fprintf(fptr,"<IMG SRC=\"./power.gif\" ALIGN=CENTER BORDER=0 ");
 		fprintf(fptr," ALT=\"Powered by FreeBSD\"></A>\n");
-		if (! tconf.email[0])
-		{
+		if (! tconf.email[0]) {
 		    if ((tptr = variable_get(VAR_DOMAINNAME)))
 			sprintf(tconf.email,"root@%s",tptr);
 		}
-		if (tconf.email[0])
-		{
+		if (tconf.email[0]) {
 		    fprintf(fptr,"<ADDRESS><H4>\n");
 		    fprintf(fptr,"    For questions or comments, please send mail to:\n");
 		    fprintf(fptr,"        <A HREF=\"mailto:%s\">%s</A>\n",
@@ -519,15 +510,14 @@ configApache(char *unused)
     }
     
     msgNotify("Writing configuration files....");
-
+    
     (void)vsystem("mkdir -p %s/%s", APACHE_BASE,CONFIG_SUBDIR);
     sprintf(file, "%s/%s/access.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
-
+    
     fptr = fopen(file,"w");
-    if (fptr)
-    {
+    if (fptr) {
 	fprintf(fptr,"<Directory %s/cgi-bin>\n", APACHE_BASE);
 	fprintf(fptr,"Options Indexes FollowSymLinks\n");
 	fprintf(fptr,"</Directory>\n");
@@ -548,10 +538,9 @@ configApache(char *unused)
     sprintf(file, "%s/%s/httpd.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
-
+    
     fptr = fopen(file,"w");
-    if (fptr)
-    {
+    if (fptr) {
 	fprintf(fptr,"ServerType standalone\n");
 	fprintf(fptr,"Port 80\n");
 	fprintf(fptr,"TimeOut 400\n");
@@ -587,8 +576,7 @@ configApache(char *unused)
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
     fptr = fopen(file,"w");
-    if (fptr)
-    {
+    if (fptr) {
 	fprintf(fptr,"FancyIndexing on\n");
 	fprintf(fptr,"DefaultType text/plain\n");
 	fprintf(fptr,"IndexIgnore */.??* *~ *# */HEADER* */README* */RCS\n");
