@@ -133,7 +133,7 @@ extern struct ktr_entry ktr_buf[];
 
 #ifdef KTR_EXTEND
 void	ktr_tracepoint(u_int mask, char *filename, u_int line,
-		       char *format, ...);
+		       char *format, ...) __printflike(4, 5);
 #else
 void	ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2,
 		       u_long arg3, u_long arg4, u_long arg5);
@@ -173,12 +173,6 @@ void	ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2,
 #define	CTR3(m, d, p1, p2, p3)
 #define	CTR4(m, d, p1, p2, p3, p4)
 #define	CTR5(m, d, p1, p2, p3, p4, p5)
-/* XXX vvvvvvvv ??? */
-#define	SEG_ATR(d,s)
-#define	SEG_ATR_DESC(d,s)
-#define	ATR(d)
-#define	CATR(f,d,n)
-#define	CATRD(f,d,n)
 #endif	/* KTR */
 
 #define	TR0(d)				CTR0(KTR_GEN, d)
