@@ -26,7 +26,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.3 1995/04/02 01:35:54 wpaul Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.4 1995/05/30 03:51:25 rgrimes Exp $ (LBL)";
 #endif
 
 
@@ -166,16 +166,11 @@ main(argc, argv)
 	else
 		init_one(ifname);
 
-	if (!fflag) {
-		pid = fork();
-		if (pid > 0)
-			/* Parent exits, leaving child in background. */
+	if (!fflag)
+		if (daemon(0,0)) {
+			perror("fork");
 			exit(0);
-		else if (pid == -1) {
-			syslog(LOG_ERR, "cannot fork");
-			exit(1);
 		}
-	}
 	rarp_loop();
 }
 
