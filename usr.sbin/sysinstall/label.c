@@ -1216,12 +1216,12 @@ diskLabelNonInteractive(Device *dev)
 
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    char name[512];
-	    int soft, entries = 1;
+	    int entries = 1;
 
 	    while (entries) {
 		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
 		if ((cp = variable_get(name)) != NULL) {
-		    int sz;
+		    int sz, soft = 0;
 		    char typ[10], mpoint[50];
 
 		    if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
@@ -1259,8 +1259,7 @@ diskLabelNonInteractive(Device *dev)
 			else {
 			    tmp->private_data = new_part(mpoint, TRUE, sz);
 			    tmp->private_free = safe_free;
-			    if (!soft)
-				((PartInfo *)tmp->private_data)->soft = 1;
+			    ((PartInfo *)tmp->private_data)->soft = soft;
 			    status = DITEM_SUCCESS;
 			}
 		    }
