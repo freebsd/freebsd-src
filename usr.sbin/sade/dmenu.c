@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id$
+ * $Id: dmenu.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,6 +96,8 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    return;
 	}
 	switch (tmp->type) {
+
+	    /* User whapped ESC twice and wants a sub-shell */
 	case MENU_SHELL_ESCAPE:
 	    if (file_executable("/bin/sh"))
 		sh = "/bin/sh";
@@ -123,6 +125,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    DialogActive = TRUE;
 	    break;
 
+	    /* We want to simply display a file */
 	case MENU_DISPLAY_FILE: {
 	    char buf[FILENAME_MAX], *cp, *fname = NULL;
 
@@ -151,6 +154,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	}
 	    break;
 
+	    /* It's a sub-menu; recurse on it */
 	case MENU_SUBMENU: {
 	    int choice, scroll, curr, max;
 
@@ -159,13 +163,26 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    break;
 	}
 
+	    /* Execute it as a system command */
 	case MENU_SYSTEM_COMMAND:
 	    (void)systemExecute((char *)tmp->ptr);
 	    break;
 
-	case MENU_CALL:
-	    ((void (*)())tmp->ptr)();
+	    /* Same as above, but execute it in a prgbox */
+	case MENU_SYSTEM_COMMAND_BOX:
+	    dialog_prgbox(tmp->title, (char *)tmp->ptr, 22, 76, 1, 1);
 	    break;
+
+	case MENU_CALL:
+	    if (((int (*)())tmp->ptr)()) {
+		items_free(nitems, curr, max);
+		return;
+	    }
+	    break;
+
+	case MENU_CANCEL:
+	    items_free(nitems, curr, max);
+	    return;
 
 	case MENU_SET_VARIABLE: {
 	    Variable *newvar;
@@ -179,6 +196,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    strncpy(newvar->value, tmp->ptr, 1024);
 	    newvar->next = VarHead;
 	    VarHead = newvar;
+	    msgInfo("Set variable %s", newvar->value);
 	}
 	    break;
 	    

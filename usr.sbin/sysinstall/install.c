@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: install.c,v 1.1.1.1 1995/04/27 12:50:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,14 +43,17 @@
 
 #include "sysinstall.h"
 
-void
-installExpress(void)
-{
-    msgInfo("Doing an express installation");
-}
-
-void
+int
 installCustom(void)
 {
-    msgInfo("Doing a custom installation");
+    msgInfo("Installating the system custom");
+    return 0;
 }
+
+int
+installExpress(void)
+{
+    msgInfo("Installating the system express");
+    return 0;
+}
+
