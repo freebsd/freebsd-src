@@ -190,7 +190,7 @@ struct addrinfo {
 /*
  * Scope delimit character
  */
-#define	SCOPE_DELIMITER	'@'
+#define	SCOPE_DELIMITER	'%'
 
 __BEGIN_DECLS
 void		endhostent __P((void));
