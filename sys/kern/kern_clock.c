@@ -375,7 +375,7 @@ statclock(frame)
 		 * Charge the time as appropriate.
 		 */
 		if (p->p_flag & P_KSES)
-			thread_add_ticks_intr(1, 1);
+			thread_statclock(1);
 		p->p_uticks++;
 		if (ke->ke_ksegrp->kg_nice > NZERO)
 			cp_time[CP_NICE]++;
@@ -399,7 +399,7 @@ statclock(frame)
 			cp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_KSES)
-				thread_add_ticks_intr(0, 1);
+				thread_statclock(0);
 			td->td_sticks++;
 			p->p_sticks++;
 			if (p != PCPU_GET(idlethread)->td_proc)

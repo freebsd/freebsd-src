@@ -312,8 +312,6 @@ cpu_set_upcall(struct thread *td, void *pcb)
 {
 	struct pcb *pcb2;
 
-	td->td_flags |= TDF_UPCALLING;
-
 	/* Point the pcb to the top of the stack. */
 	pcb2 = td->td_pcb;
 
@@ -370,7 +368,7 @@ cpu_set_upcall(struct thread *td, void *pcb)
  * in thread_userret() itself can be done as well.
  */
 void
-cpu_set_upcall_kse(struct thread *td, struct kse *ke)
+cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
 
 	/* 
@@ -387,15 +385,15 @@ cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 	 * function.
 	 */
 	td->td_frame->tf_esp =
-	    (int)ke->ke_stack.ss_sp + ke->ke_stack.ss_size - 16;
-	td->td_frame->tf_eip = (int)ke->ke_upcall;
+	    (int)ku->ku_stack.ss_sp + ku->ku_stack.ss_size - 16;
+	td->td_frame->tf_eip = (int)ku->ku_func;
 
 	/*
 	 * Pass the address of the mailbox for this kse to the uts
 	 * function as a parameter on the stack.
 	 */
 	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
-	    (int)ke->ke_mailbox);
+	    (int)ku->ku_mailbox);
 }
 
 void
