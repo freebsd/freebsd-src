@@ -33,12 +33,12 @@
 #include <machine/psl.h>
 #include <machine/trap.h>
 
-#define i386_saved_state trapframe
+#define amd64_saved_state trapframe
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
 
-typedef struct i386_saved_state db_regs_t;
+typedef struct amd64_saved_state db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
@@ -48,12 +48,12 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define BKPT_SKIP		ddb_regs.tf_eip += 1
+#define BKPT_SKIP		ddb_regs.tf_rip += 1
 
-#define	FIXUP_PC_AFTER_BREAK	ddb_regs.tf_eip -= 1;
+#define	FIXUP_PC_AFTER_BREAK	ddb_regs.tf_rip -= 1;
 
-#define	db_clear_single_step(regs)	((regs)->tf_eflags &= ~PSL_T)
-#define	db_set_single_step(regs)	((regs)->tf_eflags |=  PSL_T)
+#define	db_clear_single_step(regs)	((regs)->tf_rflags &= ~PSL_T)
+#define	db_set_single_step(regs)	((regs)->tf_rflags |=  PSL_T)
 
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
 /*
