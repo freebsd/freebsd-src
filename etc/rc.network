@@ -229,6 +229,16 @@ network_pass1() {
 	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
     fi
 
+    if [ "X$tcp_restrict_rst" = X"YES" ]; then
+	    echo -n ' restrict TCP reset=YES'
+	    sysctl -w net.inet.tcp.restrict_rst=1 >/dev/null
+    fi
+
+    if [ "X$tcp_drop_synfin" = X"YES" ]; then
+	    echo -n ' drop SYN+FIN packets=YES'
+	    sysctl -w net.inet.tcp.drop_synfin=1 >/dev/null
+    fi
+
     if [ "${ipxgateway_enable}" = "YES" ]; then
 	    echo -n ' IPX gateway=YES'
 	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
