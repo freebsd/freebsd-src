@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.5
+    Original revision: 1.7
 -->
 
 <!-- 
@@ -60,19 +60,28 @@
       システムの運用・利用に影響を与えるような関連ソフトウェア,
       関連文書の更新情報も含まれています.
       このバージョンの &os; をインストールする前には必ず,
-      最新の errata を参照するようにしてください.
-  
-      <note>
-        <para>&release.branch;
-          ブランチは最新のブランチポイントであり,
-          ここからはまだリリース版が公開されていません.
-          そのため現時点の &release.current; には,
-          errata がありません.
-          (最初のリリースは &release.next; になる予定です)
-          このファイルは新たに作成されたブランチ用のひな型として用意されているものです.
-          (当然ながら, この注意書きは他のブランチにある errata
-          文書には存在しません)</para>
-      </note></para>
+      最新の errata を参照するようにしてください.</para>
+
+<![ %release.type.snapshot [
+    <para>この errata 文書は &os; &release.prev; 用です.
+      &os; &release.next; のリリースまでの期間、保守されます.</para>
+]]>
+
+<![ %release.type.release [
+    <para>この文書は &os; &release.prev; 用の最終版 errata 文書です.
+      &release.branch; ブランチにおける errata 文書はこれ以降,
+      &os; &release.current; および以降のリリースについて扱います.</para>
+]]>
+
+    <para>&release.branch;
+      ブランチは最新のブランチポイントであり,
+      ここからはまだリリース版が公開されていません.
+      そのため現時点の &release.current; には,
+      errata がありません.
+      (最初のリリースは &release.next; になる予定です)
+      このファイルは新たに作成されたブランチ用のひな型として用意されているものです.
+      (当然ながら, この注意書きは他のブランチにある errata
+      文書には存在しません)</para>
   </abstract>
 
   <sect1>
@@ -98,13 +107,6 @@
       バイナリスナップショットにも,
       (スナップショット作成時の) 最新版の
       errata 文書が含まれています.</para>
-
-    <para>このファイルの更新は, 電子メールで
-      &a.current; にも告知されます.</para>
-
-    <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.FreeBSD.org/security/"></ulink> or <ulink
-    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
     <para>&os; CERT セキュリティ勧告の全リストは,
       <ulink url="http://www.FreeBSD.org/security/"></ulink>
