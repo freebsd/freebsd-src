@@ -116,12 +116,13 @@ auth_SetPhoneList(const char *name, char *phone, int phonelen)
 {
   FILE *fp;
   int n, lineno;
-  char *vector[6];
-  char buff[LINE_LEN];
+  char *vector[6], buff[LINE_LEN];
+  const char *slash;
 
   fp = OpenSecret(SECRETFILE);
-  lineno = 0;
   if (fp != NULL) {
+again:
+    lineno = 0;
     while (fgets(buff, sizeof buff, fp)) {
       lineno++;
       if (buff[0] == '#')
@@ -141,6 +142,14 @@ auth_SetPhoneList(const char *name, char *phone, int phonelen)
         return 1;		/* Valid */
       }
     }
+
+    if ((slash = strrchr(name, '\\')) != NULL && slash[1]) {
+      /* Look for the name without the leading domain */
+      name = slash + 1;
+      rewind(fp);
+      goto again;
+    }
+
     CloseSecret(fp);
   }
   *phone = '\0';
@@ -152,8 +161,8 @@ auth_Select(struct bundle *bundle, const char *name)
 {
   FILE *fp;
   int n, lineno;
-  char *vector[5];
-  char buff[LINE_LEN];
+  char *vector[5], buff[LINE_LEN];
+  const char *slash;
 
   if (*name == '\0') {
     ipcp_Setup(&bundle->ncp.ipcp, INADDR_NONE);
@@ -171,8 +180,9 @@ auth_Select(struct bundle *bundle, const char *name)
 #endif
 
   fp = OpenSecret(SECRETFILE);
-  lineno = 0;
   if (fp != NULL) {
+again:
+    lineno = 0;
     while (fgets(buff, sizeof buff, fp)) {
       lineno++;
       if (buff[0] == '#')
@@ -200,6 +210,14 @@ auth_Select(struct bundle *bundle, const char *name)
         return 1;		/* Valid */
       }
     }
+
+    if ((slash = strrchr(name, '\\')) != NULL && slash[1]) {
+      /* Look for the name without the leading domain */
+      name = slash + 1;
+      rewind(fp);
+      goto again;
+    }
+
     CloseSecret(fp);
   }
 
@@ -226,10 +244,11 @@ auth_Validate(struct bundle *bundle, const char *name,
 
   FILE *fp;
   int n, lineno;
-  char *vector[5];
-  char buff[LINE_LEN];
+  char *vector[5], buff[LINE_LEN];
+  const char *slash;
 
   fp = OpenSecret(SECRETFILE);
+again:
   lineno = 0;
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
@@ -247,8 +266,19 @@ auth_Validate(struct bundle *bundle, const char *name,
         return auth_CheckPasswd(name, vector[1], key);
       }
     }
-    CloseSecret(fp);
   }
+
+  if ((slash = strrchr(name, '\\')) != NULL && slash[1]) {
+    /* Look for the name without the leading domain */
+    name = slash + 1;
+    if (fp != NULL) {
+      rewind(fp);
+      goto again;
+    }
+  }
+
+  if (fp != NULL)
+    CloseSecret(fp);
 
 #ifndef NOPASSWDAUTH
   if (Enabled(bundle, OPT_PASSWDAUTH))
@@ -267,12 +297,14 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   FILE *fp;
   int n, lineno;
   char *vector[5];
+  const char *slash;
   static char buff[LINE_LEN];	/* vector[] will point here when returned */
 
   fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
     return (NULL);
 
+again:
   lineno = 0;
   while (fgets(buff, sizeof buff, fp)) {
     lineno++;
@@ -291,6 +323,15 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
       return vector[1];
     }
   }
+
+  if ((slash = strrchr(name, '\\')) != NULL && slash[1]) {
+    /* Go back and look for the name without the leading domain */
+    len -= slash - name + 1;
+    name = slash + 1;
+    rewind(fp);
+    goto again;
+  }
+
   CloseSecret(fp);
   return (NULL);		/* Invalid */
 }
