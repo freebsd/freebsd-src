@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.68 1999/06/02 05:59:48 ru Exp $";
+	"$Id: ipfw.c,v 1.64.2.4 1999/06/04 23:46:41 ru Exp $";
 #endif /* not lint */
 
 
@@ -612,13 +612,13 @@ lookup_host (host, ipaddr)
 	char *host;
 	struct in_addr *ipaddr;
 {
-	struct hostent *he = gethostbyname(host);
+	struct hostent *he;
 
-	if (!he)
-		return(-1);
-
-	*ipaddr = *(struct in_addr *)he->h_addr_list[0];
-
+	if (!inet_aton(host, ipaddr)) {
+		if ((he = gethostbyname(host)) == NULL)
+			return(-1);
+		*ipaddr = *(struct in_addr *)he->h_addr_list[0];
+	}
 	return(0);
 }
 
