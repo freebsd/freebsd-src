@@ -395,22 +395,21 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 		sizeof( ea->aarp_sha ));
 	aat->aat_flags |= ATF_COM;
 	if ( aat->aat_hold ) {
+	    struct mbuf *mhold = aat->aat_hold;
+	    aat->aat_hold = NULL;
 	    sat.sat_len = sizeof(struct sockaddr_at);
 	    sat.sat_family = AF_APPLETALK;
 	    sat.sat_addr = spa;
-	    (*ac->ac_if.if_output)( &ac->ac_if, aat->aat_hold,
+	    (*ac->ac_if.if_output)( &ac->ac_if, mhold,
 		    (struct sockaddr *)&sat, NULL); /* XXX */
-	    aat->aat_hold = 0;
 	}
-    }
-
-    if ( aat == 0 && tpa.s_net == ma.s_net && tpa.s_node == ma.s_node
-	    && op != AARPOP_PROBE ) {
-	if ((aat = aarptnew( &spa )) != NULL) {
-	    bcopy(( caddr_t )ea->aarp_sha, ( caddr_t )aat->aat_enaddr,
+    } else if ((tpa.s_net == ma.s_net)
+	   && (tpa.s_node == ma.s_node)
+	   && (op != AARPOP_PROBE)
+	   && ((aat = aarptnew( &spa )) != NULL)) {
+	        bcopy(( caddr_t )ea->aarp_sha, ( caddr_t )aat->aat_enaddr,
 		    sizeof( ea->aarp_sha ));
-	    aat->aat_flags |= ATF_COM;
-	}
+	        aat->aat_flags |= ATF_COM;
     }
 
     /*
@@ -468,7 +467,7 @@ aarptfree( struct aarptab *aat)
 
     if ( aat->aat_hold )
 	m_freem( aat->aat_hold );
-    aat->aat_hold = 0;
+    aat->aat_hold = NULL;
     aat->aat_timer = aat->aat_flags = 0;
     aat->aat_ataddr.s_net = 0;
     aat->aat_ataddr.s_node = 0;
@@ -613,6 +612,7 @@ aarp_clean(void)
     for ( i = 0, aat = aarptab; i < AARPTAB_SIZE; i++, aat++ ) {
 	if ( aat->aat_hold ) {
 	    m_freem( aat->aat_hold );
+	    aat->aat_hold = NULL;
 	}
     }
 }
