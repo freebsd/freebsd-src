@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.16 1996/04/20 18:27:55 jdp Exp $
+ *	$Id: ld.h,v 1.17 1996/10/01 01:22:27 peter Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software
@@ -53,6 +53,11 @@ extern int	netzmagic;
 #endif
 #endif
 
+#ifdef DEMANGLE_CPLUSPLUS
+extern char *demangle __P((char*));
+#else
+#define demangle(name) name
+#endif
 
 /*
  * Ok.  Following are the relocation information macros.  If your
@@ -342,9 +347,9 @@ struct string_list_element {
 };
 
 struct glosym;
-#ifndef __symbol_defined__       
-#define __symbol_defined__                                                      
-typedef struct glosym symbol;                                                   
+#ifndef __symbol_defined__
+#define __symbol_defined__
+typedef struct glosym symbol;
 #endif
 
 extern symbol	*entry_symbol;		/* the entry symbol, if any */

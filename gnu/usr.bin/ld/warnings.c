@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $Id: warnings.c,v 1.11 1996/07/12 19:08:29 jkh Exp $
+ * $Id: warnings.c,v 1.12 1996/10/01 01:22:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,26 @@
 #include "dynamic.h"
 
 static int reported_undefineds;
+
+#ifdef DEMANGLE_CPLUSPLUS
+#include "demangle.h"
+
+char *demangle(name)
+     char *name;
+{
+  static char* saved_result = NULL;
+
+  if (saved_result)
+    free (saved_result);
+
+  saved_result = cplus_demangle (name[0] == '_' ? name + 1 : name, DMGL_PARAMS | DMGL_ANSI);
+
+  if (saved_result)
+    return saved_result;
+  else
+    return name;
+}
+#endif
 
 /*
  * Print the filename of ENTRY on OUTFILE (a stdio stream),
@@ -135,7 +155,7 @@ print_symbols(outfile)
 
 	fprintf(outfile, "\nGlobal symbols:\n\n");
 	FOR_EACH_SYMBOL(i, sp) {
-		fprintf(outfile, "  %s: ", sp->name);
+		fprintf(outfile, "  %s: ", demangle(sp->name));
 		if (!(sp->flags & GS_REFERENCED))
 			fprintf(outfile, "unreferenced");
 		else if (sp->so_defined)
@@ -148,7 +168,7 @@ print_symbols(outfile)
 			fprintf(outfile, "type %d, value %#lx, size %#x",
 				sp->defined, sp->value, sp->size);
 		if (sp->alias)
-			fprintf(outfile, ", aliased to %s", sp->alias->name);
+			fprintf(outfile, ", aliased to %s", demangle(sp->alias->name));
 		fprintf(outfile, "\n");
 	} END_EACH_SYMBOL;
 
@@ -490,7 +510,7 @@ do_relocation_warnings(entry, data_segment, outfile, nlist_bitvector)
 
 		if (!(lsp->nzlist.nz_type & N_EXT) &&
 		    !SET_ELEMENT_P(lsp->nzlist.nz_type)) {
-			warnx("internal error: `%s' N_EXT not set", g->name);
+			warnx("internal error: `%s' N_EXT not set", demangle(g->name));
 			continue;
 		}
 
@@ -534,14 +554,10 @@ do_relocation_warnings(entry, data_segment, outfile, nlist_bitvector)
 
 		/* If errfmt == 0, errmsg has already been defined.  */
 		if (errfmt != 0) {
-			char           *nm;
-
-			nm = g->name;
+			char *nm = demangle(g->name);
 			errmsg = (char *)
 				xmalloc(strlen(errfmt) + strlen(nm) + 1);
 			sprintf(errmsg, errfmt, nm, data_segment?"data":"text");
-			if (nm != g->name)
-				free(nm);
 		}
 		address_to_line(RELOC_ADDRESS(rp) + start_of_segment,
 				state_pointer);
@@ -614,7 +630,7 @@ do_file_warnings (entry, outfile)
 			continue;
 
 		if (!(np->n_type & N_EXT) && !SET_ELEMENT_P(np->n_type)) {
-			warnx("internal error: `%s' N_EXT not set", g->name);
+			warnx("internal error: `%s' N_EXT not set", demangle(g->name));
 			continue;
 		}
 
@@ -634,7 +650,7 @@ do_file_warnings (entry, outfile)
 			if (type == (N_UNDF | N_EXT)) {
 				fprintf(stderr,
 					"Undefined symbol %s referenced from %s\n",
-					g->name,
+					demangle(g->name),
 					get_file_name(entry));
 			}
 #endif
@@ -690,7 +706,7 @@ do_file_warnings (entry, outfile)
 				warnx("%s: unexpected multiple definitions "
 				      "of symbol `%s', type %#x",
 				      get_file_name(entry),
-				      g->name, np->n_type);
+				      demangle(g->name), np->n_type);
 				break;
 			}
 
@@ -714,7 +730,7 @@ do_file_warnings (entry, outfile)
 			fprintf(outfile,
 			"%s: Undefined symbol `%s' referenced (use %s ?)\n",
 				get_file_name(entry),
-				g->name,
+				demangle(g->name),
 				g->def_lsp->entry->local_sym_name);
 			continue;
 		} else if (g->warning) {
@@ -742,7 +758,7 @@ do_file_warnings (entry, outfile)
 		if (dont_allow_symbol_name)
 			fprintf(outfile, "%s", errfmt);
 		else
-			fprintf(outfile, errfmt, g->name);
+			fprintf(outfile, errfmt, demangle(g->name));
 
 		fputc('\n', outfile);
 	}
@@ -770,7 +786,7 @@ do_warnings(outfile)
 
 	if (entry_symbol && !entry_symbol->defined)
 		fprintf(outfile, "Undefined entry symbol `%s'\n",
-			entry_symbol->name);
+			demangle(entry_symbol->name));
 
 	each_file(do_file_warnings, (void *)outfile);
 
@@ -787,4 +803,3 @@ do_warnings(outfile)
 
 	return 1;
 }
-
