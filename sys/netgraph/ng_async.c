@@ -390,7 +390,7 @@ nga_disconnect(hook_p hook)
 /*
  * Encode a byte into the async buffer
  */
-static __inline__ void
+static __inline void
 nga_async_add(const sc_p sc, u_int16_t *fcs, u_int32_t accm, int *len, u_char x)
 {
 	*fcs = PPP_FCS(*fcs, x);

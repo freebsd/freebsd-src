@@ -68,7 +68,7 @@ static ssize_t fsread(ino_t, void *, size_t);
 static int ls, dsk_meta;
 static uint32_t fs_off;
 
-static __inline__ int
+static __inline int
 fsfind(const char *name, ino_t * ino)
 {
 	char buf[DEV_BSIZE];

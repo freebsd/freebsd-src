@@ -86,7 +86,7 @@ struct pcf_softc {
 /*
  * Specific register access to PCF8584
  */
-static __inline__ void
+static __inline void
 pcf_set_S0(struct pcf_softc *sc, int data)
 {
 	bus_space_write_1(sc->res_ioport->r_bustag,
@@ -95,7 +95,7 @@ pcf_set_S0(struct pcf_softc *sc, int data)
 	pcf_nops();
 }
 
-static __inline__ void
+static __inline void
 pcf_set_S1(struct pcf_softc *sc, int data)
 {
 	bus_space_write_1(sc->res_ioport->r_bustag,
@@ -104,7 +104,7 @@ pcf_set_S1(struct pcf_softc *sc, int data)
 	pcf_nops();
 }
 
-static __inline__ char
+static __inline char
 pcf_get_S0(struct pcf_softc *sc)
 {
 	char data;
@@ -116,7 +116,7 @@ pcf_get_S0(struct pcf_softc *sc)
 	return (data);
 }
 
-static __inline__ char
+static __inline char
 pcf_get_S1(struct pcf_softc *sc)
 {
 	char data;

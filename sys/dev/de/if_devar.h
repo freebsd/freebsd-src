@@ -880,7 +880,7 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 	} while (0)
 #if defined(__i386__)
 typedef u_quad_t tulip_cycle_t;
-static __inline__ tulip_cycle_t
+static __inline tulip_cycle_t
 TULIP_PERFREAD(
     void)
 {
@@ -891,7 +891,7 @@ TULIP_PERFREAD(
 #define	TULIP_PERFDIFF(s, f)	((f) - (s))
 #elif defined(__alpha__)
 typedef unsigned long tulip_cycle_t;
-static __inline__ tulip_cycle_t
+static __inline tulip_cycle_t
 TULIP_PERFREAD(
     void)
 {

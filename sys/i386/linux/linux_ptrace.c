@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #define LINUX_DBREG_OFFSET	252
 #define LINUX_DBREG_SIZE	(8*sizeof(l_int))
 
-static __inline__ int
+static __inline int
 map_signum(int signum)
 {
 

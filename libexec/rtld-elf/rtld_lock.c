@@ -169,13 +169,13 @@ def_thread_clr_flag(int mask)
 static struct RtldLockInfo lockinfo;
 static struct RtldLockInfo deflockinfo;
 
-static __inline__ int
+static __inline int
 thread_mask_set(int mask)
 {
 	return lockinfo.thread_set_flag(mask);
 }
 
-static __inline__ void
+static __inline void
 thread_mask_clear(int mask)
 {
 	lockinfo.thread_clr_flag(mask);

@@ -596,7 +596,7 @@ malloc_pages(size_t size)
  * Allocate a page of fragments
  */
 
-static __inline__ int
+static __inline int
 malloc_make_chunks(int bits)
 {
     struct  pginfo *bp;
@@ -845,7 +845,7 @@ irealloc(void *ptr, size_t size)
  * Free a sequence of pages
  */
 
-static __inline__ void
+static __inline void
 free_pages(void *ptr, u_long index, struct pginfo const *info)
 {
     u_long i;
@@ -979,7 +979,7 @@ free_pages(void *ptr, u_long index, struct pginfo const *info)
  * Free a chunk, and possibly the page it's on, if the page becomes empty.
  */
 
-static __inline__ void
+static __inline void
 free_bytes(void *ptr, u_long index, struct pginfo *info)
 {
     int i;
