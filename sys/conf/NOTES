@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.160 1995/03/29 05:14:22 davidg Exp $
+#	$Id: LINT,v 1.161 1995/03/30 00:20:08 rgrimes Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -570,7 +570,7 @@ device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
 device sbxvi0   at isa? drq 5
 
 # SoundBlaster 16 MIDI - for SB16 - requires sb0 device
-device sbmidi0  at isa? port 0x300
+device sbmidi0  at isa? port 0x330
 
 # ProAudioSpectrum PCM and Midi - for PAS
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
