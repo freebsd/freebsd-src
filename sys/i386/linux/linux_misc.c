@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.63 1999/08/15 17:28:39 marcel Exp $
+ *  $Id: linux_misc.c,v 1.64 1999/08/16 11:49:30 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -175,7 +175,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     CHECKALTEXIST(p, &sg, args->library);
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, args->library);
+    printf("Linux-emul(%ld): uselib(%s)\n", (long)p->p_pid, args->library);
 #endif
 
     a_out = NULL;
@@ -425,8 +425,7 @@ linux_select(struct proc *p, struct linux_select_args *args)
     int error;
 
 #ifdef SELECT_DEBUG
-    printf("Linux-emul(%d): select(%x)\n",
-	   p->p_pid, args->ptr);
+    printf("Linux-emul(%ld): select(%x)\n", (long)p->p_pid, args->ptr);
 #endif
     if ((error = copyin((caddr_t)args->ptr, (caddr_t)&linux_args,
 			sizeof(linux_args))))
@@ -497,8 +496,7 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 
     error = select(p, &bsa);
 #ifdef DEBUG
-    printf("Linux-emul(%d): real select returns %d\n",
-	       p->p_pid, error);
+    printf("Linux-emul(%ld): real select returns %d\n", (long)p->p_pid, error);
 #endif
 
     if (error) {
@@ -536,8 +534,7 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 
 select_out:
 #ifdef DEBUG
-    printf("Linux-emul(%d): newselect_out -> %d\n",
-	       p->p_pid, error);
+    printf("Linux-emul(%ld): newselect_out -> %d\n", (long)p->p_pid, error);
 #endif
     return error;
 }
@@ -548,7 +545,7 @@ linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
     struct proc *curp;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): getpgid(%d)\n", p->p_pid, args->pid);
+    printf("Linux-emul(%ld): getpgid(%d)\n", (long)p->p_pid, args->pid);
 #endif
     if (args->pid != p->p_pid) {
 	if (!(curp = pfind(args->pid)))
@@ -566,7 +563,7 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): fork()\n", p->p_pid);
+    printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
 #endif
     if ((error = fork(p, (struct fork_args *)args)) != 0)
 	return error;
@@ -581,7 +578,7 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): fork()\n", p->p_pid);
+	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
 #endif
 
 	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
@@ -609,9 +606,11 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 
 #ifdef DEBUG
     if (args->flags & CLONE_PID)
-	printf("linux_clone(%d): CLONE_PID not yet supported\n", p->p_pid);
-    printf ("linux_clone(%d): invoked with flags %x and stack %x\n", p->p_pid,
-	     (unsigned int)args->flags, (unsigned int)args->stack);
+	printf("linux_clone(%ld): CLONE_PID not yet supported\n",
+	       (long)p->p_pid);
+    printf("linux_clone(%ld): invoked with flags %x and stack %x\n",
+	   (long)p->p_pid, (unsigned int)args->flags,
+	   (unsigned int)args->stack);
 #endif
 
     if (!args->stack)
@@ -647,7 +646,8 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
-    printf ("linux_clone(%d): successful rfork to %d\n", p->p_pid, p2->p_pid);
+    printf ("linux_clone(%ld): successful rfork to %ld\n",
+	    (long)p->p_pid, (long)p2->p_pid);
 #endif
     return 0;
 }
@@ -800,7 +800,7 @@ linux_pipe(struct proc *p, struct linux_pipe_args *args)
     int reg_edx;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): pipe(*)\n", p->p_pid);
+    printf("Linux-emul(%ld): pipe(*)\n", (long)p->p_pid);
 #endif
     reg_edx = p->p_retval[1];
     error = pipe(p, 0);
@@ -828,7 +828,7 @@ linux_time(struct proc *p, struct linux_time_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): time(*)\n", p->p_pid);
+    printf("Linux-emul(%ld): time(*)\n", (long)p->p_pid);
 #endif
     microtime(&tv);
     tm = tv.tv_sec;
@@ -857,7 +857,7 @@ linux_times(struct proc *p, struct linux_times_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): times(*)\n", p->p_pid);
+    printf("Linux-emul(%ld): times(*)\n", (long)p->p_pid);
 #endif
     calcru(p, &ru.ru_utime, &ru.ru_stime, NULL);
 
@@ -892,7 +892,7 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
     struct linux_newuname_t linux_newuname;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): newuname(*)\n", p->p_pid);
+    printf("Linux-emul(%ld): newuname(*)\n", (long)p->p_pid);
 #endif
     bzero(&linux_newuname, sizeof(struct linux_newuname_t));
     strncpy(linux_newuname.sysname, "Linux",
@@ -932,7 +932,7 @@ linux_utime(struct proc *p, struct linux_utime_args *args)
     CHECKALTEXIST(p, &sg, args->fname);
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): utime(%s, *)\n", p->p_pid, args->fname);
+    printf("Linux-emul(%ld): utime(%s, *)\n", (long)p->p_pid, args->fname);
 #endif
     if (args->times) {
 	if ((error = copyin(args->times, &lut, sizeof lut)))
@@ -1050,8 +1050,8 @@ linux_mknod(struct proc *p, struct linux_mknod_args *args)
 	CHECKALTCREAT(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): mknod(%s, %d, %d)\n",
-	   p->p_pid, args->path, args->mode, args->dev);
+	printf("Linux-emul(%ld): mknod(%s, %d, %d)\n",
+	   (long)p->p_pid, args->path, args->mode, args->dev);
 #endif
 
 	if (args->mode & S_IFIFO) {
@@ -1073,8 +1073,8 @@ int
 linux_personality(struct proc *p, struct linux_personality_args *args)
 {
 #ifdef DEBUG
-	printf("Linux-emul(%d): personality(%d)\n",
-	   p->p_pid, args->per);
+	printf("Linux-emul(%ld): personality(%d)\n",
+	   (long)p->p_pid, args->per);
 #endif
 	if (args->per != 0)
 		return EINVAL;
