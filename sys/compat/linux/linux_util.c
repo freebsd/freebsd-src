@@ -50,10 +50,9 @@ const char      linux_emul_path[] = "/compat/linux";
  * be in exists.
  */
 int
-linux_emul_find(td, sgp, prefix, path, pbuf, cflag)
+linux_emul_find(td, sgp, path, pbuf, cflag)
 	struct thread	 *td;
 	caddr_t		 *sgp;		/* Pointer to stackgap memory */
-	const char	 *prefix;
 	char		 *path;
 	char		**pbuf;
 	int		  cflag;
@@ -63,15 +62,16 @@ linux_emul_find(td, sgp, prefix, path, pbuf, cflag)
 	struct vattr		 vat;
 	struct vattr		 vatroot;
 	int			 error;
+	const char		*prefix;
 	char			*ptr, *buf, *cp;
 	size_t			 sz, len;
 
 	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	*pbuf = path;
 
+	prefix = linux_emul_path;
 	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
 		continue;
-
 	sz = MAXPATHLEN - (ptr - buf);
 
 	/* 
