@@ -2,10 +2,12 @@
  * This file contains routines modified from OpenBSD. Parts are contributed
  * by Todd Miller <millert@openbsd.org>, Theo De Raadt <deraadt@openbsd.org>
  * and possibly others.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
 #include <stdio.h>
 #include <opie.h>
 
