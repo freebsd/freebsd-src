@@ -291,6 +291,8 @@ static const struct ed_product {
 	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_AX88190 },
 	{ PCMCIA_CARD(BUFFALO, LPC3_CLT,  0),
 	  -1, { 0x00, 0x07, 0x40 } },
+	{ PCMCIA_CARD(BUFFALO, LPC_CF_CLT,  0),
+	  -1, { 0x00, 0x07, 0x40 } },
 	{ PCMCIA_CARD(BILLIONTON, LNT10TN, 0),
 	  -1, { 0x00, 0x00, 0x00 } },
 	{ PCMCIA_CARD(NDC, ND5100_E, 0),
