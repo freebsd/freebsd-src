@@ -1,8 +1,8 @@
 /*	$NetBSD: ld.so.script,v 1.2 2001/12/13 20:31:31 thorpej Exp $	*/
 /* $FreeBSD$ */
 
-OUTPUT_FORMAT("elf64-alpha", "elf64-alpha",
-	      "elf64-alpha")
+OUTPUT_FORMAT("elf64-alpha-freebsd", "elf64-alpha-freebsd",
+	      "elf64-alpha-freebsd")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
 /* SEARCH_DIR(/usr/lib); JRT */
