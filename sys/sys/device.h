@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id: device.h,v 1.4 1995/11/21 12:55:09 bde Exp $
+ * $Id: device.h,v 1.4.4.1 1998/05/06 19:15:38 gibbs Exp $
  */
 
 #ifndef _SYS_DEVICE_H_
@@ -57,7 +57,7 @@ enum devclass {
 	DV_DISK,		/* disk drive (label, etc) */
 	DV_IFNET,		/* network interface */
 	DV_TAPE,		/* tape device */
-	DV_TTY			/* serial line interface (???) */
+	DV_TTY			/* serial line interface (?) */
 };
 
 struct device {
