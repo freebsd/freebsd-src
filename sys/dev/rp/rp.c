@@ -695,7 +695,7 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 				rp_readmultich2(cp,sGetTxRxDataIO(cp),(u_int16_t *)rp->RxBuf,wRecv);
 			}
 			if ( ToRecv & 1 ) {
-				rp->RxBuf[(ToRecv-1)] = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
+				((unsigned char *)rp->RxBuf)[(ToRecv-1)] = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
 			}
 			tk_nin += ToRecv;
 			tk_rawcc += ToRecv;
@@ -1644,7 +1644,8 @@ rpstart(tp)
 			rp_writemultich2(cp, sGetTxRxDataIO(cp), (u_int16_t *)rp->TxBuf, wcount);
 		}
 		if ( count & 1 ) {
-			rp_writech1(cp, sGetTxRxDataIO(cp), rp->TxBuf[(count-1)]);
+			rp_writech1(cp, sGetTxRxDataIO(cp),
+				    ((unsigned char *)(rp->TxBuf))[(count-1)]);
 		}
 	}
 	rp->rp_restart = (qp->c_cc > 0) ? rp->rp_fifo_lw : 0;
