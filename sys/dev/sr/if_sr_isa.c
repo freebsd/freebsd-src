@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.20 1999/01/18 21:23:47 julian Exp $
+ * $Id: if_sr.c,v 1.21 1999/01/18 21:27:03 julian Exp $
  */
 
 /*
@@ -1275,13 +1275,6 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifp->if_flags &= ~IFF_LINK1;
 #endif
 
-		/*
-		 * Next we can handle minor protocol point(s)
-		 */
-		if (ifp->if_flags & IFF_LINK2)
-			sp->pp_flags |= PP_CISCO;
-		else
-			sp->pp_flags &= ~PP_CISCO;
 	}
 	/*
 	 * Next, we'll allow the network service layer we've called process

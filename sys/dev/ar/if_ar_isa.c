@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.23 1998/10/22 05:58:38 bde Exp $
+ * $Id: if_ar.c,v 1.24 1998/12/16 18:42:38 phk Exp $
  */
 
 /*
@@ -599,13 +599,6 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ar_softc *sc = ifp->if_softc;
 
 	TRC(printf("ar%d: arioctl.\n", ifp->if_unit);)
-
-	if(cmd == SIOCSIFFLAGS) {
-		if(ifp->if_flags & IFF_LINK2)
-			sp->pp_flags |= PP_CISCO;
-		else
-			sp->pp_flags &= ~PP_CISCO;
-	}
 
 	was_up = ifp->if_flags & IFF_RUNNING;
 
