@@ -40,20 +40,10 @@
 #ifndef	_MACHINE_PV_H_
 #define	_MACHINE_PV_H_
 
-extern uma_zone_t pvzone;
-extern struct vm_object pvzone_obj;
-extern int pv_entry_count;
-extern int pv_entry_max;
-extern int pv_entry_high_water;
-extern struct pv_entry *pvinit;
+struct tte;
 
-void *pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
-pv_entry_t pv_alloc(void);
-void pv_free(pv_entry_t pv);
-
-void pv_insert(pmap_t pm, vm_page_t m, vm_offset_t va);
-pv_entry_t pv_lookup(pmap_t pm, vm_page_t m, vm_offset_t va);
-void pv_remove(pmap_t pm, vm_page_t m, vm_offset_t va);
+void pv_insert(pmap_t pm, vm_page_t m, struct tte *tp);
+void pv_remove(pmap_t pm, vm_page_t m, struct tte *tp);
 int pv_page_exists(pmap_t pm, vm_page_t m);
 void pv_remove_all(vm_page_t m);
 
