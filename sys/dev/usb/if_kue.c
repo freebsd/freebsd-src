@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
  * the development of this driver.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
