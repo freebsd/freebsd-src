@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.3 1998/05/01 08:39:27 dfr Exp $
+ *      $Id: rtld.c,v 1.4 1998/09/02 01:09:34 jdp Exp $
  */
 
 /*
@@ -81,6 +81,8 @@ static const Elf32_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, bool);
 static void init_rtld(caddr_t);
 static bool is_exported(const Elf32_Sym *);
+static void linkmap_add(Obj_Entry *);
+static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static Obj_Entry *load_object(char *);
 static Obj_Entry *obj_from_addr(const void *);
@@ -90,11 +92,9 @@ static char *search_library_path(const char *, const char *);
 static const Elf32_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
 static void unref_object_dag(Obj_Entry *);
-void r_debug_state(void);
-static void linkmap_add(Obj_Entry *);
-static void linkmap_delete(Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *obj);
 
+void r_debug_state(void);
 void xprintf(const char *, ...);
 
 #ifdef DEBUG
@@ -1284,6 +1284,54 @@ dlsym(void *handle, const char *name)
     return NULL;
 }
 
+static void
+linkmap_add(Obj_Entry *obj)
+{
+    struct link_map *l = &obj->linkmap;
+    struct link_map *prev;
+
+    obj->linkmap.l_name = obj->path;
+    obj->linkmap.l_addr = obj->mapbase;
+    obj->linkmap.l_ld = obj->dynamic;
+#ifdef __mips__
+    /* GDB needs load offset on MIPS to use the symbols */
+    obj->linkmap.l_offs = obj->relocbase;
+#endif
+
+    if (r_debug.r_map == NULL) {
+	r_debug.r_map = l;
+	return;
+    }
+    
+    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
+	;
+    l->l_prev = prev;
+    prev->l_next = l;
+    l->l_next = NULL;
+}
+
+static void
+linkmap_delete(Obj_Entry *obj)
+{
+    struct link_map *l = &obj->linkmap;
+
+    if (l->l_prev == NULL) {
+	if ((r_debug.r_map = l->l_next) != NULL)
+	    l->l_next->l_prev = NULL;
+	return;
+    }
+
+    if ((l->l_prev->l_next = l->l_next) != NULL)
+	l->l_next->l_prev = l->l_prev;
+}
+
+/*
+ * Function for the debugger to set a breakpoint on to gain control.
+ */
+void
+r_debug_state(void)
+{
+}
 
 /*
  * Search the symbol table of a single shared object for a symbol of
@@ -1320,80 +1368,7 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 }
 
 static void
-unref_object_dag(Obj_Entry *root)
-{
-    assert(root->refcount != 0);
-    root->refcount--;
-    if (root->refcount == 0) {
-	const Needed_Entry *needed;
-
-	for (needed = root->needed;  needed != NULL;  needed = needed->next)
-	    unref_object_dag(needed->obj);
-    }
-}
-
-/*
- * Non-mallocing printf, for use by malloc itself.
- * XXX - This doesn't belong in this module.
- */
-void
-xprintf(const char *fmt, ...)
-{
-    char buf[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    (void)write(1, buf, strlen(buf));
-    va_end(ap);
-}
-
-void
-r_debug_state(void)
-{
-}
-
-static void
-linkmap_add(Obj_Entry *obj)
-{
-    struct link_map *l = &obj->linkmap;
-    struct link_map *prev;
-
-    obj->linkmap.l_name = obj->path;
-    obj->linkmap.l_addr = obj->mapbase;
-    obj->linkmap.l_ld = obj->dynamic;
-#ifdef __mips__
-    /* GDB needs load offset on MIPS to use the symbols */
-    obj->linkmap.l_offs = obj->relocbase;
-#endif
-
-    if (r_debug.r_map == NULL) {
-	r_debug.r_map = l;
-	return;
-    }
-    
-    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
-	;
-    l->l_prev = prev;
-    prev->l_next = l;
-    l->l_next = NULL;
-}
-
-void linkmap_delete(Obj_Entry *obj)
-{
-    struct link_map *l = &obj->linkmap;
-
-    if (l->l_prev == NULL) {
-	if ((r_debug.r_map = l->l_next) != NULL)
-	    l->l_next->l_prev = NULL;
-	return;
-    }
-
-    if ((l->l_prev->l_next = l->l_next) != NULL)
-	l->l_next->l_prev = l->l_prev;
-}
-
-void trace_loaded_objects(Obj_Entry *obj)
+trace_loaded_objects(Obj_Entry *obj)
 {
     char	*fmt1, *fmt2, *fmt, *main_local;
     int		c;
@@ -1481,4 +1456,33 @@ void trace_loaded_objects(Obj_Entry *obj)
 	    }
 	}
     }
+}
+
+static void
+unref_object_dag(Obj_Entry *root)
+{
+    assert(root->refcount != 0);
+    root->refcount--;
+    if (root->refcount == 0) {
+	const Needed_Entry *needed;
+
+	for (needed = root->needed;  needed != NULL;  needed = needed->next)
+	    unref_object_dag(needed->obj);
+    }
+}
+
+/*
+ * Non-mallocing printf, for use by malloc itself.
+ * XXX - This doesn't belong in this module.
+ */
+void
+xprintf(const char *fmt, ...)
+{
+    char buf[256];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    (void)write(1, buf, strlen(buf));
+    va_end(ap);
 }
