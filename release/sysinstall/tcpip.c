@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.21 1997/09/17 13:33:36 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.22 1997/09/17 16:35:38 pst Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -132,7 +132,7 @@ verifySettings(void)
 {
     if (!hostname[0])
 	feepout("Must specify a host name of some sort!");
-    else if (gateway[0] && !verifyIP(gateway))
+    else if (gateway[0] && strcmp(gateway, "NO") && !verifyIP(gateway))
 	feepout("Invalid gateway IP address specified");
     else if (nameserver[0] && !verifyIP(nameserver))
 	feepout("Invalid name server IP address specified");
