@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.19 1994/04/14 07:49:40 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.20 1994/04/20 07:06:20 davidg Exp $
  */
 
 #include "npx.h"
@@ -594,14 +594,12 @@ cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 
 insert:
 
-#if 0
 	/*
 	 * read clustering with new read-ahead disk drives hurts mostly, so
 	 * we don't bother...
 	 */
 	if( bp->b_flags & B_READ)
 		goto nocluster;
-#endif
 	/*
 	 * we currently only cluster I/O transfers that are at page-aligned
 	 * kvas and transfers that are multiples of page lengths.
@@ -828,6 +826,25 @@ nocluster:
 
 	ap->av_forw = bp;
 	bp->av_back = ap;
+}
+
+/*
+ * quick version of vm_fault
+ */
+
+void
+vm_fault_quick( v, prot)
+	vm_offset_t v;
+	int prot;
+{
+	if( (cpu_class == CPUCLASS_386) &&
+		(prot & VM_PROT_WRITE))
+		vm_fault(&curproc->p_vmspace->vm_map, v,
+			VM_PROT_READ|VM_PROT_WRITE, FALSE);
+	else if( prot & VM_PROT_WRITE)
+		*(volatile char *)v += 0;
+	else
+		*(volatile char *)v;
 }
 
 
