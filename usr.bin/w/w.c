@@ -383,7 +383,7 @@ pr_header(nowp, nusers)
 	}
 
 	/* Print number of users logged in to system */
-	(void)printf(" %d user%s", nusers, nusers > 1 ? "s" : "");
+	(void)printf(" %d user%s", nusers, nusers == 1 ? "" : "s");
 
 	/*
 	 * Print 1, 5, and 15 minute load averages.
