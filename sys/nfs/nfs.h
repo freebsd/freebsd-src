@@ -326,8 +326,10 @@ struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
  * such as SIGALRM will not expect file I/O system calls to be interrupted
  * by them and break.
  */
-#define	NFSINT_SIGMASK	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGKILL)| \
-			 sigmask(SIGHUP)|sigmask(SIGQUIT))
+#define	NFSINT_SIGMASK(set) 						\
+	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
+	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
+	 SIGISMEMBER(set, SIGQUIT))
 
 /*
  * Socket errors ignored for connectionless sockets??

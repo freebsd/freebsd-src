@@ -192,7 +192,7 @@ procfs_control(curp, p, op)
 		p->p_flag &= ~P_TRACED;
 
 		/* remove pending SIGTRAP, else the process will die */
-		p->p_siglist &= ~sigmask (SIGTRAP);
+		SIGDELSET(p->p_siglist, SIGTRAP);
 
 		/* give process back to original parent */
 		if (p->p_oppid != p->p_pptr->p_pid) {
