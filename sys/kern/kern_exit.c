@@ -610,7 +610,7 @@ loop:
 			if (status)
 				*status = p->p_xstat;	/* convert to int */
 			if (rusage) {
-				bcopy(p->p_ru, rusage, sizeof(struct rusage));
+				*rusage = *p->p_ru;
 				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
 			}
 
