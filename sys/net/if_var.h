@@ -69,6 +69,7 @@
 struct	mbuf;
 struct	thread;
 struct	rtentry;
+struct	rt_addrinfo;
 struct	socket;
 struct	ether_header;
 #endif
@@ -327,7 +328,7 @@ struct ifaddr {
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
-		__P((int, struct rtentry *, struct sockaddr *));
+		__P((int, struct rtentry *, struct rt_addrinfo *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	u_int	ifa_refcnt;		/* references to this structure */
 	int	ifa_metric;		/* cost of going out this interface */
