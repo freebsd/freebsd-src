@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.39 1998/03/28 10:33:08 bde Exp $
+ *	$Id: uipc_socket.c,v 1.40 1998/05/15 20:11:30 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -491,6 +491,7 @@ restart:
 				mlen = MCLBYTES;
 				len = min(min(mlen, resid), space);
 			} else {
+				atomic = 1;
 nopages:
 				len = min(min(mlen, resid), space);
 				/*
