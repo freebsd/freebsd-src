@@ -612,6 +612,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	struct tty *tp;
 	struct session *sp;
 	struct timeval tv;
+	struct ucred *cred;
 	struct sigacts *ps;
 
 	p = td->td_proc;
@@ -632,19 +633,20 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 #endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
-	if (p->p_ucred) {
-		kp->ki_uid = p->p_ucred->cr_uid;
-		kp->ki_ruid = p->p_ucred->cr_ruid;
-		kp->ki_svuid = p->p_ucred->cr_svuid;
+	cred = p->p_ucred;
+	if (cred) {
+		kp->ki_uid = cred->cr_uid;
+		kp->ki_ruid = cred->cr_ruid;
+		kp->ki_svuid = cred->cr_svuid;
 		/* XXX bde doesn't like KI_NGROUPS */
-		kp->ki_ngroups = min(p->p_ucred->cr_ngroups, KI_NGROUPS);
-		bcopy(p->p_ucred->cr_groups, kp->ki_groups,
+		kp->ki_ngroups = min(cred->cr_ngroups, KI_NGROUPS);
+		bcopy(cred->cr_groups, kp->ki_groups,
 		    kp->ki_ngroups * sizeof(gid_t));
-		kp->ki_rgid = p->p_ucred->cr_rgid;
-		kp->ki_svgid = p->p_ucred->cr_svgid;
+		kp->ki_rgid = cred->cr_rgid;
+		kp->ki_svgid = cred->cr_svgid;
 	}
-	if (p->p_sigacts) {
-		ps = p->p_sigacts;
+	ps = p->p_sigacts;
+	if (ps) {
 		mtx_lock(&ps->ps_mtx);
 		kp->ki_sigignore = ps->ps_sigignore;
 		kp->ki_sigcatch = ps->ps_sigcatch;
@@ -752,7 +754,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_childtime = kp->ki_childstime;
 		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 	}
-	sp = NULL;
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
