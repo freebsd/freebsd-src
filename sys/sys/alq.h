@@ -34,6 +34,9 @@
  */
 struct alq;
 
+/* The thread for the logging daemon */
+extern struct thread *ald_thread;
+
 /*
  * Async. Logging Entry
  */

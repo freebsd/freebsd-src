@@ -74,8 +74,9 @@ static MALLOC_DEFINE(M_ALD, "ALD", "ALD");
 static struct mtx ald_mtx;
 static LIST_HEAD(, alq) ald_queues;
 static LIST_HEAD(, alq) ald_active;
-static struct proc *ald_thread;
 static int ald_shutingdown = 0;
+struct thread *ald_thread;
+static struct proc *ald_proc;
 
 #define	ALD_LOCK()	mtx_lock(&ald_mtx)
 #define	ALD_UNLOCK()	mtx_unlock(&ald_mtx)
@@ -170,6 +171,8 @@ ald_daemon(void)
 
 	mtx_lock(&Giant);
 
+	ald_thread = FIRST_THREAD_IN_PROC(ald_proc);
+
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, ald_shutdown, NULL,
 	    SHUTDOWN_PRI_FIRST);
 
@@ -224,7 +227,7 @@ alq_shutdown(struct alq *alq)
 	}
 	ALQ_UNLOCK(alq);
 
-	vn_close(alq->aq_vp, FREAD|FWRITE, alq->aq_cred,
+	vn_close(alq->aq_vp, FWRITE, alq->aq_cred,
 	    curthread);
 	crfree(alq->aq_cred);
 }
@@ -310,7 +313,7 @@ alq_doio(struct alq *alq)
 static struct kproc_desc ald_kp = {
         "ALQ Daemon",
         ald_daemon,
-        &ald_thread
+        &ald_proc
 };
 
 SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp)
@@ -339,7 +342,7 @@ alq_open(struct alq **alqp, const char *file, int size, int count)
 	td = curthread;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
-	flags = FREAD | FWRITE | O_NOFOLLOW | O_CREAT;
+	flags = FWRITE | O_NOFOLLOW | O_CREAT;
 
 	error = vn_open(&nd, &flags, 0);
 	if (error)
