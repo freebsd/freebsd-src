@@ -192,12 +192,12 @@ ${OBJS} beforedepend: ${COMMONHDRS}
 ${OBJS_T}: libgcc2.c
 	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 
-.if !defined(NOPIC)
+.if !defined(NO_PIC)
 ${OBJS_S}: libgcc2.c
 	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 ${OBJS_P}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif
@@ -208,13 +208,13 @@ ${ASM_T}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
 
-.if !defined(NOPIC)
+.if !defined(NO_PIC)
 ${ASM_S}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
 .endif
 
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 ${ASM_P}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -p -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}

@@ -53,9 +53,9 @@
 #
 # MAKEINFOFLAGS		Options for ${MAKEINFO} command. [--no-split]
 #
-# NOINFO	Do not make or install info files. [not set]
+# NO_INFO	Do not make or install info files. [not set]
 #
-# NOINFOCOMPRESS	If you do not want info files be
+# NO_INFOCOMPRESS	If you do not want info files be
 #			compressed when they are installed. [not set]
 #
 # TEX		A program for converting tex files into dvi files [tex]
@@ -123,9 +123,9 @@ DVIPS2ASCII?=	dvips2ascii
 IFILENS+=	${INFO:S/$/.${_f}/}
 .endfor
 
-.if !defined(NOINFO)
+.if !defined(NO_INFO)
 CLEANFILES+=	${IFILENS}
-.if !defined(NOINFOCOMPRESS)
+.if !defined(NO_INFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
 IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
 all: ${IFILES}
@@ -171,7 +171,7 @@ CLEANFILES+=	${INFO:S/$/-la.texi/}
 CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
 
-.if !defined(NOINFO) && defined(INFO)
+.if !defined(NO_INFO) && defined(INFO)
 install: ${INSTALLINFODIRS}
 .if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \

@@ -19,7 +19,7 @@
 #
 # MACROS	Macro packages used to build the document.  [not set]
 #
-# NODOCCOMPRESS	If you do not want formatted troff documents to be
+# NO_DOCCOMPRESS If you do not want formatted troff documents to be
 #		compressed when they are installed.  [not set]
 #
 # PRINTERDEVICE	Indicates which output formats will be generated
@@ -87,7 +87,7 @@ DCOMPRESS_CMD?=	${COMPRESS_CMD}
 DFILE.html=	${DOC}.html
 .endfor
 .for _dev in ${PRINTERDEVICE:Nhtml}
-.if defined(NODOCCOMPRESS)
+.if defined(NO_DOCCOMPRESS)
 DFILE.${_dev}=	${DOC}.${_dev}
 .else
 DFILE.${_dev}=	${DOC}.${_dev}${DCOMPRESS_EXT}
@@ -119,7 +119,7 @@ print: ${DFILE.${_dev}}
 .endfor
 print:
 .for _dev in ${PRINTERDEVICE}
-.if defined(NODOCCOMPRESS)
+.if defined(NO_DOCCOMPRESS)
 	${LPR} ${DFILE.${_dev}}
 .else
 	${DCOMPRESS_CMD} -d ${DFILE.${_dev}} | ${LPR}
@@ -166,7 +166,7 @@ CLEANFILES+=	_stamp.extra
 ${DFILE.${_dev}}: _stamp.extra
 .endif
 ${DFILE.${_dev}}: ${SRCS}
-.if defined(NODOCCOMPRESS)
+.if defined(NO_DOCCOMPRESS)
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
 .else
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}

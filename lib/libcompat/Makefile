@@ -3,7 +3,7 @@
 
 LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
-NOPIC=
+NO_PIC=
 
 .PATH:	${.CURDIR}/4.1/${MACHINE_ARCH} ${.CURDIR}/4.1 \
 	${.CURDIR}/4.3/${MACHINE_ARCH} ${.CURDIR}/4.3 \
