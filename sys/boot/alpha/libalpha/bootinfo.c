@@ -72,7 +72,7 @@ bi_copyenv(vm_offset_t addr)
  * used as a directory for loaded modules.
  *
  * Module data is presented in a self-describing format.  Each datum
- * is preceeded by a 32-bit identifier and a 32-bit size field.
+ * is preceded by a 32-bit identifier and a 32-bit size field.
  *
  * Currently, the following data are saved:
  *
