@@ -132,6 +132,20 @@ if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 		sh ${diskless_mount}
 fi
 
+# Recover some entropy so the rebooting /dev/random can reseed
+#
+case ${entropy_file} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -f ${entropy_file} -a -r ${entropy_file} ] ; then
+		echo -n "Reading entropy file"
+		cat ${entropy_file} > /dev/random
+		rm -f ${entropy_file}
+	fi
+	;;
+esac
+
 adjkerntz -i
 
 clean_var() {
