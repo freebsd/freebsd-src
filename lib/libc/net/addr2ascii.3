@@ -39,8 +39,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
-.In netinet/in.h
 .In arpa/inet.h
 .Ft "char *"
 .Fn addr2ascii "int af" "const void *addrp" "int len" "char *buf"
@@ -111,7 +109,7 @@ addresses in the specified family:
 .It Dv AF_INET
 .Li struct in_addr
 (in
-.In netinet/in.h )
+.In arpa/inet.h )
 .It Dv AF_LINK
 .Li struct sockaddr_dl
 (in
@@ -121,6 +119,9 @@ addresses in the specified family:
 .\" (in
 .\" .In netinet6/in6.h )
 .El
+.Pp
+.Dv AF_INET and AF_LINK constants are defined in
+.In sys/socket.h
 .Sh RETURN VALUES
 The
 .Fn addr2ascii
@@ -140,9 +141,7 @@ and
 .Fn inet_aton
 could be implemented thusly:
 .Bd -literal -offset indent
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 
 char *
