@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.39 1998/04/19 03:40:59 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.40 1998/04/19 23:08:24 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -34,7 +34,6 @@
 
 #include <fcntl.h>
 #include <resolv.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
@@ -373,6 +372,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->my_ifip.s_addr = INADDR_ANY;
   ipcp->peer_ifip.s_addr = INADDR_ANY;
 
+  throughput_init(&ipcp->throughput);
   ipcp_Setup(ipcp);
 }
 
@@ -431,6 +431,7 @@ ipcp_Setup(struct ipcp *ipcp)
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
 
+  throughput_stop(&ipcp->throughput);
   throughput_init(&ipcp->throughput);
 }
 

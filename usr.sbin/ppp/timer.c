@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.6 1998/04/18 23:17:26 brian Exp $
+ * $Id: timer.c,v 1.27.2.7 1998/04/19 23:09:03 brian Exp $
  *
  *  TODO:
  */
@@ -69,9 +69,9 @@ StartTimer(struct pppTimer * tp)
 
   omask = sigblock(sigmask(SIGALRM));
 
-  if (tp->state != TIMER_STOPPED) {
+  if (tp->state != TIMER_STOPPED)
     StopTimerNoBlock(tp);
-  }
+
   if (tp->load == 0) {
     LogPrintf(LogDEBUG, "%s timer[%p] has 0 load!\n", tp->name, tp);
     sigsetmask(omask);
@@ -114,9 +114,9 @@ StopTimerNoBlock(struct pppTimer * tp)
   struct pppTimer *t, *pt;
 
   /*
-   * A Running Timer should be removing TimerList, But STOPPED/EXPIRED is
-   * already removing TimerList. So just marked as TIMER_STOPPED. Do not
-   * change tp->enext!! (Might be Called by expired proc)
+   * A RUNNING timer must be removed from TimerList (->next list).
+   * A STOPPED timer isn't in any list, but may have a bogus [e]next field.
+   * An EXPIRED timer is in the ->enext list.
    */
   if (tp->state != TIMER_RUNNING) {
     tp->next = NULL;

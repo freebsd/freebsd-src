@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.53 1998/04/19 23:08:46 brian Exp $
+ * $Id: modem.c,v 1.77.2.54 1998/04/20 00:20:37 brian Exp $
  *
  *  TODO:
  */
@@ -131,9 +131,6 @@ modem_Create(struct datalink *dl, int type)
   p->cfg.parity = CS8;
   strncpy(p->cfg.devlist, MODEM_LIST, sizeof p->cfg.devlist - 1);
   p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
-
-  hdlc_Init(&p->hdlc);
-  async_Init(&p->async);
 
   lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
   ccp_Init(&p->link.ccp, dl->bundle, &p->link, &dl->fsmp);

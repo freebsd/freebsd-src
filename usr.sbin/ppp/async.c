@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.11 1998/04/07 00:53:17 brian Exp $
+ * $Id: async.c,v 1.15.2.12 1998/04/19 01:18:51 brian Exp $
  *
  */
 #include <sys/types.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 
