@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/aac/aac_compat.h>
 #include <dev/aac/aacreg.h>
-#include <dev/aac/aac_ioctl.h>
+#include <sys/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 #ifdef AAC_DEBUG
