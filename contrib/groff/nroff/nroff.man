@@ -15,6 +15,9 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
+
+	$FreeBSD$
+
 ..
 .TH @G@NROFF @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
@@ -37,7 +40,13 @@ the original English.
 .BI \-o list
 ]
 [
+.BI \-p
+]
+[
 .BI \-r cn
+]
+[
+.BI \-t
 ]
 [
 .BI \-T name
@@ -71,9 +80,11 @@ The
 .BR \-i ,
 .BR \-n ,
 .BR \-m ,
-.B \-o
-and
+.BR \-p ,
+.BR \-o ,
 .B \-r
+and
+.B \-t
 options have the effect described in
 .BR @g@troff (@MAN1EXT@).
 In addition
