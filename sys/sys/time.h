@@ -282,18 +282,47 @@ struct clockinfo {
 #ifdef _KERNEL
 extern time_t	time_second;
 
+/*-
+ * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
+ *
+ * Functions without the "get" prefix returns the best timestamp
+ * we can produce in the given format.
+ *
+ * "bin"   == struct bintime  == seconds + 64 bit fraction of seconds.
+ * "nano"  == struct timespec == seconds + nanoseconds.
+ * "micro" == struct timeval  == seconds + microseconds.
+ *              
+ * Functions containing "up" returns time relative to boot and
+ * should be used for calculating time intervals.
+ *
+ * Functions without "up" returns GMT time.
+ *
+ * Functions with the "get" prefix returns a less precise result
+ * much faster than the functions without "get" prefix and should
+ * be used where a precision of 10 msec is acceptable or where
+ * performance is priority. (NB: "precision", _not_ "resolution" !) 
+ * 
+ */
+
 void	binuptime(struct bintime *bt);
+void	nanouptime(struct timespec *ts);
+void	microuptime(struct timeval *tv);
+
 void	bintime(struct bintime *bt);
-void	getmicrouptime(struct timeval *tv);
-void	getmicrotime(struct timeval *tv);
+void	nanotime(struct timespec *ts);
+void	microtime(struct timeval *tv);
+
+void	getbinuptime(struct bintime *bt);
 void	getnanouptime(struct timespec *tsp);
+void	getmicrouptime(struct timeval *tv);
+
+void	getbintime(struct bintime *bt);
 void	getnanotime(struct timespec *tsp);
+void	getmicrotime(struct timeval *tv);
+
+/* other prototypes */
 int	itimerdecr(struct itimerval *itp, int usec);
 int	itimerfix(struct timeval *tv);
-void	microuptime(struct timeval *tv);
-void	microtime(struct timeval *tv);
-void	nanouptime(struct timespec *ts);
-void	nanotime(struct timespec *ts);
 void	timevaladd(struct timeval *, struct timeval *);
 void	timevalsub(struct timeval *, struct timeval *);
 int	tvtohz(struct timeval *);
