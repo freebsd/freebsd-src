@@ -33,6 +33,8 @@
 .Nm uu_unlock ,
 .Nm uu_lockerr
 .Nd acquire and release control of a serial device
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
@@ -44,12 +46,6 @@
 .Fn uu_unlock "const char *ttyname"
 .Ft const char *
 .Fn uu_lockerr "int uu_lockresult"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The
 .Fn uu_lock

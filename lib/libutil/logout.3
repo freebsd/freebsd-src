@@ -31,17 +31,13 @@
 .Sh NAME
 .Nm logout
 .Nd remove an entry from the utmp file
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft int
 .Fn logout "char *line"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn logout

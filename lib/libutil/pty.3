@@ -32,6 +32,8 @@
 .Nm openpty , 
 .Nm forkpty
 .Nd auxiliary functions to obtain a pseudo-terminal
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/ioctl.h>
@@ -41,12 +43,6 @@
 .Fn openpty "int *amaster" "int *aslave" "char *name" "struct termios *termp" "struct winsize *winp"
 .Ft int
 .Fn forkpty "int *amaster" "char *name" "struct termios *termp" "struct winsize *winp"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn openpty

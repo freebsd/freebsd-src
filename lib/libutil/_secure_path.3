@@ -25,17 +25,13 @@
 .Sh NAME
 .Nm _secure_path
 .Nd determine if a file appears to be secure
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft int
 .Fn _secure_path "const char *path" "uid_t uid" "gid_t gid"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 This function does some basic security checking on a given path.
 It is intended to be used by processes running with root privileges
@@ -71,7 +67,7 @@ to eliminate race conditions between use of this function and
 access to the file referenced.
 .Sh SEE ALSO
 .Xr lstat 2 ,
-.Xr syslog 3 .
+.Xr syslog 3
 .Sh HISTORY
 Code from which this function was derived was contributed to the
 .Fx
