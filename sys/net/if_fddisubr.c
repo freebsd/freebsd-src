@@ -97,7 +97,6 @@ static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		       struct rtentry *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
-
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	{ error = (e); goto bad; }
 
@@ -137,7 +136,6 @@ fddi_output(ifp, m, dst, rt0)
 		goto bad;
 
 	switch (dst->sa_family) {
-
 #ifdef INET
 	case AF_INET: {
 		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
@@ -145,7 +143,7 @@ fddi_output(ifp, m, dst, rt0)
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
-#endif
+#endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
@@ -154,14 +152,14 @@ fddi_output(ifp, m, dst, rt0)
 		}
 		type = htons(ETHERTYPE_IPV6);
 		break;
-#endif
+#endif /* INET6 */
 #ifdef IPX
 	case AF_IPX:
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, FDDI_ADDR_LEN);
 		break;
-#endif
+#endif /* IPX */
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
@@ -267,9 +265,10 @@ fddi_output(ifp, m, dst, rt0)
 		l = mtod(m, struct llc *);
 		l->llc_control = LLC_UI;
 		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
-		l->llc_snap.org_code[0] = l->llc_snap.org_code[1] = l->llc_snap.org_code[2] = 0;
-		bcopy((caddr_t)&type, (caddr_t)&l->llc_snap.ether_type,
-			sizeof(u_int16_t));
+		l->llc_snap.org_code[0] =
+			l->llc_snap.org_code[1] =
+			l->llc_snap.org_code[2] = 0;
+		l->llc_snap.ether_type = htons(type);
 	}
 
 	/*
@@ -400,7 +399,8 @@ fddi_input(ifp, m)
 	case LLC_SNAP_LSAP:
 	{
 		u_int16_t type;
-		if (l->llc_control != LLC_UI || l->llc_ssap != LLC_SNAP_LSAP) {
+		if ((l->llc_control != LLC_UI) ||
+		    (l->llc_ssap != LLC_SNAP_LSAP)) {
 			ifp->if_noproto++;
 			goto dropanyway;
 		}
