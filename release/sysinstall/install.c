@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.8 1999/04/24 02:02:28 jkh Exp $
+ * $Id: install.c,v 1.223.2.9 1999/04/28 06:58:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -752,21 +752,12 @@ installFixupBin(dialogMenuItem *self)
 			       "to it.  See the debug screen (ALT-F2) for details.");
 		}
 		else {
-		    if (!file_readable("/boot/loader.rc")) {
-			FILE *fp;
+		    FILE *fp;
 
-			if ((fp = fopen("/boot/loader.rc", "w")) != NULL) {
-			     fprintf(fp, "load /kernel\n");
-			     fprintf(fp, "load -t userconfig_script /boot/kernel.conf\n");
-			     fprintf(fp, "autoboot 5\n");
-			     fclose(fp);
-			}
-		    }
-		    else {
-			msgConfirm("You already have a /boot/loader.rc file so I won't touch it.\n"
-				   "You will need to add a: load -t userconfig_script /boot/kernel.conf\n"
-				   "line to your /boot/loader.rc before your saved kernel changes\n"
-				   "(if any) can go into effect.");
+		    if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
+			fprintf(fp, "# -- sysinstall generated deltas -- #\n");
+			fprintf(fp, "userconfig_script_load=\"YES\"\n");
+		 	fclose(fp);
 		    }
 		}
 #endif
