@@ -1018,7 +1018,7 @@ sdio(struct buf *bp)
 int
 vinum_bounds_check(struct buf *bp, struct volume *vol)
 {
-    int maxsize = vol->size;				    /* size of the partition (sectors) */
+    int64_t maxsize = vol->size;			    /* size of the partition (sectors) */
     int size = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT; /* size of this request (sectors) */
 
 #ifdef LABELSECTOR
