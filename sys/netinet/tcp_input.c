@@ -162,8 +162,8 @@ do { \
  *		- this is a half-synchronized T/TCP connection.
  */
 #define DELAY_ACK(tp)							\
-	(((!callout_active(tp->tt_delack) &&				\
-	    (tp->t_flags & TF_RXWIN0SENT) == 0)) &&			\
+	((!callout_active(tp->tt_delack) &&				\
+	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
 	    (tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 static int
@@ -888,7 +888,7 @@ findpcb:
 			if (thflags & TH_FIN || tlen != 0)
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else 
-				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
+				tp->t_flags |= TF_ACKNOW;
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			goto trimthenstep6;
@@ -1059,8 +1059,7 @@ after_listen:
 				sowwakeup(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
-				INP_UNLOCK(inp);
-				return;
+				goto check_delack;
 			}
 		} else if (th->th_ack == tp->snd_una &&
 		    LIST_EMPTY(&tp->t_segq) &&
@@ -1104,8 +1103,7 @@ after_listen:
 				tp->t_flags |= TF_ACKNOW;
 				tcp_output(tp);
 			}
-			INP_UNLOCK(inp);
-			return;
+			goto check_delack;
 		}
 	}
 
@@ -2210,7 +2208,8 @@ dodata:							/* XXX */
 	 */
 	if (needoutput || (tp->t_flags & TF_ACKNOW))
 		(void) tcp_output(tp);
-	else if (tp->t_flags & TF_DELACK) {
+check_delack:
+	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
 		KASSERT(!callout_active(tp->tt_delack),
 		    ("delayed ack already active"));
