@@ -81,7 +81,11 @@ typedef int	bool;
      */
 long	hz;
 
+#ifdef GPROF4
+typedef	unsigned int UNIT;
+#else
 typedef	u_short UNIT;		/* unit of profiling */
+#endif
 char	*a_outname;
 #define	A_OUTNAME		"a.out"
 
