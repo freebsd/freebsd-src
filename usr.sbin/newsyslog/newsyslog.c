@@ -140,9 +140,9 @@ static int parse_doption(const char *doption);
 static void usage(void);
 static void dotrim(const struct conf_entry *ent, char *log,
 		int numdays, int flags);
-static int log_trim(const char *log, const struct conf_entry *log_ent);
-static void compress_log(char *log, int dowait);
-static void bzcompress_log(char *log, int dowait);
+static int log_trim(const char *logname, const struct conf_entry *log_ent);
+static void compress_log(char *logname, int dowait);
+static void bzcompress_log(char *logname, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static int send_signal(const struct conf_entry *ent);
@@ -1448,12 +1448,12 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 
 /* Log the fact that the logs were turned over */
 static int
-log_trim(const char *log, const struct conf_entry *log_ent)
+log_trim(const char *logname, const struct conf_entry *log_ent)
 {
 	FILE *f;
 	const char *xtra;
 
-	if ((f = fopen(log, "a")) == NULL)
+	if ((f = fopen(logname, "a")) == NULL)
 		return (-1);
 	xtra = "";
 	if (log_ent->def_cfg)
@@ -1474,14 +1474,14 @@ log_trim(const char *log, const struct conf_entry *log_ent)
 
 /* Fork of gzip to compress the old log file */
 static void
-compress_log(char *log, int dowait)
+compress_log(char *logname, int dowait)
 {
 	pid_t pid;
 	char tmp[MAXPATHLEN];
 
 	while (dowait && (wait(NULL) > 0 || errno == EINTR))
 		;
-	(void) snprintf(tmp, sizeof(tmp), "%s.0", log);
+	(void) snprintf(tmp, sizeof(tmp), "%s.0", logname);
 	pid = fork();
 	if (pid < 0)
 		err(1, "gzip fork");
@@ -1493,14 +1493,14 @@ compress_log(char *log, int dowait)
 
 /* Fork of bzip2 to compress the old log file */
 static void
-bzcompress_log(char *log, int dowait)
+bzcompress_log(char *logname, int dowait)
 {
 	pid_t pid;
 	char tmp[MAXPATHLEN];
 
 	while (dowait && (wait(NULL) > 0 || errno == EINTR))
 		;
-	snprintf(tmp, sizeof(tmp), "%s.0", log);
+	snprintf(tmp, sizeof(tmp), "%s.0", logname);
 	pid = fork();
 	if (pid < 0)
 		err(1, "bzip2 fork");
