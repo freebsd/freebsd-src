@@ -20,10 +20,8 @@
  * SUCH DAMAGE.
  */
 
-#define FE_MB86960_H_VERSION "mb86960.h ver. 0.8"
-
 /*
- * Registers of Fujitsu MB86960A/MB86965A Ethernet controller.
+ * Registers of Fujitsu MB86960A/MB86965A series Ethernet controllers.
  * Written and contributed by M.S. <seki@sysrap.cs.fujitsu.co.jp>
  */
 
@@ -84,7 +82,7 @@
 #define FE_BMPR14	14
 #define FE_BMPR15	15
 
-/* More BMPRs, only on MB86965A, accessible only when JLI mode.  */
+/* More BMPRs, only on 86965, accessible only when JLI mode.  */
 #define FE_BMPR16	16
 #define FE_BMPR17	17
 #define FE_BMPR18	18
@@ -96,16 +94,20 @@
  * know the official names for each flags and fields.  The following
  * names are assigned by me (the author of this file,) since I cannot
  * mnemorize hexadecimal constants for all of these functions.
- * Comments?  FIXME.
+ * Comments?
+ *
+ * I've got documents from Fujitsu web site, recently.  However, it's
+ * too late.  Names for some fields (bits) are kept different from
+ * those used in the Fujitsu documents...
  */
 
 /* DLCR0 -- transmitter status */
-#define FE_D0_BUSERR	0x01	/* Bus write error			*/
+#define FE_D0_BUSERR	0x01	/* Bus write error?			*/
 #define FE_D0_COLL16	0x02	/* Collision limit (16) encountered	*/
 #define FE_D0_COLLID	0x04	/* Collision on last transmission	*/
 #define FE_D0_JABBER	0x08	/* Jabber				*/
 #define FE_D0_CRLOST	0x10	/* Carrier lost on last transmission	*/
-#define FE_D0_PKTRCD	0x20	/* No corrision on last transmission	*/
+#define FE_D0_PKTRCD	0x20	/* Last packet looped back correctly	*/
 #define FE_D0_NETBSY	0x40	/* Network Busy (Carrier Detected)	*/
 #define FE_D0_TXDONE	0x80	/* Transmission complete		*/
 
@@ -141,7 +143,7 @@
 /* DLCR4 -- transmitter operation mode */
 #define FE_D4_DSC	0x01	/* Disable carrier sense on trans.	*/
 #define FE_D4_LBC	0x02	/* Loop back test control		*/
-#define FE_D4_CNTRL	0x04	/* - ???				*/
+#define FE_D4_CNTRL	0x04	/* - tied to CNTRL pin of the chip	*/
 #define FE_D4_TEST1	0x08	/* Test output #1			*/
 #define FE_D4_COL	0xF0	/* Collision counter			*/
 
@@ -208,12 +210,13 @@
 #define FE_D7_POWER_DOWN	0x00	/* Power down (stand-by) mode	*/
 #define FE_D7_POWER_UP		0x20	/* Normal operation		*/
 
-#define FE_D7_IDENT_NICE	0x80
-#define FE_D7_IDENT_EC		0xC0
+#define FE_D7_IDENT_TDK		0x00	/* TDK chips?			*/
+#define FE_D7_IDENT_NICE	0x80	/* Fujitsu NICE (86960)		*/
+#define FE_D7_IDENT_EC		0xC0	/* Fujitsu EtherCoupler (86965)	*/
 
 /* DLCR8 thru DLCR13 are for Ethernet station address.  */
 
-/* DLCR14 and DLCR15 are for TDR.  (BTW, what is TDR?  FIXME.)  */
+/* DLCR14 and DLCR15 are for TDR.  (TDR is used for cable diagnostic.)  */
 
 /* MAR8 thru MAR15 are for Multicast address filter.  */
 
@@ -241,7 +244,7 @@
 #define FE_B13_PORT	0x18	/* Port (TP/AUI) selection		*/
 #define FE_B13_LNKTST	0x20	/* Link test enable			*/
 #define FE_B13_SQTHLD	0x40	/* Lower squelch threshold		*/
-#define FE_B13_IOUNLK	0x80	/* Change I/O base address		*/
+#define FE_B13_IOUNLK	0x80	/* Change I/O base address, on JLI mode	*/
 
 #define FE_B13_BSTCTL_1		0x00
 #define FE_B13_BSTCTL_4		0x01
@@ -280,9 +283,9 @@
 /* BMPR17 -- EEPROM data */
 #define FE_B17_DATA	0x80	/* EEPROM data bit			*/
 
-/* BMPR18 ??? */
+/* BMPR18 -- cycle I/O address setting in JLI mode */
 
-/* BMPR19 -- ISA interface configuration */
+/* BMPR19 -- ISA interface configuration in JLI mode */
 #define FE_B19_IRQ		0xC0
 #define FE_B19_IRQ_SHIFT	6
 
@@ -291,6 +294,21 @@
 
 #define FE_B19_ADDR		0x07
 #define FE_B19_ADDR_SHIFT	0
+
+/*
+ * An extra I/O port address to reset 86965.  This location is called
+ * "ID ROM area" by Fujitsu document.
+ */
+
+/*
+ * Flags in Receive Packet Header... Basically same layout as DLCR1.
+ */
+#define FE_RPH_OVRFLO	FE_D1_OVRFLO
+#define FE_RPH_CRCERR	FE_D1_CRCERR
+#define FE_RPH_ALGERR	FE_D1_ALGERR
+#define FE_RPH_SRTPKT	FE_D1_SRTPKT
+#define FE_RPH_RMTRST	FE_D1_RMTRST
+#define FE_RPH_GOOD	0x20	/* Good packet follows			*/
 
 /*
  * EEPROM specification (of JLI mode).
@@ -303,7 +321,7 @@
 #define FE_EEPROM_CONF	0
 
 /*
- * Some 86960 specific constants.
+ * Some 8696x specific constants.
  */
 
 /* Length (in bytes) of a Multicast Address Filter.  */

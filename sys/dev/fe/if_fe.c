@@ -380,9 +380,24 @@ feinit(struct pccard_dev *dp, int first)
 #if FE_DEBUG >= 2
 		printf("Start Probe\n");
 #endif
+		/* Initialize "minimum" parts of our softc.  */
 		sc = &fe_softc[dp->isahd.id_unit];
-		memcpy( sc->sc_enaddr, dp->misc, ETHER_ADDR_LEN );
-		if (fe_probe(&dp->isahd) == 0)
+		sc->sc_unit = dp->isahd.id_unit;
+		sc->iobase = dp->isahd.id_iobase;
+
+		/* Use Ethernet address got from CIS, if one is available.  */
+		if ((dp->misc[0] & 0x03) == 0x00
+		    && (dp->misc[0] | dp->misc[1] | dp->misc[2]) != 0) {
+		       /* Yes, it looks like a valid Ether address.  */
+			bcopy(dp->misc, sc->sc_enaddr, ETHER_ADDR_LEN);
+		} else {
+			/* Indicate we have no Ether address in CIS.  */
+			bzero(sc->sc_enaddr, ETHER_ADDR_LEN);
+		}
+
+		/* Probe supported PC card models.  */
+		if (fe_probe_tdk(&dp->isahd, sc) == 0
+		 && fe_probe_mbh(&dp->isahd, sc) == 0)
 			return (ENXIO);
 #if FE_DEBUG >= 2
 		printf("Start attach\n");
@@ -451,10 +466,7 @@ static struct fe_probe_list const fe_probe_list [] =
 {
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
-#if NCRD > 0
-	{ fe_probe_mbh, NULL },  /* PCMCIAs cannot be auto-detected.  */
-	{ fe_probe_tdk, NULL },
-#endif
+	{ fe_probe_gwy, NULL },		/* GWYs cannot be auto detected.  */
 	{ NULL, NULL }
 };
 
@@ -1166,7 +1178,7 @@ fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 		{ FE_DLCR2, 0x70, 0x00 },
 		{ FE_DLCR4, 0x08, 0x00 },
 		{ FE_DLCR7, 0xC0, 0x00 },
-	/*
+		/*
 		 * Test *vendor* part of the address for Gateway.
 		 * This test is essential to identify Gateway's cards.
 		 * We shuld define some symbolic names for the
@@ -1236,7 +1248,7 @@ fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 }
 
 #if NCRD > 0
-	/*
+/*
  * Probe and initialization for Fujitsu MBH10302 PCMCIA Ethernet interface.
  * Note that this is for 10302 only; MBH10304 is handled by fe_probe_tdk().
  */
@@ -1377,8 +1389,8 @@ fe_init_mbh ( struct fe_softc * sc )
  * (Contec uses TDK Ethenet chip -- hosokawa)
  *
  * This version of fe_probe_tdk has been rewrote to handle
- * *generic* PC card implementation of Fujitsu MB8696x family.  The
- * name _tdk is just for a historical reason. :-)
+ * *generic* PC card implementation of Fujitsu MB8696x and compatibles.
+ * The name _tdk is just for a historical reason.  <seki> :-)
  */
 static int
 fe_probe_tdk ( DEVICE * dev, struct fe_softc * sc )
@@ -1392,13 +1404,25 @@ fe_probe_tdk ( DEVICE * dev, struct fe_softc * sc )
                 { 0 }
         };
 
+	/* We need an IRQ.  */
         if ( dev->id_irq == NO_IRQ ) {
                 return ( 0 );
         }
 
-        /* Setup an I/O address mapping table.  */
-        for ( i = 0; i < MAXREGISTERS; i++ ) {
-                sc->ioaddr[ i ] = sc->iobase + i;
+	/* Generic driver needs Ethernet address taken from CIS.  */
+	if (sc->arpcom.ac_enaddr[0] == 0
+	 && sc->arpcom.ac_enaddr[1] == 0
+	 && sc->arpcom.ac_enaddr[2] == 0) {
+		return 0;
+	}
+
+        /* Setup an I/O address mapping table; we need only 16 ports.  */
+        for (i = 0; i < 16; i++) {
+                sc->ioaddr[i] = sc->iobase + i;
+        }
+	/* Fill unused slots with a safe address.  */
+        for (i = 16; i < MAXREGISTERS; i++) {
+                sc->ioaddr[i] = sc->iobase;
         }
 
         /*
@@ -1447,8 +1471,17 @@ fe_probe_tdk ( DEVICE * dev, struct fe_softc * sc )
 
         /*
          * That's all.  C-NET(PC)C occupies 16 I/O addresses.
-	 * XXX: Are there any card with 32 I/O addresses?  FIXME.
-         */
+	 *
+	 * Some PC cards (e.g., TDK and Contec) have 16 I/O addresses,
+	 * while some others (e.g., Fujitsu) have 32.  Fortunately,
+	 * this generic driver never accesses latter 16 ports in 32
+	 * ports cards.  So, we can assume the *generic* PC cards
+	 * always have 16 ports.
+	 *
+	 * Moreover, PC card probe is isolated from ISA probe, and PC
+	 * card probe routine doesn't use "# of ports" returned by this
+	 * function.  16 v.s. 32 is not important now.
+	 */
         return 16;
 }
 #endif
@@ -2078,7 +2111,7 @@ fe_emptybuffer ( struct fe_softc * sc )
 	int i;
 	u_char saved_dlcr5;
 
-#if FE_DEBUG >= 1
+#if FE_DEBUG >= 2
 	log( LOG_WARNING, "fe%d: emptying receive buffer", sc->sc_unit );
 #endif
 	/*
@@ -2086,12 +2119,14 @@ fe_emptybuffer ( struct fe_softc * sc )
 	 */
 	saved_dlcr5 = inb( sc->ioaddr[ FE_DLCR5 ] );
 	outb( sc->ioaddr[ FE_DLCR5 ], sc->proto_dlcr5 );
+	DELAY(1300);
 
 	/*
 	 * When we come here, the receive buffer management should
 	 * have been broken.  So, we cannot use skip operation.
+	 * Just discard everything in the buffer.
 	 */
-	for ( i = 0; i < sc->txb_size; i += 2 ) {
+	for (i = 0; i < 32768; i++) {
 		if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) break;
 		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
 	}
@@ -2259,7 +2294,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 	 */
 	if ( rstat & ( FE_D1_OVRFLO | FE_D1_CRCERR
 		     | FE_D1_ALGERR | FE_D1_SRTPKT ) ) {
-#if FE_DEBUG >= 3
+#if FE_DEBUG >= 2
 		log( LOG_WARNING,
 			"fe%d: receive error: %s%s%s%s(%02x)\n",
 			sc->sc_unit,
@@ -2278,11 +2313,9 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 	 * packets.
 	 *
 	 * We limit the number of iterations to avoid infinite-loop.
-	 * It can be caused by a very slow CPU (some broken
-	 * peripheral may insert incredible number of wait cycles)
-	 * or, worse, by a broken MB86960 chip.
+	 * The upper bound is set to unrealistic high value.
 	 */
-	for ( i = 0; i < FE_MAX_RECV_COUNT; i++ ) {
+	for (i = 0; i < FE_MAX_RECV_COUNT * 2; i++) {
 
 		/* Stop the iteration if 86960 indicates no packets.  */
 		if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) break;
@@ -2306,19 +2339,25 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 */
 		len = inw( sc->ioaddr[ FE_BMPR8 ] );
 
+#if FE_DEBUG >= 1
 		/*
-		 * If there was an error, update statistics and drop
-		 * the packet, unless the interface is in promiscuous
-		 * mode.
+		 * If there was an error with the received packet, it
+		 * must be an indication of out-of-sync on receive
+		 * buffer, because we have programmed the 8696x to
+		 * to discard errored packets, even when the interface
+		 * is in promiscuous mode.  We have to re-synchronize.
 		 */
-		if ( ( status & 0xF0 ) != 0x20 ) {
-			if ( !( sc->sc_if.if_flags & IFF_PROMISC ) ) {
-				sc->sc_if.if_ierrors++;
-				fe_droppacket( sc, len );
-				continue;
-			}
+		if (!(status & FE_RPH_GOOD)) {
+			log(LOG_ERR,
+			    "fe%d: corrupted receive status byte (%02x)\n",
+			    sc->arpcom.ac_if.if_unit, status);
+			sc->arpcom.ac_if.if_ierrors++;
+			fe_emptybuffer( sc );
+			break;
 		}
+#endif
 
+#if FE_DEBUG >= 1
 		/*
 		 * MB86960 checks the packet length and drop big packet
 		 * before passing it to us.  There are no chance we can
@@ -2332,38 +2371,40 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 */
 		if ( len > ETHER_MAX_LEN - ETHER_CRC_LEN
 		  || len < ETHER_MIN_LEN - ETHER_CRC_LEN ) {
-#if FE_DEBUG >= 1
 			log( LOG_WARNING,
 				"fe%d: received a %s packet? (%u bytes)\n",
 				sc->sc_unit,
 				len < ETHER_MIN_LEN - ETHER_CRC_LEN
 					? "partial" : "big",
 				len );
-#endif
 			sc->sc_if.if_ierrors++;
 			fe_emptybuffer( sc );
-			continue;
+			break;
 		}
+#endif
 
 		/*
 		 * Go get a packet.
 		 */
 		if ( fe_get_packet( sc, len ) < 0 ) {
-			/* Skip a packet, updating statistics.  */
+
 #if FE_DEBUG >= 2
 			log( LOG_WARNING, "%s%d: out of mbuf;"
 			    " dropping a packet (%u bytes)\n",
 			    sc->sc_unit, len );
 #endif
+
+			/* Skip a packet, updating statistics.  */
 			sc->sc_if.if_ierrors++;
 			fe_droppacket( sc, len );
 
 			/*
-			 * We stop receiving packets, even if there are
-			 * more in the buffer.  We hope we can get more
-			 * mbuf next time.
+			 * Try extracting other packets, although they will
+			 * cause out-of-mbuf error again.  This is required
+			 * to keep receiver interrupt comming.
+			 * (Earlier versions had a bug on this point.)
 			 */
-			return;
+			continue;
 		}
 
 		/* Successfully received a packet.  Update stat.  */
@@ -2394,6 +2435,26 @@ feintr ( int unit )
 		 */
 		tstat = inb( sc->ioaddr[ FE_DLCR0 ] ) & FE_TMASK;
 		rstat = inb( sc->ioaddr[ FE_DLCR1 ] ) & FE_RMASK;
+
+#if FE_DEBUG >= 1
+		/* Test for a "dead-lock" condition.  */
+		if ((rstat & FE_D1_PKTRDY) == 0
+		    && (inb(sc->ioaddr[FE_DLCR5]) & FE_D5_BUFEMP) == 0
+		    && (inb(sc->ioaddr[FE_DLCR1]) & FE_D1_PKTRDY) == 0) {
+			/*
+			 * PKTRDY is off, while receive buffer is not empty.
+			 * We did a double check to avoid a race condition...
+			 * So, we should have missed an interrupt.
+			 */
+			log(LOG_WARNING,
+			    "fe%d: missed a receiver interrupt?\n",
+			    sc->arpcom.ac_if.if_unit);
+			/* Simulate the missed interrupt condition.  */
+			rstat |= FE_D1_PKTRDY;
+		}
+#endif
+
+		/* Stop processing if there are no interrupts to handle.  */
 		if ( tstat == 0 && rstat == 0 ) break;
 
 		/*
@@ -2809,20 +2870,23 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 
 	static u_char padding [ ETHER_MIN_LEN - ETHER_CRC_LEN - ETHER_HDR_LEN ];
 
-#if FE_DEBUG >= 2
+#if FE_DEBUG >= 1
 	/* First, count up the total number of bytes to copy */
 	length = 0;
 	for ( mp = m; mp != NULL; mp = mp->m_next ) {
 		length += mp->m_len;
 	}
+#else
+	/* Just use the length value in the packet header.  */
+	length = m->m_pkthdr.len;
+#endif
+
+#if FE_DEBUG >= 2
 	/* Check if this matches the one in the packet header.  */
 	if ( length != m->m_pkthdr.len ) {
 		log( LOG_WARNING, "fe%d: packet length mismatch? (%d/%d)\n",
 			sc->sc_unit, length, m->m_pkthdr.len );
 	}
-#else
-	/* Just use the length value in the packet header.  */
-	length = m->m_pkthdr.len;
 #endif
 
 #if FE_DEBUG >= 1
