@@ -851,7 +851,7 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t bsh1,
 #define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */
 #define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
 #define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
-#define	BUS_DMAMEM_NOSYNC	0x04	/* map memory to not require sync */
+#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
 #define	BUS_DMA_ISA		0x10	/* map memory for ISA dma */
 #define	BUS_DMA_BUS2		0x20	/* placeholders for bus functions... */
 #define	BUS_DMA_BUS3		0x40
