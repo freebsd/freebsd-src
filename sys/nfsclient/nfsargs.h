@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.27 1997/05/19 14:36:46 dfr Exp $
+ * $Id: nfs.h,v 1.28 1997/06/03 17:22:45 dfr Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -522,6 +522,30 @@ extern int nfsd_head_flag;
  	 !bcmp((caddr_t)&(o)->nd_cr, (caddr_t)&(n)->nd_cr, \
 		sizeof (struct ucred)))
 
+/*
+ * Defines for WebNFS
+ */
+
+#define WEBNFS_ESC_CHAR		'%'
+#define WEBNFS_SPECCHAR_START	0x80
+
+#define WEBNFS_NATIVE_CHAR	0x80
+/*
+ * ..
+ * Possibly more here in the future.
+ */
+
+/*
+ * Macro for converting escape characters in WebNFS pathnames.
+ * Should really be in libkern.
+ */
+
+#define HEXTOC(c) \
+	((c) >= 'a' ? ((c) - ('a' - 10)) : \
+	    ((c) >= 'A' ? ((c) - ('A' - 10)) : ((c) - '0')))
+#define HEXSTRTOI(p) \
+	((HEXTOC(p[0]) << 4) + HEXTOC(p[1]))
+
 #ifdef NFS_DEBUG
 
 extern int nfs_debug;
@@ -564,7 +588,7 @@ void	nfsm_srvpostopattr __P((struct nfsrv_descript *,int,struct vattr *,struct m
 int	netaddr_match __P((int,union nethostaddr *,struct mbuf *));
 int	nfs_request __P((struct vnode *,struct mbuf *,int,struct proc *,struct ucred *,struct mbuf **,struct mbuf **,caddr_t *));
 int	nfs_loadattrcache __P((struct vnode **,struct mbuf **,caddr_t *,struct vattr *));
-int	nfs_namei __P((struct nameidata *,fhandle_t *,int,struct nfssvc_sock *,struct mbuf *,struct mbuf **,caddr_t *,struct vnode **,struct proc *,int));
+int	nfs_namei __P((struct nameidata *,fhandle_t *,int,struct nfssvc_sock *,struct mbuf *,struct mbuf **,caddr_t *,struct vnode **,struct proc *,int,int));
 void	nfsm_adj __P((struct mbuf *,int,int));
 int	nfsm_mbuftouio __P((struct mbuf **,struct uio *,int,caddr_t *));
 void	nfsrv_initcache __P((void));
@@ -606,7 +630,10 @@ int	nfsrv_create __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			  struct proc *procp, struct mbuf **mrq));
 int	nfsrv_fhtovp __P((fhandle_t *,int,struct vnode **,
 			struct ucred *,struct nfssvc_sock *,struct mbuf *,
-			int *,int));
+			int *,int,int));
+int	nfsrv_setpublicfs __P((struct mount *, struct netexport *,
+			       struct export_args *));
+int	nfs_ispublicfh __P((fhandle_t *));
 int	nfsrv_fsinfo __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			  struct proc *procp, struct mbuf **mrq));
 int	nfsrv_getattr __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
