@@ -19,21 +19,21 @@ while (@dirs) {
 	my %logs;
 
 	opendir DIR, $dir or die $!;
-	foreach (grep { /[^\.]/ } readdir DIR) {
-		my $filename = "$dir/$_";
+	foreach my $f (grep { /[^\.]/ } readdir DIR) {
+		my $filename = "$dir/$f";
 		if (-f $filename) {
 			my %loghash = parse_log_message($filename);
 			next unless %loghash;
 
 			$logs{$filename} = {%loghash};
-		} elsif (-d $_) {
-			next if /^CVS$/;
-			push @dirs, $_;
+		} elsif (-d $filename) {
+			next if $filename =~ /\/CVS$/;
+			push @dirs, $filename;
 		}
 	}
 	close DIR;
 
-	# Product a database of the commits
+	# Produce a database of the commits
 	foreach my $f (keys %logs) {
 		my $file = $logs{$f};
 		foreach my $rev (keys %$file) {
@@ -58,7 +58,7 @@ sub parse_log_message {
 	my $file = shift;
 
 	# Get a log of the file.
-	open LOG, "cvs -R log $file |" or die $!;
+	open LOG, "cvs -R log $file 2>/dev/null |" or die $!;
 	my @log = <LOG>;
 	my $log = join "", @log;
 	close LOG;
@@ -77,11 +77,14 @@ sub parse_log_message {
 		my $rev = $1;
 
 		# Strip off any other headers.
-		while ($e =~ s/^(date|branches):[^\n]*\n//sg) {
+		my $user;
+		while ($e =~ s/^(date|branches):([^\n]*)\n//sg) {
+			my $sub = $2;
+			$user = $1 if $sub =~ /author: (.*?);/;
 		};
 
 		my $hash = string_to_hash($e);
-		$loghash{$rev} = $hash;
+		$loghash{$rev} = "$user:$hash";
 	}
 
 	return %loghash;
