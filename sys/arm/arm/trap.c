@@ -215,7 +215,6 @@ data_abort_fixup(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struc
 #endif /* CPU_ABORT_FIXUP_REQUIRED */
 }
 
-extern int curpid;
 void
 data_abort_handler(trapframe_t *tf)
 {
@@ -229,6 +228,8 @@ data_abort_handler(trapframe_t *tf)
 	u_int sticks = 0;
 	int error = 0;
 	struct ksig ksig;
+	struct proc *p;
+	
 
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
@@ -244,13 +245,17 @@ data_abort_handler(trapframe_t *tf)
 #endif
 
 	td = curthread;
+	p = td->td_proc;
 
 	/* Data abort came from user mode? */
 	user = TRAP_USERMODE(tf);
 
 	if (user) {
+		sticks = td->td_sticks;                                                         td->td_frame = tf;		
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
+		if (td->td_pflags & TDP_SA)
+			thread_user_enter(td);
 		
 	}
 	/* Grab the current pcb */
@@ -289,10 +294,6 @@ data_abort_handler(trapframe_t *tf)
 		return;
 	}
 
-	if (user) {
-		sticks = td->td_sticks;
-		td->td_frame = tf;
-	}
 	/*
 	 * Make sure the Program Counter is sane. We could fall foul of
 	 * someone executing Thumb code, in which case the PC might not
@@ -408,6 +409,11 @@ data_abort_handler(trapframe_t *tf)
 
 	onfault = pcb->pcb_onfault;
 	pcb->pcb_onfault = NULL;
+	if (map != kernel_map) {
+		PROC_LOCK(p);
+		p->p_lock++;
+		PROC_UNLOCK(p);
+	}
 	error = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE) ? 
 	    VM_FAULT_DIRTY : VM_FAULT_NORMAL);
 	pcb->pcb_onfault = onfault;
@@ -415,6 +421,11 @@ data_abort_handler(trapframe_t *tf)
 		goto out;
 	}
 
+	if (map != kernel_map) {
+		PROC_LOCK(p);
+		p->p_lock++;
+		PROC_UNLOCK(p);
+	}
 	if (user == 0) {
 		if (pcb->pcb_onfault) {
 			tf->tf_r0 = error;
@@ -518,8 +529,13 @@ dab_align(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
 {
 
 	/* Alignment faults are always fatal if they occur in kernel mode */
-	if (!TRAP_USERMODE(tf))
-		dab_fatal(tf, fsr, far, td, ksig);
+	if (!TRAP_USERMODE(tf)) {
+		if (!td || !td->td_pcb->pcb_onfault)
+			dab_fatal(tf, fsr, far, td, ksig);
+		tf->tf_r0 = EFAULT;
+		tf->tf_pc = (int)td->td_pcb->pcb_onfault;
+		return (0);
+	}
 
 	/* pcb_onfault *must* be NULL at this point */
 
@@ -676,11 +692,13 @@ void
 prefetch_abort_handler(trapframe_t *tf)
 {
 	struct thread *td;
+	struct proc * p;
 	struct vm_map *map;
 	vm_offset_t fault_pc, va;
 	int error = 0;
 	u_int sticks = 0;
 	struct ksig ksig;
+
 
 #if 0
 	/* Update vmmeter statistics */
@@ -692,11 +710,14 @@ prefetch_abort_handler(trapframe_t *tf)
 #endif
 	
  	td = curthread;
+	p = td->td_proc;
 
 	if (TRAP_USERMODE(tf)) {
+		td->td_frame = tf;
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
-		
+		if (td->td_proc->p_flag & P_SA)
+			thread_user_enter(td);
 	}
 	fault_pc = tf->tf_pc;
 	if (td->td_critnest == 0 &&
@@ -721,8 +742,6 @@ prefetch_abort_handler(trapframe_t *tf)
 	/* Prefetch aborts cannot happen in kernel mode */
 	if (__predict_false(!TRAP_USERMODE(tf)))
 		dab_fatal(tf, 0, tf->tf_pc, NULL, &ksig);
-	/* Get fault address */
-	td->td_frame = tf;
 	sticks = td->td_sticks;
 
 
@@ -746,8 +765,20 @@ prefetch_abort_handler(trapframe_t *tf)
 	if (pmap_fault_fixup(map->pmap, va, VM_PROT_READ, 1))
 		goto out;
 
+	if (map != kernel_map) {
+		PROC_LOCK(p);
+		p->p_lock++;
+		PROC_UNLOCK(p);
+	}
+
 	error = vm_fault(map, va, VM_PROT_READ | VM_PROT_EXECUTE,
 	    VM_FAULT_NORMAL);
+	if (map != kernel_map) {
+		PROC_LOCK(p);
+		p->p_lock--;
+		PROC_UNLOCK(p);
+	}
+
 	if (__predict_true(error == 0))
 		goto out;
 
@@ -861,16 +892,14 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	else
 		callp = &p->p_sysent->sv_table[code];
 	nargs = callp->sy_narg & SYF_ARGMASK;
-	if (nargs <= nap)
-		args = ap;
-	else {
-		memcpy(copyargs, ap, nap * sizeof(register_t));
+	memcpy(copyargs, ap, nap * sizeof(register_t));
+	if (nargs > nap) {
 		error = copyin((void *)frame->tf_usr_sp, copyargs + nap,
 		    (nargs - nap) * sizeof(register_t));
 		if (error)
 			goto bad;
-		args = copyargs;
 	}
+	args = copyargs;
 	error = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
@@ -927,14 +956,10 @@ swi_handler(trapframe_t *frame)
 	struct thread *td = curthread;
 	uint32_t insn;
 
-	/*
-	 * Enable interrupts if they were enabled before the exception.
-	 * Since all syscalls *should* come from user mode it will always
-	 * be safe to enable them, but check anyway. 
-	 */                 
+	td->td_frame = frame;
 	
-	if (td->td_critnest == 0 && !(frame->tf_spsr & I32_bit))
-		enable_interrupts(I32_bit);
+	if (td->td_proc->p_flag & P_SA)
+		thread_user_enter(td);
 	/*
       	 * Make sure the program counter is correctly aligned so we
 	 * don't take an alignment fault trying to read the opcode.
@@ -945,7 +970,14 @@ swi_handler(trapframe_t *frame)
 		return;
 	}
 	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
-	td->td_frame = frame;
+	/*
+	 * Enable interrupts if they were enabled before the exception.
+	 * Since all syscalls *should* come from user mode it will always
+	 * be safe to enable them, but check anyway. 
+	 */       
+	if (td->td_critnest == 0 && !(frame->tf_spsr & I32_bit))
+		enable_interrupts(I32_bit);
+
 	syscall(td, frame, insn);
 }
 
