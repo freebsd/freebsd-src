@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.12 1996/06/19 17:27:55 nate Exp $
+ * $Id: cardd.c,v 1.13 1996/06/20 21:06:51 nate Exp $
  */
 
 #include <stdio.h>
@@ -34,21 +34,21 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <syslog.h>
+#define EXTERN
 #include "cardd.h"
 
 char   *config_file = "/etc/pccard.conf";
 
-struct card_config *assign_driver(struct card *);
-int     setup_slot(struct slot *);
-void    read_ether(struct slot *);
-void    dump_config_file(void);
-void    pr_cmd(struct cmd *);
-void    readslots(void);
-void    slot_change(struct slot *);
-void    card_removed(struct slot *);
-void    card_inserted(struct slot *);
-int     assign_io(struct slot *);
+static struct card_config *assign_driver(struct card *);
+static int     assign_io(struct slot *);
+static int     setup_slot(struct slot *);
+static void    card_inserted(struct slot *);
+static void    card_removed(struct slot *);
+static void    dump_config_file(void);
+static void    pr_cmd(struct cmd *);
+static void    read_ether(struct slot *);
+static void    readslots(void);
+static void    slot_change(struct slot *);
 
 /*
  *	mainline code for cardd
@@ -93,35 +93,22 @@ main(int argc, char *argv[])
 	readfile(config_file);
 	if (verbose)
 		dump_config_file();
-	if (!debug) {
+	log_setup();
+	if (!debug)
 		if (daemon(0, 0))
 			die("fork failed");
-		openlog("cardd", LOG_PID, LOG_DAEMON);
-		do_log = 1;
-	}
-#ifdef DEBUG
-	printf("Before readslots\n");
-#endif
 	readslots();
-#ifdef DEBUG
-	printf("After readslots\n");
-#endif
 	if (slots == 0)
 		die("No PC-CARD slots");
+	log_1s("pccardd started", NULL);
 	for (;;) {
 		fd_set  mask;
 		FD_ZERO(&mask);
 		for (sp = slots; sp; sp = sp->next)
 			FD_SET(sp->fd, &mask);
-#ifdef DEBUG
-		printf("Doing select\n");
-#endif
 		count = select(32, 0, 0, &mask, 0);
-#ifdef DEBUG
-		printf("select=%d\n", count);
-#endif
 		if (count == -1) {
-			perror("Select");
+			logerr("Select");
 			continue;
 		}
 		if (count)
@@ -157,8 +144,8 @@ dump_config_file(void)
 	}
 }
 
-void
-pr_cmd(struct cmd * cp)
+static void
+pr_cmd(struct cmd *cp)
 {
 	while (cp) {
 		printf("\t%s\n", cp->line);
@@ -182,9 +169,6 @@ readslots(void)
 		fd = open(name, 2);
 		if (fd < 0)
 			continue;
-#ifdef DEBUG
-		printf("opened %s\n", name);
-#endif
 		sp = xmalloc(sizeof(*sp));
 		sp->fd = fd;
 		sp->name = newstr(name);
@@ -196,16 +180,16 @@ readslots(void)
 			unsigned long mem = 0;
 
 			if (ioctl(fd, PIOCRWMEM, &mem))
-				perror("ioctl (PIOCRWMEM)");
+				logerr("ioctl (PIOCRWMEM)");
 #ifdef DEBUG
-			printf("mem=%x\n", mem);
+			log_1s("mem=0x%x\n", mem);
 #endif
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
 				if (mem == 0)
 					die("Can't allocate memory for controller access");
 				if (ioctl(fd, PIOCRWMEM, &mem))
-					perror("ioctl (PIOCRWMEM)");
+					logerr("ioctl (PIOCRWMEM)");
 			}
 		}
 #ifdef DEBUG
@@ -228,12 +212,9 @@ slot_change(struct slot *sp)
 
 	current_slot = sp;
 	if (ioctl(sp->fd, PIOCGSTATE, &state)) {
-		perror("ioctl (PIOCGSTATE)");
+		logerr("ioctl (PIOCGSTATE)");
 		return;
 	}
-#ifdef DEBUG
-	printf("%p %p %d %d\n", sp, &sp->state, state.state, sp->state);
-#endif
 	if (state.state == sp->state)
 		return;
 	sp->state = state.state;
@@ -309,8 +290,8 @@ card_inserted(struct slot *sp)
 	reset_slot(sp);
 #endif
 	if (cp == 0) {
-		log_1s("No card in database for \"%s\"", sp->cis->manuf);
-		log_1s("vers: \"%s\"", sp->cis->vers);
+		log_1s("No card in database for \"%s\"(\"%s\")",
+			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
 	if (cp->ether)
@@ -326,8 +307,9 @@ card_inserted(struct slot *sp)
 	}
 
 	/*
-	 * Once assigned, then set up the I/O & mem contexts, and
-	 * set up the windows, and then attach the driver.
+	 *
+	 * Once assigned, set up the I/O & mem contexts, set up the
+	 * windows, and then attach the driver.
 	 */
 	if (setup_slot(sp))
 		execute(cp->insert);
@@ -341,7 +323,7 @@ card_inserted(struct slot *sp)
  *	read_ether - read ethernet address from card. Offset is
  *	the offset into the attribute memory of the card.
  */
-void
+static void
 read_ether(struct slot *sp)
 {
 	unsigned char net_addr[12];
@@ -357,7 +339,7 @@ read_ether(struct slot *sp)
 	sp->eaddr[3] = net_addr[6];
 	sp->eaddr[4] = net_addr[8];
 	sp->eaddr[5] = net_addr[10];
-	printf("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
+	log_1s("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
 	    sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
 }
@@ -366,7 +348,7 @@ read_ether(struct slot *sp)
  *	assign_driver - Assign driver to card.
  *	First, see if an existing driver is already setup.
  */
-struct card_config *
+static struct card_config *
 assign_driver(struct card *cp)
 {
 	struct driver *drvp;
@@ -376,7 +358,7 @@ assign_driver(struct card *cp)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
 		    conf->driver->config == conf) {
 #ifdef	DEBUG
-			fprintf(stderr, "Found existing driver (%s) for %s\n",
+			log_1s(stderr, "Found existing driver (%s) for %s\n",
 			    conf->driver->name, cp->manuf);
 #endif
 			return (conf);
@@ -455,7 +437,7 @@ assign_driver(struct card *cp)
  *	assign_io - Allocate resources to slot matching the
  *	configuration index selected.
  */
-int
+static int
 assign_io(struct slot *sp)
 {
 	struct cis *cis;
@@ -492,14 +474,13 @@ assign_io(struct slot *sp)
 		if (sp->mem.size && sp->mem.addr == 0) {
 			sp->mem.addr = alloc_memory(mp->length);
 			if (sp->mem.addr == 0)
-				return (-1);
+				return (-2);
 			sp->config->driver->mem = sp->mem.addr;
 		}
 		sp->mem.cardaddr = 0x4000;
 #ifdef	DEBUG
-		fprintf(stderr,
-			"Using mem addr 0x%x, size %d, card addr 0x%x\n",
-			sp->mem.addr, sp->mem.cardaddr, sp->mem.size);
+		log_1s("Using mem addr 0x%x, size %d, card addr 0x%x\n",
+			sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
 #endif
 	}
 
@@ -554,18 +535,19 @@ assign_io(struct slot *sp)
 			break;
 		}
 #ifdef	DEBUG
-		fprintf(stderr, "Using I/O addr 0x%x, size %d\n",
+		log_1s("Using I/O addr 0x%x, size %d\n",
 		    sp->io.addr, sp->io.size);
 #endif
 	}
 	sp->irq = sp->config->irq;
 	return (0);
 }
+
 /*
  *	setup_slot - Allocate the I/O and memory contexts
  *	return true if completed OK.
  */
-int
+static int
 setup_slot(struct slot *sp)
 {
 	struct mem_desc mem;
@@ -594,9 +576,8 @@ setup_slot(struct slot *sp)
 	c |= 0x40;
 	write(sp->fd, &c, sizeof(c));
 #ifdef	DEBUG
-	printf("Setting config reg at offs 0x%x", offs);
-	printf(" to 0x%x\n", c);
-	printf("Reset time = %d ms\n", sp->card->reset_time);
+	log_1s("Setting config reg at offs 0x%lx to 0x%x, Reset time = %d ms\n",
+		(unsigned long)offs, c, sp->card->reset_time);
 #endif
 	sleep(5);
 	usleep(sp->card->reset_time * 1000);
@@ -612,14 +593,8 @@ setup_slot(struct slot *sp)
 			c |= 0x20;
 		lseek(sp->fd, offs + 2, SEEK_SET);
 		write(sp->fd, &c, sizeof(c));
-#ifdef	DEBUG
-		printf("Setting CCSR reg to 0x%x\n", c);
-#endif
 	}
 	mem.window = 0;
-#ifdef DEBUG
-	printf("Mem@ %x %d %x\n", sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
-#endif
 	if (sp->mem.addr) {
 		mem.window = 0;
 		mem.flags = sp->mem.flags | MDF_ACTIVE | MDF_16BITS;
@@ -645,8 +620,8 @@ setup_slot(struct slot *sp)
 		}
 #endif
 #ifdef	DEBUG
-		printf("Assigning I/O window 0, start 0x%x, size 0x%x flags 0x%x\n",
-		    io.start, io.size, io.flags);
+		log_1s("Assigning I/O window %d, start 0x%x, size 0x%x flags 0x%x\n",
+			io.window, io.start, io.size, io.flags);
 #endif
 		io.flags |= IODF_ACTIVE;
 		if (ioctl(sp->fd, PIOCSIO, &io)) {
@@ -670,9 +645,9 @@ setup_slot(struct slot *sp)
 	else
 		drv.iobase = 0;
 #ifdef	DEBUG
-	fprintf(stderr, "Assign %s%d, io 0x%x, mem 0x%x, %d bytes, irq %x, flags %x\n",
+	log_1s("Assign %s%d, io 0x%x, mem 0x%lx, %d bytes, irq %d, flags %x\n",
 	    drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, sp->irq, drv.flags);
-#endif	/* DEBUG */
+#endif
 
 	/*
 	 * If the driver fails to be connected to the device,
@@ -680,9 +655,6 @@ setup_slot(struct slot *sp)
 	 */
 	memcpy(drv.misc, sp->eaddr, 6);
 	if (ioctl(sp->fd, PIOCSDRV, &drv)) {
-#ifdef	DEBUG
-		perror(sp->card->manuf);
-#endif
 		log_1s("driver allocation failed for %s", sp->card->manuf);
 		return (0);
 	}

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: file.c,v 1.7 1996/06/19 01:08:58 nate Exp $
+ * $Id: file.c,v 1.8 1996/07/11 15:04:43 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,7 +69,7 @@ static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
 static struct driver *new_driver(char *);
 
-static void    addcmd(struct cmd **cp);
+static void    addcmd(struct cmd **);
 static void    parse_card(void);
 
 /*
@@ -83,14 +83,13 @@ readfile(char *name)
 
 	in = fopen(name, "r");
 	if (in == 0) {
-		perror(name);
-		exit(1);
+		logerr(name);
+		die("readfile");
 	}
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
-			fprintf(stderr,
-			    "warning: card %s(%s) has no valid configuration\n",
+			log_1s("warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
 }
@@ -398,7 +397,7 @@ static void
 error(char *msg)
 {
 	pusht = 1;
-	fprintf(stderr, "%s: %s at line %d, near %s\n",
+	log_1s("%s: %s at line %d, near %s\n",
 	    filename, msg, lineno, next_tok());
 	pusht = 1;
 }
