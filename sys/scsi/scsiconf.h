@@ -14,16 +14,14 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsiconf.h,v 1.50 1997/02/22 09:44:35 peter Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
 typedef	int			boolean;
 typedef	int			errval;
 
-#include <scsi/scsi_debug.h>
 #include <scsi/scsi_all.h>
-#include <scsi/scsi_driver.h>
 
 /*
  * The following documentation tries to describe the relationship between the

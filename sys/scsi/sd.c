@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id$
+ *      $Id: sd.c,v 1.102 1997/02/22 09:44:37 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -41,6 +41,8 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: bt.c,v 1.12 1997/02/22 09:38:43 peter Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
  
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #include <i386/scsi/btreg.h>
 

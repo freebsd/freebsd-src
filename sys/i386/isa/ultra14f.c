@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.51 1997/02/22 09:37:20 peter Exp $
+ *      $Id: ultra14f.c,v 1.52 1997/03/23 04:39:57 bde Exp $
  */
 
 #include <sys/types.h>
@@ -48,6 +48,7 @@
 #endif /*KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #include "ioconf.h"
 

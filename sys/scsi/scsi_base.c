@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id$
+ *      $Id: scsi_base.c,v 1.45 1997/02/22 09:44:28 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -31,6 +31,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 static errval sc_err1(struct scsi_xfer *);
 static errval scsi_interpret_sense(struct scsi_xfer *);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id$
+ * $Id: scsi_ioctl.c,v 1.24 1997/02/22 09:44:33 peter Exp $
  *
  *
  */
@@ -60,6 +60,7 @@
 #include "scbus.h"
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 #include <sys/scsiio.h>
 
 static void scsierr(struct buf *, int); /* XXX ??? */

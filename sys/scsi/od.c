@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: od.c,v 1.28 1997/02/22 09:44:26 peter Exp $
  */
 
 /*
@@ -83,6 +83,8 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 #include <vm/vm.h>
 #include <sys/dkstat.h>
 #include <machine/md_var.h>

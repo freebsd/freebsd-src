@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.80 1997/03/06 15:36:17 joerg Exp $
+ *      $Id: scsiconf.c,v 1.81 1997/03/10 20:51:17 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -47,6 +47,8 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 
 static struct extend_array *extend_new __P((void));
 static void extend_release __P((struct extend_array *ea, int index));
