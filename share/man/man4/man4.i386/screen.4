@@ -49,6 +49,10 @@ sequences is also supported.
 ANSI	Seq	Function				Termcap entry
 ======= ======= =====================================   ==============
 
+--	E7	Save cursor position			sc
+
+--	E8	Restore	saved cursor position		rc
+
 CUU     E[nA    move cursor up n lines                  up/UP (ku)
 
 CUD     E[nB    move cursor down n lines                do/DO (kd)
@@ -116,6 +120,9 @@ SGR	E[nm	Set character attributes:		--
 		   X=4 blue	X=5 magenta
 		   X=6 cyan 	X=7 white
 
+--	E[s	Save cursor position			sc
+
+--	E[u	Restore	saved cursor position		rc
 
 --	E[=p;dB	Set bell pitch (p) and duration (d),	--
 			picth is in units of 840 nS, 
