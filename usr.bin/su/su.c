@@ -440,8 +440,7 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr,
-	    "usage: su [-] [-flm] [-c class] [login [args]]\n");
+	fprintf(stderr, "usage: su [-] [-flm] [-c class] [login [args]]\n");
 	exit(1);
 }
 
