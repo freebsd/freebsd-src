@@ -61,6 +61,7 @@ struct filedesc {
 	char	*fd_ofileflags;		/* per-process open file flags */
 	struct	vnode *fd_cdir;		/* current directory */
 	struct	vnode *fd_rdir;		/* root directory */
+	struct	vnode *fd_jdir;		/* jail root directory */
 	int	fd_nfiles;		/* number of open files allocated */
 	u_short	fd_lastfile;		/* high-water mark of fd_ofiles */
 	u_short	fd_freefile;		/* approx. next free file */

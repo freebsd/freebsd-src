@@ -130,6 +130,7 @@ namei(ndp)
 	 * Get starting point for the translation.
 	 */
 	ndp->ni_rootdir = fdp->fd_rdir;
+	ndp->ni_topdir = fdp->fd_jdir;
 
 	dp = fdp->fd_cdir;
 	VREF(dp);
@@ -387,10 +388,14 @@ dirloop:
 	 *    filesystem, then replace it with the
 	 *    vnode which was mounted on so we take the
 	 *    .. in the other file system.
+	 * 3. If the vnode is the top directory of
+	 *    the jail or chroot, don't let them out.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
 		for (;;) {
-			if (dp == ndp->ni_rootdir || dp == rootvnode) {
+			if (dp == ndp->ni_rootdir || 
+			    dp == ndp->ni_topdir || 
+			    dp == rootvnode) {
 				ndp->ni_dvp = dp;
 				ndp->ni_vp = dp;
 				VREF(dp);
