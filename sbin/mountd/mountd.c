@@ -143,6 +143,7 @@ struct grouplist {
 #define	GT_NULL		0x0
 #define	GT_HOST		0x1
 #define	GT_NET		0x2
+#define	GT_DEFAULT	0x3
 #define GT_IGNORE	0x5
 
 struct hostlist {
@@ -879,7 +880,6 @@ get_exportlist()
 	struct exportlist **epp;
 	struct dirlist *dirhead;
 	struct statfs fsb, *fsp;
-	struct addrinfo *ai;
 	struct xucred anon;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
@@ -1087,21 +1087,9 @@ get_exportlist()
 			goto nextline;
 		}
 		if (!has_host) {
-			grp->gr_type = GT_HOST;
+			grp->gr_type = GT_DEFAULT;
 			if (debug)
 				warnx("adding a default entry");
-			/* add a default group and make the grp list NULL */
-			ai = malloc(sizeof(struct addrinfo));
-			ai->ai_flags = 0;
-			ai->ai_family = AF_INET;        /* XXXX */
-			ai->ai_socktype = SOCK_DGRAM;
-			/* setting the length to 0 will match anything */
-			ai->ai_addrlen = 0;
-			ai->ai_flags = AI_CANONNAME;
-			ai->ai_canonname = strdup("Default");
-			ai->ai_addr = NULL;
-			ai->ai_next = NULL;
-			grp->gr_ptr.gt_addrinfo = ai;
 
 		/*
 		 * Don't allow a network export coincide with a list of
@@ -1662,8 +1650,7 @@ get_host(cp, grp, tgrp)
 				strlcpy(host, "?", sizeof(host));
 			ai->ai_canonname = strdup(host);
 			ai->ai_flags |= AI_CANONNAME;
-		} else
-			ai->ai_flags &= ~AI_CANONNAME;
+		}
 		if (debug)
 			fprintf(stderr, "got host %s\n", ai->ai_canonname);
 		/*
@@ -1766,10 +1753,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	int dirplen;
 	struct statfs *fsb;
 {
-	struct sockaddr *addrp;
 	struct sockaddr_storage ss;
 	struct addrinfo *ai;
-	int addrlen;
 	char *cp = NULL;
 	int done;
 	char savedc = '\0';
@@ -1784,27 +1769,22 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		struct ntfs_args na;
 	} args;
 
-	ai = NULL;
-	addrlen = 0;
 	args.ua.fspec = 0;
 	args.ua.export.ex_flags = exflags;
 	args.ua.export.ex_anon = *anoncrp;
 	args.ua.export.ex_indexfile = ep->ex_indexfile;
-	if (grp->gr_type == GT_HOST) {
+	if (grp->gr_type == GT_HOST)
 		ai = grp->gr_ptr.gt_addrinfo;
-		addrp = ai->ai_addr;
-		addrlen = ai->ai_addrlen;
-	} else
-		addrp = NULL;
+	else
+		ai = NULL;
 	done = FALSE;
 	while (!done) {
 		switch (grp->gr_type) {
 		case GT_HOST:
-			if (addrp != NULL && addrp->sa_family == AF_INET6 &&
-			    have_v6 == 0)
+			if (ai->ai_addr->sa_family == AF_INET6 && have_v6 == 0)
 				goto skip;
-			args.ua.export.ex_addr = addrp;
-			args.ua.export.ex_addrlen = addrlen;
+			args.ua.export.ex_addr = ai->ai_addr;
+			args.ua.export.ex_addrlen = ai->ai_addrlen;
 			args.ua.export.ex_masklen = 0;
 			break;
 		case GT_NET:
@@ -1826,6 +1806,12 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			}
 			args.ua.export.ex_mask = (struct sockaddr *)&ss;
 			args.ua.export.ex_masklen = ss.ss_len;
+			break;
+		case GT_DEFAULT:
+			args.ua.export.ex_addr = NULL;
+			args.ua.export.ex_addrlen = 0;
+			args.ua.export.ex_mask = NULL;
+			args.ua.export.ex_masklen = 0;
 			break;
 		case GT_IGNORE:
 			return(0);
@@ -1878,15 +1864,9 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			*cp = '\0';
 		}
 skip:
-		if (addrp) {
+		if (ai != NULL)
 			ai = ai->ai_next;
-			if (ai == NULL)
-				done = TRUE;
-			else {
-				addrp = ai->ai_addr;
-				addrlen = ai->ai_addrlen;
-			}
-		} else
+		if (ai == NULL)
 			done = TRUE;
 	}
 	if (cp)
