@@ -1,7 +1,7 @@
 /* util.c: Utility routines for bc. */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ strcopyof (str)
 arg_list *
 nextarg (args, val)
      arg_list *args;
-     char val;
+     int val;
 { arg_list *temp;
 
   temp = (arg_list *) bc_malloc (sizeof (arg_list));
@@ -77,23 +77,22 @@ static char *arglist1 = NULL, *arglist2 = NULL;
 
 /* make_arg_str does the actual construction of the argument string.
    ARGS is the pointer to the list and LEN is the maximum number of
-   characters needed.  1 char is the minimum needed. COMMAS tells
-   if each number should be seperated by commas.*/
+   characters needed.  1 char is the minimum needed.
+ */
 
-_PROTOTYPE (static char *make_arg_str, (arg_list *args, int len, int commas));
+_PROTOTYPE (static char *make_arg_str, (arg_list *args, int len));
 
 static char *
-make_arg_str (args, len, commas)
+make_arg_str (args, len)
       arg_list *args;
       int len;
-      int commas;
 {
   char *temp;
   char sval[20];
 
   /* Recursive call. */
   if (args != NULL)
-    temp = make_arg_str (args->next, len+11, commas);
+    temp = make_arg_str (args->next, len+11);
   else
     {
       temp = (char *) bc_malloc (len);
@@ -102,7 +101,7 @@ make_arg_str (args, len, commas)
     }
 
   /* Add the current number to the end of the string. */
-  if (len != 1 && commas)
+  if (len != 1)
     sprintf (sval, "%d,", args->av_name);
   else
     sprintf (sval, "%d", args->av_name);
@@ -111,17 +110,38 @@ make_arg_str (args, len, commas)
 }
 
 char *
-arg_str (args, commas)
+arg_str (args)
      arg_list *args;
-     int commas;
 {
   if (arglist2 != NULL)
     free (arglist2);
   arglist2 = arglist1;
-  arglist1 = make_arg_str (args, 1, commas);
+  arglist1 = make_arg_str (args, 1);
   return (arglist1);
 }
 
+char *
+call_str (args)
+     arg_list *args;
+{
+  arg_list *temp;
+  int       arg_count;
+  int       ix;
+
+  if (arglist2 != NULL)
+    free (arglist2);
+  arglist2 = arglist1;
+
+  /* Count the number of args and add the 0's and 1's. */
+  for (temp = args, arg_count = 0; temp != NULL; temp = temp->next)
+    arg_count++;
+  arglist1 = (char *) bc_malloc(arg_count+1);
+  for (temp = args, ix=0; temp != NULL; temp = temp->next)
+    arglist1[ix++] = ( temp->av_name ? '1' : '0');
+  arglist1[ix] = 0;
+
+  return (arglist1);
+}
 
 /* free_args frees an argument list ARGS. */
 
@@ -522,9 +542,13 @@ lookup (name, namekind)
       exit (1);
 
     case FUNCT:
+    case FUNCTDEF:
       if (id->f_name != 0)
 	{
 	  free(name);
+	  /* Check to see if we are redefining a math lib function. */
+	  if (use_math && namekind == FUNCTDEF && id->f_name <= 6)
+	    id->f_name = next_func++;
 	  return (id->f_name);
 	}
       id->f_name = next_func++;
@@ -555,6 +579,8 @@ lookup (name, namekind)
       yyerror ("Too many variables");
       exit (1);
     }
+
+  return (0); /* NOT_REACHED */
 }
 
 

@@ -59,7 +59,8 @@ downcase (s)
   while ((c = *s) != '\0')
     {
       if (isalpha (c))
-	*s++ = tolower (c);
+	*s = tolower (c);
+      s++;
     }
 }
 
