@@ -39,6 +39,8 @@
 
 __weak_reference(_pthread_mutexattr_init, pthread_mutexattr_init);
 
+static struct pthread_mutex_attr default_mutexattr = PTHREAD_MUTEXATTR_DEFAULT;
+
 int
 _pthread_mutexattr_init(pthread_mutexattr_t *attr)
 {
@@ -49,10 +51,10 @@ _pthread_mutexattr_init(pthread_mutexattr_t *attr)
 			malloc(sizeof(struct pthread_mutex_attr))) == NULL) {
 		ret = ENOMEM;
 	} else {
-		memcpy(pattr, &pthread_mutexattr_default,
-				sizeof(struct pthread_mutex_attr));
+		memcpy(pattr, &default_mutexattr,
+		    sizeof(struct pthread_mutex_attr));
 		*attr = pattr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }

@@ -40,7 +40,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "pthread_private.h"
 
 pthread_addr_t
@@ -58,7 +60,7 @@ _thread_gc(pthread_addr_t arg)
 
 	/* Block all signals */
 	sigfillset(&mask);
-	pthread_sigmask(SIG_BLOCK, &mask, NULL);
+	_pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
 	/* Mark this thread as a library thread (not a user thread). */
 	curthread->flags |= PTHREAD_FLAGS_PRIVATE;
@@ -104,7 +106,7 @@ _thread_gc(pthread_addr_t arg)
 		 * Lock the garbage collector mutex which ensures that
 		 * this thread sees another thread exit:
 		 */
-		if (pthread_mutex_lock(&_gc_mutex) != 0)
+		if (_pthread_mutex_lock(&_gc_mutex) != 0)
 			PANIC("Cannot lock gc mutex");
 
 		/*
@@ -187,13 +189,13 @@ _thread_gc(pthread_addr_t arg)
 			 * Wait for a signal from a dying thread or a
 			 * timeout (for a backup poll).
 			 */
-			if ((ret = pthread_cond_timedwait(&_gc_cond,
+			if ((ret = _pthread_cond_timedwait(&_gc_cond,
 			    &_gc_mutex, &abstime)) != 0 && ret != ETIMEDOUT)
 				PANIC("gc cannot wait for a signal");
 		}
 
 		/* Unlock the garbage collector mutex: */
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		if (_pthread_mutex_unlock(&_gc_mutex) != 0)
 			PANIC("Cannot unlock gc mutex");
 
 		/*

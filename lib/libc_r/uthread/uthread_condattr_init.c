@@ -39,6 +39,8 @@
 
 __weak_reference(_pthread_condattr_init, pthread_condattr_init);
 
+static struct pthread_cond_attr default_condattr = PTHREAD_CONDATTR_DEFAULT;
+
 int
 _pthread_condattr_init(pthread_condattr_t *attr)
 {
@@ -46,11 +48,11 @@ _pthread_condattr_init(pthread_condattr_t *attr)
 	pthread_condattr_t pattr;
 
 	if ((pattr = (pthread_condattr_t)
-			malloc(sizeof(struct pthread_cond_attr))) == NULL) {
+	    malloc(sizeof(struct pthread_cond_attr))) == NULL) {
 		ret = ENOMEM;
 	} else {
-		memcpy(pattr, &pthread_condattr_default,
-				sizeof(struct pthread_cond_attr));
+		memcpy(pattr, &default_condattr,
+		    sizeof(struct pthread_cond_attr));
 		*attr = pattr;
 		ret = 0;
 	}

@@ -34,7 +34,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "pthread_private.h"
 
 /*
@@ -43,16 +45,30 @@
 static inline pthread_t	cond_queue_deq(pthread_cond_t);
 static inline void	cond_queue_remove(pthread_cond_t, pthread_t);
 static inline void	cond_queue_enq(pthread_cond_t, pthread_t);
+int			__pthread_cond_timedwait(pthread_cond_t *,
+				pthread_mutex_t *, const struct timespec *);
+int			__pthread_cond_wait(pthread_cond_t *,
+				pthread_mutex_t *);
+
+
+/*
+ * Double underscore versions are cancellation points.  Single underscore
+ * versions are not and are provided for libc internal usage (which
+ * shouldn't introduce cancellation points).
+ */
+__weak_reference(__pthread_cond_wait, pthread_cond_wait);
+__weak_reference(__pthread_cond_timedwait, pthread_cond_timedwait);
 
 __weak_reference(_pthread_cond_init, pthread_cond_init);
 __weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
-__weak_reference(_pthread_cond_wait, pthread_cond_wait);
-__weak_reference(_pthread_cond_timedwait, pthread_cond_timedwait);
 __weak_reference(_pthread_cond_signal, pthread_cond_signal);
 __weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
 
 
-/* Reinitialize a condition variable to defaults. */
+/*
+ * Reinitialize a private condition variable; this is only used for
+ * internal condition variables.  Currently, there is no difference.
+ */
 int
 _cond_reinit(pthread_cond_t *cond)
 {
@@ -61,7 +77,7 @@ _cond_reinit(pthread_cond_t *cond)
 	if (cond == NULL)
 		ret = EINVAL;
 	else if (*cond == NULL)
-		ret = pthread_cond_init(cond, NULL);
+		ret = _pthread_cond_init(cond, NULL);
 	else {
 		/*
 		 * Initialize the condition variable structure:
@@ -172,8 +188,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	int	interrupted = 0;
 	int	seqno;
 
-	_thread_enter_cancellation_point();
-	
 	if (cond == NULL)
 		return (EINVAL);
 
@@ -182,7 +196,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	 * perform the dynamic initialization:
 	 */
 	if (*cond == NULL &&
-	    (rval = pthread_cond_init(cond, NULL)) != 0)
+	    (rval = _pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
 
 	/*
@@ -316,15 +330,24 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 			curthread->continuation((void *) curthread);
 	} while ((done == 0) && (rval == 0));
 
-	_thread_leave_cancellation_point();
-
 	/* Return the completion status: */
 	return (rval);
 }
 
 int
-_pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
-		       const struct timespec * abstime)
+__pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _pthread_cond_wait(cond, mutex);
+	_thread_leave_cancellation_point();
+	return (ret);
+}
+
+int
+_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+		       const struct timespec *abstime)
 {
 	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
@@ -332,8 +355,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int	interrupted = 0;
 	int	seqno;
 
-	_thread_enter_cancellation_point();
-	
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
@@ -341,7 +362,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
 	 */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
+	if (*cond == NULL && (rval = _pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
 
 	/*
@@ -487,14 +508,24 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			curthread->continuation((void *) curthread);
 	} while ((done == 0) && (rval == 0));
 
-	_thread_leave_cancellation_point();
-
 	/* Return the completion status: */
 	return (rval);
 }
 
 int
-_pthread_cond_signal(pthread_cond_t * cond)
+__pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+		       const struct timespec *abstime)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _pthread_cond_timedwait(cond, mutex, abstime);
+	_thread_enter_cancellation_point();
+	return (ret);
+}
+
+int
+_pthread_cond_signal(pthread_cond_t *cond)
 {
 	int             rval = 0;
 	pthread_t       pthread;
@@ -505,7 +536,8 @@ _pthread_cond_signal(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
+	else if (*cond != NULL ||
+	    (rval = _pthread_cond_init(cond, NULL)) == 0) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:
@@ -556,7 +588,7 @@ _pthread_cond_signal(pthread_cond_t * cond)
 }
 
 int
-_pthread_cond_broadcast(pthread_cond_t * cond)
+_pthread_cond_broadcast(pthread_cond_t *cond)
 {
 	int             rval = 0;
 	pthread_t       pthread;
@@ -567,7 +599,8 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
+	else if (*cond != NULL ||
+	    (rval = _pthread_cond_init(cond, NULL)) == 0) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:

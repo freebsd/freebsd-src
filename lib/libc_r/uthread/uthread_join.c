@@ -32,7 +32,9 @@
  * $FreeBSD$
  */
 #include <errno.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "pthread_private.h"
 
 __weak_reference(_pthread_join, pthread_join);
@@ -64,7 +66,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	 * Lock the garbage collector mutex to ensure that the garbage
 	 * collector is not using the dead thread list.
 	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
+	if (_pthread_mutex_lock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
 	/*
@@ -77,7 +79,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	 * Unlock the garbage collector mutex, now that the garbage collector
 	 * can't be run:
 	 */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
+	if (_pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
 	/*

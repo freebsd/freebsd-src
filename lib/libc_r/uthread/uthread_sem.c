@@ -32,7 +32,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <semaphore.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "pthread_private.h"
 
 #define _SEM_CHECK_VALIDITY(sem)		\
@@ -88,15 +90,15 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 	/*
 	 * Initialize the semaphore.
 	 */
-	if (pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
+	if (_pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
 		free(*sem);
 		errno = ENOSPC;
 		retval = -1;
 		goto RETURN;
 	}
 
-	if (pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
-		pthread_mutex_destroy(&(*sem)->lock);
+	if (_pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
+		_pthread_mutex_destroy(&(*sem)->lock);
 		free(*sem);
 		errno = ENOSPC;
 		retval = -1;
@@ -120,17 +122,17 @@ _sem_destroy(sem_t *sem)
 	_SEM_CHECK_VALIDITY(sem);
 
 	/* Make sure there are no waiters. */
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 	if ((*sem)->nwaiters > 0) {
-		pthread_mutex_unlock(&(*sem)->lock);
+		_pthread_mutex_unlock(&(*sem)->lock);
 		errno = EBUSY;
 		retval = -1;
 		goto RETURN;
 	}
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 	
-	pthread_mutex_destroy(&(*sem)->lock);
-	pthread_cond_destroy(&(*sem)->gtzero);
+	_pthread_mutex_destroy(&(*sem)->lock);
+	_pthread_cond_destroy(&(*sem)->gtzero);
 	(*sem)->magic = 0;
 
 	free(*sem);
@@ -170,16 +172,16 @@ _sem_wait(sem_t *sem)
 	
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	while ((*sem)->count == 0) {
 		(*sem)->nwaiters++;
-		pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
+		_pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
 		(*sem)->nwaiters--;
 	}
 	(*sem)->count--;
 
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
 	retval = 0;
   RETURN:
@@ -194,7 +196,7 @@ _sem_trywait(sem_t *sem)
 
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	if ((*sem)->count > 0) {
 		(*sem)->count--;
@@ -204,7 +206,7 @@ _sem_trywait(sem_t *sem)
 		retval = -1;
 	}
 	
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
   RETURN:
 	return retval;
@@ -223,13 +225,13 @@ _sem_post(sem_t *sem)
 	 */
 	_thread_kern_sig_defer();
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	(*sem)->count++;
 	if ((*sem)->nwaiters > 0)
-		pthread_cond_signal(&(*sem)->gtzero);
+		_pthread_cond_signal(&(*sem)->gtzero);
 
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
 	_thread_kern_sig_undefer();
 	retval = 0;
@@ -244,9 +246,9 @@ _sem_getvalue(sem_t *sem, int *sval)
 
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 	*sval = (int)(*sem)->count;
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
 	retval = 0;
   RETURN:

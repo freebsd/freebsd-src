@@ -88,7 +88,9 @@ __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
 __weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
 
 
-/* Reinitialize a mutex to defaults. */
+/*
+ * Reinitialize a private mutex; this is only used for internal mutexes.
+ */
 int
 _mutex_reinit(pthread_mutex_t * mutex)
 {
@@ -97,7 +99,7 @@ _mutex_reinit(pthread_mutex_t * mutex)
 	if (mutex == NULL)
 		ret = EINVAL;
 	else if (*mutex == NULL)
-		ret = pthread_mutex_init(mutex, NULL);
+		ret = _pthread_mutex_init(mutex, NULL);
 	else {
 		/*
 		 * Initialize the mutex structure:
@@ -107,8 +109,7 @@ _mutex_reinit(pthread_mutex_t * mutex)
 		TAILQ_INIT(&(*mutex)->m_queue);
 		(*mutex)->m_owner = NULL;
 		(*mutex)->m_data.m_count = 0;
-		(*mutex)->m_flags &= MUTEX_FLAGS_PRIVATE;
-		(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
+		(*mutex)->m_flags |= MUTEX_FLAGS_INITED | MUTEX_FLAGS_PRIVATE;
 		(*mutex)->m_refcount = 0;
 		(*mutex)->m_prio = 0;
 		(*mutex)->m_saved_prio = 0;
@@ -133,7 +134,7 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 		ret = EINVAL;
 
 	/* Check if default mutex attributes: */
-	else if (mutex_attr == NULL || *mutex_attr == NULL) {
+	if (mutex_attr == NULL || *mutex_attr == NULL) {
 		/* Default to a (error checking) POSIX mutex: */
 		type = PTHREAD_MUTEX_ERRORCHECK;
 		protocol = PTHREAD_PRIO_NONE;
@@ -213,7 +214,7 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 		}
 	}
 	/* Return the completion status: */
-	return(ret);
+	return (ret);
 }
 
 int
@@ -272,7 +273,7 @@ init_static(pthread_mutex_t *mutex)
 
 	_SPINUNLOCK(&static_init_lock);
 
-	return(ret);
+	return (ret);
 }
 
 static int
@@ -289,7 +290,7 @@ init_static_private(pthread_mutex_t *mutex)
 
 	_SPINUNLOCK(&static_init_lock);
 
-	return(ret);
+	return (ret);
 }
 
 static int
@@ -759,7 +760,7 @@ int
 _mutex_cv_lock(pthread_mutex_t * mutex)
 {
 	int	ret;
-	if ((ret = pthread_mutex_lock(mutex)) == 0)
+	if ((ret = _pthread_mutex_lock(mutex)) == 0)
 		(*mutex)->m_refcount--;
 	return (ret);
 }
@@ -791,7 +792,7 @@ mutex_self_trylock(pthread_mutex_t mutex)
 		ret = EINVAL;
 	}
 
-	return(ret);
+	return (ret);
 }
 
 static inline int
@@ -828,7 +829,7 @@ mutex_self_lock(pthread_mutex_t mutex)
 		ret = EINVAL;
 	}
 
-	return(ret);
+	return (ret);
 }
 
 static inline int
@@ -1445,7 +1446,7 @@ _mutex_unlock_private(pthread_t pthread)
 	for (m = TAILQ_FIRST(&pthread->mutexq); m != NULL; m = m_next) {
 		m_next = TAILQ_NEXT(m, m_qe);
 		if ((m->m_flags & MUTEX_FLAGS_PRIVATE) != 0)
-			pthread_mutex_unlock(&m);
+			_pthread_mutex_unlock(&m);
 	}
 }
 
@@ -1502,7 +1503,7 @@ mutex_queue_deq(pthread_mutex_t mutex)
 			break;
 	}
 
-	return(pthread);
+	return (pthread);
 }
 
 /*
