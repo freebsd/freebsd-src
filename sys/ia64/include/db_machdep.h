@@ -82,6 +82,10 @@ db_regs_t		ddb_regs;	/* register state */
 u_long	db_register_value(db_regs_t *, int);
 int	kdb_trap(int vector, struct trapframe *regs);
 
+u_int64_t *db_rse_current_frame(void);
+u_int64_t *db_rse_previous_frame(u_int64_t *bsp, int sof);
+u_int64_t *db_rse_register_address(u_int64_t *bsp, int regno);
+
 /*
  * Pretty arbitrary
  */

@@ -239,8 +239,8 @@ rse_slot(u_int64_t *bsp)
  * Return the address of register regno (regno >= 32) given that bsp
  * points at the base of the register stack frame.
  */
-static u_int64_t *
-rse_register_address(u_int64_t *bsp, int regno)
+u_int64_t *
+db_rse_register_address(u_int64_t *bsp, int regno)
 {
 	int off = regno - 32;
 	u_int64_t rnats = (rse_slot(bsp) + off) / 63;
@@ -248,8 +248,17 @@ rse_register_address(u_int64_t *bsp, int regno)
 	return p;
 }
 
-static u_int64_t *
-rse_previous_frame(u_int64_t *bsp, int sof)
+u_int64_t *
+db_rse_current_frame()
+{
+	int sof = ddb_regs.tf_cr_ifs & 0x7f;
+	u_int64_t *bsp = (u_int64_t *)
+		(ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
+	return db_rse_previous_frame(bsp, sof);
+}
+
+u_int64_t *
+db_rse_previous_frame(u_int64_t *bsp, int sof)
 {
 	int slot = rse_slot(bsp);
 	int rnats = 0;
@@ -266,7 +275,7 @@ rse_previous_frame(u_int64_t *bsp, int sof)
 static int
 db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
-	int sof = ddb_regs.tf_cr_ifs & 0xff;
+	int sof = ddb_regs.tf_cr_ifs & 0x7f;
 	int regno = (db_expr_t) vp->valuep;
 	u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
 	u_int64_t *reg;
@@ -275,8 +284,8 @@ db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 		if (op == DB_VAR_GET)
 			*valuep = 0xdeadbeefdeadbeef;
 	} else {
-		bsp = rse_previous_frame(bsp, sof);
-		reg = rse_register_address(bsp, regno);
+		bsp = db_rse_previous_frame(bsp, sof);
+		reg = db_rse_register_address(bsp, regno);
 		if (op == DB_VAR_GET)
 			*valuep = *reg;
 		else
@@ -444,15 +453,15 @@ db_register_value(regs, regno)
 	if (regno < 32) {
 		return (regs->tf_r[regno - 1]);
 	} else {
-		int sof = ddb_regs.tf_cr_ifs & 0xff;
+		int sof = ddb_regs.tf_cr_ifs & 0x7f;
 		u_int64_t *bsp = (u_int64_t *) (ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
 		u_int64_t *reg;
 
 		if (regno - 32 >= sof) {
 			return 0xdeadbeefdeadbeef;
 		} else {
-			bsp = rse_previous_frame(bsp, sof);
-			reg = rse_register_address(bsp, regno);
+			bsp = db_rse_previous_frame(bsp, sof);
+			reg = db_rse_register_address(bsp, regno);
 			return *reg;
 		}
 	}
