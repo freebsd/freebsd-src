@@ -619,7 +619,7 @@ bus_space_write_stream_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 
 static __inline void
 bus_space_write_multi_stream_1(bus_space_tag_t t, bus_space_handle_t h,
-    bus_size_t o, uint8_t *a, size_t c)
+    bus_size_t o, const uint8_t *a, size_t c)
 {
 
 	while (c-- > 0)
@@ -637,7 +637,7 @@ bus_space_write_multi_stream_2(bus_space_tag_t t, bus_space_handle_t h,
 
 static __inline void
 bus_space_write_multi_stream_4(bus_space_tag_t t, bus_space_handle_t h,
-    bus_size_t o, uint32_t *a, size_t c)
+    bus_size_t o, const uint32_t *a, size_t c)
 {
 
 	while (c-- > 0)
@@ -646,7 +646,7 @@ bus_space_write_multi_stream_4(bus_space_tag_t t, bus_space_handle_t h,
 
 static __inline void
 bus_space_write_multi_stream_8(bus_space_tag_t t, bus_space_handle_t h,
-    bus_size_t o, uint64_t *a, size_t c)
+    bus_size_t o, const uint64_t *a, size_t c)
 {
 
 	while (c-- > 0)
