@@ -692,10 +692,6 @@ cardbus_write_ivar(device_t cbdev, device_t child, int which, uintptr_t value)
 	return(pci_write_ivar(cbdev, child, which, value));
 }
 
-/************************************************************************/
-/* Compatibility with PCI bus (XXX: Do we need this?)			*/
-/************************************************************************/
-
 static device_method_t cardbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cardbus_probe),
