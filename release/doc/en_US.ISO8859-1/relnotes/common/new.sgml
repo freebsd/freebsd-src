@@ -143,6 +143,10 @@
       <para>A bug which sometimes prevented &man.ata.4; tagged
         queueing from working correctly has been corrected.</para>
 
+      <para>The &man.ata.4; driver now computes maximum transfer sizes
+        correctly.  This fixes numerous <literal>READ_BIG</literal>
+        and other errors caused when accessing certain ATA
+        devices.</para>
     </sect3>
 
     <sect3>
@@ -195,6 +199,11 @@
       <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       for more details.</para>
+
+    <para>A race condition in &man.pppd.8;, which could be used to
+      change the permissions of an arbitrary file, has been corrected.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
 
   </sect2>
 
