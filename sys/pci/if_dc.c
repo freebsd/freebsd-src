@@ -186,7 +186,7 @@ static struct dc_type dc_devs[] = {
 		"Accton EN1217 10/100BaseTX" },
 	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN2242,
 		"Accton EN2242 MiniPCI 10/100BaseTX" },
-    	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
+	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
 	  	"Xircom X3201 10/100BaseTX" },
 	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500,
 		"Abocom FE2500 10/100BaseTX" },
@@ -1192,12 +1192,12 @@ dc_setfilt_asix(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-        /* Init our MAC address */
-        CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
-        CSR_WRITE_4(sc, DC_AX_FILTDATA,
+	/* Init our MAC address */
+	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
+	CSR_WRITE_4(sc, DC_AX_FILTDATA,
 	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
-        CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
-        CSR_WRITE_4(sc, DC_AX_FILTDATA,
+	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
+	CSR_WRITE_4(sc, DC_AX_FILTDATA,
 	    *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
 
 	/* If we want promiscuous mode, set the allframes bit. */
@@ -1285,7 +1285,7 @@ dc_setfilt_xircom(sc)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 
 	if (ifp->if_flags & IFF_ALLMULTI)
- 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
@@ -1340,7 +1340,7 @@ dc_setfilt(sc)
 	if (DC_IS_XIRCOM(sc))
 		dc_setfilt_xircom(sc);
 
- 	return;
+	return;
 }
 
 /*
@@ -1541,7 +1541,7 @@ dc_reset(sc)
 		CSR_WRITE_4(sc, DC_WATCHDOG, 0);
 	}
 
-        return;
+	return;
 }
 
 static struct dc_type *
@@ -2176,7 +2176,7 @@ dc_attach(dev)
 	callout_init(&sc->dc_stat_ch, IS_MPSAFE);
 
 #ifdef SRM_MEDIA
-        sc->dc_srm_media = 0;
+	sc->dc_srm_media = 0;
 
 	/* Remember the SRM console media setting */
 	if (DC_IS_INTEL(sc)) {
@@ -2458,7 +2458,7 @@ dc_pnic_rx_bug_war(sc, idx)
 	/*
 	 * Now copy the salvaged frame to the last mbuf and fake up
 	 * the status word to make it look like a successful
- 	 * frame reception.
+	 * frame reception.
 	 */
 	dc_newbuf(sc, i, m);
 	bcopy(ptr, mtod(m, char *), total_len);	
@@ -2512,9 +2512,9 @@ static void
 dc_rxeof(sc)
 	struct dc_softc		*sc;
 {
-        struct ether_header	*eh;
-        struct mbuf		*m;
-        struct ifnet		*ifp;
+	struct ether_header	*eh;
+	struct mbuf		*m;
+	struct ifnet		*ifp;
 	struct dc_desc		*cur_rx;
 	int			i, total_len = 0;
 	u_int32_t		rxstat;
@@ -3026,9 +3026,9 @@ dc_encap(sc, m_head, txidx)
 	int			frag, cur, cnt = 0;
 
 	/*
- 	 * Start packing the mbufs in this chain into
+	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
- 	 * of fragments or hit the end of the mbuf chain.
+	 * of fragments or hit the end of the mbuf chain.
 	 */
 	m = m_head;
 	cur = frag = *txidx;
@@ -3086,7 +3086,7 @@ dc_coal(sc, m_head)
 	struct dc_softc		*sc;
 	struct mbuf		**m_head;
 {
-        struct mbuf		*m_new, *m;
+	struct mbuf		*m_new, *m;
 
 	m = *m_head;
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
@@ -3365,7 +3365,7 @@ dc_init(xsc)
 	}
 
 #ifdef SRM_MEDIA
-        if(sc->dc_srm_media) {
+	if(sc->dc_srm_media) {
 		struct ifreq ifr;
 
 		ifr.ifr_media = sc->dc_srm_media;
@@ -3649,9 +3649,9 @@ dc_resume(dev)
 	pci_enable_busmaster(dev);
 	pci_enable_io(dev, DC_RES);
 
-        /* reinitialize interface if necessary */
-        if (ifp->if_flags & IFF_UP)
-                dc_init(sc);
+	/* reinitialize interface if necessary */
+	if (ifp->if_flags & IFF_UP)
+		dc_init(sc);
 
 	sc->suspended = 0;
 
