@@ -901,7 +901,7 @@ _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libsbuf lib/libtacplus lib/libutil lib/libypclnt \
 		lib/libz lib/msun
 
-lib/libopie__L lib/libradius__L lib/libtacplus__L: lib/libmd__L
+lib/libopie__L lib/libtacplus__L: lib/libmd__L
 lib/libypclnt__L: lib/librpcsvc__L
 
 _generic_libs+=	lib
@@ -909,12 +909,17 @@ _generic_libs+=	lib
 .if !defined(NOCRYPT)
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
+lib/libradius__L: secure/lib/libssl__L
 .if !defined(NO_OPENSSH)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: secure/lib/libcrypto__L lib/libz__L
 .endif
 .endif
 _generic_libs+=	secure/lib
+.endif
+
+.if defined(NOCRYPT) || defined(NO_OPENSSL)
+lib/libradius__L: lib/libmd__L
 .endif
 
 _generic_libs+=	usr.bin/lex/lib

@@ -66,15 +66,19 @@
 	#define	RAD_MICROSOFT_MS_SECONDARY_NBNS_SERVER		31
 	#define	RAD_MICROSOFT_MS_ARAP_CHALLENGE			33
 
+#define SALT_LEN    2
+
 struct rad_handle;
 
 __BEGIN_DECLS
-int	rad_get_vendor_attr(u_int32_t *, const void **, size_t *);
-int	rad_put_vendor_addr(struct rad_handle *, int, int, struct in_addr);
-int	rad_put_vendor_attr(struct rad_handle *, int, int, const void *,
+int	 rad_get_vendor_attr(u_int32_t *, const void **, size_t *);
+int	 rad_put_vendor_addr(struct rad_handle *, int, int, struct in_addr);
+int	 rad_put_vendor_attr(struct rad_handle *, int, int, const void *,
 	    size_t);
-int	rad_put_vendor_int(struct rad_handle *, int, int, u_int32_t);
-int	rad_put_vendor_string(struct rad_handle *, int, int, const char *);
+int	 rad_put_vendor_int(struct rad_handle *, int, int, u_int32_t);
+int	 rad_put_vendor_string(struct rad_handle *, int, int, const char *);
+u_char	*rad_demangle_mppe_key(struct rad_handle *, const void *, size_t,
+	    size_t *);
 __END_DECLS
 
 #endif /* _RADLIB_VS_H_ */

@@ -22,15 +22,22 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
 LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
 CFLAGS+=	-Wall
-DPADD=		${LIBMD}
-LDADD=		-lmd
 SHLIB_MAJOR=	1
 MAN=		libradius.3 radius.conf.5
+
+.if defined(NOCRYPT) || defined(NO_OPENSSL)
+DPADD=		${LIBMD}
+LDADD=		-lmd
+.else
+DPADD=		${LIBSSL}
+LDADD=		-lssl
+CFLAGS+=	-DWITH_SSL
+.endif
 
 .include <bsd.lib.mk>
