@@ -332,7 +332,7 @@ ep_isa_attach(device_t dev)
 	ep_get_media(sc);
 
 	GO_WINDOW(0);
-	SET_IRQ(BASE, rman_get_start(sc->irq));
+	SET_IRQ(sc, rman_get_start(sc->irq));
 
 	if ((error = ep_attach(sc))) {
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);

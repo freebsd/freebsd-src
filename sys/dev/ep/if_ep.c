@@ -112,7 +112,7 @@ eeprom_rdy(struct ep_softc *sc)
 {
 	int i;
 
-	for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++)
+	for (i = 0; is_eeprom_busy(sc) && i < MAX_EEPROMBUSY; i++)
 		DELAY(100);
 
 	if (i >= MAX_EEPROMBUSY) {
@@ -134,13 +134,13 @@ get_e(struct ep_softc *sc, u_int16_t offset, u_int16_t *result)
 	if (eeprom_rdy(sc))
 		return (ENXIO);
 
-	outw(BASE + EP_W0_EEPROM_COMMAND,
+	EP_WRITE_2(sc, EP_W0_EEPROM_COMMAND,
 	    (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
 
 	if (eeprom_rdy(sc))
 		return (ENXIO);
 
-	(*result) = inw(BASE + EP_W0_EEPROM_DATA);
+	(*result) = EP_READ_2(sc, EP_W0_EEPROM_DATA);
 
 	return (0);
 }
@@ -194,10 +194,8 @@ ep_alloc(device_t dev)
 	sc->unit = device_get_unit(dev);
 	sc->stat = 0;		/* 16 bit access */
 
-	sc->ep_io_addr = rman_get_start(sc->iobase);
-
-	sc->ep_btag = rman_get_bustag(sc->iobase);
-	sc->ep_bhandle = rman_get_bushandle(sc->iobase);
+	sc->bst = rman_get_bustag(sc->iobase);
+	sc->bsh = rman_get_bushandle(sc->iobase);
 
 	sc->ep_connectors = 0;
 	sc->ep_connector = 0;
@@ -225,7 +223,7 @@ ep_get_media(struct ep_softc *sc)
 	u_int16_t config;
 
 	GO_WINDOW(0);
-	config = inw(BASE + EP_W0_CONFIG_CTRL);
+	config = EP_READ_2(sc, EP_W0_CONFIG_CTRL);
 	if (config & IS_AUI)
 		sc->ep_connectors |= AUI;
 	if (config & IS_BNC)
@@ -242,7 +240,7 @@ ep_get_media(struct ep_softc *sc)
 	 * The cards that require something different can override
 	 * this later on.
 	 */
-	sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
+	sc->ep_connector = EP_READ_2(sc, EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 }
 
 void
@@ -281,7 +279,7 @@ ep_attach(struct ep_softc *sc)
 	p = (u_short *)&sc->arpcom.ac_enaddr;
 	GO_WINDOW(2);
 	for (i = 0; i < 3; i++)
-		outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
+		EP_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
 
 	device_printf(sc->dev, "Ethernet address %6D\n",
 	    sc->arpcom.ac_enaddr, ":");
@@ -379,54 +377,54 @@ ep_if_init(void *xsc)
 		return;
 
 	s = splimp();
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
 	GO_WINDOW(0);
-	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	GO_WINDOW(4);
-	outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
 	GO_WINDOW(0);
 
 	/* Disable the card */
-	outw(BASE + EP_W0_CONFIG_CTRL, 0);
+	EP_WRITE_2(sc, EP_W0_CONFIG_CTRL, 0);
 
 	/* Enable the card */
-	outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
+	EP_WRITE_2(sc, EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
 	GO_WINDOW(2);
 
 	/* Reload the ether_addr. */
 	for (i = 0; i < 6; i++)
-		outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+		EP_WRITE_1(sc, EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
-	outw(BASE + EP_COMMAND, RX_RESET);
-	outw(BASE + EP_COMMAND, TX_RESET);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
+	EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
 	/* Window 1 is operating window */
 	GO_WINDOW(1);
 	for (i = 0; i < 31; i++)
-		inb(BASE + EP_W1_TX_STATUS);
+		EP_READ_1(sc, EP_W1_TX_STATUS);
 
 	/* get rid of stray intr's */
-	outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
+	EP_WRITE_2(sc, EP_COMMAND, ACK_INTR | 0xff);
 
-	outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
 
-	outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
 	if (ifp->if_flags & IFF_PROMISC)
-		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 		    FIL_GROUP | FIL_BRDCST | FIL_ALL);
 	else
-		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 		    FIL_GROUP | FIL_BRDCST);
 
 	if (!sc->epb.mii_trans)
 		ep_ifmedia_upd(ifp);
 
-	outw(BASE + EP_COMMAND, RX_ENABLE);
-	outw(BASE + EP_COMMAND, TX_ENABLE);
+	EP_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
+	EP_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
@@ -440,8 +438,8 @@ ep_if_init(void *xsc)
 		m_freem(sc->top);
 		sc->top = sc->mcur = 0;
 	}
-	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-	outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	EP_WRITE_2(sc, EP_COMMAND, SET_TX_START_THRESH | 16);
 
 	/*
 	 * Store up a bunch of mbuf's for use later. (MAX_MBS).
@@ -467,7 +465,7 @@ ep_if_start(struct ifnet *ifp)
 	if (sc->gone)
 		return;
 
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
@@ -492,48 +490,48 @@ startagain:
 		m_freem(m0);
 		goto readcheck;
 	}
-	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+	if (EP_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
 		/* no room in FIFO */
-		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
+		EP_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
 		/* make sure */
-		if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
+		if (EP_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m0);
 			return;
 		}
 	} else
-		outw(BASE + EP_COMMAND,
+		EP_WRITE_2(sc, EP_COMMAND,
 		    SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
 
 	s = splhigh();
 
-	outw(BASE + EP_W1_TX_PIO_WR_1, len);
+	EP_WRITE_2(sc, EP_W1_TX_PIO_WR_1, len);
 	/* Second dword meaningless */
-	outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);
+	EP_WRITE_2(sc, EP_W1_TX_PIO_WR_1, 0x0);
 
 	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 		for (m = m0; m != NULL; m = m->m_next) {
 			if (m->m_len > 3)
-				outsl(BASE + EP_W1_TX_PIO_WR_1,
-				    mtod(m, caddr_t), m->m_len / 4);
+				EP_WRITE_MULTI_4(sc, EP_W1_TX_PIO_WR_1,
+				    mtod(m, uint32_t *), m->m_len / 4);
 			if (m->m_len & 3)
-				outsb(BASE + EP_W1_TX_PIO_WR_1,
-				    mtod(m, caddr_t)+(m->m_len & (~3)),
+				EP_WRITE_MULTI_1(sc, EP_W1_TX_PIO_WR_1,
+				    mtod(m, uint8_t *)+(m->m_len & (~3)),
 				    m->m_len & 3);
 		}
 	} else {
 		for (m = m0; m != NULL; m = m->m_next) {
 			if (m->m_len > 1)
-				outsw(BASE + EP_W1_TX_PIO_WR_1,
-				    mtod(m, caddr_t), m->m_len / 2);
+				EP_WRITE_MULTI_2(sc, EP_W1_TX_PIO_WR_1,
+				    mtod(m, uint16_t *), m->m_len / 2);
 			if (m->m_len & 1)
-				outb(BASE + EP_W1_TX_PIO_WR_1,
-				    *(mtod(m, caddr_t)+m->m_len - 1));
+				EP_WRITE_1(sc, EP_W1_TX_PIO_WR_1,
+				    *(mtod(m, uint8_t *)+m->m_len - 1));
 		}
 	}
 
 	while (pad--)
-		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
+		EP_WRITE_1(sc, EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 	splx(s);
 
@@ -548,13 +546,13 @@ startagain:
 	 * the tiny RX fifo.
 	 */
 readcheck:
-	if (inw(BASE + EP_W1_RX_STATUS) & RX_BYTES_MASK) {
+	if (EP_READ_2(sc, EP_W1_RX_STATUS) & RX_BYTES_MASK) {
 		/*
 		 * we check if we have packets left, in that case
 		 * we prepare to come back later
 		 */
 		if (ifp->if_snd.ifq_head)
-			outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
+			EP_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
 		return;
 	}
 	goto startagain;
@@ -575,20 +573,20 @@ ep_intr(void *arg)
 	/*
 	 * quick fix: Try to detect an interrupt when the card goes away.
 	 */
-	if (sc->gone || inw(BASE + EP_STATUS) == 0xffff) {
+	if (sc->gone || EP_READ_2(sc, EP_STATUS) == 0xffff) {
 		splx(x);
 		return;
 	}
 	ifp = &sc->arpcom.ac_if;
 
-	outw(BASE + EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
+	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
 rescan:
 
-	while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
+	while ((status = EP_READ_2(sc, EP_STATUS)) & S_5_INTS) {
 
 		/* first acknowledge all interrupt sources */
-		outw(BASE + EP_COMMAND, ACK_INTR | (status & S_MASK));
+		EP_WRITE_2(sc, EP_COMMAND, ACK_INTR | (status & S_MASK));
 
 		if (status & (S_RX_COMPLETE | S_RX_EARLY))
 			epread(sc);
@@ -597,7 +595,7 @@ rescan:
 			ifp->if_timer = 0;
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
-			inw(BASE + EP_W1_FREE_TX);
+			EP_READ_2(sc, EP_W1_FREE_TX);
 			ep_if_start(ifp);
 		}
 		if (status & S_CARD_FAILURE) {
@@ -606,7 +604,7 @@ rescan:
 			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
 			GO_WINDOW(4);
 			printf("\tFIFO Diagnostic: %x\n",
-			    inw(BASE + EP_W4_FIFO_DIAG));
+			    EP_READ_2(sc, EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
 			printf("\tIpackets=%d, Opackets=%d\n",
 			    ifp->if_ipackets, ifp->if_opackets);
@@ -635,13 +633,13 @@ rescan:
 		         * We need to read TX_STATUS until we get a
 			 * 0 status in order to turn off the interrupt flag.
 		         */
-			while ((status = inb(BASE + EP_W1_TX_STATUS)) &
+			while ((status = EP_READ_1(sc, EP_W1_TX_STATUS)) &
 			    TXS_COMPLETE) {
 				if (status & TXS_SUCCES_INTR_REQ);
 				else if (status &
 				    (TXS_UNDERRUN | TXS_JABBER |
 				    TXS_MAX_COLLISION)) {
-					outw(BASE + EP_COMMAND, TX_RESET);
+					EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
 					if (status & TXS_UNDERRUN) {
 #ifdef EP_LOCAL_STATS
 						sc->tx_underrun++;
@@ -656,32 +654,32 @@ rescan:
 							 */
 					}
 					++ifp->if_oerrors;
-					outw(BASE + EP_COMMAND, TX_ENABLE);
+					EP_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 					/*
 				         * To have a tx_avail_int but giving
 					 * the chance to the Reception
 				         */
 					if (ifp->if_snd.ifq_head)
-						outw(BASE + EP_COMMAND,
+						EP_WRITE_2(sc, EP_COMMAND,
 						    SET_TX_AVAIL_THRESH | 8);
 				}
 				/* pops up the next status */
-				outb(BASE + EP_W1_TX_STATUS, 0x0);
+				EP_WRITE_1(sc, EP_W1_TX_STATUS, 0x0);
 			}	/* while */
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
-			inw(BASE + EP_W1_FREE_TX);
+			EP_READ_2(sc, EP_W1_FREE_TX);
 			ep_if_start(ifp);
 		}	/* end TX_COMPLETE */
 	}
 
-	outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
+	EP_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
 
-	if ((status = inw(BASE + EP_STATUS)) & S_5_INTS)
+	if ((status = EP_READ_2(sc, EP_STATUS)) & S_5_INTS)
 		goto rescan;
 
 	/* re-enable Ints */
-	outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
 	splx(x);
 }
@@ -697,7 +695,7 @@ epread(struct ep_softc *sc)
 	short rx_fifo;
 
 	ifp = &sc->arpcom.ac_if;
-	status = inw(BASE + EP_W1_RX_STATUS);
+	status = EP_READ_2(sc, EP_W1_RX_STATUS);
 
 read_again:
 
@@ -731,8 +729,8 @@ read_again:
 		top->m_data += EOFF;
 
 		/* Read what should be the header. */
-		insw(BASE + EP_W1_RX_PIO_RD_1,
-		    mtod(top, caddr_t), sizeof(struct ether_header) / 2);
+		EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
+		    mtod(top, uint16_t *), sizeof(struct ether_header) / 2);
 		top->m_len = sizeof(struct ether_header);
 		rx_fifo -= sizeof(struct ether_header);
 		sc->cur_len = rx_fifo2;
@@ -759,21 +757,21 @@ read_again:
 		}
 		if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 			/* default for EISA configured cards */
-			insl(BASE + EP_W1_RX_PIO_RD_1,
-			    mtod(m, caddr_t)+m->m_len,
+			EP_READ_MULTI_4(sc, EP_W1_RX_PIO_RD_1,
+			    mtod(m, uint32_t *)+m->m_len,
 			    lenthisone / 4);
 			m->m_len += (lenthisone & ~3);
 			if (lenthisone & 3)
-				insb(BASE + EP_W1_RX_PIO_RD_1,
+				EP_READ_MULTI_1(sc, EP_W1_RX_PIO_RD_1,
 				    mtod(m, caddr_t)+m->m_len, lenthisone & 3);
 			m->m_len += (lenthisone & 3);
 		} else {
-			insw(BASE + EP_W1_RX_PIO_RD_1,
-			    mtod(m, caddr_t)+m->m_len, lenthisone / 2);
+			EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
+			    mtod(m, uint16_t *)+m->m_len, lenthisone / 2);
 			m->m_len += lenthisone;
 			if (lenthisone & 1)
 				*(mtod(m, caddr_t)+m->m_len - 1) =
-				    inb(BASE + EP_W1_RX_PIO_RD_1);
+				    EP_READ_1(sc, EP_W1_RX_PIO_RD_1);
 		}
 		rx_fifo -= lenthisone;
 	}
@@ -786,7 +784,7 @@ read_again:
 		sc->rx_no_first++;
 #endif
 		EP_FRST(sc, F_RX_FIRST);
-		status = inw(BASE + EP_W1_RX_STATUS);
+		status = EP_READ_2(sc, EP_W1_RX_STATUS);
 		if (!status & ERR_RX_INCOMPLETE) {
 			/*
 			 * We see if by now, the packet has completly
@@ -794,11 +792,11 @@ read_again:
 			 */
 			goto read_again;
 		}
-		outw(BASE + EP_COMMAND,
+		EP_WRITE_2(sc, EP_COMMAND,
 		    SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
 		return;
 	}
-	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	++ifp->if_ipackets;
 	EP_FSET(sc, F_RX_FIRST);
 	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
@@ -806,12 +804,12 @@ read_again:
 
 	(*ifp->if_input) (ifp, top);
 	sc->top = 0;
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 	return;
 
 out:
-	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
+	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	if (sc->top) {
 		m_freem(sc->top);
 		sc->top = 0;
@@ -820,8 +818,8 @@ out:
 #endif
 	}
 	EP_FSET(sc, F_RX_FIRST);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
 static int
@@ -831,9 +829,9 @@ ep_ifmedia_upd(struct ifnet *ifp)
 	int i = 0, j;
 
 	GO_WINDOW(0);
-	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	GO_WINDOW(4);
-	outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
 	GO_WINDOW(0);
 
 	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
@@ -841,13 +839,13 @@ ep_ifmedia_upd(struct ifnet *ifp)
 		if (sc->ep_connectors & UTP) {
 			i = ACF_CONNECTOR_UTP;
 			GO_WINDOW(4);
-			outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
+			EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, ENABLE_UTP);
 		}
 		break;
 	case IFM_10_2:
 		if (sc->ep_connectors & BNC) {
 			i = ACF_CONNECTOR_BNC;
-			outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+			EP_WRITE_2(sc, EP_COMMAND, START_TRANSCEIVER);
 			DELAY(DELAY_MULTIPLE * 1000);
 		}
 		break;
@@ -862,8 +860,8 @@ ep_ifmedia_upd(struct ifnet *ifp)
 	}
 
 	GO_WINDOW(0);
-	j = inw(BASE + EP_W0_ADDRESS_CFG) & 0x3fff;
-	outw(BASE + EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
+	j = EP_READ_2(sc, EP_W0_ADDRESS_CFG) & 0x3fff;
+	EP_WRITE_2(sc, EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
 
 	return (0);
 }
@@ -953,21 +951,21 @@ epstop(struct ep_softc *sc)
 {
 	if (sc->gone)
 		return;
-	outw(BASE + EP_COMMAND, RX_DISABLE);
-	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
+	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-	outw(BASE + EP_COMMAND, TX_DISABLE);
-	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	EP_WRITE_2(sc, EP_COMMAND, TX_DISABLE);
+	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	DELAY(800);
 
-	outw(BASE + EP_COMMAND, RX_RESET);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	outw(BASE + EP_COMMAND, TX_RESET);
-	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
+	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
-	outw(BASE + EP_COMMAND, C_INTR_LATCH);
-	outw(BASE + EP_COMMAND, SET_RD_0_MASK);
-	outw(BASE + EP_COMMAND, SET_INTR_MASK);
-	outw(BASE + EP_COMMAND, SET_RX_FILTER);
+	EP_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
+	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);
+	EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER);
 }
