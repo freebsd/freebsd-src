@@ -34,7 +34,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 #include <sys/ktr.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
