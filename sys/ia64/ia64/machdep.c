@@ -418,8 +418,7 @@ map_port_space(void)
 	__asm __volatile("rsm	psr.ic|psr.i");
 	__asm __volatile("srlz.d");
 	__asm __volatile("mov	cr.ifa=%0" :: "r"(ia64_port_base));
-	/* XXX We should use the size from the memory descriptor. */
-	__asm __volatile("mov	cr.itir=%0" :: "r"(24 << 2));
+	__asm __volatile("mov	cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
 	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	__asm __volatile("srlz.d");
