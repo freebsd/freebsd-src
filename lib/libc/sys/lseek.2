@@ -120,7 +120,7 @@ system call
 will fail and the file position pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Em Fildes
+.Fa fildes
 is not an open file descriptor.
 .It Bq Er EINVAL
 .Fa Whence
@@ -132,7 +132,7 @@ The resulting file offset would be a value which cannot be represented
 correctly in an object of type
 .Fa off_t .
 .It Bq Er ESPIPE
-.Em Fildes
+.Fa fildes
 is associated with a pipe, socket, or FIFO.
 .El
 .Sh SEE ALSO
