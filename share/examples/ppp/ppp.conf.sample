@@ -764,8 +764,6 @@ pppoe-in:
 #    are enough process table slots.
 #  o Bump system file descriptors with ``sysctl kern.maxfiles=20480''.  You'll
 #    need 3 descriptors per ppp process (assuming no server socket).
-#  o If you're not using DEVFS, create device notes with
-#    ``cd /dev; ./MAKEDEV tun5000''.
 #
 # You can now create 2000 processes (1000 pairs) with:
 #
