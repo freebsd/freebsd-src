@@ -390,15 +390,22 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1040A	0x5
 #define	ISP_HA_SCSI_1040B	0x6
 #define	ISP_HA_SCSI_1040C	0x7
-#define	ISP_HA_SCSI_1080	0xd
-#define	ISP_HA_SCSI_12X0	0xe
+#define	ISP_HA_SCSI_1240	0x8
+#define	ISP_HA_SCSI_1080	0x9
+#define	ISP_HA_SCSI_1280	0xa
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
+#define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
 #define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
-#define	IS_12X0(isp)	(isp->isp_type == ISP_HA_SCSI_12X0)
+#define	IS_1280(isp)	(isp->isp_type == ISP_HA_SCSI_1280)
+#define	IS_12X0(isp)	\
+	(isp->isp_type == ISP_HA_SCSI_1240 || isp->isp_type == ISP_HA_SCSI_1280)
+#define	IS_DUALBUS(isp)	IS_12X0(isp)
+#define	IS_ULTRA2(isp)	\
+	(isp->isp_type == ISP_HA_SCSI_1080 || isp->isp_type == ISP_HA_SCSI_1280)
 #define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
 
 /*

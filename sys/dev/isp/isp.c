@@ -155,7 +155,7 @@ isp_reset(isp)
 	DISABLE_INTS(isp);
 
 	/*
-	 * Put the board into PAUSE mode.
+	 * Put the board into PAUSE mode (so we can read the SXP registers).
 	 */
 	ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
 
@@ -171,36 +171,67 @@ isp_reset(isp)
 		default:
 			break;
 		}
-	} else if (IS_12X0(isp)) {
-		revname = "12X0";
+	} else if (IS_1240(isp)) {
+		sdparam *sdp = isp->isp_param;
+		revname = "1240";
 		isp->isp_clock = 60;
-	} else if (IS_1080(isp)) {
+		sdp->isp_ultramode = 1;
+		sdp++;
+		sdp->isp_ultramode = 1;
+		/*
+		 * XXX: Should probably do some bus sensing.
+		 */
+	} else if (IS_ULTRA2(isp)) {
+		static char *m = "%s: bus %d is in %s Mode\n";
 		u_int16_t l;
 		sdparam *sdp = isp->isp_param;
-		revname = "1080";
+
 		isp->isp_clock = 100;
+
+		revname = "1080";
 		l = ISP_READ(isp, SXP_PINS_DIFF) & ISP1080_MODE_MASK;
 		switch (l) {
 		case ISP1080_LVD_MODE:
 			sdp->isp_lvdmode = 1;
-			PRINTF("%s: LVD Mode\n", isp->isp_name);
+			CFGPRINTF(m, isp->isp_name, 0, "LVD");
 			break;
 		case ISP1080_HVD_MODE:
 			sdp->isp_diffmode = 1;
-			CFGPRINTF("%s: Differential Mode\n", isp->isp_name);
+			CFGPRINTF(m, isp->isp_name, 0, "Differential");
 			break;
 		case ISP1080_SE_MODE:
 			sdp->isp_ultramode = 1;
-			CFGPRINTF("%s: Single-Ended Mode\n", isp->isp_name);
+			CFGPRINTF(m, isp->isp_name, 0, "Single-Ended");
 			break;
 		default:
-			/*
-			 * Hmm. Up in a wierd mode. This means all SCSI I/O
-			 * buffer lines are tristated, so we're in a lot of
-			 * trouble if we don't set things up right.
-			 */
-			PRINTF("%s: Illegal Mode 0x%x\n", isp->isp_name, l);
+			CFGPRINTF("%s: unknown mode on bus %d (0x%x)\n",
+			    isp->isp_name, 0, l);
 			break;
+		}
+
+		if (IS_1280(isp)) {
+			sdp++;
+			revname[1] = '2';
+			l = ISP_READ(isp, SXP_PINS_DIFF|SXP_BANK1_SELECT);
+			l &= ISP1080_MODE_MASK;
+			switch(l) {
+			case ISP1080_LVD_MODE:
+				sdp->isp_lvdmode = 1;
+				CFGPRINTF(m, isp->isp_name, 1, "LVD");
+				break;
+			case ISP1080_HVD_MODE:
+				sdp->isp_diffmode = 1;
+				CFGPRINTF(m, isp->isp_name, 1, "Differential");
+				break;
+			case ISP1080_SE_MODE:
+				sdp->isp_ultramode = 1;
+				CFGPRINTF(m, isp->isp_name, 1, "Single-Ended");
+				break;
+			default:
+				CFGPRINTF("%s: unknown mode on bus %d (0x%x)\n",
+				    isp->isp_name, 1, l);
+				break;
+			}
 		}
 	} else {
 		sdparam *sdp = isp->isp_param;
@@ -241,7 +272,7 @@ isp_reset(isp)
 			isp->isp_clock = 60;
 			break;
 		case 6: 
-			revname = "1040C(?)";
+			revname = "1040C";
 			isp->isp_type = ISP_HA_SCSI_1040C;
 			isp->isp_clock = 60;
                         break; 
@@ -609,7 +640,7 @@ isp_init(isp)
 	 * Must do this first to get defaults established.
 	 */
 	isp_setdfltparm(isp, 0);
-	if (IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		isp_setdfltparm(isp, 1);
 	}
 
@@ -629,7 +660,7 @@ isp_scsi_init(isp)
 
 	sdp_chan0 = isp->isp_param;
 	sdp_chan1 = sdp_chan0;
-	if (IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		sdp_chan1++;
 	}
 
@@ -724,7 +755,7 @@ isp_scsi_init(isp)
 
 	/* now do per-channel settings */
 	isp_scsi_channel_init(isp, 0);
-	if (IS_12X0(isp))
+	if (IS_DUALBUS(isp))
 		isp_scsi_channel_init(isp, 1);
 
 	/*
@@ -761,7 +792,7 @@ isp_scsi_init(isp)
 	 *  Turn on Fast Posting, LVD transitions
 	 */
 
-	if (IS_1080(isp) ||
+	if (IS_ULTRA2(isp) ||
 	    ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0)) {
 		mbs.param[0] = MBOX_SET_FW_FEATURES;
 #ifndef	ISP_NO_FASTPOST_SCSI
@@ -769,7 +800,7 @@ isp_scsi_init(isp)
 #else
 		mbs.param[1] = 0;
 #endif
-		if (IS_1080(isp))
+		if (IS_ULTRA2(isp))
 			mbs.param[1] |= FW_FEATURE_LVD_NOTIFY;
 		if (mbs.param[1] != 0) {
 			isp_mboxcmd(isp, &mbs);
@@ -827,7 +858,7 @@ isp_scsi_channel_init(isp, channel)
 		 * If we're in LVD mode, then we pretty much should
 		 * only disable tagged queuing.
 		 */
-		if (IS_1080(isp) && sdp->isp_lvdmode) {
+		if (IS_ULTRA2(isp) && sdp->isp_lvdmode) {
 			sdf = DPARM_DEFAULT & ~DPARM_TQING;
 		} else {
 			sdf = DPARM_SAFE_DFLT;
@@ -1920,7 +1951,7 @@ ispscsicmd(xs)
 	 * than which we got here to send a command to.
 	 */
 	if (isp->isp_sendmarker) {
-		u_int8_t n = (IS_12X0(isp)? 2: 1);
+		u_int8_t n = (IS_DUALBUS(isp)? 2: 1);
 		/*
 		 * Check ports to send markers for...
 		 */
@@ -2446,12 +2477,7 @@ isp_parse_async(isp, mbox)
 	int bus;
 	u_int32_t fast_post_handle = 0;
 
-	/*
- 	 * It is not documented anywhere that bus is always in OUTMAILBOX6
-	 * for dual bus cards- and we don't have the h/w to prove it either,
-	 * So we'll just assume......
-	 */
-	if (IS_1080(isp) || IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		bus = ISP_READ(isp, OUTMAILBOX6);
 	} else {
 		bus = 0;
@@ -2705,8 +2731,9 @@ isp_parse_status(isp, sp, xs)
 		break;
 
 	case RQCS_RESET_OCCURRED:
-		IDPRINTF(2, ("%s: bus reset destroyed command for target %d "
-		    "lun %d\n", isp->isp_name, XS_TGT(xs), XS_LUN(xs)));
+		IDPRINTF(2, ("%s: bus %d reset destroyed command for target %d "
+		    "lun %d\n", isp->isp_name, XS_CHANNEL(xs), XS_TGT(xs),
+		    XS_LUN(xs)));
 		/*
 		 * XXX: Get port number for bus
 		 */
@@ -3214,7 +3241,7 @@ command_known:
 	 * XXX Eventually will be fixed by converting register write/read
 	 * XXX counts to bitmasks.
 	 */
-	if (IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		switch (opcode) {
 		case MBOX_GET_RETRY_COUNT:
 		case MBOX_SET_RETRY_COUNT:
@@ -3339,7 +3366,7 @@ command_known:
 	 * Pick up output parameters. Special case some of the readbacks
 	 * for the dual port SCSI cards.
 	 */
-	if (IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		switch (opcode) {
 		case MBOX_GET_RETRY_COUNT:
 		case MBOX_SET_RETRY_COUNT:
@@ -3514,7 +3541,7 @@ isp_dumpregs(isp, msg)
 		PRINTF("    sxp_int=%x sxp_gross=%x sxp(scsi_ctrl)=%x\n",
 			ISP_READ(isp, SXP_INTERRUPT),
 			ISP_READ(isp, SXP_GROSS_ERR),
-			ISP_READ(isp, SXP_PINS_CONTROL));
+			ISP_READ(isp, SXP_PINS_CTRL));
 		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 	}
 	PRINTF("    mbox regs: %x %x %x %x %x\n",
@@ -3755,14 +3782,14 @@ isp_setdfltparm(isp, channel)
 		IDPRINTF(2, ("could not GET ACT NEG STATE\n"));
 		sdp_chan0->isp_req_ack_active_neg = 1;
 		sdp_chan0->isp_data_line_active_neg = 1;
-		if (IS_12X0(isp)) {
+		if (IS_DUALBUS(isp)) {
 			sdp_chan1->isp_req_ack_active_neg = 1;
 			sdp_chan1->isp_data_line_active_neg = 1;
 		}
 	} else {
 		sdp_chan0->isp_req_ack_active_neg = (mbs.param[1] >> 4) & 0x1;
 		sdp_chan0->isp_data_line_active_neg = (mbs.param[1] >> 5) & 0x1;
-		if (IS_12X0(isp)) {
+		if (IS_DUALBUS(isp)) {
 			sdp_chan1->isp_req_ack_active_neg =
 			    (mbs.param[2] >> 4) & 0x1;
 			sdp_chan1->isp_data_line_active_neg =
@@ -3787,7 +3814,7 @@ isp_setdfltparm(isp, channel)
 			    ISP_10M_SYNCPARMS >> 8;
 			sdp->isp_devparam[tgt].sync_period =
 			    ISP_10M_SYNCPARMS & 0xff;
-		} else if (IS_1080(isp)) {
+		} else if (IS_ULTRA2(isp)) {
 			sdp->isp_devparam[tgt].sync_offset =
 			    ISP_40M_SYNCPARMS >> 8;
 			sdp->isp_devparam[tgt].sync_period =
@@ -3941,7 +3968,7 @@ isp_read_nvram(isp)
 	if (IS_FC(isp)) {
 		amt = ISP2100_NVRAM_SIZE;
 		minversion = 1;
-	} else if (IS_1080(isp) || IS_12X0(isp)) {
+	} else if (IS_ULTRA2(isp)) {
 		amt = ISP1080_NVRAM_SIZE;
 		minversion = 0;
 	} else {
@@ -3981,10 +4008,10 @@ isp_read_nvram(isp)
 		return (-1);
 	}
 
-	if (IS_1080(isp) || IS_12X0(isp)) {
+	if (IS_ULTRA2(isp)) {
 		int bus;
 		sdparam *sdp = (sdparam *) isp->isp_param;
-		for (bus = 0; bus < (IS_1080(isp)? 1 : 2); bus++, sdp++) {
+		for (bus = 0; bus < (IS_DUALBUS(isp)? 2 : 1); bus++, sdp++) {
 			sdp->isp_fifo_threshold = 
 			    ISP1080_NVRAM_FIFO_THRESHOLD(nvram_data);
 
@@ -4344,7 +4371,7 @@ isp_rdnvram_word(isp, wo, rp)
 		wo &= ((ISP2100_NVRAM_SIZE >> 1) - 1);
 		rqst = (ISP_NVRAM_READ << 8) | wo;
 		cbits = 10;
-	} else if (IS_1080(isp) || IS_12X0(isp)) {
+	} else if (IS_ULTRA2(isp)) {
 		wo &= ((ISP1080_NVRAM_SIZE >> 1) - 1);
 		rqst = (ISP_NVRAM_READ << 8) | wo;
 		cbits = 10;
