@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <vis.h>
 
+#include "lomac.h"
 #include "ps.h"
 
 void
