@@ -106,6 +106,7 @@ mcount()								\
 	_mcount(frompc, selfpc);					\
 }
 #else	/* __GNUC__ */
+#define	MCOUNT		\
 void			\
 mcount()		\
 {			\
