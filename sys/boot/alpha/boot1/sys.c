@@ -244,3 +244,13 @@ openrd(char *name)
     poff = 0;
     return 0;
 }
+
+void
+bcopy(const void *src, void *dst, size_t len) 
+{
+	const char *s;
+	char *d;
+		 
+	for (d = dst, s = src; len; len--)
+		*d++ = *s++;
+}
