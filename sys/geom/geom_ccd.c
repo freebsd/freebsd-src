@@ -107,7 +107,7 @@ struct ccdbuf {
 
 static dev_t	ccdctldev;
 
-static d_strategy_t ccdstrategy;
+static disk_strategy_t ccdstrategy;
 static d_ioctl_t ccdctlioctl;
 
 #define NCCDFREEHIWAT	16
@@ -537,7 +537,7 @@ ccdstrategy(struct bio *bp)
 	int pbn;        /* in sc_secsize chunks */
 	long sz;        /* in sc_secsize chunks */
 
-	cs = bp->bio_dev->si_drv1;
+	cs = bp->bio_disk->d_drv1;
 
 	pbn = bp->bio_blkno / (cs->sc_geom.ccg_secsize / DEV_BSIZE);
 	sz = howmany(bp->bio_bcount, cs->sc_geom.ccg_secsize);
@@ -1133,9 +1133,9 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		    cs->sc_size * (off_t)ccg->ccg_secsize;
 		cs->sc_disk->d_fwsectors = ccg->ccg_nsectors;
 		cs->sc_disk->d_fwheads = ccg->ccg_ntracks;
-		cs->sc_dev = disk_create(unit, cs->sc_disk, 0, NULL, NULL);
-		cs->sc_dev->si_drv1 = cs;
-		cs->sc_dev->si_iosize_max = MAXPHYS;
+		cs->sc_disk->d_drv1 = cs;
+		cs->sc_disk->d_maxsize = MAXPHYS;
+		disk_create(unit, cs->sc_disk, 0, NULL, NULL);
 
 		ccdunlock(cs);
 
