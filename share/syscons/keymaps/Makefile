@@ -1,6 +1,7 @@
 # $Id: $
 
 KEYMAPS=  INDEX.keymaps
+KEYMAPS+= be.iso.kbd
 KEYMAPS+= br275.iso.kbd br275.cp850.kbd
 KEYMAPS+= danish.iso.kbd danish.cp865.kbd
 KEYMAPS+= fr.iso.kbd
