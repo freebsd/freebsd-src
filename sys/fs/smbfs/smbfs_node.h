@@ -48,7 +48,7 @@ struct smbfs_fctx;
 struct smbnode {
 	struct lock		n_lock;		/* smbnode lock. (mbf) */
 	int			n_flag;
-	struct smbnode *	n_parent;
+	struct vnode *		n_parent;
 	struct vnode *		n_vnode;
 	struct smbmount *	n_mount;
 	time_t			n_attrage;	/* attributes cache time */

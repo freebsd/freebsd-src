@@ -179,7 +179,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 	if (nmlen == 2 && bcmp(name, "..", 2) == 0) {
 		if (dvp == NULL)
 			return EINVAL;
-		vp = VTOSMB(dvp)->n_parent->n_vnode;
+		vp = VTOSMB(VTOSMB(dvp)->n_parent)->n_vnode;
 		error = vget(vp, LK_EXCLUSIVE, p);
 		if (error == 0)
 			*vpp = vp;
@@ -200,7 +200,7 @@ loop:
 	nhpp = SMBFS_NOHASH(smp, hashval);
 	LIST_FOREACH(np, nhpp, n_hash) {
 		vp = SMBTOV(np);
-		if (np->n_parent != dnp ||
+		if (np->n_parent != dvp ||
 		    np->n_nmlen != nmlen || bcmp(name, np->n_name, nmlen) != 0)
 			continue;
 		VI_LOCK(vp);
@@ -234,7 +234,7 @@ loop:
 	np->n_ino = fap->fa_ino;
 
 	if (dvp) {
-		np->n_parent = dnp;
+		np->n_parent = dvp;
 		if (/*vp->v_type == VDIR &&*/ (dvp->v_flag & VROOT) == 0) {
 			vref(dvp);
 			np->n_flag |= NREFPARENT;
@@ -247,7 +247,7 @@ loop:
 
 	smbfs_hash_lock(smp, p);
 	LIST_FOREACH(np2, nhpp, n_hash) {
-		if (np2->n_parent != dnp ||
+		if (np2->n_parent != dvp ||
 		    np2->n_nmlen != nmlen || bcmp(name, np2->n_name, nmlen) != 0)
 			continue;
 		vput(vp);
@@ -301,7 +301,7 @@ smbfs_reclaim(ap)
 	smbfs_hash_lock(smp, p);
 
 	dvp = (np->n_parent && (np->n_flag & NREFPARENT)) ?
-	    np->n_parent->n_vnode : NULL;
+	    np->n_parent : NULL;
 
 	if (np->n_hash.le_prev)
 		LIST_REMOVE(np, n_hash);
@@ -320,6 +320,11 @@ smbfs_reclaim(ap)
 		if (dvp->v_usecount >= 1) {
 			VI_UNLOCK(dvp);
 			vrele(dvp);
+			/*
+			 * Indicate that we released something; see comment
+			 * in smbfs_unmount().
+			 */
+			smp->sm_didrele = 1;
 		} else {
 			VI_UNLOCK(dvp);
 			SMBERROR("BUG: negative use count for parent!\n");

@@ -833,7 +833,7 @@ int smbfs_print (ap)
 		return (0);
 	}
 	printf("tag VT_SMBFS, name = %s, parent = %p, opencount = %d",
-	    np->n_name, np->n_parent ? SMBTOV(np->n_parent) : NULL,
+	    np->n_name, np->n_parent ? np->n_parent : NULL,
 	    np->n_opencount);
 	lockmgr_printinfo(&np->n_lock);
 	printf("\n");
@@ -1229,7 +1229,8 @@ smbfs_lookup(ap)
 	smb_makescred(&scred, p, cnp->cn_cred);
 	fap = &fattr;
 	if (flags & ISDOTDOT) {
-		error = smbfs_smb_lookup(dnp->n_parent, NULL, 0, fap, &scred);
+		error = smbfs_smb_lookup(VTOSMB(dnp->n_parent), NULL, 0, fap,
+		    &scred);
 		SMBVDEBUG("result of dotdot lookup: %d\n", error);
 	} else {
 		fap = &fattr;
