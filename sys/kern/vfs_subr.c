@@ -1574,7 +1574,6 @@ vrele(vp)
 	}
 
 	if (vp->v_usecount == 1) {
-
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
@@ -1616,15 +1615,12 @@ vput(vp)
 	    ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
-
 		vp->v_usecount--;
 		VOP_UNLOCK(vp, LK_INTERLOCK, td);
 		return;
-
 	}
 
 	if (vp->v_usecount == 1) {
-
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
