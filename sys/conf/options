@@ -55,6 +55,8 @@ DEVFS
 HW_WDOG
 KTRACE
 MD5
+MD_ROOT		opt_md.h
+MD_ROOT_SIZE	opt_md.h
 MFS_ROOT	opt_mfs.h
 MFS_ROOT_SIZE	opt_mfs.h
 NTIMECOUNTER	opt_ntp.h
