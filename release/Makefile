@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.28 1995/10/11 10:10:14 jkh Exp $
+#	$Id: Makefile,v 1.193.2.29 1995/10/11 20:11:51 jkh Exp $
 #
 # How to roll a release:
 #
@@ -424,12 +424,12 @@ release.10:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
-		sh MAKEDEV all wcd0 && \
+		sh MAKEDEV all && \
 		find . -print | \
 	cpio -dump ${RD}/fixitfd/dev )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit FDINODE=4000
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit FDINODE=1024
 	touch release.10
 
 ftp.1:
