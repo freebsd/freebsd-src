@@ -305,6 +305,17 @@ list of available options.
 .It Fl mediaopt Ar opts
 If the driver supports the media selection system, disable the
 specified media options on the interface.
+.It Cm rxcsum , txcsum
+If the driver supports user-configurable checksum offloading,
+enable receive (or transmit) checksum offloading on the interface.
+Some drivers may not be able to enable these flags independently
+of each other, so setting one may also set the other.
+The driver will offload as much checksum work as it can reliably
+support, the exact level of offloading varies between drivers.
+.It Fl rxcsum , Fl txcsum
+If the driver supports user-configurable checksum offloading,
+disable receive (or transmit) checksum offloading on the interface.
+These settings may not always be independent of each other.
 .It Cm tunnel Ar src_addr dest_addr
 (IP tunnel devices only.)
 Configure the physical source and destination address for IP tunnel
