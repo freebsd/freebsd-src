@@ -269,4 +269,3 @@ ssccnattach(void)
 	ssc_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
 	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
 }
-

@@ -581,6 +581,7 @@ ia64_init()
 		size_t sz = round_page(UPAGES * PAGE_SIZE);
 		globalp = (struct globaldata *) pmap_steal_memory(sz);
 		globaldata_init(globalp, 0, sz);
+		ia64_set_k5((u_int64_t) globalp);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 	}
 
@@ -1022,7 +1023,26 @@ cpu_halt(void)
 void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
-	/* TODO setup trapframe to enter CSU code at the right place */
+	struct trapframe *frame;
+
+	frame = p->p_md.md_tf;
+
+	bzero(frame->tf_r, sizeof(frame->tf_r));
+	bzero(frame->tf_f, sizeof(frame->tf_f));
+	frame->tf_cr_iip = entry;
+	frame->tf_r[FRAME_SP] = stack;
+	frame->tf_r[FRAME_R14] = ps_strings;
+
+	/*
+	 * Setup the new backing store and make sure the new image
+	 * starts executing with an empty register stack frame.
+	 */
+	frame->tf_ar_bspstore = p->p_md.md_bspstore;
+	frame->tf_ar_bsp = p->p_md.md_bspstore;
+	frame->tf_cr_ifs = (1L<<63); /* ifm=0, v=1 */
+
+	p->p_md.md_flags &= ~MDP_FPUSED;
+	ia64_fpstate_drop(p);
 }
 
 int

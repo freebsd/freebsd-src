@@ -31,10 +31,10 @@
 BSS(ia64_pal_entry, 8)
 
 /*
- * struct ia64_pal_result ia64_call_pal_static(u_int64_t proc,
-	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
+ * struct ia64_pal_result ia64_call_pal(u_int64_t proc,
+ *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
  */
-	NESTED(ia64_call_pal_static, 4)
+ENTRY(ia64_call_pal, 4)
 	
 	.regstk	4,5,0,0
 palret	=	loc0
@@ -72,4 +72,4 @@ psrsave	=	loc4
 	srlz.d
 	br.ret.sptk rp
 
-	END(ia64_call_pal_static)
+	END(ia64_call_pal)
