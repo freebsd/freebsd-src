@@ -489,7 +489,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (track) {
 	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xff0000ff));
 
-	if (track < ((struct acd_softc *)(dev1->si_drv1))->toc.hdr.ending_track)
+	if (track <= ((struct acd_softc*)(dev1->si_drv1))->toc.hdr.ending_track)
 	    dev->si_drv1 = dev1->si_drv1;
     }
 
@@ -1128,11 +1128,11 @@ acd_start(struct atapi_softc *atp)
     bzero(ccb, sizeof(ccb));
 
     lba = bp->bio_offset / cdp->block_size;
-    track = ((bp->bio_dev->si_udev & 0x00ff0000) >> 16) - 1;
+    track = (bp->bio_dev->si_udev & 0x00ff0000) >> 16;
 
     if (track) {
-	lba += ntohl(cdp->toc.tab[track].addr.lba);
-	blocksize = (cdp->toc.tab[track].control & 4) ? 2048 : 2352;
+	lba += ntohl(cdp->toc.tab[track - 1].addr.lba);
+	blocksize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
     }
     else
 	blocksize = cdp->block_size;
