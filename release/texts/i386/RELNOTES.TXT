@@ -103,7 +103,12 @@ The twe(4) driver for 3ware controllers has been updated, with
 improved queueing, error handling and reporting, and user interface
 for the 3ware-supplied '3dm' monitoring tool.
 
-The uscanner(4) driver for USB scanners has been added.
+The uscanner(4) driver for basic USB scanner support using SANE. See
+the SANE home page for supported scanners. HP ScanJet 4100C, 5200C
+and 6300C are known to be working.
+
+The umodem(4) driver for USB modems. Supported so far is only the 
+3Com 5605 USB modem.
 
 
 1.2. SECURITY FIXES
