@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.27 1996/04/28 03:26:46 jkh Exp $
+ * $Id: config.c,v 1.28 1996/04/28 20:53:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -292,7 +292,12 @@ configSysconfig(void)
 
     /* Now write it all back out again */
     fclose(fp);
-    fp = fopen("/etc/sysconfig", "w");
+    if (Fake) {
+	msgDebug("Writing sysconfig out to debugging screen..\n");
+	fp = fdopen(DebugFD, "w");
+    }
+    else
+    	fp = fopen("/etc/sysconfig", "w");
     for (i = 0; i < nlines; i++) {
 	static Boolean firstTime = TRUE;
 
