@@ -1704,10 +1704,6 @@ sched_add(struct thread *td, int flags)
 	int canmigrate;
 	int class;
 
-	if (td == NULL) {
-		mtx_unlock_spin(&sched_lock);
-		panic("wtf");
-	}
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
