@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.50 1995/10/19 21:35:03 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.51 1995/10/23 02:23:29 dyson Exp $
  */
 
 /*
@@ -66,6 +66,12 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
+extern vm_offset_t vnode_pager_addr __P((struct vnode *vp, vm_offset_t address,
+					 int *run));
+extern void vnode_pager_iodone __P((struct buf *bp));
+extern int vnode_pager_input_smlfs __P((vm_object_t object, vm_page_t m));
+extern int vnode_pager_input_old __P((vm_object_t object, vm_page_t m));
+
 struct pagerops vnodepagerops = {
 	NULL,
 	vnode_pager_alloc,
@@ -76,9 +82,12 @@ struct pagerops vnodepagerops = {
 	NULL
 };
 
-static int vnode_pager_leaf_getpages();
+static int vnode_pager_leaf_getpages __P((vm_object_t object, vm_page_t *m,
+					  int count, int reqpage));
+static int vnode_pager_leaf_putpages __P((vm_object_t object, vm_page_t *m,
+					  int count, boolean_t sync,
+					  int *rtvals));
 
-static int vnode_pager_leaf_putpages();
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.
@@ -565,7 +574,7 @@ vnode_pager_getpages(object, m, count, reqpage)
 	vp = object->handle;
 	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
 	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_getpages(object, m, count, reqpage, 0);
+		return vnode_pager_leaf_getpages(object, m, count, reqpage);
 	else
 		return rtval;
 }
@@ -806,7 +815,7 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	vp = object->handle;
 	rtval = VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
 	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals, 0);
+		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals);
 	else
 		return rtval;
 }
