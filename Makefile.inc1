@@ -311,7 +311,7 @@ buildworld: check-objformat
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building ${OBJFORMAT} libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN -f Makefile.inc1 libraries
+	cd ${.CURDIR}; ${XMAKE} -f Makefile.inc1 libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building everything.."
@@ -625,7 +625,7 @@ lib-tools:
 #
 # gnu/lib: lib/libm lib/libmytinfo lib/libncurses
 # kerberosIV/lib: lib/libcrypt
-# lib/libpam: secure/lib/libdes kerberosIV/lib/libkrb
+# lib/libpam: secure/lib/libdes kerberosIV/lib/libkrb gnu/lib/libgcc
 # secure/lib: lib/libmd
 #
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
@@ -656,11 +656,14 @@ _libperl=	gnu/usr.bin/perl/libperl
 
 libraries:
 .for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
-    lib/libcom_err ${_libm} lib/libmytinfo lib/libncurses lib/libradius \
+    gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses lib/libradius \
     lib/libskey lib/libtacplus lib/libutil lib gnu/lib ${_libperl} \
     usr.bin/lex/lib usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
-	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
+	cd ${.CURDIR}/${_lib}; \
+		${MAKE} depend; \
+		${MAKE} all; \
+		${MAKE} -DNOINFO -DNOMAN install;
 .endif
 .endfor
 
