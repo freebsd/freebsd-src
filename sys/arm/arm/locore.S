@@ -157,6 +157,19 @@ mmu_done:
 	subs	r2, r2, #4
 	bgt	.L1
 
+	ldr	r4, =KERNVIRTADDR
+	cmp	pc, r4
+#if	KERNVIRTADDR > KERNPHYSADDR
+	ldrlt	r4, =KERNVIRTADDR
+	ldrlt	r5, =KERNPHYSADDR
+	sublt	r4, r4, r5
+	addlt	pc, pc, r4
+#else
+	ldrgt	r4, =KERNPHYSADDR
+	ldrgt	r5, =KERNVIRTADDR
+	subgt	r4, r4, r5
+	sublt	pc, pc, r4
+#endif
 	ldr	fp, =KERNVIRTADDR	/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
