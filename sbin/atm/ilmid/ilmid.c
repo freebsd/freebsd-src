@@ -113,7 +113,7 @@ static const char *Var_Types[] = {
 #define	PDU_TYPE_SET		0xA3
 #define	PDU_TYPE_TRAP		0xA4
 
-static char *PDU_Types[] = {
+static const char *const PDU_Types[] = {
 	"GET REQUEST",
 	"GETNEXT REQUEST",
 	"GET RESPONSE",
@@ -417,11 +417,11 @@ static Snmp_Header *	build_generic_header	(void);
 static void
 write_timestamp (void)
 {
-	time_t		clock;
+	time_t		clk;
 	struct tm 	*tm;
 
-	clock = time ( (time_t)NULL );
-	tm = localtime ( &clock );
+	clk = time ( (time_t)NULL );
+	tm = localtime ( &clk );
 
 	if ( Log && Debug_Level > 1 )
 	    if ( Log != stderr )
@@ -1444,8 +1444,8 @@ free_pdu (Snmp_Header *hdr)
 static void
 print_pdu (int dir, int intf, Snmp_Header *Hdr, int len, u_char *buf)
 {
-	char *		pdu_dir;
-	char *		pdu_type;
+	const char *	pdu_dir;
+	const char *	pdu_type;
 	int		pdu_num;
 
 	write_timestamp();
@@ -1928,7 +1928,7 @@ get_local_ip (int s, long *aval)
  *
  */
 static void
-set_prefix (Objid *oid, Snmp_Header *hdr, int intf)
+set_prefix (Objid *oid, Snmp_Header *hdr __unused, int intf)
 {
 	struct atmsetreq	asr;
 	Atm_addr		*aa;
@@ -1992,7 +1992,7 @@ set_prefix (Objid *oid, Snmp_Header *hdr, int intf)
 }
 
 static void
-set_address (Snmp_Header *hdr, int intf)
+set_address (Snmp_Header *hdr __unused, int intf)
 {
 	Variable	*var;
 	int		i, j;
@@ -2046,7 +2046,7 @@ set_address (Snmp_Header *hdr, int intf)
  *
  */
 static void
-Increment_DL (int sig)
+Increment_DL (int sig __unused)
 {
 	Debug_Level++;
 	if ( Debug_Level && Log == (FILE *)NULL ) {
@@ -2079,7 +2079,7 @@ Increment_DL (int sig)
  *
  */
 static void
-Decrement_DL (int sig)
+Decrement_DL (int sig __unused)
 {
 	Debug_Level--;
 	if ( Debug_Level <= 0 ) {
@@ -2330,7 +2330,7 @@ lmi_rcvcmd_getnext (Snmp_Header *header, int intf)
  *
  */
 static int
-lmi_rcvcmd_trap (Snmp_Header *header, int intf)
+lmi_rcvcmd_trap (Snmp_Header *header __unused, int intf)
 {
 
 	bzero((caddr_t)&addressEntry[intf], sizeof(Objid));
@@ -2662,8 +2662,8 @@ main (int argc, char *argv[])
 	if ( foregnd == 0 ) {
 		if ( daemon ( 0, 0 ) )
 			err ( 1, "Can't fork" );
-	} else
-		; /* setbuf ( stdout, NULL ); */
+	} /* else
+		setbuf ( stdout, NULL ); */
 
 	signal ( SIGUSR1, Increment_DL );
 	signal ( SIGUSR2, Decrement_DL );
@@ -2727,4 +2727,3 @@ main (int argc, char *argv[])
 
 	exit(0);
 }
-
