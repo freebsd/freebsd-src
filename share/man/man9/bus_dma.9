@@ -580,6 +580,8 @@ is in
 address space.
 User space memory must be in-core and wired prior to attempting a map
 load operation.
+Pages may be locked using
+.Xr vslock 9 .
 .It Fn bus_dmamap_unload "dmat" "map"
 Unloads a DMA map.
 Arguments are as follows:
@@ -730,7 +732,8 @@ routines will succeed if provided with valid arguments.
 .Xr devclass 9 ,
 .Xr device 9 ,
 .Xr driver 9 ,
-.Xr rman 9
+.Xr rman 9 ,
+.Xr vslock 9
 .Pp
 .Rs
 .%A "Jason R. Thorpe"
