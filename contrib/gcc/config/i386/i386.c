@@ -469,7 +469,7 @@ static int const x86_64_int_return_registers[4] = {0 /*RAX*/, 1 /*RDI*/, 5, 4};
 int const dbx64_register_map[FIRST_PSEUDO_REGISTER] =
 {
   0, 1, 2, 3, 4, 5, 6, 7,		/* general regs */
-  33, 34, 35, 36, 37, 38, 39, 40	/* fp regs */
+  33, 34, 35, 36, 37, 38, 39, 40,	/* fp regs */
   -1, -1, -1, -1, -1,			/* arg, flags, fpsr, dir, frame */
   17, 18, 19, 20, 21, 22, 23, 24,	/* SSE */
   41, 42, 43, 44, 45, 46, 47, 48,       /* MMX */
@@ -1687,6 +1687,34 @@ classify_argument (mode, type, classes, bit_offset)
       /* Classify each field of record and merge classes.  */
       if (TREE_CODE (type) == RECORD_TYPE)
 	{
+	  /* For classes first merge in the field of the subclasses.  */
+	  if (TYPE_BINFO (type) != NULL && TYPE_BINFO_BASETYPES (type) != NULL)
+	    {
+	      tree bases = TYPE_BINFO_BASETYPES (type);
+	      int n_bases = TREE_VEC_LENGTH (bases);
+	      int i;
+
+	      for (i = 0; i < n_bases; ++i)
+		{
+		   tree binfo = TREE_VEC_ELT (bases, i);
+		   int num;
+		   int offset = tree_low_cst (BINFO_OFFSET (binfo), 0) * 8;
+		   tree type = BINFO_TYPE (binfo);
+
+		   num = classify_argument (TYPE_MODE (type),
+					    type, subclasses,
+					    (offset + bit_offset) % 256);
+		   if (!num)
+		     return 0;
+		   for (i = 0; i < num; i++)
+		     {
+		       int pos = (offset + bit_offset) / 8 / 8;
+		       classes[i + pos] =
+			 merge_classes (subclasses[i], classes[i + pos]);
+		     }
+		}
+	    }
+	  /* And now merge the fields of structure.   */
 	  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
 	    {
 	      if (TREE_CODE (field) == FIELD_DECL)
@@ -1747,6 +1775,33 @@ classify_argument (mode, type, classes, bit_offset)
       else if (TREE_CODE (type) == UNION_TYPE
 	       || TREE_CODE (type) == QUAL_UNION_TYPE)
 	{
+	  /* For classes first merge in the field of the subclasses.  */
+	  if (TYPE_BINFO (type) != NULL && TYPE_BINFO_BASETYPES (type) != NULL)
+	    {
+	      tree bases = TYPE_BINFO_BASETYPES (type);
+	      int n_bases = TREE_VEC_LENGTH (bases);
+	      int i;
+
+	      for (i = 0; i < n_bases; ++i)
+		{
+		   tree binfo = TREE_VEC_ELT (bases, i);
+		   int num;
+		   int offset = tree_low_cst (BINFO_OFFSET (binfo), 0) * 8;
+		   tree type = BINFO_TYPE (binfo);
+
+		   num = classify_argument (TYPE_MODE (type),
+					    type, subclasses,
+					    (offset + bit_offset) % 256);
+		   if (!num)
+		     return 0;
+		   for (i = 0; i < num; i++)
+		     {
+		       int pos = (offset + bit_offset) / 8 / 8;
+		       classes[i + pos] =
+			 merge_classes (subclasses[i], classes[i + pos]);
+		     }
+		}
+	    }
 	  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
 	    {
 	      if (TREE_CODE (field) == FIELD_DECL)
@@ -2853,6 +2908,18 @@ const_int_1_operand (op, mode)
   return (GET_CODE (op) == CONST_INT && INTVAL (op) == 1);
 }
 
+/* Return nonzero if OP is CONST_INT >= 1 and <= 31 (a valid operand
+   for shift & compare patterns, as shifting by 0 does not change flags),
+   else return zero.  */
+
+int
+const_int_1_31_operand (op, mode)
+     rtx op;
+     enum machine_mode mode ATTRIBUTE_UNUSED;
+{
+  return (GET_CODE (op) == CONST_INT && INTVAL (op) >= 1 && INTVAL (op) <= 31);
+}
+
 /* Returns 1 if OP is either a symbol reference or a sum of a symbol
    reference and a constant.  */
 
@@ -3875,9 +3942,6 @@ load_pic_register ()
 
   emit_insn (gen_prologue_get_pc (pic_offset_table_rtx, pclab));
 
-  if (! TARGET_DEEP_BRANCH_PREDICTION)
-    emit_insn (gen_popsi1 (pic_offset_table_rtx));
-
   emit_insn (gen_prologue_set_got (pic_offset_table_rtx, gotsym, pclab));
 }
 
@@ -4027,8 +4091,9 @@ ix86_compute_frame_layout (frame)
 
   offset += size;
 
-  /* Add outgoing arguments area.  */
-  if (ACCUMULATE_OUTGOING_ARGS)
+  /* Add outgoing arguments area.  Can be skipped if we eliminated
+     all the function calls as dead code.  */
+  if (ACCUMULATE_OUTGOING_ARGS && !current_function_is_leaf)
     {
       offset += current_function_outgoing_args_size;
       frame->outgoing_arguments_size = current_function_outgoing_args_size;
@@ -4036,9 +4101,13 @@ ix86_compute_frame_layout (frame)
   else
     frame->outgoing_arguments_size = 0;
 
-  /* Align stack boundary.  */
-  frame->padding2 = ((offset + preferred_alignment - 1)
-		     & -preferred_alignment) - offset;
+  /* Align stack boundary.  Only needed if we're calling another function
+     or using alloca.  */
+  if (!current_function_is_leaf || current_function_calls_alloca)
+    frame->padding2 = ((offset + preferred_alignment - 1)
+		       & -preferred_alignment) - offset;
+  else
+    frame->padding2 = 0;
 
   offset += frame->padding2;
 
@@ -7970,7 +8039,12 @@ ix86_expand_int_movcc (operands)
   if ((code == LEU || code == GTU)
       && GET_CODE (ix86_compare_op1) == CONST_INT
       && mode != HImode
-      && (unsigned int) INTVAL (ix86_compare_op1) != 0xffffffff
+      && INTVAL (ix86_compare_op1) != -1
+      /* For x86-64, the immediate field in the instruction is 32-bit
+	 signed, so we can't increment a DImode value above 0x7fffffff.  */
+      && (!TARGET_64BIT
+	  || GET_MODE (ix86_compare_op0) != DImode
+	  || INTVAL (ix86_compare_op1) != 0x7fffffff)
       && GET_CODE (operands[2]) == CONST_INT
       && GET_CODE (operands[3]) == CONST_INT)
     {
@@ -7978,7 +8052,8 @@ ix86_expand_int_movcc (operands)
 	code = LTU;
       else
 	code = GEU;
-      ix86_compare_op1 = GEN_INT (INTVAL (ix86_compare_op1) + 1);
+      ix86_compare_op1 = gen_int_mode (INTVAL (ix86_compare_op1) + 1,
+				       GET_MODE (ix86_compare_op0));
     }
 
   start_sequence ();
@@ -9142,6 +9217,9 @@ ix86_expand_movstr (dst, src, count_exp, align_exp)
     {
       rtx countreg2;
       rtx label = NULL;
+      int desired_alignment = (TARGET_PENTIUMPRO
+			       && (count == 0 || count >= (unsigned int) 260)
+			       ? 8 : UNITS_PER_WORD);
 
       /* In case we don't know anything about the alignment, default to
          library version, since it is usually equally fast and result in
@@ -9171,13 +9249,10 @@ ix86_expand_movstr (dst, src, count_exp, align_exp)
          This is quite costy.  Maybe we can revisit this decision later or
          add some customizability to this code.  */
 
-      if (count == 0
-	  && align < (TARGET_PENTIUMPRO && (count == 0
-					    || count >= (unsigned int) 260)
-		      ? 8 : UNITS_PER_WORD))
+      if (count == 0 && align < desired_alignment)
 	{
 	  label = gen_label_rtx ();
-	  emit_cmp_and_jump_insns (countreg, GEN_INT (UNITS_PER_WORD - 1),
+	  emit_cmp_and_jump_insns (countreg, GEN_INT (desired_alignment - 1),
 				   LEU, 0, counter_mode, 1, label);
 	}
       if (align <= 1)
@@ -9196,10 +9271,7 @@ ix86_expand_movstr (dst, src, count_exp, align_exp)
 	  emit_label (label);
 	  LABEL_NUSES (label) = 1;
 	}
-      if (align <= 4
-	  && ((TARGET_PENTIUMPRO && (count == 0
-				     || count >= (unsigned int) 260))
-	      || TARGET_64BIT))
+      if (align <= 4 && desired_alignment > 4)
 	{
 	  rtx label = ix86_expand_aligntest (destreg, 4);
 	  emit_insn (gen_strmovsi (destreg, srcreg));
@@ -9208,6 +9280,12 @@ ix86_expand_movstr (dst, src, count_exp, align_exp)
 	  LABEL_NUSES (label) = 1;
 	}
 
+      if (label && desired_alignment > 4 && !TARGET_64BIT)
+	{
+	  emit_label (label);
+	  LABEL_NUSES (label) = 1;
+	  label = NULL_RTX;
+	}
       if (!TARGET_SINGLE_STRINGOP)
 	emit_insn (gen_cld ());
       if (TARGET_64BIT)
@@ -9353,6 +9431,10 @@ ix86_expand_clrstr (src, count_exp, align_exp)
     {
       rtx countreg2;
       rtx label = NULL;
+      /* Compute desired alignment of the string operation.  */
+      int desired_alignment = (TARGET_PENTIUMPRO
+			       && (count == 0 || count >= (unsigned int) 260)
+			       ? 8 : UNITS_PER_WORD);
 
       /* In case we don't know anything about the alignment, default to
          library version, since it is usually equally fast and result in
@@ -9367,13 +9449,10 @@ ix86_expand_clrstr (src, count_exp, align_exp)
       countreg = copy_to_mode_reg (counter_mode, count_exp);
       zeroreg = copy_to_mode_reg (Pmode, const0_rtx);
 
-      if (count == 0
-	  && align < (TARGET_PENTIUMPRO && (count == 0
-					    || count >= (unsigned int) 260)
-		      ? 8 : UNITS_PER_WORD))
+      if (count == 0 && align < desired_alignment)
 	{
 	  label = gen_label_rtx ();
-	  emit_cmp_and_jump_insns (countreg, GEN_INT (UNITS_PER_WORD - 1),
+	  emit_cmp_and_jump_insns (countreg, GEN_INT (desired_alignment - 1),
 				   LEU, 0, counter_mode, 1, label);
 	}
       if (align <= 1)
@@ -9394,8 +9473,7 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 	  emit_label (label);
 	  LABEL_NUSES (label) = 1;
 	}
-      if (align <= 4 && TARGET_PENTIUMPRO && (count == 0
-					      || count >= (unsigned int) 260))
+      if (align <= 4 && desired_alignment > 4)
 	{
 	  rtx label = ix86_expand_aligntest (destreg, 4);
 	  emit_insn (gen_strsetsi (destreg, (TARGET_64BIT
@@ -9404,6 +9482,13 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 	  ix86_adjust_counter (countreg, 4);
 	  emit_label (label);
 	  LABEL_NUSES (label) = 1;
+	}
+
+      if (label && desired_alignment > 4 && !TARGET_64BIT)
+	{
+	  emit_label (label);
+	  LABEL_NUSES (label) = 1;
+	  label = NULL_RTX;
 	}
 
       if (!TARGET_SINGLE_STRINGOP)
@@ -9421,12 +9506,12 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 	  emit_insn (gen_rep_stossi (destreg, countreg2, zeroreg,
 				     destreg, countreg2));
 	}
-
       if (label)
 	{
 	  emit_label (label);
 	  LABEL_NUSES (label) = 1;
 	}
+
       if (TARGET_64BIT && align > 4 && count != 0 && (count & 4))
 	emit_insn (gen_strsetsi (destreg,
 				 gen_rtx_SUBREG (SImode, zeroreg, 0)));
@@ -12484,4 +12569,98 @@ x86_order_regs_for_local_alloc ()
       at all.  */
    while (pos < FIRST_PSEUDO_REGISTER)
      reg_alloc_order [pos++] = 0;
+}
+
+void
+x86_output_mi_thunk (file, delta, function)
+     FILE *file;
+     int delta;
+     tree function;
+{
+  tree parm;
+  rtx xops[3];
+
+  if (ix86_regparm > 0)
+    parm = TYPE_ARG_TYPES (TREE_TYPE (function));
+  else
+    parm = NULL_TREE;
+  for (; parm; parm = TREE_CHAIN (parm))
+    if (TREE_VALUE (parm) == void_type_node)
+      break;
+
+  xops[0] = GEN_INT (delta);
+  if (TARGET_64BIT)
+    {
+      int n = aggregate_value_p (TREE_TYPE (TREE_TYPE (function))) != 0;
+      xops[1] = gen_rtx_REG (DImode, x86_64_int_parameter_registers[n]);
+      output_asm_insn ("add{q} {%0, %1|%1, %0}", xops);
+      if (flag_pic)
+	{
+	  fprintf (file, "\tjmp *");
+	  assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+	  fprintf (file, "@GOTPCREL(%%rip)\n");
+	}
+      else
+	{
+	  fprintf (file, "\tjmp ");
+	  assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+	  fprintf (file, "\n");
+	}
+    }
+  else
+    {
+      if (parm)
+	xops[1] = gen_rtx_REG (SImode, 0);
+      else if (aggregate_value_p (TREE_TYPE (TREE_TYPE (function))))
+	xops[1] = gen_rtx_MEM (SImode, plus_constant (stack_pointer_rtx, 8));
+      else
+	xops[1] = gen_rtx_MEM (SImode, plus_constant (stack_pointer_rtx, 4));
+      output_asm_insn ("add{l} {%0, %1|%1, %0}", xops);
+
+      if (flag_pic)
+	{
+	  xops[0] = pic_offset_table_rtx;
+	  xops[1] = gen_label_rtx ();
+	  xops[2] = gen_rtx_SYMBOL_REF (Pmode, "_GLOBAL_OFFSET_TABLE_");
+
+	  if (ix86_regparm > 2)
+	    abort ();
+	  output_asm_insn ("push{l}\t%0", xops);
+	  output_asm_insn ("call\t%P1", xops);
+	  ASM_OUTPUT_INTERNAL_LABEL (file, "L", CODE_LABEL_NUMBER (xops[1]));
+	  output_asm_insn ("pop{l}\t%0", xops);
+	  output_asm_insn
+	    ("add{l}\t{%2+[.-%P1], %0|%0, OFFSET FLAT: %2+[.-%P1]}", xops);
+	  xops[0] = gen_rtx_MEM (SImode, XEXP (DECL_RTL (function), 0));
+	  output_asm_insn
+	    ("mov{l}\t{%0@GOT(%%ebx), %%ecx|%%ecx, %0@GOT[%%ebx]}", xops);
+	  asm_fprintf (file, "\tpop{l\t%%ebx|\t%%ebx}\n");
+	  asm_fprintf (file, "\tjmp\t{*%%ecx|%%ecx}\n");
+	}
+      else
+	{
+	  fprintf (file, "\tjmp ");
+	  assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+	  fprintf (file, "\n");
+	}
+    }
+}
+
+int
+x86_field_alignment (field, computed)
+     tree field;
+     int computed;
+{
+  enum machine_mode mode;
+  tree type = TREE_TYPE (field);
+
+  if (TARGET_64BIT || TARGET_ALIGN_DOUBLE)
+    return computed;
+  mode = TYPE_MODE (TREE_CODE (type) == ARRAY_TYPE
+		    ? get_inner_array_type (type) : type);
+  if (mode == DFmode || mode == DCmode
+      || GET_MODE_CLASS (mode) == MODE_INT
+      || GET_MODE_CLASS (mode) == MODE_COMPLEX_INT)
+    return MIN (32, computed);
+  return computed;
 }
