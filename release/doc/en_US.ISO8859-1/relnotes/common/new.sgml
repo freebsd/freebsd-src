@@ -3542,8 +3542,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       to tell &man.xargs.1; to insert the data read from standard
       input at specific points in the command line arguments rather
       than at the end.  (A &os;-specific <option>-J</option> option is
-      similar, but is now deprecated in favor of the more portable
-      <option>-I</option> option.) &merged;</para>
+      similar.) &merged;</para>
 
     <para>&man.xargs.1; now supports a <option>-L</option> option to
       force its utility argument to be called after some number of
