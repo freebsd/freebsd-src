@@ -45,6 +45,7 @@ SUBDIR=	${_3dfx} \
 	coda \
 	coda5 \
 	${_coff} \
+	${_cp} \
 	${_crypto} \
 	${_cryptodev} \
 	${_ctau} \
@@ -291,6 +292,7 @@ _ath_hal=	ath_hal
 _awi=		awi
 _bktr=		bktr
 _coff=		coff
+_cp=		cp
 _drm=		drm
 _ed=		ed
 _elink=		elink
