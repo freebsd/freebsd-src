@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: $
+ *	$Id: slice_base.c,v 1.1 1998/04/19 23:31:12 julian Exp $
  */
 
 #include <sys/param.h>
@@ -577,6 +577,8 @@ sliceopen(struct slice *slice, int flags, int mode,
 	slice->flags |= sl_flags;
 reject:
 	unlockslice(slice);
+	if ((slice->flags & SLF_INVALID) == SLF_INVALID)
+		error = ENODEV; /* we've been zapped while down there! */
 	sl_unref(slice); /* lockslice gave us a ref.*/
 	return (error);
 }
