@@ -17,6 +17,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
+ *  $Id:$
+ *
  *
  *  01/26/94 v0.3b - Jim Babb
  *  Got rid of the hard coded device selection.  Moved (some of) the
@@ -910,7 +912,7 @@ restate:
 #endif
 
 	/* Check for errors */
-	if ((rddta[0] & 0xc0) == 0x40) {
+	if ((rddta[0] & 0xc0) != 0x00) {
 		if (rddta[1] & 0x04) {
 			/* Probably wrong position */
 			ft->lastpos = ft->xblk;
@@ -1020,16 +1022,16 @@ restate:
 #endif
 
 	/* Check for errors */
-	if ((rddta[0] & 0xc0) == 0x40) {
+	if ((rddta[0] & 0xc0) != 0x00) {
 		if (rddta[1] & 0x04) {
 			/* Probably wrong position */
 			ft->lastpos = ft->xblk;
-			ard_state = 0;
+			awr_state = 0;
 			goto restate;
 		} else if (retries < 5) {
 			/* Something happened -- try again */
 			ft->lastpos = ft->xblk;
-			ard_state = 0;
+			awr_state = 0;
 			retries++;
 			goto restate;
 		} else {
@@ -1695,8 +1697,12 @@ int qic_status(ftu_t ftu, int cmd, int nbits)
 int ftopen(dev_t dev, int arg2) {
   ftu_t ftu = FDUNIT(minor(dev));
   int type = FDTYPE(minor(dev));
-  fdc_p fdc = ft_data[ftu].fdc;
+  fdc_p fdc;
 
+  /* check bounds */
+  if (ftu >= NFT) 
+	return(ENXIO);
+  fdc = ft_data[ftu].fdc;
   /* check for controller already busy with tape */
   if (fdc->flags & FDC_TAPE_BUSY)
 	return(EBUSY); 
