@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.62.2.1 1999/02/19 10:35:08 obrien Exp $
+#	$Id: Makefile,v 1.62.2.2 1999/03/18 06:18:11 jkh Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -41,6 +41,7 @@ SUBDIR=	adjkerntz \
 	mount_umap \
 	mount_union \
 	mountd \
+	natd \
 	newfs \
 	newfs_msdos \
 	nfsd \
