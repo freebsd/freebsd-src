@@ -60,8 +60,7 @@
  */
 
 ENTRY(__sigsetjmp)
-.weak sigsetjmp;
-.set sigsetjmp, __sigsetjmp;
+ENTRY(sigsetjmp)
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx
 	movl	%eax,44(%ecx)
@@ -92,8 +91,7 @@ ENTRY(__sigsetjmp)
 	ret
 
 ENTRY(__siglongjmp)
-.weak siglongjmp;
-.set siglongjmp, __siglongjmp;
+ENTRY(siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f
