@@ -794,6 +794,16 @@ struct dc_softc {
 #define DC_REVISION_88141	0x10
 
 /*
+ * Accton vendor ID.
+ */
+#define DC_VENDORID_ACCTON	0x1113
+
+/*
+ * Accton device IDs.
+ */
+#define DC_DEVICEID_EN1217	0x1217
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
