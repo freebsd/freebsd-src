@@ -193,9 +193,8 @@ iavc_isa_attach(device_t dev)
 	sc->sc_resources.irq_rid = 0;
 	
 	if(!(sc->sc_resources.irq =
-		bus_alloc_resource(dev, SYS_RES_IRQ,
-			&sc->sc_resources.irq_rid,
-			0UL, ~0UL, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&sc->sc_resources.irq_rid, RF_ACTIVE)))
 	{
 		printf("iavc%d: can't allocate irq\n",unit);
 		bus_release_resource(dev, SYS_RES_IOPORT,

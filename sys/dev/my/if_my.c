@@ -918,8 +918,7 @@ my_attach(device_t dev)
 	}
 
 	rid = MY_RID;
-	sc->my_res = bus_alloc_resource(dev, MY_RES, &rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->my_res = bus_alloc_resource_any(dev, MY_RES, &rid, RF_ACTIVE);
 
 	if (sc->my_res == NULL) {
 		printf("my%d: couldn't map ports/memory\n", unit);
@@ -930,8 +929,8 @@ my_attach(device_t dev)
 	sc->my_bhandle = rman_get_bushandle(sc->my_res);
 
 	rid = 0;
-	sc->my_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					RF_SHAREABLE | RF_ACTIVE);
+	sc->my_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->my_irq == NULL) {
 		printf("my%d: couldn't map interrupt\n", unit);

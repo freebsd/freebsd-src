@@ -320,8 +320,8 @@ hifn_attach(device_t dev)
 	 * and WRITE_REG_1 macros throughout the driver.
 	 */
 	rid = HIFN_BAR0;
-	sc->sc_bar0res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-			 		    0, ~0, 1, RF_ACTIVE);
+	sc->sc_bar0res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+			 			RF_ACTIVE);
 	if (sc->sc_bar0res == NULL) {
 		device_printf(dev, "cannot map bar%d register space\n", 0);
 		goto fail_pci;
@@ -331,8 +331,8 @@ hifn_attach(device_t dev)
 	sc->sc_bar0_lastreg = (bus_size_t) -1;
 
 	rid = HIFN_BAR1;
-	sc->sc_bar1res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					    0, ~0, 1, RF_ACTIVE);
+	sc->sc_bar1res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+						RF_ACTIVE);
 	if (sc->sc_bar1res == NULL) {
 		device_printf(dev, "cannot map bar%d register space\n", 1);
 		goto fail_io0;
@@ -434,8 +434,8 @@ hifn_attach(device_t dev)
 	 * Arrange the interrupt line.
 	 */
 	rid = 0;
-	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					0, ~0, 1, RF_SHAREABLE|RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					    RF_SHAREABLE|RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
 		goto fail_mem;

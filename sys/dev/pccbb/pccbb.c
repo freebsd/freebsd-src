@@ -707,8 +707,8 @@ cbb_attach(device_t brdev)
 	 */
 #endif
 	rid = CBBR_SOCKBASE;
-	sc->base_res = bus_alloc_resource(brdev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (!sc->base_res) {
 #ifdef BURN_BRIDGES
 		device_printf(brdev, "Could not map register memory\n");
@@ -778,7 +778,7 @@ cbb_attach(device_t brdev)
 
 	/* Map and establish the interrupt. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource(brdev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq_res = bus_alloc_resource_any(brdev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		printf("cbb: Unable to map IRQ...\n");

@@ -164,8 +164,8 @@ lnc_isa_attach(device_t dev)
 		bus_set_resource(dev, SYS_RES_IRQ, 0,  6, 1);
 
 	sc->irqrid = 0;
-	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid, 0, ~0, 1,
-	                                RF_ACTIVE);
+	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
+					    RF_ACTIVE);
 
 	if (! sc->irqres) {
 		device_printf(dev, "Failed to allocate irq\n");

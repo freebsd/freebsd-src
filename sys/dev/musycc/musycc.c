@@ -1468,8 +1468,7 @@ musycc_attach(device_t self)
 	csc->f[f] = self;
 	device_set_softc(self, csc);
 	rid = PCIR_BAR(0);
-	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -1479,8 +1478,8 @@ musycc_attach(device_t self)
 
 	/* Allocate interrupt */
 	rid = 0;
-	csc->irq[f] = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
-	    1, RF_SHAREABLE | RF_ACTIVE);
+	csc->irq[f] = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (csc->irq[f] == NULL) {
 		printf("couldn't map interrupt\n");

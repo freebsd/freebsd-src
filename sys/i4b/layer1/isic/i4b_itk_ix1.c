@@ -208,9 +208,9 @@ isic_probe_itkix1(device_t dev)
 	#endif
 	
 	if(!(sc->sc_resources.io_base[0] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 	        		&sc->sc_resources.io_rid[0],
-	                        0ul, ~0ul, 1, RF_ACTIVE)))
+	                        RF_ACTIVE)))
 	{
 		printf("isic%d: Could not allocate i/o port for ITK IX1.\n", unit);
 		return ENXIO;
@@ -230,9 +230,9 @@ isic_probe_itkix1(device_t dev)
 
 	/* get our irq */
 	if(!(sc->sc_resources.irq =
-			bus_alloc_resource(dev, SYS_RES_IRQ,
+			bus_alloc_resource_any(dev, SYS_RES_IRQ,
 						&sc->sc_resources.irq_rid,
-						0ul, ~0ul, 1, RF_ACTIVE)))
+						RF_ACTIVE)))
 	{
 		printf("isic%d: Could not allocate irq for ITK IX1.\n", unit);
 		bus_release_resource(dev,SYS_RES_IOPORT,

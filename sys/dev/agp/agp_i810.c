@@ -274,8 +274,8 @@ agp_i810_attach(device_t dev)
 
 	/* Same for i810 and i830 */
 	rid = AGP_I810_MMADR;
-	sc->regs = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				      0, ~0, 1, RF_ACTIVE);
+	sc->regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					  RF_ACTIVE);
 	if (!sc->regs) {
 		agp_generic_detach(dev);
 		return ENOMEM;

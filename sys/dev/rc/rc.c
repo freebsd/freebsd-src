@@ -281,8 +281,8 @@ rc_attach(device_t dev)
 	sc->sc_bt = rman_get_bustag(sc->sc_port[0]);
 	sc->sc_bh = rman_get_bushandle(sc->sc_port[0]);
 
-	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid,
-	    0ul, ~0ul, 1, RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irqrid,
+	    RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "failed to alloc IRQ\n");
 		goto fail;

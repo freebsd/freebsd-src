@@ -528,8 +528,7 @@ lge_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = LGE_RID;
-	sc->lge_res = bus_alloc_resource(dev, LGE_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->lge_res = bus_alloc_resource_any(dev, LGE_RES, &rid, RF_ACTIVE);
 
 	if (sc->lge_res == NULL) {
 		printf("lge%d: couldn't map ports/memory\n", unit);
@@ -542,7 +541,7 @@ lge_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->lge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->lge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->lge_irq == NULL) {

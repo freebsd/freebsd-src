@@ -224,9 +224,9 @@ isic_attach_drnngo(device_t dev)
 	 */
 
 	if(!(sc->sc_resources.io_base[1] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-					&sc->sc_resources.io_rid[1],
-					0UL, ~0UL, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[1],
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Failed to get second io base.\n", unit);
 		isic_detach_common(dev);

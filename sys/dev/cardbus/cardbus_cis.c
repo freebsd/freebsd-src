@@ -913,8 +913,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 
 	/* Allocate IRQ */
 	rid = 0;
-	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
-	    RF_SHAREABLE);
+	res = bus_alloc_resource_any(cbdev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
 	if (res == NULL) {
 		device_printf(cbdev, "Can't get memory for irq\n");
 		free(barlist, M_DEVBUF);

@@ -177,8 +177,8 @@ ata_pci_attach(device_t dev)
     if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
 	ctlr->r_type1 = SYS_RES_IOPORT;
 	ctlr->r_rid1 = ATA_BMADDR_RID;
-	ctlr->r_res1 = bus_alloc_resource(dev, ctlr->r_type1, &ctlr->r_rid1,
-					  0, ~0, 1, RF_ACTIVE);
+	ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1, &ctlr->r_rid1,
+					      RF_ACTIVE);
     }
 
     ctlr->chipinit(dev);

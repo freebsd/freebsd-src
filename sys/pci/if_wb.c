@@ -858,8 +858,7 @@ wb_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = WB_RID;
-	sc->wb_res = bus_alloc_resource(dev, WB_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->wb_res = bus_alloc_resource_any(dev, WB_RES, &rid, RF_ACTIVE);
 
 	if (sc->wb_res == NULL) {
 		printf("wb%d: couldn't map ports/memory\n", unit);
@@ -872,7 +871,7 @@ wb_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->wb_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->wb_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->wb_irq == NULL) {

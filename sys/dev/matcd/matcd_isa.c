@@ -149,8 +149,8 @@ static int matcd_alloc_resources (device_t dev)
 
 	sc = device_get_softc(dev);
 	if (sc->port_type) {
-		sc->port=bus_alloc_resource(dev, sc->port_type, &sc->port_rid,
-					    0, ~0, 1, RF_ACTIVE);
+		sc->port=bus_alloc_resource_any(dev, sc->port_type,
+						&sc->port_rid, RF_ACTIVE);
 		if (sc->port == NULL) {
 			device_printf(dev,
 				      "Port resource not available.\n");

@@ -171,8 +171,8 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHD_PCI_MEMADDR;
-		regs = bus_alloc_resource(ahd->dev_softc, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(ahd->dev_softc, regs_type,
+					      &regs_id, RF_ACTIVE);
 		if (regs != NULL) {
 			int error;
 
@@ -209,8 +209,8 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHD_PCI_IOADDR0;
-		regs = bus_alloc_resource(ahd->dev_softc, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(ahd->dev_softc, regs_type,
+					      &regs_id, RF_ACTIVE);
 		if (regs == NULL) {
 			device_printf(ahd->dev_softc,
 				      "can't allocate register resources\n");
@@ -221,8 +221,8 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 
 		/* And now the second BAR */
 		regs_id2 = AHD_PCI_IOADDR1;
-		regs2 = bus_alloc_resource(ahd->dev_softc, regs_type,
-					   &regs_id2, 0, ~0, 1, RF_ACTIVE);
+		regs2 = bus_alloc_resource_any(ahd->dev_softc, regs_type,
+					       &regs_id2, RF_ACTIVE);
 		if (regs2 == NULL) {
 			device_printf(ahd->dev_softc,
 				      "can't allocate register resources\n");
@@ -250,8 +250,8 @@ ahd_pci_map_int(struct ahd_softc *ahd)
 
 	zero = 0;
 	ahd->platform_data->irq =
-	    bus_alloc_resource(ahd->dev_softc, SYS_RES_IRQ, &zero,
-			       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	    bus_alloc_resource_any(ahd->dev_softc, SYS_RES_IRQ, &zero,
+				   RF_ACTIVE | RF_SHAREABLE);
 	if (ahd->platform_data->irq == NULL)
 		return (ENOMEM);
 	ahd->platform_data->irq_res_type = SYS_RES_IRQ;

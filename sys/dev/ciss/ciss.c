@@ -475,8 +475,8 @@ ciss_init_pci(struct ciss_softc *sc)
     error = ENXIO;
     sc->ciss_regs_rid = CISS_TL_SIMPLE_BAR_REGS;
     if ((sc->ciss_regs_resource =
-	 bus_alloc_resource(sc->ciss_dev, SYS_RES_MEMORY, &sc->ciss_regs_rid,
-			    0, ~0, 1, RF_ACTIVE)) == NULL) {
+	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY, 
+				&sc->ciss_regs_rid, RF_ACTIVE)) == NULL) {
 	ciss_printf(sc, "can't allocate register window\n");
 	return(ENXIO);
     }
@@ -490,8 +490,8 @@ ciss_init_pci(struct ciss_softc *sc)
     sc->ciss_cfg_rid = CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_CFG_BAR) & 0xffff;
     if (sc->ciss_cfg_rid != sc->ciss_regs_rid) {
 	if ((sc->ciss_cfg_resource =
-	     bus_alloc_resource(sc->ciss_dev, SYS_RES_MEMORY, &sc->ciss_cfg_rid,
-				0, ~0, 1, RF_ACTIVE)) == NULL) {
+	     bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY, 
+				    &sc->ciss_cfg_rid, RF_ACTIVE)) == NULL) {
 	    ciss_printf(sc, "can't allocate config window\n");
 	    return(ENXIO);
 	}
@@ -574,8 +574,8 @@ ciss_init_pci(struct ciss_softc *sc)
      */
     sc->ciss_irq_rid = 0;
     if ((sc->ciss_irq_resource =
-	 bus_alloc_resource(sc->ciss_dev, SYS_RES_IRQ, &sc->ciss_irq_rid, 0, ~0, 1, 
-			    RF_ACTIVE | RF_SHAREABLE)) == NULL) {
+	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_IRQ, &sc->ciss_irq_rid, 
+				RF_ACTIVE | RF_SHAREABLE)) == NULL) {
 	ciss_printf(sc, "can't allocate interrupt\n");
 	return(ENXIO);
     }

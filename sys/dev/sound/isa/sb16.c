@@ -440,19 +440,23 @@ sb16_alloc_resources(struct sb_info *sb, device_t dev)
 
 	rid = 0;
 	if (!sb->io_base)
-    		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    		sb->io_base = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+			&rid, RF_ACTIVE);
 
 	rid = 0;
 	if (!sb->irq)
-    		sb->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+    		sb->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+			RF_ACTIVE);
 
 	rid = 0;
 	if (!sb->drq1)
-    		sb->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+    		sb->drq1 = bus_alloc_resource_any(dev, SYS_RES_DRQ, &rid,
+			RF_ACTIVE);
 
 	rid = 1;
 	if (!sb->drq2)
-        	sb->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+        	sb->drq2 = bus_alloc_resource_any(dev, SYS_RES_DRQ, &rid,
+			RF_ACTIVE);
 
     	if (sb->io_base && sb->drq1 && sb->irq) {
 		isa_dma_acquire(rman_get_start(sb->drq1));

@@ -416,12 +416,12 @@ isp_pci_attach(device_t dev)
 	if (cmd & m1) {
 		rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		regs = bus_alloc_resource(dev, rtp, &rgd, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, rtp, &rgd, RF_ACTIVE);
 	}
 	if (regs == NULL && (cmd & m2)) {
 		rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		regs = bus_alloc_resource(dev, rtp, &rgd, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, rtp, &rgd, RF_ACTIVE);
 	}
 	if (regs == NULL) {
 		device_printf(dev, "unable to map any ports\n");
@@ -591,8 +591,8 @@ isp_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_ROMADDR, data, 4);
 
 	iqd = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &iqd, 0, ~0,
-	    1, RF_ACTIVE | RF_SHAREABLE);
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;

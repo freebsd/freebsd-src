@@ -71,15 +71,15 @@ stg_alloc_resource(device_t dev)
 	u_long			maddr, msize;
 	int			error;
 
-	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, 1, RF_ACTIVE);
+	sc->port_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, 
+					      &sc->port_rid, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		stg_release_resource(dev);
 		return(ENOMEM);
 	}
 
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+					     RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		stg_release_resource(dev);
 		return(ENOMEM);
@@ -94,8 +94,8 @@ stg_alloc_resource(device_t dev)
 		return(0);
 	}
 
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+					     RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		stg_release_resource(dev);
 		return(ENOMEM);

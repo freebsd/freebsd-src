@@ -723,8 +723,8 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 	sc->st = rman_get_bustag(sc->reg);
 	sc->sh = rman_get_bushandle(sc->reg);
 
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1,
-				     RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+					 RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == 0) {
 		device_printf(dev, "unable to allocate interrupt\n");
 		goto bad;

@@ -167,8 +167,8 @@ dpt_isa_attach (device_t dev)
 	}
 
 	dpt->drq_rid = 0;
-	dpt->drq_res = bus_alloc_resource(dev, SYS_RES_DRQ, &dpt->drq_rid,
-					0, ~0, 1, RF_ACTIVE);
+	dpt->drq_res = bus_alloc_resource_any(dev, SYS_RES_DRQ, &dpt->drq_rid,
+					RF_ACTIVE);
 	if (!dpt->drq_res) {
 		device_printf(dev, "No DRQ!\n");
 		error = ENOMEM;

@@ -1957,8 +1957,8 @@ xe_activate(device_t dev)
 	}
 
 	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
-	    0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid, 
+	    RF_ACTIVE);
 	if (!sc->irq_res) {
 		DEVPRINTF(1, (dev, "Cannot allocate irq\n"));
 		xe_deactivate(dev);

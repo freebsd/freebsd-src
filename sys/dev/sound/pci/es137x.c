@@ -855,8 +855,8 @@ es_pci_attach(device_t dev)
 	if (mapped == 0 && (data & PCIM_CMD_MEMEN)) {
 		es->regid = MEM_MAP_REG;
 		es->regtype = SYS_RES_MEMORY;
-		es->reg = bus_alloc_resource(dev, es->regtype, &es->regid,
-					 0, ~0, 1, RF_ACTIVE);
+		es->reg = bus_alloc_resource_any(dev, es->regtype, &es->regid,
+					 RF_ACTIVE);
 		if (es->reg) {
 			es->st = rman_get_bustag(es->reg);
 			es->sh = rman_get_bushandle(es->reg);
@@ -866,8 +866,8 @@ es_pci_attach(device_t dev)
 	if (mapped == 0 && (data & PCIM_CMD_PORTEN)) {
 		es->regid = PCIR_BAR(0);
 		es->regtype = SYS_RES_IOPORT;
-		es->reg = bus_alloc_resource(dev, es->regtype, &es->regid,
-					 0, ~0, 1, RF_ACTIVE);
+		es->reg = bus_alloc_resource_any(dev, es->regtype, &es->regid,
+					 RF_ACTIVE);
 		if (es->reg) {
 			es->st = rman_get_bustag(es->reg);
 			es->sh = rman_get_bushandle(es->reg);
@@ -906,8 +906,8 @@ es_pci_attach(device_t dev)
 	} else goto bad;
 
 	es->irqid = 0;
-	es->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &es->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	es->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &es->irqid,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!es->irq || snd_setup_intr(dev, es->irq, 0, es_intr, es, &es->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;

@@ -254,8 +254,7 @@ fwohci_pci_attach(device_t self)
 	fwohci_pci_init(self);
 
 	rid = PCI_CBMEM;
-	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->bsr = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->bsr) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -265,7 +264,7 @@ fwohci_pci_attach(device_t self)
 	sc->bsh = rman_get_bushandle(sc->bsr);
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 				     RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");

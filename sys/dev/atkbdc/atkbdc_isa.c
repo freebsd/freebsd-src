@@ -143,16 +143,14 @@ atkbdc_probe(device_t dev)
 		return ENXIO;
 	if (count > 1)	/* adjust the count */
 		bus_set_resource(dev, SYS_RES_IOPORT, rid, start, 1);
-	port0 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				   RF_ACTIVE);
+	port0 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (port0 == NULL)
 		return ENXIO;
 	rid = 1;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, NULL, NULL) != 0)
 		bus_set_resource(dev, SYS_RES_IOPORT, 1,
 				 start + KBD_STATUS_PORT, 1);
-	port1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				   RF_ACTIVE);
+	port1 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (port1 == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
 		return ENXIO;
@@ -193,13 +191,13 @@ atkbdc_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->port0 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				       RF_ACTIVE);
+	sc->port0 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					   RF_ACTIVE);
 	if (sc->port0 == NULL)
 		return ENXIO;
 	rid = 1;
-	sc->port1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				       RF_ACTIVE);
+	sc->port1 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					   RF_ACTIVE);
 	if (sc->port1 == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->port0);
 		return ENXIO;

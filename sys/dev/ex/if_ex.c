@@ -169,16 +169,16 @@ ex_alloc_resources (device_t dev)
 	struct ex_softc *	sc = device_get_softc(dev);
 	int			error = 0;
 
-	sc->ioport = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->ioport_rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					    &sc->ioport_rid, RF_ACTIVE);
 	if (!sc->ioport) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENOMEM;
 		goto bad;
 	}
 
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+					RF_ACTIVE);
 
 	if (!sc->irq) {
 		device_printf(dev, "No IRQ?!\n");

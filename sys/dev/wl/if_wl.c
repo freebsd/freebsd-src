@@ -622,8 +622,8 @@ wl_allocate_resources(device_t device)
     if (sc->res_ioport == NULL)
 	goto errexit;
 
-    sc->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
-	&sc->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE|RF_ACTIVE);
+    sc->res_irq = bus_alloc_resource_any(device, SYS_RES_IRQ,
+	&sc->rid_irq, RF_SHAREABLE|RF_ACTIVE);
     if (sc->res_irq == NULL)
 	goto errexit;
     return (0);

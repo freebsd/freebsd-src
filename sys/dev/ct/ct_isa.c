@@ -219,11 +219,11 @@ ct_isa_attach(device_t dev)
 	chp->ch_bus_weight = ct_isa_bus_access_weight;
 
 	irq_rid = 0;
-	ct->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0, ~0,
-					 1, RF_ACTIVE);
+	ct->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq_rid,
+					     RF_ACTIVE);
 	drq_rid = 0;
-	ct->drq_res = bus_alloc_resource(dev, SYS_RES_DRQ, &drq_rid, 0, ~0,
-					 1, RF_ACTIVE);
+	ct->drq_res = bus_alloc_resource_any(dev, SYS_RES_DRQ, &drq_rid,
+					     RF_ACTIVE);
 	if (ct->irq_res == NULL || ct->drq_res == NULL) {
 		ct_space_unmap(dev, ct);
 		return ENXIO;

@@ -226,8 +226,7 @@ xrpu_attach(device_t self)
 	sc = device_get_softc(self);
 	sc->mode = NORMAL;
 	rid = PCIR_BAR(0);
-	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-				 0, ~0, 1, RF_ACTIVE);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;

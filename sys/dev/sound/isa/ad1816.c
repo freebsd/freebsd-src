@@ -518,17 +518,17 @@ ad1816_alloc_resources(struct ad1816_info *ad1816, device_t dev)
     	int ok = 1, pdma, rdma;
 
 	if (!ad1816->io_base)
-    		ad1816->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &ad1816->io_rid,
-						  0, ~0, 1, RF_ACTIVE);
+    		ad1816->io_base = bus_alloc_resource_any(dev, 
+			SYS_RES_IOPORT, &ad1816->io_rid, RF_ACTIVE);
 	if (!ad1816->irq)
-    		ad1816->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &ad1816->irq_rid,
-					      0, ~0, 1, RF_ACTIVE);
+    		ad1816->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&ad1816->irq_rid, RF_ACTIVE);
 	if (!ad1816->drq1)
-    		ad1816->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ, &ad1816->drq1_rid,
-					       0, ~0, 1, RF_ACTIVE);
+    		ad1816->drq1 = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+			&ad1816->drq1_rid, RF_ACTIVE);
     	if (!ad1816->drq2)
-        	ad1816->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &ad1816->drq2_rid,
-					       0, ~0, 1, RF_ACTIVE);
+        	ad1816->drq2 = bus_alloc_resource_any(dev, SYS_RES_DRQ, 
+			&ad1816->drq2_rid, RF_ACTIVE);
 
     	if (!ad1816->io_base || !ad1816->drq1 || !ad1816->irq) ok = 0;
 

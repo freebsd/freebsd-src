@@ -270,6 +270,7 @@ struct com_s {
 	u_long	error_counts[CE_NTYPES];
 
 	u_long	rclk;
+	int	gdb;
 
 	struct resource *irqres;
 	struct resource *ioportres;
@@ -1158,8 +1159,7 @@ determined_type: ;
 	pps_init(&com->pps);
 
 	rid = 0;
-	com->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1,
-	    RF_ACTIVE);
+	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (com->irqres) {
 		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
 				     INTR_TYPE_TTY | INTR_FAST,
@@ -1174,12 +1174,12 @@ determined_type: ;
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
 #if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+    defined(ALT_BREAK_TO_DEBUGGER) || defined(GDB_AUTO_ENTER))
 		/*
 		 * Enable interrupts for early break-to-debugger support
-		 * on the console.
+		 * on the console and/or gdb port.
 		 */
-		if (ret == 0 && unit == comconsole)
+		if (ret == 0 && (unit == comconsole || unit == siogdbunit))
 			outb(siocniobase + com_ier, IER_ERXRDY | IER_ERLS |
 			    IER_EMSC);
 #endif
@@ -1426,13 +1426,13 @@ comhardclose(com)
 	tp = com->tp;
 
 #if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+    defined(ALT_BREAK_TO_DEBUGGER) || defined(GDB_AUTO_ENTER))
 	/*
 	 * Leave interrupts enabled and don't clear DTR if this is the
 	 * console. This allows us to detect break-to-debugger events
 	 * while the console device is closed.
 	 */
-	if (com->unit != comconsole)
+	if (com->unit != comconsole || com->unit != siogdbunit)
 #endif
 	{
 		sio_setreg(com, com_ier, 0);
@@ -1807,6 +1807,17 @@ siointr1(com)
 			    db_alt_break(recv_data, &com->alt_brk_state) != 0)
 				breakpoint();
 #endif /* ALT_BREAK_TO_DEBUGGER */
+#ifdef GDB_AUTO_ENTER
+			if (gdb_auto_enter != 0 && com->unit == siogdbunit) {
+				printf("gdb: %c\n", recv_data);
+				if (db_gdb_packet(recv_data, &com->gdb) != 0) {
+					printf("going to gdb mode\n");
+					boothowto |= RB_GDB;
+					breakpoint();
+					/* goto cont; */
+				}
+			}
+#endif /* GDB_AUTO_ENTER */
 #endif /* DDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*

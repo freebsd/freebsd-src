@@ -221,8 +221,8 @@ ohci_pci_attach(device_t self)
 	pci_enable_busmaster(self);
 
 	rid = PCI_CBMEM;
-	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -231,7 +231,7 @@ ohci_pci_attach(device_t self)
 	sc->ioh = rman_get_bushandle(sc->io_res);
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");

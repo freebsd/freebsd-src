@@ -193,13 +193,13 @@ zs_fhc_attach(device_t dev)
 	struct zs_sbus_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->sc_memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_memrid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_memrid, RF_ACTIVE);
 	if (sc->sc_memres == NULL)
 		goto error;
 	sc->sc_irqrid = FHC_UART;
-	sc->sc_irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid, 0,
-	    ~0, 1, RF_ACTIVE);
+	sc->sc_irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_irqrid, RF_ACTIVE);
 	if (sc->sc_irqres == NULL)
 		goto error;
 	if (bus_setup_intr(dev, sc->sc_irqres, INTR_TYPE_TTY | INTR_FAST,
@@ -220,12 +220,12 @@ zs_sbus_attach(device_t dev)
 	struct zs_sbus_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->sc_memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_memrid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_memrid, RF_ACTIVE);
 	if (sc->sc_memres == NULL)
 		goto error;
-	sc->sc_irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid, 0,
-	    ~0, 1, RF_ACTIVE);
+	sc->sc_irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_irqrid, RF_ACTIVE);
 	if (sc->sc_irqres == NULL)
 		goto error;
 	if (bus_setup_intr(dev, sc->sc_irqres, INTR_TYPE_TTY | INTR_FAST,

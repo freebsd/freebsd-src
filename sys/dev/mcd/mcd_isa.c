@@ -129,8 +129,8 @@ mcd_alloc_resources (device_t dev)
 	error = 0;
 
 	if (sc->port_type) {
-		sc->port = bus_alloc_resource(dev, sc->port_type, &sc->port_rid,
-				0, ~0, 1, RF_ACTIVE);
+		sc->port = bus_alloc_resource_any(dev, sc->port_type,
+				&sc->port_rid, RF_ACTIVE);
 		if (sc->port == NULL) {
 			device_printf(dev, "Unable to allocate PORT resource.\n");
 			error = ENOMEM;
@@ -141,8 +141,8 @@ mcd_alloc_resources (device_t dev)
 	}
 
 	if (sc->irq_type) {
-		sc->irq = bus_alloc_resource(dev, sc->irq_type, &sc->irq_rid,
-				0, ~0, 1, RF_ACTIVE);
+		sc->irq = bus_alloc_resource_any(dev, sc->irq_type,
+				&sc->irq_rid, RF_ACTIVE);
 		if (sc->irq == NULL) {
 			device_printf(dev, "Unable to allocate IRQ resource.\n");
 			error = ENOMEM;
@@ -151,8 +151,8 @@ mcd_alloc_resources (device_t dev)
 	}
 
 	if (sc->drq_type) {
-		sc->drq = bus_alloc_resource(dev, sc->drq_type, &sc->drq_rid,
-				0, ~0, 1, RF_ACTIVE);
+		sc->drq = bus_alloc_resource_any(dev, sc->drq_type,
+				&sc->drq_rid, RF_ACTIVE);
 		if (sc->drq == NULL) {
 			device_printf(dev, "Unable to allocate DRQ resource.\n");
 			error = ENOMEM;

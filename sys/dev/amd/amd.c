@@ -2286,8 +2286,7 @@ amd_init(device_t dev)
 	u_int	bval;
 
 	rid = PCI_BASE_ADDR0;
-	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				   RF_ACTIVE);
+	iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (iores == NULL) {
 		if (bootverbose)
 			printf("amd_init: bus_alloc_resource failure!\n");
@@ -2432,8 +2431,8 @@ amd_attach(device_t dev)
 
 	/* After setting up the adapter, map our interrupt */
 	rid = 0;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				    RF_SHAREABLE | RF_ACTIVE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
 	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM | INTR_ENTROPY,
 	    amd_intr, amd, &ih)) {

@@ -104,7 +104,7 @@ pcigfb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->rev = pci_get_revid(dev);
 	rid = GFB_MEM_BASE_RID;
-	sc->res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE|PCI_RF_DENSE);
 	if(sc->res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -115,7 +115,7 @@ pcigfb_attach(device_t dev)
 
 	/* Allocate interrupt (irq)... */
 	rid = 0x0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE|RF_ACTIVE);
 	if(sc->irq == NULL) {
 		device_printf(dev, "Couldn't map interrupt\n");
