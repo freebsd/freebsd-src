@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1994/08/24 13:10:34 csgr Exp $
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c
@@ -8,13 +8,7 @@ LINKS=  ${LIBDIR}/libln.a ${LIBDIR}/libl.a \
 LINKS+= ${LIBDIR}/libln_p.a ${LIBDIR}/libl_p.a
 .endif
 
-.if !defined(NOSHARED) 
-LINKS+= ${LIBDIR}/libln.so.$(SHLIB_MAJOR).$(SHLIB_MINOR) \
-		${LIBDIR}/libl.so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
-.endif
-
-#This is where we get our SHLIB_MAJOR and SHLIB_MINOR
-.include "${.CURDIR}/../../../lib/Makefile.inc"
+NOSHARED=
 
 .include <bsd.lib.mk>
 
