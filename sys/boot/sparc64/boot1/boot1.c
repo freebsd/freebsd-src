@@ -296,13 +296,13 @@ ofw_exit(void)
 }
 
 static void
-bcopy(const void *dst, void *src, size_t len)
+bcopy(const void *src, void *dst, size_t len)
 {
-	const char *d = dst;
-	char *s = src;
+	const char *s = src;
+	char *d = dst;
 
 	while (len-- != 0)
-		*s++ = *d++;
+		*d++ = *s++;
 }
 
 static void
