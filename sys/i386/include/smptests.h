@@ -34,18 +34,6 @@
  */
 
 /*
- * These defines enable critical region locking of areas that were
- * protected via cli/sti in the UP kernel.
- *
- * COMLOCK protects the sio/cy drivers.
- * known to be incomplete:
- *	joystick lkm
- *	?
- */
-#define USE_COMLOCK
-
-
-/*
  * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
 #define VERBOSE_CPUSTOP_ON_DDBBREAK
  */
