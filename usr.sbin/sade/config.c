@@ -398,16 +398,26 @@ configUsers(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
-    if (file_executable("/usr/X11R6/bin/XF86Setup")) {
+    char *config, *execfile;
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuXF86Config, FALSE); 
+
+    config = variable_get(VAR_XF86_CONFIG);
+    if (!config)
+	return DITEM_FAILURE | DITEM_RESTORE;
+    execfile = string_concat("/usr/X11R6/bin/", config);
+    if (file_executable(execfile)) {
 	dialog_clear_norefresh();
 	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
 	    dmenuOpenSimple(&MenuMouse, FALSE); 
 	dialog_clear();
 	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-	systemExecute("/usr/X11R6/bin/XF86Setup");
+	systemExecute(execfile);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
 		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE;
