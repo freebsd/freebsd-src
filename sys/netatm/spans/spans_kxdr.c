@@ -100,8 +100,7 @@ __RCSID("@(#) $FreeBSD$");
  * xdr.
  */
 
-#include <rpc/types.h>
-#include <rpc/xdr.h>
+#include <netatm/spans/spans_kxdr.h>
 
 /*
  * constants specific to the xdr "protocol"

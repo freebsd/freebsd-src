@@ -1123,13 +1123,13 @@ netatm/spans/spans_util.c	optional atm_spans atm_core
 spans_xdr.h			optional atm_spans atm_core	\
         before-depend						\
         dependency      "$S/netatm/spans/spans_xdr.x"		\
-        compile-with    "rpcgen -h -C $S/netatm/spans/spans_xdr.x > spans_xdr.h" \
+        compile-with    "rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
         clean           "spans_xdr.h"				\
         no-obj no-implicit-rule
 spans_xdr.c			optional atm_spans atm_core	\
         before-depend						\
         dependency      "$S/netatm/spans/spans_xdr.x"		\
-        compile-with    "rpcgen -c -C $S/netatm/spans/spans_xdr.x > spans_xdr.c" \
+        compile-with    "rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
         clean           "spans_xdr.c"				\
         no-obj no-implicit-rule local
 spans_xdr.o			optional atm_spans atm_core	\

@@ -47,7 +47,7 @@
 %#ifndef _SPANS_SPANS_XDR_H
 %#define _SPANS_SPANS_XDR_H
 %
-%#include <rpc/types.h>
+%#include <netatm/spans/spans_kxdr.h>
 %
 #endif
 
