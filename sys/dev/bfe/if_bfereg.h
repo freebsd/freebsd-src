@@ -37,11 +37,11 @@
 #define BFE_ISTAT_MII_WRITE 0x08000000 /* MII Write Interrupt */
 #define BFE_ISTAT_MII_READ  0x10000000 /* MII Read Interrupt */
 #define BFE_ISTAT_ERRORS    (BFE_ISTAT_DSCE | BFE_ISTAT_DATAE | BFE_ISTAT_DPE |\
-        BFE_ISTAT_RDU | BFE_ISTAT_RFO | BFE_ISTAT_TFU)
+	BFE_ISTAT_RDU | BFE_ISTAT_RFO | BFE_ISTAT_TFU)
 
 #define BFE_IMASK           0x00000024 /* Interrupt Mask */
 #define BFE_IMASK_DEF       (BFE_ISTAT_ERRORS | BFE_ISTAT_TO | BFE_ISTAT_RX | \
-        BFE_ISTAT_TX)
+	BFE_ISTAT_TX)
 
 #define BFE_MAC_CTRL        0x000000A8 /* MAC Control */
 #define BFE_CTRL_CRC32_ENAB 0x00000001 /* CRC32 Generation Enable */
@@ -386,7 +386,7 @@
 #define BFE_RX_FLAG_MISS    0x00000080 /* Received due to promisc mode */
 #define BFE_RX_FLAG_LAST    0x00000800 /* Last buffer in frame */
 #define BFE_RX_FLAG_ERRORS  (BFE_RX_FLAG_ODD | BFE_RX_FLAG_SERR |           \
-        BFE_RX_FLAG_CRCERR | BFE_RX_FLAG_OFIFO)
+	BFE_RX_FLAG_CRCERR | BFE_RX_FLAG_OFIFO)
 
 #define BFE_MCAST_TBL_SIZE  32
 #define BFE_PCI_DMA         0x40000000
@@ -411,16 +411,16 @@
 #define BFE_TX_QLEN             256
 
 #define CSR_READ_4(sc, reg)                                                 \
-        bus_space_read_4(sc->bfe_btag, sc->bfe_bhandle, reg)
+	bus_space_read_4(sc->bfe_btag, sc->bfe_bhandle, reg)
 
 #define CSR_WRITE_4(sc, reg, val)                                            \
-        bus_space_write_4(sc->bfe_btag, sc->bfe_bhandle, reg, val)
+	bus_space_write_4(sc->bfe_btag, sc->bfe_bhandle, reg, val)
 
 #define BFE_OR(sc, name, val)                                               \
-        CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) | val)
+	CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) | val)
 
 #define BFE_AND(sc, name, val)                                              \
-        CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) & val)
+	CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) & val)
 
 #if __FreeBSD_version > 500000
 #define BFE_LOCK(scp)       mtx_lock(&sc->bfe_mtx)
@@ -479,7 +479,7 @@ struct bfe_hw_stats {
     u_int32_t rx_pause_pkts, rx_nonpause_pkts;
 };
 
-struct bfe_softc 
+struct bfe_softc
 {
     struct arpcom           arpcom;     /* interface info */
     device_t                bfe_dev;
@@ -519,7 +519,7 @@ struct bfe_softc
     char                    *bfe_vpd_readonly;
 };
 
-struct bfe_type 
+struct bfe_type
 {
     u_int16_t   bfe_vid;
     u_int16_t   bfe_did;
