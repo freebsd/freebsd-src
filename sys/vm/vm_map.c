@@ -1933,10 +1933,12 @@ vm_map_clean(
 		    ((object->type == OBJT_VNODE) ||
 		     (object->type == OBJT_DEVICE))) {
 			vm_object_reference(object);
+			vm_object_lock(object);
 			vm_object_page_remove(object,
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
 			    FALSE);
+			vm_object_unlock(object);
 			vm_object_deallocate(object);
                 }
 		start += size;
@@ -2071,9 +2073,11 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		offidxend = offidxstart + count;
 
 		if ((object == kernel_object) || (object == kmem_object)) {
+			vm_object_lock(object);
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+			vm_object_unlock(object);
 		} else {
-			mtx_lock(&Giant);
+			vm_object_lock(object);
 			vm_page_lock_queues();
 			pmap_remove(map->pmap, s, e);
 			vm_page_unlock_queues();
@@ -2091,7 +2095,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 					object->size = offidxstart;
 				}
 			}
-			mtx_unlock(&Giant);
+			vm_object_unlock(object);
 		}
 
 		/*
@@ -2974,7 +2978,9 @@ vm_uiomove(
 				/*
 				 * Remove unneeded old pages
 				 */
+				vm_object_lock(first_object);
 				vm_object_page_remove(first_object, 0, 0, 0);
+				vm_object_unlock(first_object);
 
 				/*
 				 * Invalidate swap space
