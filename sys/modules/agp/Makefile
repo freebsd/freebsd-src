@@ -9,4 +9,15 @@ SRCS+=	device_if.h bus_if.h agp_if.h pci_if.h
 SRCS+=	opt_bdg.h opt_bus.h opt_pci.h
 MFILES=	kern/device_if.m kern/bus_if.m pci/agp_if.m dev/pci/pci_if.m
 
+EXPORT_SYMS=	agp_find_device		\
+		agp_state		\
+		agp_acquire		\
+		agp_release		\
+		agp_enable		\
+		agp_alloc_memory	\
+		agp_free_memory		\
+		agp_bind_memory		\
+		agp_unbind_memory	\
+		agp_memory_info
+
 .include <bsd.kmod.mk>

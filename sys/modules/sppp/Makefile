@@ -7,6 +7,15 @@ SRCS=	if_spppsubr.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
 NOMAN=
 
+EXPORT_SYMS=	sppp_attach	\
+		sppp_detach	\
+		sppp_input	\
+		sppp_ioctl	\
+		sppp_dequeue	\
+		sppp_pick	\
+		sppp_isempty	\
+		sppp_flush
+
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
