@@ -416,21 +416,23 @@ to inject the data into the beginning of the TCP stream.
 .It Fl punch_fw Xo
 .Ar basenumber Ns : Ns Ar count
 .Xc
-This option makes
+This option directs
 .Nm
-.Ql punch holes
+to
+.Dq punch holes
 in an
 .Xr ipfirewall 4
 based firewall for FTP/IRC DCC connections.
-The holes punched are bound by from/to IP address and port; it
-will not be possible to use a hole for another connection.
-A hole is removed when the connection that uses it dies.
+This is done dynamically by installing temporary firewall rules which
+allow a particular connection (and only that connection) to go through
+the firewall.
+The rules are removed once the corresponding connection terminates.
 .Pp
-Arguments
-.Ar basenumber
-and
+A maximum of
 .Ar count
-set the firewall range allocated for punching firewall holes.
+rules starting from the rule number
+.Ar basenumber
+will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
 .El
 .Sh RUNNING NATD
