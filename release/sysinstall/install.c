@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.128 1996/10/04 14:53:50 jkh Exp $
+ * $Id: install.c,v 1.129 1996/10/05 10:43:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,7 +51,9 @@
 #include <sys/mount.h>
 
 static void	create_termcap(void);
+#ifdef SAVE_USERCONFIG
 static void	save_userconfig_to_kernel(char *);
+#endif
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -594,10 +596,10 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
+#ifdef SAVE_USERCONFIG
 	    /* Snapshot any boot -c changes back to the GENERIC kernel */
 	    save_userconfig_to_kernel("/kernel.GENERIC");
-	    dialog_clear();
-
+#endif
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
@@ -680,7 +682,7 @@ installFilesystems(dialogMenuItem *self)
     Boolean upgrade = FALSE;
 
     /* If we've already done this, bail out */
-    if (variable_get(DISK_PREPARED))
+    if ((str = variable_get(DISK_LABELLED)) && !strcmp(str, "written"))
 	return DITEM_SUCCESS;
 
     str = variable_get(SYSTEM_STATE);
@@ -823,7 +825,6 @@ installFilesystems(dialogMenuItem *self)
     
     command_sort();
     command_execute();
-    variable_set2(DISK_PREPARED, "yes");
     return DITEM_SUCCESS;
 }
 
@@ -901,49 +902,48 @@ create_termcap(void)
     }
 }
 
-static char *isa_list[] = {
-  "device",
-  "ioport",
-  "irq",
-  "drq",
-  "iomem",
-  "iosize",
-  "flags",
-  "alive",
-  "enabled",
-};
-
 static void
 save_userconfig_to_kernel(char *kern)
 {
     struct kernel *core, *boot;
-    struct list *c_isa, *c_dev, *b_dev;
+    struct list *c_isa, *b_isa, *c_dev, *b_dev;
     int i, d;
 
     if ((core = uc_open("-incore")) == NULL) {
-	msgDebug("Can't read in-core information for kernel.\n");
+	msgDebug("save_userconf: Can't read in-core information for kernel.\n");
 	return;
     }
 
     if ((boot = uc_open(kern)) == NULL) {
-	msgDebug("Can't read device information for kernel image %s\n", kern);
+	msgDebug("save_userconf: Can't read device information for kernel image %s\n", kern);
 	return;
     }
+
+    msgNotify("Saving any boot -c changes to new kernel...");
     c_isa = uc_getdev(core, "-isa");
+    b_isa = uc_getdev(boot, "-isa");
+    if (isDebug())
+	msgDebug("save_userconf: got %d ISA device entries from core, %d from boot.\n", c_isa->ac, b_isa->ac);
     for (d = 0; d < c_isa->ac; d++) {
 	if (isDebug())
-	    msgDebug("Outer loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
-	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which
-					       mucks with its id_irq member */
+	    msgDebug("save_userconf: ISA device loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
+	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which mucks with its id_irq member */
 	    c_dev = uc_getdev(core, c_isa->av[d]);
-	    b_dev = uc_getdev(boot, c_isa->av[d]);
+	    b_dev = uc_getdev(boot, b_isa->av[d]);
+	    if (!c_dev || !b_dev) {
+		msgDebug("save_userconf: c_dev: %x b_dev: %x\n", c_dev, b_dev);
+		continue;
+	    }
+	    if (isDebug())
+		msgDebug("save_userconf: ISA device %s: %d config parameters (core), %d (boot)\n",
+			 c_isa->av[d], c_dev->ac, b_dev->ac);
 	    for (i = 0; i < c_dev->ac; i++) {
 		if (isDebug())
-		    msgDebug("Inner loop, c_dev->av[%d] = %s\n", i, c_dev->av[i]);
+		    msgDebug("save_userconf: c_dev->av[%d] = %s, b_dev->av[%d] = %s\n", i, c_dev->av[i], i, b_dev->av[i]);
 		if (strcmp(c_dev->av[i], b_dev->av[i])) {
 		    if (isDebug())
-			msgDebug("%s %s changed: %s (boot) -> %s (core)\n",
-				 c_dev->av[0], isa_list[i], b_dev->av[i], c_dev->av[i]);
+			msgDebug("save_userconf: %s (boot) -> %s (core)\n",
+				 c_dev->av[i], b_dev->av[i]);
 		    isa_setdev(boot, c_dev);
 		}
 	    }
