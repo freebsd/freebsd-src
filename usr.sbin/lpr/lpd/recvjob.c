@@ -191,10 +191,9 @@ readjob(struct printer *pp)
 			 * something different than what gethostbyaddr()
 			 * returns
 			 */
-			strncpy(cp + 6, from_host, sizeof(line) + line - cp
-			    - 7);
-			line[sizeof(line) - 1 ] = '\0';
-			strncpy(tfname, cp, sizeof(tfname) - 1);
+			strlcpy(cp + 6, from_host, sizeof(line)
+			    + (size_t)(line - cp - 6));
+			strlcpy(tfname, cp, sizeof(tfname));
 			tfname[sizeof (tfname) - 1] = '\0';
 			tfname[0] = 't';
 			if (strchr(tfname, '/'))
@@ -229,8 +228,7 @@ readjob(struct printer *pp)
 				(void) write(STDOUT_FILENO, "\2", 1);
 				continue;
 			}
-			(void) strncpy(dfname, cp, sizeof(dfname) - 1);
-			dfname[sizeof(dfname) - 1] = '\0';
+			strlcpy(dfname, cp, sizeof(dfname));
 			if (strchr(dfname, '/')) {
 				frecverr("readjob: %s: illegal path name",
 					dfname);
