@@ -1,5 +1,5 @@
 /*
- * $Id: scsiio.h,v 1.2 1994/08/02 07:53:30 davidg Exp $
+ * $Id: scsiio.h,v 1.3 1995/01/08 13:39:46 dufault Exp $
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_
@@ -61,6 +61,9 @@ struct	scsi_addr {
 #define SCIOCRECONFIG	_IO('Q', 6)	/* please check again */
 #define SCIOCRESET	_IO('Q', 7)	/* reset the device */
 #define SCIOCADDR	_IOW('Q', 8, struct scsi_addr) /* Change address */
-
+#define SCIOCFREEZE	_IO('Q', 9) /* Freeze SCSI */
+#define SCIOCTHAW	_IO('Q', 10) /* Thaw SCSI */
+#define SCIOCFREEZETHAW	_IOW('Q', 11, int) /* Freeze SCSI for some seconds */
+#define SCIOCWAITTHAW	_IO('Q', 12) /* Wait for SCSI to thaw */
 
 #endif /* _SYS_SCSIIO_H_ */
