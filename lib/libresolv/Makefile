@@ -18,8 +18,9 @@ SRCS=	fakelib.c
 # libresolv on FreeBSD-2.x **never did anything**!!
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/${LIB}.a ${DESTDIR}${LIBDIR}/${LIB}_p.a \
-	    ${DESTDIR}${ORIG_SHLIBDIR}/${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+	  ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
+	  ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1996/09/27 12:10:08 peter Exp $
+#	$Id: Makefile,v 1.9 1996/09/27 16:22:37 bde Exp $
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
@@ -16,8 +16,9 @@ SRCS=	cfree.c
 # you to run programs that were linked with -lgnumalloc (such as XFree86).
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/${LIB}.a ${DESTDIR}${LIBDIR}/${LIB}_p.a \
-	    ${DESTDIR}${ORIG_SHLIBDIR}/${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+	  ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
+	  ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
 
