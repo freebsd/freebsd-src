@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id$
+# $Id: Makefile,v 1.23 1997/02/22 19:56:34 peter Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
@@ -68,8 +68,10 @@ DISTRIBUTION=	krb
 .endif
 
 beforeinstall:
-	[ ! -e ${DESTDIR}${BINDIR}/passwd ] || \
-		chflags noschg ${DESTDIR}${BINDIR}/passwd
+.for i in passwd yppasswd
+	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
+		chflags noschg ${DESTDIR}${BINDIR}/$i
+.endfor
 
 afterinstall:
 	chflags schg ${DESTDIR}${BINDIR}/passwd

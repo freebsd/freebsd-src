@@ -52,8 +52,10 @@ yppasswd_private_xdr.c: ${RPCSRC_PRIV} yppasswd_private.h
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PRIV}
 
 beforeinstall:
-	[ ! -e ${DESTDIR}${BINDIR}/chpass ] || \
-		chflags noschg ${DESTDIR}${BINDIR}/chpass
+.for i in chpass chfn chsh ypchpass ypchfn ypchsh
+	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
+		chflags noschg ${DESTDIR}${BINDIR}/$i
+.endfor
 
 afterinstall:
 	chflags schg ${DESTDIR}${BINDIR}/chpass
