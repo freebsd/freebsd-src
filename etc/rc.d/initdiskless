@@ -153,6 +153,11 @@ if [ ${dlv:=0} -ne 0 ] ; then
 		break
 	    fi
 	done
+	# Insert the directories passed with the T134 bootp cookie
+	# in the list of paths used for templates.
+	i="`/sbin/sysctl -n kern.bootp_cookie`"
+	[ "${i}" != "" ] && bootp_ipbca="${bootp_ipbca} ${i}"
+
 	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 fi
 
@@ -167,6 +172,12 @@ while [ $# -ge 1 ] ; do
     shift
 done
 
+# The list of directories with template files
+templates="base default ${bootp_ipbca} ${bootp_ipa}"
+
+# The list of filesystems to umount after the copy
+to_umount=""
+
 # If /conf/diskless_remount exists, remount all of /conf.  This allows
 # multiple roots to share the same conf files.
 if [ -d /conf -a -f /conf/diskless_remount ]; then
@@ -176,6 +187,7 @@ if [ -d /conf -a -f /conf/diskless_remount ]; then
     fi
     mount_nfs $nfspt /conf
     chkerr $? "mount_nfs $nfspt /conf"
+    to_umount="/conf"
 fi
 
 # Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
@@ -198,7 +210,7 @@ fi
 #   it before attemping to the remount.  This allows the root to be
 #   relocated without needing to change the remount files.
 #
-for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
+for i in ${templates} ; do
     for j in /conf/$i/* ; do
 	# memory filesystem size specification
 	#
@@ -213,6 +225,7 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	    nfspt=`/bin/cat $j/remount`
 	    $nfspt $j
 	    chkerr $? "$nfspt $j"
+	    to_umount="${to_umount} $j" # XXX hope it is really a mount!
 	fi
 
 	# NFS remount
@@ -224,6 +237,7 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	    fi
 	    mount_nfs $nfspt $j
 	    chkerr $? "mount_nfs $nfspt $j"
+	    to_umount="${to_umount} $j"
 	fi
     done
 done
@@ -233,14 +247,14 @@ done
 #   archive.  Support dir.remove files containing a list of relative
 #   paths to remove.
 #
-# TODO:
-#   + find a way to assign a 'group' identifier to a machine
-#	so we can use group-specific configurations;
+# The dir.cpio.gz form is there to make the copy process more efficient,
+# so if the cpio archive is present, it prevents the files from dir/
+# from being copied.
 
-for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
+for i in ${templates} ; do
     for j in /conf/$i/* ; do
 	subdir=${j##*/}
-	if [ -d $j ]; then
+	if [ -d $j -a ! -f $j.cpio.gz  ]; then
 	    create_md $subdir
 	    cp -Rp $j/* /$subdir
 	fi
@@ -265,3 +279,5 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
     done
 done
 
+# umount partitions used to fill the memory filesystems
+[ -n "${to_umount}" ] && umount $to_umount
