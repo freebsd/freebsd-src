@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.16 1996/07/04 01:44:33 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.17 1996/07/27 22:25:19 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -84,8 +84,10 @@ src-include:	/usr/src/include	include files
 src-sys:	/usr/src/sys		kernel sources
 src-lib:	/usr/src/lib		libraries
 src-libexec:	/usr/src/libexec	system binaries
+src-release:	/usr/src/release	sources required to build a release
 src-share:	/usr/src/share		various shared resources
 src-sbin:	/usr/src/sbin		single user system binaries
+src-tools:	/usr/src/tools		various management tools
 src-usrbin:	/usr/src/usr.bin	user binaries
 src-usrsbin:	/usr/src/usr.sbin	system binaries
 </verb>
@@ -96,6 +98,14 @@ src-secure:	/usr/src/secure		DES Sources
 src-eBones:	/usr/src/eBones		Kerberos and DES
 </verb>
 
+<p>There is also a collection including all of the above, except for
+either (domestic or international) versions of the export-restricted
+software (i.e., <tt>src-secure</tt> and <tt>src-eBones</tt>
+collections):
+<verb>
+src-all:	/usr/src		the whole operating system (almost)
+</verb>
+
 <p>And for the ports collection:
 <verb>
 ports-base:	  /usr/ports/...	misc files at the top of /usr/ports
@@ -103,6 +113,7 @@ ports-archivers:  /usr/ports/archivers	archiving tools
 ports-audio:	  /usr/ports/audio	sound support
 ports-benchmarks: /usr/ports/benchmarks	benchmarks
 ports-cad:	  /usr/ports/cad	CAD tools
+ports-chinese:	  /usr/ports/chinese	Chinese support
 ports-comms:	  /usr/ports/comms	communication software
 ports-databases:  /usr/ports/databases	databases
 ports-devel:	  /usr/ports/devel	development utilities
@@ -110,7 +121,7 @@ ports-editors:    /usr/ports/editors	editors
 ports-emulators:  /usr/ports/emulators	emulators for other OSes
 ports-games:	  /usr/ports/games	games
 ports-graphics:	  /usr/ports/graphics	various graphics utilities
-ports-japanese:	  /usr/ports/japanese	Japanese software.
+ports-japanese:	  /usr/ports/japanese	Japanese support
 ports-lang:	  /usr/ports/lang	programming languages
 ports-mail:	  /usr/ports/mail	mail software
 ports-math:	  /usr/ports/math	numerical computation software
@@ -119,12 +130,17 @@ ports-net:	  /usr/ports/net	networking software
 ports-news:	  /usr/ports/news	USENET news software
 ports-plan9:	  /usr/ports/plan9	various programs from Plan9
 ports-print:	  /usr/ports/print	printing software
-ports-russian:    /usr/ports/russian    Russian software
+ports-russian:    /usr/ports/russian    Russian support
 ports-security:	  /usr/ports/security	``security'' utilities, for better or for worse
 ports-shells:	  /usr/ports/shells	various UN*X shells
 ports-sysutils:	  /usr/ports/sysutils	system utilities
 ports-www:	  /usr/ports/www	software related to the world wide web
 ports-x11:	  /usr/ports/x11	X11 software
+</verb>
+
+<p>There is also a collection including all of the above:
+<verb>
+ports-all:	  /usr/ports		the whole ports tree
 </verb>
 
 <p>If you want to keep updated on the original source of the ports,
