@@ -27,6 +27,7 @@ XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	typeprint.c utils.c valarith.c valops.c valprint.c values.c	\
 	version.c serial.c ser-unix.c ser-tcp.c
 SRCS=	init.c ${XSRCS}
+SRCS+=	wait.h
 
 .if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
 .include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
@@ -64,7 +65,7 @@ CFLAGS+= -DNO_MMALLOC
 #CFLAGS+= -g
 YFLAGS=
 
-CLEANFILES=	init.c init.c-tmp
+CLEANFILES=	init.c init.c-tmp wait.h
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
@@ -107,5 +108,8 @@ init.c: ${XSRCS}
 	@mv init.c-tmp ${.TARGET}
 
 .PRECIOUS: init.c
+
+wait.h:
+	ln -sf ${.CURDIR}/../../../../sys/sys/wait.h ${.TARGET}
 
 .include <bsd.prog.mk>
