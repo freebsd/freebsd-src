@@ -1,93 +1,169 @@
-Tasks for GNU textutils (listed in no particular order):
+restore djgpp, eventually
+merge TODO lists
+add unit tests for lib/*.c
 
-  write texinfo documentation for sha1sum
+strip: add an option to specify the program used to strip binaries.
+  suggestion from Karl Berry
 
-  Something that I would really appreciate is if someone would run the
-  Open Group's VSC-lite test suite against the fileutils and textutils
-  and report the failures.
+doc/coreutils.texi:
+  Address this comment: FIXME: mv's behavior in this case is system-dependent
+  Better still: fix the code so it's *not* system-dependent.
 
-    http://www.opengroup.org/testing/downloads/vsclite.html
+implement --target-directory=DIR for install (per texinfo documentation)
 
-  I've been meaning to do it myself for months, but haven't found the time.
-  There's a bit of set-up required, some of which requires root access, e.g.,
-  to create a few test user accounts and some test groups.
-  ------------------
+ls: add --format=FORMAT option that controls how each line is printed.
 
-  uniq: remove support for obsolescent +N syntax
+cp --no-preserve=X should not attempt to preserve attribute X
+  reported by Andreas Schwab
 
-  add tests for od
-  add some endian-aware tests for od
+copy.c: Address the FIXME-maybe comment in copy_internal.
+And once that's done, add an exclusion so that `cp --link'
+no longer incurs the overhead of saving src. dev/ino and dest. filename
+in the hash table.
 
-  tac: Set DONT_UNLINK_WHILE_OPEN when necessary.
+See if we can be consistent about where --verbose sends its output:
+  These all send --verbose output to stdout:
+    head, tail, rm, cp, mv, ln, chmod, chown, chgrp, install, ln
+  These send it to stderr:
+    shred mkdir split
+  readlink is different
 
-  tail: add an option so that using -f on N files doesn't monopolize
-    N file descriptors
+Write an autoconf test to work around build failure in HPUX's 64-bit mode.
+See notes in README -- and remove them once there's a work-around.
 
-  tac: add options to help handle boundary cases
-     E.g., options to distinguish DELIM_STRING is
-        - starter    (see existing --before option)
-        - terminator (this is what most people expect wrt NEWLINE
-        - separator  (this would make `echo -n a:b:c|tac -s:' print `c:b:a')
+Integrate use of sendfile, suggested here:
+  http://mail.gnu.org/archive/html/bug-fileutils/2003-03/msg00030.html
+I don't plan to do that, since a few tests demonstrate no significant benefit.
 
-  tail: support -r option by librarifying tac and using that
+Should printf '\0123' print "\n3"?
+  per report from TAKAI Kousuke on Mar 27
+  http://mail.gnu.org/archive/html/bug-coreutils/2003-03/index.html
 
-  cut: maybe add an option to say `fields are separated by whitespace'.
-     Of course, that isn't really necessary because you can preprocess
-     cut's input with tr to get the same effect:
+printf: consider adapting builtins/printf.def from bash
 
-        echo 'a     b     c' |tr -s '[:blank:]' | cut -d ' ' -f 2
+df: add `--total' option, suggested here http://bugs.debian.org/186007
 
-------------
+seq: give better diagnostics for invalid formats:
+   e.g. no or too many % directives
+seq: consider allowing format string to contain no %-directives
 
-  From: kwzh@gnu.ai.mit.edu (Karl Heuer)
-  Subject: [textutils-1.22] [sort] feature requests
-  To: textutils-bugs@gnu.ai.mit.edu
-  Date: Thu, 5 Jun 97 13:06:51 -0400
+dd: consider adding an option to suppress `bytes/block read/written'
+output to stderr.  Suggested here:
+  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=165045
 
-  [...]
-  Another feature that I would sometimes find useful: change -c so that
-  it will report up to N instances of disorder before bailing out, where
-  N defaults to 1 but can be set to infinity or to some finite value by
-  another option.  (An "instance of disorder" is two adjacent lines that
-  are malsorted; this does not imply that swapping them or removing one
-  or both would cause the list to be sorted.  (1 3 5 7 9 0 2 4 6 8) has
-  just one instance of disorder.)
+m4: rename all macros that start with AC_ to start with another prefix
 
-------------
+resolve RH report on cp -a forwarded by Tim Waugh
 
-  Date: Fri, 1 May 1998 20:27:39 -0700 (PDT)
-  From: Paul Rubin <phr@netcom.com>
-  To: gnu@gnu.org
-  Subject: small project suggestion
+Martin Michlmayr's patch to provide ls with `--sort directory' option
 
-  Someone should rewrite the "sum" utility to give a choice of
-  different checksum algorithms (it's poorly organized for that now).
-  An experienced programmer could probably do it in a day or so,
-  or it might be a good, self-contained project for someone who is
-  just getting started.
+tail: don't use xlseek; it *exits*.
+  Instead, maybe use a macro and return nonzero.
 
-  Algorithms that it should include are:
-    -- the POSIX algorithm
-    -- the BSD algorithm
-    -- CRC32 algorithm (used by pkzip)
-    -- CRC16 (used in TCP/IP)
-    -- possibly other CRC's (like the different CCITT polynomials)
-    -- SHA-1 and MD5 cryptographic hashes (replacing "md5sum").
-  and possibly:
-    -- DSA digital signature based on secret key generated from
-       a passphrase (prompt the user, or read an environment variable).
+add mktemp?  Suggested by Nelson Beebe
+
+Now that AC_FUNC_LSTAT and AC_FUNC_STAT are in autoconf,
+remove m4/stat.m4 and m4/lstat.m4.
+
+df: alignment problem of `Used' heading with e.g., -mP
+  reported by Karl Berry
+
+tr: support nontrivial equivalence classes, e.g. [=e=] with LC_COLLATE=fr_FR
+
+fix tail -f to work with named pipes; reported by Ian D. Allen
+  $ mkfifo j; tail -f j & sleep 1; echo x > j
+  ./tail: j: file truncated
+  ./tail: j: cannot seek to offset 0: Illegal seek
+
+lib/strftime.c: Since %N is the only format that we need but that
+  glibc's strftime doesn't support, consider using a wrapper that
+  would expand /%(-_)?\d*N/ to the desired string and then pass the
+  resulting string to glibc's strftime.
+
+sort: Compress temporary files when doing large external sort/merges.
+  This improves performance when you can compress/uncompress faster than
+  you can read/write, which is common in these days of fast CPUs.
+  suggestion from Charles Randall on 2001-08-10
+
+sort: Add an ordering option -R that causes 'sort' to sort according
+  to a random permutation of the correct sort order.  Also, add an
+  option --random-seed=SEED that causes 'sort' to use an arbitrary
+  string SEED to select which permutations to use, in a deterministic
+  manner: that is, if you sort a permutation of the same input file
+  with the same --random-seed=SEED option twice, you'll get the same
+  output.  The default SEED is chosen at random, and contains enough
+  information to ensure that the output permutation is random.
+  suggestion from Feth AREZKI, Stephan Kasal, and Paul Eggert on 2003-07-17
+
+unexpand: [http://www.opengroup.org/onlinepubs/007908799/xcu/unexpand.html]
+  printf 'x\t \t y\n'|unexpand -t 8,9 should print its input, unmodified.
+  printf 'x\t \t y\n'|unexpand -t 5,8 should print "x\ty\n"
+
+Let GNU su use the `wheel' group if appropriate.
+  (there are a couple patches, already)
+
+sort: Investigate better sorting algorithms; see Knuth vol. 3.
+
+  We tried list merge sort, but it was about 50% slower than the
+  recursive algorithm currently used by sortlines, and it used more
+  comparisons.  We're not sure why this was, as the theory suggests it
+  should do fewer comparisons, so perhaps this should be revisited.
+  List merge sort was implemented in the style of Knuth algorithm
+  5.2.4L, with the optimization suggested by exercise 5.2.4-22.  The
+  test case was 140,213,394 bytes, 426,4424 lines, text taken from the
+  GCC 3.3 distribution, sort.c compiled with GCC 2.95.4 and running on
+  Debian 3.0r1 GNU/Linux, 2.4GHz Pentium 4, single pass with no
+  temporary files and plenty of RAM.
+
+  Since comparisons seem to be the bottleneck, perhaps the best
+  algorithm to try next should be merge insertion.  See Knuth section
+  5.3.1, who credits Lester Ford, Jr. and Selmer Johnson, American
+  Mathematical Monthly 66 (1959), 387-389.
+
+cp --recursive: perform dir traversals in source and dest hierarchy rather
+  than forming full file names.  The latter (current) approach fails
+  unnecessarily when the names become very long.
+
+tail --p is now ambiguous
+
+Remove suspicious uses of alloca (ones that may allocate more than
+   about 4k)
+
+Adapt these contribution guidelines for coreutils:
+  http://sources.redhat.com/automake/contribute.html
 
 
----------------------
+Changes expected to go in, post-5.2.1:
+======================================
 
-comm: add an option-enable check for sortedness of input files
+  du and wc: add an option, --from0-file, to make them read NUL-delimited
+    file name arguments from a file.
+    [I now have a patch adding --from0-file for du]
 
----------------------
+  dd patch from Olivier Delhomme
 
-uniq: add a more flexible key selection mechanism
+  Apply Andreas Gruenbacher's ACL and xattr changes
 
----------------------
+  Apply Bruno Haible's hostname changes
 
-Charles Randall <crandall@matchlogic.com>
-is working on making sort more suitable and efficient for very
-large sets of input data.
+  stat: no longer output trailing newline for user-supplied FORMATs
+    This will mean adding \n to default formats, internally.
+
+  test/mv/*: clean up $other_partition_tmpdir in all cases
+
+  ls: when both -l and --dereference-command-line-symlink-to-dir are
+  specified, consider whether to let the latter select whether to
+  dereference command line symlinks to directories.  Since -l has
+  an implicit --NO-dereference-command-line-symlink-to-dir meaning.
+  Pointed out by Karl Berry.
+
+  A more efficient version of factor, and possibly one that
+  accepts inputs of size 2^64 and larger.
+
+  Re-add a separate test for du's stack space usage (like the one removed
+  from tests/rm/deep-1).
+
+  Pending copyright papers:
+  ------------------------
+  ls --color: Ed Avis' patch to suppress escape sequences for
+    non-highlighted files

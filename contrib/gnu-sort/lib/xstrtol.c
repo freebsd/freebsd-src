@@ -1,5 +1,7 @@
 /* A more useful interface to strtol.
-   Copyright (C) 1995, 1996, 1998-2001 Free Software Foundation, Inc.
+
+   Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2003 Free
+   Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,48 +27,37 @@
 # define __strtol strtol
 # define __strtol_t long int
 # define __xstrtol xstrtol
+# define STRTOL_T_MINIMUM LONG_MIN
+# define STRTOL_T_MAXIMUM LONG_MAX
 #endif
 
 /* Some pre-ANSI implementations (e.g. SunOS 4)
    need stderr defined if assertion checking is enabled.  */
 #include <stdio.h>
 
-#if STDC_HEADERS
-# include <stdlib.h>
-#endif
-
-#if HAVE_STRING_H
-# include <string.h>
-#else
-# include <strings.h>
-# ifndef strchr
-#  define strchr index
-# endif
-#endif
-
 #include <assert.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <errno.h>
 #ifndef errno
 extern int errno;
 #endif
 
-#if HAVE_LIMITS_H
-# include <limits.h>
-#endif
-
-#ifndef CHAR_BIT
-# define CHAR_BIT 8
-#endif
+#include <limits.h>
 
 /* The extra casts work around common compiler bugs.  */
 #define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
-/* The outer cast is needed to work around a bug in Cray C 5.0.3.0.
-   It is necessary at least when t == time_t.  */
 #define TYPE_MINIMUM(t) ((t) (TYPE_SIGNED (t) \
-			      ? ~ (t) 0 << (sizeof (t) * CHAR_BIT - 1) : (t) 0))
-#define TYPE_MAXIMUM(t) (~ (t) 0 - TYPE_MINIMUM (t))
+			      ? ~ (t) 0 << (sizeof (t) * CHAR_BIT - 1) \
+			      : (t) 0))
+#define TYPE_MAXIMUM(t) ((t) (~ (t) 0 - TYPE_MINIMUM (t)))
+
+#ifndef STRTOL_T_MINIMUM
+# define STRTOL_T_MINIMUM TYPE_MINIMUM (__strtol_t)
+# define STRTOL_T_MAXIMUM TYPE_MAXIMUM (__strtol_t)
+#endif
 
 #if defined (STDC_HEADERS) || (!defined (isascii) && !defined (HAVE_ISASCII))
 # define IN_CTYPE_DOMAIN(c) 1
@@ -78,14 +69,6 @@ extern int errno;
 
 #include "xstrtol.h"
 
-#if !HAVE_DECL_STRTOL && !defined strtol
-long int strtol ();
-#endif
-
-#if !HAVE_DECL_STRTOUL && !defined strtoul
-unsigned long int strtoul ();
-#endif
-
 #if !HAVE_DECL_STRTOIMAX && !defined strtoimax
 intmax_t strtoimax ();
 #endif
@@ -94,24 +77,30 @@ intmax_t strtoimax ();
 uintmax_t strtoumax ();
 #endif
 
-static int
+static strtol_error
 bkm_scale (__strtol_t *x, int scale_factor)
 {
-  __strtol_t product = *x * scale_factor;
-  if (*x != product / scale_factor)
-    return 1;
-  *x = product;
-  return 0;
+  if (TYPE_SIGNED (__strtol_t) && *x < STRTOL_T_MINIMUM / scale_factor)
+    {
+      *x = STRTOL_T_MINIMUM;
+      return LONGINT_OVERFLOW;
+    }
+  if (STRTOL_T_MAXIMUM / scale_factor < *x)
+    {
+      *x = STRTOL_T_MAXIMUM;
+      return LONGINT_OVERFLOW;
+    }
+  *x *= scale_factor;
+  return LONGINT_OK;
 }
 
-static int
+static strtol_error
 bkm_scale_by_power (__strtol_t *x, int base, int power)
 {
+  strtol_error err = LONGINT_OK;
   while (power--)
-    if (bkm_scale (x, base))
-      return 1;
-
-  return 0;
+    err |= bkm_scale (x, base);
+  return err;
 }
 
 /* FIXME: comment.  */
@@ -123,6 +112,7 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
   char *t_ptr;
   char **p;
   __strtol_t tmp;
+  strtol_error err = LONGINT_OK;
 
   assert (0 <= strtol_base && strtol_base <= 36);
 
@@ -139,8 +129,6 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
 
   errno = 0;
   tmp = __strtol (s, p, strtol_base);
-  if (errno != 0)
-    return LONGINT_OVERFLOW;
 
   if (*p == s)
     {
@@ -151,6 +139,12 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
       else
 	return LONGINT_INVALID;
     }
+  else if (errno != 0)
+    {
+      if (errno != ERANGE)
+	return LONGINT_INVALID;
+      err = LONGINT_OVERFLOW;
+    }
 
   /* Let valid_suffixes == NULL mean `allow any suffix'.  */
   /* FIXME: update all callers except the ones that allow suffixes
@@ -158,19 +152,19 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
   if (!valid_suffixes)
     {
       *val = tmp;
-      return LONGINT_OK;
+      return err;
     }
 
   if (**p != '\0')
     {
       int base = 1024;
       int suffixes = 1;
-      int overflow;
+      strtol_error overflow;
 
       if (!strchr (valid_suffixes, **p))
 	{
 	  *val = tmp;
-	  return LONGINT_INVALID_SUFFIX_CHAR;
+	  return err | LONGINT_INVALID_SUFFIX_CHAR;
 	}
 
       if (strchr (valid_suffixes, '0'))
@@ -253,18 +247,17 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
 
 	default:
 	  *val = tmp;
-	  return LONGINT_INVALID_SUFFIX_CHAR;
-	  break;
+	  return err | LONGINT_INVALID_SUFFIX_CHAR;
 	}
 
-      if (overflow)
-	return LONGINT_OVERFLOW;
-
-      (*p) += suffixes;
+      err |= overflow;
+      *p += suffixes;
+      if (**p)
+	err |= LONGINT_INVALID_SUFFIX_CHAR;
     }
 
   *val = tmp;
-  return LONGINT_OK;
+  return err;
 }
 
 #ifdef TESTING_XSTRTO
@@ -275,7 +268,7 @@ __xstrtol (const char *s, char **ptr, int strtol_base,
 char *program_name;
 
 int
-main (int argc, char** argv)
+main (int argc, char **argv)
 {
   strtol_error s_err;
   int i;

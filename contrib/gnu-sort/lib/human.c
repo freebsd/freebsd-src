@@ -1,7 +1,7 @@
 /* human.c -- print human readable file size
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001 Free Software
-   Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free
+   Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,55 +17,40 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* Originally contributed by lm@sgi.com;
-   --si, output block size selection, and large file support
-   added by eggert@twinsun.com.  */
+/* Written by Paul Eggert and Larry McVoy.  */
 
 #if HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <sys/types.h>
+#include "human.h"
+
+#ifndef SIZE_MAX
+# define SIZE_MAX ((size_t) -1)
+#endif
+#ifndef UINTMAX_MAX
+# define UINTMAX_MAX ((uintmax_t) -1)
+#endif
+
+#if HAVE_LOCALE_H && HAVE_LOCALECONV
+# include <locale.h>
+#endif
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#if HAVE_LIMITS_H
-# include <limits.h>
-#endif
-
-#if HAVE_STRING_H
-# include <string.h>
-#else
-# include <strings.h>
-#endif
-
-#ifndef CHAR_BIT
-# define CHAR_BIT 8
-#endif
-#if HAVE_STDLIB_H
-# include <stdlib.h>
-#endif
-
-#ifndef HAVE_DECL_GETENV
-"this configure-time declaration test was not run"
-#endif
-#if !HAVE_DECL_GETENV
-char *getenv ();
-#endif
-
-#if ENABLE_NLS
-# include <libintl.h>
-# define _(Text) gettext (Text)
-#else
-# define _(Text) Text
-#endif
+#include "gettext.h"
+#define _(msgid) gettext (msgid)
 
 #include <argmatch.h>
 #include <error.h>
 #include <xstrtol.h>
 
-#include "human.h"
+/* The maximum length of a suffix like "KiB".  */
+#define HUMAN_READABLE_SUFFIX_LENGTH_MAX 3
 
-static const char suffixes[] =
+static const char power_letter[] =
 {
   0,	/* not used */
   'K',	/* kibi ('k' for kilo is a special case) */
@@ -78,33 +63,18 @@ static const char suffixes[] =
   'Y'	/* yotta or 2**80 */
 };
 
-/* Generate into P[-1] (and possibly P[-2]) the proper suffix for
-   POWER and BASE.  Return the address of the generated suffix.  */
-static char *
-generate_suffix_backwards (char *p, int power, int base)
-{
-  char letter = suffixes[power];
 
-  if (base == 1000)
-    {
-      *--p = 'B';
-      if (power == 1)
-	letter = 'k';
-    }
-
-  *--p = letter;
-  return p;
-}
-
-/* If INEXACT_STYLE is not human_round_to_even, and if easily
+/* If INEXACT_STYLE is not human_round_to_nearest, and if easily
    possible, adjust VALUE according to the style.  */
-static double
-adjust_value (enum human_inexact_style inexact_style, double value)
+
+static long double
+adjust_value (int inexact_style, long double value)
 {
-  /* Do not use the floor or ceil functions, as that would mean
-     linking with the standard math library, which is a porting pain.
-     So leave the value alone if it is too large to easily round.  */
-  if (inexact_style != human_round_to_even && value < (uintmax_t) -1)
+  /* Do not use the floorl or ceill functions, as that would mean
+     checking for their presence and possibly linking with the
+     standard math library, which is a porting pain.  So leave the
+     value alone if it is too large to easily round.  */
+  if (inexact_style != human_round_to_nearest && value < UINTMAX_MAX)
     {
       uintmax_t u = value;
       value = u + (inexact_style == human_ceiling && u != value);
@@ -113,199 +83,321 @@ adjust_value (enum human_inexact_style inexact_style, double value)
   return value;
 }
 
-/* Like human_readable_inexact, except always round to even.  */
-char *
-human_readable (uintmax_t n, char *buf,
-		int from_block_size, int output_block_size)
+/* Group the digits of NUMBER according to the grouping rules of the
+   current locale.  NUMBER contains NUMBERLEN digits.  Modify the
+   bytes pointed to by NUMBER in place, subtracting 1 from NUMBER for
+   each byte inserted.  Return the starting address of the modified
+   number.
+
+   To group the digits, use GROUPING and THOUSANDS_SEP as in `struct
+   lconv' from <locale.h>.  */
+
+static char *
+group_number (char *number, size_t numberlen,
+	      char const *grouping, char const *thousands_sep)
 {
-  return human_readable_inexact (n, buf, from_block_size, output_block_size,
-				 human_round_to_even);
+  register char *d;
+  size_t grouplen = SIZE_MAX;
+  size_t thousands_seplen = strlen (thousands_sep);
+  size_t i = numberlen;
+
+  /* The maximum possible value for NUMBERLEN is the number of digits
+     in the square of the largest uintmax_t, so double the size of
+     uintmax_t before converting to a bound.  302 / 1000 is ceil
+     (log10 (2.0)).  Add 1 for integer division truncation.  */
+  char buf[2 * sizeof (uintmax_t) * CHAR_BIT * 302 / 1000 + 1];
+
+  memcpy (buf, number, numberlen);
+  d = number + numberlen;
+
+  for (;;)
+    {
+      unsigned char g = *grouping;
+
+      if (g)
+	{
+	  grouplen = g < CHAR_MAX ? g : i;
+	  grouping++;
+	}
+
+      if (i < grouplen)
+	grouplen = i;
+
+      d -= grouplen;
+      i -= grouplen;
+      memcpy (d, buf + i, grouplen);
+      if (i == 0)
+	return d;
+
+      d -= thousands_seplen;
+      memcpy (d, thousands_sep, thousands_seplen);
+    }
 }
 
-/* Convert N to a human readable format in BUF.
+/* Convert N to a human readable format in BUF, using the options OPTS.
 
    N is expressed in units of FROM_BLOCK_SIZE.  FROM_BLOCK_SIZE must
    be nonnegative.
 
-   OUTPUT_BLOCK_SIZE must be nonzero.  If it is positive, use units of
-   OUTPUT_BLOCK_SIZE in the output number.
+   Use units of TO_BLOCK_SIZE in the output number.  TO_BLOCK_SIZE
+   must be positive.
 
-   Use INEXACT_STYLE to determine whether to take the ceiling or floor
-   of any result that cannot be expressed exactly.
+   Use (OPTS & (human_round_to_nearest | human_floor | human_ceiling))
+   to determine whether to take the ceiling or floor of any result
+   that cannot be expressed exactly.
 
-   If OUTPUT_BLOCK_SIZE is negative, use a format like "127K" if
-   possible, using powers of -OUTPUT_BLOCK_SIZE; otherwise, use
-   ordinary decimal format.  Normally -OUTPUT_BLOCK_SIZE is either
-   1000 or 1024; it must be at least 2.  Most people visually process
-   strings of 3-4 digits effectively, but longer strings of digits are
-   more prone to misinterpretation.  Hence, converting to an
-   abbreviated form usually improves readability.  Use a suffix
-   indicating which power is being used.  For example, assuming
-   -OUTPUT_BLOCK_SIZE is 1024, 8500 would be converted to 8.3K,
-   133456345 to 127M, 56990456345 to 53G, and so on.  Numbers smaller
-   than -OUTPUT_BLOCK_SIZE aren't modified.  If -OUTPUT_BLOCK_SIZE is
-   1024, append a "B" after any size letter.  */
+   If (OPTS & human_group_digits), group the thousands digits
+   according to the locale, e.g., `1,000,000' in an American English
+   locale.
+
+   If (OPTS & human_autoscale), deduce the output block size
+   automatically; TO_BLOCK_SIZE must be 1 but it has no effect on the
+   output.  Use powers of 1024 if (OPTS & human_base_1024), and powers
+   of 1000 otherwise.  For example, assuming powers of 1024, 8500
+   would be converted to 8.3, 133456345 to 127, 56990456345 to 53, and
+   so on.  Numbers smaller than the power aren't modified.
+   human_autoscale is normally used together with human_SI.
+
+   If (OPTS & human_SI), append an SI prefix indicating which power is
+   being used.  If in addition (OPTS & human_B), append "B" (if base
+   1000) or "iB" (if base 1024) to the SI prefix.  When ((OPTS &
+   human_SI) && ! (OPTS & human_autoscale)), TO_BLOCK_SIZE must be a
+   power of 1024 or of 1000, depending on (OPTS &
+   human_base_1024).  */
 
 char *
-human_readable_inexact (uintmax_t n, char *buf,
-			int from_block_size, int output_block_size,
-			enum human_inexact_style inexact_style)
+human_readable (uintmax_t n, char *buf, int opts,
+		uintmax_t from_block_size, uintmax_t to_block_size)
 {
+  int inexact_style =
+    opts & (human_round_to_nearest | human_floor | human_ceiling);
+  unsigned int base = opts & human_base_1024 ? 1024 : 1000;
   uintmax_t amt;
-  int base;
-  int to_block_size;
-  int tenths = 0;
-  int power;
+  int tenths;
+  int exponent = -1;
+  int exponent_max = sizeof power_letter - 1;
   char *p;
+  char *psuffix;
+  char const *integerlim;
 
   /* 0 means adjusted N == AMT.TENTHS;
      1 means AMT.TENTHS < adjusted N < AMT.TENTHS + 0.05;
      2 means adjusted N == AMT.TENTHS + 0.05;
      3 means AMT.TENTHS + 0.05 < adjusted N < AMT.TENTHS + 0.1.  */
-  int rounding = 0;
+  int rounding;
 
-  if (output_block_size < 0)
+  char const *decimal_point = ".";
+  size_t decimal_pointlen = 1;
+  char const *grouping = "";
+  char const *thousands_sep = "";
+#if HAVE_LOCALE_H && HAVE_LOCALECONV
+  struct lconv const *l = localeconv ();
+  size_t pointlen = strlen (l->decimal_point);
+  if (0 < pointlen && pointlen <= MB_LEN_MAX)
     {
-      base = -output_block_size;
-      to_block_size = 1;
+      decimal_point = l->decimal_point;
+      decimal_pointlen = pointlen;
     }
-  else
-    {
-      base = 0;
-      to_block_size = output_block_size;
-    }
-
-  p = buf + LONGEST_HUMAN_READABLE;
-  *p = '\0';
-
-#ifdef lint
-  /* Suppress `used before initialized' warning.  */
-  power = 0;
+  grouping = l->grouping;
+  if (strlen (l->thousands_sep) <= MB_LEN_MAX)
+    thousands_sep = l->thousands_sep;
 #endif
 
-  /* Adjust AMT out of FROM_BLOCK_SIZE units and into TO_BLOCK_SIZE units.  */
+  psuffix = buf + LONGEST_HUMAN_READABLE - HUMAN_READABLE_SUFFIX_LENGTH_MAX;
+  p = psuffix;
+
+  /* Adjust AMT out of FROM_BLOCK_SIZE units and into TO_BLOCK_SIZE
+     units.  If this can be done exactly with integer arithmetic, do
+     not use floating point operations.  */
+  if (to_block_size <= from_block_size)
+    {
+      if (from_block_size % to_block_size == 0)
+	{
+	  uintmax_t multiplier = from_block_size / to_block_size;
+	  amt = n * multiplier;
+	  if (amt / multiplier == n)
+	    {
+	      tenths = 0;
+	      rounding = 0;
+	      goto use_integer_arithmetic;
+	    }
+	}
+    }
+  else if (from_block_size != 0 && to_block_size % from_block_size == 0)
+    {
+      uintmax_t divisor = to_block_size / from_block_size;
+      uintmax_t r10 = (n % divisor) * 10;
+      uintmax_t r2 = (r10 % divisor) * 2;
+      amt = n / divisor;
+      tenths = r10 / divisor;
+      rounding = r2 < divisor ? 0 < r2 : 2 + (divisor < r2);
+      goto use_integer_arithmetic;
+    }
 
   {
-    int multiplier;
-    int divisor;
-    int r2;
-    int r10;
-    if (to_block_size <= from_block_size
-	? (from_block_size % to_block_size != 0
-	   || (multiplier = from_block_size / to_block_size,
-	       (amt = n * multiplier) / multiplier != n))
-	: (from_block_size == 0
-	   || to_block_size % from_block_size != 0
-	   || (divisor = to_block_size / from_block_size,
-	       r10 = (n % divisor) * 10,
-	       r2 = (r10 % divisor) * 2,
-	       amt = n / divisor,
-	       tenths = r10 / divisor,
-	       rounding = r2 < divisor ? 0 < r2 : 2 + (divisor < r2),
-	       0)))
+    /* Either the result cannot be computed easily using uintmax_t,
+       or from_block_size is zero.  Fall back on floating point.
+       FIXME: This can yield answers that are slightly off.  */
+
+    long double dto_block_size = to_block_size;
+    long double damt = n * (from_block_size / dto_block_size);
+    size_t buflen;
+    size_t nonintegerlen;
+
+    if (! (opts & human_autoscale))
       {
-	/* Either the result cannot be computed easily using uintmax_t,
-	   or from_block_size is zero.  Fall back on floating point.
-	   FIXME: This can yield answers that are slightly off.  */
+	sprintf (buf, "%.0Lf", adjust_value (inexact_style, damt));
+	buflen = strlen (buf);
+	nonintegerlen = 0;
+      }
+    else
+      {
+	long double e = 1;
+	exponent = 0;
 
-	double damt = n * (from_block_size / (double) to_block_size);
-
-	if (! base)
-	  sprintf (buf, "%.0f", adjust_value (inexact_style, damt));
-	else
+	do
 	  {
-	    char suffix[3];
-	    char const *psuffix;
-	    double e = 1;
-	    power = 0;
+	    e *= base;
+	    exponent++;
+	  }
+	while (e * base <= damt && exponent < exponent_max);
 
+	damt /= e;
+
+	sprintf (buf, "%.1Lf", adjust_value (inexact_style, damt));
+	buflen = strlen (buf);
+	nonintegerlen = decimal_pointlen + 1;
+
+	if (1 + nonintegerlen + ! (opts & human_base_1024) < buflen
+	    || ((opts & human_suppress_point_zero)
+		&& buf[buflen - 1] == '0'))
+	  {
+	    sprintf (buf, "%.0Lf",
+		     adjust_value (inexact_style, damt * 10) / 10);
+	    buflen = strlen (buf);
+	    nonintegerlen = 0;
+	  }
+      }
+
+    p = psuffix - buflen;
+    memmove (p, buf, buflen);
+    integerlim = p + buflen - nonintegerlen;
+  }
+  goto do_grouping;
+
+ use_integer_arithmetic:
+  {
+    /* The computation can be done exactly, with integer arithmetic.
+
+       Use power of BASE notation if requested and if adjusted AMT is
+       large enough.  */
+
+    if (opts & human_autoscale)
+      {
+	exponent = 0;
+
+	if (base <= amt)
+	  {
 	    do
 	      {
-		e *= base;
-		power++;
+		unsigned r10 = (amt % base) * 10 + tenths;
+		unsigned r2 = (r10 % base) * 2 + (rounding >> 1);
+		amt /= base;
+		tenths = r10 / base;
+		rounding = (r2 < base
+			    ? (r2 + rounding) != 0
+			    : 2 + (base < r2 + rounding));
+		exponent++;
 	      }
-	    while (e * base <= damt && power < sizeof suffixes - 1);
+	    while (base <= amt && exponent < exponent_max);
 
-	    damt /= e;
+	    if (amt < 10)
+	      {
+		if (inexact_style == human_round_to_nearest
+		    ? 2 < rounding + (tenths & 1)
+		    : inexact_style == human_ceiling && 0 < rounding)
+		  {
+		    tenths++;
+		    rounding = 0;
 
-	    suffix[2] = '\0';
-	    psuffix = generate_suffix_backwards (suffix + 2, power, base);
-	    sprintf (buf, "%.1f%s",
-		     adjust_value (inexact_style, damt), psuffix);
-	    if (4 + (base == 1000) < strlen (buf))
-	      sprintf (buf, "%.0f%s",
-		       adjust_value (inexact_style, damt * 10) / 10, psuffix);
+		    if (tenths == 10)
+		      {
+			amt++;
+			tenths = 0;
+		      }
+		  }
+
+		if (amt < 10
+		    && (tenths || ! (opts & human_suppress_point_zero)))
+		  {
+		    *--p = '0' + tenths;
+		    p -= decimal_pointlen;
+		    memcpy (p, decimal_point, decimal_pointlen);
+		    tenths = rounding = 0;
+		  }
+	      }
 	  }
-
-	return buf;
       }
+
+    if (inexact_style == human_round_to_nearest
+	? 5 < tenths + (0 < rounding + (amt & 1))
+	: inexact_style == human_ceiling && 0 < tenths + rounding)
+      {
+	amt++;
+
+	if ((opts & human_autoscale)
+	    && amt == base && exponent < exponent_max)
+	  {
+	    exponent++;
+	    if (! (opts & human_suppress_point_zero))
+	      {
+		*--p = '0';
+		p -= decimal_pointlen;
+		memcpy (p, decimal_point, decimal_pointlen);
+	      }
+	    amt = 1;
+	  }
+      }
+
+    integerlim = p;
+
+    do
+      {
+	int digit = amt % 10;
+	*--p = digit + '0';
+      }
+    while ((amt /= 10) != 0);
   }
 
-  /* Use power of BASE notation if adjusted AMT is large enough.  */
+ do_grouping:
+  if (opts & human_group_digits)
+    p = group_number (p, integerlim - p, grouping, thousands_sep);
 
-  if (base && base <= amt)
+  if (opts & human_SI)
     {
-      power = 0;
-
-      do
+      if (exponent < 0)
 	{
-	  int r10 = (amt % base) * 10 + tenths;
-	  int r2 = (r10 % base) * 2 + (rounding >> 1);
-	  amt /= base;
-	  tenths = r10 / base;
-	  rounding = (r2 < base
-		      ? 0 < r2 + rounding
-		      : 2 + (base < r2 + rounding));
-	  power++;
+	  uintmax_t power;
+	  exponent = 0;
+	  for (power = 1; power < to_block_size; power *= base)
+	    if (++exponent == exponent_max)
+	      break;
 	}
-      while (base <= amt && power < sizeof suffixes - 1);
 
-      p = generate_suffix_backwards (p, power, base);
+      if (exponent)
+	*psuffix++ = (! (opts & human_base_1024) && exponent == 1
+		      ? 'k'
+		      : power_letter[exponent]);
 
-      if (amt < 10)
+      if (opts & human_B)
 	{
-	  if (2 * (1 - (int) inexact_style)
-	      < rounding + (tenths & (inexact_style == human_round_to_even)))
-	    {
-	      tenths++;
-	      rounding = 0;
-
-	      if (tenths == 10)
-		{
-		  amt++;
-		  tenths = 0;
-		}
-	    }
-
-	  if (amt < 10)
-	    {
-	      *--p = '0' + tenths;
-	      *--p = '.';
-	      tenths = rounding = 0;
-	    }
+	  if ((opts & human_base_1024) && exponent)
+	    *psuffix++ = 'i';
+	  *psuffix++ = 'B';
 	}
     }
 
-  if (inexact_style == human_ceiling
-      ? 0 < tenths + rounding
-      : inexact_style == human_round_to_even
-      ? 5 < tenths + (2 < rounding + (amt & 1))
-      : /* inexact_style == human_floor */ 0)
-    {
-      amt++;
-
-      if (amt == base && power < sizeof suffixes - 1)
-	{
-	  *p = suffixes[power + 1];
-	  *--p = '0';
-	  *--p = '.';
-	  amt = 1;
-	}
-    }
-
-  do
-    *--p = '0' + (int) (amt % 10);
-  while ((amt /= 10) != 0);
+  *psuffix = '\0';
 
   return p;
 }
@@ -318,44 +410,68 @@ human_readable_inexact (uintmax_t n, char *buf,
 #endif
 
 static char const *const block_size_args[] = { "human-readable", "si", 0 };
-static int const block_size_types[] = { -1024, -1000 };
+static int const block_size_opts[] =
+  {
+    human_autoscale + human_SI + human_base_1024,
+    human_autoscale + human_SI
+  };
 
-static int
+static uintmax_t
 default_block_size (void)
 {
   return getenv ("POSIXLY_CORRECT") ? 512 : DEFAULT_BLOCK_SIZE;
 }
 
 static strtol_error
-humblock (char const *spec, int *block_size)
+humblock (char const *spec, uintmax_t *block_size, int *options)
 {
   int i;
+  int opts = 0;
 
   if (! spec && ! (spec = getenv ("BLOCK_SIZE")))
     *block_size = default_block_size ();
-  else if (0 <= (i = ARGMATCH (spec, block_size_args, block_size_types)))
-    *block_size = block_size_types[i];
   else
     {
-      char *ptr;
-      unsigned long val;
-      strtol_error e = xstrtoul (spec, &ptr, 0, &val, "eEgGkKmMpPtTyYzZ0");
-      if (e != LONGINT_OK)
-	return e;
-      if (*ptr)
-	return LONGINT_INVALID_SUFFIX_CHAR;
-      if ((int) val < 0 || val != (int) val)
-	return LONGINT_OVERFLOW;
-      *block_size = (int) val;
+      if (*spec == '\'')
+	{
+	  opts |= human_group_digits;
+	  spec++;
+	}
+
+      if (0 <= (i = ARGMATCH (spec, block_size_args, block_size_opts)))
+	{
+	  opts |= block_size_opts[i];
+	  *block_size = 1;
+	}
+      else
+	{
+	  char *ptr;
+	  strtol_error e = xstrtoumax (spec, &ptr, 0, block_size,
+				       "eEgGkKmMpPtTyYzZ0");
+	  if (e != LONGINT_OK)
+	    return e;
+	  for (; ! ('0' <= *spec && *spec <= '9'); spec++)
+	    if (spec == ptr)
+	      {
+		opts |= human_SI;
+		if (ptr[-1] == 'B')
+		  opts |= human_B;
+		if (ptr[-1] != 'B' || ptr[-2] == 'i')
+		  opts |= human_base_1024;
+		break;
+	      }
+	}
     }
 
+  *options = opts;
   return LONGINT_OK;
 }
 
-void
-human_block_size (char const *spec, int report_errors, int *block_size)
+int
+human_options (char const *spec, bool report_errors, uintmax_t *block_size)
 {
-  strtol_error e = humblock (spec, block_size);
+  int opts;
+  strtol_error e = humblock (spec, block_size, &opts);
   if (*block_size == 0)
     {
       *block_size = default_block_size ();
@@ -363,4 +479,5 @@ human_block_size (char const *spec, int report_errors, int *block_size)
     }
   if (e != LONGINT_OK && report_errors)
     STRTOL_FATAL_ERROR (spec, _("block size"), e);
+  return opts;
 }
