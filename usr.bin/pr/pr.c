@@ -1798,7 +1798,6 @@ setup(argc, argv)
 		}
 	}
 
-	if ((timefrmt = getenv("LC_TIME")) == NULL)
-		timefrmt = TIMEFMT;
+	timefrmt = TIMEFMT;
 	return(0);
 }
