@@ -11,6 +11,8 @@ SRCS=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c byterun.c \
 	doop.c doio.c regexec.c taint.c deb.c universal.c globals.c perlio.c \
 	config.h
 
+LDADD+=	-lm
+
 # NOPIC=	true
 
 .include <bsd.lib.mk>
