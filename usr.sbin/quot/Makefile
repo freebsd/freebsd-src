@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.3 1994/12/22 11:39:03 cgd Exp $
+#	$Id: Makefile,v 1.1.1.1 1995/11/03 15:06:01 peter Exp $
 
 PROG=	quot
-MAN=	quot.8
+MAN8=	quot.8
 
 .include <bsd.prog.mk>
