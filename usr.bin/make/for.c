@@ -251,8 +251,8 @@ For_Eval(char *line)
 static int
 ForExec(void *namep, void *argp)
 {
-    char *name = namep;
-    For *arg = argp;
+    char	*name = namep;
+    For		*arg = argp;
 
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
