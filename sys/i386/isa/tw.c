@@ -32,6 +32,8 @@
 #include "tw.h"
 #if NTW > 0
 
+#include "opt_devfs.h"
+
 /*
  * Driver configuration parameters
  */

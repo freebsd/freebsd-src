@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.83 1997/11/23 11:56:18 bde Exp $
+ * $Id: st.c,v 1.84 1997/12/02 21:07:05 phk Exp $
  */
 
 /*
@@ -28,6 +28,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #include <sys/param.h>

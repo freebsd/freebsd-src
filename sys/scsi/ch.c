@@ -33,8 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.41 1997/09/02 20:06:31 bde Exp $
+ *      $Id: ch.c,v 1.42 1997/09/14 03:19:38 peter Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.63 1997/12/02 21:06:24 phk Exp $
+ *	$Id: lpt.c,v 1.64 1998/01/08 23:41:10 eivind Exp $
  */
 
 /*
@@ -102,6 +102,7 @@
  */
 
 #include "lpt.h"
+#include "opt_devfs.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>

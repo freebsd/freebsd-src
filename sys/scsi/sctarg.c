@@ -37,10 +37,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.22 1997/09/21 22:03:11 gibbs Exp $
+ *      $Id: sctarg.c,v 1.23 1997/12/02 21:07:02 phk Exp $
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #include <sys/param.h>

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.105 1997/10/19 13:12:02 joerg Exp $
+ *	$Id: fd.c,v 1.106 1997/12/02 21:06:21 phk Exp $
  *
  */
 
@@ -52,6 +52,7 @@
 #undef NFDC
 #endif
 #include "fd.h"
+#include "opt_devfs.h"
 #include "opt_fdc.h"
 
 #if NFDC > 0

@@ -49,8 +49,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.16 1997/09/14 03:19:39 peter Exp $
+ * $Id: ssc.c,v 1.17 1997/12/23 19:44:45 brian Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

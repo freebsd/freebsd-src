@@ -13,12 +13,13 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.48 1997/11/07 08:52:43 phk Exp $
+ * $Id: wcd.c,v 1.49 1997/12/02 21:06:30 phk Exp $
  */
 
 #include "wdc.h"
 #include "wcd.h"
 #include "opt_atapi.h"
+#include "opt_devfs.h"
 
 #if NWCD > 0 && NWDC > 0 && defined (ATAPI)
 
