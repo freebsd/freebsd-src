@@ -101,6 +101,7 @@ main(int argc, char **argv)
 	softdep = true;
 	autounit = false;
 	have_mdtype = false;
+	mdtype = MD_SWAP;
 	mdname = MD_NAME;
 	mdnamelen = strlen(mdname);
 	/*
@@ -251,7 +252,7 @@ main(int argc, char **argv)
 		unit = -1;
 	} else {
 		unit = strtoul(unitstr, &p, 10);
-		if (unit == (unsigned)ULONG_MAX || *p != '\0')
+		if ((unsigned)unit == (unsigned)ULONG_MAX || *p != '\0')
 			errx(1, "bad device unit: %s", unitstr);
 	}
 
@@ -399,7 +400,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	strncpy(linebuf, linep + mdnamelen, linelen);
 	linebuf[linelen] = '\0';
 	unit = strtoul(linebuf, &p, 10);
-	if (unit == (unsigned)ULONG_MAX || *p != '\n')
+	if ((unsigned)unit == (unsigned)ULONG_MAX || *p != '\n')
 		errx(1, "unexpected output from mdconfig (attach)");
 
 	fclose(sfd);
