@@ -1125,14 +1125,15 @@ AAA
 			/*
 			 * Bang in a pre-made header, and set the length up
 			 * to be correct. Then send it to the ethernet driver.
+			 * But first correct the length.
 			 */
+			sp->pkt_hdr.ph.length = htons((short)(m->m_pkthdr.len));
 			M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
 			if (m == NULL) {
 				LEAVE(ENOBUFS);
 			}
 			wh = mtod(m, struct pppoe_full_hdr *);
 			bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
-			wh->ph.length = htons((short)(m->m_pkthdr.len));
 			NG_SEND_DATA( error, privp->ethernet_hook, m, meta);
 			privp->packets_out++;
 			break;
