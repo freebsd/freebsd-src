@@ -374,7 +374,9 @@
       <para>The IDE interface is supported by &os; and requires a
       line in the kernel configuration file as follows:</para>
 
-      <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
+      <programlisting>device ata</programlisting>
+
+      <para>The ATA interface uses irq 14.</para>
 
       <para>The SRM console unfortunately <emphasis> cannot boot</emphasis>
       from IDE disks. This means you will have to use a SCSI disk as
@@ -552,7 +554,10 @@ cpu	EV4</programlisting>
       kernel configuration file as follows for the Crystal CS4231
       chip:</para>
 
-      <programlisting>device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15</programlisting>
+      <programlisting>device pcm</programlisting>
+
+      <para>The sound device lives at port 0x530, and uses irq 9 along
+      with drq 3. You also need to specify flags 0x15 in the hints file.</para>
 
       <para>I have not yet been successful in getting my Multia with
       the AD1848 to play any sound.</para>
@@ -578,7 +583,9 @@ cpu	EV4</programlisting>
       IDE disk. This requires a line in the kernel configuration file
       as follows:</para>
 
-      <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
+      <programlisting>device ata</programlisting>
+
+      <para>The ATA interface uses IRQ 14.</para>
 
       <para>The IDE connector pin spacing is thought for 2.5&quot; laptop
       disks. A 3.5&quot; IDE disk would not fit in the case anyway. At
@@ -809,8 +816,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
       putting</para>
-<programlisting>device	pcm0
-device	sbc0</programlisting>
+<programlisting>device	pcm
+device	sbc</programlisting>
       <para>in your kernel configuration file:</para>
 
       <para>in case your Miata has the optional cache board
@@ -1489,7 +1496,10 @@ cpu             EV5</programlisting>
 
       <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
       you have the following line in your kernel config file:</para>
-      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting>
+      <programlisting>device pcm</programlisting>
+
+      <para>The sound device uses port 0x530, IRQ 9 and drq 0. You also need
+      to specify flags 0x10011 in the hints file.</para>
 
       <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
       This means that as soon as you plug a cable onto the external SCSI 
