@@ -5,11 +5,11 @@
 .PATH: ${SRCDIR}/libiberty
 
 LIB=	iberty
-SRCS=	argv.c basename.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
-	dyn-string.c fdmatch.c fnmatch.c getopt.c getopt1.c getruntime.c \
-	hex.c floatformat.c objalloc.c obstack.c spaces.c \
-	strerror.c strsignal.c xatexit.c xexit.c xmalloc.c \
-	xstrdup.c xstrerror.c insque.c
+SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
+	dyn-string.c getopt.c getopt1.c getruntime.c \
+	hex.c floatformat.c objalloc.c obstack.c \
+	xatexit.c xexit.c xmalloc.c \
+	xstrdup.c xstrerror.c
 CFLAGS+=	-DHAVE_CONFIG_H
 NOPROFILE=	true
 NOPIC=		true
