@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
@@ -38,12 +39,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/msgbuf.h>
@@ -82,8 +82,7 @@ main(int argc, char *argv[])
 	char buf[5];
 	int all = 0;
 	int pri;
-	size_t buflen;
-	int bufpos;
+	size_t buflen, bufpos;
 
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
