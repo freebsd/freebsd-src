@@ -26,6 +26,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/param.h>	/* for MAXPATHLEN */
@@ -55,7 +56,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.54 2000/08/05 18:30:26 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.55 2000/08/05 19:00:12 christos Exp $")
 #endif	/* lint */
 
 
