@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.4 1994/11/13 21:05:21 phk Exp $
+#	$Id: bsd.kmod.mk,v 1.5 1994/12/28 03:50:46 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -33,8 +33,6 @@ PROG=	${KMOD}.o
 
 ${PROG}: ${DPSRCS} ${OBJS} ${DPADD} 
 	${LD} -r ${LDFLAGS} -o ${.TARGET} ${OBJS}
-
-MKDEP=	-p
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
