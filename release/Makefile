@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.433 1998/12/06 04:06:38 jkh Exp $
+#	$Id: Makefile,v 1.434 1998/12/08 00:14:51 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -560,12 +560,10 @@ cdrom.1:
 	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
 .if !defined(NOPORTS)
 	-rm -rf /usr/ports/distfiles/*
-	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
-	  mkdir -p ${CD_DISC1}/ports && \
+	mkdir -p ${CD_DISC1}/ports && \
 	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
-	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
-		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
-	ln -s ../ports ${CD_DISC2}/usr/ports
+	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
+	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
 
 doc.1:
