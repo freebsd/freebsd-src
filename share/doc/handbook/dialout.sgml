@@ -1,0 +1,249 @@
+<!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
+     Configuring a FreeBSD for Dialout Services.
+     $Id$
+
+     The FreeBSD Documentation Project
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+
+<linuxdoc>
+  <article>
+      <title>Dialout
+      <author>FAQ
+      <date>24 Nov 1996, (c) 1996
+
+      <abstract> This section contains some basic information on being able to dialout from your FreeBSD box with a modem.  This information is really a stepping stone into PPP.  
+      </abstract>
+	
+    <toc>
+-->
+
+<sect><heading>Dialout service<label id="dialout"></heading>
+
+<p><em>Information integrated from FAQ.</em>
+
+The following are tips to getting your host to be able to connect over the modem to another computer.  This is appropriate for establishing a terminal session with a remote host.  
+<p>This is useful to log onto a BBS.
+<p>This kind of connection can be extremely helpful to get a file on the internet if you have problems with PPP.  If you need to ftp something and PPP is broken, use the terminal session to ftp it.  Then use zmodem to transfer it to your machine. 
+<sect1>
+	<heading>Why cannot I run <tt/tip/ or <tt/cu/?</heading>
+        <p>
+          On your system, the programs <tt/tip/ and <tt/cu/ are probably
+          executable only by <tt/uucp/ and group <tt/dialer/.  You can use
+          the group <tt/dialer/ to control who has access to your modem or
+          remote systems.  Just add yourself to group dialer.
+
+          Alternatively, you can let everyone on your system run <tt/tip/
+          and <tt/cu/ by typing:
+          <verb>
+            chmod 4511 /usr/bin/tip
+          </verb>
+          You do not have to run this command for <tt/cu/, since <tt/cu/ is
+          just a hard link to <tt/tip/.
+
+      <sect1>
+	<heading>My stock Hayes modem is not supported&mdash;what can I do?</heading>
+        <p>
+          Actually, the man page for <tt/tip/ is out of date.  There is a
+          generic Hayes dialer already built in.  Just use
+          ``<tt/at=hayes/'' in your <tt>/etc/remote</tt> file.
+
+          The Hayes driver is not smart enough to recognize some of the
+          advanced features of newer modems&mdash;messages like <tt/BUSY/,
+          <tt/NO DIALTONE/, or <tt/CONNECT 115200/ will just confuse it.
+          You should turn those messages off when you use <tt/tip/ (using
+          <tt/ATX0&amp;W/).
+
+          Also, the dial timeout for <tt/tip/ is 60 seconds.  Your modem
+          should use something less, or else tip will think there is a
+          communication problem.  Try <tt/ATS7=45&amp;W/.
+
+          Actually, as shipped <tt/tip/ does not yet support it fully. The
+          solution is to edit the file <tt/tipconf.h/ in the directory
+          <tt>/usr/src/usr.bin/tip/tip</tt> Obviously you need the source
+          distribution to do this.
+
+          Edit the line ``<tt/#define HAYES 0/'' to ``<tt/#define HAYES
+          1/''. Then ``<tt/make/'' and ``<tt/make install/''. Everything
+          works nicely after that.
+
+      <sect1>
+        <heading>How am I expected to enter these AT commands?<label id="direct-at"></heading>
+        <p>
+          Make what is called a ``<tt/direct/'' entry in your
+          <tt>/etc/remote</tt> file.  For example, if your modem's hooked
+          up to the first serial port, <tt>/dev/cuaa0</tt>, then put in the
+          following line:
+          <verb>
+            cuaa0:dv=/dev/cuaa0:br#19200:pa=none
+          </verb>
+          Use the highest bps rate your modem supports in the br
+          capability.  Then, type ``<tt/tip cuaa0/'' and you will be
+          connected to your modem.
+
+          If there is no <tt>/dev/cuaa0</tt> on your system, do this:
+          <verb>
+            cd /dev
+            MAKEDEV cuaa0
+          </verb>
+        <p>
+          Or use cu as root with the following command:
+          <verb>
+            cu -l``line'' -s``speed''
+          </verb>
+          with line being the serial port (e.g.<tt>/dev/cuaa0</tt>)
+          and speed being the speed (e.g.<tt>57600</tt>).
+          When you are done entering the AT commands hit <tt>~.</tt> to exit.
+
+      <sect1>
+        <heading>The <tt/@/ sign for the pn capability does not work!</heading>
+        <p>
+          The <tt/@/ sign in the phone number capability tells tip to look in
+          <tt>/etc/phones</tt> for a phone number.  But the <tt/@/ sign is
+          also a special character in capability files like
+          <tt>/etc/remote</tt>.  Escape it with a backslash:
+          <verb>
+            pn=\@
+          </verb>
+
+      <sect1>
+	<heading>How can I dial a phone number on the command line?</heading>
+        <p>
+          Put what is called a ``<tt/generic/'' entry in your
+          <tt>/etc/remote</tt> file.  For example:
+          <verb>
+            tip115200|Dial any phone number at 115200 bps:\
+            :dv=/dev/cuaa0:br#115200:at=hayes:pa=none:du:
+            tip57600|Dial any phone number at 57600 bps:\
+            :dv=/dev/cuaa0:br#57600:at=hayes:pa=none:du:
+          </verb>
+
+          Then you can things like ``<tt/tip -115200 5551234/''.  If you
+          prefer <tt/cu/ over <tt/tip/, use a generic cu entry:
+          <verb>
+            cu115200|Use cu to dial any number at 115200bps:\
+            :dv=/dev/cuaa1:br#57600:at=hayes:pa=none:du:
+          </verb>
+          and type ``<tt/cu 5551234 -s 115200/''.
+
+      <sect1>
+        <heading>Do I have to type in the bps rate every time I do that?</heading>
+        <p>
+          Put in an entry for <tt/tip1200/ or <tt/cu1200/, but go ahead and
+          use whatever bps rate is appropriate with the br
+          capability. <tt/tip/ thinks a good default is 1200 bps which is
+          why it looks for a ``<tt/tip1200/'' entry.  You do not have to use
+          1200 bps, though.
+
+      <sect1>
+        <heading>I access a number of hosts through a terminal server.</heading>
+        <p>
+          Rather than waiting until you are connected and typing 
+          ``<tt/CONNECT &lt;host&gt;/'' each time, use tip's <tt/cm/
+          capability. For example, these entries in
+          <tt>/etc/remote</tt>:
+          <verb>
+            pain|pain.deep13.com|Forrester's machine:\
+            :cm=CONNECT pain\n:tc=deep13:
+            muffin|muffin.deep13.com|Frank's machine:\
+            :cm=CONNECT muffin\n:tc=deep13:
+            deep13:Gizmonics Institute terminal server:\
+            :dv=/dev/cua02:br#38400:at=hayes:du:pa=none:pn=5551234:
+          </verb>
+
+          will let you type ``<tt/tip pain/'' or ``<tt/tip muffin/'' to
+          connect to the hosts pain or muffin; and ``<tt/tip deep13/'' to
+          get to the terminal server.
+
+      <sect1>
+        <heading>Can tip try more than one line for each site?</heading>
+        <p>
+          This is often a problem where a university has several modem lines
+          and several thousand students trying to use them...
+        <p>
+          Make an entry for your university in <tt>/etc/remote</tt>
+          and use <tt>\@</tt> for the <tt/pn/ capability:
+          <verb>
+            big-university:\
+            :pn=\@:tc=dialout
+            dialout:\
+            :dv=/dev/cuaa3:br#9600:at=courier:du:pa=none:
+          </verb>
+
+          Then, list the phone numbers for the university in
+          <tt>/etc/phones</tt>:
+          <verb>
+            big-university 5551111
+            big-university 5551112
+            big-university 5551113
+            big-university 5551114
+          </verb>
+
+          <tt/tip/ will try each one in the listed order, then give up.  If
+          you want to keep retrying, run <tt/tip/ in a while loop.
+
+      <sect1>
+	<heading>Why do I have to hit CTRL+P twice to send CTRL+P once?</heading>
+        <p>
+          CTRL+P is the default ``force'' character, used to tell <tt/tip/
+          that the next character is literal data.  You can set the force
+          character to any other character with the <tt/~s/ escape, which
+          means ``set a variable.''
+
+          Type ``<tt/~sforce=&lt;single-char&gt;/'' followed by a newline.
+          <tt/&lt;single-char&gt;/ is any single character.  If you leave
+          out <tt/&lt;single-char&gt;/, then the force character is the nul
+          character, which you can get by typing CTRL+2 or CTRL+SPACE.  A
+          pretty good value for <tt/&lt;single-char&gt;/ is SHIFT+CTRL+6,
+          which I have seen only used on some terminal servers.
+
+          You can have the force character be whatever you want by
+          specifying the following in your <tt>&dollar;HOME/.tiprc</tt>
+          file:
+          <verb>
+            force=<single-char>
+          </verb>
+
+      <sect1>
+        <heading>Suddenly everything I type is in UPPER CASE??</heading>
+        <p>
+          You must have pressed CTRL+A, <tt/tip/'s ``raise character,''
+          specially designed for people with broken caps-lock keys. Use
+          <tt/~s/ as above and set the variable ``raisechar'' to something
+          reasonable.  In fact, you can set it to the same as the force
+          character, if you never expect to use either of these features.
+
+          Here is a sample .tiprc file perfect for Emacs users who need to
+          type CTRL+2 and CTRL+A a lot:
+          <verb>
+            force=^^
+            raisechar=^^
+          </verb>
+          The ^^ is SHIFT+CTRL+6.
+
+      <sect1>
+	<heading>How can I do file transfers with <tt/tip/?</heading>
+        <p>
+          If you are talking to another UNIX system, you can send and
+          receive files with <tt/~p/ (put) and <tt/~t/ (take).  These
+          commands run ``<tt/cat/'' and ``<tt/echo/'' on the remote system
+          to accept and send files.  The syntax is:
+          <verb>
+            ~p <local-file> [<remote-file>]
+            ~t <remote-file> [<local-file>]
+          </verb>
+
+          There is no error checking, so you probably should use another
+          protocol, like zmodem.
+
+      <sect1>
+	<heading>How can I run zmodem with <tt/tip/?</heading>
+        <p>
+          To receive files, start the sending program on the remote end.
+          Then, type ``<tt/~C rz/'' to begin receiving them locally.
+
+          To send files, start the receiving program on the remote end.
+          Then, type ``<tt/~C sz &lt;files&gt;/'' to send them to the
+          remote system.
+
+    </sect>
