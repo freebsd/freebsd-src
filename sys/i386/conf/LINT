@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.435 1998/05/30 18:28:12 phk Exp $
+#	$Id: LINT,v 1.436 1998/06/05 22:39:45 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -895,6 +895,9 @@ device          wcd0
 
 # IDE floppy driver - requires wdc controller and ATAPI option
 device          wfd0
+
+# IDE tape driver - requires wdc controller and ATAPI option
+device          wst0
 
 
 #
