@@ -710,7 +710,7 @@ int main(argc, argv)
 	opterr = 1;
 		
 	while((ch = getopt(argc, argv,
-	    "hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
+	    "a:hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -790,6 +790,10 @@ int main(argc, argv)
 			break;
 		case 'P':
 			wi_setword(iface, WI_RID_PM_ENABLED, atoi(optarg));
+			exit(0);
+			break;
+		case 'a':
+			wi_setword(iface, WI_RID_SYSTEM_SCALE, atoi(optarg));
 			exit(0);
 			break;
 		case 'v':
