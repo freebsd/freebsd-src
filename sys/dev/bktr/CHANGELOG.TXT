@@ -481,6 +481,9 @@
                   Thomas Klausner <wiz@netbsd.org>
                   Fix typo in the new interrupt code.
 
+2.12  20 May 2000 Merge in NetBSD changes from Thomas Klausner <wiz@netbsd.org>
+                  following the import of driver 2.12 into NetBSD
 
-
+2.13  26 Jun 2000 Merge in more changes from Thomas Klausner <wiz@netbsd.org>
+                  syncing this driver with the NetBSD source at 25th June.
 
