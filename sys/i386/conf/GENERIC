@@ -70,7 +70,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 device		isa
 device		eisa
 device		pci
-options 	COMPAT_OLDISA		# compatability shims for lnc, fe, le
+options 	COMPAT_OLDISA		# compatability shims for lnc, le
 options 	COMPAT_OLDPCI		# compatability shims for lnc, vx
 
 # Floppy drives
@@ -182,6 +182,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		ed
 device		ex
 device		ep
+device		fe
 device		cs
 device		sn
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
@@ -200,7 +201,6 @@ device		awi
 device		xe
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie
-device		fe
 device		le
 device		lnc
 
