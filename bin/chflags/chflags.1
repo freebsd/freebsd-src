@@ -78,30 +78,25 @@ The flags are specified as an octal number or a comma separated list
 of keywords.
 The following keywords are currently defined:
 .Pp
-.Bl -tag -offset indent -width "opaque" -compact
-.It Ar arch
+.Bl -tag -offset indent -width ".Ar opaque"
+.It Ar arch , archived
 set the archived flag (super-user only)
 .It Ar opaque
 set the opaque flag (owner or super-user only)
 .It Ar nodump
 set the nodump flag (owner or super-user only)
-.It Ar sappnd
+.It Ar sappnd , sappend
 set the system append-only flag (super-user only)
-.It Ar schg
+.It Ar schg , schange , simmutable
 set the system immutable flag (super-user only)
-.It Ar sunlnk
+.It Ar sunlnk , sunlink
 set the system undeletable flag (super-user only)
-.It Ar uappnd
+.It Ar uappnd , uappend
 set the user append-only flag (owner or super-user only)
-.It Ar uchg
+.It Ar uchg , uchange , uimmutable
 set the user immutable flag (owner or super-user only)
-.It Ar uunlnk
+.It Ar uunlnk , uunlink
 set the user undeletable flag (owner or super-user only)
-.It Ar archived , sappend , schange , Xo
-.Ar simmutable , uappend , uchange , uimmutable ,
-.Ar sunlink , uunlink
-.Xc
-aliases for the above
 .El
 .Pp
 Putting the letters
