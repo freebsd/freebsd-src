@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.5 1995/05/30 00:07:27 rgrimes Exp $
+ *	$Id: print.c,v 1.5.6.1 1997/08/25 09:24:08 jkh Exp $
  */
 
 #ifndef lint
@@ -205,8 +205,10 @@ print(tp, wp, ldisc, fmt)
 			if (fmt != BSD && cc[p->sub] == p->def)
 				continue;
 #define	WD	"%-8s"
-			(void)sprintf(buf1 + cnt * 8, WD, p->name);
-			(void)sprintf(buf2 + cnt * 8, WD, ccval(p, cc[p->sub]));
+			(void)snprintf(buf1 + cnt * 8, sizeof(buf1) - cnt * 8,
+			    WD, p->name);
+			(void)snprintf(buf2 + cnt * 8, sizeof(buf2) - cnt * 8,
+			    WD, ccval(p, cc[p->sub]));
 			if (++cnt == LINELENGTH / 8) {
 				cnt = 0;
 				(void)printf("%s\n", buf1);
