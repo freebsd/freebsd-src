@@ -73,6 +73,7 @@ static struct cdevsw acd_cdevsw = {
 int32_t acdattach(struct atapi_softc *);
 void acddetach(struct atapi_softc *);
 static struct acd_softc *acd_init_lun(struct atapi_softc *, struct devstat *);
+static void acd_make_dev(struct acd_softc *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
@@ -178,6 +179,7 @@ acdattach(struct atapi_softc *atp)
 			      DEVSTAT_NO_ORDERED_TAGS,
 			      DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			      DEVSTAT_PRIORITY_CD);
+	    acd_make_dev(cdp);
 	}
     }
     else {
@@ -185,6 +187,7 @@ acdattach(struct atapi_softc *atp)
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
+	acd_make_dev(cdp);
     }
     acd_describe(cdp);
     return 0;
@@ -212,7 +215,6 @@ static struct acd_softc *
 acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
 {
     struct acd_softc *cdp;
-    dev_t dev;
 
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
 	return NULL;
@@ -234,8 +236,13 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     else
 	cdp->stats = stats;
 
-    cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    cdp->atp->driver = cdp;
+    return cdp;
+}
+
+static void
+acd_make_dev(struct acd_softc *cdp)
+{
+    dev_t dev;
 
     dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", cdp->lun);
@@ -249,9 +256,10 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     dev->si_iosize_max = 252 * DEV_BSIZE;
     dev->si_bsize_phys = 2048; /* XXX SOS */
     cdp->dev2 = dev;
+    cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    cdp->atp->driver = cdp;
     if ((cdp->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
         sprintf(cdp->atp->devname, "acd%d", cdp->lun);
-    return cdp;
 }
 
 static void 
