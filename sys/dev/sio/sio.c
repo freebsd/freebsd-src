@@ -508,8 +508,10 @@ sioprobe(dev, xrid, rclk, noprobe)
 		return (ENXIO);
 
 	com = malloc(sizeof(*com), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (com == NULL)
+	if (com == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
+	}
 	device_set_softc(dev, com);
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
