@@ -7,6 +7,9 @@
 # 02-oct-1999:  Cleaned up awk slightly; added some additional logic
 #               suggested by dcs to compress the stored forth program.
 #
+# Note! This script uses strftime() which is a gawk-ism, and the
+# POSIX [[:space:]] character class.
+#
 # $FreeBSD$
 
 BEGIN \
@@ -34,7 +37,7 @@ BEGIN \
 {
   gsub(/\t/, "    ");			# replace each tab with 4 spaces
   gsub(/\"/, "\\\"");			# escape quotes
-  gsub(/\\[ 	]+$/, "");		# toss empty comments
+  gsub(/\\[[:space:]]+$/, "");		# toss empty comments
 }
 
 # strip out empty lines
@@ -44,9 +47,9 @@ BEGIN \
 }
 
 # emit / ** lines as multi-line C comments
-/^\\[ 	]\*\*/ \
+/^\\[[:space:]]\*\*/ \
 {
-  sub(/^\\[ 	]/, "");
+  sub(/^\\[[:space:]]/, "");
   if (commenting == 0) printf "/*\n";
   printf "%s\n", $0;
   commenting = 1;
@@ -54,7 +57,7 @@ BEGIN \
 }
 
 # strip blank lines
-/^[ 	]*$/ \
+/^[[:space:]]*$/ \
 {
   next;
 }
@@ -67,10 +70,10 @@ function end_comments()
 }
 
 # pass commented preprocessor directives
-/^\\[ 	]#/ \
+/^\\[[:space:]]#/ \
 {
   if (commenting) end_comments();
-  sub(/^\\[ 	]/, "");
+  sub(/^\\[[:space:]]/, "");
   printf "%s\n", $0;
   next;
 }
@@ -83,31 +86,31 @@ function end_comments()
 }
 
 # lop off trailing \ comments
-/\\[ 	]+/ \
+/\\[[:space:]]+/ \
 {
-  sub(/\\[ 	]+.*$/, "");
+  sub(/\\[[:space:]]+.*$/, "");
 }
 
 # expunge ( ) comments
-/[ 	]+\([ 	][^)]*\)/ \
+/[[:space:]]+\([[:space:]][^)]*\)/ \
 {
-  sub(/[ 	]+\([ 	][^)]*\)/, "");
+  sub(/[[:space:]]+\([[:space:]][^)]*\)/, "");
 }
 
 # remove leading spaces
-/^[ 	]+/ \
+/^[[:space:]]+/ \
 {
-  sub(/^[ 	]+/, "");
+  sub(/^[[:space:]]+/, "");
 }
 
 # removing trailing spaces
-/[ 	]+$/ \
+/[[:space:]]+$/ \
 {
-  sub(/[ 	]+$/, "");
+  sub(/[[:space:]]+$/, "");
 }
 
 # strip out empty lines again (preceding rules may have generated some)
-/^[ 	]*$/ \
+/^[[:space:]]*$/ \
 {
   if (commenting) end_comments();
   next;
