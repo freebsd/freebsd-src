@@ -1,3 +1,105 @@
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-08-04  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/11713
+	* search.c (setup_class_bindings): Handle conversion operators
+	specially.
+
+2003-07-24  Alexandre Oliva  <aoliva@redhat.com>
+
+	PR c++/10796
+	* decl.c (finish_enum): Make sure the underlying integer type has
+	the same precision as some full integer type.  Reverts part
+	2003-06-27's patch that didn't play any role in fixing the PR.
+
+2003-07-24  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-tree.h (convert_to_base_statically): Declare.
+	* call.c (build_special_member_call): Convert INSTANCE to the base
+	type.
+	* class.c (convert_to_base_statically): New method.
+	* init.c (construct_virtual_base): Use it.
+	* method.c (do_build_assign_ref): Fix typo in comment.
+
+2003-07-24  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/11513
+	* cp-tree.h (PROCESSING_REAL_TEMPLATE_DECL_P): Use current_scope.
+
+2003-07-23  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/11645
+	* cp-tree.h (accessible_base_p): Declare.
+	* call.c (build_over_call): Use it.
+	* search.c (accessible_base_p): New function, split out from ...
+	(lookup_base): ... here.
+
+2003-07-23  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR c++/11282
+	* decl.c: (reshape_init): Always advance *INITP.
+
+2003-07-19  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/11546
+	* pt.c (lookup_template_class): Treat TYPE_DECLs as TEMPLATE_DECLs
+	where appropriate.
+
+2003-07-14  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7053
+	* pt.c (unregister_specialization): Rename to ...
+	(reregister_specialization): ... this.
+	(tsubst_friend_function): Use it.
+	(regenerate_decl_from_template): Likewise.
+
+2003-07-14  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/11154
+	* pt.c (more_specialized_class): Add full_args parameter.
+	(most_specialized_class): Adjust calls to more_specialized_class.
+	* cp-tree.h (more_specialized_class): Adjust declaration.
+
+2003-07-13  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/11503
+	* cp-tree.h (DECL_SELF_REFERENCE_P): New macro.
+	(SET_DECL_SELF_REFERENCE_P): Likewise.
+	* class.c (build_self_reference): Use SET_DECL_SELF_REFERENCE_P.
+	* pt.c (tsubst_decl): Copy it.
+	* search.c (lookup_base): Use DECL_SELF_REFERENCE_P.
+
+2003-07-11  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	Backport from mainline.
+
+	2003-05-21  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	PR c++/9738
+	* decl.c (duplicate_decls): Re-invoke make_decl_rtl
+	if the old decl had instantiated DECL_RTL.
+	(Based on Richard Henderson 2003-05-13 patch to c-decl.c).
+
+2003-07-11  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8164
+	* decl.c (duplicate_decls): Avoid mangling names unnecessarily.
+
+2003-07-10  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/10558
+	* parse.y (class_template_ok_as_expr): New variable.
+	(template_arg_1): New non-terminal.
+	(primary): Issue errors about uses of class templates as
+	expressions.
+
 2003-07-09  Mark Mitchell  <mark@codesourcery.com>
 
 	PR c++/10032

@@ -1,3 +1,340 @@
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-08-04  Release Manager
+
+	* GCC 3.3.1 Released.
+
+2003-08-03  Neil Booth  <neil@daikokuya.co.uk>
+
+        PR preprocessor/11534
+        * cppexp.c (parse_defined): Warn only if -pedantic.
+
+2003-08-03  Mark Mitchell  <mark@codesourcery.com>
+
+	* Makefile.in (ORDINARY_FLAGS_TO_PASS): Pass AR.
+	
+	* Makefile.in (STAGE2_FLAGS_TO_PASS): Pass AR_FOR_TARGET and
+	RANLIB_FOR_TARGET.
+	(stage1_build): Likewise.
+
+2003-08-03  Jan Hubicka  <jh@suse.cz>
+
+        PR 10510
+        * config/pa/pa.h (MAYBE_FP_REG_CLASS_P): New.
+        (SECONDARY_MEMORY_NEEDED): Use it.
+	
+2003-08-01  Geoffrey Keating  <geoffk@apple.com>
+
+	PR 11709 (partial fix)
+	* config/rs6000/rs6000.c (rs6000_output_function_epilogue): Don't
+	insert a label at the end of an function under Mach-O.
+
+	PR 11313
+	* c-pragma.c (maybe_apply_pragma_weak): Don't get DECL_ASSEMBLER_NAME
+	when it's not needed.
+
+2003-07-29  Richard Henderson  <rth@redhat.com>
+
+	PR target/10681
+
+	2003-06-27  J"orn Rennecke <joern.rennecke@superh.com>
+        * flow.c (propagate_one_insn): Use proper test for a register
+        being part of the return value.
+
+	2003-06-26  Richard Henderson  <rth@redhat.com>
+        * flow.c (propagate_one_insn): Preserve live-at-end registers
+        across tail calls.
+
+	2003-06-26  Richard Henderson  <rth@redhat.com>
+        * config/ia64/ia64.c (ia64_expand_call): Don't add ar.pfs for sibcalls.
+        (ia64_split_call): Only load descriptor for GP register inputs.
+        (ia64_expand_epilogue): Check current_frame_info.mask not
+        current_function_is_leaf to restore ar.pfs.
+
+2003-07-26  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
+
+	* doc/install.texi (Testing): Adjust required versions of DejaGnu.
+
+2003-07-24  Aldy Hernandez  <aldyh@redhat.com>
+
+	Backport the folling patch.
+
+	2003-04-01  Aldy Hernandez  <aldyh@redhat.com>
+         
+        PR/8878
+        * expr.c (expand_expr): Handle VECTOR_CST.
+        (const_vector_from_tree): New.
+         
+        * varasm.c (output_constant): Handle VECTOR_CST.
+         
+        * c-typeck.c (digest_init): Build a vector constant from a
+        VECTOR_TYPE.
+
+2003-07-23  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR target/11607 and PR target/11516
+	* pa.md (extzv, extv, insv): Revert latter half of last patch.
+
+2003-07-23  Mark Mitchell  <mark@codesourcery.com>
+
+	PR optimization/10679
+	* tree-inline.c (inlinable_function_p): Honor MIN_INLINE_INSNS.
+	
+2003-07-22  Bob Wilson  <bob.wilson@acm.org>
+	
+	* unwind-c.c (PERSONALITY_FUNCTION): Delete duplicate define.
+	
+2003-07-23  Dave Fluri  <dave.fluri@onlink.net>
+
+	* doc/extend.texi: Fixes to spelling, grammar, and diction.
+
+2003-07-21  H.J. Lu <hongjiu.lu@intel.com>
+
+	PR optimization/11599
+	* config/ia64/ia64.md (prefetch): Support predicate.
+
+2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+        PR optimization/11536
+	* unroll.c (loop_iterations): Do not replace a register holding
+	the final value by its equivalent before the loop if it is not
+	invariant.
+
+2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* gcc.c-torture/execute/loop-16.c: New test.
+
+2003-07-21  Ben Elliston  <bje@wasabisystems.com>
+
+	* doc/invoke.texi (V850 Options): Spelling fixes.
+
+2003-07-21  Lisa M. Goldstein  <opus@gnu.org>
+
+	* doc/invoke.texi: Fixes to style, grammar and diction.
+
+2003-07-20  Mark Mitchell  <mark@codesourcery.com>
+
+	PR debug/11279
+	* dwarf2out.c (gen_enumeration_type_die): Remember that
+	enumerators can be unsigned.
+
+2003-07-19  Kelley Cook  <kelleycook@wideopenwest.com>
+
+	* c-tree.texi: Backport changes from mainline.
+	* c-tree.texi: Ditto.
+	* collect2.texi: Ditto.
+	* cpp.texi: Ditto.
+	* cppopts.texi: Ditto.
+	* extend.texi: Ditto.
+	* fragments.texi: Ditto.
+	* headerdirs.texi: Ditto.
+	* install.texi: Ditto.
+	* invoke.texi: Ditto.
+	* md.texi: Ditto.
+	* portability.texi: Ditto.
+	* rtl.texi: Ditto.
+	* sourcebuild.texi: Ditto.
+	* trouble.texi: Ditto.
+
+2003-07-19  Kelley Cook  <kelleycook@wideopenwest.com>
+
+	PR optimization/4490
+	* doc/invoke.texi (m96bit-long-double, m128bit-long-double):  Reword
+	documentation to accurately reflect what these options do.
+
+2003-07-18  Richard Henderson  <rth@redhat.com>
+	    David S. Miller  <davem@redhat.com>
+
+	PR target/11556
+	* optabs.c (prepare_operand): Fail gracefully instead of abort
+	if the predicate doesn't satisfy.
+	(gen_cond_trap): Allow prepare_operand to fail.
+	Pass correct opnum argument to prepare_operand.
+	
+2003-07-18  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/11083
+	* toplev.c (rest_of_compilation): Delete unreachable blocks
+	if dead edges were purged after the addressof pass.
+
+2003-07-17  Mark Mitchell  <mark@codesourcery.com>
+
+	PR optimization/11557
+	* calls.c (flags_from_decl_or_type): Do not set ECF_LIBCALL_BLOCK
+	unless we know which function is being called.
+
+2003-07-17  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	PR bootstrap/11043
+	* config/arc/t-arc: Replace bogus references to "x-crtinit.o", 
+	"x-crtfini.o" with "crtinit.o", "crtfini.o".
+
+2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR other/11466
+	* doc/invoke.texi (SPARC Options): Document "-mlittle-endian"
+	and its restrictions for the SPARC64 port.
+
+	Backport from mainline:
+	2003-06-13  Florian Weimer  <fw@deneb.enyo.de>
+
+	* doc/invoke.texi (SPARC Options): Document "-mimpure-text".
+
+2003-07-17  Eric Botcazou <ebotcazou@libertysurf.fr>
+            Phil Edwards <phil@jaj.com>
+
+	* doc/install.texi (*-*-solaris2*): Document the step-by-step
+	procedure to bootstrap and install.
+	Document the preference for the legacy Sun tools in /usr/bin
+	over the POSIX tools in /usr/xpg4/bin for the build process.
+
+2003-07-16  Richard Henderson  <rth@redhat.com>
+
+	PR target/10907
+        * config/ia64/ia64.c (ia64_epilogue_uses): GP is live at end
+        even with !TARGET_CONST_GP.
+        (ia64_function_ok_for_sibcall): Reject non-local functions.
+
+2003-07-15  Geoffrey Keating  <geoffk@apple.com>
+
+	* config/darwin.c (machopic_select_section): Use decl_readonly_section
+	to do most of the work.
+
+2003-07-15  David S. Miller  <davem@redhat.com>
+
+	* config/sparc/sparc.c (sparc_nonflat_function_epilogue): Only
+	emit nop if the last real insn is CALL_INSN.
+
+2003-07-15  Loren James Rittle  <ljrittle@acm.org>
+
+	* config/i386/freebsd.h (SET_ASM_OP): Remove.
+	(SUBTARGET_OVERRIDE_OPTIONS): Handle TARGET_64BIT case.
+	(ASM_COMMENT_START, ASM_APP_ON, ASM_APP_OFF, DBX_REGISTER_NUMBER
+	 MCOUNT_NAME, SIZE_TYPE, PTRDIFF_TYPE, WCHAR_TYPE_SIZE): Whitespace.
+
+2003-07-15  Mark Mitchell  <mark@codesourcery.com>
+
+	PR debug/11473
+	* dbxout.c (dbxout_type): Use TYPE_SIZE to determine the sizes of
+	base classes.
+
+2003-07-15  James A. Morrison  <ja2morri@student.math.uwaterloo.ca>
+
+	* doc/include/texinfo.tex: Upgrade to texinfo 4.6.
+
+2003-07-15  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/11320
+	* sched-int.h (struct deps) [reg_conditional_sets]: New field.
+	(struct sched_info) [compute_jump_reg_dependencies]: New prototype.
+	* sched-deps.c (sched_analyze_insn) [JUMP_INSN]: Update call to
+	current_sched_info->compute_jump_reg_dependencies. Record which
+	registers are used and which registers are set by the jump.
+	Clear deps->reg_conditional_sets after a barrier.
+	Set deps->reg_conditional_sets if the insn is a COND_EXEC.
+	Clear deps->reg_conditional_sets if the insn is not a COND_EXEC.
+	(init_deps): Initialize reg_conditional_sets.
+	(free_deps): Clear reg_conditional_sets.
+	* sched-ebb.c (compute_jump_reg_dependencies): New prototype.
+	Mark registers live on entry of the fallthrough block and conditionally
+	set as set by the jump. Mark registers live on entry of non-fallthrough
+	blocks as used by the jump.
+	* sched-rgn.c (compute_jump_reg_dependencies): New prototype.
+	Mark new parameters as unused.
+
+2003-07-14  Mark Mitchell  <mark@codesourcery.com>
+
+	PR debug/11098
+	* integrate.c (copy_decl_for_inlining): Do not mark copied decls
+	as DECL_ABSTRACT.
+
+2003-07-14  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	PR optimization/11440
+	* gcse.c (try_replace_reg): Don't attach notes to ZERO_EXTRACT or
+	SIGN_EXTRACT SETs.
+
+2003-07-13  Aaron W. LaFramboise  <awlaframboise@aol.com>
+
+	* config/i386/gthr-win32.c (__GTHREAD_HIDE_WIN32API): Define to 1.
+
+2003-07-13  Roger Sayle  <roger@eyesopen.com>
+
+	PR optimization/11059
+	* expr.c (can_store_by_pieces): Return true if length is zero.
+	(store_by_pieces): Do nothing if length is zero.
+	(clear_by_pieces): Do nothing if length is zero.
+	(clear_storage): Do nothing if length is zero.
+	(store_constructor): Simplify code when size is zero, or the
+	target has already been cleared.  This avoids emitting a
+	blockage instruction when initializing empty structures.
+
+2003-07-13  Richard Henderson  <rth@redhat.com>
+
+	* libgcc-std.ver (GCC_3.3.1): Export __gcc_personality_sj0,
+	__gcc_personality_v0.
+
+2003-07-11  Dara Hazeghi  <dhazeghi@yahoo.com>
+
+	PR optimization/10877
+	* doc/install.tex: Update required binutils for i?86-*-linux*
+
+2003-07-11  Ben Elliston  <bje@redhat.com>
+
+	PR c++/1607
+	* doc/extend.texi (Function Attributes): Document the effect of
+	the C++ "this" parameter on the counting of arguments for the
+	"format" and "format_arg" attributes.
+
+2003-07-11  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	Backport from mainline.
+
+	2003-05-13  Richard Henderson  <rth@redhat.com>
+
+	* c-decl.c (duplicate_decls): Re-invoke make_decl_rtl if
+	the old decl had instantiated DECL_RTL.
+
+	2003-05-21  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	PR c++/9738
+	* config/i386/winnt.c (i386_pe_encode_section_info): Enable
+	even if not first.
+
+	2003-07-04  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	PR c++/5287, PR c++/7910, PR c++/11021
+	* config/i386/winnt.c (ix86_handle_dll_attribute): Don't add
+	dllimport attribute if function is defined at declaration, but
+	report error instead. Likewise for dllimport'd variable
+	definitions.  Set implicit TREE_PUBLIC for dllimport'd variables
+	declared within functions, Report error if dllimport or dllexport
+	symbol is not global.
+	(i386_pe_dllimport_p): Ignore dllimport attribute of functions
+	if defined after declaration or if inlined. Don't allow definition
+	of static data members of C++ classes. Don't dllimport virtual
+	methods.
+	(i386_pe_mark_dllexport): Warn about inconsistent dll attributes.
+	(i386_pe_mark_dllimport): Remove unnecessary checks.
+	(i386_pe_encode_section_info): Warn if the dllimport attribute
+	and symbol prefix have been instantiated and then overridden.
+
+	* doc/extend.texi: Document dllimport and dllexport attributes.
+
+2003-07-10  James E Wilson  <wilson@tuliptree.org>
+
+	PR optimization/9745
+	* loop.c (loop_iv_add_mult_emit_before): Call loop_regs_update before
+	loop_insn_emit_before.
+	(loop_iv_add_mult_sink, loop_iv_add_mult_hoist): Likewise.
+	
+2003-07-10  Dara Hazeghi  <dhazeghi@yahoo.com>
+
+	PR bootstrap/10758
+	* doc/install.texi: Document requirements for ia64-*-hpux* target.
+
 2003-07-09  Mark Mitchell  <mark@codesourcery.com>
 
 	PR c++/10032
@@ -134,10 +471,6 @@
 
 	* doc/contrib.texi: Fix typos.
 	* doc/sourcebuild.texi: Likewise.
-
-2003-06-29  Aaron W. LaFramboise  <awlaframboise@aol.com>
-
-	* config/i386/gthr-win32.h (__GTHREAD_HIDE_WIN32API): Define to 1.
 
 2003-06-27  Gunther Nikl  <gni@gecko.de>
 
@@ -3839,7 +4172,8 @@ Mon Apr  7 15:56:30 CEST 2003  Jan Hubicka  <jh@suse.cz>
 	* df.c (df_uses_record): Handle CC0.
 
 2003-01-25  Jan Hubicka  <jh@suse.cz>
-			      Eric Botcazou <ebotcazou@libertysurf.fr>
+            Eric Botcazou <ebotcazou@libertysurf.fr>
+
 	PR opt/8492
 	* gcse.c (one_cprop_pass): Delete unreachable blocks.
 
