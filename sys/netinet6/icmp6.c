@@ -1141,8 +1141,7 @@ icmp6_mtudisc_update(ip6cp, validated)
 		    htons(m->m_pkthdr.rcvif->if_index);
 	}
 	/* sin6.sin6_scope_id = XXX: should be set if DST is a scoped addr */
-	rt = rtalloc1((struct sockaddr *)&sin6, 0,
-		      RTF_CLONING | RTF_PRCLONING);
+	rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_CLONING);
 
 	if (rt && (rt->rt_flags & RTF_HOST) &&
 	    !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
@@ -2135,8 +2134,7 @@ icmp6_reflect(m, off)
 		sin6->sin6_len = sizeof(struct sockaddr_in6);
 		sin6->sin6_addr = ip6->ip6_dst;
 
-		rtalloc_ign((struct route *)&icmp6_reflect_rt.ro_rt,
-			    RTF_PRCLONING);
+		rtalloc((struct route *)&icmp6_reflect_rt.ro_rt);
 	}
 
 	if (icmp6_reflect_rt.ro_rt == 0)
