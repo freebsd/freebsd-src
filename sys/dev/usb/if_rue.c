@@ -1075,7 +1075,7 @@ rue_init(void *xsc)
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->rue_cdata,
-	    USBDEVNAME(sc->rue_dev), sc->rue_udev) == ENOBUFS) {
+	    sc->rue_udev) == ENOBUFS) {
 		printf("rue%d: tx list init failed\n", sc->rue_unit);
 		RUE_UNLOCK(sc);
 		return;
@@ -1083,7 +1083,7 @@ rue_init(void *xsc)
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->rue_cdata,
-	    USBDEVNAME(sc->rue_dev), sc->rue_udev) == ENOBUFS) {
+	    sc->rue_udev) == ENOBUFS) {
 		printf("rue%d: rx list init failed\n", sc->rue_unit);
 		RUE_UNLOCK(sc);
 		return;
@@ -1293,7 +1293,6 @@ rue_stop(struct rue_softc *sc)
 {
 	usbd_status	err;
 	struct ifnet	*ifp;
-	int		i;
 
 	RUE_LOCK(sc);
 

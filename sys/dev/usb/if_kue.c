@@ -821,7 +821,7 @@ kue_init(void *xsc)
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->kue_cdata,
-	    USBDEVNAME(sc->kue_dev), sc->kue_udev) == ENOBUFS) {
+	    sc->kue_udev) == ENOBUFS) {
 		printf("kue%d: tx list init failed\n", sc->kue_unit);
 		KUE_UNLOCK(sc);
 		return;
@@ -829,7 +829,7 @@ kue_init(void *xsc)
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->kue_cdata,
-	    USBDEVNAME(sc->kue_dev), sc->kue_udev) == ENOBUFS) {
+	    sc->kue_udev) == ENOBUFS) {
 		printf("kue%d: rx list init failed\n", sc->kue_unit);
 		KUE_UNLOCK(sc);
 		return;
@@ -953,7 +953,6 @@ kue_stop(struct kue_softc *sc)
 {
 	usbd_status		err;
 	struct ifnet		*ifp;
-	int			i;
 
 	KUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;

@@ -864,7 +864,7 @@ cue_init(void *xsc)
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->cue_cdata,
-	    USBDEVNAME(sc->cue_dev), sc->cue_udev) == ENOBUFS) {
+	    sc->cue_udev) == ENOBUFS) {
 		printf("cue%d: tx list init failed\n", sc->cue_unit);
 		CUE_UNLOCK(sc);
 		return;
@@ -872,7 +872,7 @@ cue_init(void *xsc)
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->cue_cdata,
-	    USBDEVNAME(sc->cue_dev), sc->cue_udev) == ENOBUFS) {
+	    sc->cue_udev) == ENOBUFS) {
 		printf("cue%d: rx list init failed\n", sc->cue_unit);
 		CUE_UNLOCK(sc);
 		return;
@@ -1010,7 +1010,6 @@ cue_stop(struct cue_softc *sc)
 {
 	usbd_status		err;
 	struct ifnet		*ifp;
-	int			i;
 
 	CUE_LOCK(sc);
 
