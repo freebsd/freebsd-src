@@ -3226,7 +3226,7 @@ NDFREE(ndp, flags)
  * vnode's type, "mode", uid and gid, requested access mode, credentials,
  * and optional call-by-reference privused argument allowing vaccess()
  * to indicate to the caller whether privilege was used to satisfy the
- * request.  Returns 0 on success, or an errno on failure.
+ * request (obsoleted).  Returns 0 on success, or an errno on failure.
  */
 int
 vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
