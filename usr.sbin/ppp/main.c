@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.34 1997/03/08 10:04:21 ache Exp $
+ * $Id$
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -28,9 +28,7 @@
 #include <paths.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <sys/cdefs.h>
 #include <signal.h>
-#include "sig.h"
 #include <sys/wait.h>
 #include <errno.h>
 #include <netdb.h>
@@ -213,8 +211,8 @@ int signo;
 static void
 TerminalCont()
 {
-  pending_signal(SIGCONT, SIG_DFL);
-  pending_signal(SIGTSTP, TerminalStop);
+  (void)signal(SIGCONT, SIG_DFL);
+  (void)signal(SIGTSTP, TerminalStop);
   TtyCommandMode(getpgrp() == tcgetpgrp(0));
 }
 
@@ -222,9 +220,9 @@ static void
 TerminalStop(signo)
 int signo;
 {
-  pending_signal(SIGCONT, TerminalCont);
+  (void)signal(SIGCONT, TerminalCont);
   TtyOldMode();
-  pending_signal(SIGTSTP, SIG_DFL);
+  signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
 }
 
@@ -364,13 +362,13 @@ char **argv;
   if(mode & MODE_INTER)
     {
 #ifdef SIGTSTP
-      pending_signal(SIGTSTP, TerminalStop);
+      signal(SIGTSTP, TerminalStop);
 #endif
 #ifdef SIGTTIN
-      pending_signal(SIGTTIN, TerminalStop);
+      signal(SIGTTIN, TerminalStop);
 #endif
 #ifdef SIGTTOU
-      pending_signal(SIGTTOU, SIG_IGN);
+      signal(SIGTTOU, SIG_IGN);
 #endif
     }
 
@@ -792,8 +790,6 @@ DoLoop()
 #ifndef SIGALRM
     usleep(TICKUNIT);
     TimerService();
-#else
-    handle_signals();
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -829,8 +825,7 @@ DoLoop()
 
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          handle_signals();
-          continue;
+          continue;            /* Got a signal - should have been dealt with */
        }
        perror("select");
        break;
