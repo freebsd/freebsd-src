@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id$
+ * $Id: union_vfsops.c,v 1.14 1997/02/22 09:40:41 peter Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ union_mount(mp, path, data, ndp, p)
 	char *cp = 0;
 	int len;
 	u_int size;
+	int islowerunlocked = 0;
 
 #ifdef UNION_DIAGNOSTIC
 	printf("union_mount(mp = %x)\n", mp);
@@ -128,18 +129,41 @@ union_mount(mp, path, data, ndp, p)
 	VREF(lowerrootvp);
 
 	/*
+	 * Unlock lower node to avoid deadlock.
+	 * (XXX) VOP_ISLOCKED is needed?
+	 */
+	if ((lowerrootvp->v_op == union_vnodeop_p) && VOP_ISLOCKED(lowerrootvp)) {
+		VOP_UNLOCK(lowerrootvp, 0, p);
+		islowerunlocked = 1;
+	}
+
+	/*
 	 * Find upper node.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT,
 	       UIO_USERSPACE, args.target, p);
 
 	error = namei(ndp);
+	/*
+	 * Re-lock vnode.
+	 * (XXX) VOP_ISLOCKED is needed?
+	 */
+	if (islowerunlocked && !VOP_ISLOCKED(lowerrootvp))
+		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (error)
 		goto bad;
 
 	upperrootvp = ndp->ni_vp;
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = NULL;
+
+	/*
+	 * Check multi union mount to avoid `lock myself again' panic.
+	 */
+	if (upperrootvp == VTOUNION(lowerrootvp)->un_uppervp) {
+		error = EDEADLK;
+		goto bad;
+	}
 
 	if (upperrootvp->v_type != VDIR) {
 		error = EINVAL;
