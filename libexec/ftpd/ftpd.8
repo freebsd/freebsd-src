@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.15 1997/04/23 04:56:39 davidn Exp $
+.\"	$Id: ftpd.8,v 1.16 1997/04/26 12:23:51 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -261,11 +261,20 @@ Bellcore.
 The login name must not appear in the file
 .Pa /etc/ftpusers .
 .It
+The login name must not be a member of a group specified in the file
+.Pa /etc/ftpusers .
+Entries in this file interpreted as group names are prefixed by an "at"
+.Ql \&@
+sign.
+.It
 The user must have a standard shell returned by 
 .Xr getusershell 3 .
 .It
 If the user name appears in the file
-.Pa /etc/ftpchroot
+.Pa /etc/ftpchroot ,
+or the user is a member of a group with a group entry in this file,
+i.e. one prefixed with
+.Ql \&@ ,
 the session's root will be changed to the user's login directory by
 .Xr chroot 2
 as for an
@@ -273,13 +282,13 @@ as for an
 or
 .Dq ftp
 account (see next item).
-This facility may also be used by using the boolean "ftp-chroot"
+This facility may also be triggered by enabling the boolean "ftp-chroot"
 capability in
 .Xr login.conf 5 .
 However, the user must still supply a password.
 This feature is intended as a compromise between a fully anonymous account
-and a fully privileged account.  The account should also be set up as for an
-anonymous account.
+and a fully privileged account.
+The account should also be set up as for an anonymous account.
 .It
 If the user name is
 .Dq anonymous
