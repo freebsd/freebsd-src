@@ -622,7 +622,7 @@ filter_Nam2Proto(int argc, char const *const *argv)
   return proto;
 }
 
-static const char *opname[] = {"none", "eq", "gt", "unknown", "lt"};
+static const char *opname[] = {"none", "eq", "gt", "lt"};
 
 const char *
 filter_Op2Nam(int op)
