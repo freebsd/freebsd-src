@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.243 1997/05/17 03:48:32 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.244 1997/05/17 16:38:25 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -387,7 +387,6 @@ groups of people:
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
-	  <item>Tor Egge &lt;tegge@itea.ntnu.no&gt;
 	  <item>Toshihiro Kanda &lt;candy@fct.kgc.co.jp&gt;
 	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
@@ -482,7 +481,6 @@ groups of people:
 	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
 	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;
 	<item>Rodney W. Grimes &lt;rgrimes@cdrom.com&gt;
-	<item>Rog Egge &lt;?&gt;
 	<item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	<item>Scott Burris &lt;scott@pita.cns.ucla.edu&gt;
 	<item>Scott Reynolds &lt;scott@clmqt.marquette.mi.us&gt;
@@ -492,6 +490,7 @@ groups of people:
 	<item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	<item>Terry Lambert &lt;terry@icarus.weber.edu&gt;
 	<item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
+	<item>Tor Egge &lt;Tor.Egge@idi.ntnu.no&gt;
 	<item>Warren Toomey &lt;wkt@csadfa.cs.adfa.oz.au&gt;
 	<item>Wiljo Heinen &lt;wiljo@freeside.ki.open.de&gt;
 	<item>William Jolitz &lt;withheld&gt;
