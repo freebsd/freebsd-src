@@ -333,8 +333,8 @@ typedef struct {
  */
 #define	GET_IID_VAL(x)		(x & 0x3f)
 #define	GET_BUS_VAL(x)		((x >> 7) & 0x1)
-#define	SET_IID_VAL(y, x)	(y | (x & 0x3f))
-#define	SET_BUS_VAL(y, x)	(y | ((x & 0x1) << 7))
+#define	SET_IID_VAL(y, x)	y = ((y & ~0x3f) | (x & 0x3f))
+#define	SET_BUS_VAL(y, x)	y = ((y & 0x3f) | ((x & 0x1) << 7))
 
 /*
  * ct_flags values
