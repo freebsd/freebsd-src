@@ -224,7 +224,8 @@ Read a line of at most
 .Fa size
 characters into
 .Fa buf .
-Line terminating characters are stripped, and the buffer is always nul
+Line terminating characters are stripped, and the buffer is always
+.Dv NUL
 terminated.  Returns the number of characters in
 .Fa buf
 if successful, or -1 if a read error occurs.
@@ -429,7 +430,9 @@ Closes the pager.
 .Fn pager_output "char *lines"
 .Xc
 .Pp
-Sends the lines in the nul-terminated buffer at
+Sends the lines in the
+.Dv NUL Ns
+-terminated buffer at
 .Fa lines
 to the pager.  Newline characters are counted in order to determine the number
 of lines being output (wrapped lines are not accounted for).
