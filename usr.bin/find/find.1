@@ -272,7 +272,10 @@ It ensures that you have write permission while you are placing files in a
 directory, then sets the directory's permissions as the last thing.
 .It Ic -empty
 True if the current file or directory is empty.
-.It Ic -exec Ar utility Op Ar argument ... ;
+.It Xo
+.Ic -exec Ar utility Op Ar argument ...
+;
+.Xc
 True if the program named
 .Ar utility
 returns a zero value as its exit status.
@@ -303,7 +306,10 @@ is replaced with as many pathnames as possible for each invocation of
 .Ar utility .
 This behaviour is similar to that of
 .Xr xargs 1 .
-.It Ic -execdir Ar utility Op Ar argument ... ;
+.It Xo
+.Ic -execdir Ar utility Op Ar argument ...
+;
+.Xc
 The
 .Ic -execdir
 primary is identical to the
