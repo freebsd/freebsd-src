@@ -1,3 +1,19 @@
+--
+* Lose the source port check on incoming packets
+* (x)ntpdc compatibility patch
+* Virtual IP improvements
+* ntp_loopfilter fixes and improvements
+* ntpdc improvements
+* GOES refclock fix
+* JJY driver
+* bsdi port fixes
+* HP MPE/iX port
+* Win/NT port upgrade
+* Dynix PTX port fixes
+* Document conversion from CVS to BK
+* readline support for ntpq
+(4.1.0)
+* CERT problem fixed (99k23)
 * Huff-n-Puff filter
 * Preparation for OpenSSL support
 * Resolver changes/improvements are not backward compatible with mode 7

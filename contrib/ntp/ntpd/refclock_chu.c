@@ -1315,6 +1315,9 @@ chu_poll(
 	} else if (up->leap & 0x2) {
 		pp->leap = LEAP_ADDSECOND;
 		leapchar = 'L';
+	} else if (up->leap & 0x4) {
+		pp->leap = LEAP_DELSECOND;
+		leapchar = 'l';
 	} else {
 		pp->leap = LEAP_NOWARNING;
 	}

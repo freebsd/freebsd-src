@@ -410,7 +410,7 @@ true_receive(
 			}
 		}
 		else {
-			refclock_report(peer, CEVNT_BADREPLY);
+			/*refclock_report(peer, CEVNT_BADREPLY);*/
 			label = "UNKNOWN";
 		}
 		true_debug(peer, "GOES: station %s\n", label);
