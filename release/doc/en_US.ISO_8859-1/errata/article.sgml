@@ -25,6 +25,10 @@
 
 <article>
   <articleinfo>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
     <title>&os; &release.current; Errata</title>
 
     <corpauthor>
@@ -40,45 +44,67 @@
     </copyright>
   </articleinfo>
 
+  <abstract>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+    <para>This document lists errata that pertain to the most
+    recently-released version of &os; (&release.current;).  It includes
+    both security advisories that pertain this release, as well as
+    items relating to the software or documentation, discovered after
+    the release, that could affect its operation or usability.
+
+    <note>
+      <para>At this time, &release.current; has no errata, because
+      there have not been any releases on the &release.branch;
+      branch since the last branchpoint.  (The first such release will
+      be &release.next;.)
+      This file exists to provide a clean template for
+      newly-created branches.  (Clearly this notice should not exist
+      on any branched version of this file.)</para>
+    </note>
+
+    </para>
+  </abstract>
+
   <sect1>
     <title>Introduction</title>
 
     <para>If you read no other documentation before installing this
-    version of &os;, you should at least by all means <emphasis>read
+    version of &os;, you should <emphasis>read
     the errata</emphasis> for this release so that you don't stumble
-    over problems which have already been found and fixed.  This
-    <filename>ERRATA.TXT</filename> file is obviously already out of
+    over problems which have already been found and fixed.  Any
+    version of this
+    <filename>ERRATA.TXT</filename> file actually distributed with the
+    release is out of
     date by definition, but other copies are kept updated on the net and
     should be consulted as the <quote>current errata</quote> for your
-    release.  These other copies of the errata are located at:
+    release.  These other copies of the errata are located at <ulink
+    url="http://www.freebsd.org/releases/">http://www.freebsd.org/releases/</ulink>,
+    as well as any sites which keep up-to-date mirrors of this
+    location).</para>
 
-      <orderedlist>
-	<listitem>
-	  <para><ulink url="http://www.freebsd.org/releases/">http://www.freebsd.org/releases/</ulink></para>
-	</listitem>
-	<listitem>
-	  <para><userinput>ftp://ftp.freebsd.org/pub/FreeBSD/releases/<replaceable>architecture</replaceable>/<replaceable>release</replaceable>/ERRATA.TXT</userinput></para>
-	  <para>(and any sites which keep up-to-date mirrors of this
-	  location)</para>
-	</listitem>
-      </orderedlist>
-    </para>
+    <para>Source and binary snapshots of &release.current; also
+    contain up-to-date copies of this document (as of the time of the
+    snapshot).</para>
 
     <para>Any changes to this file are also automatically emailed to the
     &a.current;.</para>
 
-    <para>For all CERT security advisories, see <ulink
-    url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/">ftp://ftp.freebsd.org/pub/FreeBSD/CERT/</ulink>.</para>
+    <para>For a list of all &os; CERT security advisories, see <ulink
+    url="http://www.freebsd.org/security"></ulink> or <ulink
+    url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
   </sect1>
 
   <sect1>
     <title>Security Advisories</title>
-    <para>Current active security advisories: None.</para>
+    <para></para>
   </sect1>
 
   <sect1>
     <title>System Update Information</title>
-    <para>Current active errata items: None.</para>
+    <para></para>
   </sect1>
 </article>
