@@ -169,6 +169,7 @@ _thread_init(void)
 		_thread_queue_init(&(_thread_initial->join_queue));
 
 		/* Initialise the rest of the fields: */
+		_thread_initial->magic = PTHREAD_MAGIC;
 		_thread_initial->specific_data = NULL;
 		_thread_initial->cleanup = NULL;
 		_thread_initial->queue = NULL;
