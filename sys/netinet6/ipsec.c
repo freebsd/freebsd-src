@@ -97,6 +97,8 @@
 #define	KEYDEBUG(lev,arg)
 #endif
 
+#include <machine/in_cksum.h>
+
 struct ipsecstat ipsecstat;
 int ip4_inbound_call_ike = 0;
 int ip4_ah_cleartos = 1;
