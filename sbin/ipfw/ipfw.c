@@ -614,7 +614,7 @@ show_dyn_ipfw(struct ipfw_dyn_rule *d)
 		printf(" %u,", d->id.proto);
 
 	a.s_addr = htonl(d->id.src_ip);
-	printf(" %si %d", inet_ntoa(a), d->id.src_port);
+	printf(" %s %d", inet_ntoa(a), d->id.src_port);
 
 	a.s_addr = htonl(d->id.dst_ip);
 	printf("<-> %s %d", inet_ntoa(a), d->id.dst_port);
@@ -2004,18 +2004,17 @@ add(int ac, char *av[])
 		    av++; ac--;
 		    for (; ac >1 ;) {
 			struct _s_x *p = limit_masks;
-			int found = 0;
 			for ( ; p->s != NULL ; p++)
 			    if (!strncmp(*av, p->s, strlen(*av))) {
 				rule.limit_mask |= p->x ;
 				av++; ac-- ;
+				break ;
 			    }
-			if (found == 0) {
-			    if (rule.limit_mask == 0)
-				errx(EX_USAGE, "missing limit mask");
+			if (p->s == NULL)
 			    break ;
-			}
 		    }
+		    if (rule.limit_mask == 0)
+			errx(EX_USAGE, "missing limit mask");
 		    if (ac < 1)
 			errx(EX_USAGE, "limit needs mask and # of connections");
 		    rule.conn_limit = atoi(*av);
