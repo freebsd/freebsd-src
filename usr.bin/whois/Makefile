@@ -4,7 +4,6 @@
 MAINTAINER=	mike@FreeBSD.org
 
 PROG=	whois
-WARNS?=	2
 
 .if defined(SOCKS)
 CFLAGS+=-DSOCKS
