@@ -18,10 +18,10 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
-ia64/acpica/acpi_machdep.c	optional	acpica
-ia64/acpica/acpi_wakeup.c	optional	acpica
-ia64/acpica/OsdEnvironment.c	optional	acpica
-ia64/acpica/madt.c		optional	acpica
+ia64/acpica/acpi_machdep.c	optional	acpi
+ia64/acpica/acpi_wakeup.c	optional	acpi
+ia64/acpica/OsdEnvironment.c	optional	acpi
+ia64/acpica/madt.c		optional	acpi
 ia64/ia32/ia32_misc.c		optional	ia32
 ia64/ia32/ia32_sysent.c		optional	ia32
 ia64/ia32/ia32_sysvec.c		optional	ia32
