@@ -43,13 +43,11 @@ wint_t
 __ungetwc(wint_t wc, FILE *fp)
 {
 	char buf[MB_LEN_MAX];
-	mbstate_t mbs;
 	size_t len;
 
 	if (wc == WEOF)
 		return (WEOF);
-	memset(&mbs, 0, sizeof(mbs));
-	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
+	if ((len = wcrtomb(buf, wc, NULL)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}
