@@ -800,7 +800,6 @@ vinum_scandisk(char *devicename)
 		    }
 		}
 	    }
-#ifdef __i386__
 	/*
 	 * This is a kludge.  Probably none of this
 	 * should be here.
@@ -828,7 +827,6 @@ vinum_scandisk(char *devicename)
 		    }
 		}
 	}
-#endif
     }
     Free(partname);
 
