@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.40 1999/02/06 02:54:44 brian Exp $
+ * $Id: chap.c,v 1.41 1999/02/07 13:48:38 brian Exp $
  *
  *	TODO:
  */
@@ -367,7 +367,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
             if (myans == NULL)
               key = NULL;
             else {
-              if (memcmp(myans, ans, 1 + *myans))
+              if (*myans != alen || memcmp(myans + 1, ans + 1, *myans))
                 key = NULL;
               free(myans);
             }
