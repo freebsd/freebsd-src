@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.91 2002/05/24 03:04:57 marka Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.92.6.1 2003/06/02 09:56:34 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -240,7 +240,8 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 
 	if (!qp->q_addr[0].noedns)
 		smsglen += ns_add_opt(smsg, smsg + smsglen, smsgsize, 0, 0,
-				      EDNS_MESSAGE_SZ, 0, NULL, 0);
+				      server_options->edns_udp_size,
+				      0, NULL, 0);
 
 	if (key != NULL) {
 		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,
@@ -465,14 +466,14 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	struct hashbuf *tmphtp;
 	char *dname;
 	const char *fname;
-	int oldn, naddr, class, found_arr, potential_ns, lame_ns;
+	int oldn, naddr, class, found_arr, potential_ns;
 	time_t curtime;
 	int found_auth6;
 
 	ns_debug(ns_log_default, 3, "nslookup(nsp=%p, qp=%p, \"%s\", d=%d)",
 		 nsp, qp, syslogdname, qp->q_distance);
 
-	lame_ns = potential_ns = 0;
+	potential_ns = 0;
 	naddr = n = qp->q_naddr;
 	curtime = (u_long) tt.tv_sec;
 	while ((nsdp = *nsp++) != NULL && n < NSMAX) {
@@ -488,18 +489,6 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 				ns_debug(ns_log_default, 2,
 					 "skipping used NS w/name %s",
 					 nsdp->d_data);
-				goto skipserver;
-			}
-		}
-
-		/* skip lame servers */
-		if ((nsdp->d_flags & DB_F_LAME) != 0) {
-			time_t when;
-			when = db_lame_find(qp->q_domain, nsdp);
-			if (when != 0 && when > tt.tv_sec) {
-				ns_debug(ns_log_default, 3,
-					 "skipping lame NS");
-				lame_ns++;
 				goto skipserver;
 			}
 		}
@@ -617,6 +606,13 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 				if (si && (si->flags & SERVER_INFO_EDNS) == 0)
 					qs->noedns = 1;
 			}
+			qs->lame = 0;
+			if ((nsdp->d_flags & DB_F_LAME) != 0) {
+				time_t when;
+				when = db_lame_find(qp->q_domain, nsdp);
+				if (when != 0 && when > tt.tv_sec)
+					qs->lame = 1;
+			}
 			qs->nretry = 0;
 			/*
 			 * If this A RR has no RTT, initialize its RTT to a
@@ -708,15 +704,13 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	qp->q_naddr = n;
 	if (n == 0 && potential_ns == 0 && !NS_ZFWDTAB(qp->q_fzone)) {
 		static const char *complaint = "No possible A RRs";
-		if (lame_ns != 0)
-			complaint = "All possible A RR's lame";
 		if (sysloginfo && syslogdname &&
 		    !haveComplained((u_long)syslogdname, (u_long)complaint))
 		{
 			ns_info(ns_log_default, "%s: query(%s) %s",
 				sysloginfo, syslogdname, complaint);
 		}
-		return ((lame_ns == 0) ? -1 : -2);
+		return (-1);
 	}
 	/* Update the refcounts before the sort. */
 	for (i = naddr; i < (u_int)n; i++) {
@@ -792,6 +786,11 @@ int
 qcomp(struct qserv *qs1, struct qserv *qs2) {
 	u_int rtt1, rtt2, rttr1, rttr2;
 
+	/* sort lame servers to last */
+	if (qs1->lame != qs2->lame)
+		return (qs1->lame - qs2->lame);
+
+	/* sort by rtt */
 	if (qs1->nsdata == NULL) {
 		rtt1 = 0;
 		rttr1 = 0;
@@ -968,6 +967,23 @@ retry(struct qinfo *qp, int samehost) {
 	if (qp->q_naddr > 0) {
 		qp->q_addr[n].noedns = 1;
 		++qp->q_addr[n].nretry;
+		/*
+		 * Look for a non-lame server.
+		 */
+		do {
+			if (++n >= (int)qp->q_naddr)
+				n = 0;
+			if ((qp->q_flags & Q_ZSERIAL) != 0 &&
+			    qp->q_addr[n].serial != 0)
+				continue;
+			if (qp->q_addr[n].lame)
+				continue;
+			if (qp->q_addr[n].nretry < MAXRETRY)
+				goto found;
+		} while (n != qp->q_curaddr);
+		/*
+		 * Look for any server including lame servers.
+		 */
 		do {
 			if (++n >= (int)qp->q_naddr)
 				n = 0;
@@ -1071,7 +1087,8 @@ retry(struct qinfo *qp, int samehost) {
 
 	if (!qp->q_addr[n].noedns)
 		smsglen += ns_add_opt(smsg, smsg + smsglen, smsgsize, 0, 0,
-				      EDNS_MESSAGE_SZ, 0, NULL, 0);
+				      server_options->edns_udp_size,
+				      0, NULL, 0);
 
 	if (key != NULL) {
 		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,

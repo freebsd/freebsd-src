@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/dst_api.c,v 1.20 2001/07/26 01:20:08 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/dst_api.c,v 1.21 2002/06/28 06:58:19 marka Exp $";
 #endif
 
 /*
@@ -217,7 +217,6 @@ dst_compare_keys(const DST_KEY *key1, const DST_KEY *key2)
  *	Then data is hashed (SIG_MODE_UPDATE).  Finally the signature
  *	itself is created (SIG_MODE_FINAL).  This function can be called
  *	once with INIT, UPDATE and FINAL modes all set, or it can be
-
  *	called separately with a different mode set for each step.  The
  *	UPDATE step can be repeated.
  * Parameters
@@ -457,7 +456,7 @@ dst_s_write_private_key(const DST_KEY *key)
  *		      filename of the key file to be read.
  *  Returns
  *	NULL	    If the key does not exist or no name is supplied.
- *	NON-NULL	Initalized key structure if the key exists.
+ *	NON-NULL	Initialized key structure if the key exists.
  */
 
 static DST_KEY *
