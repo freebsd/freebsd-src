@@ -189,7 +189,7 @@
 113	OBSOL	BSD	orecvmsg
 114	OBSOL	BSD	osendmsg
 115	OBSOL	NOHIDE	vtrace
-116	STD	BSD	{ int freebsd32_gettimeofday(struct timeval32 *tp, \
+116	MSTD	BSD	{ int freebsd32_gettimeofday(struct timeval32 *tp, \
 			    struct timezone *tzp); }
 117	STD	BSD	{ int freebsd32_getrusage(int who, \
 			    struct rusage32 *rusage); }
