@@ -1,7 +1,8 @@
-# $Id: Makefile,v 1.30 1999/03/10 03:34:14 dcs Exp $
+# $Id: Makefile,v 1.31 1999/03/15 08:52:23 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}
+MAN5=		loader.conf.5
 MAN8=		loader.8
 #NOMAN=
 STRIP=
@@ -92,6 +93,10 @@ beforeinstall:
 .else
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+.endif
+.if !exists(${DESTDIR}/boot/loader.rc)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
 .endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
