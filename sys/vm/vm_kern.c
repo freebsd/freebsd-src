@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.49 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_kern.c,v 1.50 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -181,8 +181,9 @@ kmem_alloc(map, size)
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		if ((mem->flags & PG_ZERO) == 0)
 			vm_page_zero_fill(mem);
-		vm_page_flag_clear(mem, (PG_BUSY | PG_ZERO));
 		mem->valid = VM_PAGE_BITS_ALL;
+		vm_page_flag_clear(mem, PG_ZERO);
+		vm_page_wakeup(mem);
 	}
 
 	/*
@@ -200,6 +201,8 @@ kmem_alloc(map, size)
  *	Release a region of kernel virtual memory allocated
  *	with kmem_alloc, and return the physical pages
  *	associated with that region.
+ *
+ *	This routine may not block on kernel maps.
  */
 void
 kmem_free(map, addr, size)
@@ -252,26 +255,31 @@ kmem_suballoc(parent, min, max, size)
 }
 
 /*
- * Allocate wired-down memory in the kernel's address map for the higher
- * level kernel memory allocator (kern/kern_malloc.c).  We cannot use
- * kmem_alloc() because we may need to allocate memory at interrupt
- * level where we cannot block (canwait == FALSE).
+ *	kmem_malloc:
  *
- * This routine has its own private kernel submap (kmem_map) and object
- * (kmem_object).  This, combined with the fact that only malloc uses
- * this routine, ensures that we will never block in map or object waits.
+ * 	Allocate wired-down memory in the kernel's address map for the higher
+ * 	level kernel memory allocator (kern/kern_malloc.c).  We cannot use
+ * 	kmem_alloc() because we may need to allocate memory at interrupt
+ * 	level where we cannot block (canwait == FALSE).
  *
- * Note that this still only works in a uni-processor environment and
- * when called at splhigh().
+ * 	This routine has its own private kernel submap (kmem_map) and object
+ * 	(kmem_object).  This, combined with the fact that only malloc uses
+ * 	this routine, ensures that we will never block in map or object waits.
  *
- * We don't worry about expanding the map (adding entries) since entries
- * for wired maps are statically allocated.
+ * 	Note that this still only works in a uni-processor environment and
+ * 	when called at splhigh().
+ *
+ * 	We don't worry about expanding the map (adding entries) since entries
+ * 	for wired maps are statically allocated.
+ *
+ *	NOTE:  This routine is not supposed to block if M_NOWAIT is set, but
+ *	I have not verified that it actually does not block.
  */
 vm_offset_t
-kmem_malloc(map, size, waitflag)
+kmem_malloc(map, size, flags)
 	register vm_map_t map;
 	register vm_size_t size;
-	boolean_t waitflag;
+	int flags;
 {
 	register vm_offset_t offset, i;
 	vm_map_entry_t entry;
@@ -297,7 +305,7 @@ kmem_malloc(map, size, waitflag)
 			printf("Out of mbuf clusters - adjust NMBCLUSTERS or increase maxusers!\n");
 			return (0);
 		}
-		if (waitflag == M_WAITOK)
+		if ((flags & M_NOWAIT) == 0)
 			panic("kmem_malloc(%d): kmem_map too small: %d total allocated",
 				size, map->size);
 		return (0);
@@ -308,9 +316,19 @@ kmem_malloc(map, size, waitflag)
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	for (i = 0; i < size; i += PAGE_SIZE) {
+		/*
+		 * Note: if M_NOWAIT specified alone, allocate from 
+		 * interrupt-safe queues only (just the free list).  If 
+		 * M_ASLEEP or M_USE_RESERVE is also specified, we can also
+		 * allocate from the cache.  Neither of the latter two
+		 * flags may be specified from an interrupt since interrupts
+		 * are not allowed to mess with the cache queue.
+		 */
 retry:
 		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i),
-			(waitflag == M_NOWAIT) ? VM_ALLOC_INTERRUPT : VM_ALLOC_SYSTEM);
+		    ((flags & (M_NOWAIT|M_ASLEEP|M_USE_RESERVE)) == M_NOWAIT) ?
+			VM_ALLOC_INTERRUPT : 
+			VM_ALLOC_SYSTEM);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -318,7 +336,7 @@ retry:
 		 * aren't on any queues.
 		 */
 		if (m == NULL) {
-			if (waitflag == M_WAITOK) {
+			if ((flags & M_NOWAIT) == 0) {
 				VM_WAIT;
 				goto retry;
 			}
@@ -330,6 +348,9 @@ retry:
 			}
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
+			if (flags & M_ASLEEP) {
+				VM_AWAIT;
+			}
 			return (0);
 		}
 		vm_page_flag_clear(m, PG_ZERO);
@@ -359,6 +380,9 @@ retry:
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
 		vm_page_wire(m);
 		vm_page_wakeup(m);
+		/*
+		 * Because this is kernel_pmap, this call will not block.
+		 */
 		pmap_enter(kernel_pmap, addr + i, VM_PAGE_TO_PHYS(m),
 			VM_PROT_ALL, 1);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE | PG_REFERENCED);
@@ -369,12 +393,14 @@ retry:
 }
 
 /*
- *	kmem_alloc_wait
+ *	kmem_alloc_wait:
  *
  *	Allocates pageable memory from a sub-map of the kernel.  If the submap
  *	has no room, the caller sleeps waiting for more memory in the submap.
  *
+ *	This routine may block.
  */
+
 vm_offset_t
 kmem_alloc_wait(map, size)
 	vm_map_t map;
@@ -406,7 +432,7 @@ kmem_alloc_wait(map, size)
 }
 
 /*
- *	kmem_free_wakeup
+ *	kmem_free_wakeup:
  *
  *	Returns memory to a submap of the kernel, and wakes up any processes
  *	waiting for memory in that map.
@@ -424,11 +450,14 @@ kmem_free_wakeup(map, addr, size)
 }
 
 /*
- * Create the kernel map; insert a mapping covering kernel text, data, bss,
- * and all space allocated thus far (`boostrap' data).  The new map will thus
- * map the range between VM_MIN_KERNEL_ADDRESS and `start' as allocated, and
- * the range between `start' and `end' as free.
+ * 	kmem_init:
+ *
+ *	Create the kernel map; insert a mapping covering kernel text, 
+ *	data, bss, and all space allocated thus far (`boostrap' data).  The 
+ *	new map will thus map the range between VM_MIN_KERNEL_ADDRESS and 
+ *	`start' as allocated, and the range between `start' and `end' as free.
  */
+
 void
 kmem_init(start, end)
 	vm_offset_t start, end;
@@ -445,3 +474,4 @@ kmem_init(start, end)
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }
+

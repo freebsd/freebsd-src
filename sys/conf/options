@@ -1,4 +1,4 @@
-#	$Id: options,v 1.120 1999/01/17 19:02:39 peter Exp $
+#	$Id: options,v 1.121 1999/01/20 14:49:07 eivind Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -209,6 +209,7 @@ TCPDEBUG
 IPFILTER		opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LKM		opt_ipfilter.h
+SLIP_IFF_OPTS		opt_slip.h
 
 # ATM (HARP version)
 ATM_CORE		opt_atm.h

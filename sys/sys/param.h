@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.37 1998/10/16 04:28:04 jkh Exp $
+ * $Id: param.h,v 1.38 1998/10/16 06:55:07 jkh Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -226,5 +226,11 @@
  */
 #define	FSHIFT	11		/* bits to right of fixed binary point */
 #define FSCALE	(1<<FSHIFT)
+
+#define dbtoc(db)			/* calculates devblks to pages */ \
+	((db + (ctodb(1) - 1)) >> (PAGE_SHIFT - DEV_BSHIFT))
+ 
+#define ctodb(db)			/* calculates pages to devblks */ \
+	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
 #endif	/* _SYS_PARAM_H_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.21 1998/04/29 04:28:02 dyson Exp $
+ *	$Id: swap_pager.h,v 1.22 1998/07/10 21:50:17 alex Exp $
  */
 
 /*
@@ -59,26 +59,50 @@
 #define SWB_NPAGES 8
 #endif
 
+/*
+ * Piecemeal swap metadata structure.  Swap is stored in a radix tree.
+ *
+ * If SWB_NPAGES is 8 and sizeof(char *) == sizeof(daddr_t), our radix
+ * is basically 8.  Assuming PAGE_SIZE == 4096, one tree level represents
+ * 32K worth of data, two levels represent 256K, three levels represent
+ * 2 MBytes.   This is acceptable.
+ *
+ * Overall memory utilization is about the same as the old swap structure.
+ */
+
+#define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
+
+#define SWAP_META_PAGES		(SWB_NPAGES * 2)
+#define SWAP_META_MASK		(SWAP_META_PAGES - 1)
+
 struct swblock {
-	unsigned short swb_valid;	/* bitmask for valid pages */
-	unsigned short swb_locked;	/* block locked */
-	daddr_t swb_block[SWB_NPAGES];
+	struct swblock	*swb_hnext;
+	vm_object_t	swb_object;
+	int		swb_index;
+	int		swb_count;
+	daddr_t		swb_pages[SWAP_META_PAGES];
 };
-typedef struct swblock *sw_blk_t;
 
 #ifdef KERNEL
 extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
-extern struct rlisthdr swaplist;
+extern struct blist *swapblist;
 
-int swap_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));    
+int swap_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
+boolean_t swap_pager_haspage __P((vm_object_t object, vm_pindex_t pindex, int *before, int *after));
+
 int swap_pager_swp_alloc __P((vm_object_t, int));
-void swap_pager_copy __P((vm_object_t, vm_pindex_t, vm_object_t,
-	vm_pindex_t, vm_pindex_t, int));
+void swap_pager_copy __P((vm_object_t, vm_object_t, vm_pindex_t, int));
 void swap_pager_freespace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_dmzspace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_swap_init __P((void));
-void swap_pager_sync __P((void));
+
+/*
+ * newswap functions
+ */
+
+void swap_pager_page_removed __P((vm_page_t, vm_object_t));
+
 #endif
 
 #endif				/* _SWAP_PAGER_ */

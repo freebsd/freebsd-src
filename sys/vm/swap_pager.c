@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1998 Matthew Dillon,
  * Copyright (c) 1994 John S. Dyson
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
@@ -36,17 +37,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *				New Swap System
+ *				Matthew Dillon
+ *
+ * Radix Bitmap 'blists'.
+ *
+ *	- The new swapper uses the new radix bitmap code.  This should scale
+ *	  to arbitrarily small or arbitrarily large swap spaces and an almost
+ *	  arbitrary degree of fragmentation.
+ *
+ * Features:
+ *
+ *	- on the fly reallocation of swap during putpages.  The new system
+ *	  does not try to keep previously allocated swap blocks for dirty
+ *	  pages.  
+ *
+ *	- on the fly deallocation of swap
+ *
+ *	- No more garbage collection required.  Unnecessarily allocated swap
+ *	  blocks only exist for dirty vm_page_t's now and these are already
+ *	  cycled (in a high-load system) by the pager.  We also do on-the-fly
+ *	  removal of invalidated swap blocks when a page is destroyed
+ *	  or renamed.
+ *
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.106 1999/01/08 17:31:23 eivind Exp $
- */
-
-/*
- * Quick hack to page to dedicated partition(s).
- * TODO:
- *	Add multiprocessor locks
- *	Deal with async writes in a better fashion
+ *
+ * $Id: swap_pager.c,v 1.107 1999/01/10 01:58:28 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -57,18 +75,16 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/vmmeter.h>
-#include <sys/rlist.h>
+#include <sys/blist.h>
+#include <sys/lock.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
 #define MAX_PAGEOUT_CLUSTER 16
 #endif
 
-#ifndef NPENDINGIO
-#define NPENDINGIO	16
-#endif
+#define SWB_NPAGES	MAX_PAGEOUT_CLUSTER
 
-#define SWB_NPAGES MAX_PAGEOUT_CLUSTER
-
+#include "opt_swap.h"
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
@@ -77,848 +93,651 @@
 #include <vm/vm_pageout.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
-static int nswiodone;
-int swap_pager_full;
-extern int vm_swap_size;
-static int no_swap_space = 1;
-static int max_pageout_cluster;
-struct rlisthdr swaplist;
-
-TAILQ_HEAD(swpclean, swpagerclean);
-
-typedef struct swpagerclean *swp_clean_t;
-
-static struct swpagerclean {
-	TAILQ_ENTRY(swpagerclean) spc_list;
-	int spc_flags;
-	struct buf *spc_bp;
-	vm_object_t spc_object;
-	vm_offset_t spc_kva;
-	int spc_first;
-	int spc_count;
-	vm_page_t spc_m[MAX_PAGEOUT_CLUSTER];
-} swcleanlist[NPENDINGIO];
-
-
-/* spc_flags values */
-#define SPC_ERROR	0x01
-
-#define SWB_EMPTY (-1)
-
-/* list of completed page cleans */
-static struct swpclean swap_pager_done;
-
-/* list of pending page cleans */
-static struct swpclean swap_pager_inuse;
-
-/* list of free pager clean structs */
-static struct swpclean swap_pager_free;
-static int swap_pager_free_count;
-static int swap_pager_free_pending;
-
-/* list of "named" anon region objects */
-static struct pagerlst swap_pager_object_list;
-
-/* list of "unnamed" anon region objects */
-struct pagerlst swap_pager_un_object_list;
-
-#define	SWAP_FREE_NEEDED	0x1	/* need a swap block */
-#define SWAP_FREE_NEEDED_BY_PAGEOUT 0x2
-static int swap_pager_needflags;
-
-static struct pagerlst *swp_qs[] = {
-	&swap_pager_object_list, &swap_pager_un_object_list, (struct pagerlst *) 0
-};
+#define SWM_FREE	0x02	/* free, period			*/
+#define SWM_POP		0x04	/* pop out			*/
 
 /*
- * pagerops for OBJT_SWAP - "swap pager".
+ * vm_swap_size is in page-sized chunks now.  It was DEV_BSIZE'd chunks
+ * in the old system.
  */
+
+extern int vm_swap_size;	/* number of free swap blocks, in pages */
+
+int swap_pager_full;		/* swap space exhaustion (w/ hysteresis)*/
+static int nsw_rcount;		/* free read buffers			*/
+static int nsw_wcount;		/* free write buffers			*/
+static int nsw_hysteresis;	/* hysteresis				*/
+static int max_pageout_cluster;	/* maximum VOP I/O allowed		*/
+static int sw_alloc_interlock;	/* swap pager allocation interlock	*/
+
+struct blist *swapblist;
+static struct swblock **swhash;
+static int swhash_mask;
+
+
+/*
+ * "named" and "unnamed" anon region objects.  Try to reduce the overhead
+ * of searching a named list by hashing it just a little.
+ */
+
+#define NOBJLISTS		8
+
+#define NOBJLIST(handle)	\
+	(&swap_pager_object_list[((int)(long)handle >> 4) & (NOBJLISTS-1)])
+
+static struct pagerlst	swap_pager_object_list[NOBJLISTS];
+struct pagerlst		swap_pager_un_object_list;
+vm_zone_t		swap_zone;
+
+/*
+ * pagerops for OBJT_SWAP - "swap pager".  Some ops are also global procedure
+ * calls hooked from other parts of the VM system and do not appear here.
+ * (see vm/swap_pager.h).
+ */
+
 static vm_object_t
 		swap_pager_alloc __P((void *handle, vm_ooffset_t size,
 				      vm_prot_t prot, vm_ooffset_t offset));
 static void	swap_pager_dealloc __P((vm_object_t object));
-static boolean_t
-		swap_pager_haspage __P((vm_object_t object, vm_pindex_t pindex,
-					int *before, int *after));
 static int	swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static void	swap_pager_init __P((void));
-static void spc_free __P((swp_clean_t));
+static void	swap_pager_unswapped __P((vm_page_t));
 
 struct pagerops swappagerops = {
-	swap_pager_init,
-	swap_pager_alloc,
-	swap_pager_dealloc,
-	swap_pager_getpages,
-	swap_pager_putpages,
-	swap_pager_haspage,
-	swap_pager_sync
+	swap_pager_init,	/* early system initialization of pager	*/
+	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
+	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
+	swap_pager_getpages,	/* pagein				*/
+	swap_pager_putpages,	/* pageout				*/
+	swap_pager_haspage,	/* get backing store status for page	*/
+	swap_pager_unswapped	/* remove swap related to page		*/
 };
 
-static int npendingio;
-static int dmmin;
+/*
+ * dmmax is in page-sized chunks with the new swap system.  It was
+ * dev-bsized chunks in the old.
+ *
+ * swap_*() routines are externally accessible.  swp_*() routines are
+ * internal.
+ */
+
 int dmmax;
+static int dmmax_mask;
+int nswap_lowat = 128;		/* in pages, swap_pager_full warning	*/
+int nswap_hiwat = 256;		/* in pages, swap_pager_full warning	*/
 
-static int	swap_pager_block_index __P((vm_pindex_t pindex));
-static int	swap_pager_block_offset __P((vm_pindex_t pindex));
-static daddr_t *swap_pager_diskaddr __P((vm_object_t object,
-					  vm_pindex_t pindex, int *valid));
-static void	swap_pager_finish __P((swp_clean_t spc));
-static void	swap_pager_free_swap __P((vm_object_t object));
-static void	swap_pager_freeswapspace __P((vm_object_t object,
-					      unsigned int from,
-					      unsigned int to));
-static int	swap_pager_getswapspace __P((vm_object_t object,
-					     unsigned int amount,
-					     daddr_t *rtval));
-static void	swap_pager_iodone __P((struct buf *));
-static void	swap_pager_iodone1 __P((struct buf *bp));
-static void	swap_pager_reclaim __P((void));
-static void	swap_pager_ridpages __P((vm_page_t *m, int count,
-					 int reqpage));
-static void	swap_pager_setvalid __P((vm_object_t object,
-					 vm_offset_t offset, int valid));
-static __inline void	swapsizecheck __P((void));
+static __inline void	swp_sizecheck __P((void));
+static void	swp_pager_sync_iodone __P((struct buf *bp));
+static void	swp_pager_async_iodone __P((struct buf *bp));
 
-#define SWAPLOW (vm_swap_size < (512 * btodb(PAGE_SIZE)))
+/*
+ * Swap bitmap functions
+ */
+
+static __inline void	swp_pager_freeswapspace __P((daddr_t blk, int npages));
+static __inline daddr_t	swp_pager_getswapspace __P((int npages));
+
+/*
+ * Metadata functions
+ */
+
+static void swp_pager_meta_build __P((vm_object_t, daddr_t, daddr_t, int));
+static void swp_pager_meta_free __P((vm_object_t, daddr_t, daddr_t));
+static void swp_pager_meta_free_all __P((vm_object_t));
+static daddr_t swp_pager_meta_ctl __P((vm_object_t, vm_pindex_t, int));
+
+/*
+ * SWP_SIZECHECK() -	update swap_pager_full indication
+ *	
+ *	update the swap_pager_full indication and warn when we are
+ *	about to run out of swap space.
+ *
+ *	No restrictions on call
+ *	This routine may not block.
+ *	This routine must be called at splvm()
+ */
 
 static __inline void
-swapsizecheck()
+swp_sizecheck()
 {
-	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
+	if (vm_swap_size < nswap_lowat) {
 		if (swap_pager_full == 0)
 			printf("swap_pager: out of swap space\n");
 		swap_pager_full = 1;
-	} else if (vm_swap_size > 192 * btodb(PAGE_SIZE))
+	} else if (vm_swap_size > nswap_hiwat) {
 		swap_pager_full = 0;
+	}
 }
+
+/*
+ * SWAP_PAGER_INIT() -	initialize the swap pager!
+ *
+ *	Expected to be started from system init.  NOTE:  This code is run 
+ *	before much else so be careful what you depend on.  Most of the VM
+ *	system has yet to be initialized at this point.
+ */
 
 static void
 swap_pager_init()
 {
-	int maxsafepending;
-	TAILQ_INIT(&swap_pager_object_list);
+	/*
+	 * Initialize object lists
+	 */
+	int i;
+
+	for (i = 0; i < NOBJLISTS; ++i)
+		TAILQ_INIT(&swap_pager_object_list[i]);
 	TAILQ_INIT(&swap_pager_un_object_list);
 
 	/*
-	 * Initialize clean lists
+	 * Device Stripe, in PAGE_SIZE'd blocks
 	 */
-	TAILQ_INIT(&swap_pager_inuse);
-	TAILQ_INIT(&swap_pager_done);
-	TAILQ_INIT(&swap_pager_free);
-	swap_pager_free_count = 0;
 
-	/*
-	 * Calculate the swap allocation constants.
-	 */
-	dmmin = PAGE_SIZE / DEV_BSIZE;
-	dmmax = btodb(SWB_NPAGES * PAGE_SIZE) * 2;
-
-	maxsafepending = cnt.v_free_min - cnt.v_free_reserved;
-	npendingio = NPENDINGIO;
-	max_pageout_cluster = MAX_PAGEOUT_CLUSTER;
-
-	if ((2 * NPENDINGIO * MAX_PAGEOUT_CLUSTER) > maxsafepending) {
-		max_pageout_cluster = MAX_PAGEOUT_CLUSTER / 2;
-		npendingio = maxsafepending / (2 * max_pageout_cluster);
-		if (npendingio < 2)
-			npendingio = 2;
-	}
+	dmmax = SWB_NPAGES * 2;
+	dmmax_mask = ~(dmmax - 1);
 }
+
+/*
+ * SWAP_PAGER_SWAP_INIT() - swap pager initialization from pageout process
+ *
+ *	Expected to be started from pageout process once, prior to entering
+ *	its main loop.
+ */
 
 void
 swap_pager_swap_init()
 {
-	swp_clean_t spc;
-	struct buf *bp;
-	int i;
+	int n;
 
 	/*
-	 * kva's are allocated here so that we dont need to keep doing
-	 * kmem_alloc pageables at runtime
+	 * Number of in-transit swap bp operations.  Don't
+	 * exhaust the pbufs completely.  Make sure we
+	 * initialize workable values (0 will work for hysteresis
+	 * but it isn't very efficient).
+	 *
+	 * The max_pageout_cluster is constrained by the bp->b_pages[]
+	 * array (MAXPHYS/PAGE_SIZE) and our locally defined
+	 * MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
+	 * constrained by the swap device interleave stripe size.
 	 */
-	for (i = 0, spc = swcleanlist; i < npendingio; i++, spc++) {
-		spc->spc_kva = kmem_alloc_pageable(pager_map, PAGE_SIZE * max_pageout_cluster);
-		if (!spc->spc_kva) {
-			break;
-		}
-		spc->spc_bp = malloc(sizeof(*bp), M_TEMP, M_KERNEL);
-		if (!spc->spc_bp) {
-			kmem_free_wakeup(pager_map, spc->spc_kva, PAGE_SIZE);
-			break;
-		}
-		spc->spc_flags = 0;
-		TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
-		swap_pager_free_count++;
-	}
-}
 
-int
-swap_pager_swp_alloc(object, wait)
-	vm_object_t object;
-	int wait;
-{
-	sw_blk_t swb;
-	int nblocks;
-	int i, j;
+	nsw_rcount = (nswbuf + 1) / 2;
+	nsw_wcount = (nswbuf + 3) / 4;
+	nsw_hysteresis = nsw_wcount / 2;
+	max_pageout_cluster = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
 
-	nblocks = (object->size + SWB_NPAGES - 1) / SWB_NPAGES;
-	swb = malloc(nblocks * sizeof(*swb), M_VMPGDATA, wait);
-	if (swb == NULL)
-		return 1;
+	/*
+	 * Initialize our zone.  Right now I'm just guessing on the number
+	 * we need based on the number of pages in the system.  Each swblock
+	 * can hold 16 pages, so this is probably overkill.
+	 */
 
-	for (i = 0; i < nblocks; i++) {
-		swb[i].swb_valid = 0;
-		swb[i].swb_locked = 0;
-		for (j = 0; j < SWB_NPAGES; j++)
-			swb[i].swb_block[j] = SWB_EMPTY;
-	}
+	n = cnt.v_page_count * 2;
 
-	object->un_pager.swp.swp_nblocks = nblocks;
-	object->un_pager.swp.swp_allocsize = 0;
-	object->un_pager.swp.swp_blocks = swb;
-	object->un_pager.swp.swp_poip = 0;
+	swap_zone = zinit(
+	    "SWAPMETA", 
+	    sizeof(struct swblock), 
+	    n,
+	    ZONE_INTERRUPT, 
+	    1
+	);
 
-	if (object->handle != NULL) {
-		TAILQ_INSERT_TAIL(&swap_pager_object_list, object, pager_object_list);
-	} else {
-		TAILQ_INSERT_TAIL(&swap_pager_un_object_list, object, pager_object_list);
-	}
+	/*
+	 * Initialize our meta-data hash table.  The swapper does not need to
+	 * be quite as efficient as the VM system, so we do not use an 
+	 * oversized hash table.
+	 *
+	 * 	n: 		size of hash table, must be power of 2
+	 *	swhash_mask:	hash table index mask
+	 */
 
-	return 0;
+	for (n = 1; n < cnt.v_page_count / 4; n <<= 1)
+		;
+
+	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK);
+	bzero(swhash, sizeof(struct swblock *) * n);
+
+	swhash_mask = n - 1;
 }
 
 /*
- * Allocate an object and associated resources.
- * Note that if we are called from the pageout daemon (handle == NULL)
- * we should not wait for memory as it could resulting in deadlock.
+ * SWAP_PAGER_ALLOC() -	allocate a new OBJT_SWAP VM object and instantiate
+ *			its metadata structures.
+ *
+ *	This routine is called from the mmap and fork code to create a new
+ *	OBJT_SWAP object.  We do this by creating an OBJT_DEFAULT object
+ *	and then converting it with swp_pager_meta_build().
+ *
+ *	This routine may block in vm_object_allocate() and create a named
+ *	object lookup race, so we must interlock.   We must also run at
+ *	splvm() for the object lookup to handle races with interrupts, but
+ *	we do not have to maintain splvm() in between the lookup and the
+ *	add because (I believe) it is not possible to attempt to create
+ *	a new swap object w/handle when a default object with that handle
+ *	already exists.
  */
+
 static vm_object_t
 swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 vm_ooffset_t offset)
 {
 	vm_object_t object;
 
-	/*
-	 * If this is a "named" anonymous region, look it up and use the
-	 * object if it exists, otherwise allocate a new one.
-	 */
 	if (handle) {
-		object = vm_pager_object_lookup(&swap_pager_object_list, handle);
+		/*
+		 * Reference existing named region or allocate new one.  There
+		 * should not be a race here against swp_pager_meta_build()
+		 * as called from vm_page_remove() in regards to the lookup
+		 * of the handle.
+		 */
+
+		while (sw_alloc_interlock) {
+			sw_alloc_interlock = -1;
+			tsleep(&sw_alloc_interlock, PVM, "swpalc", 0);
+		}
+		sw_alloc_interlock = 1;
+
+		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
+
 		if (object != NULL) {
 			vm_object_reference(object);
 		} else {
-			/*
-			 * XXX - there is a race condition here. Two processes
-			 * can request the same named object simultaneuously,
-			 * and if one blocks for memory, the result is a disaster.
-			 * Probably quite rare, but is yet another reason to just
-			 * rip support of "named anonymous regions" out altogether.
-			 */
-			object = vm_object_allocate(OBJT_SWAP,
+			object = vm_object_allocate(OBJT_DEFAULT,
 				OFF_TO_IDX(offset + PAGE_MASK + size));
 			object->handle = handle;
-			(void) swap_pager_swp_alloc(object, M_WAITOK);
+
+			swp_pager_meta_build(
+			    object,
+			    0,
+			    SWAPBLK_NONE,
+			    0
+			);
 		}
+
+		if (sw_alloc_interlock < 0)
+			wakeup(&sw_alloc_interlock);
+
+		sw_alloc_interlock = 0;
 	} else {
-		object = vm_object_allocate(OBJT_SWAP,
+		object = vm_object_allocate(OBJT_DEFAULT,
 			OFF_TO_IDX(offset + PAGE_MASK + size));
-		(void) swap_pager_swp_alloc(object, M_WAITOK);
+
+		swp_pager_meta_build(
+		    object,
+		    0,
+		    SWAPBLK_NONE,
+		    0
+		);
 	}
 
 	return (object);
 }
 
 /*
- * returns disk block associated with pager and offset
- * additionally, as a side effect returns a flag indicating
- * if the block has been written
+ * SWAP_PAGER_DEALLOC() -	remove swap metadata from object
+ *
+ *	The swap backing for the object is destroyed.  The code is 
+ *	designed such that we can reinstantiate it later, but this
+ *	routine is typically called only when the entire object is
+ *	about to be destroyed.
+ *
+ *	This routine may block, but no longer does. 
+ *
+ *	The object must be locked or unreferenceable.
  */
 
-static __inline daddr_t *
-swap_pager_diskaddr(object, pindex, valid)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *valid;
-{
-	register sw_blk_t swb;
-	int ix;
-
-	if (valid)
-		*valid = 0;
-	ix = pindex / SWB_NPAGES;
-	if ((ix >= object->un_pager.swp.swp_nblocks) ||
-	    (pindex >= object->size)) {
-		return (FALSE);
-	}
-	swb = &object->un_pager.swp.swp_blocks[ix];
-	ix = pindex % SWB_NPAGES;
-	if (valid)
-		*valid = swb->swb_valid & (1 << ix);
-	return &swb->swb_block[ix];
-}
-
-/*
- * Utility routine to set the valid (written) bit for
- * a block associated with a pager and offset
- */
 static void
-swap_pager_setvalid(object, offset, valid)
+swap_pager_dealloc(object)
 	vm_object_t object;
-	vm_offset_t offset;
-	int valid;
 {
-	register sw_blk_t swb;
-	int ix;
+	/*
+	 * Remove from list right away so lookups will fail if we block for
+	 * pageout completion.
+	 */
 
-	ix = offset / SWB_NPAGES;
-	if (ix >= object->un_pager.swp.swp_nblocks)
-		return;
-
-	swb = &object->un_pager.swp.swp_blocks[ix];
-	ix = offset % SWB_NPAGES;
-	if (valid)
-		swb->swb_valid |= (1 << ix);
-	else
-		swb->swb_valid &= ~(1 << ix);
-	return;
-}
-
-/*
- * this routine allocates swap space with a fragmentation
- * minimization policy.
- */
-static int
-swap_pager_getswapspace(object, amount, rtval)
-	vm_object_t object;
-	unsigned int amount;
-	daddr_t *rtval;
-{
-	unsigned location;
-
-	vm_swap_size -= amount;
-		
-	if (!rlist_alloc(&swaplist, amount, &location)) {
-		vm_swap_size += amount;
-		return 0;
+	if (object->handle == NULL) {
+		TAILQ_REMOVE(&swap_pager_un_object_list, object, pager_object_list);
 	} else {
-		swapsizecheck();
-		object->un_pager.swp.swp_allocsize += amount;
-		*rtval = location;
-		return 1;
+		TAILQ_REMOVE(NOBJLIST(object->handle), object, pager_object_list);
 	}
+
+	vm_object_pip_wait(object, "swpdea");
+
+	/*
+	 * Free all remaining metadata.  We only bother to free it from 
+	 * the swap meta data.  We do not attempt to free swapblk's still
+	 * associated with vm_page_t's for this object.  We do not care
+	 * if paging is still in progress on some objects.
+	 */
+
+	swp_pager_meta_free_all(object);
+}
+
+/************************************************************************
+ *			SWAP PAGER BITMAP ROUTINES			*
+ ************************************************************************/
+
+/*
+ * SWP_PAGER_GETSWAPSPACE() -	allocate raw swap space
+ *
+ *	Allocate swap for the requested number of pages.  The starting
+ *	swap block number (a page index) is returned or SWAPBLK_NONE
+ *	if the allocation failed.
+ *
+ *	Also has the side effect of advising that somebody made a mistake
+ *	when they configured swap and didn't configure enough.
+ *
+ *	Must be called at splvm() to avoid races with bitmap frees from
+ *	vm_page_remove() aka swap_pager_page_removed().
+ *
+ *	This routine may not block
+ *	This routine must be called at splvm().
+ */
+
+static __inline daddr_t
+swp_pager_getswapspace(npages)
+	int npages;
+{
+	daddr_t blk;
+
+	if ((blk = blist_alloc(swapblist, npages)) == SWAPBLK_NONE) {
+		printf("swap_pager_getswapspace: failed\n");
+	} else {
+		vm_swap_size -= npages;
+		swp_sizecheck();
+	}
+	return(blk);
 }
 
 /*
- * this routine frees swap space with a fragmentation
- * minimization policy.
+ * SWP_PAGER_FREESWAPSPACE() -	free raw swap space 
+ *
+ *	This routine returns the specified swap blocks back to the bitmap.
+ *
+ *	Note:  This routine may not block (it could in the old swap code),
+ *	and through the use of the new blist routines it does not block.
+ *
+ *	We must be called at splvm() to avoid races with bitmap frees from
+ *	vm_page_remove() aka swap_pager_page_removed().
+ *
+ *	This routine may not block
+ *	This routine must be called at splvm().
  */
-static void
-swap_pager_freeswapspace(object, from, to)
-	vm_object_t object;
-	unsigned int from;
-	unsigned int to;
+
+static __inline void
+swp_pager_freeswapspace(blk, npages)
+	daddr_t blk;
+	int npages;
 {
-	rlist_free(&swaplist, from, to);
-	vm_swap_size += (to - from) + 1;
-	object->un_pager.swp.swp_allocsize -= (to - from) + 1;
-	swapsizecheck();
+	blist_free(swapblist, blk, npages);
+	vm_swap_size += npages;
+	swp_sizecheck();
 }
+
 /*
- * this routine frees swap blocks from a specified pager
+ * SWAP_PAGER_FREESPACE() -	frees swap blocks associated with a page
+ *				range within an object.
+ *
+ *	This is a globally accessible routine.
+ *
+ *	This routine removes swapblk assignments from swap metadata.
+ *
+ *	The external callers of this routine typically have already destroyed 
+ *	or renamed vm_page_t's associated with this range in the object so 
+ *	we should be ok.
  */
+
 void
 swap_pager_freespace(object, start, size)
 	vm_object_t object;
 	vm_pindex_t start;
 	vm_size_t size;
 {
-	vm_pindex_t i;
-	int s;
-
-	s = splvm();
-	for (i = start; i < start + size; i += 1) {
-		int valid;
-		daddr_t *addr = swap_pager_diskaddr(object, i, &valid);
-
-		if (addr && *addr != SWB_EMPTY) {
-			swap_pager_freeswapspace(object, *addr, *addr + btodb(PAGE_SIZE) - 1);
-			if (valid) {
-				swap_pager_setvalid(object, i, 0);
-			}
-			*addr = SWB_EMPTY;
-		}
-	}
-	splx(s);
+	swp_pager_meta_free(object, start, size);
 }
 
 /*
- * same as freespace, but don't free, just force a DMZ next time
- */
-void
-swap_pager_dmzspace(object, start, size)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_size_t size;
-{
-	vm_pindex_t i;
-	int s;
-
-	s = splvm();
-	for (i = start; i < start + size; i += 1) {
-		int valid;
-		daddr_t *addr = swap_pager_diskaddr(object, i, &valid);
-
-		if (addr && *addr != SWB_EMPTY) {
-			if (valid) {
-				swap_pager_setvalid(object, i, 0);
-			}
-		}
-	}
-	splx(s);
-}
-
-static void
-swap_pager_free_swap(object)
-	vm_object_t object;
-{
-	register int i, j;
-	register sw_blk_t swb;
-	int first_block=0, block_count=0;
-	int s;
-	/*
-	 * Free left over swap blocks
-	 */
-	swb = object->un_pager.swp.swp_blocks;
-	if (swb == NULL) {
-		return;
-	}
-
-	s = splvm();
-	for (i = 0; i < object->un_pager.swp.swp_nblocks; i++, swb++) {
-		for (j = 0; j < SWB_NPAGES; j++) {
-			if (swb->swb_block[j] != SWB_EMPTY) {
-				/*
-   				 * initially the length of the run is zero
-   				 */
-				if (block_count == 0) {
-					first_block = swb->swb_block[j];
-					block_count = btodb(PAGE_SIZE);
-					swb->swb_block[j] = SWB_EMPTY;
-				/*
-   				 * if the new block can be included into the current run
-   				 */
-				} else if (swb->swb_block[j] == first_block + block_count) {
-					block_count += btodb(PAGE_SIZE);
-					swb->swb_block[j] = SWB_EMPTY;
-				/*
-   				 * terminate the previous run, and start a new one
-   				 */
-				} else {
-					swap_pager_freeswapspace(object, first_block,
-   					(unsigned) first_block + block_count - 1);
-					first_block = swb->swb_block[j];
-					block_count = btodb(PAGE_SIZE);
-					swb->swb_block[j] = SWB_EMPTY;
-				}
-			}
-		}
-	}
-
-	if (block_count) {
-		swap_pager_freeswapspace(object, first_block,
-		   	 (unsigned) first_block + block_count - 1);
-	}
-	splx(s);
-}
-
-
-/*
- * swap_pager_reclaim frees up over-allocated space from all pagers
- * this eliminates internal fragmentation due to allocation of space
- * for segments that are never swapped to. It has been written so that
- * it does not block until the rlist_free operation occurs; it keeps
- * the queues consistant.
- */
-
-/*
- * Maximum number of blocks (pages) to reclaim per pass
- */
-#define MAXRECLAIM 128
-
-static void
-swap_pager_reclaim()
-{
-	vm_object_t object;
-	int i, j, k;
-	int s;
-	int reclaimcount;
-	static struct {
-		int address;
-		vm_object_t object;
-	} reclaims[MAXRECLAIM];
-	static int in_reclaim;
-
-	/*
-	 * allow only one process to be in the swap_pager_reclaim subroutine
-	 */
-	s = splvm();
-	if (in_reclaim) {
-		tsleep(&in_reclaim, PSWP, "swrclm", 0);
-		splx(s);
-		return;
-	}
-	in_reclaim = 1;
-	reclaimcount = 0;
-
-	/* for each pager queue */
-	for (k = 0; swp_qs[k]; k++) {
-
-		object = TAILQ_FIRST(swp_qs[k]);
-		while (object && (reclaimcount < MAXRECLAIM)) {
-
-			/*
-			 * see if any blocks associated with a pager has been
-			 * allocated but not used (written)
-			 */
-			if ((object->flags & OBJ_DEAD) == 0 &&
-				(object->paging_in_progress == 0)) {
-				for (i = 0; i < object->un_pager.swp.swp_nblocks; i++) {
-					sw_blk_t swb = &object->un_pager.swp.swp_blocks[i];
-
-					if (swb->swb_locked)
-						continue;
-					for (j = 0; j < SWB_NPAGES; j++) {
-						if (swb->swb_block[j] != SWB_EMPTY &&
-						    (swb->swb_valid & (1 << j)) == 0) {
-							reclaims[reclaimcount].address = swb->swb_block[j];
-							reclaims[reclaimcount++].object = object;
-							swb->swb_block[j] = SWB_EMPTY;
-							if (reclaimcount >= MAXRECLAIM)
-								goto rfinished;
-						}
-					}
-				}
-			}
-			object = TAILQ_NEXT(object, pager_object_list);
-		}
-	}
-
-rfinished:
-
-	/*
-	 * free the blocks that have been added to the reclaim list
-	 */
-	for (i = 0; i < reclaimcount; i++) {
-		swap_pager_freeswapspace(reclaims[i].object,
-		    reclaims[i].address, reclaims[i].address + btodb(PAGE_SIZE) - 1);
-	}
-	splx(s);
-	in_reclaim = 0;
-	wakeup(&in_reclaim);
-}
-
-
-/*
- * swap_pager_copy copies blocks from one pager to another and
- * destroys the source pager
+ * SWAP_PAGER_COPY() -  copy blocks from source pager to destination pager
+ *			and destroy the source.
+ *
+ *	Copy any valid swapblks from the source to the destination.  In
+ *	cases where both the source and destination have a valid swapblk,
+ *	we keep the destination's.
+ *
+ *	This routine is allowed to block.  It may block allocating metadata
+ *	indirectly through swp_pager_meta_build() or if paging is still in
+ *	progress on the source. 
+ *
+ *	XXX vm_page_collapse() kinda expects us not to block because we 
+ *	supposedly do not need to allocate memory, but for the moment we
+ *	*may* have to get a little memory from the zone allocator, but
+ *	it is taken from the interrupt memory.  We should be ok. 
+ *
+ *	The source object contains no vm_page_t's (which is just as well)
+ *
+ *	The source object is of type OBJT_SWAP.
+ *
+ *	The source and destination objects must be 
+ *	locked or inaccessible (XXX are they ???)
  */
 
 void
-swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset,
-	offset, destroysource)
+swap_pager_copy(srcobject, dstobject, offset, destroysource)
 	vm_object_t srcobject;
-	vm_pindex_t srcoffset;
 	vm_object_t dstobject;
-	vm_pindex_t dstoffset;
 	vm_pindex_t offset;
 	int destroysource;
 {
 	vm_pindex_t i;
-	int origsize;
-	int s;
-
-	if (vm_swap_size)
-		no_swap_space = 0;
-
-	origsize = srcobject->un_pager.swp.swp_allocsize;
 
 	/*
-	 * remove the source object from the swap_pager internal queue
+	 * If destroysource is set, we remove the source object from the 
+	 * swap_pager internal queue now. 
 	 */
+
 	if (destroysource) {
 		if (srcobject->handle == NULL) {
-			TAILQ_REMOVE(&swap_pager_un_object_list, srcobject, pager_object_list);
+			TAILQ_REMOVE(
+			    &swap_pager_un_object_list, 
+			    srcobject, 
+			    pager_object_list
+			);
 		} else {
-			TAILQ_REMOVE(&swap_pager_object_list, srcobject, pager_object_list);
+			TAILQ_REMOVE(
+			    NOBJLIST(srcobject->handle),
+			    srcobject,
+			    pager_object_list
+			);
 		}
 	}
 
-	s = splvm();
-	while (srcobject->un_pager.swp.swp_poip) {
-		tsleep(srcobject, PVM, "spgout", 0);
-	}
-
 	/*
-	 * clean all of the pages that are currently active and finished
+	 * transfer source to destination.
 	 */
-	if (swap_pager_free_pending)
-		swap_pager_sync();
 
-	/*
-	 * transfer source to destination
-	 */
-	for (i = 0; i < dstobject->size; i += 1) {
-		int srcvalid, dstvalid;
-		daddr_t *srcaddrp = swap_pager_diskaddr(srcobject,
-				i + offset + srcoffset, &srcvalid);
-		daddr_t *dstaddrp;
+	for (i = 0; i < dstobject->size; ++i) {
+		daddr_t dstaddr;
 
 		/*
-		 * see if the source has space allocated
+		 * Locate (without changing) the swapblk on the destination,
+		 * unless it is invalid in which case free it silently, or
+		 * if the destination is a resident page, in which case the
+		 * source is thrown away.
 		 */
-		if (srcaddrp && *srcaddrp != SWB_EMPTY) {
+
+		dstaddr = swp_pager_meta_ctl(dstobject, i, 0);
+
+		if (dstaddr == SWAPBLK_NONE) {
 			/*
-			 * if the source is valid and the dest has no space,
-			 * then copy the allocation from the srouce to the
-			 * dest.
+			 * Destination has no swapblk and is not resident,
+			 * copy source.
 			 */
-			if (srcvalid) {
-				dstaddrp = swap_pager_diskaddr(dstobject, i + dstoffset,
-							&dstvalid);
-				/*
-				 * if the dest already has a valid block,
-				 * deallocate the source block without
-				 * copying.
-				 */
-				if (!dstvalid && dstaddrp && *dstaddrp != SWB_EMPTY) {
-					swap_pager_freeswapspace(dstobject, *dstaddrp,
-						*dstaddrp + btodb(PAGE_SIZE) - 1);
-					*dstaddrp = SWB_EMPTY;
-				}
-				if (dstaddrp && *dstaddrp == SWB_EMPTY) {
-					*dstaddrp = *srcaddrp;
-					*srcaddrp = SWB_EMPTY;
-					dstobject->un_pager.swp.swp_allocsize += btodb(PAGE_SIZE);
-					srcobject->un_pager.swp.swp_allocsize -= btodb(PAGE_SIZE);
-					swap_pager_setvalid(dstobject, i + dstoffset, 1);
-				}
-			}
+			daddr_t srcaddr;
+
+			srcaddr = swp_pager_meta_ctl(
+			    srcobject, 
+			    i + offset,
+			    SWM_POP
+			);
+
+			if (srcaddr != SWAPBLK_NONE)
+				swp_pager_meta_build(dstobject, i, srcaddr, 1);
+		} else {
 			/*
-			 * if the source is not empty at this point, then
-			 * deallocate the space.
+			 * Destination has valid swapblk or it is represented
+			 * by a resident page.  We destroy the sourceblock.
 			 */
-			if (*srcaddrp != SWB_EMPTY) {
-				swap_pager_freeswapspace(srcobject, *srcaddrp,
-					*srcaddrp + btodb(PAGE_SIZE) - 1);
-				*srcaddrp = SWB_EMPTY;
-			}
+			
+			swp_pager_meta_ctl(srcobject, i + offset, SWM_FREE);
 		}
 	}
-	splx(s);
 
 	/*
-	 * Free left over swap blocks
+	 * Free left over swap blocks in source.
+	 *
+	 * We have to revert the type to OBJT_DEFAULT so we do not accidently
+	 * double-remove the object from the swap queues.
 	 */
+
 	if (destroysource) {
-		swap_pager_free_swap(srcobject);
-
-		if (srcobject->un_pager.swp.swp_allocsize) {
-			printf("swap_pager_copy: *warning* pager with %d blocks (orig: %d)\n",
-			    srcobject->un_pager.swp.swp_allocsize, origsize);
-		}
-
-		free(srcobject->un_pager.swp.swp_blocks, M_VMPGDATA);
-		srcobject->un_pager.swp.swp_blocks = NULL;
+		swp_pager_meta_free_all(srcobject);
+		/*
+		 * Reverting the type is not necessary, the caller is going
+		 * to destroy srcobject directly, but I'm doing it here
+		 * for consistancy since we've removed the object from its
+		 * queues.
+		 */
+		srcobject->type = OBJT_DEFAULT;
 	}
 	return;
 }
 
-static void
-swap_pager_dealloc(object)
-	vm_object_t object;
-{
-	int s;
-	sw_blk_t swb;
-
-	/*
-	 * Remove from list right away so lookups will fail if we block for
-	 * pageout completion.
-	 */
-	if (object->handle == NULL) {
-		TAILQ_REMOVE(&swap_pager_un_object_list, object, pager_object_list);
-	} else {
-		TAILQ_REMOVE(&swap_pager_object_list, object, pager_object_list);
-	}
-
-	/*
-	 * Wait for all pageouts to finish and remove all entries from
-	 * cleaning list.
-	 */
-
-	s = splvm();
-	while (object->un_pager.swp.swp_poip) {
-		tsleep(object, PVM, "swpout", 0);
-	}
-	splx(s);
-
-	if (swap_pager_free_pending)
-		swap_pager_sync();
-
-	/*
-	 * Free left over swap blocks
-	 */
-	swap_pager_free_swap(object);
-
-	if (object->un_pager.swp.swp_allocsize) {
-		printf("swap_pager_dealloc: *warning* freeing pager with %d blocks\n",
-		    object->un_pager.swp.swp_allocsize);
-	}
-	swb = object->un_pager.swp.swp_blocks;
-	if (swb) {
-		/*
-   		* Free swap management resources
-   		*/
-		free(swb, M_VMPGDATA);
-		object->un_pager.swp.swp_blocks = NULL;
-	}
-}
-
-static __inline int
-swap_pager_block_index(pindex)
-	vm_pindex_t pindex;
-{
-	return (pindex / SWB_NPAGES);
-}
-
-static __inline int
-swap_pager_block_offset(pindex)
-	vm_pindex_t pindex;
-{
-	return (pindex % SWB_NPAGES);
-}
-
 /*
- * swap_pager_haspage returns TRUE if the pager has data that has
- * been written out.
+ * SWAP_PAGER_HASPAGE() -	determine if we have good backing store for
+ *				the requested page.
+ *
+ *	We determine whether good backing store exists for the requested
+ *	page and return TRUE if it does, FALSE if it doesn't.
+ *
+ *	If TRUE, we also try to determine how much valid, contiguous backing
+ *	store exists before and after the requested page within a reasonable
+ *	distance.  We do not try to restrict it to the swap device stripe
+ *	(that is handled in getpages/putpages).  It probably isn't worth
+ *	doing here.
  */
-static boolean_t
+
+boolean_t
 swap_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
 	vm_pindex_t pindex;
 	int *before;
 	int *after;
 {
-	register sw_blk_t swb;
-	int ix;
+	daddr_t blk0;
 
-	if (before != NULL)
-		*before = 0;
-	if (after != NULL)
-		*after = 0;
-	ix = pindex / SWB_NPAGES;
-	if (ix >= object->un_pager.swp.swp_nblocks) {
+	/*
+	 * do we have good backing store at the requested index ?
+	 */
+
+	blk0 = swp_pager_meta_ctl(object, pindex, 0);
+
+	if (blk0 & SWAPBLK_NONE) {
+		if (before)
+			*before = 0;
+		if (after)
+			*after = 0;
 		return (FALSE);
 	}
-	swb = &object->un_pager.swp.swp_blocks[ix];
-	ix = pindex % SWB_NPAGES;
 
-	if (swb->swb_block[ix] != SWB_EMPTY) {
+	/*
+	 * find backwards-looking contiguous good backing store
+	 */
 
-		if (swb->swb_valid & (1 << ix)) {
-			int tix;
-			if (before) {
-				for(tix = ix - 1; tix >= 0; --tix) {
-					if ((swb->swb_valid & (1 << tix)) == 0)
-						break;
-					if ((swb->swb_block[tix] +
-						(ix - tix) * (PAGE_SIZE/DEV_BSIZE)) !=
-						swb->swb_block[ix])
-						break;
-					(*before)++;
-				}
-			}
+	if (before != NULL) {
+		int i;
 
-			if (after) {
-				for(tix = ix + 1; tix < SWB_NPAGES; tix++) {
-					if ((swb->swb_valid & (1 << tix)) == 0)
-						break;
-					if ((swb->swb_block[tix] -
-						(tix - ix) * (PAGE_SIZE/DEV_BSIZE)) !=
-						swb->swb_block[ix])
-						break;
-					(*after)++;
-				}
-			}
+		for (i = 1; i < (SWB_NPAGES/2); ++i) {
+			daddr_t blk;
 
-			return TRUE;
+			if (i > pindex)
+				break;
+			blk = swp_pager_meta_ctl(object, pindex - i, 0);
+			if (blk & SWAPBLK_NONE)
+				break;
+			if (blk != blk0 - i)
+				break;
 		}
+		*before = (i - 1);
 	}
-	return (FALSE);
-}
 
-/*
- * Wakeup based upon spc state
- */
-static void
-spc_wakeup(void)
-{
-	if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT) {
-		swap_pager_needflags &= ~SWAP_FREE_NEEDED_BY_PAGEOUT;
-		wakeup(&swap_pager_needflags);
-	} else if ((swap_pager_needflags & SWAP_FREE_NEEDED) &&
-		swap_pager_free_count >= ((2 * npendingio) / 3)) {
-		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
-		wakeup(&swap_pager_free);
-	}
-}
+	/*
+	 * find forward-looking contiguous good backing store
+	 */
 
-/*
- * Free an spc structure
- */
-static void
-spc_free(spc)
-	swp_clean_t spc;
-{
-	spc->spc_flags = 0;
-	TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
-	swap_pager_free_count++;
-	if (swap_pager_needflags) {
-		spc_wakeup();
-	}
-}
+	if (after != NULL) {
+		int i;
 
-/*
- * swap_pager_ridpages is a convienience routine that deallocates all
- * but the required page.  this is usually used in error returns that
- * need to invalidate the "extra" readahead pages.
- */
-static void
-swap_pager_ridpages(m, count, reqpage)
-	vm_page_t *m;
-	int count;
-	int reqpage;
-{
-	int i;
+		for (i = 1; i < (SWB_NPAGES/2); ++i) {
+			daddr_t blk;
 
-	for (i = 0; i < count; i++) {
-		if (i != reqpage) {
-			vm_page_free(m[i]);
+			blk = swp_pager_meta_ctl(object, pindex + i, 0);
+			if (blk & SWAPBLK_NONE)
+				break;
+			if (blk != blk0 + i)
+				break;
 		}
+		*after = (i - 1);
 	}
+
+	return (TRUE);
 }
 
 /*
- * swap_pager_iodone1 is the completion routine for both reads and async writes
+ * SWAP_PAGER_PAGE_UNSWAPPED() - remove swap backing store related to page
+ *
+ *	This removes any associated swap backing store, whether valid or
+ *	not, from the page.  
+ *
+ *	This routine is typically called when a page is made dirty, at
+ *	which point any associated swap can be freed.  MADV_FREE also
+ *	calls us in a special-case situation
+ *
+ *	NOTE!!!  If the page is clean and the swap was valid, the caller
+ *	should make the page dirty before calling this routine.  This routine
+ *	does NOT change the m->dirty status of the page.  Also: MADV_FREE
+ *	depends on it.
+ *
+ *	This routine may not block
  */
+
 static void
-swap_pager_iodone1(bp)
-	struct buf *bp;
+swap_pager_unswapped(m)
+	vm_page_t m;
 {
-	bp->b_flags |= B_DONE;
-	bp->b_flags &= ~B_ASYNC;
-	wakeup(bp);
+	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
+
+/*
+ * SWAP_PAGER_GETPAGES() - bring pages in from swap
+ *
+ *	Attempt to retrieve (m, count) pages from backing store, but make
+ *	sure we retrieve at least m[reqpage].  We try to load in as large
+ *	a chunk surrounding m[reqpage] as is contiguous in swap and which
+ *	belongs to the same object.
+ *
+ *	The code is designed for asynchronous operation and 
+ *	immediate-notification of 'reqpage' but tends not to be
+ *	used that way.  Please do not optimize-out this algorithmic
+ *	feature, I intend to improve on it in the future.
+ *
+ *	The parent has a single vm_object_pip_add() reference prior to
+ *	calling us and we should return with the same.
+ *
+ *	The parent has BUSY'd the pages.  We should return with 'm'
+ *	left busy, but the others adjusted.
+ */
 
 static int
 swap_pager_getpages(object, m, count, reqpage)
@@ -926,207 +745,234 @@ swap_pager_getpages(object, m, count, reqpage)
 	vm_page_t *m;
 	int count, reqpage;
 {
-	register struct buf *bp;
-	sw_blk_t swb[count];
-	register int s;
+	struct buf *bp;
+	vm_page_t mreq;
+	int s;
 	int i;
-	boolean_t rv;
-	vm_offset_t kva, off[count];
-	vm_pindex_t paging_offset;
-	int reqaddr[count];
-	int sequential;
+	int j;
+	daddr_t blk;
+	vm_offset_t kva;
+	vm_pindex_t lastpindex;
 
-	int first, last;
-	int failed;
-	int reqdskregion;
+	mreq = m[reqpage];
 
-	object = m[reqpage]->object;
-	paging_offset = OFF_TO_IDX(object->paging_offset);
-	sequential = (m[reqpage]->pindex == (object->last_read + 1));
-
-	for (i = 0; i < count; i++) {
-		vm_pindex_t fidx = m[i]->pindex + paging_offset;
-		int ix = swap_pager_block_index(fidx);
-
-		if (ix >= object->un_pager.swp.swp_nblocks) {
-			int j;
-
-			if (i <= reqpage) {
-				swap_pager_ridpages(m, count, reqpage);
-				return (VM_PAGER_FAIL);
-			}
-			for (j = i; j < count; j++) {
-				vm_page_free(m[j]);
-			}
-			count = i;
-			break;
-		}
-		swb[i] = &object->un_pager.swp.swp_blocks[ix];
-		off[i] = swap_pager_block_offset(fidx);
-		reqaddr[i] = swb[i]->swb_block[off[i]];
+#if !defined(MAX_PERF)
+	if (mreq->object != object) {
+		panic("swap_pager_getpages: object mismatch %p/%p", 
+		    object, 
+		    mreq->object
+		);
 	}
-
-	/* make sure that our required input request is existant */
-
-	if (reqaddr[reqpage] == SWB_EMPTY ||
-	    (swb[reqpage]->swb_valid & (1 << off[reqpage])) == 0) {
-		swap_pager_ridpages(m, count, reqpage);
-		return (VM_PAGER_FAIL);
-	}
-	reqdskregion = reqaddr[reqpage] / dmmax;
-
+#endif
 	/*
-	 * search backwards for the first contiguous page to transfer
+	 * Calculate range to retrieve.  The pages have already been assigned
+	 * their swapblks.  We require a *contiguous* range that falls entirely
+	 * within a single device stripe.   If we do not supply it, bad things
+	 * happen.
 	 */
-	failed = 0;
-	first = 0;
+
+
+	blk = swp_pager_meta_ctl(mreq->object, mreq->pindex, 0);
+
 	for (i = reqpage - 1; i >= 0; --i) {
-		if (sequential || failed || (reqaddr[i] == SWB_EMPTY) ||
-		    (swb[i]->swb_valid & (1 << off[i])) == 0 ||
-		    (reqaddr[i] != (reqaddr[reqpage] + (i - reqpage) * btodb(PAGE_SIZE))) ||
-		    ((reqaddr[i] / dmmax) != reqdskregion)) {
-			failed = 1;
-			vm_page_free(m[i]);
-			if (first == 0)
-				first = i + 1;
-		}
+		daddr_t iblk;
+
+		iblk = swp_pager_meta_ctl(m[i]->object, m[i]->pindex, 0);
+		if (iblk & SWAPBLK_NONE)
+			break;
+
+		if ((blk ^ iblk) & dmmax_mask)
+			break;
+
+		if (blk != iblk + (reqpage - i))
+			break;
 	}
+	++i;
+
+	for (j = reqpage + 1; j < count; ++j) {
+		daddr_t jblk;
+
+		jblk = swp_pager_meta_ctl(m[j]->object, m[j]->pindex, 0);
+		if (jblk & SWAPBLK_NONE)
+			break;
+
+		if ((blk ^ jblk) & dmmax_mask)
+			break;
+
+		if (blk != jblk - (j - reqpage))
+			break;
+	}
+
 	/*
-	 * search forwards for the last contiguous page to transfer
+	 * If blk itself is bad, well, we can't do any I/O.  This should
+	 * already be covered as a side effect, but I'm making sure.
 	 */
-	failed = 0;
-	last = count;
-	for (i = reqpage + 1; i < count; i++) {
-		if (failed || (reqaddr[i] == SWB_EMPTY) ||
-		    (swb[i]->swb_valid & (1 << off[i])) == 0 ||
-		    (reqaddr[i] != (reqaddr[reqpage] + (i - reqpage) * btodb(PAGE_SIZE))) ||
-		    ((reqaddr[i] / dmmax) != reqdskregion)) {
-			failed = 1;
-			vm_page_free(m[i]);
-			if (last == count)
-				last = i;
+
+	if (blk & SWAPBLK_NONE) {
+		i = reqpage;
+		j = reqpage + 1;
+	}
+
+	/*
+	 * free pages outside our collection range.   Note: we never free
+	 * mreq, it must remain busy throughout.
+	 */
+
+	{
+		int k;
+
+		for (k = 0; k < i; ++k) {
+			vm_page_free(m[k]);
+		}
+		for (k = j; k < count; ++k) {
+			vm_page_free(m[k]);
 		}
 	}
 
-	count = last;
-	if (first != 0) {
-		for (i = first; i < count; i++) {
-			m[i - first] = m[i];
-			reqaddr[i - first] = reqaddr[i];
-			off[i - first] = off[i];
-		}
-		count -= first;
-		reqpage -= first;
-	}
-	++swb[reqpage]->swb_locked;
-
 	/*
-	 * at this point: "m" is a pointer to the array of vm_page_t for
-	 * paging I/O "count" is the number of vm_page_t entries represented
-	 * by "m" "object" is the vm_object_t for I/O "reqpage" is the index
-	 * into "m" for the page actually faulted
+	 * Return VM_PAGER_FAIL if we have nothing
+	 * to do.  Return mreq still busy, but the
+	 * others unbusied.
 	 */
+
+	if (blk & SWAPBLK_NONE)
+		return(VM_PAGER_FAIL);
+
 
 	/*
 	 * Get a swap buffer header to perform the IO
 	 */
-	bp = getpbuf();
+
+	bp = getpbuf(&nsw_rcount);
 	kva = (vm_offset_t) bp->b_data;
 
 	/*
 	 * map our page(s) into kva for input
+	 *
+	 * NOTE: B_PAGING is set by pbgetvp()
 	 */
-	pmap_qenter(kva, m, count);
 
-	bp->b_flags = B_BUSY | B_READ | B_CALL | B_PAGING;
-	bp->b_iodone = swap_pager_iodone1;
+	pmap_qenter(kva, m + i, j - i);
+
+	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
 	crhold(bp->b_rcred);
 	crhold(bp->b_wcred);
 	bp->b_data = (caddr_t) kva;
-	bp->b_blkno = reqaddr[0];
-	bp->b_bcount = PAGE_SIZE * count;
-	bp->b_bufsize = PAGE_SIZE * count;
+	/*
+	 * b_blkno is in page-sized chunks.  swapblk is valid, too, so
+	 * we don't have to mask it against SWAPBLK_MASK.
+	 */
+	bp->b_blkno = blk - (reqpage - i);
+	bp->b_bcount = PAGE_SIZE * (j - i);
+	bp->b_bufsize = PAGE_SIZE * (j - i);
+	bp->b_pager.pg_reqpage = reqpage - i;
+
+	{
+		int k;
+
+		for (k = i; k < j; ++k) {
+			bp->b_pages[k - i] = m[k];
+			vm_page_flag_set(m[k], PG_SWAPINPROG);
+		}
+	}
+	bp->b_npages = j - i;
 
 	pbgetvp(swapdev_vp, bp);
 
 	cnt.v_swapin++;
-	cnt.v_swappgsin += count;
+	cnt.v_swappgsin += bp->b_npages;
+
 	/*
-	 * perform the I/O
+	 * We still hold the lock on mreq, and our automatic completion routine
+	 * does not remove it.
 	 */
+
+	vm_object_pip_add(mreq->object, bp->b_npages);
+	lastpindex = m[j-1]->pindex;
+
+	/*
+	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
+	 * this point because we automatically release it on completion.
+	 * Instead, we look at the one page we are interested in which we
+	 * still hold a lock on even through the I/O completion.
+	 *
+	 * The other pages in our m[] array are also released on completion,
+	 * so we cannot assume they are valid anymore either.
+	 *
+	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+	 */
+
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
-	 * wait for the sync I/O to complete
+	 * wait for the page we want to complete.  PG_SWAPINPROG is always
+	 * cleared on completion.  If an I/O error occurs, SWAPBLK_NONE
+	 * is set in the meta-data.
 	 */
-	s = splvm();
-	while ((bp->b_flags & B_DONE) == 0) {
-		if (tsleep(bp, PVM, "swread", hz*20)) {
-			printf(
-"swap_pager: indefinite wait buffer: device: %#lx, blkno: %ld, size: %ld\n",
-			    (u_long)bp->b_dev, (long)bp->b_blkno,
-			    (long)bp->b_bcount);
-		}
-	}
 
-	if (bp->b_flags & B_ERROR) {
-		printf(
-"swap_pager: I/O error - pagein failed; blkno %ld, size %ld, error %d\n",
-		    (long)bp->b_blkno, (long)bp->b_bcount, bp->b_error);
-		rv = VM_PAGER_ERROR;
-	} else {
-		rv = VM_PAGER_OK;
+	s = splvm();
+
+	while ((mreq->flags & PG_SWAPINPROG) != 0) {
+		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
+		cnt.v_intrans++;
+		if (tsleep(mreq, PSWP, "swread", hz*20)) {
+			printf(
+			    "swap_pager: indefinite wait buffer: device:"
+				" %#lx, blkno: %ld, size: %ld\n",
+			    (u_long)bp->b_dev, (long)bp->b_blkno,
+			    (long)bp->b_bcount
+			);
+		}
 	}
 
 	splx(s);
-	swb[reqpage]->swb_locked--;
 
 	/*
-	 * remove the mapping for kernel virtual
+	 * mreq is left bussied after completion, but all the other pages
+	 * are freed.  If we had an unrecoverable read error the page will
+	 * not be valid.
 	 */
-	pmap_qremove(kva, count);
 
-	/*
-	 * release the physical I/O buffer
-	 */
-	relpbuf(bp);
-	/*
-	 * finish up input if everything is ok
-	 */
-	if (rv == VM_PAGER_OK) {
-		for (i = 0; i < count; i++) {
-			m[i]->dirty = 0;
-			vm_page_flag_clear(m[i], PG_ZERO);
-			if (i != reqpage) {
-				/*
-				 * whether or not to leave the page
-				 * activated is up in the air, but we
-				 * should put the page on a page queue
-				 * somewhere. (it already is in the
-				 * object). After some emperical
-				 * results, it is best to deactivate
-				 * the readahead pages.
-				 */
-				vm_page_deactivate(m[i]);
-
-				/*
-				 * just in case someone was asking for
-				 * this page we now tell them that it
-				 * is ok to use
-				 */
-				m[i]->valid = VM_PAGE_BITS_ALL;
-				vm_page_wakeup(m[i]);
-			}
-		}
-
-		m[reqpage]->object->last_read = m[count-1]->pindex;
+	if (mreq->valid != VM_PAGE_BITS_ALL) {
+		return(VM_PAGER_ERROR);
 	} else {
-		swap_pager_ridpages(m, count, reqpage);
+		mreq->object->last_read = lastpindex;
+		return(VM_PAGER_OK);
 	}
-	return (rv);
+
+	/*
+	 * A final note: in a low swap situation, we cannot deallocate swap
+	 * and mark a page dirty here because the caller is likely to mark
+	 * the page clean when we return, causing the page to possibly revert 
+	 * to all-zero's later.
+	 */
 }
+
+/*
+ *	swap_pager_putpages: 
+ *
+ *	Assign swap (if necessary) and initiate I/O on the specified pages.
+ *
+ *	We support both OBJT_DEFAULT and OBJT_SWAP objects.  DEFAULT objects
+ *	are automatically converted to SWAP objects.
+ *
+ *	In a low memory situation we may block in VOP_STRATEGY(), but the new 
+ *	vm_page reservation system coupled with properly written VFS devices 
+ *	should ensure that no low-memory deadlock occurs.  This is an area
+ *	which needs work.
+ *
+ *	The parent has N vm_object_pip_add() references prior to
+ *	calling us and will remove references for rtvals[] that are
+ *	not set to VM_PAGER_PEND.  We need to remove the rest on I/O
+ *	completion.
+ *
+ *	The parent has soft-busy'd the pages it passes us and will unbusy
+ *	those whos rtvals[] entry is not set to VM_PAGER_PEND on return.
+ *	We need to unbusy the rest on I/O completion.
+ */
 
 int
 swap_pager_putpages(object, m, count, sync, rtvals)
@@ -1136,534 +982,749 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	boolean_t sync;
 	int *rtvals;
 {
-	register struct buf *bp;
-	sw_blk_t swb[count];
-	register int s;
-	int i, j, ix, firstidx, lastidx;
-	boolean_t rv;
-	vm_offset_t kva, off, fidx;
-	swp_clean_t spc;
-	vm_pindex_t paging_pindex;
-	int reqaddr[count];
-	int failed;
+	int i;
+	int n = 0;
+	int grv = VM_PAGER_OK;
 
-	if (vm_swap_size)
-		no_swap_space = 0;
+#if !defined(MAX_PERF)
+	if (count && m[0]->object != object) {
+		panic("swap_pager_getpages: object mismatch %p/%p", 
+		    object, 
+		    m[0]->object
+		);
+	}
+#endif
+	/*
+	 * Step 1
+	 *
+	 * Turn object into OBJT_SWAP
+	 * check for bogus sysops
+	 * force sync if not pageout process
+	 */
 
-	if (no_swap_space) {
-		for (i = 0; i < count; i++)
-			rtvals[i] = VM_PAGER_FAIL;
-		return VM_PAGER_FAIL;
+	if (object->type != OBJT_SWAP) {
+		swp_pager_meta_build(object, 0, SWAPBLK_NONE, 0);
 	}
 
 	if (curproc != pageproc)
 		sync = TRUE;
 
-	object = m[0]->object;
-	paging_pindex = OFF_TO_IDX(object->paging_offset);
-
-	failed = 0;
-	for (j = 0; j < count; j++) {
-		fidx = m[j]->pindex + paging_pindex;
-		ix = swap_pager_block_index(fidx);
-		swb[j] = 0;
-		if (ix >= object->un_pager.swp.swp_nblocks) {
-			rtvals[j] = VM_PAGER_FAIL;
-			failed = 1;
-			continue;
-		} else {
-			rtvals[j] = VM_PAGER_OK;
-		}
-		swb[j] = &object->un_pager.swp.swp_blocks[ix];
-		swb[j]->swb_locked++;
-		if (failed) {
-			rtvals[j] = VM_PAGER_FAIL;
-			continue;
-		}
-		off = swap_pager_block_offset(fidx);
-		reqaddr[j] = swb[j]->swb_block[off];
-		if (reqaddr[j] == SWB_EMPTY) {
-			daddr_t blk;
-			int tries;
-			int ntoget;
-
-			tries = 0;
-			s = splvm();
-
-			/*
-			 * if any other pages have been allocated in this
-			 * block, we only try to get one page.
-			 */
-			for (i = 0; i < SWB_NPAGES; i++) {
-				if (swb[j]->swb_block[i] != SWB_EMPTY)
-					break;
-			}
-
-			ntoget = (i == SWB_NPAGES) ? SWB_NPAGES : 1;
-			/*
-			 * this code is alittle conservative, but works (the
-			 * intent of this code is to allocate small chunks for
-			 * small objects)
-			 */
-			if ((off == 0) && ((fidx + ntoget) > object->size)) {
-				ntoget = object->size - fidx;
-			}
-	retrygetspace:
-			if (!swap_pager_full && ntoget > 1 &&
-			    swap_pager_getswapspace(object, ntoget * btodb(PAGE_SIZE),
-				&blk)) {
-
-				for (i = 0; i < ntoget; i++) {
-					swb[j]->swb_block[i] = blk + btodb(PAGE_SIZE) * i;
-					swb[j]->swb_valid = 0;
-				}
-
-				reqaddr[j] = swb[j]->swb_block[off];
-			} else if (!swap_pager_getswapspace(object, btodb(PAGE_SIZE),
-				&swb[j]->swb_block[off])) {
-				/*
-				 * if the allocation has failed, we try to
-				 * reclaim space and retry.
-				 */
-				if (++tries == 1) {
-					swap_pager_reclaim();
-					goto retrygetspace;
-				}
-				rtvals[j] = VM_PAGER_AGAIN;
-				failed = 1;
-				swap_pager_full = 1;
-			} else {
-				reqaddr[j] = swb[j]->swb_block[off];
-				swb[j]->swb_valid &= ~(1 << off);
-			}
-			splx(s);
-		}
-	}
-
 	/*
-	 * search forwards for the last contiguous page to transfer
+	 * Step 2
+	 *
+	 * Assign swap blocks and issue I/O.  We reallocate swap on the fly.
+	 * The page is left dirty until the pageout operation completes
+	 * successfully.
 	 */
-	failed = 0;
-	for (i = 0; i < count; i++) {
-		if (failed ||
-			(reqaddr[i] != reqaddr[0] + i * btodb(PAGE_SIZE)) ||
-		    ((reqaddr[i] / dmmax) != (reqaddr[0] / dmmax)) ||
-		    (rtvals[i] != VM_PAGER_OK)) {
-			failed = 1;
-			if (rtvals[i] == VM_PAGER_OK)
-				rtvals[i] = VM_PAGER_AGAIN;
-		}
-	}
 
-	ix = 0;
-	firstidx = -1;
-	for (i = 0; i < count; i++) {
-		if (rtvals[i] == VM_PAGER_OK) {
-			ix++;
-			if (firstidx == -1) {
-				firstidx = i;
-			}
-		} else if (firstidx >= 0) {
-			break;
-		}
-	}
+	for (i = 0; i < count; i += n) {
+		int s;
+		int j;
+		struct buf *bp;
+		daddr_t blk;
 
-	if (firstidx == -1) {
-		for (i = 0; i < count; i++) {
-			if (rtvals[i] == VM_PAGER_OK)
-				rtvals[i] = VM_PAGER_AGAIN;
-		}
-		return VM_PAGER_AGAIN;
-	}
-
-	lastidx = firstidx + ix;
-
-	if (ix > max_pageout_cluster) {
-		for (i = firstidx + max_pageout_cluster; i < lastidx; i++) {
-			if (rtvals[i] == VM_PAGER_OK)
-				rtvals[i] = VM_PAGER_AGAIN;
-		}
-		ix = max_pageout_cluster;
-		lastidx = firstidx + ix;
-	}
-
-	for (i = 0; i < firstidx; i++) {
-		if (swb[i])
-			swb[i]->swb_locked--;
-	}
-
-	for (i = lastidx; i < count; i++) {
-		if (swb[i])
-			swb[i]->swb_locked--;
-	}
-
-#ifdef INVARIANTS
-	for (i = firstidx; i < lastidx; i++) {
-		if (reqaddr[i] == SWB_EMPTY) {
-			printf("I/O to empty block???? -- pindex: %d, i: %d\n",
-				m[i]->pindex, i);
-		}
-	}
-#endif
-
-	/*
-	 * Clean up all completed async pageouts.
-	 */
-	if (swap_pager_free_pending)
-		swap_pager_sync();
-
-	/*
-	 * get a swap pager clean data structure, block until we get it
-	 */
-	if (curproc == pageproc) {
-		if (swap_pager_free_count == 0) {
-			s = splvm();
-			while (swap_pager_free_count == 0) {
-				swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
-			/*
-			 * if it does not get one within a short time, then
-			 * there is a potential deadlock, so we go-on trying
-			 * to free pages.  It is important to block here as opposed
-			 * to returning, thereby allowing the pageout daemon to continue.
-			 * It is likely that pageout daemon will start suboptimally
-			 * reclaiming vnode backed pages if we don't block.  Since the
-			 * I/O subsystem is probably already fully utilized, might as
-			 * well wait.
-			 */
-				if (tsleep(&swap_pager_needflags, PVM-1, "swpfre", hz/2)) {
-					if (swap_pager_free_pending)
-						swap_pager_sync();
-					if (swap_pager_free_count == 0) {
-						for (i = firstidx; i < lastidx; i++) {
-							rtvals[i] = VM_PAGER_AGAIN;
-						}
-						splx(s);
-						return VM_PAGER_AGAIN;
-					}
-				} else {
-					swap_pager_sync();
-				}
-			}
-			splx(s);
-		}
-
-		spc = TAILQ_FIRST(&swap_pager_free);
-		KASSERT(spc != NULL,
-		    ("swap_pager_putpages: free queue is empty, %d expected\n",
-		    swap_pager_free_count));
-		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
-		swap_pager_free_count--;
-
-		kva = spc->spc_kva;
-		bp = spc->spc_bp;
-		bzero(bp, sizeof *bp);
-		bp->b_spc = spc;
-		bp->b_xflags = 0;
-		bp->b_data = (caddr_t) kva;
-	} else {
-		spc = NULL;
-		bp = getpbuf();
-		kva = (vm_offset_t) bp->b_data;
-		bp->b_spc = NULL;
-	}
-
-	/*
-	 * map our page(s) into kva for I/O
-	 */
-	pmap_qenter(kva, &m[firstidx], ix);
-
-	/*
-	 * get the base I/O offset into the swap file
-	 */
-	for (i = firstidx; i < lastidx ; i++) {
-		fidx = m[i]->pindex + paging_pindex;
-		off = swap_pager_block_offset(fidx);
 		/*
-		 * set the valid bit
+		 * Maximum I/O size is limited by a number of factors.
 		 */
-		swb[i]->swb_valid |= (1 << off);
+
+		n = min(BLIST_MAX_ALLOC, count - i);
+		n = min(n, max_pageout_cluster);
+
 		/*
-		 * and unlock the data structure
+		 * Get biggest block of swap we can.  If we fail, fall
+		 * back and try to allocate a smaller block.  Don't go
+		 * overboard trying to allocate space if it would overly
+		 * fragment swap.
 		 */
-		swb[i]->swb_locked--;
+		while (
+		    (blk = swp_pager_getswapspace(n)) == SWAPBLK_NONE &&
+		    n > 4
+		) {
+			n >>= 1;
+		}
+		if (blk == SWAPBLK_NONE) {
+			for (j = 0; j < n; ++j) {
+				rtvals[i+j] = VM_PAGER_FAIL;
+			}
+			grv = VM_PAGER_FAIL;
+			continue;
+		}
+
+		/*
+		 * Oops, too big if it crosses a stripe
+		 *
+		 * 1111000000
+		 *     111111
+		 *    1000001
+		 */
+		if ((blk ^ (blk + n)) & dmmax_mask) {
+			j = ((blk + dmmax) & dmmax_mask) - blk;
+			swp_pager_freeswapspace(blk + j, n - j);
+			n = j;
+		}
+
+		/*
+		 * All I/O parameters have been satisfied, build the I/O
+		 * request and assign the swap space.
+		 *
+		 * NOTE: B_PAGING is set by pbgetvp()
+		 */
+
+		bp = getpbuf(&nsw_wcount);
+		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
+
+		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
+
+		bp->b_flags = B_BUSY | B_ASYNC;
+		bp->b_proc = &proc0; /* XXX (but without B_PHYS this is ok) */
+		bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+
+		if (bp->b_rcred != NOCRED)
+			crhold(bp->b_rcred);
+		if (bp->b_wcred != NOCRED)
+			crhold(bp->b_wcred);
+		pbgetvp(swapdev_vp, bp);
+
+		bp->b_bcount = PAGE_SIZE * n;
+		bp->b_bufsize = PAGE_SIZE * n;
+		bp->b_blkno = blk;
+
+		s = splvm();
+
+		for (j = 0; j < n; ++j) {
+			vm_page_t mreq = m[i+j];
+
+			swp_pager_meta_build(
+			    mreq->object, 
+			    mreq->pindex,
+			    blk + j,
+			    0
+			);
+			mreq->dirty = VM_PAGE_BITS_ALL;
+			rtvals[i+j] = VM_PAGER_OK;
+
+			vm_page_flag_set(mreq, PG_SWAPINPROG);
+			bp->b_pages[j] = mreq;
+		}
+		bp->b_flags |= B_CALL;
+		bp->b_npages = n;
+
+		cnt.v_swapout++;
+		cnt.v_swappgsout += bp->b_npages;
+		swapdev_vp->v_numoutput++;
+
+		/*
+		 * asynchronous
+		 *
+		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 */
+
+		if (sync == FALSE) {
+			bp->b_iodone = swp_pager_async_iodone;
+			bp->b_dirtyoff = 0;
+			bp->b_dirtyend = bp->b_bcount;
+			VOP_STRATEGY(bp->b_vp, bp);
+
+			for (j = 0; j < n; ++j)
+				rtvals[i+j] = VM_PAGER_PEND;
+
+			splx(s);
+			grv = VM_PAGER_PEND;
+			continue;
+		}
+
+		/*
+		 * synchronous
+		 *
+		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 */
+
+		bp->b_iodone = swp_pager_sync_iodone;
+		VOP_STRATEGY(bp->b_vp, bp);
+
+		/*
+		 * Wait for the sync I/O to complete, then update rtvals.
+		 * We just set the rtvals[] to VM_PAGER_PEND so we can call
+		 * our async completion routine at the end, thus avoiding a
+		 * double-free.
+		 */
+		while ((bp->b_flags & B_DONE) == 0) {
+			tsleep(bp, PVM, "swwrt", 0);
+		}
+
+		if (bp->b_flags & B_ERROR) {
+			grv = VM_PAGER_ERROR;
+		}
+
+		for (j = 0; j < n; ++j)
+			rtvals[i+j] = VM_PAGER_PEND;
+
+		if (bp->b_flags & B_ERROR) {
+			grv = VM_PAGER_ERROR;
+		}
+
+		/*
+		 * Now that we are through with the bp, we can call the
+		 * normal async completion, which frees everything up.
+		 */
+
+		swp_pager_async_iodone(bp);
+
+		splx(s);
 	}
 
-	bp->b_flags = B_BUSY | B_PAGING;
-	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
-	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
-	if (bp->b_rcred != NOCRED)
-		crhold(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crhold(bp->b_wcred);
-	bp->b_blkno = reqaddr[firstidx];
-	pbgetvp(swapdev_vp, bp);
+	return(grv);
+}
 
-	bp->b_bcount = PAGE_SIZE * ix;
-	bp->b_bufsize = PAGE_SIZE * ix;
+/*
+ *	swap_pager_sync_iodone:
+ *
+ *	Completion routine for synchronous reads and writes from/to swap.
+ *	We just mark the bp is complete and wake up anyone waiting on it.
+ *
+ *	This routine may not block.
+ */
+
+static void
+swp_pager_sync_iodone(bp)
+	struct buf *bp;
+{
+	bp->b_flags |= B_DONE;
+	bp->b_flags &= ~B_ASYNC;
+	wakeup(bp);
+}
+
+/*
+ *	swp_pager_async_iodone:
+ *
+ *	Completion routine for asynchronous reads and writes from/to swap.
+ *	Also called manually by synchronous code to finish up a bp.
+ *
+ *	WARNING!  This routine may be called from an interrupt.  We cannot
+ *	mess with swap metadata unless we want to run all our other routines
+ *	at splbio() too, which I'd rather not do.  We up ourselves
+ * 	to splvm() because we may call vm_page_free(), which can unlink a
+ *	page from an object.
+ *
+ *	XXX currently I do not believe any object routines protect 
+ *	object->memq at splvm().  The code must be gone over to determine
+ *	the actual state of the problem.
+ *
+ *	For READ operations, the pages are PG_BUSY'd.  For WRITE operations, 
+ *	the pages are vm_page_t->busy'd.  For READ operations, we PG_BUSY 
+ *	unbusy all pages except the 'main' request page.  For WRITE 
+ *	operations, we vm_page_t->busy'd unbusy all pages ( we can do this 
+ *	because we marked them all VM_PAGER_PEND on return from putpages ).
+ *
+ *	This routine may not block.
+ *	This routine is called at splbio()
+ */
+
+static void
+swp_pager_async_iodone(bp)
+	register struct buf *bp;
+{
+	int s;
+	int i;
+	vm_object_t object = NULL;
 
 	s = splvm();
-	swapdev_vp->v_numoutput++;
+
+	bp->b_flags |= B_DONE;
 
 	/*
-	 * If this is an async write we set up additional buffer fields and
-  	 * place a "cleaning" entry on the inuse queue.
-  	 */
- 	object->un_pager.swp.swp_poip++;
- 
- 	if (spc) {
-  		spc->spc_flags = 0;
-  		spc->spc_object = object;
- 		bp->b_npages = ix;
- 		for (i = firstidx; i < lastidx; i++) {
-  			spc->spc_m[i] = m[i];
- 			bp->b_pages[i - firstidx] = m[i];
- 			vm_page_protect(m[i], VM_PROT_READ);
- 			pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
- 			m[i]->dirty = 0;
- 		}
-  		spc->spc_first = firstidx;
-  		spc->spc_count = ix;
-		/*
-		 * the completion routine for async writes
-		 */
-		bp->b_flags |= B_CALL;
-		bp->b_iodone = swap_pager_iodone;
-		bp->b_dirtyoff = 0;
-		bp->b_dirtyend = bp->b_bcount;
-		TAILQ_INSERT_TAIL(&swap_pager_inuse, spc, spc_list);
-	} else {
-		bp->b_flags |= B_CALL;
-		bp->b_iodone = swap_pager_iodone1;
-		bp->b_npages = ix;
-		for (i = firstidx; i < lastidx; i++)
-			bp->b_pages[i - firstidx] = m[i];
-	}
-
-	cnt.v_swapout++;
-	cnt.v_swappgsout += ix;
-
-	/*
-	 * perform the I/O
+	 * report error
 	 */
-	VOP_STRATEGY(bp->b_vp, bp);
-	if (sync == FALSE) {
-		if (swap_pager_free_pending) {
-			swap_pager_sync();
-		}
-		for (i = firstidx; i < lastidx; i++) {
-			rtvals[i] = VM_PAGER_PEND;
-		}
-		splx(s);
-		return VM_PAGER_PEND;
-	}
-
-	/*
-	 * wait for the sync I/O to complete
-	 */
-	while ((bp->b_flags & B_DONE) == 0) {
-		tsleep(bp, PVM, "swwrt", 0);
-	}
 
 	if (bp->b_flags & B_ERROR) {
 		printf(
-"swap_pager: I/O error - pageout failed; blkno %ld, size %ld, error %d\n",
-		    (long)bp->b_blkno, (long)bp->b_bcount, bp->b_error);
-		rv = VM_PAGER_ERROR;
-	} else {
-		rv = VM_PAGER_OK;
+		    "swap_pager: I/O error - %s failed; blkno %ld,"
+			"size %ld, error %d\n",
+		    ((bp->b_flags & B_READ) ? "pagein" : "pageout"),
+		    (long)bp->b_blkno, 
+		    (long)bp->b_bcount,
+		    bp->b_error
+		);
 	}
 
-	object->un_pager.swp.swp_poip--;
-	if (object->un_pager.swp.swp_poip == 0)
-		wakeup(object);
+	/*
+	 * set object.
+	 */
 
-	if (bp->b_vp)
-		pbrelvp(bp);
-
-	splx(s);
+	if (bp->b_npages)
+		object = bp->b_pages[0]->object;
 
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	pmap_qremove(kva, ix);
+
+	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
 	/*
-	 * if we have written the page, then indicate that the page is clean.
+	 * cleanup pages.  If an error occurs writing to swap, we are in
+	 * very serious trouble.  If it happens to be a disk error, though,
+	 * we may be able to recover by reassigning the swap later on.  So
+	 * in this case we remove the m->swapblk assignment for the page 
+	 * but do not free it in the rlist.  The errornous block(s) are thus
+	 * never reallocated as swap.  Redirty the page and continue.
 	 */
-	if (rv == VM_PAGER_OK) {
-		for (i = firstidx; i < lastidx; i++) {
-			if (rtvals[i] == VM_PAGER_OK) {
-				pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
-				m[i]->dirty = 0;
+
+	for (i = 0; i < bp->b_npages; ++i) {
+		vm_page_t m = bp->b_pages[i];
+
+		vm_page_flag_clear(m, PG_SWAPINPROG);
+
+		if (bp->b_flags & B_ERROR) {
+			/*
+			 * If an error occurs I'd love to throw the swapblk
+			 * away without freeing it back to swapspace, so it
+			 * can never be used again.  But I can't from an 
+			 * interrupt.
+			 */
+
+			if (bp->b_flags & B_READ) {
 				/*
-				 * optimization, if a page has been read
-				 * during the pageout process, we activate it.
+				 * When reading, reqpage needs to stay
+				 * locked for the parent, but all other
+				 * pages can be freed.  We still want to
+				 * wakeup the parent waiting on the page,
+				 * though.  ( also: pg_reqpage can be -1 and 
+				 * not match anything ).
+				 *
+				 * We have to wake specifically requested pages
+				 * up too because we cleared PG_SWAPINPROG and
+				 * someone may be waiting for that.
+				 *
+				 * NOTE: for reads, m->dirty will probably
+				 * be overriden by the original caller of
+				 * getpages so don't play cute tricks here.
+				 *
+				 * XXX it may not be legal to free the page
+				 * here as this messes with the object->memq's.
 				 */
-				if (((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
-				    pmap_ts_referenced(VM_PAGE_TO_PHYS(m[i])))) {
-					vm_page_activate(m[i]);
-				}
+
+				m->valid = 0;
+				vm_page_flag_clear(m, PG_ZERO);
+
+				if (i != bp->b_pager.pg_reqpage)
+					vm_page_free(m);
+				else
+					vm_page_flash(m);
+				/*
+				 * If i == bp->b_pager.pg_reqpage, do not wake 
+				 * the page up.  The caller needs to.
+				 */
+			} else {
+				/*
+				 * If a write error occurs, reactivate page
+				 * so it doesn't clog the inactive list,
+				 * then finish the I/O.
+				 */
+				m->dirty = VM_PAGE_BITS_ALL;
+				vm_page_activate(m);
+				vm_page_io_finish(m);
 			}
-		}
-	} else {
-		for (i = firstidx; i < lastidx; i++) {
-			rtvals[i] = rv;
+		} else if (bp->b_flags & B_READ) {
+			/*
+			 * For read success, clear dirty bits.  Nobody should
+			 * have this page mapped but don't take any chances,
+			 * make sure the pmap modify bits are also cleared.
+			 *
+			 * NOTE: for reads, m->dirty will probably be 
+			 * overriden by the original caller of getpages so
+			 * we cannot set them in order to free the underlying
+			 * swap in a low-swap situation.  I don't think we'd
+			 * want to do that anyway, but it was an optimization
+			 * that existed in the old swapper for a time before
+			 * it got ripped out due to precisely this problem.
+			 *
+			 * clear PG_ZERO in page.
+			 *
+			 * If not the requested page then deactivate it.
+			 *
+			 * Note that the requested page, reqpage, is left
+			 * busied, but we still have to wake it up.  The
+			 * other pages are released (unbusied) by 
+			 * vm_page_wakeup().  We do not set reqpage's
+			 * valid bits here, it is up to the caller.
+			 */
+
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			m->valid = VM_PAGE_BITS_ALL;
+			m->dirty = 0;
+			vm_page_flag_clear(m, PG_ZERO);
+
+			/*
+			 * We have to wake specifically requested pages
+			 * up too because we cleared PG_SWAPINPROG and
+			 * could be waiting for it in getpages.  However,
+			 * be sure to not unbusy getpages specifically
+			 * requested page - getpages expects it to be 
+			 * left busy.
+			 */
+			if (i != bp->b_pager.pg_reqpage) {
+				vm_page_deactivate(m);
+				vm_page_wakeup(m);
+			} else {
+				vm_page_flash(m);
+			}
+		} else {
+			/*
+			 * For write success, clear the modify and dirty 
+			 * status, then finish the I/O ( which decrements the 
+			 * busy count and possibly wakes waiter's up ).
+			 */
+			vm_page_protect(m, VM_PROT_READ);
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			m->dirty = 0;
+			vm_page_io_finish(m);
 		}
 	}
-
-	if (spc != NULL) {
-		if (bp->b_rcred != NOCRED)
-			crfree(bp->b_rcred);
-		if (bp->b_wcred != NOCRED)
-			crfree(bp->b_wcred);
-		spc_free(spc);
-	} else
-		relpbuf(bp);
-	if (swap_pager_free_pending)
-		swap_pager_sync();
-
-	return (rv);
-}
-
-void
-swap_pager_sync()
-{
-	swp_clean_t spc;
-
-	while (spc = TAILQ_FIRST(&swap_pager_done)) {
-		swap_pager_finish(spc);
-	}
-	return;
-}
-
-static void
-swap_pager_finish(spc)
-	register swp_clean_t spc;
-{
-	int i, s, lastidx;
-	vm_object_t object;
-	vm_page_t *ma;
-
-	ma = spc->spc_m;
-	object = spc->spc_object;
-	lastidx = spc->spc_first + spc->spc_count;
-
-	s = splvm();
-	TAILQ_REMOVE(&swap_pager_done, spc, spc_list);
-	splx(s);
-
-	pmap_qremove(spc->spc_kva, spc->spc_count);
 
 	/*
-	 * If no error, mark as clean and inform the pmap system. If error,
-	 * mark as dirty so we will try again. (XXX could get stuck doing
-	 * this, should give up after awhile)
+	 * adjust pip.  NOTE: the original parent may still have its own
+	 * pip refs on the object.
 	 */
-	if (spc->spc_flags & SPC_ERROR) {
 
-		for (i = spc->spc_first; i < lastidx; i++) {
-			printf("swap_pager_finish: I/O error, clean of page %lx failed\n",
-			    (u_long) VM_PAGE_TO_PHYS(ma[i]));
-			ma[i]->dirty = VM_PAGE_BITS_ALL;
-			vm_page_io_finish(ma[i]);
-		}
+	if (object)
+		vm_object_pip_wakeupn(object, bp->b_npages);
 
-		vm_object_pip_subtract(object, spc->spc_count);
-		if ((object->paging_in_progress == 0) &&
-			(object->flags & OBJ_PIPWNT)) {
-			vm_object_clear_flag(object, OBJ_PIPWNT);
-			wakeup(object);
-		}
+	/*
+	 * release the physical I/O buffer
+	 */
 
-	} else {
-		for (i = spc->spc_first; i < lastidx; i++) {
-			if ((ma[i]->queue != PQ_ACTIVE) &&
-			   ((ma[i]->flags & PG_WANTED) ||
-				 pmap_ts_referenced(VM_PAGE_TO_PHYS(ma[i])))) {
-				vm_page_activate(ma[i]);
-			}
+	relpbuf(bp, ((bp->b_flags & B_READ) ? &nsw_rcount : &nsw_wcount));
+
+	splx(s);
+}
+
+/************************************************************************
+ *				SWAP META DATA 				*
+ ************************************************************************
+ *
+ *	These routines manipulate the swap metadata stored in the 
+ *	OBJT_SWAP object.
+ *
+ *	In fact, we just have a few counters in the vm_object_t.  The
+ *	metadata is actually stored in a hash table.
+ */
+
+/*
+ * SWP_PAGER_HASH() -	hash swap meta data
+ *
+ *	This is an inline helper function which hash the swapblk given
+ *	the object and page index.  It returns a pointer to a pointer
+ *	to the object, or a pointer to a NULL pointer if it could not
+ *	find a swapblk.
+ */
+
+static __inline struct swblock **
+swp_pager_hash(vm_object_t object, daddr_t index)
+{
+	struct swblock **pswap;
+	struct swblock *swap;
+
+	index &= ~SWAP_META_MASK;
+	pswap = &swhash[(index ^ (int)(long)object) & swhash_mask];
+
+	while ((swap = *pswap) != NULL) {
+		if (swap->swb_object == object &&
+		    swap->swb_index == index
+		) {
+			break;
 		}
+		pswap = &swap->swb_hnext;
 	}
-
-	nswiodone -= spc->spc_count;
-	swap_pager_free_pending--;
-	spc_free(spc);
-
-	return;
+	return(pswap);
 }
 
 /*
- * swap_pager_iodone
+ * SWP_PAGER_META_BUILD() -	add swap block to swap meta data for object
+ *
+ *	We first convert the object to a swap object if it is a default
+ *	object.
+ *
+ *	The specified swapblk is added to the object's swap metadata.  If
+ *	the swapblk is not valid, it is freed instead.  Any previously
+ *	assigned swapblk is freed.
  */
+
 static void
-swap_pager_iodone(bp)
-	register struct buf *bp;
-{
-	int i, s, lastidx;
-	register swp_clean_t spc;
-	vm_object_t object;
-	vm_page_t *ma;
+swp_pager_meta_build(
+	vm_object_t object, 
+	daddr_t index, 
+	daddr_t swapblk, 
+	int waitok
+) {
+	struct swblock *swap;
+	struct swblock **pswap;
 
+	/*
+	 * Convert default object to swap object if necessary
+	 */
 
-	s = splvm();
-	spc = (swp_clean_t) bp->b_spc;
-	TAILQ_REMOVE(&swap_pager_inuse, spc, spc_list);
-	TAILQ_INSERT_TAIL(&swap_pager_done, spc, spc_list);
+	if (object->type != OBJT_SWAP) {
+		object->type = OBJT_SWAP;
+		object->un_pager.swp.swp_bcount = 0;
 
-	object = spc->spc_object;
-
-#if defined(DIAGNOSTIC)
-	if (object->paging_in_progress < spc->spc_count)
-		printf("swap_pager_iodone: paging_in_progress(%d) < spc_count(%d)\n",
-			object->paging_in_progress, spc->spc_count);
-#endif
-
-	if (bp->b_flags & B_ERROR) {
-		spc->spc_flags |= SPC_ERROR;
-		printf("swap_pager: I/O error - async %s failed; blkno %lu, size %ld, error %d\n",
-		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
-		    (u_long) bp->b_blkno, bp->b_bcount, bp->b_error);
-	} else {
-		vm_object_pip_subtract(object, spc->spc_count);
-		if ((object->paging_in_progress == 0) &&
-			(object->flags & OBJ_PIPWNT)) {
-			vm_object_clear_flag(object, OBJ_PIPWNT);
-			wakeup(object);
-		}
-		ma = spc->spc_m;
-		lastidx = spc->spc_first + spc->spc_count;
-		for (i = spc->spc_first; i < lastidx; i++) {
-			/*
-			 * we wakeup any processes that are waiting on these pages.
-			 */
-			vm_page_io_finish(ma[i]);
+		if (object->handle != NULL) {
+			TAILQ_INSERT_TAIL(
+			    NOBJLIST(object->handle),
+			    object, 
+			    pager_object_list
+			);
+		} else {
+			TAILQ_INSERT_TAIL(
+			    &swap_pager_un_object_list,
+			    object, 
+			    pager_object_list
+			);
 		}
 	}
+	
+	/*
+	 * Wait for free memory when waitok is TRUE prior to calling the
+	 * zone allocator.
+	 */
 
-	if (bp->b_vp)
-		pbrelvp(bp);
-
-	if (bp->b_rcred != NOCRED)
-		crfree(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crfree(bp->b_wcred);
-
-	nswiodone += spc->spc_count;
-	swap_pager_free_pending++;
-	if (--spc->spc_object->un_pager.swp.swp_poip == 0) {
-		wakeup(spc->spc_object);
+	while (waitok && cnt.v_free_count == 0) {
+		VM_WAIT;
 	}
 
-	if (swap_pager_needflags &&
-	  ((swap_pager_free_count + swap_pager_free_pending) > (npendingio / 2))) {
-		spc_wakeup();
+	/*
+	 * If swapblk being added is invalid, just free it.
+	 */
+
+	if (swapblk & SWAPBLK_NONE) {
+		if (swapblk != SWAPBLK_NONE) {
+			swp_pager_freeswapspace(
+			    index,
+			    1
+			);
+			swapblk = SWAPBLK_NONE;
+		}
 	}
 
-	if ((TAILQ_FIRST(&swap_pager_inuse) == NULL) &&
-		vm_pageout_pages_needed) {
-		wakeup(&vm_pageout_pages_needed);
-		vm_pageout_pages_needed = 0;
+	/*
+	 * Locate hash entry.  If not found create, but if we aren't adding
+	 * anything just return.
+	 */
+
+	pswap = swp_pager_hash(object, index);
+
+	if ((swap = *pswap) == NULL) {
+		int i;
+
+		if (swapblk == SWAPBLK_NONE)
+			return;
+
+		swap = *pswap = zalloc(swap_zone);
+
+		swap->swb_hnext = NULL;
+		swap->swb_object = object;
+		swap->swb_index = index & ~SWAP_META_MASK;
+		swap->swb_count = 0;
+
+		++object->un_pager.swp.swp_bcount;
+
+		for (i = 0; i < SWAP_META_PAGES; ++i)
+			swap->swb_pages[i] = SWAPBLK_NONE;
 	}
 
-	splx(s);
+	/*
+	 * Delete prior contents of metadata
+	 */
+
+	index &= SWAP_META_MASK;
+
+	if (swap->swb_pages[index] != SWAPBLK_NONE) {
+		swp_pager_freeswapspace(
+		    swap->swb_pages[index] & SWAPBLK_MASK,
+		    1
+		);
+		--swap->swb_count;
+	}
+
+	/*
+	 * Enter block into metadata
+	 */
+
+	swap->swb_pages[index] = swapblk;
+	++swap->swb_count;
 }
+
+/*
+ * SWP_PAGER_META_FREE() - free a range of blocks in the object's swap metadata
+ *
+ *	The requested range of blocks is freed, with any associated swap 
+ *	returned to the swap bitmap.
+ *
+ *	This routine will free swap metadata structures as they are cleaned 
+ *	out.  This routine does *NOT* operate on swap metadata associated
+ *	with resident pages.
+ *
+ *	This routine must be called at splvm()
+ */
+
+static void
+swp_pager_meta_free(vm_object_t object, daddr_t index, daddr_t count)
+{
+	if (object->type != OBJT_SWAP)
+		return;
+
+	while (count > 0) {
+		struct swblock **pswap;
+		struct swblock *swap;
+
+		pswap = swp_pager_hash(object, index);
+
+		if ((swap = *pswap) != NULL) {
+			daddr_t v = swap->swb_pages[index & SWAP_META_MASK];
+
+			if (v != SWAPBLK_NONE) {
+				swp_pager_freeswapspace(v, 1);
+				swap->swb_pages[index & SWAP_META_MASK] =
+					SWAPBLK_NONE;
+				if (--swap->swb_count == 0) {
+					*pswap = swap->swb_hnext;
+					zfree(swap_zone, swap);
+					--object->un_pager.swp.swp_bcount;
+				}
+			}
+			--count;
+			++index;
+		} else {
+			daddr_t n = SWAP_META_PAGES - (index & SWAP_META_MASK);
+			count -= n;
+			index += n;
+		}
+	}
+}
+
+/*
+ * SWP_PAGER_META_FREE_ALL() - destroy all swap metadata associated with object
+ *
+ *	This routine locates and destroys all swap metadata associated with
+ *	an object.
+ */
+
+static void
+swp_pager_meta_free_all(vm_object_t object)
+{
+	daddr_t index = 0;
+
+	if (object->type != OBJT_SWAP)
+		return;
+
+	while (object->un_pager.swp.swp_bcount) {
+		struct swblock **pswap;
+		struct swblock *swap;
+
+		pswap = swp_pager_hash(object, index);
+		if ((swap = *pswap) != NULL) {
+			int i;
+
+			for (i = 0; i < SWAP_META_PAGES; ++i) {
+				daddr_t v = swap->swb_pages[i];
+				if (v != SWAPBLK_NONE) {
+#if !defined(MAX_PERF)
+					--swap->swb_count;
+#endif
+					swp_pager_freeswapspace(
+					    v,
+					    1
+					);
+				}
+			}
+#if !defined(MAX_PERF)
+			if (swap->swb_count != 0)
+				panic("swap_pager_meta_free_all: swb_count != 0");
+#endif
+			*pswap = swap->swb_hnext;
+			zfree(swap_zone, swap);
+			--object->un_pager.swp.swp_bcount;
+		}
+		index += SWAP_META_PAGES;
+#if !defined(MAX_PERF)
+		if (index > 0x20000000)
+			panic("swp_pager_meta_free_all: failed to locate all swap meta blocks");
+#endif
+	}
+}
+
+/*
+ * SWP_PAGER_METACTL() -  misc control of swap and vm_page_t meta data.
+ *
+ *	This routine is capable of looking up, popping, or freeing
+ *	swapblk assignments in the swap meta data or in the vm_page_t.
+ *	The routine typically returns the swapblk being looked-up, or popped,
+ *	or SWAPBLK_NONE if the block was freed, or SWAPBLK_NONE if the block
+ *	was invalid.  This routine will automatically free any invalid 
+ *	meta-data swapblks.
+ *
+ *	It is not possible to store invalid swapblks in the swap meta data
+ *	(other then a literal 'SWAPBLK_NONE'), so we don't bother checking.
+ *
+ *	When acting on a busy resident page and paging is in progress, we 
+ *	have to wait until paging is complete but otherwise can act on the 
+ *	busy page.
+ *
+ *	SWM_FREE	remove and free swap block from metadata
+ *
+ *	SWM_POP		remove from meta data but do not free.. pop it out
+ */
+
+static daddr_t
+swp_pager_meta_ctl(
+	vm_object_t object,
+	vm_pindex_t index,
+	int flags
+) {
+	/*
+	 * The meta data only exists of the object is OBJT_SWAP 
+	 * and even then might not be allocated yet.
+	 */
+
+	if (
+	    object->type != OBJT_SWAP ||
+	    object->un_pager.swp.swp_bcount == 0
+	) {
+		return(SWAPBLK_NONE);
+	}
+
+	{
+		struct swblock **pswap;
+		struct swblock *swap;
+		daddr_t r1 = SWAPBLK_NONE;
+
+		pswap = swp_pager_hash(object, index);
+
+		index &= SWAP_META_MASK;
+
+		if ((swap = *pswap) != NULL) {
+			r1 = swap->swb_pages[index];
+
+			if (r1 != SWAPBLK_NONE) {
+				if (flags & SWM_FREE) {
+					swp_pager_freeswapspace(
+					    r1,
+					    1
+					);
+					r1 = SWAPBLK_NONE;
+				}
+				if (flags & (SWM_FREE|SWM_POP)) {
+					swap->swb_pages[index] = SWAPBLK_NONE;
+					if (--swap->swb_count == 0) {
+						*pswap = swap->swb_hnext;
+						zfree(swap_zone, swap);
+						--object->un_pager.swp.swp_bcount;
+					}
+				} 
+	 		}
+		}
+
+		return(r1);
+	}
+	/* not reached */
+}
+

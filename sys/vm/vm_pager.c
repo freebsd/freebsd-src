@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.39 1998/10/31 15:31:29 peter Exp $
+ * $Id: vm_pager.c,v 1.40 1998/11/10 09:16:27 peter Exp $
  */
 
 /*
@@ -90,6 +90,8 @@ extern struct pagerops defaultpagerops;
 extern struct pagerops swappagerops;
 extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
+
+int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 static int dead_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static vm_object_t dead_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
@@ -164,14 +166,15 @@ struct pagerops deadpagerops = {
 	NULL
 };
 
-static struct pagerops *pagertab[] = {
+struct pagerops *pagertab[] = {
 	&defaultpagerops,	/* OBJT_DEFAULT */
 	&swappagerops,		/* OBJT_SWAP */
 	&vnodepagerops,		/* OBJT_VNODE */
 	&devicepagerops,	/* OBJT_DEVICE */
 	&deadpagerops		/* OBJT_DEAD */
 };
-static int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
+
+int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
 /*
  * Kernel address space for mapping pages.
@@ -217,6 +220,8 @@ vm_pager_bufferinit()
 		bp->b_xflags = 0;
 	}
 
+	cluster_pbuf_freecnt = nswbuf / 2;
+
 	swapbkva = kmem_alloc_pageable(pager_map, nswbuf * MAXPHYS);
 	if (!swapbkva)
 		panic("Not enough pager_map VM space for physical buffers");
@@ -246,41 +251,21 @@ vm_pager_deallocate(object)
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
-
-int
-vm_pager_get_pages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int reqpage;
-{
-	return ((*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage));
-}
-
-int
-vm_pager_put_pages(object, m, count, flags, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int flags;
-	int *rtvals;
-{
-	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, flags, rtvals));
-}
-
-boolean_t
-vm_pager_has_page(object, offset, before, after)
-	vm_object_t object;
-	vm_pindex_t offset;
-	int *before;
-	int *after;
-{
-	return ((*pagertab[object->type]->pgo_haspage) (object, offset, before, after));
-}
-
 /*
- * Called by pageout daemon before going back to sleep.
- * Gives pagers a chance to clean up any completed async pageing operations.
+ * vm_pager_get_pages() - inline, see vm/vm_pager.h
+ * vm_pager_put_pages() - inline, see vm/vm_pager.h
+ * vm_pager_has_page() - inline, see vm/vm_pager.h
+ * vm_pager_page_inserted() - inline, see vm/vm_pager.h
+ * vm_pager_page_removed() - inline, see vm/vm_pager.h
+ */
+
+#if 0
+/*
+ *	vm_pager_sync:
+ *
+ *	Called by pageout daemon before going back to sleep.
+ *	Gives pagers a chance to clean up any completed async pageing 
+ *	operations.
  */
 void
 vm_pager_sync()
@@ -291,6 +276,8 @@ vm_pager_sync()
 		if (pgops && ((*pgops)->pgo_sync != NULL))
 			(*(*pgops)->pgo_sync) ();
 }
+
+#endif
 
 vm_offset_t
 vm_pager_map_page(m)
@@ -342,20 +329,42 @@ initpbuf(struct buf *bp) {
 
 /*
  * allocate a physical buffer
+ *
+ *	There are a limited number (nswbuf) of physical buffers.  We need
+ *	to make sure that no single subsystem is able to hog all of them,
+ *	so each subsystem implements a counter which is typically initialized
+ *	to 1/2 nswbuf.  getpbuf() decrements this counter in allocation and
+ *	increments it on release, and blocks if the counter hits zero.  A
+ *	subsystem may initialize the counter to -1 to disable the feature,
+ *	but it must still be sure to match up all uses of getpbuf() with 
+ *	relpbuf() using the same variable.
+ *
+ *	NOTE: pfreecnt can be NULL, but this 'feature' will be removed
+ *	relatively soon when the rest of the subsystems get smart about it. XXX
  */
 struct buf *
-getpbuf()
+getpbuf(pfreecnt)
+	int *pfreecnt;
 {
 	int s;
 	struct buf *bp;
 
 	s = splvm();
+
+	if (pfreecnt) {
+		while (*pfreecnt == 0) {
+			tsleep(pfreecnt, PVM, "wswbuf0", 0);
+		}
+	}
+
 	/* get a bp from the swap buffer header pool */
 	while ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		bswneeded = 1;
-		tsleep(&bswneeded, PVM, "wswbuf", 0);
+		tsleep(&bswneeded, PVM, "wswbuf1", 0);
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
+	if (pfreecnt)
+		--*pfreecnt;
 	splx(s);
 
 	initpbuf(bp);
@@ -363,20 +372,27 @@ getpbuf()
 }
 
 /*
- * allocate a physical buffer, if one is available
+ * allocate a physical buffer, if one is available.
+ *
+ *	Note that there is no NULL hack here - all subsystems using this
+ *	call understand how to use pfreecnt.
  */
 struct buf *
-trypbuf()
+trypbuf(pfreecnt)
+	int *pfreecnt;
 {
 	int s;
 	struct buf *bp;
 
 	s = splvm();
-	if ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
+	if (*pfreecnt == 0 || (bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		splx(s);
 		return NULL;
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
+
+	--*pfreecnt;
+
 	splx(s);
 
 	initpbuf(bp);
@@ -386,10 +402,14 @@ trypbuf()
 
 /*
  * release a physical buffer
+ *
+ *	NOTE: pfreecnt can be NULL, but this 'feature' will be removed
+ *	relatively soon when the rest of the subsystems get smart about it. XXX
  */
 void
-relpbuf(bp)
+relpbuf(bp, pfreecnt)
 	struct buf *bp;
+	int *pfreecnt;
 {
 	int s;
 
@@ -403,6 +423,7 @@ relpbuf(bp)
 		crfree(bp->b_wcred);
 		bp->b_wcred = NOCRED;
 	}
+
 	if (bp->b_vp)
 		pbrelvp(bp);
 
@@ -414,6 +435,10 @@ relpbuf(bp)
 	if (bswneeded) {
 		bswneeded = 0;
 		wakeup(&bswneeded);
+	}
+	if (pfreecnt) {
+		if (++*pfreecnt == 1)
+			wakeup(pfreecnt);
 	}
 	splx(s);
 }

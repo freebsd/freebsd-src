@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.76 1999/01/08 17:31:15 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.77 1999/01/10 01:58:25 eivind Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -67,6 +67,8 @@ static struct buf *
 			    daddr_t blkno, long size, int run, struct buf *fbp));
 
 extern vm_page_t	bogus_page;
+
+extern int cluster_pbuf_freecnt;
 
 /*
  * Maximum number of blocks for read-ahead.
@@ -336,7 +338,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		((tbp->b_flags & B_VMIO) == 0) || (run <= 1) )
 		return tbp;
 
-	bp = trypbuf();
+	bp = trypbuf(&cluster_pbuf_freecnt);
 	if (bp == 0)
 		return tbp;
 
@@ -475,7 +477,7 @@ cluster_callback(bp)
 		    tbp->b_dirtyoff = tbp->b_dirtyend = 0;
 		biodone(tbp);
 	}
-	relpbuf(bp);
+	relpbuf(bp, &cluster_pbuf_freecnt);
 }
 
 /*
@@ -654,7 +656,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = trypbuf()) == NULL)) {
+		  ((bp = trypbuf(&cluster_pbuf_freecnt)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.218 1999/01/09 21:41:22 dt Exp $
+ *	$Id: pmap.c,v 1.219 1999/01/12 00:17:53 eivind Exp $
  */
 
 /*
@@ -942,7 +942,7 @@ pmap_page_lookup(object, pindex)
 	vm_page_t m;
 retry:
 	m = vm_page_lookup(object, pindex);
-	if (m && vm_page_sleep(m, "pplookp", NULL))
+	if (m && vm_page_sleep_busy(m, FALSE, "pplookp"))
 		goto retry;
 	return m;
 }
@@ -1009,8 +1009,8 @@ pmap_new_proc(p)
 		}
 
 		vm_page_wakeup(m);
-		m->flags &= ~PG_ZERO;
-		m->flags |= PG_MAPPED | PG_WRITEABLE;
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 	if (updateneeded)
@@ -1038,7 +1038,7 @@ pmap_dispose_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
 
-		m->flags |= PG_BUSY;
+		vm_page_busy(m);
 
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
@@ -1107,7 +1107,7 @@ pmap_swapin_proc(p)
 
 		vm_page_wire(m);
 		vm_page_wakeup(m);
-		m->flags |= PG_MAPPED | PG_WRITEABLE;
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
 }
 
@@ -1122,7 +1122,8 @@ pmap_swapin_proc(p)
 static int 
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 
-	while (vm_page_sleep(m, "pmuwpt", NULL));
+	while (vm_page_sleep_busy(m, FALSE, "pmuwpt"))
+		;
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -1150,12 +1151,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		--m->wire_count;
 		if (m->wire_count == 0) {
 
-			if (m->flags & PG_WANTED) {
-				m->flags &= ~PG_WANTED;
-				wakeup(m);
-			}
-
-			m->flags |= PG_BUSY;
+			vm_page_flash(m);
+			vm_page_busy(m);
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1257,7 +1254,8 @@ pmap_pinit(pmap)
 	ptdpg->wire_count = 1;
 	++cnt.v_wire_count;
 
-	ptdpg->flags &= ~(PG_MAPPED | PG_BUSY);	/* not mapped normally */
+
+	vm_page_flag_clear(ptdpg, PG_MAPPED | PG_BUSY); /* not usually mapped*/
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
 	pmap_kenter((vm_offset_t) pmap->pm_pdir, VM_PAGE_TO_PHYS(ptdpg));
@@ -1290,10 +1288,10 @@ pmap_release_free_page(pmap, p)
 	 * page-table pages.  Those pages are zero now, and
 	 * might as well be placed directly into the zero queue.
 	 */
-	if (vm_page_sleep(p, "pmaprl", NULL))
+	if (vm_page_sleep_busy(p, FALSE, "pmaprl"))
 		return 0;
 
-	p->flags |= PG_BUSY;
+	vm_page_busy(p);
 
 	/*
 	 * Remove the page table page from the processes address space.
@@ -1393,8 +1391,9 @@ _pmap_allocpte(pmap, ptepindex)
 	}
 
 	m->valid = VM_PAGE_BITS_ALL;
-	m->flags &= ~(PG_ZERO | PG_BUSY);
-	m->flags |= PG_MAPPED;
+	vm_page_flag_clear(m, PG_ZERO);
+	vm_page_flag_set(m, PG_MAPPED);
+	vm_page_wakeup(m);
 
 	return m;
 }
@@ -1713,7 +1712,7 @@ pmap_remove_entry(pmap, ppv, va)
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		ppv->pv_list_count--;
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL)
-			ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1791,7 +1790,7 @@ pmap_remove_pte(pmap, ptq, va)
 				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
 		}
 		if (oldpte & PG_A)
-			ppv->pv_vm_page->flags |= PG_REFERENCED;
+			vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 		return pmap_remove_entry(pmap, ppv, va);
 	} else {
 		return pmap_unuse_pt(pmap, va, NULL);
@@ -1976,7 +1975,7 @@ pmap_remove_all(pa)
 			pv->pv_pmap->pm_stats.wired_count--;
 
 		if (tpte & PG_A)
-			ppv->pv_vm_page->flags |= PG_REFERENCED;
+			vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 
 		/*
 		 * Update the vm_page_t clean and reference bits.
@@ -2005,7 +2004,7 @@ pmap_remove_all(pa)
 		free_pv_entry(pv);
 	}
 
-	ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 	if (update_needed)
 		invltlb();
@@ -2081,7 +2080,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				ppv = NULL;
 				if (pbits & PG_A) {
 					ppv = pa_to_pvh(pbits);
-					ppv->pv_vm_page->flags |= PG_REFERENCED;
+					vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 					pbits &= ~PG_A;
 				}
 				if (pbits & PG_M) {
@@ -2436,7 +2435,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 
 retry:
 		p = vm_page_lookup(object, pindex);
-		if (p && vm_page_sleep(p, "init4p", NULL))
+		if (p && vm_page_sleep_busy(p, FALSE, "init4p"))
 			goto retry;
 
 		if (p == NULL) {
@@ -2469,7 +2468,7 @@ retry:
 			ptepa += NBPDR;
 			ptepindex += 1;
 		}
-		p->flags |= PG_MAPPED;
+		vm_page_flag_set(p, PG_MAPPED);
 		invltlb();
 		return;
 	}
@@ -2510,11 +2509,11 @@ retry:
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				p->flags |= PG_BUSY;
+				vm_page_busy(p);
 				mpte = pmap_enter_quick(pmap, 
 					addr + i386_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				p->flags |= PG_MAPPED;
+				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			objpgs -= 1;
@@ -2531,11 +2530,11 @@ retry:
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				p->flags |= PG_BUSY;
+				vm_page_busy(p);
 				mpte = pmap_enter_quick(pmap, 
 					addr + i386_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				p->flags |= PG_MAPPED;
+				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 		}
@@ -2628,10 +2627,10 @@ pmap_prefault(pmap, addra, entry)
 			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
-			m->flags |= PG_BUSY;
+			vm_page_busy(m);
 			mpte = pmap_enter_quick(pmap, addr,
 				VM_PAGE_TO_PHYS(m), mpte);
-			m->flags |= PG_MAPPED;
+			vm_page_flag_set(m, PG_MAPPED);
 			vm_page_wakeup(m);
 		}
 	}
@@ -3026,7 +3025,7 @@ pmap_remove_pages(pmap, sva, eva)
 		ppv->pv_list_count--;
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL) {
-			ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 		}
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
@@ -3406,7 +3405,7 @@ pmap_mincore(pmap, addr)
 		 */
 		else if ((m->flags & PG_REFERENCED) || pmap_ts_referenced(pa)) {
 			val |= MINCORE_REFERENCED_OTHER;
-			m->flags |= PG_REFERENCED;
+			vm_page_flag_set(m, PG_REFERENCED);
 		}
 	} 
 	return val;

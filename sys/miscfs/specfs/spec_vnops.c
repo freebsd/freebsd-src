@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.77 1998/12/07 21:58:33 archie Exp $
+ * $Id: spec_vnops.c,v 1.78 1998/12/16 00:10:51 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -781,7 +781,7 @@ spec_getpages(ap)
 		blksiz = DEV_BSIZE;
 	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
 
-	bp = getpbuf();
+	bp = getpbuf(NULL);
 	kva = (vm_offset_t)bp->b_data;
 
 	/*
@@ -894,13 +894,13 @@ spec_getpages(ap)
 		/*
 		 * Free the buffer header back to the swap buffer pool.
 		 */
-		relpbuf(bp);
+		relpbuf(bp, NULL);
 		return VM_PAGER_ERROR;
 	}
 	/*
 	 * Free the buffer header back to the swap buffer pool.
 	 */
-	relpbuf(bp);
+	relpbuf(bp, NULL);
 	return VM_PAGER_OK;
 }
 

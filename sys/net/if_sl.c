@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.69 1998/06/07 17:12:05 dfr Exp $
+ * $Id: if_sl.c,v 1.70 1998/07/15 02:32:23 bde Exp $
  */
 
 /*
@@ -70,7 +70,9 @@
 
 #include "bpfilter.h"
 #include "opt_inet.h"
-
+#if !defined(ACTUALLY_LKM_NOT_KERNEL) && !defined(KLD_MODULE)
+#include "opt_slip.h"
+#endif
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -217,7 +219,11 @@ slattach(dummy)
 		sc->sc_if.if_unit = i++;
 		sc->sc_if.if_mtu = SLMTU;
 		sc->sc_if.if_flags =
-		    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
+#ifdef SLIP_IFF_OPTS
+		    SLIP_IFF_OPTS;
+#else
+		    IFF_BROADCAST | IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
+#endif
 		sc->sc_if.if_type = IFT_SLIP;
 		sc->sc_if.if_ioctl = slioctl;
 		sc->sc_if.if_output = sloutput;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.103 1998/12/24 09:45:10 bde Exp $
+ * $Id: ufs_vnops.c,v 1.104 1999/01/07 16:14:19 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1731,6 +1731,9 @@ ufs_abortop(ap)
 /*
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
+ *
+ * In order to be able to swap to a file, the VOP_BMAP operation may not
+ * deadlock on memory.  See ufs_bmap() for details.
  */
 int
 ufs_strategy(ap)

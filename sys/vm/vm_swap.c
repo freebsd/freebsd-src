@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.56 1998/07/04 22:30:26 julian Exp $
+ * $Id: vm_swap.c,v 1.57 1998/10/25 19:24:04 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -50,7 +50,7 @@
 #include <sys/dmap.h>		/* XXX */
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
-#include <sys/rlist.h>
+#include <sys/blist.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -94,8 +94,7 @@ static dev_t	swapdev = makedev(BDEV_MAJOR, 0);
 static struct swdevt should_be_malloced[NSWAPDEV];
 static struct swdevt *swdevt = should_be_malloced;
 struct vnode *swapdev_vp;
-/* XXX swapinfo(8) needs this one I belive */
-int nswap;			/* first block after the interleaved devs */
+static int nswap;		/* first block after the interleaved devs */
 static int nswdev = NSWAPDEV;
 int vm_swap_size;
 
@@ -119,7 +118,13 @@ swstrategy(bp)
 	register struct swdevt *sp;
 	struct vnode *vp;
 
-	sz = howmany(bp->b_bcount, DEV_BSIZE);
+	sz = howmany(bp->b_bcount, PAGE_SIZE);
+	/*
+	 * Convert interleaved swap into per-device swap.  Note that
+	 * the block size is left in PAGE_SIZE'd chunks (for the newswap)
+	 * here.
+	 */
+
 	if (nswdev > 1) {
 		off = bp->b_blkno % dmmax;
 		if (off + sz > dmmax) {
@@ -132,8 +137,9 @@ swstrategy(bp)
 		index = seg % nswdev;
 		seg /= nswdev;
 		bp->b_blkno = seg * dmmax + off;
-	} else
+	} else {
 		index = 0;
+	}
 	sp = &swdevt[index];
 	if (bp->b_blkno + sz > sp->sw_nblks) {
 		bp->b_error = EINVAL;
@@ -148,6 +154,12 @@ swstrategy(bp)
 		biodone(bp);
 		return;
 	}
+
+	/*
+	 * Convert from PAGE_SIZE'd to DEV_BSIZE'd chunks for the actual I/O
+	 */
+	bp->b_blkno = ctodb(bp->b_blkno);
+
 	vhold(sp->sw_vp);
 	s = splvm();
 	if ((bp->b_flags & B_READ) == 0) {
@@ -161,10 +173,8 @@ swstrategy(bp)
 		}
 		sp->sw_vp->v_numoutput++;
 	}
-	if (bp->b_vp != NULL)
-		pbrelvp(bp);
+	pbreassignbuf(bp, sp->sw_vp);
 	splx(s);
-	bp->b_vp = sp->sw_vp;
 	VOP_STRATEGY(bp->b_vp, bp);
 }
 
@@ -240,6 +250,11 @@ swapon(p, uap)
  * Each of the nswdev devices provides 1/nswdev'th of the swap
  * space, which is laid out with blocks of dmmax pages circularly
  * among the devices.
+ *
+ * The new swap code uses page-sized blocks.  The old swap code used
+ * DEV_BSIZE'd chunks.
+ *
+ * XXX locking when multiple swapon's run in parallel
  */
 int
 swaponvp(p, vp, dev, nblks)
@@ -277,18 +292,37 @@ swaponvp(p, vp, dev, nblks)
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 		return (ENXIO);
 	}
+	/*
+	 * nblks is in DEV_BSIZE'd chunks, convert to PAGE_SIZE'd chunks.
+	 * First chop nblks off to page-align it, then convert.
+	 * 
+	 * sw->sw_nblks is in page-sized chunks now too.
+	 */
+	nblks &= ~(ctodb(1) - 1);
+	nblks = dbtoc(nblks);
+
 	sp->sw_vp = vp;
 	sp->sw_dev = dev;
 	sp->sw_flags |= SW_FREED;
 	sp->sw_nblks = nblks;
 
+	/*
+	 * nblks, nswap, and dmmax are PAGE_SIZE'd parameters now, not
+	 * DEV_BSIZE'd. 
+	 */
+
 	if (nblks * nswdev > nswap)
 		nswap = (nblks+1) * nswdev;
 
+	if (swapblist == NULL)
+		swapblist = blist_create(nswap);
+	else
+		blist_resize(&swapblist, nswap, 0);
+
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
-		blk = min(nblks - dvbase,dmmax);
+		blk = min(nblks - dvbase, dmmax);
 		vsbase = index * dmmax + dvbase * nswdev;
-		rlist_free(&swaplist, vsbase, vsbase + blk - 1);
+		blist_free(swapblist, vsbase, blk);
 		vm_swap_size += blk;
 	}
 
