@@ -53,6 +53,12 @@
 #include "opt_ddb.h"
 #include "opt_witness.h"
 
+/*
+ * Cause non-inlined mtx_*() to be compiled.
+ * Must be defined early because other system headers may include mutex.h.
+ */
+#define _KERN_MUTEX_C_
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -73,7 +79,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#define _KERN_MUTEX_C_		/* Cause non-inlined mtx_*() to be compiled. */
 #include <sys/mutex.h>
 
 /*
