@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.19 1998/10/15 23:17:56 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.20 1998/10/15 23:46:24 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -300,10 +300,15 @@ dptallocsgmap(struct dpt_softc *dpt)
 		return (NULL);
 	}
 
-	SLIST_INSERT_HEAD(&dpt->sg_maps, sg_map, links);
+	if (bus_dmamap_load(dpt->sg_dmat, sg_map->sg_dmamap, sg_map->sg_vaddr,
+			    PAGE_SIZE, dptmapmem, &sg_map->sg_physaddr, /*flags*/0)) {
+	    	bus_dmamem_free(dpt->sg_dmat, sg_map->sg_vaddr,
+				sg_map->sg_dmamap);
+		free(sg_map, M_DEVBUF);
+		return (NULL);
+	}
 
-	bus_dmamap_load(dpt->sg_dmat, sg_map->sg_dmamap, sg_map->sg_vaddr,
-			PAGE_SIZE, dptmapmem, &sg_map->sg_physaddr, /*flags*/0);
+	SLIST_INSERT_HEAD(&dpt->sg_maps, sg_map, links);
 
 	return (sg_map);
 }
@@ -1128,7 +1133,7 @@ dpt_free(struct dpt_softc *dpt)
 	free(dpt, M_DEVBUF);
 }
 
-u_int8_t string_sizes[] =
+static u_int8_t string_sizes[] =
 {
 	sizeof(((dpt_inq_t*)NULL)->vendor),
 	sizeof(((dpt_inq_t*)NULL)->modelNum),
@@ -1146,6 +1151,9 @@ dpt_init(struct dpt_softc *dpt)
 	int	    index;
 	int	    i;
 	int	    retval;
+
+	dpt->init_level = 0;
+	SLIST_INIT(&dpt->sg_maps);
 
 #ifdef DPT_RESET_BOARD
 	printf("dpt%d: resetting HBA\n", dpt->unit);
