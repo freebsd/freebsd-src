@@ -519,6 +519,15 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 
 	valid_units++;
 	bat[i]->cap = 100 * bat[i]->bst.cap / bat[i]->bif.lfcap;
+
+	/* 
+	 * Some laptops report the "design-capacity" instead of the 
+	 * "real-capacity" when the battery is fully charged.
+	 * That breaks the above arithmetic as it needs to be 100% maximum.
+	 */
+	if (bat[i]->cap > 100)
+	    bat[i]->cap = 100;
+
 	batt_stat |= bat[i]->bst.state;
 
 	if (bat[i]->bst.rate > 0) {
