@@ -1,4 +1,4 @@
-/* $NetBSD: awireg.h,v 1.3 2000/03/22 11:22:22 onoe Exp $ */
+/* $NetBSD: awireg.h,v 1.8 2003/01/20 05:30:06 simonb Exp $ */
 /* $FreeBSD$ */
 
 /*-
@@ -36,6 +36,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef _DEV_IC_AWIREG_H
+#define	_DEV_IC_AWIREG_H
 
 /*
  * The firmware typically loaded onto Am79C930-based 802.11 interfaces
@@ -92,70 +95,65 @@
 
 #define AWI_CMD_SET_MIB			0x2
 #define AWI_CMD_GET_MIB			0x9
-
-#define AWI_CA_MIB_TYPE			0x0
-#define AWI_CA_MIB_SIZE			0x1
-#define AWI_CA_MIB_INDEX		0x2
-#define AWI_CA_MIB_DATA			0x4
-
-#define AWI_MIB_LOCAL			0x0
-#define AWI_MIB_ADDR			0x2
-#define AWI_MIB_MAC			0x3
-#define AWI_MIB_STAT			0x4
-#define AWI_MIB_MGT			0x5
-#define AWI_MIB_DRVR			0x6
-#define AWI_MIB_PHY			0x7
-
+#define AWI_CA_MIB_TYPE			(AWI_CMD_PARAMS + 0x0)
+#define AWI_CA_MIB_SIZE			(AWI_CMD_PARAMS + 0x1)
+#define AWI_CA_MIB_INDEX		(AWI_CMD_PARAMS + 0x2)
+#define AWI_CA_MIB_DATA			(AWI_CMD_PARAMS + 0x4)
+#define AWI_MIB_LOCAL				0
+#define AWI_MIB_ADDR				2
+#define AWI_MIB_MAC				3
+#define AWI_MIB_STAT				4
+#define AWI_MIB_MGT				5
+#define AWI_MIB_DRVR				6
+#define AWI_MIB_PHY				7
 
 #define AWI_CMD_INIT_TX			0x3
-
-#define AWI_CA_TX_LEN			0x14
-#define AWI_CA_TX_DATA			0x0
-#define AWI_CA_TX_MGT			0x4
-#define AWI_CA_TX_BCAST		       	0x8
-#define AWI_CA_TX_PS			0xc
-#define AWI_CA_TX_CF			0x10
+#define AWI_CA_TX_LEN			20
+#define AWI_CA_TX_DATA			(AWI_CMD_PARAMS + 0x0)
+#define AWI_CA_TX_MGT			(AWI_CMD_PARAMS + 0x4)
+#define AWI_CA_TX_BCAST		       	(AWI_CMD_PARAMS + 0x8)
+#define AWI_CA_TX_PS			(AWI_CMD_PARAMS + 0xc)
+#define AWI_CA_TX_CF			(AWI_CMD_PARAMS + 0x10)
 
 #define AWI_CMD_FLUSH_TX		0x4
-
-#define AWI_CA_FTX_LEN			0x5
-#define AWI_CA_FTX_DATA			0x0
-#define AWI_CA_FTX_MGT			0x1
-#define AWI_CA_FTX_BCAST		0x2
-#define AWI_CA_FTX_PS			0x3
-#define AWI_CA_FTX_CF			0x4
+#define AWI_CA_FTX_LEN			5
+#define AWI_CA_FTX_DATA			(AWI_CMD_PARAMS + 0x0)
+#define AWI_CA_FTX_MGT			(AWI_CMD_PARAMS + 0x1)
+#define AWI_CA_FTX_BCAST		(AWI_CMD_PARAMS + 0x2)
+#define AWI_CA_FTX_PS			(AWI_CMD_PARAMS + 0x3)
+#define AWI_CA_FTX_CF			(AWI_CMD_PARAMS + 0x4)
 
 #define AWI_CMD_INIT_RX			0x5
 #define AWI_CA_IRX_LEN			0x8
-#define AWI_CA_IRX_DATA_DESC		0x0 /* return */
-#define AWI_CA_IRX_PS_DESC		0x4 /* return */
+#define AWI_CA_IRX_DATA_DESC		(AWI_CMD_PARAMS + 0x0)	/* return */
+#define AWI_CA_IRX_PS_DESC		(AWI_CMD_PARAMS + 0x4)	/* return */
 
 #define AWI_CMD_KILL_RX			0x6
 
 #define AWI_CMD_SLEEP			0x7
-#define AWI_CA_SLEEP_LEN		0x8 
-#define AWI_CA_WAKEUP			0x0 /* uint64 */
+#define AWI_CA_SLEEP_LEN		8
+#define AWI_CA_WAKEUP			(AWI_CMD_PARAMS + 0x0)	/* uint64 */
 
 #define AWI_CMD_WAKE			0x8
 
 #define AWI_CMD_SCAN			0xa
-#define AWI_CA_SCAN_LEN			0x6
-#define AWI_CA_SCAN_DURATION		0x0
-#define AWI_CA_SCAN_SET			0x2
-#define AWI_CA_SCAN_PATTERN		0x3
-#define AWI_CA_SCAN_IDX			0x4
-#define AWI_CA_SCAN_SUSP		0x5
+#define AWI_CA_SCAN_LEN			6
+#define AWI_CA_SCAN_DURATION		(AWI_CMD_PARAMS + 0x0)
+#define AWI_CA_SCAN_SET			(AWI_CMD_PARAMS + 0x2)
+#define AWI_CA_SCAN_PATTERN		(AWI_CMD_PARAMS + 0x3)
+#define AWI_CA_SCAN_IDX			(AWI_CMD_PARAMS + 0x4)
+#define AWI_CA_SCAN_SUSP		(AWI_CMD_PARAMS + 0x5)
 
 #define AWI_CMD_SYNC			0xb
-#define AWI_CA_SYNC_LEN			0x14
-#define AWI_CA_SYNC_SET			0x0
-#define AWI_CA_SYNC_PATTERN		0x1
-#define AWI_CA_SYNC_IDX			0x2
-#define AWI_CA_SYNC_STARTBSS		0x3
-#define AWI_CA_SYNC_DWELL		0x4
-#define AWI_CA_SYNC_MBZ			0x6
-#define AWI_CA_SYNC_TIMESTAMP		0x8
-#define AWI_CA_SYNC_REFTIME		0x10
+#define AWI_CA_SYNC_LEN			20
+#define AWI_CA_SYNC_SET			(AWI_CMD_PARAMS + 0x0)
+#define AWI_CA_SYNC_PATTERN		(AWI_CMD_PARAMS + 0x1)
+#define AWI_CA_SYNC_IDX			(AWI_CMD_PARAMS + 0x2)
+#define AWI_CA_SYNC_STARTBSS		(AWI_CMD_PARAMS + 0x3)
+#define AWI_CA_SYNC_DWELL		(AWI_CMD_PARAMS + 0x4)
+#define AWI_CA_SYNC_MBZ			(AWI_CMD_PARAMS + 0x6)
+#define AWI_CA_SYNC_TIMESTAMP		(AWI_CMD_PARAMS + 0x8)
+#define AWI_CA_SYNC_REFTIME		(AWI_CMD_PARAMS + 0x10)
 
 #define AWI_CMD_RESUME			0xc
 
@@ -228,7 +226,7 @@
 #define AWI_INTMASK2		0x4fd
 
 /* Bits in AWI_INTSTAT2/INTMASK2 */
-#define AWI_INT2_RXMGT			0x80 		/* mgt/ps recieved */
+#define AWI_INT2_RXMGT			0x80 		/* mgt/ps received */
 #define AWI_INT2_RXDATA			0x40 		/* data received */
 #define AWI_INT2_TXMGT			0x10		/* mgt tx done */
 #define AWI_INT2_TXCF			0x08		/* CF tx done */
@@ -261,7 +259,9 @@
 #define AWI_DRV_RXLED			0x40
 #define AWI_DRV_TXLED			0x80
 
-#define AWI_VBM			0x500	/* Virtual Bit Map */
+#define AWI_VBM_OFFSET		0x500	/* Virtual Bit Map */
+#define AWI_VBM_LENGTH		0x501
+#define AWI_VBM_BITMAP		0x502
 
 #define AWI_BUFFERS		0x600	/* Buffers */
 #define	AWI_BUFFERS_END		0x6000
@@ -357,7 +357,7 @@ struct awi_mib_local {
 	u_int8_t	Rx_Buffer_Size[4];
 	u_int8_t	Acting_as_AP;
 	u_int8_t	Fill_CFP;
-};
+} __attribute__((__packed__));
 
 struct awi_mib_mac {
 	u_int8_t	_Reserved1[2];
@@ -379,7 +379,7 @@ struct awi_mib_mac {
 	u_int8_t	aMax_Receive_MSDU_Lifetime[4];
 	u_int8_t	aStation_Basic_Rate[2];
 	u_int8_t	aDesired_ESS_ID[AWI_ESS_ID_SIZE];
-};
+} __attribute__((__packed__));
 
 struct awi_mib_stat {
 	u_int8_t	aTransmitted_MPDU_Count[4];
@@ -401,7 +401,7 @@ struct awi_mib_stat {
 	u_int8_t	aFCS_Error_Count[4];
 	u_int8_t	aError_Count[4];
 	u_int8_t	aWEP_Undecryptable_Count[4];
-};
+} __attribute__((__packed__));
 
 struct awi_mib_mgt {
 	u_int8_t	aPower_Mgt_Mode;
@@ -413,6 +413,8 @@ struct awi_mib_mgt {
 	u_int8_t	aDTIM_Period;
 	u_int8_t	aATIM_Window[2];
 	u_int8_t	Wep_Required;
+#define	AWI_WEP_ON			0x10
+#define	AWI_WEP_OFF			0x00
 	u_int8_t	_Reserved1;
 	u_int8_t	aBeacon_Period[2];
 	u_int8_t	aPassive_Scan_Duration[2];
@@ -425,7 +427,7 @@ struct awi_mib_mgt {
 	u_int8_t	aStation_ID[2];
 	u_int8_t	aCurrent_BSS_ID[ETHER_ADDR_LEN];
 	u_int8_t	aCurrent_ESS_ID[AWI_ESS_ID_SIZE];
-};
+} __attribute__((__packed__));
 
 #define	AWI_GROUP_ADDR_SIZE	4
 struct awi_mib_addr {
@@ -433,7 +435,7 @@ struct awi_mib_addr {
 	u_int8_t	aGroup_Addresses[AWI_GROUP_ADDR_SIZE][ETHER_ADDR_LEN];
 	u_int8_t	aTransmit_Enable_Status;
 	u_int8_t	_Reserved1;
-};
+} __attribute__((__packed__));
 
 #define AWI_PWR_LEVEL_SIZE 4
 struct awi_mib_phy {
@@ -457,4 +459,6 @@ struct awi_mib_phy {
 #define	AWI_PHY_TYPE_DS		2
 #define	AWI_PHY_TYPE_IR		3
 	u_int8_t	RCR_33A_Bits[8];
-};
+} __attribute__((__packed__));
+
+#endif /* _DEV_IC_AWIREG_H */
