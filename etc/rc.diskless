@@ -55,11 +55,11 @@ bootp_ipa=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $2; }'`
 echo "Interface $bootp_ifc IP-Address $bootp_ipa"
 
 # retarget the configuration directory, where rc.conf.local and rc.local
-# are found.  We set the directory to /conf/$bootp_ipa.
+# are found.  We set the directory to /conf/$bootp_ipa.  'conf_dir' will
+# be used by rc.conf and later in /etc/rc.
 #
 
 conf_dir=/conf/$bootp_ipa
-sysctl -w kern.conf_dir=$conf_dir
 sysctl -w kern.bootfile=$conf_dir/kernel
 
 if [ ! -f $conf_dir/rc.conf.local ]; then
