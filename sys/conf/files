@@ -93,9 +93,13 @@ ddb/db_trap.c		optional ddb
 ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
+dev/advansys/adv_eisa.c	optional adv eisa
+dev/advansys/adv_isa.c	optional adv isa
+dev/advansys/adv_pci.c	optional adv pci
 dev/advansys/advansys.c	optional adv
 dev/advansys/advlib.c	optional adv
 dev/advansys/advmcode.c	optional adv
+dev/advansys/adw_pci.c	optional adw pci
 dev/advansys/adwcam.c	optional adw
 dev/advansys/adwlib.c	optional adw
 dev/advansys/adwmcode.c	optional adw
@@ -105,8 +109,13 @@ dev/amr/amr.c		optional amr
 dev/aha/aha.c		optional aha
 dev/aha/aha_isa.c	optional aha isa
 dev/aha/aha_mca.c	optional aha mca
+dev/ahb/ahb.c		optional ahb eisa
 dev/aic/aic.c		optional aic
 dev/aic/aic_isa.c	optional aic isa
+dev/aic7xxx/ahc_eisa.c	optional ahc eisa	\
+	dependency	"aic7xxx_reg.h $S/dev/aic7xxx/ahc_eisa.c"
+dev/aic7xxx/ahc_pci.c	optional ahc pci	\
+	dependency	"aic7xxx_reg.h $S/dev/aic7xxx/ahc_pci.c"
 dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc
@@ -128,6 +137,7 @@ dev/ep/if_ep_eisa.c	optional ep eisa
 dev/ep/if_ep_mca.c	optional ep mca
 dev/ep/if_ep_pccard.c	optional ep card
 dev/en/midway.c		optional en
+dev/ex/if_ex.c		optional ex
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
@@ -205,10 +215,12 @@ power_if.h		optional pccard					\
 	clean		"power_if.h"
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
-dev/pdq/pdq.c		optional fea
-dev/pdq/pdq_ifsubr.c	optional fea
-dev/pdq/pdq.c		optional fpa
-dev/pdq/pdq_ifsubr.c	optional fpa
+dev/pdq/if_fea.c	optional fea eisa
+dev/pdq/if_fpa.c	optional fea pci
+dev/pdq/pdq.c		optional fea eisa
+dev/pdq/pdq_ifsubr.c	optional fea eisa
+dev/pdq/pdq.c		optional fpa pci
+dev/pdq/pdq_ifsubr.c	optional fpa pci
 ppbus_if.o		optional ppbus					\
 	dependency	"ppbus_if.c ppbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
@@ -306,6 +318,8 @@ dev/vinum/vinumstate.c		optional vinum
 dev/vinum/vinumutil.c		optional vinum
 dev/vn/vn.c			optional vn
 dev/vx/if_vx.c			optional vx
+dev/vx/if_vx_eisa.c		optional vx eisa
+dev/vx/if_vx_pci.c		optional vx pci
 dev/xe/if_xe.c			optional xe
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
@@ -764,10 +778,6 @@ pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
-pci/adv_pci.c		optional adv pci
-pci/adw_pci.c		optional adw pci
-pci/ahc_pci.c		optional ahc pci		\
-	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 dev/bktr/bktr_core.c	optional bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci
 dev/bktr/bktr_card.c	optional bktr pci
@@ -781,7 +791,6 @@ pci/if_ar_p.c		optional ar pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
-pci/if_fpa.c		optional fpa pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
 pci/if_mn.c		optional mn
@@ -795,7 +804,6 @@ pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
 pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
-pci/if_vx_pci.c		optional vx pci
 pci/if_wb.c		optional wb
 pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl

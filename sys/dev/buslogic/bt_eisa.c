@@ -43,7 +43,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 #include <dev/buslogic/btreg.h>
 

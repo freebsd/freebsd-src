@@ -68,7 +68,7 @@
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-#include <i386/isa/if_exreg.h>
+#include <dev/ex/if_exreg.h>
 
 #ifdef EXDEBUG
 # define Start_End 1

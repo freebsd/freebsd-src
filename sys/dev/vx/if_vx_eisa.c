@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include "eisa.h"
@@ -48,7 +49,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 #include <dev/vx/if_vxreg.h>
 
