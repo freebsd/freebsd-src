@@ -123,6 +123,8 @@ parse/util	some goodies for testing parse processing of DCF77 information.
 		one little gem is dcfd.c - DCF77 decoder with ntp loopfilter
 		code for standalone DCF77 synchronisation without the full
 		works of NTP.
+		Dcfd.c has been ported to FreeBSD for the Boeder DCF77 receiver
+		by Vincenzo Capuano.
 
 ppsclock        directory containing sources for modifications to the
                 kernel asynchronous serial driver plus a STREAMS module
