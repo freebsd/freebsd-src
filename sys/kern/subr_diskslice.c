@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.51 1998/07/20 13:51:11 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.52 1998/07/20 14:35:27 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -281,6 +281,7 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 	return (1);
 
 bad:
+	bp->b_resid = bp->b_bcount;
 	bp->b_flags |= B_ERROR;
 	return (-1);
 }
