@@ -553,8 +553,12 @@ DEV_BPF			opt_bpf.h
 # ed driver
 ED_NO_MIIBUS		opt_ed.h
 
+# wi driver
+WI_SYMBOL_FIRMWARE	opt_wi.h
+
 # Polling device handling
 DEVICE_POLLING		opt_global.h
 
 # Mutex profiling
 MUTEX_PROFILING		opt_global.h
+

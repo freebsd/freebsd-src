@@ -132,6 +132,19 @@
 #define CSM_READ_1(sc, off)		\
 	bus_space_read_1((sc)->wi_bmemtag, (sc)->wi_bmemhandle, off)
 
+#define CSR_WRITE_STREAM_2(sc, reg, val)	\
+	bus_space_write_stream_2(sc->wi_btag, sc->wi_bhandle,	\
+	    (sc->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg) * 2 : (reg)), val)
+#define CSR_WRITE_MULTI_STREAM_2(sc, reg, val, count)	\
+	bus_space_write_multi_stream_2(sc->wi_btag, sc->wi_bhandle,	\
+	    (sc->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg) * 2 : (reg)), val, count)
+#define CSR_READ_STREAM_2(sc, reg)		\
+	bus_space_read_stream_2(sc->wi_btag, sc->wi_bhandle,	\
+	    (sc->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg) * 2 : (reg)))
+#define CSR_READ_MULTI_STREAM_2(sc, reg, buf, count)		\
+	bus_space_read_multi_stream_2(sc->wi_btag, sc->wi_bhandle,	\
+	    (sc->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg) * 2 : (reg)), buf, count)
+
 /*
  * The WaveLAN/IEEE cards contain an 802.11 MAC controller which Lucent
  * calls 'Hermes.' In typical fashion, getting documentation about this
@@ -202,6 +215,7 @@
 #define WI_CMD_INQUIRE		0x0011
 #define WI_CMD_ACCESS		0x0021
 #define WI_CMD_PROGRAM		0x0022
+#define WI_CMD_READEE		0x0030	/* symbol only */
 
 #define WI_CMD_CODE_MASK	0x003F
 
@@ -297,7 +311,22 @@
 #define WI_AUX_OFFSET		0x3C
 #define WI_AUX_DATA		0x3E
 
-#define WI_COR_OFFSET	0x3e0
+#define WI_AUX_PGSZ		128
+#define WI_AUX_KEY0		0xfe01
+#define WI_AUX_KEY1		0xdc23
+#define WI_AUX_KEY2		0xba45
+
+#define WI_COR			0x40	/* only for Symbol */
+#define WI_COR_RESET		0x0080
+#define WI_COR_IOMODE		0x0041
+
+#define WI_HCR			0x42	/* only for Symbol */
+#define WI_HCR_4WIRE		0x0010
+#define WI_HCR_RUN		0x0007
+#define WI_HCR_HOLD		0x000f
+#define WI_HCR_EEHOLD		0x00ce
+
+#define WI_COR_OFFSET	0x3e0	/* Bogus for sure! */
 #define WI_COR_VALUE	0x41
 
 /*
