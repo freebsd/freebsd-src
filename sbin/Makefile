@@ -38,6 +38,7 @@ SUBDIR=	adjkerntz \
 	ldconfig \
 	md5 \
 	mdconfig \
+	mdmfs \
 	mknod \
 	mount \
 	mount_cd9660 \
