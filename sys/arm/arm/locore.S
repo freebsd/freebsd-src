@@ -33,6 +33,7 @@
  */
 
 #include "assym.s"
+#include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/pte.h>
@@ -63,9 +64,17 @@ __FBSDID("$FreeBSD$");
 ENTRY_NP(btext)
 
 ASENTRY_NP(_start)
+	
 	/* Check if we are running on RAM, if not move ourself to RAM */
-	cmp	pc, #KERNPHYSADDR
+#if 0
+	cmp	pc, #PHYSADDR
 	bhi	start_inram /* XXX: This is wrong */
+#endif
+	b	start_inram /* 
+			     * XXX: this is even more wrong, but RedBoot
+			     * use 0x00000000-0x100000000 as virtual
+			     * addresses for the RAM.
+			     */
 
 		/* move me to RAM
 	 * XXX: we can use memcpy if it is PIC
@@ -74,7 +83,7 @@ ASENTRY_NP(_start)
 	adr r0, _C_LABEL(_start)
 	add r1, r1, #3
 	mov r1, r1, LSR #2
-	mov r2, #KERNPHYSADDR
+	mov r2, #PHYSADDR
 	add r2, r2, #0x00200000
 	mov r4, r2
 
@@ -90,13 +99,22 @@ ASENTRY_NP(_start)
 Lcopy_size:	.word _edata-_C_LABEL(_start)
 Lstart_off:	.word start_inram-_C_LABEL(_start)
 start_inram:
-#ifdef STARTUP_PAGETABLE_ADDR
-	adr	r4, mmu_init_table2
+	adr	r7, Lunmapped
+	bic	r7, r7, #0xff000000
+	orr	r7, r7, #PHYSADDR
 	
-	mrc	p15, 0, r2, c1, c0, 0
-	tst	r2, #CPU_CONTROL_MMU_ENABLE		/* we already have a page table? */
-	bne	3f
+	/* Disable MMU for a while */
+        mrc     p15, 0, r2, c1, c0, 0
+	bic     r2, r2, #CPU_CONTROL_MMU_ENABLE
+	mcr     p15, 0, r2, c1, c0, 0
 
+	nop
+	nop
+	nop
+	mov	pc, r7
+Lunmapped:
+						
+#ifdef STARTUP_PAGETABLE_ADDR
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
 	adr	r4, mmu_init_table
@@ -127,7 +145,6 @@ start_inram:
 	CPWAIT(r0)
 
 	bl	mmu_done
-
 mmu_done:
 #endif
 	adr	r1, .Lstart
@@ -140,7 +157,7 @@ mmu_done:
 	subs	r2, r2, #4
 	bgt	.L1
 
-	mov	fp, #0xc0000000		/* trace back starts here */
+	ldr	fp, =KERNVIRTADDR	/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
 	/* init arm will return the new stack pointer. */
@@ -167,10 +184,10 @@ mmu_init_table:
 	/* fill all table VA==PA */
 	MMU_INIT(0x00000000, 0x00000000, 1<<(32-L1_S_SHIFT), L1_TYPE_S|L1_S_AP(AP_KRW))
 	/* map SDRAM VA==PA, WT cacheable */
-	MMU_INIT(KERNPHYSADDR, KERNPHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-mmu_init_table2:	
-	/* map VA 0xc0000000..0xc3ffffff to PA 0xa0000000..0xa3ffffff */
-	MMU_INIT(0xc0000000, KERNPHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	/* map VA 0xc0000000..0xc3ffffff to PA */
+	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(0xfe800000, 0xfe800000, 1<<(32-L1_S_SHIFT), L1_TYPE_S|L1_S_AP(AP_KRW))
 
 	.word 0	/* end of table */
 #endif
@@ -196,7 +213,7 @@ svcstk:
 .Lcpufuncs:	
 	.word	_C_LABEL(cpufuncs)
 
-ENTRY_NP(cpu_reset)
+ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
@@ -305,4 +322,21 @@ _C_LABEL(esym):	.word	_C_LABEL(end)
 ENTRY_NP(abort)
 	b	_C_LABEL(abort)
 
+ENTRY_NP(sigcode)
+	mov	r0, sp
+	swi	SYS_sigreturn
+
+	/* Well if that failed we better exit quick ! */
+
+	swi	SYS_exit
+	b	. - 8
+
+	.align	0
+	.global _C_LABEL(esigcode)
+		_C_LABEL(esigcode):
+	
+	.data
+	.global szsigcode
+szsigcode:
+	.long esigcode-sigcode
 /* End of locore.S */
