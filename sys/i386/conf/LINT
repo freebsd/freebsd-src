@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.186 1995/07/11 17:20:10 bde Exp $
+#	$Id: LINT,v 1.187 1995/07/16 08:55:04 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -693,3 +693,16 @@ device		ncr0
 device		de0
 device		fpa0
 options		PROBE_VERBOSE
+
+#
+# Laptop/Notebook options:
+#
+# See also:
+#  apm under `Miscellaneous hardare'
+#  options		PSM_NO_RESET  for the `psm' driver
+# above.
+
+# For older notebooks that signal a powerfail condition (external
+# power supply dropped, or battery state low) by issuing an NMI:
+
+options		POWERFAIL_NMI	# make it beep instead of panicing
