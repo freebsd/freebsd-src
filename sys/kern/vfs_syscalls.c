@@ -3189,7 +3189,7 @@ revoke(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (vp->v_type != VCHR && vp->v_type != VBLK) {
+	if (vp->v_type != VCHR) {
 		error = EINVAL;
 		goto out;
 	}
