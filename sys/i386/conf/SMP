@@ -10,3 +10,6 @@ ident		SMP-GENERIC
 # To make an SMP kernel, the next two are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	APIC_IO			# Symmetric (APIC) I/O
+
+# To support HyperThreading, HTT is needed in addition to SMP and APIC_IO
+options 	HTT			# HyperThreading Technology
