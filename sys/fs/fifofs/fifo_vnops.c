@@ -70,7 +70,6 @@ static int	fifo_print(struct vop_print_args *);
 static int	fifo_lookup(struct vop_lookup_args *);
 static int	fifo_open(struct vop_open_args *);
 static int	fifo_close(struct vop_close_args *);
-static int	fifo_inactive(struct vop_inactive_args *);
 static int	fifo_read(struct vop_read_args *);
 static int	fifo_write(struct vop_write_args *);
 static int	fifo_ioctl(struct vop_ioctl_args *);
@@ -98,7 +97,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
-	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
 	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
@@ -556,32 +554,18 @@ fifo_close(ap)
 		if (fip->fi_writers == 0)
 			socantrcvmore(fip->fi_readsock);
 	}
-	VOP_UNLOCK(vp, 0, td);
-	return (0);
-}
-
-static int
-fifo_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct fifoinfo *fip = vp->v_fifoinfo;
-
 	VI_LOCK(vp);
-	if (fip != NULL && vp->v_usecount == 0) {
+	if (vp->v_usecount == 1) {
 		vp->v_fifoinfo = NULL;
 		VI_UNLOCK(vp);
 		(void)soclose(fip->fi_readsock);
 		(void)soclose(fip->fi_writesock);
 		FREE(fip, M_VNODE);
-	}
-	VOP_UNLOCK(vp, 0, ap->a_td);
+	} else
+		VI_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, td);
 	return (0);
 }
-
 
 /*
  * Print out internal contents of a fifo vnode.
