@@ -68,40 +68,14 @@ static void	fixit_common(void);
 
 static void	installConfigure(void);
 
-#ifdef __ia64__
-static const char *
-efi_mountpoint(void)
-{
-    Device **devs;
-    Disk *disk;
-    Chunk *c;
-    PartInfo *pi;
-    int i;
-
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    for (i = 0; devs[i] != NULL; i++) {
-	if (!devs[i]->enabled)
-	    continue;
-	disk = (Disk *)devs[i]->private;
-	for (c = disk->chunks->part; c != NULL; c = c->next) {
-	    if (c->type == efi && c->private_data != NULL) {
-		pi = (PartInfo *)c->private_data;
-		if (pi->mountpoint[0] == '/')
-		    return (pi->mountpoint);
-	    }
-	}
-    }
-    return (NULL);
-}
-#endif
-
 Boolean
-checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **tdev, Chunk **hdev)
+checkLabels(Boolean whinge)
 {
     Device **devs;
     Boolean status;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev, *tmpdev, *homedev;
+    PartInfo *pi;
+    Chunk *c1, *c2;
     int i;
 
     /* Don't allow whinging if noWarn is set */
@@ -109,19 +83,11 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	whinge = FALSE;
 
     status = TRUE;
-    if (rdev)
-	*rdev = NULL;
-    if (sdev)
-	*sdev = NULL;
-    if (udev)
-	*udev = NULL;
-    if (vdev)
-	*vdev = NULL;
-    if (tdev)
-	*tdev = NULL;
-    if (hdev)
-	*hdev = NULL;
-    rootdev = swapdev = usrdev = vardev = tmpdev = homedev = NULL;
+    HomeChunk = RootChunk = SwapChunk = NULL;
+    TmpChunk = UsrChunk = VarChunk = NULL;
+#ifdef __ia64__
+    EfiChunk = NULL;
+#endif
 
     /* We don't need to worry about root/usr/swap if we're already multiuser */
     if (!RunningAsInit)
@@ -146,68 +112,70 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
-			if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/")) {
-			    if (rootdev) {
+
+		    pi = (PartInfo *)c2->private_data;
+		    if (c2->type == part && c2->subtype != FS_SWAP && pi != NULL) {
+			if (!strcmp(pi->mountpoint, "/")) {
+			    if (RootChunk) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one root device set?!\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				rootdev = c2;
+				RootChunk = c2;
 				if (isDebug())
-				    msgDebug("Found rootdev at %s!\n", rootdev->name);
+				    msgDebug("Found rootdev at %s!\n", RootChunk->name);
 			    }
 			}
-			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
-			    if (usrdev) {
+			else if (!strcmp(pi->mountpoint, "/usr")) {
+			    if (UsrChunk) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				usrdev = c2;
+				UsrChunk = c2;
 				if (isDebug())
-				    msgDebug("Found usrdev at %s!\n", usrdev->name);
+				    msgDebug("Found usrdev at %s!\n", UsrChunk->name);
 			    }
 			}
-			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var")) {
-			    if (vardev) {
+			else if (!strcmp(pi->mountpoint, "/var")) {
+			    if (VarChunk) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one /var filesystem.\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				vardev = c2;
+				VarChunk = c2;
 				if (isDebug())
-				    msgDebug("Found vardev at %s!\n", vardev->name);
+				    msgDebug("Found vardev at %s!\n", VarChunk->name);
 			    }
-			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/tmp")) {
-			    if (tmpdev) {
+			} else if (!strcmp(pi->mountpoint, "/tmp")) {
+			    if (TmpChunk) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one /tmp filesystem.\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				tmpdev = c2;
+				TmpChunk = c2;
 				if (isDebug())
-				    msgDebug("Found tmpdev at %s!\n", tmpdev->name);
+				    msgDebug("Found tmpdev at %s!\n", TmpChunk->name);
 			    }
-			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/home")) {
-			    if (homedev) {
+			} else if (!strcmp(pi->mountpoint, "/home")) {
+			    if (HomeChunk) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one /home filesystem.\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				homedev = c2;
+				HomeChunk = c2;
 				if (isDebug())
-				    msgDebug("Found homedev at %s!\n", homedev->name);
+				    msgDebug("Found homedev at %s!\n", HomeChunk->name);
 			    }
 			}
 		    }
@@ -237,10 +205,10 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
-		    if (c2->type == part && c2->subtype == FS_SWAP && !swapdev) {
-			swapdev = c2;
+		    if (c2->type == part && c2->subtype == FS_SWAP && !SwapChunk) {
+			SwapChunk = c2;
 			if (isDebug())
-			    msgDebug("Found swapdev at %s!\n", swapdev->name);
+			    msgDebug("Found swapdev at %s!\n", SwapChunk->name);
 			break;
 		    }
 #ifndef __ia64__
@@ -250,34 +218,33 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	}
     }
 
-    /* Copy our values over */
-    if (rdev)
-	*rdev = rootdev;
-    if (sdev)
-	*sdev = swapdev;
-    if (udev)
-	*udev = usrdev;
-    if (vdev)
-	*vdev = vardev;
-    if (tdev)
-	*tdev = tmpdev;
-    if (hdev)
-	*hdev = homedev;
+#ifdef __ia64__
+    for (i = 0; devs[i] != NULL; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+	disk = (Disk *)devs[i]->private;
+	for (c1 = disk->chunks->part; c1 != NULL; c1 = c1->next) {
+		pi = (PartInfo *)c1->private_data;
+	    if (c1->type == efi && pi != NULL && pi->mountpoint[0] == '/')
+		EfiChunk = c1;
+	}
+    }
+#endif
 
-    if (!rootdev && whinge) {
+    if (!RootChunk && whinge) {
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
 	status = FALSE;
     }
-    if (!swapdev && whinge) {
+    if (!SwapChunk && whinge) {
 	if (msgYesNo("No swap devices found - you should create at least one\n"
 		     "swap partition.  Without swap, the install will fail\n"
 		     "if you do not have enough RAM.  Continue anyway?"))
 	    status = FALSE;
     }
 #ifdef __ia64__
-    if (efi_mountpoint() == NULL && whinge) {
-	if (msgYesNo("No EFI system partition found. Is this what you want?"))
+    if (EfiChunk == NULL && whinge) {
+	if (msgYesNo("No (mounted) EFI system partition found. Is this what you want?"))
 	    status = FALSE;
     }
 #endif
@@ -896,11 +863,13 @@ installFixupBase(dialogMenuItem *self)
 
 #ifdef __ia64__
 	/* Move /boot to the the EFI partition and make /boot a link to it. */
-	efi_mntpt = efi_mountpoint();
+	efi_mntpt = (EfiChunk != NULL) ? ((PartInfo *)EfiChunk->private_data)->mountpoint : NULL;
 	if (efi_mntpt != NULL) {
 		vsystem("if [ ! -L /boot ]; then mv /boot %s; fi", efi_mntpt);
 		vsystem("if [ ! -e /boot ]; then ln -sf %s/boot /boot; fi",
 		    efi_mntpt + 1);	/* Skip leading '/' */
+		/* Make sure the kernel knows which partition is the root file system. */
+		vsystem("echo 'vfs.root.mountfrom=\"ufs:/dev/%s\"' >> /boot/loader.conf", RootChunk->name);
 	}
 #endif
 
@@ -953,7 +922,7 @@ installFilesystems(dialogMenuItem *self)
 {
     int i;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev;
+    Chunk *c1, *c2;
     Device **devs;
     PartInfo *root;
     char dname[80];
@@ -964,18 +933,15 @@ installFilesystems(dialogMenuItem *self)
 	return DITEM_SUCCESS;
 
     upgrade = !variable_cmp(SYSTEM_STATE, "upgrade");
-    if (!checkLabels(TRUE, &rootdev, &swapdev, NULL, NULL, NULL, NULL))
+    if (!checkLabels(TRUE))
 	return DITEM_FAILURE;
 
-    if (rootdev)
-	root = (PartInfo *)rootdev->private_data;
-    else
-	root = NULL;
+    root = (RootChunk != NULL) ? (PartInfo *)RootChunk->private_data : NULL;
 
     command_clear();
-    if (swapdev && RunningAsInit) {
+    if (SwapChunk && RunningAsInit) {
 	/* As the very first thing, try to get ourselves some swap space */
-	sprintf(dname, "/dev/%s", swapdev->name);
+	sprintf(dname, "/dev/%s", SwapChunk->name);
 	if (!Fake && !file_readable(dname)) {
 	    msgConfirm("Unable to find device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
@@ -995,16 +961,16 @@ installFilesystems(dialogMenuItem *self)
 	}
     }
 
-    if (rootdev && RunningAsInit) {
+    if (RootChunk && RunningAsInit) {
 	/* Next, create and/or mount the root device */
-	sprintf(dname, "/dev/%s", rootdev->name);
+	sprintf(dname, "/dev/%s", RootChunk->name);
 	if (!Fake && !file_readable(dname)) {
 	    msgConfirm("Unable to make device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	if (strcmp(root->mountpoint, "/"))
-	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
+	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", RootChunk->name, root->mountpoint);
 
 	if (root->do_newfs && (!upgrade ||
 	    !msgNoYes("You are upgrading - are you SURE you want to newfs "
@@ -1046,7 +1012,7 @@ installFilesystems(dialogMenuItem *self)
 	}
 
 	/* Switch to block device */
-	sprintf(dname, "/dev/%s", rootdev->name);
+	sprintf(dname, "/dev/%s", RootChunk->name);
 	if (Mount("/mnt", dname)) {
 	    msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	    return DITEM_FAILURE | DITEM_RESTORE;
@@ -1102,7 +1068,7 @@ installFilesystems(dialogMenuItem *self)
 			PartInfo *tmp = (PartInfo *)c2->private_data;
 
 			/* Already did root */
-			if (c2 == rootdev)
+			if (c2 == RootChunk)
 			    continue;
 
 			sprintf(dname, "%s/dev/%s",
@@ -1128,7 +1094,7 @@ installFilesystems(dialogMenuItem *self)
 			char fname[80];
 			int i;
 
-			if (c2 == swapdev)
+			if (c2 == SwapChunk)
 			    continue;
 			sprintf(fname, "%s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			i = (Fake || swapon(fname));
