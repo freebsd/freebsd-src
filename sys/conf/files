@@ -272,6 +272,10 @@ dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
 dev/aac/aac_cam.c	optional aacp aac
 dev/aac/aac_linux.c		optional aac compat_linux
+dev/acpi_support/acpi_asus.c	optional acpi acpi_asus
+dev/acpi_support/acpi_panasonic.c optional acpi acpi_panasonic
+dev/acpi_support/acpi_sony.c	optional acpi acpi_sony
+dev/acpi_support/acpi_toshiba.c	optional acpi acpi_toshiba
 dev/acpica/acpi.c		optional acpi
 dev/acpica/acpi_acad.c		optional acpi
 dev/acpica/acpi_battery.c	optional acpi
@@ -300,7 +304,6 @@ dev/acpica/Osd/OsdSchedule.c	optional acpi
 dev/acpica/Osd/OsdStream.c	optional acpi
 dev/acpica/Osd/OsdSynch.c	optional acpi
 dev/acpica/Osd/OsdTable.c	optional acpi
-dev/acpica/acpi_snc.c		optional acpi_snc acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/adlink/adlink.c	optional adlink
 dev/advansys/adv_eisa.c	optional adv eisa
