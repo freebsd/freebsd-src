@@ -40,6 +40,7 @@ int hascolor = 0;
 void set(int, int);
 void standt(int);
 void movto(int, int);
+void sighndl(int);
 
 void sighndl(signo)
 int signo;
