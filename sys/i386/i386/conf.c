@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.43 1994/12/04 07:14:16 phk Exp $
+ *	$Id: conf.c,v 1.44 1994/12/04 20:08:57 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,9 +53,12 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 
+/*
+ * XXX move these to conf.h as in 1.1.5.
+ * d_strategy_t has already been moved (and fixed).
+ */
 typedef int d_open_t __P((dev_t, int, int, struct proc *));
 typedef int d_close_t __P((dev_t, int, int, struct proc *));
-typedef int d_strategy_t __P((struct buf *));
 typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
 typedef int d_dump_t __P(());
 typedef int d_psize_t __P((dev_t));
