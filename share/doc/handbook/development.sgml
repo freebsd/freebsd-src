@@ -40,7 +40,7 @@ replicated to your own machine as well.  Please refer to the
 <ref id="synching" name="Syncronizing your source tree">
 section for more information on doing this.</item>
 
-<item>The committers list<label id="development:committers">
+<item><bf>The committers list</bf><label id="development:committers">
 <p>The <ref id="contrib:committers" name="committers"> are the people
 who have <em>write</em> access to the CVS tree, and are thus
 authorized to make modifications to the FreeBSD source (the term
@@ -53,7 +53,7 @@ in the system then you may also reach them by sending mail to <htmlurl
 url="mailto:committers@freebsd.org" name="committers@freebsd.org">.
 </item>
 
-<item>The FreeBSD core team
+<item><bf>The FreeBSD core team</bf><label id="development:core">
 
 <p>The <ref id="contrib:core" name="FreeBSD core team"> would be
 equivalent to the board of directors if the FreeBSD Project were a
@@ -77,14 +77,14 @@ say that these are the people who gave up their lives in favor of
 FreeBSD against their better judgement! <tt>;)</tt></item>
 
 
-<item>Outside contributors
+<item><bf>Outside contributors</bf>
 
 <p>Last, but definitely not least, the largest group of developers are
 the users themselves who provide feedback and bug-fixes to us on an
 almost constant basis.  The primary way of keeping in touch with FreeBSD's
 more non-centralized development is to subscribe to the
 <htmlurl url="hackers@freebsd.org" name="-hackers"> mailing list
-(see <ref id="eresources:mail"> name="mailing list info">) where such
+(see <ref id="eresources:mail" name="mailing list info">) where such
 things are discussed.
 
 <ref id="contrib:additional" name="The list"> of those who've
