@@ -34,8 +34,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fseek.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
-.Dd June 4, 1993
+.Dd Mar 5, 1999
 .Dt FSEEK 3
 .Os
 .Sh NAME
@@ -59,6 +60,7 @@
 .Fn fgetpos "FILE *stream" "fpos_t *pos"
 .Ft int
 .Fn fsetpos "FILE *stream" "const fpos_t *pos"
+.Fd #include <sys/types.h>
 .Ft int
 .Fn fseeko "FILE *stream" "off_t offset" "int whence"
 .Ft off_t
@@ -115,7 +117,7 @@ The
 .Fn fseeko
 function is identical to
 .Fn fseek ,
-but take an
+except it takes an
 .Fa off_t
 argument
 instead of a
@@ -124,7 +126,7 @@ Likewise, the
 .Fn ftello
 function is identical to
 .Fn ftell ,
-but returns
+except it returns an
 .Fa off_t .
 .Pp
 The
@@ -163,7 +165,7 @@ and
 .Fn ftell
 and
 .Fn ftello
-returns the current offset.
+return the current offset.
 Otherwise, \-1 is returned and the global variable errno is set to
 indicate the error.
 .Sh ERRORS
