@@ -7,8 +7,6 @@ LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
 
 PROG=	openssl
 
-MAINTAINER=	kris
-
 DPADD=	${LIBSSL} ${LIBCRYPTO}
 LDADD=	-lssl -lcrypto
 MLINKS=	openssl.1 ssl.8
