@@ -34,7 +34,21 @@ init_variables()
 	eval jail_hostname=\"\$jail_${_j}_hostname\"
 	eval jail_ip=\"\$jail_${_j}_ip\"
 	eval jail_exec=\"\$jail_${_j}_exec\"
-	[ -z "${jail_exec}" ] && jail_exec="/bin/sh /etc/rc"
+	eval jail_exec_start=\"\$jail_${_j}_exec_start\"
+	eval jail_exec_stop=\"\$jail_${_j}_exec_stop\"
+	if [ -n "${jail_exec}" ]; then
+		#   simple/backward-compatible execution
+		jail_exec_start="${jail_exec}"
+		jail_exec_stop=""
+	else
+		#   flexible execution
+		if [ -z "${jail_exec_start}" ]; then
+			jail_exec_start="/bin/sh /etc/rc"
+			if [ -z "${jail_exec_stop}" ]; then
+				jail_exec_stop="/bin/sh /etc/rc.shutdown"
+			fi
+		fi
+	fi
 
 	# The default jail ruleset will be used by rc.subr if none is specified.
 	eval jail_ruleset=\"\$jail_${_j}_devfs_ruleset\"
@@ -65,6 +79,8 @@ init_variables()
 	debug "$_j procdir: $jail_procdir"
 	debug "$_j ruleset: $jail_ruleset"
 	debug "$_j fstab: $jail_fstab"
+	debug "$_j exec start: $jail_exec_start"
+	debug "$_j exec stop: $jail_exec_stop"
 }
 
 # set_sysctl rc_knob mib msg
@@ -177,8 +193,8 @@ jail_start()
 			fi
 		fi
 		_tmp_jail=${_tmp_dir}/jail.$$
-		jail -i ${jail_rootdir} ${jail_hostname} \
-			${jail_ip} ${jail_exec} > ${_tmp_jail} 2>&1
+		eval jail -l -U root -i ${jail_rootdir} ${jail_hostname} \
+			${jail_ip} ${jail_exec_start} > ${_tmp_jail} 2>&1
 		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
 		_jail_id=$(head -1 ${_tmp_jail})
 		tail +2 ${_tmp_jail} >${jail_rootdir}/var/log/console.log
@@ -198,7 +214,13 @@ jail_stop()
 			_jail_id=$(cat /var/run/jail_${_jail}.id)
 			if [ ! -z "${_jail_id}" ]; then
 				init_variables $_jail
+				if [ -n "${jail_exec_stop}" ]; then
+					eval env -i /usr/sbin/jexec ${_jail_id} ${jail_exec_stop} \
+						>> ${jail_rootdir}/var/log/console.log 2>&1
+				fi
 				killall -j ${_jail_id} -TERM > /dev/null 2>&1
+				sleep 1
+				killall -j ${_jail_id} -KILL > /dev/null 2>&1
 				jail_umount_fs
 				echo -n " $jail_hostname"
 			fi
