@@ -387,8 +387,8 @@ build32:
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
 .for _dir in \
-    lib lib32 usr/bin usr/include usr/lib32/compat usr/libdata/ldscripts \
-    usr/libexec usr/sbin usr/share/misc \
+    lib lib32 usr/bin usr/include usr/lib32/compat/aout \
+    usr/libdata/ldscripts usr/libexec usr/sbin usr/share/misc \
     usr/share/snmp/defs usr/share/snmp/mibs
 	mkdir -p ${LIB32TMP}/${_dir}
 .endfor
