@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 LIBS=	llib-lposix.ln llib-lstdc.ln
+LINT=	${.OBJDIR}/../xlint/xlint
 
 all:	${LIBS}
 
@@ -13,9 +14,9 @@ clean cleanall:
 	rm -f ${LIBS}
 
 llib-lposix.ln: llib-lposix
-	lint -Cposix ${.ALLSRC}
+	${LINT} -Cposix ${.ALLSRC}
 
 llib-lstdc.ln: llib-lstdc
-	lint -Cstdc ${.ALLSRC}
+	${LINT} -Cstdc ${.ALLSRC}
 
 .include <bsd.prog.mk>
