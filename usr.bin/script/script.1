@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: script.1,v 1.4 1998/03/08 14:19:15 peter Exp $
+.\"	$Id: script.1,v 1.5 1998/06/04 21:06:02 steve Exp $
 .\"
 .Dd June 6, 1993
 .Dt SCRIPT 1
@@ -86,7 +86,8 @@ Run in quiet mode, omit the start and stop status messages.
 Specify time interval between flushing script output file.  A value of 0
 causes
 .Nm
-to flush for every character I/O event.
+to flush for every character I/O event.  The default interval is
+30 seconds.
 .El
 .Pp
 The script ends when the forked shell (or command) exits (a
