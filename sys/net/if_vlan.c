@@ -285,9 +285,8 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	}
 
 	if (i >= NVLAN || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		ifv->ifv_p->if_data.ifi_noproto++;
-		return;
+		m_free(m);
+		return -1;	/* So the parent can take note */
 	}
 
 	/*
@@ -312,7 +311,7 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	}
 	ifv->ifv_if.if_ipackets++;
 	ether_input(&ifv->ifv_if, eh, m);
-	return;
+	return 0;
 }
 
 int
