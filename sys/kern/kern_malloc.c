@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.35 1997/10/11 13:13:09 phk Exp $
+ * $Id: kern_malloc.c,v 1.36 1997/10/12 20:23:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -404,6 +404,9 @@ malloc_init(type)
 	struct malloc_type *type;
 {
 	int npg;
+
+	if (type->ks_magic != M_MAGIC) 
+		panic("malloc type lacks magic");
 
 	/*
 	 * Limit maximum memory for each type to 60% of malloc area size or
