@@ -154,9 +154,9 @@ setterm(type)
 		CM = 0;
 	} else
 		CA = 1;
-#ifndef __FreeBSD__
-	PC = _PC ? _PC[0] : 0;
 
+	PC = _PC ? _PC[0] : 0;
+#ifndef __FreeBSD__
 	switch(cfgetospeed(&__baset)) {
 		case B0: ospeed = 0; break;
 		case B50: ospeed = 1; break;
