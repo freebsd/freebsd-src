@@ -39,7 +39,7 @@ static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 char *ipsec_policy_in = NULL;
 char *ipsec_policy_out = NULL;
 #endif
+
+extern int tos;
 
 int family = AF_UNSPEC;
 
@@ -115,8 +117,9 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
+	u_long ultmp;
 	int ch;
-	char *user;
+	char *ep, *user;
 	char *src_addr = NULL;
 #ifdef	FORWARD
 	extern int forward_flags;
@@ -151,7 +154,7 @@ main(int argc, char *argv[])
 #define IPSECOPT
 #endif
 	while ((ch = getopt(argc, argv,
-			    "468EKLNS:X:acde:fFk:l:n:rs:t:uxy" IPSECOPT)) != -1)
+			    "468EKLNS:X:acde:fFk:l:n:rs:uxy" IPSECOPT)) != -1)
 #undef IPSECOPT
 	{
 		switch(ch) {
@@ -181,9 +184,7 @@ main(int argc, char *argv[])
 			doaddrlookup = 0;
 			break;
 		case 'S':
-		    {
 #ifdef	HAS_GETTOS
-			extern int tos;
 
 			if ((tos = parsetos(optarg, "tcp")) < 0)
 				fprintf(stderr, "%s%s%s%s\n",
@@ -191,11 +192,16 @@ main(int argc, char *argv[])
 					optarg,
 					"; will try to use default TOS");
 #else
-			fprintf(stderr,
-			   "%s: Warning: -S ignored, no parsetos() support.\n",
-								prompt);
+#define	MAXTOS	255
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp > MAXTOS)
+				fprintf(stderr, "%s%s%s%s\n",
+					prompt, ": Bad TOS argument '",
+					optarg,
+					"; will try to use default TOS");
+			else
+				tos = ultmp;
 #endif
-		    }
 			break;
 		case 'X':
 #ifdef	AUTHENTICATION

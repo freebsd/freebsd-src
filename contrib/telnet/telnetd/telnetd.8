@@ -32,7 +32,7 @@
 .\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2000
+.Dd January 9, 2005
 .Dt TELNETD 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/telnetd
-.Op Fl BUhlkn
+.Op Fl 46BUhlkn
 .Op Fl D Ar debugmode
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
@@ -86,6 +86,14 @@ The
 .Nm
 command accepts the following options:
 .Bl -tag -width indent
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
 .It Fl a Ar authmode
 This option may be used for specifying what mode should
 be used for authentication.
@@ -243,6 +251,13 @@ Specify an alternate
 command to run to complete the login.  The alternate command must
 understand the same command arguments as the standard login.
 .It Fl S Ar tos
+Sets the IP type-of-service (TOS) option for the telnet
+connection to the value
+.Ar tos ,
+which can be a numeric TOS value or, on systems that support it, a symbolic
+TOS name found in the
+.Pa /etc/iptos
+file.
 .It Fl u Ar len
 This option is used to specify the size of the field
 in the

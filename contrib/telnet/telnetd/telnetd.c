@@ -131,12 +131,14 @@ char user_name[256];
 int
 main(int argc, char *argv[])
 {
+	u_long ultmp;
 	struct sockaddr_storage from;
 	int on = 1, fromlen;
 	int ch;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 	int tos = -1;
 #endif
+	char *ep;
 
 	pfrontp = pbackp = ptyobuf;
 	netip = netibuf;
@@ -273,7 +275,14 @@ main(int argc, char *argv[])
 					"bad TOS argument '", optarg,
 					"'; will try to use default TOS");
 #else
-			warnx("TOS option unavailable; -S flag not supported");
+#define	MAXTOS	255
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp > MAXTOS)
+				warnx("%s%s%s",
+					"bad TOS argument '", optarg,
+					"'; will try to use default TOS");
+			else
+				tos = ultmp;
 #endif
 			break;
 
@@ -412,7 +421,8 @@ usage()
 {
 	fprintf(stderr, "usage: telnetd");
 #ifdef	AUTHENTICATION
-	fprintf(stderr, " [-a (debug|other|user|valid|off|none)]\n\t");
+	fprintf(stderr,
+	    " [-4] [-6] [-a (debug|other|user|valid|off|none)]\n\t");
 #endif
 #ifdef BFTPDAEMON
 	fprintf(stderr, " [-B]");
