@@ -643,7 +643,7 @@ options 	NFS_ROOT		#NFS usable as root device
 # Also, 'options MFS' is currently incompatible with DEVFS.
 options 	DEVFS			#devices filesystem
 
-# Soft updates is technique for improving file system speed and
+# Soft updates is a technique for improving file system speed and
 # making abrupt shutdown less risky.
 #
 options 	SOFTUPDATES
