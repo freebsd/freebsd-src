@@ -121,8 +121,6 @@ ENTRY(cpu_switch)
 
 	/* thread to restore is in r3 */
 .L2:
-	li      %r15,TDS_RUNNING
-	stw     %r15,TD_STATE(%r3)      /* Set KSE state */
 	lwz	%r3, TD_PCB(%r3)
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
 	mr	%r2,%r12
