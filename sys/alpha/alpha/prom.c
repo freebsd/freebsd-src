@@ -39,7 +39,6 @@
 #include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/cons.h>
