@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.75 1995/03/04 20:52:38 dufault Exp $
+ *	$Id: conf.c,v 1.76 1995/03/05 21:41:40 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -386,13 +386,30 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "sc.h"
 #include "vt.h"
 #if NSC > 0
+# if NVT > 0
+#  error "sc0 and vt0 are mutually exclusive"
+# endif /* NVT > 0 */
 d_open_t	scopen;
 d_close_t	scclose;
 d_rdwr_t	scread, scwrite;
 d_ioctl_t	scioctl;
 d_mmap_t	scmmap;
 d_ttycv_t	scdevtotty;
-#else
+#elif NVT > 0
+d_open_t	pcopen;
+d_close_t	pcclose;
+d_rdwr_t	pcread, pcwrite;
+d_ioctl_t	pcioctl;
+d_mmap_t	pcmmap;
+d_ttycv_t	pcdevtotty;
+#define scopen		pcopen
+#define scclose		pcclose
+#define scread		pcread
+#define scwrite		pcwrite
+#define scioctl		pcioctl
+#define scmmap		pcmmap
+#define	scdevtotty	pcdevtotty
+#else  /* neither syscons nor pcvt, i.e. no grafx console driver */
 #define scopen		nxopen
 #define scclose		nxclose
 #define scread		nxread
@@ -400,7 +417,7 @@ d_ttycv_t	scdevtotty;
 #define scioctl		nxioctl
 #define scmmap		nxmmap
 #define	scdevtotty	nxdevtotty
-#endif
+#endif /* NSC > 0, NVT > 0 */
 
 /* controlling TTY */
 d_open_t	cttyopen;
