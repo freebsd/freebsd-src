@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: radius.c,v 1.1 1999/01/28 01:56:34 brian Exp $
  *
  */
 
@@ -265,10 +265,11 @@ radius_Authenticate(struct radius *r, struct bundle *bundle, const char *name,
     return 0;
   }
 
+  rad_close(h);
+  r->valid = 1;
   log_Printf(LogPHASE, "radius: SUCCESS\n");
 
-  rad_close(h);
-  return r->valid = 1;
+  return 1;
 }
 
 void
