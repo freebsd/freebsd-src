@@ -31,20 +31,20 @@
 .Nd description of the FreeBSD Symmetric MultiProcessor kernel
 .Sh SYNOPSIS
 .Cd options SMP
-.Cd options APIC_IO
 .Sh DESCRIPTION
 The
 .Nm
 kernel implements symmetric multiprocessor support.
 .Sh COMPATIBILITY
-Support for multi-processor systems is present for all supported
+Support for multi-processor systems is present for all Tier-1
 architectures on
 .Fx .
 Currently, this includes alpha, i386, ia64, and sparc64.
 Support is enabled using
 .Cd options SMP .
-On some, but not all platforms, it is permissible to use the SMP
+On most platforms it is permissible to use the SMP
 kernel configuration on non-SMP equipped motherboards.
+The only exception to this rule is the i386 platform.
 .Pp
 For i386 systems, the
 .Nm
@@ -57,6 +57,15 @@ i386 also requires
 The
 .Xr mptable 1
 command may be used to view the status of multi-processor support.
+.Pp
+.Fx
+supports hyperthreading on Intel CPU's on the i386 platform.
+By default, logical CPUs are not used to execute user processes due to
+performance penalties under common loads.
+To allow the logical CPUs to execute user processes,
+turn off the
+.Va machdep.hlt_logical_cpus
+sysctl by setting its value to zero.
 .Sh SEE ALSO
 .Xr mptable 1 ,
 .Xr condvar 9 ,
@@ -81,5 +90,8 @@ The SMPng Project relied heavily on the support of BSDi, who provided
 reference source code from the fine-grained SMP implementation found
 in
 .Bsx .
+.Pp
+.Fx 5.0
+also introduced support for SMP on the alpha, ia64, and sparc64 architectures.
 .Sh AUTHORS
 .An Steve Passe Aq fsmp@FreeBSD.org
