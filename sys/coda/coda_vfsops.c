@@ -80,8 +80,6 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
 extern int vc_nb_open(struct cdev *, int, int, struct thread *);
 
-static vfs_omount_t coda_omount;
-
 int
 coda_vfsopstats_init(void)
 {
@@ -98,17 +96,14 @@ coda_vfsopstats_init(void)
 	return 0;
 }
 
+static const char *coda_opts[] = { "from", NULL };
 /*
  * cfs mount vfsop
  * Set up mount info record and attach it to vfs struct.
  */
 /*ARGSUSED*/
 int
-coda_omount(vfsp, path, data, td)
-    struct mount *vfsp;		/* Allocated and initialized by mount(2) */
-    char *path;			/* path covered: ignored by the fs-layer */
-    caddr_t data;		/* Need to define a data type for this in netbsd? */
-    struct thread *td;
+coda_mount(struct mount *vfsp, struct thread *td)
 {
     struct vnode *dvp;
     struct cnode *cp;
@@ -120,6 +115,14 @@ coda_omount(vfsp, path, data, td)
     int error;
     struct nameidata ndp;
     ENTRY;
+    char *from;
+
+    if (vfs_filteropt(vfsp->mnt_optnew, coda_opts))
+	return (EINVAL);
+
+    from = vfs_getopts(vfsp->mnt_optnew, "from", &error);
+    if (error)
+	return (error);
 
     coda_vfsopstats_init();
     coda_vnodeopstats_init();
@@ -131,7 +134,7 @@ coda_omount(vfsp, path, data, td)
     }
     
     /* Validate mount device.  Similar to getmdev(). */
-    NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, td);
+    NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
     error = namei(&ndp);
     dvp = ndp.ni_vp;
 
@@ -197,15 +200,7 @@ coda_omount(vfsp, path, data, td)
     mi->mi_vfsp = vfsp;
     mi->mi_rootvp = rootvp;
     
-    /* set filesystem block size */
-    vfsp->mnt_stat.f_bsize = 8192;	    /* XXX -JJK */
-
-    /* Set f_iosize.  XXX -- inamura@isl.ntt.co.jp. 
-       For vnode_pager_haspage() references. The value should be obtained 
-       from underlying UFS. */
-    /* Checked UFS. iosize is set as 8192 */
-    vfsp->mnt_stat.f_iosize = 8192;
-
+    vfs_mountedfrom(vfsp, from);
     /* error is currently guaranteed to be zero, but in case some
        code changes... */
     CODADEBUG(1,
@@ -415,7 +410,6 @@ coda_nb_statfs(vfsp, sbp, td)
     sbp->f_ffree = NB_SFS_SIZ;
     bcopy((caddr_t)&(vfsp->mnt_stat.f_fsid), (caddr_t)&(sbp->f_fsid), sizeof (fsid_t));
     snprintf(sbp->f_mntonname, sizeof(sbp->f_mntonname), "/coda");
-    snprintf(sbp->f_mntfromname, sizeof(sbp->f_mntfromname), "CODA");
     snprintf(sbp->f_fstypename, sizeof(sbp->f_fstypename), "coda");
 /*  MARK_INT_SAT(CODA_STATFS_STATS); */
     return(0);
@@ -536,7 +530,7 @@ struct mount *devtomp(dev)
 }
 
 struct vfsops coda_vfsops = {
-    .vfs_omount =		coda_omount,
+    .vfs_mount =		coda_mount,
     .vfs_root = 		coda_root,
     .vfs_start =		coda_start,
     .vfs_statfs =		coda_nb_statfs,
