@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id$
+ *	$Id: boot.c,v 1.63 1997/02/22 09:30:06 peter Exp $
  */
 
 
@@ -154,11 +154,11 @@ boot(int drive)
 		name = dflt_name;
 	} else
 #endif	/*NAMEBLOCK*/
-	name = "kernel";
 	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
-	getbootdev(boot_config, &loadflags);
 	if (namebuf[0] != '\0')
 		printf("boot.config: %s", boot_config);
+	name = "kernel";
+	getbootdev(boot_config, &loadflags);
 	/*
 	 * XXX parsing of `name' is in openrd(), so the defaults aren't
 	 * updated to match the config (if any) before printing the prompt.
