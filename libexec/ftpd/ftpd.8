@@ -377,11 +377,15 @@ The file
 if present, will be printed after a successful login.
 These files should be mode 444.
 .It Pa ~ftp/pub
-Make this directory mode 777 and owned by
-.Dq ftp .
-Guests
-can then place files which are to be accessible via the anonymous
-account in this directory.
+This directory and the subdirectories beneath it should be owned
+by the users and groups responsible for placing files in them,
+and be writable only by them (mode 755 or 775).
+They should
+.Em not
+be owned or writable by
+.Dq ftp
+or its group, otherwise guest users
+can fill the drive with unwanted files.
 .El
 .Pp
 If the system has multiple IP addresses,
