@@ -399,9 +399,12 @@ unsigned int mask;
 	for (irq = 1; irq < 16; irq++)
 		{
 		mask = 1ul << irq;
-		if ((mask & imask) &&
-		    register_intr(irq, 0, 0, hand, maskp, unit)==0)
+		if (!(mask & imask))
+			continue;
+printf("IRQ=%d\n",irq);
+		if (register_intr(irq, 0, 0, hand, maskp, unit)==0)
 			{
+printf("IRQ=%d yes!\n",irq);
 			if (maskp)
 				INTRMASK (*maskp, mask);
 
@@ -480,6 +483,7 @@ int err, irq = 0, s;
 	devp->isahd.id_unit = drvp->unit;
 	devp->isahd.id_msize = drvp->memsize;
 	devp->isahd.id_iobase = drvp->iobase;
+	bcopy(drvp->misc, devp->misc, sizeof drvp->misc);
 	if (irq)
 		devp->isahd.id_irq = 1 << irq;
 	devp->isahd.id_flags = drvp->flags;

@@ -97,6 +97,7 @@ struct drv_desc
 	int	iobase;		/* base of I/O ports */
 	int	irqmask;	/* Interrupt number(s) to allocate */
 	int	flags;		/* Device flags */
+	u_char	misc[128];	/* For any random info */
 	};
 
 struct pcic_reg
