@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.46 1995/10/28 13:35:32 ache Exp $
+#	$Id: BSD.usr.dist,v 1.47 1995/12/10 21:35:19 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -128,6 +128,8 @@
 		..
             ..
             etc
+	    ..
+	    find_interface
             ..
             ibcs2
             ..
@@ -145,6 +147,8 @@
                     ..
                 ..
             ..
+	    startslip
+	    ..
             sunrpc
                 dir
                 ..
@@ -154,8 +158,6 @@
                 ..
             ..
             sup
-            ..
-            syscons
             ..
         ..
 /set type=dir uname=games gname=bin mode=0755
