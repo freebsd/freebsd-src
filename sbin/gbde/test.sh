@@ -42,7 +42,11 @@ if ./gbde nuke $D -p foo4 -l /tmp/_l4 -n -1 ; then false ; fi
 mdconfig -d -u $MD
 
 mdconfig -a -t malloc -s 1m -u $MD
-uudecode -p image.uu | bzcat > $D
+if [ -f image.uu ] ; then
+	uudecode -p image.uu | bzcat > $D
+else
+	uudecode -p ${1}/image.uu | bzcat > $D
+fi
 gbde attach $D -p foo
 fsck_ffs ${D}.bde
 gbde detach $D
