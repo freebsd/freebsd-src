@@ -91,7 +91,7 @@ while ( $arg = shift @ARGV ) {
 
 # Validate the command line parameters
 #
-die "usage: $0 [-d] [-p] [-c|-h] srcfile
+die "usage: $0 [-d] [-p] [-l <nr>] [-c|-h] srcfile
 where -c   produce only .c files
       -h   produce only .h files
       -p   use the path component in the source file for destination dir
@@ -128,7 +128,7 @@ foreach $src ( @filenames ) {
    $cfilename="$path/$name.c";
    $hfilename="$path/$name.h";
 
-   warn "Processing from $src to $cfile / $hfile via $ctmp / $htmp"
+   warn "Processing from $src to $cfilename / $hfilename via $ctmpname / $htmpname"
       if $debug;
 
    die "Could not open $src, $!"
@@ -145,10 +145,12 @@ foreach $src ( @filenames ) {
       print CFILE " * This file is produced automatically.\n";
       print CFILE " * Do not modify anything in here by hand.\n";
       print CFILE " *\n";
-      print CFILE " * Created from\n";
+      print CFILE " * Created from source file\n";
       print CFILE " *   $src\n";
       print CFILE " * with\n";
       print CFILE " *   $0\n";
+      print CFILE " *\n";
+      print CFILE " * See the source file for legal information\n";
       print CFILE " */\n";
       print CFILE "\n";
       print CFILE "#include <sys/param.h>\n";
@@ -164,10 +166,12 @@ foreach $src ( @filenames ) {
       print HFILE " * This file is produced automatically.\n";
       print HFILE " * Do not modify anything in here by hand.\n";
       print HFILE " *\n";
-      print HFILE " * Created from\n";
+      print HFILE " * Created from source file\n";
       print HFILE " *   $src\n";
       print HFILE " * with\n";
       print HFILE " *   $0\n";
+      print HFILE " *\n";
+      print HFILE " * See the source file for legal information\n";
       print HFILE " */\n";
       print HFILE "\n";
    }
@@ -414,7 +418,7 @@ foreach $src ( @filenames ) {
             and warn "mv $htmpname $hfilename failed, $rc";
       }
    } else {
-      warn 'File' . ($hfile and $cfile? 's':'') . ' skipped';
+      warn 'Output skipped';
       ($rc = system("rm -f $htmpname $ctmpname"))
          and warn "rm -f $htmpname $ctmpname failed, $rc";
       $gerror = 1;
