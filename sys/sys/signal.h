@@ -112,6 +112,10 @@
 #define	SIGUSR2		31	/* user defined signal 2 */
 #endif
 /*
+ * XXX Should this follow any _VISIBLE tag?
+ */
+#define	SIGTHR		32	/* Thread interrupt. */
+/*
  * XXX missing SIGRTMIN, SIGRTMAX.
  */
 
