@@ -156,7 +156,7 @@ print_acl(char *path, acl_type_t type)
 
 	error = stat(path, &sb);
 	if (error == -1) {
-		perror(path);
+		warn("%s", path);
 		return(-1);
 	}
 
@@ -178,14 +178,14 @@ print_acl(char *path, acl_type_t type)
 			return(0);
 		acl = acl_from_stat(sb);
 		if (!acl) {
-			perror("acl_from_stat()");
+			warn("acl_from_stat()");
 			return(-1);
 		}
 	}
 
 	acl_text = acl_to_text(acl, 0);
 	if (!acl_text) {
-		perror(path);
+		warn("%s", path);
 		return(-1);
 	}
 
@@ -200,13 +200,12 @@ print_acl(char *path, acl_type_t type)
 static int
 print_acl_from_stdin(acl_type_t type)
 {
-	char	pathname[PATH_MAX];
+	char	*p, pathname[PATH_MAX];
 	int	carried_error = 0;
 
-	pathname[sizeof(pathname) - 1] = '\0';
 	while (fgets(pathname, (int)sizeof(pathname), stdin)) {
-		/* remove the \n */
-		pathname[strlen(pathname) - 1] = '\0';
+		if ((p = strchr(pathname, '\n')) != NULL)
+			*p = '\0';
 		if (print_acl(pathname, type) == -1) {
 			carried_error = -1;
 		}
@@ -236,7 +235,7 @@ main(int argc, char *argv[])
 
 	if (argc == 0) {
 		error = print_acl_from_stdin(type);
-		return(error);
+		return(error ? 1 : 0);
 	}
 
 	for (i = 0; i < argc; i++) {
@@ -251,5 +250,5 @@ main(int argc, char *argv[])
 		}
 	}
 
-	return(carried_error);
+	return(carried_error ? 1 : 0);
 }
