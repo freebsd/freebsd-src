@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	SNICHOST	"whois.6bone.net"
 #define	BNICHOST	"whois.registro.br"
 #define NORIDHOST	"whois.norid.no"
+#define	IANAHOST	"whois.iana.org"
 #define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
@@ -104,7 +105,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAc:dgh:ilmp:QrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "aAc:dgh:iIlmp:QrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -126,6 +127,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			host = INICHOST;
+			break;
+		case 'I':
+			host = IANAHOST;
 			break;
 		case 'l':
 			host = LNICHOST;
@@ -338,7 +342,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAdgilmQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAdgiIlmQrR6] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
