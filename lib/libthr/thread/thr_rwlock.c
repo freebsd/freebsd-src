@@ -264,19 +264,15 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		goto out;
 	}
 	if (prwlock->state > 0) {
+		PTHREAD_ASSERT(rh->rh_wrcount == 0,
+		    "write count on a readlock should be zero!");
 		rh->rh_rdcount--;
-		if (rh->rh_rdcount == 0) {
-			LIST_REMOVE(rh, rh_link);
-			free(rh);
-		}
 		if (--prwlock->state == 0 && prwlock->blocked_writers)
 			ret = pthread_cond_signal(&prwlock->write_signal);
 	} else if (prwlock->state < 0) {
+		PTHREAD_ASSERT(rh->rh_rdcount == 0,
+		    "read count on a writelock should be zero!");
 		rh->rh_wrcount--;
-		if (rh->rh_wrcount == 0) {
-			LIST_REMOVE(rh, rh_link);
-			free(rh);
-		}
 		prwlock->state = 0;
 		if (prwlock->blocked_writers)
 			ret = pthread_cond_signal(&prwlock->write_signal);
@@ -289,6 +285,10 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		PTHREAD_ASSERT(0, "state=0 on read-write lock held by thread");
 		ret = EPERM;
 		goto out;
+	}
+	if (rh->rh_wrcount == 0 && rh->rh_rdcount == 0) {
+		LIST_REMOVE(rh, rh_link);
+		free(rh);
 	}
 
 out:
@@ -360,8 +360,10 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 		 */
 		if (curthread->rwlockList != NULL) {
 			LIST_FOREACH(rh, curthread->rwlockList, rh_link) {
-				if (rh->rh_rwlock == prwlock &&
-				    (rh->rh_rdcount > 0 || rh->rh_wrcount > 0)) {
+				if (rh->rh_rwlock == prwlock) {
+					PTHREAD_ASSERT((rh->rh_rdcount > 0 ||
+					    rh->rh_wrcount > 0),
+					    "Invalid 0 R/RW count!");
 					pthread_mutex_unlock(&prwlock->lock);
 					return (EDEADLK);
 					break;
@@ -462,16 +464,10 @@ rwlock_init_static(struct pthread_rwlock **rwlock)
 {
 	int error;
 
-	/*
-	 * The initial check is done without locks to not
-	 * pessimize the common path.
-	 */
 	error = 0;
-	if (*rwlock == PTHREAD_RWLOCK_INITIALIZER) {
-		UMTX_LOCK(&init_lock);
-		if (*rwlock == PTHREAD_RWLOCK_INITIALIZER)
-			error = _pthread_rwlock_init(rwlock, NULL);
-		UMTX_UNLOCK(&init_lock);
-	}
+	UMTX_LOCK(&init_lock);
+	if (*rwlock == PTHREAD_RWLOCK_INITIALIZER)
+		error = _pthread_rwlock_init(rwlock, NULL);
+	UMTX_UNLOCK(&init_lock);
 	return (error);
 }
