@@ -100,6 +100,7 @@ LIBTCL?=	${DESTDIR}${LIBDIR}/libtcl.a
 LIBTELNET?=	${DESTDIR}${LIBDIR}/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
+LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a
