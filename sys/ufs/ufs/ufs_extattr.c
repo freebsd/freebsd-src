@@ -67,10 +67,11 @@ SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
 static int	ufs_extattr_valid_attrname(int attrnamespace,
     const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
-    struct ufs_extattr_list_entry *uele, struct ucred *cred, struct thread *td,
-    int access);
+    struct ufs_extattr_list_entry *uele, struct ucred *cred,
+    struct thread *td, int access);
 static int	ufs_extattr_enable_with_open(struct ufsmount *ump,
-    struct vnode *vp, int attrnamespace, const char *attrname, struct thread *td);
+    struct vnode *vp, int attrnamespace, const char *attrname,
+    struct thread *td);
 static int	ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
     const char *attrname, struct vnode *backing_vnode, struct thread *td);
 static int	ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
@@ -327,7 +328,8 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 	 * to a similar piece of code in vn_open(), we don't.
 	 */
 	if (vn_canvmio(vp) == TRUE)
-		if ((error = vfs_object_create(vp, td, td->td_proc->p_ucred)) != 0) {
+		if ((error = vfs_object_create(vp, td,
+		    td->td_proc->p_ucred)) != 0) {
 			/*
 			 * XXX: bug replicated from vn_open(): should
 			 * VOP_CLOSE() here.
@@ -466,7 +468,8 @@ ufs_extattr_autostart(struct mount *mp, struct thread *td)
 	 */
 	error = VFS_ROOT(mp, &rvp);
 	if (error) {
-		printf("ufs_extattr_autostart.VFS_ROOT() returned %d\n", error);
+		printf("ufs_extattr_autostart.VFS_ROOT() returned %d\n",
+		    error);
 		return (error);
 	}
 
@@ -604,7 +607,8 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 		goto free_exit;
 	}
 
-	strncpy(attribute->uele_attrname, attrname, UFS_EXTATTR_MAXEXTATTRNAME);
+	strncpy(attribute->uele_attrname, attrname,
+	    UFS_EXTATTR_MAXEXTATTRNAME);
 	attribute->uele_attrnamespace = attrnamespace;
 	bzero(&attribute->uele_fileheader,
 	    sizeof(struct ufs_extattr_fileheader));
@@ -650,7 +654,8 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	}
 
 	backing_vnode->v_flag |= VSYSTEM;
-	LIST_INSERT_HEAD(&ump->um_extattr.uepm_list, attribute, uele_entries);
+	LIST_INSERT_HEAD(&ump->um_extattr.uepm_list, attribute,
+	    uele_entries);
 
 	return (0);
 
@@ -679,7 +684,8 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 	LIST_REMOVE(uele, uele_entries);
 
 	uele->uele_backing_vnode->v_flag &= ~VSYSTEM;
-	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE, td->td_proc->p_ucred, td);
+	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
+	    td->td_proc->p_ucred, td);
 
 	FREE(uele, M_UFS_EXTATTR);
 
@@ -763,7 +769,8 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 			return (EINVAL);
 
 		ufs_extattr_uepm_lock(ump, td);
-		error = ufs_extattr_disable(ump, attrnamespace, attrname, td);
+		error = ufs_extattr_disable(ump, attrnamespace, attrname,
+		    td);
 		ufs_extattr_uepm_unlock(ump, td);
 
 		return (error);
