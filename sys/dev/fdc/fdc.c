@@ -842,8 +842,7 @@ fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
 	const char *name, *dname;
-	device_t *children;
-	int	i, error, dunit, nchildren;
+	int	i, error, dunit;
 
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
