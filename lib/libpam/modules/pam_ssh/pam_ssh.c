@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1999, 2000 Andrew J. Korty
  * All rights reserved.
+ * Copyright (c) 2001 Networks Associates Technologies, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +17,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -42,7 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define	PAM_SM_AUTH
-#define	PAM_SM_SESSION
+#define PAM_SM_ACCOUNT
+#define PAM_SM_SESSION
+#define PAM_SM_PASSWORD
+
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
@@ -284,6 +297,29 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_RETURN(PAM_SUCCESS);
 }
 
+PAM_EXTERN int
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_IGNORE);
+}
+
+PAM_EXTERN int
+pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_IGNORE);
+}
 
 typedef AuthenticationConnection AC;
 
