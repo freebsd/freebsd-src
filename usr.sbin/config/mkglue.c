@@ -346,9 +346,9 @@ vector()
 	int dev_id;
 	FILE *fp;
 
-	fp = fopen(path("vector.h"), "w");
+	fp = fopen(path("vector.h.new"), "w");
 	if (fp == NULL) {
-		perror(path("vector.h"));
+		perror(path("vector.h.new"));
 		exit(1);
 	}
 	fprintf(fp, "/*\n");
@@ -367,6 +367,7 @@ vector()
 	fprintf(fp, "\"\n\n");
 	fprintf(fp, "#define\tNR_DEVICES\t%d\n", dev_id);
 	(void) fclose(fp);
+	moveifchanged(path("vector.h.new"), path("vector.h"));
 }
 
 vector_devtab(fp, table, dev_idp)
