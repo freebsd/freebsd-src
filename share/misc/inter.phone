@@ -343,7 +343,7 @@
 268:::Swaziland
 290:::St. Helena
 291:::Eritrea
-297:8::Aruba
+297:::Aruba
 298:::Faeroe Islands
 299:11:Soendre Stroemfjord:Greenland (Kalaallit Nunaat)
 299:2:Godthaab:Greenland (Kalaallit Nunaat)
@@ -483,4 +483,20 @@
 977:::Nepal
 994:::Azerbaijan
 995:::Georgia
+1246:::Barbados
+1441:::Bermuda
+1809:::Anguilla
+1809:::Antigua
+1809:::Bahamas
+1809:::British Virgin Islands
+1809:::Cayman Islands
+1809:::Dominican Republic
+1809:::Grenada
+1809:::Jamaica
+1809:::Montserrat
+1809:::St. Kitts & Nevis
+1809:::St. Lucia
+1809:::St. Vincent
+1809:::Trinidad & Tobago
+1809:::Turks Islands
 5399:::Guantanamo Bay (U.S. Naval Base)
