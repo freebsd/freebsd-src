@@ -78,6 +78,14 @@ yielding the traditional
 .Fx
 behaviour.
 .Pp
+By default, a process that changes user or group credentials whether
+real or effective will not create a corefile.  This behaviour can be
+changed to generate a core dump by setting the
+.Xr sysctl 8
+variable
+.Va kern.sugid_coredump
+to 1.
+.Pp
 The core file consists of the
 .Fa u .
 area, whose size (in pages) is
