@@ -31,15 +31,19 @@
 #include <sys/signal.h>
 #include <sys/uio.h>
 
+struct sockaddr;
+
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
+int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
+int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
