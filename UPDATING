@@ -6,7 +6,18 @@ done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
 20000205:
-	The xinstall problem has been corrected.
+	The xinstall problem has kinda sorta been corrected.  The 
+	following is known to work by the author of UPDATING.  It
+	is what he did to update his laptop.  It is likely the same
+	effect as the work around listed in 20000129.
+		make buildworld
+		make installworld	This will fail
+		cd usr.bin/xinstall
+		make clean all install NOSHARED=YES
+		cd ../..
+		make installworld
+	If it doesn't work for you, then I'm sure that there will be
+	another 100 messages in -current.
 
 20000204:
 	libipsec version number changed from 2 to 0.  The original
