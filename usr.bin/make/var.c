@@ -215,9 +215,6 @@ VarCmp(const void *v, const void *name)
  *
  * Results:
  *	The contents of name, possibly expanded.
- *
- * Side Effects:
- *	The caller must free the new contents or old contents of name.
  *-----------------------------------------------------------------------
  */
 static char *
