@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -40,14 +44,10 @@ static char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
  * as well as the signal handling routines.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/termios.h>
-#include <sys/ttydefaults.h>
-
-#include <unistd.h>
-#include <signal.h>
 #include <err.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "talk.h"
 
 /*
