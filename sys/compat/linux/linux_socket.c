@@ -225,6 +225,17 @@ linux_to_bsd_sockopt_level(int level)
 }
 
 static int
+bsd_to_linux_sockopt_level(int level)
+{
+
+	switch (level) {
+	case SOL_SOCKET:
+		return (LINUX_SOL_SOCKET);
+	}
+	return (level);
+}
+
+static int
 linux_to_bsd_ip_sockopt(int opt)
 {
 
@@ -995,9 +1006,9 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	} */ bsd_args;
 	struct msghdr msg;
 	struct msghdr *nmsg = NULL;
+	struct cmsghdr *cmsg;
 	int error;
-	int level;
-	caddr_t control;
+	caddr_t sg;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
@@ -1006,54 +1017,39 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	if (error)
 		return (error);
 
-	if (msg.msg_name) {
-		struct sockaddr *sa;
-		caddr_t sg = stackgap_init();
+	sg = stackgap_init();
+	nmsg = (struct msghdr *)stackgap_alloc(&sg, sizeof(struct msghdr));
+	if (nmsg == NULL)
+		return (ENOMEM);
 
-		nmsg = (struct msghdr *) stackgap_alloc(&sg,
-		    sizeof(struct msghdr));
-		if (!nmsg)
-			return (ENOMEM);
+	bcopy(&msg, nmsg, sizeof(struct msghdr));
+
+	if (msg.msg_name != NULL) {
+		struct sockaddr *sa;
 
 		error = linux_sa_get(&sg, &sa,
 		    (struct osockaddr *) msg.msg_name, &msg.msg_namelen);
 		if (error)
 			return (error);
 
-		msg.msg_name = (struct sockaddr *) sa;
-		error = copyout(&msg, nmsg, sizeof(struct msghdr));
-		if (error)
-			return (error);
+		nmsg->msg_name = sa;
 	}
 
-	error = copyin(&linux_args.msg->msg_control, &control,
-	    sizeof(caddr_t));
-	if (error)
-		return (error);
+	if (msg.msg_control != NULL) {
+		nmsg->msg_control = (struct cmsghdr *)stackgap_alloc(&sg,
+		    msg.msg_controllen);
+		if (nmsg->msg_control == NULL)
+			return (ENOMEM);
 
-	if (control == NULL)
-		goto done;
+		bcopy(msg.msg_control, nmsg->msg_control, msg.msg_controllen);
+		cmsg = (struct cmsghdr*)nmsg->msg_control;
 
-	error = copyin(&((struct cmsghdr*)control)->cmsg_level, &level,
-	    sizeof(int));
-	if (error)
-		return (error);
-
-	if (level == 1) {
-		/*
-		 * Linux thinks that SOL_SOCKET is 1; we know
-		 * that it's really 0xffff, of course.
-		 */
-		level = SOL_SOCKET;
-		error = copyout(&level,
-		    &((struct cmsghdr *)control)->cmsg_level, sizeof(int));
-		if (error)
-			return (error);
+		cmsg->cmsg_level = linux_to_bsd_sockopt_level(cmsg->cmsg_level);
 	}
-done:
+
 	bsd_args.s = linux_args.s;
 	bsd_args.msg = (caddr_t)nmsg;
-	bsd_args.flags = linux_args.flags;
+	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
 	return (sendmsg(td, &bsd_args));
 }
 
@@ -1073,6 +1069,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 		int	flags;
 	} */ bsd_args;
 	struct msghdr msg;
+	struct cmsghdr *cmsg;
 	int error;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
@@ -1084,6 +1081,11 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	error = recvmsg(td, &bsd_args);
 	if (error)
 		return (error);
+
+	if (bsd_args.msg->msg_control != NULL) {
+		cmsg = (struct cmsghdr*)bsd_args.msg->msg_control;
+		cmsg->cmsg_level = bsd_to_linux_sockopt_level(cmsg->cmsg_level);
+	}
 
 	error = copyin(linux_args.msg, &msg, sizeof(msg));
 	if (error)
