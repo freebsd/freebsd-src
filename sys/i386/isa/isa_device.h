@@ -49,11 +49,6 @@
 
 /*
  * Per device structure.
- *
- * XXX Note:  id_conflicts should either become an array of things we're
- * specifically allowed to conflict with or be subsumed into some
- * more powerful mechanism for detecting and dealing with multiple types
- * of non-fatal conflict.  -jkh XXX
  */
 struct isa_device {
 	int	id_id;		/* device id */
@@ -73,7 +68,6 @@ struct isa_device {
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
 	int	id_enabled;	/* is device enabled */
-	int	id_conflicts;	/* we're allowed to conflict with things */
 	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
 	struct device *id_device; /* new-bus wrapper device */
 };
