@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.12 1999/01/14 06:14:15 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.14 1999/03/08 22:43:23 gibbs Exp $
  */
 
 /*
@@ -669,6 +669,16 @@ register DSPCISTATUS {
 	mask	DFTHRSH_100	0xc0
 }
 
+/* aic7890/91/96/97 only */
+register HS_MAILBOX {
+	address			0x086
+	mask	HOST_MAILBOX	0xF0
+	mask	SEQ_MAILBOX	0x0F
+}
+
+const	HOST_MAILBOX_SHIFT	4
+const	SEQ_MAILBOX_SHIFT	0
+
 /*
  * Host Control (p. 3-47) R/W
  * Overall host control of the device.
@@ -727,6 +737,7 @@ register INTSTAT {
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
+	mask	UPDATE_TMSG_REQ	0x60|SEQINT	/* Update TMSG_REQ values */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
 	mask	TRACE_POINT	0x90|SEQINT
