@@ -68,15 +68,33 @@ typedef	_BSD_TIME_T_	time_t;
 #undef	_BSD_TIME_T_
 #endif
 
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+/*
+ * New in POSIX 1003.1b-1993.
+ */
 #ifdef	_BSD_CLOCKID_T_
 typedef	_BSD_CLOCKID_T_	clockid_t;
 #undef	_BSD_CLOCKID_T_
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifdef	_BSD_TIMER_T_
+typedef	_BSD_TIMER_T_	timer_t;
+#undef	_BSD_TIMER_T_
 #endif
+
+#ifndef _TIMESPEC_DECLARED
+#define _TIMESPEC_DECLARED
+struct timespec {
+	time_t	tv_sec;		/* seconds */
+	long	tv_nsec;	/* and nanoseconds */
+};
+#endif
+#endif /* Neither ANSI nor POSIX */
 
 struct tm {
 	int	tm_sec;		/* seconds after the minute [0-60] */
@@ -97,15 +115,11 @@ struct tm {
 __BEGIN_DECLS
 char *asctime __P((const struct tm *));
 clock_t clock __P((void));
-int clock_getres __P((clockid_t, struct timespec *));
-int clock_gettime __P((clockid_t, struct timespec *));
-int clock_settime __P((clockid_t, const struct timespec *));
 char *ctime __P((const time_t *));
 double difftime __P((time_t, time_t));
 struct tm *gmtime __P((const time_t *));
 struct tm *localtime __P((const time_t *));
 time_t mktime __P((struct tm *));
-int nanosleep __P((const struct timespec *, struct timespec *));
 size_t strftime __P((char *, size_t, const char *, const struct tm *));
 time_t time __P((time_t *));
 
@@ -125,6 +139,12 @@ char *timezone __P((int, int));
 void tzsetwall __P((void));
 time_t timelocal __P((struct tm * const));
 time_t timegm __P((struct tm * const));
+
+/* Introduced in POSIX 1003.1b-1993, not part of 1003.1-1990. */
+int clock_getres __P((clockid_t, struct timespec *));
+int clock_gettime __P((clockid_t, struct timespec *));
+int clock_settime __P((clockid_t, const struct timespec *));
+int nanosleep __P((const struct timespec *, struct timespec *));
 #endif /* neither ANSI nor POSIX */
 __END_DECLS
 
