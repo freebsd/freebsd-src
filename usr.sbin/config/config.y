@@ -10,6 +10,7 @@
 %token	ARGS
 %token	AT
 %token	BIO
+%token	BUS
 %token	COMMA
 %token	CONFIG
 %token	CONFLICTS
@@ -572,6 +573,14 @@ Info_list:
 Info:
 	CSR NUMBER
 	      = { cur.d_addr = $2; } |
+	BUS NUMBER
+	      = {
+		if (cur.d_conn != 0 && cur.d_conn->d_type == CONTROLLER)
+			cur.d_slave = $2;
+		else
+			yyerror("can't specify a bus to something "
+				 other than a controller");
+		} |
 	TARGET NUMBER
 	      = { cur.d_target = $2; } |
 	UNIT NUMBER
