@@ -39,8 +39,8 @@ char	*flags_to_string(u_long);
 const char	*inotype(u_int);
 u_int	 parsekey(char *, int *);
 char	*rlink(char *);
-NODE	*spec(void);
-int	 verify(void);
+NODE	*mtree_readspec(FILE *fi);
+int	mtree_verifyspec(FILE *fi);
 
 int	 check_excludes(const char *, const char *);
 void	 init_excludes(void);

@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 		cwalk();
 		exit(0);
 	}
-	status = verify();
+	status = mtree_verifyspec(stdin);
 	if (Uflag & (status == MISMATCHEXIT))
 		status = 0;
 	exit(status);

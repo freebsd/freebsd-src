@@ -55,7 +55,7 @@ static void	 set(char *, NODE *);
 static void	 unset(char *, NODE *);
 
 NODE *
-spec(void)
+mtree_readspec(FILE *fi)
 {
 	NODE *centry, *last;
 	char *p;
@@ -66,7 +66,7 @@ spec(void)
 	centry = last = root = NULL;
 	bzero(&ginfo, sizeof(ginfo));
 	c_cur = c_next = 0;
-	for (lineno = 1; fgets(buf, sizeof(buf), stdin);
+	for (lineno = 1; fgets(buf, sizeof(buf), fi);
 	    ++lineno, c_cur = c_next, c_next = 0) {
 		/* Skip empty lines. */
 		if (buf[0] == '\n')
@@ -186,21 +186,18 @@ set(char *t, NODE *ip)
 			break;
 		case F_MD5:
 			ip->md5digest = strdup(val);
-			if(!ip->md5digest) {
+			if(!ip->md5digest)
 				errx(1, "strdup");
-			}
 			break;
 		case F_SHA1:
 			ip->sha1digest = strdup(val);
-			if(!ip->sha1digest) {
+			if(!ip->sha1digest)
 				errx(1, "strdup");
-			}
 			break;
 		case F_RMD160:
 			ip->rmd160digest = strdup(val);
-			if(!ip->rmd160digest) {
+			if(!ip->rmd160digest)
 				errx(1, "strdup");
-			}
 			break;
 		case F_FLAGS:
 			if (strcmp("none", val) == 0)
