@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: packet.c,v 1.95 2002/06/19 18:01:00 markus Exp $");
+RCSID("$OpenBSD: packet.c,v 1.96 2002/06/23 21:10:02 deraadt Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -1015,7 +1015,7 @@ packet_read_poll2(u_int32_t *seqnr_p)
 int
 packet_read_poll_seqnr(u_int32_t *seqnr_p)
 {
-	int reason, seqnr;
+	u_int reason, seqnr;
 	u_char type;
 	char *msg;
 
@@ -1038,14 +1038,15 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 			case SSH2_MSG_DISCONNECT:
 				reason = packet_get_int();
 				msg = packet_get_string(NULL);
-				log("Received disconnect from %s: %d: %.400s", get_remote_ipaddr(),
-					reason, msg);
+				log("Received disconnect from %s: %u: %.400s",
+				    get_remote_ipaddr(), reason, msg);
 				xfree(msg);
 				fatal_cleanup();
 				break;
 			case SSH2_MSG_UNIMPLEMENTED:
 				seqnr = packet_get_int();
-				debug("Received SSH2_MSG_UNIMPLEMENTED for %d", seqnr);
+				debug("Received SSH2_MSG_UNIMPLEMENTED for %u",
+				    seqnr);
 				break;
 			default:
 				return type;
@@ -1063,8 +1064,8 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 				break;
 			case SSH_MSG_DISCONNECT:
 				msg = packet_get_string(NULL);
-				log("Received disconnect from %s: %.400s", get_remote_ipaddr(),
-					msg);
+				log("Received disconnect from %s: %.400s",
+				    get_remote_ipaddr(), msg);
 				fatal_cleanup();
 				xfree(msg);
 				break;
