@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.12.2.2 1997/06/13 06:29:11 charnier Exp $
+ *		$Id: init.c,v 1.12.2.3 1997/08/18 03:30:04 davidn Exp $
  */
 
 #ifndef lint
@@ -635,7 +635,7 @@ single_user()
 			int num;
 
 #define	SHREQUEST \
-	"Enter pathname of shell or RETURN for sh: "
+	"Enter full pathname of shell or RETURN for " _PATH_BSHELL ": "
 			(void)write(STDERR_FILENO,
 			    SHREQUEST, sizeof(SHREQUEST) - 1);
 			while ((num = read(STDIN_FILENO, cp, 1)) != -1 &&
@@ -1618,8 +1618,7 @@ setprocresources(cname)
 {
 	login_cap_t *lc;
 	if ((lc = login_getclassbyname(cname, NULL)) != NULL) {
-		setusercontext(lc, (struct passwd*)NULL, 0,
-				LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
+		setusercontext(lc, (struct passwd*)NULL, 0, LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
 		login_close(lc);
 	}
 }
