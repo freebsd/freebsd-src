@@ -34,6 +34,7 @@
 #include <sys/time.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,9 +100,13 @@ main(int argc, char **argv)
 		name[3] = IFMIB_IFDATA;
 		name[4] = i;
 		name[5] = IFDATA_GENERAL;
-		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0)
+		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0) {
+			if (errno == ENOENT)
+				continue;
+
 			err(EX_OSERR, "sysctl(net.link.ifdata.%d.general)",
 			    i);
+		}
 
 		if (!isit(argc - optind, argv + optind, ifmd.ifmd_name))
 			continue;
