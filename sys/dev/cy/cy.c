@@ -1745,8 +1745,8 @@ repeat:
 			COM_UNLOCK();
 			critical_exit();
 			if (delta_modem_status & MSR_DCD)
-				(*linesw[tp->t_line].l_modem)
-					(tp, com->prev_modem_status & MSR_DCD);
+				ttyld_modem(tp,
+				    com->prev_modem_status & MSR_DCD);
 		}
 		if (com->extra_state & CSE_ODONE) {
 			critical_enter();

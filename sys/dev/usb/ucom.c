@@ -1037,7 +1037,6 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ucom_softc *sc = (struct ucom_softc *)p;
 	struct tty *tp = sc->sc_tty;
-	int (*rint) (int c, struct tty *tp) = linesw[tp->t_line].l_rint;
 	usbd_status err;
 	u_int32_t cc;
 	u_char *cp;
@@ -1097,7 +1096,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		/* Give characters to tty layer. */
 		while (cc > 0) {
 			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
-			if ((*rint)(*cp, tp) == -1) {
+			if (ttyld_rint(tp, *cp) == -1) {
 				/* XXX what should we do? */
 				printf("%s: lost %d chars\n",
 				       USBDEVNAME(sc->sc_dev), cc);
