@@ -77,6 +77,7 @@ vendor CONNECTIX	0x0478	Connectix Corp.
 vendor KENSINGTON	0x047d	Kensington
 vendor LUCENT		0x047e	Lucent
 vendor STMICRO		0x0483	STMicroelectronics
+vendor YAMAHA		0x0499	YAMAHA Corp.
 vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
 vendor VISIONEER	0x04a7  Visioneer
@@ -138,6 +139,7 @@ vendor BAFO		0x0576	BAFO/Quality Computer Accessories
 vendor YEDATA		0x057b	Y-E Data
 vendor AVM		0x057c	AVM GmbH
 vendor QUICKSHOT	0x057f	Quickshot
+vendor ROLAND		0x0582	Roland Corp.
 vendor ROCKFIRE		0x0583	Rockfire
 vendor ZYXEL		0x0586	ZyXEL Communication Co.
 vendor ALCOR		0x058f	Alcor Micro, Inc.
@@ -286,7 +288,6 @@ vendor HP2		0xf003	Hewlett Packard
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
-
 product 3COM 3C460		0x11f8	HomeConnect Ethernet USB Adapter
 
 product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
@@ -294,6 +295,8 @@ product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
 product 3COMUSR HOMECONN	0x009d	3Com HomeConnect camera
 product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 
+/* AboCom products */
+product ABOCOM URE450		0x4000	URE450 Ethernet Adapter
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
@@ -475,7 +478,7 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
 
 /* Griffin Technology */
-product GRIFFIN IMATE		0x0405	iMate, ABD adapter
+product GRIFFIN IMATE		0x0405	iMate, ADB adapter
 
 /* Freecom products */
 product FREECOM DVD		0xfc01	Connector for DVD drive
@@ -524,6 +527,7 @@ product INTEL TESTBOARD		0x9890	82930 test board
 /* I/O DATA products */
 product IODATA USBETT		0x0901	USB ETT
 product IODATA USBETTX		0x0904	USB ETTX
+product	IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
 
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
@@ -682,6 +686,9 @@ product PHILIPS HUB		0x0201	hub
 product PHILIPS PCVC680K	0x0308	PCVC680K Vesta Pro PC Camera
 product PHILIPS DSS150		0x0471	DSS 150 Digital Speaker System
 
+/* Philips Semiconductor products */
+product PHILIPSSEMI HUB1122	0x1122	hub
+
 /* P.I. Engineering products */
 product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
 
@@ -708,6 +715,7 @@ product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC PL2303		0x04bb	PL2303 Serial adapter (IODATA USB-RSAQ2)
 product PROLIFIC PL2305		0x2305	Parallel printer adapter
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
 
@@ -719,6 +727,9 @@ product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
 
 /* Rainbow Technologies products */
 product	RAINBOW IKEY2000	0x1200	i-Key 2000  
+
+/* Roland products */
+product	ROLAND UM1		0x0009	UM-1 MIDI I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -822,6 +833,9 @@ product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
+
+/* Yamaha products */
+product YAMAHA UX256		0x1000	UX256 MIDI I/F
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
