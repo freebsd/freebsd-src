@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TARGET_TUPLE=	powerpc-unknown-freebsd
+TARGET_TUPLE?=	powerpc-unknown-freebsd
 
 .if ${TARGET_ARCH} == "powerpc"
 HOST=	${TARGET_TUPLE}
