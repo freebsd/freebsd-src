@@ -55,7 +55,7 @@ main(argc, argv)
 	cfile = _PATH_SENDMAILCF;
 	sfile = NULL;
 	mnames = TRUE;
-	while ((ch = getopt(argc, argv, "C:f:o")) != EOF)
+	while ((ch = getopt(argc, argv, "C:f:o")) != -1)
 	{
 		switch (ch)
 		{
