@@ -52,6 +52,8 @@
 
 #define	PMAP_CONTEXT_MAX	8192
 
+#define	PG_UNCACHEABLE		(1<<0)
+
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
 typedef	struct pmap *pmap_t;
@@ -59,6 +61,7 @@ typedef	struct pmap *pmap_t;
 struct md_page {
 	STAILQ_HEAD(, tte) tte_list;
 	int	colors[DCACHE_COLORS];
+	int	flags;
 };
 
 struct pmap {
