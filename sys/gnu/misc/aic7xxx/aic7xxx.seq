@@ -22,7 +22,7 @@
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.10 1995/03/17 23:54:17 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.11 1995/03/31 14:06:02 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -130,6 +130,7 @@ MSG_WDTR	= 0x51				# WDTR message recieved
 MSG_REJECT	= 0x61				# Reject message recieved
 BAD_STATUS	= 0x71				# Bad status from target
 RESIDUAL	= 0x81				# Residual byte count != 0
+ABORT_TAG	= 0x91				# Sent an ABORT_TAG message
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
 #  device information, 32-33 and 5a-5f as well. As it turns out, the
@@ -172,7 +173,7 @@ MSG_START+2	= 0x37
 MSG_START+3	= 0x38
 MSG_START+4	= 0x39
 MSG_START+5	= 0x3a
--MSG_START+0	= 0xcc				# 2's complement of MSG_START+0
+-MSG_START+0	= 0xcb				# 2's complement of MSG_START+0
 
 ARG_1		= 0x4a				# sdtr conversion args & return
 BUS_16_BIT	= 0x01
@@ -770,8 +771,6 @@ use_findSCB:
 #  untoward has happened and we should just leave it alone.
 #
 setup_SCB:
-	test	FLAGS,ACTIVE_MSG	jnz p_mesgin_done
-
 	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
 	or	FLAGS,0xc0			# make note of IDENTIFY
 
@@ -786,7 +785,7 @@ get_tag:
 	mov	A,SAVED_TCL
 	cmp	SCBARRAY+1,A		jne abort_tag
 	test	SCBARRAY+0,TAG_ENB	jz  abort_tag
-	call	inb_last
+	call	inb_last			# ACK
 	jmp	setup_SCB
 
 #  Message reject?  Let the kernel driver handle this.  If we have an 
@@ -825,7 +824,7 @@ p_mesgin_done:
 abort_tag:
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
-#	mvi	INTSTAT,ABORT_TAG 		# let driver know
+	mvi	INTSTAT,ABORT_TAG 		# let driver know
 	mvi	0xd		call mk_mesg	# ABORT TAG message
 	jmp	p_mesgin_done
 
