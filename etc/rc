@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.46 1995/03/16 16:58:00 wollman Exp $
+#	$Id: rc,v 1.47 1995/03/17 17:57:24 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -65,26 +65,19 @@ mount -u -o rw /
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
 
-# This stuff needed for proper daemons tuning, comsat f.e.
-# See profile and csh.login also.
-# Uncomment next line if you want to setup your 8-bit locale at program
-# startup automatically
-# ENABLE_STARTUP_LOCALE=; export ENABLE_STARTUP_LOCALE
-# Uncomment next line to activate russian locale
-# LANG=ru_SU.KOI8-R; export LANG
-# Uncomment next line to activate italian locale
-# LANG=it_IT.ISO8859-1; export LANG
-# For full locales list check /usr/share/locale/*
-
 # If the machine runs wall CMOS clock (compatible with MSDOS),
 # activate following line by creating empty file /etc/wall_cmos_clock
 # If this file not exist, following line does nothing (assumed
 # the machine runs UTC CMOS clock). See adjkerntz(8) for details.
 adjkerntz -i
 
+# If there is a global system configuration file, suck it in.
+if [ -f /etc/sysconfig ]; then
+	. /etc/sysconfig
+fi
+
 # configure serial devices
-if [ -f /etc/rc.serial ]
-then
+if [ -f /etc/rc.serial ]; then
 	sh /etc/rc.serial
 fi
 
@@ -98,35 +91,38 @@ rm -f /var/spool/lock/*
 rm -f /var/spool/uucp/.Temp/*
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
-echo -n 'starting system logger'
+echo -n ' system logger'
 rm -f /dev/log
 syslogd
 
 # $timedflags is imported from /etc/netstart;
 # if $timedflags == NO, timed isn't run.
-if [ X"${timedflags}" != X"NO" ]; then
-	echo -n ', time daemon'; timed $timedflags
+if [ "X${timedflags}" != X"NO" ]; then
+	echo -n ' time daemon'; timed $timedflags
 fi
 echo '.'
 
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ X${savecore} != X"NO" -a -d /var/crash ]; then
-	echo checking for core dump...
+if [ "X${savecore}" = X"YES" -a -d /var/crash ]; then
+	echo; echo -n checking for core dump...
 	savecore /var/crash
+	echo done.
 fi
 
-#				echo -n 'checking quotas:'
-#quotacheck -a
-#				echo ' done.'
-#quotaon -a
+if [ "X${check_quotas}" = X"YES" ]; then
+	echo ' checking quotas:'
+	quotacheck -a
+	echo ' done.'
+	quotaon -a
+fi
 
 # build ps databases
 kvm_mkdb 
 dev_mkdb
 
-# snapshot any kernel changes back to disk
-#/sbin/dset -q
+# snapshot any kernel -c changes back to disk
+/sbin/dset -q
 
 chmod 666 /dev/tty[pqrs]*
 
@@ -153,7 +149,9 @@ echo clearing /tmp
 (cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
     find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
 
-# echo 'turning on accounting';	accton /var/account/acct
+if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
+	echo 'turning on accounting';	accton /var/account/acct
+fi
 
 echo -n standard daemons:
 echo -n ' cron';		cron
@@ -169,62 +167,62 @@ fi
 # $gated and $routedflags are imported from /etc/netstart.
 # If $gated == YES, gated is used; otherwise routed.
 # If $routedflags == NO, routed isn't run.
-if [ X${gated} = X"YES" -a -r /etc/gated.conf ]; then
+if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
 	echo -n ' gated';	gated $gatedflags
-elif [ X"${routedflags}" != X"NO" ]; then
+elif [ "X${routedflags}" != X"NO" ]; then
 	echo -n ' routed';	routed $routedflags
 fi
 
-if [ X${name_server} = X"YES" -a -r /etc/namedb/named.boot ]; then
+if [ "X${name_server}" = X"YES" -a -r /etc/namedb/named.boot ]; then
 	echo -n ' named';		named -b /etc/namedb/named.boot
 fi
 
 # $ntpdate and $xntpdflags are imported from /etc/netstart.
 # If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
 # If $xntpdflags != NO, start xntpd.
-if [ X"${ntpdate}" != X"NO" -o X"${xntpdflags}" != X"NO" ]; then
-	if [ X"${tickadjflags}" != X"NO" ]; then
+if [ "X${ntpdate}" != X"NO" -o "X${xntpdflags}" != X"NO" ]; then
+	if [ "X${tickadjflags}" != X"NO" ]; then
 		echo -n ' tickadj';	tickadj ${tickadjflags--Aq}
 	fi
 
-	if [ X"${ntpdate}" != X"NO" ]; then
+	if [ "X${ntpdate}" != X"NO" ]; then
 		echo -n ' ntpdate';	ntpdate ${ntpdate}
 	fi
 
-	if [ X"${xntpdflags}" != X"NO" ]; then
+	if [ "X${xntpdflags}" != X"NO" ]; then
 		echo -n ' xntpd';	xntpd ${xntpdflags}
 	fi
 fi
 
 # $rwhod is imported from /etc/netstart;
-# if $rwhod is set to something other than NO, rwhod is run.
-if [ X"${rwhod}" != X"NO" ]; then
+# if $rwhod is set to YES, rwhod is run.
+if [ "X${rwhod}" = X"YES" ]; then
 	echo -n ' rwhod';	rwhod
 fi
 
 echo -n ' printer';		lpd
 
-if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
+if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd';		mountd
 	echo -n ' nfsd';		nfsd -u -t 4
 fi
 
-if [ X"${nfs_client}" != X"NO" ]; then
+if [ "X${nfs_client}" = X"YES" ]; then
 	echo -n ' nfsiod';		nfsiod -n 4
 fi
 
-if [ X"${amdflags}" != X"NO" ]; then
+if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd';			amd ${amdflags}
 fi
 
 # $sendmail_flags is imported from /etc/netstart;
 # if $sendmail_flags is something other than NO, sendmail is run.
-if [ X"${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
+if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
 	echo -n ' sendmail';		sendmail ${sendmail_flags} 
 fi
 
 # Kerberos runs ONLY on the Kerberos server machine
-if [ X"${kerberos_server}" = X"YES" ]; then
+if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
 	echo -n ' kadmind'; \
 		(sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
@@ -232,18 +230,18 @@ fi
 
 # Start ypserv if we're an NIS server.
 # Run yppasswdd only on the NIS master server
-if [ X"${nis_serverflags}" != X"NO" ]; then
-        echo -n ' ypserv'; ypserv $nis_serverflags
+if [ "X${nis_serverflags}" != X"NO" ]; then
+        echo -n ' ypserv'; ypserv ${nis_serverflags}
 
-	if [ X"${yppasswddflags}" != X"NO" ]; then
-	        echo -n ' yppasswdd'; yppasswdd $yppasswddflags
+	if [ "X${yppasswddflags}" != X"NO" ]; then
+	        echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
 	fi
 fi
 
 
 # Start ypbind if we're an NIS client
-if [ X"${nis_clientflags}" != X"NO" ]; then
-        echo -n ' ypbind'; ypbind $nis_clientflags
+if [ "X${nis_clientflags}" != X"NO" ]; then
+        echo -n ' ypbind'; ypbind ${nis_clientflags}
 fi
 
 echo -n ' inetd';		inetd
@@ -251,9 +249,9 @@ echo '.'
 
 mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
 
-# if [ -x /usr/libexec/xtend ]; then
-# 	echo -n ' xtend';   /usr/libexec/xtend
-# fi
+if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
+ 	echo -n ' xtend';   /usr/libexec/xtend
+fi
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
@@ -265,6 +263,18 @@ if [ -x /sbin/ldconfig ]; then
 	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
 	echo 'setting ldconfig path:' ${_LDC}
 	ldconfig ${_LDC}
+fi
+
+# Syscons screen saver
+if [ "X${saver}" != X"NO" ] ; then
+	echo -n "syscons screensaver: "
+	modload -u -o /tmp/saver_mod -e saver_init -q /lkm/${saver}_saver_mod.o
+fi
+
+# Syscons keymap
+if [ "X${keymap}" != X"NO" ]; then
+	echo -n "syscons keymap: "
+	kbdcontrol -l ${KEYMAP}
 fi
 
 . /etc/rc.local
