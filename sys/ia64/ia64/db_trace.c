@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <machine/inst.h>
 #include <machine/db_machdep.h>
 
 #include <ddb/ddb.h>

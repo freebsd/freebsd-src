@@ -1165,4 +1165,14 @@ union ia64_instruction {
 	u_int64_t ins;
 };
 
+struct ia64_bundle {
+	u_int64_t	slot[3];
+	int		template;
+};
+
+extern void ia64_unpack_bundle(u_int64_t low, u_int64_t high,
+			       struct ia64_bundle *bp);
+extern void ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
+			     const struct ia64_bundle *bp);
+
 #endif /* _MACHINE_INST_H_ */
