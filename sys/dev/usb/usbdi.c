@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.37 1999/09/11 08:19:27 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.47 1999/10/13 23:46:10 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -46,10 +46,16 @@
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include "usb_if.h"
+#if defined(DIAGNOSTIC) && defined(__i386__)
+#include <machine/cpu.h>
+#endif
 #endif
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
+#include <machine/bus.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -60,7 +66,7 @@
 #if defined(__FreeBSD__)
 #include "usb_if.h"
 #endif
- 
+
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
@@ -71,22 +77,47 @@ extern int usbdebug;
 #endif
 
 static usbd_status usbd_ar_pipe  __P((usbd_pipe_handle pipe));
-void usbd_do_request_async_cb 
-	__P((usbd_request_handle, usbd_private_handle, usbd_status));
-void usbd_start_next __P((usbd_pipe_handle pipe));
+static void usbd_do_request_async_cb 
+	__P((usbd_xfer_handle, usbd_private_handle, usbd_status));
+static void usbd_start_next __P((usbd_pipe_handle pipe));
 
-static SIMPLEQ_HEAD(, usbd_request) usbd_free_requests
-	= SIMPLEQ_HEAD_INITIALIZER(usbd_free_requests);
+static SIMPLEQ_HEAD(, usbd_xfer) usbd_free_requests =
+	SIMPLEQ_HEAD_INITIALIZER(usbd_free_requests);
 
-static __inline int usbd_reqh_isread __P((usbd_request_handle reqh));
-static __inline int
-usbd_reqh_isread(reqh)
-	usbd_request_handle reqh;
+static int usbd_nbuses = 0;
+
+void
+usbd_init()
 {
-	if (reqh->rqflags & URQ_REQUEST)
-		return (reqh->request.bmRequestType & UT_READ);
+	usbd_nbuses++;
+}
+
+void
+usbd_finish()
+{
+	usbd_xfer_handle xfer;
+
+	if (--usbd_nbuses == 0) {
+		/* Last controller is gone, free all requests. */
+		for (;;) {
+			xfer = SIMPLEQ_FIRST(&usbd_free_requests);
+			if (xfer == NULL)
+				break;
+			SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, xfer, next);
+			free(xfer, M_USB);
+		}			
+	}
+}
+
+static __inline int usbd_xfer_isread __P((usbd_xfer_handle xfer));
+static __inline int
+usbd_xfer_isread(xfer)
+	usbd_xfer_handle xfer;
+{
+	if (xfer->rqflags & URQ_REQUEST)
+		return (xfer->request.bmRequestType & UT_READ);
 	else
-		return (reqh->pipe->endpoint->edesc->bEndpointAddress &
+		return (xfer->pipe->endpoint->edesc->bEndpointAddress &
 			UE_DIR_IN);
 }
 
@@ -97,13 +128,13 @@ void
 usbd_dump_queue(pipe)
 	usbd_pipe_handle pipe;
 {
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
 
 	printf("usbd_dump_queue: pipe=%p\n", pipe);
-	for (reqh = SIMPLEQ_FIRST(&pipe->queue);
-	     reqh;
-	     reqh = SIMPLEQ_NEXT(reqh, next)) {
-		printf("  reqh=%p\n", reqh);
+	for (xfer = SIMPLEQ_FIRST(&pipe->queue);
+	     xfer;
+	     xfer = SIMPLEQ_NEXT(xfer, next)) {
+		printf("  xfer=%p\n", xfer);
 	}
 }
 #endif
@@ -117,7 +148,7 @@ usbd_open_pipe(iface, address, flags, pipe)
 { 
 	usbd_pipe_handle p;
 	struct usbd_endpoint *ep;
-	usbd_status r;
+	usbd_status err;
 	int i;
 
 	for (i = 0; i < iface->idesc->bNumEndpoints; i++) {
@@ -130,9 +161,9 @@ usbd_open_pipe(iface, address, flags, pipe)
 	if ((flags & USBD_EXCLUSIVE_USE) &&
 	    ep->refcnt != 0)
 		return (USBD_IN_USE);
-	r = usbd_setup_pipe(iface->device, iface, ep, &p);
-	if (r != USBD_NORMAL_COMPLETION)
-		return (r);
+	err = usbd_setup_pipe(iface->device, iface, ep, &p);
+	if (err)
+		return (err);
 	LIST_INSERT_HEAD(&iface->pipes, p, next);
 	*pipe = p;
 	return (USBD_NORMAL_COMPLETION);
@@ -149,35 +180,35 @@ usbd_open_pipe_intr(iface, address, flags, pipe, priv, buffer, length, cb)
 	u_int32_t length;
 	usbd_callback cb;
 {
-	usbd_status r;
-	usbd_request_handle reqh;
+	usbd_status err;
+	usbd_xfer_handle xfer;
 	usbd_pipe_handle ipipe;
 
-	r = usbd_open_pipe(iface, address, USBD_EXCLUSIVE_USE, &ipipe);
-	if (r != USBD_NORMAL_COMPLETION)
-		return (r);
-	reqh = usbd_alloc_request(iface->device);
-	if (reqh == 0) {
-		r = USBD_NOMEM;
+	err = usbd_open_pipe(iface, address, USBD_EXCLUSIVE_USE, &ipipe);
+	if (err)
+		return (err);
+	xfer = usbd_alloc_request(iface->device);
+	if (xfer == NULL) {
+		err = USBD_NOMEM;
 		goto bad1;
 	}
-	usbd_setup_request(reqh, ipipe, priv, buffer, length, flags,
+	usbd_setup_request(xfer, ipipe, priv, buffer, length, flags,
 			   USBD_NO_TIMEOUT, cb);
-	ipipe->intrreqh = reqh;
+	ipipe->intrxfer = xfer;
 	ipipe->repeat = 1;
-	r = usbd_transfer(reqh);
+	err = usbd_transfer(xfer);
 	*pipe = ipipe;
-	if (r != USBD_IN_PROGRESS)
+	if (err != USBD_IN_PROGRESS)
 		goto bad2;
 	return (USBD_NORMAL_COMPLETION);
 
  bad2:
-	ipipe->intrreqh = 0;
+	ipipe->intrxfer = NULL;
 	ipipe->repeat = 0;
-	usbd_free_request(reqh);
+	usbd_free_request(xfer);
  bad1:
 	usbd_close_pipe(ipipe);
-	return r;
+	return (err);
 }
 
 usbd_status
@@ -185,7 +216,7 @@ usbd_close_pipe(pipe)
 	usbd_pipe_handle pipe;
 {
 #ifdef DIAGNOSTIC
-	if (pipe == 0) {
+	if (pipe == NULL) {
 		printf("usbd_close_pipe: pipe==NULL\n");
 		return (USBD_NORMAL_COMPLETION);
 	}
@@ -198,175 +229,185 @@ usbd_close_pipe(pipe)
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
 	pipe->methods->close(pipe);
-	if (pipe->intrreqh)
-		usbd_free_request(pipe->intrreqh);
+	if (pipe->intrxfer != NULL)
+		usbd_free_request(pipe->intrxfer);
 	free(pipe, M_USB);
 	return (USBD_NORMAL_COMPLETION);
 }
 
 usbd_status
-usbd_transfer(reqh)
-	usbd_request_handle reqh;
+usbd_transfer(xfer)
+	usbd_xfer_handle xfer;
 {
-	usbd_pipe_handle pipe = reqh->pipe;
-	usbd_status r;
+	usbd_pipe_handle pipe = xfer->pipe;
+	usb_dma_t *dmap = &xfer->dmabuf;
+	usbd_status err;
 	u_int size;
 	int s;
 
-	DPRINTFN(5,("usbd_transfer: reqh=%p, flags=%d, pipe=%p, running=%d\n",
-		    reqh, reqh->flags, pipe, pipe->running));
+	DPRINTFN(5,("usbd_transfer: xfer=%p, flags=%d, pipe=%p, running=%d\n",
+		    xfer, xfer->flags, pipe, pipe->running));
 #ifdef USB_DEBUG
 	if (usbdebug > 5)
 		usbd_dump_queue(pipe);
 #endif
-	reqh->done = 0;
+	xfer->done = 0;
 
-	size = reqh->length;
-	/* If there is no buffer, allocate one and copy data. */
-	if (!(reqh->rqflags & URQ_DEV_DMABUF) && size != 0) {
-		usb_dma_t *dmap = &reqh->dmabuf;
+	size = xfer->length;
+	/* If there is no buffer, allocate one. */
+	if (!(xfer->rqflags & URQ_DEV_DMABUF) && size != 0) {
 		struct usbd_bus *bus = pipe->device->bus;
 
 #ifdef DIAGNOSTIC
-		if (reqh->rqflags & URQ_AUTO_DMABUF)
+		if (xfer->rqflags & URQ_AUTO_DMABUF)
 			printf("usbd_transfer: has old buffer!\n");
 #endif
-		r = bus->methods->allocm(bus, dmap, size);
-		if (r != USBD_NORMAL_COMPLETION)
-			return (r);
-		reqh->rqflags |= URQ_AUTO_DMABUF;
-
-		/* finally copy data if going out */
-		if (!usbd_reqh_isread(reqh))
-			memcpy(KERNADDR(dmap), reqh->buffer, size);
+		err = bus->methods->allocm(bus, dmap, size);
+		if (err)
+			return (err);
+		xfer->rqflags |= URQ_AUTO_DMABUF;
 	}
 
-	r = pipe->methods->transfer(reqh);
+	/* Copy data if going out. */
+	if (!(xfer->flags & USBD_NO_COPY) && size != 0 && 
+	    !usbd_xfer_isread(xfer))
+		memcpy(KERNADDR(dmap), xfer->buffer, size);
 
-	if (r != USBD_IN_PROGRESS && r != USBD_NORMAL_COMPLETION) {
+	err = pipe->methods->transfer(xfer);
+
+	if (err != USBD_IN_PROGRESS && err) {
 		/* The transfer has not been queued, so free buffer. */
-		if (reqh->rqflags & URQ_AUTO_DMABUF) {
+		if (xfer->rqflags & URQ_AUTO_DMABUF) {
 			struct usbd_bus *bus = pipe->device->bus;
 
-			bus->methods->freem(bus, &reqh->dmabuf);
-			reqh->rqflags &= ~URQ_AUTO_DMABUF;
+			bus->methods->freem(bus, &xfer->dmabuf);
+			xfer->rqflags &= ~URQ_AUTO_DMABUF;
 		}
 	}
 
-	if (!(reqh->flags & USBD_SYNCHRONOUS))
-		return (r);
+	if (!(xfer->flags & USBD_SYNCHRONOUS))
+		return (err);
 
 	/* Sync transfer, wait for completion. */
-	if (r != USBD_IN_PROGRESS)
-		return (r);
+	if (err != USBD_IN_PROGRESS)
+		return (err);
 	s = splusb();
-	if (!reqh->done) {
+	if (!xfer->done) {
 		if (pipe->device->bus->use_polling)
 			panic("usbd_transfer: not done\n");
-		tsleep(reqh, PRIBIO, "usbsyn", 0);
+		tsleep(xfer, PRIBIO, "usbsyn", 0);
 	}
 	splx(s);
-	return (reqh->status);
+	return (xfer->status);
 }
 
 /* Like usbd_transfer(), but waits for completion. */
 usbd_status
-usbd_sync_transfer(reqh)
-	usbd_request_handle reqh;
+usbd_sync_transfer(xfer)
+	usbd_xfer_handle xfer;
 {
-	reqh->flags |= USBD_SYNCHRONOUS;
-	return (usbd_transfer(reqh));
+	xfer->flags |= USBD_SYNCHRONOUS;
+	return (usbd_transfer(xfer));
 }
 
 void *
-usbd_alloc_buffer(reqh, size)
-	usbd_request_handle reqh;
+usbd_alloc_buffer(xfer, size)
+	usbd_xfer_handle xfer;
 	u_int32_t size;
 {
-	struct usbd_bus *bus = reqh->device->bus;
-	usbd_status r;
+	struct usbd_bus *bus = xfer->device->bus;
+	usbd_status err;
 
-	r = bus->methods->allocm(bus, &reqh->dmabuf, size);
-	if (r != USBD_NORMAL_COMPLETION)
+	err = bus->methods->allocm(bus, &xfer->dmabuf, size);
+	if (err)
 		return (0);
-	reqh->rqflags |= URQ_DEV_DMABUF;
-	return (KERNADDR(&reqh->dmabuf));
+	xfer->rqflags |= URQ_DEV_DMABUF;
+	return (KERNADDR(&xfer->dmabuf));
 }
 
 void
-usbd_free_buffer(reqh)
-	usbd_request_handle reqh;
+usbd_free_buffer(xfer)
+	usbd_xfer_handle xfer;
 {
 #ifdef DIAGNOSTIC
-	if (!(reqh->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))) {
+	if (!(xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))) {
 		printf("usbd_free_buffer: no buffer\n");
 		return;
 	}
 #endif
-	reqh->rqflags &= ~(URQ_DEV_DMABUF | URQ_AUTO_DMABUF);
-	reqh->device->bus->methods->freem(reqh->device->bus, &reqh->dmabuf);
+	xfer->rqflags &= ~(URQ_DEV_DMABUF | URQ_AUTO_DMABUF);
+	xfer->device->bus->methods->freem(xfer->device->bus, &xfer->dmabuf);
 }
 
-usbd_request_handle 
+void *
+usbd_get_buffer(xfer)
+	usbd_xfer_handle xfer;
+{
+	if (!(xfer->rqflags & URQ_DEV_DMABUF))
+		return (0);
+	return (KERNADDR(&xfer->dmabuf));
+}
+
+usbd_xfer_handle 
 usbd_alloc_request(dev)
 	usbd_device_handle dev;
 {
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
 
-	reqh = SIMPLEQ_FIRST(&usbd_free_requests);
-	if (reqh)
-		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, reqh, next);
+	xfer = SIMPLEQ_FIRST(&usbd_free_requests);
+	if (xfer != NULL)
+		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, xfer, next);
 	else
-		reqh = malloc(sizeof(*reqh), M_USB, M_NOWAIT);
-	if (!reqh)
+		xfer = malloc(sizeof(*xfer), M_USB, M_NOWAIT);
+	if (xfer == NULL)
 		return (0);
-	memset(reqh, 0, sizeof *reqh);
-	reqh->device = dev;
-	DPRINTFN(5,("usbd_alloc_request() = %p\n", reqh));
-	return (reqh);
+	memset(xfer, 0, sizeof *xfer);
+	xfer->device = dev;
+	DPRINTFN(5,("usbd_alloc_request() = %p\n", xfer));
+	return (xfer);
 }
 
 usbd_status 
-usbd_free_request(reqh)
-	usbd_request_handle reqh;
+usbd_free_request(xfer)
+	usbd_xfer_handle xfer;
 {
-	DPRINTFN(5,("usbd_free_request: %p\n", reqh));
-	if (reqh->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
-		usbd_free_buffer(reqh);
-	SIMPLEQ_INSERT_HEAD(&usbd_free_requests, reqh, next);
+	DPRINTFN(5,("usbd_free_request: %p\n", xfer));
+	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
+		usbd_free_buffer(xfer);
+	SIMPLEQ_INSERT_HEAD(&usbd_free_requests, xfer, next);
 	return (USBD_NORMAL_COMPLETION);
 }
 
 void
-usbd_setup_request(reqh, pipe, priv, buffer, length, flags, timeout, callback)
-	usbd_request_handle reqh;
+usbd_setup_request(xfer, pipe, priv, buffer, length, flags, timeout, callback)
+	usbd_xfer_handle xfer;
 	usbd_pipe_handle pipe;
 	usbd_private_handle priv;
 	void *buffer;
 	u_int32_t length;
 	u_int16_t flags;
 	u_int32_t timeout;
-	void (*callback) __P((usbd_request_handle,
+	void (*callback) __P((usbd_xfer_handle,
 			      usbd_private_handle,
 			      usbd_status));
 {
-	reqh->pipe = pipe;
-	reqh->priv = priv;
-	reqh->buffer = buffer;
-	reqh->length = length;
-	reqh->actlen = 0;
-	reqh->flags = flags;
-	reqh->timeout = timeout;
-	reqh->status = USBD_NOT_STARTED;
-	reqh->callback = callback;
-	reqh->rqflags &= ~URQ_REQUEST;
-	reqh->nframes = 0;
+	xfer->pipe = pipe;
+	xfer->priv = priv;
+	xfer->buffer = buffer;
+	xfer->length = length;
+	xfer->actlen = 0;
+	xfer->flags = flags;
+	xfer->timeout = timeout;
+	xfer->status = USBD_NOT_STARTED;
+	xfer->callback = callback;
+	xfer->rqflags &= ~URQ_REQUEST;
+	xfer->nframes = 0;
 }
 
 void
-usbd_setup_default_request(reqh, dev, priv, timeout, req, buffer, 
+usbd_setup_default_request(xfer, dev, priv, timeout, req, buffer, 
 			   length, flags, callback)
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
 	usbd_device_handle dev;
 	usbd_private_handle priv;
 	u_int32_t timeout;
@@ -374,63 +415,64 @@ usbd_setup_default_request(reqh, dev, priv, timeout, req, buffer,
 	void *buffer;
 	u_int32_t length;
 	u_int16_t flags;
-	void (*callback) __P((usbd_request_handle,
+	void (*callback) __P((usbd_xfer_handle,
 			      usbd_private_handle,
 			      usbd_status));
 {
-	reqh->pipe = dev->default_pipe;
-	reqh->priv = priv;
-	reqh->buffer = buffer;
-	reqh->length = length;
-	reqh->actlen = 0;
-	reqh->flags = flags;
-	reqh->timeout = timeout;
-	reqh->status = USBD_NOT_STARTED;
-	reqh->callback = callback;
-	reqh->request = *req;
-	reqh->rqflags |= URQ_REQUEST;
-	reqh->nframes = 0;
+	xfer->pipe = dev->default_pipe;
+	xfer->priv = priv;
+	xfer->buffer = buffer;
+	xfer->length = length;
+	xfer->actlen = 0;
+	xfer->flags = flags;
+	xfer->timeout = timeout;
+	xfer->status = USBD_NOT_STARTED;
+	xfer->callback = callback;
+	xfer->request = *req;
+	xfer->rqflags |= URQ_REQUEST;
+	xfer->nframes = 0;
 }
 
 void
-usbd_setup_isoc_request(reqh, pipe, priv, frlengths, nframes, callback)
-	usbd_request_handle reqh;
+usbd_setup_isoc_request(xfer, pipe, priv, frlengths, nframes, flags, callback)
+	usbd_xfer_handle xfer;
 	usbd_pipe_handle pipe;
 	usbd_private_handle priv;
 	u_int16_t *frlengths;
 	u_int32_t nframes;
+	u_int16_t flags;
 	usbd_callback callback;
 {
-	reqh->pipe = pipe;
-	reqh->priv = priv;
-	reqh->buffer = 0;
-	reqh->length = 0;
-	reqh->actlen = 0;
-	reqh->flags = 0;
-	reqh->timeout = USBD_NO_TIMEOUT;
-	reqh->status = USBD_NOT_STARTED;
-	reqh->callback = callback;
-	reqh->rqflags &= ~URQ_REQUEST;
-	reqh->frlengths = frlengths;
-	reqh->nframes = nframes;
+	xfer->pipe = pipe;
+	xfer->priv = priv;
+	xfer->buffer = 0;
+	xfer->length = 0;
+	xfer->actlen = 0;
+	xfer->flags = flags;
+	xfer->timeout = USBD_NO_TIMEOUT;
+	xfer->status = USBD_NOT_STARTED;
+	xfer->callback = callback;
+	xfer->rqflags &= ~URQ_REQUEST;
+	xfer->frlengths = frlengths;
+	xfer->nframes = nframes;
 }
 
 void
-usbd_get_request_status(reqh, priv, buffer, count, status)
-	usbd_request_handle reqh;
+usbd_get_request_status(xfer, priv, buffer, count, status)
+	usbd_xfer_handle xfer;
 	usbd_private_handle *priv;
 	void **buffer;
 	u_int32_t *count;
 	usbd_status *status;
 {
-	if (priv)
-		*priv = reqh->priv;
-	if (buffer)
-		*buffer = reqh->buffer;
-	if (count)
-		*count = reqh->actlen;
-	if (status)
-		*status = reqh->status;
+	if (priv != NULL)
+		*priv = xfer->priv;
+	if (buffer != NULL)
+		*buffer = xfer->buffer;
+	if (count != NULL)
+		*count = xfer->actlen;
+	if (status != NULL)
+		*status = xfer->status;
 }
 
 usb_config_descriptor_t *
@@ -468,19 +510,19 @@ usbd_status
 usbd_abort_pipe(pipe)
 	usbd_pipe_handle pipe;
 {
-	usbd_status r;
+	usbd_status err;
 	int s;
 
 #ifdef DIAGNOSTIC
-	if (pipe == 0) {
+	if (pipe == NULL) {
 		printf("usbd_close_pipe: pipe==NULL\n");
 		return (USBD_NORMAL_COMPLETION);
 	}
 #endif
 	s = splusb();
-	r = usbd_ar_pipe(pipe);
+	err = usbd_ar_pipe(pipe);
 	splx(s);
-	return (r);
+	return (err);
 }
 	
 usbd_status 
@@ -489,7 +531,7 @@ usbd_clear_endpoint_stall(pipe)
 {
 	usbd_device_handle dev = pipe->device;
 	usb_device_request_t req;
-	usbd_status r;
+	usbd_status err;
 
 	DPRINTFN(8, ("usbd_clear_endpoint_stall\n"));
 
@@ -504,15 +546,15 @@ usbd_clear_endpoint_stall(pipe)
 	USETW(req.wValue, UF_ENDPOINT_HALT);
 	USETW(req.wIndex, pipe->endpoint->edesc->bEndpointAddress);
 	USETW(req.wLength, 0);
-	r = usbd_do_request(dev, &req, 0);
+	err = usbd_do_request(dev, &req, 0);
 #if 0
 XXX should we do this?
-	if (r == USBD_NORMAL_COMPLETION) {
+	if (!err) {
 		pipe->state = USBD_PIPE_ACTIVE;
 		/* XXX activate pipe */
 	}
 #endif
-	return (r);
+	return (err);
 }
 
 usbd_status 
@@ -521,7 +563,7 @@ usbd_clear_endpoint_stall_async(pipe)
 {
 	usbd_device_handle dev = pipe->device;
 	usb_device_request_t req;
-	usbd_status r;
+	usbd_status err;
 
 	pipe->methods->cleartoggle(pipe);
 
@@ -530,8 +572,8 @@ usbd_clear_endpoint_stall_async(pipe)
 	USETW(req.wValue, UF_ENDPOINT_HALT);
 	USETW(req.wIndex, pipe->endpoint->edesc->bEndpointAddress);
 	USETW(req.wLength, 0);
-	r = usbd_do_request_async(dev, &req, 0);
-	return (r);
+	err = usbd_do_request_async(dev, &req, 0);
+	return (err);
 }
 
 usbd_status 
@@ -548,7 +590,7 @@ usbd_interface_count(dev, count)
 	usbd_device_handle dev;
 	u_int8_t *count;
 {
-	if (!dev->cdesc)
+	if (dev->cdesc == NULL)
 		return (USBD_NOT_CONFIGURED);
 	*count = dev->cdesc->bNumInterface;
 	return (USBD_NORMAL_COMPLETION);
@@ -569,7 +611,7 @@ usbd_device2interface_handle(dev, ifaceno, iface)
 	u_int8_t ifaceno;
 	usbd_interface_handle *iface;
 {
-	if (!dev->cdesc)
+	if (dev->cdesc == NULL)
 		return (USBD_NOT_CONFIGURED);
 	if (ifaceno >= dev->cdesc->bNumInterface)
 		return (USBD_INVAL);
@@ -591,7 +633,7 @@ usbd_set_interface(iface, altidx)
 	int altidx;
 {
 	usb_device_request_t req;
-	usbd_status r;
+	usbd_status err;
 
 	if (LIST_FIRST(&iface->pipes) != 0)
 		return (USBD_IN_USE);
@@ -601,16 +643,16 @@ usbd_set_interface(iface, altidx)
 	iface->endpoints = 0;
 	iface->idesc = 0;
 
-	r = usbd_fill_iface_data(iface->device, iface->index, altidx);
-	if (r != USBD_NORMAL_COMPLETION)
-		return (r);
+	err = usbd_fill_iface_data(iface->device, iface->index, altidx);
+	if (err)
+		return (err);
 
 	req.bmRequestType = UT_WRITE_INTERFACE;
 	req.bRequest = UR_SET_INTERFACE;
 	USETW(req.wValue, iface->idesc->bAlternateSetting);
 	USETW(req.wIndex, iface->idesc->bInterfaceNumber);
 	USETW(req.wLength, 0);
-	return usbd_do_request(iface->device, &req, 0);
+	return (usbd_do_request(iface->device, &req, 0));
 }
 
 int
@@ -652,7 +694,7 @@ usbd_get_interface(iface, aiface)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, iface->idesc->bInterfaceNumber);
 	USETW(req.wLength, 1);
-	return usbd_do_request(iface->device, &req, aiface);
+	return (usbd_do_request(iface->device, &req, aiface));
 }
 
 /*** Internal routines ***/
@@ -662,143 +704,167 @@ static usbd_status
 usbd_ar_pipe(pipe)
 	usbd_pipe_handle pipe;
 {
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
+
+	SPLUSBCHECK;
 
 	DPRINTFN(2,("usbd_ar_pipe: pipe=%p\n", pipe));
 #ifdef USB_DEBUG
 	if (usbdebug > 5)
 		usbd_dump_queue(pipe);
 #endif
-	while ((reqh = SIMPLEQ_FIRST(&pipe->queue))) {
-		DPRINTFN(2,("usbd_ar_pipe: pipe=%p reqh=%p (methods=%p)\n", 
-			    pipe, reqh, pipe->methods));
+	pipe->repeat = 0;
+	while ((xfer = SIMPLEQ_FIRST(&pipe->queue)) != NULL) {
+		DPRINTFN(2,("usbd_ar_pipe: pipe=%p xfer=%p (methods=%p)\n", 
+			    pipe, xfer, pipe->methods));
 		/* Make the HC abort it (and invoke the callback). */
-		pipe->methods->abort(reqh);
+		pipe->methods->abort(xfer);
 		/* XXX only for non-0 usbd_clear_endpoint_stall(pipe); */
 	}
 	return (USBD_NORMAL_COMPLETION);
 }
 
+/* Called at splusb() */
 void
-usb_transfer_complete(reqh)
-	usbd_request_handle reqh;
+usb_transfer_complete(xfer)
+	usbd_xfer_handle xfer;
 {
-	usbd_pipe_handle pipe = reqh->pipe;
+	usbd_pipe_handle pipe = xfer->pipe;
+	usb_dma_t *dmap = &xfer->dmabuf;
+	int repeat = pipe->repeat;
 	int polling;
 
-	DPRINTFN(5, ("usb_transfer_complete: pipe=%p reqh=%p actlen=%d\n",
-		     pipe, reqh, reqh->actlen));
+	SPLUSBCHECK;
+
+	DPRINTFN(5, ("usb_transfer_complete: pipe=%p xfer=%p status=%d "
+		     "actlen=%d\n", pipe, xfer, xfer->status, xfer->actlen));
 
 #ifdef DIAGNOSTIC
-	if (!pipe) {
-		printf("usbd_transfer_cb: pipe==0, reqh=%p\n", reqh);
+	if (pipe == NULL) {
+		printf("usbd_transfer_cb: pipe==0, xfer=%p\n", xfer);
 		return;
 	}
 #endif
-
 	polling = pipe->device->bus->use_polling;
 	/* XXXX */
 	if (polling)
 		pipe->running = 0;
 
-	/* if we allocated the buffer in usbd_transfer() we free it here. */
-	if (reqh->rqflags & URQ_AUTO_DMABUF) {
-		usb_dma_t *dmap = &reqh->dmabuf;
+	if (!(xfer->flags & USBD_NO_COPY) && xfer->actlen != 0 &&
+	    usbd_xfer_isread(xfer)) {
+#ifdef DIAGNOSTIC
+		if (xfer->actlen > xfer->length) {
+			printf("usb_transfer_complete: actlen > len %d > %d\n",
+			       xfer->actlen, xfer->length);
+			xfer->actlen = xfer->length;
+		}
+#endif
+		memcpy(xfer->buffer, KERNADDR(dmap), xfer->actlen);
+	}
 
-		if (usbd_reqh_isread(reqh))
-			memcpy(reqh->buffer, KERNADDR(dmap), reqh->actlen);
-		if (!pipe->repeat) {
+	/* if we allocated the buffer in usbd_transfer() we free it here. */
+	if (xfer->rqflags & URQ_AUTO_DMABUF) {
+		if (!repeat) {
 			struct usbd_bus *bus = pipe->device->bus;
 			bus->methods->freem(bus, dmap);
-			reqh->rqflags &= ~URQ_AUTO_DMABUF;
+			xfer->rqflags &= ~URQ_AUTO_DMABUF;
 		}
 	}
 
-	if (pipe->methods->done)
-		pipe->methods->done(reqh);
+	if (pipe->methods->done != NULL)
+		pipe->methods->done(xfer);
 
-	/* Remove request from queue. */
-	if ( reqh == SIMPLEQ_FIRST(&pipe->queue) )
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
-	else
-		DPRINTF(("XXX duplicated call to usb_transfer_complete\n"));
-
+	if (!repeat) {
+		/* Remove request from queue. */
+#ifdef DIAGNOSTIC
+		if (xfer != SIMPLEQ_FIRST(&pipe->queue))
+			printf("usb_transfer_complete: bad dequeue %p != %p\n",
+			       xfer, SIMPLEQ_FIRST(&pipe->queue));
+#endif
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, xfer, next);
+	}
 
 	/* Count completed transfers. */
 	++pipe->device->bus->stats.requests
 		[pipe->endpoint->edesc->bmAttributes & UE_XFERTYPE];
 
-	reqh->done = 1;
-	if (reqh->status == USBD_NORMAL_COMPLETION &&
-	    reqh->actlen < reqh->length &&
-	    !(reqh->flags & USBD_SHORT_XFER_OK)) {
-		DPRINTFN(-1, ("usbd_transfer_cb: short xfer %d<%d (bytes)\n",
-			      reqh->actlen, reqh->length));
-		reqh->status = USBD_SHORT_XFER;
+	xfer->done = 1;
+	if (xfer->status == USBD_NORMAL_COMPLETION &&
+	    xfer->actlen < xfer->length &&
+	    !(xfer->flags & USBD_SHORT_XFER_OK)) {
+		DPRINTFN(-1, ("usbd_transfer_cb: short transfer %d<%d\n",
+			      xfer->actlen, xfer->length));
+		xfer->status = USBD_SHORT_XFER;
 	}
 
-	if (reqh->callback)
-		reqh->callback(reqh, reqh->priv, reqh->status);
+	if (xfer->callback)
+		xfer->callback(xfer, xfer->priv, xfer->status);
 
-	if ((reqh->flags & USBD_SYNCHRONOUS) && !polling)
-		wakeup(reqh);
+	if ((xfer->flags & USBD_SYNCHRONOUS) && !polling)
+		wakeup(xfer);
 
-	if (!pipe->repeat && 
-	    reqh->status != USBD_CANCELLED && reqh->status != USBD_TIMEOUT)
-		usbd_start_next(pipe);
+	if (!repeat) {
+		/* XXX should we stop the queue on all errors? */
+		if (xfer->status == USBD_CANCELLED ||
+		    xfer->status == USBD_TIMEOUT)
+			pipe->running = 0;
+		else
+			usbd_start_next(pipe);
+	}
 }
 
 usbd_status
-usb_insert_transfer(reqh)
-	usbd_request_handle reqh;
+usb_insert_transfer(xfer)
+	usbd_xfer_handle xfer;
 {
-	usbd_pipe_handle pipe = reqh->pipe;
-	usbd_status r;
+	usbd_pipe_handle pipe = xfer->pipe;
+	usbd_status err;
 	int s;
 
-	DPRINTFN(5,("usb_insert_transfer: pipe=%p running=%d\n", pipe,
-		    pipe->running));
+	DPRINTFN(5,("usb_insert_transfer: pipe=%p running=%d timeout=%d\n", 
+		    pipe, pipe->running, xfer->timeout));
 	s = splusb();
-	SIMPLEQ_INSERT_TAIL(&pipe->queue, reqh, next);
+	SIMPLEQ_INSERT_TAIL(&pipe->queue, xfer, next);
 	if (pipe->running)
-		r = USBD_IN_PROGRESS;
+		err = USBD_IN_PROGRESS;
 	else {
 		pipe->running = 1;
-		r = USBD_NORMAL_COMPLETION;
+		err = USBD_NORMAL_COMPLETION;
 	}
 	splx(s);
-	return (r);
+	return (err);
 }
 
+/* Called at splusb() */
 void
 usbd_start_next(pipe)
 	usbd_pipe_handle pipe;
 {
-	usbd_request_handle reqh;
-	usbd_status r;
+	usbd_xfer_handle xfer;
+	usbd_status err;
 
-	DPRINTFN(10, ("usbd_start_next: pipe=%p\n", pipe));
-	
+	SPLUSBCHECK;
+
 #ifdef DIAGNOSTIC
-	if (!pipe) {
-		printf("usbd_start_next: pipe == 0\n");
+	if (pipe == NULL) {
+		printf("usbd_start_next: pipe == NULL\n");
 		return;
 	}
-	if (!pipe->methods || !pipe->methods->start) {
-		printf("usbd_start_next:  no start method\n");
+	if (pipe->methods == NULL || pipe->methods->start == NULL) {
+		printf("usbd_start_next: pipe=%p no start method\n", pipe);
 		return;
 	}
 #endif
 
 	/* Get next request in queue. */
-	reqh = SIMPLEQ_FIRST(&pipe->queue);
-	DPRINTFN(5, ("usbd_start_next: pipe=%p start reqh=%p\n", pipe, reqh));
-	if (!reqh)
+	xfer = SIMPLEQ_FIRST(&pipe->queue);
+	DPRINTFN(5, ("usbd_start_next: pipe=%p, xfer=%p\n", pipe, xfer));
+	if (xfer == NULL) {
 		pipe->running = 0;
-	else {
-		r = pipe->methods->start(reqh);
-		if (r != USBD_IN_PROGRESS) {
-			printf("usbd_start_next: error=%d\n", r);
+	} else {
+		err = pipe->methods->start(xfer);
+		if (err != USBD_IN_PROGRESS) {
+			printf("usbd_start_next: error=%d\n", err);
 			pipe->running = 0;
 			/* XXX do what? */
 		}
@@ -822,35 +888,39 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 	u_int16_t flags;
 	int *actlen;
 {
-	usbd_request_handle reqh;
-	usbd_status r;
+	usbd_xfer_handle xfer;
+	usbd_status err;
 
 #ifdef DIAGNOSTIC
-	if (!curproc) {
+#if defined(__i386__)
+	KASSERT(intr_nesting_level == 0,
+	       	("ohci_abort_req in interrupt context"));
+#endif
+	if (dev->bus->intr_context) {
 		printf("usbd_do_request: not in process context\n");
 		return (USBD_INVAL);
 	}
 #endif
 
-	reqh = usbd_alloc_request(dev);
-	if (reqh == 0)
+	xfer = usbd_alloc_request(dev);
+	if (xfer == NULL)
 		return (USBD_NOMEM);
-	usbd_setup_default_request(reqh, dev, 0, USBD_DEFAULT_TIMEOUT, req,
+	usbd_setup_default_request(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
 				   data, UGETW(req->wLength), flags, 0);
-	r = usbd_sync_transfer(reqh);
+	err = usbd_sync_transfer(xfer);
 #if defined(USB_DEBUG) || defined(DIAGNOSTIC)
-	if (reqh->actlen > reqh->length)
+	if (xfer->actlen > xfer->length)
 		DPRINTF(("usbd_do_request: overrun addr=%d type=0x%02x req=0x"
 			 "%02x val=%d index=%d rlen=%d length=%d actlen=%d\n",
-			 dev->address, reqh->request.bmRequestType,
-			 reqh->request.bRequest, UGETW(reqh->request.wValue),
-			 UGETW(reqh->request.wIndex), 
-			 UGETW(reqh->request.wLength), 
-			 reqh->length, reqh->actlen));
+			 dev->address, xfer->request.bmRequestType,
+			 xfer->request.bRequest, UGETW(xfer->request.wValue),
+			 UGETW(xfer->request.wIndex), 
+			 UGETW(xfer->request.wLength), 
+			 xfer->length, xfer->actlen));
 #endif
-	if (actlen)
-		*actlen = reqh->actlen;
-	if (r == USBD_STALLED) {
+	if (actlen != NULL)
+		*actlen = xfer->actlen;
+	if (err == USBD_STALLED) {
 		/* 
 		 * The control endpoint has stalled.  Control endpoints
 		 * should not halt, but some may do so anyway so clear
@@ -859,18 +929,18 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 		usb_device_request_t treq;
 		usb_status_t status;
 		u_int16_t s;
-		usbd_status nr;
+		usbd_status nerr;
 
 		treq.bmRequestType = UT_READ_ENDPOINT;
 		treq.bRequest = UR_GET_STATUS;
 		USETW(treq.wValue, 0);
 		USETW(treq.wIndex, 0);
 		USETW(treq.wLength, sizeof(usb_status_t));
-		usbd_setup_default_request(reqh, dev, 0, USBD_DEFAULT_TIMEOUT,
+		usbd_setup_default_request(xfer, dev, 0, USBD_DEFAULT_TIMEOUT,
 					   &treq, &status,sizeof(usb_status_t),
 					   0, 0);
-		nr = usbd_sync_transfer(reqh);
-		if (nr != USBD_NORMAL_COMPLETION)
+		nerr = usbd_sync_transfer(xfer);
+		if (nerr)
 			goto bad;
 		s = UGETW(status.wStatus);
 		DPRINTF(("usbd_do_request: status = 0x%04x\n", s));
@@ -881,36 +951,36 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 		USETW(treq.wValue, UF_ENDPOINT_HALT);
 		USETW(treq.wIndex, 0);
 		USETW(treq.wLength, 0);
-		usbd_setup_default_request(reqh, dev, 0, USBD_DEFAULT_TIMEOUT,
+		usbd_setup_default_request(xfer, dev, 0, USBD_DEFAULT_TIMEOUT,
 					   &treq, &status, 0, 0, 0);
-		nr = usbd_sync_transfer(reqh);
-		if (nr != USBD_NORMAL_COMPLETION)
+		nerr = usbd_sync_transfer(xfer);
+		if (nerr)
 			goto bad;
 	}
 
  bad:
-	usbd_free_request(reqh);
-	return (r);
+	usbd_free_request(xfer);
+	return (err);
 }
 
 void
-usbd_do_request_async_cb(reqh, priv, status)
-	usbd_request_handle reqh;
+usbd_do_request_async_cb(xfer, priv, status)
+	usbd_xfer_handle xfer;
 	usbd_private_handle priv;
 	usbd_status status;
 {
 #if defined(USB_DEBUG) || defined(DIAGNOSTIC)
-	if (reqh->actlen > reqh->length)
+	if (xfer->actlen > xfer->length)
 		DPRINTF(("usbd_do_request: overrun addr=%d type=0x%02x req=0x"
 			 "%02x val=%d index=%d rlen=%d length=%d actlen=%d\n",
-			 reqh->pipe->device->address, 
-			 reqh->request.bmRequestType,
-			 reqh->request.bRequest, UGETW(reqh->request.wValue),
-			 UGETW(reqh->request.wIndex), 
-			 UGETW(reqh->request.wLength), 
-			 reqh->length, reqh->actlen));
+			 xfer->pipe->device->address, 
+			 xfer->request.bmRequestType,
+			 xfer->request.bRequest, UGETW(xfer->request.wValue),
+			 UGETW(xfer->request.wIndex), 
+			 UGETW(xfer->request.wLength), 
+			 xfer->length, xfer->actlen));
 #endif
-	usbd_free_request(reqh);
+	usbd_free_request(xfer);
 }
 
 /*
@@ -923,19 +993,18 @@ usbd_do_request_async(dev, req, data)
 	usb_device_request_t *req;
 	void *data;
 {
-	usbd_request_handle reqh;
-	usbd_status r;
+	usbd_xfer_handle xfer;
+	usbd_status err;
 
-	reqh = usbd_alloc_request(dev);
-	if (reqh == 0)
+	xfer = usbd_alloc_request(dev);
+	if (xfer == NULL)
 		return (USBD_NOMEM);
-	usbd_setup_default_request(reqh, dev, 0, USBD_DEFAULT_TIMEOUT, req, data, 
-				   UGETW(req->wLength), 0, 
-				   usbd_do_request_async_cb);
-	r = usbd_transfer(reqh);
-	if (r != USBD_IN_PROGRESS) {
-		usbd_free_request(reqh);
-		return (r);
+	usbd_setup_default_request(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
+	    data, UGETW(req->wLength), 0, usbd_do_request_async_cb);
+	err = usbd_transfer(xfer);
+	if (err != USBD_IN_PROGRESS) {
+		usbd_free_request(xfer);
+		return (err);
 	}
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -964,7 +1033,10 @@ usbd_set_polling(iface, on)
 	usbd_interface_handle iface;
 	int on;
 {
-	iface->device->bus->use_polling = on;
+	if (on)
+		iface->device->bus->use_polling++;
+	else
+		iface->device->bus->use_polling--;
 }
 
 
@@ -989,7 +1061,8 @@ int
 usbd_driver_load(module_t mod, int what, void *arg)
 {
 	/* XXX should implement something like a function that removes all generic devices */
-
-	return 0;			/* nothing to do by us */
+ 
+ 	return (0);
 }
+
 #endif

@@ -1,4 +1,4 @@
-/*	$NetBSD: hid.c,v 1.8 1999/08/14 14:49:31 augustss Exp $	*/
+/*	$NetBSD: hid.c,v 1.9 1999/10/13 08:10:55 augustss Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -111,7 +111,7 @@ void
 hid_end_parse(s)
 	struct hid_data *s;
 {
-	while (s->cur.next) {
+	while (s->cur.next != NULL) {
 		struct hid_item *hi = s->cur.next->next;
 		free(s->cur.next, M_TEMP);
 		s->cur.next = hi;
@@ -133,7 +133,7 @@ hid_get_item(s, h)
 	int i;
 
  top:
-	if (s->multimax) {
+	if (s->multimax != 0) {
 		if (s->multi < s->multimax) {
 			c->usage = s->usages[min(s->multi, s->nu-1)];
 			s->multi++;
@@ -380,11 +380,11 @@ hid_report_size(buf, len, k, idp)
 
 	id = 0;
 	for (d = hid_start_parse(buf, len, 1<<k); hid_get_item(d, &h); )
-		if (h.report_ID)
+		if (h.report_ID != 0)
 			id = h.report_ID;
 	hid_end_parse(d);
 	size = h.loc.pos;
-	if (id) {
+	if (id != 0) {
 		size += 8;
 		*idp = id;	/* XXX wrong */
 	} else
@@ -406,9 +406,9 @@ hid_locate(desc, size, u, k, loc, flags)
 
 	for (d = hid_start_parse(desc, size, 1<<k); hid_get_item(d, &h); ) {
 		if (h.kind == k && !(h.flags & HIO_CONST) && h.usage == u) {
-			if (loc)
+			if (loc != NULL)
 				*loc = h.loc;
-			if (flags)
+			if (flags != NULL)
 				*flags = h.flags;
 			hid_end_parse(d);
 			return (1);
@@ -456,15 +456,15 @@ hid_is_collection(desc, size, usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
-	int r;
+	int err;
 
 	hd = hid_start_parse(desc, size, hid_input);
-	if (!hd)
+	if (hd == NULL)
 		return (0);
 
-	r = hid_get_item(hd, &hi) &&
+	err = hid_get_item(hd, &hi) &&
 	    hi.kind == hid_collection &&
 	    hi.usage == usage;
 	hid_end_parse(hd);
-	return (r);
+	return (err);
 }

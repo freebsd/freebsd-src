@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_port.h,v 1.11 1999/09/11 08:19:27 augustss Exp $	*/
+/*	$NetBSD: usb_port.h,v 1.13 1999/10/13 08:10:58 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -49,6 +49,16 @@
  */
 
 #include "opt_usbverbose.h"
+
+#ifdef USB_DEBUG
+#define UHID_DEBUG 1
+#define OHCI_DEBUG 1
+#define UGEN_DEBUG 1
+#define UHCI_DEBUG 1
+#define UHUB_DEBUG 1
+#define ULPT_DEBUG 1
+#define UAUDIO_DEBUG 1
+#endif
 
 typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
@@ -123,7 +133,6 @@ __CONCAT(dname,_detach)(self, flags) \
 		(struct __CONCAT(dname,_softc) *)self
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc; \
 	if (unit >= __CONCAT(dname,_cd).cd_ndevs) \
 		return (ENXIO); \
 	sc = __CONCAT(dname,_cd).cd_devs[unit]; \
@@ -131,7 +140,7 @@ __CONCAT(dname,_detach)(self, flags) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc = __CONCAT(dname,_cd).cd_devs[unit]
+	sc = __CONCAT(dname,_cd).cd_devs[unit]
 
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	(config_found_sm(parent, args, print, sub))
@@ -140,6 +149,15 @@ __CONCAT(dname,_detach)(self, flags) \
 /*
  * OpenBSD
  */
+#ifdef USB_DEBUG
+#define UHID_DEBUG 1
+#define OHCI_DEBUG 1
+#define UGEN_DEBUG 1
+#define UHCI_DEBUG 1
+#define UHUB_DEBUG 1
+#define ULPT_DEBUG 1
+#endif
+
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define bswap32(x)		swap32(x)
@@ -149,6 +167,10 @@ __CONCAT(dname,_detach)(self, flags) \
 #define	usbpoll			usbselect
 #define	uhidpoll		uhidselect
 #define	ugenpoll		ugenselect
+
+#define powerhook_establish(fn, sc) 0
+#define powerhook_disestablish(hdl)
+#define PWR_RESUME 0
 
 typedef struct device device_ptr_t;
 #define USBBASEDEVICE struct device
@@ -223,7 +245,6 @@ __CONCAT(dname,_detach)(self, flags) \
 		(struct __CONCAT(dname,_softc) *)self
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc; \
 	if (unit >= __CONCAT(dname,_cd).cd_ndevs) \
 		return (ENXIO); \
 	sc = __CONCAT(dname,_cd).cd_devs[unit]; \
@@ -231,7 +252,7 @@ __CONCAT(dname,_detach)(self, flags) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc = __CONCAT(dname,_cd).cd_devs[unit]
+	sc = __CONCAT(dname,_cd).cd_devs[unit]
 
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	(config_found_sm(parent, args, print, sub))
@@ -257,15 +278,22 @@ __CONCAT(dname,_detach)(self, flags) \
  */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
-#define bswap32(x)		swap32(x)		/* XXX not available in FreeBSD */
-#define kthread_create1
-#define kthread_create
-
+#define bswap32(x)		swap32(x)
+#define kthread_create1(function, sc, priv, string, name)
+#define kthread_create(create_function, sc)
+#define kthread_exit(err)
 
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))
 
-#define USB_DECLARE_DRIVER_INIT(dname, init...) \
+#define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (x)), 0)
+#define clfree(p) clist_free_cblocks((p))
+
+#define powerhook_establish(fn, sc) 0
+#define powerhook_disestablish(hdl)
+#define PWR_RESUME 0
+
+#define USB_DECLARE_DRIVER_INIT(dname, init) \
 static device_probe_t __CONCAT(dname,_match); \
 static device_attach_t __CONCAT(dname,_attach); \
 static device_detach_t __CONCAT(dname,_detach); \
@@ -287,6 +315,7 @@ static driver_t __CONCAT(dname,_driver) = { \
 }
 #define METHODS_NONE			{0,0}
 #define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
+
 
 #define USB_MATCH(dname) \
 static int \
@@ -319,14 +348,12 @@ __CONCAT(dname,_detach)(device_t self)
 	struct __CONCAT(dname,_softc) *sc = device_get_softc(self)
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc = \
-		devclass_get_softc(__CONCAT(dname,_devclass), unit); \
+	sc = devclass_get_softc(__CONCAT(dname,_devclass), unit); \
 	if (!sc) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
-	struct __CONCAT(dname,_softc) *sc = \
-		devclass_get_softc(__CONCAT(dname,_devclass), unit)
+	sc = devclass_get_softc(__CONCAT(dname,_devclass), unit)
 
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	(device_probe_and_attach((bdev)) == 0 ? (bdev) : 0)
@@ -355,7 +382,3 @@ __CONCAT(dname,_detach)(device_t self)
 #define logprintf		printf
 
 #endif /* __FreeBSD__ */
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#elif defined(__FreeBSD__)
-#endif
