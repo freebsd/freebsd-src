@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.44 1999/08/04 13:38:24 peter Exp $
+ * $Id: pcibus.c,v 1.45 1999/08/09 21:12:18 wpaul Exp $
  *
  */
 
@@ -277,9 +277,6 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	const char *s = NULL;
 	static u_int8_t pxb[4];	/* hack for 450nx */
 
-	if ((class != PCIC_BRIDGE) && (subclass != PCIS_BRIDGE_HOST))
-		return NULL;
-
 	*busnum = 0;
 
 	switch (id) {
@@ -389,17 +386,21 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		s = "OPTi 82C822 host to PCI Bridge";
 		break;
 
-	/* Ross (?) -- vendor 0x1166 */
+		/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
 		s = "Ross (?) host to PCI bridge";
 		/* just guessing the secondary bus register number ... */
 		*busnum = pci_cfgread(cfg, 0x45, 1);
 		break;
+
+		/* Integrated Micro Solutions -- vendor 0x10e0 */
 	case 0x884910e0:
 		s = "Integrated Micro Solutions VL Bridge";
 		break;
+
 	default:
-		s = "Host to PCI bridge";
+		if (class == PCIC_BRIDGE && subclass == PCIS_BRIDGE_HOST)
+			s = "Host to PCI bridge";
 		break;
 	}
 
