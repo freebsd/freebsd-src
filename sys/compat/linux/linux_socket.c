@@ -25,21 +25,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.8 1997/07/20 16:06:04 bde Exp $
+ *  $Id: linux_socket.c,v 1.9 1997/11/06 19:29:03 phk Exp $
  */
 
 /* XXX we use functions that might not exist. */
 #define	COMPAT_43	1
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 static int
 linux_to_bsd_domain(int domain)
@@ -93,6 +97,7 @@ static int linux_to_bsd_ip_sockopt(int opt)
     case LINUX_IP_DROP_MEMBERSHIP:
 	return IP_DROP_MEMBERSHIP;
     case LINUX_IP_HDRINCL:
+        return IP_HDRINCL;
     default:
 	return -1;
     }
@@ -131,6 +136,109 @@ linux_to_bsd_so_sockopt(int opt)
     }
 }
 
+/* Return 0 if IP_HDRINCL is set of the given socket, not 0 otherwise */
+static int
+linux_check_hdrincl(struct proc *p, int s)
+{
+    struct getsockopt_args /* {
+	int s;
+	int level;
+	int name;
+	caddr_t val;
+	int *avalsize;
+    } */ bsd_args;
+    int error;
+    caddr_t sg, val, valsize;
+    int size_val = sizeof val;
+    int optval;
+
+    sg = stackgap_init();
+    val = stackgap_alloc(&sg, sizeof(int));
+    valsize = stackgap_alloc(&sg, sizeof(int));
+
+    if ((error=copyout(&size_val, valsize, sizeof(size_val))))
+	return error;
+    bsd_args.s = s;
+    bsd_args.level = IPPROTO_IP;
+    bsd_args.name = IP_HDRINCL;
+    bsd_args.val = val;
+    bsd_args.avalsize = (int *)valsize;
+    if ((error=getsockopt(p, &bsd_args)))
+	return error;
+    if ((error=copyin(val, &optval, sizeof(optval))))
+	return error;
+    return optval == 0;
+}
+
+/*
+ * Updated sendto() when IP_HDRINCL is set:
+ * tweak endian-dependent fields in the IP packet.
+ */
+static int
+linux_sendto_hdrincl(struct proc *p, struct sendto_args *bsd_args)
+{
+/*
+ * linux_ip_copysize defines how many bytes we should copy
+ * from the beginning of the IP packet before we customize it for BSD.
+ * It should include all the fields we modify (ip_len and ip_off)
+ * and be as small as possible to minimize copying overhead.
+ */
+#define linux_ip_copysize	8
+
+    caddr_t sg;
+    struct ip *packet;
+    struct msghdr *msg;
+    struct iovec *iov;
+
+    int error;
+    struct  sendmsg_args /* {
+	int s;
+	caddr_t msg;
+	int flags;
+    } */ sendmsg_args;
+
+    /* Check the packet isn't too small before we mess with it */
+    if (bsd_args->len < linux_ip_copysize)
+	return EINVAL;
+
+    /*
+     * Tweaking the user buffer in place would be bad manners.
+     * We create a corrected IP header with just the needed length,
+     * then use an iovec to glue it to the rest of the user packet
+     * when calling sendmsg().
+     */
+    sg = stackgap_init();
+    packet = (struct ip *)stackgap_alloc(&sg, linux_ip_copysize);
+    msg = (struct msghdr *)stackgap_alloc(&sg, sizeof(*msg));
+    iov = (struct iovec *)stackgap_alloc(&sg, sizeof(*iov)*2);
+
+    /* Make a copy of the beginning of the packet to be sent */
+    if ((error = copyin(bsd_args->buf, (caddr_t)packet, linux_ip_copysize)))
+	return error;
+
+    /* Convert fields from Linux to BSD raw IP socket format */
+    packet->ip_len = bsd_args->len;
+    packet->ip_off = ntohs(packet->ip_off);
+
+    /* Prepare the msghdr and iovec structures describing the new packet */
+    msg->msg_name = bsd_args->to;
+    msg->msg_namelen = bsd_args->tolen;
+    msg->msg_iov = iov;
+    msg->msg_iovlen = 2;
+    msg->msg_control = NULL;
+    msg->msg_controllen = 0;
+    msg->msg_flags = 0;
+    iov[0].iov_base = (char *)packet;
+    iov[0].iov_len = linux_ip_copysize;
+    iov[1].iov_base = (char *)(bsd_args->buf) + linux_ip_copysize;
+    iov[1].iov_len = bsd_args->len - linux_ip_copysize;
+
+    sendmsg_args.s = bsd_args->s;
+    sendmsg_args.msg = (caddr_t)msg;
+    sendmsg_args.flags = bsd_args->flags;
+    return sendmsg(p, &sendmsg_args);
+}
+
 struct linux_socket_args {
     int domain;
     int type;
@@ -147,6 +255,7 @@ linux_socket(struct proc *p, struct linux_socket_args *args)
 	int protocol;
     } */ bsd_args;
     int error;
+    int retval_socket;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
 	return error;
@@ -155,7 +264,37 @@ linux_socket(struct proc *p, struct linux_socket_args *args)
     bsd_args.domain = linux_to_bsd_domain(linux_args.domain);
     if (bsd_args.domain == -1)
 	return EINVAL;
-    return socket(p, &bsd_args);
+
+    retval_socket = socket(p, &bsd_args);
+    if (bsd_args.type == SOCK_RAW
+	&& (bsd_args.protocol == IPPROTO_RAW || bsd_args.protocol == 0)
+	&& bsd_args.domain == AF_INET
+	&& retval_socket >= 0) {
+	/* It's a raw IP socket: set the IP_HDRINCL option. */
+	struct setsockopt_args /* {
+	    int s;
+	    int level;
+	    int name;
+	    caddr_t val;
+	    int valsize;
+	} */ bsd_setsockopt_args;
+	caddr_t sg;
+	int *hdrincl;
+
+	sg = stackgap_init();
+	hdrincl = (int *)stackgap_alloc(&sg, sizeof(*hdrincl));
+	*hdrincl = 1;
+	bsd_setsockopt_args.s = p->p_retval[0];
+	bsd_setsockopt_args.level = IPPROTO_IP;
+	bsd_setsockopt_args.name = IP_HDRINCL;
+	bsd_setsockopt_args.val = (caddr_t)hdrincl;
+	bsd_setsockopt_args.valsize = sizeof(*hdrincl);
+	/* We ignore any error returned by setsockopt() */
+	setsockopt(p, &bsd_setsockopt_args);
+	/* Copy back the return value from socket() */
+	p->p_retval[0] = bsd_setsockopt_args.s;
+    }
+    return retval_socket;
 }
 
 struct linux_bind_args {
@@ -422,6 +561,11 @@ linux_sendto(struct proc *p, struct linux_sendto_args *args)
     bsd_args.flags = linux_args.flags;
     bsd_args.to = linux_args.to;
     bsd_args.tolen = linux_args.tolen;
+
+    if (linux_check_hdrincl(p, linux_args.s) == 0)
+	/* IP_HDRINCL set, tweak the packet before sending */
+	return linux_sendto_hdrincl(p, &bsd_args);
+
     return sendto(p, &bsd_args);
 }
 
@@ -561,6 +705,7 @@ linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args)
     }
     if (name == -1)
 	return EINVAL;
+    bsd_args.name = name;
     bsd_args.val = linux_args.optval;
     bsd_args.avalsize = linux_args.optlen;
     return getsockopt(p, &bsd_args);
