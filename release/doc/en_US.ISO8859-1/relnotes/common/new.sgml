@@ -594,6 +594,10 @@
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C. &merged;</para>
 
+      <para>A bug in the &man.xl.4; driver, related to stats overflow
+      interrupt handling, was causing slowdowns at medium to high
+      packet rates; this has been fixed. &merged;</para>
+
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
       network interface, and which ones are enabled.  &man.ifconfig.8;
@@ -973,7 +977,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>A simple hash-based lookup optimization for large directories
       called <literal>dirhash</literal> has been added.  Conditional on the
-      <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
+      <literal>UFS_DIRHASH</literal> kernel option (enabled by default
+      in the <filename>GENERIC</filename> kernel), it improves the speed
       of operations on very large directories at the expense of some
       memory. &merged;</para>
 
@@ -1769,7 +1774,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     behavior. &merged;</para>
 
     <para><filename>libfetch</filename> now has support for an
-    authentication callback.</para>
+    authentication callback. &merged;</para>
 
     <para><filename>libfetch</filename> now has support for a
     <envar>HTTP_USER_AGENT</envar> environment variable. &merged;</para>
