@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.2 1993/10/08 20:51:00 rgrimes Exp $
+ *	$Id: pcb.h,v 1.3 1993/11/07 17:42:59 wollman Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -72,7 +72,6 @@ struct pcb {
 #define	FP_NEEDSRESTORE	0x04	/* ... that needs restore on next DNA fault */
 #endif
 #define	FP_USESEMC	0x08	/* process uses EMC memory-mapped mode */
-#define	FM_TRAP		0x10	/* process entered kernel on a trap frame */
 #define	FP_SOFTFP	0x20	/* process using software fltng pnt emulator */
 	short	pcb_iml;	/* interrupt mask level */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */

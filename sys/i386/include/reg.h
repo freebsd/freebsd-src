@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.4 1993/11/16 09:54:57 davidg Exp $
+ *	$Id: reg.h,v 1.5 1993/12/03 05:10:08 alm Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -67,28 +67,6 @@
 #define	tEFLAGS	(14)
 #define	tESP	(15)
 #define	tSS	(16)
-
-/* During a system call, registers are at these offsets instead of above. */
-
-#define	sEDI	(0)
-#define	sESI	(1)
-#define	sEBP	(2)
-
-#define	sEBX	(4)
-#define	sEDX	(5)
-#define	sECX	(6)
-#define	sEAX	(7)
-#define	sEFLAGS	(8)
-#define	sEIP	(9)
-#define	sCS	(10)
-#define	sESP	(11)
-#define	sSS	(12)
-
-#define PC	sEIP
-#define SP	sESP
-#define PS	sEFLAGS
-#define R0	sEDX
-#define R1	sECX
 
 /*
  * Registers accessible to ptrace(2) syscall for debugger
