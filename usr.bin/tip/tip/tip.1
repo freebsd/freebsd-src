@@ -35,8 +35,7 @@
 .Dt TIP 1
 .Os BSD 4
 .Sh NAME
-.Nm tip ,
-.Nm cu
+.Nm tip
 .Nd connect to a remote system
 .Sh SYNOPSIS
 .Nm tip
@@ -47,31 +46,12 @@
 .Op Fl v
 .Fl Ns Ns Ar speed 
 .Ar phone\-number
-.Nm cu
-.Ar phone\-number
-.Op Fl t
-.Op Fl s Ar speed
-.Op Fl a Ar acu
-.Op Fl l Ar line
-.Op Fl #
 .Sh DESCRIPTION
 .Nm Tip
-and
-.Ar cu
 establish a full-duplex connection to another machine,
 giving the appearance of being logged in directly on the
 remote cpu.  It goes without saying that you must have a login
 on the machine (or equivalent) to which you wish to connect.
-The preferred interface is
-.Nm tip  .
-The
-.Ar cu
-interface is included for those people attached to the
-``call
-.Ux Ns ''
-command of version 7.  This manual page
-describes only
-.Nm tip  .
 .Pp
 Available Option:
 .Bl -tag -width indent
@@ -449,6 +429,7 @@ Lock file to avoid conflicts with
 .Sh DIAGNOSTICS
 Diagnostics are, hopefully, self explanatory.
 .Sh SEE ALSO
+.Xr cu 1 ,
 .Xr remote 5 ,
 .Xr phones 5
 .Sh HISTORY
