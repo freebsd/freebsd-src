@@ -1,5 +1,5 @@
 /*	from Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp	*/
-/*	$Id: if_pppvar.h,v 1.3 1996/01/30 22:57:49 mpp Exp $	*/
+/*	$Id: if_pppvar.h,v 1.4 1996/02/06 18:51:13 wollman Exp $	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *
@@ -95,7 +95,7 @@ struct ppp_softc {
 	int	sc_rawin_count;		/* # in sc_rawin */
 };
 
-struct	ppp_softc ppp_softc[NPPP];
+extern struct ppp_softc ppp_softc[NPPP];
 
 struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
