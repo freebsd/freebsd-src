@@ -87,7 +87,6 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		"open_drive %s: use count %d, ignoring\n",  /* XXX where does this come from? */
 		drive->devicename,
 		drive->vp->v_usecount);
-	drive->vp->v_usecount = 1;			    /* will this work? */
     }
     error = VOP_GETATTR(drive->vp, &va, NOCRED, drive->p);
     if (error) {
@@ -218,13 +217,11 @@ close_drive(struct drive *drive)
     if (drive->vp) {
 	lockdrive(drive);				    /* keep the daemon out */
 	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
-	if (drive->vp->v_usecount) {			    /* XXX shouldn't happen */
+	if (drive->vp->v_usecount)			    /* XXX shouldn't happen */
 	    log(LOG_WARNING,
 		"close_drive %s: use count still %d\n",
 		drive->devicename,
 		drive->vp->v_usecount);
-	    drive->vp->v_usecount = 0;			    /* will this work? */
-	}
 	drive->vp = NULL;
 	unlockdrive(drive);
     }
@@ -532,7 +529,7 @@ check_drive(char *drivename)
     }
     for (i = 0; i < vinum_conf.drives_allocated; i++) {	    /* see if the name already exists */
 	if ((i != driveno)				    /* not this drive */
-	&&(DRIVE[i].state != drive_unallocated)		    /* and it's allocated */
+&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
 	&&(strcmp(DRIVE[i].label.name,
 		    DRIVE[driveno].label.name) == 0)) {	    /* and it has the same name */
 	    struct drive *mydrive = &DRIVE[i];
