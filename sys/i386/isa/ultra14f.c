@@ -20,7 +20,12 @@
 
 /*
  * HISTORY
- * $Log:	ultra14f.c,v $
+ * $Log: ultra14f.c,v $
+ * Revision 1.3  1993/07/29  11:55:37  nate
+ * Syncing our sources back with Julian's, and removing PATCHKIT headers.
+ *
+ * Large Bustek changes, most everything else is minimal.
+ *
  *
  * Revision 1.1  93/05/07  11:37:24  julian
  * fix SLEEPTIME calculation.
@@ -453,7 +458,7 @@ struct  isa_dev *dev;
 
 
 #ifdef  __386BSD__
-	printf(" probing for scsi devices**\n");
+	printf("uha%d: **probing for scsi devices**\n", unit);
 #endif  __386BSD__
 
 	/***********************************************\
