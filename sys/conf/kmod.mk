@@ -181,7 +181,11 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
 
-CLEANFILES+= ${PROG} ${FULLPROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
+
+.if defined(DEBUG)
+CLEANFILES+= ${FULLPROG}
+.endif
 
 .if !target(install)
 
