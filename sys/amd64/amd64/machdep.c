@@ -1279,6 +1279,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 int
