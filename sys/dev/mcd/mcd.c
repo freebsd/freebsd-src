@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.30 1994/11/12 18:18:20 ache Exp $
+ *	$Id: mcd.c,v 1.31 1994/11/14 19:25:43 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -644,7 +644,6 @@ mcd_probe(struct isa_device *dev)
 	int i, j;
 	int status;
 	unsigned char stbytes[3];
-	char *s;
 
 	mcd_data[unit].flags = MCDPROBING;
 
