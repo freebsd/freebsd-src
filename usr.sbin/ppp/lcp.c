@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.29 1998/03/16 22:52:23 brian Exp $
+ * $Id: lcp.c,v 1.55.2.30 1998/03/16 22:54:02 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -90,8 +90,8 @@ static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
 static void LcpInitRestartCounter(struct fsm *);
 static void LcpSendConfigReq(struct fsm *);
-static void LcpSendTerminateReq(struct fsm *);
-static void LcpSendTerminateAck(struct fsm *);
+static void LcpSentTerminateReq(struct fsm *);
+static void LcpSendTerminateAck(struct fsm *, u_char);
 static void LcpDecodeConfig(struct fsm *, u_char *, int, int,
                             struct fsm_decode *);
 
@@ -102,7 +102,7 @@ static struct fsm_callbacks lcp_Callbacks = {
   LcpLayerFinish,
   LcpInitRestartCounter,
   LcpSendConfigReq,
-  LcpSendTerminateReq,
+  LcpSentTerminateReq,
   LcpSendTerminateAck,
   LcpDecodeConfig,
   NullRecvResetReq,
@@ -224,157 +224,88 @@ LcpInitRestartCounter(struct fsm * fp)
   fp->restart = 5;
 }
 
-int
-LcpPutConf(int log, u_char *tgt, const struct lcp_opt *o, const char *nm,
-           const char *arg, ...)
-{
-  va_list ap;
-  char buf[30];
-
-  va_start(ap, arg);
-  memcpy(tgt, o, o->len);
-  if (arg == NULL || *arg == '\0')
-    LogPrintf(log, " %s[%d]\n", nm, o->len);
-  else {
-    vsnprintf(buf, sizeof buf, arg, ap);
-    LogPrintf(log, " %s[%d] %s\n", nm, o->len, buf);
-  }
-  va_end(ap);
-
-  return o->len;
-}
-
-#define PUTN(ty)						\
-do {								\
-  o.id = ty;							\
-  o.len = 2;							\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], NULL);	\
-} while (0)
-
-#define PUTHEX32(ty, arg)					\
-do {								\
-  o.id = ty;							\
-  o.len = 6;							\
-  *(u_long *)o.data = htonl(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "0x%08lx", (u_long)arg);\
-} while (0)
-
-#define PUTACCMAP(arg) PUTHEX32(TY_ACCMAP, arg)
-#define PUTMAGIC(arg) PUTHEX32(TY_MAGICNUM, arg)
-
-#define PUTMRU(arg)						\
-do {								\
-  o.id = TY_MRU;						\
-  o.len = 4;							\
-  *(u_short *)o.data = htons(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "%u", arg);	\
-} while (0)
-
-#define PUTLQR(period)						\
-do {								\
-  o.id = TY_QUALPROTO;						\
-  o.len = 8;							\
-  *(u_short *)o.data = htons(PROTO_LQR);			\
-  *(u_long *)(o.data+2) = htonl(period);			\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-                   "period %ld", (u_long)period);		\
-} while (0)
-
-#define PUTPAP()						\
-do {								\
-  o.id = TY_AUTHPROTO;						\
-  o.len = 4;							\
-  *(u_short *)o.data = htons(PROTO_PAP);			\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-		   "0x%04x (PAP)", PROTO_PAP);			\
-} while (0)
-  
-#define PUTCHAP(val)						\
-do {								\
-  o.id = TY_AUTHPROTO;						\
-  o.len = 5;							\
-  *(u_short *)o.data = htons(PROTO_CHAP);			\
-  o.data[2] = val;						\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-		   "0x%04x (CHAP 0x%02x)", PROTO_CHAP, val);	\
-} while (0)
-
-#define PUTMD5CHAP() PUTCHAP(0x05)
-#define PUTMSCHAP()  PUTCHAP(0x80)
-  
 static void
 LcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
-  u_char *cp, buff[100];
-  struct lcp_opt o;
+  u_char buff[100];
+  struct lcp_opt *o;
 
   if (!p) {
     LogPrintf(LogERROR, "LcpSendConfigReq: Not a physical link !\n");
     return;
   }
 
-  LogPrintf(LogLCP, "LcpSendConfigReq\n");
-  cp = buff;
+  o = (struct lcp_opt *)buff;
   if (!Physical_IsSync(p)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
-      PUTN(TY_ACFCOMP);
+      INC_LCP_OPT(TY_ACFCOMP, 2, o);
 
     if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
-      PUTN(TY_PROTOCOMP);
+      INC_LCP_OPT(TY_PROTOCOMP, 2, o);
 
-    if (!REJECTED(lcp, TY_ACCMAP))
-      PUTACCMAP(lcp->want_accmap);
+    if (!REJECTED(lcp, TY_ACCMAP)) {
+      *(u_int32_t *)o->data = htonl(lcp->want_accmap);
+      INC_LCP_OPT(TY_ACCMAP, 6, o);
+    }
   }
 
-  if (!REJECTED(lcp, TY_MRU))
-    PUTMRU(lcp->want_mru);
+  if (!REJECTED(lcp, TY_MRU)) {
+    *(u_short *)o->data = htons(lcp->want_mru);
+    INC_LCP_OPT(TY_MRU, 4, o);
+  }
 
-  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
-    PUTMAGIC(lcp->want_magic);
+  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM)) {
+    *(u_int32_t *)o->data = htonl(lcp->want_magic);
+    INC_LCP_OPT(TY_MAGICNUM, 6, o);
+  }
 
-  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO))
-    PUTLQR(lcp->want_lqrperiod);
+  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
+    *(u_short *)o->data = htons(PROTO_LQR);
+    *(u_long *)(o->data + 2) = htonl(lcp->want_lqrperiod);
+    INC_LCP_OPT(TY_QUALPROTO, 8, o);
+  }
 
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    PUTPAP();
+    *(u_short *)o->data = htons(PROTO_PAP);
+    INC_LCP_OPT(TY_AUTHPROTO, 4, o);
     break;
 
   case PROTO_CHAP:
+    *(u_short *)o->data = htons(PROTO_CHAP);
 #ifdef HAVE_DES
     if (VarMSChap)
-      PUTMSCHAP();			/* Use MSChap */
+      o->data[2] = 0x80;
     else
 #endif
-      PUTMD5CHAP();			/* Use MD5 */
+      o->data[2] = 0x05;
+    INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
 
 void
 lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 {
   /* Don't understand `option' */
-  LogPrintf(LogLCP, "lcp_SendProtoRej\n");
   FsmOutput(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
 }
 
 static void
-LcpSendTerminateReq(struct fsm * fp)
+LcpSentTerminateReq(struct fsm * fp)
 {
   /* Term REQ just sent by FSM */
 }
 
 static void
-LcpSendTerminateAck(struct fsm * fp)
+LcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  LogPrintf(LogLCP, "LcpSendTerminateAck.\n");
-  FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
+  FsmOutput(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void

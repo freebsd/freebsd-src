@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.24 1998/03/17 22:29:02 brian Exp $
+ * $Id: ccp.c,v 1.30.2.25 1998/03/18 23:16:05 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -62,8 +62,8 @@
 #include "datalink.h"
 
 static void CcpSendConfigReq(struct fsm *);
-static void CcpSendTerminateReq(struct fsm *);
-static void CcpSendTerminateAck(struct fsm *);
+static void CcpSentTerminateReq(struct fsm *);
+static void CcpSendTerminateAck(struct fsm *, u_char);
 static void CcpDecodeConfig(struct fsm *, u_char *, int, int,
                             struct fsm_decode *);
 static void CcpLayerStart(struct fsm *);
@@ -81,7 +81,7 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpLayerFinish,
   CcpInitRestartCounter,
   CcpSendConfigReq,
-  CcpSendTerminateReq,
+  CcpSentTerminateReq,
   CcpSendTerminateAck,
   CcpDecodeConfig,
   CcpRecvResetReq,
@@ -190,7 +190,6 @@ CcpSendConfigReq(struct fsm *fp)
   u_char *cp, buff[100];
   int f, alloc;
 
-  LogPrintf(LogCCP, "CcpSendConfigReq\n");
   cp = buff;
   o = &ccp->out.opt;
   alloc = ccp->his_reject == 0 && ccp->out.opt == NULL;
@@ -219,8 +218,8 @@ CcpSendConfigReq(struct fsm *fp)
         LogPrintf(LogERROR, "CCP REQ buffer overrun !\n");
         break;
       }
-      cp += LcpPutConf(LogCCP, cp, &(*o)->val, cftypes[(*o)->val.id],
-                       (*algorithm[f]->Disp)(&(*o)->val));
+      memcpy(cp, &(*o)->val, (*o)->val.len);
+      cp += (*o)->val.len;
 
       ccp->my_proto = (*o)->val.id;
       ccp->out.algorithm = f;
@@ -228,7 +227,8 @@ CcpSendConfigReq(struct fsm *fp)
       if (alloc)
         o = &(*o)->next;
     }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
+
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, cp - buff);
 }
 
 void
@@ -236,24 +236,23 @@ CcpSendResetReq(struct fsm *fp)
 {
   /* We can't read our input - ask peer to reset */
   struct ccp *ccp = fsm2ccp(fp);
-  LogPrintf(LogCCP, "SendResetReq(%d)\n", fp->reqid);
+
   ccp->reset_sent = fp->reqid;
   ccp->last_reset = -1;
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
 static void
-CcpSendTerminateReq(struct fsm *fp)
+CcpSentTerminateReq(struct fsm *fp)
 {
   /* Term REQ just sent by FSM */
 }
 
 static void
-CcpSendTerminateAck(struct fsm *fp)
+CcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  LogPrintf(LogCCP, "CcpSendTerminateAck\n");
-  FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
+  FsmOutput(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void
@@ -505,11 +504,10 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
   if (ccp->fsm.state == ST_OPENED)
     if (*proto == PROTO_COMPD) {
       /* Decompress incoming data */
-      if (ccp->reset_sent != -1) {
+      if (ccp->reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
-        LogPrintf(LogCCP, "ReSendResetReq(%d)\n", ccp->reset_sent);
         FsmOutput(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
-      } else if (ccp->in.state != NULL)
+      else if (ccp->in.state != NULL)
         return (*algorithm[ccp->in.algorithm]->i.Read)
                  (ccp->in.state, ccp, proto, bp);
       pfree(bp);

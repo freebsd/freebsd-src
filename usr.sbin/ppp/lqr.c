@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.13 1998/03/16 22:52:25 brian Exp $
+ * $Id: lqr.c,v 1.22.2.14 1998/03/16 22:54:07 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -76,8 +76,8 @@ SendEchoReq(struct lcp *lcp)
 
   echo.magic = htonl(lcp->want_magic);
   echo.signature = htonl(SIGNATURE);
-  echo.sequence = htonl(hdlc->lqm.echo.seq_sent++);
-  FsmOutput(&lcp->fsm, CODE_ECHOREQ, lcp->fsm.reqid++,
+  echo.sequence = htonl(hdlc->lqm.echo.seq_sent);
+  FsmOutput(&lcp->fsm, CODE_ECHOREQ, hdlc->lqm.echo.seq_sent++,
             (u_char *)&echo, sizeof echo);
 }
 

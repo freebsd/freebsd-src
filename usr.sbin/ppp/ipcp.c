@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.23 1998/03/16 22:52:20 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.24 1998/03/16 22:53:53 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -85,8 +85,8 @@ static void IpcpLayerStart(struct fsm *);
 static void IpcpLayerFinish(struct fsm *);
 static void IpcpInitRestartCounter(struct fsm *);
 static void IpcpSendConfigReq(struct fsm *);
-static void IpcpSendTerminateReq(struct fsm *);
-static void IpcpSendTerminateAck(struct fsm *);
+static void IpcpSentTerminateReq(struct fsm *);
+static void IpcpSendTerminateAck(struct fsm *, u_char);
 static void IpcpDecodeConfig(struct fsm *, u_char *, int, int,
                              struct fsm_decode *);
 
@@ -97,7 +97,7 @@ static struct fsm_callbacks ipcp_Callbacks = {
   IpcpLayerFinish,
   IpcpInitRestartCounter,
   IpcpSendConfigReq,
-  IpcpSendTerminateReq,
+  IpcpSentTerminateReq,
   IpcpSendTerminateAck,
   IpcpDecodeConfig,
   NullRecvResetReq,
@@ -404,49 +404,39 @@ IpcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
-  u_char *cp, buff[12];
-  struct lcp_opt o;
+  u_char buff[12];
+  struct lcp_opt *o;
 
-  LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
-  cp = buff;
+  o = (struct lcp_opt *)buff;
 
   if ((p && !Physical_IsSync(p)) || !REJECTED(ipcp, TY_IPADDR)) {
-    o.id = TY_IPADDR;
-    o.len = 6;
-    *(u_long *)o.data = ipcp->my_ip.s_addr;
-    cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id],
-                     inet_ntoa(ipcp->my_ip));
+    *(u_int32_t *)o->data = ipcp->my_ip.s_addr;
+    INC_LCP_OPT(TY_IPADDR, 6, o);
   }
 
-  if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
-    const char *args;
-    o.id = TY_COMPPROTO;
+  if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO))
     if (ipcp->heis1172) {
-      o.len = 4;
-      *(u_short *)o.data = htons(PROTO_VJCOMP);
-      args = "";
+      *(u_short *)o->data = htons(PROTO_VJCOMP);
+      INC_LCP_OPT(TY_COMPPROTO, 4, o);
     } else {
-      o.len = 6;
-      *(u_long *)o.data = htonl(ipcp->my_compproto);
-      args = vj2asc(ipcp->my_compproto);
+      *(u_long *)o->data = htonl(ipcp->my_compproto);
+      INC_LCP_OPT(TY_COMPPROTO, 6, o);
     }
-    cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
-  }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
+
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
 
 static void
-IpcpSendTerminateReq(struct fsm * fp)
+IpcpSentTerminateReq(struct fsm * fp)
 {
   /* Term REQ just sent by FSM */
 }
 
 static void
-IpcpSendTerminateAck(struct fsm * fp)
+IpcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  LogPrintf(LogIPCP, "IpcpSendTerminateAck\n");
-  FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
+  FsmOutput(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void
@@ -538,7 +528,7 @@ IpcpLayerUp(struct fsm *fp)
   struct ipcp *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
-  LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
+  LogPrintf(LogIPCP, "IpcpLayerUp.\n");
   snprintf(tbuff, sizeof tbuff, "myaddr = %s ", inet_ntoa(ipcp->my_ip));
   LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
 	    tbuff, inet_ntoa(ipcp->peer_ip));
@@ -785,9 +775,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	   */
 	  memcpy(dec->nakend, cp, 2);	/* copy first two (type/length) */
 	  LogPrintf(LogIPCP, "MS NS req %d:%s->%s - nak\n",
-		    type,
-		    inet_ntoa(dnsstuff),
-		    inet_ntoa(ms_info_req));
+		    type, inet_ntoa(dnsstuff), inet_ntoa(ms_info_req));
 	  memcpy(dec->nakend+2, &ms_info_req, length);
 	  dec->nakend += length;
 	  break;
@@ -798,8 +786,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	 * back confirming it... end of story
 	 */
 	LogPrintf(LogIPCP, "MS NS req %d:%s ok - ack\n",
-		  type,
-		  inet_ntoa(ms_info_req));
+		  type, inet_ntoa(ms_info_req));
 	memcpy(dec->ackend, cp, length);
 	dec->ackend += length;
 	break;
@@ -831,15 +818,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	  memcpy(dec->nakend, cp, 2);
 	  memcpy(dec->nakend+2, &ms_info_req.s_addr, length);
 	  LogPrintf(LogIPCP, "MS NBNS req %d:%s->%s - nak\n",
-		    type,
-		    inet_ntoa(dnsstuff),
-		    inet_ntoa(ms_info_req));
+		    type, inet_ntoa(dnsstuff), inet_ntoa(ms_info_req));
 	  dec->nakend += length;
 	  break;
 	}
 	LogPrintf(LogIPCP, "MS NBNS req %d:%s ok - ack\n",
-		  type,
-		  inet_ntoa(ms_info_req));
+		  type, inet_ntoa(ms_info_req));
 	memcpy(dec->ackend, cp, length);
 	dec->ackend += length;
 	break;

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.9 1998/02/27 01:22:24 brian Exp $
+ * $Id: fsm.h,v 1.16.2.10 1998/03/13 21:08:02 brian Exp $
  *
  *	TODO:
  */
@@ -60,8 +60,8 @@ struct fsm_callbacks {
   void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
   void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
   void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
-  void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
-  void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
+  void (*SentTerminateReq) (struct fsm *);   /* Term REQ just sent */
+  void (*SendTerminateAck) (struct fsm *, u_char); /* Send Term ACK please */
   void (*DecodeConfig) (struct fsm *, u_char *, int, int, struct fsm_decode *);
                                              /* Deal with incoming data */
   void (*RecvResetReq) (struct fsm *fp);         /* Reset output */

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.5 1998/03/16 22:52:42 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.6 1998/03/17 22:29:11 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1661,6 +1661,16 @@ this option will tell
 .Nm
 not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
+.It idcheck
+Default: Enabled.  When
+.Nm Ppp
+responds to an LCP packet, it must set the LCP Identifier field to be the
+same as the Identifier field of the request.  Disabling
+.Ar idcheck
+makes
+.Nm
+ignore the value of the identifier field so that packets are
+processed rather than being dropped.
 .El
 .Pp
 .It add[!] dest mask gateway
