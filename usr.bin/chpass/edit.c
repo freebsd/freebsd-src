@@ -233,6 +233,9 @@ bad:					(void)fclose(fp);
 	(void)sprintf(pw->pw_gecos = p, "%s,%s,%s,%s", list[E_NAME].save,
 	    list[E_LOCATE].save, list[E_BPHONE].save, list[E_HPHONE].save);
 
+	while ((len = strlen(pw->pw_gecos)) && pw->pw_gecos[len - 1] == ',')
+		pw->pw_gecos[len - 1] = '\0';
+
 	if (snprintf(buf, sizeof(buf),
 	    "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s",
 	    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid, pw->pw_class,
