@@ -47,7 +47,7 @@
 #include <sys/blist.h>
 #include <sys/tty.h>
 #include <sys/resourcevar.h>
-#include <miscfs/linprocfs/linprocfs.h>
+#include <i386/linux/linprocfs/linprocfs.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

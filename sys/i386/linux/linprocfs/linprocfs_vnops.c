@@ -57,7 +57,7 @@
 #include <sys/dirent.h>
 #include <machine/reg.h>
 #include <vm/vm_zone.h>
-#include <miscfs/linprocfs/linprocfs.h>
+#include <i386/linux/linprocfs/linprocfs.h>
 #include <sys/pioctl.h>
 
 extern struct vnode *procfs_findtextvp __P((struct proc *));
