@@ -582,13 +582,9 @@ retry:
 		/*
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
-		 *
-		 * We don't need to vrele because the caller must hold a ref.
 		 */
 		object->ref_count--;
-		VI_LOCK(vp);
-		vp->v_usecount--;
-		VI_UNLOCK(vp);
+		vrele(vp);
 	} else {
 		if (object->flags & OBJ_DEAD) {
 			VOP_UNLOCK(vp, 0, td);
