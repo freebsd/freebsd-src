@@ -122,8 +122,7 @@ __hash_open(file, flags, mode, info, dflags)
 
 	new_table = 0;
 	if (!file || (flags & O_TRUNC) ||
-	    (stat(file, &statbuf) && (errno == ENOENT)) ||
-	    statbuf.st_size == 0) {
+	    (stat(file, &statbuf) && (errno == ENOENT))) {
 		if (errno == ENOENT)
 			errno = 0; /* Just in case someone looks at errno */
 		new_table = 1;
