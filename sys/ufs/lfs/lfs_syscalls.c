@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.17 1997/02/22 09:47:24 peter Exp $
+ *	@(#)lfs_syscalls.c	8.10 (Berkeley) 5/14/95
+ * $Id: lfs_syscalls.c,v 1.18 1997/03/22 08:03:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,10 @@ if (sp->sum_bytes_left < (s)) {		\
 static struct buf *lfs_fakebuf __P((struct vnode *, int, size_t, caddr_t));
 static int lfs_fastvget __P((struct mount *, ino_t, daddr_t, struct vnode **,
 		     struct dinode *));
+
+int debug_cleaner = 0;
+int clean_vnlocked = 0;
+int clean_inlocked = 0;
 
 /*
  * lfs_markv:
@@ -106,7 +110,7 @@ lfs_markv(p, uap, retval)
 	fsid_t fsid;
 	void *start;
 	ino_t lastino;
-	daddr_t b_daddr, v_daddr;
+	ufs_daddr_t b_daddr, v_daddr;
 	u_long bsize;
 	int cnt, error;
 
@@ -142,7 +146,7 @@ lfs_markv(p, uap, retval)
 				if (sp->fip->fi_nblocks == 0) {
 					DEC_FINFO(sp);
 					sp->sum_bytes_left +=
-					    sizeof(FINFO) - sizeof(daddr_t);
+					    sizeof(FINFO) - sizeof(ufs_daddr_t);
 				} else {
 					lfs_updatemeta(sp);
 					BUMP_FIP(sp);
@@ -154,7 +158,7 @@ lfs_markv(p, uap, retval)
 
 			/* Start a new file */
 			CHECK_SEG(sizeof(FINFO));
-			sp->sum_bytes_left -= sizeof(FINFO) - sizeof(daddr_t);
+			sp->sum_bytes_left -= sizeof(FINFO) - sizeof(ufs_daddr_t);
 			INC_FINFO(sp);
 			sp->start_lbp = &sp->fip->fi_blocks[0];
 			sp->vp = NULL;
@@ -179,6 +183,7 @@ lfs_markv(p, uap, retval)
 #ifdef DIAGNOSTIC
 				printf("lfs_markv: VFS_VGET failed (%ld)\n",
 				    blkp->bi_inode);
+				panic("lfs_markv VFS_VGET FAILED");
 #endif
 				lastino = LFS_UNUSED_INUM;
 				v_daddr = LFS_UNUSED_DADDR;
@@ -209,7 +214,7 @@ lfs_markv(p, uap, retval)
 			bp = getblk(vp, blkp->bi_lbn, bsize, 0, 0);
 			if (!(bp->b_flags & (B_DELWRI | B_DONE | B_CACHE)) &&
 			    (error = copyin(blkp->bi_bp, bp->b_data,
-			    bsize)))
+			    blkp->bi_size)))
 				goto err2;
 			if (error = VOP_BWRITE(bp))
 				goto err2;
@@ -220,7 +225,7 @@ lfs_markv(p, uap, retval)
 		if (sp->fip->fi_nblocks == 0) {
 			DEC_FINFO(sp);
 			sp->sum_bytes_left +=
-			    sizeof(FINFO) - sizeof(daddr_t);
+			    sizeof(FINFO) - sizeof(ufs_daddr_t);
 		} else
 			lfs_updatemeta(sp);
 
@@ -275,10 +280,11 @@ lfs_bmapv(p, uap, retval)
 {
 	BLOCK_INFO *blkp;
 	struct mount *mntp;
+	struct ufsmount *ump;
 	struct vnode *vp;
 	fsid_t fsid;
 	void *start;
-	daddr_t daddr;
+	ufs_daddr_t daddr;
 	int cnt, error, step;
 
 	if (error = suser(p->p_ucred, &p->p_acflag))
@@ -299,8 +305,16 @@ lfs_bmapv(p, uap, retval)
 	for (step = cnt; step--; ++blkp) {
 		if (blkp->bi_lbn == LFS_UNUSED_LBN)
 			continue;
-		/* Could be a deadlock ? */
-		if (VFS_VGET(mntp, blkp->bi_inode, &vp))
+		/*
+		 * A regular call to VFS_VGET could deadlock
+		 * here.  Instead, we try an unlocked access.
+		 */
+		ump = VFSTOUFS(mntp);
+		if ((vp =
+		    ufs_ihashlookup(ump->um_dev, blkp->bi_inode)) != NULL) {
+			if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &daddr, NULL, NULL))
+				daddr = LFS_UNUSED_DADDR;
+		} else if (VFS_VGET(mntp, blkp->bi_inode, &vp))
 			daddr = LFS_UNUSED_DADDR;
 		else {
 			if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &daddr, NULL, NULL))
@@ -452,7 +466,7 @@ static int
 lfs_fastvget(mp, ino, daddr, vpp, dinp)
 	struct mount *mp;
 	ino_t ino;
-	daddr_t daddr;
+	ufs_daddr_t daddr;
 	struct vnode **vpp;
 	struct dinode *dinp;
 {
@@ -473,15 +487,13 @@ lfs_fastvget(mp, ino, daddr, vpp, dinp)
 	if ((*vpp = ufs_ihashlookup(dev, ino)) != NULL) {
 		lfs_vref(*vpp);
 		if ((*vpp)->v_flag & VXLOCK)
-			printf ("Cleaned vnode VXLOCKED\n");
+			clean_vnlocked++;
 		ip = VTOI(*vpp);
-		if (ip->i_flags & IN_LOCKED)
-			printf("cleaned vnode locked\n");
-		if (!(ip->i_flag & IN_MODIFIED)) {
+		if (lockstatus(&ip->i_lock))
+			clean_inlocked++;
+		if (!(ip->i_flag & IN_MODIFIED))
 			++ump->um_lfs->lfs_uinodes;
-			ip->i_flag |= IN_MODIFIED;
-		}
-		ip->i_flag |= IN_MODIFIED; /* XXX why is this here? it's redundant */
+		ip->i_flag |= IN_MODIFIED;
 		return (0);
 	}
 
@@ -532,11 +544,6 @@ lfs_fastvget(mp, ino, daddr, vpp, dinp)
 		    *lfs_ifind(ump->um_lfs, ino, (struct dinode *)bp->b_data);
 		brelse(bp);
 	}
-
-	/* Inode was just read from user space or disk, make sure it's locked */
-	ip->i_flag |= IN_LOCKED;
-	ip->i_lockholder = curproc->p_pid;
-	ip->i_lockcount = 1;
 
 	/*
 	 * Initialize the vnode from the inode, check for aliases.  In all
