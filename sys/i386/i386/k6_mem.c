@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: k6_mem.c,v 1.1 1999/06/18 19:56:02 green Exp $
  *
  */
 
@@ -166,13 +166,11 @@ out:
 	
 	disable_intr();
 	wbinvd();
-	invltlb();
 	reg = rdmsr(UWCCR);
-	reg &= 0xffffffff << (32 * d);
+	reg &= ~(0xffffffff << (32 * d));
 	reg |= mtrr << (32 * d);
 	wrmsr(UWCCR, reg);
 	wbinvd();
-	invltlb();
 	enable_intr();
 
 	return 0;
