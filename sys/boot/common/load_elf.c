@@ -538,7 +538,8 @@ out:
 
 static char invalid_name[] = "bad";
 char *
-fake_modname(const char *name) {
+fake_modname(const char *name)
+{
     char *sp, *ep;
     size_t len;
 
@@ -565,7 +566,8 @@ fake_modname(const char *name) {
 }
 
 int
-elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
+elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
+{
     struct mod_metadata md;
     Elf_Sym sym;
     char *s, *v, **p;
