@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.5 1994/11/03 01:04:32 wollman Exp $
+ * $Id: route.h,v 1.6 1994/12/13 22:31:48 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -69,8 +69,7 @@ struct rt_metrics {
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
 	u_long	rmx_pksent;	/* packets sent using this route */
-	u_long	rmx_ttcp_cc;	/* cached last T/TCP CC option rcvd */
-	u_long	rmx_ttcp_ccsent; /* cached last T/TCP CC option sent */
+	u_long	rmx_filler[4];	/* will be used for T/TCP later */
 };
 
 /*
@@ -107,7 +106,11 @@ struct rtentry {
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
 	struct	rt_metrics rt_rmx;	/* metrics used by rx'ing protocols */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
-	int	(*rt_output) __P(());	/* output routine for this (rt,if) */
+	int	(*rt_output) __P((struct rtentry *, struct mbuf *,
+				  struct sockaddr *, int));
+					/* output routine for this (rt,if) */
+	struct	rtentry *rt_parent; 	/* cloning parent of this route */
+	struct	rtentry *rt_nextchild;	/* next cloned child of this route */
 };
 
 /*
@@ -145,7 +148,8 @@ struct ortentry {
 #define RTF_PRCLONING	0x10000		/* protocol requires cloning */
 #define RTF_WASCLONED	0x20000		/* route generated through cloning */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
-					/* 0x80000 and up unassigned */
+#define RTF_CHAINDELETE	0x80000		/* chain is being deleted (internal) */
+					/* 0x100000 and up unassigned */
 
 /*
  * Routing statistics.
@@ -175,7 +179,7 @@ struct rt_msghdr {
 	struct	rt_metrics rtm_rmx; /* metrics themselves */
 };
 
-#define RTM_VERSION	4	/* Up the ante and ignore older versions */
+#define RTM_VERSION	5	/* Up the ante and ignore older versions */
 
 #define RTM_ADD		0x1	/* Add Route */
 #define RTM_DELETE	0x2	/* Delete Route */
