@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.2 (Berkeley) 1/4/94
- * $Id: radix.c,v 1.3 1994/08/02 07:46:29 davidg Exp $
+ * $Id: radix.c,v 1.4 1994/10/08 22:38:23 phk Exp $
  */
 
 /*
@@ -744,7 +744,9 @@ rn_init()
 			max_keylen = dom->dom_maxrtkey;
 #endif
 	if (max_keylen == 0) {
+#ifdef DEBUG
 		printf("rn_init: radix functions require max_keylen be set\n");
+#endif
 		return;
 	}
 	R_Malloc(rn_zeros, char *, 3 * max_keylen);
