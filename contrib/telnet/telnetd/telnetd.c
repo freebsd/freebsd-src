@@ -60,6 +60,9 @@ static const char rcsid[] =
 #include <err.h>
 #include <arpa/inet.h>
 
+#include <libutil.h>
+#include <utmp.h>
+
 #if	defined(_SC_CRAY_SECURE_SYS)
 #include <sys/sysv.h>
 #include <sys/secdev.h>
@@ -803,7 +806,7 @@ terminaltypeok(s)
 
 char *hostname;
 char host_name[MAXHOSTNAMELEN];
-char remote_host_name[MAXHOSTNAMELEN];
+char remote_hostname[UT_HOSTSIZE + 1];
 
 extern void telnet P((int, int, char *));
 
@@ -816,8 +819,6 @@ char user_name[256];
 doit(who)
 	struct sockaddr_in *who;
 {
-	char *host = NULL;
-	struct hostent *hp;
 	int ptynum;
 
 	/*
@@ -859,49 +860,18 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	/* get name of connected client */
-	hp = gethostbyaddr((char *)&who->sin_addr, sizeof (struct in_addr),
-		who->sin_family);
 
-	if (hp == NULL && registerd_host_only) {
+	/* get name of connected client */
+	if (realhostname(remote_hostname, sizeof remote_hostname - 1,
+	    &who->sin_addr) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
 	 Please contact your net administrator");
-	} else if (hp &&
-	    (strlen(hp->h_name) <= (unsigned int)((utmp_len < 0) ? -utmp_len
-								 : utmp_len))) {
-		strncpy(remote_host_name, hp->h_name,
-			sizeof(remote_host_name)-1);
-		hp = gethostbyname(remote_host_name);
-		if (hp == NULL)
-			host = inet_ntoa(who->sin_addr); 
-		else for (; ; hp->h_addr_list++) {
-			if (hp->h_addr_list[0] == NULL) {
-				/* End of list - ditch it */
-				host = inet_ntoa(who->sin_addr);
-				break;
-			}
-			if (!bcmp(hp->h_addr_list[0], (caddr_t)&who->sin_addr,
-			    sizeof(who->sin_addr))) {
-				host = hp->h_name;
-				break;          /* OK! */
-			}
-		}
-	} else {
-		host = inet_ntoa(who->sin_addr);
-	}
-	/*
-	 * We must make a copy because Kerberos is probably going
-	 * to also do a gethost* and overwrite the static data...
-	 */
-	strncpy(remote_host_name, host, sizeof(remote_host_name)-1);
-	remote_host_name[sizeof(remote_host_name)-1] = 0;
-	host = remote_host_name;
 
 	(void) gethostname(host_name, sizeof (host_name));
 	hostname = host_name;
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
-	auth_encrypt_init(hostname, host, "TELNETD", 1);
+	auth_encrypt_init(hostname, remote_hostname, "TELNETD", 1);
 #endif
 
 	init_env();
@@ -921,7 +891,7 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	telnet(net, pty, host);		/* begin server process */
+	telnet(net, pty, remote_hostname);	/* begin server process */
 
 	/*NOTREACHED*/
 }  /* end of doit */
