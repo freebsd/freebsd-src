@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.274
+    Original revision: 1.22.2.275
 -->
 
 <articleinfo>
@@ -237,6 +237,21 @@
       この問題の詳細は、
       セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink> をご覧ください。</para>
+
+    <para>ローカルユーザが FFS
+      ファイルシステム上の任意のブロックを読み書きできるというバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink> をご覧ください。</para>
+
+    <para>NFS サーバのコードに含まれていた、
+      リモートからのサービス妨害攻撃を可能にするバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink> をご覧ください。</para>
+
+    <para>&man.kqueue.2; 機構を使うことで、
+      ローカルユーザがシステムパニックを引き起こすことができる可能性のあるバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink> をご覧ください。</para>
   </sect2>
 
   <sect2 id="userland">
