@@ -38,7 +38,7 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 
-COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -ffreestanding -include opt_global.h
+COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
