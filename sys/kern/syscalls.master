@@ -1,0 +1,276 @@
+	@(#)syscalls.master	8.2 (Berkeley) 1/13/94
+; System call name/number master file.
+; Processed to created init_sysent.c, syscalls.c and syscall.h.
+
+; Columns: number type nargs name altname/comments
+;	number	system call number, must be in order
+;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	nargs	number of arguments
+;	name	name of syscall routine
+;	altname	name of system call if different
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+; Reserved/unimplemented system calls in the range 0-150 inclusive
+; are reserved for use in future Berkeley releases.
+; Additional system calls implemented in vendor and other
+; redistributions should be placed in the reserved range at the end
+; of the current calls.
+
+0	STD	0 nosys syscall
+1	STD	1 exit
+2	STD	0 fork
+3	STD	3 read
+4	STD	3 write
+5	STD	3 open
+6	STD	1 close
+7	STD	4 wait4
+8	COMPAT	2 creat
+9	STD	2 link
+10	STD	1 unlink
+11	OBSOL	2 execv
+12	STD	1 chdir
+13	STD	1 fchdir
+14	STD	3 mknod
+15	STD	2 chmod
+16	STD	3 chown
+17	STD	1 obreak break
+18	STD	3 getfsstat
+19	COMPAT	3 lseek
+20	STD	0 getpid
+21	STD	4 mount
+22	STD	2 unmount
+23	STD	1 setuid
+24	STD	0 getuid
+25	STD	0 geteuid
+26	STD	4 ptrace
+27	STD	3 recvmsg
+28	STD	3 sendmsg
+29	STD	6 recvfrom
+30	STD	3 accept
+31	STD	3 getpeername
+32	STD	3 getsockname
+33	STD	2 access
+34	STD	2 chflags
+35	STD	2 fchflags
+36	STD	0 sync
+37	STD	2 kill
+38	COMPAT	2 stat
+39	STD	0 getppid
+40	COMPAT	2 lstat
+41	STD	2 dup
+42	STD	0 pipe
+43	STD	0 getegid
+44	STD	4 profil
+#ifdef KTRACE
+45	STD	4 ktrace
+#else
+45	UNIMPL	0 ktrace
+#endif
+46	STD	3 sigaction
+47	STD	0 getgid
+48	STD	2 sigprocmask
+49	STD	2 getlogin
+50	STD	1 setlogin
+51	STD	1 acct
+52	STD	0 sigpending
+53	STD	2 sigaltstack
+54	STD	3 ioctl
+55	STD	1 reboot
+56	STD	1 revoke
+57	STD	2 symlink
+58	STD	3 readlink
+59	STD	3 execve
+60	STD	1 umask
+61	STD	1 chroot
+62	COMPAT	2 fstat
+63	COMPAT	4 getkerninfo
+64	COMPAT	0 getpagesize
+65	STD	2 msync
+66	STD	0 vfork
+67	OBSOL	0 vread
+68	OBSOL	0 vwrite
+69	STD	1 sbrk
+70	STD	1 sstk
+71	COMPAT	7 mmap
+72	STD	1 ovadvise vadvise
+73	STD	2 munmap
+74	STD	3 mprotect
+75	STD	3 madvise
+76	OBSOL	0 vhangup
+77	OBSOL	0 vlimit
+78	STD	3 mincore
+79	STD	2 getgroups
+80	STD	2 setgroups
+81	STD	0 getpgrp
+82	STD	2 setpgid
+83	STD	3 setitimer
+84	COMPAT	0 wait
+85	STD	1 swapon
+86	STD	2 getitimer
+87	COMPAT	2 gethostname
+88	COMPAT	2 sethostname
+89	STD	0 getdtablesize
+90	STD	2 dup2
+91	UNIMPL	2 getdopt
+92	STD	3 fcntl
+93	STD	5 select
+94	UNIMPL	2 setdopt
+95	STD	1 fsync
+96	STD	3 setpriority
+97	STD	3 socket
+98	STD	3 connect
+99	COMPAT	3 accept
+100	STD	2 getpriority
+101	COMPAT	4 send
+102	COMPAT	4 recv
+103	STD	1 sigreturn
+104	STD	3 bind
+105	STD	5 setsockopt
+106	STD	2 listen
+107	OBSOL	0 vtimes
+108	COMPAT	3 sigvec
+109	COMPAT	1 sigblock
+110	COMPAT	1 sigsetmask
+111	STD	1 sigsuspend
+112	COMPAT	2 sigstack
+113	COMPAT	3 recvmsg
+114	COMPAT	3 sendmsg
+#ifdef TRACE
+115	STD	2 vtrace
+#else
+115	OBSOL	2 vtrace
+#endif
+116	STD	2 gettimeofday
+117	STD	2 getrusage
+118	STD	5 getsockopt
+#ifdef vax
+119	STD	1 resuba
+#else
+119	UNIMPL	0 nosys
+#endif
+120	STD	3 readv
+121	STD	3 writev
+122	STD	2 settimeofday
+123	STD	3 fchown
+124	STD	2 fchmod
+125	COMPAT	6 recvfrom
+126	COMPAT	2 setreuid
+127	COMPAT	2 setregid
+128	STD	2 rename
+129	COMPAT	2 truncate
+130	COMPAT	2 ftruncate
+131	STD	2 flock
+132	STD	2 mkfifo
+133	STD	6 sendto
+134	STD	2 shutdown
+135	STD	5 socketpair
+136	STD	2 mkdir
+137	STD	1 rmdir
+138	STD	2 utimes
+139	OBSOL	0 4.2 sigreturn
+140	STD	2 adjtime
+141	COMPAT	3 getpeername
+142	COMPAT	0 gethostid
+143	COMPAT	1 sethostid
+144	COMPAT	2 getrlimit
+145	COMPAT	2 setrlimit
+146	COMPAT	2 killpg
+147	STD	0 setsid
+148	STD	4 quotactl
+149	COMPAT	4 quota
+150	COMPAT	3 getsockname
+
+; Syscalls 151-180 inclusive are reserved for vendor-specific
+; system calls.  (This includes various calls added for compatibity
+; with other Unix variants.)
+; Some of these calls are now supported by BSD...
+151	UNIMPL	0 nosys
+152	UNIMPL	0 nosys
+153	UNIMPL	0 nosys
+154	UNIMPL	0 nosys
+#ifdef NFS
+155	STD	2 nfssvc
+#else
+155	UNIMPL	0 nosys
+#endif
+156	COMPAT	4 getdirentries
+157	STD	2 statfs
+158	STD	2 fstatfs
+159	UNIMPL	0 nosys
+160	UNIMPL	0 nosys
+#ifdef NFS
+161	STD	2 getfh
+#else
+161	UNIMPL	0 nosys
+#endif
+162	UNIMPL	0 nosys
+163	UNIMPL	0 nosys
+164	UNIMPL	0 nosys
+165	UNIMPL	0 nosys
+166	UNIMPL	0 nosys
+167	UNIMPL	0 nosys
+168	UNIMPL	0 nosys
+169	UNIMPL	0 nosys
+170	UNIMPL	0 nosys
+#ifdef SYSVSHM
+171	STD	4 shmsys
+#else
+171	UNIMPL	0 nosys
+#endif
+172	UNIMPL	0 nosys
+173	UNIMPL	0 nosys
+174	UNIMPL	0 nosys
+175	UNIMPL	0 nosys
+176	UNIMPL	0 nosys
+177	UNIMPL	0 nosys
+178	UNIMPL	0 nosys
+179	UNIMPL	0 nosys
+180	UNIMPL	0 nosys
+
+; Syscalls 180-199 are used by/reserved for BSD
+181	STD	1 setgid
+182	STD	1 setegid
+183	STD	1 seteuid
+#ifdef LFS
+184	STD	3 lfs_bmapv
+185	STD	3 lfs_markv
+186	STD	2 lfs_segclean
+187	STD	2 lfs_segwait
+#else
+184	UNIMPL	0 nosys
+185	UNIMPL	0 nosys
+186	UNIMPL	0 nosys
+187	UNIMPL	0 nosys
+#endif
+188	STD	2 stat
+189	STD	2 fstat
+190	STD	2 lstat
+191	STD	2 pathconf
+192	STD	2 fpathconf
+193	UNIMPL	0 nosys
+194	STD	2 getrlimit
+195	STD	2 setrlimit
+196	STD	4 getdirentries
+197	STD	8 mmap
+198	STD	0 nosys __syscall
+199	STD	5 lseek
+200	STD	4 truncate
+201	STD	4 ftruncate
+202	STD	6 __sysctl
+203	STD	2 mlock
+204	STD	2 munlock
+205	UNIMPL	0 nosys
+206	UNIMPL	0 nosys
+207	UNIMPL	0 nosys
+208	UNIMPL	0 nosys
+209	UNIMPL	0 nosys
+210	UNIMPL	0 nosys
