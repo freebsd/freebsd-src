@@ -318,7 +318,7 @@ vm_pager_map_page(m)
 	vm_offset_t kva;
 
 	kva = kmem_alloc_wait(pager_map, PAGE_SIZE);
-	pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
+	pmap_qenter(kva, &m, 1);
 	return (kva);
 }
 
@@ -326,7 +326,8 @@ void
 vm_pager_unmap_page(kva)
 	vm_offset_t kva;
 {
-	pmap_kremove(kva);
+
+	pmap_qremove(kva, 1);
 	kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
 }
 
