@@ -51,8 +51,8 @@ Note that what are referred to here as
 .Dq slices
 are typically called
 .Dq partitions
-in non-BSD documentation relating to the PC.  Typically, only
-non-removable disks are sliced.
+in non-BSD documentation relating to the PC.
+Typically, only non-removable disks are sliced.
 .Pp
 The
 .Nm
@@ -63,23 +63,25 @@ boot manager on the specified
 and allows various operational parameters to be configured.
 .Pp
 On PCs, a boot manager typically occupies sector 0 of a disk, which is
-known as the Master Boot Record (MBR).  The MBR contains both code (to
-which control is passed by the PC BIOS) and data (an embedded table of
-defined slices).
+known as the Master Boot Record (MBR).
+The MBR contains both code (to which control is passed by the PC BIOS)
+and data (an embedded table of defined slices).
 .Pp
 The options are:
 .Bl -tag -width indent
 .It Fl B
 Install the
 .Sq boot0
-boot manager.  This option causes MBR code to be replaced, but without
+boot manager.
+This option causes MBR code to be replaced, but without
 affecting the embedded slice table.
 .It Fl v
 Verbose: display information about the slices defined, etc.
 .It Fl b Ar boot0
 Specify which
 .Sq boot0
-image to use.  The default is /boot/boot0.
+image to use.
+The default is /boot/boot0.
 .It Fl d Ar drive
 Specify the drive number used by the PC BIOS in referencing the drive
 which contains the specified
@@ -105,18 +107,21 @@ prepended as necessary):
 .It packet
 Permit use of the disk packet (BIOS Int 0x13 extensions) interface
 in addition to the conventional (CHS) interface, as necessary, when
-accessing disk-related BIOS services.  This is the default; a
+accessing disk-related BIOS services.
+This is the default; a
 .Sq nopacket
 option prevents use of the Int 0x13 extensions.
 .It setdrv
 Forces the drive containing the disk to be referenced using drive
-number definable by means of the -d option.  The default is
+number definable by means of the -d option.
+The default is
 .Sq nosetdrv .
 .It update
-Allow the MBR to be updated by the boot manager.  (The MBR may be
-updated to flag slices as
+Allow the MBR to be updated by the boot manager.
+(The MBR may be updated to flag slices as
 .Sq active ,
-and to save slice selection information.)  This is the default; a
+and to save slice selection information.)
+This is the default; a
 .Sq noupdate
 option causes the MBR to be treated as read-only.
 .El
@@ -124,8 +129,8 @@ option causes the MBR to be treated as read-only.
 Set the default boot selection to
 .Ar slice .
 Values between 1 and 4 refer to slices; a value of 5 refers to the
-option of booting from a second disk. This would normally be used in
-conjunction with the
+option of booting from a second disk.
+This would normally be used in conjunction with the
 .Sq noupdate
 option.
 .It Fl t Ar ticks
@@ -150,4 +155,5 @@ to fail, depending on the nature of BIOS support.
 Use of the
 .Sq setdrv
 option with an incorrect -d operand may cause the MBR to be written
-to the wrong disk.  Be careful!
+to the wrong disk.
+Be careful!
