@@ -106,7 +106,7 @@ and
 sockets.
 For example,
 .Bd -literal
-int tos = IPTOS_LOWDELAY;       /* see <netinet/in.h> */
+int tos = IPTOS_LOWDELAY;       /* see <netinet/ip.h> */
 setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 
 int ttl = 60;                   /* max = 255 */
