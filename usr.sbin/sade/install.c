@@ -204,7 +204,7 @@ installInitial(void)
 
     /* If we refuse to proceed, bail. */
     dialog_clear_norefresh();
-    if (!variable_get(VAR_NO_WARN))
+    if (!variable_get(VAR_NO_WARN)) {
 	if (msgYesNo(
 	    "Last Chance!  Are you SURE you want continue the installation?\n\n"
 	    "If you're running this on a disk with data you wish to save\n"
@@ -212,6 +212,7 @@ installInitial(void)
 	    "proceeding!\n\n"
 	    "We can take no responsibility for lost disk contents!") != 0)
 	return DITEM_FAILURE;
+    }
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
