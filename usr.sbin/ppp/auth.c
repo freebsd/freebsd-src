@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.11 1998/03/09 19:25:33 brian Exp $
+ * $Id: auth.c,v 1.27.2.12 1998/03/13 00:43:51 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -53,6 +53,7 @@
 #include "physical.h"
 #include "chat.h"
 #include "lcpproto.h"
+#include "bundle.h"
 
 const char *
 Auth2Nam(u_short auth)
@@ -169,7 +170,7 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
 	  if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
 	      return (0);
           /* XXX This should be deferred - we may join an existing bundle ! */
-	  ipcp_Setup(&IpcpInfo);
+	  ipcp_Setup(&bundle->ncp.ipcp);
 	  if (n > 3)
 	    SetLabel(vector[3]);
 	  return 1;		/* Valid */
@@ -214,11 +215,12 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
       if (setaddr)
-	memset(&IpcpInfo.cfg.peer_range, '\0', sizeof IpcpInfo.cfg.peer_range);
+	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
+               sizeof bundle->ncp.ipcp.cfg.peer_range);
       if (n > 2 && setaddr)
 	if (UseHisaddr(bundle, vector[2], 1))
           /* XXX This should be deferred - we may join an existing bundle ! */
-	  ipcp_Setup(&IpcpInfo);
+	  ipcp_Setup(&bundle->ncp.ipcp);
         else
           return NULL;
       if (n > 3)

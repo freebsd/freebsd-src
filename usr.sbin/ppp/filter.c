@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.5 1998/02/21 01:45:06 brian Exp $
+ * $Id: filter.c,v 1.22.2.6 1998/03/13 00:44:01 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -49,6 +49,7 @@
 #include "filter.h"
 #include "descriptor.h"
 #include "prompt.h"
+#include "bundle.h"
 
 struct filterent ifilters[MAXFILTERS];	/* incoming packet filter */
 struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
@@ -70,11 +71,8 @@ static u_long netmasks[33] = {
 };
 
 int
-ParseAddr(int argc,
-	  char const *const *argv,
-	  struct in_addr * paddr,
-	  struct in_addr * pmask,
-	  int *pwidth)
+ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
+	  struct in_addr *paddr, struct in_addr *pmask, int *pwidth)
 {
   int bits, len;
   char *wp;
@@ -92,9 +90,9 @@ ParseAddr(int argc,
   len = cp ? cp - *argv : strlen(*argv);
 
   if (strncasecmp(*argv, "HISADDR", len) == 0)
-    *paddr = IpcpInfo.peer_ip;
+    *paddr = ipcp->peer_ip;
   else if (strncasecmp(*argv, "MYADDR", len) == 0)
-    *paddr = IpcpInfo.my_ip;
+    *paddr = ipcp->my_ip;
   else if (len > 15)
     LogPrintf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
   else {
@@ -281,7 +279,8 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto)
 static const char *opname[] = {"none", "eq", "gt", NULL, "lt"};
 
 static int
-Parse(int argc, char const *const *argv, struct filterent * ofp)
+Parse(struct ipcp *ipcp, int argc, char const *const *argv,
+      struct filterent * ofp)
 {
   int action, proto;
   int val;
@@ -341,12 +340,12 @@ Parse(int argc, char const *const *argv, struct filterent * ofp)
   }
   proto = ParseProto(argc, argv);
   if (proto == P_NONE) {
-    if (ParseAddr(argc, argv, &fp->saddr, &fp->smask, &fp->swidth)) {
+    if (ParseAddr(ipcp, argc, argv, &fp->saddr, &fp->smask, &fp->swidth)) {
       argc--;
       argv++;
       proto = ParseProto(argc, argv);
       if (proto == P_NONE) {
-	if (ParseAddr(argc, argv, &fp->daddr, &fp->dmask, &fp->dwidth)) {
+	if (ParseAddr(ipcp, argc, argv, &fp->daddr, &fp->dmask, &fp->dwidth)) {
 	  argc--;
 	  argv++;
 	}
@@ -404,7 +403,7 @@ int
 SetIfilter(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
-    Parse(arg->argc, arg->argv, ifilters);
+    Parse(&arg->bundle->ncp.ipcp, arg->argc, arg->argv, ifilters);
     return 0;
   }
   return -1;
@@ -414,7 +413,7 @@ int
 SetOfilter(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
-    (void) Parse(arg->argc, arg->argv, ofilters);
+    Parse(&arg->bundle->ncp.ipcp, arg->argc, arg->argv, ofilters);
     return 0;
   }
   return -1;
@@ -424,7 +423,7 @@ int
 SetDfilter(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
-    (void) Parse(arg->argc, arg->argv, dfilters);
+    Parse(&arg->bundle->ncp.ipcp, arg->argc, arg->argv, dfilters);
     return 0;
   }
   return -1;
@@ -434,7 +433,7 @@ int
 SetAfilter(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
-    (void) Parse(arg->argc, arg->argv, afilters);
+    Parse(&arg->bundle->ncp.ipcp, arg->argc, arg->argv, afilters);
     return 0;
   }
   return -1;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.19 1998/03/09 19:26:38 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.20 1998/03/13 00:44:05 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -103,8 +103,6 @@ static struct fsm_callbacks ipcp_Callbacks = {
   NullRecvResetAck
 };
 
-struct ipcp IpcpInfo;
-
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
@@ -127,73 +125,76 @@ static const char *cftypes128[] = {
 #define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
 
 void
-IpcpAddInOctets(int n)
+ipcp_AddInOctets(struct ipcp *ipcp, int n)
 {
-  throughput_addin(&IpcpInfo.throughput, n);
+  throughput_addin(&ipcp->throughput, n);
 }
 
 void
-IpcpAddOutOctets(int n)
+ipcp_AddOutOctets(struct ipcp *ipcp, int n)
 {
-  throughput_addout(&IpcpInfo.throughput, n);
+  throughput_addout(&ipcp->throughput, n);
 }
 
 int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s [%s]\n", IpcpInfo.fsm.name,
-          StateNames[IpcpInfo.fsm.state]);
-  if (IpcpInfo.fsm.state == ST_OPENED) {
+  prompt_Printf(&prompt, "%s [%s]\n", arg->bundle->ncp.ipcp.fsm.name,
+          StateNames[arg->bundle->ncp.ipcp.fsm.state]);
+  if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
     prompt_Printf(&prompt, " His side:               %s, %s\n",
-	    inet_ntoa(IpcpInfo.peer_ip), vj2asc(IpcpInfo.peer_compproto));
+	    inet_ntoa(arg->bundle->ncp.ipcp.peer_ip),
+            vj2asc(arg->bundle->ncp.ipcp.peer_compproto));
     prompt_Printf(&prompt, " My side:                %s, %s\n",
-	    inet_ntoa(IpcpInfo.my_ip), vj2asc(IpcpInfo.my_compproto));
+	    inet_ntoa(arg->bundle->ncp.ipcp.my_ip),
+            vj2asc(arg->bundle->ncp.ipcp.my_compproto));
   }
 
   prompt_Printf(&prompt, "\nDefaults:\n");
   prompt_Printf(&prompt, " My Address:             %s/%d\n",
-	  inet_ntoa(IpcpInfo.cfg.my_range.ipaddr), IpcpInfo.cfg.my_range.width);
-  if (iplist_isvalid(&IpcpInfo.cfg.peer_list))
+	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
+          arg->bundle->ncp.ipcp.cfg.my_range.width);
+  if (iplist_isvalid(&arg->bundle->ncp.ipcp.cfg.peer_list))
     prompt_Printf(&prompt, " His Address:            %s\n",
-            IpcpInfo.cfg.peer_list.src);
+            arg->bundle->ncp.ipcp.cfg.peer_list.src);
   else
     prompt_Printf(&prompt, " His Address:            %s/%d\n",
-	  inet_ntoa(IpcpInfo.cfg.peer_range.ipaddr),
-          IpcpInfo.cfg.peer_range.width);
-  if (IpcpInfo.cfg.HaveTriggerAddress)
+	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
+          arg->bundle->ncp.ipcp.cfg.peer_range.width);
+  if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
     prompt_Printf(&prompt, " Negotiation(trigger):   %s\n",
-            inet_ntoa(IpcpInfo.cfg.TriggerAddress));
+            inet_ntoa(arg->bundle->ncp.ipcp.cfg.TriggerAddress));
   else
     prompt_Printf(&prompt, " Negotiation(trigger):   MYADDR\n");
   prompt_Printf(&prompt, " Initial VJ slots:       %d\n",
-                IpcpInfo.cfg.VJInitSlots);
+                arg->bundle->ncp.ipcp.cfg.VJInitSlots);
   prompt_Printf(&prompt, " Initial VJ compression: %s\n",
-          IpcpInfo.cfg.VJInitComp ? "on" : "off");
+          arg->bundle->ncp.ipcp.cfg.VJInitComp ? "on" : "off");
 
   prompt_Printf(&prompt, "\n");
-  throughput_disp(&IpcpInfo.throughput);
+  throughput_disp(&arg->bundle->ncp.ipcp.throughput);
 
   return 0;
 }
 
 int
-SetInitVJ(struct cmdargs const *args)
+SetInitVJ(struct cmdargs const *arg)
 {
-  if (args->argc != 2)
+  if (arg->argc != 2)
     return -1;
-  if (!strcasecmp(args->argv[0], "slots")) {
+  if (!strcasecmp(arg->argv[0], "slots")) {
     int slots;
 
-    slots = atoi(args->argv[1]);
+    slots = atoi(arg->argv[1]);
     if (slots < 4 || slots > 16)
       return 1;
-    IpcpInfo.cfg.VJInitSlots = slots;
+    arg->bundle->ncp.ipcp.cfg.VJInitSlots = slots;
     return 0;
-  } else if (!strcasecmp(args->argv[0], "slotcomp")) {
-    if (!strcasecmp(args->argv[1], "on"))
-      IpcpInfo.cfg.VJInitComp = 1;
-    else if (!strcasecmp(args->argv[1], "off"))
-      IpcpInfo.cfg.VJInitComp = 0;
+  } else if (!strcasecmp(arg->argv[0], "slotcomp")) {
+    if (!strcasecmp(arg->argv[1], "on"))
+      arg->bundle->ncp.ipcp.cfg.VJInitComp = 1;
+    else if (!strcasecmp(arg->argv[1], "off"))
+      arg->bundle->ncp.ipcp.cfg.VJInitComp = 0;
     else
       return 2;
     return 0;
@@ -367,8 +368,8 @@ ChooseHisAddr(struct bundle *bundle, struct ipcp *ipcp,
   struct in_addr try;
   int f;
 
-  for (f = 0; f < IpcpInfo.cfg.peer_list.nItems; f++) {
-    try = iplist_next(&IpcpInfo.cfg.peer_list);
+  for (f = 0; f < bundle->ncp.ipcp.cfg.peer_list.nItems; f++) {
+    try = iplist_next(&bundle->ncp.ipcp.cfg.peer_list);
     LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
               f, inet_ntoa(try));
     if (ipcp_SetIPaddress(bundle, ipcp, gw, try, ifnetmask, 1) == 0) {
@@ -378,7 +379,7 @@ ChooseHisAddr(struct bundle *bundle, struct ipcp *ipcp,
     }
   }
 
-  if (f == IpcpInfo.cfg.peer_list.nItems) {
+  if (f == bundle->ncp.ipcp.cfg.peer_list.nItems) {
     LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
     try.s_addr = INADDR_ANY;
   }
@@ -865,46 +866,48 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 }
 
 void
-IpcpInput(struct mbuf * bp)
+IpcpInput(struct ipcp *ipcp, struct mbuf * bp)
 {
   /* Got PROTO_IPCP from link */
-  FsmInput(&IpcpInfo.fsm, bp);
+  FsmInput(&ipcp->fsm, bp);
 }
 
 int
 UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
 {
+  struct ipcp *ipcp = &bundle->ncp.ipcp;
+
   /* Use `hisaddr' for the peers address (set iface if `setaddr') */
-  memset(&IpcpInfo.cfg.peer_range, '\0', sizeof IpcpInfo.cfg.peer_range);
-  iplist_reset(&IpcpInfo.cfg.peer_list);
+  memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
+  iplist_reset(&ipcp->cfg.peer_list);
   if (strpbrk(hisaddr, ",-")) {
-    iplist_setsrc(&IpcpInfo.cfg.peer_list, hisaddr);
-    if (iplist_isvalid(&IpcpInfo.cfg.peer_list)) {
-      iplist_setrandpos(&IpcpInfo.cfg.peer_list);
-      IpcpInfo.peer_ip = ChooseHisAddr
-        (bundle, &IpcpInfo, IpcpInfo.my_ip);
-      if (IpcpInfo.peer_ip.s_addr == INADDR_ANY) {
-        LogPrintf(LogWARN, "%s: None available !\n", IpcpInfo.cfg.peer_list.src);
+    iplist_setsrc(&ipcp->cfg.peer_list, hisaddr);
+    if (iplist_isvalid(&ipcp->cfg.peer_list)) {
+      iplist_setrandpos(&ipcp->cfg.peer_list);
+      ipcp->peer_ip = ChooseHisAddr(bundle, ipcp, ipcp->my_ip);
+      if (ipcp->peer_ip.s_addr == INADDR_ANY) {
+        LogPrintf(LogWARN, "%s: None available !\n",
+                  ipcp->cfg.peer_list.src);
         return(0);
       }
-      IpcpInfo.cfg.peer_range.ipaddr.s_addr = IpcpInfo.peer_ip.s_addr;
-      IpcpInfo.cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
-      IpcpInfo.cfg.peer_range.width = 32;
+      ipcp->cfg.peer_range.ipaddr.s_addr = ipcp->peer_ip.s_addr;
+      ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
+      ipcp->cfg.peer_range.width = 32;
     } else {
       LogPrintf(LogWARN, "%s: Invalid range !\n", hisaddr);
       return 0;
     }
-  } else if (ParseAddr(1, &hisaddr, &IpcpInfo.cfg.peer_range.ipaddr,
-		       &IpcpInfo.cfg.peer_range.mask,
-                       &IpcpInfo.cfg.peer_range.width) != 0) {
-    IpcpInfo.peer_ip.s_addr = IpcpInfo.cfg.peer_range.ipaddr.s_addr;
+  } else if (ParseAddr(ipcp, 1, &hisaddr, &ipcp->cfg.peer_range.ipaddr,
+		       &ipcp->cfg.peer_range.mask,
+                       &ipcp->cfg.peer_range.width) != 0) {
+    ipcp->peer_ip.s_addr = ipcp->cfg.peer_range.ipaddr.s_addr;
 
-    if (setaddr && ipcp_SetIPaddress(bundle, &IpcpInfo,
-                                     IpcpInfo.cfg.my_range.ipaddr,
-                                     IpcpInfo.cfg.peer_range.ipaddr, ifnetmask,
-                                     0) < 0) {
-      IpcpInfo.cfg.my_range.ipaddr.s_addr = INADDR_ANY;
-      IpcpInfo.cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
+    if (setaddr && ipcp_SetIPaddress(bundle, ipcp,
+                                     ipcp->cfg.my_range.ipaddr,
+                                     ipcp->cfg.peer_range.ipaddr,
+                                     ifnetmask, 0) < 0) {
+      ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
+      ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
       return 0;
     }
   } else

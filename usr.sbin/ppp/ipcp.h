@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.13 1998/02/21 01:45:12 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.14 1998/02/27 01:22:27 brian Exp $
  *
  *	TODO:
  */
@@ -76,8 +76,6 @@ struct ipcp {
   struct pppThroughput throughput;	/* throughput statistics */
 };
 
-extern struct ipcp IpcpInfo;
-
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
 
 extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *l,
@@ -85,9 +83,9 @@ extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *l,
 extern void ipcp_Setup(struct ipcp *);
 
 extern int  ReportIpcpStatus(struct cmdargs const *);
-extern void IpcpInput(struct mbuf *);
-extern void IpcpAddInOctets(int);
-extern void IpcpAddOutOctets(int);
+extern void IpcpInput(struct ipcp *, struct mbuf *);
+extern void ipcp_AddInOctets(struct ipcp *, int);
+extern void ipcp_AddOutOctets(struct ipcp *, int);
 extern int  UseHisaddr(struct bundle *, const char *, int);
 extern int  SetInitVJ(struct cmdargs const *);
 extern void IpcpCleanInterface(struct fsm *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.30 1998/03/13 00:44:13 brian Exp $
+ * $Id: main.c,v 1.121.2.31 1998/03/13 21:07:09 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -54,7 +54,6 @@
 #include "timer.h"
 #include "fsm.h"
 #include "modem.h"
-#include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
@@ -62,6 +61,7 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
@@ -409,7 +409,7 @@ main(int argc, char **argv)
      */
     SetLabel(label);
     if (mode & MODE_AUTO &&
-	IpcpInfo.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
       LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for auto mode.\n",
 		label);
       Cleanup(EX_START);
@@ -583,7 +583,8 @@ DoLoop(struct bundle *bundle)
       }
       if (!tun_check_header(tun, AF_INET))
           continue;
-      if (((struct ip *)tun.data)->ip_dst.s_addr == IpcpInfo.my_ip.s_addr) {
+      if (((struct ip *)tun.data)->ip_dst.s_addr ==
+          bundle->ncp.ipcp.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
 	  pri = PacketCheck(tun.data, n, FL_IN);

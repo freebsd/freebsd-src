@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.10 1998/03/01 01:07:49 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.11 1998/03/13 00:44:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include "descriptor.h"
 #include "prompt.h"
 #include "fsm.h"
-#include "bundle.h"
 #include "lcp.h"
 #include "auth.h"
 #include "loadalias.h"
@@ -52,6 +51,7 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "async.h"
@@ -279,7 +279,7 @@ prompt_Display(struct prompt *p, struct bundle *bundle)
   else
     pauth = " on ";
 
-  if (IpcpInfo.fsm.state == ST_OPENED)
+  if (bundle->ncp.ipcp.fsm.state == ST_OPENED)
     pconnect = "PPP";
   else if (bundle_Phase(bundle) == PHASE_NETWORK)
     pconnect = "PPp";

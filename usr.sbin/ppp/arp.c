@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.4 1998/02/21 01:44:55 brian Exp $
+ * $Id: arp.c,v 1.27.2.5 1998/02/27 01:22:15 brian Exp $
  *
  */
 
@@ -53,10 +53,11 @@
 #include "route.h"
 #include "timer.h"
 #include "fsm.h"
-#include "bundle.h"
-#include "throughput.h"
 #include "defs.h"
 #include "iplist.h"
+#include "throughput.h"
+#include "ipcp.h"
+#include "bundle.h"
 #include "arp.h"
 
 static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);

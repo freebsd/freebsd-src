@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.15 1998/03/13 00:44:19 brian Exp $
+ * $Id: pap.c,v 1.20.2.16 1998/03/13 21:07:14 brian Exp $
  *
  *	TODO:
  */
@@ -56,6 +56,8 @@
 #include "link.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "iplist.h"
+#include "ipcp.h"
 #include "bundle.h"
 #include "chat.h"
 #include "ccp.h"

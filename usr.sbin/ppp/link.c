@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.9 1998/02/27 01:22:36 brian Exp $
+ *  $Id: link.c,v 1.1.2.10 1998/03/13 00:44:09 brian Exp $
  *
  */
 
@@ -46,6 +46,8 @@
 #include "vars.h"
 #include "link.h"
 #include "fsm.h"
+#include "iplist.h"
+#include "ipcp.h"
 #include "bundle.h"
 #include "descriptor.h"
 #include "prompt.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.23 1998/03/13 00:44:38 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.24 1998/03/13 21:06:59 brian Exp $
  */
 
 #include <sys/param.h>
@@ -114,9 +114,9 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     break;
 
   case PHASE_NETWORK:
-    ipcp_Setup(&IpcpInfo);
-    FsmUp(&IpcpInfo.fsm);
-    FsmOpen(&IpcpInfo.fsm);
+    ipcp_Setup(&bundle->ncp.ipcp);
+    FsmUp(&bundle->ncp.ipcp.fsm);
+    FsmOpen(&bundle->ncp.ipcp.fsm);
     /* Fall through */
 
   case PHASE_TERMINATE:
@@ -198,7 +198,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
     bundle_NewPhase(bundle, PHASE_NETWORK);
   }
 
-  if (fp == &IpcpInfo.fsm) {
+  if (fp->proto == PROTO_IPCP) {
     bundle_StartIdleTimer(bundle);
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
       char c = EX_NORMAL;
@@ -248,14 +248,14 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   }
 
   /* when either the LCP or IPCP is down, drop IPCP */
-  FsmDown(&IpcpInfo.fsm);
-  FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
+  FsmDown(&bundle->ncp.ipcp.fsm);
+  FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
 }
 
 int
 bundle_LinkIsUp(const struct bundle *bundle)
 {
-  return IpcpInfo.fsm.state == ST_OPENED;
+  return bundle->ncp.ipcp.fsm.state == ST_OPENED;
 }
 
 void
@@ -275,16 +275,17 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
 
   struct datalink *dl;
 
-  if (IpcpInfo.fsm.state > ST_CLOSED || IpcpInfo.fsm.state == ST_STARTING) {
+  if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
+      bundle->ncp.ipcp.fsm.state == ST_STARTING) {
     bundle_NewPhase(bundle, PHASE_TERMINATE);
-    FsmClose(&IpcpInfo.fsm);
+    FsmClose(&bundle->ncp.ipcp.fsm);
     if (staydown)
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_StayDown(dl);
   } else {
-    if (IpcpInfo.fsm.state > ST_INITIAL) {
-      FsmClose(&IpcpInfo.fsm);
-      FsmDown(&IpcpInfo.fsm);
+    if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
+      FsmClose(&bundle->ncp.ipcp.fsm);
+      FsmDown(&bundle->ncp.ipcp.fsm);
     }
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, staydown);
@@ -407,7 +408,8 @@ bundle_Create(const char *prefix)
     return NULL;
   }
 
-  ipcp_Init(&IpcpInfo, &bundle, &bundle.links->physical->link, &bundle.fsm);
+  ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
+            &bundle.fsm);
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
@@ -454,7 +456,7 @@ bundle_Destroy(struct bundle *bundle)
   struct datalink *dl;
 
   if (mode & MODE_AUTO) {
-    IpcpCleanInterface(&IpcpInfo.fsm);
+    IpcpCleanInterface(&bundle->ncp.ipcp.fsm);
     bundle_DownInterface(bundle);
   }
   

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.10 1998/03/09 19:26:37 brian Exp $
+ * $Id: ip.c,v 1.38.2.11 1998/03/13 00:44:04 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -57,11 +57,11 @@
 #include "hdlc.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "throughput.h"
+#include "iplist.h"
+#include "ipcp.h"
 #include "filter.h"
 #include "bundle.h"
-#include "iplist.h"
-#include "throughput.h"
-#include "ipcp.h"
 #include "vjcomp.h"
 #include "lcp.h"
 #include "modem.h"
@@ -201,7 +201,7 @@ IcmpError(struct ip * pip, int code)
     SendPppFrame(bp);
     if (ipKeepAlive)
       bundle_StartIdleTimer(bundle);
-    IpcpAddOutOctets(cnt);
+    ipcp_AddOutOctets(cnt);
   }
 #endif
 }
@@ -363,7 +363,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 	pfree(bp);
 	return;
       }
-      IpcpAddInOctets(nb);
+      ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
 
       nb = ntohs(((struct ip *) tun.data)->ip_len);
       nb += sizeof tun - sizeof tun.data;
@@ -411,7 +411,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       pfree(bp);
       return;
     }
-    IpcpAddInOctets(nb);
+    ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
     nb += sizeof tun - sizeof tun.data;
     nw = write(bundle->tun_fd, &tun, nb);
     if (nw != nb)
@@ -457,7 +457,7 @@ IpStartOutput(struct link *l, struct bundle *bundle)
   struct mbuf *bp;
   int cnt;
 
-  if (IpcpInfo.fsm.state != ST_OPENED)
+  if (bundle->ncp.ipcp.fsm.state != ST_OPENED)
     return;
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
     if (queue->top) {
@@ -467,7 +467,7 @@ IpStartOutput(struct link *l, struct bundle *bundle)
 	SendPppFrame(l, bp, bundle);
         if (ipKeepAlive)
 	  bundle_StartIdleTimer(bundle);
-        IpcpAddOutOctets(cnt);
+        ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
 	break;
       }
     }

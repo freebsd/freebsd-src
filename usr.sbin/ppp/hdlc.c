@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.17 1998/03/13 00:44:44 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.18 1998/03/13 21:07:04 brian Exp $
  *
  *	TODO:
  */
@@ -417,7 +417,7 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     IpInput(bundle, bp);
     break;
   case PROTO_IPCP:
-    IpcpInput(bp);
+    IpcpInput(&bundle->ncp.ipcp, bp);
     break;
   case PROTO_CCP:
     CcpInput(&dl->ccp, bundle, bp);

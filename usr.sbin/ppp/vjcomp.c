@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.5 1998/02/23 00:38:43 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.6 1998/03/13 00:44:26 brian Exp $
  *
  *  TODO:
  */
@@ -63,14 +63,15 @@ SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
 {
   int type;
   u_short proto;
-  u_short cproto = IpcpInfo.peer_compproto >> 16;
+  u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
   struct ccp *ccp = bundle2ccp(bundle, l->name);
 
-  LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.peer_compproto);
+  LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n",
+            bundle->ncp.ipcp.peer_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto == PROTO_VJCOMP) {
     type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc,
-                           IpcpInfo.peer_compproto & 0xff);
+                           bundle->ncp.ipcp.peer_compproto & 0xff);
     LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
     case TYPE_IP:

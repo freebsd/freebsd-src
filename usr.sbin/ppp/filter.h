@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.10 1997/10/26 01:02:35 brian Exp $
+ * $Id: filter.h,v 1.11 1997/11/22 03:37:30 brian Exp $
  *
  *	TODO:
  */
@@ -76,7 +76,8 @@ extern struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
 extern struct filterent dfilters[MAXFILTERS];	/* dial-out packet filter */
 extern struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
 
-extern int ParseAddr(int, char const *const *, struct in_addr *, struct in_addr *, int *);
+extern int ParseAddr(struct ipcp *, int, char const *const *, struct in_addr *,
+                     struct in_addr *, int *);
 extern int ShowIfilter(struct cmdargs const *);
 extern int ShowOfilter(struct cmdargs const *);
 extern int ShowDfilter(struct cmdargs const *);

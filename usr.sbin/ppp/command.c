@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.35 1998/03/13 00:44:41 brian Exp $
+ * $Id: command.c,v 1.131.2.36 1998/03/13 21:07:01 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -274,11 +274,11 @@ ShellCommand(struct cmdargs const *arg, int bg)
       argv[0] = strdup(arg->argv[0]);
       for (argc = 1; argc < arg->argc; argc++) {
 	if (strcasecmp(arg->argv[argc], "HISADDR") == 0)
-	  argv[argc] = strdup(inet_ntoa(IpcpInfo.peer_ip));
+	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.peer_ip));
 	else if (strcasecmp(arg->argv[argc], "INTERFACE") == 0)
 	  argv[argc] = strdup(arg->bundle->ifname);
 	else if (strcasecmp(arg->argv[argc], "MYADDR") == 0)
-	  argv[argc] = strdup(inet_ntoa(IpcpInfo.my_ip));
+	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.my_ip));
         else
           argv[argc] = strdup(arg->argv[argc]);
       }
@@ -545,13 +545,13 @@ ShowMSExt(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, " MS PPP extention values \n");
   prompt_Printf(&prompt, "   Primary NS     : %s\n",
-                inet_ntoa(IpcpInfo.cfg.ns_entries[0]));
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[0]));
   prompt_Printf(&prompt, "   Secondary NS   : %s\n",
-                inet_ntoa(IpcpInfo.cfg.ns_entries[1]));
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[1]));
   prompt_Printf(&prompt, "   Primary NBNS   : %s\n",
-                inet_ntoa(IpcpInfo.cfg.nbns_entries[0]));
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[0]));
   prompt_Printf(&prompt, "   Secondary NBNS : %s\n",
-                inet_ntoa(IpcpInfo.cfg.nbns_entries[1]));
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[1]));
 
   return 0;
 }
@@ -1181,30 +1181,31 @@ GetIpAddr(const char *cp)
 static int
 SetInterfaceAddr(struct cmdargs const *arg)
 {
+  struct ipcp *ipcp = &arg->bundle->ncp.ipcp;
   const char *hisaddr;
 
   hisaddr = NULL;
-  IpcpInfo.cfg.my_range.ipaddr.s_addr = INADDR_ANY;
-  IpcpInfo.cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
+  ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
+  ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
 
   if (arg->argc > 4)
     return -1;
 
-  IpcpInfo.cfg.HaveTriggerAddress = 0;
+  ipcp->cfg.HaveTriggerAddress = 0;
   ifnetmask.s_addr = 0;
-  iplist_reset(&IpcpInfo.cfg.peer_list);
+  iplist_reset(&ipcp->cfg.peer_list);
 
   if (arg->argc > 0) {
-    if (!ParseAddr(arg->argc, arg->argv, &IpcpInfo.cfg.my_range.ipaddr,
-		   &IpcpInfo.cfg.my_range.mask, &IpcpInfo.cfg.my_range.width))
+    if (!ParseAddr(ipcp, arg->argc, arg->argv, &ipcp->cfg.my_range.ipaddr,
+		   &ipcp->cfg.my_range.mask, &ipcp->cfg.my_range.width))
       return 1;
     if (arg->argc > 1) {
       hisaddr = arg->argv[1];
       if (arg->argc > 2) {
 	ifnetmask = GetIpAddr(arg->argv[2]);
 	if (arg->argc > 3) {
-	  IpcpInfo.cfg.TriggerAddress = GetIpAddr(arg->argv[3]);
-	  IpcpInfo.cfg.HaveTriggerAddress = 1;
+	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[3]);
+	  ipcp->cfg.HaveTriggerAddress = 1;
 	}
       }
     }
@@ -1213,15 +1214,15 @@ SetInterfaceAddr(struct cmdargs const *arg)
   /*
    * For backwards compatibility, 0.0.0.0 means any address.
    */
-  if (IpcpInfo.cfg.my_range.ipaddr.s_addr == INADDR_ANY) {
-    IpcpInfo.cfg.my_range.mask.s_addr = INADDR_ANY;
-    IpcpInfo.cfg.my_range.width = 0;
+  if (ipcp->cfg.my_range.ipaddr.s_addr == INADDR_ANY) {
+    ipcp->cfg.my_range.mask.s_addr = INADDR_ANY;
+    ipcp->cfg.my_range.width = 0;
   }
-  IpcpInfo.my_ip.s_addr = IpcpInfo.cfg.my_range.ipaddr.s_addr;
+  ipcp->my_ip.s_addr = ipcp->cfg.my_range.ipaddr.s_addr;
 
-  if (IpcpInfo.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-    IpcpInfo.cfg.peer_range.mask.s_addr = INADDR_ANY;
-    IpcpInfo.cfg.peer_range.width = 0;
+  if (ipcp->cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+    ipcp->cfg.peer_range.mask.s_addr = INADDR_ANY;
+    ipcp->cfg.peer_range.width = 0;
   }
 
   if (hisaddr && !UseHisaddr(arg->bundle, hisaddr, mode & MODE_AUTO))
@@ -1233,10 +1234,8 @@ SetInterfaceAddr(struct cmdargs const *arg)
 #ifndef NOMSEXT
 
 static void
-SetMSEXT(struct in_addr * pri_addr,
-	 struct in_addr * sec_addr,
-	 int argc,
-	 char const *const *argv)
+SetMSEXT(struct ipcp *ipcp, struct in_addr * pri_addr,
+	 struct in_addr * sec_addr, int argc, char const *const *argv)
 {
   int dummyint;
   struct in_addr dummyaddr;
@@ -1244,9 +1243,9 @@ SetMSEXT(struct in_addr * pri_addr,
   pri_addr->s_addr = sec_addr->s_addr = 0L;
 
   if (argc > 0) {
-    ParseAddr(argc, argv++, pri_addr, &dummyaddr, &dummyint);
+    ParseAddr(ipcp, argc, argv++, pri_addr, &dummyaddr, &dummyint);
     if (--argc > 0)
-      ParseAddr(argc, argv++, sec_addr, &dummyaddr, &dummyint);
+      ParseAddr(ipcp, argc, argv++, sec_addr, &dummyaddr, &dummyint);
     else
       sec_addr->s_addr = pri_addr->s_addr;
   }
@@ -1263,16 +1262,16 @@ SetMSEXT(struct in_addr * pri_addr,
 static int
 SetNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&IpcpInfo.cfg.ns_entries[0], &IpcpInfo.cfg.ns_entries[1],
-           arg->argc, arg->argv);
+  SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.ns_entries[0],
+           &arg->bundle->ncp.ipcp.cfg.ns_entries[1], arg->argc, arg->argv);
   return 0;
 }
 
 static int
 SetNBNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&IpcpInfo.cfg.nbns_entries[0], &IpcpInfo.cfg.nbns_entries[1],
-           arg->argc, arg->argv);
+  SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.nbns_entries[0],
+           &arg->bundle->ncp.ipcp.cfg.nbns_entries[1], arg->argc, arg->argv);
   return 0;
 }
 
@@ -1490,16 +1489,16 @@ AddCommand(struct cmdargs const *arg)
     }
   else {
     if (strcasecmp(arg->argv[0], "MYADDR") == 0)
-      dest = IpcpInfo.my_ip;
+      dest = arg->bundle->ncp.ipcp.my_ip;
     else if (strcasecmp(arg->argv[0], "HISADDR") == 0)
-      dest = IpcpInfo.peer_ip;
+      dest = arg->bundle->ncp.ipcp.peer_ip;
     else
       dest = GetIpAddr(arg->argv[0]);
     netmask = GetIpAddr(arg->argv[1]);
     gw = 2;
   }
   if (strcasecmp(arg->argv[gw], "HISADDR") == 0)
-    gateway = IpcpInfo.peer_ip;
+    gateway = arg->bundle->ncp.ipcp.peer_ip;
   else if (strcasecmp(arg->argv[gw], "INTERFACE") == 0)
     gateway.s_addr = INADDR_ANY;
   else
@@ -1519,7 +1518,7 @@ DeleteCommand(struct cmdargs const *arg)
       DeleteIfRoutes(arg->bundle, 0);
     else {
       if (strcasecmp(arg->argv[0], "MYADDR") == 0)
-        dest = IpcpInfo.my_ip;
+        dest = arg->bundle->ncp.ipcp.my_ip;
       else if (strcasecmp(arg->argv[0], "default") == 0)
         dest.s_addr = INADDR_ANY;
       else
