@@ -160,10 +160,10 @@ off_t	byte_count;
 int	defumask = CMASK;		/* default umask value */
 char	tmpline[7];
 char	*hostname;
+int	epsvall = 0;
+
 #ifdef VIRTUAL_HOSTING
 char	*ftpuser;
-
-int	epsvall = 0;
 
 static struct ftphost {
 	struct ftphost	*next;
