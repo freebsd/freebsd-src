@@ -68,6 +68,12 @@ SUIDDIR		opt_suiddir.h
 SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
+SHMALL		opt_sysvipc.h
+SHMMAX		opt_sysvipc.h
+SHMMAXPGS	opt_sysvipc.h
+SHMMIN		opt_sysvipc.h
+SHMMNI		opt_sysvipc.h
+SHMSEG		opt_sysvipc.h
 UCONSOLE
 ICMP_BANDLIM
 VFS_AIO
@@ -143,12 +149,6 @@ SEMMNU		opt_param.h
 SEMMSL		opt_param.h
 SEMOPM		opt_param.h
 SEMUME		opt_param.h
-SHMALL		opt_param.h
-SHMMAX		opt_param.h
-SHMMAXPGS	opt_param.h
-SHMMIN		opt_param.h
-SHMMNI		opt_param.h
-SHMSEG		opt_param.h
 
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
