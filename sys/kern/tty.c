@@ -1,5 +1,3 @@
-static volatile int ttyverbose = 0;
-
 /*-
  * Copyright (c) 1982, 1986, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -38,7 +36,7 @@ static volatile int ttyverbose = 0;
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.104 1998/06/07 17:11:41 dfr Exp $
+ * $Id: tty.c,v 1.105 1998/07/11 10:41:15 bde Exp $
  */
 
 /*-
@@ -2143,8 +2141,6 @@ ttsetwater(tp)
 
 	/* Input. */
 	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
-	if (ttyverbose)
-		printf("ttsetwater: can: %d, ", TTYHOG);
 	switch (tp->t_ispeedwat) {
 	case (speed_t)-1:
 		cps = tp->t_ispeed / 10;
@@ -2166,14 +2162,12 @@ ttsetwater(tp)
 	tp->t_ilowat = 7 * cps / 8;
 	x = cps + tp->t_ififosize;
 	clist_alloc_cblocks(&tp->t_rawq, x, x);
-	if (ttyverbose)
-		printf("raw: %d, ", x);
 
 	/* Output. */
 	switch (tp->t_ospeedwat) {
 	case (speed_t)-1:
 		cps = tp->t_ospeed / 10;
-		ttmaxhiwat = 200000;
+		ttmaxhiwat = 2 * TTMAXHIWAT;
 		break;
 	case 0:
 		cps = tp->t_ospeed / 10;
@@ -2181,7 +2175,7 @@ ttsetwater(tp)
 		break;
 	default:
 		cps = tp->t_ospeedwat / 10;
-		ttmaxhiwat = 200000;
+		ttmaxhiwat = 8 * TTMAXHIWAT;
 		break;
 	}
 #define CLAMP(x, h, l)	((x) > h ? h : ((x) < l) ? l : (x))
@@ -2192,8 +2186,6 @@ ttsetwater(tp)
 	x = imax(tp->t_ohiwat, TTMAXHIWAT);	/* XXX for compat/safety */
 	x += OBUFSIZ + 100;
 	clist_alloc_cblocks(&tp->t_outq, x, x);
-	if (ttyverbose)
-		printf("out: %d\n", x);
 #undef	CLAMP
 }
 
