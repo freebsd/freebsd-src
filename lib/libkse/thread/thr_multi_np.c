@@ -31,16 +31,20 @@
  *
  * $FreeBSD$
  */
-#include <string.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include <pthread_np.h>
 
 __weak_reference(_pthread_multi_np, pthread_multi_np);
 
 int
 _pthread_multi_np()
 {
+
 	/* Return to multi-threaded scheduling mode: */
-	_thread_single = NULL;
-	return(0);
+	/*
+	 * XXX - Do we want to do this?
+	 * __is_threaded = 1;
+	 */
+	pthread_resume_all_np();
+	return (0);
 }
