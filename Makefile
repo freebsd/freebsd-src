@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.196 1998/06/05 16:50:45 jkh Exp $
+#	$Id: Makefile,v 1.197 1998/06/06 00:56:23 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -362,7 +362,7 @@ reinstall:
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ldconfig -R
+	cd ${.CURDIR}; /sbin/ldconfig -R
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -598,7 +598,6 @@ _aout_nm	= usr.bin/nm
 _aout_ranlib	= usr.bin/ranlib
 _aout_size	= usr.bin/size
 _aout_strip	= usr.bin/strip
-_aout_ldconfig	= sbin/ldconfig
 _objformat	= usr.bin/objformat
 .endif
 
@@ -607,7 +606,6 @@ _objformat	= usr.bin/objformat
 #
 # XXX gperf is required for cc
 # XXX a new ld and tsort is required for cc
-# XXX ldconfig is required at the end of reinstall/installworld.
 lib-tools:
 .for d in				\
 		gnu/usr.bin/gperf	\
@@ -617,15 +615,14 @@ lib-tools:
 		gnu/usr.bin/bison	\
 		gnu/usr.bin/cc		\
 		${_aout_ar}		\
+		usr.bin/env		\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
 		${_aout_nm}		\
 		${_aout_ranlib}		\
 		${_aout_strip}		\
-		usr.bin/env		\
 		gnu/usr.bin/binutils	\
 		usr.bin/uudecode	\
-		${_aout_ldconfig}	\
 		${_objformat}
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
@@ -655,10 +652,8 @@ _csu=lib/csu/${MACHINE}.pcc
 _csu=lib/csu/${MACHINE}
 .endif
 
-# Build the "default" libcrypt first since it sets symlinks for static
-# binaries such as /sbin/init.  lib/Makefile builds the other if needed.
-.if exists(secure) && !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt=	secure/lib/libcrypt
+.if !defined(NOSECURE) && !defined(NOCRYPT)
+_libcrypt=	secure/lib/libcrypt lib/libcrypt
 .else
 _libcrypt=	lib/libcrypt
 .endif
@@ -781,7 +776,6 @@ build-tools:
 		usr.bin/sed		\
 		${_aout_size}		\
 		usr.bin/soelim		\
-		${_aout_strip}		\
 		usr.bin/symorder	\
 		usr.bin/touch		\
 		usr.bin/tr		\
