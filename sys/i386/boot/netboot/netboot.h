@@ -13,6 +13,7 @@ Author: Martin Renters
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/mount.h>
+#include <sys/time.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
