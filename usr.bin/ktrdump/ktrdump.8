@@ -33,7 +33,7 @@
 .Nd print kernel ktr trace buffer
 .Sh SYNOPSIS
 .Nm
-.Op Fl cfqt
+.Op Fl cfqrt
 .Op Fl e Ar execfile
 .Op Fl m Ar corefile
 .Op Fl o Ar outfile
@@ -50,6 +50,8 @@ Print the CPU number that each entry was logged from.
 Print the file and line number that each entry was logged from.
 .It Fl q
 Quiet mode; don't print the column header.
+.It Fl r
+Print relative timestamps rather than absolute timestamps.
 .It Fl t
 Print the timestamp for each entry.
 .It Fl e Ar execfile
