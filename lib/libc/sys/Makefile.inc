@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.38 1997/09/14 03:29:55 peter Exp $
+#	$Id: Makefile.inc,v 1.39 1997/09/14 05:44:33 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -23,7 +23,7 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	getuid.o issetugid.o kill.o ktrace.o lchown.o \
 	lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mlock.o \
+	madvise.o __getcwd.o mincore.o minherit.o mkdir.o mlock.o \
 	mount.o \
 	mprotect.o msgsys.o msync.o munlock.o munmap.o \
 	ntp_adjtime.o pathconf.o profil.o quotactl.o \
