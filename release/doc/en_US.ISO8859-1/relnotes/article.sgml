@@ -493,6 +493,8 @@
       <para>The &man.dc.4; driver now supports NICs based on the Xircom
       3201 and Conexant LANfinity RS7112 chips.</para>
 
+      <para>The &man.dc.4; driver now has support for VLANs.</para>
+
       <para>The &man.de.4; driver now performs round-robin arbitration
       between the transmit and receive units of the 21143, instead of
       giving priority to the receive unit.  This gives a 10&ndash;15%
@@ -1940,6 +1942,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <varname>CFLAGS</varname> in a relatively compiler-neutral
     manner. &merged;</para>
 
+    <para>&man.man.1; is no longer installed SUID
+    <username>man</username>, in order to reduce vulnerabilities
+    associated with generating <quote>catpages</quote> (preformatted
+    manual pages cached for repeated viewing).  As a result,
+    &man.man.1; can no longer create system catpages on a regular
+    user's behalf.  It is still able to do so if the user has write
+    permissions to the directory holding catpages (e.g. a user's own
+    manpages) or if the running user is
+    <username>root</username>.</para>
+
     <para>The &man.mdmfs.8; command has been added; it is a wrapper
     around &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8;, and
     &man.mount.8; that mimics the command line option set of the
@@ -2016,6 +2028,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para><application>PAM</application> support has been added for
     account management and sessions.</para>
+
+    <para><application>PAM</application> configuration is now
+    specified by files in <filename>/etc/pam.d/</filename>, rather
+    than a single <filename>/etc/pam.conf</filename> file.
+    <filename>/etc/pam.d/README</filename> has more details.</para>
 
     <para>&man.passwd.1; and &man.pw.8; now select the password hash
     algorithm at run time.  See the <literal>passwd_format</literal>
