@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fstab.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -365,7 +366,7 @@ main(int argc, char *argv[])
 	if (TP_BSIZE != (1 << tp_bshift))
 		quit("TP_BSIZE (%d) is not a power of 2", TP_BSIZE);
 	maxino = sblock->fs_ipg * sblock->fs_ncg;
-	mapsize = roundup(howmany(maxino, NBBY), TP_BSIZE);
+	mapsize = roundup(howmany(maxino, CHAR_BIT), TP_BSIZE);
 	usedinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpdirmap = (char *)calloc((unsigned) mapsize, sizeof(char));
 	dumpinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
@@ -454,7 +455,7 @@ main(int argc, char *argv[])
 	msg("dumping (Pass III) [directories]\n");
 	dirty = 0;		/* XXX just to get gcc to shut up */
 	for (map = dumpdirmap, ino = 1; ino < maxino; ino++) {
-		if (((ino - 1) % NBBY) == 0)	/* map is offset by 1 */
+		if (((ino - 1) % CHAR_BIT) == 0)	/* map is offset by 1 */
 			dirty = *map++;
 		else
 			dirty >>= 1;
@@ -473,7 +474,7 @@ main(int argc, char *argv[])
 	setproctitle("%s: pass 4: regular files", disk);
 	msg("dumping (Pass IV) [regular files]\n");
 	for (map = dumpinomap, ino = 1; ino < maxino; ino++) {
-		if (((ino - 1) % NBBY) == 0)	/* map is offset by 1 */
+		if (((ino - 1) % CHAR_BIT) == 0)	/* map is offset by 1 */
 			dirty = *map++;
 		else
 			dirty >>= 1;

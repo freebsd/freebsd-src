@@ -48,6 +48,7 @@ static const char rcsid[] =
 
 #include <setjmp.h>
 #include <glob.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

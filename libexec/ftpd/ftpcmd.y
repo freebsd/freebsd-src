@@ -393,16 +393,16 @@ cmd
 					break;
 
 				case TYPE_L:
-#if NBBY == 8
+#if CHAR_BIT == 8
 					if (cmd_bytesz == 8) {
 						reply(200,
 						    "Type set to L (byte size 8).");
 						type = cmd_type;
 					} else
 						reply(504, "Byte size must be 8.");
-#else /* NBBY == 8 */
-					UNIMPLEMENTED for NBBY != 8
-#endif /* NBBY == 8 */
+#else /* CHAR_BIT == 8 */
+					UNIMPLEMENTED for CHAR_BIT != 8
+#endif /* CHAR_BIT == 8 */
 				}
 			}
 		}
@@ -692,12 +692,12 @@ cmd
 #ifdef unix
 #ifdef BSD
 			reply(215, "UNIX Type: L%d Version: BSD-%d",
-				NBBY, BSD);
+				CHAR_BIT, BSD);
 #else /* BSD */
-			reply(215, "UNIX Type: L%d", NBBY);
+			reply(215, "UNIX Type: L%d", CHAR_BIT);
 #endif /* BSD */
 #else /* unix */
-			reply(215, "UNKNOWN Type: L%d", NBBY);
+			reply(215, "UNKNOWN Type: L%d", CHAR_BIT);
 #endif /* unix */
 		}
 
@@ -916,7 +916,7 @@ type_code
 	| L
 		{
 			cmd_type = TYPE_L;
-			cmd_bytesz = NBBY;
+			cmd_bytesz = CHAR_BIT;
 		}
 	| L SP byte_size
 		{

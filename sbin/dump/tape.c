@@ -52,6 +52,7 @@ static const char rcsid[] =
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>

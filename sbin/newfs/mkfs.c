@@ -52,6 +52,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -544,8 +545,8 @@ initcg(int cylno, time_t utime)
 		acg.cg_iusedoff = acg.cg_old_boff +
 		    sblock.fs_old_cpg * sizeof(u_int16_t);
 	}
-	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
-	acg.cg_nextfreeoff = acg.cg_freeoff + howmany(sblock.fs_fpg, NBBY);
+	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, CHAR_BIT);
+	acg.cg_nextfreeoff = acg.cg_freeoff + howmany(sblock.fs_fpg, CHAR_BIT);
 	if (sblock.fs_contigsumsize > 0) {
 		acg.cg_clustersumoff =
 		    roundup(acg.cg_nextfreeoff, sizeof(u_int32_t));
@@ -553,7 +554,7 @@ initcg(int cylno, time_t utime)
 		acg.cg_clusteroff = acg.cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
-		    howmany(fragstoblks(&sblock, sblock.fs_fpg), NBBY);
+		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
 		printf("Panic: cylinder group too big\n");
@@ -616,7 +617,7 @@ initcg(int cylno, time_t utime)
 				sump[run]++;
 				run = 0;
 			}
-			if ((i & (NBBY - 1)) != NBBY - 1)
+			if ((i & (CHAR_BIT - 1)) != CHAR_BIT - 1)
 				bit <<= 1;
 			else {
 				map = *mapp++;
@@ -1024,7 +1025,7 @@ ilog2(int val)
 {
 	u_int n;
 
-	for (n = 0; n < sizeof(n) * NBBY; n++)
+	for (n = 0; n < sizeof(n) * CHAR_BIT; n++)
 		if (1 << n == val)
 			return (n);
 	errx(1, "ilog2: %d is not a power of 2\n", val);

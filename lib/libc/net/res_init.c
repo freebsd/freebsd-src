@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <ctype.h>
+#include <limits.h>
 #include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -414,7 +415,7 @@ res_init()
 				}
 				/*FALLTHROUGH*/
 			    default:
-				m = sizeof(struct in6_addr) * NBBY;
+				m = sizeof(struct in6_addr) * CHAR_BIT;
 				break;
 			    }
 			    if (m >= 0) {
@@ -422,7 +423,7 @@ res_init()
 				    if (m <= 0) {
 					*u = 0;
 				    } else {
-					m -= NBBY;
+					m -= CHAR_BIT;
 					*u = (u_char)~0;
 					if (m < 0)
 					    *u <<= -m;
