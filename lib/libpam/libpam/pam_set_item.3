@@ -46,7 +46,7 @@
 .Ft int
 .Fn pam_set_item "pam_handle_t *pamh" "int type" "const void *item"
 .Ft int
-.Fn pam_get_item "pam_handle_t *pamh" "int type" "const void **item"
+.Fn pam_get_item "const pam_handle_t *pamh" "int type" "const void **item"
 .Sh DESCRIPTION
 The
 .Fn pam_set_item
