@@ -1731,6 +1731,12 @@ cpu_halt(void)
 	prom_halt(1);
 }
 
+void
+cpu_idle(void)
+{
+	/* Insert code to halt (until next interrupt) for the idle loop */
+}
+
 /*
  * Clear registers on exec
  */
