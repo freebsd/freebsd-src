@@ -23,7 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -37,6 +36,9 @@
  *
  * Thanks are going to Steve Bauer and Jason Wright.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -241,7 +243,7 @@ epic_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
 
-	/* Enable ports, memory and busmastering */
+	/* Enable busmastering */
 	pci_enable_busmaster(dev);
 
 	rid = EPIC_RID;
