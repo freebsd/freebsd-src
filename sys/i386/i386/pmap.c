@@ -3381,7 +3381,7 @@ pmap_activate(struct thread *td)
 	/* XXXKSE this is wrong.
 	 * pmap_activate is for the current thread on the current cpu
 	 */
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		/* Make sure all other cr3 entries are updated. */
 		/* what if they are running?  XXXKSE (maybe abort them) */
 		FOREACH_THREAD_IN_PROC(p, td) {

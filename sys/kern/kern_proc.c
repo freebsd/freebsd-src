@@ -681,7 +681,7 @@ fill_kinfo_proc(p, kp)
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
-		if (!(p->p_flag & P_KSES)) {
+		if (!(p->p_flag & P_THREADED)) {
 			if (td->td_wmesg != NULL) {
 				strlcpy(kp->ki_wmesg, td->td_wmesg,
 				    sizeof(kp->ki_wmesg));
@@ -715,7 +715,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_swtime = p->p_swtime;
 		kp->ki_pid = p->p_pid;
 		/* vvv XXXKSE */
-		if (!(p->p_flag & P_KSES)) {
+		if (!(p->p_flag & P_THREADED)) {
 			kg = td->td_ksegrp;
 			ke = td->td_kse;
 			KASSERT((ke != NULL), ("fill_kinfo_proc: Null KSE"));
