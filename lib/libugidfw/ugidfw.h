@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Network Associates
@@ -53,6 +53,8 @@ int	bsde_get_rule(int rulenum, struct mac_bsdextended_rule *rule,
 	    size_t errlen, char *errstr);
 int	bsde_delete_rule(int rulenum, size_t buflen, char *errstr);
 int	bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule,
+	    size_t buflen, char *errstr);
+int	bsde_add_rule(int *rulename, struct mac_bsdextended_rule *rule,
 	    size_t buflen, char *errstr);
 __END_DECLS
 

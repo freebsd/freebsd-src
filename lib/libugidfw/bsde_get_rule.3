@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2003-2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -30,10 +30,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2003
+.Dd February 24, 2004
 .Os
 .Dt BSDE_GET_RULE 3
 .Sh NAME
+.Nm bsde_add_rule ,
 .Nm bsde_get_rule ,
 .Nm bsde_set_rule ,
 .Nm bsde_delete_rule
@@ -42,6 +43,11 @@
 .Lb libugidfw
 .Sh SYNOPSIS
 .In ugidfw.h
+.Ft int
+.Fo bsde_add_rule
+.Fa "int *rulenum" "struct mac_bsdextended_rule *rule"
+.Fa "size_t buflen" "char *errstr"
+.Fc
 .Ft int
 .Fo bsde_get_rule
 .Fa "int rulenum" "struct mac_bsdextended_rule *rule"
@@ -55,6 +61,27 @@
 .Ft int
 .Fn bsde_delete_rule "int rulenum" "size_t errlen" "char *errstr"
 .Sh DESCRIPTION
+The
+.Fn bsde_add_rule
+function fills the next available
+rule (in
+.Vt "struct mac_bsdextended_rule"
+form, either from
+.Fn bsde_get_rule
+or
+.Xr bsde_parse_rule 3 ) .
+If an error occurs,
+.Fa *errstr
+is filled with the error string
+(up to
+.Fa errlen
+characters, including the terminating
+.Dv NUL ) .
+If successful and
+.Fa rulenum
+is non-NULL, the rule number used will be returned in
+.Fa *rulenum .
+.Pp
 The
 .Fn bsde_get_rule
 function fills in
