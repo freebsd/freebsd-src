@@ -150,6 +150,7 @@ main(int argc, char *argv[])
 	
 	if (ioctl(targfd, TARGIODEBUG, &debug) == -1) {
 		perror("TARGIODEBUG");
+		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
 		exit(EX_SOFTWARE);
 	}
 
@@ -157,6 +158,11 @@ main(int argc, char *argv[])
 
 	if (buf == NULL) {
 		fprintf(stderr, "%s: Could not malloc I/O buffer", appname);
+		if (debug) {
+			debug = 0;
+			(void) ioctl(targfd, TARGIODEBUG, &debug);
+		}
+		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
 		exit(EX_OSERR);
 	}
 
@@ -174,13 +180,14 @@ main(int argc, char *argv[])
 static void
 cleanup()
 {
+	if (debug) {
+		debug = 0;
+		(void) ioctl(targfd, TARGIODEBUG, &debug);
+	}
 	close(targfd);
-
 	if (ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit) == -1) {
 		perror("TARGCTLIOFREEUNIT");
-		exit(EX_SOFTWARE);
 	}
-
 	close(targctlfd);
 }
 
@@ -317,18 +324,22 @@ handle_exception()
 		}
 
 		bzero(&ccb, sizeof(ccb));
-		cam_fill_ctio(&ccb.csio, /*retries*/2,
+		cam_fill_ctio(&ccb.csio,
+			      /*retries*/2,
 			      /*cbfcnp*/NULL,
-			      /*flags*/CAM_DIR_NONE
-			     | (atio.ccb_h.flags & CAM_TAG_ACTION_VALID)
-			     | CAM_SEND_STATUS,
-                              /*tag_action*/MSG_SIMPLE_Q_TAG,
+			      CAM_DIR_NONE | CAM_SEND_STATUS,
+			      (atio.ccb_h.flags & CAM_TAG_ACTION_VALID)?
+				MSG_SIMPLE_Q_TAG : 0,
 			      atio.tag_id,
 			      atio.init_id,
 			      SCSI_STATUS_CHECK_COND,
 			      /*data_ptr*/NULL,
 			      /*dxfer_len*/0,
 			      /*timeout*/5 * 1000);
+		/*
+		 * Make sure that periph_priv pointers are clean.
+		 */
+		bzero(&ccb.ccb_h.periph_priv, sizeof ccb.ccb_h.periph_priv);
 
 		if (ioctl(targfd, TARGIOCCOMMAND, &ccb) == -1) {
 			perror("TARGIOCCOMMAND");
