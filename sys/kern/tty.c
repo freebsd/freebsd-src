@@ -2440,5 +2440,34 @@ nottystop(tp, rw)
 	struct tty *tp;
 	int rw;
 {
+
 	return;
+}
+
+int
+ttyread(dev, uio, flag)
+	dev_t dev;
+	struct uio *uio;
+	int flag;
+{
+	struct tty *tp;
+
+	tp = dev->si_tty;
+	if (tp == NULL)
+		return (ENODEV);
+	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
+}
+
+int
+ttywrite(dev, uio, flag)
+	dev_t dev;
+	struct uio *uio;
+	int flag;
+{
+	struct tty *tp;
+
+	tp = dev->si_tty;
+	if (tp == NULL)
+		return (ENODEV);
+	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }

@@ -265,10 +265,12 @@ int	 ttyinput __P((int c, struct tty *tp));
 int	 ttylclose __P((struct tty *tp, int flag));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
+int	 ttyread __P((dev_t dev, struct uio *uio, int flag));
 void	 ttyregister __P((struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
+int	 ttywrite __P((dev_t dev, struct uio *uio, int flag));
 struct tty *ttymalloc __P((struct tty *tp));
 void     ttyfree __P((struct tty *));
 

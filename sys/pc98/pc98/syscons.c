@@ -204,7 +204,6 @@ CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc);
 static	d_open_t	scopen;
 static	d_close_t	scclose;
 static	d_read_t	scread;
-static	d_write_t	scwrite;
 static	d_ioctl_t	scioctl;
 static	d_mmap_t	scmmap;
 
@@ -212,7 +211,7 @@ static struct cdevsw sc_cdevsw = {
 	/* open */	scopen,
 	/* close */	scclose,
 	/* read */	scread,
-	/* write */	scwrite,
+	/* write */	ttywrite,
 	/* ioctl */	scioctl,
 	/* poll */	ttypoll,
 	/* mmap */	scmmap,
@@ -574,18 +573,9 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = dev->si_tty;
 
     sc_touch_scrn_saver();
-    return((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
-
-int
-scwrite(dev_t dev, struct uio *uio, int flag)
-{
-    struct tty *tp = dev->si_tty;
-
-    return((*linesw[tp->t_line].l_write)(tp, uio, flag));
+    return(ttyread(dev, uio, flag));
 }
 
 static int
