@@ -98,7 +98,7 @@
 59	STD	{ int ibcs2_execve(char *path, char **argp, char **envp); }
 60	MNOPROTO { int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
-62	STD	{ int ibcs2_fcntl(int fd, int cmd, char *arg); }
+62	MSTD	{ int ibcs2_fcntl(int fd, int cmd, char *arg); }
 63	MSTD	{ long ibcs2_ulimit(int cmd, int newlimit); }
 64	UNIMPL	reserved for unix/pc
 65	UNIMPL	reserved for unix/pc

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
@@ -580,29 +581,24 @@ svr4_sys_fcntl(td, uap)
 	register struct thread *td;
 	struct svr4_sys_fcntl_args *uap;
 {
-	int				error;
-	struct fcntl_args		fa;
-	int                             *retval;
+	int cmd, error, *retval;
 
 	retval = td->td_retval;
 
-	fa.fd = uap->fd;
-	fa.cmd = svr4_to_bsd_cmd(uap->cmd);
+	cmd = svr4_to_bsd_cmd(uap->cmd);
 
-	switch (fa.cmd) {
+	switch (cmd) {
 	case F_DUPFD:
 	case F_GETFD:
 	case F_SETFD:
-		fa.arg = (long) uap->arg;
-		return fcntl(td, &fa);
+		return (kern_fcntl(td, uap->fd, cmd, (intptr_t)uap->arg));
 
 	case F_GETFL:
-		fa.arg = (long) uap->arg;
-		error = fcntl(td, &fa);
+		error = kern_fcntl(td, uap->fd, cmd, (intptr_t)uap->arg);
 		if (error)
-			return error;
+			return (error);
 		*retval = bsd_to_svr4_flags(*retval);
-		return error;
+		return (error);
 
 	case F_SETFL:
 		{
@@ -610,55 +606,39 @@ svr4_sys_fcntl(td, uap)
 			 * we must save the O_ASYNC flag, as that is
 			 * handled by ioctl(_, I_SETSIG, _) emulation.
 			 */
-			long cmd;
 			int flags;
 
 			DPRINTF(("Setting flags %p\n", uap->arg));
-			cmd = fa.cmd; /* save it for a while */
 
-			fa.cmd = F_GETFL;
-			if ((error = fcntl(td, &fa)) != 0)
-				return error;
+			error = kern_fcntl(td, uap->fd, F_GETFL, 0);
+			if (error)
+				return (error);
 			flags = *retval;
 			flags &= O_ASYNC;
 			flags |= svr4_to_bsd_flags((u_long) uap->arg);
-			fa.cmd = cmd;
-			fa.arg = (long) flags;
-			return fcntl(td, &fa);
+			return (kern_fcntl(td, uap->fd, F_SETFL, flags));
 		}
 
 	case F_GETLK:
 	case F_SETLK:
 	case F_SETLKW:
 		{
-			struct svr4_flock	 ifl;
-			struct flock		*flp, fl;
-			caddr_t sg = stackgap_init();
+			struct svr4_flock	ifl;
+			struct flock		fl;
 
-			flp = stackgap_alloc(&sg, sizeof(struct flock));
-			fa.arg = (long) flp;
-
-			error = copyin(uap->arg, &ifl, sizeof ifl);
+			error = copyin(uap->arg, &ifl, sizeof (ifl));
 			if (error)
-				return error;
+				return (error);
 
 			svr4_to_bsd_flock(&ifl, &fl);
 
-			error = copyout(&fl, flp, sizeof fl);
-			if (error)
-				return error;
-
-			error = fcntl(td, &fa);
-			if (error || fa.cmd != F_GETLK)
-				return error;
-
-			error = copyin(flp, &fl, sizeof fl);
-			if (error)
-				return error;
+			error = kern_fcntl(td, uap->fd, cmd, (intptr_t)&fl);
+			if (error || cmd != F_GETLK)
+				return (error);
 
 			bsd_to_svr4_flock(&fl, &ifl);
 
-			return copyout(&ifl, uap->arg, sizeof ifl);
+			return (copyout(&ifl, uap->arg, sizeof (ifl)));
 		}
 	case -1:
 		switch (uap->cmd) {
@@ -692,36 +672,36 @@ svr4_sys_fcntl(td, uap)
 		case SVR4_F_SETLK64:
 		case SVR4_F_SETLKW64:
 			{
-				struct svr4_flock64	 ifl;
-				struct flock		*flp, fl;
-				caddr_t sg = stackgap_init();
+				struct svr4_flock64	ifl;
+				struct flock		fl;
 
-				flp = stackgap_alloc(&sg, sizeof(struct flock));
-				fa.arg = (long) flp;
-
+				switch (uap->cmd) {
+				case SVR4_F_GETLK64:
+					cmd = F_GETLK;
+					break;
+				case SVR4_F_SETLK64:
+					cmd = F_SETLK;
+					break;					
+				case SVR4_F_SETLKW64:
+					cmd = F_SETLKW;
+					break;
+				}
 				error = copyin(uap->arg, &ifl,
-				    sizeof ifl);
+				    sizeof (ifl));
 				if (error)
-					return error;
+					return (error);
 
 				svr4_to_bsd_flock64(&ifl, &fl);
 
-				error = copyout(&fl, flp, sizeof fl);
-				if (error)
-					return error;
-
-				error = fcntl(td, &fa);
-				if (error || fa.cmd != F_GETLK)
-					return error;
-
-				error = copyin(flp, &fl, sizeof fl);
-				if (error)
-					return error;
+				error = kern_fcntl(td, uap->fd, cmd,
+				    (intptr_t)&fl);
+				if (error || cmd != F_GETLK)
+					return (error);
 
 				bsd_to_svr4_flock64(&fl, &ifl);
 
-				return copyout(&ifl, uap->arg,
-				    sizeof ifl);
+				return (copyout(&ifl, uap->arg,
+				    sizeof (ifl)));
 			}
 
 		case SVR4_F_FREESP64:

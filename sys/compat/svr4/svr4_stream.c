@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>		/* Must come after sys/uio.h */
@@ -1473,7 +1474,6 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 	 * We alse have to fix the O_ASYNC fcntl bit, so the
 	 * process will get SIGPOLLs.
 	 */
-	struct fcntl_args fa;
 	int error;
 	register_t oflags, flags;
 	struct svr4_strm *st = svr4_stream_get(fp);
@@ -1483,10 +1483,9 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 		return EINVAL;
 	}
 	/* get old status flags */
-	fa.fd = fd;
-	fa.cmd = F_GETFL;
-	if ((error = fcntl(td, &fa)) != 0)
-		return error;
+	error = kern_fcntl(td, fd, F_GETFL, 0);
+	if (error)
+		return (error);
 
 	oflags = td->td_retval[0];
 
@@ -1512,19 +1511,15 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 
 	/* set the new flags, if changed */
 	if (flags != oflags) {
-		fa.cmd = F_SETFL;
-		fa.arg = (long) flags;
-		if ((error = fcntl(td, &fa)) != 0)
-			  return error;
+		error = kern_fcntl(td, fd, F_SETFL, flags);
+		if (error)
+			return (error);
 		flags = td->td_retval[0];
 	}
 
 	/* set up SIGIO receiver if needed */
-	if (dat != NULL) {
-		fa.cmd = F_SETOWN;
-		fa.arg = (long) td->td_proc->p_pid;
-		return fcntl(td, &fa);
-	}
+	if (dat != NULL)
+		return (kern_fcntl(td, fd, F_SETOWN, td->td_proc->p_pid));
 	return 0;
 }
 

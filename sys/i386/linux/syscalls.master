@@ -89,7 +89,7 @@
 52	STD	{ int linux_umount(char *path, l_int flags); }
 53	UNIMPL	lock
 54	STD	{ int linux_ioctl(l_uint fd, l_uint cmd, l_ulong arg); }
-55	STD	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
+55	MSTD	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
 56	UNIMPL	mpx
 57	MNOPROTO { int setpgid(int pid, int pgid); }
 58	UNIMPL	ulimit
@@ -294,7 +294,7 @@
 218	STD	{ int linux_mincore(l_ulong start, l_size_t len, u_char *vec); }
 219	MNOPROTO { int madvise(void *addr, size_t len, int behav); }
 220	STD	{ int linux_getdents64(l_uint fd, void *dirent, l_uint count); }
-221	STD	{ int linux_fcntl64(l_uint fd, l_uint cmd, l_ulong arg); }
+221	MSTD	{ int linux_fcntl64(l_uint fd, l_uint cmd, l_ulong arg); }
 222	UNIMPL
 223	UNIMPL
 224	UNIMPL	linux_gettid

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/ttycom.h>
 
@@ -246,92 +247,62 @@ ibcs2_fcntl(td, uap)
 	struct thread *td;
 	struct ibcs2_fcntl_args *uap;
 {
+	intptr_t arg;
 	int error;
-	struct fcntl_args fa;
-	struct flock *flp;
+	struct flock fl;
 	struct ibcs2_flock ifl;
-	
+
+	arg = (intptr_t)uap->arg;
 	switch(uap->cmd) {
 	case IBCS2_F_DUPFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_DUPFD;
-		fa.arg = (/* XXX */ int)uap->arg;
-		return fcntl(td, &fa);
+		return (kern_fcntl(td, uap->fd, F_DUPFD, arg));
 	case IBCS2_F_GETFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_GETFD;
-		fa.arg = (/* XXX */ int)uap->arg;
-		return fcntl(td, &fa);
+		return (kern_fcntl(td, uap->fd, F_GETFD, arg));
 	case IBCS2_F_SETFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_SETFD;
-		fa.arg = (/* XXX */ int)uap->arg;
-		return fcntl(td, &fa);
+		return (kern_fcntl(td, uap->fd, F_SETFD, arg));
 	case IBCS2_F_GETFL:
-		fa.fd = uap->fd;
-		fa.cmd = F_GETFL;
-		fa.arg = (/* XXX */ int)uap->arg;
-		error = fcntl(td, &fa);
+		error = kern_fcntl(td, uap->fd, F_GETFL, arg);
 		if (error)
 			return error;
 		td->td_retval[0] = oflags2ioflags(td->td_retval[0]);
 		return error;
 	case IBCS2_F_SETFL:
-		fa.fd = uap->fd;
-		fa.cmd = F_SETFL;
-		fa.arg = (/* XXX */ int)
-				  ioflags2oflags((int)uap->arg);
-		return fcntl(td, &fa);
+		return (kern_fcntl(td, uap->fd, F_SETFL,
+		    ioflags2oflags(arg)));
 
 	case IBCS2_F_GETLK:
 	    {
-		caddr_t sg = stackgap_init();
-		flp = stackgap_alloc(&sg, sizeof(*flp));
 		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
-		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_GETLK;
-		fa.arg = (/* XXX */ int)flp;
-		error = fcntl(td, &fa);
+		cvt_iflock2flock(&ifl, &fl);
+		error = kern_fcntl(td, uap->fd, F_GETLK, (intptr_t)&fl);
 		if (error)
 			return error;
-		cvt_flock2iflock(flp, &ifl);
+		cvt_flock2iflock(&fl, &ifl);
 		return copyout((caddr_t)&ifl, (caddr_t)uap->arg,
 			       ibcs2_flock_len);
 	    }
 
 	case IBCS2_F_SETLK:
 	    {
-		caddr_t sg = stackgap_init();
-		flp = stackgap_alloc(&sg, sizeof(*flp));
 		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
-		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_SETLK;
-		fa.arg = (/* XXX */ int)flp;
-
-		return fcntl(td, &fa);
+		cvt_iflock2flock(&ifl, &fl);
+		return (kern_fcntl(td, uap->fd, F_SETLK, (intptr_t)&fl));
 	    }
 
 	case IBCS2_F_SETLKW:
 	    {
-		caddr_t sg = stackgap_init();
-		flp = stackgap_alloc(&sg, sizeof(*flp));
 		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
-		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_SETLKW;
-		fa.arg = (/* XXX */ int)flp;
-		return fcntl(td, &fa);
+		cvt_iflock2flock(&ifl, &fl);
+		return (kern_fcntl(td, uap->fd, F_SETLKW, (intptr_t)&fl));
 	    }
 	}
 	return ENOSYS;
