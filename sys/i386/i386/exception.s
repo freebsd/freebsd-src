@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.34 1997/07/31 05:43:02 fsmp Exp $
+ *	$Id: exception.s,v 1.35 1997/08/09 00:02:31 dyson Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -43,10 +43,13 @@
 #ifdef SMP
 
 #include <machine/apic.h>			/* for apic_vector.s */
+#include <machine/smptests.h>			/** PEND_INTS */
 
+#ifndef PEND_INTS
 /* generic giant-lock calls */
 #define GET_MPLOCK		call _get_mplock
 #define REL_MPLOCK		call _rel_mplock
+#endif /* PEND_INTS */
 
 /* ISR specific giant-lock calls */
 #define GET_ISRLOCK(N)		call _get_isrlock
