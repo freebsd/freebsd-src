@@ -1027,36 +1027,25 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
 	dev_t pdev;
 	int i, cont, unit, devtype;
+	int devtypes[3] = {SND_DEV_DSP, SND_DEV_DSP16, SND_DEV_AUDIO};
+	char *devnames[3] = {"dsp", "dspW", "audio"};
 
 	if (*dev != NODEV)
 		return;
 	if (pcm_devclass == NULL)
 		return;
+
+	devtype = 0;
 	unit = -1;
-
-	devtype = SND_DEV_DSP;
-	if (strcmp(name, "dsp") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "dsp", &unit) == 1)
-		goto gotit;
-
-	devtype = SND_DEV_DSP16;
-	if (strcmp(name, "dspW") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "dspW", &unit) == 1)
-		goto gotit;
-
-	devtype = SND_DEV_AUDIO;
-	if (strcmp(name, "audio") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "audio", &unit) == 1)
-		goto gotit;
-
-	return;
-gotit:
+	for (i = 0; (i < 3) && (unit == -1); i++) {
+		devtype = devtypes[i];
+		if (strcmp(name, devnames[i]) == 0) {
+			unit = snd_unit;
+		} else {
+			if (dev_stdclone(name, NULL, devnames[i], &unit) != 1)
+				unit = -1;
+		}
+	}
 	if (unit == -1 || unit >= devclass_get_maxunit(pcm_devclass))
 		return;
 
