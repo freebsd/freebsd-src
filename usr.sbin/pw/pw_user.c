@@ -1194,21 +1194,58 @@ print_user(struct passwd * pwd, int pretty, int v7)
 char    *
 pw_checkname(u_char *name, int gecos)
 {
-	int             l = 0;
-	char const     *notch = gecos ? ":!@" : " ,\t:+&#%$^()!@~*?<>=|\\/\"";
+	char showch[8];
+	u_char const *badchars, *ch, *showtype;
+	int reject;
 
-	while (name[l]) {
-		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] == 127 ||
-			(!gecos && l==0 && name[l] == '-') ||	/* leading '-' */
-			(!gecos && name[l] & 0x80))	/* 8-bit */
-			errx(EX_DATAERR, (name[l] >= ' ' && name[l] < 127)
-					    ? "invalid character `%c' in field"
-					    : "invalid character 0x%02x in field",
-					    name[l]);
-		++l;
+	ch = name;
+	reject = 0;
+	if (gecos) {
+		/* See if the name is valid as a gecos (comment) field. */
+		badchars = ":!@";
+		showtype = "gecos field";
+	} else {
+		/* See if the name is valid as a userid or group. */
+		badchars = " ,\t:+&#%$^()!@~*?<>=|\\/\"";
+		showtype = "userid/group name";
+		/* Userids and groups can not have a leading '-'. */
+		if (*ch == '-')
+			reject = 1;
 	}
-	if (!gecos && l > LOGNAMESIZE)
-		errx(EX_DATAERR, "name too long `%s'", name);
+	if (!reject) {
+		while (*ch) {
+			if (strchr(badchars, *ch) != NULL || *ch < ' ' ||
+			    *ch == 127) {
+				reject = 1;
+				break;
+			}
+			/* 8-bit characters are only allowed in GECOS fields */
+			if (!gecos && (*ch & 0x80)) {
+				reject = 1;
+				break;
+			}
+			ch++;
+		}
+	}
+	/*
+	 * A `$' is allowed as the final character for userids and groups,
+	 * mainly for the benefit of samba.
+	 */
+	if (reject && !gecos) {
+		if (*ch == '$' && *(ch + 1) == '\0') {
+			reject = 0;
+			ch++;
+		}
+	}
+	if (reject) {
+		snprintf(showch, sizeof(showch), (*ch >= ' ' && *ch < 127)
+		    ? "`%c'" : "0x%02x", *ch);
+		errx(EX_DATAERR, "invalid character %s at position %d in %s",
+		    showch, (ch - name), showtype);
+	}
+	if (!gecos && (ch - name) > LOGNAMESIZE)
+		errx(EX_DATAERR, "name too long `%s' (max is %d)", name,
+		    LOGNAMESIZE);
 	return (char *)name;
 }
 
