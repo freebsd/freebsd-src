@@ -24,11 +24,81 @@
 .\"
 .\"	$FreeBSD$
 .\"
-.Dd October 17, 2002
+.Dd February 11, 2003
 .Dt DEVCTL 4
 .Os
 .Sh NAME
 .Nm devctl
 .Nd Device event reporting and device control interface.
 .Sh DESCRIPTION
+The
+.Nm
+device is used to report device events from the kernel.
+Future versions will allow for some device control as well.
+.Sh IMPLEMENTATION NOTES
+This design allows only one reader for /dev/devctl.
+This is not desirable
+in the long run, but will get a lot of hair out of this implementation.
+Maybe we should make this device a clonable device.
+.Pp
+Also note: we specifically do not attach a device to the device_t tree
+to avoid potential chicken and egg problems.
+One could argue that all of this belongs to the root node.
+One could also further argue that the sysctl interface that we have
+not might more properly be an ioctl interface.
+.Pp
+SIGIO support is included in the driver.
+However, the author is not sure that the SIGIO support is done correctly.
+It was copied from a driver that had SIGIO support that likely hasn't been
+tested since 3.4 or 2.2.8!
+.Pp
+The read channel for this device is used to report changes to
+userland in realtime.
+We return one record at a time.
+If you try to read this device a character at a time, you will loose
+the rest of the data.
+Listening programs are expected to cope.
+.Pp
+The sysctl and boot parameter hw.bus.devctl_disable is used to disable
+.Nm
+when no devd is running.
+.Sh PROTOCOL
+.Nm
+uses an ASCII protocol.
+The driver returns one record at a time to its readers.
+Each record is terminated with a newline.
+The first character of the record is the event type.
+.Pp
+.Bl -column -compact "Type" "Description"
+.Em "Type	Description"
++	Device node in tree attached
+-	Device node in tree detached
+?	Unknown device detected
+.El
+.Ss Message formats
+Except for the first character in the record, attach and detach
+messages have the same format.
+.D1 Tdev at parent on location
+.Bl -column -compact "Part" "Description"
+.Em "Part	Description"
+T	+ or -
+dev	The device name that was attached/detached
+parent	The device name of the parent bus that attached the device
+location	Bus specific location information
+.El
+.Pp
+The nomatch messages can be used to load devices driver.
+If you load a device driver, then one of two things can happen.
+If the device driver attaches to something, you'll get a device
+attached message.
+If it doesn't, then nothing will happen.
+.Pp
+The attach and detach messages arrive after the event.
+This means one cannot use the attach message to load an alternate
+driver.
+The attach message driver has already claimed this device.
+One cannot use the detach messages to flush data to the device.
+The device is already gone.
 .Sh SEE ALSO
+.Xr devd 8
+
