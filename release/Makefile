@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.76 1998/02/10 18:31:14 jkh Exp $
+#	$Id$
 #
 # How to roll a release:
 #
@@ -252,8 +252,8 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../eBones) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/../eBones && ( \
+.if exists(${.CURDIR}/../kerberosIV) && !defined(NOKERBEROS)
+	cd ${.CURDIR}/../kerberosIV && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
 		make kprog \
@@ -374,10 +374,12 @@ release.7:
 	done
 .endif
 	( cd ${RD}/dists/src && \
+		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
+		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi && \
+		if [ -f scrypto.inf ] ; then mv scrypto.inf ../des ; fi && \
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
-		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
+		if [ -f skerbero.inf ] ; then mv skerbero.inf ../des ; fi ; )
 	@echo "src distribution is finished."
 .endif
 	touch release.7
