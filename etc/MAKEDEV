@@ -1329,7 +1329,7 @@ ttyR?)
 	rm -f ttyR* ttyiR* ttylR*
 	for i in $controllers; do
 	   ndevices=$(
-		dmesg | while read first bar ports rest; do
+		dmesg | while read first foo bar ports rest; do
 			case "$first" in
 			$i*)
 				echo "$ports"
@@ -1369,7 +1369,7 @@ cuaR?)
 	rm -f cuaR* cuaiR* cualR*
 	for i in $controllers; do
 	   ndevices=$(
-		dmesg | while read first bar ports rest; do
+		dmesg | while read first foo bar ports rest; do
 			case "$first" in
 			$i*)
 				echo "$ports"
