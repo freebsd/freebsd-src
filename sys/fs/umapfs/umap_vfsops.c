@@ -73,7 +73,7 @@ static int	umapfs_sync __P((struct mount *mp, int waitfor,
 				 struct ucred *cred, struct thread *td));
 static int	umapfs_unmount __P((struct mount *mp, int mntflags,
 				    struct thread *td));
-static int	umapfs_vget __P((struct mount *mp, ino_t ino,
+static int	umapfs_vget __P((struct mount *mp, ino_t ino, int flags,
 				 struct vnode **vpp));
 static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 static int	umapfs_extattrctl __P((struct mount *mp, int cmd,
@@ -387,13 +387,14 @@ umapfs_sync(mp, waitfor, cred, td)
 }
 
 static int
-umapfs_vget(mp, ino, vpp)
+umapfs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 
-	return (VFS_VGET(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, ino, vpp));
+	return (VFS_VGET(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, ino, flags, vpp));
 }
 
 static int

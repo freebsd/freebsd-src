@@ -73,7 +73,8 @@ static int	nullfs_statfs(struct mount *mp, struct statfs *sbp,
 static int	nullfs_sync(struct mount *mp, int waitfor,
 				 struct ucred *cred, struct thread *td);
 static int	nullfs_unmount(struct mount *mp, int mntflags, struct thread *td);
-static int	nullfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
+static int	nullfs_vget(struct mount *mp, ino_t ino, int flags,
+				 struct vnode **vpp);
 static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
 static int	nullfs_extattrctl(struct mount *mp, int cmd,
 				       struct vnode *filename_vp,
@@ -344,13 +345,14 @@ nullfs_sync(mp, waitfor, cred, td)
 }
 
 static int
-nullfs_vget(mp, ino, vpp)
+nullfs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	int error;
-	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
+	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, flags, vpp);
 	if (error)
 		return (error);
 

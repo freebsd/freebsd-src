@@ -71,7 +71,7 @@ static MALLOC_DEFINE(M_IFSNODE, "IFS node", "IFS vnode private part");
 static int	ifs_init (struct vfsconf *);
 static int	ifs_mount (struct mount *, char *, caddr_t,
 		    struct nameidata *, struct thread *);
-extern int	ifs_vget (struct mount *, ino_t, struct vnode **);
+extern int	ifs_vget (struct mount *, ino_t, int, struct vnode **);
 
 
 
@@ -151,9 +151,10 @@ ifs_init(vfsp)
 }
 
 int
-ifs_vget(mp, ino, vpp)
+ifs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	struct fs *fs;
@@ -167,9 +168,10 @@ ifs_vget(mp, ino, vpp)
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
 restart:
-	if ((*vpp = ufs_ihashget(dev, ino)) != NULL) {
+	if ((error = ufs_ihashget(dev, ino, flags, vpp)) != 0)
+		return (error);
+	if (*vpp != NULL)
 		return (0);
-	}
 
 	/*
 	 * Lock out the creation of new entries in the FFS hash table in

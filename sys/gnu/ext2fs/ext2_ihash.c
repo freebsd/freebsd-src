@@ -93,15 +93,19 @@ ufs_ihashlookup(dev, inum)
  * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, but locked, wait for it.
  */
-struct vnode *
-ufs_ihashget(dev, inum)
+int
+ufs_ihashget(dev, inum, flags, vpp)
 	dev_t dev;
 	ino_t inum;
+	int flags;
+	struct vnode **vpp;
 {
 	struct thread *td = curthread;	/* XXX */
 	struct inode *ip;
 	struct vnode *vp;
+	int error;
 
+	*vpp = NULL;
 loop:
 	mtx_lock(&ufs_ihash_mtx);
 	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash) {
@@ -109,13 +113,17 @@ loop:
 			vp = ITOV(ip);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&ufs_ihash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+			error = vget(vp, flags | LK_INTERLOCK, td);
+			if (error == ENOENT)
 				goto loop;
-			return (vp);
+			if (error)
+				return (error);
+			*vpp = vp;
+			return (0);
 		}
 	}
 	mtx_unlock(&ufs_ihash_mtx);
-	return (NULL);
+	return (0);
 }
 
 /*

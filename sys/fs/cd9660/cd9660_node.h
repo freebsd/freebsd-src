@@ -117,7 +117,7 @@ void cd9660_defattr __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE));
 void cd9660_deftstamp __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE));
-struct vnode *cd9660_ihashget __P((dev_t, ino_t));
+int cd9660_ihashget __P((dev_t, ino_t, int, struct vnode **));
 void cd9660_ihashins __P((struct iso_node *));
 int cd9660_tstamp_conv7 __P((u_char *, struct timespec *, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((u_char *, struct timespec *));
