@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running FreeBSD with either a.out or ELF format
-   Copyright (C) 1996-2000 Free Software Foundation, Inc.
+   Copyright (C) 1996, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
    Adapted from GNU/Linux version by John Polstra.
@@ -38,7 +38,7 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASM_SPEC
 #define ASM_SPEC	"%{v*: -v} %{maout: %{fpic:-k} %{fPIC:-k}}"
 
-#undef  ASM_FINAL_SPEC 
+#undef  ASM_FINAL_SPEC
 #define ASM_FINAL_SPEC	"%|"
 
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
@@ -48,9 +48,6 @@ Boston, MA 02111-1307, USA.  */
    as many of the other GNU linker options as possible. But I don't
    have the time to search for those flags. I am sure how to add
    support for -soname shared_object_name. H.J.
-
-   I took out %{v:%{!V:-V}}. It is too much :-(. They can use
-   -Wl,-V.
 
    When the -shared link option is used a final link is not being
    done.  */
@@ -64,14 +61,19 @@ Boston, MA 02111-1307, USA.  */
     %{assert*} %{R*}} \
   %{!maout: \
     %{Wl,*:%*} \
+    %{v:-V} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
     %{shared:-Bshareable %{h*} %{soname*}} \
-    %{symbolic:-Bsymbolic} \
     %{!shared: \
       %{!static: \
 	%{rdynamic: -export-dynamic} \
 	%{!dynamic-linker: -dynamic-linker /usr/libexec/ld-elf.so.1}} \
-      %{static:-Bstatic}}}"
+      %{static:-Bstatic}} \
+    %{symbolic:-Bsymbolic}}"
+
+/* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add the magical
+   crtbegin.o file (see crtstuff.c) which provides part of the support for
+   getting C++ file-scope static object constructed before entering `main'.  */
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC "\
@@ -86,10 +88,12 @@ Boston, MA 02111-1307, USA.  */
       %{!pg: \
 	%{p:gcrt1.o%s} \
 	%{!p:crt1.o%s}}} \
-    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
+    crti.o%s \
+    %{!shared:crtbegin.o%s} \
+    %{shared:crtbeginS.o%s}}"
 
 /* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  Here we tack on our
-   own magical crtend.o file (compare w/crtstuff.c) which provides part of the
+   own magical crtend.o file (see crtstuff.c) which provides part of the
    support for getting C++ file-scope static object constructed before
    entering `main', followed by the normal "finalizer" file, `crtn.o'.  */
 
@@ -102,20 +106,23 @@ Boston, MA 02111-1307, USA.  */
 
 /************************[  Target stuff  ]***********************************/
 
-/* Define the actual types of some ANSI-mandated types.  
+/* Define the actual types of some ANSI-mandated types.
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
    c-common.c, and config/<arch>/<arch>.h.  */
 
-#undef SIZE_TYPE
+#undef  SIZE_TYPE
 #define SIZE_TYPE	"unsigned int"
- 
-#undef PTRDIFF_TYPE
+
+#undef  PTRDIFF_TYPE
 #define PTRDIFF_TYPE	"int"
+
+#undef  WCHAR_TYPE_SIZE
+#define WCHAR_TYPE_SIZE	BITS_PER_WORD
 
 /* This is the pseudo-op used to generate a 32-bit word of data with a
    specific value in some section.  */
 
-#undef INT_ASM_OP
+#undef  INT_ASM_OP
 #define INT_ASM_OP	".long"
 
 /* Biggest alignment supported by the object file format of this
@@ -151,27 +158,23 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_DEFAULT \
   (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
 
-/* Prefix for internally generated assembler labels.  If we aren't using 
-   underscores, we are using prefix `.'s to identify labels that should  
-   be ignored, as in `i386/gas.h' --karl@cs.umb.edu  */                 
-#undef  LPREFIX
-#define LPREFIX ((TARGET_UNDERSCORES) ? "L" : ".L")
+/* Don't default to pcc-struct-return, we want to retain compatibility with
+   older gcc versions AND pcc-struct-return is nonreentrant.
+   (even though the SVR4 ABI for the i386 says that records and unions are
+   returned in memory).  */
+
+#undef  DEFAULT_PCC_STRUCT_RETURN
+#define DEFAULT_PCC_STRUCT_RETURN 0
 
 /* The a.out tools do not support "linkonce" sections. */
 #undef  SUPPORTS_ONE_ONLY
 #define SUPPORTS_ONE_ONLY	TARGET_ELF
 
-/* Enable alias attribute support.  */
-#undef  SET_ASM_OP
-#define SET_ASM_OP		".set"
-
-/* The a.out tools do not support "Lscope" .stabs symbols. */
-#undef  NO_DBX_FUNCTION_END
-#define NO_DBX_FUNCTION_END	TARGET_AOUT
-
-/* In ELF, the function stabs come first, before the relative offsets.  */
-#undef  DBX_FUNCTION_FIRST
-#define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
+/* Prefix for internally generated assembler labels.  If we aren't using
+   underscores, we are using prefix `.'s to identify labels that should
+   be ignored, as in `i386/gas.h' --karl@cs.umb.edu  */
+#undef  LPREFIX
+#define LPREFIX ((TARGET_UNDERSCORES) ? "L" : ".L")
 
 /* supply our own hook for calling __main() from main() */
 #undef  INVOKE__main
@@ -263,7 +266,11 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_APP_ON	"#APP\n"
 
 #undef  ASM_APP_OFF
-#define ASM_APP_OFF	"#NO_APP\n" 
+#define ASM_APP_OFF	"#NO_APP\n"
+
+/* Enable alias attribute support.  */
+#undef  SET_ASM_OP
+#define SET_ASM_OP	".set"
 
 /* This is how to begin an assembly language file.
    The .file command should always begin the output.
@@ -278,8 +285,8 @@ Boston, MA 02111-1307, USA.  */
   } while (0)
 
 /* This is how to store into the string BUF
-   the symbol_ref name of an internal numbered label where      
-   PREFIX is the class of label and NUM is the number within the class.  
+   the symbol_ref name of an internal numbered label where
+   PREFIX is the class of label and NUM is the number within the class.
    This is suitable for output with `assemble_name'.  */
 #undef	ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(BUF, PREFIX, NUMBER)		\
@@ -409,7 +416,6 @@ Boston, MA 02111-1307, USA.  */
       }									\
   } while (0)
 
-
 #undef  ASM_OUTPUT_SOURCE_LINE
 #define ASM_OUTPUT_SOURCE_LINE(FILE, LINE)				\
   do {									\
@@ -507,10 +513,10 @@ Boston, MA 02111-1307, USA.  */
   } while (0)
 
 /* Switch into a generic section.
- 
+
    We make the section read-only and executable for a function decl,
    read-only for a const data decl, and writable for a non-const data decl.
- 
+
    If the section has already been defined, we must not
    emit the attributes here. The SVR4 assembler does not
    recognize section redefinitions.
@@ -670,12 +676,20 @@ Boston, MA 02111-1307, USA.  */
    some don't.
 
    *OLD* GAS requires the %cl argument, so override i386/unix.h. */
-      
+
 #undef  AS3_SHIFT_DOUBLE
 #define AS3_SHIFT_DOUBLE(a,b,c,d)	AS3 (a,b,c,d)
 
 
 /************************[  Debugger stuff  ]*********************************/
+
+/* The a.out tools do not support "Lscope" .stabs symbols. */
+#undef  NO_DBX_FUNCTION_END
+#define NO_DBX_FUNCTION_END	TARGET_AOUT
+
+/* In ELF, the function stabs come first, before the relative offsets.  */
+#undef  DBX_FUNCTION_FIRST
+#define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
 
 /* Copy this from the svr4 specifications... */
 /* Define the register numbers to be used in Dwarf debugging information.
