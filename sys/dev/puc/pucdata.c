@@ -1239,5 +1239,14 @@ const struct puc_device_description puc_devices[] = {
 		},
 	},
 
+	/* Dell RAC Serial PPP Link */
+	{   "Dell RAC Serial PPP Link",
+	    {	0x1028,	0x0008,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 128 },
+	    },
+	},
+
 	{ 0 }
 };
