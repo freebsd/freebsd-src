@@ -402,7 +402,13 @@ setrunnable(struct thread *td)
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
 			p->p_sflag |= PS_SWAPINREQ;
+#ifndef SMP
+			/*
+			 * XXX: Disabled on SMP due to a LOR between
+			 * sched_lock and the sleepqueue chain locks.
+			 */
 			wakeup(&proc0);
+#endif
 		}
 	} else
 		sched_wakeup(td);
