@@ -451,13 +451,14 @@ pcic_power(struct slot *slt)
 		break;
 	}
 
+	if (slt->pwr.vcc)
+		reg |= PCIC_VCC_ON;		/* Turn on Vcc */
 	switch(slt->pwr.vcc) {
 	default:
 		return (EINVAL);
 	case 0:
 		break;
 	case 33:
-		reg |= PCIC_VCC_ON;
 		/*
 		 * The wildboar code has comments that state that
 		 * the IBM KING controller doesn't support 3.3V
@@ -481,6 +482,7 @@ pcic_power(struct slot *slt)
 			pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		}
+
 		/*
 		 * Technically, The A, B, C stepping didn't support the 3.3V
 		 * cards.  However, many cardbus bridges are identified
@@ -496,17 +498,13 @@ pcic_power(struct slot *slt)
 			reg |= PCIC_VCC_5V_KING;
 		/*
 		 * For either of the two variant power schemes for 3.3V
-		 * go ahead and turn off the 3.3V magic.  Then set the
-		 * 5V bits in all cases.  This works because bit 4 is
-		 * set in PCIC_VCC_5V and in the altenrate PCIC_VCC_ON
-		 * is what non-82365 datasheets would lead one to believe
-		 * the bits are for.
+		 * go ahead and turn off the 3.3V magic.  For all
+		 * bridges, the setting the Vcc on bit does the rest.
 		 */
 		if (sc->flags & PCIC_VG_POWER)
 			pcic_clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
 		else if (sc->flags & PCIC_PD_POWER)
 			pcic_clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
-		reg |= PCIC_VCC_5V;
 		break;
 	}
 	sp->putb(sp, PCIC_POWER, reg);
