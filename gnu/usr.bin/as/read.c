@@ -19,7 +19,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: read.c,v 1.9 1997/02/22 15:43:44 peter Exp $";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will
@@ -247,6 +247,7 @@ static const pseudo_typeS
 #endif /* NO_LISTING */
 	{ "octa",	big_cons,	16	},
 	{ "org",	s_org,		0	},
+	{ "p2align",	s_align_ptwo,	0	},
 #ifdef NO_LISTING
 	{ "psize",	s_ignore,	0       },   /* set paper size */
 #else
