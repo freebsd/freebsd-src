@@ -466,11 +466,11 @@ $(PASSWD): $(MASTER)
 	@echo "Creating new $@ file from $(MASTER)..."
 	@if [ ! $(UNSECURE) ]; then \
 	$(RCAT) $(MASTER) | \
-	$(AWK) -F: '{if ($$1 != "+") \
+	$(AWK) -F: '{if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$1":*:"$$3":"$$4":"$$8":"$$9":"$$10}' $^ \
 		> $(PASSWD) ; \
 	else $(RCAT) $(MASTER) | \
-	$(AWK) -F: '{if ($$1 != "+") \
+	$(AWK) -F: '{if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$1":"$$2":"$$3":"$$4":"$$8":"$$9":"$$10}' $^ \
 		> $(PASSWD) ; fi
 
@@ -541,7 +541,8 @@ master.passwd.byname: $(MASTER)
 	@echo "Master.passwd source file not found -- skipping"
 .else
 	$(CAT) $(MASTER) | \
-	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $^ \
 		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -556,7 +557,8 @@ master.passwd.byuid: $(MASTER)
 	@echo "Master.passwd source file not found -- skipping"
 .else
 	$(CAT) $(MASTER) | \
-	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$3"\t"$$0 }' $^ \
 		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
