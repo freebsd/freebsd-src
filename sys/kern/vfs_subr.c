@@ -3080,6 +3080,7 @@ sync_inactive(ap)
 	} */ *ap;
 {
 
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	vgone(ap->a_vp);
 	return (0);
 }
