@@ -339,7 +339,7 @@ dev/vn/vn.c			optional vn
 dev/vx/if_vx.c			count vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
-dev/xe/if_xe.c			optional xe
+dev/xe/if_xe.c			optional xe card
 fs/devfs/devfs_vnops.c		optional devfs
 fs/devfs/devfs_vfsops.c		optional devfs
 fs/devfs/devfs_devs.c		optional devfs
