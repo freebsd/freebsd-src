@@ -942,13 +942,16 @@ recvit(td, s, mp, namelenp)
 #endif
 
 	mtx_lock(&Giant);
-	if ((error = fgetsock(td, s, &so, NULL)) != 0)
+	if ((error = fgetsock(td, s, &so, NULL)) != 0) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 #ifdef MAC
 	error = mac_check_socket_receive(td->td_ucred, so);
 	if (error) {
 		fputsock(so);
+		mtx_unlock(&Giant);
 		return (error);
 	}
 #endif
