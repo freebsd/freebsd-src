@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.11 1995/10/20 07:02:34 jkh Exp $
+ * $Id: index.c,v 1.13 1995/10/20 21:57:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -558,7 +558,7 @@ index_extract(Device *dev, PkgNodePtr plist)
 
     for (tmp = plist->kids; tmp; tmp = tmp->next) {
 	if (package_extract(dev, tmp->name) != RET_SUCCESS) {
-	    if (optionIsSet(OPT_NO_CONFIRM))
+	    if (variable_get(OPT_NO_CONFIRM))
 		msgNotify("Unable to locate package %s..", tmp->name);
 	    else
 		msgConfirm("Unable to locate package %s..", tmp->name);
