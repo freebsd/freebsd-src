@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ipfw
+WARNS=	0
 MAN=	ipfw.8
-CFLAGS+=-Wall
 
 .include <bsd.prog.mk>

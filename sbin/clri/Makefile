@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	clri
-WARNS?=	2
 MAN=	clri.8
 
 .include <bsd.prog.mk>

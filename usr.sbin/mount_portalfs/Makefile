@@ -8,6 +8,8 @@ MAN=	mount_portalfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-I${MOUNT}
+WARNS=	0
+
 .PATH:	${MOUNT}
 
 .include <bsd.prog.mk>
