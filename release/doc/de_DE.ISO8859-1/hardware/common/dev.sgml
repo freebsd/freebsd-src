@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.11 2002/05/19 15:17:30 ue Exp $
-	basiert auf: 1.13.2.64
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.19 2002/10/12 12:49:45 mheinen Exp $
+	basiert auf: 1.13.2.68
 -->
 
 <sect1>
@@ -91,7 +91,7 @@
         </listitem>
 
         <listitem>
-          <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
+          <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
         </listitem>
 
 	<listitem>
@@ -103,11 +103,16 @@
         </listitem>
 
         <listitem>
-          <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
+          <para>Promise ATA133 OEM Baustein (pdc20269)</para>
         </listitem>
 
         <listitem>
-          <para>Promise Ultra-33, -66, -100</para>
+          <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133
+	    TX2/TX2 000</para>
+        </listitem>
+
+        <listitem>
+          <para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
         </listitem>
 
         <listitem>
@@ -119,6 +124,10 @@
 	</listitem>
 
         <listitem>
+          <para>Sil 0680 UDMA6</para>
+        </listitem>
+
+        <listitem>
           <para>SiS 530, 540, 620</para>
         </listitem>
 
@@ -128,12 +137,16 @@
 	</listitem>
 
         <listitem>
-          <para>SiS 5591</para>
+          <para>SiS 5591 ATA100</para>
         </listitem>
 
         <listitem>
           <para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b
             ATA100</para>
+        </listitem>
+
+        <listitem>
+          <para>VIA 8233, 8235 ATA133</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -198,6 +211,19 @@
           <para>Adaptec AIC-6260 und AIC-6360 basierte Karten, dazu
             geh&ouml;ren auch der AHA-152x und die SoundBlaster SCSI
             Karten (&man.aic.4; Treiber)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Ultra-320 SCSI Controller auf Basis der Adaptec
+      AIC7901, AIC7901A und 7902 Ultra320 Controller (ahd Treiber)
+      <itemizedlist>
+        <listitem>
+          <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
+        </listitem>
+
+        <listitem>
+          <para>Adaptec 39320, 39320D</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -388,7 +414,7 @@
       III, SmartCACHE IV und SmartRAID IV SCSI/RAID Controller
       (&man.dpt.4; Treiber)</para>
 
-    <para arch="i386">DPT SmartRAID V and VI SCSI RAID Controller
+    <para arch="i386">DPT SmartRAID V und VI SCSI RAID Controller
       (&man.asr.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -721,7 +747,7 @@
         </listitem>
 
         <listitem>
-          <para>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
+          <para>Qlogic 1080 Ultra2 LVD und 1280 Dual Ultra2 LVD
             Controller</para>
         </listitem>
 
@@ -730,12 +756,12 @@
         </listitem>
 
         <listitem>
-          <para>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
+          <para>Qlogic 2100 und Qlogic 2200 Fibre Channel SCSI
             Controller</para>
         </listitem>
 
         <listitem>
-          <para>Qlogic 2300 and Qlogic 2312 2-Gigabit Fibre Channel
+          <para>Qlogic 2300 und Qlogic 2312 2-Gigabit Fibre Channel
             SCSI Controller</para>
         </listitem>
 
@@ -818,6 +844,28 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Promise SuperTrak ATA RAID Controller (pst
+      Treiber)
+      <itemizedlist>
+        <listitem>
+          <para>Promise SuperTrak SX6000 ATA RAID Controller</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+      architecture Fiber Channel Controller (mpt Treiber)
+      <itemizedlist>
+        <listitem>
+          <para>LSI FC909, FC929</para>
+        </listitem>
+
+        <listitem>
+          <para>LSI 53c1020, 53c1030</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
     <para>Mit allen unterst&uuml;tzten SCSI Controllern ist die
       uneingeschr&auml;nkte Nutzung von SCSI-I, SCSI-II und SCSI-III
       Ger&auml;ten m&ouml;glich.  Dazu geh&ouml;ren Festplatten,
@@ -827,13 +875,13 @@
       lesend auf WORMs zugreifen, wenn diese die entsprechenden
       Kommandos f&uuml;r CDROM unterst&uuml;tzen.  F&uuml;r
       schreibenden Zugriff steht das Programm &man.cdrecord.1;  aus
-      der Ports Collection zur Verf&uuml;gung.  </para>
+      der Ports Collection zur Verf&uuml;gung.</para>
 
     <para>Zur Zeit unterst&uuml;tzte CDROM-Arten:  
       <itemizedlist>
         <listitem>
           <para>SCSI Ger&auml;te (dazu geh&ouml;ren auch ProAudio
-            Spectrum and SoundBlaster SCSI) (&man.cd.4;)</para>
+            Spectrum und SoundBlaster SCSI) (&man.cd.4;)</para>
         </listitem>
 
         <listitem arch="i386">
@@ -862,7 +910,7 @@
         </listitem>
 
         <listitem>
-          <para>UltraStor 14F, 24F and 34F SCSI Controller.  
+          <para>UltraStor 14F, 24F und 34F SCSI Controller.  
             <note>
               <para>Dieser Treiber ist in Arbeit, allerdings gibt es
                 noch keine verl&auml;&szlig;lichen Informationen, ob
@@ -1104,7 +1152,7 @@
 
         <listitem>
           <para>SMC WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
-            WD8003SBT and WD8013EBT und Nachbauten</para>
+            WD8003SBT und WD8013EBT und Nachbauten</para>
         </listitem>
 
         <listitem>
@@ -1369,7 +1417,7 @@
     </para>
 
     <para arch="i386,alpha">VIA Technologies VT3043 <quote>Rhine
-      I</quote> and VT86C100A <quote>Rhine II</quote> Fast Ethernet
+      I</quote> und VT86C100A <quote>Rhine II</quote> Fast Ethernet
       Karten (&man.vr.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -1408,7 +1456,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">National Semiconductor DP83820 and DP83821
+    <para arch="i386">National Semiconductor DP83820 und DP83821
       Gigabit Ethernet Karten (&man.nge.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -1429,7 +1477,7 @@
         </listitem>
 
         <listitem>
-          <para>Netgear GA622T</para>
+          <para>Netgear GA621 und GA622T</para>
         </listitem>
 
         <listitem>
@@ -1810,6 +1858,24 @@
         <listitem>
           <para>Intel PRO/100+ Management Adapter</para>
         </listitem>
+
+        <listitem>
+          <para>Intel Pro/100 VE Desktop Adapter</para>
+        </listitem>
+
+        <listitem>
+          <para>Intel Pro/100 M Desktop Adapter</para>
+        </listitem>
+
+        <listitem>
+          <para>Intel Pro/100 S Desktop, Server und Dual-Port Server
+            Adapters</para>
+        </listitem>
+
+        <listitem>
+          <para>Interne Netzwerk-Anschl&uuml;sse diverse Mainbaords
+            von Intel</para>
+        </listitem>
       </itemizedlist>
     </para>
 
@@ -2006,11 +2072,11 @@
       Karten (snc Treiber) 
       <itemizedlist>
         <listitem>
-          <para>NEC PC-9801-83, -84, -103, and -104</para>
+          <para>NEC PC-9801-83, -84, -103, und -104</para>
         </listitem>
 
         <listitem>
-          <para>NEC PC-9801N-25 and -J02R</para>
+          <para>NEC PC-9801N-25 und -J02R</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -2069,7 +2135,7 @@
         </listitem>
 
         <listitem>
-          <para>SysKonnect SK-9D21 and 9D41</para>
+          <para>SysKonnect SK-9D21 und 9D41</para>
         </listitem>
 
         <listitem>
@@ -2081,8 +2147,8 @@
 
     <para arch="i386,alpha">Gigabit Ethernet Karten mit Intel 82542
       und 82543 Controllern (&man.wx.4;, &man.gx.4; und &man.em.4;
-      Treiber), sowie Karten auf Basis der 82540EM und 82544
-      Chips&auml;tze (nur &man.em.4; Treiber)
+      Treiber), sowie Karten auf Basis der 82540EM, 82544, 82545EM und
+      82546EB Chips&auml;tze (nur &man.em.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Intel PRO/1000 Gigabit Ethernet</para>
@@ -2642,10 +2708,10 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Comtrol Rocketport Karte (rp
+    <para arch="i386,alpha">Comtrol Rocketport Karte (&man.rp.4;
       Treiber)</para>
 
-    <para arch="i386">Cyclades Cyclom-y serial Karte (&man.cy.4;
+    <para arch="i386">Cyclades Cyclom-Y serial Karte (&man.cy.4;
       Treiber)</para>
 
     <para arch="i386">STB 4 Port Karte (bei Benutzung eines
@@ -2933,7 +2999,7 @@
   <sect2 id="usb">
     <title>USB Ger&auml;te</title>
 
-    <para>&os; unterst&uuml;tze viele verschiedene Arten von
+    <para>&os; unterst&uuml;tzt viele verschiedene Arten von
       USB-Ger&auml;ten; in den nachfolgenden Listen sind nur die
       Ger&auml;te aufgef&uuml;hrt, f&uuml;r die wir Erfolgsmeldungen
       erhalten haben.  Da sich die meisten USB-Ger&auml;te sehr
@@ -2948,7 +3014,7 @@
         linkend="ethernet">Netzwerkkarten</link>.</para>
     </note>
 
-    <para arch="i386,alpha">Host Controllers (&man.ohci.4; and
+    <para arch="i386,alpha">Host Controllers (&man.ohci.4; und
       &man.uhci.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -2968,7 +3034,7 @@
         </listitem>
 
         <listitem>
-          <para>Intel 82371AB and EB (PIIX4)</para>
+          <para>Intel 82371AB und EB (PIIX4)</para>
         </listitem>
 
         <listitem>
@@ -3166,8 +3232,22 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Scanner (zusammen mit SANE) (&man.uscanner.4;
-      Treiber) 
+    <para arch="i386,pc98,alpha">Serielle Schnittstellen 
+      <itemizedlist>
+        <listitem>
+          <para>Prolific PL-2303 serial adapter (&man.uplcom.4;
+            Treiber)</para>
+        </listitem>
+
+        <listitem>
+          <para>SUNTAC Slipper U VS-10U (&man.uvscom.4;
+            Treiber)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Scanner (zusammen mit
+      <application>SANE</application>) (&man.uscanner.4; Treiber) 
       <itemizedlist>
         <listitem>
           <para>Perfection 636U</para>
@@ -3200,6 +3280,23 @@
 
         <listitem>
           <para>Y-E Data Diskettenlaufwerk (720/1.44/2.88Mb)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">Handspring Visor und andere PDAs mit PalmOS
+      (&man.uvisor.4; Treiber)
+      <itemizedlist>
+        <listitem>
+          <para>Handspring Visor</para>
+        </listitem>
+
+        <listitem>
+          <para>Palm M125, M500, M505</para>
+        </listitem>
+
+        <listitem>
+          <para>Sony Clie 4.0 und 4.1</para>
         </listitem>
       </itemizedlist>
     </para>

@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.11 2002/05/31 20:23:59 ue Exp $
-	basiert auf: 1.1.2.67
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.25 2002/10/11 21:33:04 ue Exp $
+	basiert auf: 1.1.2.82
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -23,13 +23,15 @@
 %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
 %release;
+
+<!ENTITY release.point "4.6.2-RELEASE">
 ]>
 
 <article lang="de">
   <articleinfo>
     <title>&os;
 <![ %release.type.snapshot [
-    &release.prev;
+    &release.prev;/&release.point;
 ]]>
 <![ %release.type.release [
     &release.current;
@@ -75,6 +77,11 @@
       Nutzung beeintr&auml;chtigen k&ouml;nnten.  Sie sollten immer
       die aktuelle Version dieses Dokumentes lesen, bevor sie diese
       Version von &os; installieren.</para>
+
+    <para>Wenn nicht anderes angegeben ist, treffen die hier genannten
+      Punkte auch auf &os; &release.point; zu.  Sinn und Zweck dieser
+      Version ist, bestimmte Probleme &release.prev; zu behben
+      (Details finden Sie in den Release Notes).</para>
 
     <para>Dieses Errata f&uuml;r &os;
 <![ %release.type.snapshot [
@@ -135,226 +142,251 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>Unter bestimmten Umst&auml;nden war es m&ouml;glich, eine
-      Datei in der Zeit zwischen dem Aufruf von &man.fstatfs.2; und
-      dem Zugriff auf die Datei zu l&ouml;schen, dadurch kam es zu
-      einer Kernel Panic.  Dieses Problem betraft nur das
-      &man.procfs.5; Dateisystem.  Der Fehler wurde zwar schon in &os;
-      &release.prev; behoben, der Sicherheitshinweis mit der
-      Beschreibung des Fehler wurde aber erst nach dieser Version
-      herausgegeben.  Wie Sie das Problem umgehen bzw. beseitigen
-      k&ouml;nnen sowie weitere Informationen finden Sie in
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.
-      fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
 
-    <para>In der Multiplexer-Routine von
-      <application>OpenSSH</application> wurde ein
-      <quote>off-by-one</quote> Fehler beseitigt.  Durch diesen Fehler
-      w&auml;re ein authentifizierter Benutzer in der Lage gewesen,
-      auf dem Server beliebige Programme mit root-Rechten
-      ausf&uuml;hren zu lassen; ein Server w&auml;re in der Lage
-      gewesen, auf dem Client beliebige Programme mit den
-      Berechtigungen des Benutzers auszuf&uuml;hren.  Informationen,
-      wie Sie dieses Problem in den diversen Versionen von
-      <application>OpenSSH</application> umgehen bzw. beseitigen
-      k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.op
-      enssh.asc">FreeBSD-SA-02:13</ulink>.  Dabei wird sowohl die
-      im Basisversion verwendete Version von
-      <application>OpenSSH</application> betrachtet, als auch die
-      diversen Ports.</para>
-
-    <para>Durch einen Fehler in <application>zlib</application> war es
-      m&ouml;glich, da&szlig; Speicher doppelt freigegeben wurde.  Die
-      &man.malloc.3;/&man.free.3; Routinen von &os; sind von diesem
-      Fehler nicht betroffen, einzelne Anwendungen k&ouml;nnten aber
-      durch entsprechend konstruierte Pakete mit komprimierten Daten
-      beeintr&auml;chtigt oder zum Absturz gebracht werden.  Der
-      Fehler in <application>zlib</application> wurde mittlerweile
-      beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
-      beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
-
-    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
-      und SYN Cookie (<quote>syncookie</quote>) Routinen war es
-      m&ouml;glich, da&szlig; normale TCP/IP Datenpakete das System
-      abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
-      beseitigt; Informationen, wie Sie die Problem umgehen bzw.
-      beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
-
-    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
-      Speicherleck gestopft, durch das ein Angreifer den gesamten
-      Speicher eines System verbrauchen konnte.  Informationen, wie
-      Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
-      in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
-
-    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
-      beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
-      Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.</para>
-
-    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
-      File-Descriptoren dazu gebracht werden, die falschen Dateien zu
-      lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
-      Informatione finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
-
-    <para>Um mit &man.k5su.8; zum Super-User werden zu k&ouml;nnen,
-      mu&szlig; ein Benutzer nicht wie &man.su.1; in die Gruppe
-      <groupname>wheel</groupname> eingetragen sein.  Dadurch kann es
-      zu unerwarteten Situationen kommen.  Um dieses Problem zu
-      umgehen, wird &man.k5su.8; standardm&auml;&szlig;ig nicht mehr
-      SUID root installiert und damit wirkungslos gemacht.  Weitere
-      Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
-
-    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
-      es m&ouml;glich war, da&szlig; Dateien ohne Warnung
-      &uuml;berschrieben werden konnten; au&szlig;erdem war es
-      m&ouml;glich, da&szlig; lokale Benutzer Zugriff auf f&uuml;r sie
-      eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
-      Fehler wurden durch den Import einer neuen Version von
-      <application>bzip2</application> behoben.  Weitere Informationen
+    <para>&os; &release.prev; enth&auml;lt eine Korrektur f&uuml;r den
+      in SA-02:23 beschriebenen Fehler (der Nutzung von Datei-Handles
+      durch set-user-id und set-group-id Programme).  Leider deckt
+      diese Korrektur nicht alle F&auml;lle ab, der Fehler kann immer
+      noch auf Systemen ausgenutzt werden, die &man.procfs.5; oder
+      &man.linprocfs.5; verwenden.  Die zweite Version des Korrektur
       finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
 
-    <para>Ein Fehler in der Implementation des TCP SYN Cache
-      (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
-      Denial-of-Service Angriff durchzuf&uuml;hren, wenn
-      &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
-      beseitigt, weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+    <para>Im Resolver existierte ein Buffer-&Uuml;berlauf, der von
+      einem entsprechend programmierten Domain Name Server oder durch
+      passende DNS-Anfragen eines Angreifers ausgenutzt werden konnte,
+      dieser Fehler wurde entfernt.  Weitere Informationen finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
 
-    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
-      &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
-      Dateien zu l&ouml;schen, wenn das Verzeichnis
-      <filename>/tmp/.X11-unix</filename> nicht existierte und sie
-      einen Neustart des Systems erzwingen konnten.  Dieser Fehler
-      wurde beseitigt, weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+    <para>In &man.tcpdump.1; wurde ein Buffer Overflow beseitigt, der
+      durch defekte NFS-Pakete ausgenutzt werden konnte.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Es ist nicht mehr m&ouml;glich, &man.ktrace.1; zur
+      Verfolgung des Ablaufs von Prozessen zu benutzen, wenn diese
+      vorher priveligiert waren.  Falls ein Prozess sensitive
+      Informationen erhalten hat, bevor er die Privilegien abgegeben
+      hat, k&ouml;nnen diese nicht mehr an die Au&szlig;enwelt
+      gelangen.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>In &man.pppd.8; existierte eine Race Condition, durch die es
+      m&ouml;glich war, die Berechtigungen einer beliebigen Datei zu
+      &auml;ndern, dieser Fehler wurde korrigiert.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>In <application>OpenSSL</application> wurden mehrere Buffer
+      Overflows gefunden, die Fehler wurden durch ein Update der von
+      &os; verwendeten Version von <application>OpenSSL</application>
+      beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Ein Buffer Overflow im Heap des XDR Decoders wurde
+      beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Ein Fehler, durch den ein Benutzer beliebige Bl&ouml;cke auf
+      einem FFS-Dateisystem lesen und schreiben konnte, wurde
+      beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Im NFS Server wurde ein Fehler beseitigt, durch den es
+      m&ouml;glich war, &uuml;ber das Netzwerk einen Denial-of-Service
+      Angriff durchzuf&uuml;hren.  Weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Im &man.kqueue.2;  System wurde ein Fehler beseitigt, durch
+      den ein lokaler Benutzer einen Systemabsturz herbeif&uuml;hren
+      konnte.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
+      Dieser Fehler wurde in &os; &release.point; behoben.</para>
+
+    <para>Bei mehrere Systemfunktionen wurden Fehler bei der
+      Pr&uuml;fung der Parameter beseitigt, durch die
+      gr&ouml;&szlig;ere Teile des Kernel-Speichers an den Aufrufer
+      zur&uuml;ckgegeben werden konnten.  Weitere Informationen finden
+      Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
+      Dieser Fehler wurde kurz vor dem Erscheinen von &os;
+      &release.point; entdeckt und trifft auch diese Version nicht zu,
+      auch wenn der entsprechende Hinweis in den Release Notes
+      fehlt.</para>
+
+    <para>In <filename>libkvm</filename> wurde ein Fehler beseitigt,
+      durch den Applikationen ungewollt sch&uuml;tzenswerte
+      Datei-Handles nach au&szlig;en weiterleiten konnten.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>.</para>
 
 ]]>
   </sect1>
 
   <sect1>
-    <title>Zus&auml;tzliche Informationen</title>
+    <title>Aktuelle Informationen</title>
 <![ %release.type.release [
     <para>Zur Zeit gibt keine zus&auml;tzlichen Informationen.</para>
 ]]>
 
 <![ %release.type.snapshot [
-    <para>Einige SSH-Clients haben Probleme beim Aufbau einer
-      Verbindung zu einem Server mit &os; &release.prev;.  Sie fordern
-      den Benutzer zur Eingabe eines <application>S/Key</application>
-      Pa&szlig;wortes auf, obwohl der &man.sshd.8; auf dem Server gar
-      nicht f&uuml;r <application>S/Key</application> Autentifizierung
-      konfiguriert ist.  M&ouml;gliche Gr&uuml;nde sind
-      &Auml;nderungen in den Standardeinstellungen der Clients (z.B.
-      die Benutzung der Version 2 des SSH Protokolls, wenn es vorher
-      nicht genutzt wurde) oder durch eine &Auml;nderung in der
-      Reihenfolge der Autentifizierungen.  Es gibt einige
-      M&ouml;glichkeiten, das Problem zu l&ouml;sen:</para>
+    <para>Bei &os; &release.prev; wurde der Standardwert f&uuml;r die
+      maximale Fenstergr&ouml;&szlig;e bei TCP von 65536 Byte auf
+      57334 Byte gesenkt, um die Zusammenarbeit mit bestimmten
+      Versionen von <application>IPFilter</application> zu
+      verbessern.</para>
 
-    <itemizedlist>
-      <listitem>
-        <para>Wenn Sie eine neuere Version eines
-          <application>OpenSSH</application> Clients verwenden,
-          sollten Sie die folgende Zeile in Ihre
-          <filename>~/.ssh/config</filename> einf&uuml;gen:</para>
+    <para>Wird der Port <filename role="port">archivers/zip</filename>
+      auf einer Alpha benutzt, kann es bei der Zusammenarbeit mit dem
+      Kernel zu Fehlern kommen.  Nach der Ver&ouml;ffentlichung wurde
+      eine entsprechende Korrektur in das &os; Ports Archiv
+      integriert, der Fehler tritt nicht mehr auf, wenn Sie mindestens
+      Version 2.3_1 des Ports <filename
+      role="port">archivers/zip</filename> verwenden.</para>
 
-        <programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
-      </listitem>
+    <para>Auf der Alpha mu&szlig;ten die Treiber &man.de.4; und
+      &man.txp.4; aus dem Kernel aus der Bootdiskette entfernt werden,
+      sie stehen jetzt als Module auf der <filename>mfsroot</filename>
+      Diskette zur Verf&uuml;gung.  Diese &Auml;nderung war notwendig,
+      damit der Kernel f&uuml;r die Alpha auf die Bootdiskette
+      pa&szlig;t.  Diese &Auml;nderung sollte keine Auswirkungen auf
+      den Betrieb haben, da &man.sysinstall.8;  automatisch alle
+      Module l&auml;dt, die es auf der <filename>mfsroot</filename>
+      Diskette findet.</para>
 
-      <listitem>
-        <para>Bei <application>PuTTY</application> kann die
-          Reihenfolge der Autentifizierungen zwar nicht ge&auml;ndert
-          werden, in den Einstellungen k&ouml;nnen Sie aber
-          interaktive Methoden der Autentifizierung
-          deaktivieren.</para>
-      </listitem>
+    <para>Das Package <filename
+      role="port">x11-servers/XFree86-4-Server</filename> wurde in
+      letzter Minute mehrfach ge&auml;ndert, damit die diversen
+      Programme zur Konfiguration des X Servers das von &man.moused.8;
+      bereitgestellte Ger&auml;t <filename>sysmouse</filename> besser
+      unterst&uuml;tzen k&ouml;nnen.  Die bin&auml;ren Packages auf
+      der CD und den FTP-Servern enthalten die korrigierte Version mit
+      der Versionsnummer 4.2.0_3.  Allerdings enth&auml;lt die
+      mitgelieferte Ports Collection die Korrekturen nicht.  Um eine
+      aktuellere Version zu erhalten, m&uuml;ssen Sie Ihre Kopie der
+      Ports Collection mit <application>CVSup</application>
+      aktualisieren.</para>
 
-      <listitem>
-        <para>Um interaktive Methoden der Autentifizierung auf dem
-          Server abzuschalten, m&uuml;ssen Sie auf dem Server das
-          Kommentarzeichen vor der folgenden Zeile in der
-          <filename>/etc/ssh/sshd_config</filename> entfernen:</para>
+    <para>Einige Anwender von &os;/i386 haben von Problemen bei der
+      Benutzung bestimmter ATAPI CD-ROMs berichtet.  Dazu geh&ouml;ren
+      unter anderem die Ger&auml;te AOpen 48x, 52x und 56x sowie das
+      Mitsumi Slim CRMC-SR242S CDROM.  Ein typisches Symptom ist die
+      folgende Fehlermeldung auf der Konsole und/oder im &man.dmesg.8;
+      Speicher, die teilweise zum Systemabsturz f&uuml;hrt:</para>
 
-        <programlisting>ChallengeResponseAuthentication no</programlisting>
-      </listitem>
-    </itemizedlist>
+    <screen>acd0: READ_BIG command timeout - resetting
+ata1: resetting devices .. done</screen>
 
-    <para>Dieser Fehler wurde in &os; &release.current;
-      behoben.</para>
+    <para>In einigen F&auml;llen verhindert dieser Fehler die
+      Installation von &os; von einem betroffenen CD-ROM.  Es kann
+      dazu kommen, da&szlig; sich &man.sysinstall.8; beim Auspacken
+      der Distributionsdateien auf CD
+      <quote>aufh&auml;ngt</quote>.</para>
 
-    <para>Der neue Treiber sbni wird zwar in den Release Notes
-      erw&auml;hnt, allerdings ist der Verweis auf das Programm in der
-      &os; Ports Collection fehlerhaft.  Der richtige Dateiname
-      f&uuml;r den Ports ist <filename
-      role="package">sysutils/sbniconfig</filename>.</para>
+    <para>In den meisten (aber leider nicht in allen) F&auml;llen kann
+      der Fehler in zwei Schritten umgangen werden.  Der erste Schritt
+      mu&szlig; vor der Installation von CD erfolgen:</para>
 
-    <para>f&uuml;r die Linux-Emulation mu&szlig; jetzt die Zeile
-      <literal>options SYSVSEM</literal> in der Konfigurationsdatei
-      des angepa&szlig;ten Kernels stehen.  Diese Abh&auml;ngigkeit
-      existierte schon vor dem Erscheinen von &os;
-      &release.prev;.</para>
+    <procedure>
+      <step>
+        <para>Starten Sie den Rechner, w&auml;hrend die &os;
+          Installation-CD im Laufwerk ist.</para>
+      </step>
 
-    <para>Auf den ISO-Images (und damit auch auf dem offiziellen Satz
-      mit 4 CDs) wurden einige Pakete mit optionalen Komponenten der
-      <application>KDE</application> vergessen.  In &auml;teren
-      Versionen konnten diese Packages mit dem <filename
-      role="package">x11/kde2</filename> installiert werden.  Sie
-      k&ouml;nnen die Packages sowohl &uuml;ber die &os; Ports
-      Collection installieren oder die bin&auml;ren Packages von einem
-      der &os; FTP herunterladen.  Die fehlenden Pakete sind:
-      <filename role="package">games/kdegames2</filename>, <filename
-      role="package">misc/kdeutils2</filename>, <filename
-      role="package">editors/koffice</filename>, <filename
-      role="package">net/kdenetwork2</filename>, <filename
-      role="package">graphics/kdegraphics2</filename> und <filename
-      role="package">audio/kdemultimedia2</filename>.  Bitte beachten
-      Sie, da&szlig; die h&auml;fig ben&ouml;tigten Packages <filename
-      role="package">x11/kdelibs2</filename> und <filename
-      role="package">x11/kdebase2</filename> auf der ersten der vier
-      offiziellen CDs vorhanden <emphasis>sind</emphasis>.
-      <footnote>
-        <para>Die komplette &os; Package Collection belegt im Moment
-          neun CDs.  Der offizielle Satz von CDs kann daher nur eine
-          Auswahl der verf&uuml;gbare Packages enthalten.  Mehere
-          Firmen bieten &os; Distributionen an, die mehr Packages
-          enthalten; auch die &os; FTP Server bieten eine
-          gr&ouml;&szlig;ere Auswahl an.</para>
-      </footnote>
-    </para>
+      <step>
+        <para>Warten Sie, bis die folgende Meldung erscheint:</para>
 
-    <para>Das <application>Samba</application> Package wurde bei der
-      Erzeugung der ISO Images vergessen.  Sie k&ouml;nnen diese
-      Anwendung mit dem Port <filename
-      role="package">net/samba</filename > aus der &os; Ports
-      Collection installieren oder das Package von einem der &os; FTP
-      Server herunterladen.</para>
+        <screen>Hit [Enter] to boot immediately, or any other key for command prompt.
+Booting [kernel] in 9 seconds...</screen>
+      </step>
 
-    <para>Bei den Soft Updates wurde ein Fehler korrigiert, durch den
-      das Dateisystem unter bestimmten Umst&auml;nden inkonsistent
-      werden konnte.  Der Fehler trat auf, wenn das System unmittelbar nach
-      massiver Benutzung des Dateisystems (z.B. der Installation eines
-      neuen Kernels oder anderer Software) heruntergefahren wurde.
-      Dabei war das System dann nicht in der Lage, alle Puffer auf
-      die Festplatte zu schreiben und gab eine entsprechende
-      Meldung aus.  Um das Problem zu umgehen, sollten Sie vor
-      einem Neustart des Systems mehrfach &man.sync.8; aufrufen;
-      um das Problem komplett aus der Welt zu schaffen, sollten
-      Sie einen aktuellen Snapshot von &os; &release.current;
-      einspielen.</para>
+      <step>
+        <para>Dr&uuml;cken Sie jetz sofort auf die
+          <keycap>Leertaste</keycap>, um Sie den Startvorgang zu
+          unterbrechen.</para>
+      </step>
 
-    <para>Bei der Erzeugung des Standardkernels
-      (<filename>GENERIC</filename>) f&uuml;r &os; &release.prev;
-      wurde der ciss Treiber vergessen, dadurch ist es fast
-      unm&ouml;glich, &os; auf einer Festplatte zu installieren, die
-      an einen solchen Controller angeschlossen ist.  Das Problem
-      wurde in &os; &release.current; behoben.</para>
+      <step>
+        <para>Geben Sie an der Eingabeaufforderung
+          (<literal>ok</literal>) die folgenden Befehle ein:</para>
+         <screen><prompt>ok</prompt> <userinput>set hw.ata.ata_dma="1"</userinput></screen>
+	 <screen><prompt>ok</prompt> <userinput>set hw.ata.atapi_dma="1"</userinput></screen>
+	 <screen><prompt>ok</prompt> <userinput>boot</userinput></screen>
+      </step>
+
+      <step>
+        <para>Setzen Sie die Installation ganz normal fort.</para>
+      </step>
+    </procedure>
+
+    <para>Der zweite Teil der Korrektur erfolgt, nachdem die
+      Installation von CD (oder eine Aktualisierung &uuml;ber die
+      Sourcen) erfolgreich abgeschlossen wurde.  Jetzt wird der
+      Treiber &man.ata.4; so konfiguriert, da&szlig; in Zukunft
+      korrekt auf das CD-ROM zugegriffen werden kann:</para>
+
+    <procedure>
+      <step>
+        <para>F&uuml;gen Sie die beiden folgenden Zeilen in die Datei
+          <filename>/boot/loader.conf</filename> ein.  Falls die Datei
+          noch nicht existieren sollte, legen Sie sich einfach
+          an):</para>
+
+       <programlisting>hw.ata.ata_dma="1"
+hw.ata.atapi_dma="1"</programlisting>
+      </step>
+
+      <step>
+        <para>Starten Sie den Rechner neu.</para>
+      </step>
+    </procedure>
+
+    <para>Der Fehler wurde am 31. Juli 2002 in &os; &release.current;
+      behoben, diese Korrektur ist auch in &os; &release.point;
+      enthalten.</para>
+
+    <para>Durch einen Fehler bei der Erzeugung der Release sind einige
+      der Verzeichnisse unterhalb
+      <filename>/usr/share/examples</filename> leer (speziell
+      <filename>/usr/share/examples/cvsup</filename>).  Dieses Problem
+      kann teilweise durch die Installation der Distribution
+      <filename>sshare</filename> via &man.sysinstall.8; behoben
+      werden.  W&auml;hlen Sie dazu im Hauptmen&uuml; den Punkt
+      <guimenuitem>Configure</guimenuitem>, dann
+      <guimenuitem>Distributions</guimenuitem>, dann
+      <guimenuitem>src</guimenuitem> und schlie&szlig;lich
+      <guimenuitem>share</guimenuitem>.  Die fehlenden Dateien stehen
+      dann in <filename>/usr/src/share/examples</filename> zur
+      Verf&uuml;gung.  Das Problem wurde am 16. Juli 2002
+      in &os; &release.current; behoben, diese Korrektur ist auch in
+      &os; &release.point; enthalten.</para>
+
+    <para>Weil ein Eintrag vergessen wurde, kann es dazu kommen,
+      da&szlig; <command>pkg_add -r</command> bei &release.prev; und
+      &release.point; versucht, f&uuml;r &os;  -STABLE vorgesehene
+      Packages zu kopieren, statt die f&uuml;r die jweilige version
+      vorgesehenen Packages zu verwenden.  Um diesen Fehler zu
+      umgehen, m&uuml;ssen Sie die Variable
+      <varname>PACKAGESITE</varname> auf den richtigen Wert setzen,
+      bevor Sie &man.pkg.add.1; aufrufen.  Wenn Sie z.B. auf einem
+      System mit &release.point; und &man.csh.1; arbeiten, m&uuml;ssen
+      Sie den folgenden Befehl eingeben:</para>
+
+    <programlisting>&prompt.user; <userinput>setenv PACKAGESITE
+\</userinput>
+<userinput>ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/i386/packages-4.6.2-release/
+Latest/</userinput></programlisting>
 
 ]]>
   </sect1>
