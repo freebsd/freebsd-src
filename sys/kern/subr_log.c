@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.21 1997/03/23 03:36:22 bde Exp $
+ * $Id: subr_log.c,v 1.22 1997/03/24 11:52:25 bde Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -62,13 +63,13 @@ static	d_open_t	logopen;
 static	d_close_t	logclose;
 static	d_read_t	logread;
 static	d_ioctl_t	logioctl;
-static	d_select_t	logselect;
+static	d_poll_t	logpoll;
 
 #define CDEV_MAJOR 7
 static struct cdevsw log_cdevsw = 
 	{ logopen,	logclose,	logread,	nowrite,	/*7*/
 	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
-	  logselect,	nommap,		NULL,	"log",	NULL,	-1 };
+	  logpoll,	nommap,		NULL,	"log",	NULL,	-1 };
 
 static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
@@ -153,25 +154,24 @@ logread(dev, uio, flag)
 
 /*ARGSUSED*/
 static	int
-logselect(dev, rw, p)
+logpoll(dev, events, p)
 	dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
-	int s = splhigh();
+	int s;
+	int revents = 0;
 
-	switch (rw) {
+	s = splhigh();
 
-	case FREAD:
-		if (msgbufp->msg_bufr != msgbufp->msg_bufx) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &logsoftc.sc_selp);
-		break;
-	}
+	if (events & (POLLIN | POLLRDNORM))
+		if (msgbufp->msg_bufr != msgbufp->msg_bufx)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &logsoftc.sc_selp);
+
 	splx(s);
-	return (0);
+	return (revents);
 }
 
 void
