@@ -109,10 +109,10 @@ static char vt_description[];
 
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
-static	d_rdwr_t	pcread;
-static	d_rdwr_t	pcwrite;
+static	d_read_t	pcread;
+static	d_write_t	pcwrite;
 static	d_ioctl_t	pcioctl;
-static	d_ttycv_t	pcdevtotty;
+static	d_devtotty_t	pcdevtotty;
 static	d_mmap_t	pcmmap;
 
 static	struct cdevsw	pcdevsw = {

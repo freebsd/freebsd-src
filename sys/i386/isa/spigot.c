@@ -101,7 +101,6 @@ struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
 
 static	d_open_t	spigot_open;
 static	d_close_t	spigot_close;
-static	d_rdwr_t	spigot_rw;
 static	d_read_t	spigot_read;
 static	d_write_t	spigot_write;
 static	d_ioctl_t	spigot_ioctl;

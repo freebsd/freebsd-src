@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.135 1995/12/08 11:15:28 julian Exp $
+ *  $Id: syscons.c,v 1.136 1995/12/10 13:39:18 phk Exp $
  */
 
 #include "sc.h"
@@ -158,10 +158,10 @@ struct  isa_driver scdriver = {
 
 static	d_open_t	scopen;
 static	d_close_t	scclose;
-static	d_rdwr_t	scread;
-static	d_rdwr_t	scwrite;
+static	d_read_t	scread;
+static	d_write_t	scwrite;
 static	d_ioctl_t	scioctl;
-static	d_ttycv_t	scdevtotty;
+static	d_devtotty_t	scdevtotty;
 static	d_mmap_t	scmmap;
 
 static	struct cdevsw	scdevsw = {
