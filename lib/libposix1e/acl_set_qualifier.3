@@ -30,45 +30,39 @@
 .Os
 .Sh NAME
 .Nm acl_set_qualifier
-.Nd Set ACL tag qualifier
+.Nd set ACL tag qualifier
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
 .Ft int
-.Fn acl_set_qualifier "acl_entry_t entry_d, const void *tag_qualifier_p"
+.Fn acl_set_qualifier "acl_entry_t entry_d" "const void *tag_qualifier_p"
 .Sh DESCRIPTION
 .Fn acl_set_qualifier
 is a POSIX.1e call that sets the qualifier of the tag for the ACl entry
-.Ar entry_d
+.Fa entry_d
 to the value referred to by
-.Ar tag_qualifier_p .
+.Fa tag_qualifier_p .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_set_qualifier
 .Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_set_qualifier
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
+.Fa entry_d
 is not a valid descriptor for an ACL entry.  The tag type of the
 ACL entry
-.Ar entry_d
-is not ACL_USER or ACL_GROUP.  The value pointed to by
-.Ar tag_qualifier_p
+.Fa entry_d
+is not
+.Dv ACL_USER
+or
+.Dv ACL_GROUP .
+The value pointed to by
+.Fa tag_qualifier_p
 is not valid.
 .It Bq Er ENOMEM
 The value to be returned requires more memory than is allowed
