@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.11 1998/10/07 02:38:26 msmith Exp $
+ *	$Id: bootstrap.h,v 1.12 1998/10/09 07:09:22 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -180,31 +180,6 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
 extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
-/*
- * Module information subtypes
- * 
- * XXX these are copies of the defines in <sys/linker.h>, and should be nuked
- * XXX before being committed.
- */
-#define MODINFO_END		0x0000
-#define MODINFO_NAME		0x0001
-#define MODINFO_TYPE		0x0002
-#define MODINFO_ADDR		0x0003
-#define MODINFO_SIZE		0x0004
-#define MODINFO_METADATA	0x8000
-
-#define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
-#define MODINFOMD_ELFHDR	0x0002		/* ELF header */
-#define MODINFOMD_ELFSSYM	0x0003		/* ELF start of symbols */
-#define MODINFOMD_ELFESYM	0x0004		/* ELF end of symbols */
-#define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
-
-#define KLD_IDENT_SYMNAME	"kld_identifier_"
-#define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
-#define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
-
-
-
 #if defined(__ELF__)
 
 /*
@@ -300,30 +275,3 @@ extern struct arch_switch archsw;
 
 /* This must be provided by the MD code, but should it be in the archsw? */
 extern void		delay(int delay);
-
-/*
- * XXX these belong in a system header
- */
-#define KLD_NAMELEN	32
-
-struct kld_module_dependancy
-{
-    char	kd_name[KLD_NAMELEN];
-    u_int32_t	kd_version;
-};
-
-struct kld_module_identifier
-{
-    u_int32_t				ki_kldversion;
-    char				ki_name[KLD_NAMELEN];
-    u_int32_t				ki_version;
-    struct kld_module_dependancy	*ki_deps;
-    int					ki_ndeps;
-    size_t				ki_depsize;
-};
-
-/*
- * Use the depsize field in the identifier to correctly index a
- * dependancy.
- */
-#define KLD_GETDEP(ki, kd, n)	(struct kld_module_dependancy *)((char *)(kd) + ((ki)->ki_depsize * (n)))
