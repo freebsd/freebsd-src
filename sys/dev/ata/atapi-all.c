@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ static char *atapi_cmd2str(u_int8_t);
 static char *atapi_skey2str(u_int8_t);
 
 /* internal vars */
-MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
+static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
 /* defines */
 #define ATAPI_MAX_RETRIES  	3
@@ -63,11 +63,10 @@ atapi_attach(struct ata_softc *scp, int device)
 {
     struct atapi_softc *atp;
 
-    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT))) {
+    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT|M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
-    bzero(atp, sizeof(struct atapi_softc));
     atp->controller = scp;
     atp->unit = device;
     if (bootverbose) 
@@ -155,10 +154,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     struct atapi_request *request;
     int error, s;
  
-    if (!(request = malloc(sizeof(struct atapi_request), M_ATAPI, M_NOWAIT)))
+    if (!(request = malloc(sizeof(struct atapi_request), M_ATAPI,
+			   M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    bzero(request, sizeof(struct atapi_request));
     request->device = atp;
     request->data = data;
     request->bytecount = count;
@@ -274,7 +273,7 @@ atapi_transfer(struct atapi_request *request)
     request->timeout_handle = timeout((timeout_t *)atapi_timeout, 
 				      request, request->timeout);
 
-    if (request->ccb[0] != ATAPI_REQUEST_SENSE)
+    if (!(request->flags & ATPR_F_INTERNAL))
 	atp->cmd = request->ccb[0];
 
     /* if DMA enabled setup DMA hardware */
@@ -333,11 +332,7 @@ int
 atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
-    int8_t **buffer = (int8_t **)&request->data;
     int reason, dma_stat = 0;
-
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
-	*buffer = (int8_t *)&request->sense;
 
     reason = (inb(atp->controller->ioaddr+ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
 	     (atp->controller->status & ATA_S_DRQ);
@@ -403,7 +398,7 @@ atapi_interrupt(struct atapi_request *request)
 	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
 		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 	    else 
-		if (request->ccb[0] != ATAPI_REQUEST_SENSE)
+		if (!(request->flags & ATPR_F_INTERNAL))
 		    request->result = 0;
 	    break;
 
@@ -422,11 +417,10 @@ op_finished:
 	request->ccb[0] = ATAPI_REQUEST_SENSE;
 	request->ccb[4] = sizeof(struct atapi_reqsense);
 	request->bytecount = sizeof(struct atapi_reqsense);
-	request->flags = ATPR_F_READ;
+	request->flags = ATPR_F_READ | ATPR_F_INTERNAL;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
     else {
-	request->error = 0;
     	if (request->result) {
 	    switch ((request->result & ATAPI_SK_MASK)) {
 	    case ATAPI_SK_RESERVED:
@@ -456,14 +450,21 @@ op_finished:
 		break;
 
 	    default: 
-		printf("%s: %s - %s asc=%02x ascq=%02x error=%02x\n",
+		printf("%s: %s - %s asc=%02x ascq=%02x ",
 		       atp->devname, atapi_cmd2str(atp->cmd), 
 		       atapi_skey2str(request->sense.sense_key), 
-		       request->sense.asc, request->sense.ascq,
-		       request->result & ATAPI_E_MASK);
+		       request->sense.asc, request->sense.ascq);
+		if (request->sense.sksv)
+		    printf("sks=%02x %02x %02x ",
+			   request->sense.sk_specific,
+			   request->sense.sk_specific1,
+			   request->sense.sk_specific2);
+		printf("error=%02x\n", request->result & ATAPI_E_MASK);
 		request->error = EIO;
 	    }
 	}
+	else
+	    request->error = 0;
 	if (request->callback) {
 #ifdef ATAPI_DEBUG
 	    printf("%s: finished %s (callback)\n", 
@@ -542,7 +543,7 @@ atapi_read(struct atapi_request *request, int length)
     int size = min(request->bytecount, length);
     int resid;
 
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
+    if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->device->controller->flags & ATA_USE_16BIT ||
@@ -571,7 +572,7 @@ atapi_write(struct atapi_request *request, int length)
     int size = min(request->bytecount, length);
     int resid;
 
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
+    if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->device->controller->flags & ATA_USE_16BIT ||

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -353,9 +353,49 @@ ata_dmainit(struct ata_softc *scp, int device,
 	goto via_82c586;
 
     case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 */
-	if (ata_find_dev(parent, 0x06861106, 0) ||		/* 82C686a */
-	    ata_find_dev(parent, 0x05961106, 0x12)) {		/* 82C596b */
-
+	if (ata_find_dev(parent, 0x06861106, 0x40)) {		/* 82C686b */
+	    if (udmamode >= 5) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device, 
+			       "%s setting UDMA5 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0xf0, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA5;
+		    return;
+		}
+	    }
+	    if (udmamode >= 4) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device, 
+			       "%s setting UDMA4 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0xf1, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		    return;
+		}
+	    }
+	    if (udmamode >= 2) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device,
+			       "%s setting UDMA2 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0xf4, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		    return;
+		}
+	    }
+	}
+	else if (ata_find_dev(parent, 0x06861106, 0) ||		/* 82C686a */
+		 ata_find_dev(parent, 0x05961106, 0x12)) {	/* 82C596b */
 	    if (udmamode >= 4) {
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);

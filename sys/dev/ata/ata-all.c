@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ static devclass_t ata_devclass;
 static devclass_t ata_pci_devclass;
 static struct intr_config_hook *ata_delayed_attach = NULL;
 static char ata_conf[256];
-MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 #if NISA > 0
 static struct isa_pnp_id ata_ids[] = {
@@ -271,12 +271,16 @@ ata_pci_match(device_t dev)
 	    return "AcerLabs Aladdin ATA33 controller";
 
     case 0x05711106: 
-	if (ata_find_dev(dev, 0x05861106, 0))
+	if (ata_find_dev(dev, 0x05861106, 0x02))
 	    return "VIA 82C586 ATA33 controller";
+	if (ata_find_dev(dev, 0x05861106, 0))
+	    return "VIA 82C586 ATA controller";
 	if (ata_find_dev(dev, 0x05961106, 0x12))
 	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
+	if (ata_find_dev(dev, 0x06861106, 0x40))
+	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
 	    return "VIA 82C686 ATA66 controller";
 	return "VIA Apollo ATA controller";
@@ -451,6 +455,7 @@ ata_pci_attach(device_t dev)
 
     case 0x05711106:
     case 0x74091022: /* VIA 82C586, 82C596, 82C686 & AMD 756 default setup */
+
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
@@ -736,18 +741,17 @@ static int
 ata_pcisub_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
-    device_t *list;
+    device_t *children;
     int count, i;
 
     /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &list, &count);
+    device_get_children(device_get_parent(dev), &children, &count);
     for (i = 0; i < count; i++) {
-	if (list[i] == dev)
+	if (children[i] == dev)
 	    scp->channel = i;
     }
-
+    free(children, M_TEMP);
     scp->chiptype = pci_get_devid(device_get_parent(dev));
-
     return ata_probe(dev);
 }
 
@@ -1794,12 +1798,11 @@ ata_init(void)
 {
     /* register boot attach to be run when interrupts are enabled */
     if (!(ata_delayed_attach = (struct intr_config_hook *)
-			     malloc(sizeof(struct intr_config_hook),
-			     M_TEMP, M_NOWAIT))) {
+			       malloc(sizeof(struct intr_config_hook),
+				      M_TEMP, M_NOWAIT | M_ZERO))) {
 	printf("ata: malloc of delayed attach hook failed\n");
 	return;
     }
-    bzero(ata_delayed_attach, sizeof(struct intr_config_hook));
 
     ata_delayed_attach->ich_func = (void*)ata_boot_attach;
     if (config_intrhook_establish(ata_delayed_attach) != 0) {
