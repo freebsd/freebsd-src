@@ -2,7 +2,7 @@
 
 all:	whatis whatis.1
 
-obj depend rcsfreeze all:
+obj depend rcsfreeze tags all:
 	@echo -n
 
 cleandir: clean
