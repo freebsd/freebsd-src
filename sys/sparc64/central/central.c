@@ -66,7 +66,7 @@ static device_attach_t central_attach;
 static bus_print_child_t central_print_child;
 static bus_probe_nomatch_t central_probe_nomatch;
 static bus_alloc_resource_t central_alloc_resource;
-static bus_release_resource_t central_release_resource;
+static bus_get_resource_list_t central_get_resource_list;
 static ofw_bus_get_compat_t central_get_compat;
 static ofw_bus_get_model_t central_get_model;
 static ofw_bus_get_name_t central_get_name;
@@ -84,9 +84,10 @@ static device_method_t central_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	central_alloc_resource),
-	DEVMETHOD(bus_release_resource,	central_release_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_get_resource_list, central_get_resource_list),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	central_get_compat),
@@ -212,36 +213,41 @@ static struct resource *
 central_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct resource_list *rl;
 	struct resource_list_entry *rle;
-	struct central_devinfo *cdi;
 	struct central_softc *sc;
 	struct resource *res;
 	bus_addr_t coffset;
 	bus_addr_t cend;
 	bus_addr_t phys;
 	int isdefault;
+	int passthrough;
 	int i;
 
 	isdefault = (start == 0UL && end == ~0UL);
+	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
+	rle = NULL;
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	sc = device_get_softc(bus);
-	cdi = device_get_ivars(child);
-	rle = resource_list_find(&cdi->cdi_rl, type, *rid);
-	if (rle == NULL)
-		return (NULL);
-	if (rle->res != NULL)
-		panic("%s: resource entry is busy", __func__);
-	if (isdefault) {
-		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
-	}
 	switch (type) {
 	case SYS_RES_IRQ:
-		res = bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags);
+		return (resource_list_alloc(rl, bus, child, type, rid, start,
+		    end, count, flags));
 		break;
 	case SYS_RES_MEMORY:
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, *rid);
+			if (rle == NULL)
+				return (NULL);
+			if (rle->res != NULL)
+				panic("%s: resource entry is busy", __func__);
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
+		}
 		for (i = 0; i < sc->sc_nrange; i++) {
 			coffset = sc->sc_ranges[i].coffset;
 			cend = coffset + sc->sc_ranges[i].size - 1;
@@ -253,7 +259,8 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				res = bus_generic_alloc_resource(bus, child,
 				    type, rid, phys + start, phys + end,
 				    count, flags);
-				rle->res = res;
+				if (!passthrough)
+					rle->res = res;
 				break;
 			}
 		}
@@ -264,25 +271,13 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (res);
 }
 
-static int
-central_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+static struct resource_list *
+central_get_resource_list(device_t bus, device_t child)
 {
-	struct resource_list_entry *rle;
 	struct central_devinfo *cdi;
-	int error;
 
-	error = bus_generic_release_resource(bus, child, type, rid, r);
-	if (error != 0)
-		return (error);
 	cdi = device_get_ivars(child);
-	rle = resource_list_find(&cdi->cdi_rl, type, rid);
-	if (rle == NULL)
-		panic("%s: can't find resource", __func__);
-	if (rle->res == NULL)
-		panic("%s: resource entry is not busy", __func__);
-	rle->res = NULL;
-	return (error);
+	return (&cdi->cdi_rl);
 }
 
 static const char *
