@@ -35,5 +35,5 @@ echo `basename ${bootchunk}` "\"Boot floppy\"" > ${DEST}/${prefix}.split
 i=1
 for file in ${files}; do
 	echo `basename ${file}` "\"${DESCR} floppy ${i}\"" >> ${DEST}/${prefix}.split
-	i=$((i + 1))
+	i=$(($i + 1))
 done
