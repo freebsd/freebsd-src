@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_ed.c,v 1.4 1994/09/22 02:49:17 phk Exp $
  *
  */
 
@@ -92,12 +92,23 @@ ctm_edit(u_char *script, int length, char *filein, char *fileout)
 	if(c == EOF) break;
 	putc(c,fo);
     }
-    fclose(fi);
-    fclose(fo);
-    return 0;
+    ret = 0;
 bye:
-    if(fi) 	fclose(fi);
-    if(fo) 	fclose(fo);
+    if(fi) {
+	if(fclose(fi) != 0) {
+	    perror(filein);
+	    ret = 1;
+	}
+    }
+    if(fo) {
+     	if(fflush(fo) != 0) {
+	    perror(fileout);
+	    ret = 1;
+     	}
+     	if(fclose(fo) != 0) {
+	    perror(fileout);
+	    ret = 1;
+     	}
+    }
     return ret;
 }
-
