@@ -90,3 +90,13 @@ struct twe_paramcommand {
  * Request a controller soft-reset
  */
 #define TWEIO_RESET		_IO  ('T', 106)
+
+/*
+ * Request a drive addition or deletion
+ */
+struct twe_drivecommand {
+    int		td_unit;
+};
+
+#define TWEIO_ADD_UNIT		_IOW ('U', 107, int)
+#define TWEIO_DEL_UNIT		_IOW ('U', 108, int)
