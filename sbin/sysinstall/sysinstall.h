@@ -46,10 +46,10 @@
 #define BOOT_MAGIC 0xAA55
 #define ACTIVE 0x80
 
-#define COPYRIGHT_FILE	"/COPYRIGHT.gz"
-#define README_FILE	"/README.gz"
-#define HELPME_FILE	"/DISKSPACE.FAQ.gz"
-#define RELNOTES_FILE	"/RELNOTES.FreeBSD.gz"
+#define COPYRIGHT_FILE	"/COPYRIGHT"
+#define README_FILE	"/README"
+#define HELPME_FILE	"/DISKSPACE.FAQ"
+#define RELNOTES_FILE	"/RELNOTES.FreeBSD"
 
 #ifndef EXTERN
 #  define EXTERN extern
