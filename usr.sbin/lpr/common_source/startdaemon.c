@@ -64,6 +64,7 @@ startdaemon(const struct printer *pp)
 {
 	struct sockaddr_un un;
 	register int s, n;
+	int connectres;
 	char c;
 
 	s = socket(PF_LOCAL, SOCK_STREAM, 0);
@@ -78,13 +79,14 @@ startdaemon(const struct printer *pp)
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
 	seteuid(euid);
-	if (connect(s, (struct sockaddr *)&un, SUN_LEN(&un)) < 0) {
-		seteuid(uid);
-		warn("connect");
+	connectres = connect(s, (struct sockaddr *)&un, SUN_LEN(&un));
+	seteuid(uid);
+	if (connectres < 0) {
+		warn("Unable to connect to %s", _PATH_SOCKETNAME);
+		warnx("Check to see if the master 'lpd' process is running.");
 		(void) close(s);
 		return(0);
 	}
-	seteuid(uid);
 
 	/*
 	 * Avoid overruns without putting artificial limitations on 
