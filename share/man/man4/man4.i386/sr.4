@@ -49,8 +49,10 @@ that is based on the HD64570 chip.
 .Pp
 The standard
 .Tn FreeBSD
-sppp code is used for the link level layer. The
-default protocol used is PPP. The Cisco HDLC protocol can be used by
+sppp code is used for the link level layer.
+The
+default protocol used is PPP.
+The Cisco HDLC protocol can be used by
 adding
 .Em link2
 to
@@ -62,7 +64,8 @@ Alternately, the driver can be compiled to support
 .Pp
 The
 .Em flags
-field is optional. If it isn't specified, the driver will
+field is optional.
+If it isn't specified, the driver will
 assume the following:
 .Pp
 .Bl -hang -offset indent
@@ -111,7 +114,8 @@ prepended, e.g.,
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sr%d: Warning illegal interrupt %d."
-The card cannot use the specified interrupt. Choose a different one.
+The card cannot use the specified interrupt.
+Choose a different one.
 .El
 .Sh FILES
 .Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
@@ -122,7 +126,8 @@ The card cannot use the specified interrupt. Choose a different one.
 .It Pa /sys/pci/if_sr_p.c
 .El
 .Sh BUGS
-At the moment only the X.21 interface is tested. The others
+At the moment only the X.21 interface is tested.
+The others
 may need tweaks to the clock selection code.
 .Pp
 The code can probably stand some optimizing.

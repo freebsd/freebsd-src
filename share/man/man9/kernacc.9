@@ -74,7 +74,8 @@ checks addresses in the kernel address space, while
 .Fn useracc
 considers
 .Fa addr
-to represent an user space address. The process context to use for this
+to represent an user space address.
+The process context to use for this
 operation is taken from the global variable
 .Va curproc .
 .Pp
@@ -82,7 +83,8 @@ operation is taken from the global variable
 Both functions return boolean true if the type of access specified 
 by
 .Fa rw
-is permitted. Otherwise boolean false is returned.
+is permitted.
+Otherwise boolean false is returned.
 .Pp
 .Sh BUGS
 The process pointer should be passed in as an argument to 

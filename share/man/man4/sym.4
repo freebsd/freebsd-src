@@ -93,17 +93,21 @@ PCI-SCSI controllers.
 .Pp
 Driver features include support for wide SCSI busses, fast10, fast20,
 fast40 and fast80-dt synchronous data transfers depending on controller
-capabilities. It also provides generic SCSI features as tagged command
-queuing and auto-request sense. This driver is configured by default
+capabilities.
+It also provides generic SCSI features as tagged command
+queuing and auto-request sense.
+This driver is configured by default
 for a maximum of 446 outstanding commands per bus, 8 LUNs per target
-and 64 tagged tasks per LUN. These numbers are not so limited by design,
+and 64 tagged tasks per LUN.
+These numbers are not so limited by design,
 as have been considered reasonable values for current SCSI technology.
 These values can be increased by changing appropriate
 constants in driver header files (not recommended).
 .Pp
 This driver requires the PCI-SCSI chip to implement LOAD/STORE SCRIPTS
 instructions and therefore it does not provide support for 53C810 revid < 16,
-53C825 revid < 16 and all 53C815 revisions. The generic
+53C825 revid < 16 and all 53C815 revisions.
+The generic
 .Nm ncr
 driver can be used to support these early chips.
 .Pp
@@ -116,7 +120,8 @@ drivers are configured, the
 driver takes precedence over the
 .Nm ncr
 driver for all chips that are supported by
-both drivers. As result, the
+both drivers.
+As result, the
 .Nm ncr
 driver does only attach the 53C8XX
 chips that donnot support LOAD/STORE (i.e.: 53C810, 53C815 and 53C825).
@@ -143,13 +148,16 @@ driver will only
 attach the 53C1010 Ultra-3 controllers.
 .Pp
 HVD/LVD capable controllers (895, 895A, 896, 897 and 1010) report
-the actual bus mode from the STEST4 chip IO registers. This feature
+the actual bus mode from the STEST4 chip IO registers.
+This feature
 allows to safely probe against bus mode and to set up the chip
-accordingly. By default the driver only supports HVD for these chips.
+accordingly.
+By default the driver only supports HVD for these chips.
 For other chips that can support HVD but not LVD, the driver has to probe
 implementation dependent registers (GPIO) in order to detect HVD bus mode.
 Only HVD implementations that conform with Symbios Logic recommendation can
-be detected by the driver. When the
+be detected by the driver.
+When the
 .Ar SYM_SETUP_SCSI_DIFF
 kernel is provided
 as value 1, the driver will also probe against HVD for 825a, 875, 876 and
@@ -158,21 +166,27 @@ as value 1, the driver will also probe against HVD for 825a, 875, 876 and
 When supplied as 0, the
 .Ar SYM_SETUP_PCI_PARITY
 kernel configuration option
-indicates the driver not to enable PCI parity checking. PCI parity
+indicates the driver not to enable PCI parity checking.
+PCI parity
 checking should not be an option for PCI-SCSI controllers, but some
 systems have been reported to fail using 53C8XX chips due to spurious or
-permanent PCI parity errors detected. This option is supplied for
+permanent PCI parity errors detected.
+This option is supplied for
 convenience but it is not recommended nor supported.
 .Pp
 This driver offers other options that are not currently exported to user.
-They are defined and documented in the sym_conf.h driver file. It is not
-recommended to change these options unless absolute need. Some of these
+They are defined and documented in the sym_conf.h driver file.
+It is not
+recommended to change these options unless absolute need.
+Some of these
 options are planned to be exported through SYSCTL or equivalent mechanism
 in a further driver release and therefore, no compatibility is guaranteed.
 .Pp
 At initialization, the driver tries to detect and read user settings from
-controller NVRAM. The Symbios/Logic NVRAM layout and the Tekram NVRAM
-layout are currently supported. If the reading of the NVRAM succeeds, the
+controller NVRAM.
+The Symbios/Logic NVRAM layout and the Tekram NVRAM
+layout are currently supported.
+If the reading of the NVRAM succeeds, the
 following settings are taken into account and reported to CAM:
 .Pp
 .Bl -column "SCSI parity checking      " "Symbios     " "Tekram"
@@ -196,7 +210,8 @@ Scan LUN       	Y	N
 .El
 .Pp
 Devices that are configured as disabled for 'scan' in the NVRAM are not
-reported to CAM at system start-up. They can be discovered later using
+reported to CAM at system start-up.
+They can be discovered later using
 the
 .Nm camcontrol rescan
 command.

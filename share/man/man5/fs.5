@@ -236,7 +236,8 @@ assumption, so we are stuck with it).
 The
 .Fa fs_minfree
 element gives the minimum acceptable percentage of file system
-blocks that may be free. If the freelist drops below this level
+blocks that may be free.
+If the freelist drops below this level
 only the super-user may continue to allocate blocks.
 The
 .Fa fs_minfree
@@ -268,7 +269,8 @@ the file system defaults to optimizing for time.
 .Em Cylinder group related limits :
 Each cylinder keeps track of the availability of blocks at different
 rotational positions, so that sequential blocks can be laid out
-with minimum rotational latency. With the default of 8 distinguished
+with minimum rotational latency.
+With the default of 8 distinguished
 rotational positions, the resolution of the
 summary information is 2ms for a typical 3600 rpm drive.
 .Pp
@@ -338,7 +340,8 @@ is limited by the fact that the super-block is of size
 The size of these tables is
 .Em inversely
 proportional to the block
-size of the file system. The size of the tables is
+size of the file system.
+The size of the tables is
 increased when sector sizes are not powers of two,
 as this increases the number of cylinders
 included before the rotational pattern repeats

@@ -64,12 +64,14 @@ instead.
 and
 .Fn nanouptime
 always query the timecounter to return the current time as precisely as
-possible. Whereas
+possible.
+Whereas
 .Fn getmicrouptime
 and
 .Fn getnanouptime
 functions are abstractions which can alternately return a less precise, but
-faster to obtain, time. This behaviour can be toggled via the
+faster to obtain, time.
+This behaviour can be toggled via the
 kern.timecounter.method sysctl variable:
 .Bl -tag -width ABC
 .It Dv 0

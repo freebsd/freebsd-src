@@ -60,12 +60,14 @@ or the more verbose
 .Pp
 A
 .Dq @
-indicates a host by netgroup or user by netgroup. A single
+indicates a host by netgroup or user by netgroup.
+A single
 .Dq +
 matches all hosts or users.  A host name with a leading
 .Dq -
 will reject
-all matching hosts and all their users. A user name with leading
+all matching hosts and all their users.
+A user name with leading
 .Dq -
 will reject all matching users from matching hosts.
 .Pp
@@ -137,7 +139,8 @@ file resides in
 .Xr ifconfig 8 ,
 .Xr named 8
 .Sh BUGS
-This man page is incomplete. For more information read
+This man page is incomplete.
+For more information read
 the source in
 .Pa src/lib/libc/net/rcmd.c
 or the SunOS man page.
