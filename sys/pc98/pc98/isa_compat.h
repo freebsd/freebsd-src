@@ -29,7 +29,6 @@
 #include "vt.h"
 #include "adv.h"
 #include "wdc.h"
-#include "mse.h"
 #include "ar.h"
 #include "cs.h"
 #include "cx.h"
@@ -89,7 +88,6 @@ struct old_isa_driver {
 extern struct isa_driver  vtdriver;
 extern struct isa_driver advdriver;
 extern struct isa_driver wdcdriver;
-extern struct isa_driver msedriver;
 extern struct isa_driver  ardriver;
 extern struct isa_driver  csdriver;
 extern struct isa_driver  cxdriver;
@@ -161,9 +159,6 @@ static struct old_isa_driver old_drivers[] = {
 
 #if NVT > 0
 	{ INTR_TYPE_TTY, &vtdriver },
-#endif
-#if NMSE > 0
-	{ INTR_TYPE_TTY, &msedriver },
 #endif
 #if NGP > 0
 	{ INTR_TYPE_TTY, &gpdriver },
