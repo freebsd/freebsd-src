@@ -29,7 +29,6 @@ makeoptions	NO_MODULES=yes
 # than 4 gigabytes of memory.
 
 nodevice	ahb
-nodevice	ahd
 nodevice	amd
 nodevice	isp
 nodevice	mpt
