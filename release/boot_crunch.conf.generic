@@ -9,7 +9,7 @@ progs pwd ppp
 progs sysinstall newfs minigzip cpio fsck ifconfig route slattach
 progs mount_nfs
 progs dhclient arp hostname
-progs pccardc pccardd wicontrol
+progs pccardc pccardd
 ln minigzip gzip
 ln minigzip gunzip
 ln minigzip zcat
