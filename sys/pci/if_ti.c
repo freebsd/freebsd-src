@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.12 1999/07/23 18:46:24 wpaul Exp $
+ *	$Id: if_ti.c,v 1.13 1999/07/25 06:46:19 peter Exp $
  */
 
 /*
@@ -131,7 +131,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.12 1999/07/23 18:46:24 wpaul Exp $";
+	"$Id: if_ti.c,v 1.13 1999/07/25 06:46:19 peter Exp $";
 #endif
 
 /*
@@ -382,7 +382,7 @@ static void ti_mem(sc, addr, len, buf)
 
 	segptr = addr;
 	cnt = len;
-	ti_winbase = (caddr_t)(sc->ti_bhandle + TI_WINDOW);
+	ti_winbase = (caddr_t)(sc->ti_vhandle + TI_WINDOW);
 	ptr = buf;
 
 	while(cnt) {
@@ -1376,7 +1376,7 @@ static int ti_gibinit(sc)
 	rcb = &sc->ti_rdata->ti_info.ti_cmd_rcb;
 
 	sc->ti_rdata->ti_cmd_ring =
-	    (struct ti_cmd_desc *)(sc->ti_bhandle + TI_GCR_CMDRING);
+	    (struct ti_cmd_desc *)(sc->ti_vhandle + TI_GCR_CMDRING);
 	TI_HOSTADDR(rcb->ti_hostaddr) = TI_GCR_NIC_ADDR(TI_GCR_CMDRING);
 	rcb->ti_flags = 0;
 	rcb->ti_max_len = 0;
@@ -1463,7 +1463,7 @@ static int ti_gibinit(sc)
 	CSR_WRITE_4(sc, TI_WINBASE, TI_TX_RING_BASE);
 	if (sc->ti_hwrev == TI_HWREV_TIGON) {
 		sc->ti_rdata->ti_tx_ring_nic =
-		    (struct ti_tx_desc *)(sc->ti_bhandle + TI_WINDOW);
+		    (struct ti_tx_desc *)(sc->ti_vhandle + TI_WINDOW);
 	}
 	bzero((char *)sc->ti_rdata->ti_tx_ring,
 	    TI_TX_RING_CNT * sizeof(struct ti_tx_desc));
@@ -1570,9 +1570,27 @@ static int ti_attach(dev)
 
 	sc->ti_btag = rman_get_bustag(sc->ti_res);
 	sc->ti_bhandle = rman_get_bushandle(sc->ti_res);
+	sc->ti_vhandle = (vm_offset_t)rman_get_virtual(sc->ti_res);
+
+	/*
+	 * XXX FIXME: rman_get_virtual() on the alpha is currently
+	 * broken and returns a physical address instead of a kernel
+	 * virtual address. Consequently, we need to do a little
+	 * extra mangling of the vhandle on the alpha. This should
+	 * eventually be fixed! The whole idea here is to get rid
+	 * of platform dependencies.
+	 */
+#ifdef __alpha__
+	if (pci_cvt_to_bwx(sc->ti_vhandle))
+		sc->ti_vhandle = pci_cvt_to_bwx(sc->ti_vhandle);
+	else
+		sc->ti_vhandle = pci_cvt_to_dense(sc->ti_vhandle);
+	sc->ti_vhandle = ALPHA_PHYS_TO_K0SEG(sc->ti_vhandle);
+#endif
 
 	/* Allocate interrupt */
 	rid = 0;
+	
 	sc->ti_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 
