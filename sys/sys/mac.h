@@ -297,6 +297,7 @@ int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
 int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
 int	mac_check_socket_send(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
+int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
 	    int flags);
 int	mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp);
@@ -347,7 +348,6 @@ int	mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
 int	mac_check_vnode_stat(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
-int	mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_write(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_getsockopt_label_get(struct ucred *cred, struct socket *so,

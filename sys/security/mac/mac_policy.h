@@ -310,6 +310,8 @@ struct mac_policy_ops {
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_visible)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_system_swapon)(struct ucred *cred,
+		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int flags);
 	int	(*mpo_check_vnode_chdir)(struct ucred *cred,
@@ -386,8 +388,6 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_stat)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
-	int	(*mpo_check_vnode_swapon)(struct ucred *cred,
-		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_vnode_write)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
@@ -502,6 +502,7 @@ enum mac_op_constant {
 	MAC_CHECK_SOCKET_RELABEL,
 	MAC_CHECK_SOCKET_SEND,
 	MAC_CHECK_SOCKET_VISIBLE,
+	MAC_CHECK_SYSTEM_SWAPON,
 	MAC_CHECK_VNODE_ACCESS,
 	MAC_CHECK_VNODE_CHDIR,
 	MAC_CHECK_VNODE_CHROOT,
@@ -532,7 +533,6 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_SETOWNER,
 	MAC_CHECK_VNODE_SETUTIMES,
 	MAC_CHECK_VNODE_STAT,
-	MAC_CHECK_VNODE_SWAPON,
 	MAC_CHECK_VNODE_WRITE,
 };
 
