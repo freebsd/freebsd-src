@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "defs.h"
 
+static short *null_rules;
+
 static void log_unused(void);
 static void log_conflicts(void);
 static void print_actions(int);
@@ -58,8 +60,6 @@ static void print_nulls(int);
 static void print_reductions(action *, register int);
 static void print_shifts(action *);
 static void print_state(int);
-
-static short *null_rules;
 
 void
 verbose()
