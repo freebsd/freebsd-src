@@ -81,20 +81,36 @@ For swap partitions, this field should be specified as ``none''.
 The third field,
 .Pq Fa fs_vfstype ,
 describes the type of the filesystem.
-The system currently supports four types of filesystems:
+The system can support various filesystem types.
+Only the root, /usr, and /tmp filesystems need be statically
+compiled into the kernel; 
+everything else will be automatically loaded at mount
+time.  (Exception: the UFS family - FFS, MFS, and LFS cannot
+currently be demand-loaded.)  Some people still prefer to statically
+compile other filesystems as well.
+
 .Bl -tag -width indent -offset indent
 .It Em ufs 
 a local
 .Tn UNIX
 filesystem
 .It Em mfs 
-a local memory-based
+a local memory-based 
 .Tn UNIX
 filesystem
 .It Em nfs 
 a Sun Microsystems compatible ``Network File System''
 .It Em swap 
 a disk partition to be used for swapping
+.It Em pcfs 
+a DOS compatible filesystem
+.It Em isofs 
+a CD-ROM filesystem (as per ISO 9660)
+.\" maybe also say Rock Ridge extensions are handled ?
+.It Em procfs 
+a file system for accessing process data 
+.It Em kernfs
+a file system for accessing kernel parameter
 .El
 .Pp
 The fourth field,
@@ -221,7 +237,15 @@ resides in
 .Pa /etc .
 .El
 .Sh SEE ALSO
-.Xr getfsent 3
+.Xr getfsent 3 ,
+.Xr getvfsbyname 3 ,
+.Xr dump 8 ,
+.Xr fsck 8 ,
+.Xr mount 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr swapon 8 ,
+.Xr umount 8 .
 .Sh HISTORY
 The
 .Nm
