@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
-.\"	$Id$
+.\"	$Id: systat.1,v 1.18 1999/07/12 20:24:00 nik Exp $
 .\"
 .Dd September 9, 1997
 .Dt SYSTAT 1
@@ -306,9 +306,9 @@ handled by the per process name translation cache.
 .Pp
 At the bottom left is the disk usage display.
 It reports the number of
-kilobytes per transaction, transactions per second and megabytes 
-per second averaged over the 
-refresh period of the display (by default, five seconds).
+kilobytes per transaction, transactions per second, megabytes 
+per second and the percentage of the time the disk was busy averaged
+over the refresh period of the display (by default, five seconds).
 The system keeps statistics on most every storage device.  In general, up
 to seven devices are displayed.  The devices displayed by default are the
 first devices in the kernel's device list.  See 
@@ -351,6 +351,7 @@ per second over the refresh interval.
 .Pp
 At the bottom of this column are lines showing the
 amount of memory, in kilobytes, used for the buffer cache (`buf'),
+the number of dirty buffers in the buffer cache (`dirtybuf'),
 desired maximum size of vnode cache (`desiredvnodes') (mostly unused,
 except to size the name cache),
 number of vnodes actually allocated (`numvnodes'),
