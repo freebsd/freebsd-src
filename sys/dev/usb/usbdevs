@@ -78,6 +78,7 @@ vendor STMICRO		0x0483	STMicroelectronics
 vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
 vendor CANON		0x04a9	Canon, Inc.
+vendor IBM		0x04b3	IBM Corporation
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
 vendor IODATA		0x04bb	I/O Data
@@ -424,6 +425,9 @@ product HP 5200			0x0401	Scanjet 5200
 product HP 6300C		0x0601	Scanjet 6300C
 product HP 970CSE		0x1004	Deskjet 970Cse
 product HP P1100		0x3102	Photosmart P1100
+
+/* IBM Corporation */
+product	IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
