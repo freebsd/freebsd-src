@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.90 1997/06/27 23:19:43 fsmp Exp $
+ *	$Id: locore.s,v 1.91 1997/07/15 11:07:32 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -821,9 +821,12 @@ over_symalloc:
 	jne	map_read_write
 #endif
 	xorl	%edx,%edx
+
+#if !defined(SMP)
 	testl	$CPUID_PGE, R(_cpu_feature)
 	jz	2f
 	orl	$PG_G,%edx
+#endif
 	
 2:	movl	$R(_etext),%ecx
 	addl	$PAGE_MASK,%ecx
@@ -836,9 +839,11 @@ over_symalloc:
 	andl	$~PAGE_MASK, %eax
 map_read_write:
 	movl	$PG_RW,%edx
+#if !defined(SMP)
 	testl	$CPUID_PGE, R(_cpu_feature)
 	jz	1f
 	orl	$PG_G,%edx
+#endif
 	
 1:	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
