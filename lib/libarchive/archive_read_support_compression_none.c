@@ -241,6 +241,7 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 		state->client_next += request;
 		state->client_avail -= request;
 	}
+	a->file_position += request;
 	return (request);
 }
 

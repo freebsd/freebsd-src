@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 struct write_file_data {
-	off_t		offset;
 	int		fd;
 	char		filename[1];
 };
@@ -53,23 +52,23 @@ static ssize_t	file_write(struct archive *, void *, void *buff, size_t);
 int
 archive_write_open_file(struct archive *a, const char *filename)
 {
-	return (archive_write_open_file_position(a, filename, 0));
-}
-
-int
-archive_write_open_file_position(struct archive *a, const char *filename,
-    int64_t offset)
-{
 	struct write_file_data *mine;
 
 	if (filename == NULL) {
 		mine = malloc(sizeof(*mine));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
 		mine->filename[0] = 0;
 	} else {
 		mine = malloc(sizeof(*mine) + strlen(filename));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
 		strcpy(mine->filename, filename);
 	}
-	mine->offset = offset;
 	mine->fd = -1;
 	return (archive_write_open(a, mine,
 		    file_open, file_write, file_close));
@@ -83,10 +82,7 @@ file_open(struct archive *a, void *client_data)
 	struct stat st;
 
 	mine = client_data;
-	if (mine->offset == 0)
-		flags = O_WRONLY | O_CREAT | O_TRUNC;
-	else
-		flags = O_WRONLY;
+	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
 	if (*mine->filename != 0) {
 		mine->fd = open(mine->filename, flags, 0666);
@@ -115,12 +111,7 @@ file_open(struct archive *a, void *client_data)
 
 	if (mine->fd < 0) {
 		archive_set_error(a, errno, "Failed to open");
-		return -1;
-	}
-
-	if (mine->offset > 0) {
-		lseek(mine->fd, mine->offset, SEEK_SET);
-		ftruncate(mine->fd, mine->offset);
+		return (ARCHIVE_FATAL);
 	}
 
 	return (ARCHIVE_OK);

@@ -40,8 +40,8 @@
 .Nm archive_write_set_compressor_gzip ,
 .Nm archive_write_set_compressor_bzip2 ,
 .Nm archive_write_open ,
+.Nm archive_write_open_fd ,
 .Nm archive_write_open_file ,
-.Nm archive_write_open_tar ,
 .Nm archive_write_prepare ,
 .Nm archive_write_header ,
 .Nm archive_write_data ,
@@ -74,9 +74,9 @@
 .Ft int
 .Fn archive_write_open "struct archive *" "void *client_data"  "archive_write_archive_callback *" "archive_open_archive_callback *" "archive_close_archive_callback *"
 .Ft int
-.Fn archive_write_open_file "struct archive *" "const char *filename"
+.Fn archive_write_open_fd "struct archive *" "int fd"
 .Ft int
-.Fn archive_write_open_tar "struct archive *" "const char *archive_name"
+.Fn archive_write_open_file "struct archive *" "const char *filename"
 .Ft int
 .Fn archive_write_header "struct archive *"
 .Ft int
@@ -117,7 +117,7 @@ is applied only after the compression.
 The uncompressed data is always unpadded.
 The default is to pad the last block to the full block size (note that
 .Fn archive_write_open_file
-affects this).
+will set this based on the file type).
 Unlike the other
 .Dq set
 functions, this function can be called after the archive is opened.
@@ -153,6 +153,16 @@ Freeze the settings, open the archive, and prepare for writing entries.
 This is the most generic form of this function, which accepts
 pointers to three callback functions which will be invoked by
 the library to write the constructed archive.
+Note:  Internally, the callbacks are invoked by the compression layer.
+In order to support external compression programs, the compression
+is permitted to fork and invoke the callbacks from a separate process.
+In particular, clients should not assume that they can communicate
+between the callbacks and the mainline code using shared variables.
+Note that the standard gzip, bzip2, and "none" compression methods do not fork.
+.It Fn archive_write_open_fd
+A convenience form of
+.Fn archive_write_open
+that accepts a file descriptor.
 .It Fn archive_write_open_file
 A convenience form of
 .Fn archive_write_open
@@ -172,14 +182,6 @@ You can override this by manually invoking
 .Fn archive_write_set_bytes_in_last_block
 either before or after calling
 .Fn archive_write_open .
-.It Fn archive_write_open_tar
-A convenience form of
-.Fn archive_write_open
-that accepts an archive name in the same formats accepted by
-.Xr tar 1 .
-In particular, a
-.Pa -
-argument indicates that the output should be written to standard output.
 .It Fn archive_write_header
 Build and write a header using the data in the provided
 .Tn struct archive_entry

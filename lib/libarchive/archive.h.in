@@ -149,6 +149,8 @@ int		 archive_read_open(struct archive *, void *_client_data,
  */
 int		 archive_read_open_file(struct archive *, const char *_file,
 		     size_t _block_size);
+int		 archive_read_open_fd(struct archive *, int _fd,
+		     size_t _block_size);
 
 /* Parses and returns next entry header. */
 int		 archive_read_next_header(struct archive *,
@@ -239,10 +241,8 @@ int		 archive_write_set_format_ustar(struct archive *);
 int		 archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
+int		 archive_write_open_fd(struct archive *, int _fd);
 int		 archive_write_open_file(struct archive *, const char *_file);
-int		 archive_write_open_file_position(struct archive *,
-		     const char *_filename, int64_t offset);
-int		 archive_write_open_tar(struct archive *, const char *_file);
 
 /*
  * Note that the library will truncate writes beyond the size provided

@@ -831,9 +831,11 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 	case 'S':
 		/* We support some keys used by the "star" archiver */
 		if (wcscmp(key, L"SCHILY.acl.access")==0)
-			archive_entry_copy_acl_w(entry, value);
+			__archive_entry_acl_parse_w(entry, value,
+			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		else if (wcscmp(key, L"SCHILY.acl.default")==0)
-			archive_entry_copy_acl_default_w(entry, value);
+			__archive_entry_acl_parse_w(entry, value,
+			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 		else if (wcscmp(key, L"SCHILY.devmajor")==0)
 			st->st_rdev = makedev(tar_atol10(value, wcslen(value)),
 			    minor(st->st_dev));
