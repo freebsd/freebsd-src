@@ -42,28 +42,33 @@ static int LRCORNER = FALSE;
 static inline void PutChar(chtype ch)
 {
 	T(("puttin %x", ch));
-	if (LRCORNER == TRUE) {
-		if (SP->_curscol == columns-2) {
-			PutAttrChar(newscr->_line[lines-1][columns-2]);
-			SP->_curscol++;
-			return;
-		} else if (SP->_curscol == columns-1) {
+	if (LRCORNER == TRUE && SP->_curscol == columns-1) {
 		int i = lines;
 		int j = columns -1;
-			if (cursor_left)
-				tputs(cursor_left, 1, _outc);
-			else
-				mvcur(-1, -1, i-1, j);
-			if (enter_insert_mode && exit_insert_mode) {
-				tputs(enter_insert_mode, 1, _outc);
-				PutAttrChar(newscr->_line[i-1][j]);
-				tputs(exit_insert_mode, 1, _outc);
-			} else if (insert_character) {
-				tputs(insert_character, 1, _outc);
-				PutAttrChar(newscr->_line[i-1][j]);
-			}
+
+		LRCORNER = FALSE;
+		if (   (!enter_insert_mode || !exit_insert_mode)
+		    && !insert_character
+		   )
 			return;
+		if (cursor_left)
+			tputs(cursor_left, 1, _outc);
+		else
+			mvcur(-1, -1, i-1, j);
+		PutAttrChar(ch);
+		if (cursor_left)
+			tputs(cursor_left, 1, _outc);
+		else
+			mvcur(-1, -1, i-1, j);
+		if (enter_insert_mode && exit_insert_mode) {
+			tputs(enter_insert_mode, 1, _outc);
+			PutAttrChar(newscr->_line[i-1][columns-2]);
+			tputs(exit_insert_mode, 1, _outc);
+		} else if (insert_character) {
+			tputs(insert_character, 1, _outc);
+			PutAttrChar(newscr->_line[i-1][columns-2]);
 		}
+		return;
 	}
 	PutAttrChar(ch);
 	SP->_curscol++; 
@@ -187,7 +192,6 @@ int	lastNonBlank;
 
 	T(("updating screen from scratch"));
 	for (i = 0; i < lines; i++) {
-		LRCORNER = FALSE;
 		lastNonBlank = columns - 1;
 		
 		while (scr->_line[i][lastNonBlank] == BLANK )
@@ -198,7 +202,7 @@ int	lastNonBlank;
 		/* check if we are at the lr corner */
 		if (i == lines-1)
 			if ((auto_right_margin) && !(eat_newline_glitch) &&
-			    (lastNonBlank == columns-1) && !(scr->_scroll)) 
+			    (lastNonBlank == columns-1))
 			{
 				T(("Lower-right corner needs special handling"));
 			    LRCORNER = TRUE;
@@ -320,7 +324,7 @@ int	attrchanged = 0;
 	/* check if we are at the lr corner */
 	if (lineno == lines-1)
 		if ((auto_right_margin) && !(eat_newline_glitch) &&
-		    (lastChar == columns-1) && !(curscr->_scroll)) 
+		    (lastChar == columns-1))
 		{
 			T(("Lower-right corner needs special handling"));
 		    LRCORNER = TRUE;
@@ -379,6 +383,15 @@ int	attrchanged = 0;
 			vidattr(curscr->_attrs = A_NORMAL);
 		}
 		tputs(clr_eol, 1, _outc);		
+
+		/* check if we are at the lr corner */
+		if (lineno == lines-1)
+			if ((auto_right_margin) && !(eat_newline_glitch))
+			{
+				T(("Lower-right corner needs special handling"));
+			    LRCORNER = TRUE;
+			}
+
 		for( k = 0 ; k <= (columns-1) ; k++ )
 			PutChar(newLine[k]);
 	} else {
@@ -404,12 +417,31 @@ int	attrchanged = 0;
 				vidattr(curscr->_attrs = A_NORMAL);
 			}
 			tputs(clr_eol,1,_outc);
-			if(newLine[firstChar] != ' ' )
+
+			if(newLine[firstChar] != ' ' ) {
+				/* check if we are at the lr corner */
+				if (lineno == lines-1)
+					if ((auto_right_margin) && !(eat_newline_glitch) &&
+					    (firstChar == columns-1))
+					{
+						T(("Lower-right corner needs special handling"));
+					    LRCORNER = TRUE;
+					}
 				PutChar(newLine[firstChar]);
+			}
 		} else if( newLine[nLastChar] != oldLine[oLastChar] ) {
 			n = max( nLastChar , oLastChar );
 
 			GoTo(lineno, firstChar);
+
+			/* check if we are at the lr corner */
+			if (lineno == lines-1)
+				if ((auto_right_margin) && !(eat_newline_glitch) &&
+				    (n == columns-1))
+				{
+					T(("Lower-right corner needs special handling"));
+				    LRCORNER = TRUE;
+				}
 
 			for( k=firstChar ; k <= n ; k++ )
 				PutChar(newLine[k]);
@@ -423,6 +455,15 @@ int	attrchanged = 0;
 
 			GoTo(lineno, firstChar);
 	
+			/* check if we are at the lr corner */
+			if (lineno == lines-1)
+				if ((auto_right_margin) && !(eat_newline_glitch) &&
+				    (n == columns-1))
+				{
+					T(("Lower-right corner needs special handling"));
+				    LRCORNER = TRUE;
+				}
+
 			for (k=firstChar; k <= n; k++)
 				PutChar(newLine[k]);
 
