@@ -51,12 +51,12 @@
 #include <net/radix.h>
 #endif
 
-static int	rn_walktree_from(struct radix_node_head *h, void *a,
-				      void *m, walktree_f_t *f, void *w);
+static int	rn_walktree_from(struct radix_node_head *h, void *a, void *m,
+		    walktree_f_t *f, void *w);
 static int rn_walktree(struct radix_node_head *, walktree_f_t *, void *);
 static struct radix_node
 	 *rn_insert(void *, struct radix_node_head *, int *,
-			struct radix_node [2]),
+	     struct radix_node [2]),
 	 *rn_newpair(void *, int, struct radix_node[2]),
 	 *rn_search(void *, struct radix_node *),
 	 *rn_search_m(void *, struct radix_node *, void *);
@@ -76,9 +76,9 @@ static char *rn_zeros, *rn_ones;
 static int	rn_lexobetter(void *m_arg, void *n_arg);
 static struct radix_mask *
 		rn_new_radix_mask(struct radix_node *tt,
-				       struct radix_mask *next);
+		    struct radix_mask *next);
 static int	rn_satsifies_leaf(char *trial, struct radix_node *leaf,
-				       int skip);
+		    int skip);
 
 /*
  * The data structure for the keys is a radix tree with one way

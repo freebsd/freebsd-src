@@ -119,7 +119,7 @@ bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
-				    struct sockaddr *);
+			       struct sockaddr *);
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) do { error = (e); goto bad;} while (0)
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
