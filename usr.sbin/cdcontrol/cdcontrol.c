@@ -397,6 +397,8 @@ char *strstatus (int sts)
 int pstatus (char *arg)
 {
 	struct ioc_vol v;
+	struct ioc_read_subchannel ss;
+	struct cd_sub_channel_info data;
 	int rc, trk, m, s, f;
 
 	rc = status (&trk, &m, &s, &f);
@@ -407,7 +409,19 @@ int pstatus (char *arg)
 		else
 			printf ("%d %d %d:%02d.%02d\n", rc, trk, m, s, f);
 	else
-		printf ("No current status info\n");
+		printf ("No current status info available\n");
+
+	bzero (&ss, sizeof (ss));
+	ss.data = &data;
+	ss.data_len = sizeof (data);
+	ss.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
+	ss.data_format = CD_MEDIA_CATALOG;
+	rc = ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &ss);
+	if (rc >= 0) {
+		printf("Media catalog is %sactive\n",
+		ss.data->what.media_catalog.mc_valid ? "": "in");
+	} else
+		printf("No media catalog info available\n");
 
 	rc = ioctl (fd, CDIOCGETVOL, &v);
 	if (rc >= 0)
@@ -417,7 +431,7 @@ int pstatus (char *arg)
 		else
 			printf ("%d %d\n", v.vol[0], v.vol[1]);
 	else
-		printf ("No volume level info\n");
+		printf ("No volume level info available\n");
 	return(0);
 }
 
@@ -427,14 +441,14 @@ int info (char *arg)
 	int rc, i, n;
 
 	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
-	if (rc >= 0)
+	if (rc >= 0) {
 		if (verbose)
 			printf ("Starting track = %d, ending track = %d, TOC size = %d bytes\n",
 				h.starting_track, h.ending_track, h.len);
 		else
 			printf ("%d %d %d\n", h.starting_track,
 				h.ending_track, h.len);
-	else {
+	} else {
 		perror ("getting toc header");
 		return (rc);
 	}
