@@ -1030,31 +1030,24 @@ digi_loadmoduledata(struct digi_softc *sc)
 	linker_file_t lf;
 	char *modfile, *sym;
 	caddr_t symptr;
-	int res, symlen;
+	int modlen, res;
 
 	KASSERT(sc->bios.data == NULL, ("Uninitialised BIOS variable"));
 	KASSERT(sc->fep.data == NULL, ("Uninitialised FEP variable"));
 	KASSERT(sc->link.data == NULL, ("Uninitialised LINK variable"));
 	KASSERT(sc->module != NULL, ("Uninitialised module name"));
 
-	/*-
-	 * XXX: It'd be nice to have something like linker_search_path()
-	 *	here.  For the moment we hardcode things - the comments
-	 *	in linker_load_module() before the call to
-	 *	linker_search_path() suggests that ``there will be a
-	 *	system...''.
-	 */
-	modfile = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	snprintf(modfile, MAXPATHLEN, "/boot/kernel/digi_%s.ko", sc->module);
-	if ((res = linker_load_file(modfile, &lf)) != 0)
+	modlen = strlen(sc->module);
+	modfile = malloc(modlen + 6, M_TEMP, M_WAITOK);
+	snprintf(modfile, modlen + 6, "digi_%s", sc->module);
+	if ((res = linker_reference_module(modfile, &lf)) != 0)
 		printf("%s: Failed %d to load module\n", modfile, res);
 	free(modfile, M_TEMP);
 	if (res != 0)
 		return (res);
 
-	symlen = strlen(sc->module) + 10;
-	sym = malloc(symlen, M_TEMP, M_WAITOK);
-	snprintf(sym, symlen, "digi_mod_%s", sc->module);
+	sym = malloc(modlen + 10, M_TEMP, M_WAITOK);
+	snprintf(sym, modlen + 10, "digi_mod_%s", sc->module);
 	if ((symptr = linker_file_lookup_symbol(lf, sym, 0)) == NULL)
 		printf("digi_%s.ko: Symbol `%s' not found\n", sc->module, sym);
 	free(sym, M_TEMP);
