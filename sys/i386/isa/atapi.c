@@ -422,6 +422,15 @@ static struct atapi_params *atapi_probe (int port, int unit)
 		return (0);
 	}
 
+	/* check that DRQ isn't a fake */
+	if (inb (port + AR_STATUS) == 0xff) {
+		print (("atapiX.%d at 0x%x: no device\n", unit, port));
+		if (unit == 1)
+			/* Select unit 0. */
+			outb (port + AR_DRIVE, ARD_DRIVE0);
+		return (0);
+	}
+
 	/* Obtain parameters. */
 	insw (port + AR_DATA, tb, sizeof(tb) / sizeof(short));
 
