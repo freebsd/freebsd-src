@@ -355,7 +355,7 @@ mmap(td, uap)
 			 * other securelevel.
 			 * XXX this will have to go
 			 */
-			if (securelevel >= 1)
+			if (securelevel_ge(td->td_proc->p_ucred, 1))
 				disablexworkaround = 1;
 			else
 				disablexworkaround = suser_td(td);
