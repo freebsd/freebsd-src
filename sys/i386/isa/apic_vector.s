@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.30 1998/05/17 22:12:04 tegge Exp $
+ *	$Id: apic_vector.s,v 1.31 1998/08/11 15:08:12 bde Exp $
  */
 
 
@@ -938,7 +938,7 @@ _ihandlers:
  *  ipl.s:	doreti_unpend
  *  apic_ipl.s:	splz_unpend
  */
-	.long	swi_tty, swi_net, dummycamisr, dummycamisr
+	.long	_swi_null, swi_net, _swi_null, _swi_null
 	.long	_swi_vm, _swi_null, _softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */

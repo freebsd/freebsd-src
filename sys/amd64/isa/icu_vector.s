@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.7 1998/01/15 07:33:59 gibbs Exp $
+ *	$Id: icu_vector.s,v 1.8 1998/08/11 15:08:12 bde Exp $
  */
 
 /*
@@ -201,7 +201,7 @@ _ihandlers:			/* addresses of interrupt handlers */
 	.long	Xresume4, Xresume5, Xresume6, Xresume7
 	.long	Xresume8, Xresume9, Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
-	.long	swi_tty, swi_net, dummycamisr, dummycamisr
+	.long	_swi_null, swi_net, _swi_null, _swi_null
 	.long	_swi_vm, _swi_null, _swi_null, _swi_null
 	.long	_swi_null, _swi_null, _swi_null, _swi_null
 	.long	_swi_null, _swi_null, _softclock, swi_ast

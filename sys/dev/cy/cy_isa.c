@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.64 1998/07/15 12:18:12 bde Exp $
+ *	$Id: cy.c,v 1.65 1998/07/29 18:48:20 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -78,6 +78,7 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
@@ -86,6 +87,7 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
@@ -118,6 +120,7 @@
 #define	comhardclose	cyhardclose
 #define	commctl		cymctl
 #define	comparam	cyparam
+#define	siopoll_registered	cypoll_registered
 #define	comspeed	cyspeed
 #define	comstart	cystart
 #define	comwakeup	cywakeup
@@ -325,19 +328,6 @@ struct com_s {
 #endif
 };
 
-/*
- * XXX public functions in drivers should be declared in headers produced
- * by `config', not here.
- */
-
-/* Interrupt handling entry point. */
-void	siopoll		__P((void));
-
-/* Device switch entry points. */
-#define	sioreset	noreset
-#define	siommap		nommap
-#define	siostrategy	nostrategy
-
 /* PCI driver entry point. */
 int	cyattach_common		__P((cy_addr cy_iobase, int cy_align));
 
@@ -351,6 +341,7 @@ static	void	siointr1	__P((struct com_s *com));
 #endif
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
+static	swihand_t siopoll;
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
 static	int	comspeed	__P((speed_t speed, int *prescaler_io));
@@ -392,6 +383,7 @@ static struct cdevsw sio_cdevsw = {
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
+static	bool_t	siopoll_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -621,6 +613,10 @@ cyattach_common(cy_iobase, cy_align)
 		unit % CY_MAX_PORTS);
 #endif
 		}
+	}
+	if (!siopoll_registered) {
+		register_swi(SWI_TTY, siopoll);
+		siopoll_registered = TRUE;
 	}
 
 	/* ensure an edge for the next interrupt */
@@ -1538,7 +1534,7 @@ sioioctl(dev, cmd, data, flag, p)
 	return (0);
 }
 
-void
+static void
 siopoll()
 {
 	int		unit;
