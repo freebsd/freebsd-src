@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.35 1997/08/02 10:23:17 kato Exp $
+#	$Id: options.pc98,v 1.36 1997/08/09 01:58:50 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -8,9 +8,9 @@ VM86			opt_global.h
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 
-SHOW_BUSYBUFS		opt_machdep.h
-PANIC_REBOOT_WAIT_TIME	opt_machdep.h
-MAXMEM			opt_machdep.h
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
+MAXMEM
 PERFMON			opt_perfmon.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
@@ -64,10 +64,12 @@ CPU_SUSP_HLT		 opt_cpu.h
 CPU_UPGRADE_HW_CACHE	 opt_cpu.h
 CYRIX_CACHE_WORKS	 opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS opt_cpu.h
-I386_CPU		 opt_cpu.h
-I486_CPU		 opt_cpu.h
-I586_CPU		 opt_cpu.h
-I686_CPU		 opt_cpu.h
+
+# The CPU type affects the endian conversion functions all over the kernel.
+I386_CPU		opt_global.h
+I486_CPU		opt_global.h
+I586_CPU		opt_global.h
+I686_CPU		opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
