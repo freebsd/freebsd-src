@@ -74,9 +74,6 @@ CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 elif [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
-if [ "X${PKG_ARCH}" = "Xamd64" -o "X${PKG_ARCH}" = "Xsparc64" -o "X${PKG_ARCH}" = "Xia64" ]; then
-CDROM_SET_1="${CDROM_SET_1} devel/gdb6"
-fi
 CDROM_SET_1="${CDROM_SET_1} lang/perl5.8"
 CDROM_SET_1="${CDROM_SET_1} mail/exim"
 CDROM_SET_1="${CDROM_SET_1} mail/postfix"
