@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.9 1999/01/22 13:07:17 rnordier Exp $
+#	$Id: btx.s,v 1.1 1999/02/03 08:39:08 kato Exp $
 
 #
 # Memory layout.
@@ -109,7 +109,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
 		.byte 0x1			# Major version
-		.byte 0x0			# Minor version
+		.byte 0x1			# Minor version
 		.byte 0x0			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
@@ -540,9 +540,15 @@ v86mon.1:	lodsb				# Get opcode
 v86mon.2:	cmpb $0xf4,%al			# HLT?
 		jne v86mon.3			# No
 		cmpl $inthlt+0x1,%esi		# Is inthlt?
-		jne v86mon.6			# No (ignore)
+		jne v86mon.7			# No (ignore)
 		jmp intrtn			# Return to user mode
-v86mon.3:	cmpb $0xfa,%al			# CLI?
+v86mon.3:	cmpb $0xf,%al			# Is
+		jne v86mon.4			#  this
+		cmpb $0x20,(%esi)		#  a
+		jne v86mon.4			#  MOV EAX,CR0
+		cmpb $0xc0,0x1(%esi)		#  instruction?
+		je v86mov			# Yes
+v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
 		cmpb $0xfb,%al			# STI?
 		je v86sti			# Yes
@@ -562,25 +568,33 @@ v86mon.3:	cmpb $0xfa,%al			# CLI?
 		popl %ebx			# Restore
 		popa				# Restore
 		jmp except			# Handle exception
-v86mon.4:	movl %edx,0x30(%ebp)		# Save V86 flags
-v86mon.5:	popl %edx			# V86 SS adjustment
+v86mon.5:	movl %edx,0x30(%ebp)		# Save V86 flags
+v86mon.6:	popl %edx			# V86 SS adjustment
 		subl %edx,%ebx			# Save V86
 		movl %ebx,0x34(%ebp)		#  SP
-v86mon.6:	subl %edi,%esi			# From linear
+v86mon.7:	subl %edi,%esi			# From linear
 		movl %esi,0x28(%ebp)		# Save V86 IP
 		popa				# Restore
 		leal 0x8(%esp,1),%esp		# Discard int no, error
 		iret				# To V86 mode
 #
+# Emulate MOV EAX,CR0.
+#
+v86mov: 	movl %cr0,%eax			# CR0 to
+		movl %eax,0x1c(%ebp)		#  saved EAX
+		incl %esi			# Adjust
+		incl %esi			#  IP
+		jmp v86mon.7			# Finish up
+#
 # Emulate CLI.
 #
 v86cli: 	andb $~0x2,0x31(%ebp)		# Clear IF
-		jmp v86mon.6			# Finish up
+		jmp v86mon.7			# Finish up
 #
 # Emulate STI.
 #
 v86sti: 	orb $0x2,0x31(%ebp)		# Set IF
-		jmp v86mon.6			# Finish up
+		jmp v86mon.7			# Finish up
 #
 # Emulate PUSHF/PUSHFD.
 #
@@ -589,7 +603,7 @@ v86pushf:	subl %ecx,%ebx			# Adjust SP
 		je v86pushf.1			# Yes
 		o16				# 16-bit
 v86pushf.1:	movl %edx,(%ebx)		# Save flags
-		jmp v86mon.5			# Finish up
+		jmp v86mon.6			# Finish up
 #
 # Emulate IRET/IRETD.
 #
@@ -610,7 +624,7 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
 		andl $V86_FLG,%eax		# Merge
 		andl $~V86_FLG,%edx		#  the
 		orl %eax,%edx			#  flags
-		jmp v86mon.4			# Finish up
+		jmp v86mon.5			# Finish up
 #
 # Emulate INT imm8.
 #
@@ -627,7 +641,7 @@ v86intn:	lodsb				# Get int no
 		movl %edi,0x2c(%ebp)		# Save CS
 		xorl %edi,%edi			# No ESI adjustment
 		andb $~0x3,%dh			# Clear IF and TF
-		jmp v86mon.4			# Finish up
+		jmp v86mon.5			# Finish up
 #
 # Hardware interrupt jump table.
 #
