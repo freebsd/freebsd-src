@@ -202,10 +202,31 @@ Q: I booted the install floppy on my IBM ThinkPad (tm) laptop, and the
    keyboard is all messed up.
 
 A: Older IBM laptops use a non-standard keyboard controller, so you must
-   tell the console driver (sc0) to go into a special mode which works
-   on the ThinkPads.  Change the sc0 'Flags' to 0x10 in UserConfig and
-   it should work fine.  (Look in the Input Menu for 'Syscons Console
-   Driver'.)
+   tell the keyboard driver (atkbd0) to go into a special mode which works
+   on the ThinkPads.  Change the atkbd0 'Flags' to 0x4 in UserConfig and
+   it should work fine.  (Look in the Input Menu for 'Keyboard'.)
+
+
+Q: When I try to boot the install floppy, I see the following message 
+   and nothing seems to be happening.  I cannot enter anything from
+   the keyboard either.
+
+     Keyboard: no
+
+A: Due to lack of space, full support for old XT/AT (84-key) keyboards 
+   is no longer available in the bootblocks.  Some notebook computers may
+   also have this type of keyboard.  If you are still using this kind of 
+   hardware, you will see the above message appears when you boot from 
+   the CD-ROM or an install floppy.
+
+   As soon as you see this message, hit the space bar, and you will see
+   the prompt:
+
+     >> FreeBSD/i386 BOOT
+     Default: x:xx(x,x)/boot/loader 
+     boot:
+
+   Then enter `-Dh', and things should proceed normally.
 
 
 Q: I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523 or
