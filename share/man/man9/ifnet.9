@@ -84,6 +84,8 @@
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
 .Ss "struct ifnet Member Functions"
+.Ft void
+.Fn \*(lp*if_input\*(rp "struct ifnet *ifp" "struct mbuf *m"
 .Ft int
 .Fo \*(lp*if_output\*(rp
 .Fa "struct ifnet *ifp" "struct mbuf *m"
@@ -329,6 +331,15 @@ There are in addition a number of function pointers which the driver
 must initialize to complete its interface with the generic interface
 layer:
 .Bl -ohang -offset indent
+.It Fn if_input
+Pass a packet to an appropriate upper layer as determined
+from the link-layer header of the packet.
+This routine is to be called from an interrupt handler or
+used to emulate reception of a packet on this interface.
+A single function implementing
+.Fn if_input
+can be shared among multiple drivers utilizing the same link-layer
+framing, e.g., Ethernet.
 .It Fn if_output
 Output a packet on interface
 .Fa ifp ,
