@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.20 1995/08/23 07:12:16 jkh Exp $
+#	$Id: sysconfig,v 1.21 1995/09/14 02:44:49 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -147,7 +147,7 @@ namedflags="NO"
 # sharing filesystems with DOS/Windows PCs.
 pcnfsd=NO
 
-# Set to YES if you have the Apache WEB server (see /sur/ports/net/apache)
+# Set to YES if you have the Apache WEB server (see /usr/ports/net/apache)
 # installed and want to run it at system startup time (this is better than
 # running it from inetd if you're running a dedicated WWW server).
 apache_httpd=NO
