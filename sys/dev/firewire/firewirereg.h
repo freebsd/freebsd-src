@@ -204,12 +204,10 @@ struct fw_xferq {
 	u_int maxq;
 	u_int psize;
 	u_int packets;
-	u_int error;
 	STAILQ_HEAD(, fw_bind) binds;
 	caddr_t buf;
 	u_int bnchunk;
 	u_int bnpacket;
-	u_int btpacket;
 	struct fw_bulkxfer *bulkxfer;
 	STAILQ_HEAD(, fw_bulkxfer) stvalid;
 	STAILQ_HEAD(, fw_bulkxfer) stfree;
