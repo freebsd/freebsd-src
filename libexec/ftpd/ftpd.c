@@ -643,7 +643,7 @@ inithosts()
 	hrp->next = NULL;
 	thishost = firsthost = lhrp = hrp;
 	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
-		int addrsize, error;
+		int addrsize, error, gothost;
 		void *addr;
 		struct hostent *hp;
 
@@ -670,9 +670,9 @@ inithosts()
 			if (error != NULL)
 				continue;
 			for (ai = res; ai != NULL && ai->ai_addr != NULL;
-			     ai = ai->ai_next)
-		      {
+			     ai = ai->ai_next) {
 
+			gothost = 0;
 			for (hrp = firsthost; hrp != NULL; hrp = hrp->next) {
 				struct addrinfo *hi;
 
@@ -681,8 +681,12 @@ inithosts()
 					if (hi->ai_addrlen == ai->ai_addrlen &&
 					    memcmp(hi->ai_addr,
 						   ai->ai_addr,
-						   ai->ai_addr->sa_len) == 0)
+						   ai->ai_addr->sa_len) == 0) {
+						gothost++;
 						break;
+				}
+				if (gothost)
+					break;
 			}
 			if (hrp == NULL) {
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
@@ -793,8 +797,7 @@ selecthost(su)
 	port = su->su_port;
 	su->su_port = 0;
 	while (hrp != NULL) {
-		for (hi = hrp->hostinfo; hi != NULL; hi = hi->ai_next)
-	      {
+	    for (hi = hrp->hostinfo; hi != NULL; hi = hi->ai_next) {
 		if (memcmp(su, hi->ai_addr, hi->ai_addrlen) == 0) {
 			thishost = hrp;
 			break;
@@ -809,8 +812,8 @@ selecthost(su)
 			break;
 		}
 #endif
-	      }
-		hrp = hrp->next;
+	    }
+	    hrp = hrp->next;
 	}
 	su->su_port = port;
 	/* setup static variables as appropriate */
