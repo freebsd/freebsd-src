@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.14 $"
+#ident "$Revision: 1.16 $"
 
 #define	RIPCMDS
 #include "defs.h"
@@ -53,11 +53,12 @@ static char rcsid[] = "$NetBSD$";
 
 #define	NRECORDS	50		/* size of circular trace buffer */
 
-u_int	tracelevel, new_tracelevel;
+int	tracelevel, new_tracelevel;
 FILE	*ftrace = stdout;		/* output trace file */
-static char *tracelevel_pat = "%s\n";
-
-char savetracename[MAXPATHLEN+1];
+static char *sigtrace_pat = "%s\n";
+static char savetracename[MAXPATHLEN+1];
+char	inittracename[MAXPATHLEN+1];
+int	file_trace;			/* 1=tracing to file, not stdout */
 
 static void trace_dump(void);
 
@@ -162,15 +163,15 @@ ts(time_t secs) {
  * This assumes that 'now' is update once for each event, and
  * that at least now.tv_usec changes.
  */
+static struct timeval lastlog_time;
+
 void
 lastlog(void)
 {
-	static struct timeval last;
-
-	if (last.tv_sec != now.tv_sec
-	    || last.tv_usec != now.tv_usec) {
+	if (lastlog_time.tv_sec != now.tv_sec
+	    || lastlog_time.tv_usec != now.tv_usec) {
 		(void)fprintf(ftrace, "-- %s --\n", ts(now.tv_sec));
-		last = now;
+		lastlog_time = now;
 	}
 }
 
@@ -198,15 +199,17 @@ trace_close(void)
 	fflush(stdout);
 	fflush(stderr);
 
-	if (ftrace != 0
-	    && savetracename[0] != '\0') {
+	if (ftrace != 0 && file_trace) {
+		if (ftrace != stdout)
+			fclose(ftrace);
+		ftrace = 0;
 		fd = open(_PATH_DEVNULL, O_RDWR);
+		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
 		(void)close(fd);
-		fclose(ftrace);
-		ftrace = 0;
 	}
+	lastlog_time.tv_sec = 0;
 }
 
 
@@ -231,7 +234,6 @@ trace_off(char *p, ...)
 		lastlog();
 		va_start(args, p);
 		vfprintf(ftrace, p, args);
-		fflush(ftrace);
 	}
 	trace_close();
 
@@ -239,107 +241,11 @@ trace_off(char *p, ...)
 }
 
 
-void
-trace_on(char *filename,
-	 int initial)			/* 1=setting from command line */
-{
-	struct stat stbuf;
-	FILE *n_ftrace;
-	u_int old_tracelevel;
-
-
-	/* Given a null filename when tracing is already on, increase the
-	 * debugging level and re-open the file in case it has been unlinked.
-	 */
-	if (filename[0] == '\0') {
-		if (tracelevel != 0) {
-			new_tracelevel++;
-			tracelevel_pat = "trace command: %s\n";
-		} else if (savetracename[0] == '\0') {
-			msglog("missing trace file name");
-			return;
-		}
-		filename = savetracename;
-
-	} else if (!strcmp(filename,"dump/../table")) {
-		trace_dump();
-		return;
-
-	} else {
-		if (stat(filename, &stbuf) >= 0
-		    && (stbuf.st_mode & S_IFMT) != S_IFREG) {
-			msglog("wrong type (%#x) of trace file \"%s\"",
-			       stbuf.st_mode, filename);
-			return;
-		}
-
-		if (!initial
-#ifdef _PATH_TRACE
-		    && (strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)
-			|| strstr(filename,"../")
-			|| 0 > stat(_PATH_TRACE, &stbuf))
-#endif
-		    && strcmp(filename, savetracename)) {
-			msglog("wrong directory for trace file \"%s\"",
-			       filename);
-			return;
-		}
-	}
-
-	n_ftrace = fopen(filename, "a");
-	if (n_ftrace == 0) {
-		msglog("failed to open trace file \"%s\" %s",
-		       filename, strerror(errno));
-		return;
-	}
-
-	tmsg("switch to trace file %s\n", filename);
-	trace_close();
-	if (filename != savetracename)
-		strncpy(savetracename, filename, sizeof(savetracename)-1);
-	ftrace = n_ftrace;
-
-	fflush(stdout);
-	fflush(stderr);
-	dup2(fileno(ftrace), STDOUT_FILENO);
-	dup2(fileno(ftrace), STDERR_FILENO);
-
-	if (new_tracelevel == 0)
-		new_tracelevel = 1;
-	old_tracelevel = tracelevel;
-	set_tracelevel(initial);
-
-	if (!initial && old_tracelevel == 0)
-		trace_dump();
-}
-
-
-/* ARGSUSED */
-void
-sigtrace_on(int s)
-{
-	new_tracelevel++;
-	tracelevel_pat = "SIGUSR1: %s\n";
-}
-
-
-/* ARGSUSED */
-void
-sigtrace_off(int s)
-{
-	new_tracelevel--;
-	tracelevel_pat = "SIGUSR2: %s\n";
-}
-
-
-/* Move to next higher level of tracing when -t option processed or
- * SIGUSR1 is received.  Successive levels are:
- *	actions
- *	actions + packets
- *	actions + packets + contents
+/* log a change in tracing
  */
 void
-set_tracelevel(int initial)
+tracelevel_msg(char *pat,
+	       int dump)		/* -1=no dump, 0=default, 1=force */
 {
 	static char *off_msgs[MAX_TRACELEVEL] = {
 		"Tracing actions stopped",
@@ -353,34 +259,165 @@ set_tracelevel(int initial)
 		"Tracing packet contents started",
 		"Tracing kernel changes started",
 	};
+	u_int old_tracelevel = tracelevel;
 
 
-	if (new_tracelevel > MAX_TRACELEVEL) {
+	if (new_tracelevel < 0)
+		new_tracelevel = 0;
+	else if (new_tracelevel > MAX_TRACELEVEL)
 		new_tracelevel = MAX_TRACELEVEL;
-		if (new_tracelevel == tracelevel) {
-			tmsg(tracelevel_pat, on_msgs[tracelevel-1]);
+
+	if (new_tracelevel < tracelevel) {
+		if (new_tracelevel <= 0) {
+			trace_off(pat, off_msgs[0]);
+		} else do {
+			tmsg(pat, off_msgs[tracelevel]);
+		}
+		while (--tracelevel != new_tracelevel);
+
+	} else if (new_tracelevel > tracelevel) {
+		do {
+			tmsg(pat, on_msgs[tracelevel++]);
+		} while (tracelevel != new_tracelevel);
+	}
+
+	if (dump > 0
+	    || (dump == 0 && old_tracelevel == 0 && tracelevel != 0))
+		trace_dump();
+}
+
+
+void
+set_tracefile(char *filename,
+	      char *pat,
+	      int dump)			/* -1=no dump, 0=default, 1=force */
+{
+	struct stat stbuf;
+	FILE *n_ftrace;
+	char *fn;
+
+
+	/* Allow a null filename to increase the level if the trace file
+	 * is already open or if coming from a trusted source, such as
+	 * a signal or the command line.
+	 */
+	if (filename == 0 || filename[0] == '\0') {
+		filename = 0;
+		if (ftrace == 0) {
+			if (inittracename[0] == '\0') {
+				msglog("missing trace file name");
+				return;
+			}
+			fn = inittracename;
+		} else {
+			fn = 0;
+		}
+
+	} else if (!strcmp(filename,"dump/../table")) {
+		trace_dump();
+		return;
+
+	} else {
+		/* Allow the file specified with "-T file" to be reopened,
+		 * but require all other names specified over the net to
+		 * match the official path.  The path can specify a directory
+		 * in which the file is to be created.
+		 */
+		if (strcmp(filename, inittracename)
+#ifdef _PATH_TRACE
+		    && (strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)
+			|| strstr(filename,"../")
+			|| 0 > stat(_PATH_TRACE, &stbuf))
+#endif
+		    ) {
+			msglog("wrong trace file \"%s\"", filename);
 			return;
 		}
+
+		/* If the new tracefile exists, it must be a regular file.
+		 */
+		if (stat(filename, &stbuf) >= 0
+		    && (stbuf.st_mode & S_IFMT) != S_IFREG) {
+			msglog("wrong type (%#x) of trace file \"%s\"",
+			       stbuf.st_mode, filename);
+			return;
+		}
+
+		fn = filename;
 	}
 
-	for (; new_tracelevel != tracelevel; tracelevel++) {
-		if (new_tracelevel < tracelevel) {
-			if (--tracelevel == 0)
-				trace_off(tracelevel_pat, off_msgs[0]);
-			else
-				tmsg(tracelevel_pat, off_msgs[tracelevel]);
-		} else {
-			if (ftrace == 0) {
-				if (savetracename[0] != '\0')
-					trace_on(savetracename, 1);
-				else
-					ftrace = stdout;
-			}
-			if (!initial || tracelevel+1 == new_tracelevel)
-				tmsg(tracelevel_pat, on_msgs[tracelevel]);
+	if (fn != 0) {
+		n_ftrace = fopen(fn, "a");
+		if (n_ftrace == 0) {
+			msglog("failed to open trace file \"%s\" %s",
+			       fn, strerror(errno));
+			if (fn == inittracename)
+				inittracename[0] = '\0';
+			return;
 		}
+
+		tmsg("switch to trace file %s\n", fn);
+
+		file_trace = 1;
+		trace_close();
+
+		if (fn != savetracename)
+			strncpy(savetracename, fn, sizeof(savetracename)-1);
+		ftrace = n_ftrace;
+
+		fflush(stdout);
+		fflush(stderr);
+		dup2(fileno(ftrace), STDOUT_FILENO);
+		dup2(fileno(ftrace), STDERR_FILENO);
 	}
-	tracelevel_pat = "%s\n";
+
+	if (new_tracelevel == 0 || filename == 0)
+		new_tracelevel++;
+	tracelevel_msg(pat, dump != 0 ? dump : (filename != 0));
+}
+
+
+/* ARGSUSED */
+void
+sigtrace_on(int s)
+{
+	new_tracelevel++;
+	sigtrace_pat = "SIGUSR1: %s\n";
+}
+
+
+/* ARGSUSED */
+void
+sigtrace_off(int s)
+{
+	new_tracelevel--;
+	sigtrace_pat = "SIGUSR2: %s\n";
+}
+
+
+/* Set tracing after a signal.
+ */
+void
+set_tracelevel(void)
+{
+	if (new_tracelevel == tracelevel)
+		return;
+
+	/* If tracing entirely off, and there was no tracefile specified
+	 * on the command line, then leave it off.
+	 */
+	if (new_tracelevel > tracelevel && ftrace == 0) {
+		if (savetracename[0] != '\0') {
+			set_tracefile(savetracename,sigtrace_pat,0);
+		} else if (inittracename[0] != '\0') {
+				set_tracefile(inittracename,sigtrace_pat,0);
+		} else {
+			new_tracelevel = 0;
+			return;
+		}
+	} else {
+		tracelevel_msg(sigtrace_pat, 0);
+	}
 }
 
 
@@ -454,6 +491,7 @@ static struct bits is_bits[] = {
 	{ IS_BROKE,		IS_SICK,	"BROKEN" },
 	{ IS_SICK,		0,		"SICK" },
 	{ IS_DUP,		0,		"DUPLICATE" },
+	{ IS_REDIRECT_OK,	0,		"REDIRECT_OK" },
 	{ IS_NEED_NET_SYN,	0,		"" },
 	{ IS_NO_AG,		IS_NO_SUPER_AG,	"NO_AG" },
 	{ IS_NO_SUPER_AG,	0,		"NO_SUPER_AG" },
@@ -548,6 +586,32 @@ trace_pair(naddr dst,
 }
 
 
+static void
+print_rts(struct rt_spare *rts,
+	  int force_metric,		/* -1=suppress, 0=default */
+	  int force_ifp,		/* -1=suppress, 0=default */
+	  int force_router,		/* -1=suppress, 0=default, 1=display */
+	  int force_tag,		/* -1=suppress, 0=default, 1=display */
+	  int force_time)		/* 0=suppress, 1=display */
+{
+	if (force_metric >= 0)
+		(void)fprintf(ftrace, "metric=%-2d ", rts->rts_metric);
+	if (force_ifp >= 0)
+		(void)fprintf(ftrace, "%s ", (rts->rts_ifp == 0 ?
+					      "if?" : rts->rts_ifp->int_name));
+	if (force_router > 0
+	    || (force_router == 0 && rts->rts_router != rts->rts_gate))
+		(void)fprintf(ftrace, "router=%s ",
+			      naddr_ntoa(rts->rts_router));
+	if (force_time > 0)
+		(void)fprintf(ftrace, "%s ", ts(rts->rts_time));
+	if (force_tag > 0
+	    || (force_tag == 0 && rts->rts_tag != 0))
+		(void)fprintf(ftrace, "tag=%#x ",
+			      ntohs(rts->rts_tag));
+}
+
+
 void
 trace_if(char *act,
 	  struct interface *ifp)
@@ -584,13 +648,22 @@ trace_upslot(struct rt_entry *rt,
 	     u_short	tag,
 	     time_t	new_time)
 {
+	struct rt_spare new;
+
 	if (!TRACEACTIONS || ftrace == 0)
 		return;
+
 	if (rts->rts_gate == gate
 	    && rts->rts_router == router
 	    && rts->rts_metric == metric
 	    && rts->rts_tag == tag)
 		return;
+	new.rts_ifp = ifp;
+	new.rts_gate = gate;
+	new.rts_router = router;
+	new.rts_metric = metric;
+	new.rts_time = new_time;
+	new.rts_tag = tag;
 
 	lastlog();
 	if (rts->rts_gate != RIP_DEFAULT) {
@@ -598,45 +671,32 @@ trace_upslot(struct rt_entry *rt,
 			      rts - rt->rt_spares,
 			      trace_pair(rt->rt_dst, rt->rt_mask,
 					 naddr_ntoa(rts->rts_gate)));
-		if (rts->rts_gate != rts->rts_gate)
-			(void)fprintf(ftrace, "router=%s ",
-				      naddr_ntoa(rts->rts_gate));
-		if (rts->rts_tag != 0)
-			(void)fprintf(ftrace, "tag=%#x ", ntohs(rts->rts_tag));
-		(void)fprintf(ftrace, "metric=%-2d ", rts->rts_metric);
-		if (rts->rts_ifp != 0)
-			(void)fprintf(ftrace, "%s ",
-				      rts->rts_ifp->int_name);
-		(void)fprintf(ftrace, "%s\n", ts(rts->rts_time));
+		print_rts(rts, 0,0,
+			  rts->rts_gate != gate,
+			  rts->rts_tag != tag,
+			  rts != rt->rt_spares || AGE_RT(rt->rt_state,
+							rt->rt_ifp));
 
-		(void)fprintf(ftrace, "       %19s%-16s ",
-			      "",
+		(void)fprintf(ftrace, "\n       %19s%-16s ", "",
 			      gate != rts->rts_gate ? naddr_ntoa(gate) : "");
-		if (gate != router)
-			(void)fprintf(ftrace,"router=%s ",naddr_ntoa(router));
-		if (tag != rts->rts_tag)
-			(void)fprintf(ftrace, "tag=%#x ", ntohs(tag));
-		if (metric != rts->rts_metric)
-			(void)fprintf(ftrace, "metric=%-2d ", metric);
-		if (ifp != rts->rts_ifp && ifp != 0 )
-			(void)fprintf(ftrace, "%s ", ifp->int_name);
-		(void)fprintf(ftrace, "%s\n",
-			      new_time != rts->rts_time ? ts(new_time) : "");
+		print_rts(&new,
+			  -(metric == rts->rts_metric),
+			  -(ifp == rts->rts_ifp),
+			  0,
+			  rts->rts_tag != tag,
+			  new_time != rts->rts_time && (rts != rt->rt_spares
+							|| AGE_RT(rt->rt_state,
+							    ifp)));
 
 	} else {
 		(void)fprintf(ftrace, "Add #%d %-35s ",
 			      rts - rt->rt_spares,
 			      trace_pair(rt->rt_dst, rt->rt_mask,
 					 naddr_ntoa(gate)));
-		if (gate != router)
-			(void)fprintf(ftrace, "router=%s ", naddr_ntoa(gate));
-		if (tag != 0)
-			(void)fprintf(ftrace, "tag=%#x ", ntohs(tag));
-		(void)fprintf(ftrace, "metric=%-2d ", metric);
-		if (ifp != 0)
-			(void)fprintf(ftrace, "%s ", ifp->int_name);
-		(void)fprintf(ftrace, "%s\n", ts(new_time));
+		print_rts(&new, 0,0,0,0,
+			  rts != rt->rt_spares || AGE_RT(rt->rt_state,ifp));
 	}
+	(void)fputc('\n',ftrace);
 }
 
 
@@ -701,6 +761,8 @@ trace_change(struct rt_entry *rt,
 	     time_t	new_time,
 	     char	*label)
 {
+	struct rt_spare new;
+
 	if (ftrace == 0)
 		return;
 
@@ -710,67 +772,51 @@ trace_change(struct rt_entry *rt,
 	    && rt->rt_state == state
 	    && rt->rt_tag == tag)
 		return;
+	new.rts_ifp = ifp;
+	new.rts_gate = gate;
+	new.rts_router = router;
+	new.rts_metric = metric;
+	new.rts_time = new_time;
+	new.rts_tag = tag;
 
 	lastlog();
-	(void)fprintf(ftrace, "%s %-35s metric=%-2d ",
+	(void)fprintf(ftrace, "%s %-35s ",
 		      label,
 		      trace_pair(rt->rt_dst, rt->rt_mask,
-				 naddr_ntoa(rt->rt_gate)),
-		      rt->rt_metric);
-	if (rt->rt_router != rt->rt_gate)
-		(void)fprintf(ftrace, "router=%s ",
-			      naddr_ntoa(rt->rt_router));
-	if (rt->rt_tag != 0)
-		(void)fprintf(ftrace, "tag=%#x ", ntohs(rt->rt_tag));
+				 naddr_ntoa(rt->rt_gate)));
+	print_rts(rt->rt_spares,
+		  0,0,0,0, AGE_RT(rt->rt_state, rt->rt_ifp));
 	trace_bits(rs_bits, rt->rt_state, rt->rt_state != state);
-	(void)fprintf(ftrace, "%s ",
-		      rt->rt_ifp == 0 ? "?" : rt->rt_ifp->int_name);
-	(void)fprintf(ftrace, "%s\n",
-		      AGE_RT(rt->rt_state, rt->rt_ifp) ? ts(rt->rt_time) : "");
 
-	(void)fprintf(ftrace, "%*s %19s%-16s ",
+	(void)fprintf(ftrace, "\n%*s %19s%-16s ",
 		      strlen(label), "", "",
 		      rt->rt_gate != gate ? naddr_ntoa(gate) : "");
-	if (rt->rt_metric != metric)
-		(void)fprintf(ftrace, "metric=%-2d ", metric);
-	if (router != gate)
-		(void)fprintf(ftrace, "router=%s ", naddr_ntoa(router));
-	if (rt->rt_tag != tag)
-		(void)fprintf(ftrace, "tag=%#x ", ntohs(tag));
+	print_rts(&new,
+		  -(metric == rt->rt_metric),
+		  -(ifp == rt->rt_ifp),
+		  0,
+		  rt->rt_tag != tag,
+		  rt->rt_time != new_time && AGE_RT(rt->rt_state,ifp));
 	if (rt->rt_state != state)
 		trace_bits(rs_bits, state, 1);
-	if (rt->rt_ifp != ifp)
-		(void)fprintf(ftrace, "%s ",
-			      ifp != 0 ? ifp->int_name : "?");
-	(void)fprintf(ftrace, "%s\n",
-		      ((rt->rt_time == new_time || !AGE_RT(rt->rt_state, ifp))
-		       ? "" : ts(new_time)));
+	(void)fputc('\n',ftrace);
 }
 
 
 void
 trace_add_del(char * action, struct rt_entry *rt)
 {
-	u_int state = rt->rt_state;
-
 	if (ftrace == 0)
 		return;
 
 	lastlog();
-	(void)fprintf(ftrace, "%s    %-35s metric=%-2d ",
+	(void)fprintf(ftrace, "%s    %-35s ",
 		      action,
 		      trace_pair(rt->rt_dst, rt->rt_mask,
-				 naddr_ntoa(rt->rt_gate)),
-		      rt->rt_metric);
-	if (rt->rt_router != rt->rt_gate)
-		(void)fprintf(ftrace, "router=%s ",
-			      naddr_ntoa(rt->rt_router));
-	if (rt->rt_tag != 0)
-		(void)fprintf(ftrace, "tag=%#x ", ntohs(rt->rt_tag));
-	trace_bits(rs_bits, state, 0);
-	(void)fprintf(ftrace, "%s ",
-		      rt->rt_ifp != 0 ? rt->rt_ifp->int_name : "?");
-	(void)fprintf(ftrace, "%s\n", ts(rt->rt_time));
+				 naddr_ntoa(rt->rt_gate)));
+	print_rts(rt->rt_spares, 0,0,0,0,AGE_RT(rt->rt_state,rt->rt_ifp));
+	trace_bits(rs_bits, rt->rt_state, 0);
+	(void)fputc('\n',ftrace);
 }
 
 
@@ -781,42 +827,24 @@ walk_trace(struct radix_node *rn,
 {
 #define RT ((struct rt_entry *)rn)
 	struct rt_spare *rts;
-	int i, age;
+	int i, age = AGE_RT(RT->rt_state, RT->rt_ifp);
 
-	(void)fprintf(ftrace, "  %-35s metric=%-2d ",
-		      trace_pair(RT->rt_dst, RT->rt_mask,
-				 naddr_ntoa(RT->rt_gate)),
-		      RT->rt_metric);
-	if (RT->rt_router != RT->rt_gate)
-		(void)fprintf(ftrace, "router=%s ",
-			      naddr_ntoa(RT->rt_router));
-	if (RT->rt_tag != 0)
-		(void)fprintf(ftrace, "tag=%#x ",
-			      ntohs(RT->rt_tag));
+	(void)fprintf(ftrace, "  %-35s ", trace_pair(RT->rt_dst, RT->rt_mask,
+						     naddr_ntoa(RT->rt_gate)));
+	print_rts(&RT->rt_spares[0], 0,0,0,0,age);
 	trace_bits(rs_bits, RT->rt_state, 0);
-	(void)fprintf(ftrace, "%s ",
-		      RT->rt_ifp == 0 ? "?" : RT->rt_ifp->int_name);
-	age = AGE_RT(RT->rt_state, RT->rt_ifp);
-	if (age)
-		(void)fprintf(ftrace, "%s", ts(RT->rt_time));
+	if (RT->rt_poison_time >= now_garbage
+	    && RT->rt_poison_metric < RT->rt_metric)
+		(void)fprintf(ftrace, "pm=%d@%s",
+			      RT->rt_poison_metric,
+			      ts(RT->rt_poison_time));
 
 	rts = &RT->rt_spares[1];
 	for (i = 1; i < NUM_SPARES; i++, rts++) {
-		if (rts->rts_metric != HOPCNT_INFINITY) {
-			(void)fprintf(ftrace,"\n    #%d%15s%-16s metric=%-2d ",
-				      i, "", naddr_ntoa(rts->rts_gate),
-				      rts->rts_metric);
-			if (rts->rts_router != rts->rts_gate)
-				(void)fprintf(ftrace, "router=%s ",
-					      naddr_ntoa(rts->rts_router));
-			if (rts->rts_tag != 0)
-				(void)fprintf(ftrace, "tag=%#x ",
-					      ntohs(rts->rts_tag));
-			(void)fprintf(ftrace, "%s ",
-				      (rts->rts_ifp == 0
-				       ? "?" : rts->rts_ifp->int_name));
-			if (age)
-				(void)fprintf(ftrace, "%s", ts(rts->rts_time));
+		if (rts->rts_gate != RIP_DEFAULT) {
+			(void)fprintf(ftrace,"\n    #%d%15s%-16s ",
+				      i, "", naddr_ntoa(rts->rts_gate));
+			print_rts(rts, 0,0,0,0,1);
 		}
 	}
 	(void)fputc('\n',ftrace);
@@ -834,6 +862,7 @@ trace_dump(void)
 		return;
 	lastlog();
 
+	(void)fputs("current daemon state:\n", ftrace);
 	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next)
 		trace_if("", ifp);
 	(void)rn_walktree(rhead, walk_trace, 0);
@@ -976,7 +1005,8 @@ trace_rip(char *dir1, char *dir2,
 		break;
 
 	case RIPCMD_TRACEON:
-		fprintf(ftrace, "\tfile=%*s\n", size-4, msg->rip_tracefile);
+		fprintf(ftrace, "\tfile=\"%.*s\"\n", size-4,
+			msg->rip_tracefile);
 		break;
 
 	case RIPCMD_TRACEOFF:

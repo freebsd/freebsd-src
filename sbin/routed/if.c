@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.18 $"
+#ident "$Revision: 1.21 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -208,42 +208,54 @@ ifwithindex(u_short index)
 
 /* Find an interface from which the specified address
  * should have come from.  Used for figuring out which
- * interface a packet came in on -- for tracing.
+ * interface a packet came in on.
  */
 struct interface *
 iflookup(naddr addr)
 {
 	struct interface *ifp, *maybe;
+	static struct timeval retried;
 
 	maybe = 0;
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
-		if (ifp->int_if_flags & IFF_POINTOPOINT) {
-			/* finished with a match */
-			if (ifp->int_dstaddr == addr)
-				return ifp;
+	for (;;) {
+		for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+			if (ifp->int_if_flags & IFF_POINTOPOINT) {
+				/* finished with a match */
+				if (ifp->int_dstaddr == addr)
+					return ifp;
 
-		} else {
-			/* finished with an exact match */
-			if (ifp->int_addr == addr)
-				return ifp;
+			} else {
+				/* finished with an exact match */
+				if (ifp->int_addr == addr)
+					return ifp;
 
-			/* Look for the longest approximate match.
-			 */
-			if (on_net(addr, ifp->int_net, ifp->int_mask)
-			    && (maybe == 0
-				|| ifp->int_mask > maybe->int_mask))
-				maybe = ifp;
+				/* Look for the longest approximate match.
+				 */
+				if (on_net(addr, ifp->int_net, ifp->int_mask)
+				    && (maybe == 0
+					|| ifp->int_mask > maybe->int_mask))
+					maybe = ifp;
+			}
 		}
-	}
 
-	return maybe;
+		if (maybe != 0
+		    || (retried.tv_sec == now.tv_sec
+			&& retried.tv_usec == now.tv_usec))
+			return maybe;
+
+		/* If there is no known interface, maybe there is a
+		 * new interface.  So just once look for new interfaces.
+		 */
+		ifinit();
+		retried = now;
+	}
 }
 
 
 /* Return the classical netmask for an IP address.
  */
-naddr
-std_mask(naddr addr)			/* in network order */
+naddr					/* host byte order */
+std_mask(naddr addr)			/* network byte order */
 {
 	NTOHL(addr);			/* was a host, not a network */
 
@@ -338,9 +350,9 @@ check_dst(naddr addr)
 /* See a new interface duplicates an existing interface.
  */
 struct interface *
-check_dup(naddr addr,
-	  naddr dstaddr,
-	  naddr mask,
+check_dup(naddr addr,			/* IP address, so network byte order */
+	  naddr dstaddr,		/* ditto */
+	  naddr mask,			/* mask, so host byte order */
 	  int if_flags)
 {
 	struct interface *ifp;
@@ -691,6 +703,7 @@ ifinit(void)
 			ifs0.int_index = ifm->ifm_index;
 			ifs0.int_if_flags = ifm->ifm_flags;
 			ifs0.int_state = IS_CHECKED;
+			ifs0.int_query_time = NEVER;
 			ifs0.int_act_time = now.tv_sec;
 			ifs0.int_data.ts = now.tv_sec;
 			ifs0.int_data.ipackets = ifm->ifm_data.ifi_ipackets;
@@ -1006,10 +1019,20 @@ ifinit(void)
 		if (ifp != 0) {
 			if (!(prev_complaints & COMP_DUP)) {
 				complaints |= COMP_DUP;
-				msglog("%s is duplicated by %s at %s to %s",
-				       ifs.int_name, ifp->int_name,
-				       naddr_ntoa(ifp->int_addr),
-				       naddr_ntoa(ifp->int_dstaddr));
+				msglog("%s (%s%s%s) is duplicated by"
+				       " %s (%s%s%s)",
+				       ifs.int_name,
+				       addrname(ifs.int_addr,ifs.int_mask,1),
+				       ((ifs.int_if_flags & IFF_POINTOPOINT)
+					? "-->" : ""),
+				       ((ifs.int_if_flags & IFF_POINTOPOINT)
+					? naddr_ntoa(ifs.int_dstaddr) : ""),
+				       ifp->int_name,
+				       addrname(ifp->int_addr,ifp->int_mask,1),
+				       ((ifp->int_if_flags & IFF_POINTOPOINT)
+					? "-->" : ""),
+				       ((ifp->int_if_flags & IFF_POINTOPOINT)
+					? naddr_ntoa(ifp->int_dstaddr) : ""));
 			}
 			ifp->int_state |= IS_DUP;
 			continue;
@@ -1263,7 +1286,7 @@ addrouteforif(struct interface *ifp)
 	 * it must be reachable using our physical interfaces
 	 */
 	if ((ifp->int_state & IS_REMOTE)
-	    && !(ifp->int_state && IS_EXTERNAL)
+	    && !(ifp->int_state & IS_EXTERNAL)
 	    && !check_remote(ifp))
 		return 0;
 

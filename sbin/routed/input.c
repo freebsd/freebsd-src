@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.17 $"
+#ident "$Revision: 1.19 $"
 
 #include "defs.h"
 
@@ -54,16 +54,20 @@ void
 read_rip(int sock,
 	 struct interface *sifp)
 {
-	static struct msg_limit  bad_name;
 	struct sockaddr_in from;
 	struct interface *aifp;
 	int fromlen, cc;
-	struct {
 #ifdef USE_PASSIFNAME
+	static struct msg_limit  bad_name;
+	struct {
 		char	ifname[IFNAMSIZ];
-#endif
 		union pkt_buf pbuf;
 	} inbuf;
+#else
+	struct {
+		union pkt_buf pbuf;
+	} inbuf;
+#endif
 
 
 	for (;;) {
@@ -148,7 +152,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 	struct netinfo *n, *lim;
 	struct interface *ifp1;
 	naddr gate, mask, v1_mask, dst, ddst_h;
-	struct auth_key *ap;
+	struct auth *ap;
 	int i;
 
 	/* Notice when we hear from a remote gateway
@@ -262,17 +266,16 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 * do not disclose our secret unless the other guy
 			 * already knows it.
 			 */
-			if (aifp != 0
-			    && aifp->int_auth.type == RIP_AUTH_PW
+			ap = find_auth(aifp);
+			if (aifp == 0 && ap->type == RIP_AUTH_PW
+			    && n->n_family == RIP_AF_AUTH
 			    && !ck_passwd(aifp,rip,lim,FROM_NADDR,&use_auth))
 				ap = 0;
-			else
-				ap = find_auth(aifp);
 		} else {
 			v12buf.buf->rip_vers = RIPv1;
 			ap = 0;
 		}
-		clr_ws_buf(&v12buf, ap, aifp);
+		clr_ws_buf(&v12buf, ap);
 
 		do {
 			NTOHL(n->n_metric);
@@ -397,7 +400,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 		/* Send the answer about specific routes.
 		 */
-		if (ap != 0 && aifp->int_auth.type == RIP_AUTH_MD5)
+		if (ap != 0 && ap->type == RIP_AUTH_MD5)
 			end_md5_auth(&v12buf, ap);
 
 		if (from->sin_port != htons(RIP_PORT)) {
@@ -433,7 +436,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		}
 		if (rip->rip_cmd == RIPCMD_TRACEON) {
 			rip->rip_tracefile[cc-4] = '\0';
-			trace_on((char*)rip->rip_tracefile, 0);
+			set_tracefile((char*)rip->rip_tracefile,
+				      "trace command: %s\n", 0);
 		} else {
 			trace_off("tracing turned off by %s\n",
 				  naddr_ntoa(FROM_NADDR));
@@ -519,8 +523,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		}
 
 		/* If the interface cares, ignore bad routers.
-		 * Trace but do not log this problem because when it
-		 * happens it happens a lot.
+		 * Trace but do not log this problem, because where it
+		 * happens, it happens frequently.
 		 */
 		if (aifp->int_state & IS_DISTRUST) {
 			struct tgate *tg = tgates;
@@ -536,14 +540,13 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		}
 
 		/* Authenticate the packet if we have a secret.
-		 * If we do not, ignore the silliness in RFC 1723
-		 * and accept it regardless.
+		 * If we do not have any secrets, ignore the error in
+		 * RFC 1723 and accept it regardless.
 		 */
-		if (aifp->int_auth.type != RIP_AUTH_NONE
-		    && rip->rip_vers != RIPv1) {
-			if (!ck_passwd(aifp,rip,lim,FROM_NADDR,&use_auth))
-				return;
-		}
+		if (aifp->int_auth[0].type != RIP_AUTH_NONE
+		    && rip->rip_vers != RIPv1
+		    && !ck_passwd(aifp,rip,lim,FROM_NADDR,&use_auth))
+			return;
 
 		do {
 			if (n->n_family == RIP_AF_AUTH)
@@ -860,9 +863,8 @@ ck_passwd(struct interface *aifp,
 	  struct msg_limit *use_authp)
 {
 #	define NA (rip->rip_auths)
-#	define DAY (24*60*60)
 	struct netauth *na2;
-	struct auth_key *akp = aifp->int_auth.keys;
+	struct auth *ap;
 	MD5_CTX md5_ctx;
 	u_char hash[RIP_AUTH_PW_LEN];
 	int i;
@@ -874,35 +876,24 @@ ck_passwd(struct interface *aifp,
 		return 0;
 	}
 
-	if (NA->a_type != aifp->int_auth.type) {
-		msglim(use_authp, from, "wrong type of password from %s",
-		       naddr_ntoa(from));
-		return 0;
-	}
+	/* accept any current (+/- 24 hours) password
+	 */
+	for (ap = aifp->int_auth, i = 0; i < MAX_AUTH_KEYS; i++, ap++) {
+		if (ap->type != NA->a_type
+		    || (u_long)ap->start > (u_long)clk.tv_sec+DAY
+		    || (u_long)ap->end+DAY < (u_long)clk.tv_sec)
+			continue;
 
-	if (NA->a_type == RIP_AUTH_PW) {
-		/* accept any current cleartext password
-		 */
-		for (i = 0; i < MAX_AUTH_KEYS; i++, akp++) {
-			if ((u_long)akp->start-DAY > (u_long)clk.tv_sec
-			    || (u_long)akp->end+DAY < (u_long)clk.tv_sec)
+		if (NA->a_type == RIP_AUTH_PW) {
+			if (!bcmp(NA->au.au_pw, ap->key, RIP_AUTH_PW_LEN))
+				return 1;
+
+		} else {
+			/* accept MD5 secret with the right key ID
+			 */
+			if (NA->au.a_md5.md5_keyid != ap->keyid)
 				continue;
 
-			if (!bcmp(NA->au.au_pw, akp->key, RIP_AUTH_PW_LEN))
-				return 1;
-		}
-
-	} else {
-		/* accept any current MD5 secret with the right key ID
-		 */
-		for (i = 0; i < MAX_AUTH_KEYS; i++, akp++) {
-			if (NA->au.a_md5.md5_keyid == akp->keyid
-			    && (u_long)akp->start-DAY <= (u_long)clk.tv_sec
-			    && (u_long)akp->end+DAY >= (u_long)clk.tv_sec)
-				break;
-		}
-
-		if (i < MAX_AUTH_KEYS) {
 			na2 = (struct netauth *)((char *)(NA+1)
 						 + NA->au.a_md5.md5_pkt_len);
 			if (NA->au.a_md5.md5_pkt_len % sizeof(*NA) != 0
@@ -917,13 +908,14 @@ ck_passwd(struct interface *aifp,
 			MD5Update(&md5_ctx, (u_char *)NA,
 				  (char *)na2->au.au_pw - (char *)NA);
 			MD5Update(&md5_ctx,
-				  (u_char *)akp->key, sizeof(akp->key));
+				  (u_char *)ap->key, sizeof(ap->key));
 			MD5Final(hash, &md5_ctx);
-			if (na2->a_family == RIP_AF_AUTH
-			    && na2->a_type == 1
-			    && NA->au.a_md5.md5_auth_len == RIP_AUTH_PW_LEN
-			    && !bcmp(hash, na2->au.au_pw, sizeof(hash)))
-				return 1;
+			if (na2->a_family != RIP_AF_AUTH
+			    || na2->a_type != 1
+			    || NA->au.a_md5.md5_auth_len != RIP_AUTH_PW_LEN
+			    || bcmp(hash, na2->au.au_pw, sizeof(hash)))
+				return 0;
+			return 1;
 		}
 	}
 

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.17 $"
+#ident "$Revision: 1.19 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -127,7 +127,7 @@ trace_rdisc(char	*act,
 		wp = &p->ad.icmp_ad_info[0].icmp_ad_addr;
 		lim = &wp[(len - sizeof(p->ad)) / sizeof(*wp)];
 		for (i = 0; i < p->ad.icmp_ad_num && wp <= lim; i++) {
-			(void)fprintf(ftrace, "\t%s preference=%#x",
+			(void)fprintf(ftrace, "\t%s preference=%d",
 				      naddr_ntoa(wp[0]), (int)ntohl(wp[1]));
 			wp += p->ad.icmp_ad_asize;
 		}
@@ -689,6 +689,7 @@ send_rdisc(union ad_u *p,
 
 	switch (type) {
 	case 0:				/* unicast */
+	default:
 		msg = "Send";
 		break;
 
