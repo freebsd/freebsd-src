@@ -84,6 +84,11 @@
  *        get knowledge of
  */
 /* $Log: uurate.c,v $
+ * Revision 1.3.4.1  1995/09/01  06:01:59  davidg
+ * Brought in changes from main branch: updated to UUCP 1.06.1
+ *
+ * Reviewed by:	ache
+ *
  * Revision 1.4  1995/08/19  21:24:38  ache
  * Commit delta: current -> 1.06 + FreeBSD configuration
  *
@@ -142,7 +147,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$Id: uurate.c,v 1.4 1995/08/19 21:24:38 ache Exp $";
+static char rcsid[] = "$Id: uurate.c,v 1.3.4.1 1995/09/01 06:01:59 davidg Exp $";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"

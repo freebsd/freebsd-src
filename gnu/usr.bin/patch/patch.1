@@ -1,8 +1,11 @@
 .\" -*- nroff -*-
 .rn '' }`
-'\" $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.1,v 1.3 1994/02/17 22:20:33 jkh Exp $
+'\" $Header: /home/ncvs/src/gnu/usr.bin/patch/patch.1,v 1.4 1994/02/25 21:45:59 phk Exp $
 '\" 
 '\" $Log: patch.1,v $
+.\" Revision 1.4  1994/02/25  21:45:59  phk
+.\" added the -C/-check again.
+.\"
 .\" Revision 1.3  1994/02/17  22:20:33  jkh
 .\" Put this back - I was somehow under the erroneous impression that patch was in
 .\" ports, until I saw the the commit messages, that is! :-)  All changed backed out.
@@ -208,7 +211,7 @@ Only context diffs have lines like that, but if there is an \*(L"Index:\*(R"
 line in the leading garbage,
 .I patch
 will try to use the file name from that line.
-The context diff header takes precedence over an Index line.
+The Index line, if present, takes precedence over the context diff header.
 If no file name can be intuited from the leading garbage, you will be asked
 for the name of the file to patch.
 .PP

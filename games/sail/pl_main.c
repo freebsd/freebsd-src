@@ -198,11 +198,12 @@ reprint:
 	else {
 		(void) printf("Your name, Captain? ");
 		(void) fflush(stdout);
-		(void) gets(captain);
+		(void) fgets(captain, sizeof captain, stdin);
 		if (!*captain)
 			(void) strcpy(captain, "no name");
+		else
+			captain[strlen(captain) - 1] = '\0';
 	}
-	captain[sizeof captain - 1] = '\0';
 	Write(W_CAPTAIN, ms, 1, (int)captain, 0, 0, 0);
 	for (n = 0; n < 2; n++) {
 		char buf[10];

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.3 1995/05/30 00:06:30 rgrimes Exp $
+ *	$Id: csh.c,v 1.3.4.1 1995/08/25 02:55:47 davidg Exp $
  */
 
 #ifndef lint
@@ -186,7 +186,9 @@ main(argc, argv)
 	AsciiOnly = k > 0377;
     }
 #else
-    AsciiOnly = getenv("LANG") == NULL && getenv("LC_CTYPE") == NULL;
+    AsciiOnly = getenv("LANG") == NULL &&
+		getenv("LC_ALL") == NULL &&
+		getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
 
     /*

@@ -13,52 +13,64 @@
 # Department of Chemical Engineering
 # The University of Texas at Austin
 # Austin, Texas  78712
+#
+# rewritten by Wolfram Schneider, Berlin, Feb 1996
+#
+# $Id$
 
-PATH=/usr/local/bin:/bin:/usr/ucb:/usr/bin
 
-libdir=%libdir%
+PATH=/bin:/usr/bin:$PATH
+db=whatis	# name of whatis data base
+grepopt=''
 
-if [ $# = 0 ]
-then
-    echo "usage: `basename $0` keyword ..."
-    exit 1
-fi
+# argument test
+case $# in 0)  
+	echo "usage: `basename $0` keyword ..." >&2
+	exit 1
+	;; 
+esac
 
+case "$0" in
+	*whatis) grepopt='-w';;	# run as whatis(1)
+	*)	 grepopt='';;	# otherwise run as apropos(1)
+esac
+
+# test manpath
 manpath=`%bindir%/manpath -q | tr : '\040'`
+case X"$manpath" in X) 
+	echo "`basename $0`: manpath is null, use \"/usr/share/man\"" >&2
+	manpath=/usr/share/man
+	;;
+esac
 
-if [ "$manpath" = "" ]
-then
-    echo "whatis: manpath is null"
-    exit 1
-fi
 
-if [ "$PAGER" = "" ]
-then
-    PAGER="%pager%"
-fi
+# reset $PAGER if $PAGER is empty
+case X"$PAGER" in X) 
+	PAGER="%pager%"
+	;; 
+esac
 
-while [ $1 ]
+# search for existing */whatis databases
+mandir=''
+for d in $manpath
 do
-    found=0
-    for d in $manpath /usr/lib
-    do
-        if [ -f $d/whatis ]
-        then
-            grep -i "$1" $d/whatis
-            status=$?
-            if [ "$status" = "0" ]
-            then
-                found=1
-            fi
-        fi
-    done
+        if [ -f "$d/$db" -a -r "$d/$db" ]
+	then
+		mandir="$mandir $d/$db"
+	fi
+done
 
-    if [ "$found" = "0" ]
-    then
-        echo "$1: nothing appropriate"
-    fi
+case X"$mandir" in X)
+	echo "`basename $0`: no whatis databases in $manpath" >&2
+	exit 1
+esac
 
-    shift
+
+for manpage
+do
+	if grep -hi $grepopt "$manpage" $mandir; then :
+	else
+        	echo "$manpage: nothing appropriate"
+	fi
 done | $PAGER
 
-exit

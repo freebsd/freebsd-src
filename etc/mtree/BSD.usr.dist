@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40.4.6 1996/05/07 15:34:50 nate Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.7 1996/05/07 20:15:49 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -42,6 +42,8 @@
 		de_DE.ISO_8859-1
 		..
 		hr_HR.ISO_8859-2
+		..
+		ru_SU.KOI8-R
 		..
         ..
         dict
@@ -178,8 +180,6 @@
                 ..
             ..
             sup
-            ..
-            syscons
             ..
         ..
 /set type=dir uname=games gname=bin mode=0755

@@ -332,6 +332,8 @@ history_search_internal (string, direction, anchored)
   reverse = (direction < 0);
 
   /* Take care of trivial cases first. */
+  if (string == 0 || *string == '\0')
+    return (-1);
 
   if (!history_length || ((i == history_length) && !reverse))
     return (-1);
@@ -862,7 +864,7 @@ history_set_pos (pos)
   history_offset = pos;
   return (1);
 }
-
+ 
 
 /* **************************************************************** */
 /*								    */
@@ -996,7 +998,7 @@ get_history_event (string, caller_index, delimiting_quote)
 	{
 	  entry = current_history ();
 	  history_offset = history_length;
-
+	
 	  /* If this was a substring search, then remember the
 	     string that we matched for word substitution. */
 	  if (substring_okay)
@@ -1259,7 +1261,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	quoted_search_delimiter = string[i - 1];
       event = get_history_event (string, &i, quoted_search_delimiter);
     }
-
+	  
   if (!event)
     {
       *ret_string = hist_error (string, start, i, EVENT_NOT_FOUND);
@@ -1581,7 +1583,7 @@ history_expand (hstring, output)
       *output = savestring (hstring);
       return (0);
     }
-
+    
   /* Prepare the buffer for printing error messages. */
   result = xmalloc (result_len = 256);
   result[0] = '\0';
@@ -1650,7 +1652,7 @@ history_expand (hstring, output)
 	    }
 #endif /* SHELL */
 	}
-
+	  
       if (string[i] != history_expansion_char)
 	{
 	  free (result);
@@ -1968,7 +1970,7 @@ history_tokenize_internal (string, wind, indp)
 	return (result);
 
       start = i;
-
+      
       if (member (string[i], "()\n"))
 	{
 	  i++;
@@ -2149,7 +2151,7 @@ main ()
   while (!done)
     {
       fprintf (stdout, "history%% ");
-      t = gets (line);
+      t = fgets (line, 1024, stdin);
 
       if (!t)
 	strcpy (line, "quit");

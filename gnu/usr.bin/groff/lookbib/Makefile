@@ -4,7 +4,7 @@ PROG=		lookbib
 SRCS=		lookbib.cc
 CFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBBIB) $(LIBGROFF) -lm
-DPADD+=		$(LIBBIB) $(LIBGROFF) $(LIBMATH)
+DPADD+=		$(LIBBIB) $(LIBGROFF) $(LIBM)
 
 MANDEPEND=	lookbib.1
 CLEANFILES+=	${MANDEPEND}

@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5.4.1 1995/09/17 06:39:59 davidg Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5.4.2 1996/04/11 10:33:45 markm Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.5.4.2  1996/04/11  10:33:45  markm
+ * Merge with HEAD an improved Index: priority fix.
+ *
  * Revision 1.5.4.1  1995/09/17 06:39:59  davidg
  * Brought in changes from rev 1.6: Give 'Index:' priority over other paths.
  *
@@ -370,8 +373,6 @@ intuit_diff_type()
 	    else
 		filearg[0] = savestr(newname);
 	}
-	else if (indname)
-	    filearg[0] = savestr(indname);
 	else if (oldname)
 	    filearg[0] = savestr(oldname);
 	else if (newname)

@@ -162,7 +162,7 @@ extern char *rl_basic_word_break_characters;
 extern char *rl_completer_word_break_characters;
 
 /* List of characters which can be used to quote a substring of the line.
-   Completion occurs on the entire substring, and within the substring
+   Completion occurs on the entire substring, and within the substring   
    rl_completer_word_break_characters are treated as any other character,
    unless they also appear within this list. */
 extern char *rl_completer_quote_characters;

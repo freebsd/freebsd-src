@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.1 1995/03/18 07:02:10 rgrimes Exp $
+#	$Id: BSD.include.dist,v 1.2 1995/05/17 09:31:03 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -13,13 +13,7 @@
     ..
     net
     ..
-    netccitt
-    ..
     netinet
-    ..
-    netiso
-    ..
-    netns
     ..
     nfs
     ..

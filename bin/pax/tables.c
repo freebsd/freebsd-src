@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tables.c,v 1.2 1994/09/24 02:56:34 davidg Exp $
+ *	$Id: tables.c,v 1.3 1995/05/30 00:07:01 rgrimes Exp $
  */
 
 #ifndef lint
@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 5/31/93";
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>

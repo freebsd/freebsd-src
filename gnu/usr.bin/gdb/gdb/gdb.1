@@ -1,6 +1,6 @@
 .\" Copyright (c) 1991 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
-.\" $Id: gdb.1,v 1.1 1994/01/28 12:39:43 pk Exp $
+.\" $Id: gdb.1,v 1.2 1994/12/30 23:25:45 jkh Exp $
 .TH gdb 1 "4nov1991" "GNU Tools" "GNU Tools"
 .SH NAME
 gdb \- The GNU Debugger
@@ -11,6 +11,8 @@ gdb \- The GNU Debugger
 .RB "[\|" \-help "\|]"
 .RB "[\|" \-nx "\|]"
 .RB "[\|" \-q "\|]"
+.RB "[\|" \-k "\|]"
+.RB "[\|" \-w "\|]"
 .RB "[\|" \-batch "\|]"
 .RB "[\|" \-cd=\c
 .I dir\c
@@ -279,6 +281,23 @@ command options and arguments have been processed.
 .B \-q
 ``Quiet''.  Do not print the introductory and copyright messages.  These
 messages are also suppressed in batch mode.
+
+.TP
+.B \-kernel
+.TP
+.B \-k
+Puts GDB into kernel debugging mode. If no executable file is specified then
+/kernel is used. If no core file is specified then /dev/mem is
+used. Crash dumps can be examined by specifying both an executable and
+a core file.
+
+.TP
+.B \-wcore
+.TP
+.B \-w
+This flag is only effective when debugging a "live" kernel. It makes the
+core file (/dev/mem) writable so that kernel variables can be changed
+during a debugging session. Use this with caution !
 
 .TP
 .B \-batch

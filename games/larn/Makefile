@@ -62,8 +62,8 @@ LDADD=	-ltermcap -lcompat
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/datfiles; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    larnmaze larnopts larn.help \
+	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 larnmaze larnopts larn.help \
 	    ${DESTDIR}/usr/share/games/larn)
 
 .include <bsd.prog.mk>

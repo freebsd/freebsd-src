@@ -1,5 +1,5 @@
 /* getopt_long and getopt_long_only entry points for GNU getopt.
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 1993
+   Copyright (C) 1987, 88, 89, 90, 91, 92, 1993, 1994
 	Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
@@ -17,19 +17,12 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_CONFIG_H
-#if defined (emacs) || defined (CONFIG_BROKETS)
-/* We use <config.h> instead of "config.h" so that a compilation
-   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
-   (which it would do because it found this file in $srcdir).  */
 #include <config.h>
-#else
-#include "config.h"
-#endif
 #endif
 
 #include "getopt.h"
 
-#ifndef __STDC__
+#if !defined (__STDC__) || !__STDC__
 /* This is a separate conditional since some stdc systems
    reject `defined (const)'.  */
 #ifndef const

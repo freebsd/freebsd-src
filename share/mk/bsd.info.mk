@@ -1,9 +1,9 @@
-# $Id: bsd.info.mk,v 1.15 1995/07/27 15:03:27 wollman Exp $
+# $Id: bsd.info.mk,v 1.13.4.1 1995/09/17 11:14:36 davidg Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
-MAKEINFOFLAGS?=	--no-split # simplify some things, e.g., compression
+MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
 
 .MAIN: all
 
@@ -66,7 +66,7 @@ obj:
 .endif
 
 clean:
-	rm -f ${INFO:S/$/.info*/g} [eE]rrs mklog ${CLEANFILES}
+	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj

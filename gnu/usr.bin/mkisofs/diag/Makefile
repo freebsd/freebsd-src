@@ -1,10 +1,16 @@
-all: dump isodump isovfy
+#CC = gcc
+CC = cc -traditional
+
+all: dump isodump isovfy 
+
+isoinfo:isoinfo.c
+	${CC} -g -o isoinfo isoinfo.c
 dump:dump.c
-	gcc -o dump dump.c
+	${CC} -o dump dump.c
 isodump:isodump.c
-	gcc -o isodump isodump.c
+	${CC} -o isodump isodump.c
 isovfy:isovfy.c
-	gcc -o isovfy isovfy.c
+	${CC} -o isovfy isovfy.c
 
 clean:
-	rm dump isodump isovfy
+	rm -f dump isodump isovfy isoinfo

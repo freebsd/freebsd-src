@@ -39,8 +39,8 @@ LOADLIBES = $(LIBS)
 
 SHELL = /bin/sh
 
-CFLAGS = -g
-LDFLAGS = -g
+CFLAGS = -O2
+LDFLAGS = -O2
 
 prefix = /usr/local
 exec_prefix = $(prefix)

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)echo.1	8.1 (Berkeley) 7/22/93
-.\"	$Id$
+.\"	$Id: echo.1,v 1.2 1994/09/24 02:55:17 davidg Exp $
 .\"
 .Dd July 22, 1993
 .Dt ECHO 1
@@ -55,7 +55,9 @@ output.
 The following option is available:
 .Bl -tag -width flag
 .It Fl n
-Do not print the trailing newline character.
+Do not print the trailing newline character.  This may also be
+achieved by appending `\ec' to the end of the string, as is done
+by iBCS2 compatible systems.
 .El
 .Pp
 The

@@ -4,7 +4,7 @@ PROG=		indxbib
 SRCS=		indxbib.cc dirnamemax.c signal.c
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+= 	${LIBBIB} ${LIBGROFF} -lm
-DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBMATH}
+DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBM}
 
 MANDEPEND=	indxbib.1
 CLEANFILES+=	${MANDEPEND}
@@ -14,7 +14,7 @@ CLEANFILES+=	${MANDEPEND}
 # Sigh... Hardcode it.  	- jkh
 #
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/eign \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/eign \
 		${DESTDIR}${SHAREDIR}/dict
 
 .include "../Makefile.cfg"

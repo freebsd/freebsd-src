@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.25 1995/04/26 14:34:19 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.26 1995/05/07 06:39:30 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,30 +17,39 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 STRIP?=	-s
 .endif
 
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
+LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
+LIBKZTAIL?=	${DESTDIR}/usr/lib/kztail.o
+
 LIBC?=		${DESTDIR}/usr/lib/libc.a
+LIBC_PIC=	${DESTDIR}/usr/lib/libc_pic.a
+LIBCOM_ERR=	${DESTDIR}/usr/lib/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
 LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
 LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
 LIBDES?=	${DESTDIR}/usr/lib/libdes.a	# XXX doesn't exist
 LIBDIALOG?=	${DESTDIR}/usr/lib/libdialog.a
+LIBDISK?=	${DESTDIR}/usr/lib/libdisk.a
 LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
+LIBF2C?=	${DESTDIR}/usr/lib/libf2c.a
+LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORMS?=	${DESTDIR}/usr/lib/libforms.a
-LIBFTP?=	${DESTDIR}/usr/lib/libftp.a
+LIBGPLUSPLUS?=	${DESTDIR}/usr/lib/libg++.a
 LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
-LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
+LIBGCC_PIC?=	${DESTDIR}/usr/lib/libgcc_pic.a
+LIBGMP?=	${DESTDIR}/usr/lib/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
+LIBIPX?=	${DESTDIR}/usr/lib/libipx.a
 LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a	# XXX doesn't exist
 LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a	# XXX doesn't exist
+LIBKEYCAP?=	${DESTDIR}/usr/lib/libkeycap.a
 LIBKVM?=	${DESTDIR}/usr/lib/libkvm.a
 LIBL?=		${DESTDIR}/usr/lib/libl.a
+LIBLN?=		"don't use, LIBLN, use LIBL"
 LIBM?=		${DESTDIR}/usr/lib/libm.a
 LIBMD?=		${DESTDIR}/usr/lib/libmd.a
-LIBMP?=		${DESTDIR}/usr/lib/libmp.a	# XXX doesn't exist
+LIBMP?=		${DESTDIR}/usr/lib/libmp.a
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
 LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
@@ -49,12 +58,15 @@ LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a	# XXX doesn't exist
 LIBREADLINE?=	${DESTDIR}/usr/lib/libreadline.a
 LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
 LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
-LIBSCRYPT?=	${DESTDIR}/usr/lib/libscrypt.a	# XXX don't use, use LIBCRYPT
+LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}/usr/lib/libscsi.a
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
+LIBSS?=		${DESTDIR}/usr/lib/libss.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
+LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
+LIBXPG4?=	${DESTDIR}/usr/lib/libxpg4.a
 LIBY?=		${DESTDIR}/usr/lib/liby.a
 
 .if defined(NOSHARED)
@@ -134,16 +146,16 @@ _PROGSUBDIR: .USE
 # here (or does maninstall always work when nothing is made?),
 
 .MAIN: all
-all: ${PROG} ${MANDEPEND} _PROGSUBDIR
+all: ${PROG} all-man _PROGSUBDIR
 
 .if !target(clean)
 clean: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES} 
+	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
 .endif
 
 .if !target(cleandir)
 cleandir: _PROGSUBDIR
-	rm -f a.out [Ee]rrs mklog ${PROG} ${OBJS} ${CLEANFILES}
+	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES}
 	rm -f ${.CURDIR}/tags .depend
 	cd ${.CURDIR}; rm -rf obj;
 .endif
@@ -228,6 +240,7 @@ tags: ${SRCS} _PROGSUBDIR
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
+all-man:
 .endif
 
 _DEPSUBDIR=	_PROGSUBDIR

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mv.1	8.1 (Berkeley) 5/31/93
-.\"	$Id: mv.1,v 1.2 1994/09/24 02:56:06 davidg Exp $
+.\"	$Id: mv.1,v 1.2.6.1 1995/08/29 11:14:21 davidg Exp $
 .\"
 .Dd May 31, 1993
 .Dt MV 1
@@ -77,17 +77,25 @@ The following options are available:
 Do not prompt for confirmation before overwriting the destination
 path.
 (The
-.Fl i
-option is ignored if the
 .Fl f
-option is specified.)
+option overrides any previous
+.Fl i
+options.)
 .It Fl i
 Causes
 .Nm mv
 to write a prompt to standard error before moving a file that would
 overwrite an existing file.
-If the response from the standard input begins with the character ``y'',
+If the response from the standard input begins with the character
+.Sq Li y 
+or
+.Sq Li Y ,
 the move is attempted.
+(The
+.Fl i
+option overrides any previous
+.Fl f
+options.)
 .El
 .Pp
 It is an error for either the
@@ -121,6 +129,7 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr cp 1 ,
+.Xr rm 1 ,
 .Xr symlink 7
 .Sh STANDARDS
 The
