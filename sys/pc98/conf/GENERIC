@@ -92,6 +92,7 @@ device		adv		# Advansys SCSI adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
+#device		mpt		# LSI-Logic MPT-Fusion	(unknown whether works)
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
