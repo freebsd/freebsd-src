@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)reloc.h	8.1 (Berkeley) 6/10/93
- * $Id: reloc.h,v 1.2 1994/08/02 07:38:59 davidg Exp $
+ * $Id: reloc.h,v 1.3 1994/08/09 14:39:57 jkh Exp $
  */
+
+#ifndef _I386_MACHINE_RELOC_H_
+#define _I386_MACHINE_RELOC_H_
 
 /* Relocation format. */
 struct relocation_info {
@@ -46,3 +49,5 @@ struct relocation_info {
 			r_relative :  1,  /* load address relative */
 			    r_copy :  1;  /* run time copy */
 };
+
+#endif
