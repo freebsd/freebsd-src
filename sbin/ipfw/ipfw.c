@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.69 1999/06/04 11:20:59 ru Exp $";
+	"$Id: ipfw.c,v 1.70 1999/06/11 09:43:53 ru Exp $";
 #endif /* not lint */
 
 
@@ -33,8 +33,10 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <grp.h>
 #include <limits.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -334,6 +336,24 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		}
 	}
 
+	if (chain->fw_flg & IP_FW_F_UID) {
+		struct passwd *pwd = getpwuid(chain->fw_uid);
+
+		if (pwd)
+			printf(" uid %s", pwd->pw_name);
+		else
+			printf(" uid %u", chain->fw_uid);
+	}
+
+	if (chain->fw_flg & IP_FW_F_GID) {
+		struct group *grp = getgrgid(chain->fw_gid);
+
+		if (grp)
+			printf(" gid %s", grp->gr_name);
+		else
+			printf(" gid %u", chain->fw_gid);
+	}
+
 	/* Direction */
 	if ((chain->fw_flg & IP_FW_F_IN) && !(chain->fw_flg & IP_FW_F_OUT))
 		printf(" in");
@@ -589,6 +609,8 @@ show_usage(const char *fmt, ...)
 "    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "  extras:\n"
+"    uid {user id}\n"
+"    gid {group id}\n"
 "    fragment     (may not be used with ports or tcpflags)\n"
 "    in\n"
 "    out\n"
@@ -1215,6 +1237,32 @@ add(ac,av)
 	}
 
 	while (ac) {
+		if (!strncmp(*av,"uid",strlen(*av))) {
+			struct passwd *pwd;
+
+			rule.fw_flg |= IP_FW_F_UID;
+			ac--; av++;
+			if (!ac)
+				show_usage("``uid'' requires argument");
+			
+			rule.fw_uid = (pwd = getpwnam(*av)) ? pwd->pw_uid
+					: strtoul(*av, NULL, 0);
+			ac--; av++;
+			continue;
+		}
+		if (!strncmp(*av,"gid",strlen(*av))) {
+			struct group *grp;
+
+			rule.fw_flg |= IP_FW_F_GID;
+			ac--; av++;
+			if (!ac)
+				show_usage("``gid'' requires argument");
+			
+			rule.fw_gid = (grp = getgrnam(*av)) ? (gid_t)grp->gr_gid
+					: strtoul(*av, NULL, 0);
+			ac--; av++;
+			continue;
+		}
 		if (!strncmp(*av,"in",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_IN;
 			av++; ac--; continue;

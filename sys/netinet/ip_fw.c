@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.112 1999/05/24 10:01:15 luigi Exp $
+ *	$Id: ip_fw.c,v 1.113 1999/06/11 11:27:35 ru Exp $
  */
 
 /*
@@ -34,18 +34,21 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/ucred.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #ifdef DUMMYNET
-#include <net/route.h>
 #include <netinet/ip_dummynet.h>
 #endif
 #include <netinet/tcp.h>
@@ -53,6 +56,7 @@
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
+#include <netinet/udp_var.h>
 
 #include <netinet/if_ether.h> /* XXX ethertype_ip */
 
@@ -615,13 +619,14 @@ again:
 		if (f->fw_ipopt != f->fw_ipnopt && !ipopts_match(ip, f))
 			continue;
 
-		/* Check protocol; if wildcard, match */
-		if (f->fw_prot == IPPROTO_IP)
-			goto got_match;
-
-		/* If different, don't match */
-		if (ip->ip_p != f->fw_prot) 
-			continue;
+		/* Check protocol; if wildcard, and no [ug]id, match */
+		if (f->fw_prot == IPPROTO_IP) {
+			if (!(f->fw_flg & (IP_FW_F_UID|IP_FW_F_GID)))
+				goto got_match;
+		} else
+		    /* If different, don't match */
+		    if (ip->ip_p != f->fw_prot) 
+			    continue;
 
 /*
  * here, pip==NULL for bridged pkts -- they include the ethernet
@@ -641,6 +646,88 @@ again:
 			    }                                           \
 			} while (0)
 
+		/* Protocol specific checks for uid only */
+		if (f->fw_flg & (IP_FW_F_UID|IP_FW_F_GID)) {
+		    switch (ip->ip_p) {
+		    case IPPROTO_TCP:
+			{
+			    struct tcphdr *tcp;
+			    struct inpcb *P;
+
+			    if (offset == 1)	/* cf. RFC 1858 */
+				    goto bogusfrag;
+			    if (offset != 0)
+				    continue;
+
+			    PULLUP_TO(hlen + 14);
+			    tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
+
+			    if (oif)
+				P = in_pcblookup_hash(&tcbinfo, ip->ip_dst,
+				   tcp->th_dport, ip->ip_src, tcp->th_sport, 0);
+			    else
+				P = in_pcblookup_hash(&tcbinfo, ip->ip_src,
+				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0);
+
+			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+				if (f->fw_flg & IP_FW_F_UID) {
+					if (P->inp_socket->so_cred->p_ruid !=
+					    f->fw_uid)
+						continue;
+				} else if (!groupmember(f->fw_gid,
+					    P->inp_socket->so_cred->pc_ucred))
+						continue;
+			    } else continue;
+
+			    break;
+			}
+
+		    case IPPROTO_UDP:
+			{
+			    struct udphdr *udp;
+			    struct inpcb *P;
+
+			    if (offset != 0)
+				continue;
+
+			    PULLUP_TO(hlen + 4);
+			    udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
+
+			    if (oif)
+				P = in_pcblookup_hash(&udbinfo, ip->ip_dst,
+				   udp->uh_dport, ip->ip_src, udp->uh_sport, 1);
+			    else
+				P = in_pcblookup_hash(&udbinfo, ip->ip_src,
+				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1);
+
+			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+				if (f->fw_flg & IP_FW_F_UID) {
+					if (P->inp_socket->so_cred->p_ruid !=
+					    f->fw_uid)
+						continue;
+				} else if (!groupmember(f->fw_gid,
+					    P->inp_socket->so_cred->pc_ucred))
+						continue;
+			    } else continue;
+
+			    break;
+			}
+
+			default:
+				continue;
+/*
+ * XXX Shouldn't GCC be allowing two bogusfrag labels if they're both inside
+ * separate blocks? Hmm.... It seems it's got incorrect behavior here.
+ */
+#if 0
+bogusfrag:
+				if (fw_verbose)
+					ipfw_report(NULL, ip, rif, oif);
+				goto dropit;
+#endif
+			}
+		}
+		    
 		/* Protocol specific checks */
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -1134,6 +1221,8 @@ check_ipfw_struct(struct ip_fw *frwl)
 #ifdef IPFIREWALL_FORWARD
 	case IP_FW_F_FWD:
 #endif
+	case IP_FW_F_UID:
+	case IP_FW_F_GID:
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
