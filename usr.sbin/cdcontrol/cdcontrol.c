@@ -198,6 +198,10 @@ int main (int argc, char **argv)
 		usage ();
 
 	if (! cdname) {
+		cdname = getenv("CDROM");
+	}
+
+	if (! cdname) {
 		cdname = DEFAULT_CD_DRIVE;
 		warnx("no CD device name specified, defaulting to %s", cdname);
 	}
