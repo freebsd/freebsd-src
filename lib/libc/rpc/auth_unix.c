@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.4 1995/05/30 05:41:12 rgrimes Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.5 1995/10/22 14:51:08 phk Exp $";
 #endif
 
 /*
@@ -55,6 +55,8 @@ static char *rcsid = "$Id: auth_unix.c,v 1.4 1995/05/30 05:41:12 rgrimes Exp $";
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 #include <rpc/auth_unix.h>
+
+bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
 
 /*
  * Unix authenticator operations vector
@@ -202,13 +204,13 @@ authunix_create_default()
 	if (gethostname(machname, MAX_MACHINE_NAME) == -1)
 		abort();
 	machname[MAX_MACHINE_NAME] = 0;
-	uid = geteuid();
-	gid = getegid();
+	uid = (int)geteuid();
+	gid = (int)getegid();
 	if ((len = getgroups(NGROUPS, real_gids)) < 0)
 		abort();
 	if(len > NGRPS) len = NGRPS; /* GW: turn `gid_t's into `int's */
 	for(i = 0; i < len; i++) {
-		gids[i] = real_gids[i];
+		gids[i] = (int)real_gids[i];
 	}
 	return (authunix_create(machname, uid, gid, len, gids));
 }
