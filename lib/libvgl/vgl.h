@@ -40,6 +40,7 @@ typedef struct {
   int  	VXsize, VYsize;
   int   Xorigin, Yorigin;
   byte 	*Bitmap;
+  int	PixelBytes;
 } VGLBitmap;
 
 #define VGLBITMAP_INITIALIZER(t, x, y, bits)	\
@@ -54,6 +55,12 @@ typedef struct {
 #define VIDBUF8X	3
 #define VIDBUF8S	4
 #define VIDBUF4S	5
+#define VIDBUF16	6		/* Direct Color linear buffer */
+#define VIDBUF24	7		/* Direct Color linear buffer */
+#define VIDBUF32	8		/* Direct Color linear buffer */
+#define VIDBUF16S	9		/* Direct Color segmented buffer */
+#define VIDBUF24S	10		/* Direct Color segmented buffer */
+#define VIDBUF32S	11		/* Direct Color segmented buffer */
 #define NOBUF		255
 
 typedef struct VGLText {
@@ -122,14 +129,14 @@ int VGLMouseStatus(int *x, int *y, char *buttons);
 int VGLMouseFreeze(int x, int y, int width, int hight, byte color);
 void VGLMouseUnFreeze(void);
 /* simple.c */
-void VGLSetXY(VGLBitmap *object, int x, int y, byte color);
-byte VGLGetXY(VGLBitmap *object, int x, int y);
-void VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color);
-void VGLBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color);
-void VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color);
-void VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color);
-void VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color);
-void VGLClear(VGLBitmap *object, byte color);
+void VGLSetXY(VGLBitmap *object, int x, int y, u_long color);
+u_long VGLGetXY(VGLBitmap *object, int x, int y);
+void VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color);
+void VGLBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color);
+void VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color);
+void VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
+void VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
+void VGLClear(VGLBitmap *object, u_long color);
 void VGLRestorePalette(void);
 void VGLSavePalette(void);
 void VGLSetPalette(byte *red, byte *green, byte *blue);
