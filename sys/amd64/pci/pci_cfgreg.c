@@ -133,12 +133,16 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
  *
  * XXX this needs to learn to actually route uninitialised interrupts as well
  *     as just returning interrupts for stuff that's already initialised.
+ *
+ * XXX we don't do anything "right" with the function number in the PIR table
+ *     (because the consumer isn't currently passing it in).
  */
 int
 pci_cfgintr(int bus, int device, int pin)
 {
     struct PIR_entry	*pe;
-    int			i;
+    int			i, irq;
+    struct bios_regs	args;
     
     if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) ||
       (pin < 1) || (pin > 4))
@@ -151,11 +155,25 @@ pci_cfgintr(int bus, int device, int pin)
 	if ((bus != pe->pe_bus) || (device != pe->pe_device))
 	    continue;
 	if (!powerof2(pe->pe_intpin[pin - 1].irqs)) {
-	    printf("pci_cfgintr: %d:%d:%c is not routed to a unique interrupt\n", bus, device, 'A' + pin - 1);
+	    printf("pci_cfgintr: %d:%d:%c is not routed to a unique interrupt\n",
+		   bus, device, 'A' + pin - 1);
 	    break;
 	}
-	printf("pci_cfgintr: %d:%d:%c routed to irq %d\n", bus, device, 'A' + pin - 1, ffs(pe->pe_intpin[pin - 1].irqs));
-	return(ffs(pe->pe_intpin[pin - 1].irqs));
+	irq = ffs(pe->pe_intpin[pin - 1].irqs) - 1;
+	printf("pci_cfgintr: %d:%d:%c routed to irq %d\n", 
+	       bus, device, 'A' + pin - 1, irq);
+
+	/*
+	 * Ask the BIOS to route the interrupt
+	 */
+	args.eax = PCIBIOS_ROUTE_INTERRUPT;
+	args.ebx = (bus << 8) | (device << 3);
+	args.ecx = (irq << 8) | (0xa + pin - 1);	/* pin value is 0xa - 0xd */
+	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
+
+	/* XXX if it fails, we should smack the router hardware directly */
+
+	return(irq);
     }
     return(255);
 }
