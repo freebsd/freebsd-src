@@ -128,6 +128,9 @@ typedef	u_int32_t u32;
 #include <dev/sym/sym_conf.h>
 #include <dev/sym/sym_defs.h>
 
+/* We want to know if the ncr has been configured */
+#include "ncr.h"
+
 /*
  *  On x86 architecture, write buffers management does not 
  *  reorder writes to memory. So, preventing compiler from  
@@ -1562,9 +1565,9 @@ struct sym_scrh {
 	u32 msg_out		[  4];
 	u32 msg_out_done	[  4];
 #ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 no_data		[ 36];
+	u32 no_data		[ 38];
 #else
-	u32 no_data		[ 28];
+	u32 no_data		[ 30];
 #endif
 	u32 abort_resel		[ 16];
 	u32 resend_ident	[  4];
@@ -3045,6 +3048,8 @@ static struct sym_scrh scripth0 = {
 		offsetof (struct sym_ccb, xerr_status),
 	SCR_REG_REG (scratcha,  SCR_OR,  XE_EXTRA_DATA),
 		0,
+	SCR_STORE_REL (scratcha, 1),
+		offsetof (struct sym_ccb, xerr_status),
 	/*
 	 *  Count this byte.
 	 *  This will allow to return a positive 
@@ -6833,7 +6838,7 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	 */
 	tmp = scr_to_cpu(cp->phys.goalp);
 	dp_sg = SYM_CONF_MAX_SG;
-	if (dp_sg != tmp)
+	if (dp_scr != tmp)
 		dp_sg -= (tmp - 8 - (int)dp_scr) / (2*4);
 	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 
@@ -9712,7 +9717,12 @@ sym_pci_probe(pcici_t pci_tag, pcidi_t type)
 	struct	sym_pci_chip *chip;
 
 	chip = sym_find_pci_chip(pci_tag);
+#if NNCR > 0
+	/* Only claim chips we are allowed to take precedence over the ncr */
+	if (chip && !(chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP))
+#else
 	if (chip)
+#endif
 		return chip->name;
 	return 0;
 }
