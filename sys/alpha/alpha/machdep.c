@@ -570,7 +570,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	u_long biv;		/* bootinfo version */
 {
 	int phys_avail_cnt;
-	char *bootinfo_msg;
+	char *bootinfo_msg, *bootinfo_booted_kernel;
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	struct mddt *mddtp;
@@ -595,6 +595,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * information provided by the boot program).
 	 */
 	bootinfo_msg = NULL;
+	bootinfo_booted_kernel = NULL;
 	if (bim == BOOTINFO_MAGIC) {
 		if (biv == 0) {		/* backward compat */
 			biv = *(u_long *)bip;
@@ -626,6 +627,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			bcopy(v1p->booted_kernel, bootinfo.booted_kernel,
 			    min(sizeof v1p->booted_kernel,
 			      sizeof bootinfo.booted_kernel));
+			bootinfo_booted_kernel = bootinfo.booted_kernel;
 			/* booted dev not provided in bootinfo */
 			init_prom_interface((struct rpb *)
 			    ALPHA_PHYS_TO_K0SEG(bootinfo.hwrpb_phys));
@@ -789,10 +791,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		kernend = round_page(bootinfo.kernend);
 	if (preload_metadata == NULL)
 		printf("WARNING: loader(8) metadata is missing!\n");
-
-	p = getenv("kernelname");
-	if (p)
-		strncpy(kernelname, p, sizeof(kernelname) - 1);
 
 	kernstartpfn = atop(ALPHA_K0SEG_TO_PHYS(kernstart));
 	kernendpfn = atop(ALPHA_K0SEG_TO_PHYS(kernend));
@@ -1110,6 +1108,16 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			boothowto |= RB_VERBOSE;
 			bootverbose = 1;
 		}
+	}
+
+	/*
+	 * Pick up kernelname.
+	 */
+	if (bootinfo_booted_kernel) {
+		strncpy(kernelname, bootinfo_booted_kernel,
+		   min(sizeof(kernelname), sizeof bootinfo.booted_kernel) - 1);
+	} else if ((p = getenv("kernelname")) != NULL) {
+		strncpy(kernelname, p, sizeof(kernelname) - 1);
 	}
 
 	/*
