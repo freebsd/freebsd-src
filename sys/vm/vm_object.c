@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.122 1998/06/07 17:13:12 dfr Exp $
+ * $Id: vm_object.c,v 1.123 1998/06/21 14:53:44 bde Exp $
  */
 
 /*
@@ -1567,10 +1567,12 @@ DB_SHOW_COMMAND(vmochk, vm_object_check)
 					object->size);
 			}
 			if (!vm_object_in_map(object)) {
-				db_printf("vmochk: internal obj is not in a map: "
-		"ref: %d, size: %d: 0x%x, backing_object: 0x%x\n",
-				    object->ref_count, object->size, 
-				    object->size, object->backing_object);
+				db_printf(
+			"vmochk: internal obj is not in a map: "
+			"ref: %d, size: %lu: 0x%lx, backing_object: %p\n",
+				    object->ref_count, (u_long)object->size, 
+				    (u_long)object->size,
+				    (void *)object->backing_object);
 			}
 		}
 	}
@@ -1659,7 +1661,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		int rcount;
 		vm_page_t m;
 
-		db_printf("new object: 0x%x\n", object);
+		db_printf("new object: %p\n", (void *)object);
 		if ( nl > 18) {
 			c = cngetc();
 			if (c != ' ')
