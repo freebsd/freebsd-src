@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* $Id: isp_pci.c,v 1.4 1998/09/15 10:06:22 gibbs Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -477,7 +476,8 @@ isp_pci_mbxdma(isp)
 	}
 	if (bus_dmamem_alloc(pci->cntrol_dmat, (void **)&base,
 	    BUS_DMA_NOWAIT, &pci->cntrol_dmap) != 0) {
-		printf("%s: cannot allocate CCB memory\n", isp->isp_name);
+		printf("%s: cannot allocate %d bytes of CCB memory\n",
+		    isp->isp_name, len);
 		return (1);
 	}
 
@@ -503,7 +503,7 @@ isp_pci_mbxdma(isp)
 	for (i = 0; i < MAXISPREQUEST; i++) {
 		error = bus_dmamap_create(pci->parent_dmat, 0, &pci->dmaps[i]);
 		if (error) {
-			printf("%s: error %d creating data DMA maps\n",
+			printf("%s: error %d creating mailbox DMA maps\n",
 			    isp->isp_name, error);
 			return (1);
 		}
@@ -520,6 +520,8 @@ typedef struct {
 	u_int8_t optr;
 	u_int error;
 } mush_t;
+
+#define	MUSHERR_NOQENTRIES	-2
 
 static void
 dma2(arg, dm_segs, nseg, error)
@@ -611,15 +613,14 @@ dma2(arg, dm_segs, nseg, error)
 		dm_segs++;
 	}
 
-	if (datalen == 0)
-		return;
-
 	while (datalen > 0 && dm_segs != eseg) {
 		crq = (ispcontreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, *iptrp);
-		*iptrp = (*iptrp + 1) & (RQUEST_QUEUE_LEN - 1);
+		*iptrp = ISP_NXT_QENTRY(*iptrp, RQUEST_QUEUE_LEN);
 		if (*iptrp == optr) {
-			printf("%s: Request Queue Overflow+\n", isp->isp_name);
-			mp->error = EFBIG;
+#if	0
+			printf("%s: Request Queue Overflow++\n", isp->isp_name);
+#endif
+			mp->error = MUSHERR_NOQENTRIES;
 			return;
 		}
 		rq->req_header.rqs_entry_count++;
@@ -666,13 +667,13 @@ isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
 
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
 		rq->req_seg_count = 1;
-		return (0);
+		return (CMD_QUEUED);
 	}
 	dp = &pci->dmaps[rq->req_handle - 1];
 
 	/*
 	 * Do a virtual grapevine step to collect info for
-	 * a callback method we really didn't want.
+	 * the callback dma allocation that we have to use...
 	 */
 	mp = &mush;
 	mp->isp = isp;
@@ -684,34 +685,20 @@ isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
 
 	if ((ccb_h->flags & CAM_SCATTER_VALID) == 0) {
 		if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
-			int error;
-			/*
-			 * spls are spls, locks are locks.
-			 * it isn't clear whether splsoftvm, if s spl,
-			 * is a RAISE over splcam, or not.
-			 */
-#if	0
-			int s;
+			int error, s;
+
 			s = splsoftvm();
-#endif
 			error = bus_dmamap_load(pci->parent_dmat, *dp,
 			    csio->data_ptr, csio->dxfer_len, dma2, mp, 0);
-#if	0
-			splx(s);
-#endif
 			if (error == EINPROGRESS) {
-				/*
-				 * We simply aren't going to support
-				 * this at this time. This mechanism
-				 * is too rigid for my taste.
-				 */
-				printf("%s: sorry, we're not doing bounceio\n",
-				    isp->isp_name);
 				bus_dmamap_unload(pci->parent_dmat, *dp);
 				mp->error = EINVAL;
+				printf("%s: deferred dma allocation not "
+				    "supported\n", isp->isp_name);
 			} else if (error && mp->error == 0) {
 				mp->error = error;
 			}
+			splx(s);
 		} else {
 			/* Pointer to physical buffer */
 			struct bus_dma_segment seg; 
@@ -726,7 +713,7 @@ isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
 			printf("%s: Physical segment pointers unsupported",
 				isp->isp_name);
 			mp->error = EINVAL;
-		} else if ((ccb_h->flags&CAM_SG_LIST_PHYS) == 0) {
+		} else if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0) {
 			printf("%s: Virtual segment addresses unsupported",
 				isp->isp_name);
 			mp->error = EINVAL;
@@ -737,20 +724,21 @@ isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
 		}
 	}
 	if (mp->error) {
-		if (mp->error != EFBIG) {
-                        printf("%s: Unexepected error 0x%x returned from "
-                               "bus_dmamap_load\n", isp->isp_name, mp->error);
-                        ccb_h->status = CAM_REQ_TOO_BIG;
+		int retval = CMD_COMPLETE;
+		if (mp->error == MUSHERR_NOQENTRIES) {
+			retval = CMD_EAGAIN;
+			ccb_h->status = CAM_UNREC_HBA_ERROR;
+		} else if (mp->error == EFBIG) {
+			ccb_h->status = CAM_REQ_TOO_BIG;
 		} else if (mp->error == EINVAL) {
 			ccb_h->status = CAM_REQ_INVALID;
 		} else {
 			ccb_h->status = CAM_UNREC_HBA_ERROR;
 		}
-		ccb_h->status |= CAM_DEV_QFRZN;
-		printf("%s:isp_pci_dmasetup->xpt_freeze_devq\n", isp->isp_name);
-		xpt_freeze_devq(ccb_h->path, 1);
+		return (retval);
+	} else {
+		return (CMD_QUEUED);
 	}
-	return (mp->error);
 }
 
 static void
@@ -835,7 +823,7 @@ isp_pci_dmasetup(isp, xs, rq, iptrp, optr)
 
 	if (xs->datalen == 0) {
 		rq->req_seg_count = 1;
-		return (0);
+		return (CMD_QUEUED);
 	}
 
 	if (xs->flags & SCSI_DATA_IN) {
@@ -902,16 +890,16 @@ isp_pci_dmasetup(isp, xs, rq, iptrp, optr)
 
 
 	if (datalen == 0)
-		return (0);
+		return (CMD_QUEUED);
 
 	paddr = vtophys(vaddr);
 	while (datalen > 0) {
 		crq = (ispcontreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, *iptrp);
-		*iptrp = (*iptrp + 1) & (RQUEST_QUEUE_LEN - 1);
+		*iptrp = ISP_NXT_QENTRY(*iptrp, RQUEST_QUEUE_LEN);
 		if (*iptrp == optr) {
 			printf("%s: Request Queue Overflow\n", isp->isp_name);
 			XS_SETERR(xs, HBA_BOTCH);
-			return (EFBIG);
+			return (CMD_EAGAIN);
 		}
 		rq->req_header.rqs_entry_count++;
 		bzero((void *)crq, sizeof (*crq));
@@ -945,7 +933,7 @@ isp_pci_dmasetup(isp, xs, rq, iptrp, optr)
 		}
 	}
 
-	return (0);
+	return (CMD_QUEUED);
 }
 #endif
 
