@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.22 2000/10/26 10:41:29 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.23 2000/10/27 14:06:08 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -1188,6 +1188,7 @@ u_int hv;
 	 * ...and put the hash in the new one.
 	 */
 	hvm = hv % fr_statesize;
+	is->is_hv = hvm;
 	isp = &ips_table[hvm];
 	if (*isp)
 		(*isp)->is_phnext = &is->is_hnext;

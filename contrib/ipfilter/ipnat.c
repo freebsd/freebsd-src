@@ -57,7 +57,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.3 2000/07/27 13:07:13 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.4 2000/10/27 14:06:47 darrenr Exp $";
 #endif
 
 
@@ -309,6 +309,7 @@ int fd, opts;
 		printf("no memory\t%lu\tbad nat\t%lu\n",
 			ns.ns_memfail, ns.ns_badnat);
 		printf("inuse\t%lu\nrules\t%lu\n", ns.ns_inuse, ns.ns_rules);
+		printf("wilds\t%u\n", ns.ns_wilds);
 		if (opts & OPT_VERBOSE)
 			printf("table %p list %p\n", ns.ns_table, ns.ns_list);
 	}
