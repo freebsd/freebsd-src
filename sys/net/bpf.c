@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.12 1995/09/20 20:48:29 wollman Exp $
+ * $Id: bpf.c,v 1.13 1995/09/22 17:57:45 wollman Exp $
  */
 
 #include "bpfilter.h"
@@ -66,8 +66,9 @@
 #endif
 #include <sys/uio.h>
 
-#include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/protosw.h>
 #include <net/if.h>
 
 #include <net/bpf.h>
