@@ -120,7 +120,7 @@ extern d_open_t ascopen;
  *** THE GEMOMETRY TABLE
  ***/
 
-const struct asc_geom {
+static const struct asc_geom {
   int dpi;     /* dots per inch */
   int dpl;     /* dots per line */
   int bpl;     /* bytes per line */
