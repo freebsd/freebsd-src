@@ -233,7 +233,7 @@ i386/isa/if_le.c		optional	le
 i386/isa/if_lnc.c		optional	lnc
 i386/isa/if_rdp.c		optional	rdp
 i386/isa/if_sr.c		optional	sr
-i386/isa/if_wi.c		optional	wi card
+i386/isa/if_wi.c		optional	wi
 i386/isa/if_wl.c		optional	wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
