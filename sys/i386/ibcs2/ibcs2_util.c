@@ -133,9 +133,8 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		/* XXX: prototype should have const here for NDINIT */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, 
-		       (char *) ibcs2_emul_path, p);
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, ibcs2_emul_path,
+		       p);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
