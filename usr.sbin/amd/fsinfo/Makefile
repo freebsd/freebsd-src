@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/28/93
 
 PROG=	fsinfo
-MAN8=	fsinfo.0
+MAN8=	fsinfo.8
 SRCS=	fsinfo.c fsi_gram.c fsi_lex.c \
 	fsi_util.c fsi_analyze.c fsi_dict.c \
 	wr_atab.c wr_bparam.c wr_dumpset.c \
