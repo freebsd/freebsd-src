@@ -26,10 +26,10 @@ CLEANFILES+=${BLDS}
 all: ${BLDS}
 
 beforeinstall:
-	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m ${NOBINMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
-	    ${DESTDIR}${SHAREDIR}/games/fortune
+	(cd ${.CURDIR} && ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
+	    -m ${SHAREMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
+	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+	    ${BLDS} ${DESTDIR}${SHAREDIR}/games/fortune
 
 .for f in fortunes fortunes2 fortunes2-o limerick murphy murphy-o startrek zippy
 $f.dat: $f
