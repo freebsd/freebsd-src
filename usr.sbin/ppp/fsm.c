@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.7.2.6 1997/08/25 00:34:26 brian Exp $
+ * $Id: fsm.c,v 1.7.2.7 1997/08/31 23:02:15 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -32,6 +32,7 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "pred.h"
 
 void FsmSendConfigReq(struct fsm * fp);
 void FsmSendTerminateReq(struct fsm * fp);
@@ -711,6 +712,7 @@ void
 FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetAck\n");
+  Pred1Init(1);			/* Initialize Input part */
   fp->reqid++;
   pfree(bp);
 }
