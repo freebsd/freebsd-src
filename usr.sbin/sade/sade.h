@@ -801,7 +801,7 @@ extern int	optionsEditor(dialogMenuItem *self);
 extern int	packageAdd(dialogMenuItem *self);
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
-extern Boolean	package_exists(char *name);
+extern Boolean	package_installed(char *name);
 
 /* pccard.c */
 extern void	pccardInitialize(void);
