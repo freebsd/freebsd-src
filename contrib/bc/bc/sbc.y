@@ -16,10 +16,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -41,7 +43,7 @@
 	arg_list *a_value;
        }
 
-%token <i_value> NEWLINE AND OR NOT
+%token <i_value> ENDOFLINE AND OR NOT
 %token <s_value> STRING NAME NUMBER
 /*     '-', '+' are tokens themselves		*/
 %token <c_value> ASSIGN_OP
@@ -88,11 +90,11 @@ program			: /* empty */
 			    }
 			| program input_item
 			;
-input_item		: semicolon_list NEWLINE
+input_item		: semicolon_list ENDOFLINE
 			    { run_code(); }
 			| function
 			    { run_code(); }
-			| error NEWLINE
+			| error ENDOFLINE
 			    {
 			      yyerrok; 
 			      init_gen() ;
@@ -107,8 +109,8 @@ semicolon_list		: /* empty */
 statement_list		: /* empty */
 			    { $$ = 0; }
 			| statement
-			| statement_list NEWLINE
-			| statement_list NEWLINE statement
+			| statement_list ENDOFLINE
+			| statement_list ENDOFLINE statement
 			| statement_list ';'
 			| statement_list ';' statement
 			;
@@ -214,7 +216,7 @@ statement 		: Warranty
 			    { $$ = 0; }
 			;
 function 		: Define NAME '(' opt_parameter_list ')' '{'
-       			  NEWLINE opt_auto_define_list 
+       			  ENDOFLINE opt_auto_define_list 
 			    {
 			      check_params ($4,$8);
 			      sprintf (genstr, "F%d,%s.%s[", lookup($2,FUNCT),
@@ -225,7 +227,7 @@ function 		: Define NAME '(' opt_parameter_list ')' '{'
 			      $1 = next_label;
 			      next_label = 0;
 			    }
-			  statement_list NEWLINE '}'
+			  statement_list ENDOFLINE '}'
 			    {
 			      generate ("0R]");
 			      next_label = $1;
@@ -242,7 +244,7 @@ parameter_list 		: NAME
 			;
 opt_auto_define_list 	: /* empty */ 
 			    { $$ = NULL; }
-			| Auto define_list NEWLINE
+			| Auto define_list ENDOFLINE
 			    { $$ = $2; } 
 			| Auto define_list ';'
 			    { $$ = $2; } 

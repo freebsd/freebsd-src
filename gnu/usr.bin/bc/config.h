@@ -31,17 +31,20 @@
 /* Define if lex declares yytext as a char * by default, not a char[].  */
 #define YYTEXT_POINTER 1
 
-/* PACKAGE name */
-#define PACKAGE "bc"
+/* VERSION number for DC target*/
+#define DC_VERSION "1.3"
 
-/* Package VERSION number */
-#define VERSION "1.05"
+/* COPYRIGHT notice for DC target */
+#define DC_COPYRIGHT "Copyright 1994, 1997, 1998, 2000 Free Software Foundation, Inc."
 
-/* define if the math lib is to be loaded from a file. */
-/* #undef BC_MATH_FILE */
+/* COPYRIGHT notice for BC target */
+#define BC_COPYRIGHT "Copyright 1991-1994, 1997, 1998, 2000 Free Software Foundation, Inc."
 
 /* Define to use the readline library. */
 #define READLINE 1
+
+/* Define to use the BSD libedit library. */
+/* #undef LIBEDIT */
 
 /* Define to `size_t' if <sys/types.h> and <stddef.h> don't define.  */
 /* #undef ptrdiff_t */
@@ -72,3 +75,10 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+/* Name of package */
+#define PACKAGE "bc"
+
+/* Version number of package */
+#define VERSION "1.06"
+

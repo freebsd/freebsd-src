@@ -15,8 +15,11 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can either send email to this
- * program's author (see below) or write to: The Free Software Foundation,
- * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
+ * program's author (see below) or write to:
+ *
+ *    The Free Software Foundation, Inc.
+ *    59 Temple Place, Suite 330
+ *    Boston, MA 02111 USA
  */
 
 /* This module is the only one that knows what stacks (both the
@@ -347,6 +350,8 @@ dc_register_set DC_DECLARG((regid, value))
 		dc_free_num(&r->value.v.number);
 	else if (r->value.dc_type == DC_STRING)
 		dc_free_str(&r->value.v.string);
+	else if (r->value.dc_type == DC_UNINITIALIZED)
+		;
 	else
 		dc_garbage("", regid);
 	dc_register[regid]->value = value;

@@ -1,7 +1,7 @@
 /* 
  * evaluate the dc language, from a FILE* or a string
  *
- * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can either send email to this
- * program's author (see below) or write to: The Free Software Foundation,
- * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
+ * program's author (see below) or write to:
+ *   The Free Software Foundation, Inc.
+ *   59 Temple Place, Suite 330
+ *   Boston, MA 02111 USA
  */
 
 /* This is the only module which knows about the dc input language */
@@ -185,12 +187,13 @@ dc_func DC_DECLARG((c, peekc, negcmp))
 	case '|':
 		/* Consider the top three elements of the stack as (base, exp, mod),
 		 * where mod is top-of-stack, exp is next-to-top, and base is
-		 * second-from-top.  Mod must be non-zero and exp must be a
-		 * non-negative integer.   Push the result of raising base to the exp
-		 * power, reduced modulo mod.  If we had base in register b, exp in
-		 * register e, and mod in register m then this is conceptually
-		 * equivalent to "lble^lm%", but it is implemented in a more efficient
-		 * manner, and can handle arbritrarily large values for exp.
+		 * second-from-top. Mod must be non-zero, exp must be non-negative,
+		 * and all three must be integers. Push the result of raising
+		 * base to the exp power, reduced modulo mod. If we had base in
+		 * register b, exp in register e, and mod in register m then this
+		 * is conceptually equivalent to "lble^lm%", but it is implemented
+		 * in a more efficient manner, and can handle arbritrarily large
+		 * values for exp.
 		 */
 		dc_triop(dc_modexp, dc_scale);
 		break;
@@ -633,7 +636,7 @@ dc_evalfile DC_DECLARG((fp))
 			break;
 		case DC_QUIT:
 			if (unwind_noexit != DC_TRUE)
-				return DC_FAIL;
+				return DC_SUCCESS;
 			fprintf(stderr,
 					"%s: Q command argument exceeded string execution depth\n",
 					progname);
