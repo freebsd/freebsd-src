@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.4 2000/06/06 15:49:15 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.5 2000/10/19 15:39:58 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -214,7 +214,7 @@ u_int pass;
 	ipfr_t	*ipf;
 
 	if ((ip->ip_v != 4) || (fr_frag_lock))
-		return NULL;
+		return -1;
 	WRITE_ENTER(&ipf_frag);
 	ipf = ipfr_new(ip, fin, pass, ipfr_heads);
 	RWLOCK_EXIT(&ipf_frag);
@@ -231,7 +231,7 @@ nat_t *nat;
 	ipfr_t	*ipf;
 
 	if ((ip->ip_v != 4) || (fr_frag_lock))
-		return NULL;
+		return -1;
 	WRITE_ENTER(&ipf_natfrag);
 	ipf = ipfr_new(ip, fin, pass, ipfr_nattab);
 	if (ipf != NULL) {
@@ -328,13 +328,16 @@ fr_info_t *fin;
 	ipf = ipfr_lookup(ip, fin, ipfr_nattab);
 	if (ipf != NULL) {
 		nat = ipf->ipfr_data;
-		/*
-		 * This is the last fragment for this packet.
-		 */
-		if ((ipf->ipfr_ttl == 1) && (nat != NULL)) {
-			nat->nat_data = NULL;
-			ipf->ipfr_data = NULL;
-		}
+		if (nat->nat_ifp == fin->fin_ifp) {
+			/*
+			 * This is the last fragment for this packet.
+			 */
+			if ((ipf->ipfr_ttl == 1) && (nat != NULL)) {
+				nat->nat_data = NULL;
+				ipf->ipfr_data = NULL;
+			}
+		} else
+			nat = NULL;
 	} else
 		nat = NULL;
 	RWLOCK_EXIT(&ipf_natfrag);

@@ -3,6 +3,7 @@
 #
 set dir=`pwd`
 set karch=`uname -m`
+set krev=`uname -r|sed -e 's/\([0-9\.]*\)-.*/\1/'`
 if ( -d /sys/arch/$karch ) set archdir="/sys/arch/$karch"
 if ( -d /sys/$karch ) set archdir="/sys/$karch"
 set confdir="$archdir/conf"
@@ -21,7 +22,7 @@ echo "Removing link from /usr/include/osreldate.h to /sys/sys/osreldate.h"
 rm /sys/sys/osreldate.h
 
 echo "Removing patch to ip6_input.c and ip6_output.c"
-cat FreeBSD-4.0/ipv6-patch | (cd /sys/netinet6; patch -R)
+cat FreeBSD-4.0/ipv6-patch-$krev | (cd /sys/netinet6; patch -R)
 
 set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
 echo -n "Kernel configuration to update [$config] "
