@@ -35,29 +35,26 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif not lint
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)nfsd.c	8.9 (Berkeley) 3/29/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif not lint
 
 #include <sys/param.h>
 #include <sys/syslog.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
-#include <sys/uio.h>
-#include <sys/ucred.h>
 #include <sys/mount.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
-#include <rpc/pmap_prot.h>
 
 #ifdef ISO
 #include <netiso/iso.h>
@@ -73,15 +70,11 @@ static char sccsid[] = "@(#)nfsd.c	8.9 (Berkeley) 3/29/95";
 
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <grp.h>
-#include <pwd.h>
-#include <signal.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-#include <libutil.h>
 
 /* Global defs */
 #ifdef DEBUG
@@ -142,21 +135,26 @@ main(argc, argv, envp)
 	int argc;
 	char *argv[], *envp[];
 {
-	extern int optind;
-	struct group *grp;
 	struct nfsd_args nfsdargs;
-	struct passwd *pwd;
-	struct ucred *cr;
 	struct sockaddr_in inetaddr, inetpeer;
 #ifdef ISO
 	struct sockaddr_iso isoaddr, isopeer;
+	char *cp;
 #endif
-	struct timeval ktv;
 	fd_set ready, sockbits;
 	int ch, cltpflag, connect_type_cnt, i, len, maxsock, msgsock;
 	int nfsdcnt, nfssvc_flag, on, reregister, sock, tcpflag, tcpsock;
-	int tp4cnt, tp4flag, tp4sock, tpipcnt, tpipflag, tpipsock, udpflag;
-	char *cp, **cpp;
+	int tp4cnt, tp4flag, tpipcnt, tpipflag, udpflag;
+#ifdef notyet
+	int tp4sock, tpipsock;
+#endif
+#ifdef NFSKERB
+	struct group *grp;
+	struct passwd *pwd;
+	struct ucred *cr;
+	struct timeval ktv;
+	char **cpp;
+#endif
 #ifdef __FreeBSD__
 	struct vfsconf vfc;
 	int error;
@@ -264,11 +262,11 @@ main(argc, argv, envp)
 		if (udpflag &&
 		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
 		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)))
-			err(1, "can't register with portmap for UDP.");
+			err(1, "can't register with portmap for UDP");
 		if (tcpflag &&
 		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
 		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)))
-			err(1, "can't register with portmap for TCP.");
+			err(1, "can't register with portmap for TCP");
 		exit(0);
 	}
 	openlog("nfsd:", LOG_PID, LOG_DAEMON);
@@ -616,7 +614,7 @@ main(argc, argv, envp)
 			len = sizeof(inetpeer);
 			if ((msgsock = accept(tpipsock,
 			    (struct sockaddr *)&inetpeer, &len)) < 0) {
-				syslog(LOG_ERR, "Accept failed: %m");
+				syslog(LOG_ERR, "accept failed: %m");
 				exit(1);
 			}
 			if (setsockopt(msgsock, SOL_SOCKET,
@@ -643,7 +641,7 @@ void
 nonfs(signo)
 	int signo;
 {
-	syslog(LOG_ERR, "missing system call: NFS not available.");
+	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
 void
