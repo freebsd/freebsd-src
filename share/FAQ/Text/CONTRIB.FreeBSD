@@ -81,6 +81,7 @@ Additional FreeBSD Contributors
 Adam David <adam@veda.is>
 Adam Glass <glass@postgres.berkeley.edu>
 Akito Fujita <fujita@zoo.ncl.omron.co.jp>
+Andras Olah <olah@cs.utwente.nl>
 Andreas Klemm <andreas@knobel.GUN.de>
 Andrew Herbert <andrew@werple.apana.org.au>
 Andrew Moore <alm@FreeBSD.org>
@@ -272,4 +273,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.16 1995/07/08 20:52:52 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.17 1995/08/14 09:44:54 asami Exp $
