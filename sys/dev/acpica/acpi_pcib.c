@@ -275,8 +275,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      * XXX check ASL examples to see if this is an acceptable set of tests
      */
     if (NumberOfInterrupts == 1 && Interrupts[0] != 0) {
-	device_printf(pcib, "slot %d INT%c is routed to irq %d\n",
-		      pci_get_slot(dev), 'A' + pin, Interrupts[0]);
+	if (bootverbose)
+	    device_printf(pcib, "slot %d INT%c is routed to irq %d\n",
+		pci_get_slot(dev), 'A' + pin, Interrupts[0]);
 	interrupt = Interrupts[0];
 	goto out;
     }
@@ -338,10 +339,12 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      * Build a resource buffer and pass it to AcpiSetCurrentResources to
      * route the new interrupt.
      */
-    device_printf(pcib, "possible interrupts:");
-    for (i = 0; i < NumberOfInterrupts; i++)
-	printf("  %d", Interrupts[i]);
-    printf("\n");
+    if (bootverbose) {
+	device_printf(pcib, "possible interrupts:");
+	for (i = 0; i < NumberOfInterrupts; i++)
+	    printf("  %d", Interrupts[i]);
+	printf("\n");
+    }
 
     /* This should never happen. */
     if (crsbuf.Pointer != NULL)
@@ -383,9 +386,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     crsres = &resbuf;
     
     /* Return the interrupt we just routed. */
-    device_printf(pcib, "slot %d INT%c routed to irq %d via %s\n", 
-		  pci_get_slot(dev), 'A' + pin, Interrupts[0],
-		  acpi_name(lnkdev));
+    if (bootverbose)
+	device_printf(pcib, "slot %d INT%c routed to irq %d via %s\n",
+	    pci_get_slot(dev), 'A' + pin, Interrupts[0], acpi_name(lnkdev));
     interrupt = Interrupts[0];
 
 out:

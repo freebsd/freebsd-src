@@ -1171,8 +1171,9 @@ linker_preload(void *arg)
 			    modptr);
 			continue;
 		}
-		printf("Preloaded %s \"%s\" at %p.\n", modtype, modname,
-		    modptr);
+		if (bootverbose)
+			printf("Preloaded %s \"%s\" at %p.\n", modtype, modname,
+			    modptr);
 		lf = NULL;
 		TAILQ_FOREACH(lc, &classes, link) {
 			error = LINKER_LINK_PRELOAD(lc, modname, &lf);

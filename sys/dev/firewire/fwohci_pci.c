@@ -187,8 +187,9 @@ fwohci_pci_probe( device_t dev )
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 			&& pci_get_subclass(dev) == PCIS_SERIALBUS_FW
 			&& pci_get_progif(dev) == PCI_INTERFACE_OHCI) {
-		device_printf(dev, "vendor=%x, dev=%x\n", pci_get_vendor(dev),
-			pci_get_device(dev));
+		if (bootverbose)
+			device_printf(dev, "vendor=%x, dev=%x\n",
+			    pci_get_vendor(dev), pci_get_device(dev));
 		device_set_desc(dev, "1394 Open Host Controller Interface");
 		return 0;
 	}

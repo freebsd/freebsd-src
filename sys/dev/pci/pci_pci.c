@@ -475,7 +475,7 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      */
     bus = device_get_parent(pcib);
     intnum = PCIB_ROUTE_INTERRUPT(device_get_parent(bus), pcib, parent_intpin + 1);
-    if (PCI_INTERRUPT_VALID(intnum)) {
+    if (PCI_INTERRUPT_VALID(intnum) && bootverbose) {
 	device_printf(pcib, "slot %d INT%c is routed to irq %d\n",
 	    pci_get_slot(dev), 'A' + pin - 1, intnum);
     }

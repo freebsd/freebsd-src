@@ -106,8 +106,8 @@ pci_cfgregopen(void)
 
 	v = pcibios_get_version();
 	if (v > 0)
-		printf("pcibios: BIOS version %x.%02x\n", (v & 0xff00) >> 8,
-		    v & 0xff);
+		PRVERB(("pcibios: BIOS version %x.%02x\n", (v & 0xff00) >> 8,
+		    v & 0xff));
 	mtx_init(&pcicfg_mtx, "pcicfg", NULL, MTX_SPIN);
 	opened = 1;
 
