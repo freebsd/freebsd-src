@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002,2005 Marcel Moolenaar
  * Copyright (c) 2002 Hiten Mahesh Pandya
  * All rights reserved.
  *
@@ -36,7 +36,7 @@
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_equal.htm
  */
 int32_t
-uuid_equal(uuid_t *a, uuid_t *b, uint32_t *status)
+uuid_equal(const uuid_t *a, const uuid_t *b, uint32_t *status)
 {
 
 	if (status != NULL)
