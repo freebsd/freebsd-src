@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,7 +31,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: routesock.c,v 1.4 1999/11/19 04:05:48 sumikawa Exp $
@@ -81,17 +81,17 @@ static int getmsg __P((register struct rt_msghdr *, int,
  * TODO: check again!
  */
 #ifdef IRIX
-#define	ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
+#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
 		    : sizeof(__uint64_t))
 #else
-#define	ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) \
+#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) \
 		    : sizeof(long))
 #endif /* IRIX */
 
 #ifdef HAVE_SA_LEN
-#define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 #else
-#define	ADVANCE(x, n) (x += ROUNDUP(4))   /* TODO: a hack!! */
+#define ADVANCE(x, n) (x += ROUNDUP(4))   /* TODO: a hack!! */
 #endif
 
 /* Open and initialize the routing socket */
@@ -111,7 +111,7 @@ init_routesock()
 #if 0
     {
     int off;
-
+    
     off = 0;
     if (setsockopt(routing_socket, SOL_SOCKET,
 		   SO_USELOOPBACK, (char *)&off,
@@ -120,7 +120,7 @@ init_routesock()
 	return -1;
     }
     }
-#endif
+#endif	
     return 0;
 }
 
@@ -137,22 +137,22 @@ k_req_incoming(source, rpfp)
     struct sockaddr_in6 *source;
     struct rpfctl *rpfp;
 {
-    int flags = RTF_STATIC;
+    int flags = RTF_STATIC; 
     register sup su;
     static int seq;
     int rlen;
     register char *cp = m_rtmsg.m_space;
     register int l;
     struct rpfctl rpfinfo;
-
+	
 /* TODO: a hack!!!! */
 #ifdef HAVE_SA_LEN
-#define	NEXTADDR(w, u) \
+#define NEXTADDR(w, u) \
     if (rtm_addrs & (w)) { \
 	l = ROUNDUP(u.sa.sa_len); bcopy((char *)&(u), cp, l); cp += l;\
     }
 #else
-#define	NEXTADDR(w, u) \
+#define NEXTADDR(w, u) \
     if (rtm_addrs & (w)) { \
 	l = ROUNDUP(4); bcopy((char *)&(u), cp, l); cp += l;\
     }
@@ -161,7 +161,7 @@ k_req_incoming(source, rpfp)
     /* initialize */
     memset(&rpfp->rpfneighbor, 0, sizeof(rpfp->rpfneighbor));
     rpfp->source = *source;
-
+    
     /* check if local address or directly connected before calling the
      * routing socket
      */
@@ -169,7 +169,7 @@ k_req_incoming(source, rpfp)
     if ((rpfp->iif = find_vif_direct_local(source)) != NO_VIF) {
 	rpfp->rpfneighbor = *source;
 	return(TRUE);
-    }
+    }       
 
     /* prepare the routing socket params */
     rtm_addrs |= RTA_DST;
@@ -191,7 +191,7 @@ k_req_incoming(source, rpfp)
     errno = 0;
     bzero((char *)&m_rtmsg, sizeof(m_rtmsg));
 
-#define	rtm m_rtmsg.m_rtm
+#define rtm m_rtmsg.m_rtm
     rtm.rtm_type	= RTM_GET;
     rtm.rtm_flags	= flags;
     rtm.rtm_version	= RTM_VERSION;
@@ -203,7 +203,7 @@ k_req_incoming(source, rpfp)
     NEXTADDR(RTA_DST, so_dst);
     NEXTADDR(RTA_IFP, so_ifp);
     rtm.rtm_msglen = l = cp - (char *)&m_rtmsg;
-
+    
     if ((rlen = write(routing_socket, (char *)&m_rtmsg, l)) < 0) {
 	IF_DEBUG(DEBUG_RPF | DEBUG_KERN) {
 	    if (errno == ESRCH)
@@ -212,19 +212,19 @@ k_req_incoming(source, rpfp)
 	    else
 		log(LOG_DEBUG, 0, "Error writing to routing socket");
 	}
-	return(FALSE);
+	return(FALSE); 
     }
-
+    
     do {
 	l = read(routing_socket, (char *)&m_rtmsg, sizeof(m_rtmsg));
     } while (l > 0 && (rtm.rtm_seq != seq || rtm.rtm_pid != pid));
-
+    
     if (l < 0) {
 	IF_DEBUG(DEBUG_RPF | DEBUG_KERN)
 	    log(LOG_DEBUG, 0, "Read from routing socket failed: %s", strerror(errno));
 	return(FALSE);
     }
-
+    
     if (getmsg(&rtm, l, &rpfinfo)){
 	rpfp->rpfneighbor = rpfinfo.rpfneighbor;
 	rpfp->iif = rpfinfo.iif;
@@ -237,7 +237,7 @@ k_req_incoming(source, rpfp)
 /*
  * Returns TRUE on success, FALSE otherwise. rpfinfo contains the result.
  */
-int
+int 
 getmsg(rtm, msglen, rpfinfop)
     register struct rt_msghdr *rtm;
     int msglen;
@@ -252,10 +252,10 @@ getmsg(rtm, msglen, rpfinfop)
     vifi_t vifi;
     struct uvif *v;
     char in6txt[INET6_ADDRSTRLEN];
-
+    
     if (rpfinfop == (struct rpfctl *)NULL)
 	return(FALSE);
-
+    
     sin6 = (struct sockaddr_in6 *)&so_dst;
     IF_DEBUG(DEBUG_RPF)
 	log(LOG_DEBUG, 0, "route to: %s",
@@ -283,7 +283,7 @@ getmsg(rtm, msglen, rpfinfop)
 		}
 		ADVANCE(cp, sa);
 	    }
-
+    
     if (!ifp){ 	/* No incoming interface */
 	IF_DEBUG(DEBUG_RPF)
 	    log(LOG_DEBUG, 0,
@@ -320,18 +320,18 @@ getmsg(rtm, msglen, rpfinfop)
 		rpfinfop->rpfneighbor.sin6_addr.s6_addr[3] = 0;
 	}
     }
-
-    for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v)
+    
+    for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) 
 	/* get the number of the interface by matching the name */
 	if ((strlen(v->uv_name) == ifp->sdl_nlen) &&
 	    !(strncmp(v->uv_name,ifp->sdl_data,ifp->sdl_nlen)))
 	    break;
-
+    
     IF_DEBUG(DEBUG_RPF)
 	log(LOG_DEBUG, 0, " iif is %d", vifi);
-
+    
     rpfinfop->iif = vifi;
-
+    
     if (vifi >= numvifs){
 	IF_DEBUG(DEBUG_RPF)
 	    log(LOG_DEBUG, 0,
@@ -339,7 +339,7 @@ getmsg(rtm, msglen, rpfinfop)
 		inet_ntop(AF_INET6, &sin6->sin6_addr, in6txt, INET6_ADDRSTRLEN));
 	return(FALSE);/* invalid iif */
     }
-
+    
     return(TRUE);
 }
 
@@ -361,7 +361,7 @@ k_req_incoming(source, rpfcinfo)
     rpfcinfo->iif = NO_VIF;     /* just initialized, will be */
     /* changed in kernel */
     memset(&rpfcinfo->rpfneighbor, 0, sizeof(rpfcinfo->rpfneighbor));  /* initialized */
-
+    
     if (ioctl(udp_socket, SIOCGETRPF, (char *) rpfcinfo) < 0){
 	log(LOG_ERR, errno, "ioctl SIOCGETRPF k_req_incoming");
 	return(FALSE);

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +47,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -59,7 +59,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: trace.c,v 1.5 1999/09/16 08:46:00 jinmei Exp $
@@ -113,7 +113,7 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 	struct sockaddr_in6 *sa_global;
 #ifdef SM_ONLY
 	rpentry_t *rpentry_ptr;
-#endif
+#endif 
 
 	/* Remember qid across invocations */
 	static u_int32 oqid = 0;
@@ -202,9 +202,9 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 		} else
 			log(LOG_DEBUG, 0, "...no route");
 	}
-
+    
 	/*
-	 * Query type packet - check if rte exists
+	 * Query type packet - check if rte exists 
 	 * Check if the query destination is a vif connected to me.
 	 * and if so, whether I should start response back
 	 */
@@ -238,7 +238,7 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 #endif
 		}
 		vifi = find_vif_direct(&dst_sa6);
-
+	
 		if (vifi == NO_VIF) {
 			/*
 			 * The traceroute destination is not on one of
@@ -276,21 +276,21 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 				    "Wrong interface for packet");
 			errcode = TR_WRONG_IF;
 		}
-	}
-
+	}   
+    
 	/* Now that we've decided to send a response, save the qid */
 	oqid = qry->tr_qid;
 
 	IF_DEBUG(DEBUG_TRACE)
 		log(LOG_DEBUG, 0, "Sending traceroute response");
-
+    
 	/* copy the packet to the sending buffer */
 	p = mld6_send_buf + sizeof(struct mld6_hdr);
-
+    
 	bcopy(data, p, datalen);
-
+    
 	p += datalen;
-
+    
 	/*
 	 * If there is no room to insert our reply, coopt the previous hop
 	 * error indication to relay this fact.
@@ -309,7 +309,7 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 	bzero(resp, sizeof(struct tr6_resp));
 	datalen += (RLEN + sizeof(struct mld6_hdr));
 
-	resp->tr_qarr    = htonl(((tp.tv_sec + JAN_1970) << 16) +
+	resp->tr_qarr    = htonl(((tp.tv_sec + JAN_1970) << 16) + 
 				 ((tp.tv_usec << 10) / 15625));
 
 	resp->tr_rproto  = PROTO_PIM;
@@ -532,7 +532,7 @@ accept_mtrace(src, dst, group, ifindex, data, no, datalen)
 			    "reply" : "request on",
 			    inet6_fmt(dst),
 			    sa6 ? inet6_fmt(&sa6->sin6_addr) : "unspecified");
-
+	
 		send_mld6(resptype, no, sa6, &resp_sa6, group, ifindex,
 			  0, datalen, 0);
 	}

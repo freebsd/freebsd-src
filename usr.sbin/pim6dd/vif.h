@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,7 +31,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: vif.h,v 1.2 1999/08/24 16:45:23 jinmei Exp $
@@ -65,9 +65,9 @@ typedef	u_int32 vifbitmap_t;
 #define	VIFM_SET(n, m)			((m) |=  (1 << (n)))
 #define	VIFM_CLR(n, m)			((m) &= ~(1 << (n)))
 #define	VIFM_ISSET(n, m)		((m) &   (1 << (n)))
-#define	VIFM_CLRALL(m)			((m) = 0x00000000)
-#define	VIFM_COPY(mfrom, mto)		((mto) = (mfrom))
-#define	VIFM_SAME(m1, m2)		((m1) == (m2))
+#define VIFM_CLRALL(m)			((m) = 0x00000000)
+#define VIFM_COPY(mfrom, mto)		((mto) = (mfrom))
+#define VIFM_SAME(m1, m2)		((m1) == (m2))
 #endif
 /*
  * And <netinet/ip_mroute.h> was missing some required functions anyway
@@ -79,31 +79,31 @@ typedef	u_int32 vifbitmap_t;
 #define	VIFM_ISEMPTY(m)			((m) == 0)
 #define	VIFM_CLR_MASK(m, mask)		((m) &= ~(mask))
 #define	VIFM_SET_MASK(m, mask)		((m) |= (mask))
-#define	VIFM_MERGE(m1, m2, result)      ((result) = (m1) | (m2))
+#define VIFM_MERGE(m1, m2, result)      ((result) = (m1) | (m2))
 
 /*
  * And <netinet6/ip6_mroute.h> was missing some required functions anyway
  */
 extern if_set if_nullset;
-#define	IF_ISEMPTY(p) (memcmp((p), &if_nullset, sizeof(if_nullset)) == 0)
-#define	IF_CLR_MASK(p, mask) \
+#define IF_ISEMPTY(p) (memcmp((p), &if_nullset, sizeof(if_nullset)) == 0)
+#define IF_CLR_MASK(p, mask) \
   {\
 	int idx;\
 	for (idx = 0; idx < sizeof(*(p))/sizeof(fd_mask); idx++) {\
 		(p)->ifs_bits[idx] &= ~((mask)->ifs_bits[idx]);\
 	}\
   }
-#define	IF_MERGE(p1, p2, result) \
+#define IF_MERGE(p1, p2, result) \
   {\
 	int idx;\
 	for (idx = 0; idx < sizeof(*(p1))/sizeof(fd_mask); idx++) {\
 		(result)->ifs_bits[idx] = (p1)->ifs_bits[idx]|(p2)->ifs_bits[idx]; \
 	}\
   }
-#define	IF_SAME(p1, p2) (memcmp((p1),(p2),sizeof(*(p1))) == 0)
+#define IF_SAME(p1, p2) (memcmp((p1),(p2),sizeof(*(p1))) == 0)
 
 /* Check whether I am the forwarder on some LAN */
-#define	VIFM_FORWARDER(leaves, oifs)    ((leaves) & (oifs))
+#define VIFM_FORWARDER(leaves, oifs)    ((leaves) & (oifs))
 
 /*
  * Neighbor bitmaps are, for efficiency, implemented as a struct
@@ -111,7 +111,7 @@ extern if_set if_nullset;
  * have a native type that's bigger than a long, define it below.
  */
 #define	NBRTYPE		u_long
-#define	NBRBITS		sizeof(NBRTYPE) * 8
+#define NBRBITS		sizeof(NBRTYPE) * 8
 
 typedef struct {
     NBRTYPE hi;
@@ -153,8 +153,8 @@ typedef struct {
  * (called a "phyint"), a virtual point-to-point link (called a "tunnel")
  * or a "register vif" used by PIM. The register vif is used by the
  * Designated Router (DR) to send encapsulated data packets to the
- * Rendevous Point (RP) for a particular group. The data packets are
- * encapsulated in PIM messages (IPPROTO_PIM = 103) and then unicast to
+ * Rendevous Point (RP) for a particular group. The data packets are 
+ * encapsulated in PIM messages (IPPROTO_PIM = 103) and then unicast to 
  * the RP.
  * (Note: all addresses, subnet numbers and masks are kept in NETWORK order.)
  */
@@ -164,13 +164,13 @@ struct uvif {
     u_char	     uv_admetric;   /* advertised cost of this vif          */
 #if 0				/* unused for IPv6? */
     u_char	     uv_threshold;  /* min ttl required to forward on vif   */
-#endif
+#endif 
     u_int	     uv_rate_limit; /* rate limit on this vif               */
     struct sockaddr_in6 uv_lcl_addr;/* local address of this vif            */
     struct phaddr   *uv_linklocal;/* link-local address of this vif      */
 #if 0
     u_int32	     uv_rmt_addr;   /* remote end-point addr (tunnels only) */
-#endif
+#endif 
     struct sockaddr_in6 uv_dst_addr;   /* destination for PIM messages         */
     struct sockaddr_in6 uv_prefix;  /* prefix                (phyints only) */
     struct in6_addr  uv_subnetmask; /* subnet mask           (phyints only) */
@@ -194,24 +194,24 @@ struct uvif {
 };
 
 /* TODO: define VIFF_KERNEL_FLAGS */
-#define	VIFF_KERNEL_FLAGS	(VIFF_TUNNEL | VIFF_SRCRT)
-#define	VIFF_DOWN		0x000100       /* kernel state of interface */
-#define	VIFF_DISABLED		0x000200       /* administratively disabled */
-#define	VIFF_QUERIER		0x000400       /* I am the subnet's querier */
-#define	VIFF_ONEWAY		0x000800       /* Maybe one way interface   */
-#define	VIFF_LEAF		0x001000       /* all neighbors are leaves  */
-#define	VIFF_IGMPV1		0x002000       /* Act as an IGMPv1 Router   */
+#define VIFF_KERNEL_FLAGS	(VIFF_TUNNEL | VIFF_SRCRT)
+#define VIFF_DOWN		0x000100       /* kernel state of interface */
+#define VIFF_DISABLED		0x000200       /* administratively disabled */
+#define VIFF_QUERIER		0x000400       /* I am the subnet's querier */
+#define VIFF_ONEWAY		0x000800       /* Maybe one way interface   */
+#define VIFF_LEAF		0x001000       /* all neighbors are leaves  */
+#define VIFF_IGMPV1		0x002000       /* Act as an IGMPv1 Router   */
 #define	VIFF_REXMIT_PRUNES	0x004000       /* retransmit prunes         */
-#define	VIFF_PASSIVE		0x008000       /* passive tunnel	    */
+#define VIFF_PASSIVE		0x008000       /* passive tunnel	    */
 #define	VIFF_ALLOW_NONPRUNERS	0x010000       /* ok to peer with nonprunrs */
-#define	VIFF_NOFLOOD		0x020000       /* don't flood on this vif   */
+#define VIFF_NOFLOOD		0x020000       /* don't flood on this vif   */
 #define	VIFF_DR			0x040000       /* designated router	    */
 /* TODO: VIFF_NONBRS == VIFF_ONEWAY? */
 #define	VIFF_NONBRS		0x080000       /* no neighbor on vif	    */
-#define	VIFF_POINT_TO_POINT     0x100000       /* point-to-point link       */
-#define	VIFF_PIM_NBR            0x200000       /* PIM neighbor              */
-#define	VIFF_DVMRP_NBR          0x400000       /* DVMRP neighbor            */
-#define	VIFF_NOLISTENER         0x800000       /* no listener on the link   */
+#define VIFF_POINT_TO_POINT     0x100000       /* point-to-point link       */
+#define VIFF_PIM_NBR            0x200000       /* PIM neighbor              */
+#define VIFF_DVMRP_NBR          0x400000       /* DVMRP neighbor            */
+#define VIFF_NOLISTENER         0x800000       /* no listener on the link   */
 
 struct phaddr {
     struct phaddr   *pa_next;
@@ -278,12 +278,12 @@ struct listaddr {
 #define	NBRF_DONTPEER		(NBRF_WAITING|NBRF_ONEWAY|NBRF_TOOOLD| \
 				 NBRF_TOOMANYROUTES|NBRF_NOTPRUNING)
 
-#define	NO_VIF		((vifi_t)MAXMIFS)  /* An invalid vif index */
-
+#define NO_VIF		((vifi_t)MAXMIFS)  /* An invalid vif index */
+  
 
 /*
  * Used to get the RPF neighbor and IIF info
- * for a given source from the unicast routing table.
+ * for a given source from the unicast routing table. 
  */
 struct rpfctl {
     struct sockaddr_in6 source; /* the source for which we want iif and rpfnbr */

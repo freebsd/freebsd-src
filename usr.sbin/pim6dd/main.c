@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,22 +30,22 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: main.c,v 1.2 1999/08/13 09:20:13 jinmei Exp $
+ *  $Id: main.c,v 1.3 2000/03/26 19:11:41 sumikawa Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
@@ -70,17 +70,17 @@ int haveterminal = 1;
 char *progname;
 
 static int sighandled = 0;
-#define	GOT_SIGINT      0x01
-#define	GOT_SIGHUP      0x02
-#define	GOT_SIGUSR1     0x04
-#define	GOT_SIGUSR2     0x08
-#define	GOT_SIGALRM     0x10
+#define GOT_SIGINT      0x01
+#define GOT_SIGHUP      0x02
+#define GOT_SIGUSR1     0x04
+#define GOT_SIGUSR2     0x08
+#define GOT_SIGALRM     0x10
 
 
 #ifdef SNMP
-#define	NHANDLERS       34
+#define NHANDLERS       34
 #else
-#define	NHANDLERS       3
+#define NHANDLERS       3
 #endif
 
 static struct ihandler {
@@ -186,10 +186,10 @@ register_input_handler(fd, func)
 {
     if (nhandlers >= NHANDLERS)
 	return -1;
-
+    
     ihandlers[nhandlers].fd = fd;
     ihandlers[nhandlers++].func = func;
-
+    
     return 0;
 }
 
@@ -197,7 +197,7 @@ int
 main(argc, argv)
     int argc;
     char *argv[];
-{
+{	
     int dummy, dummysigalrm;
     FILE *fp;
     struct timeval tv, difftime, curtime, lasttime, *timeout;
@@ -209,29 +209,29 @@ main(argc, argv)
     char c;
     int tmpd;
 
-
+    
     setlinebuf(stderr);
-
+	
     if (geteuid() != 0) {
 	fprintf(stderr, "pim6dd: must be root\n");
 	exit(1);
     }
-
+    
     progname = strrchr(argv[0], '/');
     if (progname)
 	progname++;
     else
 	progname = argv[0];
-
+    
     argv++;
     argc--;
     while (argc > 0 && *argv[0] == '-') {
 	if (strcmp(*argv, "-d") == 0) {
-	    if (argc > 1 && *(argv + 1)[0] != '-') {
+	    if (argc > 1 && *(argv + 1)[0] != '-') { 
 		char *p,*q;
 		int i, len;
 		struct debugname *d;
-
+		
 		argv++;
 		argc--;
 		debug = 0;
@@ -298,7 +298,7 @@ main(argc, argv)
     usage:
 	tmpd = 0xffffffff;
 	fprintf(stderr, "usage: pim6dd [-c configfile] [-d [debug_level][,debug_level]]\n");
-
+	
 	fprintf(stderr, "debug levels: ");
     c = '(';
     for (d = debugnames; d < debugnames +
@@ -311,8 +311,8 @@ main(argc, argv)
     }
     fprintf(stderr, ")\n");
     exit(1);
-    }
-
+    }	
+    
     if (debug != 0) {
 	tmpd = debug;
 	fprintf(stderr, "debug level 0x%lx ", debug);
@@ -327,7 +327,7 @@ main(argc, argv)
 	}
 	fprintf(stderr, ")\n");
     }
-
+    
 #ifdef LOG_DAEMON
     (void)openlog("pim6dd", LOG_PID, LOG_DAEMON);
     (void)setlogmask(LOG_UPTO(LOG_NOTICE));
@@ -335,9 +335,9 @@ main(argc, argv)
     (void)openlog("pim6dd", LOG_PID);
 #endif /* LOG_DAEMON */
     sprintf(versionstring, "pim6dd version %s", todaysversion);
-
+    
     log(LOG_DEBUG, 0, "%s starting", versionstring);
-
+    
 /* TODO: XXX: use a combination of time and hostid to initialize the random
  * generator.
  */
@@ -350,14 +350,14 @@ main(argc, argv)
 	    srandom(tm.tv_usec + gethostid());
     }
 #endif
-
+    
     callout_init();
 
     /* Start up the log rate-limiter */
     resetlogging(NULL);
 
     init_mld6();
-#if 0
+#if 0 
     k_stop_pim(mld6_socket);
     exit(0);			/* XXX */
 #endif
@@ -365,15 +365,15 @@ main(argc, argv)
 
     init_pim6_mrt();
     init_timers();
-
+    
     /* TODO: check the kernel DVMRP/MROUTED/PIM support version */
-
+    
 #ifdef SNMP
     if (i = snmp_init())
 	return i;
 #endif /* SNMP */
     init_vifs();
-
+    
 #ifdef RSRR
     rsrr_init();
 #endif /* RSRR */
@@ -387,7 +387,7 @@ main(argc, argv)
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
-
+    
     FD_ZERO(&readers);
     FD_SET(mld6_socket, &readers);
     nfds = mld6_socket + 1;
@@ -396,21 +396,21 @@ main(argc, argv)
 	if (ihandlers[i].fd >= nfds)
 	    nfds = ihandlers[i].fd + 1;
     }
-
+    
     IF_DEBUG(DEBUG_IF)
 	dump_vifs(stderr);
     IF_DEBUG(DEBUG_PIM_MRT)
 	dump_pim_mrt(stderr);
-
+    
     /* schedule first timer interrupt */
     timer_setTimer(TIMER_INTERVAL, timer, NULL);
-
+    
     if (debug == 0) {
 	/* Detach from the terminal */
 #ifdef TIOCNOTTY
       int t;
 #endif /* TIOCNOTTY */
-
+      
 	haveterminal = 0;
 	if (fork())
 	    exit(0);
@@ -422,7 +422,7 @@ main(argc, argv)
 	(void)dup2(0, 2);
 #if defined(SYSV) || defined(linux)
 	(void)setpgrp();
-#else
+#else 
 #ifdef TIOCNOTTY
 	t = open("/dev/tty", 2);
 	if (t >= 0) {
@@ -439,13 +439,13 @@ main(argc, argv)
 #ifdef HAVE_ROUTING_SOCKETS
     init_routesock();
 #endif /* HAVE_ROUTING_SOCKETS */
-
+    
     fp = fopen(pidfilename, "w");
     if (fp != NULL) {
 	fprintf(fp, "%d\n", (int)getpid());
 	(void) fclose(fp);
     }
-
+    
     /*
      * Main receive loop.
      */
@@ -464,7 +464,7 @@ main(argc, argv)
 	   timeout->tv_sec = secs;
 	   timeout->tv_usec = 0;
         }
-
+	
 	if (sighandled) {
 	    if (sighandled & GOT_SIGINT) {
 		sighandled &= ~GOT_SIGINT;
@@ -552,7 +552,7 @@ main(argc, argv)
 		}
 	    }
 	}
-
+    
     } /* Main loop */
 
     log(LOG_NOTICE, 0, "%s exiting", versionstring);
@@ -584,16 +584,16 @@ u_long virtual_time = 0;
  * aging interfaces, quering neighbors and members, etc... The granularity
  * is equal to TIMER_INTERVAL.
  */
-static void
+static void 
 timer(i)
     void *i;
 {
     age_vifs();	        /* Timeout neighbors and groups         */
     age_routes();  	/* Timeout routing entries              */
-
+    
     virtual_time += TIMER_INTERVAL;
     timer_setTimer(TIMER_INTERVAL, timer, NULL);
-}
+}	
 
 /*
  * Performs all necessary functions to quit gracefully
@@ -629,15 +629,15 @@ handler(sig)
     case SIGTERM:
 	sighandled |= GOT_SIGINT;
 	break;
-
+	
     case SIGHUP:
 	sighandled |= GOT_SIGHUP;
 	break;
-
+	
     case SIGUSR1:
 	sighandled |= GOT_SIGUSR1;
 	break;
-
+	
     case SIGUSR2:
 	sighandled |= GOT_SIGUSR2;
 	break;
@@ -657,9 +657,9 @@ restart(i)
 #ifdef SNMP
     int s;
 #endif /* SNMP */
-
+    
     log(LOG_NOTICE, 0, "% restart", versionstring);
-
+    
     /*
      * reset all the entries
      */
@@ -674,7 +674,7 @@ restart(i)
     close(mld6_socket);
     close(pim6_socket);
     close(udp_socket);
-
+    
     /*
      * start processing again
      */
@@ -705,7 +705,7 @@ resetlogging(arg)
 {
     int nxttime = 60;
     void *narg = NULL;
-
+    
     if (arg == NULL && log_nmsgs > LOG_MAX_MSGS) {
 	nxttime = LOG_SHUT_UP;
 	narg = (void *)&log_nmsgs;	/* just need some valid void * */
@@ -714,6 +714,6 @@ resetlogging(arg)
     } else {
 	log_nmsgs = 0;
     }
-
+    
     timer_setTimer(nxttime, resetlogging, narg);
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -211,7 +211,7 @@ inet6_fmt(struct in6_addr *addr)
 	static char ip6buf[8][INET6_ADDRSTRLEN];
 	static int ip6round = 0;
 	char *cp;
-
+	
 	ip6round = (ip6round + 1) & 7;
 	cp = ip6buf[ip6round];
 
@@ -274,7 +274,7 @@ net6name(struct in6_addr *prefix, struct in6_addr *mask)
 	static char ip6buf[8][INET6_ADDRSTRLEN + 4]; /* length of addr/plen */
 	static int ip6round = 0;
 	char *cp;
-
+	
 	ip6round = (ip6round + 1) & 7;
 	cp = ip6buf[ip6round];
 
