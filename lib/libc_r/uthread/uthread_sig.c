@@ -670,7 +670,6 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 	 * signal handler to run:
 	 */
 	case PS_COND_WAIT:
-	case PS_JOIN:
 	case PS_MUTEX_WAIT:
 		/*
 		 * Remove the thread from the wait queue.  It will
@@ -678,6 +677,17 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 		 * handlers have been invoked.
 		 */
 		PTHREAD_WAITQ_REMOVE(pthread);
+		break;
+
+	case PS_JOIN:
+		/*
+		 * Remove the thread from the wait queue.  It will
+		 * be added back to the wait queue once all signal
+		 * handlers have been invoked.
+		 */
+		PTHREAD_WAITQ_REMOVE(pthread);
+		/* Make the thread runnable: */
+		PTHREAD_SET_STATE(pthread, PS_RUNNING);
 		break;
 
 	/*
