@@ -425,8 +425,6 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 static struct g_class g_bsd_class	= {
 	BSD_CLASS_NAME,
 	g_bsd_taste,
-	g_slice_access,
-	g_slice_orphan,
 	NULL,
 	G_CLASS_INITSTUFF
 };

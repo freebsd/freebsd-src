@@ -136,8 +136,9 @@ g_new_consumer(struct g_geom *gp)
 	struct g_consumer *cp;
 
 	g_topology_assert();
-	KASSERT(gp->class->orphan != NULL,
-	    ("g_new_consumer on class(%s) without orphan", gp->class->name));
+	KASSERT(gp->orphan != NULL,
+	    ("g_new_consumer on geom(%s) (class %s) without orphan",
+	    gp->name, gp->class->name));
 
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
 	cp->geom = gp;
@@ -378,7 +379,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
-	KASSERT(pp->geom->class->access != NULL, ("NULL class->access"));
+	KASSERT(pp->geom->access != NULL, ("NULL geom->access"));
 
 	/*
 	 * If our class cares about being spoiled, and we have been, we
@@ -431,7 +432,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	else if (pp->acw != 0 && pp->acw == -dcw && !(pp->geom->flags & G_GEOM_WITHER))
 		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 
-	error = pp->geom->class->access(pp, dcr, dcw, dce);
+	error = pp->geom->access(pp, dcr, dcw, dce);
 	if (!error) {
 		pp->acr += dcr;
 		pp->acw += dcw;

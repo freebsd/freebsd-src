@@ -59,11 +59,8 @@ static g_access_t g_disk_access;
 struct g_class g_disk_class = {
 	"DISK-class",
 	NULL,
-	g_disk_access,
 	NULL,
-	NULL,
-	{ 0, 0 },
-	{ 0 }
+	G_CLASS_INITSTUFF
 };
 
 static int
@@ -193,6 +190,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	g_topology_lock();
 	gp = g_new_geomf(&g_disk_class, "%s%d", cdevsw->d_name, unit);
 	gp->start = g_disk_start;
+	gp->access = g_disk_access;
 	gp->softc = dp;
 	dp->d_softc = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
