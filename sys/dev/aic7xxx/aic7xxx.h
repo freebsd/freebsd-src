@@ -11,16 +11,12 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
- * Where this Software is combined with software released under the terms of 
- * the GNU Public License ("GPL") and the terms of the GPL would require the 
- * combined work to also be released under the terms of the GPL, the terms
- * and conditions of this License will apply in addition to those of the
- * GPL with the exception of any terms or conditions of this License that
- * conflict with, or are expressly prohibited by, the GPL.
+ * Alternatively, this software may be distributed under the terms of the
+ * the GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -105,6 +101,7 @@ typedef enum {
 	AHC_VL		= 0x0100,	/* Bus type VL */
 	AHC_EISA	= 0x0200,	/* Bus type EISA */
 	AHC_PCI		= 0x0400,	/* Bus type PCI */
+	AHC_BUS_MASK	= 0x0F00
 } ahc_chip;
 
 typedef enum {
@@ -608,5 +605,8 @@ void	ahc_intr(void *arg);
 
 #define ahc_outsb(ahc, port, valp, count)		\
 	bus_space_write_multi_1((ahc)->tag, (ahc)->bsh, port, valp, count)
+
+#define ahc_insb(ahc, port, valp, count)		\
+	bus_space_read_multi_1((ahc)->tag, (ahc)->bsh, port, valp, count)
 
 #endif  /* _AIC7XXX_H_ */
