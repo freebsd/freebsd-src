@@ -44,9 +44,9 @@
 #	vty*	virtual console devices for codrv (cleans up pc devices)
 # 
 # Terminal ports:
-#	com*	standard PC COM ports
-#	tty*	alias for PC COM ports, this is what the system really wants
-#	sio*	fast interrupt PC COM ports
+#	com*	standard PC COM ports (really makes tty* entries for com)
+#	sio*	fast interrupt PC COM ports (really makes tty* entries for sio)
+#	tty*	alias for sio ports, this is what the system really wants
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -64,7 +64,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id$
+#	$Id: MAKEDEV,v 1.5 1993/08/30 07:48:38 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -149,12 +149,11 @@ as*|fd*|sd*|wd*)
 	umask 77
 	;;
 
-com*|tty*)
+com*)
 	unit=`expr $i : '...\(.*\)'`
-	rm -f com0$unit tty0$unit
-	mknod com0$unit c 8 $unit
+	rm -f tty0$unit
 	mknod tty0$unit c 8 $unit
-	chown uucp.wheel com0$unit tty0$unit
+	chown uucp.wheel tty0$unit
 	;;
 
 pty*)
@@ -360,11 +359,11 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-sio*)
+sio*|tty*)
 	unit=`expr $i : '...\(.*\)'`
-	rm -f sio0$unit
-	mknod sio0$unit c 28 $unit
-	chown uucp.wheel sio0$unit
+	rm -f tty0$unit
+	mknod tty0$unit c 28 $unit
+	chown uucp.wheel tty0$unit
 	;;
 
 local)
