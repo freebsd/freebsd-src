@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id$
+ *	$Id: cdio.h,v 1.16 1997/02/22 09:44:53 peter Exp $
  */
 
 /*
@@ -156,6 +156,14 @@ struct ioc_read_toc_entry {
 	struct  cd_toc_entry *data;
 };
 #define CDIOREADTOCENTRYS _IOWR('c',5,struct ioc_read_toc_entry)
+
+
+struct ioc_read_toc_single_entry {
+	u_char	address_format;
+	u_char	track;
+	struct  cd_toc_entry entry;
+};
+#define CDIOREADTOCENTRY _IOWR('c',6,struct ioc_read_toc_single_entry)
 
 
 struct	ioc_patch

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.23 1997/04/29 15:52:53 joerg Exp $
+ * $Id: cd9660_vfsops.c,v 1.24 1997/04/29 17:11:51 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,8 @@
 #include <miscfs/specfs/specdev.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
+#include <sys/cdio.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
@@ -94,40 +96,77 @@ VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, VFCF_READONLY);
  * Called by vfs_mountroot when iso is going to be mounted as root.
  */
 
+static int iso_get_ssector __P((dev_t dev, struct proc *p));
 static int iso_mountfs __P((struct vnode *devvp, struct mount *mp,
 			    struct proc *p, struct iso_args *argp));
+static int iso_mountroot __P((struct mount *mp, struct proc *p));
 
-int
-cd9660_mountroot()
+/*
+ * Try to find the start of the last data track on this CD-ROM.  This
+ * is used to mount the last session of a multi-session CD.  Bail out
+ * and return 0 if we fail, this is always a safe bet.
+ */
+static int
+iso_get_ssector(dev, p)
+	dev_t dev;
+	struct proc *p;
 {
+	struct ioc_toc_header h;
+	struct ioc_read_toc_single_entry t;
+	int i;
+	struct bdevsw *bd;
+	d_ioctl_t *ioctlp;
+
+	bd = bdevsw[major(dev)];
+	ioctlp = bd->d_ioctl;
+	if (ioctlp == NULL)
+		return 0;
+
+	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) == -1)
+		return 0;
+
+	for (i = h.ending_track; i >= 0; i--) {
+		t.address_format = CD_LBA_FORMAT;
+		t.track = i;
+		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) == -1)
+			return 0;
+		if ((t.entry.control & 4) != 0)
+			/* found a data track */
+			break;
+	}
+
+	if (i < 0)
+		return 0;
+
+	return ntohl(t.entry.addr.lba);
+}
+
+static int
+iso_mountroot(mp, p)
 	struct mount *mp;
-	struct proc *p = curproc;	/* XXX */
+	struct proc *p;
+{
 	struct iso_args args;
 	int error;
-	
+
 	/*
 	 * Get vnode for rootdev.
 	 */
 	if ((error = bdevvp(swapdev, &swapdev_vp)) ||
 	    (error = bdevvp(rootdev, &rootvp))) {
-		printf("cd9660_mountroot: can't setup bdevvp's");
+		printf("iso_mountroot: can't setup bdevvp's");
 		return (error);
 	}
 
-	if (error = vfs_rootmountalloc("cd9660", "root_device", &mp))
-		return (error);
 	args.flags = ISOFSMNT_ROOT;
-	if (error = iso_mountfs(rootvp, mp, p, &args)) {
-		mp->mnt_vfc->vfc_refcount--;
-		vfs_unbusy(mp, p);
-		free(mp, M_MOUNT);
+	args.ssector = iso_get_ssector(rootdev, p);
+	if (bootverbose)
+		printf("iso_mountroot(): using session at block %d\n",
+		       args.ssector);
+	if (error = iso_mountfs(rootvp, mp, p, &args))
 		return (error);
-	}
-	simple_lock(&mountlist_slock);
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	simple_unlock(&mountlist_slock);
+
 	(void)cd9660_statfs(mp, &mp->mnt_stat, p);
-	vfs_unbusy(mp, p);
 	return (0);
 }
 
@@ -149,6 +188,9 @@ cd9660_mount(mp, path, data, ndp, p)
 	u_int size;
 	int error;
 	struct iso_mnt *imp = 0;
+
+	if ((mp->mnt_flag & MNT_ROOTFS) != 0)
+		return (iso_mountroot(mp, p));
 
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
 		return (error);
