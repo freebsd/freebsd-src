@@ -821,7 +821,6 @@ spec_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(ap->a_m[ap->a_reqpage]->object);
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
 		printf(
@@ -833,12 +832,14 @@ spec_getpages(ap)
 		printf(
 	    "               nread: %d, reqpage: %d, pindex: %lu, pcount: %d\n",
 		    nread, ap->a_reqpage, (u_long)m->pindex, pcount);
+		VM_OBJECT_UNLOCK(m->object);
 		/*
 		 * Free the buffer header back to the swap buffer pool.
 		 */
 		relpbuf(bp, NULL);
 		return VM_PAGER_ERROR;
 	}
+	VM_OBJECT_UNLOCK(ap->a_m[ap->a_reqpage]->object);
 	/*
 	 * Free the buffer header back to the swap buffer pool.
 	 */
