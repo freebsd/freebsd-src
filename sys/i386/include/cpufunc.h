@@ -42,13 +42,8 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-#include <sys/cdefs.h>
-#include <machine/psl.h>
-
-struct thread;
 struct region_descriptor;
 
-__BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
 #define readl(va)	(*(volatile u_int32_t *) (va))
@@ -469,21 +464,18 @@ load_gs(u_int sel)
 	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
 }
 
-/* void lidt(struct region_descriptor *addr); */
 static __inline void
 lidt(struct region_descriptor *addr)
 {
 	__asm __volatile("lidt (%0)" : : "r" (addr));
 }
 
-/* void lldt(u_short sel); */
 static __inline void
 lldt(u_short sel)
 {
 	__asm __volatile("lldt %0" : : "r" (sel));
 }
 
-/* void ltr(u_short sel); */
 static __inline void
 ltr(u_short sel)
 {
@@ -623,8 +615,6 @@ intr_restore(register_t eflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
-void	cpu_invlpg(u_int addr);
-void	cpu_invlpg_range(u_int start, u_int end);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);
@@ -636,7 +626,6 @@ void	insl(u_int port, void *addr, size_t cnt);
 void	insw(u_int port, void *addr, size_t cnt);
 void	invd(void);
 void	invlpg(u_int addr);
-void	invlpg_range(u_int start, u_int end);
 void	invltlb(void);
 u_short	inw(u_int port);
 void	load_cr0(u_int cr0);
@@ -644,7 +633,6 @@ void	load_cr3(u_int cr3);
 void	load_cr4(u_int cr4);
 void	load_fs(u_int sel);
 void	load_gs(u_int sel);
-struct region_descriptor;
 void	lidt(struct region_descriptor *addr);
 void	lldt(u_short sel);
 void	ltr(u_short sel);
@@ -690,7 +678,5 @@ void	intr_restore(register_t ef);
 #endif	/* __GNUC__ */
 
 void    reset_dbregs(void);
-
-__END_DECLS
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
