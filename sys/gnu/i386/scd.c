@@ -243,7 +243,7 @@ handle_attention(unsigned unit)
 	}
 
 	if (loop_count > 20) {
-		printf("scd%d: Too many attentions: %d\n", unit, loop_count);
+		/* printf("scd%d: Too many attentions: %d\n", unit, loop_count); */
 		loop_count = 0;
 		return 0;
 	}
