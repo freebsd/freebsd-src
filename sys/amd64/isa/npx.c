@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.55 1998/01/31 07:23:09 eivind Exp $
+ *	$Id: npx.c,v 1.56 1998/02/12 21:41:10 bde Exp $
  */
 
 #include "npx.h"
@@ -525,7 +525,6 @@ npxintr(unit)
 	outb(0xf0, 0);
 	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
 	fnclex();
-	fnop();
 
 	/*
 	 * Pass exception to process.
