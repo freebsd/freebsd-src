@@ -17,10 +17,10 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <fcntl.h>
 #include <stdarg.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/types.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <grp.h>
@@ -282,18 +282,22 @@ MakeDev(struct chunk *c1, const char *path)
     char buf[BUFSIZ], buf2[BUFSIZ];
     struct group *grp;
     struct passwd *pwd;
+    struct statfs fs;
     uid_t owner;
     gid_t group;
-    int mib[4];
-    size_t miblen;
 
     *buf2 = '\0';
-    miblen = sizeof(mib)/sizeof(mib[0]);
     if (isDebug())
 	msgDebug("MakeDev: Called with %s on path %s\n", p, path);
     if (!strcmp(p, "X"))
 	return 0;
-    if (!sysctlnametomib("vfs.devfs.generation", &mib, &miblen)) {
+    if (statfs(path, &fs) != 0) {
+#ifdef DEBUG
+	warn("statfs(%s) failed\n", path);
+#endif
+	return 0;
+    }
+    if (strcmp(fs.f_fstypename, "devfs") == 0) {
 	if (isDebug())
 	    msgDebug("MakeDev: No need to mknod(2) with DEVFS.\n");
 	return 1;
