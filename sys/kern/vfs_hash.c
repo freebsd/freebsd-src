@@ -102,6 +102,8 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 	struct vnode *vp2;
 	int error;
 
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	*vpp = NULL;
 	while (1) {
 		mtx_lock(&vfs_hash_mtx);
 		LIST_FOREACH(vp2,
@@ -132,7 +134,6 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 	vp->v_iflag |= VI_HASHED;
 	VI_UNLOCK(vp);
 	mtx_unlock(&vfs_hash_mtx);
-	*vpp = NULL;
 	return (0);
 }
 
