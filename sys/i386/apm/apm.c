@@ -46,6 +46,7 @@
 #include <vm/pmap.h>
 #include <sys/syslog.h>
 #include <i386/apm/apm_setup.h>
+#include <i386/apm/apm.h>
 
 #ifdef VM86
 #include <machine/psl.h>
