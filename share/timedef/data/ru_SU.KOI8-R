@@ -59,9 +59,9 @@
 #
 %d.%m.%y
 #
-# c_fmt
+# c_fmt (ctime)
 #
-%x %X
+%a %e %b %X %Y
 #
 # am
 #
@@ -73,4 +73,4 @@
 #
 # date_fmt
 #
-%a %e %b %H:%M:%S %Z %Y
+%a %e %b %X %Z %Y
