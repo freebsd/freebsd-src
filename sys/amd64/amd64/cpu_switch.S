@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.5 1997/08/04 17:17:29 smp Exp smp $
+ *	$Id: swtch.s,v 1.58 1997/08/04 17:31:43 fsmp Exp $
  */
 
 #include "npx.h"
@@ -257,16 +257,27 @@ _idle:
 	movl	%ecx,%cr3
 
 	/* update common_tss.tss_esp0 pointer */
+#ifdef VM86
+	movl	$GPROC0_SEL, %esi
+#endif /* VM86 */
 	movl	$_common_tss, %eax
 	movl	%esp, TSS_ESP0(%eax)
 
-#ifdef TSS_IS_CACHED				/* example only */
-	/* Reload task register to force reload of selector */
-	movl	_tssptr, %ebx
-	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
-	movl	_gsel_tss, %ebx
-	ltr	%bx
-#endif
+#ifdef VM86
+	btrl	%esi, _private_tss
+	je	1f
+	movl	$_common_tssd, %edi
+
+	/* move correct tss descriptor into GDT slot, then reload tr */
+	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	0(%edi), %eax
+	movl	%eax, 0(%ebx)
+	movl	4(%edi), %eax
+	movl	%eax, 4(%ebx)
+	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	ltr	%si
+1:
+#endif /* VM86 */
 
 	sti
 
@@ -472,33 +483,41 @@ swtch_com:
 	movl	%ebx, %cr3
 #endif /* SMP */
 
-#ifdef HOW_TO_SWITCH_TSS			/* example only */
-	/* Fix up tss pointer to floating pcb/stack structure */
-	/* XXX probably lots faster to store the 64 bits of tss entry
-	 * in the pcb somewhere and copy them on activation.
-	 */
-	movl	_tssptr, %ebx
-	movl	%edx, %eax			/* edx = pcb/tss */
-	movw	%ax, 2(%ebx)			/* store bits 0->15 */
-	roll	$16, %eax			/* swap upper and lower */
-	movb	%al, 4(%ebx)			/* store bits 16->23 */
-	movb	%ah, 7(%ebx)			/* store bits 24->31 */
-	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
+#ifdef VM86
+	movl	$GPROC0_SEL, %esi
+	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
+	je	1f
+	btsl	%esi, _private_tss		/* mark use of private tss */
+	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
+	jmp	2f
+1:
 #endif
 
 	/* update common_tss.tss_esp0 pointer */
 	movl	$_common_tss, %eax
 	movl	%edx, %ebx			/* pcb */
+#ifdef VM86
+	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
+#else
 	addl	$(UPAGES * PAGE_SIZE), %ebx
+#endif /* VM86 */
 	movl	%ebx, TSS_ESP0(%eax)
 
-#ifdef TSS_IS_CACHED				/* example only */
-	/* Reload task register to force reload of selector */
-	movl	_tssptr, %ebx
-	andb	$~0x02, 5(%ebx)			/* Flip 386BSY -> 386TSS */
-	movl	_gsel_tss, %ebx
-	ltr	%bx
-#endif
+#ifdef VM86
+	btrl	%esi, _private_tss
+	je	3f
+	movl	$_common_tssd, %edi
+2:
+	/* move correct tss descriptor into GDT slot, then reload tr */
+	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	0(%edi), %eax
+	movl	%eax, 0(%ebx)
+	movl	4(%edi), %eax
+	movl	%eax, 4(%ebx)
+	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	ltr	%si
+3:
+#endif /* VM86 */
 
 	/* restore context */
 	movl	PCB_EBX(%edx),%ebx

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.28 1997/02/22 09:34:04 peter Exp $
+ *	$Id: cpu.h,v 1.29 1997/04/07 07:15:58 peter Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -43,6 +43,7 @@
 /*
  * Definitions unique to i386 cpu support.
  */
+#include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
 
@@ -57,7 +58,9 @@
 #define cpu_setstack(p, ap)		((p)->p_md.md_regs[SP] = (ap))
 #define cpu_set_init_frame(p, fp)	((p)->p_md.md_regs = (fp))
 
-#define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
+#define	CLKF_USERMODE(framep) \
+	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))
+
 #define CLKF_INTR(framep)	(intr_nesting_level >= 2)
 #if 0
 /*

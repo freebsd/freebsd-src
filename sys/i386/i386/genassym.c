@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.46 1997/05/10 08:01:13 bde Exp $
+ *	$Id: genassym.c,v 1.47 1997/06/07 04:36:09 bde Exp $
  */
 
 #include <stdio.h>
@@ -129,6 +129,9 @@ main()
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
 	printf("#define\tPCB_FS %p\n", &pcb->pcb_fs);
 	printf("#define\tPCB_GS %p\n", &pcb->pcb_gs);
+#ifdef VM86
+	printf("#define\tPCB_EXT %p\n", &pcb->pcb_ext);
+#endif /* VM86 */
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %p\n", &pcb->pcb_mpnest);
 #endif
@@ -183,6 +186,8 @@ main()
 	printf("#define\tBI_SIZE %p\n", &bootinfo->bi_size);
 	printf("#define\tBI_SYMTAB %p\n", &bootinfo->bi_symtab);
 	printf("#define\tBI_ESYMTAB %p\n", &bootinfo->bi_esymtab);
+
+	printf("#define\tGPROC0_SEL %d\n", GPROC0_SEL);
 
 	return (0);
 }
