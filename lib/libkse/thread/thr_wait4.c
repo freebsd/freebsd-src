@@ -43,11 +43,12 @@ __weak_reference(__wait4, wait4);
 pid_t
 __wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 {
+	struct pthread *curthread = _get_curthread();
 	pid_t ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = _wait4(pid, istat, options, rusage);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

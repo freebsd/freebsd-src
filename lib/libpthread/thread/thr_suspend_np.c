@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-static void	suspend_common(struct pthread *thread);
+static void suspend_common(struct pthread *thread);
 
 __weak_reference(_pthread_suspend_np, pthread_suspend_np);
 __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
@@ -44,27 +44,26 @@ __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
 int
 _pthread_suspend_np(pthread_t thread)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
 	/* Suspending the current thread doesn't make sense. */
 	if (thread == _get_curthread())
 		ret = EDEADLK;
 
-	/* Find the thread in the list of active threads: */
-	else if ((ret = _find_thread(thread)) == 0) {
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		_thread_kern_sig_defer();
+	/* Add a reference to the thread: */
+	else if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0))
+	    == 0) {
+		/* Lock the threads scheduling queue: */
+		THR_SCHED_LOCK(curthread, thread);
 
 		suspend_common(thread);
 
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		_thread_kern_sig_undefer();
+		/* Unlock the threads scheduling queue: */
+		THR_SCHED_UNLOCK(curthread, thread);
+
+		/* Don't forget to remove the reference: */
+		_thr_ref_delete(curthread, thread);
 	}
 	return (ret);
 }
@@ -74,31 +73,34 @@ _pthread_suspend_all_np(void)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread	*thread;
+	kse_critical_t crit;
 
-	/*
-	 * Defer signals to protect the scheduling queues from
-	 * access by the signal handler:
-	 */
-	_thread_kern_sig_defer();
+	/* Take the thread list lock: */
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
-		if (thread != curthread)
+		if ((thread != curthread) &&
+		    (thread->state != PS_DEAD) &&
+		    (thread->state != PS_DEADLOCK) &&
+		    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
+			THR_SCHED_LOCK(curthread, thread);
 			suspend_common(thread);
+			THR_SCHED_UNLOCK(curthread, thread);
+		}
 	}
 
-	/*
-	 * Undefer and handle pending signals, yielding if
-	 * necessary:
-	 */
-	_thread_kern_sig_undefer();
+	/* Release the thread list lock: */
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+	_kse_critical_leave(crit);
 }
 
 void
 suspend_common(struct pthread *thread)
 {
-	thread->flags |= PTHREAD_FLAGS_SUSPENDED;
-	if (thread->flags & PTHREAD_FLAGS_IN_PRIOQ) {
-		PTHREAD_PRIOQ_REMOVE(thread);
-		PTHREAD_SET_STATE(thread, PS_SUSPENDED);
+	thread->flags |= THR_FLAGS_SUSPENDED;
+	if (thread->flags & THR_FLAGS_IN_RUNQ) {
+		THR_RUNQ_REMOVE(thread);
+		THR_SET_STATE(thread, PS_SUSPENDED);
 	}
 }

@@ -40,31 +40,24 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-#define FLAGS_IN_SCHEDQ	\
-	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
+void	_pthread_exit(void *status);
 
 __weak_reference(_pthread_exit, pthread_exit);
 
 void
-_thread_exit(char *fname, int lineno, char *string)
+_thr_exit(char *fname, int lineno, char *msg)
 {
-	char            s[256];
+	char s[256];
 
 	/* Prepare an error message string: */
 	snprintf(s, sizeof(s),
 	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
-	    string, lineno, fname, errno);
+	    msg, lineno, fname, errno);
 
 	/* Write the string to the standard error file descriptor: */
 	__sys_write(2, s, strlen(s));
 
-	/* Force this process to exit: */
-	/* XXX - Do we want abort to be conditional on _PTHREADS_INVARIANTS? */
-#if defined(_PTHREADS_INVARIANTS)
 	abort();
-#else
-	__sys_exit(1);
-#endif
 }
 
 /*
@@ -73,7 +66,7 @@ _thread_exit(char *fname, int lineno, char *string)
  * abnormal thread termination can be found.
  */
 void
-_thread_exit_cleanup(void)
+_thr_exit_cleanup(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
@@ -96,22 +89,25 @@ _thread_exit_cleanup(void)
 void
 _pthread_exit(void *status)
 {
-	struct pthread	*curthread = _get_curthread();
-	pthread_t pthread;
+	struct pthread *curthread = _get_curthread();
 
 	/* Check if this thread is already in the process of exiting: */
-	if ((curthread->flags & PTHREAD_EXITING) != 0) {
+	if ((curthread->flags & THR_FLAGS_EXITING) != 0) {
 		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",curthread);
+		snprintf(msg, sizeof(msg), "Thread %p has called "
+		    "pthread_exit() from a destructor. POSIX 1003.1 "
+		    "1996 s16.2.5.2 does not allow this!", curthread);
 		PANIC(msg);
 	}
 
-	/* Flag this thread as exiting: */
-	curthread->flags |= PTHREAD_EXITING;
+	/*
+	 * Flag this thread as exiting.  Threads should now be prevented
+	 * from joining to this thread.
+	 */
+	curthread->flags |= THR_FLAGS_EXITING;
 
 	/* Save the return value: */
 	curthread->ret = status;
-
 	while (curthread->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
@@ -124,58 +120,11 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
-	/*
-	 * Lock the garbage collector mutex to ensure that the garbage
-	 * collector is not using the dead thread list.
-	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/* Add this thread to the list of dead threads. */
-	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
-
-	/*
-	 * Signal the garbage collector thread that there is something
-	 * to clean up.
-	 */
-	if (pthread_cond_signal(&_gc_cond) != 0)
-		PANIC("Cannot signal gc cond");
-
-	/*
-	 * Avoid a race condition where a scheduling signal can occur
-	 * causing the garbage collector thread to run.  If this happens,
-	 * the current thread can be cleaned out from under us.
-	 */
-	_thread_kern_sig_defer();
-
-	/* Unlock the garbage collector mutex: */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot unlock gc mutex");
-
-	/* Check if there is a thread joining this one: */
-	if (curthread->joiner != NULL) {
-		pthread = curthread->joiner;
-		curthread->joiner = NULL;
-
-		/* Make the joining thread runnable: */
-		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-
-		/* Set the return value for the joining thread: */
-		pthread->join_status.ret = curthread->ret;
-		pthread->join_status.error = 0;
-		pthread->join_status.thread = NULL;
-
-		/* Make this thread collectable by the garbage collector. */
-		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
-		    0), "Cannot join a detached thread");
-		curthread->attr.flags |= PTHREAD_DETACHED;
-	}
-
-	/* Remove this thread from the thread list: */
-	TAILQ_REMOVE(&_thread_list, curthread, tle);
-
 	/* This thread will never be re-scheduled. */
-	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
+	THR_SCHED_LOCK(curthread, curthread);
+	THR_SET_STATE(curthread, PS_DEAD);
+	THR_SCHED_UNLOCK(curthread, curthread);
+	_thr_sched_switch(curthread);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");

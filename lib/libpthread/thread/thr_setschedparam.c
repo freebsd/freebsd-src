@@ -42,40 +42,55 @@ int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-	int old_prio, in_readyq = 0, ret = 0;
+	struct pthread *curthread = _get_curthread();
+	int	in_syncq;
+	int	in_readyq = 0;
+	int	old_prio;
+	int	ret = 0;
 
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR)) {
 		/* Return an invalid argument error: */
 		ret = EINVAL;
-	} else if ((param->sched_priority < PTHREAD_MIN_PRIORITY) ||
-	    (param->sched_priority > PTHREAD_MAX_PRIORITY)) {
+	} else if ((param->sched_priority < THR_MIN_PRIORITY) ||
+	    (param->sched_priority > THR_MAX_PRIORITY)) {
 		/* Return an unsupported value error. */
 		ret = ENOTSUP;
 
 	/* Find the thread in the list of active threads: */
-	} else if ((ret = _find_thread(pthread)) == 0) {
+	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+	    == 0) {
 		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
+		 * Lock the threads scheduling queue while we change
+		 * its priority:
 		 */
-		_thread_kern_sig_defer();
+		THR_SCHED_LOCK(curthread, pthread);
+		in_syncq = pthread->flags & THR_FLAGS_IN_SYNCQ;
 
-		if (param->sched_priority !=
-		    PTHREAD_BASE_PRIORITY(pthread->base_priority)) {
+		/* Set the scheduling policy: */
+		pthread->attr.sched_policy = policy;
+
+		if (param->sched_priority ==
+		    THR_BASE_PRIORITY(pthread->base_priority))
+			/*
+			 * There is nothing to do; unlock the threads
+			 * scheduling queue.
+			 */
+			THR_SCHED_UNLOCK(curthread, pthread);
+		else {
 			/*
 			 * Remove the thread from its current priority
 			 * queue before any adjustments are made to its
 			 * active priority:
 			 */
 			old_prio = pthread->active_priority;
-			if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0) {
+			if ((pthread->flags & THR_FLAGS_IN_RUNQ) != 0) {
 				in_readyq = 1;
-				PTHREAD_PRIOQ_REMOVE(pthread);
+				THR_RUNQ_REMOVE(pthread);
 			}
 
 			/* Set the thread base priority: */
 			pthread->base_priority &=
-			    (PTHREAD_SIGNAL_PRIORITY | PTHREAD_RT_PRIORITY);
+			    (THR_SIGNAL_PRIORITY | THR_RT_PRIORITY);
 			pthread->base_priority = param->sched_priority;
 
 			/* Recalculate the active priority: */
@@ -92,28 +107,23 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 					 * its priority if it owns any priority
 					 * protection or inheritence mutexes.
 					 */
-					PTHREAD_PRIOQ_INSERT_HEAD(pthread);
+					THR_RUNQ_INSERT_HEAD(pthread);
 				}
 				else
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+					THR_RUNQ_INSERT_TAIL(pthread);
 			}
+
+			/* Unlock the threads scheduling queue: */
+			THR_SCHED_UNLOCK(curthread, pthread);
 
 			/*
 			 * Check for any mutex priority adjustments.  This
 			 * includes checking for a priority mutex on which
 			 * this thread is waiting.
 			 */
-			_mutex_notify_priochange(pthread);
+			_mutex_notify_priochange(curthread, pthread, in_syncq);
 		}
-
-		/* Set the scheduling policy: */
-		pthread->attr.sched_policy = policy;
-
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		_thread_kern_sig_undefer();
+		_thr_ref_delete(curthread, pthread);
 	}
-	return(ret);
+	return (ret);
 }

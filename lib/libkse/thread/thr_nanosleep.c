@@ -39,57 +39,42 @@
 __weak_reference(__nanosleep, nanosleep);
 
 int
-_nanosleep(const struct timespec * time_to_sleep,
-    struct timespec * time_remaining)
+_nanosleep(const struct timespec *time_to_sleep,
+    struct timespec *time_remaining)
 {
 	struct pthread	*curthread = _get_curthread();
 	int             ret = 0;
-	struct timespec current_time;
-	struct timespec current_time1;
+	struct timespec ts, ts1;
 	struct timespec remaining_time;
-	struct timeval  tv;
 
 	/* Check if the time to sleep is legal: */
-	if (time_to_sleep == NULL || time_to_sleep->tv_sec < 0 ||
-		time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec >= 1000000000) {
+	if ((time_to_sleep == NULL) || (time_to_sleep->tv_sec < 0) ||
+	    (time_to_sleep->tv_nsec < 0) ||
+	    (time_to_sleep->tv_nsec >= 1000000000)) {
 		/* Return an EINVAL error : */
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		/*
-		 * As long as we're going to get the time of day, we
-		 * might as well store it in the global time of day:
-		 */
-		gettimeofday((struct timeval *) &_sched_tod, NULL);
-		GET_CURRENT_TOD(tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &current_time);
+		KSE_GET_TOD(curthread->kse, &ts);
 
 		/* Calculate the time for the current thread to wake up: */
-		curthread->wakeup_time.tv_sec = current_time.tv_sec + time_to_sleep->tv_sec;
-		curthread->wakeup_time.tv_nsec = current_time.tv_nsec + time_to_sleep->tv_nsec;
+		TIMESPEC_ADD(&curthread->wakeup_time, &ts, time_to_sleep);
 
-		/* Check if the nanosecond field has overflowed: */
-		if (curthread->wakeup_time.tv_nsec >= 1000000000) {
-			/* Wrap the nanosecond field: */
-			curthread->wakeup_time.tv_sec += 1;
-			curthread->wakeup_time.tv_nsec -= 1000000000;
-		}
+		THR_SCHED_LOCK(curthread, curthread);
 		curthread->interrupted = 0;
 
-		/* Reschedule the current thread to sleep: */
-		_thread_kern_sched_state(PS_SLEEP_WAIT, __FILE__, __LINE__);
+		THR_SET_STATE(curthread, PS_SLEEP_WAIT);
+		THR_SCHED_UNLOCK(curthread, curthread);
 
-		/*
-		 * As long as we're going to get the time of day, we
-		 * might as well store it in the global time of day:
-		 */
-		gettimeofday((struct timeval *) &_sched_tod, NULL);
-		GET_CURRENT_TOD(tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &current_time1);
+		/* Reschedule the current thread to sleep: */
+		_thr_sched_switch(curthread);
 
 		/* Calculate the remaining time to sleep: */
-		remaining_time.tv_sec = time_to_sleep->tv_sec + current_time.tv_sec - current_time1.tv_sec;
-		remaining_time.tv_nsec = time_to_sleep->tv_nsec + current_time.tv_nsec - current_time1.tv_nsec;
+		KSE_GET_TOD(curthread->kse, &ts1);
+		remaining_time.tv_sec = time_to_sleep->tv_sec
+		    + ts.tv_sec - ts1.tv_sec;
+		remaining_time.tv_nsec = time_to_sleep->tv_nsec
+		    + ts.tv_nsec - ts1.tv_nsec;
 
 		/* Check if the nanosecond field has underflowed: */
 		if (remaining_time.tv_nsec < 0) {
@@ -97,9 +82,8 @@ _nanosleep(const struct timespec * time_to_sleep,
 			remaining_time.tv_sec -= 1;
 			remaining_time.tv_nsec += 1000000000;
 		}
-
 		/* Check if the nanosecond field has overflowed: */
-		if (remaining_time.tv_nsec >= 1000000000) {
+		else if (remaining_time.tv_nsec >= 1000000000) {
 			/* Handle the overflow: */
 			remaining_time.tv_sec += 1;
 			remaining_time.tv_nsec -= 1000000000;
@@ -130,14 +114,15 @@ _nanosleep(const struct timespec * time_to_sleep,
 }
 
 int
-__nanosleep(const struct timespec * time_to_sleep, struct timespec *
-    time_remaining)
+__nanosleep(const struct timespec *time_to_sleep,
+    struct timespec *time_remaining)
 {
-	int	ret;
+	struct pthread *curthread = _get_curthread();
+	int		ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = _nanosleep(time_to_sleep, time_remaining);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
-	return ret;
+	return (ret);
 }

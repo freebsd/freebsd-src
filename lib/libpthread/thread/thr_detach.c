@@ -31,6 +31,8 @@
  *
  * $FreeBSD$
  */
+#include <sys/types.h>
+#include <machine/atomic.h>
 #include <errno.h>
 #include <pthread.h>
 #include "thr_private.h"
@@ -40,50 +42,60 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
-	int             rval = 0;
+	struct pthread *curthread, *joiner;
+	int rval = 0;
 
 	/* Check for invalid calling parameters: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+	if (pthread == NULL || pthread->magic != THR_MAGIC)
 		/* Return an invalid argument error: */
 		rval = EINVAL;
 
-	/* Check if the thread has not been detached: */
-	else if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
+	/* Check if the thread is already detached: */
+	else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0)
+		/* Return an error: */
+		rval = EINVAL;
+	else {
+		/* Lock the detached thread: */
+		curthread = _get_curthread();
+		THR_SCHED_LOCK(curthread, pthread);
+
 		/* Flag the thread as detached: */
 		pthread->attr.flags |= PTHREAD_DETACHED;
 
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		_thread_kern_sig_defer();
+		/* Retrieve any joining thread and remove it: */
+		joiner = pthread->joiner;
+		pthread->joiner = NULL;
 
-		/* Check if there is a joiner: */
-		if (pthread->joiner != NULL) {
-			struct pthread	*joiner = pthread->joiner;
-
-			/* Make the thread runnable: */
-			PTHREAD_NEW_STATE(joiner, PS_RUNNING);
-
-			/* Set the return value for the woken thread: */
-			joiner->join_status.error = ESRCH;
-			joiner->join_status.ret = NULL;
-			joiner->join_status.thread = NULL;
-
-			/*
-			 * Disconnect the joiner from the thread being detached:
-			 */
-			pthread->joiner = NULL;
+		/* We are already in a critical region. */
+		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+		if ((pthread->flags & THR_FLAGS_GC_SAFE) != 0) {
+			THR_LIST_REMOVE(pthread);
+			THR_GCLIST_ADD(pthread);
+			atomic_store_rel_int(&_gc_check, 1);
+			if (KSE_WAITING(_kse_initial))
+				KSE_WAKEUP(_kse_initial);
 		}
+		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
 
-		/*
-		 * Undefer and handle pending signals, yielding if a
-		 * scheduling signal occurred while in the critical region.
-		 */
-		_thread_kern_sig_undefer();
-	} else
-		/* Return an error: */
-		rval = EINVAL;
+		THR_SCHED_UNLOCK(curthread, pthread);
+
+		/* See if there is a thread waiting in pthread_join(): */
+		if (joiner != NULL) {
+			/* Lock the joiner before fiddling with it. */
+			THR_SCHED_LOCK(curthread, joiner);
+			if (joiner->join_status.thread == pthread) {
+				/*
+				 * Set the return value for the woken thread:
+				 */
+				joiner->join_status.error = ESRCH;
+				joiner->join_status.ret = NULL;
+				joiner->join_status.thread = NULL;
+
+				_thr_setrunnable_unlocked(joiner);
+			}
+			THR_SCHED_UNLOCK(curthread, joiner);
+		}
+	}
 
 	/* Return the completion status: */
 	return (rval);

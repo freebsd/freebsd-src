@@ -32,7 +32,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <semaphore.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 #define _SEM_CHECK_VALIDITY(sem)		\
@@ -88,15 +90,15 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 	/*
 	 * Initialize the semaphore.
 	 */
-	if (pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
+	if (_pthread_mutex_init(&(*sem)->lock, NULL) != 0) {
 		free(*sem);
 		errno = ENOSPC;
 		retval = -1;
 		goto RETURN;
 	}
 
-	if (pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
-		pthread_mutex_destroy(&(*sem)->lock);
+	if (_pthread_cond_init(&(*sem)->gtzero, NULL) != 0) {
+		_pthread_mutex_destroy(&(*sem)->lock);
 		free(*sem);
 		errno = ENOSPC;
 		retval = -1;
@@ -109,7 +111,7 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 
 	retval = 0;
   RETURN:
-	return retval;
+	return (retval);
 }
 
 int
@@ -120,71 +122,72 @@ _sem_destroy(sem_t *sem)
 	_SEM_CHECK_VALIDITY(sem);
 
 	/* Make sure there are no waiters. */
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 	if ((*sem)->nwaiters > 0) {
-		pthread_mutex_unlock(&(*sem)->lock);
+		_pthread_mutex_unlock(&(*sem)->lock);
 		errno = EBUSY;
 		retval = -1;
 		goto RETURN;
 	}
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 	
-	pthread_mutex_destroy(&(*sem)->lock);
-	pthread_cond_destroy(&(*sem)->gtzero);
+	_pthread_mutex_destroy(&(*sem)->lock);
+	_pthread_cond_destroy(&(*sem)->gtzero);
 	(*sem)->magic = 0;
 
 	free(*sem);
 
 	retval = 0;
   RETURN:
-	return retval;
+	return (retval);
 }
 
 sem_t *
 _sem_open(const char *name, int oflag, ...)
 {
 	errno = ENOSYS;
-	return SEM_FAILED;
+	return (SEM_FAILED);
 }
 
 int
 _sem_close(sem_t *sem)
 {
 	errno = ENOSYS;
-	return -1;
+	return (-1);
 }
 
 int
 _sem_unlink(const char *name)
 {
 	errno = ENOSYS;
-	return -1;
+	return (-1);
 }
 
 int
 _sem_wait(sem_t *sem)
 {
-	int	retval;
+	struct pthread *curthread = _get_curthread();
+	int		retval;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	while ((*sem)->count == 0) {
 		(*sem)->nwaiters++;
-		pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
+		_pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
 		(*sem)->nwaiters--;
 	}
 	(*sem)->count--;
 
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
 	retval = 0;
   RETURN:
-	_thread_leave_cancellation_point();
-	return retval;
+	_thr_leave_cancellation_point(curthread);
+	return (retval);
 }
 
 int
@@ -194,7 +197,7 @@ _sem_trywait(sem_t *sem)
 
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	if ((*sem)->count > 0) {
 		(*sem)->count--;
@@ -204,37 +207,38 @@ _sem_trywait(sem_t *sem)
 		retval = -1;
 	}
 	
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
   RETURN:
-	return retval;
+	return (retval);
 }
 
 int
 _sem_post(sem_t *sem)
 {
-	int	retval;
+	kse_critical_t crit;
+	int retval;
 
 	_SEM_CHECK_VALIDITY(sem);
 
 	/*
 	 * sem_post() is required to be safe to call from within signal
-	 * handlers.  Thus, we must defer signals.
+	 * handlers.  Thus, we must enter a critical region.
 	 */
-	_thread_kern_sig_defer();
+	crit = _kse_critical_enter();
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 
 	(*sem)->count++;
 	if ((*sem)->nwaiters > 0)
-		pthread_cond_signal(&(*sem)->gtzero);
+		_pthread_cond_signal(&(*sem)->gtzero);
 
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
-	_thread_kern_sig_undefer();
+	_kse_critical_leave(crit);
 	retval = 0;
   RETURN:
-	return retval;
+	return (retval);
 }
 
 int
@@ -244,11 +248,11 @@ _sem_getvalue(sem_t *sem, int *sval)
 
 	_SEM_CHECK_VALIDITY(sem);
 
-	pthread_mutex_lock(&(*sem)->lock);
+	_pthread_mutex_lock(&(*sem)->lock);
 	*sval = (int)(*sem)->count;
-	pthread_mutex_unlock(&(*sem)->lock);
+	_pthread_mutex_unlock(&(*sem)->lock);
 
 	retval = 0;
   RETURN:
-	return retval;
+	return (retval);
 }

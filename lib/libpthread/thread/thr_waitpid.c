@@ -39,11 +39,12 @@ __weak_reference(_waitpid, waitpid);
 pid_t
 _waitpid(pid_t wpid, int *status, int options)
 {
+	struct pthread *curthread = _get_curthread();
 	pid_t	ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __waitpid(wpid, status, options);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 	
 	return ret;
 }

@@ -38,13 +38,16 @@
  * threads package at program start-up time.
  */
 
+#include <pthread.h>
+#include "thr_private.h"
+
 void	_thread_init_hack(void) __attribute__ ((constructor));
 
 void
 _thread_init_hack(void)
 {
 
-	_thread_init();
+	_libpthread_init(NULL);
 }
 
 /*

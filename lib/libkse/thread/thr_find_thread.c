@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Daniel Eischen <deischen@freebsd.org>
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -35,32 +36,65 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-/* Find a thread in the linked list of active threads: */
+/*
+ * Find a thread in the linked list of active threads and add a reference
+ * to it.  Threads with positive reference counts will not be deallocated
+ * until all references are released.
+ */
 int
-_find_thread(pthread_t pthread)
+_thr_ref_add(struct pthread *curthread, struct pthread *thread,
+    int include_dead)
 {
-	pthread_t pthread1;
+	kse_critical_t crit;
+	struct pthread *pthread;
 
-	/* Check if the caller has specified an invalid thread: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+	if (thread == NULL)
 		/* Invalid thread: */
-		return(EINVAL);
+		return (EINVAL);
 
-	/*
-	 * Defer signals to protect the thread list from access
-	 * by the signal handler:
-	 */
-	_thread_kern_sig_defer();
-
-	/* Search for the specified thread: */
-	TAILQ_FOREACH(pthread1, &_thread_list, tle) {
-		if (pthread == pthread1)
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+	TAILQ_FOREACH(pthread, &_thread_list, tle) {
+		if (pthread == thread) {
+			if ((include_dead == 0) &&
+			    ((pthread->state == PS_DEAD) ||
+			    ((pthread->state == PS_DEADLOCK) ||
+			    ((pthread->flags & THR_FLAGS_EXITING) != 0))))
+				pthread = NULL;
+			else {
+				thread->refcount++;
+				curthread->critical_count++;
+			}
 			break;
+		}
 	}
-
-	/* Undefer and handle pending signals, yielding if necessary: */
-	_thread_kern_sig_undefer();
+	KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+	_kse_critical_leave(crit);
 
 	/* Return zero if the thread exists: */
-	return ((pthread1 != NULL) ? 0:ESRCH);
+	return ((pthread != NULL) ? 0 : ESRCH);
+}
+
+void
+_thr_ref_delete(struct pthread *curthread, struct pthread *thread)
+{
+	kse_critical_t crit;
+
+	if (thread != NULL) {
+		crit = _kse_critical_enter();
+		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+		thread->refcount--;
+		curthread->critical_count--;
+		if (((thread->flags & THR_FLAGS_GC_SAFE) != 0) &&
+		    (thread->refcount == 0) &&
+		    ((thread->attr.flags & PTHREAD_DETACHED) != 0)) {
+			THR_LIST_REMOVE(thread);
+			THR_GCLIST_ADD(thread);
+			_gc_check = 1;
+			if (KSE_WAITING(_kse_initial))
+				KSE_WAKEUP(_kse_initial);
+		}
+		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+		_kse_critical_leave(crit);
+	}
 }

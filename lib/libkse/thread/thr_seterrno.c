@@ -47,7 +47,7 @@ void
 _thread_seterrno(pthread_t thread, int error)
 {
 	/* Check for the initial thread: */
-	if (thread == _thread_initial)
+	if (thread == _thr_initial)
 		/* The initial thread always uses the global error variable: */
 		errno = error;
 	else

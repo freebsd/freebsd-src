@@ -98,16 +98,14 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		ret = EINVAL;
 	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
-	else {
-		/* Lock the mutex: */
-		if ((ret = pthread_mutex_lock(mutex)) == 0) {
-			/* Return the old ceiling and set the new ceiling: */
-			*old_ceiling = (*mutex)->m_prio;
-			(*mutex)->m_prio = prioceiling;
+	/* Lock the mutex: */
+	else if ((ret = pthread_mutex_lock(mutex)) == 0) {
+		/* Return the old ceiling and set the new ceiling: */
+		*old_ceiling = (*mutex)->m_prio;
+		(*mutex)->m_prio = prioceiling;
 
-			/* Unlock the mutex: */
-			ret = pthread_mutex_unlock(mutex);
-		}
+		/* Unlock the mutex: */
+		ret = pthread_mutex_unlock(mutex);
 	}
 	return(ret);
 }

@@ -32,8 +32,9 @@
  * $FreeBSD$
  */
 #include <stdarg.h>
-#include <unistd.h>
+#include "namespace.h"
 #include <fcntl.h>
+#include "un-namespace.h"
 #include <pthread.h>
 #include "thr_private.h"
 
@@ -42,28 +43,29 @@ __weak_reference(__fcntl, fcntl);
 int
 __fcntl(int fd, int cmd,...)
 {
+	struct pthread *curthread = _get_curthread();
 	int	ret;
 	va_list	ap;
 	
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 
 	va_start(ap, cmd);
 	switch (cmd) {
-		case F_DUPFD:
-		case F_SETFD:
-		case F_SETFL:
-			ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
-			break;
-		case F_GETFD:
-		case F_GETFL:
-			ret = __sys_fcntl(fd, cmd);
-			break;
-		default:
-			ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+	case F_DUPFD:
+	case F_SETFD:
+	case F_SETFL:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
+		break;
+	case F_GETFD:
+	case F_GETFL:
+		ret = __sys_fcntl(fd, cmd);
+		break;
+	default:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
 	}
 	va_end(ap);
 
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
-	return ret;
+	return (ret);
 }

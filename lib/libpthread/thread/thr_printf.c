@@ -29,13 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/fcntl.h>
-#include <sys/uio.h>
-#include <errno.h>
 #include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include "thr_private.h"
 
@@ -109,7 +105,7 @@ static void
 pchar(int fd, char c)
 {
 
-	write(fd, &c, 1);
+	__sys_write(fd, &c, 1);
 }
 
 /*
@@ -119,6 +115,6 @@ static void
 pstr(int fd, const char *s)
 {
 
-	write(fd, s, strlen(s));
+	__sys_write(fd, s, strlen(s));
 }
 

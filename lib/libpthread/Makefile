@@ -9,16 +9,18 @@
 # system call stubs.
 LIB=kse
 SHLIB_MAJOR= 1
-CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
+CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
+CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
+CFLAGS+=-I${.CURDIR}/sys
 
 # Uncomment this if you want libpthread to contain debug information for
 # thread locking.
-CFLAGS+=-D_LOCK_DEBUG
+CFLAGS+=-D_LOCK_DEBUG -g
 
 # enable extra internal consistancy checks
-CFLAGS+=-D_PTHREADS_INVARIANTS
+CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes

@@ -38,11 +38,12 @@ __weak_reference(_sleep, sleep);
 unsigned int
 _sleep(unsigned int seconds)
 {
+	struct pthread *curthread = _get_curthread();
 	unsigned int	ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sleep(seconds);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 	
-	return ret;
+	return (ret);
 }

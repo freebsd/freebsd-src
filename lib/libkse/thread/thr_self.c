@@ -39,6 +39,9 @@ __weak_reference(_pthread_self, pthread_self);
 pthread_t
 _pthread_self(void)
 {
+	if (_thr_initial == NULL)
+		_libpthread_init(NULL);
+
 	/* Return the running thread pointer: */
 	return (_get_curthread());
 }

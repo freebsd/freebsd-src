@@ -39,12 +39,13 @@ int
 _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
     timespec *timeout)
 {
-	int	ret;
+	struct pthread *curthread = _get_curthread();
+	int ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_aio_suspend(iocbs, niocb, timeout);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
-	return ret;
+	return (ret);
 }
 

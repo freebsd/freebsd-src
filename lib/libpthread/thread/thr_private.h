@@ -38,17 +38,9 @@
 #define _THR_PRIVATE_H
 
 /*
- * Evaluate the storage class specifier.
- */
-#ifdef GLOBAL_PTHREAD_PRIVATE
-#define SCLASS
-#else
-#define SCLASS extern
-#endif
-
-/*
  * Include files.
  */
+#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/queue.h>
@@ -57,110 +49,81 @@
 #include <sys/cdefs.h>
 #include <sys/kse.h>
 #include <sched.h>
-#include <spinlock.h>
 #include <ucontext.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <pthread_np.h>
+
+#include "ksd.h"
+#include "lock.h"
+#include "pthread_md.h"
+
+/*
+ * Evaluate the storage class specifier.
+ */
+#ifdef GLOBAL_PTHREAD_PRIVATE
+#define SCLASS
+#define SCLASS_PRESET(x...)	= x
+#else
+#define SCLASS			extern
+#define SCLASS_PRESET(x...)
+#endif
 
 /*
  * Kernel fatal error handler macro.
  */
-#define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
+#define PANIC(string)   _thr_exit(__FILE__,__LINE__,string)
 
 
 /* Output debug messages like this: */
-#define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, args)
-#define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, args)
+#define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
+#define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
 
-/*
- * Priority queue manipulation macros (using pqe link):
- */
-#define PTHREAD_PRIOQ_INSERT_HEAD(thrd)	_pq_insert_head(&_readyq,thrd)
-#define PTHREAD_PRIOQ_INSERT_TAIL(thrd)	_pq_insert_tail(&_readyq,thrd)
-#define PTHREAD_PRIOQ_REMOVE(thrd)	_pq_remove(&_readyq,thrd)
-#define PTHREAD_PRIOQ_FIRST()		_pq_first(&_readyq)
+#define	DBG_MUTEX	0x0001
+#define	DBG_SIG		0x0002
 
-/*
- * Waiting queue manipulation macros (using pqe link):
- */
-#define PTHREAD_WAITQ_REMOVE(thrd)	_waitq_remove(thrd)
-#define PTHREAD_WAITQ_INSERT(thrd)	_waitq_insert(thrd)
 
-#if defined(_PTHREADS_INVARIANTS)
-#define PTHREAD_WAITQ_CLEARACTIVE()	_waitq_clearactive()
-#define PTHREAD_WAITQ_SETACTIVE()	_waitq_setactive()
-#else
-#define PTHREAD_WAITQ_CLEARACTIVE()
-#define PTHREAD_WAITQ_SETACTIVE()
-#endif
-
-/*
- * Work queue manipulation macros (using qe link):
- */
-#define PTHREAD_WORKQ_INSERT(thrd) do {					\
-	TAILQ_INSERT_TAIL(&_workq,thrd,qe);				\
-	(thrd)->flags |= PTHREAD_FLAGS_IN_WORKQ;			\
-} while (0)
-#define PTHREAD_WORKQ_REMOVE(thrd) do {					\
-	TAILQ_REMOVE(&_workq,thrd,qe);					\
-	(thrd)->flags &= ~PTHREAD_FLAGS_IN_WORKQ;			\
+#define THR_ASSERT(cond, msg) do {	\
+	if (!(cond))			\
+		PANIC(msg);		\
 } while (0)
 
 
 /*
  * State change macro without scheduling queue change:
  */
-#define PTHREAD_SET_STATE(thrd, newstate) do {				\
+#define THR_SET_STATE(thrd, newstate) do {				\
 	(thrd)->state = newstate;					\
 	(thrd)->fname = __FILE__;					\
 	(thrd)->lineno = __LINE__;					\
 } while (0)
 
+
 /*
- * State change macro with scheduling queue change - This must be
- * called with preemption deferred (see thread_kern_sched_[un]defer).
+ * Define the signals to be used for scheduling.
  */
-#if defined(_PTHREADS_INVARIANTS)
-#include <assert.h>
-#define PTHREAD_ASSERT(cond, msg) do {	\
-	if (!(cond))			\
-		PANIC(msg);		\
-} while (0)
-#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd) \
-	PTHREAD_ASSERT((((thrd)->flags & PTHREAD_FLAGS_IN_SYNCQ) == 0),	\
-	    "Illegal call from signal handler");
-#define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if (_thread_kern_new_state != 0)				\
-		PANIC("Recursive PTHREAD_NEW_STATE");			\
-	_thread_kern_new_state = 1;					\
-	if ((thrd)->state != newstate) {				\
-		if ((thrd)->state == PS_RUNNING) {			\
-			PTHREAD_PRIOQ_REMOVE(thrd);			\
-			PTHREAD_SET_STATE(thrd, newstate);		\
-			PTHREAD_WAITQ_INSERT(thrd);			\
-		} else if (newstate == PS_RUNNING) { 			\
-			PTHREAD_WAITQ_REMOVE(thrd);			\
-			PTHREAD_SET_STATE(thrd, newstate);		\
-			PTHREAD_PRIOQ_INSERT_TAIL(thrd);		\
-		}							\
-	}								\
-	_thread_kern_new_state = 0;					\
-} while (0)
-#else
-#define PTHREAD_ASSERT(cond, msg)
-#define PTHREAD_ASSERT_NOT_IN_SYNCQ(thrd)
-#define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if ((thrd)->state != newstate) {				\
-		if ((thrd)->state == PS_RUNNING) {			\
-			PTHREAD_PRIOQ_REMOVE(thrd);			\
-			PTHREAD_WAITQ_INSERT(thrd);			\
-		} else if (newstate == PS_RUNNING) { 			\
-			PTHREAD_WAITQ_REMOVE(thrd);			\
-			PTHREAD_PRIOQ_INSERT_TAIL(thrd);		\
-		}							\
-	}								\
-	PTHREAD_SET_STATE(thrd, newstate);				\
-} while (0)
-#endif
+#define _ITIMER_SCHED_TIMER	ITIMER_PROF
+#define _SCHED_SIGNAL		SIGPROF
+
+#define	TIMESPEC_ADD(dst, src, val)				\
+	do { 							\
+		(dst)->tv_sec = (src)->tv_sec + (val)->tv_sec;	\
+		(dst)->tv_nsec = (src)->tv_nsec + (val)->tv_nsec; \
+		if ((dst)->tv_nsec > 1000000000) {		\
+			(dst)->tv_sec++;			\
+			(dst)->tv_nsec -= 1000000000;		\
+		}						\
+	} while (0)
+
+#define	TIMESPEC_SUB(dst, src, val)				\
+	do { 							\
+		(dst)->tv_sec = (src)->tv_sec - (val)->tv_sec;	\
+		(dst)->tv_nsec = (src)->tv_nsec - (val)->tv_nsec; \
+		if ((dst)->tv_nsec < 0) {			\
+			(dst)->tv_sec--;			\
+			(dst)->tv_nsec += 1000000000;		\
+		}						\
+	} while (0)
 
 /*
  * Priority queues.
@@ -178,29 +141,167 @@ typedef struct pq_queue {
 	TAILQ_HEAD(, pq_list)	 pq_queue; /* queue of priority lists */
 	pq_list_t		*pq_lists; /* array of all priority lists */
 	int			 pq_size;  /* number of priority lists */
+#define	PQF_ACTIVE	0x0001
+	int			 pq_flags;
 } pq_queue_t;
 
+/*
+ * Each KSEG has a scheduling queue.  For now, threads that exist in their
+ * own KSEG (system scope) will get a full priority queue.  In the future
+ * this can be optimized for the single thread per KSEG case.
+ */
+struct sched_queue {
+	pq_queue_t		sq_runq;
+	TAILQ_HEAD(, pthread)	sq_waitq;	/* waiting in userland */
+	TAILQ_HEAD(, pthread)	sq_blockedq;	/* waiting in kernel */
+};
+
+/* Used to maintain pending and active signals: */
+struct sigstatus {
+	siginfo_t	*info;		/* arg 2 to signal handler */
+	int		pending;	/* Is this a pending signal? */
+	int		blocked;	/*
+					 * This signal has occured and hasn't
+					 * yet been handled; ignore subsequent
+					 * signals until the handler is done.
+					 */
+	int		signo;
+};
+
+typedef struct kse_thr_mailbox *kse_critical_t;
+
+struct kse_group;
+
+#define	MAX_KSE_LOCKLEVEL	3
+struct kse {
+	struct kse_mailbox	k_mbx;		/* kernel kse mailbox */
+	/* -- location and order specific items for gdb -- */
+	struct pthread		*k_curthread;	/* current thread */
+	struct kse_group	*k_kseg;	/* parent KSEG */
+	struct sched_queue	*k_schedq;	/* scheduling queue */
+	/* -- end of location and order specific items -- */
+	TAILQ_ENTRY(kse)	k_qe;		/* link entry */
+	struct ksd		k_ksd;		/* KSE specific data */
+	/*
+	 * Items that are only modified by the kse, or that otherwise
+	 * don't need to be locked when accessed
+	 */
+	struct lock		k_lock;
+	struct lockuser		k_lockusers[MAX_KSE_LOCKLEVEL];
+	int			k_locklevel;
+	sigset_t		k_sigmask;
+	struct sigstatus	k_sigq[NSIG];
+	int			k_check_sigq;
+	long			k_resched;	/* scheduling signal arrived */
+	int			k_flags;
+#define	KF_STARTED			0x0001	/* kernel kse created */
+#define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
+	int			k_cpu;		/* CPU ID when bound */
+	int			k_done;		/* this KSE is done */
+};
+
+/*
+ * Each KSE group contains one or more KSEs in which threads can run.
+ * At least for now, there is one scheduling queue per KSE group; KSEs
+ * within the same KSE group compete for threads from the same scheduling
+ * queue.  A scope system thread has one KSE in one KSE group; the group
+ * does not use its scheduling queue.
+ */
+struct kse_group {
+	TAILQ_HEAD(, kse)	kg_kseq;	/* list of KSEs in group */
+	TAILQ_HEAD(, pthread)	kg_threadq;	/* list of threads in group */
+	TAILQ_ENTRY(kse_group)  kg_qe;		/* link entry */
+	struct sched_queue	kg_schedq;	/* scheduling queue */
+	struct lock		kg_lock;
+	int			kg_threadcount;	/* # of assigned threads */
+	int			kg_idle_kses;
+	int			kg_flags;
+#define	KGF_SINGLE_THREAD		0x0001	/* scope system kse group */
+#define	KGF_SCHEDQ_INITED		0x0002	/* has an initialized schedq */
+};
+
+/*
+ * Lock acquire and release for KSEs.
+ */
+#define	KSE_LOCK_ACQUIRE(kse, lck)					\
+do {									\
+	if ((kse)->k_locklevel >= MAX_KSE_LOCKLEVEL)			\
+		PANIC("Exceeded maximum lock level");			\
+	else {								\
+		(kse)->k_locklevel++;					\
+		_lock_acquire((lck),					\
+		    &(kse)->k_lockusers[(kse)->k_locklevel - 1], 0);	\
+	}								\
+} while (0)
+
+#define	KSE_LOCK_RELEASE(kse, lck)					\
+do {									\
+	if ((kse)->k_locklevel > 0) {					\
+		_lock_release((lck),					\
+		    &(kse)->k_lockusers[(kse)->k_locklevel - 1]);	\
+		(kse)->k_locklevel--;					\
+	}								\
+} while (0)
+
+/*
+ * Lock our own KSEG.
+ */
+#define	KSE_LOCK(curkse)		\
+	KSE_LOCK_ACQUIRE(curkse, &(curkse)->k_kseg->kg_lock)
+#define	KSE_UNLOCK(curkse)		\
+	KSE_LOCK_RELEASE(curkse, &(curkse)->k_kseg->kg_lock)
+
+/*
+ * Lock a potentially different KSEG.
+ */
+#define	KSE_SCHED_LOCK(curkse, kseg)	\
+	KSE_LOCK_ACQUIRE(curkse, &(kseg)->kg_lock)
+#define	KSE_SCHED_UNLOCK(curkse, kseg)	\
+	KSE_LOCK_RELEASE(curkse, &(kseg)->kg_lock)
+
+/*
+ * Waiting queue manipulation macros (using pqe link):
+ */
+#define KSE_WAITQ_REMOVE(kse, thrd) \
+do { \
+	if (((thrd)->flags & THR_FLAGS_IN_WAITQ) != 0) { \
+		TAILQ_REMOVE(&(kse)->k_schedq->sq_waitq, thrd, pqe); \
+		(thrd)->flags &= ~THR_FLAGS_IN_WAITQ; \
+	} \
+} while (0)
+#define KSE_WAITQ_INSERT(kse, thrd)	kse_waitq_insert(thrd)
+#define	KSE_WAITQ_FIRST(kse)		TAILQ_FIRST(&(kse)->k_schedq->sq_waitq)
+
+#define	KSE_SET_WAIT(kse) \
+	atomic_store_rel_int(&(kse)->k_mbx.km_flags, 1)
+
+#define	KSE_CLEAR_WAIT(kse) \
+	atomic_set_acq_int(&(kse)->k_mbx.km_flags, 0)
+
+#define	KSE_WAITING(kse)	(kse)->k_mbx.km_flags != 0
+#define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_mbx)
 
 /*
  * TailQ initialization values.
  */
 #define TAILQ_INITIALIZER	{ NULL, NULL }
 
-/* 
- * Mutex definitions.
+/*
+ * lock initialization values.
  */
-union pthread_mutex_data {
-	void	*m_ptr;
-	int	m_count;
-};
+#define	LCK_INITIALIZER		{ NULL, NULL, LCK_DEFAULT }
 
 struct pthread_mutex {
+	/*
+	 * Lock for accesses to this structure.
+	 */
+	struct lock			m_lock;
 	enum pthread_mutextype		m_type;
 	int				m_protocol;
 	TAILQ_HEAD(mutex_head, pthread)	m_queue;
 	struct pthread			*m_owner;
-	union pthread_mutex_data	m_data;
 	long				m_flags;
+	int				m_count;
 	int				m_refcount;
 
 	/*
@@ -221,11 +322,6 @@ struct pthread_mutex {
 	 * Link for list of all mutexes a thread currently owns.
 	 */
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
-
-	/*
-	 * Lock for accesses to this structure.
-	 */
-	spinlock_t			lock;
 };
 
 /*
@@ -238,10 +334,10 @@ struct pthread_mutex {
 /*
  * Static mutex initialization values. 
  */
-#define PTHREAD_MUTEX_STATIC_INITIALIZER   \
-	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, TAILQ_INITIALIZER, \
-	NULL, { NULL }, MUTEX_FLAGS_PRIVATE, 0, 0, 0, TAILQ_INITIALIZER, \
-	_SPINLOCK_INITIALIZER }
+#define PTHREAD_MUTEX_STATIC_INITIALIZER				\
+	{ LCK_INITIALIZER, PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE,	\
+	TAILQ_INITIALIZER, NULL, MUTEX_FLAGS_PRIVATE, 0, 0, 0, 0,	\
+	TAILQ_INITIALIZER }
 
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
@@ -262,17 +358,15 @@ enum pthread_cond_type {
 };
 
 struct pthread_cond {
-	enum pthread_cond_type		c_type;
-	TAILQ_HEAD(cond_head, pthread)	c_queue;
-	pthread_mutex_t			c_mutex;
-	void				*c_data;
-	long				c_flags;
-	int				c_seqno;
-
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	spinlock_t			lock;
+	struct lock			c_lock;
+	enum pthread_cond_type		c_type;
+	TAILQ_HEAD(cond_head, pthread)	c_queue;
+	struct pthread_mutex		*c_mutex;
+	long				c_flags;
+	long				c_seqno;
 };
 
 struct pthread_cond_attr {
@@ -290,9 +384,9 @@ struct pthread_cond_attr {
 /*
  * Static cond initialization values. 
  */
-#define PTHREAD_COND_STATIC_INITIALIZER    \
-	{ COND_TYPE_FAST, TAILQ_INITIALIZER, NULL, NULL, \
-	0, 0, _SPINLOCK_INITIALIZER }
+#define PTHREAD_COND_STATIC_INITIALIZER				\
+	{ LCK_INITIALIZER, COND_TYPE_FAST, TAILQ_INITIALIZER,	\
+	NULL, NULL, 0, 0 }
 
 /*
  * Semaphore definitions.
@@ -321,6 +415,7 @@ struct pthread_attr {
 	int	sched_interval;
 	int	prio;
 	int	suspend;
+#define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 	int	flags;
 	void	*arg_attr;
 	void	(*cleanup_attr) ();
@@ -332,31 +427,20 @@ struct pthread_attr {
 /*
  * Thread creation state attributes.
  */
-#define PTHREAD_CREATE_RUNNING			0
-#define PTHREAD_CREATE_SUSPENDED		1
+#define THR_CREATE_RUNNING		0
+#define THR_CREATE_SUSPENDED		1
 
 /*
  * Miscellaneous definitions.
  */
-#define PTHREAD_STACK_DEFAULT			65536
-/*
- * Size of default red zone at the end of each stack.  In actuality, this "red
- * zone" is merely an unmapped region, except in the case of the initial stack.
- * Since mmap() makes it possible to specify the maximum growth of a MAP_STACK
- * region, an unmapped gap between thread stacks achieves the same effect as
- * explicitly mapped red zones.
- * This is declared and initialized in uthread_init.c.
- */
-extern int _pthread_guard_default;
-
-extern int _pthread_page_size;
+#define THR_STACK_DEFAULT			65536
 
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
  * than the stacks of other threads, since many applications are likely to run
  * almost entirely on this stack.
  */
-#define PTHREAD_STACK_INITIAL			0x100000
+#define THR_STACK_INITIAL			0x100000
 
 /*
  * Define the different priority ranges.  All applications have thread
@@ -372,21 +456,20 @@ extern int _pthread_page_size;
  * The approach taken is that, within each class, signal delivery
  * always has priority over thread execution.
  */
-#define PTHREAD_DEFAULT_PRIORITY		15
-#define PTHREAD_MIN_PRIORITY			0
-#define PTHREAD_MAX_PRIORITY			31	/* 0x1F */
-#define PTHREAD_SIGNAL_PRIORITY			32	/* 0x20 */
-#define PTHREAD_RT_PRIORITY			64	/* 0x40 */
-#define PTHREAD_FIRST_PRIORITY			PTHREAD_MIN_PRIORITY
-#define PTHREAD_LAST_PRIORITY	\
-	(PTHREAD_MAX_PRIORITY + PTHREAD_SIGNAL_PRIORITY + PTHREAD_RT_PRIORITY)
-#define PTHREAD_BASE_PRIORITY(prio)	((prio) & PTHREAD_MAX_PRIORITY)
+#define THR_DEFAULT_PRIORITY			15
+#define THR_MIN_PRIORITY			0
+#define THR_MAX_PRIORITY			31	/* 0x1F */
+#define THR_SIGNAL_PRIORITY			32	/* 0x20 */
+#define THR_RT_PRIORITY				64	/* 0x40 */
+#define THR_FIRST_PRIORITY			THR_MIN_PRIORITY
+#define THR_LAST_PRIORITY	\
+	(THR_MAX_PRIORITY + THR_SIGNAL_PRIORITY + THR_RT_PRIORITY)
+#define THR_BASE_PRIORITY(prio)	((prio) & THR_MAX_PRIORITY)
 
 /*
  * Clock resolution in microseconds.
  */
 #define CLOCK_RES_USEC				10000
-#define CLOCK_RES_USEC_MIN			1000
 
 /*
  * Time slice period in microseconds.
@@ -394,16 +477,17 @@ extern int _pthread_page_size;
 #define TIMESLICE_USEC				20000
 
 /*
- * Define a thread-safe macro to get the current time of day
- * which is updated at regular intervals by the scheduling signal
- * handler.
+ * XXX - Define a thread-safe macro to get the current time of day
+ *       which is updated at regular intervals by something.
+ *
+ * For now, we just make the system call to get the time.
  */
-#define	GET_CURRENT_TOD(tv)				\
-	do {						\
-		tv.tv_sec = _sched_tod.tv_sec;		\
-		tv.tv_usec = _sched_tod.tv_usec;	\
-	} while (tv.tv_sec != _sched_tod.tv_sec)
-
+#define	KSE_GET_TOD(curkse, tsp) \
+do {							\
+	*tsp = (curkse)->k_mbx.km_timeofday;		\
+	if ((tsp)->tv_sec == 0)				\
+		clock_gettime(CLOCK_REALTIME, tsp);	\
+} while (0)
 
 struct pthread_rwlockattr {
 	int		pshared;
@@ -422,13 +506,12 @@ struct pthread_rwlock {
  */
 enum pthread_state {
 	PS_RUNNING,
+	PS_LOCKWAIT,
 	PS_MUTEX_WAIT,
 	PS_COND_WAIT,
 	PS_SLEEP_WAIT,
-	PS_WAIT_WAIT,
 	PS_SIGSUSPEND,
 	PS_SIGWAIT,
-	PS_SPINBLOCK,
 	PS_JOIN,
 	PS_SUSPENDED,
 	PS_DEAD,
@@ -437,19 +520,11 @@ enum pthread_state {
 };
 
 
-/*
- * File descriptor locking definitions.
- */
-#define FD_READ             0x1
-#define FD_WRITE            0x2
-#define FD_RDWR             (FD_READ | FD_WRITE)
-
 union pthread_wait_data {
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
 	const sigset_t	*sigwait;	/* Waiting on a signal in sigwait */
-	spinlock_t	*spinlock;
-	struct pthread	*thread;
+	struct lock	*lock;
 };
 
 /*
@@ -458,19 +533,28 @@ union pthread_wait_data {
  */
 typedef void	(*thread_continuation_t) (void *);
 
+/*
+ * This stores a thread's state prior to running a signal handler.
+ * It is used when a signal is delivered to a thread blocked in
+ * userland.  If the signal handler returns normally, the thread's
+ * state is restored from here.
+ */
+struct pthread_sigframe {
+	int			psf_flags;
+	int			psf_interrupted;
+	int			psf_signo;
+	enum pthread_state	psf_state;
+	union pthread_wait_data psf_wait_data;
+	struct timespec		psf_wakeup_time;
+	sigset_t		psf_sigset;
+	sigset_t		psf_sigmask;
+	int			psf_seqno;
+};
+
 struct join_status {
 	struct pthread	*thread;
 	void		*ret;
 	int		error;
-};
-
-struct pthread_state_data {
-	struct timespec		psd_wakeup_time;
-	union pthread_wait_data psd_wait_data;
-	enum pthread_state	psd_state;
-	int			psd_flags;
-	int			psd_interrupted;
-	int			psd_sig_defer_count;
 };
 
 struct pthread_specific_elem {
@@ -478,6 +562,8 @@ struct pthread_specific_elem {
 	int		seqno;
 };
 
+
+#define	MAX_THR_LOCKLEVEL	3
 /*
  * Thread structure.
  */
@@ -486,21 +572,27 @@ struct pthread {
 	 * Magic value to help recognize a valid thread structure
 	 * from an invalid one:
 	 */
-#define	PTHREAD_MAGIC		((u_int32_t) 0xd09ba115)
+#define	THR_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
 	char			*name;
 	u_int64_t		uniqueid; /* for gdb */
 
+	/* Queue entry for list of all threads: */
+	TAILQ_ENTRY(pthread)	tle;	/* link for all threads in process */
+	TAILQ_ENTRY(pthread)	kle;	/* link for all threads in KSE/KSEG */
+
+	/* Queue entry for GC lists: */
+	TAILQ_ENTRY(pthread)	gcle;
+
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
-	spinlock_t		lock;
-
-	/* Queue entry for list of all threads: */
-	TAILQ_ENTRY(pthread)	tle;
-
-	/* Queue entry for list of dead threads: */
-	TAILQ_ENTRY(pthread)	dle;
+	struct lock		lock;
+	struct lockuser		lockusers[MAX_THR_LOCKLEVEL];
+	int			locklevel;
+	kse_critical_t		critical[MAX_KSE_LOCKLEVEL];
+	struct kse		*kse;
+	struct kse_group	*kseg;
 
 	/*
 	 * Thread start routine, argument, stack pointer and thread
@@ -508,57 +600,67 @@ struct pthread {
 	 */
 	void			*(*start_routine)(void *);
 	void			*arg;
-	void			*stack;
 	struct pthread_attr	attr;
 
 	/*
-	 * Machine context, including signal state.
+	 * Thread mailbox.
 	 */
-	struct kse_thr_mailbox	mailbox;
+	struct kse_thr_mailbox	tmbx;
+	int			active;		/* thread running */
+	int			blocked;	/* thread blocked in kernel */
+	int			need_switchout;
+	int			need_wakeup;
 
 	/*
+	 * Used for tracking delivery of signal handlers.
+	 */
+	struct pthread_sigframe	*curframe;
+	siginfo_t		siginfo[NSIG];
+
+ 	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
 	 * definitions in pthread.h
 	 */
-#define PTHREAD_AT_CANCEL_POINT		0x0004
-#define PTHREAD_CANCELLING		0x0008
-#define PTHREAD_CANCEL_NEEDED		0x0010
-	int	cancelflags;
+#define THR_AT_CANCEL_POINT		0x0004
+#define THR_CANCELLING			0x0008
+#define THR_CANCEL_NEEDED		0x0010
+	int			cancelflags;
 
 	thread_continuation_t	continuation;
 
-	/* Currently pending signals. */
-	sigset_t	sigpend;
+	/*
+	 * The thread's base and pending signal masks.  The active
+	 * signal mask is stored in the thread's context (in mailbox).
+	 */
+	sigset_t		sigmask;
+	sigset_t		sigpend;
+	int			sigmask_seqno;
+	int			check_pending;
+	int			refcount;
 
 	/* Thread state: */
 	enum pthread_state	state;
-
-	/* Scheduling clock when this thread was last made active. */
-	long	last_active;
-
-	/* Scheduling clock when this thread was last made inactive. */
-	long	last_inactive;
 
 	/*
 	 * Number of microseconds accumulated by this thread when
 	 * time slicing is active.
 	 */
-	long	slice_usec;
+	long			slice_usec;
 
 	/*
 	 * Time to wake up thread. This is used for sleeping threads and
-	 * for any operation which may time out.
+	 * for any operation which may time out (such as select).
 	 */
-	struct timespec	wakeup_time;
+	struct timespec		wakeup_time;
 
 	/* TRUE if operation has timed out. */
-	int	timeout;
+	int			timeout;
 
 	/*
 	 * Error variable used instead of errno. The function __error()
 	 * returns a pointer to this. 
 	 */
-	int	error;
+	int			error;
 
 	/*
 	 * The joiner is the thread that is joining to this thread.  The
@@ -573,28 +675,21 @@ struct pthread {
 	 *
 	 *   o A queue of threads waiting for a mutex
 	 *   o A queue of threads waiting for a condition variable
-	 *   o A queue of threads waiting for a file descriptor lock
-	 *   o A queue of threads needing work done by the kernel thread
-	 *     (waiting for a spinlock or file I/O)
 	 *
-	 * A thread can also be joining a thread (the joiner field above).
-	 *
-	 * It must not be possible for a thread to belong to any of the
-	 * above queues while it is handling a signal.  Signal handlers
-	 * may longjmp back to previous stack frames circumventing normal
-	 * control flow.  This could corrupt queue integrity if the thread
-	 * retains membership in the queue.  Therefore, if a thread is a
-	 * member of one of these queues when a signal handler is invoked,
-	 * it must remove itself from the queue before calling the signal
-	 * handler and reinsert itself after normal return of the handler.
+	 * It is possible for a thread to belong to more than one of the
+	 * above queues if it is handling a signal.  A thread may only
+	 * enter a mutex or condition variable queue when it is not
+	 * being called from a signal handler.  If a thread is a member
+	 * of one of these queues when a signal handler is invoked, it
+	 * must be removed from the queue before invoking the handler
+	 * and then added back to the queue after return from the handler.
 	 *
 	 * Use pqe for the scheduling queue link (both ready and waiting),
-	 * sqe for synchronization (mutex and condition variable) queue
-	 * links, and qe for all other links.
+	 * sqe for synchronization (mutex, condition variable, and join)
+	 * queue links, and qe for all other links.
 	 */
-	TAILQ_ENTRY(pthread)	pqe;	/* priority queue link */
+	TAILQ_ENTRY(pthread)	pqe;	/* priority, wait queues link */
 	TAILQ_ENTRY(pthread)	sqe;	/* synchronization queue link */
-	TAILQ_ENTRY(pthread)	qe;	/* all other queues link */
 
 	/* Wait data. */
 	union pthread_wait_data data;
@@ -603,40 +698,43 @@ struct pthread {
 	 * Set to TRUE if a blocking operation was
 	 * interrupted by a signal:
 	 */
-	int		interrupted;
+	int			interrupted;
 
 	/* Signal number when in state PS_SIGWAIT: */
-	int		signo;
+	int			signo;
 
 	/*
-	 * Set to non-zero when this thread has deferred signals.
-	 * We allow for recursive deferral.
+	 * Set to non-zero when this thread has entered a critical
+	 * region.  We allow for recursive entries into critical regions.
 	 */
-	int		sig_defer_count;
+	int			critical_count;
 
-	/* Miscellaneous flags; only set with signals deferred. */
-	int		flags;
-#define PTHREAD_FLAGS_PRIVATE	0x0001
-#define PTHREAD_EXITING		0x0002
-#define PTHREAD_FLAGS_IN_WAITQ	0x0004	/* in waiting queue using pqe link */
-#define PTHREAD_FLAGS_IN_PRIOQ	0x0008	/* in priority queue using pqe link */
-#define PTHREAD_FLAGS_IN_WORKQ	0x0010	/* in work queue using qe link */
-#define PTHREAD_FLAGS_IN_FILEQ	0x0020	/* in file lock queue using qe link */
-			     /*	0x0040	   Unused. */
-#define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
-#define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
-#define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
-#define PTHREAD_FLAGS_TRACE	0x0400	/* for debugging purposes */
-#define PTHREAD_FLAGS_IN_SYNCQ	\
-    (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ)
+	/*
+	 * Set to TRUE if this thread should yield after leaving a
+	 * critical region to check for signals, messages, etc.
+	 */
+	int			critical_yield;
 
+	int			sflags;
+#define THR_FLAGS_IN_SYNCQ	0x0001
+
+	/* Miscellaneous flags; only set with scheduling lock held. */
+	int			flags;
+#define THR_FLAGS_PRIVATE	0x0001
+#define THR_FLAGS_IN_WAITQ	0x0002	/* in waiting queue using pqe link */
+#define THR_FLAGS_IN_RUNQ	0x0004	/* in run queue using pqe link */
+#define	THR_FLAGS_EXITING	0x0008	/* thread is exiting */
+#define	THR_FLAGS_SUSPENDED	0x0010	/* thread is suspended */
+#define	THR_FLAGS_GC_SAFE	0x0020	/* thread safe for cleaning */
+#define	THR_FLAGS_IN_TDLIST	0x0040	/* thread in all thread list */
+#define	THR_FLAGS_IN_GCLIST	0x0080	/* thread in gc list */
 	/*
 	 * Base priority is the user setable and retrievable priority
 	 * of the thread.  It is only affected by explicit calls to
 	 * set thread priority and upon thread creation via a thread
 	 * attribute or default priority.
 	 */
-	char		base_priority;
+	char			base_priority;
 
 	/*
 	 * Inherited priority is the priority a thread inherits by
@@ -646,7 +744,7 @@ struct pthread {
 	 * that is being waited on by any other thread whose priority
 	 * is non-zero.
 	 */
-	char		inherited_priority;
+	char			inherited_priority;
 
 	/*
 	 * Active priority is always the maximum of the threads base
@@ -654,10 +752,10 @@ struct pthread {
 	 * in either the base or inherited priority, the active
 	 * priority must be recalculated.
 	 */
-	char		active_priority;
+	char			active_priority;
 
 	/* Number of priority ceiling or protection mutexes owned. */
-	int		priority_mutex_count;
+	int			priority_mutex_count;
 
 	/*
 	 * Queue of currently owned mutexes.
@@ -675,212 +773,243 @@ struct pthread {
 };
 
 /*
- * Global variables for the uthread kernel.
+ * Critical regions can also be detected by looking at the threads
+ * current lock level.  Ensure these macros increment and decrement
+ * the lock levels such that locks can not be held with a lock level
+ * of 0.
+ */
+#define	THR_IN_CRITICAL(thrd)					\
+	(((thrd)->locklevel > 0) ||				\
+	((thrd)->critical_count > 0))
+
+#define	THR_YIELD_CHECK(thrd)					\
+do {								\
+	if (((thrd)->critical_yield != 0) &&			\
+	    !(THR_IN_CRITICAL(thrd)))				\
+		_thr_sched_switch(thrd);			\
+	else if (((thrd)->check_pending != 0) &&		\
+	    !(THR_IN_CRITICAL(thrd)))				\
+		_thr_sig_check_pending(thrd);			\
+} while (0)
+
+#define	THR_LOCK_ACQUIRE(thrd, lck)				\
+do {								\
+	if ((thrd)->locklevel >= MAX_THR_LOCKLEVEL)		\
+		PANIC("Exceeded maximum lock level");		\
+	else {							\
+		(thrd)->locklevel++;				\
+		_lock_acquire((lck),				\
+		    &(thrd)->lockusers[(thrd)->locklevel - 1],	\
+		    (thrd)->active_priority);			\
+	}							\
+} while (0)
+
+#define	THR_LOCK_RELEASE(thrd, lck)				\
+do {								\
+	if ((thrd)->locklevel > 0) {				\
+		_lock_release((lck),				\
+		    &(thrd)->lockusers[(thrd)->locklevel - 1]);	\
+		(thrd)->locklevel--;				\
+		if ((thrd)->locklevel != 0)			\
+			;					\
+		else if ((thrd)->critical_yield != 0)		\
+			_thr_sched_switch(thrd);		\
+		else if ((thrd)->check_pending != 0)		\
+			_thr_sig_check_pending(thrd);		\
+	}							\
+} while (0)
+
+/*
+ * For now, threads will have their own lock separate from their
+ * KSE scheduling lock.
+ */
+#define	THR_LOCK(thr)			THR_LOCK_ACQUIRE(thr, &(thr)->lock)
+#define	THR_UNLOCK(thr)			THR_LOCK_RELEASE(thr, &(thr)->lock)
+#define	THR_THREAD_LOCK(curthrd, thr)	THR_LOCK_ACQUIRE(curthrd, &(thr)->lock)
+#define	THR_THREAD_UNLOCK(curthrd, thr)	THR_LOCK_RELEASE(curthrd, &(thr)->lock)
+
+/*
+ * Priority queue manipulation macros (using pqe link).  We use
+ * the thread's kseg link instead of the kse link because a thread
+ * does not (currently) have a statically assigned kse.
+ */
+#define THR_RUNQ_INSERT_HEAD(thrd)	\
+	_pq_insert_head(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
+#define THR_RUNQ_INSERT_TAIL(thrd)	\
+	_pq_insert_tail(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
+#define THR_RUNQ_REMOVE(thrd)		\
+	_pq_remove(&(thrd)->kseg->kg_schedq.sq_runq, thrd)
+#define THR_RUNQ_FIRST()		\
+	_pq_first(&(thrd)->kseg->kg_schedq.sq_runq)
+
+/*
+ * Macros to insert/remove threads to the all thread list and
+ * the gc list.
+ */
+#define	THR_LIST_ADD(thrd) do {					\
+	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) == 0) {	\
+		TAILQ_INSERT_HEAD(&_thread_list, thrd, tle);	\
+		(thrd)->flags |= THR_FLAGS_IN_TDLIST;		\
+	}							\
+} while (0)
+#define	THR_LIST_REMOVE(thrd) do {				\
+	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) != 0) {	\
+		TAILQ_REMOVE(&_thread_list, thrd, tle);		\
+		(thrd)->flags &= ~THR_FLAGS_IN_TDLIST;		\
+	}							\
+} while (0)
+#define	THR_GCLIST_ADD(thrd) do {				\
+	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) == 0) {	\
+		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, tle);	\
+		(thrd)->flags |= THR_FLAGS_IN_GCLIST;		\
+	}							\
+} while (0)
+#define	THR_GCLIST_REMOVE(thrd) do {				\
+	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) != 0) {	\
+		TAILQ_REMOVE(&_thread_gc_list, thrd, tle);	\
+		(thrd)->flags &= ~THR_FLAGS_IN_GCLIST;		\
+	}							\
+} while (0)
+
+/*
+ * Locking the scheduling queue for another thread uses that thread's
+ * KSEG lock.
+ */
+#define	THR_SCHED_LOCK(curthr, thr) do {		\
+	(curthr)->critical[(curthr)->locklevel] = _kse_critical_enter(); \
+	(curthr)->locklevel++;				\
+	KSE_SCHED_LOCK((curthr)->kse, (thr)->kseg);	\
+} while (0)
+
+#define	THR_SCHED_UNLOCK(curthr, thr) do {		\
+	KSE_SCHED_UNLOCK((curthr)->kse, (thr)->kseg);	\
+	(curthr)->locklevel--;				\
+	_kse_critical_leave((curthr)->critical[(curthr)->locklevel]); \
+	if ((curthr)->locklevel == 0)			\
+		THR_YIELD_CHECK(curthr);		\
+} while (0)
+
+#define	THR_CRITICAL_ENTER(thr)		(thr)->critical_count++
+#define	THR_CRITICAL_LEAVE(thr)	do {		\
+	(thr)->critical_count--;		\
+	if (((thr)->critical_yield != 0) &&	\
+	    ((thr)->critical_count == 0)) {	\
+		(thr)->critical_yield = 0;	\
+		_thr_sched_switch(thr);		\
+	}					\
+} while (0)
+
+#define	THR_IS_ACTIVE(thrd) \
+	((thrd)->kse != NULL) && ((thrd)->kse->k_curthread == (thrd))
+
+#define	THR_IN_SYNCQ(thrd)	(((thrd)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
+	
+/*
+ * Global variables for the pthread kernel.
  */
 
-SCLASS void *_usrstack
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= (void *) USRSTACK;
-#else
-;
-#endif
-
-/* Kernel thread structure used when there are no running threads: */
-SCLASS struct pthread   _thread_kern_thread;
-
-/* Ptr to the thread structure for the running thread: */
-SCLASS struct pthread   * volatile _thread_run
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= &_thread_kern_thread;
-#else
-;
-#endif
-
-/* Ptr to the thread structure for the last user thread to run: */
-SCLASS struct pthread   * volatile _last_user_thread
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= &_thread_kern_thread;
-#else
-;
-#endif
+SCLASS void		*_usrstack	SCLASS_PRESET(NULL);
+SCLASS struct kse	*_kse_initial	SCLASS_PRESET(NULL);
+SCLASS struct pthread	*_thr_initial	SCLASS_PRESET(NULL);
 
 /* List of all threads: */
 SCLASS TAILQ_HEAD(, pthread)	_thread_list
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= TAILQ_HEAD_INITIALIZER(_thread_list);
-#else
-;
-#endif
+    SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_list));
 
-/* Time of day at last scheduling timer signal: */
-SCLASS struct timeval volatile	_sched_tod
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { 0, 0 };
-#else
-;
-#endif
-
-/*
- * Current scheduling timer ticks; used as resource usage.
- */
-SCLASS unsigned int volatile	_sched_ticks
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0;
-#else
-;
-#endif
-
-/* Dead threads: */
-SCLASS TAILQ_HEAD(, pthread) _dead_list
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= TAILQ_HEAD_INITIALIZER(_dead_list);
-#else
-;
-#endif
-
-/* Initial thread: */
-SCLASS struct pthread *_thread_initial
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL;
-#else
-;
-#endif
+/* List of threads needing GC: */
+SCLASS TAILQ_HEAD(, pthread)	_thread_gc_list
+    SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_gc_list));
 
 /* Default thread attributes: */
-SCLASS struct pthread_attr pthread_attr_default
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY,
-	PTHREAD_CREATE_RUNNING, PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL,
-	PTHREAD_STACK_DEFAULT, -1 };
-#else
-;
-#endif
+SCLASS struct pthread_attr _pthread_attr_default
+    SCLASS_PRESET({
+	SCHED_RR, 0, TIMESLICE_USEC, THR_DEFAULT_PRIORITY,
+	THR_CREATE_RUNNING,	PTHREAD_CREATE_JOINABLE, NULL,
+	NULL, NULL, THR_STACK_DEFAULT
+    });
 
 /* Default mutex attributes: */
-SCLASS struct pthread_mutex_attr pthread_mutexattr_default
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, 0 };
-#else
-;
-#endif
+SCLASS struct pthread_mutex_attr _pthread_mutexattr_default
+    SCLASS_PRESET({PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, 0 });
 
 /* Default condition variable attributes: */
-SCLASS struct pthread_cond_attr pthread_condattr_default
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { COND_TYPE_FAST, 0 };
-#else
-;
-#endif
+SCLASS struct pthread_cond_attr _pthread_condattr_default
+    SCLASS_PRESET({COND_TYPE_FAST, 0});
 
-SCLASS int    _clock_res_usec		/* Clock resolution in usec.	*/
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= CLOCK_RES_USEC;
-#else
-;
-#endif
+/* Clock resolution in usec.	*/
+SCLASS int		_clock_res_usec		SCLASS_PRESET(CLOCK_RES_USEC);
 
-/* Garbage collector mutex and condition variable. */
-SCLASS	pthread_mutex_t _gc_mutex
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
-SCLASS	pthread_cond_t  _gc_cond
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
+/* Array of signal actions for this process: */
+SCLASS struct sigaction	_thread_sigact[NSIG];
 
 /*
- * Array of signal actions for this process.
+ * Array of counts of dummy handlers for SIG_DFL signals.  This is used to
+ * assure that there is always a dummy signal handler installed while there
+ * is a thread sigwait()ing on the corresponding signal.
  */
-SCLASS struct  sigaction _thread_sigact[NSIG];
+SCLASS int		_thread_dfl_count[NSIG];
 
 /*
- * Scheduling queues:
+ * Lock for above count of dummy handlers and for the process signal
+ * mask and pending signal sets.
  */
-SCLASS pq_queue_t		_readyq;
-SCLASS TAILQ_HEAD(, pthread)	_waitingq;
+SCLASS struct lock	_thread_signal_lock;
 
-/*
- * Work queue:
- */
-SCLASS TAILQ_HEAD(, pthread)	_workq;
+/* Pending signals and mask for this process: */
+SCLASS sigset_t		_thr_proc_sigpending;
+SCLASS sigset_t		_thr_proc_sigmask	SCLASS_PRESET({{0, 0, 0, 0}});
+SCLASS siginfo_t	_thr_proc_siginfo[NSIG];
 
-/* Tracks the number of threads blocked while waiting for a spinlock. */
-SCLASS	volatile int	_spinblock_count
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0
-#endif
-;
+SCLASS pid_t		_thr_pid		SCLASS_PRESET(0);
 
-/* Thread switch hook. */
-SCLASS pthread_switch_routine_t _sched_switch_hook
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
+/* Garbage collector lock. */
+SCLASS struct lock	_gc_lock;
+SCLASS int		_gc_check		SCLASS_PRESET(0);
+SCLASS pthread_t	_gc_thread;
 
-/*
- * Signals pending and masked.
- */
-SCLASS sigset_t		_thread_sigpending;
-SCLASS sigset_t		_thread_sigmask;
+SCLASS struct lock	_mutex_static_lock;
+SCLASS struct lock	_rwlock_static_lock;
+SCLASS struct lock	_keytable_lock;
+SCLASS struct lock	_thread_list_lock;
+SCLASS int		_thr_guard_default;
+SCLASS int		_thr_page_size;
 
-/*
- * Declare the kernel scheduler jump buffer and stack:
- */
-SCLASS struct kse_mailbox	_thread_kern_kse_mailbox;
+SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);
 
-SCLASS void *		_thread_kern_sched_stack
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
-
-/*
- * Delcare the idle context.
- */
-SCLASS struct kse_thr_mailbox	_idle_thr_mailbox;
-
-SCLASS void *		_idle_thr_stack
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
-
-
-/* Used for _PTHREADS_INVARIANTS checking. */
-SCLASS int	_thread_kern_new_state
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0
-#endif
-;
-
-/* Undefine the storage class specifier: */
+/* Undefine the storage class and preset specifiers: */
 #undef  SCLASS
+#undef	SCLASS_PRESET
+
 
 /*
  * Function prototype definitions.
  */
 __BEGIN_DECLS
-char    *__ttyname_basic(int);
-char    *__ttyname_r_basic(int, char *, size_t);
-char    *ttyname_r(int, char *, size_t);
-void	_cond_wait_backout(pthread_t);
-int     _find_thread(pthread_t);
+int	_cond_reinit(pthread_cond_t *);
+void	_cond_wait_backout(struct pthread *);
 struct pthread *_get_curthread(void);
-void	_set_curthread(struct pthread *);
-void	*_thread_stack_alloc(size_t, size_t);
-void	_thread_stack_free(void *, size_t, size_t);
-int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
+struct kse *_get_curkse(void);
+void	_set_curkse(struct kse *);
+struct kse *_kse_alloc(struct kse *);
+kse_critical_t _kse_critical_enter(void);
+void	_kse_critical_leave(kse_critical_t);
+void	_kse_free(struct kse *, struct kse *);
+void	_kse_init();
+struct kse_group *_kseg_alloc(struct kse *);
+void	_kse_lock_wait(struct lock *, struct lockuser *lu);
+void	_kse_lock_wakeup(struct lock *, struct lockuser *lu);
+void	_kse_sig_check_pending(struct kse *);
+void	_kse_single_thread(struct pthread *);
+void	_kse_start(struct kse *);
+void	_kse_setthreaded(int);
+int	_kse_isthreaded(void);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
-void	_mutex_lock_backout(pthread_t);
-void	_mutex_notify_priochange(pthread_t);
-int	_mutex_reinit(pthread_mutex_t *);
-void	_mutex_unlock_private(pthread_t);
-int	_cond_reinit(pthread_cond_t *);
+void	_mutex_lock_backout(struct pthread *);
+void	_mutex_notify_priochange(struct pthread *, struct pthread *, int);
+int	_mutex_reinit(struct pthread_mutex *);
+void	_mutex_unlock_private(struct pthread *);
+void	_libpthread_init(struct pthread *);
 int	_pq_alloc(struct pq_queue *, int, int);
 int	_pq_init(struct pq_queue *);
 void	_pq_remove(struct pq_queue *pq, struct pthread *);
@@ -899,50 +1028,61 @@ int	_pthread_mutexattr_init(pthread_mutexattr_t *);
 int	_pthread_mutexattr_destroy(pthread_mutexattr_t *);
 int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int	_pthread_once(pthread_once_t *, void (*) (void));
-pthread_t _pthread_self(void);
+struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
-void	_waitq_insert(pthread_t pthread);
-void	_waitq_remove(pthread_t pthread);
-#if defined(_PTHREADS_INVARIANTS)
-void	_waitq_setactive(void);
-void	_waitq_clearactive(void);
-#endif
-void    _thread_exit(char *, int, char *);
-void    _thread_exit_cleanup(void);
-void    *_thread_cleanup(pthread_t);
+struct pthread *_thr_alloc(struct kse *);
+void	_thr_exit(char *, int, char *);
+void	_thr_exit_cleanup(void);
+void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
+void	_thr_lock_wakeup(struct lock *lock, struct lockuser *lu);
+int	_thr_ref_add(struct pthread *, struct pthread *, int);
+void	_thr_ref_delete(struct pthread *, struct pthread *);
+void	_thr_schedule_add(struct pthread *, struct pthread *);
+void	_thr_schedule_remove(struct pthread *, struct pthread *);
+void	_thr_setrunnable(struct pthread *curthread, struct pthread *thread);
+void	_thr_setrunnable_unlocked(struct pthread *thread);
+void	_thr_sig_add(struct pthread *, int, siginfo_t *, ucontext_t *);
+void	_thr_sig_dispatch(struct kse *, int, siginfo_t *);
+int	_thr_stack_alloc(struct pthread_attr *);
+void	_thr_stack_free(struct pthread_attr *);
+void    _thr_exit_cleanup(void);
+void	_thr_free(struct kse *, struct pthread *);
+void    _thr_panic_exit(char *, int, char *);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
-void    _thread_init(void);
-void    _thread_kern_idle(void);
-void    _thread_kern_sched(void);
-void 	_thread_kern_scheduler(struct kse_mailbox *);
-void    _thread_kern_sched_state(enum pthread_state, char *fname, int lineno);
-void	_thread_kern_sched_state_unlock(enum pthread_state state,
-	    spinlock_t *lock, char *fname, int lineno);
-void    _thread_kern_set_timeout(const struct timespec *);
-void    _thread_kern_sig_defer(void);
-void    _thread_kern_sig_undefer(void);
-void	_thread_sig_handler(int, siginfo_t *, ucontext_t *);
-void	_thread_printf(int fd, const char *, ...);
-void    _thread_start(void);
-void	_thread_seterrno(pthread_t, int);
-int	_thread_enter_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km);
-int	_thread_switch(struct kse_thr_mailbox *, struct kse_thr_mailbox **);
-pthread_addr_t _thread_gc(pthread_addr_t);
-void	_thread_enter_cancellation_point(void);
-void	_thread_leave_cancellation_point(void);
-void	_thread_cancellation_point(void);
+void	_thread_printf(int, const char *, ...);
+void    _thr_sched_frame(struct pthread_sigframe *);
+void	_thr_sched_switch(struct pthread *);
+void    _thr_set_timeout(const struct timespec *);
+void    _thr_sig_handler(int, siginfo_t *, ucontext_t *);
+void    _thr_sig_check_pending(struct pthread *);
+void	_thr_sig_rundown(struct pthread *, ucontext_t *,
+	    struct pthread_sigframe *);
+void	_thr_sig_send(struct pthread *pthread, int sig);
+void	_thr_sig_wrapper(void);
+void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf);
+void	_thr_seterrno(struct pthread *, int);
+void	_thr_enter_cancellation_point(struct pthread *);
+void	_thr_leave_cancellation_point(struct pthread *);
 
+/* XXX - Stuff that goes away when my sources get more up to date. */
+/* #include <sys/kse.h> */
+#ifdef SYS_KSE_H
+int	__sys_kse_create(struct kse_mailbox *, int);
+int	__sys_kse_thr_wakeup(struct kse_mailbox *);
+int	__sys_kse_exit(struct kse_mailbox *);
+int	__sys_kse_release(struct kse_mailbox *);
+#endif
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
 int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 #endif
 
-/* #include <sys/event.h> */
-#ifdef _SYS_EVENT_H_
-int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
-	    int, const struct timespec *);
+/* #include <fcntl.h> */
+#ifdef  _SYS_FCNTL_H_
+int     __sys_fcntl(int, int, ...);
+int     __sys_open(const char *, int, ...);
 #endif
 
 /* #include <sys/ioctl.h> */
@@ -950,95 +1090,60 @@ int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
 int	__sys_ioctl(int, unsigned long, ...);
 #endif
 
+/* #inclde <sched.h> */
+#ifdef	_SCHED_H_
+int	__sys_sched_yield(void);
+#endif
+
+/* #include <signal.h> */
+#ifdef _SIGNAL_H_
+int	__sys_kill(pid_t, int);
+int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
+int     __sys_sigpending(sigset_t *);
+int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
+int     __sys_sigsuspend(const sigset_t *);
+int     __sys_sigreturn(ucontext_t *);
+int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
+#endif
+
+/* #include <sys/socket.h> */
+#ifdef _SYS_SOCKET_H_
+int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *,
+	    off_t *, int);
+#endif
+
+/* #include <sys/uio.h> */
+#ifdef  _SYS_UIO_H_
+ssize_t __sys_readv(int, const struct iovec *, int);
+ssize_t __sys_writev(int, const struct iovec *, int);
+#endif
+
+/* #include <time.h> */
+#ifdef	_TIME_H_
+int	__sys_nanosleep(const struct timespec *, struct timespec *);
+#endif
+
+/* #include <unistd.h> */
+#ifdef  _UNISTD_H_
+int     __sys_close(int);
+int     __sys_execve(const char *, char * const *, char * const *);
+int	__sys_fork(void);
+int	__sys_fsync(int);
+pid_t	__sys_getpid(void);
+int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+ssize_t __sys_read(int, void *, size_t);
+ssize_t __sys_write(int, const void *, size_t);
+void	__sys_exit(int);
+#endif
+
+/* #include <poll.h> */
+#ifdef _SYS_POLL_H_
+int 	__sys_poll(struct pollfd *, unsigned, int);
+#endif
+
 /* #include <sys/mman.h> */
 #ifdef _SYS_MMAN_H_
 int	__sys_msync(void *, size_t, int);
 #endif
 
-/* #include <sys/mount.h> */
-#ifdef _SYS_MOUNT_H_
-int	__sys_fstatfs(int, struct statfs *);
-#endif
-
-/* #include <sys/socket.h> */
-#ifdef _SYS_SOCKET_H_
-int	__sys_accept(int, struct sockaddr *, socklen_t *);
-int	__sys_bind(int, const struct sockaddr *, socklen_t);
-int	__sys_connect(int, const struct sockaddr *, socklen_t);
-int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
-int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
-int	__sys_getsockopt(int, int, int, void *, socklen_t *);
-int	__sys_listen(int, int);
-ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
-ssize_t	__sys_recvmsg(int, struct msghdr *, int);
-int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
-ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
-ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
-int	__sys_setsockopt(int, int, int, const void *, socklen_t);
-int	__sys_shutdown(int, int);
-int	__sys_socket(int, int, int);
-int	__sys_socketpair(int, int, int, int *);
-#endif
-
-/* #include <sys/stat.h> */
-#ifdef _SYS_STAT_H_
-int	__sys_fchflags(int, u_long);
-int	__sys_fchmod(int, mode_t);
-int	__sys_fstat(int, struct stat *);
-#endif
-
-/* #include <sys/uio.h> */
-#ifdef _SYS_UIO_H_
-ssize_t	__sys_readv(int, const struct iovec *, int);
-ssize_t	__sys_writev(int, const struct iovec *, int);
-#endif
-
-/* #include <sys/wait.h> */
-#ifdef WNOHANG
-pid_t	__sys_wait4(pid_t, int *, int, struct rusage *);
-#endif
-
-/* #include <dirent.h> */
-#ifdef _DIRENT_H_
-int	__sys_getdirentries(int, char *, int, long *);
-#endif
-
-/* #include <fcntl.h> */
-#ifdef _SYS_FCNTL_H_
-int	__sys_fcntl(int, int, ...);
-int	__sys_flock(int, int);
-int	__sys_open(const char *, int, ...);
-#endif
-
-/* #include <poll.h> */
-#ifdef _SYS_POLL_H_
-int	__sys_poll(struct pollfd *, unsigned, int);
-#endif
-
-/* #include <signal.h> */
-#ifdef _SIGNAL_H_
-int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int	__sys_sigreturn(ucontext_t *);
-#endif
-
-/* #include <unistd.h> */
-#ifdef _UNISTD_H_
-int	__sys_close(int);
-int	__sys_dup(int);
-int	__sys_dup2(int, int);
-int	__sys_execve(const char *, char * const *, char * const *);
-void	__sys_exit(int);
-int	__sys_fchown(int, uid_t, gid_t);
-pid_t	__sys_fork(void);
-long	__sys_fpathconf(int, int);
-int	__sys_fsync(int);
-int	__sys_pipe(int *);
-ssize_t	__sys_read(int, void *, size_t);
-ssize_t	__sys_write(int, const void *, size_t);
-#endif
-
-__END_DECLS
-
-#endif  /* !_PTHREAD_PRIVATE_H */
+#endif  /* !_THR_PRIVATE_H */
