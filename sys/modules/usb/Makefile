@@ -13,7 +13,7 @@ SRCS=	bus_if.h device_if.h usb_if.h usb_if.c \
 	hid.c hid.h usbhid.h \
 	uhub.c \
 	usb.c usb.h \
-	usb_mem.h \
+	usb_mem.c usb_mem.h \
 	usb_port.h \
 	usb_quirks.c usb_quirks.h \
 	usb_subr.c \

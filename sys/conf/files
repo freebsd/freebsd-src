@@ -813,7 +813,7 @@ dev/usb/uvisor.c	optional uvisor ucom
 dev/usb/uvscom.c	optional uvscom ucom
 dev/usb/usb.c		optional usb
 dev/usb/usb_ethersubr.c	optional usb
-#dev/usb/usb_mem.c	optional usb
+dev/usb/usb_mem.c	optional usb
 dev/usb/usb_quirks.c	optional usb
 dev/usb/usb_subr.c	optional usb
 dev/usb/usbdi.c		optional usb
