@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.6 1995/05/04 19:48:11 jkh Exp $
+ * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,8 +81,7 @@ installHook(char *str)
 	for (i = 0; disks[i]; i++)
 	    disks[i] = device_slice_disk(disks[i]);
 
-	for (i = 0; disks[i]; i++)
-	    partition_disk(disks[i]);
+	partition_disks(disks);
 
 	if (!write_disks(disks)) {
 	    make_filesystems(disks);
@@ -94,7 +93,7 @@ installHook(char *str)
 	}
 	else {
 	    dialog_clear();
-	    if (msgYesNo("Would you like to go back to the master partition menu?")) {
+	    if (msgYesNo("Would you like to go back to the Master Partition Editor?")) {
 		for (i = 0; disks[i]; i++)
 		    Free_Disk(disks[i]);
 		break;

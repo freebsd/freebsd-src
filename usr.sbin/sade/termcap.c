@@ -22,41 +22,42 @@
 
 #include "sysinstall.h"
 
+Boolean ColorDisplay;
+Boolean OnVTY;
+
 int
 set_termcap(void)
 {
     char           *term;
-    extern const char termcap_vt100[];
-    extern const char termcap_cons25[];
-    extern const char termcap_cons25_m[];
 
+    OnVTY = OnSerial = FALSE;
     term = getenv("TERM");
     if (term == NULL) {
-	int     color_display;
-
-	if (ioctl(STDERR_FILENO, GIO_COLOR, &color_display) < 0) {
+	if (ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay) < 0) {
 	    if (setenv("TERM", "vt100", 1) < 0)
 		return -1;
 	    if (setenv("TERMCAP", termcap_vt100, 1) < 0)
 		return -1;
 	    DebugFD = dup(1);
 	    OnSerial = TRUE;
-	} else if (color_display) {
+	} else if (ColorDisplay) {
 	    if (setenv("TERM", "cons25", 1) < 0)
 		return -1;
 	    if (setenv("TERMCAP", termcap_cons25, 1) < 0)
 		return -1;
 	    DebugFD = open("/dev/ttyv1",O_WRONLY);
+	    OnVTY = TRUE;
 	} else {
 	    if (setenv("TERM", "cons25-m", 1) < 0)
 		return -1;
 	    if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
 		return -1;
 	    DebugFD = open("/dev/ttyv1",O_WRONLY);
+	    OnVTY = TRUE;
 	}
-    } else {
-	DebugFD = open("sysinstall.debug",
-		       O_WRONLY|O_CREAT|O_TRUNC,0644);
+    }
+    else {
+	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC,0644);
     }
     return 0;
 }
