@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx_freebsd.h>
+#include <dev/aic7xxx/aic7xxx_osm.h>
 
 #define	AHC_PCI_IOADDR  PCIR_MAPS	/* I/O Address */
 #define	AHC_PCI_MEMADDR (PCIR_MAPS + 4) /* Mem I/O Address */
@@ -41,7 +41,7 @@
 static int ahc_pci_probe(device_t dev);
 static int ahc_pci_attach(device_t dev);
 
-static device_method_t ahc_pci_methods[] = {
+static device_method_t ahc_pci_device_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ahc_pci_probe),
 	DEVMETHOD(device_attach,	ahc_pci_attach),
@@ -51,7 +51,7 @@ static device_method_t ahc_pci_methods[] = {
 
 static driver_t ahc_pci_driver = {
 	"ahc",
-	ahc_pci_methods,
+	ahc_pci_device_methods,
 	sizeof(struct ahc_softc)
 };
 
@@ -222,7 +222,7 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	if (ahc->platform_data->irq == NULL)
 		return (ENOMEM);
 	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
-	return (0);
+	return (ahc_map_int(ahc));
 }
 
 void
@@ -248,7 +248,7 @@ ahc_power_state_change(struct ahc_softc *ahc, ahc_power_state new_state)
 
 			pm_control = ahc_pci_read_config(ahc->dev_softc,
 							 cap_offset + 4,
-							 /*bytes*/4);
+							 /*bytes*/2);
 			pm_control &= ~0x3;
 			pm_control |= new_state;
 			ahc_pci_write_config(ahc->dev_softc,
