@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.8 1998/10/19 09:08:40 dfr Exp $
+ *	$Id: stand.h,v 1.9 1998/10/31 02:48:29 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -194,6 +194,7 @@ extern int	dkcksum(struct disklabel *);
 extern int	printf(const char *fmt, ...);
 extern void	vprintf(const char *fmt, _BSD_VA_LIST_);
 extern int	sprintf(char *buf, const char *cfmt, ...);
+extern void	vsprintf(char *buf, const char *cfmt, _BSD_VA_LIST_);
 
 extern void	twiddle(void);
 
