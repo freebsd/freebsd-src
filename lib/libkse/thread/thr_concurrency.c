@@ -78,7 +78,7 @@ int
 _thr_setconcurrency(int new_level)
 {
 	struct pthread *curthread;
-	struct kse *newkse;
+	struct kse *newkse, *kse;
 	kse_critical_t crit;
 	int kse_count;
 	int i;
@@ -88,37 +88,63 @@ _thr_setconcurrency(int new_level)
 	curthread = _get_curthread();
 	/* Race condition, but so what. */
 	kse_count = _kse_initial->k_kseg->kg_ksecount;
-	for (i = kse_count; i < new_level; i++) {
-		newkse = _kse_alloc(curthread, 0);
-		if (newkse == NULL) {
-			DBG_MSG("Can't alloc new KSE.\n");
-			ret = EAGAIN;
-			break;
-		}
-		newkse->k_kseg = _kse_initial->k_kseg;
-		newkse->k_schedq = _kse_initial->k_schedq;
-		newkse->k_curthread = NULL;
-		crit = _kse_critical_enter();
-		KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
-		TAILQ_INSERT_TAIL(&newkse->k_kseg->kg_kseq,
-		    newkse, k_kgqe);
-		newkse->k_kseg->kg_ksecount++;
-		newkse->k_flags |= KF_STARTED;
-		KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
-		if (kse_create(&newkse->k_kcb->kcb_kmbx, 0) != 0) {
+	if (new_level > kse_count) {
+		for (i = kse_count; i < new_level; i++) {
+			newkse = _kse_alloc(curthread, 0);
+			if (newkse == NULL) {
+				DBG_MSG("Can't alloc new KSE.\n");
+				ret = EAGAIN;
+				break;
+			}
+			newkse->k_kseg = _kse_initial->k_kseg;
+			newkse->k_schedq = _kse_initial->k_schedq;
+			newkse->k_curthread = NULL;
+			crit = _kse_critical_enter();
 			KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
-			TAILQ_REMOVE(&newkse->k_kseg->kg_kseq,
+			TAILQ_INSERT_TAIL(&newkse->k_kseg->kg_kseq,
 			    newkse, k_kgqe);
-			newkse->k_kseg->kg_ksecount--;
+			newkse->k_kseg->kg_ksecount++;
+			newkse->k_flags |= KF_STARTED;
 			KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
-			_kse_critical_leave(crit);
-			_kse_free(curthread, newkse);
-			DBG_MSG("kse_create syscall failed.\n");
-			ret = EAGAIN;
-			break;
-		} else {
-			_kse_critical_leave(crit);
+			if (kse_create(&newkse->k_kcb->kcb_kmbx, 0) != 0) {
+				KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
+				TAILQ_REMOVE(&newkse->k_kseg->kg_kseq,
+				    newkse, k_kgqe);
+				newkse->k_kseg->kg_ksecount--;
+				KSE_SCHED_UNLOCK(curthread->kse,
+				    newkse->k_kseg);
+				_kse_critical_leave(crit);
+				_kse_free(curthread, newkse);
+				DBG_MSG("kse_create syscall failed.\n");
+				ret = EAGAIN;
+				break;
+			} else {
+				_kse_critical_leave(crit);
+			}
 		}
+	} else if (new_level < kse_count) {
+		kse_count = 0;
+		crit = _kse_critical_enter();
+		KSE_SCHED_LOCK(curthread->kse, _kse_initial->k_kseg);
+		/* Count the number of active KSEs */
+		TAILQ_FOREACH(kse, &_kse_initial->k_kseg->kg_kseq, k_kgqe) {
+			if ((kse->k_flags & KF_TERMINATED) == 0)
+				kse_count++;
+		}
+		/* Reduce the number of active KSEs appropriately. */
+		kse = TAILQ_FIRST(&_kse_initial->k_kseg->kg_kseq);
+		while ((kse != NULL) && (kse_count > new_level)) {
+			if ((kse != _kse_initial) &&
+			    ((kse->k_flags & KF_TERMINATED) == 0)) {
+				kse->k_flags |= KF_TERMINATED;
+				kse_count--;
+				/* Wakup the KSE in case it is idle. */
+				kse_wakeup(&kse->k_kcb->kcb_kmbx);
+			}
+			kse = TAILQ_NEXT(kse, k_kgqe);
+		}
+		KSE_SCHED_UNLOCK(curthread->kse, _kse_initial->k_kseg);
+		_kse_critical_leave(crit);
 	}
 	return (ret);
 }

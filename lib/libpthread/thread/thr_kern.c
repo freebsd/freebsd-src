@@ -1047,7 +1047,8 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 
 	/* Check if there are no threads ready to run: */
 	while (((curthread = KSE_RUNQ_FIRST(curkse)) == NULL) &&
-	    (curkse->k_kseg->kg_threadcount != 0)) {
+	    (curkse->k_kseg->kg_threadcount != 0) &&
+	    ((curkse->k_flags & KF_TERMINATED) == 0)) {
 		/*
 		 * Wait for a thread to become active or until there are
 		 * no more threads.
@@ -1059,7 +1060,8 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	}
 
 	/* Check for no more threads: */
-	if (curkse->k_kseg->kg_threadcount == 0) {
+	if ((curkse->k_kseg->kg_threadcount == 0) ||
+	    ((curkse->k_flags & KF_TERMINATED) != 0)) {
 		/*
 		 * Normally this shouldn't return, but it will if there
 		 * are other KSEs running that create new threads that
@@ -1874,12 +1876,12 @@ kse_fini(struct kse *kse)
 		PANIC("kse_exit()");
 #endif
 	} else {
-#ifdef NOT_YET
 		/*
-		 * In future, we might allow program to kill
-		 * kse in initial group.
+		 * We allow program to kill kse in initial group (by
+		 * lowering the concurrency).
 		 */
-		if (kse != _kse_initial) {
+		if ((kse != _kse_initial) &&
+		    ((kse->k_flags & KF_TERMINATED) != 0)) {
 			KSE_SCHED_LOCK(kse, kse->k_kseg);
 			TAILQ_REMOVE(&kse->k_kseg->kg_kseq, kse, k_kgqe);
 			kse->k_kseg->kg_ksecount--;
@@ -1891,7 +1893,6 @@ kse_fini(struct kse *kse)
                         /* Never returns. */
                         PANIC("kse_exit() failed for initial kseg");
                 }
-#endif
 		KSE_SCHED_LOCK(kse, kse->k_kseg);
 		KSE_SET_IDLE(kse);
 		kse->k_kseg->kg_idle_kses++;
