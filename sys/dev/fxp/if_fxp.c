@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.13 1996/06/01 23:25:10 gpalmer Exp $
+ *	$Id: if_fxp.c,v 1.14 1996/09/06 23:08:52 phk Exp $
  */
 
 /*
@@ -491,7 +491,7 @@ tbdinit:
 	txp->cb_status = 0;
 	txp->cb_command =
 	    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
-	txp->tx_threshold = 16;	/* bytes*8 */
+	txp->tx_threshold = 128;	/* bytes*8 = 1024 */
 	txp->mb_head = mb_head;
 	
 	/*
