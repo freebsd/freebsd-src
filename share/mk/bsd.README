@@ -217,7 +217,7 @@ CLEANFILES	Additional files to remove and
 CLEANDIRS	additional directories to remove during clean and cleandir
 		targets.  "rm -f" and "rm -rf" used respectively.
 
-COPTS		Additional flags to the compiler when creating C objects.
+CFLAGS		Flags to the compiler when creating C objects.
 
 FILES		A list of non-executable files.
 		The installation is controlled by the FILESNAME, FILESOWN,

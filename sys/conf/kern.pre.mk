@@ -66,8 +66,8 @@ INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
+CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
