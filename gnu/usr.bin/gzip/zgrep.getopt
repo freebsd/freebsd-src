@@ -26,7 +26,7 @@
 #
 # zgrep - search possibly compressed files for a regular expression
 #
-# $Id$
+# $Id: zgrep.getopt,v 1.6 1997/12/07 01:00:56 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH; export PATH
@@ -39,20 +39,20 @@ case "$0" in
 esac
 
 gzip=gzip gzipopt="-cdfq" pattern= grepopt= files= line= header=
-set -- `getopt "0123456789A:B:CEFGVX:bce:f:hiLlnqsvwxy" "$@"`
 
 # check options
-while :
+while getopts "0123456789A:B:CEFGVX:bce:f:hiLlnqsvwxy" option
 do
-	case "$1" in
-		--) 	shift; break;;			# EOF options
-		-e|-f) 	pattern="$1 $2"; shift;;	# -f file
-		-l|-L) 	line=$1; 	grepopt="$grepopt $1";;
-		-h|-q) 	header=$1; 	grepopt="$grepopt $1";;
-  		*) 			grepopt="$grepopt $1";;	# rest
+	case "$option" in
+		e|f) 	pattern="-$option $OPTARG";;	# -f file
+		l|L) 	line=-$option;   grepopt="$grepopt -$option";;
+		h|q) 	header=-h; grepopt="$grepopt -$option";;
+		# rest
+		[0-9CEFGVbchiLlnqsvwxy]) grepopt="$grepopt -$option";; 
+		[ABXef]) grepopt="$grepopt -$option $OPTARG";;
 	esac
-	shift
 done
+shift $(($OPTIND - 1))
 
 # check pattern
 case X"$pattern" in
@@ -67,29 +67,28 @@ files="$@"
 # no shell loop neccessary for option -q or -h 
 # and a single file or reading from stdin
 case "$header"X"$#" in 
-	-h*|-q*|X0|X1) 	$gzip $gzipopt -- $files | $grep $grepopt -- $pattern
+	-h*|-q*|X0|X1) 	$gzip $gzipopt -- $files | $grep $grepopt -- "$pattern"
 			exit $?;; 
 esac
 
-
-exit=1
 for f in $files
 do
 	case "$line" in
-		-l|-L) 	if $gzip $gzipopt -- $f | 
-				$grep $grepopt -- $pattern >/dev/null
-			then
-				echo $f
-			fi
-			;;
-		*) $gzip $gzipopt -- $f | $grep $grepopt -- $pattern | 
-			sed "s%^%${f}:%";;
-	esac
+		-l) if $gzip $gzipopt -- $f | 
+			    $grep $grepopt -- "$pattern" >/dev/null
+		    then 
+			echo $f
+		    fi
+		    ;;
+		-L) if $gzip $gzipopt -- $f | 
+			$grep $grepopt -- "$pattern" >/dev/null; then :
+		    else 
+			echo $f
+		    fi
+		    ;;
 
-	case $? in 
-		2) exit=$?;; 
-		0) case "$exit" in 2);; 1) exit=0;; esac;;
+		*)  $gzip $gzipopt -- $f | $grep $grepopt -- "$pattern" | 
+			sed "s%^%${f}:%"
+		    ;;
 	esac
 done
-
-exit $exit
