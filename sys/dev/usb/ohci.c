@@ -986,6 +986,8 @@ ohci_allocx(struct usbd_bus *bus)
 	}
 	if (xfer != NULL) {
 		memset(xfer, 0, sizeof (struct ohci_xfer));
+		usb_init_task(&OXFER(xfer)->abort_task, ohci_timeout_task,
+		    xfer);
 #ifdef DIAGNOSTIC
 		xfer->busy_free = XFER_BUSY;
 #endif
@@ -1395,6 +1397,8 @@ ohci_softintr(void *v)
 			continue;
 		}
 		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
+		usb_rem_task(OXFER(xfer)->xfer.pipe->device,
+		    &OXFER(xfer)->abort_task);
 
 		len = std->len;
 		if (std->td.td_cbp != 0)
@@ -1964,7 +1968,6 @@ ohci_timeout(void *addr)
 	}
 
 	/* Execute the abort in a process context. */
-	usb_init_task(&oxfer->abort_task, ohci_timeout_task, addr);
 	usb_add_task(oxfer->xfer.pipe->device, &oxfer->abort_task);
 }
 
@@ -2245,6 +2248,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
 		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
+		usb_rem_task(xfer->pipe->device, &OXFER(xfer)->abort_task);
 		usb_transfer_complete(xfer);
 		splx(s);
 	}
@@ -2258,6 +2262,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	s = splusb();
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
+	usb_rem_task(xfer->pipe->device, &OXFER(xfer)->abort_task);
 	splx(s);
 	DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
 	sed->ed.ed_flags |= htole32(OHCI_ED_SKIP); /* force hardware skip */

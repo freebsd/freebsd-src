@@ -245,7 +245,6 @@ Static void		ehci_abort_xfer(usbd_xfer_handle, usbd_status);
 
 #ifdef EHCI_DEBUG
 Static void		ehci_dump_regs(ehci_softc_t *);
-Static void		ehci_dump(void);
 Static ehci_softc_t 	*theehci;
 Static void		ehci_dump_link(ehci_link_t, int);
 Static void		ehci_dump_sqtds(ehci_soft_qtd_t *);
@@ -758,6 +757,7 @@ ehci_check_intr(ehci_softc_t *sc, struct ehci_xfer *ex)
  done:
 	DPRINTFN(12, ("ehci_check_intr: ex=%p done\n", ex));
 	usb_uncallout(ex->xfer.timeout_handle, ehci_timeout, ex);
+	usb_rem_task(ex->xfer.pipe->device, &ex->abort_task);
 	ehci_idone(ex);
 }
 
@@ -1176,6 +1176,8 @@ ehci_allocx(struct usbd_bus *bus)
 	}
 	if (xfer != NULL) {
 		memset(xfer, 0, sizeof(struct ehci_xfer));
+		usb_init_task(&EXFER(xfer)->abort_task, ehci_timeout_task,
+		    xfer);
 #ifdef DIAGNOSTIC
 		EXFER(xfer)->isdone = 1;
 		xfer->busy_free = XFER_BUSY;
@@ -1246,6 +1248,7 @@ ehci_dump_regs(ehci_softc_t *sc)
  * Unused function - this is meant to be called from a kernel
  * debugger.
  */
+void ehci_dump(void);
 void
 ehci_dump()
 {
@@ -2506,6 +2509,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
 		usb_uncallout(xfer->timeout_handle, ehci_timeout, xfer);
+		usb_rem_task(epipe->pipe.device, &exfer->abort_task);
 		usb_transfer_complete(xfer);
 		splx(s);
 		return;
@@ -2520,6 +2524,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	s = splusb();
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, ehci_timeout, xfer);
+	usb_rem_task(epipe->pipe.device, &exfer->abort_task);
 	qhstatus = sqh->qh.qh_qtd.qtd_status;
 	sqh->qh.qh_qtd.qtd_status = qhstatus | htole32(EHCI_QTD_HALTED);
 	for (sqtd = exfer->sqtdstart; ; sqtd = sqtd->nextqtd) {
@@ -2601,7 +2606,6 @@ ehci_timeout(void *addr)
 	}
 
 	/* Execute the abort in a process context. */
-	usb_init_task(&exfer->abort_task, ehci_timeout_task, addr);
 	usb_add_task(exfer->xfer.pipe->device, &exfer->abort_task);
 }
 
