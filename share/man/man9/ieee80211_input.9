@@ -28,23 +28,28 @@
 .\" $Id: ieee80211_input.9,v 1.6 2004/03/04 12:33:27 bruce Exp $
 .\"
 .Dd March 2, 2004
-.Dt ieee80211 9
+.Dt IEEE80211_INPUT 9
 .Os
 .Sh NAME
-.Nm ieee80211
-.Nd core 802.11 network stack functions
+.Nm ieee80211_input , ieee80211_decap , ieee80211_recv_mgmt
+.Nd software 802.11 stack input functions
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
 .In net80211/ieee80211_proto.h
 .Ft void
-.Fn ieee80211_input "struct ifnet *ifp" "struct mbuf *m" "struct ieee80211_node *ni" "int rssi" "u_int32_t rstamp"
+.Fo ieee80211_input
+.Fa "struct ifnet *ifp" "struct mbuf *m" "struct ieee80211_node *ni"
+.Fa "int rssi" "u_int32_t rstamp"
+.Fc
 .Ft struct mbuf *
 .Fn ieee80211_decap "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
-.Fn ieee80211_recv_mgmt "struct ieee80211com *ic" "struct mbuf *m0" "struct ieee80211_node *ni" "int subtype" "int rssi" "u_int32_t rstamp"
+.Fo ieee80211_recv_mgmt
+.Fa "struct ieee80211com *ic" "struct mbuf *m0" "struct ieee80211_node *ni"
+.Fa "int subtype" "int rssi" "u_int32_t rstamp"
+.Fc
 .Sh DESCRIPTION
-The
-.Nm
+These
 functions process received 802.11 frames.
 .Pp
 .\"
@@ -87,19 +92,19 @@ The
 performs input processing for 802.11 management frames.
 It is typically called from within
 .Fn ieee80211_input .
-.Pp
 .\"
 .Sh SEE ALSO
 .Xr ieee80211 9 ,
 .Xr ifnet 9
 .Sh HISTORY
 The
-.Nm
+.Nm ieee80211
 series of functions first appeared in
 .Nx 1.5 ,
 and were later ported to
 .Fx 4.6 .
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
 .An Bruce M. Simpson Aq bms@FreeBSD.org
 and
