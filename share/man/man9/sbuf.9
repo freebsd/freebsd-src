@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2001
+.Dd January 3, 2002
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -39,7 +39,9 @@
 .Nm sbuf_copyin ,
 .Nm sbuf_cpy ,
 .Nm sbuf_printf ,
+.Nm sbuf_vprintf ,
 .Nm sbuf_putc ,
+.Nm sbuf_trim ,
 .Nm sbuf_overflowed ,
 .Nm sbuf_finish ,
 .Nm sbuf_data ,
@@ -70,7 +72,11 @@
 .Ft int
 .Fn sbuf_printf "struct sbuf *s" "const char *fmt" "..."
 .Ft int
+.Fn sbuf_vprintf "struct sbuf *s" "const char *fmt" "va_list ap"
+.Ft int
 .Fn sbuf_putc "struct sbuf *s" "int c"
+.Ft int
+.Fn sbuf_trim "struct sbuf *s"
 .Ft int
 .Fn sbuf_overflowed "struct sbuf *s"
 .Ft void
@@ -114,10 +120,18 @@ will allocate one using
 .Xr malloc 9 .
 The
 .Fa length
-is the intended size of the storage buffer.
+is the initial size of the storage buffer.
 The fourth argument,
 .Fa flags ,
-is currently unused and should always be set to zero.
+may be comprised of the following flags:
+.Bl -tag -width SBUF_AUTOEXTEND
+.It Dv SBUF_FIXEDLEN
+The storage buffer is fixed at it's initial size.
+Attempting to extend the sbuf beyond this size results in an overflow condition.
+.It Dv SBUF_AUTOEXTEND
+This indicates that the storage buffer may be extended as necessary, so long
+as resources allow, to hold additional data.
+.El
 .Pp
 Note that if
 .Fa buf
@@ -126,6 +140,10 @@ is not
 it must point to an array of at least
 .Fa length
 characters.
+The contents of the provided buffer are undefined; to retrieve the sbuf data
+.Fn sbuf_data
+must be called on the finished
+.Fa sbuf .
 .Pp
 The
 .Fn sbuf_clear
@@ -137,10 +155,11 @@ The
 .Fn sbuf_setpos
 function sets the
 .Fa sbuf Ns 's
-current position to
+end position to
 .Fa pos ,
 which is a value between zero and one less than the size of the
 storage buffer.
+This effectively truncates the sbuf at the new position.
 .Pp
 The
 .Fn sbuf_bcat
@@ -214,12 +233,24 @@ and appends the resulting string to the
 at the current position.
 .Pp
 The
+.Fn sbuf_vprintf
+function behaves the same as
+.Fn sbuf_printf
+except that the arguments are obtained from the variable-length argument list
+.Fa ap .
+.Pp
+The
 .Fn sbuf_putc
 function appends the character
 .Fa c
 to the
 .Fa sbuf
 at the current position.
+.Pp
+The
+.Fn sbuf_trim
+function removes trailing whitespace from the
+.Fa sbuf .
 .Pp
 The
 .Fn sbuf_overflowed
@@ -285,8 +316,9 @@ was invalid, and zero otherwise.
 .Fn sbuf_cat ,
 .Fn sbuf_cpy ,
 .Fn sbuf_printf ,
+.Fn sbuf_putc ,
 and
-.Fn sbuf_putc
+.Fn sbuf_trim
 all return \-1 if the buffer overflowed, and zero otherwise.
 .Pp
 .Fn sbuf_overflowed
@@ -320,6 +352,8 @@ and implemented by
 .An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org .
 Additional improvements were suggested by
 .An Justin T. Gibbs Aq gibbs@FreeBSD.org .
+Auto-extend support added by
+.An Kelly Yancey Aq kbyanc@FreeBSD.org .
 .Pp
 This manual page was written by
 .An Dag-Erling Co\(:idan Sm\(/orgrav .
