@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.5 1995/03/21 23:01:04 se Exp $
+**  $Id: pcireg.h,v 1.6 1996/01/19 19:03:47 se Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -127,6 +127,13 @@
 #define	PCI_SUBCLASS_BRIDGE_PCI		0x00040000
 #define	PCI_SUBCLASS_BRIDGE_PCMCIA	0x00050000
 #define	PCI_SUBCLASS_BRIDGE_MISC	0x00800000
+
+/*
+** Header registers
+*/
+#define PCI_HEADER_MISC			0x0c
+
+#define PCI_HEADER_MULTIFUNCTION	0x00800000
 
 /*
 ** Mapping registers
