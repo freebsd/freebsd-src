@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.18 1995/10/05 09:03:30 jkh Exp $
+ * $Id: install.c,v 1.71.2.19 1995/10/05 09:11:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -223,7 +223,13 @@ installFixit(char *str)
     /* Try to leach a big /tmp off the fixit floppy */
     if (!file_executable("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
+    if (!file_readable("/var/tmp/vi.recover")) {
+	Mkdir("/var", NULL);
+	(void)symlink("/mnt2/tmp", "/var/tmp");
+	Mkdir("/mnt2/tmp/vi.recover", NULL);
+    }
     /* Link the spwd.db file */
+    Mkdir("/etc", NULL);
     (void)symlink("/mnt2/etc/spwd.db", "/etc/spwd.db");
     create_termcap();
     if ((child = fork()) != 0)
