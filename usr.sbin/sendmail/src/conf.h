@@ -574,13 +574,13 @@ typedef int		pid_t;
 */
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
+# include <paths.h>
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
 # define USESETEUID	1	/* has useable seteuid(2) call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
-# include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
 # define NETLINK	1	/* supports AF_LINK */
