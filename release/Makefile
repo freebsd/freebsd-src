@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.246.2.78 1998/02/18 12:45:09 markm Exp $
 #
 # How to roll a release:
 #
@@ -615,7 +615,7 @@ installCRUNCH:
 #
 doKERNEL:
 	rm -f ${RD}/kernels/${KERNEL}
-	cd ${.CURDIR}/../sys/i386/conf && config -n ${KERNEL}
+	cd ${.CURDIR}/../sys/i386/conf && config ${KERNEL}
 	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
