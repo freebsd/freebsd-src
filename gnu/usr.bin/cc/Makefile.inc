@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.33 1999/04/22 20:12:21 obrien Exp $
+# $Id: Makefile.inc,v 1.34 1999/07/28 07:22:08 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -7,6 +7,8 @@
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
 GCCDIR=		${.CURDIR}/../../../../contrib/egcs/gcc
+
+YACC=		bison
 
 .if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
 GCC_ARCH=mips
