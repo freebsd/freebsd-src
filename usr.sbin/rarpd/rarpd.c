@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [ -dfsv ] [-t directory] [ hostname ]
- *		rarpd [ -dfsv ] [-t directory] interface [ hostname ]
+ * Usage:	rarpd -a [-dfsv] [-t directory] [hostname]
+ *		rarpd [-dfsv] [-t directory] interface [hostname]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "adfst:v")) != -1) {
+	while ((op = getopt(argc, argv, "adfst:v")) != -1)
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -175,16 +175,16 @@ main(int argc, char *argv[])
 			usage();
 			/* NOTREACHED */
 		}
-	}
-	ifname = argv[optind++];
-	hostname =  ifname ? argv[optind] : NULL;
+	argc -= optind;
+	argv += optind;
+
+	ifname = (aflag == 0) ? argv[0] : NULL;
+	hostname = ifname ? argv[1] : argv[0];
+	
 	if ((aflag && ifname) || (!aflag && ifname == NULL))
 		usage();
 
-	if (aflag)
-		init(NULL);
-	else
-		init(ifname);
+	init(ifname);
 
 	if (!fflag) {
 		if (daemon(0,0)) {
@@ -308,7 +308,9 @@ init(char *target)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: rarpd [-adfsv] [-t directory] [interface]\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: rarpd -a [-dfsv] [-t directory]",
+	    "       rarpd [-dfsv] [-t directory] interface");
 	exit(1);
 }
 
