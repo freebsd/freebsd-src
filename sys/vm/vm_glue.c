@@ -216,7 +216,7 @@ vslock(void *addr, size_t len)
 		return (EAGAIN);
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
-	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
