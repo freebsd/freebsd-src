@@ -84,6 +84,7 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static unsigned long	numvnodes;
+static void	vlruvp(struct vnode *vp);
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
 enum vtype iftovt_tab[16] = {
@@ -464,6 +465,20 @@ vlrureclaim(struct mount *mp, int count)
 {
 	struct vnode *vp;
 	int done;
+	int trigger;
+	int usevnodes;
+
+	/*
+	 * Calculate the trigger point, don't allow user
+	 * screwups to blow us up.   This prevents us from
+	 * recycling vnodes with lots of resident pages.  We
+	 * aren't trying to free memory, we are trying to
+	 * free vnodes.
+	 */
+	usevnodes = desiredvnodes;
+	if (usevnodes <= 0)
+		usevnodes = 1;
+	trigger = cnt.v_page_count * 2 / usevnodes;
 
 	done = 0;
 	simple_lock(&mntvnode_slock);
@@ -474,6 +489,7 @@ vlrureclaim(struct mount *mp, int count)
 		if (vp->v_type != VNON &&
 		    vp->v_type != VBAD &&
 		    VMIGHTFREE(vp) &&		/* critical path opt */
+		    (vp->v_object == NULL || vp->v_object->resident_page_count < trigger) &&
 		    simple_lock_try(&vp->v_interlock)
 		) {
 			simple_unlock(&mntvnode_slock);
@@ -1521,6 +1537,8 @@ vget(vp, flags, p)
 			vp->v_usecount--;
 			if (VSHOULDFREE(vp))
 				vfree(vp);
+			else
+				vlruvp(vp);
 			simple_unlock(&vp->v_interlock);
 		}
 		return (error);
@@ -1563,6 +1581,8 @@ vrele(vp)
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
+		else
+			vlruvp(vp);
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1601,6 +1621,8 @@ vput(vp)
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
+		else
+			vlruvp(vp);
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1787,6 +1809,28 @@ loop:
 	for (; rootrefs > 0; rootrefs--)
 		vrele(rootvp);
 	return (0);
+}
+
+/*
+ * We do not want to recycle the vnode too quickly.
+ *
+ * XXX we can't move vp's around the nvnodelist without really screwing
+ * up the efficiency of filesystem SYNC and friends.  This code is 
+ * disabled until we fix the syncing code's scanning algorithm.
+ */
+static void
+vlruvp(struct vnode *vp)
+{
+#if 0
+	struct mount *mp;
+
+	if ((mp = vp->v_mount) != NULL) {
+		simple_lock(&mntvnode_slock);
+		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		simple_unlock(&mntvnode_slock);
+	}
+#endif
 }
 
 /*
