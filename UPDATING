@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20021029:
+	The value of IPPROTO_DIVERT has changed.  Make sure to keep
+	your kernel, netstat, natd and any third-party DIVERT
+	consumers in sync.
+
 20021024:
 	Old, compatibility slices have been removed in GEOM kernels.  This
 	means that you will have to update your /etc/fstab to not use
