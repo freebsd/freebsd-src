@@ -2,6 +2,7 @@
 #
 set dir=`pwd`
 set karch=`uname -m`
+set krev=`uname -r|sed -e 's/\([0-9\.]*\)-.*/\1/'`
 if ( -d /sys/arch/$karch ) set archdir="/sys/arch/$karch"
 if ( -d /sys/$karch ) set archdir="/sys/$karch"
 set confdir="$archdir/conf"
@@ -21,7 +22,7 @@ ln -s /usr/include/osreldate.h /sys/sys/osreldate.h
 
 echo ""
 echo "Patching ip6_input.c and ip6_output.c"
-cat FreeBSD-4.0/ipv6-patch | (cd /sys/netinet6; patch)
+cat FreeBSD-4.0/ipv6-patch-$krev | (cd /sys/netinet6; patch)
 
 set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
 echo -n "Kernel configuration to update [$config] "
@@ -30,6 +31,11 @@ if ( "$newconfig" != "" ) then
 	set config="$confdir/$newconfig"
 else
 	set newconfig=$config
+endif
+grep -q IPFILTER $confdir/$newconfig
+if ($status == 0) then
+	echo "IPFilter already configured in kernel config file"
+	exit 0
 endif
 echo "Rewriting $newconfig..."
 if ( -f $confdir/$newconfig ) then

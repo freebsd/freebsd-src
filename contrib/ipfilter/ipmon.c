@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.4 2000/08/07 12:32:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.5 2000/10/19 15:41:41 darrenr Exp $";
 #endif
 
 #ifndef SOLARIS
@@ -692,7 +692,7 @@ int	blen;
 		p = (u_short)ip->ip_p;
 		s = (u_32_t *)&ip->ip_src;
 		d = (u_32_t *)&ip->ip_dst;
-		plen = ntohs(ip->ip_len);
+		plen = ip->ip_len;
 	} else {
 		goto printipflog;
 	}

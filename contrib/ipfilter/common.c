@@ -274,7 +274,7 @@ int     linenum;
 		return 0;
 	if (!strcasecmp(**seg, "port") && *(*seg + 1) && *(*seg + 2)) {
 		(*seg)++;
-		if (isdigit(***seg) && *(*seg + 2)) {
+		if (isalnum(***seg) && *(*seg + 2)) {
 			if (portnum(**seg, pp, linenum) == 0)
 				return -1;
 			(*seg)++;
