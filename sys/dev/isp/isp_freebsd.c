@@ -38,9 +38,6 @@ static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
-#if	0
-static void isp_relsim(void *);
-#endif
 static timeout_t isp_watchdog;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
@@ -232,6 +229,21 @@ isp_attach(struct ispsoftc *isp)
 
 }
 
+static __inline void
+isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
+{
+	if (isp->isp_osinfo.simqfrozen == 0) {
+		isp_prt(isp, ISP_LOGDEBUG0, "%s: freeze simq (loopdown)", msg);
+		isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+		ISPLOCK_2_CAMLOCK(isp);
+		xpt_freeze_simq(isp->isp_sim, 1);
+		CAMLOCK_2_ISPLOCK(isp);
+	} else {
+		isp_prt(isp, ISP_LOGDEBUG0, "%s: mark frozen (loopdown)", msg);
+		isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+	}
+}
+
 static int
 ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -277,12 +289,7 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 
 	case ISP_FORCE_CRASH_DUMP:
 		ISP_LOCK(isp);
-		if ((isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN) == 0) {
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
-			ISPLOCK_2_CAMLOCK(isp);
-			xpt_freeze_simq(isp->isp_sim, 1);
-			CAMLOCK_2_ISPLOCK(isp);
-		}
+		isp_freeze_loopdown(isp, "ispioctl(ISP_FORCE_CRASH_DUMP)");
 		isp_fw_dump(isp);
 		isp_reinit(isp);
 		ISP_UNLOCK(isp);
@@ -395,6 +402,94 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		hba->active_port_wwn = FCPARAM(isp)->isp_portwwn;
 		ISP_UNLOCK(isp);
 		retval = 0;
+		break;
+	}
+	case ISP_GET_FC_PARAM:
+	{
+		struct isp_fc_param *f = (struct isp_fc_param *) addr;
+
+		if (!IS_FC(isp)) {
+			retval = EINVAL;
+			break;
+		}
+		f->parameter = 0;
+		if (strcmp(f->param_name, "framelength") == 0) {
+			f->parameter = FCPARAM(isp)->isp_maxfrmlen;
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "exec_throttle") == 0) {
+			f->parameter = FCPARAM(isp)->isp_execthrottle;
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "fullduplex") == 0) {
+			if (FCPARAM(isp)->isp_fwoptions & ICBOPT_FULL_DUPLEX)
+				f->parameter = 1;
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "loopid") == 0) {
+			f->parameter = FCPARAM(isp)->isp_loopid;
+			retval = 0;
+			break;
+		}
+		retval = EINVAL;
+		break;
+	}
+	case ISP_SET_FC_PARAM:
+	{
+		struct isp_fc_param *f = (struct isp_fc_param *) addr;
+		u_int32_t param = f->parameter;
+
+		if (!IS_FC(isp)) {
+			retval = EINVAL;
+			break;
+		}
+		f->parameter = 0;
+		if (strcmp(f->param_name, "framelength") == 0) {
+			if (param != 512 && param != 1024 && param != 1024) {
+				retval = EINVAL;
+				break;
+			}
+			FCPARAM(isp)->isp_maxfrmlen = param;
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "exec_throttle") == 0) {
+			if (param < 16 || param > 255) {
+				retval = EINVAL;
+				break;
+			}
+			FCPARAM(isp)->isp_execthrottle = param;
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "fullduplex") == 0) {
+			if (param != 0 && param != 1) {
+				retval = EINVAL;
+				break;
+			}
+			if (param) {
+				FCPARAM(isp)->isp_fwoptions |=
+				    ICBOPT_FULL_DUPLEX;
+			} else {
+				FCPARAM(isp)->isp_fwoptions &=
+				    ~ICBOPT_FULL_DUPLEX;
+			}
+			retval = 0;
+			break;
+		}
+		if (strcmp(f->param_name, "loopid") == 0) {
+			if (param < 0 || param > 125) {
+				retval = EINVAL;
+				break;
+			}
+			FCPARAM(isp)->isp_loopid = param;
+			retval = 0;
+			break;
+		}
+		retval = EINVAL;
 		break;
 	}
 	default:
@@ -1257,20 +1352,6 @@ isp_complete_ctio(union ccb *ccb)
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 	}
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE) {
-		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_RESOURCE;
-		if (isp->isp_osinfo.simqfrozen == 0) {
-			if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				isp_prt(isp, ISP_LOGDEBUG2, "ctio->relsimq");
-				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-			} else {
-				isp_prt(isp, ISP_LOGWARN, "ctio->devqfrozen");
-			}
-		} else {
-			isp_prt(isp, ISP_LOGWARN,
-			    "ctio->simqfrozen(%x)", isp->isp_osinfo.simqfrozen);
-		}
-	}
 	xpt_done(ccb);
 }
 
@@ -1762,23 +1843,6 @@ isp_poll(struct cam_sim *sim)
 	ISP_UNLOCK(isp);
 }
 
-#if	0
-static void
-isp_relsim(void *arg)
-{
-	struct ispsoftc *isp = arg;
-	ISP_LOCK(isp);
-	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_TIMED) {
-		int wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_TIMED;
-		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_TIMED;
-		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
-			xpt_release_simq(isp->isp_sim, 1);
-			isp_prt(isp, ISP_LOGDEBUG2, "timed relsimq");
-		}
-	}
-	ISP_UNLOCK(isp);
-}
-#endif
 
 static void
 isp_watchdog(void *arg)
@@ -1786,6 +1850,7 @@ isp_watchdog(void *arg)
 	XS_T *xs = arg;
 	struct ispsoftc *isp = XS_ISP(xs);
 	u_int32_t handle;
+	int iok;
 
 	/*
 	 * We've decided this command is dead. Make sure we're not trying
@@ -1793,6 +1858,8 @@ isp_watchdog(void *arg)
 	 * and seeing whether it's still alive.
 	 */
 	ISP_LOCK(isp);
+	iok = isp->isp_osinfo.intsok;
+	isp->isp_osinfo.intsok = 0;
 	handle = isp_find_handle(isp, xs);
 	if (handle) {
 		u_int16_t isr, sema, mbox;
@@ -1861,45 +1928,52 @@ isp_watchdog(void *arg)
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG2, "watchdog with no command");
 	}
+	isp->isp_osinfo.intsok = iok;
 	ISP_UNLOCK(isp);
 }
-
-static int isp_ktmature = 0;
 
 static void
 isp_kthread(void *arg)
 {
-	int wasfrozen;
 	struct ispsoftc *isp = arg;
 
 	mtx_lock(&isp->isp_lock);
+	/*
+	 * The first loop is for our usage where we have yet to have
+	 * gotten good fibre channel state.
+	 */
 	for (;;) {
-		isp_prt(isp, ISP_LOGDEBUG0, "kthread checking FC state");
+		int wasfrozen;
+
+		isp_prt(isp, ISP_LOGDEBUG0, "kthread: checking FC state");
 		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
+			isp_prt(isp, ISP_LOGDEBUG0, "kthread: FC state ungood");
 			if (FCPARAM(isp)->isp_fwstate != FW_READY ||
 			    FCPARAM(isp)->isp_loopstate < LOOP_PDB_RCVD) {
 				if (FCPARAM(isp)->loop_seen_once == 0 ||
-				    isp_ktmature == 0) {
+				    isp->isp_osinfo.ktmature == 0) {
 					break;
 				}
 			}
 			msleep(isp_kthread, &isp->isp_lock,
 			    PRIBIO, "isp_fcthrd", hz);
 		}
+
 		/*
 		 * Even if we didn't get good loop state we may be
 		 * unfreezing the SIMQ so that we can kill off
-		 * commands (if we've never seen loop before, e.g.)
+		 * commands (if we've never seen loop before, for example).
 		 */
-		isp_ktmature = 1;
+		isp->isp_osinfo.ktmature = 1;
 		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
 		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
-			isp_prt(isp, ISP_LOGDEBUG0, "kthread up release simq");
+			isp_prt(isp, ISP_LOGDEBUG0, "kthread: releasing simq");
 			ISPLOCK_2_CAMLOCK(isp);
 			xpt_release_simq(isp->isp_sim, 1);
 			CAMLOCK_2_ISPLOCK(isp);
 		}
+		isp_prt(isp, ISP_LOGDEBUG0, "kthread: waiting until called");
 		cv_wait(&isp->isp_osinfo.kthread_cv, &isp->isp_lock);
 	}
 }
@@ -1978,7 +2052,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				if (ticks >= 0x80000000) {
 					isp_prt(isp, ISP_LOGERR,
 					    "timeout overflow");
-					ticks = 0x80000000;
+					ticks = 0x7fffffff;
 				}
 				ccb->ccb_h.timeout_ch = timeout(isp_watchdog,
 				    (caddr_t)ccb, (int)ticks);
@@ -1992,32 +2066,21 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * This can only happen for Fibre Channel
 			 */
 			KASSERT((IS_FC(isp)), ("CMD_RQLATER for FC only"));
-			if (FCPARAM(isp)->loop_seen_once == 0 && isp_ktmature) {
+			if (FCPARAM(isp)->loop_seen_once == 0 &&
+			    isp->isp_osinfo.ktmature) {
 				ISPLOCK_2_CAMLOCK(isp);
 				XS_SETERR(ccb, CAM_SEL_TIMEOUT);
 				xpt_done(ccb);
 				break;
 			}
 			cv_signal(&isp->isp_osinfo.kthread_cv);
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				isp_prt(isp, ISP_LOGDEBUG2,
-				    "RQLATER freeze simq");
-				isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
-				ISPLOCK_2_CAMLOCK(isp);
-				xpt_freeze_simq(sim, 1);
-			} else {
-				ISPLOCK_2_CAMLOCK(isp);
-			}
+			isp_freeze_loopdown(isp, "isp_action(RQLATER)");
+			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
+			ISPLOCK_2_CAMLOCK(isp);
 			xpt_done(ccb);
 			break;
 		case CMD_EAGAIN:
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				xpt_freeze_simq(sim, 1);
-				isp_prt(isp, ISP_LOGDEBUG2,
-				    "EAGAIN freeze simq");
-			}
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			ISPLOCK_2_CAMLOCK(isp);
 			xpt_done(ccb);
@@ -2095,13 +2158,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_prt(isp, ISP_LOGWARN,
 			    "XPT_CONT_TARGET_IO: status 0x%x",
 			    ccb->ccb_h.status);
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				xpt_freeze_simq(sim, 1);
-				xpt_print_path(ccb->ccb_h.path);
-				isp_prt(isp, ISP_LOGINFO,
-				    "XPT_CONT_TARGET_IO freeze simq");
-			}
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			ISPLOCK_2_CAMLOCK(isp);
 			xpt_done(ccb);
@@ -2582,38 +2638,13 @@ isp_done(struct ccb_scsiio *sccb)
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			sccb->ccb_h.status |= CAM_DEV_QFRZN;
 			xpt_freeze_devq(sccb->ccb_h.path, 1);
-			if (sccb->scsi_status != SCSI_STATUS_OK)
-				isp_prt(isp, ISP_LOGDEBUG2,
-				    "freeze devq %d.%d %x %x",
-				    sccb->ccb_h.target_id,
-				    sccb->ccb_h.target_lun, sccb->ccb_h.status,
-				    sccb->scsi_status);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "freeze devq %d.%d cam sts %x scsi sts %x",
+			    sccb->ccb_h.target_id, sccb->ccb_h.target_lun,
+			    sccb->ccb_h.status, sccb->scsi_status);
 		}
 	}
 
-	/*
-	 * If we were frozen waiting resources, clear that we were frozen
-	 * waiting for resources. If we are no longer frozen, and the devq
-	 * isn't frozen, mark the completing CCB to have the XPT layer
-	 * release the simq.
-	 */
-	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE) {
-		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_RESOURCE;
-		if (isp->isp_osinfo.simqfrozen == 0) {
-			if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				isp_prt(isp, ISP_LOGDEBUG2,
-				    "isp_done->relsimq");
-				sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-			} else {
-				isp_prt(isp, ISP_LOGDEBUG2,
-				    "isp_done->devq frozen");
-			}
-		} else {
-			isp_prt(isp, ISP_LOGDEBUG2,
-			    "isp_done -> simqfrozen = %x",
-			    isp->isp_osinfo.simqfrozen);
-		}
-	}
 	if ((CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB)) &&
 	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		xpt_print_path(sccb->ccb_h.path);
@@ -2747,39 +2778,19 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		break;
 	case ISPASYNC_LIP:
 		if (isp->isp_path) {
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				isp_prt(isp, ISP_LOGDEBUG0, "LIP freeze simq");
-				ISPLOCK_2_CAMLOCK(isp);
-				xpt_freeze_simq(isp->isp_sim, 1);
-				CAMLOCK_2_ISPLOCK(isp);
-			}
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+			isp_freeze_loopdown(isp, "ISPASYNC_LIP");
 		}
 		isp_prt(isp, ISP_LOGINFO, "LIP Received");
 		break;
 	case ISPASYNC_LOOP_RESET:
 		if (isp->isp_path) {
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				isp_prt(isp, ISP_LOGDEBUG0,
-				    "Loop Reset freeze simq");
-				ISPLOCK_2_CAMLOCK(isp);
-				xpt_freeze_simq(isp->isp_sim, 1);
-				CAMLOCK_2_ISPLOCK(isp);
-			}
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+			isp_freeze_loopdown(isp, "ISPASYNC_LOOP_RESET");
 		}
 		isp_prt(isp, ISP_LOGINFO, "Loop Reset Received");
 		break;
 	case ISPASYNC_LOOP_DOWN:
 		if (isp->isp_path) {
-			if (isp->isp_osinfo.simqfrozen == 0) {
-				isp_prt(isp, ISP_LOGDEBUG0,
-				    "loop down freeze simq");
-				ISPLOCK_2_CAMLOCK(isp);
-				xpt_freeze_simq(isp->isp_sim, 1);
-				CAMLOCK_2_ISPLOCK(isp);
-			}
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
+			isp_freeze_loopdown(isp, "ISPASYNC_LOOP_DOWN");
 		}
 		isp_prt(isp, ISP_LOGINFO, "Loop DOWN");
 		break;
