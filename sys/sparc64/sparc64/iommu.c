@@ -669,7 +669,7 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 
 int
 iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    void **vaddr, int flags, bus_dmamap_t *mappe)
+    void **vaddr, int flags, bus_dmamap_t *mapp)
 {
 	int error;
 

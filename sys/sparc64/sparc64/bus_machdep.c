@@ -647,7 +647,7 @@ nexus_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
 {
 
 	sparc64_dmamem_free_map(ddmat, map);
-	if ((size <= PAGE_SIZE))
+	if ((ddmat->dt_maxsize <= PAGE_SIZE))
 		free(vaddr, M_DEVBUF);
 	else {
 		mtx_lock(&Giant);
