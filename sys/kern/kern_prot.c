@@ -45,7 +45,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
