@@ -125,7 +125,14 @@ more secure.
 but untrustworthy users and the network cables are in secure areas this does
 help, but for normal desktop clients this does not apply.)
 .It Fl R
-Set the retry count for doing the mount to the specified value.
+Set the mount retry count to the specified value.
+A retry count of zero means to keep retrying forever.
+By default,
+.Nm
+retries forever on background mounts (see the
+.Fl b
+option), and otherwise tries just once.
+There is a 60 second delay between each attempt.
 .It Fl T
 Use TCP transport instead of UDP.
 This is recommended for servers that are not on the same LAN cable as
