@@ -261,9 +261,19 @@ ida_attach(struct ida_softc *ida)
 	    cinfo.num_drvs, cinfo.firm_rev[0], cinfo.firm_rev[1],
 	    cinfo.firm_rev[2], cinfo.firm_rev[3]);
 
-	ida->num_drives = cinfo.num_drvs;
+	if (ida->flags & IDA_FIRMWARE) {
+		int data;
 
-	for (i = 0; i < ida->num_drives; i++)
+		error = ida_command(ida, CMD_START_FIRMWARE,
+		    &data, sizeof(data), IDA_CONTROLLER, DMA_DATA_IN);
+		if (error) {
+			device_printf(ida->dev, "CMD_START_FIRMWARE failed.\n");
+			return;
+		}
+	}
+
+	ida->num_drives = 0;
+	for (i = 0; i < cinfo.num_drvs; i++)
 		device_add_child(ida->dev, /*"idad"*/NULL, -1);
 
 	bus_generic_attach(ida->dev);
@@ -339,7 +349,7 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE;
 	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
 
-	hwqcb->hdr.drive = drive;		/* XXX */
+	hwqcb->hdr.drive = drive;
 	hwqcb->req.bcount = howmany(datasize, DEV_BSIZE);
 	hwqcb->req.command = command;
 
@@ -394,12 +404,9 @@ ida_construct_qcb(struct ida_softc *ida)
 	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE;
 	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
 
-	/*
-	 * XXX
-	 */
 	{
 		struct idad_softc *drv = (struct idad_softc *)bp->b_driver1;
-		hwqcb->hdr.drive = drv->unit;
+		hwqcb->hdr.drive = drv->drive;
 	}
 
 	hwqcb->req.blkno = bp->b_pblkno;
