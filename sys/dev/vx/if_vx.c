@@ -436,7 +436,7 @@ vxstart(ifp)
     struct ifnet *ifp;
 {
     register struct vx_softc *sc = vx_softc[ifp->if_unit];
-    register struct mbuf *m, *m0;
+    register struct mbuf *m0;
     int sh, len, pad;
 
     /* Don't transmit if interface is busy or not running */
@@ -480,7 +480,7 @@ startagain:
     }
     outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
     IF_DEQUEUE(&ifp->if_snd, m0);
-    if (m0 == 0) {		/* not really needed */
+    if (m0 == NULL) {		/* not really needed */
 	return;
     }
 
@@ -500,14 +500,13 @@ startagain:
 
     outl(BASE + VX_W1_TX_PIO_WR_1, len | TX_INDICATE);
 
-    for (m = m0; m != 0;) {
-        if (m->m_len > 3)
-	    outsl(BASE + VX_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 4);
-        if (m->m_len & 3)
+    while (m0) {
+        if (m0->m_len > 3)
+	    outsl(BASE + VX_W1_TX_PIO_WR_1, mtod(m0, caddr_t), m0->m_len / 4);
+        if (m0->m_len & 3)
 	    outsb(BASE + VX_W1_TX_PIO_WR_1,
-	      mtod(m, caddr_t) + (m->m_len & ~3) , m->m_len & 3);
-        MFREE(m, m0);
-        m = m0;
+	      mtod(m0, caddr_t) + (m0->m_len & ~3) , m0->m_len & 3);
+	m0 = m_free(m0);
     }
     while (pad--)
 	outb(BASE + VX_W1_TX_PIO_WR_1, 0);	/* Padding */

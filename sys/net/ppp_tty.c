@@ -574,7 +574,6 @@ pppasyncstart(sc)
     register int len;
     register u_char *start, *stop, *cp;
     int n, ndone, done, idle;
-    struct mbuf *m2;
     int s;
 
     idle = 0;
@@ -712,8 +711,7 @@ pppasyncstart(sc)
 	    }
 
 	    /* Finished with this mbuf; free it and move on. */
-	    MFREE(m, m2);
-	    m = m2;
+	    m = m_free(m);
 	    if (m == NULL) {
 		/* Finished a packet */
 		break;

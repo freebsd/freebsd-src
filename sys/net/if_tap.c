@@ -642,7 +642,7 @@ tapread(dev, uio, flag)
 {
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
-	struct mbuf		*m = NULL, *m0 = NULL;
+	struct mbuf		*m0 = NULL;
 	int			 error = 0, len, s;
 
 	TAPDEBUG("%s%d reading, minor = %#x\n",
@@ -686,8 +686,7 @@ tapread(dev, uio, flag)
 			break;
 
 		error = uiomove(mtod(m0, caddr_t), len, uio);
-		MFREE(m0, m);
-		m0 = m;
+		m0 = m_free(m0);
 	}
 
 	if (m0 != NULL) {

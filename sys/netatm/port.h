@@ -274,10 +274,10 @@ typedef struct mbuf	KBuffer;
 	(prev)->m_next = (new);				\
 }
 #define	KB_UNLINKHEAD(head, next) {			\
-	MFREE((head), (next));				\
+	next = m_free((head));				\
 }
 #define	KB_UNLINK(old, prev, next) {			\
-	MFREE((old), (next));				\
+	next = m_free((old));				\
 	(prev)->m_next = (next);			\
 }
 #define	KB_ISPKT(bfr)		(((bfr)->m_flags & M_PKTHDR) != 0)
@@ -407,10 +407,10 @@ typedef struct mbuf	KBuffer;
 	(prev)->m_next = (new);				\
 }
 #define	KB_UNLINKHEAD(head, next) {			\
-	MFREE((head), (next));				\
+	next = m_free((head));				\
 }
 #define	KB_UNLINK(old, prev, next) {			\
-	MFREE((old), (next));				\
+	next = m_free((old));				\
 	(prev)->m_next = (next);			\
 }
 #define	KB_ISPKT(bfr)		(0)

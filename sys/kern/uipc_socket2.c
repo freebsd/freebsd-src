@@ -782,7 +782,7 @@ sbdrop(sb, len)
 	register struct sockbuf *sb;
 	register int len;
 {
-	register struct mbuf *m, *mn;
+	register struct mbuf *m;
 	struct mbuf *next;
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
@@ -802,13 +802,11 @@ sbdrop(sb, len)
 		}
 		len -= m->m_len;
 		sbfree(sb, m);
-		MFREE(m, mn);
-		m = mn;
+		m = m_free(m);
 	}
 	while (m && m->m_len == 0) {
 		sbfree(sb, m);
-		MFREE(m, mn);
-		m = mn;
+		m = m_free(m);
 	}
 	if (m) {
 		sb->sb_mb = m;
@@ -825,15 +823,14 @@ void
 sbdroprecord(sb)
 	register struct sockbuf *sb;
 {
-	register struct mbuf *m, *mn;
+	register struct mbuf *m;
 
 	m = sb->sb_mb;
 	if (m) {
 		sb->sb_mb = m->m_nextpkt;
 		do {
 			sbfree(sb, m);
-			MFREE(m, mn);
-			m = mn;
+			m = m_free(m);
 		} while (m);
 	}
 }
