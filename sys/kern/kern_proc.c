@@ -214,11 +214,11 @@ proc_fini(void *mem, int size)
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in freeing process"));
         td = FIRST_THREAD_IN_PROC(p);
-	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
+	KASSERT((td != NULL), ("proc_fini: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
-	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
+	KASSERT((kg != NULL), ("proc_fini: bad kg pointer"));
         ke = FIRST_KSE_IN_KSEGRP(kg);
-	KASSERT((ke != NULL), ("proc_dtor: bad ke pointer"));
+	KASSERT((ke != NULL), ("proc_fini: bad ke pointer"));
 	vm_proc_dispose(p);
 	thread_free(td);
 	ksegrp_free(kg);
