@@ -102,18 +102,18 @@ cd9660_ihashget(dev, inum)
 	struct vnode *vp;
 
 loop:
-	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_lock(&cd9660_ihash_mtx);
 	for (ip = isohashtbl[INOHASH(dev, inum)]; ip; ip = ip->i_next) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
-			mtx_enter(&vp->v_interlock, MTX_DEF);
-			mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
+			mtx_lock(&vp->v_interlock);
+			mtx_unlock(&cd9660_ihash_mtx);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (vp);
 		}
 	}
-	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_unlock(&cd9660_ihash_mtx);
 	return (NULL);
 }
 
@@ -127,14 +127,14 @@ cd9660_ihashins(ip)
 	struct proc *p = curproc;		/* XXX */
 	struct iso_node **ipp, *iq;
 
-	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_lock(&cd9660_ihash_mtx);
 	ipp = &isohashtbl[INOHASH(ip->i_dev, ip->i_number)];
 	if ((iq = *ipp) != NULL)
 		iq->i_prev = &ip->i_next;
 	ip->i_next = iq;
 	ip->i_prev = ipp;
 	*ipp = ip;
-	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_unlock(&cd9660_ihash_mtx);
 
 	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
 }
@@ -148,7 +148,7 @@ cd9660_ihashrem(ip)
 {
 	register struct iso_node *iq;
 
-	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_lock(&cd9660_ihash_mtx);
 	if ((iq = ip->i_next) != NULL)
 		iq->i_prev = ip->i_prev;
 	*ip->i_prev = iq;
@@ -156,7 +156,7 @@ cd9660_ihashrem(ip)
 	ip->i_next = NULL;
 	ip->i_prev = NULL;
 #endif
-	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
+	mtx_unlock(&cd9660_ihash_mtx);
 }
 
 /*

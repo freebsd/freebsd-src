@@ -284,12 +284,12 @@ ptrace(curp, uap)
 		PROCTREE_LOCK(PT_RELEASE);
 
 		/* not currently stopped */
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return EBUSY;
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 
 		/* OK */
 		break;
@@ -377,13 +377,13 @@ ptrace(curp, uap)
 	sendsig:
 		/* deliver or queue signal */
 		s = splhigh();
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
 			setrunnable(p);
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			if (uap->data) {
 				mtx_assert(&Giant, MA_OWNED);
 				psignal(p, uap->data);
@@ -437,14 +437,14 @@ ptrace(curp, uap)
 		}
 		error = 0;
 		PHOLD(p);	/* user had damn well better be incore! */
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_sflag & PS_INMEM) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			curp->p_retval[0] = *(int *)
 			    ((uintptr_t)p->p_addr + (uintptr_t)uap->addr);
 		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			curp->p_retval[0] = 0;
 			error = EFAULT;
 		}
@@ -453,13 +453,13 @@ ptrace(curp, uap)
 
 	case PT_WRITE_U:
 		PHOLD(p);	/* user had damn well better be incore! */
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_sflag & PS_INMEM) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			error = ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
 		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			error = EFAULT;
 		}
 		PRELE(p);

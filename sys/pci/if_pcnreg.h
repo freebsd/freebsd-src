@@ -451,8 +451,8 @@ struct pcn_softc {
 	struct mtx		pcn_mtx;
 };
 
-#define	PCN_LOCK(_sc)		mtx_enter(&(_sc)->pcn_mtx, MTX_DEF)
-#define	PCN_UNLOCK(_sc)		mtx_exit(&(_sc)->pcn_mtx, MTX_DEF)
+#define	PCN_LOCK(_sc)		mtx_lock(&(_sc)->pcn_mtx)
+#define	PCN_UNLOCK(_sc)		mtx_unlock(&(_sc)->pcn_mtx)
 
 /*
  * register space access macros

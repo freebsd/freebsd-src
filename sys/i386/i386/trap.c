@@ -174,11 +174,11 @@ userret(p, frame, oticks)
 
 	while ((sig = CURSIG(p)) != 0) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		postsig(sig);
 	}
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_priority = p->p_usrpri;
 	if (resched_wanted()) {
 		/*
@@ -193,30 +193,30 @@ userret(p, frame, oticks)
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
 		while ((sig = CURSIG(p)) != 0) {
 			if (!mtx_owned(&Giant))
-				mtx_enter(&Giant, MTX_DEF);
+				mtx_lock(&Giant);
 			postsig(sig);
 		}
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 	}
 
 	/*
 	 * Charge system time if profiling.
 	 */
 	if (p->p_sflag & PS_PROFIL) {
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		/* XXX - do we need Giant? */
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
-		mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock(&Giant);
+		mtx_lock_spin(&sched_lock);
 		addupc_task(p, frame->tf_eip,
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	}
 	curpriority = p->p_priority;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -282,9 +282,9 @@ restart:
 	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
 		/* user trap */
 
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		p->p_md.md_regs = &frame;
 
 		switch (type) {
@@ -312,9 +312,9 @@ restart:
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
-				mtx_enter(&Giant, MTX_DEF);
+				mtx_lock(&Giant);
 				i = vm86_emulate((struct vm86frame *)&frame);
-				mtx_exit(&Giant, MTX_DEF);
+				mtx_unlock(&Giant);
 				if (i == 0)
 					goto user;
 				break;
@@ -339,9 +339,9 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			i = trap_pfault(&frame, TRUE, eva);
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
@@ -371,13 +371,13 @@ restart:
 #ifndef TIMER_FREQ
 #  define TIMER_FREQ 1193182
 #endif
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(TIMER_FREQ/880, hz);
 				lastalert = time_second;
 			}
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
@@ -421,9 +421,9 @@ restart:
 				ucode = FPE_FPU_NP_TRAP;
 				break;
 			}
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			i = (*pmath_emulate)(&frame);
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
 					goto out;
@@ -452,9 +452,9 @@ restart:
 			 */
 			eva = rcr2();
 			enable_intr();
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			(void) trap_pfault(&frame, FALSE, eva);
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			goto out;
 
 		case T_DNA:
@@ -477,9 +477,9 @@ restart:
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
-				mtx_enter(&Giant, MTX_DEF);
+				mtx_lock(&Giant);
 				i = vm86_emulate((struct vm86frame *)&frame);
-				mtx_exit(&Giant, MTX_DEF);
+				mtx_unlock(&Giant);
 				if (i != 0)
 					/*
 					 * returns to original process
@@ -510,9 +510,9 @@ restart:
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
 				PCPU_GET(curpcb)->pcb_gs = 0;
-				mtx_enter(&Giant, MTX_DEF);
+				mtx_lock(&Giant);
 				psignal(p, SIGBUS);
-				mtx_exit(&Giant, MTX_DEF);
+				mtx_unlock(&Giant);
 				goto out;
 			}
 
@@ -621,13 +621,13 @@ restart:
 #ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(TIMER_FREQ/880, hz);
 				lastalert = time_second;
 			}
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* XXX Giant */
@@ -651,13 +651,13 @@ restart:
 #endif /* DEV_ISA */
 		}
 
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		trap_fatal(&frame, eva);
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 		goto out;
 	}
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	/* Translate fault for emulators (e.g. Linux) */
 	if (*p->p_sysent->sv_transtrap)
 		i = (*p->p_sysent->sv_transtrap)(i, type);
@@ -673,12 +673,12 @@ restart:
 		uprintf("\n");
 	}
 #endif
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 
 user:
 	userret(p, &frame, sticks);
 	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 out:
 	return;
 }
@@ -1103,15 +1103,15 @@ syscall2(frame)
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame.tf_cs) != SEL_UPL) {
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		panic("syscall");
 		/* NOT REACHED */
 	}
 #endif
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	p->p_md.md_regs = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
@@ -1121,9 +1121,9 @@ syscall2(frame)
 		/*
 		 * The prep code is not MP aware.
 		 */
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
@@ -1160,7 +1160,7 @@ syscall2(frame)
 	 */
 	if (params && (i = narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
 			ktrsyscall(p->p_tracep, code, narg, args);
@@ -1174,13 +1174,13 @@ syscall2(frame)
 	 * we are ktracing
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 	}
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL)) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
@@ -1230,7 +1230,7 @@ bad:
 	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
 	}
@@ -1243,7 +1243,7 @@ bad:
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
 #endif
@@ -1259,7 +1259,7 @@ bad:
 	 * Release Giant if we had to get it
 	 */
 	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 
 #ifdef WITNESS
 	if (witness_list(p)) {
@@ -1278,38 +1278,38 @@ ast(frame)
 	struct proc *p = CURPROC;
 	u_quad_t sticks;
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
 	
 	astoff();
 	atomic_add_int(&cnt.v_soft, 1);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;
-		mtx_exit(&sched_lock, MTX_SPIN);
-		mtx_enter(&Giant, MTX_DEF);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
+		mtx_lock(&Giant);
+		mtx_lock_spin(&sched_lock);
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
 	if (p->p_sflag & PS_ALRMPEND) {
 		p->p_sflag &= ~PS_ALRMPEND;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		psignal(p, SIGVTALRM);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 	}
 	if (p->p_sflag & PS_PROFPEND) {
 		p->p_sflag &= ~PS_PROFPEND;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		psignal(p, SIGPROF);
 	} else
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	
 	userret(p, &frame, sticks);
 
 	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 }

@@ -129,8 +129,8 @@ struct tl_softc {
 	struct mtx		tl_mtx;
 };
 
-#define	TL_LOCK(_sc)		mtx_enter(&(_sc)->tl_mtx, MTX_DEF)
-#define	TL_UNLOCK(_sc)		mtx_exit(&(_sc)->tl_mtx, MTX_DEF)
+#define	TL_LOCK(_sc)		mtx_lock(&(_sc)->tl_mtx)
+#define	TL_UNLOCK(_sc)		mtx_unlock(&(_sc)->tl_mtx)
 
 /*
  * Transmit interrupt threshold.

@@ -1048,8 +1048,8 @@ struct sf_softc {
 };
 
 
-#define	SF_LOCK(_sc)		mtx_enter(&(_sc)->sf_mtx, MTX_DEF)
-#define	SF_UNLOCK(_sc)		mtx_exit(&(_sc)->sf_mtx, MTX_DEF)
+#define	SF_LOCK(_sc)		mtx_lock(&(_sc)->sf_mtx)
+#define	SF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sf_mtx)
 
 #define SF_TIMEOUT	1000
 

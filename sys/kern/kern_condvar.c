@@ -138,9 +138,9 @@ cv_switch_catch(struct proc *p)
 	 * stopped, p->p_wchan will be 0 upon return from CURSIG.
 	 */
 	p->p_sflag |= PS_SINTR;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	sig = CURSIG(p);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (sig != 0) {
 		if (p->p_wchan != NULL)
 			cv_waitq_remove(p);
@@ -199,7 +199,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	WITNESS_SLEEP(0, mp);
 	WITNESS_SAVE(mp, mp);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -207,25 +207,25 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		return;
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT_NOSWITCH();
-	mtx_exit(mp, MTX_DEF | MTX_NOSWITCH);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
 	cv_waitq_add(cvp, p);
 	cv_switch(p);
 	curpriority = p->p_usrpri;
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_enter(mp, MTX_DEF);
+	mtx_lock(mp);
 	WITNESS_RESTORE(mp, mp);
 }
 
@@ -253,7 +253,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	WITNESS_SLEEP(0, mp);
 	WITNESS_SAVE(mp, mp);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -261,19 +261,19 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT_NOSWITCH();
-	mtx_exit(mp, MTX_DEF | MTX_NOSWITCH);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
 	cv_waitq_add(cvp, p);
 	sig = cv_switch_catch(p);
 	curpriority = p->p_usrpri;
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
 	/* proc_lock(p); */
@@ -291,7 +291,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
-	mtx_enter(mp, MTX_DEF);
+	mtx_lock(mp);
 	WITNESS_RESTORE(mp, mp);
 
 	return (rval);
@@ -319,7 +319,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	WITNESS_SLEEP(0, mp);
 	WITNESS_SAVE(mp, mp);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -327,13 +327,13 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT_NOSWITCH();
-	mtx_exit(mp, MTX_DEF | MTX_NOSWITCH);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
 	cv_waitq_add(cvp, p);
 	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
@@ -346,13 +346,13 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	} else
 		callout_stop(&p->p_slpcallout);
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
 	PICKUP_GIANT();
-	mtx_enter(mp, MTX_DEF);
+	mtx_lock(mp);
 	WITNESS_RESTORE(mp, mp);
 
 	return (rval);
@@ -382,7 +382,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	WITNESS_SLEEP(0, mp);
 	WITNESS_SAVE(mp, mp);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -390,13 +390,13 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT_NOSWITCH();
-	mtx_exit(mp, MTX_DEF | MTX_NOSWITCH);
+	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
 	cv_waitq_add(cvp, p);
 	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
@@ -409,7 +409,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	} else
 		callout_stop(&p->p_slpcallout);
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
 	/* proc_lock(p); */
@@ -427,7 +427,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
-	mtx_enter(mp, MTX_DEF);
+	mtx_lock(mp);
 	WITNESS_RESTORE(mp, mp);
 
 	return (rval);
@@ -480,12 +480,12 @@ cv_signal(struct cv *cvp)
 {
 
 	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (!TAILQ_EMPTY(&cvp->cv_waitq)) {
 		CV_SIGNAL_VALIDATE(cvp);
 		cv_wakeup(cvp);
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -497,11 +497,11 @@ cv_broadcast(struct cv *cvp)
 {
 
 	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	CV_SIGNAL_VALIDATE(cvp);
 	while (!TAILQ_EMPTY(&cvp->cv_waitq))
 		cv_wakeup(cvp);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -513,13 +513,13 @@ cv_waitq_remove(struct proc *p)
 {
 	struct cv *cvp;
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if ((cvp = p->p_wchan) != NULL && p->p_sflag & PS_CVWAITQ) {
 		TAILQ_REMOVE(&cvp->cv_waitq, p, p_slpq);
 		p->p_sflag &= ~PS_CVWAITQ;
 		p->p_wchan = NULL;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -534,7 +534,7 @@ cv_timedwait_end(void *arg)
 	p = arg;
 	CTR3(KTR_PROC, "cv_timedwait_end: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan != NULL) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
@@ -542,5 +542,5 @@ cv_timedwait_end(void *arg)
 			cv_waitq_remove(p);
 		p->p_sflag |= PS_TIMEOUT;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }

@@ -210,11 +210,11 @@ io_apic_setup_intpin(int apic, int pin)
 	 * shouldn't and stop the carnage.
 	 */
 	vector = NRSVIDT + pin;			/* IDT vec */
-	mtx_enter(&imen_mtx, MTX_SPIN);
+	mtx_lock_spin(&imen_mtx);
 	io_apic_write(apic, select,
 		      (io_apic_read(apic, select) & ~IOART_INTMASK 
 		       & ~0xff)|IOART_INTMSET|vector);
-	mtx_exit(&imen_mtx, MTX_SPIN);
+	mtx_unlock_spin(&imen_mtx);
 	
 	/* we only deal with vectored INTs here */
 	if (apic_int_type(apic, pin) != 0)
@@ -258,10 +258,10 @@ io_apic_setup_intpin(int apic, int pin)
 		printf("IOAPIC #%d intpin %d -> irq %d\n",
 		       apic, pin, irq);
 	vector = NRSVIDT + irq;			/* IDT vec */
-	mtx_enter(&imen_mtx, MTX_SPIN);
+	mtx_lock_spin(&imen_mtx);
 	io_apic_write(apic, select, flags | vector);
 	io_apic_write(apic, select + 1, target);
-	mtx_exit(&imen_mtx, MTX_SPIN);
+	mtx_unlock_spin(&imen_mtx);
 }
 
 int

@@ -314,9 +314,9 @@ exit1(p, rv)
 	 */
 	p->p_xstat = rv;
 	*p->p_ru = p->p_stats->p_ru;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	calcru(p, &p->p_ru->ru_utime, &p->p_ru->ru_stime, NULL);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
 	/*
@@ -457,9 +457,9 @@ loop:
 		}
 
 		nfound++;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SZOMB) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			PROCTREE_LOCK(PT_RELEASE);
 
@@ -579,7 +579,7 @@ loop:
 		}
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
 			PROC_UNLOCK(p);
 			PROCTREE_LOCK(PT_RELEASE);
@@ -598,7 +598,7 @@ loop:
 				error = 0;
 			return (error);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
 	PROCTREE_LOCK(PT_RELEASE);

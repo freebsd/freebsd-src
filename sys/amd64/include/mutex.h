@@ -43,22 +43,10 @@ extern struct mtx	clock_lock;
 /*
  * Debugging
  */
-#ifdef MUTEX_DEBUG
-
-#ifdef _KERN_MUTEX_C_
-char STR_IEN[] = "fl & PSL_I";
-char STR_IDIS[] = "!(fl & PSL_I)";
-char STR_SIEN[] = "mpp->mtx_saveintr & PSL_I";
-#else	/* _KERN_MUTEX_C_ */
-extern char STR_IEN[];
-extern char STR_IDIS[];
-extern char STR_SIEN[];
-#endif	/* _KERN_MUTEX_C_ */
-#endif	/* MUTEX_DEBUG */
-
-#define	ASS_IEN		MPASS2(read_eflags() & PSL_I, STR_IEN)
-#define	ASS_IDIS	MPASS2((read_eflags() & PSL_I) == 0, STR_IDIS)
-#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr & PSL_I, STR_SIEN)
+#define	ASS_IEN		MPASS2(read_eflags() & PSL_I, "fl & PSL_I")
+#define	ASS_IDIS	MPASS2((read_eflags() & PSL_I) == 0, "!(fl & PSL_I)")
+#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr & PSL_I,		\
+			"mpp->mtx_saveintr & PSL_I")
 
 #define	mtx_legal2block()	(read_eflags() & PSL_I)
 
@@ -66,9 +54,6 @@ extern char STR_SIEN[];
  * Assembly macros (for internal use only)
  *------------------------------------------------------------------------------
  */
-
-#ifdef _KERN_MUTEX_C_
-
 #define	_V(x)	__STRING(x)
 
 #if 0
@@ -252,22 +237,80 @@ extern char STR_SIEN[];
 
 #undef _V
 
-#endif	/* _KERN_MUTEX_C_ */
-
 #endif	/* _KERNEL */
 
 #else	/* !LOCORE */
 
 /*
  * Simple assembly macros to get and release mutexes.
+ *
+ * Note: All of these macros accept a "flags" argument and are analoguous
+ *	 to the mtx_lock_flags and mtx_unlock_flags general macros. If one
+ *	 desires to not pass a flag, the value 0 may be passed as second
+ *	 argument.
+ *
+ * XXX: We only have MTX_LOCK_SPIN and MTX_UNLOCK_SPIN for now, since that's
+ *	all we use right now. We should add MTX_LOCK and MTX_UNLOCK (for sleep
+ *	locks) in the near future, however.
  */
+#define MTX_LOCK_SPIN(lck, flags)					\
+	pushl %eax ;							\
+	pushl %ecx ;							\
+	pushl %ebx ;							\
+	movl $(MTX_UNOWNED) , %eax ;					\
+	movl PCPU(CURPROC), %ebx ;					\
+	pushfl ;							\
+	popl %ecx ;							\
+	cli ;								\
+	MPLOCKED cmpxchgl %ebx, lck+MTX_LOCK ;				\
+	jz 2f ;								\
+	cmpl lck+MTX_LOCK, %ebx ;					\
+	je 3f ;								\
+	pushl $0 ;							\
+	pushl $0 ;							\
+	pushl %ecx ;							\
+	pushl $flags ;							\
+	pushl $lck ;							\
+	call _mtx_lock_spin ;						\
+	addl $0x14, %esp ;						\
+	jmp 1f ;							\
+3:	movl lck+MTX_RECURSECNT, %ebx ;					\
+	incl %ebx ;							\
+	movl %ebx, lck+MTX_RECURSECNT ;					\
+	jmp 1f ;							\
+2:	movl %ecx, lck+MTX_SAVEINTR ;					\
+1:	popl %ebx ;							\
+	popl %ecx ;							\
+	popl %eax
 
+#define MTX_UNLOCK_SPIN(lck)						\
+	pushl %edx ;							\
+	pushl %eax ;							\
+	movl lck+MTX_SAVEINTR, %edx ;					\
+	movl lck+MTX_RECURSECNT, %eax ;					\
+	testl %eax, %eax ;						\
+	jne 2f ;							\
+	movl $(MTX_UNOWNED), %eax ;					\
+	xchgl %eax, lck+MTX_LOCK ;					\
+	pushl %edx ;							\
+	popfl ;								\
+	jmp 1f ;							\
+2:	decl %eax ;							\
+	movl %eax, lck+MTX_RECURSECNT ;					\
+1:	popl %eax ;							\
+	popl %edx
+
+/*
+ * XXX: These two are broken right now and need to be made to work for
+ * XXX: sleep locks, as the above two work for spin locks. We're not in
+ * XXX: too much of a rush to do these as we do not use them right now.
+ */
 #define	MTX_ENTER(lck, type)						\
 	pushl	$0 ;				/* dummy __LINE__ */	\
 	pushl	$0 ;				/* dummy __FILE__ */	\
 	pushl	$type ;							\
 	pushl	$lck ;							\
-	call	_mtx_enter ;						\
+	call	_mtx_lock_XXX ;						\
 	addl	$16,%esp
 
 #define	MTX_EXIT(lck, type)						\
@@ -275,7 +318,7 @@ extern char STR_SIEN[];
 	pushl	$0 ;				/* dummy __FILE__ */	\
 	pushl	$type ;							\
 	pushl	$lck ;							\
-	call	_mtx_exit ;						\
+	call	_mtx_unlock_XXX ;					\
 	addl	$16,%esp
 
 #endif	/* !LOCORE */

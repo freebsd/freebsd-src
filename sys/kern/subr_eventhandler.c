@@ -73,7 +73,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
 
     /* lock the eventhandler lists */
-    mtx_enter(&eventhandler_mutex, MTX_DEF);
+    mtx_lock(&eventhandler_mutex);
 
     /* Do we need to find/create the (slow) list? */
     if (list == NULL) {
@@ -84,7 +84,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
 	if (list == NULL) {
 	    if ((list = malloc(sizeof(struct eventhandler_list) + strlen(name) + 1, 
 			       M_EVENTHANDLER, M_NOWAIT)) == NULL) {
-		mtx_exit(&eventhandler_mutex, MTX_DEF);
+		mtx_unlock(&eventhandler_mutex);
 		return(NULL);
 	    }
 	    list->el_flags = 0;
@@ -102,7 +102,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     /* allocate an entry for this handler, populate it */
     if ((eg = malloc(sizeof(struct eventhandler_entry_generic), 
 		     M_EVENTHANDLER, M_NOWAIT)) == NULL) {
-	mtx_exit(&eventhandler_mutex, MTX_DEF);
+	mtx_unlock(&eventhandler_mutex);
 	return(NULL);
     }
     eg->func = func;
@@ -122,7 +122,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     if (ep == NULL)
 	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
     lockmgr(&list->el_lock, LK_RELEASE, NULL, CURPROC);
-    mtx_exit(&eventhandler_mutex, MTX_DEF);
+    mtx_unlock(&eventhandler_mutex);
     return(&eg->ee);
 }
 
@@ -154,14 +154,14 @@ eventhandler_find_list(char *name)
     struct eventhandler_list	*list;
     
     /* scan looking for the requested list */
-    mtx_enter(&eventhandler_mutex, MTX_DEF);
+    mtx_lock(&eventhandler_mutex);
     for (list = TAILQ_FIRST(&eventhandler_lists); 
 	 list != NULL; 
 	 list = TAILQ_NEXT(list, el_link)) {
 	if (!strcmp(name, list->el_name))
 	    break;
     }
-    mtx_exit(&eventhandler_mutex, MTX_DEF);
+    mtx_unlock(&eventhandler_mutex);
     
     return(list);
 }

@@ -253,8 +253,8 @@ cpu_exit(p)
 {
 	alpha_fpstate_drop(p);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
-	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+	mtx_lock_spin(&sched_lock);
+	mtx_unlock_flags(&Giant, MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	/*
@@ -437,7 +437,7 @@ vm_page_zero_idle()
 	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 		return(0);
 
-	if (mtx_try_enter(&Giant, MTX_DEF)) {
+	if (mtx_trylock(&Giant)) {
 		s = splvm();
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		zero_state = 0;
@@ -466,7 +466,7 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 		return (1);
 	}
 	return (0);

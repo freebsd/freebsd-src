@@ -561,10 +561,10 @@ ext2_reload(mountp, cred, p)
 	brelse(bp);
 
 loop:
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 	for (vp = LIST_FIRST(&mountp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mountp) {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			goto loop;
 		}
 		nvp = LIST_NEXT(vp, v_mntvnodes);
@@ -576,8 +576,8 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		mtx_enter(&vp->v_interlock, MTX_DEF);
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
+		mtx_unlock(&mntvnode_mtx);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
 		}
@@ -599,9 +599,9 @@ loop:
 		    &ip->i_din);
 		brelse(bp);
 		vput(vp);
-		mtx_enter(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&mntvnode_mtx);
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 	return (0);
 }
 
@@ -918,7 +918,7 @@ ext2_sync(mp, waitfor, cred, p)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -927,20 +927,20 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		nvp = LIST_NEXT(vp, v_mntvnodes);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			continue;
 		}
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
+		mtx_unlock(&mntvnode_mtx);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -949,9 +949,9 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, p);
 		vrele(vp);
-		mtx_enter(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&mntvnode_mtx);
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 	/*
 	 * Force stale file system control information to be flushed.
 	 */

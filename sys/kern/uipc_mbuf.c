@@ -152,20 +152,20 @@ mbinit(dummy)
 	/*
 	 * Perform some initial allocations.
 	 */
-	mtx_enter(&mcntfree.m_mtx, MTX_DEF);
+	mtx_lock(&mcntfree.m_mtx);
 	if (m_alloc_ref(REF_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_exit(&mcntfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mcntfree.m_mtx);
 
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);
+	mtx_lock(&mmbfree.m_mtx);
 	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mmbfree.m_mtx);
 
-	mtx_enter(&mclfree.m_mtx, MTX_DEF);
+	mtx_lock(&mclfree.m_mtx);
 	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_exit(&mclfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mclfree.m_mtx);
 
 	return;
 bad:
@@ -204,10 +204,10 @@ m_alloc_ref(nmb, how)
 	 */
 
 	nbytes = round_page(nmb * sizeof(union mext_refcnt));
-	mtx_exit(&mcntfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mcntfree.m_mtx);
 	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
 	    M_WAITOK : M_NOWAIT)) == NULL) {
-		mtx_enter(&mcntfree.m_mtx, MTX_DEF);
+		mtx_lock(&mcntfree.m_mtx);
 		return (0);
 	}
 	nmb = nbytes / sizeof(union mext_refcnt);
@@ -216,7 +216,7 @@ m_alloc_ref(nmb, how)
 	 * We don't let go of the mutex in order to avoid a race.
 	 * It is up to the caller to let go of the mutex.
 	 */
-	mtx_enter(&mcntfree.m_mtx, MTX_DEF);
+	mtx_lock(&mcntfree.m_mtx);
 	for (i = 0; i < nmb; i++) {
 		((union mext_refcnt *)p)->next_ref = mcntfree.m_head;
 		mcntfree.m_head = (union mext_refcnt *)p;
@@ -260,13 +260,13 @@ m_mballoc(nmb, how)
 
 	nbytes = round_page(nmb * MSIZE);
 
-	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mmbfree.m_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
 	if (p == 0 && how == M_TRYWAIT) {
 		atomic_add_long(&mbstat.m_wait, 1);
 		p = (caddr_t)kmem_malloc(mb_map, nbytes, M_WAITOK);
 	}
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);
+	mtx_lock(&mmbfree.m_mtx);
 
 	/*
 	 * Either the map is now full, or `how' is M_DONTWAIT and there
@@ -318,10 +318,10 @@ m_mballoc_wait(void)
 	 * importantly, to avoid a potential lock order reversal which may
 	 * result in deadlock (See comment above m_reclaim()).
 	 */
-	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mmbfree.m_mtx);
 	m_reclaim();
 
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);
+	mtx_lock(&mmbfree.m_mtx);
 	_MGET(p, M_DONTWAIT);
 
 	if (p == NULL) {
@@ -381,11 +381,11 @@ m_clalloc(ncl, how)
 	}
 
 	npg = ncl;
-	mtx_exit(&mclfree.m_mtx, MTX_DEF);
+	mtx_unlock(&mclfree.m_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
 	ncl = ncl * PAGE_SIZE / MCLBYTES;
-	mtx_enter(&mclfree.m_mtx, MTX_DEF);
+	mtx_lock(&mclfree.m_mtx);
 
 	/*
 	 * Either the map is now full, or `how' is M_DONTWAIT and there

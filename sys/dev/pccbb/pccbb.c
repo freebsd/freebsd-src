@@ -530,13 +530,13 @@ pccbb_detach(device_t dev)
 	if (error > 0)
 		return ENXIO;
 
-	mtx_enter(&sc->sc_mtx, MTX_DEF);
+	mtx_lock(&sc->sc_mtx);
 	bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
 
 	sc->sc_flags |= PCCBB_KTHREAD_DONE;
 	if (sc->sc_flags & PCCBB_KTHREAD_RUNNING) {
 		wakeup(sc);
-		mtx_exit(&sc->sc_mtx, MTX_DEF);
+		mtx_unlock(&sc->sc_mtx);
 		DEVPRINTF((dev, "waiting for kthread exit..."));
 		error = tsleep(sc, PWAIT, "pccbb-detach-wait", 60 * hz);
 		if (error)
@@ -544,7 +544,7 @@ pccbb_detach(device_t dev)
 		else
 			DPRINTF(("done\n"));
 	} else
-		mtx_exit(&sc->sc_mtx, MTX_DEF);
+		mtx_unlock(&sc->sc_mtx);
 
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	bus_release_resource(dev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
@@ -572,17 +572,17 @@ pccbb_driver_added(device_t dev, driver_t *driver)
 				sc->sc_cbdev = devlist[tmp];
 				if ((sc->sc_socketreg->socket_state
 				     & PCCBB_SOCKET_STAT_CD) == 0) {
-					mtx_enter(&sc->sc_mtx, MTX_DEF);
+					mtx_lock(&sc->sc_mtx);
 					wakeup(sc);
-					mtx_exit(&sc->sc_mtx, MTX_DEF);
+					mtx_unlock(&sc->sc_mtx);
 				}
 			} else if (strcmp(driver->name, "pccard") == 0) {
 				sc->sc_pccarddev = devlist[tmp];
 				if ((sc->sc_socketreg->socket_state
 				     & PCCBB_SOCKET_STAT_CD) == 0) {
-					mtx_enter(&sc->sc_mtx, MTX_DEF);
+					mtx_lock(&sc->sc_mtx);
 					wakeup(sc);
-					mtx_exit(&sc->sc_mtx, MTX_DEF);
+					mtx_unlock(&sc->sc_mtx);
 				}
 			} else
 				device_printf(dev,
@@ -616,7 +616,7 @@ pccbb_event_thread (void *arg)
 	struct pccbb_softc *sc = arg;
 	u_int32_t status;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	for(;;) {
 		if (!(sc->sc_flags & PCCBB_KTHREAD_RUNNING))
 			sc->sc_flags |= PCCBB_KTHREAD_RUNNING;
@@ -629,7 +629,7 @@ pccbb_event_thread (void *arg)
 			 */
 			tsleep (&sc->sc_flags, PWAIT, "pccbbev", 1*hz);
 		}
-		mtx_enter(&sc->sc_mtx, MTX_DEF);
+		mtx_lock(&sc->sc_mtx);
 		if (sc->sc_flags & PCCBB_KTHREAD_DONE)
 			break;
 
@@ -639,9 +639,9 @@ pccbb_event_thread (void *arg)
 		} else {
 			pccbb_removal(sc);
 		}
-		mtx_exit(&sc->sc_mtx, MTX_DEF);
+		mtx_unlock(&sc->sc_mtx);
 	}
-	mtx_exit(&sc->sc_mtx, MTX_DEF);
+	mtx_unlock(&sc->sc_mtx);
 	sc->sc_flags &= ~PCCBB_KTHREAD_RUNNING;
 	wakeup(sc);
 	kthread_exit(0);
@@ -744,9 +744,9 @@ pccbb_intr(void* arg)
 	sc->sc_socketreg->socket_event = sockevent | 0x01;
 
 	if (sockevent & PCCBB_SOCKET_EVENT_CD) {
-		mtx_enter(&sc->sc_mtx, MTX_DEF);
+		mtx_lock(&sc->sc_mtx);
 		wakeup(sc);
-		mtx_exit(&sc->sc_mtx, MTX_DEF);
+		mtx_unlock(&sc->sc_mtx);
 	} else {
 		if (sockevent & PCCBB_SOCKET_EVENT_CSTS) {
 			DPRINTF((" cstsevent occures, 0x%08x\n",

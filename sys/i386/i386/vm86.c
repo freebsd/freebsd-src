@@ -576,9 +576,9 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 		return (EINVAL);
 
 	vmf->vmf_trapno = intnum;
-	mtx_enter(&vm86pcb_lock, MTX_DEF);
+	mtx_lock(&vm86pcb_lock);
 	retval = vm86_bioscall(vmf);
-	mtx_exit(&vm86pcb_lock, MTX_DEF);
+	mtx_unlock(&vm86pcb_lock);
 	return (retval);
 }
 
@@ -606,9 +606,9 @@ vm86_datacall(intnum, vmf, vmc)
 	}
 
 	vmf->vmf_trapno = intnum;
-	mtx_enter(&vm86pcb_lock, MTX_DEF);
+	mtx_lock(&vm86pcb_lock);
 	retval = vm86_bioscall(vmf);
-	mtx_exit(&vm86pcb_lock, MTX_DEF);
+	mtx_unlock(&vm86pcb_lock);
 
 	for (i = 0; i < vmc->npages; i++) {
 		entry = vmc->pmap[i].pte_num;

@@ -106,10 +106,10 @@ userret(p, frame, oticks)
 	/* take pending signals */
 	while ((sig = CURSIG(p)) != 0) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		postsig(sig);
 	}
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		/*
@@ -125,30 +125,30 @@ userret(p, frame, oticks)
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
 		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
 			if (!mtx_owned(&Giant))
-				mtx_enter(&Giant, MTX_DEF);
+				mtx_lock(&Giant);
 			postsig(sig);
 		}
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 	} 
 
 	/*
 	 * If profiling, charge recent system time to the trapped pc.
 	 */
 	if (p->p_sflag & PS_PROFIL) {
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
-		mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock(&Giant);
+		mtx_lock_spin(&sched_lock);
 		addupc_task(p, frame->tf_regs[FRAME_PC],
 		    (int)(p->p_sticks - oticks) * psratio);
 	}
 	curpriority = p->p_priority;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 static void
@@ -230,9 +230,9 @@ trap(a0, a1, a2, entry, framep)
 	ucode = 0;
 	user = (framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0;
 	if (user)  {
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		p->p_md.md_tf = framep;
 #if	0
 /* This is to catch some weird stuff on the UDB (mj) */
@@ -259,12 +259,12 @@ trap(a0, a1, a2, entry, framep)
 		 * and per-process unaligned-access-handling flags).
 		 */
 		if (user) {
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			if ((i = unaligned_fixup(a0, a1, a2, p)) == 0) {
-				mtx_exit(&Giant, MTX_DEF);
+				mtx_unlock(&Giant);
 				goto out;
 			}
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			ucode = a0;		/* VA */
 			break;
 		}
@@ -288,13 +288,13 @@ trap(a0, a1, a2, entry, framep)
 		 * is not requested or if the completion fails.
 		 */
 		if (user) {
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			if (a0 & EXCSUM_SWC)
 				if (fp_software_completion(a1, p)) {
-					mtx_exit(&Giant, MTX_DEF);
+					mtx_unlock(&Giant);
 					goto out;
 				}
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			i = SIGFPE;
 			ucode =  a0;		/* exception summary */
 			break;
@@ -415,7 +415,7 @@ trap(a0, a1, a2, entry, framep)
 				goto out;
 			}
 
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			/*
 			 * It is only a kernel address space fault iff:
 			 *	1. !user and
@@ -529,11 +529,11 @@ trap(a0, a1, a2, entry, framep)
 					rv = KERN_INVALID_ADDRESS;
 			}
 			if (rv == KERN_SUCCESS) {
-				mtx_exit(&Giant, MTX_DEF);
+				mtx_unlock(&Giant);
 				goto out;
 			}
 
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			if (!user) {
 				/* Check for copyin/copyout fault */
 				if (p != NULL &&
@@ -575,7 +575,7 @@ out:
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(p, framep, sticks);
 		if (mtx_owned(&Giant))
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 	}
 	return;
 
@@ -621,7 +621,7 @@ syscall(code, framep)
 	 * Find our per-cpu globals.
 	 */
 	globalp = (struct globaldata *) alpha_pal_rdval();
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
@@ -635,9 +635,9 @@ syscall(code, framep)
 	p = curproc;
 	p->p_md.md_tf = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(p);
@@ -739,7 +739,7 @@ syscall(code, framep)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 
 #ifdef WITNESS
 	if (witness_list(p)) {
@@ -763,9 +763,9 @@ ast(framep)
 	u_quad_t sticks;
 
 	p = curproc;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	p->p_md.md_tf = framep;
 
 	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0)
@@ -774,36 +774,36 @@ ast(framep)
 	cnt.v_soft++;
 
 	PCPU_SET(astpending, 0);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;
-		mtx_exit(&sched_lock, MTX_SPIN);
-		mtx_enter(&Giant, MTX_DEF);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
+		mtx_lock(&Giant);
+		mtx_lock_spin(&sched_lock);
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
 	if (p->p_sflag & PS_ALRMPEND) {
 		p->p_sflag &= ~PS_ALRMPEND;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		psignal(p, SIGVTALRM);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 	}
 	if (p->p_sflag & PS_PROFPEND) {
 		p->p_sflag &= ~PS_PROFPEND;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		psignal(p, SIGPROF);
 	} else
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 
 	userret(p, framep, sticks);
 
 	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 }
 
 /*

@@ -2251,7 +2251,7 @@ ttyinfo(tp)
 	else if ((p = LIST_FIRST(&tp->t_pgrp->pg_members)) == 0)
 		ttyprintf(tp, "empty foreground process group\n");
 	else {
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 
 		/* Pick interesting process. */
 		for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
@@ -2264,7 +2264,7 @@ ttyinfo(tp)
 		ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
 		    pick->p_stat == SZOMB ? 0 :
 		    pgtok(vmspace_resident_count(pick->p_vmspace));
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 
 		ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
 		    stmp);

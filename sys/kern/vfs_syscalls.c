@@ -176,16 +176,16 @@ mount(p, uap)
 			vput(vp);
 			return (EBUSY);
 		}
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		if ((vp->v_flag & VMOUNT) != 0 ||
 		    vp->v_mountedhere != NULL) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			vfs_unbusy(mp, p);
 			vput(vp);
 			return (EBUSY);
 		}
 		vp->v_flag |= VMOUNT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		mp->mnt_flag |= SCARG(uap, flags) &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, p);
@@ -243,15 +243,15 @@ mount(p, uap)
 			return (ENODEV);
 		}
 	}
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if ((vp->v_flag & VMOUNT) != 0 ||
 	    vp->v_mountedhere != NULL) {
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		vput(vp);
 		return (EBUSY);
 	}
 	vp->v_flag |= VMOUNT;
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 
 	/*
 	 * Allocate and initialize the filesystem.
@@ -310,9 +310,9 @@ update:
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, p);
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		vp->v_flag &= ~VMOUNT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		vrele(vp);
 		return (error);
 	}
@@ -322,13 +322,13 @@ update:
 	 */
 	cache_purge(vp);
 	if (!error) {
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		vp->v_flag &= ~VMOUNT;
 		vp->v_mountedhere = mp;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
+		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-		mtx_exit(&mountlist_mtx, MTX_DEF);
+		mtx_unlock(&mountlist_mtx);
 		checkdirs(vp);
 		VOP_UNLOCK(vp, 0, p);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -337,9 +337,9 @@ update:
 		if ((error = VFS_START(mp, 0, p)) != 0)
 			vrele(vp);
 	} else {
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		vp->v_flag &= ~VMOUNT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, p);
 		free((caddr_t)mp, M_MOUNT);
@@ -464,7 +464,7 @@ dounmount(mp, flags, p)
 	int error;
 	int async_flag;
 
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
 	lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK, &mountlist_mtx, p);
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -484,7 +484,7 @@ dounmount(mp, flags, p)
 		error = VFS_UNMOUNT(mp, flags, p);
 	}
 	vn_finished_write(mp);
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	if (error) {
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
@@ -535,7 +535,7 @@ sync(p, uap)
 	struct mount *mp, *nmp;
 	int asyncflag;
 
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -551,11 +551,11 @@ sync(p, uap)
 			mp->mnt_flag |= asyncflag;
 			vn_finished_write(mp);
 		}
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 #if 0
 /*
  * XXX don't call vfs_bufstats() yet because that routine
@@ -727,7 +727,7 @@ getfsstat(p, uap)
 	maxcount = SCARG(uap, bufsize) / sizeof(struct statfs);
 	sfsp = (caddr_t)SCARG(uap, buf);
 	count = 0;
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -743,7 +743,7 @@ getfsstat(p, uap)
 			if (((SCARG(uap, flags) & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
 			    (SCARG(uap, flags) & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, p))) {
-				mtx_enter(&mountlist_mtx, MTX_DEF);
+				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				vfs_unbusy(mp, p);
 				continue;
@@ -757,11 +757,11 @@ getfsstat(p, uap)
 			sfsp += sizeof(*sp);
 		}
 		count++;
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 	if (sfsp && count > maxcount)
 		p->p_retval[0] = maxcount;
 	else

@@ -1140,12 +1140,12 @@ rescan0:
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			/*
 			 * get the process size
 			 */
@@ -1162,11 +1162,11 @@ rescan0:
 		ALLPROC_LOCK(AP_RELEASE);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			bigproc->p_estcpu = 0;
 			bigproc->p_nice = PRIO_MIN;
 			resetpriority(bigproc);
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			wakeup(&cnt.v_free_count);
 		}
 	}
@@ -1305,7 +1305,7 @@ vm_pageout()
 {
 	int pass;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	/*
 	 * Initialize some paging parameters.
@@ -1449,7 +1449,7 @@ vm_daemon()
 {
 	struct proc *p;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	while (TRUE) {
 		tsleep(&vm_daemon_needed, PPAUSE, "psleep", 0);
@@ -1477,9 +1477,9 @@ vm_daemon()
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
 			/*
@@ -1496,7 +1496,7 @@ vm_daemon()
 			 */
 			if ((p->p_sflag & PS_INMEM) == 0)
 				limit = 0;	/* XXX */
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 
 			size = vmspace_resident_count(p->p_vmspace);
 			if (limit >= 0 && size >= limit) {

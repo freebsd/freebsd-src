@@ -485,9 +485,9 @@ exec_elf_imgact(struct image_params *imgp)
 	 * a context switch.  Better safe than sorry; I really don't want
 	 * the file to change while it's being loaded.
 	 */
-	mtx_enter(&imgp->vp->v_interlock, MTX_DEF);
+	mtx_lock(&imgp->vp->v_interlock);
 	imgp->vp->v_flag |= VTEXT;
-	mtx_exit(&imgp->vp->v_interlock, MTX_DEF);
+	mtx_unlock(&imgp->vp->v_interlock);
 
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;

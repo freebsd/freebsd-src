@@ -597,7 +597,7 @@ ia64_init()
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 #if 0
 	/*

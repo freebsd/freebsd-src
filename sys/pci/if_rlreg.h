@@ -373,8 +373,8 @@ struct rl_softc {
 	struct mtx		rl_mtx;
 };
 
-#define	RL_LOCK(_sc)		mtx_enter(&(_sc)->rl_mtx, MTX_DEF)
-#define	RL_UNLOCK(_sc)		mtx_exit(&(_sc)->rl_mtx, MTX_DEF)
+#define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
+#define	RL_UNLOCK(_sc)		mtx_unlock(&(_sc)->rl_mtx)
 
 /*
  * register space access macros

@@ -214,10 +214,10 @@ struct wxmdvar {
 #define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg, (sc)->w.sch)
 #define	INLINE				__inline
 #ifdef	SMPNG
-#define WX_LOCK(_sc)			mtx_enter(&(_sc)->wx_mtx, MTX_DEF)
-#define WX_UNLOCK(_sc)			mtx_exit(&(_sc)->wx_mtx, MTX_DEF)
-#define	WX_ILOCK(_sc)			mtx_enter(&(_sc)->wx_mtx, MTX_DEF)
-#define	WX_IUNLK(_sc)			mtx_exit(&(_sc)->wx_mtx, MTX_DEF)
+#define WX_LOCK(_sc)			mtx_lock(&(_sc)->wx_mtx)
+#define WX_UNLOCK(_sc)			mtx_unlock(&(_sc)->wx_mtx)
+#define	WX_ILOCK(_sc)			mtx_lock(&(_sc)->wx_mtx)
+#define	WX_IUNLK(_sc)			mtx_unlock(&(_sc)->wx_mtx)
 #else
 #define	WX_LOCK(_sc)			_sc->w.spl = splimp()
 #define	WX_UNLOCK(_sc)			splx(_sc->w.spl)

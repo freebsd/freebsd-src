@@ -2268,7 +2268,7 @@ ap_init(void)
 	PCPU_SET(curproc, PCPU_GET(idleproc));
 
 	/* lock against other AP's that are waking up */
-	mtx_enter(&ap_boot_mtx, MTX_SPIN);
+	mtx_lock_spin(&ap_boot_mtx);
 
 	/* BSP may have changed PTD while we're waiting for the lock */
 	cpu_invltlb();
@@ -2317,7 +2317,7 @@ ap_init(void)
 	}
 
 	/* let other AP's wake up now */
-	mtx_exit(&ap_boot_mtx, MTX_SPIN);
+	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
 	while (smp_started == 0)
@@ -2328,7 +2328,7 @@ ap_init(void)
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	enable_intr();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	cpu_throw();	/* doesn't return */
 
 	panic("scheduler returned us to ap_init");
@@ -2662,14 +2662,14 @@ forward_signal(struct proc *p)
 		return;
 	if (!forward_signal_enabled)
 		return;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	while (1) {
 		if (p->p_stat != SRUN) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 		id = p->p_oncpu;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (id == 0xff)
 			return;
 		map = (1<<id);
@@ -2687,9 +2687,9 @@ forward_signal(struct proc *p)
 				break;
 			}
 		}
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (id == p->p_oncpu) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 	}
@@ -2867,7 +2867,7 @@ smp_rendezvous(void (* setup_func)(void *),
 {
 
 	/* obtain rendezvous lock */
-	mtx_enter(&smp_rv_mtx, MTX_SPIN);
+	mtx_lock_spin(&smp_rv_mtx);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -2886,7 +2886,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_action();
 
 	/* release lock */
-	mtx_exit(&smp_rv_mtx, MTX_SPIN);
+	mtx_unlock_spin(&smp_rv_mtx);
 }
 
 void
