@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.8,v 1.2 1999/01/10 21:53:40 ezk Exp $
+.\" $Id: amd.8,v 1.3 1999/09/30 21:01:29 ezk Exp $
 .\"
 .TH AMD 8 "3 November 1989"
 .SH NAME
@@ -206,14 +206,19 @@ been auto-mounted,
 it.
 
 .TP
-.BI \-t " interval.interval"
-Specify the
+.BI \-t " timeout.retransmit"
+Specify the NFS timeout
 .IR interval ,
-in tenths of a second, between NFS/RPC/UDP retries.
-The default is 0.8 seconds.
-The second values alters the restransmit counter.
-Useful defaults are supplied if either or both
+in tenths of a second, between NFS/RPC retries (for UDP only).  The default
+is 0.8 seconds.  The second value alters the restransmit counter, which
+defaults to 11 retransmissions.  Both of these values are used by the kernel
+to communicate with amd.  Useful defaults are supplied if either or both
 values are missing.
+
+Amd relies on the kernel RPC retransmit mechanism to trigger mount retries.
+The values of these parameters change the overall retry interval.  Too long
+an interval gives poor interactive response; too short an interval causes
+excessive retries.
 
 .TP
 .B \-v

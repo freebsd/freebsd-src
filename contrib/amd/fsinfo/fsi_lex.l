@@ -39,7 +39,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: fsi_lex.l,v 1.2 1999/01/10 21:54:28 ezk Exp $
+ * $Id: fsi_lex.l,v 1.3 1999/09/30 21:01:41 ezk Exp $
  *
  */
 
@@ -240,10 +240,8 @@ yyerror(char *fmt, ...)
   fputc('\n', stderr);
   parse_errors++;
   va_end(ap);
+  if (0) unput(0);/* dummy to shut gcc up: "unput defined but not used" */
   return 0;
-
-  /* this call will never happen */
-  unput(0);
 }
 
 

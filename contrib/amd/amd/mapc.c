@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mapc.c,v 1.4 1999/08/09 06:09:44 ezk Exp $
+ * $Id: mapc.c,v 1.5 1999/09/30 21:01:31 ezk Exp $
  *
  */
 
@@ -139,6 +139,7 @@ qelem map_list_head = {&map_list_head, &map_list_head};
 static const char *get_full_path(const char *map, const char *path, const char *type);
 static int mapc_meta_search(mnt_map *, char *, char **, int);
 static void mapc_sync(mnt_map *);
+static void mapc_clear(mnt_map *);
 
 /* ROOT MAP */
 static int root_init(mnt_map *, char *, time_t *);
@@ -488,19 +489,65 @@ mapc_find_wildcard(mnt_map *m)
 
 
 /*
- * Do a map reload
+ * Do a map reload.
+ * Attempt to reload without losing current data by switching the hashes
+ * round.
  */
-static int
+static void
 mapc_reload_map(mnt_map *m)
 {
   int error;
+  kv *maphash[NKVHASH], *tmphash[NKVHASH];
+
+  /*
+   * skip reloading maps that have not been modified, unless
+   * amq -f was used (do_mapc_reload is 0)
+   */
+  if (m->reloads != 0 && do_mapc_reload != 0) {
+    time_t t;
+    error = (*m->mtime) (m, m->map_name, &t);
+    if (!error) {
+      if (t <= m->modify) {
+      plog(XLOG_INFO, "reload of map %s is not needed (in sync)", m->map_name);
+#ifdef DEBUG
+      dlog("map %s last load time is %d, last modify time is %d",
+	   m->map_name, (int) m->modify, (int) t);
+#endif /* DEBUG */
+      return;
+      } else {
+	/* reload of the map is needed, update map reload time */
+	m->modify = t;
+      }
+    }
+  }
+
+  /* copy the old hash and zero the map */
+  memcpy((voidp) maphash, (voidp) m->kvhash, sizeof(m->kvhash));
+  memset((voidp) m->kvhash, 0, sizeof(m->kvhash));
 
 #ifdef DEBUG
   dlog("calling map reload on %s", m->map_name);
 #endif /* DEBUG */
   error = (*m->reload) (m, m->map_name, mapc_add_kv);
-  if (error)
-    return error;
+  if (error) {
+    if (m->reloads == 0)
+      plog(XLOG_FATAL, "first time load of map %s failed!", m->map_name);
+    else
+      plog(XLOG_ERROR, "reload of map %s failed - using old values",
+	   m->map_name);
+    mapc_clear(m);
+    memcpy((voidp) m->kvhash, (voidp) maphash, sizeof(m->kvhash));
+  } else {
+    if (m->reloads++ == 0)
+      plog(XLOG_INFO, "first time load of map %s succeeded", m->map_name);
+    else
+      plog(XLOG_INFO, "reload #%d of map %s succeeded",
+	   m->reloads, m->map_name);
+    memcpy((voidp) tmphash, (voidp) m->kvhash, sizeof(m->kvhash));
+    memcpy((voidp) m->kvhash, (voidp) maphash, sizeof(m->kvhash));
+    mapc_clear(m);
+    memcpy((voidp) m->kvhash, (voidp) tmphash, sizeof(m->kvhash));
+  }
   m->wildcard = 0;
 
 #ifdef DEBUG
@@ -509,8 +556,6 @@ mapc_reload_map(mnt_map *m)
   error = mapc_search(m, wildcard, &m->wildcard);
   if (error)
     m->wildcard = 0;
-
-  return 0;
 }
 
 
@@ -621,6 +666,7 @@ mapc_create(char *map, char *opt, const char *type)
   m->map_name = strdup(map);
   m->refc = 1;
   m->wildcard = 0;
+  m->reloads = 0;
 
   /*
    * synchronize cache with reality
@@ -881,16 +927,16 @@ mapc_sync(mnt_map *m)
       }
     }
 
-    mapc_clear(m);
-
-    if (m->alloc >= MAPC_ALL)
-      if (mapc_reload_map(m))
-	m->alloc = MAPC_INC;
-    /*
-     * Attempt to find the wildcard entry
-     */
-    if (m->alloc < MAPC_ALL)
+    if (m->alloc >= MAPC_ALL) {
+      /* mapc_reload_map() always works */
+      mapc_reload_map(m);
+    } else {
+      mapc_clear(m);
+      /*
+       * Attempt to find the wildcard entry
+       */
       mapc_find_wildcard(m);
+    }
   }
 }
 

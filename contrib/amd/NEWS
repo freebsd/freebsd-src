@@ -1,5 +1,31 @@
 # -*- text -*-
 
+*** Notes specific to am-utils version 6.0.2:
+
+- safe map reloads: when a map needs to be reloaded, it is reloaded into a
+  temporary copy first.  Only if the reload was completely successful, Amd
+  discards the old map and uses the new one.  Otherwise Amd continues to use
+  the old maps.  This should help a lot with transient NIS problems.
+
+- amq -f now also forces a (safe) map reload, but only if the timestamp on
+  the maps was updated.
+
+- two new selector variables: ${vendor} and ${full_os}, which are the same
+  as the output seen in "amd -v".
+
+- documentation fixes and updates
+
+- updated or minor new ports:
+	i386-unknown-freebsdelf3.3
+
+- support 'ignore' flags (automntfs) in bsdi-4.1
+
+- bugs fixed:
+	expn.pl uses correct sockaddr_in() not, pack()
+	make sure configure --enable-*args take an argument
+	don't busy-loop trying to rebind to ldap servers
+	use vsnprintf, not vsprintf (security)
+
 *** Notes specific to am-utils version 6.0.1:
 
 - updated or minor new ports:

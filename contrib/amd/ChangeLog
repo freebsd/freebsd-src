@@ -1,4 +1,133 @@
+1999-10-13  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0.3s1
+
+1999-10-12  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/amd.c (main): On AIX you must lower the stack size using
+	ulimit() before calling plock.  Otherwise plock will reserve a lot
+	of memory space based on your maximum stack size limit.  Since it
+	is not easily possible to tell what should the limit be, I print a
+	warning before calling plock(). See the manual pages for
+	ulimit(1,3,4) on your AIX system.
+
+	* include/am_defs.h: define default extern for vsnprintf()
+
+	* aux/configure.in: check for extern definition for vsnprintf()
+
+1999-10-08  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/amfs_auto.c (amfs_auto_bgmount): patch from Nick Williams
+	<njw@ms.com>.  SYMPTOMS: 'occasionally' sublinks do not point to
+	the correct location, but to the top level of the mountpoint and
+	an (error-hook) is seen being mounted in the log file. This causes
+	things to Go Wrong(TM).
+	CAUSE: When evaluating two locations which are requested
+	'practically simultaneously', and the two locations resolve to the
+	same NFS mountpoint (but different sublinks), the later request
+	will be "deferred" and retried after wakeup when the first mount
+	succeeds. To do this, it rewinds the options location string to
+	re-evaluate the location when the mount is retried. However, it
+	shouldn't rewind the options for two reasons: (a) the semantics of
+	the map language say you shouldn't and (b) the NFS mount reference
+	is not reset at the same time, meaning that on the retry it will
+	have an options structure out-of-sync with the mount
+	structure. The "shortcut" code when retrying the mount sees the
+	mount structure is already filled in and does not fully evaluate
+	the options structure.... so if the first location is not the one
+	which ties in with the mountpoint (see ordering in the
+	recreate-by), you're now well messed up.
+
+	* BUGS: mention aix4.3 plock() bug (memory usage blows up and
+	plock fails)
+
+1999-10-07  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/GNUmakefile: certain files should be copied if they are
+	newer, not also if they are bigger: install-sh, ltconfig,
+	ltmain.sh, mdate-sh, missing, mkinstalldirs, and texinfo.tex.
+
+	* minor new port: i586-pc-linux-gnu-rh6.1 (RedHat Linux 6.1)
+
+1999-10-05  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/check_nfs_prot_headers.m4: prepare for OSF-5.
+
+	* aux/macros/check_nfs_fh_dref.m4: prepare for Tru64, aka OSF-5.
+
+1999-09-30  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	*******************************************************************
+	*** Released am-utils-6.0.2					***
+	*******************************************************************
+
+1999-09-27  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* conf/mount/mount_linux.c (mount_linux): print the updated mount
+	flags.
+
+	* doc/am-utils.texi: document $full_os and $vendor.
+
+	* scripts/amd.conf-sample: examples of $full_os and $vendor.
+
+	* scripts/amd.conf.5: document $full_os and $vendor.
+
+	* amd/conf.c: add support for $full_os and $vendor.
+
+1999-09-26  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* doc/am-utils.texi (netgrp Selector Function): don't give
+	examples with old single '=' assignment variable.  Use foo:=bar.
+
+	* amd/amfs_auto.c (amfs_auto_bgmount): corectly indent long
+	comment describing this complex function.
+
+	* doc/Makefile.am (alldocs): do install-ps last (because distiller
+	is slow) and install-html next to last (because texi2html is also
+	slow).
+
+	* amd/amd.8: Major fixes to the description of the option -t
+	timeout.retransmit.
+
+	* doc/am-utils.texi: better description of "trace" debug option.
+	amd -H (not -v) shows log_options and debug_options.  Major fixes
+	to the description of amd -t timeout.retransmit, and the amd.conf
+	parameters nfs_retransmit_counter and nfs_retry_interval.
+
+	* scripts/amd.conf.5: better description of "trace" debug option.
+	amd -H (not -v) shows log_options and debug_options.  Major fixes
+	to the description of the parameters nfs_retransmit_counter and
+	nfs_retry_interval.
+
+1999-09-25  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* doc/am-utils.texi (Automount Filesystem): cache:= is not a mount
+	option, but a mount map option.
+
+	* libamu/xutil.c (switch_to_logfile): log the name of the log file
+	we switched into, after the log file had been [re]opened.
+
+1999-09-24  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/mapc.c (mapc_reload_map): count and show the number of times
+	a map was reloaded.  Only reload a map if its modify-time was
+	updated.  But amq -f forced a reload no matter what.
+
+	* amd/amd.h: new flag to struct mnt_map to count number of times a
+	map was reloaded.
+
+	* amd/mapc.c (mapc_reload_map): attempt to reload the map without
+	losing current data by reloading into a temp copy, and switching
+	the hashes round only if the reload was successful.  Patch from Jon
+	Peatfield <J.S.Peatfield@damtp.cam.ac.uk>.
+	(mapc_sync): mapc_reload_map() always succeeds.
+
 1999-09-22  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/info_ldap.c (amu_ldap_rebind): don't busy-loop trying to
+	rebind to an LDAP server forever.  Try up to 10 times.
+
+	* fsinfo/fsi_lex.l (yyerror): rework code that will never happen
 
 	* released snapshot am-utils-6.0.2s2
 
