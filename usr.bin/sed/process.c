@@ -475,7 +475,7 @@ lputs(s)
 			(void)printf("\\\n");
 			count = 0;
 		}
-		if (isascii(*s) && isprint(*s) && *s != '\\') {
+		if (isprint((unsigned char)*s) && *s != '\\') {
 			(void)putchar(*s);
 			count++;
 		} else {
@@ -552,7 +552,7 @@ regsub(sp, string, src)
 	while ((c = *src++) != '\0') {
 		if (c == '&')
 			no = 0;
-		else if (c == '\\' && isdigit(*src))
+		else if (c == '\\' && isdigit((unsigned char)*src))
 			no = *src++ - '0';
 		else
 			no = -1;

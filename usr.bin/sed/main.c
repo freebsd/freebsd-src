@@ -47,9 +47,9 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 
 #include <sys/types.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <regex.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -108,6 +108,8 @@ main(argc, argv)
 	char *argv[];
 {
 	int c, fflag;
+
+	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
 	while ((c = getopt(argc, argv, "ae:f:n")) != EOF)
