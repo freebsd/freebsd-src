@@ -59,8 +59,11 @@ char *
 re_comp(s)
 	char *s;
 {
-	if (s == NULL || *s == '\0')
+	if (s == NULL || *s == '\0') {
+		if (re_regexp == NULL)
+			return "no previous regular expression";
 		return (NULL);
+	}
 	if (re_regexp)
 		free(re_regexp);
 	if (re_errstr)
