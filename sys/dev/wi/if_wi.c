@@ -839,8 +839,6 @@ wi_start(struct ifnet *ifp)
 		WI_UNLOCK(sc);
 		return;
 	}
-	KASSERT((ifp->if_flags & IFF_OACTIVE) == 0,
-		("wi_start: if_flags %x\n", ifp->if_flags));
 
 	memset(&frmhdr, 0, sizeof(frmhdr));
 	cur = sc->sc_txnext;
