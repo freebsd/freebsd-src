@@ -532,7 +532,9 @@ ath_bmiss_proc(void *arg, int pending)
 		 * machine will drop us into scanning after timing
 		 * out waiting for a probe response.
 		 */
+		NET_LOCK_GIANT();
 		ieee80211_new_state(ic, IEEE80211_S_ASSOC, -1);
+		NET_UNLOCK_GIANT();
 	}
 }
 
@@ -1662,6 +1664,8 @@ ath_rx_proc(void *arg, int npending)
 	u_int phyerr;
 	HAL_STATUS status;
 
+	NET_LOCK_GIANT();		/* XXX */
+
 	DPRINTF(ATH_DEBUG_RX_PROC, ("%s: pending %u\n", __func__, npending));
 	do {
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -1815,6 +1819,8 @@ ath_rx_proc(void *arg, int npending)
 
 	ath_hal_rxmonitor(ah);			/* rx signal state monitoring */
 	ath_hal_rxena(ah);			/* in case of RXEOL */
+
+	NET_UNLOCK_GIANT();		/* XXX */
 #undef PA2DESC
 }
 
