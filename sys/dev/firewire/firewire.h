@@ -528,7 +528,7 @@ struct fw_crom_buf {
 };
 #define FWSTMAXCHUNK 16
 /*
- * Firewire specific system requests.
+ * FireWire specific system requests.
  */
 #define	FW_SSTDV	_IOWR('S', 85, unsigned int)
 #define	FW_SSTBUF	_IOWR('S', 86, struct fw_isobufreq)
