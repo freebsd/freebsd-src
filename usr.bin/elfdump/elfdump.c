@@ -164,7 +164,7 @@ int elf64_offsets[] = {
 };
 
 /* http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#tag_encodings */
-const char *
+static const char *
 d_tags(u_int64_t tag) {
 	switch (tag) {
 	case 0: return "DT_NULL";
@@ -238,7 +238,7 @@ d_tags(u_int64_t tag) {
 	}
 };
 
-const char *
+static const char *
 e_machines(u_int mach)
 {
 	switch (mach) {
@@ -256,41 +256,41 @@ e_machines(u_int mach)
 	return "(unknown machine)";
 };
 
-char *e_types[] = {
+const char *e_types[] = {
 	"ET_NONE", "ET_REL", "ET_EXEC", "ET_DYN", "ET_CORE"
 };
 
-char *ei_versions[] = {
+const char *ei_versions[] = {
 	"EV_NONE", "EV_CURRENT"
 };
 
-char *ei_classes[] = {
+const char *ei_classes[] = {
 	"ELFCLASSNONE", "ELFCLASS32", "ELFCLASS64"
 };
 
-char *ei_data[] = {
+const char *ei_data[] = {
 	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
 };
 
-char *ei_abis[] = {
+const char *ei_abis[] = {
 	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
 	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS",
 	"ELFOSABI_MONTEREY", "ELFOSABI_IRIX", "ELFOSABI_FREEBSD",
 	"ELFOSABI_TRU64", "ELFOSABI_MODESTO", "ELFOSABI_OPENBSD"
 };
 
-char *p_types[] = {
+const char *p_types[] = {
 	"PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE",
 	"PT_SHLIB", "PT_PHDR"
 };
 
-char *p_flags[] = {
+const char *p_flags[] = {
 	"", "PF_X", "PF_W", "PF_X|PF_W", "PF_R", "PF_X|PF_R", "PF_W|PF_R",
 	"PF_X|PF_W|PF_R"
 };
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
-const char *
+static const char *
 sh_types(u_int64_t sht) {
 	switch (sht) {
 	case 0:	return "SHT_NULL";
@@ -327,17 +327,17 @@ sh_types(u_int64_t sht) {
 	}
 };
 
-char *sh_flags[] = {
+const char *sh_flags[] = {
 	"", "SHF_WRITE", "SHF_ALLOC", "SHF_WRITE|SHF_ALLOC", "SHF_EXECINSTR",
 	"SHF_WRITE|SHF_EXECINSTR", "SHF_ALLOC|SHF_EXECINSTR",
 	"SHF_WRITE|SHF_ALLOC|SHF_EXECINSTR"
 };
 
-char *st_types[] = {
+const char *st_types[] = {
 	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE"
 };
 
-char *st_bindings[] = {
+const char *st_bindings[] = {
 	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
 };
 
@@ -453,13 +453,13 @@ main(int ac, char **av)
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_quarter(e, e, E_SHNUM);
 	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
-	p = (void *)e + phoff;
-	sh = (void *)e + shoff;
-	offset = elf_get_off(e, sh + shstrndx * shentsize, SH_OFFSET);
+	p = (char *)e + phoff;
+	sh = (char *)e + shoff;
+	offset = elf_get_off(e, (char *)sh + shstrndx * shentsize, SH_OFFSET);
 	shstrtab = (char *)e + offset;
-	for (i = 0; i < shnum; i++) {
-		name = elf_get_word(e, sh + i * shentsize, SH_NAME);
-		offset = elf_get_off(e, sh + i * shentsize, SH_OFFSET);
+	for (i = 0; (u_int64_t)i < shnum; i++) {
+		name = elf_get_word(e, (char *)sh + i * shentsize, SH_NAME);
+		offset = elf_get_off(e, (char *)sh + i * shentsize, SH_OFFSET);
 		if (strcmp(shstrtab + name, ".strtab") == 0)
 			strtab = (char *)e + offset;
 		if (strcmp(shstrtab + name, ".dynstr") == 0)
@@ -471,8 +471,8 @@ main(int ac, char **av)
 		elf_print_phdr(e, p);
 	if (flags & ED_SHDR)
 		elf_print_shdr(e, sh);
-	for (i = 0; i < phnum; i++) {
-		v = p + i * phentsize;
+	for (i = 0; (u_int64_t)i < phnum; i++) {
+		v = (char *)p + i * phentsize;
 		type = elf_get_word(e, v, P_TYPE);
 		switch (type) {
 		case PT_INTERP:
@@ -488,8 +488,8 @@ main(int ac, char **av)
 			break;
 		}
 	}
-	for (i = 0; i < shnum; i++) {
-		v = sh + i * shentsize;
+	for (i = 0; (u_int64_t)i < shnum; i++) {
+		v = (char *)sh + i * shentsize;
 		type = elf_get_word(e, v, SH_TYPE);
 		switch (type) {
 		case SHT_SYMTAB:
@@ -613,8 +613,8 @@ elf_print_phdr(Elf32_Ehdr *e, void *p)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	fprintf(out, "\nprogram header:\n");
-	for (i = 0; i < phnum; i++) {
-		v = p + i * phentsize;
+	for (i = 0; (u_int64_t)i < phnum; i++) {
+		v = (char *)p + i * phentsize;
 		type = elf_get_word(e, v, P_TYPE);
 		offset = elf_get_off(e, v, P_OFFSET);
 		vaddr = elf_get_addr(e, v, P_VADDR);
@@ -647,7 +647,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	u_int64_t addr;
 	u_int64_t offset;
 	u_int64_t size;
-	u_int64_t link;
+	u_int64_t shlink;
 	u_int64_t info;
 	u_int64_t addralign;
 	u_int64_t entsize;
@@ -657,15 +657,15 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_quarter(e, e, E_SHNUM);
 	fprintf(out, "\nsection header:\n");
-	for (i = 0; i < shnum; i++) {
-		v = sh + i * shentsize;
+	for (i = 0; (u_int64_t)i < shnum; i++) {
+		v = (char *)sh + i * shentsize;
 		name = elf_get_word(e, v, SH_NAME);
 		type = elf_get_word(e, v, SH_TYPE);
 		flags = elf_get_word(e, v, SH_FLAGS);
 		addr = elf_get_addr(e, v, SH_ADDR);
 		offset = elf_get_off(e, v, SH_OFFSET);
 		size = elf_get_size(e, v, SH_SIZE);
-		link = elf_get_word(e, v, SH_LINK);
+		shlink = elf_get_word(e, v, SH_LINK);
 		info = elf_get_word(e, v, SH_INFO);
 		addralign = elf_get_size(e, v, SH_ADDRALIGN);
 		entsize = elf_get_size(e, v, SH_ENTSIZE);
@@ -677,7 +677,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		fprintf(out, "\tsh_addr: %#llx\n", addr);
 		fprintf(out, "\tsh_offset: %lld\n", offset);
 		fprintf(out, "\tsh_size: %lld\n", size);
-		fprintf(out, "\tsh_link: %lld\n", link);
+		fprintf(out, "\tsh_link: %lld\n", shlink);
 		fprintf(out, "\tsh_info: %lld\n", info);
 		fprintf(out, "\tsh_addralign: %lld\n", addralign);
 		fprintf(out, "\tsh_entsize: %lld\n", entsize);
@@ -705,7 +705,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 	len = size / entsize;
 	fprintf(out, "\nsymbol table (%s):\n", shstrtab + name);
 	for (i = 0; i < len; i++) {
-		st = (void *)e + offset + i * entsize;
+		st = (char *)e + offset + i * entsize;
 		name = elf_get_word(e, st, ST_NAME);
 		value = elf_get_addr(e, st, ST_VALUE);
 		size = elf_get_size(e, st, ST_SIZE);
@@ -739,8 +739,8 @@ elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
 	fprintf(out, "\ndynamic:\n");
-	for (i = 0; i < size / entsize; i++) {
-		d = (void *)e + offset + i * entsize;
+	for (i = 0; (u_int64_t)i < size / entsize; i++) {
+		d = (char *)e + offset + i * entsize;
 		tag = elf_get_size(e, d, D_TAG);
 		ptr = elf_get_size(e, d, D_PTR);
 		val = elf_get_addr(e, d, D_VAL);
@@ -800,10 +800,10 @@ elf_print_rela(Elf32_Ehdr *e, void *sh)
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
-	v = (void *)e + offset;
+	v = (char *)e + offset;
 	fprintf(out, "\nrelocation with addend (%s):\n", shstrtab + name);
-	for (i = 0; i < size / entsize; i++) {
-		ra = v + i * entsize;
+	for (i = 0; (u_int64_t)i < size / entsize; i++) {
+		ra = (char *)v + i * entsize;
 		offset = elf_get_addr(e, ra, RA_OFFSET);
 		info = elf_get_word(e, ra, RA_INFO);
 		addend = elf_get_off(e, ra, RA_ADDEND);
@@ -831,10 +831,10 @@ elf_print_rel(Elf32_Ehdr *e, void *sh)
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
-	v = e + offset;
+	v = (char *)e + offset;
 	fprintf(out, "\nrelocation (%s):\n", shstrtab + name);
-	for (i = 0; i < size / entsize; i++) {
-		r = v + i * entsize;
+	for (i = 0; (u_int64_t)i < size / entsize; i++) {
+		r = (char *)v + i * entsize;
 		offset = elf_get_addr(e, r, R_OFFSET);
 		info = elf_get_word(e, r, R_INFO);
 		fprintf(out, "\n");
@@ -869,10 +869,10 @@ elf_print_got(Elf32_Ehdr *e, void *sh)
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	addralign = elf_get_size(e, sh, SH_ADDRALIGN);
 	size = elf_get_size(e, sh, SH_SIZE);
-	v = (void *)e + offset;
+	v = (char *)e + offset;
 	fprintf(out, "\nglobal offset table:\n");
-	for (i = 0; i < size / addralign; i++) {
-		addr = elf_get_addr(e, v + i * addralign, 0);
+	for (i = 0; (u_int64_t)i < size / addralign; i++) {
+		addr = elf_get_addr(e, (char *)v + i * addralign, 0);
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\t%#llx\n", addr);
@@ -880,7 +880,7 @@ elf_print_got(Elf32_Ehdr *e, void *sh)
 }
 
 void
-elf_print_hash(Elf32_Ehdr *e, void *sh)
+elf_print_hash(Elf32_Ehdr *e __unused, void *sh __unused)
 {
 }
 
@@ -894,20 +894,19 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	u_int32_t descsz;
 	u_int32_t type;
 	u_int32_t desc;
-	char *s;
-	void *n;
+	char *n, *s;
 
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
-	n = (void *)e + offset;
+	n = (char *)e + offset;
 	fprintf(out, "\nnote (%s):\n", shstrtab + name);
-	while (n < (void *)e + offset + size) {
+ 	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
 		type = elf_get_word(e, n, N_TYPE);
-		s = n + sizeof(Elf_Note);
-		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
+ 		s = n + sizeof(Elf_Note);
+ 		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
 		fprintf(out, "\t%s %d\n", s, desc);
 		n += sizeof(Elf_Note) + namesz + descsz;
 	}
@@ -922,11 +921,11 @@ elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = base + elf32_offsets[member];
+		p = (char *)base + elf32_offsets[member];
 		val = *p;
 		break;
 	case ELFCLASS64:
-		p = base + elf64_offsets[member];
+		p = (char *)base + elf64_offsets[member];
 		val = *p;
 		break;
 	case ELFCLASSNONE:
@@ -945,7 +944,7 @@ elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = base + elf32_offsets[member];
+		p = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 8 | p[1];
@@ -958,7 +957,7 @@ elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 		}
 		break;
 	case ELFCLASS64:
-		p = base + elf64_offsets[member];
+		p = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 8 | p[1];
@@ -986,7 +985,7 @@ elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = base + elf32_offsets[member];
+		p = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 8 | p[1];
@@ -999,7 +998,7 @@ elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 		}
 		break;
 	case ELFCLASS64:
-		p = base + elf64_offsets[member];
+		p = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
@@ -1027,7 +1026,7 @@ elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = base + elf32_offsets[member];
+		p = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
@@ -1040,7 +1039,7 @@ elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 		}
 		break;
 	case ELFCLASS64:
-		p = base + elf64_offsets[member];
+		p = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
@@ -1070,7 +1069,7 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = base + elf32_offsets[member];
+		p = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
@@ -1083,7 +1082,7 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 		}
 		break;
 	case ELFCLASS64:
-		p = base + elf64_offsets[member];
+		p = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
 			high = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
