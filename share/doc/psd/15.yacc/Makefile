@@ -4,6 +4,5 @@
 VOLUME=	psd/15.yacc
 SRCS=	ss.. ss0 ss1 ss2 ss3 ss4 ss5 ss6 ss7 ss8 ss9 ssA ssB ssa ssb ssc ssd
 MACROS=	-ms
-GROFF=	groff
 
 .include <bsd.doc.mk>
