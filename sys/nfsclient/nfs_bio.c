@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.45 1997/12/08 00:59:08 dyson Exp $
+ * $Id: nfs_bio.c,v 1.46 1998/01/06 05:21:38 dyson Exp $
  */
 
 
@@ -76,49 +76,41 @@ int
 nfs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	int i, bsize;
-	vm_object_t obj;
-	int pcount;
-	struct uio auio;
-	struct iovec aiov;
-	int error;
+	int i, pcount, error;
+	struct uio uio;
+	struct iovec iov;
 	vm_page_t m;
+	vm_offset_t kva;
 
 	if ((ap->a_vp->v_object) == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return EOPNOTSUPP;
 	}
 
+	m = ap->a_m[ap->a_reqpage];
+	kva = vm_pager_map_page(m);
+
+	iov.iov_base = (caddr_t) kva;
+	iov.iov_len = PAGE_SIZE;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = IDX_TO_OFF(m->pindex);
+	uio.uio_resid = PAGE_SIZE;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_procp = curproc;
+
+	error = nfs_readrpc(ap->a_vp, &uio, curproc->p_ucred);
+	vm_pager_unmap_page(kva);
+
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
-
-	obj = ap->a_m[ap->a_reqpage]->object;
-	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
-
 	for (i = 0; i < pcount; i++) {
 		if (i != ap->a_reqpage) {
 			vnode_pager_freepage(ap->a_m[i]);
 		}
 	}
-	m = ap->a_m[ap->a_reqpage];
 
-	m->busy++;
-	m->flags &= ~PG_BUSY;
-
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	aiov.iov_base = 0;
-	aiov.iov_len = PAGE_SIZE;
-	auio.uio_resid = PAGE_SIZE;
-	auio.uio_offset = IDX_TO_OFF(m->pindex);
-	auio.uio_segflg = UIO_NOCOPY;
-	auio.uio_rw = UIO_READ;
-	auio.uio_procp = curproc;
-	error = nfs_bioread(ap->a_vp, &auio, IO_NODELOCKED, curproc->p_ucred, 1);
-
-	m->flags |= PG_BUSY;
-	m->busy--;
-
-	if (error && (auio.uio_resid == PAGE_SIZE))
+	if (error && (uio.uio_resid == PAGE_SIZE))
 		return VM_PAGER_ERROR;
 	return 0;
 }
@@ -315,15 +307,15 @@ again:
 			goto again;
 		}
 		if ((bp->b_flags & B_CACHE) == 0) {
-			bp->b_flags |= B_READ;
-			bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
-			not_readin = 0;
-			vfs_busy_pages(bp, 0);
-			error = nfs_doio(bp, cred, p);
-			if (error) {
-			    brelse(bp);
-			    return (error);
-			}
+		    bp->b_flags |= B_READ;
+		    bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
+		    not_readin = 0;
+		    vfs_busy_pages(bp, 0);
+		    error = nfs_doio(bp, cred, p);
+		    if (error) {
+			brelse(bp);
+			return (error);
+		    }
 		}
 		if (bufsize > on) {
 			n = min((unsigned)(bufsize - on), uio->uio_resid);
@@ -358,14 +350,14 @@ again:
 		if (!bp)
 			return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
-			bp->b_flags |= B_READ;
-			vfs_busy_pages(bp, 0);
-			error = nfs_doio(bp, cred, p);
-			if (error) {
-				bp->b_flags |= B_ERROR;
-				brelse(bp);
-				return (error);
-			}
+		    bp->b_flags |= B_READ;
+		    vfs_busy_pages(bp, 0);
+		    error = nfs_doio(bp, cred, p);
+		    if (error) {
+			bp->b_flags |= B_ERROR;
+			brelse(bp);
+			return (error);
+		    }
 		}
 		n = min(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
 		on = 0;
@@ -385,34 +377,30 @@ again:
 		    bp->b_flags |= B_READ;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
-		    if (error) {
-		        vfs_unbusy_pages(bp);
-			brelse(bp);
-			while (error == NFSERR_BAD_COOKIE) {
-			    nfs_invaldir(vp);
-			    error = nfs_vinvalbuf(vp, 0, cred, p, 1);
-			    /*
-			     * Yuck! The directory has been modified on the
-			     * server. The only way to get the block is by
-			     * reading from the beginning to get all the
-			     * offset cookies.
-			     */
-			    for (i = 0; i <= lbn && !error; i++) {
-				if (np->n_direofoffset
-				    && (i * NFS_DIRBLKSIZ) >= np->n_direofoffset)
+		    while (error == NFSERR_BAD_COOKIE) {
+			nfs_invaldir(vp);
+			error = nfs_vinvalbuf(vp, 0, cred, p, 1);
+			/*
+			 * Yuck! The directory has been modified on the
+			 * server. The only way to get the block is by
+			 * reading from the beginning to get all the
+			 * offset cookies.
+			 */
+			for (i = 0; i <= lbn && !error; i++) {
+			    if (np->n_direofoffset
+				&& (i * NFS_DIRBLKSIZ) >= np->n_direofoffset)
 				    return (0);
-				bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, p);
-				if (!bp)
-				    return (EINTR);
-				if ((bp->b_flags & B_DONE) == 0) {
-				    bp->b_flags |= B_READ;
-				    vfs_busy_pages(bp, 0);
-				    error = nfs_doio(bp, cred, p);
-				    if (error) {
-					vfs_unbusy_pages(bp);
-					brelse(bp);
-				    } else if (i < lbn)
-					brelse(bp);
+			    bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, p);
+			    if (!bp)
+				return (EINTR);
+			    if ((bp->b_flags & B_DONE) == 0) {
+				bp->b_flags |= B_READ;
+				vfs_busy_pages(bp, 0);
+				error = nfs_doio(bp, cred, p);
+				if (error) {
+				    brelse(bp);
+				} else if (i < lbn) {
+				    brelse(bp);
 				}
 			    }
 			}
@@ -473,7 +461,7 @@ again:
 	    default:
 		printf(" nfs_bioread: type %x unexpected\n",vp->v_type);
 	    }
- 	    brelse(bp);
+	    brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
 	return (error);
 }
@@ -709,8 +697,11 @@ nfs_getcacheblk(vp, bn, size, p)
 	struct proc *p;
 {
 	register struct buf *bp;
-	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
-	int biosize = vp->v_mount->mnt_stat.f_iosize;
+	struct mount *mp;
+	struct nfsmount *nmp;
+
+	mp = vp->v_mount;
+	nmp = VFSTONFS(mp);
 
 	if (nmp->nm_flag & NFSMNT_INT) {
 		bp = getblk(vp, bn, size, PCATCH, 0);
@@ -722,8 +713,11 @@ nfs_getcacheblk(vp, bn, size, p)
 	} else
 		bp = getblk(vp, bn, size, 0, 0);
 
-	if( vp->v_type == VREG)
+	if( vp->v_type == VREG) {
+		int biosize;
+		biosize = mp->mnt_stat.f_iosize;
 		bp->b_blkno = (bn * biosize) / DEV_BSIZE;
+	}
 
 	return (bp);
 }
@@ -743,6 +737,10 @@ nfs_vinvalbuf(vp, flags, cred, p, intrflg)
 	register struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
+
+	if (vp->v_flag & VXLOCK) {
+		return (0);
+	}
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
@@ -1070,16 +1068,9 @@ nfs_doio(bp, cr, p)
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
 			++numdirtybuffers;
 			bp->b_flags |= B_DELWRI;
-
-		/*
-		 * Since for the B_ASYNC case, nfs_bwrite() has reassigned the
-		 * buffer to the clean list, we have to reassign it back to the
-		 * dirty one. Ugh.
-		 */
-			if (bp->b_flags & B_ASYNC)
-				reassignbuf(bp, vp);
-			else
-				bp->b_flags |= B_EINTR;
+			reassignbuf(bp, vp);
+			if ((bp->b_flags & B_ASYNC) == 0)
+			    bp->b_flags |= B_EINTR;
 	    	} else {
 			if (error) {
 				bp->b_flags |= B_ERROR;
