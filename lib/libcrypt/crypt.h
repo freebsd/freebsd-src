@@ -29,7 +29,6 @@
 
 /* magic sizes */
 #define MD5_SIZE 16
-#define SHS_SIZE 20
 
 char *crypt_des(const char *pw, const char *salt);
 char *crypt_md5(const char *pw, const char *salt);

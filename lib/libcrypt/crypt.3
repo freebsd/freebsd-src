@@ -43,6 +43,10 @@
 .Fd #include <unistd.h>
 .Ft char *
 .Fn crypt "const char *key" "const char *salt"
+.Ft const char *
+.Fn crypt_get_format "void"
+.Ft int
+.Fn crypt_set_format "const char *string"
 .Sh DESCRIPTION
 The
 .Fn crypt
@@ -58,10 +62,12 @@ Currently these include the
 .Tn NBS
 .Tn Data Encryption Standard (DES) , and
 .Tn MD5 .
-The algorithm used will depend upon the format of the Salt--following
-the Modular Crypt Format (MCF)--and if
+The algorithm used will depend upon the format of the Salt (following
+the Modular Crypt Format (MCF)), if
 .Tn DES
-is installed or not.
+is installed or not, and whether
+.Fn crypt_set_format
+has been called to change the default.
 .Pp
 The first argument to
 .Nm
@@ -176,10 +182,15 @@ Other crypt formats may be easilly added.  An example salt would be:
 .Ss "Traditional" crypt:
 .Pp
 The algorithm used will depend upon whether
+.Fn crypt_set_format
+has been called and whether
 .Tn DES
-is installed or not.  If it is,
+is installed or not.  If
 .Tn DES
-will be used.  Otherwise, the best algorithm is used, which is currently
+is installed and
+.Fn crypt_set_format
+has not set the format to something else, it will be used.
+Otherwise, the best algorithm is used, which is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
@@ -187,6 +198,23 @@ MD5.
 .Pp
 How the salt is used will depend upon the algorithm for the hash.  For
 best results, specify at least two characters of salt.
+.Pp
+The
+.Fn crypt_get_format
+function returns a constant string that represents the name of the
+algorithm currently used.
+Valid values are
+.\"
+.\" NOTICE: Also make sure to update this, too, as well
+.\"
+.Ql des
+and
+.Ql md5 .
+.Pp
+The
+.Fn crypt_set_format
+function sets the default encoding format according to the supplied
+.Fa string .
 .Sh RETURN VALUES
 .Pp
 .Fn crypt
@@ -194,6 +222,10 @@ returns a pointer to the encrypted value on success, and NULL on failure.
 Note: this is not a standard behaviour, AT&T
 .Fn crypt
 will always return a pointer to a string.
+.Pp
+.Fn crypt_set_format
+will return 1 if the supplied encoding format was valid.
+Otherwise, a value of 0 is returned.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
@@ -205,7 +237,9 @@ The
 .Fn crypt
 function returns a pointer to static data, and subsequent calls to
 .Fn crypt
-will modify the same data.
+will modify the same data.  Likewise,
+.Fn crypt_set_format
+modifies static data.
 .Sh HISTORY
 A rotor-based
 .Fn crypt
@@ -229,6 +263,7 @@ Originally written by
 .An David Burren Aq davidb@werj.com.au ,
 later additions and changes by
 .An Poul-henning Kamp ,
-.An Mark R V Murray
-and
+.An Mark R V Murray ,
 .An Kris Kennaway .
+and
+.An Brian Feldman .

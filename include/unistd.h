@@ -121,6 +121,8 @@ char	*brk __P((const char *));
 int	 chroot __P((const char *));
 size_t	 confstr __P((int, char *, size_t));
 char	*crypt __P((const char *, const char *));
+const char *crypt_get_format __P((void));
+int	 crypt_set_format __P((const char *));
 int	 des_cipher __P((const char *, char *, long, int));
 int	 des_setkey __P((const char *key));
 int	 encrypt __P((char *, int));

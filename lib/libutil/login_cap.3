@@ -34,7 +34,8 @@
 .Nm login_getclassbyname ,
 .Nm login_getpwclass ,
 .Nm login_getstyle ,
-.Nm login_getuserclass
+.Nm login_getuserclass ,
+.Nm login_setcryptfmt
 .Nd functions for accessing the login class capabilities database.
 .Sh LIBRARY
 .Lb libutil
@@ -67,6 +68,8 @@
 .Fn login_getcapbool "login_cap_t *lc" "const char *cap" "int def"
 .Ft char *
 .Fn login_getstyle "login_cap_t *lc" "char *style" "const char *auth"
+.Ft const char *
+.Fn login_setcryptfmt "login_cap_t *lc" "const char *def" "const char *error"
 .Sh DESCRIPTION
 These functions represent a programming interface to the login
 classes database provided in
@@ -393,8 +396,25 @@ the authentication method used for access to the system via the
 network, and standard methods via direct dialup or console
 logins, significantly reducing the risk of password discovery
 by "snooping" network packets.
+.It Fn login_setcryptfmt
+The
+.Fn login_setcryptfmt
+function is used to set the
+.Xr crypt 3
+format using the
+.Ql passwd_format
+configuration entry.
+If no entry is found,
+.Fa def
+is taken to be used as the fallback.
+If calling
+.Xr crypt_set_format 3
+on the specifier fails,
+.Fa error
+is returned to indicate this.
 .El
 .Sh SEE ALSO
+.Xr crypt 3 ,
 .Xr getcap 3 ,
 .Xr login_class 3 ,
 .Xr login.conf 5 ,

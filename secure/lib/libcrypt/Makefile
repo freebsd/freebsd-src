@@ -21,6 +21,7 @@ STATICSRCS=	md5c.c
 STATICOBJS=	${STATICSRCS:S/.c/.o/g}
 SRCS+=		crypt-des.c
 MAN3=		crypt.3
+MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../../../lib/libmd
 CFLAGS+=	-I${.CURDIR}/../../../lib/libcrypt
 CFLAGS+=	-DNONEXPORTABLE_CRYPT
