@@ -18,7 +18,7 @@ WFORMAT?=	0
 
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
 		${LIBCRYPT} ${LIBPAM}
-LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+LDADD+=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
 		-lcrypt ${MINUSLPAM}
 
 .include <bsd.prog.mk>

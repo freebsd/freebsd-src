@@ -13,7 +13,7 @@ WARNS?=		2
 
 DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
 		${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
-LDADD=		-ltermcap ${LIBTELNET} -lmp \
+LDADD+=		-ltermcap ${LIBTELNET} -lmp \
 		-lcrypto -lcrypt -lipsec ${MINUSLPAM}
 
 .include <bsd.prog.mk>
