@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.112 1995/12/07 12:45:27 davidg Exp $
+ *	$Id: conf.c,v 1.113 1995/12/08 11:13:18 julian Exp $
  */
 
 #include <sys/param.h>
@@ -62,16 +62,15 @@
 #define NUMCDEV 96
 #define NUMBDEV 32
 
-struct bdevsw	bdevsw[NUMBDEV];
+struct bdevsw	*bdevsw[NUMBDEV];
 int	nblkdev = NUMBDEV;
-struct cdevsw	cdevsw[NUMCDEV];
+struct cdevsw	*cdevsw[NUMCDEV];
 int	nchrdev = NUMCDEV;
 
 /*
  * The routines below are total "BULLSHIT" and will be trashed
  * When I have 'proved' the JREMOD changes above..
  */
-#ifndef NEW_STUFF_JRE
 
 /*
  * Swapdev is a fake device implemented
@@ -155,6 +154,8 @@ isdisk(dev, type)
 	/* NOTREACHED */
 }
 
+#ifndef NEW_STUFF_JRE
+
 /*
  * Routine to convert from character to block device number.
  *
@@ -198,10 +199,8 @@ getmajorbyname(name)
 }
 
 
-static struct cdevsw *getcdevbyname __P((const char *name));
-static struct cdevsw *
-getcdevbyname(name)
-	const char *name;
+static struct cdevsw **
+getcdevbyname(char *name)
 {
 	int maj;
 
@@ -209,112 +208,8 @@ getcdevbyname(name)
 	return (maj < 0 ? NULL : &cdevsw[maj]);
 }
 
-int
-register_cdev(name, cdp)
-	const char *name;
-	const struct cdevsw *cdp;
-{
-	struct cdevsw *dst_cdp;
-
-	dst_cdp = getcdevbyname(name);
-	if (dst_cdp == NULL)
-		return (ENXIO);
-	if ((dst_cdp->d_open != nxopen) && (dst_cdp->d_open != NULL))
-		return (EBUSY);
-	*dst_cdp = *cdp;
-	return (0);
-}
-
-static struct cdevsw nxcdevsw = {
-	nxopen,		nxclose,	nxread,		nxwrite,
-	nxioctl,	nxstop,		nxreset,	nxdevtotty,
-	nxselect,	nxmmap,		NULL,
-};
-
-int
-unregister_cdev(name, cdp)
-	const char *name;
-	const struct cdevsw *cdp;
-{
-	struct cdevsw *dst_cdp;
-
-	dst_cdp = getcdevbyname(name);
-	if (dst_cdp == NULL)
-		return (ENXIO);
-	if (dst_cdp->d_open != cdp->d_open)
-		return (EBUSY);
-	*dst_cdp = nxcdevsw;
-	return (0);
-}
 #else	/* NEW_STUFF_JRE *//*===============================================*/
 
-dev_t	swapdev = makedev(1, 0);
-
-/*
- * Routine that identifies /dev/mem and /dev/kmem.
- *
- * A minimal stub routine can always return 0.
- */
-int
-iskmemdev(dev)
-	dev_t dev;
-{
-
-	return (major(dev) == 2 && (minor(dev) == 0 || minor(dev) == 1));
-}
-
-int
-iszerodev(dev)
-	dev_t dev;
-{
-	return (major(dev) == 2 && minor(dev) == 12);
-}
-
-/*
- * Routine to determine if a device is a disk.
- *
- * A minimal stub routine can always return 0.
- * XXX will look in the FLAGS (eventually)
- */
-int
-isdisk(dev, type)
-	dev_t dev;
-	int type;
-{
-
-	switch (major(dev)) {
-	case 15:		/* VBLK: vn, VCHR: cd */
-		return (1);
-	case 0:			/* wd */
-	case 2:			/* fd */
-	case 4:			/* sd */
-	case 6:			/* cd */
-	case 7:			/* mcd */
-	case 16:		/* scd */
-	case 17:		/* matcd */
-	case 18:		/* ata */
-	case 19:		/* wcd */
-	case 20:		/* od */
-		if (type == VBLK)
-			return (1);
-		return (0);
-	case 3:			/* wd */
-	case 9:			/* fd */
-	case 13:		/* sd */
-	case 29:		/* mcd */
-	case 43:		/* vn */
-	case 45:		/* scd */
-	case 46:		/* matcd */
-	case 69:		/* wcd */
-	case 70:		/* od */
-		if (type == VCHR)
-			return (1);
-		/* fall through */
-	default:
-		return (0);
-	}
-	/* NOTREACHED */
-}
 
 /*
  * Routine to convert from character to block device number.
@@ -322,13 +217,12 @@ isdisk(dev, type)
  * A minimal stub routine can always return NODEV.
  */
 dev_t
-chrtoblk(dev)
-	dev_t dev;
+chrtoblk(dev_t dev)
 {
 	int blkmaj;
 	struct bdevsw *bd;
 
-        bd = cdevsw[major(dev)].d_bdev;
+        bd = cdevsw[major(dev)]->d_bdev;
 	if ( bd ) 
 	  return(makedev(bd->d_maj,minor(dev)));
 	else
@@ -337,15 +231,14 @@ chrtoblk(dev)
 
 /* Only checks cdevs */
 int
-getmajorbyname(name)
-	const char *name;
+getmajorbyname(const char *name)
 {
 	struct cdevsw *cd;
 	int maj;
 	char *dname;
 
 	for( maj = 0; maj <nchrdev ; maj++) {
-		if ( dname = cdevsw[maj].d_name) {
+		if ( dname = cdevsw[maj]->d_name) {
 			if ( strcmp(name, dname) == 0 ) {
 				return maj;
 			}
@@ -356,38 +249,40 @@ getmajorbyname(name)
 
 
 /* utterly pointless with devfs */
-static struct cdevsw *
-getcdevbyname(name)
-	const char *name;
+static struct cdevsw **
+getcdevbyname(const char *name)
 {
 	struct cdevsw *cd;
 	int maj;
 	char *dname;
 
 	for( maj = 0; maj <nchrdev ; maj++) {
-		if ( dname = cdevsw[maj].d_name) {
+		if ( dname = cdevsw[maj]->d_name) {
 			if ( strcmp(name, dname) == 0 ) {
-				return &(cdevsw[maj]);
+				return &cdevsw[maj];
 			}
 		}
 	}
 	return NULL;
 }
+#endif /* NEW_STUFF_JRE */
 
-/* Zap these as soon as we find out who calls them */
+/* Zap these as soon as we find out who calls them  , and "why?"*/
 int
 register_cdev(name, cdp)
 	const char *name;
 	const struct cdevsw *cdp;
 {
-	struct cdevsw *dst_cdp;
+	struct cdevsw **dst_cdp;
 
 	dst_cdp = getcdevbyname(name);
 	if (dst_cdp == NULL)
 		return (ENXIO);
-	if ((dst_cdp->d_open != nxopen) && (dst_cdp->d_open != NULL))
+	if ((*dst_cdp != NULL)
+	   && ((*dst_cdp)->d_open != nxopen)
+	   && ((*dst_cdp)->d_open != NULL))
 		return (EBUSY);
-	*dst_cdp = *cdp;
+	*dst_cdp = cdp;
 	return (0);
 }
 
@@ -402,14 +297,13 @@ unregister_cdev(name, cdp)
 	const char *name;
 	const struct cdevsw *cdp;
 {
-	struct cdevsw *dst_cdp;
+	struct cdevsw **dst_cdp;
 
 	dst_cdp = getcdevbyname(name);
 	if (dst_cdp == NULL)
 		return (ENXIO);
-	if (dst_cdp->d_open != cdp->d_open)
+	if ((*dst_cdp)->d_open != cdp->d_open)
 		return (EBUSY);
-	*dst_cdp = nxcdevsw;
+	*dst_cdp = &nxcdevsw;
 	return (0);
 }
-#endif /* NEW_STIFF_JRE */

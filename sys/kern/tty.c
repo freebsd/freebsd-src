@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.71 1995/10/31 19:27:50 bde Exp $
+ * $Id: tty.c,v 1.72 1995/12/07 12:46:57 davidg Exp $
  */
 
 /*-
@@ -426,7 +426,7 @@ parmrk:
 #ifdef sun4c						/* XXX */
 					(*tp->t_stop)(tp, 0);
 #else
-					(*cdevsw[major(tp->t_dev)].d_stop)(tp,
+					(*cdevsw[major(tp->t_dev)]->d_stop)(tp,
 					   0);
 #endif
 					return (0);
@@ -965,7 +965,7 @@ ttioctl(tp, cmd, data, flag)
 #ifdef sun4c				/* XXX */
 			(*tp->t_stop)(tp, 0);
 #else
-			(*cdevsw[major(tp->t_dev)].d_stop)(tp, 0);
+			(*cdevsw[major(tp->t_dev)]->d_stop)(tp, 0);
 #endif
 		}
 		splx(s);
@@ -1066,7 +1066,7 @@ ttselect(dev, rw, p)
 	int rw;
 	struct proc *p;
 {
-	return ttyselect((*cdevsw[major(dev)].d_devtotty)(dev), rw, p);
+	return ttyselect((*cdevsw[major(dev)]->d_devtotty)(dev), rw, p);
 }
 
 /*
@@ -1154,7 +1154,7 @@ again:
 #ifdef sun4c						/* XXX */
 	(*tp->t_stop)(tp, rw);
 #else
-	(*cdevsw[major(tp->t_dev)].d_stop)(tp, rw);
+	(*cdevsw[major(tp->t_dev)]->d_stop)(tp, rw);
 #endif
 	if (rw & FREAD) {
 		FLUSHQ(&tp->t_canq);
@@ -1321,7 +1321,7 @@ ttymodem(tp, flag)
 #ifdef sun4c						/* XXX */
 			(*tp->t_stop)(tp, 0);
 #else
-			(*cdevsw[major(tp->t_dev)].d_stop)(tp, 0);
+			(*cdevsw[major(tp->t_dev)]->d_stop)(tp, 0);
 #endif
 		}
 	} else if (flag == 0) {

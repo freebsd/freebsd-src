@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.156 1995/12/09 20:39:47 phk Exp $
+ *	$Id: machdep.c,v 1.157 1995/12/10 13:36:26 phk Exp $
  */
 
 #include "npx.h"
@@ -973,7 +973,7 @@ dumpsys()
 	dumpsize = Maxmem;
 	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);
 	printf("dump ");
-	switch ((*bdevsw[major(dumpdev)].d_dump)(dumpdev)) {
+	switch ((*bdevsw[major(dumpdev)]->d_dump)(dumpdev)) {
 
 	case ENXIO:
 		printf("device bad\n");

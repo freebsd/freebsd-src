@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.23 1995/12/11 04:56:41 dyson Exp $
+ * $Id: spec_vnops.c,v 1.24 1995/12/11 09:24:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ spec_open(ap)
 	case VCHR:
 		if ((u_int)maj >= nchrdev)
 			return (ENXIO);
-		if ( cdevsw[maj].d_open == NULL)
+		if ( (cdevsw[maj] == NULL) || (cdevsw[maj]->d_open == NULL))
 			return ENXIO;
 		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
 			/*
@@ -185,14 +185,14 @@ spec_open(ap)
 			}
 		}
 		VOP_UNLOCK(vp);
-		error = (*cdevsw[maj].d_open)(dev, ap->a_mode, S_IFCHR, ap->a_p);
+		error = (*cdevsw[maj]->d_open)(dev, ap->a_mode, S_IFCHR, ap->a_p);
 		VOP_LOCK(vp);
 		return (error);
 
 	case VBLK:
 		if ((u_int)maj >= nblkdev)
 			return (ENXIO);
-		if ( bdevsw[maj].d_open == NULL)
+		if ( (bdevsw[maj] == NULL) || (bdevsw[maj]->d_open == NULL))
 			return ENXIO;
 		/*
 		 * When running in very secure mode, do not allow
@@ -208,7 +208,7 @@ spec_open(ap)
 		error = vfs_mountedon(vp);
 		if (error)
 			return (error);
-		return ((*bdevsw[maj].d_open)(dev, ap->a_mode, S_IFBLK, ap->a_p));
+		return ((*bdevsw[maj]->d_open)(dev, ap->a_mode, S_IFBLK, ap->a_p));
 	default:
 		break;
 	}
@@ -253,7 +253,7 @@ spec_read(ap)
 
 	case VCHR:
 		VOP_UNLOCK(vp);
-		error = (*cdevsw[major(vp->v_rdev)].d_read)
+		error = (*cdevsw[major(vp->v_rdev)]->d_read)
 			(vp->v_rdev, uio, ap->a_ioflag);
 		VOP_LOCK(vp);
 		return (error);
@@ -264,7 +264,7 @@ spec_read(ap)
 		bsize = BLKDEV_IOSIZE;
 		dev = vp->v_rdev;
 		if ((majordev = major(dev)) < nblkdev &&
-		    (ioctl = bdevsw[majordev].d_ioctl) != NULL &&
+		    (ioctl = bdevsw[majordev]->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -331,7 +331,7 @@ spec_write(ap)
 
 	case VCHR:
 		VOP_UNLOCK(vp);
-		error = (*cdevsw[major(vp->v_rdev)].d_write)
+		error = (*cdevsw[major(vp->v_rdev)]->d_write)
 			(vp->v_rdev, uio, ap->a_ioflag);
 		VOP_LOCK(vp);
 		return (error);
@@ -342,7 +342,7 @@ spec_write(ap)
 		if (uio->uio_offset < 0)
 			return (EINVAL);
 		bsize = BLKDEV_IOSIZE;
-		if ((*bdevsw[major(vp->v_rdev)].d_ioctl)(vp->v_rdev, DIOCGPART,
+		if ((*bdevsw[major(vp->v_rdev)]->d_ioctl)(vp->v_rdev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
 			if (dpart.part->p_fstype == FS_BSDFFS &&
 			    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -398,16 +398,16 @@ spec_ioctl(ap)
 	switch (ap->a_vp->v_type) {
 
 	case VCHR:
-		return ((*cdevsw[major(dev)].d_ioctl)(dev, ap->a_command, ap->a_data,
+		return ((*cdevsw[major(dev)]->d_ioctl)(dev, ap->a_command, ap->a_data,
 		    ap->a_fflag, ap->a_p));
 
 	case VBLK:
 		if (ap->a_command == 0 && (int)ap->a_data == B_TAPE)
-			if (bdevsw[major(dev)].d_flags & B_TAPE)
+			if (bdevsw[major(dev)]->d_flags & B_TAPE)
 				return (0);
 			else
 				return (1);
-		return ((*bdevsw[major(dev)].d_ioctl)(dev, ap->a_command, ap->a_data,
+		return ((*bdevsw[major(dev)]->d_ioctl)(dev, ap->a_command, ap->a_data,
 		   ap->a_fflag, ap->a_p));
 
 	default:
@@ -436,7 +436,7 @@ spec_select(ap)
 
 	case VCHR:
 		dev = ap->a_vp->v_rdev;
-		return (*cdevsw[major(dev)].d_select)(dev, ap->a_which, ap->a_p);
+		return (*cdevsw[major(dev)]->d_select)(dev, ap->a_which, ap->a_p);
 	}
 }
 /*
@@ -503,7 +503,7 @@ spec_strategy(ap)
 	} */ *ap;
 {
 
-	(*bdevsw[major(ap->a_bp->b_dev)].d_strategy)(ap->a_bp);
+	(*bdevsw[major(ap->a_bp->b_dev)]->d_strategy)(ap->a_bp);
 	return (0);
 }
 
@@ -600,7 +600,7 @@ spec_close(ap)
 		 */
 		if (vcount(vp) > 1 && (vp->v_flag & VXLOCK) == 0)
 			return (0);
-		devclose = cdevsw[major(dev)].d_close;
+		devclose = cdevsw[major(dev)]->d_close;
 		mode = S_IFCHR;
 		break;
 
@@ -624,7 +624,7 @@ spec_close(ap)
 		 */
 		if (vcount(vp) > 1 && (vp->v_flag & VXLOCK) == 0)
 			return (0);
-		devclose = bdevsw[major(dev)].d_close;
+		devclose = bdevsw[major(dev)]->d_close;
 		mode = S_IFBLK;
 		break;
 
@@ -862,7 +862,7 @@ spec_getattr(ap)
 	else if (vp->v_type == VCHR)
 		vap->va_blocksize = MAXBSIZE;
 
-	if ((*bdevsw[major(vp->v_rdev)].d_ioctl)(vp->v_rdev, DIOCGPART,
+	if ((*bdevsw[major(vp->v_rdev)]->d_ioctl)(vp->v_rdev, DIOCGPART,
 	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
 		vap->va_bytes = (u_quad_t) dpart.disklab->d_partitions[minor(vp->v_rdev)].p_size * DEV_BSIZE;
 		vap->va_size = vap->va_bytes;

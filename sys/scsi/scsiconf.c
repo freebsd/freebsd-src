@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.38 1995/11/21 15:14:28 bde Exp $
+ *      $Id: scsiconf.c,v 1.39 1995/12/10 10:58:25 julian Exp $
  */
 
 #include <sys/types.h>
@@ -1198,7 +1198,7 @@ scsi_dev_lookup(d_open)
 	dev_t d = NODEV;
 
 	for (i = 0; i < nchrdev; i++)
-		if (cdevsw[i].d_open == d_open)
+		if (cdevsw[i]->d_open == d_open)
 		{
 			d = makedev(i, 0);
 			break;

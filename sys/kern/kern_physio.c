@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.14 1995/12/02 18:58:48 bde Exp $
+ * $Id: kern_physio.c,v 1.15 1995/12/07 12:46:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -174,14 +174,14 @@ minphys(struct buf *bp)
 int
 rawread(dev_t dev, struct uio *uio, int ioflag)
 {
-	return (physio(cdevsw[major(dev)].d_strategy, (struct buf *)NULL,
+	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
 	    dev, 1, minphys, uio));
 }
 
 int
 rawwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-	return (physio(cdevsw[major(dev)].d_strategy, (struct buf *)NULL,
+	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
 	    dev, 0, minphys, uio));
 }
 
