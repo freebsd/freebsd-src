@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.22 1998/12/30 05:07:24 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.25 1999/03/23 03:28:11 grog Exp grog $
  */
 
 #define STATIC static
@@ -54,11 +54,6 @@
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-
-extern jmp_buf command_fail;				    /* return on a failed command */
-
-/* Why aren't these declared anywhere? XXX */
-void longjmp(jmp_buf, int);
 
 #define MAXTOKEN 64					    /* maximum number of tokens in a line */
 
@@ -110,7 +105,7 @@ throw_rude_remark(int error, char *msg,...)
     &&(!(vinum_conf.flags & VF_READING_CONFIG))) {	    /* and not reading from disk: return msg */
 	/*
 	 * We can't just format to ioctl_reply, since it
-	 * may contain our input parameters 
+	 * may contain our input parameters
 	 */
 	text = Malloc(MSG_MAX);
 	if (text == NULL) {
@@ -145,7 +140,7 @@ throw_rude_remark(int error, char *msg,...)
      * configuration, which implies tidying up, but
      * if we find an error while tidying up, we could
      * recurse for ever.  Use this kludge to only try
-     * once 
+     * once
      */
     was_finishing = finishing;
     finishing = 1;
@@ -175,7 +170,7 @@ atoi(char *s)
 
 /*
  * Find index of volume in vinum_conf.  Return the index
- * if found, or -1 if not 
+ * if found, or -1 if not
  */
 int 
 volume_index(struct volume *vol)
@@ -190,7 +185,7 @@ volume_index(struct volume *vol)
 
 /*
  * Find index of plex in vinum_conf.  Return the index
- * if found, or -1 if not 
+ * if found, or -1 if not
  */
 int 
 plex_index(struct plex *plex)
@@ -205,7 +200,7 @@ plex_index(struct plex *plex)
 
 /*
  * Find index of subdisk in vinum_conf.  Return the index
- * if found, or -1 if not 
+ * if found, or -1 if not
  */
 int 
 sd_index(struct sd *sd)
@@ -220,7 +215,7 @@ sd_index(struct sd *sd)
 
 /*
  * Find index of drive in vinum_conf.  Return the index
- * if found, or -1 if not 
+ * if found, or -1 if not
  */
 int 
 drive_index(struct drive *drive)
@@ -235,7 +230,7 @@ drive_index(struct drive *drive)
 
 /*
  * Check a volume to see if the plex is already assigned to it.
- * Return index in volume->plex, or -1 if not assigned 
+ * Return index in volume->plex, or -1 if not assigned
  */
 int 
 my_plex(int volno, int plexno)
@@ -252,7 +247,7 @@ my_plex(int volno, int plexno)
 
 /*
  * Check a plex to see if the subdisk is already assigned to it.
- * Return index in plex->sd, or -1 if not assigned 
+ * Return index in plex->sd, or -1 if not assigned
  */
 int 
 my_sd(int plexno, int sdno)
@@ -270,7 +265,7 @@ my_sd(int plexno, int sdno)
 /*
  * Check that this operation is being done from the config
  * saved on disk.
- * longjmp out if not.  op is the name of the operation. 
+ * longjmp out if not.  op is the name of the operation.
  */
 void 
 checkdiskconfig(char *op)
@@ -289,7 +284,7 @@ give_plex_to_volume(int volno, int plexno)
      * It's not an error for the plex to already
      * belong to the volume, but we need to check a
      * number of things to make sure it's done right.
-     * Some day. 
+     * Some day.
      */
     if (my_plex(volno, plexno) >= 0)
 	return plexno;					    /* that's it */
@@ -310,7 +305,7 @@ give_plex_to_volume(int volno, int plexno)
 }
 
 /*
- * Add subdisk to a plex if possible 
+ * Add subdisk to a plex if possible
  */
 int 
 give_sd_to_plex(int plexno, int sdno)
@@ -323,7 +318,7 @@ give_sd_to_plex(int plexno, int sdno)
      * It's not an error for the sd to already
      * belong to the plex, but we need to check a
      * number of things to make sure it's done right.
-     * Some day. 
+     * Some day.
      */
     i = my_sd(plexno, sdno);
     if (i >= 0)						    /* does it already belong to us? */
@@ -355,10 +350,9 @@ give_sd_to_plex(int plexno, int sdno)
 	EXPAND(plex->sdnos, int, plex->subdisks_allocated, INITIAL_SUBDISKS_IN_PLEX);
 
     /* Adjust size of plex and volume. */
-    if (plex->organization == plex_raid5) {
+    if (plex->organization == plex_raid5)
 	plex->length = (plex->subdisks - 1) * sd->sectors;  /* size is one disk short */
-	sd->state = sd_empty;				    /* and it needs to be initialized */
-    } else
+    else
 	plex->length += sd->sectors;			    /* plex gets this much bigger */
     if (plex->volno >= 0)				    /* we have a volume */
 	VOL[plex->volno].size = max(VOL[plex->volno].size, plex->length); /* adjust its size */
@@ -367,7 +361,7 @@ give_sd_to_plex(int plexno, int sdno)
      * We need to check that the subdisks don't overlap,
      * but we can't do that until a point where we *must*
      * know the size of all the subdisks.  That's not
-     * here.  But we need to sort them by offset 
+     * here.  But we need to sort them by offset
      */
     for (i = 0; i < plex->subdisks - 1; i++) {
 	if (sd->plexoffset < SD[plex->sdnos[i]].plexoffset) { /* it fits before this one */
@@ -384,7 +378,7 @@ give_sd_to_plex(int plexno, int sdno)
 
     /*
      * The plex doesn't have any subdisk with a larger
-     * offset.  Insert it 
+     * offset.  Insert it
      */
     plex->sdnos[i] = sdno;
     sd->plexsdno = i;					    /* note where we are in the subdisk */
@@ -394,7 +388,7 @@ give_sd_to_plex(int plexno, int sdno)
 /*
  * Add a subdisk to drive if possible.  The pointer to the drive
  * must already be stored in the sd structure, but the drive
- * doesn't know about the subdisk yet.  
+ * doesn't know about the subdisk yet.
  */
 static void 
 give_sd_to_drive(int sdno)
@@ -461,13 +455,13 @@ give_sd_to_drive(int sdno)
 	if (sd->driveoffset < 0)
 	    /*
 	     * Didn't find anything.  Although the drive has
-	     * enough space, it's too fragmented 
+	     * enough space, it's too fragmented
 	     */
 	    throw_rude_remark(ENOSPC, "No space for %s on %s", sd->name, drive->label.name);
     } else {						    /* specific offset */
 	/*
 	 * For a specific offset to work, the space must be
-	 * entirely in a single freelist entry.  Look for it. 
+	 * entirely in a single freelist entry.  Look for it.
 	 */
 	u_int64_t sdend = sd->driveoffset + sd->sectors;    /* end of our subdisk */
 	for (fe = 0; fe < drive->freelist_entries; fe++) {
@@ -594,7 +588,7 @@ find_drive(const char *name, int create)
 /*
  * Find a drive given its device name.
  * devname must be valid.
- * Otherwise the same as find_drive above 
+ * Otherwise the same as find_drive above
  */
 int 
 find_drive_by_dev(const char *devname, int create)
@@ -712,7 +706,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 	    fe++);
 	/*
 	 * Now we are pointing to the last entry, the first
-	 * with a higher offset than the subdisk, or both. 
+	 * with a higher offset than the subdisk, or both.
 	 */
 	if ((fe > 1)					    /* not the first entry */
 &&((fe == drive->freelist_entries)			    /* gone past the end */
@@ -868,7 +862,7 @@ find_plex(const char *name, int create)
 
 /*
  * Free an allocated plex entry
- * and its associated memory areas 
+ * and its associated memory areas
  */
 void 
 free_plex(int plexno)
@@ -946,7 +940,7 @@ find_volume(const char *name, int create)
 
 /*
  * Free an allocated volume entry
- * and its associated memory areas 
+ * and its associated memory areas
  */
 void 
 free_volume(int volno)
@@ -984,7 +978,7 @@ config_drive(int update)
     if (drive->state != drive_referenced) {		    /* we already know this drive */
 	/*
 	 * XXX Check which definition is more up-to-date.  Give
-	 * preference for the definition on its own drive 
+	 * preference for the definition on its own drive
 	 */
 	return;						    /* XXX */
     }
@@ -1047,7 +1041,7 @@ config_drive(int update)
 	    /*
 	     * read_drive_label overwrites the device name.
 	     * If we get here, we can have the drive,
-	     * so put it back again 
+	     * so put it back again
 	     */
 	    bcopy(token[parameter],
 		drive->devicename,
@@ -1090,8 +1084,9 @@ config_subdisk(int update)
     u_int64_t size;
     int detached = 0;					    /* set to 1 if this is a detached subdisk */
     int sdindex = -1;					    /* index in plexes subdisk table */
-    int namedsdno;
     enum sdstate state = sd_unallocated;		    /* state to set, if specified */
+    int autosize = 0;					    /* set if we autosize in give_sd_to_drive */
+    int namedsdno;					    /* index of another with this name */
 
     sdno = get_empty_sd();				    /* allocate an SD to initialize */
     sd = &SD[sdno];					    /* and get a pointer */
@@ -1099,6 +1094,42 @@ config_subdisk(int update)
 
     for (parameter = 1; parameter < tokens; parameter++) {  /* look at the other tokens */
 	switch (get_keyword(token[parameter], &keyword_set)) {
+	    /*
+	     * If we have a 'name' parameter, it must
+	     * come first, because we're too lazy to tidy
+	     * up dangling refs if it comes later.
+	     */
+	case kw_name:
+	    namedsdno = find_subdisk(token[++parameter], 0); /* find an existing sd with this name */
+	    if (namedsdno >= 0) {			    /* got one */
+		if (SD[namedsdno].state == sd_referenced) { /* we've been told about this one */
+		    if (parameter > 2)
+			throw_rude_remark(EINVAL,
+			    "sd %s: name parameter must come first\n", /* no go */
+			    token[parameter]);
+		    else {
+			int i;
+			struct plex *plex;		    /* for tidying up dangling references */
+
+			*sd = SD[namedsdno];		    /* copy from the referenced one */
+			SD[namedsdno].state = sd_unallocated; /* and deallocate the referenced one */
+			plex = &PLEX[sd->plexno];	    /* now take a look at our plex */
+			for (i = 0; i < plex->subdisks; i++) { /* look for the pointer */
+			    if (plex->sdnos[i] == namedsdno) /* pointing to the old subdisk */
+				plex->sdnos[i] = sdno;	    /* bend it to point here */
+			}
+		    }
+		}
+		if (update)				    /* are we updating? */
+		    return;				    /* that's OK, nothing more to do */
+		else
+		    throw_rude_remark(EINVAL, "Duplicate subdisk %s", token[parameter]);
+	    } else
+		bcopy(token[parameter],
+		    sd->name,
+		    min(sizeof(sd->name), strlen(token[parameter])));
+	    break;
+
 	case kw_detached:
 	    detached = 1;
 	    break;
@@ -1125,19 +1156,6 @@ config_subdisk(int update)
 		sd->driveoffset = size / DEV_BSIZE;
 	    break;
 
-	case kw_name:
-	    namedsdno = find_subdisk(token[++parameter], 0); /* find an existing sd with this name */
-	    if (namedsdno >= 0) {			    /* got one */
-		if (update)				    /* are we updating? */
-		    return;				    /* that's OK, nothing more to do */
-		else
-		    throw_rude_remark(EINVAL, "Duplicate subdisk %s", token[parameter]);
-	    }
-	    bcopy(token[parameter],
-		sd->name,
-		min(sizeof(sd->name), strlen(token[parameter])));
-	    break;
-
 	case kw_len:
 	    if (get_keyword(token[++parameter], &keyword_set) == kw_max) /* select maximum size from drive */
 		size = 0;				    /* this is how we say it :-) */
@@ -1147,6 +1165,16 @@ config_subdisk(int update)
 		throw_rude_remark(EINVAL, "sd %s, length %d not multiple of sector size", sd->name, size);
 	    else
 		sd->sectors = size / DEV_BSIZE;
+	    /*
+	     * We have a problem with autosizing: we need to
+	     * give the drive to the plex before we give it
+	     * to the drive, in order to be clean if we give
+	     * up in the middle, but at this time the size hasn't
+	     * been set.  Note that we have to fix up after
+	     * giving the subdisk to the drive.
+	     */
+	    if (size == 0)
+		autosize = 1;				    /* note that we're autosizing */
 	    break;
 
 	case kw_drive:
@@ -1159,7 +1187,7 @@ config_subdisk(int update)
 
 	    /*
 	     * Set the state.  We can't do this directly,
-	     * because give_sd_to_plex may change it 
+	     * because give_sd_to_plex may change it
 	     */
 	case kw_state:
 	    checkdiskconfig(token[++parameter]);	    /* must be reading from disk */
@@ -1177,6 +1205,14 @@ config_subdisk(int update)
 	if (sd->driveno < 0)				    /* no current drive? */
 	    throw_rude_remark(EINVAL, "Subdisk %s is not associated with a drive", sd->name);
     }
+    /*
+     * This is tacky.  If something goes wrong
+     * with the checks, we may end up losing drive
+     * space.  FIXME.
+     */
+    if (autosize != 0)					    /* need to find a size, */
+	give_sd_to_drive(sdno);				    /* do it before the plex */
+
     /*  Check for a plex name */
     if ((sd->plexno < 0)				    /* didn't specify a plex */
     &&(!detached))					    /* and didn't say not to, */
@@ -1206,15 +1242,9 @@ config_subdisk(int update)
     if (state != sd_unallocated)			    /* we had a specific state to set */
 	sd->state = state;				    /* do it now */
     else if (sd->state == sd_unallocated)		    /* no, nothing set yet, */
-	sd->state = sd_up;				    /* must be up */
-
-    /*
-     * register the subdisk with the drive.  This action
-     * will have the side effect of setting the offset if
-     * we haven't specified one, and causing an error
-     * message if it overlaps with another subdisk. 
-     */
-    give_sd_to_drive(sdno);
+	sd->state = sd_empty;				    /* must be empty */
+    if (autosize == 0)					    /* no autoconfig, do the drive now */
+	give_sd_to_drive(sdno);
 }
 
 /*
@@ -1229,6 +1259,7 @@ config_plex(int update)
     int pindex = MAXPLEX;				    /* index in volume's plex list */
     int detached = 0;					    /* don't give it to a volume */
     int namedplexno;
+    enum plexstate state = plex_init;			    /* state to set at end */
 
     current_plex = -1;					    /* forget the previous plex */
     plexno = get_empty_plex();				    /* allocate a plex */
@@ -1237,21 +1268,45 @@ config_plex(int update)
 
     for (parameter = 1; parameter < tokens; parameter++) {  /* look at the other tokens */
 	switch (get_keyword(token[parameter], &keyword_set)) {
-	case kw_detached:
-	    detached = 1;
-	    break;
-
+	    /*
+	     * If we have a 'name' parameter, it must
+	     * come first, because we're too lazy to tidy
+	     * up dangling refs if it comes later.
+	     */
 	case kw_name:
 	    namedplexno = find_plex(token[++parameter], 0); /* find an existing plex with this name */
 	    if (namedplexno >= 0) {			    /* plex exists already, */
+		if (PLEX[namedplexno].state == plex_referenced) { /* we've been told about this one */
+		    if (parameter > 2)			    /* we've done other things first, */
+			throw_rude_remark(EINVAL,
+			    "plex %s: name parameter must come first\n", /* no go */
+			    token[parameter]);
+		    else {
+			int i;
+			struct volume *vol;		    /* for tidying up dangling references */
+
+			*plex = PLEX[namedplexno];	    /* get the info */
+			PLEX[namedplexno].state = plex_unallocated; /* and deallocate the other one */
+			vol = &VOL[plex->volno];	    /* point to the volume */
+			for (i = 0; i < MAXPLEX; i++) {	    /* for each plex */
+			    if (vol->plex[i] == namedplexno)
+				vol->plex[i] = plexno;	    /* bend the pointer */
+			}
+		    }
+		    break;				    /* use this one */
+		}
 		if (update)				    /* are we updating? */
 		    return;				    /* yes: that's OK, just return */
 		else
 		    throw_rude_remark(EINVAL, "Duplicate plex %s", token[parameter]);
-	    }
-	    bcopy(token[parameter],			    /* put in the name */
-		plex->name,
-		min(MAXPLEXNAME, strlen(token[parameter])));
+	    } else
+		bcopy(token[parameter],			    /* put in the name */
+		    plex->name,
+		    min(MAXPLEXNAME, strlen(token[parameter])));
+	    break;
+
+	case kw_detached:
+	    detached = 1;
 	    break;
 
 	case kw_org:					    /* plex organization */
@@ -1313,7 +1368,7 @@ config_plex(int update)
 
 	case kw_state:
 	    checkdiskconfig(token[++parameter]);	    /* must be a kernel user */
-	    plex->state = PlexState(token[parameter]);	    /* set the state */
+	    state = PlexState(token[parameter]);	    /* set the state */
 	    break;
 
 	default:
@@ -1344,8 +1399,7 @@ config_plex(int update)
     }
     /* Note the last plex we configured */
     current_plex = plexno;
-    if (plex->state == plex_unallocated)		    /* we haven't changed the state, */
-	plex->state = plex_init;			    /* we're initialized now */
+    plex->state = state;				    /* set whatever state we chose */
 }
 
 /*
@@ -1373,12 +1427,13 @@ config_volume(int update)
 	case kw_plex:
 	    {
 		int plexno;				    /* index of this plex */
+		int myplexno;				    /* and index if it's already ours */
 
 		plexno = find_plex(token[++parameter], 1);  /* find a plex */
 		if (plexno < 0)				    /* couldn't */
 		    break;				    /* we've already had an error message */
-		plexno = my_plex(volno, plexno);	    /* does it already belong to us? */
-		if (plexno > 0)				    /* yes, shouldn't get it again */
+		myplexno = my_plex(volno, plexno);	    /* does it already belong to us? */
+		if (myplexno > 0)			    /* yes, shouldn't get it again */
 		    throw_rude_remark(EINVAL,
 			"Plex %s already belongs to volume %s",
 			token[parameter],
@@ -1388,6 +1443,8 @@ config_volume(int update)
 			"Too many plexes for volume %s",
 			vol->name);
 		vol->plex[vol->plexes - 1] = plexno;
+		PLEX[plexno].state = plex_referenced;	    /* we know something about it */
+		PLEX[plexno].volno = volno;		    /* and this volume references it */
 	    }
 	    break;
 
@@ -1432,7 +1489,7 @@ config_volume(int update)
 	    /*
 	     * XXX experimental ideas.  These are not
 	     * documented, and will not be until I
-	     * decide they're worth keeping 
+	     * decide they're worth keeping
 	     */
 	case kw_writethrough:				    /* set writethrough mode */
 	    vol->flags |= VF_WRITETHROUGH;
@@ -1461,7 +1518,7 @@ config_volume(int update)
      * a volume label.  We could start to fake one here,
      * but it will be a lot easier when we have some
      * to copy from the drives, so defer it until we
-     * set up the configuration. XXX 
+     * set up the configuration. XXX
      */
     if (vol->state == volume_unallocated)
 	vol->state = volume_down;			    /* now ready to bring up at the end */
@@ -1530,7 +1587,7 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
  * ioctl, so we need to set a global static pointer in
  * this file.  This technique works because we have
  * ensured that configuration is performed in a single-
- * threaded manner 
+ * threaded manner
  */
 int 
 parse_user_config(char *cptr, struct keywordset *keyset)
@@ -1646,11 +1703,11 @@ remove_sd_entry(int sdno, int force, int recurse)
 	     * removing a subdisk from a striped or
 	     * RAID-5 plex really tears the hell out
 	     * of the structure, and it needs to be
-	     * reinitialized 
+	     * reinitialized
 	     */
 	    /*
 	     * XXX Think about this.  Maybe we should just
-	     * leave a hole 
+	     * leave a hole
 	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
@@ -1700,7 +1757,7 @@ remove_plex_entry(int plexno, int force, int recurse)
 	 * does not lose any data, which is normally the
 	 * case when it has more than one plex.  To do it
 	 * right we must compare the completeness of the
-	 * mapping of all the plexes in the volume 
+	 * mapping of all the plexes in the volume
 	 */
 	if (force) {					    /* do it at any cost */
 	    struct volume *vol = &VOL[plex->volno];
@@ -1778,8 +1835,9 @@ update_plex_config(int plexno, int diskconfig)
     int required_sds;					    /* number of subdisks we need */
     struct sd *sd;
     struct volume *vol;
+    int data_sds;					    /* number of sds carrying data, for RAID-5 */
 
-    if (plex->state < plex_faulty)			    /* not a real plex, */
+    if (plex->state < plex_init)			    /* not a real plex, */
 	return;
     added_plex = 0;
     if (plex->volno >= 0) {				    /* we have a volume */
@@ -1795,13 +1853,16 @@ update_plex_config(int plexno, int diskconfig)
      * Check that our subdisks make sense.  For
      * striped and RAID5 plexes, we need at least
      * two subdisks, and they must all be the same
-     * size 
+     * size
      */
-    if (plex->organization == plex_striped)
+
+    if (plex->organization == plex_striped) {
+	data_sds = plex->subdisks;
 	required_sds = 2;
-    else if (plex->organization == plex_raid5)
+    } else if (plex->organization == plex_raid5) {
+	data_sds = plex->subdisks - 1;
 	required_sds = 3;
-    else
+    } else
 	required_sds = 0;
     if (required_sds > 0) {				    /* striped or RAID-5 */
 	if (plex->subdisks < required_sds) {
@@ -1816,13 +1877,13 @@ update_plex_config(int plexno, int diskconfig)
 	 * the stripe size.  If not, trim off the end
 	 * of each subdisk and return it to the drive.
 	 */
-	remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * plex->subdisks)); /* are we exact? */
+	remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * data_sds)); /* are we exact? */
 	if (remainder) {				    /* no */
 	    log(LOG_INFO, "vinum: removing %d blocks of partial stripe at the end of %s\n",
 		remainder,
 		plex->name);
 	    plex->length -= remainder;			    /* shorten the plex */
-	    remainder /= plex->subdisks;		    /* spread the remainder amongst the sds */
+	    remainder /= data_sds;			    /* spread the remainder amongst the sds */
 	    for (sdno = 0; sdno < plex->subdisks; sdno++) {
 		sd = &SD[plex->sdnos[sdno]];		    /* point to the subdisk */
 		return_drive_space(sd->driveno,		    /* return the space */
@@ -1850,7 +1911,7 @@ update_plex_config(int plexno, int diskconfig)
     if (plex->subdisks) {				    /* plex has subdisks, calculate size */
 	/*
 	 * XXX We shouldn't need to calculate the size any
-	 * more.  Check this some time 
+	 * more.  Check this some time
 	 */
 	if (plex->organization == plex_raid5)
 	    size = size / plex->subdisks * (plex->subdisks - 1); /* less space for RAID-5 */
@@ -1861,8 +1922,10 @@ update_plex_config(int plexno, int diskconfig)
 	plex->length = 0;				    /* no size */
 	state = plex_down;				    /* take it down */
     }
-    if (!diskconfig)
-	set_plex_state(plexno, state, setstate_none | setstate_configuring);
+    if (diskconfig)
+	sdstatemap(plex);				    /* set the sddowncount */
+    else
+	set_plex_state(plexno, state, setstate_none | setstate_configuring); /* set all the state */
     plex->flags &= ~VF_NEWBORN;
 }
 
@@ -1919,7 +1982,7 @@ updateconfig(int diskconfig)
 /*
  * Start manual changes to the configuration and lock out
  * others who may wish to do so.
- * XXX why do we need this and lock_config too? 
+ * XXX why do we need this and lock_config too?
  */
 int 
 start_config(int force)
@@ -1936,7 +1999,7 @@ start_config(int force)
      * tells other processes to hold off (this
      * function), and VF_CONFIG_INCOMPLETE
      * tells the state change routines not to
-     * propagate incrememntal state changes 
+     * propagate incrememntal state changes
      */
     vinum_conf.flags |= VF_CONFIGURING | VF_CONFIG_INCOMPLETE;
     if (force)
