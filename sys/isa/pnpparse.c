@@ -96,8 +96,10 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				break;
 		    
 			case PNP_TAG_IRQ_FORMAT:
+				if (!I16(resinfo))
+					break;
 				if (bootverbose) {
-					printf("%s: adding irq mask %#04x\n",
+					printf("%s: adding irq mask %#02x\n",
 					       pnp_eisaformat(id),
 					       I16(resinfo));
 				}
