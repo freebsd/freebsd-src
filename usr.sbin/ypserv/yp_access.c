@@ -36,10 +36,13 @@
 #include <rpcsvc/yp.h>
 #include <rpcsvc/yppasswd.h>
 #include <sys/types.h>
+#include <limits.h>
+#include <db.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include <sys/fcntl.h>
 #include <paths.h>
 #include <errno.h>
 #include <sys/param.h>
@@ -49,7 +52,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.5 1996/02/26 02:34:23 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.1 1996/04/13 07:27:13 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -116,12 +119,10 @@ void load_securenets()
 	 * the list; free the existing list before re-reading the
 	 * securenets file.
 	 */
-	if (securenets != NULL) {
-		while(securenets) {
-			tmp = securenets->next;
-			free(securenets);
-			securenets = tmp;
-		}
+	while(securenets) {
+		tmp = securenets->next;
+		free(securenets);
+		securenets = tmp;
 	}
 
 	snprintf(path, MAXPATHLEN, "%s/securenets", yp_dir);
@@ -188,19 +189,19 @@ void load_securenets()
  *
  * - The client's IP address is checked against the securenets rules.
  *   There are two kinds of securenets support: the built-in support,
- *   which is very simple and depends on the presense of a
+ *   which is very simple and depends on the presence of a
  *   /var/yp/securenets file, and tcp-wrapper support, which requires
  *   Wietse Venema's libwrap.a and tcpd.h. (Since the tcp-wrapper
  *   package does not ship with FreeBSD, we use the built-in support
- *   by default. Users can recompile the server the tcp-wrapper library
+ *   by default. Users can recompile the server with the tcp-wrapper library
  *   if they already have it installed and want to use hosts.allow and
- *   hosts.deny to control access instead od having a seperate securenets
+ *   hosts.deny to control access instead of having a seperate securenets
  *   file.)
  *
  *   If no /var/yp/securenets file is present, the host access checks
  *   are bypassed and all hosts are allowed to connect.
  *
- * The yp_validdomain() functions checks the domain specified by the caller
+ * The yp_validdomain() function checks the domain specified by the caller
  * to make sure it's actually served by this server. This is more a sanity
  * check than an a security check, but this seems to be the best place for
  * it.
@@ -285,6 +286,7 @@ int yp_validdomain(domain)
 
 	if (stat(dompath, &statbuf) < 0 || !S_ISDIR(statbuf.st_mode))
 		return(1);
+
 
 	return(0);
 }

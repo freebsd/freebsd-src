@@ -45,12 +45,18 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.5 1996/03/01 03:28:31 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.5 1996/04/26 04:35:53 wpaul Exp wpaul $";
 #endif /* not lint */
 
 int forked = 0;
 int children = 0;
 DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
+char *master_string = "YP_MASTER_NAME";
+char *order_string = "YP_LAST_MODIFIED";
+
+#define YP_ALL_TIMEOUT 10
+
+static int yp_all_timed_out = 0;
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -123,17 +129,11 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_validdomain(argp->domain)) {
-		result.stat = YP_NODOM;
-		return(&result);
-	}
-
 	key.size = argp->key.keydat_len;
 	key.data = argp->key.keydat_val;
 
-	result.stat = yp_get_record(argp->domain, argp->map, &key, &data, 0);
-
-	if (result.stat == YP_TRUE) {
+	if ((result.stat = yp_get_record(argp->domain, argp->map,
+						&key, &data, 1)) == YP_TRUE) {
 		result.val.valdat_len = data.size;
 		result.val.valdat_val = data.data;
 	}
@@ -212,28 +212,27 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_validdomain(argp->domain)) {
-		result.stat = YP_NODOM;
-		return(&result);
-	}
-
+#ifdef DB_CACHE
+	if ((dbp = yp_open_db_cache(argp->domain, argp->map, NULL, 0)) == NULL) {
+#else
 	if ((dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
+#endif
 		result.stat = yp_errno;
 		return(&result);
 	}
 
 	key.data = NULL;
 	key.size = 0;
-	result.stat = yp_first_record(dbp, &key, &data);
-	(void)(dbp->close)(dbp);
 
-	if (result.stat == YP_TRUE) {
+	if ((result.stat = yp_first_record(dbp, &key, &data, 0)) == YP_TRUE) {
 		result.key.keydat_len = key.size;
 		result.key.keydat_val = key.data;
 		result.val.valdat_len = data.size;
 		result.val.valdat_val = data.data;
 	}
-
+#ifndef DB_CACHE
+	(void)(dbp->close)(dbp);
+#endif
 	return (&result);
 }
 
@@ -246,7 +245,7 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 
 	result.val.valdat_val = result.key.keydat_val = "";
 	result.val.valdat_len = result.key.keydat_len = 0;
-	
+
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
 		return (&result);
@@ -257,12 +256,13 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_validdomain(argp->domain)) {
-		result.stat = YP_NODOM;
-		return(&result);
-	}
-
+#ifdef DB_CACHE
+	if ((dbp = yp_open_db_cache(argp->domain, argp->map, 
+					argp->key.keydat_val,
+					argp->key.keydat_len)) == NULL) {
+#else
 	if ((dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
+#endif
 		result.stat = yp_errno;
 		return(&result);
 	}
@@ -270,16 +270,15 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	key.size = argp->key.keydat_len;
 	key.data = argp->key.keydat_val;
 
-	result.stat = yp_next_record(dbp, &key, &data, 0);
-	(void)(dbp->close)(dbp);
-
-	if (result.stat == YP_TRUE) {
+	if ((result.stat = yp_next_record(dbp, &key, &data,0,0)) == YP_TRUE) {
 		result.key.keydat_len = key.size;
 		result.key.keydat_val = key.data;
 		result.val.valdat_len = data.size;
 		result.val.valdat_val = data.data;
 	}
-
+#ifndef DB_CACHE
+	(void)(dbp->close)(dbp);
+#endif
 	return (&result);
 }
 
@@ -324,6 +323,14 @@ callback handle"));
 	return;
 }
 
+#define YPXFR_RETURN(CODE) 						\
+	/* Order is important: send regular RPC reply, then callback */	\
+	result.xfrstat = CODE; 						\
+	svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result); \
+	ypxfr_callback(CODE,rqhost,argp->transid, 			\
+					argp->prog,argp->port); 	\
+	return(NULL);
+
 ypresp_xfr *
 ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 {
@@ -334,28 +341,15 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
 	if (yp_access(argp->map_parms.map, (struct svc_req *)rqstp)) {
-		/* Order is important: send regular RPC reply, then callback */
-		result.xfrstat = YPXFR_REFUSED;
-		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
-		ypxfr_callback(YPXFR_REFUSED,rqhost,argp->transid,
-			       argp->prog,argp->port);
-		return(NULL);
+		YPXFR_RETURN(YPXFR_REFUSED);
 	}
 
 	if (argp->map_parms.domain == NULL) {
-		result.xfrstat = YPXFR_BADARGS;
-		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
-		ypxfr_callback(YPXFR_BADARGS,rqhost,argp->transid,
-			       argp->prog,argp->port);
-		return(NULL);
+		YPXFR_RETURN(YPXFR_BADARGS);
 	}
 
 	if (yp_validdomain(argp->map_parms.domain)) {
-		result.xfrstat = YPXFR_NODOM;
-		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
-		ypxfr_callback(YPXFR_NODOM,rqhost,argp->transid,
-			       argp->prog,argp->port);
-		return(NULL);
+		YPXFR_RETURN(YPXFR_NODOM);
 	}
 
 	switch(fork()) {
@@ -388,21 +382,13 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		      	NULL);
 		}
 		forked++;
-		result.xfrstat = YPXFR_XFRERR;
-		yp_error("ypxfr execl(): %s", strerror(errno));
-		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
-		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
-			       argp->prog,argp->port);
-		return(NULL);
+		yp_error("ypxfr execl(%s): %s", ypxfr_command, strerror(errno));
+		YPXFR_RETURN(YPXFR_XFRERR);
 		break;
 	}
 	case -1:
 		yp_error("ypxfr fork(): %s", strerror(errno));
-		result.xfrstat = YPXFR_XFRERR;
-		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
-		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
-			       argp->prog,argp->port);
-		return(NULL);
+		YPXFR_RETURN(YPXFR_XFRERR);
 		break;
 	default:
 		result.xfrstat = YPXFR_SUCC;
@@ -413,6 +399,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 
 	return (&result);
 }
+#undef YPXFR_RETURN
 
 void *
 ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
@@ -420,14 +407,12 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 	static char * result;
 	static char rval = 0;
 
-	/*
-	 * We don't have to do anything for ypproc_clear. Unlike
-	 * the SunOS ypserv, we don't hold our database descriptors
-	 * open forever.
-	 */
 	if (yp_access(NULL, (struct svc_req *)rqstp))
 		return (NULL);
-
+#ifdef DB_CACHE
+	/* clear out the database cache */
+	yp_flush_all();
+#endif
 	/* Re-read the securenets database for the hell of it. */
 	load_securenets();
 
@@ -456,15 +441,12 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 static bool_t
 xdr_my_ypresp_all(register XDR *xdrs, ypresp_all *objp)
 {
-	DBT key, data;
+	DBT key = { NULL, 0 } , data = { NULL, 0 };
 
 	while (1) {
 		/* Get a record. */
-		key.size = objp->ypresp_all_u.val.key.keydat_len;
-		key.data = objp->ypresp_all_u.val.key.keydat_val;
-
 		if ((objp->ypresp_all_u.val.stat =
-		    yp_next_record(spec_dbp,&key,&data,1)) == YP_TRUE) {
+	    		yp_next_record(spec_dbp,&key,&data,1,0)) == YP_TRUE) {
 			objp->ypresp_all_u.val.val.valdat_len = data.size;
 			objp->ypresp_all_u.val.val.valdat_val = data.data;
 			objp->ypresp_all_u.val.key.keydat_len = key.size;
@@ -506,18 +488,12 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 
-	if (yp_validdomain(argp->domain)) {
-		result.ypresp_all_u.val.stat = YP_NODOM;
-		return(&result);
-	}
-
 	/*
 	 * The ypproc_all procedure can take a while to complete.
 	 * Best to handle it in a subprocess so the parent doesn't
-	 * block. We fork() here so we don't end up sharing a
-	 * DB file handle with the parent.
+	 * block. (Is there a better way to do this? Maybe with
+	 * async socket I/O?)
 	 */
-
 	if (!debug && children < MAX_CHILDREN && fork()) {
 		children++;
 		forked = 0;
@@ -526,17 +502,24 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		forked++;
 	}
 
+#ifndef DB_CACHE
 	if ((spec_dbp = yp_open_db(argp->domain, argp->map)) == NULL) {
 		result.ypresp_all_u.val.stat = yp_errno;
 		return(&result);
 	}
+#else
+	if ((spec_dbp = yp_open_db_cache(argp->domain, argp->map, NULL, 0)) == NULL) {
+		result.ypresp_all_u.val.stat = yp_errno;
+		return(&result);
+	}
+#endif
 
 	/* Kick off the actual data transfer. */
 	svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all, (char *)&result);
 
-	/* Close database when done. */
+#ifndef DB_CACHE
 	(void)(spec_dbp->close)(spec_dbp);
-
+#endif
 	/*
 	 * Returning NULL prevents the dispatcher from calling
 	 * svc_sendreply() since we already did it.
@@ -548,7 +531,8 @@ ypresp_master *
 ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
-	DBT key,data;
+	static char ypvalbuf[YPMAXRECORD];
+	DBT key, data;
 
 	result.peer = "";
 
@@ -561,20 +545,23 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		result.stat = YP_BADARGS;
 		return (&result);
 	}
-		
-	if (yp_validdomain(argp->domain)) {
-		result.stat = YP_NODOM;
-		return (&result);
-	}
 
-	key.data = "YP_MASTER_NAME";
-	key.size = sizeof("YP_MASTER_NAME") - 1;
+	key.data = master_string;
+	key.size = strlen(master_string);
 
-	result.stat = yp_get_record(argp->domain, argp->map, &key, &data, 1);
-
-	if (result.stat == YP_TRUE) {
-		result.peer = (char *)data.data;
-		result.peer[data.size] = '\0';
+	/*
+	 * Note that we copy the data retrieved from the database to
+	 * a private buffer and NUL terminate the buffer rather than
+	 * terminating the data in place. We do this because by stuffing
+	 * a '\0' into data.data, we will actually be corrupting memory
+	 * allocated by the DB package. This is a bad thing now that we
+	 * cache DB handles rather than closing the database immediately.
+	 */
+	if ((result.stat = yp_get_record(argp->domain, argp->map,
+						&key, &data, 1)) == YP_TRUE) {
+		bcopy((char *)data.data, (char *)&ypvalbuf, data.size);
+		ypvalbuf[data.size] = '\0';
+		result.peer = (char *)&ypvalbuf;
 	} else
 		result.peer = "";
 
@@ -599,26 +586,22 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 		return (&result);
 	}
 		
-	if (yp_validdomain(argp->domain)) {
-		result.stat = YP_NODOM;
-		return (&result);
-	}
-
 	/*
 	 * We could just check the timestamp on the map file,
 	 * but that's a hack: we'll only know the last time the file
 	 * was touched, not the last time the database contents were
 	 * updated.
 	 */
-	key.data = "YP_LAST_MODIFIED";
-	key.size = sizeof("YP_LAST_MODIFIED") - 1;
 
-	result.stat = yp_get_record(argp->domain, argp->map, &key, &data, 1);
+	key.data = order_string;
+	key.size = strlen(order_string);
 
-	if (result.stat == YP_TRUE)
+	if ((result.stat = yp_get_record(argp->domain, argp->map,
+						&key, &data, 1)) == YP_TRUE)
 		result.ordernum = atoi((char *)data.data);
 	else
 		result.ordernum = 0;
+
 
 	return (&result);
 }
@@ -689,9 +672,7 @@ static struct ypmaplist *yp_maplist_create(domain)
 ypresp_maplist *
 ypproc_maplist_2_svc(domainname *argp, struct svc_req *rqstp)
 {
-	static ypresp_maplist  result;
-
-	result.maps = NULL;
+	static ypresp_maplist  result = { 0, NULL };
 
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
