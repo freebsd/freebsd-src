@@ -143,14 +143,16 @@ _http_new_chunk(struct cookie *c)
 	    c->chunksize = c->chunksize * 16 + 10 + tolower(*p) - 'a';
     
 #ifndef NDEBUG
-    c->total += c->chunksize;
-    if (c->chunksize == 0)
-	fprintf(stderr, "\033[1m_http_fillbuf(): "
-		"end of last chunk\033[m\n");
-    else
-	fprintf(stderr, "\033[1m_http_fillbuf(): "
-		"new chunk: %lu (%lu)\033[m\n",
-		(unsigned long)c->chunksize, (unsigned long)c->total);
+    if (fetchDebug) {
+	c->total += c->chunksize;
+	if (c->chunksize == 0)
+	    fprintf(stderr, "\033[1m_http_fillbuf(): "
+		    "end of last chunk\033[m\n");
+	else
+	    fprintf(stderr, "\033[1m_http_fillbuf(): "
+		    "new chunk: %lu (%lu)\033[m\n",
+		    (unsigned long)c->chunksize, (unsigned long)c->total);
+    }
 #endif
     
     return c->chunksize;
