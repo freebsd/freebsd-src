@@ -323,7 +323,7 @@ This can be achieved during setup of the external storage,
 by passing the
 .Dv M_RDONLY
 bit as a
-.Ar flags
+.Fa flags
 argument to the
 .Fn MEXTADD
 macro, or can be directly set in individual mbufs.
@@ -337,21 +337,24 @@ A function version of
 for non-critical paths.
 .It Fn m_getm orig len how type
 Allocate
-.Ar len
+.Fa len
 bytes worth of mbufs and mbuf clusters if necessary and append the resulting
 allocated chain to the
-.Ar orig
-mbuf chain, if it is non-NULL.
+.Fa orig
+mbuf chain, if it is
+.No non- Ns Dv NULL .
 If the allocation fails at any point,
-free whatever was allocated and return NULL.
+free whatever was allocated and return
+.Dv NULL .
 If
-.Ar orig
-is non-NULL,
+.Fa orig
+is
+.No non- Ns Dv NULL ,
 it will not be freed.
 It is possible to use
 .Fn m_getm
 to either append
-.Ar len
+.Fa len
 bytes to an existing mbuf or mbuf chain
 (for example, one which may be sitting in a pre-allocated ring)
 or to simply perform an all-or-nothing mbuf and mbuf cluster allocation.
