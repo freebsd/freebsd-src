@@ -344,11 +344,16 @@ at_scrub( ifp, aa )
     struct at_ifaddr	*aa;
 {
     int			error;
+    struct at_addr addr;
+    struct at_addr mask;
 
     if ( aa->aa_flags & AFA_ROUTE ) {
 	if (ifp->if_flags & IFF_LOOPBACK) {
-		if ((error = rtinit( &aa->aa_ifa, RTM_DELETE, RTF_HOST)) != 0)
-	    	return( error );
+		if (error = aa_delsingleroute(&aa->aa_ifa,
+					&aa->aa_addr.sat_addr,
+					&aa->aa_netmask.sat_addr)) {
+	    		return( error );
+		}
 	} else if (ifp->if_flags & IFF_POINTOPOINT) {
 		if ((error = rtinit( &aa->aa_ifa, RTM_DELETE, RTF_HOST)) != 0)
 	    		return( error );
@@ -463,6 +468,7 @@ at_ifinit( ifp, aa, sat )
 		    aa->aa_addr = oldaddr;
 		    aa->aa_firstnet = onr.nr_firstnet;
 		    aa->aa_lastnet = onr.nr_lastnet;
+		    splx(s);
 		    return( EINVAL );
 		}
 		/*
@@ -516,7 +522,6 @@ at_ifinit( ifp, aa, sat )
 		 * though why wait 200mSec?
 		 */
 		timeout( (timeout_func_t)aarpprobe, (caddr_t)ifp, hz / 5 );
-		splx( s );
 		if ( tsleep( aa, PPAUSE|PCATCH, "at_ifinit", 0 )) {
 		    /*
 		     * theoretically we shouldn't time out here
@@ -526,6 +531,7 @@ at_ifinit( ifp, aa, sat )
 		    aa->aa_addr = oldaddr;
 		    aa->aa_firstnet = onr.nr_firstnet;
 		    aa->aa_lastnet = onr.nr_lastnet;
+		    splx( s ); 
 		    return( EINTR );
 		}
 
@@ -535,7 +541,6 @@ at_ifinit( ifp, aa, sat )
 		 * a free spot, or if we need to iterate to the next 
 		 * address to try.
 		 */
-		s = splimp();
 		if (( aa->aa_flags & AFA_PROBING ) == 0 ) {
 		    break;
 		}
@@ -627,7 +632,7 @@ at_ifinit( ifp, aa, sat )
 	rtaddr.s_net = AA_SAT( aa )->sat_addr.s_net;
 	rtaddr.s_node = AA_SAT( aa )->sat_addr.s_node;
 	rtmask.s_net = 0xffff;
-	rtmask.s_node = 0x0;
+	rtmask.s_node = 0x0; /* XXX should not be so.. should be HOST route */
 	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
     }
 
