@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.3 1995/10/28 12:35:09 peter Exp $
+ *	$Id: blank_saver.c,v 1.4 1995/11/13 07:18:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,10 +37,10 @@
 #include <sys/errno.h>
 #include <saver.h>
 
-MOD_MISC("blank_saver")
+MOD_MISC(blank_saver);
 
-void (*current_saver)();
-void (*old_saver)();
+void (*current_saver)(int blank);
+void (*old_saver)(int blank);
 
 static void
 blank_saver(int blank)
@@ -58,6 +58,7 @@ blank_saver(int blank)
 	}
 }
 
+static int
 blank_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -67,6 +68,7 @@ blank_saver_load(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+static int
 blank_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -75,6 +77,7 @@ blank_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+int
 blank_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, blank_saver_load, blank_saver_unload,

@@ -164,10 +164,8 @@ putw (struct pcic_slot *sp, int reg, unsigned short word)
  *	This defines the lkm_misc module use by modload
  *	to define the module name.
  */
- MOD_MISC( "pcic")
+MOD_MISC(pcic);
 
-
-static int pcic_unload();
 /*
  *	Module handler that processes loads and unloads.
  *	Once the module is loaded, the probe routine

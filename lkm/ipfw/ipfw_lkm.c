@@ -21,8 +21,6 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
@@ -38,8 +36,9 @@
 #include <netinet/ip.h>
 #include <netinet/ip_fw.h>
 
-MOD_MISC("ipfw_mod")
+MOD_MISC(ipfw);
 
+static int
 ipfw_load(struct lkm_table *lkmtp, int cmd)
 {
 int s=splnet();
@@ -68,6 +67,7 @@ int s=splnet();
 	return 0;
 }
 
+static int
 ipfw_unload(struct lkm_table *lkmtp, int cmd)
 {
 int s=splnet();
@@ -84,6 +84,7 @@ int s=splnet();
 	return 0;
 }
 
+int
 ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, lkm_nullcmd);

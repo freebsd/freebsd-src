@@ -1078,10 +1078,8 @@ struct cdevsw dev_rwcd = { wcdropen, wcdrclose, rawread, nowrite, wcdioctl,
  * Construct lkm_dev structures (see lkm.h).
  * Our bdevsw/cdevsw slot numbers are 19/69.
  */
-static struct lkm_dev wcd_module = {
-	LM_DEV, LKM_VERSION, "wcd",  19, LM_DT_BLOCK, { (void*) &dev_wcd  } };
-static struct lkm_dev rwcd_module = {
-	LM_DEV, LKM_VERSION, "rwcd", 69, LM_DT_CHAR,  { (void*) &dev_rwcd } };
+MOD_DEV(wcd, LM_DT_BLOCK, 19, &dev_wcd);
+MOD_DEV(rwcd, LM_DT_CHAR, 69, &dev_rwcd);
 
 /*
  * Function called when loading the driver.

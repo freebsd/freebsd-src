@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.7 1995/08/05 07:39:02 davidg Exp $
+ * $Id: lkm.h,v 1.8 1995/11/13 07:18:12 bde Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -207,6 +207,10 @@ struct lkm_table {
 #define	LKM_E_UNLOAD	2
 #define	LKM_E_STAT	3
 
+#define	MOD_DECL(name)							    \
+	static int name ## _load __P((struct lkm_table *lkmtp, int cmd));   \
+	static int name ## _unload __P((struct lkm_table *lkmtp, int cmd)); \
+	int name ## _mod __P((struct lkm_table *lkmtp, int cmd,	int ver))   \
 
 #define	MOD_SYSCALL(name,callslot,sysentp)	\
 	static struct lkm_syscall _module = {	\
@@ -215,7 +219,7 @@ struct lkm_table {
 		name,				\
 		callslot,			\
 		sysentp				\
-	};
+	}
 
 #define	MOD_VFS(name,vfsslot,vnodeops,vfsconf)	\
 	static struct lkm_vfs _module = {	\
@@ -225,34 +229,36 @@ struct lkm_table {
 		vfsslot,			\
 		vnodeops,			\
 		vfsconf				\
-	};
+	}
 
 #define	MOD_DEV(name,devtype,devslot,devp)	\
-	static struct lkm_dev _module = {	\
+	MOD_DECL(name);				\
+	static struct lkm_dev name ## _module = {	\
 		LM_DEV,				\
 		LKM_VERSION,			\
-		name,				\
+		#name ## "_mod",		\
 		devslot,			\
 		devtype,			\
 		(void *)devp			\
-	};
+	}
 
 #define	MOD_EXEC(name,execslot,execsw)		\
+	MOD_DECL(name);				\
 	static struct lkm_exec _module = {	\
 		LM_EXEC,			\
 		LKM_VERSION,			\
-		name,				\
+		#name ## "_mod",		\
 		execslot,			\
 		execsw				\
-	};
+	}
 
 #define	MOD_MISC(name)				\
+	MOD_DECL(name);				\
 	static struct lkm_misc _module = {	\
 		LM_MISC,			\
 		LKM_VERSION,			\
-		name				\
-	};
-
+		#name ## "_mod"			\
+	}
 
 
 /*
