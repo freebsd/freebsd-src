@@ -1050,7 +1050,7 @@ long_format (file_hdr, link_name)
 
   /* Get time values ready to print.  */
   when = file_hdr->c_mtime;
-#if HAVE_STRFTIME
+#ifdef HAVE_STRFTIME
   strftime(tbuf, sizeof(tbuf), "%c", localtime(&when));
 #else
   strcpy (tbuf, ctime (&when));
