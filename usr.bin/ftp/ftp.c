@@ -47,6 +47,7 @@ __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -75,8 +76,6 @@ __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #ifndef NI_WITHSCOPEID
 #define	NI_WITHSCOPEID	0
 #endif
-
-extern int h_errno;
 
 int	data = -1;
 int	abrtflag = 0;
