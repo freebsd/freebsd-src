@@ -24,6 +24,7 @@ SUBDIR=	atrun \
 	rpc.sprayd \
 	rshd \
 	talkd \
+	tcpd \
 	tftpd \
 	xtend \
 	ypxfr
