@@ -359,11 +359,11 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
 	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 
 #if 1 /* diagnostic vars */
-int bdg_in_count = 0 , bdg_in_ticks = 0 , bdg_fw_count = 0, bdg_fw_ticks = 0 ;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdginc, CTLFLAG_RW, &bdg_in_count,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgint, CTLFLAG_RW, &bdg_in_ticks,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgfwc, CTLFLAG_RW, &bdg_fw_count,0,"");
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdgfwt, CTLFLAG_RW, &bdg_fw_ticks,0,"");
+
+static int bdg_split_pkts;
+SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_split_pkts,
+	CTLFLAG_RW, &bdg_split_pkts,0,"Packets split in bdg_forward");
+
 #endif
 
 SYSCTL_STRUCT(_net_link_ether, PF_BDG, bdgstats,
@@ -610,12 +610,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  * and get one in case. As it is now, bdg_forward() can sometimes make
  * a copy whereas it is not necessary.
  *
- * INPUT:
- *    *m0  -- ptr to pkt (not null at call time)
- *    *dst -- destination (special value or ifnet *)
- *    (*m0)->m_pkthdr.rcvif -- NULL only for output pkts.
- * OUTPUT:
- *    *m0  -- pointer to the packet (NULL if still existent)
+ * XXX be careful about eh, it can be a pointer into *m
  */
 int
 bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
@@ -626,6 +621,13 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
     int canfree = 0 ; /* can free the buf at the end if set */
     int once = 0;      /* loop only once */
     struct mbuf *m ;
+
+    /*
+     * XXX eh might be a pointer within the mbuf (some ethernet drivers
+     * do that), so we better copy it before doing anything with the mbuf,
+     * or we might corrupt the header.
+     */
+    struct ether_header save_eh = *eh ;
 
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
@@ -688,7 +690,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    goto forward ;
 	if (src == NULL)
 	    goto forward ; /* do not apply to packets from ether_output */
-	if (ntohs(eh->ether_type) != ETHERTYPE_IP)
+	if (ntohs(save_eh.ether_type) != ETHERTYPE_IP)
 	    goto forward ; /* not an IP packet, ipfw is not appropriate */
 	/*
 	 * In this section, canfree=1 means m is the same as *m0.
@@ -774,7 +776,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 			*m0 = NULL;
 		return ENOBUFS;
 	    }
-	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
+	    bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    dummynet_io((off & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule, 0);
 	    if (canfree) /* dummynet has consumed the original one */
 		*m0 = NULL ;
@@ -833,7 +835,7 @@ forward:
 	    M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
 	    if (m == NULL)
 		    return ENOBUFS;
-	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
+	    bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    s = splimp();
 	    if (IF_QFULL(&last->if_snd)) {
 		IF_DROP(&last->if_snd);
@@ -847,6 +849,9 @@ forward:
 		last->if_obytes += m->m_pkthdr.len ;
 		if (m->m_flags & M_MCAST)
 		    last->if_omcasts++;
+		if (m->m_pkthdr.len != m->m_len) /* this pkt is on >1 bufs */
+		    bdg_split_pkts++;
+
 		IF_ENQUEUE(&last->if_snd, m);
 		if ((last->if_flags & IFF_OACTIVE) == 0)
 		    (*last->if_start)(last);
