@@ -83,7 +83,7 @@ static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
 
 DB *db;
 time_t now;
-int entries, lflag, mflag, pplan, sflag, oflag;
+int entries, lflag, mflag, pplan, sflag, oflag, Tflag;
 char tbuf[1024];
 
 static void loginlist __P((void));
@@ -98,7 +98,7 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "lmpsho")) != EOF)
+	while ((ch = getopt(argc, argv, "lmpshoT")) != EOF)
 		switch(ch) {
 		case 'l':
 			lflag = 1;		/* long format */
@@ -118,10 +118,13 @@ option(argc, argv)
 		case 'o':
 			oflag = 1;		/* office info */
 			break;
+		case 'T':
+			Tflag = 1;		/* disable T/TCP */
+			break;
 		case '?':
 		default:
 			(void)fprintf(stderr,
-			    "usage: finger [-lmpsho] [login ...]\n");
+			    "usage: finger [-lmpshoT] [login ...]\n");
 			exit(1);
 		}
 
