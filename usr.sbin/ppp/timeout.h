@@ -42,6 +42,7 @@ struct pppTimer {
 #define	TIMER_EXPIRED	2
 
 struct pppTimer *TimerList;
+extern int TimerServiceRequest;	/* If this is >0, call TimerService() */
 
 extern void StartTimer __P((struct pppTimer *));
 extern void StopTimer __P((struct pppTimer *));
