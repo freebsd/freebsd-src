@@ -314,7 +314,7 @@ upcall_alloc(void)
 {
 	struct kse_upcall *ku;
 
-	ku = uma_zalloc(upcall_zone, 0);
+	ku = uma_zalloc(upcall_zone, M_WAITOK);
 	bzero(ku, sizeof(*ku));
 	return (ku);
 }
@@ -1136,7 +1136,6 @@ thread_update_sys_ticks(struct thread *td)
 		return (0);
 	addr = (caddr_t)&td->td_mailbox->tm_sticks;
 	sticks = fuword(addr);
-	/* XXXKSE use XCHG instead */
 	sticks += td->td_usticks;
 	td->td_usticks = 0;
 	if (suword(addr, sticks)) {
