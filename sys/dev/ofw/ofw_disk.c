@@ -73,6 +73,9 @@ struct g_class g_ofwd_class = {
 
 DECLARE_GEOM_CLASS(g_ofwd_class, g_ofwd);
 
+static int ofwd_enable = 0;
+TUNABLE_INT("kern.ofw.disk", &ofwd_enable);
+
 static int
 ofwd_startio(struct ofwd_softc *sc, struct bio *bp)
 {
@@ -138,6 +141,9 @@ g_ofwd_init(struct g_class *mp __unused)
 	phandle_t ofd;
 	ihandle_t ifd;
 	int	error;
+
+	if (ofwd_enable == 0)
+		return;
 
 	ofd = OF_finddevice("ofwdisk");
 	if (ofd == -1)
