@@ -36,31 +36,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.15 2001/05/22 08:40:21 grog Exp grog $
+ * $Id: commands.c,v 1.22 2003/04/28 06:19:06 grog Exp $
  * $FreeBSD$
  */
 
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <netdb.h>
-#include <paths.h>
-#include <setjmp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
 #include "vext.h"
-#include <sys/types.h>
-#include <sys/linker.h>
-#include <sys/module.h>
-#include <sys/resource.h>
-#include <sys/wait.h>
-#include <readline/history.h>
-#include <readline/readline.h>
 #include <devstat.h>
 
 static void dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen);
@@ -122,8 +102,8 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	char *configline;
 
 	configline = fgets(buffer, BUFSIZE, dfd);
-	if (history)
-	    fprintf(history, "%s", buffer);
+	if (History)
+	    fprintf(History, "%s", buffer);
 
 	if (configline == NULL) {
 	    if (ferror(dfd))
@@ -268,6 +248,9 @@ vinum_rm(int argc, char *argv[], char *arg0[])
 	    }
 	}
 	checkupdates();					    /* make sure we're updating */
+	/* Arguably we should be cleverer about this. */
+	if (no_devfs)
+	    make_devices();
     }
 }
 
@@ -277,28 +260,31 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
     char reply[32];
     int error;
 
-    printf(" WARNING!  This command will completely wipe out your vinum configuration.\n"
-	" All data will be lost.  If you really want to do this, enter the text\n\n"
-	" NO FUTURE\n"
-	" Enter text -> ");
-    fgets(reply, sizeof(reply), stdin);
-    if (strcmp(reply, "NO FUTURE\n"))			    /* changed his mind */
-	printf("\n No change\n");
-    else {
-	error = ioctl(superdev, VINUM_RESETCONFIG, NULL);   /* trash config on disk */
-	if (error) {
-	    if (errno == EBUSY)
-		fprintf(stderr, "Can't reset configuration: objects are in use\n");
-	    else
-		perror("Can't find vinum config");
-	} else {
-	    if (no_devfs)
-		make_devices();				    /* recreate the /dev/vinum hierarchy */
-	    printf("\b Vinum configuration obliterated\n");
-	    start_daemon();				    /* then restart the daemon */
+    if (isatty(STDIN_FILENO)) {
+	printf(" WARNING!  This command will completely wipe out your vinum configuration.\n"
+	    " All data will be lost.  If you really want to do this, enter the text\n\n"
+	    " NO FUTURE\n"
+	    " Enter text -> ");
+	fgets(reply, sizeof(reply), stdin);
+	if (strcmp(reply, "NO FUTURE\n"))		    /* changed his mind */
+	    printf("\n No change\n");
+	else {
+	    error = ioctl(superdev, VINUM_RESETCONFIG, NULL); /* trash config on disk */
+	    if (error) {
+		if (errno == EBUSY)
+		    fprintf(stderr, "Can't reset configuration: objects are in use\n");
+		else
+		    perror("Can't find vinum config");
+	    } else {
+		if (no_devfs)
+		    make_devices();			    /* recreate the /dev/vinum hierarchy */
+		printf("\b Vinum configuration obliterated\n");
+		start_daemon();				    /* then restart the daemon */
+	    }
 	}
-    }
-    checkupdates();					    /* make sure we're updating */
+	checkupdates();					    /* make sure we're updating */
+    } else
+	fprintf(stderr, "Please enter this command from a terminal\n");
 }
 
 /* Initialize subdisks */
@@ -310,8 +296,8 @@ vinum_init(int argc, char *argv[], char *arg0[])
 	int objno;
 	enum objecttype type;				    /* type returned */
 
-	if (history)
-	    fflush(history);				    /* don't let all the kids do it. */
+	if (History)
+	    fflush(History);				    /* don't let all the kids do it. */
 	for (objindex = 0; objindex < argc; objindex++) {
 	    objno = find_object(argv[objindex], &type);	    /* find the object */
 	    if (objno < 0)
@@ -399,13 +385,6 @@ initplex(int plexno, char *name)
 	}
     }
     if (failed == 0) {
-#if 0
-	message->index = plexno;			    /* pass object number */
-	message->type = plex_object;			    /* and type of object */
-	message->state = object_up;
-	message->force = 1;				    /* insist */
-	ioctl(superdev, VINUM_SETSTATE, message);
-#endif
 	syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
     } else
 	syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
@@ -545,10 +524,11 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	for (i = 0; i < devs; i++) {
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
+	    /* Submitted by Pete Carah <pete@ns.altadena.net> */
 	    if ((((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-		 || ((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
-		&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
-		&&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
+	    ||((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
+	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
+	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, _PATH_DEV "%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
 		tokens++;				    /* one more token */
@@ -2098,7 +2078,8 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     /*
      * First, check our drives.
      */
-    if (argc & 1) {
+    if ((argc < 2)
+	|| (argc & 1)) {
 	fprintf(stderr, "You need an even number of drives to create a mirrored volume\n");
 	return;
     }
