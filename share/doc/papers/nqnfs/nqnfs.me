@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)nqnfs.me	8.1 (Berkeley) 4/20/94
+.\" $FreeBSD$
 .\"
 .lp
 .nr PS 12
@@ -56,7 +57,10 @@ Association.
 .nr PS 12
 .ps 12
 .ce
-.AB
+\fBAbstract\fR
+.nr PS 10
+.ps 10
+.pp
 There are some constraints inherent in the NFS\(tm\(mo protocol
 that result in performance limitations
 for high performance
@@ -72,8 +76,6 @@ The emphasis is on observed performance of a
 preliminary implementation of the protocol, in order to show
 how well this design works
 and to suggest possible areas for further improvement.
-.AE
-
 .sh 1 "Introduction"
 .pp
 It has been observed that
@@ -1086,7 +1088,6 @@ The results for the four variants
 are plotted in figures 2-5.
 .(z
 .ps -1
-.R
 .TS
 box, center;
 c s s s s s s s
@@ -1549,7 +1550,6 @@ The \fINo Caching\fR cases does not do any client side caching, performing
 all system calls via synchronous RPCs to the server.
 .(z
 .ps -1
-.R
 .TS
 box, center;
 c s s s s s s
@@ -1587,7 +1587,6 @@ elapsed running time and, as such, is the optimistic bound on performance
 achievable with an ideal client caching scheme that never blocks for I/O.
 .(z
 .ps -1
-.R
 .TS
 box, center;
 c s s s s s s s s s
@@ -1752,7 +1751,6 @@ line dotted from 3.862,9.387 to 4.600,10.200
 .)z
 .(z
 .ps -1
-.R
 .TS
 box, center;
 c s s s s s s s s
