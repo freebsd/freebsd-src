@@ -316,14 +316,6 @@ next:
 			    "files.%s", machinename);
 			goto openit;
 		}
-		if (first == 2) {
-			first++;
-			(void) snprintf(fname, sizeof(fname),
-			    "files.%s", raisestr(ident));
-			fp = fopen(fname, "r");
-			if (fp != 0)
-				goto next;
-		}
 		return;
 	}
 	if (wd == 0)
@@ -346,15 +338,6 @@ next:
 	else
 		isdup = 0;
 	tp = 0;
-	if (first == 3 && pf == 0 && (tp = fltail_lookup(this)) != 0) {
-		if (tp->f_type != INVISIBLE || tp->f_flags)
-			printf("%s: Local file %s overrides %s.\n",
-			    fname, this, tp->f_fn);
-		else
-			printf("%s: Local file %s could override %s"
-			    " with a different kernel configuration.\n",
-			    fname, this, tp->f_fn);
-	}
 	nreqs = 0;
 	special = 0;
 	depends = 0;
