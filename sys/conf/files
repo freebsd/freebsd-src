@@ -508,6 +508,9 @@ dev/isp/isp_target.c	optional isp
 dev/isp/isp_pci.c	optional isp pci
 dev/isp/isp_sbus.c	optional isp sbus
 dev/ispfw/ispfw.c	optional ispfw
+dev/ixgb/ixgb_hw.c	optional ixgb
+dev/ixgb/ixgb_ee.c	optional ixgb
+dev/ixgb/if_ixgb.c	optional ixgb
 dev/joy/joy.c		optional joy
 dev/joy/joy_isa.c	optional joy isa
 dev/joy/joy_pccard.c	optional joy pccard
