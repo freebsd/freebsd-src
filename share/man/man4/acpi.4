@@ -88,9 +88,13 @@ The supported layers are:
 .It
 .Li ACPI_RESOURCES
 .It
-.Li ACPI_DEBUGGER
+.Li ACPI_CA_DEBUGGER
 .It
 .Li ACPI_OS_SERVICES
+.It
+.Li ACPI_CA_DISASSEMBLER
+.It
+.Li ACPI_ALL_COMPONENTS
 .It
 .Li ACPI_BUS
 .It
@@ -112,34 +116,32 @@ The supported layers are:
 .It
 .Li ACPI_FAN
 .It
-.Li ACPI_ALL_COMPONENTS
+.Li ACPI_ALL_DRIVERS
 .El
 .Pp
 The supported levels are:
 .Pp
 .Bl -item -offset indent -compact
 .It
-.Li ACPI_LV_OK
-.It
-.Li ACPI_LV_INFO
+.Li ACPI_LV_ERROR
 .It
 .Li ACPI_LV_WARN
 .It
-.Li ACPI_LV_ERROR
-.It
-.Li ACPI_LV_FATAL
+.Li ACPI_LV_INIT
 .It
 .Li ACPI_LV_DEBUG_OBJECT
 .It
+.Li ACPI_LV_INFO
+.It
 .Li ACPI_LV_ALL_EXCEPTIONS
 .It
-.Li ACPI_LV_THREADS
+.Li ACPI_LV_INIT_NAMES
 .It
 .Li ACPI_LV_PARSE
 .It
-.Li ACPI_LV_DISPATCH
-.It
 .Li ACPI_LV_LOAD
+.It
+.Li ACPI_LV_DISPATCH
 .It
 .Li ACPI_LV_EXEC
 .It
@@ -149,43 +151,49 @@ The supported levels are:
 .It
 .Li ACPI_LV_BFIELD
 .It
-.Li ACPI_LV_TRASH
-.It
 .Li ACPI_LV_TABLES
-.It
-.Li ACPI_LV_FUNCTIONS
 .It
 .Li ACPI_LV_VALUES
 .It
 .Li ACPI_LV_OBJECTS
 .It
-.Li ACPI_LV_ALLOCATIONS
-.It
 .Li ACPI_LV_RESOURCES
-.It
-.Li ACPI_LV_IO
-.It
-.Li ACPI_LV_INTERRUPTS
 .It
 .Li ACPI_LV_USER_REQUESTS
 .It
 .Li ACPI_LV_PACKAGE
 .It
-.Li ACPI_LV_MUTEX
+.Li ACPI_LV_VERBOSITY1
 .It
-.Li ACPI_LV_INIT
+.Li ACPI_LV_ALLOCATIONS
+.It
+.Li ACPI_LV_FUNCTIONS
+.It
+.Li ACPI_LV_OPTIMIZATIONS
+.It
+.Li ACPI_LV_VERBOSITY2
 .It
 .Li ACPI_LV_ALL
 .It
-.Li ACPI_DB_AML_DISASSEMBLE
+.Li ACPI_LV_MUTEX
 .It
-.Li ACPI_DB_VERBOSE_INFO
+.Li ACPI_LV_THREADS
 .It
-.Li ACPI_DB_FULL_TABLES
+.Li ACPI_LV_IO
 .It
-.Li ACPI_DB_EVENTS
+.Li ACPI_LV_INTERRUPTS
 .It
-.Li ACPI_DB_VERBOSE
+.Li ACPI_LV_VERBOSITY3
+.It
+.Li ACPI_LV_AML_DISASSEMBLE
+.It
+.Li ACPI_LV_VERBOSE_INFO
+.It
+.Li ACPI_LV_FULL_TABLES
+.It
+.Li ACPI_LV_EVENTS
+.It
+.Li ACPI_LV_VERBOSE
 .El
 .Pp
 Selection of the appropriate layer and level values is important
@@ -290,9 +298,7 @@ In order to prepare your AML code, you will need the
 .Xr acpidump 8
 and
 .Xr iasl 1
-utilities from the
-.Pa devel/acpicatools
-port, and some ACPI knowledge.
+utilities and some ACPI knowledge.
 .Sh TUNABLES
 .Bl -tag -width indent
 .It Va acpi_dsdt_load
@@ -328,7 +334,8 @@ ACPI is only found/supported on i386/ia32, ia64 and amd64.
 .Xr loader.conf 5 ,
 .Xr acpiconf 8 ,
 .Xr acpidump 8 ,
-.Xr config 8
+.Xr config 8 ,
+.Xr iasl 8
 .Rs
 .%A "Compaq Computer Corporation"
 .%A "Intel Corporation"
