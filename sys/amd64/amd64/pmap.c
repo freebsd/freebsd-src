@@ -2074,7 +2074,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 	if (pmap == NULL || object == NULL)
 		return;
-
+	VM_OBJECT_LOCK(object);
 	/*
 	 * This code maps large physical mmap regions into the
 	 * processor address space.  Note that some shortcuts
@@ -2089,7 +2089,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 		pde = pmap_pde(pmap, addr);
 		if (pde != 0 && (*pde & PG_V) != 0)
-			return;
+			goto unlock_return;
 retry:
 		p = vm_page_lookup(object, pindex);
 		if (p != NULL) {
@@ -2099,14 +2099,14 @@ retry:
 		} else {
 			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 			if (p == NULL)
-				return;
+				goto unlock_return;
 			m[0] = p;
 
 			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
 				vm_page_lock_queues();
 				vm_page_free(p);
 				vm_page_unlock_queues();
-				return;
+				goto unlock_return;
 			}
 
 			p = vm_page_lookup(object, pindex);
@@ -2117,7 +2117,7 @@ retry:
 
 		ptepa = VM_PAGE_TO_PHYS(p);
 		if (ptepa & (NBPDR - 1)) {
-			return;
+			goto unlock_return;
 		}
 
 		p->valid = VM_PAGE_BITS_ALL;
@@ -2130,7 +2130,7 @@ retry:
 			pde++;
 		}
 		pmap_invalidate_all(kernel_pmap);
-		return;
+		goto unlock_return;
 	}
 
 	psize = amd64_btop(size);
@@ -2138,12 +2138,12 @@ retry:
 	if ((object->type != OBJT_VNODE) ||
 	    ((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
 	     (object->resident_page_count > MAX_INIT_PT))) {
-		return;
+		goto unlock_return;
 	}
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
-			return;
+			goto unlock_return;
 		psize = object->size - pindex;
 	}
 
@@ -2187,6 +2187,8 @@ retry:
 		}
 		vm_page_unlock_queues();
 	}
+unlock_return:
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
