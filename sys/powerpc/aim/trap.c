@@ -269,6 +269,9 @@ trap(struct trapframe *frame)
 
 	userret(td, frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef	DIAGNOSTIC
+	cred_free_thread(td);
+#endif	/* DIAGNOSTIC */
 }
 
 static void
