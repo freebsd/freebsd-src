@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.14 1997/02/22 09:39:32 peter Exp $
+ * $Id: vfs_conf.c,v 1.15 1997/10/12 20:24:23 phk Exp $
  */
 
 /*
@@ -130,7 +130,7 @@ vfs_mountrootfs(fsname)
 
 	simple_lock(&mountlist_slock);
 	/* Add fs to list of mounted file systems*/
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	simple_unlock(&mountlist_slock);
 
 	vfs_unbusy(mp, p);
