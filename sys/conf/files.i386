@@ -230,7 +230,6 @@ i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatability shims present."
 i386/isa/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli
-i386/isa/labpc.c		count		labpc
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
