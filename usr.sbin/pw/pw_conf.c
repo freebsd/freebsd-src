@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pw_conf.c,v 1.7 1997/10/10 06:23:36 charnier Exp $";
 #endif /* not lint */
 
 #include <string.h>
@@ -34,7 +34,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 
 #include "pw.h"
-#include "pwupd.h"
 
 #define debugging 0
 
@@ -310,7 +309,7 @@ read_userconfig(char const * file)
 					break;
 				case _UC_DEFAULTGROUP:
 					q = unquote(q);
-					config.default_group = (q == NULL || !boolean_val(q, 1) || getgrnam(q) == NULL)
+					config.default_group = (q == NULL || !boolean_val(q, 1) || GETGRNAM(q) == NULL)
 						? NULL : newstr(q);
 					break;
 				case _UC_EXTRAGROUPS:

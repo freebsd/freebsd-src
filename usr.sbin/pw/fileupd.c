@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fileupd.c,v 1.5 1997/10/10 06:23:31 charnier Exp $";
+	"$Id: fileupd.c,v 1.6 1998/07/16 17:18:24 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -175,16 +175,11 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 								 * corrupted the original file
 								 * Unfortunately, it will lose the inode
                                                                  * and hence the lock.
-                                                                 *
-                                                                 * The implications of this is that this invocation of pw 
-                                                                 * won't have the file locked and concurrent copies
-                                                                 * of pw, vipw etc could clobber what this one is doing.
-                                                                 *
-                                                                 * It should probably just return an error instead
-                                                                 * of going on like nothing is wrong.
 								 */
-								if (fflush(infp) == EOF || ferror(infp))
-									rc = rename(file, filename) == 0;
+								if (fflush(infp) == EOF || ferror(infp)) {
+									rc = errno;	/* Preserve errno for return */
+									rename(file, filename);
+								}
 								else
 									ftruncate(infd, ftell(infp));
 							}
