@@ -355,14 +355,12 @@ retry:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
 
 		object = p->p_upages_obj;
 		if (object != NULL &&
 		    swap_pager_isswapped(p->p_upages_obj, devidx)) {
 			sx_sunlock(&allproc_lock);
 			faultin(p);
-			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			vm_page_lock_queues();
 			TAILQ_FOREACH(m, &object->memq, listq)
@@ -373,7 +371,6 @@ retry:
 			goto retry;
 		}
 
-		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
@@ -516,51 +513,49 @@ void
 faultin(p)
 	struct proc *p;
 {
+	struct thread *td;
 
 	GIANT_REQUIRED;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef NO_SWAPPING
 	if ((p->p_sflag & PS_INMEM) == 0)
 		panic("faultin: proc swapped out with NO_SWAPPING!");
 #else
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		struct thread *td;
-
-		++p->p_lock;
+	/*
+	 * If another process is swapping in this process,
+	 * just wait until it finishes.
+	 */
+	if (p->p_sflag & PS_SWAPPINGIN)
+		msleep(&p->p_sflag, &p->p_mtx, PVM, "faultin", 0);
+	else if ((p->p_sflag & PS_INMEM) == 0) {
 		/*
-		 * If another process is swapping in this process,
-		 * just wait until it finishes.
+		 * Don't let another thread swap process p out while we are
+		 * busy swapping it in.
 		 */
-		if (p->p_sflag & PS_SWAPPINGIN) {
-			mtx_unlock_spin(&sched_lock);
-			msleep(&p->p_sflag, &p->p_mtx, PVM, "faultin", 0);
-			mtx_lock_spin(&sched_lock);
-			--p->p_lock;
-			return;
-		}
-
+		++p->p_lock;
+		mtx_lock_spin(&sched_lock);
 		p->p_sflag |= PS_SWAPPINGIN;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
 		vm_proc_swapin(p);
-		FOREACH_THREAD_IN_PROC (p, td) {
+		FOREACH_THREAD_IN_PROC(p, td)
 			pmap_swapin_thread(td);
-			TD_CLR_SWAPPED(td);
-		}
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		p->p_sflag &= ~PS_SWAPPINGIN;
 		p->p_sflag |= PS_INMEM;
-		FOREACH_THREAD_IN_PROC (p, td)
+		FOREACH_THREAD_IN_PROC(p, td) {
+			TD_CLR_SWAPPED(td);
 			if (TD_CAN_RUN(td))
 				setrunnable(td);
+		}
+		mtx_unlock_spin(&sched_lock);
 
 		wakeup(&p->p_sflag);
 
-		/* undo the effect of setting SLOCK above */
+		/* Allow other threads to swap p out now. */
 		--p->p_lock;
 	}
 #endif
@@ -600,7 +595,7 @@ loop:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		struct ksegrp *kg;
-		if (p->p_sflag & (PS_INMEM | PS_SWAPPING | PS_SWAPPINGIN)) {
+		if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 			continue;
 		}
 		mtx_lock_spin(&sched_lock);
@@ -641,20 +636,20 @@ loop:
 		goto loop;
 	}
 	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
 
 	/*
 	 * Another process may be bringing or may have already
 	 * brought this process in while we traverse all threads.
 	 * Or, this process may even be being swapped out again.
 	 */
-	if (p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) {
-		mtx_unlock_spin(&sched_lock);
+	if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 		PROC_UNLOCK(p);
 		goto loop;
 	}
 
+	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPINREQ;
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
@@ -662,6 +657,7 @@ loop:
 	 */
 	faultin(p);
 	PROC_UNLOCK(p);
+	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
 	mtx_unlock_spin(&sched_lock);
 	goto loop;
@@ -768,10 +764,10 @@ retry:
 		 * skipped because of the if statement above checking 
 		 * for P_SYSTEM
 		 */
-		mtx_lock_spin(&sched_lock);
-		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) != PS_INMEM)
-			goto nextproc;
+		if ((p->p_sflag & (PS_INMEM|PS_SWAPPINGOUT|PS_SWAPPINGIN)) != PS_INMEM)
+			goto nextproc2;
 
+		mtx_lock_spin(&sched_lock);
 		switch (p->p_state) {
 		default:
 			/* Don't swap out processes in any sort
@@ -832,12 +828,8 @@ retry:
 				 (minslptime > swap_idle_threshold2))) {
 				swapout(p);
 				didswap++;
-
-				/*
-				 * swapout() unlocks a proc lock. This is
-				 * ugly, but avoids superfluous lock.
-				 */
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				vm_map_unlock(&vm->vm_map);
 				vmspace_free(vm);
 				sx_sunlock(&allproc_lock);
@@ -879,7 +871,7 @@ swapout(p)
 	 * by now.  Assuming that there is only one pageout daemon thread,
 	 * this process should still be in memory.
 	 */
-	KASSERT((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) == PS_INMEM,
+	KASSERT((p->p_sflag & (PS_INMEM|PS_SWAPPINGOUT|PS_SWAPPINGIN)) == PS_INMEM,
 		("swapout: lost a swapout race?"));
 
 #if defined(INVARIANTS)
@@ -900,18 +892,20 @@ swapout(p)
 	 */
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
-	PROC_UNLOCK(p);
 	p->p_sflag &= ~PS_INMEM;
-	p->p_sflag |= PS_SWAPPING;
+	p->p_sflag |= PS_SWAPPINGOUT;
+	PROC_UNLOCK(p);
+	FOREACH_THREAD_IN_PROC(p, td)
+		TD_SET_SWAPPED(td);
 	mtx_unlock_spin(&sched_lock);
 
 	vm_proc_swapout(p);
-	FOREACH_THREAD_IN_PROC(p, td) {
+	FOREACH_THREAD_IN_PROC(p, td)
 		pmap_swapout_thread(td);
-		TD_SET_SWAPPED(td);
-	}
+
+	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	p->p_sflag &= ~PS_SWAPPING;
+	p->p_sflag &= ~PS_SWAPPINGOUT;
 	p->p_swtime = 0;
 }
 #endif /* !NO_SWAPPING */
