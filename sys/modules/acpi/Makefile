@@ -42,7 +42,7 @@ SRCS+=	acpi_timer.c acpica_support.c
 SRCS+=  OsdDebug.c 
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
-SRCS+=	opt_acpi.h opt_ddb.h
+SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
 SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
 .if ACPI_NO_SEMAPHORES
 CFLAGS+=-DACPI_NO_SEMAPHORES
@@ -64,6 +64,8 @@ opt_ddb.h: Makefile
 opt_ddb.h: Makefile
 	echo ''  >opt_ddb.h
 .endif
+opt_bus.h: Makefile
+	echo ''  >opt_bus.h
 
 # Machine-specific code such as sleep/wakeup
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
