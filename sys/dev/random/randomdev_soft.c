@@ -145,17 +145,17 @@ random_yarrow_init(void)
 	o = SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "ethernet", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.ethernet, 0, random_check_boolean, "I",
+	    &harvest.ethernet, 1, random_check_boolean, "I",
 	    "Harvest NIC entropy");
 	o = SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "point_to_point", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.point_to_point, 0, random_check_boolean, "I",
+	    &harvest.point_to_point, 1, random_check_boolean, "I",
 	    "Harvest serial net entropy");
 	o = SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "interrupt", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.interrupt, 0, random_check_boolean, "I",
+	    &harvest.interrupt, 1, random_check_boolean, "I",
 	    "Harvest IRQ entropy");
 	o = SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
