@@ -66,7 +66,15 @@ static void module_shutdown(void *, int);
 static int
 modevent_nop(module_t mod, int what, void *arg)
 {
-	return (0);
+
+	switch(what) {
+	case MOD_LOAD:
+		return (0);
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 static void
