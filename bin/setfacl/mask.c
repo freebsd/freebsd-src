@@ -34,7 +34,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sysexits.h>
 
 #include "setfacl.h"
 
@@ -55,13 +54,13 @@ set_acl_mask(acl_t *prev_acl)
 	 * specified ACL mask entry.
 	 */
 	if (have_mask)
-		return 0;
+		return (0);
 
 	acl = acl_dup(*prev_acl);
-	if (!acl)
-		err(EX_OSERR, "acl_dup() failed");
+	if (acl == NULL)
+		err(1, "acl_dup() failed");
 
-	if (!n_flag) {
+	if (n_flag == 0) {
 		/*
 		 * If no mask entry is specified and the -n option is not
 		 * specified, then the permissions of the resulting ACL mask
@@ -72,7 +71,7 @@ set_acl_mask(acl_t *prev_acl)
 		if (acl_calc_mask(&acl)) {
 			warn("acl_calc_mask() failed");
 			acl_free(acl);
-			return -1;
+			return (-1);
 		}
 	} else {
 		/*
@@ -90,7 +89,7 @@ set_acl_mask(acl_t *prev_acl)
 
 			if (tag == ACL_MASK) {
 				acl_free(acl);
-				return 0;
+				return (0);
 			}
 		}
 
@@ -102,11 +101,11 @@ set_acl_mask(acl_t *prev_acl)
 		 */
 		warnx("warning: no mask entry");
 		acl_free(acl);
-		return 0;
+		return (0);
 	}
 
 	**prev_acl = *acl;
 	acl_free(acl);
 
-	return 0;
+	return (0);
 }

@@ -32,11 +32,12 @@
 
 #include <err.h>
 #include <stdio.h>
-#include <sysexits.h>
 
 #include "setfacl.h"
 
-/* merge acl into existing file's ACL */
+/*
+ * merge an ACL into existing file's ACL
+ */
 int
 merge_acl(acl_t acl, acl_t *prev_acl)
 {
@@ -51,8 +52,8 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 		acl_new = acl_dup(prev_acl[0]);
 	else
 		acl_new = acl_dup(prev_acl[1]);
-	if (!acl_new)
-		err(EX_OSERR, "acl_dup() failed");
+	if (acl_new == NULL)
+		err(1, "acl_dup() failed");
 
 	entry_id = ACL_FIRST_ENTRY;
 
@@ -62,21 +63,20 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 
 		/* keep track of existing ACL_MASK entries */
 		if (acl_get_tag_type(entry, &tag) == -1)
-			err(EX_OSERR,
-			    "acl_get_tag_type() failed - invalid ACL entry");
+			err(1, "acl_get_tag_type() failed - invalid ACL entry");
 		if (tag == ACL_MASK)
 			have_mask = 1;
 
 		/* check against the existing ACL entries */
 		entry_id_new = ACL_FIRST_ENTRY;
-		while (!have_entry &&
+		while (have_entry == 0 &&
 		    acl_get_entry(acl_new, entry_id_new, &entry_new) == 1) {
 			entry_id_new = ACL_NEXT_ENTRY;
 
 			if (acl_get_tag_type(entry, &tag) == -1)
-				err(EX_OSERR, "acl_get_tag_type() failed");
+				err(1, "acl_get_tag_type() failed");
 			if (acl_get_tag_type(entry_new, &tag_new) == -1)
-				err(EX_OSERR, "acl_get_tag_type() failed");
+				err(1, "acl_get_tag_type() failed");
 			if (tag != tag_new)
 				continue;
 
@@ -85,27 +85,25 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 			case ACL_GROUP:
 				id = acl_get_qualifier(entry);
 				if (id == NULL)
-					err(EX_OSERR,
-					    "acl_get_qualifier() failed");
+					err(1, "acl_get_qualifier() failed");
 				id_new = acl_get_qualifier(entry_new);
 				if (id_new == NULL)
-					err(EX_OSERR,
-					    "acl_get_qualifier() failed");
+					err(1, "acl_get_qualifier() failed");
 				if (*id == *id_new) {
 					/* any other matches */
 					if (acl_get_permset(entry, &permset)
 					    == -1)
-						err(EX_OSERR,
+						err(1,
 						    "acl_get_permset() failed");
 					if (acl_set_permset(entry_new, permset)
 					    == -1)
-						err(EX_OSERR,
+						err(1,
 						    "acl_set_permset() failed");
 					have_entry = 1;
 				}
 				acl_free(id);
 				acl_free(id_new);
-				if (!have_entry)
+				if (have_entry == 0)
 					break;
 				/* FALLTHROUGH */
 			case ACL_USER_OBJ:
@@ -113,28 +111,26 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 			case ACL_OTHER:
 			case ACL_MASK:
 				if (acl_get_permset(entry, &permset) == -1)
-					err(EX_OSERR,
-					    "acl_get_permset() failed");
+					err(1, "acl_get_permset() failed");
 				if (acl_set_permset(entry_new, permset) == -1)
-					err(EX_OSERR,
-					    "acl_set_permset() failed");
+					err(1, "acl_set_permset() failed");
 				have_entry = 1;
 				break;
 			default:
 				/* should never be here */
-				errx(EX_OSERR, "Invalid tag type: %i", tag);
+				errx(1, "Invalid tag type: %i", tag);
 				break;
 			}
 		}
 
 		/* if this entry has not been found, it must be new */
-		if (!have_entry) {
+		if (have_entry == 0) {
 			if (acl_create_entry(&acl_new, &entry_new) == -1) {
 				acl_free(acl_new);
-				return -1;
+				return (-1);
 			}
 			if (acl_copy_entry(entry_new, entry) == -1)
-				err(EX_OSERR, "acl_copy_entry() failed");
+				err(1, "acl_copy_entry() failed");
 		}
 	}
 
@@ -148,5 +144,5 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 	}
 
 
-	return 0;
+	return (0);
 }
