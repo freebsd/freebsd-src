@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /*
 
 SECTION
@@ -37,6 +39,13 @@ SECTION
 #include "libbfd.h"
 #define ARCH_SIZE 0
 #include "elf-bfd.h"
+
+#define EI_BRAND_OFFSET 8	/* should be in binutils/include/elf/common.h */
+#if defined(__FreeBSD__)
+#define BRANDING	"FreeBSD"
+#else
+#define BRANDING	""
+#endif
 
 static INLINE struct elf_segment_map *make_mapping
   PARAMS ((bfd *, asection **, unsigned int, unsigned int, boolean));
@@ -3000,10 +3009,10 @@ prep_headers (abfd)
   i_ehdrp->e_version = bed->s->ev_current;
   i_ehdrp->e_ehsize = bed->s->sizeof_ehdr;
 
-#ifdef __FreeBSD__
-  /* Quick and dirty hack to brand the file as a FreeBSD ELF file. */
-  strncpy((char *) &i_ehdrp->e_ident[8], "FreeBSD", EI_NIDENT-8);
-#endif
+  /* Some OS's brands all ELF binaries so the image loader knows what system
+	 call set, etc. to use.  */
+  strncpy((char *) &i_ehdrp->e_ident[EI_BRAND_OFFSET], BRANDING,
+	  EI_NIDENT-EI_BRAND_OFFSET);
 
   /* no program header, for now. */
   i_ehdrp->e_phoff = 0;
