@@ -1,4 +1,4 @@
-# @(#)southamerica	7.35
+# @(#)southamerica	7.36
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -111,24 +111,31 @@ Rule	Arg	1989	1992	-	Oct	Sun>=15	0:00	1:00	S
 # From Rives McDow (2000-01-10):
 # On October 3, 1999, 0:00 local, Argentina implemented daylight savings time,
 # which did not result in the switch of a time zone, as they stayed 9 hours
-# from the International Date Line.  On March 5, 2000, at 0:00 local time,
-# Argentina will come off daylight savings time, which will bring them to 8
-# hours from the International Date Line.
+# from the International Date Line.
+Rule	Arg	1999	only	-	Oct	Sun>=1	0:00	1:00	S
+Rule	Arg	2000	only	-	Mar	Sun>=1	0:00	0	-
 #
 # From Peter Gradelski via Steffen Thorsen (2000-03-01):
 # We just checked with our San Paulo office and they say the government of
 # Argentina decided not to become one of the countries that go on or off DST.
 # So Buenos Aires should be -3 hours from GMT at all times.
 #
+# From Fabian L. Arce Jofre <farcejofre@bigfoot.com> (2000-04-04):
+# The law that claimed DST for Argentina was derogated by President Fernando
+# de la Rua on March 2, 2000, because it would make people spend more energy
+# in the winter time, rather than less.  The change took effect on March 3.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
-# Buenos Aires (BA), Distrito Federal (DF), Santa Cruz (SC),
-# Tierra del Fuego (TF) & Antartida e Islas
+# Buenos Aires (BA), Capital Federal (CF), Santa Cruz (SC),
+# Tierra del Fuego, Antartida e Islas del Atlantico Sur (TF)
 Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Nov
 			-4:16:44 -	CMT	1920 May    # Cordoba Mean Time
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT
+			-3:00	Arg	AR%sT	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
+			-3:00	-	ART
 #
 # Santa Fe (SF), Entre Rios (ER), Corrientes (CN), Misiones (MN), Chaco (CC),
 # Formosa (FM), La Pampa (LP), Chubut (CH)
@@ -137,6 +144,8 @@ Zone America/Rosario	-4:02:40 -	LMT	1894 Nov
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1991 Jul
+			-3:00	-	ART	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
 			-3:00	-	ART
 #
 # Cordoba (CB), Santiago del Estero (SE), Salta (SA), Tucuman (TM), La Rioja (LR), San Juan (SJ), San Luis (SL),
@@ -146,6 +155,8 @@ Zone America/Cordoba	-4:16:44 -	LMT	1894 Nov
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1990 Jul
+			-3:00	-	ART	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
 			-3:00	-	ART
 #
 # Jujuy (JY)
@@ -157,6 +168,8 @@ Zone America/Jujuy	-4:21:12 -	LMT	1894 Nov
 			-4:00	-	WART	1991 Oct  6
 			-4:00	1:00	WARST	1992 Mar 15
 			-4:00	-	WART	1992 Oct 18
+			-3:00	-	ART	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
 			-3:00	-	ART
 #
 # Catamarca (CT)
@@ -167,6 +180,8 @@ Zone America/Catamarca	-4:23:08 -	LMT	1894 Nov
 			-3:00	Arg	AR%sT	1990 Jul
 			-3:00	-	ART	1991 Jul
 			-3:00	Arg	AR%sT	1992 Jul
+			-3:00	-	ART	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
 			-3:00	-	ART
 #
 # Mendoza (MZ)
@@ -178,6 +193,8 @@ Zone America/Mendoza	-4:35:16 -	LMT	1894 Nov
 			-4:00	-	WART	1991 Oct 15
 			-4:00	1:00	WARST	1992 Mar  1
 			-4:00	-	WART	1992 Oct 18
+			-3:00	-	ART	1999 Oct  3 0:00
+			-4:00	Arg	AR%sT	2000 Mar  3 0:00
 			-3:00	-	ART
 
 # Aruba

@@ -1,4 +1,4 @@
-# @(#)northamerica	7.51
+# @(#)northamerica	7.52
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -1002,52 +1002,35 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 
 # Mexico
 
-# From Guy Harris:
-# Rules are from the Official Airline Guide, Worldwide Edition, for 1987.
-# Rules [before] 1987 are unknown.
-# The comments in the OAG say "Only Ensenada, Mexicale, San Felipe and Tijuana
-# observe DST."  This is presumably Baja California Norte, above 28th parallel,
-# as listed there; [there is also] "Baja California Sur and N. Pacific
-# Coast (States of Sinaloa and Sonora)."
-
-# From Bob Devine (1988-01-28):
-# The Federal District (where Mexico City is) has observed [DST] several
-# times but not recently.
+# Gwillim Law reports this source for daylight saving time in Mexico:
+# <a href="http://www.spin.com.mx/verano/">
+# Daylight saving time * SPIN-Internet (in Spanish)
+# </a>
+# Law (2000-03-09) translates it as follows:
 #
-# I don't where to draw the line in the North Baja area.  28th latitude
-# sounds good -- but it may be higher (how far [d]o radio stations from
-# San Diego affect culture?).
+# Standard time effective in Mexico takes its origin in the
+# presidential decree of April 24, 1942.  The time of the 120th
+# meridian applies to the state of Baja California; of the 105th
+# meridian to the states of Baja California Sur, Sonora, Sinaloa, and
+# Nayarit; and the time of the 90th meridian to the rest of the
+# country.
 #
-# The dates of DST probably go back to 1981.  The rules are the same as
-# US's.  This is going to be a headache for US presidential electi[o]n years!
+# In the country, there have been several attempts made to adapt
+# standard time with the object of arriving at a better use of
+# daylight for social and economic activities.  In December, 1981 a
+# permanent time zone was decreed for the states of Campeche, Yucatan,
+# and Quintana Roo, displacing them from the 90th to the 75th
+# meridian.  This disposition was annulled on December 2, 1982.
+#
+# In 1988 a Summer Time was established for the states of Tamaulipas,
+# Nuevo Leon, Coahuila, and Durango, which meant that from the first
+# Sunday in April to the last [Sunday] of October those states
+# displaced their time from the 90th to the 75th meridian.  That
+# disposition lasted for one year.
 
-# From Arthur David Olson (1988-02-13)
-# Since the 1981 starting date is only "probable," we'll keep the 1987
-# starting date below.
-
-# From U. S. Naval Observatory (1989-01-19):
-# MEXICO BAJA CAL N   7 H  BEHIND UTC    BAJA CALIFORNIA SUR AND
-# MEXICO BAJA CAL N                      N. PACIFIC COAST (STATES
-# MEXICO BAJA CAL N                      OF SINALOA AND SONORA)
-# MEXICO BAJA CAL N   8 H  BEHIND UTC    ABOVE 28TH PARALLEL APR 3
-# MEXICO BAJA CAL N                      - OCT 29
-# MEXICO BAJA CAL N   7 H  BEHIND UTC    ABOVE 28TH PARALLEL APR 3
-# MEXICO BAJA CAL N                      - 0CT 29
-# MEXICO              6 H  BEHIND UTC    STATES OF DURANGO,
-# MEXICO                                 COAHUILA, NUEVO LEON,
-# MEXICO                                 TAMAULIPAS
-# MEXICO              5 H  BEHIND UTC    STATES OF DURANGO,
-# MEXICO                                 COAHUILA, NUEVO LEON,
-# MEXICO                                 TAMAULIPAS  APR 3 - OCT 29
-# MEXICO              6 H  BEHIND UTC    GENERAL MEXICO, STATES OF
-# MEXICO                                 CAMPECHE, QUINTANA ROO AND
-# MEXICO                                 YUCATAN
-
-# From Arthur David Olson (1989-01-21):
-# April 3 fell on a Sunday in 1988; October 29 fell on a Sunday in 1989.  Ahem.
-# USNO claims there should be four Mexican zones rather than three:
-# a zone that's GMT-8 with DST; a zone that's always GMT-7;
-# a zone that's GMT-6 with DST; and a zone that's always GMT-6.
+# From Paul Eggert (2000-07-26):
+# Shanks gives 1942-04-01 instead of 1942-04-24, and omits the 1981
+# and 1988 DST experiments.  Go with spin.com.mx.
 
 # From Alan Perry <alan.perry@eng.sun.com> (1996-02-15):
 # A guy from our Mexico subsidiary finally found the Presidential Decree
@@ -1093,7 +1076,6 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # savings time so as to stay on the same time zone as the southern part of
 # Arizona year round.
 
-# From Shanks:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mexico	1939	only	-	Feb	5	0:00	1:00	D
 Rule	Mexico	1939	only	-	Jun	25	0:00	0	S
@@ -1111,9 +1093,21 @@ Rule	BajaN	1954	1961	-	Sep	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Quintana Roo
 Zone America/Cancun	-5:47:04 -	LMT	1922 Jan  1  0:12:56
+			-6:00	-	CST	1981 Dec
+			-5:00	-	EST	1982 Dec  2
 			-6:00	-	CST	1996
 			-6:00	Mexico	C%sT	1997 Oct lastSun 2:00
 			-5:00	Mexico	E%sT	1998 Aug  2  2:00
+			-6:00	Mexico	C%sT
+# Campeche, Yucatan
+Zone America/Merida	-5:58:28 -	LMT	1922 Jan  1  0:01:32
+			-6:00	-	CST	1981 Dec
+			-5:00	-	EST	1982 Dec  2
+			-6:00	Mexico	C%sT
+# Coahuila, Durango, Nuevo Leon, Tamaulipas
+Zone America/Monterrey	-6:41:16 -	LMT	1922 Jan  1  0:01:32
+			-6:00	-	CST	1988
+			-6:00	US	C%sT	1989
 			-6:00	Mexico	C%sT
 # Central Mexico
 Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
@@ -1141,19 +1135,19 @@ Zone America/Hermosillo	-7:23:52 -	LMT	1921 Dec 31 23:36:08
 			-7:00	-	MST	1931 May  1 23:00
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Mar 30 23:00
-			-6:00	-	CST	1942 Apr
+			-6:00	-	CST	1942 Apr 24
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1970
 			-7:00	Mexico	M%sT	1999
 			-7:00	-	MST
-# S Baja California, Nayarit, Sinaloa
+# Baja California Sur, Nayarit, Sinaloa
 Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
 			-7:00	-	MST	1931 May  1 23:00
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Mar 30 23:00
-			-6:00	-	CST	1942 Apr
+			-6:00	-	CST	1942 Apr 24
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1970
 			-7:00	Mexico	M%sT
@@ -1161,7 +1155,7 @@ Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
-			-8:00	-	PST	1942 Apr
+			-8:00	-	PST	1942 Apr 24
 			-7:00	-	MST	1949 Jan 14
 			-8:00	BajaN	P%sT	1976
 			-8:00	US	P%sT	1996

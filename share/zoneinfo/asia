@@ -1,4 +1,4 @@
-# @(#)asia	7.55
+# @(#)asia	7.56
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -370,9 +370,9 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 			9:00	-	JAYT
 
 # Iran
-# From Paul Eggert (1999-09-27), following up a suggestion by Rich Wales:
+# From Paul Eggert (2000-06-12), following up a suggestion by Rich Wales:
 # Ahmea Alavi in
-# <a href="http://tehran.stanford.edu/Iran_Lib/Calendar/taghveem.txt">
+# <a href="http://www.persia.org/Iran_Lib/Calendar/taghveem.txt">
 # TAGHVEEM (1993-07-12)
 # </a>
 # writes ``Daylight saving time in Iran starts from the first day
@@ -385,12 +385,13 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 #	1993	03-21	03-21	09-23	09-23
 #	1994	03-21	03-21	09-22!= 09-23
 #	1995	03-21	03-21	09-22!= 09-23
-#	1996	03-21!=	03-20	09-21!= 09-22
-#	1997	03-21	03-21	09-21!= 09-23
+#	1996	03-21!=	03-20	09-22   09-22
+#	1997	03-22!=	03-21	09-22!= 09-23
 #	1998	03-21	03-21	09-21!= 09-23
 #	1999	03-22!=	03-21	09-22!= 09-23
 #	2000	03-21!=	03-20	09-21!= 09-22
-#	2001	03-17!=	03-21	09-19!= 09-23
+#	2001	03-19!=	03-21	09-19!= 09-23
+#	2002	03-18!=	03-21	09-18!= 09-23
 #
 # Go with Alavi starting with 1992.
 # I used Ed Reingold's cal-persia in GNU Emacs 19.34 to compute Persian dates.
@@ -455,7 +456,23 @@ Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			4:00	Iran	IR%sT	1979
 			3:30	Iran	IR%sT
 
+
 # Iraq
+#
+# From Jonathan Lennox <lennox@cs.columbia.edu> (2000-06-12):
+# An article in this week's Economist ("Inside the Saddam-free zone", p. 50 in
+# the U.S. edition) on the Iraqi Kurds contains a paragraph: 
+# "The three northern provinces ... switched their clocks this spring and
+# are an hour ahead of Baghdad."
+#
+# But Rives McDow (2000-06-18) quotes a contact in Iraqi-Kurdistan as follows:
+# In the past, some Kurdish nationalists, as a protest to the Iraqi
+# Government, did not adhere to daylight saving time.  They referred
+# to daylight saving as Saddam time.  But, as of today, the time zone
+# in Iraqi-Kurdistan is on standard time with Baghdad, Iraq.
+#
+# So we'll ignore the Economist's claim.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Iraq	1982	only	-	May	1	0:00	1:00	D
 Rule	Iraq	1982	1984	-	Oct	1	0:00	0	S
@@ -526,7 +543,7 @@ Rule	Zion	1988	only	-	Apr	 9	0:00	1:00	D
 Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 
 # From Ephraim Silverberg <ephraim@cs.huji.ac.il>
-# (1997-03-04, 1998-03-16, 1998-12-28, and 2000-01-17):
+# (1997-03-04, 1998-03-16, 1998-12-28, 2000-01-17 and 2000-07-25):
 
 # According to the Office of the Secretary General of the Ministry of
 # Interior, there is NO set rule for Daylight-Savings/Standard time changes.
@@ -537,14 +554,19 @@ Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 # Saturday night from midnight daylight savings time to 11 p.m. standard
 # time.  1996 is an exception to this rule where the change back to standard
 # time took place on Sunday night instead of Saturday night to avoid
-# conflicts with the Jewish New Year.  Starting in 1999, the change to
-# daylight savings time will still be on a Friday morning but from
+# conflicts with the Jewish New Year.  In 1999, the change to
+# daylight savings time was still on a Friday morning but from
 # 2 a.m. IST to 3 a.m. IDT; furthermore, the change back to standard time
-# will now also be on a Friday morning from 2 a.m. IDT to 1 a.m. IST for
-# 1999 only.  In the years from 2000 to 2002, the change back will be from
-# 2 a.m. IDT to 1 a.m. IST the morning after the Jewish festival of
-# Shmini Atzeret (i.e. the morning of the 23rd of Tishrei in the lunar
-# Hebrew calendar).
+# was also on a Friday morning from 2 a.m. IDT to 1 a.m. IST for
+# 1999 only.  In the year 2000, the change to daylight savings time was
+# similar to 1999, but although the change back will be on a Friday, it
+# will take place from 1 a.m. IDT to midnight IST.  Starting in 2001, all
+# changes to/from will take place at 1 a.m. old time, but now there is no
+# rule as to what day of the week it will take place in as the start date
+# (except in 2003) is the night after the Passover Seder (i.e. the eve
+# of the 16th of Nisan in the lunar Hebrew calendar) and the end date
+# (except in 2002) is three nights before Yom Kippur [Day of Atonement]
+# (the eve of the 7th of Tishrei in the lunar Hebrew calendar).
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Zion	1989	only	-	Apr	30	0:00	1:00	D
@@ -592,29 +614,37 @@ Rule	Zion	1998	only	-	Sep	 6	0:00	0	S
 Rule	Zion	1999	only	-	Apr	 2	2:00	1:00	D
 Rule	Zion	1999	only	-	Sep	 3	2:00	0	S
 
-# Minister of Interior, Natan Sharansky, has announced the dates for
-# the years 2000-2002.  However, sources inside the ministry have noted
-# that the end date of 2000 and both dates of 2001-2002 should be regarded
-# as tentative pending final approval.
+# The Knesset Interior Committee has changed the dates for 2000 for
+# the third time in just over a year and have set new dates for the
+# years 2001-2004 as well.
 #
-# The official announcement for the years 2000-2002 can be viewed at:
+# The official announcement for the start date of 2000 can be viewed at:
 #
-#	ftp://ftp.huji.ac.il/pub/tz/announcements/2000-2002.ps.gz
+#	ftp://ftp.huji.ac.il/pub/tz/announcements/2000-start.ps.gz
+#
+# The official announcement for the end date of 2000 and the dates
+# for the years 2001-2004 can be viewed at:
+#
+#	ftp://ftp.huji.ac.il/pub/tz/announcements/2000-2004.ps.gz
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Zion	2000	only	-	Apr	14	2:00	1:00	D
-Rule	Zion	2000	only	-	Oct	22	2:00	0	S
-Rule	Zion	2001	only	-	Apr	 6	2:00	1:00	D
-Rule	Zion	2001	only	-	Oct	10	2:00	0	S
-Rule	Zion	2002	only	-	Mar	29	2:00	1:00	D
-Rule	Zion	2002	only	-	Sep	29	2:00	0	S
+Rule	Zion	2000	only	-	Oct	 6	1:00	0	S
+Rule	Zion	2001	only	-	Apr	 9	1:00	1:00	D
+Rule	Zion	2001	only	-	Sep	24	1:00	0	S
+Rule	Zion	2002	only	-	Mar	29	1:00	1:00	D
+Rule	Zion	2002	only	-	Oct	 7	1:00	0	S
+Rule	Zion	2003	only	-	Mar	28	1:00	1:00	D
+Rule	Zion	2003	only	-	Oct	 3	1:00	0	S
+Rule	Zion	2004	only	-	Apr	 7	1:00	1:00	D
+Rule	Zion	2004	only	-	Sep	22	1:00	0	S
 
-# From Paul Eggert (2000-01-17):
-# Here are guesses for rules after 2002.
+# From Paul Eggert (2000-07-25):
+# Here are guesses for rules after 2004.
 # They are probably wrong, but they are more likely than no DST at all.
 # Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
-Rule	Zion	2003	max	-	Mar	Fri>=25	2:00	1:00	D
-Rule	Zion	2003	max	-	Oct	 1	2:00	0	S
+Rule	Zion	2005	max	-	Apr	 1	1:00	1:00	D
+Rule	Zion	2005	max	-	Oct	 1	1:00	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
