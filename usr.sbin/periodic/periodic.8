@@ -1,0 +1,112 @@
+.\" Copyright (c) 1997 FreeBSD, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dt periodic 8
+.Os FreeBSD 3.0
+.Sh NAME
+.Nm periodic
+.Nd run periodic system functions
+.Sh SYNOPSIS
+.Nm periodic
+.Ar path-to-directory
+.Sh DESCRIPTION
+The
+.Nm
+program is intended to be called by cron(8) to execute shell scripts
+located in the specified directory.
+.Pp
+The arguments are as follows:
+.Bl -tag -width Fl
+.It Ar path
+The
+.Ar path
+is a required argument.  This is a path to a directory containing
+executable programs or shell scripts which are executed one by one
+in alphanumeric order.
+.El
+.Sh ENVIRONMENT
+The 
+.Nm
+command sets the
+.Ev PATH
+environment to include all standard system
+directories.  If entries are added,  each entry
+must be responsible for configuring the appropriate environment.
+.Sh FILES
+.Bl -tag -width /etc/cron.d/monthly
+.It Pa /etc/crontab
+The
+.Nm
+program is typically called via entries in the system default cron table.
+.It Pa /etc/cron.d
+The default top-level directory where periodic script directories reside.
+If a simple name, rather than a complete path, is specified on the command
+line,  this directory is checked for the corresponding argument.
+.It Pa /etc/cron.d/daily
+The default directory where script fragments that should be executed once
+a day (usually in the middle of the night) are placed.
+.It Pa /etc/cron.d/weekly
+The default directory where script fragments that should be executed once
+a eek (usually on a weekend night) are placed.
+.It Pa /etc/cron.d/monthly
+The default directory where script fragments that should be executed once
+a month (usually on the first day of the month) are placed.
+.It Pa <entry>
+Each file in the specified directory is checked for executability.  If
+the execute bit is set, the entry is run.
+.El
+.Sh EXAMPLES
+The system crontab should have entries for
+.Nm
+similar to the following example:
+.Pp
+.Dl # do daily/weekly/monthly maintenance
+.Dl 0      2       *       *       *       root    periodic daily   2>&1
+.Dl 0      3       *       *       6       root    periodic weekly  2>&1
+.Dl 0      5       1       *       *       root    periodic monthly 2>&1
+.Sh SEE ALSO
+.Xr cron 8
+.Xr crontab 5 ,
+.Xr sh 1 ,
+.Rs
+.Sh DIAGNOSTICS
+Exit status is 0 on success, and 1 if the command
+fails for one of the following reasons:
+.Bl -diag
+.It usage: periodic <directory of files to execute>
+No directory path argument was passed to
+.Nm
+to specify where the script fragments reside.
+.It <directory> not found
+Self explanatory.
+.El
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Fx 3.0 .
+.Sh AUTHOR
+.An Paul Traina Aq pst@FreeBSD.ORG .
