@@ -89,7 +89,7 @@ struct uidinfo {
 	rlim_t	ui_sbsize;		/* socket buffer space consumed */
 	long	ui_proccnt;		/* number of processes */
 	uid_t	ui_uid;			/* uid */
-	u_short	ui_ref;			/* reference count */
+	u_int	ui_ref;			/* reference count */
 	struct mtx	*ui_mtxp;	/* protect all counts/limits */
 };
 
