@@ -87,7 +87,7 @@ ata_raiddisk_attach(struct ad_softc *adp)
 			       "inserted into ar%d disk%d as spare\n",
 			       array, disk);
 		    rdp->disks[disk].flags |= (AR_DF_PRESENT | AR_DF_SPARE);
-		    AD_SOFTC(rdp->disks[disk])->flags = AD_F_RAID_SUBDISK;
+		    AD_SOFTC(rdp->disks[disk])->flags |= AD_F_RAID_SUBDISK;
 		    ar_config_changed(rdp, 1);
 		    return 1;
 		}
@@ -133,6 +133,7 @@ ata_raiddisk_detach(struct ad_softc *adp)
 			       "deleted from ar%d disk%d\n", array, disk);
 		    rdp->disks[disk].flags &= ~(AR_DF_PRESENT | AR_DF_ONLINE);
 		    AD_SOFTC(rdp->disks[disk])->flags &= ~AD_F_RAID_SUBDISK;
+		    rdp->disks[disk].device = NULL;
 		    ar_config_changed(rdp, 1);
 		    return 1;
 		}
@@ -327,7 +328,7 @@ ata_raid_create(struct raid_setup *setup)
     }
 
     for (disk = 0; disk < total_disks; disk++)
-	AD_SOFTC(rdp->disks[disk])->flags = AD_F_RAID_SUBDISK;
+	AD_SOFTC(rdp->disks[disk])->flags |= AD_F_RAID_SUBDISK;
 
     rdp->lun = array;
     if (rdp->flags & AR_F_RAID0) {
@@ -972,6 +973,7 @@ highpoint_raid01:
 	raid->flags |= AR_F_HIGHPOINT_RAID;
 	raid->disks[disk_number].device = adp->device;
 	raid->disks[disk_number].flags = (AR_DF_PRESENT | AR_DF_ASSIGNED);
+	AD_SOFTC(raid->disks[disk_number])->flags |= AD_F_RAID_SUBDISK;
 	raid->lun = array;
 	if (info->magic == HPT_MAGIC_OK) {
 	    raid->disks[disk_number].flags |= AR_DF_ONLINE;
@@ -1232,6 +1234,8 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 	    raid->disks[info->raid.disk_number].flags |= AR_DF_PRESENT;
 	    raid->disks[info->raid.disk_number].disk_sectors =
 		info->raid.disk_sectors;
+	    AD_SOFTC(raid->disks[info->raid.disk_number])->flags |=
+		AD_F_RAID_SUBDISK;
 	    retval = 1;
 	}
 	break;
