@@ -354,9 +354,22 @@ will be acquired if it is not already held.
 .Pp
 The
 .Fn siginit
-function is called during system initialization to cause every signal except
-.Dv SIGCONT
-to be ignored by process 0.
+function is called during system initialization to cause every signal with
+a default property of
+.Dv SA_IGNORE
+(except
+.Dv SIGCONT )
+to be ignored by
+.Fa p .
+The process lock for
+.Fa p
+is acquired and released by
+.Fn siginit .
+The only process that
+.Fn siginit
+is ever called for
+is
+.Va proc0.
 .Pp
 The
 .Fn signotify
