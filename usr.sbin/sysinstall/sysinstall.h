@@ -126,7 +126,6 @@
 #define VAR_IPV6_ENABLE			"ipv6_enable"
 #define VAR_IPV6ADDR			"ipv6addr"
 #define VAR_KEYMAP			"keymap"
-#define VAR_KGET			"kget"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_LINUX_ENABLE		"linux_enable"
