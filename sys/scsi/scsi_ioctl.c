@@ -199,7 +199,7 @@ void scsistrategy(struct buf *bp)
 	s = splbio();
 	while(!(bp->b_flags & B_DONE))
 	{
-		sleep(bp,PRIBIO);
+		tsleep((caddr_t)bp, PRIBIO, "scsistrat", 0);
 	}
 	splx(s);
 	SC_DEBUG(sc_link,SDEV_DB3,("back from sleep\n"));
