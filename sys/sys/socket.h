@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.5 1995/01/05 19:51:51 se Exp $
+ * $Id: socket.h,v 1.7 1995/09/13 05:35:49 davidg Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -241,7 +241,7 @@ struct sockproto {
 /*
  * Maximum queue length specifiable by listen.
  */
-#define	SOMAXCONN	5
+#define	SOMAXCONN	32
 
 /*
  * Message header for recvmsg and sendmsg calls.
