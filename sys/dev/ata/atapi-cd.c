@@ -1069,7 +1069,6 @@ acd_strategy(struct bio *bp)
 	return;
     }
     
-    bp->bio_pblkno = bp->bio_blkno;
     bp->bio_resid = bp->bio_bcount;
 
     mtx_lock(&cdp->queue_mtx);
