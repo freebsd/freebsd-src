@@ -247,6 +247,7 @@ static void psmtimeout __P((void *));
 typedef int probefunc_t __P((struct psm_softc *));
 
 static int mouse_id_proc1 __P((KBDC, int, int, int *));
+static int mouse_ext_command __P((KBDC, int));
 static probefunc_t enable_groller;
 static probefunc_t enable_gmouse;
 static probefunc_t enable_aglide; 
@@ -2272,6 +2273,26 @@ static int mouse_id_proc1(KBDC kbdc, int res, int scale, int *status)
     return FALSE;
 }
 
+static int 
+mouse_ext_command(KBDC kbdc, int command)
+{
+    int c;
+
+    c = (command >> 6) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 4) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 2) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    c = (command >> 0) & 0x03;
+    if (set_mouse_resolution(kbdc, c) != c)
+	return FALSE;
+    return TRUE;
+}
+
 #if notyet
 /* Logitech MouseMan Cordless II */
 static int
@@ -2435,14 +2456,8 @@ enable_kmouse(struct psm_softc *sc)
 static int
 enable_mmanplus(struct psm_softc *sc)
 {
-    static char res[] = {
-	-1, PSMD_RES_LOW, PSMD_RES_HIGH, PSMD_RES_MEDIUM_HIGH,
-	PSMD_RES_MEDIUM_LOW, -1, PSMD_RES_HIGH, PSMD_RES_MEDIUM_LOW,
-	PSMD_RES_MEDIUM_HIGH, PSMD_RES_HIGH, 
-    };
     KBDC kbdc = sc->kbdc;
     int data[3];
-    int i;
 
     /* the special sequence to enable the fourth button and the roller. */
     /*
@@ -2450,16 +2465,10 @@ enable_mmanplus(struct psm_softc *sc)
      * must be called exactly three times since the last RESET command
      * before this sequence. XXX
      */
-    for (i = 0; i < sizeof(res)/sizeof(res[0]); ++i) {
-	if (res[i] < 0) {
-	    if (!set_mouse_scaling(kbdc, 1))
-		return FALSE;
-	} else {
-	    if (set_mouse_resolution(kbdc, res[i]) != res[i])
-		return FALSE;
-	}
-    }
-
+    if (!set_mouse_scaling(kbdc, 1))
+	return FALSE;
+    if (!mouse_ext_command(kbdc, 0x39) || !mouse_ext_command(kbdc, 0xdb))
+	return FALSE;
     if (get_mouse_status(kbdc, data, 1, 3) < 3)
         return FALSE;
 
@@ -2508,22 +2517,6 @@ enable_msexplorer(struct psm_softc *sc)
     int id;
     int i;
 
-    /*
-     * XXX: this is a kludge to fool some KVM switch products
-     * which think they are clever enough to know the 4-byte IntelliMouse
-     * protocol, and assume any other protocols use 3-byte packets.
-     * They don't convey 4-byte data packets from the IntelliMouse Explorer 
-     * correctly to the host computer because of this!
-     * The following sequence is actually IntelliMouse's "wake up"
-     * sequence; it will make the KVM think the mouse is IntelliMouse
-     * when it is in fact IntelliMouse Explorer.
-     */
-    for (i = 0; i < sizeof(rate0)/sizeof(rate0[0]); ++i) {
-        if (set_mouse_sampling_rate(kbdc, rate0[i]) != rate0[i])
-	    return FALSE;
-    }
-    id = get_aux_id(kbdc);
-
     /* the special sequence to enable the extra buttons and the roller. */
     for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i) {
         if (set_mouse_sampling_rate(kbdc, rate1[i]) != rate1[i])
@@ -2536,6 +2529,22 @@ enable_msexplorer(struct psm_softc *sc)
 
     sc->hw.hwid = id;
     sc->hw.buttons = 5;		/* IntelliMouse Explorer XXX */
+
+    /*
+     * XXX: this is a kludge to fool some KVM switch products
+     * which think they are clever enough to know the 4-byte IntelliMouse
+     * protocol, and assume any other protocols use 3-byte packets.
+     * They don't convey 4-byte data packets from the IntelliMouse Explorer 
+     * correctly to the host computer because of this!
+     * The following sequence is actually IntelliMouse's "wake up"
+     * sequence; it will make the KVM think the mouse is IntelliMouse
+     * when it is in fact IntelliMouse Explorer.
+     */
+    for (i = 0; i < sizeof(rate0)/sizeof(rate0[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate0[i]) != rate0[i])
+	    break;
+    }
+    id = get_aux_id(kbdc);
 
     return TRUE;
 }
