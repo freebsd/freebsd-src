@@ -31,6 +31,8 @@
 #include <sys/signal.h>
 #include <sys/uio.h>
 
+int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
+	    u_int buflen);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
