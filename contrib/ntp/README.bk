@@ -1,8 +1,8 @@
 In order to use the BitKeeper repository version of NTP you will have
 to have the following tools installed:
 
-	autoconf	2.50 or later (we use 2.52)
-	automake	(we use 1.5)
+	autoconf	2.52 or later
+	automake	1.5 or later
 	lynx
 
 Lynx is used to generate the COPYRIGHT file.  Don't ask.
@@ -17,11 +17,17 @@ please ask.  The license is pretty easy to read.
  
 Once you have installed bitkeeper, you can clone any NTP repository.
 
+	Note: as of 2002-05, ntp.bkserver.net and ntp.bkbits.net are
+	being upgraded.  Depending on the "phase" of the upgrade, one
+	of the two machines may not answer.
+
 You can get the ntp-stable repository by either of the following commands:
 
      bk clone bk://www.ntp.org/home/bk/ntp-stable ntp-stable
 
      bk clone bk://ntp.bkserver.net/ntp-stable ntp-stable
+
+     bk clone bk://ntp.bkbits.net/ntp-stable ntp-stable
 
 You can get the ntp-dev repository by either of the following commands:
 
@@ -29,11 +35,15 @@ You can get the ntp-dev repository by either of the following commands:
 
      bk clone bk://ntp.bkserver.net/ntp-dev ntp-dev
 
+     bk clone bk://ntp.bkbits.net/ntp-dev ntp-dev
+
 The IPV6 patch has been applied:
 
      bk clone bk://www.ntp.org/home/bk/ntp-dev-ipv6 ntp-dev-ipv6
 
      bk clone bk://ntp.bkserver.net/ntp-dev-ipv6 ntp-dev-ipv6
+
+     bk clone bk://ntp.bkbits.net/ntp-dev-ipv6 ntp-dev-ipv6
 
 The ntp-dev-ipv6 repository will be merged back in to the ntp-dev repo
 as soon as the code is stable.

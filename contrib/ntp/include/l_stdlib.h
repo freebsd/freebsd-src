@@ -235,7 +235,7 @@ extern	int	toupper		P((int));
 extern	int	errno;
 #endif
 
-#ifdef DECL_H_ERRNO
+#if defined(DECL_H_ERRNO) && !defined(h_errno)
 extern	int	h_errno;
 #endif
 

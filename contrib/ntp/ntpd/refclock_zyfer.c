@@ -233,7 +233,7 @@ zyfer_receive(
 	 * - wait for more data
 	 * Crack the beast, and if it's OK, process it.
 	 *
-	 * We use refclock_getlin() because we might use LDISC_CLK.
+	 * We use refclock_gtlin() because we might use LDISC_CLK.
 	 *
 	 * Under FreeBSD, we get the ! followed by two 14-byte packets.
 	 */
