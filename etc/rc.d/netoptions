@@ -77,11 +77,11 @@ network_pass1() {
 		;;
 	esac
 
+	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
-		showstat=false
 		if [ -r /etc/start_if.${ifn} ]; then
 			. /etc/start_if.${ifn}
-			showstat=true
+			eval showstat_$ifn=1
 		fi
 
 		# Do the primary ifconfig if specified
@@ -92,15 +92,22 @@ network_pass1() {
 		'')
 			;;
 		[Dd][Hh][Cc][Pp])
-			${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${ifn}
-			showstat=true
+			# DHCP inits are done all in one go below
+			dhcp_interfaces="$dhcp_interfaces $ifn"
+			eval showstat_$ifn=1
 			;;
 		*)
 			ifconfig ${ifn} ${ifconfig_args}
-			showstat=true
+			eval showstat_$ifn=1
 			;;
 		esac
+	done
 
+	if [ ! -z "${dhcp_interfaces}" ]; then
+		${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${dhcp_interfaces}
+	fi
+
+	for ifn in ${network_interfaces}; do
 		# Check to see if aliases need to be added
 		#
 		alias=0
@@ -108,7 +115,7 @@ network_pass1() {
 			eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
 			if [ -n "${ifconfig_args}" ]; then
 				ifconfig ${ifn} ${ifconfig_args} alias
-				showstat=true
+				eval showstat_$ifn=1
 				alias=`expr ${alias} + 1`
 			else
 				break;
@@ -120,14 +127,15 @@ network_pass1() {
 		eval ifconfig_args=\$ifconfig_${ifn}_ipx
 		if [ -n "${ifconfig_args}" ]; then
 			ifconfig ${ifn} ${ifconfig_args}
-			showstat=true
+			eval showstat_$ifn=1
 		fi
+	done
 
-		case ${showstat} in
-		true)
+	for ifn in ${network_interfaces}; do
+		eval showstat=\$showstat_${ifn}
+		if [ ! -z ${showstat} ]; then
 			ifconfig ${ifn}
-			;;
-		esac
+		fi
 	done
 
 	# Warm up user ppp if required, must happen before natd.
