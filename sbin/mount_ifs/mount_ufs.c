@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_ufs.c,v 1.9 1997/08/24 21:02:50 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -66,10 +66,9 @@ static void ufs_usage __P((void));
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_ASYNC,
+	MOPT_FORCE,
 	MOPT_SYNC,
-	MOPT_FORCE,
 	MOPT_UPDATE,
-	MOPT_FORCE,
 	{ NULL }
 };
 
