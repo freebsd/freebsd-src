@@ -15,7 +15,7 @@ if [ "${ARCH}" = "i386" ]; then
 
 if [ "${FDSIZE}" = "SMALL" ]; then
 
-sed	-e '/	pci/d' \
+sed	-e '/	pci$/d' \
 	-e '/	adv/d' \
 	-e '/	ahc/d' \
 	-e '/	amd/d' \
@@ -80,6 +80,7 @@ sed	-e '/pty/d' \
 fi
 
 echo "options  NETGRAPH"
+echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
 
