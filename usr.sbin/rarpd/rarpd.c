@@ -1024,7 +1024,8 @@ expand_syslog_m(const char *fmt, char **newfmt) {
 	p = strdup("");
 	str = fmt;
 	while ((m = strstr(str, "%m")) != NULL) {
-		asprintf(&np, "%s%.*s%s", p, m - str, str, strerror(errno));
+		asprintf(&np, "%s%.*s%s", p, (int)(m - str),
+		    str, strerror(errno));
 		free(p);
 		if (np == NULL) {
 			errno = ENOMEM;
