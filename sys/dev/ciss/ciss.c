@@ -241,7 +241,11 @@ static struct
     { 0x0e11, 0x4070, CISS_BOARD_SA5,	"Compaq Smart Array 5300" },
     { 0x0e11, 0x4080, CISS_BOARD_SA5B,	"Compaq Smart Array 5i" },
     { 0x0e11, 0x4082, CISS_BOARD_SA5B,	"Compaq Smart Array 532" },
-    { 0, 0, NULL }
+    { 0x0e11, 0x4083, CISS_BOARD_SA5B,	"HP Smart Array 5312" },
+    { 0x0e11, 0x409A, CISS_BOARD_SA5B,	"HP Smart Array 641" },
+    { 0x0e11, 0x409B, CISS_BOARD_SA5B,	"HP Smart Array 642" },
+    { 0x0e11, 0x409C, CISS_BOARD_SA5B,	"HP Smart Array 6400" },
+    { 0, 0, 0, NULL }
 };
 
 /************************************************************************
