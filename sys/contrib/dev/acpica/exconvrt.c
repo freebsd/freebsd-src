@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 20 $
+ *              $Revision: 22 $
  *
  *****************************************************************************/
 
@@ -158,6 +158,9 @@ AcpiExConvertToInteger (
     UINT32                  IntegerSize = sizeof (ACPI_INTEGER);
 
 
+    FUNCTION_ENTRY ();
+
+
     switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
@@ -231,7 +234,6 @@ AcpiExConvertToInteger (
          * Convert string to an integer
          * String must be hexadecimal as per the ACPI specification
          */
-
         Result = STRTOUL (Pointer, NULL, 16);
         break;
 
@@ -296,6 +298,9 @@ AcpiExConvertToBuffer (
     UINT32                  i;
     UINT32                  IntegerSize = sizeof (ACPI_INTEGER);
     UINT8                   *NewBuf;
+
+
+    FUNCTION_ENTRY ();
 
 
     switch (ObjDesc->Common.Type)
@@ -376,7 +381,6 @@ AcpiExConvertToBuffer (
 }
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiExConvertAscii
@@ -404,23 +408,7 @@ AcpiExConvertToAscii (
     UINT32                  Length = sizeof (ACPI_INTEGER);
 
 
-    /******** TBD: DEBUG only 
-    char                    *buf;
-    char                    sbuf[32];
-#include <stdio.h>
-#include <stdlib.h>
-    buf = _ui64toa (Integer, sbuf, 10);
-    printf ("1): %s\n", sbuf);
-
-    AcpiExConvertToDecimalAscii (Integer, 0, sbuf);
-    printf ("2): %s\n", sbuf);
-
-
-    buf = _ui64toa (Integer, sbuf, 16);
-    printf ("3): %s\n", sbuf);
-
-    printf ("4): %s\n", String);
-***************************************************/
+    FUNCTION_ENTRY ();
 
 
     switch (Base)
@@ -479,7 +467,7 @@ AcpiExConvertToAscii (
 
     /*
      * Since leading zeros are supressed, we must check for the case where
-     * the integer equals 0.  
+     * the integer equals 0.
      *
      * Finally, null terminate the string and return the length
      */
@@ -524,6 +512,8 @@ AcpiExConvertToString (
     UINT8                   *NewBuf;
     UINT8                   *Pointer;
 
+
+    FUNCTION_ENTRY ();
 
 
     switch (ObjDesc->Common.Type)
@@ -731,7 +721,6 @@ AcpiExConvertToTargetType (
      * If required by the target,
      * perform implicit conversion on the source before we store it.
      */
-
     switch (GET_CURRENT_ARG_TYPE (WalkState->OpInfo->RuntimeArgs))
     {
     case ARGI_SIMPLE_TARGET:

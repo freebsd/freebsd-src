@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 142 $
+ *              $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -214,7 +214,6 @@ AcpiExStore (
      * 4) Store to the debug object
      * 5) Store to a constant -- a noop
      */
-
     switch (RefDesc->Reference.Opcode)
     {
 
@@ -251,46 +250,47 @@ AcpiExStore (
          * Storing to the Debug object causes the value stored to be
          * displayed and otherwise has no effect -- see ACPI Specification
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Write to Debug Object: ****: \n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Write to Debug Object: ****:\n\n"));
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "[ACPI Debug] %s: ",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %s: ",
                         AcpiUtGetTypeName (ValDesc->Common.Type)));
 
         switch (ValDesc->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "0x%X (%d)\n", 
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "0x%X (%d)\n",
                 (UINT32) ValDesc->Integer.Value, (UINT32) ValDesc->Integer.Value));
             break;
 
 
         case ACPI_TYPE_BUFFER:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "Length 0x%X\n", 
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "Length 0x%X\n",
                 (UINT32) ValDesc->Buffer.Length));
             break;
 
 
         case ACPI_TYPE_STRING:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "%s\n", ValDesc->String.Pointer));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "%s\n", ValDesc->String.Pointer));
             break;
 
 
         case ACPI_TYPE_PACKAGE:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "Elements - 0x%X\n", 
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "Elements - 0x%X\n",
                 (UINT32) ValDesc->Package.Elements));
             break;
 
 
         default:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OBJECTS, "@0x%p\n", ValDesc));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "@0x%p\n", ValDesc));
             break;
         }
 
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "\n"));
         break;
 
 
@@ -358,14 +358,13 @@ AcpiExStoreObjectToIndex (
     UINT8                   Value = 0;
 
 
-    FUNCTION_TRACE ("AcpiExStoreObjectToIndex");
+    FUNCTION_TRACE ("ExStoreObjectToIndex");
 
 
     /*
      * Destination must be a reference pointer, and
      * must point to either a buffer or a package
      */
-
     switch (DestDesc->Reference.TargetType)
     {
     case ACPI_TYPE_PACKAGE:
@@ -437,7 +436,6 @@ AcpiExStoreObjectToIndex (
                  * reference to the newly created descriptor for now being
                  * part of the parent package
                  */
-
                 *(DestDesc->Reference.Where) = ObjDesc;
                 AcpiUtAddReference (ObjDesc);
             }
@@ -491,7 +489,6 @@ AcpiExStoreObjectToIndex (
          * The assignment of the individual elements will be slightly
          * different for each source type.
          */
-
         switch (ValDesc->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
@@ -601,10 +598,10 @@ AcpiExStoreObjectToNode (
 
     FUNCTION_TRACE ("ExStoreObjectToNode");
 
+
     /*
      * Assuming the parameters were already validated
      */
-
 
     /*
      * Get current type of the node, and object attached to Node
@@ -734,7 +731,6 @@ AcpiExStoreObjectToObject (
     /*
      *  Assuming the parameters are valid!
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Storing %p(%s) to %p(%s)\n",
                     SourceDesc, AcpiUtGetTypeName (SourceDesc->Common.Type),
                     DestDesc, AcpiUtGetTypeName (DestDesc->Common.Type)));

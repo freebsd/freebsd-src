@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -358,7 +358,7 @@ AcpiEvPciConfigRegionSetup (
     }
 
     /*
-     * The PCI bus number comes from the _BBN method 
+     * The PCI bus number comes from the _BBN method
      */
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__BBN, Node, &Temp);
     if (ACPI_SUCCESS (Status))
@@ -523,7 +523,7 @@ AcpiEvInitializeRegion (
                     /*
                      *  Found it! Now update the region and the handler
                      */
-                    AcpiEvAssociateRegionAndHandler (HandlerObj, RegionObj, 
+                    AcpiEvAssociateRegionAndHandler (HandlerObj, RegionObj,
                             AcpiNsLocked);
                     return_ACPI_STATUS (AE_OK);
                 }

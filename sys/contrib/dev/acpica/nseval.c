@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 94 $
+ *              $Revision: 97 $
  *
  ******************************************************************************/
 
@@ -216,7 +216,6 @@ AcpiNsEvaluateRelative (
      * Now that we have a handle to the object, we can attempt
      * to evaluate it.
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n",
         Pathname, Node, Node->Object));
 
@@ -295,8 +294,7 @@ AcpiNsEvaluateByName (
      * Now that we have a handle to the object, we can attempt
      * to evaluate it.
      */
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n",
         Pathname, Node, Node->Object));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
@@ -513,9 +511,17 @@ AcpiNsExecuteControlMethod (
     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
     /*
-     * Execute the method via the interpreter
+     * Execute the method via the interpreter.  The interpreter is locked
+     * here before calling into the AML parser
      */
-    Status = AcpiExExecuteMethod (MethodNode, Params, ReturnObjDesc);
+    Status = AcpiExEnterInterpreter ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiPsxExecute (MethodNode, Params, ReturnObjDesc);
+    AcpiExExitInterpreter ();
 
     return_ACPI_STATUS (Status);
 }
@@ -551,7 +557,6 @@ AcpiNsGetObjectValue (
     /*
      *  We take the value from certain objects directly
      */
-
     if ((Node->Type == ACPI_TYPE_PROCESSOR) ||
         (Node->Type == ACPI_TYPE_POWER))
     {
@@ -568,7 +573,6 @@ AcpiNsGetObjectValue (
         /*
          *  Get the attached object
          */
-
         ValDesc = AcpiNsGetAttachedObject (Node);
         if (!ValDesc)
         {
@@ -582,7 +586,6 @@ AcpiNsGetObjectValue (
          * TBD: [Future] - need a low-level object copy that handles
          * the reference count automatically.  (Don't want to copy it)
          */
-
         MEMCPY (ObjDesc, ValDesc, sizeof (ACPI_OPERAND_OBJECT));
         ObjDesc->Common.ReferenceCount = 1;
         AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -625,7 +628,6 @@ AcpiNsGetObjectValue (
          * We must release the namespace lock before entering the
          * intepreter.
          */
-
         AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         Status = AcpiExEnterInterpreter ();
         if (ACPI_SUCCESS (Status))
@@ -640,7 +642,6 @@ AcpiNsGetObjectValue (
      * If AcpiExResolveToValue() succeeded, the return value was
      * placed in ObjDesc.
      */
-
     if (ACPI_SUCCESS (Status))
     {
         Status = AE_CTRL_RETURN_VALUE;

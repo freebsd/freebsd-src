@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 15 $
+ *              $Revision: 16 $
  *
  ******************************************************************************/
 
@@ -284,7 +284,7 @@ AcpiRsVendorResource (
     {
         /*
          * Large Item
-         * Point to the length field 
+         * Point to the length field
          */
         Buffer += 1;
 
@@ -305,7 +305,7 @@ AcpiRsVendorResource (
     {
         /*
          * Small Item
-         * Dereference the size 
+         * Dereference the size
          */
         Temp16 = (UINT8)(*Buffer & 0x07);
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 39 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -145,6 +145,7 @@ AcpiTbHandleToObject (
 {
     UINT32                  i;
     ACPI_TABLE_DESC         *ListHead;
+
 
     PROC_NAME ("TbHandleToObject");
 
@@ -375,7 +376,6 @@ AcpiTbMapAcpiTable (
          * Validate the header and delete the mapping.
          * We will create a mapping for the full table below.
          */
-
         Status = AcpiTbValidateTableHeader (Table);
 
         /* Always unmap the memory for the header */

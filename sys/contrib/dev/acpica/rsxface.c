@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsxface - Public interfaces to the resource manager
- *              $Revision: 13 $
+ *              $Revision: 14 $
  *
  ******************************************************************************/
 
@@ -220,7 +220,7 @@ AcpiGetCurrentResources (
 
     FUNCTION_TRACE ("AcpiGetCurrentResources");
 
-    
+
     /* Ensure that ACPI has been initialized */
 
     ACPI_IS_INITIALIZATION_COMPLETE (Status);

@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 35 $
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -196,7 +196,6 @@ AcpiInstallAddressSpaceHandler (
      *  and the root.  This is where the default handlers
      *  get placed.
      */
-
     if ((Node->Type != ACPI_TYPE_DEVICE)     &&
         (Node->Type != ACPI_TYPE_PROCESSOR)  &&
         (Node->Type != ACPI_TYPE_THERMAL)    &&
@@ -245,7 +244,6 @@ AcpiInstallAddressSpaceHandler (
     /*
      *  Check for an existing internal object
      */
-
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (ObjDesc)
     {
@@ -361,7 +359,6 @@ AcpiInstallAddressSpaceHandler (
     /*
      *  Place this handler 1st on the list
      */
-
     HandlerObj->Common.ReferenceCount =
                             (UINT16) (HandlerObj->Common.ReferenceCount +
                             ObjDesc->Common.ReferenceCount - 1);
@@ -448,7 +445,6 @@ AcpiRemoveAddressSpaceHandler (
     /*
      *  find the address handler the user requested
      */
-
     HandlerObj = ObjDesc->Device.AddrHandler;
     LastObjPtr = &ObjDesc->Device.AddrHandler;
     while (HandlerObj)
@@ -456,7 +452,6 @@ AcpiRemoveAddressSpaceHandler (
         /*
          *  We have a handler, see if user requested this one
          */
-
         if(HandlerObj->AddrHandler.SpaceId == SpaceId)
         {
             /*

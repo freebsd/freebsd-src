@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 108 $
+ *       $Revision: 112 $
  *
  *****************************************************************************/
 
@@ -345,102 +345,79 @@ AcpiUtUpdateObjectReference (
     ACPI_OPERAND_OBJECT     *Object,
     UINT16                  Action);
 
-ACPI_OPERAND_OBJECT  *
-_UtCreateInternalObject (
-    NATIVE_CHAR             *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    ACPI_OBJECT_TYPE8       Type);
-
 
 /*
  * UtDebug - Debug interfaces
  */
 
-UINT32
-GetDebugLevel (
+void
+AcpiUtInitStackPtrTrace (
     void);
 
 void
-SetDebugLevel (
-    UINT32                  level);
+AcpiUtTrackStackPtr (
+    void);
 
 void
-FunctionTrace (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtTrace (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName);
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo);
 
 void
-FunctionTracePtr (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtTracePtr (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     void                    *Pointer);
 
 void
-FunctionTraceU32 (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtTraceU32 (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     UINT32                  Integer);
 
 void
-FunctionTraceStr (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtTraceStr (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     NATIVE_CHAR             *String);
 
 void
-FunctionExit (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtExit (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName);
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo);
 
 void
-FunctionStatusExit (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtStatusExit (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     ACPI_STATUS             Status);
 
 void
-FunctionValueExit (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtValueExit (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     ACPI_INTEGER            Value);
 
 void
-FunctionPtrExit (
-    NATIVE_CHAR             *ModuleName,
+AcpiUtPtrExit (
     UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *FunctionName,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     UINT8                   *Ptr);
 
 void
-_ReportInfo (
+AcpiUtReportInfo (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId);
 
 void
-_ReportError (
+AcpiUtReportError (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId);
 
 void
-_ReportWarning (
+AcpiUtReportWarning (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId);
@@ -455,22 +432,19 @@ AcpiUtDumpBuffer (
 void
 AcpiUtDebugPrint (
     UINT32                  RequestedDebugLevel,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *ModuleName,
-    NATIVE_CHAR             *ProcName,
     UINT32                  LineNumber,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     char                    *Format,
     ...);
 
 void
 AcpiUtDebugPrintRaw (
     UINT32                  RequestedDebugLevel,
-    UINT32                  ComponentId,
-    NATIVE_CHAR             *ModuleName,
-    NATIVE_CHAR             *ProcName,
     UINT32                  LineNumber,
+    ACPI_DEBUG_PRINT_INFO   *DbgInfo,
     char                    *Format,
     ...);
+
 
 /*
  * UtDelete - Object deletion
@@ -563,14 +537,21 @@ AcpiUtReleaseMutex (
  * UtObject - internal object create/delete/cache routines
  */
 
+ACPI_OPERAND_OBJECT  *
+AcpiUtCreateInternalObjectDbg (
+    NATIVE_CHAR             *ModuleName,
+    UINT32                  LineNumber,
+    UINT32                  ComponentId,
+    ACPI_OBJECT_TYPE8       Type);
+
 void *
-_UtAllocateObjectDesc (
+AcpiUtAllocateObjectDescDbg (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId);
 
-#define AcpiUtCreateInternalObject(t)   _UtCreateInternalObject(_THIS_MODULE,__LINE__,_COMPONENT,t)
-#define AcpiUtAllocateObjectDesc()      _UtAllocateObjectDesc(_THIS_MODULE,__LINE__,_COMPONENT)
+#define AcpiUtCreateInternalObject(t)   AcpiUtCreateInternalObjectDbg (_THIS_MODULE,__LINE__,_COMPONENT,t)
+#define AcpiUtAllocateObjectDesc()      AcpiUtAllocateObjectDescDbg (_THIS_MODULE,__LINE__,_COMPONENT)
 
 void
 AcpiUtDeleteObjectDesc (
@@ -757,7 +738,6 @@ AcpiUtDumpCurrentAllocations (
     UINT32                  Component,
     NATIVE_CHAR             *Module);
 #endif
-
 
 
 #endif /* _ACUTILS_H */

@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 86 $
+ *              $Revision: 89 $
  *
  *****************************************************************************/
 
@@ -230,12 +230,12 @@ AcpiNsLocal (
  *
  * FUNCTION:    AcpiNsGetInternalNameLength
  *
- * PARAMETERS:  Info            - Info struct initialized with the 
+ * PARAMETERS:  Info            - Info struct initialized with the
  *                                external name pointer.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Calculate the length of the internal (AML) namestring 
+ * DESCRIPTION: Calculate the length of the internal (AML) namestring
  *              corresponding to the external (ASL) namestring.
  *
  ******************************************************************************/
@@ -248,11 +248,14 @@ AcpiNsGetInternalNameLength (
     UINT32                  i;
 
 
+    FUNCTION_ENTRY ();
+
+
     NextExternalChar = Info->ExternalName;
     Info->NumCarats = 0;
     Info->NumSegments = 0;
     Info->FullyQualified = FALSE;
-   
+
     /*
      * For the internal name, the required length is 4 bytes
      * per segment, plus 1 each for RootPrefix, MultiNamePrefixOp,
@@ -273,7 +276,6 @@ AcpiNsGetInternalNameLength (
         /*
          * Handle Carat prefixes
          */
-
         while (*NextExternalChar == '^')
         {
             Info->NumCarats++;
@@ -299,7 +301,7 @@ AcpiNsGetInternalNameLength (
         }
     }
 
-    Info->Length = (ACPI_NAME_SIZE * Info->NumSegments) + 
+    Info->Length = (ACPI_NAME_SIZE * Info->NumSegments) +
                     4 + Info->NumCarats;
 
     Info->NextExternalChar = NextExternalChar;
@@ -316,7 +318,7 @@ AcpiNsGetInternalNameLength (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Construct the internal (AML) namestring 
+ * DESCRIPTION: Construct the internal (AML) namestring
  *              corresponding to the external (ASL) namestring.
  *
  ******************************************************************************/
@@ -332,9 +334,9 @@ AcpiNsBuildInternalName (
     UINT32                  i;
 
 
-    FUNCTION_TRACE ("AcpiNsBuildInternalName");
+    FUNCTION_TRACE ("NsBuildInternalName");
 
-    
+
     /* Setup the correct prefixes, counts, and pointers */
 
     if (Info->FullyQualified)
@@ -695,6 +697,9 @@ AcpiNsConvertHandleToEntry (
     ACPI_HANDLE             Handle)
 {
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * Simple implementation for now;
      * TBD: [Future] Real integer handles allow for more verification
@@ -957,7 +962,7 @@ AcpiNsFindParentName (
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
-    FUNCTION_TRACE ("FindParentName");
+    FUNCTION_TRACE ("NsFindParentName");
 
 
     if (ChildNode)
@@ -1040,6 +1045,9 @@ ACPI_NAMESPACE_NODE *
 AcpiNsGetParentObject (
     ACPI_NAMESPACE_NODE     *Node)
 {
+
+
+    FUNCTION_ENTRY ();
 
 
     if (!Node)
