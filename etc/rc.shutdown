@@ -32,12 +32,11 @@ case ${entropy_file} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -f ${entropy_file} -a -r ${entropy_file} ] ; then
-		echo -n "Writing entropy file"
-		touch ${entropy_file} && \
-			chmod 600 ${entropy_file} && \
-			dd if=/dev/random of=${entropy_file} bs=4096 count=1
-	fi
+	echo "Writing entropy file"
+	rm -f ${entropy_file}
+	touch ${entropy_file} && \
+		chmod 600 ${entropy_file} && \
+		dd if=/dev/random of=${entropy_file} bs=4096 count=1
 	;;
 esac
 
