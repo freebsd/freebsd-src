@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.h,v 1.3 1999/01/27 19:58:53 dillon Exp $
+ *	$Id: smbconf.h,v 1.4 1999/02/13 17:57:19 nsouch Exp $
  */
 #ifndef __SMBONF_H
 #define __SMBONF_H
@@ -74,6 +74,7 @@
 extern int smbus_request_bus(device_t, device_t, int);
 extern int smbus_release_bus(device_t, device_t);
 extern device_t smbus_alloc_bus(device_t);
+extern int smbus_error(int error);
 
 extern void smbus_intr(device_t, u_char, char low, char high, int error);
 
