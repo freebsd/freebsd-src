@@ -200,7 +200,10 @@ The
 .Em service-name
 entry is the name of a valid service in
 the file
-.Pa /etc/services .
+.Pa /etc/services ,
+or the specification of a
+.Ux
+domain socket (see below).
 For
 .Dq internal
 services (discussed below), the service
@@ -250,7 +253,8 @@ TCPMUX services must use
 .Pp
 The
 .Em protocol
-must be a valid protocol.
+must be a valid protocol or
+.Dq unix .
 Examples are
 .Dq tcp
 or
@@ -580,6 +584,7 @@ records its process ID in the file
 .Pa /var/run/inetd.pid
 to assist in reconfiguration.
 .Sh IMPLEMENTATION NOTES
+.Ss TCP Wrappers
 When given the
 .Fl w
 option,
@@ -682,6 +687,66 @@ If an invalid IPsec policy specifier appears in
 will provide an error message via the
 .Xr syslog 3
 interface and abort execution.
+.Ss Ux Domain Sockets
+In addition to running services on IP sockets,
+.Nm
+can also manage 
+.Ux
+domain sockets.
+To do this you specify a
+.Em protocol
+of
+.Dq unix
+and specify the unix domain socket as the
+.Em service-name .
+The
+.Em service-type
+may be
+.Dq stream
+or
+.Dq dgram .
+The specification of the socket must be
+an absolute path name,
+optionally prefixed by an owner and mode
+of the form
+.Em :user:group:mode: .
+The specification:
+.Bd -literal -offset indent -compact
+:news:daemon:220:/var/run/sock
+.Ed
+creates a socket owned
+by user news in group daemon
+with permissions allowing only that user and group to connect.
+The default owner is the user that inetd is running as.
+The default mode only allows the socket's owner to connect.
+.Pp
+.Sy WARNING:
+while creating
+.Ux
+domain socket 
+.Nm
+must change the ownership and permissions on the socket.
+This can only be done securely if
+the directory in which the socket is created
+is writable only by root.
+Do
+.Sy NOT
+use
+.Nm
+to create sockets in world writable directories,
+such as
+.Pa /tmp ,
+instead use
+.Pa /var/run
+or a similar directory.
+.Pp
+Internal services may be run on
+.Ux
+domain sockets, in the usual way.
+In this case
+the name of the internal service
+is determined using
+the last component of the socket's pathname.
 .Sh "FILES"
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
@@ -705,6 +770,7 @@ shell        stream  tcp46  nowait root  /usr/libexec/rshd rshd
 tcpmux/+date stream  tcp   nowait guest /bin/date                date
 tcpmux/phonebook stream tcp nowait guest /usr/local/bin/phonebook phonebook
 rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
+/var/run/echo stream unix  nowait root	internal
 #@ ipsec ah/require
 chargen      stream  tcp   nowait root  internal
 #@
