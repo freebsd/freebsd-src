@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.7 1995/05/04 07:00:57 phk Exp $
+ * $Id: write_disk.c,v 1.8 1995/05/06 03:28:32 phk Exp $
  *
  */
 
@@ -64,7 +64,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 		dl->d_partitions[j].p_size = c2->size;
 		dl->d_partitions[j].p_offset = c2->offset;
 		dl->d_partitions[j].p_fstype = c2->subtype;
-		
 	}
 
 	dl->d_bbsize = BBSIZE;
@@ -84,6 +83,10 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_partitions[RAW_PART].p_size = c1->size;
 	dl->d_partitions[RAW_PART].p_offset = c1->offset;
 
+	if(new->flags & DISK_ON_TRACK)
+		for(i=0;i<MAXPARTITIONS;i++)
+			if (dl->d_partitions[i].p_size)
+				dl->d_partitions[i].p_offset += 63;
 	dl->d_magic = DISKMAGIC;
 	dl->d_magic2 = DISKMAGIC;
 	dl->d_checksum = dkcksum(dl);
@@ -189,9 +192,17 @@ Write_Disk(struct disk *d1)
 		else
 			dp[j].dp_flag = 0;
 	}
-	for(i=0;i<NDOSPART;i++)
+	j = 0;
+	for(i=0;i<NDOSPART;i++) {
 		if (!s[i])
 			memset(dp+i,0,sizeof *dp);
+		if (dp[i].dp_flag)
+			j++;
+	}
+	if (!j)
+		for(i=0;i<NDOSPART;i++)
+			if (dp[j].dp_typ == 0xa5)
+				dp[i].dp_flag = 0x80;
 	
 	mbr = read_block(fd,0);
 	if (d1->bootmgr)
