@@ -103,8 +103,10 @@
 				    ((s) | ~MP_LONG_SEQ_MASK) : (s))
 
 /* Comparision of MP sequence numbers */
-#define MP_SHORT_SEQ_DIFF(x,y)	(MP_SHORT_EXTEND(x) - MP_SHORT_EXTEND(y))
-#define MP_LONG_SEQ_DIFF(x,y)	(MP_LONG_EXTEND(x) - MP_LONG_EXTEND(y))
+#define MP_SHORT_SEQ_DIFF(x,y)	\
+	(MP_SHORT_EXTEND(((x) & MP_SHORT_SEQ_MASK) - ((y) & MP_SHORT_SEQ_MASK)))
+#define MP_LONG_SEQ_DIFF(x,y)	\
+	(MP_LONG_EXTEND(((x) & MP_LONG_SEQ_MASK) - ((y) & MP_LONG_SEQ_MASK)))
 
 #define MP_SEQ_DIFF(priv,x,y)	((priv)->conf.recvShortSeq ? \
 				    MP_SHORT_SEQ_DIFF((x), (y)) : \
