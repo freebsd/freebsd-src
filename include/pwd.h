@@ -103,7 +103,7 @@ struct passwd	*getpwnam __P((const char *));
 #ifndef _POSIX_SOURCE
 struct passwd	*getpwent __P((void));
 int		 setpassent __P((int));
-int		 setpwent __P((void));
+void		 setpwent __P((void));
 void		 endpwent __P((void));
 #endif
 __END_DECLS
