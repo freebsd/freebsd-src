@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.69 1998/03/04 10:25:03 dufault Exp $
+ *	$Id: swtch.s,v 1.70 1998/03/28 11:49:31 dufault Exp $
  */
 
 #include "npx.h"
@@ -68,11 +68,6 @@
  * queues.
  */
 	.data
-
-#ifndef SMP
-	.globl	_curpcb
-_curpcb:	.long	0		/* pointer to curproc's PCB area */
-#endif /* !SMP */
 
 	.globl	_whichqs, _whichrtqs, _whichidqs
 
