@@ -25,8 +25,6 @@
 #	$FreeBSD$
 
 
-.PATH:		${PAMDIR}/modules/pam_permit
-
 LIB=		pam_permit
 SRCS=		pam_permit.c
 CFLAGS+=	-Wall
@@ -34,3 +32,5 @@ CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_permit
