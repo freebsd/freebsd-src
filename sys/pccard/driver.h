@@ -23,6 +23,6 @@ void	pccard_insert_beep __P((void));
 void	pccard_remove_beep __P((void));
 void	pccard_success_beep __P((void));
 void	pccard_failure_beep __P((void));
-void	pccard_beep_select __P((enum beepstate));
+int	pccard_beep_select __P((enum beepstate));
 
 #endif /* !_PCCARD_DRIVER_H_ */

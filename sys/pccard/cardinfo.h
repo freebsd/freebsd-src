@@ -45,6 +45,7 @@
 #define PIOCRWFLAG	_IOW('P', 7, int)	/* Set flags for drv use */
 #define PIOCRWMEM	_IOWR('P', 8, unsigned long) /* Set mem for drv use */
 #define PIOCSPOW	_IOW('P', 9, struct power) /* Set power structure */
+#define PIOCSBEEP	_IOW('P', 11, int)		/* Select Beep */
 /*
  *	Debug codes.
  */
