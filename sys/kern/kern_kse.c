@@ -111,10 +111,10 @@ void
 upcall_remove(struct thread *td)
 {
 
-	if (td->td_upcall) {
+	if (td->td_upcall != NULL) {
 		td->td_upcall->ku_owner = NULL;
 		upcall_unlink(td->td_upcall);
-		td->td_upcall = 0;
+		td->td_upcall = NULL;
 	}
 }
 
@@ -661,7 +661,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	/*
 	 * If we are the first time, and a normal thread,
-	 * then trnasfer all the signals back to the 'process'.
+	 * then transfer all the signals back to the 'process'.
 	 * SA threading will make a special thread to handle them.
 	 */
 	if (first && sa) {
@@ -672,14 +672,14 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	}
 
 	/*
-	 * Make the new upcall available to the ksegrp,.
-	 *  It may or may not use it, but its available.
+	 * Make the new upcall available to the ksegrp.
+	 * It may or may not use it, but it's available.
 	 */
 	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
 	if (mbx.km_quantum)
-		newkg->kg_upquantum = max(1, mbx.km_quantum/tick);
+		newkg->kg_upquantum = max(1, mbx.km_quantum / tick);
 
 	/*
 	 * Each upcall structure has an owner thread, find which
@@ -1312,7 +1312,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 
 	if (td->td_pflags & TDP_UPCALLING) {
 		uts_crit = 0;
-		kg->kg_nextupcall = ticks+kg->kg_upquantum;
+		kg->kg_nextupcall = ticks + kg->kg_upquantum;
 		/*
 		 * There is no more work to do and we are going to ride
 		 * this thread up to userland as an upcall.

@@ -103,7 +103,7 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
- 	struct bintime new_switchtime;
+	struct bintime new_switchtime;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -428,6 +428,7 @@ retry:
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXIT);
+
 	/*
 	 * Just delete all entries in the p_klist. At this point we won't
 	 * report any more events, and there are nasty race conditions that
@@ -517,7 +518,7 @@ retry:
 	sched_exit(p->p_pptr, td);
 
 	/*
-	 * hopefully no one will try to deliver a signal to the process this
+	 * Hopefully no one will try to deliver a signal to the process this
 	 * late in the game.
 	 */
 	knlist_destroy(&p->p_klist);
@@ -564,7 +565,8 @@ wait4(struct thread *td, struct wait_args *uap)
 }
 
 int
-kern_wait(struct thread *td, pid_t pid, int *status, int options, struct rusage *rusage)
+kern_wait(struct thread *td, pid_t pid, int *status, int options,
+    struct rusage *rusage)
 {
 	int nfound;
 	struct proc *p, *q, *t;
