@@ -177,6 +177,7 @@ in_gif_output(ifp, family, m)
 	if (dst->sin_family != sin_dst->sin_family ||
 	    dst->sin_addr.s_addr != sin_dst->sin_addr.s_addr) {
 		/* cache route doesn't match */
+		bzero(dst, sizeof(*dst));
 		dst->sin_family = sin_dst->sin_family;
 		dst->sin_len = sizeof(struct sockaddr_in);
 		dst->sin_addr = sin_dst->sin_addr;
