@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.12 1996/04/03 23:05:40 gpalmer Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.13 1996/06/14 11:01:37 asami Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -378,6 +378,13 @@ mountmsdosfs(devvp, mp, p)
 		goto error_exit;
 	}
 
+  	/* Refuse to mount a FAT32 filesystem. */
+  	if (!pmp->pm_FATsecs) {
+  		printf("mountmsdosfs(): FAT32 not supported\n");
+  		error = EINVAL;
+  		goto error_exit;
+  	}
+ 
 	if (pmp->pm_Sectors == 0) {
 		pmp->pm_HiddenSects = getulong(b50->bpbHiddenSecs);
 		pmp->pm_HugeSectors = getulong(b50->bpbHugeSectors);
