@@ -169,23 +169,9 @@ get_syscall(const char *name) {
 
 static int
 get_struct(int procfd, void *offset, void *buf, int len) {
-	char *pos;
-	FILE *p;
-	int c, fd;
 
-	if ((fd = dup(procfd)) == -1)
-		err(1, "dup");
-	if ((p = fdopen(fd, "r")) == NULL)
-		err(1, "fdopen");
-	if (fseeko(p, (uintptr_t)offset, SEEK_SET) == 0) {
-		for (pos = (char *)buf; len--; pos++) {
-			if ((c = fgetc(p)) == EOF)
-				return (-1);
-			*pos = c;
-		}
-	} else
-		bzero(buf, len);
-	fclose(p);
+	if (pread(procfd, buf, len, (uintptr_t)offset) != len)
+		return -1;
 	return 0;
 }
 
