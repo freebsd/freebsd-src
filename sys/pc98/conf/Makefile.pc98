@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.22 1997/10/23 09:20:16 kato Exp $
+#	$Id: Makefile.pc98,v 1.23 1997/11/04 12:58:20 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300002
+%VERSREQ=	300003
 
 BINFORMAT?=	aout
 #BINFORMAT?=	aoutkld
