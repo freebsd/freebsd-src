@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
+# $FreeBSD$
 
 MAN4=	bpf.4 bridge.4 ccd.4 cd.4 ch.4 da.4 ddb.4 divert.4 drum.4 \
 	dummynet.4 fd.4 fpa.4 \
@@ -11,7 +12,8 @@ MAN4=	bpf.4 bridge.4 ccd.4 cd.4 ch.4 da.4 ddb.4 divert.4 drum.4 \
 	termios.4 ttcp.4 tty.4 tun.4 udp.4 uk.4 unix.4 update.4 vinum.4 vn.4 \
 	vpo.4 worm.4 wst.4 xpt.4 yp.4 zero.4
 
-MLINKS=	fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
+MLINKS= bpf.4 bpfilter.4
+MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipfw.4 ipfirewall.4 ipaccounting.4
 MLINKS+=lp.4 plip.4
