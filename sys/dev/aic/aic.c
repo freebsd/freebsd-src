@@ -584,7 +584,7 @@ aic_handle_msgin(struct aic_softc *aic)
 		ti = &aic->tinfo[aic->target];
 		/*
 		 * We expect to see an IDENTIFY message, possibly followed
-		 * by a tagged queue message.
+		 * by a SIMPLE_Q_TAG message.
 		 */
 		if (MSG_ISIDENTIFY(aic->msg_buf[0])) {
 			aic->lun = aic->msg_buf[0] & MSG_IDENTIFY_LUNMASK;
@@ -592,8 +592,7 @@ aic_handle_msgin(struct aic_softc *aic)
 				return;
 			else
 				tag = -1;
-		} else if (aic->msg_buf[0] >= MSG_SIMPLE_Q_TAG &&
-			   aic->msg_buf[0] <= MSG_ORDERED_Q_TAG) {
+		} else if (aic->msg_buf[0] != MSG_SIMPLE_Q_TAG) {
 			tag = aic->msg_buf[1];
 		} else {
 			aic_sched_msgout(aic, MSG_MESSAGE_REJECT);
@@ -615,6 +614,7 @@ aic_handle_msgin(struct aic_softc *aic)
 				aic_sched_msgout(aic, MSG_ABORT);
 			else
 				aic_sched_msgout(aic, MSG_ABORT_TAG);
+			xpt_async(AC_UNSOL_RESEL, ccb_h->path, NULL);
 			return;
 		}
 
@@ -623,6 +623,7 @@ aic_handle_msgin(struct aic_softc *aic)
 		aic->nexus = scb;
 		scb->flags &= ~SCB_DISCONNECTED;
 		aic->state = AIC_HASNEXUS;
+		CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("reconnected\n"));
 		return;
 	}
 
@@ -710,6 +711,7 @@ aic_handle_msgin(struct aic_softc *aic)
 		scb->flags |= SCB_DISCONNECTED;
 		ti = &aic->tinfo[scb->target];
 		aic->flags |= AIC_BUSFREE_OK;
+		CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("disconnected\n"));
 		break;
 	case MSG_MESSAGE_REJECT:
 		switch (aic->msg_outq & -aic->msg_outq) {
@@ -988,7 +990,7 @@ aic_cmd(struct aic_softc *aic)
 	if (scb->flags & SCB_SENSE) {
 		/* autosense request */
 		sense_cmd.opcode = REQUEST_SENSE;
-		sense_cmd.byte2 = scb->lun << 2;
+		sense_cmd.byte2 = scb->lun << 5;
 		sense_cmd.length = scb->ccb->csio.sense_len;
 		sense_cmd.control = 0;
 		sense_cmd.unused[0] = 0;
@@ -1415,7 +1417,9 @@ aic_init(struct aic_softc *aic)
 			continue;
 		ti = &aic->tinfo[i];
 		bzero(ti, sizeof(*ti));
-		ti->flags = 0;
+		ti->flags = TINFO_TAG_ENB;
+		if (aic->flags & AIC_DISC_ENABLE)
+			ti->flags |= TINFO_DISC_ENB;
 		ti->user.period = AIC_SYNC_PERIOD;
 		ti->user.offset = AIC_SYNC_OFFSET;
 		ti->scsirate = 0;
@@ -1483,6 +1487,16 @@ aic_attach(struct aic_softc *aic)
 	}
 
 	aic_init(aic);
+
+	printf("aic%d: %s", aic->unit,
+	    aic_inb(aic, REV) > 0 ? "aic6360" : "aic6260");
+	if (aic->flags & AIC_DMA_ENABLE)
+		printf(", dma");
+	if (aic->flags & AIC_DISC_ENABLE)
+		printf(", disconnection");
+	if (aic->flags & AIC_PARITY_ENABLE)
+		printf(", parity check");
+	printf("\n");
 	return (0);
 }
 
