@@ -1,5 +1,6 @@
 PROG=	man
 SRCS=	man.c manpath.c glob.c
+MAN1=   man.1
 BINOWN= man
 BINMODE=4555
 INSTALLFLAGS+= -fschg
@@ -12,12 +13,6 @@ LIBDESTDIR=	${.CURDIR}/../lib
 CFLAGS+= -I${LIBDESTDIR}
 DPADD=	${LIBDESTDIR}/libman.a
 LDADD=	-L${LIBDESTDIR} -lman
-
-.if exists(${.OBJDIR})
-MAN1=   ${.OBJDIR}/man.1
-.else
-MAN1=   ${.CURDIR}/man.1
-.endif
 
 CFLAGS+= -I${.CURDIR}/../lib -DSTDC_HEADERS -DPOSIX -DHAS_TROFF
 CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0644
