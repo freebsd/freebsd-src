@@ -45,6 +45,7 @@
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -416,14 +417,53 @@ Spawn(const char *prog, const char *acname, const char *exec,
   }
 }
 
+#ifndef NOKLDLOAD
+int
+LoadModules(void)
+{
+  const char *module[] = { "netgraph", "ng_socket", "ng_ether", "ng_pppoe" };
+  int f;
+
+  for (f = 0; f < sizeof module / sizeof *module; f++)
+    if (modfind(module[f]) == -1 && kldload(module[f]) == -1) {
+      fprintf(stderr, "kldload: %s: %s\n", module[f], strerror(errno));
+      return 0;
+    }
+
+  return 1;
+}
+#endif
+
+void
+nglog(const char *fmt, ...)
+{
+  char nfmt[256];
+  va_list ap;
+
+  snprintf(nfmt, sizeof nfmt, "%s: %s", fmt, strerror(errno));
+  va_start(ap, fmt);
+  vsyslog(LOG_INFO, nfmt, ap);
+  va_end(ap);
+}
+
+void
+nglogx(const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vsyslog(LOG_INFO, fmt, ap);
+  va_end(ap);
+}
+
 int
 main(int argc, char **argv)
 {
-  char hostname[MAXHOSTNAMELEN];
-  char response[1024], *exec, rhook[NG_HOOKLEN + 1];
+  char hostname[MAXHOSTNAMELEN], *exec, rhook[NG_HOOKLEN + 1];
+  unsigned char response[1024];
   const char *prog, *provider, *acname;
   struct ngm_connect ngc;
-  int ch, cs, ds, ret, optF, optd, sz, f;
+  int ch, cs, ds, ret, optF, optd, optn, sz, f;
 
   prog = strrchr(argv[0], '/');
   prog = prog ? prog + 1 : argv[0];
@@ -431,9 +471,9 @@ main(int argc, char **argv)
   exec = NULL;
   acname = NULL;
   provider = "";
-  optF = optd = 0;
+  optF = optd = optn = 0;
 
-  while ((ch = getopt(argc, argv, "FP:a:de:p:")) != -1) {
+  while ((ch = getopt(argc, argv, "FP:a:de:n:p:")) != -1) {
     switch (ch) {
       case 'F':
         optF = 1;
@@ -453,6 +493,11 @@ main(int argc, char **argv)
 
       case 'e':
         exec = optarg;
+        break;
+
+      case 'n':
+        optn = 1;
+        NgSetDebug(atoi(optarg));
         break;
 
       case 'p':
@@ -495,15 +540,8 @@ main(int argc, char **argv)
   }
 
 #ifndef NOKLDLOAD
-  if (modfind("netgraph") == -1) {
-    fputs("Can't run without options NETGRAPH in the kernel\n", stderr);
+  if (!LoadModules())
     return EX_UNAVAILABLE;
-  }
-
-  if (modfind("ng_socket") == -1 && kldload("ng_socket") == -1) {
-    perror("kldload: ng_socket");
-    return EX_UNAVAILABLE;
-  }
 #endif
 
   /* Create a socket node */
@@ -543,6 +581,8 @@ main(int argc, char **argv)
   }
 
   openlog(prog, LOG_PID | (optF ? LOG_PERROR : 0), LOG_DAEMON);
+  if (!optF && optn)
+    NgSetErrLog(nglog, nglogx);
 
   signal(SIGHUP, Fairwell);
   signal(SIGINT, Fairwell);
