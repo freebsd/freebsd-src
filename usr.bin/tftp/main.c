@@ -62,6 +62,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <histedit.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -70,13 +71,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <histedit.h>
-
 #include "extern.h"
 
+#define	MAXLINE		200
 #define	TIMEOUT		5		/* secs between rexmt's */
-
-#define MAXLINE     200
 
 struct	sockaddr_in peeraddr;
 int	f;
@@ -107,6 +105,7 @@ void	setverbose __P((int, char **));
 void	status __P((int, char **));
 
 static void command __P((void)) __dead2;
+static const char *command_prompt __P((void));
 
 static void getusage __P((char *));
 static void makeargv __P((void));
@@ -593,7 +592,9 @@ tail(filename)
 }
 
 static const char *
-command_prompt() {
+command_prompt()
+{
+
 	return ("tftp> ");
 }
 
@@ -603,17 +604,15 @@ command_prompt() {
 static void
 command()
 {
-	register struct cmd *c;
-	char *cp;
-	static EditLine *el = NULL;
-	static History *hist = NULL;
 	HistEvent he;
-	const char * bp;
-	int len, num;
-	int verbose;
+	register struct cmd *c;
+	static EditLine *el;
+	static History *hist;
+	const char *bp;
+	char *cp;
+	int len, num, verbose;
 
 	verbose = isatty(0);
-
 	if (verbose) {
 		el = el_init("tftp", stdin, stdout, stderr);
 		hist = history_init();
@@ -624,12 +623,10 @@ command()
 		el_set(el, EL_SIGNAL, 1);
 		el_source(el, NULL);
 	}
-
 	for (;;) {
 		if (verbose) {
                         if ((bp = el_gets(el, &num)) == NULL || num == 0)
                                 exit(0);
-
                         len = (num > MAXLINE) ? MAXLINE : num;
                         memcpy(line, bp, len);
                         line[len] = '\0';
