@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.16 1995/10/20 16:49:47 jkh Exp $
+ * $Id: media.c,v 1.25.2.17 1995/10/21 14:06:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -532,7 +532,7 @@ mediaSetFtpOnError(char *str)
     else {
 	if (!strcmp(cp, "abort"))
 	    variable_set2(OPT_FTP_ONERROR, "retry");
-	else if (!strcmp(cp, "medium"))
+	else if (!strcmp(cp, "retry"))
 	    variable_set2(OPT_FTP_ONERROR, "reselect");
 	else /* must be "reselect" - wrap around */
 	    variable_set2(OPT_FTP_ONERROR, "abort");
