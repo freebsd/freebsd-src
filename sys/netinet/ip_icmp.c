@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.22.2.2 1997/08/25 16:33:02 wollman Exp $
+ *	$Id: ip_icmp.c,v 1.22.2.3 1998/05/26 11:38:48 dg Exp $
  */
 
 #include <sys/param.h>
@@ -642,6 +642,7 @@ icmp_send(m, opts)
 	icp->icmp_cksum = in_cksum(m, ip->ip_len - hlen);
 	m->m_data -= hlen;
 	m->m_len += hlen;
+	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef ICMPPRINTFS
 	if (icmpprintfs) {
 		char buf[4 * sizeof "123"];
