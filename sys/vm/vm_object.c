@@ -1023,10 +1023,12 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	}
 	if ((object->type == OBJT_VNODE ||
 	     object->type == OBJT_DEVICE) && invalidate) {
+		boolean_t purge;
+		purge = old_msync || (object->type == OBJT_DEVICE);
 		vm_object_page_remove(object,
 		    OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK),
-		    old_msync ? FALSE : TRUE);
+		    purge ? FALSE : TRUE);
 	}
 	VM_OBJECT_UNLOCK(object);
 }
