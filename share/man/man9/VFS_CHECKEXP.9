@@ -1,19 +1,15 @@
-.\" -*- nroff -*-
 .\"
-.\" Copyright (c) 1996 Doug Rabson
+.\" Copyright (c) 1999 Alfred Perlstein
 .\"
 .\" All rights reserved.
 .\"
 .\" This program is free software.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
+.\" modification, are permitted provided that the following condition
+.\" is met:
+.\"    Redistributions of source code must retain the above copyright
+.\"    notice, this condition and the following disclaimer.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -26,10 +22,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VFS_FHTOVP.9,v 1.4 1998/08/03 17:29:44 bde Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd September 10, 1999
 .Os
 .Dt VFS_CHECKEXP 9
 .Sh NAME
@@ -38,11 +33,11 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
-.Fd #include <sys/vnode.h>
 .Ft int
 .Fn VFS_CHECKEXP "struct mount *mp" "struct mbuf  *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION
-This is used by the NFS server to check if a vnode is exported to a client.
+This is used by the NFS server to check if a mount point is exported 
+to a client.
 .Pp
 Its arguments are:
 .Bl -tag -width credanonp
@@ -73,7 +68,9 @@ structure and the address of the client,
 to verify that the client can access this filesystem.
 .Pp
 .Sh RETURN VALUES
-The export flags and anonymous credentials specific to the client
+The export flags and anonymous credentials specific to the client (returned
+by
+.Xr vfs_export_lookup 9 )
 will be returned in
 .Fa *exflagsp
 and
@@ -85,10 +82,4 @@ and
 .Xr vnode 9
 .Sh AUTHORS
 This man page was written by
-.An Doug Rabson ,
-for 
-.Xr VFS_FHTOVP 9
-and modified for 
-.Xr VFS_CHECKEXP 9
-by
 .An Alfred Perlstein .
