@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.29 1997/10/05 09:39:10 jkh Exp $
+#	$Id: Makefile,v 1.30 1998/03/07 08:54:42 bde Exp $
 
 PROG = gdb
 
@@ -39,8 +39,6 @@ CFLAGS+= -DNO_MMALLOC
 #CFLAGS+= -g
 
 CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
-#beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
-.ORDER:	c-exp.c f-exp.c m2-exp.c
 
 .if exists(${.OBJDIR}/../bfd)
 LIBBFD=	${.OBJDIR}/../bfd/libbfd.a
@@ -58,6 +56,8 @@ DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
 LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
 DPADD+=	${LIBIBERTY}
 LDADD+=	${LIBIBERTY}
+
+.ORDER:	c-exp.c f-exp.c m2-exp.c
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
