@@ -272,16 +272,13 @@ fork1(td, flags, pages, procp)
 		 * where they will try restart in the parent and will
 		 * be aborted in the child.
 		 */
-		mtx_lock(&Giant);
 		PROC_LOCK(p1);
 		if (thread_single(SINGLE_NO_EXIT)) {
 			/* Abort. Someone else is single threading before us. */
 			PROC_UNLOCK(p1);
-			mtx_unlock(&Giant);
 			return (ERESTART);
 		}
 		PROC_UNLOCK(p1);
-		mtx_unlock(&Giant);
 		/*
 		 * All other activity in this process
 		 * is now suspended at the user boundary,
