@@ -186,11 +186,11 @@ memguard_free(void *addr)
 		MEMGUARD_CRIT_SECTION_ENTER;
 		memguard_mapused -= PAGE_SIZE;
 		MEMGUARD_CRIT_SECTION_EXIT;
-		kmem_free(memguard_map, (vm_offset_t)round_page(
+		kmem_free(memguard_map, (vm_offset_t)trunc_page(
 		    (unsigned long)addr), PAGE_SIZE);
 		return;
 	}
-	e->ptr = (void *)round_page((unsigned long)addr);
+	e->ptr = (void *)trunc_page((unsigned long)addr);
 	MEMGUARD_CRIT_SECTION_ENTER;
 	STAILQ_INSERT_TAIL(&memguard_fifo_pool, e, entries);
 	MEMGUARD_CRIT_SECTION_EXIT;
@@ -203,7 +203,7 @@ memguard_free(void *addr)
 static void
 memguard_guard(void *addr)
 {
-	void *a = (void *)round_page((unsigned long)addr);
+	void *a = (void *)trunc_page((unsigned long)addr);
 	(void)vm_map_protect(memguard_map, (vm_offset_t)a,
 	    (vm_offset_t)((unsigned long)a + PAGE_SIZE), VM_PROT_READ, 0);
 }
@@ -215,7 +215,7 @@ memguard_guard(void *addr)
 static void
 memguard_unguard(void *addr)
 {
-	void *a = (void *)round_page((unsigned long)addr);
+	void *a = (void *)trunc_page((unsigned long)addr);
 	(void)vm_map_protect(memguard_map, (vm_offset_t)a,
 	    (vm_offset_t)((unsigned long)a + PAGE_SIZE),
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
