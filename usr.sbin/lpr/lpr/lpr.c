@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.27 1999/01/06 08:33:38 imp Exp $";
+	"$Id: lpr.c,v 1.28 1999/02/01 19:53:08 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -189,7 +189,7 @@ main(argc, argv)
 
 		case 'U':		/* user name */
 			hdr++;
-			uflag = optarg;
+			Uflag = optarg;
 			break;
 
 		case 'c':		/* print cifplot output */
