@@ -255,14 +255,14 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (!strcasecmp(*cmds,"bteasy")) {
-			Set_Boot_Mgr(d,bteasy17);
+			Set_Boot_Mgr(d,bteasy17,sizeof (bteasy17));
 			continue;
 		}
 		if (!strcasecmp(*cmds,"mbr")) {
-			Set_Boot_Mgr(d,mbr);
+			Set_Boot_Mgr(d,mbr,sizeof (mbr));
 			continue;
 		}
-#ifndef __alpha__	/* don't think this compiles on i386 either */
+#if 0		/* XXX boot1 undefined, fix me */
 		if (!strcasecmp(*cmds,"boot")) {
 			Set_Boot_Blocks(d,boot1,boot2);
 			continue;
