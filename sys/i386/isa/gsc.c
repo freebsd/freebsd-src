@@ -63,7 +63,7 @@
  ***********************************************************************/
 
 #define PROBE_FAIL    0
-#define PROBE_SUCCESS 1
+#define PROBE_SUCCESS IO_GSCSIZE
 #define SUCCESS       0
 #define FAIL         -1
 #define INVALID       FAIL
