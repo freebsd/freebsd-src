@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.262 1996/12/12 19:46:21 jkh Exp $
+#	$Id: Makefile,v 1.263 1996/12/14 23:14:39 jkh Exp $
 #
 # How to roll a release:
 #
@@ -21,7 +21,8 @@
 
 # Things which without too much trouble can be considered variables
 
-EXPORT_DISTS=	games manpages proflibs dict info doc
+COMPAT_DISTS=	compat1x compat20 compat21
+EXPORT_DISTS=	games manpages proflibs dict info doc ${COMPAT_DISTS}
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 KERNELS?=	GENERIC
@@ -428,17 +429,6 @@ release.9:
 	touch release.9
 
 #
-# --==## Create the compat distributions ##==--
-#
-release.10:
-	@for i in compat1x compat20 compat21; do \
-		mkdir -p ${RD}/dists/$$i && ( cd ${RD}/dists/$$i && \
-		uudecode ${.CURDIR}/compat/$$i.tgz.uu && \
-		cp ${.CURDIR}/scripts/$${i}-install.sh install.sh && \
-		md5 * > CHECKSUM.MD5 ); \
-	done
-
-#
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
@@ -504,7 +494,7 @@ doTARBALL:
 			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9 release.10
+		release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
