@@ -38,7 +38,8 @@ int
 i386_readin(int fd, vm_offset_t dest, size_t len)
 {
     void	*buf;
-    size_t	resid, chunk, get, got;
+    size_t	resid, chunk, get;
+    ssize_t	got;
 
     if (dest + len >= memtop)
 	return(0);
