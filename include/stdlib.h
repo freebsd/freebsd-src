@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#if __BSD_VISIBLE
 #ifndef _RUNE_T_DECLARED
 typedef	__rune_t	rune_t;
 #define	_RUNE_T_DECLARED
@@ -69,16 +69,6 @@ typedef struct {
 	long rem;		/* remainder */
 } ldiv_t;
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-#ifdef __LONG_LONG_SUPPORTED
-/* LONGLONG */
-typedef struct {
-	long long quot;
-	long long rem;
-} lldiv_t;
-#endif
-#endif
-
 #ifndef NULL
 #define	NULL	0
 #endif
@@ -92,7 +82,6 @@ extern int __mb_cur_max;
 #define	MB_CUR_MAX	__mb_cur_max
 
 __BEGIN_DECLS
-void	 _Exit(int) __dead2;
 void	 abort(void) __dead2;
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
@@ -109,53 +98,137 @@ char	*getenv(const char *);
 long	 labs(long) __pure2;
 ldiv_t	 ldiv(long, long) __pure2;
 void	*malloc(size_t);
+int	 mblen(const char *, size_t);
+size_t	 mbstowcs(wchar_t *__restrict , const char *__restrict, size_t);
+int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 void	 qsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
-double	 strtod(const char * __restrict, char ** __restrict);
-long	 strtol(const char * __restrict, char ** __restrict, int);
+double	 strtod(const char *__restrict, char **__restrict);
+/* float strtof(const char *__restrict, char **__restrict); */
+long	 strtol(const char *__restrict, char **__restrict, int);
+/* long double
+	 strtold(const char *__restrict, char **__restrict); */
 unsigned long
 	 strtoul(const char * __restrict, char ** __restrict, int);
 int	 system(const char *);
-
-int	 mblen(const char *, size_t);
-size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 wctomb(char *, wchar_t);
-int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-extern const char *_malloc_options;
-extern void (*_malloc_message)(const char *p1, const char *p2, const char *p3, const char *p4);
+/*
+ * Functions added in C99 which we make conditionally available in the
+ * BSD^C89 namespace if the compiler supports `long long'.
+ * The #if test is more complicated than it ought to be because
+ * __BSD_VISIBLE implies __ISO_C_VISIBLE == 1999 *even if* `long long'
+ * is not supported in the compilation environment (which therefore means
+ * that it can't really be ISO C99).
+ *
+ * (The only other extension made by C99 in thie header is _Exit().)
+ */
+#if __ISO_C_VISIBLE >= 1999
+#ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
+typedef struct {
+	long long quot;
+	long long rem;
+} lldiv_t;
 
-int	 putenv(const char *);
+/* LONGLONG */
+long long
+	 atoll(const char *);
+/* LONGLONG */
+long long
+	 llabs(long long) __pure2;
+/* LONGLONG */
+lldiv_t	 lldiv(long long, long long) __pure2;
+/* LONGLONG */
+long long	 
+	 strtoll(const char *__restrict, char **__restrict, int);
+/* LONGLONG */
+unsigned long long
+	 strtoull(const char *__restrict, char **__restrict, int);
+#endif /* __LONG_LONG_SUPPORTED */
+
+void	_Exit(int) __dead2;
+#endif /* __ISO_C_VISIBLE >= 1999 */
+
+/*
+ * Extensions made by POSIX relative to C.  We don't know yet which edition
+ * of POSIX made these extensions, so assume they've always been there until
+ * research can be done.
+ */
+#if __POSIX_VISIBLE /* >= ??? */
+/* int	 posix_memalign(void **, size_t, size_t); (ADV) */
+int	 rand_r(unsigned *);			/* (TSF) */
 int	 setenv(const char *, const char *, int);
+void	 unsetenv(const char *);
+#endif
 
+/*
+ * The only changes to the XSI namespace in revision 6 were the deletion
+ * of the ttyslot() and valloc() functions, which FreeBSD never declared
+ * in this header.  For revision 7, ecvt(), fcvt(), and gcvt(), which
+ * FreeBSD also does not have, and mktemp(), are to be deleted.
+ */
+#if __XSI_VISIBLE
+/* XXX XSI requires pollution from <sys/wait.h> here.  We'd rather not. */
+/* long	 a64l(const char *); */
 double	 drand48(void);
+/* char	*ecvt(double, int, int *__restrict, int *__restrict); */
 double	 erand48(unsigned short[3]);
+/* char	*fcvt(double, int, int *__restrict, int *__restrict); */
+/* char	*gcvt(double, int, int *__restrict, int *__restrict); */
+#ifndef _GETSUBOPT_DECLARED
+int	 getsubopt(char **, char *const *, char **);
+#define	_GETSUBOPT_DECLARED
+#endif
+/* int	 grantpt(int); */
+char	*initstate(unsigned long /* XSI requires u_int */, char *, long);
 long	 jrand48(unsigned short[3]);
+/* char	*l64a(long); */
 void	 lcong48(unsigned short[7]);
 long	 lrand48(void);
+#ifndef _MKSTEMP_DECLARED
+int	 mkstemp(char *);
+#define	_MKSTEMP_DECLARED
+#endif
+#ifndef _MKTEMP_DECLARED
+char	*mktemp(char *);
+#define _MKTEMP_DECLARED
+#endif
 long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
+/* int	 posix_openpt(int); */
+/* char	*ptsname(int); */
+int	 putenv(const char *);
+long	 random(void);
+char	*realpath(const char *, char resolved_path[]);
 unsigned short
 	*seed48(unsigned short[3]);
+#ifndef _SETKEY_DECLARED
+int	 setkey(const char *);
+#define	_SETKEY_DECLARED
+#endif
+char	*setstate(/* const */ char *);
 void	 srand48(long);
+void	 srandom(unsigned long);
+/* int	 unlockpt(int); */
+#endif /* __XSI_VISIBLE */
+
+
+#if __BSD_VISIBLE
+extern const char *_malloc_options;
+extern void (*_malloc_message)(const char *, const char *, const char *, const char *);
 
 void	*alloca(size_t);		/* built-in for gcc */
-					/* getcap(3) functions */
 __uint32_t
 	 arc4random(void);
 void	 arc4random_addrandom(unsigned char *dat, int datlen);
 void	 arc4random_stir(void);
-#ifdef __LONG_LONG_SUPPORTED
-/* LONGLONG */
-long long
-	 atoll(const char *);
-#endif
 char	*getbsize(int *, long *);
+					/* getcap(3) functions */
 char	*cgetcap(char *, const char *, int);
 int	 cgetclose(void);
 int	 cgetent(char **, char **, const char *);
@@ -174,44 +247,23 @@ __const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
-char	*initstate(unsigned long, char *, long);
-#ifdef __LONG_LONG_SUPPORTED
-/* LONGLONG */
-long long
-	 llabs(long long) __pure2;
-lldiv_t	 lldiv(long long, long long) __pure2;
-#endif
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
-int	 rand_r(unsigned *);
-long	 random(void);
 void    *reallocf(void *, size_t);
-char	*realpath(const char *, char resolved_path[]);
 void	 setprogname(const char *);
-char	*setstate(char *);
 int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void	 sranddev(void);
-void	 srandom(unsigned long);
 void	 srandomdev(void);
-#ifdef __LONG_LONG_SUPPORTED
-/* LONGLONG */
-long long	 
-	 strtoll(const char * __restrict, char ** __restrict, int);
-#endif
+
+/* Deprecated interfaces, to be removed in FreeBSD 6.0. */
 __int64_t	 strtoq(const char *, char **, int);
-#ifdef __LONG_LONG_SUPPORTED
-/* LONGLONG */
-unsigned long long
-	 strtoull(const char * __restrict, char ** __restrict, int);
-#endif
 __uint64_t
 	 strtouq(const char *, char **, int);
-void	 unsetenv(const char *);
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* !_STDLIB_H_ */
