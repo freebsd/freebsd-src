@@ -97,57 +97,57 @@ void	*intr_unit[ICU_LEN];
 static struct	mtx ithds_table_lock;	/* protect the ithds table */
 
 static inthand_t *fastintr[ICU_LEN] = {
-	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
-	&IDTVEC(fastintr2), &IDTVEC(fastintr3),
-	&IDTVEC(fastintr4), &IDTVEC(fastintr5),
-	&IDTVEC(fastintr6), &IDTVEC(fastintr7),
-	&IDTVEC(fastintr8), &IDTVEC(fastintr9),
-	&IDTVEC(fastintr10), &IDTVEC(fastintr11),
-	&IDTVEC(fastintr12), &IDTVEC(fastintr13),
-	&IDTVEC(fastintr14), &IDTVEC(fastintr15),
+	IDTVEC(fastintr0), IDTVEC(fastintr1),
+	IDTVEC(fastintr2), IDTVEC(fastintr3),
+	IDTVEC(fastintr4), IDTVEC(fastintr5),
+	IDTVEC(fastintr6), IDTVEC(fastintr7),
+	IDTVEC(fastintr8), IDTVEC(fastintr9),
+	IDTVEC(fastintr10), IDTVEC(fastintr11),
+	IDTVEC(fastintr12), IDTVEC(fastintr13),
+	IDTVEC(fastintr14), IDTVEC(fastintr15),
 #if defined(APIC_IO)
-	&IDTVEC(fastintr16), &IDTVEC(fastintr17),
-	&IDTVEC(fastintr18), &IDTVEC(fastintr19),
-	&IDTVEC(fastintr20), &IDTVEC(fastintr21),
-	&IDTVEC(fastintr22), &IDTVEC(fastintr23),
-	&IDTVEC(fastintr24), &IDTVEC(fastintr25),
-	&IDTVEC(fastintr26), &IDTVEC(fastintr27),
-	&IDTVEC(fastintr28), &IDTVEC(fastintr29),
-	&IDTVEC(fastintr30), &IDTVEC(fastintr31),
+	IDTVEC(fastintr16), IDTVEC(fastintr17),
+	IDTVEC(fastintr18), IDTVEC(fastintr19),
+	IDTVEC(fastintr20), IDTVEC(fastintr21),
+	IDTVEC(fastintr22), IDTVEC(fastintr23),
+	IDTVEC(fastintr24), IDTVEC(fastintr25),
+	IDTVEC(fastintr26), IDTVEC(fastintr27),
+	IDTVEC(fastintr28), IDTVEC(fastintr29),
+	IDTVEC(fastintr30), IDTVEC(fastintr31),
 #endif /* APIC_IO */
 };
 
 static unpendhand_t *fastunpend[ICU_LEN] = {
-	&IDTVEC(fastunpend0), &IDTVEC(fastunpend1),
-	&IDTVEC(fastunpend2), &IDTVEC(fastunpend3),
-	&IDTVEC(fastunpend4), &IDTVEC(fastunpend5),
-	&IDTVEC(fastunpend6), &IDTVEC(fastunpend7),
-	&IDTVEC(fastunpend8), &IDTVEC(fastunpend9),
-	&IDTVEC(fastunpend10), &IDTVEC(fastunpend11),
-	&IDTVEC(fastunpend12), &IDTVEC(fastunpend13),
-	&IDTVEC(fastunpend14), &IDTVEC(fastunpend15),
+	IDTVEC(fastunpend0), IDTVEC(fastunpend1),
+	IDTVEC(fastunpend2), IDTVEC(fastunpend3),
+	IDTVEC(fastunpend4), IDTVEC(fastunpend5),
+	IDTVEC(fastunpend6), IDTVEC(fastunpend7),
+	IDTVEC(fastunpend8), IDTVEC(fastunpend9),
+	IDTVEC(fastunpend10), IDTVEC(fastunpend11),
+	IDTVEC(fastunpend12), IDTVEC(fastunpend13),
+	IDTVEC(fastunpend14), IDTVEC(fastunpend15),
 #if defined(APIC_IO)
-	&IDTVEC(fastunpend16), &IDTVEC(fastunpend17),
-	&IDTVEC(fastunpend18), &IDTVEC(fastunpend19),
-	&IDTVEC(fastunpend20), &IDTVEC(fastunpend21),
-	&IDTVEC(fastunpend22), &IDTVEC(fastunpend23),
-	&IDTVEC(fastunpend24), &IDTVEC(fastunpend25),
-	&IDTVEC(fastunpend26), &IDTVEC(fastunpend27),
-	&IDTVEC(fastunpend28), &IDTVEC(fastunpend29),
-	&IDTVEC(fastunpend30), &IDTVEC(fastunpend31),
+	IDTVEC(fastunpend16), IDTVEC(fastunpend17),
+	IDTVEC(fastunpend18), IDTVEC(fastunpend19),
+	IDTVEC(fastunpend20), IDTVEC(fastunpend21),
+	IDTVEC(fastunpend22), IDTVEC(fastunpend23),
+	IDTVEC(fastunpend24), IDTVEC(fastunpend25),
+	IDTVEC(fastunpend26), IDTVEC(fastunpend27),
+	IDTVEC(fastunpend28), IDTVEC(fastunpend29),
+	IDTVEC(fastunpend30), IDTVEC(fastunpend31),
 #endif /* APIC_IO */
 };
 
 static inthand_t *slowintr[ICU_LEN] = {
-	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
-	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
-	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
-	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15),
+	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
+	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
+	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
+	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15),
 #if defined(APIC_IO)
-	&IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
-	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23),
-	&IDTVEC(intr24), &IDTVEC(intr25), &IDTVEC(intr26), &IDTVEC(intr27),
-	&IDTVEC(intr28), &IDTVEC(intr29), &IDTVEC(intr30), &IDTVEC(intr31),
+	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
+	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23),
+	IDTVEC(intr24), IDTVEC(intr25), IDTVEC(intr26), IDTVEC(intr27),
+	IDTVEC(intr28), IDTVEC(intr29), IDTVEC(intr30), IDTVEC(intr31),
 #endif /* APIC_IO */
 };
 
@@ -669,7 +669,7 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 		 * initialize the ICU, since it may cause an
 		 * immediate interrupt.
 		 */
-		if (icu_setup(irq, &sched_ithd, arg, flags) != 0)
+		if (icu_setup(irq, sched_ithd, arg, flags) != 0)
 			panic("inthand_add: Can't initialize ICU");
 
 	if (errcode)
