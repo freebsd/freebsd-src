@@ -733,6 +733,7 @@ devices work with the same driver.
 
 Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
+Cisco Systems Aironet 340 Series 11Mbps 802.11 wireless NIC.
 
 
 3. Obtaining FreeBSD
