@@ -25,7 +25,6 @@ static const char rcsid[] =
  */
 
 #include "lib.h"
-
 #include <err.h>
 #include <stdio.h>
 

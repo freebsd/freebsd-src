@@ -25,12 +25,12 @@ static const char rcsid[] =
 
 #include "lib.h"
 #include "info.h"
-
-#include <sys/types.h>
 #include <err.h>
 #include <signal.h>
 
 static int pkg_do(char *);
+static int find_pkg(char *, struct which_head *);
+static int cmp_path(const char *, const char *, const char *);
 
 int
 pkg_perform(char **pkgs)
@@ -42,16 +42,19 @@ pkg_perform(char **pkgs)
 
     signal(SIGINT, cleanup);
 
+    tmp = getenv(PKG_DBDIR);
+    if (!tmp)
+	tmp = DEF_LOG_DIR;
+
     /* Overriding action? */
     if (CheckPkg) {
 	char buf[FILENAME_MAX];
 
-	tmp = getenv(PKG_DBDIR);
-	if (!tmp)
-	    tmp = DEF_LOG_DIR;
 	snprintf(buf, FILENAME_MAX, "%s/%s", tmp, CheckPkg);
 	return abs(access(buf, R_OK));
 	/* Not reached */
+    } else if (!TAILQ_EMPTY(whead)) {
+	return find_pkg(tmp, whead);
     }
 
     if (MatchType != MATCH_EXACT) {
@@ -239,3 +242,150 @@ cleanup(int sig)
 	exit(1);
 }
 
+/*
+ * Comparison to see if the path we're on matches the
+ * one we are looking for.
+ */
+static int
+cmp_path(const char *target, const char *current, const char *cwd) 
+{
+    char *loc, *temp;
+    int rval;
+
+    asprintf(&temp, "%s/%s", cwd, current);
+    if (temp == NULL)
+        errx(2, NULL);
+
+    /*
+     * Make sure there's no multiple /'s, since some plists
+     * seem to have them and it could screw up our strncmp.
+     */
+    while ((loc = strstr(temp, "//")) != NULL)
+	strcpy(loc, loc + 1);
+
+    if (strcmp(target, temp) == 0)
+	rval = 1;
+    else
+	rval = 0;
+
+    free(temp);
+    return rval;
+}
+
+/* 
+ * Look through package dbs in db_dir and find which
+ * packages installed the files in which_list.
+ */
+static int 
+find_pkg(char *db_dir, struct which_head *which_list)
+{
+    char **installed;
+    int errcode, i;
+    struct which_entry *wp;
+
+    TAILQ_FOREACH(wp, which_list, next) {
+	/* If it's not a file, we'll see if it's an executable. */
+	if (isfile(wp->file) == FALSE) {
+	    if (strchr(wp->file, '/') == NULL) {
+		char *tmp;
+		tmp = vpipe("/usr/bin/which %s", wp->file);
+		if (tmp == NULL) {
+		    warnx("%s: file is not in PATH", wp->file);
+		    wp->skip = TRUE;
+		} else
+		    strlcpy(wp->file, tmp, PATH_MAX);
+		free(tmp);
+	    } else {
+		warnx("%s: file cannot be found", wp->file);
+		wp->skip = TRUE;
+	    }
+	} else if (wp->file[0] != '/') {
+	    /*
+	     * If it is a file, and it doesn't start with a /, then it's a 
+	     * relative path.  in order to give us some chance of getting a 
+	     * successful match, tack the current working directory on the 
+	     * beginning.  this won't work for filenames that include .. or . 
+	     * or extra /'s, but it's better than nothing).
+	     */
+	    char *curdir, *tmp;
+
+	    curdir = getcwd(NULL, PATH_MAX);
+	    if (curdir == NULL)
+		err(2, NULL);
+
+	    asprintf(&tmp, "%s/%s", curdir, wp->file);
+	    if (tmp == NULL)
+		err(2, NULL);
+
+	    if (!isfile(tmp)) {
+		warnx("%s: file cannot be found", tmp);
+		wp->skip = TRUE;
+	    } else
+		strlcpy(wp->file, tmp, PATH_MAX);
+
+	    free(tmp);
+	    free(curdir);
+	}
+    }
+
+    installed = matchinstalled(MATCH_ALL, NULL, &errcode);
+    if (installed == NULL)
+        return errcode;
+ 
+    for (i = 0; installed[i] != NULL; i++) {
+     	FILE *fp;
+     	Package pkg;
+     	PackingList itr;
+     	char *cwd = NULL;
+     	char tmp[PATH_MAX];
+
+	snprintf(tmp, PATH_MAX, "%s/%s/%s", db_dir, installed[i],
+		 CONTENTS_FNAME);
+	fp = fopen(tmp, "r");
+	if (fp == NULL) {
+	    warn("%s", tmp);
+	    return 1;
+	}
+
+	pkg.head = pkg.tail = NULL;
+	read_plist(&pkg, fp);
+	fclose(fp);
+	for (itr = pkg.head; itr != pkg.tail; itr = itr->next) {
+	    if (itr->type == PLIST_CWD) {
+		cwd = itr->name;
+	    } else if (itr->type == PLIST_FILE) {
+		TAILQ_FOREACH(wp, which_list, next) {
+		    if (wp->skip == TRUE)
+			continue;
+		    if (!cmp_path(wp->file, itr->name, cwd))
+			continue;
+		    if (wp->package[0] != '\0') {
+			warnx("Both %s and %s claim to have installed %s\n",
+			      wp->package, installed[i], wp->file);
+		    } else {
+			strlcpy(wp->package, installed[i], PATH_MAX);
+		    }
+		}
+	    }
+	}
+	free_plist(&pkg);
+    }
+
+    TAILQ_FOREACH(wp, which_list, next) {
+	if (wp->package[0] != '\0') {
+	    if (Quiet)
+		puts(wp->package);
+	    else
+		printf("%s was installed by package %s\n", \
+		       wp->file, wp->package);
+	}
+    }
+    while (!TAILQ_EMPTY(which_list)) {
+	wp = TAILQ_FIRST(which_list);
+	TAILQ_REMOVE(which_list, wp, next);
+	free(wp);
+    }
+
+    free(which_list);
+    return 0;
+}
