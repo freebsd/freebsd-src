@@ -14,28 +14,32 @@
 >2	byte&0x1f	x		%d bits
 
 # gzip (GNU zip, not to be confused with Info-ZIP or PKWARE zip archiver)
+#   Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
+#	* Original filename is only at offset 10 if "extra field" absent
+#	* Produce shorter output - notably, only report compression methods
+#	  other than 8 ("deflate", the only method defined in RFC 1952).
 0       string          \037\213        gzip compressed data
->2      byte            <8              \b, reserved method,
->2      byte            8               \b, deflated,
->3	byte		&0x01		ASCII,
->3	byte		&0x02		continuation,
->3	byte		&0x04		extra field,
->3	byte		&0x08		original filename,
->>10    string          x               `%s',
->3	byte		&0x10		comment,
->3	byte		&0x20		encrypted,
->4	ledate		x		last modified: %s,
->8	byte		2		max compression,
->8	byte		4		max speed,
->9	byte		=0x00		os: MS-DOS
->9	byte		=0x01		os: Amiga
->9	byte		=0x02		os: VMS
->9	byte		=0x03		os: Unix
->9	byte		=0x05		os: Atari
->9	byte		=0x06		os: OS/2
->9	byte		=0x07		os: MacOS
->9	byte		=0x0A		os: Tops/20
->9	byte		=0x0B		os: Win/32
+>2	byte		<8		\b, reserved method
+>2	byte		>8		\b, unknown method
+>3	byte		&0x01		\b, ASCII
+>3	byte		&0x02		\b, continuation
+>3	byte		&0x04		\b, extra field
+>3	byte&0xC	=0x08
+>>10	string		x		\b, was "%s"
+>9	byte		=0x00		\b, from MS-DOS
+>9	byte		=0x01		\b, from Amiga
+>9	byte		=0x02		\b, from VMS
+>9	byte		=0x03		\b, from Unix
+>9	byte		=0x05		\b, from Atari
+>9	byte		=0x06		\b, from OS/2
+>9	byte		=0x07		\b, from MacOS
+>9	byte		=0x0A		\b, from Tops/20
+>9	byte		=0x0B		\b, from Win/32
+>3	byte		&0x10		\b, comment
+>3	byte		&0x20		\b, encrypted
+### >4	ledate		x		last modified: %s,
+>8	byte		2		\b, max compression
+>8	byte		4		\b, max speed
 
 # packed data, Huffman (minimum redundancy) codes on a byte-by-byte basis
 0	string		\037\036	packed data
@@ -144,3 +148,7 @@
 >>17	byte		=0x0A		os: Tops/20
 >>17	byte		=0x0B		os: WinNT
 >>17	byte		=0x0E		os: Win32
+
+# 4.3BSD-Quasijarus Strong Compression
+# http://minnie.tuhs.org/Quasijarus/compress.html
+0	string		\037\241	Quasijarus strong compressed data

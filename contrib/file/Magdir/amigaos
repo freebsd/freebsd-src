@@ -8,3 +8,32 @@
 #
 0	belong		0x000003f3	AmigaOS loadseg()ble executable/binary
 0	belong		0x000003e7	AmigaOS object/library data
+#
+0	beshort		0xe310		Amiga Workbench
+>2	beshort		1		
+>>48	byte		1		disk icon
+>>48	byte		2		drawer icon
+>>48	byte		3		tool icon
+>>48	byte		4		project icon
+>>48	byte		5		garbage icon
+>>48	byte		6		device icon
+>>48	byte		7		kickstart icon
+>>48	byte		8		workbench application icon
+>2	beshort		>1		icon, vers. %d
+#
+# various sound formats from the Amiga
+# G=F6tz Waschk <waschk@informatik.uni-rostock.de>
+#
+0	string		FC14		Future Composer 1.4 Module sound file
+0	string		SMOD		Future Composer 1.3 Module sound file
+0	string		AON4artofnoise	Art Of Noise Module sound file
+1	string		MUGICIAN/SOFTEYES Mugician Module sound file
+58	string		SIDMON\ II\ -\ THE	Sidmon 2.0 Module sound file
+0	string		Synth4.0	Synthesis Module sound file
+0	string		ARP.		The Holy Noise Module sound file
+0	string		BeEp\0		JamCracker Module sound file
+0	string		COSO\0		Hippel-COSO Module sound file
+26	string		V.3		Brian Postma's Soundmon Module sound file v3
+26	string		BPSM		Brian Postma's Soundmon Module sound file v3
+26	string		V.2		Brian Postma's Soundmon Module sound file v2
+
