@@ -280,6 +280,19 @@ SYSCTL_INT(_kern_sched, OID_AUTO, kgfollowons, CTLFLAG_RD,
 	   &sched_kgfollowons, 0,
 	   "number of followons done in a ksegrp");
 
+static __inline void
+sched_load_add(void)
+{
+	sched_tdcnt++;
+	CTR1(KTR_SCHED, "global load: %d", sched_tdcnt);
+}
+
+static __inline void
+sched_load_rem(void)
+{
+	sched_tdcnt--;
+	CTR1(KTR_SCHED, "global load: %d", sched_tdcnt);
+}
 /*
  * Arrange to reschedule if necessary, taking the priorities and
  * schedulers into account.
@@ -590,7 +603,7 @@ sched_setup(void *dummy)
 	roundrobin(NULL);
 
 	/* Account for thread0. */
-	sched_tdcnt++;
+	sched_load_add();
 }
 
 /* External interfaces start here */
@@ -692,8 +705,10 @@ sched_exit_ksegrp(struct ksegrp *kg, struct thread *childtd)
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
+	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
+	    child, child->td_proc->p_comm, child->td_priority);
 	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt--;
+		sched_load_rem();
 }
 
 void
@@ -745,6 +760,9 @@ sched_class(struct ksegrp *kg, int class)
 void
 sched_prio(struct thread *td, u_char prio)
 {
+	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, prio, curthread, 
+	    curthread->td_proc->p_comm);
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (TD_ON_RUNQ(td)) {
@@ -778,7 +796,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	if ((p->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt--;
+		sched_load_rem();
 	/* 
 	 * We are volunteering to switch out so we get to nominate
 	 * a successor for the rest of our quantum
@@ -853,7 +871,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
-			sched_tdcnt++;
+			sched_load_add();
 	} else {
 		newtd = choosethread();
 	}
@@ -982,6 +1000,9 @@ sched_add(struct thread *td, int flags)
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
+	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
 
 #ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
@@ -1050,7 +1071,7 @@ sched_add(struct thread *td, int flags)
 		}
 	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt++;
+		sched_load_add();
 	SLOT_USE(td->td_ksegrp);
 	runq_add(ke->ke_runq, ke, flags);
 	ke->ke_state = KES_ONRUNQ;
@@ -1068,9 +1089,12 @@ sched_rem(struct thread *td)
 	KASSERT((ke->ke_state == KES_ONRUNQ),
 	    ("sched_rem: KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
+	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt--;
+		sched_load_rem();
 	SLOT_RELEASE(td->td_ksegrp);
 	runq_remove(ke->ke_runq, ke);
 
