@@ -41,6 +41,37 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  * $FreeBSD$
  */
+/*-
+ * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Jake Burkholder,
+ * Safeport Network Services, and Network Associates Laboratories, the
+ * Security Research Division of Network Associates, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*
  *	Manages physical address maps.
@@ -198,7 +229,6 @@ static pt_entry_t *PMAP1 = 0;
 static pt_entry_t *PADDR1 = 0;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
-static pt_entry_t *get_ptbase(pmap_t pmap);
 static pv_entry_t get_pv_entry(void);
 static void	i386_protection_init(void);
 static __inline void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
@@ -215,7 +245,6 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
-static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
@@ -225,31 +254,6 @@ static pd_entry_t pdir4mb;
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
-
-/*
- *	Routine:	pmap_pte
- *	Function:
- *		Extract the page table entry associated
- *		with the given map/virtual_address pair.
- */
-
-PMAP_INLINE pt_entry_t *
-pmap_pte(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
-{
-	pd_entry_t *pdeaddr;
-
-	if (pmap) {
-		pdeaddr = pmap_pde(pmap, va);
-		if (*pdeaddr & PG_PS)
-			return pdeaddr;
-		if (*pdeaddr) {
-			return get_ptbase(pmap) + i386_btop(va);
-		}
-	}
-	return (0);
-}
 
 /*
  * Move the kernel virtual free pointer to the next
@@ -336,7 +340,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	v = (c)va; va += ((n)*PAGE_SIZE); p = pte; pte += (n);
 
 	va = virtual_avail;
-	pte = (pt_entry_t *) pmap_pte(kernel_pmap, va);
+	pte = vtopte(va);
 
 	/*
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
@@ -766,72 +770,33 @@ pmap_is_current(pmap_t pmap)
 }
 
 /*
- * Are we alternate address space?
- */
-static __inline int
-pmap_is_alternate(pmap_t pmap)
-{
-	return ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) ==
-	    (APTDpde[0] & PG_FRAME));
-}
-
-/*
- * Map in a pmap's pagetables as alternate address space.
- */
-static __inline void
-pmap_set_alternate(pmap_t pmap)
-{
-
-	if (!pmap_is_alternate(pmap)) {
-		APTDpde[0] = pmap->pm_pdir[PTDPTDI];
-		pmap_invalidate_all(kernel_pmap);	/* XXX Bandaid */
-	}
-}
-
-/*
- * Return an address which is the base of the Virtual mapping of
- * all the PTEs for the given pmap. Note this doesn't say that
- * all the PTEs will be present or that the pages there are valid.
- * The PTEs are made available by the recursive mapping trick.
- * It will map in the alternate PTE space if needed.
- */
-static pt_entry_t *
-get_ptbase(pmap)
-	pmap_t pmap;
-{
-
-	if (pmap_is_current(pmap))
-		return PTmap;
-	pmap_set_alternate(pmap);
-	return APTmap;
-}
-
-/*
  * Super fast pmap_pte routine best used when scanning
  * the pv lists.  This eliminates many coarse-grained
  * invltlb calls.  Note that many of the pv list
  * scans are across different pmaps.  It is very wasteful
  * to do an entire invltlb for checking a single mapping.
  */
-
-static pt_entry_t * 
+pt_entry_t * 
 pmap_pte_quick(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
 {
-	pd_entry_t pde, newpf;
-	pde = pmap->pm_pdir[va >> PDRSHIFT];
-	if (pde != 0) {
-		unsigned index = i386_btop(va);
+	pd_entry_t newpf;
+	pd_entry_t *pde;
+
+	pde = pmap_pde(pmap, va);
+	if (*pde & PG_PS)
+		return (pde);
+	if (*pde != 0) {
 		/* are we current address space or kernel? */
 		if (pmap_is_current(pmap))
-			return PTmap + index;
-		newpf = pde & PG_FRAME;
+			return vtopte(va);
+		newpf = *pde & PG_FRAME;
 		if (((*PMAP1) & PG_FRAME) != newpf) {
 			*PMAP1 = newpf | PG_RW | PG_V;
 			pmap_invalidate_page(kernel_pmap, (vm_offset_t)PADDR1);
 		}
-		return PADDR1 + (index & (NPTEPG - 1));
+		return PADDR1 + (i386_btop(va) & (NPTEPG - 1));
 	}
 	return (0);
 }
@@ -848,20 +813,18 @@ pmap_extract(pmap, va)
 	vm_offset_t va;
 {
 	vm_paddr_t rtval;
-	vm_offset_t pdirindex;
+	pt_entry_t *pte;
+	pd_entry_t pde;
 
 	if (pmap == 0)
 		return 0;
-	pdirindex = va >> PDRSHIFT;
-	rtval = pmap->pm_pdir[pdirindex];
-	if (rtval != 0) {
-		pt_entry_t *pte;
-		if ((rtval & PG_PS) != 0) {
-			rtval &= ~(NBPDR - 1);
-			rtval |= va & (NBPDR - 1);
+	pde = pmap->pm_pdir[va >> PDRSHIFT];
+	if (pde != 0) {
+		if ((pde & PG_PS) != 0) {
+			rtval = (pde & ~PDRMASK) | (va & PDRMASK);
 			return rtval;
 		}
-		pte = get_ptbase(pmap) + i386_btop(va);
+		pte = pmap_pte_quick(pmap, va);
 		rtval = ((*pte & PG_FRAME) | (va & PAGE_MASK));
 		return rtval;
 	}
@@ -1756,24 +1719,12 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 static void
 pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
-	register pt_entry_t *ptq;
+	pt_entry_t *pte;
 
-	/*
-	 * if there is no pte for this address, just skip it!!!
-	 */
-	if (*pmap_pde(pmap, va) == 0) {
+	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
 		return;
-	}
-
-	/*
-	 * get a local va for mappings for this pmap.
-	 */
-	ptq = get_ptbase(pmap) + i386_btop(va);
-	if (*ptq) {
-		(void) pmap_remove_pte(pmap, ptq, va);
-		pmap_invalidate_page(pmap, va);
-	}
-	return;
+	pmap_remove_pte(pmap, pte, va);
+	pmap_invalidate_page(pmap, va);
 }
 
 /*
@@ -1785,10 +1736,9 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	register pt_entry_t *ptbase;
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
-	vm_offset_t sindex, eindex;
+	pt_entry_t *pte;
 	int anyvalid;
 
 	if (pmap == NULL)
@@ -1810,33 +1760,18 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	anyvalid = 0;
 
-	/*
-	 * Get a local virtual address for the mappings that are being
-	 * worked with.
-	 */
-	ptbase = get_ptbase(pmap);
-
-	sindex = i386_btop(sva);
-	eindex = i386_btop(eva);
-
-	for (; sindex < eindex; sindex = pdnxt) {
+	for (; sva < eva; sva = pdnxt) {
 		unsigned pdirindex;
 
 		/*
 		 * Calculate index for next page table.
 		 */
-		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
 		if (pmap->pm_stats.resident_count == 0)
 			break;
 
-		pdirindex = sindex / NPDEPG;
+		pdirindex = sva >> PDRSHIFT;
 		ptpaddr = pmap->pm_pdir[pdirindex];
-		if ((ptpaddr & PG_PS) != 0) {
-			pmap->pm_pdir[pdirindex] = 0;
-			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-			anyvalid++;
-			continue;
-		}
 
 		/*
 		 * Weed out invalid mappings. Note: we assume that the page
@@ -1846,23 +1781,29 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 
 		/*
+		 * Check for large page.
+		 */
+		if ((ptpaddr & PG_PS) != 0) {
+			pmap->pm_pdir[pdirindex] = 0;
+			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+			anyvalid = 1;
+			continue;
+		}
+
+		/*
 		 * Limit our scan to either the end of the va represented
 		 * by the current page table page, or to the end of the
 		 * range being removed.
 		 */
-		if (pdnxt > eindex) {
-			pdnxt = eindex;
-		}
+		if (pdnxt > eva)
+			pdnxt = eva;
 
-		for (; sindex != pdnxt; sindex++) {
-			vm_offset_t va;
-			if (ptbase[sindex] == 0) {
+		for (; sva != pdnxt; sva += PAGE_SIZE) {
+			if ((pte = pmap_pte_quick(pmap, sva)) == NULL ||
+			    *pte == 0)
 				continue;
-			}
-			va = i386_ptob(sindex);
-			
-			anyvalid++;
-			if (pmap_remove_pte(pmap, ptbase + sindex, va))
+			anyvalid = 1;
+			if (pmap_remove_pte(pmap, pte, sva))
 				break;
 		}
 	}
@@ -1943,10 +1884,8 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	register pt_entry_t *ptbase;
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
-	vm_offset_t sindex, eindex;
 	int anychanged;
 
 	if (pmap == NULL)
@@ -1962,25 +1901,13 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	anychanged = 0;
 
-	ptbase = get_ptbase(pmap);
-
-	sindex = i386_btop(sva);
-	eindex = i386_btop(eva);
-
-	for (; sindex < eindex; sindex = pdnxt) {
-
+	for (; sva < eva; sva = pdnxt) {
 		unsigned pdirindex;
 
-		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
 
-		pdirindex = sindex / NPDEPG;
+		pdirindex = sva >> PDRSHIFT;
 		ptpaddr = pmap->pm_pdir[pdirindex];
-		if ((ptpaddr & PG_PS) != 0) {
-			pmap->pm_pdir[pdirindex] &= ~(PG_M|PG_RW);
-			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-			anychanged++;
-			continue;
-		}
 
 		/*
 		 * Weed out invalid mappings. Note: we assume that the page
@@ -1989,17 +1916,27 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (ptpaddr == 0)
 			continue;
 
-		if (pdnxt > eindex) {
-			pdnxt = eindex;
+		/*
+		 * Check for large page.
+		 */
+		if ((ptpaddr & PG_PS) != 0) {
+			pmap->pm_pdir[pdirindex] &= ~(PG_M|PG_RW);
+			pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
+			anychanged = 1;
+			continue;
 		}
 
-		for (; sindex != pdnxt; sindex++) {
+		if (pdnxt > eva)
+			pdnxt = eva;
 
+		for (; sva != pdnxt; sva += PAGE_SIZE) {
 			pt_entry_t pbits;
+			pt_entry_t *pte;
 			vm_page_t m;
 
-			pbits = ptbase[sindex];
-
+			if ((pte = pmap_pte_quick(pmap, sva)) == NULL)
+				continue;
+			pbits = *pte;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -2007,20 +1944,19 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 					vm_page_flag_set(m, PG_REFERENCED);
 					pbits &= ~PG_A;
 				}
-				if (pbits & PG_M) {
-					if (pmap_track_modified(i386_ptob(sindex))) {
-						if (m == NULL)
-							m = PHYS_TO_VM_PAGE(pbits);
-						vm_page_dirty(m);
-						pbits &= ~PG_M;
-					}
+				if ((pbits & PG_M) != 0 &&
+				    pmap_track_modified(sva)) {
+					if (m == NULL)
+						m = PHYS_TO_VM_PAGE(pbits);
+					vm_page_dirty(m);
+					pbits &= ~PG_M;
 				}
 			}
 
 			pbits &= ~PG_RW;
 
-			if (pbits != ptbase[sindex]) {
-				ptbase[sindex] = pbits;
+			if (pbits != *pte) {
+				*pte = pbits;
 				anychanged = 1;
 			}
 		}
@@ -2081,7 +2017,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte(pmap, va);
+	pte = pmap_pte_quick(pmap, va);
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -2576,7 +2512,7 @@ pmap_change_wiring(pmap, va, wired)
 	if (pmap == NULL)
 		return;
 
-	pte = pmap_pte(pmap, va);
+	pte = pmap_pte_quick(pmap, va);
 
 	if (wired && !pmap_pte_w(pte))
 		pmap->pm_stats.wired_count++;
@@ -2633,7 +2569,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		    pv_entry_count > pv_entry_high_water)
 			break;
 		
-		pdnxt = ((addr + PAGE_SIZE*NPTEPG) & ~(PAGE_SIZE*NPTEPG - 1));
+		pdnxt = (addr + NBPDR) & ~PDRMASK;
 		ptepindex = addr >> PDRSHIFT;
 
 		srcptepaddr = src_pmap->pm_pdir[ptepindex];
@@ -2643,7 +2579,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (srcptepaddr & PG_PS) {
 			if (dst_pmap->pm_pdir[ptepindex] == 0) {
 				dst_pmap->pm_pdir[ptepindex] = srcptepaddr;
-				dst_pmap->pm_stats.resident_count += NBPDR / PAGE_SIZE;
+				dst_pmap->pm_stats.resident_count +=
+				    NBPDR / PAGE_SIZE;
 			}
 			continue;
 		}
@@ -2656,13 +2593,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (pdnxt > end_addr)
 			pdnxt = end_addr;
 
-		/*
-		 * Have to recheck this before every avtopte() call below
-		 * in case we have blocked and something else used APTDpde.
-		 */
-		pmap_set_alternate(dst_pmap);
 		src_pte = vtopte(addr);
-		dst_pte = avtopte(addr);
 		while (addr < pdnxt) {
 			pt_entry_t ptetemp;
 			ptetemp = *src_pte;
@@ -2676,6 +2607,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				 * block.
 				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr);
+				dst_pte = pmap_pte_quick(dst_pmap, addr);
 				if ((*dst_pte == 0) && (ptetemp = *src_pte)) {
 					/*
 					 * Clear the modified and
@@ -2697,7 +2629,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			}
 			addr += PAGE_SIZE;
 			src_pte++;
-			dst_pte++;
 		}
 	}
 }	
@@ -3288,7 +3219,7 @@ pmap_mincore(pmap, addr)
 	vm_page_t m;
 	int val = 0;
 	
-	ptep = pmap_pte(pmap, addr);
+	ptep = pmap_pte_quick(pmap, addr);
 	if (ptep == 0) {
 		return 0;
 	}
