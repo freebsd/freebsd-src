@@ -774,7 +774,7 @@ load_keymap(char *opt, int dumponly)
 		}
 	}
 	if (fd == NULL) {
-		warn("keymap file not found");
+		warn("keymap file \"%s\" not found", opt);
 		return;
 	}
 	memset(&keymap, 0, sizeof(keymap));
