@@ -1,4 +1,4 @@
-/*	$NetBSD: xlint.c,v 1.3 1995/10/23 14:29:30 jpo Exp $	*/
+/* $NetBSD: xlint.c,v 1.3 1995/10/23 14:29:30 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl

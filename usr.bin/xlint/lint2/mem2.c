@@ -1,4 +1,4 @@
-/*	$NetBSD: mem2.c,v 1.3 1995/10/02 17:27:11 jpo Exp $	*/
+/* $NetBSD: mem2.c,v 1.3 1995/10/02 17:27:11 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl

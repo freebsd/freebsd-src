@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.3 1995/07/04 01:53:05 cgd Exp $
+# $NetBSD: Makefile,v 1.3 1995/07/04 01:53:05 cgd Exp $
 # $FreeBSD$
 
 PROG=	lint1

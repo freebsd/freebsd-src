@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.2 1995/07/03 21:25:05 cgd Exp $
+# $NetBSD: Makefile,v 1.2 1995/07/03 21:25:05 cgd Exp $
 # $FreeBSD$
 
 LIBS=	llib-lposix.ln llib-lstdc.ln
