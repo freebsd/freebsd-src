@@ -54,7 +54,10 @@ mousedTest(dialogMenuItem *self)
 	if (file_readable("/var/run/moused.pid"))
 	    vsystem("kill `cat /var/run/moused.pid`");
 	systemExecute("vidcontrol -m on");
-	vsystem("moused -t %s -p %s %s", type, port, flags);
+	if (flags != NULL)
+	    vsystem("moused -t %s -p %s %s", type, port, flags);
+	else
+	    vsystem("moused -t %s -p %s", type, port);
 
 	ret = msgYesNo("Now move the mouse and see if it works.\n"
 	      "(Note that buttons don't have any effect for now.)\n\n"
