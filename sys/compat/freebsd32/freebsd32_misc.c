@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/vnode.h>
+#include <sys/wait.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -88,21 +89,16 @@ CTASSERT(sizeof(struct rusage32) == 72);
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 {
-	int error;
-	caddr_t sg;
-	struct rusage32 *rusage32, ru32;
-	struct rusage *rusage = NULL, ru;
+	int error, status;
+	struct rusage32 ru32;
+	struct rusage ru;
 
-	rusage32 = uap->rusage;
-	if (rusage32) {
-		sg = stackgap_init();
-		rusage = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct rusage32 *)rusage;
-	}
-	error = wait4(td, (struct wait_args *)uap);
+	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
 	if (error)
 		return (error);
-	if (rusage32 && (error = copyin(rusage, &ru, sizeof(ru)) == 0)) {
+	if (uap->status != NULL)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->rusage != NULL && error == 0) {
 		TV_CP(ru, ru32, ru_utime);
 		TV_CP(ru, ru32, ru_stime);
 		CP(ru, ru32, ru_maxrss);
@@ -119,7 +115,7 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 		CP(ru, ru32, ru_nsignals);
 		CP(ru, ru32, ru_nvcsw);
 		CP(ru, ru32, ru_nivcsw);
-		error = copyout(&ru32, rusage32, sizeof(ru32));
+		error = copyout(&ru32, uap->rusage, sizeof(ru32));
 	}
 	return (error);
 }

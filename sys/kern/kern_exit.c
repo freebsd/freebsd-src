@@ -85,8 +85,6 @@ __FBSDID("$FreeBSD$");
 /* Required to be non-static for SysVR4 emulator */
 MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
-static int wait1(struct thread *, struct wait_args *, int);
-
 /*
  * exit --
  *	Death of process.
@@ -551,57 +549,59 @@ exit1(struct thread *td, int rv)
 
 #ifdef COMPAT_43
 /*
- * MPSAFE.  The dirty work is handled by wait1().
+ * MPSAFE.  The dirty work is handled by kern_wait().
  */
 int
 owait(struct thread *td, struct owait_args *uap __unused)
 {
-	struct wait_args w;
+	int error, status;
 
-	w.options = 0;
-	w.rusage = NULL;
-	w.pid = WAIT_ANY;
-	w.status = NULL;
-	return (wait1(td, &w, 1));
+	error = kern_wait(td, WAIT_ANY, &status, 0, NULL);
+	if (error == 0)
+		td->td_retval[1] = status;
+	return (error);
 }
 #endif /* COMPAT_43 */
 
 /*
- * MPSAFE.  The dirty work is handled by wait1().
+ * MPSAFE.  The dirty work is handled by kern_wait().
  */
 int
 wait4(struct thread *td, struct wait_args *uap)
 {
+	struct rusage ru;
+	int error, status;
 
-	return (wait1(td, uap, 0));
+	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
+	if (uap->status != NULL && error == 0)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->rusage != NULL && error == 0)
+		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	return (error);
 }
 
-/*
- * MPSAFE
- */
-static int
-wait1(struct thread *td, struct wait_args *uap, int compat)
+int
+kern_wait(struct thread *td, pid_t pid, int *status, int options, struct rusage *rusage)
 {
-	struct rusage ru;
 	int nfound;
 	struct proc *p, *q, *t;
-	int status, error;
+	int error;
 
 	q = td->td_proc;
-	if (uap->pid == 0) {
+	if (pid == 0) {
 		PROC_LOCK(q);
-		uap->pid = -q->p_pgid;
+		pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (uap->options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
+	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		PROC_LOCK(p);
-		if (uap->pid != WAIT_ANY &&
-		    p->p_pid != uap->pid && p->p_pgid != -uap->pid) {
+		if (pid != WAIT_ANY &&
+		    p->p_pid != pid && p->p_pgid != -pid) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -615,7 +615,7 @@ loop:
 		 * signifies we want to wait for threads and not processes.
 		 */
 		if ((p->p_sigparent != SIGCHLD) ^
-		    ((uap->options & WLINUXCLONE) != 0)) {
+		    ((options & WLINUXCLONE) != 0)) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -623,37 +623,16 @@ loop:
 		nfound++;
 		if (p->p_state == PRS_ZOMBIE) {
 			td->td_retval[0] = p->p_pid;
-#ifdef COMPAT_43
-			if (compat)
-				td->td_retval[1] = p->p_xstat;
-			else
-#endif
-			if (uap->status) {
-				status = p->p_xstat;	/* convert to int */
-				PROC_UNLOCK(p);
-				if ((error = copyout(&status,
-				    uap->status, sizeof(status)))) {
-					sx_xunlock(&proctree_lock);
-					mtx_unlock(&Giant);
-					return (error);
-				}
-				PROC_LOCK(p);
-			}
-			if (uap->rusage) {
-				bcopy(p->p_ru, &ru, sizeof(ru));
-				PROC_UNLOCK(p);
-				if ((error = copyout(&ru,
-				    uap->rusage, sizeof (struct rusage)))) {
-					sx_xunlock(&proctree_lock);
-					mtx_unlock(&Giant);
-					return (error);
-				}
-			} else
-				PROC_UNLOCK(p);
+			if (status)
+				*status = p->p_xstat;	/* convert to int */
+			if (rusage)
+				bcopy(p->p_ru, rusage, sizeof(struct rusage));
+
 			/*
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
+			PROC_UNLOCK(p);
 			if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 				PROC_LOCK(p);
 				p->p_oppid = 0;
@@ -725,7 +704,7 @@ loop:
 			mac_destroy_proc(p);
 #endif
 			KASSERT(FIRST_THREAD_IN_PROC(p),
-			    ("wait1: no residual thread!"));
+			    ("kern_wait: no residual thread!"));
 			uma_zfree(proc_zone, p);
 			sx_xlock(&allproc_lock);
 			nprocs--;
@@ -735,44 +714,26 @@ loop:
 		mtx_lock_spin(&sched_lock);
 		if (P_SHOULDSTOP(p) && (p->p_suspcount == p->p_numthreads) &&
 		    ((p->p_flag & P_WAITED) == 0) &&
-		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
+		    (p->p_flag & P_TRACED || options & WUNTRACED)) {
 			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
-#ifdef COMPAT_43
-			if (compat) {
-				td->td_retval[1] = W_STOPCODE(p->p_xstat);
-				PROC_UNLOCK(p);
-				error = 0;
-			} else
-#endif
-			if (uap->status) {
-				status = W_STOPCODE(p->p_xstat);
-				PROC_UNLOCK(p);
-				error = copyout(&status,
-					uap->status, sizeof(status));
-			} else {
-				PROC_UNLOCK(p);
-				error = 0;
-			}
-			return (error);
+			if (status)
+				*status = W_STOPCODE(p->p_xstat);
+			PROC_UNLOCK(p);
+			return (0);
 		}
 		mtx_unlock_spin(&sched_lock);
-		if (uap->options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
+		if (options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
 			p->p_flag &= ~P_CONTINUED;
 			PROC_UNLOCK(p);
 
-			if (uap->status) {
-				status = SIGCONT;
-				error = copyout(&status,
-				    uap->status, sizeof(status));
-			} else
-				error = 0;
-
-			return (error);
+			if (status)
+				*status = SIGCONT;
+			return (0);
 		}
 		PROC_UNLOCK(p);
 	}
@@ -780,7 +741,7 @@ loop:
 		sx_xunlock(&proctree_lock);
 		return (ECHILD);
 	}
-	if (uap->options & WNOHANG) {
+	if (options & WNOHANG) {
 		sx_xunlock(&proctree_lock);
 		td->td_retval[0] = 0;
 		return (0);
