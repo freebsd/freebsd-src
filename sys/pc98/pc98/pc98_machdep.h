@@ -23,13 +23,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __PC98_PC98_PC98_MACHDEP_H__
 #define __PC98_PC98_PC98_MACHDEP_H__
 
 void	pc98_init_dmac __P((void));
-void	pc98_getmemsize __P((void));
+void	pc98_getmemsize __P((unsigned *, unsigned *, unsigned *));
 
 struct	ccb_calc_geometry;
 int	scsi_da_bios_params __P((struct ccb_calc_geometry *));
