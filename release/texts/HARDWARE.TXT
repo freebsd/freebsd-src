@@ -79,6 +79,7 @@ isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 1240 Ultra SCSI, 1080/1280
 dpt0    dyn    	dyn     n/a     n/a     DPT RAID SCSI controllers
 amr0    dyn	dyn	n/a	n/a	AMI MegaRAID controllers
 mlx0    dyn	dyn	n/a	dyn	Mylex DAC960 RAID controllers
+twe0	dyn	dyn	n/a	n/a	3ware Escalade RAID controllers
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
@@ -398,6 +399,9 @@ firmware:
 This list includes controllers sold by Digital/Compaq in Alpha systems
 in the StorageWorks family, eg. KZPSC, KZPAC.  EISA adaptes are not 
 supported.
+
+3ware Escalade ATA RAID controllers.  All members of the 5000 and
+6000 series are supported.
 
 Qlogic Controllers:
 
