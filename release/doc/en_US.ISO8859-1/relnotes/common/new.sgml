@@ -401,8 +401,8 @@
 	the ctx driver for CORTEX-I Frame Grabber,
 	the gp driver for National Instruments AT-GPIB and AT-GPIB/TNT boards,
 	the gsc driver for the Genius GS-4500 hand scanner,
-	the le driver for DEC EtherWORKS II and III ethernet controllers,
-	the rdp driver for RealTek RTL 8002-based pocket ethernet adapters,
+	the le driver for DEC EtherWORKS II and III Ethernet controllers,
+	the rdp driver for RealTek RTL 8002-based pocket Ethernet adapters,
 	the spigot driver for the Creative Labs Video Spigot video-acquisition board,
 	the stl and stli drivers for Stallion Technologies multiport serial
 	controllers, and the wt driver for Archive/Wangtek cartridge tapes.
@@ -589,7 +589,7 @@
 	<application>IPFilter</application> work correctly when loaded
 	as a kernel module.</para>
 
-      <para>The link state change notification of ethernet media
+      <para>The link state change notification of Ethernet media
 	support has been added to the routing socket.</para>
 
       <para>The following TCP features are now enabled by default: RFC
@@ -718,6 +718,11 @@
 	(&man.ggatel.8;, &man.ggatec.8;,
 	and &man.ggated.8;) has been added.  It supports exporting
 	devices including not GEOM-aware ones through network.</para>
+
+      <para>A new <literal>GEOM_LABEL</literal>
+	class to detect volume labels on various file systems,
+	such as UFS, MSDOSFS (FAT12, FAT16, FAT32), and ISO9660,
+	has been added.</para>
 
       <para>A new kernel option <literal>GEOM_GPT</literal>
 	which supports the ability to have a large
@@ -1056,6 +1061,10 @@
       a <option>-w</option> option allows new files to be created,
       and a <option>-U</option> option allows the umask to be set.</para>
 
+    <para>&man.top.1; now supports to display the current amount
+      of I/O.  This feature can be enabled by hitting <quote>m</quote>
+      or passing the command line option <option>-m io</option>.</para>
+
     <para arch="amd64">&man.truss.1; now includes early support
       for &os;/amd64.</para>
 
@@ -1109,7 +1118,7 @@
     <title>Contributed Software</title>
 
     <para>The <application>ACPI-CA</application> code has been updated
-      from the 20030619 snapshot to the 20040514 snapshot.</para>
+      from the 20030619 snapshot to the 20040527 snapshot.</para>
 
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
@@ -1140,6 +1149,9 @@
     <para>The <application>GNU regex</application> library has been
       updated to the version included with <application>GNU
       grep</application> 2.4.2.</para>
+
+    <para><application>GNU sort</application> has been updated from
+      textutils 2.1 to coreutils 5.2.1.</para>
 
     <para>The <application>GNU tar</application> implementation in the
       base system is now called <filename>gtar</filename>, with
