@@ -142,5 +142,5 @@ pipe	131	PIPE		# Private IP Encapsulation within IP
 sctp	132	SCTP		# Stream Control Transmission Protocol
 fc	133	FC		# Fibre Channel
 #	134-254			# Unassigned
-divert	254	DIVERT		# Divert pseudo-protocol [non IANA]
 #	255			# Reserved
+divert	258	DIVERT		# Divert pseudo-protocol [non IANA]
