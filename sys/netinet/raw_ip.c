@@ -160,18 +160,22 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 #endif
 	if (!policyfail) {
 		struct mbuf *opts = NULL;
+		struct socket *so;
 
+		so = last->inp_socket;
 		if ((last->inp_flags & INP_CONTROLOPTS) ||
-		    (last->inp_socket->so_options & SO_TIMESTAMP))
+		    (so->so_options & SO_TIMESTAMP))
 			ip_savecontrol(last, &opts, ip, n);
-		if (sbappendaddr(&last->inp_socket->so_rcv,
+		SOCKBUF_LOCK(&so->so_rcv);
+		if (sbappendaddr_locked(&so->so_rcv,
 		    (struct sockaddr *)&ripsrc, n, opts) == 0) {
 			/* should notify about lost packet */
 			m_freem(n);
 			if (opts)
 				m_freem(opts);
+			SOCKBUF_UNLOCK(&so->so_rcv);
 		} else
-			sorwakeup(last->inp_socket);
+			sorwakeup_locked(so);
 	} else
 		m_freem(n);
 	return policyfail;

@@ -353,22 +353,24 @@ present:
 	q = LIST_FIRST(&tp->t_segq);
 	if (!q || q->tqe_th->th_seq != tp->rcv_nxt)
 		return (0);
+	SOCKBUF_LOCK(&so->so_rcv);
 	do {
 		tp->rcv_nxt += q->tqe_len;
 		flags = q->tqe_th->th_flags & TH_FIN;
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
+		/* Unlocked read. */
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
-			sbappendstream(&so->so_rcv, q->tqe_m);
+			sbappendstream_locked(&so->so_rcv, q->tqe_m);
 		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
 		tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
-	sorwakeup(so);
+	sorwakeup_locked(so);
 	return (flags);
 }
 
@@ -1262,13 +1264,15 @@ after_listen:
 #endif
 			 * Add data to socket buffer.
 			 */
+			/* Unlocked read. */
+			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
-				sbappendstream(&so->so_rcv, m);
+				sbappendstream_locked(&so->so_rcv, m);
 			}
-			sorwakeup(so);
+			sorwakeup_locked(so);
 			if (DELAY_ACK(tp)) {
 				tp->t_flags |= TF_DELACK;
 			} else {
@@ -2153,8 +2157,7 @@ process_ACK:
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
-		SOCKBUF_UNLOCK(&so->so_snd);
-		sowwakeup(so);
+		sowwakeup_locked(so);
 		/* detect una wraparound */
 		if ((tcp_do_newreno || tp->sack_enable) && 
 		    !IN_FASTRECOVERY(tp) &&
@@ -2363,11 +2366,13 @@ dodata:							/* XXX */
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);
+			/* Unlocked read. */
+			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
 			else
-				sbappendstream(&so->so_rcv, m);
-			sorwakeup(so);
+				sbappendstream_locked(&so->so_rcv, m);
+			sorwakeup_locked(so);
 		} else {
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
