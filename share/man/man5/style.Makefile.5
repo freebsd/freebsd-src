@@ -209,6 +209,27 @@ or
 .Va ${.ALLSRC}
 and
 .Va ${.TARGET} .
+.It
+To not build the
+.Va foo
+part of the base system,
+use
+.Va NO_FOO ,
+not
+.Va NOFOO .
+.It
+To optionally build something in the base system,
+spell the knob
+.Va WITH_FOO
+not
+.Va WANT_FOO ,
+or
+.Va USE_FOO .
+The latter are reserved for the FreeBSD Ports Collection.
+.It
+For variables that are only checked with
+.Va defined() ,
+don't provide any fake value.
 .El
 .Pp
 The desire to express a logical grouping often means not obeying some of the
