@@ -69,9 +69,11 @@ struct wi_counters {
 #define WI_RID_P2_TX_CRYPT_KEY	0xFC23
 #define WI_RID_P2_CRYPT_KEY0	0xFC24
 #define WI_RID_P2_CRYPT_KEY1	0xFC25
+#define WI_RID_MICROWAVE_OVEN	0xFC25
 #define WI_RID_P2_CRYPT_KEY2	0xFC26
 #define WI_RID_P2_CRYPT_KEY3	0xFC27
 #define WI_RID_P2_ENCRYPTION	0xFC28
+#define WI_RID_ROAMING_MODE	0xFC2D
 #define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
 struct wi_key {
 	u_int16_t		wi_keylen;
@@ -118,7 +120,11 @@ struct wi_softc	{
 	u_int16_t		wi_create_ibss;
 	u_int16_t		wi_channel;
 	u_int16_t		wi_pm_enabled;
+	u_int16_t		wi_mor_enabled;
 	u_int16_t		wi_max_sleep;
+	u_int16_t		wi_authtype;
+	u_int16_t		wi_roaming;
+
 	char			wi_node_name[32];
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
@@ -185,9 +191,23 @@ struct wi_softc	{
 
 #define WI_DEFAULT_MAX_SLEEP	100
 
-#define WI_DEFAULT_NODENAME	"FreeBSD WaveLAN/IEEE node"
+#define WI_DEFAULT_ROAMING	1
 
-#define WI_DEFAULT_IBSS		"FreeBSD IBSS"
+#define WI_DEFAULT_AUTHTYPE	1
+
+#ifdef __NetBSD__
+#define OS_STRING_NAME	"NetBSD"
+#endif
+#ifdef __FreeBSD__
+#define OS_STRING_NAME	"FreeBSD"
+#endif
+#ifdef __OpenBSD__
+#define OS_STRING_NAME	"OpenBSD"
+#endif
+
+#define WI_DEFAULT_NODENAME	OS_STRING_NAME " WaveLAN/IEEE node"
+
+#define WI_DEFAULT_IBSS		OS_STRING_NAME " IBSS"
 
 #define WI_DEFAULT_CHAN		3
 
@@ -601,6 +621,8 @@ struct wi_ltv_nodename {
 	u_int16_t		wi_type;
 	u_int16_t		wi_nodename[17];
 };
+
+#define WI_RID_AUTH_CNTL	0xFC2A
 
 /*
  * Multicast addresses to be put in filter. We're
