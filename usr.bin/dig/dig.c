@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: dig.c,v 1.1.1.1 1994/09/22 21:33:31 pst Exp $";
+static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
 #endif
 
 /*
@@ -89,7 +89,7 @@ static char rcsid[] = "$Id: dig.c,v 1.1.1.1 1994/09/22 21:33:31 pst Exp $";
  *	in order to disclaim liability and warranty).
  *
  *	Paul Vixie, Palo Alto, CA, April 1993
- ****************************************************************************
+ ****************************************************************************/
 
  /*******************************************************************
  **      DiG -- Domain Information Groper                          **
