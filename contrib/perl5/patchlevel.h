@@ -2,6 +2,7 @@
 
 /* do not adjust the whitespace! Configure expects the numbers to be
  * exactly on the third column */
+/* $FreeBSD$ */
 
 #define PERL_REVISION	5		/* age */
 #define PERL_VERSION	6		/* epoch */
@@ -70,6 +71,7 @@
 #if !defined(PERL_PATCHLEVEL_H_IMPLICIT) && !defined(LOCAL_PATCH_COUNT)
 static	char	*local_patches[] = {
 	NULL
+	,"SUIDMAIL - fixes for suidperl security"
 	,NULL
 };
 

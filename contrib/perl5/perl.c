@@ -2578,7 +2578,7 @@ sed %s -e \"/^[^#]/b\" \
 	    PerlProc_execv(Perl_form(aTHX_ "%s/sperl"PERL_FS_VER_FMT, BIN_EXP,
 				     (int)PERL_REVISION, (int)PERL_VERSION,
 				     (int)PERL_SUBVERSION), PL_origargv);
-	    Perl_croak(aTHX_ "Can't do setuid\n");
+	    Perl_croak(aTHX_ "Can't do setuid; ensure that the setuid bit is set on suidperl\n");
 	}
 #endif
 #endif
@@ -2759,16 +2759,6 @@ S_validate_suid(pTHX_ char *validarg, char *scriptname, int fdscript)
 	    if (tmpstatbuf.st_dev != PL_statbuf.st_dev ||
 		tmpstatbuf.st_ino != PL_statbuf.st_ino) {
 		(void)PerlIO_close(PL_rsfp);
-		if (PL_rsfp = PerlProc_popen("/bin/mail root","w")) {	/* heh, heh */
-		    PerlIO_printf(PL_rsfp,
-"User %"Uid_t_f" tried to run dev %ld ino %ld in place of dev %ld ino %ld!\n\
-(Filename of set-id script was %s, uid %"Uid_t_f" gid %"Gid_t_f".)\n\nSincerely,\nperl\n",
-			PL_uid,(long)tmpstatbuf.st_dev, (long)tmpstatbuf.st_ino,
-			(long)PL_statbuf.st_dev, (long)PL_statbuf.st_ino,
-			CopFILE(PL_curcop),
-			PL_statbuf.st_uid, PL_statbuf.st_gid);
-		    (void)PerlProc_pclose(PL_rsfp);
-		}
 		Perl_croak(aTHX_ "Permission denied\n");
 	    }
 	    if (
@@ -2830,7 +2820,7 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
 				     (int)PERL_REVISION, (int)PERL_VERSION,
 				     (int)PERL_SUBVERSION), PL_origargv);
 #endif
-	    Perl_croak(aTHX_ "Can't do setuid\n");
+	    Perl_croak(aTHX_ "Can't do setuid; ensure that the setuid bit is set on suidperl\n");
 	}
 
 	if (PL_statbuf.st_mode & S_ISGID && PL_statbuf.st_gid != PL_egid) {
@@ -2913,7 +2903,7 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
     PerlProc_execv(Perl_form(aTHX_ "%s/perl"PERL_FS_VER_FMT, BIN_EXP,
 			     (int)PERL_REVISION, (int)PERL_VERSION,
 			     (int)PERL_SUBVERSION), PL_origargv);/* try again */
-    Perl_croak(aTHX_ "Can't do setuid\n");
+    Perl_croak(aTHX_ "Can't do setuid; ensure that the setuid bit is set on suidperl\n");
 #endif /* IAMSUID */
 #else /* !DOSUID */
     if (PL_euid != PL_uid || PL_egid != PL_gid) {	/* (suidperl doesn't exist, in fact) */
