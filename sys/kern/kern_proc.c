@@ -184,7 +184,6 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 	/* link them together for 1:1 */
 	td->td_kse = ke;
 	ke->ke_thread = td;
-
 }
 
 /* temporary version is ultra simple while we are in 1:1 mode */
