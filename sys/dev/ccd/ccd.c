@@ -254,6 +254,7 @@ getccdbuf(struct ccdbuf *cpy)
 	LIST_INIT(&cbp->cb_buf.b_dep);
 	BUF_LOCKINIT(&cbp->cb_buf);
 	BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
+	BUF_KERNPROC(&cbp->cb_buf);
 
 	return(cbp);
 }
@@ -268,6 +269,9 @@ static __inline
 void
 putccdbuf(struct ccdbuf *cbp)
 {
+	BUF_UNLOCK(&cbp->cb_buf);
+	BUF_LOCKFREE(&cbp->cb_buf);
+
 	if (numccdfreebufs < NCCDFREEHIWAT) {
 		cbp->cb_freenext = ccdfreebufs;
 		ccdfreebufs = cbp;
@@ -812,9 +816,38 @@ ccdstrategy(bp)
 	 * error, the bounds check will flag that for us.
 	 */
 	wlabel = cs->sc_flags & (CCDF_WLABEL|CCDF_LABELLING);
-	if (ccdpart(bp->b_dev) != RAW_PART)
+	if (ccdpart(bp->b_dev) != RAW_PART) {
 		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
 			goto done;
+	} else {
+		int pbn;        /* in sc_secsize chunks */
+		long sz;        /* in sc_secsize chunks */
+
+		pbn = bp->b_blkno / (cs->sc_geom.ccg_secsize / DEV_BSIZE);
+		sz = howmany(bp->b_bcount, cs->sc_geom.ccg_secsize);
+
+		/*
+		 * If out of bounds return an error. If at the EOF point,
+		 * simply read or write less.
+		 */
+
+		if (pbn < 0 || pbn >= cs->sc_size) {
+			bp->b_resid = bp->b_bcount;
+			if (pbn != cs->sc_size) {
+				bp->b_error = EINVAL;
+				bp->b_flags |= B_ERROR | B_INVAL;
+			}
+			goto done;
+		}
+
+		/*
+		 * If the request crosses EOF, truncate the request.
+		 */
+		if (pbn + sz > cs->sc_size) {
+			bp->b_bcount = (cs->sc_size - pbn) * 
+			    cs->sc_geom.ccg_secsize;
+		}
+	}
 
 	bp->b_resid = bp->b_bcount;
 
