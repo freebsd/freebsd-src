@@ -97,7 +97,6 @@ struct vm_object {
 	vm_pindex_t size;		/* Object size */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
-	int hash_rand;			/* (c) hash table randomizer */
 	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */

@@ -190,8 +190,7 @@ vm_object_zinit(void *mem, int size)
 void
 _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
-	static int object_hash_rand;
-	int exp, incr;
+	int incr;
 
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
@@ -214,16 +213,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
-	/*
-	 * Try to generate a number that will spread objects out in the
-	 * hash table.  We 'wipe' new objects across the hash in 128 page
-	 * increments plus 1 more to offset it a little more by the time
-	 * it wraps around.
-	 */
-	do {
-		exp = object_hash_rand;
-		object->hash_rand = exp - 129;
-	} while (!atomic_cmpset_int(&object_hash_rand, exp, object->hash_rand));
 
 	atomic_add_int(&object->generation, 1);
 
