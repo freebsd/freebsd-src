@@ -2995,8 +2995,8 @@ xpt_action(union ccb *start_ccb)
 			  	       &path->device->inq_data),
 			  scsi_cdb_string(start_ccb->csio.cdb_io.cdb_bytes,
 					  cdb_str, sizeof(cdb_str))));
-		/* FALLTHROUGH */
 	}
+	/* FALLTHROUGH */
 	case XPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 		start_ccb->csio.sense_resid = 0;
@@ -3111,8 +3111,8 @@ xpt_action(union ccb *start_ccb)
 		 * If we weren't able to take care of the abort request
 		 * in the XPT, pass the request down to the SIM for processing.
 		 */
-		/* FALLTHROUGH */
 	}
+	/* FALLTHROUGH */
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_EN_LUN:
 	case XPT_IMMED_NOTIFY:
@@ -3271,7 +3271,6 @@ xpt_action(union ccb *start_ccb)
 		int s;
 		dev_pos_type position_type;
 		struct ccb_dev_match *cdm;
-		int ret;
 
 		cdm = &start_ccb->cdm;
 
@@ -3316,10 +3315,10 @@ xpt_action(union ccb *start_ccb)
 
 		switch(position_type & CAM_DEV_POS_TYPEMASK) {
 		case CAM_DEV_POS_EDT:
-			ret = xptedtmatch(cdm);
+			xptedtmatch(cdm);
 			break;
 		case CAM_DEV_POS_PDRV:
-			ret = xptperiphlistmatch(cdm);
+			xptperiphlistmatch(cdm);
 			break;
 		default:
 			cdm->status = CAM_DEV_MATCH_ERROR;
@@ -5639,8 +5638,8 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_print_path(periph->path);
 		printf("Unable to mode sense control page - malloc failure\n");
 		softc->action = PROBE_SERIAL_NUM;
-		/* FALLTHROUGH */
 	}
+	/* FALLTHROUGH */
 	case PROBE_SERIAL_NUM:
 	{
 		struct scsi_vpd_unit_serial_number *serial_buf;
@@ -6913,7 +6912,6 @@ camisr(void *V_queue)
 
 		if (ccb_h->flags & CAM_HIGH_POWER) {
 			struct highpowerlist	*hphead;
-			struct cam_ed		*device;
 			union ccb		*send_ccb;
 
 			hphead = &highpowerq;
@@ -6929,7 +6927,6 @@ camisr(void *V_queue)
 			 * Any high powered commands queued up?
 			 */
 			if (send_ccb != NULL) {
-				device = send_ccb->ccb_h.path->device;
 
 				STAILQ_REMOVE_HEAD(hphead, xpt_links.stqe);
 

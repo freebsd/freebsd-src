@@ -236,6 +236,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 				/* FALLTHROUGH */
 			case CAM_EPF_MINIMAL:
 				proto_flags |= CAM_ESF_PRINT_STATUS;
+				/* FALLTHROUGH */
 			default:
 				break;
 			}
