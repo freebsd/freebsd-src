@@ -1340,6 +1340,7 @@ ipfw_chk(struct ip_fw_args *args)
 	u_int16_t src_port = 0, dst_port = 0;	/* NOTE: host format	*/
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
 	u_int16_t ip_len=0;
+	int pktlen;
 	int dyn_dir = MATCH_UNKNOWN;
 	ipfw_dyn_rule *q = NULL;
 
@@ -1351,6 +1352,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
 
+	pktlen = m->m_pkthdr.len;
 	if (args->eh == NULL ||		/* layer 3 packet */
 		( m->m_pkthdr.len >= sizeof(struct ip) &&
 		    ntohs(args->eh->ether_type) == ETHERTYPE_IP))
@@ -1374,6 +1376,7 @@ ipfw_chk(struct ip_fw_args *args)
 		offset = ip->ip_off & IP_OFFMASK;
 		ip_len = ip->ip_len;
 	}
+	pktlen = ip_len < pktlen ? ip_len : pktlen;
 
 #define PULLUP_TO(len)						\
 		do {						\
@@ -1874,7 +1877,7 @@ check_body:
 					 * the parent rule.
 					 */
 					q->pcnt++;
-					q->bcnt += ip_len;
+					q->bcnt += pktlen;
 					f = q->rule;
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
@@ -1913,7 +1916,7 @@ check_body:
 			case O_COUNT:
 			case O_SKIPTO:
 				f->pcnt++;	/* update stats */
-				f->bcnt += ip_len;
+				f->bcnt += pktlen;
 				f->timestamp = time_second;
 				if (cmd->opcode == O_COUNT)
 					goto next_rule;
@@ -1978,7 +1981,7 @@ next_rule:;		/* try next rule		*/
 done:
 	/* Update statistics */
 	f->pcnt++;
-	f->bcnt += ip_len;
+	f->bcnt += pktlen;
 	f->timestamp = time_second;
 	return retval;
 
