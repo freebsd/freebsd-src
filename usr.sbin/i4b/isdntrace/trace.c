@@ -44,6 +44,7 @@
  *---------------------------------------------------------------------------*/
 
 #include "trace.h"
+#include <unistd.h>
 
 unsigned char buf[BSIZE];
 FILE *Fout = NULL;
@@ -120,9 +121,6 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	extern int optind;
-	extern int opterr;
-	extern char *optarg;
 	char devicename[80];
 	char headerbuf[256];
 		
