@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: jot.c,v 1.7 1997/07/15 09:59:30 charnier Exp $";
+	"$Id: jot.c,v 1.8 1997/11/03 07:45:33 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -75,8 +75,9 @@ int	randomize;
 int	infinity;
 int	boring;
 int	prec;
-int	dox;
+int	intdata;
 int	chardata;
+int	nosign;
 int	nofinalnl;
 char	*sepstring = "\n";
 char	format[BUFSIZ];
@@ -101,16 +102,11 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		if (s == -1.0)
-			srandomdev();
-		else
-			srandom((unsigned long) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = (double) random() / LONG_MAX;
+			*y = (double) arc4random() / ULONG_MAX;
 			putdata(*y * *x + begin, reps - *i);
 		}
-	}
-	else
+	} else
 		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
 			putdata(*x, reps - *i);
 	if (!nofinalnl)
@@ -314,13 +310,15 @@ putdata(x, notlast)
 	double x;
 	long notlast;
 {
-	long		d = x;
-	register long	*dp = &d;
 
 	if (boring)				/* repeated word */
 		printf(format);
-	else if (dox)				/* scalar */
-		printf(format, *dp);
+	else if (chardata)			/* character representation */
+		printf(format, (int)x);
+	else if (intdata && nosign)		/* scalar */
+		printf(format, (unsigned long)x);
+	else if (intdata)
+		printf(format, (long)x);
 	else					/* real */
 		printf(format, x);
 	if (notlast != 0)
@@ -358,6 +356,8 @@ void
 getformat()
 {
 	register char	*p;
+	int dot, hash, space, sign, numbers, islong = 0;
+	char *s;
 
 	if (boring)				/* no need to bother */
 		return;
@@ -368,24 +368,84 @@ getformat()
 		sprintf(p, "%%.%df", prec);
 	else if (!*p && chardata) {
 		strcpy(p, "%c");
-		dox = 1;
-	}
-	else if (!*(p+1))
+		intdata = 1;
+	} else if (!*(p+1))
 		strcat(format, "%");		/* cannot end in single '%' */
 	else {
-		while (!isalpha(*p))
-			p++;
+		/*
+		 * Allow conversion format specifiers of the form
+		 * %[#][ ][{+,-}][0-9]*[.[0-9]*]? where ? must be one of
+		 * [l]{d,i,o,u,x} or {f,e,g,E,G,d,o,x,D,O,U,X,c,u}
+		 */
+		s = p++;
+		dot = hash = space = sign = numbers = 0;
+		while (!isalpha(*p)) {
+			if (isdigit(*p)) {
+				numbers++;
+				p++;
+			} else if ((*p == '#' && !(numbers|dot|sign|space|
+			    hash++)) ||
+			    (*p == ' ' && !(numbers|dot|space++)) ||
+			    ((*p == '+' || *p == '-') && !(numbers|dot|sign++))
+			    || (*p == '.' && !(dot++)))
+				p++;
+			else if (*p == '$' || *p == '*')
+				errx(1, "unsupported format character %c", *p);
+			else if (*p == '\0')
+				errx(1, "missing format character");
+			else
+				errx(1, "illegal format character %c", *p);
+		}
 		switch (*p) {
-		case 'f': case 'e': case 'g': case '%':
+		case 'l':
+			islong = 1;
+			p++;
+			/* FALLTHROUGH */
+		case 'o': case 'u': case 'x': case 'X':
+			intdata = nosign = 1;
 			break;
+		case 'd': case 'i':
+			intdata = 1;
+			break;
+		case 'D':
+			if (!islong) {
+				intdata = 1;
+				break;
+			}
+		case 'O': case 'U':
+			if (!islong) {
+				intdata = nosign = 1;
+				break;
+			}
+		case 'c':
+			if (!(intdata | islong)) {
+				chardata = 1;
+				break;
+			}
 		case 's':
 			errx(1, "cannot convert numeric data to strings");
 			break;
-		/* case 'd': case 'o': case 'x': case 'D': case 'O': case 'X':
-		case 'c': case 'u': */
+		case 'h': case 'n': case 'p': case 'q': case 'L':
+		case '$': case '*':
+			errx(1, "unsupported format character %c", *p);
+			/* NOTREACHED */
+		case 'f': case 'e': case 'g': case 'E': case 'G':
+			if (!islong)
+				break;
+			/* FALLTHROUGH */
 		default:
-			dox = 1;
-			break;
+			*++p = '\0';
+			errx(1, "illegal or unsupported format '%s'", s);
+			/* NOTREACHED */
 		}
+		while (*++p)
+			if (*p == '%' && *(p+1) && *(p+1) != '%')
+				errx(1, "too many conversions");
+			else if (*p == '%' && *(p+1) == '%')
+				p++;
+			else if (*p == '%' && !*(p+1)) {
+				strcat(format, "%");
+				break;
+			}
 	}
 }
