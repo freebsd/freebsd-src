@@ -77,9 +77,6 @@ struct netsend_cow_stats {
 
 static struct netsend_cow_stats socow_stats = {0,0,0,0,0,0,0,0,0,0,0};
 
-extern struct sf_buf *sf_bufs;
-extern vm_offset_t sf_base;
-#define dtosf(x) (&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
 static void socow_iodone(void *addr, void *args);
 
 static void
@@ -89,7 +86,7 @@ socow_iodone(void *addr, void *args)
 	struct sf_buf *sf;
 	vm_page_t pp;
 
-	sf = dtosf(addr);
+	sf = args;
 	pp = sf->m;
 	s = splvm();
 	/* remove COW mapping  */
@@ -98,7 +95,7 @@ socow_iodone(void *addr, void *args)
 	vm_page_unlock_queues();
 	splx(s);
 	/* note that sf_buf_free() unwires the page for us*/
-	sf_buf_free(addr, NULL);
+	sf_buf_free(addr, args);
 	socow_stats.iodone++;
 }
 
@@ -153,7 +150,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 */
 	m0->m_data = (caddr_t)sf->kva;
 	m0->m_len = PAGE_SIZE;
-	MEXTADD(m0, sf->kva, PAGE_SIZE, socow_iodone, NULL, 0, EXT_SFBUF);
+	MEXTADD(m0, sf->kva, PAGE_SIZE, socow_iodone, sf, 0, EXT_SFBUF);
 	socow_stats.success++;
 
 	iov = uio->uio_iov;
