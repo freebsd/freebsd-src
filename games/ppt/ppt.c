@@ -47,8 +47,9 @@ static const char rcsid[] =
 
 #include <stdio.h>
 
-static void	putppt();
+static void	putppt(int);
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -58,7 +59,7 @@ main(argc, argv)
 
 	(void) puts("___________");
 	if (argc > 1)
-		while (p = *++argv)
+		while ((p = *++argv))
 			for (; *p; ++p)
 				putppt((int)*p);
 	else while ((c = getchar()) != EOF)
