@@ -1111,7 +1111,9 @@ static moduledata_t ng_##typename##_mod = {				\
 	(typestructp)							\
 };									\
 DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order);		\
-MODULE_DEPEND(ng_##typename, netgraph, 1, 1, 1)
+MODULE_DEPEND(ng_##typename, netgraph,	NG_ABI_VERSION,			\
+					NG_ABI_VERSION,			\
+					NG_ABI_VERSION)
 
 #define NETGRAPH_INIT(tn, tp)						\
 	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_ANY)
