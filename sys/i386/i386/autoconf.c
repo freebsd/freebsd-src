@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.55 1996/06/08 09:37:35 bde Exp $
+ *	$Id: autoconf.c,v 1.56 1996/07/30 20:30:49 bde Exp $
  */
 
 /*
@@ -55,6 +55,7 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 
+#include <machine/bootinfo.h>
 #include <machine/cons.h>
 #include <machine/md_var.h>
 #include <i386/isa/icu.h> /* For interrupts */
@@ -167,6 +168,7 @@ static void
 configure(dummy)
 	void *dummy;
 {
+	int i;
 
 	configure_start();
 
@@ -198,8 +200,39 @@ configure(dummy)
 
 	cninit_finish();
 
-	if (bootverbose)
+	if (bootverbose) {
+		/*
+		 * Print out the BIOS's idea of the disk geometries.
+		 */
+		printf("BIOS Geometries:\n");
+		for (i = 0; i < N_BIOS_GEOM; i++) {
+			unsigned long bios_geom;
+			int max_cylinder, max_head, max_sector;
+
+			bios_geom = bootinfo.bi_bios_geom[i];
+
+			/*
+			 * XXX the bootstrap punts a 1200K floppy geometry
+			 * when the get-disk-geometry interrupt fails.  Skip
+			 * drives that have this geometry.
+			 */
+			if (bios_geom == 0x4f010f)
+				continue;
+
+			printf(" %x:%08lx ", i, bios_geom);
+			max_cylinder = bios_geom >> 16;
+			max_head = (bios_geom >> 8) & 0xff;
+			max_sector = bios_geom & 0xff;
+			printf(
+		"0..%d=%d cylinders, 0..%d=%d heads, 1..%d=%d sectors\n",
+			       max_cylinder, max_cylinder + 1,
+			       max_head, max_head + 1,
+			       max_sector, max_sector);
+		}
+		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
+
 		printf("Device configuration finished.\n");
+	}
 
 #ifdef CD9660
 	if ((boothowto & RB_CDROM) && !mountroot) {
