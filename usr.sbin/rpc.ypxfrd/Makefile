@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1997/02/22 16:13:00 peter Exp $
+# $Id: Makefile,v 1.6 1998/03/06 14:34:47 bde Exp $
 
 PROG=	rpc.ypxfrd
 SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \
@@ -21,12 +21,12 @@ RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # ypxfrd_main.c can see it.
-ypxfrd_svc.c: ${RPCDIR}/ypxfrd.x ypxfrd.h
+ypxfrd_svc.c: ${RPCDIR}/ypxfrd.x
 	rm -f ${.TARGET}
 	${RPCGEN} -m ${RPCDIR}/ypxfrd.x | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
 
-# ypxfrd_xdr.c: ${RPCDIR}/ypxfrd.x ypxfrd.h
+# ypxfrd_xdr.c: ${RPCDIR}/ypxfrd.x
 #	rm -f ${.TARGET}
 #	${RPCGEN} -c -o ${.TARGET} ${RPCDIR}/ypxfrd.x
 
