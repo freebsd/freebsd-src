@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.16 1999/01/21 19:41:38 imp Exp $
+# $Id: Makefile,v 1.17 1999/02/13 14:15:25 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -33,12 +33,10 @@ DELINKS = de_AT de_CH
 .SUFFIXES: .src .out
 
 .src.out:
-	PATH=${.OBJDIR}/..:/usr/bin \
 	colldef -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
 
 .if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
-.endif
 
 ru_SU.KOI8-R.out:       map.KOI8-R
 ru_SU.CP866.out:        map.CP866
@@ -52,7 +50,6 @@ es_ES.DIS_8859-15.out:  map.DIS_8859-15
 de_DE.DIS_8859-15.out:  map.DIS_8859-15
 is_IS.DIS_8859-15.out:  map.DIS_8859-15
 
-.if !defined(_BUILD_TOOLS)
 afterinstall:
 .for locale in ${LOCALES}
 	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} \
