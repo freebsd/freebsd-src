@@ -38,19 +38,19 @@ static char rcsid[] = "$Id$";
 #include <errno.h>
 #include <string.h>
 
-extern struct hostent * _gethostbyhtname  __P((const char *));
-extern struct hostent * _gethostbydnsname __P((const char *));
-extern struct hostent * _gethostbynisname __P((const char *));
-extern struct hostent * _gethostbyhtaddr  __P((const char *, int, int));
-extern struct hostent * _gethostbydnsaddr __P((const char *, int, int));
-extern struct hostent * _gethostbynisaddr __P((const char *, int, int));
+extern struct netent * _getnetbyhtname  __P((const char *));
+extern struct netent * _getnetbydnsname __P((const char *));
+extern struct netent * _getnetbynisname __P((const char *));
+extern struct netent * _getnetbyhtaddr  __P((long, int));
+extern struct netent * _getnetbydnsaddr __P((long, int));
+extern struct netent * _getnetbynisaddr __P((long, int));
 
-#define _PATH_HOSTCONF	"/etc/host.conf"
+#define _PATH_NETCONF	"/etc/net.conf"
 
 enum service_type { 
   SERVICE_NONE = 0,
   SERVICE_BIND,
-  SERVICE_HOSTS,
+  SERVICE_TABLE,
   SERVICE_NIS };
 #define SERVICE_MAX	SERVICE_NIS
 
@@ -58,10 +58,10 @@ static struct {
   const char *name;
   enum service_type type;
 } service_names[] = {
-  { "hosts", SERVICE_HOSTS },
-  { "/etc/hosts", SERVICE_HOSTS },
-  { "hosttable", SERVICE_HOSTS },
-  { "htable", SERVICE_HOSTS },
+  { "nets", SERVICE_TABLE },
+  { "/etc/nets", SERVICE_TABLE },
+  { "nettable", SERVICE_TABLE },
+  { "ntable", SERVICE_TABLE },
   { "bind", SERVICE_BIND },
   { "dns", SERVICE_BIND },
   { "domain", SERVICE_BIND },
@@ -92,11 +92,10 @@ init_services()
 	register int cc = 0;
 	FILE *fd;
 
-	if ((fd = (FILE *)fopen(_PATH_HOSTCONF, "r")) == NULL) {
+	if ((fd = (FILE *)fopen(_PATH_NETCONF, "r")) == NULL) {
 				/* make some assumptions */
-		service_order[0] = SERVICE_BIND;
-		service_order[1] = SERVICE_HOSTS;
-		service_order[2] = SERVICE_NONE;
+		service_order[0] = SERVICE_TABLE;
+		service_order[1] = SERVICE_NONE;
 	} else {
 		while (fgets(buf, BUFSIZ, fd) != NULL && cc < SERVICE_MAX) {
 			if(buf[0] == '#')
@@ -117,10 +116,10 @@ init_services()
 	service_done = 1;
 }
 
-struct hostent *
-gethostbyname(const char *name)
+struct netent *
+getnetbyname(const char *name)
 {
-	struct hostent *hp = 0;
+	struct netent *hp = 0;
 	int nserv = 0;
 
 	if (!service_done)
@@ -130,14 +129,14 @@ gethostbyname(const char *name)
 		switch (service_order[nserv]) {
 		      case SERVICE_NONE:
 			return NULL;
-		      case SERVICE_HOSTS:
-			hp = _gethostbyhtname(name);
+		      case SERVICE_TABLE:
+			hp = _getnetbyhtname(name);
 			break;
 		      case SERVICE_BIND:
-			hp = _gethostbydnsname(name);
+			hp = _getnetbydnsname(name);
 			break;
 		      case SERVICE_NIS:
-			hp = _gethostbynisname(name);
+			hp = _getnetbynisname(name);
 			break;
 		}
 		nserv++;
@@ -145,10 +144,12 @@ gethostbyname(const char *name)
 	return hp;
 }
 
-struct hostent *
-gethostbyaddr(const char *addr, int len, int type)
+struct netent *
+getnetbyaddr(addr, type)
+	long addr;
+	int type;
 {
-	struct hostent *hp = 0;
+	struct netent *hp = 0;
 	int nserv = 0;
 
 	if (!service_done)
@@ -158,14 +159,14 @@ gethostbyaddr(const char *addr, int len, int type)
 		switch (service_order[nserv]) {
 		      case SERVICE_NONE:
 			return 0;
-		      case SERVICE_HOSTS:
-			hp = _gethostbyhtaddr(addr, len, type);
+		      case SERVICE_TABLE:
+			hp = _getnetbyhtaddr(addr, type);
 			break;
 		      case SERVICE_BIND:
-			hp = _gethostbydnsaddr(addr, len, type);
+			hp = _getnetbydnsaddr(addr, type);
 			break;
 		      case SERVICE_NIS:
-			hp = _gethostbynisaddr(addr, len, type);
+			hp = _getnetbynisaddr(addr, type);
 			break;
 		}
 		nserv++;
@@ -174,16 +175,16 @@ gethostbyaddr(const char *addr, int len, int type)
 }
 
 void
-sethostent(stayopen)
+setnetent(stayopen)
 	int stayopen;
 {
-	_sethosthtent(stayopen);
-	_sethostdnsent(stayopen);
+	_setnethtent(stayopen);
+	_setnetdnsent(stayopen);
 }
 
 void
-endhostent()
+endnetent()
 {
-	_endhosthtent();
-	_endhostdnsent();
+	_endnethtent();
+	_endnetdnsent();
 }
