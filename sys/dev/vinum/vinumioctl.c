@@ -35,17 +35,18 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: vinumioctl.c,v 1.4 1998/12/28 04:56:24 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "sys/sysproto.h"				    /* for sync(2) */
-#ifdef DEBUG
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <sys/sysproto.h>				    /* for sync(2) */
+#ifdef VINUMDEBUG
 #include <sys/reboot.h>
-#include "request.h"
+#include <dev/vinum/request.h>
 #endif
 
 jmp_buf command_fail;					    /* return on a failed command */
@@ -98,7 +99,7 @@ vinumioctl(dev_t dev,
 	if (error)					    /* bombed out */
 	    return 0;					    /* the reply will contain meaningful info */
 	switch (cmd) {
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 	case VINUM_DEBUG:
 	    if (((struct debuginfo *) data)->changeit)	    /* change debug settings */
 		debug = (((struct debuginfo *) data)->param);
@@ -220,6 +221,7 @@ vinumioctl(dev_t dev,
 	    setstate((struct vinum_ioctl_msg *) data);	    /* set an object state */
 	    return 0;
 
+#ifdef VINUMDEBUG
 	case VINUM_MEMINFO:
 	    vinum_meminfo(data);
 	    return 0;
@@ -229,6 +231,7 @@ vinumioctl(dev_t dev,
 
 	case VINUM_RQINFO:
 	    return vinum_rqinfo(data);
+#endif
 
 	case VINUM_LABEL:				    /* label a volume */
 	    ioctl_reply->error = write_volume_label(*(int *) data); /* index of the volume to label */

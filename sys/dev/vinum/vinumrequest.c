@@ -37,12 +37,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.c,v 1.3 1998/11/02 04:09:34 grog Exp $
+ * $Id: request.c,v 1.5 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
@@ -73,7 +74,7 @@ int vinum_bounds_check(struct buf *bp, struct volume *vol);
 caddr_t allocdatabuf(struct rqelement *rqe);
 void freedatabuf(struct rqelement *rqe);
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 struct rqinfo rqinfo[RQINFO_SIZE];
 struct rqinfo *rqip = rqinfo;
 
@@ -204,7 +205,7 @@ vinumstart(struct buf *bp, int reviveok)
     int rqno;						    /* index in request list */
     enum requeststatus status;
 
-#if DEBUG
+#if VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bp, bp, bp);
 #endif
@@ -372,7 +373,7 @@ launch_requests(struct request *rq, int reviveok)
 	abortrequest(rq, EINVAL);
 	return -1;
     }
-#if DEBUG
+#if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	printf("Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 	    (u_int) rq,
@@ -397,7 +398,7 @@ launch_requests(struct request *rq, int reviveok)
 		if ((rqe->b.b_flags & B_READ) == 0)
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
 		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
-#if DEBUG
+#if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 			rqe->b.b_flags & B_READ ? "Read" : "Write",
@@ -833,7 +834,7 @@ sdio(struct buf *bp)
     }
     if ((sbp->b.b_flags & B_READ) == 0)			    /* write */
 	sbp->b.b_vp->v_numoutput++;			    /* one more output going */
-#if DEBUG
+#if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 	    sbp->b.b_flags & B_READ ? "Read" : "Write",
