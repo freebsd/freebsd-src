@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.482 1998/10/05 07:45:54 obrien Exp $
+#	$Id: LINT,v 1.483 1998/10/06 13:16:16 kato Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -875,7 +875,8 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 #
 # SCSI host adapters: `aha', `aic', `bt', `nca'
 #
-# adv: Most AdvanSys SCSI controllers
+# adv: All Narrow SCSI bus AdvanSys controllers.
+# adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
@@ -891,6 +892,7 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 
 controller	bt0	at isa? port "IO_BT0" cam irq ?
 controller	adv0	at isa? port ? cam irq ?
+controller	adw0
 controller      aha0    at isa? port ? cam irq ?
 #!CAM# controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
