@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid[] = "From: Id: res_query.c,v 8.14 1997/06/09 17:47:05 halley Exp $";
+static char rcsid[] = "$Id: res_query.c,v 8.14 1997/06/09 17:47:05 halley Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
