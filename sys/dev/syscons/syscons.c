@@ -684,6 +684,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = scdevtotty(dev);
     keyarg_t key;
+    int error;
 
     if (!tp)
 	return(ENXIO);
@@ -711,6 +712,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
 	    return(EBUSY);
+    error = (*linesw[tp->t_line].l_open)(dev, tp);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
 	if (ISGRAPHSC(console[minor(dev)]))
@@ -720,7 +722,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_winsize.ws_col = console[minor(dev)]->xsize;
 	tp->t_winsize.ws_row = console[minor(dev)]->ysize;
     }
-    return ((*linesw[tp->t_line].l_open)(dev, tp));
+    return error;
 }
 
 int
