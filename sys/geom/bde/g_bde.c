@@ -247,6 +247,7 @@ g_bde_config(struct g_configargs *ga)
 		mtx_unlock(&Giant);
 		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
+		pp->flags |= G_PF_CANDELETE;
 		pp->mediasize = sc->mediasize;
 		pp->sectorsize = sc->sectorsize;
 		g_error_provider(pp, 0);
