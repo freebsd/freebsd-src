@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.20.2.3 1998/09/04 17:00:06 jkh Exp $
+ *  $Id: linux_misc.c,v 1.20.2.4 1998/09/23 14:13:01 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -698,6 +698,7 @@ linux_time(struct proc *p, struct linux_time_args *args, int *retval)
     printf("Linux-emul(%d): time(*)\n", p->p_pid);
 #endif
     microtime(&tv);
+    timevalsub(&tv, &boottime);
     tm = tv.tv_sec;
     if (args->tm && (error = copyout(&tm, args->tm, sizeof(linux_time_t))))
 	return error;
