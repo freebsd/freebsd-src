@@ -99,15 +99,20 @@ hook.
 .Pp
 In the future other algorithms may be added as well.
 .Sh LINK FAILURE DETECTION
-At this time, the only algorithm for determining when a link
-has failed, other than the hook being disconnected, is the
-``manual'' algorithm: the node is explicitly told which of
-the links are up via the
+.Bl -tag -width foo
+.It NG_ONE2MANY_FAIL_MANUAL
+The node is explicitly told which of the links are up via the
 .Dv NGM_ONE2MANY_SET_CONFIG
 control message (see below).
 Newly connected links are down until configured otherwise.
-.Pp
-In the future other algorithms may be added as well.
+.It NG_ONE2MANY_FAIL_IFACE_LINK
+In every ''interval'' seconds (where
+.Dv interval
+is defined with
+.Dv NGM_ONE2MANY_SET_CONFIG
+control message (see below))
+status of all defined links are checked and only active links
+are used for data transfer.
 .Sh HOOKS
 This node type supports up to
 .Dv NG_ONE2MANY_MAX_LINKS
@@ -130,20 +135,23 @@ as the control message argument:
 struct ng_one2many_config {
   u_int32_t   xmitAlg;        /* how to distribute packets */
   u_int32_t   failAlg;        /* how to detect link failure */
+  u_int32_t   interval;       /* how often check links status */
   u_char      enabledLinks[NG_ONE2MANY_MAX_LINKS];
 };
 .Ed
 .Pp
-Currently, the only valid setting for the
+Currently, the valid setting for the
 .Dv xmitAlg
 field is
-.Dv NG_ONE2MANY_XMIT_ROUNDROBIN ;
-this is also the default setting.
-The only valid setting for
+.Dv NG_ONE2MANY_XMIT_ROUNDROBIN
+(default) or
+.Dv NG_ONE2MANY_XMIT_ALL .
+The valid setting for
 .Dv failAlg
 is
-.Dv NG_ONE2MANY_FAIL_MANUAL ;
-this is also the default setting.
+.Dv NG_ONE2MANY_FAIL_MANUAL
+(default) or
+.Dv NG_ONE2MANY_FAIL_IFACE_LINK .
 .It Dv NGM_ONE2MANY_GET_CONFIG
 Returns the current node configuration in a
 .Dv "struct ng_one2many_link_config" .
@@ -210,6 +218,9 @@ through
 
   ngctl msg fxp0:upper \\
     setconfig "{ xmitAlg=1 failAlg=1 enabledLinks=[ 1 1 1 1 ] }"
+  # Or
+  ngctl msg fxp0:upper \\
+    setconfig "{ xmitAlg=1 failAlg=2 interval=3 }"
 
   # Bring up interface
 
@@ -244,3 +255,6 @@ netgraph node (with round-robin algorithm) was written by
 The all algorithm was added by
 .An Rogier R. Mulhuijzen
 .Aq drwilco@drwilco.net .
+The interface_link failure detection algorithm was added by
+.An Pawel Jakub Dawidek
+.Aq pjd@FreeBSD.org .
