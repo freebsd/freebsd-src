@@ -3,13 +3,17 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+20000109:
+	Your kernel config files need to be changed to s/controller/device/
+	in them.  You will need a new version of config to do this.
+
 20000107:
 	chown & chgrp moved again
 
 	This is a heads up to let you know that you need to 
 		    rm -f /sbin/chown /bin/chgrp
 	after your next `make world'.  Additionally you need to install
-	a new /dev/MAKEDEV (mergmaster(8) will assist you in this).
+	a new /dev/MAKEDEV (mergemaster(8) will assist you in this).
 
 20000107:
 	SHA-1 password support gone
@@ -24,7 +28,7 @@ directly to him.  See end of file for further details.
 
 20000106:
 	ioctl numbers changed for dvdio ioctls.  You will need to recompile
-	anything that uses them.  wormcontrol has been depreicated in
+	anything that uses them.  wormcontrol has been deprecated in
 	favor of burncd.
 
 19991223:
