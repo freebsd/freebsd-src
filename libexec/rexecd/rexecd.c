@@ -185,9 +185,11 @@ doit(f, fromp)
 			exit(1);
 		(void) alarm(0);
 	}
+	(void) alarm(60);
 	getstr(user, sizeof(user), "username");
 	getstr(pass, sizeof(pass), "password");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
+	(void) alarm(0);
 	setpwent();
 	pwd = getpwnam(user);
 	if (pwd == NULL) {
