@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.17 1995/11/13 10:53:38 davidg Exp $
+ * $Id: vm_kern.c,v 1.18 1995/12/07 12:48:13 davidg Exp $
  */
 
 /*
@@ -87,6 +87,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 vm_map_t buffer_map;
 vm_map_t kernel_map;

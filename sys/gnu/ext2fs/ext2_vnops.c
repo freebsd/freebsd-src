@@ -58,6 +58,7 @@
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
