@@ -39,8 +39,8 @@ static const char rcsid[] =
  "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <ctype.h>
+#include "externs.h"
 
 char *
 getcom(buf, size, prompt, error)

@@ -55,9 +55,20 @@ int gclock = 120;		/* gtime for all the flights in the game */
 char cross = 0;
 sig_t oldsig;
 
+static void	blast __P((void));
+static void	endfly __P((void));
+static void	moveenemy __P((int));
+static void	notarget __P((void));
+static void	succumb __P((int));
+static void	screen __P((void));
+static void	target __P((void));
+
 void
-succumb()
+succumb(sig)
+	int sig;
 {
+
+	sig = 0;
 	if (oldsig == SIG_DFL) {
 		endfly();
 		exit(1);
@@ -68,12 +79,12 @@ succumb()
 	}
 }
 
+int
 visual()
 {
-	void moveenemy();
 
 	destroyed = 0;
-	if(initscr() == ERR){
+	if(initscr() == NULL){
 		puts("Whoops!  No more memory...");
 		return(0);
 	}
@@ -83,7 +94,7 @@ visual()
 	screen();
 	row = rnd(LINES-3) + 1;
 	column = rnd(COLS-2) + 1;
-	moveenemy();
+	moveenemy(0);
 	for (;;) {
 		switch(getchar()){
 
@@ -173,11 +184,14 @@ visual()
 		}
 		if (gclock <= 0){
 			endfly();
-			die();
+			die(0);
 		}
 	}
+	/* NOTREACHED */
+	return(1);
 }
 
+void
 screen()
 {
 	int r,c,n;
@@ -194,6 +208,7 @@ screen()
 	refresh();
 }
 
+void
 target()
 {
 	int n;
@@ -206,6 +221,7 @@ target()
 	}
 }
 
+void
 notarget()
 {
 	int n;
@@ -218,13 +234,14 @@ notarget()
 	}
 }
 
+void
 blast()
 {
 	int n;
 
 	alarm(0);
 	move(LINES-1, 24);
-	printw("%3d", torps);
+	printw((char *)(uintptr_t)(const void *)"%3d", torps);
 	for(n = LINES-1-2; n >= MIDR + 1; n--){
 		mvaddch(n, MIDC+MIDR-n, '/');
 		mvaddch(n, MIDC-MIDR+n, '\\');
@@ -240,11 +257,12 @@ blast()
 }
 
 void
-moveenemy()
+moveenemy(int sig)
 {
 	double d;
 	int oldr, oldc;
 
+	sig = 0;
 	oldr = row;
 	oldc = column;
 	if (fuel > 0){
@@ -267,16 +285,17 @@ moveenemy()
 		target();
 	mvaddstr(row, column - 1, "/-\\");
 	move(LINES-1, 24);
-	printw("%3d", torps);
+	printw((char *)(uintptr_t)(const void *)"%3d", torps);
 	move(LINES-1, 42);
-	printw("%3d", fuel);
+	printw((char *)(uintptr_t)(const void *)"%3d", fuel);
 	move(LINES-1, 57);
-	printw("%3d", gclock);
+	printw((char *)(uintptr_t)(const void *)"%3d", gclock);
 	refresh();
 	signal(SIGALRM, moveenemy);
 	alarm(1);
 }
 
+void
 endfly()
 {
 	alarm(0);
