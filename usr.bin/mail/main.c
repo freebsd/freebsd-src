@@ -38,11 +38,14 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
-#include <err.h>
 #include <fcntl.h>
 #include "extern.h"
 
@@ -99,10 +102,9 @@ main(argc, argv)
 			 * articles have been read/deleted for netnews.
 			 */
 			Tflag = optarg;
-			if ((i = creat(Tflag, 0600)) < 0) {
-				perror(Tflag);
-				exit(1);
-			}
+			if ((i = open(Tflag, O_CREAT | O_TRUNC | O_WRONLY,
+				      0600)) < 0)
+				err(1, "%s", Tflag);
 			close(i);
 			break;
 		case 'u':
@@ -181,12 +183,12 @@ main(argc, argv)
 			bcc = cat(bcc, nalloc(optarg, GBCC));
 			break;
 		case '?':
-			fputs("\
-Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
-            [- sendmail-options ...]\n\
-       mail [-iInNv] -f [name]\n\
-       mail [-iInNv] [-u user]\n",
-				stderr);
+			fprintf(stderr, "\
+Usage: %s [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
+       %*s [- sendmail-options ...]\n\
+       %s [-iInNv] -f [name]\n\
+       %s [-iInNv] [-u user]\n",__progname, strlen(__progname), "", __progname,
+				__progname);
 			exit(1);
 		}
 	}
@@ -197,14 +199,10 @@ Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 	/*
 	 * Check for inconsistent arguments.
 	 */
-	if (to == NIL && (subject != NOSTR || cc != NIL || bcc != NIL)) {
-		fputs("You must specify direct recipients with -s, -c, or -b.\n", stderr);
-		exit(1);
-	}
-	if (ef != NOSTR && to != NIL) {
-		fprintf(stderr, "Cannot give -f and people to send to.\n");
-		exit(1);
-	}
+	if (to == NIL && (subject != NOSTR || cc != NIL || bcc != NIL))
+		errx(1, "You must specify direct recipients with -s, -c, or -b.");
+	if (ef != NOSTR && to != NIL)
+		errx(1, "Cannot give -f and people to send to.");
 	tinit();
 	setscreensize();
 	input = stdin;
@@ -213,9 +211,8 @@ Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 	if (!nosrc) {
 		char *s, *path_rc;
 
-		path_rc = malloc(sizeof(_PATH_MASTER_RC));
-		if (path_rc == NULL) 
-			errx(1, "malloc(path_rc) failed");
+		if ((path_rc = malloc(sizeof(_PATH_MASTER_RC))) == NULL)
+			err(1, "malloc(path_rc) failed");
 
 		strcpy(path_rc, _PATH_MASTER_RC);
 		while ((s = strsep(&path_rc, ":")) != NULL)

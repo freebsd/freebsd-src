@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)strings.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -75,14 +79,11 @@ salloc(size)
 		index++;
 	}
 	if (sp >= &stringdope[NSPACE])
-		panic("String too large");
+		errx(1, "String too large");
 	if (sp->s_topFree == NOSTR) {
 		index = sp - &stringdope[0];
-		sp->s_topFree = malloc(STRINGSIZE << index);
-		if (sp->s_topFree == NOSTR) {
-			fprintf(stderr, "No room for space %d\n", index);
-			panic("Internal error");
-		}
+		if ((sp->s_topFree = malloc(STRINGSIZE << index)) == NOSTR)
+			err(1, "No room for space %d", index);
 		sp->s_nextFree = sp->s_topFree;
 		sp->s_nleft = STRINGSIZE << index;
 	}

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)send.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -52,7 +56,7 @@ static char sccsid[] = "@(#)send.c	8.1 (Berkeley) 6/6/93";
  * prefix is a string to prepend to each output line.
  */
 int
-send(mp, obuf, doign, prefix)
+sendmessage(mp, obuf, doign, prefix)
 	register struct message *mp;
 	FILE *obuf;
 	struct ignoretab *doign;
@@ -87,7 +91,7 @@ send(mp, obuf, doign, prefix)
 	 * Process headers first
 	 */
 	while (count > 0 && ishead) {
-		if (fgets(line, LINESIZE, ibuf) == NULL)
+		if (fgets(line, sizeof(line), ibuf) == NULL)
 			break;
 		count -= length = strlen(line);
 		if (firstline) {
@@ -172,12 +176,13 @@ send(mp, obuf, doign, prefix)
 			 * Strip trailing whitespace from prefix
 			 * if line is blank.
 			 */
-			if (prefix != NOSTR)
+			if (prefix != NOSTR) {
 				if (length > 1)
 					fputs(prefix, obuf);
 				else
 					(void) fwrite(prefix, sizeof *prefix,
 							prefixlen, obuf);
+			}
 			(void) fwrite(line, sizeof *line, length, obuf);
 			if (ferror(obuf))
 				return -1;
@@ -190,7 +195,7 @@ send(mp, obuf, doign, prefix)
 		count--;		/* skip final blank line */
 	if (prefix != NOSTR)
 		while (count > 0) {
-			if (fgets(line, LINESIZE, ibuf) == NULL) {
+			if (fgets(line, sizeof(line), ibuf) == NULL) {
 				c = 0;
 				break;
 			}
@@ -312,18 +317,20 @@ mail1(hp, printheaders)
 	 */
 	if ((mtf = collect(hp, printheaders)) == NULL)
 		return;
-	if (value("interactive") != NOSTR)
+	if (value("interactive") != NOSTR) {
 		if (value("askcc") != NOSTR)
 			grabh(hp, GCC);
 		else {
 			printf("EOT\n");
 			(void) fflush(stdout);
 		}
-	if (fsize(mtf) == 0)
+	}
+	if (fsize(mtf) == 0) {
 		if (hp->h_subject == NOSTR)
 			printf("No message, no subject; hope that's ok\n");
 		else
 			printf("Null message body; hope that's ok\n");
+	}
 	/*
 	 * Now, take the user names from the combined
 	 * to and cc lists and do all the alias
@@ -369,7 +376,7 @@ mail1(hp, printheaders)
 	 */
 	pid = fork();
 	if (pid == -1) {
-		perror("fork");
+		warn("fork");
 		savedeadletter(mtf);
 		goto out;
 	}
@@ -382,7 +389,7 @@ mail1(hp, printheaders)
 		else
 			cp = _PATH_SENDMAIL;
 		execv(cp, namelist);
-		perror(cp);
+		warn("%s", cp);
 		_exit(1);
 	}
 	if (value("verbose") != NOSTR)
@@ -428,20 +435,24 @@ infix(hp, fi)
 	struct header *hp;
 	FILE *fi;
 {
-	extern char *tempMail;
 	register FILE *nfo, *nfi;
 	register int c;
+	int fd;
+	char tempname[PATHSIZE];
 
-	if ((nfo = Fopen(tempMail, "w")) == NULL) {
-		perror(tempMail);
+	snprintf(tempname, sizeof(tempname), "%s/mail.RsXXXXXXXXXX", tmpdir);
+	if ((fd = mkstemp(tempname)) == -1 ||
+	    (nfo = Fdopen(fd, "w")) == NULL) {
+		warn("%s", tempname);
 		return(fi);
 	}
-	if ((nfi = Fopen(tempMail, "r")) == NULL) {
-		perror(tempMail);
+	if ((nfi = Fopen(tempname, "r")) == NULL) {
+		warn("%s", tempname);
 		(void) Fclose(nfo);
+		(void) rm(tempname);
 		return(fi);
 	}
-	(void) rm(tempMail);
+	(void) rm(tempname);
 	(void) puthead(hp, nfo,
 		       GTO|GSUBJECT|GCC|GBCC|GREPLYTO|GINREPLYTO|GNL|GCOMMA);
 	c = getc(fi);
@@ -450,13 +461,13 @@ infix(hp, fi)
 		c = getc(fi);
 	}
 	if (ferror(fi)) {
-		perror("read");
+		warnx("read");
 		rewind(fi);
 		return(fi);
 	}
 	(void) fflush(nfo);
 	if (ferror(nfo)) {
-		perror(tempMail);
+		warn("%s", tempname);
 		(void) Fclose(nfo);
 		(void) Fclose(nfi);
 		rewind(fi);
@@ -549,7 +560,7 @@ savemail(name, fi)
 	char *ctime();
 
 	if ((fo = Fopen(name, "a")) == NULL) {
-		perror(name);
+		warn("%s", name);
 		return (-1);
 	}
 	(void) time(&now);
@@ -559,7 +570,7 @@ savemail(name, fi)
 	(void) putc('\n', fo);
 	(void) fflush(fo);
 	if (ferror(fo))
-		perror(name);
+		warn("%s", name);
 	(void) Fclose(fo);
 	rewind(fi);
 	return (0);

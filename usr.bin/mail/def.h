@@ -51,6 +51,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <err.h>
 #include <string.h>
 #include "pathnames.h"
 
