@@ -53,7 +53,7 @@
 #define DRIVER_DATE		"20020828"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		8
+#define DRIVER_MINOR		9
 #define DRIVER_PATCHLEVEL	0
 
 /* Interface history:
@@ -81,6 +81,8 @@
  *       R200_EMIT_PP_CUBIC_OFFSETS_[0..5].  (brian)
  * 1.8 - Remove need to call cleanup ioctls on last client exit (keith)
  *       Add 'GET' queries for starting additional clients on different VT's.
+ * 1.9 - Add DRM_IOCTL_RADEON_CP_RESUME ioctl.
+ *       Add texture rectangle support for r100.
  */
 #define DRIVER_IOCTLS							     \
  [DRM_IOCTL_NR(DRM_IOCTL_DMA)]               = { radeon_cp_buffers,  1, 0 }, \
@@ -89,6 +91,7 @@
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_STOP)]    = { radeon_cp_stop,     1, 1 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_RESET)]   = { radeon_cp_reset,    1, 1 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_IDLE)]    = { radeon_cp_idle,     1, 0 }, \
+ [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_RESUME)]  = { radeon_cp_resume,   1, 0 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_RESET)]    = { radeon_engine_reset,  1, 0 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_FULLSCREEN)] = { radeon_fullscreen,  1, 0 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_SWAP)]       = { radeon_cp_swap,     1, 0 }, \

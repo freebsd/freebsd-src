@@ -502,8 +502,16 @@ static void r128_cce_dispatch_swap( drm_device_t *dev )
 			  R128_GMC_AUX_CLIP_DIS |
 			  R128_GMC_WR_MSK_DIS );
 
-		OUT_RING( dev_priv->back_pitch_offset_c );
-		OUT_RING( dev_priv->front_pitch_offset_c );
+		/* Make this work even if front & back are flipped:
+		 */
+		if (dev_priv->current_page == 0) {
+			OUT_RING( dev_priv->back_pitch_offset_c );
+			OUT_RING( dev_priv->front_pitch_offset_c );
+		} 
+		else {
+			OUT_RING( dev_priv->front_pitch_offset_c );
+			OUT_RING( dev_priv->back_pitch_offset_c );
+		}
 
 		OUT_RING( (x << 16) | y );
 		OUT_RING( (x << 16) | y );
@@ -530,7 +538,10 @@ static void r128_cce_dispatch_flip( drm_device_t *dev )
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
-	DRM_DEBUG( "page=%d\n", dev_priv->current_page );
+	DRM_DEBUG("%s: page=%d pfCurrentPage=%d\n", 
+		__FUNCTION__,
+		dev_priv->current_page,
+		dev_priv->sarea_priv->pfCurrentPage);
 
 #if R128_PERFORMANCE_BOXES
 	/* Do some trivial performance monitoring...
@@ -545,10 +556,8 @@ static void r128_cce_dispatch_flip( drm_device_t *dev )
 
 	if ( dev_priv->current_page == 0 ) {
 		OUT_RING( dev_priv->back_offset );
-		dev_priv->current_page = 1;
 	} else {
 		OUT_RING( dev_priv->front_offset );
-		dev_priv->current_page = 0;
 	}
 
 	ADVANCE_RING();
@@ -558,6 +567,8 @@ static void r128_cce_dispatch_flip( drm_device_t *dev )
 	 * performing the swapbuffer ioctl.
 	 */
 	dev_priv->sarea_priv->last_frame++;
+	dev_priv->sarea_priv->pfCurrentPage = dev_priv->current_page =
+					      1 - dev_priv->current_page;
 
 	BEGIN_RING( 2 );
 
@@ -804,6 +815,8 @@ static int r128_cce_dispatch_blit( DRMFILE filp,
 	case R128_DATATYPE_ARGB1555:
 	case R128_DATATYPE_RGB565:
 	case R128_DATATYPE_ARGB4444:
+	case R128_DATATYPE_YVYU422:
+	case R128_DATATYPE_VYUY422:
 		dword_shift = 1;
 		break;
 	case R128_DATATYPE_CI8:
@@ -1266,6 +1279,62 @@ int r128_cce_clear( DRM_IOCTL_ARGS )
 	return 0;
 }
 
+static int r128_do_init_pageflip( drm_device_t *dev )
+{
+	drm_r128_private_t *dev_priv = dev->dev_private;
+	DRM_DEBUG( "\n" );
+
+	dev_priv->crtc_offset =      R128_READ( R128_CRTC_OFFSET );
+	dev_priv->crtc_offset_cntl = R128_READ( R128_CRTC_OFFSET_CNTL );
+
+	R128_WRITE( R128_CRTC_OFFSET, dev_priv->front_offset );
+	R128_WRITE( R128_CRTC_OFFSET_CNTL,
+		    dev_priv->crtc_offset_cntl | R128_CRTC_OFFSET_FLIP_CNTL );
+
+	dev_priv->page_flipping = 1;
+	dev_priv->current_page = 0;
+	dev_priv->sarea_priv->pfCurrentPage = dev_priv->current_page;
+
+	return 0;
+}
+
+int r128_do_cleanup_pageflip( drm_device_t *dev )
+{
+	drm_r128_private_t *dev_priv = dev->dev_private;
+	DRM_DEBUG( "\n" );
+
+	R128_WRITE( R128_CRTC_OFFSET,      dev_priv->crtc_offset );
+	R128_WRITE( R128_CRTC_OFFSET_CNTL, dev_priv->crtc_offset_cntl );
+
+	if (dev_priv->current_page != 0)
+		r128_cce_dispatch_flip( dev );
+
+	dev_priv->page_flipping = 0;
+	return 0;
+}
+
+/* Swapping and flipping are different operations, need different ioctls.
+ * They can & should be intermixed to support multiple 3d windows.  
+ */
+
+int r128_cce_flip( DRM_IOCTL_ARGS )
+{
+	DRM_DEVICE;
+	drm_r128_private_t *dev_priv = dev->dev_private;
+	DRM_DEBUG( "%s\n", __FUNCTION__ );
+
+	LOCK_TEST_WITH_RETURN( dev, filp );
+
+	RING_SPACE_TEST_WITH_RETURN( dev_priv );
+
+	if (!dev_priv->page_flipping) 
+		r128_do_init_pageflip( dev );
+
+	r128_cce_dispatch_flip( dev );
+
+	return 0;
+}
+
 int r128_cce_swap( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
@@ -1280,13 +1349,9 @@ int r128_cce_swap( DRM_IOCTL_ARGS )
 	if ( sarea_priv->nbox > R128_NR_SAREA_CLIPRECTS )
 		sarea_priv->nbox = R128_NR_SAREA_CLIPRECTS;
 
-	if ( !dev_priv->page_flipping ) {
-		r128_cce_dispatch_swap( dev );
-		dev_priv->sarea_priv->dirty |= (R128_UPLOAD_CONTEXT |
-						R128_UPLOAD_MASKS);
-	} else {
-		r128_cce_dispatch_flip( dev );
-	}
+	r128_cce_dispatch_swap( dev );
+	dev_priv->sarea_priv->dirty |= (R128_UPLOAD_CONTEXT |
+					R128_UPLOAD_MASKS);
 
 	return 0;
 }

@@ -27,6 +27,7 @@
  * Authors:
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
+ *
  * $FreeBSD$
  */
 
@@ -136,12 +137,12 @@ int DRM(addmap)( DRM_IOCTL_ARGS )
 #endif
 		}
 #endif /* __REALLY_HAVE_MTRR */
-		DRM_IOREMAP(map);
+		DRM_IOREMAP(map, dev);
 		break;
 
 	case _DRM_SHM:
 		map->handle = (void *)DRM(alloc)(map->size, DRM_MEM_SAREA);
-		DRM_DEBUG( "%ld %d %p\n",
+		DRM_DEBUG( "%lu %d %p\n",
 			   map->size, DRM(order)( map->size ), map->handle );
 		if ( !map->handle ) {
 			DRM(free)( map, sizeof(*map), DRM_MEM_MAPS );
@@ -279,31 +280,33 @@ int DRM(rmmap)( DRM_IOCTL_ARGS )
 #if __HAVE_DMA
 
 
-static void DRM(cleanup_buf_error)(drm_buf_entry_t *entry)
+static void DRM(cleanup_buf_error)(drm_device_t *dev, drm_buf_entry_t *entry)
 {
 	int i;
 
+#if __HAVE_PCI_DMA
 	if (entry->seg_count) {
 		for (i = 0; i < entry->seg_count; i++) {
-			DRM(free)((void *)entry->seglist[i],
-					entry->buf_size,
-					DRM_MEM_DMA);
+			if (entry->seglist[i] != NULL)
+				DRM(pci_free)(dev, entry->buf_size,
+				    (void *)entry->seglist[i],
+				    entry->seglist_bus[i]);
 		}
 		DRM(free)(entry->seglist,
 			  entry->seg_count *
 			  sizeof(*entry->seglist),
 			  DRM_MEM_SEGS);
+		DRM(free)(entry->seglist_bus, entry->seg_count *
+			  sizeof(*entry->seglist_bus), DRM_MEM_SEGS);
 
 		entry->seg_count = 0;
 	}
+#endif /* __HAVE_PCI_DMA */
 
-   	if(entry->buf_count) {
-	   	for(i = 0; i < entry->buf_count; i++) {
-			if(entry->buflist[i].dev_private) {
-				DRM(free)(entry->buflist[i].dev_private,
-					  entry->buflist[i].dev_priv_size,
-					  DRM_MEM_BUFS);
-			}
+   	if (entry->buf_count) {
+	   	for (i = 0; i < entry->buf_count; i++) {
+			DRM(free)(entry->buflist[i].dev_private,
+			    entry->buflist[i].dev_priv_size, DRM_MEM_BUFS);
 		}
 		DRM(free)(entry->buflist,
 			  entry->buf_count *
@@ -395,7 +398,9 @@ static int DRM(addbufs_agp)(drm_device_t *dev, drm_buf_desc_t *request)
 		if(!buf->dev_private) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
-			DRM(cleanup_buf_error)(entry);
+			DRM(cleanup_buf_error)(dev, entry);
+			DRM_UNLOCK;
+			return DRM_ERR(ENOMEM);
 		}
 		memset( buf->dev_private, 0, buf->dev_priv_size );
 
@@ -413,7 +418,7 @@ static int DRM(addbufs_agp)(drm_device_t *dev, drm_buf_desc_t *request)
 				     DRM_MEM_BUFS );
 	if(!temp_buflist) {
 		/* Free the entry because it isn't valid */
-		DRM(cleanup_buf_error)(entry);
+		DRM(cleanup_buf_error)(dev, entry);
 		DRM_UNLOCK;
 		return DRM_ERR(ENOMEM);
 	}
@@ -450,7 +455,7 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 	int total;
 	int page_order;
 	drm_buf_entry_t *entry;
-	unsigned long page;
+	vm_offset_t vaddr;
 	drm_buf_t *buf;
 	int alignment;
 	unsigned long offset;
@@ -459,6 +464,7 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 	int page_count;
 	unsigned long *temp_pagelist;
 	drm_buf_t **temp_buflist;
+	dma_addr_t bus_addr;
 
 	count = request->count;
 	order = DRM(order)(request->size);
@@ -482,42 +488,37 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 		return DRM_ERR(ENOMEM);	/* May only call once for each order */
 	}
 
-	entry->buflist = DRM(alloc)( count * sizeof(*entry->buflist),
-				    DRM_MEM_BUFS );
-	if ( !entry->buflist ) {
-		DRM_UNLOCK;
-		return DRM_ERR(ENOMEM);
-	}
-	memset( entry->buflist, 0, count * sizeof(*entry->buflist) );
+	entry->buflist = DRM(alloc)(count * sizeof(*entry->buflist),
+	    DRM_MEM_BUFS);
+	entry->seglist = DRM(alloc)(count * sizeof(*entry->seglist),
+	    DRM_MEM_SEGS);
+	entry->seglist_bus = DRM(alloc)(count * sizeof(*entry->seglist_bus),
+	    DRM_MEM_SEGS);
 
-	entry->seglist = DRM(alloc)( count * sizeof(*entry->seglist),
-				    DRM_MEM_SEGS );
-	if ( !entry->seglist ) {
-		DRM(free)( entry->buflist,
-			  count * sizeof(*entry->buflist),
-			  DRM_MEM_BUFS );
-		DRM_UNLOCK;
-		return DRM_ERR(ENOMEM);
-	}
-	memset( entry->seglist, 0, count * sizeof(*entry->seglist) );
+	/* Keep the original pagelist until we know all the allocations
+	 * have succeeded
+	 */
+	temp_pagelist = DRM(alloc)((dma->page_count + (count << page_order)) *
+	    sizeof(*dma->pagelist), DRM_MEM_PAGES);
 
-	temp_pagelist = DRM(realloc)( dma->pagelist,
-				      dma->page_count * sizeof(*dma->pagelist),
-				      (dma->page_count + (count << page_order))
-				      * sizeof(*dma->pagelist),
-				      DRM_MEM_PAGES );
-	if(!temp_pagelist) {
-		DRM(free)( entry->buflist,
-			   count * sizeof(*entry->buflist),
-			   DRM_MEM_BUFS );
-		DRM(free)( entry->seglist,
-			   count * sizeof(*entry->seglist),
-			   DRM_MEM_SEGS );
+	if (entry->buflist == NULL || entry->seglist == NULL || 
+	    temp_pagelist == NULL) {
+		DRM(free)(entry->buflist, count * sizeof(*entry->buflist),
+		    DRM_MEM_BUFS);
+		DRM(free)(entry->seglist, count * sizeof(*entry->seglist),
+		    DRM_MEM_SEGS);
+		DRM(free)(entry->seglist_bus, count *
+		    sizeof(*entry->seglist_bus), DRM_MEM_SEGS);
 		DRM_UNLOCK;
 		return DRM_ERR(ENOMEM);
 	}
 
-	dma->pagelist = temp_pagelist;
+	bzero(entry->buflist, count * sizeof(*entry->buflist));
+	bzero(entry->seglist, count * sizeof(*entry->seglist));
+	
+	memcpy(temp_pagelist, dma->pagelist, dma->page_count * 
+	    sizeof(*dma->pagelist));
+
 	DRM_DEBUG( "pagelist: %d entries\n",
 		   dma->page_count + (count << page_order) );
 
@@ -527,15 +528,28 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 	page_count = 0;
 
 	while ( entry->buf_count < count ) {
-		page = (unsigned long)DRM(alloc)( size, DRM_MEM_DMA );
-		if ( !page ) break;
-		entry->seglist[entry->seg_count++] = page;
+		vaddr = (vm_offset_t) DRM(pci_alloc)(dev, size, alignment,
+		    0xfffffffful, &bus_addr);
+		if (vaddr == NULL) {
+			/* Set count correctly so we free the proper amount. */
+			entry->buf_count = count;
+			entry->seg_count = count;
+			DRM(cleanup_buf_error)(dev, entry);
+			DRM(free)(temp_pagelist, (dma->page_count +
+			    (count << page_order)) * sizeof(*dma->pagelist),
+			    DRM_MEM_PAGES);
+			DRM_UNLOCK;
+			return DRM_ERR(ENOMEM);
+		}
+	
+		entry->seglist_bus[entry->seg_count] = bus_addr;
+		entry->seglist[entry->seg_count++] = vaddr;
 		for ( i = 0 ; i < (1 << page_order) ; i++ ) {
 			DRM_DEBUG( "page %d @ 0x%08lx\n",
 				   dma->page_count + page_count,
-				   page + PAGE_SIZE * i );
-			dma->pagelist[dma->page_count + page_count++]
-				= page + PAGE_SIZE * i;
+				   (long)vaddr + PAGE_SIZE * i );
+			temp_pagelist[dma->page_count + page_count++] = 
+			    vaddr + PAGE_SIZE * i;
 		}
 		for ( offset = 0 ;
 		      offset + size <= total && entry->buf_count < count ;
@@ -546,10 +560,28 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 			buf->order   = order;
 			buf->used    = 0;
 			buf->offset  = (dma->byte_count + byte_count + offset);
-			buf->address = (void *)(page + offset);
+			buf->address = (void *)(vaddr + offset);
+			buf->bus_address = bus_addr + offset;
 			buf->next    = NULL;
 			buf->pending = 0;
 			buf->filp    = NULL;
+
+			buf->dev_priv_size = sizeof(DRIVER_BUF_PRIV_T);
+			buf->dev_private = DRM(alloc)(sizeof(DRIVER_BUF_PRIV_T),
+			    DRM_MEM_BUFS);
+			if (buf->dev_private == NULL) {
+				/* Set count correctly so we free the proper amount. */
+				entry->buf_count = count;
+				entry->seg_count = count;
+				DRM(cleanup_buf_error)(dev, entry);
+				DRM(free)(temp_pagelist, (dma->page_count + 
+				    (count << page_order)) *
+				    sizeof(*dma->pagelist), DRM_MEM_PAGES );
+				DRM_UNLOCK;
+				return DRM_ERR(ENOMEM);
+			}
+			bzero(buf->dev_private, buf->dev_priv_size);
+
 			DRM_DEBUG( "buffer %d @ %p\n",
 				   entry->buf_count, buf->address );
 		}
@@ -561,9 +593,12 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 				     (dma->buf_count + entry->buf_count)
 				     * sizeof(*dma->buflist),
 				     DRM_MEM_BUFS );
-	if(!temp_buflist) {
+	if (temp_buflist == NULL) {
 		/* Free the entry because it isn't valid */
-		DRM(cleanup_buf_error)(entry);
+		DRM(cleanup_buf_error)(dev, entry);
+		DRM(free)(temp_pagelist, (dma->page_count + 
+		    (count << page_order)) * sizeof(*dma->pagelist),
+		    DRM_MEM_PAGES);
 		DRM_UNLOCK;
 		return DRM_ERR(ENOMEM);
 	}
@@ -572,6 +607,13 @@ static int DRM(addbufs_pci)(drm_device_t *dev, drm_buf_desc_t *request)
 	for ( i = 0 ; i < entry->buf_count ; i++ ) {
 		dma->buflist[i + dma->buf_count] = &entry->buflist[i];
 	}
+
+	/* No allocations failed, so now we can replace the orginal pagelist
+	 * with the new one.
+	 */
+	DRM(free)(dma->pagelist, dma->page_count * sizeof(*dma->pagelist),
+	    DRM_MEM_PAGES);
+	dma->pagelist = temp_pagelist;
 
 	dma->buf_count += entry->buf_count;
 	dma->seg_count += entry->seg_count;
@@ -669,7 +711,7 @@ static int DRM(addbufs_sg)(drm_device_t *dev, drm_buf_desc_t *request)
 		if(!buf->dev_private) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
-			DRM(cleanup_buf_error)(entry);
+			DRM(cleanup_buf_error)(dev, entry);
 			DRM_UNLOCK;
 			return DRM_ERR(ENOMEM);
 		}
@@ -693,7 +735,7 @@ static int DRM(addbufs_sg)(drm_device_t *dev, drm_buf_desc_t *request)
 				     DRM_MEM_BUFS );
 	if(!temp_buflist) {
 		/* Free the entry because it isn't valid */
-		DRM(cleanup_buf_error)(entry);
+		DRM(cleanup_buf_error)(dev, entry);
 		DRM_UNLOCK;
 		return DRM_ERR(ENOMEM);
 	}

@@ -556,9 +556,9 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		(drm_mga_sarea_t *)((u8 *)dev_priv->sarea->handle +
 				    init->sarea_priv_offset);
 
-	DRM_IOREMAP( dev_priv->warp );
-	DRM_IOREMAP( dev_priv->primary );
-	DRM_IOREMAP( dev_priv->buffers );
+	DRM_IOREMAP( dev_priv->warp, dev );
+	DRM_IOREMAP( dev_priv->primary, dev );
+	DRM_IOREMAP( dev_priv->buffers, dev );
 
 	if(!dev_priv->warp->handle ||
 	   !dev_priv->primary->handle ||
@@ -641,15 +641,23 @@ int mga_do_cleanup_dma( drm_device_t *dev )
 {
 	DRM_DEBUG( "\n" );
 
+#if _HAVE_DMA_IRQ
+	/* Make sure interrupts are disabled here because the uninstall ioctl
+	 * may not have been called from userspace and after dev_private
+	 * is freed, it's too late.
+	 */
+	if ( dev->irq ) DRM(irq_uninstall)(dev);
+#endif
+
 	if ( dev->dev_private ) {
 		drm_mga_private_t *dev_priv = dev->dev_private;
 
 		if ( dev_priv->warp != NULL )
-			DRM_IOREMAPFREE( dev_priv->warp );
+			DRM_IOREMAPFREE( dev_priv->warp, dev );
 		if ( dev_priv->primary != NULL )
-			DRM_IOREMAPFREE( dev_priv->primary );
+			DRM_IOREMAPFREE( dev_priv->primary, dev );
 		if ( dev_priv->buffers != NULL )
-			DRM_IOREMAPFREE( dev_priv->buffers );
+			DRM_IOREMAPFREE( dev_priv->buffers, dev );
 
 		if ( dev_priv->head != NULL ) {
 			mga_freelist_cleanup( dev );
@@ -667,6 +675,8 @@ int mga_dma_init( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_mga_init_t init;
+
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( init, (drm_mga_init_t *)data, sizeof(init) );
 

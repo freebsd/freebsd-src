@@ -27,6 +27,7 @@
  * Author:
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
+ *
  * $FreeBSD$
  */
 
@@ -255,25 +256,6 @@ drm_agp_head_t *DRM(agp_init)(void)
 		head->agpdev = agpdev;
 		agp_get_info(agpdev, &head->info);
 		head->memory = NULL;
-#if 0				/* bogus */
-		switch (head->agp_info.chipset) {
-		case INTEL_GENERIC:  head->chipset = "Intel";          break;
-		case INTEL_LX:       head->chipset = "Intel 440LX";    break;
-		case INTEL_BX:       head->chipset = "Intel 440BX";    break;
-		case INTEL_GX:       head->chipset = "Intel 440GX";    break;
-		case INTEL_I810:     head->chipset = "Intel i810";     break;
-		case VIA_GENERIC:    head->chipset = "VIA";            break;
-		case VIA_VP3:        head->chipset = "VIA VP3";        break;
-		case VIA_MVP3:       head->chipset = "VIA MVP3";       break;
-		case VIA_APOLLO_PRO: head->chipset = "VIA Apollo Pro"; break;
-		case SIS_GENERIC:    head->chipset = "SiS";            break;
-		case AMD_GENERIC:    head->chipset = "AMD";            break;
-		case AMD_IRONGATE:   head->chipset = "AMD Irongate";   break;
-		case ALI_GENERIC:    head->chipset = "ALi";            break;
-		case ALI_M1541:      head->chipset = "ALi M1541";      break;
-		default:
-		}
-#endif
 		DRM_INFO("AGP at 0x%08lx %dMB\n",
 			 (long)head->info.ai_aperture_base,
 			 (int)(head->info.ai_aperture_size >> 20));

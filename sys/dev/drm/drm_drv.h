@@ -567,7 +567,7 @@ static int DRM(takedown)( drm_device_t *dev )
 					mrdesc.mr_base = map->offset;
 					mrdesc.mr_len = map->size;
 					mrdesc.mr_flags = MDF_WRITECOMBINE;
-					act = MEMRANGE_SET_UPDATE;
+					act = MEMRANGE_SET_REMOVE;
 					bcopy(DRIVER_NAME, &mrdesc.mr_owner, strlen(DRIVER_NAME));
 					retcode = mem_range_attr_set(&mrdesc, &act);
 					map->mtrr=1;
