@@ -233,9 +233,10 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) ||
 			    kread((u_long)ifnet.if_name, tname, 16))
 				return;
-			tname[15] = '\0';
+			tname[sizeof(tname) - 1] = '\0';
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
-			snprintf(name, 32, "%s%d", tname, ifnet.if_unit);
+			snprintf(name, sizeof(name), "%s%d", tname,
+			    ifnet.if_unit);
 			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
 			cp = index(name, '\0');
@@ -542,15 +543,15 @@ sidewaysintpr(unsigned interval1, u_long off)
 
 		if (kread(off, (char *)&ifnet, sizeof ifnet))
 			break;
-		if (kread((u_long)ifnet.if_name, tname, 16))
+		if (kread((u_long)ifnet.if_name, tname, sizeof(tname)))
 			break;
-		tname[15] = '\0';
-		snprintf(name, 16, "%s%d", tname, ifnet.if_unit);
+		tname[sizeof(tname) - 1] = '\0';
+		snprintf(name, sizeof(name), "%s%d", tname, ifnet.if_unit);
 		if (interface && strcmp(name, interface) == 0) {
 			interesting = ip;
 			interesting_off = off;
 		}
-		snprintf(ip->ift_name, 16, "(%s)", name);;
+		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);;
 		if ((ipn = malloc(sizeof(struct iftot))) == NULL) {
 			printf("malloc failed\n");
 			exit(1);
@@ -570,7 +571,6 @@ sidewaysintpr(unsigned interval1, u_long off)
 		exit(1);
 	}
 	memset(sum, 0, sizeof(struct iftot));
-
 
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
