@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.4 1994/10/02 08:19:10 davidg Exp $
+ *	$Id: keyword.c,v 1.7 1995/09/26 17:48:58 peter Exp $
  */
 
 #ifndef lint
@@ -161,7 +161,7 @@ VAR var[] = {
 	{"tpgid", "TPGID", NULL, 0, evar, 4, EOFF(e_tpgid), ULONG, PIDFMT},
 	{"tsess", "TSESS", NULL, 0, evar, 6, EOFF(e_tsess), KPTR, "x"},
 	{"tsiz", "TSIZ", NULL, 0, tsize, 4},
-	{"tt", "TT", NULL, LJUST, tname, 3},
+	{"tt", "TT ", NULL, 0, tname, 4},
 	{"tty", "TTY", NULL, LJUST, longtname, 8},
 	{"ucomm", "UCOMM", NULL, LJUST, ucomm, MAXCOMLEN},
 	{"uid", "UID", NULL, 0, evar, UIDLEN, EOFF(e_ucred.cr_uid),
@@ -248,7 +248,7 @@ VAR var[] = {
 	{"trs", "TRS", NULL, 0, trss, 3},
 	{"tsess", "TSESS", NULL, 0, evar, 6, EOFF(e_tsess), KPTR, "x"},
 	{"tsiz", "TSIZ", NULL, 0, tsize, 4},
-	{"tt", "TT", NULL, LJUST, tname, 3},
+	{"tt", "TT", NULL, LJUST, tname, 4},
 	{"tty", "TTY", NULL, LJUST, longtname, 8},
 	{"ucomm", "UCOMM", NULL, LJUST, ucomm, MAXCOMLEN},
 	{"uid", "UID", NULL, 0, pvar, UIDLEN, POFF(p_uid),USHORT, UIDFMT},
