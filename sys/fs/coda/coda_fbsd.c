@@ -90,7 +90,6 @@ codadev_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		cdevsw_add(&codadevsw);
 		break;
 	case MOD_UNLOAD:
 		break;
@@ -173,3 +172,54 @@ printf("error = %d\n", error);
   }
 #endif
 }
+
+
+/* for DEVFS, using bpf & tun drivers as examples*/
+static void coda_fbsd_drvinit __P((void *unused));
+static void coda_fbsd_drvuninit __P((void *unused));
+static void coda_fbsd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static void coda_fbsd_clone(arg, name, namelen, dev)
+    void *arg;
+    char *name;
+    int namelen;
+    dev_t *dev;
+{
+    int u;
+
+    if (*dev != NODEV)
+	return;
+    if (dev_stdclone(name,NULL,"cfs",&u) != 1)
+	return;
+
+    *dev = make_dev(&codadevsw,unit2minor(u),UID_ROOT,GID_WHEEL,0600,"cfs%d",u);
+    coda_mnttbl[unit2minor(u)].dev = *dev;
+  
+}
+
+static void coda_fbsd_drvinit(unused)
+    void *unused;
+{
+    int i;
+
+    EVENTHANDLER_REGISTER(dev_clone,coda_fbsd_clone,0,1000);
+    cdevsw_add(&codadevsw);
+    for(i=0;i<NVCODA;i++)
+	coda_mnttbl[i].dev = NULL; 
+}
+
+static void coda_fbsd_drvuninit(unused)
+    void *unused;
+{
+    int i;
+
+    EVENTHANDLER_DEREGISTER(dev_clone,NULL);
+    for(i=0;i<NVCODA;i++)
+	if(coda_mnttbl[i].dev)
+	    destroy_dev(coda_mnttbl[i].dev);
+    cdevsw_remove(&codadevsw);
+}
+
+SYSINIT(coda_fbsd_dev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,coda_fbsd_drvinit,NULL);
+
+SYSUNINIT(coda_fbsd_dev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,coda_fbsd_drvuninit,NULL);
