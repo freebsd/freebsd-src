@@ -134,9 +134,7 @@ to save all or part of the pattern space for subsequent retrieval.
 An address is not required, but if specified must be a number (that counts
 input lines
 cumulatively across input files), a dollar
-.Po
-.Dq $
-.Pc
+.Pq Dq $
 character that addresses the last line of input, or a context address
 (which consists of a regular expression preceded and followed by a
 delimiter).
@@ -161,9 +159,7 @@ starts looking again for the first address.
 .Pp
 Editing commands can be applied to non-selected pattern spaces by use
 of the exclamation character
-.Po
-.Dq \&!
-.Pc
+.Pq Dq \&!
 function.
 .Sh "Sed Regular Expressions"
 The regular expressions used in
@@ -182,9 +178,7 @@ has the following two additions to regular expressions:
 .Bl -enum -compact
 .It
 In a context address, any character other than a backslash
-.Po
-.Dq \e
-.Pc
+.Pq Dq \e
 or newline character may be used to delimit the regular expression.
 Also, putting a backslash character before the delimiting character
 causes the character to be treated literally.
@@ -400,9 +394,7 @@ Within the RE and the replacement, the RE delimiter itself can be used as
 a literal character if it is preceded by a backslash.
 .Pp
 An ampersand
-.Po
-.Dq &
-.Pc
+.Pq Dq &
 appearing in the replacement is replaced by the string matching the RE.
 The special meaning of
 .Dq &
@@ -504,9 +496,7 @@ This is the same as specifying the
 option on the command line.
 .El
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr ed 1 ,

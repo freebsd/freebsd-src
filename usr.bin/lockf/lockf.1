@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 7, 1998
-.Os FreeBSD
+.Os
 .Dt LOCKF 1
 .Sh NAME
 .Nm lockf
@@ -55,7 +55,9 @@ releases the lock, and removes the
 .Ar file
 unless the
 .Fl k
-option is specified.  BSD-style locking is used, as described in
+option is specified.
+.Bx Ns -style
+locking is used, as described in
 .Xr flock 2 ;
 the mere existence of the
 .Ar file

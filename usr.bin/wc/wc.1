@@ -84,9 +84,7 @@ The default action is equivalent to specifying all of the flags.
 If no files are specified, the standard input is used and no
 file name is displayed.
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh SEE ALSO
 .Xr isspace 3
 .Sh COMPATIBILITY
@@ -97,7 +95,10 @@ characters delimited by <space>, <tab> or <newline> characters''.
 The implementation, however, didn't handle non-printing characters
 correctly so that ``  ^D^E  '' counted as 6 spaces, while ``foo^D^Ebar''
 counted as 8 characters.
-4BSD systems after 4.3BSD modified the implementation to be consistent
+.Bx 4
+systems after
+.Bx 4.3
+modified the implementation to be consistent
 with the documentation.
 This implementation defines a ``word'' in terms of the
 .Xr isspace 3

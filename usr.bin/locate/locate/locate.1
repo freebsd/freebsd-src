@@ -35,7 +35,7 @@
 .\"
 .Dd June 6, 1993
 .Dt LOCATE 1
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm locate
 .Nd find filenames quickly
@@ -55,14 +55,12 @@ and contains the pathnames
 of all files which are publicly accessible.
 .Pp
 Shell globbing and quoting characters
-.Po
-.Dq * ,
+.Dq ( * ,
 .Dq \&? ,
 .Dq \e ,
 .Dq \&[
 and
-.Dq \&]
-.Pc
+.Dq \&] )
 may be used in
 .Ar pattern  ,
 although they will have to be escaped from the shell.

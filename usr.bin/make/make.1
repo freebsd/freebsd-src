@@ -120,7 +120,8 @@ on error.
 Print debugging information about running multiple shells.
 .It Ar l
 Print commands in Makefiles regardless of whether or not they are prefixed
-by @ or other "quiet" flags.  Also known as "loud" behavior.
+by @ or other "quiet" flags.
+Also known as "loud" behavior.
 .It Ar m
 Print debugging information about making targets, including modification
 dates.
@@ -170,7 +171,8 @@ Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for sys.mk and makefiles included
-via the <...> style.  Multiple directories can be added to form a search path.
+via the <...> style.
+Multiple directories can be added to form a search path.
 This path will override the default system include path:
 .Pa /usr/share/mk .
 Furthermore, the system include path will be appended to the search path used
@@ -193,7 +195,8 @@ up-to-date and 1, otherwise.
 Do not use the built-in rules specified in the system makefile.
 .It Fl S
 Stop processing when an error is encountered.
-Default behaviour.  This is needed to negate the
+Default behaviour.
+This is needed to negate the
 .Fl k
 option during recursive builds.
 .It Fl s
@@ -449,7 +452,7 @@ variables:
 .It Va \&$
 A single dollar sign
 .Ql \&$ ,
-i.e.
+i.e.\&
 .Ql \&$$
 expands to a single dollar
 sign.
@@ -462,6 +465,11 @@ was executed with
 A path to the directory where
 .Nm
 was executed.
+.Nm
+sets
+.Va .CURDIR
+to the canonical path given by
+.Xr getcwd 3 .
 .It Va .OBJDIR
 A path to the directory where the targets are built.
 At startup,
@@ -492,7 +500,7 @@ If either
 .Ev MAKEOBJDIRPREFIX
 or
 .Ev MAKEOBJDIR
-is defined but
+is set in the environment but
 .Nm
 is unable to change into the corresponding directory,
 then the current directory is used
@@ -611,13 +619,16 @@ simple strings, are a regular expression (see
 .Xr regex 3 )
 and an
 .Xr ed 1 Ns \-style
-replacement string.  Normally, the first occurrence of the pattern in
-each word of the value is changed.  The
+replacement string.
+Normally, the first occurrence of the pattern in
+each word of the value is changed.
+The
 .Ql 1
 modifier causes the substitution to apply to at most one word; the
 .Ql g
 modifier causes the substitution to apply to as many instances of the
-search pattern as occur in the word or words it is found in.  Note that
+search pattern as occur in the word or words it is found in.
+Note that
 .Ql 1
 and
 .Ql g
@@ -729,14 +740,18 @@ of the C programming language are provided in
 All such structures are identified by a line beginning with a single
 dot
 .Pq Ql \&.
-character.  The following directives are supported:
+character.
+The following directives are supported:
 .Bl -tag -width Ds
 .It Ic \&.include Ar <file>
 .It Ic \&.include Ar \*qfile\*q
-Include the specified makefile.  Variables between the angle brackets
-or double quotes are expanded to form the file name.  If angle brackets
+Include the specified makefile.
+Variables between the angle brackets
+or double quotes are expanded to form the file name.
+If angle brackets
 are used, the included makefile is expected to be in the system
-makefile directory.  If double quotes are used, the including
+makefile directory.
+If double quotes are used, the including
 makefile's directory and any directories specified using the
 .Fl I
 option are searched before the system
@@ -750,12 +765,15 @@ The filename of the
 makefile, the line on which the error was encountered and the specified
 message are printed to standard output and
 .Nm
-terminates with exit code 1.  Variables in the message are expanded.
+terminates with exit code 1.
+Variables in the message are expanded.
 .El
 .Pp
 Conditionals are used to determine which parts of the Makefile
-to process.  They are used similarly to the conditionals supported
-by the C pre-processor.  The following conditionals are supported:
+to process.
+They are used similarly to the conditionals supported
+by the C pre-processor.
+The following conditionals are supported:
 .Bl -tag -width Ds
 .It Xo
 .Ic \&.if
@@ -892,11 +910,14 @@ has been defined.
 .Pp
 An
 .Ar expression
-may also be an arithmetic or string comparison.  Variable expansion is
+may also be an arithmetic or string comparison.
+Variable expansion is
 performed on both sides of the comparison, after which the integral
-values are compared.  A value is interpreted as hexadecimal if it is
+values are compared.
+A value is interpreted as hexadecimal if it is
 preceded by 0x, otherwise it is decimal; octal numbers are not supported.
-The standard C relational operators are all supported.  If after
+The standard C relational operators are all supported.
+If after
 variable expansion, either the left or right hand side of a
 .Ql Ic ==
 or
@@ -1236,7 +1257,8 @@ For loops are expanded before tests, so a fragment such as:
 .Ed
 won't work, and should be rewritten the other way around.
 .Sh SEE ALSO
-.Xr mkdep 1
+.Xr mkdep 1 ,
+.Xr make.conf 5
 .Rs
 .%T "PMake - A Tutorial"
 .Re
