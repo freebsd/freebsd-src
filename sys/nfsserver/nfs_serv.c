@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id$
+ * $Id: nfs_serv.c,v 1.37 1997/02/22 09:42:38 peter Exp $
  */
 
 /*
@@ -1711,9 +1711,10 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 	}
 	if (!error) {
 		vp = nd.ni_vp;
-		if (vp->v_type == VDIR &&
-			(error = suser(cred, (u_short *)0)))
+		if (vp->v_type == VDIR) {
+			error = EPERM;		/* POSIX */
 			goto out;
+		}
 		/*
 		 * The root of a mounted filesystem cannot be deleted.
 		 */
@@ -1997,8 +1998,10 @@ nfsrv_link(nfsd, slp, procp, mrq)
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
 		return (0);
 	}
-	if (vp->v_type == VDIR && (error = suser(cred, (u_short *)0)))
+	if (vp->v_type == VDIR) {
+		error = EPERM;		/* POSIX */
 		goto out1;
+	}
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
 	nd.ni_cnd.cn_flags = LOCKPARENT;
