@@ -1543,6 +1543,6 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 	if (ump->um_fstype == UFS1)
 		uma_zfree(uma_ufs1, ip->i_din1);
 	else
-		uma_zfree(uma_ufs2, ip->i_din1);
+		uma_zfree(uma_ufs2, ip->i_din2);
 	uma_zfree(uma_inode, ip);
 }
