@@ -1444,18 +1444,15 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (pmap == NULL)
 		return;
 
-	oldpmap = pmap_install(pmap);
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
-		pmap_install(oldpmap);
 		return;
 	}
 
-	if (prot & VM_PROT_WRITE) {
-		pmap_install(oldpmap);
+	if (prot & VM_PROT_WRITE)
 		return;
-	}
+
+	oldpmap = pmap_install(pmap);
 
 	newprot = pte_prot(pmap, prot);
 
