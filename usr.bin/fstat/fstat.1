@@ -49,7 +49,7 @@
 .Nm Fstat
 identifies open files.
 A file is considered open by a process if it was explicitly opened,
-is the working directory, root directory, active pure text, or kernel
+is the working directory, root directory, active executable text, or kernel
 trace file for that process.
 If no options are specified,
 .Nm fstat
@@ -112,7 +112,7 @@ The file number in the per-process open file table or one of the following
 special names:
 .Pp
 .Bd -ragged -offset indent -compact
-text	- pure text inode
+text	- executable text inode
 wd 	- current working directory
 root	- root inode
 tr	- kernel trace file
