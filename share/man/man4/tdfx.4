@@ -1,0 +1,83 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Feb 19, 2001
+.Dt 3DFX 4
+.Os
+.Sh NAME
+.Nm tdfx
+.Nd Voodoo Graphics and VoodooII Memory Access GLIDE Device Driver
+.Sh SYNOPSIS
+.Cd device tdfx
+.Pp
+.Cd options TDFX_LINUX
+.Pp
+.Sh DESCRIPTION
+This driver creates a entry in /dev that allows programs (mostly
+.Em GLIDE-based software )
+to access the device memory of the Voodoo Graphics and
+VoodooII 3D accellerators created by
+.Em 3Dfx, Inc.
+This provides an interface
+for applications based on the
+.Em GLIDE API
+or that simply use the API
+provided by the linux /dev/3dfx device to use the video device.
+.Pp
+Supports all cards based on the following chipsets:
+.Bd -unfilled -offset indent
+.Em 3Dfx Voodoo Graphics
+.Em 3Dfx Voodoo II
+.Ed
+.Pp
+Specifically, the following cards should work:
+.Bd -unfilled -offset indent
+.Em Diamond Multimedia Monster 3D
+.Em Diamond Multimedia Monster 3D II
+.Ed
+.Pp
+Note that this driver does not currently have support for the Voodoo
+Banshee, Voodoo3, Voodoo5, or Voodoo6 based cards. It also does not
+currently support the Voodoo Rush. It also does not yet handle the SLI
+feature of the Voodoo II boards. You can only use each of them
+separately.
+.Pp
+The following kernel configuration options are available:
+.Pp
+.Em options LINUX_TDFX
+.Pp
+Enable the linux ioctl code for this driver, where the only supported
+applications currently reside.
+.Pp
+.Sh FILES
+.Pp
+.Bl -tag -width /dev/voodoo* -compact
+.It Pa /dev/3dfx
+Symlinked to default
+.Em 3dfx
+board
+.It Pa /dev/3dfx*
+.Em Character Device
+programming interface
+.El
+.Pp
+.Bl -tag -width /dev/voodoo* -compact
+.It Pa Cd /dev/voodoo
+Mirrors of above interfaces
+.It Pa Cd /dev/voodoo*
+(Some apps use /dev/voodoo)
+.El
+.Pp
+.Sh AUTHORS
+The driver was developed by Coleman Kane <cokane@micro.ti.com> after
+the linux version of this driver by Darryll Straus, John Taylor, Jens
+Axboe, Carlo Wood <carlo@alinoe.com> and Joseph Kain <joseph@3dfx.com>
+to be directly compatible with it and support the many GLIDE based games
+available for Linux and UNIX.
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 5.0.
+and was originally developed for Linux kernel 2.0.x, later written for
+2.2.x and 2.4.x.
