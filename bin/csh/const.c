@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: const.c,v 1.2 1994/09/24 02:53:48 davidg Exp $
+ *	$Id: const.c,v 1.3 1995/05/30 00:06:29 rgrimes Exp $
  */
 
 #ifndef lint
@@ -47,7 +47,9 @@ Char STR0[]             = { '0', '\0' };
 Char STR1[]             = { '1', '\0' };
 Char STRHOME[]		= { 'H', 'O', 'M', 'E', '\0' };
 Char STRLANG[]  	= { 'L', 'A', 'N', 'G', '\0' };
-Char STRLC_CTYPE[]	= { 'L', 'C', '_', 'C', 'T', 'Y', 'P', 'E' ,'\0' };
+Char STRLC_ALL[]        = { 'L', 'C', '_', 'A', 'L', 'L', '\0' };
+Char STRLC_CTYPE[]      = { 'L', 'C', '_', 'C', 'T', 'Y', 'P', 'E', '\0' };
+Char STRLC_COLLATE[]    = { 'L', 'C', '_', 'C', 'O', 'L', 'L', 'A', 'T', 'E', '\0' };
 Char STRLOGNAME[]	= { 'L', 'O', 'G', 'N', 'A', 'M', 'E', '\0' };
 Char STRLbrace[]	= { '{', '\0' };
 Char STRLparen[]	= { '(', '\0' };
