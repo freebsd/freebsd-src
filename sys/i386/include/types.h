@@ -60,6 +60,9 @@ typedef	int		intfptr_t;
 typedef	unsigned int	uintfptr_t;
 #endif
 
+/* Critical section value */
+typedef register_t		critical_t;
+
 /* Interrupt mask (spl, xxx_imask, etc) */
 typedef __uint32_t		intrmask_t;
 

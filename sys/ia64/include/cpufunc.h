@@ -163,9 +163,6 @@ writel(u_int addr, u_int32_t data)
 	return;			/* TODO: implement this */
 }
 
-/*
- * Bogus interrupt manipulation
- */
 static __inline void
 disable_intr(void)
 {
@@ -178,16 +175,18 @@ enable_intr(void)
 	__asm __volatile (";; ssm psr.i;; srlz.d");
 }
 
-static __inline u_int
-save_intr(void)
+static __inline critical_t
+critical_enter(void)
 {
-	u_int psr;
+	critical_t psr;
+
 	__asm __volatile ("mov %0=psr;;" : "=r" (psr));
-	return psr;
+	disable_intr();
+	return (psr);
 }
 
 static __inline void
-restore_intr(u_int psr)
+critical_exit(critical_t psr)
 {
 	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r" (psr));
 }

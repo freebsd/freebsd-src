@@ -45,29 +45,14 @@ breakpoint(void)
 
 #endif
 
-/*
- * Bogus interrupt manipulation
- */
-static __inline void
-disable_intr(void)
+static __inline critical_t
+critical_enter(void)
 {
-	alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
+	return (alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH));
 }
 
 static __inline void
-enable_intr(void)
-{
-	alpha_pal_swpipl(ALPHA_PSL_IPL_0);
-}
-
-static __inline u_int
-save_intr(void)
-{
-	return alpha_pal_rdps() & ALPHA_PSL_IPL_MASK;
-}
-
-static __inline void
-restore_intr(u_int ipl)
+critical_exit(critical_t ipl)
 {
 	alpha_pal_swpipl(ipl);
 }
