@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.24 2001/11/28 08:33:12 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.25 2001/12/12 20:05:48 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.150 2001/11/27 03:25:16 enami Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
@@ -90,10 +90,12 @@
 #define	PCMCIA_VENDOR_SAMSUNG	0x0250	/* Samsung */
 #define	PCMCIA_VENDOR_SYMBOL	0x026c	/* Symbol */
 #define	PCMCIA_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
+#define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
 #define	PCMCIA_VENDOR_IODATA2	0x028a	/* I-O DATA */
 #define	PCMCIA_VENDOR_BREEZECOM	0x0a02	/* BreezeCOM */
 #define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
 #define	PCMCIA_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
+#define	PCMCIA_VENDOR_BONDWELL	0x3b01	/* Bondwell */
 #define	PCMCIA_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
 #define	PCMCIA_VENDOR_ARCHOS	0x5241	/* Archos */
 #define	PCMCIA_VENDOR_DUAL	0x890f	/* Dual */
@@ -108,7 +110,6 @@
 #define	PCMCIA_VENDOR_HAGIWARASYSCOM	0xc012	/* Hagiwara SYS-COM */
 #define	PCMCIA_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
 #define	PCMCIA_VENDOR_EMTAC	0xc250	/* EMTAC Technology Corporation */
-#define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
 #define	PCMCIA_VENDOR_ELSA	0xd601	/* Elsa */
 
 /*
@@ -187,6 +188,11 @@
 #define	PCMCIA_CIS_BAY_STACK_660	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BAY_STACK_660	0x0807
 #define	PCMCIA_STR_BAY_STACK_660	"BayStack 660 Wireless LAN"
+
+/* Bondwell */
+#define	PCMCIA_CIS_BONDWELL_B236	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BONDWELL_B236	0x0000
+#define	PCMCIA_STR_BONDWELL_B236	"Game Card Joystick"
 
 /* BreezeCOM */
 #define	PCMCIA_CIS_BREEZECOM_BREEZENET	{ NULL, NULL, NULL, NULL }
