@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.35 1998/07/22 05:38:58 phk Exp $
+#	$Id: rc.i386,v 1.36 1998/11/01 13:04:15 wosch Exp $
 #	Do i386 specific processing
 #
 
@@ -94,8 +94,7 @@ fi
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver'
-	modstat | grep -q _saver || \
-		modload -u -o /var/run/saver_mod -q /lkm/${saver}_saver_mod.o
+	kldstat -v | grep -q _saver || kldload ${saver}_saver
 fi
 
 # mouse daemon
