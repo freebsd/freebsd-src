@@ -479,6 +479,9 @@ target_synccmd:
 		 */
 		mov	SEQ_FLAGS, SCB_TARGET_INFO[SCB_TARGET_PHASES];
 		
+		test	SCB_CONTROL, MK_MESSAGE	jz target_ITloop;
+		mvi	P_MESGIN|BSYO call change_phase;
+		jmp	host_target_message_loop;
 target_ITloop:
 		/*
 		 * Start honoring ATN signals now that
@@ -494,12 +497,12 @@ target_ITloop:
 		 * on the state of NO_DISCONNECT.
 		 */
 		test	SEQ_FLAGS, NO_DISCONNECT jz target_disconnect; 
-		if ((ahc->flags & AHC_PAGESCBS) != 0) {
-			mov	ALLZEROS	call	get_free_or_disc_scb;
-		}
 		mov	RETURN_1, ALLZEROS;
 		call	complete_target_cmd;
 		cmp	RETURN_1, CONT_MSG_LOOP jne .;
+		if ((ahc->flags & AHC_PAGESCBS) != 0) {
+			mov	ALLZEROS	call	get_free_or_disc_scb;
+		}
 		mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
 		mov	SCB_TAG	 call dma_scb;
 		jmp	target_synccmd;
@@ -1351,18 +1354,6 @@ p_mesgout:
 	mov	SINDEX, MSG_OUT;
 	cmp	SINDEX, MSG_IDENTIFYFLAG jne p_mesgout_from_host;
 	test	SCB_CONTROL,MK_MESSAGE	jnz host_message_loop;
-	mov	FUNCTION1, SCB_SCSIID;
-	mov	A, FUNCTION1;
-	mov	SINDEX, TARGET_MSG_REQUEST[0];
-	if ((ahc->features & AHC_TWIN) != 0) {
-		/* Second Channel uses high byte bits */
-		test	SCB_SCSIID, TWIN_CHNLB jz . + 2;
-		mov	SINDEX, TARGET_MSG_REQUEST[1];
-	} else if ((ahc->features & AHC_WIDE) != 0) {
-		test	SCB_SCSIID, 0x80	jz . + 2; /* target > 7 */
-		mov	SINDEX, TARGET_MSG_REQUEST[1];
-	}
-	test	SINDEX, A	jnz host_message_loop;
 p_mesgout_identify:
 	or	SINDEX, MSG_IDENTIFYFLAG|DISCENB, SCB_LUN;
 	test	SCB_CONTROL, DISCENB jnz . + 2;

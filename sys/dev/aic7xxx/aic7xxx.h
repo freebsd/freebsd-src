@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#22 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#24 $
  *
  * $FreeBSD$
  */
@@ -515,8 +515,9 @@ typedef enum {
 	SCB_DEVICE_RESET	= 0x0004,
 	SCB_SENSE		= 0x0008,
 	SCB_CDB32_PTR		= 0x0010,
-	SCB_RECOVERY_SCB	= 0x0040,
-	SCB_NEGOTIATE		= 0x0080,
+	SCB_RECOVERY_SCB	= 0x0020,
+	SCB_AUTO_NEGOTIATE	= 0x0040,/* Negotiate to achieve goal. */
+	SCB_NEGOTIATE		= 0x0080,/* Negotiation forced for command. */
 	SCB_ABORT		= 0x1000,
 	SCB_UNTAGGEDQ		= 0x2000,
 	SCB_ACTIVE		= 0x4000,
@@ -625,7 +626,7 @@ struct ahc_tmode_event {
  * data structures.
  */
 #ifdef AHC_TARGET_MODE 
-struct tmode_lstate {
+struct ahc_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
@@ -634,7 +635,7 @@ struct tmode_lstate {
 	uint8_t event_w_idx;
 };
 #else
-struct tmode_lstate;
+struct ahc_tmode_lstate;
 #endif
 
 /******************** Transfer Negotiation Datastructures *********************/
@@ -671,16 +672,17 @@ struct ahc_initiator_tinfo {
  * that we are the target and the targets are the initiators since the
  * negotiation is the same regardless of role.
  */
-struct tmode_tstate {
-	struct tmode_lstate*		enabled_luns[AHC_NUM_LUNS];
+struct ahc_tmode_tstate {
+	struct ahc_tmode_lstate*	enabled_luns[AHC_NUM_LUNS];
 	struct ahc_initiator_tinfo	transinfo[AHC_NUM_TARGETS];
 
 	/*
 	 * Per initiator state bitmasks.
 	 */
-	uint16_t		 ultraenb;	/* Using ultra sync rate  */
-	uint16_t	 	 discenable;	/* Disconnection allowed  */
-	uint16_t		 tagenable;	/* Tagged Queuing allowed */
+	uint16_t	 auto_negotiate;/* Auto Negotiation Required */
+	uint16_t	 ultraenb;	/* Using ultra sync rate  */
+	uint16_t	 discenable;	/* Disconnection allowed  */
+	uint16_t	 tagenable;	/* Tagged Queuing allowed */
 };
 
 /*
@@ -841,6 +843,8 @@ struct ahc_suspend_state {
 	uint8_t	*btt;
 };
 
+typedef void (*ahc_bus_intr_t)(struct ahc_softc *);
+
 struct ahc_softc {
 	bus_space_tag_t           tag;
 	bus_space_handle_t        bsh;
@@ -884,24 +888,29 @@ struct ahc_softc {
 	ahc_dev_softc_t		  dev_softc;
 
 	/*
+	 * Bus specific device information.
+	 */
+	ahc_bus_intr_t		  bus_intr;
+
+	/*
 	 * Target mode related state kept on a per enabled lun basis.
 	 * Targets that are not enabled will have null entries.
 	 * As an initiator, we keep one target entry for our initiator
 	 * ID to store our sync/wide transfer settings.
 	 */
-	struct tmode_tstate*	  enabled_targets[AHC_NUM_TARGETS];
+	struct ahc_tmode_tstate  *enabled_targets[AHC_NUM_TARGETS];
 
 	/*
 	 * The black hole device responsible for handling requests for
 	 * disabled luns on enabled targets.
 	 */
-	struct tmode_lstate*	  black_hole;
+	struct ahc_tmode_lstate  *black_hole;
 
 	/*
 	 * Device instance currently on the bus awaiting a continue TIO
 	 * for a command that was not given the disconnect priveledge.
 	 */
-	struct tmode_lstate*	  pending_device;
+	struct ahc_tmode_lstate  *pending_device;
 
 	/*
 	 * Card characteristics
@@ -935,9 +944,6 @@ struct ahc_softc {
 	/* Initiator Bus ID */
 	uint8_t			  our_id;
 	uint8_t			  our_id_b;
-
-	/* Targets that need negotiation messages */
-	uint16_t		  targ_msg_req;
 
 	/*
 	 * PCI error detection.
@@ -1086,6 +1092,7 @@ int			 ahc_softc_init(struct ahc_softc *,
 					struct ahc_probe_config*);
 void			 ahc_controller_info(struct ahc_softc *ahc, char *buf);
 int			 ahc_init(struct ahc_softc *ahc);
+void			 ahc_intr_enable(struct ahc_softc *ahc, int enable);
 void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 int			 ahc_suspend(struct ahc_softc *ahc); 
 int			 ahc_resume(struct ahc_softc *ahc);
@@ -1149,10 +1156,11 @@ void			ahc_validate_width(struct ahc_softc *ahc,
 					   struct ahc_initiator_tinfo *tinfo,
 					   u_int *bus_width,
 					   role_t role);
-void			ahc_update_target_msg_request(struct ahc_softc *ahc,
-					struct ahc_devinfo *dinfo,
-					struct ahc_initiator_tinfo *tinfo,
-					int force, int paused);
+int			ahc_update_neg_request(struct ahc_softc*,
+					       struct ahc_devinfo*,
+					       struct ahc_tmode_tstate*,
+					       struct ahc_initiator_tinfo*,
+					       int /*force*/);
 void			ahc_set_width(struct ahc_softc *ahc,
 				      struct ahc_devinfo *devinfo,
 				      u_int width, u_int type, int paused);
@@ -1168,16 +1176,14 @@ void			ahc_set_tags(struct ahc_softc *ahc,
 /**************************** Target Mode *************************************/
 #ifdef AHC_TARGET_MODE
 void		ahc_send_lstate_events(struct ahc_softc *,
-				       struct tmode_lstate *);
+				       struct ahc_tmode_lstate *);
 void		ahc_handle_en_lun(struct ahc_softc *ahc,
 				  struct cam_sim *sim, union ccb *ccb);
 cam_status	ahc_find_tmode_devs(struct ahc_softc *ahc,
 				    struct cam_sim *sim, union ccb *ccb,
-				    struct tmode_tstate **tstate,
-				    struct tmode_lstate **lstate,
+				    struct ahc_tmode_tstate **tstate,
+				    struct ahc_tmode_lstate **lstate,
 				    int notfound_failure);
-void		ahc_setup_target_msgin(struct ahc_softc *ahc,
-				       struct ahc_devinfo *devinfo);
 #ifndef AHC_TMODE_ENABLE
 #define AHC_TMODE_ENABLE 0
 #endif
