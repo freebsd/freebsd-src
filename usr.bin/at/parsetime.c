@@ -56,7 +56,7 @@
 
 /* Structures and unions */
 
-enum {	/* symbols */
+enum tok {	/* symbols */
     MIDNIGHT, NOON, TEATIME,
     PM, AM, TOMORROW, TODAY, NOW,
     MINUTES, HOURS, DAYS, WEEKS,
@@ -69,8 +69,8 @@ enum {	/* symbols */
 /* parse translation table - table driven parsers can be your FRIEND!
  */
 struct {
-    char *name;	/* token name */
-    int value;	/* token id */
+    const char *name; /* token name */
+    enum tok value; /* token id */
     int plural;	/* is this plural? */
 } Specials[] = {
     { "midnight", MIDNIGHT,0 },	/* 00:00:00 of today or tomorrow */
@@ -127,18 +127,18 @@ static int need;	/* scanner - need to advance to next argument */
 
 static char *sc_token;	/* scanner - token buffer */
 static size_t sc_len;   /* scanner - lenght of token buffer */
-static int sc_tokid;	/* scanner - token id */
+static enum tok sc_tokid; /* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.3 1995/04/12 02:42:35 ache Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.4 1995/05/30 06:29:25 rgrimes Exp $";
 
 /* Local functions */
 
 /*
  * parse a token, checking if it's something special to us
  */
-static int
-parse_token(char *arg)
+static enum tok
+parse_token(const char *arg)
 {
     int i;
 
@@ -172,7 +172,7 @@ init_scanner(int argc, char **argv)
 /*
  * token() fetches a token from the input stream
  */
-static int
+static enum tok
 token()
 {
     int idx;
@@ -250,7 +250,7 @@ plonk(int tok)
  * expect() gets a token and dies most horribly if it's not the token we want
  */
 static void
-expect(int desired)
+expect(enum tok desired)
 {
     if (token() != desired)
 	plonk(sc_tokid);	/* and we die here... */
@@ -489,7 +489,7 @@ month(struct tm *tm)
 	    token();
 
 	    if (sc_tokid == SLASH || sc_tokid == DOT) {
-		int sep;
+		enum tok sep;
 
 		sep = sc_tokid;
 		expect(NUMBER);
