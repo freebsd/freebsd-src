@@ -49,41 +49,41 @@ sequences is also supported.
 ANSI	Seq	Function				Termcap entry
 ======= ======= =====================================   ==============
 
-CUU	E[nA	move cursor up n lines			up (ku)
+CUU     E[nA    move cursor up n lines                  up/UP (ku)
 
-CUD	E[nB	move cursor down n lines		do (kd)
+CUD     E[nB    move cursor down n lines                do/DO (kd)
 
-CUF	E[nC	move cursor right n characters		nd (kr)
+CUF     E[nC    move cursor right n characters          nd/RI (kr)
 
-CUB	E[nD	move cursor left n characters		bs (kl)
+CUB     E[nD    move cursor left n characters           --/LE (kl)
 
-HPA	E[n`	move cursor to character position n	--
+HPA     E[n`    move cursor to character position n     ch
 
 HPR	E[na	move cursor right n characters 		--
 
-VPA	E[nd	move cursor to line n			--
+VPA     E[nd    move cursor to line n                   cv
 
 VPR	E[ne	move cursor down n lines		--
 
-CPL	E[nF	move cursor to start of line,		--
+CPL     E[nF    move cursor to start of line,           -- (@7)
 		n lines up
 
-CNL	E[nF	move cursor to start of line,		--
+CNL     E[nE    move cursor to start of line,           nw
 		n lines down
 
 CUP	E[y;xH	Move cursor to x, y			cm
 
 HVP	E[y;xf	Move cursor to x, y			--
 
-CBT	E[nZ	Move cursor back n tab stops		bt
+CBT     E[nZ    Move cursor back n tab stops            bt (kB)
 
-IL	E[nL	Insert n blank lines			al
+IL      E[nL    Insert n blank lines                    al/AL
 
-ICH	E[n@	Insert n blank characters		ic
+ICH     E[n@    Insert n blank characters               ic/IC
 
-DL	E[nM	Delete n lines				dl
+DL      E[nM    Delete n lines                          dl/DL
 
-DCH	E[nP	Delete n characters			dc
+DCH     E[nP    Delete n characters                     dc/DC
 
 ED	E[nJ	Erase part or all of display:		cd
 		n=0 from cursor to end of display,
@@ -95,11 +95,11 @@ EL	E[nK	Erase part or all of line:		ce
 		n=1 from begin of line to cursor,
 		n=2 entire line.
 
-ECH	E[nX	Erase n characters			--
+ECH     E[nX    Erase n characters                      ec
 
-SU	E[nS	Scroll display n lines up (forward)	sf
+SU      E[nS    Scroll display n lines up (forward)     sf/SF
 
-SD	E[nT	Scroll display n lines down (reverse)	sr
+SD      E[nT    Scroll display n lines down (reverse)   sr/SR
 
 
 SGR	E[nm	Set character attributes:		--
