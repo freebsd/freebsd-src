@@ -35,7 +35,11 @@
 #include <sys/signalvar.h>
 
 #include <machine/../linux/linux.h>
+#ifdef __alpha__
+#include <linux_proto.h>
+#else
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
@@ -49,7 +53,11 @@ linux_to_bsd_sigset(linux_sigset_t *lss, sigset_t *bss)
 	bss->__bits[1] = lss->__bits[1];
 	for (l = 1; l <= LINUX_SIGTBLSZ; l++) {
 		if (LINUX_SIGISMEMBER(*lss, l)) {
+#ifdef __alpha__
+			b = _SIG_IDX(l);
+#else
 			b = linux_to_bsd_signal[_SIG_IDX(l)];
+#endif
 			if (b)
 				SIGADDSET(*bss, b);
 		}
@@ -66,7 +74,11 @@ bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss)
 	lss->__bits[1] = bss->__bits[1];
 	for (b = 1; b <= LINUX_SIGTBLSZ; b++) {
 		if (SIGISMEMBER(*bss, b)) {
+#if __alpha__
+			l = _SIG_IDX(b);
+#else
 			l = bsd_to_linux_signal[_SIG_IDX(b)];
+#endif
 			if (l)
 				LINUX_SIGADDSET(*lss, l);
 		}
@@ -144,9 +156,11 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 	else
 		nsa = NULL;
 
+#ifndef __alpha__
 	if (linux_sig <= LINUX_SIGTBLSZ)
 		sa_args.sig = linux_to_bsd_signal[_SIG_IDX(linux_sig)];
 	else
+#endif
 		sa_args.sig = linux_sig;
 
 	sa_args.act = nsa;
@@ -161,6 +175,8 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 	return (0);
 }
 
+
+#ifndef __alpha__
 int
 linux_signal(struct proc *p, struct linux_signal_args *args)
 {
@@ -181,6 +197,7 @@ linux_signal(struct proc *p, struct linux_signal_args *args)
 
 	return (error);
 }
+#endif	/*!__alpha__*/
 
 int
 linux_rt_sigaction(struct proc *p, struct linux_rt_sigaction_args *args)
@@ -189,9 +206,9 @@ linux_rt_sigaction(struct proc *p, struct linux_rt_sigaction_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigaction(%d, %p, %p, %d)\n",
-	       (long)p->p_pid, args->sig, (void *)args->act,
-	       (void *)args->oact, args->sigsetsize);
+	printf("Linux-emul(%ld): rt_sigaction(%ld, %p, %p, %ld)\n",
+	       (long)p->p_pid, (long)args->sig, (void *)args->act,
+	       (void *)args->oact, (long)args->sigsetsize);
 #endif
 
 	if (args->sigsetsize != sizeof(linux_sigset_t))
@@ -255,6 +272,7 @@ linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 	return (error);
 }
 
+#ifndef __alpha__
 int
 linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 {
@@ -285,6 +303,7 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 
 	return (error);
 }
+#endif	/*!__alpha__*/
 
 int
 linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
@@ -293,9 +312,9 @@ linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigprocmask(%d, %p, %p, %d)\n",
+	printf("Linux-emul(%ld): rt_sigprocmask(%d, %p, %p, %ld)\n",
 	       (long)p->p_pid, args->how, (void *)args->mask,
-	       (void *)args->omask, args->sigsetsize);
+	       (void *)args->omask, (long)args->sigsetsize);
 #endif
 
 	if (args->sigsetsize != sizeof(linux_sigset_t))
@@ -318,6 +337,7 @@ linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
 	return (error);
 }
 
+#ifndef __alpha__
 int
 linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args)
 {
@@ -373,6 +393,7 @@ linux_sigpending(struct proc *p, struct linux_sigpending_args *args)
 	mask = lset.__bits[0];
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
+#endif	/*!__alpha__*/
 
 int
 linux_kill(struct proc *p, struct linux_kill_args *args)
@@ -393,9 +414,11 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
 	if (args->signum < 0 || args->signum > LINUX_NSIG)
 		return EINVAL;
 
+#ifndef __alpha__
 	if (args->signum > 0 && args->signum <= LINUX_SIGTBLSZ)
 		tmp.signum = linux_to_bsd_signal[_SIG_IDX(args->signum)];
 	else
+#endif
 		tmp.signum = args->signum;
 
 	tmp.pid = args->pid;

@@ -31,6 +31,7 @@
 #ifndef _LINUX_IPC_H_
 #define _LINUX_IPC_H_
 
+#ifndef __alpha__
 int linux_msgctl __P((struct proc *, struct linux_ipc_args *));
 int linux_msgget __P((struct proc *, struct linux_ipc_args *));
 int linux_msgrcv __P((struct proc *, struct linux_ipc_args *));
@@ -44,5 +45,6 @@ int linux_shmat  __P((struct proc *, struct linux_ipc_args *));
 int linux_shmctl __P((struct proc *, struct linux_ipc_args *));
 int linux_shmdt  __P((struct proc *, struct linux_ipc_args *));
 int linux_shmget __P((struct proc *, struct linux_ipc_args *));
+#endif	/*!__alpha__*/
 
 #endif /* _LINUX_IPC_H_ */
