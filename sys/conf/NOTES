@@ -382,16 +382,6 @@ options 	NETATALK		#Appletalk communications protocols
 
 # These are currently broken but are shipped due to interest.
 #options 	NS			#Xerox NS protocols
-
-# These are currently broken and are no longer shipped due to lack
-# of interest.
-#options 	CCITT			#X.25 network layer
-#options 	ISO
-#options 	TPIP			#ISO TP class 4 over IP
-#options 	TPCONS			#ISO TP class 0 over X.25
-#options 	LLC			#X.25 link layer for Ethernets
-#options 	HDLC			#X.25 link layer for serial lines
-#options 	EON			#ISO CLNP over IP
 #options 	NSIP			#XNS over IP
 
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.

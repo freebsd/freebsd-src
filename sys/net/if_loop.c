@@ -80,11 +80,6 @@
 #include <netns/ns_if.h>
 #endif
 
-#ifdef ISO
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#endif
-
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -183,7 +178,6 @@ contiguousfail:
 	case AF_INET6:
 	case AF_IPX:
 	case AF_NS:
-	case AF_ISO:
 	case AF_APPLETALK:
 		break;
 	default:
@@ -284,12 +278,6 @@ if_simloop(ifp, m, dst, hlen)
 	case AF_NS:
 		ifq = &nsintrq;
 		isr = NETISR_NS;
-		break;
-#endif
-#ifdef ISO
-	case AF_ISO:
-		ifq = &clnlintrq;
-		isr = NETISR_ISO;
 		break;
 #endif
 #ifdef NETATALK

@@ -184,21 +184,6 @@ struct ipprotosw inetsw[] = {
   &div_usrreqs,
 },
 #endif
-#ifdef TPIP
-{ SOCK_SEQPACKET,&inetdomain,	IPPROTO_TP,	PR_CONNREQUIRED|PR_WANTRCVD,
-  tpip_input,	0,		tpip_ctlinput,	tp_ctloutput,
-  tp_usrreq,
-  tp_init,	0,		tp_slowtimo,	tp_drain,
-},
-#endif
-/* EON (ISO CLNL over IP) */
-#ifdef EON
-{ SOCK_RAW,	&inetdomain,	IPPROTO_EON,	0,
-  eoninput,	0,		eonctlinput,		0,
-  0,
-  eonprotoinit,	0,		0,		0,
-},
-#endif
 #ifdef IPXIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
   ipxip_input,	0,		ipxip_ctlinput,	0,

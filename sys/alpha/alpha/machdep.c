@@ -453,14 +453,17 @@ register_netisr(num, handler)
 	return (0);
 }
 
-void
-netisr_sysinit(data)
-	void *data;
+int
+unregister_netisr(num)
+	int num;
 {
-	const struct netisrtab *nit;
-
-	nit = (const struct netisrtab *)data;
-	register_netisr(nit->nit_num, nit->nit_isr);
+	
+	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
+		printf("unregister_netisr: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	netisrs[num] = NULL;
+	return (0);
 }
 
 /*

@@ -465,16 +465,6 @@ register_netisr(num, handler)
 	return (0);
 }
 
-void
-netisr_sysinit(data)
-	void *data;
-{
-	const struct netisrtab *nit;
-
-	nit = (const struct netisrtab *)data;
-	register_netisr(nit->nit_num, nit->nit_isr);
-}
-
 /*
  * Send an interrupt to process.
  *

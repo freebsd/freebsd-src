@@ -126,6 +126,9 @@ atm_initialize()
 #ifdef sgi
 	atm_intr_index = register_isr(atm_intr);
 #endif
+#ifdef __FreeBSD__
+	register_netisr(NETISR_ATM, atm_intr);
+#endif
 
 	/*
 	 * Initialize subsystems
@@ -925,10 +928,6 @@ atm_intr()
 		STACK_DRAIN();
 	}
 }
-
-#ifdef __FreeBSD__
-NETISR_SET(NETISR_ATM, atm_intr);
-#endif
 
 
 /*

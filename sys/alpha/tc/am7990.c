@@ -1019,16 +1019,6 @@ am7990_ioctl(ifp, cmd, data)
 		}
 		break;
 
-#if defined(CCITT) && defined(LLC)
-	case SIOCSIFCONF_X25:
-		ifp->if_flags |= IFF_UP;
-		ifa->ifa_rtrequest = cons_rtrequest; /* XXX */
-		error = x25_llcglue(PRC_IFUP, ifa->ifa_addr);
-		if (error == 0)
-			am7990_init(sc);
-		break;
-#endif /* CCITT && LLC */
-
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_flags & IFF_RUNNING) != 0) {
