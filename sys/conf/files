@@ -296,6 +296,7 @@ scsi/st.c		optional st
 scsi/worm.c		optional worm
 scsi/su.c		optional su
 scsi/ssc.c		optional ssc
+scsi/sctarg.c	optional sctarg
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_alloc.c	optional mfs
 ufs/ffs/ffs_balloc.c	optional ffs
