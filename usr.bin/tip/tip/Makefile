@@ -34,6 +34,6 @@ BINGRP=		dialer
 # Dirty, rotten hack. This can be removed when we are confident that there
 # is no cu(1) with the schg-bit set.
 beforeinstall:
-	-@chflags noschg ${DESTDIR}/${BINDIR}/cu
+	-@chflags noschg ${DESTDIR}${BINDIR}/cu
 
 .include <bsd.prog.mk>
