@@ -329,7 +329,7 @@
 
       <para>The hardware TX checksum support of the &man.xl.4; driver
 	has been disabled as it does not work correctly and slows down
-	the transmission rate.</para>
+	the transmission rate.  &merged;</para>
     </sect3>
 
     <sect3 id="net-proto">
