@@ -722,12 +722,11 @@ main(int argc, char **argv)
 	if (argc < 3)
 		usage("Too few arguments\n");
 
-       if ((i = modfind("g_bde")) < 0) {
-	       /* need to load the gbde module */
-	       if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0) {
-		       usage(GBDEMOD ": Kernel module not available\n");
-	       }
-       }
+	if ((i = modfind("g_bde")) < 0) {
+		/* need to load the gbde module */
+		if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0)
+			usage(GBDEMOD ": Kernel module not available\n");
+	}
 	doopen = 0;
 	if (!strcmp(argv[1], "attach")) {
 		action = ACT_ATTACH;
