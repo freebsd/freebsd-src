@@ -1682,12 +1682,6 @@
     appropriate server will also be queried, provided that the
     <option>-Q</option> option is not specified. &merged;</para>
 
-    <para>A new utility &man.diskcheckd.8; has been added; it is a
-    daemon which runs in the background, reading entire disks to find
-    any read errors on those disks.  Its behavior at startup time can
-    be controlled by the <varname>diskcheckd_enable</varname> variable
-    in &man.rc.conf.5;.</para>
-
     <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
     of bugs compared to its prior behavior.</para>
 
