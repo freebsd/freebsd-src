@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/29 04:39:53 $
+<date>$Date: 1997/01/29 14:45:57 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -411,6 +411,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           The FreeBSD handbook has a pretty complete
           <url url="../handbook/bibliography.html" name="Bibliography">
 
+          <label id="pao">There's also a wealth of information about using
+          FreeBSD on laptops at
+          <url url="http://www.jp.FreeBSD.org/PAO/"
+          name="Tatsumi Hosokawa's Mobile Computing page"> in Japan.
+
     <sect>
       <heading>Installation</heading>
       <p>
@@ -604,6 +609,8 @@ Any entries with a &lt;XXX&gt; are under construction.
             +----------------------------------------+
           </verb>
 
+	See also <ref id="pao" name="this note"> on the Mobile Computing page.
+
       <sect1>
         <heading>Which geometry should I use for a disk drive?<label id="geometry"></heading>
         <p>
@@ -727,7 +734,9 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<p>
           Divide up your FreeBSD slice according to taste and press `w' when
           you are happy with the way it looks. Again, say ``Yes'' when asked
-          for confirmation, and press `q' to quit.
+          for confirmation, and press `q' to quit. If you're adding swap
+          space on the second drive, look at <ref id="swap" name="this note">
+          for a nasty little gotcha that can cause no end of trouble.
         <p>
           <label id="2_1-disklabel-fix">
           <bf>Using disklabel(8) manually with 2.1.6-RELEASE</bf>
@@ -870,6 +879,12 @@ drivedata: 0
               magic in 386BSD 0.1 through FreeBSD 2.0, thus partition
               'e' is often used for the first non-bootable partition
               containing a filesystem.)
+            <tag><label id="swap">
+                <bf>Warning about swap space</bf></tag>
+              The space required by the BSD partition table is allowed
+              for in the file system. It's not allowed for by the swap
+              partition. So don't start swap at cylinder 0, either offset
+              it or put a file system in partition 'a'.
           </descrip>
 
       <sect1>
@@ -1019,6 +1034,7 @@ drivedata: 0
 
           <descrip>
             <tag/Adaptec/
+              AH-1505 &lt;ISA&gt; <newline>
               AH-152x Series &lt;ISA&gt; <newline>
               AH-154x Series &lt;ISA&gt; <newline>
               AH-174x Series &lt;EISA&gt; <newline>
@@ -1079,21 +1095,37 @@ drivedata: 0
 
         <p>
           FreeBSD supports the SCSI ZIP drive out of the box, of course. The
-          ZIP drive can only be set to run at SCSI target IDs 5 or 6, but if
-          your SCSI host adapter's BIOS supports it you can even boot from
+	  ZIP drive can only be set to run at SCSI target IDs 5 or 6, but if
+	  your SCSI host adapter's BIOS supports it you can even boot from
           it. I don't know which host adapters let you boot from targets
           other than 0 or 1... look at your docs (and let me know if it works
           out for you).
 
-          There is no built in support for the parallel ZIP drive, and if you
-          haven't bought your ZIP drive already I recommend you get the SCSI
-          one... the price is the same, and the performance is much better,
+	  There is no built in support for the parallel ZIP drive, and if you
+	  haven't bought your ZIP drive already I recommend you get the SCSI
+	  one... the price is the same, and the performance is much better,
           and you're unlikely to ever be able to boot from the parallel port.
 
-          If you already have a parallel ZIP, there is a port of the Linux
-          driver available at
-          <url url="http://www.prism.uvsq.fr/~son/ppa3.html"
-            name="Nicolas Souchu's home page"> in France.
+	  If you already have a parallel ZIP, there is a port of the Linux
+	  driver available at
+	  <url url="http://www.prism.uvsq.fr/~son/ppa3.html"
+	    name="Nicolas Souchu's home page"> in France.
+
+          Also check out <ref id="jaz" name="this note on removable drives">.
+
+       <sect1>
+         <heading>And how about JAZ, EZ, and other removable drives?</heading>
+
+         <p>
+           Apart from the IDE version of the EZ drive, these are all SCSI
+           devices, so the should all look like SCSI disks to FreeBSD, and
+           the IDE EZ should look like an IDE drive.
+
+           <label id="jaz">
+           I'm not sure how well FreeBSD supports changing the media out
+           while running. You will of course need to dismount the drive
+           before swapping media, and make sure that any external units are
+           powered on when you boot the system so FreeBSD can see them.
 
       <sect1>
 	<heading>What multi-port serial cards are supported by FreeBSD?</heading>
@@ -1170,6 +1202,7 @@ options   PSM_CHECKSYNC      #checks the header byte for sync.
 
         <p>
           Please refer to <ref id="ps2mouse" name="the answer to the previous question">.
+	And check out <ref id="pao" name="this note"> on the Mobile Computing page.
 
       <sect1>
 	<heading>What types of tape drives are supported under FreeBSD?</heading>
@@ -1652,7 +1685,8 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
         <heading>How can I add more swap space?</heading>
 
 	<p>The best way is to increase the size of your swap partition, or
-	take advantage of this convenient excuse to add another disk, but
+	take advantage of this convenient excuse to add another disk (and
+        see <ref id="swap" name="this note"> if you do), but
 	<bf/Werner Griessl/ has provided these instructions for setting FreeBSD
 	up for swapping to a file:
 
