@@ -4499,7 +4499,7 @@ If no provider is given, an empty value will be used.
 When a PPPoE connection is established,
 .Nm
 will place the name of the Access Concentrator in the environment variable
-.Va ACNAME .
+.Ev ACNAME .
 .Pp
 Refer to
 .Xr netgraph 4
