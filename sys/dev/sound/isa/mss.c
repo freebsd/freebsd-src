@@ -464,11 +464,11 @@ mss_probe(device_t dev)
     	if (!mss->io_base) goto no;
 
     	/* got irq/dma regs? */
-    	flags = isa_get_flags(dev);
+    	flags = device_get_flags(dev);
     	irq = isa_get_irq(dev);
     	drq = isa_get_drq(dev);
 
-    	if (!(isa_get_flags(dev) & DV_F_TRUE_MSS)) goto mss_probe_end;
+    	if (!(device_get_flags(dev) & DV_F_TRUE_MSS)) goto mss_probe_end;
 
     	/*
      	* Check if the IO port returns valid signature. The original MS
@@ -480,7 +480,7 @@ mss_probe(device_t dev)
     	tmpx = tmp = io_rd(mss, 3);
     	if (tmp == 0xff) {	/* Bus float */
 		BVDDB(printf("I/O addr inactive (%x), try pseudo_mss\n", tmp));
-		isa_set_flags(dev, flags & ~DV_F_TRUE_MSS);
+		device_set_flags(dev, flags & ~DV_F_TRUE_MSS);
 		goto mss_probe_end;
     	}
     	tmp &= 0x3f;
@@ -732,8 +732,9 @@ mss_detect(device_t dev, struct mss_info *mss)
 gotit:
     	BVDDB(printf("mss_detect() - Detected %s\n", name));
     	device_set_desc(dev, name);
-    	isa_set_flags(dev, ((isa_get_flags(dev) & ~DV_F_DEV_MASK) |
-		      ((mss->bd_id << DV_F_DEV_SHIFT) & DV_F_DEV_MASK)));
+    	device_set_flags(dev,
+			 ((device_get_flags(dev) & ~DV_F_DEV_MASK) |
+			  ((mss->bd_id << DV_F_DEV_SHIFT) & DV_F_DEV_MASK)));
     	return 0;
 no:
     	return ENXIO;
@@ -786,7 +787,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 {
     	snddev_info *d = device_get_softc(dev);
     	void *ih;
-    	int flags = isa_get_flags(dev);
+    	int flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
 
     	if (!mss_alloc_resources(mss, dev)) goto no;
@@ -863,7 +864,7 @@ static int
 mss_attach(device_t dev)
 {
     	struct mss_info *mss;
-    	int flags = isa_get_flags(dev);
+    	int flags = device_get_flags(dev);
 
     	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT);
     	if (!mss) return ENXIO;
@@ -879,7 +880,7 @@ mss_attach(device_t dev)
     		         	 flags & DV_F_DRQ_MASK, 1);
 		mss->drq2_rid = 1;
     	}
-    	mss->bd_id = (isa_get_flags(dev) & DV_F_DEV_MASK) >> DV_F_DEV_SHIFT;
+    	mss->bd_id = (device_get_flags(dev) & DV_F_DEV_MASK) >> DV_F_DEV_SHIFT;
     	if (mss->bd_id == MD_YM0020) ymf_test(dev, mss);
     	return mss_doattach(dev, mss);
 }

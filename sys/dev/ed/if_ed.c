@@ -382,7 +382,7 @@ ed_probe_WD80x3(dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
 	int     i;
-	int	flags = isa_get_flags(dev);
+	int	flags = device_get_flags(dev);
 	u_int   memsize, maddr;
 	u_char  iptr, isa16bit, sum;
 	u_long	conf_maddr, conf_msize, irq, junk;
@@ -795,7 +795,7 @@ ed_probe_3Com(dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
 	int     i;
-	int	flags = isa_get_flags(dev);
+	int	flags = device_get_flags(dev);
 	u_int   memsize;
 	u_char  isa16bit;
 	u_long	conf_maddr, conf_msize, irq, junk;
@@ -1301,7 +1301,7 @@ static int
 ed_probe_Novell(dev)
 	device_t dev;
 {
-	return ed_probe_Novell_generic(dev, 0, isa_get_flags(dev));
+	return ed_probe_Novell_generic(dev, 0, device_get_flags(dev));
 }
 
 #if NCARDxx > 0
@@ -1539,7 +1539,7 @@ ed_probe_HP_pclanp(dev)
 
 	sc->tx_page_start = ED_HPP_TX_PAGE_OFFSET;
 
-	if (isa_get_flags(dev) & ED_FLAGS_NO_MULTI_BUFFERING)
+	if (device_get_flags(dev) & ED_FLAGS_NO_MULTI_BUFFERING)
 		sc->txb_cnt = 1;
 	else
 		sc->txb_cnt = 2;
@@ -1864,7 +1864,7 @@ ed_isa_attach(dev)
 	device_t dev;
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	int flags = isa_get_flags(dev);
+	int flags = device_get_flags(dev);
 	int error;
 
 	if (sc->port_used > 0)

@@ -497,7 +497,6 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 	bzero(idev, sizeof *idev);
 
 	resource_list_init(&idev->id_resources);
-	idev->id_flags = 0;
 	TAILQ_INIT(&idev->id_configs);
 
 	return device_add_child_ordered(dev, order, name, unit, idev);
@@ -541,15 +540,15 @@ isa_print_child(device_t bus, device_t dev)
 
 	retval += bus_print_child_header(bus, dev);
 
-	if (SLIST_FIRST(rl) || idev->id_flags)
+	if (SLIST_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
 	isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
 	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
 	isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
 	isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
-	if (idev->id_flags)
-		retval += printf(" flags %#x", idev->id_flags);
+	if (device_get_flags(dev))
+		retval += printf(" flags %#x", device_get_flags(dev));
 
 	retval += bus_print_child_footer(bus, dev);
 
@@ -660,10 +659,6 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 			*result = -1;
 		break;
 
-	case ISA_IVAR_FLAGS:
-		*result = idev->id_flags;
-		break;
-
 	case ISA_IVAR_VENDORID:
 		*result = idev->id_vendorid;
 		break;
@@ -707,10 +702,6 @@ isa_write_ivar(device_t bus, device_t dev,
 	case ISA_IVAR_DRQ_0:
 	case ISA_IVAR_DRQ_1:
 		return EINVAL;
-
-	case ISA_IVAR_FLAGS:
-		idev->id_flags = value;
-		break;
 
 	case ISA_IVAR_VENDORID:
 		idev->id_vendorid = value;
