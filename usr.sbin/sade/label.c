@@ -611,10 +611,18 @@ print_label_chunks(void)
             if (i == pslice_focus)
                 pslice_focus_found = -1;
 
-	    mvprintw(srow++, 0, 
-		     "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
-		     label_chunk_info[i].c->disk->name, label_chunk_info[i].c->name, 
-		     sz, (sz / ONE_MEG));
+	    if (sz >= 100 * ONE_GIG)
+		    mvprintw(srow++, 0, 
+			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dGB)",
+			label_chunk_info[i].c->disk->name,
+			label_chunk_info[i].c->name, 
+			sz, (sz / ONE_GIG));
+	    else
+		    mvprintw(srow++, 0, 
+			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
+			label_chunk_info[i].c->disk->name,
+			label_chunk_info[i].c->name, 
+			sz, (sz / ONE_MEG));
 	    attrset(A_NORMAL);
 	    clrtoeol();
 	    move(0, 0);
@@ -703,7 +711,14 @@ print_label_chunks(void)
 		strcpy(newfs, "*");
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
-	    snprintf(num, 10, "%5ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
+	    if (label_chunk_info[i].c->size == 0)
+	        snprintf(num, 10, "%5ldMB", 0);
+	    else if (label_chunk_info[i].c->size < (100 * ONE_GIG))
+		snprintf(num, 10, "%5ldMB",
+		    label_chunk_info[i].c->size / ONE_MEG);
+	    else
+		snprintf(num, 10, "%5ldGB",
+		    label_chunk_info[i].c->size / ONE_GIG);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
