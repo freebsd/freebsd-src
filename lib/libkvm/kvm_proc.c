@@ -383,9 +383,13 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 	 * Check that there aren't an unreasonable number of agruments,
 	 * and that the address is in user space.
 	 */
-	if (narg > ARG_MAX || addr < VM_MIN_ADDRESS || addr >= VM_MAXUSER_ADDRESS)
+	if (narg > 512 || addr < VM_MIN_ADDRESS || addr >= VM_MAXUSER_ADDRESS)
 		return (0);
 
+	/*
+	 * kd->argv : work space for fetching the strings from the target 
+	 *            process's space, and is converted for returning to caller
+	 */
 	if (kd->argv == 0) {
 		/*
 		 * Try to avoid reallocs.
@@ -402,42 +406,84 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 		if (kd->argv == 0)
 			return (0);
 	}
+	/*
+	 * kd->argspc : returned to user, this is where the kd->argv
+	 *              arrays are left pointing to the collected strings.
+	 */
 	if (kd->argspc == 0) {
 		kd->argspc = (char *)_kvm_malloc(kd, NBPG);
 		if (kd->argspc == 0)
 			return (0);
 		kd->arglen = NBPG;
 	}
+	/*
+	 * kd->argbuf : used to pull in pages from the target process.
+	 *              the strings are copied out of here.
+	 */
 	if (kd->argbuf == 0) {
 		kd->argbuf = (char *)_kvm_malloc(kd, NBPG);
 		if (kd->argbuf == 0)
 			return (0);
 	}
+
+	/* Pull in the target process'es argv vector */
 	cc = sizeof(char *) * narg;
 	if (kvm_uread(kd, p, addr, (char *)kd->argv, cc) != cc)
 		return (0);
+	/*
+	 * ap : saved start address of string we're working on in kd->argspc
+	 * np : pointer to next place to write in kd->argspc
+	 * len: length of data in kd->argspc
+	 * argv: pointer to the argv vector that we are hunting around the
+	 *       target process space for, and converting to addresses in
+	 *       our address space (kd->argspc).
+	 */
 	ap = np = kd->argspc;
 	argv = kd->argv;
 	len = 0;
 	/*
 	 * Loop over pages, filling in the argument vector.
+	 * Note that the argv strings could be pointing *anywhere* in
+	 * the user address space and are no longer contiguous.
+	 * Note that *argv is modified when we are going to fetch a string
+	 * that crosses a page boundary.  We copy the next part of the string
+	 * into to "np" and eventually convert the pointer.
 	 */
 	while (argv < kd->argv + narg && *argv != 0) {
+
+		/* get the address that the current argv string is on */
 		addr = (u_long)*argv & ~(NBPG - 1);
+
+		/* is it the same page as the last one? */
 		if (addr != oaddr) {
 			if (kvm_uread(kd, p, addr, kd->argbuf, NBPG) !=
 			    NBPG)
 				return (0);
 			oaddr = addr;
 		}
+
+		/* offset within the page... kd->argbuf */
 		addr = (u_long)*argv & (NBPG - 1);
+
+		/* cp = start of string, cc = count of chars in this chunk */
 		cp = kd->argbuf + addr;
 		cc = NBPG - addr;
+
+		/* dont get more than asked for by user process */
 		if (maxcnt > 0 && cc > maxcnt - len)
-			cc = maxcnt - len;;
+			cc = maxcnt - len;
+
+		/* pointer to end of string if we found it in this page */
 		ep = memchr(cp, '\0', cc);
 		if (ep != 0)
 			cc = ep - cp + 1;
+		/*
+		 * at this point, cc is the count of the chars that we are
+		 * going to retrieve this time. we may or may not have found
+		 * the end of it.  (ep points to the null if the end is known)
+		 */
+
+		/* will we exceed the malloc/realloced buffer? */
 		if (len + cc > kd->arglen) {
 			register int off;
 			register char **pp;
@@ -458,14 +504,27 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 			ap += off;
 			np += off;
 		}
+		/* np = where to put the next part of the string in kd->argspc*/
+		/* np is kinda redundant.. could use "kd->argspc + len" */
 		memcpy(np, cp, cc);
-		np += cc;
+		np += cc;	/* inc counters */
 		len += cc;
+
+		/*
+		 * if end of string found, set the *argv pointer to the
+		 * saved beginning of string, and advance. argv points to
+		 * somewhere in kd->argv..  This is initially relative
+		 * to the target process, but when we close it off, we set
+		 * it to point in our address space.
+		 */
 		if (ep != 0) {
 			*argv++ = ap;
 			ap = np;
-				} else
+		} else {
+			/* update the address relative to the target process */
 			*argv += cc;
+		}
+
 		if (maxcnt > 0 && len >= maxcnt) {
 			/*
 			 * We're stopping prematurely.  Terminate the
@@ -474,9 +533,9 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 			if (ep == 0) {
 				*np = '\0';
 				*argv++ = ap;
-		}
+			}
 			break;
-	}
+		}
 	}
 	/* Make sure argv is terminated. */
 	*argv = 0;
