@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.375 1998/09/04 23:51:40 jkh Exp $
+#	$Id: Makefile,v 1.376 1998/09/05 00:36:18 msmith Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -199,6 +199,7 @@ rerelease release:
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
+	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
