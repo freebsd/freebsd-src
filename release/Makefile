@@ -2,11 +2,11 @@
 #
 
 FLOPPY=		fd0
-VNDEV=		vn0a
+#VNDEV=		vn0
 
 
-# Evil floppies are, of course, 1.2MB floppies.
-.if defined(EVIL_FLOPPY)
+# Evil floppies are, of course, 1.44MB floppies.
+.if !defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
 DDBS=		15k
 DDCOUNT=	80
@@ -38,7 +38,7 @@ CPIO4B=	tzsetup
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	boot_flp cpio_flp_1
+CLEANFILES+=	boot_flp cpio_flp_1 kernel.*
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -55,70 +55,64 @@ hierarchy:
 	ln -s usr/src/sys ${DESTDIR}/sys
 
 kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
-	if [ ! -d ${.CURDIR}/../sys/compile/GENERIC ]; then \
+	if [ ! -f ${.CURDIR}/../sys/compile/GENERIC/kernel ]; then \
 		(cd ${.CURDIR}/../sys/i386/conf; config GENERIC); \
 		(cd ${.CURDIR}/../sys/compile/GENERIC; \
 			${MAKE} depend; ${MAKE} all; ) \
 	fi
+	cp ${.CURDIR}/../sys/compile/GENERIC/kernel kernel
 
-boot_12.flp: 
-	(cd ${.CURDIR}; EVIL_FLOPPY=yes ${MAKE} boot.flp)
-	mv boot.flp boot_12.flp
-	gzip -9 -c < boot_12.flp > boot_12.flp.gz &
+kernel.BOOTFLP:	${.CURDIR}/../sys/i386/conf/BOOTFLP
+	if [ ! -f ${.CURDIR}/../sys/compile/BOOTFLP/kernel ]; then \
+		(cd ${.CURDIR}/../sys/i386/conf; config BOOTFLP); \
+		(cd ${.CURDIR}/../sys/compile/BOOTFLP; \
+			${MAKE} depend; ${MAKE} all; ) \
+	fi
+	cp ${.CURDIR}/../sys/compile/BOOTFLP/kernel kernel.BOOTFLP
+	strip kernel.BOOTFLP
 
-boot_144.flp:
-	(cd ${.CURDIR}; ${MAKE} boot.flp)
-	mv boot.flp boot_144.flp
-	gzip -9 -c < boot_144.flp > boot_144.flp.gz &
-
-boot.flp: 
+boot.flp: kernel.BOOTFLP
 	crunchgen ${.CURDIR}/boot_flp.conf
 	${MAKE} -f boot_flp.mk objs exe NOCRYPT=yes
-	dd if=/dev/zero bs=${DDBS} count=${DDCOUNT} of=boot.tmp
-	-umount /dev/${VNDEV}
-	-vnconfig -u /dev/${VNDEV}
-	vnconfig -c /dev/${VNDEV} boot.tmp
-	disklabel -r -w -B \
+	-umount /dev/${FLOPPY}
+	-umount ${MNT}
+	disklabel -w -r -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
-		/dev/r${VNDEV} ${FDLABEL}
+		/dev/r${FLOPPY} ${FDLABEL}
 	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -o space -T ${FDLABEL} \
-		/dev/r${VNDEV}
-	mount -o async /dev/${VNDEV} ${MNT}
+		/dev/r${FLOPPY}
+	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
-.if !defined(EVIL_FLOPPY)
-	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
-.else
-	strip ${.CURDIR}/../sys/compile/GENERIC/kernel
-.endif
-	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
+	cp kernel.BOOTFLP ${MNT}/kernel
 	( cd ${DESTDIR}/dev ; \
 		ls console tty ttyv1 null zero \
 		sd[0123][a-h] wd[0123][a-h] fd[01] \
 		rsd[0123][a-h] rwd[0123][a-h] rfd[01] \
-	| cpio -dumpv ${MNT}/dev \
+	| cpio -dump ${MNT}/dev \
 	)
 	gzip -9 -c < boot_flp > ${MNT}/stand/sysinstall
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/fsck
-.if !defined(EVIL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
 	install -m 400 -c ${.CURDIR}/../share/FAQ/diskspace.FAQ \
 		${MNT}/DISKSPACE.FAQ
-.endif
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
 		${MNT}/RELNOTES.FreeBSD
 	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLESHOOTING \
 		${MNT}/TROUBLESHOOTING
 	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
 	touch ${MNT}/this_is_boot_flp
+	sync
 	-umount ${MNT}
-	fsck /dev/r${VNDEV}
-	vnconfig -u /dev/${VNDEV}
+	sync
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=boot.tmp bs=${DDBS} count=${DDCOUNT}
 	mv boot.tmp boot.flp
+	od -x boot.flp | head -3
 
-cpio.flp:
+cpio.flp: kernel
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
 	${MAKE} -f cpio_flp_1.mk objs exe NOCRYPT=yes
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
@@ -126,15 +120,19 @@ cpio.flp:
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
 	chmod 755 ${CPIO3}
 	cp ${CPIO4} .
-	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} | \
+	rm -f OK
+	touch OK
+	(ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} ; \
+		echo kernel ; echo OK ) | \
 		cpio -H newc -oa | gzip -9 -c | \
 		dd conv=osync > cpio.flp
+	rm -f OK
 	gzip -1 -c < cpio.flp > cpio.flp.gz
 
-floppies: boot_144.flp boot_12.flp cpio.flp
+floppies: boot.flp cpio.flp
 	mkdir -p ${RELEASEDIR}/floppies
-	cp boot_144.flp boot_144.flp.gz boot_12.flp boot_12.flp.gz \
-		cpio.flp cpio.flp.gz ${RELEASEDIR}/floppies
+	cp boot.flp boot.flp.gz cpio.flp cpio.flp.gz \
+		${RELEASEDIR}/floppies
 
 release20: 
 .if !defined(RELEASEDIR)
