@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.4 1999/01/21 18:29:33 yokota Exp $
+ * $Id: splash_bmp.c,v 1.5 1999/01/26 10:00:02 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -216,14 +216,14 @@ fill(BMP_INFO *info, int x, int y, int xsize, int ysize)
     int		p;
 
     banksize = info->adp->va_window_size;
-    bank = (info->swidth*y + x)/banksize;
+    bank = (info->adp->va_line_width*y + x)/banksize;
     window = (u_char *)info->adp->va_window;
     (*vidsw[info->adp->va_index]->set_win_org)(info->adp, bank*banksize);
     while (ysize > 0) {
-	p = (info->swidth*y + x)%banksize;
+	p = (info->adp->va_line_width*y + x)%banksize;
 	for (; (p + xsize <= banksize) && ysize > 0; --ysize, ++y) {
 	    generic_bzero(window + p, xsize);
-	    p += info->swidth;
+	    p += info->adp->va_line_width;
 	}
 	if (ysize <= 0)
 	    break;
@@ -267,11 +267,11 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
      * because 0,0 is bottom-left for DIB, we have to convert.
      */
     sofs = ((info->height - (y+1) + (info->sheight - info->height) / 2) 
-		* info->swidth) + x + (info->swidth - info->width) / 2;
+		* info->adp->va_line_width);
 
     switch(info->sdepth) {
     case 1:
-	sofs = sofs >> 3;			/* correct for depth */
+	sofs += ((x + (info->swidth - info->width) / 2) >> 3);
 	bofs = x & 0x7;				/* offset within byte */
 	
 	val &= 1;				/* mask pixel value */
@@ -282,7 +282,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 
 	/* XXX only correct for non-interleaved modes */
     case 4:
-	sofs = sofs >> 1;			/* correct for depth */
+	sofs += ((x + (info->swidth - info->width) / 2) >> 1);
 	bofs = x & 0x1;				/* offset within byte */
 	
 	val &= 0xf;				/* mask pixel value */
@@ -292,6 +292,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	break;
 	
     case 8:
+	sofs += x + (info->swidth - info->width) / 2;
 	newbank = sofs/info->adp->va_window_size;
 	if (info->bank != newbank) {
 	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);

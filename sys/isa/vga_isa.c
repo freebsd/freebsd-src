@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.1 1999/01/09 02:44:41 yokota Exp $
+ * $Id: vga_isa.c,v 1.1 1999/01/23 16:53:30 dfr Exp $
  */
 
 #include "vga.h"
@@ -236,7 +236,7 @@ isavga_attach_unit(int unit, isavga_softc_t *sc, int flags)
 #endif /* FB_INSTALL_CDEV */
 
 	if (bootverbose)
-		(*sw->diag)(sc->adp, bootverbose);
+		(*vidsw[sc->adp->va_index]->diag)(sc->adp, bootverbose);
 
 	return 0;
 }
@@ -300,27 +300,27 @@ static video_adapter_t adapter_init_value[] = {
     /* DCC_MONO */
     { 0, KD_MONO, "mda", 0, 0, 0, 	    IO_MDA, IO_MDASIZE, MONO_CRTC,
       MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 
-      0, 0, 0, 7, 0, 0, NULL },
+      0, 0, 0, 7, 0, },
     /* DCC_CGA40 */
     { 0, KD_CGA,  "cga", 0, 0, V_ADP_COLOR, IO_CGA, IO_CGASIZE, COLOR_CRTC,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
-      0, 0, 0, 3, 0, 0, NULL },
+      0, 0, 0, 3, 0, },
     /* DCC_CGA80 */
     { 0, KD_CGA,  "cga", 0, 0, V_ADP_COLOR, IO_CGA, IO_CGASIZE, COLOR_CRTC,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
-      0, 0, 0, 3, 0, 0, NULL },
+      0, 0, 0, 3, 0, },
     /* DCC_EGAMONO */
     { 0, KD_EGA,  "ega", 0, 0, 0,	    IO_MDA, 48,	  MONO_CRTC,
       EGA_BUF_BASE, EGA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 
-      0, 0, 0, 7, 0, 0, NULL },
+      0, 0, 0, 7, 0, },
     /* DCC_EGA40 */
     { 0, KD_EGA,  "ega", 0, 0, V_ADP_COLOR, IO_MDA, 48,	  COLOR_CRTC,
       EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
-      0, 0, 0, 3, 0, 0, NULL },
+      0, 0, 0, 3, 0, },
     /* DCC_EGA80 */
     { 0, KD_EGA,  "ega", 0, 0, V_ADP_COLOR, IO_MDA, 48,	  COLOR_CRTC,
       EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
-      0, 0, 0, 3, 0, 0, NULL },
+      0, 0, 0, 3, 0, },
 };
 
 static video_adapter_t	biosadapter[2];
@@ -490,6 +490,7 @@ static u_char *get_mode_param(int mode);
 static void fill_adapter_param(int code, video_adapter_t *adp);
 #endif
 static int verify_adapter(video_adapter_t *adp);
+static void update_adapter_info(video_adapter_t *adp, video_info_t *info);
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 #define COMP_IDENTICAL	0
 #define COMP_SIMILAR	1
@@ -832,6 +833,31 @@ verify_adapter(video_adapter_t *adp)
     return 0;
 }
 
+static void
+update_adapter_info(video_adapter_t *adp, video_info_t *info)
+{
+    adp->va_flags &= ~V_ADP_COLOR;
+    adp->va_flags |= 
+	(info->vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
+    adp->va_crtc_addr =
+	(adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
+    adp->va_window = BIOS_PADDRTOVADDR(info->vi_window);
+    adp->va_window_size = info->vi_window_size;
+    adp->va_window_gran = info->vi_window_gran;
+    if (info->vi_buffer_size == 0) {
+    	adp->va_buffer = 0;
+    	adp->va_buffer_size = 0;
+    } else {
+    	adp->va_buffer = BIOS_PADDRTOVADDR(info->vi_buffer);
+    	adp->va_buffer_size = info->vi_buffer_size;
+    }
+    if (info->vi_flags & V_INFO_GRAPHICS)
+	adp->va_line_width = info->vi_width/8;
+    else
+	adp->va_line_width = info->vi_width;
+    bcopy(info, &adp->va_info, sizeof(adp->va_info));
+}
+
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 /* compare two parameter table entries */
 static int 
@@ -977,10 +1003,6 @@ probe_adapters(void)
     }
     if (biosadapters == 0)
 	return biosadapters;
-#if 0
-    biosadapter[V_ADP_PRIMARY].va_index = V_ADP_PRIMARY;
-    biosadapter[V_ADP_SECONDARY].va_index = V_ADP_SECONDARY;
-#endif
     biosadapter[V_ADP_PRIMARY].va_unit = V_ADP_PRIMARY;
     biosadapter[V_ADP_SECONDARY].va_unit = V_ADP_SECONDARY;
 
@@ -1145,35 +1167,12 @@ probe_adapters(void)
     /* buffer address */
     vga_get_info(&biosadapter[V_ADP_PRIMARY],
 		 biosadapter[V_ADP_PRIMARY].va_initial_mode, &info);
-    biosadapter[V_ADP_PRIMARY].va_mode_flags = info.vi_flags;
-    biosadapter[V_ADP_PRIMARY].va_window = BIOS_PADDRTOVADDR(info.vi_window);
-    biosadapter[V_ADP_PRIMARY].va_window_size = info.vi_window_size;
-    biosadapter[V_ADP_PRIMARY].va_window_gran = info.vi_window_gran;
-    if (info.vi_buffer_size == 0) {
-	biosadapter[V_ADP_PRIMARY].va_buffer = 0;
-	biosadapter[V_ADP_PRIMARY].va_buffer_size = 0;
-    } else {
-	biosadapter[V_ADP_PRIMARY].va_buffer
-	    = BIOS_PADDRTOVADDR(info.vi_buffer);
-	biosadapter[V_ADP_PRIMARY].va_buffer_size = info.vi_buffer_size;
-    }
+    update_adapter_info(&biosadapter[V_ADP_PRIMARY], &info);
 
     if (biosadapters > 1) {
 	vga_get_info(&biosadapter[V_ADP_SECONDARY],
 		     biosadapter[V_ADP_SECONDARY].va_initial_mode, &info);
-	biosadapter[V_ADP_SECONDARY].va_mode_flags = info.vi_flags;
-	biosadapter[V_ADP_SECONDARY].va_window =
-	    BIOS_PADDRTOVADDR(info.vi_window);
-	biosadapter[V_ADP_SECONDARY].va_window_size = info.vi_window_size;
-	biosadapter[V_ADP_SECONDARY].va_window_gran = info.vi_window_gran;
-	if (info.vi_buffer_size == 0) {
-	    biosadapter[V_ADP_SECONDARY].va_buffer = 0;
-	    biosadapter[V_ADP_SECONDARY].va_buffer_size = 0;
-	} else {
-	    biosadapter[V_ADP_SECONDARY].va_buffer =
-		BIOS_PADDRTOVADDR(info.vi_buffer);
-	    biosadapter[V_ADP_SECONDARY].va_buffer_size = info.vi_buffer_size;
-	}
+	update_adapter_info(&biosadapter[V_ADP_SECONDARY], &info);
     }
 
     /*
@@ -1429,22 +1428,7 @@ setup_grmode:
     }
 
     adp->va_mode = mode;
-    adp->va_mode_flags = info.vi_flags;
-    adp->va_flags &= ~V_ADP_COLOR;
-    adp->va_flags |= 
-	(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
-    adp->va_crtc_addr =
-	(adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
-    adp->va_window = BIOS_PADDRTOVADDR(info.vi_window);
-    adp->va_window_size = info.vi_window_size;
-    adp->va_window_gran = info.vi_window_gran;
-    if (info.vi_buffer_size == 0) {
-    	adp->va_buffer = 0;
-    	adp->va_buffer_size = 0;
-    } else {
-    	adp->va_buffer = BIOS_PADDRTOVADDR(info.vi_buffer);
-    	adp->va_buffer_size = info.vi_buffer_size;
-    }
+    update_adapter_info(adp, &info);
 
     /* move hardware cursor out of the way */
     (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
@@ -2010,15 +1994,13 @@ vga_set_origin(video_adapter_t *adp, off_t offset)
 static int
 vga_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
-    video_info_t info;
     u_int16_t off;
     int s;
 
     if (!init_done)
 	return 1;
 
-    (*vidsw[adp->va_index]->get_info)(adp, adp->va_mode, &info);
-    if (info.vi_flags & V_INFO_GRAPHICS)
+    if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	return 1;
 
     s = spltty();
@@ -2028,8 +2010,8 @@ vga_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
     off = (off << 8) | inb(adp->va_crtc_addr + 1);
     splx(s);
 
-    *row = off / info.vi_width;
-    *col = off % info.vi_width;
+    *row = off / adp->va_info.vi_width;
+    *col = off % adp->va_info.vi_width;
 
     return 0;
 }
@@ -2044,7 +2026,6 @@ vga_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 static int
 vga_set_hw_cursor(video_adapter_t *adp, int col, int row)
 {
-    video_info_t info;
     u_int16_t off;
     int s;
 
@@ -2054,10 +2035,9 @@ vga_set_hw_cursor(video_adapter_t *adp, int col, int row)
     if ((col == -1) && (row == -1)) {
 	off = -1;
     } else {
-	(*vidsw[adp->va_index]->get_info)(adp, adp->va_mode, &info);
-	if (info.vi_flags & V_INFO_GRAPHICS)
+	if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	    return 1;
-	off = row*info.vi_width + col;
+	off = row*adp->va_info.vi_width + col;
     }
 
     s = spltty();
