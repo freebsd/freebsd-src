@@ -88,8 +88,6 @@ ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
-ASSYM(TD_CRITNEST, offsetof(struct thread, td_critnest));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
