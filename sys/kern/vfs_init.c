@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.43 1999/01/28 17:32:00 dillon Exp $
+ * $Id: vfs_init.c,v 1.44 1999/02/16 10:49:49 dfr Exp $
  */
 
 
@@ -331,13 +331,14 @@ int
 vfs_register(struct vfsconf *vfc)
 {
 	struct linker_set *l;
+	struct sysctl_oid *oidp;
 	struct vfsconf *vfsp;
 
 	vfsp = NULL;
 	l = &sysctl__vfs;
 	if (vfsconf)
 		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
-			if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
+			if (strcmp(vfc->vfc_name, vfsp->vfc_name) == 0)
 				return EEXIST;
 
 	vfc->vfc_typenum = maxvfsconf++;
@@ -346,6 +347,24 @@ vfs_register(struct vfsconf *vfc)
 	else
 		vfsconf = vfc;
 	vfc->vfc_next = NULL;
+
+	/*
+	 * If this filesystem has a sysctl node under vfs
+	 * (i.e. vfs.xxfs), then change the oid number of that node to 
+	 * match the filesystem's type number.  This allows user code
+	 * which uses the type number to read sysctl variables defined
+	 * by the filesystem to continue working. Since the oids are
+	 * in a sorted list, we need to make sure the order is
+	 * preserved by re-registering the oid after modifying its
+	 * number.
+	 */
+	for (oidp = SLIST_FIRST(&sysctl__vfs_children); oidp;
+	     oidp = SLIST_NEXT(oidp, oid_link))
+		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
+			sysctl_unregister_oid(oidp);
+			oidp->oid_number = vfc->vfc_typenum;
+			sysctl_register_oid(oidp);
+		}
 
 	/*
 	 * Call init function for this VFS...
