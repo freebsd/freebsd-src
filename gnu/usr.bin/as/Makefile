@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.4 1994/08/28 17:43:37 bde Exp $
+#	$Id: Makefile,v 1.5 1994/08/29 17:38:17 davidg Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -25,8 +25,8 @@ SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 		symbols.c version.c write.c xmalloc.c xrealloc.c \
 		obj-$(gas_objformat).c
 CFLAGS+=	-I$(.CURDIR) ${ADDINCLUDE} -I$(.CURDIR)/config \
-		-DPIC -DOLD_GAS -DSIGTY=void -Derror=as_fatal \
-		-DSUB_SEGMENT_ALIGN=4
+		-DOLD_GAS -DSIGTY=void -Derror=as_fatal \
+		-DSUB_SEGMENT_ALIGN=4 -DFREEBSD_AOUT
 DPADD+=		${LIBGNUMALLOC}
 LDADD+=		-lgnumalloc
 
@@ -36,12 +36,12 @@ CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 
 beforedepend ${PROG}: ${CONF_HEADERS}
 
-targ-cpu.h: Makefile config/Makefile.$(MACHINE)
+targ-cpu.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/tc-$(gas_target).h 
 	@cmp -s $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f targ-cpu.h ; \
 	    cp $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h )
 
-obj-format.h: Makefile config/Makefile.$(MACHINE)
+obj-format.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/obj-$(gas_objformat).h
 	@cmp -s $(.CURDIR)/config/obj-$(gas_objformat).h obj-format.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f obj-format.h ; \
 	    cp $(.CURDIR)/config/obj-$(gas_objformat).h obj-format.h )
@@ -52,7 +52,7 @@ config_hostfile=	$(.CURDIR)/config/ho-$(gas_hosttype).h
 config_hostfile=	$(.CURDIR)/config/ho-generic.h
 .endif
 
-host.h: Makefile config/Makefile.$(MACHINE)
+host.h: Makefile config/Makefile.$(MACHINE) $(config_hostfile)
 	@cmp -s $(config_hostfile) host.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f host.h ; \
 	    cp $(config_hostfile) host.h )
@@ -63,7 +63,7 @@ config_targenvfile=	$(.CURDIR)/config/te-$(MACHINE).h
 config_targenvfile=	$(.CURDIR)/config/te-generic.h
 .endif
 
-targ-env.h: Makefile config/Makefile.$(MACHINE)
+targ-env.h: Makefile config/Makefile.$(MACHINE) $(config_targenvfile)
 	@cmp -s $(config_targenvfile) targ-env.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f targ-env.h ; \
 	    cp $(config_targenvfile) targ-env.h )

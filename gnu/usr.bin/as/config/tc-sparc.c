@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-sparc.c,v 1.1 1993/11/03 00:54:52 paul Exp $";
+static char rcsid[] = "$Id: tc-sparc.c,v 1.2 1993/12/12 17:02:13 jkh Exp $";
 #endif
 
 #define cypress 1234
@@ -129,6 +129,34 @@ static void print_insn();
 #endif
 static int getExpression();
 #endif /* not __STDC__ */
+
+static char *Reloc[] = {
+	"RELOC_8",
+	"RELOC_16",
+	"RELOC_32",
+	"RELOC_DISP8",
+	"RELOC_DISP16",
+	"RELOC_DISP32",
+	"RELOC_WDISP30",
+	"RELOC_WDISP22",
+	"RELOC_HI22",
+	"RELOC_22",
+	"RELOC_13",
+	"RELOC_LO10",
+	"RELOC_SFA_BASE",
+	"RELOC_SFA_OFF13",
+	"RELOC_BASE10",
+	"RELOC_BASE13",
+	"RELOC_BASE22",
+	"RELOC_PC10",
+	"RELOC_PC22",
+	"RELOC_JMP_TBL",
+	"RELOC_SEGOFF16",
+	"RELOC_GLOB_DAT",
+	"RELOC_JMP_SLOT",
+	"RELOC_RELATIVE",
+	"NO_RELOC"
+};
 
 static char *expr_end;
 static int special_case;
@@ -457,7 +485,8 @@ char *str;
 		
 	case SPECIAL_CASE_SET:
 		special_case = 0;
-		know(the_insn.reloc == RELOC_HI22);
+		know(the_insn.reloc == RELOC_HI22 ||
+				the_insn.reloc == RELOC_BASE22);
 		/* See if "set" operand has no low-order bits; skip OR if so. */
 		if (the_insn.exp.X_seg == SEG_ABSOLUTE
 		    && ((the_insn.exp.X_add_number & 0x3FF) == 0))
@@ -473,7 +502,7 @@ char *str;
 			the_insn.exp.X_subtract_symbol,
 			the_insn.exp.X_add_number,
 			the_insn.pcrel,
-			RELOC_LO10,
+			the_insn.reloc==RELOC_BASE22?RELOC_BASE10:RELOC_LO10,
 			the_insn.exp.X_got_symbol);
 		return;
 		
@@ -495,7 +524,7 @@ char *str;
 		return;
 		
 	default:
-		as_fatal("failed sanity check.");
+		as_fatal("md_assemble: failed sanity check.");
 	}
 } /* md_assemble() */
 
@@ -838,13 +867,14 @@ char *str;
 				break;
 				
 			case 'h': /* high 22 bits */
-#ifdef PIC
-				the_insn.reloc = flagseen['k']?
-							RELOC_BASE22:
-							RELOC_HI22;
-#else
-				the_insn.reloc = RELOC_HI22;
-#endif
+				/*
+				 * In the case of a `set' pseudo instruction
+				 * we have an implied `%hi' operator.
+				 */
+				if (special_case == SPECIAL_CASE_SET)
+					the_insn.reloc = RELOC_HI22;
+				else
+					the_insn.reloc = RELOC_22;
 				goto immediate;
 				
 			case 'l': /* 22 bit PC relative immediate */
@@ -853,13 +883,11 @@ char *str;
 				goto immediate;
 				
 			case 'L': /* 30 bit immediate */
+				the_insn.reloc =
 #ifdef PIC
-				the_insn.reloc = flagseen['k']?
-							RELOC_JMP_TBL:
-							RELOC_WDISP30;
-#else
-				the_insn.reloc = RELOC_WDISP30;
+					flagseen['k']?RELOC_JMP_TBL:
 #endif
+					RELOC_WDISP30;
 				the_insn.pcrel = 1;
 				goto immediate;
 				
@@ -868,7 +896,7 @@ char *str;
 				goto immediate;
 				
 			case 'i':   /* 13 bit immediate */
-				the_insn.reloc = RELOC_BASE13;
+				the_insn.reloc = RELOC_13;
 				
 				/*FALLTHROUGH */
 				
@@ -877,6 +905,9 @@ char *str;
 				    s++;
 				if (*s == '%') {
 					if ((c = s[1]) == 'h' && s[2] == 'i') {
+						if (the_insn.reloc != RELOC_22)
+							as_bad(
+						"`%hi' in improper context");
 						the_insn.reloc = RELOC_HI22;
 						s+=3;
 					} else if (c == 'l' && s[2] == 'o') {
@@ -921,8 +952,12 @@ char *str;
 				}
 				(void)getExpression(s);
 #ifdef PIC
+				/*
+				 * Handle refs to __GLOBAL_OFFSET_TABLE_
+				 */
 				if (the_insn.exp.X_got_symbol) {
 					switch(the_insn.reloc) {
+					case RELOC_22:
 					case RELOC_HI22:
 						the_insn.reloc = RELOC_PC22;
 						the_insn.pcrel = 1;
@@ -932,6 +967,23 @@ char *str;
 						the_insn.pcrel = 1;
 						break;
 					default:
+						break;
+					}
+				}
+
+				if (flagseen['k'] && the_insn.exp.X_add_symbol) {
+					switch (the_insn.reloc) {
+					case RELOC_LO10:
+						the_insn.reloc = RELOC_BASE10;
+						the_insn.exp.X_add_symbol->sy_forceout = 1;
+						break;
+					case RELOC_HI22:
+						the_insn.reloc = RELOC_BASE22;
+						the_insn.exp.X_add_symbol->sy_forceout = 1;
+						break;
+					case RELOC_13:
+						the_insn.reloc = RELOC_BASE13;
+						the_insn.exp.X_add_symbol->sy_forceout = 1;
 						break;
 					}
 				}
@@ -1012,7 +1064,7 @@ char *str;
 				continue;
 				
 			default:
-				as_fatal("failed sanity check.");
+				as_fatal("sparc_ip: failed sanity check.");
 			} /* switch on arg code */
 			break;
 		} /* for each arg that we expect */
@@ -1072,17 +1124,6 @@ char *str;
 	switch (seg = expression(&the_insn.exp)) {
 		
 	case SEG_ABSOLUTE:
-		switch (the_insn.reloc) {
-		case RELOC_LO10:
-			the_insn.exp.X_add_number &= ~(~(0) << 10);
-			break;
-		case RELOC_HI22:
-			the_insn.exp.X_add_number &= (~(0) << 10);
-			break;
-		default:
-			break;
-		}
-		break;
 	case SEG_TEXT:
 	case SEG_DATA:
 	case SEG_BSS:
@@ -1098,16 +1139,7 @@ char *str;
 		input_line_pointer=save_in;
 		return 1;
 	}
-	switch (the_insn.reloc) {
-	case RELOC_BASE10:
-	case RELOC_BASE13:
-	case RELOC_BASE22:
-		if (the_insn.exp.X_add_symbol)
-			the_insn.exp.X_add_symbol->sy_forceout = 1;
-		break;
-	default:
-		break;
-	}
+
 	expr_end = input_line_pointer;
 	input_line_pointer = save_in;
 	return 0;
@@ -1199,22 +1231,38 @@ int n;
 		break;
 		
 	default:
-		as_fatal("failed sanity check.");
+		as_fatal("md_number_to_chars: failed sanity check.");
 	}
 	return;
 } /* md_number_to_chars() */
 
-static void reloc_check(val, bits)
+static int reloc_check(val, bits, fixP)
 long val;
 int bits;
+fixS *fixP	/* For reporting errors */;
 {
 	if (((val & (-1 << bits)) != 0)
 	    && ((val & (-1 << bits)) != (-1 << (bits - 0)))) {
-		as_warn("Relocation overflow.  Value truncated.");
+
+		long addr = fixP->fx_where + fixP->fx_frag->fr_address;
+		int ln;
+		char *fname;
+
+		if (fixP->fx_frag->line) {
+			fname = fixP->fx_frag->line->file->filename;
+			ln = fixP->fx_frag->line->line;
+		} else {
+			fname = "";
+			ln = -1;
+		}
+
+		as_warn_where(fname, ln,
+			"Relocation (%s) overflow at %#x, value truncated.",
+			Reloc[fixP->fx_r_type], addr);
 	} /* on overflow */
 
-	return;
 } /* reloc_check() */
+
 
 /* Apply a fixS to the frags, now that we know the value it ought to
    hold. */
@@ -1224,20 +1272,9 @@ fixS *fixP;
 long val;
 {
 	char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-	
+	long addr = fixP->fx_where + fixP->fx_frag->fr_address;
+
 #if DEBUG_SPARC
-	static char *Reloc[] = {
-		"RELOC_8", "RELOC_16", "RELOC_32",
-		"RELOC_DISP8", "RELOC_DISP16", "RELOC_DISP32",
-		"RELOC_WDISP30", "RELOC_WDISP22",
-		"RELOC_HI22",
-		"RELOC_22", "RELOC_13",
-		"RELOC_LO10", "RELOC_SFA_BASE", "RELOC_SFA_OFF13",
-		"RELOC_BASE10", "RELOC_BASE13", "RELOC_BASE22", "RELOC_PC10",
-		"RELOC_PC22", "RELOC_JMP_TBL", "RELOC_SEGOFF16",
-		"RELOC_GLOB_DAT", "RELOC_JMP_SLOT", "RELOC_RELATIVE",
-		"NO_RELOC"
-	    };
 	if (flagseen['D'])
 		fprintf(stderr, "md_apply_fix: \"%s\" \"%s\", val %d -- %s\n",
 				((fixP->fx_addsy != NULL)
@@ -1277,24 +1314,38 @@ long val;
 		   became  ( ( 2 * addend ) + adjustment ).  [and there should
 		   be no cases that reach here anyway.  */
 	case RELOC_32:
-		buf[0] = 0; /* val >> 24; */
-		buf[1] = 0; /* val >> 16; */
-		buf[2] = 0; /* val >> 8; */
-		buf[3] = 0; /* val; */
+		if (fixP->fx_addsy == NULL) {
+			/*
+			 * Ok, the remarks above do not hold if the
+			 * expression has been reduced to a number.
+			 */
+			buf[0] = val >> 24;
+			buf[1] = val >> 16;
+			buf[2] = val >> 8;
+			buf[3] = val;
+		} else {
+			buf[0] = 0;
+			buf[1] = 0;
+			buf[2] = 0;
+			buf[3] = 0;
+		}
 		break;
 		
-#if 0
-	case RELOC_8:         /* These don't seem to ever be needed. */
-	case RELOC_16:
-	case RELOC_DISP8:
-	case RELOC_DISP16:
-	case RELOC_DISP32:
-#endif
-
 	case RELOC_JMP_TBL:
+		if (!fixP->fx_addsy) {
+			val = (val >>= 2) + 1;
+			reloc_check(val, 30, fixP);
+
+			buf[0] |= (val >> 24) & 0x3f;
+			buf[1]= (val >> 16);
+			buf[2] = val >> 8;
+			buf[3] = val;
+		}
+		break;
+
 	case RELOC_WDISP30:
 		val = (val >>= 2) + 1;
-		reloc_check(val, 30);
+		reloc_check(val, 30, fixP);
 						  
 		buf[0] |= (val >> 24) & 0x3f;
 		buf[1]= (val >> 16);
@@ -1302,76 +1353,89 @@ long val;
 		buf[3] = val;
 		break;
 		
-		
-	case RELOC_HI22:
-		reloc_check(val >> 10, 22);
+	case RELOC_WDISP22:
+		val = (val >>= 2) + 1;
+		reloc_check(val, 22, fixP);
 
+		buf[1] |= (val >> 16) & 0x3f;
+		buf[2] = val >> 8;
+		buf[3] = val;
+		break;
+
+	/*
+	 * We should only use the RELOC_HI22 type as a result of the %hi
+	 * operator (which is implicit in the case of the `set' pseudo op),
+	 * This is NOT the same as using the `sethi' instruction, which merely
+	 * puts the 22 bit operand into the high 22 bits of the destination
+	 * register.
+	 */
+	case RELOC_22:
+		if (!fixP->fx_addsy) {
+			reloc_check(val, 22, fixP);
+
+			buf[1] |= (val >> 16) & 0x3f;
+			buf[2] = val >> 8;
+			buf[3] = val;
+		}
+		break;
+
+	case RELOC_HI22:
+	case RELOC_BASE22:
 		if (!fixP->fx_addsy) {
 			buf[1] |= (val >> 26) & 0x3f;
 			buf[2] = val >> 18;
 			buf[3] = val >> 10;
 		} else {
+			if (flagseen['k'] && fixP->fx_r_type == RELOC_HI22)
+				as_warn("non-PIC access to %s",
+						S_GET_NAME(fixP->fx_addsy));
 			buf[2]=0;
 			buf[3]=0;
 		}
 		break;
-		
-	case RELOC_PC22:
-	case RELOC_22:
-		reloc_check(val, 22);
-						  
-		buf[1] |= (val >> 16) & 0x3f;
-		buf[2] = val >> 8;
-		buf[3] = val & 0xff;
-		break;
-		
-	case RELOC_13:
-		reloc_check(val, 13);
 
-		buf[2] = (val >> 8) & 0x1f;
-		buf[3] = val & 0xff;
+	case RELOC_13:
+	case RELOC_BASE13:
+		if (!fixP->fx_addsy) {
+			reloc_check(val, 13, fixP);
+			buf[2] |= (val >> 8) & 0x1f;
+			buf[3] = val;
+		} else {
+			buf[3]=0;
+		}
 		break;
-		
-		
-	case RELOC_PC10:
+
 	case RELOC_LO10:
 	case RELOC_BASE10:
-		reloc_check(val, 10);
-						  
 		if (!fixP->fx_addsy) {
 			buf[2] |= (val >> 8) & 0x03;
-			buf[3] = val;
-		} else
-		    buf[3]=0;
+			buf[3] = val & 0xff;
+		} else {
+			if (flagseen['k'] && fixP->fx_r_type == RELOC_LO10)
+				as_warn("non-PIC access to %s",
+						S_GET_NAME(fixP->fx_addsy));
+			buf[3]=0;
+		}
 		break;
-#if 0
-	case RELOC_SFA_BASE:
-	case RELOC_SFA_OFF13:
-#endif
-	case RELOC_BASE13:
-		reloc_check(val, 13);
-						  
-		buf[2] |= (val >> 8) & 0x1f;
-		buf[3] = val;
-		break;
-		
-	case RELOC_WDISP22:
-		val = (val >>= 2) + 1;
-		/* FALLTHROUGH */
-	case RELOC_BASE22:
-		reloc_check(val, 22);
-						  
-		buf[1] |= (val >> 16) & 0x3f;
-		buf[2] = val >> 8;
-		buf[3] = val;
-		break;
-		
-#if 0
+
 	case RELOC_PC10:
 	case RELOC_PC22:
-	case RELOC_JMP_TBL:
+		if (fixP->fx_addsy != GOT_symbol) {
+			as_fatal("GOT");
+		}
+		break;
+
+#if 0
+	case RELOC_8:         /* These don't seem to ever be needed. */
+	case RELOC_16:
+	case RELOC_DISP8:
+	case RELOC_DISP16:
+	case RELOC_DISP32:
 	case RELOC_SEGOFF16:
-	case RELOC_GLOB_DAT:
+	case RELOC_SFA_BASE:
+	case RELOC_SFA_OFF13:
+
+	case RELOC_GLOB_DAT: /* These are output by linker only */
 	case RELOC_JMP_SLOT:
 	case RELOC_RELATIVE:
 #endif
@@ -1437,8 +1501,8 @@ relax_addressT segment_address_in_file;
 			case RELOC_32:
 				if (!S_IS_EXTERNAL(fixP->fx_addsy))
 					break;
+				r_extern = 1;
 				r_index = fixP->fx_addsy->sy_number;
-				/*kflag = 1;*/
 				break;
 
 			default:
@@ -1518,33 +1582,6 @@ segT segtype;
 static void print_insn(insn)
 struct sparc_it *insn;
 {
-	static char *Reloc[] = {
-		"RELOC_8",
-		"RELOC_16",
-		"RELOC_32",
-		"RELOC_DISP8",
-		"RELOC_DISP16",
-		"RELOC_DISP32",
-		"RELOC_WDISP30",
-		"RELOC_WDISP22",
-		"RELOC_HI22",
-		"RELOC_22",
-		"RELOC_13",
-		"RELOC_LO10",
-		"RELOC_SFA_BASE",
-		"RELOC_SFA_OFF13",
-		"RELOC_BASE10",
-		"RELOC_BASE13",
-		"RELOC_BASE22",
-		"RELOC_PC10",
-		"RELOC_PC22",
-		"RELOC_JMP_TBL",
-		"RELOC_SEGOFF16",
-		"RELOC_GLOB_DAT",
-		"RELOC_JMP_SLOT",
-		"RELOC_RELATIVE",
-		"NO_RELOC"
-	    };
 	
 	if (insn->error) {
 		fprintf(stderr, "ERROR: %s\n", insn->error);

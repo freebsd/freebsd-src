@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: as.h,v 1.3 1993/10/02 20:57:16 pk Exp $
+ * $Id: as.h,v 1.2 1993/11/03 00:51:11 paul Exp $
  */
 
 #define GAS 1
@@ -45,6 +45,14 @@
 #ifndef __FILE__
 #define __FILE__ "unknown"
 #endif /* __FILE__ */
+
+#ifndef PARAMS
+#if __STDC__ != 1
+#define PARAMS(x)	()
+#else
+#define PARAMS(x)	x
+#endif
+#endif /*PARAMS */
 
 /*
  * I think this stuff is largely out of date.  xoxorich.
@@ -335,8 +343,8 @@ int scrub_from_string(void);
 int seen_at_least_1_file(void);
 void app_pop(char *arg);
 void as_howmuch(FILE *stream);
-void as_perror(char *gripe, char *filename);
-void as_where(void);
+void as_perror(const char *gripe, const char *filename);
+void as_where(char **, unsigned int *);
 void bump_line_counters(void);
 void do_scrub_begin(void);
 void input_scrub_begin(void);

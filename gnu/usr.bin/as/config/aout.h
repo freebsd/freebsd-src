@@ -394,7 +394,13 @@ struct relocation_info {
 	/* Address (within segment) to be relocated.  */
 	int r_address;
 	/* The meaning of r_symbolnum depends on r_extern.  */
+#if defined(TC_NS32K) && !defined(TE_SEQUENT)
+	unsigned int r_symbolnum:22;
+	unsigned int r_copy:1;
+	unsigned int r_relative:1;
+#else
 	unsigned int r_symbolnum:24;
+#endif
 	/* Nonzero means value is a pc-relative offset
 	   and it should be relocated for changes in its own address
 	   as well as for changes in the symbol or section specified.  */
@@ -409,19 +415,23 @@ struct relocation_info {
 	   r_symbolnum is N_TEXT, N_DATA, N_BSS or N_ABS
 	   (the N_EXT bit may be set also, but signifies nothing).  */
 	unsigned int r_extern:1;
+#ifdef TC_NS32K
+#ifdef TE_SEQUENT
+	unsigned int r_bsr:1;
+#else
+	unsigned int r_jmptable:1;
+#endif
+	unsigned int r_disp:2;
+	unsigned int r_baserel:1;
+#else
 	/* The next three bits are for SunOS shared libraries, and seem to
 	   be undocumented.  */
 	unsigned int r_baserel:1;	/* Linkage table relative */
 	unsigned int r_jmptable:1;	/* pc-relative to jump table */
-	
-#ifdef TC_NS32K
-#define r_bsr	r_baserel
-#define r_disp	r_jmptable
-#endif /* TC_NS32K */
-	
 	unsigned int r_relative:1;	/* "relative relocation" */
 	/* unused */
 	unsigned int r_pad:1;		/* Padding -- set to zero */
+#endif
 };
 #endif /* CUSTOM_RELOC_FORMAT */
 

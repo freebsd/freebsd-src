@@ -21,9 +21,7 @@
 #include "obstack.h"
 
 
-#ifndef NO_LISTING
-#include "aout/stab_gnu.h"
-#endif /* NO_LISTING */
+#include <stab.h>
 
 /* in: segT   out: N_TYPE bits */
 const short seg_N_TYPE[] = {
@@ -44,21 +42,22 @@ const short seg_N_TYPE[] = {
 };
 
 const segT N_TYPE_seg[N_TYPE+2] = {	/* N_TYPE == 0x1E = 32-2 */
-	SEG_UNKNOWN,			/* N_UNDF == 0 */
-	SEG_GOOF,
-	SEG_ABSOLUTE,			/* N_ABS == 2 */
-	SEG_GOOF,
-	SEG_TEXT,			/* N_TEXT == 4 */
-	SEG_GOOF,
-	SEG_DATA,			/* N_DATA == 6 */
-	SEG_GOOF,
-	SEG_BSS,			/* N_BSS == 8 */
-	SEG_GOOF,
-	SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF,
-	SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF,
-	SEG_GOOF, SEG_GOOF, SEG_GOOF, SEG_GOOF,
-	SEG_REGISTER,			/* dummy N_REGISTER for regs = 30 */
-	SEG_GOOF,
+	SEG_UNKNOWN,	SEG_GOOF,	/* N_UNDF == 0 */
+	SEG_ABSOLUTE,	SEG_GOOF,	/* N_ABS == 2 */
+	SEG_TEXT,	SEG_GOOF,	/* N_TEXT == 4 */
+	SEG_DATA,	SEG_GOOF,	/* N_DATA == 6 */
+	SEG_BSS,	SEG_GOOF,	/* N_BSS == 8 */
+	SEG_GOOF,	SEG_GOOF,	/* N_INDR == 0xa */
+	SEG_GOOF,	SEG_GOOF,	/* 0xc */
+	SEG_GOOF,	SEG_GOOF,	/* 0xe */
+	SEG_GOOF,	SEG_GOOF,	/* 0x10 */
+	SEG_REGISTER,	SEG_GOOF,	/* 0x12 (dummy N_REGISTER) */
+	SEG_GOOF,	SEG_GOOF,	/* N_SETA == 0x14 */
+	SEG_GOOF,	SEG_GOOF,	/* N_SETT == 0x16 */
+	SEG_GOOF,	SEG_GOOF,	/* N_SETD == 0x18 */
+	SEG_GOOF,	SEG_GOOF,	/* N_SETB == 0x1a */
+	SEG_GOOF,	SEG_GOOF,	/* N_SETV == 0x1c */
+	SEG_GOOF,	SEG_GOOF,	/* N_WARNING == 0x1e */
 };
 
 #if __STDC__ == 1
@@ -141,18 +140,18 @@ char **where;
 object_headers *headers;
 {
 	tc_headers_hook(headers);
-	
-#if defined(OLD_GAS) && defined(TC_I386)
- /* I think that this old behaviour was wrong, but this lets me compare to the
-    previous gas.  xoxorich.  */
-	md_number_to_chars(*where, headers->header.a_info, 2);
-	*where += 2;
-	md_number_to_chars(*where, 0, 2);
-	*where += 2;
-#else /* not (TC_I386 && OLD_GAS) */
-	md_number_to_chars(*where, headers->header.a_info, sizeof(headers->header.a_info));
+
+#if defined(FREEBSD_AOUT) || defined(NETBSD_AOUT)
+	/* `a_info' (magic, mid, flags) is in network byte-order */
+	(*where)[0] = ((char *)&headers->header.a_info)[0];
+	(*where)[1] = ((char *)&headers->header.a_info)[1];
+	(*where)[2] = ((char *)&headers->header.a_info)[2];
+	(*where)[3] = ((char *)&headers->header.a_info)[3];
+#else
+	md_number_to_chars(*where, headers->header.a_info,
+			   sizeof(headers->header.a_info));
+#endif
 	*where += sizeof(headers->header.a_info);
-#endif /* not (TC_I386 && OLD_GAS) */
 
 #ifdef TE_HPUX
 	md_number_to_chars(*where, 0, 4); *where += 4; /* a_spare1 */
@@ -514,11 +513,10 @@ object_headers *headers;
 			|| S_IS_EXTERNAL(symbolP)
 #endif /* TC_I960 */
 			|| (S_GET_NAME(symbolP)[0] != '\001' &&
-				(flagseen['L'] || ! S_LOCAL_NAME(symbolP)
+				(flagseen['L'] || ! S_LOCAL_NAME(symbolP))
 #ifdef PIC
-				|| flagseen['k'] && symbolP->sy_forceout
+				|| (flagseen['k'] && symbolP->sy_forceout)
 #endif
-				)
 			   )
 			)
 #ifdef PIC
@@ -627,11 +625,12 @@ char **where;
 void obj_pre_write_hook(headers)
 object_headers *headers;
 {
-	H_SET_DYNAMIC(headers, 0);
-	H_SET_VERSION(headers, 0);
-	H_SET_MACHTYPE(headers, AOUT_MACHTYPE);
+	H_SET_INFO(headers,
+		   DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE,
+		   AOUT_MACHTYPE,
+		   AOUT_FLAGS,
+		   AOUT_VERSION);
 
-	H_SET_MAGIC_NUMBER(headers, DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE);
 	H_SET_ENTRY_POINT(headers, 0);
 		
 	tc_aout_pre_write_hook(headers);
