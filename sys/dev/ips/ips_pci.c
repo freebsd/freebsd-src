@@ -77,14 +77,17 @@ static int ips_pci_attach(device_t dev)
 		sc->ips_adapter_reinit = ips_morpheus_reinit;
                 sc->ips_adapter_intr = ips_morpheus_intr;
 		sc->ips_issue_cmd    = ips_issue_morpheus_cmd;
+		sc->ips_poll_cmd     = ips_morpheus_poll;
         } else if(pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID){
 		sc->ips_adapter_reinit = ips_copperhead_reinit;
                 sc->ips_adapter_intr = ips_copperhead_intr;
 		sc->ips_issue_cmd    = ips_issue_copperhead_cmd;
+		sc->ips_poll_cmd     = ips_copperhead_poll;
 	} else if (pci_get_device(dev) == IPS_MARCO_DEVICE_ID){
 		sc->ips_adapter_reinit = ips_morpheus_reinit;
 		sc->ips_adapter_intr = ips_morpheus_intr;
 		sc->ips_issue_cmd = ips_issue_morpheus_cmd;
+		sc->ips_poll_cmd     = ips_morpheus_poll;
 	} else
                 goto error;
         /* make sure busmastering is on */

@@ -427,6 +427,7 @@ typedef struct ips_softc{
 						       int force);
         void                    (* ips_adapter_intr)(void *sc);
 	void			(* ips_issue_cmd)(ips_command_t *command);
+	void			(* ips_poll_cmd)(ips_command_t *command);
 	ips_copper_queue_t *	copper_queue;
 	struct mtx		queue_mtx;
 	struct bio_queue_head	queue;
@@ -457,7 +458,9 @@ extern int ips_morpheus_reinit(ips_softc_t *sc, int force);
 extern int ips_adapter_free(ips_softc_t *sc);
 extern void ips_morpheus_intr(void *sc);
 extern void ips_issue_morpheus_cmd(ips_command_t *command);
+extern void ips_morpheus_poll(ips_command_t *command);
 extern int ips_copperhead_reinit(ips_softc_t *sc, int force);
 extern void ips_copperhead_intr(void *sc);
 extern void ips_issue_copperhead_cmd(ips_command_t *command);
+extern void ips_copperhead_poll(ips_command_t *command);
 
