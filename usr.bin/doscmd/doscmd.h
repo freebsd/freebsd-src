@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.h,v 2.3 1996/04/08 19:32:32 bostic Exp
  *
- * $Id: doscmd.h,v 1.2 1997/08/15 23:41:24 jlemon Exp $
+ * $Id: doscmd.h,v 1.3 1997/09/30 22:03:41 jlemon Exp $
  */
 
 
@@ -61,6 +61,8 @@
 #include "callback.h"
 #include "cwd.h"
 
+#define drlton(a)	((islower((a)) ? toupper((a)) : (a)) - 'A')
+#define drntol(a)	((a) + 'A')
 
 /* 
 ** assorted hardware/scope constants 

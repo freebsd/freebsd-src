@@ -31,7 +31,7 @@
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
  *
- * $Id: dos.c,v 1.8 1996/09/23 09:59:24 miff Exp $
+ * $Id: dos.c,v 1.1 1997/08/09 01:42:40 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -2007,7 +2007,7 @@ fcb_to_string(fcbp, buf)
 {
 
 	if (fcbp->fcbDriveID != 0x00) {
-		*buf++ = fcbp->fcbDriveID - 1 + 'A';
+		*buf++ = drntol(fcbp->fcbDriveID - 1);
 		*buf++ = ':';
 	}
 	pack_name(fcbp->fcbFileName, buf);
