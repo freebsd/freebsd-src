@@ -47,9 +47,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
