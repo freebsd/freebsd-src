@@ -531,8 +531,7 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 void
-chat_Init(struct chat *c, struct physical *p, const char *data,
-          const char *phone)
+chat_Init(struct chat *c, struct physical *p)
 {
   c->desc.type = CHAT_DESCRIPTOR;
   c->desc.UpdateSet = chat_UpdateSet;
@@ -540,7 +539,20 @@ chat_Init(struct chat *c, struct physical *p, const char *data,
   c->desc.Read = chat_Read;
   c->desc.Write = chat_Write;
   c->physical = p;
+  *c->script = '\0';
+  c->argc = 0;
+  c->arg = -1;
+  c->argptr = NULL;
+  c->nargptr = NULL;
+  c->bufstart = c->bufend = c->buf;
 
+  memset(&c->pause, '\0', sizeof c->pause);
+  memset(&c->timeout, '\0', sizeof c->timeout);
+}
+
+void
+chat_Setup(struct chat *c, const char *data, const char *phone)
+{
   c->state = CHAT_EXPECT;
 
   if (data == NULL) {
@@ -556,26 +568,29 @@ chat_Init(struct chat *c, struct physical *p, const char *data,
   c->argptr = NULL;
   c->nargptr = NULL;
 
-  if (c->bufstart == NULL)
-    c->bufstart = c->bufend = c->buf;
-
   c->TimeoutSec = 30;
   c->TimedOut = 0;
   c->phone = phone;
   c->abort.num = 0;
 
-  memset(&c->pause, '\0', sizeof c->pause);
-  memset(&c->timeout, '\0', sizeof c->timeout);
+  timer_Stop(&c->pause);
+  timer_Stop(&c->timeout);
 }
 
 void
-chat_Destroy(struct chat *c)
+chat_Finish(struct chat *c)
 {
   timer_Stop(&c->pause);
   timer_Stop(&c->timeout);
   while (c->abort.num)
     free(c->abort.string[--c->abort.num].data);
   c->abort.num = 0;
+}
+
+void
+chat_Destroy(struct chat *c)
+{
+  chat_Finish(c);
 }
 
 /*
