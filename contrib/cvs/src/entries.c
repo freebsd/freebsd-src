@@ -450,12 +450,15 @@ fputentent(fp, p)
 }
 
 
-/*
- * Read the entries file into a list, hashing on the file name.
- */
+/* Read the entries file into a list, hashing on the file name.
+
+   UPDATE_DIR is the name of the current directory, for use in error
+   messages, or NULL if not known (that is, noone has gotten around
+   to updating the caller to pass in the information).  */
 List *
-Entries_Open (aflag)
+Entries_Open (aflag, update_dir)
     int aflag;
+    char *update_dir;
 {
     List *entries;
     struct stickydirtag *sdtp = NULL;
@@ -492,7 +495,11 @@ Entries_Open (aflag)
 
     fpin = CVS_FOPEN (CVSADM_ENT, "r");
     if (fpin == NULL)
+    {
+	if (update_dir != NULL)
+	    error (0, 0, "in directory %s:", update_dir);
 	error (0, errno, "cannot open %s for reading", CVSADM_ENT);
+    }
     else
     {
 	while ((ent = fgetentent (fpin, (char *) NULL, &sawdir)) != NULL) 
@@ -797,9 +804,22 @@ Subdirs_Known (entries)
 	if (!noexec)
 	{
 	    /* Create Entries.Log so that Entries_Close will do something.  */
-	    fp = open_file (CVSADM_ENTLOG, "a");
-	    if (fclose (fp) == EOF)
-		error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+	    fp = CVS_FOPEN (CVSADM_ENTLOG, "a");
+	    if (fp == NULL)
+	    {
+		int save_errno = errno;
+
+		/* As in subdir_record, just silently skip the whole thing
+		   if there is no CVSADM directory.  */
+		if (! isdir (CVSADM))
+		    return;
+		error (1, save_errno, "cannot open %s", entfilename);
+	    }
+	    else
+	    {
+		if (fclose (fp) == EOF)
+		    error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+	    }
 	}
     }
 }

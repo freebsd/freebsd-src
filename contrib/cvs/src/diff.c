@@ -636,13 +636,11 @@ RCS file: ", 0);
 					 : vers->options),
 					tmp, (RCSCHECKOUTPROC) NULL,
 					(void *) NULL);
-		if (retcode == -1)
+		if (retcode != 0)
 		{
-		    (void) CVS_UNLINK (tmp);
-		    error (1, errno, "fork failed during checkout of %s",
-			   vers->srcfile->path);
+		    diff_mark_errors (err);
+		    return err;
 		}
-		/* FIXME: what if retcode > 0?  */
 
 		status = diff_exec (DEVNULL, tmp, opts, RUN_TTY);
 	    }
@@ -657,13 +655,11 @@ RCS file: ", 0);
 				    *options ? options : vers->options,
 				    tmp, (RCSCHECKOUTPROC) NULL,
 				    (void *) NULL);
-	    if (retcode == -1)
+	    if (retcode != 0)
 	    {
-		(void) CVS_UNLINK (tmp);
-		error (1, errno, "fork failed during checkout of %s",
-		       vers->srcfile->path);
+		diff_mark_errors (err);
+		return err;
 	    }
-	    /* FIXME: what if retcode > 0?  */
 
 	    status = diff_exec (tmp, DEVNULL, opts, RUN_TTY);
 	}
@@ -719,7 +715,8 @@ RCS file: ", 0);
     if (empty_file == DIFF_REMOVED
 	|| (empty_file == DIFF_ADDED && use_rev2 != NULL))
     {
-	(void) CVS_UNLINK (tmp);
+	if (CVS_UNLINK (tmp) < 0)
+	    error (0, errno, "cannot remove %s", tmp);
 	free (tmp);
     }
 

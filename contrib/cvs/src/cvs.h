@@ -402,6 +402,7 @@ int RCS_merge PROTO((RCSNode *, char *, char *, char *, char *, char *));
 #define RCS_FLAGS_DEAD 2
 #define RCS_FLAGS_QUIET 4
 #define RCS_FLAGS_MODTIME 8
+#define RCS_FLAGS_KEEPFILE 16
 
 extern int RCS_exec_rcsdiff PROTO ((RCSNode *rcsfile,
 				    char *opts, char *options,
@@ -422,7 +423,7 @@ DBM *open_module PROTO((void));
 FILE *open_file PROTO((const char *, const char *));
 List *Find_Directories PROTO((char *repository, int which, List *entries));
 void Entries_Close PROTO((List *entries));
-List *Entries_Open PROTO((int aflag));
+List *Entries_Open PROTO ((int aflag, char *update_dir));
 void Subdirs_Known PROTO((List *entries));
 void Subdir_Register PROTO((List *, const char *, const char *));
 void Subdir_Deregister PROTO((List *, const char *, const char *));
@@ -461,10 +462,12 @@ int SIG_register PROTO((int sig, SIGCLEANUPPROC sigcleanup));
 int isdir PROTO((const char *file));
 int isfile PROTO((const char *file));
 int islink PROTO((const char *file));
+int isdevice PROTO ((const char *));
 int isreadable PROTO((const char *file));
 int iswritable PROTO((const char *file));
 int isaccessible PROTO((const char *file, const int mode));
 int isabsolute PROTO((const char *filename));
+char *xreadlink PROTO((const char *link));
 char *last_component PROTO((char *path));
 char *get_homedir PROTO ((void));
 char *cvs_temp_name PROTO ((void));
@@ -727,6 +730,9 @@ void freevers_ts PROTO ((Vers_TS ** versp));
 int Checkin PROTO ((int type, struct file_info *finfo, char *rcs, char *rev,
 		    char *tag, char *options, char *message));
 int No_Difference PROTO ((struct file_info *finfo, Vers_TS *vers));
+/* TODO: can the finfo argument to special_file_mismatch be changed? -twp */
+int special_file_mismatch PROTO ((struct file_info *finfo,
+				  char *rev1, char *rev2));
 
 /* CVSADM_BASEREV stuff, from entries.c.  */
 extern char *base_get PROTO ((struct file_info *));

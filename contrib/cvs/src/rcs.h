@@ -169,13 +169,17 @@ typedef struct rcsversnode RCSVers;
 /* The type of a function passed to RCS_checkout.  */
 typedef void (*RCSCHECKOUTPROC) PROTO ((void *, const char *, size_t));
 
+#ifdef __STDC__
+struct rcsbuffer;
+#endif
+
 /*
  * exported interfaces
  */
 RCSNode *RCS_parse PROTO((const char *file, const char *repos));
 RCSNode *RCS_parsercsfile PROTO((char *rcsfile));
 void RCS_fully_parse PROTO((RCSNode *));
-void RCS_reparsercsfile PROTO((RCSNode *, FILE **));
+void RCS_reparsercsfile PROTO((RCSNode *, FILE **, struct rcsbuffer *));
 
 char *RCS_check_kflag PROTO((const char *arg));
 char *RCS_getdate PROTO((RCSNode * rcs, char *date, int force_tag_match));
@@ -216,6 +220,8 @@ void RCS_rewrite PROTO ((RCSNode *, Deltatext *, char *));
 int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 			    size_t, char **, size_t *));
 char *make_file_label PROTO ((char *, char *, RCSNode *));
+
+extern int preserve_perms;
 
 /* From import.c.  */
 extern int add_rcs_file PROTO ((char *, char *, char *, char *, char *,

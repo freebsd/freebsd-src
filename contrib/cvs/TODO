@@ -642,9 +642,6 @@ of -q; I don't know whether anyone has done a similar investigation of
       Rationale might be that we already printed another message
       elsewhere but why would it be necessary to avoid
       the extra message in such an uncommon case?)
-    commit.c: failed to check out `%s' (likewise; this one seems to be a
-      vestige from before RCS_checkout was internal.  Take a look at how
-      RCS_checkout handles errors)
     commit.c: failed to commit dead revision for `%s' (likewise)
     remove.c: file `%s' still in working directory (see below about rm
       -f analogy)
