@@ -15,6 +15,9 @@ prior to 4.0 Release.
 	the installed miniperl.  It is recommended that you delete
 	/usr/bin/miniperl.
 
+20000925:
+	FreeBSD 4.1.1 RELEASE.
+
 20000907:
 	Networking defaults have been tightened.  Anybody upgrading
 	/etc/defaults/rc.conf needs to add the following lines to
@@ -65,7 +68,7 @@ prior to 4.0 Release.
 	to /MYKERNEL.
 
 20000724:
-	FreeBSD 4.1 Released on or about this date.
+	FreeBSD 4.1 RELEASE
 
 20000711:
 	If you use CVSUP or CTM to get CVS trees, AND you used to get 
