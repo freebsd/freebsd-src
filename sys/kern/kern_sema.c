@@ -108,7 +108,7 @@ _sema_wait(struct sema *sema, const char *file, int line)
 int
 _sema_timedwait(struct sema *sema, int timo, const char *file, int line)
 {
-	int ret, timed_out;
+	int error;
 
 	mtx_lock(&sema->sema_mtx);
 
@@ -118,27 +118,25 @@ _sema_timedwait(struct sema *sema, int timo, const char *file, int line)
 	 * continuously, since the timeout period is merely a lower bound on how
 	 * long to wait.
 	 */
-	for (timed_out = 0; sema->sema_value == 0 && timed_out == 0;) {
+	for (error = 0; sema->sema_value == 0 && error == 0;) {
 		sema->sema_waiters++;
-		timed_out = cv_timedwait(&sema->sema_cv, &sema->sema_mtx, timo);
+		error = cv_timedwait(&sema->sema_cv, &sema->sema_mtx, timo);
 		sema->sema_waiters--;
 	}
 	if (sema->sema_value > 0) {
 		/* Success. */
 		sema->sema_value--;
-		ret = 1;
+		error = 0;
 
 		CTR6(KTR_LOCK, "%s(%p) \"%s\" v = %d at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), sema->sema_value, file, line);
 	} else {
-		ret = 0;
-		
 		CTR5(KTR_LOCK, "%s(%p) \"%s\" fail at %s:%d", __func__, sema,
 		    cv_wmesg(&sema->sema_cv), file, line);
 	}
 
 	mtx_unlock(&sema->sema_mtx);
-	return (ret);
+	return (error);
 }
 
 int
