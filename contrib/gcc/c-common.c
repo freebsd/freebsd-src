@@ -983,6 +983,15 @@ split_specs_attrs (specs_attrs, declspecs, prefix_attributes)
 {
   tree t, s, a, next, specs, attrs;
 
+  /* This can happen after an __extension__ in pedantic mode.  */
+  if (specs_attrs != NULL_TREE 
+      && TREE_CODE (specs_attrs) == INTEGER_CST)
+    {
+      *declspecs = NULL_TREE;
+      *prefix_attributes = NULL_TREE;
+      return;
+    }
+
   /* This can happen in c++ (eg: decl: typespec initdecls ';').  */
   if (specs_attrs != NULL_TREE
       && TREE_CODE (specs_attrs) != TREE_LIST)
@@ -1932,6 +1941,7 @@ check_format_info (info, params)
 	warning ("use of `%c' length character with `%c' type character",
 		 length_char, format_char);
 
+      /* Finally. . .check type of argument against desired type!  */
       if (info->first_arg_num == 0)
 	continue;
       if (fci->pointer_count == 0 && wanted_type == void_type_node)

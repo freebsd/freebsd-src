@@ -116,14 +116,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef HAS_INIT_SECTION
 
-/* Output assembler code to FILE to increment profiler label # LABELNO
-   for profiling a function entry.  Under FreeBSD/Alpha, the assembler does
-   nothing special with -pg.  */
-
-#undef  FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)				\
-	fputs ("\tjsr $28,_mcount\n", (FILE))  /* at */
-
 /* Show that we need a GP when profiling.  */
 #undef  TARGET_PROFILING_NEEDS_GP
 #define TARGET_PROFILING_NEEDS_GP

@@ -1,1 +1,3 @@
-char *version_string = "2.95.3 20010315 (release) [FreeBSD]";
+/* $FreeBSD$ */
+
+char *version_string = "2.95.4 20020320 [FreeBSD]";

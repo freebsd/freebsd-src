@@ -3,27 +3,24 @@
 .include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
-.if !defined(GCCDIR)
+.if !defined(__CC_MAKEFILE_INC__)
+__CC_MAKEFILE_INC__= ${MFILE}
+
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
-GCC_ARCH=	mips
-.else
-GCC_ARCH=	${TARGET_ARCH}
-.endif
-
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
+MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
 target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
-.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc" || ${GCC_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "alpha"
 USE_EGCS_HAIFA=	1
 .endif
 
-version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
+version!=	grep version_string ${GCCDIR}/version.c \
+		    | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
@@ -40,6 +37,10 @@ CFLAGS+=	-DHAIFA
 
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE
+.endif
+
+.if defined(WANT_FORCE_OPTIMIZATION_DOWNGRADE)
+CFLAGS+= -DFORCE_OPTIMIZATION_DOWNGRADE=${WANT_FORCE_OPTIMIZATION_DOWNGRADE}
 .endif
 
 .if exists(${.OBJDIR}/../cc_tools)
@@ -62,4 +63,4 @@ LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
 LIBCC_INT=	${.CURDIR}/../cc_int/libcc_int.a
 .endif
 
-.endif # !GCCDIR
+.endif # !__CC_MAKEFILE_INC__
