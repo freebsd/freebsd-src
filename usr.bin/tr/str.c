@@ -92,13 +92,6 @@ next(s)
 		if (s->str[0] == '-' && genrange(s))
 			return (next(s));
 		return (1);
-	case RANGE:
-		if (s->cnt-- == 0) {
-			s->state = NORMAL;
-			return (next(s));
-		}
-		++s->lastch;
-		return (1);
 	case SEQUENCE:
 		if (s->cnt-- == 0) {
 			s->state = NORMAL;
@@ -204,7 +197,7 @@ genclass(s)
 		errx(1, "unknown class %s", s->str);
 
 	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
-		err(1, "malloc");
+		err(1, "genclass() malloc");
 	bzero(p, (NCHARS + 1) * sizeof(int));
 	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
 		if ((func)(cnt))
@@ -282,16 +275,28 @@ genrange(s)
 {
 	int stopval;
 	char *savestart;
+	int n, cnt, *p;
 
 	savestart = s->str;
 	stopval = *++s->str == '\\' ? backslash(s) : (u_char)*s->str++;
-	if (stopval < (u_char)s->lastch) {
+	if (charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0) {
 		s->str = savestart;
 		return (0);
 	}
-	s->cnt = stopval - s->lastch + 1;
-	s->state = RANGE;
-	--s->lastch;
+	if ((s->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
+		err(1, "genrange() malloc");
+	bzero(p, (NCHARS + 1) * sizeof(int));
+	for (cnt = 0; cnt < NCHARS; ++cnt)
+		if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
+		    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
+			*p++ = cnt;
+	*p = OOBCH;
+	n = p - s->set;
+
+	s->cnt = 0;
+	s->state = SET;
+	if (n > 1)
+		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
 	return (1);
 }
 
