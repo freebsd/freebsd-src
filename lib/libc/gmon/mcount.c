@@ -32,12 +32,10 @@
  */
 
 #if !defined(lint) && !defined(_KERNEL) && defined(LIBC_SCCS)
-#if 0
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/gmon.h>
@@ -46,10 +44,10 @@ static const char rcsid[] =
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-void	bintr __P((void));
-void	btrap __P((void));
-void	eintr __P((void));
-void	user __P((void));
+void	bintr(void);
+void	btrap(void);
+void	eintr(void);
+void	user(void);
 #endif
 
 /*
@@ -68,16 +66,16 @@ void	user __P((void));
  * perform this optimization.
  */
 _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	register uintfptr_t frompc, selfpc;
+	uintfptr_t frompc, selfpc;
 {
 #ifdef GUPROF
 	u_int delta;
 #endif
-	register fptrdiff_t frompci;
-	register u_short *frompcindex;
-	register struct tostruct *top, *prevtop;
-	register struct gmonparam *p;
-	register long toindex;
+	fptrdiff_t frompci;
+	u_short *frompcindex;
+	struct tostruct *top, *prevtop;
+	struct gmonparam *p;
+	long toindex;
 #ifdef _KERNEL
 	MCOUNT_DECL(s)
 #endif
