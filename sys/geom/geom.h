@@ -61,9 +61,9 @@ struct g_event;
 struct thread;
 struct bio;
 struct sbuf;
-struct g_createargs;
+struct g_configargs;
 
-typedef int g_create_geom_t (struct g_createargs *ca);
+typedef int g_config_t (struct g_configargs *ca);
 typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
     int flags);
 #define G_TF_NORMAL		0
@@ -83,12 +83,12 @@ typedef void g_dumpconf_t (struct sbuf *, char *indent, struct g_geom *,
  * all BSD disklabel handlers share one g_class, all MBR handlers share
  * one common g_class and so on.
  * Certain operations are instantiated on the class, most notably the
- * taste and create_geom functions.
+ * taste and config_geom functions.
  */
 struct g_class {
 	char			*name;
 	g_taste_t		*taste;
-	g_create_geom_t		*create_geom;
+	g_config_t		*config;
 	/*
 	 * The remaning elements are private and classes should use
 	 * the G_CLASS_INITIALIZER macro to initialize them.
@@ -333,13 +333,11 @@ extern struct sx topology_lock;
  * IOCTLS for talking to the geom.ctl device.
  */
 
-struct geomgetconf {
-	char	*ptr;
-	u_int	len;
-};
-#define GEOMGETCONF _IOW('G',  0, struct geomgetconf)
-
-struct g_createargs {
+/*
+ * This is the structure used internally in the kernel, it is created and
+ * populated by geom_ctl.c.
+ */
+struct g_configargs {
 	/* Valid on call */
 	struct g_class		*class;
 	struct g_geom		*geom;
@@ -349,6 +347,9 @@ struct g_createargs {
 	void			*ptr;
 };
 
+/*
+ * This is the structure used to communicate with userland.
+ */
 struct geomconfiggeom {
 	/* Valid on call */
 	struct geomidorname	class;
@@ -357,9 +358,64 @@ struct geomconfiggeom {
 	u_int			flag;
 	u_int			len;
 	void			*ptr;
-	/* Valid on return */
 };
+
 #define GEOMCONFIGGEOM _IOW('G',  0, struct geomconfiggeom)
+
+#define GCFG_GENERIC0		0x00000000
+	/*
+	 * Generic requests suitable for all classes.
+	 */
+#define GCFG_CLASS0		0x10000000
+	/*
+	 * Class specific verbs.  Allocations in this part of the numberspace
+	 * can only be done after review and approval of phk@FreeBSD.org.
+	 * All allocations in this space will be listed in this file.
+	 */
+#define GCFG_PRIVATE0		0x20000000
+	/*
+	 * Lowest allocation for private flag definitions.
+	 * If you define you own private "verbs", please express them in
+	 * your code as (GCFG_PRIVATE0 + somenumber), where somenumber is
+	 * a magic number in the range [0x0 ... 0xfffffff] chosen the way
+	 * magic numbers are chosen.  Such allocation SHALL NOT be listed
+	 * here but SHOULD be listed in some suitable .h file.
+	 */
+#define GCFG_RESERVED0		0x30000000
+#define GCFG_RESERVEDN		0xffffffff
+	/*
+	 * This area is reserved for the future.
+	 */
+
+#define GCFG_CREATE		(GCFG_GENERIC0 + 0x0)
+	/*
+	 * Request geom construction.
+	 * ptr/len is class-specific.
+	 */
+#define GCFG_DISMANTLE		(GCFG_GENERIC0 + 0x1)
+	/*
+	 * Request orderly geom dismantling.
+	 * ptr/len is class-specific.
+	 */
+
+
+struct gcfg_magicrw {
+	off_t	offset;
+	u_int	len;
+};
+
+#define GCFG_MAGICREAD		(GCFG_GENERIC0 + 0x100)
+	/*
+	 * Read of magic spaces.
+	 * ptr/len is gcfgmagicrw structure followed by bufferspace
+	 * for data to be read.
+	 */
+#define GCFG_MAGICWRITE		(GCFG_GENERIC0 + 0x101)
+	/*
+	 * Write of magic spaces.
+	 * as above, only the other way.
+	 */
+
 
 /* geom_enc.c */
 uint16_t g_dec_be2(const u_char *p);
