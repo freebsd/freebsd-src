@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.130 1997/06/25 03:12:12 dima Exp $
+#	$Id: rc,v 1.131 1997/06/25 11:48:47 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -206,12 +206,18 @@ if [ "X${accounting_enable}" = X"YES" -a -d /var/account ]; then
 	accton /var/account/acct
 fi
 
-# Make shared lib searching a little faster.  Leave /usr/lib first if you
-# add your own entries or you may come to grief.
-_LDC=/usr/lib
-if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
-if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
-if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+# If we have an ld.so.conf file, let it do the job.  It is expected
+# to contain /usr/lib and other important system library locations
+# as well as those local to the site!
+if [ -f /etc/ld.so.conf ]; then
+	_LDC=/etc/ld.so.conf
+else
+	# Leave /usr/lib first when adding entries or you may come to grief.
+	_LDC=/usr/lib
+	if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
+	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
+	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+fi
 echo 'setting ldconfig path:' ${_LDC}
 ldconfig ${_LDC}
 
