@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.12 2000/03/01 03:03:53 grog Exp grog $
+ * $Id: commands.c,v 1.36 2000/12/20 05:05:39 grog Exp $
  * $FreeBSD$
  */
 
@@ -127,7 +127,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 
 	if (configline == NULL) {
 	    if (ferror(dfd))
-		perror("Can't read config file");
+		vinum_perror("Can't read config file");
 	    break;
 	}
 	file_line++;					    /* count the lines */
@@ -156,7 +156,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     make_devices();
     listconfig();
     checkupdates();					    /* make sure we're updating */
@@ -191,11 +191,11 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
 	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
-	    perror("Can't save Vinum config");
+	    vinum_perror("Can't save Vinum config");
     } else {
 	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
-	    perror("Can't save Vinum config");
+	    vinum_perror("Can't save Vinum config");
 	make_devices();
     }
     checkupdates();					    /* make sure we're updating */
@@ -287,7 +287,7 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 	    if (errno == EBUSY)
 		fprintf(stderr, "Can't reset configuration: objects are in use\n");
 	    else
-		perror("Can't find vinum config");
+		vinum_perror("Can't find vinum config");
 	} else {
 	    make_devices();				    /* recreate the /dev/vinum hierarchy */
 	    printf("\b Vinum configuration obliterated\n");
@@ -532,7 +532,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 
 	tokens = 0;					    /* no tokens yet */
 	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
-	    perror("Can't get device list");
+	    vinum_perror("Can't get device list");
 	    return;
 	}
 	namelist[0] = '\0';				    /* start with empty namelist */
@@ -707,7 +707,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	fileid = kldfind(VINUMMOD);
 	if ((fileid < 0)				    /* no go */
 	||(kldunload(fileid) < 0))
-	    perror("Can't unload " VINUMMOD);
+	    vinum_perror("Can't unload " VINUMMOD);
 	else {
 	    fprintf(stderr, VINUMMOD " unloaded\n");
 	    exit(0);
@@ -716,7 +716,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	/* If we got here, the stop failed.  Reopen the superdevice. */
 	superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* reopen vinum superdevice */
 	if (superdev < 0) {
-	    perror("Can't reopen Vinum superdevice");
+	    vinum_perror("Can't reopen Vinum superdevice");
 	    exit(1);
 	}
     } else {						    /* stop specified objects */
@@ -873,7 +873,7 @@ vinum_resetstats(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -935,7 +935,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     msg.index = find_object(objname, &msg.type);	    /* find the object to attach */
@@ -1057,7 +1057,7 @@ vinum_detach(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     msg.index = find_object(argv[0], &msg.type);	    /* find the object to detach */
@@ -1197,7 +1197,7 @@ vinum_rename(int argc, char *argv[], char *argv0[])
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     vinum_rename_2(argv[0], argv[1]);
@@ -1227,7 +1227,7 @@ vinum_mv(int argc, char *argv[], char *argv0[])
     }
     /* Get current config */
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Cannot get vinum config\n");
+	vinum_perror("Cannot get vinum config\n");
 	return;
     }
     /* Get our destination */
@@ -1616,7 +1616,7 @@ vinum_concat(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -1761,7 +1761,7 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -1905,7 +1905,7 @@ vinum_raid4(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -2049,7 +2049,7 @@ vinum_raid5(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {
@@ -2224,7 +2224,7 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     ioctltype = 0;					    /* saveconfig after update */
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
-	perror("Can't save Vinum config");
+	vinum_perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
     make_vol_dev(vol.volno, 1);				    /* and create the devices */
     if (vflag) {

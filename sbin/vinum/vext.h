@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.17 2000/05/07 04:17:12 grog Exp grog $
+ * $Id: vext.h,v 1.18 2000/06/02 03:55:01 grog Exp $
  * $FreeBSD$
  */
 
@@ -176,3 +176,14 @@ extern int file_line;					    /* and line in input file (yes, this is tacky) */
 extern char buffer[];					    /* buffer to read in to */
 
 #define min(a, b) a < b? a: b
+
+#ifdef DEVBUG
+#define vinum_perror(str)	\
+	do {												\
+		fprintf(stderr, "%s:%d> ", __FILE__, __LINE__);	\
+		perror(str);									\
+	} while (0)
+#else
+#define vinum_perror(str) perror(str)
+#endif
+

@@ -216,7 +216,7 @@ struct devcode {
     unsigned signbit:1;					    /* to make 32 bits */
 };
 
-#define VINUM_DIR   "vinum"
+#define VINUM_DIR   "/dev/vinum"
 
 /*
  * These definitions help catch
