@@ -772,20 +772,20 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int was_up, should_be_up;
 	struct ar_softc *sc = ifp->if_softc;
 
-	TRC(printf("ar%d: arioctl.\n", ifp->if_unit);)
+	TRC(if_printf(ifp, "arioctl.\n");)
 
 	was_up = ifp->if_flags & IFF_RUNNING;
 
 	error = sppp_ioctl(ifp, cmd, data);
-	TRC(printf("ar%d: ioctl: ifsppp.pp_flags = %x, if_flags %x.\n", 
-		ifp->if_unit, ((struct sppp *)ifp)->pp_flags, ifp->if_flags);)
+	TRC(if_printf(ifp, "ioctl: ifsppp.pp_flags = %x, if_flags %x.\n", 
+		((struct sppp *)ifp)->pp_flags, ifp->if_flags);)
 	if(error)
 		return (error);
 
 	if((cmd != SIOCSIFFLAGS) && cmd != (SIOCSIFADDR))
 		return (0);
 
-	TRC(printf("ar%d: arioctl %s.\n", ifp->if_unit, 
+	TRC(if_printf(ifp, "arioctl %s.\n",
 		(cmd == SIOCSIFFLAGS) ? "SIOCSIFFLAGS" : "SIOCSIFADDR");)
 
 	s = splimp();
