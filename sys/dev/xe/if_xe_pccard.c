@@ -75,63 +75,43 @@ extern int xe_debug;
 #endif
 
 
-struct xe_vendor_table {
-	u_int32_t vendor_id;
-	char *vendor_desc;
-} xe_vendor_devs[] = {
-	{ PCMCIA_VENDOR_XIRCOM, "Xircom" },
-	{ PCMCIA_VENDOR_COMPAQ, "Compaq" },
-	{ PCMCIA_VENDOR_COMPAQ2, "Compaq" },   /* Maybe Paralon Techologies, Inc */
-	{ PCMCIA_VENDOR_INTEL, "Intel" },
-	{ 0, "Unknown" }
-};
-
 #define XE_CARD_TYPE_FLAGS_NO 0x0
 #define XE_CARD_TYPE_FLAGS_CE2 0x1
 #define XE_CARD_TYPE_FLAGS_MOHAWK 0x2
 #define XE_CARD_TYPE_FLAGS_DINGO 0x4
-#define XE_PROD_UMASK 0x11000f
-#define XE_PROD_ETHER_UMASK 0x010000
-#define XE_PROD_MODEM_UMASK 0x100000
-#define XE_PROD_SINGLE_ID1 0x010001
-#define XE_PROD_SINGLE_ID2 0x010002
-#define XE_PROD_SINGLE_ID3 0x010003
-#define XE_PROD_MULTI_ID1 0x110001
-#define XE_PROD_MULTI_ID2 0x110002
-#define XE_PROD_MULTI_ID3 0x110003
-#define XE_PROD_MULTI_ID4 0x110004
-#define XE_PROD_MULTI_ID5 0x110005
-#define XE_PROD_MULTI_ID6 0x110006 
-#define XE_PROD_MULTI_ID7 0x110007  
+#define XE_PROD_ETHER_MASK 0x0100
+#define XE_PROD_MODEM_MASK 0x1000
 
-struct xe_card_type_table {
-	u_int32_t prod_type;
-	char *card_type_desc;
-	u_int32_t flags;
-} xe_card_type_devs[] = {
-	{ XE_PROD_MULTI_ID1, "CEM", XE_CARD_TYPE_FLAGS_NO },
-	{ XE_PROD_MULTI_ID2, "CEM2", XE_CARD_TYPE_FLAGS_CE2 },
-	{ XE_PROD_MULTI_ID3, "CEM3", XE_CARD_TYPE_FLAGS_CE2 },
-	{ XE_PROD_MULTI_ID4, "CEM33", XE_CARD_TYPE_FLAGS_CE2 },
-	{ XE_PROD_MULTI_ID5, "CEM56M", XE_CARD_TYPE_FLAGS_MOHAWK },
-	{ XE_PROD_MULTI_ID6, "CEM56", XE_CARD_TYPE_FLAGS_MOHAWK |
-					XE_CARD_TYPE_FLAGS_DINGO },
-	{ XE_PROD_MULTI_ID7, "CEM56", XE_CARD_TYPE_FLAGS_MOHAWK |
-					XE_CARD_TYPE_FLAGS_DINGO },
-	{ XE_PROD_SINGLE_ID1, "CE", XE_CARD_TYPE_FLAGS_NO },
-	{ XE_PROD_SINGLE_ID2, "CE2", XE_CARD_TYPE_FLAGS_CE2 },
-	{ XE_PROD_SINGLE_ID3, "CE3", XE_CARD_TYPE_FLAGS_MOHAWK },
-	{ 0, NULL,  -1 }
+
+struct xe_pccard_product {
+	struct pccard_product product;
+	u_int16_t prodext;
+	u_int16_t flags;
 };
 
-/*
- * Prototypes
- */
-static int xe_cemfix(device_t dev);
-static struct xe_vendor_table *xe_vendor_lookup(u_int32_t devid,
-					struct xe_vendor_table *tbl);
-static struct xe_card_type_table *xe_card_type_lookup(u_int32_t devid,
-					struct xe_card_type_table *tbl);
+static const struct xe_pccard_product xe_pccard_products[] = {
+	{ PCMCIA_CARD_D(ACCTON, EN2226, 0),      0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
+	{ PCMCIA_CARD_D(COMPAQ2, CPQ_10_100, 0), 0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
+	{ PCMCIA_CARD_D(INTEL, EEPRO100, 0),     0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
+	{ PCMCIA_CARD_D(XIRCOM, CE, 0),          0x41, XE_CARD_TYPE_FLAGS_NO },
+	{ PCMCIA_CARD_D(XIRCOM, CE2, 0),         0x41, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CE2, 0),         0x42, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CE2_2, 0),       0x41, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CE2_2, 0),       0x42, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CE3, 0),         0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
+	{ PCMCIA_CARD_D(XIRCOM, CEM, 0),         0x41, XE_CARD_TYPE_FLAGS_NO },
+	{ PCMCIA_CARD_D(XIRCOM, CEM2, 0),        0x42, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CEM28, 0),       0x43, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CEM33, 0),       0x44, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CEM33_2, 0),     0x44, XE_CARD_TYPE_FLAGS_CE2 },
+	{ PCMCIA_CARD_D(XIRCOM, CEM56, 0),       0x45, XE_CARD_TYPE_FLAGS_DINGO },
+	{ PCMCIA_CARD_D(XIRCOM, CEM56_2, 0),     0x46, XE_CARD_TYPE_FLAGS_DINGO },
+	{ PCMCIA_CARD_D(XIRCOM, REM56, 0),       0x46, XE_CARD_TYPE_FLAGS_DINGO },
+	{ PCMCIA_CARD_D(XIRCOM, REM10, 0),       0x47, XE_CARD_TYPE_FLAGS_DINGO },
+	{ PCMCIA_CARD_D(XIRCOM, XEM5600, 0),     0x56, XE_CARD_TYPE_FLAGS_DINGO },
+	{ { NULL }, 0, 0 }	
+};
+
 
 /*
  * Fixing for CEM2, CEM3 and CEM56/REM56 cards.  These need some magic to
@@ -191,28 +171,6 @@ xe_cemfix(device_t dev)
 	return (0);
 }
 
-static struct xe_vendor_table *
-xe_vendor_lookup(u_int32_t devid, struct xe_vendor_table *tbl)
-{
-	while(tbl->vendor_id) {
-		if(tbl->vendor_id == devid)
-			return (tbl);
-		tbl++;
-	}       
-	return (tbl); /* return Unknown */
-}
-      
-static struct xe_card_type_table *
-xe_card_type_lookup(u_int32_t devid, struct xe_card_type_table *tbl)
-{
-	while(tbl->prod_type) {
-		if(tbl->prod_type == (devid & XE_PROD_UMASK))
-			return (tbl);
-		tbl++;
-	}
-	return (NULL);
-}
-
 /*
  * PCMCIA probe routine.
  * Identify the device.  Called from the bus driver when the card is
@@ -222,20 +180,18 @@ static int
 xe_pccard_probe(device_t dev)
 {
 	struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
-	u_int32_t vendor,prodid,prod;
+	u_int32_t vendor,product;
 	u_int16_t prodext;
 	const char* vendor_str = NULL;
 	const char* product_str = NULL;
 	const char* cis4_str = NULL;
 	const char *cis3_str=NULL;
-	struct xe_vendor_table *vendor_itm;
-	struct xe_card_type_table *card_itm;
-	int i;
+	const struct xe_pccard_product *xpp;
 
 	DEVPRINTF(2, (dev, "pccard_probe\n"));
 
 	pccard_get_vendor(dev, &vendor);
-	pccard_get_product(dev, &prodid);
+	pccard_get_product(dev, &product);
 	pccard_get_prodext(dev, &prodext);
 	pccard_get_vendor_str(dev, &vendor_str);
 	pccard_get_product_str(dev, &product_str);
@@ -243,64 +199,58 @@ xe_pccard_probe(device_t dev)
 	pccard_get_cis4_str(dev, &cis4_str);
 
 	DEVPRINTF(1, (dev, "vendor = 0x%04x\n", vendor));
-	DEVPRINTF(1, (dev, "product = 0x%04x\n", prodid));
+	DEVPRINTF(1, (dev, "product = 0x%04x\n", product));
 	DEVPRINTF(1, (dev, "prodext = 0x%02x\n", prodext));
 	DEVPRINTF(1, (dev, "vendor_str = %s\n", vendor_str));
 	DEVPRINTF(1, (dev, "product_str = %s\n", product_str));
 	DEVPRINTF(1, (dev, "cis3_str = %s\n", cis3_str));
 	DEVPRINTF(1, (dev, "cis4_str = %s\n", cis4_str));
 
+
 	/*
-	 * PCCARD_CISTPL_MANFID = 0x20
+	 * Possibly already did this search in xe_pccard_match(),
+	 * but we need to do it here anyway to figure out which
+	 * card we have.
 	 */
-	pccard_get_vendor(dev, &vendor);
-	vendor_itm = xe_vendor_lookup(vendor, &xe_vendor_devs[0]);
-	if (vendor_itm == NULL)
+	for (xpp = xe_pccard_products; xpp->product.pp_vendor != 0; xpp++) {
+		if (vendor == xpp->product.pp_vendor &&
+		    product == xpp->product.pp_product &&
+		    prodext == xpp->prodext)
+			break;
+	}
+
+	/* Found a match? */
+	if (xpp->product.pp_vendor == 0)
 		return (ENODEV);
-	scp->vendor = vendor_itm->vendor_desc;
-	pccard_get_product(dev, &prodid);
-	pccard_get_prodext(dev, &prodext);
-	/*
-	 * prod(new) =  rev, media, prod(old)
-	 * prod(new) =  (don't care), (care 0x10 bit), (care 0x0f bit)
-	 */
-	prod = (prodid << 8) | prodext;
-	card_itm = xe_card_type_lookup(prod, &xe_card_type_devs[0]);
-	if (card_itm == NULL)
+
+
+	/* Set card name for logging later */
+	if (xpp->product.pp_name != NULL)
+		device_set_desc(dev, xpp->product.pp_name);
+
+	/* Reject known but unsupported cards */
+	if (xpp->flags & XE_CARD_TYPE_FLAGS_NO) {
+		device_printf(dev, "Sorry, your %s %s card is not supported :(\n",
+				vendor_str, product_str);
 		return (ENODEV);
-	scp->card_type = card_itm->card_type_desc;
-	if (card_itm->prod_type & XE_PROD_MODEM_UMASK)
+	}
+
+	/* Set various card ID fields in softc */
+	scp->vendor = vendor_str;
+	scp->card_type = product_str;
+	if (xpp->flags & XE_CARD_TYPE_FLAGS_CE2)
+		scp->ce2 = 1;
+	if (xpp->flags & XE_CARD_TYPE_FLAGS_MOHAWK)
+		scp->mohawk = 1;
+	if (xpp->flags & XE_CARD_TYPE_FLAGS_DINGO) {
+		scp->dingo = 1;
+		scp->mohawk = 1;
+	}
+	if (xpp->product.pp_product & XE_PROD_MODEM_MASK)
 		scp->modem = 1;
-	for(i=1; i!=XE_CARD_TYPE_FLAGS_DINGO; i=i<<1) {
-		switch(i & card_itm->flags) {
-		case XE_CARD_TYPE_FLAGS_CE2:
-			scp->ce2 = 1; break;
-		case XE_CARD_TYPE_FLAGS_MOHAWK:
-			scp->mohawk = 1; break;
-		case XE_CARD_TYPE_FLAGS_DINGO:
-			scp->dingo = 1; break;
-		}
-	}
-	/*
-	 * PCCARD_CISTPL_VERS_1 = 0x15
-	 */
-	pccard_get_cis3_str(dev, &cis3_str);
-	if (strcmp(scp->card_type, "CE") == 0)
-		if (cis3_str != NULL && strcmp(cis3_str, "PS-CE2-10") == 0)
-			scp->card_type = "CE2"; /* Look for "CE2" string */
 
-	/*
-	 * PCCARD_CISTPL_FUNCE = 0x22
-	 */
+	/* Get MAC address */
 	pccard_get_ether(dev, scp->arpcom.ac_enaddr);
-
-	/* Reject unsupported cards */
-	if(strcmp(scp->card_type, "CE") == 0
-	|| strcmp(scp->card_type, "CEM") == 0) {
-		device_printf(dev, "Sorry, your %s card is not supported :(\n",
-				scp->card_type);
-		return (ENODEV);
-	}
 
 	/* Success */
 	return (0);
@@ -322,8 +272,8 @@ xe_pccard_attach(device_t dev)
          
 	/* Hack RealPorts into submission */
 	if (scp->modem && xe_cemfix(dev) < 0) {
-		device_printf(dev, "Unable to fix your %s combo card\n",
-					  scp->card_type);
+		device_printf(dev, "Unable to fix your %s %s combo card\n",
+					  scp->vendor, scp->card_type);
 		xe_deactivate(dev);
 		return (ENODEV);
 	}
@@ -353,20 +303,22 @@ xe_pccard_detach(device_t dev)
 	return (0);
 }
 
-static const struct pccard_product xe_pccard_products[] = {
-	PCMCIA_CARD(ACCTON, EN2226, 0),
-	PCMCIA_CARD(COMPAQ2, CPQ_10_100, 0),
-	PCMCIA_CARD(INTEL, EEPRO100, 0),
-	PCMCIA_CARD(XIRCOM, CE, 0),
-	PCMCIA_CARD(XIRCOM, CE2, 0),
-	PCMCIA_CARD(XIRCOM, CE3, 0),
-	PCMCIA_CARD(XIRCOM, CEM, 0),
-	PCMCIA_CARD(XIRCOM, CEM28, 0),
-	PCMCIA_CARD(XIRCOM, CEM33, 0),
-	PCMCIA_CARD(XIRCOM, CEM56, 0),
-	PCMCIA_CARD(XIRCOM, REM56, 0),
-        { NULL }
-};
+static int
+xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfmatch)
+{
+	const struct xe_pccard_product* xpp;
+	u_int16_t prodext;
+
+	DEVPRINTF(2, (dev, "pccard_product_match\n"));
+
+	xpp = (const struct xe_pccard_product*)ent;
+	pccard_get_prodext(dev, &prodext);
+
+	if (xpp->prodext != prodext)
+		vpfmatch--;
+
+	return (vpfmatch);
+}
 
 static int
 xe_pccard_match(device_t dev)
@@ -375,12 +327,12 @@ xe_pccard_match(device_t dev)
 
 	DEVPRINTF(2, (dev, "pccard_match\n"));
 
-	if ((pp = pccard_product_lookup(dev, xe_pccard_products,
-		sizeof(xe_pccard_products[0]), NULL)) != NULL) {
-	    if (pp->pp_name != NULL)
-					device_set_desc(dev, pp->pp_name);
-			return (0);
-	}
+	pp = (const struct pccard_product*)xe_pccard_products;
+
+	if ((pp = pccard_product_lookup(dev, pp,
+	     sizeof(xe_pccard_products[0]), xe_pccard_product_match)) != NULL)
+		return (0);
+
 	return (EIO);
 }
 
