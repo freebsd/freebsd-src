@@ -67,6 +67,8 @@ struct card {
 	struct card *next;
 	char   *manuf;
 	char   *version;
+	u_char  func_id;
+	int     deftype;
 	struct ether *ether;		/* For net cards, ether at offset */
 	int     reset_time;		/* Reset time */
 	int	iosize;			/* I/O window size (ignore location) */
@@ -183,3 +185,5 @@ void		 readfile(char *);
 #define DEFAULT_INDEX	1
 #define AUTO_INDEX	2
 
+#define DT_VERS 0
+#define DT_FUNC 1
