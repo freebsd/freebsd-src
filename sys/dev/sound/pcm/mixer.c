@@ -62,6 +62,19 @@ mixer_init(snddev_info *d, snd_mixer *m, void *devinfo)
 }
 
 int
+mixer_reinit(snddev_info *d)
+{
+	int i;
+	if (d == NULL) return -1;
+	if (d->mixer.init != NULL && d->mixer.init(&d->mixer) == 0) {
+		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+			mixer_set(d, i, d->mixer.level[i]);
+		mixer_setrecsrc(d, d->mixer.recsrc);
+		return 0;
+	} else return -1;
+}
+
+int
 mixer_set(snddev_info *d, unsigned dev, unsigned lev)
 {
 	if (d == NULL || d->mixer.set == NULL) return -1;
