@@ -424,7 +424,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   delwin(dialog);
   free(buf);
   close(fd);
-  return -1;    /* ESC pressed */
+  return (key == ESC ? -1 : 0);
 }
 /* End of dialog_textbox() */
 
