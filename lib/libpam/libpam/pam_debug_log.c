@@ -29,12 +29,16 @@
 #include <security/pam_modules.h>
 #include <libgen.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 
 #include "pam_mod_misc.h"
 
 #define	FMTBUFSIZ	256
+
+static char *modulename(const char *);
 
 /* Log a debug message, including the function name and a
  * cleaned up filename.
@@ -44,20 +48,14 @@ _pam_log(struct options *options, const char *file, const char *function,
     const char *format, ...)
 {
 	va_list ap;
-	char *period;
-	char fmtbuf[FMTBUFSIZ];
+	char *fmtbuf, *modname;
 
 	if (pam_test_option(options, PAM_OPT_DEBUG, NULL)) {
-		strncpy(fmtbuf, basename(file), FMTBUFSIZ);
-		period = strchr(fmtbuf, '.');
-		if (period != NULL)
-			*period = '\0';
-		strncat(fmtbuf, ": ", FMTBUFSIZ);
-		strncat(fmtbuf, function, FMTBUFSIZ);
-		strncat(fmtbuf, ": ", FMTBUFSIZ);
-		strncat(fmtbuf, format, FMTBUFSIZ);
+		modname = modulename(file);
 		va_start(ap, format);
+		asprintf(&fmtbuf, "%s: %s: %s", modname, function, format);
 		vsyslog(LOG_DEBUG, fmtbuf, ap);
+		free(fmtbuf);
 		va_end(ap);
 	}
 }
@@ -69,28 +67,64 @@ void
 _pam_log_retval(struct options *options, const char *file, const char *function,
     int retval)
 {
-	char *period;
-	char fmtbuf[FMTBUFSIZ];
+	char *modname;
 
 	if (pam_test_option(options, PAM_OPT_DEBUG, NULL)) {
-		strncpy(fmtbuf, basename(file), FMTBUFSIZ);
-		period = strchr(fmtbuf, '.');
-		if (period != NULL)
-			*period = '\0';
-		strncat(fmtbuf, ": ", FMTBUFSIZ);
-		strncat(fmtbuf, function, FMTBUFSIZ);
+		modname = modulename(file);
+
 		switch (retval) {
 		case PAM_SUCCESS:
-			strncat(fmtbuf, ": returning PAM_SUCCESS", FMTBUFSIZ);
-			syslog(LOG_DEBUG, fmtbuf);
+			syslog(LOG_DEBUG, "%s: %s: returning PAM_SUCCESS",
+			    modname, function);
 			break;
 		case PAM_AUTH_ERR:
-			strncat(fmtbuf, ": returning PAM_AUTH_ERR", FMTBUFSIZ);
-			syslog(LOG_DEBUG, fmtbuf);
+			syslog(LOG_DEBUG, "%s: %s: returning PAM_AUTH_ERR",
+			    modname, function);
+			break;
+		case PAM_IGNORE:
+			syslog(LOG_DEBUG, "%s: %s: returning PAM_IGNORE",
+			    modname, function);
 			break;
 		default:
-			strncat(fmtbuf, ": returning %d", FMTBUFSIZ);
-			syslog(LOG_DEBUG, fmtbuf, retval);
+			syslog(LOG_DEBUG, "%s: %s: returning (%d)",
+			    modname, function, retval);
 		}
+
+		free(modname);
 	}
+}
+
+/* Print a verbose error, including the function name and a
+ * cleaned up filename.
+ */
+void
+_pam_verbose_error(pam_handle_t *pamh, struct options *options,
+    const char *file, const char *function, const char *format, ...)
+{
+	va_list ap;
+	char *statusmsg, *fmtbuf, *modname;
+
+	if (!pam_test_option(options, PAM_OPT_NO_WARN, NULL)) {
+		modname = modulename(file);
+		va_start(ap, format);
+		asprintf(&fmtbuf, "%s: %s: %s", modname, function, format);
+		vasprintf(&statusmsg, fmtbuf, ap);
+		pam_prompt(pamh, PAM_ERROR_MSG, statusmsg, NULL);
+		free(statusmsg);
+		free(fmtbuf);
+		va_end(ap);
+	}
+}
+
+static char *
+modulename(const char *file)
+{
+	char *modname, *period;
+
+	modname = strdup(basename(file));
+	period = strchr(modname, '.');
+	if (period != NULL)
+		*period = '\0';
+
+	return modname;
 }
