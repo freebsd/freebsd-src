@@ -98,22 +98,16 @@ Version${x}.c: ${SRCDIR}/lib${x}77/Version.c
 
 ${E77OBJS}: f2cext.c
 	${CC} ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
 ${E77OBJS:.o=.So}: f2cext.c
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} \
 	    ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
 ${E77OBJS:.o=.po}: f2cext.c
 	${CC} -p ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 INCS=	g2c.h
