@@ -1368,10 +1368,249 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
   <sect2 id="security">
     <title>Changements liés a la sécurité</title>
 
+    <para>&man.sysinstall.8; permet maintenant a un utilisateur de choisir
+    un des deux <quote>profils de sécurité</quote> au moment de l'installation
+    Ces profils activent ou désactivent alors différents services via
+    le fichier de configuration &man.rc.conf.5; lors de nouvelles 
+    installations. &merged;</para>
 
+    <para>Un bogue qui fixait le système pour des images ELF exécutables 
+    malformées a été résolu (voir l'avis de sécurité
+    FreeBSD-SA-00:41). &merged;</para>
 
-    <para></para>
+    <para>Un trou de sécurité dans l'émulation Linux a été corrigé (voir
+    l'avis de sécuritéFreeBSD-SA-00:42). &merged;</para>
+
+    <para>Les appels a la librairie de traitement des chaines
+    ont été corrigés dans beaucoups de programmes, pour réduire
+    la possiblité d'exploitation des dépassements de tampons.
+    &merged;</para>
+
+    <para>TCP utilise maintenant une fonction plus aléatoire pour
+    le choix du nombre initial lors de l'initialisation de la 
+    séquence (voir l'avis de sécurité FreeBSD-SA-00:52). &merged;</para>
+
+    <para>Différents dépassements de tampons dans &man.tcpdump.1; ont été
+    corrigés (voir l'avis de sécurité FreeBSD-SA-00:61). &merged;</para>
+
+    <para>Le trou de sécurité de &man.top.1; a été corrigé
+    (voir l'avis de sécurité FreeBSD-SA-00:62). &merged;</para>
+
+    <para>Un potentiel trou de sécurité du a une erreur potentielle
+    dans &man.gethostbyname.3; a été corrigé (voir l'avis de sécurité
+    FreeBSD-SA-00:63). &merged;</para>
+
+    <para>Un potentiel dépassement de tampon dans la libraire
+    &man.ncurses.3; permettant l'execution de programme 
+    via &man.systat.1; a été corrigé(voir l'avis de sécurité
+    FreeBSD-SA-00:68). &merged;</para>
+
+    <para>La vulnérabilité de &man.telnetd.8; causant
+    une consommation importante de ressources du serveur 
+    a été corrigée (voir l'avis de sécurité FreeBSD-SA-00:69). &merged;</para>
+
+    <para>La commande <literal>nat deny_incoming</literal> de
+    &man.ppp.8; fonctionne maintenant correctement (voir l'avis
+    de sécurité FreeBSD-SA-00:70). &merged;</para>
+
+    <para>La vulnérabilité dans les fichiers temporaires créés par
+    &man.csh.1;/&man.tcsh.1; permettant d'écraser certains fichiers 
+    utilisateurs a été corrigée (voir l'avis de sécurité FreeBSD-SA-00:76). &merged;</para>
+
+    <para>Le binaire &man.ssh.1; n'est plus SUID root par défaut. &merged;</para>
+
+    <para>Différentes corrections ont été apportées à l'implémentation
+    de Kerberos IV relatives a des variables d'environnements, un
+    possible dépassent de tampon, et l'écrasement de fichiers de 
+    tickets. &merged;</para>
+
+    <para>&man.telnet.1; nettoie maintenant mieux son environnement.&merged;</para>
+
+    <para>Différentes vulnérabilités dans &man.procfs.5; ont été 
+    corrigées (voir l'avis de sécurité FreeBSD-SA-00:77). &merged;</para>
+
+    <para>Un bogue dans <application>OpenSSH</application> dans
+    lesquel un serveur n'etait pas capable de désactivé &man.ssh-agent.1;
+    ou <literal>X11Forwarding</literal> a été corrigé (voir l'avis
+    de sécurité FreeBSD-SA-01:01). &merged;</para>
+
+    <para>Un bogue dans &man.ipfw.8; et &man.ip6fw.8; traitant 
+    des segments TCP entrants comme des connexions <literal>établies</literal>
+    a été corrigé (voir l'avis de sécurité FreeBSD-SA-01:08). &merged;</para>
+ 
+    <para>Un bogue dans &man.crontab.1; permettant a un utilisateur
+    de lire n'importe quel fichier en ayant une syntaxe de &man.crontab.5;
+    valide a été corrigé(voir l'avis de sécurité FreeBSD-SA-01:09). &merged;</para>
+
+    <para>La vulnérabilité dans &man.inetd.8; permettant l'accès
+    en lecture aux 16 bytes initiaux des fichiers accessibles 
+    par le groupe <groupname>wheel</groupname> a été corrigé(voir
+    l'avis de sécrurité FreeBSD-SA-01:11). &merged;</para>
+
+    <para>Un bogue dans &man.periodic.8; qui utilisait des fichiers
+    temporaires de façon peu sécurisée a été corrigé (voir l'avis
+    de sécurité FreeBSD-SA-01:12). &merged;</para>
+
+    <para>Un bogue dans &man.sort.1; permettant a un attaquant d'arrèter
+    son traitement a été corrigé (voir l'avis de sécurité
+    FreeBSD-SA-01:13). &merged;</para>
+
+    <para><application>OpenSSH</application> intègre maintenant un code
+    permettant de prévenir (plutot que de limiter le nombre
+    de connexions) aux attaques permettant de trouver la clef 
+    du serveur (pas la clef de la machine) en regénérant une nouvelle
+    clef lorsque un problème RSA est détecté (voir l'avis de sécurité 
+     FreeBSD-SA-01:24). &merged;</para>
+
+    <para>Plusieurs programmes ont subit une correction dans le formattage
+    de l'affichage de sortie des chaines pour réduire le risque
+    de vulnérabilités. &merged;</para>
+
+    <para>Plusieurs programmes utilisants des fichiers temporaires les 
+    utilisent maintenant de façon plus sécurisée. &merged;</para>
+
+    <para>Un bogue dans ICMP premettant a un attaquant de perturber
+    les <quote>sessions</quote> TCP et UDP a été corrigé. &merged;</para>
+
+    <para>Un bogue dans &man.timed.8;, causant un crash lors de l'envoi
+    de paquets mals formés, a été corrigé (voir l'avis de sécurité
+     FreeBSD-SA-01:28). &merged;</para>
+
+    <para>Un bogue dans &man.rwhod.8;, permettant de le "crasher" lors de
+    l'envoi de paquets mal formés a été corrigé (voir l'avis de sécurité
+     FreeBSD-SA-01:29). &merged;</para>
+
+    <para>Un trou de sécurité dans les implémentations FFS et EXT2FS de &os;
+    permettant à des utilisateurs l'accès a des données non autorisées, a été
+    corrigé. (voir l'avis de sécurité FreeBSD-SA-01:30). &merged;</para>
+
+    <para>Un vulnérabilité, exploitable à distance, de &man.ntpd.8; a 
+    été réglée(voir l'avis de sécurité FreeBSD-SA-01:31). &merged;</para>
+
+    <para>Un trou de sécurité dans le mécanisme de "cache" des fragments IP
+    d'<application>IPFilter</application> a été corrigé (voir l'avis de
+    sécurité FreeBSD-SA-01:32). &merged;</para>
+
+    <para>Un dépassement dans &man.glob.3; permettant l'execution de code
+    dans le serveur de FTP a été corrigé. De plus, pour prévenir certaines 
+    formes d'attaques DOS, &man.glob.3; permet de limiter le nombre de 
+    répertoires qu'il retourne. &man.ftpd.8; utilise maintenant cette
+    fonctionnalité (voeyz l'avis de sécurité FreeBSD-SA-01:33). &merged;</para>
+
+    <para>L'initialisation des numéros de séquences TCP est plus
+    aléatoire (voyez l'avis de sécurité FreeBSD-SA-01:39). Suite
+    a des potentiels problèmes de compatiblité, cette fonctionalité
+     de sécurité peut etre activé ou désactivé via la variable sysctl
+    <varname>net.inet.tcp.tcp_seq_genscheme</varname>.&merged;</para>
+
+    <para>Un vulnérabilité dans les routines &man.fts.3; (utilisés par
+    des applications pour parcourir de façon récursive un système de fichier)
+    permet à un programme de lire des fichiers en dehors de la hiérarchie
+    de répertoire autorisé. Ce bogue a été corrigé voir l'avis de sécurité
+    FreeBSD-SA-01:40). &merged;</para>
+
+    <para>L'implémentation de la couche TCP de &os; a été rendue plus
+    résistante aux attaques SYN, en éliminant le segment RST envoyé 
+    normalement lors du nettoyage d'une connexion de la file 
+    d'attente</para>
+
+    <para><application>OpenSSH</application> prend, maintenant, l'UID
+    de l'utilisateur avant d'essayer d'effacer le fichier
+    d'authentification, annulant les effets d'une "race"</para>
+
+    <para>A flaw allowed some signal handlers to remain in effect in a
+    child process after being exec-ed from its parent.  This allowed
+    an attacker to execute arbitrary code in the context of a setuid
+    binary.  This flaw has been corrected (see security advisory
+    FreeBSD-SA-01:42). &merged;</para>
+
+    <para>Un dépassement de buffer à distance dans &man.tcpdump.1; a été 
+    corrigé (voir l'avis de sécurité FreeBSD-SA-01:48). &merged;</para>
+
+    <para>Un dépassement de buffer à distance dans &man.telnetd.8; a été
+    corrigé (voir l'avis de sécurité FreeBSD-SA-01:49). &merged;</para>
+
+    <para>Les nouvelles variables sysctl 
+    <varname>net.inet.ip.maxfragpackets</varname> 
+    et <varname>net.inet.ip6.maxfragpackets</varname> permettent 
+    de limiter la quantité de mémoire utilisée par les fragments des 
+    paquets IPv4 et IPv6; cela permet de mieux se prévenir contre les
+    attaques par déni de service (voyez l'avis de sécurité
+    FreeBSD-SA-01:52). &merged;</para>
+
+    <para>Tous les services dans <filename>inetd.conf</filename> sont
+    maintenant désactivés par défaut pour les nouvelles installations.
+    &man.sysinstall.8; done la possiblité d'activer ou désactiver 
+    &man.inetd.8; pour les nouvelles installation, comme l'édition
+    de <filename>inetd.conf</filename>. &merged;</para>
+
+    <para>Un bogue dans l'implémentation des règles de &man.ipfw.8;
+    comportant <literal>me</literal> sur les liens point à point a 
+    été corrigé. Les règles de filtrage comportant <literal>me</literal> 
+    matchaient l'adresse IP distante a la place de l'adresse IP
+    local (voyez l'avis de sécurité FreeBSD-SA-01:53). &merged;</para>
+
+    <para>Une vulnérabilité dans &man.procfs.5;, permettant a un 
+    processus de lire des informations sensibles depuis l'espace
+    mémoire d'un autre processus, a été corrigée (voyez l'avis 
+    de sécurité FreeBSD-SA-01:55). &merged;</para>
+
+    <para>La vérification d'un nom de machine en mode
+     <literal>PARANOID</literal> de <application>tcp_wrappers</application>
+     fonctionne maintenant correctement (voyez l'avis de sécurité 
+     FreeBSD-SA-01:56). &merged;</para>
+
+    <para>Un bogue permettant de passer root dans &man.sendmail.8; a
+    été corrigé(voyez l'avis de sécurité FreeBSD-SA-01:57). &merged;</para>
+    
+    <para>Un bogue permettant de passer root a distance dans &man.lpd.8;
+    a été corrigé (voyez l'avis de sécurité FreeBSD-SA-01:58). &merged;</para>
+
+    <para>Une "race condition" dans &man.rmuser.8; qui rendait brièvement
+    <filename>/etc/master.passwd</filename> lisible pour tout utilisateur
+    a été corrigée (voyez l'avis de sécurité FreeBSD-SA-01:59). &merged;</para>
+
+    <para>Un bogue dans <application>UUCP</application> a été
+    corrigé (voyez l'avis de sécurité FreeBSD-SA-01:62). Tous
+    les binaires n'appartenant pas a <username>root</username>
+    dans les "path" système standard ont maintenant le drapeau
+    <literal>schg</literal> permettant d'empecher l'exploitation
+    de bogues via &man.cron.8;, par <username>root</username>,
+    ou par un utilisateur autre que celui auquel appartient
+    le binaire. De plus &man.uustat.1; est lancé maintenant
+    via <filename>/etc/periodic/daily/410.status-uucp</filename> 
+    sous l'utilisateur <username>uucp</username>, et non
+    plus <username>root</username>. Dans &os; -CURRENT, 
+    <application>UUCP</application> ne fait plus partie des binaires
+    systèmes, et a été déplacé dans la collection des Ports. &merged;</para>
+
+    <para>Un trou de sécurité, sous la forme d'un dépassement de buffer, dans
+    l'appel système &man.semop.2; a été corrigé.&merged;</para>
+
+    <para>Un trou de sécurité dans <application>OpenSSH</application>,
+    permettant a un utilisateur d'executer du code avec des privilèges 
+    supplémentaires si <literal>UseLogin yes</literal> était activé, a été
+    corrigé. Notez que la valeur par défaut de ce paramètre est 
+    <literal>UseLogin no</literal>.  (Voyez l'avis de sécurité
+    FreeBSD-SA-01:63.) &merged;</para>
+
+    <para>L'utilisation de répertoire temporaire par &man.pkg.add.1; 
+    pouvait permettre a un attaquant local de modifier le contenu
+    des binaires distribués au moment ou ils allaient etre installé. Ce
+    bogue a été corrigé (voyez l'avis de sécurité FreeBSD-SA-02:01).
+     &merged;</para>
+
+    <para>Une "race condition" dans &man.pw.8;, permettant de lire
+    le contenu du fichier <filename>/etc/master.passwd</filename>, a
+    été corrigé (voyez l'avis de sécurité FreeBSD-SA-02:02.) &merged;</para>
+
+    <para>Un bogue dans &man.k5su.8; pouvait permettre a un processus
+    ayant obtenu des privilèges super-utilisateur de les ré-obtenir. Ce
+    bogue a été corrigé (voyez l'avis de sécurité FreeBSD-SA-02:07.)
+     &merged;</para>
   </sect2>
+
+
   <sect2 id="userland">
     <title>Changements dans les programmes utilisateurs</title>
     <sect3>
