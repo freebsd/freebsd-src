@@ -506,6 +506,11 @@ fxp_probe(device_t dev)
 		device_set_desc(dev, "Intel EtherExpress Pro 10/100B Ethernet");
 		return 0;
 	}
+	if ((pci_get_vendor(dev) == FXP_VENDORID_INTEL) &&
+	    (pci_get_device(dev) == FXP_DEVICEID_i82559)) {
+		device_set_desc(dev, "Intel InBusiness 10/100 Ethernet");
+		return 0;
+	}
 
 	return ENXIO;
 }
