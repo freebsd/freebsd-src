@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.7 1996/07/01 21:30:28 roberto Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.8 1996/08/12 11:48:44 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -188,7 +188,7 @@ ipfw &lsqb;-N&rsqb; <em>command</em> &lsqb;<em>index</em>&rsqb;
 <p>There is one valid flag when using this form of the command:
 
 <descrip>
-<tag/-N/Resolve addresses and service names.
+<tag/-N/Resolve addresses (but not service names).
 </descrip>
 
 The <em>command</em> given can be shortened to the shortest unique
@@ -229,9 +229,6 @@ destination).
 
 <tag/count/Update packet counters but do not allow/deny the packet
 based on this rule.  The search continues with the next chain entry.
-
-<tag/reject/Discard the packet, sending an ICMP host/port unreachable
-message back to the source.
 
 </descrip>
 
@@ -305,7 +302,7 @@ list, but the range must always be specified first.
 
 <descrip>
 
-<tag/frag/Matches if the packet is the first fragment of the datagram.
+<tag/frag/Matches if the packet is not the first fragment of the datagram.
 
 <tag/in/Matches if the packet is on the way in.
 
@@ -360,7 +357,7 @@ way to see accounting counters.
 listing is incompatible with the input syntax used by the
 <tt>ipfw(8)</tt> utility.
 
-<tag/-N/Do not attempt to resolve given addresses.
+<tag/-N/Attempt to resolve given addresses and service names.
 
 </descrip>
 
@@ -495,11 +492,10 @@ want to allow from the inside. Some general rules are:
 where most of the security sensitive services are, like finger, SMTP
 (mail) and telnet.
 
- <item>Block incoming SYN (<bf>setup</bf>) connections to ports
-between 1001 and 1024 (this will allow internal users to rsh/rlogin to
-the outside). If you do not want to allow rsh/rlogin connections from
-the inside to the outside, then extend the above suggestion to cover
-ports 1-1024.
+ <item>Block all incoming access also to TCP ports between 1001 and 1024
+inclusive, unless rlogin/rsh access from outside is to be enabled, in which
+case incoming SYN (<bf>setup</bf>) connections should be blocked on these
+ports and allowed on the relevant service port(s).
 
  <item>Block <bf>all</bf> incoming UDP traffic. There are very few
 useful services that travel over UDP, and what useful traffic there is
