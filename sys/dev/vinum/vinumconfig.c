@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.41 2003/05/23 00:57:34 grog Exp $
+ * $Id: vinumconfig.c,v 1.41 2003/05/23 00:57:34 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -1567,10 +1567,6 @@ config_volume(int update)
 
 	case kw_writeback:				    /* set writeback mode */
 	    vol->flags &= ~VF_WRITETHROUGH;
-	    break;
-
-	case kw_raw:
-	    vol->flags |= VF_RAW;			    /* raw volume (no label) */
 	    break;
 
 	default:
