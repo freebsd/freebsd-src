@@ -36,7 +36,7 @@
  * $Id: vinum.c,v 1.23 1999/01/15 05:03:15 grog Exp grog $
  */
 
-#define STATIC						    /* nothing while we're testing XXX */
+#define STATIC static					    /* nothing while we're testing XXX */
 
 #define REALLYKERNEL
 #include "opt_vinum.h"
@@ -60,10 +60,6 @@ STATIC struct cdevsw vinum_cdevsw =
 /* Called by main() during pseudo-device attachment. */
 STATIC void vinumattach(void *);
 
-STATIC void vinumgetdisklabel(dev_t);
-int vinum_inactive(void);
-void free_vinum(int);
-
 #ifndef ACTUALLY_LKM_NOT_KERNEL
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
 #endif
@@ -75,8 +71,6 @@ void longjmp(jmp_buf, int);
 extern jmp_buf command_fail;				    /* return here if config fails */
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
-
-STATIC int vinum_devsw_installed = 0;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
@@ -95,7 +89,7 @@ vinumattach(void *dummy)
     if ((vinum_conf.flags & VF_LOADED) != NULL)
 	panic("vinum: already loaded");
 
-    printf("vinum: loaded\n");
+    log(LOG_INFO, "vinum: loaded\n");
     vinum_conf.flags |= VF_LOADED;			    /* we're loaded now */
 
     daemonq = NULL;					    /* initialize daemon's work queue */
@@ -122,24 +116,28 @@ vinumattach(void *dummy)
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
     CHECKALLOC(DRIVE, "vinum: no memory\n");
+    bzero(DRIVE, sizeof(struct drive) * INITIAL_DRIVES);
     vinum_conf.drives_allocated = INITIAL_DRIVES;	    /* number of drive slots allocated */
     vinum_conf.drives_used = 0;				    /* and number in use */
 
     /* volumes, ... */
     VOL = (struct volume *) Malloc(sizeof(struct volume) * INITIAL_VOLUMES);
     CHECKALLOC(VOL, "vinum: no memory\n");
+    bzero(VOL, sizeof(struct volume) * INITIAL_VOLUMES);
     vinum_conf.volumes_allocated = INITIAL_VOLUMES;	    /* number of volume slots allocated */
     vinum_conf.volumes_used = 0;			    /* and number in use */
 
     /* plexes, ... */
     PLEX = (struct plex *) Malloc(sizeof(struct plex) * INITIAL_PLEXES);
     CHECKALLOC(PLEX, "vinum: no memory\n");
+    bzero(PLEX, sizeof(struct plex) * INITIAL_PLEXES);
     vinum_conf.plexes_allocated = INITIAL_PLEXES;	    /* number of plex slots allocated */
     vinum_conf.plexes_used = 0;				    /* and number in use */
 
     /* and subdisks */
     SD = (struct sd *) Malloc(sizeof(struct sd) * INITIAL_SUBDISKS);
     CHECKALLOC(SD, "vinum: no memory\n");
+    bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
 
@@ -156,9 +154,11 @@ vinum_inactive(void)
     int i;
     int can_do = 1;					    /* assume we can do it */
 
+    if (vinum_conf.flags & VF_OPEN)			    /* open by vinum(8)? */
+	return 0;					    /* can't do it while we're open */
     lock_config();
     for (i = 0; i < vinum_conf.volumes_used; i++) {
-	if (VOL[i].opencount != 0) {			    /* volume is open */
+	if ((VOL[i].flags & VF_OPEN)) {			    /* volume is open */
 	    can_do = 0;
 	    break;
 	}
@@ -183,14 +183,17 @@ free_vinum(int cleardrive)
 	for (i = 0; i < vinum_conf.drives_used; i++)
 	    remove_drive(i);				    /* remove the drive */
     } else {						    /* keep the config */
-	save_config();
 	if (DRIVE != NULL) {
 	    for (i = 0; i < vinum_conf.drives_used; i++)
 		free_drive(&DRIVE[i]);			    /* close files and things */
 	    Free(DRIVE);
 	}
     }
-    queue_daemon_request(daemonrq_return, NULL);	    /* tell daemon to stop */
+    while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
+	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
+	queue_daemon_request(daemonrq_return, NULL);	    /* stop the daemon */
+	tsleep(&vinumclose, PUSER, "vstop", 0);		    /* and wait for it */
+    }
     if (SD != NULL)
 	Free(SD);
     if (PLEX != NULL) {
@@ -207,61 +210,7 @@ free_vinum(int cleardrive)
     if (VOL != NULL)
 	Free(VOL);
     bzero(&vinum_conf, sizeof(vinum_conf));
-    while ((daemon_options & daemon_stopped) == 0)	    /* daemon hasn't stopped yet, */
-	tsleep(&vinum_daemon, PRIBIO, "vdaemn", 10 * hz);   /* wait for it to stop */
-    tsleep(&vinum_daemon, PRIBIO, "diedie", 3 * hz);	    /* and wait another 3 secs XXX */
 }
-
-#ifdef ACTUALLY_LKM_NOT_KERNEL				    /* stuff for LKMs */
-
-MOD_MISC(vinum);
-
-/*
- * Function called when loading the driver.
- */
-
-STATIC int 
-vinum_load(struct lkm_table *lkmtp, int cmd)
-{
-    vinumattach(NULL);
-    return 0;						    /* OK */
-}
-
-/*
- * Function called when unloading the driver.
- */
-STATIC int 
-vinum_unload(struct lkm_table *lkmtp, int cmd)
-{
-    if (vinum_inactive()) {				    /* is anything open? */
-	struct sync_args dummyarg =
-	{0};
-
-	printf("vinum: unloaded\n");
-	sync(curproc, &dummyarg);			    /* write out buffers */
-	free_vinum(0);					    /* no: clean up */
-	cdevsw[CDEV_MAJOR] = NULL;			    /* and cdevsw */
-	return 0;
-    } else
-	return EBUSY;
-}
-
-/*
- * Dispatcher function for the module (load/unload/stat).
- */
-int 
-vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-    MOD_DISPATCH(vinum,					    /* module name */
-	lkmtp,						    /* LKM table */
-	cmd,						    /* command */
-	ver,
-	vinum_load,					    /* load with this function */
-	vinum_unload,					    /* and unload with this */
-	lkm_nullcmd);
-}
-
-#else /* not LKM */
 
 STATIC int 
 vinum_modevent(module_t mod, modeventtype_t type, void *unused)
@@ -275,10 +224,12 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	return 0;					    /* OK */
     case MOD_UNLOAD:
 	if (!vinum_inactive())				    /* is anything open? */
-	    return EBUSY;
+	    return EBUSY;				    /* yes, we can't do it */
+	vinum_conf.flags |= VF_STOPPING;		    /* note that we want to stop */
 	sync(curproc, &dummyarg);			    /* write out buffers */
-	free_vinum(0);					    /* no: clean up */
-	cdevsw[CDEV_MAJOR] = NULL;			    /* and cdevsw */
+	free_vinum(0);					    /* clean up */
+	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
+	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
 	break;
@@ -294,8 +245,6 @@ moduledata_t vinum_mod =
 };
 DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-#endif /* LKM */
-
 /* ARGSUSED */
 /*
  * Open a vinum object
@@ -310,7 +259,6 @@ vinumopen(dev_t dev,
     int fmt,
     struct proc *p)
 {
-    int s;						    /* spl */
     int error;
     unsigned int index;
     struct volume *vol;
@@ -335,8 +283,7 @@ vinumopen(dev_t dev,
 	    return ENXIO;
 
 	case volume_up:
-	    vol->opencount = 1;
-	    vol->pid = p->p_pid;			    /* and say who we are (do we need this? XXX) */
+	    vol->flags |= VF_OPEN;			    /* note we're open */
 	    return 0;
 
 	case volume_down:
@@ -359,14 +306,7 @@ vinumopen(dev_t dev,
 	    return EINVAL;
 
 	default:
-	    s = splhigh();
-	    if (plex->pid				    /* it's open already */
-		&& (plex->pid != p->p_pid)) {		    /* and not by us, */
-		splx(s);
-		return EBUSY;				    /* one at a time, please */
-	    }
-	    plex->pid = p->p_pid;			    /* and say who we are (do we need this? XXX) */
-	    splx(s);
+	    plex->flags |= VF_OPEN;			    /* note we're open */
 	    return 0;
 	}
 
@@ -389,26 +329,26 @@ vinumopen(dev_t dev,
 	    return EINVAL;
 
 	default:
-	    s = splhigh();
-	    if (sd->pid					    /* it's open already */
-		&& (sd->pid != p->p_pid)) {		    /* and not by us, */
-		splx(s);
-		return EBUSY;				    /* one at a time, please */
-	    }
-	    sd->pid = p->p_pid;				    /* and say who we are (do we need this? XXX) */
-	    splx(s);
+	    sd->flags |= VF_OPEN;			    /* note we're open */
 	    return 0;
 	}
 
+	/* Vinum drives are disks.  We already have a disk
+	 * driver, so don't handle them here */
     case VINUM_DRIVE_TYPE:
     default:
 	return ENODEV;					    /* don't know what to do with these */
 
     case VINUM_SUPERDEV_TYPE:
 	error = suser(p->p_ucred, &p->p_acflag);	    /* are we root? */
-	if (error == 0)					    /* yes, can do */
-	    vinum_conf.opencount = 1;			    /* we're open */
+	if (error == 0) {				    /* yes, can do */
+	    if (Volno(dev) == 1)			    /* daemon device */
+		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
+	    else
+		vinum_conf.flags |= VF_OPEN;		    /* we're open */
+	}
 	return error;
+
     }
 }
 
@@ -421,8 +361,6 @@ vinumclose(dev_t dev,
 {
     unsigned int index;
     struct volume *vol;
-    struct plex *plex;
-    struct sd *sd;
     struct devcode *device = (struct devcode *) &dev;
 
     index = Volno(dev);
@@ -439,8 +377,7 @@ vinumclose(dev_t dev,
 	    return ENXIO;
 
 	case volume_up:
-	    vol->opencount = 0;				    /* reset our flags */
-	    vol->pid = NULL;				    /* and forget who owned us */
+	    vol->flags &= ~VF_OPEN;			    /* reset our flags */
 	    return 0;
 
 	case volume_down:
@@ -456,8 +393,7 @@ vinumclose(dev_t dev,
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_used)
 	    return ENXIO;				    /* no such device */
-	plex = &PLEX[index];
-	plex->pid = 0;
+	PLEX[index].flags &= ~VF_OPEN;			    /* reset our flags */
 	return 0;
 
     case VINUM_SD_TYPE:
@@ -467,8 +403,7 @@ vinumclose(dev_t dev,
 	index = Sdno(dev);				    /* get the subdisk number */
 	if (index >= vinum_conf.subdisks_used)
 	    return ENXIO;				    /* no such device */
-	sd = &SD[index];
-	sd->pid = 0;
+	SD[index].flags &= ~VF_OPEN;			    /* reset our flags */
 	return 0;
 
     case VINUM_SUPERDEV_TYPE:
@@ -476,8 +411,14 @@ vinumclose(dev_t dev,
 	 * don't worry about whether we're root:
 	 * nobody else would get this far.
 	 */
-	vinum_conf.opencount = 0;			    /* no longer open */
-	return 0;					    /* no worries closing super dev */
+	if (Volno(dev) == 0)				    /* normal superdev */
+	    vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
+	else {
+	    vinum_conf.flags &= ~VF_DAEMONOPEN;		    /* no longer open */
+	    if (vinum_conf.flags & VF_STOPPING)		    /* we're stopping, */
+		wakeup(&vinumclose);			    /* we can continue stopping now */
+	}
+	return 0;
 
     case VINUM_DRIVE_TYPE:
     default:
