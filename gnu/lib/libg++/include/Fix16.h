@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Kurt Baudendistel (gt-eedsp!baud@gatech.edu)
     adapted for libg++ by Doug Lea (dl@rocky.oswego.edu)
@@ -58,8 +58,8 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 //	consists of a 16-bit mantissa (sign bit & 15 data bits).
 //
 
-class Fix16 
-{ 
+class Fix16
+{
   friend class          Fix32;
 
   short                 m;
@@ -102,7 +102,7 @@ public:
   Fix16&                operator -= (const Fix16&  f);
   Fix16&                operator *= (const Fix16& );
   Fix16&                operator /= (const Fix16&  f);
-  
+
   Fix16&                operator <<=(int b);
   Fix16&                operator >>=(int b);
 
@@ -124,15 +124,15 @@ public:
   Fix16&                operator *= (int g);
 };
 
- 
+
 //
 // Fix32 class: 32-bit Fixed point data type
 //
 //	consists of a 32-bit mantissa (sign bit & 31 data bits).
 //
 
-class Fix32 
-{ 
+class Fix32
+{
   friend class         Fix16;
 
   _G_int32_t           m;
@@ -241,141 +241,141 @@ extern void
 inline Fix16::~Fix16() {}
 
 inline short Fix16::round(double d)
-{ 
-  return short( (d >= 0)? d + 0.5 : d - 0.5); 
+{
+  return short( (d >= 0)? d + 0.5 : d - 0.5);
 }
 
-inline Fix16::Fix16(short i)		
-{ 
-  m = i; 
+inline Fix16::Fix16(short i)
+{
+  m = i;
 }
 
-inline Fix16::Fix16(int i)	    
-{ 
-  m = i; 
+inline Fix16::Fix16(int i)
+{
+  m = i;
 }
 
-inline Fix16::operator double() const 
-{ 
-  return  Fix16_div * m; 
+inline Fix16::operator double() const
+{
+  return  Fix16_div * m;
 }
 
-inline Fix16::Fix16()     			
-{ 
-  m = 0; 
+inline Fix16::Fix16()
+{
+  m = 0;
 }
 
-inline Fix16::Fix16(const Fix16&  f)		
-{ 
-  m = f.m; 
+inline Fix16::Fix16(const Fix16&  f)
+{
+  m = f.m;
 }
 
-inline Fix16::Fix16(double d)		
+inline Fix16::Fix16(double d)
 {
   m = assign(d);
 }
 
 
-inline Fix16&  Fix16::operator=(const Fix16&  f)	
-{ 
-  m = f.m; 
-  return *this; 
+inline Fix16&  Fix16::operator=(const Fix16&  f)
+{
+  m = f.m;
+  return *this;
 }
 
-inline Fix16&  Fix16::operator=(double d) 
-{ 
-  m = assign(d); 
-  return *this; 
+inline Fix16&  Fix16::operator=(double d)
+{
+  m = assign(d);
+  return *this;
 }
 
 
-inline Fix32::Fix32()			    
-{ 
+inline Fix32::Fix32()
+{
   m = 0;
 }
 
-inline Fix32::Fix32(_G_int32_t i)		
-{ 
+inline Fix32::Fix32(_G_int32_t i)
+{
   m = i;
 }
 
-inline Fix32:: operator double() const		
-{ 
+inline Fix32:: operator double() const
+{
   return Fix32_div * m;
 }
 
 
-inline Fix32::Fix32(const Fix32& f)		
-{ 
+inline Fix32::Fix32(const Fix32& f)
+{
   m = f.m;
 }
 
-inline Fix32::Fix32(const Fix16&  f)    
-{ 
+inline Fix32::Fix32(const Fix16&  f)
+{
   m = _G_int32_t(f.m) << 16;
 }
 
-inline Fix32::Fix32(double d)		
-{ 
+inline Fix32::Fix32(double d)
+{
   m = assign(d);
 }
 
-inline Fix16::Fix16(const Fix32& f)		
-{ 
-  m = f.m >> 16; 
+inline Fix16::Fix16(const Fix32& f)
+{
+  m = f.m >> 16;
 }
 
 
 inline Fix16&  Fix16::operator=(const Fix32& f)
-{ 
-  m = f.m >> 16; 
-  return *this; 
+{
+  m = f.m >> 16;
+  return *this;
 }
 
-inline Fix32& Fix32::operator=(const Fix32& f)	
-{ 
+inline Fix32& Fix32::operator=(const Fix32& f)
+{
   m = f.m;
-  return *this; 
+  return *this;
 }
 
-inline Fix32& Fix32::operator=(const Fix16&  f)	
-{ 
+inline Fix32& Fix32::operator=(const Fix16&  f)
+{
   m = _G_int32_t(f.m) << 16;
   return *this;
 }
 
-inline Fix32& Fix32::operator=(double d)	
-{ 
+inline Fix32& Fix32::operator=(double d)
+{
   m = assign(d);
-  return *this; 
+  return *this;
 }
 
-inline short& mantissa(Fix16&  f)	
-{ 
-  return f.m; 
+inline short& mantissa(Fix16&  f)
+{
+  return f.m;
 }
 
-inline const short& mantissa(const Fix16&  f)	
-{ 
-  return f.m; 
+inline const short& mantissa(const Fix16&  f)
+{
+  return f.m;
 }
 
-inline double value(const Fix16&  f)		
-{ 
-  return double(f); 
+inline double value(const Fix16&  f)
+{
+  return double(f);
 }
 
-inline Fix16 Fix16::operator+() const		
-{ 
-  return m; 
+inline Fix16 Fix16::operator+() const
+{
+  return m;
 }
 
-inline Fix16 Fix16::operator-() const	
-{ 
-  return -m; 
+inline Fix16 Fix16::operator-() const
+{
+  return -m;
 }
 
-inline Fix16 operator+(const Fix16&  f, const Fix16&  g) 
+inline Fix16 operator+(const Fix16&  f, const Fix16&  g)
 {
   short sum = f.m + g.m;
   if ( (f.m ^ sum) & (g.m ^ sum) & Fix16_msb )
@@ -383,7 +383,7 @@ inline Fix16 operator+(const Fix16&  f, const Fix16&  g)
   return sum;
 }
 
-inline Fix16 operator-(const Fix16&  f, const Fix16&  g) 
+inline Fix16 operator-(const Fix16&  f, const Fix16&  g)
 {
   short sum = f.m - g.m;
   if ( (f.m ^ sum) & (-g.m ^ sum) & Fix16_msb )
@@ -392,90 +392,90 @@ inline Fix16 operator-(const Fix16&  f, const Fix16&  g)
 }
 
 inline Fix32 operator*(const Fix16&  f, const Fix16&  g)
-{ 
-  return Fix32( _G_int32_t( _G_int32_t(f.m) * _G_int32_t(g.m) << 1)); 
+{
+  return Fix32( _G_int32_t( _G_int32_t(f.m) * _G_int32_t(g.m) << 1));
 }
 
-inline Fix16 operator<<(const Fix16& a, int b) 	
-{ 
-  return a.m << b; 
+inline Fix16 operator<<(const Fix16& a, int b)
+{
+  return a.m << b;
 }
 
-inline Fix16 operator>>(const Fix16& a, int b) 	
-{ 
-  return a.m >> b; 
+inline Fix16 operator>>(const Fix16& a, int b)
+{
+  return a.m >> b;
 }
 
 inline  Fix16&  Fix16:: operator+=(const Fix16&  f)
-{ 
-  return *this = *this + f; 
+{
+  return *this = *this + f;
 }
 
-inline Fix16&  Fix16:: operator-=(const Fix16&  f) 	
-{ 
-  return *this = *this - f; 
+inline Fix16&  Fix16:: operator-=(const Fix16&  f)
+{
+  return *this = *this - f;
 }
 
-inline Fix16& Fix16::operator*=(const Fix16& f) 	
-{ 
-  return *this = *this * f; 
+inline Fix16& Fix16::operator*=(const Fix16& f)
+{
+  return *this = *this * f;
 }
 
-inline Fix16&  Fix16:: operator/=(const Fix16&  f) 	
-{ 
-  return *this = *this / f; 
+inline Fix16&  Fix16:: operator/=(const Fix16&  f)
+{
+  return *this = *this / f;
 }
 
-inline Fix16&  Fix16:: operator<<=(int b)	
-{ 
+inline Fix16&  Fix16:: operator<<=(int b)
+{
   return *this = *this << b;
 }
 
-inline Fix16&  Fix16:: operator>>=(int b)	
-{ 
+inline Fix16&  Fix16:: operator>>=(int b)
+{
   return *this = *this >> b;
 }
 
-inline int operator==(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator==(const Fix16&  f, const Fix16&  g)
+{
   return f.m == g.m;
 }
 
-inline int operator!=(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator!=(const Fix16&  f, const Fix16&  g)
+{
   return f.m != g.m;
 }
 
-inline int operator>=(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator>=(const Fix16&  f, const Fix16&  g)
+{
   return f.m >= g.m;
 }
 
-inline int operator<=(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator<=(const Fix16&  f, const Fix16&  g)
+{
   return f.m <= g.m;
 }
 
-inline int operator>(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator>(const Fix16&  f, const Fix16&  g)
+{
   return f.m > g.m;
 }
 
-inline int operator<(const Fix16&  f, const Fix16&  g)	
-{ 
+inline int operator<(const Fix16&  f, const Fix16&  g)
+{
   return f.m < g.m;
 }
 
 inline istream&  operator>>(istream& s, Fix16&  f)
-{ 
+{
   double d;
-  s >> d; 
-  f = d; 
-  return s; 
+  s >> d;
+  f = d;
+  return s;
 }
 
 inline ostream&  operator<<(ostream& s, const Fix16&  f)
-{ 
+{
   return s << double(f);
 }
 
@@ -499,36 +499,36 @@ inline Fix16& Fix16::operator*=(int g)
 inline Fix32::~Fix32() {}
 
 inline _G_int32_t Fix32::round(double d)
-{ 
+{
   return _G_int32_t( (d >= 0)? d + 0.5 : d - 0.5);
 }
 
-inline _G_int32_t& mantissa(Fix32& f)	
-{ 
+inline _G_int32_t& mantissa(Fix32& f)
+{
   return f.m;
 }
 
-inline const _G_int32_t& mantissa(const Fix32& f)	
-{ 
+inline const _G_int32_t& mantissa(const Fix32& f)
+{
   return f.m;
 }
 
-inline double value(const Fix32& f)		
-{ 
+inline double value(const Fix32& f)
+{
   return double(f);
 }
 
 inline Fix32 Fix32::operator+() const
-{ 
+{
   return m;
 }
 
-inline Fix32 Fix32::operator-() const		
-{ 
+inline Fix32 Fix32::operator-() const
+{
   return -m;
 }
 
-inline Fix32 operator+(const Fix32& f, const Fix32& g) 
+inline Fix32 operator+(const Fix32& f, const Fix32& g)
 {
   _G_int32_t sum = f.m + g.m;
   if ( (f.m ^ sum) & (g.m ^ sum) & Fix32_msb )
@@ -536,7 +536,7 @@ inline Fix32 operator+(const Fix32& f, const Fix32& g)
   return sum;
 }
 
-inline Fix32 operator-(const Fix32& f, const Fix32& g) 
+inline Fix32 operator-(const Fix32& f, const Fix32& g)
 {
   _G_int32_t sum = f.m - g.m;
   if ( (f.m ^ sum) & (-g.m ^ sum) & Fix32_msb )
@@ -544,87 +544,87 @@ inline Fix32 operator-(const Fix32& f, const Fix32& g)
   return sum;
 }
 
-inline Fix32 operator<<(const Fix32& a, int b) 	
-{ 
+inline Fix32 operator<<(const Fix32& a, int b)
+{
   return a.m << b;
 }
 
-inline Fix32 operator>>(const Fix32& a, int b) 	
-{ 
+inline Fix32 operator>>(const Fix32& a, int b)
+{
   return a.m >> b;
 }
 
-inline Fix32& Fix32::operator+=(const Fix32& f) 	
-{ 
+inline Fix32& Fix32::operator+=(const Fix32& f)
+{
   return *this = *this + f;
 }
 
-inline Fix32& Fix32::operator-=(const Fix32& f) 	
-{ 
+inline Fix32& Fix32::operator-=(const Fix32& f)
+{
   return *this = *this - f;
 }
 
-inline Fix32& Fix32::operator*=(const Fix32& f) 	
-{ 
+inline Fix32& Fix32::operator*=(const Fix32& f)
+{
   return *this = *this * f;
 }
 
-inline Fix32& Fix32::operator/=(const Fix32& f) 	
-{ 
+inline Fix32& Fix32::operator/=(const Fix32& f)
+{
   return *this = *this / f;
 }
 
 
-inline Fix32& Fix32::operator<<=(int b)	
-{ 
+inline Fix32& Fix32::operator<<=(int b)
+{
   return *this = *this << b;
 }
 
-inline Fix32& Fix32::operator>>=(int b)	
-{ 
+inline Fix32& Fix32::operator>>=(int b)
+{
   return *this = *this >> b;
 }
 
-inline int operator==(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator==(const Fix32& f, const Fix32& g)
+{
   return f.m == g.m;
 }
 
-inline int operator!=(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator!=(const Fix32& f, const Fix32& g)
+{
   return f.m != g.m;
 }
 
-inline int operator>=(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator>=(const Fix32& f, const Fix32& g)
+{
   return f.m >= g.m;
 }
 
-inline int operator<=(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator<=(const Fix32& f, const Fix32& g)
+{
   return f.m <= g.m;
 }
 
-inline int operator>(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator>(const Fix32& f, const Fix32& g)
+{
   return f.m > g.m;
 }
 
-inline int operator<(const Fix32& f, const Fix32& g)	
-{ 
+inline int operator<(const Fix32& f, const Fix32& g)
+{
   return f.m < g.m;
 }
 
 inline istream& operator>>(istream& s, Fix32& f)
-{ 
+{
   double d;
-  s >> d; 
-  f = d; 
-  return s; 
+  s >> d;
+  f = d;
+  return s;
 }
 
 inline ostream& operator<<(ostream& s, const Fix32& f)
-{ 
+{
   return s << double(f);
 }
 

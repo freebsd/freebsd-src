@@ -21,7 +21,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "sysdep.h"
 #include "libbfd.h"
 
-static bfd_arch_info_type arch_info_struct = 
+static bfd_arch_info_type arch_info_struct =
   {
     32,	/* 32 bits in a word */
     32,	/* 32 bits in an address */
@@ -32,7 +32,7 @@ static bfd_arch_info_type arch_info_struct =
     "i386",
     3,
     true, /* the one and only */
-    bfd_default_compatible, 
+    bfd_default_compatible,
     bfd_default_scan ,
     0,
   };

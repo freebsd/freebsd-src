@@ -27,10 +27,10 @@ test_intervals ()
 
   test_match (BRACES_TO_OPS ("a{1}"), "a");
   test_match (BRACES_TO_OPS ("a{1,}"), "a");
-  test_match (BRACES_TO_OPS ("a{1,}"), "aa"); 
+  test_match (BRACES_TO_OPS ("a{1,}"), "aa");
   test_match (BRACES_TO_OPS ("a{0,0}"), "");
   test_match (BRACES_TO_OPS ("a{0,1}"), "");
-  test_match (BRACES_TO_OPS ("a{0,1}"), "a"); 
+  test_match (BRACES_TO_OPS ("a{0,1}"), "a");
   test_match (BRACES_TO_OPS ("a{1,3}"), "a");
   test_match (BRACES_TO_OPS ("a{1,3}"), "aa");
   test_match (BRACES_TO_OPS ("a{1,3}"), "aaa");
@@ -68,7 +68,7 @@ test_intervals ()
 
   test_match (BRACES_TO_OPS (PARENS_TO_OPS ("(a*){1,1}ab")), "aaaab");
   TEST_REGISTERS (BRACES_TO_OPS (PARENS_TO_OPS ("(a*){1,1}ab")), "aaaab", 0, 5, 0, 3, -1, -1);
-  
+
   test_match (BRACES_TO_OPS (".{0,3}b"), "b");
   test_match (BRACES_TO_OPS (".{0,3}b"), "ab");
 
@@ -98,7 +98,7 @@ test_intervals ()
   test_match (BRACES_TO_OPS ("a{1}*"), "");
   test_match (BRACES_TO_OPS ("a{1}*"), "a");
   test_match (BRACES_TO_OPS ("a{1}*"), "aa");
-  
+
   test_match (BRACES_TO_OPS ("a{1}{1}"), "a");
 
   test_match (BRACES_TO_OPS ("a{1}{1}{1}"), "a");
@@ -108,25 +108,25 @@ test_intervals ()
   test_match (BRACES_TO_OPS ("a{1}{1}*"), "a");
   test_match (BRACES_TO_OPS ("a{1}{1}*"), "aa");
   test_match (BRACES_TO_OPS ("a{1}{1}*"), "aaa");
-  
+
   test_match (BRACES_TO_OPS ("a{1}{2}"), "aa");
   test_match (BRACES_TO_OPS ("a{2}{1}"), "aa");
 
 
   test_should_match = false;
-  
+
   test_match (BRACES_TO_OPS ("a{0}"), "a");
   test_match (BRACES_TO_OPS ("a{0,}"), "b");
-  test_match (BRACES_TO_OPS ("a{1}"), ""); 
+  test_match (BRACES_TO_OPS ("a{1}"), "");
   test_match (BRACES_TO_OPS ("a{1}"), "aa");
   test_match (BRACES_TO_OPS ("a{1,}"), "");
   test_match (BRACES_TO_OPS ("a{1,}"), "b");
-  test_match (BRACES_TO_OPS ("a{0,0}"), "a"); 
+  test_match (BRACES_TO_OPS ("a{0,0}"), "a");
   test_match (BRACES_TO_OPS ("a{0,1}"), "aa");
   test_match (BRACES_TO_OPS ("a{0,1}"), "b");
-  test_match (BRACES_TO_OPS ("a{1,3}"), ""); 
+  test_match (BRACES_TO_OPS ("a{1,3}"), "");
   test_match (BRACES_TO_OPS ("a{1,3}"), "aaaa");
-  test_match (BRACES_TO_OPS ("a{1,3}"), "b"); 
+  test_match (BRACES_TO_OPS ("a{1,3}"), "b");
   test_match (BRACES_TO_OPS (PARENS_TO_OPS ("(a){1,3}b")), "aaaab");
   test_match (BRACES_TO_OPS (PARENS_TO_OPS ("(a*){1,3}b")), "bb");
   test_match (BRACES_TO_OPS ("[a]{0,3}"), "aaaa");

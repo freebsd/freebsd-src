@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protf_rcsid[] = "$Id: protf.c,v 1.31 1994/01/30 21:01:46 ian Rel $";
+const char protf_rcsid[] = "$Id: protf.c,v 1.2 1994/05/07 18:13:45 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -247,7 +247,7 @@ ffsenddata (qdaemon, zdata, cdata, ilocal, iremote, ipos)
   char ab[CFBUFSIZE * 2];
   char *ze;
   register unsigned int itmpchk;
-      
+
   cFsent_data += cdata;
 
   ze = ab;
@@ -759,7 +759,7 @@ ffawait_cksum (qtrans, qdaemon, zdata, cdata)
       xfree (qtrans->pinfo);
       return FALSE;
     }
-	  
+
   icheck = (unsigned int) strtol ((char *) zdata, (char **) NULL, 16);
 
   if (icheck != (iFcheck & 0xffff))

@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.5 1995/03/05 22:48:50 wpaul Exp $
+# $Id: Makefile.yp,v 1.6 1995/04/02 01:53:47 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -26,7 +26,7 @@ NOPUSH = "True"
 # passwords in them) to the superuser on other FreeBSD machines, but
 # non-FreeBSD clients (e.g. SunOS, Solaris (without NIS+), IRIX, HP-UX,
 # etc...) will only work properly in 'unsecure' mode.
-# 
+#
 #UNSECURE = "True"
 
 # These are commands which this Makefile needs to properly rebuild the

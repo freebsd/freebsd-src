@@ -82,7 +82,7 @@ Kinds of operands:
 */
 
 /* The order of the opcodes in this table is significant:
-   
+
    * The assembler requires that all instances of the same mnemonic must be
    consecutive.  If they aren't, the assembler will bomb at runtime.
 

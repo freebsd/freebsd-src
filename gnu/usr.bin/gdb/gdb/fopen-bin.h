@@ -1,4 +1,4 @@
-/* Macros for the 'type' part of an fopen, freopen or fdopen. 
+/* Macros for the 'type' part of an fopen, freopen or fdopen.
 
 	<Read|Write>[Update]<Binary file|text file>
 

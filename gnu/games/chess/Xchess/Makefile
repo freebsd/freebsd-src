@@ -1,5 +1,5 @@
-# RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:05 $
-#           $Source: /a/cvs/386BSD/src/gnu/chess/Xchess/Makefile,v $
+# RCS Info: $Revision: 1.2 $ on $Date: 1994/01/07 11:10:39 $
+#           $Source: /home/ncvs/src/gnu/games/chess/Xchess/Makefile,v $
 # Copyright (c) 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 #
 # Makefile for xchess.
@@ -95,7 +95,7 @@ reopt: all
 
 install: all
 
-source:	$(SOURCE) 
+source:	$(SOURCE)
 
 tags: $(ALLFILES)
 	ctags -w -t *.c *.h > /dev/null 2>&1
@@ -123,7 +123,7 @@ depend: $(SOURCE)
 	echo '$$r makedep' >>eddep
 	echo 'w' >>eddep
 	ed - Makefile < eddep
-	rm eddep makedep 
+	rm eddep makedep
 	echo '# DEPENDENCIES MUST END AT END OF FILE' >> Makefile
 	echo '# IF YOU PUT STUFF HERE IT WILL GO AWAY' >> Makefile
 	echo '# see make depend above' >> Makefile

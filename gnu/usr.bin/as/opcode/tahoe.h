@@ -41,7 +41,7 @@ totstrs[] =
 {    "lnd",     {"rq",                  0x17    } },
 {    "addb3",	{"rbrbwb",		0x18	} },
   /* cmpb is wrong in the "offical" (what a joke!) text. It's not "rbwb" */
-{    "cmpb",	{"rbrb",		0x19	} }, 
+{    "cmpb",	{"rbrb",		0x19	} },
 {    "addw3",	{"rwrwww",		0x1a	} },
   /* cmpw is wrong in the "offical" text. It's not "rwww" */
 {    "cmpw",	{"rwrw",		0x1b	} },

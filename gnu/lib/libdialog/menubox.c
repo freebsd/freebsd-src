@@ -71,7 +71,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
-  
+
 #ifdef HAVE_NCURSES
   if (use_shadow)
     draw_shadow(stdscr, y, x, height, width);
@@ -149,7 +149,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       if (key < 0x100 && toupper(key) == toupper(items[(scroll+i)*2][0]))
         break;
 
-    if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || 
+    if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
         key == KEY_UP || key == KEY_DOWN || key == '-' || key == '+') {
       if (key >= '1' && key <= MIN('9', '0'+max_choice))
         i = key - '1';
@@ -245,7 +245,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	*ch = choice;
     if (sc)
 	*sc = scroll;
-    
+
     switch (key) {
     case KEY_PPAGE:
 	if (scroll > height-4) {	/* can we go up? */
@@ -316,7 +316,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     }
     if (redraw_menu) {
 	for (i = 0; i < max_choice; i++) {
-	    print_item(menu, items[(scroll+i)*2], 
+	    print_item(menu, items[(scroll+i)*2],
 		       items[(scroll+i)*2 + 1], i, i == choice);
 	}
 	wnoutrefresh(menu);

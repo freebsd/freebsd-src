@@ -37,7 +37,7 @@ convert_to_pointer (type, expr)
 {
   register tree intype = TREE_TYPE (expr);
   register enum tree_code form = TREE_CODE (intype);
-  
+
   if (integer_zerop (expr))
     {
       if (type == TREE_TYPE (null_pointer_node))
@@ -381,7 +381,7 @@ convert_to_integer (type, expr)
 		     to push the narrowing down through the conditional.  */
 		  return fold (build (COND_EXPR, type,
 				      TREE_OPERAND (expr, 0),
-				      convert (type, TREE_OPERAND (expr, 1)), 
+				      convert (type, TREE_OPERAND (expr, 1)),
 				      convert (type, TREE_OPERAND (expr, 2))));
 	      }
 	  }
@@ -415,7 +415,7 @@ convert_to_complex (type, expr)
 {
   register enum tree_code form = TREE_CODE (TREE_TYPE (expr));
   tree subtype = TREE_TYPE (type);
-  
+
   if (form == REAL_TYPE || form == INTEGER_TYPE || form == ENUMERAL_TYPE)
     {
       expr = convert (subtype, expr);
@@ -453,7 +453,7 @@ convert_to_complex (type, expr)
     error ("pointer value used where a complex was expected");
   else
     error ("aggregate value used where a complex was expected");
-  
+
   return build (COMPLEX_EXPR, type,
 		convert (subtype, integer_zero_node),
 		convert (subtype, integer_zero_node));

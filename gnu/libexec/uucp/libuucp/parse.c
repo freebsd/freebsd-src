@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char parse_rcsid[] = "$Id: parse.c,v 1.6 1994/03/26 04:42:39 ian Rel $";
+const char parse_rcsid[] = "$Id: parse.c,v 1.2 1994/05/07 18:13:33 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -104,7 +104,7 @@ fparse_cmd (zcmd, qcmd)
   if (z == NULL)
     return FALSE;
   qcmd->zto = z;
-      
+
   z = strtok ((char *) NULL, " \t\n");
   if (z == NULL)
     return FALSE;
@@ -155,7 +155,7 @@ fparse_cmd (zcmd, qcmd)
 	}
 
       return TRUE;
-    }      
+    }
 
   z = strtok ((char *) NULL, " \t\n");
   if (z == NULL)
@@ -203,7 +203,7 @@ fparse_cmd (zcmd, qcmd)
 	}
       else if (qcmd->bcmd == 'E')
 	return FALSE;
-      
+
       if (z != NULL)
 	{
 	  z = strtok ((char *) NULL, "");

@@ -81,8 +81,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* !FETCH_INFERIOR_REGISTERS */
 
 
-/* This function simply calls ptrace with the given arguments.  
-   It exists so that all calls to ptrace are isolated in this 
+/* This function simply calls ptrace with the given arguments.
+   It exists so that all calls to ptrace are isolated in this
    machine-dependent file. */
 int
 call_ptrace (request, pid, addr, data)
@@ -416,7 +416,7 @@ store_inferior_registers (regno)
 /* Copy LEN bytes to or from inferior's memory starting at MEMADDR
    to debugger memory starting at MYADDR.   Copy to inferior if
    WRITE is nonzero.
-  
+
    Returns the length copied, which is either the LEN argument or zero.
    This xfer function does not do partial moves, since child_ops
    doesn't allow memory operations to cross below us in the target stack

@@ -36,7 +36,7 @@ print_ed_script (script)
 
 static void
 print_ed_hunk (hunk)
-     struct change *hunk; 
+     struct change *hunk;
 {
   int f0, l0, f1, l1;
   int deletes, inserts;
@@ -180,7 +180,7 @@ print_rcs_hunk (hunk)
 	 and the number of lines deleted.  */
       fprintf (outfile, "%d %d\n",
 	       tf0,
-	       (tl0 >= tf0 ? tl0 - tf0 + 1 : 1));	     
+	       (tl0 >= tf0 ? tl0 - tf0 + 1 : 1));
     }
 
   if (inserts)
@@ -191,7 +191,7 @@ print_rcs_hunk (hunk)
       translate_range (&files[1], f1, l1, &tf1, &tl1);
       fprintf (outfile, "%d %d\n",
 	       tl0,
-	       (tl1 >= tf1 ? tl1 - tf1 + 1 : 1));	     
+	       (tl1 >= tf1 ? tl1 - tf1 + 1 : 1));
 
       /* Print the inserted lines.  */
       for (i = f1; i <= l1; i++)

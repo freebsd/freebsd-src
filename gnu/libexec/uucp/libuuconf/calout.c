@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_calout_rcsid[] = "$Id: calout.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_calout_rcsid[] = "$Id: calout.c,v 1.2 1994/05/07 18:12:00 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -61,7 +61,7 @@ uuconf_callout (pglobal, qsys, pzlog, pzpass)
       || (qsys->uuconf_zcall_password != NULL
 	  && strcmp (qsys->uuconf_zcall_password, "*") == 0))
     return UUCONF_NOT_FOUND;
-      
+
   if (qsys->uuconf_zcall_login != NULL)
     {
       *pzlog = strdup (qsys->uuconf_zcall_login);

@@ -65,7 +65,7 @@ struct sym_fns {
 
   /* Called when we are finished with an objfile.  Should do all cleanup
      that is specific to the object file format for the particular objfile. */
- 
+
   void (*sym_finish) PARAMS ((struct objfile *));
 
   /* This function produces a file-dependent section_offsets structure,
@@ -78,7 +78,7 @@ struct sym_fns {
   struct section_offsets *(*sym_offsets) PARAMS ((struct objfile *, CORE_ADDR));
 
   /* Finds the next struct sym_fns.  They are allocated and initialized
-     in whatever module implements the functions pointed to; an 
+     in whatever module implements the functions pointed to; an
      initializer calls add_symtab_fns to add them to the global chain.  */
 
   struct sym_fns *next;

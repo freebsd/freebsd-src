@@ -1,18 +1,18 @@
 /* tc-a29k.c -- Assemble for the AMD 29000.
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -129,14 +129,14 @@ static unsigned char octal[256];
     static unsigned char toHex[256];
 
 /*
- *  anull bit - causes the branch delay slot instructions to not be executed 
+ *  anull bit - causes the branch delay slot instructions to not be executed
  */
 #define ANNUL       (1 << 29)
 
 static void
     s_use()
 {
-	
+
 	if (strncmp(input_line_pointer, ".text", 5) == 0) {
 		input_line_pointer += 5;
 		s_text();
@@ -160,7 +160,7 @@ static void
 		demand_empty_rest_of_line();
 		return;
 	}
-	
+
 	as_bad("Unknown segment type");
 	demand_empty_rest_of_line();
 	return;
@@ -184,16 +184,16 @@ int regnum;
 {
 	/* FIXME-SOON, put something in these syms so they won't be output to the symbol
 	   table of the resulting object file.  */
-	
+
 	/* Must be large enough to hold the names of the special registers.  */
 	char buf[80];
 	int i;
-	
+
 	symbol_table_insert(symbol_new(regname, SEG_REGISTER, regnum, &zero_address_frag));
 	for (i = 0; regname[i]; i++)
 	    buf[i] = islower (regname[i]) ? toupper (regname[i]) : regname[i];
 	buf[i] = '\0';
-	
+
 	symbol_table_insert(symbol_new(buf, SEG_REGISTER, regnum, &zero_address_frag));
 } /* insert_sreg() */
 
@@ -202,7 +202,7 @@ int regnum;
 
 void define_some_regs() {
 #define SREG	256
-	
+
 	/* Protected special-purpose register names */
 	insert_sreg ("vab", SREG+0);
 	insert_sreg ("ops", SREG+1);
@@ -219,7 +219,7 @@ void define_some_regs() {
 	insert_sreg ("pc2", SREG+12);
 	insert_sreg ("mmu", SREG+13);
 	insert_sreg ("lru", SREG+14);
-	
+
 	/* Unprotected special-purpose register names */
 	insert_sreg ("ipc", SREG+128);
 	insert_sreg ("ipa", SREG+129);
@@ -246,25 +246,25 @@ void
 	register int skipnext = 0;
 	register unsigned int i;
 	register char *strend, *strend2;
-	
+
 	/* Hash up all the opcodes for fast use later.  */
-	
+
 	op_hash = hash_new();
 	if (op_hash == NULL)
 	    as_fatal("Virtual memory exhausted");
-	
+
 	for (i = 0; i < num_opcodes; i++)
 	    {
 		    const char *name = machine_opcodes[i].name;
-		    
+
 		    if (skipnext) {
 			    skipnext = 0;
 			    continue;
 		    }
-		    
+
 		    /* Hack to avoid multiple opcode entries.  We pre-locate all the
 		       variations (b/i field and P/A field) and handle them. */
-		    
+
 		    if (!strcmp (name, machine_opcodes[i+1].name)) {
 			    if ((machine_opcodes[i].opcode ^ machine_opcodes[i+1].opcode)
 				!= 0x01000000)
@@ -289,7 +289,7 @@ void
 				    fprintf (stderr, "internal error: can't handle opcode %s\n", name);
 				    lose = 1;
 			    }
-			    
+
 			    /* OK, this is an i/b or A/P pair.  We skip the higher-valued one,
 			       and let the code for operand checking handle OR-ing in the bit.  */
 			    if (machine_opcodes[i].opcode & 1)
@@ -297,7 +297,7 @@ void
 			    else
 				skipnext = 1;
 		    }
-		    
+
 		    retval = hash_insert (op_hash, name, &machine_opcodes[i]);
 		    if (retval != NULL && *retval != '\0')
 			{
@@ -306,10 +306,10 @@ void
 				lose = 1;
 			}
 	    }
-	
+
 	if (lose)
 	    as_fatal("Broken assembler.  No assembly attempted.");
-	
+
 	for (i = '0'; i < '8'; ++i)
 	    octal[i] = 1;
 	for (i = '0'; i <= '9'; ++i)
@@ -318,7 +318,7 @@ void
 	    toHex[i] = i + 10 - 'a';
 	for (i = 'A'; i <= 'F'; ++i)
 	    toHex[i] = i + 10 - 'A';
-	
+
 	define_some_regs ();
 }
 
@@ -335,13 +335,13 @@ char *str;
 {
 	char *toP;
 	/* !!!!    int rsd; */
-	
+
 	know(str);
 	machine_ip(str);
 	toP = frag_more(4);
 	/* put out the opcode */
 	md_number_to_chars(toP, the_insn.opcode, 4);
-	
+
 	/* put out the symbol-dependent stuff */
 	if (the_insn.reloc != NO_RELOC) {
 		fix_new(
@@ -365,12 +365,12 @@ expressionS *operandp;
 	char *save = input_line_pointer;
 	char *new;
 	segT seg;
-	
+
 	input_line_pointer = s;
 	seg = expr (0, operandp);
 	new = input_line_pointer;
 	input_line_pointer = save;
-	
+
 	switch (seg) {
 	case SEG_ABSOLUTE:
 	case SEG_TEXT:
@@ -381,18 +381,18 @@ expressionS *operandp;
 	case SEG_BIG:
 	case SEG_REGISTER:
 		return new;
-		
+
 	case SEG_ABSENT:
 		as_bad("Missing operand");
 		return new;
-		
+
 	default:
 		as_bad("Don't understand operand of type %s", segment_name (seg));
 		return new;
 	}
 }
 
-/* Instruction parsing.  Takes a string containing the opcode.  
+/* Instruction parsing.  Takes a string containing the opcode.
    Operands are at input_line_pointer.  Output is in the_insn.
    Warnings or errors are generated.  */
 
@@ -411,22 +411,22 @@ char *str;
 	expressionS the_operand;
 	expressionS *operand = &the_operand;
 	unsigned int reg;
-	
+
 	/* Must handle `div0' opcode.  */
 	s = str;
 	if (isalpha(*s))
 	    for (; isalnum(*s); ++s)
 		if (isupper (*s))
 		    *s = tolower (*s);
-	
+
 	switch (*s) {
 	case '\0':
 		break;
-		
+
 	case ' ':		/* FIXME-SOMEDAY more whitespace */
 		*s++ = '\0';
 		break;
-		
+
 	default:
 		as_bad("Unknown opcode: `%s'", str);
 		return;
@@ -439,7 +439,7 @@ char *str;
 	opcode = insn->opcode;
 	memset(&the_insn, '\0', sizeof(the_insn));
 	the_insn.reloc = NO_RELOC;
-	
+
 	/*
 	 * Build the opcode, checking as we go to make
 	 * sure that the operands match.
@@ -449,10 +449,10 @@ char *str;
 	 */
 	if (insn->args[0] != '\0')
 	    s = parse_operand (s, operand);	/* Prime the pump */
-	
+
 	for (args = insn->args; ; ++args) {
 		switch (*args) {
-			
+
 		case '\0':  /* end of args */
 			if (*s == '\0') {
 				/* We are truly done. */
@@ -461,21 +461,21 @@ char *str;
 			}
 			as_bad("Too many operands: %s", s);
 			break;
-			
+
 		case ',':	/* Must match a comma */
 			if (*s++ == ',') {
 				s = parse_operand (s, operand);	/* Parse next opnd */
 				continue;
 			}
 			break;
-			
+
 		case 'v':		/* Trap numbers (immediate field) */
 			if (operand->X_seg == SEG_ABSOLUTE) {
 				if (operand->X_add_number < 256) {
 					opcode |= (operand->X_add_number << 16);
 					continue;
 				} else {
-					as_bad("Immediate value of %d is too large", 
+					as_bad("Immediate value of %d is too large",
 					       operand->X_add_number);
 					continue;
 				}
@@ -484,21 +484,21 @@ char *str;
 			the_insn.reloc_offset = 1;	/* BIG-ENDIAN Byte 1 of insn */
 			the_insn.exp = *operand;
 			continue;
-			
+
 		case 'b':	/* A general register or 8-bit immediate */
 		case 'i':
 			/* We treat the two cases identically since we mashed
 			   them together in the opcode table.  */
 			if (operand->X_seg == SEG_REGISTER)
 			    goto general_reg;
-			
+
 			opcode |= IMMEDIATE_BIT;
 			if (operand->X_seg == SEG_ABSOLUTE) {
 				if (operand->X_add_number < 256) {
 					opcode |= operand->X_add_number;
 					continue;
 				} else {
-					as_bad("Immediate value of %d is too large", 
+					as_bad("Immediate value of %d is too large",
 					       operand->X_add_number);
 					continue;
 				}
@@ -507,7 +507,7 @@ char *str;
 			the_insn.reloc_offset = 3;	/* BIG-ENDIAN Byte 3 of insn */
 			the_insn.exp = *operand;
 			continue;
-			
+
 		case 'a':   /* next operand must be a register */
 		case 'c':
 		general_reg:
@@ -519,7 +519,7 @@ char *str;
 			reg = operand->X_add_number;
 			if (reg >= SREG)
 			    break;		/* No special registers */
-			
+
 			/*
 			 * Got the register, now figure out where
 			 * it goes in the opcode.
@@ -528,19 +528,19 @@ char *str;
 			case 'a':
 				opcode |= reg << 8;
 				continue;
-				
+
 			case 'b':
 			case 'i':
 				opcode |= reg;
 				continue;
-				
+
 			case 'c':
 				opcode |= reg << 16;
 				continue;
 			}
 			as_fatal("failed sanity check.");
 			break;
-			
+
 		case 'x':		/* 16 bit constant, zero-extended */
 		case 'X':		/* 16 bit constant, one-extended */
 			if (operand->X_seg == SEG_ABSOLUTE) {
@@ -551,7 +551,7 @@ char *str;
 			the_insn.reloc = RELOC_CONST;
 			the_insn.exp = *operand;
 			continue;
-			
+
 		case 'h':
 			if (operand->X_seg == SEG_ABSOLUTE) {
 				opcode |=  (operand->X_add_number & 0x00FF0000) >> 16 |
@@ -562,7 +562,7 @@ char *str;
 			the_insn.reloc = RELOC_CONSTH;
 			the_insn.exp = *operand;
 			continue;
-			
+
 		case 'P':		/* PC-relative jump address */
 		case 'A':		/* Absolute jump address */
 			/* These two are treated together since we folded the
@@ -578,7 +578,7 @@ char *str;
 			the_insn.pcrel = 1;		/* Assume PC-relative jump */
 			/* FIXME-SOON, Do we figure out whether abs later, after know sym val? */
 			continue;
-			
+
 		case 'e':		/* Coprocessor enable bit for LOAD/STORE insn */
 			if (operand->X_seg == SEG_ABSOLUTE) {
 				if (operand->X_add_number == 0)
@@ -589,7 +589,7 @@ char *str;
 				}
 			}
 			break;
-			
+
 		case 'n':		/* Control bits for LOAD/STORE instructions */
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 128) {
@@ -597,7 +597,7 @@ char *str;
 				continue;
 			}
 			break;
-			
+
 		case 's':		/* Special register number */
 			if (operand->X_seg != SEG_REGISTER)
 			    break;		/* Only registers */
@@ -605,7 +605,7 @@ char *str;
 			    break;		/* Not a special register */
 			opcode |= (operand->X_add_number & 0xFF) << 8;
 			continue;
-			
+
 		case 'u':		/* UI bit of CONVERT */
 			if (operand->X_seg == SEG_ABSOLUTE) {
 				if (operand->X_add_number == 0)
@@ -616,7 +616,7 @@ char *str;
 				}
 			}
 			break;
-			
+
 		case 'r':		/* RND bits of CONVERT */
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 8) {
@@ -624,7 +624,7 @@ char *str;
 				continue;
 			}
 			break;
-			
+
 		case 'd':		/* FD bits of CONVERT */
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 4) {
@@ -632,8 +632,8 @@ char *str;
 				continue;
 			}
 			break;
-			
-			
+
+
 		case 'f':		/* FS bits of CONVERT */
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 4) {
@@ -641,7 +641,7 @@ char *str;
 				continue;
 			}
 			break;
-			
+
 		case 'C':
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 4) {
@@ -649,7 +649,7 @@ char *str;
 				continue;
 			}
 			break;
-			
+
 		case 'F':
 			if (operand->X_seg == SEG_ABSOLUTE &&
 			    operand->X_add_number < 16) {
@@ -657,7 +657,7 @@ char *str;
 				continue;
 			}
 			break;
-			
+
 		default:
 			BAD_CASE (*args);
 		}
@@ -670,7 +670,7 @@ char *str;
 /*
   This is identical to the md_atof in m68k.c.  I think this is right,
   but I'm not sure.
-  
+
   Turn a string in input_line_pointer into a floating point constant of type
   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
   emitted is stored in *sizeP. An error message is returned, or NULL on OK.
@@ -689,33 +689,33 @@ int *sizeP;
 	LITTLENUM_TYPE words[MAX_LITTLENUMS];
 	LITTLENUM_TYPE *wordP;
 	char	*t;
-	
+
 	switch (type) {
-		
+
 	case 'f':
 	case 'F':
 	case 's':
 	case 'S':
 		prec = 2;
 		break;
-		
+
 	case 'd':
 	case 'D':
 	case 'r':
 	case 'R':
 		prec = 4;
 		break;
-		
+
 	case 'x':
 	case 'X':
 		prec = 6;
 		break;
-		
+
 	case 'p':
 	case 'P':
 		prec = 6;
 		break;
-		
+
 	default:
 		*sizeP=0;
 		return "Bad call to MD_ATOF()";
@@ -740,9 +740,9 @@ char *buf;
 long val;
 int n;
 {
-	
+
 	switch (n) {
-		
+
 	case 4:
 		*buf++ = val >> 24;
 		*buf++ = val >> 16;
@@ -751,7 +751,7 @@ int n;
 	case 1:
 		*buf = val;
 		break;
-		
+
 	default:
 		as_fatal("failed sanity check.");
 	}
@@ -763,13 +763,13 @@ fixS *fixP;
 long val;
 {
 	char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-	
+
 	fixP->fx_addnumber = val;	/* Remember value for emit_reloc */
-	
-	
+
+
 	know(fixP->fx_size == 4);
 	know(fixP->fx_r_type < NO_RELOC);
-	
+
 	/*
 	 * This is a hack.  There should be a better way to
 	 * handle this.
@@ -777,20 +777,20 @@ long val;
 	if (fixP->fx_r_type == RELOC_WDISP30 && fixP->fx_addsy) {
 		val += fixP->fx_where + fixP->fx_frag->fr_address;
 	}
-	
+
 	switch (fixP->fx_r_type) {
-		
+
 	case RELOC_32:
 		buf[0] = val >> 24;
 		buf[1] = val >> 16;
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_8:
 		buf[0] = val;
 		break;
-		
+
 	case RELOC_WDISP30:
 		val = (val >>= 2) + 1;
 		buf[0] |= (val >> 24) & 0x3f;
@@ -798,23 +798,23 @@ long val;
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_HI22:
 		buf[1] |= (val >> 26) & 0x3f;
 		buf[2] = val >> 18;
 		buf[3] = val >> 10;
 		break;
-		
+
 	case RELOC_LO10:
 		buf[2] |= (val >> 8) & 0x03;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_BASE13:
 		buf[2] |= (val >> 8) & 0x1f;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_WDISP22:
 		val = (val >>= 2) + 1;
 		/* FALLTHROUGH */
@@ -823,31 +823,31 @@ long val;
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 #if 0
-	case RELOC_PC10: 
-	case RELOC_PC22: 
+	case RELOC_PC10:
+	case RELOC_PC22:
 	case RELOC_JMP_TBL:
 	case RELOC_SEGOFF16:
 	case RELOC_GLOB_DAT:
-	case RELOC_JMP_SLOT: 
+	case RELOC_JMP_SLOT:
 	case RELOC_RELATIVE:
 #endif
 	case RELOC_JUMPTARG:	/* 00XX00XX pattern in a word */
 		buf[1] = val >> 10;	/* Holds bits 0003FFFC of address */
 		buf[3] = val >> 2;
 		break;
-		
+
 	case RELOC_CONST:		/* 00XX00XX pattern in a word */
 		buf[1] = val >> 8;	/* Holds bits 0000XXXX */
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_CONSTH:		/* 00XX00XX pattern in a word */
 		buf[1] = val >> 24;	/* Holds bits XXXX0000 */
 		buf[3] = val >> 16;
 		break;
-		
+
 	case NO_RELOC:
 	default:
 		as_bad("bad relocation type: 0x%02x", fixP->fx_r_type);
@@ -860,11 +860,11 @@ long val;
 short tc_coff_fix2rtype(fixP)
 fixS *fixP;
 {
-	
+
 	/* FIXME-NOW: relocation type handling is not yet written for
 	   a29k. */
-	
-	
+
+
 	switch (fixP->fx_r_type) {
 	case RELOC_32:	return(R_WORD);
 	case RELOC_8:	return(R_BYTE);
@@ -874,7 +874,7 @@ fixS *fixP;
 	default:	printf("need %o3\n", fixP->fx_r_type);
 		abort(0);
 	} /* switch on type */
-	
+
 	return(0);
 } /* tc_coff_fix2rtype() */
 #endif /* OBJ_COFF */
@@ -950,7 +950,7 @@ struct machine_it *insn;
 		"RELOC_RELATIVE",
 		"NO_RELOC"
 	    };
-	
+
 	if (insn->error) {
 		fprintf(stderr, "ERROR: %s\n");
 	}
@@ -959,11 +959,11 @@ struct machine_it *insn;
 	fprintf(stderr, "exp =  {\n");
 	fprintf(stderr, "\t\tX_add_symbol = %s\n",
 		insn->exp.X_add_symbol ?
-		(S_GET_NAME(insn->exp.X_add_symbol) ? 
+		(S_GET_NAME(insn->exp.X_add_symbol) ?
 		 S_GET_NAME(insn->exp.X_add_symbol) : "???") : "0");
 	fprintf(stderr, "\t\tX_sub_symbol = %s\n",
 		insn->exp.X_subtract_symbol ?
-		(S_GET_NAME(insn->exp.X_subtract_symbol) ? 
+		(S_GET_NAME(insn->exp.X_subtract_symbol) ?
 		 S_GET_NAME(insn->exp.X_subtract_symbol) : "???") : "0");
 	fprintf(stderr, "\t\tX_add_number = %d\n",
 		insn->exp.X_add_number);
@@ -973,7 +973,7 @@ struct machine_it *insn;
 #endif
 
 /* Translate internal representation of relocation info to target format.
-   
+
    On sparc/29k: first 4 bytes are normal unsigned long address, next three
    bytes are index, most sig. byte first.  Byte 7 is broken up with
    bit 7 as external, bits 6 & 5 unused, and the lower
@@ -988,25 +988,25 @@ fixS *fixP;
 relax_addressT segment_address_in_file;
 {
 	long r_symbolnum;
-	
+
 	know(fixP->fx_r_type < NO_RELOC);
 	know(fixP->fx_addsy != NULL);
-	
+
 	md_number_to_chars(where,
 			   fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
-	
+
 	where[4] = (r_symbolnum >> 16) & 0x0ff;
 	where[5] = (r_symbolnum >> 8) & 0x0ff;
 	where[6] = r_symbolnum & 0x0ff;
 	where[7] = (((!S_IS_DEFINED(fixP->fx_addsy)) << 7)  & 0x80) | (0 & 0x60) | (fixP->fx_r_type & 0x1F);
 	/* Also easy */
 	md_number_to_chars(&where[8], fixP->fx_addnumber, 4);
-	
+
 	return;
 } /* tc_aout_fix_to_chars() */
 
@@ -1031,7 +1031,7 @@ char *name;
 {
 	long regnum;
 	char testbuf[5+ /*SLOP*/ 5];
-	
+
 	if (name[0] == 'g' || name[0] == 'G' || name[0] == 'l' || name[0] == 'L')
 	    {
 		    /* Perhaps a global or local register name */
@@ -1045,14 +1045,14 @@ char *name;
 				sprintf(testbuf, "%ld", regnum);
 				if (strcmp (testbuf, &name[2]) != 0)
 				    return 0;	/* gr007 or lr7foo or whatever */
-				
+
 				/* We have a wiener!  Define and return a new symbol for it.  */
 				if (name[0] == 'l' || name[0] == 'L')
 				    regnum += 128;
 				return(symbol_new(name, SEG_REGISTER, regnum, &zero_address_frag));
 			}
 	    }
-	
+
 	return 0;
 }
 
@@ -1061,7 +1061,7 @@ char *name;
 void md_operand(expressionP)
 expressionS *expressionP;
 {
-	
+
 	if (input_line_pointer[0] == '%' && input_line_pointer[1] == '%')
 	    {
 		    /* We have a numeric register expression.  No biggy.  */

@@ -1,19 +1,19 @@
 /* write.h
 
    Copyright (C) 1987, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -59,7 +59,7 @@ struct fix {
 	char fx_pcrel;		   /* TRUE: pc-relative. */
 	char fx_pcrel_adjust;	   /* pc-relative offset adjust */
 	char fx_im_disp;	   /* TRUE: value is a displacement */
-	bit_fixS *fx_bit_fixP;	   /* IF NULL no bitfix's to do */  
+	bit_fixS *fx_bit_fixP;	   /* IF NULL no bitfix's to do */
 	char fx_bsr;		   /* sequent-hack */
 	enum reloc_type fx_r_type; /* Sparc hacks */
 	char fx_callj;		   /* TRUE if target is a 'callj' (used by i960) */

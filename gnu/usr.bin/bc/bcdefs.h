@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 /* Include the configuration file. */
@@ -74,7 +74,7 @@ typedef struct arg_list
       struct arg_list *next;
     } arg_list;
 
-typedef struct 
+typedef struct
     {
       char f_defined;   /* Is this function defined yet. */
       char *f_body[BC_MAX_SEGS];

@@ -1616,7 +1616,7 @@ parse_type (fd, ax, aux_index, bs, bigend, sym_name)
   /* Complain for illegal continuations due to corrupt aux entries.  */
   if (t->continued)
     complain (&bad_continued_complaint, sym_name);
- 
+
   return tp;
 }
 
@@ -1770,7 +1770,7 @@ parse_procedure (pr, search_symtab, first_off, pst)
 	{
 	  /* external */
 	  EXTR she;
-	  
+
 	  (*debug_swap->swap_ext_in) (cur_bfd,
 				      ((char *) debug_info->external_ext
 				       + (pr->isym
@@ -1878,7 +1878,7 @@ ecoff_relocate_efi (sym, delta)
   struct mips_extra_func_info *e;
 
   e = (struct mips_extra_func_info *) SYMBOL_VALUE (sym);
-  
+
   e->pdr.adr += delta;
 }
 
@@ -2394,7 +2394,7 @@ parse_partial_symbols (objfile, section_offsets)
 		    {
 		      long procaddr;
 		      long isym;
-	
+
 		      sh.value += ANOFFSET (section_offsets, SECT_OFF_TEXT);
 		      if (sh.st == stStaticProc)
 			{

@@ -34,7 +34,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    has a way to detect the bottom of the stack, there is no need
    to call this function from FRAME_CHAIN_VALID; the reason for
    doing so is that some machines have no way of detecting bottom
-   of stack. 
+   of stack.
 
    A PC of zero is always considered to be the bottom of the stack. */
 
@@ -372,7 +372,7 @@ get_prev_frame_info (next_frame)
       		(where the PC is already set up) and here (where it isn't).
       INIT_FRAME_PC is only called from here, always after
       		INIT_EXTRA_FRAME_INFO.
-   
+
    The catch is the MIPS, where INIT_EXTRA_FRAME_INFO requires the PC
    value (which hasn't been set yet).  Some other machines appear to
    require INIT_EXTRA_FRAME_INFO before they can do INIT_FRAME_PC.  Phoo.

@@ -92,7 +92,7 @@ void		 el_push	__P((EditLine *, const char *));
  * High level function internals control
  * Parses argc, argv array and executes builtin editline commands
  */
-int		 el_parse	__P((EditLine *, int, char **)); 
+int		 el_parse	__P((EditLine *, int, char **));
 
 /*
  * Low level editline access function

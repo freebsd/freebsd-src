@@ -188,7 +188,7 @@ get_fs_usage (path, disk, fsp)
   long cfree_blocks, ctotal_blocks;
   char *zpath;
   char *zslash;
-    
+
   zpath = zbufcpy (path);
   while ((o = open (zpath, O_RDONLY, 0)) == -1
 	 && errno == ENOENT)
@@ -247,7 +247,7 @@ get_fs_usage (path, disk, fsp)
   fsp->fsu_blocks = ctotal_blocks;
   fsp->fsu_bfree = cfree_blocks;
   fsp->fsu_bavail = cfree_blocks;
-    
+
   /* QNX has no limit on the number of inodes.  Most inodes are stored
      directly in the directory entry. */
   fsp->fsu_files = -1;

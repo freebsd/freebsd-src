@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 
@@ -35,7 +35,7 @@ typedef struct
       int  n_len;	/* The number of digits before the decimal point. */
       int  n_scale;	/* The number of digits after the decimal point. */
       int  n_refs;      /* The number of pointers to this number. */
-      char n_value[1];  /* The storage. Not zero char terminated. It is 
+      char n_value[1];  /* The storage. Not zero char terminated. It is
       			   allocated with all other fields.  */
     } bc_struct;
 

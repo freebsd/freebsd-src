@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/23 17:18:20 $
- *           $Source: /users/faustus/xchess/RCS/record.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:09 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/record.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -56,7 +56,7 @@ record_init(win)
 	i = XTextWidth(win->medium, RECORD_HEADER,
 		       sizeof(RECORD_HEADER) - 1);
 	i = (40 * win->small->max_bounds.width - i *
-	     win->medium->max_bounds.width) / 
+	     win->medium->max_bounds.width) /
 			win->medium->max_bounds.width / 2;
 	TxtGrab(win->display, win->recwin, "xchess", win->small, win->textback.pixel,
 			win->textcolor.pixel, win->cursorcolor.pixel);
@@ -64,7 +64,7 @@ record_init(win)
 	for (; i > 0; i++)
 		TxtWriteStr(win->display, win->recwin, " ");
 	TxtWriteStr(win->display, win->recwin, RECORD_HEADER);
-	
+
 	if (saveflag) {
 		if (!(backup = fopen(record_file, "w"))) {
 			perror(record_file);
@@ -72,7 +72,7 @@ record_init(win)
 		} else {
 			fprintf(backup, "X Chess -- %s\n", datestring());
 			if (dispname2)
-				fprintf(backup, "\tWhite on %s, black on %s\n", 
+				fprintf(backup, "\tWhite on %s, black on %s\n",
 						dispname1, dispname2);
 			else
 				fprintf(backup, "\tGame played on %s\n",
@@ -136,7 +136,7 @@ record_save()
 	}
 	fprintf(fp, "X Chess -- %s\n", datestring());
 	if (dispname2)
-		fprintf(fp, "\tWhite on %s, black on %s\n", 
+		fprintf(fp, "\tWhite on %s, black on %s\n",
 				dispname1, dispname2);
 	else
 		fprintf(fp, "\tGame played on %s\n", dispname1);
@@ -201,7 +201,7 @@ record_back()
     s = buf;
     for (i = 0; *s != '\0'; i++)
 	*s++ = '';		/* control H, backspace */
-   
+
     TxtWriteStr(win1->display, win1->recwin, buf);
     if (!oneboard) {
 	TxtWriteStr(win2->display, win2->recwin, buf);
@@ -279,9 +279,9 @@ movestring(m)
 		sprintf(buf, "something strange");
 		break;
 	}
-	if ((m->piece.type == PAWN) && (((m->piece.color == BLACK) && 
+	if ((m->piece.type == PAWN) && (((m->piece.color == BLACK) &&
 			(m->toy == 7)) || ((m->piece.color == WHITE) &&
-			(m->toy == 0)))) 
+			(m->toy == 0))))
 		strcat(buf, "(Q)");
 
 #ifdef smartass

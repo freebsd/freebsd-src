@@ -30,7 +30,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
     The second package is a collection of more or less generic
     functions for use by remote backends.  They support user settable
-    variables for debugging, retries, and the like.  
+    variables for debugging, retries, and the like.
 
    Todo:
 
@@ -429,7 +429,7 @@ gr_detach(args, from_tty)
 {
   if (args)
     error ("Argument given to \"detach\" when remotely debugging.");
-  
+
   if (sr_is_open())
     gr_clear_all_breakpoints ();
 
@@ -438,7 +438,7 @@ gr_detach(args, from_tty)
     puts_filtered ("Ending remote debugging.\n");
 
   return;
-}  
+}
 
 void
 gr_files_info (ops)

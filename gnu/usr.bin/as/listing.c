@@ -92,7 +92,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 */
 
 #ifndef lint
-static char rcsid[] = "$Id: listing.c,v 1.1 1993/11/03 00:51:54 paul Exp $";
+static char rcsid[] = "$Id: listing.c,v 1.2 1994/12/23 22:36:08 nate Exp $";
 #endif
 
 #include <ctype.h>
@@ -1021,28 +1021,28 @@ listing_flags (ignore)
   s_ignore (0);
 }
 
-void 
+void
 listing_list (on)
      int on;
 {
   s_ignore (0);
 }
 
-void 
+void
 listing_eject (ignore)
      int ignore;
 {
   s_ignore (0);
 }
 
-void 
+void
 listing_psize (ignore)
      int ignore;
 {
   s_ignore (0);
 }
 
-void 
+void
 listing_title (depth)
      int depth;
 {
@@ -1056,20 +1056,20 @@ listing_file (name)
 
 }
 
-void 
+void
 listing_newline (name)
      char *name;
 {
 
 }
 
-void 
+void
 listing_source_line (n)
      unsigned int n;
 {
 
 }
-void 
+void
 listing_source_file (n)
      const char *n;
 {

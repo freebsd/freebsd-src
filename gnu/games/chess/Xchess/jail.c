@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.3 $ on $Date: 86/11/26 12:09:54 $
- *           $Source: /users/faustus/xchess/RCS/jail.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:12 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/jail.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -82,7 +82,7 @@ jail_draw(win)
 		       win->textcolor.pixel);
 	XSetBackground(win->display, DefaultGC(win->display, 0),
 		       win->textback.pixel);
-	
+
 	XDrawImageString(win->display, win->jailwin,
 			 DefaultGC(win->display, 0),
 			 (JAIL_WIDTH - i) / 2, 20, JAIL_HEADER,
@@ -96,7 +96,7 @@ jail_draw(win)
 		      FillSolid);
 	XSetFunction(win->display, DefaultGC(win->display, 0),
 		     GXcopy);
-	
+
 	for (i = 0; i < 16; i++)
 		if (pos[i]) {
 			p.color = WHITE;
@@ -105,7 +105,7 @@ jail_draw(win)
 			tmpPM = XCreateBitmapFromData(win->display,
 				     win->jailwin, bits,
 				     32, 32);
-			
+
 			XCopyPlane(win->display, tmpPM, win->jailwin,
 				  DefaultGC(win->display, 0),
 				  0, 0, 32, 32,
@@ -127,7 +127,7 @@ jail_draw(win)
 		    tmpPM = XCreateBitmapFromData(win->display,
 						  win->jailwin, bits,
 						  32, 32);
-			
+
 		    XCopyPlane(win->display, tmpPM, win->jailwin,
 			       DefaultGC(win->display, 0),
 			       0, 0, 32, 32,
@@ -151,7 +151,7 @@ jail_add(p)
 	int i = piecepos(p, false);
 	char *bits;
 	Pixmap tmpPM;
-	
+
 	pos[i] = true;
 
 	bits = bitsget(p);
@@ -165,14 +165,14 @@ jail_add(p)
 	tmpPM = XCreateBitmapFromData(win1->display,
 				      win1->jailwin, bits,
 				      32, 32);
-			
+
 	XCopyPlane(win1->display, tmpPM, win1->jailwin,
 		   DefaultGC(win1->display, 0),
 		   0, 0, 32, 32,
 		   5 + (i % 8) * 32, ((i >= 16) ? 30 : 25) + (i / 8) * 32,
 		   1);
 	XFreePixmap(win1->display, tmpPM);
-	
+
 	if (!oneboard) {
 	    XSetState(win2->display, DefaultGC(win2->display, 0),
 		      win2->blackpiece.pixel,
@@ -184,7 +184,7 @@ jail_add(p)
 	    tmpPM = XCreateBitmapFromData(win2->display,
 					  win2->jailwin, bits,
 					  32, 32);
-			
+
 	    XCopyPlane(win2->display, tmpPM, win2->jailwin,
 		       DefaultGC(win2->display, 0),
 		       0, 0, 32, 32,

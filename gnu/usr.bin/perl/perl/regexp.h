@@ -5,24 +5,27 @@
  * not the System V one.
  */
 
-/* $RCSfile: regexp.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: regexp.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  * $Log: regexp.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
  * Revision 4.0.1.2  91/11/05  18:24:31  lwall
  * patch11: minimum match length calculation in regexp is now cumulative
  * patch11: initial .* in pattern had dependency on value of $*
- * 
+ *
  * Revision 4.0.1.1  91/06/07  11:51:18  lwall
  * patch4: new copyright notice
  * patch4: // wouldn't use previous pattern if it started with a null character
  * patch4: $` was busted inside s///
- * 
+ *
  * Revision 4.0  91/03/20  01:39:23  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 typedef struct regexp {

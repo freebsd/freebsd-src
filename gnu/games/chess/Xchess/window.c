@@ -19,8 +19,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.5 $ on $Date: 86/11/26 12:11:15 $
- *           $Source: /users/faustus/xchess/RCS/window.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:08 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/window.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -89,7 +89,7 @@ win_setup(disp1, disp2)
 		win2->flipped = true;
 		win_drawboard(win2);
 	}
-	
+
 	return(true);
 }
 
@@ -199,7 +199,7 @@ win_drawpiece(p, y, x, wnum)
 	XSetState(win->display, DefaultGC(win->display, 0),
 		  BlackPixel(win->display, 0),
 		  WhitePixel(win->display, 0), GXcopy, AllPlanes);
-	
+
 	tmpPM = XCreateBitmapFromData(win->display, win->boardwin,
 				shade_bits, SQUARE_WIDTH, SQUARE_HEIGHT);
 
@@ -209,7 +209,7 @@ win_drawpiece(p, y, x, wnum)
 		   y * (SQUARE_HEIGHT + BORDER_WIDTH), 1);
 
 	XFreePixmap(win->display, tmpPM);
-	
+
 	XSetFunction(win->display, DefaultGC(win->display, 0),
 		     GXandInverted);
 	maskPM = XCreateBitmapFromData(win->display, win->boardwin,
@@ -268,16 +268,16 @@ win_drawpiece(p, y, x, wnum)
 	    gc.background = win->blacksquare.pixel;
 
 	gc.font = win->small->fid;
-	    
+
 	XChangeGC(win->display, DefaultGC(win->display, 0),
 		  GCForeground | GCBackground | GCFont, &gc);
-	    
+
 	if (!x) {
 	    sprintf(buf, " %d", SIZE - y);
 	    XDrawImageString(win->display, win->boardwin,
 			     DefaultGC(win->display, 0),
-			     1, (y + 1) * (SQUARE_HEIGHT + 
-					   BORDER_WIDTH) - BORDER_WIDTH + 
+			     1, (y + 1) * (SQUARE_HEIGHT +
+					   BORDER_WIDTH) - BORDER_WIDTH +
 			     win->small->max_bounds.ascent - 1, buf, 2);
 	}
 	if (y == SIZE - 1) {
@@ -285,7 +285,7 @@ win_drawpiece(p, y, x, wnum)
 	    XDrawImageString(win->display, win->boardwin,
 			     DefaultGC(win->display, 0),
 			     x * (SQUARE_WIDTH + BORDER_WIDTH) + 1,
-			     SIZE * (SQUARE_HEIGHT + BORDER_WIDTH) - BORDER_WIDTH + 
+			     SIZE * (SQUARE_HEIGHT + BORDER_WIDTH) - BORDER_WIDTH +
 			     win->small->max_bounds.ascent - 1, buf, 1);
 	}
     }
@@ -301,12 +301,12 @@ win_erasepiece(y, x, wnum)
     char buf[BSIZE];
     XGCValues gc;
     Pixmap tmpPM;
-    
+
     if (oneboard || (wnum == win1->color))
 	win = win1;
     else
 	win = win2;
-		
+
     if (win->flipped) {
 	y = SIZE - y - 1;
 	x = SIZE - x - 1;
@@ -354,16 +354,16 @@ win_erasepiece(y, x, wnum)
 	    gc.background = win->blacksquare.pixel;
 
 	gc.font = win->small->fid;
-	    
+
 	XChangeGC(win->display, DefaultGC(win->display, 0),
 		  GCForeground | GCBackground | GCFont, &gc);
-	    
+
 	if (!x) {
 	    sprintf(buf, " %d", SIZE - y);
 	    XDrawImageString(win->display, win->boardwin,
 			     DefaultGC(win->display, 0),
-			     1, (y + 1) * (SQUARE_HEIGHT + 
-					   BORDER_WIDTH) - BORDER_WIDTH + 
+			     1, (y + 1) * (SQUARE_HEIGHT +
+					   BORDER_WIDTH) - BORDER_WIDTH +
 			     win->small->max_bounds.ascent - 1, buf, 2);
 	}
 	if (y == SIZE - 1) {
@@ -371,11 +371,11 @@ win_erasepiece(y, x, wnum)
 	    XDrawImageString(win->display, win->boardwin,
 			     DefaultGC(win->display, 0),
 			     x * (SQUARE_WIDTH + BORDER_WIDTH) + 1,
-			     SIZE * (SQUARE_HEIGHT + BORDER_WIDTH) - BORDER_WIDTH + 
+			     SIZE * (SQUARE_HEIGHT + BORDER_WIDTH) - BORDER_WIDTH +
 			     win->small->max_bounds.ascent - 1, buf, 1);
 	}
     }
-    
+
 
     return;
 }
@@ -392,7 +392,7 @@ win_flash(m, wnum)
 		win = win1;
 	else
 		win = win2;
-		
+
 	if (win->flipped) {
 		sx = SIZE - m->fromx - 1;
 		sy = SIZE - m->fromy - 1;
@@ -417,7 +417,7 @@ win_flash(m, wnum)
 		      DefaultGC(win->display, 0),
 		      sx, sy, ex, ey);
 	}
-	
+
 	XSetFunction(win->display, DefaultGC(win->display, 0), GXcopy);
 	return;
 }
@@ -598,7 +598,7 @@ win_redraw(win, event)
 		x2 = SIZE - x1 - 1;
 	}
 
-	for (i = x1; i <= x2; i++) 
+	for (i = x1; i <= x2; i++)
 		for (j = y1; j <= y2; j++) {
 			if (chessboard->square[j][i].color == NONE)
 				win_erasepiece(j, i, WHITE);
@@ -613,7 +613,7 @@ win_redraw(win, event)
 							j, i, BLACK);
 			}
 		}
-	
+
 	return;
 }
 
@@ -627,11 +627,11 @@ setup(dispname, win)
 	Cursor cur;
 	extern char *program, *recfile;
 	XSizeHints xsizes;
-	
+
 
 	if (!(win->display = XOpenDisplay(dispname)))
 		return (false);
-	
+
 
 	/* Now get boolean defaults... */
 	if ((s = XGetDefault(win->display, program, "noisy")) && eq(s, "on"))
@@ -646,13 +646,13 @@ setup(dispname, win)
 		quickflag = true;
 	if ((s = XGetDefault(win->display, program, "flash")) && eq(s, "on"))
 		win_flashmove = true;
-	
+
 	/* ... numeric variables ... */
 	if (s = XGetDefault(win->display, program, "numflashes"))
 		num_flashes = atoi(s);
 	if (s = XGetDefault(win->display, program, "flashsize"))
 		flash_size = atoi(s);
-	
+
 	/* ... and strings. */
 	if (s = XGetDefault(win->display, program, "progname"))
 		progname = s;
@@ -683,7 +683,7 @@ setup(dispname, win)
 
 	if ((DisplayPlanes(win->display, 0) == 1) || bnwflag)
 		win->bnw = true;
-	
+
 	/* Allocate colors... */
 	if (win->bnw) {
 		win->blackpiece.pixel = BlackPixel (win->display, 0);
@@ -699,64 +699,64 @@ setup(dispname, win)
 	} else {
 	    if (!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     black_piece_color, &win->blackpiece) ||  
+			     black_piece_color, &win->blackpiece) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     white_piece_color, &win->whitepiece) ||  
+			     white_piece_color, &win->whitepiece) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     black_square_color, &win->blacksquare) ||  
+			     black_square_color, &win->blacksquare) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     white_square_color, &win->whitesquare) ||  
+			     white_square_color, &win->whitesquare) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     border_color, &win->border) ||  
+			     border_color, &win->border) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     text_color, &win->textcolor) ||  
+			     text_color, &win->textcolor) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     text_back, &win->textback) ||  
+			     text_back, &win->textback) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     error_text, &win->errortext) ||  
+			     error_text, &win->errortext) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     player_text, &win->playertext) ||  
+			     player_text, &win->playertext) ||
 		!XParseColor(win->display,
 			     DefaultColormap(win->display, 0),
 			     cursor_color, &win->cursorcolor) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->blackpiece) ||  
+			     &win->blackpiece) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->whitepiece) ||  
+			     &win->whitepiece) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->blacksquare) ||  
+			     &win->blacksquare) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->whitesquare) ||   
+			     &win->whitesquare) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->border) ||  
+			     &win->border) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->textcolor) ||  
+			     &win->textcolor) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->textback) ||  
+			     &win->textback) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->errortext) ||  
+			     &win->errortext) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->playertext) ||  
+			     &win->playertext) ||
 		!XAllocColor(win->display,
 			     DefaultColormap(win->display, 0),
-			     &win->cursorcolor))   
+			     &win->cursorcolor))
 		fprintf(stderr, "Can't get colors...\n");
 	}
 
@@ -773,17 +773,17 @@ setup(dispname, win)
 	    NULL)
 	    fprintf(stderr, "Can't get large font...\n");
 
-	
+
 	/* Create the windows... */
 
 	win->basewin =
 	    XCreateSimpleWindow(win->display,DefaultRootWindow(win->display),
-			  BASE_XPOS, BASE_YPOS, 
+			  BASE_XPOS, BASE_YPOS,
 			  BASE_WIDTH, BASE_HEIGHT, 0,
 			  BlackPixel(win->display, 0),
-			  WhitePixel(win->display, 0)); 
+			  WhitePixel(win->display, 0));
 	win->boardwin = XCreateSimpleWindow(win->display,win->basewin,
-					    BOARD_XPOS, BOARD_YPOS, 
+					    BOARD_XPOS, BOARD_YPOS,
 					    BOARD_WIDTH, BOARD_HEIGHT,
 					    BORDER_WIDTH,
 					    win->border.pixel,
@@ -819,7 +819,7 @@ setup(dispname, win)
 					     BUTTON_WIDTH, BUTTON_HEIGHT,
 					     BORDER_WIDTH, win->border.pixel,
 					     win->textback.pixel);
-	
+
 	/* Let's define an icon... */
 	win->iconpixmap = XCreatePixmapFromBitmapData(win->display,
 						      win->basewin, icon_bits,
@@ -835,7 +835,7 @@ setup(dispname, win)
 	XSetStandardProperties(win->display, win->basewin,
 			       program, program, win->iconpixmap,
 			       0, NULL, &xsizes);
-	
+
 	bm = XCreateBitmapFromData(win->display,
 				   win->basewin, xchess_bits,
 				   xchess_width, xchess_height);
@@ -848,7 +848,7 @@ setup(dispname, win)
 			    xchess_x_hot, xchess_y_hot);
 	XFreePixmap(win->display, bm);
 	XFreePixmap(win->display, bmask);
-	
+
 	XDefineCursor(win->display,win->basewin, cur);
 
 	XMapSubwindows(win->display,win->basewin);
@@ -866,7 +866,7 @@ setup(dispname, win)
 		     ButtonReleaseMask | ExposureMask);
 	XSelectInput(win->display,win->buttonwin,
 		     ButtonPressMask | ExposureMask);
-	
+
 	message_init(win);
 	record_init(win);
 	button_draw(win);
@@ -900,12 +900,12 @@ drawgrid(win)
 	gc.foreground = win->border.pixel;
 	gc.line_width = 0;
 	gc.line_style = LineSolid;
-	
+
 	XChangeGC(win->display,
 		  DefaultGC(win->display, 0),
 		  GCFunction | GCPlaneMask | GCForeground |
 		  GCLineWidth | GCLineStyle, &gc);
-	
+
 	/* Draw the lines... horizontal, */
 	for (i = 1; i < SIZE; i++)
 		XDrawLine(win->display, win->boardwin,
@@ -923,7 +923,7 @@ drawgrid(win)
 			  i * (SQUARE_WIDTH + BORDER_WIDTH) -
 				BORDER_WIDTH / 2, 0,
 			  i * (SQUARE_WIDTH + BORDER_WIDTH) -
-			        BORDER_WIDTH / 2, 
+			        BORDER_WIDTH / 2,
 			  SIZE * (SQUARE_WIDTH + BORDER_WIDTH));
 	return;
 }

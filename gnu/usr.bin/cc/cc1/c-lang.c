@@ -25,7 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Each of the functions defined here
    is an alternative to a function in objc-actions.c.  */
-   
+
 int
 lang_decode_option (p)
      char *p;

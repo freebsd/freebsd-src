@@ -372,7 +372,7 @@ sort_member_init (t)
 
    Note that emit_base_init does *not* initialize virtual base
    classes.  That is done specially, elsewhere.  */
-   
+
 void
 emit_base_init (t, immediately)
      tree t;
@@ -839,7 +839,7 @@ do_member_init (s_id, name, init)
    TYPE is the type for which the initialization is being performed.
    FIELD must be a member of TYPE, or the base type from which FIELD
    comes must not need a constructor.
-   
+
    MEMBER_NAME is the name of the member.  */
 
 static int
@@ -1810,7 +1810,7 @@ get_type_value (name)
   else
     return NULL_TREE;
 }
-  
+
 
 /* This code could just as well go in `class.c', but is placed here for
    modularity.  */
@@ -2264,7 +2264,7 @@ resolve_offset_ref (exp)
 	basetype = DECL_CONTEXT (member);
 
       base = current_class_decl;
-      
+
       if (get_base_distance (basetype, TREE_TYPE (TREE_TYPE (base)), 0, &basetype_path) < 0)
 	{
 	  error_not_base_type (basetype, TREE_TYPE (TREE_TYPE (base)));
@@ -2419,12 +2419,12 @@ is_friend (type, supplicant)
     {
       if (type == supplicant)
 	return 1;
-      
+
       list = CLASSTYPE_FRIEND_CLASSES (TREE_TYPE (TYPE_NAME (type)));
       for (; list ; list = TREE_CHAIN (list))
 	if (supplicant == TREE_VALUE (list))
 	  return 1;
-    }      
+    }
 
   {
     tree context = declp ? DECL_CLASS_CONTEXT (supplicant)
@@ -3014,7 +3014,7 @@ build_new (placement, decl, init, use_global_new)
       pedwarn ("const and volatile types cannot be created with operator new");
       type = true_type = TYPE_MAIN_VARIANT (type);
     }
-  
+
   /* If our base type is an array, then make sure we know how many elements
      it has.  */
   while (TREE_CODE (true_type) == ARRAY_TYPE)
@@ -3158,14 +3158,14 @@ build_new (placement, decl, init, use_global_new)
 
       {
 	tree tmp = rval;
-	
+
 	if (TREE_CODE (TREE_TYPE (tmp)) == POINTER_TYPE)
 	  tmp = build_indirect_ref (tmp, NULL_PTR);
-      
+
 	newrval = build_method_call (tmp, constructor_name_full (true_type),
 				     init, NULL_TREE, flags);
       }
-      
+
       if (newrval)
 	{
 	  rval = newrval;

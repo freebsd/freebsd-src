@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/26 12:09:47 $
- *           $Source: /users/faustus/xchess/RCS/clock.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:08 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/clock.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -59,7 +59,7 @@ clock_draw(win, col)
 	Window w = ((col == WHITE) ? win->wclockwin : win->bclockwin);
 
 	/* Draw a clock face and the hands. */
-	XCircle(w, x, y, rad, 0.0, 0.0, 1, 1, win->textcolor.pixel, GXcopy, 
+	XCircle(w, x, y, rad, 0.0, 0.0, 1, 1, win->textcolor.pixel, GXcopy,
 			AllPlanes);
 	rad -= 8;
 
@@ -112,7 +112,7 @@ clock_update()
 		lastwhite = lastblack = now;
 		return;
 	}
-	
+
 	if (white_running) {
 		whiteseconds += now - lastwhite;
 		lastwhite = now;
@@ -198,7 +198,7 @@ dohands(win, col)
 {
 	int cx = CLOCK_WIDTH / 2, cy = CLOCK_WIDTH / 2;
 	double *h = (col == WHITE) ? win->whitehands : win->blackhands;
-	Window w = (col == WHITE) ? win->wclockwin : win->bclockwin; 
+	Window w = (col == WHITE) ? win->wclockwin : win->bclockwin;
 	long secs = (col == WHITE) ? whiteseconds : blackseconds;
 	int rad, x, y, i;
 
@@ -272,11 +272,11 @@ hilight(win, col, on)
 		      BORDER_WIDTH, LineSolid, CapButt, JoinMiter);
 	XSetFont(win->display, DefaultGC(win->display, 0),
 		 win->large->fid);
-	
+
 	XDrawLine(win->display, w, DefaultGC(win->display, 0),
 		  0, CLOCK_HEIGHT - 26,
 		  CLOCK_WIDTH, CLOCK_HEIGHT - 26);
-	
+
 	XDrawImageString(win->display, w, DefaultGC(win->display, 0),
 			 (CLOCK_WIDTH - x) / 2, CLOCK_HEIGHT,
 			 s, strlen(s));

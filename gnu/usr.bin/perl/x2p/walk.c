@@ -1,4 +1,4 @@
-/* $RCSfile: walk.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:11 $
+/* $RCSfile: walk.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:55 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: walk.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:55  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:11  nate
  * PERL!
  *
@@ -14,17 +17,17 @@
  * patch20: in a2p, made RS="" translate to $/ = "\n\n"
  * patch20: in a2p, do {...} while ... was missing some reconstruction code
  * patch20: in a2p, getline should allow variable to be array element
- * 
+ *
  * Revision 4.0.1.2  91/11/05  19:25:09  lwall
  * patch11: in a2p, split on whitespace produced extra null field
- * 
+ *
  * Revision 4.0.1.1  91/06/07  12:22:04  lwall
  * patch4: new copyright notice
  * patch4: a2p didn't correctly implement -n switch
- * 
+ *
  * Revision 4.0  91/03/20  01:58:36  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "handy.h"
@@ -645,7 +648,7 @@ sub Pick {\n\
 	else
 	    tmpstr = str_make("");
 	sprintf(tokenbuf," = &Getline%d(%s)",len,tmpstr->str_ptr);
-	str_cat(str,tokenbuf); 
+	str_cat(str,tokenbuf);
 	str_free(tmpstr);
 	if (useval)
 	    str_cat(str,",$getline_ok)");

@@ -87,7 +87,7 @@ void	 strmode __P((int, char *));
 int	 strncasecmp __P((const char *, const char *, size_t));
 char	*strsep __P((char **, const char *));
 void	 swab __P((const void *, void *, size_t));
-#endif 
+#endif
 __END_DECLS
 
 #endif /* _STRING_H_ */

@@ -59,7 +59,7 @@ extern int end_of_file;
 
 struct obstack token_obstack;
 int first_token;
-  
+
 #ifdef SPEW_DEBUG
 int spew_debug = 0;
 static unsigned int yylex_ctr = 0;
@@ -228,7 +228,7 @@ probe_obstack (h, obj, nlevels)
        nlevels -= 1)
     {
       plp = lp->prev;
-      lp = plp;      
+      lp = plp;
     }
   return nlevels != 0 && lp != 0;
 }
@@ -290,7 +290,7 @@ yylex()
     case EMPTY:
       /* This is a lexical no-op.  */
       consume_token ();
-#ifdef SPEW_DEBUG    
+#ifdef SPEW_DEBUG
       if (spew_debug)
 	debug_yychar (tmp_token.yychar);
 #endif
@@ -366,7 +366,7 @@ yylex()
   yylval = tmp_token.yylval;
   yychar = tmp_token.yychar;
   end_of_file = tmp_token.end_of_file;
-#ifdef SPEW_DEBUG    
+#ifdef SPEW_DEBUG
   if (spew_debug)
     debug_yychar(yychar);
 #endif
@@ -383,7 +383,7 @@ static int
 do_aggr ()
 {
   int yc1, yc2;
-  
+
   scan_tokens (2);
   yc1 = nth_token (1)->yychar;
   if (yc1 != TYPENAME && yc1 != IDENTIFIER && yc1 != PTYPENAME)
@@ -414,9 +414,9 @@ do_aggr ()
       my_friendly_abort (102);
     }
   return 0;
-}  
-  
-#ifdef SPEW_DEBUG    
+}
+
+#ifdef SPEW_DEBUG
 /* debug_yychar takes a yychar (token number) value and prints its name. */
 static int
 debug_yychar (yy)
@@ -424,9 +424,9 @@ debug_yychar (yy)
 {
   /* In parse.y: */
   extern char *debug_yytranslate ();
-  
+
   int i;
-  
+
   if(yy<256) {
     fprintf (stderr, "<%d: %c >\n", yy, yy);
     return 0;

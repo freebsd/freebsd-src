@@ -1,4 +1,4 @@
-/* Work with executable files, for GDB. 
+/* Work with executable files, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -121,7 +121,7 @@ exec_file_command (args, from_tty)
     {
       char *scratch_pathname;
       int scratch_chan;
-      
+
       /* Scan through the args and pick up the first non option arg
 	 as the filename. */
 
@@ -139,8 +139,8 @@ exec_file_command (args, from_tty)
 
       filename = tilde_expand (*argv);
       make_cleanup (free, filename);
-      
-      scratch_chan = openp (getenv ("PATH"), 1, filename, 
+
+      scratch_chan = openp (getenv ("PATH"), 1, filename,
 			    write_files? O_RDWR|O_BINARY: O_RDONLY|O_BINARY, 0,
 			    &scratch_pathname);
       if (scratch_chan < 0)
@@ -165,7 +165,7 @@ exec_file_command (args, from_tty)
 	  /* Make sure to close exec_bfd, or else "run" might try to use
 	     it.  */
 	  exec_close (0);
-	  error ("Can't find the file sections in `%s': %s", 
+	  error ("Can't find the file sections in `%s': %s",
 		 exec_bfd->filename, bfd_errmsg (bfd_get_error ()));
 	}
 
@@ -187,7 +187,7 @@ exec_file_command (args, from_tty)
 	  if (bfd_get_section_flags (p->bfd, p->the_bfd_section)
 	      & (SEC_CODE | SEC_READONLY))
 	    {
-	      if (text_start > p->addr) 
+	      if (text_start > p->addr)
 		text_start = p->addr;
 	      if (text_end < p->endaddr)
 		text_end = p->endaddr;
@@ -207,7 +207,7 @@ exec_file_command (args, from_tty)
     printf_unfiltered ("No exec file now.\n");
 }
 
-/* Set both the exec file and the symbol file, in one command.  
+/* Set both the exec file and the symbol file, in one command.
    What a novelty.  Why did GDB go through four major releases before this
    command was added?  */
 
@@ -223,7 +223,7 @@ file_command (arg, from_tty)
 }
 
 
-/* Locate all mappable sections of a BFD file. 
+/* Locate all mappable sections of a BFD file.
    table_pp_char is a char * to get it through bfd_map_over_sections;
    we cast it back to its proper type.  */
 
@@ -322,7 +322,7 @@ xfer_memory (memaddr, myaddr, len, write, target)
 	    /* This section ends before the transfer starts.  */
 	    continue;
 	  }
-	else 
+	else
 	  {
 	    /* This section overlaps the transfer.  Just do half.  */
 	    len = p->endaddr - memaddr;
@@ -426,7 +426,7 @@ set_section_command (args, from_tty)
 	exec_files_info(&exec_ops);
       return;
     }
-  } 
+  }
   if (seclen >= sizeof (secprint))
     seclen = sizeof (secprint) - 1;
   strncpy (secprint, secname, seclen);
@@ -501,6 +501,6 @@ file itself are wrong.  Each section must be changed separately.  The\n\
 		  "Set writing into executable and core files.",
 		  &setlist),
      &showlist);
-  
+
   add_target (&exec_ops);
 }

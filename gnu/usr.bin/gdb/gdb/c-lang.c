@@ -369,7 +369,7 @@ static const struct op_print c_op_print_tab[] =
     {NULL, 0, 0, 0}
 };
 
-struct type ** const (c_builtin_types[]) = 
+struct type ** const (c_builtin_types[]) =
 {
   &builtin_type_int,
   &builtin_type_long,

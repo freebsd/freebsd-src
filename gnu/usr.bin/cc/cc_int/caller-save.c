@@ -41,13 +41,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    register because it is live we first try to save in multi-register modes.
    If that is not possible the save is done one register at a time.  */
 
-static enum machine_mode 
+static enum machine_mode
   regno_save_mode[FIRST_PSEUDO_REGISTER][MAX_MOVE_MAX / MAX_UNITS_PER_WORD + 1];
 
 /* For each hard register, a place on the stack where it can be saved,
    if needed.  */
 
-static rtx 
+static rtx
   regno_save_mem[FIRST_PSEUDO_REGISTER][MAX_MOVE_MAX / MAX_UNITS_PER_WORD + 1];
 
 /* We will only make a register eligible for caller-save if it can be
@@ -56,9 +56,9 @@ static rtx
    when we emit them, the addresses might not be valid, so they might not
    be recognized.  */
 
-static enum insn_code 
+static enum insn_code
   reg_save_code[FIRST_PSEUDO_REGISTER][MAX_MOVE_MAX / MAX_UNITS_PER_WORD + 1];
-static enum insn_code 
+static enum insn_code
   reg_restore_code[FIRST_PSEUDO_REGISTER][MAX_MOVE_MAX / MAX_UNITS_PER_WORD + 1];
 
 /* Set of hard regs currently live (during scan of all insns).  */
@@ -88,7 +88,7 @@ static int insert_save_restore		PROTO((rtx, int, int,
    Look at all the hard registers that are used by a call and for which
    regclass.c has not already excluded from being used across a call.
 
-   Ensure that we can find a mode to save the register and that there is a 
+   Ensure that we can find a mode to save the register and that there is a
    simple insn to save and restore the register.  This latter check avoids
    problems that would occur if we tried to save the MQ register of some
    machines directly into memory.  */
@@ -230,18 +230,18 @@ init_save_areas ()
    We assume that our caller has set up the elimination table to the
    worst (largest) possible offsets.
 
-   Set *PCHANGED to 1 if we had to allocate some memory for the save area.  
+   Set *PCHANGED to 1 if we had to allocate some memory for the save area.
 
    Future work:
 
      In the fallback case we should iterate backwards across all possible
-     modes for the save, choosing the largest available one instead of 
+     modes for the save, choosing the largest available one instead of
      falling back to the smallest mode immediately.  (eg TF -> DF -> SF).
 
      We do not try to use "move multiple" instructions that exist
-     on some machines (such as the 68k moveml).  It could be a win to try 
+     on some machines (such as the 68k moveml).  It could be a win to try
      and use them when possible.  The hard part is doing it in a way that is
-     machine independent since they might be saving non-consecutive 
+     machine independent since they might be saving non-consecutive
      registers. (imagine caller-saving d0,d1,a0,a1 on the 68k) */
 
 int
@@ -263,13 +263,13 @@ setup_save_areas (pchanged)
     if (reg_renumber[i] >= 0 && reg_n_calls_crossed[i] > 0)
       {
 	int regno = reg_renumber[i];
-	int endregno 
+	int endregno
 	  = regno + HARD_REGNO_NREGS (regno, GET_MODE (regno_reg_rtx[i]));
 	int nregs = endregno - regno;
 
 	for (j = 0; j < nregs; j++)
 	  {
-	    if (call_used_regs[regno+j]) 
+	    if (call_used_regs[regno+j])
 	      SET_HARD_REG_BIT (hard_regs_used, regno+j);
 	  }
       }
@@ -319,10 +319,10 @@ setup_save_areas (pchanged)
 	      {
 		/* This should not depend on WORDS_BIG_ENDIAN.
 		   The order of words in regs is the same as in memory.  */
-		rtx temp = gen_rtx (MEM, regno_save_mode[i+k][1], 
+		rtx temp = gen_rtx (MEM, regno_save_mode[i+k][1],
 				    XEXP (regno_save_mem[i][j], 0));
 
-		regno_save_mem[i+k][1] 
+		regno_save_mem[i+k][1]
 		  = adj_offsettable_operand (temp, k * UNITS_PER_WORD);
 	      }
 	    *pchanged = 1;
@@ -425,7 +425,7 @@ save_call_clobbered_regs (insn_mode)
 		 test at this point because registers that die in a CALL_INSN
 		 are not live across the call and likewise for registers that
 		 are born in the CALL_INSN.
-		 
+
 		 If registers are filled with parameters for this function,
 		 and some of these are also being set by this function, then
 		 they will not appear to die (no REG_DEAD note for them),
@@ -457,7 +457,7 @@ save_call_clobbered_regs (insn_mode)
 			/* It must not be set by this instruction.  */
 		        && ! TEST_HARD_REG_BIT (this_call_sets, regno)
 		        && ! TEST_HARD_REG_BIT (hard_regs_saved, regno))
-		      regno += insert_save_restore (insn, 1, regno, 
+		      regno += insert_save_restore (insn, 1, regno,
 						    insn_mode, 0);
 
 		  /* Put the information for this CALL_INSN on top of what
@@ -555,7 +555,7 @@ clear_reg_live (reg)
       CLEAR_HARD_REG_BIT (hard_regs_need_restore, i);
       CLEAR_HARD_REG_BIT (hard_regs_saved, i);
     }
-}      
+}
 
 /* If any register currently residing in the save area is referenced in X,
    which is part of INSN, emit code to restore the register in front of INSN.
@@ -608,7 +608,7 @@ restore_referenced_regs (x, insn, insn_mode)
 
       return;
     }
-	  
+
   fmt = GET_RTX_FORMAT (code);
   for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
     {
@@ -674,7 +674,7 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
       int i, j, k;
       int ok;
 
-      /* See if we can save several registers with a single instruction.  
+      /* See if we can save several registers with a single instruction.
 	 Work backwards to the single register case.  */
       for (i = MOVE_MAX / UNITS_PER_WORD; i > 0; i--)
 	{
@@ -687,7 +687,7 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
 		    || TEST_HARD_REG_BIT (hard_regs_saved, regno + j))
 		  ok = 0;
 	      }
-	  else 
+	  else
 	    continue;
 
 	  /* Must do this one save at a time */
@@ -732,10 +732,10 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
 	  /* Must do this one restore at a time */
 	  if (! ok)
 	    continue;
-	    
+
           pat = gen_rtx (SET, VOIDmode,
-		         gen_rtx (REG, GET_MODE (regno_save_mem[regno][i]), 
-				  regno), 
+		         gen_rtx (REG, GET_MODE (regno_save_mem[regno][i]),
+				  regno),
 			 regno_save_mem[regno][i]);
           code = reg_restore_code[regno][i];
 

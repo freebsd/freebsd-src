@@ -512,7 +512,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 		    	|| dreg != sreg)
 		      break;
 		  }
-		  
+
 		if (i < 0)
 		  delete_insn (insn);
 	      }
@@ -548,7 +548,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	    && regno_first_uid[REGNO (SET_DEST (set))] == INSN_UID (insn)
 	    /* We use regno_last_note_uid so as not to delete the setting
 	       of a reg that's used in notes.  A subsequent optimization
-	       might arrange to use that reg for real.  */	       
+	       might arrange to use that reg for real.  */
 	    && regno_last_note_uid[REGNO (SET_DEST (set))] == INSN_UID (insn)
 	    && ! side_effects_p (SET_SRC (set))
 	    && ! find_reg_note (insn, REG_RETVAL, 0))
@@ -712,7 +712,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	     the insn if the only note is a REG_EQUAL or REG_EQUIV whose
 	     value is the same as "b".
 
-	     INSN is the branch over the `else' part. 
+	     INSN is the branch over the `else' part.
 
 	     We set:
 
@@ -876,7 +876,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	      if (validate_change (temp, &SET_DEST (temp1), new, 0))
 		{
 		  next = emit_insn_after (gen_move_insn (temp2, new), insn);
-		  emit_insn_after_with_line_notes (PATTERN (temp), 
+		  emit_insn_after_with_line_notes (PATTERN (temp),
 						   PREV_INSN (insn), temp);
 		  delete_insn (temp);
 		  reallabelprev = prev_active_insn (JUMP_LABEL (insn));
@@ -931,7 +931,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 		}
 	    }
 
-	  /* Finally, handle the case where two insns are used to 
+	  /* Finally, handle the case where two insns are used to
 	     compute EXP but a temporary register is used.  Here we must
 	     ensure that the temporary register is not used anywhere else. */
 
@@ -1027,7 +1027,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	      && (GET_CODE (temp2 = SET_SRC (PATTERN (temp))) == REG
 		  || GET_CODE (temp2) == SUBREG
 		  || GET_CODE (temp2) == CONST_INT)
-	      /* Allow either form, but prefer the former if both apply. 
+	      /* Allow either form, but prefer the former if both apply.
 		 There is no point in using the old value of TEMP1 if
 		 it is a register, since cse will alias them.  It can
 		 lose if the old value were a hard register since CSE
@@ -1123,7 +1123,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	      target = emit_store_flag (gen_reg_rtx (GET_MODE (var)), code,
 					XEXP (temp4, 0), XEXP (temp4, 1),
 					VOIDmode,
-					(code == LTU || code == LEU 
+					(code == LTU || code == LEU
 					 || code == GEU || code == GTU),
 					normalizep);
 	      if (target)
@@ -1133,7 +1133,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 
 		  /* Put the store-flag insns in front of the first insn
 		     used to compute the condition to ensure that we
-		     use the same values of them as the current 
+		     use the same values of them as the current
 		     comparison.  However, the remainder of the insns we
 		     generate will be placed directly in front of the
 		     jump insn, in case any of the pseudos we use
@@ -1193,7 +1193,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 					    && ! preserve_subexpressions_p ()
 					    ? target : NULL_RTX));
 		    }
-		  
+
 		  emit_move_insn (var, target);
 		  seq = get_insns ();
 		  end_sequence ();
@@ -1221,7 +1221,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 
 	  /* If branches are expensive, convert
 	        if (foo) bar++;    to    bar += (foo != 0);
-	     and similarly for "bar--;" 
+	     and similarly for "bar--;"
 
 	     INSN is the conditional branch around the arithmetic.  We set:
 
@@ -1435,7 +1435,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 	     of the first jump.  In some cases, the second jump must be
 	     rewritten also.
 
-	     For example, 
+	     For example,
 	     <  == converts to >  ==
 	     <  != converts to ==  >
 	     etc.
@@ -1807,7 +1807,7 @@ jump_optimize (f, cross_jump, noop_moves, after_regscan)
 				  = rangenext;
 				PREV_INSN (rangenext)
 				  = PREV_INSN (range2after);
-				PREV_INSN (range2after) 
+				PREV_INSN (range2after)
 				  = PREV_INSN (range1beg);
 				NEXT_INSN (range2after) = range1beg;
 				NEXT_INSN (PREV_INSN (range1beg))
@@ -2170,7 +2170,7 @@ duplicate_loop_exit_test (loop_start)
 	    if (reg_map)
 	      replace_regs (REG_NOTES (copy), reg_map, max_reg, 1);
 	  }
-	
+
 	/* If this is a simple jump, add it to the jump chain.  */
 
 	if (INSN_UID (copy) < max_jump_chain && JUMP_LABEL (copy)
@@ -2315,7 +2315,7 @@ find_cross_jump (e1, e2, minimum, f1, f2)
 
       p1 = PATTERN (i1);
       p2 = PATTERN (i2);
-	
+
       /* If this is a CALL_INSN, compare register usage information.
 	 If we don't check this on stack register machines, the two
 	 CALL_INSNs might be merged leaving reg-stack.c with mismatching
@@ -2598,7 +2598,7 @@ can_reverse_comparison_p (comparison, insn)
   arg0 = XEXP (comparison, 0);
 
   /* Make sure ARG0 is one of the actual objects being compared.  If we
-     can't do this, we can't be sure the comparison can be reversed. 
+     can't do this, we can't be sure the comparison can be reversed.
 
      Handle cc0 and a MODE_CC register.  */
   if ((GET_CODE (arg0) == REG && GET_MODE_CLASS (GET_MODE (arg0)) == MODE_CC)
@@ -2631,7 +2631,7 @@ can_reverse_comparison_p (comparison, insn)
    for the negated comparison.
    WATCH OUT!  reverse_condition is not safe to use on a jump
    that might be acting on the results of an IEEE floating point comparison,
-   because of the special treatment of non-signaling nans in comparisons.  
+   because of the special treatment of non-signaling nans in comparisons.
    Use can_reverse_comparison_p to be sure.  */
 
 enum rtx_code
@@ -3495,7 +3495,7 @@ invert_jump (jump, nlabel)
   return  0;
 }
 
-/* Invert the jump condition of rtx X contained in jump insn, INSN. 
+/* Invert the jump condition of rtx X contained in jump insn, INSN.
 
    Return 1 if we can do so, 0 if we cannot find a way to do so that
    matches a pattern.  */
@@ -3527,7 +3527,7 @@ invert_exp (x, insn)
 				       GET_MODE (comp), XEXP (comp, 0),
 				       XEXP (comp, 1)), 0))
 	return 1;
-				       
+
       tem = XEXP (x, 1);
       validate_change (insn, &XEXP (x, 1), XEXP (x, 2), 1);
       validate_change (insn, &XEXP (x, 2), tem, 1);
@@ -3785,7 +3785,7 @@ rtx_renumbered_equal_p (x, y)
   register int i;
   register RTX_CODE code = GET_CODE (x);
   register char *fmt;
-      
+
   if (x == y)
     return 1;
 
@@ -3845,7 +3845,7 @@ rtx_renumbered_equal_p (x, y)
       return reg_x >= 0 && reg_x == reg_y && word_x == word_y;
     }
 
-  /* Now we have disposed of all the cases 
+  /* Now we have disposed of all the cases
      in which different rtx codes can match.  */
   if (code != GET_CODE (y))
     return 0;
@@ -3989,7 +3989,7 @@ true_regnum (x)
    In general, if the first test fails, the program can branch
    directly to `foo' and skip the second try which is doomed to fail.
    We run this after loop optimization and before flow analysis.  */
-   
+
 /* When comparing the insn patterns, we track the fact that different
    pseudo-register numbers may have been used in each computation.
    The following array stores an equivalence -- same_regs[I] == J means
@@ -4011,7 +4011,7 @@ static char *modified_regs;
 
 static int modified_mem;
 
-/* Called via note_stores on each insn between the target of the first 
+/* Called via note_stores on each insn between the target of the first
    branch and the second branch.  It marks any changed registers.  */
 
 static void
@@ -4039,7 +4039,7 @@ mark_modified_reg (dest, x)
 }
 
 /* F is the first insn in the chain of insns.  */
-   
+
 void
 thread_jumps (f, max_reg, flag_before_loop)
      rtx f;
@@ -4055,7 +4055,7 @@ thread_jumps (f, max_reg, flag_before_loop)
      will either always succeed or always fail depending on the relative
      senses of the two branches.  So adjust the first branch accordingly
      in this case.  */
-     
+
   rtx label, b1, b2, t1, t2;
   enum rtx_code code1, code2;
   rtx b1op0, b1op1, b2op0, b2op1;
@@ -4069,7 +4069,7 @@ thread_jumps (f, max_reg, flag_before_loop)
   all_reset = (int *) alloca (max_reg * sizeof (int));
   for (i = 0; i < max_reg; i++)
     all_reset[i] = -1;
-    
+
   while (changed)
     {
       changed = 0;
@@ -4166,7 +4166,7 @@ thread_jumps (f, max_reg, flag_before_loop)
 	    {
 	      t1 = prev_nonnote_insn (b1);
 	      t2 = prev_nonnote_insn (b2);
-	      
+
 	      while (t1 != 0 && t2 != 0)
 		{
 		  if (t2 == label)
@@ -4203,7 +4203,7 @@ thread_jumps (f, max_reg, flag_before_loop)
 			}
 		      break;
 		    }
-		    
+
 		  /* If either of these is not a normal insn (it might be
 		     a JUMP_INSN, CALL_INSN, or CODE_LABEL) we fail.  (NOTEs
 		     have already been skipped above.)  Similarly, fail
@@ -4213,7 +4213,7 @@ thread_jumps (f, max_reg, flag_before_loop)
 		      || ! rtx_equal_for_thread_p (PATTERN (t1),
 						   PATTERN (t2), t2))
 		    break;
-		    
+
 		  t1 = prev_nonnote_insn (t1);
 		  t2 = prev_nonnote_insn (t2);
 		}
@@ -4225,7 +4225,7 @@ thread_jumps (f, max_reg, flag_before_loop)
 /* This is like RTX_EQUAL_P except that it knows about our handling of
    possibly equivalent registers and knows to consider volatile and
    modified objects as not equal.
-   
+
    YINSN is the insn containing Y.  */
 
 int
@@ -4282,7 +4282,7 @@ rtx_equal_for_thread_p (x, y, yinsn)
 	  num_same_regs++;
 
 	  /* If this is the first time we are seeing a register on the `Y'
-	     side, see if it is the last use.  If not, we can't thread the 
+	     side, see if it is the last use.  If not, we can't thread the
 	     jump, so mark it as not equivalent.  */
 	  if (regno_last_uid[REGNO (y)] != INSN_UID (yinsn))
 	    return 0;

@@ -758,7 +758,7 @@ cwexec(kws, text, len, kwsmatch)
     }
   return mch;
 }
-  
+
 /* Search through the given text for a match of any member of the
    given keyword set.  Return a pointer to the first character of
    the matching substring, or NULL if no match is found.  If FOUNDLEN

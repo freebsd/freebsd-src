@@ -11,7 +11,7 @@ itoa (i)
     int i;
 {
   char *a = xmalloc (21); /* sign + 19 digits (enough for 64 bits) + null */
-  
+
   sprintf (a, "%d", i);
   return a;
 }
@@ -29,7 +29,7 @@ simple_fail (routine, pat, buf, str, ret)
   if (str && *str) fprintf (stderr, "   String = %s\n", str);
   fprintf (stderr, "  Pattern = %s\n", pat);
   print_compiled_pattern (buf);
-  
+
   if (pause_at_error)
     {
       fprintf (stderr, "RET to continue: ");
@@ -46,7 +46,7 @@ simple_compile (pat, buf)
     struct re_pattern_buffer *buf;
 {
   const char *ret = re_compile_pattern (pat, strlen (pat), buf);
-  
+
   if (ret != NULL) simple_fail ("compile", pat, buf, NULL, ret);
 }
 
@@ -58,13 +58,13 @@ simple_fastmap (pat)
   struct re_pattern_buffer buf;
   char fastmap[256];
   int ret;
-  
+
   buf.allocated = 0;
   buf.buffer = buf.translate = NULL;
   buf.fastmap = fastmap;
-  
+
   simple_compile (pat, &buf);
-  
+
   ret = re_compile_fastmap (&buf);
 
   if (ret != 0) simple_fail ("fastmap compile", pat, &buf, NULL, itoa (ret));
@@ -85,13 +85,13 @@ do_match (pat, str, expected)
 
   buf.allocated = 0;
   buf.buffer = buf.translate = buf.fastmap = NULL;
-  
+
   simple_compile (pat, &buf);
 
   len = strlen (str);
-  
+
   ret = re_match_2 (&buf, NULL, 0, str, len, 0, NULL, len);
-  
+
   if (ret != expected) simple_fail ("match", pat, &buf, str, itoa (ret));
 }
 
@@ -107,13 +107,13 @@ simple_search (pat, str, correct_startpos)
 
   buf.allocated = 0;
   buf.buffer = buf.translate = buf.fastmap = NULL;
-  
+
   simple_compile (pat, &buf);
 
   len = strlen (str);
-  
+
   ret = re_search_2 (&buf, NULL, 0, str, len, 0, len, NULL, len);
-  
+
   if (ret != correct_startpos)
     simple_fail ("match", pat, &buf, str, itoa (ret));
 }
@@ -128,8 +128,8 @@ test_regress ()
   unsigned len;
   struct re_registers regs;
   int ret;
-  char *fastmap = xmalloc (256);  
-  
+  char *fastmap = xmalloc (256);
+
   buf.translate = NULL;
   buf.fastmap = NULL;
   buf.allocated = 0;
@@ -145,10 +145,10 @@ test_regress ()
   buf.translate = upcase;
   SIMPLE_MATCH ("[A-[]", "A");
   buf.translate = NULL;
-  
+
   /* meyering@cs.utexas.edu  Nov  6 22:34:41 1992  */
   simple_search ("\\w+", "a", 0);
-   
+
   /* jimb@occs.cs.oberlin.edu  10 Sep 92 00:42:33  */
   buf.translate = upcase;
   SIMPLE_MATCH ("[\001-\377]", "\001");
@@ -158,13 +158,13 @@ test_regress ()
 
   /* mike@skinner.cs.uoregon.edu  1 Sep 92 01:45:22  */
   SIMPLE_MATCH ("^^$", "^");
-  
+
   /* pclink@qld.tne.oz.au  Sep  7 22:42:36 1992  */
   re_set_syntax (RE_INTERVALS);
   SIMPLE_MATCH ("^a\\{3\\}$", "aaa");
   SIMPLE_NONMATCH ("^a\\{3\\}$", "aa");
   re_set_syntax (RE_SYNTAX_EMACS);
-  
+
   /* pclink@qld.tne.oz.au, 31 Aug 92.  (conjecture) */
   re_set_syntax (RE_INTERVALS);
   simple_search ("a\\{1,3\\}b", "aaab", 0);
@@ -173,14 +173,14 @@ test_regress ()
 
   /* trq@dionysos.thphys.ox.ac.uk, 31 Aug 92.  (simplified) */
   simple_fastmap ("^.*\n[  ]*");
-  
+
   /* wind!greg@plains.NoDak.edu, 25 Aug 92.  (simplified) */
   re_set_syntax (RE_INTERVALS);
   SIMPLE_MATCH ("[a-zA-Z]*.\\{5\\}", "xN0000");
   SIMPLE_MATCH ("[a-zA-Z]*.\\{5\\}$", "systemxN0000");
   SIMPLE_MATCH ("\\([a-zA-Z]*\\).\\{5\\}$", "systemxN0000");
   re_set_syntax (RE_SYNTAX_EMACS);
-  
+
   /* jimb, 18 Aug 92.  Don't use \000, so `strlen' (in our testing
      routines) will work.  (This still tickles the bug jimb reported.)  */
   SIMPLE_MATCH ("[\001-\377]", "\001");
@@ -307,7 +307,7 @@ test_regress ()
 
   /* jla's bug (with string-match), 5 Feb 92.  */
   TEST_SEARCH ("\\`[ \t\n]*", "jla@challenger (Joseph Arceneaux)", 0, 100);
-  
+
   /* jwz@lucid.com, 8 March 1992 (re-search-forward).  (His is the
      second.)  These are not supposed to match.  */
 #if 0
@@ -335,7 +335,7 @@ References: <9203080736.AA05869@thalidomide.lucid>\n\
 	<9203081900.AA24794@titanic.lucid>", 0, 5000);
 #endif /* 0 [failed searches] */
 
-  
+
   /* macrakis' bugs.  */
   buf.translate = upcase; /* message of 24 Jan 91 */
   if (re_compile_pattern ("[!-`]", 5, &buf) != NULL)
@@ -355,7 +355,7 @@ References: <9203080736.AA05869@thalidomide.lucid>\n\
     printf ("faofdx test, reg #1 wrong.\n");
   if (regs.start[2] != 1 || regs.end[2] != 2)
     printf ("faofdx test, reg #2 wrong.\n");
-  
+
   TEST_REGISTERS ("\\(a\\)*a", "aaa", 0, 3, 1, 2, -1, -1);
   test_fastmap ("^\\([^ \n]+:\n\\)+\\([^ \n]+:\\)", " \n", 1, 0);
 
@@ -412,7 +412,7 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:");
   /* Dave G. bug: Reference to a subexpression which didn't match.
      Should fail. */
   re_set_syntax (RE_NO_BK_PARENS | RE_NO_BK_VBAR);
-  test_match ("(ooooooooooone())-annnnnnnnnnnd-(twooooooooooo\\2)", 
+  test_match ("(ooooooooooone())-annnnnnnnnnnd-(twooooooooooo\\2)",
                "ooooooooooone-annnnnnnnnnnd-twooooooooooo");
   test_match ("(o|t)", "o");
   test_match ("(o()|t)", "o");
@@ -424,23 +424,23 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:");
   test_match ("(o()|t())-a-(t\\2|f\\3)", "o-a-t");
   test_match ("(o()|t())-a-(t\\2|f\\3)", "t-a-f");
 
-  test_should_match = 0; 
+  test_should_match = 0;
   test_match ("(foo(bar)|second)\\2", "second");
   test_match ("(o()|t())-a-(t\\2|f\\3)", "t-a-t");
   test_match ("(o()|t())-a-(t\\2|f\\3)", "o-a-f");
 
   re_set_syntax (RE_SYNTAX_EMACS);
   test_match ("\\(foo\\(bar\\)\\|second\\)\\2", "secondbar");
-  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)", 
+  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)",
 	      "one-and-four");
-  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)", 
+  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)",
 	      "two-and-three");
-  
+
   test_should_match = 1;
   re_set_syntax (RE_SYNTAX_EMACS);
-  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)", 
+  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)",
 	      "one-and-three");
-  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)", 
+  test_match ("\\(one\\(\\)\\|two\\(\\)\\)-and-\\(three\\2\\|four\\3\\)",
 	      "two-and-four");
 
   TEST_REGISTERS (":\\(.*\\)", ":/", 0, 2, 1, 2, -1, -1);

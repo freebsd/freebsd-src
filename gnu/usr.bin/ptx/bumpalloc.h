@@ -27,12 +27,12 @@
 /* Routines `xmalloc' and `xrealloc' are called to do the actual memory
    management.  This implies that the program will abort with an `Virtual
    Memory exhausted!' error if any problem arise.
-   
+
    To work correctly, at least EXPONENT and TYPE should always be the
    same for all uses of this macro for any given TABLE.  A secure way to
    achieve this is to never use this macro directly, but use it to define
    other macros, which would then be TABLE-specific.
-   
+
    The first time through, COUNT is usually zero.  Note that COUNT is not
    updated by this macro, but it should be update elsewhere, later.  This
    is convenient, because it allows TABLE[COUNT] to refer to the new

@@ -3,7 +3,7 @@
  * Author:	Marc van Kempen
  * Desc:	Implementation of UI-objects:
  *		- String input fields
- *		- List selection 
+ *		- List selection
  *		- Buttons
  *
  * Copyright (c) 1995, Marc van Kempen
@@ -17,7 +17,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  */
 
 #include <stdlib.h>
@@ -79,14 +79,14 @@ FreeObj(ComposeObj *Obj)
  */
 {
     ComposeObj	*o = Obj;
-    
+
     o = Obj;
     while (o) {
 	o = Obj->next;
 	free(Obj);
 	Obj = o;
     }
-	
+
     return;
 } /* FreeObj() */
 
@@ -94,7 +94,7 @@ FreeObj(ComposeObj *Obj)
 int
 ReadObj(ComposeObj *Obj)
 /*
- * Desc: navigate through the different objects calling their 
+ * Desc: navigate through the different objects calling their
  *	 respective navigation routines as necessary
  * Pre:  Obj != NULL
  */
@@ -145,7 +145,7 @@ ReadObj(ComposeObj *Obj)
     }
 
     return(ret);
-    
+
 } /* ReadObj() */
 
 
@@ -225,7 +225,7 @@ DelObj(ComposeObj *Obj)
 
     FreeObj(o);
 } /* DelObj() */
-    
+
 /***********************************************************************
  *
  * StringObj routines
@@ -265,7 +265,7 @@ NewStringObj(WINDOW *win, char *title, char *s, int y, int x, int w, int len)
  */
 {
     StringObj	*so;
-    
+
     /* Initialize a new object */
     so = (StringObj *) malloc( sizeof(StringObj) );
     if (!so) {
@@ -302,7 +302,7 @@ SelectStringObj(StringObj *so)
     char	tmp[so->len+1];
 
     strcpy(tmp, so->s);
-    key = line_edit(so->win, so->y+2, so->x+1, 
+    key = line_edit(so->win, so->y+2, so->x+1,
 		    so->len, so->w-2, inputbox_attr, TRUE, tmp);
     if ((key == '\n') || (key == '\r') || (key == '\t') || key == (KEY_BTAB) ) {
 	strcpy(so->s, tmp);
@@ -335,7 +335,7 @@ DelStringObj(StringObj *so)
 
    return;
 }
-  
+
 /***********************************************************************
  *
  * ListObj routines
@@ -377,7 +377,7 @@ DrawNames(ListObj *lo)
 	i++;
     }
 
-    return;  
+    return;
 } /* DrawNames() */
 
 void
@@ -401,12 +401,12 @@ RefreshListObj(ListObj *lo)
     sprintf(perc, "(%3d%%)", MIN(100, (int) (100 * (lo->sel+lo->h-2) / MAX(1, lo->n))));
     wmove(lo->win, lo->y + lo->h, lo->x + lo->w - 8);
     wattrset(lo->win, dialog_attr);
-    waddstr(lo->win, perc); 
-    
-   
+    waddstr(lo->win, perc);
+
+
     return;
 } /* RefreshListObj() */
-  
+
 ListObj *
 NewListObj(WINDOW *win, char *title, char **list, char *listelt, int y, int x,
 	   int h, int w, int n)
@@ -485,7 +485,7 @@ UpdateListObj(ListObj *lo, char **list, int n)
 	}
     } else {
         lo->seld = NULL;
-    }    
+    }
     lo->n = n;
     lo->scroll = 0;
     lo->sel = 0;
@@ -521,7 +521,7 @@ SelectListObj(ListObj *lo)
 
     key = wgetch(lo->win);
     quit = FALSE;
-    while ((key != '\t') && (key != '\n') && (key != '\r') 
+    while ((key != '\t') && (key != '\n') && (key != '\r')
 	   && (key != ESC) && (key != KEY_F(1)) && (key != '?') && !quit) {
 	/* first draw current item in normal video */
 	wmove(lo->win, sel_y, sel_x);
@@ -620,11 +620,11 @@ SelectListObj(ListObj *lo)
 	    break;
 	}
 	/* Draw % indication */
-	sprintf(perc, "(%3d%%)", MIN(100, (int) 
+	sprintf(perc, "(%3d%%)", MIN(100, (int)
 				     (100 * (lo->sel+lo->h - 2) / MAX(1, lo->n))));
 	wmove(lo->win, lo->y + lo->h, lo->x + lo->w - 8);
 	wattrset(lo->win, dialog_attr);
-	waddstr(lo->win, perc); 
+	waddstr(lo->win, perc);
 
 	/* draw current item in inverse */
 	wmove(lo->win, sel_y, sel_x);
@@ -632,8 +632,8 @@ SelectListObj(ListObj *lo)
 	if (strlen(lo->name[lo->sel]) > lo->w - 2) {
 	    /* when printing in inverse video show the last characters in the */
 	    /* name that will fit in the window */
-	    strncpy(tmp, 
-		    lo->name[lo->sel] + strlen(lo->name[lo->sel]) - (lo->w - 2), 
+	    strncpy(tmp,
+		    lo->name[lo->sel] + strlen(lo->name[lo->sel]) - (lo->w - 2),
 		    lo->w - 2);
 	    tmp[lo->w - 2] = 0;
 	    waddstr(lo->win, tmp);
@@ -642,7 +642,7 @@ SelectListObj(ListObj *lo)
 	}
 	if (!quit) key = wgetch(lo->win);
     }
-		
+
     if (key == ESC) {
 	return(SEL_ESC);
     }
@@ -674,8 +674,8 @@ DelListObj(ListObj *lo)
 
 void
 MarkCurrentListObj(ListObj *lo)
-/* 
- * Desc: mark the current item for the selection list 
+/*
+ * Desc: mark the current item for the selection list
  */
 {
     lo->seld[lo->sel] = !(lo->seld[lo->sel]);
@@ -707,7 +707,7 @@ UnMarkAllListObj(ListObj *lo)
  */
 {
     int i;
-    
+
     for (i=0; i<lo->n; i++) {
         lo->seld[i] = FALSE;
     }
@@ -745,7 +745,7 @@ NewButtonObj(WINDOW *win, char *title, int *pushed, int y, int x)
     ButtonObj	*bo;
 
     bo = (ButtonObj *) malloc( sizeof(ButtonObj) );
-    
+
     bo->win = win;
     bo->title = (char *) malloc( strlen(title) + 1);
     strcpy(bo->title, title);
@@ -771,7 +771,7 @@ SelectButtonObj(ButtonObj *bo)
     print_button(bo->win, bo->title, bo->y+1, bo->x+2, TRUE);
     wmove(bo->win, bo->y+1, bo->x+(bo->w/2)-1);
     key = wgetch(bo->win);
-    print_button(bo->win, bo->title, bo->y+1, bo->x+2, FALSE);   
+    print_button(bo->win, bo->title, bo->y+1, bo->x+2, FALSE);
     switch(key) {
     case '\t':
 	return(SEL_TAB);

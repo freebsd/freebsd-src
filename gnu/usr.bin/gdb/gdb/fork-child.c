@@ -155,7 +155,7 @@ fork_inferior (exec_file, allargs, env, traceme_fun, init_trace_fun,
   close_exec_file ();
 
   /* Retain a copy of our environment variables, since the child will
-     replace the value of  environ  and if we're vforked, we have to 
+     replace the value of  environ  and if we're vforked, we have to
      restore it.  */
   save_our_env = environ;
 
@@ -185,7 +185,7 @@ fork_inferior (exec_file, allargs, env, traceme_fun, init_trace_fun,
 
   if (pid == 0)
     {
-      if (debug_fork) 
+      if (debug_fork)
 	sleep (debug_fork);
 
       /* Run inferior in a separate process group.  */

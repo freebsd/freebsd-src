@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1990, 1992 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -22,9 +22,9 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 /* Timing functions from Doug Schmidt... */
 
 /* no such thing as "negative time"! */
-#define  TIMER_ERROR_VALUE -1.0   
+#define  TIMER_ERROR_VALUE -1.0
 
-/* If this does not work on your system, change this to #if 0, and 
+/* If this does not work on your system, change this to #if 0, and
    report the problem. */
 
 #if 1
@@ -73,7 +73,7 @@ return_elapsed_time(Last_Time)
 {
    if (!Timer_Set) {
       return(TIMER_ERROR_VALUE);
-   }   
+   }
    else {
     /* get process time */
 #ifdef USE_TIMES
@@ -85,8 +85,8 @@ return_elapsed_time(Last_Time)
 #ifdef USE_TIMES
 	 return((double) (New_Time.tms_utime - Old_Time.tms_utime) / HZ);
 #else
-         return((New_Time.ru_utime.tv_sec - Old_Time.ru_utime.tv_sec) + 
-               ((New_Time.ru_utime.tv_usec - Old_Time.ru_utime.tv_usec) 
+         return((New_Time.ru_utime.tv_sec - Old_Time.ru_utime.tv_sec) +
+               ((New_Time.ru_utime.tv_usec - Old_Time.ru_utime.tv_usec)
                 / 1000000.0));
 #endif
       }
@@ -94,7 +94,7 @@ return_elapsed_time(Last_Time)
 #ifdef USE_TIMES
 	 return((double) New_Time.tms_utime / HZ - Last_Time);
 #else
-         return((New_Time.ru_utime.tv_sec + 
+         return((New_Time.ru_utime.tv_sec +
                 (New_Time.ru_utime.tv_usec / 1000000.0)) - Last_Time);
 #endif
       }
@@ -115,7 +115,7 @@ getrusage(int dummy,struct rusage* time){
 /* we subtract an offset to make sure that the number fits in a long int*/
 	rtime=rtime/1.0e+7-4.144e+9;
 	time->ru_utime.tv_sec= rtime;
-	rtime=(rtime-time->ru_utime.tv_sec)*1.0e6;	
+	rtime=(rtime-time->ru_utime.tv_sec)*1.0e6;
 	time->ru_utime.tv_usec= rtime;
 }
 #endif

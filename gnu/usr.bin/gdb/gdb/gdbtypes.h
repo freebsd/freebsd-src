@@ -207,7 +207,7 @@ struct type
   /* Type that is a pointer to this type.
      NULL if no such pointer-to type is known yet.
      The debugger may add the address of such a type
-     if it has to construct one later.  */ 
+     if it has to construct one later.  */
 
   struct type *pointer_type;
 
@@ -261,7 +261,7 @@ struct type
       /* Size of this field, in bits, or zero if not packed.
 	 For an unpacked field, the field's type's length
 	 says how many bytes the field occupies.  */
-      /* FIXME: This is abused by TYPE_FIELD_STATIC_PHYSNAME to contain 
+      /* FIXME: This is abused by TYPE_FIELD_STATIC_PHYSNAME to contain
 	 a pointer, so it has to be long.  */
 
       long bitsize;
@@ -280,7 +280,7 @@ struct type
     } *fields;
 
   /* For types with virtual functions, VPTR_BASETYPE is the base class which
-     defined the virtual function table pointer.  
+     defined the virtual function table pointer.
 
      For types that are pointer to member types, VPTR_BASETYPE
      is the type that this pointer is a member of.

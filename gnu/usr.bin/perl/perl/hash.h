@@ -1,4 +1,4 @@
-/* $RCSfile: hash.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:37 $
+/* $RCSfile: hash.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,18 +6,21 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: hash.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:37  nate
  * PERL!
  *
  * Revision 4.0.1.2  91/11/05  17:24:31  lwall
  * patch11: random cleanup
- * 
+ *
  * Revision 4.0.1.1  91/06/07  11:10:33  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:22:38  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #define FILLPCT 80		/* don't make greater than 99 */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.1 1994/08/04 19:01:56 wollman Exp $
+ *	$Id: ypclnt.h,v 1.2 1995/04/21 18:07:34 wpaul Exp $
  */
 
 #ifndef _YPCLNT_H_
@@ -56,7 +56,7 @@
 #define YPOP_INSERT	2		/* add, do not change */
 #define YPOP_DELETE	3		/* delete this entry */
 #define YPOP_STORE 	4		/* add, or change */
- 
+
 struct ypall_callback {
 	int (*foreach)();	/* return non-0 to stop getting called */
 	char *data;		/* opaque pointer for use of callback fn */

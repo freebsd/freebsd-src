@@ -54,7 +54,7 @@ MY(callback) (abfd)
   /* The file offsets of the string table and symbol table.  */
   obj_sym_filepos (abfd) = N_SYMOFF (*execp);
   obj_str_filepos (abfd) = N_STROFF (*execp);
-  
+
   /* Determine the architecture and machine type of the object file.  */
 #ifdef SET_ARCH_MACH
   SET_ARCH_MACH(abfd, *execp);
@@ -489,7 +489,7 @@ MY_bfd_final_link (abfd, info)
 #endif
 
 /* Aout symbols normally have leading underscores */
-#ifndef MY_symbol_leading_char 
+#ifndef MY_symbol_leading_char
 #define MY_symbol_leading_char '_'
 #endif
 

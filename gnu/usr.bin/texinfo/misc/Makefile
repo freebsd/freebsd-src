@@ -34,7 +34,7 @@ TAR	= tar
 MKDIR	= mkdir
 
 DEFS =  -DSTDC_HEADERS=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1 -DHAVE_VARARGS_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_SYS_FCNTL_H=1 -DHAVE_SETVBUF=1 -DHAVE_GETCWD=1 -DHAVE_BZERO=1 -DHAVE_RINDEX=1 -DHAVE_VFPRINTF=1 -DHAVE_VSPRINTF=1
-LIBS = -L../libtxi -ltxi 
+LIBS = -L../libtxi -ltxi
 LOADLIBES = $(LIBS)
 
 SHELL = /bin/sh
@@ -46,10 +46,10 @@ prefix = /usr/local
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
 # Prefix for each installed program, normally empty or `g'.
-binprefix = 
+binprefix =
 libdir = $(prefix)/lib
 # Prefix for each installed man page, normally empty or `g'.
-manprefix = 
+manprefix =
 mandir = $(prefix)/man/man1
 manext = 1
 infodir = $(prefix)/info

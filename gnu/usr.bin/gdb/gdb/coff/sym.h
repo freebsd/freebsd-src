@@ -1,6 +1,6 @@
 /* Declarations of internal format of MIPS ECOFF symbols.
    Originally contributed by MIPS Computer Systems and Third Eye Software.
-   Changes contributed by Cygnus Support are in the public domain.  
+   Changes contributed by Cygnus Support are in the public domain.
 
    This file is just aggregated with the files that make up the GNU
    release; it is not considered part of GAS, GDB, or other GNU
@@ -26,7 +26,7 @@
  * symbol table to a particular use.
  */
 
-/* 
+/*
  * This file contains the definition of the Third Eye Symbol Table.
  *
  * Symbols are assumed to be in 'encounter order' - i.e. the order that
@@ -52,7 +52,7 @@
  */
 
 
-/* 
+/*
  * Symbolic Header (HDR) structure.
  * As long as all the pointers are set correctly,
  * we don't care WHAT order the various sections come out in!
@@ -89,7 +89,7 @@ typedef struct {
 	long	iextMax;	/* max index into external symbols */
 	bfd_vma	cbExtOffset;	/* offset to start of external symbol entries*/
 	/* If you add machine dependent fields, add them here */
-	} HDRR, *pHDRR; 
+	} HDRR, *pHDRR;
 #define cbHDRR sizeof(HDRR)
 #define hdrNil ((pHDRR)0)
 
@@ -99,7 +99,7 @@ typedef struct {
  * memory by CDB at runtime.
  */
 
-/* 
+/*
  * File Descriptor
  *
  * There is one of these for EVERY FILE, whether compiled with
@@ -144,7 +144,7 @@ typedef struct fdr {
 #define ilnNil -1
 
 
-/* 
+/*
  * Procedure Descriptor
  *
  * There is one of these for EVERY TEXT LABEL.
@@ -353,7 +353,7 @@ typedef union {
  * Optimization symbols contain some overlap information with the normal
  * symbol table. In particular, the proc information
  * is somewhat redundant but necessary to easily find the other information
- * present. 
+ * present.
  *
  * All of the offsets are relative to the beginning of the last otProc
  */
@@ -433,7 +433,7 @@ typedef long FIT, *pFIT;
  * symbol for the next procedure.  This allows rapid skipping over
  * internal information of various sorts. "stEnd"s ALWAYS have the
  * isym of the primary symbol that started the block.
- * 
+ *
 
 ST		SC	VALUE		INDEX
 --------	------	--------	------

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.8 1994/03/29 01:18:20 ian Rel $";
+const char _uuconf_callin_rcsid[] = "$Id: callin.c,v 1.2 1994/05/07 18:11:58 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -122,7 +122,7 @@ uuconf_callin (pglobal, pcmpfn, pinfo)
 	      zcolon = strchr (zcolon, ':');
 	      if (zcolon != NULL)
 		*zcolon = ' ';
-	    }		  
+	    }
 	  iret = uuconf_cmd_line (pglobal, zline, as, (pointer) &s,
 				  ipcheck, 0, (pointer) NULL);
 	  if ((iret & UUCONF_CMDTABRET_EXIT) != 0)

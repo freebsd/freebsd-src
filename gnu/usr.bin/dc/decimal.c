@@ -1,4 +1,4 @@
-/* 
+/*
  * Arbitrary precision decimal arithmetic.
  *
  * Copyright (C) 1984 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 	expected result is simply truncation, but all sorts of things
 	happen instead.  An example is that the result of .99999998/1
 	with scale set to 6 is .000001
-		
+
 	There are some problems in the behavior of the decimal package
 	related to printing and parsing.  The
 	printer is weird about very large output radices, tending to want
@@ -161,7 +161,7 @@ decimal_zerop (b)
 /* Compare two decimal numbers arithmetically.
    The value is < 0 if b1 < b2, > 0 if b1 > b2, 0 if b1 = b2.
    This is the same way that `strcmp' reports the result of comparing
-   strings.  */ 
+   strings.  */
 
 int
 decimal_compare (b1, b2)
@@ -187,7 +187,7 @@ decimal_compare (b1, b2)
 
   /* Else compare the numbers digit by digit from high end */
   l1 = LENGTH(b1);
-  l2 = LENGTH(b2);  
+  l2 = LENGTH(b2);
   s1 = b1->contents;		/* Start of number -- don't back up digit pointer past here */
   s2 = b2->contents;
   p1 = b1->contents + l1;	/* Scanning pointer, for fetching digits.  */
@@ -341,7 +341,7 @@ decimal_from_int (i)
 }
 
 /* Return (as an integer) the result of dividing decimal number `b' by
-   integer `divisor'. 
+   integer `divisor'.
    This is used in printing decimal numbers in other radices. */
 
 int
@@ -411,7 +411,7 @@ decimal_print (b, charout, radix)
   if (radix == RADIX)
     {
       /* decimal output => just print the digits, inserting a point in
-	 the proper place.  */ 
+	 the proper place.  */
       int i;
       int before = b->before;
       int len = before + b->after;
@@ -672,7 +672,7 @@ decimal_add1 (b1, b2)
 }
 
 /* subtract magnitude of b2 from that or b1, returning signed decimal
-   number. */ 
+   number. */
 
 static decimal
 decimal_sub1 (b1, b2)
@@ -809,7 +809,7 @@ add_scaled (into, from, factor, scale)
   char *pi = into->contents + scale;
   int lengthf = LENGTH(from);
   int lengthi = LENGTH(into) - scale;
-  
+
   int accum = 0;
   int i;
 
@@ -822,9 +822,9 @@ add_scaled (into, from, factor, scale)
       *pi++ = accum % RADIX;
     }
 }
- 
+
 /* Divide decimal number `b1' by `b2', keeping at most `digits'
-   fraction digits. 
+   fraction digits.
    Returns the result as a decimal number.
 
    When division is not exact, the quotient is truncated toward zero.  */
@@ -846,7 +846,7 @@ decimal_div (b1, b2, digits)
   int i;
 
   /* leading_divisor_digits contains the first two divisor digits, as
-     an integer */ 
+     an integer */
 
   int leading_divisor_digits = b2->contents[length2-1]*RADIX;
   if (length2 > 1)
@@ -1026,7 +1026,7 @@ decimal_sqrt (d, frac_digits)
 
   frac_digits = MAX (frac_digits, d->after);
 
-  /* Compute an initial guess by taking the square root 
+  /* Compute an initial guess by taking the square root
      of a nearby power of RADIX.  */
 
   if (d->before)

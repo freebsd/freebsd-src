@@ -83,7 +83,7 @@ HARD_REG_SET call_used_reg_set;
 /* Data for initializing the above.  */
 
 static char initial_call_used_regs[] = CALL_USED_REGISTERS;
-  
+
 /* Indexed by hard register number, contains 1 for registers that are
    fixed use -- i.e. in fixed_regs -- or a function value return register
    or STRUCT_VALUE_REGNUM or STATIC_CHAIN_REGNUM.  These are the
@@ -106,7 +106,7 @@ int n_non_fixed_regs;
    and are also considered fixed.  */
 
 char global_regs[FIRST_PSEUDO_REGISTER];
-  
+
 /* Table of register numbers in the order in which to try to use them.  */
 #ifdef REG_ALLOC_ORDER
 int reg_alloc_order[FIRST_PSEUDO_REGISTER] = REG_ALLOC_ORDER;
@@ -123,7 +123,7 @@ HARD_REG_SET reg_class_contents[N_REG_CLASSES];
 #define N_REG_INTS  \
   ((FIRST_PSEUDO_REGISTER + (HOST_BITS_PER_INT - 1)) / HOST_BITS_PER_INT)
 
-static unsigned int_reg_class_contents[N_REG_CLASSES][N_REG_INTS] 
+static unsigned int_reg_class_contents[N_REG_CLASSES][N_REG_INTS]
   = REG_CLASS_CONTENTS;
 
 /* For each reg class, number of regs it contains.  */
@@ -567,7 +567,7 @@ static char *prefclass;
 
    It might appear to be more general to have a bitmask of classes here,
    but since it is recommended that there be a class corresponding to the
-   union of most major pair of classes, that generality is not required. 
+   union of most major pair of classes, that generality is not required.
 
    This is available after `regclass' is run.  */
 
@@ -584,7 +584,7 @@ static int loop_cost;
 
 static void record_reg_classes	PROTO((int, int, rtx *, enum machine_mode *,
 				       char **, rtx));
-static int copy_cost		PROTO((rtx, enum machine_mode, 
+static int copy_cost		PROTO((rtx, enum machine_mode,
 				       enum reg_class, int));
 static void record_address_regs	PROTO((rtx, enum reg_class, int));
 static auto_inc_dec_reg_p	PROTO((rtx, enum machine_mode));
@@ -777,7 +777,7 @@ regclass (f, nregs)
 					   BASE_REG_CLASS, loop_cost * 2);
 		      continue;
 		    }
-	      
+
 		  /* Improve handling of two-address insns such as
 		     (set X (ashift CONST Y)) where CONST must be made to
 		     match X. Change it into two insns: (set X CONST)
@@ -848,7 +848,7 @@ regclass (f, nregs)
 		 Then handle any address registers.  Finally record the desired
 		 classes for any pseudos, doing it twice if some pair of
 		 operands are commutative.  */
-	     
+
 	      for (i = 0; i < noperands; i++)
 		{
 		  op_costs[i] = init_cost;
@@ -867,7 +867,7 @@ regclass (f, nregs)
 	      /* Check for commutative in a separate loop so everything will
 		 have been initialized.  We must do this even if one operand
 		 is a constant--see addsi3 in m68k.md.  */
-	      
+
 	      for (i = 0; i < noperands - 1; i++)
 		if (constraints[i][0] == '%')
 		  {
@@ -911,7 +911,7 @@ regclass (f, nregs)
 	 and find which class is preferred.  Store that in
 	 `prefclass[REGNO]'.  Record in `altclass[REGNO]' the largest register
 	 class any of whose registers is better than memory.  */
-    
+
       if (pass == 0)
 	{
 	  prefclass = (char *) oballoc (nregs);
@@ -964,7 +964,7 @@ regclass (f, nregs)
 #endif
 		  )
 		alt = reg_class_subunion[(int) alt][class];
-	  
+
 	  /* If we don't add any classes, nothing to try.  */
 	  if (alt == best)
 	    alt = (int) NO_REGS;
@@ -996,7 +996,7 @@ regclass (f, nregs)
    This procedure works alternative by alternative.  For each alternative
    we assume that we will be able to allocate all pseudos to their ideal
    register class and calculate the cost of using that alternative.  Then
-   we compute for each operand that is a pseudo-register, the cost of 
+   we compute for each operand that is a pseudo-register, the cost of
    having the pseudo allocated to each register class and using it in that
    alternative.  To this cost is added the cost of the alternative.
 
@@ -1041,7 +1041,7 @@ record_reg_classes (n_alts, n_ops, ops, modes, constraints, insn)
 	  int win = 0;
 	  char c;
 
-	  /* If this operand has no constraints at all, we can conclude 
+	  /* If this operand has no constraints at all, we can conclude
 	     nothing about it since anything is valid.  */
 
 	  if (*p == 0)
@@ -1082,7 +1082,7 @@ record_reg_classes (n_alts, n_ops, ops, modes, constraints, insn)
 		       || REGNO (ops[j]) < FIRST_PSEUDO_REGISTER)
 		{
 		  /* This op is a pseudo but the one it matches is not.  */
-		  
+
 		  /* If we can't put the other operand into a register, this
 		     alternative can't be used.  */
 
@@ -1375,7 +1375,7 @@ copy_cost (x, mode, class, to_p)
   class = PREFERRED_RELOAD_CLASS (x, class);
 
 #ifdef HAVE_SECONDARY_RELOADS
-  /* If we need a secondary reload (we assume here that we are using 
+  /* If we need a secondary reload (we assume here that we are using
      the secondary reload as an intermediate, not a scratch register), the
      cost is that to load the input into the intermediate register, then
      to copy them.  We use a special value of TO_P to avoid recursion.  */
@@ -1470,7 +1470,7 @@ record_address_regs (x, class, scale)
 
 	/* If index and base registers are the same on this machine, just
 	   record registers in any non-constant operands.  We assume here,
-	   as well as in the tests below, that all addresses are in 
+	   as well as in the tests below, that all addresses are in
 	   canonical form.  */
 
 	else if (INDEX_REG_CLASS == BASE_REG_CLASS)
@@ -1492,7 +1492,7 @@ record_address_regs (x, class, scale)
 	else if (code1 == SYMBOL_REF || code1 == CONST || code1 == LABEL_REF)
 	  record_address_regs (arg0, INDEX_REG_CLASS, scale);
 
-	/* If this the sum of two registers where the first is known to be a 
+	/* If this the sum of two registers where the first is known to be a
 	   pointer, it must be a base register with the second an index.  */
 
 	else if (code0 == REG && code1 == REG
@@ -1573,7 +1573,7 @@ record_address_regs (x, class, scale)
 /* Return 1 if REG is valid as an auto-increment memory reference
    to an object of MODE.  */
 
-static 
+static
 auto_inc_dec_reg_p (reg, mode)
      rtx reg;
      enum machine_mode mode;
@@ -1753,7 +1753,7 @@ reg_scan_mark_refs (x, insn, note_flag)
 	 Likewise if it is setting the destination from an address or from a
 	 value equivalent to an address or to the sum of an address and
 	 something else.
-		     
+
 	 But don't do any of this if the pseudo corresponds to a user
 	 variable since it should have already been set as a pointer based
 	 on the type.  */

@@ -69,17 +69,17 @@ typedef int op_type;
 
 
 
-struct code 
+struct code
 {
   op_type nib[9];
 } ;
 
-struct arg 
+struct arg
 {
   op_type nib[3];
 } ;
 
-struct h8_opcode 
+struct h8_opcode
 {
     char *name;
     struct arg args;
@@ -88,7 +88,7 @@ struct h8_opcode
     char noperands;
     char idx;
     char size;
-    
+
 };
 
 
@@ -113,13 +113,13 @@ struct h8_opcode
 { name,{DISP8,E}, { Hex4, op, DISP8,IGNORE,E }}
 
 #define SOP(name) \
-{  name 
+{  name
 #define EOP   }
 
 
 #define TWOOP(name, op1, op2,op3) \
 { name, {IMM8, RD8,E},	{ op1, RD8, IMM8,IGNORE,E}},\
-{ name, {RS8, RD8, E},	{ op2, op3, RS8, RD8 ,E}} 
+{ name, {RS8, RD8, E},	{ op2, op3, RS8, RD8 ,E}}
 
 #define UNOP(name, op1, op2) \
 { name, {RS8, E}, { op1, op2, 0, RS8, E}}
@@ -127,8 +127,8 @@ struct h8_opcode
 #define UNOP3(name, op1, op2, op3) \
 { name , {RS8, E}, {op1, op2, op3, RS8, E}}
 
-struct h8_opcode h8_opcodes[] 
-= 
+struct h8_opcode h8_opcodes[]
+=
 {
   TWOOP("add.b", Hex8, Hex0,Hex8),
   WTWOP("add.w", Hex0, Hex9),
@@ -253,7 +253,7 @@ SOP("sub.b"), {RS8,RD8,E}, { Hex1, Hex8, RS8, RD8,E} EOP,
 SOP("sub.w"), {RS16|B30, RD16|B30,E},  {Hex1, Hex9, RS16|B30,RD16|B30,E} EOP,
 SOP("subs"), {KBIT,RD16|B30,E}, { Hex1, HexB, KBIT, RD16|B30,E} EOP,
  TWOOP("subx",HexB, Hex1, HexE),
- TWOOP("xor", HexD, Hex1, Hex5), 
+ TWOOP("xor", HexD, Hex1, Hex5),
 SOP("xorc"), {IMM8, CCR,E}, { Hex0, Hex5, IMM8,IGNORE,E} EOP,
  0
 };

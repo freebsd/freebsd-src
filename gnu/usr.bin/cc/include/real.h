@@ -216,7 +216,7 @@ extern REAL_VALUE_TYPE real_value_truncate ();
 /* Defining REAL_IS_NOT_DOUBLE breaks certain initializations
    when REAL_ARITHMETIC etc. are not defined.  */
 
-/* Now see if the host and target machines use the same format. 
+/* Now see if the host and target machines use the same format.
    If not, define REAL_IS_NOT_DOUBLE (even if we end up representing
    reals as doubles because we have no better way in this cross compiler.)
    This turns off various optimizations that can happen when we know the
@@ -386,7 +386,7 @@ extern REAL_VALUE_TYPE dconstm1;
 /* Union type used for extracting real values from CONST_DOUBLEs
    or putting them in.  */
 
-union real_extract 
+union real_extract
 {
   REAL_VALUE_TYPE d;
   HOST_WIDE_INT i[sizeof (REAL_VALUE_TYPE) / sizeof (HOST_WIDE_INT)];

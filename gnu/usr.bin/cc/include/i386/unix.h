@@ -38,7 +38,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define AS2(a,b,c) "a b,c"
 #define AS2C(b,c) " b,c"
 #define AS3(a,b,c,d) "a b,c,d"
-#endif  
+#endif
 
 /* Define macro used to output shift-double opcodes when the shift
    count is in %cl.  Some assemblers require %cl as an argument;
@@ -76,7 +76,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   do								\
   { fputs (",", (FILE)); PRINT_REG ((IREG), 0, (FILE)); }	\
   while (0)
-  
+
 /* Print an index scale factor SCALE.  */
 #define PRINT_SCALE(FILE,SCALE) \
   if ((SCALE) != 1) fprintf ((FILE), ",%d", (SCALE))

@@ -267,7 +267,7 @@ print_frame_info (fi, level, source, args)
 
       struct minimal_symbol *msymbol = lookup_minimal_symbol_by_pc (fi->pc);
       if (msymbol != NULL
-	  && (SYMBOL_VALUE_ADDRESS (msymbol) 
+	  && (SYMBOL_VALUE_ADDRESS (msymbol)
 	      > BLOCK_START (SYMBOL_BLOCK_VALUE (func))))
 	{
 #if 0
@@ -394,7 +394,7 @@ parse_frame_specification (frame_exp)
   int numargs = 0;
 #define	MAXARGS	4
   CORE_ADDR args[MAXARGS];
-  
+
   if (frame_exp)
     {
       char *addr_string, *p;
@@ -468,7 +468,7 @@ parse_frame_specification (frame_exp)
 	  while ((tfid = get_prev_frame (fid)) &&
 		 (FRAME_FP (tfid) == args[0]))
 	    fid = tfid;
-	  
+
 	/* We couldn't identify the frame as an existing frame, but
 	   perhaps we can create one with a single argument.  */
       }
@@ -651,7 +651,7 @@ frame_info (addr_exp, from_tty)
       }
   }
 
-#if defined (FRAME_FIND_SAVED_REGS)  
+#if defined (FRAME_FIND_SAVED_REGS)
   get_frame_saved_regs (fi, &fsr);
   /* The sp is special; what's returned isn't the save address, but
      actually the value of the previous frame's sp.  */
@@ -748,7 +748,7 @@ backtrace_command (count_exp, from_tty)
 	      QUIT;
 	      current = get_prev_frame (current);
 	    }
-	  
+
 	  /* Will stop when CURRENT reaches the top of the stack.  TRAILING
 	     will be COUNT below it.  */
 	  while (current)
@@ -758,7 +758,7 @@ backtrace_command (count_exp, from_tty)
 	      current = get_prev_frame (current);
 	      trailing_level++;
 	    }
-	  
+
 	  count = -1;
 	}
     }
@@ -768,7 +768,7 @@ backtrace_command (count_exp, from_tty)
   if (info_verbose)
     {
       struct partial_symtab *ps;
-      
+
       /* Read in symbols for all of the frames.  Need to do this in
 	 a separate pass so that "Reading in symbols for xxx" messages
 	 don't screw up the appearance of the backtrace.  Also
@@ -909,7 +909,7 @@ print_frame_local_vars (frame, stream)
       fprintf_filtered (stream, "No symbol table info available.\n");
       return;
     }
-  
+
   while (block != 0)
     {
       if (print_block_frame_locals (block, frame, stream))
@@ -1115,7 +1115,7 @@ select_frame (frame, level)
   if (frame)
   {
     s = find_pc_symtab (get_frame_info (frame)->pc);
-    if (s 
+    if (s
 	&& s->language != current_language->la_language
 	&& s->language != language_unknown
 	&& language_mode == language_mode_auto) {
@@ -1254,7 +1254,7 @@ up_silently_command (count_exp, from_tty)
   if (count_exp)
     count = parse_and_eval_address (count_exp);
   count1 = count;
-  
+
   if (target_has_stack == 0 || selected_frame == 0)
     error ("No stack.");
 
@@ -1287,7 +1287,7 @@ down_silently_command (count_exp, from_tty)
   if (count_exp)
     count = - parse_and_eval_address (count_exp);
   count1 = count;
-  
+
   if (target_has_stack == 0 || selected_frame == 0)
     error ("No stack.");
 
@@ -1394,7 +1394,7 @@ get_frame_language()
    register struct symtab *s;
    FRAME fr;
    enum language flang;		/* The language of the current frame */
-   
+
    fr = get_frame_info(selected_frame);
    if(fr)
    {
@@ -1413,7 +1413,7 @@ get_frame_language()
 void
 _initialize_stack ()
 {
-#if 0  
+#if 0
   backtrace_limit = 30;
 #endif
 
@@ -1473,7 +1473,7 @@ With a negative argument, print outermost -COUNT frames.");
 	    "Exceptions that can be caught in the current stack frame.");
 
 #if 0
-  add_cmd ("backtrace-limit", class_stack, set_backtrace_limit_command, 
+  add_cmd ("backtrace-limit", class_stack, set_backtrace_limit_command,
 	   "Specify maximum number of frames for \"backtrace\" to print by default.",
 	   &setlist);
   add_info ("backtrace-limit", backtrace_limit_info,

@@ -258,7 +258,7 @@ stupid_life_analysis (f, nregs, file)
 
       /* Now find the best hard-register class for this pseudo register */
       if (N_REG_CLASSES > 1)
-	reg_renumber[r] = stupid_find_reg (reg_n_calls_crossed[r], 
+	reg_renumber[r] = stupid_find_reg (reg_n_calls_crossed[r],
 					   reg_preferred_class (r),
 					   PSEUDO_REGNO_MODE (r),
 					   reg_where_born[r],

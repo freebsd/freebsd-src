@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Fix.h : variable length fixed point data type 
+// Fix.h : variable length fixed point data type
 //
 
 #ifndef _Fix_h
@@ -124,7 +124,7 @@ public:
   friend char*    Ftoa(const Fix&, int width = default_print_width);
   void		  printon(ostream&, int width = default_print_width) const;
   friend Fix      atoF(const char*, int len = default_length);
-  
+
   friend istream& operator >> (istream&, Fix&);
   friend ostream& operator << (ostream&, const Fix&);
 
@@ -184,7 +184,7 @@ Fix::mask (Fix::Rep* x)
 {
   int n = x->len & 0x0f;
   if ( n )
-    x->s[x->siz - 1] &= 0xffff0000 >> n; 
+    x->s[x->siz - 1] &= 0xffff0000 >> n;
 }
 
 inline Fix::Rep*
@@ -269,7 +269,7 @@ Fix::operator = (const Fix&  y)
   if ( rep->len == y.rep->len ) {
     ++y.rep->ref;
     if ( --rep->ref <= 0 ) delete rep;
-    rep = y.rep; 
+    rep = y.rep;
   }
   else {
     unique();
@@ -290,37 +290,37 @@ Fix::operator = (double d)
 inline int
 operator == (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) == 0; 
+  return Fix::compare(x.rep, y.rep) == 0;
 }
 
 inline int
 operator != (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) != 0; 
+  return Fix::compare(x.rep, y.rep) != 0;
 }
 
 inline int
 operator <  (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) <  0; 
+  return Fix::compare(x.rep, y.rep) <  0;
 }
 
 inline int
 operator <= (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) <= 0; 
+  return Fix::compare(x.rep, y.rep) <= 0;
 }
 
 inline int
 operator >  (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) >  0; 
+  return Fix::compare(x.rep, y.rep) >  0;
 }
 
 inline int
 operator >= (const Fix&  x, const Fix&  y)
 {
-  return Fix::compare(x.rep, y.rep) >= 0; 
+  return Fix::compare(x.rep, y.rep) >= 0;
 }
 
 inline Fix&
@@ -415,7 +415,7 @@ operator << (const Fix&  x, int y)
 
 inline Fix
 operator >> (const Fix&  x, int y)
-{  
+{
   Fix::Rep* rep = Fix::shift(x.rep, -y); return rep;
 }
 

@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/26 12:09:41 $
- *           $Source: /users/faustus/xchess/RCS/button.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:15 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/button.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -52,7 +52,7 @@ static struct but {
 	{ "Reset", 0, 80, 108, 29, RESTART } ,
 	{ "Save", 109, 80, 108, 29, SAVE } ,
 #define EASY_OFFSET 8
-	{ "Switch", 219, 80, 108, 29, SWITCH } 
+	{ "Switch", 219, 80, 108, 29, SWITCH }
 /*	{ "NoEasy", 219, 80, 108, 29, EASY }*/
 } ;
 static int easy = 1;
@@ -69,7 +69,7 @@ button_draw(win)
 	XSetLineAttributes(win->display, DefaultGC(win->display, 0),
 			   BORDER_WIDTH, LineSolid, CapButt,
 			   JoinMiter);
-	
+
 	XDrawLine(win->display, win->buttonwin,
 		  DefaultGC(win->display, 0),
 		  0, 29, BUTTON_WIDTH, 29);
@@ -85,9 +85,9 @@ button_draw(win)
 
 	XSetFont(win->display, DefaultGC(win->display, 0), win->large->fid);
 	XSetForeground(win->display, DefaultGC(win->display, 0),
-		       win->textcolor.pixel); 
+		       win->textcolor.pixel);
 	XSetBackground(win->display, DefaultGC(win->display, 0),
-		       win->textback.pixel); 
+		       win->textback.pixel);
 
 	for (i = 0; i < numbuts; i++) {
 		x = (buts[i].width -
@@ -219,7 +219,7 @@ button_service(win, event)
 
 	    case SAVE:
 		if (saveflag) {
-			message_add(win, 
+			message_add(win,
 				"Game is already being logged in file '", true);
 			message_add(win, record_file, true);
 			message_add(win, "'.\n", true);
@@ -248,12 +248,12 @@ button_service(win, event)
 					return;
 				}
 			}
-			message_add(win1, 
+			message_add(win1,
 			"Clock stopped.\nHit 'Pause' again to restart.\n",
 					false);
 			if (!oneboard)
-				message_add(win2, 
-			"Clock stopped.\nHit 'Pause' again to restart.\n", 
+				message_add(win2,
+			"Clock stopped.\nHit 'Pause' again to restart.\n",
 					false);
 			clock_started = false;
 		} else {
@@ -320,7 +320,7 @@ button_service(win, event)
 				       win->textcolor.pixel);
 			XSetBackground(win->display,
 				       DefaultGC(win->display, 0),
-				       win->textback.pixel); 
+				       win->textback.pixel);
 
 			XDrawImageString(win->display,
 					 win->buttonwin,

@@ -60,7 +60,7 @@
 #endif
 
 #ifdef RCSID
-static char rcsid[] = "$Id: bits.c,v 0.9 1993/06/11 10:16:58 jloup Exp $";
+static char rcsid[] = "$Id: bits.c,v 1.3 1993/10/14 00:32:24 nate Exp $";
 #endif
 
 /* ===========================================================================
@@ -186,7 +186,7 @@ void copy_block(buf, len, header)
     bi_windup();              /* align on byte boundary */
 
     if (header) {
-        put_short((ush)len);   
+        put_short((ush)len);
         put_short((ush)~len);
 #ifdef DEBUG
         bits_sent += 2*16;

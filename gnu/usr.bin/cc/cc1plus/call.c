@@ -331,7 +331,7 @@ convert_harshness (type, parmtype, parm)
 	    }
 	  else
 	    h.code = STD_CODE;
-	    
+
 	  return h;
 	}
       else if (coder == REAL_TYPE)
@@ -351,7 +351,7 @@ convert_harshness (type, parmtype, parm)
 	    h.code = PROMO_CODE;
 	  else
 	    h.code = STD_CODE;
-	    
+
 	  return h;
 	}
       else if (INTEGRAL_CODE_P (coder))
@@ -729,7 +729,7 @@ compute_conversion_costs (function, tta_in, cp, arglen)
 	break;
 
       if (type_unknown_p (TREE_VALUE (tta)))
-	{	  
+	{
 	  /* Must perform some instantiation here.  */
 	  tree rhs = TREE_VALUE (tta);
 	  tree lhstype = TREE_VALUE (ttf);
@@ -1342,7 +1342,7 @@ resolve_scope_to_name (outer_type, inner_stuff)
       /* We first try to look for a nesting in our current class context,
          then try any enclosing classes.  */
       tree type = current_class_type;
-      
+
       while (type && (TREE_CODE (type) == RECORD_TYPE
 		      || TREE_CODE (type) == UNION_TYPE))
         {
@@ -1415,7 +1415,7 @@ build_scoped_method_call (exp, scopes, name, parms)
      a pointer to a base class to be `stolen',
      we need not protect the derived->base conversion
      that happens here.
-     
+
      @@ But we do have to check access privileges later.  */
   tree basename = resolve_scope_to_name (NULL_TREE, scopes);
   tree basetype, binfo, decl;
@@ -1480,7 +1480,7 @@ build_scoped_method_call (exp, scopes, name, parms)
 	    }
 	  if (! TYPE_HAS_DESTRUCTOR (TREE_TYPE (decl)))
 	    return convert (void_type_node, exp);
-	  
+
 	  return build_delete (TREE_TYPE (decl), decl, integer_two_node,
 			       LOOKUP_NORMAL|LOOKUP_NONVIRTUAL|LOOKUP_DESTRUCTOR,
 			       0);
@@ -1637,7 +1637,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 
   {
     char *xref_name;
-    
+
     /* Initialize name for error reporting.  */
     if (IDENTIFIER_OPNAME_P (name) && ! IDENTIFIER_TYPENAME_P (name))
       {
@@ -1997,18 +1997,18 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	tmp = TYPE_BINFO (basetype);
       else
 	tmp = get_binfo (IDENTIFIER_TYPE_VALUE (name), basetype, 0);
-      
+
       if (tmp != NULL_TREE)
 	{
 	  name_kind = "constructor";
-	  
+
 	  if (TYPE_USES_VIRTUAL_BASECLASSES (basetype)
 	      && ! (flags & LOOKUP_HAS_IN_CHARGE))
 	    {
 	      /* Constructors called for initialization
 		 only are never in charge.  */
 	      tree tmplist;
-	      
+
 	      flags |= LOOKUP_HAS_IN_CHARGE;
 	      tmplist = tree_cons (NULL_TREE, integer_zero_node,
 				   TREE_CHAIN (parms));
@@ -2023,7 +2023,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
     }
   else
     name_kind = "method";
-  
+
   if (basetype_path == NULL_TREE
       || BINFO_TYPE (basetype_path) != TYPE_MAIN_VARIANT (basetype))
     basetype_path = TYPE_BINFO (basetype);
@@ -2125,7 +2125,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	     match any methods.  Since we have verified that the is
 	     some method vaguely matching this one (in name at least),
 	     silently return.
-	     
+
 	     Don't stop for friends, however.  */
 	  basetype_path = TREE_PURPOSE (baselink);
 
@@ -2246,7 +2246,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 	      if ((flags & (LOOKUP_SPECULATIVELY|LOOKUP_COMPLAIN))
 		  == LOOKUP_SPECULATIVELY)
 		return NULL_TREE;
-	      
+
 	      TREE_CHAIN (last) = void_list_node;
 	      if (flags & LOOKUP_GLOBAL)
 		cp_error ("no global or member function `%D(%A)' defined",
@@ -2392,7 +2392,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
     {
       if (flags & LOOKUP_COMPLAIN)
 	{
-	  cp_error_at ("%s `%+#D' is %s", name_kind, function, 
+	  cp_error_at ("%s `%+#D' is %s", name_kind, function,
 		       TREE_PRIVATE (function) ? "private"
 		       : "from private base class");
 	  error ("within this context");
@@ -2616,7 +2616,7 @@ build_method_call (instance, name, parms, basetype_path, flags)
 
   {
     int is_constructor;
-    
+
     if (TREE_CODE (function) == FUNCTION_DECL)
       {
 	is_constructor = DECL_CONSTRUCTOR_P (function);
@@ -2729,7 +2729,7 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
       else if (TREE_CODE (fnname) == FUNCTION_DECL)
 	fnname = DECL_NAME (functions);
     }
-  else 
+  else
     functions = lookup_name_nonclass (fnname);
 
   if (functions == NULL_TREE)
@@ -2762,7 +2762,7 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
     {
       if (flags & LOOKUP_SPECULATIVELY)
 	return NULL_TREE;
-      
+
       if (flags & LOOKUP_COMPLAIN)
 	cp_error ("function `%D' declared overloaded, but no instances of that function declared",
 		  TREE_PURPOSE (functions));
@@ -2772,7 +2772,7 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
     }
 
   length = count_functions (functions);
-  
+
   if (final_cp)
     candidates = final_cp;
   else
@@ -2923,7 +2923,7 @@ build_overload_call_real (fnname, parms, flags, final_cp, buildxxx)
 
   if (flags & LOOKUP_SPECULATIVELY)
     return NULL_TREE;
-  
+
   if (flags & LOOKUP_COMPLAIN)
     report_type_mismatch (cp, parms, "function",
 			  decl_as_string (cp->function, 1));

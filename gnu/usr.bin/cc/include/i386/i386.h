@@ -83,7 +83,7 @@ extern int target_flags;
 
 /* Compile using ret insn that pops args.
    This will not work unless you use prototypes at least
-   for all functions that can take varying numbers of args.  */  
+   for all functions that can take varying numbers of args.  */
 #define TARGET_RTD (target_flags & MASK_RTD)
 
 /* Compile passing first two args in regs 0 and 1.
@@ -374,7 +374,7 @@ extern int target_flags;
    This is ordinarily the length in words of a value of mode MODE
    but can be less for certain modes in special long registers.
 
-   Actually there are no two word move instructions for consecutive 
+   Actually there are no two word move instructions for consecutive
    registers.  And only registers 0-3 may have mov byte instructions
    applied to them.
    */
@@ -576,7 +576,7 @@ enum reg_class
 
 #define FP_REG_P(X) (REG_P (X) && FP_REGNO_P (REGNO (X)))
 #define FP_REGNO_P(n) ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG)
-  
+
 #define STACK_REG_P(xop) (REG_P (xop) &&		       	\
 			  REGNO (xop) >= FIRST_STACK_REG &&	\
 			  REGNO (xop) <= LAST_STACK_REG)
@@ -989,7 +989,7 @@ while (0)
    the stack pointer does not matter.  The value is tested only in
    functions that have frame pointers.
    No definition is equivalent to always zero.  */
-/* Note on the 386 it might be more efficient not to define this since 
+/* Note on the 386 it might be more efficient not to define this since
    we have to restore it ourselves from the frame pointer, in order to
    use pop */
 
@@ -1248,7 +1248,7 @@ do {						\
 }
 
 /* Nonzero if the constant value X is a legitimate general operand
-   when generating PIC code.  It is given that flag_pic is on and 
+   when generating PIC code.  It is given that flag_pic is on and
    that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
 #define LEGITIMATE_PIC_OPERAND_P(X) \
@@ -1671,7 +1671,7 @@ do { long l;						\
 
 /* This is how to output an element of a case-vector that is relative.
    We don't use these on the 386 yet, because the ATT assembler can't do
-   forward reference the differences.  
+   forward reference the differences.
  */
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \

@@ -31,6 +31,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcs.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:14  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.12  1991/11/20  17:58:08  eggert
  * Don't read the delta tree from a nonexistent RCS file.
  *
@@ -77,42 +80,42 @@ Report problems and direct all questions to:
  *
  * Revision 4.11  89/05/01  15:12:06  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.10  88/11/08  16:01:54  narten
  * didn't install previous patch correctly
- * 
+ *
  * Revision 4.9  88/11/08  13:56:01  narten
  * removed include <sysexits.h> (not needed)
  * minor fix for -A option
- * 
+ *
  * Revision 4.8  88/08/09  19:12:27  eggert
  * Don't access freed storage.
  * Use execv(), not system(); yield proper exit status; remove lint.
- * 
+ *
  * Revision 4.7  87/12/18  11:37:17  narten
  * lint cleanups (Guy Harris)
- * 
+ *
  * Revision 4.6  87/10/18  10:28:48  narten
- * Updating verison numbers. Changes relative to 1.1 are actually 
+ * Updating verison numbers. Changes relative to 1.1 are actually
  * relative to 4.3
- * 
+ *
  * Revision 1.4  87/09/24  13:58:52  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.3  87/03/27  14:21:55  jenkins
  * Port to suns
- * 
+ *
  * Revision 1.2  85/12/17  13:59:09  albitz
  * Changed setstate to rcs_setstate because of conflict with random.o.
- * 
+ *
  * Revision 4.3  83/12/15  12:27:33  wft
  * rcs -u now breaks most recent lock if it can't find a lock by the caller.
- * 
+ *
  * Revision 4.2  83/12/05  10:18:20  wft
  * Added conditional compilation for sending mail.
  * Alternatives: V4_2BSD, V6, USG, and other.
- * 
+ *
  * Revision 4.1  83/05/10  16:43:02  wft
  * Simplified breaklock(); added calls to findlock() and getcaller().
  * Added option -b (default branch). Updated -s and -w for -b.
@@ -120,10 +123,10 @@ Report problems and direct all questions to:
  * Replaced most catchints() calls with restoreints().
  * Removed check for exit status of delivermail().
  * Directed all interactive output to stderr.
- * 
+ *
  * Revision 3.9.1.1  83/12/02  22:08:51  wft
  * Added conditional compilation for 4.2 sendmail and 4.1 delivermail.
- * 
+ *
  * Revision 3.9  83/02/15  15:38:39  wft
  * Added call to fastcopy() to copy remainder of RCS file.
  *
@@ -238,7 +241,7 @@ static struct delrevpair delrev;
 static struct hshentry *cuthead, *cuttail, *delstrt;
 static struct hshentries *gendeltas;
 
-mainProg(rcsId, "rcs", "$Id: rcs.c,v 5.12 1991/11/20 17:58:08 eggert Exp $")
+mainProg(rcsId, "rcs", "$Id: rcs.c,v 1.1.1.1 1993/06/18 04:22:14 jkh Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcs usage: rcs -{ae}logins -Afile -{blu}[rev] -cstring -{iLU} -{nNs}name[:rev] -orange -t[file] -Vn file ...";

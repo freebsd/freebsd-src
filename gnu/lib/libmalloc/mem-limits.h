@@ -69,12 +69,12 @@ extern char etext;
 #endif
 #endif
 
-#else  /* Not emacs */ 
+#else  /* Not emacs */
 extern char etext;
 #define start_of_data() &etext
 #endif /* Not emacs */
 
-  
+
 
 /* start of data space; can be changed by calling malloc_init */
 static POINTER data_space_start;

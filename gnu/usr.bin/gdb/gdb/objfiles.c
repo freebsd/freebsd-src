@@ -62,7 +62,7 @@ struct objfile *symfile_objfile;	/* Main symbol table loaded from */
 
 int mapped_symbol_files;		/* Try to use mapped symbol files */
 
-/* Locate all mappable sections of a BFD file. 
+/* Locate all mappable sections of a BFD file.
    objfile_p_char is a char * to get it through
    bfd_map_over_sections; we cast it back to its proper type.  */
 
@@ -253,7 +253,7 @@ allocate_objfile (abfd, mapped)
 
   if (build_objfile_section_table (objfile))
     {
-      error ("Can't find the file sections in `%s': %s", 
+      error ("Can't find the file sections in `%s': %s",
 	     objfile -> name, bfd_errmsg (bfd_get_error ()));
     }
 
@@ -286,7 +286,7 @@ unlink_objfile (objfile)
 
   for (objpp = &object_files; *objpp != NULL; objpp = &((*objpp) -> next))
     {
-      if (*objpp == objfile) 
+      if (*objpp == objfile)
 	{
 	  *objpp = (*objpp) -> next;
 	  objfile -> next = NULL;
@@ -347,7 +347,7 @@ free_objfile (objfile)
      symbol table was blown away.  How much still needs to be done
      is unknown, but we play it safe for now and keep each action until
      it is shown to be no longer needed. */
-     
+
 #if defined (CLEAR_SOLIB)
   CLEAR_SOLIB ();
   /* CLEAR_SOLIB closes the bfd's for any shared libraries.  But
@@ -455,7 +455,7 @@ objfile_relocate (objfile, new_offsets)
 	struct linetable *l;
 	struct blockvector *bv;
 	int i;
-	
+
 	/* First the line table.  */
 	l = LINETABLE (s);
 	if (l)
@@ -473,7 +473,7 @@ objfile_relocate (objfile, new_offsets)
 	  {
 	    struct block *b;
 	    int j;
-	    
+
 	    b = BLOCKVECTOR_BLOCK (bv, i);
 	    BLOCK_START (b) += ANOFFSET (delta, s->block_line_section);
 	    BLOCK_END (b) += ANOFFSET (delta, s->block_line_section);
@@ -837,7 +837,7 @@ find_pc_section(pc)
 {
   struct obj_section *s;
   struct objfile *objfile;
-  
+
   ALL_OBJFILES (objfile)
     for (s = objfile->sections; s < objfile->sections_end; ++s)
       if (s->addr <= pc
@@ -847,7 +847,7 @@ find_pc_section(pc)
   return(NULL);
 }
 
-/* In SVR4, we recognize a trampoline by it's section name. 
+/* In SVR4, we recognize a trampoline by it's section name.
    That is, if the pc is in a section named ".plt" then we are in
    a trampoline.  */
 
@@ -858,9 +858,9 @@ in_plt_section(pc, name)
 {
   struct obj_section *s;
   int retval = 0;
-  
+
   s = find_pc_section(pc);
-  
+
   retval = (s != NULL
 	    && s->the_bfd_section->name != NULL
 	    && STREQ (s->the_bfd_section->name, ".plt"));

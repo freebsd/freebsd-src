@@ -120,7 +120,7 @@ static unsigned	local_n_tshift;
 #define	N_BTSHFT	local_n_btshft
 #define	N_TMASK		local_n_tmask
 #define	N_TSHIFT	local_n_tshift
- 
+
 /* Local variables that hold the sizes in the file of various COFF structures.
    (We only need to know this to read them from the file -- BFD will then
    translate the data in them, into `internal_xxx' structs in the right
@@ -145,7 +145,7 @@ struct type *in_function_type;
 
 /* Complaints about various problems in the file being read  */
 
-struct complaint ef_complaint = 
+struct complaint ef_complaint =
   {"Unmatched .ef symbol(s) ignored starting at symnum %d", 0, 0};
 
 struct complaint bf_no_aux_complaint =
@@ -169,7 +169,7 @@ struct complaint misordered_blocks_complaint =
 struct complaint tagndx_bad_complaint =
   {"Symbol table entry for %s has bad tagndx value", 0, 0};
 
-struct complaint eb_complaint = 
+struct complaint eb_complaint =
   {"Mismatched .eb symbol ignored starting at symnum %d", 0, 0};
 
 /* Simplified internal version of coff symbol table information */
@@ -312,7 +312,7 @@ coff_locate_sections (ignore_abfd, sectp, csip)
 
 /* Look up a coff type-number index.  Return the address of the slot
    where the type for that index is stored.
-   The type-number is in INDEX. 
+   The type-number is in INDEX.
 
    This can be used for finding the type associated with that index
    or for associating a new type with the index.  */
@@ -637,7 +637,7 @@ coff_symfile_read (objfile, section_offsets, mainline)
   bfd_map_over_sections (abfd, find_linenos, (PTR) info);
 
   make_cleanup (free_linetab, 0);
-  val = init_lineno (desc, info->min_lineno_offset, 
+  val = init_lineno (desc, info->min_lineno_offset,
 		     info->max_lineno_offset - info->min_lineno_offset);
   if (val < 0)
     error ("\"%s\": error reading line numbers\n", name);
@@ -726,7 +726,7 @@ read_coff_symtab (symtab_offset, nsyms, objfile)
      int nsyms;
      struct objfile *objfile;
 {
-  GDB_FILE *stream; 
+  GDB_FILE *stream;
   register struct context_stack *new;
   struct coff_symbol coff_symbol;
   register struct coff_symbol *cs = &coff_symbol;
@@ -736,7 +736,7 @@ read_coff_symtab (symtab_offset, nsyms, objfile)
   static struct internal_syment fcn_sym_saved;
   static union internal_auxent fcn_aux_saved;
   struct symtab *s;
-  
+
   /* A .file is open.  */
   int in_source_file = 0;
   int next_file_symnum = -1;
@@ -1074,10 +1074,10 @@ read_file_hdr (chan, file_hdr)
 #endif
 #ifdef MC88DGMAGIC
     case MC88DGMAGIC:
-#endif      
+#endif
 #ifdef MC88MAGIC
     case MC88MAGIC:
-#endif      
+#endif
 #ifdef I960ROMAGIC
     case I960ROMAGIC:		/* Intel 960 */
 #endif
@@ -1240,7 +1240,7 @@ static unsigned long linetab_size;
 /* Read in all the line numbers for fast lookups later.  Leave them in
    external (unswapped) format in memory; we'll swap them as we enter
    them into GDB's data structures.  */
- 
+
 static int
 init_lineno (chan, offset, size)
     int chan;
@@ -1259,7 +1259,7 @@ init_lineno (chan, offset, size)
 
   if (lseek (chan, offset, 0) < 0)
     return -1;
-  
+
   /* Allocate the desired table, plus a sentinel */
   linetab = (char *) xmalloc (size + local_linesz);
 
@@ -1301,7 +1301,7 @@ enter_linenos (file_offset, first_line, last_line)
 	return;
       file_offset += linetab_offset;  /* Try reading at that linetab offset */
     }
-  
+
   rawptr = &linetab[file_offset - linetab_offset];
 
   /* skip first line entry for each function */
@@ -1317,7 +1317,7 @@ enter_linenos (file_offset, first_line, last_line)
       coff_record_line (first_line + L_LNNO32 (&lptr), lptr.l_addr.l_paddr);
     else
       break;
-  } 
+  }
 }
 
 static void
@@ -1353,7 +1353,7 @@ patch_opaque_types (s)
   register struct block *b;
   register int i;
   register struct symbol *real_sym;
-  
+
   /* Go through the per-file symbols only */
   b = BLOCKVECTOR_BLOCK (BLOCKVECTOR (s), STATIC_BLOCK);
   for (i = BLOCK_NSYMS (b) - 1; i >= 0; i--)
@@ -1371,7 +1371,7 @@ patch_opaque_types (s)
 	  register char *name = SYMBOL_NAME (real_sym);
 	  register int hash = hashname (name);
 	  register struct symbol *sym, *prev;
-	  
+
 	  prev = 0;
 	  for (sym = opaque_type_chain[hash]; sym;)
 	    {
@@ -1386,9 +1386,9 @@ patch_opaque_types (s)
 		    {
 		      opaque_type_chain[hash] = SYMBOL_VALUE_CHAIN (sym);
 		    }
-		  
+
 		  patch_type (SYMBOL_TYPE (sym), SYMBOL_TYPE (real_sym));
-		  
+
 		  if (prev)
 		    {
 		      sym = SYMBOL_VALUE_CHAIN (prev);
@@ -1433,18 +1433,18 @@ process_coff_symbol (cs, aux, objfile)
     {
 #if 0
        /* FIXME:  This has NOT been tested.  The DBX version has.. */
-       /* Generate a template for the type of this function.  The 
-	  types of the arguments will be added as we read the symbol 
+       /* Generate a template for the type of this function.  The
+	  types of the arguments will be added as we read the symbol
 	  table. */
        struct type *new = (struct type *)
 		    obstack_alloc (&objfile->symbol_obstack, sizeof (struct type));
-       
+
        memcpy (new, lookup_function_type (decode_function_type (cs, cs->c_type, aux)),
 		      sizeof(struct type));
        SYMBOL_TYPE (sym) = new;
        in_function_type = SYMBOL_TYPE(sym);
 #else
-       SYMBOL_TYPE(sym) = 
+       SYMBOL_TYPE(sym) =
 	 lookup_function_type (decode_function_type (cs, cs->c_type, aux));
 #endif
 
@@ -1550,7 +1550,7 @@ process_coff_symbol (cs, aux, objfile)
 	      }
 #endif
 	    break;
-	    
+
 	  case C_TPDEF:
 	    SYMBOL_CLASS (sym) = LOC_TYPEDEF;
 	    SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
@@ -2077,7 +2077,7 @@ coff_symfile_offsets (objfile, addr)
 
   for (i = 0; i < SECT_OFF_MAX; i++)
     ANOFFSET (section_offsets, i) = addr;
-  
+
   return section_offsets;
 }
 

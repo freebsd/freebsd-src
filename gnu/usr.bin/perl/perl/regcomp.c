@@ -7,9 +7,12 @@
  * blame Henry for some of the lack of readability.
  */
 
-/* $RCSfile: regcomp.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: regcomp.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  * $Log: regcomp.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
@@ -18,27 +21,27 @@
  * patch20: /^stuff/ wrongly assumed an implicit $* == 1
  * patch20: /x{0}/ was wrongly interpreted as /x{0,}/
  * patch20: added \W, \S and \D inside /[...]/
- * 
+ *
  * Revision 4.0.1.4  91/11/05  22:55:14  lwall
  * patch11: Erratum
- * 
+ *
  * Revision 4.0.1.3  91/11/05  18:22:28  lwall
  * patch11: minimum match length calculation in regexp is now cumulative
  * patch11: initial .* in pattern had dependency on value of $*
  * patch11: certain patterns made use of garbage pointers from uncleared memory
  * patch11: prepared for ctype implementations that don't define isascii()
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:48:24  lwall
  * patch4: new copyright notice
  * patch4: /(x+) \1/ incorrectly optimized to not match "xxx xx"
  * patch4: // wouldn't use previous pattern if it started with a null character
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:04:45  lwall
  * patch1: random cleanup in cpp namespace
- * 
+ *
  * Revision 4.0  91/03/20  01:39:01  lwall
  * 4.0 baseline.
- * 
+ *
  */
 /*SUPPRESS 112*/
 /*
@@ -1321,7 +1324,7 @@ regexp *r;
 		s += regarglen[op];
 		if (next == NULL)		/* Next ptr. */
 			fprintf(stderr,"(0)");
-		else 
+		else
 			fprintf(stderr,"(%d)", (s-r->program)+(next-s));
 		s += 3;
 		if (op == ANYOF) {

@@ -48,7 +48,7 @@ getcwd (zbuf, cbuf)
 	  cread = 0;
 	}
     }
-  
+
   if (cread == 0)
     {
       errno = ierr;

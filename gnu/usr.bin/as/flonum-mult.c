@@ -1,15 +1,15 @@
 /* flonum_mult.c - multiply two flonums
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of Gas, the GNU Assembler.
-   
+
    The GNU assembler is distributed in the hope that it will be
    useful, but WITHOUT ANY WARRANTY.  No author or distributor
    accepts responsibility to anyone for the consequences of using it
    or for whether it serves any particular purpose or works at all,
    unless he says so in writing.  Refer to the GNU Assembler General
    Public License for full details.
-   
+
    Everyone is granted permission to copy, modify and redistribute
    the GNU Assembler, but only under the conditions described in the
    GNU Assembler General Public License.  A copy of this license is
@@ -19,31 +19,31 @@
    notice and this notice must be preserved on all copies.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: flonum-mult.c,v 1.3 1993/10/02 20:57:30 pk Exp $";
+static char rcsid[] = "$Id: flonum-mult.c,v 1.2 1993/11/03 00:51:36 paul Exp $";
 #endif
 
 #include "flonum.h"
 
 /*	plan for a . b => p(roduct)
-	
-	
+
+
 	+-------+-------+-/   /-+-------+-------+
 	| a	| a	|  ...	| a	| a	|
 	|  A	|  A-1	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-------+
-	
-	
+
+
 	+-------+-------+-/   /-+-------+-------+
 	| b	| b	|  ...	| b	| b	|
 	|  B	|  B-1	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-------+
-	
-	
+
+
 	+-------+-------+-/   /-+-------+-/   /-+-------+-------+
 	| p	| p	|  ...	| p	|  ...	| p	| p	|
 	|  A+B+1|  A+B	|	|  N	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-/   /-+-------+-------+
-	
+
 	/^\
 	(carry) a .b	   ...	    |	   ...	 a .b	 a .b
 	A  B 		    |		  0  1	  0  0
@@ -59,17 +59,17 @@ static char rcsid[] = "$Id: flonum-mult.c,v 1.3 1993/10/02 20:57:30 pk Exp $";
 	|		  \
 	+-----  P  =   >  a .b
 	N	  /__  i  j
-	
+
 	N = 0 ... A+B
-	
+
 	for all i,j where i+j=N
 	[i,j integers > 0]
-	
+
 	a[], b[], p[] may not intersect.
 	Zero length factors signify 0 significant bits: treat as 0.0.
 	0.0 factors do the right thing.
 	Zero length product OK.
-	
+
 	I chose the ForTran accent "foo[bar]" instead of the C accent "*garply"
 	because I felt the ForTran way was more intuitive. The C way would
 	probably yield better code on most C compilers. Dean Elsner.
@@ -96,7 +96,7 @@ FLONUM_TYPE *product;
 	int			N;	/* As in sum above.  */
 	int			A;	/* Which [] of a? */
 	int			B;	/* Which [] of b? */
-	
+
 	if ((a->sign != '-' && a->sign != '+') || (b->sign != '-' && b->sign != '+')) {
 		/* ...
 		   Got to fail somehow.  Any suggestions? */

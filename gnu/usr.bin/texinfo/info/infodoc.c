@@ -545,7 +545,7 @@ replace_in_documentation (string)
 	  /* Find a key which invokes this function in the info_keymap. */
 	  function = named_function (fun_name);
 
-	  /* If the internal documentation string fails, there is a 
+	  /* If the internal documentation string fails, there is a
 	     serious problem with the associated command's documentation.
 	     We croak so that it can be fixed immediately. */
 	  if (!function)
@@ -605,7 +605,7 @@ where_is_internal (map, function)
      VFunction *function;
 {
   register int i;
-  
+
   /* If the function is directly invokable in MAP, return the representation
      of that keystroke. */
   for (i = 0; i < 256; i++)
@@ -686,4 +686,4 @@ DECLARE_INFO_COMMAND (info_where_is,
 
   free (command_name);
 }
-    
+

@@ -1,4 +1,4 @@
-/* $RCSfile: consarg.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* $RCSfile: consarg.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:29 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: consarg.c,v $
+ * Revision 1.2  1994/09/11  03:17:29  gclarkii
+ * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
+ * Added casts to shutup warnings in doio.c
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -17,24 +21,24 @@
  * patch20: modulus with highest bit in left operand set didn't always work
  * patch20: illegal lvalue message could be followed by core dump
  * patch20: deleted some minor memory leaks
- * 
+ *
  * Revision 4.0.1.3  91/11/05  16:21:16  lwall
  * patch11: random cleanup
  * patch11: added eval {}
  * patch11: added sort {} LIST
  * patch11: "foo" x -1 dumped core
  * patch11: substr() and vec() weren't allowed in an lvalue list
- * 
+ *
  * Revision 4.0.1.2  91/06/07  10:33:12  lwall
  * patch4: new copyright notice
  * patch4: length($`), length($&), length($') now optimized to avoid string copy
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:38:34  lwall
  * patch1: fixed "Bad free" error
- * 
+ *
  * Revision 4.0  91/03/20  01:06:15  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -200,9 +204,9 @@ ARG *arg3;
     }
     /*SUPPRESS 560*/
     if (chld = arg2) {
-	if (chld->arg_type == O_ITEM && 
-	    (hoistable[chld[1].arg_type&A_MASK] || 
-	     (type == O_ASSIGN && 
+	if (chld->arg_type == O_ITEM &&
+	    (hoistable[chld[1].arg_type&A_MASK] ||
+	     (type == O_ASSIGN &&
 	      ((chld[1].arg_type == A_READ && !(arg[1].arg_type & A_DONT))
 		||
 	       (chld[1].arg_type == A_INDREAD && !(arg[1].arg_type & A_DONT))
@@ -1074,7 +1078,7 @@ ARG *arg;
     if (arg->arg_type == O_CONCAT && arg[2].arg_type == A_EXPR) {
 	arg2 = arg[2].arg_ptr.arg_arg;
 	if (arg2->arg_type == O_ITEM && arg2[1].arg_type == A_READ) {
-	    arg->arg_type = O_RCAT;	
+	    arg->arg_type = O_RCAT;
 	    arg[2].arg_type = arg2[1].arg_type;
 	    arg[2].arg_ptr = arg2[1].arg_ptr;
 	    free_arg(arg2);

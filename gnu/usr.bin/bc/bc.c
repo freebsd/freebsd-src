@@ -29,7 +29,7 @@ static char yysccsid[] = "@(#)yaccpar	1.8 (Berkeley) 01/20/90";
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 #include "bcdefs.h"
@@ -736,7 +736,7 @@ case 20:
 				warn ("comparison in expression");
 			      if (yyvsp[0].i_value & 1)
 				generate ("W");
-			      else 
+			      else
 				generate ("p");
 			    }
 break;
@@ -793,7 +793,7 @@ break;
 case 28:
 #line 194 "bc.y"
 {
-			      yyvsp[0].i_value = break_label; 
+			      yyvsp[0].i_value = break_label;
 			      break_label = next_label++;
 			    }
 break;
@@ -857,7 +857,7 @@ break;
 case 34:
 #line 246 "bc.y"
 {
-			      sprintf (genstr, "N%1d:", if_label); 
+			      sprintf (genstr, "N%1d:", if_label);
 			      generate (genstr);
 			      if_label = yyvsp[-4].i_value;
 			    }
@@ -873,7 +873,7 @@ break;
 case 36:
 #line 258 "bc.y"
 {
-			      yyvsp[0].i_value = break_label; 
+			      yyvsp[0].i_value = break_label;
 			      break_label = next_label++;
 			      sprintf (genstr, "Z%1d:", break_label);
 			      generate (genstr);
@@ -912,7 +912,7 @@ case 46:
 {
 			      warn ("else clause in if statement");
 			      yyvsp[0].i_value = next_label++;
-			      sprintf (genstr, "J%d:N%1d:", yyvsp[0].i_value, if_label); 
+			      sprintf (genstr, "J%d:N%1d:", yyvsp[0].i_value, if_label);
 			      generate (genstr);
 			      if_label = yyvsp[0].i_value;
 			    }
@@ -922,7 +922,7 @@ case 48:
 {
 			      /* Check auto list against parameter list? */
 			      check_params (yyvsp[-4].a_value,yyvsp[0].a_value);
-			      sprintf (genstr, "F%d,%s.%s[", lookup(yyvsp[-6].s_value,FUNCT), 
+			      sprintf (genstr, "F%d,%s.%s[", lookup(yyvsp[-6].s_value,FUNCT),
 				       arg_str (yyvsp[-4].a_value,TRUE), arg_str (yyvsp[0].a_value,TRUE));
 			      generate (genstr);
 			      free_args (yyvsp[-4].a_value);
@@ -1205,7 +1205,7 @@ case 85:
 {
 			      yyval.i_value = 1;
 			      if (yyvsp[-1].a_value != NULL)
-				{ 
+				{
 				  sprintf (genstr, "C%d,%s:",
 					   lookup (yyvsp[-3].s_value,FUNCT),
 					   arg_str (yyvsp[-1].a_value,FALSE));
@@ -1246,7 +1246,7 @@ case 87:
 			      if (yyvsp[-1].i_value < 0)
 				{
 				  sprintf (genstr, "DL%d:x", -yyvsp[-1].i_value);
-				  generate (genstr); 
+				  generate (genstr);
 				  if (yyvsp[0].c_value == '+')
 				    sprintf (genstr, "A%d:", -yyvsp[-1].i_value);
 				  else

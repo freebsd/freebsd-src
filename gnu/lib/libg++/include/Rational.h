@@ -1,6 +1,6 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -171,22 +171,22 @@ inline int operator != (const Rational& x, const Rational& y)
 
 inline int operator <  (const Rational& x, const Rational& y)
 {
-  return compare(x, y) <  0; 
+  return compare(x, y) <  0;
 }
 
 inline int operator <= (const Rational& x, const Rational& y)
 {
-  return compare(x, y) <= 0; 
+  return compare(x, y) <= 0;
 }
 
 inline int operator >  (const Rational& x, const Rational& y)
 {
-  return compare(x, y) >  0; 
+  return compare(x, y) >  0;
 }
 
 inline int operator >= (const Rational& x, const Rational& y)
 {
-  return compare(x, y) >= 0; 
+  return compare(x, y) >= 0;
 }
 
 inline int sign(const Rational& x)
@@ -200,25 +200,25 @@ inline void Rational::negate()
 }
 
 
-inline Rational& Rational::operator += (const Rational& y) 
+inline Rational& Rational::operator += (const Rational& y)
 {
   add(*this, y, *this);
   return *this;
 }
 
-inline Rational& Rational::operator -= (const Rational& y) 
+inline Rational& Rational::operator -= (const Rational& y)
 {
   sub(*this, y, *this);
   return *this;
 }
 
-inline Rational& Rational::operator *= (const Rational& y) 
+inline Rational& Rational::operator *= (const Rational& y)
 {
   mul(*this, y, *this);
   return *this;
 }
 
-inline Rational& Rational::operator /= (const Rational& y) 
+inline Rational& Rational::operator /= (const Rational& y)
 {
   div(*this, y, *this);
   return *this;
@@ -264,7 +264,7 @@ inline Rational operator / (const Rational& x, const Rational& y) return r
 
 #else /* NO_NRV */
 
-inline Rational operator + (const Rational& x, const Rational& y) 
+inline Rational operator + (const Rational& x, const Rational& y)
 {
   Rational r; add(x, y, r); return r;
 }

@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: obstack.h,v 1.3 1993/10/02 20:57:48 pk Exp $
+ * $Id: obstack.h,v 1.2 1993/11/03 00:52:06 paul Exp $
  */
 
 
@@ -286,7 +286,7 @@ __extension__								\
 /* These assume that the obstack alignment is good enough for pointers or ints,
    and that the data added so far to the current object
    shares that much alignment.  */
-   
+
 #define obstack_ptr_grow(OBSTACK,datum)					\
 __extension__								\
 ({ struct obstack *__o = (OBSTACK);					\

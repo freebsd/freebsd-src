@@ -1,15 +1,20 @@
-/* $RCSfile: usersub.c,v $$Revision: 4.0.1.1 $$Date: 91/11/05 19:07:24 $
+/* $RCSfile: usersub.c,v $$Revision: 1.1 $$Date: 1995/03/24 04:33:54 $
  *
- * $Log:	usersub.c,v $
+ * $Log: usersub.c,v $
+ * Revision 1.1  1995/03/24  04:33:54  jkh
+ * Bring back perl/usub as usub/, this time containing an updated curseperl
+ * which is also installed by default (the reason for which should also be
+ * plain shortly).
+ *
  * Revision 4.0.1.1  91/11/05  19:07:24  lwall
  * patch11: there are now subroutines for calling back from C into Perl
- * 
+ *
  * Revision 4.0  91/03/20  01:56:34  lwall
  * 4.0 baseline.
- * 
+ *
  * Revision 3.0.1.1  90/08/09  04:06:10  lwall
  * patch19: Initial revision
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -33,7 +38,7 @@ int numargs;		/* how many args are pushed on the stack */
 {
     static ARG myarg[3];	/* fake syntax tree node */
     int arglast[3];
-    
+
     arglast[2] = sp;
     sp -= numargs;
     arglast[1] = sp--;

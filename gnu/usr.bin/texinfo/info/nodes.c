@@ -1008,7 +1008,7 @@ forget_info_file (filename)
 
 	if (file_buffer->contents)
 	  free (file_buffer->contents);
-	
+
 	/* Note that free_file_buffer_tags () also kills the subfiles
 	   list, since the subfiles list is only of use in conjunction
 	   with tags. */

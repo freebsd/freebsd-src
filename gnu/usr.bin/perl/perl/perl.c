@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:54 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.3 $$Date: 1995/05/28 19:21:54 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:54 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.3  1995/05/28  19:21:54  ache
+ * Fix $] variable value (version number), close PR 449
+ * Submitted by: Bill Fenner <fenner@parc.xerox.com>
+ *
  * Revision 1.2  1994/10/27  23:16:54  wollman
  * Convince Perl to that is is part of the system, as /usr/bin/perl (binary)
  * and /usr/share/perl (library).  The latter was chosen as analogous to other
@@ -32,11 +36,11 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:54 $
  * patch20: eval "1 #comment" didn't work
  * patch20: couldn't require . files
  * patch20: semantic compilation errors didn't abort execution
- * 
+ *
  * Revision 4.0.1.6  91/11/11  16:38:45  lwall
  * patch19: default arg for shift was wrong after first subroutine definition
  * patch19: op/regexp.t failed from missing arg to bcmp()
- * 
+ *
  * Revision 4.0.1.5  91/11/05  18:03:32  lwall
  * patch11: random cleanup
  * patch11: $0 was being truncated at times
@@ -45,25 +49,25 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:54 $
  * patch11: prepared for ctype implementations that don't define isascii()
  * patch11: added eval {}
  * patch11: eval confused by string containing null
- * 
+ *
  * Revision 4.0.1.4  91/06/10  01:23:07  lwall
  * patch10: perl -v printed incorrect copyright notice
- * 
+ *
  * Revision 4.0.1.3  91/06/07  11:40:18  lwall
  * patch4: changed old $^P to $^X
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:26:16  lwall
  * patch4: new copyright notice
  * patch4: added $^P variable to control calling of perldb routines
  * patch4: added $^F variable to specify maximum system fd, default 2
  * patch4: debugger lost track of lines in eval
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:49:05  lwall
  * patch1: fixed undefined environ problem
- * 
+ *
  * Revision 4.0  91/03/20  01:37:44  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 /*SUPPRESS 560*/
@@ -1054,7 +1058,7 @@ int *arglast;
 	}
 	tmpfilename = savestr(specfilename);
 	if (*tmpfilename == '/' ||
-	    (*tmpfilename == '.' && 
+	    (*tmpfilename == '.' &&
 		(tmpfilename[1] == '/' ||
 		 (tmpfilename[1] == '.' && tmpfilename[2] == '/'))))
 	{

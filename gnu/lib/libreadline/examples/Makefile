@@ -9,4 +9,4 @@ fileman: fileman.o
 	$(CC) $(LDFLAGS) -o fileman fileman.o -lreadline -ltermcap
 
 fileman.o: fileman.c
-  
+

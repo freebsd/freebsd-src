@@ -1,18 +1,18 @@
 /* atof_vax.c - turn a Flonum into a VAX floating point number
    Copyright (C) 1987, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -45,7 +45,7 @@ int				/* Number of chars in flonum type 'letter'. */
 char letter;
 {
 	int	return_value;
-	
+
 	/*
 	 * Permitting uppercase letters is probably a bad idea.
 	 * Please use only lower-cased letters in case the upper-cased
@@ -57,19 +57,19 @@ char letter;
 	    case 'F':
 		    return_value = 4;
 		    break;
-		    
+
 	    case 'd':
 	    case 'D':
 	    case 'g':
 	    case 'G':
 		    return_value = 8;
 		    break;
-		    
+
 	    case 'h':
 	    case 'H':
 		    return_value = 16;
 		    break;
-		    
+
 	    default:
 		    return_value = 0;
 		    break;
@@ -124,7 +124,7 @@ static int
 int		number_of_bits;
 {
 	int			return_value;
-	
+
 	if (littlenum_pointer<littlenum_end)
 	    return 0;
 	if (number_of_bits >= bits_left_in_littlenum)
@@ -159,7 +159,7 @@ int *		precisionP; /* Number of 16-bit words in the float. */
 long *		exponent_bitsP;	/* Number of exponent bits. */
 {
 	int	retval;			/* 0: OK. */
-	
+
 	retval = 0;
 	switch (letter)
 	    {
@@ -167,22 +167,22 @@ long *		exponent_bitsP;	/* Number of exponent bits. */
 		    * precisionP = F_PRECISION;
 		    * exponent_bitsP = 8;
 		    break;
-		    
+
 	    case 'd':
 		    * precisionP = D_PRECISION;
 		    * exponent_bitsP = 8;
 		    break;
-		    
+
 	    case 'g':
 		    * precisionP = G_PRECISION;
 		    * exponent_bitsP = 11;
 		    break;
-		    
+
 	    case 'h':
 		    * precisionP = H_PRECISION;
 		    * exponent_bitsP = 15;
 		    break;
-		    
+
 	    default:
 		    retval = 69;
 		    break;
@@ -213,14 +213,14 @@ LITTLENUM_TYPE *words; /* Build the binary here. */
 	char *return_value;
 	int precision; /* Number of 16-bit words in the format. */
 	long exponent_bits;
-	
+
 	return_value = str;
 	f.low = bits + MAX_PRECISION;
 	f.high = NULL;
 	f.leader = NULL;
 	f.exponent = NULL;
 	f.sign = '\0';
-	
+
 	if (what_kind_of_float (what_kind, & precision, & exponent_bits)) {
 		return_value = NULL; /* We lost. */
 		make_invalid_floating_point_number (words);
@@ -228,12 +228,12 @@ LITTLENUM_TYPE *words; /* Build the binary here. */
 
 	if (return_value) {
 		memset(bits, '\0', sizeof(LITTLENUM_TYPE) * MAX_PRECISION);
-		
+
 		/* Use more LittleNums than seems */
 		/* necessary: the highest flonum may have */
 		/* 15 leading 0 bits, so could be useless. */
 		f.high = f.low + precision - 1 + GUARD;
-		
+
 		if (atof_generic (& return_value, ".", "eE", & f)) {
 			make_invalid_floating_point_number (words);
 			return_value = NULL;	/* we lost */
@@ -261,9 +261,9 @@ LITTLENUM_TYPE *words;	/* Deliver answer here. */
 	int precision;
 	long exponent_bits;
 	int return_value; /* 0 == OK. */
-	
+
 	return_value = what_kind_of_float(format_letter, &precision, &exponent_bits);
-	
+
 	if (return_value != 0) {
 		make_invalid_floating_point_number (words);
 	} else {
@@ -277,7 +277,7 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 			long exponent_4;
 			int exponent_skippage;
 			LITTLENUM_TYPE word1;
-			
+
 			/* JF: Deal with new Nan, +Inf and -Inf codes */
 			if (f->sign != '-' && f->sign != '+') {
 				make_invalid_floating_point_number(words);
@@ -298,7 +298,7 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 			 * So we need: number of bits of exponent, number of bits of
 			 * mantissa.
 			 */
-			
+
 #ifdef NEVER  /******* This zeroing seems redundant - Dean 3may86 **********/
 			/*
 			 * No matter how few bits we got back from the atof()
@@ -314,7 +314,7 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 				}
 			}
 #endif
-			
+
 			bits_left_in_littlenum = LITTLENUM_NUMBER_OF_BITS;
 			littlenum_pointer = f->leader;
 			littlenum_end = f->low;
@@ -322,7 +322,7 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 			for (exponent_skippage = 0;
 			     ! next_bits(1);
 			     exponent_skippage ++) ;;
-			
+
 			exponent_1 = f->exponent + f->leader + 1 - f->low;
 			/* Radix LITTLENUM_RADIX, point just higher than f->leader. */
 			exponent_2 = exponent_1 * LITTLENUM_NUMBER_OF_BITS;
@@ -331,14 +331,14 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 			/* Forget leading zeros, forget 1st bit. */
 			exponent_4 = exponent_3 + (1 << (exponent_bits - 1));
 			/* Offset exponent. */
-			
+
 			if (exponent_4 & ~mask[exponent_bits]) {
 				/*
 				 * Exponent overflow. Lose immediately.
 				 */
-				
+
 				make_invalid_floating_point_number (words);
-				
+
 				/*
 				 * We leave return_value alone: admit we read the
 				 * number, but return a floating exception
@@ -346,19 +346,19 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 				 */
 			} else {
 				lp = words;
-				
+
 				/* Word 1. Sign, exponent and perhaps high bits. */
 				/* Assume 2's complement integers. */
 				word1 = (((exponent_4 &mask[exponent_bits]) << (15 - exponent_bits))
 					 | ((f->sign == '+') ? 0 : 0x8000)
 					 | next_bits(15 - exponent_bits));
 				*lp++ = word1;
-				
+
 				/* The rest of the words are just mantissa bits. */
 				for (; lp < words + precision; lp++) {
 					*lp = next_bits(LITTLENUM_NUMBER_OF_BITS);
 				}
-				
+
 				if (next_bits (1)) {
 					/*
 					 * Since the NEXT bit is a 1, round UP the mantissa.
@@ -368,9 +368,9 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 					 * highest-order bit of the lowest-order word flips.
 					 * Is that clear?
 					 */
-					
+
 					unsigned long carry;
-					
+
 					/*
 					  #if (sizeof(carry)) < ((sizeof(bits[0]) * BITS_PER_CHAR) + 2)
 					  Please allow at least 1 more bit in carry than is in a LITTLENUM.
@@ -387,7 +387,7 @@ memset(words, '\0', sizeof(LITTLENUM_TYPE) * precision);
 						*lp = carry;
 						carry >>= LITTLENUM_NUMBER_OF_BITS;
 					}
-					
+
 					if ((word1 ^ *words) & (1 << (LITTLENUM_NUMBER_OF_BITS - 1))) {
 						make_invalid_floating_point_number(words);
 						/*
@@ -435,36 +435,36 @@ int *	sizeP;
 	register char		kind_of_float;
 	register int		number_of_chars;
 	register LITTLENUM_TYPE * littlenum_pointer;
-	
+
 	switch (what_statement_type)
 	    {
 	    case 'F':			/* .float */
 	    case 'f':			/* .ffloat */
 		    kind_of_float = 'f';
 		    break;
-		    
+
 	    case 'D':			/* .double */
 	    case 'd':			/* .dfloat */
 		    kind_of_float = 'd';
 		    break;
-		    
+
 	    case 'g':			/* .gfloat */
 		    kind_of_float = 'g';
 		    break;
-		    
+
 	    case 'h':			/* .hfloat */
 		    kind_of_float = 'h';
 		    break;
-		    
+
 	    default:
 		    kind_of_float = 0;
 		    break;
 	    };
-	
+
 	if (kind_of_float)
 	    {
 		    register LITTLENUM_TYPE * limit;
-		    
+
 		    input_line_pointer = atof_vax (input_line_pointer,
 						   kind_of_float,
 						   words);
@@ -489,7 +489,7 @@ int *	sizeP;
 	    {
 		    number_of_chars = 0;
 	    };
-	
+
 	* sizeP = number_of_chars;
 	return (kind_of_float ? "" : "Bad call to md_atof()");
 }				/* md_atof() */

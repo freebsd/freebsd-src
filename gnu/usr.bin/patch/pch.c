@@ -1,6 +1,9 @@
-/* $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/pch.c,v 1.3 1994/02/17 22:20:36 jkh Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.4 1994/02/25 21:46:07 phk Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.4  1994/02/25  21:46:07  phk
+ * added the -C/-check again.
+ *
  * Revision 1.3  1994/02/17  22:20:36  jkh
  * Put this back - I was somehow under the erroneous impression that patch was in
  * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
@@ -18,29 +21,29 @@
  * Revision 2.0.1.7  88/06/03  15:13:28  lwall
  * patch10: Can now find patches in shar scripts.
  * patch10: Hunks that swapped and then swapped back could core dump.
- * 
+ *
  * Revision 2.0.1.6  87/06/04  16:18:13  lwall
  * pch_swap didn't swap p_bfake and p_efake.
- * 
+ *
  * Revision 2.0.1.5  87/01/30  22:47:42  lwall
  * Improved responses to mangled patches.
- * 
+ *
  * Revision 2.0.1.4  87/01/05  16:59:53  lwall
  * New-style context diffs caused double call to free().
- * 
+ *
  * Revision 2.0.1.3  86/11/14  10:08:33  lwall
  * Fixed problem where a long pattern wouldn't grow the hunk.
  * Also restored p_input_line when backtracking so error messages are right.
- * 
+ *
  * Revision 2.0.1.2  86/11/03  17:49:52  lwall
  * New-style delete triggers spurious assertion error.
- * 
+ *
  * Revision 2.0.1.1  86/10/29  15:52:08  lwall
  * Could falsely report new-style context diff.
- * 
+ *
  * Revision 2.0  86/09/17  15:39:37  lwall
  * Baseline for netwide release.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -132,7 +135,7 @@ void
 grow_hunkmax()
 {
     hunkmax *= 2;
-    /* 
+    /*
      * Note that on most systems, only the p_line array ever gets fresh memory
      * since p_len can move into p_line's old space, and p_Char can move into
      * p_len's old space.  Not on PDP-11's however.  But it doesn't matter.
@@ -269,10 +272,10 @@ intuit_diff_type()
 	    else
 		indent++;
 	}
-	for (t=s; isdigit(*t) || *t == ','; t++) ; 
+	for (t=s; isdigit(*t) || *t == ','; t++) ;
 	this_is_a_command = (isdigit(*s) &&
 	  (*t == 'd' || *t == 'c' || *t == 'a') );
-	if (first_command_line < 0L && this_is_a_command) { 
+	if (first_command_line < 0L && this_is_a_command) {
 	    first_command_line = this_line;
 	    fcl_line = p_input_line;
 	    p_indent = indent;		/* assume this for now */
@@ -328,7 +331,7 @@ intuit_diff_type()
 	    retval = (*(s-1) == '*' ? NEW_CONTEXT_DIFF : CONTEXT_DIFF);
 	    goto scan_exit;
 	}
-	if ((!diff_type || diff_type == NORMAL_DIFF) && 
+	if ((!diff_type || diff_type == NORMAL_DIFF) &&
 	  last_line_was_command &&
 	  (strnEQ(s, "< ", 2) || strnEQ(s, "> ", 2)) ) {
 	    p_start = previous_line;
@@ -698,19 +701,19 @@ another_hunk()
 	    else
 		p_len[p_end] = 0;
 	}
-	
+
     hunk_done:
 	if (p_end >=0 && !repl_beginning)
 	    fatal2("no --- found in patch at line %ld\n", pch_hunk_beg());
 
 	if (repl_missing) {
-	    
+
 	    /* reset state back to just after --- */
 	    p_input_line = repl_patch_line;
 	    for (p_end--; p_end > repl_beginning; p_end--)
 		free(p_line[p_end]);
 	    Fseek(pfp, repl_backtrack_position, 0);
-	    
+
 	    /* redundant 'new' context lines were omitted - set */
 	    /* up to fill them in from the old file context */
 	    if (!p_context && p_repl_lines == 1) {
@@ -749,7 +752,7 @@ another_hunk()
 "the new style...)");
 	    diff_type = NEW_CONTEXT_DIFF;
 	}
-	
+
 	/* if there were omitted context lines, fill them in now */
 	if (fillcnt) {
 	    p_bfake = filldst;		/* remember where not to free() */
@@ -1081,7 +1084,7 @@ pch_swap()
     i = p_first;
     p_first = p_newfirst;
     p_newfirst = i;
-    
+
     /* make a scratch copy */
 
     tp_line = p_line;

@@ -226,7 +226,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	    display_helpfile();
 	    break;
 	}
-	print_page(dialog, theight, width, prompt, startline, hscroll); 
+	print_page(dialog, theight, width, prompt, startline, hscroll);
 	print_perc(dialog, height-3, width-9, (float) (startline+theight)/max_lines);
 	wmove(dialog, height-2, width/2-2);
 	wrefresh(dialog);
@@ -284,7 +284,7 @@ getline(unsigned char *buf, int n)
     if (n<0) {
 	return(NULL);
     }
-    
+
     i=0;
     while (*buf && i<n) {
 	if (*buf == '\n' || *buf == '\r') {
@@ -315,7 +315,7 @@ print_page(WINDOW *win, int height, int width, unsigned char *buf, int startline
 	wmove(win, 1+i, 1);
 	for (j=0; j<width-2; j++) waddnstr(win, " ", 1);
 	wmove(win, 1+i, 1);
-	j = 0; 
+	j = 0;
 	/* scroll to the right */
 	while (*b && (*b != '\n') && (*b != '\r') && (j<hscroll)) {
 	    b++;
@@ -336,7 +336,7 @@ print_page(WINDOW *win, int height, int width, unsigned char *buf, int startline
 	if (*b) b++;	/* skip over '\n', if it exists */
     }
 } /* print_page() */
-	
-	
-    
-    
+
+
+
+

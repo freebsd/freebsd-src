@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1994 Free Software Foundation
     written by Jason Merrill (jason@cygnus.com)
 

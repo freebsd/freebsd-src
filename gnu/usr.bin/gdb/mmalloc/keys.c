@@ -35,7 +35,7 @@ Cambridge, MA 02139, USA.  */
 
 int
 mmalloc_setkey (md, keynum, key)
-  PTR md;     
+  PTR md;
   int keynum;
   PTR key;
 {
@@ -52,7 +52,7 @@ mmalloc_setkey (md, keynum, key)
 
 PTR
 mmalloc_getkey (md, keynum)
-  PTR md;     
+  PTR md;
   int keynum;
 {
   struct mdesc *mdp = (struct mdesc *) md;

@@ -5,30 +5,30 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI 
+ *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_clnt.h,v 1.1 1993/10/27 05:40:33 paul Exp $
+ *	$Id: pmap_clnt.h,v 1.2 1994/08/07 18:40:56 wollman Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
  *	head = pmap_getmaps(address);
  *	clnt_stat = pmap_rmtcall(address, program, version, procedure,
  *		xdrargs, argsp, xdrres, resp, tout, port_ptr)
- *		(works for udp only.) 
+ *		(works for udp only.)
  * 	clnt_stat = clnt_broadcast(program, version, procedure,
  *		xdrargs, argsp,	xdrres, resp, eachresult)
  *		(like pmap_rmtcall, except the call is broadcasted to all

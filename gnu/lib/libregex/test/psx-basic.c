@@ -9,18 +9,18 @@ test_posix_basic ()
   /* Intervals can only match up to RE_DUP_MAX occurences of anything.  */
   char dup_max_plus_one[6];
   sprintf (dup_max_plus_one, "%d", RE_DUP_MAX + 1);
-  
+
   printf ("\nStarting POSIX basic tests.\n");
   t = posix_basic_test;
 
-  re_set_syntax (RE_SYNTAX_POSIX_MINIMAL_BASIC);  
-  
+  re_set_syntax (RE_SYNTAX_POSIX_MINIMAL_BASIC);
+
   test_posix_generic ();
 
   printf ("\nContinuing POSIX basic tests.\n");
 
 /* Grouping tests that are not the same.  */
-  
+
   test_should_match = false;
   invalid_pattern (REG_EPAREN, PARENS_TO_OPS ("a)"));
 
@@ -31,7 +31,7 @@ test_posix_basic ()
   test_match ("\\(^*\\)", "*");
   test_match ("**", "***");
   test_match ("***", "****");
-  
+
   MATCH_SELF ("{");					/* of extended...  */
   MATCH_SELF ("()");					/* also non-Posix.  */
   MATCH_SELF ("a+");
@@ -82,67 +82,67 @@ test_posix_basic ()
   test_match ("\\(a\\)*\\1", "aa");
   TEST_REGISTERS ("\\(a\\)*\\1", "aa", 0, 2, 0, 1, -1, -1);
   TEST_REGISTERS ("\\(a\\)*\\1", "xaax", 0, 0, -1, -1, -1, -1);
-  
+
   test_match ("\\(\\(a\\)\\2b\\)*", "aab");
   TEST_REGISTERS ("\\(\\(a\\)\\2b\\)*", "aab", 0, 3, 0, 3, 0, 1);
   TEST_REGISTERS ("\\(\\(a\\)\\2b\\)*", "xaabx", 0, 0, -1, -1, -1, -1);
-  
+
   test_match ("\\(a*\\)*\\1", "");
   test_match ("\\(a*\\)*\\1", "aa");
   TEST_REGISTERS ("\\(a*\\)*\\1", "aa", 0, 2, 0, 1, -1, -1);
   TEST_REGISTERS ("\\(a*\\)*\\1", "xaax", 0, 0, 0, 0, -1, -1);
-  
-  test_match ("\\(a*\\)*\\1", ""); 
-  test_match ("\\(a*\\)*\\1", "aa"); 
-  test_match ("\\(\\(a*\\)*\\)*\\1", "aa"); 
+
+  test_match ("\\(a*\\)*\\1", "");
+  test_match ("\\(a*\\)*\\1", "aa");
+  test_match ("\\(\\(a*\\)*\\)*\\1", "aa");
   test_match ("\\(ab*\\)*\\1", "abab");
   TEST_REGISTERS ("\\(ab*\\)*\\1", "abab", 0, 4, 0, 2, -1, -1);
   TEST_REGISTERS ("\\(ab*\\)*\\1", "xababx", 0, 0, -1, -1, -1, -1);
 
-  test_match ("\\(a*\\)ab\\1", "aaba"); 
-  TEST_REGISTERS ("\\(a*\\)ab\\1", "aaba", 0, 4, 0, 1, -1, -1); 
-  TEST_REGISTERS ("\\(a*\\)ab\\1", "xaabax", 1, 5, 1, 2, -1, -1); 
+  test_match ("\\(a*\\)ab\\1", "aaba");
+  TEST_REGISTERS ("\\(a*\\)ab\\1", "aaba", 0, 4, 0, 1, -1, -1);
+  TEST_REGISTERS ("\\(a*\\)ab\\1", "xaabax", 1, 5, 1, 2, -1, -1);
 
-  test_match ("\\(a*\\)*ab\\1", "aaba"); 
-  TEST_REGISTERS ("\\(a*\\)*ab\\1", "aaba", 0, 4, 0, 1, -1, -1); 
-  TEST_REGISTERS ("\\(a*\\)*ab\\1", "xaabax", 1, 5, 1, 2, -1, -1); 
+  test_match ("\\(a*\\)*ab\\1", "aaba");
+  TEST_REGISTERS ("\\(a*\\)*ab\\1", "aaba", 0, 4, 0, 1, -1, -1);
+  TEST_REGISTERS ("\\(a*\\)*ab\\1", "xaabax", 1, 5, 1, 2, -1, -1);
 
-  test_match ("\\(\\(a*\\)b\\)*\\2", "abb"); 
+  test_match ("\\(\\(a*\\)b\\)*\\2", "abb");
   TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "abb", 0, 3, 2, 3, 2, 2);
-  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "xabbx", 0, 0, -1, -1, -1, -1); 
+  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "xabbx", 0, 0, -1, -1, -1, -1);
 
   /* Different from above.  */
-  test_match ("\\(\\(a*\\)b*\\)*\\2", "aa"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2", "aa");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "aa", 0, 2, 0, 1, 0, 1);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaax", 0, 0, 0, 0, 0, 0); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaax", 0, 0, 0, 0, 0, 0);
 
-  test_match ("\\(\\(a*\\)b*\\)*\\2", "aba"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2", "aba");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "aba", 0, 3, 0, 2, 0, 1);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xabax", 0, 0, 0, 0, 0, 0); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xabax", 0, 0, 0, 0, 0, 0);
 
   test_match ("\\(\\(a*\\)b\\)*\\2", "aababa");
-  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "aababa", 0, 6, 3, 5, 3, 4); 
-  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "xaababax", 0, 0, -1, -1, -1, -1); 
+  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "aababa", 0, 6, 3, 5, 3, 4);
+  TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2", "xaababax", 0, 0, -1, -1, -1, -1);
 
-  test_match ("\\(\\(a*\\)b*\\)*\\2", "aabaa"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2", "aabaa");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "aabaa", 0, 5, 0, 3, 0, 2);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaabaax", 0, 0, 0, 0, 0, 0); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaabaax", 0, 0, 0, 0, 0, 0);
 
-  test_match ("\\(\\(a*\\)b*\\)*\\2", "aabbaa"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2", "aabbaa");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "aabbaa", 0, 6, 0, 4, 0, 2);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaabbaax", 0, 0, 0, 0, 0, 0); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaabbaax", 0, 0, 0, 0, 0, 0);
 
-  test_match ("\\(\\(a*\\)b*\\)*\\2", "abaabaa"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2", "abaabaa");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "abaabaa", 0, 7, 2, 5, 2, 4);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaababaax", 0, 0, 0, 0, 0, 0); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2", "xaababaax", 0, 0, 0, 0, 0, 0);
 
-  test_match ("\\(\\(a*\\)b*\\)*a\\2", "aabaaa"); 
+  test_match ("\\(\\(a*\\)b*\\)*a\\2", "aabaaa");
   TEST_REGISTERS ("\\(\\(a*\\)b*a\\)*\\2", "aabaaa", 0, 6, 0, 3, 0, 2);
-  TEST_REGISTERS ("\\(\\(a*\\)b*a\\)*\\2", "xaabaax", 0, 0, -1, -1, -1, -1); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*a\\)*\\2", "xaabaax", 0, 0, -1, -1, -1, -1);
 
-  test_match ("\\(\\(a*\\)b*\\)*\\2a", "aabaaa"); 
+  test_match ("\\(\\(a*\\)b*\\)*\\2a", "aabaaa");
   TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2a", "aabaaa", 0, 6, 0, 3, 0, 2);
-  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2a", "xaabaaax", 1, 7, 1, 4, 1, 3); 
+  TEST_REGISTERS ("\\(\\(a*\\)b*\\)*\\2a", "xaabaaax", 1, 7, 1, 4, 1, 3);
 
   test_match ("\\(\\(a*\\)b\\)*\\2\\1", "abaabaaaab");
   TEST_REGISTERS ("\\(\\(a*\\)b\\)*\\2\\1", "abaabaaaab", 0, 10, 2, 5, 2, 4);
@@ -152,7 +152,7 @@ test_posix_basic ()
   test_match ("\\(a*b\\)\\1", "abab");
   test_match ("\\(a\\)\\1\\1", "aaa");
   test_match ("\\(a\\(c\\)d\\)\\1\\2", "acdacdc");
-  
+
   test_match ("\\(a\\)\\1*", "aaa");
   TEST_REGISTERS ("\\(a\\)\\1*", "aaa", 0, 3, 0, 1, -1, -1);
   TEST_REGISTERS ("\\(a\\)\\1*", "xaaax", 1, 4, 1, 2, -1, -1);
@@ -186,15 +186,15 @@ test_posix_basic ()
 
 
   /* Per POSIX D11.1, p. 125, leftmost longest match.  */
-  
+
   test_match (PARENS_TO_OPS ("(ac*)c*d[ac]*\\1"), "acdacaaa");
-  TEST_REGISTERS (PARENS_TO_OPS ("(ac*)c*d[ac]*\\1"), "acdacaaa", 	
+  TEST_REGISTERS (PARENS_TO_OPS ("(ac*)c*d[ac]*\\1"), "acdacaaa",
     0, 8, 0, 1, -1, -1);
 
   /* Anchors become ordinary, sometimes.  */
   MATCH_SELF ("a^");
-  MATCH_SELF ("$a");		
-  MATCH_SELF ("$^");		
+  MATCH_SELF ("$a");
+  MATCH_SELF ("$^");
   test_fastmap ("$a^", "$", 0, 0);
   test_match ("$^*", "$^^");
   test_match ("\\($^\\)", "$^");

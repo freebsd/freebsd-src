@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 /* For the pc version using k&r ACK. (minix1.5 and earlier.) */
@@ -158,7 +158,7 @@ _PROTOTYPE(void process_params, (program_counter *pc, int func ));
 
 /* For the scanner and parser.... */
 _PROTOTYPE(int yyparse, (void));
-_PROTOTYPE(int yylex, (void)); 
+_PROTOTYPE(int yylex, (void));
 
 /* Other things... */
 _PROTOTYPE (int getopt, (int, char *[], CONST char *));

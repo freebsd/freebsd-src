@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdlocs_rcsid[] = "$Id: rdlocs.c,v 1.5 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_rdlocs_rcsid[] = "$Id: rdlocs.c,v 1.2 1994/05/07 18:12:46 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -174,7 +174,7 @@ _uuconf_iread_locations (qglobal)
       qglobal->qprocess->qsyslocs = si.qlocs;
       qglobal->qprocess->qvalidate = si.qvals;
       qglobal->qprocess->fread_syslocs = TRUE;
-    }	
+    }
 
   return iret;
 }

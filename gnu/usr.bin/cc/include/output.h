@@ -33,7 +33,7 @@ extern void app_enable		PROTO((void));
    Called from varasm.c before most kinds of output.  */
 extern void app_disable		PROTO((void));
 
-/* Return the number of slots filled in the current 
+/* Return the number of slots filled in the current
    delayed branch sequence (we don't count the insn needing the
    delay slot).   Zero if not in a delayed branch sequence.  */
 extern int dbr_sequence_length	PROTO((void));

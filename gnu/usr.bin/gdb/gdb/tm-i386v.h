@@ -30,8 +30,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* turn this on when rest of gdb is ready */
 #define IEEE_FLOAT
 
-/* number of traps that happen between exec'ing the shell 
- * to run an inferior, and when we finally get to 
+/* number of traps that happen between exec'ing the shell
+ * to run an inferior, and when we finally get to
  * the inferior code.  This is 2 on most implementations.
  */
 #ifndef START_INFERIOR_TRAPS_EXPECTED
@@ -97,7 +97,7 @@ i386_skip_prologue PARAMS ((int));
 /* Initializer for an array of names of registers.
    There should be NUM_REGS strings in this initializer.  */
 
-/* the order of the first 8 registers must match the compiler's 
+/* the order of the first 8 registers must match the compiler's
  * numbering scheme (which is the same as the 386 scheme)
  * also, this table must match regmap in i386-pinsn.c.
  */
@@ -254,7 +254,7 @@ i386_push_dummy_frame PARAMS ((void));
 extern void
 i386_pop_frame PARAMS ((void));
 
-/* this is 
+/* this is
  *   call 11223344 (32 bit relative)
  *   int3
  */

@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988, 1992 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -24,7 +24,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -32,4 +32,4 @@ extern "C" {
 int strcasecmp _G_ARGS((const char*, const char*));
 }
 
-#endif 
+#endif

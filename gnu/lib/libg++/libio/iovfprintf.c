@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -132,7 +132,7 @@ helper_vfprintf(fp, fmt0, ap)
   hp->_IO_write_end = buf+_IO_BUFSIZ;
   hp->_IO_file_flags = _IO_MAGIC|_IO_NO_READS;
   hp->_jumps = &_IO_helper_jumps;
-  
+
   /* Now print to helper instead. */
   result = _IO_vfprintf(hp, fmt0, ap);
 

@@ -37,7 +37,7 @@ codestream_read PARAMS ((unsigned char *, int));
 static void
 codestream_seek PARAMS ((int));
 
-static unsigned char 
+static unsigned char
 codestream_fill PARAMS ((int));
 
 /* helper functions for tm-i386.h */
@@ -72,7 +72,7 @@ static int codestream_cnt;
 #define codestream_get() (codestream_cnt-- == 0 ? \
 			 codestream_fill(0) : codestream_buf[codestream_off++])
 
-static unsigned char 
+static unsigned char
 codestream_fill (peek_flag)
     int peek_flag;
 {
@@ -81,7 +81,7 @@ codestream_fill (peek_flag)
   codestream_off = 0;
   codestream_cnt = CODESTREAM_BUFSIZ;
   read_memory (codestream_addr, (char *) codestream_buf, CODESTREAM_BUFSIZ);
-  
+
   if (peek_flag)
     return (codestream_peek());
   else
@@ -142,7 +142,7 @@ i386_follow_jump ()
 	  delta = extract_signed_integer (buf, 2);
 
 	  /* include size of jmp inst (including the 0x66 prefix).  */
-	  pos += delta + 4; 
+	  pos += delta + 4;
 	}
       else
 	{
@@ -168,7 +168,7 @@ i386_follow_jump ()
  * find & return amound a local space allocated, and advance codestream to
  * first register push (if any)
  *
- * if entry sequence doesn't make sense, return -1, and leave 
+ * if entry sequence doesn't make sense, return -1, and leave
  * codestream pointer random
  */
 
@@ -188,7 +188,7 @@ i386_get_frame_setup (pc)
     {
       /*
        * this function must start with
-       * 
+       *
        *    popl %eax		  0x58
        *    xchgl %eax, (%esp)  0x87 0x04 0x24
        * or xchgl %eax, 0(%esp) 0x87 0x44 0x24 0x00
@@ -196,7 +196,7 @@ i386_get_frame_setup (pc)
        * (the system 5 compiler puts out the second xchg
        * inst, and the assembler doesn't try to optimize it,
        * so the 'sib' form gets generated)
-       * 
+       *
        * this sequence is used to get the address of the return
        * buffer for a function that returns a structure
        */
@@ -216,7 +216,7 @@ i386_get_frame_setup (pc)
     }
 
   if (op == 0x55)		/* pushl %ebp */
-    {			
+    {
       /* check for movl %esp, %ebp - can be written two ways */
       switch (codestream_get ())
 	{
@@ -231,13 +231,13 @@ i386_get_frame_setup (pc)
 	default:
 	  return (-1);
 	}
-      /* check for stack adjustment 
+      /* check for stack adjustment
        *
        *  subl $XXX, %esp
        *
        * note: you can't subtract a 16 bit immediate
        * from a 32 bit reg, so we don't have to worry
-       * about a data16 prefix 
+       * about a data16 prefix
        */
       op = codestream_peek ();
       if (op == 0x83)
@@ -250,7 +250,7 @@ i386_get_frame_setup (pc)
 	      codestream_seek (codestream_tell () - 2);
 	      return 0;
 	    }
-	  /* subl with signed byte immediate 
+	  /* subl with signed byte immediate
 	   * (though it wouldn't make sense to be negative)
 	   */
 	  return (codestream_get());
@@ -301,8 +301,8 @@ i386_frame_num_args (fi)
      this call and a previous one, and we would say there are more args
      than there really are.  */
 
-  int retpc;						
-  unsigned char op;					
+  int retpc;
+  unsigned char op;
   struct frame_info *pfi;
 
   /* on the 386, the instruction following the call could be:
@@ -319,7 +319,7 @@ i386_frame_num_args (fi)
        nameless arguments.  */
     return -1;
 
-  pfi = get_prev_frame_info (fi);			
+  pfi = get_prev_frame_info (fi);
   if (pfi == 0)
     {
       /* Note:  this can happen if we are looking at the frame for
@@ -331,25 +331,25 @@ i386_frame_num_args (fi)
     }
   else
     {
-      retpc = pfi->pc;					
-      op = read_memory_integer (retpc, 1);			
-      if (op == 0x59)					
-	/* pop %ecx */			       
-	return 1;				
+      retpc = pfi->pc;
+      op = read_memory_integer (retpc, 1);
+      if (op == 0x59)
+	/* pop %ecx */
+	return 1;
       else if (op == 0x83)
 	{
-	  op = read_memory_integer (retpc+1, 1);	
-	  if (op == 0xc4)				
-	    /* addl $<signed imm 8 bits>, %esp */	
+	  op = read_memory_integer (retpc+1, 1);
+	  if (op == 0xc4)
+	    /* addl $<signed imm 8 bits>, %esp */
 	    return (read_memory_integer (retpc+2,1)&0xff)/4;
 	  else
 	    return 0;
 	}
       else if (op == 0x81)
 	{ /* add with 32 bit immediate */
-	  op = read_memory_integer (retpc+1, 1);	
-	  if (op == 0xc4)				
-	    /* addl $<imm 32>, %esp */		
+	  op = read_memory_integer (retpc+1, 1);
+	  if (op == 0xc4)
+	    /* addl $<imm 32>, %esp */
 	    return read_memory_integer (retpc+2, 4) / 4;
 	  else
 	    return 0;
@@ -371,7 +371,7 @@ i386_frame_num_args (fi)
  * The startup sequence can be at the start of the function,
  * or the function can start with a branch to startup code at the end.
  *
- * %ebp can be set up with either the 'enter' instruction, or 
+ * %ebp can be set up with either the 'enter' instruction, or
  * 'pushl %ebp, movl %esp, %ebp' (enter is too slow to be useful,
  * but was once used in the sys5 compiler)
  *
@@ -401,33 +401,33 @@ i386_frame_find_saved_regs (fip, fsrp)
   CORE_ADDR dummy_bottom;
   CORE_ADDR adr;
   int i;
-  
+
   memset (fsrp, 0, sizeof *fsrp);
-  
+
   /* if frame is the end of a dummy, compute where the
    * beginning would be
    */
   dummy_bottom = fip->frame - 4 - REGISTER_BYTES - CALL_DUMMY_LENGTH;
-  
+
   /* check if the PC is in the stack, in a dummy frame */
-  if (dummy_bottom <= fip->pc && fip->pc <= fip->frame) 
+  if (dummy_bottom <= fip->pc && fip->pc <= fip->frame)
     {
       /* all regs were saved by push_call_dummy () */
       adr = fip->frame;
-      for (i = 0; i < NUM_REGS; i++) 
+      for (i = 0; i < NUM_REGS; i++)
 	{
 	  adr -= REGISTER_RAW_SIZE (i);
 	  fsrp->regs[i] = adr;
 	}
       return;
     }
-  
+
   locals = i386_get_frame_setup (get_pc_function_start (fip->pc));
-  
-  if (locals >= 0) 
+
+  if (locals >= 0)
     {
       adr = fip->frame - 4 - locals;
-      for (i = 0; i < 8; i++) 
+      for (i = 0; i < 8; i++)
 	{
 	  op = codestream_get ();
 	  if (op < 0x50 || op > 0x57)
@@ -441,7 +441,7 @@ i386_frame_find_saved_regs (fip, fsrp)
 	  adr -= 4;
 	}
     }
-  
+
   fsrp->regs[PC_REGNUM] = fip->frame + 4;
   fsrp->regs[FP_REGNUM] = fip->frame;
 }
@@ -458,20 +458,20 @@ i386_skip_prologue (pc)
 				      0x5b,             /* popl   %ebx */
 				    };
   CORE_ADDR pos;
-  
+
   if (i386_get_frame_setup (pc) < 0)
     return (pc);
-  
-  /* found valid frame setup - codestream now points to 
+
+  /* found valid frame setup - codestream now points to
    * start of push instructions for saving registers
    */
-  
+
   /* skip over register saves */
   for (i = 0; i < 8; i++)
     {
       op = codestream_peek ();
       /* break if not pushl inst */
-      if (op < 0x50 || op > 0x57) 
+      if (op < 0x50 || op > 0x57)
 	break;
       codestream_get ();
     }
@@ -485,7 +485,7 @@ i386_skip_prologue (pc)
      This code is with the rest of the prologue (at the end of the
      function), so we have to skip it to get to the first real
      instruction at the start of the function.  */
-     
+
   pos = codestream_tell ();
   for (i = 0; i < 6; i++)
     {
@@ -517,15 +517,15 @@ i386_skip_prologue (pc)
           op = codestream_get ();
 	}
 					/* addl y,%ebx */
-      if (delta > 0 && op == 0x81 && codestream_get () == 0xc3) 
+      if (delta > 0 && op == 0x81 && codestream_get () == 0xc3)
 	{
 	    pos += delta + 6;
 	}
     }
   codestream_seek (pos);
-  
+
   i386_follow_jump ();
-  
+
   return (codestream_tell ());
 }
 
@@ -535,7 +535,7 @@ i386_push_dummy_frame ()
   CORE_ADDR sp = read_register (SP_REGNUM);
   int regnum;
   char regbuf[MAX_REGISTER_RAW_SIZE];
-  
+
   sp = push_word (sp, read_register (PC_REGNUM));
   sp = push_word (sp, read_register (FP_REGNUM));
   write_register (FP_REGNUM, sp);
@@ -556,11 +556,11 @@ i386_pop_frame ()
   struct frame_saved_regs fsr;
   struct frame_info *fi;
   char regbuf[MAX_REGISTER_RAW_SIZE];
-  
+
   fi = get_frame_info (frame);
   fp = fi->frame;
   get_frame_saved_regs (fi, &fsr);
-  for (regnum = 0; regnum < NUM_REGS; regnum++) 
+  for (regnum = 0; regnum < NUM_REGS; regnum++)
     {
       CORE_ADDR adr;
       adr = fsr.regs[regnum];
@@ -632,8 +632,8 @@ i386_extract_return_value(type, regbuf, valbuf)
       store_floating (valbuf, TYPE_LENGTH (type), d);
     }
   else
-    { 
-      memcpy (valbuf, regbuf, TYPE_LENGTH (type)); 
+    {
+      memcpy (valbuf, regbuf, TYPE_LENGTH (type));
     }
 }
 #endif /* I386_AIX_TARGET */

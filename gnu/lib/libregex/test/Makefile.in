@@ -1,5 +1,5 @@
 # Makefile for regex testing.
-# 
+#
 # Copyright (C) 1992 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -80,7 +80,7 @@ fileregex: $(fileregex_o)
 cppregex: regexcpp.o $(common_o) $(test_o) main.o
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
-regexcpp.o: regexcpp.c 
+regexcpp.o: regexcpp.c
 
 regexcpp.c: regex.c regexcpp.sed
 	rm -f regexcpp.c
@@ -144,25 +144,25 @@ dist: Makefile TAGS
 	ln $(distfiles) $(distdir)
 
 # Automatically-generated dependencies below here.
-alloca.o : alloca.c 
-bsd-interf.o : bsd-interf.c 
-debugmalloc.o : debugmalloc.c 
-emacsmalloc.o : emacsmalloc.c getpagesize.h 
-fileregex.o : fileregex.c .././regex.h 
-g++malloc.o : g++malloc.c //usr/include/stdio.h getpagesize.h 
-iregex.o : iregex.c .././regex.h 
-main.o : main.c test.h .././regex.h 
-malloc-test.o : malloc-test.c 
-other.o : other.c test.h .././regex.h 
-printchar.o : printchar.c 
-psx-basic.o : psx-basic.c test.h .././regex.h 
-psx-extend.o : psx-extend.c test.h .././regex.h 
-psx-generic.o : psx-generic.c test.h .././regex.h 
-psx-group.o : psx-group.c test.h .././regex.h 
-psx-interf.o : psx-interf.c test.h .././regex.h 
-psx-interv.o : psx-interv.c test.h .././regex.h 
-syntax.o : syntax.c .././regex.h 
-test.o : test.c test.h .././regex.h 
-tregress.o : tregress.c test.h .././regex.h 
-upcase.o : upcase.c 
-xmalloc.o : xmalloc.c 
+alloca.o : alloca.c
+bsd-interf.o : bsd-interf.c
+debugmalloc.o : debugmalloc.c
+emacsmalloc.o : emacsmalloc.c getpagesize.h
+fileregex.o : fileregex.c .././regex.h
+g++malloc.o : g++malloc.c //usr/include/stdio.h getpagesize.h
+iregex.o : iregex.c .././regex.h
+main.o : main.c test.h .././regex.h
+malloc-test.o : malloc-test.c
+other.o : other.c test.h .././regex.h
+printchar.o : printchar.c
+psx-basic.o : psx-basic.c test.h .././regex.h
+psx-extend.o : psx-extend.c test.h .././regex.h
+psx-generic.o : psx-generic.c test.h .././regex.h
+psx-group.o : psx-group.c test.h .././regex.h
+psx-interf.o : psx-interf.c test.h .././regex.h
+psx-interv.o : psx-interv.c test.h .././regex.h
+syntax.o : syntax.c .././regex.h
+test.o : test.c test.h .././regex.h
+tregress.o : tregress.c test.h .././regex.h
+upcase.o : upcase.c
+xmalloc.o : xmalloc.c

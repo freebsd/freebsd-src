@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 #include "bcdefs.h"
@@ -36,7 +36,7 @@
 #include "global.h"
 
 #ifndef BC_MATH_FILE
-CONST char libmath[] = 
+CONST char libmath[] =
 #include "math.h"
 ;
-#endif 
+#endif

@@ -52,7 +52,7 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
-  
+
 #ifdef HAVE_NCURSES
   if (use_shadow)
     draw_shadow(stdscr, y, x, height, width);

@@ -614,7 +614,7 @@ lex()
 	    notset(ccl);
 	  laststart = 0;
 	  return lasttok = CSET + charclass_index(ccl);
-	
+
 	case '[':
 	  if (backslash)
 	    goto normal_char;
@@ -1969,7 +1969,7 @@ dfacomp(s, len, d, searchflag)
       lcopy = malloc(len);
       if (!lcopy)
 	dfaerror("out of memory");
-      
+
       /* This is a kludge. */
       case_fold = 0;
       for (i = 0; i < len; ++i)
@@ -2059,9 +2059,9 @@ dfafree(d)
 	Type	left		right		is		in
 	----	----		-----		--		--
 	char c	# c		# c		# c		# c
-	
+
 	CSET	ZERO		ZERO		ZERO		ZERO
-	
+
 	STAR	ZERO		ZERO		ZERO		ZERO
 
 	QMARK	ZERO		ZERO		ZERO		ZERO
@@ -2072,12 +2072,12 @@ dfafree(d)
 		p->left :	q->right :	q->is!=ZERO) ?	q->in plus
 		p->is##q->left	p->right##q->is	p->is##q->is :	p->right##q->left
 						ZERO
-					
+
 	OR	longest common	longest common	(do p->is and	substrings common to
 		leading		trailing	q->is have same	p->in and q->in
-		(sub)sequence	(sub)sequence	length and	
-		of p->left	of p->right	content) ?	
-		and q->left	and q->right	p->is : NULL	
+		(sub)sequence	(sub)sequence	length and
+		of p->left	of p->right	content) ?
+		and q->left	and q->right	p->is : NULL
 
    If there's anything else we recognize in the tree, all four sequences get set
    to zero-length sequences.  If there's something we don't recognize in the tree,
@@ -2104,7 +2104,7 @@ dfafree(d)
    Does optimization actually accomplish anything,
    or is the automaton you get from "psi|epsilon" (for example)
    the same as the one you get from "psi" (for example)?
-  
+
    Are optimizable r.e.'s likely to be used in real-life situations
    (something like 'ab*' is probably unlikely; something like is
    'psi|epsilon' is likelier)? */

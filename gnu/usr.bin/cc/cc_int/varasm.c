@@ -213,7 +213,7 @@ named_section (name)
     {
       in_named_name = name;
       in_section = in_named;
-    
+
 #ifdef ASM_OUTPUT_SECTION_NAME
       ASM_OUTPUT_SECTION_NAME (asm_out_file, name);
 #else
@@ -239,7 +239,7 @@ make_function_rtl (decl)
     {
       if (DECL_RTL (decl) == 0)
 	DECL_RTL (decl) = bc_gen_rtx (name, 0, (struct bc_label *) 0);
-      
+
       /* Record that at least one function has been defined.  */
       function_defined = 1;
       return;
@@ -351,7 +351,7 @@ decode_reg_name (asmspec)
 
       /* Get rid of confusing prefixes.  */
       asmspec = strip_reg_name (asmspec);
-	
+
       /* Allow a decimal number as a "register name".  */
       for (i = strlen (asmspec) - 1; i >= 0; i--)
 	if (! (asmspec[i] >= '0' && asmspec[i] <= '9'))
@@ -1285,7 +1285,7 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
  finish:
 #ifdef XCOFF_DEBUGGING_INFO
   /* Unfortunately, the IBM assembler cannot handle stabx before the actual
-     declaration.  When something like ".stabx  "aa:S-2",aa,133,0" is emitted 
+     declaration.  When something like ".stabx  "aa:S-2",aa,133,0" is emitted
      and `aa' hasn't been output yet, the assembler generates a stab entry with
      a value of zero, in addition to creating an unnecessary external entry
      for `aa'.  Hence, we must postpone dbxout_symbol to here at the end.  */
@@ -2583,21 +2583,21 @@ output_constant_def (exp)
      the label number already assigned.  */
 
   hash = const_hash (exp) % MAX_HASH_TABLE;
-      
+
   for (desc = const_hash_table[hash]; desc; desc = desc->next)
     if (compare_constant (exp, desc))
       {
 	found = desc->label;
 	break;
       }
-      
+
   if (found == 0)
     {
       /* No constant equal to EXP is known to have been output.
 	 Make a constant descriptor to enter EXP in the hash table.
 	 Assign the label number and record it in the descriptor for
 	 future calls to this function to find.  */
-	  
+
       /* Create a string containing the label name, in LABEL.  */
       ASM_GENERATE_INTERNAL_LABEL (label, "LC", const_labelno);
 
@@ -2612,7 +2612,7 @@ output_constant_def (exp)
       /* Create a string containing the label name, in LABEL.  */
       ASM_GENERATE_INTERNAL_LABEL (label, "LC", const_labelno);
     }
-  
+
   /* We have a symbol name; construct the SYMBOL_REF and the MEM.  */
 
   push_obstacks_nochange ();
@@ -2620,7 +2620,7 @@ output_constant_def (exp)
     end_temporary_allocation ();
 
   def = gen_rtx (SYMBOL_REF, Pmode, desc->label);
-      
+
   TREE_CST_RTL (exp)
     = gen_rtx (MEM, TYPE_MODE (TREE_TYPE (exp)), def);
   RTX_UNCHANGING_P (TREE_CST_RTL (exp)) = 1;
@@ -3083,8 +3083,8 @@ force_const_mem (mode, x)
 	  push_obstacks_nochange ();
 	  rtl_in_saveable_obstack ();
 
-	  x = gen_rtx (CONST, GET_MODE (x), 
-		       gen_rtx (PLUS, GET_MODE (x), 
+	  x = gen_rtx (CONST, GET_MODE (x),
+		       gen_rtx (PLUS, GET_MODE (x),
 				XEXP (XEXP (x, 0), 0), XEXP (XEXP (x, 0), 1)));
 	  pop_obstacks ();
 	}
@@ -3383,7 +3383,7 @@ output_constant (exp, size)
   /* Eliminate the NON_LVALUE_EXPR_EXPR that makes a cast not be an lvalue.
      That way we get the constant (we hope) inside it.  Also, strip off any
      NOP_EXPR that converts between two record, union, or array types.  */
-  while ((TREE_CODE (exp) == NOP_EXPR 
+  while ((TREE_CODE (exp) == NOP_EXPR
 	  && (TREE_TYPE (exp) == TREE_TYPE (TREE_OPERAND (exp, 0))
 	      || TREE_CODE (TREE_TYPE (exp)) == ARRAY_TYPE
 	      || TREE_CODE (TREE_TYPE (exp)) == RECORD_TYPE
@@ -3489,9 +3489,9 @@ bc_assemble_integer (exp, size)
      expand_expr() using EXPAND_SUM above in the RTL case?  I
      hate RMS.
      FIXME: Copied as is from BC-GCC1; may need work. Don't hate. -bson */
-  
+
   exp = fold (exp);
-  
+
   while (TREE_CODE (exp) == NOP_EXPR || TREE_CODE (exp) == CONVERT_EXPR)
     exp = TREE_OPERAND (exp, 0);
   if (TREE_CODE (exp) == INTEGER_CST)
@@ -3523,7 +3523,7 @@ bc_assemble_integer (exp, size)
     }
   else
     abort ();		/* FIXME: ditto previous.  */
-  
+
   if (addr_part == 0)
     {
       if (size == 1)

@@ -40,7 +40,7 @@ extern const char version_string[];
 char *compiler_version_string;
 
 /* Flag that determines how we map names.  This takes several values, and
- * is set with the -h switch.  A value of zero implies names should be 
+ * is set with the -h switch.  A value of zero implies names should be
  * upper case, and the presence of the -h switch inhibits the case hack.
  * No -h switch at all sets vms_name_mapping to 0, and allows case hacking.
  * A value of 2 (set with -h2) implies names should be
@@ -453,13 +453,13 @@ const pseudo_typeS obj_pseudo_table[] =
 
 };				/* obj_pseudo_table */
 
-void 
+void
 obj_read_begin_hook ()
 {
   return;
 }				/* obj_read_begin_hook() */
 
-void 
+void
 obj_crawl_symbol_chain (headers)
      object_headers *headers;
 {
@@ -490,16 +490,16 @@ obj_crawl_symbol_chain (headers)
 
 	  /* OK, here is how we decide which symbols go out into the
 	     brave new symtab.  Symbols that do are:
-	    
+
 	     * symbols with no name (stabd's?)
 	     * symbols with debug info in their N_TYPE
-	    
+
 	     Symbols that don't are:
 	     * symbols that are registers
 	     * symbols with \1 as their 3rd character (numeric labels)
 	     * "local labels" as defined by S_LOCAL_NAME(name)
 	     if the -L switch was passed to gas.
-	    
+
 	     All other symbols are output.  We complain if a deleted
 	     symbol was marked external.  */
 
@@ -538,7 +538,7 @@ Create_VMS_Object_File ()
 #if	defined(eunice) || !defined(HO_VMS)
   VMS_Object_File_FD = creat (out_file_name, 0777, "var");
 #else	/* eunice */
-  VMS_Object_File_FD = creat (out_file_name, 0, "rfm=var", 
+  VMS_Object_File_FD = creat (out_file_name, 0, "rfm=var",
 			     "mbc=16", "deq=64", "fop=tef", "shr=nil");
 #endif	/* eunice */
   /*
@@ -3799,7 +3799,7 @@ VMS_Emit_Globalvalues (text_siz, data_siz, Data_Segment)
 	      if (Size > 4)
 		error ("Invalid data type for globalvalue");
 	      globalvalue = 0;
-	      
+
 	      memcpy (&globalvalue, Data_Segment + S_GET_VALUE (sp) -
 		     text_siz, Size);
 	      /* Three times for good luck.  The linker seems to get confused
@@ -4583,12 +4583,12 @@ VMS_write_object_file (text_siz, data_siz, text_frag_root, data_frag_root)
 		      0);
     }
 #ifndef gxx_bug_fixed
-  /* 
+  /*
    * The g++ compiler does not write out external references to vtables
    * correctly.  Check for this and holler if we see it happening.
    * If that compiler bug is ever fixed we can remove this.
    */
-  for (sp = symbol_rootP; sp; sp = symbol_next (sp)) 
+  for (sp = symbol_rootP; sp; sp = symbol_next (sp))
     {
       /*
        *	Dispatch on symbol type

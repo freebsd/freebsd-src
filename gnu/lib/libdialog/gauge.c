@@ -20,7 +20,7 @@
 #include "dialog.h"
 
 void
-dialog_gauge(char *title, char *prompt, int y, int x, 
+dialog_gauge(char *title, char *prompt, int y, int x,
 	     int height, int width, int perc)
 /*
  * Desc: display a progress bar, progress indicated by <perc>
@@ -36,7 +36,7 @@ dialog_gauge(char *title, char *prompt, int y, int x,
 		height, width, y, x);
 	exit(-1);
     }
-    
+
     draw_box(gw, 0, 0, height, width, dialog_attr, border_attr);
     draw_shadow(stdscr, y, x, height, width);
 
@@ -69,4 +69,4 @@ dialog_gauge(char *title, char *prompt, int y, int x,
 
     return;
 } /* dialog_gauge() */
-    
+

@@ -370,7 +370,7 @@ print_subexp (exp, pos, stream, prec)
     case UNOP_ORD:
       print_simple_m2_func("ORD",exp,pos,stream);
       return;
-      
+
     case UNOP_ABS:
       print_simple_m2_func("ABS",exp,pos,stream);
       return;
@@ -398,7 +398,7 @@ print_subexp (exp, pos, stream, prec)
     case UNOP_TRUNC:
       print_simple_m2_func("TRUNC",exp,pos,stream);
       return;
-      
+
     case BINOP_INCL:
     case BINOP_EXCL:
       error("print_subexp:  Not implemented.");
@@ -472,7 +472,7 @@ print_simple_m2_func(s,exp,pos,stream)
    print_subexp(exp,pos,stream,PREC_PREFIX);
    fprintf_unfiltered(stream,")");
 }
-   
+
 /* Return the operator corresponding to opcode OP as
    a string.   NULL indicates that the opcode was not found in the
    current language table.  */

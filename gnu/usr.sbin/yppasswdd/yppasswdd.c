@@ -1,4 +1,4 @@
-/* 
+/*
  * yppasswdd
  * Copyright 1994 Olaf Kirch, <okir@monad.swb.de>
  *

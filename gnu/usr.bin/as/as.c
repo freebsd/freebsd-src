@@ -1,18 +1,18 @@
 /* as.c - GAS main program.
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -32,7 +32,7 @@
  *
  */
 #ifndef lint
-static char rcsid[] = "$Id: as.c,v 1.3 1993/10/02 20:57:15 pk Exp $";
+static char rcsid[] = "$Id: as.c,v 1.2 1993/11/03 00:51:09 paul Exp $";
 #endif
 
 #include <stdio.h>
@@ -92,18 +92,18 @@ char **argv;
 	char *arg;		/* an arg to program */
 	char a;		/* an arg flag (after -) */
 	static const int sig[] = { SIGHUP, SIGINT, SIGPIPE, SIGTERM, 0};
-	
+
 	for (a=0;sig[a] != 0;a++)
 	    if (signal(sig[a], SIG_IGN) != SIG_IGN)
 		signal(sig[a], got_sig);
-	
+
 	myname=argv[0];
 	memset(flagseen, '\0', sizeof(flagseen)); /* aint seen nothing yet */
 #ifndef OBJ_DEFAULT_OUTPUT_FILE_NAME
 #define OBJ_DEFAULT_OUTPUT_FILE_NAME "a.out"
 #endif /* OBJ_DEFAULT_OUTPUT_FILE_NAME */
 	out_file_name = OBJ_DEFAULT_OUTPUT_FILE_NAME;
-	
+
 	symbol_begin();		/* symbols.c */
 	subsegs_begin();		/* subsegs.c */
 	read_begin();			/* read.c */
@@ -127,7 +127,7 @@ char **argv;
 	work_argv = argv+1;		/* skip argv[0] */
 	for (;work_argc--;work_argv++) {
 		arg = * work_argv;	/* work_argv points to this argument */
-		
+
 		if (*arg != '-')		/* Filename. We need it later. */
 		    continue;	/* Keep scanning args looking for flags. */
 		if (arg[1] == '-' && arg[2] == 0) {
@@ -138,7 +138,7 @@ char **argv;
 		}
 		/* This better be a switch. */
 		arg ++;		/*->letter. */
-		
+
 		while ((a = * arg) != '\0')  {/* scan all the 1-char flags */
 			arg ++;	/* arg->after letter. */
 			a &= 0x7F;	/* ascii only please */
@@ -146,13 +146,13 @@ char **argv;
 			   as_tsktsk("%s: Flag option - %c has already been seen.", myname, a); */
 			flagseen[a] = 1;
 			switch (a) {
-				
-			case 'a': 
+
+			case 'a':
 				{
 					int loop =1;
-					
+
 					while (loop) {
-						switch (*arg) 
+						switch (*arg)
 						    {
 						    case 'l':
 							    listing |= LISTING_LISTING;
@@ -166,7 +166,7 @@ char **argv;
 							    listing |= LISTING_HLL;
 							    arg++;
 							    break;
-							    
+
 						    case 'n':
 							    listing |= LISTING_NOFORM;
 							    arg++;
@@ -183,18 +183,18 @@ char **argv;
 						    }
 					}
 				}
-				
+
 				break;
-				
-				
+
+
 			case 'f':
 				break;	/* -f means fast - no need for "app" preprocessor. */
-				
+
 			case 'D':
 				/* DEBUG is implemented: it debugs different */
 				/* things to other people's assemblers. */
 				break;
-				
+
 #ifdef DONTDEF
 			case 'G':	/* GNU AS switch: include gdbsyms. */
 				if (*arg)	/* Rest of argument is file-name. */
@@ -208,9 +208,9 @@ char **argv;
 				arg = "";	/* Finished with this arg. */
 				break;
 #endif
-				
+
 			case 'I': { /* Include file directory */
-				
+
 				char *temp = NULL;
 				if (*arg)
 				    temp = stralloc (arg);
@@ -224,15 +224,15 @@ char **argv;
 				arg = "";	/* Finished with this arg. */
 				break;
 			}
-				
+
 #if 00000
 			case 'k':
 				break;
 #endif
-				
+
 			case 'L': /* -L means keep L* symbols */
 				break;
-				
+
 			case 'o':
 				if (*arg)	/* Rest of argument is object file-name. */
 				    out_file_name = stralloc (arg);
@@ -244,11 +244,11 @@ char **argv;
 				    as_warn("%s: I expected a filename after -o. \"%s\" assumed.", myname, out_file_name);
 				arg = "";	/* Finished with this arg. */
 				break;
-				
+
 			case 'R':
 				/* -R means put data into text segment */
 				break;
-				
+
 			case 'v':
 #ifdef	OBJ_VMS
 				{
@@ -262,7 +262,7 @@ char **argv;
 #endif /* not OBJ_VMS */
 				while (*arg) arg++;	/* Skip the rest */
 				break;
-				
+
 			case 'W':
 				/* -W means don't warn about things */
 			case 'X':
@@ -270,7 +270,7 @@ char **argv;
 			case 'Z':
 				/* -Z means attempt to generate object file even after errors. */
 				break;
-				
+
 			default:
 				--arg;
 				if (md_parse_option(&arg,&work_argc,&work_argv) == 0)
@@ -302,17 +302,17 @@ char **argv;
 #endif
 	if (seen_at_least_1_file()
 	    && !((had_warnings() && flagseen['Z'])
-		 || had_errors() > 0)) { 
+		 || had_errors() > 0)) {
 		write_object_file(); /* relax() addresses then emit object file */
 	} /* we also check in write_object_file() just before emit. */
-	
+
 	input_scrub_end();
 	md_end();			/* MACHINE.c */
-	
+
 #ifndef NO_LISTING
 	listing_print("");
 #endif
-	
+
 #ifndef	HO_VMS
 	return((had_warnings() && flagseen['Z'])
 	       || had_errors() > 0);			/* WIN */
@@ -320,7 +320,7 @@ char **argv;
 	return(!((had_warnings() && flagseen['Z'])
 		 || had_errors() > 0));			/* WIN */
 #endif	/* HO_VMS */
-	
+
 } /* main() */
 
 
@@ -341,11 +341,11 @@ char **argv;
 {
 	int saw_a_file = 0;
 	need_pass_2		= 0;
-	
+
 #ifdef MANY_SEGMENTS
 	unsigned int i;
-	
-	for (i= SEG_E0; i < SEG_UNKNOWN; i++) 
+
+	for (i= SEG_E0; i < SEG_UNKNOWN; i++)
 	    {
 		    segment_info[i].fix_root = 0;
 	    }
@@ -356,13 +356,13 @@ char **argv;
 	strcpy(segment_info[SEG_E0].scnhdr.s_name,".text");
 	strcpy(segment_info[SEG_E1].scnhdr.s_name,".data");
 	strcpy(segment_info[SEG_E2].scnhdr.s_name,".bss");
-	
+
 	subseg_new (SEG_E0, 0);
 #else /* not MANY_SEGMENTS */
 	text_fix_root		= NULL;
 	data_fix_root		= NULL;
 	bss_fix_root		= NULL;
-	
+
 	subseg_new (SEG_TEXT, 0);
 #endif /* not MANY_SEGMENTS */
 
@@ -393,7 +393,7 @@ char *	str;
 {
 	register char *	retval;
 	register long len;
-	
+
 	len = strlen (str) + 1;
 	retval = xmalloc (len);
 	(void) strcpy(retval, str);
@@ -412,7 +412,7 @@ static SIGTY
 int sig;
 {
 	static here_before = 0;
-	
+
 	as_bad("Interrupted by signal %d", sig);
 	if (here_before++)
 	    exit(1);

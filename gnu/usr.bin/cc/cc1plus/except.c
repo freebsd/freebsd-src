@@ -180,7 +180,7 @@ output_exception_table_entry (file, start_label, end_label, eh_label)
   assemble_integer (eh_label, BITS_PER_WORD/BITS_PER_UNIT, 1);
   putc ('\n', file);		/* blank line */
 }
-   
+
 static void
 easy_expand_asm (str)
      char *str;
@@ -369,7 +369,7 @@ exception_section ()
      popped and set to be the last insn, and the first and last insns
      of the catch block just generated can be enqueue'd for output at
      a later time.
-  		
+
      Next we must insure that when the catch block is executed, all
      finalizations for the matching try block have been completed.  If
      any of those finalizations throw an exception, we must call
@@ -385,7 +385,7 @@ exception_section ()
      the catch block which basically wraps all the "catch (...) {...}"
      statements in a big if/then/else construct that matches the
      correct block to call.
-     
+
      ===================================================================== */
 
 extern rtx emit_insn		PROTO((rtx));
@@ -592,7 +592,7 @@ push_rtl_perm ()
 {
   extern struct obstack permanent_obstack;
   extern struct obstack *rtl_obstack;
-  
+
   saved_rtl_obstack = rtl_obstack;
   rtl_obstack = &permanent_obstack;
 }
@@ -603,7 +603,7 @@ pop_rtl_from_perm ()
 {
   extern struct obstack permanent_obstack;
   extern struct obstack *rtl_obstack;
-  
+
   rtl_obstack = saved_rtl_obstack;
 }
 
@@ -854,7 +854,7 @@ start_protect ()
       emit_label (push_eh_entry (&ehstack));
     }
 }
-   
+
 /* call this to end a block of unwind protection.  the finalization tree is
    the finalization which needs to be run in order to cleanly unwind through
    this level of protection. (ie: call this when a scope is exited)*/
@@ -942,7 +942,7 @@ expand_start_all_catch ()
   label = gen_label_rtx ();
   /* The label for the exception handling block we will save.  */
   emit_label (label);
-  
+
   push_label_entry (&caught_return_label_stack, label);
 
   /* Remember where we started. */
@@ -973,7 +973,7 @@ expand_start_all_catch ()
   label = gen_label_rtx ();
   emit_jump (label);
 #endif
-  
+
   /* All this should be out of line, and saved back in the exception handler
      block area.  */
 #if 1
@@ -1025,7 +1025,7 @@ expand_end_all_catch ()
   pop_label_entry (&caught_return_label_stack);
 
   push_except_stmts (&exceptstack, catchstart, catchend);
-  
+
   /* Here we fall through into the continuation code.  */
 }
 
@@ -1120,7 +1120,7 @@ expand_start_catch_block (declspecs, declarator)
 	init_type = build_reference_type (init_type);
 
       init = convert_from_reference (save_expr (make_tree (init_type, saved_throw_value)));
-      
+
       /* Do we need the below two lines? */
       /* Let `finish_decl' know that this initializer is ok.  */
       DECL_INITIAL (decl) = init;
@@ -1220,7 +1220,7 @@ void expand_end_catch_block ()
 
       /* Cleanup the EH paramater.  */
       expand_end_bindings (decls = getdecls (), decls != NULL_TREE, 0);
-      
+
       /* label we emit to jump to if this catch block didn't match. */
       emit_label (end_protect_label_rtx = pop_label_entry (&false_label_stack));
 

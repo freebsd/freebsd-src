@@ -183,7 +183,7 @@ main(int argc, char * argv[]){
 	  c = getbyte(&file_addr);
 	  if (c == search[0]) break;
 	};
-	for (j=1;j<strlen(search);j++) 
+	for (j=1;j<strlen(search);j++)
 	  if(search[j] != getbyte()) break;
 	if(j==strlen(search)) break;
       };
@@ -195,7 +195,7 @@ main(int argc, char * argv[]){
   reset_tty();
   fclose(infile);
 }
-  
+
 
 
 

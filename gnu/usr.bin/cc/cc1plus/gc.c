@@ -117,7 +117,7 @@ type_needs_gc_entry (type)
 }
 
 /* Predicate that returns non-zero iff FROM is safe from the GC.
-   
+
    If TO is nonzero, it means we know that FROM is being stored
    in TO, which make make it safe.  */
 int
@@ -290,7 +290,7 @@ build_static_gc_entry (decl, type)
   else
     {
       /* Not yet implemented.
-	 
+
 	 Cons up a static variable that holds address and length info
 	 and add that to ___ARR_LIST__.  */
       my_friendly_abort (43);
@@ -432,7 +432,7 @@ build_typeid (exp)
     return error_mark_node;
 
   type = TREE_TYPE (exp);
-  
+
   /* if b is an instance of B, typeid(b) == typeid(B).  Do this before
      reference trickiness.  */
   if (TREE_CODE (exp) == VAR_DECL && TREE_CODE (type) == RECORD_TYPE)
@@ -446,7 +446,7 @@ build_typeid (exp)
   if (TREE_CODE (type) == REFERENCE_TYPE && TYPE_VIRTUAL_P (TREE_TYPE (type)))
     {
       /* build reference to Type_info from vtable.  */
-      
+
       sorry ("finding Type_info for an object");
       return error_mark_node;
     }
@@ -462,12 +462,12 @@ get_typeid (type)
 {
   if (type == error_mark_node)
     return error_mark_node;
-  
+
   /* Is it useful (and/or correct) to have different typeids for `T &'
      and `T'?  */
   if (TREE_CODE (type) == REFERENCE_TYPE)
     type = TREE_TYPE (type);
-  
+
   /* build reference to static Type_info */
 #if 1
   sorry ("finding Type_info for a type");
@@ -480,7 +480,7 @@ get_typeid (type)
 
   /* ... */
 
-#endif  
+#endif
 }
 
 /* Execute a dynamic cast, as described in section 5.2.6 of the 9/93 working
@@ -496,7 +496,7 @@ build_dynamic_cast (type, expr)
 
   if (type == error_mark_node || expr == error_mark_node)
     return error_mark_node;
-  
+
   switch (tc)
     {
     case POINTER_TYPE:
@@ -520,7 +520,7 @@ build_dynamic_cast (type, expr)
       exprtype = build_reference_type (exprtype);
       ec = REFERENCE_TYPE;
     }
-  
+
   /* the TREE_CODE of exprtype must match that of type.  */
   if (ec != tc)
     {
@@ -583,15 +583,15 @@ build_dynamic_cast (type, expr)
 		{
 		  cp_warning ("dynamic_cast of `%E' to `%#T' can never succeed",
 			      expr, type);
-		  retval = build_int_2 (0, 0); 
-		  TREE_TYPE (retval) = type; 
+		  retval = build_int_2 (0, 0);
+		  TREE_TYPE (retval) = type;
 		  return retval;
 		}
 	    }
 	  /* Build run-time conversion.  */
 	  sorry ("run-time type conversion");
-	  retval = build_int_2 (0, 0); 
-	  TREE_TYPE (retval) = type; 
+	  retval = build_int_2 (0, 0);
+	  TREE_TYPE (retval) = type;
 	  return retval;
 	}
     }

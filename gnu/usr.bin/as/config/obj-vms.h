@@ -201,7 +201,7 @@ typedef struct nlist obj_symbol_type; /* Symbol table entry */
 #define H_SET_SYMBOL_TABLE_SIZE(h,v)	((h)->header.a_syms = (v) * \
 					 sizeof(struct nlist))
 
-/* 
+/*
  * Current means for getting the name of a segment.
  * This will change for infinite-segments support (e.g. COFF).
  */

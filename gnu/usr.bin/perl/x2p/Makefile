@@ -8,7 +8,7 @@ CLEANFILES+= y.tab.h a2p.c
 LDADD= -lm
 DPADD= ${LIBM}
 
-MAN1+= a2p.1 s2p.1 h2ph.1  
+MAN1+= a2p.1 s2p.1 h2ph.1
 
 beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/s2p \

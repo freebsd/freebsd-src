@@ -87,7 +87,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
-  
+
 #ifdef HAVE_NCURSES
   if (use_shadow)
     draw_shadow(stdscr, y, x, height, width);
@@ -164,7 +164,7 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
       if (toupper(key) == toupper(items[(scroll+i)*3][0]))
         break;
 
-    if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || 
+    if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
         key == KEY_UP || key == KEY_DOWN || key == ' ' ||
         key == '+' || key == '-' ) {
       if (key >= '1' && key <= MIN('9', '0'+max_choice))

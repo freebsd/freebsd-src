@@ -230,7 +230,7 @@ When on, use data caching for remote targets.  For many remote targets\n\
 this option can offer better throughput for reading target memory.\n\
 Unfortunately, gdb does not currently know anything about volatile\n\
 registers and thus data caching will produce incorrect results with\n\
-volatile registers are in use.  By default, this option is off.", 
+volatile registers are in use.  By default, this option is off.",
 		  &setlist),
      &showlist);
 }

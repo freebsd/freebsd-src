@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 #include "bcdefs.h"
@@ -42,14 +42,14 @@ main (argc, argv)
      int argc;
      char *argv[];
 {
-  int  ch; 
-  
+  int  ch;
+
   /* Initialize many variables. */
   compile_only = FALSE;
   use_math = FALSE;
   warn_not_std = FALSE;
   std_only = FALSE;
-  if (isatty(0) && isatty(1)) 
+  if (isatty(0) && isatty(1))
     interactive = TRUE;
   else
     interactive = FALSE;
@@ -111,7 +111,7 @@ main (argc, argv)
 }
 
 
-/* This is the function that opens all the files. 
+/* This is the function that opens all the files.
    It returns TRUE if the file was opened, otherwise
    it returns FALSE. */
 
@@ -137,7 +137,7 @@ open_new_file ()
 	{
 	  new_yy_file (new_file);
 	  return TRUE;
-	}	
+	}
       else
 	{
 	  fprintf (stderr, "Math Library unavailable.\n");
@@ -159,7 +159,7 @@ open_new_file ()
       load_code (libmath);
 #endif
     }
-  
+
   /* One of the argv values. */
   while (optind < g_argc)
     {
@@ -173,7 +173,7 @@ open_new_file ()
       fprintf (stderr, "File %s is unavailable.\n", g_argv[optind++]);
       exit (1);
     }
-  
+
   /* If we fall through to here, we should return stdin. */
   new_yy_file (stdin);
   is_std_in = TRUE;

@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypxfr.c,v 1.2 1995/02/06 23:35:49 wpaul Exp $
+	$Id: ypxfr.c,v 1.5 1995/03/31 05:45:23 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {
         CLIENT *dom_client;
         u_short dom_local_port;
         long dom_vers;
-};  
+};
 
 #define DATUM /* Otherwise ypclnt.h redefines datum */
 #include <rpcsvc/ypclnt.h>
@@ -133,7 +133,7 @@ ypxfr_foreach(int status, char *key, int keylen, char *val, int vallen,
 
 static enum ypxfrstat
 ypxfr(char *mapName) {
-	
+
 	int localOrderNum=0;
 	int masterOrderNum=0;
 	char *masterName;
@@ -264,7 +264,7 @@ ypxfr(char *mapName) {
 		localHost.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
 		if (_yp_bind(&localHost, TargetDomain) ||
 			_yp_clear(TargetDomain)) return YPXFR_CLEAR;
-	} 
+	}
 	return y==0?YPXFR_SUCC:YPXFR_YPERR;
 }
 

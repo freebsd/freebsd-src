@@ -1,18 +1,18 @@
 /* expr.c -operands, expressions-
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -25,7 +25,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: expr.c,v 1.3 1993/10/02 20:57:26 pk Exp $";
+static char rcsid[] = "$Id: expr.c,v 1.2 1993/11/03 00:51:28 paul Exp $";
 #endif
 
 #include <ctype.h>
@@ -91,9 +91,9 @@ register expressionS *	expressionP;
     register char c;
     register char *name;	/* points to name of symbol */
     register symbolS *	symbolP; /* Points to symbol */
-    
+
     extern  const char hex_value[];	/* In hex_value.c */
-    
+
 #ifdef PIC
 /* XXX */ expressionP->X_got_symbol = 0;
 #endif
@@ -113,8 +113,8 @@ register expressionS *	expressionP;
 	/* digits, assume it is a bignum. */
 	register char *	digit_2; /*->2nd digit of number. */
 	int small;	/* TRUE if fits in 32 bits. */
-	
-	
+
+
 	if (c == 'H' || c == '0') {			/* non-decimal radix */
 	    if ((c = *input_line_pointer ++) == 'x' || c == 'X' || c == '\'') {
 		c = *input_line_pointer ++; /* read past "0x" or "0X" or H' */
@@ -132,17 +132,17 @@ register expressionS *	expressionP;
 		    too_many_digits = 11;
 		    c = '0';
 		    input_line_pointer -= 2;
-		    
+
 		} else if (c == 'b' || c == 'B') {
 		    c = *input_line_pointer++;
 		    maxdig = radix = 2;
 		    too_many_digits = 33;
-		    
+
 		} else if (c && strchr(FLT_CHARS,c)) {
 		    radix = 0;	/* Start of floating-point constant. */
 		    /* input_line_pointer->1st char of number. */
 		    expressionP->X_add_number =  -(isupper(c) ? tolower(c) : c);
-		    
+
 		} else {		/* By elimination, assume octal radix. */
 		    radix = maxdig = 8;
 		    too_many_digits = 11;
@@ -152,7 +152,7 @@ register expressionS *	expressionP;
 	    maxdig = radix = 10;
 	    too_many_digits = 11;
 	} /* if operand starts with a zero */
-	
+
 	if (radix) {			/* Fixed-point integer constant. */
 	    /* May be bignum, or may fit in 32 bits. */
 	    /*
@@ -186,7 +186,7 @@ register expressionS *	expressionP;
 		LITTLENUM_TYPE *leader;	/*->high order littlenum of the bignum. */
 		LITTLENUM_TYPE *pointer; /*->littlenum we are frobbing now. */
 		long carry;
-		
+
 		leader = generic_bignum;
 		generic_bignum[0] = 0;
 		generic_bignum[1] = 0;
@@ -200,7 +200,7 @@ register expressionS *	expressionP;
 			 pointer++)
 		    {
 			long work;
-			
+
 			work = carry + radix * *pointer;
 			*pointer = work & LITTLENUM_MASK;
 			carry = work >> LITTLENUM_NUMBER_OF_BITS;
@@ -262,7 +262,7 @@ register expressionS *	expressionP;
 			{		/* Expected path: symbol defined. */
 			    /* Local labels are never absolute. Don't waste time checking absoluteness. */
 			    know(SEG_NORMAL(S_GET_SEGMENT(symbolP)));
-			    
+
 			    expressionP->X_add_symbol = symbolP;
 			    expressionP->X_add_number = 0;
 			    expressionP->X_seg = S_GET_SEGMENT(symbolP);
@@ -333,11 +333,11 @@ register expressionS *	expressionP;
 	{			/* input_line_pointer->*/
 	    /* floating-point constant. */
 	    int error_code;
-	    
+
 	    error_code = atof_generic
 		(& input_line_pointer, ".", EXP_CHARS,
 		 & generic_floating_point_number);
-	    
+
 	    if (error_code)
 	    {
 		if (error_code == ERROR_EXPONENT_OVERFLOW)
@@ -357,7 +357,7 @@ register expressionS *	expressionP;
     }
     else if (c == '.' && !is_part_of_name(*input_line_pointer)) {
 	extern struct obstack frags;
-	
+
 	/*
 	  JF:  '.' is pseudo symbol with value of current location in current
 	  segment...
@@ -366,13 +366,13 @@ register expressionS *	expressionP;
 			     now_seg,
 			     (valueT)(obstack_next_free(&frags)-frag_now->fr_literal),
 			     frag_now);
-	
+
 	expressionP->X_add_number=0;
 	expressionP->X_add_symbol=symbolP;
 	expressionP->X_seg = now_seg;
-	
+
     } else if (is_name_beginner(c)) { /* here if did not begin with a digit */
-	    
+
 	    /*
 	     * Identifier begins here.
 	     * This is kludged for speed, so code is repeated.
@@ -390,7 +390,7 @@ register expressionS *	expressionP;
 		case SEG_REGISTER:
 			expressionP->X_add_number = S_GET_VALUE(symbolP);
 			break;
-			
+
 		default:
 			expressionP->X_add_number  = 0;
 #ifdef PIC
@@ -429,9 +429,9 @@ register expressionS *	expressionP;
 		know(0);
 	    } /* switch on unary operator */
 	    break;
-	    
+
 	default:		/* unary on non-absolute is unsuported */
-	    if (!SEG_NORMAL(operand(expressionP))) 
+	    if (!SEG_NORMAL(operand(expressionP)))
 	    {
 		as_bad("Unary operator %c ignored because bad operand follows", c);
 		break;
@@ -499,17 +499,17 @@ register expressionS *expressionP;
 	expressionP->X_subtract_symbol	= NULL;
 	expressionP->X_add_number	= 0;
 	break;
-	
+
     case SEG_BIG:
     case SEG_ABSOLUTE:
 	expressionP->X_subtract_symbol	= NULL;
 	expressionP->X_add_symbol	= NULL;
 	break;
-	
+
     case SEG_UNKNOWN:
 	expressionP->X_subtract_symbol	= NULL;
 	break;
-	
+
     case SEG_DIFFERENCE:
 	/*
 	 * It does not hurt to 'cancel' NULL == NULL
@@ -527,12 +527,12 @@ register expressionS *expressionP;
 	    expressionP->X_seg			= SEG_ABSOLUTE;
 	}
 	break;
-	
+
     case SEG_REGISTER:
 	expressionP->X_add_symbol	= NULL;
 	expressionP->X_subtract_symbol	= NULL;
 	break;
-	
+
     default:
 	if (SEG_NORMAL(expressionP->X_seg)) {
 	    expressionP->X_subtract_symbol	= NULL;
@@ -673,7 +673,7 @@ expressionS *e;
 typedef enum
 {
     O_illegal,			/* (0)  what we get for illegal op */
-    
+
     O_multiply,			/* (1)  * */
     O_divide,			/* (2)  / */
     O_modulus,			/* (3)  % */
@@ -691,10 +691,10 @@ operatorT;
 #define __ O_illegal
 
 static const operatorT op_encoding[256] = {	/* maps ASCII->operators */
-    
+
     __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
     __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
-    
+
     __, O_bit_or_not, __, __, __, O_modulus, O_bit_and, __,
     __, __, O_multiply, O_add, __, O_subtract, __, O_divide,
     __, __, __, __, __, __, __, __,
@@ -707,7 +707,7 @@ static const operatorT op_encoding[256] = {	/* maps ASCII->operators */
     __, __, __, __, __, __, __, __,
     __, __, __, __, __, __, __, __,
     __, __, __, __, O_bit_inclusive_or, __, __, __,
-    
+
     __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
     __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
     __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
@@ -739,7 +739,7 @@ segT expr(rank, resultP)
 	register char c_left;	/* 1st operator character. */
 	register operatorT	op_right;
 	register char c_right;
-	
+
 	know(rank >= 0);
 	(void) operand(resultP);
 	know(*input_line_pointer != ' '); /* Operand() gobbles spaces. */
@@ -800,9 +800,9 @@ segT expr(rank, resultP)
 				 * but then it can't be subtracted either. This trick
 				 * does not cause any further inaccuracy.
 				 */
-				
+
 				register symbolS *	symbolP;
-				
+
 				right.X_add_number      = - right.X_add_number;
 				symbolP                   = right.X_add_symbol;
 				right.X_add_symbol	= right.X_subtract_symbol;
@@ -812,7 +812,7 @@ segT expr(rank, resultP)
 				}
 				op_left = O_add;
 			}
-			
+
 			if (op_left == O_add) {
 				segT seg1;
 				segT seg2;
@@ -834,7 +834,7 @@ segT expr(rank, resultP)
 #endif
 				clean_up_expression(& right);
 				clean_up_expression(resultP);
-				
+
 #ifdef PIC
 /* XXX - kludge here to accomodate "_GLOBAL_OFFSET_TABLE + (x - y)"
  * expressions: this only works for this special case, the
@@ -879,7 +879,7 @@ segT expr(rank, resultP)
 					/* Clean_up_expression() will do the rest. */
 				} else
 				    resultP->X_seg = SEG_DIFFERENCE;
-				
+
 				resultP->X_add_number += right.X_add_number;
 				clean_up_expression(resultP);
 			} else { /* Not +. */
@@ -900,7 +900,7 @@ segT expr(rank, resultP)
 						case O_bit_inclusive_or:
 							resultP->X_add_number |= right.X_add_number;
 							break;
-							
+
 						case O_modulus:
 							if (right.X_add_number) {
 								resultP->X_add_number %= right.X_add_number;
@@ -909,15 +909,15 @@ segT expr(rank, resultP)
 								resultP->X_add_number = 0;
 							}
 							break;
-							
+
 						case O_bit_and:
 							resultP->X_add_number &= right.X_add_number;
 							break;
-							
+
 						case O_multiply:
 							resultP->X_add_number *= right.X_add_number;
 							break;
-							
+
 						case O_divide:
 							if (right.X_add_number) {
 								resultP->X_add_number /= right.X_add_number;
@@ -926,23 +926,23 @@ segT expr(rank, resultP)
 								resultP->X_add_number = 0;
 							}
 							break;
-							
+
 						case O_left_shift:
 							resultP->X_add_number <<= right.X_add_number;
 							break;
-							
+
 						case O_right_shift:
 							resultP->X_add_number >>= right.X_add_number;
 							break;
-							
+
 						case O_bit_exclusive_or:
 							resultP->X_add_number ^= right.X_add_number;
 							break;
-							
+
 						case O_bit_or_not:
 							resultP->X_add_number |= ~ right.X_add_number;
 							break;
-							
+
 						default:
 							BAD_CASE(op_left);
 							break;
@@ -976,7 +976,7 @@ char
     get_symbol_end()
 {
     register char c;
-    
+
     while (is_part_of_name(c = *input_line_pointer++)) ;;
     *--input_line_pointer = 0;
     return (c);
@@ -988,7 +988,7 @@ unsigned int get_single_number()
     expressionS exp;
     operand(&exp);
     return exp.X_add_number;
-    
+
 }
 /*
  * Local Variables:

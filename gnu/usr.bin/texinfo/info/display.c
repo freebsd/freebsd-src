@@ -196,7 +196,7 @@ display_update_one_window (win)
 		 to the next line. */
 	      for (i = 0; pl_index < (win->width - 1);)
 		printed_line[pl_index++] = rep[i++];
-	      
+
 	      rep_carried_over = rep + i;
 
 	      /* If printing the last character in this window couldn't
@@ -296,7 +296,7 @@ display_update_one_window (win)
 	      printed_line[0] = '\0';
 
 	      begin = nodetext;
-	      
+
 	      while ((nodetext < last_node_char) && (*nodetext != '\n'))
 		nodetext++;
 	    }

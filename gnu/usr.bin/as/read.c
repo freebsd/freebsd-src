@@ -1,25 +1,25 @@
 /* read.c - read a source file -
 
    Copyright (C) 1986, 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: read.c,v 1.4 1993/12/12 17:01:16 jkh Exp $";
+static char rcsid[] = "$Id: read.c,v 1.5 1994/12/23 22:36:15 nate Exp $";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will
@@ -51,7 +51,7 @@ char *input_line_pointer;	/*->next char of source file to parse. */
 The following table is indexed by [ (char) ] and will break if
     a char does not have exactly 256 states (hopefully 0:255!) !
 #endif
-    
+
 #ifdef ALLOW_ATSIGN
 #define AT 2
 #else
@@ -165,17 +165,17 @@ void
     read_begin()
 {
 	const char *p;
-	
+
 	pobegin();
 	obj_read_begin_hook();
-	
+
 	obstack_begin(&notes, 5000);
 	obstack_begin(&cond_obstack, 960);
-	
+
 #define BIGNUM_BEGIN_SIZE (16)
 	bignum_low = xmalloc((long)BIGNUM_BEGIN_SIZE);
 	bignum_limit = bignum_low + BIGNUM_BEGIN_SIZE;
-	
+
 	/* Use machine dependent syntax */
 	for (p = line_separator_chars; *p; p++)
 	    is_end_of_line[*p] = 1;
@@ -285,9 +285,9 @@ static const pseudo_typeS
 static void pobegin() {
 	char *errtxt;		/* error text */
 	const pseudo_typeS * pop;
-	
+
 	po_hash = hash_new();
-	
+
 	/* Do the target-specific pseudo ops. */
 	for (pop = md_pseudo_table; pop->poc_name; pop++) {
 		errtxt = hash_insert(po_hash, pop->poc_name, (char *)pop);
@@ -295,7 +295,7 @@ static void pobegin() {
 			as_fatal("error constructing md pseudo-op table");
 		} /* on error */
 	} /* for each op */
-	
+
 	/* Now object specific.  Skip any that were in the target table. */
 	for (pop = obj_pseudo_table; pop->poc_name; pop++) {
 		errtxt = hash_insert(po_hash, pop->poc_name, (char *) pop);
@@ -310,7 +310,7 @@ static void pobegin() {
 			} /* if overridden */
 		} /* on error */
 	} /* for each op */
-	
+
 	/* Now portable ones.  Skip any that we've seen already. */
 	for (pop = potable; pop->poc_name; pop++) {
 		errtxt = hash_insert(po_hash, pop->poc_name, (char *) pop);
@@ -325,7 +325,7 @@ static void pobegin() {
 			} /* if overridden */
 		} /* on error */
 	} /* for each op */
-	
+
 	return;
 } /* pobegin() */
 
@@ -351,18 +351,18 @@ char *name;
 	register char *	s;	/* string of symbol, '\0' appended */
 	register int temp;
 	pseudo_typeS *pop = NULL;
-	
+
 	buffer = input_scrub_new_file(name);
-	
+
 	listing_file(name);
 	listing_newline("");
-	
+
 	while ((buffer_limit = input_scrub_next_buffer(&input_line_pointer)) != 0) { /* We have another line to parse. */
 		know(buffer_limit[-1] == '\n'); /* Must have a sentinel. */
 	contin:	/* JF this goto is my fault I admit it.  Someone brave please re-write
 		   the whole input section here?  Pleeze??? */
 		while (input_line_pointer < buffer_limit) {			/* We have more of this buffer to parse. */
-			
+
 			/*
 			 * We now have input_line_pointer->1st char of next line.
 			 * If input_line_pointer[-1] == '\n' then we just
@@ -371,9 +371,9 @@ char *name;
 			if (input_line_pointer[-1] == '\n') {
 				bump_line_counters();
 			} /* just passed a newline */
-			
-			
-			
+
+
+
 			/*
 			 * We are at the begining of a line, or similar place.
 			 * We expect a well-formed assembler statement.
@@ -399,7 +399,7 @@ char *name;
 			 */
 			if (is_name_beginner(c)) {			/* want user-defined label or pseudo/opcode */
 				HANDLE_CONDITIONAL_ASSEMBLY();
-				
+
 				s = input_line_pointer - 1;
 				c = get_symbol_end(); /* name's delimiter */
 				/*
@@ -414,8 +414,8 @@ char *name;
 					* input_line_pointer ++ = ':'; /* Put ':' back for error messages' sake. */
 					/* Input_line_pointer->after ':'. */
 					SKIP_WHITESPACE();
-					
-					
+
+
 				} else if (c == '=' || input_line_pointer[1] == '=') { /* JF deal with FOO=BAR */
 					equals(s);
 					demand_empty_rest_of_line();
@@ -432,12 +432,12 @@ char *name;
 						 * We lookup the pseudo-op table with s+1 because we
 						 * already know that the pseudo-op begins with a '.'.
 						 */
-						
+
 #ifdef NO_DOT_PSEUDOS
 						if (*s == '.')
 #endif
 						    pop = (pseudo_typeS *) hash_find(po_hash, s+1);
-						
+
 						/* Print the error msg now, while we still can */
 						if (!pop) {
 							as_bad("Unknown pseudo-op:  `%s'",s);
@@ -445,7 +445,7 @@ char *name;
 							s_ignore(0);
 							break;
 						}
-						
+
 						/* Put it back for error messages etc. */
 						*input_line_pointer = c;
 						/* The following skip of whitespace is compulsory. */
@@ -477,20 +477,20 @@ char *name;
 						*input_line_pointer++ = c;
 						/* We resume loop AFTER the end-of-line from this instruction */
 					} /* if (*s == '.') */
-					
+
 				} /* if c == ':' */
 				continue;
 			} /* if (is_name_beginner(c) */
-			
-			
+
+
 			if (is_end_of_line[c]) {
 				continue;
 			} /* empty statement */
-			
-			
+
+
 			if (isdigit(c)) { /* local label  ("4:") */
 				HANDLE_CONDITIONAL_ASSEMBLY ();
-				
+
 				temp = c - '0';
 #ifdef LOCAL_LABELS_DOLLAR
 				if (*input_line_pointer == '$')
@@ -505,7 +505,7 @@ char *name;
 				}
 				continue;
 			} /* local label  ("4:") */
-			
+
 			if (c && strchr(line_comment_chars, c)) { /* Its a comment.  Better say APP or NO_APP */
 				char *ends;
 				char *new_buf;
@@ -513,19 +513,19 @@ char *name;
 				int new_length;
 				char *tmp_buf = 0;
 				extern char *scrub_string, *scrub_last_string;
-				
+
 				bump_line_counters();
 				s = input_line_pointer;
 				if (strncmp(s,"APP\n",4))
 				    continue;	/* We ignore it */
 				s += 4;
-				
+
 				ends = strstr(s,"#NO_APP\n");
-				
+
 				if (!ends) {
 					int tmp_len;
 					int num;
-					
+
 					/* The end of the #APP wasn't in this buffer.  We
 					   keep reading in buffers until we find the #NO_APP
 					   that goes with this #APP  There is one.  The specs
@@ -545,29 +545,29 @@ char *name;
 						    num = ends - buffer;
 						else
 						    num = buffer_limit - buffer;
-						
+
 						tmp_buf = xrealloc(tmp_buf, tmp_len + num);
 						memcpy(tmp_buf + tmp_len, buffer, num);
 						tmp_len += num;
 					} while (!ends);
-					
+
 					input_line_pointer = ends ? ends + 8 : NULL;
-					
+
 					s = tmp_buf;
 					ends = s + tmp_len;
-					
+
 				} else {
 					input_line_pointer = ends + 8;
 				}
 				new_buf=xmalloc(100);
 				new_length=100;
 				new_tmp=new_buf;
-				
+
 				scrub_string = s;
 				scrub_last_string = ends;
 				for (;;) {
 					int ch;
-					
+
 					ch = do_scrub_next_char(scrub_from_string, scrub_to_string);
 					if (ch == EOF) break;
 					*new_tmp++ = ch;
@@ -577,7 +577,7 @@ char *name;
 						new_length += 100;
 					}
 				}
-				
+
 				if (tmp_buf)
 				    free(tmp_buf);
 				old_buffer = buffer;
@@ -588,9 +588,9 @@ char *name;
 				buffer_limit = new_tmp;
 				continue;
 			}
-			
+
 			HANDLE_CONDITIONAL_ASSEMBLY();
-			
+
 			/* as_warn("Junk character %d.",c);  Now done by ignore_rest */
 			input_line_pointer--;		/* Report unknown char as ignored. */
 			ignore_rest_of_line();
@@ -607,7 +607,7 @@ char *name;
 		}
 	} /* while (more buffers to scan) */
 	input_scrub_close();	/* Close the input file */
-	
+
 } /* read_a_source_file() */
 
 void s_abort() {
@@ -622,16 +622,16 @@ int arg;
 	register long temp_fill;
 	unsigned int i = 0;
 	unsigned long max_alignment = 1 << 15;
-	
+
 	if (is_end_of_line[*input_line_pointer])
 	    temp = arg;		/* Default value from pseudo-op table */
 	else
 	    temp = get_absolute_expression();
-	
+
 	if (temp > max_alignment) {
 		as_bad("Alignment too large: %d. assumed.", temp = max_alignment);
 	}
-	
+
 	/*
 	 * For the sparc, `.align (1<<n)' actually means `.align n'
 	 * so we have to convert it.
@@ -642,7 +642,7 @@ int arg;
 	}
 	if (temp != 1)
 	    as_bad("Alignment not a power of 2");
-	
+
 	temp = i;
 	if (*input_line_pointer == ',') {
 		input_line_pointer ++;
@@ -653,7 +653,7 @@ int arg;
 	/* Only make a frag if we HAVE to... */
 	if (temp && ! need_pass_2)
 	    frag_align(temp, (int)temp_fill);
-	
+
 	demand_empty_rest_of_line();
 } /* s_align_bytes() */
 
@@ -662,7 +662,7 @@ void s_align_ptwo() {
 	register int temp;
 	register long temp_fill;
 	long max_alignment = 15;
-	
+
 	temp = get_absolute_expression();
 	if (temp > max_alignment)
 	    as_bad("Alignment too large: %d. assumed.", temp = max_alignment);
@@ -678,9 +678,9 @@ void s_align_ptwo() {
 	/* Only make a frag if we HAVE to... */
 	if (temp && ! need_pass_2)
 	    frag_align (temp, (int)temp_fill);
-	
+
 	record_alignment(now_seg, temp);
-	
+
 	demand_empty_rest_of_line();
 } /* s_align_ptwo() */
 
@@ -690,7 +690,7 @@ void s_comm() {
 	register char *p;
 	register int temp;
 	register symbolS *symbolP;
-	
+
 	name = input_line_pointer;
 	c = get_symbol_end();
 	/* just after name is now '\0' */
@@ -738,14 +738,14 @@ void
     s_data()
 {
 	register int temp;
-	
+
 	temp = get_absolute_expression();
 #ifdef MANY_SEGMENTS
 	subseg_new (SEG_E1, (subsegT)temp);
 #else
 	subseg_new (SEG_DATA, (subsegT)temp);
 #endif
-	
+
 #ifdef OBJ_VMS
 	const_flag = 0;
 #endif /* not OBJ_VMS */
@@ -764,7 +764,7 @@ void s_app_file(appfile)
 {
 	register char *s;
 	int length;
-	
+
 	/* Some assemblers tolerate immediately following '"' */
 	if ((s = demand_copy_string(&length)) != 0) {
 		/* If this is a fake .appfile, a fake newline was inserted
@@ -809,7 +809,7 @@ void s_fill() {
 	long temp_size;
 	register long temp_fill;
 	char *p;
-	
+
 	if (get_absolute_expression_and_terminator(& temp_repeat) != ',') {
 		input_line_pointer --; /* Backup over what was not a ','. */
 		as_bad("Expect comma after rep-size in .fill:");
@@ -861,7 +861,7 @@ void s_globl() {
 	register char *name;
 	register int c;
 	register symbolS *	symbolP;
-	
+
 	do {
 		name = input_line_pointer;
 		c = get_symbol_end();
@@ -892,7 +892,7 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 	register symbolS *	symbolP;
 	const int max_alignment = 15;
 	int align = 0;
-	
+
 	name = input_line_pointer;
 	c = get_symbol_end();
 	p = input_line_pointer;
@@ -903,20 +903,20 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 		ignore_rest_of_line();
 		return;
 	}
-	
+
 	++input_line_pointer;
-	
+
 	if (*input_line_pointer == '\n') {
 		as_bad("Missing size expression");
 		return;
 	}
-	
+
 	if ((temp = get_absolute_expression()) < 0) {
 		as_warn("BSS length (%d.) <0! Ignored.", temp);
 		ignore_rest_of_line();
 		return;
 	}
-	
+
 	if (needs_align) {
 		align = 0;
 		SKIP_WHITESPACE();
@@ -946,11 +946,11 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 		record_alignment(SEG_BSS, align);
 #endif
 	} /* if needs align */
-	
+
 	*p = 0;
 	symbolP = symbol_find_or_make(name);
 	*p = c;
-	
+
 	if (
 #if defined(OBJ_AOUT) | defined(OBJ_BOUT)
 	    S_GET_OTHER(symbolP) == 0 &&
@@ -964,7 +964,7 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 			local_bss_counter =
 			    (local_bss_counter + align) & (~align);
 		}
-		
+
 		S_SET_VALUE(symbolP, local_bss_counter);
 		S_SET_SEGMENT(symbolP, SEG_BSS);
 #ifdef OBJ_COFF
@@ -983,7 +983,7 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 		       S_GET_VALUE(symbolP), local_bss_counter);
 	}
 	demand_empty_rest_of_line();
-	
+
 	return;
 } /* s_lcomm() */
 
@@ -1006,7 +1006,7 @@ void s_lsym() {
 	register segT segment;
 	expressionS exp;
 	register symbolS *symbolP;
-	
+
 	/* we permit ANY defined expression: BSD4.2 demands constants */
 	name = input_line_pointer;
 	c = get_symbol_end();
@@ -1037,7 +1037,7 @@ void s_lsym() {
 	}
 	*p = 0;
 	symbolP = symbol_find_or_make(name);
-	
+
 	/* FIXME-SOON I pulled a (&& symbolP->sy_other == 0
 	   && symbolP->sy_desc == 0) out of this test
 	   because coff doesn't have those fields, and I
@@ -1045,7 +1045,7 @@ void s_lsym() {
 	   think I understand why they were here so I may
 	   have introduced a bug. As recently as 1.37 didn't
 	   have this test anyway.  xoxorich. */
-	
+
 	if (S_GET_SEGMENT(symbolP) == SEG_UNKNOWN
 	    && S_GET_VALUE(symbolP) == 0) {
 		/* The name might be an undefined .global symbol; be
@@ -1101,7 +1101,7 @@ void s_set() {
 	register char delim;
 	register char *end_name;
 	register symbolS *symbolP;
-	
+
 	/*
 	 * Especial apologies for the random logic:
 	 * this just grew, and could be parsed much more simply!
@@ -1112,7 +1112,7 @@ void s_set() {
 	end_name = input_line_pointer;
 	*end_name = delim;
 	SKIP_WHITESPACE();
-	
+
 	if (*input_line_pointer != ',') {
 		*end_name = 0;
 		as_bad("Expected comma after name \"%s\"", name);
@@ -1120,18 +1120,18 @@ void s_set() {
 		ignore_rest_of_line();
 		return;
 	}
-	
+
 	input_line_pointer ++;
 	*end_name = 0;
-	
+
 	if (name[0] == '.' && name[1] == '\0') {
 		/* Turn '. = mumble' into a .org mumble */
 		register segT segment;
 		expressionS exp;
 		register char *ptr;
-		
+
 		segment = get_known_segmented_expression(& exp);
-		
+
 		if (!need_pass_2) {
 			if (segment != now_seg && segment != SEG_ABSOLUTE)
 			    as_bad("Invalid segment \"%s\". Segment \"%s\" assumed.",
@@ -1141,11 +1141,11 @@ void s_set() {
 				       exp.X_add_number, (char *)0);
 			*ptr= 0;
 		} /* if (ok to make frag) */
-		
+
 		*end_name = delim;
 		return;
 	}
-	
+
 	if ((symbolP = symbol_find(name)) == NULL
 	    && (symbolP = md_undefined_symbol(name)) == NULL) {
 		symbolP = symbol_new(name,
@@ -1156,11 +1156,11 @@ void s_set() {
 		/* "set" symbols are local unless otherwise specified. */
 		SF_SET_LOCAL(symbolP);
 #endif /* OBJ_COFF */
-		
+
 	} /* make a new symbol */
-	
+
 	symbol_table_insert(symbolP);
-	
+
 	*end_name = delim;
 	pseudo_set(symbolP);
 	demand_empty_rest_of_line();
@@ -1174,7 +1174,7 @@ void s_size() {
 	register symbolS *symbolP;
 	expressionS	*exp;
 	segT		seg;
-	
+
 	SKIP_WHITESPACE();
 	name = input_line_pointer;
 	c = get_symbol_end();
@@ -1226,7 +1226,7 @@ void s_type() {
 	register char *p;
 	register symbolS *symbolP;
 	int	aux;
-	
+
 	SKIP_WHITESPACE();
 	name = input_line_pointer;
 	c = get_symbol_end();
@@ -1278,7 +1278,7 @@ void s_space() {
 	long temp_repeat;
 	register long temp_fill;
 	register char *p;
-	
+
 	/* Just like .fill, but temp_size = 1 */
 	if (get_absolute_expression_and_terminator(& temp_repeat) == ',') {
 		temp_fill = get_absolute_expression();
@@ -1303,7 +1303,7 @@ void
     s_text()
 {
 	register int temp;
-	
+
 	temp = get_absolute_expression();
 #ifdef MANY_SEGMENTS
 	subseg_new (SEG_E0, (subsegT)temp);
@@ -1367,19 +1367,19 @@ symbolS *	symbolP;
 #if defined(OBJ_AOUT) | defined(OBJ_BOUT)
 	int ext;
 #endif /* OBJ_AOUT or OBJ_BOUT */
-	
+
 	know(symbolP);		/* NULL pointer is logic error. */
 #if defined(OBJ_AOUT) | defined(OBJ_BOUT)
 	ext=S_IS_EXTERNAL(symbolP);
 #endif /* OBJ_AOUT or OBJ_BOUT */
-	
+
 	if ((segment = expression(& exp)) == SEG_ABSENT)
 	    {
 		    as_bad("Missing expression: absolute 0 assumed");
 		    exp.X_seg		= SEG_ABSOLUTE;
 		    exp.X_add_number	= 0;
 	    }
-	
+
 	switch (segment)
 	    {
 	    case SEG_BIG:
@@ -1393,7 +1393,7 @@ symbolS *	symbolP;
 		    S_SET_VALUE(symbolP, 0);
 		    symbolP->sy_frag = & zero_address_frag;
 		    break;
-		    
+
 	    case SEG_ABSENT:
 		    as_warn("No expression:  Using absolute 0");
 		    S_SET_SEGMENT(symbolP, SEG_ABSOLUTE);
@@ -1404,10 +1404,10 @@ symbolS *	symbolP;
 		    S_SET_VALUE(symbolP, 0);
 		    symbolP->sy_frag = & zero_address_frag;
 		    break;
-		    
+
 	    case SEG_DIFFERENCE:
 		    if (exp.X_add_symbol && exp.X_subtract_symbol
-			&& (S_GET_SEGMENT(exp.X_add_symbol) == 
+			&& (S_GET_SEGMENT(exp.X_add_symbol) ==
 			    S_GET_SEGMENT(exp.X_subtract_symbol))) {
 			    if (exp.X_add_symbol->sy_frag != exp.X_subtract_symbol->sy_frag) {
 				    as_bad("Unknown expression: symbols %s and %s are in different frags.",
@@ -1427,7 +1427,7 @@ symbolS *	symbolP;
 		    S_SET_VALUE(symbolP, exp.X_add_number);
 		    symbolP->sy_frag = & zero_address_frag;
 		    break;
-		    
+
 	    default:
 #ifdef MANY_SEGMENTS
 		    S_SET_SEGMENT(symbolP, segment);
@@ -1446,25 +1446,25 @@ symbolS *	symbolP;
 			    S_CLEAR_EXTERNAL(symbolP);
 		    }	/* if external */
 #endif /* OBJ_AOUT or OBJ_BOUT */
-		    
+
 		    S_SET_VALUE(symbolP, exp.X_add_number + S_GET_VALUE(exp.X_add_symbol));
 		    symbolP->sy_frag = exp.X_add_symbol->sy_frag;
 		    break;
-		    
+
 	    case SEG_PASS1:		/* Not an error. Just try another pass. */
 		    symbolP->sy_forward=exp.X_add_symbol;
 		    as_bad("Unknown expression");
 		    know(need_pass_2 == 1);
 		    break;
-		    
+
 	    case SEG_UNKNOWN:
 		    symbolP->sy_forward=exp.X_add_symbol;
 		    /* as_warn("unknown symbol"); */
 		    /* need_pass_2 = 1; */
 		    break;
-		    
-		    
-		    
+
+
+
 	    }
 }
 
@@ -1498,27 +1498,27 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 	register char *	p;
 	register segT		segment;
 	expressionS	exp;
-	
+
 	/*
 	 * Input_line_pointer->1st char after pseudo-op-code and could legally
 	 * be a end-of-line. (Or, less legally an eof - which we cope with.)
 	 */
 	/* JF << of >= number of bits in the object is undefined.  In particular
 	   SPARC (Sun 4) has problems */
-	
+
 	if (nbytes >= sizeof(long)) {
 		mask = 0;
 	} else {
 		mask = ~0 << (BITS_PER_CHAR * nbytes); /* Don't store these bits. */
 	} /* bigger than a long */
-	
+
 	unmask = ~mask;		/* Do store these bits. */
-	
+
 #ifdef NEVER
 	"Do this mod if you want every overflow check to assume SIGNED 2's complement data.";
 	mask = ~ (unmask >> 1);	/* Includes sign bit now. */
 #endif
-	
+
 	/*
 	 * The following awkward logic is to parse ZERO or more expressions,
 	 * comma seperated. Recall an expression includes its leading &
@@ -1531,7 +1531,7 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 	} else {
 		c = ',';
 	} /* if the end else fake it */
-	
+
 	/* Do loop. */
 	while (c == ',') {
 #ifdef WANT_BITFIELDS
@@ -1539,10 +1539,10 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 		/* used for error messages and rescanning */
 		char *hold = input_line_pointer;
 #endif /* WANT_BITFIELDS */
-		
+
 		/* At least scan over the expression. */
 		segment = expression(&exp);
-		
+
 #ifdef WANT_BITFIELDS
 		/* Some other assemblers, (eg, asm960), allow
 		   bitfields after ".byte" as w:x,y:z, where w and
@@ -1551,28 +1551,28 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 		   better in that we allow them in words, longs,
 		   etc. and we'll pack them in target byte order
 		   for you.
-		   
+
 		   The rules are: pack least significat bit first,
 		   if a field doesn't entirely fit, put it in the
 		   next unit.  Overflowing the bitfield is
 		   explicitly *not* even a warning.  The bitwidth
 		   should be considered a "mask".
-		   
+
 		   FIXME-SOMEDAY: If this is considered generally
 		   useful, this logic should probably be reworked.
 		   xoxorich. */
-		
+
 		if (*input_line_pointer == ':') { /* bitfields */
 			long value = 0;
-			
+
 			for (;;) {
 				unsigned long width;
-				
+
 				if (*input_line_pointer != ':') {
 					input_line_pointer = hold;
 					break;
 				} /* next piece is not a bitfield */
-				
+
 				/* In the general case, we can't allow
 				   full expressions with symbol
 				   differences and such.  The relocation
@@ -1581,7 +1581,7 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 				   widths, positions, and masks which most
 				   of our current object formats don't
 				   support.
-				   
+
 				   In the specific case where a symbol
 				   *is* defined in this assembly, we
 				   *could* build fixups and track it, but
@@ -1590,13 +1590,13 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 				   SEG_ABSOLUTE. I think that means that
 				   you can use a previous .set or
 				   .equ type symbol.  xoxorich. */
-				
+
 				if (segment == SEG_ABSENT) {
 					as_warn("Using a bit field width of zero.");
 					exp.X_add_number = 0;
 					segment = SEG_ABSOLUTE;
 				} /* implied zero width bitfield */
-				
+
 				if (segment != SEG_ABSOLUTE) {
 					*input_line_pointer = '\0';
 					as_bad("Field width \"%s\" too complex for a bitfield.\n", hold);
@@ -1604,13 +1604,13 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 					demand_empty_rest_of_line();
 					return;
 				} /* too complex */
-				
+
 				if ((width = exp.X_add_number) > (BITS_PER_CHAR * nbytes)) {
 					as_warn("Field width %d too big to fit in %d bytes: truncated to %d bits.",
 						width, nbytes, (BITS_PER_CHAR * nbytes));
 					width = BITS_PER_CHAR * nbytes;
 				} /* too big */
-				
+
 				if (width > bits_available) {
 					/* FIXME-SOMEDAY: backing up and
 					   reparsing is wasteful */
@@ -1618,42 +1618,42 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 					exp.X_add_number = value;
 					break;
 				} /* won't fit */
-				
+
 				hold = ++input_line_pointer; /* skip ':' */
-				
+
 				if ((segment = expression(&exp)) != SEG_ABSOLUTE) {
 					char cache = *input_line_pointer;
-					
+
 					*input_line_pointer = '\0';
 					as_bad("Field value \"%s\" too complex for a bitfield.\n", hold);
 					*input_line_pointer = cache;
 					demand_empty_rest_of_line();
 					return;
 				} /* too complex */
-				
+
 				value |= (~(-1 << width) & exp.X_add_number)
 				    << ((BITS_PER_CHAR * nbytes) - bits_available);
-				
+
 				if ((bits_available -= width) == 0
 				    || is_it_end_of_statement()
 				    || *input_line_pointer != ',') {
 					break;
 				} /* all the bitfields we're gonna get */
-				
+
 				hold = ++input_line_pointer;
 				segment = expression(&exp);
 			} /* forever loop */
-			
+
 			exp.X_add_number = value;
 			segment = SEG_ABSOLUTE;
 		}	/* if looks like a bitfield */
 #endif /* WANT_BITFIELDS */
-		
+
 		if (!need_pass_2) { /* Still worthwhile making frags. */
-			
+
 			/* Don't call this if we are going to junk this pass anyway! */
 			know(segment != SEG_PASS1);
-			
+
 			if (segment == SEG_DIFFERENCE && exp.X_add_symbol == NULL) {
 				as_bad("Subtracting symbol \"%s\"(segment\"%s\") is too hard. Absolute segment assumed.",
 				       S_GET_NAME(exp.X_subtract_symbol),
@@ -1670,7 +1670,7 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 				       exp.X_add_number > 0 ? "Bignum" : "Floating-Point");
 				md_number_to_chars (p, (long)0, nbytes);
 				break;
-				
+
 			case SEG_ABSENT:
 				as_warn("0 assumed for missing expression");
 				exp.X_add_number = 0;
@@ -1685,12 +1685,12 @@ register unsigned int nbytes;	/* 1=.byte, 2=.word, 4=.long */
 				    }
 				md_number_to_chars (p, use, nbytes); /* put bytes in right order. */
 				break;
-				
+
 			case SEG_DIFFERENCE:
 #ifndef WORKING_DOT_WORD
 				if (nbytes == 2) {
 					struct broken_word *x;
-					
+
 					x = (struct broken_word *) xmalloc(sizeof(struct broken_word));
 					x->next_broken_word = broken_words;
 					broken_words = x;
@@ -1768,7 +1768,7 @@ register int nbytes;
 	register int carry;	/* For multi-precision arithmetic. */
 	register int work;	/* For multi-precision arithmetic. */
 	register char *	p;	/* For multi-precision arithmetic. */
-	
+
 	extern const char hex_value[];	/* In hex_value.c. */
 
 	/*
@@ -1843,7 +1843,7 @@ register int nbytes;
 		    else
 			{
 				register long leading_zeroes;
-				
+
 				for (leading_zeroes = nbytes - length;
 				    leading_zeroes;
 				    leading_zeroes --)
@@ -1868,7 +1868,7 @@ register int nbytes;
 /* Extend bignum by 1 char. */
 static void grow_bignum() {
 	register long length;
-	
+
 	bignum_high ++;
 	if (bignum_high >= bignum_limit)
 	    {
@@ -1909,7 +1909,7 @@ register int float_type;	/* 'f':.ffloat ... 'F':.float ... */
 	int length;	/* Number of chars in an object. */
 	register char *	err;	/* Error from scanning floating literal. */
 	char temp[MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT];
-	
+
 	/*
 	 * The following awkward logic is to parse ZERO or more strings,
 	 * comma seperated. Recall an expression includes its leading &
@@ -1933,10 +1933,10 @@ register int float_type;	/* 'f':.ffloat ... 'F':.float ... */
 		 * has no use for such information. Lusers beware: you get
 		 * diagnostics if your input is ill-conditioned.
 		 */
-		
+
 		if (input_line_pointer[0] == '0' && isalpha(input_line_pointer[1]))
 		    input_line_pointer+=2;
-		
+
 		err = md_atof (float_type, temp, &length);
 		know(length <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
 		know(length > 0);
@@ -1972,7 +1972,7 @@ void stringer(append_zero)
 int append_zero; /* 0: don't append '\0', else 1 */
 {
 	unsigned int c;
-	
+
 	/*
 	 * The following awkward logic is to parse ZERO or more strings,
 	 * comma seperated. Recall a string expression includes spaces
@@ -1987,7 +1987,7 @@ int append_zero; /* 0: don't append '\0', else 1 */
 	} else {
 		c = ','; /* Do loop. */
 	}
-	
+
 	while (c == ',' || c == '<' || c == '"' || ('0' <= c && c <= '9')) {
 		int i;
 
@@ -2027,7 +2027,7 @@ int append_zero; /* 0: don't append '\0', else 1 */
 		SKIP_WHITESPACE();
 		c = *input_line_pointer;
 	}
-	
+
 	demand_empty_rest_of_line();
 } /* stringer() */
 
@@ -2038,45 +2038,45 @@ int append_zero; /* 0: don't append '\0', else 1 */
 
 unsigned int next_char_of_string() {
 	register unsigned int c;
-	
+
 	c = *input_line_pointer++ & CHAR_MASK;
 	switch (c) {
 	case '\"':
 		c = NOT_A_CHAR;
 		break;
-		
+
 	case '\\':
 		switch (c = *input_line_pointer++) {
 		case 'b':
 			c = '\b';
 			break;
-			
+
 		case 'f':
 			c = '\f';
 			break;
-			
+
 		case 'n':
 			c = '\n';
 			break;
-			
+
 		case 'r':
 			c = '\r';
 			break;
-			
+
 		case 't':
 			c = '\t';
 			break;
-			
+
 #ifdef BACKSLASH_V
 		case 'v':
 			c = '\013';
 			break;
 #endif
-			
+
 		case '\\':
 		case '"':
 			break;		/* As itself. */
-			
+
 		case '0':
 		case '1':
 		case '2':
@@ -2088,7 +2088,7 @@ unsigned int next_char_of_string() {
 		case '8':
 		case '9': {
 			long number;
-			
+
 			for (number = 0; isdigit(c); c = *input_line_pointer++) {
 				number = number * 8 + c - '0';
 			}
@@ -2096,24 +2096,24 @@ unsigned int next_char_of_string() {
 		}
 			--input_line_pointer;
 			break;
-			
+
 		case '\n':
 			/* To be compatible with BSD 4.2 as: give the luser a linefeed!! */
 			as_warn("Unterminated string: Newline inserted.");
 			c = '\n';
 			break;
-			
+
 		default:
-			
+
 #ifdef ONLY_STANDARD_ESCAPES
 			as_bad("Bad escaped character in string, '?' assumed");
 			c = '?';
 #endif /* ONLY_STANDARD_ESCAPES */
-			
+
 			break;
 		} /* switch on escaped char */
 		break;
-		
+
 	default:
 		break;
 	} /* switch on char */
@@ -2125,7 +2125,7 @@ static segT
 register expressionS *	expP;
 {
 	register segT		retval;
-	
+
 	if ((retval = expression(expP)) == SEG_PASS1 || retval == SEG_ABSENT || retval == SEG_BIG)
 	    {
 		    as_bad("Expected address expression: absolute 0 assumed");
@@ -2142,7 +2142,7 @@ register expressionS *expP;
 	register segT		retval;
 	register char *	name1;
 	register char *	name2;
-	
+
 	if ((retval = get_segmented_expression (expP)) == SEG_UNKNOWN)
 	    {
 		    name1 = expP->X_add_symbol ? S_GET_NAME(expP->X_add_symbol) : "";
@@ -2167,7 +2167,7 @@ register expressionS *expP;
 	know(retval == SEG_ABSOLUTE || retval == SEG_DATA || retval == SEG_TEXT || retval == SEG_BSS || retval == SEG_DIFFERENCE);
 #endif
 	return (retval);
-	
+
 }				/* get_known_segmented_expression() */
 
 
@@ -2177,7 +2177,7 @@ register expressionS *expP;
 {
 	expressionS exp;
 	register segT s;
-	
+
 	if ((s = expression(&exp)) != SEG_ABSOLUTE) {
 		if (s != SEG_ABSENT) {
 			as_bad("Bad Absolute Expression, absolute 0 assumed.");
@@ -2206,10 +2206,10 @@ char *
 int *len_pointer;
 {
 	register char *s;
-	
+
 	if ((s = demand_copy_string(len_pointer)) != 0) {
 		register int len;
-		
+
 		for (len = *len_pointer;
 		     len > 0;
 		     len--) {
@@ -2236,12 +2236,12 @@ int *lenP;
 	register unsigned int c;
 	register int len;
 	char *retval;
-	
+
 	len = 0;
 	SKIP_WHITESPACE();
 	if (*input_line_pointer == '\"') {
 		input_line_pointer++;	/* Skip opening quote. */
-		
+
 		while (is_a_char(c = next_char_of_string())) {
 			obstack_1grow(&notes, c);
 			len ++;
@@ -2277,20 +2277,20 @@ void equals(sym_name)
 char *sym_name;
 {
 	register symbolS *symbolP; /* symbol we are working with */
-	
+
 	input_line_pointer++;
 	if (*input_line_pointer == '=')
 	    input_line_pointer++;
-	
+
 	while (*input_line_pointer == ' ' || *input_line_pointer == '\t')
 	    input_line_pointer++;
-	
+
 	if (sym_name[0] == '.' && sym_name[1] == '\0') {
 		/* Turn '. = mumble' into a .org mumble */
 		register segT segment;
 		expressionS exp;
 		register char *p;
-		
+
 		segment = get_known_segmented_expression(& exp);
 		if (! need_pass_2) {
 			if (segment != now_seg && segment != SEG_ABSOLUTE)
@@ -2318,7 +2318,7 @@ int arg;
 	int i;
 	FILE *try;
 	char *path;
-	
+
 	filename = demand_copy_string(&i);
 	demand_empty_rest_of_line();
 	path = xmalloc(i + include_dir_maxlen + 5 /* slop */);
@@ -2344,7 +2344,7 @@ void add_include_dir(path)
 char *path;
 {
 	int i;
-	
+
 	if (include_dir_count == 0)
 	    {
 		    include_dirs = (char **)xmalloc (2 * sizeof (*include_dirs));
@@ -2357,9 +2357,9 @@ char *path;
 		    include_dirs = (char **) realloc(include_dirs,
 						     include_dir_count*sizeof (*include_dirs));
 	    }
-	
+
 	include_dirs[include_dir_count-1] = path;	/* New one */
-	
+
 	i = strlen (path);
 	if (i > include_dir_maxlen)
 	    include_dir_maxlen = i;
@@ -2372,7 +2372,7 @@ int arg;
 		++input_line_pointer;
 	}
 	++input_line_pointer;
-	
+
 	return;
 } /* s_ignore() */
 

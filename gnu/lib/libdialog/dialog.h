@@ -44,7 +44,7 @@
 #endif
 
 
-/* 
+/*
  * Attribute names
  */
 #define screen_attr                   attributes[0]
@@ -115,5 +115,5 @@ void use_helpfile(char *helpfile);
 void use_helpline(char *helpline);
 char *get_helpline(void);
 void restore_helpline(char *helpline);
-void dialog_gauge(char *title, char *prompt, int y, int x, 
+void dialog_gauge(char *title, char *prompt, int y, int x,
 		  int height, int width, int perc);

@@ -67,7 +67,7 @@ typedef int (*rx_sp_comparer) (void * a, void * b);
 typedef int (*rx_sp_comparer) ();
 #endif
 
-struct rx_sp_node 
+struct rx_sp_node
 {
   void * key;
   void * data;
@@ -135,7 +135,7 @@ struct rx_hash_rules
 /* Matchers decide what to do by examining a series of these.
  * Instruction types are described below.
  */
-struct rx_inx 
+struct rx_inx
 {
   void * inx;
   void * data;
@@ -179,7 +179,7 @@ struct rx
   /* --------- The remaining fields are for internal use only. --------- */
   /* --------- But! they should be initialized to 0.	       --------- */
   /* NODEC is the number of nodes in the NFA with non-epsilon
-   * orx transitions. 
+   * orx transitions.
    */
   int nodec;
 
@@ -196,7 +196,7 @@ struct rx
   /* A memo for sets of states in the possible_future lists of an nfa: */
   struct rx_hash set_list_memo;
 
-  /* The instruction table is indexed by the enum of instructions defined in 
+  /* The instruction table is indexed by the enum of instructions defined in
    * rxrun.h.  The values in the table are used to fill in the `inx'
    * slot of instruction frames (see rxrun.h).
    */
@@ -213,7 +213,7 @@ struct rx
 /* An RX NFA may contain epsilon edges labeled with side effects.
  * These side effects represent match actions that can not normally be
  * defined in a `pure' NFA; for example, recording the location at
- * which a paren is crossed in a register structure.  
+ * which a paren is crossed in a register structure.
  *
  * A matcher is supposed to find a particular path
  * through the NFA (such as leftmost-longest), and then to execute the
@@ -222,7 +222,7 @@ struct rx
  * backtracking.
  *
  * As the NFA is manipulated during matching sets of side effects.
- * Simple lists are used to hold side effect lists. 
+ * Simple lists are used to hold side effect lists.
  */
 
 typedef void * rx_side_effect;
@@ -287,7 +287,7 @@ struct rexp_node
 
 struct rx_nfa_state
 {
-  int id;		
+  int id;
   struct rx_nfa_edge *edges;
   struct rx_possible_future *futures;
   unsigned int is_final:1;
@@ -333,17 +333,17 @@ struct rx_possible_future
 
 enum rx_opcode
 {
-  /* 
+  /*
    * BACKTRACK_POINT is invoked when a transition results in more
    * than one possible future.
    *
    * There is one occurence of this instruction per transition_class
-   * structure; that occurence is only ever executed if the 
+   * structure; that occurence is only ever executed if the
    * transition_class contains a list of more than 1 edge.
    */
   rx_backtrack_point = 0,	/* data is (struct transition_class *) */
 
-  /* 
+  /*
    * RX_DO_SIDE_EFFECTS evaluates the side effects of an epsilon path.
    * There is one occurence of this instruction per rx_distinct_future.
    * This instruction is skipped if a rx_distinct_future has no side effects.
@@ -351,7 +351,7 @@ enum rx_opcode
   rx_do_side_effects = rx_backtrack_point + 1,
   /* data is (struct rx_distinct_future *) */
 
-  /* 
+  /*
    * RX_CACHE_MISS instructions are stored in rx_distinct_futures whose
    * destination superstate has been reclaimed (or was never built).
    * It recomputes the destination superstate.
@@ -361,9 +361,9 @@ enum rx_opcode
   rx_cache_miss = rx_do_side_effects + 1,
   /* data is (struct rx_distinct_future *) */
 
-  /* 
+  /*
    * RX_NEXT_CHAR is called to consume the next character and take the
-   * corresponding transition.  This is the only instruction that uses 
+   * corresponding transition.  This is the only instruction that uses
    * the DATA field of the instruction frame instead of DATA_2.
    * (see EXPLORE_FUTURE in regex.c).
    */
@@ -373,7 +373,7 @@ enum rx_opcode
    */
   rx_backtrack = rx_next_char + 1, /* no data */
 
-  /* 
+  /*
    * RX_ERROR_INX is stored only in places that should never be executed.
    */
   rx_error_inx = rx_backtrack + 1, /* Not supposed to occur. */
@@ -390,7 +390,7 @@ extern void * rx_id_instruction_table[rx_num_instructions];
 /*  If the instruction is `rx_next_char' then data is valid.  Otherwise it's 0
  *  and data_2 is valid.
  */
-struct rx_inx 
+struct rx_inx
 {
   void * inx;
   void * data;
@@ -431,7 +431,7 @@ struct rx_superset
 
 /* Every character occurs in at most one super edge per super-state.
  * But, that edge might have more than one option, indicating a point
- * of non-determinism. 
+ * of non-determinism.
  */
 struct rx_super_edge
 {
@@ -447,7 +447,7 @@ struct rx_super_edge
  * without warning.  To protect a superstate, use LOCK_SUPERSTATE.
  *
  * Joe Keane thought of calling these superstates and several people
- * have commented on what a good name it is for what they do. 
+ * have commented on what a good name it is for what they do.
  */
 struct rx_superstate
 {
@@ -501,7 +501,7 @@ typedef void (*rx_morecore_fn)(struct rx_cache *);
 typedef void (*rx_morecore_fn)();
 #endif
 
-/* You use this to control the allocation of superstate data 
+/* You use this to control the allocation of superstate data
  * during matching.  Most of it should be initialized to 0.
  *
  * A MORECORE function is necessary.  It should allocate
@@ -512,10 +512,10 @@ typedef void (*rx_morecore_fn)();
  * the system will try to allocate.  The default is 128.  Batch style
  * applications that are very regexp intensive should use as high a number
  * as possible without thrashing.
- * 
+ *
  * The LOCAL_CSET_SIZE is the number of characters in a character set.
  * It is therefore the number of entries in a superstate transition table.
- * Generally, it should be 256.  If your character set has 16 bits, 
+ * Generally, it should be 256.  If your character set has 16 bits,
  * it is better to translate your regexps into equivalent 8 bit patterns.
  */
 
@@ -523,7 +523,7 @@ struct rx_cache
 {
   struct rx_hash_rules superset_hash_rules;
 
-  /* Objects are allocated by incrementing a pointer that 
+  /* Objects are allocated by incrementing a pointer that
    * scans across rx_blocklists.
    */
   struct rx_blocklist * memory;
@@ -614,7 +614,7 @@ typedef enum rx_get_burst_return
   (*rx_get_burst_fn) (struct rx_string_position * pos,
 		      void * app_closure,
 		      int stop);
-					       
+
 #else
 typedef enum rx_get_burst_return (*rx_get_burst_fn) ();
 #endif
@@ -628,7 +628,7 @@ enum rx_back_check_return
   rx_back_check_fail
 };
 
-/* Back_check should advance the position it is passed 
+/* Back_check should advance the position it is passed
  * over rparen - lparen characters and return pass iff
  * the characters starting at POS match those indexed
  * by [LPAREN..RPAREN].
@@ -645,7 +645,7 @@ typedef enum rx_back_check_return
 		       unsigned char * translate,
 		       void * app_closure,
 		       int stop);
-					       
+
 #else
 typedef enum rx_back_check_return (*rx_back_check_fn) ();
 #endif
@@ -683,7 +683,7 @@ enum rx_search_return
 
 
 /* regex.h
- * 
+ *
  * The remaining declarations replace regex.h.
  */
 
@@ -707,7 +707,7 @@ typedef enum
   REG_EESCAPE,		/* Trailing backslash.  */
   REG_ESUBREG,		/* Invalid back reference.  */
   REG_EBRACK,		/* Unmatched left bracket.  */
-  REG_EPAREN,		/* Parenthesis imbalance.  */ 
+  REG_EPAREN,		/* Parenthesis imbalance.  */
   REG_EBRACE,		/* Unmatched \{.  */
   REG_BADBR,		/* Invalid contents of \{\}.  */
   REG_ERANGE,		/* Invalid range end.  */
@@ -741,8 +741,8 @@ enum re_side_effects
 };
 
 /* These hold paramaters for the kinds of side effects that are possible
- * in the supported pattern languages.  These include things like the 
- * numeric bounds of {} operators and the index of paren registers for 
+ * in the supported pattern languages.  These include things like the
+ * numeric bounds of {} operators and the index of paren registers for
  * subexpression measurement or backreferencing.
  */
 struct re_se_params
@@ -761,10 +761,10 @@ struct re_pattern_buffer
 
   unsigned int no_sub:1;	/* If set, don't  return register offsets. */
   unsigned int not_bol:1;	/* If set, the anchors ('^' and '$') don't */
-  unsigned int not_eol:1;	/*     match at the ends of the string.  */  
+  unsigned int not_eol:1;	/*     match at the ends of the string.  */
   unsigned int newline_anchor:1;/* If true, an anchor at a newline matches.*/
   unsigned int least_subs:1;	/* If set, and returning registers, return
-				 * as few values as possible.  Only 
+				 * as few values as possible.  Only
 				 * backreferenced groups and group 0 (the whole
 				 * match) will be returned.
 				 */
@@ -780,18 +780,18 @@ struct re_pattern_buffer
   unsigned int is_anchored:1;	/* Anchorded by ^? */
   unsigned int begbuf_only:1;	/* Anchored to char position 0? */
 
-  
+
   /* If REGS_UNALLOCATED, allocate space in the `regs' structure
    * for `max (RE_NREGS, re_nsub + 1)' groups.
    * If REGS_REALLOCATE, reallocate space if necessary.
-   * If REGS_FIXED, use what's there.  
+   * If REGS_FIXED, use what's there.
    */
 #define REGS_UNALLOCATED 0
 #define REGS_REALLOCATE 1
 #define REGS_FIXED 2
   unsigned int regs_allocated:2;
 
-  
+
   /* Either a translate table to apply to all characters before
    * comparing them, or zero for no translation.  The translation
    * is applied to a pattern when it is compiled and to a string
@@ -799,11 +799,11 @@ struct re_pattern_buffer
    */
   unsigned char * translate;
 
-  /* If this is a valid pointer, it tells rx not to store the extents of 
+  /* If this is a valid pointer, it tells rx not to store the extents of
    * certain subexpressions (those corresponding to non-zero entries).
    * Passing 0x1 is the same as passing an array of all ones.  Passing 0x0
    * is the same as passing an array of all zeros.
-   * The array should contain as many entries as their are subexps in the 
+   * The array should contain as many entries as their are subexps in the
    * regexp.
    */
   char * syntax_parens;
@@ -820,7 +820,7 @@ struct re_pattern_buffer
   char *fastmap;
 
   unsigned int fastmap_accurate:1; /* These three are internal. */
-  unsigned int can_match_empty:1;  
+  unsigned int can_match_empty:1;
   struct rx_nfa_state * start;	/* The nfa starting state. */
 
   /* This is the list of iterator bounds for {lo,hi} constructs.
@@ -871,7 +871,7 @@ typedef struct
 #define RE_BACKSLASH_ESCAPE_IN_LISTS (1)
 
 /* If this bit is not set, then + and ? are operators, and \+ and \? are
-     literals. 
+     literals.
    If set, then \+ and \? are operators and + and ? are literals.  */
 #define RE_BK_PLUS_QM (RE_BACKSLASH_ESCAPE_IN_LISTS << 1)
 
@@ -887,7 +887,7 @@ typedef struct
         ^  is an anchor if it is at the beginning of a regular
            expression or after an open-group or an alternation operator;
         $  is an anchor if it is at the end of a regular expression, or
-           before a close-group or an alternation operator.  
+           before a close-group or an alternation operator.
 
    This bit could be (re)combined with RE_CONTEXT_INDEP_OPS, because
    POSIX draft 11.2 says that * etc. in leading positions is undefined.
@@ -898,7 +898,7 @@ typedef struct
 /* If this bit is set, then special characters are always special
      regardless of where they are in the pattern.
    If this bit is not set, then special characters are special only in
-     some contexts; otherwise they are ordinary.  Specifically, 
+     some contexts; otherwise they are ordinary.  Specifically,
      * + ? and intervals are only special when not after the beginning,
      open-group, or alternation operator.  */
 #define RE_CONTEXT_INDEP_OPS (RE_CONTEXT_INDEP_ANCHORS << 1)
@@ -920,7 +920,7 @@ typedef struct
 #define RE_HAT_LISTS_NOT_NEWLINE (RE_DOT_NOT_NULL << 1)
 
 /* If this bit is set, either \{...\} or {...} defines an
-     interval, depending on RE_NO_BK_BRACES. 
+     interval, depending on RE_NO_BK_BRACES.
    If not set, \{, \}, {, and } are literals.  */
 #define RE_INTERVALS (RE_HAT_LISTS_NOT_NEWLINE << 1)
 
@@ -945,7 +945,7 @@ typedef struct
    If not set, then \<digit> is a back-reference.  */
 #define RE_NO_BK_REFS (RE_NO_BK_PARENS << 1)
 
-/* If this bit is set, then | is an alternation operator, and \| is literal. 
+/* If this bit is set, then | is an alternation operator, and \| is literal.
    If not set, then \| is an alternation operator, and | is literal.  */
 #define RE_NO_BK_VBAR (RE_NO_BK_REFS << 1)
 
@@ -967,7 +967,7 @@ extern reg_syntax_t re_syntax_options;
 
 /* Define combinations of the above bits for the standard possibilities.
    (The [[[ comments delimit what gets put into the Texinfo file, so
-   don't delete them!)  */ 
+   don't delete them!)  */
 /* [[[begin syntaxes]]] */
 #define RE_SYNTAX_EMACS 0
 
@@ -1031,7 +1031,7 @@ extern reg_syntax_t re_syntax_options;
 #ifdef RE_DUP_MAX
 #undef RE_DUP_MAX
 #endif
-#define RE_DUP_MAX ((1 << 15) - 1) 
+#define RE_DUP_MAX ((1 << 15) - 1)
 
 
 #if !defined(BSD) || (BSD < 199306)
@@ -1044,7 +1044,7 @@ extern reg_syntax_t re_syntax_options;
 /* If this bit is set, then ignore case when matching.
    If not set, then case is significant.  */
 #define REG_ICASE (REG_EXTENDED << 1)
- 
+
 /* If this bit is set, then anchors do not match at newline
      characters in the string.
    If not set, then anchors do match at newlines.  */
@@ -1070,7 +1070,7 @@ extern reg_syntax_t re_syntax_options;
 
 /* If `regs_allocated' is REGS_UNALLOCATED in the pattern buffer,
  * `re_match_2' returns information about at least this many registers
- * the first time a `regs' structure is passed. 
+ * the first time a `regs' structure is passed.
  *
  * Also, this is the greatest number of backreferenced subexpressions
  * allowed in a pattern being matched without caller-supplied registers.
@@ -1087,7 +1087,7 @@ extern char rx_version_string[];
 #ifdef RX_WANT_RX_DEFS
 
 /* This is decls to the interesting subsystems and lower layers
- * of rx.  Everything which doesn't have a public counterpart in 
+ * of rx.  Everything which doesn't have a public counterpart in
  * regex.c is declared here.
  */
 
@@ -1318,7 +1318,7 @@ struct rx_backtrack_frame
 {
   char * counter_stack_sp;
 
-  /* A frame is used to save the matchers state when it crosses a 
+  /* A frame is used to save the matchers state when it crosses a
    * backtracking point.  The `stk_' fields correspond to variables
    * in re_search_2 (just strip off thes `stk_').  They are documented
    * tere.
@@ -1331,7 +1331,7 @@ struct rx_backtrack_frame
   int stk_test_ret;
 
   /* This is the list of options left to explore at the backtrack
-   * point for which this frame was created. 
+   * point for which this frame was created.
    */
   struct rx_distinct_future * df;
   struct rx_distinct_future * first_df;
@@ -1407,15 +1407,15 @@ struct rx_search_state
   int      * best_lpspace;      /* in case the user doesn't want these */
   int      * best_rpspace;      /* values, we still need space to store
 				 * them.  Normally, this memoryis unused
-				 * and the space pointed to by REGS is 
+				 * and the space pointed to by REGS is
 				 * used instead.
 				 */
-  
+
   int last_l;			/* Highest index of a valid lparen. */
   int last_r;			/* It's dual. */
-  
+
   int * best_lparen;		/* This contains the best known register */
-  int * best_rparen;		/* assignments. 
+  int * best_rparen;		/* assignments.
 				 * This may point to the same mem as
 				 * best_lpspace, or it might point to memory
 				 * passed by the caller.
@@ -1424,7 +1424,7 @@ struct rx_search_state
   int best_last_r;
 
 
-  unsigned char * translate;  
+  unsigned char * translate;
 
   struct rx_string_position outer_pos;
 
@@ -1443,7 +1443,7 @@ struct rx_search_state
   rx_get_burst_fn saved_get_burst;
   rx_back_check_fn saved_back_check;
   struct re_registers * saved_regs;
-  
+
   /**
    ** state for fastmap
    **/
@@ -1455,23 +1455,23 @@ struct rx_search_state
   enum rx_fastmap_entry fastmap_resume_pt;
 
   /**
-   ** state for test_match 
+   ** state for test_match
    **/
 
   /* The current superNFA position of the matcher. */
   struct rx_superstate * super;
-  
+
   /* The matcher interprets a series of instruction frames.
    * This is the `instruction counter' for the interpretation.
    */
   struct rx_inx * ifr;
-  
+
   /* We insert a ghost character in the string to prime
    * the nfa.  test_pos.pos, test_pos.str_half, and test_pos.end_half
    * keep track of the test-match position and string-half.
    */
   unsigned char c;
-  
+
   /* Position within the string. */
   struct rx_string_position test_pos;
 
@@ -1481,7 +1481,7 @@ struct rx_search_state
   int chunk_bytes;
   struct rx_stack_chunk * free_chunks;
 
-  /* To return from this function, set test_ret and 
+  /* To return from this function, set test_ret and
    * `goto test_do_return'.
    *
    * Possible return values are:
@@ -1501,14 +1501,14 @@ struct rx_search_state
   int test_ret;
 
   int could_have_continued;
-  
+
 #ifdef RX_DEBUG
   int backtrack_depth;
   /* There is a search tree with every node as set of deterministic
-   * transitions in the super nfa.  For every branch of a 
+   * transitions in the super nfa.  For every branch of a
    * backtrack point is an edge in the tree.
    * This counts up a pre-order of nodes in that tree.
-   * It's saved on the search stack and printed when debugging. 
+   * It's saved on the search stack and printed when debugging.
    */
   int line_no;
   int lines_found;
@@ -1521,7 +1521,7 @@ struct rx_search_state
   struct rx_inx * saved_this_tr_table;
   int saved_reg;
   struct rx_backtrack_frame * saved_bf;
-  
+
 };
 
 
@@ -1536,7 +1536,7 @@ init_fastmap (rxb, search_state)
   search_state->fastmap = (rxb->fastmap
 			   ? (char *)rxb->fastmap
 			   : (char *)rx_slowmap);
-  /* Update the fastmap now if not correct already. 
+  /* Update the fastmap now if not correct already.
    * When the regexp was compiled, the fastmap was computed
    * and stored in a bitset.  This expands the bitset into a
    * character array containing 1s and 0s.
@@ -1586,7 +1586,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
        * This sentinal will trap the fastmap loop when it reaches the last
        * valid character in a string half.
        *
-       * This must be reset when the fastmap/search loop crosses a string 
+       * This must be reset when the fastmap/search loop crosses a string
        * boundry, and before returning to the caller.  So sometimes,
        * the fastmap loop is restarted with `continue', othertimes by
        * `goto init_fastmap_sentinal'.
@@ -1605,7 +1605,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 	  search_state->fastmap_chr = -1;
 	  search_state->fastmap_val = 0;
 	}
-      
+
       if (search_state->outer_pos.pos >= search_state->outer_pos.end)
 	goto fastmap_hit_bound;
       else
@@ -1629,7 +1629,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 			++search_state->outer_pos.pos;
 		      if (*search_state->outer_pos.pos != search_state->fastmap_chr)
 			return rx_fastmap_ok;
-		      else 
+		      else
 			{
 			  ++search_state->outer_pos.pos;
 			  if (search_state->outer_pos.pos == search_state->outer_pos.end)
@@ -1659,7 +1659,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 			--search_state->outer_pos.pos;
 		      if ((*search_state->outer_pos.pos != search_state->fastmap_chr) || search_state->fastmap_val)
 			return rx_fastmap_ok;
-		      else 
+		      else
 			{
 			  --search_state->outer_pos.pos;
 			  if (search_state->outer_pos.pos == bound)
@@ -1669,12 +1669,12 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 		}
 	    }
 	}
-      
+
     case rx_fastmap_string_break:
     fastmap_hit_bound:
       {
 	/* If we hit a bound, it may be time to fetch another burst
-	 * of string, or it may be time to return a continuation to 
+	 * of string, or it may be time to return a continuation to
  	 * the caller, or it might be time to fail.
 	 */
 
@@ -1692,7 +1692,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 	  case rx_get_burst_ok:
 	    goto init_fastmap_sentinal;
 	  case rx_get_burst_no_more:
-	    /* ...not a string split, simply no more string. 
+	    /* ...not a string split, simply no more string.
 	     *
 	     * When searching backward, running out of string
 	     * is reason to quit.
@@ -1714,7 +1714,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 
 #ifdef emacs
 /* The `emacs' switch turns on certain matching commands
- * that make sense only in Emacs. 
+ * that make sense only in Emacs.
  */
 #include "config.h"
 #include "lisp.h"
@@ -1731,7 +1731,7 @@ fastmap_search (rxb, stop, get_burst, app_closure, search_state)
 #else /* not RX_RX_MEMDBUG */
 
 /* We used to test for `BSTRING' here, but only GCC and Emacs define
- * `BSTRING', as far as I know, and neither of them use this code.  
+ * `BSTRING', as far as I know, and neither of them use this code.
  */
 #if HAVE_STRING_H || STDC_HEADERS
 #include <string.h>
@@ -1767,7 +1767,7 @@ char *realloc ();
  * This must be nonzero for the wordchar and notwordchar pattern
  * commands in re_match_2.
  */
-#ifndef Sword 
+#ifndef Sword
 #define Sword 1
 #endif
 
@@ -1780,7 +1780,7 @@ RX_DECL char re_syntax_table[CHAR_SET_SIZE];
 
 
 /* Test if at very beginning or at very end of the virtual concatenation
- *  of `string1' and `string2'.  If only one string, it's `string2'.  
+ *  of `string1' and `string2'.  If only one string, it's `string2'.
  */
 
 #define AT_STRINGS_BEG() \
@@ -1799,14 +1799,14 @@ RX_DECL char re_syntax_table[CHAR_SET_SIZE];
  * the first character in string2; and if before the beginning of
  * string2, look at the last character in string1.
  *
- * Assumes `string1' exists, so use in conjunction with AT_STRINGS_BEG ().  
+ * Assumes `string1' exists, so use in conjunction with AT_STRINGS_BEG ().
  */
 #define LETTER_P(POS,OFF)						\
   (   SYNTAX (fetch_char(POS, OFF, app_closure, stop))			\
    == Sword)
 
 /* Test if the character at D and the one after D differ with respect
- * to being word-constituent.  
+ * to being word-constituent.
  */
 #define AT_WORD_BOUNDARY(d)						\
   (AT_STRINGS_BEG () || AT_STRINGS_END () || LETTER_P (d,0) != LETTER_P (d, 1))
@@ -1948,17 +1948,17 @@ rx_search  (rxb, startpos, range, stop, total_size,
        = search_state.best_lpspace
        = search_state.best_rpspace
        = 0);
-      
+
       /* figure the number of registers we may need for use in backreferences.
-       * the number here includes an element for register zero.  
+       * the number here includes an element for register zero.
        */
       search_state.num_regs = rxb->re_nsub + 1;
-      
-      
+
+
       /* check for out-of-range startpos.  */
       if ((startpos < 0) || (startpos > total_size))
 	return rx_search_fail;
-      
+
       /* fix up range if it might eventually take us outside the string. */
       {
 	int endpos;
@@ -1968,7 +1968,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	else if (endpos > total_size)
 	  range = total_size - startpos;
       }
-      
+
       /* if the search isn't to be a backwards one, don't waste time in a
        * long search for a pattern that says it is anchored.
        */
@@ -1979,7 +1979,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  else
 	    range = 1;
 	}
-      
+
       /* decide whether to use internal or user-provided reg buffers. */
       if (!regs || rxb->no_sub)
 	{
@@ -1991,7 +1991,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  search_state.best_rparen = search_state.best_rpspace;
 	}
       else
-	{	
+	{
 	  /* have the register data arrays been allocated?  */
 	  if (rxb->regs_allocated == REGS_UNALLOCATED)
 	    { /* no.  so allocate them with malloc.  we need one
@@ -2025,7 +2025,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	    }
 	  else if (rxb->regs_allocated != REGS_FIXED)
 	    return rx_search_error;
-	  
+
 	  if (regs->num_regs < search_state.num_regs + 1)
 	    {
 	      search_state.best_lpspace =
@@ -2043,38 +2043,38 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      search_state.best_rparen = regs->end;
 	    }
 	}
-      
+
       search_state.lparen =
 	(int      *) REGEX_ALLOCATE (search_state.num_regs * sizeof(int     ));
       search_state.rparen =
 	(int      *) REGEX_ALLOCATE (search_state.num_regs * sizeof(int     ));
-      
+
       if (! (   search_state.best_rparen
 	     && search_state.best_lparen
 	     && search_state.lparen && search_state.rparen))
 	return rx_search_error;
-      
+
       search_state.best_last_l = search_state.best_last_r = -1;
-      
+
       search_state.translate = (rxb->translate
 				? rxb->translate
 				: rx_id_translation);
-      
-      
-      
+
+
+
       /*
-       * two nfa's were compiled.  
+       * two nfa's were compiled.
        * `0' is complete.
        * `1' faster but gets registers wrong and ends too soon.
        */
       search_state.nfa_choice = (regs && !rxb->least_subs) ? '\0' : '\1';
-      
+
       /* we have the option to look for the best match or the first
        * one we can find.  if the user isn't asking for register information,
        * we don't need to find the best match.
        */
       search_state.first_found = !regs;
-      
+
       if (range >= 0)
 	{
 	  search_state.outer_pos.search_end = MIN (total_size, startpos + range) + 1;
@@ -2085,20 +2085,20 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  search_state.outer_pos.search_end = MAX(-1, startpos + range);
 	  search_state.outer_pos.search_direction = -1;
 	}
-      
+
       /* the vacuous search always turns up nothing. */
       if ((search_state.outer_pos.search_direction == 1)
 	  ? (startpos > search_state.outer_pos.search_end)
 	  : (startpos < search_state.outer_pos.search_end))
 	return rx_search_fail;
-      
+
       /* now we build the starting state of the supernfa. */
       {
 	struct rx_superset * start_contents;
 	struct rx_nfa_state_set * start_nfa_set;
-	
+
 	/* we presume here that the nfa start state has only one
-	 * possible future with no side effects.  
+	 * possible future with no side effects.
 	 */
 	start_nfa_set = rxb->start->futures->destset;
 	if (   rxb->rx.start_set
@@ -2110,10 +2110,10 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      rx_superstate_eclosure_union (&rxb->rx,
 					    rx_superset_cons (&rxb->rx, 0, 0),
 					    start_nfa_set);
-	    
+
 	    if (!start_contents)
 	      return rx_search_fail;
-	    
+
 	    start_contents->starts_for = &rxb->rx;
 	    rxb->rx.start_set = start_contents;
 	  }
@@ -2126,7 +2126,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	else
 	  {
 	    rx_protect_superset (&rxb->rx, start_contents);
-	    
+
 	    search_state.start_super = rx_superstate (&rxb->rx, start_contents);
 	    if (!search_state.start_super)
 	      return rx_search_fail;
@@ -2134,9 +2134,9 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	    rx_release_superset (&rxb->rx, start_contents);
 	  }
       }
-      
-      
-	
+
+
+
       (  search_state.outer_pos.string
        = search_state.outer_pos.end
        = 0);
@@ -2166,8 +2166,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      break;
 	    }
 	}
-	
-	/* now the fastmap loop has brought us to a plausible 
+
+	/* now the fastmap loop has brought us to a plausible
 	 * starting point for a match.  so, it's time to run the
 	 * nfa and see if a match occured.
 	 */
@@ -2225,12 +2225,12 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  : (startpos > search_state.outer_pos.search_end))
 	goto pseudo_do;
 
-	
+
     finish:
       uninit_fastmap (rxb, &search_state);
       if (search_state.start_super)
 	rx_unlock_superstate (&rxb->rx, search_state.start_super);
-      
+
 #ifdef regex_malloc
       if (search_state.lparen) free (search_state.lparen);
       if (search_state.rparen) free (search_state.rparen);
@@ -2255,7 +2255,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	search_state.lparen[0] = startpos;
 	search_state.super = search_state.start_super;
 	search_state.c = search_state.nfa_choice;
-	search_state.test_pos.pos = search_state.outer_pos.pos - 1;    
+	search_state.test_pos.pos = search_state.outer_pos.pos - 1;
 	search_state.test_pos.string = search_state.outer_pos.string;
 	search_state.test_pos.end = search_state.outer_pos.end;
 	search_state.test_pos.offset = search_state.outer_pos.offset;
@@ -2272,8 +2272,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	search_state.free_chunks = 0;
 	search_state.test_ret = rx_test_line_finished;
 	search_state.could_have_continued = 0;
-      }  
-    /* This is while (1)...except that the body of the loop is interrupted 
+      }
+    /* This is while (1)...except that the body of the loop is interrupted
      * by some alternative entry points.
      */
   pseudo_while_1:
@@ -2288,42 +2288,42 @@ rx_search  (rxb, startpos, range, stop, total_size,
       case rx_test_start:
 #ifdef RX_DEBUG
 	/* There is a search tree with every node as set of deterministic
-	 * transitions in the super nfa.  For every branch of a 
+	 * transitions in the super nfa.  For every branch of a
 	 * backtrack point is an edge in the tree.
 	 * This counts up a pre-order of nodes in that tree.
-	 * It's saved on the search stack and printed when debugging. 
+	 * It's saved on the search stack and printed when debugging.
 	 */
 	search_state.line_no = 0;
 	search_state.lines_found = 0;
 #endif
-	
+
       top_of_cycle:
-	/* A superstate is basicly a transition table, indexed by 
-	 * characters from the string being tested, and containing 
+	/* A superstate is basicly a transition table, indexed by
+	 * characters from the string being tested, and containing
 	 * RX_INX (`instruction frame') structures.
 	 */
 	search_state.ifr = &search_state.super->transitions [search_state.c];
-	
+
       recurse_test_match:
 	/* This is the point to which control is sent when the
 	 * test matcher `recurses'.  Before jumping here, some variables
 	 * need to be saved on the stack and the next instruction frame
 	 * has to be computed.
 	 */
-	
+
       restart:
 	/* Some instructions don't advance the matcher, but just
 	 * carry out some side effects and fetch a new instruction.
 	 * To dispatch that new instruction, `goto restart'.
 	 */
-	
+
 	{
 	  struct rx_inx * next_tr_table;
 	  struct rx_inx * this_tr_table;
-	  /* The fastest route through the loop is when the instruction 
+	  /* The fastest route through the loop is when the instruction
 	   * is RX_NEXT_CHAR.  This case is detected when SEARCH_STATE.IFR->DATA
 	   * is non-zero.  In that case, it points to the next
-	   * superstate. 
+	   * superstate.
 	   *
 	   * This allows us to not bother fetching the bytecode.
 	   */
@@ -2335,19 +2335,19 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      if (rx_debug_trace)
 		{
 		  struct rx_superset * setp;
-		  
+
 		  fprintf (stderr, "%d %d>> re_next_char @ %d (%d)",
 			   search_state.line_no,
 			   search_state.backtrack_depth,
 			   (search_state.test_pos.pos - search_state.test_pos.string
 			    + search_state.test_pos.offset), search_state.c);
-		  
+
 		  search_state.super =
 		    ((struct rx_superstate *)
 		     ((char *)this_tr_table
 		      - ((unsigned long)
 			 ((struct rx_superstate *)0)->transitions)));
-		  
+
 		  setp = search_state.super->contents;
 		  fprintf (stderr, "   superstet (rx=%d, &=%x: ",
 			   rxb->rx.rx_id, setp);
@@ -2374,22 +2374,22 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		      search_state.saved_next_tr_table = next_tr_table;
 		      test_pc = rx_test_cache_hit_loop;
 		      goto test_return_continuation;
-		      
+
 		    resume_continuation_1:
 		      /* Continuation one jumps here to do its work: */
 		      search_state.saved_this_tr_table = this_tr_table;
 		      search_state.saved_next_tr_table = next_tr_table;
 		      goto try_burst_1;
-		      
+
 		    case rx_get_burst_ok:
 		      /* get_burst succeeded...keep going */
 		      break;
-		      
+
 		    case rx_get_burst_no_more:
 		      search_state.test_ret = rx_test_line_finished;
 		      search_state.could_have_continued = 1;
 		      goto test_do_return;
-		      
+
 		    case rx_get_burst_error:
 		      /* An error... */
 		      search_state.test_ret = rx_test_internal_error;
@@ -2400,8 +2400,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      search_state.ifr = this_tr_table + search_state.c;
 	      next_tr_table = (struct rx_inx *)search_state.ifr->data;
 	    } /* Fast loop through cached transition tables */
-	  
-	  /* Here when we ran out of cached next-char transitions. 
+
+	  /* Here when we ran out of cached next-char transitions.
 	   * So, it will be necessary to do a more expensive
 	   * dispatch on the current instruction.  The superstate
 	   * pointer is allowed to become invalid during next-char
@@ -2413,7 +2413,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      - ((unsigned long)
 		 ((struct rx_superstate *)0)->transitions)));
 	}
-	
+
 	/* We've encountered an instruction other than next-char.
 	 * Dispatch that instruction:
 	 */
@@ -2422,13 +2422,13 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	if (rx_debug_trace)
 	  {
 	    struct rx_superset * setp = search_state.super->contents;
-	    
+
 	    fprintf (stderr, "%d %d>> %s @ %d (%d)", search_state.line_no,
 		     search_state.backtrack_depth,
 		     inx_names[inx],
 		     (search_state.test_pos.pos - search_state.test_pos.string
 		      + (test_pos.half == 0 ? 0 : size1)), search_state.c);
-	    
+
 	    fprintf (stderr, "   superstet (rx=%d, &=%x: ",
 		     rxb->rx.rx_id, setp);
 	    while (setp)
@@ -2442,8 +2442,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	switch ((enum rx_opcode)inx)
 	  {
 	  case rx_do_side_effects:
-	    
-	    /*  RX_DO_SIDE_EFFECTS occurs when we cross epsilon 
+
+	    /*  RX_DO_SIDE_EFFECTS occurs when we cross epsilon
 	     *  edges associated with parentheses, backreferencing, etc.
 	     */
 	    {
@@ -2463,7 +2463,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		      if (rx_debug_trace)
 			{
 			  struct rx_superset * setp = search_state.super->contents;
-			  
+
 			  fprintf (stderr, "....%d %d>> %s\n", search_state.line_no,
 				   search_state.backtrack_depth,
 				   efnames[-effect]);
@@ -2590,7 +2590,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			      else
 				goto test_do_return;
 			    }
-			  
+
 			case re_se_try:
 			  /* This is the first side effect in every
 			   * expression.
@@ -2598,7 +2598,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			   *  FOR NO GOOD REASON...get rid of it...
 			   */
 			  break;
-			  
+
 			case re_se_pushpos:
 			  {
 			    int urhere =
@@ -2621,7 +2621,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			    cf->cdr = old_cf;
 			    break;
 			  }
-			  
+
 			case re_se_chkpos:
 			  {
 			    int urhere =
@@ -2637,13 +2637,13 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			    break;
 			  }
 			  break;
-			  
+
 			case re_se_poppos:
 			  POP(search_state.counter_stack,
 			      sizeof (struct rx_counter_frame));
 			  break;
-			  
-			  
+
+
 			case re_se_at_dot:
 			case re_se_syntax:
 			case re_se_not_syntax:
@@ -2677,10 +2677,10 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		      switch (rxb->se_params [effect].se)
 			{
 			case re_se_win:
-			  /* This side effect indicates that we've 
-			   * found a match, though not necessarily the 
-			   * best match.  This is a fancy assignment to 
-			   * register 0 unless the caller didn't 
+			  /* This side effect indicates that we've
+			   * found a match, though not necessarily the
+			   * best match.  This is a fancy assignment to
+			   * register 0 unless the caller didn't
 			   * care about registers.  In which case,
 			   * this stops the match.
 			   */
@@ -2689,7 +2689,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			      ((int)(search_state.test_pos.pos
 				     - search_state.test_pos.string)
 			       + search_state.test_pos.offset);
-			    
+
 			    if (   (search_state.best_last_r < 0)
 				|| (urhere + 1 > search_state.best_rparen[0]))
 			      {
@@ -2705,7 +2705,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 				search_state.best_rparen[0] = urhere + 1;
 				search_state.best_last_r = search_state.last_r;
 			      }
-			    /* If we're not reporting the match-length 
+			    /* If we're not reporting the match-length
 			     * or other register info, we need look no
 			     * further.
 			     */
@@ -2722,7 +2722,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			      ((int)(search_state.test_pos.pos
 				     - search_state.test_pos.string)
 			       + search_state.test_pos.offset);
-			    
+
 			    int reg = rxb->se_params [effect].op1;
 #if 0
 			    if (reg > search_state.last_l)
@@ -2742,7 +2742,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			      }
 			    break;
 			  }
-			  
+
 			case re_se_rparen:
 			  {
 			    int urhere =
@@ -2759,14 +2759,14 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			      }
 			    break;
 			  }
-			  
+
 			case re_se_backref:
 			  {
 			    int reg = rxb->se_params [effect].op1;
 			    if (   reg > search_state.last_r
 				|| search_state.rparen[reg] < 0)
 			      goto test_do_return;
-			    
+
 			    {
 			      int backref_status;
 			    check_backreference:
@@ -2873,7 +2873,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      search_state.ifr = &df->future_frame;
 	      goto restart;
 	    }
-	    
+
 	  case rx_backtrack_point:
 	    {
 	      /* A backtrack point indicates that we've reached a
@@ -2883,18 +2883,18 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	       * A backtracking strategy is used.  We keep track of what
 	       * registers are valid so we can erase side effects.
 	       *
-	       * First, make sure there is some stack space to hold 
+	       * First, make sure there is some stack space to hold
 	       * our state.
 	       */
-	      
+
 	      struct rx_backtrack_frame * bf;
-	      
+
 	      PUSH(search_state.backtrack_stack,
 		   search_state.backtrack_frame_bytes);
 #ifdef RX_DEBUG
 	      ++search_state.backtrack_depth;
 #endif
-	      
+
 	      bf = ((struct rx_backtrack_frame *)
 		    search_state.backtrack_stack->sp);
 	      {
@@ -2929,30 +2929,30 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		      stk[x] = search_state.rparen[x];
 		  }
 	      }
-	      
+
 	      /* Here is a while loop whose body is mainly a function
 	       * call and some code to handle a return from that
 	       * function.
 	       *
 	       * From here on for the rest of `case backtrack_point' it
-	       * is unsafe to assume that the search_state copies of 
+	       * is unsafe to assume that the search_state copies of
 	       * variables saved on the backtracking stack are valid
 	       * -- so read their values from the backtracking stack.
 	       *
 	       * This lets us use one generation fewer stack saves in
 	       * the call-graph of a search.
 	       */
-	      
+
 	    while_non_det_options:
 #ifdef RX_DEBUG
 	      ++search_state.lines_found;
 	      if (rx_debug_trace)
 		fprintf (stderr, "@@@ %d calls %d @@@\n",
 			 search_state.line_no, search_state.lines_found);
-	      
+
 	      search_state.line_no = search_state.lines_found;
 #endif
-	      
+
 	      if (bf->df->next_same_super_edge[0] == bf->first_df)
 		{
 		  /* This is a tail-call optimization -- we don't recurse
@@ -2961,7 +2961,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		  search_state.ifr = (bf->df->effects
 				      ? &bf->df->side_effects_frame
 				      : &bf->df->future_frame);
-		  
+
 		  rx_unlock_superstate (&rxb->rx, search_state.super);
 		  POP(search_state.backtrack_stack,
 		      search_state.backtrack_frame_bytes);
@@ -2983,14 +2983,14 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		      cf->val = old_cf->val;
 		      cf->inherited_from = old_cf;
 		      cf->cdr = 0;
-		    }			
+		    }
 		  /* `Call' this test-match block */
 		  search_state.ifr = (bf->df->effects
 				      ? &bf->df->side_effects_frame
 				      : &bf->df->future_frame);
 		  goto recurse_test_match;
 		}
-	      
+
 	      /* Returns in this block are accomplished by
 	       * goto test_do_return.  There are two cases.
 	       * If there is some search-stack left,
@@ -2998,9 +2998,9 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	       * If there is no search-stack left, then
 	       * we should return to the fastmap/search loop.
 	       */
-	      
+
 	    test_do_return:
-	      
+
 	      if (!search_state.backtrack_stack)
 		{
 #ifdef RX_DEBUG
@@ -3008,18 +3008,18 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		    fprintf (stderr, "!!! %d bails returning %d !!!\n",
 			     search_state.line_no, search_state.test_ret);
 #endif
-		  
+
 		  /* No more search-stack -- this test is done. */
 		  if (search_state.test_ret)
 		    goto return_from_test_match;
 		  else
 		    goto error_in_testing_match;
 		}
-	      
-	      /* Returning from a recursive call to 
+
+	      /* Returning from a recursive call to
 	       * the test match block:
 	       */
-	      
+
 	      bf = ((struct rx_backtrack_frame *)
 		    search_state.backtrack_stack->sp);
 #ifdef RX_DEBUG
@@ -3029,7 +3029,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 			 search_state.test_ret,
 			 bf->stk_search_state.line_no);
 #endif
-	      
+
 	      while (search_state.counter_stack
 		     && (!bf->counter_stack_sp
 			 || (bf->counter_stack_sp
@@ -3038,15 +3038,15 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		  POP(search_state.counter_stack,
 		      sizeof (struct rx_counter_frame));
 		}
-	      
+
 	      if (search_state.test_ret == rx_test_error)
 		{
 		  POP (search_state.backtrack_stack,
 		       search_state.backtrack_frame_bytes);
 		  goto test_do_return;
 		}
-	      
-	      /* If a non-longest match was found and that is good 
+
+	      /* If a non-longest match was found and that is good
 	       * enough, return immediately.
 	       */
 	      if (   (search_state.test_ret == rx_test_found_first)
@@ -3057,7 +3057,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		       search_state.backtrack_frame_bytes);
 		  goto test_do_return;
 		}
-	      
+
 	      search_state.test_ret = bf->stk_test_ret;
 	      search_state.last_l = bf->stk_last_l;
 	      search_state.last_r = bf->stk_last_r;
@@ -3067,7 +3067,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 #ifdef RX_DEBUG
 	      search_state.line_no = bf->stk_search_state.line_no;
 #endif
-	      
+
 	      if (rxb->match_regs_on_stack)
 		{
 		  int x;
@@ -3079,7 +3079,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		  for (x = 0; x <= search_state.last_r; ++x)
 		    search_state.rparen[x] = stk[x];
 		}
-	      
+
 	      {
 		int x;
 	      try_burst_2:
@@ -3107,8 +3107,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      search_state.test_pos = bf->stk_test_pos;
 	      goto while_non_det_options;
 	    }
-	    
-	    
+
+
 	  case rx_cache_miss:
 	    /* Because the superstate NFA is lazily constructed,
 	     * and in fact may erode from underneath us, we sometimes
@@ -3125,14 +3125,14 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		goto test_do_return;
 	      }
 	    goto restart;
-	    
+
 	  case rx_backtrack:
 	    /* RX_BACKTRACK means that we've reached the empty
 	     * superstate, indicating that match can't succeed
 	     * from this point.
 	     */
 	    goto test_do_return;
-	    
+
 	  case rx_next_char:
 	  case rx_error_inx:
 	  case rx_num_instructions:
@@ -3141,21 +3141,21 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  }
 	goto pseudo_while_1;
       }
-    
-    /* Healthy exits from the test-match loop do a 
-     * `goto return_from_test_match'   On the other hand, 
+
+    /* Healthy exits from the test-match loop do a
+     * `goto return_from_test_match'   On the other hand,
      * we might end up here.
      */
   error_in_testing_match:
     test_state = rx_test_error;
     goto test_returns_to_search;
-    
+
     /***** fastmap/search loop body
      *	      considering the results testing for a match
      */
-    
+
   return_from_test_match:
-    
+
     if (search_state.best_last_l >= 0)
       {
 	if (regs && (regs->start != search_state.best_lparen))
@@ -3185,7 +3185,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	test_state = rx_test_fail;
 	goto test_returns_to_search;
       }
-    
+
   test_return_continuation:
     search_state.test_match_resume_pt = test_pc;
     test_state = rx_test_continuation;
@@ -3203,16 +3203,16 @@ rx_search  (rxb, startpos, range, stop, total_size,
   /* Integers are used to represent side effects.
    *
    * Simple side effects are given negative integer names by these enums.
-   * 
+   *
    * Non-negative names are reserved for complex effects.
    *
-   * Complex effects are those that take arguments.  For example, 
+   * Complex effects are those that take arguments.  For example,
    * a register assignment associated with a group is complex because
    * it requires an argument to tell which group is being matched.
-   * 
+   *
    * The integer name of a complex effect is an index into rxb->se_params.
    */
- 
+
   RX_DEF_SE(1, re_se_try, = -1)		/* Epsilon from start state */
 
   RX_DEF_SE(0, re_se_pushback, = re_se_try - 1)
@@ -3228,15 +3228,15 @@ rx_search  (rxb, startpos, range, stop, total_size,
   RX_DEF_SE(1, re_se_begbuf, = re_se_not_syntax - 1) /* match beginning of buffer */
   RX_DEF_SE(1, re_se_hat, = re_se_begbuf - 1) /* match beginning of line */
 
-  RX_DEF_SE(1, re_se_wordbeg, = re_se_hat - 1) 
+  RX_DEF_SE(1, re_se_wordbeg, = re_se_hat - 1)
   RX_DEF_SE(1, re_se_wordbound, = re_se_wordbeg - 1)
   RX_DEF_SE(1, re_se_notwordbound, = re_se_wordbound - 1)
 
   RX_DEF_SE(1, re_se_wordend, = re_se_notwordbound - 1)
   RX_DEF_SE(1, re_se_endbuf, = re_se_wordend - 1)
 
-  /* This fails except at the end of a line. 
-   * It deserves to go here since it is typicly one of the last steps 
+  /* This fails except at the end of a line.
+   * It deserves to go here since it is typicly one of the last steps
    * in a match.
    */
   RX_DEF_SE(1, re_se_dollar, = re_se_endbuf - 1)
@@ -3244,7 +3244,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
   /* Simple effects: */
   RX_DEF_SE(1, re_se_fail, = re_se_dollar - 1)
 
-  /* Complex effects.  These are used in the 'se' field of 
+  /* Complex effects.  These are used in the 'se' field of
    * a struct re_se_params.  Indexes into the se array
    * are stored as instructions on nfa edges.
    */
@@ -3252,7 +3252,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
   RX_DEF_CPLX_SE(1, re_se_lparen, = re_se_win + 1)
   RX_DEF_CPLX_SE(1, re_se_rparen, = re_se_lparen + 1)
   RX_DEF_CPLX_SE(0, re_se_backref, = re_se_rparen + 1)
-  RX_DEF_CPLX_SE(0, re_se_iter, = re_se_backref + 1) 
+  RX_DEF_CPLX_SE(0, re_se_iter, = re_se_backref + 1)
   RX_DEF_CPLX_SE(0, re_se_end_iter, = re_se_iter + 1)
   RX_DEF_CPLX_SE(0, re_se_tv, = re_se_end_iter + 1)
 

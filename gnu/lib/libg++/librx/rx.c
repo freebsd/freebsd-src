@@ -19,9 +19,9 @@ write to the Free Software Foundation, 675 Mass Ave, Cambridge, MA
 
 #define _RX_C_
 
-/* NOTE!!!  AIX is so losing it requires this to be the first thing in the 
- * file. 
- * Do not put ANYTHING before it!  
+/* NOTE!!!  AIX is so losing it requires this to be the first thing in the
+ * file.
+ * Do not put ANYTHING before it!
  */
 #if !defined (__GNUC__) && defined (_AIX)
  #pragma alloca
@@ -77,7 +77,7 @@ typedef char boolean;
 #ifndef _AIX /* Already did AIX, up at the top.  */
 char *alloca ();
 #endif /* not _AIX */
-#endif /* not HAVE_ALLOCA_H */ 
+#endif /* not HAVE_ALLOCA_H */
 #endif /* not __GNUC__ */
 
 #endif /* not alloca */
@@ -102,7 +102,7 @@ char *alloca ();
 
 #ifdef RX_WANT_RX_DEFS
 #define RX_DECL extern
-#define RX_DEF_QUAL 
+#define RX_DEF_QUAL
 #else
 #define RX_WANT_RX_DEFS
 #define RX_DECL static
@@ -333,7 +333,7 @@ static char * efnames2[] =
   "re_se_tv"
 };
 
-static char * inx_names[] = 
+static char * inx_names[] =
 {
   "rx_backtrack_point",
   "rx_do_side_effects",
@@ -617,7 +617,7 @@ rx_bitset_hash (size, b)
 }
 
 
-RX_DECL RX_subset rx_subset_singletons [RX_subset_bits] = 
+RX_DECL RX_subset rx_subset_singletons [RX_subset_bits] =
 {
   0x1,
   0x2,
@@ -689,13 +689,13 @@ static unsigned long rx_hash_masks[4] =
 
 /* Hash tables */
 #ifdef __STDC__
-RX_DECL struct rx_hash_item * 
+RX_DECL struct rx_hash_item *
 rx_hash_find (struct rx_hash * table,
 	      unsigned long hash,
 	      void * value,
 	      struct rx_hash_rules * rules)
 #else
-RX_DECL struct rx_hash_item * 
+RX_DECL struct rx_hash_item *
 rx_hash_find (table, hash, value, rules)
      struct rx_hash * table;
      unsigned long hash;
@@ -749,7 +749,7 @@ rx_hash_store (table, hash, value, rules)
   long mask = rx_hash_masks[0];
   int bucket = (hash & mask) % 13;
   int depth = 0;
-  
+
   while (table->children [bucket])
     {
       table = table->children [bucket];
@@ -758,7 +758,7 @@ rx_hash_store (table, hash, value, rules)
       bucket = (hash & mask) % 13;
       ++depth;
     }
-  
+
   {
     struct rx_hash_item * it = table->buckets[bucket];
     while (it)
@@ -767,7 +767,7 @@ rx_hash_store (table, hash, value, rules)
       else
 	it = it->next_same_hash;
   }
-  
+
   {
     if (   (depth < 3)
 	&& (table->bucket_size [bucket] >= 4))
@@ -842,7 +842,7 @@ rx_hash_free (it, rules)
 		   : 0);
       int bucket = (hash & rx_hash_masks [depth]) % 13;
       struct rx_hash_item ** pos = &table->buckets [bucket];
-      
+
       while (*pos != it)
 	pos = &(*pos)->next_same_hash;
       *pos = it->next_same_hash;
@@ -1232,7 +1232,7 @@ rx_free_rexp (rx, node)
 
 	case r_side_effect:
 	  break;
-	  
+
 	case r_concat:
 	case r_alternate:
 	case r_2phase_star:
@@ -1252,11 +1252,11 @@ rx_free_rexp (rx, node)
 
 
 #ifdef __STDC__
-RX_DECL struct rexp_node * 
+RX_DECL struct rexp_node *
 rx_copy_rexp (struct rx *rx,
 	   struct rexp_node *node)
 #else
-RX_DECL struct rexp_node * 
+RX_DECL struct rexp_node *
 rx_copy_rexp (rx, node)
      struct rx *rx;
      struct rexp_node *node;
@@ -1349,11 +1349,11 @@ rx_free_nfa_state (n)
  * assigned after the nfa has been built.
  */
 #ifdef __STDC__
-RX_DECL struct rx_nfa_state * 
+RX_DECL struct rx_nfa_state *
 rx_id_to_nfa_state (struct rx * rx,
 		    int id)
 #else
-RX_DECL struct rx_nfa_state * 
+RX_DECL struct rx_nfa_state *
 rx_id_to_nfa_state (rx, id)
      struct rx * rx;
      int id;
@@ -1367,18 +1367,18 @@ rx_id_to_nfa_state (rx, id)
 }
 
 
-/* This adds an edge between two nodes, but doesn't initialize the 
+/* This adds an edge between two nodes, but doesn't initialize the
  * edge label.
  */
 
 #ifdef __STDC__
-RX_DECL struct rx_nfa_edge * 
+RX_DECL struct rx_nfa_edge *
 rx_nfa_edge (struct rx *rx,
 	     enum rx_nfa_etype type,
 	     struct rx_nfa_state *start,
 	     struct rx_nfa_state *dest)
 #else
-RX_DECL struct rx_nfa_edge * 
+RX_DECL struct rx_nfa_edge *
 rx_nfa_edge (rx, type, start, dest)
      struct rx *rx;
      enum rx_nfa_etype type;
@@ -1413,14 +1413,14 @@ rx_free_nfa_edge (e)
 
 /* This constructs a POSSIBLE_FUTURE, which is a kind epsilon-closure
  * of an NFA.  These are added to an nfa automaticly by eclose_nfa.
- */  
+ */
 
 #ifdef __STDC__
-static struct rx_possible_future * 
+static struct rx_possible_future *
 rx_possible_future (struct rx * rx,
 		 struct rx_se_list * effects)
 #else
-static struct rx_possible_future * 
+static struct rx_possible_future *
 rx_possible_future (rx, effects)
      struct rx * rx;
      struct rx_se_list * effects;
@@ -1499,17 +1499,17 @@ rx_free_nfa (rx)
 
 
 
-/* This page: translating a pattern expression into an nfa and doing the 
+/* This page: translating a pattern expression into an nfa and doing the
  * static part of the nfa->super-nfa translation.
  */
 
-/* This is the thompson regexp->nfa algorithm. 
+/* This is the thompson regexp->nfa algorithm.
  * It is modified to allow for `side-effect epsilons.'  Those are
  * edges that are taken whenever a similar epsilon edge would be,
- * but which imply that some side effect occurs when the edge 
+ * but which imply that some side effect occurs when the edge
  * is taken.
  *
- * Side effects are used to model parts of the pattern langauge 
+ * Side effects are used to model parts of the pattern langauge
  * that are not regular (in the formal sense).
  */
 
@@ -1566,7 +1566,7 @@ rx_build_nfa (rx, rexp, start, end)
 	  return 0;
 	}
       return 1;
- 
+
     case r_opt:
       return (rx_build_nfa (rx, rexp->params.pair.left, start, end)
 	      && rx_nfa_edge (rx, ne_epsilon, *start, *end));
@@ -1646,10 +1646,10 @@ rx_build_nfa (rx, rexp, start, end)
 
 
 /* RX_NAME_NFA_STATES identifies all nodes with outgoing non-epsilon
- * transitions.  Only these nodes can occur in super-states.  
- * All nodes are given an integer id. 
+ * transitions.  Only these nodes can occur in super-states.
+ * All nodes are given an integer id.
  * The id is non-negative if the node has non-epsilon out-transitions, negative
- * otherwise (this is because we want the non-negative ids to be used as 
+ * otherwise (this is because we want the non-negative ids to be used as
  * array indexes in a few places).
  */
 
@@ -1728,10 +1728,10 @@ rx_name_nfa_states (rx)
  */
 
 #ifdef __STDC__
-static int 
+static int
 se_list_cmp (void * va, void * vb)
 #else
-static int 
+static int
 se_list_cmp (va, vb)
      void * va;
      void * vb;
@@ -1755,10 +1755,10 @@ se_list_cmp (va, vb)
 
 
 #ifdef __STDC__
-static int 
+static int
 se_list_equal (void * va, void * vb)
 #else
-static int 
+static int
 se_list_equal (va, vb)
      void * va;
      void * vb;
@@ -1778,11 +1778,11 @@ static struct rx_hash_rules se_list_hash_rules =
 
 
 #ifdef __STDC__
-static struct rx_se_list * 
+static struct rx_se_list *
 side_effect_cons (struct rx * rx,
 		  void * se, struct rx_se_list * list)
 #else
-static struct rx_se_list * 
+static struct rx_se_list *
 side_effect_cons (rx, se, list)
      struct rx * rx;
      void * se;
@@ -1834,7 +1834,7 @@ hash_cons_se_prog (rx, memo, car, cdr)
     return (struct rx_se_list *)it->data;
   }
 }
-     
+
 
 #ifdef __STDC__
 static struct rx_se_list *
@@ -1859,10 +1859,10 @@ hash_se_prog (rx, memo, prog)
 }
 
 #ifdef __STDC__
-static int 
+static int
 nfa_set_cmp (void * va, void * vb)
 #else
-static int 
+static int
 nfa_set_cmp (va, vb)
      void * va;
      void * vb;
@@ -1885,10 +1885,10 @@ nfa_set_cmp (va, vb)
 }
 
 #ifdef __STDC__
-static int 
+static int
 nfa_set_equal (void * va, void * vb)
 #else
-static int 
+static int
 nfa_set_equal (va, vb)
      void * va;
      void * vb;
@@ -1908,12 +1908,12 @@ static struct rx_hash_rules nfa_set_hash_rules =
 
 
 #ifdef __STDC__
-static struct rx_nfa_state_set * 
+static struct rx_nfa_state_set *
 nfa_set_cons (struct rx * rx,
 	      struct rx_hash * memo, struct rx_nfa_state * state,
 	      struct rx_nfa_state_set * set)
 #else
-static struct rx_nfa_state_set * 
+static struct rx_nfa_state_set *
 nfa_set_cons (rx, memo, state, set)
      struct rx * rx;
      struct rx_hash * memo;
@@ -1944,12 +1944,12 @@ nfa_set_cons (rx, memo, state, set)
 
 
 #ifdef __STDC__
-static struct rx_nfa_state_set * 
+static struct rx_nfa_state_set *
 nfa_set_enjoin (struct rx * rx,
 		struct rx_hash * memo, struct rx_nfa_state * state,
 		struct rx_nfa_state_set * set)
 #else
-static struct rx_nfa_state_set * 
+static struct rx_nfa_state_set *
 nfa_set_enjoin (rx, memo, state, set)
      struct rx * rx;
      struct rx_hash * memo;
@@ -1976,7 +1976,7 @@ nfa_set_enjoin (rx, memo, state, set)
 /* This page: computing epsilon closures.  The closures aren't total.
  * Each node's closures are partitioned according to the side effects entailed
  * along the epsilon edges.  Return true on success.
- */ 
+ */
 
 struct eclose_frame
 {
@@ -1985,11 +1985,11 @@ struct eclose_frame
 
 
 #ifdef __STDC__
-static int 
+static int
 eclose_node (struct rx *rx, struct rx_nfa_state *outnode,
 	     struct rx_nfa_state *node, struct eclose_frame *frame)
 #else
-static int 
+static int
 eclose_node (rx, outnode, node, frame)
      struct rx *rx;
      struct rx_nfa_state *outnode;
@@ -2054,7 +2054,7 @@ eclose_node (rx, outnode, node, frame)
 	  break;
 	case ne_side_effect:
 	  {
-	    frame->prog_backwards = side_effect_cons (rx, 
+	    frame->prog_backwards = side_effect_cons (rx,
 						      e->params.side_effect,
 						      frame->prog_backwards);
 	    if (!frame->prog_backwards)
@@ -2079,10 +2079,10 @@ eclose_node (rx, outnode, node, frame)
 
 
 #ifdef __STDC__
-RX_DECL int 
+RX_DECL int
 rx_eclose_nfa (struct rx *rx)
 #else
-RX_DECL int 
+RX_DECL int
 rx_eclose_nfa (rx)
      struct rx *rx;
 #endif
@@ -2090,7 +2090,7 @@ rx_eclose_nfa (rx)
   struct rx_nfa_state *n = rx->nfa_states;
   struct eclose_frame frame;
   static int rx_id = 0;
-  
+
   frame.prog_backwards = 0;
   rx->rx_id = rx_id++;
   bzero (&rx->se_list_memo, sizeof (rx->se_list_memo));
@@ -2113,10 +2113,10 @@ rx_eclose_nfa (rx)
  */
 
 #ifdef __STDC__
-RX_DECL void 
+RX_DECL void
 rx_delete_epsilon_transitions (struct rx *rx)
 #else
-RX_DECL void 
+RX_DECL void
 rx_delete_epsilon_transitions (rx)
      struct rx *rx;
 #endif
@@ -2154,16 +2154,16 @@ rx_delete_epsilon_transitions (rx)
  */
 
 /* This is for qsort on an array of nfa_states. The order
- * is based on state ids and goes 
+ * is based on state ids and goes
  *		[0...MAX][MIN..-1] where (MAX>=0) and (MIN<0)
  * This way, positive ids double as array indices.
  */
 
 #ifdef __STDC__
-static int 
+static int
 nfacmp (void * va, void * vb)
 #else
-static int 
+static int
 nfacmp (va, vb)
      void * va;
      void * vb;
@@ -2180,10 +2180,10 @@ nfacmp (va, vb)
 }
 
 #ifdef __STDC__
-static int 
+static int
 count_hash_nodes (struct rx_hash * st)
 #else
-static int 
+static int
 count_hash_nodes (st)
      struct rx_hash * st;
 #endif
@@ -2194,16 +2194,16 @@ count_hash_nodes (st)
     count += ((st->children[x])
 	      ? count_hash_nodes (st->children[x])
 	      : st->bucket_size[x]);
-  
+
   return count;
 }
 
 
 #ifdef __STDC__
-static void 
+static void
 se_memo_freer (struct rx_hash_item * node)
 #else
-static void 
+static void
 se_memo_freer (node)
      struct rx_hash_item * node;
 #endif
@@ -2213,10 +2213,10 @@ se_memo_freer (node)
 
 
 #ifdef __STDC__
-static void 
+static void
 nfa_set_freer (struct rx_hash_item * node)
 #else
-static void 
+static void
 nfa_set_freer (node)
      struct rx_hash_item * node;
 #endif
@@ -2231,11 +2231,11 @@ nfa_set_freer (node)
  */
 
 #ifdef __STDC__
-RX_DECL int 
+RX_DECL int
 rx_compactify_nfa (struct rx *rx,
 		   void **mem, unsigned long *size)
 #else
-RX_DECL int 
+RX_DECL int
 rx_compactify_nfa (rx, mem, size)
      struct rx *rx;
      void **mem;
@@ -2251,8 +2251,8 @@ rx_compactify_nfa (rx, mem, size)
   unsigned long total_size;
 
   /* This takes place in two stages.   First, the total size of the
-   * nfa is computed, then structures are copied.  
-   */   
+   * nfa is computed, then structures are copied.
+   */
   n = rx->nfa_states;
   total_nodec = 0;
   while (n)
@@ -2425,11 +2425,11 @@ rx_compactify_nfa (rx, mem, size)
 
 
 /* The functions in the next several pages define the lazy-NFA-conversion used
- * by matchers.  The input to this construction is an NFA such as 
+ * by matchers.  The input to this construction is an NFA such as
  * is built by compactify_nfa (rx.c).  The output is the superNFA.
  */
 
-/* Match engines can use arbitrary values for opcodes.  So, the parse tree 
+/* Match engines can use arbitrary values for opcodes.  So, the parse tree
  * is built using instructions names (enum rx_opcode), but the superstate
  * nfa is populated with mystery opcodes (void *).
  *
@@ -2502,16 +2502,16 @@ rx_cache_free (cache, freelist, mem)
 }
 
 
-/* The partially instantiated superstate graph has a transition 
+/* The partially instantiated superstate graph has a transition
  * table at every node.  There is one entry for every character.
  * This fills in the transition for a set.
  */
 #ifdef __STDC__
-static void 
+static void
 install_transition (struct rx_superstate *super,
-		    struct rx_inx *answer, rx_Bitset trcset) 
+		    struct rx_inx *answer, rx_Bitset trcset)
 #else
-static void 
+static void
 install_transition (super, answer, trcset)
      struct rx_superstate *super;
      struct rx_inx *answer;
@@ -2579,14 +2579,14 @@ check_cache (cache)
     check_cache (you_fucked_up);
 }
 
-/* When a superstate is old and neglected, it can enter a 
+/* When a superstate is old and neglected, it can enter a
  * semi-free state.  A semi-free state is slated to die.
  * Incoming transitions to a semi-free state are re-written
  * to cause an (interpreted) fault when they are taken.
  * The fault handler revives the semi-free state, patches
  * incoming transitions back to normal, and continues.
  *
- * The idea is basicly to free in two stages, aborting 
+ * The idea is basicly to free in two stages, aborting
  * between the two if the state turns out to be useful again.
  * When a free is aborted, the rescued superstate is placed
  * in the most-favored slot to maximize the time until it
@@ -2663,11 +2663,11 @@ semifree_superstate (cache)
 
 
 #ifdef __STDC__
-static void 
+static void
 refresh_semifree_superstate (struct rx_cache * cache,
 			     struct rx_superstate * super)
 #else
-static void 
+static void
 refresh_semifree_superstate (cache, super)
      struct rx_cache * cache;
      struct rx_superstate * super;
@@ -2677,7 +2677,7 @@ refresh_semifree_superstate (cache, super)
 
   if (super->transition_refs)
     {
-      super->transition_refs->prev_same_dest->next_same_dest = 0; 
+      super->transition_refs->prev_same_dest->next_same_dest = 0;
       for (df = super->transition_refs; df; df = df->next_same_dest)
 	{
 	  df->future_frame.inx = cache->instruction_table[rx_next_char];
@@ -2745,11 +2745,11 @@ rx_refresh_this_superstate (cache, superstate)
 }
 
 #ifdef __STDC__
-static void 
+static void
 release_superset_low (struct rx_cache * cache,
 		     struct rx_superset *set)
 #else
-static void 
+static void
 release_superset_low (cache, set)
      struct rx_cache * cache;
      struct rx_superset *set;
@@ -2774,11 +2774,11 @@ release_superset_low (cache, set)
 }
 
 #ifdef __STDC__
-RX_DECL void 
+RX_DECL void
 rx_release_superset (struct rx *rx,
 		     struct rx_superset *set)
 #else
-RX_DECL void 
+RX_DECL void
 rx_release_superset (rx, set)
      struct rx *rx;
      struct rx_superset *set;
@@ -2888,8 +2888,8 @@ rx_really_free_superstate (cache)
 	  {
 	    struct rx_distinct_future *dft = df;
 	    df = df->next_same_super_edge[0];
-	    
-	    
+
+
 	    if (dft->future && dft->future->transition_refs == dft)
 	      {
 		dft->future->transition_refs = dft->next_same_dest;
@@ -2905,7 +2905,7 @@ rx_really_free_superstate (cache)
 	tc = tct;
       }
   }
-  
+
   if (it->contents->superstate == it)
     it->contents->superstate = 0;
   release_superset_low (cache, it->contents);
@@ -3043,10 +3043,10 @@ superset_allocator (rules, val)
 }
 
 #ifdef __STDC__
-static struct rx_hash * 
+static struct rx_hash *
 super_hash_allocator (struct rx_hash_rules * rules)
 #else
-static struct rx_hash * 
+static struct rx_hash *
 super_hash_allocator (rules)
      struct rx_hash_rules * rules;
 #endif
@@ -3133,7 +3133,7 @@ rx_morecore (cache)
     while (*pos)
       pos = &(*pos)->next;
     *pos = ((struct rx_blocklist *)
-	    malloc (size + sizeof (struct rx_blocklist))); 
+	    malloc (size + sizeof (struct rx_blocklist)));
     if (!*pos)
       return;
 
@@ -3145,7 +3145,7 @@ rx_morecore (cache)
   }
 }
 
-static struct rx_cache default_cache = 
+static struct rx_cache default_cache =
 {
   {
     supersetcmp,
@@ -3191,7 +3191,7 @@ static struct rx_cache default_cache =
 
 /* This adds an element to a superstate set.  These sets are lists, such
  * that lists with == elements are ==.  The empty set is returned by
- * superset_cons (rx, 0, 0) and is NOT equivelent to 
+ * superset_cons (rx, 0, 0) and is NOT equivelent to
  * (struct rx_superset)0.
  */
 
@@ -3247,7 +3247,7 @@ rx_superset_cons (rx, car, cdr)
 #ifdef __STDC__
 RX_DECL struct rx_superset *
 rx_superstate_eclosure_union
-  (struct rx * rx, struct rx_superset *set, struct rx_nfa_state_set *ecl) 
+  (struct rx * rx, struct rx_superset *set, struct rx_nfa_state_set *ecl)
 #else
 RX_DECL struct rx_superset *
 rx_superstate_eclosure_union (rx, set, ecl)
@@ -3304,14 +3304,14 @@ rx_superstate_eclosure_union (rx, set, ecl)
  * This makes sure that a list of rx_distinct_futures contains
  * a future for each possible set of side effects in the eclosure
  * of a given state.  This is some of the work of filling in a
- * superstate transition. 
+ * superstate transition.
  */
 
 #ifdef __STDC__
 static struct rx_distinct_future *
 include_futures (struct rx *rx,
 		 struct rx_distinct_future *df, struct rx_nfa_state
-		 *state, struct rx_superstate *superstate) 
+		 *state, struct rx_superstate *superstate)
 #else
 static struct rx_distinct_future *
 include_futures (rx, df, state, superstate)
@@ -3385,7 +3385,7 @@ include_futures (rx, df, state, superstate)
 
 
 
-/* This constructs a new superstate from its state set.  The only 
+/* This constructs a new superstate from its state set.  The only
  * complexity here is memory management.
  */
 #ifdef __STDC__
@@ -3520,10 +3520,10 @@ rx_superstate (rx, set)
  */
 
 #ifdef __STDC__
-static int 
+static int
 solve_destination (struct rx *rx, struct rx_distinct_future *df)
 #else
-static int 
+static int
 solve_destination (rx, df)
      struct rx *rx;
      struct rx_distinct_future *df;
@@ -3544,7 +3544,7 @@ solve_destination (rx, df)
       struct rx_nfa_edge *e;
       /* Iterate over all edges of each NFA state. */
       for (e = nfa_state->car->edges; e; e = e->next)
-        /* If we find an edge that is labeled with 
+        /* If we find an edge that is labeled with
 	 * the characters we are solving for.....
 	 */
 	if (rx_bitset_is_subset (rx->local_cset_size,
@@ -3572,7 +3572,7 @@ solve_destination (rx, df)
 		}
 	  }
     }
-  /* It is possible that the RX_DISTINCT_FUTURE we are working on has 
+  /* It is possible that the RX_DISTINCT_FUTURE we are working on has
    * the empty set of NFA states as its definition.  In that case, this
    * is a failure point.
    */
@@ -3617,20 +3617,20 @@ solve_destination (rx, df)
 
 /* This takes a superstate and a character, and computes some edges
  * from the superstate NFA.  In particular, this computes all edges
- * that lead from SUPERSTATE given CHR.   This function also 
+ * that lead from SUPERSTATE given CHR.   This function also
  * computes the set of characters that share this edge set.
  * This returns 0 on allocation error.
- * The character set and list of edges are returned through 
+ * The character set and list of edges are returned through
  * the paramters CSETOUT and DFOUT.
 } */
 
 #ifdef __STDC__
-static int 
+static int
 compute_super_edge (struct rx *rx, struct rx_distinct_future **dfout,
 			  rx_Bitset csetout, struct rx_superstate *superstate,
-			  unsigned char chr)  
+			  unsigned char chr)
 #else
-static int 
+static int
 compute_super_edge (rx, dfout, csetout, superstate, chr)
      struct rx *rx;
      struct rx_distinct_future **dfout;
@@ -3641,7 +3641,7 @@ compute_super_edge (rx, dfout, csetout, superstate, chr)
 {
   struct rx_superset *stateset = superstate->contents;
 
-  /* To compute the set of characters that share edges with CHR, 
+  /* To compute the set of characters that share edges with CHR,
    * we start with the full character set, and subtract.
    */
   rx_bitset_universe (rx->local_cset_size, csetout);
@@ -3712,7 +3712,7 @@ compute_super_edge (rx, dfout, csetout, superstate, chr)
 static struct rx_super_edge *
 rx_super_edge (struct rx *rx,
 	       struct rx_superstate *super, rx_Bitset cset,
-	       struct rx_distinct_future *df) 
+	       struct rx_distinct_future *df)
 #else
 static struct rx_super_edge *
 rx_super_edge (rx, super, cset, df)
@@ -3784,7 +3784,7 @@ install_partial_transition  (super, answer, set, offset)
   int end = start + 32;
   RX_subset pos = 1;
   struct rx_inx * transitions = super->transitions;
-  
+
   while (start < end)
     {
       if (set & pos)
@@ -3798,7 +3798,7 @@ install_partial_transition  (super, answer, set, offset)
 #ifdef __STDC__
 RX_DECL struct rx_inx *
 rx_handle_cache_miss
-  (struct rx *rx, struct rx_superstate *super, unsigned char chr, void *data) 
+  (struct rx *rx, struct rx_superstate *super, unsigned char chr, void *data)
 #else
 RX_DECL struct rx_inx *
 rx_handle_cache_miss (rx, super, chr, data)
@@ -3875,7 +3875,7 @@ rx_handle_cache_miss (rx, super, chr, data)
     }
   else if (df->future) /* A cache miss on an edge with a future? Must be
 			* a semi-free destination. */
-    {				
+    {
       if (df->future->is_semifree)
 	refresh_semifree_superstate (rx->cache, df->future);
       return &df->future_frame;
@@ -3927,7 +3927,7 @@ __const__ char *re_error_msg[] =
 
 
 
-/* 
+/*
  * Macros used while compiling patterns.
  *
  * By convention, PEND points just past the end of the uncompiled pattern,
@@ -3938,7 +3938,7 @@ __const__ char *re_error_msg[] =
 
 
 /*
- * Fetch the next character in the uncompiled pattern---translating it 
+ * Fetch the next character in the uncompiled pattern---translating it
  * if necessary. *Also cast from a signed character in the constant
  * string passed to us by the user to an unsigned char that we can use
  * as an array index (in, e.g., `translate').
@@ -3949,7 +3949,7 @@ __const__ char *re_error_msg[] =
     c = translate[c];		 					\
  } while (0)
 
-/* 
+/*
  * Fetch the next character in the uncompiled pattern, with no
  * translation.
  */
@@ -4016,7 +4016,7 @@ typedef struct
            PATFETCH (c);						\
          } 								\
        } 								\
-    }		
+    }
 
 #define CHAR_CLASS_MAX_LENGTH  6 /* Namely, `xdigit'.  */
 
@@ -4033,7 +4033,7 @@ typedef struct
 
 /* P points to just after a ^ in PATTERN.  Return true if that ^ comes
  * after an alternative or a begin-subexpression.  We assume there is at
- * least one character before the ^.  
+ * least one character before the ^.
  */
 
 #ifdef __STDC__
@@ -4049,9 +4049,9 @@ at_begline_loc_p (pattern, p, syntax)
 {
   __const__ char *prev = p - 2;
   boolean prev_prev_backslash = ((prev > pattern) && (prev[-1] == '\\'));
-  
+
     return
-      
+
       (/* After a subexpression?  */
        ((*prev == '(') && ((syntax & RE_NO_BK_PARENS) || prev_prev_backslash))
        ||
@@ -4078,7 +4078,7 @@ at_endline_loc_p (p, pend, syntax)
   __const__ char *next = p;
   boolean next_backslash = (*next == '\\');
   __const__ char *next_next = (p + 1 < pend) ? (p + 1) : 0;
-  
+
   return
     (
      /* Before a subexpression?  */
@@ -4147,7 +4147,7 @@ inverse_translation (rxb, valid, cache, translate, c)
 #endif
 {
   rx_Bitset cs
-    = cache + c * rx_bitset_numb_subsets (rxb->rx.local_cset_size); 
+    = cache + c * rx_bitset_numb_subsets (rxb->rx.local_cset_size);
 
   if (!valid[c])
     {
@@ -4167,7 +4167,7 @@ inverse_translation (rxb, valid, cache, translate, c)
 
 /* More subroutine declarations and macros for regex_compile.  */
 
-/* Returns true if REGNUM is in one of COMPILE_STACK's elements and 
+/* Returns true if REGNUM is in one of COMPILE_STACK's elements and
    false if it's not.  */
 
 #ifdef __STDC__
@@ -4182,8 +4182,8 @@ group_in_compile_stack (compile_stack, regnum)
 {
   int this_element;
 
-  for (this_element = compile_stack.avail - 1;  
-       this_element >= 0; 
+  for (this_element = compile_stack.avail - 1;
+       this_element >= 0;
        this_element--)
     if (compile_stack.stack[this_element].regnum == regnum)
       return true;
@@ -4198,11 +4198,11 @@ group_in_compile_stack (compile_stack, regnum)
  * starting character is in `P[-2]'.  (`P[-1]' is the character `-'.)
  * Then we set the translation of all bits between the starting and
  * ending characters (inclusive) in the compiled pattern B.
- * 
+ *
  * Return an error code.
- * 
+ *
  * We use these short variable names so we can use the same macros as
- * `regex_compile' itself.  
+ * `regex_compile' itself.
  */
 
 #ifdef __STDC__
@@ -4247,7 +4247,7 @@ compile_range (rxb, cs, p_ptr, pend, translate, syntax, inv_tr, valid_inv_tr)
 	inverse_translation (rxb, valid_inv_tr, inv_tr, translate, this_char);
       rx_bitset_union (rxb->rx.local_cset_size, cs, it);
     }
-  
+
   return REG_NOERROR;
 }
 
@@ -4383,7 +4383,7 @@ is_anchored (rexp, se)
     case r_opt:
     case r_star:
       return is_anchored (rexp->params.pair.left, se) ? 2 : 0;
-      
+
     case r_side_effect:
       return ((rexp->params.side_effect == se)
 	      ? 1 : 2);
@@ -4397,7 +4397,7 @@ is_anchored (rexp, se)
 /* This removes register assignments that aren't required by backreferencing.
  * This can speed up explore_future, especially if it eliminates
  * non-determinism in the superstate NFA.
- * 
+ *
  * NEEDED is an array of characters, presumably filled in by FIND_BACKREFS.
  * The non-zero elements of the array indicate which register assignments
  * can NOT be removed from the expression.
@@ -4605,7 +4605,7 @@ static char idempotent_complex_se[] =
 #define RX_WANT_SE_DEFS 1
 #undef RX_DEF_SE
 #undef RX_DEF_CPLX_SE
-#define RX_DEF_SE(IDEM, NAME, VALUE)	      
+#define RX_DEF_SE(IDEM, NAME, VALUE)
 #define RX_DEF_CPLX_SE(IDEM, NAME, VALUE)     IDEM,
 #include "rx.h"
 #undef RX_DEF_SE
@@ -4621,7 +4621,7 @@ static char idempotent_se[] =
 #undef RX_DEF_SE
 #undef RX_DEF_CPLX_SE
 #define RX_DEF_SE(IDEM, NAME, VALUE)	      IDEM,
-#define RX_DEF_CPLX_SE(IDEM, NAME, VALUE)     
+#define RX_DEF_CPLX_SE(IDEM, NAME, VALUE)
 #include "rx.h"
 #undef RX_DEF_SE
 #undef RX_DEF_CPLX_SE
@@ -4654,7 +4654,7 @@ has_any_se (rx, rexp)
 
     case r_side_effect:
       return 1;
-      
+
     case r_2phase_star:
     case r_concat:
     case r_alternate:
@@ -4702,7 +4702,7 @@ has_non_idempotent_epsilon_path (rx, rexp, params)
 	!((long)rexp->params.side_effect > 0
 	  ? idempotent_complex_se [ params [(long)rexp->params.side_effect].se ]
 	  : idempotent_se [-(long)rexp->params.side_effect]);
-      
+
     case r_alternate:
       return
 	(   has_non_idempotent_epsilon_path (rx,
@@ -4729,7 +4729,7 @@ has_non_idempotent_epsilon_path (rx, rexp, params)
 
 
 
-/* This computes rougly what it's name suggests.   It can (and does) go wrong 
+/* This computes rougly what it's name suggests.   It can (and does) go wrong
  * in the direction of returning spurious 0 without causing disasters.
  */
 #ifdef __STDC__
@@ -4753,7 +4753,7 @@ begins_with_complex_se (rx, rexp)
 
     case r_side_effect:
       return ((long)rexp->params.side_effect >= 0);
-      
+
     case r_alternate:
       return
 	(   begins_with_complex_se (rx, rexp->params.pair.left)
@@ -4773,11 +4773,11 @@ begins_with_complex_se (rx, rexp)
 }
 
 
-/* This destructively removes some of the re_se_tv side effects from 
+/* This destructively removes some of the re_se_tv side effects from
  * a rexp tree.  In particular, during parsing re_se_tv was inserted on the
- * right half of every | to guarantee that posix path preference could be 
- * honored.  This function removes some which it can be determined aren't 
- * needed.  
+ * right half of every | to guarantee that posix path preference could be
+ * honored.  This function removes some which it can be determined aren't
+ * needed.
  */
 
 #ifdef __STDC__
@@ -4819,7 +4819,7 @@ speed_up_alt (rx, rexp, unposix)
 
       speed_up_alt (rx, rexp->params.pair.left, unposix);
       speed_up_alt (rx, rexp->params.pair.right->params.pair.right, unposix);
-      
+
       if (   unposix
 	  || (begins_with_complex_se
 	      (rx, rexp->params.pair.right->params.pair.right))
@@ -4852,7 +4852,7 @@ speed_up_alt (rx, rexp, unposix)
      `fastmap_accurate' is set to zero;
      `re_nsub' is set to the number of groups in PATTERN;
      `not_bol' and `not_eol' are set to zero.
-   
+
    The `fastmap' and `newline_anchor' fields are neither
    examined nor set.  */
 
@@ -4862,7 +4862,7 @@ speed_up_alt (rx, rexp, unposix)
 RX_DECL reg_errcode_t
 rx_compile (__const__ char *pattern, int size,
 	    reg_syntax_t syntax,
-	    struct re_pattern_buffer * rxb) 
+	    struct re_pattern_buffer * rxb)
 #else
 RX_DECL reg_errcode_t
 rx_compile (pattern, size, syntax, rxb)
@@ -4881,17 +4881,17 @@ rx_compile (pattern, size, syntax, rxb)
      `char *' (i.e., signed), we declare these variables as unsigned, so
      they can be reliably used as array indices.  */
   register unsigned char c, c1;
-  
+
   /* A random tempory spot in PATTERN.  */
   __const__ char *p1;
-  
+
   /* Keeps track of unclosed groups.  */
   compile_stack_type compile_stack;
 
   /* Points to the current (ending) position in the pattern.  */
   __const__ char *p = pattern;
   __const__ char *pend = pattern + size;
-  
+
   /* How to translate the characters in the pattern.  */
   unsigned char *translate = (rxb->translate
 			      ? rxb->translate
@@ -4900,7 +4900,7 @@ rx_compile (pattern, size, syntax, rxb)
   /* When parsing is done, this will hold the expression tree. */
   struct rexp_node * rexp = 0;
 
-  /* In the midst of compilation, this holds onto the regexp 
+  /* In the midst of compilation, this holds onto the regexp
    * first parst while rexp goes on to aquire additional constructs.
    */
   struct rexp_node * orig_rexp = 0;
@@ -4909,7 +4909,7 @@ rx_compile (pattern, size, syntax, rxb)
   /* This and top_expression are saved on the compile stack. */
   struct rexp_node ** top_expression = &rexp;
   struct rexp_node ** last_expression = top_expression;
-  
+
   /* Parameter to `goto append_node' */
   struct rexp_node * append;
 
@@ -4919,7 +4919,7 @@ rx_compile (pattern, size, syntax, rxb)
   regnum_t regnum = 0;
 
   /* Place in the uncompiled pattern (i.e., the {) to
-   * which to go back if the interval is invalid.  
+   * which to go back if the interval is invalid.
    */
   __const__ char *beg_interval;
 
@@ -4947,8 +4947,8 @@ rx_compile (pattern, size, syntax, rxb)
   rxb->fastmap_accurate = 0;
   rxb->not_bol = rxb->not_eol = 0;
   rxb->least_subs = 0;
-  
-  /* Always count groups, whether or not rxb->no_sub is set.  
+
+  /* Always count groups, whether or not rxb->no_sub is set.
    * The whole pattern is implicitly group 0, so counting begins
    * with 1.
    */
@@ -4991,7 +4991,7 @@ rx_compile (pattern, size, syntax, rxb)
         case '$':
           {
             if (   /* If at end of pattern, it's an operator.  */
-                   p == pend 
+                   p == pend
                    /* If context independent, it's an operator.  */
                 || syntax & RE_CONTEXT_INDEP_ANCHORS
                    /* Otherwise, depends on what's next.  */
@@ -5158,7 +5158,7 @@ rx_compile (pattern, size, syntax, rxb)
 		  goto add_side_effect;
 		}
 	    }
-	    /* The old regex.c used to optimize `.*\n'.  
+	    /* The old regex.c used to optimize `.*\n'.
 	     * Maybe rx should too?
 	     */
 	  }
@@ -5191,36 +5191,36 @@ rx_compile (pattern, size, syntax, rxb)
 	    rx_Bitset cs = rx_cset (&rxb->rx);
 	    struct rexp_node * node = rx_mk_r_cset (&rxb->rx, cs);
 	    int is_inverted = *p == '^';
-	    
+
 	    if (!(node && cs))
 	      return REG_ESPACE;
-	    
+
 	    /* This branch of the switch is normally exited with
 	     *`goto append_node'
 	     */
 	    append = node;
-	    
+
             if (is_inverted)
 	      p++;
-	    
+
             /* Remember the first position in the bracket expression.  */
             p1 = p;
-	    
+
             /* Read in characters and ranges, setting map bits.  */
             for (;;)
               {
                 if (p == pend) return REG_EBRACK;
-		
+
                 PATFETCH (c);
-		
+
                 /* \ might escape characters inside [...] and [^...].  */
                 if ((syntax & RE_BACKSLASH_ESCAPE_IN_LISTS) && c == '\\')
                   {
                     if (p == pend) return REG_EESCAPE;
-		    
+
                     PATFETCH (c1);
 		    {
-		      rx_Bitset it = inverse_translation (rxb, 
+		      rx_Bitset it = inverse_translation (rxb,
 							  validate_inv_tr,
 							  inverse_translate,
 							  translate,
@@ -5229,24 +5229,24 @@ rx_compile (pattern, size, syntax, rxb)
 		    }
                     continue;
                   }
-		
+
                 /* Could be the end of the bracket expression.  If it's
                    not (i.e., when the bracket expression is `[]' so
                    far), the ']' character bit gets set way below.  */
                 if (c == ']' && p != p1 + 1)
                   goto finalize_class_and_append;
-		
+
                 /* Look ahead to see if it's a range when the last thing
                    was a character class.  */
                 if (had_char_class && c == '-' && *p != ']')
                   return REG_ERANGE;
-		
+
                 /* Look ahead to see if it's a range when the last thing
                    was a character: if this is a hyphen not at the
                    beginning or the end of a list, then it's the range
                    operator.  */
-                if (c == '-' 
-                    && !(p - 2 >= pattern && p[-2] == '[') 
+                if (c == '-'
+                    && !(p - 2 >= pattern && p[-2] == '[')
                     && !(p - 3 >= pattern && p[-3] == '[' && p[-2] == '^')
                     && *p != ']')
                   {
@@ -5255,33 +5255,33 @@ rx_compile (pattern, size, syntax, rxb)
 				       inverse_translate, validate_inv_tr);
                     if (ret != REG_NOERROR) return ret;
                   }
-		
+
                 else if (p[0] == '-' && p[1] != ']')
                   { /* This handles ranges made up of characters only.  */
                     reg_errcode_t ret;
-		    
+
 		    /* Move past the `-'.  */
                     PATFETCH (c1);
-                    
+
                     ret = compile_range (rxb, cs, &p, pend, translate, syntax,
 					 inverse_translate, validate_inv_tr);
                     if (ret != REG_NOERROR) return ret;
                   }
-		
+
                 /* See if we're at the beginning of a possible character
                    class.  */
-		
+
 		else if ((syntax & RE_CHAR_CLASSES)
 			 && (c == '[') && (*p == ':'))
                   {
                     char str[CHAR_CLASS_MAX_LENGTH + 1];
-		    
+
                     PATFETCH (c);
                     c1 = 0;
-		    
+
                     /* If pattern is `[[:'.  */
                     if (p == pend) return REG_EBRACK;
-		    
+
                     for (;;)
                       {
                         PATFETCH (c);
@@ -5291,9 +5291,9 @@ rx_compile (pattern, size, syntax, rxb)
                         str[c1++] = c;
                       }
                     str[c1] = '\0';
-		    
+
                     /* If isn't a word bracketed by `[:' and:`]':
-                       undo the ending character, the letters, and leave 
+                       undo the ending character, the letters, and leave
                        the leading `:' and `[' (but set bits for them).  */
                     if (c == ':' && *p == ']')
                       {
@@ -5310,15 +5310,15 @@ rx_compile (pattern, size, syntax, rxb)
                         boolean is_space = !strcmp (str, "space");
                         boolean is_upper = !strcmp (str, "upper");
                         boolean is_xdigit = !strcmp (str, "xdigit");
-                        
+
                         if (!IS_CHAR_CLASS (str)) return REG_ECTYPE;
-			
+
                         /* Throw away the ] at the end of the character
                            class.  */
-                        PATFETCH (c);					
-			
+                        PATFETCH (c);
+
                         if (p == pend) return REG_EBRACK;
-			
+
                         for (ch = 0; ch < 1 << CHARBITS; ch++)
                           {
                             if (   (is_alnum  && isalnum (ch))
@@ -5335,7 +5335,7 @@ rx_compile (pattern, size, syntax, rxb)
                                 || (is_xdigit && isxdigit (ch)))
 			      {
 				rx_Bitset it =
-				  inverse_translation (rxb, 
+				  inverse_translation (rxb,
 						       validate_inv_tr,
 						       inverse_translate,
 						       translate,
@@ -5349,11 +5349,11 @@ rx_compile (pattern, size, syntax, rxb)
                     else
                       {
                         c1++;
-                        while (c1--)    
+                        while (c1--)
                           PATUNFETCH;
 			{
 			  rx_Bitset it =
-			    inverse_translation (rxb, 
+			    inverse_translation (rxb,
 						 validate_inv_tr,
 						 inverse_translate,
 						 translate,
@@ -5363,7 +5363,7 @@ rx_compile (pattern, size, syntax, rxb)
 			}
 			{
 			  rx_Bitset it =
-			    inverse_translation (rxb, 
+			    inverse_translation (rxb,
 						 validate_inv_tr,
 						 inverse_translate,
 						 translate,
@@ -5378,7 +5378,7 @@ rx_compile (pattern, size, syntax, rxb)
                   {
                     had_char_class = false;
 		    {
-		      rx_Bitset it = inverse_translation (rxb, 
+		      rx_Bitset it = inverse_translation (rxb,
 							  validate_inv_tr,
 							  inverse_translate,
 							  translate,
@@ -5453,7 +5453,7 @@ rx_compile (pattern, size, syntax, rxb)
               rxb->re_nsub++;
               regnum++;
               if (COMPILE_STACK_FULL)
-                { 
+                {
                   ((compile_stack.stack) =
 		   (compile_stack_elt_t *) realloc (compile_stack.stack, ( compile_stack.size << 1) * sizeof (
 													      compile_stack_elt_t)));
@@ -5474,14 +5474,14 @@ rx_compile (pattern, size, syntax, rxb)
 
               /*
 	       * These are the values to restore when we hit end of this
-               * group.  
+               * group.
 	       */
 	      COMPILE_STACK_TOP.top_expression = top_expression;
 	      COMPILE_STACK_TOP.last_expression = last_expression;
               COMPILE_STACK_TOP.regnum = regnum;
-	      
+
               compile_stack.avail++;
-	      
+
 	      top_expression = last_expression;
 	      break;
 
@@ -5595,10 +5595,10 @@ rx_compile (pattern, size, syntax, rxb)
               break;
 
 
-            case '{': 
+            case '{':
               /* If \{ is a literal.  */
               if (!(syntax & RE_INTERVALS)
-                     /* If we're at `\{' and it's not the open-interval 
+                     /* If we're at `\{' and it's not the open-interval
                         operator.  */
                   || ((syntax & RE_INTERVALS) && (syntax & RE_NO_BK_BRACES))
                   || (p - 2 == pattern  &&  p == pend))
@@ -5637,11 +5637,11 @@ rx_compile (pattern, size, syntax, rxb)
                   {
                     if (syntax & RE_NO_BK_BRACES)
                       goto unfetch_interval;
-                    else 
+                    else
                       return REG_BADBR;
                   }
 
-                if (!(syntax & RE_NO_BK_BRACES)) 
+                if (!(syntax & RE_NO_BK_BRACES))
                   {
                     if (c != '\\') return REG_EBRACE;
                     PATFETCH (c);
@@ -5651,7 +5651,7 @@ rx_compile (pattern, size, syntax, rxb)
                   {
                     if (syntax & RE_NO_BK_BRACES)
                       goto unfetch_interval;
-                    else 
+                    else
                       return REG_BADBR;
                   }
 
@@ -5747,7 +5747,7 @@ rx_compile (pattern, size, syntax, rxb)
                beg_interval = NULL;
 
                /* normal_char and normal_backslash need `c'.  */
-               PATFETCH (c);	
+               PATFETCH (c);
 
                if (!(syntax & RE_NO_BK_BRACES))
                  {
@@ -5780,7 +5780,7 @@ rx_compile (pattern, size, syntax, rxb)
 		  char code = syntax_spec_code (c);
 		  for (x = 0; x < 256; ++x)
 		    {
-		      
+
 		      if (SYNTAX (x) & code)
 			{
 			  rx_Bitset it =
@@ -5819,7 +5819,7 @@ rx_compile (pattern, size, syntax, rxb)
 
 /* With a little extra work, some of these side effects could be optimized
  * away (basicly by looking at what we already know about the surrounding
- * chars).  
+ * chars).
  */
             case '<':
 	      side = (rx_side_effect)re_se_wordbeg;
@@ -5845,7 +5845,7 @@ rx_compile (pattern, size, syntax, rxb)
 	      side = (rx_side_effect)re_se_begbuf;
 	      goto add_side_effect;
 	      break;
-	      
+
             case '\'':
 	      side = (rx_side_effect)re_se_endbuf;
 	      goto add_side_effect;
@@ -5945,7 +5945,7 @@ rx_compile (pattern, size, syntax, rxb)
 	} /* switch (c) */
     } /* while p != pend */
 
-  
+
   {
     int win_se = paramc;
     params = (params
@@ -5972,7 +5972,7 @@ rx_compile (pattern, size, syntax, rxb)
 
   /* Through the pattern now.  */
 
-  if (!COMPILE_STACK_EMPTY) 
+  if (!COMPILE_STACK_EMPTY)
     return REG_EPAREN;
 
       free (compile_stack.stack);
@@ -6023,11 +6023,11 @@ rx_compile (pattern, size, syntax, rxb)
 	}
     }
 
-    /* At least one more optimization would be nice to have here but i ran out 
-     * of time.  The idea would be to delay side effects.  
+    /* At least one more optimization would be nice to have here but i ran out
+     * of time.  The idea would be to delay side effects.
      * For examle, `(abc)' is the same thing as `abc()' except that the
      * left paren is offset by 3 (which we know at compile time).
-     * (In this comment, write that second pattern `abc(:3:)' 
+     * (In this comment, write that second pattern `abc(:3:)'
      * where `(:3:' is a syntactic unit.)
      *
      * Trickier:  `(abc|defg)'  is the same as `(abc(:3:|defg(:4:))'
@@ -6041,7 +6041,7 @@ rx_compile (pattern, size, syntax, rxb)
 
   /* What we compile is different than what the parser returns.
    * Suppose the parser returns expression R.
-   * Let R' be R with unnecessary register assignments removed 
+   * Let R' be R with unnecessary register assignments removed
    * (see REMOVE_UNECESSARY_SIDE_EFFECTS, above).
    *
    * What we will compile is the expression:
@@ -6049,8 +6049,8 @@ rx_compile (pattern, size, syntax, rxb)
    *    m{try}R{win}\|s{try}R'{win}
    *
    * {try} and {win} denote side effect epsilons (see EXPLORE_FUTURE).
-   * 
-   * When trying a match, we insert an `m' at the beginning of the 
+   *
+   * When trying a match, we insert an `m' at the beginning of the
    * string if the user wants registers to be filled, `s' if not.
    */
     new_rexp =
@@ -6105,7 +6105,7 @@ rx_compile (pattern, size, syntax, rxb)
 	else
 	  {
 	    rx_delete_epsilon_transitions (&rxb->rx);
-	    
+
 	    /* For compatability reasons, we need to shove the
 	     * compiled nfa into one chunk of malloced memory.
 	     */
@@ -6136,7 +6136,7 @@ rx_compile (pattern, size, syntax, rxb)
 	rx_bitset_null (rxb->rx.local_cset_size, rxb->fastset);
 	rxb->can_match_empty = compute_fastset (rxb, orig_rexp);
 	rxb->match_regs_on_stack =
-	  registers_on_stack (rxb, orig_rexp, 0, params); 
+	  registers_on_stack (rxb, orig_rexp, 0, params);
 	rxb->search_regs_on_stack =
 	  registers_on_stack (rxb, fewer_side_effects, 0, params);
 	if (rxb->can_match_empty)
@@ -6231,7 +6231,7 @@ rx_blow_up_fastmap (rxb)
 #define RE_S2_QUAL static
 #else
 #define RE_SEARCH_2_FN	re_search_2
-#define RE_S2_QUAL 
+#define RE_S2_QUAL
 #endif
 
 struct re_search_2_closure
@@ -6381,7 +6381,7 @@ re_search_2_fetch_char (pos, offset, app_closure, stop)
   else
     return *pos->pos;
 }
-     
+
 
 #ifdef __STDC__
 RE_S2_QUAL int
@@ -6657,10 +6657,10 @@ re_set_registers (bufp, regs, num_regs, starts, ends)
 
 
 #ifdef __STDC__
-static int 
+static int
 cplx_se_sublist_len (struct rx_se_list * list)
 #else
-static int 
+static int
 cplx_se_sublist_len (list)
      struct rx_se_list * list;
 #endif
@@ -6679,11 +6679,11 @@ cplx_se_sublist_len (list)
 /* For rx->se_list_cmp */
 
 #ifdef __STDC__
-static int 
+static int
 posix_se_list_order (struct rx * rx,
 		     struct rx_se_list * a, struct rx_se_list * b)
 #else
-static int 
+static int
 posix_se_list_order (rx, a, b)
      struct rx * rx;
      struct rx_se_list * a;
@@ -6697,7 +6697,7 @@ posix_se_list_order (rx, a, b)
     return ((a == b)
 	    ? 0
 	    : ((a < b) ? -1 : 1));
-  
+
   else if (!al)
     return -1;
 
@@ -6713,7 +6713,7 @@ posix_se_list_order (rx, a, b)
       struct rx_se_list * ap = a;
       struct rx_se_list * bp = b;
       int ai, bi;
-      
+
       for (ai = al - 1; ai >= 0; --ai)
 	{
 	  while ((long)ap->car < 0)
@@ -6782,7 +6782,7 @@ re_compile_pattern (pattern, length, rxb)
 
   /* Match anchors at newline.  */
   rxb->newline_anchor = 1;
- 
+
   rxb->re_nsub = 0;
   rxb->start = 0;
   rxb->se_params = 0;

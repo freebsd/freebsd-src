@@ -50,7 +50,7 @@
  * was defined to be the largest float so that overflow didn't occur when it
  * was assigned to a single precision number.  HUGE_VAL is strongly preferred.
  */
-#define	HUGE	1.701411733192644270E+38		
+#define	HUGE	1.701411733192644270E+38
 #else
 #define	HUGE	HUGE_VAL
 #endif

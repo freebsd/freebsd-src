@@ -1,18 +1,18 @@
 /* tc-i960.h - Basic 80960 instruction formats.
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation; either version 2,
    or (at your option) any later version.
-   
+
    GAS is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
    the GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -39,7 +39,7 @@
  * the instruction generated (a CTRL-format 'call') should have its relocation
  * specially flagged for link-time replacement with a 'bal' or 'calls' if
  * appropriate.
- */ 
+ */
 
 /* tailor gas */
 #define SYMBOLS_NEED_BACKPOINTERS
@@ -69,7 +69,7 @@
 #define M2		0x1000
 #define M3		0x2000
 
-/* Generate the 12-bit opcode for a REG format instruction by placing the 
+/* Generate the 12-bit opcode for a REG format instruction by placing the
  * high 8 bits in instruction bits 24-31, the low 4 bits in instruction bits
  * 7-10.
  */
@@ -179,7 +179,7 @@
  *		'bal' entry point to the procedure (see following).  These
  *		entries come from '.leafproc' directives in which two different
  *		symbols are specified (the first one is represented here).
- *	
+ *
  *
  *	n_other == N_BALNAME
  *		the symbol is the 'bal' entry point to a leaf procedure.
@@ -252,9 +252,9 @@ struct relocation_info {
 #else /* switch on OBJ */
 you lose
 #endif /* witch on OBJ */
-    
+
 #if __STDC__ == 1
-    
+
     void brtab_emit(void);
 void reloc_callj(); /* this is really reloc_callj(fixS *fixP) but I don't want to change header inclusion order. */
 void tc_set_bal_of_call(); /* this is really tc_set_bal_of_call(symbolS *callP, symbolS *balP) */

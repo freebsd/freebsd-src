@@ -1,6 +1,6 @@
 /* memory allocation routines with error checking.
    Copyright 1989, 90, 91, 92, 93, 94 Free Software Foundation, Inc.
-   
+
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
 modify it under the terms of the GNU Library General Public

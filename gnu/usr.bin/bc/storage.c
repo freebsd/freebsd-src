@@ -23,7 +23,7 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-       
+
 *************************************************************************/
 
 #include "bcdefs.h"
@@ -45,7 +45,7 @@ init_storage ()
   /* Variables. */
   v_count = 0;
   more_variables ();
-  
+
   /* Arrays. */
   a_count = 0;
   more_arrays ();
@@ -231,7 +231,7 @@ fpop()
 {
   fstack_rec *temp;
   int retval;
-  
+
   if (fn_stack != NULL)
     {
       temp = fn_stack;
@@ -250,7 +250,7 @@ fpush (val)
      int val;
 {
   fstack_rec *temp;
-  
+
   temp = (fstack_rec *) bc_malloc (sizeof (fstack_rec));
   temp->s_next = fn_stack;
   temp->s_val = val;
@@ -264,7 +264,7 @@ void
 pop ()
 {
   estack_rec *temp;
-  
+
   if (ex_stack != NULL)
     {
       temp = ex_stack;
@@ -397,7 +397,7 @@ get_array_num (var_index, index)
       ix >>= NODE_SHIFT;
       log++;
     }
-  
+
   /* Build any tree that is necessary. */
   while (log > a_var->a_depth)
     {
@@ -416,7 +416,7 @@ get_array_num (var_index, index)
       a_var->a_tree = temp;
       a_var->a_depth++;
     }
-  
+
   /* Find the indexed variable. */
   temp = a_var->a_tree;
   while ( log-- > 1)
@@ -437,13 +437,13 @@ get_array_num (var_index, index)
       else
 	temp = temp->n_items.n_down[ix1];
     }
-  
+
   /* Return the address of the indexed variable. */
   return &(temp->n_items.n_num[sub[0]]);
 }
 
 
-/* Store the top of the execution stack into VAR_NAME.  
+/* Store the top of the execution stack into VAR_NAME.
    This includes the special variables ibase, obase, and scale. */
 
 void
@@ -541,7 +541,7 @@ store_var (var_name)
 }
 
 
-/* Store the top of the execution stack into array VAR_NAME. 
+/* Store the top of the execution stack into array VAR_NAME.
    VAR_NAME is the name of an array, and the next to the top
    of stack for the index into the array. */
 
@@ -555,7 +555,7 @@ store_array (var_name)
   if (!check_stack(2)) return;
   index = num2long (ex_stack->s_next->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-      (index == 0 && !is_zero(ex_stack->s_next->s_num))) 
+      (index == 0 && !is_zero(ex_stack->s_next->s_num)))
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -627,7 +627,7 @@ load_array (var_name)
   if (!check_stack(1)) return;
   index = num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-     (index == 0 && !is_zero(ex_stack->s_num))) 
+     (index == 0 && !is_zero(ex_stack->s_num)))
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -659,7 +659,7 @@ decr_var (var_name)
       else
 	rt_warn ("ibase too small in --");
       break;
-      
+
     case 1: /* obase */
       if (o_base > 2)
 	o_base--;
@@ -696,7 +696,7 @@ decr_array (var_name)
   if (!check_stack (1)) return;
   index = num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-     (index == 0 && !is_zero (ex_stack->s_num))) 
+     (index == 0 && !is_zero (ex_stack->s_num)))
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -765,7 +765,7 @@ incr_array (var_name)
   if (!check_stack (1)) return;
   index = num2long (ex_stack->s_num);
   if (index < 0 || index > BC_DIM_MAX ||
-      (index == 0 && !is_zero (ex_stack->s_num))) 
+      (index == 0 && !is_zero (ex_stack->s_num)))
     rt_error ("Array %s subscript out of bounds.", a_names[var_name]);
   else
     {
@@ -809,7 +809,7 @@ auto_var (name)
       a_temp->a_value = NULL;
       a_temp->a_param = FALSE;
       arrays[ix] = a_temp;
-    } 
+    }
 }
 
 
@@ -877,7 +877,7 @@ pop_vars (list)
 		}
 	      free (a_temp);
 	    }
-	} 
+	}
       list = list->next;
     }
 }
@@ -900,7 +900,7 @@ process_params (pc, func)
   bc_var *v_temp;
   bc_var_array *a_src, *a_dest;
   bc_num *n_temp;
-  
+
   /* Get the parameter names from the function. */
   params = functions[func].f_params;
 
@@ -922,17 +922,17 @@ process_params (pc, func)
 	    if ((ch == '1') && (params->av_name < 0))
 	      {
 		/* The variables is an array variable. */
-	
+
 		/* Compute source index and make sure some structure exists. */
 		ix = (int) num2long (ex_stack->s_num);
-		n_temp = get_array_num (ix, 0);    
-	
+		n_temp = get_array_num (ix, 0);
+
 		/* Push a new array and Compute Destination index */
-		auto_var (params->av_name);  
+		auto_var (params->av_name);
 		ix1 = -params->av_name;
 
 		/* Set up the correct pointers in the structure. */
-		if (ix == ix1) 
+		if (ix == ix1)
 		  a_src = arrays[ix]->a_next;
 		else
 		  a_src = arrays[ix];
@@ -962,6 +962,6 @@ process_params (pc, func)
 	}
       params = params->next;
     }
-  if (params != NULL) 
+  if (params != NULL)
     rt_error ("Parameter number mismatch");
 }

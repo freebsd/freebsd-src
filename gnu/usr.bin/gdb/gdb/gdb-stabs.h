@@ -39,7 +39,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define	SECT_OFF_MAX	4		/* Count of possible values */
 
 /* The stab_section_info chain remembers info from the ELF symbol table,
-   while psymtabs are being built for the other symbol tables in the 
+   while psymtabs are being built for the other symbol tables in the
    objfile.  It is destroyed at the complation of psymtab-reading.
    Any info that was used from it has been copied into psymtabs.  */
 
@@ -53,7 +53,7 @@ struct stab_section_info {
 /* Information is passed among various dbxread routines for accessing
    symbol files.  A pointer to this structure is kept in the sym_stab_info
    field of the objfile struct.  */
- 
+
 struct dbx_symfile_info {
   asection *text_sect;		/* Text section accessor */
   int symcount;			/* How many symbols are there in the file */

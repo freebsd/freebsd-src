@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Dirk Grunwald (grunwald@cs.uiuc.edu)
 
@@ -34,7 +34,7 @@ protected:
 
     SampleStatistic();
     virtual ~SampleStatistic();
-    virtual void reset(); 
+    virtual void reset();
 
     virtual void operator+=(double);
     int  samples();
@@ -54,7 +54,7 @@ protected:
 extern  void default_SampleStatistic_error_handler(const char*);
 extern  one_arg_error_handler_t SampleStatistic_error_handler;
 
-extern  one_arg_error_handler_t 
+extern  one_arg_error_handler_t
         set_SampleStatistic_error_handler(one_arg_error_handler_t f);
 
 inline SampleStatistic:: SampleStatistic(){ reset();}

@@ -1,4 +1,4 @@
-/* $RCSfile: cons.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:35 $
+/* $RCSfile: cons.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: cons.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:35  nate
  * PERL!
  *
@@ -21,18 +24,18 @@
  * patch20: debugger sometimes displayed wrong source line
  * patch20: various error messages have been clarified
  * patch20: an eval block containing a null block or statement could dump core
- * 
+ *
  * Revision 4.0.1.2  91/11/05  16:15:13  lwall
  * patch11: debugger got confused over nested subroutine definitions
  * patch11: prepared for ctype implementations that don't define isascii()
- * 
+ *
  * Revision 4.0.1.1  91/06/07  10:31:15  lwall
  * patch4: new copyright notice
  * patch4: added global modifier for pattern matches
- * 
+ *
  * Revision 4.0  91/03/20  01:05:51  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -1224,7 +1227,7 @@ register ARG *arg;
 	case A_LEXPR:
 	    if (arg->arg_type == O_AASSIGN &&
 	      arg[i].arg_ptr.arg_arg->arg_type == O_LARRAY) {
-		char *name = 
+		char *name =
 		  stab_name(arg[i].arg_ptr.arg_arg[1].arg_ptr.arg_stab);
 
 		if (strnEQ("_GEN_",name, 5))	/* array for foreach */

@@ -170,7 +170,7 @@ static void FDECL3(write_one_file, char *, filename, unsigned int, size, FILE *,
 	  use = ROUND_UP(use); /* Round up to nearest sector boundary */
 	  memset(buffer, 0, use);
 	  if (fread(buffer, 1, use, infile) == 0) {
-	    fprintf(stderr,"cannot read from %s\n",filename); 
+	    fprintf(stderr,"cannot read from %s\n",filename);
 	    exit(1);
 	  }
 	  xfwrite(buffer, 1, use, outfile);
@@ -251,7 +251,7 @@ void FDECL1(sort_directory, struct directory_entry **, sort_dir){
   };
   /* OK, now we know how many there are.  Build a vector for sorting. */
 
-  sortlist =   (struct directory_entry **) 
+  sortlist =   (struct directory_entry **)
     e_malloc(sizeof(struct directory_entry *) * dcount);
 
   dcount = 0;
@@ -263,7 +263,7 @@ void FDECL1(sort_directory, struct directory_entry **, sort_dir){
     dcount++;
     s_entry = s_entry->next;
   };
-  
+
   qsort(sortlist, dcount, sizeof(struct directory_entry *),
   	(void *)compare_dirs);
 
@@ -306,18 +306,18 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
   while (dpnt){
     s_entry = dpnt->contents;
     for(s_entry = dpnt->contents; s_entry; s_entry = s_entry->next){
-      
+
       /* This saves some space if there are symlinks present */
       s_hash = find_hash(s_entry->dev, s_entry->inode);
       if(s_hash){
         if(verbose)
-	  fprintf(stderr, "Cache hit for %s%s%s\n",s_entry->filedir->de_name, 
+	  fprintf(stderr, "Cache hit for %s%s%s\n",s_entry->filedir->de_name,
 		  SPATH_SEPARATOR, s_entry->name);
         set_733(s_entry->isorec.extent, s_hash->starting_block);
         set_733(s_entry->isorec.size, s_hash->size);
         continue;
       };
-      if (strcmp(s_entry->name,".") && strcmp(s_entry->name,"..") && 
+      if (strcmp(s_entry->name,".") && strcmp(s_entry->name,"..") &&
 	  s_entry->isorec.flags[0] == 2){
 	finddir = dpnt->subdir;
 	while(1==1){
@@ -335,22 +335,22 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
         if(strcmp(s_entry->name,".") ==0 || strcmp(s_entry->name,"..") == 0) {
 	  if(strcmp(s_entry->name,".") == 0) {
 	    set_733(s_entry->isorec.extent, dpnt->extent);
-	    
+
 	    /* Set these so that the hash table has the correct information */
 	    s_entry->starting_block = dpnt->extent;
 	    s_entry->size = ROUND_UP(dpnt->size);
-	    
+
 	    add_hash(s_entry);
 	    s_entry->starting_block = dpnt->extent;
 	    set_733(s_entry->isorec.size, ROUND_UP(dpnt->size));
 	  } else {
 	    if(dpnt == root) total_dir_size += root->size;
 	    set_733(s_entry->isorec.extent, dpnt->parent->extent);
-	    
+
 	    /* Set these so that the hash table has the correct information */
 	    s_entry->starting_block = dpnt->parent->extent;
 	    s_entry->size = ROUND_UP(dpnt->parent->size);
-	    
+
 	    add_hash(s_entry);
 	    s_entry->starting_block = dpnt->parent->extent;
 	    set_733(s_entry->isorec.size, ROUND_UP(dpnt->parent->size));
@@ -360,9 +360,9 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
 	     straightforward, just make a list and assign extents as we go.
 	     Once we get through writing all of the directories, we should
 	     be ready write out these files */
-	
+
 	  if(s_entry->size) {
-	    dwpnt = (struct deferred_write *) 
+	    dwpnt = (struct deferred_write *)
 	      e_malloc(sizeof(struct deferred_write));
 	    if(dw_tail){
 	      dw_tail->next = dwpnt;
@@ -398,7 +398,7 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
 	      fprintf(stderr,"Warning: large file %s\n", whole_path);
 	      fprintf(stderr,"Starting block is %d\n", s_entry->starting_block);
 	      fprintf(stderr,"Reported file size is %d extents\n", s_entry->size);
-	      
+
 	    };
 #endif
 	    if(last_extent > (700000000 >> 11)) {  /* More than 700Mb? Punt */
@@ -437,9 +437,9 @@ void FDECL2(generate_one_directory, struct directory *, dpnt, FILE *, outfile){
   if(ce_size) {
     ce_buffer = (char *) e_malloc(ce_size);
     memset(ce_buffer, 0, ce_size);
-    
+
     ce_index = 0;
-    
+
     /* Absolute byte address of CE entries for this directory */
     ce_address = last_extent_written + (total_size >> 11);
     ce_address = ce_address << 11;
@@ -452,13 +452,13 @@ void FDECL2(generate_one_directory, struct directory *, dpnt, FILE *, outfile){
        pad, and then start the next entry at the next sector */
     new_reclen = s_entry->isorec.length[0];
     if ((dir_index & (SECTOR_SIZE - 1)) + new_reclen >= SECTOR_SIZE)
-      dir_index = (dir_index + (SECTOR_SIZE - 1)) & 
+      dir_index = (dir_index + (SECTOR_SIZE - 1)) &
 	~(SECTOR_SIZE - 1);
 
-    memcpy(directory_buffer + dir_index, &s_entry->isorec, 
+    memcpy(directory_buffer + dir_index, &s_entry->isorec,
 	   sizeof(struct iso_directory_record) -
 	   sizeof(s_entry->isorec.name) + s_entry->isorec.name_len[0]);
-     dir_index += sizeof(struct iso_directory_record) - 
+     dir_index += sizeof(struct iso_directory_record) -
       sizeof (s_entry->isorec.name)+ s_entry->isorec.name_len[0];
 
     /* Add the Rock Ridge attributes, if present */
@@ -486,10 +486,10 @@ void FDECL2(generate_one_directory, struct directory *, dpnt, FILE *, outfile){
 
 	    set_733(pnt+4, (ce_address + ce_index) >> 11);
 	    set_733(pnt+12, (ce_address + ce_index) & (SECTOR_SIZE - 1));
-	    
+
 
 	    /* Now store the block in the ce buffer */
-	    memcpy(ce_buffer + ce_index, 
+	    memcpy(ce_buffer + ce_index,
 		   pnt + pnt[2], nbytes);
 	    ce_index += nbytes;
 	    if(ce_index & 1) ce_index++;
@@ -501,7 +501,7 @@ void FDECL2(generate_one_directory, struct directory *, dpnt, FILE *, outfile){
       }
 
       rockridge_size += s_entry->total_rr_attr_size;
-      memcpy(directory_buffer + dir_index, s_entry->rr_attributes, 
+      memcpy(directory_buffer + dir_index, s_entry->rr_attributes,
 	     s_entry->rr_attr_size);
       dir_index += s_entry->rr_attr_size;
     };
@@ -518,7 +518,7 @@ void FDECL2(generate_one_directory, struct directory *, dpnt, FILE *, outfile){
   sort_dir = NULL;
 
   if(dpnt->size != dir_index)
-    fprintf(stderr,"Unexpected directory length %d %d %s\n",dpnt->size, 
+    fprintf(stderr,"Unexpected directory length %d %d %s\n",dpnt->size,
 	    dir_index, dpnt->de_name);
   xfwrite(directory_buffer, 1, total_size, outfile);
   last_extent_written += total_size >> 11;
@@ -551,7 +551,7 @@ int FDECL2(compare_paths, const struct directory **, r, const struct directory *
   if((*r)->parent->path_index < (*l)->parent->path_index) return -1;
   if((*r)->parent->path_index > (*l)->parent->path_index) return 1;
   return strcmp((*r)->self->isorec.name, (*l)->self->isorec.name);
-  
+
 }
 
 void generate_path_tables(){
@@ -597,7 +597,7 @@ void generate_path_tables(){
     if(*npnt == 0 || dpnt == root) npnt = ".";  /* So the root comes out OK */
     npnt1 = strrchr(npnt, PATH_SEPARATOR);
     if(npnt1) npnt = npnt1 + 1;
-	    
+
     de = dpnt->self;
     if(!de) {fprintf(stderr,"Fatal goof\n"); exit(1);};
 
@@ -607,11 +607,11 @@ void generate_path_tables(){
     path_table_l[path_table_index] = namelen;
     path_table_m[path_table_index] = namelen;
     path_table_index += 2;
-    set_731(path_table_l + path_table_index, dpnt->extent); 
-    set_732(path_table_m + path_table_index, dpnt->extent); 
+    set_731(path_table_l + path_table_index, dpnt->extent);
+    set_732(path_table_m + path_table_index, dpnt->extent);
     path_table_index += 4;
-    set_721(path_table_l + path_table_index, dpnt->parent->path_index); 
-    set_722(path_table_m + path_table_index, dpnt->parent->path_index); 
+    set_721(path_table_l + path_table_index, dpnt->parent->path_index);
+    set_722(path_table_m + path_table_index, dpnt->parent->path_index);
     path_table_index += 2;
     for(i =0; i<namelen; i++){
       path_table_l[path_table_index] = de->isorec.name[i];
@@ -678,7 +678,7 @@ int FDECL1(iso_write, FILE *, outfile){
 
   /* Now we copy the actual root directory record */
 
-  memcpy(vol_desc.root_directory_record, &root_record, 
+  memcpy(vol_desc.root_directory_record, &root_record,
 	 sizeof(struct iso_directory_record) + 1);
 
   /* The rest is just fluff.  It looks nice to fill in many of these fields,
@@ -749,7 +749,7 @@ int FDECL1(iso_write, FILE *, outfile){
 #ifdef DBG_ISO
   fprintf(stderr,"Total directory extents being written = %d\n", last_extent);
 #endif
-#if 0 
+#if 0
  generate_one_directory(root, outfile);
 #endif
   generate_iso9660_directories(root, outfile);

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.23 1995/03/03 06:37:36 nate Exp $
+ *	$Id: rtld.c,v 1.23 1995/04/21 04:57:50 nate Exp $
  */
 
 #include <sys/param.h>
@@ -232,7 +232,7 @@ struct _dynamic		*dp;
 	     n > 0;
 	     n -= sizeof(struct relocation_info) ) nreloc++;
 
-	
+
 	/* Relocate ourselves */
 	for (reloc = (struct relocation_info *)(LD_REL(dp) + crtp->crt_ba);
 	     nreloc;
@@ -562,7 +562,7 @@ again:
 	(long)dp->d_un.d_sdt += (long)addr;
 
 	p = alloc_link_map(path, sodp, smp, addr, dp);
-        
+
         /* save segment sizes for unmap. */
         smpp = LM_PRIVATE(p);
         smpp->a_text = hdr.a_text;
@@ -584,7 +584,7 @@ unmap_object(smp)
         /* Find the object in the list and unlink it */
 
         for (prev = NULL, p = link_map_head;
-             p != smp; 
+             p != smp;
              prev = p, p = p->som_next) continue;
 
         if (prev == NULL) {
@@ -903,7 +903,7 @@ lookup(name, src_map, strong)
 			continue;
 
 		if ((buckets = LD_BUCKETS(smp->som_dynamic)) == 0)
-			continue; 
+			continue;
 
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
 			continue;
@@ -1323,7 +1323,7 @@ __dlclose(fd)
 
 	/* Dismantle shared object map and descriptor */
 	init_map(smp, "_fini");
-	
+
         if (unmap_object(smp) < 0)
 		return -1;
 

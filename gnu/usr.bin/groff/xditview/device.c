@@ -89,7 +89,7 @@ void device_destroy(dev)
     Device *dev;
 {
     DeviceFont *f;
-    
+
     if (!dev)
 	return;
     f = dev->fonts;
@@ -98,7 +98,7 @@ void device_destroy(dev)
 	f = f->next;
 	delete_font(tem);
     }
-    
+
     XtFree(dev->name);
     XtFree((char *)dev);
 }
@@ -138,7 +138,7 @@ Device *device_load(name)
 		np = &dev->paperwidth;
  	    else if (strcmp(p, "paperlength") == 0)
 		np = &dev->paperlength;
-	    
+
 	    if (np) {
 		q = strtok((char *)0, WS);
 		if (!q || sscanf(q, "%d", np) != 1 || *np <= 0) {
@@ -146,7 +146,7 @@ Device *device_load(name)
 		    err = 1;
 		    break;
 		}
-	    }	
+	    }
 	}
     }
     fclose(fp);
@@ -387,7 +387,7 @@ int device_font_special(f)
 {
     return f->special;
 }
-    
+
 static
 struct charinfo *add_char(f, name, width, code)
     DeviceFont *f;
@@ -396,18 +396,18 @@ struct charinfo *add_char(f, name, width, code)
 {
     struct charinfo **pp;
     struct charinfo *ci;
-    
+
     name = canonicalize_name(name);
     if (strcmp(name, "---") == 0)
 	name = "";
 
     ci = (struct charinfo *)XtMalloc(XtOffsetOf(struct charinfo, name[0])
 				     + strlen(name) + 1);
-    
+
     strcpy(ci->name, name);
     ci->width = width;
     ci->code = code;
-    
+
     if (*name != '\0') {
 	pp = &f->char_table[hash_name(name) % CHAR_TABLE_SIZE];
 	ci->next = *pp;
@@ -486,30 +486,30 @@ FILE *find_file(file, path, result)
   int bufsiz = 0;
   int flen;
   FILE *fp;
-  
+
   *result = NULL;
-  
+
   if (file == NULL)
     return NULL;
   if (*file == '\0')
     return NULL;
-  
+
   if (*file == '/') {
     fp = fopen(file, "r");
     if (fp)
       *result = XtNewString(file);
     return fp;
   }
-  
+
   flen = strlen(file);
-  
+
   if (!path)
     return NULL;
-  
+
   while (*path) {
     int len;
     char *start, *end;
-    
+
     start = path;
     end = strchr(path, ':');
     if (end)

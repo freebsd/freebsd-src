@@ -139,7 +139,7 @@ val_print (type, valaddr, address, stream, format, deref_ref, recurse, pretty)
     {
       pretty = prettyprint_structs ? Val_prettyprint : Val_no_prettyprint;
     }
-  
+
   QUIT;
 
   /* Ensure that the type is complete and not just a stub.  If the type is
@@ -153,7 +153,7 @@ val_print (type, valaddr, address, stream, format, deref_ref, recurse, pretty)
       gdb_flush (stream);
       return (0);
     }
-  
+
   return (LA_VAL_PRINT (type, valaddr, address, stream, format, deref_ref,
 			recurse, pretty));
 }
@@ -204,7 +204,7 @@ val_print_type_code_int (type, valaddr, stream)
 	     in all its bytes more significant than least significant
 	     sizeof (LONGEST) ones.  */
 	  len = TYPE_LENGTH (type);
-	  
+
 #if TARGET_BYTE_ORDER == BIG_ENDIAN
 	  for (p = valaddr;
 	       len > sizeof (LONGEST) && p < valaddr + TYPE_LENGTH (type);
@@ -416,7 +416,7 @@ print_floating (valaddr, type, stream)
   double doub;
   int inv;
   unsigned len = TYPE_LENGTH (type);
-  
+
 #if defined (IEEE_FLOAT)
 
   /* Check for NaN's.  Note that this code does not depend on us being
@@ -441,7 +441,7 @@ print_floating (valaddr, type, stream)
 	   integer byte order.  */
 	low = extract_unsigned_integer (valaddr, 4);
 	nonnegative = ((low & 0x80000000) == 0);
-	is_nan = ((((low >> 23) & 0xFF) == 0xFF) 
+	is_nan = ((((low >> 23) & 0xFF) == 0xFF)
 		  && 0 != (low & 0x7FFFFF));
 	low &= 0x7fffff;
 	high = 0;
@@ -552,7 +552,7 @@ val_print_array_elements (type, valaddr, address, stream, format, deref_ref,
   unsigned int rep1;
   /* Number of repetitions we have detected so far.  */
   unsigned int reps;
-      
+
   elttype = TYPE_TARGET_TYPE (type);
   eltlen = TYPE_LENGTH (elttype);
   len = TYPE_LENGTH (type) / eltlen;
@@ -577,7 +577,7 @@ val_print_array_elements (type, valaddr, address, stream, format, deref_ref,
 
       rep1 = i + 1;
       reps = 1;
-      while ((rep1 < len) && 
+      while ((rep1 < len) &&
 	     !memcmp (valaddr + i * eltlen, valaddr + rep1 * eltlen, eltlen))
 	{
 	  ++reps;
@@ -623,7 +623,7 @@ value_print_array_elements (val, stream, format, pretty)
   unsigned int rep1;
   /* Number of repetitions we have detected so far.  */
   unsigned int reps;
-    
+
   n = VALUE_REPETITIONS (val);
   typelen = TYPE_LENGTH (VALUE_TYPE (val));
   for (i = 0; i < n && things_printed < print_max; i++)
@@ -633,7 +633,7 @@ value_print_array_elements (val, stream, format, pretty)
 	  fprintf_filtered (stream, ", ");
 	}
       wrap_here ("");
-      
+
       rep1 = i + 1;
       reps = 1;
       while (rep1 < n && !memcmp (VALUE_CONTENTS (val) + typelen * i,
@@ -643,7 +643,7 @@ value_print_array_elements (val, stream, format, pretty)
 	  ++reps;
 	  ++rep1;
 	}
-      
+
       if (reps > repeat_count_threshold)
 	{
 	  val_print (VALUE_TYPE (val), VALUE_CONTENTS (val) + typelen * i,
@@ -991,15 +991,15 @@ _initialize_valprint ()
   add_prefix_cmd ("print", no_class, set_print,
 		  "Generic command for setting how things print.",
 		  &setprintlist, "set print ", 0, &setlist);
-  add_alias_cmd ("p", "print", no_class, 1, &setlist); 
-  /* prefer set print to set prompt */ 
+  add_alias_cmd ("p", "print", no_class, 1, &setlist);
+  /* prefer set print to set prompt */
   add_alias_cmd ("pr", "print", no_class, 1, &setlist);
 
   add_prefix_cmd ("print", no_class, show_print,
 		  "Generic command for showing print settings.",
 		  &showprintlist, "show print ", 0, &showlist);
-  add_alias_cmd ("p", "print", no_class, 1, &showlist); 
-  add_alias_cmd ("pr", "print", no_class, 1, &showlist); 
+  add_alias_cmd ("p", "print", no_class, 1, &showlist);
+  add_alias_cmd ("pr", "print", no_class, 1, &showlist);
 
   add_show_from_set
     (add_set_cmd ("elements", no_class, var_uinteger, (char *)&print_max,
@@ -1035,7 +1035,7 @@ _initialize_valprint ()
 		  "Set printing of unions interior to structures.",
 		  &setprintlist),
      &showprintlist);
-  
+
   add_show_from_set
     (add_set_cmd ("array", class_support, var_boolean,
 		  (char *)&prettyprint_arrays,

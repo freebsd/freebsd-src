@@ -56,7 +56,7 @@ SS	-adobe-symbol-medium-r-normal--*-100-*-*-*-*-adobe-fontspecific\n\
 #define MY_WIDTH(dw) ((int)(dw->dvi.paperwidth * dw->dvi.scale_factor + .5))
 #define MY_HEIGHT(dw) ((int)(dw->dvi.paperlength * dw->dvi.scale_factor + .5))
 
-static XtResource resources[] = { 
+static XtResource resources[] = {
 	{XtNfontMap, XtCFontMap, XtRString, sizeof (char *),
 	 offset(dvi.font_map_string), XtRString, default_font_map},
 	{XtNforeground, XtCForeground, XtRPixel, sizeof (unsigned long),
@@ -96,7 +96,7 @@ static void		SaveToFile ();
 
 DviClassRec dviClassRec = {
 {
-	&widgetClassRec,		/* superclass		  */	
+	&widgetClassRec,		/* superclass		  */
 	"Dvi",				/* class_name		  */
 	sizeof(DviRec),			/* size			  */
 	ClassInitialize,		/* class_initialize	  */
@@ -254,7 +254,7 @@ Redisplay(w, event, region)
 {
 	DviWidget	dw = (DviWidget) w;
 	XRectangle	extents;
-	
+
 	XClipBox (region, &extents);
 	dw->dvi.extents.x1 = extents.x;
 	dw->dvi.extents.y1 = extents.y;
@@ -430,7 +430,7 @@ ShowDvi (dw)
 	}
 
 	FindPage (dw);
-	
+
 	dw->dvi.display_enable = 1;
 	ParseInput (dw);
 	if (dw->dvi.last_page && dw->dvi.requested_page > dw->dvi.last_page)
@@ -465,7 +465,7 @@ FindPage (dw)
 		FileSeek (dw, file_position);
 
 		dw->dvi.current_page = i;
-		
+
 		dw->dvi.display_enable = 0;
 		while (dw->dvi.current_page != dw->dvi.requested_page) {
 			dw->dvi.current_page = ParseInput (dw);
@@ -531,7 +531,7 @@ void ClassPartInitialize(widget_class)
 	if (wc->command_class.save == InheritSaveToFile)
 		wc->command_class.save = super->command_class.save;
 }
-	
+
 /*
 Local Variables:
 c-indent-level: 8

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char rec_rcsid[] = "$Id: rec.c,v 1.2 1994/05/07 18:13:55 ache Exp $";
+const char rec_rcsid[] = "$Id: rec.c,v 1.3 1994/11/06 10:17:11 davidg Exp $";
 #endif
 
 #include <errno.h>
@@ -123,7 +123,7 @@ urrec_free (qtrans)
     }
 
   utransfree (qtrans);
-}       
+}
 
 /* Set up a request for a file from the remote system.  This may be
    called before the remote system has been called.
@@ -569,7 +569,7 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
 	    qcmd->zfrom);
       return fremote_send_fail (qdaemon, qcmd, FAILURE_PERM, iremote);
     }
-		  
+
   fspool = fspool_file (qcmd->zto);
 
   /* We don't accept remote command files.  An execution request may
@@ -897,7 +897,7 @@ fremote_send_fail_send (qtrans, qdaemon)
       ab[2] = '\0';
       break;
     }
-  
+
   ab[3] = '\0';
 
   qinfo->fsent = TRUE;
@@ -1063,7 +1063,7 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	    imode = 0666;
 	  (void) fsysdep_change_mode (qinfo->zfile, imode);
 	}
-  
+
       zerr = NULL;
     }
 

@@ -69,7 +69,7 @@ fsysdep_rmdir (zdir)
   while (q != NULL)
     {
       struct sdirlist *qnext;
-      
+
       if (rmdir (q->zdir) != 0)
 	{
 	  ulog (LOG_ERROR, "rmdir (%s): %s", q->zdir, strerror (errno));

@@ -5,7 +5,7 @@
  *
  * You may distribute under the terms of the GNU General Public
  * License as specified in the file COPYING that comes with the man
- * distribution.  
+ * distribution.
  *
  * John W. Eaton
  * jwe@che.utexas.edu
@@ -490,7 +490,7 @@ add_dir_to_list (lp, dir, perrs)
 
 /*
  * Check to see if the current directory has man or MAN
- * subdirectories. 
+ * subdirectories.
  */
 char *
 has_subdirs (p)
@@ -507,12 +507,12 @@ has_subdirs (p)
 
   memcpy (t, p, len);
   strcpy (t + len, "/man");
-  
+
   if (is_directory (t) == 1)
     return t;
 
   strcpy (t + len, "/MAN");
-  
+
   if (is_directory (t) == 1)
     return t;
 

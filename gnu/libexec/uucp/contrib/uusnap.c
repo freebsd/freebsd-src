@@ -12,7 +12,7 @@
 
    compile it form the Makefile or:
    cc -c -g -pipe -O  -I. -I. -DNEWCONFIGLIB=\"/usr/local/lib/uucp\" uusnap.c
-   cc  -o uusnap uusnap.o 
+   cc  -o uusnap uusnap.o
    For this, uusnap.[ch] must be in the same directory as uucp.h and so.
 
    uusnap must have read access to SPOOLDIR/.Status in order to work.
@@ -25,7 +25,7 @@
 
 #include "uucp.h"
 #if USE_RCS_ID
-char uusnap_rcsid[] = "$Id: uusnap.c,v 1.9 92/05/05 22:51:50 hwr Exp Locker: hwr $";
+char uusnap_rcsid[] = "$Id: uusnap.c,v 1.2 1994/05/07 18:09:40 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -50,7 +50,7 @@ struct sysInfo  {
     int num_retries;		/* number of retries */
 };
 
-struct sysInfo Systems[MAXSYS];    
+struct sysInfo Systems[MAXSYS];
 
 
 /*  I have extend the system status. If time for the specified system
@@ -77,7 +77,7 @@ main()
     int i;
     i=get_systems();
     display_info(i);
-    
+
     exit(0);
 }
 
@@ -115,7 +115,7 @@ get_systems()
 	    get_stat_for_system(i);    	/* now get the system status */
 	    get_inq_num(i,TRUE);	/* number of unprocessed files */
 	    get_outq_num(i,TRUE);       /* number of files to send */
-	    i++;	
+	    i++;
 	}
 	fclose(fp);
     }
@@ -126,7 +126,7 @@ get_systems()
     return i;
 }
 
-	    
+
 
 display_info(int numSys)
 {
@@ -144,7 +144,7 @@ display_info(int numSys)
 	fprintf(stderr, "Can't malloc 1024 bytes");
 	exit(1);
     }
-	
+
     while(TRUE) {
 	display_headline();
 	for (sysnum=0;sysnum<numSys;sysnum++) {
@@ -170,21 +170,21 @@ int
 display_status_line(int sn)
 {
     char *time_s;
-    
+
     int sys_stat,num_retries,wait;
     int i;
     time_t last_time;
     time_t next_time;
-     
+
     struct sysInfo sys;
-    
+
     sys = Systems[sn];
 
     printf("%10s  ",sys.sysname);
     get_inq_num(sn);
     if (sys.in==0)
 	printf("     ");
-    else 
+    else
 	printf("%3d  ",sys.in);
     get_outq_num(sn);
     if (sys.out==0)
@@ -198,13 +198,13 @@ display_status_line(int sn)
     time_s = ctime(&sys.next);
     time_s = time_s + 11;
     *(time_s+8)='\0';
-    if (sys.last == sys.next) 
+    if (sys.last == sys.next)
 	printf("           ");
     else
 	printf("%8s   ",time_s);	/* time of next poll */
-    if (sys.num_retries==0) 
+    if (sys.num_retries==0)
 	printf("   ");
-    else 
+    else
 	printf("%2d ",sys.num_retries);
     if (sys_stat==6) 		/* system is talking */
 	printf("\E[7m");	/* reverse video on */
@@ -234,7 +234,7 @@ get_inq_num(int num,char firstTime)
     char filename[1024];
     struct stat stbuf;
     DIR *dirp;
-    
+
     strcpy(filename,Systems[num].spooldir);
     strcat(filename,"/X./.");
     stat(filename,&stbuf);
@@ -263,7 +263,7 @@ get_outq_num(int sys,char firstTime)
     char filename[1024];
     struct stat stbuf;
     DIR *dirp;
-    
+
     strcpy(filename,Systems[sys].spooldir);
     strcat(filename,"/C./.");
     stat(filename,&stbuf);

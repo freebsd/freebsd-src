@@ -3034,7 +3034,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x2, SFmode))
     {
       ro[1] = x2;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 194;
       }
@@ -3046,7 +3046,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x2, SFmode))
     {
       ro[1] = x2;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 197;
       }
@@ -3245,7 +3245,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (general_operand (x3, SFmode))
     {
       ro[1] = x3;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 189;
       }
@@ -3264,7 +3264,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x2, DFmode))
     {
       ro[1] = x2;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 193;
       }
@@ -3276,7 +3276,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x3, SFmode))
     {
       ro[1] = x3;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 195;
       }
@@ -3295,7 +3295,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x2, DFmode))
     {
       ro[1] = x2;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 196;
       }
@@ -3307,7 +3307,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (register_operand (x3, SFmode))
     {
       ro[1] = x3;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 198;
       }
@@ -3471,7 +3471,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (general_operand (x2, XFmode))
     {
       ro[1] = x2;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 190;
       }
@@ -3483,7 +3483,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (general_operand (x3, DFmode))
     {
       ro[1] = x3;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 191;
       }
@@ -3491,7 +3491,7 @@ recog_4 (x0, insn, pnum_clobbers)
   if (general_operand (x3, SFmode))
     {
       ro[1] = x3;
-      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387 
+      if (! TARGET_NO_FANCY_MATH_387 && TARGET_80387
    && (TARGET_IEEE_FP || flag_fast_math) )
 	return 192;
       }

@@ -68,7 +68,7 @@ ixsysdep_get_sequence (qsys)
 	  ubuffree (zname);
 	  return -1;
 	}
-    
+
       e = fopen (zname, "r+");
       if (e == NULL)
 	{

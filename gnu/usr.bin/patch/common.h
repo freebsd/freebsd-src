@@ -1,18 +1,22 @@
-/* $Header: /a/cvs/386BSD/src/gnu/patch/common.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/common.h,v 1.2 1993/09/22 16:51:03 rich Exp $
  *
  * $Log: common.h,v $
+ * Revision 1.2  1993/09/22  16:51:03  rich
+ * Increaed the fixed static buffer sizes and maximum hunk size that
+ * otherwise causes the XFree86 1.3 patch set to fail.
+ *
  * Revision 1.1.1.1  1993/06/19  14:21:52  paul
  * b-maked patch-2.10
  *
  * Revision 2.0.1.2  88/06/22  20:44:53  lwall
  * patch12: sprintf was declared wrong
- * 
+ *
  * Revision 2.0.1.1  88/06/03  15:01:56  lwall
  * patch10: support for shorter extensions.
- * 
+ *
  * Revision 2.0  86/09/17  15:36:39  lwall
  * Baseline for netwide release.
- * 
+ *
  */
 
 #define DEBUGGING

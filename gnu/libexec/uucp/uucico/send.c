@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char send_rcsid[] = "$Id: send.c,v 1.2 1994/05/07 18:13:57 ache Exp $";
+const char send_rcsid[] = "$Id: send.c,v 1.3 1994/11/06 10:17:13 davidg Exp $";
 #endif
 
 #include <errno.h>
@@ -110,7 +110,7 @@ usfree_send (qtrans)
     }
 
   utransfree (qtrans);
-}      
+}
 
 /* Set up a local request to send a file.  This may be called before
    we have even tried to call the remote system.
@@ -263,7 +263,7 @@ flocal_send_file_init (qdaemon, qcmd)
 	  else
 	    qdaemon->cmax_ever = c2;
 	}
-		      
+
       if (qdaemon->cmax_ever != -1
 	  && qdaemon->cmax_ever < qcmd->cbytes)
 	return flocal_send_fail ((struct stransfer *) NULL, qcmd, qdaemon,
@@ -1056,7 +1056,7 @@ fremote_rec_fail_send (qtrans, qdaemon)
       z = "RN";
       break;
     }
-  
+
   xfree (qtrans->pinfo);
   utransfree (qtrans);
   fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, z, ilocal, iremote);

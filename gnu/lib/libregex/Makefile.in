@@ -1,5 +1,5 @@
 # Makefile for regex.
-# 
+#
 # Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,7 @@ version = 0.12
 #   -DEXTRACT_MACROS to use the macros EXTRACT_* (as opposed to
 #           the corresponding C procedures).  If not -DDEBUG, the macros
 #           are used.
-CPPFLAGS = 
+CPPFLAGS =
 
 # Likewise, you can override CFLAGS to optimize, use -Wall, etc.
 CFLAGS = -g
@@ -82,7 +82,7 @@ TAGS check::
 .NOEXPORT:
 
 distfiles = AUTHORS ChangeLog COPYING INSTALL NEWS README \
-            *.in configure regex.c regex.h 
+            *.in configure regex.c regex.h
 distdir = regex-$(version)
 distargs = version=$(version) distdir=../$(distdir)/$$d
 dist: TAGS configure
