@@ -67,8 +67,7 @@ main(argc, argv)
 {
 	FTS		*fts;
 	FTSENT		*p;
-	FTSENT		*savedp;
-	long		blocksize;
+	long		blocksize, savednumber = 0;
 	int		ftsoptions;
 	int		listall;
 	int		depth;
@@ -184,7 +183,6 @@ main(argc, argv)
 		err(1, "fts_open");
 
 	while ((p = fts_read(fts)) != NULL) {
-		savedp = p;
 		switch (p->fts_info) {
 			case FTS_D:			/* Ignore. */
 				break;
@@ -216,15 +214,14 @@ main(argc, argv)
 
 				p->fts_parent->fts_number += p->fts_statp->st_blocks;
 		}
+		savednumber = p->fts_number;
 	}
 
 	if (errno)
 		err(1, "fts_read");
 
-	if (cflag) {
-		p = savedp->fts_parent;
-		(void) printf("%ld\ttotal\n", howmany(p->fts_number, blocksize));
-	}
+	if (cflag)
+		(void) printf("%ld\ttotal\n", howmany(savednumber, blocksize));
 
 	exit(rval);
 }
