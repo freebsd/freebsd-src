@@ -553,7 +553,8 @@ struct proc {
 	int		p_profthreads;	/* (c) Num threads in addupc_task */
 	int		p_maxthrwaits;	/* (c) Max threads num waiters */
 	int		p_traceflag;	/* (o) Kernel trace points. */
-	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */
+	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
+	struct ucred	*p_tracecred;	/* (o) Credentials to trace with. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
