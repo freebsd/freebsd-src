@@ -96,6 +96,15 @@ SRCS+=	_setjmp.S
 # really only required for i386
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 
+# decompression functionality from libbz2
+.PATH:	${.CURDIR}/../../contrib/bzip2
+CFLAGS+=-I${.CURDIR}/../../contrib/bzip2 -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+SRCS+=	_bzlib.c crctable.c decompress.c huffman.c randtable.c
+CLEANFILES+=   _bzlib.c _bzlib.c.orig
+
+_bzlib.c: bzlib.c bzlib.c.diff
+	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.c}
+
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY
@@ -113,7 +122,7 @@ SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 SRCS+=	bootp.c rarp.c bootparam.c
 
 # boot filesystems
-SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c
+SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c bzipfs.c
 SRCS+=	netif.c nfs.c
 SRCS+=	dosfs.c ext2fs.c
 
