@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16 1995/05/17 07:05:49 davidg Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.17 1995/07/04 20:58:57 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -160,6 +160,7 @@ AWAITING_MSG	= 0xa1				# Kernel requested to specify
 						# (command was null), so tell
 						# it that it can fill the
 						# message buffer.
+IMMEDDONE	= 0xb1
 
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
@@ -700,10 +701,15 @@ status_ok:
 clear_a:
 	xor	ACTIVE_A,A
 
+	test    SCBARRAY+11,0xff jnz complete  # Immediate message complete
+# Pause the sequencer until the driver gets around to handling the command
+# complete.  This is so that any action that might require carefull timing
+# with the completion of this command can occur.
+	mvi	INTSTAT,IMMEDDONE
+	jmp	start
 complete:
 	mov	QOUTFIFO,SCBPTR
 	mvi	INTSTAT,CMDCMPLT
-	test    SCBARRAY+11,0xff jz start	# Immediate message complete
 	jmp	p_mesgin_done
 
 # If we have a residual count, interrupt and tell the host.  Other
