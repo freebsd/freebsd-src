@@ -566,12 +566,17 @@ panic(const char *fmt, ...)
 	static char buf[256];
 
 #ifdef SMP
-	/* Only 1 CPU can panic at a time */
-	if (panic_cpu != PCPU_GET(cpuid) &&
-	    atomic_cmpset_int(&panic_cpu, NOCPU, PCPU_GET(cpuid)) == 0) {
-		for (;;)
-			; /* nothing */
-	}
+	/*
+	 * We don't want multiple CPU's to panic at the same time, so we
+	 * use panic_cpu as a simple spinlock.  We have to keep checking
+	 * panic_cpu if we are spinning in case the panic on the first
+	 * CPU is canceled.
+	 */
+	if (panic_cpu != PCPU_GET(cpuid))
+		while (atomic_cmpset_int(&panic_cpu, NOCPU,
+		    PCPU_GET(cpuid)) == 0)
+			while (panic_cpu != NOCPU)
+				; /* nothing */
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
@@ -597,6 +602,13 @@ panic(const char *fmt, ...)
 #if defined(DDB)
 	if (debugger_on_panic)
 		Debugger ("panic");
+	/* See if the user aborted the panic, in which case we continue. */
+	if (panicstr == NULL) {
+#ifdef SMP
+		atomic_store_rel_int(&panic_cpu, NOCPU);
+#endif
+		return;
+	}
 #endif
 	boot(bootopt);
 }
