@@ -226,7 +226,7 @@ void
 usracct_print()
 {
 	DBT key, data;
-	struct userinfo *ui;
+	struct userinfo uistore, *ui = &uistore;
 	double t;
 	int rv;
 
@@ -235,7 +235,7 @@ usracct_print()
 		warn("retrieving user accounting stats");
 
 	while (rv == 0) {
-		ui = (struct userinfo *) data.data;
+		memcpy(ui, data.data, sizeof(struct userinfo));
 
 		printf("%-*s %9qu ", MAXLOGNAME - 1,
 		    user_from_uid(ui->ui_uid, 0), ui->ui_calls);
