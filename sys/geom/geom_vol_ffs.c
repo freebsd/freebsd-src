@@ -89,8 +89,12 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	for (sb=0; (superblock = superblocks[sb]) != -1; sb++) {
 		fs = (struct fs *) g_read_data(cp, superblock,
 			SBLOCKSIZE, &error);
-		if (fs == NULL || error != 0)
+		if (fs == NULL)
 			continue;
+		if (error != 0) {
+			g_free(fs);
+			continue;
+		}
 		/* Check for magic and make sure things are the right size */
 		if (fs->fs_magic == FS_UFS1_MAGIC) {
 			if (fs->fs_old_size * fs->fs_fsize !=
@@ -128,7 +132,7 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);
