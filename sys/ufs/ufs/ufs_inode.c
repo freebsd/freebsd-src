@@ -156,7 +156,7 @@ ufs_reclaim(ap)
 	/*
 	 * Remove the inode from its hash chain.
 	 */
-	ufs_ihashrem(ip);
+	vfs_hash_remove(vp);
 	/*
 	 * Purge old data structures associated with the inode.
 	 */
