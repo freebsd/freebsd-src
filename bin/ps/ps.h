@@ -38,6 +38,8 @@ typedef struct kinfo {
 	char *ki_args;		/* exec args */
 	char *ki_env;		/* environment */
 	int ki_valid;		/* 1 => uarea stuff valid */
+	double	 ki_pcpu;	/* calculated in main() */
+	segsz_t	 ki_memsize;	/* calculated in main() */
 } KINFO;
 
 /* Variables. */

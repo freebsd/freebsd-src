@@ -166,6 +166,7 @@ main(int argc, char *argv[])
 	struct listinfo gidlist, pgrplist, pidlist;
 	struct listinfo ruidlist, sesslist, ttylist, uidlist;
 	struct kinfo_proc *kp;
+	KINFO *next_KINFO;
 	struct varent *vent;
 	struct winsize ws;
 	const char *nlistf, *memf;
@@ -569,10 +570,15 @@ main(int argc, char *argv[])
 			continue;
 
 		keepit:
-			kinfo[nkept].ki_p = kp;
+			next_KINFO = &kinfo[nkept];
+			next_KINFO->ki_p = kp;
+			next_KINFO->ki_pcpu = getpcpu(next_KINFO);
+			if (sortby == SORTMEM)
+				next_KINFO->ki_memsize = kp->ki_tsize +
+				    kp->ki_dsize + kp->ki_ssize;
 			if (needuser)
-				saveuser(&kinfo[nkept]);
-			dynsizevars(&kinfo[nkept]);
+				saveuser(next_KINFO);
+			dynsizevars(next_KINFO);
 			nkept++;
 		}
 	}
@@ -989,53 +995,40 @@ saveuser(KINFO *ki)
 	}
 }
 
+/* A macro used to improve the readability of pscomp(). */
+#define	DIFF_RETURN(a, b, field) do {	\
+	if ((a)->field != (b)->field)	\
+		return (((a)->field < (b)->field) ? -1 : 1); 	\
+} while (0)
+
 static int
 pscomp(const void *a, const void *b)
 {
 	const KINFO *ka, *kb;
-	double cpua, cpub;
-	segsz_t sizea, sizeb;
 
 	ka = a;
 	kb = b;
 	/* SORTCPU and SORTMEM are sorted in descending order. */
-	if (sortby == SORTCPU) {
-		cpua = getpcpu(ka);
-		cpub = getpcpu(kb);
-		if (cpua < cpub)
-			return (1);
-		if (cpua > cpub)
-			return (-1);
-	}
-	if (sortby == SORTMEM) {
-		sizea = ka->ki_p->ki_tsize + ka->ki_p->ki_dsize +
-		    ka->ki_p->ki_ssize;
-		sizeb = kb->ki_p->ki_tsize + kb->ki_p->ki_dsize +
-		    kb->ki_p->ki_ssize;
-		if (sizea < sizeb)
-			return (1);
-		if (sizea > sizeb)
-			return (-1);
-	}
+	if (sortby == SORTCPU)
+		DIFF_RETURN(kb, ka, ki_pcpu);
+	if (sortby == SORTMEM)
+		DIFF_RETURN(kb, ka, ki_memsize);
 	/*
 	 * TTY's are sorted in ascending order, except that all NODEV
 	 * processes come before all processes with a device.
 	 */
-	if (ka->ki_p->ki_tdev == NODEV && kb->ki_p->ki_tdev != NODEV)
-		return (-1);
-	if (ka->ki_p->ki_tdev != NODEV && kb->ki_p->ki_tdev == NODEV)
-		return (1);
-	if (ka->ki_p->ki_tdev < kb->ki_p->ki_tdev)
-		return (-1);
-	if (ka->ki_p->ki_tdev > kb->ki_p->ki_tdev)
-		return (1);
-	/* PID's are sorted in ascending order. */
-	if (ka->ki_p->ki_pid < kb->ki_p->ki_pid)
-		return (-1);
-	if (ka->ki_p->ki_pid > kb->ki_p->ki_pid)
-		return (1);
+	if (ka->ki_p->ki_tdev != kb->ki_p->ki_tdev) {
+		if (ka->ki_p->ki_tdev == NODEV)
+			return (-1);
+		if (kb->ki_p->ki_tdev == NODEV)
+			return (1);
+		DIFF_RETURN(ka, kb, ki_p->ki_tdev);
+	}
+
+	DIFF_RETURN(ka, kb, ki_p->ki_pid);
 	return (0);
 }
+#undef DIFF_RETURN
 
 /*
  * ICK (all for getopt), would rather hide the ugliness
