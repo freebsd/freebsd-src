@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: immio.c,v 1.1 1998/09/13 18:28:15 nsouch Exp $
  *
  */
 
@@ -269,7 +269,7 @@ static struct ppb_microseq epp17_instr[] = {
 };
 
 static int
-imm_disconnect(struct vpoio_data *vpo, int *disconnected)
+imm_disconnect(struct vpoio_data *vpo, int *connected, int release_bus)
 {
 	DECLARE_CPP_MICROSEQ;
 
@@ -277,8 +277,8 @@ imm_disconnect(struct vpoio_data *vpo, int *disconnected)
 	int ret;
 
 	/* all should be ok */
-	if (disconnected)
-		*disconnected = 0;
+	if (connected)
+		*connected = 0;
 
 	ppb_MS_init_msq(cpp_microseq, 4, CPP_S1, (void *)&s1,
 			CPP_S2, (void *)&s2, CPP_S3, (void *)&s3,
@@ -287,17 +287,20 @@ imm_disconnect(struct vpoio_data *vpo, int *disconnected)
 	ppb_MS_microseq(&vpo->vpo_dev, cpp_microseq, &ret);
 
 	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x38) &&
-								disconnected)
-		*disconnected = VP0_ECONNECT;
+								connected)
+		*connected = VP0_ECONNECT;
 
-	return (ppb_release_bus(&vpo->vpo_dev));
+	if (release_bus)
+		return (ppb_release_bus(&vpo->vpo_dev));
+	else
+		return (0);
 }
 
 /*
  * how	: PPB_WAIT or PPB_DONTWAIT
  */
 static int
-imm_connect(struct vpoio_data *vpo, int how, int *not_connected)
+imm_connect(struct vpoio_data *vpo, int how, int *disconnected, int request_bus)
 {
 	DECLARE_CPP_MICROSEQ;
 
@@ -306,11 +309,12 @@ imm_connect(struct vpoio_data *vpo, int how, int *not_connected)
 	int ret;
 
 	/* all should be ok */
-	if (not_connected)
-		*not_connected = 0;
+	if (disconnected)
+		*disconnected = 0;
 
-	if ((error = ppb_request_bus(&vpo->vpo_dev, how)))
-		return (error);
+	if (request_bus)
+		if ((error = ppb_request_bus(&vpo->vpo_dev, how)))
+			return (error);
 
 	ppb_MS_init_msq(cpp_microseq, 3, CPP_S1, (void *)&s1,
 			CPP_S2, (void *)&s2, CPP_S3, (void *)&s3);
@@ -331,8 +335,8 @@ imm_connect(struct vpoio_data *vpo, int how, int *not_connected)
 	ppb_MS_microseq(&vpo->vpo_dev, cpp_microseq, &ret);
 
 	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x30)
-							&& not_connected)
-		*not_connected = VP0_ECONNECT;
+							&& disconnected)
+		*disconnected = VP0_ECONNECT;
 
 	return (0);
 }
@@ -347,24 +351,42 @@ imm_detect(struct vpoio_data *vpo)
 {
 	int error;
 
-	imm_disconnect(vpo, NULL);
-	imm_connect(vpo, PPB_DONTWAIT, &error);
+	if ((error = ppb_request_bus(&vpo->vpo_dev, PPB_DONTWAIT)))
+		return (error);
 
-	if (error)
-		return (VP0_EINITFAILED);
+	/* disconnect the drive, keep the bus */
+	imm_disconnect(vpo, NULL, 0);
+
+	/* we already have the bus, just connect */
+	imm_connect(vpo, PPB_DONTWAIT, &error, 0);
+
+	if (error) {
+		if (bootverbose)
+			printf("imm%d: can't connect to the drive\n",
+				vpo->vpo_unit);
+		goto error;
+	}
 
 	/* send SCSI reset signal */
 	ppb_MS_microseq(&vpo->vpo_dev, reset_microseq, NULL);
 
-	imm_disconnect(vpo, &error);
+	/* release the bus now */
+	imm_disconnect(vpo, &error, 1);
 
 	/* ensure we are disconnected or daisy chained peripheral 
 	 * may cause serious problem to the disk */
 
-	if (error)
-		return (VP0_EINITFAILED);
+	if (error) {
+		if (bootverbose)
+			printf("imm%d: can't disconnect from the drive\n",
+				vpo->vpo_unit);
+	}
 
 	return (0);
+
+error:
+	ppb_release_bus(&vpo->vpo_dev);
+	return (VP0_EINITFAILED);
 }
 
 /*
@@ -609,18 +631,18 @@ imm_attach(struct vpoio_data *vpo)
 int
 imm_reset_bus(struct vpoio_data *vpo)
 {
-	int not_connected;
+	int disconnected;
 
-	/* first, connect to the drive */
-	imm_connect(vpo, PPB_WAIT|PPB_INTR, &not_connected);
+	/* first, connect to the drive and request the bus */
+	imm_connect(vpo, PPB_WAIT|PPB_INTR, &disconnected, 1);
 
-	if (!not_connected) {
+	if (!disconnected) {
 
 		/* reset the SCSI bus */
 		ppb_MS_microseq(&vpo->vpo_dev, reset_microseq, NULL);
 
 		/* then disconnect */
-		imm_disconnect(vpo, NULL);
+		imm_disconnect(vpo, NULL, 1);
 	}
 
 	return (0);
@@ -652,7 +674,7 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	 * The only way to report the interruption is to return
 	 * EIO do upper SCSI code :^(
 	 */
-	if ((error = imm_connect(vpo, PPB_WAIT|PPB_INTR, &not_connected)))
+	if ((error = imm_connect(vpo, PPB_WAIT|PPB_INTR, &not_connected, 1)))
 		return (error);
 
 	if (not_connected) {
@@ -765,7 +787,7 @@ error:
 		ppb_MS_microseq(&vpo->vpo_dev, transfer_epilog, NULL);
 
 	/* return to printer state, release the ppbus */
-	imm_disconnect(vpo, NULL);
+	imm_disconnect(vpo, NULL, 1);
 
 	return (0);
 }

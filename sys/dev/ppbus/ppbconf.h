@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.7 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: ppbconf.h,v 1.8 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -181,7 +181,7 @@ struct ppb_adapter {
 	void (*reset_epp_timeout)(int);
 	void (*ecp_sync)(int);
 
-	int (*exec_microseq)(int, struct ppb_microseq *, int *);
+	int (*exec_microseq)(int, struct ppb_microseq **);
 
 	int (*setmode)(int, int);
 

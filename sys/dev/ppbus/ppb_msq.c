@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.c,v 1.1.2.3 1998/06/14 14:36:26 son Exp $
+ *	$Id: ppb_msq.c,v 1.2 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #include <machine/stdarg.h>
@@ -246,8 +246,7 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 {
 	struct ppb_data *ppb = dev->ppb;
 	struct ppb_microseq *mi;		/* current microinstruction */
-	int msq_index;
-	int pc, error;
+	int error;
 
 	struct ppb_xfer *xfer;
 
@@ -261,14 +260,10 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 	if (ppb->ppb_owner != dev)
 		return (EACCES);
 
-#define INCR_PC (pc ++)
+#define INCR_PC (mi ++)
 
-	pc = 0;
+	mi = msq;
 	for (;;) {
-
-		/* retrieve the next microinstruction to execute */
-		mi = &msq[pc];
-
 		switch (mi->opcode) {                                           
 		case MS_OP_PUT:
 		case MS_OP_GET:
@@ -314,15 +309,12 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			 * is unknown here
 			 */
 			if ((error = ppb->ppb_link->adapter->exec_microseq(
-						dev->id_unit, msq, &pc)))
-				return (error);
-
+						dev->id_unit, &mi)))
+				goto error;
 			break;
 		}
 	}
 error:
-	if (ret)
-		*ret = error;
-	return (0);
+	return (error);
 }
 
