@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1994/11/07 03:53:13 phk Exp $
+#	$Id: Makefile,v 1.22 1994/11/07 05:02:42 phk Exp $
 #
 
 FDLABEL=	fd1200
@@ -18,7 +18,7 @@ CPIO1+= ftp rsh sed telnet rlogin
 
 CPIO2=  etc/services
 
-CPIO3=	extract.sh bininst
+CPIO3=	bininst
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
 CLEANFILES+=	boot_flp boot.flp cpio_flp_1
