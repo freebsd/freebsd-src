@@ -292,6 +292,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     int				bus;
     int				interrupt;
     int				i;
+    uintptr_t			up;
 
     FUNCTION_TRACE(__func__);
     
@@ -306,7 +307,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     /* find the bridge softc */
     if (devclass_get_devices(acpi_pcib_devclass, &devlist, &devcount))
 	goto out;
-    BUS_READ_IVAR(pcib, pcib, PCIB_IVAR_BUS, (uintptr_t *)&bus);
+    BUS_READ_IVAR(pcib, pcib, PCIB_IVAR_BUS, &up);
+    bus = up;
     sc = NULL;
     for (i = 0; i < devcount; i++) {
 	sc = device_get_softc(*(devlist + i));
