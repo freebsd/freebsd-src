@@ -72,9 +72,7 @@
  * share a fixed (at boot time) number of mutexes across all lockmgr locks in
  * order to keep sizeof(struct lock) down.
  */
-extern int lock_nmtx;
-int lock_mtx_selector;
-struct mtx *lock_mtx_array;
+int lock_mtx_valid;
 static struct mtx lock_mtx;
 
 static int acquire(struct lock *lkp, int extflags, int wanted);
@@ -84,28 +82,16 @@ static int acquiredrain(struct lock *lkp, int extflags) ;
 static void
 lockmgr_init(void *dummy __unused)
 {
-	int	i;
-
 	/*
 	 * Initialize the lockmgr protection mutex if it hasn't already been
 	 * done.  Unless something changes about kernel startup order, VM
 	 * initialization will always cause this mutex to already be
 	 * initialized in a call to lockinit().
 	 */
-	if (lock_mtx_selector == 0)
+	if (lock_mtx_valid == 0) {
 		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
-	else {
-		/*
-		 * This is necessary if (lock_nmtx == 1) and doesn't hurt
-		 * otherwise.
-		 */
-		lock_mtx_selector = 0;
+		lock_mtx_valid = 1;
 	}
-
-	lock_mtx_array = (struct mtx *)malloc(sizeof(struct mtx) * lock_nmtx,
-	    M_CACHE, M_WAITOK | M_ZERO);
-	for (i = 0; i < lock_nmtx; i++)
-		mtx_init(&lock_mtx_array[i], "lockmgr interlock", MTX_DEF);
 }
 SYSINIT(lmgrinit, SI_SUB_LOCK, SI_ORDER_FIRST, lockmgr_init, NULL)
 
@@ -507,29 +493,19 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	CTR5(KTR_LOCKMGR, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
-	if (lock_mtx_array != NULL) {
+	if (lock_mtx_valid == 0) {
+		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
+		lock_mtx_valid = 1;
+	}
+	/*
+	 * XXX cleanup - make sure mtxpool is always initialized before
+	 * this is ever called.
+	 */
+	if (mtx_pool_valid) {
 		mtx_lock(&lock_mtx);
-		lkp->lk_interlock = &lock_mtx_array[lock_mtx_selector];
-		lock_mtx_selector++;
-		if (lock_mtx_selector == lock_nmtx)
-			lock_mtx_selector = 0;
+		lkp->lk_interlock = mtx_pool_alloc();
 		mtx_unlock(&lock_mtx);
 	} else {
-		/*
-		 * Giving lockmgr locks that are initialized during boot a
-		 * pointer to the internal lockmgr mutex is safe, since the
-		 * lockmgr code itself doesn't call lockinit() (which could
-		 * cause mutex recursion).
-		 */
-		if (lock_mtx_selector == 0) {
-			/*
-			 * This  case only happens during kernel bootstrapping,
-			 * so there's no reason to protect modification of
-			 * lock_mtx_selector or lock_mtx.
-			 */
-			mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
-			lock_mtx_selector = 1;
-		}
 		lkp->lk_interlock = &lock_mtx;
 	}
 	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
