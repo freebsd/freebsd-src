@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id$
+ *	$Id: start.S,v 1.4 1997/02/22 09:43:09 peter Exp $
  */
 
 /*
@@ -195,6 +195,9 @@ nothireso:
 	/* bootstrap passes */
 	mov	%cs, %bx
 	data32
+	cmp	$0x1fe0, %ebx
+	jz	fd
+	data32
 	cmp	$0x1fc0, %ebx
 	jnz	hd
 	data32
@@ -204,6 +207,8 @@ nothireso:
 	addr32
 	movb	0x584, %al
 	andb	$0xf0, %al
+	cmpb	$0x30, %al
+	jz	fd
 	cmpb	$0x90, %al
 	jnz	hd
 fd:
