@@ -85,22 +85,6 @@ g_mbr_print(int i, struct dos_partition *dp)
 	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
 }
 
-static void
-g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
-{
-
-	d->dp_flag = ptr[0];
-	d->dp_shd = ptr[1];
-	d->dp_ssect = ptr[2];
-	d->dp_scyl = ptr[3];
-	d->dp_typ = ptr[4];
-	d->dp_ehd = ptr[5];
-	d->dp_esect = ptr[6];
-	d->dp_ecyl = ptr[7];
-	d->dp_start = le32dec(ptr + 8);
-	d->dp_size = le32dec(ptr + 12);
-}
-
 struct g_mbr_softc {
 	int		type [NDOSPART];
 	u_int		sectorsize;
@@ -121,7 +105,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 
 	dp = ndp;
 	for (i = 0; i < NDOSPART; i++) {
-		g_dec_dos_partition(
+		dos_partition_dec(
 		    sec0 + DOSPARTOFF + i * sizeof(struct dos_partition),
 		    dp + i);
 		if (bootverbose)
@@ -428,7 +412,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa)
 				break;
 			for (i = 0; i < NDOSPART; i++) 
-				g_dec_dos_partition(
+				dos_partition_dec(
 				    buf + DOSPARTOFF + 
 				    i * sizeof(struct dos_partition), dp + i);
 			g_free(buf);
