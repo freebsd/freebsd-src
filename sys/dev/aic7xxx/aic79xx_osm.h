@@ -42,7 +42,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/stdint.h>
 #include <sys/bus.h>		/* For device_t */
 #if __FreeBSD_version >= 500000
 #include <sys/endian.h>
