@@ -1,6 +1,6 @@
-<!-- $Id: install.sgml,v 1.1.1.1 1996/11/15 05:14:39 asami Exp $ -->
+<!-- $Id: install.sgml,v 1.2 1996/12/06 10:10:40 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.41 -->
+<!-- Original revision: 1.42 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -398,18 +398,8 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	単にいばらの道を通ることを楽しんでいるからでしょうが, インストール用の
 	フロッピーディスクを用意する必要があります. 
 
-	boot.flp のディスクイメージに加えて必要なフロッピーディスクはまず, 
-	``floppies/root.flp'' です. これは DOS のファイルシステムではなくて, 
-	特別なフロッピーディスク「イメージ」です 
-	 (実際は gzip で圧縮された cpio ファイルです). 
-	<ref id="install" name="FreeBSD のインストール"> でブートディスクを
-	作ったのと同じ手順で root.flp を作ることができます. 
-	このディスクを作成した後は, 通常の DOS か UFS (他の FreeBSD マシンで
-	準備している場合) フォーマットされたフロッピーディスクで配布セットの
-	フロッピーディスクを作成します. 
-
 	最低でも bin (基本配布ファイル) ディレクトリ内のすべてのファイル
-	を入れられるだけの 1.4 メガバイトか 1.2 メガバイトのフロッピーディスク
+	を入れられるだけの 1.44 メガバイトか 1.2 メガバイトのフロッピーディスク
 	が必要です. これらのフロッピーディスクを DOS で作成している場合は, 
 	フロッピーディスクは「MS-DOS の FORMAT コマンドでフォーマット」
 	されなくてはなりません. Windows をお使いの場合は, Windowsの
@@ -463,14 +453,12 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	コピーします. 
 <tscreen><verb>
 C> MD C:\FREEBSD
-C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
-C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
+C> XCOPY /S E:\BIN C:\FREEBSD\BIN\
+C> XCOPY /S E:\MANPAGES C:\FREEBSD\MANPAGES\
 </verb></tscreen>
 
 	ここで, <tt>C:</tt>ドライブには十分なディスクスペースが残っており, 
-	CD-ROM は <tt> E:</tt>ドライブに接続されているものとします. ちなみに
-	MS-DOS からのインストールには, <tt>root.flp</tt> のイメージが必要ですので, 
-	<tt>FLOPPIES</tt> ディレクトリが必要です. 
+	CD-ROM は <tt> E:</tt>ドライブに接続されているものとします.
 
 	MS-DOS からたくさんの `配布ファイル (DISTS)' をインストールしたい 
 	 (そしてディスクの余裕がある) 場合は, それぞれ <tt>C:&bsol;FREEBSD</tt> 
@@ -497,8 +485,6 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 cd /freebsd/distdir<newline>
 tar cvf /dev/rwt0 (または /dev/rst0) dist1 .. dist2
 </tscreen>
-	`floppies/' がここでの ``dist..'' に含まれていることを確認してください. 
-	インストールの際にはテープ上の `floppies/root.flp' を探しにいきます. 
 
 	インストールに入る前に, テンポラリ (一時使用) ディレクトリに
 	十分なディスクスペースを確保して, 作成したテープの<bf>すべての</bf>
