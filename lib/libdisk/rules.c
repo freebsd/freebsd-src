@@ -80,24 +80,32 @@ Next_Cyl_Aligned(struct disk *d, u_long offset)
 void
 Rule_000(struct disk *d, struct chunk *c, char *msg)
 {
+#ifdef PC98
+	int i=0;
+#else
 	int i=0,j=0;
+#endif
 	struct chunk *c1;
 
 	if (c->type != whole)
 		return;
 	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != unused) continue;
+#ifndef PC98
 		if (c1->flags & CHUNK_ACTIVE)
 			j++;
+#endif
 		i++;
 	}
 	if (i > NDOSPART)
 		sprintf(msg+strlen(msg),
 	"%d is too many children of the 'whole' chunk.  Max is %d\n",
 			i, NDOSPART);
+#ifndef PC98
 	if (j > 1)
 		sprintf(msg+strlen(msg),
 	"Too many active children of 'whole'");
+#endif
 }
 
 /*
@@ -116,9 +124,17 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 	for (i=0, c1=c->part; c1; c1=c1->next) {
 		if (c1->type == unused) continue;
 		c1->flags |= CHUNK_ALIGN;
+#ifdef PC98
+		if (!Cyl_Aligned(d,c1->offset))
+#else
 		if (!Track_Aligned(d,c1->offset))
+#endif
 			sprintf(msg+strlen(msg),
+#ifdef PC98
+		    "chunk '%s' [%ld..%ld] does not start on a cylinder boundary\n",
+#else
 		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
+#endif
 				c1->name,c1->offset,c1->end);
 		if ((c->type == whole || c->end == c1->end)
 		    || Cyl_Aligned(d,c1->end+1))
@@ -137,6 +153,7 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 void
 Rule_002(struct disk *d, struct chunk *c, char *msg)
 {
+#ifndef PC98
 	int i;
 	struct chunk *c1;
 
@@ -151,6 +168,7 @@ Rule_002(struct disk *d, struct chunk *c, char *msg)
 		sprintf(msg+strlen(msg),
 		    "Max one 'fat' allowed as child of 'whole'\n");
 	}
+#endif
 }
 
 /*
@@ -160,6 +178,7 @@ Rule_002(struct disk *d, struct chunk *c, char *msg)
 void
 Rule_003(struct disk *d, struct chunk *c, char *msg)
 {
+#ifndef PC98
 	int i;
 	struct chunk *c1;
 
@@ -174,6 +193,7 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 		sprintf(msg+strlen(msg),
 		    "Max one 'extended' allowed as child of 'whole'\n");
 	}
+#endif
 }
 
 /*
@@ -197,9 +217,11 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 			continue;
 		if (c1->flags & CHUNK_IS_ROOT) {
 			k++;
+#ifndef PC98
 			if (c1->flags & CHUNK_PAST_1024)
 				sprintf(msg+strlen(msg),
 	    "Root filesystem extends past cylinder 1024, and cannot be booted from\n");
+#endif
 		}
 		i++;
 	}
@@ -226,10 +248,12 @@ Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 	if (c->next)
 		Check_Chunk(d,c->next,msg);
 
+#ifndef PC98
 	if (c->end >= 1024*d->bios_hd*d->bios_sect)
 		c->flags |= CHUNK_PAST_1024;
 	else
 		c->flags &= ~CHUNK_PAST_1024;
+#endif
 }
 
 char *
@@ -252,6 +276,7 @@ ChunkCanBeRoot(struct chunk *c)
 	char msg[BUFSIZ];
 
 	*msg = '\0';
+#ifndef PC98
 	if (c->flags & CHUNK_PAST_1024) {
 		strcat(msg,
 "The root partition must end before cylinder 1024 seen from\n");
@@ -259,6 +284,7 @@ ChunkCanBeRoot(struct chunk *c)
 "the BIOS' point of view, or it cannot be booted from.\n");
 		return strdup(msg);
 	}
+#endif
 	for (c1=d->chunks->part;;) {
 		for (; c1; c1=c1->next)
 			if (c1->offset <= c->offset && c1->end >= c->end)
@@ -273,6 +299,7 @@ ChunkCanBeRoot(struct chunk *c)
 		c1 = c1->part;
 	}
 
+#ifndef PC98
 	if (c1->type != freebsd) {
 		strcat(msg,
 "The root partition must be in a FreeBSD slice, otherwise\n");
@@ -280,6 +307,7 @@ ChunkCanBeRoot(struct chunk *c)
 "the kernel cannot be booted from it\n");
 		return strdup(msg);
 	}
+#endif
 
 	return NULL;
 }
