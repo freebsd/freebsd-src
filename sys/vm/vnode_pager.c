@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.97 1998/09/04 08:06:57 dfr Exp $
+ *	$Id: vnode_pager.c,v 1.98 1998/09/05 15:17:34 bde Exp $
  */
 
 /*
@@ -505,6 +505,8 @@ vnode_pager_input_old(object, m)
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->dirty = 0;
 	vm_page_flag_clear(m, PG_ZERO);
+	if (!error)
+		m->valid = VM_PAGE_BITS_ALL;
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
