@@ -64,18 +64,19 @@ struct crom_src_buf {
 	struct crom_chunk hw;
 };
 
-int firewire_debug=0, try_bmr=1;
+int firewire_debug=0, try_bmr=1, hold_count=3;
 SYSCTL_INT(_debug, OID_AUTO, firewire_debug, CTLFLAG_RW, &firewire_debug, 0,
 	"FireWire driver debug flag");
 SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
 SYSCTL_INT(_hw_firewire, OID_AUTO, try_bmr, CTLFLAG_RW, &try_bmr, 0,
 	"Try to be a bus manager");
+SYSCTL_INT(_hw_firewire, OID_AUTO, hold_count, CTLFLAG_RW, &hold_count, 0,
+	"Number of count of bus resets for removing lost device information");
 
 MALLOC_DEFINE(M_FW, "firewire", "FireWire");
 MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 #define FW_MAXASYRTY 4
-#define FW_MAXDEVRCNT 4
 
 devclass_t firewire_devclass;
 
@@ -1227,28 +1228,19 @@ static void
 fw_bus_probe(struct firewire_comm *fc)
 {
 	int s;
-	struct fw_device *fwdev, *next;
+	struct fw_device *fwdev;
 
 	s = splfw();
 	fc->status = FWBUSEXPLORE;
 	fc->retry_count = 0;
 
-/*
- * Invalidate all devices, just after bus reset. Devices 
- * to be removed has not been seen longer time.
- */
-	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL; fwdev = next) {
-		next = STAILQ_NEXT(fwdev, link);
+	/* Invalidate all devices, just after bus reset. */
+	STAILQ_FOREACH(fwdev, &fc->devices, link)
 		if (fwdev->status != FWDEVINVAL) {
 			fwdev->status = FWDEVINVAL;
 			fwdev->rcnt = 0;
-		} else if(fwdev->rcnt < FW_MAXDEVRCNT) {
-			fwdev->rcnt ++;
-		} else {
-			STAILQ_REMOVE(&fc->devices, fwdev, fw_device, link);
-			free(fwdev, M_FW);
 		}
-	}
+
 	fc->ongonode = 0;
 	fc->ongoaddr = CSRROMOFF;
 	fc->ongodev = NULL;
@@ -1592,16 +1584,30 @@ nextnode:
 static void
 fw_attach_dev(struct firewire_comm *fc)
 {
-	struct fw_device *fwdev;
+	struct fw_device *fwdev, *next;
 	struct fw_xfer *xfer;
 	int i, err;
 	device_t *devlistp;
 	int devcnt;
 	struct firewire_dev_comm *fdc;
 
-	STAILQ_FOREACH(fwdev, &fc->devices, link)
-		if (fwdev->status == FWDEVINIT)
+	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL; fwdev = next) {
+		next = STAILQ_NEXT(fwdev, link);
+		if (fwdev->status == FWDEVINIT) {
 			fwdev->status = FWDEVATTACHED;
+		} else if (fwdev->status == FWDEVINVAL) {
+			fwdev->rcnt ++;
+			if (fwdev->rcnt > hold_count) {
+				/*
+				 * Remove devices which have not been seen
+				 * for a while.
+				 */
+				STAILQ_REMOVE(&fc->devices, fwdev, fw_device,
+				    link);
+				free(fwdev, M_FW);
+			}
+		}
+	}
 
 	err = device_get_children(fc->bdev, &devlistp, &devcnt);
 	if( err != 0 )
