@@ -30,7 +30,7 @@ for(fp = fname ; fp < flast ; ++fp)
 		break;
 		}
 
-while (ep = *env++)
+while ( (ep = *env++) )
 	{
 	for(fp = fname; fp<flast ; )
 		if(*fp++ != *ep++)

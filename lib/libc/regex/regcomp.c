@@ -103,9 +103,11 @@ static int freezeset __P((struct parse *p, cset *cs));
 static int firstch __P((struct parse *p, cset *cs));
 static int nch __P((struct parse *p, cset *cs));
 static void mcadd __P((struct parse *p, cset *cs, char *cp));
+#if used
 static void mcsub __P((cset *cs, char *cp));
 static int mcin __P((cset *cs, char *cp));
 static char *mcfind __P((cset *cs, char *cp));
+#endif
 static void mcinvert __P((struct parse *p, cset *cs));
 static void mccase __P((struct parse *p, cset *cs));
 static int isinsets __P((struct re_guts *g, int c));
@@ -295,7 +297,7 @@ int stop;			/* character this ERE should end at */
 		conc = HERE();
 		while (MORE() && (c = PEEK()) != '|' && c != stop)
 			p_ere_exp(p);
-		REQUIRE(HERE() != conc, REG_EMPTY);	/* require nonempty */
+		(void)REQUIRE(HERE() != conc, REG_EMPTY);	/* require nonempty */
 
 		if (!EAT('|'))
 			break;		/* NOTE BREAK OUT */
@@ -342,7 +344,7 @@ register struct parse *p;
 	pos = HERE();
 	switch (c) {
 	case '(':
-		REQUIRE(MORE(), REG_EPAREN);
+		(void)REQUIRE(MORE(), REG_EPAREN);
 		p->g->nsub++;
 		subno = p->g->nsub;
 		if (subno < NPAREN)
@@ -355,7 +357,7 @@ register struct parse *p;
 			assert(p->pend[subno] != 0);
 		}
 		EMIT(ORPAREN, subno);
-		MUSTEAT(')', REG_EPAREN);
+		(void)MUSTEAT(')', REG_EPAREN);
 		break;
 #ifndef POSIX_MISTAKE
 	case ')':		/* happens only if no current unmatched ( */
@@ -398,12 +400,12 @@ register struct parse *p;
 		p_bracket(p);
 		break;
 	case '\\':
-		REQUIRE(MORE(), REG_EESCAPE);
+		(void)REQUIRE(MORE(), REG_EESCAPE);
 		c = GETNEXT();
 		ordinary(p, c);
 		break;
 	case '{':		/* okay as ordinary except if digit follows */
-		REQUIRE(!MORE() || !isdigit(PEEK()), REG_BADRPT);
+		(void)REQUIRE(!MORE() || !isdigit(PEEK()), REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
 		ordinary(p, c);
@@ -419,7 +421,7 @@ register struct parse *p;
 		return;		/* no repetition, we're done */
 	NEXT();
 
-	REQUIRE(!wascaret, REG_BADRPT);
+	(void)REQUIRE(!wascaret, REG_BADRPT);
 	switch (c) {
 	case '*':	/* implemented as +? */
 		/* this case does not require the (y|) trick, noKLUDGE */
@@ -446,7 +448,7 @@ register struct parse *p;
 		if (EAT(',')) {
 			if (isdigit(PEEK())) {
 				count2 = p_count(p);
-				REQUIRE(count <= count2, REG_BADBR);
+				(void)REQUIRE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
 				count2 = INFINITY;
 		} else		/* just a single number */
@@ -455,7 +457,7 @@ register struct parse *p;
 		if (!EAT('}')) {	/* error heuristics */
 			while (MORE() && PEEK() != '}')
 				NEXT();
-			REQUIRE(MORE(), REG_EBRACE);
+			(void)REQUIRE(MORE(), REG_EBRACE);
 			SETERROR(REG_BADBR);
 		}
 		break;
@@ -478,7 +480,7 @@ static void
 p_str(p)
 register struct parse *p;
 {
-	REQUIRE(MORE(), REG_EMPTY);
+	(void)REQUIRE(MORE(), REG_EMPTY);
 	while (MORE())
 		ordinary(p, GETNEXT());
 }
@@ -521,7 +523,7 @@ register int end2;		/* second terminating character */
 		p->g->neol++;
 	}
 
-	REQUIRE(HERE() != start, REG_EMPTY);	/* require nonempty */
+	(void)REQUIRE(HERE() != start, REG_EMPTY);	/* require nonempty */
 }
 
 /*
@@ -546,7 +548,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 	if (c == '\\') {
-		REQUIRE(MORE(), REG_EESCAPE);
+		(void)REQUIRE(MORE(), REG_EESCAPE);
 		c = BACKSL | (unsigned char)GETNEXT();
 	}
 	switch (c) {
@@ -576,7 +578,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 			assert(p->pend[subno] != 0);
 		}
 		EMIT(ORPAREN, subno);
-		REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
+		(void)REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
 		break;
 	case BACKSL|')':	/* should not get here -- must be user */
 	case BACKSL|'}':
@@ -606,7 +608,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		p->g->backrefs = 1;
 		break;
 	case '*':
-		REQUIRE(starordinary, REG_BADRPT);
+		(void)REQUIRE(starordinary, REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
 		ordinary(p, c &~ BACKSL);
@@ -624,7 +626,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		if (EAT(',')) {
 			if (MORE() && isdigit(PEEK())) {
 				count2 = p_count(p);
-				REQUIRE(count <= count2, REG_BADBR);
+				(void)REQUIRE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
 				count2 = INFINITY;
 		} else		/* just a single number */
@@ -633,7 +635,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		if (!EATTWO('\\', '}')) {	/* error heuristics */
 			while (MORE() && !SEETWO('\\', '}'))
 				NEXT();
-			REQUIRE(MORE(), REG_EBRACE);
+			(void)REQUIRE(MORE(), REG_EBRACE);
 			SETERROR(REG_BADBR);
 		}
 	} else if (c == (unsigned char)'$')	/* $ (but not \$) ends it */
@@ -658,7 +660,7 @@ register struct parse *p;
 		ndigits++;
 	}
 
-	REQUIRE(ndigits > 0 && count <= DUPMAX, REG_BADBR);
+	(void)REQUIRE(ndigits > 0 && count <= DUPMAX, REG_BADBR);
 	return(count);
 }
 
@@ -698,7 +700,7 @@ register struct parse *p;
 		p_b_term(p, cs);
 	if (EAT('-'))
 		CHadd(cs, '-');
-	MUSTEAT(']', REG_EBRACK);
+	(void)MUSTEAT(']', REG_EBRACK);
 
 	if (p->error != 0)	/* don't mess things up further */
 		return;
@@ -769,21 +771,21 @@ register cset *cs;
 	switch (c) {
 	case ':':		/* character class */
 		NEXT2();
-		REQUIRE(MORE(), REG_EBRACK);
+		(void)REQUIRE(MORE(), REG_EBRACK);
 		c = PEEK();
-		REQUIRE(c != '-' && c != ']', REG_ECTYPE);
+		(void)REQUIRE(c != '-' && c != ']', REG_ECTYPE);
 		p_b_cclass(p, cs);
-		REQUIRE(MORE(), REG_EBRACK);
-		REQUIRE(EATTWO(':', ']'), REG_ECTYPE);
+		(void)REQUIRE(MORE(), REG_EBRACK);
+		(void)REQUIRE(EATTWO(':', ']'), REG_ECTYPE);
 		break;
 	case '=':		/* equivalence class */
 		NEXT2();
-		REQUIRE(MORE(), REG_EBRACK);
+		(void)REQUIRE(MORE(), REG_EBRACK);
 		c = PEEK();
-		REQUIRE(c != '-' && c != ']', REG_ECOLLATE);
+		(void)REQUIRE(c != '-' && c != ']', REG_ECOLLATE);
 		p_b_eclass(p, cs);
-		REQUIRE(MORE(), REG_EBRACK);
-		REQUIRE(EATTWO('=', ']'), REG_ECOLLATE);
+		(void)REQUIRE(MORE(), REG_EBRACK);
+		(void)REQUIRE(EATTWO('=', ']'), REG_ECOLLATE);
 		break;
 	default:		/* symbol, ordinary character, or range */
 /* xxx revision needed for multichar stuff */
@@ -798,7 +800,7 @@ register cset *cs;
 		} else
 			finish = start;
 /* xxx what about signed chars here... */
-		REQUIRE(start <= finish, REG_ERANGE);
+		(void)REQUIRE(start <= finish, REG_ERANGE);
 		for (i = start; i <= finish; i++)
 			CHadd(cs, i);
 		break;
@@ -866,13 +868,13 @@ register struct parse *p;
 {
 	register char value;
 
-	REQUIRE(MORE(), REG_EBRACK);
+	(void)REQUIRE(MORE(), REG_EBRACK);
 	if (!EATTWO('[', '.'))
 		return(GETNEXT());
 
 	/* collating symbol */
 	value = p_b_coll_elem(p, '.');
-	REQUIRE(EATTWO('.', ']'), REG_ECOLLATE);
+	(void)REQUIRE(EATTWO('.', ']'), REG_ECOLLATE);
 	return(value);
 }
 
@@ -1264,6 +1266,7 @@ register char *cp;
 	cs->multis[cs->smultis - 1] = '\0';
 }
 
+#if used
 /*
  - mcsub - subtract a collating element from a cset
  == static void mcsub(register cset *cs, register char *cp);
@@ -1321,6 +1324,7 @@ register char *cp;
 			return(p);
 	return(NULL);
 }
+#endif
 
 /*
  - mcinvert - invert the list of collating elements in a cset

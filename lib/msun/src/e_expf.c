@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_expf.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
+static char rcsid[] = "$Id: e_expf.c,v 1.2 1995/05/30 05:48:09 rgrimes Exp $";
 #endif
 
 #include "math.h"
@@ -49,8 +49,8 @@ P5   =  4.1381369442e-08; /* 0x3331bb4c */
 	float x;
 #endif
 {
-	float y,hi,lo,c,t;
-	int32_t k,xsb;
+	float y,hi=0.0,lo=0.0,c,t;
+	int32_t k=0,xsb;
 	u_int32_t hx;
 
 	GET_FLOAT_WORD(hx,x);

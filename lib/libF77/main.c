@@ -90,6 +90,7 @@ sig_die("Trace trap", 1);
 int xargc;
 char **xargv;
 
+int
 #ifdef KR_headers
 main(argc, argv) int argc; char **argv;
 #else

@@ -15,6 +15,7 @@
 /*
  * ss_self_identify -- assigned by default to the "." request
  */
+void
 DECLARE(ss_self_identify)
 {
      register ss_data *info = ss_info(sci_idx);
@@ -25,6 +26,7 @@ DECLARE(ss_self_identify)
 /*
  * ss_subsystem_name -- print name of subsystem
  */
+void
 DECLARE(ss_subsystem_name)
 {
      printf("%s\n", ss_info(sci_idx)->subsystem_name);
@@ -33,6 +35,7 @@ DECLARE(ss_subsystem_name)
 /*
  * ss_subsystem_version -- print version of subsystem
  */
+void
 DECLARE(ss_subsystem_version)
 {
      printf("%s\n", ss_info(sci_idx)->subsystem_version);
@@ -42,6 +45,7 @@ DECLARE(ss_subsystem_version)
  * ss_unimplemented -- routine not implemented (should be
  * set up as (dont_list,dont_summarize))
  */
+void
 DECLARE(ss_unimplemented)
 {
      ss_perror(sci_idx, SS_ET_UNIMPLEMENTED, "");

@@ -1,6 +1,6 @@
 /*
- * $Header: error_message.c,v 1.2 89/01/25 09:08:57 shanzer Exp $
- * $Source: /paris/source/4.3/athena.lib/et.new/RCS/error_message.c,v $
+ * $Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+ * $Source: /home/ncvs/src/lib/libcom_err/error_message.c,v $
  * $Locker:  $
  *
  * Copyright 1987 by the Student Information Processing Board
@@ -10,12 +10,13 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "error_table.h"
 #include "mit-sipb-copyright.h"
 #include "internal.h"
 
 static const char rcsid[] =
-    "$Header: error_message.c,v 1.2 89/01/25 09:08:57 shanzer Exp $";
+    "$Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
 static const char copyright[] =
     "Copyright 1986, 1987, 1988 by the Student Information Processing Board\nand the department of Information Systems\nof the Massachusetts Institute of Technology";
 

@@ -15,9 +15,9 @@
 #endif
 
 #ifdef KR_headers
-wrt_E(p,w,d,e,len) ufloat *p; ftnlen len;
+int wrt_E(p,w,d,e,len) ufloat *p; ftnlen len;
 #else
-wrt_E(ufloat *p, int w, int d, int e, ftnlen len)
+int wrt_E(ufloat *p, int w, int d, int e, ftnlen len)
 #endif
 {
 	char buf[FMAX+EXPMAXDIGS+4], *s, *se;
@@ -127,7 +127,7 @@ nogood:
 	/* exponent field if it fits.	*/
 #else
 		if (!e0) {
-			for(s -= 2, e1 = 2; s[0] = s[1]; s++)
+			for(s -= 2, e1 = 2; (s[0] = s[1]); s++)
 #ifdef CRAY
 				delta--;
 			if ((delta += 4) < 0)
@@ -191,9 +191,9 @@ nogood:
 	}
 
 #ifdef KR_headers
-wrt_F(p,w,d,len) ufloat *p; ftnlen len;
+int wrt_F(p,w,d,len) ufloat *p; ftnlen len;
 #else
-wrt_F(ufloat *p, int w, int d, ftnlen len)
+int wrt_F(ufloat *p, int w, int d, ftnlen len)
 #endif
 {
 	int d1, sign, n;
@@ -217,7 +217,7 @@ wrt_F(ufloat *p, int w, int d, ftnlen len)
 #endif
 		}
 
-	if (n = f__scale)
+	if ( (n = f__scale) )
 		if (n > 0)
 			do x *= 10.; while(--n > 0);
 		else
@@ -267,7 +267,7 @@ wrt_F(ufloat *p, int w, int d, ftnlen len)
 		PUT('-');
 	else if (f__cplus)
 		PUT('+');
-	while(n = *b++)
+	while( (n = *b++) )
 		PUT(n);
 	while(--d1 >= 0)
 		PUT('0');

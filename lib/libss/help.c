@@ -7,6 +7,8 @@
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/wait.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "ss_internal.h"
 #include "copyright.h"
 

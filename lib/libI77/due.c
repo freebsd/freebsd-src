@@ -1,6 +1,7 @@
 #include "f2c.h"
 #include "fio.h"
 
+int
 #ifdef KR_headers
 c_due(a) cilist *a;
 #else
@@ -30,7 +31,7 @@ integer s_rdue(cilist *a)
 #endif
 {
 	int n;
-	if(n=c_due(a)) return(n);
+	if( (n=c_due(a)) ) return(n);
 	f__reading=1;
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
@@ -43,7 +44,7 @@ integer s_wdue(cilist *a)
 #endif
 {
 	int n;
-	if(n=c_due(a)) return(n);
+	if( (n=c_due(a)) ) return(n);
 	f__reading=0;
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))
 		err(a->cierr,errno,"write start");

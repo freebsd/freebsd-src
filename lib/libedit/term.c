@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #include <unistd.h>
 #include <termcap.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 
 #include "el.h"
 

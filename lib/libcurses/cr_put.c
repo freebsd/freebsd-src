@@ -298,7 +298,7 @@ plod(cnt, in_refresh)
 	 * If it will be cheaper, or if we can't back up, then send a return
 	 * preliminarily.
 	 */
-	if (j > i + 1 || outcol > destcol && !BS && !BC) {
+	if ((j > i + 1) || (outcol > destcol && !BS && !BC)) {
 		/*
 		 * BUG: this doesn't take the (possibly long) length of CR
 		 * into account.

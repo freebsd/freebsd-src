@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbyht.c,v 1.2 1995/05/30 05:40:44 rgrimes Exp $";
+static char rcsid[] = "$Id: gethostbyht.c,v 1.3 1996/01/13 09:03:45 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -135,7 +135,7 @@ again:
 		cp++;
 	host.h_name = cp;
 	q = host.h_aliases = host_aliases;
-	if (cp = strpbrk(cp, " \t"))
+	if ( (cp = strpbrk(cp, " \t")) )
 		*cp++ = '\0';
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {
@@ -144,7 +144,7 @@ again:
 		}
 		if (q < &host_aliases[MAXALIASES - 1])
 			*q++ = cp;
-		if (cp = strpbrk(cp, " \t"))
+		if ( (cp = strpbrk(cp, " \t")) )
 			*cp++ = '\0';
 	}
 	*q = NULL;
@@ -160,7 +160,7 @@ _gethostbyhtname(name)
 	register char **cp;
 	
 	sethostent(0);
-	while (p = gethostent()) {
+	while ( (p = gethostent()) ) {
 		if (strcasecmp(p->h_name, name) == 0)
 			break;
 		for (cp = p->h_aliases; *cp != 0; cp++)
@@ -180,7 +180,7 @@ _gethostbyhtaddr(addr, len, type)
 	register struct hostent *p;
 
 	sethostent(0);
-	while (p = gethostent())
+	while ( (p = gethostent()) )
 		if (p->h_addrtype == type && !bcmp(p->h_addr, addr, len))
 			break;
 	endhostent();

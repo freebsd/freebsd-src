@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: inet.c,v 1.4 94/06/07 01:16:50 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/inet.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -186,7 +186,7 @@ pcap_lookupnet(device, netp, maskp, errbuf)
 		else if (IN_CLASSC(*netp))
 			*maskp = IN_CLASSC_NET;
 		else {
-			(void)sprintf(errbuf, "inet class for 0x%x unknown",
+			(void)sprintf(errbuf, "inet class for 0x%lx unknown",
 			    *netp);
 			return (-1);
 		}

@@ -7,6 +7,7 @@
 #include "ss_internal.h"
 #include "copyright.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef lint
 static char const rcsid[] =
@@ -153,6 +154,7 @@ static int really_execute_command (sci_idx, argc, argv)
  * Notes:
  */
 
+int
 ss_execute_command(sci_idx, argv)
 	int sci_idx;
 	register char *argv[];

@@ -101,10 +101,10 @@ tgetent(char *bp, const char *name)
 	 * becomes "$HOME/.termcap /etc/termcap" if no TERMPATH exists.
 	 */
 	if (!cp || *cp != '/') {	/* no TERMCAP or it holds an entry */
-		if (termpath = getenv("TERMPATH"))
+		if ( (termpath = getenv("TERMPATH")) )
 			strncpy(pathbuf, termpath, PBUFSIZ);
 		else {
-			if (home = getenv("HOME")) {	/* set up default */
+			if ( (home = getenv("HOME")) ) {/* set up default */
 				p += strlen(home);	/* path, looking in */
 				strcpy(pathbuf, home);	/* $HOME first */
 				*p++ = '/';

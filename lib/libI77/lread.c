@@ -67,6 +67,7 @@ extern int ungetc(int, FILE*);	/* for systems with a buggy stdio.h */
 #endif
 #endif
 
+int
 t_getc(Void)
 {	int ch;
 	if(f__curunit->uend) return(EOF);
@@ -87,14 +88,14 @@ flag f__lquit;
 int f__lcount,f__ltype,nml_read;
 char *f__lchar;
 double f__lx,f__ly;
-#define ERR(x) if(n=(x)) return(n)
+#define ERR(x) if( (n=(x)) ) return(n)
 #define GETC(x) (x=(*l_getc)())
 #define Ungetc(x,y) (*l_ungetc)(x,y)
 
 #ifdef KR_headers
-l_R(poststar) int poststar;
+int l_R(poststar) int poststar;
 #else
-l_R(int poststar)
+int l_R(int poststar)
 #endif
 {
 	char s[FMAX+EXPMAXDIGS+4];
@@ -249,6 +250,7 @@ rd_count(register int ch)
 	return f__lcount <= 0;
 	}
 
+int
 l_C(Void)
 {	int ch, nml_save;
 	double lz;
@@ -285,7 +287,7 @@ l_C(Void)
 	Ungetc(ch,f__cf);
 	nml_save = nml_read;
 	nml_read = 0;
-	if (ch = l_R(1))
+	if ( (ch = l_R(1)) )
 		return ch;
 	if (!f__ltype)
 		errfl(f__elist->cierr,112,"no real part");
@@ -297,7 +299,7 @@ l_C(Void)
 	}
 	while(iswhit(GETC(ch)));
 	(void) Ungetc(ch,f__cf);
-	if (ch = l_R(1))
+	if ( (ch = l_R(1)) )
 		return ch;
 	if (!f__ltype)
 		errfl(f__elist->cierr,112,"no imaginary part");
@@ -311,6 +313,8 @@ l_C(Void)
 	nml_read = nml_save;
 	return(0);
 }
+
+int
 l_L(Void)
 {
 	int ch;
@@ -357,6 +361,8 @@ l_L(Void)
 	return(0);
 }
 #define BUFSIZE	128
+
+int
 l_CHAR(Void)
 {	int ch,size,i;
 	static char rafail[] = "realloc failure";
@@ -479,9 +485,9 @@ l_CHAR(Void)
 	}
 }
 #ifdef KR_headers
-c_le(a) cilist *a;
+int c_le(a) cilist *a;
 #else
-c_le(cilist *a)
+int c_le(cilist *a)
 #endif
 {
 	if(!f__init)
@@ -499,9 +505,9 @@ c_le(cilist *a)
 	return(0);
 }
 #ifdef KR_headers
-l_read(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
+int l_read(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
 #else
-l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
+int l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 #endif
 {
 #define Ptr ((flex *)ptr)
@@ -639,7 +645,7 @@ integer s_rsle(cilist *a)
 {
 	int n;
 
-	if(n=c_le(a)) return(n);
+	if( (n=c_le(a)) ) return(n);
 	f__reading=1;
 	f__external=1;
 	f__formatted=1;

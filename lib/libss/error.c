@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
  * Our standalone dpANS environment on the RT doesn't include any
@@ -24,6 +25,8 @@
 #include "ss_internal.h"
 
 #undef ss_error
+
+extern void com_err_va __P(( ));
 
 char * ss_name(sci_idx)
     int sci_idx;

@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93";
 #include <sys/sysctl.h>
 #include <vm/vm_param.h>
 
+#include <stdlib.h>
 #include <db.h>
 #include <fcntl.h>
 #include <limits.h>

@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.3 1995/06/17 03:02:21 ache Exp $ */
+/*	$Id: msgcat.c,v 1.4 1995/10/22 14:39:22 phk Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -312,13 +312,13 @@ int type;
     if (strncmp(header.magic, MCMagic, MCMagicLen) != 0) CORRUPT();
 
     if (header.majorVer != MCMajorVer) {
-	fprintf(stderr, "%s: %s is version %d, we need %d.\n", ERRNAME,
+	fprintf(stderr, "%s: %s is version %ld, we need %ld.\n", ERRNAME,
 		catpath, header.majorVer, MCMajorVer);
 	return(0);
     }
 
     if (header.numSets <= 0) {
-	fprintf(stderr, "%s: %s has %d sets!\n", ERRNAME, catpath,
+	fprintf(stderr, "%s: %s has %ld sets!\n", ERRNAME, catpath,
 		header.numSets);
 	return(0);
     }

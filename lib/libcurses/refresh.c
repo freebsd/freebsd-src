@@ -745,7 +745,7 @@ scrolln(starts, startw, curs, bot, top)
 
 	if (n > 0) {
 		/* Scroll up the screen. */
-		if ((!DB && SF != NULL || n == 1) && bot == curscr->maxy - 1 && top == 0) {
+		if (((!DB && SF != NULL) || n == 1) && (bot == curscr->maxy - 1) && top == 0) {
 			__mvcur(oy, ox, curscr->maxy - 1, 0, 1);
 			if (n == 1)
 				goto f_nl1;
@@ -807,7 +807,7 @@ scrolln(starts, startw, curs, bot, top)
 		/* Scroll down the screen. */
 		if (!DA && (SR != NULL || sr != NULL) && bot == curscr->maxy - 1 && top == 0) {
 			__mvcur(oy, ox, 0, 0, 1);
-			if (SR == NULL || sr != NULL && -n == 1) {
+			if (SR == NULL || (sr != NULL && -n == 1)) {
 				for (i = n; i < 0; i++)
 					tputs(sr, 1, __cputchar);
 			} else

@@ -4,6 +4,7 @@
  * For copyright info, see copyright.h.
  */
 
+#include <stdlib.h>
 #include "ss_internal.h"
 #include "copyright.h"
 

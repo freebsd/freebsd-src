@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
 */
 static const char rcsid[] =
-  "$Id: syslog.c,v 1.7 1995/10/22 14:37:08 phk Exp $";
+  "$Id: syslog.c,v 1.8 1996/03/02 19:56:16 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -202,7 +202,7 @@ vsyslog(pri, fmt, ap)
 		}
 
 		/* Substitute error message for %m. */
-		for ( ; ch = *fmt; ++fmt)
+		for ( ; (ch = *fmt); ++fmt)
 			if (ch == '%' && fmt[1] == 'm') {
 				++fmt;
 				fputs(strerror(saved_errno), fmt_fp);

@@ -156,13 +156,13 @@ setterm(type)
 	ttytype = longname(genbuf, __ttytype);
 
 	__usecs =
-	    (AL == NULL && al == NULL || DL == NULL && dl == NULL) &&
-	    !NS && (SC != NULL && RC != NULL || HO != NULL) &&
+	    ((AL == NULL && al == NULL) || (DL == NULL && dl == NULL)) &&
+	    !NS && ((SC != NULL && RC != NULL) || HO != NULL) &&
 	    CS != NULL && (SR != NULL || sr != NULL);
 
 	/* If no scrolling commands, no quick change. */
 	__noqch = !__usecs &&
-	    (AL == NULL && al == NULL || DL == NULL && dl == NULL);
+	    ((AL == NULL && al == NULL) || (DL == NULL && dl == NULL));
 
 	return (unknown ? ERR : OK);
 }

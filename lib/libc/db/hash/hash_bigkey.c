@@ -590,7 +590,7 @@ __big_split(hashp, op, np, big_keyp, addr, obucket, ret)
 		return (-1);
 	change = (__call_hash(hashp, key.data, key.size) != obucket);
 
-	if (ret->next_addr = __find_last_page(hashp, &big_keyp)) {
+	if ( (ret->next_addr = __find_last_page(hashp, &big_keyp)) ) {
 		if (!(ret->nextp =
 		    __get_buf(hashp, ret->next_addr, big_keyp, 0)))
 			return (-1);;

@@ -100,6 +100,7 @@ openpty(amaster, aslave, name, termp, winp)
 	return (-1);
 }
 
+int
 forkpty(amaster, name, termp, winp)
 	int *amaster;
 	char *name;

@@ -57,6 +57,7 @@ char	PC;
  * The number of affected lines is affcnt, and the routine
  * used to output one character is outc.
  */
+void
 tputs(const char *cp, int affcnt, int (*outc)(int))
 {
 	register int i = 0;

@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.3 1995/03/24 15:51:30 ache Exp $";
-static char rcsid[] = "$Id: getnetnamadr.c,v 1.3 1995/03/24 15:51:30 ache Exp $";
+static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.4 1995/05/30 05:40:48 rgrimes Exp $";
+static char rcsid[] = "$Id: getnetnamadr.c,v 1.4 1995/05/30 05:40:48 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -37,6 +37,13 @@ static char rcsid[] = "$Id: getnetnamadr.c,v 1.3 1995/03/24 15:51:30 ache Exp $"
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+
+extern void _setnetent __P(( int ));
+extern void _endnetent __P(( void ));
+extern void _setnethtent __P(( int ));
+extern void _endnethtent __P(( void ));
+extern void _setnetdnsent __P(( int ));
+extern void _endnetdnsent __P(( void ));
 
 extern struct netent * _getnetbyhtname  __P((const char *));
 extern struct netent * _getnetbydnsname __P((const char *));

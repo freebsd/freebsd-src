@@ -382,7 +382,7 @@ Balloc
 	int x;
 	Bigint *rv;
 
-	if (rv = freelist[k]) {
+	if ( (rv = freelist[k]) ) {
 		freelist[k] = rv->next;
 	} else {
 		x = 1 << k;
@@ -628,7 +628,7 @@ mult
 	xc0 = c->x;
 #ifdef Pack_32
 	for (; xb < xbe; xb++, xc0++) {
-		if (y = *xb & 0xffff) {
+		if ( (y = *xb & 0xffff) ) {
 			x = xa;
 			xc = xc0;
 			carry = 0;
@@ -641,7 +641,7 @@ mult
 			} while (x < xae);
 			*xc = carry;
 		}
-		if (y = *xb >> 16) {
+		if ( (y = *xb >> 16) ) {
 			x = xa;
 			xc = xc0;
 			carry = 0;
@@ -690,7 +690,7 @@ pow5mult
 	int i;
 	static int p05[3] = { 5, 25, 125 };
 
-	if (i = k & 3)
+	if ( (i = k & 3) )
 		b = multadd(b, p05[i-1], 0);
 
 	if (!(k >>= 2))
@@ -752,7 +752,7 @@ lshift
 			*x1++ = *x << k | z;
 			z = *x++ >> k1;
 		} while (x < xe);
-		if (*x1 = z)
+		if ( (*x1 = z) )
 			++n1;
 	}
 #else
@@ -918,7 +918,7 @@ ulp
 		} else {
 			word0(a) = 0;
 			L -= Exp_shift;
-			word1(a) = L >= 31 ? 1 : 1 << 31 - L;
+			word1(a) = L >= 31 ? 1 : 1 << (31 - L);
 		}
 	}
 #endif
@@ -953,16 +953,16 @@ b2d
 	*e = 32 - k;
 #ifdef Pack_32
 	if (k < Ebits) {
-		d0 = Exp_1 | y >> Ebits - k;
+		d0 = Exp_1 | (y >> (Ebits - k));
 		w = xa > xa0 ? *--xa : 0;
-		d1 = y << (32-Ebits) + k | w >> Ebits - k;
+		d1 = (y << ((32-Ebits) + k)) | (w >> (Ebits - k));
 		goto ret_d;
 		}
 	z = xa > xa0 ? *--xa : 0;
 	if (k -= Ebits) {
-		d0 = Exp_1 | y << k | z >> 32 - k;
+		d0 = Exp_1 | (y << k) | (z >> (32 - k));
 		y = xa > xa0 ? *--xa : 0;
-		d1 = z << k | y >> 32 - k;
+		d1 = (z << k) | (y >> (32 - k));
 	} else {
 		d0 = Exp_1 | y;
 		d1 = z;
@@ -1029,13 +1029,13 @@ d2b
 	z |= Exp_msk11;
 #endif
 #else
-	if (de = (int)(d0 >> Exp_shift))
+	if ( (de = (int)(d0 >> Exp_shift)) )
 		z |= Exp_msk1;
 #endif
 #ifdef Pack_32
-	if (y = d1) {
-		if (k = lo0bits(&y)) {
-			x[0] = y | z << 32 - k;
+	if ( (y = d1) ) {
+		if ( (k = lo0bits(&y)) ) {
+			x[0] = y | (z << (32 - k));
 			z >>= k;
 			}
 		else
@@ -1371,9 +1371,9 @@ strtod
 	/* Get starting approximation = rv * 10**e1 */
 
 	if (e1 > 0) {
-		if (i = e1 & 15)
+		if ( (i = e1 & 15) )
 			rv *= tens[i];
-		if (e1 &= ~15) {
+		if ( (e1 &= ~15) ) {
 			if (e1 > DBL_MAX_10_EXP) {
  ovfl:
 				errno = ERANGE;
@@ -1413,9 +1413,9 @@ strtod
 		}
 	} else if (e1 < 0) {
 		e1 = -e1;
-		if (i = e1 & 15)
+		if ( (i = e1 & 15) )
 			rv /= tens[i];
-		if (e1 &= ~15) {
+		if ( (e1 &= ~15) ) {
 			e1 >>= 4;
 			for (j = 0; e1 > 1; j++, e1 >>= 1)
 				if (e1 & 1)
@@ -1946,13 +1946,13 @@ __dtoa
 #ifdef Sudden_Underflow
 	i = (int)(word0(d) >> Exp_shift1 & (Exp_mask>>Exp_shift1));
 #else
-	if (i = (int)(word0(d) >> Exp_shift1 & (Exp_mask>>Exp_shift1))) {
+	if ( (i = (int)((word0(d) >> Exp_shift1) & (Exp_mask>>Exp_shift1))) ) {
 #endif
 		d2 = d;
 		word0(d2) &= Frac_mask1;
 		word0(d2) |= Exp_11;
 #ifdef IBM
-		if (j = 11 - hi0bits(word0(d2) & Frac_mask))
+		if ( (j = 11 - hi0bits(word0(d2) & Frac_mask)) )
 			d2 /= 1 << j;
 #endif
 
@@ -1989,8 +1989,8 @@ __dtoa
 		/* d is denormalized */
 
 		i = bbits + be + (Bias + (P-1) - 1);
-		x = i > 32  ? word0(d) << 64 - i | word1(d) >> i - 32
-			    : word1(d) << 32 - i;
+		x = i > 32  ? ((word0(d) << (64 - i)) | (word1(d) >> (i - 32)))
+			    : (word1(d) << (32 - i));
 		d2 = x;
 		word0(d2) -= 31*Exp_msk1; /* adjust exponent */
 		i -= (Bias + (P-1) - 1) + 1;
@@ -2087,7 +2087,7 @@ __dtoa
 					ds *= bigtens[i];
 				}
 			d /= ds;
-		} else if (j1 = -k) {
+		} else if ( (j1 = -k) ) {
 			d *= tens[j1 & 0xf];
 			for (j = j1 >> 4; j; j >>= 1, i++)
 				if (j & 1) {
@@ -2186,7 +2186,7 @@ __dtoa
 			*s++ = '0' + (int)L;
 			if (i == ilim) {
 				d += d;
-				if (d > ds || d == ds && L & 1) {
+				if (d > ds || (d == ds && L & 1)) {
  bump_up:
 					while (*--s == '9')
 						if (s == s0) {
@@ -2250,7 +2250,7 @@ __dtoa
 				Bfree(b);
 				b = b1;
 				}
-			if (j = b5 - m5)
+			if ( (j = b5 - m5) )
 				b = pow5mult(b, j);
 		} else
 			b = pow5mult(b, b5);
@@ -2283,10 +2283,10 @@ __dtoa
 	 * can do shifts and ors to compute the numerator for q.
 	 */
 #ifdef Pack_32
-	if (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0x1f)
+	if ( (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0x1f) )
 		i = 32 - i;
 #else
-	if (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0xf)
+	if ( (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0xf) )
 		i = 16 - i;
 #endif
 	if (i > 4) {
@@ -2359,15 +2359,15 @@ __dtoa
 				goto ret;
 			}
 #endif
-			if (j < 0 || j == 0 && !mode
+			if (j < 0 || (j == 0 && !mode
 #ifndef ROUND_BIASED
 							&& !(word1(d) & 1)
 #endif
-					) {
+					)) {
 				if (j1 > 0) {
 					b = lshift(b, 1);
 					j1 = cmp(b, S);
-					if ((j1 > 0 || j1 == 0 && dig & 1)
+					if ((j1 > 0 || (j1 == 0 && dig & 1))
 					&& dig++ == '9')
 						goto round_9_up;
 				}
@@ -2406,7 +2406,7 @@ __dtoa
 
 	b = lshift(b, 1);
 	j = cmp(b, S);
-	if (j > 0 || j == 0 && dig & 1) {
+	if (j > 0 || (j == 0 && dig & 1)) {
  roundoff:
 		while (*--s == '9')
 			if (s == s0) {

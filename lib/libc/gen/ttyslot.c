@@ -51,12 +51,12 @@ ttyslot()
 
 	setttyent();
 	for (cnt = 0; cnt < 3; ++cnt)
-		if (name = ttyname(cnt)) {
-			if (p = rindex(name, '/'))
+		if ( (name = ttyname(cnt)) ) {
+			if ( (p = rindex(name, '/')) )
 				++p;
 			else
 				p = name;
-			for (slot = 1; ttyp = getttyent(); ++slot)
+			for (slot = 1; (ttyp = getttyent()); ++slot)
 				if (!strcmp(ttyp->ty_name, p)) {
 					endttyent();
 					return(slot);

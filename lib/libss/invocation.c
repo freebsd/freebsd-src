@@ -3,6 +3,8 @@
  *
  * For copyright information, see copyright.h.
  */
+
+#include <stdlib.h>
 #include "ss_internal.h"
 #include "copyright.h"
 #define	size	sizeof(ss_data *)
