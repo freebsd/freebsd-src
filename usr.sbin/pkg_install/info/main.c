@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  *
  * FreeBSD install - a package for the installation and maintainance
@@ -28,7 +23,12 @@ static const char rcsid[] =
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acdDe:fikrRpLqImvhl:";
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
+static char Options[] = "acdDe:fhiIkl:LmpqrRt:v";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -157,8 +157,8 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDikrRpLqImv] [-e package] [-l prefix]",
-	"                pkg-name [pkg-name ...]",
+	"usage: pkg_info [-cdDfikrRpLqImv] [-e package] [-l prefix]",
+	"                [-t template] [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);
 }
