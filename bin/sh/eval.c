@@ -479,16 +479,14 @@ evalpipe(union node *n)
 		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) {
 			INTON;
 			if (prevfd > 0) {
-				close(0);
-				copyfd(prevfd, 0);
+				dup2(prevfd, 0);
 				close(prevfd);
 			}
 			if (pip[1] >= 0) {
 				if (!(prevfd >= 0 && pip[0] == 0))
 					close(pip[0]);
 				if (pip[1] != 1) {
-					close(1);
-					copyfd(pip[1], 1);
+					dup2(pip[1], 1);
 					close(pip[1]);
 				}
 			}
@@ -545,8 +543,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 			FORCEINTON;
 			close(pip[0]);
 			if (pip[1] != 1) {
-				close(1);
-				copyfd(pip[1], 1);
+				dup2(pip[1], 1);
 				close(pip[1]);
 			}
 			evaltree(n, EV_EXIT);
@@ -742,8 +739,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			FORCEINTON;
 			close(pip[0]);
 			if (pip[1] != 1) {
-				close(1);
-				copyfd(pip[1], 1);
+				dup2(pip[1], 1);
 				close(pip[1]);
 			}
 		}

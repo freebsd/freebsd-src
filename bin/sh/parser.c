@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "parser.h"
 #include "nodes.h"
 #include "expand.h"	/* defines rmescapes() */
-#include "redir.h"	/* defines copyfd() */
 #include "syntax.h"
 #include "options.h"
 #include "input.h"
