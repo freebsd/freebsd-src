@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.112 1998/10/13 08:24:33 dg Exp $
+ *	$Id: vm_machdep.c,v 1.113 1998/10/31 17:21:30 peter Exp $
  */
 
 #include "npx.h"
@@ -520,10 +520,10 @@ grow(p, sp)
 	caddr_t v;
 	struct vmspace *vm = p->p_vmspace;
 
-	if ((caddr_t)sp <= vm->vm_maxsaddr || (unsigned)sp >= (unsigned)USRSTACK)
-	    return (1);
+	if ((caddr_t)sp <= vm->vm_maxsaddr || sp >= USRSTACK)
+		return (1);
 
-	nss = roundup(USRSTACK - (unsigned)sp, PAGE_SIZE);
+	nss = roundup(USRSTACK - sp, PAGE_SIZE);
 
 	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
 		return (0);
