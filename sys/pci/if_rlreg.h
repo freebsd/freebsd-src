@@ -299,7 +299,8 @@
 #define RL_RXBUFLEN		(1 << ((RL_RX_BUF_SZ >> 11) + 13))
 #define RL_TX_LIST_CNT		4
 #define RL_MIN_FRAMELEN		60
-#define RL_TX_EARLYTHRESH	(256 << 11)
+#define RL_TXTHRESH(x)		((x) << 11)
+#define RL_TX_THRESH_INIT	96
 #define RL_RX_FIFOTHRESH	RL_RXFIFO_256BYTES
 #define RL_RX_MAXDMA		RL_RXDMA_UNLIMITED
 #define RL_TX_MAXDMA		RL_TXDMA_2048BYTES
@@ -364,6 +365,7 @@ struct rl_softc {
 	u_int8_t		rl_unit;	/* interface number */
 	u_int8_t		rl_type;
 	u_int8_t		rl_stats_no_timeout;
+	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct callout_handle	rl_stat_ch;
 };
