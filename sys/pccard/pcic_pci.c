@@ -1079,6 +1079,23 @@ pcic_pci_shutdown(device_t dev)
 }
 
 /*
+ * Print out the config space
+ */
+static void
+pcic_pci_print_config(device_t dev)
+{
+	int i;
+	
+	device_printf(dev, "PCI Configuration space:");
+	for (i = 0; i < 256; i += 4) {
+		if (i % 4 == 0)
+			printf("\n  0x%02x: ", i);
+		printf("0x%08x ", pci_read_config(dev, i, 4));
+	}
+	printf("\n");
+}
+
+/*
  * General PCI based card dispatch routine.  Right now
  * it only understands the Ricoh, CL-PD6832 and TI parts.  It does
  * try to do generic things with other parts.
@@ -1238,6 +1255,8 @@ pcic_pci_attach(device_t dev)
 			return (error);
 		}
 	}
+	if (bootverbose)
+		pcic_pci_print_config(dev);
 	return (pcic_attach(dev));
 }
 
