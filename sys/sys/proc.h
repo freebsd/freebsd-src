@@ -335,7 +335,7 @@ struct	pcred {
  * this a superset of struct proc, i.e. it_proc is the struct itself and not a
  * pointer.  We point in both directions, because it feels good that way.
  */
-typedef struct ithd {
+struct ithd {
 	struct proc	*it_proc;	/* interrupt process */
 
 	LIST_HEAD(ihhead, intrhand) it_ihhead;
@@ -379,7 +379,7 @@ typedef struct ithd {
 	int		it_cnt;		/* number of schedule events */
 
 #endif
-} ithd;
+};
 
 #ifdef _KERNEL
 

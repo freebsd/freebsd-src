@@ -61,12 +61,6 @@
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 #include <machine/clock.h>
-#ifdef __i386__
-#include <machine/smp.h>
-#include <sys/proc.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
-#endif
 #ifdef __alpha__
 #include <machine/md_var.h>
 #endif

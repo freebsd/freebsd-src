@@ -50,6 +50,7 @@
 #include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <machine/vmparam.h>
 #include <vm/vm.h>
@@ -415,34 +416,9 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		icflags = INTR_EXCL;
 
 	driver = device_get_driver(child);
-	switch (flags) {
-	case INTR_TYPE_TTY:		/* keyboard or parallel port */
-		pri = PI_TTYLOW;
-		break;
-	case (INTR_TYPE_TTY | INTR_FAST): /* sio */
-		pri = PI_TTYHIGH;
+	pri = ithread_priority(flags);
+	if (flags & INTR_FAST)
 		icflags |= INTR_FAST;
-		break;
-	case INTR_TYPE_BIO:
-		/*
-		 * XXX We need to refine this.  BSD/OS distinguishes
-		 * between tape and disk priorities.
-		 */
-		pri = PI_DISK;
-		break;
-	case INTR_TYPE_NET:
-		pri = PI_NET;
-		break;
-	case INTR_TYPE_CAM:
-		pri = PI_DISK;		/* XXX or PI_CAM? */
-		break;
-	case INTR_TYPE_MISC:
-		pri = PI_DULL;		/* don't care */
-		break;
-	/* We didn't specify an interrupt level. */
-	default:
-		panic("nexus_setup_intr: no interrupt type in flags");
-	}
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.

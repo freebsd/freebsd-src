@@ -29,6 +29,8 @@
 
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/rtprio.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
@@ -126,5 +128,42 @@ unregister_swi(intr, handler)
 			ihandlers[intr] = slp->sl_handler;
 	}
 	splx(s);
+}
+
+int
+ithread_priority(flags)
+	int flags;
+{
+	int pri;
+
+	switch (flags) {
+	case INTR_TYPE_TTY:             /* keyboard or parallel port */
+		pri = PI_TTYLOW;
+		break;
+	case (INTR_TYPE_TTY | INTR_FAST): /* sio */
+		pri = PI_TTYHIGH;
+		break;
+	case INTR_TYPE_BIO:
+		/*
+		 * XXX We need to refine this.  BSD/OS distinguishes
+		 * between tape and disk priorities.
+		 */
+		pri = PI_DISK;
+		break;
+	case INTR_TYPE_NET:
+		pri = PI_NET;
+		break;
+	case INTR_TYPE_CAM:
+		pri = PI_DISK;          /* XXX or PI_CAM? */
+		break;
+	case INTR_TYPE_MISC:
+		pri = PI_DULL;          /* don't care */
+		break;
+	/* We didn't specify an interrupt level. */
+	default:
+		panic("ithread_priority: no interrupt type in flags");
+	}
+
+	return pri;
 }
 
