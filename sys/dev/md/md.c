@@ -619,9 +619,7 @@ md_kthread(void *arg)
 	
 	for (;;) {
 		mtx_lock(&sc->queue_mtx);
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
+		bp = bioq_takefirst(&sc->bio_queue);
 		if (!bp) {
 			if (sc->flags & MD_SHUTDOWN) {
 				mtx_unlock(&sc->queue_mtx);
