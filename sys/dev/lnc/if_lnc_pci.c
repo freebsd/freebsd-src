@@ -1,142 +1,220 @@
 /*
- *
- * Copyright (c) 1996 Stefan Esser <se@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 1994-2000
+ *	Paul Richards. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
+ *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Absolutely no warranty of function or purpose is made by the author
- *    Stefan Esser.
- * 4. Modifications may be freely made to this file if the above conditions
- *    are met.
+ * 3. The name Paul Richards may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY PAUL RICHARDS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL PAUL RICHARDS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <sys/socket.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
+#include <dev/lnc/if_lnc.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#define AMD_VENDOR_ID 0x1022
+#define PCI_DEVICE_ID_PCNet_PCI	0x2000
+#define PCI_DEVICE_ID_PCHome_PCI 0x2001
 
-#include <dev/lnc/if_lncvar.h>
-
-#include "lnc.h"
-
-#ifndef COMPAT_OLDPCI
-#error "The lnc device requires the old pci compatibility shims"
-#endif
-
-#define PCI_DEVICE_ID_PCNet_PCI	0x20001022
-#define PCI_DEVICE_ID_PCHome_PCI 0x20011022
-
-extern int pcnet_probe __P((lnc_softc_t *sc));
-extern int lnc_attach_sc __P((lnc_softc_t *sc, int unit));
-
-static const char* lnc_pci_probe __P((pcici_t tag, pcidi_t type));
-static void lnc_pci_attach __P((pcici_t config_id, int unit));
-
-static u_long lnc_pci_count = NLNC;
-
-static struct pci_device lnc_pci_driver = {
-	"lnc",
-	lnc_pci_probe,
-	lnc_pci_attach,
-	&lnc_pci_count,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (lnc_pci, lnc_pci_driver);
-
-static const char*
-lnc_pci_probe (pcici_t tag, pcidi_t type)
+static int
+lnc_pci_probe(device_t dev)
 {
-	switch(type) {
+	if (pci_get_vendor(dev) != AMD_VENDOR_ID)
+		return (ENXIO);
+
+	switch(pci_get_device(dev)) {
 	case PCI_DEVICE_ID_PCNet_PCI:
-		return ("PCNet/PCI Ethernet adapter");
+		device_set_desc(dev, "PCNet/PCI Ethernet adapter");
+		return(0);
 		break;
 	case PCI_DEVICE_ID_PCHome_PCI:
-		return ("PCHome/PCI Ethernet adapter");
+		device_set_desc(dev, "PCHome/PCI Ethernet adapter");
+		return(0);
 		break;
 	default:
+		return (ENXIO);
 		break;
+	}
+	return (ENXIO);
+}
+
+static void
+lnc_alloc_callback(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	/* Do nothing */
+	return;
+}
+
+static int
+lnc_pci_attach(device_t dev)
+{
+	lnc_softc_t *sc = device_get_softc(dev);
+	unsigned command;
+	int rid = 0;
+	int err = 0;
+	bus_size_t lnc_mem_size;
+
+	device_printf(dev, "Attaching %s\n", device_get_desc(dev));
+
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	command |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
+
+	rid = PCIR_MAPS;
+	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+	                                 RF_ACTIVE);
+
+	if (! sc->portres)
+		device_printf(dev, "Cannot allocate I/O ports\n");
+
+	rid = 0;
+	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	                                RF_ACTIVE|RF_SHAREABLE);
+
+	if (! sc->irqres)
+		device_printf(dev, "Cannot allocate irq\n");
+
+	err = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET, lncintr,
+	                     sc, &sc->intrhand);
+	if (err)
+		device_printf(dev, "Cannot setup irq handler\n");
+
+	sc->iobase = rman_get_start(sc->portres);
+
+	/* XXX temp setting for nic */
+	sc->nic.ic = PCnet_PCI;
+	sc->nic.ident = NE2100;
+	sc->nic.mem_mode = DMA_FIXED;
+	sc->nrdre  = NRDRE;
+	sc->ntdre  = NTDRE;
+	sc->rap = sc->iobase + PCNET_RAP;
+	sc->rdp = sc->iobase + PCNET_RDP;
+	sc->bdp = sc->iobase + PCNET_BDP;
+
+	/* Create a DMA tag describing the ring memory we need */
+
+	lnc_mem_size = ((NDESC(sc->nrdre) + NDESC(sc->ntdre)) *
+			 sizeof(struct host_ring_entry));
+
+	lnc_mem_size += (NDESC(sc->nrdre) * RECVBUFSIZE) +
+			(NDESC(sc->ntdre) * TRANSBUFSIZE);
+
+	err = bus_dma_tag_create(NULL,			/* parent */
+				 1,			/* alignement */
+				 0,			/* boundary */
+				 BUS_SPACE_MAXADDR,	/* lowaddr */
+				 BUS_SPACE_MAXADDR,	/* highaddr */
+				 NULL, NULL,		/* filter, filterarg */
+				 lnc_mem_size,		/* segsize */
+				 1,			/* nsegments */
+				 BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+				 0,			/* flags */
+				 &sc->dmat);
+
+	if (err) {
+		device_printf(dev, "Can't create DMA tag\n");
+		/* XXX need to free currently allocated resources here */
+		return (ENOMEM);
+	}
+
+	err = bus_dmamem_alloc(sc->dmat, (void **)&sc->recv_ring,
+	                       BUS_DMA_NOWAIT, &sc->dmamap);
+
+	if (err) {
+		device_printf(dev, "Couldn't allocate memory\n");
+		/* XXX need to free currently allocated resources here */
+		return (ENOMEM);
+	}
+
+	bus_dmamap_load(sc->dmat, sc->dmamap, sc->recv_ring, lnc_mem_size,
+			lnc_alloc_callback, sc->recv_ring, BUS_DMA_NOWAIT);
+
+	/* Call generic attach code */
+	if (! lnc_attach_common(dev)) {
+		device_printf(dev, "Generic attach code failed\n");
 	}
 	return (0);
 }
 
-void lncintr_sc (void*);
-
-static void
-lnc_pci_attach(config_id, unit)
-	pcici_t config_id;
-	int	unit;
+static int
+lnc_pci_detach(device_t dev)
 {
-	lnc_softc_t *sc;
-	unsigned iobase;
-	unsigned data;	/* scratch to make this device a bus master*/
-	int i;
+	lnc_softc_t *sc = device_get_softc(dev);
+	int s = splimp();
 
-	if ( !pci_map_port(config_id,PCI_MAP_REG_START,(u_short *)&iobase) )
-	    printf("lnc%d: pci_port_map_attach failed?!\n",unit);
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 
+	lnc_stop(sc);
+	bus_teardown_intr(dev, sc->irqres, sc->intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irqres);
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, sc->portres);
 
-	/* Make this device a bus master.  This was implictly done by 
-	   pci_map_port under 2.2.x -- tvf */
+	bus_dmamap_unload(sc->dmat, sc->dmamap);
+	bus_dmamem_free(sc->dmat, sc->recv_ring, sc->dmamap);
+	bus_dma_tag_destroy(sc->dmat);
 
-	data = pci_cfgread(config_id, PCIR_COMMAND, 4);
-	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
-	pci_cfgwrite(config_id, PCIR_COMMAND, data, 4);
-
-	sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT | M_ZERO);
-
-	if (sc) {
-		sc->rap = iobase + PCNET_RAP;
-		sc->rdp = iobase + PCNET_RDP;
-		sc->bdp = iobase + PCNET_BDP;
-
-		sc->nic.ic = pcnet_probe(sc);
-		if (sc->nic.ic >= PCnet_32) {
-			sc->nic.ident = NE2100;
-			sc->nic.mem_mode = DMA_FIXED;
-  
-			/* XXX - For now just use the defines */
-			sc->nrdre = NRDRE;
-			sc->ntdre = NTDRE;
-
-			/* Extract MAC address from PROM */
-			for (i = 0; i < ETHER_ADDR_LEN; i++)
-				sc->arpcom.ac_enaddr[i] = inb(iobase + i);
-
-			if (lnc_attach_sc(sc, unit) == 0) {
-				free(sc, M_DEVBUF);
-				sc = NULL;
-			}
-
-			if(!(pci_map_int(config_id, lncintr_sc, (void *)sc, &net_imask))) {
-				free (sc, M_DEVBUF);
-				return;
-			}
-		} else {
-			free(sc, M_DEVBUF);
-		}
-	}
-
-	return;
+	splx(s);
+	return (0);
 }
+
+static device_method_t lnc_pci_methods[] = {
+	DEVMETHOD(device_probe,		lnc_pci_probe),
+	DEVMETHOD(device_attach,	lnc_pci_attach),
+	DEVMETHOD(device_detach,	lnc_pci_detach),
+#ifdef notyet
+	DEVMETHOD(device_suspend,	lnc_pci_suspend),
+	DEVMETHOD(device_resume,	lnc_pci_resume),
+	DEVMETHOD(device_shutdown,	lnc_pci_shutdown),
+#endif
+	{ 0, 0 }
+};
+
+static driver_t lnc_pci_driver = {
+	"lnc",
+	lnc_pci_methods,
+	sizeof(struct lnc_softc),
+};
+
+static devclass_t lnc_devclass;
+
+DRIVER_MODULE(lnc_pci, pci, lnc_pci_driver, lnc_devclass, 0, 0);
