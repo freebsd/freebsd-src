@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.152 1995/05/11 06:40:40 jkh Exp $
+#	$Id: Makefile,v 1.153 1995/05/11 07:03:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -270,7 +270,8 @@ release.6:
 		ls console tty ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/bootfd/dev )
-	tar cf - -C ${.CURDIR}/sysinstall --exclude CVS help | tar xvf - -C ${RD}/bootfd/stand
+	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
+		tar xvf - -C ${RD}/bootfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd/stand/help/COPYRIGHT
 	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
 		install -c RELNOTES.FreeBSD ${RD}/bootfd/stand/help/RELNOTES; \
