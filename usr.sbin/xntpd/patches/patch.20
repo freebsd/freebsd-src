@@ -1,0 +1,1031 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa03713; 20 Feb 94 10:36 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa02155;
+          20 Feb 94 10:26 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA03871 (5.65c-6/7.3v-FAU); Sun, 20 Feb 1994 16:26:26 +0100
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA04409 (5.65c-6/7.3m-FAU); Sun, 20 Feb 1994 16:26:24 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199402201526.AA04409@faui43.informatik.uni-erlangen.de>
+Subject: 3.3g patches
+To: mills@udel.edu
+Date: Sun, 20 Feb 94 16:26:19 MET
+X-Mailer: ELM [version 2.3 PL11]
+
+Hi, Dave,
+
+here are some more patches. They fix the following:
+	- nroff macros from John Line
+	- parse add/delete leap second (as opposed to just add second)
+	- some rcs ids
+	- linux support
+	- xntpd.8 leap variable documentation
+
+And here we go...
+
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/compilers/linux.gcc,v
+retrieving revision 1.2
+diff -c -r1.2 linux.gcc
+*** 1.2	1993/10/10 23:10:03
+--- compilers/linux.gcc	1994/02/20 13:03:27
+***************
+*** 1,2 ****
+  COMPILER= gcc -DUSE_PROTOTYPES -Wall
+! COPTS= -O6 -finline-functions -fomit-frame-pointer
+--- 1,2 ----
+  COMPILER= gcc -DUSE_PROTOTYPES -Wall
+! COPTS= -O2 -finline-functions -fomit-frame-pointer
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/notes.txt,v
+retrieving revision 1.3
+diff -c -r1.3 notes.txt
+*** 1.3	1993/08/24 21:24:55
+--- doc/notes.txt	1994/02/20 11:57:24
+***************
+*** 785,791 ****
+  with mode-6 messages is set the leap-second warning bits) and the ntpq
+  program provides generic support for the latter. The leap bits that can be
+  set in the leap_warning variable (up to one month ahead) and in the
+! leap_indication variable have a slighly different encoding than the
+  usual interpretation:
+  
+  	Value		Action
+--- 785,791 ----
+  with mode-6 messages is set the leap-second warning bits) and the ntpq
+  program provides generic support for the latter. The leap bits that can be
+  set in the leap_warning variable (up to one month ahead) and in the
+! leap_indication variable have a slightly different encoding than the
+  usual interpretation:
+  
+  	Value		Action
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/ntpdate.8,v
+retrieving revision 3.0
+diff -c -r3.0 ntpdate.8
+*** 3.0	1992/08/14 15:11:44
+--- doc/ntpdate.8	1994/02/20 11:27:53
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/ntpq.8,v
+retrieving revision 3.3
+diff -c -r3.3 ntpq.8
+*** 3.3	1993/10/22 14:26:57
+--- doc/ntpq.8	1994/02/20 11:27:55
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/ntptrace.8,v
+retrieving revision 1.1.1.2
+diff -c -r1.1.1.2 ntptrace.8
+*** 1.1.1.2	1993/01/26 18:55:43
+--- doc/ntptrace.8	1994/02/20 11:27:58
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/tickadj.8,v
+retrieving revision 3.0
+diff -c -r3.0 tickadj.8
+*** 3.0	1992/08/14 15:11:53
+--- doc/tickadj.8	1994/02/20 11:28:00
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/xntpd.8,v
+retrieving revision 3.24
+diff -c -r3.24 xntpd.8
+*** 3.24	1994/02/02 16:42:25
+--- doc/xntpd.8	1994/02/20 11:57:28
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+***************
+*** 374,380 ****
+  Certain changes can be made to the
+  .I xntpd
+  server via mode 6 control messages, in particular the setting of
+! leap second indications in a server with a radio clock.  The
+  .B controlkey
+  statement specifies an encription key number to be used for authenticating
+  such messages.  Omitting this statement will cause control messages
+--- 374,381 ----
+  Certain changes can be made to the
+  .I xntpd
+  server via mode 6 control messages, in particular the setting of
+! leap second indications in a server with a radio clock.
+! The
+  .B controlkey
+  statement specifies an encription key number to be used for authenticating
+  such messages.  Omitting this statement will cause control messages
+***************
+*** 1401,1406 ****
+--- 1402,1432 ----
+  If flag3 is set, then the sample information is dumped.
+  If flag4 is set, then the input data is smoothed, and all data
+  points are used.
++ .PP
++ .SH VARIABLES
++ Most variables used by the NTP protocol can be examined with the xntpdc
++ (mode 7 messages) and the ntpq (mode 6 messages). Currently very few variables
++ can be modified via mode 6 messages. These variables are either created with the
++ .I setvar
++ directive or the leap warning variables. The leap warning bits that can be
++ set in the 
++ .B leapwarning
++ variable (up to one month ahead). Both, the
++ .B leapwarning and in the 
++ .B leapindication
++ variable, have a slightly different encoding than the usual
++ .B leap
++ bits interpretation:
++ .P
++ .Ip 00 8
++ The daemon passes the leap bits of its synchronisation source (usual mode of
++ operation).
++ .Ip 01/10 8
++ A leap second is added/deleted (operator forced leap second).
++ .Ip 11 8
++ Leap information from the sychronisation source is ignored (thus LEAP_NOWARNING
++ is passed on).
++ .PP
+  .SH FILES
+  .Ip /etc/ntp.conf 20
+  the default name of the configuration file
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/doc/xntpdc.8,v
+retrieving revision 3.4
+diff -c -r3.4 xntpdc.8
+*** 3.4	1994/02/02 15:54:14
+--- doc/xntpdc.8	1994/02/20 11:28:06
+***************
+*** 20,32 ****
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Bell System Logo is used as a dummy character.
+  '''
+! .tr \(bs-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(bs-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+--- 20,32 ----
+  '''
+  '''     Set up \*(-- to give an unbreakable dash;
+  '''     string Tr holds user defined translation string.
+! '''     Greek uppercase omega is used as a dummy character.
+  '''
+! .tr \(*W-|\(bv\*(Tr
+  .ie n \{\
+! .ds -- \(*W-
+! .if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+! .if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
+  .ds L" ""
+  .ds R" ""
+  .ds L' '
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/hints/linux,v
+retrieving revision 1.2
+diff -c -r1.2 linux
+*** 1.2	1994/02/01 23:19:26
+--- hints/linux	1994/02/20 11:26:44
+***************
+*** 1,5 ****
+  
+! Requirements:	kernel 0.99.14y or newer, libc 4.5.8 or newer
+  ------------
+  
+  	With this configuration, xntp should build an run right out of the box
+--- 1,5 ----
+  
+! Requirements:	kernel 0.99.14y or newer, libc 4.5.20 or newer
+  ------------
+  
+  	With this configuration, xntp should build an run right out of the box
+***************
+*** 7,9 ****
+--- 7,14 ----
+  versions of the kernel or libc, or have any other question not covered in the
+  READMEs / hint files (sorry, necessary comment in the Linux community ;-) feel
+  free to ask me (duwe@informatik.uni-erlangen.de)
++ 
++ [NOTE: libc-4.5.20 is (or was ? ;-) a beta testing release, but the first
++ binary compiled under the appropriate kernel. Get this one from
++ tsx-11:.../GCC/private/dontuse , compile 4.5.19 yourself or wait for the next
++ puplic relase after 4.5.20]
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/include/parse.h,v
+retrieving revision 3.14
+diff -c -r3.14 parse.h
+*** 3.14	1994/01/28 14:03:35
+--- include/parse.h	1994/02/20 13:04:26
+***************
+*** 81,115 ****
+  /*
+   * state flags
+   */
+! #define PARSEB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
+! #define PARSEB_POWERUP            0x0002 /* no synchronisation */
+! #define PARSEB_NOSYNC             0x0004 /* timecode currently not confirmed */
+! #define PARSEB_DST                0x0008 /* DST in effect */
+! #define PARSEB_UTC		  0x0010 /* UTC time */
+! #define PARSEB_LEAP		  0x0020 /* LEAP warning (1 hour prior to occurence) */
+! #define PARSEB_ALTERNATE	  0x0040 /* alternate antenna used */
+! #define PARSEB_POSITION		  0x0080 /* position available */
+! #define PARSEB_LEAPSECOND	  0x0100 /* actual leap second */
+! 
+! #define PARSEB_S_LEAP		  0x0200 /* supports LEAP */
+! #define PARSEB_S_ANTENNA	  0x0400 /* supports antenna information */
+! #define PARSEB_S_PPS     	  0x0800 /* supports PPS time stamping */
+! #define PARSEB_S_POSITION	  0x1000 /* supports position information (GPS) */
+  
+! #define PARSEB_TIMECODE		  0x2000 /* valid time code sample */
+! #define PARSEB_PPS		  0x4000 /* valid PPS sample */
+  
+  #define PARSE_TCINFO		(PARSEB_ANNOUNCE|PARSEB_POWERUP|PARSEB_NOSYNC|PARSEB_DST|\
+! 				 PARSEB_UTC|PARSEB_LEAP|PARSEB_ALTERNATE|PARSEB_S_LEAP|\
+  				 PARSEB_S_LOCATION|PARSEB_TIMECODE)
+  
+! #define PARSE_POWERUP(x)          ((x) & PARSEB_POWERUP)
+! #define PARSE_NOSYNC(x)           (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == PARSEB_NOSYNC)
+! #define PARSE_SYNC(x)             (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == 0)
+! #define PARSE_ANNOUNCE(x)         ((x) & PARSEB_ANNOUNCE)
+! #define PARSE_DST(x)              ((x) & PARSEB_DST)
+  #define PARSE_UTC(x)		((x) & PARSEB_UTC)
+! #define PARSE_LEAP(x)		(PARSE_SYNC(x) && ((x) & PARSEB_LEAP))
+  #define PARSE_ALTERNATE(x)	((x) & PARSEB_ALTERNATE)
+  #define PARSE_LEAPSECOND(x)	(PARSE_SYNC(x) && ((x) & PARSEB_LEAP_SECOND))
+  
+--- 81,135 ----
+  /*
+   * state flags
+   */
+! #define PARSEB_POWERUP            0x00000001 /* no synchronisation */
+! #define PARSEB_NOSYNC             0x00000002 /* timecode currently not confirmed */
+  
+! /*
+!  * time zone information
+!  */
+! #define PARSEB_ANNOUNCE           0x00000010 /* switch time zone warning (DST switch) */
+! #define PARSEB_DST                0x00000020 /* DST in effect */
+! #define PARSEB_UTC		  0x00000040 /* UTC time */
+! 
+! /*
+!  * leap information
+!  */
+! #define PARSEB_LEAPDEL		  0x00000100 /* LEAP deletion warning */
+! #define PARSEB_LEAPADD		  0x00000200 /* LEAP addition warning */
+! #define PARSEB_LEAPS		  0x00000300 /* LEAP warnings */
+! #define PARSEB_LEAPSECOND	  0x00000400 /* actual leap second */
+! /*
+!  * optional status information
+!  */
+! #define PARSEB_ALTERNATE	  0x00001000 /* alternate antenna used */
+! #define PARSEB_POSITION		  0x00002000 /* position available */
+! 
+! /*
+!  * feature information
+!  */
+! #define PARSEB_S_LEAP		  0x00010000 /* supports LEAP */
+! #define PARSEB_S_ANTENNA	  0x00020000 /* supports antenna information */
+! #define PARSEB_S_PPS     	  0x00040000 /* supports PPS time stamping */
+! #define PARSEB_S_POSITION	  0x00080000 /* supports position information (GPS) */
+! 
+! /*
+!  * time stamp availality
+!  */
+! #define PARSEB_TIMECODE		  0x10000000 /* valid time code sample */
+! #define PARSEB_PPS		  0x20000000 /* valid PPS sample */
+  
+  #define PARSE_TCINFO		(PARSEB_ANNOUNCE|PARSEB_POWERUP|PARSEB_NOSYNC|PARSEB_DST|\
+! 				 PARSEB_UTC|PARSEB_LEAPS|PARSEB_ALTERNATE|PARSEB_S_LEAP|\
+  				 PARSEB_S_LOCATION|PARSEB_TIMECODE)
+  
+! #define PARSE_POWERUP(x)        ((x) & PARSEB_POWERUP)
+! #define PARSE_NOSYNC(x)         (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == PARSEB_NOSYNC)
+! #define PARSE_SYNC(x)           (((x) & (PARSEB_POWERUP|PARSEB_NOSYNC)) == 0)
+! #define PARSE_ANNOUNCE(x)       ((x) & PARSEB_ANNOUNCE)
+! #define PARSE_DST(x)            ((x) & PARSEB_DST)
+  #define PARSE_UTC(x)		((x) & PARSEB_UTC)
+! #define PARSE_LEAPADD(x)	(PARSE_SYNC(x) && (((x) & PARSEB_LEAPS) == PARSEB_LEAPADD))
+! #define PARSE_LEAPDEL(x)	(PARSE_SYNC(x) && (((x) & PARSEB_LEAPS) == PARSEB_LEAPDEL))
+  #define PARSE_ALTERNATE(x)	((x) & PARSEB_ALTERNATE)
+  #define PARSE_LEAPSECOND(x)	(PARSE_SYNC(x) && ((x) & PARSEB_LEAP_SECOND))
+  
+***************
+*** 118,126 ****
+  #define PARSE_S_PPS(x)		((x) & PARSEB_S_PPS)
+  #define PARSE_S_POSITION(x)	((x) & PARSEB_S_POSITION)
+  
+! #define PARSE_TIMECODE(x)		((x) & PARSEB_TIMECODE)
+  #define PARSE_PPS(x)		((x) & PARSEB_PPS)
+! #define PARSE_POSITION(x)		((x) & PARSEB_POSITION)
+  
+  /*
+   * operation flags - some are also fudge flags
+--- 138,146 ----
+  #define PARSE_S_PPS(x)		((x) & PARSEB_S_PPS)
+  #define PARSE_S_POSITION(x)	((x) & PARSEB_S_POSITION)
+  
+! #define PARSE_TIMECODE(x)	((x) & PARSEB_TIMECODE)
+  #define PARSE_PPS(x)		((x) & PARSEB_PPS)
+! #define PARSE_POSITION(x)	((x) & PARSEB_POSITION)
+  
+  /*
+   * operation flags - some are also fudge flags
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/README.new_clocks,v
+retrieving revision 3.3
+diff -c -r3.3 README.new_clocks
+*** 3.3	1994/02/17 20:09:58
+--- parse/README.new_clocks	1994/02/20 13:04:34
+***************
+*** 37,43 ****
+  
+       PARSEB_DST                DST in effect (informational only)
+       PARSEB_UTC                timecode contains UTC time (informational only)
+!      PARSEB_LEAP               LEAP warning (prior to leap happening - must set when imminent)
+       PARSEB_ALTERNATE          backup transmitter (informational only)
+       PARSEB_POSITION           geographic position available (informational only)
+       PARSEB_LEAPSECOND         actual leap second (this time code is the leap
+--- 37,46 ----
+  
+       PARSEB_DST                DST in effect (informational only)
+       PARSEB_UTC                timecode contains UTC time (informational only)
+!      PARSEB_LEAPADD            LEAP addition warning (prior to leap happening - must set when imminent)
+! 			       also used for time code that do not encode the
+! 			       direction (as this is currently the default).
+!      PARSEB_LEAPDEL            LEAP deletion warning (prior to leap happening - must set when imminent)
+       PARSEB_ALTERNATE          backup transmitter (informational only)
+       PARSEB_POSITION           geographic position available (informational only)
+       PARSEB_LEAPSECOND         actual leap second (this time code is the leap
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v
+retrieving revision 3.13
+diff -c -r3.13 clk_meinberg.c
+*** 3.13	1994/02/02 17:45:21
+--- parse/clk_meinberg.c	1994/02/20 13:04:37
+***************
+*** 1,8 ****
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_MEINBERG)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.13 1994/02/02 17:45:21 kardel Exp
+   *  
+!  * clk_meinberg.c,v 3.13 1994/02/02 17:45:21 kardel Exp
+   *
+   * Meinberg clock support
+   *
+--- 1,8 ----
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_MEINBERG)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
+   *  
+!  * clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
+   *
+   * Meinberg clock support
+   *
+***************
+*** 284,291 ****
+  	      clock->flags |= PARSEB_S_LEAP;
+  	      clock->flags |= PARSEB_S_ANTENNA;
+  	      
+  	      if (f[4] == 'A')
+! 		clock->flags |= PARSEB_LEAP;
+  
+  	      if (f[5] == 'R')
+  		clock->flags |= PARSEB_ALTERNATE;
+--- 284,296 ----
+  	      clock->flags |= PARSEB_S_LEAP;
+  	      clock->flags |= PARSEB_S_ANTENNA;
+  	      
++ 	      /*
++ 	       * DCF77 does not encode the direction -
++ 	       * so we take the current default -
++ 	       * earth slowing down
++ 	       */
+  	      if (f[4] == 'A')
+! 		clock->flags |= PARSEB_LEAPADD;
+  
+  	      if (f[5] == 'R')
+  		clock->flags |= PARSEB_ALTERNATE;
+***************
+*** 394,402 ****
+  	  
+  	  /*
+  	   * oncoming leap second
+  	   */
+  	  if (f[5] == 'A')
+! 	    clock->flags |= PARSEB_LEAP;
+  	  
+  	  /*
+  	   * this is the leap second
+--- 399,410 ----
+  	  
+  	  /*
+  	   * oncoming leap second
++ 	   * data format does not (yet) specify whether
++ 	   * to add or to delete a second - thus we
++ 	   * pick the current default
+  	   */
+  	  if (f[5] == 'A')
+! 	    clock->flags |= PARSEB_LEAPADD;
+  	  
+  	  /*
+  	   * this is the leap second
+***************
+*** 413,419 ****
+  /*
+   * History:
+   *
+!  * clk_meinberg.c,v
+   * Revision 3.13  1994/02/02  17:45:21  kardel
+   * rcs ids fixed
+   *
+--- 421,430 ----
+  /*
+   * History:
+   *
+!  * clk_meinberg.c,v
+!  * Revision 3.14  1994/02/20  13:04:37  kardel
+!  * parse add/delete second support
+!  *
+   * Revision 3.13  1994/02/02  17:45:21  kardel
+   * rcs ids fixed
+   *
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v
+retrieving revision 3.11
+diff -c -r3.11 clk_rawdcf.c
+*** 3.11	1994/02/02 17:45:23
+--- parse/clk_rawdcf.c	1994/02/20 13:04:39
+***************
+*** 1,8 ****
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_RAWDCF)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.11 1994/02/02 17:45:23 kardel Exp
+   *  
+!  * clk_rawdcf.c,v 3.11 1994/02/02 17:45:23 kardel Exp
+   *
+   * Raw DCF77 pulse clock support
+   *
+--- 1,8 ----
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_RAWDCF)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.12 1994/02/20 13:04:39 kardel Exp
+   *  
+!  * clk_rawdcf.c,v 3.12 1994/02/20 13:04:39 kardel Exp
+   *
+   * Raw DCF77 pulse clock support
+   *
+***************
+*** 278,284 ****
+  	clock->flags |= PARSEB_ANNOUNCE;
+  
+        if (ext_bf(buffer, DCF_A2, dcfparam->zerobits))
+! 	clock->flags |= PARSEB_LEAP;
+  
+        if (ext_bf(buffer, DCF_R, dcfparam->zerobits))
+  	clock->flags |= PARSEB_ALTERNATE;
+--- 278,284 ----
+  	clock->flags |= PARSEB_ANNOUNCE;
+  
+        if (ext_bf(buffer, DCF_A2, dcfparam->zerobits))
+! 	clock->flags |= PARSEB_LEAPADD; /* default: DCF77 data format deficiency */
+  
+        if (ext_bf(buffer, DCF_R, dcfparam->zerobits))
+  	clock->flags |= PARSEB_ALTERNATE;
+***************
+*** 528,534 ****
+  /*
+   * History:
+   *
+!  * clk_rawdcf.c,v
+   * Revision 3.11  1994/02/02  17:45:23  kardel
+   * rcs ids fixed
+   *
+--- 528,537 ----
+  /*
+   * History:
+   *
+!  * clk_rawdcf.c,v
+!  * Revision 3.12  1994/02/20  13:04:39  kardel
+!  * parse add/delete second support
+!  *
+   * Revision 3.11  1994/02/02  17:45:23  kardel
+   * rcs ids fixed
+   *
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v
+retrieving revision 3.12
+diff -c -r3.12 clk_schmid.c
+*** 3.12	1994/02/02 17:45:25
+--- parse/clk_schmid.c	1994/02/20 13:04:41
+***************
+*** 1,8 ****
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.12 1994/02/02 17:45:25 kardel Exp
+   *  
+!  * clk_schmid.c,v 3.12 1994/02/02 17:45:25 kardel Exp
+   *
+   * Schmid clock support
+   *
+--- 1,8 ----
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
+   *  
+!  * clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
+   *
+   * Schmid clock support
+   *
+***************
+*** 152,158 ****
+  
+  		if (buffer[8] & WS_LEAP)
+  		  {
+! 		    clock->flags |= PARSEB_LEAP;
+  		  }
+  	      }
+  
+--- 152,158 ----
+  
+  		if (buffer[8] & WS_LEAP)
+  		  {
+! 		    clock->flags |= PARSEB_LEAPADD; /* default: DCF77 data format deficiency */
+  		  }
+  	      }
+  
+***************
+*** 167,173 ****
+  /*
+   * History:
+   *
+!  * clk_schmid.c,v
+   * Revision 3.12  1994/02/02  17:45:25  kardel
+   * rcs ids fixed
+   *
+--- 167,176 ----
+  /*
+   * History:
+   *
+!  * clk_schmid.c,v
+!  * Revision 3.13  1994/02/20  13:04:41  kardel
+!  * parse add/delete second support
+!  *
+   * Revision 3.12  1994/02/02  17:45:25  kardel
+   * rcs ids fixed
+   *
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v
+retrieving revision 3.47
+diff -c -r3.47 refclock_parse.c
+*** 3.47	1994/02/02 17:44:30
+--- xntpd/refclock_parse.c	1994/02/20 13:26:00
+***************
+*** 1,8 ****
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
+  /*
+!  * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.47 1994/02/02 17:44:30 kardel Exp
+   *
+!  * refclock_parse.c,v 3.47 1994/02/02 17:44:30 kardel Exp
+   *
+   * generic reference clock driver for receivers
+   *
+--- 1,8 ----
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
+  /*
+!  * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.49 1994/02/20 13:26:00 kardel Exp
+   *
+!  * refclock_parse.c,v 3.49 1994/02/20 13:26:00 kardel Exp
+   *
+   * generic reference clock driver for receivers
+   *
+***************
+*** 129,135 ****
+  #include "parse.h"
+  
+  #if !defined(NO_SCCSID) && !defined(lint) && !defined(__GNUC__)
+! static char rcsid[]="refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp";
+  #endif
+  
+  /**===========================================================================
+--- 129,135 ----
+  #include "parse.h"
+  
+  #if !defined(NO_SCCSID) && !defined(lint) && !defined(__GNUC__)
+! static char rcsid[]="refclock_parse.c,v 3.49 1994/02/20 13:26:00 kardel Exp";
+  #endif
+  
+  /**===========================================================================
+***************
+*** 1706,1712 ****
+        { PARSEB_NOSYNC,   "TIME CODE NOT CONFIRMED" },
+        { PARSEB_DST,      "DST" },
+        { PARSEB_UTC,      "UTC DISPLAY" },
+!       { PARSEB_LEAP,     "LEAP WARNING" },
+        { PARSEB_LEAPSECOND, "LEAP SECOND" },
+        { PARSEB_ALTERNATE,"ALTERNATE ANTENNA" },
+        { PARSEB_TIMECODE, "TIME CODE" },
+--- 1706,1713 ----
+        { PARSEB_NOSYNC,   "TIME CODE NOT CONFIRMED" },
+        { PARSEB_DST,      "DST" },
+        { PARSEB_UTC,      "UTC DISPLAY" },
+!       { PARSEB_LEAPADD,  "LEAP ADD WARNING" },
+!       { PARSEB_LEAPDEL,  "LEAP DELETE WARNING" },
+        { PARSEB_LEAPSECOND, "LEAP SECOND" },
+        { PARSEB_ALTERNATE,"ALTERNATE ANTENNA" },
+        { PARSEB_TIMECODE, "TIME CODE" },
+***************
+*** 2539,2547 ****
+  parse_leap()
+  {
+  	/*
+- 	 * PARSE does encode a leap warning... we are aware but not afraid of that
+- 	 * as long as we get a little help for the direction from the operator until
+  	 * PARSE encodes the LEAP correction direction.
+  	 */
+  }
+  
+--- 2540,2549 ----
+  parse_leap()
+  {
+  	/*
+  	 * PARSE encodes the LEAP correction direction.
++ 	 * For timecodes that do not pass on the leap correction direction
++ 	 * the default PARSEB_LEAPADD must be used. It may then be modified
++ 	 * with a fudge flag (flag2).
+  	 */
+  }
+  
+***************
+*** 2821,2827 ****
+        sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
+  
+        tt = add_var(&out->kv_list, 128, RO);
+!       sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp\"");
+  
+        out->lencode       = strlen(outstatus);
+        out->lastcode      = outstatus;
+--- 2823,2829 ----
+        sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
+  
+        tt = add_var(&out->kv_list, 128, RO);
+!       sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.49 1994/02/20 13:26:00 kardel Exp\"");
+  
+        out->lencode       = strlen(outstatus);
+        out->lastcode      = outstatus;
+***************
+*** 3245,3258 ****
+      }
+    else
+      {
+!       if (PARSE_LEAP(parsetime->parse_state))
+  	{
+  	  leap = (parse->flags & PARSE_LEAP_DELETE) ? LEAP_DELSECOND : LEAP_ADDSECOND;
+  	}
+        else
+! 	{
+! 	  leap = LEAP_NOWARNING;
+! 	}
+      }
+    
+    refclock_receive(parse->peer, &off, 0, LFPTOFP(&dispersion), &reftime, &rectime, leap);
+--- 3247,3270 ----
+      }
+    else
+      {
+!       if (PARSE_LEAPADD(parsetime->parse_state))
+  	{
++ 	  /*
++ 	   * we pick this state also for time code that pass leap warnings
++ 	   * without direction information (as earth is currently slowing
++ 	   * down).
++ 	   */
+  	  leap = (parse->flags & PARSE_LEAP_DELETE) ? LEAP_DELSECOND : LEAP_ADDSECOND;
+  	}
+        else
+!         if (PARSE_LEAPDEL(parsetime->parse_state))
+! 	  {
+! 	    leap = LEAP_DELSECOND;
+! 	  }
+! 	else
+! 	  {
+! 	    leap = LEAP_NOWARNING;
+! 	  }
+      }
+    
+    refclock_receive(parse->peer, &off, 0, LFPTOFP(&dispersion), &reftime, &rectime, leap);
+***************
+*** 3395,3401 ****
+  /*
+   * History:
+   *
+!  * refclock_parse.c,v
+   * Revision 3.47  1994/02/02  17:44:30  kardel
+   * rcs ids fixed
+   *
+--- 3407,3419 ----
+  /*
+   * History:
+   *
+!  * refclock_parse.c,v
+!  * Revision 3.49  1994/02/20  13:26:00  kardel
+!  * rcs id cleanup
+!  *
+!  * Revision 3.48  1994/02/20  13:04:56  kardel
+!  * parse add/delete second support
+!  *
+   * Revision 3.47  1994/02/02  17:44:30  kardel
+   * rcs ids fixed
+   *
+*** parse/util/parsetest.c	Sun Feb 20 15:54:11 1994
+--- parse/util/parsetest.c	Sun Feb 20 14:04:46 1994
+***************
+*** 1,7 ****
+  /*
+!  * /src/NTP/REPOSITORY/v3/kernel/parsetest.c,v 3.4 1993/03/17 17:16:57 kardel Exp
+   *
+!  * parsetest.c,v 3.10 1994/01/23 17:22:18 kardel Exp
+   *
+   * Copyright (c) 1989,1990,1991,1992,1993,1994
+   * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
+--- 1,7 ----
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/util/parsetest.c,v 3.13 1994/02/20 13:04:46 kardel Exp
+   *
+!  * parsetest.c,v 3.13 1994/02/20 13:04:46 kardel Exp
+   *
+   * Copyright (c) 1989,1990,1991,1992,1993,1994
+   * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
+***************
+*** 10,26 ****
+   * but WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+   *
+!  * parsetest.c,v
+!  * Revision 3.4  1993/03/17  17:16:57  kardel
+!  * DEC OSF/1 ALPHA Integration - 930314
+   *
+!  * Revision 3.3  1993/01/18  09:24:33  kardel
+!  * updated copyright conditions in conjunction with
+!  * conditions set up in the COPYRIGHT file
+   *
+-  * Revision 3.2  1993/01/17  13:43:00  kardel
+-  * 1993 initial update
+-  *
+   */
+  
+  #ifndef STREAM
+--- 10,22 ----
+   * but WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+   *
+!  * parsetest.c,v
+!  * Revision 3.13  1994/02/20  13:04:46  kardel
+!  * parse add/delete second support
+   *
+!  * Revision 3.12  1994/02/02  17:45:51  kardel
+!  * rcs ids fixed
+   *
+   */
+  
+  #ifndef STREAM
+***************
+*** 199,205 ****
+  	  parsetime_t parsetime;
+  	  struct strioctl strioc;
+  	  
+! 	  printf("parsetest.c,v 3.10 1994/01/23 17:22:18 kardel Exp\n");
+  	  
+  	  while (ioctl(fd, I_POP, 0) == 0)
+  	    ;
+--- 195,201 ----
+  	  parsetime_t parsetime;
+  	  struct strioctl strioc;
+  	  
+! 	  printf("parsetest.c,v 3.13 1994/02/20 13:04:46 kardel Exp\n");
+  	  
+  	  while (ioctl(fd, I_POP, 0) == 0)
+  	    ;
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v
+retrieving revision 3.16
+diff -c -r3.16 parsestreams.c
+*** 3.16	1994/02/15 22:39:50
+--- parse/parsestreams.c	1994/02/20 15:18:02
+***************
+*** 1,7 ****
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.16 1994/02/15 22:39:50 kardel Exp
+   *  
+!  * parsestreams.c,v 3.16 1994/02/15 22:39:50 kardel Exp
+   *
+   * STREAMS module for reference clocks
+   * (SunOS4.x)
+--- 1,7 ----
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.17 1994/02/20 15:18:02 kardel Exp
+   *  
+!  * parsestreams.c,v 3.17 1994/02/20 15:18:02 kardel Exp
+   *
+   * STREAMS module for reference clocks
+   * (SunOS4.x)
+***************
+*** 16,22 ****
+   */
+  
+  #ifndef lint
+! static char rcsid[] = "parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp";
+  #endif
+  
+  #include "sys/types.h"
+--- 16,22 ----
+   */
+  
+  #ifndef lint
+! static char rcsid[] = "parsestreams.c,v 3.17 1994/02/20 15:18:02 kardel Exp";
+  #endif
+  
+  #include "sys/types.h"
+***************
+*** 195,201 ****
+  	}
+        else
+          {
+! 	  static char revision[] = "3.12";
+  	  char *s, *S, *t;
+  	  
+  	  strncpy(ifm->f_name, mname, FMNAMESZ);
+--- 195,201 ----
+  	}
+        else
+          {
+! 	  static char revision[] = "3.17";
+  	  char *s, *S, *t;
+  	  
+  	  strncpy(ifm->f_name, mname, FMNAMESZ);
+***************
+*** 1259,1265 ****
+  /*
+   * History:
+   *
+!  * parsestreams.c,v
+   * Revision 3.16  1994/02/15  22:39:50  kardel
+   * memory leak on open failure closed
+   *
+--- 1259,1268 ----
+  /*
+   * History:
+   *
+!  * parsestreams.c,v
+!  * Revision 3.17  1994/02/20  15:18:02  kardel
+!  * rcs id cleanup
+!  *
+   * Revision 3.16  1994/02/15  22:39:50  kardel
+   * memory leak on open failure closed
+   *
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+

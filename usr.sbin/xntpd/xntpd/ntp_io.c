@@ -10,6 +10,10 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
+#ifdef MCAST
+#include "ntp_in.h"
+#endif /* MCAST */
+
 #include "ntpd.h"
 #include "ntp_select.h"
 #include "ntp_io.h"
@@ -53,7 +57,6 @@
 /*
  * Block the interrupt, for critical sections.
  */
-
 #if defined(HAVE_SIGNALED_IO)
 #define BLOCKIO()   ((void) block_sigio())
 #define UNBLOCKIO() ((void) unblock_sigio())
@@ -228,6 +231,9 @@ create_sockets(port)
 	inter_list[0].sent = 0;
 	inter_list[0].notsent = 0;
 	inter_list[0].flags = INT_BROADCAST;
+#ifdef MCAST
+	inter_list[0].flags |= INT_MULTICAST;
+#endif /* MCAST */
 
 #ifdef USE_STREAMS_DEVICE_FOR_IF_CONFIG
 	if ((vs = open("/dev/ip", O_RDONLY)) < 0) {
@@ -394,7 +400,7 @@ create_sockets(port)
 
 	maxactivefd = 0;
 	FD_ZERO(&activefds);
-
+			
 	for (i = 0; i < ninterfaces; i++) {
 		inter_list[i].fd = open_socket(&inter_list[i].sin,
 		    inter_list[i].flags & INT_BROADCAST);
@@ -458,22 +464,71 @@ io_setbclient()
 }
 
 
+#ifdef MCAST
+/*
+ * io_multicast_add() - add multicast group address
+ */
+void
+io_multicast_add(addr)
+	U_LONG addr;
+{
+	int fd = inter_list[0].fd;
+	struct ip_mreq mreq;
+
+	if (!IN_CLASSD(addr))
+		return;
+	/*
+	 * enable reception of multicast packets
+	 */
+	mreq.imr_multiaddr.s_addr = addr;
+	mreq.imr_interface.s_addr = INADDR_ANY;
+	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+	    (char *)&mreq, sizeof(mreq)) == -1)
+		syslog(LOG_ERR, "setsockopt IP_ADD_MEMBERSHIP fails: %m");
+}
+#endif /* MCAST */
+
+
 /*
  * io_unsetbclient - close the broadcast client sockets
  */
 void
 io_unsetbclient()
 {
-	int i;
+        int i;
 
 	for (i = 1; i < ninterfaces; i++) {
 		if (!(inter_list[i].flags & INT_BCASTOPEN))
 			continue;
 		close_socket(inter_list[i].bfd);
 		inter_list[i].flags &= ~INT_BCASTOPEN;
-	}
+        }
 }
 
+
+#ifdef MCAST
+/*
+ * io_multicast_del() - delete multicast group address
+ */
+void
+io_multicast_del(addr)
+	U_LONG addr;
+{
+	int fd = inter_list[0].fd;
+	struct ip_mreq mreq;
+
+	if (!IN_CLASSD(addr))
+		return;
+	/*
+	 * disable reception of multicast packets
+	 */
+	mreq.imr_multiaddr.s_addr = addr;
+	mreq.imr_interface.s_addr = INADDR_ANY;
+	if (setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+	    (char *)&mreq, sizeof(mreq)) == -1)
+		syslog(LOG_ERR, "setsockopt IP_DROP_MEMBERSHIP fails: %m");
+}
+#endif /* MCAST */
 
 
 /*
@@ -510,7 +565,8 @@ open_socket(addr, bcast)
 	 */
 	if (bind(fd, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
 		char buff[160];
-		sprintf(buff, "bind() fd %d, family %d, port %d, addr %08x, bcast=%d fails: %%m", 
+		sprintf(buff,
+		    "bind() fd %d, family %d, port %d, addr %08x, bcast=%d fails: %%m", 
 			fd,
 			addr->sin_family,
 			addr->sin_port,
@@ -557,6 +613,19 @@ Need non blocking I/O
 		syslog(LOG_ERR, "setsockopt SO_REUSEADDR off fails: %m");
 	}
 
+#ifdef MCAST
+	/* for the moment we use the bcast option to set multicast ttl */
+
+	if (bcast) {
+	    unsigned char mttl = 127;
+
+	    /* set the multicast ttl for outgoing packets */
+	    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, 
+			   &mttl, sizeof(mttl)) == -1) {
+		syslog(LOG_ERR, "setsockopt IP_MULTICAST_TTL fails: %m");
+	    }
+	}
+#endif /* MCAST */
 
 #ifdef SO_BROADCAST
 	/* if this interface can support broadcast, set SO_BROADCAST */
@@ -566,7 +635,7 @@ Need non blocking I/O
 			syslog(LOG_ERR, "setsockopt(SO_BROADCAST): %m");
 		}
 	}
-#endif
+#endif /* SO_BROADCAST */
 
 #ifdef DEBUG
 	if (debug > 1)
@@ -608,7 +677,7 @@ struct interface *
 findbcastinter(addr)
 	struct sockaddr_in *addr;
 {
-#ifdef	SIOCGIFCONF
+#ifdef SIOCGIFCONF
 	register int i;
 	register U_LONG netnum;
 
@@ -622,7 +691,7 @@ findbcastinter(addr)
 		    == (netnum & NSRCADR(&inter_list[i].mask)))
 			return &inter_list[i];
 	}
-#endif
+#endif /* SIOCGIFCONF */
 	return any_interface;
 }
 
@@ -744,7 +813,7 @@ sendpkt(dest, inter, pkt, len)
 
 #ifdef DEBUG
 	if (debug)
-		printf("sendpkt(%s, %s, %d)\n", ntoa(dest),
+		printf("sendpkt(fd=%d %s, %s, %d)\n", inter->fd, ntoa(dest),
 			ntoa(&inter->sin), len);
 #endif
 
@@ -902,11 +971,16 @@ again:
 			}
 			if (FD_ISSET(fd, &fds)) {
 				n--;
+
 				/*
 				 * Get a buffer and read the frame.  If we
 				 * haven't got a buffer, or this is received
 				 * on the wild card socket, just dump the packet.
 				 */
+
+				if (!(free_recvbufs && i == 0 && 
+				    inter_list[i].flags & INT_MULTICAST)) {
+
 #ifdef UDP_WILDCARD_DELIVERY
 /*
  * these guys manage to put properly addressed packets into the wildcard queue
@@ -931,6 +1005,7 @@ again:
 					else
 						packets_dropped++;
 					continue;
+				}
 				}
 	
 				rb = freelist;
@@ -958,7 +1033,7 @@ again:
 	  if (debug)
 		  printf("input_handler: fd=%d length %d\n", fd, rb->recv_length);
 #endif
-	
+
 				/*
 				 * Got one.  Mark how and when it got here,
 				 * put it on the full list and do bookkeeping.

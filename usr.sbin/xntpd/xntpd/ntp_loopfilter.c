@@ -92,17 +92,14 @@
 #define RSH_DRIFT_TO_FRAC (CLOCK_DSCALE - 16)
 #define RSH_DRIFT_TO_ADJ (RSH_DRIFT_TO_FRAC - CLOCK_ADJ)
 #define RSH_FRAC_TO_FREQ (CLOCK_FREQ + CLOCK_ADJ - RSH_DRIFT_TO_FRAC)
+#define PPS_MAXAGE 120		/* pps signal timeout (s) */
+#define PPS_MAXUPDATE 600	/* pps update timeout (s) */
 
 /*
- * Imported from the ntp_proto module
+ * Program variables
  */
-extern u_char sys_stratum;
-extern s_fp sys_rootdelay;
-extern u_fp sys_rootdispersion;
-extern s_char sys_precision;
-
 	l_fp last_offset;	/* last adjustment done */
-static	LONG clock_adjust;	/* clock adjust register (fraction only) */
+static	LONG clock_adjust;	/* clock adjust (fraction only) */
 
 	s_fp drift_comp;	/* drift compensation register */
 static	s_fp max_comp;		/* drift limit imposed by max host clock slew */
@@ -111,11 +108,15 @@ static	s_fp max_comp;		/* drift limit imposed by max host clock slew */
 static	U_LONG tcadj_time;	/* last time-constant adjust time */
 
 	U_LONG watchdog_timer;	/* watchdog timer, in seconds */
-static	int first_adjustment;	/* set to 1 if waiting for first adjustment */
+static	int first_adjustment;	/* 1 if waiting for first adjustment */
 static	int tc_counter;		/* time-constant hold counter */
 
-	int pll_control;	/* set nonzero if pll implemented in kernel */
-	int pps_control;	/* set nonzero if pps signal valid */
+static	l_fp	pps_offset;	/* filtered pps offset */
+static	u_fp	pps_dispersion;	/* pps dispersion */
+static	U_LONG	pps_time;	/* last pps sample time */
+
+	int pps_control;	/* true if working pps signal */
+	int pll_control;	/* true if working kernel pll */
 static	l_fp pps_delay;		/* pps tuning offset */
 	U_LONG pps_update;	/* last pps update time */
 	int fdpps = -1;		/* pps file descriptor */
@@ -151,8 +152,7 @@ static	l_fp pps_delay;		/* pps tuning offset */
 	( i == 300 ? B300 : 0 ))))))))
 
 #define PPS_BAUD B38400		/* default serial port speed */
-#define PPS_MAXAGE 120		/* seconds after which we disbelieve pps */
-#define PPS_MAXUPDATE 600	/* seconds after which we disbelieve timecode */
+timecode */
 #define	PPS_DEV	"/dev/pps"	/* pps port */
 #define PPS_FAC 3		/* pps shift (log2 trimmed samples) */
 #define PPS_TRIM 6		/* samples trimmed from median filter */
@@ -163,17 +163,23 @@ static	l_fp pps_delay;		/* pps tuning offset */
 static	struct refclockio io;	/* given to the I/O handler */
 static	int pps_baud;		/* baud rate of PPS line */
 #endif /* PPSCLK */
-static	l_fp	pps_offset;	/* filtered pps offset */
-static	u_fp	pps_maxd;	/* pps dispersion */
-static	U_LONG	pps_time;	/* last pps sample time */
 static	U_LONG	nsamples;	/* number of pps samples collected */
 static	LONG	samples[NPPS];	/* median filter for pps samples */
+
+#endif /* PPS || PPSCLK || PPSPPS */
+
+/*
+ * Imported from the ntp_proto module
+ */
+extern u_char sys_stratum;
+extern s_fp sys_rootdelay;
+extern u_fp sys_rootdispersion;
+extern s_char sys_precision;
+
 /*
  * Imported from ntp_io.c
  */
 extern struct interface *loopback_interface;
-
-#endif /* PPS || PPSCLK || PPSPPS */
 
 /*
  * Imported from ntpd module
@@ -189,8 +195,14 @@ extern U_LONG current_time;	/* like it says, in seconds */
  * sys_poll and sys_refskew are set here
  */
 extern u_char sys_poll;		/* log2 of system poll interval */
+extern u_char sys_leap;		/* system leap bits */
 extern l_fp sys_refskew;	/* accumulated skew since last update */
 extern u_fp sys_maxd;		/* max dispersion of survivor list */
+
+/*
+ * Imported from leap module
+ */
+extern u_char leapbits;		/* sanitized leap bits */
 
 /*
  * Function prototypes
@@ -203,10 +215,13 @@ static	void	pps_receive	P((struct recvbuf *));
 #endif /* PPS || PPSCLK || PPSPPS */
 
 #if defined(KERNEL_PLL)
+#define MOD_BITS (MOD_OFFSET | MOD_MAXERROR | MOD_ESTERROR | \
+    MOD_STATUS | MOD_TIMECONST)
 extern int sigvec	P((int, struct sigvec *, struct sigvec *));
 extern int syscall	P((int, void *, ...));
 void pll_trap		P((void));
 
+static int pll_status;		/* status bits for kernel pll */
 static struct sigvec sigsys;	/* current sigvec status */
 static struct sigvec newsigsys;	/* new sigvec status */
 #endif /* KERNEL_PLL */
@@ -398,7 +413,7 @@ local_clock(fp_offset, peer)
 
 #ifdef DEBUG
 	if (debug > 1)
-		printf("local_clock(%s, %s)\n", lfptoa(fp_offset, 9),
+		printf("local_clock(%s, %s)\n", lfptoa(fp_offset, 6),
 		    ntoa(&peer->srcadr));
 #endif
 
@@ -431,33 +446,26 @@ local_clock(fp_offset, peer)
 	last_offset = *fp_offset;
 
 	/*
-	 * If the magnitude of the offset is greater than CLOCK.MAX, step
-	 * the time and reset the registers.
+	 * If the magnitude of the offset is greater than CLOCK.MAX,
+	 * step the time and reset the registers.
 	 */
 	if (tmp_ui > CLOCK_MAX_I || (tmp_ui == CLOCK_MAX_I
 	    && (U_LONG)tmp_uf >= (U_LONG)CLOCK_MAX_F)) {
 		if (watchdog_timer < CLOCK_MINSTEP) {
 			/* Mustn't step yet, pretend we adjusted. */
-#ifdef SLEWALWAYS
 			syslog(LOG_INFO,
-			       "adjust: SLEW dropped (%s offset %s)\n",
-			       ntoa(&peer->srcadr), lfptoa(fp_offset, 9));
-#else
-			syslog(LOG_INFO,
-			       "adjust: STEP dropped (%s offset %s)\n",
-			       ntoa(&peer->srcadr), lfptoa(fp_offset, 9));
-#endif
+			    "clock correction %s too large (ignored)\n",
+			    lfptoa(fp_offset, 6));
 			return (0);
 		}
+		syslog(LOG_NOTICE, "clock reset (%s) %s\n",
 #ifdef SLEWALWAYS
-		syslog(LOG_NOTICE, " ** adjust: SLEW %s offset %s **\n",
-		    ntoa(&peer->srcadr), lfptoa(fp_offset, 9));
+		    "slew",
 #else
-		syslog(LOG_NOTICE, " ** adjust: STEP %s offset %s **\n",
-		    ntoa(&peer->srcadr), lfptoa(fp_offset, 9));
+		    "step",
 #endif
+		    lfptoa(fp_offset, 6));
 		step_systime(fp_offset);
-
 		clock_adjust = 0;
 		watchdog_timer = 0;
 		first_adjustment = 1;
@@ -479,21 +487,24 @@ local_clock(fp_offset, peer)
 	 * The time constant update goes after adjust and skew updates,
 	 * as in appendix G.
 	 */
-#if defined(PPS) || defined(PPSCLK) || defined(PPSPPS)
 	/*
 	 * If pps samples are valid, update offset, root delay and
-	 * root dispersion. This may be a dramatic surprise to high-
-	 * stratum clients, since all of a sudden this server looks
-	 * like a stratum-1 clock.
+	 * root dispersion. Also, set the system stratum to 1, even if
+	 * the source of approximate time runs at a higher stratum. This
+	 * may be a dramatic surprise to high-stratum clients, since all
+	 * of a sudden this server looks like a stratum-1 clock.
 	 */
 	if (pps_control) {
 		last_offset = pps_offset;
-		sys_maxd = pps_maxd;
+		sys_maxd = pps_dispersion;
 		sys_stratum = 1;
 		sys_rootdelay = 0;
-		sys_rootdispersion = pps_maxd;
+		offset = LFPTOFP(&pps_offset);
+		if (offset < 0)
+			offset = -offset;
+		sys_rootdispersion = offset + pps_dispersion;
 	}
-#endif /* PPS || PPSCLK || PPSPPS */
+	offset = last_offset.l_f;
 	
 	/*
 	 * The pll_control is active when the phase-lock code is
@@ -504,42 +515,56 @@ local_clock(fp_offset, peer)
 	 * know the scaling of the frequency variable (s_fp) is the
 	 * same as the kernel variable (1 << SHIFT_USEC = 16).
 	 *
+	 * For kernels with the PPS discipline, the current offset and
+	 * dispersion are set from kernel variables to maintain
+	 * beauteous displays, but don't do much of anything.
+	 *
 	 * In the case of stock kernels the phase-lock loop is
 	 * implemented the hard way and the clock_adjust and drift_comp
 	 * computed as required.
 	 */ 
-	offset = last_offset.l_f;
 	if (pll_control) {
 #if defined(KERNEL_PLL)
-		ntv.mode = ADJ_OFFSET | ADJ_TIMECONST | ADJ_MAXERROR |
-		    ADJ_ESTERROR;
+		memset((char *)&ntv,  0, sizeof ntv);
+		ntv.modes = MOD_BITS;
 		if (offset >= 0) {
 			TSFTOTVU(offset, ntv.offset);
 		} else {
 			TSFTOTVU(-offset, ntv.offset);
 			ntv.offset = -ntv.offset;
 		}
-		ntv.maxerror = sys_rootdispersion + sys_rootdelay / 2;
-		ntv.esterror = sys_rootdispersion;
-		ntv.time_constant = time_constant;
-		ntv.shift = 0;
+		TSFTOTVU(sys_rootdispersion + sys_rootdelay / 2, ntv.maxerror);
+		TSFTOTVU(sys_rootdispersion, ntv.esterror);
+		ntv.status = pll_status;
+		if (pps_update)
+			ntv.status |= STA_PPSTIME;
+		if (sys_leap & LEAP_ADDSECOND &&
+		    sys_leap & LEAP_DELSECOND)
+			ntv.status |= STA_UNSYNC;
+		else if (sys_leap & LEAP_ADDSECOND)
+			ntv.status |= STA_INS;
+		else if (sys_leap & LEAP_DELSECOND)
+			ntv.status |= STA_DEL;
+		ntv.constant = time_constant;
 		(void)ntp_adjtime(&ntv);
-		drift_comp = ntv.frequency;
-		if (ntv.shift != 0) {
-			char buf[128]; 
-			(void) sprintf(buf, "pps_freq=%s", fptoa(ntv.ybar, 3));
-			set_sys_var(buf, strlen(buf)+1, RO|DEF);
-			(void) sprintf(buf, "pps_disp=%s", fptoa(ntv.disp, 3));
-			set_sys_var(buf, strlen(buf)+1, RO|DEF);
-			(void) sprintf(buf, "pps_interval=%ld",1 << ntv.shift);
-			set_sys_var(buf, strlen(buf)+1, RO);
-			(void) sprintf(buf, "pps_intervals=%ld", ntv.calcnt);
-			set_sys_var(buf, strlen(buf)+1, RO);
-			(void) sprintf(buf, "pps_jitterexceeded=%ld", ntv.jitcnt);
-			set_sys_var(buf, strlen(buf)+1, RO);
-			(void) sprintf(buf, "pps_dispersionexceeded=%ld", ntv.discnt);
-			set_sys_var(buf, strlen(buf)+1, RO);
-		}
+		drift_comp = ntv.freq;
+		if (ntv.status & STA_PPSTIME && ntv.status & STA_PPSSIGNAL
+		    && ntv.shift) {
+			if (ntv.offset >= 0) {
+				TVUTOTSF(ntv.offset, offset);
+			} else {
+				TVUTOTSF(-ntv.offset, offset);
+				offset = -offset;
+			}
+			pps_offset.l_i = pps_offset.l_f = 0;
+			M_ADDF(pps_offset.l_i, pps_offset.l_f, offset);
+			TVUTOTSF(ntv.jitter, tmp);
+			pps_dispersion = (tmp >> 16) & 0xffff;
+			pps_time = current_time;
+			record_peer_stats(&loopback_interface->sin,
+			    ctlsysstatus(), &pps_offset, 0, pps_dispersion);
+		} else
+			pps_time = 0;
 #endif /* KERNEL_PLL */
 	} else {
 		if (offset < 0) {
@@ -549,21 +574,14 @@ local_clock(fp_offset, peer)
 		}
 
 		/*
-		 * Calculate the new frequency error. The factor given in the
-		 * spec gives the adjustment per 2**CLOCK_ADJ seconds, but we
-		 * want it as a (scaled) pure ratio, so we include that factor
-		 * now and remove it later.
+		 * Calculate the new frequency error. The factor given
+		 * in the spec gives the adjustment per 2**CLOCK_ADJ
+		 * seconds, but we want it as a (scaled) pure ratio, so
+		 * we include that factor now and remove it later.
 		 */
 		if (first_adjustment) {
 			first_adjustment = 0;
 		} else {
-			/*
-			 * Clamp the integration interval to maxpoll.
-			 * The bitcounting in Section 5 gives (n+1)-6 for 2**n,
-			 * but has a factor 2**6 missing from CLOCK_FREQ.
-			 * We make 2**n give n instead. If watchdog_timer is
-			 * zero, pretend it's one.
-			 */
 			tmp = peer->maxpoll;
 			tmp_uf = watchdog_timer;
 			if (tmp_uf == 0)
@@ -574,10 +592,11 @@ local_clock(fp_offset, peer)
 			}
 
 			/*
-			 * We apply the frequency scaling at the same time as
-			 * the sample interval; this ensures a safe right-shift.
-			 * (as long as it keeps below 31 bits, which current
-			 *  parameters should ensure.
+			 * We apply the frequency scaling at the same
+			 * time as the sample interval; this ensures a
+			 * safe right-shift. (as long as it keeps below
+			 * 31 bits, which current parameters should
+			 * ensure.
 			 */
 			tmp = (RSH_FRAC_TO_FREQ - tmp) +
 			    time_constant + time_constant;
@@ -597,7 +616,9 @@ local_clock(fp_offset, peer)
 	/*
 	 * Determine when to adjust the time constant and poll interval.
 	 */
-	if (current_time - tcadj_time >= (1 << sys_poll)) {
+	if (pps_control)
+		time_constant = 0;
+	else if (current_time - tcadj_time >= (1 << sys_poll) && !pps_control) {
 		tcadj_time = current_time;
 		tmp = offset;
 		if (tmp < 0)
@@ -623,8 +644,8 @@ local_clock(fp_offset, peer)
 #ifdef DEBUG
 	if (debug > 1)
 	    printf("adj %s, drft %s, tau %3i\n",
-	    	mfptoa((clock_adjust<0?-1:0), clock_adjust, 9),
-	    	fptoa(drift_comp, 9), time_constant);
+	    	mfptoa((clock_adjust<0?-1:0), clock_adjust, 6),
+	    	fptoa(drift_comp, 6), time_constant);
 #endif /* DEBUG */
 
 	(void) record_loop_stats(&last_offset, &drift_comp, time_constant);
@@ -678,20 +699,20 @@ adj_host_clock()
 		}
 	}
 #endif /* PPSPPS */
-	if (pps_time != 0 && current_time - pps_time > PPS_MAXAGE)
-	    pps_time = 0;
-	if (pps_update != 0 && current_time - pps_update > PPS_MAXUPDATE)
-	    pps_update = 0;
-	if (pps_time != 0 && pps_update != 0) {
+#endif /* PPS || PPSCLK || PPSPPS */
+	if (pps_time && current_time - pps_time > PPS_MAXAGE)
+		pps_time = 0;
+	if (pps_update && current_time - pps_update > PPS_MAXUPDATE)
+		pps_update = 0;
+	if (pps_time && pps_update) {
 		if (!pps_control)
-		    syslog(LOG_INFO, "pps synch");
+			syslog(LOG_INFO, "PPS synch");
 		pps_control = 1;
 	} else {
 		if (pps_control)
-		    syslog(LOG_INFO, "pps synch lost");
+			syslog(LOG_INFO, "PPS synch lost");
 		pps_control = 0;
 	}
-#endif /* PPS || PPSCLK || PPSPPS */
 
 	/*
 	 * Resist the following code if the phase-lock loop has been
@@ -738,24 +759,27 @@ loop_config(item, lfp_value, int_value)
 		tmp = LFPTOFP(lfp_value);
 		if (tmp >= max_comp || tmp <= -max_comp) {
 			syslog(LOG_ERR,
-			    "loop_config: skew compensation %s too large",
+			    "loop_config: frequency offset %s in ntp.conf file is too large",
 			    fptoa(tmp, 5));
 		} else {
-			char var[40];
-
 			drift_comp = tmp;
 
 #if defined(KERNEL_PLL)
 			/*
-			 * If the phase-lock code is implemented in the kernel,
-			 * give the time_constant and saved frequency offset
-			 * to the kernel. If not, no harm is done.
+			 * If the phase-lock code is implemented in the
+			 * kernel, give the time_constant and saved
+			 * frequency offset to the kernel. If not, no
+			 * harm is done.
 	 		 */
 			pll_control = 1;
-			ntv.mode = ADJ_FREQUENCY | ADJ_STATUS | ADJ_TIMECONST;
-			ntv.status = TIME_BAD;
-			ntv.time_constant = time_constant;
-			ntv.frequency = drift_comp;
+			pll_status = STA_PLL | STA_PPSFREQ;
+			ntv.modes = MOD_BITS | MOD_FREQUENCY;
+			ntv.offset = 0;
+			ntv.freq = drift_comp;
+			ntv.maxerror = NTP_MAXDISPERSE;
+			ntv.esterror = NTP_MAXDISPERSE;
+			ntv.status = pll_status | STA_UNSYNC;
+			ntv.constant = time_constant;
 			newsigsys.sv_handler = pll_trap;
 			newsigsys.sv_mask = 0;
 			newsigsys.sv_flags = 0;
@@ -766,17 +790,13 @@ loop_config(item, lfp_value, int_value)
 			if ((sigvec(SIGSYS, &sigsys, (struct sigvec *)NULL)))
 				syslog(LOG_ERR,
 				    "sigvec() fails to restore SIGSYS trap: %m\n");
-			syslog(LOG_NOTICE,
-				    "%susing kernel phase-lock loop",
-				    (pll_control) ? "" : "Not ");
-			(void)sprintf(var, "kernel_pll=%s", pll_control ? "true" : "false");
-
-			set_sys_var(var, strlen(var)+1, RO);
-
-#if DEBUG
-			if (debug)
-				printf("pll_control %d\n", pll_control);
-#endif
+			if (pll_control)
+				syslog(LOG_NOTICE,
+				    "using kernel phase-lock loop %04x",
+				    ntv.status);
+			else
+				syslog(LOG_NOTICE,
+				    "using xntpd phase-lock loop");
 #endif /* KERNEL_PLL */
 
 		}
@@ -834,7 +854,7 @@ loop_config(item, lfp_value, int_value)
  * _trap - trap processor for undefined syscalls
  *
  * This nugget is called by the kernel when the SYS_ntp_adjtime()
- * syscall bombs because the silly thing has not been implemented int
+ * syscall bombs because the silly thing has not been implemented in
  * the kernel. In this case the phase-lock loop is emulated by
  * the stock adjtime() syscall and a lot of indelicate abuse.
  */
@@ -900,8 +920,9 @@ int pps_sample(tsr)
       
 	/*
 	 * Note the seconds offset is already in the low-order timestamp
-	 * doubleword, so all we have to do is sign-extend and invert it.
-	 * The resulting offset is believed only if within CLOCK_MAX.
+	 * doubleword, so all we have to do is sign-extend and invert
+	 * it. The resulting offset is believed only if within
+	 * CLOCK_MAX.
 	 */
 	ts = *tsr;
 	lftemp.l_i = lftemp.l_f = 0;
@@ -957,21 +978,14 @@ int pps_sample(tsr)
 	}
 	lftemp.l_i = 0;
 	lftemp.l_f = sort[NPPS-1-PPS_TRIM] - sort[PPS_TRIM];
-	pps_maxd = LFPTOFP(&lftemp);
-	lftemp.l_i = 0;
-	lftemp.l_f = sort[NPPS-1] - sort[0];
-	utemp = LFPTOFP(&lftemp);
+	pps_dispersion = LFPTOFP(&lftemp);
 #ifdef DEBUG
 	if (debug)
 	    printf("pps_filter: %s %s %s\n", lfptoa(&pps_delay, 6),
 		lfptoa(&pps_offset, 6), lfptoa(&lftemp, 5));
 #endif /* DEBUG */
-	/*
-	 * Note the peerstats file will contain the gross dispersion in
-	 * the delay field. Temporaty hack.
-	 */
 	record_peer_stats(&loopback_interface->sin, ctlsysstatus(),
-	    &pps_offset, utemp, pps_maxd);
+	    &pps_offset, 0, pps_dispersion);
 	return (0);
 }
 #endif /* PPS || PPSCLK || PPSPPS */

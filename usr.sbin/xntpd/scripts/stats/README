@@ -3,20 +3,27 @@ Statistics processing scripts (README)
 This directory contains a number of scripts for use with the filegen
 facility. Those files ending in .awk are for the Unix awk utility, while
 those ending in .sh are for the csh utility. Normally, the summary.sh
-script is called from a cron job once per day. This script calls the
-peer.sh script to process the peerstats file and append the summary
-statistics to the peer_summary file. Then, it callse the loop.sh script
-to process the loopstats file and append the summary statistics to the
-loop_summary file. Finally, it calls the clock.sh script to process the
-clockstats file and append the summary statistics to the clock_summary
-file.
+script is called from a cron job once per day. This script processes the
+daily loopstats, peerstats and clockstats files produced by the daemon,
+updates the loop_summary, peer_summary and clock_summary archive files,
+and deletes the daily files.
 
-Each of the three shell scripts peer.sh, loop.sh and clock.sh invoke
-one or more awk scripts to actually produce the data. This may result
-in multiple scans of the same input file. The input file is deleted after
-processing. In fact, the shell scripts will process all input files
-found of the correct type in chronological order, deleting each one as
-it is scanned, except the current day file.
+In the case of the Austron 2201A GPS receiver, the clockstats file
+contains a wealth of additional monitoring data. These data are summarized
+and writted to the clock_summary file, then a series of special files are
+constructed for later processing by the S utility.
+
+The summary.sh script invokes a number of awk scripts to actually produce
+the data. This may result in multiple scans of the same input file.
+The input file is deleted after processing. In fact, the shell scripts will
+process all input files found of the correct type in chronological order,
+deleting each one as it is scanned, except the current day file.
+
+The summary.sh script can produce input files for the S utility, if it
+is found on the search path. This utility makes PostScript graphs of the
+loopstats data for each day, as well as various statistics produced by
+the Austorn 220aA GPS receiver. The S utility is automatically run
+as a background job. Its control files have the .S extension.
 
 The psummary.awk script can be used to scan the peer_summary file and
 construct an historical reprise of the daily summaries. 
@@ -29,4 +36,4 @@ David L. Mills
 University of Delaware
 mills@udel.edu
 1 November 1993
- 
+Revised 12 April 1994 

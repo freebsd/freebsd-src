@@ -1,0 +1,83 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa04410; 31 Jan 94 4:58 EST
+Received: from gw.home.vix.com by louie.udel.edu id aa00370; 31 Jan 94 4:52 EST
+Received: by gw.home.vix.com id AA12643; Mon, 31 Jan 94 01:52:12 -0800
+Message-Id: <9401310952.AA12643@gw.home.vix.com>
+X-Btw: vix.com is also gw.home.vix.com and vixie.sf.ca.us
+To: Mills@udel.edu
+Cc: Frank.Kardel@informatik.uni-erlangen.de, Piete.Brooks@cl.cam.ac.uk
+Subject: diffs to yyy to make ultrix/GOES happy
+Date: Mon, 31 Jan 94 01:52:11 PST
+From: Paul A Vixie <vixie@vix.com>
+
+diff -r -c2 yyy.ref/adjtime/adjtimed.c xntp3.3yyy/adjtime/adjtimed.c
+*** yyy.ref/adjtime/adjtimed.c	Thu Jan 27 06:03:11 1994
+--- xntp3.3yyy/adjtime/adjtimed.c	Mon Jan 31 01:24:49 1994
+***************
+*** 82,86 ****
+--- 82,90 ----
+    progname = argv[0];
+  
++ #ifdef LOG_LOCAL6
+    openlog("adjtimed", LOG_PID, LOG_LOCAL6);
++ #else
++   openlog("adjtimed", LOG_PID);
++ #endif
+  
+    while ((ch = ntp_getopt(argc, argv, "hkrvdfp:")) != EOF) {
+diff -r -c2 yyy.ref/include/ntp_machine.h xntp3.3yyy/include/ntp_machine.h
+*** yyy.ref/include/ntp_machine.h	Fri Jan 28 07:26:11 1994
+--- xntp3.3yyy/include/ntp_machine.h	Mon Jan 31 01:01:11 1994
+***************
+*** 42,47 ****
+  	      
+  
+! WHICH TERMINAL MODEL TO USE - I would assume HAVE_POSIX_TTYS if 
+! 		      NTP_POSIX_SOURCE was set but cann't.  The 
+  		      posix tty driver is too restrictive on most systems.
+  		      It defined if you define STREAMS.
+--- 42,47 ----
+  	      
+  
+! WHICH TERMINAL MODEL TO USE - I would assume HAVE_TERMIOS if 
+! 		      NTP_POSIX_SOURCE was set but can't.  The 
+  		      posix tty driver is too restrictive on most systems.
+  		      It defined if you define STREAMS.
+***************
+*** 50,54 ****
+    HAVE_BSD_TTYS     - Use BSD stty.h
+    HAVE_TERMIOS      - Use POSIX termios.h
+-   HAVE_POSIX_TTYS   - "struct termios" has c_line defined
+  
+  THIS MAKES PORTS TO NEW SYSTEMS EASY - You only have to wory about
+--- 50,53 ----
+***************
+*** 268,272 ****
+   */
+  #if defined(SYS_ULTRIX)
+- #define NTP_NEED_BOPS
+  #define S_CHAR_DEFINED
+  #define HAVE_READKMEM 
+--- 267,270 ----
+***************
+*** 277,280 ****
+--- 275,279 ----
+  #define STR_SYSTEM "UNIX/Ultrix"
+  #endif
++ #define HAVE_TERMIOS
+  #endif
+  
+***************
+*** 565,568 ****
+--- 564,573 ----
+  	&& !defined(HAVE_NO_NICE)
+  	ERROR You_must_define_one_of_the_HAVE_xx_NICE_defines
++ #endif
++ 
++ #if	!defined(HAVE_SYSV_TTYS) \
++ 	&& !defined(HAVE_BSD_TTYS) \
++ 	&& !defined(HAVE_TERMIOS)
++    	ERROR no_tty_type_defined
+  #endif
+  
+

@@ -1,0 +1,550 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa17107; 27 Jan 94 14:37 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa16998;
+          27 Jan 94 14:34 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA29914 (5.65c-6/7.3v-FAU); Thu, 27 Jan 1994 20:34:08 +0100
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA23509 (5.65c-6/7.3m-FAU); Thu, 27 Jan 1994 20:34:05 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199401271934.AA23509@faui43.informatik.uni-erlangen.de>
+Subject: Re:  Solaribum
+To: Mills@udel.edu
+Date: Thu, 27 Jan 94 20:33:59 MET
+Cc: Frank.Kardel@informatik.uni-erlangen.de, Piete.Brooks@cl.cam.ac.uk, 
+    Paul_Vixie@corpmis.sjc.hw.sony.com
+In-Reply-To:  <9401271111.aa16183@huey.udel.edu>; from "Mills@udel.edu" at Jan 27, 94 11:11 am
+X-Mailer: ELM [version 2.3 PL11]
+
+
+> Guys,
+
+> Two masive patches collided in midair here, leaving broken parts scattered
+> over three counties. The National Time Safety Board has investigated,
+> but been unable, ...
+
+Additional efforts of the european branch of the NTPSB have uncovered
+that the collision was due to low visibility across the atlantic.
+
+And I wanted to go on:
+  All measures have been taken to limit the effects of the crash to a
+  minimum and to resume normal aircraft operation as soon as possible.
+
+  All crew members and passengers are required to apply following patch
+  to xntp3.3y.tar.Z for increased comfort and safety. This patch should
+  enable us to resume normal operation again.
+
+  After applying the patches you may remove following debris:
+
+     include/ntp_machine.h.rej
+     xntpd/ntp_config.c.rej
+     xntpd/ntp_control.c.rej
+
+Unfortunately I did a test compile and the results of that will
+extend the ground stay of the 3.3y aircraft considerably.
+(You may start thinking about bringing up 3.3xx - see below)
+
+SunOS 4.x.x does NOT have the new highly portable "memmove()"
+routine. The lack of this will mean that we will have to
+#define memmove(a, b, c) memcpy(a, b, c)
+or find something else. I'd like to leave this to Paul.
+Also on Sunos 4.x there are implicit declarations of bzero due
+the the FDSET macro from the system header files. So I am not
+so sure whether strictly using mem* is the best or whether we should
+add b* prototypes to l_stdlib.h. I think Paul has now something
+to work on. Anyhow, the patches below will rectify some problems
+but the resulting code still needs much polishing (providing memmove
+where it is missing e.g. SunOS4.x).
+
+In order to get a flying version fast (3.3xx) Dave could apply my
+patch he is holding to 3.3x - that should then make a workable
+version. 3.3y can then be cleaned up slowly (starting with the 
+patches below and then port it again to the rest of the systems).
+
+Sorry about the bad news.
+
+> I have one more patch from Frank which I will hold on to until the aircraft
+> is recertified.
+
+That one is still to be applied because without it, it is possible
+to shoot down any plane around the NTP universe that is bearing
+the 3.3x banner (but can be applied to 3.3x).
+
+
+For the 3.3y construction crew:
+
+diff -c -r ../yy/include/ntp_machine.h ./include/ntp_machine.h
+*** ../yy/include/ntp_machine.h	Thu Jan 27 15:03:23 1994
+--- ./include/ntp_machine.h	Thu Jan 27 19:13:35 1994
+***************
+*** 121,139 ****
+  		      to the correct broadcast address - are these
+  		      implementations broken or did the spec change ?
+  
+-   HAVE_UNISTD_H     - Maybe should be part of NTP_POSIX_SOURCE ?
+- 
+  DEFINITIONS FOR SYSTEM && PROCESSOR
+    STR_SYSTEM        - value of system variable
+    STR_PROCESSOR     - value of processor variable
+  
+  You could just put the defines on the DEFS line in machines/<os> file.
+! I don't since there are lost of different types compiler that a systemm might
+! have, some that can do proto typing and others that cannot on the saem system.
+! I get a chanse to twiddle some of the configuration paramasters at compile
+! time based on compler/machine combinatsions by using this include file.
+! See convex, aix and sun configurations see how complex it gets.
+! 
+  */
+    
+  
+--- 121,141 ----
+  		      to the correct broadcast address - are these
+  		      implementations broken or did the spec change ?
+  
+  DEFINITIONS FOR SYSTEM && PROCESSOR
+    STR_SYSTEM        - value of system variable
+    STR_PROCESSOR     - value of processor variable
+  
+  You could just put the defines on the DEFS line in machines/<os> file.
+! I don't since there are lots of different types of compilers that a system might
+! have, some that can do proto typing and others that cannot on the same system.
+! I get a chance to twiddle some of the configuration parameters at compile
+! time based on compiler/machine combinations by using this include file.
+! See convex, aix and sun configurations see how complex it get.
+!   
+! Note that it _is_ considered reasonable to add some system-specific defines
+! to the machine/<os> file if it would be too inconvenient to puzzle them out
+! in this file.
+!   
+  */
+    
+  
+diff -c -r ../yy/parse/parse.c ./parse/parse.c
+*** ../yy/parse/parse.c	Thu Jan 27 00:25:18 1994
+--- ./parse/parse.c	Thu Jan 27 20:18:58 1994
+***************
+*** 29,40 ****
+  #include "sys/time.h"
+  #include "sys/errno.h"
+  
+- #include "ntp_fp.h"
+- #include "ntp_unixtime.h"
+- #include "ntp_calendar.h"
+- 
+- #include "parse.h"
+- 
+  #if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
+  /*
+   * Sorry, but in SunOS 4.x kernels there are no
+--- 29,34 ----
+***************
+*** 44,51 ****
+--- 38,54 ----
+  #define _ntp_string_h
+  extern void bcopy();
+  extern void bzero();
++ #else
++ #define bzero(_X_, _Y_) memset(_X_, 0, _Y_)
++ #define bcopy(_X_, _Y_, _Z_) memmove(_Y_, _X_, _Z_)
+  #endif
+  
++ #include "ntp_fp.h"
++ #include "ntp_unixtime.h"
++ #include "ntp_calendar.h"
++ 
++ #include "parse.h"
++ 
+  #include "ntp_stdlib.h"
+  
+  #ifdef PARSESTREAM
+diff -c -r ../yy/xntpd/ntp_config.c ./xntpd/ntp_config.c
+*** ../yy/xntpd/ntp_config.c	Thu Jan 27 15:03:47 1994
+--- ./xntpd/ntp_config.c	Thu Jan 27 19:18:40 1994
+***************
+*** 1,4 ****
+! /* ntp_config.c,v 3.1 1993/07/06 01:11:12 jbj Exp
+   * ntp_config.c - read and apply configuration information
+   */
+  #define RESOLVE_INTERNAL	/* gdt */
+--- 1,4 ----
+! /*
+   * ntp_config.c - read and apply configuration information
+   */
+  #define RESOLVE_INTERNAL	/* gdt */
+***************
+*** 375,388 ****
+  			break;
+  		}
+  	
+! 	if (errflg || optind != argc) {
+  		(void) fprintf(stderr, "usage: %s [ -abd ] [ -c config_file ] [ -e encryption delay ]\n", progname);
+  		(void) fprintf(stderr, "\t\t[ -f frequency file ] [ -k key file ] [ -l log file ]\n");
+  		(void) fprintf(stderr, "\t\t[ -p pid file ] [ -r broadcast delay ] [ -s status directory ]\n");
+  		(void) fprintf(stderr, "\t\t[ -t trusted key ] [ -v sys variable ] [ -V default sys variable ]\n");
+  		exit(2);
+  	}
+! 	optind = 0;		/* reset optind to restart getopt_l */
+  
+  	if (debug) {
+  #ifdef NTP_POSIX_SOURCE
+--- 375,388 ----
+  			break;
+  		}
+  	
+! 	if (errflg || ntp_optind != argc) {
+  		(void) fprintf(stderr, "usage: %s [ -abd ] [ -c config_file ] [ -e encryption delay ]\n", progname);
+  		(void) fprintf(stderr, "\t\t[ -f frequency file ] [ -k key file ] [ -l log file ]\n");
+  		(void) fprintf(stderr, "\t\t[ -p pid file ] [ -r broadcast delay ] [ -s status directory ]\n");
+  		(void) fprintf(stderr, "\t\t[ -t trusted key ] [ -v sys variable ] [ -V default sys variable ]\n");
+  		exit(2);
+  	}
+! 	ntp_optind = 0;		/* reset ntp_optind to restart ntp_getopt */
+  
+  	if (debug) {
+  #ifdef NTP_POSIX_SOURCE
+***************
+*** 430,437 ****
+  	char resolver_name[MAXFILENAME];
+  	int have_keyfile;
+  	char keyfile[MAXFILENAME];
+! 	extern int optind;
+! 	extern char *optarg;
+  	extern char *Version;
+  	extern U_LONG info_auth_keyid;
+  	FILEGEN *filegen;
+--- 430,437 ----
+  	char resolver_name[MAXFILENAME];
+  	int have_keyfile;
+  	char keyfile[MAXFILENAME];
+! 	extern int ntp_optind;
+! 	extern char *ntp_optarg;
+  	extern char *Version;
+  	extern U_LONG info_auth_keyid;
+  	FILEGEN *filegen;
+***************
+*** 461,467 ****
+  	/*
+  	 * Decode argument list
+  	 */
+! 	while ((c = getopt_l(argc, argv, xntp_options)) != EOF) {
+  		switch (c) {
+  		case 'a':
+  			proto_config(PROTO_AUTHENTICATE, (LONG)1);
+--- 461,467 ----
+  	/*
+  	 * Decode argument list
+  	 */
+! 	while ((c = ntp_getopt(argc, argv, xntp_options)) != EOF) {
+  		switch (c) {
+  		case 'a':
+  			proto_config(PROTO_AUTHENTICATE, (LONG)1);
+***************
+*** 470,476 ****
+  			proto_config(PROTO_BROADCLIENT, (LONG)1);
+  			break;
+  		case 'c':
+! 			config_file = optarg;
+  			break;
+  		case 'd':
+  #ifdef DEBUG
+--- 470,476 ----
+  			proto_config(PROTO_BROADCLIENT, (LONG)1);
+  			break;
+  		case 'c':
+! 			config_file = ntp_optarg;
+  			break;
+  		case 'd':
+  #ifdef DEBUG
+***************
+*** 484,498 ****
+  			do {
+  				l_fp tmp;
+  				
+! 				if (!atolfp(optarg, &tmp)) {
+  					syslog(LOG_ERR,
+  			"command line encryption delay value %s undecodable",
+! 					    optarg);
+  					errflg++;
+  				} else if (tmp.l_ui != 0) {
+  					syslog(LOG_ERR,
+  			"command line encryption delay value %s is unlikely",
+! 					    optarg);
+  					errflg++;
+  				} else {
+  					proto_config(PROTO_AUTHDELAY, tmp.l_f);
+--- 484,498 ----
+  			do {
+  				l_fp tmp;
+  				
+! 				if (!atolfp(ntp_optarg, &tmp)) {
+  					syslog(LOG_ERR,
+  			"command line encryption delay value %s undecodable",
+! 					    ntp_optarg);
+  					errflg++;
+  				} else if (tmp.l_ui != 0) {
+  					syslog(LOG_ERR,
+  			"command line encryption delay value %s is unlikely",
+! 					    ntp_optarg);
+  					errflg++;
+  				} else {
+  					proto_config(PROTO_AUTHDELAY, tmp.l_f);
+***************
+*** 501,537 ****
+  			break;
+  			
+  		case 'f':
+! 			stats_config(STATS_FREQ_FILE, optarg);
+  			break;
+  
+  		case 'k':
+! 			getauthkeys(optarg);
+! 			if ((int)strlen(optarg) >= MAXFILENAME) {
+  				syslog(LOG_ERR,
+  				    "key file name too LONG (>%d, sigh), no name resolution possible",
+  				    MAXFILENAME);
+  			} else {
+  				have_keyfile = 1;
+! 				(void)strcpy(keyfile, optarg);
+  			}
+  			break;
+  
+  		case 'p':
+! 			stats_config(STATS_PID_FILE, optarg);
+  			break;
+  
+  		case 'r':
+  			do {
+  				l_fp tmp;
+  				
+! 				if (!atolfp(optarg, &tmp)) {
+  					syslog(LOG_ERR,
+  			"command line broadcast delay value %s undecodable",
+! 					    optarg);
+  				} else if (tmp.l_ui != 0) {
+  					syslog(LOG_ERR,
+  			 "command line broadcast delay value %s is unlikely",
+! 					    optarg);
+  				} else {
+  					proto_config(PROTO_BROADDELAY, tmp.l_f);
+  				}
+--- 501,537 ----
+  			break;
+  			
+  		case 'f':
+! 			stats_config(STATS_FREQ_FILE, ntp_optarg);
+  			break;
+  
+  		case 'k':
+! 			getauthkeys(ntp_optarg);
+! 			if ((int)strlen(ntp_optarg) >= MAXFILENAME) {
+  				syslog(LOG_ERR,
+  				    "key file name too LONG (>%d, sigh), no name resolution possible",
+  				    MAXFILENAME);
+  			} else {
+  				have_keyfile = 1;
+! 				(void)strcpy(keyfile, ntp_optarg);
+  			}
+  			break;
+  
+  		case 'p':
+! 			stats_config(STATS_PID_FILE, ntp_optarg);
+  			break;
+  
+  		case 'r':
+  			do {
+  				l_fp tmp;
+  				
+! 				if (!atolfp(ntp_optarg, &tmp)) {
+  					syslog(LOG_ERR,
+  			"command line broadcast delay value %s undecodable",
+! 					    ntp_optarg);
+  				} else if (tmp.l_ui != 0) {
+  					syslog(LOG_ERR,
+  			 "command line broadcast delay value %s is unlikely",
+! 					    ntp_optarg);
+  				} else {
+  					proto_config(PROTO_BROADDELAY, tmp.l_f);
+  				}
+***************
+*** 539,556 ****
+  			break;
+  			
+  		case 's':
+! 			stats_config(STATS_STATSDIR, optarg);
+  			break;
+  			
+  		case 't':
+  			do {
+  				int tkey;
+  				
+! 				tkey = atoi(optarg);
+  				if (tkey <= 0 || tkey > NTP_MAXKEY) {
+  					syslog(LOG_ERR,
+  				"command line trusted key %s is unlikely",
+! 					    optarg);
+  				} else {
+  					authtrust(tkey, (LONG)1);
+  				}
+--- 539,556 ----
+  			break;
+  			
+  		case 's':
+! 			stats_config(STATS_STATSDIR, ntp_optarg);
+  			break;
+  			
+  		case 't':
+  			do {
+  				int tkey;
+  				
+! 				tkey = atoi(ntp_optarg);
+  				if (tkey <= 0 || tkey > NTP_MAXKEY) {
+  					syslog(LOG_ERR,
+  				"command line trusted key %s is unlikely",
+! 					    ntp_optarg);
+  				} else {
+  					authtrust(tkey, (LONG)1);
+  				}
+***************
+*** 559,565 ****
+  			
+  		case 'v':
+  		case 'V':
+! 			set_sys_var(optarg, strlen(optarg)+1, RW | ((c == 'V') ? DEF : 0));
+  			break;
+  			
+  		default:
+--- 559,565 ----
+  			
+  		case 'v':
+  		case 'V':
+! 			set_sys_var(ntp_optarg, strlen(ntp_optarg)+1, RW | ((c == 'V') ? DEF : 0));
+  			break;
+  			
+  		default:
+diff -c -r ../yy/xntpd/ntp_control.c ./xntpd/ntp_control.c
+*** ../yy/xntpd/ntp_control.c	Thu Jan 27 15:03:48 1994
+--- ./xntpd/ntp_control.c	Thu Jan 27 19:29:06 1994
+***************
+*** 1848,1854 ****
+  			ctl_sys_num_events = 0;
+  		gotvar += count_var(ext_sys_var);
+  		wants = (u_char *)emalloc(gotvar);
+! 		bzero((char *)wants, gotvar);
+  		gotvar = 0;
+  		while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
+  			if (v->flags & EOV) {
+--- 1848,1854 ----
+  			ctl_sys_num_events = 0;
+  		gotvar += count_var(ext_sys_var);
+  		wants = (u_char *)emalloc(gotvar);
+! 		memset((char *)wants, 0, gotvar);
+  		gotvar = 0;
+  		while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
+  			if (v->flags & EOV) {
+***************
+*** 1904,1910 ****
+  		if (res_authokay)
+  			peer->num_events = 0;
+  		wants = (u_char *)emalloc(gotvar);
+! 		bzero((char*)wants, gotvar);
+  		gotvar = 0;
+  		while ((v = ctl_getitem(peer_var, &valuep)) != 0) {
+  			if (v->flags & EOV) {
+--- 1904,1910 ----
+  		if (res_authokay)
+  			peer->num_events = 0;
+  		wants = (u_char *)emalloc(gotvar);
+! 		memset((char*)wants, 0, gotvar);
+  		gotvar = 0;
+  		while ((v = ctl_getitem(peer_var, &valuep)) != 0) {
+  			if (v->flags & EOV) {
+***************
+*** 2106,2112 ****
+  	rpkt.status = htons(ctlclkstatus(&clock));
+  	gotvar = CC_MAXCODE+1+count_var(clock.kv_list);
+  	wants = (u_char *)emalloc(gotvar);
+! 	bzero((char*)wants, gotvar);
+  	gotvar = 0;
+  	while ((v = ctl_getitem(clock_var, &valuep)) != 0) {
+  		if (v->flags & EOV) {
+--- 2106,2112 ----
+  	rpkt.status = htons(ctlclkstatus(&clock));
+  	gotvar = CC_MAXCODE+1+count_var(clock.kv_list);
+  	wants = (u_char *)emalloc(gotvar);
+! 	memset((char*)wants, 0, gotvar);
+  	gotvar = 0;
+  	while ((v = ctl_getitem(clock_var, &valuep)) != 0) {
+  		if (v->flags & EOV) {
+***************
+*** 2578,2584 ****
+    *kv  = (struct ctl_var *)emalloc((c+2)*sizeof(struct ctl_var));
+    if (k)
+      {
+!       bcopy((char *)k, (char *)*kv, sizeof(struct ctl_var)*c);
+        free((char *)k);
+      }
+  
+--- 2578,2584 ----
+    *kv  = (struct ctl_var *)emalloc((c+2)*sizeof(struct ctl_var));
+    if (k)
+      {
+!       memmove((char *)*kv, (char *)k, sizeof(struct ctl_var)*c);
+        free((char *)k);
+      }
+  
+***************
+*** 2621,2627 ****
+  		{
+  		  free(k->text);
+  		  k->text = (char *)emalloc(size);
+! 		  bcopy(data, k->text, size);
+  		  k->flags = def;
+  		  return;
+  		}
+--- 2621,2627 ----
+  		{
+  		  free(k->text);
+  		  k->text = (char *)emalloc(size);
+! 		  memmove(k->text, data, size);
+  		  k->flags = def;
+  		  return;
+  		}
+***************
+*** 2629,2635 ****
+  	  else
+  	    {
+  	      k->text = (char *)emalloc(size);
+! 	      bcopy(data, k->text, size);
+  	      k->flags = def;
+  	      return;
+  	    }
+--- 2629,2635 ----
+  	  else
+  	    {
+  	      k->text = (char *)emalloc(size);
+! 	      memmove(k->text, data, size);
+  	      k->flags = def;
+  	      return;
+  	    }
+***************
+*** 2637,2643 ****
+  	}
+      }
+    t = add_var(kv, size, def);
+!   bcopy(data, t, size);
+  }
+  
+  void
+--- 2637,2643 ----
+  	}
+      }
+    t = add_var(kv, size, def);
+!   memmove(t, data, size);
+  }
+  
+  void
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+

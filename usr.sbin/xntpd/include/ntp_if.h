@@ -16,6 +16,10 @@
 #include <sys/sockio.h>
 #endif
 
+#if defined(SYS_UNIXWARE1)
+#include <sys/sockio.h>
+#endif
+
 #if defined(SYS_PTX) || defined(SYS_SINIXM)
 #include <sys/stream.h>
 #include <sys/stropts.h>

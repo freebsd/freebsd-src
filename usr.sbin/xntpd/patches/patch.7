@@ -1,0 +1,274 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa21105; 28 Jan 94 9:25 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa08838;
+          28 Jan 94 9:20 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA29169 (5.65c-6/7.3v-FAU); Fri, 28 Jan 1994 15:19:56 +0100
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA11999 (5.65c-6/7.3m-FAU); Fri, 28 Jan 1994 15:19:51 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199401281419.AA11999@faui43.informatik.uni-erlangen.de>
+Subject: Re: Solaribum
+To: Paul A Vixie <Paul_Vixie@corpmis.sjc.hw.sony.com>
+Date: Fri, 28 Jan 94 14:02:02 MET
+Cc: Mills@udel.edu, Frank.Kardel@informatik.uni-erlangen.de, 
+    Piete.Brooks@cl.cam.ac.uk, Paul_Vixie@corpmis.sjc.hw.sony.com
+In-Reply-To: <9401272236.AA27835@morality.sjc.hw.sony.com>; from "Paul A Vixie" at Jan 27, 94 2:36 pm
+X-Mailer: ELM [version 2.3 PL11]
+
+
+> >memmove() and crumps in loading with an unknown external. If the missing
+> >routine is not there in SunOS 4, why not conditionally compile one
+> >and be done with it?
+
+> as i said in earlier mail, there is already a macro for memmove, to define
+> it in terms of bcopy, but it is only enabled on systems that don't have a
+> native memmove.  include/*.h tells the story.
+
+Ok, in order to cope with the problems (non existent memmove() and
+sys header files that use bops) I fixed SUNOS4 and ULTRIX to use the
+b-ops (via the NTP_NEED_BOPS define). All other should to my knowledge
+use the mem* stuff (I'd rather use either mem* or b* instead of mixtures
+of both).
+
+Now, the following patch should get 3.3y (and 3.3yy) to fly
+(=compile) on suns. Functional test have not been done. ULTRIX
+has not been tested.
+
+> there are too many x's and y's now.  i'm confused.  i promise not to send
+> any more patches until the dust clears..
+
+With this patch we should get to 3.3yyy which should be the
+base for all next efforts (-> and 3.3{x,xx,y,yy} can be deleted).
+
+May the source be with us:
+
+diff -c -r ../yy/include/l_stdlib.h ./include/l_stdlib.h
+*** ../yy/include/l_stdlib.h	Thu Jan 27 15:03:21 1994
+--- ./include/l_stdlib.h	Fri Jan 28 12:46:31 1994
+***************
+*** 47,54 ****
+--- 47,60 ----
+  extern	int	rand		P((void));
+  extern	int	setpgrp		P((int, int));
+  extern  void	srand		P((unsigned int));
++ extern  void	bcopy		P((char *, char *, int));
+  #endif
+
++ #ifndef bzero			/* XXX macro prototyping clash */
++ extern  void    bzero		P((char *, int));
++ extern  int	bcmp		P((char *, char *, int));
++ extern  void	bcopy		P((char *, char *, int));
++ #endif
+  extern  char   *mktemp		P((char *));	
+
+  extern  int	tolower		P((int));
+***************
+*** 92,102 ****
+--- 98,110 ----
+
+  #ifdef	_ntp_string_h
+  #ifdef	NTP_POSIX_SOURCE	/* these are builtins */
++ #ifndef NTP_NEED_BOPS		/* but may be emulated by bops */
+  extern	char	*memcpy();
+  extern	char	*memset();
+  extern	int	memcmp();
+  #endif
+  #endif
++ #endif
+
+  #ifdef	_sys_socket_h
+  extern  int	bind		P((int, struct sockaddr *, int));
+***************
+*** 187,192 ****
+--- 195,203 ----
+
+  #ifndef NTP_POSIX_SOURCE
+  extern  int	atoi		P((char *));
++ extern  void    bzero		P((char *, int));
++ extern  int	bcmp		P((char *, char *, int));
++ extern  void	bcopy		P((char *, char *, int));
+  extern	int	execve		P((char *, char **,char **));
+  extern	int	fork		P((void));
+  extern  int	getdtablesize	P((void));
+diff -c -r ../yy/include/ntp_machine.h ./include/ntp_machine.h
+*** ../yy/include/ntp_machine.h	Fri Jan 28 13:32:33 1994
+--- ./include/ntp_machine.h	Fri Jan 28 12:25:29 1994
+***************
+*** 168,173 ****
+--- 168,174 ----
+   * Note: posix version has NTP_POSIX_SOURCE and HAVE_SIGNALED_IO
+   */
+  #if defined(SYS_SUNOS4)
++ #define NTP_NEED_BOPS
+  #define NO_SIGNED_CHAR_DECL
+  #define HAVE_LIBKVM 
+  #define HAVE_MALLOC_H
+***************
+*** 266,271 ****
+--- 267,273 ----
+   * Note: posix version has NTP_POSIX_SOURCE and HAVE_SIGNALED_IO
+   */
+  #if defined(SYS_ULTRIX)
++ #define NTP_NEED_BOPS
+  #define S_CHAR_DEFINED
+  #define HAVE_READKMEM 
+  #define HAVE_BSD_NICE
+diff -c -r ../yy/include/ntp_string.h ./include/ntp_string.h
+*** ../yy/include/ntp_string.h	Thu Jan 27 15:03:24 1994
+--- ./include/ntp_string.h	Fri Jan 28 12:36:44 1994
+***************
+*** 5,11 ****
+  #ifndef  _ntp_string_h
+  #define  _ntp_string_h
+
+! #ifdef NTP_POSIX_SOURCE
+
+  # if defined(HAVE_MEMORY_H)
+  #  include <memory.h>
+--- 5,11 ----
+  #ifndef  _ntp_string_h
+  #define  _ntp_string_h
+
+! #if defined(NTP_POSIX_SOURCE)
+
+  # if defined(HAVE_MEMORY_H)
+  #  include <memory.h>
+***************
+*** 13,29 ****
+
+  # include <string.h>
+
+! #else /* NTP_POSIX_SOURCE */
+
+  # include <strings.h>
+- 
+  # define strchr(s,c) index(s,c)
+  # define strrchr(s,c) rindex(s,c)
+  # define memcmp(a,b,c) bcmp(a,b,c)
+  # define memmove(t,f,c) bcopy(f,t,c)
+! # define memset(a,x,c) if (x == 0x00) bzero(a,c) else ntp_memset((char*)a,x,c)
+  void ntp_memset P((char *, int, int));
+
+! #endif /*  NTP_POSIX_SOURCE */
+
+  #endif /* _ntp_string_h */
+--- 13,35 ----
+
+  # include <string.h>
+
+! #else
+
+  # include <strings.h>
+  # define strchr(s,c) index(s,c)
+  # define strrchr(s,c) rindex(s,c)
++ # ifndef NTP_NEED_BOPS
++ # define NTP_NEED_BOPS
++ # endif
++ #endif /* NTP_POSIX_SOURCE */
++ 
++ #ifdef NTP_NEED_BOPS
++ 
+  # define memcmp(a,b,c) bcmp(a,b,c)
+  # define memmove(t,f,c) bcopy(f,t,c)
+! # define memset(a,x,c) if (x == 0x00) bzero(a,c); else ntp_memset((char*)a,x,c)
+  void ntp_memset P((char *, int, int));
+
+! #endif /*  NTP_NEED_BOPS */
+
+  #endif /* _ntp_string_h */
+diff -c -r ../yy/lib/machines.c ./lib/machines.c
+*** ../yy/lib/machines.c	Thu Jan 27 15:03:35 1994
+--- ./lib/machines.c	Fri Jan 28 13:55:26 1994
+***************
+*** 31,37 ****
+  }
+  #endif
+
+! #if !defined(NTP_POSIX_SOURCE)
+  void
+  ntp_memset(a, x, c)
+  	char *a;
+--- 31,37 ----
+  }
+  #endif
+
+! #if !defined(NTP_POSIX_SOURCE) || defined(NTP_NEED_BOPS)
+  void
+  ntp_memset(a, x, c)
+  	char *a;
+diff -c -r ../yy/parse/Makefile.tmpl ./parse/Makefile.tmpl
+*** ../yy/parse/Makefile.tmpl	Fri Nov 26 05:28:30 1993
+--- ./parse/Makefile.tmpl	Fri Jan 28 13:47:30 1994
+***************
+*** 92,98 ****
+
+  clean:
+  	-@rm -f $(LIBNAME).a $(KLIBNAME).a *.o *.out *.ln make.log Makefile.bak \
+! 		lintlib.errs lint.errs genassym assym.s parsestreams parse
+  	-@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl clean
+
+  distclean:	clean
+--- 92,98 ----
+
+  clean:
+  	-@rm -f $(LIBNAME).a $(KLIBNAME).a *.o *.out *.ln make.log Makefile.bak \
+! 		lintlib.errs lint.errs genassym assym.s parsestreams parse parsestreams.o.*
+  	-@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl clean
+
+  distclean:	clean
+diff -c -r ../yy/parse/parse.c ./parse/parse.c
+*** ../yy/parse/parse.c	Fri Jan 28 13:32:34 1994
+--- ./parse/parse.c	Fri Jan 28 13:08:01 1994
+***************
+*** 29,47 ****
+  #include "sys/time.h"
+  #include "sys/errno.h"
+
+  #if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
+  /*
+!  * Sorry, but in SunOS 4.x kernels there are no
+   * mem* operations. I don't want them - bcopy, bzero
+   * are fine in the kernel
+   */
+! #define _ntp_string_h
+! extern void bcopy();
+! extern void bzero();
+  #else
+  #define bzero(_X_, _Y_) memset(_X_, 0, _Y_)
+  #define bcopy(_X_, _Y_, _Z_) memmove(_Y_, _X_, _Z_)
+  #endif
+
+  #include "ntp_fp.h"
+  #include "ntp_unixtime.h"
+--- 29,53 ----
+  #include "sys/time.h"
+  #include "sys/errno.h"
+
++ #include "ntp_machine.h"
++ 
+  #if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
+  /*
+!  * Sorry, but in SunOS 4.x AND Solaris 2.x kernels there are no
+   * mem* operations. I don't want them - bcopy, bzero
+   * are fine in the kernel
+   */
+! #ifndef NTP_NEED_BOPS
+! #define NTP_NEED_BOPS
+! #endif
+  #else
++ #ifndef NTP_NEED_BOPS
++ #ifndef bzero
+  #define bzero(_X_, _Y_) memset(_X_, 0, _Y_)
+  #define bcopy(_X_, _Y_, _Z_) memmove(_Y_, _X_, _Z_)
+  #endif
++ #endif
++ #endif
+
+  #include "ntp_fp.h"
+  #include "ntp_unixtime.h"
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+
