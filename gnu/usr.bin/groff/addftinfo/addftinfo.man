@@ -79,7 +79,6 @@ If a parameter is not specified the default will be used.
 The defaults are chosen to have the reasonable values for
 a Times font.
 .SH "SEE ALSO"
-.BR font (5)
 .BR groff_font (@MAN5EXT@),
 .BR groff (@MAN1EXT@),
 .BR groff_char (@MAN7EXT@)
