@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.4 1999/01/09 18:08:24 nsouch Exp $
+ *	$Id: iiconf.c,v 1.5 1999/01/28 15:59:15 roger Exp $
  *
  */
 #include <sys/param.h>
@@ -209,7 +209,7 @@ iicbus_repeated_start(device_t bus, u_char slave, int timeout)
 	if (!sc->started)
 		return (EINVAL);     /* bus should have been already started */
 
-	if (!(error = IICBUS_START(device_get_parent(bus), slave, timeout)))
+	if (!(error = IICBUS_REPEATED_START(device_get_parent(bus), slave, timeout)))
 		sc->started = slave;
 	else
 		sc->started = 0;
