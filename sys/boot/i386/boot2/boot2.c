@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.9 1998/10/17 09:16:01 rnordier Exp $
+ *	$Id: boot2.c,v 1.10 1998/10/17 09:50:09 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -328,6 +328,7 @@ parse(char *arg)
 		printf("Keyboard: %s\n", i ? "yes" : "no");
 		if (!i)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
+		opts &= ~(1 << RBX_PROBEKBD);
 	    }
 	    ioctrl = opts & 1 << RBX_DUAL ? 0x3 :
 		     opts & 1 << RBX_SERIAL ? 0x2 : 0x1;
