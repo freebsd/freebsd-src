@@ -669,7 +669,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 			spidx->dst.sin.sin_port = uh.uh_dport;
 			return;
 		case IPPROTO_AH:
-			if (m->m_pkthdr.len > off + sizeof(ip6e))
+			if (off + sizeof(ip6e) > m->m_pkthdr.len)
 				goto done;
 			/* XXX sigh, this works but is totally bogus */
 			m_copydata(m, off, sizeof(ip6e), (caddr_t) &ip6e);
