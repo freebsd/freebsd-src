@@ -103,7 +103,7 @@ smbfs_hashprint(struct mount *mp)
 	for(i = 0; i <= smp->sm_hashlen; i++) {
 		nhpp = &smp->sm_hash[i];
 		LIST_FOREACH(np, nhpp, n_hash)
-			vprint(NULL, SMBTOV(np));
+			vprint("", SMBTOV(np));
 	}
 	return 0;
 }
