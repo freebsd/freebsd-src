@@ -1,7 +1,7 @@
 /* 
  * interface dc to the bc numeric routines
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,11 +28,22 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#else
+# define UCHAR_MAX ((unsigned char)~0)
+#endif
 #include "bcdefs.h"
 #include "proto.h"
 #include "global.h"
 #include "dc.h"
 #include "dc-proto.h"
+
+#ifdef __GNUC__
+# define ATTRIB(x) __attribute__(x)
+#else
+# define ATTRIB(x)
+#endif
 
 /* there is no POSIX standard for dc, so we'll take the GNU definitions */
 int std_only = FALSE;
@@ -47,7 +58,7 @@ int
 dc_add DC_DECLARG((a, b, kscale, result))
 	dc_num a DC_DECLSEP
 	dc_num b DC_DECLSEP
-	int kscale DC_DECLSEP
+	int kscale ATTRIB((unused)) DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
 	init_num((bc_num *)result);
@@ -62,7 +73,7 @@ int
 dc_sub DC_DECLARG((a, b, kscale, result))
 	dc_num a DC_DECLSEP
 	dc_num b DC_DECLSEP
-	int kscale DC_DECLSEP
+	int kscale ATTRIB((unused)) DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
 	init_num((bc_num *)result);
@@ -211,17 +222,17 @@ dc_compare DC_DECLARG((a, b))
 }
 
 /* attempt to convert a dc_num to its corresponding int value
- * If discard_flag is true then deallocate the value after use.
+ * If discard_p is DC_TOSS then deallocate the value after use.
  */
 int
-dc_num2int DC_DECLARG((value, discard_flag))
+dc_num2int DC_DECLARG((value, discard_p))
 	dc_num value DC_DECLSEP
-	dc_boolean discard_flag DC_DECLEND
+	dc_discard discard_p DC_DECLEND
 {
 	long result;
 
 	result = num2long(CastNum(value));
-	if (discard_flag)
+	if (discard_p == DC_TOSS)
 		dc_free_num(&value);
 	return (int)result;
 }
@@ -346,17 +357,17 @@ dc_numlen DC_DECLARG((value))
 }
 
 /* return the scale factor of the passed dc_num
- * If discard_flag is true then deallocate the value after use.
+ * If discard_p is DC_TOSS then deallocate the value after use.
  */
 int
-dc_tell_scale DC_DECLARG((value, discard_flag))
+dc_tell_scale DC_DECLARG((value, discard_p))
 	dc_num value DC_DECLSEP
-	dc_boolean discard_flag DC_DECLEND
+	dc_discard discard_p DC_DECLEND
 {
 	int kscale;
 
 	kscale = CastNum(value)->n_scale;
-	if (discard_flag)
+	if (discard_p == DC_TOSS)
 		dc_free_num(&value);
 	return kscale;
 }
@@ -370,23 +381,71 @@ dc_math_init DC_DECLVOID()
 }
 
 /* print out a dc_num in output base obase to stdout;
- * if newline is true, terminate output with a '\n';
- * if discard_flag is true then deallocate the value after use
+ * if newline_p is DC_WITHNL, terminate output with a '\n';
+ * if discard_p is DC_TOSS then deallocate the value after use
  */
 void
-dc_out_num DC_DECLARG((value, obase, newline, discard_flag))
+dc_out_num DC_DECLARG((value, obase, newline_p, discard_p))
 	dc_num value DC_DECLSEP
 	int obase DC_DECLSEP
-	dc_boolean newline DC_DECLSEP
-	dc_boolean discard_flag DC_DECLEND
+	dc_newline newline_p DC_DECLSEP
+	dc_discard discard_p DC_DECLEND
 {
 	out_num(CastNum(value), obase, out_char);
-	if (newline)
+	if (newline_p == DC_WITHNL)
 		out_char('\n');
-	if (discard_flag)
+	if (discard_p == DC_TOSS)
 		dc_free_num(&value);
 }
 
+/* dump out the absolute value of the integer part of a
+ * dc_num as a byte stream, without any line wrapping;
+ * if discard_p is DC_TOSS then deallocate the value after use
+ */
+void
+dc_dump_num DC_DECLARG((value, discard_p))
+	dc_num dcvalue DC_DECLSEP
+	dc_discard discard_p DC_DECLEND
+{
+	struct digit_stack { int digit; struct digit_stack *link;};
+	struct digit_stack *top_of_stack = NULL;
+	struct digit_stack *cur;
+	struct digit_stack *next;
+	bc_num value;
+	bc_num obase;
+	bc_num digit;
+
+	init_num(&value);
+	init_num(&obase);
+	init_num(&digit);
+
+	/* we only handle the integer portion: */
+	bc_divide(CastNum(dcvalue), _one_, &value, 0);
+	/* we only handle the absolute value: */
+	value->n_sign = PLUS;
+	/* we're done with the dcvalue parameter: */
+	if (discard_p == DC_TOSS)
+		dc_free_num(&dcvalue);
+
+	int2num(&obase, 1+UCHAR_MAX);
+	do {
+		(void) bc_divmod(value, obase, &value, &digit, 0);
+		cur = dc_malloc(sizeof *cur);
+		cur->digit = (int)num2long(digit);
+		cur->link = top_of_stack;
+		top_of_stack = cur;
+	} while (!is_zero(value));
+
+	for (cur=top_of_stack; cur; cur=next) {
+		putchar(cur->digit);
+		next = cur->link;
+		free(cur);
+	}
+
+	free_num(&digit);
+	free_num(&obase);
+	free_num(&value);
+}
 
 /* deallocate an instance of a dc_num */
 void
