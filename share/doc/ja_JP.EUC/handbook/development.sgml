@@ -1,6 +1,6 @@
-<!-- $Id: development.sgml,v 1.1.1.1 1996/11/15 05:14:44 asami Exp $ -->
+<!-- $Id: development.sgml,v 1.2 1996/12/01 11:46:09 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.8 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>FreeBSDの開発モデル<label id="development"></heading>
 
@@ -33,7 +33,7 @@ name="ftp.freebsd.org">を使ってパッチや開発中のソースを公開してくださっ
 url="http://www.cyclic.com/cyclic-pages/CVS-sheet.html" name="CVS">
 (Concurrent Version System)によってメンテナンスされています.  CVSはソー
 スコード管理用のフリーソフトウェアで, FreeBSDのリリースにも含まれてい
-ます.  FreeBSDの<htmlurl url="http://www.freebsd.org/cgi-bin/cvsweb"
+ます.  FreeBSDの<htmlurl url="http://www.freebsd.org/cgi/cvsweb"
 name="メインのCVSリポジトリ">は米国カリフォルニア州のコンコルド市に存在
 し, そこから世界中のたくさんのミラーサイトにコピーされています.  CVSツ
 リーそのもの, そしてそのチェックアウトされたバージョンである<ref
