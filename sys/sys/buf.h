@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.50 1998/03/28 10:33:21 bde Exp $
+ * $Id: buf.h,v 1.51 1998/05/06 01:44:12 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -203,13 +203,11 @@ bufq_remove(buf_queue_head *head, struct buf *bp)
 {
 	if (bp == head->insert_point)
 		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
-	if (bp == head->switch_point) {
-		if (bp == TAILQ_FIRST(&head->queue))  
-			head->switch_point = NULL;
-	} else {
-		head->switch_point = TAILQ_NEXT(bp, b_act); 
-	}
+	if (bp == head->switch_point)
+		head->switch_point = TAILQ_NEXT(bp, b_act);
 	TAILQ_REMOVE(&head->queue, bp, b_act);
+	if (TAILQ_FIRST(&head->queue) == head->switch_point)
+		head->switch_point = NULL;
 }
 
 static __inline struct buf *
