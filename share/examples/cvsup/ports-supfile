@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.14.2.1 1999/02/11 20:14:51 jdp Exp $
+# $Id: ports-supfile,v 1.14.2.2 1999/04/08 08:07:54 asami Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-current ports collection.
@@ -84,7 +84,9 @@ ports-all
 #ports-games
 #ports-german
 #ports-graphics
+#ports-irc
 #ports-japanese
+#ports-java
 #ports-korean
 #ports-lang
 #ports-mail
@@ -106,5 +108,6 @@ ports-all
 #ports-x11-clocks
 #ports-x11-fm
 #ports-x11-fonts
+#ports-x11-servers
 #ports-x11-toolkits
 #ports-x11-wm
