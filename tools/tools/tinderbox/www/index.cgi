@@ -96,7 +96,8 @@ MAIN:{
 
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(@{$ARCHES{$arch}})) {
-	    print "      <tr>
+	    my $have_logs = 0;
+	    my $html =  "      <tr>
 	<td>$arch</td>
 	<td>$machine</td>
 ";
@@ -122,12 +123,15 @@ MAIN:{
 			"</span><br />";
 		}
 		if ($links eq "") {
-		    print("        <td>n/a</td>\n");
+		    $html .= "        <td>n/a</td>\n";
 		} else {
-		    print("        <td>$links</td>\n");
+		    $html .= "        <td>$links</td>\n";
+		    $have_logs++;
 		}
 	    }
-	    print "      </tr>\n";
+	    $html .= "      </tr>\n";
+	    print $html
+		if $have_logs > 0;
 	}
     }
     my $date = strftime("%Y-%m-%d %H:%M GMT", gmtime());
