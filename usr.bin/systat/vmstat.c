@@ -96,7 +96,6 @@ static	int ut;
 static	char buf[26];
 static	time_t t;
 static	double etime;
-static	float hertz;
 static	int nintr;
 static	long *intrloc;
 static	char **intrname;
@@ -207,7 +206,6 @@ initkre()
 			return(0);
 		}
 	}
-	hertz = stathz ? stathz : hz;
 	if (! dkinit())
 		return(0);
 	if (dk_ndrive && !once) {
@@ -313,7 +311,7 @@ labelkre()
 	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
 
 	mvprintw(GRAPHROW, GRAPHCOL,
-		"    . %% Sys    . %% User    . %% Nice    . %% Idle");
+		"  . %%Sys    . %%Intr   . %%User   . %%Nice   . %%Idle");
 	mvprintw(PROCSROW, PROCSCOL, "Proc:r  p  d  s  w");
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
@@ -349,8 +347,9 @@ labelkre()
 	putint((int)((float)s.fld/etime + 0.5), l, c, w)
 #define MAXFAIL 5
 
-static	char cpuchar[CPUSTATES] = { '=' , '>', '-', ' ' };
-static	char cpuorder[CPUSTATES] = { CP_SYS, CP_USER, CP_NICE, CP_IDLE };
+static	char cpuchar[CPUSTATES] = { '=' , '+', '>', '-', ' ' };
+static	char cpuorder[CPUSTATES] = { CP_SYS, CP_INTR, CP_USER, CP_NICE,
+				     CP_IDLE };
 
 void
 showkre()
@@ -409,20 +408,14 @@ showkre()
 
 	psiz = 0;
 	f2 = 0.0;
-
-	/* 
-	 * Last CPU state not calculated yet.
-	 */
-	for (c = 0; c < CPUSTATES - 1; c++) {
+	for (c = 0; c < CPUSTATES; c++) {
 		i = cpuorder[c];
 		f1 = cputime(i);
 		f2 += f1;
 		l = (int) ((f2 + 1.0) / 2.0) - psiz;
-		if (c == 0)
-			putfloat(f1, GRAPHROW, GRAPHCOL + 1, 5, 1, 0);
-		else
-			putfloat(f1, GRAPHROW, GRAPHCOL + 12 * c,
-				5, 1, 0);
+		if (f1 > 99.9)
+			f1 = 99.9;	/* no room to display 100.0 */
+		putfloat(f1, GRAPHROW, GRAPHCOL + 10 * c, 4, 1, 0);
 		move(GRAPHROW + 2, psiz);
 		psiz += l;
 		while (l-- > 0)

@@ -169,6 +169,7 @@ labeliostat()
 	mvwaddstr(wnd, row++, 0, "cpu  user|");
 	mvwaddstr(wnd, row++, 0, "     nice|");
 	mvwaddstr(wnd, row++, 0, "   system|");
+	mvwaddstr(wnd, row++, 0, "interrupt|");
 	mvwaddstr(wnd, row++, 0, "     idle|");
 	if (numbers)
 		row = numlabels(row + 1);
@@ -256,13 +257,9 @@ showiostat()
 	}
 	if (etime == 0.0)
 		etime = 1.0;
-	etime /= (float) hz;
+	etime /= hertz;
 	row = 1;
-
-	/*
-	 * Last CPU state not calculated yet.
-	 */ 
-	for (i = 0; i < CPUSTATES - 1; i++)
+	for (i = 0; i < CPUSTATES; i++)
 		stat1(row++, i);
 	if (!numbers) {
 		row += 2;
@@ -302,7 +299,7 @@ stats(row, col, dn)
 	double atime, words, xtime, itime;
 
 	atime = s.dk_time[dn];
-	atime /= (float) hz;
+	atime /= hertz;
 	words = s.dk_wds[dn]*32.0;	/* number of words transferred */
 	xtime = dk_mspw[dn]*words;	/* transfer time */
 	itime = atime - xtime;		/* time not transferring */
