@@ -127,10 +127,10 @@ udf_hashins(struct udf_node *node)
 
 	udfmp = node->udfmp;
 
+	vn_lock(node->i_vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 	mtx_lock(&udfmp->hash_mtx);
 	TAILQ_INSERT_TAIL(&udfmp->udf_tqh, node, tq);
 	mtx_unlock(&udfmp->hash_mtx);
-	vn_lock(node->i_vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 
 	return (0);
 }
@@ -161,7 +161,6 @@ udf_allocv(struct mount *mp, struct vnode **vpp, struct thread *td)
 		return (error);
 	}
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = vp;
 	return (0);
 }
