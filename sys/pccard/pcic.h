@@ -31,6 +31,14 @@
  * $FreeBSD$ 
 */
 
-int register_pcic_intr(int intr, int device_id, u_int flags,
-                       ointhand2_t handler, u_int *maskptr, int unit);
-int unregister_pcic_intr(int intr, ointhand2_t handler);
+#define PCIC_RF_IODF_WS		(0x01 << 16)
+#define PCIC_RF_IODF_16BIT	(0x02 << 16)
+#define PCIC_RF_IODF_CS16	(0x04 << 16)
+#define PCIC_RF_IODF_ZEROWS	(0x08 << 16)
+
+#define PCIC_RF_MDF_16BITS	(0x01 << 16)
+#define PCIC_RF_MDF_ZEROWS	(0x02 << 16)
+#define PCIC_RF_MDF_WS0		(0x04 << 16)
+#define PCIC_RF_MDF_WS1		(0x08 << 16)
+#define PCIC_RF_MDF_ATTR	(0x10 << 16)
+#define PCIC_RF_MDF_WP		(0x20 << 16)

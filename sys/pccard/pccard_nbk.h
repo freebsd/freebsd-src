@@ -31,11 +31,5 @@
 
 struct pccard_device;
 extern devclass_t pccard_devclass;
-extern int pccnbk_alloc_resources(device_t);
-extern void pccnbk_release_resources(device_t);
-extern void pccnbk_wrap_old_driver(struct pccard_device *);
-
-/* kludges */
-extern void pccard_remove_device(struct pccard_devinfo *);
 
 #endif /* ! PCCARD_PCCARD_NBK_H */

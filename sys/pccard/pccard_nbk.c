@@ -76,6 +76,11 @@
 
 devclass_t	pccard_devclass;
 
+#define PCCARD_NPORT	2
+#define PCCARD_NMEM	5
+#define PCCARD_NIRQ	1
+#define PCCARD_NDRQ	0
+
 static int
 pccard_add_children(device_t dev, int busno)
 {
@@ -90,28 +95,54 @@ pccard_probe(device_t dev)
 	return pccard_add_children(dev, device_get_unit(dev));
 }
 
+static void
+pccard_print_resources(struct resource_list *rl, const char *name, int type,
+		    int count, const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed;
+	int i;
+
+	printed = 0;
+	for (i = 0; i < count; i++) {
+		rle = resource_list_find(rl, type, i);
+		if (rle) {
+			if (printed == 0)
+				printf(" %s ", name);
+			else if (printed > 0)
+				printf(",");
+			printed++;
+			printf(format, rle->start);
+			if (rle->count > 1) {
+				printf("-");
+				printf(format, rle->start + rle->count - 1);
+			}
+		} else if (i > 3) {
+			/* check the first few regardless */
+			break;
+		}
+	}
+}
+
 static int
 pccard_print_child(device_t dev, device_t child)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
 	int retval = 0;
 
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at");
 
 	if (devi) {
-		if (devi->iorv) {
-			retval += printf(" port 0x%lx",
-			    rman_get_start(devi->iorv));
-			if (rman_get_start(devi->iorv) !=
-			    rman_get_end(devi->iorv))
-				retval += printf("-0x%lx",
-				    rman_get_end(devi->iorv));
-		}
-		if (devi->irqrv) {
-			retval += printf(" irq %ld", 
-			    rman_get_start(devi->irqrv));
-		}
+		pccard_print_resources(rl, "port", SYS_RES_IOPORT,
+		    PCCARD_NPORT, "%#lx");
+		pccard_print_resources(rl, "iomem", SYS_RES_MEMORY,
+		    PCCARD_NMEM, "%#lx");
+		pccard_print_resources(rl, "irq", SYS_RES_IRQ, PCCARD_NIRQ,
+		    "%ld");
+		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
+		    "%ld");
 		retval += printf(" slot %d", devi->slt->slotnum);
 	}
 
@@ -120,22 +151,116 @@ pccard_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-/*
- * Create "connection point"
- */
-static void
-pccard_identify(driver_t *driver, device_t parent)
+static int
+pccard_set_resource(device_t dev, device_t child, int type, int rid,
+		 u_long start, u_long count)
 {
-	device_t child;
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
 
-	child = BUS_ADD_CHILD(parent, 0, "pccard", 0);
-	if (child == NULL)
-		panic("pccard_identify");
+	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
+	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
+		return EINVAL;
+	if (rid < 0)
+		return EINVAL;
+	if (type == SYS_RES_IOPORT && rid >= PCCARD_NPORT)
+		return EINVAL;
+	if (type == SYS_RES_MEMORY && rid >= PCCARD_NMEM)
+		return EINVAL;
+	if (type == SYS_RES_IRQ && rid >= PCCARD_NIRQ)
+		return EINVAL;
+	if (type == SYS_RES_DRQ && rid >= PCCARD_NDRQ)
+		return EINVAL;
+
+	resource_list_add(rl, type, rid, start, start + count - 1, count);
+
+	return 0;
+}
+
+static int
+pccard_get_resource(device_t dev, device_t child, int type, int rid,
+    u_long *startp, u_long *countp)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (!rle)
+		return ENOENT;
+	
+	*startp = rle->start;
+	*countp = rle->count;
+
+	return 0;
+}
+
+static void
+pccard_delete_resource(device_t dev, device_t child, int type, int rid)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	resource_list_delete(rl, type, rid);
+}
+
+static struct resource *
+pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	/*
+	 * Consider adding a resource definition. We allow rid 0 for
+	 * irq, 0-3 for memory and 0-1 for ports
+	 */
+	int passthrough = (device_get_parent(child) != bus);
+	int isdefault = (start == 0UL && end == ~0UL);
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	struct resource_list_entry *rle;
+	
+	if (!passthrough && !isdefault) {
+		rle = resource_list_find(rl, type, *rid);
+		if (!rle) {
+			if (*rid < 0)
+				return 0;
+			switch (type) {
+			case SYS_RES_IRQ:
+				if (*rid >= PCCARD_NIRQ)
+					return 0;
+				break;
+			case SYS_RES_DRQ:
+				if (*rid >= PCCARD_NDRQ)
+					return 0;
+				break;
+			case SYS_RES_MEMORY:
+				if (*rid >= PCCARD_NMEM)
+					return 0;
+				break;
+			case SYS_RES_IOPORT:
+				if (*rid >= PCCARD_NPORT)
+					return 0;
+				break;
+			default:
+				return 0;
+			}
+			resource_list_add(rl, type, *rid, start, end, count);
+		}
+	}
+
+	return resource_list_alloc(rl, bus, child, type, rid,
+				   start, end, count, flags);
+}
+
+static int
+pccard_release_resource(device_t bus, device_t child, int type, int rid,
+		     struct resource *r)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	return resource_list_release(rl, bus, child, type, rid, r);
 }
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	pccard_identify),
 	DEVMETHOD(device_probe,		pccard_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
@@ -144,14 +269,17 @@ static device_method_t pccard_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
-/*	DEVMETHOD(bus_probe_nomatch,	pccard_probe_nomatch),*/
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_alloc_resource,	pccard_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pccard_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_set_resource,	pccard_set_resource),
+	DEVMETHOD(bus_get_resource,	pccard_get_resource),
+	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
+
 
 	{ 0, 0 }
 };
