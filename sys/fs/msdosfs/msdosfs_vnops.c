@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.50 1997/10/17 12:36:17 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.51 1997/10/26 20:55:28 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -59,7 +59,6 @@
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/poll.h>
 #include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
 #include <sys/dirent.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.63 1997/10/17 12:36:19 phk Exp $
+ * $Id: ufs_vnops.c,v 1.64 1997/10/26 20:55:39 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -50,7 +50,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
