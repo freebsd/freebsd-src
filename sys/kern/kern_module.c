@@ -96,16 +96,15 @@ module_register_init(const void *arg)
 
 	mod = module_lookupbyname(data->name);
 	if (mod == NULL)
-		panic("module_register_init: module named %s not found\n", 
+		panic("module_register_init: module named %s not found\n",
 		    data->name);
 	error = MOD_EVENT(mod, MOD_LOAD);
 	if (error) {
 		MOD_EVENT(mod, MOD_UNLOAD);
 		module_release(mod);
-		printf(
-	"module_register_init: MOD_LOAD (%s, %lx, %p) error %d\n", 
-		data->name, (u_long)(uintfptr_t)data->evhand, data->priv,
-		error);
+		printf("module_register_init: MOD_LOAD (%s, %lx, %p) error"
+		    " %d\n", data->name, data->evhand, data->priv,
+		    error); 
 	}
 }
 
@@ -117,7 +116,7 @@ module_register(const moduledata_t *data, linker_file_t container)
 
 	newmod = module_lookupbyname(data->name);
 	if (newmod != NULL) {
-		printf("module_register: module %s already exists!\n", 
+		printf("module_register: module %s already exists!\n",
 		    data->name);
 		return (EEXIST);
 	}
@@ -285,10 +284,10 @@ modfnext(struct thread *td, struct modfnext_args *uap)
 }
 
 struct module_stat_v1 {
-	int version;	/* set to sizeof(struct module_stat) */
-	char name[MAXMODNAME];
-	int refs;
-	int id;
+	int	version;		/* set to sizeof(struct module_stat) */
+	char	name[MAXMODNAME];
+	int	refs;
+	int	id;
 };
 
 /*
