@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.15 1995/12/02 17:10:53 bde Exp $
+ * $Id: vfs_init.c,v 1.16 1995/12/02 18:58:43 bde Exp $
  */
 
 
@@ -60,8 +60,6 @@ extern void	vfs_op_init __P((void));
 
 static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
-
-void vfs_op_init __P((void));
 
 /*
  * Sigh, such primitive tools are these...
