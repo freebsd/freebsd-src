@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)output.c	5.7 (Berkeley) 5/24/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include "defs.h"
@@ -331,7 +332,7 @@ token_actions()
 	    {
 		froms[i] = r = NEW2(shiftcount, short);
 		tos[i] = s = NEW2(shiftcount, short);
-		min = MAXSHORT;
+		min = SHRT_MAX;
 		max = 0;
 		for (j = 0; j < ntokens; ++j)
 		{
@@ -351,7 +352,7 @@ token_actions()
 	    {
 		froms[nstates+i] = r = NEW2(reducecount, short);
 		tos[nstates+i] = s = NEW2(reducecount, short);
-		min = MAXSHORT;
+		min = SHRT_MAX;
 		max = 0;
 		for (j = 0; j < ntokens; ++j)
 		{

@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)lalr.c	5.3 (Berkeley) 6/1/90";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdlib.h>
 #include "defs.h"
 
@@ -252,7 +253,7 @@ set_goto_map()
 
 	  if (ISTOKEN(symbol)) break;
 
-	  if (ngotos == MAXSHORT)
+	  if (ngotos == SHRT_MAX)
 	    fatal("too many gotos");
 
 	  ngotos++;
