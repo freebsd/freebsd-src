@@ -64,11 +64,8 @@
 
 #include <net/if_tun.h>
 
-#ifdef __FreeBSD__
 static void tunattach __P((void *));
 PSEUDO_SET(tunattach, if_tun);
-#endif
-
 
 #define TUNDEBUG	if (tundebug) printf
 static int tundebug = 0;
@@ -108,6 +105,9 @@ tunattach(dummy)
 	register int i;
 	struct ifnet *ifp;
 	dev_t dev;
+#ifdef DEVFS
+	char	name[32];
+#endif
 
 	if( tun_devsw_installed ) return;
 	dev = makedev(CDEV_MAJOR, 0);
