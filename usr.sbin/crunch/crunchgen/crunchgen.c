@@ -550,10 +550,10 @@ void fillin_program(prog_t *p)
      */
     if(!makeobj && !p->objdir && p->srcdir) {
 	snprintf(line, sizeof line, "%s/%s", objprefix, p->realsrcdir);
-	if (is_dir(line))
+	if (is_dir(line)) {
 	    if ((p->objdir = strdup(line)) == NULL)
 		out_of_memory();
-	else
+	} else
 	    p->objdir = p->realsrcdir;
     }
 /*
