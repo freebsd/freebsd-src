@@ -23,8 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.8 1999/05/07 04:36:20 jkh Exp $
+ * $Id: kget.c,v 1.9 1999/05/12 23:08:02 jkh Exp $
  */
+
+#ifdef __alpha__
+int
+kget(char *out)
+{
+    return -1;
+}
+
+#else
 
 #include "sysinstall.h"
 #include <sys/sysctl.h>
@@ -166,3 +175,5 @@ bail:
     fclose(fout);
     return 0;
 }
+
+#endif	/* !alpha */
