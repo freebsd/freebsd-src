@@ -4,7 +4,7 @@
 PROG=	sh
 SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
 	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
-	mystring.c options.c output.c parser.c printf.c redir.c show.c \
+	mystring.c options.c output.c parser.c redir.c show.c \
 	test.c trap.c var.c
 GENSRCS= builtins.c init.c nodes.c syntax.c
 GENHDRS= builtins.h nodes.h syntax.h token.h y.tab.h
@@ -23,8 +23,7 @@ CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # CFLAGS+= -g -DDEBUG=2
 
 .PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../../bin/test \
-	${.CURDIR}/../../usr.bin/printf
+	${.CURDIR}/../../bin/test
 
 CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o
