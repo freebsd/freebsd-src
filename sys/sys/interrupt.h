@@ -94,8 +94,9 @@ struct ithd {
 #define	SWI_CAMNET	2
 #define	SWI_CAMBIO	3
 #define	SWI_VM		4
-#define	SWI_TQ		5
-#define	SWI_CLOCK	6
+#define	SWI_TQ_GIANT	5
+#define	SWI_TQ		6
+#define	SWI_CLOCK	7
 
 extern struct	ithd *tty_ithd;
 extern struct	ithd *clk_ithd;
