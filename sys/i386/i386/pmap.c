@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.148 1997/07/17 04:33:38 dyson Exp $
+ *	$Id: pmap.c,v 1.149 1997/07/17 19:45:01 dyson Exp $
  */
 
 /*
@@ -78,7 +78,6 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
-#include <sys/queue.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 
@@ -97,14 +96,12 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
-#include <machine/pcb.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #if defined(SMP) || defined(APIC_IO)
 #include <machine/smp.h>
 #include <machine/apic.h>
-#include <machine/smptests.h>
 #endif /* SMP || APIC_IO */
 
 #define PMAP_KEEP_PDIRS

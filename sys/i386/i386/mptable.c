@@ -22,28 +22,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.30 1997/07/18 21:27:52 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.31 1997/07/19 04:00:35 fsmp Exp $
  */
 
 #include "opt_smp.h"
 
 #include <sys/param.h>		/* for KERNBASE */
-#include <sys/types.h>
-#include <sys/sysproto.h>
-#include <sys/time.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>		/* for KERNBASE */
 #include <vm/vm_param.h>	/* for KERNBASE */
 #include <vm/pmap.h>		/* for KERNBASE */
-#include <machine/pmap.h>	/* for KERNBASE */
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
 #include <machine/smp.h>
 #include <machine/apic.h>
 #include <machine/mpapic.h>
-#include <machine/cpufunc.h>
 #include <machine/segments.h>
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, APIC_PIN0_TIMER, TEST_TEST1 */
 #include <machine/tss.h>

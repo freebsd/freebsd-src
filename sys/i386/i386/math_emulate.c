@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.22 1997/05/09 04:02:58 peter Exp $
+ *	$Id: math_emulate.c,v 1.23 1997/05/09 09:46:50 peter Exp $
  */
 
 /*
@@ -38,24 +38,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#ifdef LKM
-#include <sys/types.h>
-#include <sys/kernel.h>
-#include <sys/lkm.h>
-#endif
-
-#include <machine/cpu.h>
-#include <machine/psl.h>
 #include <machine/reg.h>
 
 #include <sys/proc.h>
-#include <sys/acct.h>
 #include <sys/kernel.h>
-#include <sys/signal.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.2 1997/07/08 23:40:04 smp Exp smp $
+ *	$Id: autoconf.c,v 1.70 1997/07/08 23:42:02 fsmp Exp $
  */
 
 /*
@@ -49,13 +49,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
 #include <sys/conf.h>
-#include <sys/dmap.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/vnode.h>
 #include <sys/sysctl.h>
 
 #include <machine/bootinfo.h>
@@ -106,7 +103,6 @@ static void	setroot __P((void));
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <machine/clock.h>
-#include <isofs/cd9660/iso.h>
 
 /*
  * XXX All this CD-ROM root stuff is fairly messy.  Ick.

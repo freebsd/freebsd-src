@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.44 1997/05/07 20:32:41 peter Exp $
+ *	$Id: mem.c,v 1.45 1997/06/02 08:19:03 dfr Exp $
  */
 
 /*
@@ -68,8 +68,6 @@
 #include <i386/isa/intr_machdep.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
