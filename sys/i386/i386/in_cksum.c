@@ -62,15 +62,23 @@
 #define REDUCE          {sum = (sum & 0xffff) + (sum >> 16); ADDCARRY(sum);}
 
 /*
- * Thanks to gcc we don't have to guess
- * which registers contain sum & w.
+ * These asm statements require __volatile because they pass information
+ * via the condition codes.  GCC does not currently provide a way to specify
+ * the condition codes as an input or output operand.
+ *
+ * The LOAD macro below is effectively a prefetch into cache.  GCC will
+ * load the value into a register but will not use it.  Since modern CPUs
+ * reorder operations, this will generally take place in parallel with
+ * other calculations.
  */
 #define ADD(n)	__asm __volatile \
-		("addl " #n "(%1), %0" : "+r" (sum) : "r" (w))
+		("addl %1, %0" : "+r" (sum) : \
+		"g" (((const u_int32_t *)w)[n / 4]))
 #define ADDC(n)	__asm __volatile \
-		("adcl " #n "(%1), %0" : "+r" (sum) : "r" (w))
+		("adcl %1, %0" : "+r" (sum) : \
+		"g" (((const u_int32_t *)w)[n / 4]))
 #define LOAD(n)	__asm __volatile \
-		("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
+		("" : : "r" (((const u_int32_t *)w)[n / 4]))
 #define MOP	__asm __volatile \
 		("adcl         $0, %0" : "+r" (sum))
 
@@ -163,7 +171,6 @@ skip_start:
 		 */
 		mlen -= 1;
 		while ((mlen -= 32) >= 0) {
-			u_char junk;
 			/*
 			 * Add with carry 16 words and fold in the last
 			 * carry by adding a 0 with carry.
