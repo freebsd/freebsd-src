@@ -89,6 +89,9 @@ struct nfsstats	nfsstats;
 SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
 SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 	&nfsstats, nfsstats, "");
+static int nfs_ip_paranoia = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
+	&nfs_ip_paranoia, 0, "");
 #ifdef NFS_DEBUG
 int nfs_debug;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
@@ -812,6 +815,18 @@ nfs_mount(mp, path, data, ndp, p)
 		nfs_decode_args(nmp, &args);
 		return (0);
 	}
+
+	/*
+	 * Make the nfs_ip_paranoia sysctl serve as the default connection
+	 * or no-connection mode for those protocols that support 
+	 * no-connection mode (the flag will be cleared later for protocols
+	 * that do not support no-connection mode).  This will allow a client
+	 * to receive replies from a different IP then the request was
+	 * sent to.  Note: default value for nfs_ip_paranoia is 1 (paranoid),
+	 * not 0.
+	 */
+	if (nfs_ip_paranoia == 0)
+		args.flags |= NFSMNT_NOCONN;
 	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX)
 		return (EINVAL);
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
