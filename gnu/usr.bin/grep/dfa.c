@@ -21,6 +21,9 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 
 #ifdef STDC_HEADERS
 #include <stdlib.h>
@@ -606,6 +609,27 @@ lex()
 		}
 	      else
 		c2 = c;
+#ifdef __FreeBSD__
+	      { token c3;
+
+		if (collate_range_cmp(c, c2) > 0) {
+		  FETCH(c2, "Invalid range");
+		  goto skip;
+		}
+
+		for (c3 = 0; c3 < NOTCHAR; ++c3)
+		  if (   collate_range_cmp(c, c3) <= 0
+		      && collate_range_cmp(c3, c2) <= 0
+		     ) {
+		    setbit(c3, ccl);
+		    if (case_fold)
+		      if (ISUPPER(c3))
+			setbit(tolower(c3), ccl);
+		      else if (ISLOWER(c3))
+			setbit(toupper(c3), ccl);
+		  }
+	      }
+#else
 	      while (c <= c2)
 		{
 		  setbit(c, ccl);
@@ -616,6 +640,7 @@ lex()
 		      setbit(toupper(c), ccl);
 		  ++c;
 		}
+#endif
 	    skip:
 	      ;
 	    }
