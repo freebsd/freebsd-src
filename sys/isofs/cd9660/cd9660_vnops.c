@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.4 1994/08/08 09:11:18 davidg Exp $
+ * $Id: cd9660_vnops.c,v 1.5 1994/09/09 11:10:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -400,7 +400,7 @@ iso_uiodir(idp,dp,off)
 		--idp->ncookies;
 	}
 	
-	if (error = uiomove(dp,dp->d_reclen,idp->uio))
+	if (error = uiomove((caddr_t)dp,dp->d_reclen,idp->uio))
 		return error;
 	idp->uio_off = off;
 	return 0;
