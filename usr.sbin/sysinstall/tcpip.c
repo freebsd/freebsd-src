@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.27 1995/05/29 11:01:41 jkh Exp $
+ * $Id: tcpip.c,v 1.28 1995/05/29 12:32:41 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -8,8 +8,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -206,7 +206,7 @@ tcpOpenDialog(Device *devp)
     /* Initialise vars from previous device values */
     if (devp->private) {
 	DevInfo *di = (DevInfo *)devp->private;
-	
+
 	strcpy(ipaddr, di->ipaddr);
 	strcpy(netmask, di->netmask);
 	strcpy(extras, di->extras);
@@ -265,7 +265,7 @@ tcpOpenDialog(Device *devp)
     last = obj;
     while (last->next)
 	last = last->next;
-    
+
     /* Find the first object in the list */
     first = obj;
     while (first->prev)
@@ -371,7 +371,7 @@ tcpOpenDialog(Device *devp)
 	default:
 	    beep();
 	}
-	
+
 	/* BODGE ALERT! */
 	if (((tmp = index(hostname, '.')) != NULL) && (strlen(domainname)==0)) {
 	    strncpy(domainname, tmp + 1, strlen(tmp + 1));
@@ -384,7 +384,7 @@ tcpOpenDialog(Device *devp)
     dialog_clear();
     refresh();
     use_helpfile(NULL);
-    
+
     /* We actually need to inform the rest of sysinstall about this
        data now - if the user hasn't selected cancel, save the stuff
        out to the environment via the variable_set layers */

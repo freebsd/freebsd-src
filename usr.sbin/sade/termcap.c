@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 1994, Paul Richards.
- * 
+ *
  * All rights reserved.
- * 
+ *
  * This software may be used, modified, copied, distributed, and sold, in both
  * source and binary form provided that the above copyright and these terms
  * are retained, verbatim, as the first lines of this file.  Under no

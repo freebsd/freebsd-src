@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.39 1995/05/29 11:58:16 jkh Exp $
+ * $Id: menus.c,v 1.40 1995/05/30 05:13:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -13,8 +13,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -206,7 +206,7 @@ To specify a URL not in this list, chose \"other\".",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Finland", "nic.funet.fi",
 	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0			},
-      { "France", "ftp.ibp.fr", 
+      { "France", "ftp.ibp.fr",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
       { "Germany", "ftp.uni-duisburg.de",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0,		},
@@ -214,7 +214,7 @@ To specify a URL not in this list, chose \"other\".",
 	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-ALPHA", 0, 0		},
       { "Japan", "ftp.sra.co.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0.5-ALPHA", 0, 0		},
-      { "Japan #2", "ftp.mei.co.jp", 
+      { "Japan #2", "ftp.mei.co.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Japan #3", "ftp.waseda.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
@@ -430,7 +430,7 @@ When you're finished, select Cancel.",
     "XF86.hlp",
     { { "Basic", "Basic component menu (required)",
 	DMENU_SUBMENU, &MenuXF86SelectCore, 0, 0	},
-      { "Server", "X server menu", 
+      { "Server", "X server menu",
 	DMENU_SUBMENU, &MenuXF86SelectServer, 0, 0	},
       { "Fonts", "Font set menu",
 	DMENU_SUBMENU, &MenuXF86SelectFonts, 0, 0	},

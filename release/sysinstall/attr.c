@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: attr.c,v 1.1 1995/05/27 10:38:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -15,8 +15,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -57,10 +57,10 @@ attr_parse(Attribs **attr, char *file)
     enum { LOOK, COMMENT, NAME, VALUE, COMMIT } state;
     FILE *fp;
     static int 		lno;
-    
+
     num_attribs = n = v = lno = 0;
     state = LOOK;
-    
+
     if ((fp = fopen(file, "r")) == NULL) {
 	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
 	return 0;
@@ -86,12 +86,12 @@ attr_parse(Attribs **attr, char *file)
 	    else
 		msgFatal("Invalid character '%c' at line %d\n", ch, lno);
 	    break;
-	    
+
 	case COMMENT:
 	    if (ch == '\n')
 		state = LOOK;
 	    break;
-	    
+
 	case NAME:
 	    if (ch == '\n') {
 		hold_n[n] = '\0';
@@ -107,7 +107,7 @@ attr_parse(Attribs **attr, char *file)
 	    else
 		hold_n[n++] = ch;
 	    break;
-	    
+
 	case VALUE:
 	    if (v == 0 && isspace(ch))
 		continue;
@@ -136,7 +136,7 @@ attr_parse(Attribs **attr, char *file)
 		    hold_v[v++] = ch;
 	    }
 	    break;
-	    
+
 	case COMMIT:
 	    (*attr)[num_attribs].name = strdup(hold_n);
 	    (*attr)[num_attribs++].value = strdup(hold_v);

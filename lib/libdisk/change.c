@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.6 1995/05/24 08:59:36 jkh Exp $
+ * $Id: change.c,v 1.7 1995/05/25 06:14:45 phk Exp $
  *
  */
 
@@ -48,7 +48,7 @@ All_FreeBSD(struct disk *d)
 {
 	struct chunk *c;
 
-    again:	
+    again:
 	for (c=d->chunks->part;c;c=c->next)
 		if (c->type != unused) {
 			Delete_Chunk(d,c);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.39 1995/05/28 09:31:39 jkh Exp $
+ * $Id: sysinstall.h,v 1.40 1995/05/29 11:01:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -13,8 +13,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -215,7 +215,7 @@ typedef struct _devPriv {
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
 extern Boolean		OnSerial;		/* Are we on a serial console?			*/
-extern Boolean		SystemWasInstalled;	/* Did we install it?				*/ 
+extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
