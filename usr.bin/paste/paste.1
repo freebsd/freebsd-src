@@ -70,7 +70,9 @@ is exhausted the first character from
 .Ar list
 is reused.
 This continues until a line from the last input file (in default operation)
-or the last line in each file (using the -s option) is displayed, at which
+or the last line in each file (using the
+.Fl s
+option) is displayed, at which
 time
 .Nm
 begins selecting characters from the beginning of
@@ -97,7 +99,9 @@ Concatenate all of the lines of each separate input file in command line
 order.
 The newline character of every line except the last line in each input
 file is replaced with the tab character, unless otherwise specified by
-the -d option.
+the
+.Fl d
+option.
 .El
 .Pp
 If
@@ -106,7 +110,7 @@ is specified for one or more of the input files, the standard
 input is used; standard input is read one line at a time, circularly,
 for each instance of
 .Ql Fl .
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
