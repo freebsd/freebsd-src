@@ -124,6 +124,7 @@ exit1(td, rv)
 	struct proc *p = td->td_proc;
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
+	struct vnode *vtmp;
 	struct exitlist *ep;
 
 	GIANT_REQUIRED;
@@ -275,8 +276,10 @@ exit1(td, rv)
 	 * release trace file
 	 */
 	p->p_traceflag = 0;	/* don't trace the vrele() */
-	if (p->p_tracep)
-		vrele(p->p_tracep);
+	if ((vtmp = p->p_tracep) != NULL) {
+		p->p_tracep = NULL;
+		vrele(vtmp);
+	}
 #endif
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
