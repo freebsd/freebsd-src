@@ -881,7 +881,7 @@ fxp_detach(device_t dev)
 	FXP_LOCK(sc);
 	s = splimp();
 
-	sc->suspend = 1;	/* Do same thing as we do for suspend */
+	sc->suspended = 1;	/* Do same thing as we do for suspend */
 	/*
 	 * Close down routes etc.
 	 */
