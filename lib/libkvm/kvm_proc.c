@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/file.h>
+#include <sys/conf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -98,6 +99,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct kinfo_proc kinfo_proc, *kp;
 	struct pgrp pgrp;
 	struct session sess;
+	struct cdev t_cdev;
 	struct tty tty;
 	struct vmspace vmspace;
 	struct sigacts sigacts;
@@ -272,7 +274,15 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 					 "can't read tty at %x", sess.s_ttyp);
 				return (-1);
 			}
-			kp->ki_tdev = tty.t_dev;	/* XXX: wrong */
+			if (tty.t_dev != NULL) {
+				if (KREAD(kd, (u_long)tty.t_dev, &t_cdev)) {
+					_kvm_err(kd, kd->program,
+						 "can't read cdev at %x",
+						tty.t_dev);
+					return (-1);
+				}
+				kp->ki_tdev = t_cdev.si_udev;
+			}
 			if (tty.t_pgrp != NULL) {
 				if (KREAD(kd, (u_long)tty.t_pgrp, &pgrp)) {
 					_kvm_err(kd, kd->program,
