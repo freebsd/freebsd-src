@@ -87,6 +87,7 @@ fgetln(FILE *fp, size_t *lenp)
 	size_t off;
 
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	/* make sure there is input */
 	if (fp->_r <= 0 && __srefill(fp)) {
 		*lenp = 0;
