@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.1 1994/08/08 17:30:48 davidg Exp $
+ * $Id: kern_lockf.c,v 1.2 1994/09/25 19:33:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -642,27 +642,27 @@ lf_findoverlap(lf, lock, type, prev, overlap)
  * Add a lock to the end of the blocked list.
  */
 void
-lf_addblock(lock, blocked)
+lf_addblock(blocklist, lock)
+	struct lockf *blocklist;
 	struct lockf *lock;
-	struct lockf *blocked;
 {
 	register struct lockf *lf;
 
-	if (blocked == NOLOCKF)
+	if (lock == NOLOCKF)
 		return;
 #ifdef LOCKF_DEBUG
 	if (lockf_debug & 2) {
-		lf_print("addblock: adding", blocked);
-		lf_print("to blocked list of", lock);
+		lf_print("addblock: adding", lock);
+		lf_print("to blocked list of", blocklist);
 	}
 #endif /* LOCKF_DEBUG */
-	if ((lf = lock->lf_block) == NOLOCKF) {
-		lock->lf_block = blocked;
+	if ((lf = blocklist->lf_block) == NOLOCKF) {
+		blocklist->lf_block = lock;
 		return;
 	}
 	while (lf->lf_block != NOLOCKF)
 		lf = lf->lf_block;
-	lf->lf_block = blocked;
+	lf->lf_block = lock;
 	return;
 }
 
