@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.5 1995/03/09 20:27:21 phk Exp $
+ * $Id: namei.h,v 1.6 1995/07/29 11:42:49 bde Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -134,6 +134,7 @@ struct nameidata {
 #define MAKEENTRY	0x04000	/* entry is to be added to name cache */
 #define ISLASTCN	0x08000	/* this is last component of pathname */
 #define ISSYMLINK	0x10000	/* symlink needs interpretation */
+#define	WILLBEDIR	0x20000	/* new files will be dirs; allow trailing / */
 #define PARAMASK	0xfff00	/* mask of parameter descriptors */
 /*
  * Initialization of an nameidata structure.
