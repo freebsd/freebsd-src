@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_update.c,v 8.18 1996/10/08 04:51:03 vixie Exp $";
+static char rcsid[] = "$Id: db_update.c,v 8.19 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -70,8 +70,6 @@ static char rcsid[] = "$Id: db_update.c,v 8.18 1996/10/08 04:51:03 vixie Exp $";
 #include <resolv.h>
 
 #include "named.h"
-
-static void			fixttl __P((struct databuf *));
 
 /* int
  * isRefByNS(name, htp)
@@ -637,7 +635,7 @@ db_update(name, odp, newdp, flags, htp)
 	return (OK);
 }
 
-static void
+void
 fixttl(dp)
 	register struct databuf *dp;
 {

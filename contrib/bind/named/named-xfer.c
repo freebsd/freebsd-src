@@ -92,7 +92,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 8.22 1996/12/02 09:17:21 vixie Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 8.23 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -152,13 +152,26 @@ static	char		*ProgName;
 
 static	void		usage __P((const char *));
 static	int		getzone __P((struct zoneinfo *, u_int32_t, int)),
-			print_output __P((u_char *, int, u_char *)),
+			print_output __P((struct zoneinfo *, u_int32_t,
+					  u_char *, int, u_char *)),
 			netread __P((int, char *, int, int));
 static	SIG_FN		read_alarm __P(());
+static	SIG_FN		term_handler __P(());
 static	const char	*soa_zinfo __P((struct zoneinfo *, u_char *, u_char*));
+
+struct zoneinfo zp_start, zp_finish;
 
 extern char *optarg;
 extern int optind, getopt();
+
+
+void
+cleanup_for_exit() {
+#ifdef DEBUG
+	if (!debug)
+#endif
+		(void) unlink(tmpname);
+}
 
 void
 main(argc, argv)
@@ -451,11 +464,8 @@ main(argc, argv)
 		/* fall through */
 	case XFER_TIMEOUT:
 	case XFER_FAIL:
-#ifdef DEBUG
-		if (!debug)
-#endif
-		    (void) unlink(tmpname);
-		exit(result);	/* error or timeout */
+		cleanup_for_exit();
+		exit(result);
 	}
 	/*NOTREACHED*/
 }
@@ -493,7 +503,12 @@ usage(msg)
 
 #define DEF_DNAME	'\001'		/* '\0' means the root domain */
 /* XXX: The following variables should probably all be "static" */
-int	minimum_ttl = 0, got_soa = 0;
+u_int32_t	minimum_ttl = 0;
+int	soa_cnt = 0;
+#ifdef STUBS
+int	ns_cnt = 0;
+#endif
+int	query_type = 0;
 int	prev_comment = 0;		/* was previous record a comment? */
 char	zone_top[MAXDNAME];		/* the top of the zone */
 char	prev_origin[MAXDNAME];		/* from most recent $ORIGIN line */
@@ -509,14 +524,13 @@ getzone(zp, serial_no, port)
 	HEADER *hp;
 	u_int16_t len;
 	u_int32_t serial;
-	int s, n, l, nscnt, soacnt, error = 0;
+	int s, n, l, error = 0;
 	u_int cnt;
  	u_char *cp, *nmp, *eom, *tmp ;
 	u_char *buf = NULL;
 	u_int bufsize;
 	char name[MAXDNAME], name2[MAXDNAME];
 	struct sockaddr_in sin;
-	struct zoneinfo zp_start, zp_finish;
 #ifdef POSIX_SIGNALS
 	struct sigaction sv, osv;
 #else
@@ -548,11 +562,19 @@ getzone(zp, serial_no, port)
 	/* sv.sa_flags = SA_ONSTACK; */
 	sigfillset(&sv.sa_mask);
 	(void) sigaction(SIGALRM, &sv, &osv);
+	bzero((char *)&sv, sizeof sv);
+	sv.sa_handler = (SIG_FN (*)()) term_handler;
+	sigfillset(&sv.sa_mask);
+	(void) sigaction(SIGTERM, &sv, &osv);
 #else
 	bzero((char *)&sv, sizeof sv);
 	sv.sv_handler = read_alarm;
 	sv.sv_mask = ~0;
 	(void) sigvec(SIGALRM, &sv, &osv);
+	bzero((char *)&sv, sizeof sv);
+	sv.sv_handler = term_handler;
+	sv.sv_mask = ~0;
+	(void) sigvec(SIGTERM, &sv, &osv);
 #endif
 
 	strcpy(zone_top, zp->z_origin);
@@ -781,8 +803,10 @@ getzone(zp, serial_no, port)
 			dprintf(1, (ddt, "need update, serial %lu\n",
 				    (u_long)zp_start.z_serial));
 			hp = (HEADER *) buf;
-			soacnt = 0;
-			nscnt = 0;
+			soa_cnt = 0;
+#ifdef STUBS
+			ns_cnt = 0;
+#endif
 			gettime(&tt);
 			for (l = Version; l; l = nl) {
 				size_t len;
@@ -805,21 +829,19 @@ getzone(zp, serial_no, port)
 				inet_ntoa(sin.sin_addr),
 				ctimel(tt.tv_sec));
 			for (;;) {
-				if ((soacnt == 0) || (zp->z_type == Z_STUB)) {
-					int type;
+				if ((soa_cnt == 0) || (zp->z_type == Z_STUB)) {
 #ifdef STUBS
 					if (zp->z_type == Z_STUB) {
-						if (!soacnt)
-							type = T_SOA;
-						else if (!nscnt)
-							type = T_NS;
-						else 
-							type = T_SOA;
+						if (soa_cnt == 1 &&
+						    ns_cnt == 0)
+							query_type = T_NS;
+						else
+							query_type = T_SOA;
 					} else
 #endif
-						type = T_AXFR;
+						query_type = T_AXFR;
 					n = res_mkquery(QUERY, zp->z_origin,
-							curclass, type,
+							curclass, query_type,
 							NULL, 0,
 							NULL, buf, bufsize);
 					if (n < 0) {
@@ -827,7 +849,7 @@ getzone(zp, serial_no, port)
 #ifdef STUBS
 						    if (zp->z_type == Z_STUB)
 							syslog(LOG_INFO,
-							       (type == T_SOA)
+							  (query_type == T_SOA)
 					? "zone %s: res_mkquery T_SOA failed"
 					: "zone %s: res_mkquery T_NS failed",
 							       zp->z_origin);
@@ -862,13 +884,27 @@ getzone(zp, serial_no, port)
 				 * Receive length & response
 				 */
 				if (netread(s, (char *)buf, INT16SZ,
-					    (soacnt == 0) ?300 :XFER_TIMER)
+					    (soa_cnt == 0) ?300 :XFER_TIMER)
 				    < 0) {
 					error++;
 					break;
 				}
 				if ((len = _getshort(buf)) == 0)
 					break;
+				if (len > bufsize) {
+					buf = (u_char *)realloc(buf, len);
+					if (buf == NULL) {
+						syslog(LOG_INFO,
+		    "malloc(%u) failed for packet from server [%s], zone %s\n",
+						       len,
+						       inet_ntoa(sin.sin_addr),
+						       zp->z_origin);
+						error++;
+						break;
+					}
+					bufsize = len;
+				}
+				hp = (HEADER *)buf;
 				eom = buf + len;
 				if (netread(s, (char *)buf, len, XFER_TIMER)
 				    < 0) {
@@ -907,30 +943,49 @@ getzone(zp, serial_no, port)
 			if (zp->z_type == Z_STUB) {
 				ancount = ntohs(hp->ancount);
 				for (n = cnt = 0 ; cnt < ancount ; cnt++) {
-					n = print_output(buf, bufsize, cp);
+					n = print_output(zp, serial_no, buf,
+							 len, cp);
 					if (n < 0)
 						break;
 					cp += n;
 				}
+				/*
+				 * If we've processed the answer section and
+				 * didn't get any useful answers, bail out.
+				 */
+				if (query_type == T_SOA && soa_cnt == 0) {
+					syslog(LOG_ERR,
+					       "stubs: no SOA in answer");
+					error++;
+					break;
+				}
+				if (query_type == T_NS && ns_cnt == 0) {
+					syslog(LOG_ERR,
+					       "stubs: no NS in answer");
+					error++;
+					break;
+				}
 				if (n >= 0 && hp->nscount) {
-					/* we should not get here */
 					ancount = ntohs(hp->nscount);
-					for (cnt = 0 ; cnt < ancount ; cnt++) {
-					    n = print_output(buf, bufsize, cp);
-					    if (n < 0)
-						break;
-					    cp += n;
+					for (cnt = 0; cnt < ancount; cnt++) {
+						n = print_output(zp, 
+								 serial_no, 
+								 buf, len, cp);
+						if (n < 0)
+							break;
+						cp += n;
 					}
 				}
 				ancount = ntohs(hp->arcount);
-				for (cnt = 0 ; n >= 0 && cnt < ancount ; cnt++) {
-					n = print_output(buf, bufsize, cp);
+				for (cnt = 0; n >= 0 && cnt < ancount; cnt++) {
+					n = print_output(zp, serial_no, buf,
+							 len, cp);
 					cp += n;
 				}
 				if (n < 0) {
 					syslog(LOG_INFO,
-			"print_output: unparseable answer (%d), zone %s",
-						hp->rcode, zp->z_origin);
+			     "print_output: unparseable answer (%d), zone %s",
+					       hp->rcode, zp->z_origin);
 					error++;
 					break;
 				}
@@ -941,12 +996,12 @@ getzone(zp, serial_no, port)
 					error++;
 					break;
 				}
-		
 			} else {
 #endif /*STUBS*/
 				ancount = ntohs(hp->ancount);
 				for (n = cnt = 0; cnt < ancount; cnt++) {
-					n = print_output(buf, bufsize, cp);
+					n = print_output(zp, serial_no, buf,
+							 len, cp);
 					if (n < 0)
 						break;
 					cp += n;
@@ -969,98 +1024,10 @@ getzone(zp, serial_no, port)
 #ifdef STUBS
 			}
 #endif
-			GETSHORT(n, tmp);
-			if (n == T_SOA) {
-				if (soacnt == 0) {
-					soacnt++;
-					if (dn_expand(buf, buf+PACKETSZ, nmp,
-						      name, sizeof name) < 0) {
-						badsoa_msg = "soa name error";
-						goto badsoa;
-					}
-					if (strcasecmp(name, zp->z_origin)!=0){
-						syslog(LOG_INFO,
-			"wrong zone name in AXFR (wanted \"%s\", got \"%s\")",
-						       zp->z_origin, name);
-						badsoa_msg = "wrong soa name";
-						goto badsoa;
-					}
-					if (eom - tmp
-					    <= 2 * INT16SZ + INT32SZ) {
-						badsoa_msg = "soa header";
-						goto badsoa;
-					}
-					tmp += 2 * INT16SZ + INT32SZ;
-					if ((n = dn_skipname(tmp, eom)) < 0) {
-						badsoa_msg = "soa mname";
-						goto badsoa;
-					}
-					tmp += n;
-					if ((n = dn_skipname(tmp, eom)) < 0) {
-						badsoa_msg = "soa hname";
-						goto badsoa;
-					}
-					tmp += n;
-					if (eom - tmp <= INT32SZ) {
-						badsoa_msg = "soa dlen";
-						goto badsoa;
-					}
-					GETLONG(serial, tmp);
-					dprintf(3, (ddt,
-					      "first SOA for %s, serial %lu\n",
-						    name, (u_long)serial));
-					continue;
-				}
-				if (dn_expand(buf, buf+PACKETSZ, nmp,
-					      name2, sizeof name2) == -1) {
-					badsoa_msg = "soa name error#2";
-					goto badsoa;
-				}
-				if (strcasecmp((char *)name,
-					       (char *)name2) != 0) {
-					syslog(LOG_INFO,
-				"got extra SOA for \"%s\" in zone \"%s\"",
-					       name2, name);
-					continue;
-				}
-				tmp -= INT16SZ;		/* Put TYPE back. */
-				badsoa_msg = soa_zinfo(&zp_finish, tmp, eom);
-				if (badsoa_msg)
-					goto badsoa;
-				dprintf(2, (ddt,
-					    "SOA, serial %lu\n",
-					    (u_long)zp_finish.z_serial));
-				if (serial != zp_finish.z_serial) {
-					soacnt = 0;
-					got_soa = 0;
-					minimum_ttl = 0;
-					strcpy(prev_origin, zp->z_origin);
-					prev_dname[0] = DEF_DNAME;
-					dprintf(1, (ddt,
-						    "serial changed, restart\n"
-						    ));
-					/*
-					 * Flush buffer, truncate file
-					 * and seek to beginning to restart.
-					 */
-					fflush(dbfp);
-					if (ftruncate(fileno(dbfp), 0) != 0) {
-						if (!quiet)
-						    syslog(LOG_INFO,
-							  "ftruncate %s: %m\n",
-							   tmpname);
-						return (XFER_FAIL);
-					}
-					fseek(dbfp, 0L, 0);
-				} else
-					break;
-#ifdef STUBS
-			} else if (zp->z_type == Z_STUB && n == T_NS) {
-				nscnt++;
-			} else if (zp->z_type == Z_STUB) {
+
+			if (soa_cnt >= 2)
 				break;
-#endif
-			}
+
 		}
 		(void) my_close(s);
 		if (error == 0) {
@@ -1097,6 +1064,12 @@ getzone(zp, serial_no, port)
 	if (!error)
 		return (XFER_TIMEOUT);
 	return (XFER_FAIL);
+}
+
+static SIG_FN
+term_handler() {
+	cleanup_for_exit();
+	_exit(XFER_FAIL);  /* not safe to call exit() from a signal handler */
 }
 
 /*
@@ -1216,7 +1189,9 @@ soa_zinfo(zp, cp, eom)
  * Does minimal error checking on the message content.
  */
 static int
-print_output(msg, msglen, rrp)
+print_output(zp, serial_no, msg, msglen, rrp)
+	struct zoneinfo *zp;
+	u_int32_t serial_no;
 	u_char *msg;
 	int msglen;
 	u_char *rrp;
@@ -1226,11 +1201,13 @@ print_output(msg, msglen, rrp)
 	u_int32_t addr, ttl;
 	int i, j, tab, result, class, type, dlen, n1, n;
 	char data[BUFSIZ];
-	u_char *cp1, *cp2, *temp_ptr;
+	u_char *cp1, *cp2, *temp_ptr, *eom, *rr_type_ptr;
 	u_char *cdata;
 	char *origin, *proto, dname[MAXDNAME];
 	char *ignore = "";
+	const char *badsoa_msg;
 
+	eom = msg + msglen;
 	cp = rrp;
 	n = dn_expand(msg, msg + msglen, cp, dname, sizeof dname);
 	if (n < 0) {
@@ -1238,6 +1215,7 @@ print_output(msg, msglen, rrp)
 		return (-1);
 	}
 	cp += n;
+	rr_type_ptr = cp;
 	GETSHORT(type, cp);
 	GETSHORT(class, cp);
 	GETLONG(ttl, cp);
@@ -1249,8 +1227,8 @@ print_output(msg, msglen, rrp)
 	else
 		origin++;	/* move past the '.' */
 	dprintf(3, (ddt,
-		    "print_output: dname %s type %d class %d ttl %d\n",
-		    dname, type, class, ttl));
+		    "print_output: dname %s type %d class %d ttl %lu\n",
+		    dname, type, class, (u_long)ttl));
 	/*
 	 * Convert the resource record data into the internal database format.
 	 * CP points to the raw resource record.
@@ -1316,6 +1294,10 @@ print_output(msg, msglen, rrp)
 		cp += n;
 		cp1 += strlen((char *) cp1) + 1;
 		if (type == T_SOA) {
+			if ((eom - cp) < (5 * INT32SZ)) {
+				hp->rcode = FORMERR;
+				return (-1);
+			}
 			temp_ptr = cp + 4 * INT32SZ;
 			GETLONG(minimum_ttl, temp_ptr);
 			n = 5 * INT32SZ;
@@ -1375,14 +1357,14 @@ print_output(msg, msglen, rrp)
 		cp += INT16SZ;
 
 		if (type == T_SRV) {
-			bcopy((char *)cp, data, INT16SZ*2);
+			bcopy((char *)cp, cp1, INT16SZ*2);
 			cp1 += INT16SZ*2;
 			cp += INT16SZ*2;
 		}
 
 		/* get name */
 		n = dn_expand(msg, msg + msglen, cp,
-			      (char *)cp1, sizeof data - INT16SZ);
+			      (char *)cp1, sizeof data - (cp1-(u_char *)data));
 		if (n < 0)
 			return (-1);
 		cp += n;
@@ -1470,13 +1452,99 @@ print_output(msg, msglen, rrp)
 	result = cp - rrp;
 
 	/*
-	 * Only print one SOA per db file
+	 * Special handling for SOA records.
 	 */
+
 	if (type == T_SOA) {
-		if (got_soa)
+		if (strcasecmp(dname, zp->z_origin) != 0) {
+			syslog(LOG_INFO,
+			 "wrong zone name in AXFR (wanted \"%s\", got \"%s\")",
+			       zp->z_origin, dname);
+			hp->rcode = FORMERR;
+			return (-1);
+		}
+		if (!soa_cnt) {
+			badsoa_msg = soa_zinfo(&zp_start, rr_type_ptr, eom);
+			if (badsoa_msg) {
+				syslog(LOG_INFO,
+				       "malformed SOA for zone %s: %s",
+				       zp->z_origin, badsoa_msg);
+				hp->rcode = FORMERR;
+				return (-1);
+			}
+			if (SEQ_GT(zp_start.z_serial, serial_no) ||
+			    !serial_no)
+				soa_cnt++;
+			else {
+				syslog(LOG_INFO,
+			       "serial went backwards after transfer started");
+				return (-1);
+			}
+		} else {
+			badsoa_msg = soa_zinfo(&zp_finish, rr_type_ptr, eom);
+			if (badsoa_msg) {
+				syslog(LOG_INFO,
+				       "malformed SOA for zone %s: %s",
+				       zp->z_origin, badsoa_msg);
+				hp->rcode = FORMERR;
+				return (-1);
+			}
+			dprintf(2, (ddt, "SOA, serial %lu\n",
+				    (u_long)zp_finish.z_serial));
+			if (zp_start.z_serial != zp_finish.z_serial) {
+				dprintf(1, (ddt, "serial changed, restart\n"));
+				soa_cnt = 0;
+#ifdef STUBS
+				ns_cnt = 0;
+#endif
+				minimum_ttl = 0;
+				strcpy(prev_origin, zp->z_origin);
+				prev_dname[0] = DEF_DNAME;
+				/*
+				 * Flush buffer, truncate file
+				 * and seek to beginning to restart.
+				 */
+				fflush(dbfp);
+				if (ftruncate(fileno(dbfp), 0) != 0) {
+					if (!quiet)
+						syslog(LOG_INFO,
+						       "ftruncate %s: %m\n",
+						       tmpname);
+					return (-1);
+				}
+				fseek(dbfp, 0L, 0);
+				return (result);
+			}
+			soa_cnt++;
 			return (result);
+		}	
+	}
+
+#ifdef STUBS
+	if (zp->z_type == Z_STUB) {
+		if (query_type == T_NS && type == T_NS)
+			ns_cnt++;
+		/*
+		 * If we're processing a response to an SOA query, we don't
+		 * want to print anything from the response except for the SOA.
+		 * We do want to check everything in the packet, which is
+		 * why we do this check now instead of earlier.
+		 */
+		if (query_type == T_SOA && type != T_SOA)
+			return (result);
+	}
+#endif
+
+	if (!soa_cnt || soa_cnt >= 2) {
+		char *gripe;
+
+		if (!soa_cnt)
+			gripe = "got RR before first SOA";
 		else
-			got_soa++;
+			gripe = "got RR after second SOA";
+		syslog(LOG_INFO, "%s in zone %s", gripe, zp->z_origin);
+		hp->rcode = FORMERR;
+		return (-1);
 	}
 
 #ifdef NO_GLUE
@@ -1570,7 +1638,7 @@ print_output(msg, msglen, rrp)
 	}
 
 	if (ttl != minimum_ttl)
-		(void) fprintf(dbfp, "%d\t", (int) ttl);
+		(void) fprintf(dbfp, "%lu\t", (u_long) ttl);
 	else if (tab)
 		(void) putc('\t', dbfp);
 
@@ -1837,7 +1905,7 @@ print_output(msg, msglen, rrp)
 		cp++;
 
 		/* orig time to live (TTL)) */
-		(void) fprintf(dbfp," %d", _getlong((u_char*)cp));
+		(void) fprintf(dbfp," %lu", (u_long)_getlong((u_char*)cp));
 		cp += INT32SZ;
 
 		/* expiration time */
@@ -1873,6 +1941,7 @@ print_output(msg, msglen, rrp)
 	}
 	if (ferror(dbfp)) {
 		syslog(LOG_ERR, "%s: %m", tmpname);
+		cleanup_for_exit();
 		exit(XFER_FAIL);
 	}
 	return (result);
