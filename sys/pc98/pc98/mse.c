@@ -45,8 +45,6 @@
  */
 
 #include "mse.h"
-#if NMSE > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -923,4 +921,3 @@ mse_get98m(port, dx, dy, but)
 }
 #endif
 
-#endif /* NMSE */
