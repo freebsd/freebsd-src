@@ -59,6 +59,16 @@
 #include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <dev/vinum/request.h>
+
+/*
+ * When a subdisk is reviving or initializing, we
+ * check to see whether it is still progressing
+ * and print a warning if not.  We check every 50
+ * ms, up to a maximum of 5 seconds.  This is the
+ * counter value.
+ */
+#define STALLCOUNT	100
+
 /*
  * Take a size in sectors and return a pointer to
  * a string which represents the size best.  If lj
@@ -615,13 +625,13 @@ vinum_lsi(int sdno, int recurse)
 			 * Do it like this so we don't have
 			 * annoying delays in the listing.
 			 */
-			for (times = 0; times < 20; times++) {
+			for (times = 0; times < STALLCOUNT; times++) {
 			    get_sd_info(&sd, sdno);
 			    if (sd.revived != revived)	    /* progress? */
 				break;
 			    usleep(50000);
 			}
-			if (times == 10)
+			if (times == STALLCOUNT)
 			    printf("\t\t*** Revive has stalled ***\n");
 		    }
 		}
@@ -696,13 +706,13 @@ vinum_lsi(int sdno, int recurse)
 		     * Do it like this so we don't have
 		     * annoying delays in the listing.
 		     */
-		    for (times = 0; times < 20; times++) {
+		    for (times = 0; times < STALLCOUNT; times++) {
 			get_sd_info(&sd, sdno);
 			if (sd.revived != revived)	    /* progress? */
 			    break;
 			usleep(50000);
 		    }
-		    if (times == 10)
+		    if (times == STALLCOUNT)
 			printf("\t\t\t*** Revive of %s has stalled ***\n",
 			    sd.name);
 		}
