@@ -147,7 +147,11 @@ configure_final(dummy)
 			 * when the get-disk-geometry interrupt fails.  Skip
 			 * drives that have this geometry.
 			 */
+#ifdef PC98
+			if (bios_geom == 0x4f020f)
+#else
 			if (bios_geom == 0x4f010f)
+#endif
 				continue;
 
 			printf(" %x:%08lx ", i, bios_geom);
