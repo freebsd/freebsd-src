@@ -98,63 +98,63 @@ _CPUCFLAGS = -mcpu=ev4
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
-.if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "athlon-mp"
+. if ${MACHINE_ARCH} == "i386"
+.  if ${CPUTYPE} == "athlon-mp"
 MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "athlon-xp"
+.  elif ${CPUTYPE} == "athlon-xp"
 MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "athlon-4"
+.  elif ${CPUTYPE} == "athlon-4"
 MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "athlon-tbird"
+.  elif ${CPUTYPE} == "athlon-tbird"
 MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "athlon"
+.  elif ${CPUTYPE} == "athlon"
 MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "k6-3"
+.  elif ${CPUTYPE} == "k6-3"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "k6-2"
+.  elif ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "k6"
+.  elif ${CPUTYPE} == "k6"
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
-. elif ${CPUTYPE} == "k5"
+.  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
-. elif ${CPUTYPE} == "p4"
+.  elif ${CPUTYPE} == "p4"
 MACHINE_CPU = sse2 sse i686 mmx i586 i486 i386
-. elif ${CPUTYPE} == "p3"
+.  elif ${CPUTYPE} == "p3"
 MACHINE_CPU = sse i686 mmx i586 i486 i386
-. elif ${CPUTYPE} == "p2"
+.  elif ${CPUTYPE} == "p2"
 MACHINE_CPU = i686 mmx i586 i486 i386
-. elif ${CPUTYPE} == "i686"
+.  elif ${CPUTYPE} == "i686"
 MACHINE_CPU = i686 i586 i486 i386
-. elif ${CPUTYPE} == "i586/mmx"
+.  elif ${CPUTYPE} == "i586/mmx"
 MACHINE_CPU = mmx i586 i486 i386
-. elif ${CPUTYPE} == "i586"
+.  elif ${CPUTYPE} == "i586"
 MACHINE_CPU = i586 i486 i386
-. elif ${CPUTYPE} == "i486"
+.  elif ${CPUTYPE} == "i486"
 MACHINE_CPU = i486 i386
-. elif ${CPUTYPE} == "i386"
+.  elif ${CPUTYPE} == "i386"
 MACHINE_CPU = i386
-. endif
-.elif ${MACHINE_ARCH} == "alpha"
-. if ${CPUTYPE} == "ev6"
+.  endif
+. elif ${MACHINE_ARCH} == "alpha"
+.  if ${CPUTYPE} == "ev6"
 MACHINE_CPU = ev6 ev56 pca56 ev5 ev45 ev4
-. elif ${CPUTYPE} == "pca56"
+.  elif ${CPUTYPE} == "pca56"
 MACHINE_CPU = pca56 ev56 ev5 ev45 ev4
-. elif ${CPUTYPE} == "ev56"
+.  elif ${CPUTYPE} == "ev56"
 MACHINE_CPU = ev56 ev5 ev45 ev4
-. elif ${CPUTYPE} == "ev5"
+.  elif ${CPUTYPE} == "ev5"
 MACHINE_CPU = ev5 ev45 ev4
-. elif ${CPUTYPE} == "ev45"
+.  elif ${CPUTYPE} == "ev45"
 MACHINE_CPU = ev45 ev4
-. elif ${CPUTYPE} == "ev4"
+.  elif ${CPUTYPE} == "ev4"
 MACHINE_CPU = ev4
-. endif
-.elif ${MACHINE_ARCH} == "x86-64" || ${MACHINE_ARCH} == "x86_64"
+.  endif
+. elif ${MACHINE_ARCH} == "x86-64" || ${MACHINE_ARCH} == "x86_64"
 MACHINE_CPU = x86-64 sse2 sse
-.elif ${MACHINE_ARCH} == "ia64"
-. if ${CPUTYPE} == "itanium"
+. elif ${MACHINE_ARCH} == "ia64"
+.  if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
+.  endif
 . endif
-.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
