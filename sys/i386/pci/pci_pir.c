@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.45 1999/08/09 21:12:18 wpaul Exp $
+ * $Id: pcibus.c,v 1.46 1999/08/10 09:22:21 peter Exp $
  *
  */
 
@@ -443,7 +443,11 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 						      class, subclass,
 						      &busnum);
 			if (s) {
-				child = BUS_ADD_CHILD(parent, 0,
+				/*
+				 * Add at priority 100 to make sure we
+				 * go after any motherboard resources
+				 */
+				child = BUS_ADD_CHILD(parent, 100,
 						      "pcib", busnum);
 				device_set_desc(child, s);
 			}
