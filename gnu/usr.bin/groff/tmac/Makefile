@@ -40,9 +40,9 @@ beforeinstall:
 		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			temp ${DESTDIR}${MDOCDIR}/$$f; \
 	done
-	-test -f ${DESTDIR}${TMACDIR}/man.local || \
+	test -f ${DESTDIR}${TMACDIR}/man.local || \
 		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-			${.CURDIR}/man.local ${DESTDIR}${MDOCDIR}
+			${.CURDIR}/man.local ${DESTDIR}${TMACDIR}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
