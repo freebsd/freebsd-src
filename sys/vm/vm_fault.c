@@ -278,7 +278,9 @@ RetryFault:;
 	 */
 	vm_object_reference(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
+	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
+	VM_OBJECT_UNLOCK(fs.first_object);
 
 	fs.lookup_still_valid = TRUE;
 
@@ -637,7 +639,9 @@ readrest:
 			}
 			KASSERT(fs.object != next_object, ("object loop %p", next_object));
 			fs.object = next_object;
+			VM_OBJECT_LOCK(fs.object);
 			vm_object_pip_add(fs.object, 1);
+			VM_OBJECT_UNLOCK(fs.object);
 		}
 	}
 

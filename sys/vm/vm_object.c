@@ -1208,7 +1208,9 @@ vm_object_split(vm_map_entry_t entry)
 		vm_page_unlock_queues();
 	}
 	if (orig_object->type == OBJT_SWAP) {
+		VM_OBJECT_LOCK(orig_object);
 		vm_object_pip_add(orig_object, 1);
+		VM_OBJECT_UNLOCK(orig_object);
 		/*
 		 * copy orig_object pages into new_object
 		 * and destroy unneeded pages in
@@ -1514,8 +1516,9 @@ vm_object_collapse(vm_object_t object)
 			 * Move the pager from backing_object to object.
 			 */
 			if (backing_object->type == OBJT_SWAP) {
+				VM_OBJECT_LOCK(backing_object);
 				vm_object_pip_add(backing_object, 1);
-
+				VM_OBJECT_UNLOCK(backing_object);
 				/*
 				 * scrap the paging_offset junk and do a 
 				 * discrete copy.  This also removes major 
@@ -1524,7 +1527,9 @@ vm_object_collapse(vm_object_t object)
 				 * new swapper is able to optimize the
 				 * destroy-source case.
 				 */
+				VM_OBJECT_LOCK(object);
 				vm_object_pip_add(object, 1);
+				VM_OBJECT_UNLOCK(object);
 				swap_pager_copy(
 				    backing_object,
 				    object,
