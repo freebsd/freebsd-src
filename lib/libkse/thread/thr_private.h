@@ -1262,9 +1262,7 @@ int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
 int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int     __sys_sigpending(sigset_t *);
 int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int     __sys_sigsuspend(const sigset_t *);
 int     __sys_sigreturn(ucontext_t *);
 int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 #endif
@@ -1289,23 +1287,22 @@ int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
 
 /* #include <sys/socket.h> */
 #ifdef  _SYS_SOCKET_H_
-int     __sys_accept(int, struct sockaddr *, int *);
-int     __sys_bind(int, const struct sockaddr *, int);
-int     __sys_connect(int, const struct sockaddr *, int);
-int     __sys_getpeername(int, struct sockaddr *, int *);
-int     __sys_getsockname(int, struct sockaddr *, int *);
-int     __sys_getsockopt(int, int, int, void *, int *);
+int	__sys_accept(int, struct sockaddr *, socklen_t *);
+int	__sys_bind(int, const struct sockaddr *, socklen_t);
+int	__sys_connect(int, const struct sockaddr *, socklen_t);
+int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockopt(int, int, int, void *, socklen_t *);
 int     __sys_listen(int, int);
-int     __sys_setsockopt(int, int, int, const void *, int);
+int	__sys_setsockopt(int, int, int, const void *, socklen_t);
 int     __sys_shutdown(int, int);
 int     __sys_socket(int, int, int);
 int     __sys_socketpair(int, int, int, int *);
-ssize_t __sys_recvfrom(int, void *, size_t, int, struct sockaddr *, int *);
+ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
 ssize_t __sys_recvmsg(int, struct msghdr *, int);
-ssize_t __sys_send(int, const void *, size_t, int);
 int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
 ssize_t __sys_sendmsg(int, const struct msghdr *, int);
-ssize_t __sys_sendto(int, const void *,size_t, int, const struct sockaddr *, int);
+ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
 #endif
 
 /* #include <unistd.h> */
@@ -1315,10 +1312,9 @@ int     __sys_dup(int);
 int     __sys_dup2(int, int);
 int     __sys_execve(const char *, char * const *, char * const *);
 int     __sys_fchown(int, uid_t, gid_t);
-int	__sys_fork(void);
+pid_t	__sys_fork(void);
 int     __sys_fsync(int);
 int	__sys_pipe(int *);
-int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 long    __sys_fpathconf(int, int);
 ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);

@@ -113,11 +113,9 @@ SRCS+= \
 	uthread_shutdown.c \
 	uthread_sig.c \
 	uthread_sigaction.c \
-	uthread_sigblock.c \
 	uthread_sigmask.c \
 	uthread_sigpending.c \
 	uthread_sigprocmask.c \
-	uthread_sigsetmask.c \
 	uthread_sigsuspend.c \
 	uthread_sigwait.c \
 	uthread_single_np.c \
