@@ -200,7 +200,7 @@ readjob()
 			}
 			(void) strncpy(dfname, cp, sizeof dfname-1);
 			dfname[sizeof dfname-1] = '\0';
-			if (index(dfname, '/'))
+			if (strchr(dfname, '/'))
 				frecverr("readjob: %s: illegal path name",
 					dfname);
 			(void) readfile(dfname, size);

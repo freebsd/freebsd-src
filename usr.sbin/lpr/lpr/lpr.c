@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.16 1997/07/08 21:03:16 dima Exp $\n";
+	"\n$Id: lpr.c,v 1.17 1997/07/23 00:49:37 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -296,7 +296,7 @@ main(argc, argv)
 			if (argc == 0)
 				jobname = "stdin";
 			else
-				jobname = (arg = rindex(argv[0], '/')) ? arg+1 : argv[0];
+				jobname = (arg = strrchr(argv[0], '/')) ? arg+1 : argv[0];
 		}
 		card('J', jobname);
 		card('C', class);
@@ -456,7 +456,7 @@ linked(file)
 				continue;
 			case '.':
 				if (file[2] == '/') {
-					if ((cp = rindex(buf, '/')) != NULL)
+					if ((cp = strrchr(buf, '/')) != NULL)
 						*cp = '\0';
 					file += 3;
 					continue;
@@ -602,7 +602,7 @@ test(file)
 	}
 	(void) close(fd);
 	if (rflag) {
-		if ((cp = rindex(file, '/')) == NULL) {
+		if ((cp = strrchr(file, '/')) == NULL) {
 			if (checkwriteperm(file,".") == 0)
 				return(1);
 		} else {
