@@ -1,10 +1,8 @@
 # $FreeBSD$
-PRINTERDEVICE=ps
-NODOCCOMPRESS=1
 VOLUME= papers
 DOC=    jail
 SRCS=   paper.ms
-MACROS= -ms -U
-OBJS=	implementation.ms mgt.ms future.ms
+EXTRA=	implementation.ms mgt.ms future.ms
+MACROS= -ms -mpspic -U
 
 .include <bsd.doc.mk>
