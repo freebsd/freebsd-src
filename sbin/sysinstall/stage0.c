@@ -26,9 +26,11 @@
 
 static unsigned char *welcome[] = {
     "1. README",
-    "View `READ ME FIRST' File.",
+    "Read the `READ ME FIRST' File .",
+    "2. Release Notes",
+     "Read the 2.0 release notes (recommended).",
     "2. COPYRIGHT",
-    "View FreeBSD Copyright Information.",
+    "Read FreeBSD Copyright Information.",
     "3. Proceed",
     "Proceed with installation.",
     "4. Fixit",
@@ -49,26 +51,31 @@ evil_goto:
 	reboot(RB_AUTOBOOT);
     }
     switch (atoi(selection)) {
-    case 1:	/* View readme */
+    case 1:	/* View the README */
         ShowFile(README_FILE, "Read Me First");
 	goto evil_goto;
 	break;
 
-    case 2:	/* View copyrights */
+    case 2:	/* View the release notes */
+        ShowFile(RELNOTES_FILE, "Release Notes");
+	goto evil_goto;
+	break;
+
+    case 3:	/* View copyrights */
         ShowFile(COPYRIGHT_FILE, "COPYRIGHT");
 	goto evil_goto;
 	break;
 
-    case 3:	/* Proceed (do nothing special, really) */
+    case 4:	/* Proceed (do nothing special, really) */
 	break;
 
-    case 4:
+    case 5:
 	dialog_msgbox("Sorry!", "This feature not currently implemented.",
 		      6, 75, 1);
 	goto evil_goto;
 	break;
 
-    case 5:
+    case 6:
 	/* Be neat.. */
 	dialog_clear();
 	end_dialog();
