@@ -20,11 +20,11 @@ all:	lib/auto/${MODULE}.so
 CLEANFILES+= ext.libs
 
 lib/auto/${MODULE}.so: ext/${MODULEDIR}/Makefile ${DYNALOADER}
-	cd ext/${MODULEDIR}; \
+	@cd ext/${MODULEDIR}; \
 	make -B all PERL_SRC=${.OBJDIR}
 
 ext/${MODULEDIR}/Makefile: scripts
-	cd ext/${MODULEDIR}; \
+	@cd ext/${MODULEDIR}; \
 	${MINIPERL} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
 		LINKTYPE=dynamic LIBS="-lperl -lm" \
 		INST_LIB=${.OBJDIR}/build/${MODULEDIR} \
@@ -32,13 +32,13 @@ ext/${MODULEDIR}/Makefile: scripts
 	make -B config PERL_SRC=${.OBJDIR}
 
 install:
-	cd ${.OBJDIR}/ext/${MODULEDIR} ;\
+	@cd ${.OBJDIR}/ext/${MODULEDIR} ;\
 	make -B install \
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 
 distribute:
-	cd ${.OBJDIR}/ext/${MODULEDIR} ;\
+	@cd ${.OBJDIR}/ext/${MODULEDIR} ;\
 	make -B install DESTDIR=${DISTDIR}/${dist} SHARED=copies \
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
