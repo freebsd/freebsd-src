@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.74 1998/07/20 11:32:57 jkh Exp $
+ * $Id: menus.c,v 1.89.2.75 1998/07/21 04:03:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,7 +190,7 @@ srcFlagCheck(dialogMenuItem *item)
 static int
 x11FlagCheck(dialogMenuItem *item)
 {
-    return XF86Dists;
+    return Dists & DIST_XF86;
 }
 
 static int
