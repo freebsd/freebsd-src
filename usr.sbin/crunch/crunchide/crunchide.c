@@ -1,4 +1,5 @@
 /*	$NetBSD: crunchide.c,v 1.8 1997/11/01 06:51:45 lukem Exp $	*/
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
  * Copyright (c) 1994 University of Maryland
@@ -207,8 +208,10 @@ struct {
 	int	(*check)(int, const char *);	/* 1 if match, zero if not */
 	int	(*hide)(int, const char *);	/* non-zero if error */
 } exec_formats[] = {
+#ifdef __i386__
 #ifdef NLIST_AOUT
 	{	"a.out",	check_aout,	hide_aout,	},
+#endif
 #endif
 #ifdef NLIST_ECOFF
 	{	"ECOFF",	check_elf64,	hide_elf64,	},
