@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.91 1998/10/27 11:47:08 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.92 1998/10/31 15:31:27 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -459,8 +459,10 @@ ffs_reload(mp, cred, p)
 	 * block device.  See ffs_mountmfs() for more details.
 	 */
 	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		vfs_object_create(devvp, p, p->p_ucred, 1);
 		simple_lock(&devvp->v_interlock);
-		vfs_object_create(devvp, p, p->p_ucred, 0);
+		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
 	/*
@@ -614,8 +616,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * increases the opportunity for metadata caching.
 	 */
 	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		vfs_object_create(devvp, p, p->p_ucred, 1);
 		simple_lock(&devvp->v_interlock);
-		vfs_object_create(devvp, p, p->p_ucred, 0);
+		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
