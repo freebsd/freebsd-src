@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.43 1998/12/14 07:44:46 dillon Exp $
+#     $Id: BSD.local.dist,v 1.44 1998/12/18 08:06:34 asami Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -220,6 +220,8 @@
             ja_JP.EUC
             ..
             ja_JP.SJIS
+            ..
+            ja_JP.Shift_JIS
             ..
 	    ko_KR.EUC
             ..
