@@ -25,7 +25,7 @@
 	.asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 /*
  * Atomicly lock a location with an identifier provided the location
