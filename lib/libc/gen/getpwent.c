@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypclnt.h>
 #endif
 #include "un-namespace.h"
+#include "libc_private.h"
 
 #include "pw_scan.h"
 

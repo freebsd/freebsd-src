@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/ypclnt.h>
 #endif
 #include "un-namespace.h"
+#include "libc_private.h"
 
 /*
  * Internet version.
@@ -80,7 +81,6 @@ static	struct rpcent *interpret(char *val, size_t len);
 
 #ifdef	YP
 static int	__yp_nomap = 0;
-extern int _yp_check(char **);
 #endif	/* YP */
 
 #define	RPCDB	"/etc/rpc"

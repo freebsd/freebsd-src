@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <nsswitch.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 #if defined(__KAME__) && defined(INET6)
 # define FAITH
@@ -230,7 +231,6 @@ static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
 static struct addrinfo *_yphostent(char *, const struct addrinfo *);
 static int _yp_getaddrinfo(void *, void *, va_list);
-extern int _yp_check(char **);
 #endif
 
 static int res_queryN(const char *, struct res_target *);

@@ -84,6 +84,11 @@ bool_t __rpc_control(int,void *);
 
 char *_get_next_token(char *, int);
 
+bool_t __svc_clean_idle(fd_set *, int, bool_t);
+bool_t __xdrrec_setnonblock(XDR *, int);
+bool_t __xdrrec_getrec(XDR *, enum xprt_stat *, bool_t);
+void __xprt_unregister_unlocked(SVCXPRT *);
+
 SVCXPRT **__svc_xports;
 int __svc_maxrec;
 

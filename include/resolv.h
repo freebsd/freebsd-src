@@ -307,6 +307,11 @@ int		res_queriesmatch(const u_char *, const u_char *,
 void		res_close(void);
 int		res_opt(int, u_char *, int, int);
 const char *	p_section(int, int);
+/* XXX These must be exported for BIND4 compatibility. */
+void		__putlong(u_int32_t, u_char *);
+void		__putshort(u_int16_t, u_char *);
+u_int32_t	_getlong(const u_char *);
+u_int16_t	_getshort(const u_char *);
 /* XXX The following depend on the ns_updrec typedef in arpa/nameser.h */
 #ifdef _ARPA_NAMESER_H_
 int		res_update(ns_updrec *);

@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/clnt.h>
 #include <sys/stddef.h>
 #include "un-namespace.h"
+#include "rpc_com.h"
 
 static bool_t	xdrrec_getlong(XDR *, long *);
 static bool_t	xdrrec_putlong(XDR *, const long *);
