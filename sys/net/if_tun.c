@@ -105,8 +105,7 @@ tun_clone(arg, name, namelen, dev)
 		return;
 	if (dev_stdclone(name, NULL, "tun", &u) != 1)
 		return;
-	/* XXX: minor encoding if u > 255 */
-	*dev = make_dev(&tun_cdevsw, u,
+	*dev = make_dev(&tun_cdevsw, unit2minor(u),
 	    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
 
 }
