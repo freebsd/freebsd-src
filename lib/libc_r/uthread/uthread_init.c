@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.12 1999/06/23 15:01:21 dt Exp $
+ * $Id: uthread_init.c,v 1.13 1999/07/05 00:35:19 jasone Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -45,10 +45,8 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
-#ifdef _PTHREAD_GSTACK
 #include <sys/types.h>
 #include <sys/mman.h>
-#endif
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -182,7 +180,7 @@ _thread_init(void)
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
 
-#ifdef _PTHREAD_GSTACK
+#ifdef __i386__
 		/* Initialize the thread stack cache: */
 		SLIST_INIT(&_stackq);
 

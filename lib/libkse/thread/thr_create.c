@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_create.c,v 1.13 1999/06/20 08:28:14 jb Exp $
+ * $Id: uthread_create.c,v 1.14 1999/07/05 00:35:17 jasone Exp $
  */
 #include <errno.h>
 #include <stdlib.h>
@@ -37,10 +37,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
-#ifdef _PTHREAD_GSTACK
 #include <sys/types.h>
 #include <sys/mman.h>
-#endif
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -81,7 +79,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Check if a stack was specified in the thread attributes: */
 		if ((stack = pattr->stackaddr_attr) != NULL) {
 		}
-#ifdef _PTHREAD_GSTACK
+#ifdef __i386__
 		/* Allocate memory for a default-size stack: */
 		else if (pattr->stacksize_attr == PTHREAD_STACK_DEFAULT) {
 			struct stack	* spare_stack;

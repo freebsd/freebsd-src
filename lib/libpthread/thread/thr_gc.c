@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.4 1999/06/20 08:28:25 jb Exp $
+ *	$Id: uthread_gc.c,v 1.5 1999/07/05 00:35:18 jasone Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -38,10 +38,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
-#ifdef _PTHREAD_GSTACK
 #include <sys/types.h>
 #include <sys/mman.h>
-#endif
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -136,7 +134,7 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-#ifdef _PTHREAD_GSTACK
+#ifdef __i386__
 					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
 						/* Default-size stack.  Cache it: */
 						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
@@ -172,7 +170,7 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-#ifdef _PTHREAD_GSTACK
+#ifdef __i386__
 					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
 						/* Default-size stack.  Cache it: */
 						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
