@@ -361,7 +361,9 @@ stopprofclock(p)
 
 /*
  * Statistics clock.  Grab profile sample, and if divider reaches 0,
- * do process and kernel statistics.
+ * do process and kernel statistics.  Most of the statistics are only
+ * used by user-level statistics programs.  The main exceptions are
+ * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
  */
 void
 statclock(frame)
@@ -378,6 +380,10 @@ statclock(frame)
 	struct vmspace *vm;
 
 	if (curproc != NULL && CLKF_USERMODE(frame)) {
+		/*
+		 * Came from user mode; CPU was in user state.
+		 * If this process is being profiled, record the tick.
+		 */
 		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
@@ -388,8 +394,7 @@ statclock(frame)
 		if (--pscnt > 0)
 			return;
 		/*
-		 * Came from user mode; CPU was in user state.
-		 * If this process is being profiled record the tick.
+		 * Charge the time as appropriate.
 		 */
 		p->p_uticks++;
 		if (p->p_nice > NZERO)
@@ -440,11 +445,6 @@ statclock(frame)
 			cp_time[CP_IDLE]++;
 	}
 	pscnt = psdiv;
-
-	/*
-	 * We maintain statistics shown by user-level statistics
-	 * programs:  the amount of time in each cpu state.
-	 */
 
 	if (p != NULL) {
 		schedclock(p);
