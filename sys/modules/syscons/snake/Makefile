@@ -6,4 +6,8 @@ SRCS= 	snake_saver.c
 NOMAN=
 CFLAGS+= -I${.CURDIR}/..
 
+.if ${MACHINE} == "pc98"
+CFLAGS+= -DPC98
+.endif
+
 .include "${.CURDIR}/../../../conf/kmod.mk"

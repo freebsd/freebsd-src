@@ -43,6 +43,10 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98_machdep.h>
+#endif
+
 static char	*message;
 static int	*messagep;
 static int	messagelen;
