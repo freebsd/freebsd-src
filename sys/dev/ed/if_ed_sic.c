@@ -156,4 +156,4 @@ ed_probe_SIC(device_t dev, int port_rid, int flags)
 	return (0);
 }
 
-#endif /* ED_SIL */
+#endif /* ED_SIC */
