@@ -242,6 +242,7 @@ struct	proc {
 	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
 	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
+	int	p_giant_optional;	/* (i) Giant Lock Sanity */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -276,7 +277,6 @@ struct	proc {
 	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
 	struct trapframe *p_frame; /* (k) */
-	int	p_giant_optional;	/* (i) Giant Lock Sanity */
 };
 
 #define	p_session	p_pgrp->pg_session
