@@ -54,7 +54,6 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	PFIL_HOOKS		# pfil(9) framework
 
 # To make an SMP kernel, the next line is needed
 options 	SMP		# Symmetric MultiProcessor Kernel

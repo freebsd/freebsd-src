@@ -35,7 +35,6 @@ options 	INET6		# IPv6 communications protocols
 options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MD_ROOT		# MD usable as root device
-options 	PFIL_HOOKS	# pfil(9) framework
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
 options 	SCHED_4BSD	# 4BSD scheduler

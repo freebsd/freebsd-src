@@ -55,7 +55,6 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~215k to driver.
-options 	PFIL_HOOKS		# pfil(9) framework
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 # Make an SMP-capable kernel by default
