@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85.4.4 1995/10/14 13:52:32 davidg Exp $
+ *	$Id: conf.c,v 1.85.4.5 1996/05/03 06:02:47 asami Exp $
  */
 
 #include <sys/param.h>
@@ -423,6 +423,20 @@ d_mmap_t        meteor_mmap;
 #define meteor_write    nxwrite
 #define meteor_ioctl    nxioctl
 #define meteor_mmap     nxmmap
+#endif
+
+/* Connectix QuickCam camera */
+#include "qcam.h"
+#if     NQCAM > 0
+d_open_t        qcam_open; 
+d_close_t       qcam_close;
+d_read_t        qcam_read;
+d_ioctl_t       qcam_ioctl;
+#else 
+#define qcam_open     nxopen
+#define qcam_close    nxclose 
+#define qcam_read     nxread
+#define qcam_ioctl    nxioctl
 #endif
 
 #define swopen		noopen
@@ -1378,10 +1392,15 @@ struct cdevsw	cdevsw[] =
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
 	  ascselect,    nommap,         NULL },
+ 	{ nxopen,       nxclose,        nxread,         nowrite,        /*72*/
+ 	  nxioctl,      nostop,         nullreset,      nodevtotty, /* unused */
+ 	  nxselect,     nommap,         NULL },
+	{ qcam_open,    qcam_close,     qcam_read,      nowrite,        /*73*/
+	  qcam_ioctl,   nostop,         nullreset,      nodevtotty, /* qcam */
+	  noselect,     nommap,         NULL },
 	{ ccdopen,	ccdclose,	ccdread,	ccdwrite,	/*74*/
 	  ccdioctl,	nostop,		nullreset,	nodevtotty,/* ccd */
 	  seltrue,	nommap,		ccdstrategy }
-
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
