@@ -77,16 +77,13 @@ typedef struct {
 	size_t	leftLen;	/* Length of string */
 	char	*rhs;		/* Replacement string (w/ &'s removed) */
 	size_t	rightLen;	/* Length of replacement */
+
+	regex_t			re;
+	int			nsub;
+	regmatch_t		*matches;
+
 	int	flags;
 } VarPattern;
-
-typedef struct {
-	regex_t		re;
-	int		nsub;
-	regmatch_t	*matches;
-	char		*replace;
-	int		flags;
-} VarREPattern;
 
 typedef Boolean VarModifyProc(const char *, Boolean, struct Buffer *, void *);
 

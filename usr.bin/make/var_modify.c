@@ -470,7 +470,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 Boolean
 VarRESubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 {
-    VarREPattern *pat;
+    VarPattern *pat;
     int xrv;
     const char *wp;
     char *rp;
@@ -502,7 +502,7 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 	    Buf_AddBytes(buf, pat->matches[0].rm_so, (const Byte *)wp);
 	}
 
-	for (rp = pat->replace; *rp; rp++) {
+	for (rp = pat->rhs; *rp; rp++) {
 	    if ((*rp == '\\') && ((rp[1] == '&') || (rp[1] == '\\'))) {
 		MAYBE_ADD_SPACE();
 		Buf_AddByte(buf, (Byte)rp[1]);
