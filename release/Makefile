@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.109 1995/02/26 01:35:32 phk Exp $
+#	$Id: Makefile,v 1.110 1995/02/26 20:45:34 phk Exp $
 #
 # How to roll a release:
 #
@@ -48,11 +48,12 @@ release:
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd ../../release"			>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "make doRELEASE RELEASEDIR=/R"	>> ${CHROOTDIR}/mk
+	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr ; cvs co src
+	cd ${CHROOTDIR}/usr ; cvs co src -P
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr ; cvs export -P -r ${RELEASETAG} src
 .endif
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
@@ -253,7 +254,6 @@ release.8:
 	done                                                 
 	touch release.8
 
-	.include <bsd.prog.mk>
 
 # Make source tarballs
 release.9:
@@ -272,7 +272,7 @@ release.9:
 	cp ${.CURDIR}/scripts/extract_src.sh \
 		${RD}/tarballs/src/extract.sh;\
 	echo "src distribution is finished."; \
-	#touch release.9
+	touch release.9
 
 # Various "subroutine" and other supporting targets.
 
@@ -302,3 +302,4 @@ ckRELEASEDIR:
 	@echo "To make a release RELEASEDIR must be defined" && false
 .endif               
 
+.include <bsd.prog.mk>
