@@ -1,16 +1,15 @@
 # $FreeBSD$ 
+MAINTAINER=	newton@atdot.dotat.org
 
-MAINTAINER  =  newton@atdot.dotat.org
+.PATH: ${.CURDIR}/../../dev/streams
+
+KMOD=	streams
+SRCS=	streams.c opt_streams.h
+NOMAN=
+
 .if defined(DEBUG)
 CFLAGS+= -DDEBUG_SVR4
 .endif
-
-.PATH:  ${.CURDIR}/../../dev/streams
-KMOD=   streams
-SRCS=   streams.c opt_streams.h
-
-NOMAN=
-
-CFLAGS+=	-O
+CFLAGS+= -O
 
 .include <bsd.kmod.mk>

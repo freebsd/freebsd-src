@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/md
+.PATH: ${.CURDIR}/../../dev/md
+
 KMOD=	md
 SRCS=	md.c opt_mfs.h opt_md.h vnode_if.h
 NOMAN=

@@ -1,6 +1,6 @@
-#	$FreeBSD$
+# $FreeBSD$
 
-.PATH:	${.CURDIR}/../../netncp
+.PATH: ${.CURDIR}/../../netncp
 
 KMOD=	ncp
 

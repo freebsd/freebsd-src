@@ -13,20 +13,20 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h opt_vmpage.h \
 	svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
 
-EXPORT_SYMS=_svr4_mod
-CLEANFILES= svr4_assym.h svr4_genassym.o
+EXPORT_SYMS=	_svr4_mod
+CLEANFILES=	svr4_assym.h svr4_genassym.o
 
-svr4_assym.h:	svr4_genassym.o
+svr4_assym.h: svr4_genassym.o
 .if exists(@)
-svr4_assym.h:	@/kern/genassym.sh
+svr4_assym.h: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh svr4_genassym.o > ${.TARGET}
 
-svr4_locore.o:	svr4_locore.s svr4_assym.h
+svr4_locore.o: svr4_locore.s svr4_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
-svr4_genassym.o:	svr4_genassym.c svr4.h @ machine
+svr4_genassym.o: svr4_genassym.c svr4.h @ machine
 	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 opt_compat.h:

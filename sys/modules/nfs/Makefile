@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../nfs
+
 KMOD=	nfs
 SRCS=	vnode_if.h \
 	nfs_bio.c nfs_node.c nfs_nqlease.c nfs_serv.c nfs_socket.c \
