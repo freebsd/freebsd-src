@@ -110,9 +110,10 @@ static udev_t	cn_udev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
 	&cn_udev_t, sizeof cn_udev_t, "T,dev_t", "");
 
-int	cons_unavail = 0;	/* XXX:
-				 * physical console not available for
-				 * input (i.e., it is in graphics mode)
+int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
+				 * which is currently unavailable for inpit
+				 * (i.e., if it is in graphics mode) will have
+				 * this bit cleared.
 				 */
 static int cn_mute;
 static int openflag;			/* how /dev/console was opened */
@@ -213,6 +214,10 @@ cnadd(struct consdev *cn)
 		printf("WARNING: console at %p has no name\n", cn);
 	}
 	STAILQ_INSERT_TAIL(&cn_devlist, cnd, cnd_next);
+
+	/* Add device to the active mask. */
+	cnavailable(cn, (cn->cn_flags & CN_FLAG_NOAVAIL) == 0);
+
 	return (0);
 }
 
@@ -220,6 +225,7 @@ void
 cnremove(struct consdev *cn)
 {
 	struct cn_device *cnd;
+	int i;
 
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		if (cnd->cnd_cn != cn)
@@ -229,6 +235,13 @@ cnremove(struct consdev *cn)
 			vn_close(cnd->cnd_vp, openflag, NOCRED, NULL);
 		cnd->cnd_vp = NULL;
 		cnd->cnd_cn = NULL;
+
+		/* Remove this device from available mask. */
+		for (i = 0; i < CNDEVTAB_SIZE; i++) 
+			if (cnd == &cn_devtab[i]) {
+				cons_avail_mask &= ~(1 << i);
+				break;
+			}
 #if 0
 		/*
 		 * XXX
@@ -256,6 +269,32 @@ cnselect(struct consdev *cn)
 		STAILQ_INSERT_HEAD(&cn_devlist, cnd, cnd_next);
 		return;
 	}
+}
+
+void
+cnavailable(struct consdev *cn, int available)
+{
+	int i;
+
+	for (i = 0; i < CNDEVTAB_SIZE; i++) {
+		if (cn_devtab[i].cnd_cn == cn)
+			break;
+	}
+	if (available) {
+		if (i < CNDEVTAB_SIZE)
+			cons_avail_mask |= (1 << i); 
+		cn->cn_flags &= ~CN_FLAG_NOAVAIL;
+	} else {
+		if (i < CNDEVTAB_SIZE)
+			cons_avail_mask &= ~(1 << i);
+		cn->cn_flags |= CN_FLAG_NOAVAIL;
+	}
+}
+
+int
+cn_unavailable(void)
+{
+	return (cons_avail_mask == 0);
 }
 
 void

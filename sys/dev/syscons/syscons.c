@@ -97,6 +97,7 @@ static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
+static  struct consdev	*sc_consptr;
 static	void		*kernel_console_ts;
 
 static  char        	init_done = COLD;
@@ -526,7 +527,7 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
 	DPRINTF(5, ("sc%d: scclose(), ", scp->sc->unit));
 	s = spltty();
 	if ((scp == scp->sc->cur_scp) && (scp->sc->unit == sc_console_unit))
-	    cons_unavail = FALSE;
+	    cnavailable(sc_consptr, TRUE);
 	if (finish_vt_rel(scp, TRUE, &s) == 0)	/* force release */
 	    DPRINTF(5, ("reset WAIT_REL, "));
 	if (finish_vt_acq(scp) == 0)		/* force acknowledge */
@@ -927,7 +928,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    scp->pid = 0;
 	    DPRINTF(5, ("VT_AUTO, "));
 	    if ((scp == sc->cur_scp) && (sc->unit == sc_console_unit))
-		cons_unavail = FALSE;
+		cnavailable(sc_consptr, TRUE);
 	    /* were we in the middle of the vty switching process? */
 	    if (finish_vt_rel(scp, TRUE, &s) == 0)
 		DPRINTF(5, ("reset WAIT_REL, "));
@@ -945,7 +946,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    scp->proc = td->td_proc;
 	    scp->pid = scp->proc->p_pid;
 	    if ((scp == sc->cur_scp) && (sc->unit == sc_console_unit))
-		cons_unavail = TRUE;
+		cnavailable(sc_consptr, FALSE);
 	}
 	splx(s);
 	DPRINTF(5, ("\n"));
@@ -1419,6 +1420,7 @@ sccninit(struct consdev *cp)
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
+    sc_consptr = cp;
 #endif /* !__alpha__ */
 
 #if __alpha__
@@ -1474,6 +1476,7 @@ sccnattach(void)
 
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
+    sc_consptr = &consdev;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     sprintf(consdev.cn_name, "ttyv%r", 0);
     cnadd(&consdev);
@@ -2356,7 +2359,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     sc->switch_in_progress = 0;
     if (sc->unit == sc_console_unit)
-	cons_unavail = FALSE;
+	cnavailable(sc_consptr,  TRUE);
     splx(s);
     DPRINTF(5, ("switch done\n"));
 
@@ -2378,7 +2381,7 @@ do_switch_scr(sc_softc_t *sc, int s)
     if (!signal_vt_acq(sc->cur_scp)) {
 	sc->switch_in_progress = 0;
 	if (sc->unit == sc_console_unit)
-	    cons_unavail = FALSE;
+	    cnavailable(sc_consptr,  TRUE);
     }
 
     return s;
@@ -2420,7 +2423,7 @@ signal_vt_acq(scr_stat *scp)
     if (scp->smode.mode != VT_PROCESS)
 	return FALSE;
     if (scp->sc->unit == sc_console_unit)
-	cons_unavail = TRUE;
+	cnavailable(sc_consptr,  FALSE);
     scp->status |= SWITCH_WAIT_ACQ;
     PROC_LOCK(scp->proc);
     psignal(scp->proc, scp->smode.acqsig);
