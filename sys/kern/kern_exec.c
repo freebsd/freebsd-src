@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.40 1996/05/01 02:42:47 bde Exp $
+ *	$Id: kern_exec.c,v 1.41 1996/05/18 03:37:01 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ static int exec_check_permissions(struct image_params *);
  * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
  * of the sysctl code also assumes this, and sizeof(int) == sizeof(long).
  */
-static caddr_t ps_strings = (caddr_t)PS_STRINGS;
+static struct ps_strings *ps_strings = PS_STRINGS;
 SYSCTL_INT(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
 
 static caddr_t usrstack = (caddr_t)USRSTACK;
