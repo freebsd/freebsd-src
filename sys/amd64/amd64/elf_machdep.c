@@ -170,7 +170,7 @@ elf_reloc_internal(linker_file_t lf, const void *data, int type, int local)
 			break;
 
 		default:
-			printf("kldload: unexpected relocation type %d\n",
+			printf("kldload: unexpected relocation type %ld\n",
 			       rtype);
 			return -1;
 	}

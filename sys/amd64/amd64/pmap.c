@@ -1797,8 +1797,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
-		panic("pmap_enter: invalid page directory pdir=%#jx, va=%#x\n",
-			(uintmax_t)pmap->pm_pdir[PTDPTDI], va);
+		panic("pmap_enter: invalid page directory pdir=%#lx, va=%#lx\n",
+			pmap->pm_pdir[PTDPTDI], va);
 	}
 
 	pa = VM_PAGE_TO_PHYS(m) & PG_FRAME;
@@ -1869,7 +1869,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		err = pmap_remove_pte(pmap, pte, va);
 		vm_page_unlock_queues();
 		if (err)
-			panic("pmap_enter: pte vanished, va: 0x%x", va);
+			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	}
 
 	/*
@@ -2563,7 +2563,7 @@ pmap_remove_pages(pmap, sva, eva)
 		tpte = *pte;
 
 		if (tpte == 0) {
-			printf("TPTE at %p  IS ZERO @ VA %08x\n",
+			printf("TPTE at %p  IS ZERO @ VA %08lx\n",
 							pte, pv->pv_va);
 			panic("bad pte");
 		}
