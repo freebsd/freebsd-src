@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.13 1995/09/16 05:18:20 ache Exp $
+ * $Id: startslip.c,v 1.14 1995/09/17 21:47:24 ache Exp $
  */
 
 #ifndef lint
@@ -69,6 +69,7 @@ int     speed = DEFAULT_BAUD;
 #define FC_HW           1       /* flow control: hardware (RTS/CTS) */
 int	flowcontrol = FC_NONE;
 int     modem_control = 1;      /* !CLOCAL+HUPCL iff we watch carrier. */
+int     sl_unit = -1;
 char	*annex;
 int	hup;
 int     terminate;
@@ -120,7 +121,7 @@ main(argc, argv)
 	pid_t pid;
 	struct termios t;
 
-	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -165,6 +166,9 @@ main(argc, argv)
 			break;
 		case 'O':
 			outfill = atoi(optarg);
+			break;
+		case 'S':
+			sl_unit = atoi(optarg);
 			break;
 		case '?':
 		default:
@@ -422,6 +426,10 @@ restart:
 		    devicename);
 		down(2);
 	}
+	if (sl_unit >= 0 && ioctl(fd, SLIOCSUNIT, &sl_unit) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSUNIT): %m");
+		down(2);
+	}
 	if (ioctl(fd, SLIOCGUNIT, (caddr_t)&unitnum) < 0) {
 		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
 		down(2);
@@ -572,9 +580,9 @@ down(code)
 usage()
 {
 	(void)fprintf(stderr, "\
-usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname]\n\
-	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout]\n\
-	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill]\n\
+usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname] \\\n\
+	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout] \\\n\
+	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill] [-S unit] \\\n\
 	device user passwd\n");
 	exit(1);
 }
