@@ -32,6 +32,9 @@
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/cdefs.h>
 #include <string.h>
 #include "stand.h"
 

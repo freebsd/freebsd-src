@@ -35,6 +35,9 @@
  *	@(#)stat.c	8.1 (Berkeley) 6/11/93
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "stand.h"
 
 int
