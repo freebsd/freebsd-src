@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.19 1996/07/11 16:31:56 wollman Exp $
+ * $Id: uipc_socket.c,v 1.20 1996/10/07 04:32:26 pst Exp $
  */
 
 #include <sys/param.h>
@@ -708,6 +708,8 @@ dontblock:
 			splx(s);
 			error = uiomove(mtod(m, caddr_t) + moff, (int)len, uio);
 			s = splnet();
+			if (error)
+				goto release;
 		} else
 			uio->uio_resid -= len;
 		if (len == m->m_len - moff) {
