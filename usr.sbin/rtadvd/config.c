@@ -72,11 +72,14 @@
 #include "if.h"
 #include "config.h"
 
-static void makeentry __P((char *, int, char *, int));
+static time_t prefix_timo = (60 * 120);	/* 2 hours.
+					 * XXX: should be configurable. */
+extern struct rainfo *ralist;
+
+static struct rtadvd_timer *prefix_timeout __P((void *));
+static void makeentry __P((char *, size_t, int, char *, int));
 static void get_prefix __P((struct rainfo *));
 static int getinet6sysctl __P((int));
-
-extern struct rainfo *ralist;
 
 void
 getconfig(intface)
@@ -310,10 +313,12 @@ getconfig(intface)
 
 			/* link into chain */
 			insque(pfx, &tmp->prefix);
+			pfx->rainfo = tmp;
 
 			pfx->origin = PREFIX_FROM_CONFIG;
 
-			makeentry(entbuf, i, "prefixlen", added);
+			makeentry(entbuf, sizeof(entbuf), i, "prefixlen",
+			    added);
 			MAYHAVE(val, entbuf, 64);
 			if (val < 0 || val > 128) {
 				syslog(LOG_ERR,
@@ -323,7 +328,8 @@ getconfig(intface)
 			}
 			pfx->prefixlen = (int)val;
 
-			makeentry(entbuf, i, "pinfoflags", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pinfoflags",
+			    added);
 #ifdef MIP6
 			if (mobileip6)
 			{
@@ -342,7 +348,7 @@ getconfig(intface)
 			pfx->routeraddr = val & ND_OPT_PI_FLAG_ROUTER;
 #endif
 
-			makeentry(entbuf, i, "vltime", added);
+			makeentry(entbuf, sizeof(entbuf), i, "vltime", added);
 			MAYHAVE(val64, entbuf, DEF_ADVVALIDLIFETIME);
 			if (val64 < 0 || val64 > 0xffffffff) {
 				syslog(LOG_ERR,
@@ -352,7 +358,8 @@ getconfig(intface)
 			}
 			pfx->validlifetime = (u_int32_t)val64;
 
-			makeentry(entbuf, i, "vltimedecr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "vltimedecr",
+			    added);
 			if (agetflag(entbuf)) {
 				struct timeval now;
 				gettimeofday(&now, 0);
@@ -360,7 +367,7 @@ getconfig(intface)
 					now.tv_sec + pfx->validlifetime;
 			}
 
-			makeentry(entbuf, i, "pltime", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pltime", added);
 			MAYHAVE(val64, entbuf, DEF_ADVPREFERREDLIFETIME);
 			if (val64 < 0 || val64 > 0xffffffff) {
 				syslog(LOG_ERR,
@@ -370,7 +377,8 @@ getconfig(intface)
 			}
 			pfx->preflifetime = (u_int32_t)val64;
 
-			makeentry(entbuf, i, "pltimedecr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "pltimedecr",
+			    added);
 			if (agetflag(entbuf)) {
 				struct timeval now;
 				gettimeofday(&now, 0);
@@ -378,7 +386,7 @@ getconfig(intface)
 					now.tv_sec + pfx->preflifetime;
 			}
 
-			makeentry(entbuf, i, "addr", added);
+			makeentry(entbuf, sizeof(entbuf), i, "addr", added);
 			addr = (char *)agetstr(entbuf, &bp);
 			if (addr == NULL) {
 				syslog(LOG_ERR,
@@ -457,7 +465,7 @@ getconfig(intface)
 		/* link into chain */
 		insque(rti, &tmp->route);
 
-		makeentry(entbuf, i, "rtrplen", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrplen", added);
 		MAYHAVE(val, entbuf, 64);
 		if (val < 0 || val > 128) {
 			syslog(LOG_ERR,
@@ -467,7 +475,7 @@ getconfig(intface)
 		}
 		rti->prefixlen = (int)val;
 
-		makeentry(entbuf, i, "rtrflags", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrflags", added);
 		MAYHAVE(val, entbuf, 0);
 		rti->rtpref = val & ND_RA_FLAG_RTPREF_MASK;
 		if (rti->rtpref == ND_RA_FLAG_RTPREF_RSV) {
@@ -476,7 +484,7 @@ getconfig(intface)
 			exit(1);
 		}
 
-		makeentry(entbuf, i, "rtrltime", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrltime", added);
 		/*
 		 * XXX: since default value of route lifetime is not defined in
 		 * draft-draves-route-selection-01.txt, I took the default 
@@ -492,7 +500,7 @@ getconfig(intface)
 		}
 		rti->ltime = (u_int32_t)val64;
 
-		makeentry(entbuf, i, "rtrprefix", added);
+		makeentry(entbuf, sizeof(entbuf), i, "rtrprefix", added);
 		addr = (char *)agetstr(entbuf, &bp);
 		if (addr == NULL) {
 			syslog(LOG_ERR,
@@ -561,6 +569,8 @@ get_prefix(struct rainfo *rai)
 		exit(1);
 	}
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		int plen;
+
 		if (strcmp(ifa->ifa_name, rai->ifname) != 0)
 			continue;
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -568,6 +578,21 @@ get_prefix(struct rainfo *rai)
 		a = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
 		if (IN6_IS_ADDR_LINKLOCAL(a))
 			continue;
+
+		/* get prefix length */
+		m = (u_char *)&((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr;
+		lim = (u_char *)(ifa->ifa_netmask) + ifa->ifa_netmask->sa_len;
+		plen = prefixlen(m, lim);
+		if (plen < 0 || plen > 128) {
+			syslog(LOG_ERR, "<%s> failed to get prefixlen "
+			       "or prefix is invalid",
+			       __FUNCTION__);
+			exit(1);
+		}
+		if (find_prefix(rai, a, plen)) {
+			/* ignore a duplicated prefix. */
+			continue;
+		}
 
 		/* allocate memory to store prefix info. */
 		if ((pp = malloc(sizeof(*pp))) == NULL) {
@@ -578,19 +603,8 @@ get_prefix(struct rainfo *rai)
 		}
 		memset(pp, 0, sizeof(*pp));
 
-		/* set prefix length */
-		m = (u_char *)&((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr;
-		lim = (u_char *)(ifa->ifa_netmask) + ifa->ifa_netmask->sa_len;
-		pp->prefixlen = prefixlen(m, lim);
-		if (pp->prefixlen < 0 || pp->prefixlen > 128) {
-			syslog(LOG_ERR,
-			       "<%s> failed to get prefixlen "
-			       "or prefix is invalid",
-			       __FUNCTION__);
-			exit(1);
-		}
-
 		/* set prefix, sweep bits outside of prefixlen */
+		pp->prefixlen = plen;
 		memcpy(&pp->prefix, a, sizeof(*a));
 		p = (u_char *)&pp->prefix;
 		ep = (u_char *)(&pp->prefix + 1);
@@ -626,17 +640,21 @@ get_prefix(struct rainfo *rai)
 }
 
 static void
-makeentry(buf, id, string, add)
-    char *buf, *string;
-    int id, add;
+makeentry(buf, len, id, string, add)
+	char *buf;
+	size_t len;
+	int id;
+	char *string;
+	int add;
 {
+	char *ep = buf + len;
+
 	strcpy(buf, string);
 	if (add) {
 		char *cp;
 
 		cp = (char *)index(buf, '\0');
-		cp += sprintf(cp, "%d", id);
-		*cp = '\0';
+		snprintf(cp, ep - cp, "%d", id);
 	}
 }
 
@@ -668,6 +686,7 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 	prefix->origin = PREFIX_FROM_DYNAMIC;
 
 	insque(prefix, &rai->prefix);
+	prefix->rainfo = rai;
 
 	syslog(LOG_DEBUG, "<%s> new prefix %s/%d was added on %s",
 	       __FUNCTION__, inet_ntop(AF_INET6, &ipr->ipr_prefix.sin6_addr,
@@ -696,18 +715,82 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
  * The prefix must be in the list.
  */
 void
-delete_prefix(struct rainfo *rai, struct prefix *prefix)
+delete_prefix(struct prefix *prefix)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct rainfo *rai = prefix->rainfo;
 
 	remque(prefix);
 	syslog(LOG_DEBUG, "<%s> prefix %s/%d was deleted on %s",
 	       __FUNCTION__, inet_ntop(AF_INET6, &prefix->prefix,
 				       ntopbuf, INET6_ADDRSTRLEN),
 	       prefix->prefixlen, rai->ifname);
+	if (prefix->timer)
+		rtadvd_remove_timer(&prefix->timer);
 	free(prefix);
 	rai->pfxs--;
-	make_packet(rai);
+}
+
+void
+invalidate_prefix(struct prefix *prefix)
+{
+	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct timeval timo;
+	struct rainfo *rai = prefix->rainfo;
+
+	if (prefix->timer) {	/* sanity check */
+		syslog(LOG_ERR,
+		    "<%s> assumption failure: timer already exists",
+		    __FUNCTION__);
+		exit(1);
+	}
+
+	syslog(LOG_DEBUG, "<%s> prefix %s/%d was invalidated on %s, "
+	    "will expire in %ld seconds", __FUNCTION__,
+	    inet_ntop(AF_INET6, &prefix->prefix, ntopbuf, INET6_ADDRSTRLEN),
+	    prefix->prefixlen, rai->ifname, (long)prefix_timo);
+
+	/* set the expiration timer */
+	prefix->timer = rtadvd_add_timer(prefix_timeout, NULL, prefix, NULL);
+	if (prefix->timer == NULL) {
+		syslog(LOG_ERR, "<%s> failed to add a timer for a prefix. "
+		    "remove the prefix", __FUNCTION__);
+		delete_prefix(prefix);
+	}
+	timo.tv_sec = prefix_timo;
+	timo.tv_usec = 0;
+	rtadvd_set_timer(&timo, prefix->timer);
+}
+
+static struct rtadvd_timer *
+prefix_timeout(void *arg)
+{
+	struct prefix *prefix = (struct prefix *)arg;
+	
+	delete_prefix(prefix);
+
+	return(NULL);
+}
+
+void
+update_prefix(struct prefix * prefix)
+{
+	u_char ntopbuf[INET6_ADDRSTRLEN];
+	struct rainfo *rai = prefix->rainfo;
+
+	if (prefix->timer == NULL) { /* sanity check */
+		syslog(LOG_ERR,
+		    "<%s> assumption failure: timer does not exist",
+		    __FUNCTION__);
+		exit(1);
+	}
+
+	syslog(LOG_DEBUG, "<%s> prefix %s/%d was re-enabled on %s",
+	    __FUNCTION__, inet_ntop(AF_INET6, &prefix->prefix, ntopbuf,
+	    INET6_ADDRSTRLEN), prefix->prefixlen, rai->ifname);
+
+	/* stop the expiration timer */
+	rtadvd_remove_timer(&prefix->timer);
 }
 
 /*
@@ -718,6 +801,7 @@ delete_prefix(struct rainfo *rai, struct prefix *prefix)
 static int
 init_prefix(struct in6_prefixreq *ipr)
 {
+#if 0
 	int s;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -750,6 +834,13 @@ init_prefix(struct in6_prefixreq *ipr)
 
 	close(s);
 	return 0;
+#else
+	ipr->ipr_vltime = DEF_ADVVALIDLIFETIME;
+	ipr->ipr_pltime = DEF_ADVPREFERREDLIFETIME;
+	ipr->ipr_raf_onlink = 1;
+	ipr->ipr_raf_auto = 1;
+        return 0;
+#endif
 }
 
 void
@@ -921,18 +1012,26 @@ make_packet(struct rainfo *rainfo)
 			ndopt_pi->nd_opt_pi_flags_reserved |=
 				ND_OPT_PI_FLAG_ROUTER;
 #endif
-		if (pfx->vltimeexpire || pfx->pltimeexpire)
-			gettimeofday(&now, NULL);
-		if (pfx->vltimeexpire == 0)
-			vltime = pfx->validlifetime;
-		else
-			vltime = (pfx->vltimeexpire > now.tv_sec) ?
-				pfx->vltimeexpire - now.tv_sec : 0;
-		if (pfx->pltimeexpire == 0)
-			pltime = pfx->preflifetime;
-		else
-			pltime = (pfx->pltimeexpire > now.tv_sec) ? 
-				pfx->pltimeexpire - now.tv_sec : 0;
+		if (pfx->timer)
+			vltime = 0;
+		else {
+			if (pfx->vltimeexpire || pfx->pltimeexpire)
+				gettimeofday(&now, NULL);
+			if (pfx->vltimeexpire == 0)
+				vltime = pfx->validlifetime;
+			else
+				vltime = (pfx->vltimeexpire > now.tv_sec) ?
+				    pfx->vltimeexpire - now.tv_sec : 0;
+		}
+		if (pfx->timer)
+			pltime = 0;
+		else {
+			if (pfx->pltimeexpire == 0)
+				pltime = pfx->preflifetime;
+			else
+				pltime = (pfx->pltimeexpire > now.tv_sec) ? 
+				    pfx->pltimeexpire - now.tv_sec : 0;
+		}
 		if (vltime < pltime) {
 			/*
 			 * this can happen if vltime is decrement but pltime
