@@ -228,6 +228,7 @@ struct ieee80211com {
 #define	IEEE80211_C_SHSLOT	0x00000080	/* CAPABILITY: short slottime */
 #define	IEEE80211_C_SHPREAMBLE	0x00000100	/* CAPABILITY: short preamble */
 #define	IEEE80211_C_MONITOR	0x00000200	/* CAPABILITY: monitor mode */
+#define	IEEE80211_C_RCVMGT	0x00000400	/* CAPABILITY: rcv mgt frames */
 
 /* flags for ieee80211_fix_rate() */
 #define	IEEE80211_F_DOSORT	0x00000001	/* sort rate list */
