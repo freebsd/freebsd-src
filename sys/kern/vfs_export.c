@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.84 1997/04/30 03:09:15 dyson Exp $
+ * $Id: vfs_subr.c,v 1.85 1997/05/04 09:17:29 phk Exp $
  */
 
 /*
@@ -2149,8 +2149,10 @@ vtouch(vp)
 		return;
 	}
 	if (simple_lock_try(&vnode_free_list_slock)) {
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		if (vp->v_freelist.tqe_prev != (struct vnode **)0xdeadb) {
+			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		}
 		simple_unlock(&vnode_free_list_slock);
 	}
 	simple_unlock(&vp->v_interlock);
