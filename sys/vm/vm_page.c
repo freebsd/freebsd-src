@@ -604,8 +604,9 @@ vm_page_remove(vm_page_t m)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->object == NULL)
 		return;
-	if (!VM_OBJECT_LOCKED(m->object))
-		GIANT_REQUIRED;
+#ifndef	__alpha__
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+#endif
 	if ((m->flags & PG_BUSY) == 0) {
 		panic("vm_page_remove: page not busy");
 	}
