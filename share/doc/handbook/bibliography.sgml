@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.2 1995/06/30 17:37:30 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -16,33 +16,52 @@
 	<heading>Users' guides</heading>
 
 	<p><itemize>
-	    <item>Gilley, Daniel. <sl>Unix in a Nutshell</sl>.
-	      O'Reilly &amp; Associates, Inc. 1990</item>
+	  <item>Computer Systems Research Group, UC Berkeley.
+	    <sl>4.4BSD User's Reference Manual</sl>.
+	    O'Reilly &amp; Associates, Inc., 1994.
+	    <newline>ISBN 1-56592-075-9</item>
+
+	  <item>Computer Systems Research Group, UC Berkeley.
+	    <sl>4.4BSD User's Supplementary Documents</sl>.
+	    O'Reilly &amp; Associates, Inc., 1994.
+	    <newline>ISBN 1-56592-076-7</item>
+
+	    <item><sl>Unix in a Nutshell</sl>.
+	      O'Reilly &amp; Associates, Inc., 1990.
+	      <newline>ISBN 093717520X</item>
 	  </itemize>
+
+
 
       <sect>
 	<heading>Administrators' guides</heading>
 
 	<p><itemize> 
 
-	    <item>Albitz, Paul; Liu, Cricket. <em>DNS and
-		BIND</em>.  O'Reilley &amp; Associates. 1993. ISBN
-		1-56592-010-4 </item>
+	    <item>Albitz, Paul and Liu, Cricket. <em>DNS and
+		BIND</em>.  O'Reilly &amp; Associates, Inc., 1993. 
+		<newline>ISBN 1-56592-010-4 </item>
 
-	    <item>Costales, Brian; Allman, Eric; Rickert,
-		Neil. <em>sendmail</em> O'Reilley &amp;
-		Associates. 1993. ISBN 1-56592-056-2 </item>
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD System Manager's Manual</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-080-5</item>
+
+	    <item>Costales, Brian, et al.
+		<em>Sendmail</em>. O'Reilly &amp;
+		Associates, Inc., 1993. <newline>ISBN 1-56592-056-2 </item>
 
 	    <item>Frisch, &AElig;leen. <em>Essential System
-	      Administration</em>.  O'Reilley &amp;
-	      Associates. 1993. ISBN 0-937175-80-3 </item>
+	      Administration</em>.  O'Reilly &amp;
+	      Associates, Inc., 1993. <newline>ISBN 0-937175-80-3 </item>
 
-	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>
-                O'Reilley &amp; Associates. 1992.  ISBN 0-937175-82-X</item>
+	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>.
+                O'Reilly &amp; Associates, Inc., 1992.  
+		<newline>ISBN 0-937175-82-X</item>
 
 	    <item>Nemeth, Evi. <em>Unix System Administration
-		Handbook</em>.  Prentice Hall. 1989. ISBN
-		0-13-933441-6</item>
+		Handbook</em>. 2nd ed. Prentice Hall, 1995. 
+		<newline>ISBN 0131510517</item>
 
 	  </itemize>
 
@@ -54,18 +73,27 @@
 	<p><itemize> 
 
 	    <item>Asente, Paul. <em>X Window System
-		Toolkit</em>. Digital Press.  ISBN
-		1-55558-051-3</item>
+		Toolkit</em>. Digital Press.  
+		<newline>ISBN 1-55558-051-3</item>
+
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD Programmer's Reference Manual</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-078-3</item>
+
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD Programmer's Supplementary Documents</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-079-1</item>
 
 	    <item>Ellis, Margaret A. and Stroustrup,
 		Bjarne. <em>The Annotated C++ Reference
-		Manual</em>. Addison-Wesley. 1990.  ISBN
-		0-201-51459-1</item>
+		Manual</em>. Addison-Wesley, 1990.  
+		<newline>ISBN 0-201-51459-1</item>
 
 	    <item>Harbison, Samuel P. and Steele, Guy
-		L. Jr. <em>C: A Reference Manual</em>.  Prentice
-		Hall. 3rd Edition, 1991.  ISBN
-		0-13-110933-2</item>
+		L. Jr. <em>C: A Reference Manual</em>.  3rd ed. Prentice
+		Hall, 1991.  <newline>ISBN 0-13-110933-2</item>
 
 	    <item>Jolitz, William.  "Porting UNIX to the
 	      386". <em>Dr. Dobb's Journal</em>.  January
@@ -73,11 +101,11 @@
 
 	    <item>Leffler, Samuel J. <em>The Design and
 		implementation of the 4.3BSD UNIX operating
-		system</em>.  Addison-Wesley. 1989.</item>
+		system</em>.  Addison-Wesley, 1989.</item>
 
 	    <item>Plauger, P. J. <em>The Standard C
-		Library</em>. Prentice Hall.  1992.  ISBN
-		0-13-131509-9</item>
+		Library</em>. Prentice Hall, 1992.  
+		<newline>ISBN 0-13-131509-9</item>
 
 	    <item>Wells, Bill.  "Writing Serial Drivers for UNIX".
 	      <em>Dr. Dobb's Journal</em>.  19(15), December
@@ -90,9 +118,19 @@
 
 	<p><itemize>
 
-	    <item>Stanley, Tom; Anderson, Don. <em>PCI System
-		Architechure</em>.  Mindshare, Inc. ISBN
-		1-881609-08-1</item>
+	    <item>Stanley, Tom. <em>ISA System
+		Architechure</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995.
+		<newline>ISBN 0201409968</item>
+
+	    <item>Stanley, Tom. <em>PCI System
+		Architechure</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995. <newline>ISBN
+		0201409933</item>
+
+	    <item>Van Gilluwe, Frank. <em>The Undocumented PC</em>.
+		Reading, Mass: Addison-Wesley Pub. Co., 1994.
+		<newline>ISBN 0-201-62277-7</item>
 
 	  </itemize>
 
