@@ -90,7 +90,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	 * Make sure the context is valid.  For now, we only allow
 	 * trapframe format contexts to be used for makecontext.
 	 */
-	else if (ucp->uc_mcontext.mc_format == _MC_REV0_SIGFRAME) {
+	else if (ucp->uc_mcontext.mc_format == _MC_REV0_TRAPFRAME) {
 		/*
 		 * Alpha passes the first 6 parameters in registers and
 		 * remaining parameters on the stack.  Set up the context
@@ -119,15 +119,15 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		va_start(ap, argc);
 		for (i = 0; i < argc; i++) {
 			switch (i) {
-			case 0:	ucp->uc_mcontext.mc_regs[FRAME_TRAPARG_A0] =
+			case 0:	ucp->uc_mcontext.mc_regs[FRAME_A0] =
 				    (unsigned long)va_arg(ap, intptr_t);
 				break;
 
-			case 1: ucp->uc_mcontext.mc_regs[FRAME_TRAPARG_A1] =
+			case 1: ucp->uc_mcontext.mc_regs[FRAME_A1] =
 				    (unsigned long)va_arg(ap, intptr_t);
 				break;
 
-			case 2:	ucp->uc_mcontext.mc_regs[FRAME_TRAPARG_A2] =
+			case 2:	ucp->uc_mcontext.mc_regs[FRAME_A2] =
 				    (unsigned long)va_arg(ap, intptr_t);
 				break;
 
