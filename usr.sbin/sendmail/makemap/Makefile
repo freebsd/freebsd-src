@@ -2,7 +2,7 @@
 
 PROG=	makemap
 MAN8=	makemap.8
-CFLAGS+=-I${.CURDIR}/../src -DNDBM -DNEWDB
+CFLAGS+=-I${.CURDIR}/../src -DNEWDB
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
