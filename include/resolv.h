@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 4.9.1.2 1993/05/17 09:59:01 vixie Exp
- *	$Id: resolv.h,v 1.2 1994/09/25 02:11:32 pst Exp $
+ *	$Id: resolv.h,v 1.3 1995/05/30 04:54:44 rgrimes Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -72,7 +72,7 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__RES	19940415
+#define	__RES	19950621
 
 /*
  * Resolver configuration file.
@@ -120,20 +120,21 @@ struct __res_state {
 /*
  * Resolver options (keep these in synch with res_debug.c, please)
  */
-#define	RES_INIT	0x00000001	/* address initialized */
-#define	RES_DEBUG	0x00000002	/* print debug messages */
-#define	RES_AAONLY	0x00000004	/* authoritative answers only */
-#define	RES_USEVC	0x00000008	/* use virtual circuit */
-#define	RES_PRIMARY	0x00000010	/* query primary server only */
-#define	RES_IGNTC	0x00000020	/* ignore trucation errors */
-#define	RES_RECURSE	0x00000040	/* recursion desired */
-#define	RES_DEFNAMES	0x00000080	/* use default domain name */
-#define	RES_STAYOPEN	0x00000100	/* Keep TCP socket open */
-#define	RES_DNSRCH	0x00000200	/* search up local domain tree */
+#define RES_INIT	0x00000001	/* address initialized */
+#define RES_DEBUG	0x00000002	/* print debug messages */
+#define RES_AAONLY	0x00000004	/* authoritative answers only (!IMPL)*/
+#define RES_USEVC	0x00000008	/* use virtual circuit */
+#define RES_PRIMARY	0x00000010	/* query primary server only (!IMPL) */
+#define RES_IGNTC	0x00000020	/* ignore trucation errors */
+#define RES_RECURSE	0x00000040	/* recursion desired */
+#define RES_DEFNAMES	0x00000080	/* use default domain name */
+#define RES_STAYOPEN	0x00000100	/* Keep TCP socket open */
+#define RES_DNSRCH	0x00000200	/* search up local domain tree */
 #define	RES_INSECURE1	0x00000400	/* type 1 security disabled */
 #define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
+#define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
 
-#define	RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
+#define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
 /*
  * Resolver "pfcode" values.  Used by dig.
@@ -190,6 +191,10 @@ extern struct __res_state _res;
 #define	p_fqname	__p_fqname
 #define	p_rr		__p_rr
 #define	p_option	__p_option
+#define	res_randomid	__res_randomid
+#define	res_isourserver	__res_isourserver
+#define	res_nameinquery	__res_nameinquery
+#define	res_queriesmatch __res_queriesmatch
 
 __BEGIN_DECLS
 int	 __dn_skipname __P((const u_char *, const u_char *));
@@ -212,6 +217,7 @@ int	 dn_comp __P((const char *, u_char *, int, u_char **, u_char **));
 int	 dn_expand __P((const u_char *, const u_char *, const u_char *,
 			char *, int));
 int	 res_init __P((void));
+u_int16_t res_randomid __P((void));
 int	 res_query __P((const char *, int, int, u_char *, int));
 int	 res_search __P((const char *, int, int, u_char *, int));
 int	 res_querydomain __P((const char *, const char *, int, int,
@@ -219,6 +225,11 @@ int	 res_querydomain __P((const char *, const char *, int, int,
 int	 res_mkquery __P((int, const char *, int, int, const u_char *, int,
 			  const u_char *, u_char *, int));
 int	 res_send __P((const u_char *, int, u_char *, int));
+int	 res_isourserver __P((const struct sockaddr_in *));
+int	 res_nameinquery __P((const char *, int, int,
+			      const u_char *, const u_char *));
+int	 res_queriesmatch __P((const u_char *, const u_char *,
+			       const u_char *, const u_char *));
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */
