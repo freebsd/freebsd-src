@@ -2520,7 +2520,6 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 		pSRB->pSRBSGL->address = pSRB->SgSenseTemp.address;
 		pSRB->pSRBSGL->length = pSRB->SgSenseTemp.length;
 		pcsio->scsi_status = SCSI_STATUS_CHECK_COND;
-		bzero(&pcsio->sense_data, pcsio->sense_len);
 		bcopy(trm_get_sense_buf(pACB, pSRB), &pcsio->sense_data,
 		    pcsio->sense_len);
 		pcsio->ccb_h.status = CAM_SCSI_STATUS_ERROR 
@@ -3401,7 +3400,6 @@ trm_init(u_int16_t unit, device_t dev)
 		printf("trm%d: cannot allocate ACB !\n", unit);
 		return (NULL);
 	}
-	bzero (pACB, sizeof (struct _ACB));
 	pACB->iores = bus_alloc_resource(dev, SYS_RES_IOPORT, 
 	    &rid, 0, ~0, 1, RF_ACTIVE);
     	if (pACB->iores == NULL) {
