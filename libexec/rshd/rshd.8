@@ -127,20 +127,6 @@ from doing any validation based on the user's
 file,
 unless the user is the superuser.
 .It
-If the file
-.Pa /var/run/nologin
-exists and the user is not the superuser,
-the connection is closed.
-The name of the nologin file may be overridden
-using the nologin capability in
-.Pa /etc/login.conf
-according to the local user's login class,
-which may also be used to restrict
-.Xr rsh 1
-access by
-login time (times.allow and times.deny capabilities)
-and remote host (hosts.allow and hosts.deny capabilities).
-.It
 A
 .Tn NUL
 byte is returned on the initial socket
@@ -229,7 +215,6 @@ and is not preceded by a flag byte.
 .Xr hosts 5 ,
 .Xr hosts.equiv 5 ,
 .Xr login.conf 5 ,
-.Xr nologin 5 ,
 .Xr services 5 ,
 .Xr named 8 ,
 .Xr rlogind 8 ,
@@ -240,12 +225,10 @@ and is not preceded by a flag byte.
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
 .It Ev $HOME Ns Pa /.rhosts
-.It Pa /var/run/nologin
 .Pp
 .It Pa /etc/pam.conf
-If
 .Nm
-is configured with PAM support, it uses
+uses
 .Pa /etc/pam.conf
 entries with service name
 .Dq rsh .

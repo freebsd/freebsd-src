@@ -5,19 +5,12 @@ PROG=	rshd
 SRCS=	rshd.c
 MAN=	rshd.8
 
-#CFLAGS+= -DCRYPT
 WFORMAT=0
 
 DPADD+=	${LIBUTIL}
 LDADD+= -lutil
 
-.if !defined(NOPAM)
-CFLAGS+= -DUSE_PAM
-DPADD+=	${LIBPAM}
-LDADD+=	${MINUSLPAM}
-.endif
-
-# IPv6 support
-CFLAGS+= -DINET6
+DPADD+=	${LIBUTIL} ${LIBPAM}
+LDADD+= -lutil ${MINUSLPAM}
 
 .include <bsd.prog.mk>
