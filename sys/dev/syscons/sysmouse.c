@@ -78,13 +78,8 @@ smopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		return ENXIO;
 #endif
 
-	tp = dev->si_tty = ttymalloc(dev->si_tty);
+	tp = dev->si_tty;
 	if (!(tp->t_state & TS_ISOPEN)) {
-		sysmouse_tty = tp;
-		tp->t_oproc = smstart;
-		tp->t_param = smparam;
-		tp->t_stop = nottystop;
-		tp->t_dev = dev;
 		ttychars(tp);
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
@@ -239,9 +234,17 @@ static void
 sm_attach_mouse(void *unused)
 {
 	struct cdev *dev;
+	struct tty *tp;
 
 	dev = make_dev(&sm_cdevsw, SC_MOUSE, UID_ROOT, GID_WHEEL, 0600,
 		       "sysmouse");
+	dev->si_tty = tp = ttyalloc();
+	tp->t_oproc = smstart;
+	tp->t_param = smparam;
+	tp->t_stop = nottystop;
+	tp->t_dev = dev;
+
+	sysmouse_tty = tp;
 	/* sysmouse doesn't have scr_stat */
 }
 

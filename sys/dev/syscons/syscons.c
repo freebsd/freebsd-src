@@ -100,7 +100,7 @@ static	struct tty	*sc_console_tty;
 static  struct consdev	*sc_consptr;
 static	void		*kernel_console_ts;
 static	scr_stat	main_console;
-static	struct cdev *main_devs[MAXCONS];
+static	struct cdev 	*main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
@@ -291,6 +291,7 @@ static char
 int
 sc_attach_unit(int unit, int flags)
 {
+    struct tty *tp;
     sc_softc_t *sc;
     scr_stat *scp;
 #ifdef SC_PIXEL_MODE
@@ -385,7 +386,11 @@ sc_attach_unit(int unit, int flags)
 		dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
 		    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
 		sc->dev[vc] = dev;
-	    	sc->dev[vc]->si_tty = ttymalloc(sc->dev[vc]->si_tty);
+	    	tp = sc->dev[vc]->si_tty = ttyalloc();
+	        tp->t_oproc = scstart;
+	        tp->t_param = scparam;
+	        tp->t_stop = nottystop;
+	        tp->t_dev = sc->dev[vc];
 		if (vc == 0 && sc->dev == main_devs)
 			SC_STAT(sc->dev[0]) = &main_console;
 	}
@@ -398,7 +403,12 @@ sc_attach_unit(int unit, int flags)
 
     dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
 		   UID_ROOT, GID_WHEEL, 0600, "consolectl");
-    dev->si_tty = sc_console_tty = ttymalloc(sc_console_tty);
+    tp = dev->si_tty = sc_console_tty = ttyalloc();
+    ttyconsolemode(tp, 0);
+    tp->t_oproc = scstart;
+    tp->t_param = scparam;
+    tp->t_stop = nottystop;
+    tp->t_dev = dev;
     SC_STAT(dev) = sc_console;
 
     return 0;
@@ -463,17 +473,13 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
     DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
 		major(dev), minor(dev), unit, SC_VTY(dev)));
 
+    tp = dev->si_tty;
     sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
     if (sc == NULL)
 	return ENXIO;
 
-    tp = dev->si_tty = ttymalloc(dev->si_tty);
-    tp->t_oproc = scstart;
-    tp->t_param = scparam;
-    tp->t_stop = nottystop;
-    tp->t_dev = dev;
     if (!ISTTYOPEN(tp)) {
-	ttychars(tp);
+	tp->t_termios = tp->t_init_in;
         /* Use the current setting of the <-- key as default VERASE. */  
         /* If the Delete key is preferable, an stty is necessary     */
 #ifndef __sparc64__
@@ -483,11 +489,6 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
             tp->t_cc[VERASE] = key.key.map[0];
 	}
 #endif
-	tp->t_iflag = TTYDEF_IFLAG;
-	tp->t_oflag = TTYDEF_OFLAG;
-	tp->t_cflag = TTYDEF_CFLAG;
-	tp->t_lflag = TTYDEF_LFLAG;
-	tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	scparam(tp, &tp->t_termios);
 	ttyld_modem(tp, 1);
     }
@@ -2580,6 +2581,8 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 static void
 scinit(int unit, int flags)
 {
+    struct tty *tp;
+
     /*
      * When syscons is being initialized as the kernel console, malloc()
      * is not yet functional, because various kernel structures has not been
@@ -2689,7 +2692,11 @@ scinit(int unit, int flags)
 	    sc->dev = malloc(sizeof(struct cdev *)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
 	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
 	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
-	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
+	    tp = sc->dev[0]->si_tty = ttyalloc();
+	    tp->t_oproc = scstart;
+	    tp->t_param = scparam;
+	    tp->t_stop = nottystop;
+	    tp->t_dev = sc->dev[0];
 	    scp = alloc_scp(sc, sc->first_vty);
 	    SC_STAT(sc->dev[0]) = scp;
 	}
