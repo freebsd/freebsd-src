@@ -81,9 +81,8 @@ void
 dev_ref(struct cdev *dev)
 {
 
-	dev_lock();
+	mtx_assert(&devmtx, MA_OWNED);
 	dev->si_refcount++;
-	dev_unlock();
 }
 
 void
