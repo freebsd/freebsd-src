@@ -42,13 +42,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
-#include <sys/cons.h>
 
 #include <machine/cpu.h>
 
@@ -91,18 +91,18 @@ int	cons_unavail = 0;	/* XXX:
 
 static u_char cn_is_open;		/* nonzero if logical console is open */
 static int openmode, openflag;		/* how /dev/console was openned */
+static dev_t cn_devfsdev;		/* represents the device private info */
 static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;		/* physical device open function */
-struct consdev *cn_tab;			/* physical console device info */
-static dev_t condev_t;			/* represents the device private info */
+       struct consdev *cn_tab;		/* physical console device info */
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 void
 cninit()
 {
-	struct consdev **list, *best_cp, *cp;
+	struct consdev *best_cp, *cp, **list;
 
 	/*
 	 * Find the first console with the highest priority.
@@ -443,10 +443,8 @@ static void
 cn_drvinit(void *unused)
 {
 
-	condev_t = make_dev (&cn_cdevsw, 0,
-			UID_ROOT, GID_WHEEL, 0600, "console");
+	cn_devfsdev = make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "console");
 }
 
 SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
-
-
