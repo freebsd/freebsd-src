@@ -163,3 +163,31 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 	CTR1(KTR_TSB, "tsb_tte_enter: return tp=%p", tp);
 	return (tp);
 }
+
+/*
+ * Traverse the tsb of a pmap, calling the callback function for any tte entry
+ * that has a virtual address between start and end. If this function returns 0,
+ * tsb_foreach() terminates.
+ * This is used by pmap_remove() and pmap_protect() in the case that the number
+ * of pages in the range given to them reaches the dimensions of the tsb size as
+ * an optimization.
+ */
+void
+tsb_foreach(pmap_t pm, vm_offset_t start, vm_offset_t end,
+    tsb_callback_t *callback)
+{
+	vm_offset_t va;
+	struct tte *tp;
+	int i;
+
+	for (i = 0; i < TSB_SIZE; i++) {
+		tp = &pm->pm_tsb[i];
+		if ((tp->tte_data & TD_V) != 0) {
+			va = tte_get_va(*tp);
+			if (va >= start && va < end) {
+				if (!callback(pm, tp, va))
+					break;
+			}
+		}
+	}
+}
