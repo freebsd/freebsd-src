@@ -502,7 +502,7 @@ isa_probe_children(device_t dev)
 							    rle->type,
 							    &rid,
 							    0, ~0, 1,
-							    RF_ACTIVE);
+							    0 /* !RF_ACTIVE */);
 				}
 			}
 		}
