@@ -1,0 +1,39 @@
+#
+# /src/NTP/REPOSITORY/v3/kernel/Makefile.tmpl,v 3.4 1993/11/05 23:51:26 kardel Exp
+#
+#
+# parse routine that could be used in two places
+#
+COMPILER= cc
+COPTS= -O
+AUTHDEFS=-DDES
+LIBDEFS= -DBIG_ENDIAN
+RANLIB=		ranlib
+INSTALL= install
+CLOCKDEFS=
+DEFS=
+DEFS_OPT=
+DEFS_LOCAL=
+#
+INCL=-I../include
+CFLAGS=	$(COPTS) $(DEFS) $(DEFS_LOCAL) $(INCL)
+CC=		$(COMPILER)
+#
+
+all:
+	@echo $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) | \
+		awk '/-DREFCLOCK/ && ( /-D.*CLK/ || /-D.*PPS/ ) { makeit=1; }\
+			END { if (makeit) \
+				{ print ""; \
+				  print "### STREAMS kernel modules ppsclock, ppsclocd or line disciplines must"; \
+			 	  print "### be installed manually if needed"; \
+				  print "### see kernel/README* for details"; \
+				  print "### The parse reclock implementation has their own support in"; \
+				  print "### parse/*."; } }'
+
+clean:
+	-@rm -f *~ *.o *.out *.ln make.log Makefile.bak \
+		lintlib.errs lint.errs
+
+distclean:	clean
+	-@rm -f *.orig *.rej .version Makefile

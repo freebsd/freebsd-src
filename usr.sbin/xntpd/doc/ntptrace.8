@@ -1,0 +1,104 @@
+''' $Header
+''' 
+.de Sh
+.br
+.ne 5
+.PP
+\fB\\$1\fR
+.PP
+..
+.de Sp
+.if t .sp .5v
+.if n .sp
+..
+.de Ip
+.br
+.ie \\n.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+'''
+'''     Set up \*(-- to give an unbreakable dash;
+'''     string Tr holds user defined translation string.
+'''     Bell System Logo is used as a dummy character.
+'''
+.tr \(bs-|\(bv\*(Tr
+.ie n \{\
+.ds -- \(bs-
+.if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
+.if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+.ds L" ""
+.ds R" ""
+.ds L' '
+.ds R' '
+'br\}
+.el\{\
+.ds -- \(em\|
+.tr \*(Tr
+.ds L" ``
+.ds R" ''
+.ds L' `
+.ds R' '
+'br\}
+.TH NTPTRACE 8 LOCAL
+.SH NAME
+ntptrace - trace a chain of NTP hosts back to their master time source
+.SH SYNOPSIS
+.B ntptrace
+[
+.B -vdn
+] [
+.B -r
+.I retries
+] [
+.B -t
+.I timeout
+] [
+.I server
+]
+.SH DESCRIPTION
+.I Ntptrace
+determines where a given Network Time Protocol (NTP) server gets
+its time from, and follows the chain of NTP servers back to their
+master time source.
+If given no arguments, it starts with ``localhost.''
+.PP
+Here is an example of the output from
+.IR ntptrace :
+.RS 2
+.nf
+
+% ntptrace
+localhost: stratum 4, offset 0.0019529, synch distance 0.144135
+server2.bozo.com: stratum 2, offset 0.0124263, synch distance 0.115784
+usndh.edu: stratum 1, offset 0.0019298, synch distance 0.011993, refid 'WWVB'
+
+.fi
+.RE
+On each line, the fields are (left to right): the host name, the
+host's stratum,
+the time offset between that host and the local host
+(as measured by
+.IR ntptrace ;
+this is why it is not always zero for ``localhost''),
+the host's ``synchronization distance,''
+and (only for stratum-1 servers) the reference clock ID.  All times
+are given in seconds.  (Synchronization distance is a measure of the
+goodness of the clock's time.)
+.SH OPTIONS
+.IP "\-d" 5
+Turns on some debugging output.
+.IP "\-n" 5
+Turns off the printing of host names; instead, host IP addresses
+are given.  This may be necessary if a nameserver is down.
+.IP "\-r retries" 5
+Sets the number of retransmission attempts for each host; default = 5.
+.IP "\-t timeout" 5
+Sets the retransmission timeout (in seconds); default = 2.
+.IP "\-v" 5
+Prints verbose information about the NTP servers.
+.SH SEE ALSO
+xntpd(8), xntpdc(8)
+.SH BUGS
+This program makes no attempt to improve accuracy by doing multiple
+samples.

@@ -1,0 +1,20 @@
+Authentication delays (us)	DES	MD5
+DEC 3000/400 OSF/1 bunnylou	14	35
+HP9000/735 hpux9.0		na	30
+HP9000/730 hpux8.07(+OV)	16	55 
+SGI Indigo R4000		19      48
+HP9000/720 hpux8.07		21	66
+SGI 4/35			38	110
+DECstation 5000/240 cowbird	39	81	
+Sun4c/75 SS2			43	96
+Sun4c/50 IPX malarky            47      94
+DECstation 5000/33 sundeck      49      106
+SGI Indigo			54	115
+DECstation 5000/125 herald      63      136
+Sun4c/65 SS1+ pogo              72      159
+Sun4c/40 IPC grundoon		73	163
+Sun4c/60 SS1 albert		95	199
+Sun4c/20 SLC			95	203
+DECstation 3100 sheol           98      214
+DECstation 2100 circus		126	278
+VAX 780				985	?
