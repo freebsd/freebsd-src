@@ -29,7 +29,6 @@
 .Dt ACL_GET 3
 .Os FreeBSD 4.0
 .Sh NAME
-.Fd int
 .Nm acl_get_file ,
 .Nm acl_get_fd ,
 .Nm acl_get_fd_np
@@ -63,7 +62,7 @@ is a non-portable form of
 that allows the retrieval of any type of ACL from a file descriptor.
 
 This function may cause memory to be allocated.  The caller should free
-any releaseable memory, when the new ACL is no longer required, by calling
+any releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
 .Va (void *)acl_t
@@ -123,12 +122,16 @@ The file system does not support ACL retrieval.
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the FreeBSD POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx
+POSIX.1e implementation
 page for more information.
 .Sh HISTORY
-POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
 .Sh AUTHORS
-Robert N M Watson
+.An Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
