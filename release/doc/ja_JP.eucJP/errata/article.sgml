@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.12
+    Original revision: 1.20
 -->
 
 <!-- 
@@ -33,10 +33,14 @@
 <article>
   <articleinfo>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <title>&os; &release.current; Errata</title>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
 
     <corpauthor>&os; プロジェクト</corpauthor>
 
@@ -53,27 +57,28 @@
 
   <abstract>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <para>この文書は &os; &release.current; の公開後に
-      判明した重要な情報が書かれている errata リスト (正誤表) です.
+    <para>この文書は &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+       &release.current;
+]]>
+      の公開後に判明した重要な情報が書かれている errata リスト (正誤表) です.
       これにはセキュリティ勧告および,
       システムの運用・利用に影響を与えるような関連ソフトウェア,
       関連文書の更新情報も含まれています.
       このバージョンの &os; をインストールする前には必ず,
       最新の errata を参照するようにしてください.</para>
 
+    <para>これは &os; 
 <![ %release.type.snapshot [
-    <para>この errata 文書は &os; &release.prev; 用です.
-      &os; &release.next; のリリースまでの期間、保守されます.</para>
+      &release.prev;
 ]]>
-
-<![ %release.type.release [
-    <para>この文書は &os; &release.prev; 用の最終版 errata 文書です.
-      &release.branch; ブランチにおける errata 文書はこれ以降,
-      &os; &release.current; および以降のリリースについて扱います.</para>
+ <![ %release.type.release [
+      &release.current;
 ]]>
+      用の errata 文書です。&os; 5.1-RELEASE の公開までの間、保守されます。</para>
 
     <para>&release.branch;
       ブランチは最新のブランチポイントであり,
@@ -89,7 +94,14 @@
   <sect1 id="intro">
     <title>はじめに</title>
 
-    <para>この errata 文書には &os; &release.current; に関する
+    <para>この errata 文書には &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      に関する
       <quote>最新の障害情報</quote> が書かれています.
       この文書を読み,
       このバージョンのインストール前にリリース公開後に既に発見・修正された問題点について
@@ -119,11 +131,150 @@
 
   <sect1 id="security">
     <title>セキュリティ勧告</title>
-    <para></para>
+
+    <para>現在、セキュリティ勧告は発行されていません。</para>
   </sect1>
 
-  <sect1 id="update">
-    <title>システム更新情報</title>
-    <para></para>
+  <sect1 id="late-news">
+    <title>最新情報</title>
+
+    <bridgehead renderas="sect3">GEOM</bridgehead>
+
+    <para>カーネルにある &man.geom.4;
+      ベースのディスクパーティションコードは、
+      使用中のパーティションの上書きを禁止しています。
+      たとえば、<command>disklabel -B</command>
+      コマンドを使ってディスクの起動ブロックを更新することはできません。
+      これは、起動ブロックが記録されている領域と
+      <literal>a</literal> パーティションの領域が重なっているためです。
+      これを回避するには、CDROM や fixit
+      フロッピなどの他のディスクから起動するとよいでしょう。</para>
+
+    <bridgehead renderas="sect3">&man.dump.8;</bridgehead>
+
+    <para>512 バイトより大きいセクタ長を持ったディスクメディア (たとえば
+      &man.gbde.4; で暗号化されたディスク) を使っている場合、
+      &man.dump.8; プログラムがそのセクタ長を認識しないため、
+      そのパーティションのダンプをとることができません。
+      これを回避する法の一つとして、ファイルシステム全体を
+      raw フォーマットでコピーし、
+      そのコピーからダンプをとるという方法があります。
+      たとえば次のようにすると、
+      ファイルシステムを通常ファイルにダンプすることが可能です。
+
+      <screen>&prompt.root; <userinput>dd if=/dev/ad0s1d.bde of=/junk/ad0.dd bs=1m</userinput>
+&prompt.root; <userinput>dump 0f - /junk/ad0.dd | ...</userinput></screen>
+
+    <para>より簡単な方法としては、バックアップに
+      &man.tar.1; もしくは &man.cpio.1; を使うというのもあげられるでしょう。</para>
+
+    <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
+
+    <para>&os; 4.7-RELEASE で正常に動作していた
+      &man.mly.4; で構成した RAID アレイに
+      &os; 5.0 スナップショット版をインストールする際、
+      システムがハングアップするという事例がいくつか報告されています。</para>
+
+    <bridgehead renderas="sect3">NETNCP/Netware ファイルシステム対応</bridgehead>
+
+    <para>NETNCP と nwfs はまだ KSE に対応していないため、動作しません。</para>
+
+    <bridgehead renderas="sect3">&man.iir.4; コントローラ</bridgehead>
+
+    <para>&man.iir.4; コントローラはインストール時に正常に認識されますが、
+      ディスクデバイスが認識されないという不具合があります。</para>
+
+    <bridgehead renderas="sect3">&man.truss.1; の競合状態</bridgehead>
+
+    <para>&man.truss.1; には、デバッグの開始時に
+      起動前のデバック対象プロセスに接続できなくなるような競合状態があるようです。
+      症状は、&man.truss.1; が「デバッグ対象のプロセスに対応する
+      &man.procfs.5; ノードを open できない」というエラーを表示する、
+      というものです。また、&man.truss.1; には、
+      &man.execve.2; が <literal>ENOENT</literal>
+      を返す時にハングアップするというバグも確認されています。
+      さらに、もう一つの競合状態が原因で、&man.truss.1;
+      の起動時に時々 <errorname>PIOCWAIT:
+      Input/output error</errorname> というエラーが表示されます。
+      この問題の修正には、プロセスの実行処理を大きく変更する必要があるため、
+      5.0 の公開以降に行なわれる予定です。</para>
+
+    <bridgehead renderas="sect3">インストーラのディスクパーティション設定</bridgehead>
+
+    <para>&man.sysinstall.8;
+      のディスクパーティション設定にいくつかバグが報告されています。
+      詳細が判明している問題の一つに、i386 版の &man.sysinstall.8; で
+      FDISK パーティションのパーティションタイプを変更した後、
+      ディスクの空き領域の再計算がなされないというものがあります。</para>
+
+    <bridgehead renderas="sect3">文書化の遅れ</bridgehead>
+
+    <para>(FAQ やハンドブックなどの) 文書のいくつかは、
+      &os; &release.current; の機能を反映した更新が行なわれていません。
+      たとえば &man.gbde.8; や新しい <quote>fast IPsec</quote>
+      実装などについての文書は十分な整備されておらず、
+      今後の課題となっています。</para>
+
+    <bridgehead renderas="sect3">SMB ファイルシステム</bridgehead>
+
+    <para>smbfs 共有をアンマウントしようとした時に、
+      そのマウントポイントが使用中でないにもかかわらず、
+      <errorname>Device busy</errorname> というエラーが出力されることがあります。
+      これを回避する一つの方法は、成功するまでアンマウントを繰り返すことです。
+      この問題は &release.current; で修正されました。</para>
+
+    <para>smbfs 共有を強制アンマウント (<command>umount -f</command>)
+      した時に、カーネルがパニックを起こす可能性があります。
+      この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">&man.fstat.2;</bridgehead>
+
+    <para>connect されたソケットファイル記述子を指定して
+      &man.fstat.2; を呼び出すと、
+      <varname>struct stat</varname> 構造体の
+      <varname>st_size</varname> メンバ変数に、
+      読み込み可能なバイト数が返されます。
+      しかし TCP ソケットでは、 <varname>st_size</varname> が常に
+      <literal>0</literal> を返すというバグがあります。
+      この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">カーネルイベントキュー</bridgehead>
+
+    <para>&man.kqueue.2; <literal>EVFILT_READ</literal> フィルタは、
+      TCP ソケットから読み込み可能なバイト数を、実際の値に関わらず
+      <literal>0</literal> と報告するバグが含まれています。
+      <literal>EVFILT_READ</literal> の
+      <literal>NOTE_LOWAT</literal> フラグも、TCP
+      ソケットに対する動作に不具合があります。
+      この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">POSIX 名前付きセマフォ</bridgehead>
+
+    <para>&os; &release.prev; は POSIX 名前付きセマフォに対応していますが、
+      その実装は、&man.sem.open.3; で同じプロセスから同じセマフォを
+      複数回オープンする処理に致命的なバグを含んでおり、
+      &man.sem.close.3; を呼び出したプログラムがクラッシュする可能性があります。
+      この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3"><filename>/dev/tty</filename>
+      の許可属性</bridgehead>
+
+    <para>&os; &release.prev; には、
+      <filename>/dev/tty</filename>
+      の許可属性の処理に小さなバグが含まれています。
+      <username>root</username> 以外、<groupname>tty</groupname>
+      グループに含まれていないユーザとしてログインし、その後に
+      &man.su.1; を使って他の <username>root</username>
+      以外のユーザに切り替えた場合、
+      <filename>/dev/tty</filename> が開けないため
+      &man.ssh.1; が動作しません。
+      この問題は、&release.current; で修正されました。</para>
+
+    <bridgehead renderas="sect3">&man.growfs.8;</bridgehead>
+
+    <para>&man.growfs.8; は &man.vinum.4; ボリュームでは (おそらく &man.geom.4;
+      エンティティでも) 動作しなくなっています。
+      &man.growfs.8; はディスクラベルを検査するのですが、
+      これらのサブシステムはそのためのディスクラベルを用意しないからです。</para>
   </sect1>
 </article>
