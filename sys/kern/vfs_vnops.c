@@ -853,10 +853,9 @@ debug_vn_lock(vp, flags, td, filename, line)
 			msleep(vp, VI_MTX(vp), PINOD | PDROP,
 			    "vn_lock", 0);
 			/*
-			 * Since we're just going to return, unlock interlock
-			 * if the caller didn't call us with it held.
+			 * Since we're just going to return, unlock interlock.
 			 */
-			if ((flags & (LK_INTERLOCK|LK_RETRY)) == 0)
+			if ((flags & LK_RETRY) == 0)
 				VI_UNLOCK(vp);
 			error = ENOENT;
 		} else {
