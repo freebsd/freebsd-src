@@ -59,7 +59,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
-			bp->b_flags = B_PHYS;
+			bp->b_flags = 0;
 			if (uio->uio_rw == UIO_READ)
 				bp->b_iocmd = BIO_READ;
 			else 

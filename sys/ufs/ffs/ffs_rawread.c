@@ -209,7 +209,7 @@ ffs_rawread_readahead(struct vnode *vp,
 		if (iolen != 0)
 			bp->b_bcount -= PAGE_SIZE;
 	}
-	bp->b_flags = B_PHYS;
+	bp->b_flags = 0;	/* XXX necessary ? */
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = ffs_rawreadwakeup;
 	bp->b_data = udata;
