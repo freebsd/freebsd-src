@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -43,31 +44,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <errno.h>
-#include <rune.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
-rune_t	_EUC_sgetrune(const char *, size_t, char const **);
-int	_EUC_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+int	_EUC_init(_RuneLocale *);
+size_t	_EUC_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t	_EUC_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
 	int	count[4];
-	rune_t	bits[4];
-	rune_t	mask;
+	wchar_t	bits[4];
+	wchar_t	mask;
 } _EucInfo;
 
 int
-_EUC_init(rl)
-	_RuneLocale *rl;
+_EUC_init(_RuneLocale *rl)
 {
 	_EucInfo *ei;
 	int x, new__mb_cur_max;
 	char *v, *e;
-
-	rl->sgetrune = _EUC_sgetrune;
-	rl->sputrune = _EUC_sputrune;
 
 	if (rl->variable == NULL)
 		return (EFTYPE);
@@ -108,6 +112,8 @@ _EUC_init(rl)
 	rl->variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = new__mb_cur_max;
+	__mbrtowc = _EUC_mbrtowc;
+	__wcrtomb = _EUC_wcrtomb;
 	return (0);
 }
 
@@ -118,105 +124,85 @@ _EUC_init(rl)
 
 #define	GR_BITS	0x80808080 /* XXX: to be fixed */
 
-static inline int
-_euc_set(c)
-	u_int c;
+static __inline int
+_euc_set(u_int c)
 {
 	c &= 0xff;
-
 	return ((c & 0x80) ? c == _SS3 ? 3 : c == _SS2 ? 2 : 1 : 0);
 }
-rune_t
-_EUC_sgetrune(string, n, result)
-	const char *string;
-	size_t n;
-	char const **result;
-{
-	rune_t rune = 0;
-	int len, set;
 
-	if (n < 1 || (len = CEI->count[set = _euc_set(*string)]) > n) {
-		if (result)
-			*result = string;
-		return (_INVALID_RUNE);
-	}
+size_t
+_EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
+{
+	int len, remain, set;
+	wchar_t wc;
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (0);
+	if (n == 0 || (size_t)(len = CEI->count[set = _euc_set(*s)]) > n)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
+	wc = 0;
+	remain = len;
 	switch (set) {
 	case 3:
 	case 2:
-		--len;
-		++string;
+		--remain;
+		++s;
 		/* FALLTHROUGH */
 	case 1:
 	case 0:
-		while (len-- > 0)
-			rune = (rune << 8) | ((u_int)(*string++) & 0xff);
+		while (remain-- > 0)
+			wc = (wc << 8) | (unsigned char)*s++;
 		break;
 	}
-	if (result)
-		*result = string;
-	return ((rune & ~CEI->mask) | CEI->bits[set]);
+	wc = (wc & ~CEI->mask) | CEI->bits[set];
+	if (pwc != NULL)
+		*pwc = wc;
+	return (wc == L'\0' ? 0 : len);
 }
 
-int
-_EUC_sputrune(c, string, n, result)
-	rune_t c;
-	char *string, **result;
-	size_t n;
+size_t
+_EUC_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
-	rune_t m = c & CEI->mask;
-	rune_t nm = c & ~m;
+	wchar_t m, nm;
 	int i, len;
+
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (1);
+
+	m = wc & CEI->mask;
+	nm = wc & ~m;
 
 	if (m == CEI->bits[1]) {
 CodeSet1:
 		/* Codeset 1: The first byte must have 0x80 in it. */
 		i = len = CEI->count[1];
-		if (n >= len) {
-			if (result)
-				*result = string + len;
-			while (i-- > 0)
-				*string++ = (nm >> (i << 3)) | 0x80;
-		} else
-			if (result)
-				*result = (char *) 0;
-	} else {
-		if (m == CEI->bits[0]) {
-			i = len = CEI->count[0];
-			if (n < len) {
-				if (result)
-					*result = NULL;
-				return (len);
-			}
-		} else
-			if (m == CEI->bits[2]) {
-				i = len = CEI->count[2];
-				if (n < len) {
-					if (result)
-						*result = NULL;
-					return (len);
-				}
-				*string++ = _SS2;
-				--i;
-				/* SS2 designates G2 into GR */
-				nm |= GR_BITS;
-			} else
-				if (m == CEI->bits[3]) {
-					i = len = CEI->count[3];
-					if (n < len) {
-						if (result)
-							*result = NULL;
-						return (len);
-					}
-					*string++ = _SS3;
-					--i;
-					/* SS3 designates G3 into GR */
-					nm |= GR_BITS;
-				} else
-					goto CodeSet1;	/* Bletch */
 		while (i-- > 0)
-			*string++ = (nm >> (i << 3)) & 0xff;
-		if (result)
-			*result = string;
+			*s++ = (nm >> (i << 3)) | 0x80;
+	} else {
+		if (m == CEI->bits[0])
+			i = len = CEI->count[0];
+		else if (m == CEI->bits[2]) {
+			i = len = CEI->count[2];
+			*s++ = _SS2;
+			--i;
+			/* SS2 designates G2 into GR */
+			nm |= GR_BITS;
+		} else if (m == CEI->bits[3]) {
+			i = len = CEI->count[3];
+			*s++ = _SS3;
+			--i;
+			/* SS3 designates G3 into GR */
+			nm |= GR_BITS;
+		} else
+			goto CodeSet1;	/* Bletch */
+		while (i-- > 0)
+			*s++ = (nm >> (i << 3)) & 0xff;
 	}
 	return (len);
 }

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
  *    ja_JP.SJIS locale table for BSD4.4/rune
  *    version 1.0
  *    (C) Sin'ichiro MIYATANI / Phase One, Inc
@@ -38,74 +39,71 @@ static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-
-#include <rune.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 
-rune_t	_MSKanji_sgetrune(const char *, size_t, char const **);
-int	_MSKanji_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+int	_MSKanji_init(_RuneLocale *);
+size_t  _MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t  _MSKanji_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
-_MSKanji_init(rl)
-	_RuneLocale *rl;
+_MSKanji_init(_RuneLocale *rl)
 {
-	rl->sgetrune = _MSKanji_sgetrune;
-	rl->sputrune = _MSKanji_sputrune;
 
+	__mbrtowc = _MSKanji_mbrtowc;
+	__wcrtomb = _MSKanji_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 2;
 	return (0);
 }
 
-rune_t
-_MSKanji_sgetrune(string, n, result)
-	const char *string;
-	size_t n;
-	char const **result;
+size_t
+_MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
 {
-	rune_t rune = 0;
+	wchar_t wc;
+	int len;
 
-	if (n < 1) {
-		if (result != NULL)
-			*result = string;
-		return (_INVALID_RUNE);
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (0);
+	if (n == 0)
+		/* Incomplete multibyte sequence */
+		return ((size_t)-2);
+	len = 1;
+	wc = *s++ & 0xff;
+	if ((wc > 0x80 && wc < 0xa0) || (wc >= 0xe0 && wc < 0xfd)) {
+		if (n < 2)
+			/* Incomplete multibyte sequence */
+			return ((size_t)-2);
+		wc = (wc << 8) | (*s++ & 0xff);
+		len = 2;
 	}
-
-	rune = *string++ & 0xff;
-	if ((rune > 0x80 && rune < 0xa0) ||
-	    (rune >= 0xe0 && rune < 0xfd)) {
-		if (n < 2) {
-			rune = _INVALID_RUNE;
-			--string;
-		} else
-			rune = (rune << 8) | (*string++ & 0xff);
-	}
-	if (result != NULL)
-		*result = string;
-
-	return (rune);
+	if (pwc != NULL)
+		*pwc = wc;
+	return (wc == L'\0' ? 0 : len);
 }
 
-int
-_MSKanji_sputrune(c, string, n, result)
-	rune_t c;
-	char *string, **result;
-	size_t n;
+size_t
+_MSKanji_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
 	int len, i;
 
-	len = (c > 0x100) ? 2 : 1;
-	if (n < len) {
-		if (result != NULL)
-			*result = NULL;
-	} else {
-		if (result != NULL)
-			*result = string + len;
-		for (i = len; i-- > 0; )
-			*string++ = c >> (i << 3);
-	}
+	if (s == NULL)
+		/* Reset to initial shift state (no-op) */
+		return (1);
 
+	len = (wc > 0x100) ? 2 : 1;
+	for (i = len; i-- > 0; )
+		*s++ = wc >> (i << 3);
 	return (len);
 }
