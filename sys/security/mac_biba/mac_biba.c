@@ -576,57 +576,49 @@ mac_biba_element_to_string(struct sbuf *sb, struct mac_biba_element *element)
 }
 
 /*
- * mac_biba_to_string() converts an Biba label to a string, placing the
- * results in the passed string buffer.  It returns 0 on success,
- * or EINVAL if there isn't room in the buffer.  The size of the
- * string appended, leaving out the nul termination, is returned to
- * the caller via *caller_len.  Eventually, we should expose the
- * sbuf to the caller rather than using C strings at this layer.
+ * mac_biba_to_string() converts a Biba label to a string, and places
+ * the results in the passed sbuf.  It returns 0 on success, or EINVAL
+ * if there isn't room in the sbuf.  Note: the sbuf will be modified
+ * even in a failure case, so the caller may need to revert the sbuf
+ * by restoring the offset if that's undesired.
  */
 static int
-mac_biba_to_string(char *string, size_t size, size_t *caller_len,
-    struct mac_biba *mac_biba)
+mac_biba_to_string(struct sbuf *sb, struct mac_biba *mac_biba)
 {
-	struct sbuf sb;
-
-	sbuf_new(&sb, string, size, SBUF_FIXEDLEN);
 
 	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) {
-		if (mac_biba_element_to_string(&sb, &mac_biba->mb_single)
+		if (mac_biba_element_to_string(sb, &mac_biba->mb_single)
 		    == -1)
 			return (EINVAL);
 	}
 
 	if (mac_biba->mb_flags & MAC_BIBA_FLAG_RANGE) {
-		if (sbuf_putc(&sb, '(') == -1)
+		if (sbuf_putc(sb, '(') == -1)
 			return (EINVAL);
 
-		if (mac_biba_element_to_string(&sb, &mac_biba->mb_rangelow)
+		if (mac_biba_element_to_string(sb, &mac_biba->mb_rangelow)
 		    == -1)
 			return (EINVAL);
 
-		if (sbuf_putc(&sb, '-') == -1)
+		if (sbuf_putc(sb, '-') == -1)
 			return (EINVAL);
 
-		if (mac_biba_element_to_string(&sb, &mac_biba->mb_rangehigh)
+		if (mac_biba_element_to_string(sb, &mac_biba->mb_rangehigh)
 		    == -1)
 			return (EINVAL);
 
-		if (sbuf_putc(&sb, ')') == -1)
+		if (sbuf_putc(sb, ')') == -1)
 			return (EINVAL);
 	}
 
-	sbuf_finish(&sb);
-	*caller_len = strlen(string);
 	return (0);
 }
 
 static int
 mac_biba_externalize_label(struct label *label, char *element_name,
-    char *element_data, size_t size, size_t *len, int *claimed)
+    struct sbuf *sb, int *claimed)
 {
 	struct mac_biba *mac_biba;
-	int error;
 
 	if (strcmp(MAC_BIBA_LABEL_NAME, element_name) != 0)
 		return (0);
@@ -634,11 +626,7 @@ mac_biba_externalize_label(struct label *label, char *element_name,
 	(*claimed)++;
 
 	mac_biba = SLOT(label);
-	error = mac_biba_to_string(element_data, size, len, mac_biba);
-	if (error)
-		return (error);
-
-	return (0);
+	return (mac_biba_to_string(sb, mac_biba));
 }
 
 static int

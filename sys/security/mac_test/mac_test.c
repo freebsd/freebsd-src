@@ -531,7 +531,7 @@ mac_test_destroy_vnode_label(struct label *label)
 
 static int
 mac_test_externalize_label(struct label *label, char *element_name,
-    char *element_data, size_t size, size_t *len, int *claimed)
+    struct sbuf *sb, int *claimed)
 {
 
 	atomic_add_int(&externalize_count, 1);

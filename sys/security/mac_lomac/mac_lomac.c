@@ -49,6 +49,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -483,20 +484,22 @@ mac_lomac_copy(struct mac_lomac *source, struct mac_lomac *dest)
 		mac_lomac_copy_range(source, dest);
 }
 
-static int	mac_lomac_to_string(char *string, size_t size,
-	    size_t *caller_len, struct mac_lomac *mac_lomac);
+static int	mac_lomac_to_string(struct sbuf *sb,
+		    struct mac_lomac *mac_lomac);
 
 static int
 maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
     const char *actionname, const char *objname, struct vnode *vpq)
 {
+	struct sbuf subjlabel_sb, subjtext_sb, objlabel_sb;
+	char *subjlabeltext, *objlabeltext, *subjtext;
+	struct mac_lomac cached_subjlabel;
+	struct mac_lomac_proc *subj;
 	struct vattr va;
-	static char xxx[] = "<<XXX>>";
-	struct mac_lomac_proc *subj = PSLOT(&curthread->td_proc->p_label);
-	char *subjlabeltext, *objlabeltext, *subjtext, *text;
 	struct proc *p;
-	size_t len;
 	pid_t pgid;
+
+	subj = PSLOT(&curthread->td_proc->p_label);
 
 	p = curthread->td_proc;
 	mtx_lock(&subj->mtx);
@@ -531,32 +534,29 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	curthread->td_flags |= TDF_ASTPENDING;
 	curthread->td_proc->p_sflag |= PS_MACPEND;
 	mtx_unlock_spin(&sched_lock);
-	subjtext = subjlabeltext = objlabeltext = xxx;
-	if (mac_lomac_to_string(NULL, 0, &len, &subj->mac_lomac) == 0 &&
-	    (text = malloc(len + 1, M_MACLOMAC, M_NOWAIT)) != NULL) {
-		if (mac_lomac_to_string(text, len + 1, &len,
-		    &subj->mac_lomac) == 0)
-			subjtext = text;
-		else
-			free(text, M_MACLOMAC);
-	}
+
+	/*
+	 * Avoid memory allocation while holding a mutex; cache the
+	 * label.
+	 */
+	mac_lomac_copy_single(&subj->mac_lomac, &cached_subjlabel);
 	mtx_unlock(&subj->mtx);
-	if (mac_lomac_to_string(NULL, 0, &len, subjlabel) == 0 &&
-	    (text = malloc(len + 1, M_MACLOMAC, M_NOWAIT)) != NULL) {
-		if (mac_lomac_to_string(text, len + 1, &len,
-		    subjlabel) == 0)
-			subjlabeltext = text;
-		else
-			free(text, M_MACLOMAC);
-	}
-	if (mac_lomac_to_string(NULL, 0, &len, objlabel) == 0 &&
-	    (text = malloc(len + 1, M_MACLOMAC, M_NOWAIT)) != NULL) {
-		if (mac_lomac_to_string(text, len + 1, &len,
-		    objlabel) == 0)
-			objlabeltext = text;
-		else
-			free(text, M_MACLOMAC);
-	}
+
+	sbuf_new(&subjlabel_sb, NULL, 0, SBUF_AUTOEXTEND);
+	mac_lomac_to_string(&subjlabel_sb, subjlabel);
+	sbuf_finish(&subjlabel_sb);
+	subjlabeltext = sbuf_data(&subjlabel_sb);
+
+	sbuf_new(&subjtext_sb, NULL, 0, SBUF_AUTOEXTEND);
+	mac_lomac_to_string(&subjtext_sb, &subj->mac_lomac);
+	sbuf_finish(&subjtext_sb);
+	subjtext = sbuf_data(&subjtext_sb);
+
+	sbuf_new(&objlabel_sb, NULL, 0, SBUF_AUTOEXTEND);
+	mac_lomac_to_string(&objlabel_sb, objlabel);
+	sbuf_finish(&objlabel_sb);
+	objlabeltext = sbuf_data(&objlabel_sb);
+
 	pgid = p->p_pgrp->pg_id;		/* XXX could be stale? */
 	if (vpq != NULL && VOP_GETATTR(vpq, &va, curthread->td_ucred,
 	    curthread) == 0) {
@@ -572,13 +572,11 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 		    subjlabeltext, p->p_pid, pgid, curthread->td_ucred->cr_uid,
 		    p->p_comm, subjtext, actionname, objlabeltext, objname);
 	}
+
+	sbuf_delete(&subjlabel_sb);
+	sbuf_delete(&subjtext_sb);
+	sbuf_delete(&objlabel_sb);
 		
-	if (subjlabeltext != xxx)
-		free(subjlabeltext, M_MACLOMAC);
-	if (objlabeltext != xxx)
-		free(objlabeltext, M_MACLOMAC);
-	if (subjtext != xxx)
-		free(subjtext, M_MACLOMAC);
 	return (0);
 }
 
@@ -659,28 +657,22 @@ mac_lomac_destroy_proc_label(struct label *label)
 	PSLOT(label) = NULL;
 }
 
-/*
- * mac_lomac_element_to_string() is basically an snprintf wrapper with
- * the same properties as snprintf().  It returns the length it would
- * have added to the string in the event the string is too short.
- */
-static size_t
-mac_lomac_element_to_string(char *string, size_t size,
-    struct mac_lomac_element *element)
+static int
+mac_lomac_element_to_string(struct sbuf *sb, struct mac_lomac_element *element)
 {
 
 	switch (element->mle_type) {
 	case MAC_LOMAC_TYPE_HIGH:
-		return (snprintf(string, size, "high"));
+		return (sbuf_printf(sb, "high"));
 
 	case MAC_LOMAC_TYPE_LOW:
-		return (snprintf(string, size, "low"));
+		return (sbuf_printf(sb, "low"));
 
 	case MAC_LOMAC_TYPE_EQUAL:
-		return (snprintf(string, size, "equal"));
+		return (sbuf_printf(sb, "equal"));
 
 	case MAC_LOMAC_TYPE_GRADE:
-		return (snprintf(string, size, "%d", element->mle_grade));
+		return (sbuf_printf(sb, "%d", element->mle_grade));
 
 	default:
 		panic("mac_lomac_element_to_string: invalid type (%d)",
@@ -689,81 +681,54 @@ mac_lomac_element_to_string(char *string, size_t size,
 }
 
 static int
-mac_lomac_to_string(char *string, size_t size, size_t *caller_len,
-    struct mac_lomac *mac_lomac)
+mac_lomac_to_string(struct sbuf *sb, struct mac_lomac *mac_lomac)
 {
-	size_t left, len, curlen;
-	char *curptr;
 
-	/*
-	 * Also accept NULL string to allow for predetermination of total
-	 * string length.
-	 */
-	if (string != NULL)
-		bzero(string, size);
-	else if (size != 0)
-		return (EINVAL);
-	curptr = string;
-	left = size;
-	curlen = 0;
-
-#define	INCLEN(length, leftover) do {					\
-	if (string != NULL) {						\
-		if (length >= leftover)					\
-			return (EINVAL);				\
-		leftover -= length;					\
-		curptr += length;					\
-	}								\
-	curlen += length;						\
-} while (0)
 	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
-		len = mac_lomac_element_to_string(curptr, left,
-		    &mac_lomac->ml_single);
-		INCLEN(len, left);
+		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_single)
+		    == -1)
+			return (EINVAL);
 	}
 
 	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_AUX) {
-		len = snprintf(curptr, left, "[");
-		INCLEN(len, left);
+		if (sbuf_putc(sb, '[') == -1)
+			return (EINVAL);
 
-		len = mac_lomac_element_to_string(curptr, left,
-		    &mac_lomac->ml_auxsingle);
-		INCLEN(len, left);
+		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_auxsingle)
+		    == -1)
+			return (EINVAL);
 
-		len = snprintf(curptr, left, "]");
-		INCLEN(len, left);
+		if (sbuf_putc(sb, ']') == -1)
+			return (EINVAL);
 	}
 
 	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_RANGE) {
-		len = snprintf(curptr, left, "(");
-		INCLEN(len, left);
+		if (sbuf_putc(sb, '(') == -1)
+			return (EINVAL);
 
-		len = mac_lomac_element_to_string(curptr, left,
-		    &mac_lomac->ml_rangelow);
-		INCLEN(len, left);
+		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_rangelow)
+		    == -1)
+			return (EINVAL);
 
-		len = snprintf(curptr, left, "-");
-		INCLEN(len, left);
+		if (sbuf_putc(sb, '-') == -1)
+			return (EINVAL);
 
-		len = mac_lomac_element_to_string(curptr, left,
-		    &mac_lomac->ml_rangehigh);
-		INCLEN(len, left);
+		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_rangehigh)
+		    == -1)
+			return (EINVAL);
 
-		len = snprintf(curptr, left, ")");
-		INCLEN(len, left);
+		if (sbuf_putc(sb, '-') == -1)
+			return (EINVAL);
 	}
-#undef INCLEN
 
-	*caller_len = curlen;
 	return (0);
 }
 
 static int
 mac_lomac_externalize_label(struct label *label, char *element_name,
-    char *element_data, size_t size, size_t *len, int *claimed)
+    struct sbuf *sb, int *claimed)
 {
 	struct mac_lomac *mac_lomac;
-	int error;
 
 	if (strcmp(MAC_LOMAC_LABEL_NAME, element_name) != 0)
 		return (0);
@@ -771,12 +736,8 @@ mac_lomac_externalize_label(struct label *label, char *element_name,
 	(*claimed)++;
 
 	mac_lomac = SLOT(label);
-	error = mac_lomac_to_string(element_data, size, len, mac_lomac);
-	if (error)
-		return (error);
 
-	*len = strlen(element_data);
-	return (0);
+	return (mac_lomac_to_string(sb, mac_lomac));
 }
 
 static int

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -398,65 +399,44 @@ mac_policy_list_unbusy(void)
 
 #define	MAC_EXTERNALIZE(type, label, elementlist, outbuf, 		\
     outbuflen) do {							\
-	char *curptr, *curptr_start, *element_name, *element_temp;	\
-	size_t left, left_start, len;					\
-	int claimed, first, first_start, ignorenotfound;		\
+	int claimed, first, ignorenotfound, savedlen;			\
+	char *element_name, *element_temp;				\
+	struct sbuf sb;							\
 									\
 	error = 0;							\
-	element_temp = elementlist;					\
-	curptr = outbuf;						\
-	curptr[0] = '\0';						\
-	left = outbuflen;						\
 	first = 1;							\
+	sbuf_new(&sb, outbuf, outbuflen, SBUF_FIXEDLEN);		\
+	element_temp = elementlist;					\
 	while ((element_name = strsep(&element_temp, ",")) != NULL) {	\
-		curptr_start = curptr;					\
-		left_start = left;					\
-		first_start = first;					\
 		if (element_name[0] == '?') {				\
 			element_name++;					\
 			ignorenotfound = 1;				\
-		} else							\
+		 } else							\
 			ignorenotfound = 0;				\
-		claimed = 0;						\
+		savedlen = sbuf_len(&sb);				\
 		if (first) {						\
-			len = snprintf(curptr, left, "%s/",		\
-			    element_name);				\
+			error = sbuf_printf(&sb, "%s/", element_name);	\
 			first = 0;					\
 		} else							\
-			len = snprintf(curptr, left, ",%s/",		\
-			    element_name);				\
-		if (len >= left) {					\
-			error = EINVAL;		/* XXXMAC: E2BIG */	\
+			error = sbuf_printf(&sb, ",%s/", element_name);	\
+		if (error == -1) {					\
+			error = EINVAL;	/* XXX: E2BIG? */		\
 			break;						\
 		}							\
-		curptr += len;						\
-		left -= len;						\
-									\
+		claimed = 0;						\
 		MAC_CHECK(externalize_ ## type, label, element_name,	\
-		    curptr, left, &len, &claimed);			\
+		    &sb, &claimed);					\
 		if (error)						\
 			break;						\
-		if (claimed == 1) {					\
-			if (len >= outbuflen) {				\
-				error = EINVAL;	/* XXXMAC: E2BIG */	\
-				break;					\
-			}						\
-			curptr += len;					\
-			left -= len;					\
-		} else if (claimed == 0 && ignorenotfound) {		\
-			/*						\
-			 * Revert addition of the label element		\
-			 * name.					\
-			 */						\
-			curptr = curptr_start;				\
-			*curptr = '\0';					\
-			left = left_start;				\
-			first = first_start;				\
-		} else {						\
-			error = EINVAL;		/* XXXMAC: ENOLABEL */	\
+		if (claimed == 0 && ignorenotfound) {			\
+			/* Revert last label name. */			\
+			sbuf_setpos(&sb, savedlen);			\
+		} else if (claimed != 1) {				\
+			error = EINVAL;	/* XXX: ENOLABEL? */		\
 			break;						\
 		}							\
 	}								\
+	sbuf_finish(&sb);						\
 } while (0)
 
 #define	MAC_INTERNALIZE(type, label, instring) do {			\
