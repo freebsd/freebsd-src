@@ -206,7 +206,7 @@ putc(int c)
 int
 main(void)
 {
-    int autoboot, i;
+    int autoboot;
     ino_t ino;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
