@@ -1,5 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
-#	$Id: Makefile,v 1.18 1997/12/26 01:53:58 wosch Exp $
+#	$Id: Makefile,v 1.19 1998/01/25 09:52:32 jb Exp $
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
@@ -41,7 +41,7 @@ beforeinstall:
 .endif
 
 match.o: ${.CURDIR}/match.S
-	$(CPP) ${.CURDIR}/match.S >_match.s
+	$(CC) -E -traditional ${.CURDIR}/match.S >_match.s
 	$(CC) -c _match.s
 	mv -f _match.o match.o
 	rm -f _match.s
