@@ -269,15 +269,17 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_F_SETFD		2
 #define	LINUX_F_GETFL		3
 #define	LINUX_F_SETFL		4
-#define	LINUX_F_GETLK		5
-#define	LINUX_F_SETLK		6
-#define	LINUX_F_SETLKW		7
-#define	LINUX_F_SETOWN		8
-#define	LINUX_F_GETOWN		9
+#define	LINUX_F_SETOWN		5
+#define	LINUX_F_GETOWN		6
+#define	LINUX_F_GETLK		7
+#define	LINUX_F_SETLK		8
+#define	LINUX_F_SETLKW		9
+#define	LINUX_F_SETSIG		10
+#define	LINUX_F_GETSIG		11
 
-#define	LINUX_F_RDLCK		0
-#define	LINUX_F_WRLCK		1
-#define	LINUX_F_UNLCK		2
+#define	LINUX_F_RDLCK		1
+#define	LINUX_F_WRLCK		2
+#define	LINUX_F_UNLCK		8
 
 /*
  * SystemV IPC defines
