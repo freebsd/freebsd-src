@@ -10,7 +10,11 @@ PROG=		${BOOT}
 MAN8=		${BOOT}.8
 STRIP=
 BINDIR?=	/boot
+M4?=		m4
 
+.if defined(BOOT_PXELDR_PROBE_KEYBOARD)
+M4FLAGS+=	-DPROBE_KEYBOARD
+.endif
 
 .if exists(${.OBJDIR}/../loader)
 LOADER=	${.OBJDIR}/../loader/loader
@@ -31,6 +35,10 @@ ${LDR}: ${LDR}.o
 	${LD} -N -e start -Ttext ${ORG} -o ${LDR}.out ${LDR}.o
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
 .endif
+
+${LDR}.o: ${LDR}.s
+	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ${LDR}.s) | \
+	   ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= ${LDR} ${LDR}.out ${LDR}.o ${BOOT}.tmp
 
