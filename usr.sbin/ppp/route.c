@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.4 1995/07/08 06:08:52 amurai Exp $
+ * $Id: route.c,v 1.5 1996/01/11 17:48:56 phk Exp $
  *
  */
 #include <sys/types.h>
@@ -109,7 +109,7 @@ struct in_addr mask;
   rtmes.m_rtm.rtm_msglen = nb;
   wb = write(s, &rtmes, nb);
   if (wb < 0) {
-     LogPrintf(LOG_TCPIP, "Already set route addr dst=%x, gateway=%x\n"
+     LogPrintf(LOG_TCPIP_BIT, "Already set route addr dst=%x, gateway=%x\n"
          ,dst.s_addr, gateway.s_addr);
   }
 #ifdef DEBUG
@@ -251,7 +251,7 @@ int all;
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
-  struct in_addr dstnet, gateway;
+  struct in_addr dstnet, gateway, maddr;
   int needed;
   char *sp, *cp, *ep;
   u_long mask;
@@ -339,7 +339,8 @@ int all;
         gateway.s_addr = INADDR_ANY;
         mask = INADDR_ANY;
       }
-      OsSetRoute(RTM_DELETE, dstnet, gateway, htonl(mask));
+      maddr.s_addr = htonl(mask);
+      OsSetRoute(RTM_DELETE, dstnet, gateway, maddr);
     }
 #ifdef DEBUG
     else if (rtm->rtm_index == IfIndex) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.5 1996/01/11 17:48:44 phk Exp $
+ * $Id: fsm.c,v 1.6 1996/01/30 11:08:29 dfr Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -58,7 +58,7 @@ NewState(fp, new)
 struct fsm *fp;
 int new;
 {
-  LogPrintf(LOG_LCP, "%s: state change %s --> %s\n",
+  LogPrintf(LOG_LCP_BIT, "%s: state change %s --> %s\n",
 	  fp->name, StateNames[fp->state], StateNames[new]);
   fp->state = new;
   if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED))
@@ -137,7 +137,7 @@ struct fsm *fp;
     NewState(fp, ST_REQSENT);
     break;
   default:
-    LogPrintf(LOG_LCP, "%s: Oops, Up at %s\n",
+    LogPrintf(LOG_LCP_BIT, "%s: Oops, Up at %s\n",
 	    fp->name, StateNames[fp->state]);
     break;
   }
@@ -215,7 +215,7 @@ void
 FsmSendTerminateReq(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: SendTerminateReq.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: SendTerminateReq.\n", fp->name);
   FsmOutput(fp, CODE_TERMREQ, fp->reqid++, NULL, 0);
   (fp->SendTerminateReq)(fp);
   StartTimer(&fp->FsmTimer);	/* Start restart timer */
@@ -229,7 +229,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP, "%s:  SendConfigAck(%s)\n", fp->name, StateNames[fp->state]);
+  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigAck(%s)\n", fp->name, StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
@@ -241,7 +241,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP, "%s:  SendConfigRej(%s)\n", fp->name, StateNames[fp->state]);
+  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigRej(%s)\n", fp->name, StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
@@ -253,7 +253,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP, "%s:  SendConfigNak(%s)\n",
+  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigNak(%s)\n",
 	    fp->name, StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
@@ -340,7 +340,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP, "%s: Oops, RCR in %s.\n",
+    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCR in %s.\n",
 	    fp->name, StateNames[fp->state]);
     pfree(bp);
     return;
@@ -461,7 +461,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP, "%s: Oops, RCN in %s.\n",
+    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCN in %s.\n",
 	    fp->name, StateNames[fp->state]);
     pfree(bp);
     return;
@@ -505,7 +505,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP, "%s: Oops, RTR in %s\n", fp->name,
+    LogPrintf(LOG_LCP_BIT, "%s: Oops, RTR in %s\n", fp->name,
 	    StateNames[fp->state]);
     break;
   case ST_CLOSED:
@@ -571,7 +571,7 @@ struct mbuf *bp;
     pfree(bp);
     return;
   }
-  LogPrintf(LOG_LCP, "%s: RecvConfigRej.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvConfigRej.\n", fp->name);
 
   /*
    *  Check and process easy case
@@ -579,7 +579,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP, "%s: Oops, RCJ in %s.\n",
+    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCJ in %s.\n",
 	    fp->name, StateNames[fp->state]);
     pfree(bp);
     return;
@@ -619,7 +619,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvCodeRej\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvCodeRej\n", fp->name);
   pfree(bp);
 }
 
@@ -633,7 +633,7 @@ struct mbuf *bp;
 
   sp = (u_short *)MBUF_CTOP(bp);
   proto = ntohs(*sp);
-  LogPrintf(LOG_LCP, "-- Protocol (%04x) was rejected.\n", proto);
+  LogPrintf(LOG_LCP_BIT, "-- Protocol (%04x) was rejected.\n", proto);
 
   switch (proto) {
   case PROTO_LQR:
@@ -674,7 +674,7 @@ struct mbuf *bp;
 
   if (fp->state == ST_OPENED) {
     *lp = htonl(LcpInfo.want_magic);	/* Insert local magic number */
-    LogPrintf(LOG_LCP, "%s:  SendEchoRep(%s)\n", fp->name, StateNames[fp->state]);
+    LogPrintf(LOG_LCP_BIT, "%s:  SendEchoRep(%s)\n", fp->name, StateNames[fp->state]);
     FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
   }
   pfree(bp);
@@ -711,7 +711,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvDiscReq\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvDiscReq\n", fp->name);
   pfree(bp);
 }
 
@@ -721,7 +721,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvIdent\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvIdent\n", fp->name);
   pfree(bp);
 }
 
@@ -731,7 +731,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvTimeRemain\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvTimeRemain\n", fp->name);
   pfree(bp);
 }
 
@@ -741,9 +741,9 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvResetReq\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvResetReq\n", fp->name);
   CcpRecvResetReq(fp);
-  LogPrintf(LOG_LCP, "%s: SendResetAck\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: SendResetAck\n", fp->name);
   FsmOutput(fp, CODE_RESETACK, fp->reqid, NULL, 0);
   pfree(bp);
 }
@@ -754,7 +754,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP, "%s: RecvResetAck\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: RecvResetAck\n", fp->name);
   fp->reqid++;
   pfree(bp);
 }
@@ -801,7 +801,7 @@ struct mbuf *bp;
   bp->cnt -= sizeof(struct fsmheader);
 
   codep = FsmCodes + lhp->code - 1;
-  LogPrintf(LOG_LCP, "%s: Received %s (%d) state = %s (%d)\n",
+  LogPrintf(LOG_LCP_BIT, "%s: Received %s (%d) state = %s (%d)\n",
     fp->name, codep->name, lhp->id, StateNames[fp->state], fp->state);
 #ifdef DEBUG
   LogMemory();

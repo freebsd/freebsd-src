@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.17 1996/03/30 18:27:45 ache Exp $
+ * $Id: main.c,v 1.18 1996/04/13 15:47:34 bde Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -157,7 +157,7 @@ int excode;
     unlink(pid_filename);
   }
   OsInterfaceDown(1);
-  LogPrintf(LOG_PHASE, "PPP Terminated.\n");
+  LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
   LogClose();
   if (server > 0)
     close(server);
@@ -170,7 +170,7 @@ static void
 Hangup(signo)
 int signo;
 {
-  LogPrintf(LOG_PHASE, "Signal %d, hangup.\n", signo);
+  LogPrintf(LOG_PHASE_BIT, "Signal %d, hangup.\n", signo);
   Cleanup(EX_HANGUP);
 }
 
@@ -178,7 +178,7 @@ static void
 CloseSession(signo)
 int signo;
 {
-  LogPrintf(LOG_PHASE, "Signal %d, terminate.\n", signo);
+  LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
   LcpClose();
   Cleanup(EX_TERM);
 }
@@ -390,7 +390,7 @@ char **argv;
 	  close(fd);
       }
     }
-    LogPrintf(LOG_PHASE, "Listening at %d.\n", port);
+    LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
     if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
 #else
@@ -414,7 +414,7 @@ char **argv;
     TtyInit();
     TtyCommandMode(1);
   }
-  LogPrintf(LOG_PHASE, "PPP Started.\n");
+  LogPrintf(LOG_PHASE_BIT, "PPP Started.\n");
 
 
   do
@@ -595,7 +595,7 @@ static void
 RedialTimeout()
 {
   StopTimer(&RedialTimer);
-  LogPrintf(LOG_PHASE, "Redialing timer expired.\n");
+  LogPrintf(LOG_PHASE_BIT, "Redialing timer expired.\n");
 }
 
 static void
@@ -604,7 +604,7 @@ StartRedialTimer()
   StopTimer(&RedialTimer);
 
   if (VarRedialTimeout) {
-    LogPrintf(LOG_PHASE, "Enter pause for redialing.\n");
+    LogPrintf(LOG_PHASE_BIT, "Enter pause for redialing.\n");
     RedialTimer.state = TIMER_STOPPED;
 
     if (VarRedialTimeout > 0)
@@ -637,7 +637,7 @@ DoLoop()
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
-    LogPrintf(LOG_PHASE, "Packet mode enabled\n");
+    LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (!modem)
@@ -668,7 +668,7 @@ DoLoop()
 	StartRedialTimer();
       } else {
 	tries++;
-	LogPrintf(LOG_CHAT, "Dial attempt %u\n", tries);
+	LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
 	if (DialModem()) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.15 1996/03/08 09:03:04 ache Exp $
+ * $Id: command.c,v 1.16 1996/03/08 13:22:23 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -270,8 +270,9 @@ extern int ReportHdlcStatus();
 extern int ShowMemMap();
 
 static char *LogLevelName[] = {
-  LM_PHASE, LM_CHAT, LM_LQM,   LM_LCP,
-  LM_TCPIP, LM_HDLC, LM_ASYNC,
+  LM_PHASE,   LM_CHAT,    LM_LQM,   LM_LCP,
+  LM_TCPIP,   LM_HDLC,    LM_ASYNC, LM_LINK, 
+  LM_CONNECT, LM_CARRIER,
 };
 
 static int ShowDebugLevel()
