@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#ifndef __alpha__
+#ifdef __i386__
 
 #define FREEBSD_AOUT	1
 
