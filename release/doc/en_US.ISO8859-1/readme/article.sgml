@@ -46,8 +46,8 @@
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
 	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC
-	hardware and Compaq (formerly DEC) Alpha computers.  Versions
-	for the IA64, PowerPC, and Sparc64 architectures are currently under
+	hardware, Compaq (formerly DEC) Alpha computers, and UltraSPARC machines.  Versions
+	for the IA64 and PowerPC architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
 	from software development to games to Internet Service
@@ -321,9 +321,10 @@
 
       </para>
 
-      <para>These documents are generally available via the
+      <para>On platforms that support &man.sysinstall.8; (currently
+	the i386 and alpha), these documents are generally available via the
 	Documentation menu during installation.  Once the system is
-	installed, you can revisit this menu by running the
+	installed, you can revisit this menu by re-running the
 	&man.sysinstall.8; utility.</para>
 
       <note>
