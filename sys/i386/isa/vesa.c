@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.15 1999/01/17 14:12:48 yokota Exp $
+ * $Id: vesa.c,v 1.17 1999/02/05 12:58:40 yokota Exp $
  */
 
 #include "vga.h"
@@ -838,9 +838,9 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
 	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
 		error = vesa_bios_save_palette(0, 256, palette, bits);
+		vesa_bios_set_dac(6);
 		if (error == 0)
 			return 0;
-		vesa_bios_set_dac(6);
 	}
 
 	return (*prevvidsw->save_palette)(adp, palette);
@@ -855,9 +855,9 @@ vesa_load_palette(video_adapter_t *adp, u_char *palette)
 	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
 	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
 		error = vesa_bios_load_palette(0, 256, palette, bits);
+		vesa_bios_set_dac(6);
 		if (error == 0)
 			return 0;
-		vesa_bios_set_dac(6);
 	}
 
 	return (*prevvidsw->load_palette)(adp, palette);
@@ -1082,9 +1082,12 @@ vesa_unload(void)
 
 	s = spltty();
 	if ((error = vesa_unload_ioctl()) == 0) {
-		if (vesa_adp != NULL)
+		if (vesa_adp != NULL) {
+			if (vesa_adp_info->v_flags & V_DAC8) 
+				vesa_bios_set_dac(6);
 			vesa_adp->va_flags &= ~V_ADP_VESA;
-		vidsw[vesa_adp->va_index] = prevvidsw;
+			vidsw[vesa_adp->va_index] = prevvidsw;
+		}
 	}
 	splx(s);
 
