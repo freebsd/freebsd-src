@@ -33,8 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)xdr_subs.h	8.1 (Berkeley) 6/10/93
+ *	@(#)xdr_subs.h	8.3 (Berkeley) 3/30/95
  */
+
+
+#ifndef _NFS_XDR_SUBS_H_
+#define _NFS_XDR_SUBS_H_
 
 /*
  * Macros used for conversion to/from xdr representation by nfs...
@@ -50,22 +54,28 @@
 #define	fxdr_unsigned(t, v)	((t)ntohl((long)(v)))
 #define	txdr_unsigned(v)	(htonl((long)(v)))
 
-#define	fxdr_nfstime(f, t) { \
-	(t)->ts_sec = ntohl(((struct nfsv2_time *)(f))->nfs_sec); \
-	(t)->ts_nsec = 1000 * ntohl(((struct nfsv2_time *)(f))->nfs_usec); \
+#define	fxdr_nfsv2time(f, t) { \
+	(t)->ts_sec = ntohl(((struct nfsv2_time *)(f))->nfsv2_sec); \
+	if (((struct nfsv2_time *)(f))->nfsv2_usec != 0xffffffff) \
+		(t)->ts_nsec = 1000 * ntohl(((struct nfsv2_time *)(f))->nfsv2_usec); \
+	else \
+		(t)->ts_nsec = 0; \
 }
-#define	txdr_nfstime(f, t) { \
-	((struct nfsv2_time *)(t))->nfs_sec = htonl((f)->ts_sec); \
-	((struct nfsv2_time *)(t))->nfs_usec = htonl((f)->ts_nsec) / 1000; \
+#define	txdr_nfsv2time(f, t) { \
+	((struct nfsv2_time *)(t))->nfsv2_sec = htonl((f)->ts_sec); \
+	if ((f)->ts_nsec != -1) \
+		((struct nfsv2_time *)(t))->nfsv2_usec = htonl((f)->ts_nsec / 1000); \
+	else \
+		((struct nfsv2_time *)(t))->nfsv2_usec = 0xffffffff; \
 }
 
-#define	fxdr_nqtime(f, t) { \
-	(t)->ts_sec = ntohl(((struct nqnfs_time *)(f))->nq_sec); \
-	(t)->ts_nsec = ntohl(((struct nqnfs_time *)(f))->nq_nsec); \
+#define	fxdr_nfsv3time(f, t) { \
+	(t)->ts_sec = ntohl(((struct nfsv3_time *)(f))->nfsv3_sec); \
+	(t)->ts_nsec = ntohl(((struct nfsv3_time *)(f))->nfsv3_nsec); \
 }
-#define	txdr_nqtime(f, t) { \
-	((struct nqnfs_time *)(t))->nq_sec = htonl((f)->ts_sec); \
-	((struct nqnfs_time *)(t))->nq_nsec = htonl((f)->ts_nsec); \
+#define	txdr_nfsv3time(f, t) { \
+	((struct nfsv3_time *)(t))->nfsv3_sec = htonl((f)->ts_sec); \
+	((struct nfsv3_time *)(t))->nfsv3_nsec = htonl((f)->ts_nsec); \
 }
 
 #define	fxdr_hyper(f, t) { \
@@ -76,3 +86,5 @@
 	((long *)(t))[0] = htonl(((long *)(f))[_QUAD_HIGHWORD]); \
 	((long *)(t))[1] = htonl(((long *)(f))[_QUAD_LOWWORD]); \
 }
+
+#endif

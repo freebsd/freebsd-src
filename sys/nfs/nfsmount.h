@@ -33,8 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
+ *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
  */
+
+
+#ifndef _NFS_NFSMOUNT_H_
+#define _NFS_NFSMOUNT_H_
 
 /*
  * Mount structure.
@@ -45,7 +49,8 @@ struct	nfsmount {
 	int	nm_flag;		/* Flags for soft/hard... */
 	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
 	int	nm_numgrps;		/* Max. size of groupslist */
-	nfsv2fh_t nm_fh;		/* File handle of root dir */
+	u_char	nm_fh[NFSX_V3FHMAX];	/* File handle of root dir */
+	int	nm_fhsize;		/* Size of root file handle */
 	struct	socket *nm_so;		/* Rpc socket */
 	int	nm_sotype;		/* Type of socket */
 	int	nm_soproto;		/* and protocol */
@@ -61,15 +66,22 @@ struct	nfsmount {
 	int	nm_deadthresh;		/* Threshold of timeouts-->dead server*/
 	int	nm_rsize;		/* Max size of read rpc */
 	int	nm_wsize;		/* Max size of write rpc */
+	int	nm_readdirsize;		/* Size of a readdir rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
 	int	nm_leaseterm;		/* Term (sec) for NQNFS lease */
-	struct nfsnode *nm_tnext;	/* Head of lease timer queue */
-	struct nfsnode *nm_tprev;
+	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
 	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
 	uid_t	nm_authuid;		/* Uid for authenticator */
 	int	nm_authtype;		/* Authenticator type */
 	int	nm_authlen;		/* and length */
 	char	*nm_authstr;		/* Authenticator string */
+	char	*nm_verfstr;		/* and the verifier */
+	int	nm_verflen;
+	u_char	nm_verf[NFSX_V3WRITEVERF]; /* V3 write verifier */
+	NFSKERBKEY_T nm_key;		/* and the session key */
+	int	nm_numuids;		/* Number of nfsuid mappings */
+	TAILQ_HEAD(, nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
+	LIST_HEAD(, nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
 };
 
 #ifdef KERNEL
@@ -125,3 +137,5 @@ int	nfs_vptofh __P((
 		struct vnode *vp,
 		struct fid *fhp));
 int	nfs_init __P(());
+
+#endif

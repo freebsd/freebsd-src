@@ -33,8 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsrtt.h	8.1 (Berkeley) 6/10/93
+ *	@(#)nfsrtt.h	8.2 (Berkeley) 3/30/95
  */
+
+
+#ifndef _NFS_NFSRTT_H_
+#define _NFS_NFSRTT_H_
 
 /*
  * Definitions for performance monitor.
@@ -78,6 +82,7 @@ struct nfsrtt {
 #define	DRT_TCP		0x02	/* Client used TCP transport */
 #define	DRT_CACHEREPLY	0x04	/* Reply was from recent request cache */
 #define	DRT_CACHEDROP	0x08	/* Rpc request dropped, due to recent reply */
+#define DRT_NFSV3	0x10	/* Rpc used NFS Version 3 */
 
 /*
  * Server log structure
@@ -94,3 +99,5 @@ struct nfsdrt {
 		struct timeval tstamp;	/* Timestamp of log entry */
 	} drt[NFSRTTLOGSIZ];
 };
+
+#endif
