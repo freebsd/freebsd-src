@@ -261,6 +261,8 @@ Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 		if (c->next)
 			Check_Chunk(d, c->next, msg);
 		break;
+	default:
+		break;
 	}
 }
 
