@@ -127,14 +127,13 @@ output.
 If the
 .Va <basedir>_output
 value does not begin with a
-.Dq / ,
-it is assumed to contain a list of email addresses, and the output is
-mailed to them.
+.Dq /
+and is not empty, it is assumed to contain a list of email addresses, and
+the output is mailed to them.
 .Pp
 If
 .Va <basedir>_output
-is not set, it defaults to
-.Dq root .
+is not set or is empty, output is sent to standard output.
 .Sh ENVIRONMENT
 The 
 .Nm
