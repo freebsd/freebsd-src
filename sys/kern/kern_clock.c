@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.54 1998/02/04 22:32:30 eivind Exp $
+ * $Id: kern_clock.c,v 1.55 1998/02/06 12:13:22 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -528,3 +528,12 @@ sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
+void
+nanotime(ts)
+	struct timespec *ts;
+{
+	struct timeval tv;
+	microtime(&tv);
+	ts->tv_sec = tv.tv_sec;
+	ts->tv_nsec = tv.tv_usec * 1000;
+}
