@@ -109,7 +109,6 @@ el_match(str, pat)
 {
 #ifdef REGEXEC
     regex_t re;
-    regmatch_t mb;
 #else
 #ifndef REGEXP
     extern char *re_comp __P((const char *));
@@ -123,9 +122,9 @@ el_match(str, pat)
     if (strstr(str, pat) != NULL)
 	return 1;
 #ifdef REGEXEC
-    if (regcomp(&re, pat, REG_EXTENDED) != 0)
+    if (regcomp(&re, pat, REG_EXTENDED | REG_NOSUB) != 0)
 	return 0;
-    return (regexec(&re, str, 1, &mb, 0) == 0);
+    return (regexec(&re, str, 0, NULL, 0) == 0);
 #else
 #ifndef REGEXP
     if (re_comp(pat) != NULL)
