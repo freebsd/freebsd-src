@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.19 1995/04/01 19:53:04 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.20 1995/04/09 06:39:01 gibbs Exp $
  */
 /*
  * TODO:
@@ -461,6 +461,7 @@ struct scsi_device ahc_dev =
 #define HA_RETURN_1		0xc4aul
 #define		SEND_WDTR	0x80
 #define		SEND_SDTR	0x80
+#define		SEND_REJ	0x40
 
 #define HA_SIGSTATE		0xc4bul
 
@@ -669,8 +670,8 @@ void ahc_scsirate(scsirate, period, offset, unit, target )
                         return;
                 }
         }
-	/* Default to asyncronous transfer */
-        *scsirate = 0;
+	/* Default to asyncronous transfers.  Also reject this SDTR request. */
+	*scsirate = 0;
 	printf("ahc%d: target %d using asyncronous transfers\n",
 		unit, target );
 #ifdef AHC_DEBUG
@@ -834,7 +835,7 @@ ahcintr(unit)
 				 * multiply by four
 				 */
 	                        transfer = inb(HA_ARG_1 + iobase) << 2;
-				/* The bottom half of SCSIXFER*/
+				/* The bottom half of SCSIXFER */
 				offset = inb(ACCUM + iobase);
 				scsi_id = inb(SCSIID + iobase) >> 0x4;
 				ahc_scsirate(&rate, transfer, offset, unit,
@@ -848,8 +849,21 @@ ahcintr(unit)
 				rate |= targ_scratch & 0x80;	
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, rate);
 				outb(SCSIRATE + iobase, rate); 
+				if( (rate & 0x7f) == 0 ) 
+				{
+					/*
+					 * The requested rate was so low
+					 * that asyncronous transfers are
+					 * faster (not to mention the 
+					 * controller won't support them),
+					 * so we issue a message reject to
+					 * ensure we go to asyncronous
+					 * transfers.
+					 */
+					outb(HA_RETURN_1 + iobase, SEND_REJ);
+				}
 				/* See if we initiated Sync Negotiation */
-				if(ahc->sdtrpending & (0x01 << scsi_id))
+				else if(ahc->sdtrpending & (0x01 << scsi_id))
 				{
 					/*
 					 * Don't send an SDTR back to
@@ -1370,8 +1384,8 @@ ahc_init(unit)
 	/* Save the IRQ type before we do a chip reset */
 
 	ahc->unpause = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
-	ahc->pause = (inb(HCNTRL + iobase) & IRQMS) | INTEN | PAUSE;
-	outb(HCNTRL + iobase, CHIPRST);
+	ahc->pause = ahc->unpause | PAUSE;
+	outb(HCNTRL + iobase, CHIPRST | ahc->pause);
 	/*
 	 * Ensure that the reset has finished
 	 */
@@ -1382,8 +1396,10 @@ ahc_init(unit)
 			break;
 	}
 	if(wait == 0) {
-		printf("ahc%d: Failed chip reset - probe failed!\n", unit);
-		return(1);
+		printf("ahc%d: WARNING - Failed chip reset!  "
+		       "Trying to initialize anyway.\n", unit);
+		/* Forcibly clear CHIPRST */
+		outb(HCNTRL + iobase, ahc->pause);
 	}
 	switch( ahc->type ) {
 	   case AHC_274:
@@ -1403,7 +1419,10 @@ ahc_init(unit)
 		ahc->maxscbs = 0x10;
 		#define DFTHRESH        3
 		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
-		/* XXX Hard coded SCSI ID for now */
+		/* 
+		 * XXX Hard coded SCSI ID until we can read it from the
+		 * SEEPROM or NVRAM.
+		 */
 		outb(HA_SCSICONF + iobase, 0x07 | (DFTHRESH << 6));
 		/* In case we are a wide card */
 		outb(HA_SCSICONF + 1 + iobase, 0x07);
@@ -1505,7 +1524,7 @@ ahc_init(unit)
 		}
 	}
 
-	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channes */
+	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channels */
 	if( ahc->type & AHC_TWIN)
 	{
 		/* 
@@ -2097,12 +2116,10 @@ ahc_timeout(void *arg1)
             ,scb->xs->sc_link->lun 
             ,scb->xs->sc_link->device->name
             ,scb->xs->sc_link->dev_unit);
-#ifdef  AHC_DEBUG
-#ifdef	SCSIDEBUG
-	if (ahc_debug & AHC_SHOWCMDS) {
-		show_scsi_cmd(scb->xs); 
-	}
+#ifdef SCSIDEBUG
+	show_scsi_cmd(scb->xs); 
 #endif
+#ifdef  AHC_DEBUG
         if (ahc_debug & AHC_SHOWSCBS)
                 ahc_print_active_scb(unit);
 #endif /*AHC_DEBUG */
