@@ -354,14 +354,6 @@ afterinstall: maninstall
 .endif
 .endif
 
-DISTRIBUTION?=	base
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
-
 .if !target(lint)
 lint: ${SRCS:M*.c}
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
