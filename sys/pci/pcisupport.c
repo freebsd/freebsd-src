@@ -760,18 +760,13 @@ static int pcib_attach(device_t dev)
 {
 	u_int8_t secondary;
 	device_t child;
-	int *ivar;
 
 	chipset_attach(dev, device_get_unit(dev));
 
 	secondary = pci_get_secondarybus(dev);
 	if (secondary) {
 		child = device_add_child(dev, "pci", -1);
-		ivar = malloc(sizeof ivar[0], M_DEVBUF /* XXX */, M_NOWAIT);
-		if (ivar == NULL)
-			panic("out of memory");
-		device_set_ivars(child, ivar);
-		ivar[0] = secondary;
+		*(int*) device_get_softc(dev) = secondary;
 		return bus_generic_attach(dev);
 	} else
 		return 0;
@@ -782,7 +777,7 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	switch (which) {
 	case PCIB_IVAR_BUS:
-		*result = *(int*) device_get_ivars(dev);
+		*result = *(int*) device_get_softc(dev);
 		return 0;
 	}
 	return ENOENT;
@@ -793,7 +788,7 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 	switch (which) {
 	case PCIB_IVAR_BUS:
-		*(int*) device_get_ivars(dev) = value;
+		*(int*) device_get_softc(dev) = value;
 		return 0;
 	}
 	return ENOENT;
@@ -859,7 +854,7 @@ static device_method_t pcib_methods[] = {
 static driver_t pcib_driver = {
 	"pcib",
 	pcib_methods,
-	1,
+	sizeof(int),
 };
 
 static devclass_t pcib_devclass;
