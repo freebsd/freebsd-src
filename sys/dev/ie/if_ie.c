@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.63 1999/08/18 22:14:22 mdodd Exp $
+ *	$Id: if_ie.c,v 1.64 1999/08/20 14:12:13 mdodd Exp $
  */
 
 /*
@@ -2131,6 +2131,7 @@ ieinit(xsc)
 	volatile struct ie_sys_ctl_block *scb = ie->scb;
 	v_caddr_t ptr;
 	int	i;
+	int	unit = ie->unit;
 
 	ptr = Alignvol((volatile char *) scb + sizeof *scb);
 
@@ -2148,9 +2149,9 @@ ieinit(xsc)
 
 		scb->ie_command_list = MK_16(MEM, cmd);
 
-		if (command_and_wait(sc->unit, IE_CU_START, cmd, IE_STAT_COMPL)
+		if (command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
 		 || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
-			printf("ie%d: configure command failed\n", sc->unit);
+			printf("ie%d: configure command failed\n", unit);
 			return;
 		}
 	}
@@ -2164,13 +2165,13 @@ ieinit(xsc)
 		cmd->com.ie_cmd_cmd = IE_CMD_IASETUP | IE_CMD_LAST;
 		cmd->com.ie_cmd_link = 0xffff;
 
-		bcopy((volatile char *)ie_softc[sc->unit].arpcom.ac_enaddr,
+		bcopy((volatile char *)ie_softc[unit].arpcom.ac_enaddr,
 		      (volatile char *)&cmd->ie_address, sizeof cmd->ie_address);
 		scb->ie_command_list = MK_16(MEM, cmd);
-		if (command_and_wait(sc->unit, IE_CU_START, cmd, IE_STAT_COMPL)
+		if (command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
 		    || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
 			printf("ie%d: individual address "
-			       "setup command failed\n", sc->unit);
+			       "setup command failed\n", unit);
 			return;
 		}
 	}
@@ -2178,12 +2179,12 @@ ieinit(xsc)
 	/*
 	 * Now run the time-domain reflectometer.
 	 */
-	run_tdr(sc->unit, (volatile void *) ptr);
+	run_tdr(unit, (volatile void *) ptr);
 
 	/*
 	 * Acknowledge any interrupts we have generated thus far.
 	 */
-	ie_ack(ie->scb, IE_ST_WHENCE, sc->unit, ie->ie_chan_attn);
+	ie_ack(ie->scb, IE_ST_WHENCE, unit, ie->ie_chan_attn);
 
 	/*
 	 * Set up the RFA.
@@ -2233,11 +2234,11 @@ ieinit(xsc)
 		bart_config |= IEE16_BART_MCS16_TEST;
 		outb(PORT + IEE16_CONFIG, bart_config);
 		ee16_interrupt_enable(ie);
-		ee16_chan_attn(sc->unit);
+		ee16_chan_attn(unit);
 	}
 	ie->arpcom.ac_if.if_flags |= IFF_RUNNING;	/* tell higher levels
 							 * we're here */
-	start_receiver(sc->unit);
+	start_receiver(unit);
 
 	return;
 }

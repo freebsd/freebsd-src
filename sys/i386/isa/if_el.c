@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.43 1999/08/18 22:14:20 mdodd Exp $
+ * $Id: if_el.c,v 1.44 1999/08/20 14:12:12 mdodd Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -237,7 +237,7 @@ static void el_stop(xsc)
 
 /* Initialize interface.  */
 static void 
-el_init(xse)
+el_init(xsc)
 	void *xsc;
 {
 	struct el_softc *sc = xsc;
