@@ -155,26 +155,29 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * Hence the TDF_INMSLEEP flag.
 	 */
 	if (p->p_flag & P_KSES) {
-		/* Just don't bother if we are exiting
-				and not the exiting thread. */
-		if ((p->p_flag & P_WEXIT) && catch && p->p_singlethread != td)
+		/*
+		 * Just don't bother if we are exiting
+		 * and not the exiting thread.
+		 */
+		if ((p->p_flag & P_WEXIT) && catch && (p->p_singlethread != td))
 			return (EINTR);
-		if (td->td_mailbox && (!(td->td_flags & TDF_INMSLEEP))) {
+		mtx_lock_spin(&sched_lock);
+		if ((td->td_flags & (TDF_UNBOUND|TDF_INMSLEEP)) ==
+		    TDF_UNBOUND) {
 			/*
 			 * Arrange for an upcall to be readied.
 			 * it will not actually happen until all
 			 * pending in-kernel work for this KSEGRP
 			 * has been done.
 			 */
-			mtx_lock_spin(&sched_lock);
 			/* Don't recurse here! */
 			td->td_flags |= TDF_INMSLEEP;
 			thread_schedule_upcall(td, td->td_kse);
 			td->td_flags &= ~TDF_INMSLEEP;
-			mtx_unlock_spin(&sched_lock);
 		}
+	} else {
+		mtx_lock_spin(&sched_lock);
 	}
-	mtx_lock_spin(&sched_lock);
 	if (cold ) {
 		/*
 		 * During autoconfiguration, just give interrupts
