@@ -386,6 +386,12 @@ ac97_create(device_t dev, void *devinfo, ac97_init *init, ac97_read *rd, ac97_wr
 	return codec;
 }
 
+void
+ac97_destroy(struct ac97_info *codec)
+{
+	free(codec, M_DEVBUF);
+}
+
 static int
 ac97mix_init(snd_mixer *m)
 {
@@ -396,6 +402,20 @@ ac97mix_init(snd_mixer *m)
 		return -1;
 	mix_setdevs(m, ac97mixdevs | ((codec->caps & 4)? SOUND_MASK_BASS | SOUND_MASK_TREBLE : 0));
 	mix_setrecdevs(m, ac97recdevs);
+	return 0;
+}
+
+static int
+ac97mix_uninit(snd_mixer *m)
+{
+	struct ac97_info *codec = mix_getdevinfo(m);
+	if (codec == NULL)
+		return -1;
+	/*
+	if (ac97_uninitmixer(codec))
+		return -1;
+	*/
+	ac97_destroy(codec);
 	return 0;
 }
 
@@ -424,6 +444,7 @@ ac97mix_setrecsrc(snd_mixer *m, u_int32_t src)
 snd_mixer ac97_mixer = {
 	"AC97 mixer",
 	ac97mix_init,
+	ac97mix_uninit,
 	ac97mix_set,
 	ac97mix_setrecsrc,
 };

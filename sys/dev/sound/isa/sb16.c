@@ -107,6 +107,14 @@ static pcm_channel sb_chantemplate = {
 	sbchan_trigger,
 	sbchan_getptr,
 	sbchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 struct sb_info;
@@ -152,10 +160,11 @@ static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
 
 static snd_mixer sb_mixer = {
-    "SoundBlaster mixer",
-    sbmix_init,
-    sbmix_set,
-    sbmix_setrecsrc,
+    	"SoundBlaster mixer",
+    	sbmix_init,
+	NULL,
+    	sbmix_set,
+    	sbmix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -412,7 +421,6 @@ sb16_swap(void *v, int dir)
 static int
 sb_doattach(device_t dev, struct sb_info *sb)
 {
-    	snddev_info *d = device_get_softc(dev);
     	void *ih;
     	char status[SND_STATUSLEN];
 	int bs = DSP_BUFFSIZE;
@@ -421,7 +429,7 @@ sb_doattach(device_t dev, struct sb_info *sb)
 		goto no;
     	if (sb_reset_dsp(sb))
 		goto no;
-    	mixer_init(d, &sb_mixer, sb);
+    	mixer_init(dev, &sb_mixer, sb);
 
 	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
     	if ((sb->bd_flags & BD_F_SB16) && !(sb->bd_flags & BD_F_SB16X))

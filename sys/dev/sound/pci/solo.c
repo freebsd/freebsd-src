@@ -90,6 +90,14 @@ static pcm_channel ess_chantemplate = {
 	esschan_trigger,
 	esschan_getptr,
 	esschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 struct ess_info;
@@ -138,10 +146,11 @@ static int essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 static int essmix_setrecsrc(snd_mixer *m, u_int32_t src);
 
 static snd_mixer ess_mixer = {
-    "ESS mixer",
-    essmix_init,
-    essmix_set,
-    essmix_setrecsrc,
+    	"ESS mixer",
+    	essmix_init,
+	NULL,
+    	essmix_set,
+    	essmix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -908,7 +917,6 @@ ess_probe(device_t dev)
 static int
 ess_attach(device_t dev)
 {
-    	snddev_info *d = device_get_softc(dev);
     	struct ess_info *sc;
     	void *ih;
     	char status[SND_STATUSLEN];
@@ -935,7 +943,7 @@ ess_attach(device_t dev)
 
     	if (ess_reset_dsp(sc))
 		goto no;
-    	mixer_init(d, &ess_mixer, sc);
+    	mixer_init(dev, &ess_mixer, sc);
 
 	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
 #ifdef ESS18XX_DUPLEX

@@ -108,20 +108,22 @@ static int mssmix_init(snd_mixer *m);
 static int mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int mssmix_setrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer mss_mixer = {
-    "MSS mixer",
-    mssmix_init,
-    mssmix_set,
-    mssmix_setrecsrc,
+    	"MSS mixer",
+    	mssmix_init,
+	NULL,
+    	mssmix_set,
+    	mssmix_setrecsrc,
 };
 
 static int ymmix_init(snd_mixer *m);
 static int ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int ymmix_setrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer yamaha_mixer = {
-    "OPL3-SAx mixer",
-    ymmix_init,
-    ymmix_set,
-    ymmix_setrecsrc,
+    	"OPL3-SAx mixer",
+    	ymmix_init,
+	NULL,
+    	ymmix_set,
+    	ymmix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -178,6 +180,14 @@ static pcm_channel mss_chantemplate = {
 	msschan_trigger,
 	msschan_getptr,
 	msschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 #define MD_AD1848	0x91
@@ -862,7 +872,6 @@ ymf_test(device_t dev, struct mss_info *mss)
 static int
 mss_doattach(device_t dev, struct mss_info *mss)
 {
-    	snddev_info *d = device_get_softc(dev);
     	void *ih;
     	int flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
@@ -902,7 +911,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 		io_wr(mss, 0, bits);
 		printf("drq/irq conf %x\n", io_rd(mss, 0));
     	}
-    	mixer_init(d, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
+    	mixer_init(dev, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &ih);

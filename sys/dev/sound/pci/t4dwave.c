@@ -150,6 +150,14 @@ static pcm_channel tr_chantemplate = {
 	trchan_trigger,
 	trchan_getptr,
 	trchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -601,7 +609,6 @@ tr_pci_probe(device_t dev)
 static int
 tr_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct tr_info *tr;
 	struct ac97_info *codec;
@@ -609,7 +616,6 @@ tr_pci_attach(device_t dev)
 	int		mapped;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -655,7 +661,7 @@ tr_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
