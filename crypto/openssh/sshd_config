@@ -48,8 +48,8 @@ RSAAuthentication yes
 PasswordAuthentication yes
 PermitEmptyPasswords no
 
-# Uncomment to enable s/key passwords 
-#ChallengeResponseAuthentication yes
+# Uncomment to disable s/key passwords 
+#ChallengeResponseAuthentication no
 
 # To change Kerberos options
 #KerberosAuthentication no
