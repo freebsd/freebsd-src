@@ -109,7 +109,8 @@ again with EV_NOHOOK set to actually save the value.  The predefined function
 .Fn env_noset
 may be specified to refuse all attempts to set a variable.
 .Pp
-The unset hook is invoked when an attempt is made to unset a variable. If it 
+The unset hook is invoked when an attempt is made to unset a variable.
+If it 
 returns zero, the  variable will be unset.  The predefined function
 .Fa env_nounset
 may be used to prevent a variable being unset.
@@ -423,7 +424,8 @@ File access via NFS.
 .It cd9660_fsops
 ISO 9660 (CD-ROM) filesystem.
 .It zipfs_fsops
-Stacked filesystem supporting gzipped files. When trying the zipfs filesystem,
+Stacked filesystem supporting gzipped files.
+When trying the zipfs filesystem,
 .Nm
 appends
 .Li .gz

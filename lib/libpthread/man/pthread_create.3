@@ -45,11 +45,14 @@ The
 .Fn pthread_create
 function is used to create a new thread, with attributes specified by
 .Fa attr ,
-within a process. If
+within a process.
+If
 .Fa attr
-is NULL, the default attributes are used. If the attributes specified by
+is NULL, the default attributes are used.
+If the attributes specified by
 .Fa attr
-are modified later, the thread's attributes are not affected. Upon
+are modified later, the thread's attributes are not affected.
+Upon
 successful completion
 .Fn pthread_create
 will store the ID of the created thread in the location specified by
@@ -59,15 +62,18 @@ The thread is created executing
 .Fa start_routine
 with
 .Fa arg
-as its sole argument. If the
+as its sole argument.
+If the
 .Fa start_routine
 returns, the effect is as if there was an implicit call to
 .Fn pthread_exit
 using the return value of
 .Fa start_routine
-as the exit status. Note that the thread in which
+as the exit status.
+Note that the thread in which
 .Fn main
-was originally invoked differs from this. When it returns from
+was originally invoked differs from this.
+When it returns from
 .Fn main ,
 the effect is as if there was an implicit call to
 .Fn exit
@@ -85,7 +91,8 @@ The set of signals pending for the new thread is empty.
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_create
-function will return zero. Otherwise an error number will be returned to
+function will return zero.
+Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
 .Fn pthread_create

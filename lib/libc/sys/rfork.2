@@ -37,7 +37,8 @@ If set a new process is created; otherwise changes affect the
 current process.
 The current implementation requires this flag to always be set.
 .It RFNOWAIT
-If set, the child process will be dissociated from the parent. Upon
+If set, the child process will be dissociated from the parent.
+Upon
 exit the child will not leave a status for the parent to collect.
 See 
 .Xr wait 2 .
@@ -53,7 +54,8 @@ Is mutually exclusive with
 .It RFMEM
 If set, the kernel will force sharing of the entire address space.
 The child
-will then inherit all the shared segments the parent process owns. Other segment
+will then inherit all the shared segments the parent process owns.
+Other segment
 types will be unaffected.  Subsequent forks by the parent will then
 propagate the shared data and bss between children.  The stack segment
 is always split.  May be set only with

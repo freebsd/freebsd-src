@@ -24,7 +24,8 @@ xdrproc_t elproc;
 .IP
 A filter primitive that translates between variable-length
 arrays
-and their corresponding external representations. The
+and their corresponding external representations.
+The
 parameter
 .I arrp
 is the address of the pointer to the array, while
@@ -58,7 +59,8 @@ bool_t *bp;
 .IP
 A filter primitive that translates between booleans (C
 integers)
-and their external representations. When encoding data, this
+and their external representations.
+When encoding data, this
 filter produces values of either one or zero.
 This routine returns one if it succeeds, zero otherwise.
 .br
@@ -78,7 +80,8 @@ A filter primitive that translates between counted byte
 strings and their external representations.
 The parameter
 .I sp
-is the address of the string pointer. The length of the
+is the address of the string pointer.
+The length of the
 string is located at address
 .IR sizep ;
 strings cannot be longer than
@@ -100,7 +103,8 @@ A filter primitive that translates between C characters
 and their external representations.
 This routine returns one if it succeeds, zero otherwise.
 Note: encoded characters are not packed, and occupy 4 bytes
-each. For arrays of characters, it is worthwhile to
+each.
+For arrays of characters, it is worthwhile to
 consider
 .BR xdr_bytes(\|) ,
 .B xdr_opaque(\|)
@@ -189,10 +193,13 @@ char *objp;
 .fi
 .ft R
 .IP
-Generic freeing routine. The first argument is the
+Generic freeing routine.
+The first argument is the
 .SM XDR
-routine for the object being freed. The second argument
-is a pointer to the object itself. Note: the pointer passed
+routine for the object being freed.
+The second argument
+is a pointer to the object itself.
+Note: the pointer passed
 to this routine is
 .I not
 freed, but what it points to
@@ -392,7 +399,8 @@ stream object pointed to by
 The stream's data is written to a buffer of size
 .IR sendsize ;
 a value of zero indicates the system should use a suitable
-default. The stream's data is read from a buffer of size
+default.
+The stream's data is read from a buffer of size
 .IR recvsize ;
 it too can be set to a suitable default by passing a zero
 value.
@@ -439,7 +447,8 @@ The data in the output buffer is marked as a completed
 record,
 and the output buffer is optionally written out if
 .I sendnow
-is non-zero. This routine returns one if it succeeds, zero
+is non-zero.
+This routine returns one if it succeeds, zero
 otherwise.
 .br
 .if t .ne 8
@@ -511,7 +520,8 @@ This routine returns one if it succeeds, zero otherwise.
 .IP
 Warning: this routine does not understand
 .SM NULL
-pointers. Use
+pointers.
+Use
 .B xdr_pointer(\|)
 instead.
 .br
@@ -706,7 +716,8 @@ bool_t (*defaultarm) (\|);  /* may equal \s-1NULL\s0 */
 .IP
 A filter primitive that translates between a discriminated C
 .B union
-and its corresponding external representation. It first
+and its corresponding external representation.
+It first
 translates the discriminant of the union located at
 .IR dscmp .
 This discriminant is always an
@@ -717,7 +728,8 @@ is translated.  The parameter
 .I choices
 is a pointer to an array of
 .B xdr_discrim(\|)
-structures. Each structure contains an ordered pair of
+structures.
+Each structure contains an ordered pair of
 .RI [ value , proc ].
 If the union's discriminant is equal to the associated
 .IR value ,

@@ -134,7 +134,8 @@
 is a library that enables the programmer access to the graphics
 modes supported by the console driver (syscons). The library takes care of
 programming the actual video hardware, and provides a number of simple
-functions to do various graphic operations. There is also support for a
+functions to do various graphic operations.
+There is also support for a
 mouse via the standard mouse system in
 .Fx ,
 see
@@ -143,7 +144,8 @@ including the ability to transparently have a mouse pointer superimposed on
 the graphic image currently being worked on. 
 The library takes care of screen switching by storing the current image in
 memory before switching to another virtual console, and restoring when the
-user switches back. This allows several graphic applications at once, but
+user switches back.
+This allows several graphic applications at once, but
 on different virtual consoles.
 
 Below is a short description of the various functions:
@@ -199,7 +201,8 @@ input mode, the function will not block even if there is no input data,
 and returns 0.
 .Pp
 .Fn VGLMouseInit 
-initialize the mouse. The optional on-screen mouse pointer is shown if the
+initialize the mouse.
+The optional on-screen mouse pointer is shown if the
 argument is 
 .Dv VGL_MOUSESHOW .
 .Pp
@@ -212,7 +215,8 @@ or hides the mouse pointer if the argument is
 .Fn VGLMouseStatus
 returns the current mouse pointer coordinates and button state in
 .Va x , y ,
-buttons. The return value reflects if the mouse pointer 
+buttons.
+The return value reflects if the mouse pointer 
 is currently shown on screen or not.
 .Pp
 .Fn VGLMouseSetImage

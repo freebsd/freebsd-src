@@ -46,7 +46,8 @@ out a stream socket specified by descriptor
 .Pp
 The
 .Fa offset
-argument specifies where to begin in the file. The
+argument specifies where to begin in the file.
+The
 .Fa nbytes
 argument specifies how many bytes of the file should be sent, with 0 having the special
 meaning of send until the end of file has been reached.
@@ -67,9 +68,11 @@ The
 .Fa headers
 and
 .Fa tailers
-pointers, if non-NULL, point to arrays of struct iovec structures. See the
+pointers, if non-NULL, point to arrays of struct iovec structures.
+See the
 .Fn writev
-system call for information on the iovec structure. The number of iovecs in these
+system call for information on the iovec structure.
+The number of iovecs in these
 arrays is specified by
 .Fa hdr_cnt
 and
@@ -85,7 +88,8 @@ argument is currently undefined and should be specified as 0.
 .Pp
 When using a socket marked for non-blocking I/O,
 .Fn sendfile
-may send fewer bytes than requested. In this case, the number of bytes successfully
+may send fewer bytes than requested.
+In this case, the number of bytes successfully
 written is returned in
 .Fa *sbytes
 (if specified),

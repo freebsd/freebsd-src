@@ -52,22 +52,26 @@ interface.
 Input and output is mapped into logical data streams
 and the physical
 .Tn I/O
-characteristics are concealed. The functions and macros are listed
+characteristics are concealed.
+The functions and macros are listed
 below; more information is available from the individual man pages.
 .Pp
 A stream is associated with an external file (which may be a physical
 device) by
 .Em opening
-a file, which may involve creating a new file. Creating an
+a file, which may involve creating a new file.
+Creating an
 existing file causes its former contents to be discarded.
 If a file can support positioning requests (such as a disk file, as opposed
 to a terminal) then a
 .Em file position indicator
 associated with the stream is positioned at the start of the file (byte
-zero), unless the file is opened with append mode. If append mode
+zero), unless the file is opened with append mode.
+If append mode
 is used, the position indicator will be placed at the end-of-file.
 The position indicator is maintained by subsequent reads, writes
-and positioning requests. All input occurs as if the characters
+and positioning requests.
+All input occurs as if the characters
 were read by successive calls to the
 .Xr fgetc 3
 function; all output takes place as if all characters were

@@ -14,11 +14,14 @@ The
 .Fn pthread_cancel
 function requests that
 .Fa thread
-be canceled. The target thread's cancelability state and type determines
-when the cancellation takes effect. When the cancellation is acted on,
+be canceled.
+The target thread's cancelability state and type determines
+when the cancellation takes effect.
+When the cancellation is acted on,
 the cancellation cleanup handlers for
 .Fa thread
-are called. When the last cancellation cleanup handler returns,
+are called.
+When the last cancellation cleanup handler returns,
 the thread-specific data destructor functions will be called for
 .Fa thread .
 When the last destructor function returns,
@@ -31,7 +34,8 @@ respect to the calling thread returning from
 .Pp
 A status of
 .Dv PTHREAD_CANCELED
-is made available to any threads joining with the target. The symbolic
+is made available to any threads joining with the target.
+The symbolic
 constant
 .Dv PTHREAD_CANCELED
 expands to a constant expression of type
@@ -41,7 +45,8 @@ whose value matches no pointer to an object in memory nor the value
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_cancel
-functions will return zero. Otherwise an error number will be returned to
+functions will return zero.
+Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
 .Fn pthread_cancel

@@ -49,7 +49,8 @@ their error returns, and other common definitions and concepts.
 .\"<more later...>
 .Sh RETURN VALUES
 Nearly all of the system calls provide an error number referenced via
-the external identifier errno. This identifier is defined in 
+the external identifier errno.
+This identifier is defined in 
 .Aq Pa sys/errno.h
 as
 .Pp
@@ -59,7 +60,8 @@ as
 The
 .Va __error()
 function returns a pointer to a field in the thread specific structure for
-threads other than the initial thread. For the initial thread and
+threads other than the initial thread.
+For the initial thread and
 non-threaded processes,
 .Va __error()
 returns a pointer to a global
@@ -104,7 +106,8 @@ An asynchronous signal (such as
 or
 .Dv SIGQUIT )
 was caught by the process during the execution of an interruptible
-function. If the signal handler performs a normal return, the
+function.
+If the signal handler performs a normal return, the
 interrupted function call will seem to have returned the error condition.
 .It Er 5 EIO Em "Input/output error" .
 Some physical input or output error occurred.
@@ -264,7 +267,8 @@ A message sent on a socket was larger than the internal message buffer
 or some other network limit.
 .It Er 41 EPROTOTYPE Em "Protocol wrong type for socket" .
 A protocol was specified that does not support the semantics of the
-socket type requested. For example, you cannot use the
+socket type requested.
+For example, you cannot use the
 .Tn ARPA
 Internet
 .Tn UDP

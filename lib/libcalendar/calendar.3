@@ -98,7 +98,8 @@ and
 .Fn ndaysj
 provide conversions between the common "year, month, day" notation
 of a date and the "number of days" representation, which is better suited
-for calculations. The days are numbered from March 1st year 1 B.C., starting
+for calculations.
+The days are numbered from March 1st year 1 B.C., starting
 with zero, so the number of a day gives the number of days since March 1st,
 year 1 B.C. The conversions work for nonnegative day numbers only.
 .Pp
@@ -133,17 +134,21 @@ and
 .Fn ndaysj
 assume Julian Calendar throughout.
 .Pp
-The two calendars differ by the definition of the leap year. The
+The two calendars differ by the definition of the leap year.
+The
 Julian Calendar says every year that is a multiple of four is a
-leap year. The Gregorian Calendar excludes years that are multiples of
+leap year.
+The Gregorian Calendar excludes years that are multiples of
 100 and not multiples of 400.
 This means the years 1700, 1800, 1900, 2100 are not leap years
 and the year 2000 is
 a leap year.
 The new rules were inaugurated on October 4, 1582 by deleting ten
-days following this date. Most catholic countries adopted the new
+days following this date.
+Most catholic countries adopted the new
 calendar by the end of the 16th century, whereas others stayed with
-the Julian Calendar until the 20th century. The United Kingdom and
+the Julian Calendar until the 20th century.
+The United Kingdom and
 their colonies switched on September 2, 1752. They already had to
 delete 11 days.
 .Pp
