@@ -420,13 +420,22 @@ bad:
  * ISO 88025 de-encapsulation
  */
 void
-iso88025_input(ifp, th, m)
+iso88025_input(ifp, m)
 	struct ifnet *ifp;
-	struct iso88025_header *th;
 	struct mbuf *m;
 {
-	int isr;
+	struct iso88025_header *th;
 	struct llc *l;
+	int isr;
+	int mac_hdr_len;
+
+	m = m_pullup(m, ISO88025_HDR_LEN);
+	if (m == NULL) {
+		ifp->if_ierrors++;
+		goto dropanyway;
+	}
+	th = mtod(m, struct iso88025_header *);
+	m->m_pkthdr.header = (void *)th;
 
 	/*
 	 * Discard packet if interface is not up.
@@ -441,7 +450,7 @@ iso88025_input(ifp, th, m)
 	/*
 	 * Update interface statistics.
 	 */
-	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
+	ifp->if_ibytes += m->m_pkthdr.len;
 	getmicrotime(&ifp->if_lastchange);
 
 	/*
@@ -466,6 +475,19 @@ iso88025_input(ifp, th, m)
 		ifp->if_imcasts++;
 	}
 
+	mac_hdr_len = ISO88025_HDR_LEN;
+	/* Check for source routing info */
+	if (th->iso88025_shost[0] & TR_RII)
+		mac_hdr_len += TR_RCF_RIFLEN(th->rcf);
+
+	/* Strip off ISO88025 header. */
+	m_adj(m, mac_hdr_len);
+
+	m = m_pullup(m, LLC_SNAPFRAMELEN);
+	if (m == 0) {
+		ifp->if_ierrors++;
+		goto dropanyway;
+	}
 	l = mtod(m, struct llc *);
 
 	switch (l->llc_dsap) {
