@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.50 1997/05/17 18:32:53 phk Exp $
+ * $Id: ufs_vnops.c,v 1.51 1997/06/02 06:24:51 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -581,12 +581,9 @@ good:
 	if (getinoquota(ip))
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
-	if (ouid != uid || ogid != gid)
-		ip->i_flag |= IN_CHANGE;
-	if (ouid != uid && cred->cr_uid != 0)
-		ip->i_mode &= ~ISUID;
-	if (ogid != gid && cred->cr_uid != 0)
-		ip->i_mode &= ~ISGID;
+	ip->i_flag |= IN_CHANGE;
+	if (cred->cr_uid != 0 && (ouid != uid || ogid != gid))
+		ip->i_mode &= ~(ISUID | ISGID);
 	return (0);
 }
 
