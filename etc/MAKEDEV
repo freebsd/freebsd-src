@@ -256,8 +256,8 @@ saminor()
 # Convert the last character of a tty name to a minor number.
 ttyminor()
 {
-	case $unit in
-	[0-9]) m=$unit;;
+	case $1 in
+	[0-9]) m=$1;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
 	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
 	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
@@ -1068,22 +1068,44 @@ speaker)
 	mknod speaker c 26 0
 	;;
 
-cuaa?|cua?)
+cua?|cuaa?|cuaa??)
 	umask 7
-	unit=`expr $i : 'cua.*\(.\)$'`
-	m=`ttyminor $unit`
-	mknod cuaa$unit c 28 $(($m + 128)) uucp:dialer
-	mknod cuaia$unit c 28 $(($m + 32 + 128)) uucp:dialer
-	mknod cuala$unit c 28 $(($m + 64 + 128)) uucp:dialer
+	unit_low=`expr $i : 'cua.*\(.\)$'`
+	case $i in
+	cua?|cuaa?)
+		unit_high=""
+		m_high=0
+		;;
+	cuaa??)
+		unit_high=`expr $i : 'cuaa\(.\).$'`
+		m_high=`ttyminor $unit_high`
+		;;
+	esac
+	unit=$unit_high$unit_low
+	m=$(($m_high << 16 | `ttyminor $unit_low`))
+	mknod cuaa$unit c 28 $(($m | 128)) uucp:dialer
+	mknod cuaia$unit c 28 $(($m | 32 | 128)) uucp:dialer
+	mknod cuala$unit c 28 $(($m | 64 | 128)) uucp:dialer
 	umask 77
 	;;
 
-tty0?|ttyd?|tty?)
-	unit=`expr $i : 'tty.*\(.\)$'`
-	m=`ttyminor $unit`
+tty?|tty0?|ttyd?|ttyd??)
+	unit_low=`expr $i : 'tty.*\(.\)$'`
+	case $i in
+	tty?|tty0?|ttyd?)
+		unit_high=""
+		m_high=0
+		;;
+	ttyd??)
+		unit_high=`expr $i : 'ttyd\(.\).$'`
+		m_high=`ttyminor $unit_high`
+		;;
+	esac
+	unit=$unit_high$unit_low
+	m=$(($m_high << 16 | `ttyminor $unit_low`))
 	mknod ttyd$unit c 28 $m
-	mknod ttyid$unit c 28 $(($m + 32))
-	mknod ttyld$unit c 28 $(($m + 64))
+	mknod ttyid$unit c 28 $(($m | 32))
+	mknod ttyld$unit c 28 $(($m | 64))
 	;;
 
 cuac?)
