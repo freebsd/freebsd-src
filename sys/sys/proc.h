@@ -582,8 +582,6 @@ sigonstack(size_t sp)
 #define	PROC_LOCK(p)	mtx_lock(&(p)->p_mtx)
 #define	PROC_TRYLOCK(p)	mtx_trylock(&(p)->p_mtx)
 #define	PROC_UNLOCK(p)	mtx_unlock(&(p)->p_mtx)
-#define	PROC_UNLOCK_NOSWITCH(p)						\
-	mtx_unlock_flags(&(p)->p_mtx, MTX_NOSWITCH)
 #define	PROC_LOCKED(p)	mtx_owned(&(p)->p_mtx)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 

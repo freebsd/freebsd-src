@@ -83,7 +83,7 @@ static void	*taskqueue_acpi_ih;
 static void
 taskqueue_acpi_enqueue(void *context)
 {  
-    swi_sched(taskqueue_acpi_ih, SWI_NOSWITCH);
+    swi_sched(taskqueue_acpi_ih, 0);
 }
 
 static void

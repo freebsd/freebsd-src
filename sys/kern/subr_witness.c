@@ -818,7 +818,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					    instance->li_lock->lo_name,
 					    instance->li_flags);
 					instance->li_flags--;
-					goto out;
+					return;
 				}
 				s = cpu_critical_enter();
 				CTR4(KTR_WITNESS,
@@ -839,23 +839,11 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					    td->td_proc->p_pid, lle);
 					witness_lock_list_free(lle);
 				}
-				goto out;
+				return;
 			}
 		}
 	panic("lock (%s) %s not locked @ %s:%d", class->lc_name, lock->lo_name,
 	    file, line);
-out:
-	/*
-	 * We don't need to protect this PCPU_GET() here against preemption
-	 * because if we hold any spinlocks then we are already protected,
-	 * and if we don't we will get NULL if we hold no spinlocks even if
-	 * we switch CPU's while reading it.
-	 */
-	if (class->lc_flags & LC_SLEEPLOCK) {
-		if ((flags & LOP_NOSWITCH) == 0 && PCPU_GET(spinlocks) != NULL)
-			panic("switchable sleep unlock (%s) %s @ %s:%d",
-			    class->lc_name, lock->lo_name, file, line);
-	}
 }
 
 /*

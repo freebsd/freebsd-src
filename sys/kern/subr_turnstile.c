@@ -209,8 +209,6 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT((opts & MTX_NOSWITCH) == 0,
-	    ("MTX_NOSWITCH used at %s:%d", file, line));
 	_get_sleep_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
@@ -263,12 +261,6 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
-
-	/*
-	 * _mtx_trylock does not accept MTX_NOSWITCH option.
-	 */
-	KASSERT((opts & MTX_NOSWITCH) == 0,
-	    ("mtx_trylock() called with invalid option flag(s) %d", opts));
 
 	rval = _obtain_lock(m, curthread);
 
@@ -524,7 +516,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	td1->td_proc->p_stat = SRUN;
 	setrunqueue(td1);
 
-	if ((opts & MTX_NOSWITCH) == 0 && td1->td_ksegrp->kg_pri.pri_level < pri) {
+	if (td->td_critnest == 1 && td1->td_ksegrp->kg_pri.pri_level < pri) {
 #ifdef notyet
 		if (td->td_ithd != NULL) {
 			struct ithd *it = td->td_ithd;
@@ -691,8 +683,8 @@ mtx_destroy(struct mtx *m)
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Tell witness this isn't locked to make it happy. */
-		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE | LOP_NOSWITCH,
-		    __FILE__, __LINE__);
+		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE, __FILE__,
+		    __LINE__);
 	}
 
 	WITNESS_DESTROY(&m->mtx_object);

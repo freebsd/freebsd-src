@@ -630,7 +630,7 @@ swapout(p)
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
-	PROC_UNLOCK_NOSWITCH(p);
+	PROC_UNLOCK(p);
 	FOREACH_THREAD_IN_PROC (p, td)
 		if (td->td_proc->p_stat == SRUN)	/* XXXKSE */
 			remrunqueue(td);	/* XXXKSE */

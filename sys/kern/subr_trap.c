@@ -82,7 +82,7 @@ userret(td, frame, oticks)
 	mtx_lock_spin(&sched_lock);
 	kg->kg_pri.pri_level = kg->kg_pri.pri_user;
 	if (ke->ke_flags & KEF_NEEDRESCHED) {
-		DROP_GIANT_NOSWITCH();
+		DROP_GIANT();
 		setrunqueue(td);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();

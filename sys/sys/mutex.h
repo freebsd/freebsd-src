@@ -62,7 +62,6 @@
  * Option flags passed to certain lock/unlock routines, through the use
  * of corresponding mtx_{lock,unlock}_flags() interface macros.
  */
-#define	MTX_NOSWITCH	LOP_NOSWITCH	/* Do not switch on release */
 #define	MTX_QUIET	LOP_QUIET	/* Don't log a mutex event */
 
 /*
@@ -214,7 +213,7 @@ void	mtx_unlock_giant(int s);
  * mtx_lock_spin_flags(m, opts) and mtx_lock_flags(m, opts) locks mutex `m'
  *     and passes option flags `opts' to the "hard" function, if required.
  *     With these routines, it is possible to pass flags such as MTX_QUIET
- *     and/or MTX_NOSWITCH to the appropriate lock manipulation routines.
+ *     to the appropriate lock manipulation routines.
  *
  * mtx_trylock(m) attempts to acquire MTX_DEF mutex `m' but doesn't sleep if
  *     it cannot. Rather, it returns 0 on failure and non-zero on success.
@@ -294,16 +293,6 @@ extern int kern_giant_file;
  *
  * Note that DROP_GIANT*() needs to be paired with PICKUP_GIANT() 
  */
-#define DROP_GIANT_NOSWITCH()						\
-do {									\
-	int _giantcnt;							\
-	WITNESS_SAVE_DECL(Giant);					\
-									\
-	if (mtx_owned(&Giant))						\
-		WITNESS_SAVE(&Giant.mtx_object, Giant);			\
-	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
-		mtx_unlock_flags(&Giant, MTX_NOSWITCH)
-
 #define DROP_GIANT()							\
 do {									\
 	int _giantcnt;							\

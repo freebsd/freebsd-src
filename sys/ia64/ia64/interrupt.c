@@ -114,11 +114,13 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
+		critical_enter();
 		handleclock(framep);
 
 		/* divide hz (1024) by 8 to get stathz (128) */
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
+		critical_exit();
 #ifdef SMP
 	} else if (vector == mp_ipi_vector[IPI_AST]) {
 		ast(framep);
@@ -317,8 +319,10 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	 */
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if ((ih->ih_flags & IH_FAST) != 0) {
+		critical_enter();
 		ih->ih_handler(ih->ih_argument);
 		ia64_send_eoi(vector);
+		critical_exit();
 		return;
 	}
 
