@@ -60,6 +60,7 @@
 #endif /*DEVFS*/
 
 #include <machine/mouse.h>
+#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 
@@ -75,7 +76,7 @@
 #define	PSM_INT_DISABLE	0x65	/* disable controller interrupts */
 #define	PSM_DISABLE	0xa7	/* disable auxiliary port */
 #define	PSM_ENABLE	0xa8	/* enable auxiliary port */
-#define	PSM_ENABLE	0xa9	/* test auxiliary port */
+#define	PSM_AUX_TEST	0xa9	/* test auxiliary port */
 
 /* mouse commands */
 #define PSM_SET_SCALE11	0xe6	/* set 1:1 scaling */
@@ -187,6 +188,7 @@ psmprobe(struct isa_device *dvp)
 
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
+
 #ifndef PSM_NO_RESET
 	psm_write_dev(ioport, PSM_RESET);	/* Reset aux device */
 #endif
@@ -302,8 +304,11 @@ psm_poll_status(int ioport)
 	u_char c;
 
 	while(c = inb(ioport+PSM_STATUS) & 0x03)
-		if(c & PSM_OUTPUT_ACK == PSM_OUTPUT_ACK)
+		if(c & PSM_OUTPUT_ACK == PSM_OUTPUT_ACK) {
+			/* XXX - Avoids some keyboard hangs during probe */
+			DELAY(6);
 			inb(ioport+PSM_DATA);
+	}
 	return;
 }
 
