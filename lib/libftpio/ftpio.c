@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.15.2.3 1997/08/03 18:45:21 peter Exp $
+ * $Id: ftpio.c,v 1.15.2.4 1997/10/01 07:22:06 jkh Exp $
  *
  */
 
@@ -103,7 +103,7 @@ networkInit()
 static int
 check_code(FTP_t ftp, int var, int preferred)
 {
-    ftp->errno = 0;
+    ftp->error = 0;
     while (1) {
 	if (var == preferred)
 	    return 0;
@@ -114,7 +114,7 @@ check_code(FTP_t ftp, int var, int preferred)
 	else if (var == FTP_GENERALLY_HAPPY)	/* general success code */
 	    var = get_a_number(ftp, NULL);
 	else {
-	    ftp->errno = var;
+	    ftp->error = var;
 	    return 1;
 	}
     }
@@ -172,18 +172,21 @@ int
 ftpErrno(FILE *fp)
 {
     FTP_t ftp = fcookie(fp);
-    return ftp->errno;
+    return ftp->error;
 }
 
 const char *
-ftpErrString(int errno)
+ftpErrString(int error)
 {
     int	k;
 
-    if (errno == -1)
+    if (error == -1)
 	return("connection in wrong state");
+    if (error < 100)
+	/* XXX soon UNIX errnos will catch up with FTP protocol errnos */
+	return strerror(error);
     for (k = 0; k < ftpErrListLength; k++)
-      if (ftpErrList[k].num == errno)
+      if (ftpErrList[k].num == error)
 	return(ftpErrList[k].string);
     return("Unknown error");
 }
@@ -282,7 +285,7 @@ ftpLogin(char *host, char *user, char *passwd, int port, int verbose, int *retco
 	if (!n)
 	    *retcode = (FtpTimedOut ? FTP_TIMED_OUT : -1);
 	/* Poor attempt at mapping real errnos to FTP error codes */
-	else switch(n->errno) {
+	else switch(n->error) {
 	    case EADDRNOTAVAIL:
 		*retcode = FTP_TIMED_OUT;	/* Actually no such host, but we have no way of saying that. :-( */
 		break;
@@ -292,7 +295,7 @@ ftpLogin(char *host, char *user, char *passwd, int port, int verbose, int *retco
 		break;
 
 	    default:
-		*retcode = n->errno;
+		*retcode = n->error;
 		break;
 	}
     }
@@ -417,7 +420,7 @@ get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret)
 
     name = host = NULL;
     /* XXX add http:// here or somewhere reasonable at some point XXX */
-    if (strncmp("ftp://", url_in, 6) != NULL)
+    if (strncmp("ftp://", url_in, 6) != 0)
 	return FAILURE;
     /* We like to stomp a lot on the URL string in dissecting it, so copy it first */
     strncpy(url, url_in, BUFSIZ);
@@ -454,7 +457,7 @@ ftp_new(void)
     ftp->is_binary = FALSE;
     ftp->is_passive = FALSE;
     ftp->is_verbose = FALSE;
-    ftp->errno = 0;
+    ftp->error = 0;
     return ftp;
 }
 
@@ -613,7 +616,7 @@ ftp_close(FTP_t ftp)
     if (ftp->con_state == isopen) {
 	ftp->con_state = quit;
 	/* If last operation timed out, don't try to quit - just close */
-	if (ftp->errno != FTP_TIMED_OUT)
+	if (ftp->error != FTP_TIMED_OUT)
 	    i = cmd(ftp, "QUIT");
 	else
 	    i = FTP_QUIT_HAPPY;
@@ -674,7 +677,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
 
     if (ftp->con_state != init) {
 	ftp_close(ftp);
-	ftp->errno = -1;
+	ftp->error = -1;
 	return FAILURE;
     }
 
@@ -695,7 +698,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
     else {
 	he = gethostbyname(host);
 	if (!he) {
-	    ftp->errno = 0;
+	    ftp->error = 0;
 	    return FAILURE;
 	}
 	ftp->addrtype = sin.sin_family = he->h_addrtype;
@@ -705,13 +708,13 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
     sin.sin_port = htons(port);
 
     if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0) {
-	ftp->errno = -1;
+	ftp->error = -1;
 	return FAILURE;
     }
 
     if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 	(void)close(s);
-	ftp->errno = errno;
+	ftp->error = errno;
 	return FAILURE;
     }
 
@@ -725,7 +728,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
     if (i >= 299 || i < 0) {
 	ftp_close(ftp);
 	if (i > 0)
-	    ftp->errno = i;
+	    ftp->error = i;
 	return FAILURE;
     }
     return SUCCESS;
@@ -748,7 +751,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	return botch("ftp_file_op", "open");
 
     if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0) {
-	ftp->errno = errno;
+	ftp->error = errno;
 	return FAILURE;
     }
 
@@ -758,7 +761,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	if (writes(ftp->fd_ctrl, "PASV\r\n")) {
 	    ftp_close(ftp);
 	    if (FtpTimedOut)
-		ftp->errno = FTP_TIMED_OUT;
+		ftp->error = FTP_TIMED_OUT;
 	    return FTP_TIMED_OUT;
 	}
 	i = get_a_number(ftp, &q);
@@ -790,7 +793,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    i = cmd(ftp, "REST %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
-		ftp->errno = i;
+		ftp->error = i;
 		*seekto = (off_t)0;
 		return i;
 	    }
@@ -798,7 +801,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
 	    close(s);
-	    ftp->errno = i;
+	    ftp->error = i;
 	    return i;
 	}
 	*fp = fdopen(s, mode);
@@ -835,7 +838,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    i = cmd(ftp, "REST %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
-		ftp->errno = i;
+		ftp->error = i;
 		return i;
 	    }
 	    else if (i != 350)
@@ -844,13 +847,13 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
 	    close(s);
-	    ftp->errno = i;
+	    ftp->error = i;
 	    return FAILURE;
 	}
 	fd = accept(s, 0, 0);
 	if (fd < 0) {
 	    close(s);
-	    ftp->errno = 401;
+	    ftp->error = 401;
 	    return FAILURE;
 	}
 	close(s);
