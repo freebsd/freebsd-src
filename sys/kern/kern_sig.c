@@ -67,6 +67,7 @@
 
 #include <machine/ipl.h>
 #include <machine/cpu.h>
+#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
@@ -165,6 +166,31 @@ static int sigproptbl[NSIG] = {
         SA_KILL,                /* SIGUSR1 */
         SA_KILL,                /* SIGUSR2 */
 };
+
+/*
+ * Determine signal that should be delivered to process p, the current
+ * process, 0 if none.  If there is a pending stop signal with default
+ * action, the process stops in issignal().
+ *
+ * MP SAFE
+ */
+int
+CURSIG(struct proc *p)
+{
+	sigset_t tmpset;
+	int r;
+
+	tmpset = p->p_siglist;
+	SIGSETNAND(tmpset, p->p_sigmask);
+	if (SIGISEMPTY(p->p_siglist) ||
+	     (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset))) {
+		return(0);
+	}
+	mtx_enter(&Giant, MTX_DEF);
+	r = issignal(p);
+	mtx_exit(&Giant, MTX_DEF);
+	return(r);
+}
 
 static __inline int
 sigprop(int sig)
