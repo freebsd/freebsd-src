@@ -6,7 +6,7 @@ MAN=	a.out.5 acct.5 core.5 devfs.5 device.hints.5 \
 	dir.5 disktab.5 drivers.conf.5 \
 	elf.5 ethers.5 fbtab.5 fdescfs.5 forward.5 fs.5 fstab.5 group.5 \
 	hesiod.conf.5 \
-	hosts.5 hosts.equiv.5 hosts.lpd.5 intro.5 link.5 \
+	hosts.5 hosts.equiv.5 hosts.lpd.5 intro.5 libmap.conf.5 link.5 \
 	linprocfs.5 mailer.conf.5 make.conf.5 moduli.5 motd.5 msdosfs.5 \
 	networks.5 \
 	nsswitch.conf.5 \

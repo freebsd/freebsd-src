@@ -52,6 +52,9 @@
 
 #include "debug.h"
 #include "rtld.h"
+#ifdef WITH_LIBMAP
+#include "libmap.h"
+#endif
 
 #define END_SYM		"_end"
 #define PATH_RTLD	"/usr/libexec/ld-elf.so.1"
@@ -365,6 +368,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
+
+#ifdef WITH_LIBMAP
+    lm_init();
+#endif
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
@@ -802,18 +809,24 @@ elf_hash(const char *name)
  *   /usr/lib
  */
 static char *
-find_library(const char *name, const Obj_Entry *refobj)
+find_library(const char *xname, const Obj_Entry *refobj)
 {
     char *pathname;
+    char *name;
 
-    if (strchr(name, '/') != NULL) {	/* Hard coded pathname */
-	if (name[0] != '/' && !trust) {
+    if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
+	if (xname[0] != '/' && !trust) {
 	    _rtld_error("Absolute pathname required for shared object \"%s\"",
-	      name);
+	      xname);
 	    return NULL;
 	}
-	return xstrdup(name);
+	return xstrdup(xname);
     }
+
+#ifdef WITH_LIBMAP
+    if ((name = lm_find(refobj->path, xname)) == NULL)
+#endif
+	name = (char *)xname;
 
     dbg(" Searching for \"%s\"", name);
 
@@ -1468,6 +1481,9 @@ rtld_exit(void)
 	obj->refcount = 0;
     objlist_call_fini(&list_fini);
     /* No need to remove the items from the list, since we are exiting. */
+#ifdef WITH_LIBMAP
+    lm_fini();
+#endif
 }
 
 static void *
