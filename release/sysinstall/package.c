@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.4 1995/10/19 15:55:27 jkh Exp $
+ * $Id: package.c,v 1.6 1995/10/20 21:57:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,7 +62,7 @@ package_extract(Device *dev, char *name)
     int i, fd, ret;
 
     /* Check to make sure it's not already there */
-    if (vsystem("pkg_info -e %s", name))
+    if (!vsystem("pkg_info -e %s", name))
 	return RET_SUCCESS;
 
     if (!dev->init(dev)) {
