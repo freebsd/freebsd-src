@@ -135,6 +135,7 @@ controlled by the net.inet.tcp.icmp_may_rst sysctl.
 
 The ida disk driver now has crashdump support.
 
+AlphaServer 2100A ('Lynx') support has been added. 
 
 1.2. SECURITY FIXES
 -------------------
