@@ -62,8 +62,6 @@ int main(int ac, char **av);
 
 static void exit(int) __dead2;
 static void load(const char *);
-static ino_t lookup(const char *);
-static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, u_int64_t, int);
 
 static void usage(void);
@@ -306,6 +304,12 @@ bcopy(const void *src, void *dst, size_t len)
 }
 
 static void
+memcpy(void *dst, const void *src, size_t len)
+{
+	bcopy(src, dst, len);
+}
+
+static void
 bzero(void *b, size_t len)
 {
 	char *p = b;
@@ -322,27 +326,7 @@ strcmp(const char *s1, const char *s2)
 	return ((u_char)*s1 - (u_char)*s2);
 }
 
-static int
-fsfind(const char *name, ino_t * ino)
-{
-	char buf[DEV_BSIZE];
-	struct dirent *d;
-	char *s;
-	ssize_t n;
-
-	fs_off = 0;
-	while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0) {
-		for (s = buf; s < buf + DEV_BSIZE;) {
-			d = (void *)s;
-			if (!strcmp(name, d->d_name)) {
-				*ino = d->d_fileno;
-				return (d->d_type);
-			}
-			s += d->d_reclen;
-		}
-	}
-	return (0);
-}
+#include "ufsread.c"
 
 int
 main(int ac, char **av)
@@ -391,25 +375,21 @@ exit(int code)
 	ofw_exit();
 }
 
+static struct dmadat __dmadat;
+
 static int
 mount(const char *device)
 {
 
+	dmadat = &__dmadat;
 	if ((bootdev = ofw_open(device)) == -1) {
 		printf("mount: can't open device\n");
 		return (-1);
 	}
-	if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE)) {
+	if (fsread(0, NULL, 0)) {
 		printf("mount: can't read superblock\n");
 		return (-1);
 	}
-	inomap = 0;
-	bcopy(blkbuf, &fs, sizeof(fs));
-	if (fs.fs_magic != FS_MAGIC) {
-		printf("mount: not ufs\n");
-		return (-1);
-	}
-	fsblks = fs.fs_bsize >> DEV_BSHIFT;
 	return (0);
 }
 
@@ -453,100 +433,6 @@ load(const char *fname)
 	}
 	ofw_close(bootdev);
 	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
-}
-
-static ino_t
-lookup(const char *path)
-{
-	char name[MAXNAMLEN + 1];
-	const char *s;
-	ino_t ino;
-	ssize_t n;
-	int dt;
-
-	ino = ROOTINO;
-	dt = DT_DIR;
-	name[0] = '/';
-	name[1] = '\0';
-	for (;;) {
-		if (*path == '/')
-			path++;
-		if (!*path)
-			break;
-		for (s = path; *s && *s != '/'; s++)
-			;
-		if ((n = s - path) > MAXNAMLEN)
-			return (0);
-		bcopy(path, name, n);
-		name[n] = 0;
-		if (dt != DT_DIR) {
-			printf("%s: not a directory.\n", name);
-			return (0);
-		}
-		if ((dt = fsfind(name, &ino)) <= 0)
-			break;
-		path = s;
-	}
-	return (dt == DT_REG ? ino : 0);
-}
-
-static ssize_t
-fsread(ino_t inode, void *buf, size_t nbyte)
-{
-	static struct dinode din;
-	static ufs_daddr_t indbuf[BSIZEMAX / sizeof(ufs_daddr_t)];
-	static ufs_daddr_t blkmap, indmap;
-	char *s;
-	ufs_daddr_t lbn, addr;
-	size_t n, nb, off;
-
-	if (!inode)
-		return (0);
-	if (inomap != inode) {
-		if (dskread(blkbuf, fsbtodb(&fs, ino_to_fsba(&fs, inode)),
-		    fsblks))
-			return (-1);
-		bcopy(blkbuf + ((inode % INOPB(&fs)) * sizeof(din)), &din,
-		    sizeof(din));
-		inomap = inode;
-		fs_off = 0;
-		blkmap = indmap = 0;
-	}
-	s = buf;
-	if (nbyte > (n = din.di_size - fs_off))
-		nbyte = n;
-	nb = nbyte;
-	while (nb) {
-		lbn = lblkno(&fs, fs_off);
-		if (lbn < NDADDR)
-			addr = din.di_db[lbn];
-		else {
-			if (indmap != din.di_ib[0]) {
-				if (dskread(indbuf, fsbtodb(&fs, din.di_ib[0]),
-				    fsblks))
-					return (-1);
-				indmap = din.di_ib[0];
-			}
-			addr = indbuf[(lbn - NDADDR) % NINDIR(&fs)];
-		}
-		n = dblksize(&fs, &din, lbn);
-		if (blkmap != addr) {
-			if (dskread(blkbuf, fsbtodb(&fs, addr),
-			    n >> DEV_BSHIFT)) {
-				return (-1);
-			}
-			blkmap = addr;
-		}
-		off = blkoff(&fs, fs_off);
-		n -= off;
-		if (n > nb)
-			n = nb;
-		bcopy(blkbuf + off, s, n);
-		s += n;
-		fs_off += n;
-		nb -= n;
-	}
-	return (nbyte);
 }
 
 static int
