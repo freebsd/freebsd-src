@@ -328,6 +328,8 @@ main(argc, argv)
 				flavor[n % sizeof(flavor)]);
 			ref[w->ypos[h] = y][w->xpos[h] = x]++;
 		}
+		if (usleep(delay))
+			onsig(SIGTERM);
 	}
 }
 
