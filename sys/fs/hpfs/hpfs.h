@@ -310,9 +310,6 @@ struct cpisec {
 struct hpfsmount {
 	struct sublock	hpm_su;
 	struct spblock	hpm_sp;
-#if !defined(__FreeBSD__)
-	struct netexport hpm_export;
-#endif
 	struct mount *	hpm_mp;
 	struct vnode *	hpm_devvp;
 	dev_t		hpm_dev;
@@ -389,26 +386,12 @@ MALLOC_DECLARE(M_HPFSNO);
 #define	HPTOV(h)	((struct vnode *)((h)->h_vp))
 #define	FID(f)		(*((lsn_t *)(f)->fid_data))
 
-#if defined(__NetBSD__)
-#define MALLOC_DEFINE(a, b, c)
-#define M_HPFSMNT	M_TEMP
-#define M_HPFSNO	M_TEMP
-typedef int (vop_t) __P((void *));
-#define HASHINIT(a, b, c, d)	hashinit((a), (b), (c), (d))
-#define bqrelse(bp)		brelse(bp)
-#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b) ? LK_EXCLUSIVE : LK_SHARED)
-#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), 0)
-#define VGET(a, b, c)		vget((a), LK_EXCLUSIVE)
-#define VN_LOCK(a, b, c)	vn_lock((a), LK_EXCLUSIVE)
-#define	LOCKMGR(a, b, c, d)	lockmgr((a), (b), (c))
-#else  /* defined(__FreeBSD__) */
 #define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
 #define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b), (c))
 #define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
 #define VGET(a, b, c)		vget((a), (b), (c))
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
 #define	LOCKMGR(a, b, c, d)	lockmgr((a), (b), (c), (d))
-#endif
 
 extern vop_t ** hpfs_vnodeop_p;
 
