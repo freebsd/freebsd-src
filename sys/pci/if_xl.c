@@ -239,6 +239,7 @@ static int xl_list_tx_init	__P((struct xl_softc *));
 static int xl_list_tx_init_90xB	__P((struct xl_softc *));
 static void xl_wait		__P((struct xl_softc *));
 static void xl_mediacheck	__P((struct xl_softc *));
+static void xl_choose_xcvr	__P((struct xl_softc *, int));
 #ifdef notdef
 static void xl_testpacket	__P((struct xl_softc *));
 #endif
@@ -1046,7 +1047,6 @@ static int xl_probe(dev)
 static void xl_mediacheck(sc)
 	struct xl_softc		*sc;
 {
-	u_int16_t		devid;
 
 	/*
 	 * If some of the media options bits are set, assume they are
@@ -1079,6 +1079,16 @@ static void xl_mediacheck(sc)
 			"should probably consult your vendor\n", sc->xl_unit);
 	}
 
+	xl_choose_xcvr(sc, 1);
+
+	return;
+}
+
+static void xl_choose_xcvr(sc, verbose)
+	struct xl_softc		*sc;
+	int			verbose;
+{
+	u_int16_t		devid;
 
 	/*
 	 * Read the device ID from the EEPROM.
@@ -1092,34 +1102,42 @@ static void xl_mediacheck(sc)
 	case TC_DEVICEID_KRAKATOA_10BT:		/* 3c900B-TPO */
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
-		printf("xl%d: guessing 10BaseT transceiver\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing 10BaseT "
+			    "transceiver\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
 	case TC_DEVICEID_KRAKATOA_10BT_COMBO:	/* 3c900B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_10BT;
-		printf("xl%d: guessing COMBO (AUI/BNC/TP)\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing COMBO "
+			    "(AUI/BNC/TP)\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_KRAKATOA_10BT_TPC:	/* 3c900B-TPC */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
 		sc->xl_xcvr = XL_XCVR_10BT;
-		printf("xl%d: guessing TPC (BNC/TP)\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing TPC (BNC/TP)\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
 		sc->xl_media = XL_MEDIAOPT_10FL;
 		sc->xl_xcvr = XL_XCVR_AUI;
-		printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
-		printf("xl%d: guessing MII\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_100BT4:	/* 3c905-T4 */
 	case TC_DEVICEID_CYCLONE_10_100BT4:	/* 3c905B-T4 */
 		sc->xl_media = XL_MEDIAOPT_BT4;
 		sc->xl_xcvr = XL_XCVR_MII;
-		printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
@@ -1128,12 +1146,15 @@ static void xl_mediacheck(sc)
 	case TC_DEVICEID_TORNADO_10_100BT:	/* 3c905C-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
-		printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BTX|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_AUTO;
-		printf("xl%d: guessing 10/100 plus BNC/AUI\n", sc->xl_unit);
+		if (verbose)
+			printf("xl%d: guessing 10/100 "
+			    "plus BNC/AUI\n", sc->xl_unit);
 		break;
 	default:
 		printf("xl%d: unknown device ID: %x -- "
@@ -1366,6 +1387,14 @@ static int xl_attach(dev)
 
 		goto done;
 	}
+
+	/*
+	 * Sanity check. If the user has selected "auto" and this isn't
+	 * a 10/100 card of some kind, we need to force the transceiver
+	 * type to something sane.
+	 */
+	if (sc->xl_xcvr == XL_XCVR_AUTO)
+		xl_choose_xcvr(sc, bootverbose);
 
 	/*
 	 * Do ifmedia setup.
@@ -2539,13 +2568,6 @@ static void xl_init(xsc)
 	if (mii != NULL)
 		mii_mediachg(mii);
 
-	XL_SEL_WIN(7);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_STALL);
-	xl_wait(sc);
-	CSR_WRITE_4(sc, XL_UPLIST_PTR, vtophys(&sc->xl_ldata->xl_rx_list[0]));
-	CSR_WRITE_1(sc, XL_UP_POLL, 8);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_UNSTALL);
-	xl_wait(sc);
 	/* Select window 7 for normal operations. */
 	XL_SEL_WIN(7);
 
