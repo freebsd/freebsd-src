@@ -46,7 +46,7 @@ and analysis by qualified cryptographers and therefore should be considered
 a slightly suspect experimental facility.
 .Pp
 We cannot at this point guarantee that the on-disk format will not change
-in response to reviews or bug-fixes, so potential users are adviced to
+in response to reviews or bug-fixes, so potential users are advised to
 be prepared that
 .Xr dump 8 /
 .Xr restore 8
@@ -67,18 +67,18 @@ to the contents of the storage device.
 If on the other hand, the device is
 .Dq cold
 it should present an formidable
-challege for an attacker to gain access to the contents in the absense of
+challenge for an attacker to gain access to the contents in the absence of
 a valid pass-phrase.
 .Pp
 Four cryptographic barriers must be passed to gain access to the data,
-and only a valid pass-phrase will allow yield this access.
+and only a valid pass-phrase will yield this access.
 .Pp
 When the pass-phrase is entered, it is hashed with SHA2 into a 512 bit
 .Dq key-material .
-This is a way to producing cryptographic usable keys from a typically
+This is a way of producing cryptographic usable keys from a typically
 all-ASCII pass-phrase of an unpredictable user-selected length.
 .Ss First barrier: the location of the \&"lock-sector".
-During initialization, up to four indepenent but mutually aware
+During initialization, up to four independent but mutually aware
 .Dq lock-sectors
 sectors are written to the device in randomly chosen
 locations.
@@ -109,19 +109,19 @@ from the lock-sector and the sector number is used to
 a subset of the master key,
 which hashed together with the sector offset through MD5 produces the
 .Dq kkey ,
-the key which encryptes the sector key.
+the key which encrypts the sector key.
 .Ss Fourth barrier: decryption of the sector data.
 The actual payload of the sector is encrypted with 128 bit AES in CBC mode
 using a single-use random bits key.
 .Ss Examining the reverse path
-Assuming an attacker who knows an amount of plaintext, and has managed to
+Assuming an attacker knows an amount of plaintext and has managed to
 locate the corresponding encrypted sectors on the device, gaining access
 to the plaintext context of other sectors is a daunting task:
 .Pp
 First he will have to derive from the encrypted sector and the known plain
 text the sector key(s) used.
 At the time of writing, it has been speculated that it could maybe be
-possible to break open AES in only 2^80 operations even so, that is still
+possible to break open AES in only 2^80 operations; even so, that is still
 a very impossible task.
 .Pp
 Armed with one or more sector keys, our patient attacker will then go
@@ -136,7 +136,7 @@ Even though he knows that the input to MD5 was 24 bytes and has the value
 of 8 of these bytes from the sector number, he is still faced with 2^128
 equally likely possibilities.
 .Pp
-Having succesfully done that, our attacker has successfully discovered
+Having successfully done that, our attacker has successfully discovered
 up to 16 bytes of the master-key, but is still unaware which 16 bytes,
 and in which other sectors any of these known bytes contribute to the kkey.
 .Pp
@@ -145,16 +145,16 @@ salt stored in the lock-sector to recover the indexes into the masterkey.
 .Pp
 Any attacker with access to the necessary machine power to even attempt
 this attack will be better off attempting to brute-force the pass-phrase.
-.Ss Postive denial facilities
+.Ss Positive denial facilities
 Considering the infeasibility of the above attack,
 gaining access to the pass-phrase will be of paramount importance for an
 attacker,
 and a number of scenarios can be imagined where undue pressure will be
 applied to an individual to divulge the pass-phrase.
 .Pp
-A "Blackening" feature, given a moment of opportunity, provides a way
-for the user to destroy the master-key in such a way that the pass-phrase
-will still be acknowlegded as good but access to the data will still be
+A "Blackening" feature provides a way for the user, given a moment of
+opportunity, to destroy the master-key in such a way that the pass-phrase
+will be acknowledged as good but access to the data will still be
 denied.
 .Ss A practical analogy
 For persons who think cryptography is only slightly more interesting than
@@ -170,7 +170,7 @@ four small safes, each of which can be opened
 with unique key which has a complexity comparable to a 80 digit
 number.
 .Pp
-In addition to the masterkey, each of the four safes also contain
+In addition to the masterkey, each of the four safes also contains
 the exact locations of all four key-safes which are located in
 randomly chosen places on the outside surface of the vault where they
 are practically impossible to detect when they are closed.
@@ -188,7 +188,7 @@ When done, he will lock up the master-key in the safe again.
 .Pp
 If a keyholder-X for some reason distrusts keyholder-Y, she
 has the option of opening her own safe, flipping one of the switches
-and thereby detonate the bar of dynamite in safe-Y.
+and detonating the bar of dynamite in safe-Y.
 This will obliterate the master-key in that safe and thereby deny
 keyholder-Y access to the vault.
 .Pp
@@ -198,7 +198,7 @@ vault is denied to everybody, keyholders and attackers alike.
 Should the facility fall to the enemy, and a keyholder be forced to apply
 his personal key, he can do so in confidence that the contents of his safe
 will not yield access to the vault, and the enemy will hopefully realize
-that applying further pressure on the personel will not give access to
+that applying further pressure on the personnel will not give access to
 the vault.
 .Pp
 The final point to make here is that it is perfectly possible to
@@ -210,7 +210,7 @@ data to a single contiguous area of the device.
 If configured with care, this area could masquerade as some sort of
 valid data or as random trash left behind by the systems operation.
 .Pp
-This can be used to offer a plausible deniablity of existence, where
+This can be used to offer a plausible deniability of existence, where
 it will be impossible to prove that this specific area of the device
 is in fact used to store encrypted data and not just random junk.
 .Pp
@@ -262,7 +262,7 @@ security of AES.
 .Pp
 The random key is produced with
 .Xr arc4rand 9
-which is belived to do a respectable job at producing unpredictable bytes.
+which is believed to do a respectable job at producing unpredictable bytes.
 .Pp
 The skey is stored on the device in a location which can be derived from
 the location of the encrypted payload data.
