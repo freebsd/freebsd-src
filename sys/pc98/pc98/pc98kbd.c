@@ -25,12 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.8 1999/05/30 16:53:20 phk Exp $
+ *	$Id: pc98kbd.c,v 1.9 1999/08/23 13:50:08 kato Exp $
  */
 
 #include "pckbd.h"
 #include "opt_kbd.h"
-#include "opt_devfs.h"
 
 #if NPCKBD > 0
 
