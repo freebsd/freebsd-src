@@ -654,65 +654,6 @@ in6_nigroup(ifp, name, namelen, in6)
 	return 0;
 }
 
-void
-in6_nigroup_attach(name, namelen)
-	const char *name;
-	int namelen;
-{
-	struct ifnet *ifp;
-	struct sockaddr_in6 mltaddr;
-	struct in6_multi *in6m;
-	int error;
-
-	bzero(&mltaddr, sizeof(mltaddr));
-	mltaddr.sin6_family = AF_INET6;
-	mltaddr.sin6_len = sizeof(struct sockaddr_in6);
-	if (in6_nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
-		return;
-
-	IFNET_RLOCK();
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
-	{
-		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
-		if (!in6m) {
-			if (!in6_addmulti(&mltaddr.sin6_addr, ifp, &error)) {
-				nd6log((LOG_ERR, "%s: failed to join %s "
-				    "(errno=%d)\n", if_name(ifp),
-				    ip6_sprintf(&mltaddr.sin6_addr), 
-				    error));
-			}
-		}
-	}
-	IFNET_RUNLOCK();
-}
-
-void
-in6_nigroup_detach(name, namelen)
-	const char *name;
-	int namelen;
-{
-	struct ifnet *ifp;
-	struct sockaddr_in6 mltaddr;
-	struct in6_multi *in6m;
-
-	bzero(&mltaddr, sizeof(mltaddr));
-	mltaddr.sin6_family = AF_INET6;
-	mltaddr.sin6_len = sizeof(struct sockaddr_in6);
-	if (in6_nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
-		return;
-
-	IFNET_RLOCK();
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
-	{
-		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
-		IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
-		if (in6m)
-			in6_delmulti(in6m);
-	}
-	IFNET_RUNLOCK();	
-}
-
 /*
  * XXX multiple loopback interface needs more care.  for instance,
  * nodelocal address needs to be configured onto only one of them.
