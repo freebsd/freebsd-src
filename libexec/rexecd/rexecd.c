@@ -75,9 +75,9 @@ char	*envinit[] =
 char	**environ;
 char	remote[MAXHOSTNAMELEN];
 
-struct	sockaddr_in asin = { AF_INET };
+struct	sockaddr_storage asin;
 
-void doit(int, struct sockaddr_in *);
+void doit(int, struct sockaddr *);
 void getstr(char *, int, char *);
 void error(const char *fmt, ...);
 
@@ -101,7 +101,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	int fromlen;
 	int ch;
 
@@ -122,14 +122,15 @@ main(int argc, char *argv[])
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0)
 		err(1, "getpeername");
 
-	realhostname(remote, sizeof(remote) - 1, &from.sin_addr);
+	realhostname_sa(remote, sizeof(remote) - 1,
+			(struct sockaddr *)&from, fromlen);
 
-	doit(0, &from);
+	doit(0, (struct sockaddr *)&from);
 	return(0);
 }
 
 void
-doit(int f, struct sockaddr_in *fromp)
+doit(int f, struct sockaddr *fromp)
 {
 	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp;
@@ -174,14 +175,26 @@ doit(int f, struct sockaddr_in *fromp)
 	}
 	(void) alarm(0);
 	if (port != 0) {
-		s = socket(AF_INET, SOCK_STREAM, 0);
+		s = socket(fromp->sa_family, SOCK_STREAM, 0);
 		if (s < 0)
 			exit(1);
-		if (bind(s, (struct sockaddr *)&asin, sizeof (asin)) < 0)
+		bzero(&asin, sizeof(asin));
+		asin.ss_family = fromp->sa_family;
+		asin.ss_len = fromp->sa_len;
+		if (bind(s, (struct sockaddr *)&asin, asin.ss_len) < 0)
 			exit(1);
 		(void) alarm(60);
-		fromp->sin_port = htons(port);
-		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0)
+		switch (fromp->sa_family) {
+		case AF_INET:
+			((struct sockaddr_in *)fromp)->sin_port = htons(port);
+			break;
+		case AF_INET6:
+			((struct sockaddr_in6 *)fromp)->sin6_port = htons(port);
+			break;
+		default:
+			exit(1);
+		}
+		if (connect(s, fromp, fromp->sa_len) < 0)
 			exit(1);
 		(void) alarm(0);
 	}
