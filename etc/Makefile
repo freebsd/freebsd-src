@@ -10,7 +10,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
-	motd modems networks newsyslog.conf nsmb.conf \
+	motd modems networks newsyslog.conf \
 	pam.conf phones printcap profile protocols \
 	rc rc.atm rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
@@ -74,7 +74,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    master.passwd ${DESTDIR}/etc; \
+	    master.passwd nsmb.conf ${DESTDIR}/etc; \
 	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
