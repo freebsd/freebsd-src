@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hpropd.c,v 1.34 2001/09/18 09:54:15 joda Exp $");
+RCSID("$Id: hpropd.c,v 1.35 2002/04/18 10:18:50 joda Exp $");
 
 #ifdef KRB4
 static des_cblock mkey4;
@@ -163,7 +163,7 @@ static int inetd_flag = -1;
 static int help_flag;
 static int version_flag;
 static int print_dump;
-static char *database = HDB_DEFAULT_DB;
+static const char *database = HDB_DEFAULT_DB;
 static int from_stdin;
 static char *local_realm;
 #ifdef KRB4

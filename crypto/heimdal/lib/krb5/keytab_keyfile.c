@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.12 2002/02/15 14:32:52 joda Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.13 2002/04/18 14:04:21 joda Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 
@@ -208,7 +208,7 @@ akf_start_seq_get(krb5_context context,
 	krb5_storage_free(c->sp);
 	close(c->fd);
 	krb5_clear_error_string (context);
-	if(ret == KRB5_CC_END)
+	if(ret == KRB5_KT_END)
 	    return KRB5_KT_NOTFOUND;
 	return ret;
     }
@@ -227,7 +227,7 @@ akf_next_entry(krb5_context context,
     off_t pos;
     int ret;
 
-    pos = cursor->sp->seek(cursor->sp, 0, SEEK_CUR);
+    pos = krb5_storage_seek(cursor->sp, 0, SEEK_CUR);
 
     if ((pos - 4) / (4 + 8) >= d->num_entries)
 	return KRB5_KT_END;
@@ -255,7 +255,7 @@ akf_next_entry(krb5_context context,
 	goto out;
     }
 
-    ret = cursor->sp->fetch(cursor->sp, entry->keyblock.keyvalue.data, 8);
+    ret = krb5_storage_read(cursor->sp, entry->keyblock.keyvalue.data, 8);
     if(ret != 8)
 	ret = (ret < 0) ? errno : KRB5_KT_END;
     else
@@ -264,7 +264,7 @@ akf_next_entry(krb5_context context,
     entry->timestamp = time(NULL);
 
  out:
-    cursor->sp->seek(cursor->sp, pos + 4 + 8, SEEK_SET);
+    krb5_storage_seek(cursor->sp, pos + 4 + 8, SEEK_SET);
     return ret;
 }
 
@@ -316,7 +316,7 @@ akf_add_entry(krb5_context context,
     if (created)
 	len = 0;
     else {
-	if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
+	if(krb5_storage_seek(sp, 0, SEEK_SET) < 0) {
 	    ret = errno;
 	    krb5_storage_free(sp);
 	    close(fd);
@@ -333,7 +333,7 @@ akf_add_entry(krb5_context context,
     }
     len++;
 	
-    if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
+    if(krb5_storage_seek(sp, 0, SEEK_SET) < 0) {
 	ret = errno;
 	krb5_storage_free(sp);
 	close(fd);
@@ -349,7 +349,7 @@ akf_add_entry(krb5_context context,
     }
 		
 
-    if((*sp->seek)(sp, (len - 1) * (8 + 4), SEEK_CUR) < 0) {
+    if(krb5_storage_seek(sp, (len - 1) * (8 + 4), SEEK_CUR) < 0) {
 	ret = errno;
 	krb5_storage_free(sp);
 	close(fd);
@@ -363,8 +363,8 @@ akf_add_entry(krb5_context context,
 	close(fd);
 	return ret;
     }
-    ret = sp->store(sp, entry->keyblock.keyvalue.data, 
-		    entry->keyblock.keyvalue.length);
+    ret = krb5_storage_write(sp, entry->keyblock.keyvalue.data, 
+			     entry->keyblock.keyvalue.length);
     if(ret != entry->keyblock.keyvalue.length) {
 	krb5_storage_free(sp);
 	close(fd);

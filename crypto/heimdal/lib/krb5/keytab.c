@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab.c,v 1.52 2002/01/30 10:09:35 joda Exp $");
+RCSID("$Id: keytab.c,v 1.53 2002/03/10 23:14:12 assar Exp $");
 
 /*
  * Register a new keytab in `ops'
@@ -262,6 +262,7 @@ krb5_kt_compare(krb5_context context,
 /*
  * Retrieve the keytab entry for `principal, kvno, enctype' into `entry'
  * from the keytab `id'.
+ * kvno == 0 is a wildcard and gives the keytab with the highest vno.
  * Return 0 or an error.
  */
 
@@ -287,7 +288,10 @@ krb5_kt_get_entry(krb5_context context,
     entry->vno = 0;
     while (krb5_kt_next_entry(context, id, &tmp, &cursor) == 0) {
 	if (krb5_kt_compare(context, &tmp, principal, 0, enctype)) {
-	    if (kvno == tmp.vno) {
+	    /* the file keytab might only store the lower 8 bits of
+	       the kvno, so only compare those bits */
+	    if (kvno == tmp.vno
+		|| (tmp.vno < 256 && kvno % 256 == tmp.vno)) {
 		krb5_kt_copy_entry_contents (context, &tmp, entry);
 		krb5_kt_free_entry (context, &tmp);
 		krb5_kt_end_seq_get(context, id, &cursor);
@@ -310,16 +314,19 @@ krb5_kt_get_entry(krb5_context context,
 	krb5_kt_get_name (context, id, kt_name, sizeof(kt_name));
 
 	krb5_set_error_string (context,
- 			       "failed to find %s in keytab %s",
-			       princ, kt_name);
+ 			       "failed to find %s%s%d%s in keytab %s",
+			       princ,
+			       kvno ? "(" : "",
+			       kvno,
+			       kvno ? ")" : "",
+			       kt_name);
 	return KRB5_KT_NOTFOUND;
     }
 }
 
 /*
  * Copy the contents of `in' into `out'.
- * Return 0 or an error.
- */
+ * Return 0 or an error.  */
 
 krb5_error_code
 krb5_kt_copy_entry_contents(krb5_context context,

@@ -1,3 +1,44 @@
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c (command): clean up va_{start,end}ing (from NetBSD)
+
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* ftp/main.c: start using getarg
+
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: uxp/v lacks _S_IFMT, but has S_IFMT
+
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c: remove unused variable
+
+2002-04-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c: fix buffer overrun when receiving long replies
+
+2002-04-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/popen.c: make sure gl_pathc != 0 before referencing
+	gl_pathv
+
+2002-03-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c (gss_adat): if accept_sec_context fails, syslog a
+	reason and give a temporary error message
+
+2002-02-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: if builtin_ls failes, return error
+
+	* ftpd/ls.c (builtin_ls): return status; also don't print fatal
+	error messages to the output stream, instead use syslog
+
+2001-09-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: make sure we don't include . in recursive listings
+
 2001-09-13  Johan Danielsson  <joda@pdc.kth.se>
 
 	* ftpd/ftpd.c (dataconn): don't wait forever on accept

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "iprop.h"
 #include "parse_time.h"
 
-RCSID("$Id: dump_log.c,v 1.11 2000/07/24 04:30:11 assar Exp $");
+RCSID("$Id: dump_log.c,v 1.12 2002/05/24 15:19:18 joda Exp $");
 
 static char *op_names[] = {
     "get",
@@ -59,14 +59,14 @@ print_entry(kadm5_server_context *server_context,
 	    krb5_storage *sp)
 {
     char t[256];
-    u_int32_t mask;
+    int32_t mask;
     hdb_entry ent;
     krb5_principal source;
     char *name1, *name2;
     krb5_data data;
     krb5_context context = server_context->context;
 
-    off_t end = sp->seek(sp, 0, SEEK_CUR) + len;
+    off_t end = krb5_storage_seek(sp, 0, SEEK_CUR) + len;
     
     krb5_error_code ret;
 
@@ -74,7 +74,7 @@ print_entry(kadm5_server_context *server_context,
 
     if(op < kadm_get || op > kadm_nop) {
 	printf("unknown op: %d\n", op);
-	sp->seek(sp, end, SEEK_SET);
+	krb5_storage_seek(sp, end, SEEK_SET);
 	return;
     }
 
@@ -91,7 +91,7 @@ print_entry(kadm5_server_context *server_context,
     case kadm_rename:
 	krb5_data_alloc(&data, len);
 	krb5_ret_principal(sp, &source);
-	sp->fetch(sp, data.data, data.length);
+	krb5_storage_read(sp, data.data, data.length);
 	hdb_value2entry(context, &data, &ent);
 	krb5_unparse_name(context, source, &name1);
 	krb5_unparse_name(context, ent.principal, &name2);
@@ -103,7 +103,7 @@ print_entry(kadm5_server_context *server_context,
 	break;
     case kadm_create:
 	krb5_data_alloc(&data, len);
-	sp->fetch(sp, data.data, data.length);
+	krb5_storage_read(sp, data.data, data.length);
 	ret = hdb_value2entry(context, &data, &ent);
 	if(ret)
 	    abort();
@@ -112,7 +112,7 @@ print_entry(kadm5_server_context *server_context,
     case kadm_modify:
 	krb5_data_alloc(&data, len);
 	krb5_ret_int32(sp, &mask);
-	sp->fetch(sp, data.data, data.length);
+	krb5_storage_read(sp, data.data, data.length);
 	ret = hdb_value2entry(context, &data, &ent);
 	if(ret)
 	    abort();
@@ -204,7 +204,7 @@ print_entry(kadm5_server_context *server_context,
     default:
 	abort();
     }
-    sp->seek(sp, end, SEEK_SET);
+    krb5_storage_seek(sp, end, SEEK_SET);
 }
 
 static char *realm;

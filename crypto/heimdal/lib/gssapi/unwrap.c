@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: unwrap.c,v 1.19 2001/08/23 04:35:55 assar Exp $");
+RCSID("$Id: unwrap.c,v 1.20 2002/05/20 15:14:00 nectar Exp $");
 
 OM_uint32
 gss_krb5_get_remotekey(const gss_ctx_id_t context_handle,
@@ -388,6 +388,8 @@ OM_uint32 gss_unwrap
   OM_uint32 ret;
   krb5_keytype keytype;
 
+  if (qop_state != NULL)
+      *qop_state = GSS_C_QOP_DEFAULT;
   ret = gss_krb5_get_remotekey(context_handle, &key);
   if (ret) {
       gssapi_krb5_set_error_string ();

@@ -1,4 +1,4 @@
--- $Id: k5.asn1,v 1.25 2001/05/14 06:12:13 assar Exp $
+-- $Id: k5.asn1,v 1.26 2002/03/18 19:00:43 joda Exp $
 
 KERBEROS5 DEFINITIONS ::=
 BEGIN
@@ -73,6 +73,7 @@ CKSUMTYPE ::= INTEGER {
 	-- CKSUMTYPE_SHA1(10),
 	CKSUMTYPE_HMAC_SHA1_DES3(12),
 	CKSUMTYPE_SHA1(1000),		-- correct value? 10 (9 also)
+	CKSUMTYPE_GSSAPI(0x8003),
 	CKSUMTYPE_HMAC_MD5(-138),	-- unofficial microsoft number
 	CKSUMTYPE_HMAC_MD5_ENC(-1138)	-- even more unofficial
 }

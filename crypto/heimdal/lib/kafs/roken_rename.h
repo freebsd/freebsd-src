@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2001-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: roken_rename.h,v 1.5 2001/11/01 22:33:40 assar Exp $ */
+/* $Id: roken_rename.h,v 1.6 2002/08/19 15:08:24 joda Exp $ */
 
 #ifndef __roken_rename_h__
 #define __roken_rename_h__
@@ -40,16 +40,22 @@
  * Libroken routines that are added libkafs
  */
 
-#define _resolve_debug _roken_resolve_debug
+#define _resolve_debug _kafs_resolve_debug
 
-#define dns_free_data _kafs_dns_free_data
-#define dns_lookup _kafs_dns_lookup
-#define dns_string_to_type _kafs_dns_string_to_type
-#define dns_type_to_string _kafs_dns_type_to_string
-#define dns_srv_order _kafs_dns_srv_order
+#define rk_dns_free_data _kafs_dns_free_data
+#define rk_dns_lookup _kafs_dns_lookup
+#define rk_dns_string_to_type _kafs_dns_string_to_type
+#define rk_dns_type_to_string _kafs_dns_type_to_string
+#define rk_dns_srv_order _kafs_dns_srv_order
 
+#ifndef HAVE_STRTOK_R
 #define strtok_r _kafs_strtok_r
+#endif
+#ifndef HAVE_STRLCPY
 #define strlcpy _kafs_strlcpy
+#endif
+#ifndef HAVE_STRSEP
 #define strsep _kafs_strsep
+#endif
 
 #endif /* __roken_rename_h__ */

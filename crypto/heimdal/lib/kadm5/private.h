@@ -31,10 +31,10 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: private.h,v 1.14 2000/07/11 15:58:57 joda Exp $ */
+/* $Id: private.h,v 1.15 2002/08/16 20:57:44 joda Exp $ */
 
-#ifndef __kadm5_private_h__
-#define __kadm5_private_h__
+#ifndef __kadm5_privatex_h__
+#define __kadm5_privatex_h__
 
 struct kadm_func {
     kadm5_ret_t (*chpass_principal) (void *, krb5_principal, char*);
@@ -129,4 +129,4 @@ enum kadm_ops {
 
 #include "kadm5-private.h"
 
-#endif /* __kadm5_private_h__ */
+#endif /* __kadm5_privatex_h__ */

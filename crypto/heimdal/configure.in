@@ -1,7 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.304 $)
-AC_PREREQ(2.52)
-AC_INIT(heimdal, 0.4e, heimdal-bugs@pdc.kth.se)
+AC_REVISION($Revision: 1.320 $)
+AC_PREREQ(2.53)
+#test -z "$CFLAGS" && CFLAGS="-g"
+AC_INIT(Heimdal, 0.4f, heimdal-bugs@pdc.kth.se)
 AM_CONFIG_HEADER(include/config.h)
 
 dnl Checks for programs.
@@ -9,45 +10,22 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_CC_STDC
 
-AM_INIT_AUTOMAKE(heimdal,0.4e)
+AM_INIT_AUTOMAKE
 
 AC_PREFIX_DEFAULT(/usr/heimdal)
+
+test "$sysconfdir" = '${prefix}/etc' && sysconfdir='/etc'
+test "$localstatedir" = '${prefix}/var' && localstatedir='/var/heimdal'
 
 AC_CANONICAL_HOST
 CANONICAL_HOST=$host
 AC_SUBST(CANONICAL_HOST)
 
-sunos=no
-case "$host" in 
-*-*-sunos4*)
-	sunos=40
-	;;
-*-*-solaris2.7)
-	sunos=57
-	;;
-*-*-solaris2.8)
-	sunos=58
-	;;
-*-*-solaris2*)
-	sunos=50
-	;;
-esac
-if test "$sunos" != no; then
-	AC_DEFINE_UNQUOTED(SunOS, $sunos, 
-		[Define to what version of SunOS you are running.])
-fi
-
-aix=no
-case "$host" in 
-*-*-aix3*)
-	aix=3
-	;;
-*-*-aix4*)
-	aix=4
-	;;
-esac
-
-#test -z "$CFLAGS" && CFLAGS="-g"
+dnl
+dnl this is needed to run the configure tests against glibc
+dnl
+AC_DEFINE([_GNU_SOURCE], 1,
+	[Define to enable extensions on glibc-based systems such as Linux.])
 
 AC_OBJEXT
 AC_EXEEXT
@@ -55,7 +33,7 @@ AC_EXEEXT
 dnl AC_KRB_PROG_YACC
 AC_PROG_YACC
 AM_PROG_LEX
-AC_PROG_RANLIB
+dnl AC_PROG_RANLIB
 AC_PROG_AWK
 AC_KRB_PROG_LN_S
 
@@ -77,7 +55,7 @@ dnl AC_ROKEN(10,[/usr/heimdal /usr/athena],[lib/roken],[$(top_builddir)/lib/roke
 rk_ROKEN(lib/roken)
 LIB_roken="\$(top_builddir)/lib/vers/libvers.la $LIB_roken"
 
-AC_TEST_PACKAGE_NEW(openldap,
+rk_TEST_PACKAGE(openldap,
 [#include <lber.h>
 #include <ldap.h>],
 [-lldap -llber],,,OPENLDAP)
@@ -86,14 +64,14 @@ if test "$openldap_libdir"; then
 	LIB_openldap="-R $openldap_libdir $LIB_openldap"
 fi
 
-AC_TEST_PACKAGE_NEW(krb4,[#include <krb.h>],-lkrb,-ldes,/usr/athena, KRB4)
+rk_TEST_PACKAGE(krb4,[#include <krb.h>],-lkrb,-ldes,/usr/athena, KRB4, krb4-config)
 
 LIB_kdb=
 if test "$with_krb4" != "no"; then
 	save_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $INCLUDE_krb4"
 	save_LIBS="$LIBS"
-	LIBS="$LIB_krb4 -ldes $LIBS"
+	LIBS="$LIB_krb4 $LIBS"
 	EXTRA_LIB45=lib45.a
 	AC_SUBST(EXTRA_LIB45)
 	AC_CACHE_CHECK(for four valued krb_put_int, ac_cv_func_krb_put_int_four,
@@ -139,6 +117,28 @@ if test "$with_krb4" != "no"; then
 	AC_FIND_FUNC(krb_enable_debug)
 	AC_FIND_FUNC(krb_disable_debug)
 	AC_FIND_FUNC(krb_get_our_ip_for_realm)
+	AC_FIND_FUNC(krb_kdctimeofday)
+	AH_BOTTOM(
+	[#ifndef HAVE_KRB_KDCTIMEOFDAY
+#define krb_kdctimeofday(X) gettimeofday((X), NULL)
+#endif])
+	AC_FIND_FUNC(krb_get_kdc_time_diff)
+	AH_BOTTOM(
+	[#ifndef HAVE_KRB_GET_KDC_TIME_DIFF
+#define krb_get_kdc_time_diff() (0)
+#endif])
+	AC_CACHE_CHECK([for KRB_SENDAUTH_VERS],
+		ac_cv_func_krb_sendauth_vers,
+		[AC_TRY_COMPILE([#include <krb.h>
+			#include <prot.h>],[
+		char *x = KRB_SENDAUTH_VERS],
+		ac_cv_func_krb_sendauth_vers=yes,
+		ac_cv_func_krb_sendauth_vers=no)
+	])
+	if test "$ac_cv_func_krb_sendauth_vers" != yes; then
+		AC_DEFINE(KRB_SENDAUTH_VERS, ["AUTHV0.1"],
+			[This is the krb4 sendauth version.])
+	fi
 	AC_CACHE_CHECK(for krb_mk_req with const arguments,
 		ac_cv_func_krb_mk_req_const,
 		[AC_TRY_COMPILE([#include <krb.h>
@@ -150,7 +150,7 @@ if test "$with_krb4" != "no"; then
 	])
 	if test "$ac_cv_func_krb_mk_req_const" = "yes"; then
 		AC_DEFINE(KRB_MK_REQ_CONST, 1,
-			[Define if krb_mk_req takes cons char *])
+			[Define if krb_mk_req takes const char *])
 	fi
 
 	LIBS="$save_LIBS"
@@ -168,7 +168,8 @@ AM_CONDITIONAL(do_roken_rename, true)
 AC_DEFINE(KRB5, 1, [Enable Kerberos 5 support in applications.])dnl
 AC_SUBST(LIB_kdb)dnl
 
-AC_ARG_ENABLE(dce, [  --enable-dce	if you want support for DCE/DFS PAG's.])
+AC_ARG_ENABLE(dce, 
+	AC_HELP_STRING([--enable-dce],[if you want support for DCE/DFS PAG's]))
 if test "$enable_dce" = yes; then
     AC_DEFINE(DCE, 1, [Define if you want support for DCE/DFS PAG's.])
 fi
@@ -176,46 +177,36 @@ AM_CONDITIONAL(DCE, test "$enable_dce" = yes)
 
 ## XXX quite horrible:
 if test -f /etc/ibmcxx.cfg; then
-	dpagaix_LDADD=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/libraries/{;s/^[[^=]]*=\(.*\)/\1/;s/,/ /gp;}'`
-	dpagaix_CFLAGS=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/options/{;s/^[[^=]]*=\(.*\)/\1/;s/-q[^,]*//;s/,/ /gp;}'`
+	dpagaix_ldadd=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/libraries/{;s/^[[^=]]*=\(.*\)/\1/;s/,/ /gp;}'`
+	dpagaix_cflags=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/options/{;s/^[[^=]]*=\(.*\)/\1/;s/-q[^,]*//;s/,/ /gp;}'`
+	dpagaix_ldflags=
 else
-	dpagaix_CFLAGS="-D_THREAD_SAFE -D_AIX_PTHREADS_D7 -D_AIX32_THREADS=1 -D_AES_SOURCE -D_AIX41 -I/usr/include/dce"
-	dpagaix_LDADD="-L/usr/lib/threads -ldcelibc_r -ldcepthreads -lpthreads_compat lpthreads -lc_r"
-	dpagaix_LDFLAGS="-Wl,-bI:dfspag.exp"
+	dpagaix_cflags="-D_THREAD_SAFE -D_AIX_PTHREADS_D7 -D_AIX32_THREADS=1 -D_AES_SOURCE -D_AIX41 -I/usr/include/dce"
+	dpagaix_ldadd="-L/usr/lib/threads -ldcelibc_r -ldcepthreads -lpthreads_compat lpthreads -lc_r"
+	dpagaix_ldflags="-Wl,-bI:dfspag.exp"
 fi
-AC_SUBST(dpagaix_CFLAGS)
-AC_SUBST(dpagaix_LDADD)
+AC_SUBST(dpagaix_cflags)
+AC_SUBST(dpagaix_ldadd)
+AC_SUBST(dpagaix_ldflags)
 
-otp=yes
-AC_ARG_ENABLE(otp,
-[  --disable-otp          if you don't want OTP support],
-[
-if test "$enableval" = "no"; then
-	otp=no
-fi
-])
-if test "$otp" = "yes"; then
-	AC_DEFINE(OTP, 1, [Define if you want OTP support in applications.])
-	LIB_otp='$(top_builddir)/lib/otp/libotp.la'
-fi
-AC_SUBST(LIB_otp)
-AM_CONDITIONAL(OTP, test "$otp" = yes)dnl
+rk_OTP
 
 AC_CHECK_OSFC2
 
 rk_CHECK_MAN
 
-AC_TEST_PACKAGE_NEW(readline,
+rk_TEST_PACKAGE(readline,
 [#include <stdio.h>
  #include <readline.h>],-lreadline,,, READLINE)
 
-AC_TEST_PACKAGE_NEW(hesiod,[#include <hesiod.h>],-lhesiod,,, HESIOD)
+rk_TEST_PACKAGE(hesiod,[#include <hesiod.h>],-lhesiod,,, HESIOD)
 
 KRB_C_BIGENDIAN
 AC_C_INLINE
 
-KRB_AIX
-KRB_IRIX
+rk_AIX
+rk_IRIX
+rk_SUNOS
 
 KRB_CHECK_X
 
@@ -228,10 +219,6 @@ dnl AM_C_PROTOTYPES
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_TYPE_OFF_T
-AC_TYPE_SIZE_T
-AC_CHECK_TYPE_EXTRA(ssize_t, int, [#include <unistd.h>])
-AC_TYPE_PID_T
-AC_TYPE_UID_T
 AC_CHECK_TYPE_EXTRA(mode_t, unsigned short, [])
 AC_CHECK_TYPE_EXTRA(sig_atomic_t, int, [#include <signal.h>])
 AC_HAVE_TYPE([long long])
@@ -243,43 +230,24 @@ AC_HEADER_STDC
 
 AC_CHECK_HEADERS([\
 	arpa/ftp.h				\
-	arpa/inet.h				\
-	arpa/nameser.h				\
 	arpa/telnet.h				\
 	bind/bitypes.h				\
 	bsdsetjmp.h				\
-	crypt.h					\
 	curses.h				\
-	dirent.h				\
 	dlfcn.h					\
-	err.h					\
-	errno.h					\
-	fcntl.h					\
 	fnmatch.h				\
-	grp.h					\
 	inttypes.h				\
 	io.h					\
 	libutil.h				\
 	limits.h				\
 	maillock.h				\
-	net/if.h				\
-	netdb.h					\
-	netinet/in.h				\
-	netinet/in6.h				\
 	netinet/in6_machtypes.h			\
-	netinet/in6_var.h			\
-	netinet/in_systm.h			\
-	netinet6/in6.h				\
 	netinfo/ni.h				\
-	paths.h					\
 	pthread.h				\
 	pty.h					\
-	pwd.h					\
-	resolv.h				\
 	sac.h					\
 	security/pam_modules.h			\
 	sgtty.h					\
-	shadow.h				\
 	siad.h					\
 	signal.h				\
 	stropts.h				\
@@ -288,129 +256,54 @@ AC_CHECK_HEADERS([\
 	sys/file.h				\
 	sys/filio.h				\
 	sys/ioccom.h				\
-	sys/ioctl.h				\
-	sys/param.h				\
-	sys/proc.h				\
 	sys/pty.h				\
 	sys/ptyio.h				\
 	sys/ptyvar.h				\
-	sys/resource.h				\
 	sys/select.h				\
-	sys/socket.h				\
-	sys/sockio.h				\
-	sys/stat.h				\
 	sys/str_tty.h				\
 	sys/stream.h				\
 	sys/stropts.h				\
 	sys/strtty.h				\
 	sys/syscall.h				\
-	sys/sysctl.h				\
 	sys/termio.h				\
-	sys/time.h				\
 	sys/timeb.h				\
 	sys/times.h				\
-	sys/tty.h				\
-	sys/types.h				\
-	sys/uio.h				\
 	sys/un.h				\
-	sys/utsname.h				\
-	sys/wait.h				\
-	syslog.h				\
 	term.h					\
 	termcap.h				\
 	termio.h				\
-	termios.h				\
 	time.h					\
 	tmpdir.h				\
 	udb.h					\
-	unistd.h				\
-	userconf.h				\
-	usersec.h				\
-	util.h					\
 	utmp.h					\
 	utmpx.h					\
 ])
 
-CHECK_NETINET_IP_AND_TCP
-
-
 AC_ARG_ENABLE(netinfo,
-[  --enable-netinfo      enable netinfo for configuration lookup])
+	AC_HELP_STRING([--enable-netinfo],[enable netinfo for configuration lookup]))
 
 if test "$ac_cv_header_netinfo_ni_h" = yes -a "$enable_netinfo" = yes; then
        AC_DEFINE(HAVE_NETINFO, 1,
                [Define if you want to use Netinfo instead of krb5.conf.])
 fi
 
-AM_CONDITIONAL(have_err_h, test "$ac_cv_header_err_h" = yes)
-AM_CONDITIONAL(have_fnmatch_h, test "$ac_cv_header_fnmatch_h" = yes)
-
 dnl Checks for libraries.
-
-AC_FIND_FUNC(socket, socket)
-AC_FIND_FUNC(gethostbyname, nsl)
-AC_FIND_FUNC(syslog, syslog)
-
-AC_KRB_IPV6
 
 AC_FIND_FUNC_NO_LIBS(logwtmp, util)
 AC_FIND_FUNC_NO_LIBS(logout, util)
 AC_FIND_FUNC_NO_LIBS(openpty, util)
 AC_FIND_FUNC_NO_LIBS(tgetent, termcap ncurses curses)
-AC_FIND_FUNC(gethostbyname2, inet6 ip6)
-
-AC_FIND_FUNC(res_search, resolv,
-[
-#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif
-],
-[0,0,0,0,0])
-
-AC_FIND_FUNC(dn_expand, resolv,
-[
-#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif
-],
-[0,0,0,0,0])
 
 dnl Checks for library functions.
-
-AC_BROKEN_SNPRINTF
-AC_BROKEN_VSNPRINTF
 
 AC_CHECK_FUNCS([				\
 	_getpty					\
 	_scrsize				\
 	fcntl					\
-	gettimeofday				\
-	getuid					\
 	grantpt					\
 	mktime					\
 	ptsname					\
 	rand					\
-	random					\
 	revoke					\
 	select					\
 	setitimer				\
@@ -438,23 +331,6 @@ KRB_CAPABILITIES
 
 AC_CHECK_GETPWNAM_R_POSIX
 
-AC_FIND_FUNC_NO_LIBS(getsockopt,,
-[#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif],
-[0,0,0,0,0])
-AC_FIND_FUNC_NO_LIBS(setsockopt,,
-[#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif],
-[0,0,0,0,0])
-
 dnl Cray stuff
 AC_CHECK_FUNCS(getudbnam setlim)
 
@@ -472,49 +348,6 @@ AC_HAVE_STRUCT_FIELD(struct utmp, ut_type, [#include <utmp.h>])
 AC_HAVE_STRUCT_FIELD(struct utmp, ut_user, [#include <utmp.h>])
 AC_HAVE_STRUCT_FIELD(struct utmpx, ut_exit, [#include <utmpx.h>])
 AC_HAVE_STRUCT_FIELD(struct utmpx, ut_syslen, [#include <utmpx.h>])
-
-dnl
-dnl Check for fields in struct tm
-dnl
-
-AC_HAVE_STRUCT_FIELD(struct tm, tm_gmtoff, [#include <time.h>])
-AC_HAVE_STRUCT_FIELD(struct tm, tm_zone, [#include <time.h>])
-
-dnl
-dnl or do we have a variable `timezone' ?
-dnl
-
-rk_CHECK_VAR(timezone, [#include <time.h>])
-
-AC_HAVE_TYPE([sa_family_t],[#include <sys/socket.h>])
-
-AC_HAVE_TYPE([socklen_t],[#include <sys/socket.h>])
-
-AC_HAVE_TYPE([struct sockaddr], [#include <sys/socket.h>])
-
-AC_HAVE_TYPE([struct sockaddr_storage], [#include <sys/socket.h>])
-
-AC_HAVE_TYPE([struct addrinfo], [#include <netdb.h>])
-
-dnl
-dnl Check for struct winsize
-dnl
-
-AC_KRB_STRUCT_WINSIZE
-
-dnl
-dnl Check for struct spwd
-dnl
-
-AC_KRB_STRUCT_SPWD
-
-dnl
-dnl Check for sa_len in struct sockaddr
-dnl
-
-AC_HAVE_STRUCT_FIELD(struct sockaddr, sa_len, [#include <sys/types.h>
-#include <sys/socket.h>])
-
 
 AC_CHECK_TYPES([int8_t, int16_t, int32_t, int64_t, 
 	u_int8_t, u_int16_t, u_int32_t, u_int64_t,
@@ -540,97 +373,23 @@ KRB_CRYPTO
 
 KRB_READLINE
 
-dnl telnet muck --------------------------------------------------
-
-AC_DEFINE(AUTHENTICATION, 1, 
-	[Define if you want authentication support in telnet.])dnl
-AC_DEFINE(ENCRYPTION, 1,
-	[Define if you want encryption support in telnet.])dnl
-AC_DEFINE(DES_ENCRYPTION, 1,
-	[Define if you want to use DES encryption in telnet.])dnl
-AC_DEFINE(DIAGNOSTICS, 1,
-	[Define this to enable diagnostics in telnet.])dnl
-AC_DEFINE(OLD_ENVIRON, 1,
-	[Define this to enable old environment option in telnet.])dnl
-if false; then
-AC_DEFINE(ENV_HACK, 1,
-	[Define this if you want support for broken ENV_{VAR,VAL} telnets.])
-fi
-
-# Simple test for streamspty, based on the existance of getmsg(), alas
-# this breaks on SunOS4 which have streams but BSD-like ptys
-#
-# And also something wierd has happend with dec-osf1, fallback to bsd-ptys
-
-AC_CHECK_FUNC(getmsg)
-
-if test "$ac_cv_func_getmsg" = "yes"; then
-
-AC_CACHE_CHECK(for working getmsg, ac_cv_func_getmsg_work,
-AC_TRY_RUN(
-[
-#include <stdio.h>
-#include <errno.h>
-
-int main()
-{
-  int ret;
-  ret = getmsg(open("/dev/null", 0), NULL, NULL, NULL);
-  if(ret < 0 && errno == ENOSYS)
-    return 1;
-  return 0;
-}
-], ac_cv_func_getmsg_work=yes, ac_cv_func_getmsg_work=no,
-ac_cv_func_getmsg_work=no))
-test "$ac_cv_func_getmsg_work" = "yes" &&
-AC_DEFINE(HAVE_GETMSG, 1, [Define if you have a working getmsg.])
-
-fi
-
-if test "$ac_cv_func_getmsg_work" = yes; then
-AC_MSG_CHECKING(for streamspty)
-case "$host" in
-*-*-aix3*|*-*-sunos4*|*-*-osf*|*-*-hpux1[[01]]*)
-	krb_cv_sys_streamspty=no
-	;;
-*)
-	krb_cv_sys_streamspty=yes
-	;;
-esac
-AC_MSG_RESULT($krb_cv_sys_streamspty)
-fi
-if test "$krb_cv_sys_streamspty" = yes; then
-	AC_DEFINE(STREAMSPTY, 1, [Define if you have streams ptys.])
-fi
+rk_TELNET
 
 dnl Some operating systems already have com_err and compile_et
 CHECK_COMPILE_ET
 
 AC_AUTH_MODULES
 
-dnl This is done by AC_OUTPUT but we need the result here.
+rk_DESTDIRS
 
-test "x$prefix" = xNONE && prefix=$ac_default_prefix
-test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
-
-for i in bin lib libexec sbin; do
-	i=${i}dir
-	foo=`echo $i | tr 'xindiscernible' 'XINDISCERNIBLE'`
-	x="\$${i}"
-	eval y="$x"
-	while test "x$y" != "x$x"; do
-		x="$y"
-		eval y="$x"
-	done
-	AC_DEFINE_UNQUOTED($foo,"$x")
-done
-AH_BOTTOM([#undef BINDIR 
-#undef LIBDIR
-#undef LIBEXECDIR
-#undef SBINDIR])
-
-LTLIBOBJS=`echo "$LIBOBJS" | sed 's/\.o/\.lo/g'`
+LTLIBOBJS=`echo "$LIB@&t@OBJS" |
+	sed 's,\.[[^.]]* ,.lo ,g;s,\.[[^.]]*$,.lo,'`
 AC_SUBST(LTLIBOBJS)
+
+AH_BOTTOM([#ifdef ROKEN_RENAME
+#include "roken_rename.h"
+#endif])
+
 AC_CONFIG_FILES(Makefile 		\
 	include/Makefile		\
 	include/kadm5/Makefile		\
@@ -690,11 +449,10 @@ AC_OUTPUT
 dnl
 dnl This is the release version name-number[beta]
 dnl
-HEIMDALVERSION="$PACKAGE-$VERSION"
 
 cat > include/newversion.h.in <<EOF
-const char *heimdal_long_version = "@(#)\$Version: $HEIMDALVERSION by @USER@ on @HOST@ ($host) @DATE@ \$";
-const char *heimdal_version = "$HEIMDALVERSION";
+const char *heimdal_long_version = "@([#])\$Version: $PACKAGE_STRING by @USER@ on @HOST@ ($host) @DATE@ \$";
+const char *heimdal_version = "AC_PACKAGE_STRING";
 EOF
 
 if test -f include/version.h && cmp -s include/newversion.h.in include/version.h.in; then

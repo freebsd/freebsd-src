@@ -1,30 +1,36 @@
-dnl $Id: db.m4,v 1.5 2001/09/13 00:34:07 assar Exp $
+dnl $Id: db.m4,v 1.8 2002/05/17 15:32:21 joda Exp $
 dnl
 dnl tests for various db libraries
 dnl
-AC_DEFUN([rk_DB],[berkeley_db=db
-AC_ARG_WITH(berkeley-db,
-[  --without-berkeley-db   if you don't want berkeley db],[
-if test "$withval" = no; then
-	berkeley_db=""
-fi
+AC_DEFUN([rk_DB],[
+AC_ARG_ENABLE(berkeley-db,
+                       AC_HELP_STRING([--disable-berkeley-db],
+                                      [if you don't want berkeley db]),[
 ])
 
 have_ndbm=no
 db_type=unknown
 
-if test "$berkeley_db"; then
+if test "$enable_berkeley_db" != no; then
 
   AC_CHECK_HEADERS([				\
+	db4/db.h				\
+	db3/db.h				\
 	db.h					\
 	db_185.h				\
   ])
 
-dnl db_create is used by db3
+dnl db_create is used by db3 and db4
 
-  AC_FIND_FUNC_NO_LIBS(db_create, $berkeley_db, [
+  AC_FIND_FUNC_NO_LIBS(db_create, db4 db3 db, [
   #include <stdio.h>
+  #ifdef HAVE_DB4_DB_H
+  #include <db4/db.h>
+  #elif defined(HAVE_DB3_DB_H)
+  #include <db3/db.h>
+  #else
   #include <db.h>
+  #endif
   ],[NULL, NULL, 0])
 
   if test "$ac_cv_func_db_create" = "yes"; then
@@ -34,14 +40,16 @@ dnl db_create is used by db3
     else
       DBLIB=""
     fi
-    AC_DEFINE(HAVE_DB3, 1, [define if you have a berkeley db3 library])
+    AC_DEFINE(HAVE_DB3, 1, [define if you have a berkeley db3/4 library])
   else
 
 dnl dbopen is used by db1/db2
 
-    AC_FIND_FUNC_NO_LIBS(dbopen, $berkeley_db, [
+    AC_FIND_FUNC_NO_LIBS(dbopen, db2 db, [
     #include <stdio.h>
-    #if defined(HAVE_DB_185_H)
+    #if defined(HAVE_DB2_DB_H)
+    #include <db2/db.h>
+    #elif defined(HAVE_DB_185_H)
     #include <db_185.h>
     #elif defined(HAVE_DB_H)
     #include <db.h>
@@ -63,24 +71,26 @@ dnl dbopen is used by db1/db2
 
 dnl test for ndbm compatability
 
-  AC_FIND_FUNC_NO_LIBS2(dbm_firstkey, $ac_cv_funclib_dbopen $ac_cv_funclib_db_create, [
-  #include <stdio.h>
-  #define DB_DBM_HSEARCH 1
-  #include <db.h>
-  DBM *dbm;
-  ],[NULL])
-
-  if test "$ac_cv_func_dbm_firstkey" = "yes"; then
-    if test "$ac_cv_funclib_dbm_firstkey" != "yes"; then
-      LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
+  if test "$ac_cv_func_dbm_firstkey" != yes; then
+    AC_FIND_FUNC_NO_LIBS2(dbm_firstkey, $ac_cv_funclib_dbopen $ac_cv_funclib_db_create, [
+    #include <stdio.h>
+    #define DB_DBM_HSEARCH 1
+    #include <db.h>
+    DBM *dbm;
+    ],[NULL])
+  
+    if test "$ac_cv_func_dbm_firstkey" = "yes"; then
+      if test "$ac_cv_funclib_dbm_firstkey" != "yes"; then
+        LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
+      else
+        LIB_NDBM=""
+      fi
+      AC_DEFINE(HAVE_DB_NDBM, 1, [define if you have ndbm compat in db])
+      AC_DEFINE(HAVE_NEW_DB, 1, [Define if NDBM really is DB (creates files *.db)])
     else
-      LIB_NDBM=""
+      $as_unset ac_cv_func_dbm_firstkey
+      $as_unset ac_cv_funclib_dbm_firstkey
     fi
-    AC_DEFINE(HAVE_DB_NDBM, 1, [define if you have ndbm compat in db])
-    AC_DEFINE(HAVE_NEW_DB, 1, [Define if NDBM really is DB (creates files *.db)])
-  else
-    $as_unset ac_cv_func_dbm_firstkey
-    $as_unset ac_cv_funclib_dbm_firstkey
   fi
 
 fi # berkeley db
@@ -98,8 +108,6 @@ if test "$db_type" = "unknown" -o "$ac_cv_func_dbm_firstkey" = ""; then
   #include <ndbm.h>
   #elif defined(HAVE_DBM_H)
   #include <dbm.h>
-  #else
-  #error no ndbm.h
   #endif
   DBM *dbm;
   ],[NULL])
@@ -178,6 +186,11 @@ int main()
     fi],[AC_MSG_RESULT([no])])
 fi
 
+AM_CONDITIONAL(HAVE_DB1, test "$db_type" = db1)dnl
+AM_CONDITIONAL(HAVE_DB3, test "$db_type" = db3)dnl
+AM_CONDITIONAL(HAVE_NDBM, test "$db_type" = ndbm)dnl
+
+DBLIB="$LDFLAGS $DBLIB"
 AC_SUBST(DBLIB)dnl
 AC_SUBST(LIB_NDBM)dnl
 ])

@@ -1,4 +1,4 @@
-dnl $Id: krb-sys-nextstep.m4,v 1.3 2000/07/15 17:56:45 joda Exp $
+dnl $Id: krb-sys-nextstep.m4,v 1.4 2002/08/28 18:44:32 joda Exp $
 dnl
 dnl NEXTSTEP is not posix compliant by default,
 dnl you need a switch -posix to the compiler
@@ -15,7 +15,4 @@ if test "$rk_cv_sys_nextstep" = "yes"; then
   CFLAGS="$CFLAGS -posix"
   LIBS="$LIBS -posix"
 fi
-AH_BOTTOM([#if defined(HAVE_SGTTY_H) && defined(__NeXT__)
-#define SGTTY
-#endif])
 ])

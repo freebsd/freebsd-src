@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,20 +32,43 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: config_file.c,v 1.42 2001/05/14 06:14:45 assar Exp $");
+RCSID("$Id: config_file.c,v 1.45 2002/08/14 17:35:03 joda Exp $");
 
 #ifndef HAVE_NETINFO
 
 static krb5_error_code parse_section(char *p, krb5_config_section **s,
 				     krb5_config_section **res,
-				     char **error_message);
+				     const char **error_message);
 static krb5_error_code parse_binding(FILE *f, unsigned *lineno, char *p,
 				     krb5_config_binding **b,
 				     krb5_config_binding **parent,
-				     char **error_message);
+				     const char **error_message);
 static krb5_error_code parse_list(FILE *f, unsigned *lineno,
 				  krb5_config_binding **parent,
-				  char **error_message);
+				  const char **error_message);
+
+static krb5_config_section *
+get_entry(krb5_config_section **parent, const char *name, int type)
+{
+    krb5_config_section **q;
+
+    for(q = parent; *q != NULL; q = &(*q)->next)
+	if(type == krb5_config_list && 
+	   type == (*q)->type &&
+	   strcmp(name, (*q)->name) == 0)
+	    return *q;
+    *q = calloc(1, sizeof(**q));
+    if(*q == NULL)
+	return NULL;
+    (*q)->name = strdup(name);
+    (*q)->type = type;
+    if((*q)->name == NULL) {
+	free(*q);
+	*q = NULL;
+	return NULL;
+    }
+    return *q;
+}
 
 /*
  * Parse a section:
@@ -64,7 +87,7 @@ static krb5_error_code parse_list(FILE *f, unsigned *lineno,
 
 static krb5_error_code
 parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
-	      char **error_message)
+	      const char **error_message)
 {
     char *p1;
     krb5_config_section *tmp;
@@ -75,23 +98,11 @@ parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
 	return KRB5_CONFIG_BADFORMAT;
     }
     *p1 = '\0';
-    tmp = malloc(sizeof(*tmp));
-    if (tmp == NULL) {
+    tmp = get_entry(parent, p + 1, krb5_config_list);
+    if(tmp == NULL) {
 	*error_message = "out of memory";
 	return KRB5_CONFIG_BADFORMAT;
     }
-    tmp->name = strdup(p+1);
-    if (tmp->name == NULL) {
-	*error_message = "out of memory";
-	return KRB5_CONFIG_BADFORMAT;
-    }
-    tmp->type = krb5_config_list;
-    tmp->u.list = NULL;
-    tmp->next = NULL;
-    if (*s)
-	(*s)->next = tmp;
-    else
-	*parent = tmp;
     *s = tmp;
     return 0;
 }
@@ -104,7 +115,7 @@ parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
 
 static int
 parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
-	   char **error_message)
+	   const char **error_message)
 {
     char buf[BUFSIZ];
     int ret;
@@ -144,7 +155,7 @@ parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
 static int
 parse_binding(FILE *f, unsigned *lineno, char *p,
 	      krb5_config_binding **b, krb5_config_binding **parent,
-	      char **error_message)
+	      const char **error_message)
 {
     krb5_config_binding *tmp;
     char *p1, *p2;
@@ -154,44 +165,40 @@ parse_binding(FILE *f, unsigned *lineno, char *p,
     while (*p && *p != '=' && !isspace((unsigned char)*p))
 	++p;
     if (*p == '\0') {
-	*error_message = "no =";
+	*error_message = "missing =";
 	return KRB5_CONFIG_BADFORMAT;
     }
     p2 = p;
     while (isspace((unsigned char)*p))
 	++p;
     if (*p != '=') {
-	*error_message = "no =";
+	*error_message = "missing =";
 	return KRB5_CONFIG_BADFORMAT;
     }
     ++p;
     while(isspace((unsigned char)*p))
 	++p;
-    tmp = malloc(sizeof(*tmp));
-    if (tmp == NULL) {
-	*error_message = "out of memory";
-	return KRB5_CONFIG_BADFORMAT;
-    }
     *p2 = '\0';
-    tmp->name = strdup(p1);
-    tmp->next = NULL;
     if (*p == '{') {
-	tmp->type = krb5_config_list;
-	tmp->u.list = NULL;
+	tmp = get_entry(parent, p1, krb5_config_list);
+	if (tmp == NULL) {
+	    *error_message = "out of memory";
+	    return KRB5_CONFIG_BADFORMAT;
+	}
 	ret = parse_list (f, lineno, &tmp->u.list, error_message);
     } else {
+	tmp = get_entry(parent, p1, krb5_config_string);
+	if (tmp == NULL) {
+	    *error_message = "out of memory";
+	    return KRB5_CONFIG_BADFORMAT;
+	}
 	p1 = p;
 	p = p1 + strlen(p1);
 	while(p > p1 && isspace((unsigned char)*(p-1)))
 	    --p;
 	*p = '\0';
-	tmp->type = krb5_config_string;
 	tmp->u.string = strdup(p1);
     }
-    if (*b)
-	(*b)->next = tmp;
-    else
-	*parent = tmp;
     *b = tmp;
     return ret;
 }
@@ -205,7 +212,7 @@ static krb5_error_code
 krb5_config_parse_file_debug (const char *fname,
 			      krb5_config_section **res,
 			      unsigned *lineno,
-			      char **error_message)
+			      const char **error_message)
 {
     FILE *f;
     krb5_config_section *s;
@@ -221,7 +228,6 @@ krb5_config_parse_file_debug (const char *fname,
 	*error_message = "cannot open file";
 	return ENOENT;
     }
-    *res = NULL;
     while (fgets(buf, sizeof(buf), f) != NULL) {
 	char *p;
 
@@ -255,11 +261,11 @@ out:
 }
 
 krb5_error_code
-krb5_config_parse_file (krb5_context context,
-			const char *fname,
-			krb5_config_section **res)
+krb5_config_parse_file_multi (krb5_context context,
+			      const char *fname,
+			      krb5_config_section **res)
 {
-    char *str;
+    const char *str;
     unsigned lineno;
     krb5_error_code ret;
 
@@ -269,6 +275,15 @@ krb5_config_parse_file (krb5_context context,
 	return ret;
     }
     return 0;
+}
+
+krb5_error_code
+krb5_config_parse_file (krb5_context context,
+			const char *fname,
+			krb5_config_section **res)
+{
+    *res = NULL;
+    return krb5_config_parse_file_multi(context, fname, res);
 }
 
 #endif /* !HAVE_NETINFO */
@@ -302,8 +317,8 @@ krb5_config_file_free (krb5_context context, krb5_config_section *s)
 
 const void *
 krb5_config_get_next (krb5_context context,
-		      krb5_config_section *c,
-		      krb5_config_binding **pointer,
+		      const krb5_config_section *c,
+		      const krb5_config_binding **pointer,
 		      int type,
 		      ...)
 {
@@ -316,14 +331,37 @@ krb5_config_get_next (krb5_context context,
     return ret;
 }
 
+static const void *
+vget_next(krb5_context context,
+	  const krb5_config_binding *b,
+	  const krb5_config_binding **pointer,
+	  int type,
+	  const char *name,
+	  va_list args)
+{
+    const char *p = va_arg(args, const char *);
+    while(b != NULL) {
+	if(strcmp(b->name, name) == NULL) {
+	    if(b->type == type && p == NULL) {
+		*pointer = b;
+		return b->u.generic;
+	    } else if(b->type == krb5_config_list && p != NULL) {
+		return vget_next(context, b->u.list, pointer, type, p, args);
+	    }
+	}
+	b = b->next;
+    }
+    return NULL;
+}
+
 const void *
 krb5_config_vget_next (krb5_context context,
-		       krb5_config_section *c,
-		       krb5_config_binding **pointer,
+		       const krb5_config_section *c,
+		       const krb5_config_binding **pointer,
 		       int type,
 		       va_list args)
 {
-    krb5_config_binding *b;
+    const krb5_config_binding *b;
     const char *p;
 
     if(c == NULL)
@@ -333,32 +371,20 @@ krb5_config_vget_next (krb5_context context,
 	return NULL;
 
     if (*pointer == NULL) {
-	b = (c != NULL) ? c : context->cf;
+	/* first time here, walk down the tree looking for the right
+           section */
 	p = va_arg(args, const char *);
 	if (p == NULL)
 	    return NULL;
-    } else {
-	b = *pointer;
-	p = b->name;
-	b = b->next;
+	return vget_next(context, c, pointer, type, p, args);
     }
 
-    while (b) {
-	if (strcmp (b->name, p) == 0) {
-	    if (*pointer == NULL)
-		p = va_arg(args, const char *);
-	    else
-		p = NULL;
-	    if (type == b->type && p == NULL) {
-		*pointer = b;
-		return b->u.generic;
-	    } else if(b->type == krb5_config_list && p != NULL) {
-		b = b->u.list;
-	    } else {
-		return NULL;
-	    }
-	} else {
-	    b = b->next;
+    /* we were called again, so just look for more entries with the
+       same name and type */
+    for (b = (*pointer)->next; b != NULL; b = b->next) {
+	if(strcmp(b->name, (*pointer)->name) == 0 && b->type == type) {
+	    *pointer = b;
+	    return b->u.generic;
 	}
     }
     return NULL;
@@ -366,7 +392,7 @@ krb5_config_vget_next (krb5_context context,
 
 const void *
 krb5_config_get (krb5_context context,
-		 krb5_config_section *c,
+		 const krb5_config_section *c,
 		 int type,
 		 ...)
 {
@@ -381,18 +407,18 @@ krb5_config_get (krb5_context context,
 
 const void *
 krb5_config_vget (krb5_context context,
-		  krb5_config_section *c,
+		  const krb5_config_section *c,
 		  int type,
 		  va_list args)
 {
-    krb5_config_binding *foo = NULL;
+    const krb5_config_binding *foo = NULL;
 
     return krb5_config_vget_next (context, c, &foo, type, args);
 }
 
 const krb5_config_binding *
 krb5_config_get_list (krb5_context context,
-		      krb5_config_section *c,
+		      const krb5_config_section *c,
 		      ...)
 {
     const krb5_config_binding *ret;
@@ -406,7 +432,7 @@ krb5_config_get_list (krb5_context context,
 
 const krb5_config_binding *
 krb5_config_vget_list (krb5_context context,
-		       krb5_config_section *c,
+		       const krb5_config_section *c,
 		       va_list args)
 {
     return krb5_config_vget (context, c, krb5_config_list, args);
@@ -414,7 +440,7 @@ krb5_config_vget_list (krb5_context context,
 
 const char *
 krb5_config_get_string (krb5_context context,
-			krb5_config_section *c,
+			const krb5_config_section *c,
 			...)
 {
     const char *ret;
@@ -428,7 +454,7 @@ krb5_config_get_string (krb5_context context,
 
 const char *
 krb5_config_vget_string (krb5_context context,
-			 krb5_config_section *c,
+			 const krb5_config_section *c,
 			 va_list args)
 {
     return krb5_config_vget (context, c, krb5_config_string, args);
@@ -436,7 +462,7 @@ krb5_config_vget_string (krb5_context context,
 
 const char *
 krb5_config_vget_string_default (krb5_context context,
-				 krb5_config_section *c,
+				 const krb5_config_section *c,
 				 const char *def_value,
 				 va_list args)
 {
@@ -450,7 +476,7 @@ krb5_config_vget_string_default (krb5_context context,
 
 const char *
 krb5_config_get_string_default (krb5_context context,
-				krb5_config_section *c,
+				const krb5_config_section *c,
 				const char *def_value,
 				...)
 {
@@ -465,12 +491,12 @@ krb5_config_get_string_default (krb5_context context,
 
 char **
 krb5_config_vget_strings(krb5_context context,
-			 krb5_config_section *c,
+			 const krb5_config_section *c,
 			 va_list args)
 {
     char **strings = NULL;
     int nstr = 0;
-    krb5_config_binding *b = NULL;
+    const krb5_config_binding *b = NULL;
     const char *p;
 
     while((p = krb5_config_vget_next(context, c, &b, 
@@ -512,7 +538,7 @@ cleanup:
 
 char**
 krb5_config_get_strings(krb5_context context,
-			krb5_config_section *c,
+			const krb5_config_section *c,
 			...)
 {
     va_list ap;
@@ -536,7 +562,7 @@ krb5_config_free_strings(char **strings)
 
 krb5_boolean
 krb5_config_vget_bool_default (krb5_context context,
-			       krb5_config_section *c,
+			       const krb5_config_section *c,
 			       krb5_boolean def_value,
 			       va_list args)
 {
@@ -552,7 +578,7 @@ krb5_config_vget_bool_default (krb5_context context,
 
 krb5_boolean
 krb5_config_vget_bool  (krb5_context context,
-			krb5_config_section *c,
+			const krb5_config_section *c,
 			va_list args)
 {
     return krb5_config_vget_bool_default (context, c, FALSE, args);
@@ -560,7 +586,7 @@ krb5_config_vget_bool  (krb5_context context,
 
 krb5_boolean
 krb5_config_get_bool_default (krb5_context context,
-			      krb5_config_section *c,
+			      const krb5_config_section *c,
 			      krb5_boolean def_value,
 			      ...)
 {
@@ -574,7 +600,7 @@ krb5_config_get_bool_default (krb5_context context,
 
 krb5_boolean
 krb5_config_get_bool (krb5_context context,
-		      krb5_config_section *c,
+		      const krb5_config_section *c,
 		      ...)
 {
     va_list ap;
@@ -587,7 +613,7 @@ krb5_config_get_bool (krb5_context context,
 
 int
 krb5_config_vget_time_default (krb5_context context,
-			       krb5_config_section *c,
+			       const krb5_config_section *c,
 			       int def_value,
 			       va_list args)
 {
@@ -600,7 +626,7 @@ krb5_config_vget_time_default (krb5_context context,
 
 int
 krb5_config_vget_time  (krb5_context context,
-			krb5_config_section *c,
+			const krb5_config_section *c,
 			va_list args)
 {
     return krb5_config_vget_time_default (context, c, -1, args);
@@ -608,7 +634,7 @@ krb5_config_vget_time  (krb5_context context,
 
 int
 krb5_config_get_time_default (krb5_context context,
-			      krb5_config_section *c,
+			      const krb5_config_section *c,
 			      int def_value,
 			      ...)
 {
@@ -622,7 +648,7 @@ krb5_config_get_time_default (krb5_context context,
 
 int
 krb5_config_get_time (krb5_context context,
-		      krb5_config_section *c,
+		      const krb5_config_section *c,
 		      ...)
 {
     va_list ap;
@@ -636,7 +662,7 @@ krb5_config_get_time (krb5_context context,
 
 int
 krb5_config_vget_int_default (krb5_context context,
-			      krb5_config_section *c,
+			      const krb5_config_section *c,
 			      int def_value,
 			      va_list args)
 {
@@ -657,7 +683,7 @@ krb5_config_vget_int_default (krb5_context context,
 
 int
 krb5_config_vget_int  (krb5_context context,
-		       krb5_config_section *c,
+		       const krb5_config_section *c,
 		       va_list args)
 {
     return krb5_config_vget_int_default (context, c, -1, args);
@@ -665,7 +691,7 @@ krb5_config_vget_int  (krb5_context context,
 
 int
 krb5_config_get_int_default (krb5_context context,
-			     krb5_config_section *c,
+			     const krb5_config_section *c,
 			     int def_value,
 			     ...)
 {
@@ -679,7 +705,7 @@ krb5_config_get_int_default (krb5_context context,
 
 int
 krb5_config_get_int (krb5_context context,
-		     krb5_config_section *c,
+		     const krb5_config_section *c,
 		     ...)
 {
     va_list ap;
@@ -689,103 +715,3 @@ krb5_config_get_int (krb5_context context,
     va_end(ap);
     return ret;
 }
-
-#ifdef TEST
-
-static int print_list (krb5_context context, FILE *f, 
-		       krb5_config_binding *l, unsigned level);
-static int print_binding (krb5_context context, FILE *f, 
-			  krb5_config_binding *b, unsigned level);
-static int print_section (krb5_context context, FILE *f, 
-			  krb5_config_section *s, unsigned level);
-static int print_config (krb5_context context, FILE *f, 
-			 krb5_config_section *c);
-
-static void
-tab (FILE *f, unsigned count)
-{
-    while(count--)
-	fprintf (f, "\t");
-}
-
-static int
-print_list (krb5_context context, 
-	    FILE *f, 
-	    krb5_config_binding *l, 
-	    unsigned level)
-{
-    while(l) {
-	print_binding (context, f, l, level);
-	l = l->next;
-    }
-    return 0;
-}
-
-static int
-print_binding (krb5_context context, 
-	       FILE *f, 
-	       krb5_config_binding *b, 
-	       unsigned level)
-{
-    tab (f, level);
-    fprintf (f, "%s = ", b->name);
-    if (b->type == krb5_config_string)
-	fprintf (f, "%s\n", b->u.string);
-    else if (b->type == krb5_config_list) {
-	fprintf (f, "{\n");
-	print_list (f, b->u.list, level + 1);
-	tab (f, level);
-	fprintf (f, "}\n");
-    } else
-	krb5_abortx(context, "unknown binding type (%d) in print_binding", 
-		    b->type);
-    return 0;
-}
-
-static int
-print_section (FILE *f, krb5_config_section *s, unsigned level)
-{
-    fprintf (f, "[%s]\n", s->name);
-    print_list (f, s->u.list, level + 1);
-    return 0;
-}
-
-static int
-print_config (FILE *f, krb5_config_section *c)
-{
-    while (c) {
-	print_section (f, c, 0);
-	c = c->next;
-    }
-    return 0;
-}
-
-
-int
-main(void)
-{
-    krb5_config_section *c;
-
-    printf ("%d\n", krb5_config_parse_file ("/etc/krb5.conf", &c));
-    print_config (stdout, c);
-    printf ("[libdefaults]ticket_lifetime = %s\n",
-	    krb5_config_get_string (context, c,
-			       "libdefaults",
-			       "ticket_lifetime",
-			       NULL));
-    printf ("[realms]foo = %s\n",
-	    krb5_config_get_string (context, c,
-			       "realms",
-			       "foo",
-			       NULL));
-    printf ("[realms]ATHENA.MIT.EDU/v4_instance_convert/lithium = %s\n",
-	    krb5_config_get_string (context, c,
-			       "realms",
-			       "ATHENA.MIT.EDU",
-			       "v4_instance_convert",
-			       "lithium",
-			       NULL));
-    return 0;
-}
-
-#endif /* TEST */

@@ -1,12 +1,12 @@
-
-FTPD(8)                  UNIX System Manager's Manual                  FTPD(8)
+FTPD(8)                 FreeBSD System Manager's Manual                FTPD(8)
 
 NNAAMMEE
      ffttppdd - Internet File Transfer Protocol server
 
 SSYYNNOOPPSSIISS
-     ffttppdd [--aa _a_u_t_h_m_o_d_e] [--ddiillvv] [--gg _u_m_a_s_k] [--pp _p_o_r_t] [--TT _m_a_x_t_i_m_e_o_u_t] [--tt
-     _t_i_m_e_o_u_t] [--uu _d_e_f_a_u_l_t _u_m_a_s_k] [--BB | ----bbuuiillttiinn--llss] [----ggoooodd--cchhaarrss==_s_t_r_i_n_g]
+     ffttppdd [--aa _a_u_t_h_m_o_d_e] [--ddiillvvUU] [--gg _u_m_a_s_k] [--pp _p_o_r_t] [--TT _m_a_x_t_i_m_e_o_u_t]
+          [--tt _t_i_m_e_o_u_t] [--uu _d_e_f_a_u_l_t _u_m_a_s_k] [--BB | ----bbuuiillttiinn--llss]
+          [----ggoooodd--cchhaarrss==_s_t_r_i_n_g]
 
 DDEESSCCRRIIPPTTIIOONN
      FFttppdd is the Internet File Transfer Protocol server process.  The server
@@ -18,7 +18,8 @@ DDEESSCCRRIIPPTTIIOONN
      --aa      Select the level of authentication required.  Kerberised login
              can not be turned off. The default is to only allow kerberised
              login.  Other possibilities can be turned on by giving a string
-             of comma separated flags as argument to --aa. Recognised flags are:
+             of comma separated flags as argument to --aa.  Recognised flags
+             are:
 
              _p_l_a_i_n  Allow logging in with plaintext password. The password can
                     be a(n) OTP or an ordinary password.
@@ -27,8 +28,8 @@ DDEESSCCRRIIPPTTIIOONN
 
              _f_t_p    Allow anonymous login.
 
-             The following combination modes exists for backwards compatibili-
-             ty:
+             The following combination modes exists for backwards compatibil-
+             ity:
 
              _n_o_n_e   Same as _p_l_a_i_n_,_f_t_p.
 
@@ -56,12 +57,17 @@ DDEESSCCRRIIPPTTIIOONN
              period allowed may be set to _t_i_m_e_o_u_t seconds with the --TT option.
              The default limit is 2 hours.
 
-     --tt      The inactivity timeout period is set to _t_i_m_e_o_u_t seconds (the de-
-             fault is 15 minutes).
+     --tt      The inactivity timeout period is set to _t_i_m_e_o_u_t seconds (the
+             default is 15 minutes).
 
      --uu      Set the initial umask to something else than the default 027.
 
-
+     --UU      In previous versions of ffttppdd, when a passive mode client
+             requested a data connection to the server, the server would use
+             data ports in the range 1024..4999.  Now, by default, if the sys-
+             tem supports the IP_PORTRANGE socket option, the server will use
+             data ports in the range 49152..65535.  Specifying this option
+             will revert to the old behavior.
 
      --vv      Verbose mode.
 
@@ -71,8 +77,8 @@ DDEESSCCRRIIPPTTIIOONN
      ----ggoooodd--cchhaarrss==_s_t_r_i_n_g
              allowed anonymous upload filename chars
 
-     The file _/_e_t_c_/_n_o_l_o_g_i_n can be used to disable ftp access.  If the file ex-
-     ists, ffttppdd displays it and exits.  If the file _/_e_t_c_/_f_t_p_w_e_l_c_o_m_e exists,
+     The file _/_e_t_c_/_n_o_l_o_g_i_n can be used to disable ftp access.  If the file
+     exists, ffttppdd displays it and exits.  If the file _/_e_t_c_/_f_t_p_w_e_l_c_o_m_e exists,
      ffttppdd prints it before issuing the ``ready'' message.  If the file
      _/_e_t_c_/_m_o_t_d exists, ffttppdd prints it after a successful login.
 
@@ -127,8 +133,6 @@ DDEESSCCRRIIPPTTIIOONN
            PROT       data channel protection level
            PBSZ       protection buffer size
            MIC        integrity protected command
-
-
            CONF       confidentiality protected command
            ENC        privacy protected command
            CCC        clear command channel
@@ -163,8 +167,8 @@ DDEESSCCRRIIPPTTIIOONN
      FFttppdd authenticates users according to these rules.
 
            1.   If Kerberos authentication is used, the user must pass valid
-                tickets and the principal must be allowed to login as the re-
-                mote user.
+                tickets and the principal must be allowed to login as the
+                remote user.
 
            2.   The login name must be in the password data base, and not have
                 a null password (if kerberos is used the password field is not
@@ -173,8 +177,8 @@ DDEESSCCRRIIPPTTIIOONN
                 user has an OTP key, the response from a successful USER com-
                 mand will include an OTP challenge. The client may choose to
                 respond with a PASS command giving either a standard password
-                or an OTP one-time password. The server will automatically de-
-                termine which type of password it has been given and attempt
+                or an OTP one-time password. The server will automatically
+                determine which type of password it has been given and attempt
                 to authenticate accordingly. See otp(1) for more information
                 on OTP authentication.
 
@@ -200,8 +204,8 @@ DDEESSCCRRIIPPTTIIOONN
      In the last case, ffttppdd takes special measures to restrict the client's
      access privileges.  The server performs a chroot(2) to the home directory
      of the ``ftp'' user.  In order that system security is not breached, it
-     is recommended that the ``ftp'' subtree be constructed with care, consid-
-     er following these guidelines for anonymous ftp.
+     is recommended that the ``ftp'' subtree be constructed with care, con-
+     sider following these guidelines for anonymous ftp.
 
      In general all files should be owned by ``root'', and have non-write per-
      missions (644 or 755 depending on the kind of file). No files should be
@@ -227,7 +231,7 @@ DDEESSCCRRIIPPTTIIOONN
                                    _._g_z.
 
                            gtar    Enables retrieval of whole directories as
-                                   files ending in _._t_a_r. Can also be combined
+                                   files ending in _._t_a_r.  Can also be combined
                                    with compression. You must use GNU Tar (or
                                    some other that supports the --zz and --ZZ
                                    flags).
@@ -249,9 +253,9 @@ DDEESSCCRRIIPPTTIIOONN
            _~_f_t_p_/_p_u_b  Traditional place to put whatever you want to make pub-
                      lic.
 
-     If you want guests to be able to upload files, create a _~_f_t_p_/_i_n_c_o_m_i_n_g di-
-     rectory owned by ``root'', and group ``ftp'' with mode 730 (make sure
-     ``ftp'' is member of group ``ftp''). The following restrictions apply to
+     If you want guests to be able to upload files, create a _~_f_t_p_/_i_n_c_o_m_i_n_g
+     directory owned by ``root'', and group ``ftp'' with mode 730 (make sure
+     ``ftp'' is member of group ``ftp'').  The following restrictions apply to
      anonymous users:
 
      ++oo   Directories created will have mode 700.
@@ -260,12 +264,11 @@ DDEESSCCRRIIPPTTIIOONN
          with the --gg option.
 
      ++oo   These command are not accessible: DDEELLEE, RRMMDD, RRNNTTOO, RRNNFFRR, SSIITTEE UUMMAASSKK,
-
          and SSIITTEE CCHHMMOODD.
 
      ++oo   Filenames must start with an alpha-numeric character, and consist of
-         alpha-numeric characters or any of the following: + (plus), - (mi-
-         nus), = (equal), _ (underscore), . (period), and , (comma).
+         alpha-numeric characters or any of the following: + (plus), -
+         (minus), = (equal), _ (underscore), . (period), and , (comma).
 
 FFIILLEESS
      /etc/ftpusers    Access list for users.
@@ -276,7 +279,7 @@ FFIILLEESS
      ~/.klogin        Login access for Kerberos.
 
 SSEEEE AALLSSOO
-     ftp(1),  otp(1),  getusershell(3),  ftpusers(5),  syslogd(8),
+     ftp(1), otp(1), getusershell(3), ftpusers(5), syslogd(8)
 
 SSTTAANNDDAARRDDSS
      RRFFCC 995599   FTP PROTOCOL SPECIFICATION
@@ -293,4 +296,4 @@ BBUUGGSS
 HHIISSTTOORRYY
      The ffttppdd command appeared in 4.2BSD.
 
-4.2 Berkeley Distribution       April 19, 1997                               5
+4.2 Berkeley Distribution       April 19, 1997       4.2 Berkeley Distribution

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: fcache.c,v 1.33 2001/05/14 06:14:46 assar Exp $");
+RCSID("$Id: fcache.c,v 1.34 2002/04/18 14:01:29 joda Exp $");
 
 typedef struct krb5_fcache{
     char *filename;
@@ -58,7 +58,7 @@ struct fcc_cursor {
 
 #define FCC_CURSOR(C) ((struct fcc_cursor*)(C))
 
-static char*
+static const char*
 fcc_get_name(krb5_context context,
 	     krb5_ccache id)
 {
@@ -248,6 +248,7 @@ fcc_initialize(krb5_context context,
     {
 	krb5_storage *sp;    
 	sp = krb5_storage_from_fd(fd);
+	krb5_storage_set_eof_code(sp, KRB5_CC_END);
 	if(context->fcache_vno != 0)
 	    f->version = context->fcache_vno;
 	else
@@ -321,6 +322,7 @@ fcc_store_cred(krb5_context context,
     {
 	krb5_storage *sp;
 	sp = krb5_storage_from_fd(fd);
+	krb5_storage_set_eof_code(sp, KRB5_CC_END);
 	storage_set_flags(context, sp, FCACHE(id)->version);
 	ret = krb5_store_creds(sp, creds);
 	krb5_storage_free(sp);
@@ -366,11 +368,10 @@ init_fcc (krb5_context context,
 	return ret;
     }
     sp = krb5_storage_from_fd(fd);
+    krb5_storage_set_eof_code(sp, KRB5_CC_END);
     ret = krb5_ret_int8(sp, &pvno);
-    if(ret == KRB5_CC_END) {
-
+    if(ret == KRB5_CC_END)
 	return ENOENT;
-    }
     if(ret)
 	return ret;
     if(pvno != 5) {
