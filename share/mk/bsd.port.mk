@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.281 1998/08/10 04:02:50 obrien Exp $
+#	$Id: bsd.port.mk,v 1.282 1998/08/12 01:47:47 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -372,9 +372,14 @@ GNU_CONFIGURE=	yes
 BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .endif
 
+PERL_VERSION=	5.00501
+PERL_VER=		5.005
+PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
+				PERL_VER=${PERL_VER}
+			
 .if defined(USE_PERL5)
-BUILD_DEPENDS+=		perl5.00501:${PORTSDIR}/lang/perl5
-RUN_DEPENDS+=		perl5.00501:${PORTSDIR}/lang/perl5
+BUILD_DEPENDS+=		perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
+RUN_DEPENDS+=		perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
 .endif
 
 .if defined(USE_XLIB)
