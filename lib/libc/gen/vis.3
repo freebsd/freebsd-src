@@ -231,16 +231,25 @@ Represents Meta-space.
 Use C-style backslash sequences to represent standard non-printable
 characters.
 The following sequences are used to represent the indicated characters:
-.Bd -unfilled -offset indent
-.Li \ea Tn  - BEL No (007)
-.Li \eb Tn  - BS No (010)
-.Li \ef Tn  - NP No (014)
-.Li \en Tn  - NL No (012)
-.Li \er Tn  - CR No (015)
-.Li \et Tn  - HT No (011)
-.Li \ev Tn  - VT No (013)
-.Li \e0 Tn  - NUL No (000)
-.Ed
+.Pp
+.Bl -tag -width ".Li \e0" -offset indent -compact
+.It Li \ea
+.Dv BEL No (007)
+.It Li \eb
+.Dv BS No (010)
+.It Li \ef
+.Dv NP No (014)
+.It Li \en
+.Dv NL No (012)
+.It Li \er
+.Dv CR No (015)
+.It Li \et
+.Dv HT No (011)
+.It Li \ev
+.Dv VT No (013)
+.It Li \e0
+.Dv NUL No (000)
+.El
 .Pp
 When using this format, the
 .Fa nextc
