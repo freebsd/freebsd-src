@@ -61,7 +61,7 @@ distribute:
 .if defined(OBJFORMAT)
 	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/bin/etc/objformat
 .endif
-	@echo 
+	@echo
 
 distribution:
 	(cd ${.CURDIR}; \
