@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,23 +84,27 @@ ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 }
 
 static void
-ata_via686b(device_t dev)
+ata_via_southbridge_fixup(device_t dev)
 {
-    device_t *children, child;
+    device_t *children;
     int nchildren, i;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return;
 
     for (i = 0; i < nchildren; i++) {
-	child = children[i];
+	if (pci_get_devid(children[i]) == 0x03051106 ||		/* VIA VT8363 */
+	    pci_get_devid(children[i]) == 0x03911106 ||		/* VIA VT8371 */
+	    pci_get_devid(children[i]) == 0x31021106 ||		/* VIA VT8662 */
+	    pci_get_devid(children[i]) == 0x31121106) {		/* VIA VT8361 */
+	    u_int8_t reg76 = pci_read_config(children[i], 0x76, 1);
 
-	if (pci_get_devid(child) == 0x03051106 ||	/* VIA KT133 */
-	    pci_get_devid(child) == 0x03911106) {	/* VIA KX133 */
-	    pci_write_config(child, 0x75, 0x83, 1);
-	    pci_write_config(child, 0x76, 
-	    		     (pci_read_config(child, 0x76, 1) & 0xdf) | 0xd0,1);
-	    device_printf(dev, "VIA '686b southbridge fix applied\n");
+	    if ((reg76 & 0xf0) != 0xd0) {
+		device_printf(dev,
+		"Correcting VIA config for southbridge data corruption bug\n");
+		pci_write_config(children[i], 0x75, 0x80, 1);
+		pci_write_config(children[i], 0x76, (reg76 & 0x0f) | 0xd0, 1);
+	    }
 	    break;
 	}
     }
@@ -378,10 +382,10 @@ ata_pci_attach(device_t dev)
 	    ata_find_dev(dev, 0x05961106, 0x12))
 	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
 
-	/* the '686b might need the data corruption fix */
-	if (ata_find_dev(dev, 0x06861106, 0x40))
-	    ata_via686b(dev);
-
+	/* the southbridge might need the data corruption fix */
+	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x82311106, 0x10))
+	    ata_via_southbridge_fixup(dev);
 	/* FALLTHROUGH */
 
     case 0x74091022: /* AMD 756 default setup */
