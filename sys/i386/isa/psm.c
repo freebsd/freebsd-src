@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.28 1996/11/15 06:17:36 nate Exp $
+ * $Id: psm.c,v 1.29 1996/11/15 17:30:29 nate Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -157,7 +158,7 @@ static struct psm_softc {    /* Driver status information */
     void   *devfs_token;
     void   *n_devfs_token;
 #endif
-} psm_softc[NPSM];
+} *psm_softc[NPSM];
 
 /* driver state flags (state) */
 #define PSM_VALID	0x80
@@ -432,7 +433,7 @@ psmprobe(struct isa_device *dvp)
     if (unit >= NPSM)
         return (0);
 
-    sc = &psm_softc[unit];
+    sc = psm_softc[unit];
     sc->addr = ioport;
     if (bootverbose)
         ++verbose;
@@ -619,7 +620,10 @@ static int
 psmattach(struct isa_device *dvp)
 {
     int unit = dvp->id_unit;
-    struct psm_softc *sc = &psm_softc[unit];
+    struct psm_softc *sc = psm_softc[unit] = 
+	malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+
+    bzero(sc, sizeof *sc);
 
     /* initial operation mode */
     sc->mode.accelfactor = PSM_ACCEL;
@@ -661,7 +665,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
         return (ENXIO);
 
     /* Get device data */
-    sc = &psm_softc[unit];
+    sc = psm_softc[unit];
     if ((sc->state & PSM_VALID) == 0)
         return (ENXIO);
     ioport = sc->addr;
@@ -716,7 +720,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 static int
 psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
-    struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
+    struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     int ioport = sc->addr;
 
     /* disable the aux interrupt */
@@ -881,7 +885,7 @@ mkps2(unsigned char *buf, int *len, int maxlen, register mousestatus_t *status)
 static int
 psmread(dev_t dev, struct uio *uio, int flag)
 {
-    register struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
+    register struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     unsigned int length;
     int error;
     int s;
@@ -938,7 +942,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
 static int
 psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
-    struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
+    struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     mouseinfo_t info;
     mousestatus_t *ms;
     packetfunc_t func;
@@ -1075,7 +1079,7 @@ psmintr(int unit)
         BUT2STAT, BUT1STAT | BUT2STAT, BUT2STAT | BUT3STAT,
         BUT1STAT | BUT2STAT | BUT3STAT
     };
-    register struct psm_softc *sc = &psm_softc[unit];
+    register struct psm_softc *sc = psm_softc[unit];
     int ioport = sc->addr;
     mousestatus_t *ms;
     unsigned char c;
@@ -1171,7 +1175,7 @@ psmintr(int unit)
 static int
 psmselect(dev_t dev, int rw, struct proc *p)
 {
-    struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
+    struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     int s, ret;
 
     /* Silly to select for output */
