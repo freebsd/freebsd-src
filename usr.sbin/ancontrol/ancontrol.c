@@ -438,7 +438,7 @@ static void an_dumpstats(iface)
 	    stats->an_retry_long);
 	printf("Short retries:\t\t\t\t\t[ %d ]\n",
 	    stats->an_retry_short);
-	printf("Retries exchausted:\t\t\t\t[ %d ]\n",
+	printf("Retries exhausted:\t\t\t\t[ %d ]\n",
 	    stats->an_retry_max);
 	printf("Bad ACK:\t\t\t\t\t[ %d ]\n",
 	    stats->an_no_ack);
@@ -472,9 +472,9 @@ static void an_dumpstats(iface)
 	    stats->an_tx_multi_cols);
 	printf("Transmits without deferrals:\t\t\t[ %d ]\n",
 	    stats->an_tx_defers_no);
-	printf("Transmits defered due to protocol:\t\t[ %d ]\n",
+	printf("Transmits deferred due to protocol:\t\t[ %d ]\n",
 	    stats->an_tx_defers_prot);
-	printf("Transmits defered due to energy detect:\t\t[ %d ]\n",
+	printf("Transmits deferred due to energy detect:\t\t[ %d ]\n",
 	    stats->an_tx_defers_energy);
 	printf("RX duplicate frames/frags:\t\t\t[ %d ]\n",
 	    stats->an_rx_dups);
