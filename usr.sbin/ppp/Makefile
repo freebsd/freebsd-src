@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36.2.12 1998/05/04 03:01:34 brian Exp $
+#	$Id: Makefile,v 1.37 1998/05/21 21:43:36 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -6,7 +6,7 @@ SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
 	ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c mbuf.c modem.c \
 	mp.c pap.c physical.c pred.c prompt.c route.c server.c sig.c \
 	slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
-CFLAGS+=-Wall -Wpointer-arith
+CFLAGS+=-Wall
 LDADD+= -lutil -lz
 DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4550
