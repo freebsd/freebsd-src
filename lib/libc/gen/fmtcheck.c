@@ -228,7 +228,7 @@ get_next_format(const char **pf, EFT eft)
 	}
 
 	/* Eat any of the flags */
-	while (*f && (strchr("#0- +", *f)))
+	while (*f && (strchr("#'0- +", *f)))
 		f++;
 
 	if (*f == '*') {
