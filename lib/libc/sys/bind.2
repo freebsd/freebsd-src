@@ -64,6 +64,10 @@ needed (using
 .Pp
 The rules used in address binding vary between communication domains.
 Consult the manual entries in section 4 for detailed information.
+.Pp
+For maximum portability, you should always zero-out the socket structure
+before populating it, before passing it to
+.Fn bind .
 .Sh IMPLEMENTATION NOTES
 In the non-threaded library
 .Fn bind
