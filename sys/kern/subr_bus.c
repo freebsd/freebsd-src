@@ -81,6 +81,9 @@ struct devclass {
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
 	int		maxunit;	/* size of devices array */
+
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 };
 
 /*
@@ -193,7 +196,50 @@ void print_devclass_list(void);
  */
 
 enum {
-	DEVICE_SYSCTL_CLASS,
+	DEVCLASS_SYSCTL_PARENT,
+};
+
+static int
+devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
+{
+	devclass_t dc = (devclass_t)arg1;
+	const char *value;
+	char *buf;
+	int error;
+
+	buf = NULL;
+	switch (arg2) {
+	case DEVCLASS_SYSCTL_PARENT:
+		value = dc->parent ? dc->parent->name : NULL;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (value == NULL)
+		value = "?";
+	error = SYSCTL_OUT(req, value, strlen(value));
+	if (buf != NULL)
+		free(buf, M_BUS);
+	return (error);
+}
+
+static void
+devclass_sysctl_init(devclass_t dc)
+{
+
+	if (dc->sysctl_tree != NULL)
+		return;
+	sysctl_ctx_init(&dc->sysctl_ctx);
+	dc->sysctl_tree = SYSCTL_ADD_NODE(&dc->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dc->name,
+	    CTLFLAG_RD, 0, "");
+	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
+	    OID_AUTO, "%parent", CTLFLAG_RD,
+	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
+	    "parent class");
+}
+
+enum {
 	DEVICE_SYSCTL_DESC,
 	DEVICE_SYSCTL_DRIVER,
 	DEVICE_SYSCTL_LOCATION,
@@ -211,9 +257,6 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	buf = NULL;
 	switch (arg2) {
-	case DEVICE_SYSCTL_CLASS:
-		value = dev->devclass ? dev->devclass->name : NULL;
-		break;
 	case DEVICE_SYSCTL_DESC:
 		value = dev->desc;
 		break;
@@ -245,17 +288,16 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 static void
 device_sysctl_init(device_t dev)
 {
+	devclass_t dc = dev->devclass;
 
 	if (dev->sysctl_tree != NULL)
 		return;
+	devclass_sysctl_init(dc);
 	sysctl_ctx_init(&dev->sysctl_ctx);
 	dev->sysctl_tree = SYSCTL_ADD_NODE(&dev->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dev->nameunit,
+	    SYSCTL_CHILDREN(dc->sysctl_tree), OID_AUTO,
+	    dev->nameunit + strlen(dc->name),
 	    CTLFLAG_RD, 0, "");
-	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%class", CTLFLAG_RD,
-	    dev, DEVICE_SYSCTL_CLASS, device_sysctl_handler, "A",
-	    "device class name");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
 	    OID_AUTO, "%desc", CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_DESC, device_sysctl_handler, "A",
@@ -275,7 +317,7 @@ device_sysctl_init(device_t dev)
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
 	    OID_AUTO, "%parent", CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
-	    "device parent");
+	    "parent device");
 }
 
 static void
@@ -913,6 +955,18 @@ devclass_t
 devclass_get_parent(devclass_t dc)
 {
 	return (dc->parent);
+}
+
+struct sysctl_ctx_list *
+devclass_get_sysctl_ctx(devclass_t dc)
+{
+	return (&dc->sysctl_ctx);
+}
+
+struct sysctl_oid *
+devclass_get_sysctl_tree(devclass_t dc)
+{
+	return (dc->sysctl_tree);
 }
 
 static int
