@@ -498,6 +498,14 @@ rgs(void)
 	return (sel);
 }
 
+static __inline u_int
+rss(void)
+{
+	u_int sel;
+	__asm __volatile("movl %%ss,%0" : "=rm" (sel));
+	return (sel);
+}
+
 static __inline void
 load_ds(u_int sel)
 {
