@@ -1,4 +1,4 @@
-#	$Id: MISSING,v 1.2 1994/07/19 19:21:40 g89r4222 Exp $
+#	$Id: MISSING,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
 
 The following symbols (you can find in the USA libdes) are still missing
 in this source.
@@ -9,8 +9,6 @@ _des_init_random_number_generator
 _des_new_random_key
 _des_set_random_generator_seed
 _des_set_sequence_number
-_des_check_key_parity
-_des_fixup_key_parity
 _des_debug
 
 # END
