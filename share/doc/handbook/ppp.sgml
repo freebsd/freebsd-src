@@ -1,4 +1,4 @@
-<!-- $Id: m_ppp.sgml,v 1.1 1995/04/10 02:36:13 jfieber Exp $ -->
+<!-- $Id: ppp.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a PPP link</heading>
@@ -50,7 +50,7 @@ To connect:
 <enum>
 <item> Dial to the remote host using kermit ( or other modem program )
 enter your user name and password ( or whatever is needed to enable PPP
-ont the remote host )
+on the remote host )
 
 <item> Exit kermit. ( without hanging up the line )
 
