@@ -21,13 +21,13 @@
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * 1.15 is the last verion to support MACH and OSF/1
  */
-/* $Revision: 1.25 $ */
+/* $Revision: 1.7 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *	$Id: st.c,v 1.25 93/08/31 21:29:41 julian Exp Locker: julian $
+ *	$Id: st.c,v 1.7 1993/09/05 15:42:22 rgrimes Exp $
  */
 
 
@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <fcntl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/malloc.h>
@@ -102,8 +103,9 @@ struct	rogues
 #define	ST_Q_NEEDS_PAGE_0	0x00001
 #define	ST_Q_FORCE_FIXED_MODE	0x00002
 #define	ST_Q_FORCE_VAR_MODE	0x00004
-#define	ST_Q_SNS_HLP		0x00008
+#define	ST_Q_SNS_HLP		0x00008	/* must do READ for good MODE SENSE */
 #define	ST_Q_IGNORE_LOADS	0x00010
+#define	ST_Q_BLKSIZ		0x00020 /* variable-block media_blksiz > 0 */
 
 static struct rogues gallery[] = /* ends with an all null entry */
 {
@@ -137,6 +139,14 @@ static struct rogues gallery[] = /* ends with an all null entry */
 		  {0,QIC_150},				/* minor  4,5,6,7*/
 		  {0,QIC_120},				/* minor  8,9,10,11*/
 		  {0,QIC_24}				/* minor  12,13,14,15*/
+		}
+	},
+	{ "Wangtek 5525ES", "WANGTEK ", "5525ES SCSI REV7", "????",
+		0,
+		{ {0,0},				/* minor  0,1,2,3*/
+		  {ST_Q_BLKSIZ,QIC_525},		/* minor  4,5,6,7*/
+		  {0,QIC_150},				/* minor  8,9,10,11*/
+		  {0,QIC_120}				/* minor  12,13,14,15*/
 		}
 	},
 	{(char *)0}
@@ -190,18 +200,24 @@ struct	st_data
 #define	ST_INFO_VALID	0x02
 #define ST_OPEN		0x04
 #define	ST_BLOCK_SET	0x08		/* block size, mode set by ioctl      */
-#define	ST_WRITTEN	0x10
+#define	ST_WRITTEN	0x10		/* data have been written, EOD needed */
 #define	ST_FIXEDBLOCKS	0x20
 #define	ST_AT_FILEMARK	0x40
 #define	ST_EIO_PENDING	0x80		/* we couldn't report it then (had data)*/
 #define	ST_AT_BOM	0x100		/* ops history suggests Beg of Medium */
 #define	ST_READONLY	0x200		/* st_mode_sense says write protected */
+#define	ST_FM_WRITTEN	0x400		/* EOF file mark written  -- */
+					/* used with ~ST_WRITTEN to indicate  */
+					/* that multiple file marks have been */
+					/* written			      */
+#define	ST_BLANK_READ	0x800		/* BLANK CHECK encountered already */
+#define	ST_2FM_AT_EOD	0x1000		/* write 2 file marks at EOD */
 
-#define	ST_PER_ACTION	(ST_AT_FILEMARK | ST_EIO_PENDING)
-#define	ST_PER_OPEN	(ST_OPEN | ST_PER_ACTION)
+#define	ST_PER_ACTION	(ST_AT_FILEMARK | ST_EIO_PENDING | ST_BLANK_READ)
+#define	ST_PER_OPEN	ST_OPEN
 #define	ST_PER_MEDIA	(ST_INFO_VALID | ST_BLOCK_SET | ST_WRITTEN | \
 			ST_FIXEDBLOCKS | ST_AT_BOM | ST_READONLY | \
-			ST_PER_ACTION)
+			ST_FM_WRITTEN | ST_2FM_AT_EOD | ST_PER_ACTION)
 
 static	int	next_st_unit = 0;
 /***********************************************************************\
@@ -387,7 +403,8 @@ int	unit;
 /*******************************************************\
 *	open the device.				*
 \*******************************************************/
-stopen(dev)
+stopen(dev, flags)
+int	dev, flags;
 {
 	int unit,mode,dsty;
 	int	errno = 0;
@@ -576,6 +593,36 @@ bad:					free(buf,M_TEMP);
 		\*******************************************************/
 	}
 
+	/***************************************************************\
+	* Decide whether or not to write two file marks to signify end-	*
+	* of-data.  Make the decision as a function of density.  If	*
+	* the decision is not to use a second file mark, the SCSI BLANK	*
+	* CHECK condition code will be recognized as end-of-data when	*
+	* first read.							*
+	\***************************************************************/
+	switch (st->density)
+	{
+/*	case	8 mm:	What is the SCSI density code for 8 mm, anyway? */
+	case	QIC_11:
+	case	QIC_24:
+	case	QIC_120:
+	case	QIC_150:
+	case	QIC_525:
+	case	QIC_1320:
+		st->flags &= ~ST_2FM_AT_EOD;
+		break;
+	default:
+		st->flags |= ST_2FM_AT_EOD;
+	}
+
+	/***************************************************************\
+	* Make sure that a tape opened in write-only mode will have	*
+	* file marks written on it.  This is the only way to write a	*
+	* zero-length file on tape.					*
+	\***************************************************************/
+	if ((flags & O_ACCMODE) == FWRITE)
+		st->flags |= ST_WRITTEN;
+
 	st->flags |= ST_INFO_VALID;
 
 	st_prevent(unit,PR_PREVENT,0); /* who cares if it fails? */
@@ -606,10 +653,6 @@ stclose(dev)
 	if(scsi_debug & TRACEOPENS)
 		printf("Closing device");
 #endif	/*STDEBUG*/
-	if(st->flags & ST_WRITTEN)
-	{
-		st_write_filemarks(unit,1,0);
-	}
 	switch(mode)
 	{
 	case	0:
@@ -618,9 +661,8 @@ stclose(dev)
 		st->flags &= ~ST_PER_MEDIA;
 		break;
 	case	1: /*non rewind*/
-		/* possibly space forward if not already at EOF? */
-		/* (fixed block mode only) */
-
+		if((st->flags & (ST_WRITTEN | ST_FM_WRITTEN)) == ST_WRITTEN)
+			st_write_filemarks(unit, 1, 0);
 		break;
 	case	2:
 		st_rewind(unit,FALSE,SCSI_SILENT);
@@ -763,7 +805,8 @@ int	unit, first_read;
 	* fixed or variable-length blocks and block size according to	*
 	* what the drive found on the tape.				*
 	\***************************************************************/
-	if (first_read)
+	if (first_read && (!(st->quirks & ST_Q_BLKSIZ) || st->media_blksiz == 0
+	    || st->media_blksiz == DEF_FIXED_BSIZE || st->media_blksiz == 1024))
 	{
 		if (st->media_blksiz == 0)
 			st->flags &= ~ST_FIXEDBLOCKS;
@@ -912,8 +955,6 @@ dev_t dev;
 int cmd;
 caddr_t arg;
 {
-	register i,j;
-	unsigned int opri;
 	int errcode = 0;
 	unsigned char unit;
 	int number,flags,dsty;
@@ -952,6 +993,7 @@ caddr_t arg;
 
 	case MTIOCTOP:
 	    {
+		int nmarks;
 		struct mtop *mt = (struct mtop *) arg;
 
 #ifdef	STDEBUG
@@ -969,17 +1011,20 @@ caddr_t arg;
 		case MTWEOF:	/* write an end-of-file record */
 			errcode = st_write_filemarks(unit,number,flags);
 			break;
-		case MTFSF:	/* forward space file */
-			errcode = st_space(unit,number,SP_FILEMARKS,flags);
-			break;
 		case MTBSF:	/* backward space file */
-			errcode = st_space(unit,-number,SP_FILEMARKS,flags);
-			break;
-		case MTFSR:	/* forward space record */
-			errcode = st_space(unit,number,SP_BLKS,flags);
+			number = -number;
+		case MTFSF:	/* forward space file */
+			errcode = st_chkeod(unit, FALSE, &nmarks, flags);
+			if (errcode == ESUCCESS)
+				errcode = st_space(unit, number - nmarks,
+				    SP_FILEMARKS, flags);
 			break;
 		case MTBSR:	/* backward space record */
-			errcode = st_space(unit,-number,SP_BLKS,flags);
+			number = -number;
+		case MTFSR:	/* forward space record */
+			errcode = st_chkeod(unit, TRUE, &nmarks, flags);
+			if (errcode == ESUCCESS)
+				errcode = st_space(unit,number,SP_BLKS,flags);
 			break;
 		case MTREW:	/* rewind */
 			errcode = st_rewind(unit,FALSE,flags);
@@ -1000,7 +1045,7 @@ caddr_t arg;
 		case MTCACHE:	/* enable controller cache */
 		case MTNOCACHE:	/* disable controller cache */
 			break;
-                case MTSETBSIZ: /* Set block size for device */
+		case MTSETBSIZ: /* Set block size for device */
 			if (!(st->flags & ST_AT_BOM))
 			{
 				errcode =  EINVAL;
@@ -1369,8 +1414,62 @@ int	unit,number,what,flags;
 	    (error = st_decide_mode(unit, TRUE)))
 		return (error);
 
-	/* if we are at a filemark now, we soon won't be*/
-	st->flags &= ~ST_PER_ACTION;
+	switch (what)
+	{
+	case	SP_BLKS:
+		if (st->flags & ST_PER_ACTION)
+		{
+			if (number > 0)
+			{
+				st->flags &= ~ST_PER_ACTION;
+				return(EIO);
+			}
+			else if (number < 0)
+			{
+				if (st->flags & ST_AT_FILEMARK)
+				{
+					/*******************************\
+					* Handling of ST_AT_FILEMARK	*
+					* in st_space will fill in the	*
+					* right file mark count.	*
+					\*******************************/
+					error = st_space(unit, 0, SP_FILEMARKS,
+					    flags);
+					if (error) return(error);
+				}
+				if (st->flags & ST_BLANK_READ)
+				{
+					st->flags &= ~ST_BLANK_READ;
+					return(EIO);
+				}
+				st->flags &= ~ST_EIO_PENDING;
+			}
+		}
+		break;
+	case	SP_FILEMARKS:
+		if (st->flags & ST_EIO_PENDING)
+		{
+			if (number > 0)
+			{
+				st->flags &= ~ST_EIO_PENDING;
+				return(EIO);
+			}
+			else if (number < 0)
+				st->flags &= ~ST_EIO_PENDING;
+		}
+		if (st->flags & ST_AT_FILEMARK)
+		{
+			st->flags &= ~ST_AT_FILEMARK;
+			number--;
+		}
+		if (st->flags & ST_BLANK_READ && number < 0)
+		{
+			st->flags &= ~ST_BLANK_READ;
+			number++;
+		}
+	}
+	if (number == 0)
+		return(ESUCCESS);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = SPACE;
 	scsi_cmd.byte2 = what & SS_CODE;
@@ -1406,11 +1505,25 @@ int	unit,number,flags;
 	* set medium access density, fixed or variable-blocks	*
 	* and, if fixed, the block size.			*
 	\*******************************************************/
-	if (st->flags & ST_AT_BOM &&
+	if (st->flags & ST_AT_BOM && number > 0 &&
 	    (error = st_decide_mode(unit, FALSE)))
 		return (error);
 
-	st->flags &= ~(ST_AT_FILEMARK | ST_WRITTEN);
+	switch (number)
+	{
+	case	0:	/* really a command to sync the drive's buffers */
+		break;
+	case	1:
+		if (st->flags & ST_FM_WRITTEN)
+			st->flags &= ~ST_WRITTEN;
+		else
+			st->flags |= ST_FM_WRITTEN;
+		st->flags &= ~ST_PER_ACTION;
+		break;
+	default:
+		st->flags &= ~(ST_PER_ACTION | ST_WRITTEN);
+	}
+
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = WRITE_FILEMARKS;
 	lto3b(number,scsi_cmd.number);
@@ -1423,6 +1536,42 @@ int	unit,number,flags;
 			NULL,
 			flags) );
 }
+
+/***************************************************************\
+* Make sure the right number of file marks is on tape if the	*
+* tape has been written.  If the position argument is true,	*
+* leave the tape positioned where it was originally.		*
+*								*
+* nmarks returns the number of marks to skip (or, if position	*
+* true, which were skipped) to get back original position.	*
+\***************************************************************/
+st_chkeod(unit, position, nmarks, flags)
+int	unit;
+int	position;
+int	*nmarks;
+int	flags;
+{
+	int	error;
+	struct	st_data *st = st_data[unit];
+
+	switch (st->flags & (ST_WRITTEN | ST_FM_WRITTEN | ST_2FM_AT_EOD))
+	{
+	default:
+		*nmarks = 0;
+		return(ESUCCESS);
+	case	ST_WRITTEN:
+	case	ST_WRITTEN | ST_FM_WRITTEN | ST_2FM_AT_EOD:
+		*nmarks = 1;
+		break;
+	case	ST_WRITTEN | ST_2FM_AT_EOD:
+		*nmarks = 2;
+	}
+	error = st_write_filemarks(unit, *nmarks, flags);
+	if (position && error == ESUCCESS)
+		error = st_space(unit, -*nmarks, SP_FILEMARKS, flags);
+	return (error);
+}
+
 /*******************************************************\
 * load/unload (with retension if true)			*
 \*******************************************************/
@@ -1432,18 +1581,24 @@ int	unit,type,flags;
 	struct  scsi_load  scsi_cmd;
 	struct	st_data	*st = st_data[unit];
 
-	st->flags &= ~ST_PER_ACTION;
-	if(st->quirks & ST_Q_IGNORE_LOADS) return(0);
+	st->flags &= ~ST_PER_MEDIA;
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
-	scsi_cmd.op_code = LOAD_UNLOAD;
-	scsi_cmd.how=type;
 	if (type == LD_LOAD)
 	{
 		/*scsi_cmd.how |= LD_RETEN;*/
 		st->flags |= ST_AT_BOM;
 	}
 	else
+	{
+		int	error, nmarks;
+
+		error = st_chkeod(unit, FALSE, &nmarks, flags);
+		if (error != ESUCCESS) return(error);
 		st->flags &= ~ST_INFO_VALID;
+	}
+	if(st->quirks & ST_Q_IGNORE_LOADS) return(0);
+	scsi_cmd.op_code = LOAD_UNLOAD;
+	scsi_cmd.how |= type;
 	return (st_scsi_cmd(unit,
 			&scsi_cmd,
 			sizeof(scsi_cmd),
@@ -1462,7 +1617,13 @@ int	unit,type,flags;
 	struct	scsi_prevent	scsi_cmd;
 
 	if (type == PR_ALLOW)
+	{
+		int	error, nmarks;
+
+		error = st_chkeod(unit, TRUE, &nmarks, flags);
+		if (error != ESUCCESS) return(error);
 		st_data[unit]->flags &= ~ST_INFO_VALID;
+	}
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PREVENT_ALLOW;
 	scsi_cmd.how=type;
@@ -1483,7 +1644,10 @@ int	unit,immed,flags;
 {
 	struct	scsi_rewind	scsi_cmd;
 	struct	st_data *st = st_data[unit];
+	int	error, nmarks;
 
+	error = st_chkeod(unit, FALSE, &nmarks, flags);
+	if (error != ESUCCESS) return(error);
 	st->flags &= ~ST_PER_ACTION;
 	st->flags |= ST_AT_BOM;
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
@@ -1562,12 +1726,25 @@ trynext:
 		\*******************************************************/
 		if(st->flags & ST_AT_FILEMARK)
 		{
-			bp->b_resid = bp->b_bcount;
-			bp->b_error = 0;
-			bp->b_flags &= ~B_ERROR;
-			st->flags &= ~ST_AT_FILEMARK;
-			biodone(bp);
-			goto trynext;
+			if ((bp->b_flags & B_READ) == B_WRITE)
+			{
+				/***************************************\
+				* Handling of ST_AT_FILEMARK in		*
+				* st_space will fill in the right file	*
+				* mark count.				*
+				\***************************************/
+				if (st_space(unit, 0, SP_FILEMARKS, 0) !=
+				    ESUCCESS) goto badnews;
+			}
+			else
+			{
+				bp->b_resid = bp->b_bcount;
+				bp->b_error = 0;
+				bp->b_flags &= ~B_ERROR;
+				st->flags &= ~ST_AT_FILEMARK;
+				biodone(bp);
+				goto trynext;
+			}
 		}
 		/*******************************************************\
 		*  If we are at EIO (e.g. EOM) but have not reported it	*
@@ -1590,6 +1767,7 @@ trynext:
 	if((bp->b_flags & B_READ) == B_WRITE)
 	{
 		cmd.op_code = WRITE_COMMAND_TAPE;
+		st->flags &= ~ST_FM_WRITTEN;
 		st->flags |= ST_WRITTEN;
 		flags = SCSI_DATA_OUT;
 	}
@@ -1626,6 +1804,7 @@ trynext:
 			flags | SCSI_NOSLEEP ) != SUCCESSFULLY_QUEUED)
 
 	{
+badnews:
 		printf("st%d: oops not queued\n",unit);
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
@@ -2049,6 +2228,10 @@ struct	scsi_xfer	*xs;
 			if(sense->ext.extended.flags & SSD_ILI)
 			{
 				st->flags |= ST_EIO_PENDING;
+				if (sense->error_code & SSD_ERRCODE_VALID &&
+				    !silent)
+					printf("st%d: %d-byte block wrong size"
+					    "\n", unit, xs->datalen - info);
 
 				/***************************************\
 				* This quirk code helps the drive read	*
@@ -2108,7 +2291,8 @@ struct	scsi_xfer	*xs;
 
 		key=sense->ext.extended.flags & SSD_KEY;
 
-		if (!silent && key > 0)
+		if (!silent && key > 0 && (key != 0x8 ||
+		    st->flags & (ST_2FM_AT_EOD | ST_BLANK_READ)))
 		{
 			printf("st%d: %s", unit, error_mes[key - 1]);
 			if(sense->error_code & SSD_ERRCODE_VALID)
@@ -2163,6 +2347,12 @@ struct	scsi_xfer	*xs;
 			    !(st->flags & ST_INFO_VALID))
 			{
 				st->blksiz -= 512;
+			}
+			else if (!(st->flags & (ST_2FM_AT_EOD | ST_BLANK_READ)))
+			{
+				st->flags |= ST_BLANK_READ;
+				xs->resid = xs->datalen;
+				return(ESUCCESS);
 			}
 		default:
 			return(EIO);
