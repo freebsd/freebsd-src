@@ -38,50 +38,77 @@
 .Nd configure WaveLAN/IEEE devices
 .Sh SYNOPSIS
 .Nm
-.Fl i Ar iface Op Fl o
+.Op Fl i
+.Ar iface Op Fl o
 .Nm
-.Fl i Ar iface Fl t Ar tx_rate
+.Op Fl i
+.Ar iface Fl t Ar tx_rate
 .Nm
-.Fl i Ar iface Fl n Ar network_name
+.Op Fl i
+.Ar iface Fl n Ar network_name
 .Nm
-.Fl i Ar iface Fl s Ar station_name
+.Op Fl i
+.Ar iface Fl s Ar station_name
 .Nm
-.Fl i Ar iface Fl c Cm 0 | 1
+.Op Fl i
+.Ar iface Fl c Cm 0 | 1
 .Nm
-.Fl i Ar iface Fl q Ar SSID
+.Op Fl i
+.Ar iface Fl q Ar SSID
 .Nm
-.Fl i Ar iface Fl p Ar port_type
+.Op Fl i
+.Ar iface Fl p Ar port_type
 .Nm
-.Fl i Ar iface Fl a Ar access_point_density
+.Op Fl i
+.Ar iface Fl a Ar access_point_density
 .Nm
-.Fl i Ar iface Fl m Ar mac_address
+.Op Fl i
+.Ar iface Fl m Ar mac_address
 .Nm
-.Fl i Ar iface Fl d Ar max_data_length
+.Op Fl i
+.Ar iface Fl d Ar max_data_length
 .Nm
-.Fl i Ar iface Fl e Cm 0 | 1
+.Op Fl i
+.Ar iface Fl e Cm 0 | 1
 .Nm
-.Fl i Ar iface Fl k Ar key
+.Op Fl i
+.Ar iface Fl k Ar key
 .Op Fl v Cm 1 | 2 | 3 | 4
 .Nm
-.Fl i Ar iface Fl T Cm 1 | 2 | 3 | 4
+.Op Fl i
+.Ar iface Fl T Cm 1 | 2 | 3 | 4
 .Nm
-.Fl i Ar iface Fl r Ar RTS_threshold
+.Op Fl i
+.Ar iface Fl r Ar RTS_threshold
 .Nm
-.Fl i Ar iface Fl f Ar frequency
+.Op Fl i
+.Ar iface Fl f Ar frequency
 .Nm
-.Fl i Ar iface Fl P Cm 0 | 1
+.Op Fl i
+.Ar iface Fl P Cm 0 | 1
 .Nm
-.Fl i Ar iface Fl S Ar max_sleep_duration
+.Op Fl i
+.Ar iface Fl S Ar max_sleep_duration
 .Nm
-.Fl i Ar iface Fl Z
+.Op Fl i
+.Ar iface Fl Z
 (zero signal cache)
 .Nm
-.Fl i Ar iface Fl C
+.Op Fl i
+.Ar iface Fl C
 (display signal cache)
+.Nm
+.Op Fl i
+.Ar iface Fl L
+(list avail access points)
+.Nm
+.Op Fl i
+.Ar iface Fl l
+(dump associated stations)
 .Sh DESCRIPTION
 The
 .Nm
-command controls the operation of WaveLAN/IEEE wireless networking
+utility controls the operation of WaveLAN/IEEE wireless networking
 devices via the
 .Xr wi 4
 driver.
@@ -93,7 +120,7 @@ to point) or BSS (service set) mode, and the network name of a service
 set to join (IBSS) if BSS mode is enabled.
 The
 .Nm
-command can also be used to view the current settings of these parameters
+utility can also be used to view the current settings of these parameters
 and to dump out the values of the card's statistics counters.
 .Pp
 The
@@ -110,7 +137,7 @@ is used as default.
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width indent
-.It Fl i Ar iface Op Fl o
+.It Oo Fl i Oc Ar iface Op Fl o
 Display the current settings of the specified WaveLAN/IEEE interface.
 This retrieves the current card settings from the driver and prints them
 out.
@@ -122,7 +149,7 @@ to print out the statistics counters instead of the card settings.
 Encryption keys are only displayed if
 .Nm
 is run as root.
-.It Fl i Ar iface Fl t Ar tx_rate
+.It Oo Fl i Oc Ar iface Fl t Ar tx_rate
 Set the transmit rate of the specified interface.
 The legal values
 for the transmit rate vary depending on whether the interface is a
@@ -151,7 +178,7 @@ Turbo NICs support all the above listed speed settings.
 The default driver setting is
 .Cm 3
 (auto rate select).
-.It Fl i Ar iface Fl n Ar network_name
+.It Oo Fl i Oc Ar iface Fl n Ar network_name
 Set the name of the service set (IBSS) that this station wishes to
 join.
 The
@@ -172,7 +199,7 @@ host to connect to any access point, however I have also seen a reference
 in another driver which indicates that the
 .Dq Li ANY
 string works as well.
-.It Fl i Ar iface Fl s Ar station_name
+.It Oo Fl i Oc Ar iface Fl s Ar station_name
 Sets the
 station name
 for the specified interface.
@@ -183,7 +210,7 @@ The
 .Tn "Lucent WaveMANAGER"
 software can
 poll the names of remote hosts.
-.It Fl i Ar iface Fl c Cm 0 | 1
+.It Oo Fl i Oc Ar iface Fl c Cm 0 | 1
 Allow the station to create a service set (IBSS).
 Permitted values are
 .Cm 0
@@ -195,7 +222,7 @@ The default is
 .Pp
 Note: this option is provided for experimental purposes only: enabling
 the creation of an IBSS on a host system doesn't appear to actually work.
-.It Fl i Ar iface Fl q Ar SSID
+.It Oo Fl i Oc Ar iface Fl q Ar SSID
 Specify the name of an IBSS (SSID) to create on a given interface.
 The
 .Ar SSID
@@ -203,7 +230,7 @@ can be any text string up to 30 characters long.
 .Pp
 Note: this option is provided for experimental purposes only: enabling
 the creation of an IBSS on a host system doesn't appear to actually work.
-.It Fl i Ar iface Fl p Ar port_type
+.It Oo Fl i Oc Ar iface Fl p Ar port_type
 Set the
 port type
 for a specified interface.
@@ -223,7 +250,7 @@ which relays traffic between end stations.
 The default setting is
 .Cm 3
 (ad-hoc mode).
-.It Fl i Ar iface Fl a Ar access_point_density
+.It Oo Fl i Oc Ar iface Fl a Ar access_point_density
 Specify the
 access point density
 for a given interface.
@@ -235,7 +262,7 @@ Legal values are
 .Cm 3
 (high).
 This setting influences some of the radio modem threshold settings.
-.It Fl i Ar iface Fl m Ar mac_address
+.It Oo Fl i Oc Ar iface Fl m Ar mac_address
 Set the station address for the specified interface.
 The
 .Ar mac_address
@@ -244,13 +271,13 @@ e.g.,
 .Dq Li 00:60:1d:12:34:56 .
 This programs the new address into the card
 and updates the interface as well.
-.It Fl i Ar iface Fl d Ar max_data_length
+.It Oo Fl i Oc Ar iface Fl d Ar max_data_length
 Set the maximum receive and transmit frame size for a specified interface.
 The
 .Ar max_data_length
 can be any number from 350 to 2304.
 The default is 2304.
-.It Fl i Ar iface Fl e Cm 0 | 1
+.It Oo Fl i Oc Ar iface Fl e Cm 0 | 1
 Enable or disable WEP encryption.
 Permitted values are
 .Cm 0
@@ -258,7 +285,12 @@ Permitted values are
 .Cm 1
 (encryption enabled).
 Encryption is off by default.
-.It Fl i Ar iface Fl k Ar key "[-v 1|2|3|4]"
+.Pp
+Both 128-bit and 64-bit WEP have been broken.
+See the
+.Sx BUGS
+section for details.
+.It Oo Fl i Oc Ar iface Fl k Ar key Op Fl v Cm 1 | 2 | 3 | 4
 Set WEP encryption keys.
 There are four default encryption keys
 that can be programmed.
@@ -281,10 +313,20 @@ For WaveLAN Turbo Gold cards, the key can also be 104 bits,
 which means the key can be specified as either a 13 character text
 string or 26 hex digits in addition to the formats supported by the
 Silver cards.
-.It Fl i Ar iface Fl T Cm 1 | 2 | 3 | 4
+.Pp
+Note: Both 128-bit and 64-bit WEP have been broken.
+See the
+.Sx BUGS
+section for details.
+.It Oo Fl i Oc Ar iface Fl T Cm 1 | 2 | 3 | 4
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
-.It Fl i Ar iface Fl r Ar RTS_threshold
+.Pp
+Note: Both 128-bit and 64-bit WEP have been broken.
+See the
+.Sx BUGS
+section for details.
+.It Oo Fl i Oc Ar iface Fl r Ar RTS_threshold
 Set the RTS/CTS threshold for a given interface.
 This controls the
 number of bytes used for the RTS/CTS handshake boundary.
@@ -292,7 +334,7 @@ The
 .Ar RTS_threshold
 can be any value between 0 and 2347.
 The default is 2347.
-.It Fl i Ar iface Fl f Ar frequency
+.It Oo Fl i Oc Ar iface Fl f Ar frequency
 Set the radio frequency of a given interface.
 The
 .Ar frequency
@@ -334,7 +376,7 @@ For NICs sold in Japan, the default channel is
 and it is the only available channel for pre-11Mbps NICs.
 Note that two stations must be set to the same channel in order to
 communicate.
-.It Fl i Ar iface Fl P Cm 0 | 1
+.It Oo Fl i Oc Ar iface Fl P Cm 0 | 1
 Enable or disable power management on a given interface.
 Enabling
 power management uses an alternating sleep/wake protocol to help
@@ -355,17 +397,17 @@ values for this parameter are
 (off) and
 .Cm 1
 (on).
-.It Fl i Ar iface Fl S Ar max_sleep_interval
+.It Oo Fl i Oc Ar iface Fl S Ar max_sleep_interval
 Specify the sleep interval to use when power management is enabled.
 The
 .Ar max_sleep_interval
 is specified in milliseconds.
 The default is 100.
-.It Fl i Ar iface Fl Z
+.It Oo Fl i Oc Ar iface Fl Z
 Clear the signal strength cache maintained internally by the
 .Xr wi 4
 driver.
-.It Fl i Ar iface Fl C
+.It Oo Fl i Oc Ar iface Fl C
 Display the cached signal strength information maintained by the
 .Xr wi 4
 driver.
@@ -378,15 +420,47 @@ from the signal strength (i.e. less noise and better signal yields
 better signal quality).
 .El
 .Sh SEE ALSO
+.Xr ipsec 4 ,
 .Xr wi 4 ,
 .Xr ifconfig 8
+.Sh BUGS
+The WEP encryption method has been broken so that third parties
+can recover the keys in use relatively quickly at distances that are
+surprising to most people.
+Do not rely on WEP for anything but the most basic, remedial security.
+IPSEC will give you a higher level of security and should be used
+whenever possible.
+Do not trust access points or wireless machines that connect through
+them as they can provide no assurance that the traffic is legitimate.
+MAC addresses can easily be forged and should therefore not be used as
+the only access control.
+.Pp
+The attack on WEP is a passive attack, requiring only the ability to
+sniff packets on the network.
+The passive attack can be launched at a distance larger, up to many
+miles, than one might otherwise expect given a specialized antenna
+used in point to point applications.
+The attacker can recover the keys from a 128-bit WEP network with only
+5,000,000 to 6,000,000 packets.
+While this may sound like a large number of packets, emperical
+evidence suggests that this amount of traffic is generated in a few
+hours on a partially loaded network.
+Once a key has been compromised, the only remedial action is to
+discontinue it and use a new key.
+.Pp
+See
+.Pa http://www.cs.rice.edu/~astubble/wep/wep_attack.html
+for details of the attack.
+.Pp
+If you must use WEP, you are strongly encouraged to pick keys whose
+bytes are random and not confined to ASCII characters.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 The
 .Nm
-command was written by
+utility was written by
 .An Bill Paul Aq wpaul@ctr.columbia.edu .
