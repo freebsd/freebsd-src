@@ -54,6 +54,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 /* set_key.c v 1.4 eay 24/9/91
@@ -68,7 +70,7 @@
 #include "sk.h"
 
 static int check_parity(const_des_cblock *key);
-OPENSSL_GLOBAL int des_check_key=0;
+int des_check_key=0;
 
 void des_set_odd_parity(des_cblock *key)
 	{

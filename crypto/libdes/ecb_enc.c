@@ -54,14 +54,15 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #include "des_locl.h"
 #include "spr.h"
-#include <openssl/opensslv.h>
 
-OPENSSL_GLOBAL const char *libdes_version="libdes" OPENSSL_VERSION_PTEXT;
-OPENSSL_GLOBAL const char *DES_version="DES" OPENSSL_VERSION_PTEXT;
+const char *libdes_version="libdes" " 0_9_4";
+const char *DES_version="DES" " 0_9_4";
 
 const char *des_options(void)
 	{

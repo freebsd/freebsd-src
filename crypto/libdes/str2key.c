@@ -54,11 +54,13 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #include "des_locl.h"
 
-OPENSSL_EXTERN int des_check_key;
+extern int des_check_key;
 
 void des_string_to_key(const char *str, des_cblock *key)
 	{

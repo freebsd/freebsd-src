@@ -34,49 +34,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
+ * $FreeBSD$
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-
-RCSID("$Id$");
-#endif
-
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <des.h>
 #include <des_locl.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
 #include <time.h>
-
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#ifdef HAVE_IO_H
-#include <io.h>
-#endif
-
-#ifdef HAVE_SIGNAL_H
-#include <signal.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
 
 #ifdef HAVE_WINSOCK_H
 #include <winsock.h>
@@ -127,37 +100,6 @@ sumFile (const char *name, int len, void *res)
   memcpy (res, &sum, sizeof(sum));
   return 0;
 }
-
-#if 0
-static
-int
-md5sumFile (const char *name, int len, int32_t sum[4])
-{
-  int32_t buf[1024*2];
-  int fd, cnt;
-  struct md5 md5;
-
-  fd = open (name, 0);
-  if (fd < 0)
-    return -1;
-
-  md5_init(&md5);
-  while (len > 0)
-    {
-      int n = read(fd, buf, sizeof(buf));
-      if (n < 0)
-	{
-	  close(fd);
-	  return n;
-	}
-      md5_update(&md5, buf, n);
-      len -= n;
-    }
-  md5_finito(&md5, (unsigned char *)sum);
-  close (fd);
-  return 0;
-}
-#endif
 
 /*
  * Create a sequence of random 64 bit blocks.
@@ -257,7 +199,10 @@ static RETSIGTYPE
 void
 des_rand_data(unsigned char *data, int size)
 {
-    struct itimerval tv, otv;
+    struct itimerval tv;
+#ifdef HAVE_SETITIMER
+    struct itimerval otv;
+#endif
     RETSIGTYPE (*osa)(int);
     int i, j;
 #ifndef HAVE_SETITIMER 
@@ -465,13 +410,6 @@ des_init_random_number_generator(des_cblock *seed)
     set_sequence_number((unsigned char *)&now);
     des_new_random_key(&new_key);
     des_set_random_generator_seed(&new_key);
-}
-
-/* This is for backwards compatibility. */
-void
-des_random_key(des_cblock ret)
-{
-    des_new_random_key((des_cblock *)ret);
 }
 
 #ifdef TESTRUN
