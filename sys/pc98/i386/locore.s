@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.6 1996/11/09 00:39:35 asami Exp $
+ *	$Id: locore.s,v 1.7 1996/12/04 04:20:22 asami Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -407,6 +407,8 @@ begin:
 #ifdef CYRIX_5X86
 	/* CYRIX 5x86 CPU */
 	cli
+
+	outb	%al,$0x50		# Reset NMI F/F
 	mov	%cr0,%eax
 	orl	$0x40000000,%eax	# disable cache
 	movl	%eax,%cr0
@@ -419,7 +421,7 @@ begin:
 
 	movb	$0x0c1,%al		# CCR1
 	outb	%al,$0x22
-	movb	$0x00,%al
+	movb	$0x00,%al		# No SMM support
 	outb	%al,$0x23
 	movb	$0x0c2,%al		# CCR2
 	outb	%al,$0x22
@@ -428,7 +430,7 @@ begin:
 #else
 	movb	$0x02,%al		# USE_WBAK
 #endif
-	outb	%al,$0x23		# Interface Pins
+	outb	%al,$0x23
 	movb	$0xc3,%al		# CCR3
 	outb	%al,$0x22		# 
 	movb	$0x10,%al		# MAPEN0 (to access CCR4)
@@ -447,15 +449,18 @@ begin:
 	outb	%al,$0x23
 	movb	$0x020,%al		# PCR0
 	outb	%al,$0x22
-	movb	$0x02, %al		# BTB_EN
-#ifndef DISALBE_5X86_LSSER
-	orb	$0x80, %al		# LSSER
-#endif
+	xorb	%al, %al
 #ifdef RSTK_EN
-	orb	$0x01, %al
+	orb	$0x01, %al		# Return Stack Enable
+#endif
+#ifdef BTB_EN
+	orb	$0x02, %al		# Branch Target Buffer enable
 #endif
 #ifdef LOOP_EN
-	orb	$0x04, %al
+	orb	$0x04, %al		# Loop Enable
+#endif
+#ifndef DISALBE_5X86_LSSER
+	orb	$0x80, %al		# Reorder
 #endif
 	outb	%al,$0x23
 	movb	$0x0c3,%al		# CCR3
@@ -471,6 +476,7 @@ begin:
 	orl	$0x020000000,%ebx	# write back mode
 	movl	%ebx,%cr0		# go!
 
+	outb	%al,$0x52		# Set NMI F/F
 	sti
 #endif /* CYRIX_5X86 */
 #endif	/* PC98 */
