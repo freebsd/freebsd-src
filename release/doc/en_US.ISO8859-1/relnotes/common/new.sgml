@@ -316,6 +316,12 @@
       and Addtron.  Jumbograms and TCP/IP checksum offload on receive
       are supported, although hardware VLAN filtering is not.</para>
 
+      <para>The &man.xl.4; driver now supports reception of VLAN
+      tagged frames (on the <quote>Cyclone</quote> or newer
+      chipsets). &merged;</para>
+
+      <para>The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
+
     </sect3>
 
     <sect3>
@@ -371,6 +377,12 @@
       <para>TCP now has RFC 1323 extensions enabled by default in
       &man.rc.conf.5;. &merged;</para>
 
+      <para>RFC 1323 and RFC 1644 TCP extensions are now disabled for a
+      connection in progress if no response has been received by the
+      third SYN segment sent.  This behavior tries to work around
+      (very old) terminal servers with buggy VJ header compression
+      implementations.</para>
+
       <para>A new sysctl <literal>net.inet.ip.check_interface</literal>,
       which is on by default, causes IP to verify that an incoming
       packet arrives on an interface that has an address matching the
@@ -404,6 +416,9 @@
       to determine the rate at which the machine is generating
       packets, since the default behaviour is to increment a counter
       for each packet sent.</para>
+
+      <para>IP multicast now works on VLAN devices.  Several other
+      bugs in the VLAN code have also been fixed.</para>
 
     </sect3>
 
@@ -787,6 +802,11 @@
 
     <para>Initial sequence numbers in TCP are more thoroughly
     randomized (see security advisory FreeBSD-SA-01:39). &merged;</para>
+
+    <para>The new <varname>net.inet.ip.maxfragpackets</varname> sysctl
+    variable limits the amount of memory that can be consumed by IPv4
+    packet fragments, which defends against some denial of service
+    attacks.</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -1374,6 +1394,12 @@
 
     <para>&man.whois.1; now directs queries for IP addresses to
     ARIN.</para>
+
+    <para>A new utility &man.diskcheckd.8; has been added; it is a
+    daemon which runs in the background, reading entire disks to find
+    any read errors on those disks.  Its behavior at startup time can
+    be controlled by the <varname>diskcheckd_enable</varname> variable
+    in &man.rc.conf.5;.</para>
 
     <sect3>
       <title>Contributed Software</title>
