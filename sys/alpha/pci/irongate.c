@@ -119,7 +119,7 @@ void
 irongate_init()
 {
 	static int initted = 0;
-	struct bwx_space io_space, mem_space;
+	static struct bwx_space io_space, mem_space;
 
 	if (initted) return;
 	initted = 1;
