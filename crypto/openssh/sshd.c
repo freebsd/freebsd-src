@@ -37,9 +37,8 @@ int deny_severity = LOG_WARNING;
 #endif /* LIBWRAP */
 
 #ifdef __FreeBSD__
-#include <libutil.h>
-#include <syslog.h>
 #define	LOGIN_CAP
+#define _PATH_CHPASS "/usr/bin/passwd"
 #endif /* __FreeBSD__ */
 
 #ifdef LOGIN_CAP
@@ -49,6 +48,14 @@ int deny_severity = LOG_WARNING;
 #ifndef O_NOCTTY
 #define O_NOCTTY	0
 #endif
+
+#ifdef KRB5
+#include <krb5.h>
+krb5_context ssh_context = NULL;
+krb5_principal tkt_client = NULL;    /* Principal from the received ticket. 
+Also is used as an indication of succesful krb5 authentization. */
+#endif /* KRB5 */
+
 
 /* Local Xauthority file. */
 static char *xauthfile = NULL;
@@ -149,7 +156,7 @@ struct magic_connection {
 const size_t MAGIC_CONNECTIONS_SIZE = 1;
 
 static __inline int
-magic_hash(struct sockaddr_storage *sa) {
+magic_hash(struct sockaddr *sa) {
 
 	return 0;
 }
@@ -302,9 +309,13 @@ get_authname(int type)
 	case SSH_CMSG_AUTH_RHOSTS:
 		return "rhosts";
 #ifdef KRB4
-	case SSH_CMSG_AUTH_KERBEROS:
-		return "kerberos";
+	case SSH_CMSG_AUTH_KRB4:
+		return "kerberosV4";
 #endif
+#ifdef KRB5
+	case SSH_CMSG_AUTH_KRB5:
+		return "kerberosV5";
+#endif /* KRB5 */
 #ifdef SKEY
 	case SSH_CMSG_AUTH_TIS_RESPONSE:
 		return "s/key";
@@ -723,7 +734,7 @@ main(int ac, char **av)
 				struct magic_connection *mc;
 
 				(void)gettimeofday(&connections_end, NULL);
-				mc = &magic_connections[magic_hash(&from)];
+				mc = &magic_connections[magic_hash((struct sockaddr *)0)];
 				diff = timevaldiff(&mc->connections_begin, &connections_end);
 				if (diff.tv_sec >= options.connections_period) {
 					/*
@@ -948,9 +959,9 @@ main(int ac, char **av)
 	}
 #ifdef KRB4
 	if (!packet_connection_is_ipv4() &&
-	    options.kerberos_authentication) {
+	    options.krb4_authentication) {
 		debug("Kerberos Authentication disabled, only available for IPv4.");
-		options.kerberos_authentication = 0;
+		options.krb4_authentication = 0;
 	}
 #endif /* KRB4 */
 
@@ -964,7 +975,7 @@ main(int ac, char **av)
 
 #ifdef KRB4
 	/* Cleanup user's ticket cache file. */
-	if (options.kerberos_ticket_cleanup)
+	if (options.krb4_ticket_cleanup)
 		(void) dest_tkt();
 #endif /* KRB4 */
 
@@ -1042,12 +1053,22 @@ do_ssh_kex()
 	if (options.rsa_authentication)
 		auth_mask |= 1 << SSH_AUTH_RSA;
 #ifdef KRB4
-	if (options.kerberos_authentication)
-		auth_mask |= 1 << SSH_AUTH_KERBEROS;
+	if (options.krb4_authentication)
+		auth_mask |= 1 << SSH_AUTH_KRB4;
 #endif
+#ifdef KRB5
+	if (options.krb5_authentication) {
+	  	auth_mask |= 1 << SSH_AUTH_KRB5;
+                /* compatibility with MetaCentre ssh */
+		auth_mask |= 1 << SSH_AUTH_KRB4;
+        }
+	if (options.krb5_tgt_passing)
+	  	auth_mask |= 1 << SSH_PASS_KRB5_TGT;
+#endif /* KRB5 */
+
 #ifdef AFS
-	if (options.kerberos_tgt_passing)
-		auth_mask |= 1 << SSH_PASS_KERBEROS_TGT;
+	if (options.krb4_tgt_passing)
+		auth_mask |= 1 << SSH_PASS_KRB4_TGT;
 	if (options.afs_token_passing)
 		auth_mask |= 1 << SSH_PASS_AFS_TOKEN;
 #endif
@@ -1246,6 +1267,7 @@ allowed_user(struct passwd * pw)
 				return 0;
 		}
 	}
+#ifndef __FreeBSD__     /* FreeBSD handle it later */
 	/* Fail if the account's expiration time has passed. */
 	if (pw->pw_expire != 0) {
 		struct timeval tv;
@@ -1254,6 +1276,7 @@ allowed_user(struct passwd * pw)
 		if (tv.tv_sec >= pw->pw_expire)
 			return 0;
 	}
+#endif /* !__FreeBSD__ */
 	/* We found no reason not to let this user try to log on... */
 	return 1;
 }
@@ -1268,6 +1291,12 @@ do_authentication()
 	struct passwd *pw, pwcopy;
 	int plen, ulen;
 	char *user;
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+	char *hosts;
+	const char *from_host, *from_ip;
+	int denied;
+#endif /* LOGIN_CAP */
 
 	/* Get the name of the user that we wish to log in as. */
 	packet_read_expect(&plen, SSH_CMSG_USER);
@@ -1316,8 +1345,11 @@ do_authentication()
 
 	/* If the user has no password, accept authentication immediately. */
 	if (options.password_authentication &&
+#ifdef KRB5
+	    !options.krb5_authentication &&
+#endif /* KRB5 */
 #ifdef KRB4
-	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
+	    (!options.krb4_authentication || options.krb4_or_local_passwd) &&
 #endif /* KRB4 */
 	    auth_password(pw, "")) {
 		/* Authentication with empty password succeeded. */
@@ -1338,6 +1370,38 @@ do_authentication()
 			packet_disconnect("ROOT LOGIN REFUSED FROM %.200s",
 					  get_canonical_hostname());
 	}
+
+#ifdef LOGIN_CAP
+	lc = login_getpwclass(pw);
+	if (lc == NULL)
+		lc = login_getclassbyname(NULL, pw);
+	from_host = get_canonical_hostname();
+	from_ip = get_remote_ipaddr();
+
+	denied = 0;
+	if ((hosts = login_getcapstr(lc, "host.deny", NULL, NULL)) != NULL) {
+		denied = match_hostname(from_host, hosts, strlen(hosts));
+		if (!denied)
+			denied = match_hostname(from_ip, hosts, strlen(hosts));
+	}
+	if (!denied &&
+	    (hosts = login_getcapstr(lc, "host.allow", NULL, NULL)) != NULL) {
+		denied = !match_hostname(from_host, hosts, strlen(hosts));
+		if (denied)
+			denied = !match_hostname(from_ip, hosts, strlen(hosts));
+	}
+	login_close(lc);
+	if (denied) {
+		log("Denied connection for %.200s from %.200s [%.200s].",
+		    pw->pw_name, from_host, from_ip);
+		packet_disconnect("Sorry, you are not allowed to connect.");
+	}
+#endif  /* LOGIN_CAP */
+
+	if (pw->pw_uid == 0)
+		log("ROOT LOGIN as '%.100s' from %.100s",
+		    pw->pw_name, get_canonical_hostname());
+
 	/* The user has been authenticated and accepted. */
 	packet_start(SSH_SMSG_SUCCESS);
 	packet_send();
@@ -1367,6 +1431,22 @@ do_authloop(struct passwd * pw)
 	int plen, dlen, nlen, ulen, elen;
 	int type = 0;
 	void (*authlog) (const char *fmt,...) = verbose;
+#ifdef HAVE_LIBPAM
+	int pam_retval;
+#endif /* HAVE_LIBPAM */
+#if 0
+#ifdef KRB5
+	{
+	  	krb5_error_code ret;
+		
+		ret = krb5_init_context(&ssh_context);
+		if (ret)
+		 	verbose("Error while initializing Kerberos V5."); 
+		krb5_init_ets(ssh_context);
+		
+	}
+#endif /* KRB5 */
+#endif
 
 	/* Indicate that authentication is needed. */
 	packet_start(SSH_SMSG_FAILURE);
@@ -1383,17 +1463,17 @@ do_authloop(struct passwd * pw)
 		/* Process the packet. */
 		switch (type) {
 #ifdef AFS
-		case SSH_CMSG_HAVE_KERBEROS_TGT:
-			if (!options.kerberos_tgt_passing) {
+		case SSH_CMSG_HAVE_KRB4_TGT:
+			if (!options.krb4_tgt_passing) {
 				/* packet_get_all(); */
-				verbose("Kerberos tgt passing disabled.");
+				verbose("Kerberos v4 tgt passing disabled.");
 				break;
 			} else {
-				/* Accept Kerberos tgt. */
+				/* Accept Kerberos v4 tgt. */
 				char *tgt = packet_get_string(&dlen);
 				packet_integrity_check(plen, 4 + dlen, type);
-				if (!auth_kerberos_tgt(pw, tgt))
-					verbose("Kerberos tgt REFUSED for %s", pw->pw_name);
+				if (!auth_krb4_tgt(pw, tgt))
+					verbose("Kerberos v4 tgt REFUSED for %s", pw->pw_name);
 				xfree(tgt);
 			}
 			continue;
@@ -1414,10 +1494,10 @@ do_authloop(struct passwd * pw)
 			continue;
 #endif /* AFS */
 #ifdef KRB4
-		case SSH_CMSG_AUTH_KERBEROS:
-			if (!options.kerberos_authentication) {
+		case SSH_CMSG_AUTH_KRB4:
+			if (!options.krb4_authentication) {
 				/* packet_get_all(); */
-				verbose("Kerberos authentication disabled.");
+				verbose("Kerberos v4 authentication disabled.");
 				break;
 			} else {
 				/* Try Kerberos v4 authentication. */
@@ -1439,6 +1519,36 @@ do_authloop(struct passwd * pw)
 			}
 			break;
 #endif /* KRB4 */
+#ifdef KRB5
+		case SSH_CMSG_AUTH_KRB5:
+			if (!options.krb5_authentication) {
+			  	verbose("Kerberos v5 authentication disabled.");
+				break;
+			} else {
+			  	krb5_data k5data; 
+#if 0	
+				if (krb5_init_context(&ssh_context)) {
+				  verbose("Error while initializing Kerberos V5.");
+				  break;
+				}
+				krb5_init_ets(ssh_context);
+#endif
+				
+				k5data.data = packet_get_string(&k5data.length);
+				packet_integrity_check(plen, 4 + k5data.length, type);
+				if (auth_krb5(pw->pw_name, &k5data, &tkt_client)) {
+				  /* pw->name is passed just for logging purposes
+				   * */
+				  	/* authorize client against .k5login */
+				  	if (krb5_kuserok(ssh_context,
+					      tkt_client,
+					      pw->pw_name))
+					  	authenticated = 1;
+				}
+				xfree(k5data.data);
+			}
+			break;
+#endif /* KRB5 */
 
 		case SSH_CMSG_AUTH_RHOSTS:
 			if (!options.rhosts_authentication) {
@@ -1908,6 +2018,32 @@ do_authenticated(struct passwd * pw)
 				do_exec_no_pty(command, pw, display, proto, data);
 			xfree(command);
 			return;
+#ifdef KRB5
+		case SSH_CMSG_HAVE_KRB5_TGT:
+			/* Passing krb5 ticket */
+			if (!options.krb5_tgt_passing 
+                            /*|| !options.krb5_authentication */) {
+
+			}
+			
+			if (tkt_client == NULL) {
+			  /* passing tgt without krb5 authentication */
+			}
+			
+			{
+			  krb5_data tgt;
+			  tgt.data = packet_get_string(&tgt.length);
+			  
+			  if (!auth_krb5_tgt(pw->pw_name, &tgt, tkt_client)) {
+			    verbose ("Kerberos V5 TGT refused for %.100s", pw->pw_name);
+			    xfree(tgt.data);
+			    goto fail;
+			  }
+			  xfree(tgt.data);
+			      
+			  break;
+			}
+#endif /* KRB5 */
 
 		default:
 			/*
@@ -2086,6 +2222,11 @@ do_exec_pty(const char *command, int ptyfd, int ttyfd,
 	login_cap_t *lc;
 	char *fname;
 #endif /* LOGIN_CAP */
+#ifdef __FreeBSD__
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
+	struct timeval tv;
+	time_t warntime = DEFAULT_WARN;
+#endif /* __FreeBSD__ */
 
 	/* Get remote host name. */
 	hostname = get_canonical_hostname();
@@ -2157,6 +2298,50 @@ do_exec_pty(const char *command, int ptyfd, int ttyfd,
 		quiet_login = login_getcapbool(lc, "hushlogin", quiet_login);
 #endif /* LOGIN_CAP */
 
+#ifdef __FreeBSD__
+		if (pw->pw_change || pw->pw_expire)
+			(void)gettimeofday(&tv, NULL);
+#ifdef LOGIN_CAP
+		warntime = login_getcaptime(lc, "warnpassword",
+					    DEFAULT_WARN, DEFAULT_WARN);
+#endif /* LOGIN_CAP */
+		/*
+		 * If the password change time is set and has passed, give the
+		 * user a password expiry notice and chance to change it.
+		 */
+		if (pw->pw_change != 0) {
+			if (tv.tv_sec >= pw->pw_change) {
+				(void)printf(
+				    "Sorry -- your password has expired.\n");
+				log("%s Password expired - forcing change",
+				    pw->pw_name);
+				command = _PATH_CHPASS;
+			} else if (pw->pw_change - tv.tv_sec < warntime &&
+				   !quiet_login)
+				(void)printf(
+				    "Warning: your password expires on %s",
+				     ctime(&pw->pw_change));
+		}
+#ifdef LOGIN_CAP
+		warntime = login_getcaptime(lc, "warnexpire",
+					    DEFAULT_WARN, DEFAULT_WARN);
+#endif /* LOGIN_CAP */
+		if (pw->pw_expire) {
+			if (tv.tv_sec >= pw->pw_expire) {
+				(void)printf(
+				    "Sorry -- your account has expired.\n");
+				log(
+		   "LOGIN %.200s REFUSED (EXPIRED) FROM %.200s ON TTY %.200s",
+					pw->pw_name, hostname, ttyname);
+				exit(254);
+			} else if (pw->pw_expire - tv.tv_sec < warntime &&
+				   !quiet_login)
+				(void)printf(
+				    "Warning: your account expires on %s",
+				     ctime(&pw->pw_expire));
+		}
+#endif /* __FreeBSD__ */
+
 		/*
 		 * If the user has logged in before, display the time of last
 		 * login. However, don't display anything extra if a command
@@ -2203,10 +2388,9 @@ do_exec_pty(const char *command, int ptyfd, int ttyfd,
 		    !options.use_login) {
 #ifdef LOGIN_CAP
 			fname = login_getcapstr(lc, "welcome", NULL, NULL);
-			login_close(lc);
 			if (fname == NULL || (f = fopen(fname, "r")) == NULL)
 				f = fopen("/etc/motd", "r");
-#else /* LOGIN_CAP */
+#else /* !LOGIN_CAP */
 			f = fopen("/etc/motd", "r");
 #endif /* LOGIN_CAP */
 			/* Print /etc/motd if it exists. */
@@ -2216,6 +2400,9 @@ do_exec_pty(const char *command, int ptyfd, int ttyfd,
 				fclose(f);
 			}
 		}
+#ifdef LOGIN_CAP
+		login_close(lc);
+#endif /* LOGIN_CAP */
 
 		/* Do common processing for the child, such as execing the command. */
 		do_child(command, pw, term, display, auth_proto, auth_data, ttyname);
@@ -2363,7 +2550,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	char buf[256];
 	FILE *f;
 	unsigned int envsize, i;
-	char **env;
+	char **env = NULL;
 	extern char **environ;
 	struct stat st;
 	char *argv[10];
@@ -2373,29 +2560,24 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	lc = login_getpwclass(pw);
 	if (lc == NULL)
 		lc = login_getclassbyname(NULL, pw);
-#endif /* LOGIN_CAP */
-
+	if (pw->pw_uid != 0)
+		auth_checknologin(lc);
+#else /* !LOGIN_CAP */
 	f = fopen("/etc/nologin", "r");
-#ifdef __FreeBSD__
-	if (f == NULL)
-		f = fopen("/var/run/nologin", "r");
-#endif /* __FreeBSD__ */
 	if (f) {
 		/* /etc/nologin exists.  Print its contents and exit. */
-#ifdef LOGIN_CAP
-		/* On FreeBSD, etc., allow overriding nologin via login.conf. */
-		if (!login_getcapbool(lc, "ignorenologin", 0)) {
-#else /* LOGIN_CAP */
-		if (1) {
-#endif /* LOGIN_CAP */
-			while (fgets(buf, sizeof(buf), f))
-				fputs(buf, stderr);
-			fclose(f);
-			if (pw->pw_uid != 0)
-				exit(254);
-		}
+		while (fgets(buf, sizeof(buf), f))
+			fputs(buf, stderr);
+		fclose(f);
+		if (pw->pw_uid != 0)
+			exit(254);
 
 	}
+#endif /* LOGIN_CAP */
+
+#ifdef LOGIN_CAP
+	if (options.use_login)
+#endif /* LOGIN_CAP */
 	/* Set login name in the kernel. */
 	if (setlogin(pw->pw_name) < 0)
 		error("setlogin failed: %s", strerror(errno));
@@ -2405,12 +2587,42 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	   switch, so we let login(1) to this for us. */
 	if (!options.use_login) {
 #ifdef LOGIN_CAP
-		if (setclasscontext(pw->pw_class, LOGIN_SETPRIORITY |
-		    LOGIN_SETRESOURCES | LOGIN_SETUMASK) == -1) {
-			perror("setclasscontext");
-			exit(1);
-		}
-#endif /* LOGIN_CAP */
+		char **tmpenv;
+
+		/* Initialize temp environment */
+		envsize = 64;
+		env = xmalloc(envsize * sizeof(char *));
+		env[0] = NULL;
+
+		child_set_env(&env, &envsize, "PATH",
+			      (pw->pw_uid == 0) ?
+			      _PATH_STDPATH : _PATH_DEFPATH);
+
+		snprintf(buf, sizeof buf, "%.200s/%.50s",
+			 _PATH_MAILDIR, pw->pw_name);
+		child_set_env(&env, &envsize, "MAIL", buf);
+
+		if (getenv("TZ"))
+			child_set_env(&env, &envsize, "TZ", getenv("TZ"));
+
+		/* Save parent environment */
+		tmpenv = environ;
+		environ = env;
+
+		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETALL) < 0)
+			fatal("setusercontext failed: %s", strerror(errno));
+
+		/* Restore parent environment */
+		env = environ;
+		environ = tmpenv;
+
+		for (envsize = 0; env[envsize] != NULL; ++envsize)
+			;
+		envsize = (envsize < 100) ? 100 : envsize + 16;
+		env = xrealloc(env, envsize * sizeof(char *));
+
+#else /* !LOGIN_CAP */
+
 		if (getuid() == 0 || geteuid() == 0) {
 			if (setgid(pw->pw_gid) < 0) {
 				perror("setgid");
@@ -2428,18 +2640,15 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		}
 		if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 			fatal("Failed to set uids to %d.", (int) pw->pw_uid);
+#endif /* LOGIN_CAP */
 	}
 	/*
 	 * Get the shell from the password data.  An empty shell field is
 	 * legal, and means /bin/sh.
 	 */
-#ifdef LOGIN_CAP
-	shell = pw->pw_shell;
-	shell = login_getcapstr(lc, "shell", shell, shell);
-	if (shell[0] == '\0')
-		shell = _PATH_BSHELL;
-#else /* LOGIN_CAP */
 	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
+#ifdef LOGIN_CAP
+	shell = login_getcapstr(lc, "shell", shell, shell);
 #endif /* LOGIN_CAP */
 
 #ifdef AFS
@@ -2455,29 +2664,31 @@ do_child(const char *command, struct passwd * pw, const char *term,
 #endif /* AFS */
 
 	/* Initialize the environment. */
-	envsize = 100;
-	env = xmalloc(envsize * sizeof(char *));
-	env[0] = NULL;
+	if (env == NULL) {
+		envsize = 100;
+		env = xmalloc(envsize * sizeof(char *));
+		env[0] = NULL;
+	}
 
 	if (!options.use_login) {
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
-#ifdef LOGIN_CAP
-		child_set_env(&env, &envsize, "PATH",
-		    login_getpath(lc, "path", _PATH_STDPATH));
-#else /* LOGIN_CAP */
+#ifndef LOGIN_CAP
 		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
-#endif /* LOGIN_CAP */
 
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
 		child_set_env(&env, &envsize, "MAIL", buf);
+#endif /* !LOGIN_CAP */
 
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
 	}
+#ifdef LOGIN_CAP
+	if (options.use_login)
+#endif /* LOGIN_CAP */
 	if (getenv("TZ"))
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
 
@@ -2515,6 +2726,32 @@ do_child(const char *command, struct passwd * pw, const char *term,
 			child_set_env(&env, &envsize, "KRBTKFILE", ticket);
 	}
 #endif /* KRB4 */
+
+#ifdef KRB5
+        {
+           extern krb5_ccache mem_ccache;
+
+           if (mem_ccache) {
+              krb5_error_code problem;
+              krb5_ccache ccache;
+#ifdef AFS
+              if (k_hasafs())
+                 krb5_afslog(ssh_context, mem_ccache, NULL, NULL);
+#endif /* AFS */
+
+              problem = krb5_cc_default(ssh_context, &ccache);
+              if (problem) {}
+              else {
+                 problem = krb5_cc_copy_cache(ssh_context, mem_ccache, ccache);
+                 if (problem) {}
+              }
+
+              krb5_cc_close(ssh_context, ccache);
+           }
+
+           krb5_cleanup_proc(NULL);
+        }
+#endif /* KRB5 */
 
 	if (xauthfile)
 		child_set_env(&env, &envsize, "XAUTHORITY", xauthfile);
@@ -2559,10 +2796,6 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	 */
 	endpwent();
 
-#ifdef LOGIN_CAP
- 	login_close(lc);
-#endif /* LOGIN_CAP */
-
 	/*
 	 * Close any extra open file descriptors so that we don\'t have them
 	 * hanging around in clients.  Note that we want to do this after
@@ -2573,9 +2806,46 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		close(i);
 
 	/* Change current directory to the user\'s home directory. */
-	if (chdir(pw->pw_dir) < 0)
+	if (
+#ifdef __FreeBSD__
+		!*pw->pw_dir ||
+#endif /* __FreeBSD__ */
+		chdir(pw->pw_dir) < 0
+	   ) {
+#ifdef __FreeBSD__
+		int quiet_login = 0;
+#endif /* __FreeBSD__ */
+#ifdef LOGIN_CAP
+		if (login_getcapbool(lc, "requirehome", 0)) {
+			(void)printf("Home directory not available\n");
+			log("LOGIN %.200s REFUSED (HOMEDIR) ON TTY %.200s",
+				pw->pw_name, ttyname);
+			exit(254);
+		}
+#endif /* LOGIN_CAP */
+#ifdef __FreeBSD__
+		if (chdir("/") < 0) {
+			(void)printf("Cannot find root directory\n");
+			log("LOGIN %.200s REFUSED (ROOTDIR) ON TTY %.200s",
+				pw->pw_name, ttyname);
+			exit(254);
+		}
+#ifdef LOGIN_CAP
+		quiet_login = login_getcapbool(lc, "hushlogin", 0);
+#endif /* LOGIN_CAP */
+		if (!quiet_login || *pw->pw_dir)
+			(void)printf(
+		       "No home directory.\nLogging in with home = \"/\".\n");
+
+#else /* !__FreeBSD__ */
+
 		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
 			pw->pw_dir, strerror(errno));
+#endif /* __FreeBSD__ */
+	}
+#ifdef LOGIN_CAP
+	login_close(lc);
+#endif /* LOGIN_CAP */
 
 	/*
 	 * Must take new environment into use so that .ssh/rc, /etc/sshrc and
@@ -2588,26 +2858,6 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	 * in this order).
 	 */
 	if (!options.use_login) {
-#ifdef __FreeBSD__
-		/*
-		 * If the password change time is set and has passed, give the
-		 * user a password expiry notice and chance to change it.
-		 */
-		if (pw->pw_change != 0) {
-			struct timeval tv;
-
-			(void)gettimeofday(&tv, NULL);
-			if (tv.tv_sec >= pw->pw_change) {
-				(void)printf(
-				    "Sorry -- your password has expired.\n");
-				syslog(LOG_INFO,
-				    "%s Password expired - forcing change",
-				    pw->pw_name);
-				if (system("/usr/bin/passwd") != 0)
-					perror("/usr/bin/passwd");
-			}
-		}
-#endif /* __FreeBSD__ */
 		if (stat(SSH_USER_RC, &st) >= 0) {
 			if (debug_flag)
 				fprintf(stderr, "Running /bin/sh %s\n", SSH_USER_RC);
@@ -2675,7 +2925,11 @@ do_child(const char *command, struct passwd * pw, const char *term,
 				mailbox = getenv("MAIL");
 				if (mailbox != NULL) {
 					if (stat(mailbox, &mailstat) != 0 || mailstat.st_size == 0)
+#ifdef __FreeBSD__
+						;
+#else /* !__FreeBSD__ */
 						printf("No mail.\n");
+#endif /* __FreeBSD__ */
 					else if (mailstat.st_mtime < mailstat.st_atime)
 						printf("You have mail.\n");
 					else
