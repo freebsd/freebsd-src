@@ -3,7 +3,7 @@
 NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
-SHLIBDIR?=	/lib
+SHLIBDIR?= /lib
 SHLIB_MAJOR=5
 
 # Should be elsewhere
