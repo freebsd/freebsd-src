@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.464 1999/01/30 22:15:35 jkh Exp $
+#	$Id: Makefile,v 1.465 1999/01/31 03:53:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -74,11 +74,13 @@ MNT=			/mnt
 BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		1440
+BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 MFSINODE=		8000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
+BIGBOOTLABEL=		minimum2
 MFSLABEL=		fd1440
 
 # overrides.
@@ -454,7 +456,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot _MFSKERN=YES
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot BIGBOOT=YES
 	@rm mfsroot mfsroot.gz mfsroot.size
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
@@ -644,11 +646,11 @@ doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN} < GENERIC > BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < GENERIC > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
-.if defined(_MFSKERN)
+.if defined(BIGBOOT)
 	@echo "options \"MFS_ROOT_SIZE=`cat mfsroot.size`\"" >> \
 	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
@@ -660,7 +662,7 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/boot1 /boot/boot2 /boot/loader ${RD}/image.${FSIMAGE}/boot
-.if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
+.if !defined(BIGBOOT) || ${MACHINE_ARCH} == "alpha"
 	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
@@ -668,7 +670,7 @@ doMFSKERN:
 	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
-.if defined(_MFSKERN)
+.if defined(BIGBOOT)
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
@@ -676,10 +678,10 @@ doMFSKERN:
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-.if defined(_MFSKERN)
+.if defined(BIGBOOT)
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${MFSSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${MFSLABEL}
+		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${BIGBOOTLABEL}
 .else
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
