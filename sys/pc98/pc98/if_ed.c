@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.61 1999/03/19 16:01:34 kato Exp $
+ *	$Id: if_ed.c,v 1.62 1999/04/18 14:42:17 kato Exp $
  */
 
 /*
@@ -3553,7 +3553,9 @@ ed_get_packet(sc, buf, len, multicast)
 		return;
 	}
 
+#ifdef BRIDGE
 getit:
+#endif
 	/*
 	 * Remove link layer address.
 	 */
