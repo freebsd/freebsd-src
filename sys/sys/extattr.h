@@ -40,18 +40,24 @@
  */
 
 #ifndef _SYS_EXTATTR_H_
-#define _SYS_EXTATTR_H_
+#define	_SYS_EXTATTR_H_
+#ifdef _KERNEL
 
-#define EXTATTR_MAXNAMELEN	NAME_MAX
+#define	EXTATTR_MAXNAMELEN	NAME_MAX
 
-#ifndef _KERNEL
+#else
+#include <sys/cdefs.h>
 
-int	extattrctl(char *path, int cmd, char *attrname, caddr_t arg);
-int	extattr_set_file(char *path, char *attrname, struct iovec *iovp,
-	u_int iovcnt);
-int	extattr_get_file(char *path, char *attrname, struct iovec *iovp,
-	u_int iovcnt);
-int	extattr_delete_file(char *path, char *attrname);
+struct iovec;
 
-#endif
-#endif /* _SYS_EXTATTR_H_ */
+__BEGIN_DECLS
+int	extattrctl(const char *path, int cmd, const char *attrname, char *arg);
+int	extattr_delete_file(const char *path, const char *attrname);
+int	extattr_get_file(const char *path, const char *attrname,
+	    struct iovec *iovp, unsigned iovcnt);
+int	extattr_set_file(const char *path, const char *attrname,
+	    struct iovec *iovp, unsigned iovcnt);
+__END_DECLS
+
+#endif /* !_KERNEL */
+#endif /* !_SYS_EXTATTR_H_ */
