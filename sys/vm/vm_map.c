@@ -2144,7 +2144,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 				vm_object_collapse(object);
 				VM_OBJECT_LOCK(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-				VM_OBJECT_UNLOCK(object);
 				if (object->type == OBJT_SWAP) {
 					swap_pager_freespace(object, offidxstart, count);
 				}
@@ -2152,6 +2151,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 				    offidxstart < object->size) {
 					object->size = offidxstart;
 				}
+				VM_OBJECT_UNLOCK(object);
 			}
 			mtx_unlock(&Giant);
 		}
