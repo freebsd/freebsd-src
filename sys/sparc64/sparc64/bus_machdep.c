@@ -155,28 +155,6 @@ int bus_stream_asi[] = {
 };
 
 /*
- * busdma support code.
- * Note: there is no support for bounce buffers yet.
- */
-
-static int nexus_dmamap_create(bus_dma_tag_t, bus_dma_tag_t, int,
-    bus_dmamap_t *);
-static int nexus_dmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static int nexus_dmamap_load(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
-static int nexus_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
-static int nexus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    struct uio *, bus_dmamap_callback2_t *, void *, int);
-static void nexus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static void nexus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    bus_dmasync_op_t);
-static int nexus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
-    bus_dmamap_t *);
-static void nexus_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
-    bus_dmamap_t);
-
-/*
  * Since there is now way for a device to obtain a dma tag from its parent
  * we use this kluge to handle different the different supported bus systems.
  * The sparc64_root_dma_tag is used as parent for tags that have none, so that
@@ -193,7 +171,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
     int nsegments, bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat)
 {
-
+	bus_dma_tag_t impptag;
 	bus_dma_tag_t newtag;
 
 	/* Return a NULL tag on failure */
@@ -203,7 +181,15 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (newtag == NULL)
 		return (ENOMEM);
 
-	newtag->dt_parent = parent != NULL ? parent : sparc64_root_dma_tag;
+	impptag = parent != NULL ? parent : sparc64_root_dma_tag;
+	/*
+	 * The method table pointer and the cookie need to be taken over from
+	 * the parent or the root tag.
+	 */
+	newtag->dt_cookie = impptag->dt_cookie;
+	newtag->dt_mt = impptag->dt_mt;
+
+	newtag->dt_parent = parent;
 	newtag->dt_alignment = alignment;
 	newtag->dt_boundary = boundary;
 	newtag->dt_lowaddr = trunc_page((vm_offset_t)lowaddr) + (PAGE_SIZE - 1);
@@ -218,16 +204,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->dt_ref_count = 1; /* Count ourselves */
 	newtag->dt_map_count = 0;
 
-	newtag->dt_dmamap_create = NULL;
-	newtag->dt_dmamap_destroy = NULL;
-	newtag->dt_dmamap_load = NULL;
-	newtag->dt_dmamap_load_mbuf = NULL;
-	newtag->dt_dmamap_load_uio = NULL;
-	newtag->dt_dmamap_unload = NULL;
-	newtag->dt_dmamap_sync = NULL;
-	newtag->dt_dmamem_alloc = NULL;
-	newtag->dt_dmamem_free = NULL;
-
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
 		newtag->dt_lowaddr = ulmin(parent->dt_lowaddr,
@@ -240,8 +216,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		 */
 		newtag->dt_boundary = ulmin(parent->dt_boundary,
 		    newtag->dt_boundary);
+		atomic_add_int(&parent->dt_ref_count, 1);
 	}
-	atomic_add_int(&newtag->dt_parent->dt_ref_count, 1);
 
 	*dmat = newtag;
 	return (0);
@@ -273,34 +249,40 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	return (0);
 }
 
-/*
- * Common function for DMA map creation.  May be called by bus-specific
- * DMA map creation functions.
- */
-static int
-nexus_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
-    bus_dmamap_t *mapp)
+/* Allocate/free a tag, and do the necessary management work. */
+int
+sparc64_dma_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp)
 {
 
 	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (*mapp != NULL) {
-		ddmat->dt_map_count++;
-		sparc64_dmamap_init(*mapp);
-		return (0);
-	} else
+	if (*mapp == NULL)
 		return (ENOMEM);
+
+	SLIST_INIT(&(*mapp)->dm_reslist);
+	dmat->dt_map_count++;
+	return (0);
 }
 
-/*
- * Common function for DMA map destruction.  May be called by bus-specific
- * DMA map destruction functions.
- */
-static int
-nexus_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
+void
+sparc64_dma_free_map(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
 	free(map, M_DEVBUF);
-	ddmat->dt_map_count--;
+	dmat->dt_map_count--;
+}
+
+static int
+nexus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
+{
+
+	return (sparc64_dma_alloc_map(dmat, mapp));
+}
+
+static int
+nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+
+	sparc64_dma_free_map(dmat, map);
 	return (0);
 }
 
@@ -311,7 +293,7 @@ nexus_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
  * first indicates if this is the first invocation of this function.
  */
 static int
-_nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
+_nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
     void *buf, bus_size_t buflen, struct thread *td, int flags,
     bus_addr_t *lastaddrp, int *segp, int first)
 {
@@ -327,7 +309,7 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
 		pmap = NULL;
 
 	lastaddr = *lastaddrp;
-	bmask  = ~(ddmat->dt_boundary - 1);
+	bmask  = ~(dmat->dt_boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
 		/*
@@ -348,8 +330,8 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
 		/*
 		 * Make sure we don't cross any boundaries.
 		 */
-		if (ddmat->dt_boundary > 0) {
-			baddr = (curaddr + ddmat->dt_boundary) & bmask;
+		if (dmat->dt_boundary > 0) {
+			baddr = (curaddr + dmat->dt_boundary) & bmask;
 			if (sgsize > (baddr - curaddr))
 				sgsize = (baddr - curaddr);
 		}
@@ -364,12 +346,12 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
 			first = 0;
 		} else {
 			if (curaddr == lastaddr &&
-			    (segs[seg].ds_len + sgsize) <= ddmat->dt_maxsegsz &&
-			    (ddmat->dt_boundary == 0 ||
+			    (segs[seg].ds_len + sgsize) <= dmat->dt_maxsegsz &&
+			    (dmat->dt_boundary == 0 ||
 			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
 				segs[seg].ds_len += sgsize;
 			else {
-				if (++seg >= ddmat->dt_nsegments)
+				if (++seg >= dmat->dt_nsegments)
 					break;
 				segs[seg].ds_addr = curaddr;
 				segs[seg].ds_len = sgsize;
@@ -401,19 +383,19 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
  * bypass DVMA.
  */
 static int
-nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    void *buf, bus_size_t buflen, bus_dmamap_callback_t *callback,
-    void *callback_arg, int flags)
+nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
+    int flags)
 {
 #ifdef __GNUC__
-	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
+	bus_dma_segment_t dm_segments[dmat->dt_nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
 #endif
 	bus_addr_t lastaddr;
 	int error, nsegs;
 
-	error = _nexus_dmamap_load_buffer(ddmat, dm_segments, buf, buflen,
+	error = _nexus_dmamap_load_buffer(dmat, dm_segments, buf, buflen,
 	    NULL, flags, &lastaddr, &nsegs, 1);
 
 	if (error == 0) {
@@ -429,12 +411,11 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
  * Like nexus_dmamap_load(), but for mbufs.
  */
 static int
-nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dmamap_t map, struct mbuf *m0, bus_dmamap_callback2_t *callback,
-    void *callback_arg, int flags)
+nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
 #ifdef __GNUC__
-	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
+	bus_dma_segment_t dm_segments[dmat->dt_nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
 #endif
@@ -444,14 +425,14 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 
 	nsegs = 0;
 	error = 0;
-	if (m0->m_pkthdr.len <= ddmat->dt_maxsize) {
+	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
 		int first = 1;
 		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
-				error = _nexus_dmamap_load_buffer(ddmat,
+				error = _nexus_dmamap_load_buffer(dmat,
 				    dm_segments, m->m_data, m->m_len, NULL,
 				    flags, &lastaddr, &nsegs, first);
 				first = 0;
@@ -476,13 +457,12 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
  * Like nexus_dmamap_load(), but for uios.
  */
 static int
-nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dmamap_t map, struct uio *uio, bus_dmamap_callback2_t *callback,
-    void *callback_arg, int flags)
+nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
 	bus_addr_t lastaddr;
 #ifdef __GNUC__
-	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
+	bus_dma_segment_t dm_segments[dmat->dt_nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
 #endif
@@ -513,7 +493,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
 		if (minlen > 0) {
-			error = _nexus_dmamap_load_buffer(ddmat, dm_segments,
+			error = _nexus_dmamap_load_buffer(dmat, dm_segments,
 			    addr, minlen, td, flags, &lastaddr, &nsegs, first);
 			first = 0;
 
@@ -537,7 +517,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
  * bus-specific DMA map unload functions.
  */
 static void
-nexus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
+nexus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
 	map->dm_loaded = 0;
@@ -548,8 +528,7 @@ nexus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
  * by bus-specific DMA map synchronization functions.
  */
 static void
-nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    bus_dmasync_op_t op)
+nexus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 
 	/*
@@ -577,45 +556,16 @@ nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 }
 
 /*
- * Helper functions for buses that use their private dmamem_alloc/dmamem_free
- * versions.
- * These differ from the dmamap_alloc() functions in that they create a tag
- * that is specifically for use with dmamem_alloc'ed memory.
- * These are primitive now, but I expect that some fields of the map will need
- * to be filled soon.
- */
-int
-sparc64_dmamem_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp)
-{
-
-	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (*mapp == NULL)
-		return (ENOMEM);
-
-	dmat->dt_map_count++;
-	sparc64_dmamap_init(*mapp);
-	return (0);
-}
-
-void
-sparc64_dmamem_free_map(bus_dma_tag_t dmat, bus_dmamap_t map)
-{
-
-	free(map, M_DEVBUF);
-	dmat->dt_map_count--;
-}
-
-/*
  * Common function for DMA-safe memory allocation.  May be called
  * by bus-specific DMA memory allocation functions.
  */
 static int
-nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
-    int flags, bus_dmamap_t *mapp)
+nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
+    bus_dmamap_t *mapp)
 {
 
-	if ((ddmat->dt_maxsize <= PAGE_SIZE)) {
-		*vaddr = malloc(ddmat->dt_maxsize, M_DEVBUF,
+	if ((dmat->dt_maxsize <= PAGE_SIZE)) {
+		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
 	} else {
 		/*
@@ -624,17 +574,15 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 		 * allocations yet though.
 		 */
 		mtx_lock(&Giant);
-		*vaddr = contigmalloc(ddmat->dt_maxsize, M_DEVBUF,
+		*vaddr = contigmalloc(dmat->dt_maxsize, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
-		    0ul, ddmat->dt_lowaddr,
-		    ddmat->dt_alignment ? ddmat->dt_alignment : 1UL,
-		    ddmat->dt_boundary);
+		    0ul, dmat->dt_lowaddr,
+		    dmat->dt_alignment ? dmat->dt_alignment : 1UL,
+		    dmat->dt_boundary);
 		mtx_unlock(&Giant);
 	}
-	if (*vaddr == NULL) {
-		free(*mapp, M_DEVBUF);
+	if (*vaddr == NULL)
 		return (ENOMEM);
-	}
 	return (0);
 }
 
@@ -643,19 +591,29 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
  * bus-specific DMA memory free functions.
  */
 static void
-nexus_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
-    bus_dmamap_t map)
+nexus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 
-	sparc64_dmamem_free_map(ddmat, map);
-	if ((ddmat->dt_maxsize <= PAGE_SIZE))
+	if ((dmat->dt_maxsize <= PAGE_SIZE))
 		free(vaddr, M_DEVBUF);
 	else {
 		mtx_lock(&Giant);
-		contigfree(vaddr, ddmat->dt_maxsize, M_DEVBUF);
+		contigfree(vaddr, dmat->dt_maxsize, M_DEVBUF);
 		mtx_unlock(&Giant);
 	}
 }
+
+struct bus_dma_methods nexus_dma_methods = {
+	nexus_dmamap_create,
+	nexus_dmamap_destroy,
+	nexus_dmamap_load,
+	nexus_dmamap_load_mbuf,
+	nexus_dmamap_load_uio,
+	nexus_dmamap_unload,
+	nexus_dmamap_sync,
+	nexus_dmamem_alloc,
+	nexus_dmamem_free,
+};
 
 struct bus_dma_tag nexus_dmatag = {
 	NULL,
@@ -672,16 +630,7 @@ struct bus_dma_tag nexus_dmatag = {
 	0,
 	0,
 	0,
-	nexus_dmamap_create,
-	nexus_dmamap_destroy,
-	nexus_dmamap_load,
-	nexus_dmamap_load_mbuf,
-	nexus_dmamap_load_uio,
-	nexus_dmamap_unload,
-	nexus_dmamap_sync,
-
-	nexus_dmamem_alloc,
-	nexus_dmamem_free,
+	&nexus_dma_methods,
 };
 
 /*
