@@ -74,7 +74,7 @@ extern char *__progname;
 
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
-int IPv4or6 = AF_UNSPEC;
+extern int IPv4or6;
 
 /* Flag indicating whether debug mode is on.  This can be set on the command line. */
 int debug_flag = 0;

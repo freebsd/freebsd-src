@@ -133,7 +133,7 @@ static int all_opens_permitted = 0;
 static int have_hostname_in_open = 0;
 
 /* AF_UNSPEC or AF_INET or AF_INET6 */
-extern int IPv4or6;
+int IPv4or6 = AF_UNSPEC;
 
 void	 port_open_helper(Channel *c, char *rtype);
 
