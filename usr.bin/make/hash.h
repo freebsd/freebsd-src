@@ -91,7 +91,7 @@ typedef struct Hash_Search {
  *     Hash_Entry *h;
  */
 
-#define Hash_GetValue(h) ((h)->clientData)
+#define	Hash_GetValue(h) ((h)->clientData)
 
 /*
  * Hash_SetValue(h, val);
@@ -99,7 +99,7 @@ typedef struct Hash_Search {
  *     char *val;
  */
 
-#define Hash_SetValue(h, val) ((h)->clientData = (void *) (val))
+#define	Hash_SetValue(h, val) ((h)->clientData = (void *) (val))
 
 /*
  * Hash_Size(n) returns the number of words in an object of n bytes

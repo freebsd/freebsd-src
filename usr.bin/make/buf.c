@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include    "buf.h"
 
 #ifndef max
-#define max(a,b)  ((a) > (b) ? (a) : (b))
+#define	max(a,b)  ((a) > (b) ? (a) : (b))
 #endif
 
 /*
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
  *	Makes sure there's room for an extra NULL byte at the end of the
  *	buffer in case it holds a string.
  */
-#define BufExpand(bp,nb) \
+#define	BufExpand(bp,nb) \
  	if (bp->left < (nb)+1) {\
 	    int newSize = (bp)->size + max((nb)+1,BUF_ADD_INC); \
 	    Byte  *newBuf = (Byte *) erealloc((bp)->buffer, newSize); \
@@ -74,9 +74,9 @@ __FBSDID("$FreeBSD$");
 	    (bp)->left = newSize - ((bp)->inPtr - (bp)->buffer);\
 	}
 
-#define BUF_DEF_SIZE	256 	/* Default buffer size */
-#define BUF_ADD_INC	256 	/* Expansion increment when Adding */
-#define BUF_UNGET_INC	16  	/* Expansion increment when Ungetting */
+#define	BUF_DEF_SIZE	256 	/* Default buffer size */
+#define	BUF_ADD_INC	256 	/* Expansion increment when Adding */
+#define	BUF_UNGET_INC	16  	/* Expansion increment when Ungetting */
 
 /*-
  *-----------------------------------------------------------------------
