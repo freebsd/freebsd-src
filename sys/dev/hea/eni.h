@@ -499,5 +499,6 @@ typedef	struct eni_unit		Eni_unit;
 #define	eu_closevcc	eu_cmn.cu_closevcc
 #define	eu_output	eu_cmn.cu_output
 #define	eu_config	eu_cmn.cu_config
+#define	eu_softc	eu_cmn.cu_softc
 
 #endif	/* _ENI_ENI_H */
