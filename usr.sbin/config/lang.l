@@ -116,6 +116,12 @@ struct kt {
 	{ "vector",	VECTOR },
 	{ 0, 0 },
 };
+
+
+int kw_lookup __P((char *));
+int octal __P((char *));
+int hex __P((char *));
+
 %}
 WORD	[A-Za-z_][-A-Za-z_]*
 %%
@@ -194,6 +200,7 @@ WORD	[A-Za-z_][-A-Za-z_]*
  *	string is not a keyword otherwise it returns the keyword number
  */
 
+int
 kw_lookup(word)
 register char *word;
 {
@@ -209,6 +216,7 @@ register char *word;
  * Number conversion routines
  */
 
+int
 octal(str)
 char *str;
 {
@@ -218,6 +226,7 @@ char *str;
 	return num;
 }
 
+int
 hex(str)
 char *str;
 {
