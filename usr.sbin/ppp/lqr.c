@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.33 1999/05/08 11:07:02 brian Exp $
+ * $Id: lqr.c,v 1.34 1999/05/09 20:02:23 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -82,18 +82,31 @@ struct mbuf *
 lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
 {
   struct hdlc *hdlc = &link2physical(fp->link)->hdlc;
+  struct lcp *lcp = fsm2lcp(fp);
   struct echolqr lqr;
-  u_int32_t seq;
 
   if (mbuf_Length(bp) == sizeof lqr) {
-    mbuf_Read(bp, &lqr, sizeof lqr);
-    if (ntohl(lqr.signature) == SIGNATURE) {
-      seq = ntohl(lqr.sequence);
+    bp = mbuf_Read(bp, &lqr, sizeof lqr);
+    lqr.magic = ntohl(lqr.magic);
+    lqr.signature = ntohl(lqr.signature);
+    lqr.sequence = ntohl(lqr.sequence);
+
+    /* Tolerate echo replies with either magic number */
+    if (lqr.magic != 0 && lqr.magic != lcp->his_magic &&
+        lqr.magic != lcp->want_magic) {
+      log_Printf(LogWARN, "%s: lqr_RecvEcho: Bad magic: expected 0x%08x,"
+                 " got 0x%08x\n", fp->link->name, lcp->his_magic, lqr.magic);
+      /*
+       * XXX: We should send a terminate request. But poor implementations may
+       *      die as a result.
+       */
+    }
+    if (lqr.signature == SIGNATURE) {
       /* careful not to update lqm.echo.seq_recv with older values */
-      if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && seq < 5) ||
+      if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && lqr.sequence < 5) ||
           (hdlc->lqm.echo.seq_recv <= (u_int32_t)0 - 5 &&
-           seq > hdlc->lqm.echo.seq_recv))
-        hdlc->lqm.echo.seq_recv = seq;
+           lqr.sequence > hdlc->lqm.echo.seq_recv))
+        hdlc->lqm.echo.seq_recv = lqr.sequence;
     } else
       log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
                 (u_long)ntohl(lqr.signature), (u_long)SIGNATURE);
