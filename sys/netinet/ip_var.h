@@ -164,6 +164,8 @@ extern struct	pr_usrreqs rip_usrreqs;
 
 int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	 ip_drain(void);
+int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
+	    u_long if_hwassist_flags, int sw_csum);
 void	 ip_freemoptions(struct ip_moptions *);
 void	 ip_init(void);
 extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,

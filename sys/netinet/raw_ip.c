@@ -383,6 +383,10 @@ rip_ctloutput(so, sopt)
 		case MRT_DEL_MFC:
 		case MRT_VERSION:
 		case MRT_ASSERT:
+		case MRT_API_SUPPORT:
+		case MRT_API_CONFIG:
+		case MRT_ADD_BW_UPCALL:
+		case MRT_DEL_BW_UPCALL:
 			error = ip_mrouter_get ? ip_mrouter_get(so, sopt) :
 				EOPNOTSUPP;
 			break;
@@ -448,6 +452,10 @@ rip_ctloutput(so, sopt)
 		case MRT_DEL_MFC:
 		case MRT_VERSION:
 		case MRT_ASSERT:
+		case MRT_API_SUPPORT:
+		case MRT_API_CONFIG:
+		case MRT_ADD_BW_UPCALL:
+		case MRT_DEL_BW_UPCALL:
 			error = ip_mrouter_set ? ip_mrouter_set(so, sopt) :
 					EOPNOTSUPP;
 			break;
