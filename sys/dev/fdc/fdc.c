@@ -29,6 +29,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -44,7 +51,6 @@
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
  * $FreeBSD$
- *
  */
 
 #include "opt_fdc.h"
@@ -67,7 +73,6 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 
-#include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 
@@ -143,7 +148,8 @@ static struct fd_type fd_types[NUMTYPES] =
 #define DRVS_PER_CTLR 2		/* 2 floppies */
 
 #define MAX_SEC_SIZE	(128 << 3)
-#define MAX_CYLINDER	79
+#define MAX_CYLINDER	85	/* some people really stress their drives
+				 * up to cyl 82 */
 #define MAX_HEAD	1
 
 /***********************************************************************\
@@ -192,7 +198,7 @@ static devclass_t fd_devclass;
 \***********************************************************************/
 
 /* internal functions */
-static	void fdc_intr(void *);
+static driver_intr_t fdc_intr;
 static void set_motor(struct fdc_data *, int, int);
 #  define TURNON 1
 #  define TURNOFF 0
@@ -292,8 +298,8 @@ fdin_rd(fdc_p fdc)
 #endif
 
 /*
- * named Fdopen() to avoid confusion with fdopen() in fd(4); the
- * difference is now only meaningful for debuggers
+ * The open function is named Fdopen() to avoid confusion with fdopen()
+ * in fd(4).  The difference is now only meaningful for debuggers.
  */
 static	d_open_t	Fdopen;
 static	d_close_t	fdclose;
@@ -301,7 +307,6 @@ static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
 #define CDEV_MAJOR 9
-
 static struct cdevsw fd_cdevsw = {
 	/* open */	Fdopen,
 	/* close */	fdclose,
@@ -467,13 +472,13 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 
 
 static int
-fd_read_status(fdc_p fdc, int fdsu)
+fd_read_status(fdc_p fdc)
 {
 	int i, ret;
 
 	for (i = 0; i < 7; i++) {
 		/*
-		 * XXX types are poorly chosen.  Only bytes can by read
+		 * XXX types are poorly chosen.  Only bytes can be read
 		 * from the hardware, but fdc->status[] wants u_ints and
 		 * fd_in() gives ints.
 		 */
@@ -850,7 +855,7 @@ fdc_attach(device_t dev)
 	fdc->state = DEVIDLE;
 
 	/* reset controller, turn motor off, clear fdout mirror reg */
-	fdout_wr(fdc, ((fdc->fdout = 0)));
+	fdout_wr(fdc, fdc->fdout = 0);
 	bioq_init(&fdc->head);
 
 	/*
@@ -1134,21 +1139,16 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-	static int cdevsw_add_done = 0;
-
-	fd = device_get_softc(dev);
+	static	int cdevsw_add_done;
 
 	if (!cdevsw_add_done) {
 		cdevsw_add(&fd_cdevsw);	/* XXX */
-		cdevsw_add_done++;
+		cdevsw_add_done = 1;
 	}
 	EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
-	make_dev(&fd_cdevsw, (fd->fdu << 6),
-		UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
-
-	/*
-	 * Export the drive to the devstat interface.
-	 */
+	fd = device_get_softc(dev);
+	make_dev(&fd_cdevsw, fd->fdu << 6,
+	    UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1303,7 +1303,7 @@ fdc_reset(fdc_p fdc)
 	fdout_wr(fdc, fdc->fdout);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 
-	/* after a reset, silently believe the FDC will accept commands */
+	/* XXX after a reset, silently believe the FDC will accept commands */
 	(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
 		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 		     0);
@@ -1481,11 +1481,9 @@ fdstrategy(struct bio *bp)
 		bp->bio_error = ENXIO;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
-	};
-
+	}
 	fdblk = 128 << (fd->ft->secsize);
-	if (!(bp->bio_cmd & BIO_FORMAT) &&
-	    !(bp->bio_flags & BIO_RDSECTID)) {
+	if (bp->bio_cmd != BIO_FORMAT && (bp->bio_flags & BIO_RDSECTID) == 0) {
 		if (bp->bio_blkno < 0) {
 			printf(
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
@@ -1532,11 +1530,8 @@ fdstrategy(struct bio *bp)
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
-
-	/* Tell devstat we are starting on the transaction */
 	devstat_start_transaction(&fd->device_stats);
 	device_busy(fd->dev);
-
 	fdstart(fdc);
 	splx(s);
 	return;
@@ -1607,7 +1602,7 @@ fd_pseudointr(void *xfdc)
 }
 
 /***********************************************************************\
-*                                 fdintr				*
+*                                 fdc_intr				*
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
@@ -1641,7 +1636,7 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 		if (fdc->state != PIOREAD) {
 			fdc->state = PIOREAD;
 			return(0);
-		};
+		}
 		SET_BCDR(fdc, 0, count, 0);
 		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
 		    FDC_YE_DATAPORT, cptr, count);
@@ -1649,7 +1644,7 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
 		    FDC_YE_DATAPORT, cptr, count);
 		SET_BCDR(fdc, 0, count, 0);
-	};
+	}
 	return(1);
 }
 
@@ -1662,6 +1657,7 @@ fdstate(fdc_p fdc)
 {
 	int read, format, rdsectid, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
 	unsigned blknum = 0, b_cylinder = 0;
+	struct fdc_readid *idp;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
 	register struct bio *bp;
@@ -1701,7 +1697,7 @@ fdstate(fdc_p fdc)
 		idf = ISADMA_READ;
 	else
 		idf = ISADMA_WRITE;
-	format = bp->bio_cmd & BIO_FORMAT;
+	format = bp->bio_cmd == BIO_FORMAT;
 	rdsectid = bp->bio_flags & BIO_RDSECTID;
 	if (format) {
 		finfo = (struct fd_formb *)bp->bio_data;
@@ -1730,7 +1726,7 @@ fdstate(fdc_p fdc)
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
 		/*******************************************************\
 		* If the next drive has a motor startup pending, then	*
-		* it will start up in its own good time		*
+		* it will start up in its own good time			*
 		\*******************************************************/
 		if(fd->flags & FD_MOTOR_WAIT) {
 			fdc->state = MOTORWAIT;
@@ -1981,7 +1977,7 @@ fdstate(fdc_p fdc)
 			    bp->bio_data+fd->skip,fdblk)) {
 				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
-			};
+			}
 
 		/*
 		 * write (or format) operation will fall through and
@@ -2001,7 +1997,7 @@ fdstate(fdc_p fdc)
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
 
-		if (fd_read_status(fdc, fd->fdsu)) {
+		if (fd_read_status(fdc)) {
 			if (!rdsectid && !(fdc->flags & FDC_NODMA))
 				isa_dmadone(idf, bp->bio_data + fd->skip,
 					    format ? bp->bio_bcount : fdblk,
@@ -2043,8 +2039,8 @@ fdstate(fdc_p fdc)
 		}
 		/* All OK */
 		if (rdsectid) {
-			struct fdc_readid *idp = (struct fdc_readid *)bp->bio_data;
 			/* copy out ID field contents */
+			idp = (struct fdc_readid *)bp->bio_data;
 			idp->cyl = fdc->status[3];
 			idp->head = fdc->status[4];
 			idp->sec = fdc->status[5];
@@ -2143,7 +2139,7 @@ fdstate(fdc_p fdc)
 		return (1);	/* will return immediatly */
 	default:
 		device_printf(fdc->fdc_dev, "unexpected FD int->");
-		if (fd_read_status(fdc, fd->fdsu) == 0)
+		if (fd_read_status(fdc) == 0)
 			printf("FDC status :%x %x %x %x %x %x %x   ",
 			       fdc->status[0],
 			       fdc->status[1],
@@ -2199,20 +2195,21 @@ retrier(struct fdc_data *fdc)
 			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
 
 			if (printerror)
-				diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
-					(struct disklabel *)NULL);
+				diskerr(bp, "hard error",
+				    fdc->fd->skip / DEV_BSIZE,
+				    (struct disklabel *)NULL);
 			if (printerror) {
 				if (fdc->flags & FDC_STAT_VALID)
 				{
 					printf(
-			" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
+				" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
 					       fdc->status[0], NE7_ST0BITS,
 					       fdc->status[1], NE7_ST1BITS,
 					       fdc->status[2], NE7_ST2BITS,
 					       fdc->status[3], fdc->status[4],
 					       fdc->status[5]);
 				}
-			else
+				else
 					printf(" (No status)\n");
 			}
 		}
