@@ -2541,9 +2541,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	/*
 	 * Set up a bio request for fdstrategy().  bio_blkno is faked
 	 * so that fdstrategy() will seek to the the requested
-	 * cylinder, and use the desired head.  Since we are not
-	 * interested in bioqdisksort() munging with our faked bio
-	 * request, we mark it as being an ordered request.
+	 * cylinder, and use the desired head.
 	 */
 	bp->bio_cmd = cmd;
 	if (cmd == BIO_FORMAT) {
@@ -2564,7 +2562,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	bp->bio_data = data;
 	bp->bio_dev = dev;
 	bp->bio_done = fdbiodone;
-	bp->bio_flags = BIO_ORDERED;
+	bp->bio_flags = 0;
 
 	/*
 	 * Now run the command.  The wait loop is a version of bufwait()
