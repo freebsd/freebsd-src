@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.15.1.3 1996/05/06 15:14:57 shun Exp $
+ *	$Id: od.c,v 1.16 1996/05/19 19:26:21 joerg Exp $
  */
 
 /*
@@ -43,9 +43,6 @@
  *
 #define OD_BOGUS_NOT_READY
  */
-
-#include "opt_bounce.h"
-#include "opt_scsi.h"
 
 #define SPLOD splbio
 #include <sys/types.h>
@@ -65,9 +62,6 @@
 #include <sys/dkstat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
@@ -100,14 +94,8 @@ struct scsi_data {
 		u_int32_t disksize;	/* total number sectors */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
-	struct buf_queue_head buf_queue;
+	struct buf buf_queue;
 	int dkunit;		/* disk stats unit number */
-#ifdef DEVFS
-	/* Eventually move all these to common disk struct. */
-	void	*b_devfs_token;
-	void	*c_devfs_token;
-	void	*ctl_devfs_token;
-#endif
 };
 
 static void	od_get_geometry __P((u_int32_t, u_int16_t *,
@@ -129,24 +117,6 @@ static errval od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 static errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 			    struct scsi_link *sc_link));
 static void od_strategy(struct buf *bp, struct scsi_link *sc_link);
-
-static	d_open_t	odopen;
-static	d_close_t	odclose;
-static	d_ioctl_t	odioctl;
-static	d_strategy_t	odstrategy;
-
-#define CDEV_MAJOR 70
-#define BDEV_MAJOR 20
-extern	struct cdevsw od_cdevsw;
-static struct bdevsw od_bdevsw = 
-	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nodump,	nopsize,	0,	"od",	&od_cdevsw,	-1 };
-
-static struct cdevsw od_cdevsw = 
-	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
-	  odioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		odstrategy,	"od",
-	  &od_bdevsw,	-1 };
 
 /*
  * Actually include the interface routines
@@ -177,9 +147,11 @@ static struct scsi_device od_switch =
 };
 
 static int
-od_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
+od_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
+	       size_t len)
 {
-	return scsi_externalize(SCSI_LINK(&od_switch, kdc->kdc_unit), req);
+	return scsi_externalize(SCSI_LINK(&od_switch, kdc->kdc_unit),
+				userp, &len);
 }
 
 static struct kern_devconf kdc_od_template = {
@@ -216,14 +188,11 @@ od_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-static errval
+errval
 odattach(struct scsi_link *sc_link)
 {
 	u_int32_t unit;
 	struct disk_parms *dp;
-#ifdef DEVFS
-	int	mynor;
-#endif
 
 	struct scsi_data *od = sc_link->sd;
 
@@ -234,7 +203,6 @@ odattach(struct scsi_link *sc_link)
 	if (sc_link->opennings > ODOUTSTANDING)
 		sc_link->opennings = ODOUTSTANDING;
 
-	TAILQ_INIT(&od->buf_queue);
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -267,22 +235,6 @@ odattach(struct scsi_link *sc_link)
 
 	od->flags |= ODINIT;
 	od_registerdev(unit);
-
-#ifdef DEVFS
-	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	od->b_devfs_token = devfs_add_devswf(&od_bdevsw, mynor, DV_BLK,
-					     UID_ROOT, GID_OPERATOR, 0640,
-					     "od%d", unit);
-	od->c_devfs_token = devfs_add_devswf(&od_cdevsw, mynor, DV_CHR,
-					     UID_ROOT, GID_OPERATOR, 0640,
-					     "rod%d", unit);
-	mynor = dkmakeminor(unit, 0, 0);	/* XXX */
-	od->ctl_devfs_token = devfs_add_devswf(&od_cdevsw,
-					       mynor | SCSI_CONTROL_MASK,
-					       DV_CHR,
-					       UID_ROOT, GID_WHEEL, 0600,
-					       "rod%d.ctl", unit);
-#endif
 
 	return 0;
 }
@@ -402,7 +354,7 @@ od_open(dev, mode, fmt, p, sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("od", dev, fmt, &od->dk_slices, &label, odstrategy1,
-			 (ds_setgeom_t *)NULL, &od_bdevsw, &od_cdevsw);
+			 (ds_setgeom_t *)NULL);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
@@ -450,6 +402,7 @@ od_close(dev, fflag, fmt, p, sc_link)
 static void
 od_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
+	struct buf *dp;
 	u_int32_t opri;
 	struct scsi_data *od;
 	u_int32_t unit;
@@ -480,6 +433,7 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 		goto done;	/* XXX check b_resid */
 
 	opri = SPLOD();
+	dp = &od->buf_queue;
 
 	/*
 	 * Use a bounce buffer if necessary
@@ -492,7 +446,7 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	TAILQ_INSERT_TAIL(&od->buf_queue, bp, b_act);
+	disksort(dp, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -546,6 +500,7 @@ odstart(u_int32_t unit, u_int32_t flags)
 	register struct	scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 	register struct scsi_data *od = sc_link->sd;
 	struct buf *bp = 0;
+	struct buf *dp;
 	struct scsi_rw_big cmd;
 	u_int32_t blkno, nblk;
 	u_int32_t secsize;
@@ -567,11 +522,11 @@ odstart(u_int32_t unit, u_int32_t flags)
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
-		bp = od->buf_queue.tqh_first;
-		if (bp == NULL) {	/* yes, an assign */
+		dp = &od->buf_queue;
+		if ((bp = dp->b_actf) == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &od->buf_queue, bp, b_act);
+		dp->b_actf = bp->b_actf;
 
 		/*
 		 *  If the device has become invalid, abort all the
@@ -929,22 +884,3 @@ od_sense_handler(struct scsi_xfer *xs)
 
 	return SCSIRET_DO_RETRY;
 }
-
-static od_devsw_installed = 0;
-
-static void 	od_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! od_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&od_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&od_bdevsw, NULL);
-		od_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(oddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,od_drvinit,NULL)
-
-

@@ -29,7 +29,7 @@ static struct
 	{0x3b, 0x0d, "Medium destination element full" },
 	{0x3b, 0x0e, "Medium source element empty" },
 #endif
-#if (NOPMEM > 0)
+#if (NOD > 0)
 	{0x58, 0x00, "Generation does not exist" },
 	{0x59, 0x00, "Updated block read" },
 #endif
@@ -58,10 +58,10 @@ static struct
 	{0x18, 0x04, "Recovered data with L-EC" },
 	{0x57, 0x00, "Unable to recover table-of-contents" },
 #endif
-#if (NWORM > 0)||(NOPMEM > 0)
+#if (NWORM > 0)||(NOD > 0)
 	{0x11, 0x07, "Data resynchronization error" },
 #endif
-#if (NWORM > 0)||(NCD > 0)||(NOPMEM > 0)
+#if (NWORM > 0)||(NCD > 0)||(NOD > 0)
 	{0x11, 0x06, "Circ unrecovered error" },
 	{0x09, 0x02, "Focus servo failure" },
 	{0x11, 0x05, "L-EC uncorrectable error" },
@@ -102,7 +102,7 @@ static struct
 	{0x50, 0x00, "Write append error" },
 	{0x50, 0x01, "Write append position error" },
 #endif
-#if (NST > 0)||(NOPMEM > 0)
+#if (NST > 0)||(NOD > 0)
 	{0x51, 0x00, "Erase failure" },
 #endif
 #if (NST > 0)||(NSCAN > 0)
@@ -120,7 +120,7 @@ static struct
 	{0x42, 0x00, "Power-on or self-test failure (should use 40 nn)" },
 	{0x40, 0x00, "Ram failure (should use 40 nn)" },
 #endif
-#if (NSD > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NOD > 0)
 	{0x19, 0x00, "Defect list error" },
 	{0x19, 0x03, "Defect list error in grown list" },
 	{0x19, 0x02, "Defect list error in primary list" },
@@ -132,7 +132,7 @@ static struct
 	{0x5c, 0x02, "Spindles not synchronized" },
 	{0x5c, 0x01, "Spindles synchronized" },
 #endif
-#if (NSD > 0)||(NWORM > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NWORM > 0)||(NOD > 0)
 	{0x13, 0x00, "Address mark not found for data field" },
 	{0x12, 0x00, "Address mark not found for id field" },
 	{0x16, 0x00, "Data synchronization mark error" },
@@ -151,38 +151,38 @@ static struct
 	{0x0c, 0x02, "Write error - auto reallocation failed" },
 	{0x0c, 0x01, "Write error recovered with auto reallocation" },
 #endif
-#if (NSD > 0)||(NWORM > 0)||(NCD > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NWORM > 0)||(NCD > 0)||(NOD > 0)
 	{0x18, 0x02, "Recovered data - data auto-reallocated" },
 	{0x18, 0x05, "Recovered data - recommend reassignment" },
 	{0x18, 0x06, "Recovered data - recommend rewrite" },
 	{0x17, 0x05, "Recovered data using previous sector id" },
 	{0x18, 0x01, "Recovered data with error correction & retries applied" },
 #endif
-#if (NSD > 0)||(NWORM > 0)||(NCD > 0)||(NOPMEM > 0)||(NCH > 0)
+#if (NSD > 0)||(NWORM > 0)||(NCD > 0)||(NOD > 0)||(NCH > 0)
 	{0x06, 0x00, "No reference position found" },
 	{0x02, 0x00, "No seek complete" },
 #endif
-#if (NSD > 0)||(NSPRINT > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NSPRINT > 0)||(NOD > 0)
 	{0x31, 0x01, "Format command failed" },
 #endif
 #if (NSD > 0)||(NST > 0)
 	{0x30, 0x03, "Cleaning cartridge installed" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NOD > 0)
 	{0x11, 0x0a, "Miscorrected error" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NOD > 0)
 	{0x31, 0x00, "Medium format corrupted" },
 	{0x5a, 0x03, "Operator selected write permit" },
 	{0x5a, 0x02, "Operator selected write protect" },
 	{0x27, 0x00, "Write protected" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NSCAN > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NSCAN > 0)||(NOD > 0)
 	{0x11, 0x02, "Error too long to correct" },
 	{0x11, 0x03, "Multiple read errors" },
 	{0x11, 0x01, "Read retries exhausted" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NOD > 0)
 	{0x30, 0x02, "Cannot read medium - incompatible format" },
 	{0x30, 0x01, "Cannot read medium - unknown format" },
 	{0x15, 0x02, "Positioning error detected by read of medium" },
@@ -192,34 +192,34 @@ static struct
 	{0x17, 0x02, "Recovered data with positive head offset" },
 	{0x09, 0x00, "Track following error" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NOPMEM > 0)||(NCH > 0)
+#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NOD > 0)||(NCH > 0)
 	{0x30, 0x00, "Incompatible medium installed" },
 	{0x21, 0x00, "Logical block address out of range" },
 	{0x53, 0x02, "Medium removal prevented" },
 	{0x5a, 0x01, "Operator medium removal request" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)
 	{0x17, 0x00, "Recovered data with no error correction applied" },
 	{0x17, 0x01, "Recovered data with retries" },
 	{0x11, 0x00, "Unrecovered read error" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NOD > 0)
 	{0x04, 0x04, "Logical unit not ready, format in progress" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NSCAN > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NSCAN > 0)||(NOD > 0)
 	{0x03, 0x00, "Peripheral device write fault" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)
 	{0x14, 0x00, "Recorded entity not found" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)||(NCH > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)||(NCH > 0)
 	{0x15, 0x01, "Mechanical positioning error" },
 	{0x53, 0x00, "Media load or eject failed" },
 	{0x3a, 0x00, "Medium not present" },
 	{0x07, 0x00, "Multiple peripheral devices selected" },
 	{0x15, 0x00, "Random positioning error" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)||(NCH > 0)||(ncomm > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)||(NCH > 0)||(ncomm > 0)
 	{0x2a, 0x02, "Log parameters changed" },
 	{0x08, 0x00, "Logical unit communication failure" },
 	{0x08, 0x02, "Logical unit communication parity error" },
@@ -229,10 +229,10 @@ static struct
 	{0x37, 0x00, "Rounded parameter" },
 	{0x39, 0x00, "Saving parameters not supported" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NPT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)||(ncomm > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NPT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)||(ncomm > 0)
 	{0x2b, 0x00, "Copy cannot execute since host cannot disconnect" },
 #endif
-#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NPT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOPMEM > 0)||(NCH > 0)
+#if (NSD > 0)||(NST > 0)||(NSPRINT > 0)||(NPT > 0)||(NWORM > 0)||(NCD > 0)||(NSCAN > 0)||(NOD > 0)||(NCH > 0)
 	{0x5b, 0x02, "Log counter at maximum" },
 	{0x5b, 0x00, "Log exception" },
 	{0x5b, 0x03, "Log list codes exhausted" },
