@@ -3314,7 +3314,9 @@ int unit, level;
       printf("    %d cells trashed due almost full buffer\n", sc->ttrash);
       printf("    %d rx mbuf allocation failures\n", sc->rxmbufout);
 #ifdef NATM
+#if 0
       printf("    %d drops at natmintrq\n", natmintrq.ifq_drops);
+#endif
 #ifdef NATM_STAT
       printf("    natmintr so_rcv: ok/drop cnt: %d/%d, ok/drop bytes: %d/%d\n",
 	natm_sookcnt, natm_sodropcnt, natm_sookbytes, natm_sodropbytes);

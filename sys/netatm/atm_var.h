@@ -59,7 +59,6 @@ extern struct atm_ncm	*atm_netconv_head;
 extern Atm_endpoint	*atm_endpoints[];
 extern struct stackq_entry	*atm_stackq_head;
 extern struct stackq_entry	*atm_stackq_tail;
-extern struct ifqueue	atm_intrq;
 extern struct atm_sock_stat	atm_sock_stat;
 extern int		atm_init;
 extern int		atm_version;
@@ -173,7 +172,6 @@ int		atm_untimeout(struct atm_time *);
 int		atm_stack_enq(int, void (*)(int, void *, intptr_t, intptr_t), 
 			void *, Atm_connvc *, intptr_t, intptr_t);
 void		atm_stack_drain(void);
-void		atm_intr(void);
 void		atm_pdu_print(KBuffer *, char *);
 #endif	/* _KERNEL */
 #endif	/* _NETATM_ATM_VAR_H */

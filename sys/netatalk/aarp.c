@@ -258,12 +258,13 @@ aarpresolve( ac, m, destsat, desten )
 }
 
 void
-aarpinput( ac, m )
-    struct arpcom	*ac;
+aarpintr( m )
     struct mbuf		*m;
 {
     struct arphdr	*ar;
+    struct arpcom	*ac;
 
+    ac = (struct arpcom *)m->m_pkthdr.rcvif;
     if ( ac->ac_if.if_flags & IFF_NOARP )
 	goto out;
 

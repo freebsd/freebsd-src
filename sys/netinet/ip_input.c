@@ -65,7 +65,6 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
-#include <net/intrq.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -156,6 +155,7 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
 static int	ipprintfs = 0;
 #endif
 
+static struct	ifqueue ipintrq;
 static int	ipqmaxlen = IFQ_MAXLEN;
 
 extern	struct domain inetdomain;
@@ -233,7 +233,6 @@ static void	ip_forward(struct mbuf *m, int srcrt,
 static void	ip_freef(struct ipqhead *, struct ipq *);
 static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *,
 		struct ipq *, u_int32_t *, u_int16_t *);
-static void	ipintr(void);
 
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -269,9 +268,7 @@ ip_init()
 #endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
-	ipintrq_present = 1;
-
-	register_netisr(NETISR_IP, ipintr);
+	netisr_register(NETISR_IP, ip_input, &ipintrq);
 }
 
 /*
@@ -948,22 +945,6 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 	return;
 bad:
 	m_freem(m);
-}
-
-/*
- * IP software interrupt routine - to go away sometime soon
- */
-static void
-ipintr(void)
-{
-	struct mbuf *m;
-
-	while (1) {
-		IF_DEQUEUE(&ipintrq, m);
-		if (m == 0)
-			return;
-		ip_input(m);
-	}
 }
 
 /*

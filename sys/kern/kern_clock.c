@@ -70,7 +70,6 @@
 #endif
 
 #ifdef DEVICE_POLLING
-extern void init_device_poll(void);
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
@@ -137,9 +136,6 @@ initclocks(dummy)
 	 */
 	cpu_initclocks();
 
-#ifdef DEVICE_POLLING
-	init_device_poll();
-#endif
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
 	 */

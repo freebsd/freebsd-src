@@ -680,7 +680,6 @@ eni_recv_drain ( eup )
 	u_long		DMA_Rdptr;
 	u_long		dma_wrp;
 	u_long		start, stop;
-	int		que = 0;
 	int		s;
 
 	s = splimp();
@@ -802,9 +801,7 @@ eni_recv_drain ( eup )
 			/*
 			 * Schedule callback
 			 */
-			if (IF_HANDOFF(&atm_intrq, m, NULL)) {
-				que++;
-			} else {
+			if (! netisr_queue(NETISR_ATM, m)) {
 				eup->eu_stats.eni_st_drv.drv_rv_intrq++;
 				eup->eu_pif.pif_ierrors++;
 #ifdef	DO_LOG
@@ -827,13 +824,6 @@ next_buffer:
 	}
 finish:
 	(void) splx(s);
-
-	/*
-	 * If we found any completed buffers, schedule a call into
-	 * the kernel to process the atm_intrq.
-	 */
-	if ( que )
-		schednetisr(NETISR_ATM);
 	return;
 }
 

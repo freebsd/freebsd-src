@@ -46,7 +46,7 @@
 #include <sys/domain.h>
 
 #include <net/if.h>
-#include <net/intrq.h>
+#include <net/netisr.h>
 
 #include <netinet/in.h>
 
@@ -107,6 +107,7 @@ static struct domain natmdomain =
       0, 0, 0};
 
 static int natmqmaxlen = IFQ_MAXLEN;	/* max # of packets on queue */
+static struct ifqueue natmintrq;
 #ifdef NATM_STAT
 u_int natm_sodropcnt = 0;		/* # mbufs dropped due to full sb */
 u_int natm_sodropbytes = 0;		/* # of bytes dropped */
@@ -122,8 +123,7 @@ static void natm_init()
   bzero(&natmintrq, sizeof(natmintrq));
   natmintrq.ifq_maxlen = natmqmaxlen;
   mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
-  natmintrq_present = 1;
-
+  netisr_register(NETISR_NATM, natmintr, &natmintrq);
 }
 
 #if defined(__FreeBSD__)

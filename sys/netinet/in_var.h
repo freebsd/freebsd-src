@@ -83,7 +83,6 @@ struct	in_aliasreq {
 
 
 #ifdef	_KERNEL
-extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
 extern	u_char	inetctlerrmap[];
 

@@ -162,9 +162,6 @@ ipatm_ipinput(inp, m)
 	 * just call IP directly to avoid the extra unnecessary 
 	 * kernel scheduling.
 	 */
-	if (! IF_HANDOFF(&ipintrq, m, NULL))
-		return (1);
-	schednetisr ( NETISR_IP );
+	netisr_dispatch(NETISR_IP, m);
 	return (0);
 }
-

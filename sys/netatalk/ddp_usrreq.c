@@ -14,7 +14,7 @@
 #include <sys/protosw.h>
 #include <net/if.h>
 #include <net/route.h>
-#include <net/intrq.h>
+#include <net/netisr.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -35,6 +35,7 @@ struct ddpcb	*ddpcb = NULL;
 static u_long	ddp_sendspace = DDP_MAXSZ; /* Max ddp size + 1 (ddp_type) */
 static u_long	ddp_recvspace = 10 * ( 587 + sizeof( struct sockaddr_at ));
 
+static struct ifqueue atintrq1, atintrq2, aarpintrq;
 
 static int
 ddp_attach(struct socket *so, int proto, struct thread *td)
@@ -542,16 +543,19 @@ at_setsockaddr(struct socket *so, struct sockaddr **nam)
 	return(0);
 }
 
-
 void 
-ddp_init(void )
+ddp_init(void)
 {
-    atintrq1.ifq_maxlen = IFQ_MAXLEN;
-    atintrq2.ifq_maxlen = IFQ_MAXLEN;
-    atintrq1_present = 1;
-    atintrq2_present = 1;
-    mtx_init(&atintrq1.ifq_mtx, "at1_inq", NULL, MTX_DEF);
-    mtx_init(&atintrq2.ifq_mtx, "at2_inq", NULL, MTX_DEF);
+
+	atintrq1.ifq_maxlen = IFQ_MAXLEN;
+	atintrq2.ifq_maxlen = IFQ_MAXLEN;
+	aarpintrq.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&atintrq1.ifq_mtx, "at1_inq", NULL, MTX_DEF);
+	mtx_init(&atintrq2.ifq_mtx, "at2_inq", NULL, MTX_DEF);
+	mtx_init(&aarpintrq.ifq_mtx, "aarp_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_ATALK1, at1intr, &atintrq1);
+	netisr_register(NETISR_ATALK2, at2intr, &atintrq2);
+	netisr_register(NETISR_AARP, aarpintr, &aarpintrq);
 }
 
 #if 0

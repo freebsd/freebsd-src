@@ -99,6 +99,7 @@ static struct t_atm_cause	atm_dev_cause = {
 	{0, 0, 0, 0}
 };
 
+extern struct ifqueue atm_intrq;
 
 /*
  * ATM Device Stack Instantiation
