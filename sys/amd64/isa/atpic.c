@@ -215,16 +215,6 @@ atpic_eoi_slave(struct intsrc *isrc)
 static void
 atpic_enable_intr(struct intsrc *isrc)
 {
-	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
-	register_t eflags;
-
-	mtx_lock_spin(&icu_lock);
-	eflags = intr_disable();
-	setidt(ap->at_intbase + ai->at_irq, ai->at_intr, SDT_SYS386IGT,
-	    SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	intr_restore(eflags);
-	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -326,6 +316,9 @@ atpic_init(void *dummy __unused)
 		if (i == ICU_SLAVEID)
 			continue;
 		ai = &atintrs[i];
+		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
+		    ai->at_irq, ai->at_intr, SDT_SYS386IGT, SEL_KPL,
+		    GSEL(GCODE_SEL, SEL_KPL));
 		intr_register_source(&ai->at_intsrc);
 	}
 }
