@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: printcis.c,v 1.4 1996/04/18 04:24:55 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -259,7 +259,7 @@ dump_cis_config(struct tuple *tp)
 	}
 	p++;
 	feat = *p++;
-	switch (feat & 3) {
+	switch (CIS_FEAT_POWER(feat)) {
 	case 0:
 		break;
 	case 1:
@@ -281,9 +281,9 @@ dump_cis_config(struct tuple *tp)
 		p += dump_pwr_desc(p);
 		break;
 	}
-	if (feat & 0x4) {
-		i = *p & 3;
-		j = (*p >> 2) & 7;
+	if (feat & CIS_FEAT_TIMING) {
+		i = CIS_WAIT_SCALE(*p);
+		j = CIS_READY_SCALE(*p);
 		p++;
 		if (i != 3) {
 			printf("\tWait scale ");
@@ -300,12 +300,13 @@ dump_cis_config(struct tuple *tp)
 			printf("\n");
 		}
 	}
-	if (feat & 0x8) {
-		if (*p & 0x1F)
-			printf("\tCard decodes %d address lines", *p & 0x1F);
+	if (feat & CIS_FEAT_I_O) {
+		if (CIS_IO_ADDR(*p))
+			printf("\tCard decodes %d address lines",
+				CIS_IO_ADDR(*p));
 		else
 			printf("\tCard provides address decode");
-		switch ((*p >> 5) & 3) {
+		switch (CIS_MEM_ADDRSZ(*p)) {
 		case 0:
 			break;
 		case 1:
@@ -319,12 +320,12 @@ dump_cis_config(struct tuple *tp)
 			break;
 		}
 		printf("\n");
-		if (*p & 0x80) {
+		if (*p & CIS_IO_RANGE) {
 			p++;
 			c = *p++;
-			for (i = 0; i <= (c & 0xF); i++) {
+			for (i = 0; i <= CIS_IO_BLKS(c); i++) {
 				printf("\t\tI/O address # %d: ", i + 1);
-				switch ((c >> 4) & 3) {
+				switch (CIS_IO_ADSZ(c)) {
 				case 0:
 					break;
 				case 1:
@@ -341,7 +342,7 @@ dump_cis_config(struct tuple *tp)
 					p += 4;
 					break;
 				}
-				switch ((c >> 6) & 3) {
+				switch (CIS_IO_BLKSZ(c)) {
 				case 0:
 					break;
 				case 1:
@@ -364,21 +365,21 @@ dump_cis_config(struct tuple *tp)
 	}
 
 	/* IRQ descriptor */
-	if (feat & 0x10) {
+	if (feat & CIS_FEAT_IRQ) {
 		printf("\t\tIRQ modes:");
 		c = ' ';
-		if (*p & 0x20) {
+		if (*p & CIS_IRQ_LEVEL) {
 			printf(" Level");
 			c = ',';
 		}
-		if (*p & 0x40) {
+		if (*p & CIS_IRQ_PULSE) {
 			printf("%c Pulse", c);
 			c = ',';
 		}
-		if (*p & 0x80)
+		if (*p & CIS_IRQ_SHARING)
 			printf("%c Shared", c);
 		printf("\n");
-		if (*p & 0x10) {
+		if (*p & CIS_IRQ_MASK) {
 			i = p[0] | (p[1] << 8);
 			printf("\t\tIRQs: ");
 			if (*p & 1)
@@ -395,11 +396,11 @@ dump_cis_config(struct tuple *tp)
 			printf("\n");
 			p += 3;
 		} else {
-			printf("\t\tIRQ level = %d\n", *p & 0xF);
+			printf("\t\tIRQ level = %d\n", CIS_IRQ_IRQN(*p));
 			p++;
 		}
 	}
-	switch ((feat >> 5) & 3) {
+	switch (CIS_FEAT_MEMORY(feat)) {
 	case 0:
 		break;
 	case 1:
@@ -418,7 +419,7 @@ dump_cis_config(struct tuple *tp)
 		c = *p++;
 		for (i = 0; i <= (c & 7); i++) {
 			printf("\tMemory descriptor %d\n\t\t", i + 1);
-			switch ((c >> 3) & 3) {
+			switch (CIS_MEM_LENSZ(c)) {
 			case 0:
 				break;
 			case 1:
@@ -435,7 +436,7 @@ dump_cis_config(struct tuple *tp)
 				p += 4;
 				break;
 			}
-			switch ((c >> 5) & 3) {
+			switch (CIS_MEM_ADDRSZ(c)) {
 			case 0:
 				break;
 			case 1:
@@ -452,7 +453,7 @@ dump_cis_config(struct tuple *tp)
 				p += 4;
 				break;
 			}
-			if (c & 0x80)
+			if (c & CIS_MEM_HOST)
 				switch ((c >> 5) & 3) {
 				case 0:
 					break;
@@ -474,7 +475,7 @@ dump_cis_config(struct tuple *tp)
 		}
 		break;
 	}
-	if (feat & 0x80) {
+	if (feat & CIS_FEAT_MISC) {
 		printf("\tMax twin cards = %d\n", *p & 7);
 		printf("\tMisc attr:");
 		if (*p & 0x8)
