@@ -1,7 +1,7 @@
 #
 # Internet protocols
 #
-#	$Id: protocols,v 1.10 1998/02/13 20:21:04 julian Exp $
+#	$Id: protocols,v 1.10.2.1 1999/06/06 14:05:20 andreas Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # See also http://www.isi.edu/in-notes/iana/assignments/protocol-numbers
@@ -12,7 +12,7 @@ icmp	1	ICMP		# internet control message protocol
 igmp	2	IGMP		# internet group management protocol
 ggp	3	GGP		# gateway-gateway protocol
 ipencap	4	IP-ENCAP	# IP encapsulated in IP (officially ``IP'')
-st	5	ST		# ST datagram mode (officially ``Stream'')
+st2	5	ST2		# ST2 datagram mode (RFC 1819)
 tcp	6	TCP		# transmission control protocol
 cbt	7	CBT		# CBT, Tony Ballardie <A.Ballardie@cs.ucl.ac.uk>
 egp	8	EGP		# exterior gateway protocol
