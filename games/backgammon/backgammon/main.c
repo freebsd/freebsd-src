@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <stdio.h>
+#include <termcap.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -57,7 +58,6 @@ static const char rcsid[] =
 
 extern const char	*const instr[];		/* text of instructions */
 extern const char	*const message[];	/* update message */
-char	ospeed;					/* tty output speed */
 
 const char	*helpm[] = {			/* help message */
 	"Enter a space or newline to roll, or",
