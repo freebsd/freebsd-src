@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.41 1996/01/03 13:12:13 gclarkii Exp $ -->
+<!-- $Id: contrib.sgml,v 1.42 1996/01/03 18:59:49 pst Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -41,6 +41,11 @@
       Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who's been
       contributing his floppy tape streamer for experimental
       work.
+
+      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to Wilko Bulte
+      &lt;wilko@yedi.iaf.nl&gt;, for providing us with a Wangtek and
+      an Archive QIC-02 tape drive, in order to give us the hardware
+      to improve the <tt>wt</tt> driver.
 
   <sect><heading>The FreeBSD core team<label id="contrib:core"></heading>
 
