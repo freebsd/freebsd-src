@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.118 1999/06/22 14:13:36 yokota Exp $
+#	$Id: options.i386,v 1.119 1999/08/06 14:01:55 hm Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -9,7 +9,6 @@ PMAP_SHPGPERPROC	opt_pmap.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
-LINUX			opt_dontuse.h
 
 DEBUG_LINUX		opt_linux.h
 
