@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.180 1998/10/25 17:44:52 phk Exp $
+ * $Id: vfs_bio.c,v 1.181 1998/10/28 13:36:59 dg Exp $
  */
 
 /*
@@ -794,7 +794,6 @@ vfs_vmio_release(bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		if ((bp->b_flags & B_ASYNC) == 0)
 		vm_page_unwire(m, (bp->b_flags & B_ASYNC) == 0 ? 0 : 1);
 
 		/*
