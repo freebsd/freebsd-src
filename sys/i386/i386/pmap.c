@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.207 1998/08/23 10:16:25 bde Exp $
+ *	$Id: pmap.c,v 1.208 1998/09/04 13:10:34 ache Exp $
  */
 
 /*
@@ -2717,6 +2717,15 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 			panic("pmap_copy: invalid to pmap_copy page tables\n");
 #endif
 
+		/*
+		 * Don't let optional prefaulting of pages make us go
+		 * way below the low water mark of free pages or way
+		 * above high water mark of used pv entries.
+		 */
+		if (cnt.v_free_count < cnt.v_free_reserved ||
+		    pv_entry_count > pv_entry_high_water)
+			break;
+		
 		pdnxt = ((addr + PAGE_SIZE*NPTEPG) & ~(PAGE_SIZE*NPTEPG - 1));
 		ptepindex = addr >> PDRSHIFT;
 
