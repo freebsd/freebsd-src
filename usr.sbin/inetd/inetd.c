@@ -1530,8 +1530,14 @@ more:
 			else if (strcmp(arg, "faith") == 0)
 				sep->se_type = FAITH_TYPE;
 		}
-	} else
+	} else {
+		if (sep->se_type == NORM_TYPE &&
+		    strncmp(arg, "faith/", 6) == 0) {
+			arg += 6;
+			sep->se_type = FAITH_TYPE;
+		}
 		sep->se_proto = newstr(arg);
+	}
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
 		if (no_v4bind != 0) {
 			syslog(LOG_INFO, "IPv4 bind is ignored for %s",
