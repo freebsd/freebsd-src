@@ -581,6 +581,5 @@ ieee1284_print_id(str)
 #endif
 
 #if defined(__FreeBSD__)
-DEV_DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass,
-	ulpt_cdevsw, usbd_driver_load, 0);
+DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
 #endif
