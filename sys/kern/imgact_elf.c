@@ -760,20 +760,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				data_addr = seg_addr;
 			}
 			total_size += seg_size;
-
-			/*
-			 * Check limits.  It should be safe to check the
-			 * limits after loading the segment since we do
-			 * not actually fault in all the segment's pages.
-			 */
-			if (data_size >
-			    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur ||
-			    text_size > maxtsiz ||
-			    total_size >
-			    imgp->proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
-				error = ENOMEM;
-				goto fail;
-			}
 			break;
 		case PT_PHDR: 	/* Program header table info */
 			proghdr = phdr[i].p_vaddr;
@@ -781,6 +767,25 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		default:
 			break;
 		}
+	}
+	
+	if (data_addr == 0 && data_size == 0) {
+		data_addr = text_addr;
+		data_size = text_size;
+	}
+
+	/*
+	 * Check limits.  It should be safe to check the
+	 * limits after loading the segments since we do
+	 * not actually fault in all the segments pages.
+	 */
+	if (data_size >
+	    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur ||
+	    text_size > maxtsiz ||
+	    total_size >
+	    imgp->proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+		error = ENOMEM;
+		goto fail;
 	}
 
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
