@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.47 1995/01/25 21:40:15 bde Exp $
+ *	$Id: locore.s,v 1.48 1995/02/11 04:21:22 phk Exp $
  */
 
 /*
@@ -55,11 +55,6 @@
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <sys/reboot.h>
 #include "apm.h"
-#if NAPM > 0
-#define ASM
-#include <machine/apm_bios.h>
-#include <machine/apm_segments.h>
-#endif /* NAPM */
 
 /*
  *	XXX
@@ -147,15 +142,6 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
 _bdb_exists:	.long	0
 #endif
-#if NAPM > 0
-	.globl	_apm_current_gdt_pdesc		/* current GDT pseudo desc. */
-_apm_current_gdt_pdesc:
-	.word	0, 0, 0
-
-	.globl	_bootstrap_gdt
-_bootstrap_gdt:
-	.space	SIZEOF_GDT * BOOTSTRAP_GDT_NUM
-#endif /* NAPM */
 
 /*
  * System Initialization
@@ -322,87 +308,8 @@ got_common_bi_size:
 	movl	%eax,_bootdev-KERNBASE
 
 #if NAPM > 0
-	/*
-	 * Setup APM BIOS:
-	 *
-	 * APM BIOS initialization should be done from real mode or V86 mode.
-	 *
-	 * (by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>)
-	 */
-
-	/* 
-         * Copy APM initializer under 1MB boundary:
-	 *
-	 * APM initializer program must switch the CPU to real mode.
-	 * But FreeBSD kernel runs above 1MB boundary. So we must 
-	 * copy the initializer code to conventional memory.
-	 */
-	movl	_apm_init_image_size-KERNBASE, %ecx	/* size */
-	lea	_apm_init_image-KERNBASE, %esi		/* source */
-	movl	$ APM_OURADDR, %edi			/* destination */
-	cld
-	rep
-	movsb
-
-	/* get GDT base */
-	sgdt	_apm_current_gdt_pdesc-KERNBASE
-
-	/* copy GDT to _bootstrap_gdt */
-	xorl	%ecx, %ecx
-	movw	_apm_current_gdt_pdesc-KERNBASE, %cx
-	movl	_apm_current_gdt_pdesc-KERNBASE+2, %esi
-	lea	_bootstrap_gdt-KERNBASE, %edi
-	cld
-	rep
-	movsb
-
-	/* setup GDT pseudo descriptor */
-	movw	$(SIZEOF_GDT*BOOTSTRAP_GDT_NUM), %ax
-	movw	%ax, _apm_current_gdt_pdesc-KERNBASE
-	leal	_bootstrap_gdt-KERNBASE, %eax
-	movl	%eax, _apm_current_gdt_pdesc-KERNBASE+2
-
-	/* load new GDTR */
-	lgdt	_apm_current_gdt_pdesc-KERNBASE
-
-	/* setup GDT for APM initializer */
-	lea	_bootstrap_gdt-KERNBASE, %ecx
-	movl	$(APM_OURADDR), %eax	/* use %ax for 15..0 */
-	movl	%eax, %ebx
-	shrl	$16, %ebx		/* use %bl for 23..16 */
-					/* use %bh for 31..24 */
-#define APM_SETUP_GDT(index, attrib) \
-	movl	$(index), %si ; \
-	lea	0(%ecx,%esi,8), %edx ; \
-	movw	$0xffff, (%edx) ; \
-	movw	%ax, 2(%edx) ; \
-	movb	%bl, 4(%edx) ; \
-	movw	$(attrib), 5(%edx) ; \
-	movb	%bh, 7(%edx)
-
-	APM_SETUP_GDT(APM_INIT_CS_INDEX  , CS32_ATTRIB)
-	APM_SETUP_GDT(APM_INIT_DS_INDEX  , DS32_ATTRIB)
-	APM_SETUP_GDT(APM_INIT_CS16_INDEX, CS16_ATTRIB)
-
-	/*
-	 * Call the initializer:
-	 *
-	 * direct intersegment call to conventional memory code
-	 */
-	.byte	0x9a		/* actually, lcall $APM_INIT_CS_SEL, $0 */
-	.long	0
-	.word	APM_INIT_CS_SEL
-
-	movw	%ax, _apm_version-KERNBASE
-	movl	%ebx, _apm_cs_entry-KERNBASE
-	movw	%cx, _apm_cs32_base-KERNBASE
-	shrl	$16, %ecx
-	movw	%cx, _apm_cs16_base-KERNBASE
-	movw	%dx, _apm_ds_base-KERNBASE
-	movw	%si, _apm_cs_limit-KERNBASE
-	shrl	$16, %esi
-	movw	%si, _apm_ds_limit-KERNBASE
-	movw	%di, _apm_flags-KERNBASE
+	/* call APM BIOS driver setup (i386/apm/apm_setup.s) */
+	call	_apm_setup
 #endif /* NAPM */
 
 	/* Find out our CPU type. */

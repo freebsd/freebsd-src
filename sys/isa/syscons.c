@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.101 1995/02/07 11:53:27 sos Exp $
+ *	$Id: syscons.c,v 1.102 1995/02/14 14:37:53 sos Exp $
  */
 
 #include "sc.h"
@@ -72,6 +72,10 @@
 #if !defined(MAXCONS)
 #define MAXCONS 16
 #endif
+#include "apm.h"
+#if NAPM > 0
+#include "machine/apm_bios.h"
+#endif 
 
 /* this may break on older VGA's but is usefull on real 32 bit systems */
 #define	bcopyw	bcopy		
@@ -188,6 +192,9 @@ typedef struct scr_stat {
 	u_short		*history_pos;		/* position shown on screen */
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
+#if NAPM > 0
+	struct apmhook  r_hook;			/* reconfiguration support */
+#endif /* NAPM > 0 */
 } scr_stat;
 
 typedef struct default_attr {
@@ -414,6 +421,20 @@ sc_registerdev(struct isa_device *id)
 	dev_attach(&kdc_sc[id->id_unit]);
 }
 
+#if NAPM > 0 
+/* ARGSUSED */
+static int 
+pcresume(void *dummy)
+{
+	shfts = 0;
+	ctls = 0;
+	alts = 0;
+	agrs = 0;
+	metas = 0;
+	return 0;
+}
+#endif /* NAPM > 0 */
+
 
 int
 scattach(struct isa_device *dev)
@@ -464,6 +485,13 @@ scattach(struct isa_device *dev)
 
 	update_leds(scp->status);
 	sc_registerdev(dev);
+#if NAPM > 0
+        scp->r_hook.ah_fun = pcresume;
+        scp->r_hook.ah_arg = NULL;
+        scp->r_hook.ah_name = "pccons keyboard";
+        scp->r_hook.ah_order = APM_MID_ORDER;
+        apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
+#endif /* NAPM > 0*/
 	return 0;
 }
 
@@ -2827,6 +2855,9 @@ next_code:
 				shutdown_nice();
 				break;	
 			case SUSP:
+#if NAPM > 0 
+				apm_suspend();
+#endif
 				break;
 
 			case DBG:

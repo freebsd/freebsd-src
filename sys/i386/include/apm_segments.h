@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_segments.h,v 1.2 1994/10/01 05:13:37 davidg Exp $
  */
 
 #ifndef _MACHINE_APM_SEGMENTS_H
@@ -31,7 +31,5 @@
 #define CS32_ATTRIB		0x409e
 #define CS16_ATTRIB		0x009e
 #define DS32_ATTRIB		0x4092
-
-#define BOOTSTRAP_DS_SEL	0x10
 
 #endif

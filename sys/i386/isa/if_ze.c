@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.9 1994/11/24 14:29:26 davidg Exp $
+ * $Id: if_ze.c,v 1.10 1995/01/23 18:02:32 phk Exp $
  */
 
 #include "ze.h"
@@ -89,314 +89,13 @@
 #include "i386/isa/isa_device.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/if_zereg.h"
+#include "i386/isa/pcic.h"
 
+#include "apm.h"
+#if NAPM > 0
+#include "i386/include/apm_bios.h"
+#endif /* NAPM > 0 */
  
-
-/*****************************************************************************
- *                 pcmcia controller chip (PCIC) support                     *
- *               (eventually, move this to a separate file)                  *
- *****************************************************************************/
-#include "ic/i82365.h"
-
-/*
- * Each PCIC chip (82365SL or clone) can handle two card slots, and there
- * can be up to four PCICs in a system.  (On some machines, not all of the
- * address lines are decoded, so a card may appear to be in more than one 
- * slot.)
- */
-#define MAXSLOT 8
-
-/*
- * To access a register on the PCIC for a particular slot, you
- * first write the correct OFFSET value for that slot in the
- * INDEX register for the PCIC controller.  You then read or write
- * the value from or to the DATA register for that controller.
- *
- * The first pair of chips shares I/O addresss for DATA and INDEX,
- * as does the second pair.   (To the programmer, it looks like each 
- * pair is a single chip.)  The i/o port addresses are hard-wired 
- * into the PCIC; so the following addresses should be valid for
- * any machine that uses this chip.
- */
-
-#define PCIC_INDEX_0	0x3E0	/* index reg, chips 0 and 1 */
-#define PCIC_DATA_0	0x3E1	/* data register, chips 0 and 1 */
-#define PCIC_INDEX_1	0x3E2	/* index reg, chips 1 and 2 */
-#define PCIC_DATA_1	0x3E3	/* data register, chips 1 and 2 */
-
-/*
- * Given a slot number, calculate the INDEX and DATA registers
- * to talk to that slot.  OFFSET is added to the register number
- * to address the registers for a particular slot.
- */
-#define INDEX(slot) ((slot) < 4 ? PCIC_INDEX_0 : PCIC_INDEX_1)
-#define DATA(slot) ((slot) < 4 ? PCIC_DATA_0 : PCIC_DATA_1)
-#define OFFSET(slot) ((slot) % 4 * 0x40)
-
-/*
- * There are 5 sets (windows) of memory mapping registers on the PCIC chip
- * for each slot, numbered 0..4.
- *
- * They start at 10/50 hex within the chip's register space (not system
- * I/O space), and are eight addresses apart.  These are actually pairs of
- * 8-bit-wide registers (low byte first, then high byte) since the
- * address fields are actually 12 bits long.  The upper bits are used
- * for other things like 8/16-bit select and wait states.
- *
- * Memory mapping registers include start/stop addresses to define the
- * region to be mapped (in terms of system memory addresses), and
- * an offset register to allow for translation from system space
- * to card space.  The lower 12 bits aren't included in these, so memory is
- * mapped in 4K chunks.
- */
-#define MEM_START_ADDR(window) (((window) * 0x08) + 0x10)
-#define MEM_STOP_ADDR(window) (((window) * 0x08) + 0x12)
-#define MEM_OFFSET(window) (((window) * 0x08) + 0x14)
-/*
- * this bit gets set in the address window enable register (PCIC_ADDRWINE)
- * to enable a particular address window.
- */
-#define MEM_ENABLE_BIT(window) ((1) << (window))
-
-/*
- * There are two i/o port addressing windows.  I/O ports cannot be
- * relocated within system i/o space (unless the card doesn't decode
- * all of the address bits); unlike card memory, there is no address
- * translation offset.
- */
-#define IO_START_ADDR(window) ((window) ? PCIC_IO1_STL : PCIC_IO0_STL)
-#define IO_STOP_ADDR(window) ((window) ? PCIC_IO1_SPL : PCIC_IO0_SPL)
-#define IO_ENABLE_BIT(window) ((window) ? PCIC_IO1_EN : PCIC_IO0_EN)
-#define IO_CS16_BIT(window) ((window) ? PCIC_IO1_CS16 : PCIC_IO0_CS16)
-
-/*
- * read a byte from a pcic register for a particular slot
- */
-static inline unsigned char
-pcic_getb (int slot, int reg)
-{
-    outb (INDEX(slot), OFFSET (slot) + reg);
-    return inb (DATA (slot));
-}
-
-/*
- * write a byte to a pcic register for a particular slot
- */
-static inline void
-pcic_putb (int slot, int reg, unsigned char val)
-{
-    outb (INDEX(slot), OFFSET (slot) + reg);
-    outb (DATA (slot), val);
-}
-
-/*
- * read a word from a pcic register for a particular slot
- */
-static inline unsigned short
-pcic_getw (int slot, int reg)
-{
-    return pcic_getb (slot, reg) | (pcic_getb (slot, reg+1) << 8);
-}
-
-/*
- * write a word to a pcic register at a particular slot
- */
-static inline void
-pcic_putw (int slot, int reg, unsigned short val)
-{
-    pcic_putb (slot, reg, val & 0xff);
-    pcic_putb (slot, reg + 1, (val >> 8) & 0xff);
-}
-
-static void
-pcic_print_regs (int slot)
-{
-    int i, j;
-
-    for (i = 0; i < 0x40; i += 16) {
-	for (j = 0; j < 16; ++j)
-	    printf ("%02x ", pcic_getb (slot, i + j));
-	printf ("\n");
-    }
-}
-
-/*
- * map a portion of the card's memory space into system memory
- * space.
- *
- * slot = # of the slot the card is plugged into
- * window = which pcic memory map registers to use (0..4)
- * sys_addr = base system PHYSICAL memory address where we want it.  must
- *	      be on an appropriate boundary (lower 12 bits are zero).
- * card_addr = the base address of the card's memory to correspond
- *             to sys_addr
- * length = length of the segment to map (may be rounded up as necessary)
- * type = which card memory space to map (attribute or shared)
- * width = 1 for byte-wide mapping; 2 for word (16-bit) mapping.
- */
-
-enum memtype { COMMON, ATTRIBUTE };
-
-static void
-pcic_map_memory (int slot, int window, unsigned long sys_addr,
-		 unsigned long card_addr, unsigned long length,
-		 enum memtype type, int width)
-{
-    unsigned short offset;
-    unsigned short mem_start_addr;
-    unsigned short mem_stop_addr;
-
-    sys_addr >>= 12;
-    card_addr >>= 12;
-    length >>= 12;
-    /*
-     * compute an offset for the chip such that
-     * (sys_addr + offset) = card_addr
-     * but the arithmetic is done modulo 2^14
-     */
-    offset = (card_addr - sys_addr) & 0x3FFF;
-    /*
-     * now OR in the bit for "attribute memory" if necessary
-     */
-    if (type == ATTRIBUTE) {
-	offset |= (PCIC_REG << 8);
-	/* REG == "region active" pin on card */
-    }
-    /*
-     * okay, set up the chip memory mapping registers, and turn
-     * on the enable bit for this window.
-     * if we are doing 16-bit wide accesses (width == 2),
-     * turn on the appropriate bit.
-     *
-     * XXX for now, we set all of the wait state bits to zero.
-     * Not really sure how they should be set.
-     */
-    mem_start_addr = sys_addr & 0xFFF;
-    if (width == 2)
-	mem_start_addr |= (PCIC_DATA16 << 8);
-    mem_stop_addr = (sys_addr + length) & 0xFFF;
-
-    pcic_putw (slot, MEM_START_ADDR(window), mem_start_addr);
-    pcic_putw (slot, MEM_STOP_ADDR(window), mem_stop_addr);
-    pcic_putw (slot, MEM_OFFSET(window), offset);
-    /*
-     * Assert the bit (PCIC_MEMCS16) that says to decode all of
-     * the address lines.
-     */
-    pcic_putb (slot, PCIC_ADDRWINE,
-	       pcic_getb (slot, PCIC_ADDRWINE) |
-	       MEM_ENABLE_BIT(window) | PCIC_MEMCS16);
-}
-
-static void
-pcic_unmap_memory (int slot, int window)
-{
-    /*
-     * seems like we need to turn off the enable bit first, after which
-     * we can clear the registers out just to be sure.
-     */
-    pcic_putb (slot, PCIC_ADDRWINE,
-	       pcic_getb (slot, PCIC_ADDRWINE) & ~MEM_ENABLE_BIT(window));
-    pcic_putw (slot, MEM_START_ADDR(window), 0);
-    pcic_putw (slot, MEM_STOP_ADDR(window), 0);
-    pcic_putw (slot, MEM_OFFSET(window), 0);
-}
-
-/*
- * map a range of addresses into system i/o space
- * (no translation of i/o addresses is possible)
- *
- * 'width' is:
- * + 0 to tell the PCIC to generate the ISA IOCS16* signal from
- *   the PCMCIA IOIS16* signal.
- * + 1 to select 8-bit width
- * + 2 to select 16-bit width
- */
-
-static void
-pcic_map_io (int slot, int window, unsigned short base, unsigned short length,
-	     unsigned short width)
-{
-    unsigned char x;
-
-    pcic_putw (slot, IO_START_ADDR(window), base);
-    pcic_putw (slot, IO_STOP_ADDR(window), base+length-1);
-    /*
-     * select the bits that determine whether
-     * an i/o operation is 8 or 16 bits wide
-     */
-    x = pcic_getb (slot, PCIC_IOCTL);
-    switch (width) {
-    case 0:			/* PCMCIA card decides */
-	if (window)
-	    x = (x & 0xf0) | PCIC_IO1_CS16;
-	else
-	    x = (x & 0x0f) | PCIC_IO0_CS16;
-	break;
-    case 1:			/* 8 bits wide */
-	break;
-    case 2:			/* 16 bits wide */
-	if (window)
-	    x = (x & 0xf0) | PCIC_IO1_16BIT;
-	else
-	    x = (x & 0x0f) | PCIC_IO0_16BIT;
-	break;
-    }
-    pcic_putb (slot, PCIC_IOCTL, x);
-    pcic_putb (slot, PCIC_ADDRWINE,
-	       pcic_getb (slot, PCIC_ADDRWINE) | IO_ENABLE_BIT(window));
-}
-
-#ifdef TEST
-static void
-pcic_unmap_io (int slot, int window)
-{
-    pcic_putb (slot, PCIC_ADDRWINE,
-	       pcic_getb (slot, PCIC_ADDRWINE) & ~IO_ENABLE_BIT(window));
-    pcic_putw (slot, IO_START_ADDR(window), 0);
-    pcic_putw (slot, IO_STOP_ADDR(window), 0);
-}
-#endif /* TEST */
-
-/*
- * tell the PCIC which irq we want to use.  only the following are legal:
- * 3, 4, 5, 7, 9, 10, 11, 12, 14, 15
- *
- * NB: 'irq' is an interrupt NUMBER, not a MASK as in struct isa_device.
- */
-
-static void
-pcic_map_irq (int slot, int irq)
-{
-    if (irq < 3 || irq == 6 || irq == 8 || irq == 13 || irq > 15) {
-	printf ("ze: pcic_map_irq (slot %d): illegal irq %d\n", slot, irq);
-	return;
-    }
-    pcic_putb (slot, PCIC_INT_GEN,
-	       pcic_getb (slot, PCIC_INT_GEN) | (irq & 0x0F));
-}
-
-static void
-pcic_power_on (int slot)
-{
-    pcic_putb (slot, PCIC_POWER,
-	       pcic_getb (slot, PCIC_POWER) | PCIC_DISRST | PCIC_PCPWRE);
-    DELAY (100000);
-    pcic_putb (slot, PCIC_POWER,
-	       pcic_getb (slot, PCIC_POWER) | PCIC_OUTENA);
-}
-
-static void
-pcic_reset (int slot)
-{
-    /* assert RESET (by clearing a bit!), wait a bit, and de-assert it */
-    pcic_putb (slot, PCIC_INT_GEN,
-	       pcic_getb (slot, PCIC_INT_GEN) & ~PCIC_CARDRESET);
-    DELAY (100000);
-    pcic_putb (slot, PCIC_INT_GEN,
-	       pcic_getb (slot, PCIC_INT_GEN) | PCIC_CARDRESET);
-}
-
 
 /*****************************************************************************
  *                       Driver for Ethernet Adapter                         *
@@ -437,8 +136,13 @@ struct	ze_softc {
 	u_char	rec_page_start;	/* first page of RX ring-buffer */
 	u_char	rec_page_stop;	/* last page of RX ring-buffer */
 	u_char	next_packet;	/* pointer to next unread RX packet */
+	int	slot;		/* information for reconfiguration */
 	u_char	last_alive;	/* information for reconfiguration */
 	u_char	last_up;	/* information for reconfiguration */
+#if NAPM > 0
+	struct apmhook s_hook;	/* reconfiguration support */
+	struct apmhook r_hook;	/* reconfiguration support */
+#endif /* NAPM > 0 */
 } ze_softc[NZE];
 
 int	ze_attach(), ze_ioctl(), ze_probe();
@@ -529,12 +233,14 @@ ze_check_cis (unsigned char *scratch)
  * + Leaves product/vendor id of last card probed in 'card_info'
  */
 
+static int prev_slot = 0;
+
 static int
 ze_find_adapter (unsigned char *scratch, int reconfig)
 {
     int slot;
 
-    for (slot = 0; slot < MAXSLOT; ++slot) {
+    for (slot = prev_slot; slot < MAXSLOT; ++slot) {
 	/*
 	 * see if there's a PCMCIA controller here
 	 * Intel PCMCIA controllers use 0x82 and 0x83
@@ -558,6 +264,9 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
 	    if (!reconfig) {
 		printf ("ze: slot %d: no card in slot\n", slot);
 	    }
+	    else {
+		log (LOG_NOTICE, "ze: slot %d: no card in slot\n", slot);
+	    }
 	    /* no card in slot */
 	    continue;
 	}
@@ -576,15 +285,24 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
 	    if (!reconfig) {
 		printf ("ze: found card in slot %d\n", slot);
 	    }
+	    else {
+		log (LOG_NOTICE, "ze: found card in slot %d\n", slot);
+	    }
+	    prev_slot = (prev_slot == MAXSLOT - 1) ? 0 : prev_slot+1;
+
 	    return slot;
 	}
 	else {
 	    if (!reconfig) {
 		printf ("ze: pcmcia slot %d: %s\n", slot, card_info);
 	    }
+	    else {
+		log (LOG_NOTICE, "ze: pcmcia slot %d: %s\n", slot, card_info);
+	    }
 	}
 	pcic_unmap_memory (slot, 0);
     }
+    prev_slot = 0;
     return -1;
 }
 
@@ -611,7 +329,7 @@ ze_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
-	int i, x;
+	int i, x, re_init_flag;
 	u_int memsize;
 	u_char iptr, memwidth, sum, tmp;
 	int slot;
@@ -652,6 +370,8 @@ ze_probe(isa_dev)
 	enet_addr[5] = PEEK(isa_dev->id_maddr+0xffa);
 	pcic_unmap_memory (slot, 0);
 
+	re_init_flag = 0;
+re_init:
 	/*
 	 * (2) map card configuration registers.  these are offset
 	 * in card memory space by 0x20000.  normally we could get
@@ -749,10 +469,26 @@ ze_probe(isa_dev)
 	outb (isa_dev->id_iobase + ZE_RESET, tmp);
 	DELAY(20000);
 
+#if 0
+	tmp = inb(isa_dev->id_iobase);
+	printf("CR = 0x%x\n", tmp);
+#endif
 	/*
 	 * query MAM bit in misc register for 10base2
 	 */
 	tmp = inb (isa_dev->id_iobase + ZE_MISC);
+
+	/*
+	 * Some Intel-compatible PCICs of Cirrus Logic fails in 
+	 * initializing them.  This is a quick hack to fix this 
+	 * problem.
+	 *        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+	 */
+	if (!tmp && !re_init_flag) {
+		re_init_flag++;
+		goto re_init;
+	}
+
 	sc->mau = tmp & 0x09 ? "10base2" : "10baseT";
 
 	/* set width/size */
@@ -779,8 +515,34 @@ ze_probe(isa_dev)
 	/* information for reconfiguration */
 	sc->last_alive = 0;
 	sc->last_up = 0;
+	sc->slot = slot;
+
 	return 32;
 }
+
+#if NAPM > 0
+static int
+ze_suspend(isa_dev)
+	struct isa_device *isa_dev;
+{
+	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
+
+	pcic_power_off(sc->slot);
+	return 0;
+}
+
+static int
+ze_resume(isa_dev)
+	struct isa_device *isa_dev;
+{
+#if 0
+	printf("Resume ze:\n");
+#endif
+	prev_slot = 0;
+	reconfig_isadev(isa_dev, &net_imask);
+	return 0;
+}
+#endif /* NAPM > 0 */
  
 /*
  * Install interface into kernel networking data structures
@@ -794,21 +556,26 @@ ze_attach(isa_dev)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	int pl;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */
 	if (isa_dev->id_reconfig) {
+		ze_reset(isa_dev->id_unit);
 		if (!isa_dev->id_alive && sc->last_alive) {
+			pl = splimp();
 			sc->last_up = (ifp->if_flags & IFF_UP);
-			ifp->if_flags &= ~(IFF_UP);
+			if_down(ifp);
+			splx(pl);
 			sc->last_alive = 0;
 		}
 		if (isa_dev->id_alive && !sc->last_alive) {
 			if (sc->last_up) {
-				ifp->if_flags |= IFF_UP;
+				pl = splimp();
+				if_up(ifp);
+				splx(pl);
 			}
 			sc->last_alive = 1;
 		}
-		ze_reset(isa_dev->id_unit);
 		return 1;
 	}
 	else {
@@ -887,6 +654,19 @@ ze_attach(isa_dev)
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+
+#if NAPM > 0
+	sc->s_hook.ah_fun = ze_suspend;
+	sc->s_hook.ah_arg = (void *)isa_dev;
+	sc->s_hook.ah_name = "IBM PCMCIA Ethernet I/II";
+	sc->s_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_SUSPEND , &sc->s_hook);
+	sc->r_hook.ah_fun = ze_resume;
+	sc->r_hook.ah_arg = (void *)isa_dev;
+	sc->r_hook.ah_name = "IBM PCMCIA Ethernet I/II";
+	sc->r_hook.ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_RESUME , &sc->r_hook);
+#endif /* NAPM > 0 */
 
 	return 1;
 }
