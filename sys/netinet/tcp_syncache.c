@@ -874,6 +874,7 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq;
+	sc->sc_iss = arc4random();
 
 	/* Initial receive window: clip sbspace to [0 .. TCP_MAXWIN] */
 	win = sbspace(&so->so_rcv);
@@ -966,7 +967,6 @@ syncache_add(inc, to, th, sop, m)
 	 * TAO test failed or there was no CC option,
 	 *    do a standard 3-way handshake.
 	 */
-	sc->sc_iss = arc4random();
 	if (syncache_insert(sc, sch)) {
 		if (syncache_respond(sc, m) == 0) {
 			tcpstat.tcps_sndacks++;
