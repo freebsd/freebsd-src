@@ -88,5 +88,13 @@ METHOD int drv_settings {
 	device_t		dev;
 	struct cf_setting	*sets;
 	int			*count;
+};
+
+#
+# Get an individual driver's type.
+#
+METHOD int drv_type {
+	device_t		dev;
 	int			*type;
 };
+

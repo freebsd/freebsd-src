@@ -404,9 +404,12 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 		 * Get settings, skipping drivers that offer no settings or
 		 * provide settings for informational purposes only.
 		 */
+		error = CPUFREQ_DRV_TYPE(devs[i], &type);
+		if (error || (type & CPUFREQ_FLAG_INFO_ONLY))
+			continue;
 		set_count = MAX_SETTINGS;
-		error = CPUFREQ_DRV_SETTINGS(devs[i], sets, &set_count, &type);
-		if (error || set_count == 0 || (type & CPUFREQ_FLAG_INFO_ONLY))
+		error = CPUFREQ_DRV_SETTINGS(devs[i], sets, &set_count);
+		if (error || set_count == 0)
 			continue;
 
 		/* Add the settings to our absolute/relative lists. */
@@ -772,8 +775,7 @@ int
 cpufreq_unregister(device_t dev)
 {
 	device_t cf_dev, *devs;
-	int cfcount, count, devcount, error, i, type;
-	struct cf_setting set;
+	int cfcount, devcount, error, i, type;
 
 	/*
 	 * If this is the last cpufreq child device, remove the control
@@ -788,8 +790,7 @@ cpufreq_unregister(device_t dev)
 	for (i = 0; i < devcount; i++) {
 		if (!device_is_attached(devs[i]))
 			continue;
-		count = 1;
-		if (CPUFREQ_DRV_SETTINGS(devs[i], &set, &count, &type) == 0)
+		if (CPUFREQ_DRV_TYPE(devs[i], &type) == 0)
 			cfcount++;
 	}
 	if (cfcount <= 1)
