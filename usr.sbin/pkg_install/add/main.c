@@ -239,7 +239,7 @@ main(int argc, char **argv)
     }
     /* Make sure the sub-execs we invoke get found */
     setenv("PATH", 
-	   "/sbin:/usr/sbin:/bin:/usr/bin:/usr/X11R6/bin",
+	   "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/X11R6/bin",
 	   1);
 
     /* Set a reasonable umask */
