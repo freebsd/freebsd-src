@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.9 1994/08/10 06:24:42 wollman Exp $
+#	$Id: Makefile,v 1.10 1994/08/20 12:00:06 paul Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -36,18 +36,18 @@ NOOBJ=	noobj
 SHARED?=	symlinks
 
 beforeinstall: ${SHARED}
-	@echo installing ${FILES}
+	@${ECHO} installing ${FILES}
 	@-for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i > /dev/null 2>&1 || \
 		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
-	@echo creating osreldate.h
+	@${ECHO} creating osreldate.h
 	@rm -f ${DESTDIR}/usr/include/osreldate.h
 	@echo \#'undef __FreeBSD_version' > ${DESTDIR}/usr/include/osreldate.h
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
 		>> ${DESTDIR}/usr/include/osreldate.h
-	@echo installing ${DIRS}
+	@${ECHO} installing ${DIRS}
 	@-for i in ${DIRS}; do \
 		if [ ! -d ${DESTDIR}/usr/include/$$i ]; \
 		then \
@@ -62,13 +62,13 @@ beforeinstall: ${SHARED}
 			    ${DESTDIR}/usr/include/$$i/$$j; \
 		done); \
 	done
-	@echo installing ${LFILES}
+	@${ECHO} installing ${LFILES}
 	@-for i in ${LFILES}; do \
 		rm -f ${DESTDIR}/usr/include/$$i; \
 		ln -s sys/$$i ${DESTDIR}/usr/include/$$i; \
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
 	done
-	@echo installing ${MFILES}
+	@${ECHO} installing ${MFILES}
 	@-for i in ${MFILES}; do \
 		rm -f ${DESTDIR}/usr/include/$$i; \
 		ln -s machine/$$i ${DESTDIR}/usr/include/$$i; \
@@ -78,7 +78,7 @@ beforeinstall: ${SHARED}
 copies:
 	rm -rf ${DESTDIR}/usr/include/${LUDIR}
 	@-for i in ${LDIRS} ${UDIRS}; do				\
-		echo ${SHARED} $$i;					\
+		${ECHO} ${SHARED} $$i;					\
 		rm -rf ${DESTDIR}/usr/include/$$i;			\
 		cd ../sys;						\
 		tar cf - $$i/*.h |					\
@@ -97,7 +97,7 @@ copies:
 
 symlinks:
 	@for i in ${LDIRS} ${LUDIR}; do					\
-		echo ${SHARED} $$i;					\
+		${ECHO} ${SHARED} $$i;					\
 		rm -rf ${DESTDIR}/usr/include/$$i;			\
 		ln -s /sys/$$i ${DESTDIR}/usr/include/$$i;		\
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;	\
