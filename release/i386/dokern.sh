@@ -24,6 +24,7 @@ sed	-e '/pty/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	ncr/d' \
 	-e '/	txp/d' \
+	-e '/	awi$/d' \
 	-e '/	an$/d' \
 	-e '/	wi$/d' \
 	-e '/atapist/d' \
