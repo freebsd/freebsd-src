@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
  * Interface:
  *	Targ_Init 	    	Initialization procedure.
  *
- *	Targ_End 	    	Cleanup the module
- *
  *	Targ_NewGN	    	Create a new GNode for the passed target
  *	    	  	    	(string). The node is *not* placed in the
  *	    	  	    	hash table, though all its fields are
@@ -116,26 +114,6 @@ Targ_Init(void)
 {
 
     Hash_InitTable(&targets, HTSIZE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * Targ_End --
- *	Finalize this module
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	All lists and gnodes are cleared
- *-----------------------------------------------------------------------
- */
-void
-Targ_End(void)
-{
-
-    Lst_Destroy(&allTargets, NOFREE);
-    Hash_DeleteTable(&targets);
 }
 
 /*-

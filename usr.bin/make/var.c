@@ -1920,14 +1920,7 @@ Var_Init(void)
 
     VAR_GLOBAL = Targ_NewGN("Global");
     VAR_CMD = Targ_NewGN("Command");
-
 }
-
-void
-Var_End(void)
-{
-}
-
 
 /****************** PRINT DEBUGGING INFO *****************/
 static int

@@ -85,8 +85,6 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	is out-of-date.
  *
  *	Arch_Init 	    	Initialize this module.
- *
- *	Arch_End 	    	Cleanup this module.
  */
 
 #include    <sys/types.h>
@@ -114,45 +112,12 @@ typedef struct Arch {
     size_t	  fnamesize;  /* Size of the string table */
 } Arch;
 
-static void ArchFree(void *);
 static struct ar_hdr *ArchStatMember(char *, char *, Boolean);
 static FILE *ArchFindMember(char *, char *, struct ar_hdr *, char *);
 #if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
 #define	SVR4ARCHIVES
 static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
 #endif
-
-/*-
- *-----------------------------------------------------------------------
- * ArchFree --
- *	Free memory used by an archive
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-static void
-ArchFree(void *ap)
-{
-    Arch *a = ap;
-    Hash_Search	  search;
-    Hash_Entry	  *entry;
-
-    /* Free memory from hash entries */
-    for (entry = Hash_EnumFirst(&a->members, &search);
-	 entry != NULL;
-	 entry = Hash_EnumNext(&search))
-	free(Hash_GetValue(entry));
-
-    free(a->name);
-    free(a->fnametab);
-    Hash_DeleteTable(&a->members);
-    free(a);
-}
 
 /*-
  *-----------------------------------------------------------------------
@@ -1183,24 +1148,4 @@ Arch_LibOODate(GNode *gn)
 void
 Arch_Init(void)
 {
-}
-
-/*-
- *-----------------------------------------------------------------------
- * Arch_End --
- *	Cleanup things for this module.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The 'archives' list is freed
- *
- *-----------------------------------------------------------------------
- */
-void
-Arch_End(void)
-{
-
-    Lst_Destroy(&archives, ArchFree);
 }

@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	    called before anything else in this module
  *	    	  	    	    is used.
  *
- *	Parse_End		    Cleanup the module
- *
  *	Parse_File	    	    Function used to parse a makefile. It must
  *	    	  	    	    be given the name of the file, which should
  *	    	  	    	    already have been opened, and a function
@@ -2521,17 +2519,6 @@ Parse_Init(void)
 
     mainNode = NULL;
 }
-
-void
-Parse_End(void)
-{
-
-    Lst_Destroy(&targets, NOFREE);
-    Lst_Destroy(&sysIncPath, Dir_Destroy);
-    Lst_Destroy(&parseIncPath, Dir_Destroy);
-    Lst_Destroy(&includes, NOFREE);	/* Should be empty now */
-}
-
 
 /*-
  *-----------------------------------------------------------------------

@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
  * Interface:
  *	Suff_Init 	    	Initialize all things to do with suffixes.
  *
- *	Suff_End 	    	Cleanup the module
- *
  *	Suff_DoPaths	    	This function is used to make life easier
  *	    	  	    	when searching for a file according to its
  *	    	  	    	suffix. It takes the global search path,
@@ -160,7 +158,6 @@ static Suff 	    *emptySuff;	/* The empty suffix required for POSIX
 				 * single-suffix transformation rules */
 
 
-static void SuffFree(void *);
 static void SuffInsert(Lst *, Suff *);
 static void SuffRemove(Lst *, Suff *);
 static Boolean SuffParseTransform(char *, Suff **, Suff **);
@@ -339,6 +336,11 @@ SuffGNHasNameP(const void *gn, const void *name)
 
  	    /*********** Maintenance Functions ************/
 
+#if 0
+/*
+ * Keep this function for now until it is clear why a .SUFFIXES: doesn't
+ * actually delete the suffixes but just puts them on the suffClean list.
+ */
 /*-
  *-----------------------------------------------------------------------
  * SuffFree  --
@@ -370,6 +372,7 @@ SuffFree(void *sp)
     free(s->name);
     free(s);
 }
+#endif
 
 /*-
  *-----------------------------------------------------------------------
@@ -2242,31 +2245,6 @@ Suff_Init(void)
     suffNull->sNum = sNum++;
     suffNull->flags = SUFF_NULL;
     suffNull->refCount = 1;
-}
-
-/*-
- *----------------------------------------------------------------------
- * Suff_End --
- *	Cleanup the this module
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	The memory is free'd.
- *----------------------------------------------------------------------
- */
-
-void
-Suff_End(void)
-{
-
-    Lst_Destroy(&sufflist, SuffFree);
-    Lst_Destroy(&suffClean, SuffFree);
-    if (suffNull)
-	SuffFree(suffNull);
-    Lst_Destroy(&srclist, NOFREE);
-    Lst_Destroy(&transforms, NOFREE);
 }
 
 /********************* DEBUGGING FUNCTIONS **********************/
