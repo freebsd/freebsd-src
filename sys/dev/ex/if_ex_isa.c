@@ -76,7 +76,7 @@ static driver_t ex_driver = {
 	sizeof(struct ex_softc),
 };
 
-static devclass_t ex_devclass;
+devclass_t ex_devclass;
 
 DRIVER_MODULE(ex, isa, ex_driver, ex_devclass, 0, 0);
 
