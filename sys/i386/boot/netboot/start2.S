@@ -17,6 +17,23 @@
 	.byte	(ROMSIZE>>9)		/* no. of 512B blocks */
 	jmp	1f			/* enter from bios here */
 	.byte	0			/* checksum */
+#ifdef	PCI
+	.ascii   "FreeBSD boot ROM.."		/* 18 bytes total */
+	.word	0x1a
+/* PCI rom data structure format */
+	.ascii	"PCIR"			/* signature */
+	.word	PCI_VENDOR		/* vendor ID */
+	.word	PCI_DEVICE		/* device ID */
+	.word	0			/* vital product data */
+	.word	0x0018			/* PCI data structure */
+	.byte	0			/* PCI data struct. rev -- 0 */
+	.byte	PCI_CLASS		/* Class code */
+	.word	(ROMSIZE>>9)            /* no. of 512B blocks */
+	.byte	0,0			/* rev. level */
+	.byte	0			/* code type - 0 =x86 */
+	.byte	0x80			/* indicator of last block */
+	.word	0			/* reserved */
+#endif
 1:	push	%eax
 	push	%ds
 	xor	%eax,%eax
