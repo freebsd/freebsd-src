@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: kbdmap.pl,v 1.10 1995/04/03 21:13:52 w Exp $
+# $Id: kbdmap.pl,v 1.2 1995/04/05 08:09:24 jkh Exp $
 #
 
 # simple test if syscons works
@@ -45,10 +45,6 @@ if ($x11) {
 	"expect certain strange side-effects\n"; 
     sleep 2;
 }
-    
-#die "You are on a virtual console?\n" .
-#    "This program does not work with X11\n" if $?;
-
 
 sub variables_static {
     $lang_default = "en";	# set default language
@@ -59,9 +55,9 @@ sub variables_static {
     $fontdir = "/usr/share/syscons/fonts";
     $sysconfig = "/etc/sysconfig";
 
-    #$keymapdir = "./syscons/keymaps";
-    #$fontdir = "./syscons/fonts";
-    #$sysconfig = "./sysconfig";
+    # for test only
+    #$keymapdir = "/tmp/kbdmap/syscons/keymaps";
+    #$fontdir = "/tmp/kbdmap/syscons/fonts";
 
     # read current font from sysconfig
     $font_default = "cp437-8x16.fnt";
@@ -229,6 +225,15 @@ sub menu_read {
     grep(s/8x8/8x08/, @a);
     @a = sort @a;
     grep(s/8x08/8x8/, @a);
+
+    if ($print) {
+	foreach (@a) {
+	    s/"//g; #"
+	    print "$_\n";
+	}
+	exit;
+    }
+
     return @a;
 }
 
@@ -289,8 +294,8 @@ sub dialog {
 
 sub usage {
     warn <<EOF;
-usage: $program\t[-v|-verbose] [-h|-help] [-l|-lang language]
-\t\t[-d|-default] [-s|-show] [-r|-restore]
+usage: $program\t[-K] [-V] [-d|-default] [-h|-help] [-l|-lang language]
+\t\t[-p|-print] [-r|-restore] [-s|-show] [-v|-verbose] 
 EOF
     exit 1;
 }
@@ -302,13 +307,16 @@ sub parse {
     while($_ = $argv[0], /^-/) {
 	shift @argv;
 	last if /^--$/;
-	if (/^--?(h|help|\?)$/)	   { &usage; }
-	elsif (/^--?(v|verbose)$/) { $verbose = 1; }
-	elsif (/^--?(l|lang)$/)	   { $lang = &lang($argv[0]); shift @argv; }
-	elsif (/^--?(d|default)$/) { $lang = $lang_default }
-	elsif (/^--?(s|show)$/)	   { $show = 1 }
-	elsif (/^--?(r|restore)$/) { &vidcontrol($font_current); exit(0) }
-	else { &usage }
+	if (/^--?(h|help|\?)$/)	 { &usage; }
+	elsif (/^-(v|verbose)$/) { $verbose = 1; }
+	elsif (/^-(l|lang)$/)	 { $lang = &lang($argv[0]); shift @argv; }
+	elsif (/^-(d|default)$/) { $lang = $lang_default }
+	elsif (/^-(s|show)$/)	 { $show = 1 }
+	elsif (/^-(p|print)$/)   { $print = 1 }
+	elsif (/^-(r|restore)$/) { &vidcontrol($font_current); exit(0) }
+	elsif (/^-K$/)           { $dir = $keymapdir; }
+	elsif (/^-V$/)           { $dir = $fontdir; }
+	else                     { &usage }
     }
 }
 
