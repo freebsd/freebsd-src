@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-#	$Id$
+#	$Id: Makefile,v 1.18 1997/05/03 03:49:51 jb Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -29,11 +29,11 @@ KSRCS=	bcmp.c ffs.c index.c mcount.c rindex.c strcat.c strcmp.c strcpy.c \
 libkern: libkern.gen libkern.${MACHINE}
 
 libkern.gen: ${KQSRCS} ${KSRCS}
-	cp -p ${.CURDIR}/quad/quad.h ${.ALLSRC} /sys/libkern
+	cp -p ${.CURDIR}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
 
 libkern.${MACHINE}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
-	cp -p ${.ALLSRC} /sys/libkern/${MACHINE}
+	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${MACHINE}
 .endif
 
 .include <bsd.lib.mk>
