@@ -1314,7 +1314,7 @@ ata_reset(struct ata_softc *scp, int *mask)
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
-    if (!mask)
+    if (!*mask)
 	return;
 
     if (*mask & 0x01 && ostat0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
