@@ -26,11 +26,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_comconsole.h"
 #include "opt_ofw.h"
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -64,7 +64,7 @@ static int			polltime;
 static struct callout_handle	ofw_timeouthandle
     = CALLOUT_HANDLE_INITIALIZER(&ofw_timeouthandle);
 
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 static int			alt_break_state;
 #endif
 
@@ -276,9 +276,9 @@ ofw_cons_getc(struct consdev *cp)
 		}
 	}
 
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-	if (db_alt_break(ch, &alt_break_state))
-		breakpoint();
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	if (kdb_alt_break(ch, &alt_break_state))
+		kdb_enter("Break sequence on console");
 #endif
 
 	return (ch);
@@ -290,9 +290,9 @@ ofw_cons_checkc(struct consdev *cp)
 	unsigned char ch;
 
 	if (OF_read(stdin, &ch, 1) > 0) {
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		if (db_alt_break(ch, &alt_break_state))
-			breakpoint();
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+		if (kdb_alt_break(ch, &alt_break_state))
+			kdb_enter("Break sequence on console");
 #endif
 		return (ch);
 	}
