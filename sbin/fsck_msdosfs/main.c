@@ -61,7 +61,9 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: fsck_msdos [-fnpy] filesystem ...\n");
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: fsck_msdosfs -p [-f] filesystem ...",
+	    "       fsck_msdosfs [-ny] filesystem ...");
 	exit(1);
 }
 
