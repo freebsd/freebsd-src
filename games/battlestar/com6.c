@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -105,7 +107,12 @@ char ch;
 	struct timeval tv;
 	char *date;
 	time_t tvsec;
-	int s = sigblock(sigmask(SIGINT));
+	int s;
+
+	if (score_fp == NULL)
+		return;
+
+	s = sigblock(sigmask(SIGINT));
 
 	gettimeofday(&tv, (struct timezone *)0);	/* can't call time */
 	tvsec = (time_t) tv.tv_sec;
