@@ -45,7 +45,7 @@
  */
 
 #define STAR_SAVER
-#define FAT_CURSOR
+/* #define FAT_CURSOR	/* This breaks on some CGA displays */
 
 #include "param.h"
 #include "conf.h"
