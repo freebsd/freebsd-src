@@ -122,7 +122,20 @@ Creative Labs SoundBlaster PCI is supported as well.
 .It NeoMagic 256AV/ZX (PCI)
 .Pp
 .El
-.Pp
+.Sh FILES
+.Bl -tag -width /dev/snd* -compact
+.It Pa /dev/snd*
+Device nodes created with the shell commands
+.Bk -words
+.Ql cd /dev; sh MAKEDEV snd0
+.Ek
+for the pcm0 device,
+.Bk -words
+.Ql cd /dev; sh MAKEDEV snd1
+.Ek
+for the pcm1 device,
+etc.
+.El
 .Sh DIAGNOSTICS AND TROUBLESHOOTING
 .Bl -tag -width 2m
 .It ac97: dac not ready
