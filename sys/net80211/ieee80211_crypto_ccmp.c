@@ -600,4 +600,4 @@ static moduledata_t ccmp_mod = {
 };
 DECLARE_MODULE(wlan_ccmp, ccmp_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan_ccmp, 1);
-MODULE_DEPEND(wlan_wep, wlan, 1, 1, 1);
+MODULE_DEPEND(wlan_ccmp, wlan, 1, 1, 1);
