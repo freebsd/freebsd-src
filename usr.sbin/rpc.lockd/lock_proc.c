@@ -87,6 +87,40 @@ log_from_addr(fun_name, req)
 	syslog(LOG_DEBUG, "%s from %s", fun_name, hostname_buf);
 }
 
+/* log_netobj ----------------------------------------------------------- */
+/*
+ * Purpose:	Log a netobj
+ * Returns:	Nothing
+ * Notes:	This function should only really be called as part of
+ *  		a debug subsystem.
+*/
+static void
+log_netobj(obj)
+	netobj *obj;
+{
+	char objvalbuffer[(sizeof(char)*2)*MAX_NETOBJ_SZ+2];
+	char objascbuffer[sizeof(char)*MAX_NETOBJ_SZ+1];
+	int i, maxlen;
+	char *tmp1, *tmp2;
+
+	/* Notify of potential security attacks */
+	if (obj->n_len > MAX_NETOBJ_SZ)	{
+		syslog(LOG_DEBUG, "SOMEONE IS TRYING TO DO SOMETHING NASTY!\n");
+		syslog(LOG_DEBUG, "netobj too large! Should be %d was %d\n",
+		    MAX_NETOBJ_SZ, obj->n_len);
+	}
+	/* Prevent the security hazard from the buffer overflow */
+	maxlen = (obj->n_len < MAX_NETOBJ_SZ ? obj->n_len : MAX_NETOBJ_SZ);
+	for (i=0, tmp1 = objvalbuffer, tmp2 = objascbuffer; i < obj->n_len;
+	    i++, tmp1 +=2, tmp2 +=1) {
+		sprintf(tmp1,"%02X",*(obj->n_bytes+i));
+		sprintf(tmp2,"%c",*(obj->n_bytes+i));
+	}
+	*tmp1 = '\0';
+	*tmp2 = '\0';
+	syslog(LOG_DEBUG,"netobjvals: %s\n",objvalbuffer);
+	syslog(LOG_DEBUG,"netobjascs: %s\n",objascbuffer);
+}
 /* get_client -------------------------------------------------------------- */
 /*
  * Purpose:	Get a CLIENT* for making RPC calls to lockd on given host
@@ -382,7 +416,7 @@ nlm_test_1_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm_test", rqstp);
 
-	holder = testlock(&arg4, 0);
+	holder = testlock(&arg4, arg->exclusive, 0);
 	/*
 	 * Copy the cookie from the argument into the result.  Note that this
 	 * is slightly hazardous, as the structure contains a pointer to a
@@ -422,7 +456,7 @@ nlm_test_msg_1_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm_test_msg", rqstp);
 
-	holder = testlock(&arg4, 0);
+	holder = testlock(&arg4, arg->exclusive, 0);
 
 	res.cookie = arg->cookie;
 	if (holder == NULL) {
@@ -867,8 +901,23 @@ nlm4_test_4_svc(arg, rqstp)
 
 	if (debug_level)
 		log_from_addr("nlm4_test", rqstp);
+	if (debug_level > 5) {
+		syslog(LOG_DEBUG, "Locking arguments:\n");
+		log_netobj(&(arg->cookie));
+		syslog(LOG_DEBUG, "Alock arguments:\n");
+		syslog(LOG_DEBUG, "Caller Name: %s\n",arg->alock.caller_name);
+		syslog(LOG_DEBUG, "File Handle:\n");
+		log_netobj(&(arg->alock.fh));
+		syslog(LOG_DEBUG, "Owner Handle:\n");
+		log_netobj(&(arg->alock.oh));
+		syslog(LOG_DEBUG, "SVID:        %d\n", arg->alock.svid);
+		syslog(LOG_DEBUG, "Lock Offset: %d\n", arg->alock.l_offset);
+		syslog(LOG_DEBUG, "Lock Length: %d\n", arg->alock.l_len);
+		syslog(LOG_DEBUG, "Exclusive:   %s\n",
+		    (arg->exclusive ? "true" : "false"));
+	}
 
-	holder = testlock(&arg->alock, LOCK_V4);
+	holder = testlock(&arg->alock, arg->exclusive, LOCK_V4);
 
 	/*
 	 * Copy the cookie from the argument into the result.  Note that this
@@ -904,7 +953,7 @@ nlm4_test_msg_4_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm4_test_msg", rqstp);
 
-	holder = testlock(&arg->alock, LOCK_V4);
+	holder = testlock(&arg->alock, arg->exclusive, LOCK_V4);
 
 	res.cookie = arg->cookie;
 	if (holder == NULL) {
@@ -948,6 +997,23 @@ nlm4_lock_4_svc(arg, rqstp)
 
 	if (debug_level)
 		log_from_addr("nlm4_lock", rqstp);
+	if (debug_level > 5) {
+		syslog(LOG_DEBUG, "Locking arguments:\n");
+		log_netobj(&(arg->cookie));
+		syslog(LOG_DEBUG, "Alock arguments:\n");
+		syslog(LOG_DEBUG, "Caller Name: %s\n",arg->alock.caller_name);
+		syslog(LOG_DEBUG, "File Handle:\n");
+		log_netobj(&(arg->alock.fh));
+		syslog(LOG_DEBUG, "Owner Handle:\n");
+		log_netobj(&(arg->alock.oh));
+		syslog(LOG_DEBUG, "SVID:        %d\n", arg->alock.svid);
+		syslog(LOG_DEBUG, "Lock Offset: %d\n", arg->alock.l_offset);
+		syslog(LOG_DEBUG, "Lock Length: %d\n", arg->alock.l_len);
+		syslog(LOG_DEBUG, "Block:       %s\n", (arg->block ? "true" : "false"));
+		syslog(LOG_DEBUG, "Exclusive:   %s\n", (arg->exclusive ? "true" : "false"));
+		syslog(LOG_DEBUG, "Reclaim:     %s\n", (arg->reclaim ? "true" : "false"));
+		syslog(LOG_DEBUG, "State num:   %d\n", arg->state);
+	}
 
 	/* copy cookie from arg to result.  See comment in nlm_test_4() */
 	res.cookie = arg->cookie;
