@@ -1,4 +1,4 @@
-$ $Id: set3,v 1.1 1998/04/08 18:00:08 christos Exp $
+$ $Id: set3,v 1.2 2001/04/26 19:07:51 kim Exp $
 $ Descripción de las funciones de edición
 $set 3 
 1 Retroceder un carácter
@@ -115,3 +115,10 @@ $set 3
 112 Vi: ir al comienzo de la línea
 113 Ejecutar `which' para el comando actual
 114 Pegar el buffer donde el cursor
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

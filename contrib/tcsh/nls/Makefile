@@ -1,5 +1,6 @@
 
-SUBDIRS=	C finnish french german greek italian ja spanish
+SUBDIRS=	C et finnish french german greek italian ja pl russian \
+		spanish ukrainian
 #GENCAT=	gencat -new
 GENCAT=		gencat
 

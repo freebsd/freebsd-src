@@ -1,3 +1,47 @@
+ 40. V6.11.00 - 20010902
+ 39. Completion fixes (Tom Warzeka)
+ 38. make c_insert not static so that it can be used from win32 (amol)
+ 37. Fix rmstar not to corrupt memory when we say no. (Mark Peek)
+ 36. V6.10.02 - 20010806
+ 35. polish nls locale (Pawe³ New)
+ 34. Fix a tcsetattr race running background jobs as the last line on an xterm
+     window (Andrew Brown)
+ 33. jobcmd alias (Greg Parker)
+ 32. hpux11 support (Joshua Weage)
+ 31. Fix SHORT_STRINGS compilation (Daniel Trinkle)
+ 30. Add kill -s (Mark Peek)
+ 29. Don't recognize all mips as dec (Bjorn Knutsson)
+ 28. Fix GLOB_QUOTE problem (noted by Per) I introduced in 6.10.01.
+ 27. Port to concurrent's powermaxos (Matt Majka)
+ 26. New builtin srcfile (Amol)
+ 25. Fix bindkey "\\" cmd (reported by Ismail H. Tuncer)
+ 24. %0Xc was broken in the prompt if the user's home directory was '/'.
+     (reported by Edward Glowacki)
+ 23. V6.10.01 - 20010426
+ 22. LARGEFILE support on Linux.
+ 21. Add big5 multibyte support (Yen-Ming Lee)
+ 20. Check the return value of setpriority (Dima Dorfman)
+ 19. Avoid constructing paths with // on DomainOS (Nickolai Zeldovich)
+ 18. Russian translation (Ilmar S. Habibulin)
+ 17. Fix hostdefs for alpha support in FreeBSD (Andrey A. Chernov)
+ 16. Add door support in colorls (Shaen)
+ 15. Add BSD_STYLE_COLORLS for FreeBSD (Anand)
+ 14. MAXHOSTNAMELEN needs to be 256 (Kris Kennaway)
+ 13. Document stty -tabs problems on compaq (Nelson H. F. Beebe)
+ 12. Fix broken comment, and new versions of config.guess and config.sub
+     (H.Merijn Brand)
+ 11. fix redrawing in the recognize case (Andrew Brown)
+ 10. don't call qsort with 0 items. (Luke Mewburn)
+  9. fix echo;echo;echo; not outputing anything (Andrey A. Chernov)
+  8. Fix shell word parsing in dabbrev-expand (Per Hedeland)
+  7. hpux fixes (Chienting Lin)
+  6. Implement kill ring (Per Hedeland)
+  5. Avoid core-dumping when a very long $HOME gets passed in (Kris Kennaway)
+  4. Add rlimit_vmem for linux based on rlimit_as (N KomaZaki)
+  3. back out symlink=expand path check.
+  2. Add Estonian translation (Toomas Soome)
+  1. Accept empty $savedirs to mean infinity.
+
  57. V6.10.00 - 20001119
  56. Completion fixes (Tom Warzeka)
  55. add missing linux kanji define (Tsuyoshi Kawabe)

@@ -1,4 +1,4 @@
-$ $Id: set3,v 1.2 1998/09/18 15:32:03 christos Exp $
+$ $Id: set3,v 1.3 2001/04/26 19:07:50 kim Exp $
 $ Editor function descriptions
 $set 3 
 1 Μετακίνηση ένα χαρακτήρα όπισθεν
@@ -115,4 +115,10 @@ $set 3
 112 (Vi) μετακίνηση στην αρχή της γραμμής
 113 Εκτέλεση "which" της τρέχουσας εντολής
 114 Επικόλληση του cut buffer στην τρέχουσα θέση
-
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down
