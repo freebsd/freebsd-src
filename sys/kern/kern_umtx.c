@@ -756,6 +756,5 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		error = EINVAL;
 		break;
 	}
-	td->td_retval[0] = -error;
-	return (0);
+	return (error);
 }
