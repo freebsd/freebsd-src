@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993, 1994, 1995 by Andrey A. Chernov, Moscow, Russia.
+ * Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 
 #ifndef lint
 char copyright[] =
-"@(#)Copyright (C) 1993, 1994, 1995 by Andrey A. Chernov, Moscow, Russia.\n\
+"@(#)Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
@@ -54,6 +54,11 @@ char copyright[] =
 #include "pathnames.h"
 
 /*#define DEBUG*/
+
+#define True (1)
+#define False (0)
+#define Unknown (-1)
+
 #define REPORT_PERIOD (30*60)
 
 void fake() {}
@@ -65,41 +70,44 @@ int main(argc, argv)
 	struct tm local, utc;
 	struct timeval tv, *stv;
 	struct timezone tz, *stz;
-	int kern_offset;
+	int kern_offset, wall_clock, disrtcset;
 	size_t len;
 	int mib[2];
 	/* Avoid time_t here, can be unsigned long or worse */
 	long offset, utcsec, localsec, diff;
 	time_t initial_sec, final_sec;
-	int ch, init = -1;
-	int initial_isdst = -1, final_isdst, looping;
-	int disrtcset, need_restore = 0;
+	int ch;
+	int initial_isdst = -1, final_isdst;
+	int need_restore = False, sleep_mode = False, looping,
+	    init = Unknown;
 	sigset_t mask, emask;
 
-	while ((ch = getopt(argc, argv, "ai")) != EOF)
+	while ((ch = getopt(argc, argv, "ais")) != EOF)
 		switch((char)ch) {
 		case 'i':               /* initial call, save offset */
-			if (init != -1)
+			if (init != Unknown)
 				goto usage;
-			init = 1;
+			init = True;
 			break;
 		case 'a':               /* adjustment call, use saved offset */
-			if (init != -1)
+			if (init != Unknown)
 				goto usage;
-			init = 0;
+			init = False;
+			break;
+		case 's':
+			sleep_mode = True;
 			break;
 		default:
 		usage:
 			fprintf(stderr, "Usage:\n\
-\tadjkerntz -i\t(initial call from /etc/rc)\n\
-\tadjkerntz -a\t(adjustment call from crontab)\n");
+\tadjkerntz -i\t\t(initial call from /etc/rc)\n\
+\tadjkerntz -a [-s]\t(adjustment call, -s for sleep/retry mode)\n");
   			return 2;
 		}
-	if (init == -1)
+	if (init == Unknown)
 		goto usage;
-
-	if (access(_PATH_CLOCK, F_OK))
-		return 0;
+	if (init)
+		sleep_mode = True;
 
 	sigemptyset(&mask);
 	sigemptyset(&emask);
@@ -114,15 +122,26 @@ int main(argc, argv)
 		return 1;
 	}
 
-again:
+	if (init)
+		wall_clock = (access(_PATH_CLOCK, F_OK) == 0);
+	else {
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_WALLCLOCK;
+		len = sizeof(wall_clock);
+		if (sysctl(mib, 2, &wall_clock, &len, NULL, 0) == -1) {
+			syslog(LOG_ERR, "sysctl(get_wallclock): %m");
+			return 1;
+		}
+	}
 
+again:
 	(void) sigprocmask(SIG_BLOCK, &mask, NULL);
 	(void) signal(SIGTERM, fake);
 
 	diff = 0;
 	stv = NULL;
 	stz = NULL;
-	looping = 0;
+	looping = False;
 
 	mib[0] = CTL_MACHDEP;
 	mib[1] = CPU_ADJKERNTZ;
@@ -161,7 +180,15 @@ recalculate:
 		 * middle of the nonexistent hour means 3:30 am.
 		 */
 		syslog(LOG_WARNING,
-		"Nonexistent local time -- will retry after %d secs", REPORT_PERIOD);
+		"Warning: nonexistent %s time.",
+			utcsec == -1 && localsec == -1 ? "UTC time and local" :
+			utcsec == -1 ? "UTC" : "local");
+		if (!sleep_mode) {
+			syslog(LOG_WARNING, "Giving up.");
+			return 1;
+		}
+		syslog(LOG_WARNING, "Will retry after %d minutes.",
+			REPORT_PERIOD / 60);
 		(void) signal(SIGTERM, SIG_DFL);
 		(void) sigprocmask(SIG_UNBLOCK, &mask, NULL);
 		(void) sleep(REPORT_PERIOD);
@@ -191,7 +218,7 @@ recalculate:
 		if (diff > 0 && initial_isdst != final_isdst) {
 			if (looping)
 				goto bad_final;
-			looping++;
+			looping = True;
 			initial_isdst = final_isdst;
 			goto recalculate;
 		}
@@ -207,7 +234,15 @@ recalculate:
 			 * but perhaps we never get here.
 			 */
 			syslog(LOG_WARNING,
-		"Nonexistent (final) local time -- will retry after %d secs", REPORT_PERIOD);
+				"Warning: nonexistent final %s time.",
+				utcsec == -1 && localsec == -1 ? "UTC time and local" :
+				utcsec == -1 ? "UTC" : "local");
+			if (!sleep_mode) {
+				syslog(LOG_WARNING, "Giving up.");
+				return 1;
+			}
+			syslog(LOG_WARNING, "Will retry after %d minutes.",
+				REPORT_PERIOD / 60);
 			(void) signal(SIGTERM, SIG_DFL);
 			(void) sigprocmask(SIG_UNBLOCK, &mask, NULL);
 			(void) sleep(REPORT_PERIOD);
@@ -237,9 +272,15 @@ recalculate:
 		tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
 		stz = &tz;
 	}
+	if (!wall_clock && stz == NULL)
+		stv = NULL;
 
-	/* if init and something will be changed, don't touch RTC at all */
-	if (init && (stv != NULL || kern_offset != offset)) {
+	/* if init or UTC clock and offset/date will be changed, */
+	/* disable RTC modification for a while.                      */
+
+	if (   (init && stv != NULL)
+	    || ((init || !wall_clock) && kern_offset != offset)
+	   ) {
 		mib[0] = CTL_MACHDEP;
 		mib[1] = CPU_DISRTCSET;
 		len = sizeof(disrtcset);
@@ -249,7 +290,7 @@ recalculate:
 		}
 		if (disrtcset == 0) {
 			disrtcset = 1;
-			need_restore = 1;
+			need_restore = True;
 			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
 				syslog(LOG_ERR, "sysctl(set_disrtcset): %m");
 				return 1;
@@ -257,16 +298,19 @@ recalculate:
 		}
 	}
 
-	if ((   (init && (stv != NULL || stz != NULL))
-	     || (stz != NULL && stv == NULL)
-	    )
+	if (   (   (init && (stv != NULL || stz != NULL))
+		|| (stz != NULL && stv == NULL)
+	       )
 	    && settimeofday(stv, stz)
 	   ) {
 		syslog(LOG_ERR, "settimeofday: %m");
 		return 1;
 	}
 
-	/* init: don't write RTC, !init: write RTC */
+	/* setting CPU_ADJKERNTZ have a side effect: resettodr(), which */
+	/* can be disabled by CPU_DISRTCSET, so if init or UTC clock    */
+	/* -- don't write RTC, else write RTC.                          */
+
 	if (kern_offset != offset) {
 		kern_offset = offset;
 		mib[0] = CTL_MACHDEP;
@@ -278,8 +322,18 @@ recalculate:
 		}
 	}
 
+	if (init) {
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_WALLCLOCK;
+		len = sizeof(wall_clock);
+		if (sysctl(mib, 2, NULL, NULL, &wall_clock, len) == -1) {
+			syslog(LOG_ERR, "sysctl(put_wallclock): %m");
+			return 1;
+		}
+	}
+
 	if (need_restore) {
-		need_restore = 0;
+		need_restore = False;
 		mib[0] = CTL_MACHDEP;
 		mib[1] = CPU_DISRTCSET;
 		disrtcset = 0;
@@ -292,8 +346,8 @@ recalculate:
 
 /****** End of critical section ******/
 
-	if (init) {
-		init = 0;
+	if (init && wall_clock) {
+		init = False;
 		/* wait for signals and acts like -a */
 		(void) sigsuspend(&emask);
 		goto again;
