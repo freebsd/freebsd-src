@@ -54,82 +54,32 @@ char *argv[];
 		case 'h' :	strcpy(name, optarg);
 				break;
 
-		case 'c' :	if (!strcasecmp(optarg, "IN"))
-					class = C_IN;
-				else if (!strcasecmp(optarg, "HS"))
-					class = C_HS;
-				else if (!strcasecmp(optarg, "CHAOS"))
-					class = C_CHAOS;
-				else if (!strcasecmp(optarg, "ANY"))
-					class = C_ANY;
-				else {
-					class = T_ANY;
-					fprintf(stderr, "optarg=%s\n", optarg);
-				}
-				break;
+		case 'c' : {
+				int success, proto_class;
 
-		case 't' :	if (!strcasecmp(optarg, "A"))
-					type = T_A;
-				else if (!strcasecmp(optarg, "NS"))
-					type = T_NS;
-				else if (!strcasecmp(optarg, "MD"))
-					type = T_MD;
-				else if (!strcasecmp(optarg, "MF"))
-					type = T_MF;
-				else if (!strcasecmp(optarg, "CNAME"))
-					type = T_CNAME;
-				else if (!strcasecmp(optarg, "SOA"))
-					type = T_SOA;
-				else if (!strcasecmp(optarg, "MB"))
-					type = T_MB;
-				else if (!strcasecmp(optarg, "MG"))
-					type = T_MG;
-				else if (!strcasecmp(optarg, "MR"))
-					type = T_MR;
-				else if (!strcasecmp(optarg, "NULL"))
-					type = T_NULL;
-				else if (!strcasecmp(optarg, "WKS"))
-					type = T_WKS;
-				else if (!strcasecmp(optarg, "PTR"))
-					type = T_PTR;
-				else if (!strcasecmp(optarg, "HINFO"))
-					type = T_HINFO;
-				else if (!strcasecmp(optarg, "MINFO"))
-					type = T_MINFO;
-				else if (!strcasecmp(optarg, "MX"))
-					type = T_MX;
-				else if (!strcasecmp(optarg, "TXT"))
-					type = T_TXT;
-				else if (!strcasecmp(optarg, "RP"))
-					type = T_RP;
-				else if (!strcasecmp(optarg, "AFSDB"))
-					type = T_AFSDB;
-				else if (!strcasecmp(optarg, "ANY"))
-					type = T_ANY;
-				else if (!strcasecmp(optarg, "X25"))
-					type = T_X25;
-				else if (!strcasecmp(optarg, "ISDN"))
-					type = T_ISDN;
-				else if (!strcasecmp(optarg, "RT"))
-					type = T_RT;
-				else if (!strcasecmp(optarg, "NSAP"))
-					type = T_NSAP;
-				else if (!strcasecmp(optarg, "SIG"))
-					type = T_SIG;
-				else if (!strcasecmp(optarg, "KEY"))
-					type = T_KEY;
-				else if (!strcasecmp(optarg, "PX"))
-					type = T_PX;
-				else if (!strcasecmp(optarg, "GPOS"))
-					type = T_GPOS;
-				else if (!strcasecmp(optarg, "AAAA"))
-					type = T_AAAA;
-				else if (!strcasecmp(optarg, "LOC"))
-					type = T_LOC;
+				proto_class = sym_ston(__p_class_syms,
+						       optarg, &success);
+				if (success)
+					class = proto_class;
 				else {
-					fprintf(stderr, "Bad type (%s)\n", optarg);
+				    fprintf(stderr, "Bad class (%s)\n", optarg);
 					exit(-1);
 				}
+			    }
+				break;
+
+		case 't' : {
+				int success, proto_type;
+
+				proto_type = sym_ston(__p_type_syms,
+						      optarg, &success);
+				if (success)
+					type = proto_type;
+				else {
+				    fprintf(stderr, "Bad type (%s)\n", optarg);
+					exit(-1);
+				}
+			    }
 				break;
 
 		case 'd' :	debug++;

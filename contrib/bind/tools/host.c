@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 8.8 1995/12/06 20:34:52 vixie Exp $";
+static char rcsid[] = "$Id: host.c,v 8.12 1996/10/08 04:51:07 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -121,8 +121,8 @@ int list = 0;
 int server_specified = 0;
 
 u_char *pr_cdname();
-char *pr_class(), *pr_rr(), *pr_type();
-extern char *hostalias();
+char *pr_class(), *pr_rr();
+const char *pr_type();
 
 main(c, v)
 	int c;
@@ -268,82 +268,36 @@ main(c, v)
 
 }
 
+int
 parsetype(s)
 	char *s;
 {
-if (strcmp(s,"a") == 0)
-  return(T_A);
-if (strcmp(s,"ns") == 0)
-  return(T_NS);
-if (strcmp(s,"md") == 0)
-  return(T_MD);
-if (strcmp(s,"mf") == 0)
-  return(T_MF);
-if (strcmp(s,"cname") == 0)
-  return(T_CNAME);
-if (strcmp(s,"soa") == 0)
-  return(T_SOA);
-if (strcmp(s,"mb") == 0)
-  return(T_MB);
-if (strcmp(s,"mg") == 0)
-  return(T_MG);
-if (strcmp(s,"mr") == 0)
-  return(T_MR);
-if (strcmp(s,"null") == 0)
-  return(T_NULL);
-if (strcmp(s,"wks") == 0)
-  return(T_WKS);
-if (strcmp(s,"ptr") == 0)
-  return(T_PTR);
-if (strcmp(s,"hinfo") == 0)
-  return(T_HINFO);
-if (strcmp(s,"minfo") == 0)
-  return(T_MINFO);
-if (strcmp(s,"mx") == 0)
-  return(T_MX);
-if (strcmp(s,"txt") == 0)
-  return(T_TXT);
-if (strcmp(s,"rp") == 0)
-  return(T_RP);
-if (strcmp(s,"afsdb") == 0)
-  return(T_AFSDB);
-if (strcmp(s,"x25") == 0)
-  return(T_X25);
-if (strcmp(s,"isdn") == 0)
-  return(T_ISDN);
-if (strcmp(s,"rt") == 0)
-  return(T_RT);
-if (strcmp(s,"uinfo") == 0)
-  return(T_UINFO);
-if (strcmp(s,"uid") == 0)
-  return(T_UID);
-if (strcmp(s,"gid") == 0)
-  return(T_GID);
-if (strcmp(s,"unspec") == 0)
-  return(T_UNSPEC);
-if (strcmp(s,"any") == 0)
-  return(T_ANY);
-if (strcmp(s,"*") == 0)
-  return(T_ANY);
-if (atoi(s))
-  return(atoi(s));
-fprintf(stderr, "Invalid query type: %s\n", s);
-exit(2);
+	int type, success;
+
+	type = sym_ston(__p_type_syms, s, &success);
+	if (success)
+		return type;
+	if (strcmp(s,"*") == 0)
+		return(T_ANY);
+	if (atoi(s))
+		return(atoi(s));
+	fprintf(stderr, "Invalid query type: %s\n", s);
+	exit(2);
 }
 
+int
 parseclass(s)
 	char *s;
 {
-if (strcmp(s,"in") == 0)
-  return(C_IN);
-if (strcmp(s,"hs") == 0)
-  return(C_HS);
-if (strcmp(s,"any") == 0)
-  return(C_ANY);
-if (atoi(s))
-  return(atoi(s));
-fprintf(stderr, "Invalid query class: %s\n", s);
-exit(2);
+	int class, success;
+
+	class = sym_ston(__p_class_syms, s, &success);
+	if (success)
+		return class;
+	if (atoi(s))
+		return(atoi(s));
+	fprintf(stderr, "Invalid query class: %s\n", s);
+	exit(2);
 }
 
 printanswer(hp)
@@ -438,6 +392,12 @@ switch(errnum) {
 			case T_GID:
 				fprintf(stderr,"a Group ID.\n");
 				break;
+			case T_SRV:
+				fprintf(stderr,"a Server Selector.\n");
+				break;
+			case T_NAPTR:
+				fprintf(stderr,"a URN Naming Authority.\n");
+				break;
 			case T_UNSPEC:
 				fprintf(stderr,"any Unspecified Format data.\n");
 				break;
@@ -460,7 +420,8 @@ static u_char hostbuf[BUFSIZ+1];
 gethostinfo(name)
 	char *name;
 {
-	register char *cp, **domain;
+	char *cp, **domain;
+	const char *tp;
 	u_int n;
 	int hp;
 	int nDomain;
@@ -479,11 +440,11 @@ gethostinfo(name)
 			cp[-1] = '.';
 		return (hp);
 	}
-	if (n == 0 && (cp = hostalias(name))) {
+	if (n == 0 && (tp = hostalias(name))) {
 	        if (verbose)
-		    printf("Aliased to \"%s\"\n", cp);
+		    printf("Aliased to \"%s\"\n", tp);
 		_res.options |= RES_DEFNAMES;	  
-		return (getdomaininfo(cp, (char *)NULL));
+		return (getdomaininfo(tp, (char *)NULL));
 	}
 	if (n >= _res.ndots) {
 		asis = 1;
@@ -549,7 +510,7 @@ getinfo(name, domain, type)
 	querybuf buf, answer;
 	int n, n1, i, j, nmx, ancount, nscount, arcount, qdcount, buflen;
 	u_short pref, class;
-	char host[2*MAXDNAME+2];
+	char host[MAXDNAME];
 
 	if (domain == NULL)
 		(void)sprintf(host, "%.*s", MAXDNAME, name);
@@ -573,7 +534,7 @@ getinfo(name, domain, type)
 	}
 	eom = (char *)&answer + n;
 	return(printinfo(&answer, eom, T_ANY, 0));
-      }
+}
 
 printinfo(answer, eom, filter, isls)
 	querybuf *answer;
@@ -826,6 +787,64 @@ pr_rr(cp, msg, file, filter)
 		  fprintf(file, "%s", name);
 		break;
 
+	case T_SRV:
+		/* priority */
+		if (doprint)
+			fprintf(file," %d", _getshort(cp));
+		cp += sizeof(u_short);
+		/* weight */
+		if (doprint)
+			fprintf(file," %d", _getshort(cp));
+		cp += sizeof(u_short);
+		/* port */
+		if (doprint)
+			fprintf(file," %d", _getshort(cp));
+		cp += sizeof(u_short);
+		/* target */
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		if (doprint)
+			fprintf(file,"%s",name);
+		break;
+
+	case T_NAPTR:
+		/* order */
+		if (doprint)
+			fprintf(file," %d", _getshort(cp));
+		cp += sizeof(u_short);
+		/* preference */
+		if (doprint)
+			fprintf(file," %d", _getshort(cp));
+		cp += sizeof(u_short);
+		/* Flags */
+		n = *cp++;
+		if (doprint)
+		  if(n)
+		     fprintf(file,"%c%.*s", punc, n, cp);
+		  else 
+		     fprintf(file,"%c\"\"",punc);
+		cp += n;
+		/* Service */
+		n = *cp++;
+		if (doprint)
+		  if(n)
+		     fprintf(file,"%c%.*s", punc, n, cp);
+		  else 
+		     fprintf(file,"%c\"\"",punc);
+		cp += n;
+		/* Regexp  */
+		n = *cp++;
+		if (doprint)
+		  if(n)
+		     fprintf(file,"%c%.*s", punc, n, cp);
+		  else 
+		     fprintf(file,"%c\"\"",punc);
+		cp += n;
+		/* replacement  */
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		if (doprint)
+			fprintf(file,"%s",name);
+		break;
+
 	case T_MINFO:
 	case T_RP:
 		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
@@ -842,31 +861,37 @@ pr_rr(cp, msg, file, filter)
 			fprintf(file, " %s", name);
 		break;
 
-	case T_TXT:
 	case T_X25:
+		if (n = *cp++) {
+		  if (doprint)
+		    fprintf(file,"%c%.*s", punc, n, cp);
+		  cp += n;
+		}
+		break;
+
+	case T_TXT:
 		{
 		  int n,j;
 		  u_char * end = cp + dlen;
 		 
-		  if (doprint)
-		    (void) fputs(" \"", file);
 		  while (cp < end) {
-		    if (n = *cp++) {
-		      for (j = n; j > 0 && cp < end ; j --)
-			if ((*cp == '\n') || (*cp == '"')) {
-			  if (doprint){
+		    if (doprint)
+		      (void) fputs(" \"", file);
+		    if (n = *cp++)
+		      for (j = n; j > 0 && cp < end ; j --) {
+			if (doprint) {
+			  if ((*cp == '\n') || (*cp == '"') || (*cp == '\\'))
 			    (void) putc('\\', file);
-			    (void) putc(*cp++, file);
-			  }
-			} else
-			  if (doprint)
-			    (void) putc(*cp++, file);
-		    }
+			  (void) putc(*cp, file);
+			}
+			cp++;
+		      }
+		    if (doprint)
+		      (void) putc('"', file);
 		  }
-		  if (doprint)
-		    (void) fputs("\"", file);
-		  break;
 		}
+		break;
+
 	case T_UINFO:
 		if (doprint)
 		  fprintf(file,"%c%s", punc, cp);
@@ -929,78 +954,33 @@ pr_rr(cp, msg, file, filter)
 	return (char *)cp;
 }
 
-static	char nbuf[20];
-
 /*
- * Return a string for the type
+ * Return a string for the type.  A few get special treatment when
+ * not in verbose mode, to make the program more chatty and easier to
+ * understand.
  */
-char *
+const char *
 pr_type(type)
 	int type;
 {
-	switch (type) {
+
+	if (!verbose) switch (type) {
 	case T_A:
-		return(verbose? "A" : "has address");
-	case T_NS:		/* authoritative server */
-		return("NS");
-#ifdef OLDRR
-	case T_MD:		/* mail destination */
-		return("MD");
-	case T_MF:		/* mail forwarder */
-		return("MF");
-#endif /* OLDRR */
+		return("has address");
 	case T_CNAME:		/* connonical name */
-		return(verbose? "CNAME" : "is a nickname for");
-	case T_SOA:		/* start of authority zone */
-		return("SOA");
-	case T_MB:		/* mailbox domain name */
-		return("MB");
-	case T_MG:		/* mail group member */
-		return("MG");
+		return("is a nickname for");
 	case T_MX:		/* mail routing info */
-		return(verbose? "MX" : "mail is handled");
+		return("mail is handled");
 	case T_TXT:		/* TXT - descriptive info */
-		return(verbose? "TXT" : "descriptive text");
+		return("descriptive text");
 	case T_AFSDB:		/* AFS/DCE info */
-		return(verbose? "AFSDB" : "DCE or AFS service from");
-	case T_X25:		/* X25 */
-		return(verbose? "X25" : "X25 address");
-	case T_ISDN:		/* ISDN */
-		return(verbose? "ISDN" : "ISDN address");
-	case T_RT:		/* Router */
-		return(verbose? "RT" : "router");
-	case T_MR:		/* mail rename name */
-		return("MR");
-	case T_NULL:		/* null resource record */
-		return("NULL");
-	case T_WKS:		/* well known service */
-		return("WKS");
-	case T_PTR:		/* domain name pointer */
-		return("PTR");
-	case T_HINFO:		/* host information */
-		return("HINFO");
-	case T_MINFO:		/* mailbox information */
-		return("MINFO");
-        case T_RP:              /* responsible person */
-		return(verbose?"RP":"responsible person");
-	case T_AXFR:		/* zone transfer */
-		return("AXFR");
-	case T_MAILB:		/* mail box */
-		return("MAILB");
-	case T_MAILA:		/* mail address */
-		return("MAILA");
-	case T_ANY:		/* matches any type */
-		return("ANY");
-	case T_UINFO:
-		return("UINFO");
-	case T_UID:
-		return("UID");
-	case T_GID:
-		return("GID");
-	default:
-		sprintf(nbuf, "%d", type);
-		return nbuf;
+		return("DCE or AFS service from");
 	}
+
+	if (verbose)
+		return (sym_ntos(__p_type_syms, type, NULL));
+	else
+		return (sym_ntop(__p_type_syms, type, NULL));
 }
 
 /*
@@ -1010,18 +990,18 @@ char *
 pr_class(class)
 	int class;
 {
+	static char spacestr[20];
 
-	switch (class) {
+	if (!verbose) switch (class) {
 	case C_IN:		/* internet class */
-		return(verbose? " IN" : "");
-	case C_HS:		/* internet class */
-		return(verbose? " HS" : "");
-	case C_ANY:		/* matches any class */
-		return(" ANY");
-	default:
-		(void) sprintf(nbuf," %d", class);
-		return nbuf;
+		return "";
+	case C_HS:		/* internet class FIXME? */
+		return "";
 	}
+
+	spacestr[0] = ' ';
+	strcpy (&spacestr[1], p_class (class));
+	return spacestr;
 }
 
 u_char *

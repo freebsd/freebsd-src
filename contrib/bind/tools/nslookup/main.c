@@ -61,7 +61,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: main.c,v 8.3 1996/06/02 08:20:41 vixie Exp $";
+static char rcsid[] = "$Id: main.c,v 8.4 1996/11/11 06:36:54 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -1102,7 +1102,9 @@ ReadRC()
     register char *cp;
     char buf[PATH_MAX];
 
-    if ((cp = getenv("HOME")) != NULL) {
+    if ((cp = getenv("HOME")) != NULL &&
+	(strlen(cp) + strlen(_PATH_NSLOOKUPRC)) < sizeof(buf)) {
+
 	(void) strcpy(buf, cp);
 	(void) strcat(buf, _PATH_NSLOOKUPRC);
 

@@ -55,7 +55,7 @@
 
 /*
  *	@(#)res.h	5.10 (Berkeley) 6/1/90
- *	$Id: res.h,v 8.1 1994/12/15 06:24:31 vixie Exp $
+ *	$Id: res.h,v 8.3 1996/12/02 09:17:24 vixie Exp $
  */
 
 /*
@@ -76,6 +76,11 @@
 #define TRUE	1
 #define FALSE	0
 typedef int Boolean;
+
+#define MAXALIASES	35
+#define MAXADDRS	35
+#define MAXDOMAINS	35
+#define MAXSERVERS	10
 
 /*
  *  Define return statuses in addtion to the ones defined in namserv.h
@@ -159,8 +164,8 @@ extern int  Print_query();
 extern unsigned char *Print_cdname();
 extern unsigned char *Print_cdname2();	/* fixed width */
 extern unsigned char *Print_rr();
-extern char *DecodeType();	/* descriptive version of p_type */
-extern char *DecodeError();
+extern const char *DecodeType();	/* descriptive version of p_type */
+extern const char *DecodeError();
 extern char *Calloc();
 extern char *Malloc();
 extern void NsError();
