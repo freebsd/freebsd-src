@@ -69,12 +69,12 @@ xdr_ypresp_all_seq(XDR *xdrs, u_long *objp)
 	bzero(&out, sizeof out);
 	while (1) {
 		if (!xdr_ypresp_all(xdrs, &out)) {
-			xdr_free(xdr_ypresp_all, (char *)&out);
+			xdr_free((xdrproc_t)xdr_ypresp_all, &out);
 			*objp = YP_YPERR;
 			return (FALSE);
 		}
 		if (out.more == 0) {
-			xdr_free(xdr_ypresp_all, (char *)&out);
+			xdr_free((xdrproc_t)xdr_ypresp_all, &out);
 			*objp = YP_NOMORE;
 			return (TRUE);
 		}
@@ -89,7 +89,7 @@ xdr_ypresp_all_seq(XDR *xdrs, u_long *objp)
 			bcopy(out.ypresp_all_u.val.val.valdat_val, val,
 				out.ypresp_all_u.val.val.valdat_len);
 			val[out.ypresp_all_u.val.val.valdat_len] = '\0';
-			xdr_free(xdr_ypresp_all, (char *)&out);
+			xdr_free((xdrproc_t)xdr_ypresp_all, &out);
 
 			r = (*ypresp_allfn)(status,
 				key, out.ypresp_all_u.val.key.keydat_len,
@@ -102,11 +102,11 @@ xdr_ypresp_all_seq(XDR *xdrs, u_long *objp)
 				return (TRUE);
 			break;
 		case YP_NOMORE:
-			xdr_free(xdr_ypresp_all, (char *)&out);
+			xdr_free((xdrproc_t)xdr_ypresp_all, &out);
 			*objp = YP_NOMORE;
 			return (TRUE);
 		default:
-			xdr_free(xdr_ypresp_all, (char *)&out);
+			xdr_free((xdrproc_t)xdr_ypresp_all, &out);
 			*objp = status;
 			return (TRUE);
 		}

@@ -76,8 +76,8 @@ extern enum clnt_stat	pmap_rmtcall(struct sockaddr_in *,
 				     xdrproc_t, caddr_t,
 				     struct timeval, u_long *);
 extern enum clnt_stat	clnt_broadcast(u_long, u_long, u_long,
-				       xdrproc_t, char *,
-				       xdrproc_t, char *,
+				       xdrproc_t, void *,
+				       xdrproc_t, void *,
 				       resultproc_t);
 extern u_short		pmap_getport(struct sockaddr_in *,
 				     u_long, u_long, u_int);

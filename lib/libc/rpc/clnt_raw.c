@@ -76,10 +76,10 @@ static struct clntraw_private {
 	u_int	mcnt;
 } *clntraw_private;
 
-static enum clnt_stat clnt_raw_call(CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
-	xdrproc_t, caddr_t, struct timeval);
+static enum clnt_stat clnt_raw_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
+	xdrproc_t, void *, struct timeval);
 static void clnt_raw_geterr(CLIENT *, struct rpc_err *);
-static bool_t clnt_raw_freeres(CLIENT *, xdrproc_t, caddr_t);
+static bool_t clnt_raw_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_raw_abort(CLIENT *);
 static bool_t clnt_raw_control(CLIENT *, u_int, char *);
 static void clnt_raw_destroy(CLIENT *);
@@ -145,9 +145,9 @@ clnt_raw_call(h, proc, xargs, argsp, xresults, resultsp, timeout)
 	CLIENT *h;
 	rpcproc_t proc;
 	xdrproc_t xargs;
-	caddr_t argsp;
+	void *argsp;
 	xdrproc_t xresults;
-	caddr_t resultsp;
+	void *resultsp;
 	struct timeval timeout;
 {
 	struct clntraw_private *clp = clntraw_private;
@@ -251,7 +251,7 @@ static bool_t
 clnt_raw_freeres(cl, xdr_res, res_ptr)
 	CLIENT *cl;
 	xdrproc_t xdr_res;
-	caddr_t res_ptr;
+	void *res_ptr;
 {
 	struct clntraw_private *clp = clntraw_private;
 	XDR *xdrs = &clp->xdr_stream;

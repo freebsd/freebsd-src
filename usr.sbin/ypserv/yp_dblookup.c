@@ -318,7 +318,7 @@ yp_cache_db(DB *dbp, char *name, int size)
  *   the same database comes in later.
  */
 static DB *
-yp_find_db(char *name, char *key, int size)
+yp_find_db(const char *name, const char *key, int size)
 {
 	register struct circleq_entry *qptr;
 
@@ -364,11 +364,11 @@ yp_open_db_cache(const char *domain, const char *map, const char *key,
 	strcat(buf, "/");
 	strcat(buf, map);
 
-	if ((dbp = yp_find_db((char *)&buf, key, size)) != NULL) {
+	if ((dbp = yp_find_db(buf, key, size)) != NULL) {
 		return(dbp);
 	} else {
 		if ((dbp = yp_open_db(domain, map)) != NULL) {
-			if (yp_cache_db(dbp, (char *)&buf, size)) {
+			if (yp_cache_db(dbp, buf, size)) {
 				(void)(dbp->close)(dbp);
 				yp_errno = YP_YPERR;
 				return(NULL);
@@ -506,8 +506,8 @@ yp_get_record(const char *domain, const char *map,
 		TAILQ_FIRST(&qhead)->dbptr->size = 0;
 	}
 #else
-	bcopy((char *)data->data, (char *)&buf, data->size);
-	data->data = (void *)&buf;
+	bcopy(data->data, &buf, data->size);
+	data->data = &buf;
 	(void)(dbp->close)(dbp);
 #endif
 
@@ -558,8 +558,8 @@ yp_first_record(const DB *dbp, DBT *key, DBT *data, int allow)
 		TAILQ_FIRST(&qhead)->dbptr->size = key->size;
 	}
 #else
-	bcopy((char *)data->data, (char *)&buf, data->size);
-	data->data = (void *)&buf;
+	bcopy(data->data, &buf, data->size);
+	data->data = &buf;
 #endif
 
 	return(YP_TRUE);
@@ -599,7 +599,7 @@ yp_next_record(const DB *dbp, DBT *key, DBT *data, int all, int allow)
 #endif
 			(dbp->seq)(dbp,&lkey,&ldata,R_FIRST);
 			while (key->size != lkey.size ||
-			    strncmp((char *)key->data, lkey.data,
+			    strncmp(key->data, lkey.data,
 			    (int)key->size))
 				if ((dbp->seq)(dbp,&lkey,&ldata,R_NEXT)) {
 #ifdef DB_CACHE
@@ -639,11 +639,11 @@ yp_next_record(const DB *dbp, DBT *key, DBT *data, int all, int allow)
 		TAILQ_FIRST(&qhead)->dbptr->size = key->size;
 	}
 #else
-	bcopy((char *)key->data, (char *)&keybuf, key->size);
-	lkey.data = (void *)&keybuf;
+	bcopy(key->data, &keybuf, key->size);
+	lkey.data = &keybuf;
 	lkey.size = key->size;
-	bcopy((char *)data->data, (char *)&datbuf, data->size);
-	data->data = (void *)&datbuf;
+	bcopy(data->data, &datbuf, data->size);
+	data->data = &datbuf;
 #endif
 
 	return(YP_TRUE);

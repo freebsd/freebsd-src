@@ -98,8 +98,8 @@ typedef struct __rpc_client {
 	struct clnt_ops {
 		/* call remote procedure */
 		enum clnt_stat	(*cl_call)(struct __rpc_client *,
-				    rpcproc_t, xdrproc_t, caddr_t, xdrproc_t,
-					caddr_t, struct timeval);
+				    rpcproc_t, xdrproc_t, void *, xdrproc_t,
+				        void *, struct timeval);
 		/* abort a call */
 		void		(*cl_abort)(struct __rpc_client *);
 		/* get specific error code */
@@ -107,12 +107,12 @@ typedef struct __rpc_client {
 					struct rpc_err *);
 		/* frees results */
 		bool_t		(*cl_freeres)(struct __rpc_client *,
-					xdrproc_t, caddr_t);
+					xdrproc_t, void *);
 		/* destroy this structure */
 		void		(*cl_destroy)(struct __rpc_client *);
 		/* the ioctl() of rpc */
 		bool_t          (*cl_control)(struct __rpc_client *, u_int,
-				    char *);
+				    void *);
 	} *cl_ops;
 	void 			*cl_private;	/* private stuff */
 	char			*cl_netid;	/* network token */
@@ -155,17 +155,17 @@ struct rpc_timers {
  * 	CLIENT *rh;
  *	rpcproc_t proc;
  *	xdrproc_t xargs;
- *	caddr_t argsp;
+ *	void *argsp;
  *	xdrproc_t xres;
- *	caddr_t resp;
+ *	void *resp;
  *	struct timeval timeout;
  */
 #define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs) \
 	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, \
-		(caddr_t)(void *)argsp,	xres, (caddr_t)(void *)resp, secs))
+		argsp, xres, resp, secs))
 #define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs) \
 	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, \
-		(caddr_t)(void *)argsp, xres, (caddr_t)(void *)resp, secs))
+		argsp, xres, resp, secs))
 
 /*
  * void
@@ -189,7 +189,7 @@ struct rpc_timers {
  * CLNT_FREERES(rh, xres, resp);
  * 	CLIENT *rh;
  *	xdrproc_t xres;
- *	caddr_t resp;
+ *	void *resp;
  */
 #define	CLNT_FREERES(rh,xres,resp) ((*(rh)->cl_ops->cl_freeres)(rh,xres,resp))
 #define	clnt_freeres(rh,xres,resp) ((*(rh)->cl_ops->cl_freeres)(rh,xres,resp))

@@ -285,7 +285,7 @@ ypxfr_callback(ypxfrstat rval, struct sockaddr_in *addr, unsigned int transid,
 
 	/* Turn the timeout off -- we don't want to block. */
 	timeout.tv_sec = 0;
-	if (clnt_control(clnt, CLSET_TIMEOUT, (char *)&timeout) == FALSE)
+	if (clnt_control(clnt, CLSET_TIMEOUT, &timeout) == FALSE)
 		yp_error("failed to set timeout on ypproc_xfr callback");
 
 	if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL) {
@@ -303,7 +303,7 @@ ypxfr_callback(ypxfrstat rval, struct sockaddr_in *addr, unsigned int transid,
 #define YPXFR_RETURN(CODE) 						\
 	/* Order is important: send regular RPC reply, then callback */	\
 	result.xfrstat = CODE; 						\
-	svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result); \
+	svc_sendreply(rqstp->rq_xprt, (xdrproc_t)xdr_ypresp_xfr, &result); \
 	ypxfr_callback(CODE,rqhost,argp->transid, 			\
 					argp->prog,argp->port); 	\
 	return(NULL);
@@ -378,7 +378,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			"-p", yp_dir, "-C", t,
 		      	g, inet_ntoa(rqhost->sin_addr),
 			p, argp->map_parms.map,
-		      	(char *)NULL);
+		      	NULL);
 		} else {
 			execl(ypxfr_command, "ypxfr",
 			"-d", argp->map_parms.domain,
@@ -386,7 +386,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			"-C", t,
 		      	g, inet_ntoa(rqhost->sin_addr),
 			p, argp->map_parms.map,
-		      	(char *)NULL);
+		      	NULL);
 		}
 		yp_error("ypxfr execl(%s): %s", ypxfr_command, strerror(errno));
 		YPXFR_RETURN(YPXFR_XFRERR)
@@ -550,7 +550,7 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	}
 
 	/* Kick off the actual data transfer. */
-	svc_sendreply(rqstp->rq_xprt, xdr_my_ypresp_all, (char *)&result);
+	svc_sendreply(rqstp->rq_xprt, (xdrproc_t)xdr_my_ypresp_all, &result);
 
 	/*
 	 * Proper fix for PR #10970: exit here so that we don't risk
@@ -598,10 +598,9 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 */
 	result.stat = yp_getbykey(&key, &val);
 	if (result.stat == YP_TRUE) {
-		bcopy((char *)val.valdat_val, (char *)&ypvalbuf,
-						val.valdat_len);
+		bcopy(val.valdat_val, &ypvalbuf, val.valdat_len);
 		ypvalbuf[val.valdat_len] = '\0';
-		result.peer = (char *)&ypvalbuf;
+		result.peer = ypvalbuf;
 	} else
 		result.peer = "";
 
@@ -646,7 +645,7 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	result.stat = yp_getbykey(&key, &val);
 
 	if (result.stat == YP_TRUE)
-		result.ordernum = atoi((char *)val.valdat_val);
+		result.ordernum = atoi(val.valdat_val);
 	else
 		result.ordernum = 0;
 
@@ -698,7 +697,7 @@ yp_maplist_create(const char *domain)
 				yp_maplist_free(yp_maplist);
 				return(NULL);
 			}
-			if ((cur->map = (char *)strdup(dirp->d_name)) == NULL) {
+			if ((cur->map = strdup(dirp->d_name)) == NULL) {
 				yp_error("strdup() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
@@ -818,8 +817,7 @@ ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
 	if (v2_result == NULL)
 		return(NULL);
 
-	bcopy((char *)v2_result,
-	      (char *)&result.ypresponse_u.yp_resp_valtype,
+	bcopy(v2_result, &result.ypresponse_u.yp_resp_valtype,
 	      sizeof(ypresp_val));
 
 	return (&result);
@@ -850,8 +848,7 @@ ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
 	if (v2_result == NULL)
 		return(NULL);
 
-	bcopy((char *)v2_result,
-	      (char *)&result.ypresponse_u.yp_resp_key_valtype,
+	bcopy(v2_result, &result.ypresponse_u.yp_resp_key_valtype,
 	      sizeof(ypresp_key_val));
 
 	return (&result);
@@ -881,8 +878,7 @@ ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
 	if (v2_result == NULL)
 		return(NULL);
 
-	bcopy((char *)v2_result,
-	      (char *)&result.ypresponse_u.yp_resp_key_valtype,
+	bcopy(v2_result, &result.ypresponse_u.yp_resp_key_valtype,
 	      sizeof(ypresp_key_val));
 
 	return (&result);

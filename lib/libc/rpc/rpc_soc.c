@@ -182,7 +182,7 @@ clntudp_bufcreate(raddr, prog, vers, wait, sockp, sendsz, recvsz)
 	if (cl == NULL) {
 		return (NULL);
 	}
-	(void) CLNT_CONTROL(cl, CLSET_RETRY_TIMEOUT, (char *)(void *)&wait);
+	(void) CLNT_CONTROL(cl, CLSET_RETRY_TIMEOUT, &wait);
 	return (cl);
 }
 
@@ -394,9 +394,9 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	u_long		vers;		/* version number */
 	u_long		proc;		/* procedure number */
 	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
+	void	       *argsp;		/* pointer to args */
 	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
+	void	       *resultsp;	/* pointer to results */
 	resultproc_t	eachresult;	/* call with each result obtained */
 {
 	extern mutex_t tsd_lock;

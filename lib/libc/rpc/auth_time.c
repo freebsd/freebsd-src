@@ -343,8 +343,8 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	time_valid = 0;
-	status = clnt_call(clnt, RPCBPROC_GETTIME, xdr_void, NULL,
-					xdr_u_long, (char *)&thetime, tv);
+	status = clnt_call(clnt, RPCBPROC_GETTIME, (xdrproc_t)xdr_void, NULL,
+					(xdrproc_t)xdr_u_long, &thetime, tv);
 	/*
 	 * The only error we check for is anything but success. In
 	 * fact we could have seen PROGMISMATCH if talking to a 4.1

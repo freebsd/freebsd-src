@@ -160,8 +160,8 @@ ypbindproc_null_2_yp(SVCXPRT *transp, void *argp, CLIENT *clnt)
 {
 	static char res;
 
-	bzero((char *)&res, sizeof(res));
-	return (void *)&res;
+	bzero(&res, sizeof(res));
+	return &res;
 }
 
 struct ypbind_resp *
@@ -171,7 +171,7 @@ ypbindproc_domain_2_yp(SVCXPRT *transp, domainname *argp, CLIENT *clnt)
 	struct _dom_binding *ypdb;
 	char path[MAXPATHLEN];
 
-	bzero((char *)&res, sizeof res);
+	bzero(&res, sizeof res);
 	res.ypbind_status = YPBIND_FAIL_VAL;
 	res.ypbind_resp_u.ypbind_error = YPBIND_ERR_NOSERV;
 
@@ -204,7 +204,7 @@ rejecting.", *argp);
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return (&res);
 		}
-		bzero((char *)ypdb, sizeof *ypdb);
+		bzero(ypdb, sizeof *ypdb);
 		strncpy(ypdb->dom_domain, *argp, sizeof ypdb->dom_domain);
 		ypdb->dom_vers = YPVERS;
 		ypdb->dom_alive = 0;
@@ -272,7 +272,7 @@ rejecting.", argp->ypsetdom_domain);
 		return(NULL);
 	}
 
-	bzero((char *)&bindsin, sizeof bindsin);
+	bzero(&bindsin, sizeof bindsin);
 	bindsin.sin_family = AF_INET;
 	bindsin.sin_addr.s_addr = *(u_int32_t *)argp->ypsetdom_binding.ypbind_binding_addr;
 	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
@@ -281,7 +281,7 @@ rejecting.", argp->ypsetdom_domain);
 	return((void *) &result);
 }
 
-static void
+void
 ypbindprog_2(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	union {
@@ -329,13 +329,14 @@ ypbindprog_2(struct svc_req *rqstp, register SVCXPRT *transp)
 		svcerr_noproc(transp);
 		return;
 	}
-	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
+	bzero(&argument, sizeof(argument));
+	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		return;
 	}
 	result = (*local)(transp, &argument, rqstp);
-	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
+	if (result != NULL &&
+	    !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
 	return;
@@ -449,7 +450,7 @@ main(int argc, char *argv[])
 	ypbindlist = (struct _dom_binding *)malloc(sizeof *ypbindlist);
 	if (ypbindlist == NULL)
 		errx(1, "malloc");
-	bzero((char *)ypbindlist, sizeof *ypbindlist);
+	bzero(ypbindlist, sizeof *ypbindlist);
 	strncpy(ypbindlist->dom_domain, domain_name, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
 	ypbindlist->dom_alive = 0;
@@ -540,7 +541,7 @@ handle_children(struct _dom_binding *ypdb)
 	FD_CLR(READFD, &svc_fdset);
 	READFD = WRITEFD = -1;
 	if (d > 0 && a > 0)
-		rpc_received((char *)&buf, &addr, 0);
+		rpc_received(buf, &addr, 0);
 	else {
 		for (y = ypbindlist; y; y = y->dom_pnext) {
 			if (y == ypdb)
@@ -615,7 +616,7 @@ bool_t *out;
 struct sockaddr_in *addr;
 {
 	if (retries >= MAX_RETRIES) {
-		bzero((char *)addr, sizeof(struct sockaddr_in));
+		bzero(addr, sizeof(struct sockaddr_in));
 		if (tell_parent(broad_domain->dom_domain, addr))
 			syslog(LOG_WARNING, "lost connection to parent");
 		return (TRUE);
@@ -704,15 +705,15 @@ broadcast(struct _dom_binding *ypdb)
 		i = __yp_ping(restricted_addrs, yp_restricted,
 				ypdb->dom_domain, &port);
 		if (i == -1) {
-			bzero((char *)&ypdb->dom_server_addr,
-						sizeof(struct sockaddr_in));
+			bzero(&ypdb->dom_server_addr,
+			    sizeof(struct sockaddr_in));
 			if (tell_parent(ypdb->dom_domain,
-					&ypdb->dom_server_addr))
+				&ypdb->dom_server_addr))
 			syslog(LOG_WARNING, "lost connection to parent");
 		} else {
-			bzero((char *)&sin, sizeof(struct sockaddr_in));
-			bcopy((char *)&restricted_addrs[i],
-				(char *)&sin.sin_addr, sizeof(struct in_addr));
+			bzero(&sin, sizeof(struct sockaddr_in));
+			bcopy(&restricted_addrs[i],
+			    &sin.sin_addr, sizeof(struct in_addr));
 			sin.sin_family = AF_INET;
 			sin.sin_port = port;
 			if (tell_parent(broad_domain->dom_domain, &sin))
@@ -727,15 +728,16 @@ broadcast(struct _dom_binding *ypdb)
 	{
 		char *ptr;
 
-		ptr = (char *)&ypdb->dom_domain;
+		ptr = ypdb->dom_domain;
 		stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
-	    		xdr_domainname, (char *)&ptr, xdr_bool, (char *)&out,
+	    		(xdrproc_t)xdr_domainname, &ptr,
+		        (xdrproc_t)xdr_bool, &out,
 	    		(resultproc_t)broadcast_result);
 	}
 
 	if (stat != RPC_SUCCESS) {
-		bzero((char *)&ypdb->dom_server_addr,
-						sizeof(struct sockaddr_in));
+		bzero(&ypdb->dom_server_addr,
+		    sizeof(struct sockaddr_in));
 		if (tell_parent(ypdb->dom_domain, &ypdb->dom_server_addr))
 			syslog(LOG_WARNING, "lost connection to parent");
 	}
@@ -785,11 +787,12 @@ ping(struct _dom_binding *ypdb)
 	{
 		char *ptr;
 
-		ptr = (char *)&ypdb->dom_domain;
+		ptr = ypdb->dom_domain;
 
-		if ((stat = clnt_call(client_handle, YPPROC_DOMAIN,
-			xdr_domainname, (char *)&ptr, xdr_bool, (char *)&out,
-			timeout)) != RPC_SUCCESS || out == FALSE) {
+		stat = clnt_call(client_handle, YPPROC_DOMAIN,
+		    (xdrproc_t)xdr_domainname, &ptr,
+		    (xdrproc_t)xdr_bool, &out, timeout);
+		if (stat != RPC_SUCCESS || out == FALSE) {
 			ypdb->dom_alive = 0;
 			ypdb->dom_vers = -1;
 			clnt_destroy(client_handle);
@@ -877,7 +880,7 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 			syslog(LOG_WARNING, "malloc: %m");
 			return;
 		}
-		bzero((char *)ypdb, sizeof *ypdb);
+		bzero(ypdb, sizeof *ypdb);
 		strncpy(ypdb->dom_domain, dom, sizeof ypdb->dom_domain);
 		ypdb->dom_lockfd = -1;
 		ypdb->dom_default = 0;
@@ -890,7 +893,7 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 		syslog(LOG_WARNING, "NIS server [%s] for domain \"%s\" OK",
 		inet_ntoa(raddrp->sin_addr), ypdb->dom_domain);
 
-	bcopy((char *)raddrp, (char *)&ypdb->dom_server_addr,
+	bcopy(raddrp, &ypdb->dom_server_addr,
 		sizeof ypdb->dom_server_addr);
 
 	ypdb->dom_vers = YPVERS;
@@ -923,9 +926,9 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 	 */
 	ypdb->dom_lockfd = fd;
 
-	iov[0].iov_base = (caddr_t)&(udptransp->xp_port);
+	iov[0].iov_base = (char *)&(udptransp->xp_port);
 	iov[0].iov_len = sizeof udptransp->xp_port;
-	iov[1].iov_base = (caddr_t)&ybr;
+	iov[1].iov_base = (char *)&ybr;
 	iov[1].iov_len = sizeof ybr;
 
 	bzero(&ybr, sizeof ybr);
@@ -951,8 +954,7 @@ verify(struct in_addr addr)
 	int i;
 
 	for (i = 0; i < RESTRICTED_SERVERS; i++)
-		if (!bcmp((char *)&addr, (char *)&restricted_addrs[i],
-			sizeof(struct in_addr)))
+		if (!bcmp(&addr, &restricted_addrs[i], sizeof(struct in_addr)))
 			return(0);
 
 	return(1);
@@ -978,9 +980,9 @@ yp_restricted_mode(char *args)
 	while ((s = strsep(&args, ",")) != NULL && i < RESTRICTED_SERVERS) {
 		if ((h = gethostbyname(s)) == NULL)
 			return;
-		bcopy ((char *)h->h_addr_list[0], (char *)&restricted_addrs[i],
-			sizeof(struct in_addr));
-	i++;
+		bcopy (h->h_addr_list[0], &restricted_addrs[i],
+		    sizeof(struct in_addr));
+		i++;
 	}
 
 	/* ypset and ypsetme not allowed with restricted mode */

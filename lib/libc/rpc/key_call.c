@@ -86,7 +86,7 @@ cryptkeyres *(*__key_encryptsession_pk_LOCAL)() = 0;
 cryptkeyres *(*__key_decryptsession_pk_LOCAL)() = 0;
 des_block *(*__key_gendes_LOCAL)() = 0;
 
-static int key_call( u_long, xdrproc_t, char *, xdrproc_t, char * );
+static int key_call( u_long, xdrproc_t, void *, xdrproc_t, void *);
 
 int
 key_setsecret(secretkey)
@@ -94,8 +94,8 @@ key_setsecret(secretkey)
 {
 	keystatus status;
 
-	if (!key_call((u_long) KEY_SET, xdr_keybuf, (char *) secretkey,
-			xdr_keystatus, (char *)&status)) {
+	if (!key_call((u_long) KEY_SET, (xdrproc_t)xdr_keybuf, secretkey,
+			(xdrproc_t)xdr_keystatus, &status)) {
 		return (-1);
 	}
 	if (status != KEY_SUCCESS) {
@@ -119,8 +119,8 @@ key_secretkey_is_set(void)
 	struct key_netstres 	kres;
 
 	memset((void*)&kres, 0, sizeof (kres));
-	if (key_call((u_long) KEY_NET_GET, xdr_void, (char *)NULL,
-			xdr_key_netstres, (char *) &kres) &&
+	if (key_call((u_long) KEY_NET_GET, (xdrproc_t)xdr_void, NULL,
+			(xdrproc_t)xdr_key_netstres, &kres) &&
 	    (kres.status == KEY_SUCCESS) &&
 	    (kres.key_netstres_u.knet.st_priv_key[0] != 0)) {
 		/* avoid leaving secret key in memory */
@@ -142,8 +142,8 @@ key_encryptsession_pk(remotename, remotekey, deskey)
 	arg.remotename = remotename;
 	arg.remotekey = *remotekey;
 	arg.deskey = *deskey;
-	if (!key_call((u_long)KEY_ENCRYPT_PK, xdr_cryptkeyarg2, (char *)&arg,
-			xdr_cryptkeyres, (char *)&res)) {
+	if (!key_call((u_long)KEY_ENCRYPT_PK, (xdrproc_t)xdr_cryptkeyarg2, &arg,
+			(xdrproc_t)xdr_cryptkeyres, &res)) {
 		return (-1);
 	}
 	if (res.status != KEY_SUCCESS) {
@@ -166,8 +166,8 @@ key_decryptsession_pk(remotename, remotekey, deskey)
 	arg.remotename = remotename;
 	arg.remotekey = *remotekey;
 	arg.deskey = *deskey;
-	if (!key_call((u_long)KEY_DECRYPT_PK, xdr_cryptkeyarg2, (char *)&arg,
-			xdr_cryptkeyres, (char *)&res)) {
+	if (!key_call((u_long)KEY_DECRYPT_PK, (xdrproc_t)xdr_cryptkeyarg2, &arg,
+			(xdrproc_t)xdr_cryptkeyres, &res)) {
 		return (-1);
 	}
 	if (res.status != KEY_SUCCESS) {
@@ -188,8 +188,8 @@ key_encryptsession(remotename, deskey)
 
 	arg.remotename = (char *) remotename;
 	arg.deskey = *deskey;
-	if (!key_call((u_long)KEY_ENCRYPT, xdr_cryptkeyarg, (char *)&arg,
-			xdr_cryptkeyres, (char *)&res)) {
+	if (!key_call((u_long)KEY_ENCRYPT, (xdrproc_t)xdr_cryptkeyarg, &arg,
+			(xdrproc_t)xdr_cryptkeyres, &res)) {
 		return (-1);
 	}
 	if (res.status != KEY_SUCCESS) {
@@ -210,8 +210,8 @@ key_decryptsession(remotename, deskey)
 
 	arg.remotename = (char *) remotename;
 	arg.deskey = *deskey;
-	if (!key_call((u_long)KEY_DECRYPT, xdr_cryptkeyarg, (char *)&arg,
-			xdr_cryptkeyres, (char *)&res)) {
+	if (!key_call((u_long)KEY_DECRYPT, (xdrproc_t)xdr_cryptkeyarg, &arg,
+			(xdrproc_t)xdr_cryptkeyres, &res)) {
 		return (-1);
 	}
 	if (res.status != KEY_SUCCESS) {
@@ -226,8 +226,8 @@ int
 key_gendes(key)
 	des_block *key;
 {
-	if (!key_call((u_long)KEY_GEN, xdr_void, (char *)NULL,
-			xdr_des_block, (char *)key)) {
+	if (!key_call((u_long)KEY_GEN, (xdrproc_t)xdr_void, NULL,
+			(xdrproc_t)xdr_des_block, key)) {
 		return (-1);
 	}
 	return (0);
@@ -240,8 +240,8 @@ struct key_netstarg *arg;
 	keystatus status;
 
 
-	if (!key_call((u_long) KEY_NET_PUT, xdr_key_netstarg, (char *) arg,
-		xdr_keystatus, (char *) &status)){
+	if (!key_call((u_long) KEY_NET_PUT, (xdrproc_t)xdr_key_netstarg, arg,
+			(xdrproc_t)xdr_keystatus, &status)){
 		return (-1);
 	}
 
@@ -260,8 +260,8 @@ key_get_conv(pkey, deskey)
 {
 	cryptkeyres res;
 
-	if (!key_call((u_long) KEY_GET_CONV, xdr_keybuf, pkey,
-		xdr_cryptkeyres, (char *)&res)) {
+	if (!key_call((u_long) KEY_GET_CONV, (xdrproc_t)xdr_keybuf, pkey,
+			(xdrproc_t)xdr_cryptkeyres, &res)) {
 		return (-1);
 	}
 	if (res.status != KEY_SUCCESS) {
@@ -427,9 +427,9 @@ static int
 key_call(proc, xdr_arg, arg, xdr_rslt, rslt)
 	u_long proc;
 	xdrproc_t xdr_arg;
-	char *arg;
+	void *arg;
 	xdrproc_t xdr_rslt;
-	char *rslt;
+	void *rslt;
 {
 	CLIENT *clnt;
 	struct timeval wait_time;
