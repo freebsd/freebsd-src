@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.12 1996/06/05 02:36:34 jkh Exp $
+#	$Id: rc,v 1.66.4.13 1996/06/17 09:17:10 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -197,7 +197,7 @@ if [ "X${nis_serverflags}" != X"NO" ]; then
 	echo -n ' ypserv'; ypserv ${nis_serverflags}
 
 	if [ "X${yppasswddflags}" != X"NO" ]; then
-		echo -n ' yppasswdd'; rpc.yppasswdd ${yppasswddflags}
+		echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
 	fi
 fi
 
