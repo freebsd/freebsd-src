@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.423 1998/03/29 07:58:03 helbig Exp $
+#	$Id: LINT,v 1.424 1998/04/09 22:28:57 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1330,7 +1330,10 @@ options	"EISA_SLOTS=12"
 #	for initialization of fps routine when a signal is not present.
 #
 # The 'bktr' device is a PCI video capture board. It also has a TV tuner
-# on board.
+# on board. To override the tuner detection use
+#   options OVERRIDE_TUNER=x
+# The current values are found in /usr/src/sys/pci/brooktree848.c
+#
 #
 controller	pci0
 controller	ahc1
