@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.1 1997/07/24 19:05:09 smp Exp smp $
+#	$Id: files.i386,v 1.167 1997/07/24 23:45:17 fsmp Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -30,6 +30,11 @@ linux_assym.h			optional	compat_linux		   \
 	compile-with	"./linux_genassym > $@"				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
+#
+font8x16.o			optional	std8x16font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c" \
+	no-implicit-rule before-depend \
+	clean		"${STD8X16FONT}-8x16 font8x16.c" 
 #
 i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
