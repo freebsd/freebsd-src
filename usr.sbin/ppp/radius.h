@@ -76,3 +76,6 @@ extern void radius_Account(struct radius *, struct radacct *,
 #define RAD_START	1
 #define RAD_STOP	2
 #endif
+
+/* Get address from NAS pool */
+#define RADIUS_INADDR_POOL	htonl(0xfffffffe)	/* 255.255.255.254 */
