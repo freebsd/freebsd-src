@@ -754,13 +754,6 @@ syscall(frame)
 		ktrsyscall(code, narg, argp);
 #endif
 
-	/*
-	 * Try to run the syscall without Giant if the syscall
-	 * is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
-
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame.tf_rdx;
@@ -769,7 +762,12 @@ syscall(frame)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
-		error = (*callp->sy_call)(td, argp);
+		if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+			mtx_lock(&Giant);
+			error = (*callp->sy_call)(td, argp);
+			mtx_unlock(&Giant);
+		} else
+			error = (*callp->sy_call)(td, argp);
 	}
 
 	switch (error) {
@@ -805,12 +803,6 @@ syscall(frame)
 		frame.tf_rflags |= PSL_C;
 		break;
 	}
-
-	/*
-	 * Release Giant if we previously set it.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	/*
 	 * Traced syscall.
