@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.19 1995/11/29 10:47:47 julian Exp $
+ *	$Id: pcaudio.c,v 1.20 1995/11/30 05:58:53 julian Exp $
  */
 
 #include "pca.h"
@@ -55,8 +55,8 @@
 #ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#define CDEV_MAJOR 24
 #endif /* JREMOD */
+#define CDEV_MAJOR 24
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000
