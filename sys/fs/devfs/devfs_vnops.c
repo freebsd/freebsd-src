@@ -52,14 +52,12 @@
 #define DEVFS_INTERN
 #include <fs/devfs/devfs.h>
 
-#define KSTRING	256		/* Largest I/O available via this filesystem */
-#define	UIO_MX 32
-
 static int	devfs_access __P((struct vop_access_args *ap));
 static int	devfs_badop __P((void));
 static int	devfs_getattr __P((struct vop_getattr_args *ap));
 static int	devfs_lookup __P((struct vop_lookup_args *ap));
 static int	devfs_print __P((struct vop_print_args *ap));
+static int	devfs_read __P((struct vop_read_args *ap));
 static int	devfs_readdir __P((struct vop_readdir_args *ap));
 static int	devfs_readlink __P((struct vop_readlink_args *ap));
 static int	devfs_reclaim __P((struct vop_reclaim_args *ap));
@@ -366,6 +364,21 @@ devfs_setattr(ap)
 }
 
 static int
+devfs_read(ap)
+	struct vop_read_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int a_ioflag;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+
+	if (ap->a_vp->v_type != VDIR)
+		return (EINVAL);
+	return (VOP_READDIR(ap->a_vp, ap->a_uio, ap->a_cred, NULL, NULL, NULL));
+}
+
+static int
 devfs_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -376,8 +389,8 @@ devfs_readdir(ap)
 		u_long **a_cookies;
 	} */ *ap;
 {
-	int error, i;
-	struct uio *uio = ap->a_uio;
+	int error;
+	struct uio *uio;
 	struct dirent *dp;
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
@@ -387,29 +400,37 @@ devfs_readdir(ap)
 	if (ap->a_vp->v_type != VDIR)
 		return (ENOTDIR);
 
+	if (ap->a_ncookies)
+		return (EOPNOTSUPP);
+
+	uio = ap->a_uio;
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
 	devfs_populate(dmp);
-	i = (u_int)off / UIO_MX;
 	error = 0;
 	de = ap->a_vp->v_data;
 	dd = TAILQ_FIRST(&de->de_dlist);
 	off = 0;
-	while (uio->uio_resid >= UIO_MX && dd != NULL) {
+	while (dd != NULL) {
 		if (dd->de_dirent->d_type == DT_DIR) 
 			de = dd->de_dir;
 		else
 			de = dd;
 		dp = dd->de_dirent;
+		if (dp->d_reclen > uio->uio_resid)
+			break;
 		dp->d_fileno = de->de_inode;
-		if (off >= uio->uio_offset)
-			if ((error = uiomove((caddr_t)dp, dp->d_reclen, uio)) != 0)
+		if (off >= uio->uio_offset) {
+			error = uiomove((caddr_t)dp, dp->d_reclen, uio);
+			if (error)
 				break;
+		}
 		off += dp->d_reclen;
 		dd = TAILQ_NEXT(dd, de_list);
 	}
-
 	uio->uio_offset = off;
-
 	return (error);
 }
 
@@ -559,6 +580,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
+	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) devfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
