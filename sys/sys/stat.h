@@ -272,9 +272,9 @@ int	stat(const char *, struct stat *);
 mode_t	umask(mode_t);
 
 #ifndef _POSIX_SOURCE
-int	chflags(const char *, u_long);
+int	chflags(const char *, unsigned long);
 int	lchflags(const char *, int);
-int	fchflags(int, u_long);
+int	fchflags(int, unsigned long);
 int	fchmod(int, mode_t);
 int	lchmod(const char *, mode_t);
 int	lstat(const char *, struct stat *);
