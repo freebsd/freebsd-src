@@ -347,11 +347,9 @@ options 	KTRACE			#kernel tracing
 #
 # KTR is a kernel tracing mechanism imported from BSD/OS.  Currently it
 # has no userland interface aside from a few sysctl's.  It is enabled with
-# the KTR option.  The KTR_EXTEND option causes trace events to be generated
-# as a string from snprintf rather than as a string and up to 5 argument
-# pointers.  KTR_ENTRIES defines the number of entries in the circular trace
-# buffer.  KTR_COMPILE defines the mask of events to compile into the kernel
-# as defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
+# the KTR option.  KTR_ENTRIES defines the number of entries in the circular
+# trace buffer.  KTR_COMPILE defines the mask of events to compile into the
+# kernel as defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime what
 # events to trace.  KTR_CPUMASK determines which CPU's log events, with
 # bit X corresponding to cpu X.  KTR_VERBOSE enables dumping of KTR events
@@ -359,7 +357,6 @@ options 	KTRACE			#kernel tracing
 # debug.ktr_verbose sysctl and defaults to off if KTR_VERBOSE is not defined.
 #
 options 	KTR
-options 	KTR_EXTEND
 options 	KTR_ENTRIES=1024
 options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
 options 	KTR_MASK=KTR_INTR
