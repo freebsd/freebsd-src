@@ -375,11 +375,11 @@ extern int	 __rawmode;
 extern int	 __noqch;
 extern int       __usecs;
 
-int      tputs __P((const char *, int, void (*)(char)));
+int      tputs __P((const char *, int, void (*)(int)));
 
 #else
 
-int      tputs __P((const char *, int, int (*)(char)));
+int      tputs __P((const char *, int, int (*)(int)));
 
 #endif
 
