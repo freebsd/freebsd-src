@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.3 1994/08/02 07:45:47 davidg Exp $
+ * $Id: union_vnops.c,v 1.4 1994/09/21 03:47:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
