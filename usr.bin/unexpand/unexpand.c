@@ -178,6 +178,7 @@ tabify()
 		} else if (ch == '\n') {
 			putchar('\n');
 			doneline = ocol = dcol = 0;
+			continue;
 		} else if (ch != ' ' || dcol > limit) {
 			putchar(ch);
 			if (isprint(ch))
