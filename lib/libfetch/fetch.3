@@ -31,22 +31,27 @@
 .Nm fetchMakeURL ,
 .Nm fetchParseURL ,
 .Nm fetchFreeURL ,
+.Nm fetchXGetURL ,
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
 .Nm fetchStatURL ,
 .Nm fetchListURL ,
+.Nm fetchXGet ,
 .Nm fetchGet ,
 .Nm fetchPut ,
 .Nm fetchStat ,
 .Nm fetchList ,
+.Nm fetchXGetFile ,
 .Nm fetchGetFile ,
 .Nm fetchPutFile ,
 .Nm fetchStatFile ,
 .Nm fetchListFile ,
+.Nm fetchXGetHTTP ,
 .Nm fetchGetHTTP ,
 .Nm fetchPutHTTP ,
 .Nm fetchStatHTTP ,
 .Nm fetchListHTTP ,
+.Nm fetchXGetFTP ,
 .Nm fetchGetFTP ,
 .Nm fetchPutFTP ,
 .Nm fetchStatFTP ,
@@ -65,6 +70,8 @@
 .Ft void
 .Fn fetchFreeURL "struct url *URL"
 .Ft FILE *
+.Fn fetchXGetURL "char *URL" "struct url_stat *us" "char *flags"
+.Ft FILE *
 .Fn fetchGetURL "char *URL" "char *flags"
 .Ft FILE *
 .Fn fetchPutURL "char *URL" "char *flags"
@@ -72,6 +79,8 @@
 .Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
 .Ft struct url_ent *
 .Fn fetchListURL "char *URL" "char *flags"
+.Ft FILE *
+.Fn fetchXGet "struct url *URL" "struct url_stat *us" "char *flags"
 .Ft FILE *
 .Fn fetchGet "struct url *URL" "char *flags"
 .Ft FILE *
@@ -81,6 +90,8 @@
 .Ft struct url_ent *
 .Fn fetchList "struct url *" "char *flags"
 .Ft FILE *
+.Fn fetchXGetFile "struct url *u" "struct url_stat *us" "char *flags"
+.Ft FILE *
 .Fn fetchGetFile "struct url *u" "char *flags"
 .Ft FILE *
 .Fn fetchPutFile "struct url *u" "char *flags"
@@ -89,6 +100,8 @@
 .Ft struct url_ent *
 .Fn fetchListFile "struct url *" "char *flags"
 .Ft FILE *
+.Fn fetchXGetHTTP "struct url *u" "struct url_stat *us" "char *flags"
+.Ft FILE *
 .Fn fetchGetHTTP "struct url *u" "char *flags"
 .Ft FILE *
 .Fn fetchPutHTTP "struct url *u" "char *flags"
@@ -96,6 +109,8 @@
 .Fn fetchStatHTTP "struct url *URL" "struct url_stat *us" "char *flags"
 .Ft struct url_ent *
 .Fn fetchListHTTP "struct url *" "char *flags"
+.Ft FILE *
+.Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "char *flags"
 .Ft FILE *
 .Fn fetchGetFTP "struct url *u" "char *flags"
 .Ft FILE *
@@ -154,7 +169,8 @@ or
 should be freed using
 .Fn fetchFreeURL .
 .Pp
-.Fn fetchGetURL
+.Fn fetchXGetURL ,
+.Fn fetchGetURL ,
 and
 .Fn fetchPutURL
 constitute the recommended interface to the
@@ -163,6 +179,13 @@ library.
 They examine the URL passed to them to determine the transfer
 method, and call the appropriate lower-level functions to perform the
 actual transfer.
+.Fn fetchXGetURL
+also returns the remote document's metadata in the
+.Fa url_stat
+structure pointed to by the
+.Fa us
+argument.
+.Pp
 The 
 .Fa flags
 argument is a string of characters which specify transfer options.
@@ -219,11 +242,13 @@ The pointer returned by
 should be freed using
 .Fn free .
 .Pp
+.Fn fetchXGet ,
 .Fn fetchGet ,
 .Fn fetchPut
 and
 .Fn fetchStat
 are similar to
+.Fn fetchXGetURL ,
 .Fn fetchGetURL ,
 .Fn fetchPutURL
 and
@@ -234,6 +259,7 @@ a
 rather than a string.
 .Pp
 All of the
+.Fn fetchXGetXXX ,
 .Fn fetchGetXXX
 and
 .Fn fetchPutXXX
@@ -242,11 +268,14 @@ write data from or to the requested document, respectively.
 Note that
 although the implementation details of the individual access methods
 vary, it can generally be assumed that a stream returned by one of the
+.Fn fetchXGetXXX
+or
 .Fn fetchGetXXX
 functions is read-only, and that a stream returned by one of the
 .Fn fetchPutXXX
 functions is write-only.
 .Sh FILE SCHEME
+.Fn fetchXGetFile ,
 .Fn fetchGetFile
 and
 .Fn fetchPutFile
@@ -254,8 +283,10 @@ provide access to documents which are files in a locally mounted file
 system.
 Only the <document> component of the URL is used.
 .Pp
+.Fn fetchXGetFile
+and
 .Fn fetchGetFile
-does not accept any flags.
+do not accept any flags.
 .Pp
 .Fn fetchPutFile
 accepts the
@@ -267,6 +298,7 @@ the stream returned by
 will be appended to the previous contents of the file, instead of
 replacing them.
 .Sh FTP SCHEME
+.Fn fetchXGetFTP ,
 .Fn fetchGetFTP
 and
 .Fn fetchPutFTP
@@ -286,6 +318,7 @@ port range (see
 If the
 .Fa d
 (direct) flag is specified,
+.Fn fetchXGetFTP ,
 .Fn fetchGetFTP
 and
 .Fn fetchPutFTP
@@ -297,6 +330,7 @@ library will attempt an anonymous login, with user name "ftp" and
 password "ftp".
 .Sh HTTP SCHEME
 The
+.Fn fetchXGetHTTP ,
 .Fn fetchGetHTTP
 and
 .Fn fetchPutHTTP
@@ -307,6 +341,7 @@ even a chance that they comply with RFC2068.
 If the
 .Fa d
 (direct) flag is specified,
+.Fn fetchXGetHTTP ,
 .Fn fetchGetHTTP
 and
 .Fn fetchPutHTTP
@@ -494,7 +529,8 @@ does not check that the result of an MDTM command is a valid date.
 .Pp
 The HTTP code needs a complete rewrite, or at least a serious cleanup.
 .Pp
-The man page is poorly written and produces badly formatted text.
+The man page is incomplete, poorly written and produces badly
+formatted text.
 .Pp
 The error reporting mechanism is unsatisfactory.
 .Pp
