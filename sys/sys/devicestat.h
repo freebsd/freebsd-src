@@ -205,6 +205,8 @@ struct devstat {
 	devstat_priority	priority;	     /* Controls list pos. */
 };
 
+STAILQ_HEAD(devstatlist, devstat);
+
 #ifdef _KERNEL
 struct bio;
 
