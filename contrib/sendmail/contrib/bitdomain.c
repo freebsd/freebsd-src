@@ -18,8 +18,6 @@
  * The bitdomain table should be rebuilt monthly.
  */
 
-/* $FreeBSD$ */
-
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>

@@ -20,8 +20,6 @@
 **	included in the next release.
 */
 
-/* $FreeBSD$ */
-
 #ifndef CONF_H
 #define CONF_H 1
 
