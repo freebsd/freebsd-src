@@ -70,6 +70,7 @@ Cause the volume manager to enter the kernel debugger.
 Set debugging flags.
 .in
 .Cd detach
+.Op Fl f
 .Op Ar plex | subdisk
 .in +1i
 Detach a plex or subdisk from the volume or plex to which it is attached.
@@ -369,8 +370,13 @@ A number of considerations apply to attaching subdisks:
 Subdisks can normally only be attached to concatenated plexes.
 .It
 If a striped or RAID-5 plex is missing a subdisk (for example after drive
-failure), it may be replaced by a subdisk of the same size only.  No other
-attachment of subdisks is currently allowed.
+failure), it should be replaced by a subdisk of the same size only.  
+.It
+In order to add further subdisks to a striped or RAID-5 plex, use the
+.Fl f
+(force) option.  This will corrupt the data in the plex.  
+.\"No other attachment of
+.\"subdisks is currently allowed for striped and RAID-5 plexes.
 .It
 For concatenated plexes, the
 .Ar offset
