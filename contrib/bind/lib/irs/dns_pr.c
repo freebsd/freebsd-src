@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_pr.c,v 1.9 1997/12/04 04:57:48 halley Exp $";
+static const char rcsid[] = "$Id: dns_pr.c,v 1.14 1999/09/04 22:06:14 vixie Exp $";
 #endif
 
 /* Imports */
@@ -25,6 +25,8 @@ static const char rcsid[] = "$Id: dns_pr.c,v 1.9 1997/12/04 04:57:48 halley Exp 
 
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +35,7 @@ static const char rcsid[] = "$Id: dns_pr.c,v 1.9 1997/12/04 04:57:48 halley Exp 
 #include <stdlib.h>
 #include <errno.h>
 
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -44,7 +47,7 @@ static const char rcsid[] = "$Id: dns_pr.c,v 1.9 1997/12/04 04:57:48 halley Exp 
 /* Types. */
 
 struct pvt {
-	struct dns_p *	dns;
+	struct dns_p *		dns;
 	struct protoent		proto;
 	char *			prbuf;
 };
@@ -57,6 +60,10 @@ static struct protoent *	pr_bynumber(struct irs_pr *, int);
 static struct protoent *	pr_next(struct irs_pr *);
 static void			pr_rewind(struct irs_pr *);
 static void			pr_minimize(struct irs_pr *);
+static struct __res_state *	pr_res_get(struct irs_pr *);
+static void			pr_res_set(struct irs_pr *,
+					   struct __res_state *,
+					   void (*)(void *));
 
 static struct protoent *	parse_hes_list(struct irs_pr *, char **);
 
@@ -72,13 +79,13 @@ irs_dns_pr(struct irs_acc *this) {
 		errno = ENODEV;
 		return (NULL);
 	}
-	if (!(pvt = malloc(sizeof *pvt))) {
+	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pvt, 0, sizeof *pvt);
-	if (!(pr = malloc(sizeof *pr))) {
-		free(pvt);
+	if (!(pr = memget(sizeof *pr))) {
+		memput(pvt, sizeof *pvt);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -91,6 +98,8 @@ irs_dns_pr(struct irs_acc *this) {
 	pr->rewind = pr_rewind;
 	pr->close = pr_close;
 	pr->minimize = pr_minimize;
+	pr->res_get = pr_res_get;
+	pr->res_set = pr_res_set;
 	return (pr);
 }
 
@@ -104,7 +113,9 @@ pr_close(struct irs_pr *this) {
 		free(pvt->proto.p_aliases);
 	if (pvt->prbuf)
 		free(pvt->prbuf);
-	free(this);
+
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct protoent *
@@ -153,6 +164,23 @@ pr_rewind(struct irs_pr *this) {
 static void
 pr_minimize(struct irs_pr *this) {
 	/* NOOP */
+}
+
+static struct __res_state *
+pr_res_get(struct irs_pr *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	return (__hesiod_res_get(dns->hes_ctx));
+}
+
+static void
+pr_res_set(struct irs_pr *this, struct __res_state * res,
+	   void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	__hesiod_res_set(dns->hes_ctx, res, free_res);
 }
 
 /* Private. */

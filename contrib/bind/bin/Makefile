@@ -1,4 +1,4 @@
-## Copyright (c) 1996 by Internet Software Consortium
+## Copyright (c) 1996,1999 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.17 1998/03/20 00:40:13 halley Exp $
+# $Id: Makefile,v 8.27 1999/08/08 17:13:24 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -33,32 +33,35 @@ PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LEX = lex -I
 YACC = yacc
 SYSLIBS = -ll -lutil
-PIDDIR = /var/run
 DESTBIN = /usr/local/bin
 DESTSBIN = /usr/local/sbin
 DESTEXEC = /usr/local/libexec
 DESTMAN = /usr/share/man
 DESTHELP= /usr/share/misc
-AR= ar cruv
+AR= ar cru
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
 
 LDFLAGS=
 
 MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"CC=${CC}" "LEX=${LEX}" "YACC=${YACC}" "CDEBUG=${CDEBUG}" \
 	"SYSLIBS=${SYSLIBS}" "LDFLAGS=${LDFLAGS}" \
-	"DESTDIR=${DESTDIR}" "PIDDIR=${PIDDIR}" "DESTMAN=${DESTMAN}" \
+	"DESTDIR=${DESTDIR}" "DESTMAN=${DESTMAN}" \
 	"DESTBIN=${DESTBIN}" "DESTSBIN=${DESTSBIN}" "DESTEXEC=${DESTEXEC}" \
 	"DESTLIB=${DESTLIB}" "DESTINC=${DESTINC}" "DESTETC=${DESTETC}" \
 	"DESTRUN=${DESTRUN}" "DESTHELP=${DESTHELP}" \
 	"RANLIB=${RANLIB}" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \
-	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" \
+	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" "EXE=${EXE}" \
 	"LIBBIND=../${LIBBIND}" "LIBPORT=../${LIBPORT}" \
 	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}" \
-	"VER=${VER}" "STRIP=${STRIP}" "PS=${PS}"
+	"VER=${VER}" "STRIP=${STRIP}" "PS=${PS}" "INSTALL_LIB=${INSTALL_LIB}" \
+	"INSTALL_EXEC=${INSTALL_EXEC}" "BOUNDS=${BOUNDS}"
 
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
 
-SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate
+SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate \
+	mkservdb irpd dnskeygen named-bootconf
 
 all: ${SUBDIRS}
 

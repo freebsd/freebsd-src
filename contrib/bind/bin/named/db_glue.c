@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: db_glue.c,v 8.27 1998/02/14 00:41:39 halley Exp $";
+static const char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
+static const char rcsid[] = "$Id: db_glue.c,v 8.39 1999/10/15 19:48:57 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static char rcsid[] = "$Id: db_glue.c,v 8.27 1998/02/14 00:41:39 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -79,6 +79,8 @@ static char rcsid[] = "$Id: db_glue.c,v 8.27 1998/02/14 00:41:39 halley Exp $";
 #include <sys/uio.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -147,6 +149,7 @@ destroyservicelist() {
 		freestr(slp->proto);
 		memput(slp, sizeof *slp);
 	}
+	servicelist = NULL;
 }
 
 void
@@ -183,6 +186,7 @@ destroyprotolist() {
 		freestr(plp->name);
 		memput(plp, sizeof *plp);
 	}
+	protolist = NULL;
 }
 
 static int
@@ -451,29 +455,11 @@ getname(struct namebuf *np, char *buf, int buflen) {
 	*cp = '\0';
 }
 
-/*
- * Compute hash value from data.
- */
-u_int
-dhash(const u_char *dp, int dlen) {
-	u_char *cp;
-	u_int hval;
-	int n;
-
-	n = dlen;
-	if (n > 8)
-		n = 8;
-	hval = 0;
-	while (--n >= 0) {
-		hval <<= 1;
-		hval += *dp++;
-	}
-	return (hval % INVHASHSZ);
-}
-
 /* u_int
  * nhash(name)
  *	compute hash for this name and return it; ignore case differences
+ * note:
+ *	this logic is intended to produce the same result as nlookup()'s.
  */
 u_int
 nhash(const char *name) {
@@ -481,127 +467,14 @@ nhash(const char *name) {
 	u_int hval;
 
 	hval = 0;
-	while ((ch = (u_char)*name++) != (u_char)'\0') {
-		if (isascii(ch) && isupper(ch))
-			ch = tolower(ch);
-		hval <<= 1;
-		hval += ch;
-	}
-	return (hval % INVHASHSZ);
-}
-
-/*
-** SAMEDOMAIN -- Check whether a name belongs to a domain
-** ------------------------------------------------------
-**
-**	Returns:
-**		TRUE if the given name lies in the domain.
-**		FALSE otherwise.
-**
-**	Trailing dots are first removed from name and domain.
-**	Always compare complete subdomains, not only whether the
-**	domain name is the trailing string of the given name.
-**
-**	"host.foobar.top" lies in "foobar.top" and in "top" and in ""
-**	but NOT in "bar.top"
-*/
-
-int
-samedomain(const char *a, const char *b) {
-	size_t la, lb;
-	int diff, i, escaped;
-	const char *cp;
-
-	la = strlen(a);
-	lb = strlen(b);
-
-	/* ignore a trailing label separator (i.e. an unescaped dot) in 'a' */
-	if (la && a[la-1] == '.') {
-		escaped = 0;
-		/* note this loop doesn't get executed if la==1 */
-		for (i = la - 2; i >= 0; i--)
-			if (a[i] == '\\') {
-				if (escaped)
-					escaped = 0;
-				else
-					escaped = 1;
-			} else {
-				break;
-			}
-		if (!escaped)
-			la--;
-	}
-	/* ignore a trailing label separator (i.e. an unescaped dot) in 'b' */
-	if (lb && b[lb-1] == '.') {
-		escaped = 0;
-		/* note this loop doesn't get executed if lb==1 */
-		for (i = lb - 2; i >= 0; i--)
-			if (b[i] == '\\') {
-				if (escaped)
-					escaped = 0;
-				else
-					escaped = 1;
-			} else {
-				break;
-			}
-		if (!escaped)
-			lb--;
-	}
-
-	/* lb==0 means 'b' is the root domain, so 'a' must be in 'b'. */
-	if (lb == 0)
-		return (1);
-
-	/* 'b' longer than 'a' means 'a' can't be in 'b'. */
-	if (lb > la)
-		return (0);
-
-	/* We use strncasecmp because we might be trying to
-	 * ignore a trailing dot. */
-	if (lb == la)
-		return (strncasecmp(a, b, lb) == 0);
-
-	/* Ok, we know la > lb. */
-
-	diff = la - lb;
-
-	/* If 'a' is only 1 character longer than 'b', then it can't be
-	   a subdomain of 'b' (because of the need for the '.' label
-	   separator). */
-	if (diff < 2)
-		return (0);
-
-	/* If the character before the last 'lb' characters of 'b'
-	   isn't '.', then it can't be a match (this lets us avoid
-	   having "foobar.com" match "bar.com"). */
-	if (a[diff-1] != '.')
-		return (0);
-
-	/* We're not sure about that '.', however.  It could be escaped
-           and thus not a really a label separator. */
-	escaped=0;
-	for (i = diff-2; i >= 0; i--)
-		if (a[i] == '\\') {
-			if (escaped)
-				escaped = 0;
-			else
-				escaped = 1;
-		}
-		else
-			break;
-	if (escaped)
-		return (0);
-	  
-	/* We use strncasecmp because we might be trying to
-	 * ignore trailing dots. */
-	cp = a + diff;
-	return (strncasecmp(cp, b, lb) == 0);
+	while ((ch = (u_char)*name++) != (u_char)'\0')
+		HASHIMILATE(hval, ch);
+	return (hval);
 }
 
 void
 db_freedata(struct databuf *dp) {
-	int bytes = (dp->d_type == T_NS) ?
-		DATASIZE(dp->d_size)+INT32SZ : DATASIZE(dp->d_size);
+	int bytes = DATASIZE(dp->d_size);
 
 	if (dp->d_rcnt != 0)
 		panic("db_freedata: d_rcnt != 0", NULL);
@@ -613,4 +486,171 @@ db_freedata(struct databuf *dp) {
 		panic("db_free: d_next != NULL", NULL);
 	dp->d_flags |= DB_F_FREE;
 	memput(dp, bytes);
+}
+
+struct lame_hash {
+	struct lame_hash	*next;
+	char			*zone;
+	char			*server;
+	time_t			when;
+	unsigned int		hval;
+} **lame_hash = NULL;
+
+static int lame_hash_size = 0;
+static int lame_hash_cnt = 0;
+
+void
+db_lame_add(char *zone, char *server, time_t when) {
+	unsigned int hval = nhash(zone);
+	struct lame_hash *last, *this;
+	struct lame_hash **new;
+	int n;
+	int newsize;
+
+	db_lame_clean();
+
+	/* grow / initalise hash table */
+	if (lame_hash_cnt >= lame_hash_size) {
+		if (lame_hash_size == 0)
+			newsize = hashsizes[0];
+		else {
+			for (n = 0; (newsize = hashsizes[n++]) != 0; (void)NULL)
+				if (lame_hash_size == newsize) {
+					newsize = hashsizes[n];
+					break;
+				}
+			if (newsize == 0)
+				newsize = lame_hash_size * 2 + 1;
+		}
+		new = memget(newsize * sizeof this);
+		if (new == NULL)
+			return;
+		memset(new, 0, newsize * sizeof this);
+		for (n = 0 ; n < lame_hash_size; n++) {
+			this = lame_hash[n];
+			while (this) {
+				last = this;
+				this = this->next;
+				last->next = new[hval%newsize];
+				new[hval%newsize] = last;
+			}
+		}
+		if (lame_hash != NULL)
+			memput(lame_hash, lame_hash_size * sizeof this);
+		lame_hash = new;
+		lame_hash_size = newsize;
+	}
+
+	last = NULL;
+	this = lame_hash[hval%lame_hash_size];
+	while (this) {
+		if ((ns_samename(this->server, server) == 1) &&
+		    (ns_samename(this->zone, zone) == 1)) {
+			this->when = when;
+			return;
+		}
+		last = this;
+		this = this->next;
+	}
+	this = memget(sizeof *this);
+	if (this == NULL)
+		return;
+	this->server = savestr(server, 0);
+	this->zone = savestr(zone, 0);
+	if (this->server == NULL || this->zone == NULL) {
+		if (this->server != NULL)
+			freestr(this->server);
+		if (this->zone != NULL)
+			freestr(this->zone);
+		memput(this, sizeof *this);
+		return;
+	}
+	this->when = when;
+	this->hval = hval;
+	this->next = NULL;
+	if (last != NULL)
+		last->next = this;
+	else
+		lame_hash[hval%lame_hash_size] = this;
+	lame_hash_cnt++;
+}
+
+time_t 
+db_lame_find(char *zone, struct databuf *dp) {
+	unsigned int hval = nhash(zone);
+	struct lame_hash *this;
+
+	if (lame_hash_size == 0) {
+		/* db_lame_destroy() must have been called. */
+		dp->d_flags &= ~DB_F_LAME;
+		return (0);
+	}
+
+	db_lame_clean();	/* Remove expired record so that we can
+			 	 * clear DB_F_LAME when there are no
+				 * additions. */
+
+	this = lame_hash[hval % lame_hash_size];
+	while (this) {
+		if ((ns_samename(this->server, (char*)dp->d_data) == 1) &&
+		    (ns_samename(this->zone, zone) == 1))
+			return (this->when);
+		this = this->next;
+	}
+	dp->d_flags &= ~DB_F_LAME;
+	return (0);
+}
+
+void
+db_lame_clean(void) {
+	int i;
+	struct lame_hash *last, *this;
+
+	for (i = 0 ; i < lame_hash_size; i++) {
+		last = NULL;
+		this = lame_hash[i];
+		while (this != NULL) {
+			if (this->when < tt.tv_sec) {
+				freestr(this->zone);
+				freestr(this->server);
+				if (last != NULL) {
+					last->next = this->next;
+					memput(this, sizeof *this);
+					this = last->next;
+				} else {
+					lame_hash[i] = this->next;
+					memput(this, sizeof *this);
+					this = lame_hash[i];
+				}
+				lame_hash_cnt--;
+			} else {
+				last = this;
+				this = this->next;
+			}
+		}
+	}
+}
+
+void
+db_lame_destroy(void) {
+	int i;
+	struct lame_hash *last, *this;
+
+	if (lame_hash_size == 0)
+		return;
+
+	for (i = 0 ; i < lame_hash_size; i++) {
+		this = lame_hash[i];
+		while (this != NULL) {
+			last = this;
+			this = this->next;
+			freestr(last->zone);
+			freestr(last->server);
+			memput(last, sizeof *this);
+		}
+	}
+	memput(lame_hash, lame_hash_size * sizeof this);
+	lame_hash_cnt = 0;
+	lame_hash_size = 0;
+	lame_hash = NULL;
 }

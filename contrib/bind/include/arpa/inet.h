@@ -55,7 +55,7 @@
 
 /*
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	$Id: inet.h,v 8.5 1997/01/29 08:48:09 vixie Exp $
+ *	$Id: inet.h,v 8.8 1999/05/14 18:16:54 vixie Exp $
  */
 
 #ifndef _INET_H_
@@ -80,6 +80,8 @@
 #define	inet_network		__inet_network
 #define	inet_net_ntop		__inet_net_ntop
 #define	inet_net_pton		__inet_net_pton
+#define	inet_cidr_ntop		__inet_cidr_ntop
+#define	inet_cidr_pton		__inet_cidr_pton
 #define	inet_ntoa		__inet_ntoa
 #define	inet_pton		__inet_pton
 #define	inet_ntop		__inet_ntop
@@ -96,7 +98,9 @@ unsigned long	 inet_netof __P((struct in_addr));
 unsigned long	 inet_network __P((const char *));
 char		*inet_net_ntop __P((int, const void *, int, char *, size_t));
 int		 inet_net_pton __P((int, const char *, void *, size_t));
-char		*inet_ntoa __P((struct in_addr));
+char		*inet_cidr_ntop __P((int, const void *, int, char *, size_t));
+int		 inet_cidr_pton __P((int, const char *, void *, int *));
+/*const*/ char	*inet_ntoa __P((struct in_addr));
 int		 inet_pton __P((int, const char *, void *));
 const char	*inet_ntop __P((int, const void *, char *, size_t));
 u_int		 inet_nsap_addr __P((const char *, u_char *, int));

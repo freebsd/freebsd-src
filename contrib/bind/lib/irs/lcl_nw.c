@@ -32,7 +32,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_nw.c,v 1.13 1997/12/04 04:57:57 halley Exp $";
+static const char rcsid[] = "$Id: lcl_nw.c,v 1.21 1999/10/15 19:49:10 vixie Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -59,18 +59,21 @@ static const char rcsid[] = "$Id: lcl_nw.c,v 1.13 1997/12/04 04:57:57 halley Exp
 #include "port_before.h"
 
 #include <sys/types.h>
+#include <sys/socket.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
+#include <arpa/nameser.h>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <irs.h>
+#include <isc/memcluster.h>
 
 #include "port_after.h"
 
@@ -87,6 +90,8 @@ struct pvt {
 	struct nwent 	net;
 	char *		aliases[MAXALIASES];
 	char		addr[MAXADDRSIZE];
+	struct __res_state *  res;
+	void		(*free_res)(void *);
 };
 
 /* Forward */
@@ -97,6 +102,12 @@ static struct nwent *	nw_byaddr(struct irs_nw *, void *, int, int);
 static struct nwent *	nw_next(struct irs_nw *);
 static void		nw_rewind(struct irs_nw *);
 static void		nw_minimize(struct irs_nw *);
+static struct __res_state * nw_res_get(struct irs_nw *this);
+static void		nw_res_set(struct irs_nw *this,
+				   struct __res_state *res,
+				   void (*free_res)(void *));
+
+static int		init(struct irs_nw *this);
 
 /* Portability. */
 
@@ -111,17 +122,17 @@ irs_lcl_nw(struct irs_acc *this) {
 	struct irs_nw *nw;
 	struct pvt *pvt;
 
-	if (!(nw = (struct irs_nw *)malloc(sizeof *nw))) {
-		errno = ENOMEM;
-		return (NULL);
-	}
-	memset(nw, 0x5e, sizeof *nw);
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
-		free(nw);
+	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pvt, 0, sizeof *pvt);
+	if (!(nw = memget(sizeof *nw))) {
+		memput(pvt, sizeof *pvt);
+		errno = ENOMEM;
+		return (NULL);
+	}
+	memset(nw, 0x5e, sizeof *nw);
 	nw->private = pvt;
 	nw->close = nw_close;
 	nw->byname = nw_byname;
@@ -129,6 +140,8 @@ irs_lcl_nw(struct irs_acc *this) {
 	nw->next = nw_next;
 	nw->rewind = nw_rewind;
 	nw->minimize = nw_minimize;
+	nw->res_get = nw_res_get;
+	nw->res_set = nw_res_set;
 	return (nw);
 }
 
@@ -138,16 +151,22 @@ static void
 nw_close(struct irs_nw *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	
+	nw_minimize(this);
+	if (pvt->res && pvt->free_res)
+		(*pvt->free_res)(pvt->res);
 	if (pvt->fp)
 		(void)fclose(pvt->fp);
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct nwent *
 nw_byaddr(struct irs_nw *this, void *net, int length, int type) {
 	struct nwent *p;
 	
+	if (init(this) == -1)
+		return(NULL);
+
 	nw_rewind(this);
 	while ((p = nw_next(this)) != NULL)
 		if (p->n_addrtype == type && p->n_length == length)
@@ -161,13 +180,16 @@ nw_byname(struct irs_nw *this, const char *name, int type) {
 	struct nwent *p;
 	char **ap;
 	
+	if (init(this) == -1)
+		return(NULL);
+
 	nw_rewind(this);
 	while ((p = nw_next(this)) != NULL) {
-		if (strcasecmp(p->n_name, name) == 0 &&
+		if (ns_samename(p->n_name, name) == 1 &&
 		    p->n_addrtype == type)
 			break;
 		for (ap = p->n_aliases; *ap; ap++)
-			if ((strcasecmp(*ap, name) == 0) &&
+			if ((ns_samename(*ap, name) == 1) &&
 			    (p->n_addrtype == type))
 				goto found;
 	}
@@ -195,24 +217,60 @@ nw_rewind(struct irs_nw *this) {
 static struct nwent *
 nw_next(struct irs_nw *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
+	struct nwent *ret = NULL;
 	char *p, *cp, **q;
+	char *bufp, *ndbuf, *dbuf = NULL;
+	int c, bufsiz, offset = 0;
+
+	if (init(this) == -1)
+		return(NULL);
 
 	if (pvt->fp == NULL)
 		nw_rewind(this);
 	if (pvt->fp == NULL) {
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		return (NULL);
 	}
+	bufp = pvt->line;
+	bufsiz = sizeof(pvt->line);
+
  again:
-	p = fgets(pvt->line, BUFSIZ, pvt->fp);
+	p = fgets(bufp + offset, bufsiz - offset, pvt->fp);
 	if (p == NULL)
-		return (NULL);
+		goto cleanup;
+	if (!strchr(p, '\n') && !feof(pvt->fp)) {
+#define GROWBUF 1024
+		/* allocate space for longer line */
+	  	if (dbuf == NULL) {
+			if ((ndbuf = malloc(bufsiz + GROWBUF)) != NULL)
+				strcpy(ndbuf, bufp);
+		} else
+			ndbuf = realloc(dbuf, bufsiz + GROWBUF);
+		if (ndbuf) {
+			dbuf = ndbuf;
+			bufp = dbuf;
+			bufsiz += GROWBUF;
+			offset = strlen(dbuf);
+		} else {
+			/* allocation failed; skip this long line */
+			while ((c = getc(pvt->fp)) != EOF)
+				if (c == '\n')
+					break;
+			if (c != EOF)
+				ungetc(c, pvt->fp);
+		}
+		goto again;
+	}
+
+	p -= offset;
+	offset = 0;
+
 	if (*p == '#')
 		goto again;
+
 	cp = strpbrk(p, "#\n");
-	if (cp == NULL)
-		goto again;
-	*cp = '\0';
+	if (cp != NULL)
+		*cp = '\0';
 	pvt->net.n_name = p;
 	cp = strpbrk(p, " \t");
 	if (cp == NULL)
@@ -245,15 +303,67 @@ nw_next(struct irs_nw *this) {
 		}
 	}
 	*q = NULL;
-	return (&pvt->net);
+	ret = &pvt->net;
+
+ cleanup:
+	if (dbuf)
+		free(dbuf);
+
+	return (ret);
 }
 
 static void
 nw_minimize(struct irs_nw *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
+	if (pvt->res)
+		res_nclose(pvt->res);
 	if (pvt->fp != NULL) {
 		(void)fclose(pvt->fp);
 		pvt->fp = NULL;
 	}
+}
+
+static struct __res_state *
+nw_res_get(struct irs_nw *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (!pvt->res) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (!res) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		memset(res, 0, sizeof *res);
+		nw_res_set(this, res, free);
+	}
+
+	return (pvt->res);
+}
+
+static void
+nw_res_set(struct irs_nw *this, struct __res_state *res,
+		void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (pvt->res && pvt->free_res) {
+		res_nclose(pvt->res);
+		(*pvt->free_res)(pvt->res);
+	}
+
+	pvt->res = res;
+	pvt->free_res = free_res;
+}
+
+static int
+init(struct irs_nw *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	
+	if (!pvt->res && !nw_res_get(this))
+		return (-1);
+	if (((pvt->res->options & RES_INIT) == 0) &&
+	    res_ninit(pvt->res) == -1)
+		return (-1);
+	return (0);
 }

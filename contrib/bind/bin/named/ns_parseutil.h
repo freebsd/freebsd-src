@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef NS_PARSEUTIL_H
-#define NS_PARSEUTIL_H
+#ifndef _NS_PARSEUTIL_H
+#define _NS_PARSEUTIL_H
 
 /*
  * Symbol Table
@@ -62,4 +62,4 @@ void			undefine_symbol(symbol_table, char *, int type);
 
 int 			unit_to_ulong(char *, u_long *);
 
-#endif /* !NS_PARSEUTIL_H */
+#endif /* !_NS_PARSEUTIL_H */

@@ -1,4 +1,5 @@
-/* Copyright (c) 1996, 1997, 1998 by Internet Software Consortium
+/*
+ * Copyright (c) 1996-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_streams.c,v 8.18 1998/03/20 23:26:22 halley Exp $";
+static const char rcsid[] = "$Id: ev_streams.c,v 8.21 1999/10/07 20:44:04 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -83,7 +84,6 @@ evWrite(evContext opaqueCtx, int fd, const struct iovec *iov, int iocnt,
 	save = errno;
 	FREE(new);
 	errno = save;
- err:
 	return (-1);
 }
 
@@ -118,13 +118,11 @@ evRead(evContext opaqueCtx, int fd, const struct iovec *iov, int iocnt,
 	save = errno;
 	FREE(new);
 	errno = save;
- err:
 	return (-1);
 }
 
 int
 evTimeRW(evContext opaqueCtx, evStreamID id, evTimerID timer) /*ARGSUSED*/ {
-	evContext_p *ctx = opaqueCtx.opaque;
 	evStream *str = id.opaque;
 
 	str->timer = timer;
@@ -134,7 +132,6 @@ evTimeRW(evContext opaqueCtx, evStreamID id, evTimerID timer) /*ARGSUSED*/ {
 
 int
 evUntimeRW(evContext opaqueCtx, evStreamID id) /*ARGSUSED*/ {
-	evContext_p *ctx = opaqueCtx.opaque;
 	evStream *str = id.opaque;
 
 	str->flags &= ~EV_STR_TIMEROK;

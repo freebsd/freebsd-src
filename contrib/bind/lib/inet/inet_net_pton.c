@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_pton.c,v 1.8 1996/11/21 10:28:12 vixie Exp $";
+static const char rcsid[] = "$Id: inet_net_pton.c,v 1.11 1999/01/08 19:23:44 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -26,7 +26,7 @@ static const char rcsid[] = "$Id: inet_net_pton.c,v 1.8 1996/11/21 10:28:12 vixi
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <assert.h>
+#include <isc/assertions.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -85,7 +85,7 @@ inet_net_pton(af, src, dst, size)
  *	not an IPv4 network specification.
  * note:
  *	network byte order assumed.  this means 192.5.5.240/28 has
- *	0x11110000 in its fourth octet.
+ *	0b11110000 in its fourth octet.
  * author:
  *	Paul Vixie (ISC), June 1996
  */
@@ -107,31 +107,36 @@ inet_net_pton_ipv4(src, dst, size)
 		/* Hexadecimal: Eat nybble string. */
 		if (size <= 0)
 			goto emsgsize;
-		*dst = 0, dirty = 0;
+		dirty = 0;
 		src++;	/* skip x or X. */
-		while ((ch = *src++) != '\0' &&
-		       isascii(ch) && isxdigit(ch)) {
+		while ((ch = *src++) != '\0' && isascii(ch) && isxdigit(ch)) {
 			if (isupper(ch))
 				ch = tolower(ch);
 			n = strchr(xdigits, ch) - xdigits;
-			assert(n >= 0 && n <= 15);
-			*dst |= n;
-			if (!dirty++)
-				*dst <<= 4;
-			else if (size-- > 0)
-				*++dst = 0, dirty = 0;
+			INSIST(n >= 0 && n <= 15);
+			if (dirty == 0)
+				tmp = n;
 			else
-				goto emsgsize;
+				tmp = (tmp << 4) | n;
+			if (++dirty == 2) {
+				if (size-- <= 0)
+					goto emsgsize;
+				*dst++ = (u_char) tmp;
+				dirty = 0;
+			}
 		}
-		if (dirty)
-			size--;
+		if (dirty) {  /* Odd trailing nybble? */
+			if (size-- <= 0)
+				goto emsgsize;
+			*dst++ = (u_char) (tmp << 4);
+		}
 	} else if (isascii(ch) && isdigit(ch)) {
 		/* Decimal: eat dotted digit string. */
 		for (;;) {
 			tmp = 0;
 			do {
 				n = strchr(digits, ch) - digits;
-				assert(n >= 0 && n <= 9);
+				INSIST(n >= 0 && n <= 9);
 				tmp *= 10;
 				tmp += n;
 				if (tmp > 255)
@@ -159,14 +164,12 @@ inet_net_pton_ipv4(src, dst, size)
 		bits = 0;
 		do {
 			n = strchr(digits, ch) - digits;
-			assert(n >= 0 && n <= 9);
+			INSIST(n >= 0 && n <= 9);
 			bits *= 10;
 			bits += n;
 		} while ((ch = *src++) != '\0' && isascii(ch) && isdigit(ch));
 		if (ch != '\0')
 			goto enoent;
-		if (bits > 32)
-			goto emsgsize;
 		if (bits > 32)
 			goto emsgsize;
 	}

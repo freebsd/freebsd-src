@@ -23,8 +23,8 @@ as defined by the <A HREF="acl.html">acl</A> statement.
 
 <DT><VAR>address_match_list</VAR>
 <DD>
-A list of one or more <VAR>ip_address</VAR>, <VAR>ip_prefix</VAR> or
-<VAR>acl_name</VAR> elements, as described in the
+A list of one or more <VAR>ip_address</VAR>, <VAR>ip_prefix</VAR>
+<VAR>key_id</VAR> or <VAR>acl_name</VAR> elements, as described in the
 <A HREF="address_list.html">Address Match Lists</A> section.
 
 <DT><VAR>dotted-decimal</VAR>
@@ -52,7 +52,8 @@ An IP address in with exactly four elements in
 <DD>
 An IP port <VAR>number</VAR>.  <VAR>number</VAR> is limited to 0
 through 65535, with values below 1024 typically restricted to
-root-owned processes.
+root-owned processes.  In some cases an asterisk (``*'') character
+can be used as a placeholder to select a random high-numbered port.
 
 <DT><VAR>ip_prefix</VAR>
 <DD>
@@ -61,6 +62,11 @@ and then the number of bits in the netmask.  E.g. <CODE>127/8</CODE> is
 the network <CODE>127.0.0.0</CODE> with netmask <CODE>255.0.0.0</CODE>.
 <CODE>1.2.3.0/24</CODE> is network <CODE>1.2.3.0</CODE> with netmask
 <CODE>255.255.255.0</CODE>.
+
+<DT><VAR>key_id</VAR>
+<DD>
+A string representing the name of a shared key, to be used for transaction
+security.
 
 <DT><VAR>number</VAR>
 <DD>
@@ -101,12 +107,12 @@ numbers <CODE>1</CODE> and <CODE>0</CODE>.
 <HR>
 
 <CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
-| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: docdef.html,v 1.4 1998/03/21 01:03:12 halley Exp $
+Last Updated: $Id: docdef.html,v 1.8 1999/09/15 20:28:01 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>
