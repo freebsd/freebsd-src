@@ -23,8 +23,8 @@ SUBDIR+=apm apmconf bad144 config config.new fdformat fdwrite fdcontrol \
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
-SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol kbdcontrol \
-	lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
+SUBDIR+=apm apmconf bad144 cdplay config fdformat fdwrite fdcontrol \
+	kbdcontrol lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
 # iostat
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat 
