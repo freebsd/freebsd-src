@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.95 1994/12/28 13:54:06 ache Exp $
+#	$Id: Makefile,v 1.96 1995/01/03 12:02:05 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -148,7 +148,7 @@ descrypt:
 	done
 
 distribute:
-	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${RELEASEDIR}/bindist
+	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${RELEASEDIR}/bin
 	
 distribution:
 	(cd ${.CURDIR}; \
@@ -222,13 +222,13 @@ crunch:
 extract:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_bin.sh \
-	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
+	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_src.sh \
-	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
+	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_secr.sh \
-	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
+	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
 
 hcx9-distribution:
 	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
@@ -394,7 +394,7 @@ cpio.flp:
 bin-tarball:
 	(cd ${DESTDIR}; \
 		tar cf - . | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bin/bin.)
 
 src-clean:
 	#(cd ${DESTDIR}/usr/src; make cleandist)
@@ -406,94 +406,99 @@ src-clean:
 srcbase-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/[A-Z]* | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/base.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/base.)
 
 srcbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/bin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/srcbin.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/srcbin.)
 
 srcetc-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/etc | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/etc.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/etc.)
 
 srcgames-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/games | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/games.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/games.)
 
 srcgnu-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/gnu | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/gnu.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/gnu.)
 
 srcinclude-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/include | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/include.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/include.)
 
 srclib-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - \
 		usr/src/lib | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/lib.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lib.)
 
 srclibexec-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/libexec | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/libexec.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/libexec.)
 
 srcrelease-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/release | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/release.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
 
 srcsbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/sbin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sbin.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sbin.)
 
 srcsecure-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/secure | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/secure.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secure.)
+
+srcelkm-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/lkm | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lkm.)
+
+srcerelease-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/release | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
 
 srcebones-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/eBones | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/ebones.)
-
-srckerberos-tarball:
-	(cd ${DESTDIR}; \
-		tar --exclude CVS -cf - usr/src/kerberosIV | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/kerberos.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/ebones.)
 
 srcshare-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/share | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/share.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/share.)
 
 srcsys-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/sys usr/src/lkm | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sys.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sys.)
 
 srcusrbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/usr.bin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/usrbin.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrbin.)
 
 srcusrsbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/usr.sbin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/usrsbin.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrsbin.)
 
 src-tarball: src-clean srcbase-tarball srcbin-tarball \
 	srcetc-tarball srcgames-tarball srcgnu-tarball srcinclude-tarball \
 	srclib-tarball srcsecure-tarball srclibexec-tarball srcsbin-tarball \
 	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball \
-	srcrelease-tarball srcebones-tarball srckerberos-tarball
+	srcrelease-tarball srcebones-tarball srclkm-tarball srcrelease-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
@@ -525,7 +530,7 @@ des-tarball:
 	done
 	(cd ${RELEASEDIR}/tmpdes; \
 		tar cf - . | \
-			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/des_tgz.)
+			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
