@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.20 1998/04/06 09:12:24 brian Exp $
+ *	$Id: chat.c,v 1.44.2.21 1998/04/07 00:53:27 brian Exp $
  */
 
 #include <sys/types.h>
@@ -133,18 +133,20 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct chat *c = descriptor2chat(d);
   int special, gotabort, gottimeout, needcr;
+  int TimedOut = c->TimedOut;
 
   if (c->pause.state == TIMER_RUNNING)
     return 0;
 
-  if (c->TimedOut) {
+  if (TimedOut) {
     LogPrintf(LogCHAT, "Expect timeout\n");
-    if ( c->nargptr == NULL)
+    if (c->nargptr == NULL)
       c->state = CHAT_FAILED;
     else {
-      c->state = CHAT_EXPECT;
+      /* c->state = CHAT_EXPECT; */
       c->argptr = "";
     }
+    c->TimedOut = 0;
   }
 
   if (c->state != CHAT_EXPECT && c->state != CHAT_SEND)
@@ -161,7 +163,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
     special = 1;
     while (special && (c->nargptr || c->arg < c->argc - 1)) {
-      if (c->arg < 0 || !c->TimedOut)
+      if (c->arg < 0 || (!TimedOut && c->state == CHAT_SEND))
         c->nargptr = NULL;
 
       if (c->nargptr != NULL) {
@@ -283,7 +285,6 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
           return chat_UpdateSet(d, r, w, e, n);
         }
 
-      c->TimedOut = 0;
       LogPrintf(LogCHAT, "Expect(%d): %s\n", c->TimeoutSec, c->argptr);
       chat_SetTimeout(c);
     }

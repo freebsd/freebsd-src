@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.47 1998/04/10 13:22:38 brian Exp $
+ * $Id: modem.c,v 1.77.2.48 1998/04/10 14:55:11 brian Exp $
  *
  *  TODO:
  */
@@ -588,9 +588,9 @@ modem_Open(struct physical *modem, struct bundle *bundle)
   if (modem->dev_is_modem && !Physical_IsSync(modem)) {
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
-    LogPrintf(LogDEBUG, "modem_Open: modem = %d\n", modem->fd);
-    LogPrintf(LogDEBUG, "modem_Open: modem (get): iflag = %x, oflag = %x,"
-	      " cflag = %x\n", rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
+    LogPrintf(LogDEBUG, "modem_Open: modem (get): fd = %d, iflag = %x, "
+              "oflag = %x, cflag = %x\n", modem->fd, rstio.c_iflag,
+              rstio.c_oflag, rstio.c_cflag);
     cfmakeraw(&rstio);
     if (modem->cfg.rts_cts)
       rstio.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
@@ -601,7 +601,8 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     rstio.c_iflag |= IXON;
     if (modem->type != PHYS_DEDICATED)
       rstio.c_cflag |= HUPCL;
-    else if (modem->type != PHYS_STDIN) {
+
+    if (modem->type != PHYS_STDIN) {
       /* Change tty speed when we're not in -direct mode */
       rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
       rstio.c_cflag |= modem->cfg.parity;

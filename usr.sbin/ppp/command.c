@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.56 1998/04/07 23:45:45 brian Exp $
+ * $Id: command.c,v 1.131.2.57 1998/04/10 13:19:03 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -436,11 +436,14 @@ ShowTimeout(struct cmdargs const *arg)
 {
   int remaining;
 
-  prompt_Printf(arg->prompt, "Idle Timer: %ds\n",
-                arg->bundle->cfg.idle_timeout);
-  remaining = bundle_RemainingIdleTime(arg->bundle);
-  if (remaining != -1)
-    prompt_Printf(arg->prompt, "Remaining:  %ds\n", remaining);
+  prompt_Printf(arg->prompt, "Idle Timer: ");
+  if (arg->bundle->cfg.idle_timeout) {
+    prompt_Printf(arg->prompt, "%ds\n", arg->bundle->cfg.idle_timeout);
+    remaining = bundle_RemainingIdleTime(arg->bundle);
+    if (remaining != -1)
+      prompt_Printf(arg->prompt, "Remaining:  %ds\n", remaining);
+  } else
+    prompt_Printf(arg->prompt, "disabled\n");
 
   return 0;
 }
@@ -486,7 +489,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/07 23:45:45 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/10 13:19:03 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1120,7 +1123,7 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
   case VAR_DEVICE:
-    Physical_SetDeviceList(cx->physical, argp);
+    Physical_SetDeviceList(cx->physical, arg->argc, arg->argv);
     break;
   case VAR_ACCMAP:
     if (arg->argc > 0) {

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.19 1998/04/07 00:54:14 brian Exp $
+ *  $Id: physical.h,v 1.1.2.20 1998/04/10 13:19:16 brian Exp $
  *
  */
 
@@ -76,7 +76,7 @@ int Physical_IsSync(struct physical *);
 const char *Physical_GetDevice(struct physical *);
 
 
-void Physical_SetDeviceList(struct physical *, const char *);
+void Physical_SetDeviceList(struct physical *, int, const char *const *);
 int /* Was this speed OK? */
 Physical_SetSpeed(struct physical *, int);
 
