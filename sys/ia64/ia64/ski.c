@@ -58,6 +58,17 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 			 "break 0x80001"
 			 : "=r"(ret0)
 			 : "r"(which), "r"(in0), "r"(in1), "r"(in2), "r"(in3));
+
+	/*
+	 * Ugh... Work around a bug in the Linux version of ski for
+	 * SSC_GET_RTC. The PSR.dt register is not preserved properly
+	 * and causes further memory references to be done without
+	 * translation. All we need to do is set PSR.dt again. Note
+	 * that dependency violations do not exist in ski, so we
+	 * don't have to serialize.
+	 */
+	__asm __volatile("ssm	psr.dt");
+
 	return ret0;
 }
 
