@@ -713,11 +713,11 @@ fork_exit(callout, arg, frame)
 	 */
 	sched_lock.mtx_lock = (uintptr_t)p;
 	sched_lock.mtx_recurse = 0;
-	mtx_unlock_spin(&sched_lock);
 	/*
 	 * XXX: We really shouldn't have to do this.
 	 */
-	enable_intr();
+	mtx_intr_enable(&sched_lock);
+	mtx_unlock_spin(&sched_lock);
 
 #ifdef SMP
 	if (PCPU_GET(switchtime.tv_sec) == 0)
