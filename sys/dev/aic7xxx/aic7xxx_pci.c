@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#64 $
  *
  * $FreeBSD$
  */
@@ -1963,8 +1963,7 @@ write_brdctl(struct ahc_softc *ahc, uint8_t value)
 }
 
 static uint8_t
-read_brdctl(ahc)
-	struct 	ahc_softc *ahc;
+read_brdctl(struct ahc_softc *ahc)
 {
 	uint8_t brdctl;
 	uint8_t value;
