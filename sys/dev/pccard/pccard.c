@@ -391,6 +391,8 @@ pccard_function_enable(struct pccard_function *pf)
 	struct pccard_function *tmp;
 	int reg;
 	device_t dev = pf->sc->dev;
+	uint32_t	addr;
+
 	if (pf->cfe == NULL) {
 		DEVPRVERBOSE((dev, "No config entry could be allocated.\n"));
 		return ENOMEM;
@@ -442,12 +444,16 @@ pccard_function_enable(struct pccard_function *pf)
 		    &pf->ccr_rid, 0, ~0, 1 << 10, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%lx\n", rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res), pf->ccr_base));
+		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%lx\n",
+		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
+		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
 		    pf->ccr_rid, PCCARD_A_MEM_ATTR);
 		CARD_SET_MEMORY_OFFSET(device_get_parent(dev), dev,
-				       pf->ccr_rid, pf->ccr_base,
-				       &pf->pf_ccr_offset);
+		    pf->ccr_rid, pf->ccr_base);
+		CARD_GET_MEMORY_OFFSET(device_get_parent(dev), dev,
+		    pf->ccr_rid, &addr);
+		pf->pf_ccr_offset = pf->ccr_base - addr;
 		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
 		pf->pf_ccrh = rman_get_bushandle(pf->ccr_res);
 		pf->pf_ccr_realsize = 1;
@@ -835,11 +841,11 @@ pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_set_memory_offset(device_t dev, device_t child, int rid,
-     u_int32_t offset, u_int32_t *offsetp)
+     u_int32_t offset)
 
 {
 	return CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
-	    offset, offsetp);
+	    offset);
 }
 
 static int

@@ -64,7 +64,6 @@ METHOD int set_memory_offset {
 	device_t  child;
         int	  rid;
         u_int32_t cardaddr;
-	u_int32_t *offsetp;
 }
 
 METHOD int get_memory_offset {
