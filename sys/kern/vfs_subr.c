@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.174 1998/12/04 22:54:51 archie Exp $
+ * $Id: vfs_subr.c,v 1.175 1998/12/21 23:38:33 eivind Exp $
  */
 
 /*
@@ -579,9 +579,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 		s = splbio();
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			tsleep((caddr_t)&vp->v_numoutput,
-				slpflag | (PRIBIO + 1),
-				"vinvlbuf", slptimeo);
+			error = tsleep((caddr_t)&vp->v_numoutput,
+			    slpflag | (PRIBIO + 1), "vinvlbuf", slptimeo);
+			if (error) {
+				splx(s);
+				return (error);
+			}
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			splx(s);
