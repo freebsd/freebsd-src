@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.41 1997/04/10 14:56:49 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.42 1997/05/17 18:32:40 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1987,7 +1987,8 @@ msdosfs_pathconf(ap)
 vop_t **msdosfs_vnodeop_p;
 static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)msdosfs_lookup },		/* lookup */
+	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
+	{ &vop_cachedlookup_desc, (vop_t *)msdosfs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)msdosfs_create },		/* create */
 	{ &vop_mknod_desc, (vop_t *)msdosfs_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)msdosfs_open },		/* open */
