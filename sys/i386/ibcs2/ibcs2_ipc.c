@@ -144,13 +144,14 @@ ibcs2_msgsys(p, uap, retval)
 		case IBCS2_IPC_STAT:
 			error = msgsys(p, &margs, retval);
 			if (!error)
-				cvt_msqid2imsqid(SCARG(&margs, a4),
+				cvt_msqid2imsqid(
+				    (struct msqid_ds *)SCARG(&margs, a4),
 				    (struct ibcs2_msqid_ds *)SCARG(uap, a4));
 			return error;
 		case IBCS2_IPC_SET:
 			cvt_imsqid2msqid((struct ibcs2_msqid_ds *)SCARG(uap,
 									a4),
-					 SCARG(&margs, a4));
+					 (struct msqid_ds *)SCARG(&margs, a4));
 			return msgsys(p, &margs, retval);
 		case IBCS2_IPC_RMID:
 			return msgsys(p, &margs, retval);
