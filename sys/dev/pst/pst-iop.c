@@ -89,8 +89,8 @@ iop_init(struct iop_softc *sc)
 	printf("pstiop: malloc of delayed attach hook failed\n");
 	return 0;
     }
-    sc->iop_delayed_attach->ich_func = (void *)iop_attach;
-    sc->iop_delayed_attach->ich_arg = (void *)sc;
+    sc->iop_delayed_attach->ich_func = iop_attach;
+    sc->iop_delayed_attach->ich_arg = sc;
     if (config_intrhook_establish(sc->iop_delayed_attach)) {
 	printf("pstiop: config_intrhook_establish failed\n");
 	free(sc->iop_delayed_attach, M_PSTIOP);
@@ -99,10 +99,12 @@ iop_init(struct iop_softc *sc)
 }
 
 void
-iop_attach(struct iop_softc *sc)
+iop_attach(void *arg)
 {
+    struct iop_softc *sc;
     int i;
 
+    sc = arg;
     if (sc->iop_delayed_attach) {
 	config_intrhook_disestablish(sc->iop_delayed_attach);
 	free(sc->iop_delayed_attach, M_PSTIOP);
