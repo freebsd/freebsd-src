@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.81 1999/04/27 11:15:14 phk Exp $
+ *	$Id: si.c,v 1.82 1999/04/28 10:52:52 dt Exp $
  */
 
 #ifndef lint
@@ -79,6 +79,11 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #endif
 
 #include "eisa.h"
+#if NEISA > 0
+#warning "Fix si eisa code! - newbus casualty"
+#undef NEISA
+#define NEISA 0
+#endif
 #if NEISA > 0
 #include <i386/eisa/eisaconf.h>
 #include <i386/isa/icu.h>

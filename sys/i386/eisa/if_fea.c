@@ -1,3 +1,5 @@
+#warning "fix if_fea.c! - newbus casualty"
+#if 0
 /*-
  * Copyright (c) 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
@@ -21,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.12 1999/01/01 12:35:47 bde Exp $
+ * $Id: if_fea.c,v 1.13 1999/01/12 00:36:27 eivind Exp $
  */
 
 /*
@@ -491,4 +493,5 @@ struct cfattach fea_ca = {
 struct cfdriver fea_cd = {
     0, "fea", DV_IFNET
 };
+#endif
 #endif
