@@ -258,11 +258,7 @@ _libpthread_init(struct pthread *curthread)
 	_kse_init();
 
 	/* Initialize the initial kse and kseg. */
-#ifdef SYSTEM_SCOPE_ONLY
-	_kse_initial = _kse_alloc(NULL, 1);
-#else
-	_kse_initial = _kse_alloc(NULL, 0);
-#endif
+	_kse_initial = _kse_alloc(NULL, _thread_scope_system);
 	if (_kse_initial == NULL)
 		PANIC("Can't allocate initial kse.");
 	_kse_initial->k_kseg = _kseg_alloc(NULL);
@@ -466,6 +462,14 @@ init_private(void)
 
 	/* Clear pending signals and get the process signal mask. */
 	SIGEMPTYSET(_thr_proc_sigpending);
+
+	/* Are we in M:N mode (default) or 1:1 mode? */
+#ifdef SYSTEM_SCOPE_ONLY
+	_thread_scope_system = 1;
+#else
+	if (getenv("LIBPTHREAD_SYSTEM_SCOPE") != NULL)
+		_thread_scope_system = 1;
+#endif
 
 	/*
 	 * _thread_list_lock and _kse_count are initialized
