@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .de Id
 .ds Rv \\$3
 .ds Dt \\$4
@@ -228,6 +229,13 @@ Makes new working files read-only.
 Same effect as if the
 .SM CVSREAD
 environment variable is set.
+.TP
+.B \-R
+Turns on read-only repository mode.  This allows one to check out from a
+read-only repository, such as within an anoncvs server, or from a CDROM
+repository.  Using
+.B \-R
+can also considerably speed up checkout's over NFS.
 .TP
 .B \-v [ --version ]
 Displays version and copyright information for
