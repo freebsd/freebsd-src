@@ -1,7 +1,11 @@
 Updating Information for FreeBSD current users
 
-This file is maintainted by imp@village.org.  Please send new entries
-in it to him.  See end of file for further details.
+This file is maintained by imp@village.org.  Please send new entries
+to him.  See end of file for further details.
+
+19990225:
+	struct proc size changed.  Recompile kernel and the
+	usual suspects.  Make world if in doubt.
 
 19990214:
 	The nlpt driver has changed names back to be the lpt driver.
@@ -134,4 +138,7 @@ breakages in tracking -current.  Not all things will be listed here,
 and it only starts on Novemeber 18, 1998.  If you have an earlier
 version of FreeBSD, you are on your own to get to November 18, 1998.
 
-$Id: UPDATING,v 1.19 1999/02/15 08:09:07 imp Exp $
+Please filter your entries through Warner (imp@village.org) so that
+the style, formatting, etc of this file can be maintained.
+
+$Id: UPDATING,v 1.20 1999/02/17 05:32:40 imp Exp $
