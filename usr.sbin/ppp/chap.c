@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.35 1998/07/28 21:54:29 brian Exp $
+ * $Id: chap.c,v 1.36 1998/08/07 18:42:47 brian Exp $
  *
  *	TODO:
  */
@@ -29,10 +29,10 @@
 
 #ifdef HAVE_DES
 #include <md4.h>
-#include <string.h>
 #endif
 #include <md5.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"
