@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.97 1996/06/01 19:19:21 dyson Exp $
+ *	$Id: pmap.c,v 1.98 1996/06/02 22:28:53 dyson Exp $
  */
 
 /*
@@ -661,7 +661,7 @@ retry:
 	pmap->pm_count = 1;
 }
 
-static __inline int
+static int
 pmap_release_free_page(pmap, p)
 	struct pmap *pmap;
 	vm_page_t p;
@@ -687,6 +687,7 @@ pmap_release_free_page(pmap, p)
 		panic("pmap_release: freeing held page table page");
 #endif
 		/*
+		 * HACK ALERT!!!
 		 * If this failure happens, we must clear the page, because
 		 * there is likely a mapping still valid.  This condition
 		 * is an error, but at least this zero operation will mitigate
@@ -708,12 +709,8 @@ pmap_release_free_page(pmap, p)
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}
 
-	vm_page_free(p);
-	TAILQ_REMOVE(&vm_page_queue_free, p, pageq);
-	TAILQ_INSERT_HEAD(&vm_page_queue_zero, p, pageq);
-	p->queue = PQ_ZERO;
+	vm_page_free_zero(p);
 	splx(s);
-	++vm_page_zero_count;
 	return 1;
 }
 
@@ -728,6 +725,21 @@ pmap_release(pmap)
 {
 	vm_page_t p,n,ptdpg;
 	vm_object_t object = pmap->pm_pteobj;
+	int s;
+
+	if (object->ref_count != 1)
+		panic("pmap_release: pteobj reference count != 1");
+	
+	/*
+	 * Wait until any (bogus) paging activity on this object is
+	 * complete.
+	 */
+	s = splvm();
+	while (object->paging_in_progress) {
+		object->flags |= OBJ_PIPWNT;
+		tsleep(object,PVM,"pmrlob",0);
+	}
+	splx(s);
 
 	ptdpg = NULL;
 retry:
@@ -737,9 +749,14 @@ retry:
 			ptdpg = p;
 			continue;
 		}
+		if ((p->flags & PG_BUSY) || p->busy)
+			continue;
 		if (!pmap_release_free_page(pmap, p))
 			goto retry;
 	}
+	if (ptdpg == NULL)
+		panic("pmap_release: missing page table directory page");
+
 	pmap_release_free_page(pmap, ptdpg);
 
 	vm_object_deallocate(object);
@@ -873,9 +890,10 @@ get_pv_entry()
 }
 
 /*
- * this *strange* allocation routine *statistically* eliminates the
- * *possibility* of a malloc failure (*FATAL*) for a pv_entry_t data structure.
+ * This *strange* allocation routine eliminates the possibility of a malloc
+ * failure (*FATAL*) for a pv_entry_t data structure.
  * also -- this code is MUCH MUCH faster than the malloc equiv...
+ * We really need to do the slab allocator thingie here.
  */
 static void
 pmap_alloc_pv_entry()
@@ -1249,6 +1267,10 @@ pmap_remove_all(pa)
 					printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", va, tpte);
 				}
 #endif
+				if ((va >= UPT_MIN_ADDRESS) &&
+					(va < UPT_MAX_ADDRESS))
+					continue;
+				
 				if (va < clean_sva || va >= clean_eva) {
 					m->dirty = VM_PAGE_BITS_ALL;
 				}
@@ -1453,8 +1475,6 @@ retry:
 		pv->pv_ptem = NULL;
 
 		ptepa = VM_PAGE_TO_PHYS(m);
-		pmap->pm_pdir[ptepindex] =
-			(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_MANAGED);
 		ppv = pa_to_pvh(ptepa);
 #if defined(PMAP_DIAGNOSTIC)
 		if (*ppv)
@@ -1462,15 +1482,15 @@ retry:
 #endif
 		*ppv = pv;
 		splx(s);
+		pmap_update_1pg(pteva);
 	} else {
 #if defined(PMAP_DIAGNOSTIC)
 		if (VM_PAGE_TO_PHYS(m) != (ptepa & PG_FRAME))
 			panic("pmap_allocpte: mismatch");
 #endif
-		pmap->pm_pdir[ptepindex] =
-			(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_MANAGED);
 	}
-	pmap_update();
+	pmap->pm_pdir[ptepindex] =
+		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_MANAGED);
 	m->flags |= PG_MAPPED;
 	return m;
 }
@@ -2136,7 +2156,12 @@ pmap_testbit(pa, bit)
 		 * modified.
 		 */
 		if (bit & (PG_A|PG_M)) {
-			if ((pv->pv_va >= clean_sva) && (pv->pv_va < clean_eva)) {
+			if ((pv->pv_va >= UPT_MIN_ADDRESS) &&
+				(pv->pv_va < UPT_MAX_ADDRESS)) {
+				continue;
+			}
+			if ((pv->pv_va >= clean_sva) &&
+				(pv->pv_va < clean_eva)) {
 				continue;
 			}
 		}
