@@ -142,6 +142,15 @@ static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
 static u_int	bootMP_size;
 
+struct mem_range_softc mem_range_softc;
+
+static void
+mem_range_AP_init(void)
+{
+	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
+		mem_range_softc.mr_op->initAP(&mem_range_softc);
+}
+
 void
 mp_topology(void)
 {
