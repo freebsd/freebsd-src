@@ -50,14 +50,16 @@
 #define B300	7
 #define B600	8
 #define B1200	9
-#define	B1800	10
+#define B1800	10
 #define B2400	11
 #define B4800	12
 #define B9600	13
 #define EXTA	14
 #define EXTB	15
-#define B57600  16
-#define B115200 17
+#define B57600	16
+#define B115200	17
+#define B230400	18
+#define B460800	19
 #endif /* USE_OLD_TTY */
 
 #endif /* !_SYS_TTYDEV_H_ */
