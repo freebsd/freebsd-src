@@ -12,9 +12,9 @@
 # names were capitalized, and most parenthetical designations have
 # been deleted unless necessary to distinguish two counties.
 #
-# In 1998, a new code was reserved for Palestine.  Unfortunately,
-# no reference that we can find gives its three-digit numeric
-# identifier; it is shown as 999 below.
+# The ISO3166 Maintenance Agency can be found at:
+#
+#     http://www.din.de/gremien/nas/nabd/iso3166ma/
 #
 # two	three	number	name
 AF	AFG	004	Afghanistan
@@ -91,7 +91,6 @@ FO	FRO	234	Faroe Islands
 FJ	FJI	242	Fiji
 FI	FIN	246	Finland
 FR	FRA	250	France
-FX	FXX	249	France, Metropolitan
 GF	GUF	254	French Guiana
 PF	PYF	258	French Polynesia
 TF	ATF	260	French Southern Territories
@@ -181,7 +180,7 @@ NO	NOR	578	Norway
 OM	OMN	512	Oman
 PK	PAK	586	Pakistan
 PW	PLW	585	Palau
-PS	PSE	999	Palestine
+PS	PSE	275	Occupied Palestinian Territory
 PA	PAN	591	Panama
 PG	PNG	598	Papua-New Guinea
 PY	PRY	600	Paraguay
@@ -193,7 +192,7 @@ PT	PRT	620	Portugal
 PR	PRI	630	Puerto Rico
 QA	QAT	634	Qatar
 RE	REU	638	Reunion
-RO	ROM	642	Romania
+RO	ROU	642	Romania
 RU	RUS	643	Russian Federation
 RW	RWA	646	Rwanda
 KN	KNA	659	Saint Kitts and Nevis
@@ -465,4 +464,7 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter IV-2 1997-07-14
 #  ZAIRE (ZA) changed to CONGO, THE DEMOCRATIC REPUBLIC OF THE  (CD)
 #  change of name, alpha-2 and alpha-3, numeric remains 180
-
+#
+# Newsletter V-3 2002-02-01
+#  ROMANIA (RO) changed alpha-3 code from ROM to ROU.  Numeric remains 642.
+#
