@@ -105,7 +105,7 @@
     implementation uses regular files, but automatically enables the
     MAP_NOSYNC flag when they are &man.mmap.2;-ed. &merged;</para>
 
-    <para arch="i386">A driver for AGP hardware has been added. &merged;</para>
+    <para>The &man.agp.4; driver for AGP devices has been added. &merged;</para>
 
     <para>The kernel and modules have been moved to the directory
     <filename>/boot/kernel</filename>, so they can be easily
@@ -296,6 +296,11 @@
 
     <para>Each &man.jail.2; environment can now run under its own
     securelevel.</para>
+
+    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    along with the <varname>hw.physmem</varname> environment, can be
+    used to artificially reduce the memory size of a machine for
+    testing (or other purposes). &merged;</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -828,7 +833,6 @@
       <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
       of operations on very large directories at the expense of some
       memory. &merged;</para>
-
     </sect3>
 
     <sect3>
