@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/queue.h>
-#include <sys/pipe.h>
 #define	_KERNEL
+#include <sys/pipe.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/mount.h>
