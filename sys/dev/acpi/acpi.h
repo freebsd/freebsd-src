@@ -30,108 +30,137 @@
 #ifndef _DEV_ACPI_ACPI_H_
 #define _DEV_ACPI_ACPI_H_
 
-/* PowerResource control */
+/* 
+ * PowerResource control 
+ */
 struct acpi_powerres_device {
 	LIST_ENTRY(acpi_powerres_device) links;
-	struct	aml_name *name;
+	struct aml_name	*name;
 
-/* _PR[0-2] */
+	/* _PR[0-2] */
+	u_int8_t		state;		/* D0 to D3 */
+	u_int8_t		next_state;	/* initialized with D0 */
 #define ACPI_D_STATE_D0		0
 #define ACPI_D_STATE_D1		1
 #define ACPI_D_STATE_D2		2
 #define ACPI_D_STATE_D3		3
 #define ACPI_D_STATE_UNKNOWN	255
-	u_int8_t	state;		/* D0 to D3 */
-	u_int8_t	next_state;	/* initialized with D0 */
-/* _PRW */
+
+	/* _PRW */
+	u_int8_t		wake_cap;	/* wake capability */
 #define ACPI_D_WAKECAP_DISABLE	0
 #define ACPI_D_WAKECAP_ENABLE	1
 #define ACPI_D_WAKECAP_UNKNOWN	255
-#define ACPI_D_WAKECAP_DEFAULT	1 	/* XXX default enable for testing */
-	u_int8_t	wake_cap;	/* wake capability */
-	boolean_t	gpe_enabled;	/* GEPx_EN enabled/disabled */
-	union aml_object *prw_val[2];	/* elements of _PRW package */
+#define ACPI_D_WAKECAP_DEFAULT	1 		/* XXX default enable for testing */
+
+	boolean_t		gpe_enabled;	/* GEPx_EN enabled/disabled */
+	union aml_object	*prw_val[2];	/* elements of _PRW package */
 };
 
-/* Device Power Management Chind Object Type */
-#define ACPI_D_PM_TYPE_IRC	0	/* _IRC */
-#define ACPI_D_PM_TYPE_PRW	1	/* _PRW */
-#define ACPI_D_PM_TYPE_PRX	2	/* _PR0 - _PR2 */
+/* Device Power Management Chained Object Type */
+#define ACPI_D_PM_TYPE_IRC	0		/* _IRC */
+#define ACPI_D_PM_TYPE_PRW	1		/* _PRW */
+#define ACPI_D_PM_TYPE_PRX	2		/* _PR0 - _PR2 */
 /* and more... */
 
 struct acpi_powerres_device_ref {
 	LIST_ENTRY(acpi_powerres_device_ref) links;
-	struct	acpi_powerres_device *device;
+	struct acpi_powerres_device	*device;
 };
 
 struct acpi_powerres_info {
 	LIST_ENTRY(acpi_powerres_info) links;
-	struct	aml_name *name;
+	struct aml_name	*name;
+	u_int8_t		state;		/* OFF or ON */
 #define ACPI_POWER_RESOURCE_ON	1
 #define ACPI_POWER_RESOURCE_OFF	0
-	u_int8_t	state;		/* OFF or ON */
-#define ACPI_PR_MAX		3	/* _PR[0-2] */
+
+#define ACPI_PR_MAX		3		/* _PR[0-2] */
 	LIST_HEAD(, acpi_powerres_device_ref) reflist[ACPI_PR_MAX];
 	LIST_HEAD(, acpi_powerres_device_ref) prwlist;
 };
-/*Event Structure */
+
+/*
+ * Event Structure 
+ */
 struct acpi_event {
 	STAILQ_ENTRY (acpi_event) ae_q;
+	int ae_type;
 #define ACPI_EVENT_TYPE_FIXEDREG 0
 #define ACPI_EVENT_TYPE_GPEREG 1
 #define ACPI_EVENT_TYPE_EC 2
-	int ae_type;
 	int ae_arg;
 };
 
-/* softc */
+/* 
+ * Softc 
+*/
 typedef struct acpi_softc {
-	device_t dev;
-	dev_t	dev_t;
+	device_t	dev;
+	dev_t		dev_t;
 
 	struct resource	*port;
-	int	port_rid;
+	int		port_rid;
 	struct resource	*irq;
-	int	irq_rid;
-	void	*irq_handle;
+	int		irq_rid;
+	void		*irq_handle;
 
-	struct	ACPIsdt *rsdt;
-	struct	ACPIsdt *facp;
-	struct	FACPbody *facp_body;
-	struct	ACPIsdt *dsdt;
-	struct	FACS *facs;
-	int	system_state;
-	int	system_state_initialized;
-	int	broken_wakeuplogic;
-	u_int32_t gpe0_mask;
-	u_int32_t gpe1_mask;
-	int	enabled;
-	u_int32_t ignore_events;
-	struct	acpi_system_state_package system_state_package;
+	struct ACPIsdt	*rsdt;
+	struct ACPIsdt	*facp;
+	struct FACPbody	*facp_body;
+	struct ACPIsdt	*dsdt;
+	struct FACS	*facs;
+	int		system_state;
+	int		system_state_initialized;
+	int		broken_wakeuplogic;
+	u_int32_t	gpe0_mask;
+	u_int32_t	gpe1_mask;
+	int		enabled;
+	u_int32_t	ignore_events;
+	struct acpi_system_state_package system_state_package;
+	struct proc	*acpi_thread;
+
 	LIST_HEAD(, acpi_powerres_info) acpi_powerres_inflist;
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
 	STAILQ_HEAD(, acpi_event) event;
-	struct	proc *acpi_thread;
 } acpi_softc_t;
 
-/* Device State */
-u_int8_t	 acpi_get_current_device_state(struct aml_name *);
-void		 acpi_set_device_state(acpi_softc_t *, struct aml_name *,
-				       u_int8_t);
-void		 acpi_set_device_wakecap(acpi_softc_t *, struct aml_name *,
-					 u_int8_t);
+/* 
+ * Device State 
+ */
+extern u_int8_t	 acpi_get_current_device_state(struct aml_name *name);
+extern void	 acpi_set_device_state(acpi_softc_t *sc, struct aml_name *name,
+				       u_int8_t state);
+extern void	 acpi_set_device_wakecap(acpi_softc_t *sc, struct aml_name *name,
+					 u_int8_t cap);
 
-/* PowerResource State */
-void		 acpi_powerres_init(acpi_softc_t *);
-void		 acpi_powerres_debug(acpi_softc_t *);
-u_int8_t	 acpi_get_current_powerres_state(struct aml_name *);
-void		 acpi_set_powerres_state(acpi_softc_t *, struct aml_name *,
-				         u_int8_t);
-void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
+/* 
+ * PowerResource State 
+ */
+extern void	acpi_powerres_init(acpi_softc_t *sc);
+extern void	acpi_powerres_debug(acpi_softc_t *sc);
+extern u_int8_t	acpi_get_current_powerres_state(struct aml_name *name);
+extern void	acpi_set_powerres_state(acpi_softc_t *sc, struct aml_name *name,
+					u_int8_t state);
+extern void	acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state);
 
-/* GPE enable bit manipulation */
-void		 acpi_gpe_enable_bit(acpi_softc_t *, u_int32_t, boolean_t);
+/* 
+ * GPE enable bit manipulation 
+ */
+extern void	acpi_gpe_enable_bit(acpi_softc_t *, u_int32_t, boolean_t);
 
-/*Event queue*/
-void acpi_queue_event(acpi_softc_t *, int, int);
+/*
+ * Event queue
+ */
+extern void	acpi_queue_event(acpi_softc_t *sc, int type, int arg);
+
+/*
+ * Debugging, console output
+ *
+ * XXX this should really be using device_printf
+ */
+extern int acpi_debug;
+#define ACPI_DEVPRINTF(args...)		printf("acpi0: " args)
+#define ACPI_DEBUGPRINT(args...)	do { if (acpi_debug) ACPI_DEVPRINTF(args);} while(0)
+
 #endif	/* !_DEV_ACPI_ACPI_H_ */
