@@ -424,9 +424,9 @@ ncp_login(int connHandle, const char *user, int objtype, const char *password) {
 	ncp_init_request(conn);
 	ncp_add_byte(conn, NCP_CONN_LOGIN);
 	p = (struct ncp_conn_login *)&conn->packet[conn->rqsize];
-	(const char*)p->username = user;
+	p->username = (char *)user;
 	p->objtype = objtype;
-	(const char*)p->password = password;
+	p->password = (char *)password;
 	conn->rqsize += sizeof(*p);
 	if ((error = ncp_conn_request(connHandle, conn)) < 0) 
 		return -1;
