@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri May 25 10:04:37 2001]
+ *      last edit-date: [Sat Jul 21 12:24:56 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -47,7 +47,7 @@
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
 #define	REL		0		/* release number	*/
-#define STEP		0		/* release step		*/
+#define STEP		1		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
