@@ -1352,6 +1352,54 @@ m_free(struct mbuf *mb)
 }
 
 /*
+ * Free an entire chain of mbufs and associated external buffers, if
+ * applicable.  Right now, we only optimize a little so that the cache
+ * lock may be held across a single mbuf+cluster free.  Hopefully,
+ * we'll eventually be holding the lock across more than merely two
+ * consecutive frees but right now this is hard to implement because of
+ * things like _mext_dealloc_ref (may do a free()) and atomic ops in the
+ * loop, as well as the fact that we may recurse on m_freem() in
+ * m_pkthdr.aux != NULL cases.
+ *
+ *  - mb: the mbuf chain to free.
+ */
+void
+m_freem(struct mbuf *mb)
+{
+	struct mbuf *m;
+	int cchnum;
+	short persist;
+
+	while (mb != NULL) {
+		/* XXX: This check is bogus... please fix (see KAME). */
+		if ((mb->m_flags & M_PKTHDR) != 0 && mb->m_pkthdr.aux) {
+			m_freem(mb->m_pkthdr.aux);
+			mb->m_pkthdr.aux = NULL;
+		}
+		persist = 0;
+		m = mb;
+		mb = mb->m_next;
+		if ((m->m_flags & M_EXT) != 0) {
+			MEXT_REM_REF(m);
+			if (atomic_cmpset_int(m->m_ext.ref_cnt, 0, 1)) {
+				_mext_dealloc_ref(m);
+				if (m->m_ext.ext_type == EXT_CLUSTER) {
+					mb_free(&mb_list_clust,
+					    (caddr_t)m->m_ext.ext_buf,
+					    MT_NOTMBUF, MBP_PERSIST, &cchnum);
+					persist = MBP_PERSISTENT;
+				} else {
+					(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
+					    m->m_ext.ext_args);
+					persist = 0;
+				}
+			}
+		}
+		mb_free(&mb_list_mbuf, m, m->m_type, persist, &cchnum);
+	}
+}
+
+/*
  * Fetch an mbuf with a cluster attached to it.  If one of the
  * allocations fails, the entire allocation fails.  This routine is
  * the preferred way of fetching both the mbuf and cluster together,
