@@ -66,6 +66,13 @@ static struct {
 	int	any_count;	/* total attached */
 } route_cb;
 
+struct mtx rtsock_mtx;
+MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
+
+#define	RTSOCK_LOCK()	mtx_lock(&rtsock_mtx)
+#define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
+#define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
+
 struct walkarg {
 	int	w_tmemsize;
 	int	w_op, w_arg;
@@ -128,6 +135,7 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 		free(rp, M_PCB);
 		return error;
 	}
+	RTSOCK_LOCK();
 	switch(rp->rcb_proto.sp_protocol) {
 	case AF_INET:
 		route_cb.ip_count++;
@@ -141,6 +149,7 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
+	RTSOCK_UNLOCK();
 	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
 	splx(s);
@@ -178,6 +187,7 @@ rts_detach(struct socket *so)
 
 	s = splnet();
 	if (rp != 0) {
+		RTSOCK_LOCK();
 		switch(rp->rcb_proto.sp_protocol) {
 		case AF_INET:
 			route_cb.ip_count--;
@@ -190,6 +200,7 @@ rts_detach(struct socket *so)
 			break;
 		}
 		route_cb.any_count--;
+		RTSOCK_UNLOCK();
 	}
 	error = raw_usrreqs.pru_detach(so);
 	splx(s);
