@@ -437,13 +437,12 @@ m_copym(m, off0, len, wait)
 	struct mbuf *top;
 	int copyhdr = 0;
 
-	if (off < 0 || len < 0)
-		panic("m_copym");
+	KASSERT(off >= 0, ("m_copym, negative off %d", off));
+	KASSERT(len >= 0, ("m_copym, negative len %d", len));
 	if (off == 0 && m->m_flags & M_PKTHDR)
 		copyhdr = 1;
 	while (off > 0) {
-		if (m == 0)
-			panic("m_copym");
+		KASSERT(m != NULL, ("m_copym, offset > size of mbuf chain"));
 		if (off < m->m_len)
 			break;
 		off -= m->m_len;
@@ -453,8 +452,8 @@ m_copym(m, off0, len, wait)
 	top = 0;
 	while (len > 0) {
 		if (m == 0) {
-			if (len != M_COPYALL)
-				panic("m_copym");
+			KASSERT(len == M_COPYALL, 
+			    ("m_copym, length > size of mbuf chain"));
 			break;
 		}
 		MGET(n, wait, m->m_type);
@@ -573,19 +572,17 @@ m_copydata(m, off, len, cp)
 {
 	register unsigned count;
 
-	if (off < 0 || len < 0)
-		panic("m_copydata");
+	KASSERT(off >= 0, ("m_copydata, negative off %d", off));
+	KASSERT(len >= 0, ("m_copydata, negative len %d", len));
 	while (off > 0) {
-		if (m == 0)
-			panic("m_copydata");
+		KASSERT(m != NULL, ("m_copydata, offset > size of mbuf chain"));
 		if (off < m->m_len)
 			break;
 		off -= m->m_len;
 		m = m->m_next;
 	}
 	while (len > 0) {
-		if (m == 0)
-			panic("m_copydata");
+		KASSERT(m != NULL, ("m_copydata, length > size of mbuf chain"));
 		count = min(m->m_len - off, len);
 		bcopy(mtod(m, caddr_t) + off, cp, count);
 		len -= count;
