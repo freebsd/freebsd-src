@@ -38,7 +38,9 @@
 #define _SYS_SYSLIMITS_H_
 
 #if !defined(_KERNEL) && !defined(_LIMITS_H_) && !defined(_SYS_PARAM_H_)
+#if __GNUC__
 #warning "No user-serviceable parts inside."
+#endif
 #endif
 
 /*
