@@ -71,6 +71,7 @@ MAN=	aac.4 \
 	fxp.4 \
 	gbde.4 \
 	gem.4 \
+	gdb.4 \
 	geom.4 \
 	gif.4 \
 	gre.4 \
@@ -299,6 +300,7 @@ MAN=	aac.4 \
 	uvscom.4 \
 	vga.4 \
 	vinum.4 \
+	vinumdebug.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
