@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 1.5 1995/05/30 03:47:00 rgrimes Exp $";
+static char rcsid[] = "$Id: do_command.c,v 1.6 1995/09/10 13:02:56 joerg Exp $";
 #endif
 
 
@@ -27,6 +27,9 @@ static char rcsid[] = "$Id: do_command.c,v 1.5 1995/05/30 03:47:00 rgrimes Exp $
 #endif
 #if defined(SYSLOG)
 # include <syslog.h>
+#endif
+#if defined(LOGIN_CAP)
+# include <login_cap.h>
 #endif
 
 
@@ -77,6 +80,9 @@ child_process(e, u)
 	register char	*input_data;
 	char		*usernm, *mailto;
 	int		children = 0;
+# if defined(LOGIN_CAP)
+	struct passwd	*pwd;
+# endif
 
 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
 
@@ -212,15 +218,32 @@ child_process(e, u)
 		 */
 		do_univ(u);
 
-		/* set our directory, uid and gid.  Set gid first, since once
-		 * we set uid, we've lost root privledges.
+# if defined(LOGIN_CAP)
+		/* Set user's entire context, but skip the environment
+		 * as cron provides a separate interface for this
 		 */
-		chdir(env_get("HOME", e->envp));
-# if defined(BSD)
-		initgroups(env_get("LOGNAME", e->envp), e->gid);
+		pwd = getpwuid(e->uid);
+		if (pwd &&
+		    setusercontext(NULL, pwd, e->uid,
+			    LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV)) == 0)
+			(void) endpwent();
+		else {
+			/* fall back to the old method */
+			(void) endpwent();
 # endif
-		setgid(e->gid);
-		setuid(e->uid);		/* we aren't root after this... */
+			/* set our directory, uid and gid.  Set gid first,
+			 * since once we set uid, we've lost root privledges.
+			 */
+			setgid(e->gid);
+# if defined(BSD)
+			initgroups(env_get("LOGNAME", e->envp), e->gid);
+# endif
+			setlogin(usernm);
+			setuid(e->uid);		/* we aren't root after this..*/
+#if defined(LOGIN_CAP)
+		}
+#endif
+		chdir(env_get("HOME", e->envp));
 
 		/* exec the command.
 		 */
@@ -375,8 +398,8 @@ child_process(e, u)
 				auto char	hostname[MAXHOSTNAMELEN];
 
 				(void) gethostname(hostname, MAXHOSTNAMELEN);
-				(void) sprintf(mailcmd, MAILARGS,
-					       MAILCMD);
+				(void) snprintf(mailcmd, sizeof(mailcmd),
+					       MAILARGS, MAILCMD);
 				if (!(mail = cron_popen(mailcmd, "w"))) {
 					perror(MAILCMD);
 					(void) _exit(ERROR_EXIT);
@@ -434,7 +457,7 @@ child_process(e, u)
 			if (mailto && status) {
 				char buf[MAX_TEMPSTR];
 
-				sprintf(buf,
+				snprintf(buf, sizeof(buf),
 			"mailed %d byte%s of output but got status 0x%04x\n",
 					bytes, (bytes==1)?"":"s",
 					status);
