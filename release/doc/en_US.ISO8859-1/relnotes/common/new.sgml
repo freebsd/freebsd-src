@@ -121,9 +121,6 @@
     <para arch="alpha">Support for threads under Linux emulation has been
     added.</para>
 
-    <para arch="i386">The pccard driver and &man.pccardc.8; now support multiple
-    <quote>beep types</quote> upon card insertion and removal. &merged;</para>
-
     <para>A number of cleanups and enhancements have been applied to
     the PCI subsystem.
     <filename>/usr/share/misc/pci_vendors</filename> now contains a
@@ -191,9 +188,6 @@
     files will attempt to minimize the cache effects of reading and
     writing. &merged;</para>
 
-    <para><literal>OLDCARD</literal> and &man.pccardd.8; now support
-    PCI cards.</para>
-
     <para>An &man.orm.4; device has been added to claim the option
     ROMs in the ISA memory I/O space, to prevent other drivers from
     mistakenly assigning addresses that conflict with these ROMs. &merged;</para>
@@ -247,29 +241,6 @@
 
     <para>Idle zeroing of pages can be enabled with the
     <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
-
-    <para>On many modern hosts, PCCARD devices can be configured to
-    route their interrupts via either the ISA or PCI interrupt paths.
-    The &man.pcic.4; driver has been updated to support both interrupt
-    paths (formerly, only routing via ISA was supported).  &merged; In most
-    cases, configuration of PCMCIA devices in laptops is simpler and
-    more flexible.  In addition, various Cardbus bridge PCI cards
-    (such as those used by Orinoco PCI NICs) are now supported.  Some
-    hosts may experience problems, such as hangs or panics, with PCI
-    interrupt routing; they can frequently be made to work by forcing
-    the older-style ISA interrupt routing.  The following lines,
-    placed in <filename>/boot/loader.conf</filename>, may fix the
-    problem:</para>
-
-    <programlisting>hw.pcic.intr_path="1"
-hw.pcic.irq="0"</programlisting>
-
-    <para>When installing &os; on such a system, typing the following
-    lines to the boot loader may be helpful in starting up &os; for
-    the first time:<para>
-
-    <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
-<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -750,6 +721,36 @@ hw.pcic.irq="0"</programlisting>
       of operations on very large directories at the expense of some
       memory. &merged;</para>
 
+    </sect3>
+
+    <sect3>
+      <title>PCCARD Support</title>
+
+      <para arch="i386">The pccard driver and &man.pccardc.8; now support multiple
+      <quote>beep types</quote> upon card insertion and removal. &merged;</para>
+
+      <para>On many modern hosts, PCCARD devices can be configured to
+      route their interrupts via either the ISA or PCI interrupt paths.
+      The &man.pcic.4; driver has been updated to support both interrupt
+      paths (formerly, only routing via ISA was supported).  &merged; In most
+      cases, configuration of PCMCIA devices in laptops is simpler and
+      more flexible.  In addition, various Cardbus bridge PCI cards
+      (such as those used by Orinoco PCI NICs) are now supported.  Some
+      hosts may experience problems, such as hangs or panics, with PCI
+      interrupt routing; they can frequently be made to work by forcing
+      the older-style ISA interrupt routing.  The following lines,
+      placed in <filename>/boot/loader.conf</filename>, may fix the
+      problem:</para>
+
+      <programlisting>hw.pcic.intr_path="1"
+  hw.pcic.irq="0"</programlisting>
+
+      <para>When installing &os; on such a system, typing the following
+      lines to the boot loader may be helpful in starting up &os; for
+      the first time:<para>
+
+      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
     </sect3>
 
     <sect3>
