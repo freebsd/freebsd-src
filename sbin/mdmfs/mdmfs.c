@@ -72,8 +72,8 @@ static	int unit;      		/* The unit we're working with. */
 static	const char *mdname;	/* Name of memory disk device (e.g., "md"). */
 static	size_t mdnamelen;	/* Length of mdname. */
 
-static void	 argappend(char **, const char *, ...);
-static void	 debugprintf(const char *, ...);
+static void	 argappend(char **, const char *, ...) __printflike(2, 3);
+static void	 debugprintf(const char *, ...) __printflike(1, 2);
 static void	 do_disklabel(void);
 static void	 do_mdconfig_attach(const char *, const enum md_types);
 static void	 do_mdconfig_attach_au(const char *, const enum md_types);
@@ -82,7 +82,7 @@ static void	 do_mount(const char *, const char *);
 static void	 do_mtptsetup(const char *, struct mtpt_info *);
 static void	 do_newfs(const char *);
 static void	 extract_ugid(const char *, struct mtpt_info *);
-static int	 run(int *, const char *, ...);
+static int	 run(int *, const char *, ...) __printflike(2, 3);
 static void	 usage(void);
 
 int
