@@ -1,6 +1,6 @@
 /***************************************************************
  * 
- * Program:	pkg_manage
+ * Program:	pkg_manage.c
  * Author:	Marc van Kempen
  * Desc:	Add, delete packages with the pkg_* binaries
  *		Get info about installed packages
@@ -8,7 +8,8 @@
  *
  * 1. View installed packages
  * 2. Delete installed packages
- * 3. Install packages
+ * 3. Preview package install
+ * 4. Install packages
  *
  * Copyright (c) 1995, Marc van Kempen
  *
@@ -51,31 +52,20 @@ FreeInfo(void)
  * Desc: free the space allocated to p_inf
  */
 {
+    int i;
+
     free(p_inf.buf);
     free(p_inf.name);
     free(p_inf.comment);
     free(p_inf.description);
     p_inf.Nitems = 0;
-    FreeMnu(p_inf.mnu, 2*p_inf.Nitems);
+    for (i=0; i<2*p_inf.Nitems; i++) {
+	free(p_inf.mnu[i]);
+    }
+    free(p_inf.mnu);
 
     return;
 } /* FreeInfo() */
-
-void
-FreeMnu(unsigned char **mnu, int n)
-/*
- * Desc: free mnu array
- */
-{
-    int i;
-    
-    for (i=0; i<n; i++) {
-	free(mnu[i]);
-    }   
-    free(mnu);
-
-    return;
-} /* FreeMnu() */
 
 int
 file_exists(char *fname)
@@ -349,8 +339,6 @@ install_package(char *fname)
 	fprintf(stderr, "install_package(): Error malloc'ing tmp_file\n");
 	exit(-1);
     }
-    if (!getenv("PKG_PATH"))
-	putenv("/usr/ports/packages:/usr/ports/packages/all:.");
     exec_catch_errors(PKG_ADD, fname, tmp_file);
 
     unlink(tmp_file);
