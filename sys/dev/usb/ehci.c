@@ -337,6 +337,7 @@ ehci_init(ehci_softc_t *sc)
 	usbd_status err;
 	ehci_soft_qh_t *sqh;
 	u_int ncomp;
+	int lev;
 
 	DPRINTF(("ehci_init: start\n"));
 #ifdef EHCI_DEBUG
@@ -426,9 +427,6 @@ ehci_init(ehci_softc_t *sc)
 	/*
 	 * Allocate the interrupt dummy QHs. These are arranged to give
 	 * poll intervals that are powers of 2 times 1ms.
-	 * XXX this probably isn't the most sensible arrangement, and it
-	 * would be better if we didn't leave all the QHs in the periodic
-	 * schedule all the time.
 	 */
 	for (i = 0; i < EHCI_INTRQHS; i++) {
 		sqh = ehci_alloc_sqh(sc);
@@ -438,7 +436,10 @@ ehci_init(ehci_softc_t *sc)
 		}
 		sc->sc_islots[i].sqh = sqh;
 	}
+	lev = 0;
 	for (i = 0; i < EHCI_INTRQHS; i++) {
+		if (i == EHCI_IQHIDX(lev + 1, 0))
+			lev++;
 		sqh = sc->sc_islots[i].sqh;
 		if (i == 0) {
 			/* The last (1ms) QH terminates. */
@@ -446,7 +447,8 @@ ehci_init(ehci_softc_t *sc)
 			sqh->next = NULL;
 		} else {
 			/* Otherwise the next QH has half the poll interval */
-			sqh->next = sc->sc_islots[(i + 1) / 2 - 1].sqh;
+			sqh->next =
+			    sc->sc_islots[EHCI_IQHIDX(lev - 1, i + 1)].sqh;
 			sqh->qh.qh_link = htole32(sqh->next->physaddr |
 			    EHCI_LINK_QH);
 		}
