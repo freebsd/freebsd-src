@@ -354,7 +354,7 @@ then it is typically going to be an NFS mount on the client.
 Simply unmounting /usr/obj will leave you with a /usr/obj that is a
 subdirectory in /usr which is typically local to the client.
 You can then do builds to your heart's content!
-.Sh MULTIPLE VERSIONS OF THE SOURCE TREE
+.Sh MAINTAINING A LOCAL BRANCH
 I have described how to maintain two versions of the source tree, a stable
 version in /FreeBSD/FreeBSD-4.x and a current version
 in /FreeBSD/FreeBSD-current.
@@ -370,6 +370,36 @@ your master server, but being able
 to collect and manage source distributions from a central server is a very
 useful thing to be able to do and you can certainly export to machines
 which can build those other operating systems.
+.Pp
+Many developers choose to maintain a local branch of
+.Fx
+to test patches or build a custom distribution.
+This can be done with CVS or another source code management system
+(SubVersion, Perforce, BitKeeper) with its own repository.
+Since the main 
+.Fx
+tree is based on CVS, the former is convenient.
+.Pp
+The
+.Fx
+version of CVS examines a custom environmental variable,
+CVS_LOCAL_BRANCH_NUM, which specifies an integer to use when doing a cvs
+tag/rtag.
+Set this number to something high (say 1000) to avoid colliding
+with potential future branches of the main repository.  For example,
+branching a file with version 1.4 produces 1.4.1000.
+Future commits to this branch will produce revisions 1.4.1000.1,
+1.4.1000.2, etc.
+.Pp
+To fork your local branch, do:
+.Bd -literal -offset 4n
+cvs rtag -r RELENG_4 -b LOCAL_RELENG_4 src
+.Ed
+.Pp
+After this, you can check out a copy from your local repository using the
+new tag and begin making changes and committing them.
+For more information on using cvs, see
+.Xr cvs 1 .
 .Sh UPDATING VIA CVS
 The advantage of using cvsup to maintain an updated copy of the CVS
 repository instead of using it to maintain source trees directly is that you
