@@ -263,7 +263,6 @@ Int_Open_Disk(const char *name)
 		len /= s;
 		off += lo[l - 1];
 		lo[l] = off;
-		printf("%s [%s] %jd %jd\n", t, n, (intmax_t)(off / s), (intmax_t) (len / s));
 		if (!strcmp(t, "SUN"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
 		else if (!strncmp(t, "MBR", 3)) {
@@ -305,21 +304,15 @@ Int_Open_Disk(const char *name)
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
 		else
 			{ printf("BARF %d\n", __LINE__); exit(0); }
-		printf("error = %d\n", i);
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
 	/* We have a chance to do things on a blank disk here */
-printf("c %p\n", d->chunks);
-printf("c->p %p\n", d->chunks->part);
-printf("c->p->p %p\n", d->chunks->part->part);
 	if (platform == p_sparc64 && d->chunks->part->part == NULL) {
-printf("HERE %d\n", __LINE__);
 		hd = d->bios_hd;
 		sc = d->bios_sect;
 		o = d->chunks->size / (hd * sc);
 		o *= (hd * sc);
 		o -= 2 * hd * sc;
-printf("HERE %d\n", __LINE__);
 		if (Add_Chunk(d, 0, o, name, freebsd, 0, 0, "-"))
 			DPRINT(("Failed to add 'freebsd' chunk"));
 	}
