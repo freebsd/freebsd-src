@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.16 1999/01/16 19:20:30 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.17 1999/02/05 07:32:52 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -1227,8 +1227,8 @@ saregister(struct cam_periph *periph, void *arg)
 		    ((struct sa_quirk_entry *)match)->prefblk;
 #ifdef	CAMDEBUG
 		xpt_print_path(periph->path);
-		printf("found quirk entry %d\n",
-		    ((struct sa_quirk_entry *) match) - sa_quirk_table);
+		printf("found quirk entry %d\n", (int)
+		    (((struct sa_quirk_entry *) match) - sa_quirk_table));
 #endif
 	} else
 		softc->quirks = SA_QUIRK_NONE;
