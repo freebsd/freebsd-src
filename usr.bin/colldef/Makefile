@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1995/02/17 17:29:49 ache Exp $
+# $Id: Makefile,v 1.2 1995/05/01 12:10:35 ache Exp $
 
 PROG = colldef
 LFLAGS = -8 -i
@@ -9,7 +9,7 @@ LDADD = -ll
 DPADD = ${LIBL}
 CLEANFILES = y.tab.[ch] lex.yy.c
 
-LOCALES=        ru_SU.KOI8-R ru_SU.CP866 lt_LN.ISO8859-1
+LOCALES=        ru_SU.KOI8-R ru_SU.CP866 lt_LN.ISO_8859-1
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 afterinstall:
