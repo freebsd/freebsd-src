@@ -1,5 +1,5 @@
-/* $Id: isp_pci.c,v 1.15 1999/02/09 01:12:52 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: isp_pci.c,v 1.16 1999/03/17 05:07:18 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -101,10 +101,10 @@ static struct ispmdvec mdvec_1080 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_RISC_CODE,
-	ISP_CODE_LENGTH,
-	ISP_CODE_ORG,
-	ISP_CODE_VERSION,
+	ISP1080_RISC_CODE,
+	ISP1080_CODE_LENGTH,
+	ISP1080_CODE_ORG,
+	ISP1080_CODE_VERSION,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
@@ -249,10 +249,7 @@ struct isp_pcisoftc {
 #endif
 	union {
 		sdparam	_x;
-		struct {
-			fcparam _a;
-			char _b[ISP2100_SCRLEN];
-		} _y;
+		fcparam _y;
 	} _z;
 };
 
@@ -284,9 +281,9 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 	case PCI_QLOGIC_ISP1080:
 #if	0
 	case PCI_QLOGIC_ISP1240:	/* 1240 not ready yet */
+#endif
 		x = "Qlogic ISP 1080/1240 PCI SCSI Adapter";
 		break;
-#endif
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
 	case PCI_QLOGIC_ISP2100:
@@ -404,7 +401,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 	if (data == PCI_QLOGIC_ISP2100) {
 		isp->isp_mdvec = &mdvec_2100;
 		isp->isp_type = ISP_HA_FC_2100;
-		isp->isp_param = &pcs->_z._y._a;
+		isp->isp_param = &pcs->_z._y;
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
 	}
@@ -485,7 +482,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 	isp_attach(isp);
 	if (isp->isp_state != ISP_RUNSTATE) {
 		/* If we're a Fibre Channel Card, we allow deferred attach */
-		if (isp->isp_type & ISP_HA_SCSI) {
+		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
 			free(pcs, M_DEVBUF);
 		}
@@ -673,14 +670,6 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap, isp->isp_result,
 	    ISP_QUEUE_SIZE(RESULT_QUEUE_LEN), isp_map_result, pci, 0);
 
-	if (isp->isp_type & ISP_HA_FC) {
-		fcparam *fcp = (fcparam *) isp->isp_param;
-		fcp->isp_scratch = isp->isp_result +
-		    ISP_QUEUE_SIZE(RESULT_QUEUE_LEN);
-		bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap,
-		    fcp->isp_scratch, ISP2100_SCRLEN, isp_map_fcscrt, pci, 0);
-	}
-
 	/*
 	 * Use this opportunity to initialize/create data DMA maps.
 	 */
@@ -691,6 +680,15 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 			    isp->isp_name, error);
 			return (1);
 		}
+	}
+
+	if (isp->isp_type & ISP_HA_FC) {
+		fcparam *fcp = (fcparam *) isp->isp_param;
+		fcp->isp_scratch = base +
+			ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN) +
+			ISP_QUEUE_SIZE(RESULT_QUEUE_LEN);
+		bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap,
+		    fcp->isp_scratch, ISP2100_SCRLEN, isp_map_fcscrt, pci, 0);
 	}
 	return (0);
 }
