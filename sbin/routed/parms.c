@@ -714,6 +714,9 @@ parse_parms(char *line,
 		} else if (PARS("no_super_ag")) {
 			parm.parm_int_state |= IS_NO_SUPER_AG;
 
+		} else if (PARS("no_rip_out")) {
+			parm.parm_int_state |= IS_NO_RIP_OUT;
+
 		} else if (PARS("no_ripv1_in")) {
 			parm.parm_int_state |= IS_NO_RIPV1_IN;
 
