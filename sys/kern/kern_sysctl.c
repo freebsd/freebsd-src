@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.19 1994/11/14 13:58:30 bde Exp $
+ * $Id: kern_sysctl.c,v 1.20 1994/12/18 13:56:50 guido Exp $
  */
 
 /*
@@ -637,24 +637,25 @@ again:
 
 		case KERN_PROC_PGRP:
 			/* could do this by traversing pgrp */
-			if (p->p_pgrp->pg_id != (pid_t)name[1])
+			if (p->p_pgrp == NULL || p->p_pgrp->pg_id != (pid_t)name[1])
 				continue;
 			break;
 
 		case KERN_PROC_TTY:
 			if ((p->p_flag & P_CONTROLT) == 0 ||
+			    p->p_session == NULL ||
 			    p->p_session->s_ttyp == NULL ||
 			    p->p_session->s_ttyp->t_dev != (dev_t)name[1])
 				continue;
 			break;
 
 		case KERN_PROC_UID:
-			if (p->p_ucred->cr_uid != (uid_t)name[1])
+			if (p->p_ucred == NULL || p->p_ucred->cr_uid != (uid_t)name[1])
 				continue;
 			break;
 
 		case KERN_PROC_RUID:
-			if (p->p_cred->p_ruid != (uid_t)name[1])
+			if (p->p_ucred == NULL || p->p_cred->p_ruid != (uid_t)name[1])
 				continue;
 			break;
 		}
@@ -699,19 +700,14 @@ fill_eproc(p, ep)
 {
 	register struct tty *tp;
 
+	bzero(ep, sizeof(*ep));
+
 	ep->e_paddr = p;
-	ep->e_sess = p->p_pgrp->pg_session;
-	ep->e_pcred = *p->p_cred;
-	ep->e_ucred = *p->p_ucred;
-	if (p->p_stat == SIDL || p->p_stat == SZOMB) {
-		ep->e_vm.vm_rssize = 0;
-		ep->e_vm.vm_tsize = 0;
-		ep->e_vm.vm_dsize = 0;
-		ep->e_vm.vm_ssize = 0;
-#ifndef sparc
-		/* ep->e_vm.vm_pmap = XXX; */
-#endif
-	} else {
+	if (p->p_cred)
+		ep->e_pcred = *p->p_cred;
+	if (p->p_ucred)
+		ep->e_ucred = *p->p_ucred;
+	if (p->p_stat != SIDL && p->p_stat != SZOMB) {
 		register struct vmspace *vm = p->p_vmspace;
 
 #ifdef pmap_resident_count
@@ -728,24 +724,27 @@ fill_eproc(p, ep)
 	}
 	if (p->p_pptr)
 		ep->e_ppid = p->p_pptr->p_pid;
-	else
-		ep->e_ppid = 0;
-	ep->e_pgid = p->p_pgrp->pg_id;
-	ep->e_jobc = p->p_pgrp->pg_jobc;
+	if (p->p_pgrp) {
+		ep->e_sess = p->p_pgrp->pg_session;
+		ep->e_pgid = p->p_pgrp->pg_id;
+		ep->e_jobc = p->p_pgrp->pg_jobc;
+	}
 	if ((p->p_flag & P_CONTROLT) &&
-	     (tp = ep->e_sess->s_ttyp)) {
+	    (ep->e_sess != NULL) &&
+	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
 		ep->e_tdev = tp->t_dev;
 		ep->e_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		ep->e_tsess = tp->t_session;
 	} else
 		ep->e_tdev = NODEV;
-	ep->e_flag = ep->e_sess->s_ttyvp ? EPROC_CTTY : 0;
+	if (ep->e_sess && ep->e_sess->s_ttyvp) 
+		ep->e_flag = EPROC_CTTY;
 	if (SESS_LEADER(p))
 		ep->e_flag |= EPROC_SLEADER;
-	if (p->p_wmesg)
+	if (p->p_wmesg) {
 		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
-	ep->e_xsize = ep->e_xrssize = 0;
-	ep->e_xccount = ep->e_xswrss = 0;
+		ep->e_wmesg[WMESGLEN] = 0;
+	}
 }
 
 #ifdef COMPAT_43
