@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.16 1995/10/03 23:29:42 jkh Exp $
+#	$Id: Makefile,v 1.193.2.17 1995/10/04 10:31:52 jkh Exp $
 #
 # How to roll a release:
 #
@@ -197,8 +197,14 @@ release.3:
 		fgrep -v pty | \
 		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
-		echo "options  MFS" >> BOOTMFS
-	for i in BOOTMFS GENERIC ATAPI ; do \
+		echo "options  MFS" >> BOOTMFS && \
+		fgrep -v SYSV ATAPI | \
+		fgrep -v pty | \
+		sed 's/ATAPI/BOOTMFS/g' > BOOTMFS_A && \
+		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS_A && \
+		echo "options  MFS" >> BOOTMFS_A
+
+	for i in BOOTMFS BOOTMFS_A GENERIC ATAPI ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
 		cd ${.CURDIR}/../sys/compile/$$i && \
@@ -208,8 +214,6 @@ release.3:
 		rm -rf ${.CURDIR}/../sys/compile/$$i ; \
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
-	cd ${RD}/kernels && kzip GENERIC
-	cd ${RD}/kernels && kzip ATAPI
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -381,6 +385,8 @@ release.8: write_mfs_in_kernel
 	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
 		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
 		FSINODE=${MFSINODE}
+
+	# first the standard boot floppy, with GENERIC kernel
 	rm -rf ${RD}/bootfd
 	mkdir ${RD}/bootfd
 	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
@@ -390,6 +396,17 @@ release.8: write_mfs_in_kernel
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
+
+	# Now the IDE CDROM floppy, with ATAPI kernel
+	rm -rf ${RD}/atapifd
+	mkdir ${RD}/atapifd
+	cp ${RD}/kernels/BOOTMFS_A ${RD}/atapifd/kernel
+	./write_mfs_in_kernel ${RD}/atapifd/kernel fs-image
+	kzip ${RD}/atapifd/kernel
+	mv ${RD}/atapifd/kernel ${RD}/kernels/MFSKERNEL_A
+	mv ${RD}/atapifd/kernel.kz ${RD}/atapifd/kernel
+	ls -l ${RD}/atapifd/kernel
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=atapi
 	touch release.8
 
 # Complete the rootfd directory
@@ -447,6 +464,7 @@ cdrom.1:
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
+	ln -f ${RD}/kernels/MFSKERNEL_A ${CD}/kernel.atapi
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
