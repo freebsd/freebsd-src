@@ -3,12 +3,12 @@
 /* IGRP Header */
 
 struct igrphdr {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	u_char ig_op:4;		/* opcode */
+#ifdef WORDS_BIGENDIAN
 	u_char ig_v:4;		/* protocol version number */
+	u_char ig_op:4;		/* opcode */
 #else
-	u_char ig_v:4;		/* protocol version number */
 	u_char ig_op:4;		/* opcode */
+	u_char ig_v:4;		/* protocol version number */
 #endif
 	u_char ig_ed;		/* edition number */
 	u_short ig_as;		/* autonomous system number */

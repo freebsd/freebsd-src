@@ -39,9 +39,10 @@
  #	responsibility for the use of this software.
  #	@(#)snmp.awk.x	1.1 (LANL) 1/15/90
  */
+
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Id: print-snmp.c,v 3.10 91/01/17 01:18:13 loverso Exp Locker: loverso $ (jlv)";
+static const char rcsid[] =
+    "@(#) $Header: print-snmp.c,v 1.31 96/12/10 23:22:55 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -338,8 +339,8 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	class = form >> 1;		/* bits 7&6 -> bits 1&0, range 0-3 */
 	form &= 0x1;			/* bit 5 -> bit 0, range 0-1 */
 #else
-	form = (*p & ASN_FORM_BITS) >> ASN_FORM_SHIFT;
-	class = (*p & ASN_CLASS_BITS) >> ASN_CLASS_SHIFT;
+	form = (u_char)(*p & ASN_FORM_BITS) >> ASN_FORM_SHIFT;
+	class = (u_char)(*p & ASN_CLASS_BITS) >> ASN_CLASS_SHIFT;
 #endif
 	elem->form = form;
 	elem->class = class;
@@ -400,7 +401,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 		ifNotTruncated printf("[class?%c/%d]", *Form[form], class);
 		return -1;
 	}
-	if (id >= Class[class].numIDs) {
+	if ((int)id >= Class[class].numIDs) {
 		ifNotTruncated printf("[id?%c/%s/%d]", *Form[form],
 			Class[class].name, id);
 		return -1;
