@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.1 1997/05/26 17:58:26 fsmp Exp $
+ *	$Id: apic_vector.s,v 1.2 1997/05/31 08:59:51 peter Exp $
  */
 
 
@@ -11,19 +11,19 @@
 #define REDTBL_IDX(irq_num)	(0x10 + ((irq_num) * 2))
 
 /*
- * 'lazy masking' code submitted by: Bruce Evans <bde@zeta.org.au>
+ * 'lazy masking' code suggested by Bruce Evans <bde@zeta.org.au>
  */
 #define MAYBE_MASK_IRQ(irq_num)						\
 	testl	$IRQ_BIT(irq_num),iactive ;	/* lazy masking */	\
 	je	1f ;			/* NOT currently active */	\
 	orl	$IRQ_BIT(irq_num),_imen ;	/* set the mask bit */	\
-	movl	_io_apic_base,%ecx ;		/* io apic addr */	\
+	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
 	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	movl	_apic_base, %eax ;					\
-	movl	$0, APIC_EOI(%eax) ;					\
+	movl	$lapic_eoi, %eax ;					\
+	movl	$0, (%eax) ;						\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	REL_MPLOCK ;			/* SMP release global lock */	\
 	popl	%es ;							\
@@ -43,7 +43,7 @@
 	testl	$IRQ_BIT(irq_num),_imen ;				\
 	je	2f ;							\
 	andl	$~IRQ_BIT(irq_num),_imen ;	/* clear mask bit */	\
-	movl	_io_apic_base,%ecx ;		/* io apic addr */	\
+	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
 	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
@@ -72,8 +72,8 @@ IDTVEC(vec_name) ;							\
 	GET_MPLOCK ;		/* SMP Spin lock */			\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
-	movl	_apic_base, %eax ;					\
-	movl	$0, APIC_EOI(%eax) ;					\
+	movl	$lapic_eoi, %eax ;					\
+	movl	$0, (%eax) ;						\
 	addl	$4,%esp ;						\
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
 	movl	_intr_countp + (irq_num) * 4,%eax ;			\
@@ -132,8 +132,8 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%es ;						\
 	GET_MPLOCK ;		/* SMP Spin lock */			\
 	MAYBE_MASK_IRQ(irq_num) ;					\
-	movl	_apic_base, %eax ;					\
-	movl	$0, APIC_EOI(%eax) ;					\
+	movl	$lapic_eoi, %eax ;					\
+	movl	$0, (%eax) ;						\
 	movl	_cpl,%eax ;						\
 	testl	$IRQ_BIT(irq_num), %eax ;				\
 	jne	3f ;							\
@@ -172,10 +172,9 @@ _Xinvltlb:
 	pushl	%eax
 	movl	%cr3, %eax		/* invalidate the TLB */
 	movl	%eax, %cr3
+	movl	$lapic_eoi, %eax
 	ss				/* stack segment, avoid %ds load */
-	movl	_apic_base, %eax
-	ss
-	movl	$0, APIC_EOI(%eax)	/* End Of Interrupt to APIC */
+	movl	$0, (%eax)		/* End Of Interrupt to APIC */
 	popl	%eax
 	iret
 

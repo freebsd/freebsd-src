@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.2 1997/05/03 19:24:16 fsmp Exp $
+ * $Id: mplock.s,v 1.3 1997/05/29 05:11:10 peter Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -25,8 +25,8 @@
 #include "assym.s"			/* system definitions */
 #include <machine/specialreg.h>		/* x86 special registers */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/smpasm.h>
 #include <machine/smptests.h>		/** TEST_LOPRIO */
+#include <machine/apic.h>
 
 
 	.text
@@ -36,22 +36,11 @@
  *  Destroys	%eax, %ecx and %edx.
  */
 
-/* XXX FIXME: remove this code entirely once it is proven unnecessary */
-#define BOTHER_TO_CHECK_NOT
-
 NON_GPROF_ENTRY(MPgetlock)
-#if defined(BOTHER_TO_CHECK)
-	movl	_smp_active, %eax	/* !MP ? -- skip it */
-	cmpl	$0, %eax
-	jne	1f
-	ret
-#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$0x00ffffff, %eax	/* - get count */
-	movl	_apic_base, %ecx	/* - get cpu# */
-	movl	APIC_ID(%ecx), %ecx
-	andl	$APIC_ID_MASK, %ecx
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	orl	%ecx, %eax		/* - combine them */
 	movl	%eax, %ecx
 	incl	%ecx			/* - new count is one more */
@@ -60,19 +49,16 @@ NON_GPROF_ENTRY(MPgetlock)
 	jne	2f			/* - miss */
 	ret
 2:	movl	$0xffffffff, %eax	/* Assume it's free */
-	movl	_apic_base, %ecx	/* - get cpu# */
-	movl	APIC_ID(%ecx), %ecx
-	andl	$APIC_ID_MASK, %ecx
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
 #if defined(TEST_LOPRIO)
 	/* 1st acquire, claim LOW PRIO (ie, ALL INTerrupts) */
-	movl	_apic_base, %ecx	/* base addr of LOCAL APIC */
-	movl	APIC_TPR(%ecx), %eax	/* Task Priority Register */
+	movl	lapic_tpr, %eax		/* Task Priority Register */
 	andl	$0xffffff00, %eax	/* clear task priority field */
-	movl	%eax, APIC_TPR(%ecx)	/* set it */
+	movl	%eax, lapic_tpr		/* set it */
 #endif /** TEST_LOPRIO */
 	ret
 3:	cmpl	$0xffffffff, (%edx)	/* Wait for it to become free */
@@ -87,19 +73,10 @@ NON_GPROF_ENTRY(MPgetlock)
  */
 
 NON_GPROF_ENTRY(MPtrylock)
-#if defined(BOTHER_TO_CHECK)
-	movl	_smp_active, %eax	/* !MP ? -- skip it */
-	cmpl	$0, %eax
-	jne	1f
-	movl	$1, %eax
-	ret
-#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$0x00ffffff, %eax	/* - get count */
-	movl	_apic_base, %ecx	/* - get cpu# */
-	movl	APIC_ID(%ecx), %ecx
-	andl	$APIC_ID_MASK, %ecx
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	orl	%ecx, %eax		/* - combine them */
 	movl	%eax, %ecx
 	incl	%ecx			/* - new count is one more */
@@ -109,9 +86,7 @@ NON_GPROF_ENTRY(MPtrylock)
 	movl	$1, %eax
 	ret
 2:	movl	$0xffffffff, %eax	/* Assume it's free */
-	movl	_apic_base, %ecx	/* - get cpu# */
-	movl	APIC_ID(%ecx), %ecx
-	andl	$APIC_ID_MASK, %ecx
+	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
@@ -128,12 +103,6 @@ NON_GPROF_ENTRY(MPtrylock)
  */
 
 NON_GPROF_ENTRY(MPrellock)
-#if defined(BOTHER_TO_CHECK)
-	movl	_smp_active, %eax	/* !MP ? -- skip it */
-	cmpl	$0, %eax
-	jne	1f
-	ret
-#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* - get the value */
 	movl	%eax,%ecx
@@ -142,11 +111,10 @@ NON_GPROF_ENTRY(MPrellock)
 	jnz	2f
 #if defined(TEST_LOPRIO)
 	/* last release, give up LOW PRIO (ie, arbitrate INTerrupts) */
-	movl	_apic_base, %ecx	/* base addr of LOCAL APIC */
-	movl	APIC_TPR(%ecx), %eax	/* Task Priority Register */
+	movl	lapic_tpr, %eax		/* Task Priority Register */
 	andl	$0xffffff00, %eax	/* clear task priority field */
 	orl	$0x00000010, %eax	/* set task priority to 'arbitrate' */
-	movl	%eax, APIC_TPR(%ecx)	/* set it */
+	movl	%eax, lapic_tpr		/* set it */
   	movl	(%edx), %eax		/* - get the value AGAIN */
 #endif /** TEST_LOPRIO */
 	movl	$0xffffffff, %ecx	/* - In which case we release it */

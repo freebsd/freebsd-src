@@ -22,8 +22,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.5 1997/05/29 05:58:41 fsmp Exp $
+ *	$Id: mpapic.c,v 1.6 1997/05/31 03:29:57 fsmp Exp $
  */
+
+#include "opt_smp.h"
 
 #include <sys/types.h>
 #include <sys/sysproto.h>
@@ -35,7 +37,6 @@
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
 
-
 /* EISA Edge/Level trigger control registers */
 #define ELCR0	0x4d0		/* eisa irq 0-7 */
 #define ELCR1	0x4d1		/* eisa irq 8-15 */
@@ -43,16 +44,9 @@
 /*
  * pointers to pmapped apic hardware.
  */
-volatile u_int*		apic_base;
-#if 1  /** XXX APIC_STRUCT */
-volatile lapic_t*	lapic;
-#endif  /** XXX APIC_STRUCT */
 
 #if defined(APIC_IO)
-volatile u_int*		io_apic_base;
-#if 1  /** XXX APIC_STRUCT */
-volatile ioapic_t*	ioapic;
-#endif  /** XXX APIC_STRUCT */
+volatile ioapic_t	*ioapic[NAPIC];
 #endif	/* APIC_IO */
 
 /*
@@ -65,19 +59,19 @@ apic_initialize(int is_bsp)
 
 	if (is_bsp) {
 		/* setup LVT1 as ExtINT */
-		temp = lapic__lvt_lint0;
+		temp = lapic.lvt_lint0;
 		temp &= 0xfffe58ff;
 		temp |= 0x00000700;
-		lapic__lvt_lint0 = temp;
+		lapic.lvt_lint0 = temp;
 	}
 	/* setup LVT2 as NMI */
-	temp = lapic__lvt_lint1;
+	temp = lapic.lvt_lint1;
 	temp &= 0xfffe58ff;
 	temp |= 0xffff0400;
-	lapic__lvt_lint1 = temp;
+	lapic.lvt_lint1 = temp;
 
 	/* set the Task Priority Register as needed */
-	temp = lapic__tpr;
+	temp = lapic.tpr;
 	temp &= ~APIC_TPR_PRIO;	/* clear priority field */
 
 #if defined(TEST_LOPRIO)
@@ -87,16 +81,16 @@ apic_initialize(int is_bsp)
 		temp |= 0xff;	/* disallow INT arbitration */
 #endif	/* TEST_LOPRIO */
 
-	lapic__tpr = temp;
+	lapic.tpr = temp;
 
 	/* enable the beast */
-	temp = lapic__svr;
+	temp = lapic.svr;
 	temp |= APIC_SVR_SWEN;	/* software enable APIC */
 	temp &= ~APIC_SVR_FOCUS;/* enable 'focus processor' */
 #if 0
 	temp |= 0x20;		/** FIXME: 2f == strayIRQ15 */
 #endif
-	lapic__svr = temp;
+	lapic.svr = temp;
 }
 
 
@@ -581,7 +575,7 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 
 	/* "lazy delivery", ie we only barf if they stack up on us... */
 	for (x = MAX_SPIN1; x; --x) {
-		if ((lapic__icr_lo & APIC_DELSTAT_MASK) == 0)
+		if ((lapic.icr_lo & APIC_DELSTAT_MASK) == 0)
 			break;
 	}
 	if (x == 0)
@@ -589,16 +583,16 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 #endif  /* DETECT_DEADLOCK */
 
 	/* build IRC_LOW */
-	icr_lo = (lapic__icr_lo & APIC_RESV2_MASK)
+	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK)
 	    | dest_type | delivery_mode | vector;
 
 	/* write APIC ICR */
-	lapic__icr_lo = icr_lo;
+	lapic.icr_lo = icr_lo;
 
 	/* wait for pending status end */
 #if defined(DETECT_DEADLOCK)
 	for (x = MAX_SPIN2; x; --x) {
-		if ((lapic__icr_lo & APIC_DELSTAT_MASK) == 0)
+		if ((lapic.icr_lo & APIC_DELSTAT_MASK) == 0)
 			break;
 	}
 	if (x == 0)
@@ -606,7 +600,7 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 #undef MAX_SPIN2
 #undef MAX_SPIN1
 #else
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 #endif  /* DETECT_DEADLOCK */
 
@@ -635,9 +629,9 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 	for (status = 0, x = 0; x <= 14; ++x)
 		if (target & (1 << x)) {
 			/* write the destination field for the target AP */
-			icr_hi = lapic__icr_hi & ~APIC_ID_MASK;
+			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 			icr_hi |= (CPU_TO_ID(x) << 24);
-			lapic__icr_hi = icr_hi;
+			lapic.icr_hi = icr_hi;
 
 			/* send the IPI */
 			if (apic_ipi(APIC_DEST_DESTFLD, vector, delivery_mode) == -1)
@@ -659,17 +653,17 @@ selected_proc_ipi(int target, int vector)
 	u_long	icr_hi;
 
 	/* write the destination field for the target AP */
-	icr_hi = (lapic__icr_hi & ~APIC_ID_MASK) |
+	icr_hi = (lapic.icr_hi & ~APIC_ID_MASK) |
 	    (cpu_num_to_apic_id[target] << 24);
-	lapic__icr_hi = icr_hi;
+	lapic.icr_hi = icr_hi;
 
 	/* write command */
-	icr_lo = (lapic__icr_lo & APIC_RESV2_MASK) |
+	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK) |
 	    APIC_DEST_DESTFLD | APIC_DELMODE_FIXED | vector;
-	lapic__icr_lo = icr_lo;
+	lapic.icr_lo = icr_lo;
 
 	/* wait for pending status end */
-	while (lapic__icr_lo & APIC_DELSTAT_MASK)
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		/* spin */ ;
 
 	return 0;	/** FIXME: return result */
@@ -738,18 +732,19 @@ set_apic_timer(int value)
 	/* calculate divisor and count from value:
 	 * 
 	 * timeBase == CPU bus clock divisor == [1,2,4,8,16,32,64,128] value ==
-	 * time in uS */
-	lapic__dcr_timer = APIC_TDCR_1;
+	 * time in uS
+	 */
+	lapic.dcr_timer = APIC_TDCR_1;
 	ticks_per_microsec = bus_clock() / 1000000;
 
 	/* configure timer as one-shot */
-	lvtt = lapic__lvt_timer;
+	lvtt = lapic.lvt_timer;
 	lvtt &= ~(APIC_LVTT_VECTOR | APIC_LVTT_DS | APIC_LVTT_M | APIC_LVTT_TM);
 	lvtt |= APIC_LVTT_M;	/* no INT, one-shot */
-	lapic__lvt_timer = lvtt;
+	lapic.lvt_timer = lvtt;
 
 	/* */
-	lapic__icr_timer = value * ticks_per_microsec;
+	lapic.icr_timer = value * ticks_per_microsec;
 }
 
 
@@ -764,7 +759,7 @@ read_apic_timer(void)
          *         for now we just return the remaining count.
          */
 #else
-	return lapic__ccr_timer;
+	return lapic.ccr_timer;
 #endif
 }
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.98 1997/06/02 08:19:03 dfr Exp $
+ *	$Id: trap.c,v 1.99 1997/06/07 04:36:10 bde Exp $
  */
 
 /*
@@ -87,11 +87,7 @@
 #include "isa.h"
 #include "npx.h"
 
-#ifdef SMP
-extern struct i386tss *SMPcommon_tss_ptr[];
-#else
 extern struct i386tss common_tss;
-#endif
 
 int (*pmath_emulate) __P((struct trapframe *));
 
@@ -704,7 +700,7 @@ trap_fatal(frame)
 			type, trap_msg[type],
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
-	printf("cpunumber = %d\n", cpunumber());
+	printf("cpuid = %d\n", cpuid);
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
@@ -790,19 +786,12 @@ trap_fatal(frame)
 void
 dblfault_handler()
 {
-#ifdef SMP
-	int x = cpunumber();
-#endif
-
 	printf("\nFatal double fault:\n");
-#ifdef SMP
-	printf("eip = 0x%x\n", SMPcommon_tss_ptr[x]->tss_eip);
-	printf("esp = 0x%x\n", SMPcommon_tss_ptr[x]->tss_esp);
-	printf("ebp = 0x%x\n", SMPcommon_tss_ptr[x]->tss_ebp);
-#else
 	printf("eip = 0x%x\n", common_tss.tss_eip);
 	printf("esp = 0x%x\n", common_tss.tss_esp);
 	printf("ebp = 0x%x\n", common_tss.tss_ebp);
+#ifdef SMP
+	printf("cpuid = %d\n", cpuid);
 #endif
 	panic("double fault");
 }

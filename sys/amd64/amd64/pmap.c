@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.143 1997/04/27 12:11:43 peter Exp $
+ *	$Id: pmap.c,v 1.145 1997/05/29 05:58:41 fsmp Exp $
  */
 
 /*
@@ -187,14 +187,6 @@ static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
 
-#if defined(SMP) || defined(APIC_IO)
-static pt_entry_t *apic_map;
-#endif /* SMP || APIC_IO */
-
-#if defined(APIC_IO)
-static pt_entry_t *io_apic_map;
-#endif /* APIC_IO */
-
 pt_entry_t *PMAP1 = 0;
 unsigned *PADDR1 = 0;
 
@@ -266,6 +258,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
+	int i, j;
 
 	avail_start = firstaddr;
 
@@ -292,7 +285,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 */
 	kernel_pmap = &kernel_pmap_store;
 
-	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + IdlePTD);
+	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
 
 	kernel_pmap->pm_count = 1;
 #if PMAP_PVLIST
@@ -309,26 +302,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	va = virtual_avail;
 	pte = (pt_entry_t *) pmap_pte(kernel_pmap, va);
-
-#if defined(SMP) || defined(APIC_IO)
-	/*
-	 * apic_map is the pt for where the local (CPU) apic is mapped in.
-	 */
-	SYSMAP(unsigned int *, apic_map, apic_base, 1)
-#if 1  /** XXX APIC_STRUCT */
-	lapic = (lapic_t*)apic_base;
-#endif  /** XXX APIC_STRUCT */
-#endif /* SMP || APIC_IO */
-
-#if defined(APIC_IO)
-	/*
-	 * io_apic_map is the pt for where the I/O apic is mapped in.
-	 */
-	SYSMAP(unsigned int *, io_apic_map, io_apic_base, 1)
-#if 1  /** XXX APIC_STRUCT */
-	ioapic = (ioapic_t*)io_apic_base;
-#endif  /** XXX APIC_STRUCT */
-#endif /* APIC_IO */
 
 	/*
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
@@ -357,8 +330,37 @@ pmap_bootstrap(firstaddr, loadaddr)
 	virtual_avail = va;
 
 	*(int *) CMAP1 = *(int *) CMAP2 = 0;
-#if !defined(SMP)
 	*(int *) PTD = 0;
+
+#ifdef SMP
+	if (cpu_apic_address == 0)
+		panic("pmap_bootstrap: no local apic!");
+
+	/* 0 = private page */
+	/* 1 = page table page */
+	/* 2 = local apic */
+	/* 16-31 = io apics */
+	SMP_prvpt[2] = PG_V | PG_RW | ((u_long)cpu_apic_address & PG_FRAME);
+
+	for (i = 0; i < mp_napics; i++) {
+		for (j = 0; j < 16; j++) {
+			/* same page frame as a previous IO apic? */
+			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) ==
+			    ((u_long)io_apic_address[0] & PG_FRAME)) {
+				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				break;
+			}
+			/* use this slot if available */
+			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
+				SMP_prvpt[j + 16] = PG_V | PG_RW |
+				    ((u_long)io_apic_address[i] & PG_FRAME);
+				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				break;
+			}
+		}
+		if (j == 16)
+			panic("no space to map IO apic %d!", i);
+	}
 #endif
 
 	invltlb();
@@ -370,39 +372,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 #endif /* !SMP */
 		pgeflag = 0;
 }
-
-#if defined(SMP) || defined(APIC_IO)
-void
-pmap_bootstrap_apics()
-{
-	if (cpu_apic_address == 0) {
-		printf("pmap: BSP APIC address NOT found!\n");
-		panic("pmap_bootstrap_apics: no apic");
-	}
-
-	*(int*)apic_map = PG_V | PG_RW | ((u_long)cpu_apic_address & PG_FRAME);
-
-#if defined(APIC_IO)
-#if defined(MULTIPLE_IOAPICS)
-#error MULTIPLE_IOAPICSXXX
-#else
-	*(int*)io_apic_map = PG_V | PG_RW
-	    | ((u_long)io_apic_address[0] & PG_FRAME);
-#endif /* MULTIPLE_IOAPICS */
-#endif /* APIC_IO */
-
-	invltlb();
-}
-#endif /* SMP || APIC_IO */
-
-#ifdef SMP
-void
-pmap_bootstrap2()
-{
-	*(int *) PTD = 0;
-	invltlb();
-}
-#endif
 
 /*
  *	Initialize the pmap module.
@@ -1062,6 +1031,7 @@ retry:
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
 	/* wire in kernel global address entries */
+	/* XXX copies current process, does not fill in MPPTDI */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
 
 	/* install self-referential address mapping entry */
@@ -1116,6 +1086,9 @@ pmap_release_free_page(pmap, p)
 	 */
 	if (p->pindex == PTDPTDI) {
 		bzero(pde + KPTDI, nkpt * PTESIZE);
+#ifdef SMP
+		pde[MPPTDI] = 0;
+#endif
 		pde[APTDPTDI] = 0;
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.79 1997/04/16 12:11:37 kato Exp $
+ *	$Id: vm_machdep.c,v 1.80 1997/05/07 20:19:18 peter Exp $
  */
 
 #include "npx.h"
@@ -76,13 +76,6 @@
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
-#endif
-
-#ifdef SMP
-extern struct proc *SMPnpxproc[];
-#define npxproc (SMPnpxproc[cpunumber()])
-#else
-extern struct proc *npxproc;
 #endif
 
 #ifdef BOUNCE_BUFFERS

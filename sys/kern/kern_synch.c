@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.30 1997/02/27 18:03:48 bde Exp $
+ * $Id: kern_synch.c,v 1.31 1997/04/26 11:46:15 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -216,15 +216,9 @@ schedcpu(arg)
 		resetpriority(p);
 		if (p->p_priority >= PUSER) {
 #define	PPQ	(128 / NQS)		/* priorities per queue */
-#ifdef SMP
-			for (j = i = 0; i < NCPU; i++) {
-				if (p == SMPcurproc[i])
-					j++;
-			}
-			if (!j &&
-
-#else
 			if ((p != curproc) &&
+#ifdef SMP
+			    (u_char)p->p_oncpu == 0xff && 	/* idle */
 #endif
 			    p->p_stat == SRUN &&
 			    (p->p_flag & P_INMEM) &&
