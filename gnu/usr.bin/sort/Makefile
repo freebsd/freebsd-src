@@ -5,9 +5,12 @@ SORTDIR= ${.CURDIR}/../../../contrib/gnu-sort
 
 PROG=	sort
 SRCS=   sort.c \
+	__fpending.c \
 	argmatch.c \
+	closeout.c \
 	dup-safer.c \
 	error.c \
+	exitfail.c \
 	fopen-safer.c \
 	hard-locale.c \
 	human.c \
@@ -17,6 +20,7 @@ SRCS=   sort.c \
 	posixver.c \
 	quote.c \
 	quotearg.c \
+	umaxtostr.c \
 	version-etc.c \
 	xmalloc.c \
 	xmemcoll.c \
@@ -24,6 +28,6 @@ SRCS=   sort.c \
 	xstrtoumax.c
 
 CFLAGS+=-I${.CURDIR} -I${SORTDIR}/lib -DHAVE_CONFIG_H \
-	-DHAVE_LANGINFO_H=1 -DHAVE_NL_LANGINFO=1 -DLOCALEDIR=\"\"
+	-DHAVE_LANGINFO_H=1 -DHAVE_NL_LANGINFO=1
 
 .include <bsd.prog.mk>
