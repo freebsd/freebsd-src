@@ -117,6 +117,13 @@
     target's pool of network buffers has been closed.  More details,
     as well as a fix, can be found in security advisory
     FreeBSD-SA-01:52.</para>
+
+    <para>A flaw in the implementation of the &man.ipfw.8;
+    <literal>me</literal> rules on point-to-point links has been
+    corrected.  Formerly, <literal>me</literal> filter rules would
+    match the remote IP address of a point-to-point interface in
+    addition to the intended local IP address.  More details, as well
+    as a fix, can be found in security advisory FreeBSD-SA-01:53.</para>
   </sect1>
 
   <sect1>
