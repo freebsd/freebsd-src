@@ -3,6 +3,30 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+20000107:
+	chown & chgrp moved again
+
+	This is a heads up to let you know that you need to 
+		    rm -f /sbin/chwon /bin/chgrp
+	after your next `make world'.  Additionally you need to install
+	a new /dev/MAKEDEV (mergmaster(8) will assist you in this).
+
+20000107:
+	SHA-1 password support gone
+
+	As warned yesterday, I've just removed the ability for
+	libcrypt to understand SHA-1 passwords. This was present but
+	undocumented in the tree for the past few months and was
+	removed so it can be reimplemented properly as part of a
+	revamped libcrypt at a later date. Anyone who was actually
+	making use of the feature will have to update their passwords
+	back to MD5 before they reinstall the library.
+
+20000106:
+	ioctl numbers changed for dvdio ioctls.  You will need to recompile
+	anything that uses them.  wormcontrol has been depreicated in
+	favor of burncd.
+
 19991223:
 	Building linux and svr4 compatibility into the kernel now
 	requires /usr/bin/genassym.  Go to /usr/src/usr.bin/genassym,
