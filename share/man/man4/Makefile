@@ -103,18 +103,24 @@ MAN=	aac.4 \
 	netintro.4 \
 	ng_UI.4 \
 	ng_async.4 \
+	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
+	ng_bt3c.4 \
+	ng_btsocket.4 \
 	ng_cisco.4 \
 	ng_echo.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
+	ng_h4.4 \
+	ng_hci.4 \
 	ng_hole.4 \
 	ng_iface.4 \
 	ng_ip_input.4 \
 	ng_ksocket.4 \
+	ng_l2cap.4 \
 	ng_l2tp.4 \
 	ng_lmi.4 \
 	ng_mppc.4 \
@@ -126,6 +132,7 @@ MAN=	aac.4 \
 	ng_socket.4 \
 	ng_tee.4 \
 	ng_tty.4 \
+	ng_ubt.4 \
 	ng_vjc.4 \
 	nge.4 \
 	nmdm.4 \
