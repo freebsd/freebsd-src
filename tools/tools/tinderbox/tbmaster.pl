@@ -63,6 +63,7 @@ my %INITIAL_CONFIG = (
     'SENDER'	=> '',
     'SUBJECT'	=> 'Tinderbox failure on %%arch%%/%%machine%%',
     'TARGETS'	=> [ 'update', 'world' ],
+    'TIMEOUT'   => '',
     'TINDERBOX'	=> '%%HOME%%/tinderbox',
 );
 my %CONFIG;
@@ -254,6 +255,8 @@ sub tinderbox($$$) {
 	if ($CONFIG{'PATCH'});
     push(@args, "--jobs=" . expand('JOBS'))
 	if ($CONFIG{'JOBS'});
+    push(@args, "--timeout=" . expand('TIMEOUT'))
+	if ($CONFIG{'TIMEOUT'});
     push(@args, @{$CONFIG{'TARGETS'}});
     push(@args, @{$CONFIG{'ENV'}});
     push(@args, "CFLAGS=" . expand('CFLAGS'))
