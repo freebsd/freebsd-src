@@ -23,6 +23,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <err.h>
 #include <errno.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -322,9 +323,13 @@ show_today(users, logins, secs)
 	struct utmp_list *lp;
 	char date[64];
 	time_t yesterday = secs - 1;
+	static int d_first = -1;
 
-	(void)strftime(date, sizeof (date), "%Ef  total",
-	    localtime(&yesterday));
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+	(void)strftime(date, sizeof (date),
+		       d_first ? "%e %b  total" : "%b %e  total",
+		       localtime(&yesterday));
 
 	/* restore the missing second */
 	yesterday++;
