@@ -506,7 +506,8 @@ ray_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_timer = 0;
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT);
 	ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 
 	    sizeof(struct ether_header);
 	ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
