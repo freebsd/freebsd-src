@@ -332,7 +332,8 @@ void	nfsm_srvpostopattr(struct nfsrv_descript *, int, struct vattr *,
 int	netaddr_match(int, union nethostaddr *, struct sockaddr *);
 int	nfs_namei(struct nameidata *, fhandle_t *, int,
 	    struct nfssvc_sock *, struct sockaddr *, struct mbuf **,
-	    caddr_t *, struct vnode **, struct thread *, int);
+	    caddr_t *, struct vnode **, int, struct vattr *, int *,
+	    struct thread *, int);
 void	nfsm_adj(struct mbuf *, int, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfsrv_initcache(void);
