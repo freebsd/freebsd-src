@@ -32,9 +32,14 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)printgprof.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include "gprof.h"
 #include "pathnames.h"
 
@@ -698,7 +703,7 @@ printindex()
 	 */
     namesortnlp = (nltype **) calloc( nname + ncycle , sizeof(nltype *) );
     if ( namesortnlp == (nltype **) 0 ) {
-	fprintf( stderr , "%s: ran out of memory for sorting\n" , whoami );
+	warnx("ran out of memory for sorting");
     }
     for ( index = 0 , nnames = 0 ; index < nname ; index++ ) {
 	if ( zflag == 0 && nl[index].ncall == 0 && nl[index].time == 0 )
