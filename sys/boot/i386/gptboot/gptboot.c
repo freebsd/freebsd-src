@@ -25,9 +25,6 @@
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
 
-#include <ufs/ffs/fs.h>
-#include <ufs/ufs/dinode.h>
-
 #include <stdarg.h>
 
 #include <a.out.h>
@@ -71,22 +68,6 @@
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
 
-/*
- * We use 4k `virtual' blocks for filesystem data, whatever the actual
- * filesystem block size. FFS blocks are always a multiple of 4k.
- */
-#define VBLKSIZE	4096
-#define VBLKMASK	(VBLKSIZE - 1)
-#define DBPERVBLK	(VBLKSIZE / DEV_BSIZE)
-#define IPERVBLK	(VBLKSIZE / sizeof(struct dinode))
-#define INDIRPERVBLK	(VBLKSIZE / sizeof(ufs_daddr_t))
-#define INO_TO_VBA(fs, x) (fsbtodb(fs, ino_to_fsba(fs, x)) + \
-    (ino_to_fsbo(fs, x) / IPERVBLK) * DBPERVBLK)
-#define INO_TO_VBO(fs, x) (ino_to_fsbo(fs, x) % IPERVBLK)
-#define FS_TO_VBA(fs, fsb, off) (fsbtodb(fs, fsb) + \
-    ((off) / VBLKSIZE) * DBPERVBLK)
-#define FS_TO_VBO(fs, fsb, off) ((off) & VBLKMASK)
-
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
@@ -95,14 +76,6 @@
 #define TYPE_WFD 	2
 #define TYPE_FD		3
 #define TYPE_DA		4
-
-/* Buffers that must not span a 64k boundary. */
-static struct dmadat {
-	char blkbuf[VBLKSIZE];				/* filesystem blocks */
-	ufs_daddr_t indbuf[VBLKSIZE / sizeof(ufs_daddr_t)]; /* indir blocks */
-	char sbbuf[SBSIZE];				/* superblock */
-	char secbuf[DEV_BSIZE];				/* for MBR/disklabel */
-} *dmadat;
 
 extern uint32_t _end;
 
@@ -135,14 +108,11 @@ static struct dsk {
     unsigned part;
     unsigned start;
     int init;
-    int meta;
 } dsk;
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
 static struct bootinfo bootinfo;
-static int ls;
-static uint32_t fs_off;
 static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
@@ -179,30 +149,7 @@ strcmp(const char *s1, const char *s2)
     return (u_char)*s1 - (u_char)*s2;
 }
 
-static inline int
-fsfind(const char *name, ino_t * ino)
-{
-    char buf[DEV_BSIZE];
-    struct dirent *d;
-    char *s;
-    ssize_t n;
-
-    fs_off = 0;
-    while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
-	for (s = buf; s < buf + DEV_BSIZE;) {
-	    d = (void *)s;
-	    if (ls)
-		printf("%s ", d->d_name);
-	    else if (!strcmp(name, d->d_name)) {
-		*ino = d->d_fileno;
-		return d->d_type;
-	    }
-	    s += d->d_reclen;
-	}
-    if (n != -1 && ls)
-	putchar('\n');
-    return 0;
-}
+#include "ufsread.c"
 
 static inline int
 getchar(void)
@@ -505,7 +452,7 @@ parse(char *arg)
 		dsk.drive = (dsk.type == TYPE_WD ||
 			     dsk.type == TYPE_AD ||
 			     dsk.type == TYPE_DA ? DRV_HARD : 0) + drv;
-		dsk.meta = 0;
+		dsk_meta = 0;
 		fsread(0, NULL, 0);
 	    }
 	    if ((i = p - arg - !*(p - 1))) {
@@ -519,34 +466,6 @@ parse(char *arg)
     return 0;
 }
 
-static ino_t
-lookup(const char *path)
-{
-    char name[MAXNAMLEN + 1];
-    const char *s;
-    ino_t ino;
-    ssize_t n;
-    int dt;
-
-    ino = ROOTINO;
-    dt = DT_DIR;
-    for (;;) {
-	if (*path == '/')
-	    path++;
-	if (!*path)
-	    break;
-	for (s = path; *s && *s != '/'; s++);
-	if ((n = s - path) > MAXNAMLEN)
-	    return 0;
-	ls = *path == '?' && n == 1 && !*s;
-	memcpy(name, path, n);
-	name[n] = 0;
-	if ((dt = fsfind(name, &ino)) <= 0)
-	    break;
-	path = s;
-    }
-    return dt == DT_REG ? ino : 0;
-}
 static int
 xfsread(ino_t inode, void *buf, size_t nbyte)
 {
@@ -557,83 +476,6 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
     return 0;
 }
 
-static ssize_t
-fsread(ino_t inode, void *buf, size_t nbyte)
-{
-    static struct dinode din;
-    static ino_t inomap;
-    static daddr_t blkmap, indmap;
-    char *blkbuf;
-    ufs_daddr_t *indbuf;
-    struct fs *fs;
-    char *s;
-    ufs_daddr_t lbn, addr;
-    daddr_t vbaddr;
-    size_t n, nb, off, vboff;
-
-    blkbuf = dmadat->blkbuf;
-    indbuf = dmadat->indbuf;
-    fs = (struct fs *)dmadat->sbbuf;
-    if (!dsk.meta) {
-	inomap = 0;
-	if (dskread(fs, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
-	    return -1;
-	if (fs->fs_magic != FS_MAGIC) {
-	    printf("Not ufs\n");
-	    return -1;
-	}
-	dsk.meta++;
-    }
-    if (!inode)
-	return 0;
-    if (inomap != inode) {
-	if (dskread(blkbuf, INO_TO_VBA(fs, inode), DBPERVBLK))
-	    return -1;
-	din = ((struct dinode *)blkbuf)[INO_TO_VBO(fs, inode)];
-	inomap = inode;
-	fs_off = 0;
-	blkmap = indmap = 0;
-    }
-    s = buf;
-    if (nbyte > (n = din.di_size - fs_off))
-	nbyte = n;
-    nb = nbyte;
-    while (nb) {
-	lbn = lblkno(fs, fs_off);
-	off = blkoff(fs, fs_off);
-	if (lbn < NDADDR)
-	    addr = din.di_db[lbn];
-	else {
-	    vbaddr = FS_TO_VBA(fs, din.di_ib[0], sizeof(indbuf[0]) *
-		((lbn - NDADDR) % NINDIR(fs)));
-	    if (indmap != vbaddr) {
-		if (dskread(indbuf, vbaddr, DBPERVBLK))
-		    return -1;
-		indmap = vbaddr;
-	    }
-	    addr = indbuf[(lbn - NDADDR) % INDIRPERVBLK];
-	}
-	vbaddr = FS_TO_VBA(fs, addr, off);
-	vboff = FS_TO_VBO(fs, addr, off);
-	n = dblksize(fs, &din, lbn) - (off & ~VBLKMASK);
-	if (n > VBLKSIZE)
-		n = VBLKSIZE;
-	if (blkmap != vbaddr) {
-	    if (dskread(blkbuf, vbaddr, n >> DEV_BSHIFT))
-		return -1;
-	    blkmap = vbaddr;
-	}
-	n -= vboff;
-	if (n > nb)
-	    n = nb;
-	memcpy(s, blkbuf + vboff, n);
-	s += n;
-	fs_off += n;
-	nb -= n;
-    }
-    return nbyte;
-}
-
 static int
 dskread(void *buf, unsigned lba, unsigned nblk)
 {
@@ -642,7 +484,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     char *sec;
     unsigned sl, i;
 
-    if (!dsk.meta) {
+    if (!dsk_meta) {
 	sec = dmadat->secbuf;
 	dsk.start = 0;
 	if (drvread(sec, DOSBBSECTOR, 1))
