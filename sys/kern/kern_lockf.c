@@ -106,8 +106,6 @@ lf_advlock(ap, head, size)
 	off_t start, end;
 	int error;
 
-	if (fl->l_len < 0)
-		return (EINVAL);
 	/*
 	 * Convert the flock structure into a start and end.
 	 */
@@ -134,7 +132,12 @@ lf_advlock(ap, head, size)
 	}
 	if (start < 0)
 		return (EINVAL);
-	if (fl->l_len == 0)
+	if (fl->l_len < 0) {
+		start += fl->l_len;
+		if (start <= 0)
+			return (EINVAL);
+		end = start - 1;
+	} else if (fl->l_len == 0)
 		end = -1;
 	else {
 		off_t oadd = fl->l_len - 1;
