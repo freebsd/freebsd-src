@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.24 1994/10/04 18:39:10 ache Exp $
+ *	$Id: clock.c,v 1.25 1994/10/25 22:35:12 se Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <machine/clock.h>
 #include <machine/frame.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -65,29 +66,55 @@
 #define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
 
 /* X-tals being what they are, it's nice to be able to fudge this one... */
-/* Note, the name changed here from XTALSPEED to TIMER_FREQ rgrimes 4/26/93 */
 #ifndef TIMER_FREQ
 #define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
 #endif
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
 
-static	int beeping;
-int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
-u_int 	timer0_prescale;
-int	adjkerntz = 0;	/* offset from CMOS clock */
-int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
-static 	char timer0_state = 0, timer2_state = 0;
-static 	char timer0_reprogram = 0;
-static 	void (*timer_func)() = hardclock;
-static 	void (*new_function)();
-static 	u_int new_rate;
-static 	u_int hardclock_divisor;
-static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-static 	u_char rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+/*
+ * Time in timer cycles that it takes for microtime() to disable interrupts
+ * and latch the count.  microtime() currently uses "cli; outb ..." so it
+ * normally takes less than 2 timer cycles.  Add a few for cache misses.
+ * Add a few more to allow for latency in bogus calls to microtime() with
+ * interrupts already disabled.
+ */
+#define	TIMER0_LATCH_COUNT	20
 
+/*
+ * Minimum maximum count that we are willing to program into timer0.
+ * Must be large enough to guarantee that the timer interrupt handler
+ * returns before the next timer interrupt.  Must be larger than
+ * TIMER0_LATCH_COUNT so that we don't have to worry about underflow in
+ * the calculation of timer0_overflow_threshold.
+ */
+#define	TIMER0_MIN_MAX_COUNT	TIMER_DIV(20000)
+
+int	adjkerntz = 0;		/* offset from CMOS clock */
+int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 #ifdef I586_CPU
-int pentium_mhz = 0;
+int	pentium_mhz;
 #endif
+int 	timer0_max_count;
+u_int 	timer0_overflow_threshold;
+u_int 	timer0_prescaler_count;
+
+static	int	beeping = 0;
+static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+static 	u_int	hardclock_max_count;
+/*
+ * XXX new_function and timer_func should not handle clockframes, but
+ * timer_func currently needs to hold hardclock to handle the
+ * timer0_state == 0 case.  We should use register_intr()/unregister_intr()
+ * to switch between clkintr() and a slightly different timerintr().
+ * This will require locking when acquiring and releasing timer0 - the
+ * current (nonexistent) locking doesn't seem to be adequate even now.
+ */
+static 	void	(*new_function) __P((struct clockframe *frame));
+static 	u_int	new_rate;
+static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+static 	char	timer0_state = 0;
+static	char	timer2_state = 0;
+static 	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
 
 #if 0
 void
@@ -104,32 +131,47 @@ clkintr(struct clockframe frame)
 	case 0:
 		break;
 	case 1:
-		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
+		if ((timer0_prescaler_count += timer0_max_count)
+		    >= hardclock_max_count) {
 			hardclock(&frame);
-			timer0_prescale = 0;
+			timer0_prescaler_count -= hardclock_max_count;
 		}
 		break;
 	case 2:
+		timer0_max_count = TIMER_DIV(new_rate);
+		timer0_overflow_threshold =
+			timer0_max_count - TIMER0_LATCH_COUNT;
 		disable_intr();
-		outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
-		outb(TIMER_CNTR0, TIMER_DIV(new_rate)%256);
-		outb(TIMER_CNTR0, TIMER_DIV(new_rate)/256);
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+		outb(TIMER_CNTR0, timer0_max_count & 0xff);
+		outb(TIMER_CNTR0, timer0_max_count >> 8);
 		enable_intr();
-		timer0_divisor = TIMER_DIV(new_rate);
-		timer0_prescale = 0;
+		timer0_prescaler_count = 0;
 		timer_func = new_function;
 		timer0_state = 1;
 		break;
 	case 3:
-		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
+		if ((timer0_prescaler_count += timer0_max_count)
+		    >= hardclock_max_count) {
 			hardclock(&frame);
+			timer0_max_count = TIMER_DIV(hz);
+			timer0_overflow_threshold =
+				timer0_max_count - TIMER0_LATCH_COUNT;
 			disable_intr();
-			outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
-			outb(TIMER_CNTR0, TIMER_DIV(hz)%256);
-			outb(TIMER_CNTR0, TIMER_DIV(hz)/256);
+			outb(TIMER_MODE,
+			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+			outb(TIMER_CNTR0, timer0_max_count & 0xff);
+			outb(TIMER_CNTR0, timer0_max_count >> 8);
 			enable_intr();
-			timer0_divisor = TIMER_DIV(hz);
-			timer0_prescale = 0;
+			/*
+			 * See microtime.s for this magic.
+			 */
+			time.tv_usec += (27645 *
+				(timer0_prescaler_count - hardclock_max_count))
+				>> 15;
+			if (time.tv_usec >= 1000000)
+				time.tv_usec -= 1000000;
+			timer0_prescaler_count = 0;
 			timer_func = hardclock;;
 			timer0_state = 0;
 		}
@@ -139,9 +181,10 @@ clkintr(struct clockframe frame)
 #endif
 
 int
-acquire_timer0(int rate, void (*function)() )
+acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 {
-	if (timer0_state || !function) 	
+	if (timer0_state || TIMER_DIV(rate) < TIMER0_MIN_MAX_COUNT ||
+	    !function) 	
 		return -1;
 	new_function = function;
 	new_rate = rate;
@@ -202,7 +245,7 @@ rtcintr(struct clockframe frame)
 }
 
 #ifdef DEBUG
-void
+static void
 printrtc(void)
 {
 	outb(IO_RTC, RTC_STATUSA);
@@ -305,7 +348,7 @@ DELAY(int n)
 		++getit_calls;
 #endif
 		if (tick > prev_tick)
-			ticks_left -= prev_tick - (tick - timer0_divisor);
+			ticks_left -= prev_tick - (tick - timer0_max_count);
 		else
 			ticks_left -= prev_tick - tick;
 		prev_tick = tick;
@@ -376,13 +419,14 @@ startrtclock()
 {
 	int s;
 
-	/* initialize 8253 clock */
-	outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
+	/* Initialize 8253 timer 0. */
+	timer0_max_count = hardclock_max_count = TIMER_DIV(hz);
+	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, timer0_max_count & 0xff);
+	outb(TIMER_CNTR0, timer0_max_count >> 8);
 
-	/* Correct rounding will buy us a better precision in timekeeping */
-	outb (IO_TIMER1, TIMER_DIV(hz)%256);
-	outb (IO_TIMER1, TIMER_DIV(hz)/256);
-	timer0_divisor = hardclock_divisor = TIMER_DIV(hz);
+	/* XXX initialization of other timers unintentionally left blank. */
 
 	/* initialize brain-dead battery powered clock */
 	outb (IO_RTC, RTC_STATUSA);
@@ -461,7 +505,8 @@ wrong_time:
 /*
  * Write system	time back to RTC
  */
-void resettodr()
+void
+resettodr()
 {
 	unsigned long	tm;
 	int		y, m, fd, r, s;
@@ -517,6 +562,7 @@ void resettodr()
  * Initialze the time of day register, based on the time base which is, e.g.
  * from a filesystem.
  */
+static void
 test_inittodr(time_t base)
 {
 
@@ -544,7 +590,7 @@ test_inittodr(time_t base)
 static u_int clkmask = HWI_MASK | SWI_MASK;
 static u_int rtcmask = SWI_CLOCK_MASK;
 
-void
+static void
 enablertclock() 
 {
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
