@@ -183,8 +183,6 @@ static	d_ioctl_t	wtioctl;
 static	d_strategy_t	wtstrategy;
 
 #define CDEV_MAJOR 10
-#define BDEV_MAJOR 3
-
 
 static struct cdevsw wt_cdevsw = {
 	/* open */	wtopen,
@@ -205,7 +203,7 @@ static struct cdevsw wt_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	0,
 	/* maxio */	0,
-	/* bmaj */	BDEV_MAJOR
+	/* bmaj */	-1
 };
 
 
