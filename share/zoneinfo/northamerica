@@ -1,4 +1,4 @@
-# @(#)northamerica	7.69
+# @(#)northamerica	7.70
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -1731,6 +1731,15 @@ Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 # to DST--and one more hour on 1999-04-04--when the announcers will have
 # returned to Baltimore, which switches on that date.)
 
+# From Evert van der Veer via Steffen Thorsen (2004-10-28):
+# Cuba is not going back to standard time this year.
+# From Paul Eggert (2004-10-28):
+# http://www.granma.cu/ingles/2004/septiembre/juev30/41medid-i.html
+# says that it's due to a problem at the Antonio Guiteras
+# thermoelectric plant, and says "This October there will be no return
+# to normal hours (after daylight saving time)".
+# For now, let's assume that it's a one-year temporary measure.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cuba	1928	only	-	Jun	10	0:00	1:00	D
 Rule	Cuba	1928	only	-	Oct	10	0:00	0	S
@@ -1759,8 +1768,9 @@ Rule	Cuba	1991	1995	-	Oct	Sun>=8	0:00s	0	S
 Rule	Cuba	1996	only	-	Oct	 6	0:00s	0	S
 Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
 Rule	Cuba	1998	1999	-	Mar	lastSun	0:00s	1:00	D
-Rule	Cuba	1998	max	-	Oct	lastSun	0:00s	0	S
+Rule	Cuba	1998	2003	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2000	max	-	Apr	Sun>=1	0:00s	1:00	D
+Rule	Cuba	2005	max	-	Oct	lastSun	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
