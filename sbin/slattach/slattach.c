@@ -62,6 +62,7 @@ static char rcsid[] = "$Id";
 #include <syslog.h>
 #include <signal.h>
 #include <strings.h>
+#include <err.h>
 
 #define DEFAULT_BAUD	9600
 
@@ -74,6 +75,7 @@ void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
 void	configure_network();	/* configure slip interface */
 void	acquire_line();		/* get tty device as controling terminal */
+static void usage __P((void));
 
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
@@ -101,27 +103,17 @@ char	*redial_cmd = 0;	/* command to exec upon shutdown. */
 char	*config_cmd = 0;	/* command to exec if slip unit changes. */
 char	*exit_cmd = 0;		/* command to exec before exiting. */
 
-static char usage_str[] = "\
-usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
-	  [-L] [-K timeout] [-O timeout] [-S unit] device\n\
-  -a      -- autoenable VJ compression\n\
-  -c      -- enable VJ compression\n\
-  -e ECMD -- run ECMD before exiting\n\
-  -f      -- run in foreground (don't detach from controlling tty)\n\
-  -h      -- turn on cts/rts style flow control\n\
-  -l      -- disable modem control (CLOCAL) and ignore carrier detect\n\
-  -n      -- throw out ICMP packets\n\
-  -r RCMD -- run RCMD upon loss of carrier\n\
-  -s #    -- set baud rate (default 9600)\n\
-  -u UCMD -- run 'UCMD <old sl#> <new sl#>' before switch to slip discipline\n\
-  -z      -- run RCMD upon startup irrespective of carrier\n\
-  -L      -- do uucp-style device locking\n\
-  -K #    -- set SLIP \"keep alive\" timeout (default 0)\n\
-  -O #    -- set SLIP \"out fill\" timeout (default 0)\n\
-  -S #    -- set SLIP unit number (default is dynamic)\n\
-";
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n",
+"usage: slattach [-acfhlnz] [-e command] [-r command] [-s speed] [-u command]",
+"                [-L] [-K timeout] [-O timeout] [-S unit] device");
+	/* do not exit here */
+}
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	int option;
 	extern char *optarg;
@@ -176,11 +168,9 @@ int main(int argc, char **argv)
 		case 'S':
 			sl_unit = atoi(optarg);
 			break;
-		default:
-			fprintf(stderr, "%s: Invalid option -- '%c'\n",
-				argv[0], option);
 		case '?':
-			fprintf(stderr, usage_str, argv[0]);
+		default:
+			usage();
 			exit_handler(1);
 		}
 	}
@@ -188,15 +178,12 @@ int main(int argc, char **argv)
 	if (optind == argc - 1)
 		dev = argv[optind];
 
-	if (optind < (argc - 1)) {
-	    fprintf(stderr, "%s: Too many args, first='%s'\n",
-	      argv[0], argv[optind]);
-	}
-	if (optind > (argc - 1)) {
-	    fprintf(stderr, "%s: Not enough args\n", argv[0]);
-	}
+	if (optind < (argc - 1))
+	    warnx("too many args, first='%s'", argv[optind]);
+	if (optind > (argc - 1))
+	    warnx("not enough args");
 	if (dev == (char *)0) {
-		fprintf(stderr, usage_str, argv[0]);
+		usage();
 		exit_handler(2);
 	}
 	if (strncmp(_PATH_DEV, dev, sizeof(_PATH_DEV) - 1)) {
