@@ -1,0 +1,332 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 11, 2003
+.Dt ATMCONFIG 8
+.Os
+.Sh NAME
+.Nm atmconfig
+.Nd "ATM configuration tool"
+.Sh SYNOPSIS
+.Nm
+.Op Fl htv
+.Op command Op sub-command Op ...
+.Op options
+.Op arg ...
+.Sh DESCRIPTION
+The
+.Nm
+tool is used to configure the Netgraph ATM network sub-system. 
+.Pp
+The command line of
+.Nm
+generally consists of common options followed by a command string, optionally
+followed by sub-command strings, optional command specific options and
+command specific arguments. Commands and sub-commands as well as command
+specific options may be abbreviated as
+long as there is only one match possible.
+.Ss COMMON OPTIONS
+The following common options change the overall behaviour of
+.Nm :
+.Bl -tag -width XXXX
+.It Fl h
+Print a very short usage info and exit.
+.It Fl t
+Several show-type commands output a header and then several lines
+of information.
+If this option is given the header is omitted, simplifying the parsing
+of the output.
+.It Fl v
+Be more verbose.
+.El
+.Ss OBTAINING HELP
+The
+.Sq help
+command has a number of useful sub-commands.
+To get general help use:
+.Pp
+.Dl atmconfig help
+.Pp
+To get a list of available commands use:
+.Pp
+.Dl atmconfig help commands
+.Pp
+To get a list of available sub-commands use:
+.Pp
+.Dl atmconfig help Ar command
+.Pp
+or (if there are deeper levels of sub-commands
+.Pp
+.Dl atmconfig help Ar command Ar sub-command ...
+.Pp
+To get a list of options and arguments for a command use
+.Pp
+.Dl atmconfig help Ar command Ar sub-command ...
+.Pp
+(given, that there are no further sub-command levels).
+To get a list of common options use
+.Pp
+.Dl atmconfig help options
+.Ss DIAG COMMAND
+The
+.Ic diag
+command allows the inspection of the ATM interfaces on the local host
+and the modification of device parameters.
+Sub-commands are:
+.Ic list
+(print a list of interfaces),
+.Ic config
+(print hardware configuration),
+.Ic phy
+(access PHY chip),
+.Ic stats
+(print statistics) and
+.Ic vcc
+(print list of VCCs).
+.Pp
+.Bl -tag -width XXXX
+.\"----------------------------------------
+.It Ic atmconfig diag list
+This sub-command lists all ATM interfaces in the system.
+It takes no options or arguments.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag config
+.Op Fl atm
+.Op Fl hardware
+.Op Ar device ...
+.Xc
+This command prints the configuration of ATM interfaces.
+If no
+.Ar device
+is given all devices are listed, otherwise only the specified devices.
+The option
+.Fl atm
+instructs the command to print ATM layer configuration parameters like
+the number of VCI and VPI bits, whereas the
+.Fl hardware
+option requests card specific information like the vendor or the serial
+number.
+If none of the options is given the defaults is to assume
+.Fl atm .
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag phy print
+.Op Fl numeric
+.Ar device
+.Xc
+This command prints the PHY registers in a (potential)
+human comprehensible format.
+If
+.Fl numeric
+is given the format are hex bytes.
+Otherwise textual representation will be printed.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag phy show
+.Op Ar device ...
+.Xc
+This sub-command prints static information about the PHY device used
+in the ATM card like the type of the PHY and the media.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag phy set
+.Ar device
+.Ar reg
+.Ar mask
+.Ar val
+.Xc
+This sub-command allows one to change bits in PHY registers.
+This should be used with great care.
+The bits of the given PHY chip register for which the corresponding bit in
+.Ar mask
+is one are set to the values of the corresponding bits in
+.Ar val .
+All register bits that have a zero in
+.Ar mask
+are written back with their original value.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag phy stats
+.Op Fl clear
+.Ar device
+.Xc
+Print the PHY statistics for the given
+.Ar device .
+When the optional
+.Fl clear
+is given, the statistics are cleared atomically.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag vcc
+.Op Fl abr
+.Op Fl channel
+.Op Fl traffic
+.Op Ar device
+.Xc
+Retrieve the list of currently active channels on either all
+or the specified interfaces.
+For each channel the following information is printed depending
+on the options (default is
+.Fl channel
+).
+.Pp
+.Bl -tag -width XXXX
+.It Fl abr
+Print ABR specific traffic parameters: ICR, TBE, NRM, TRM, ADTF, RIF, RDF,
+CDF.
+.It Fl channel
+Print basic information: VPI, VCI, AAL, traffic type, MTU and flags.
+.It Fl traffic
+Print traffic parameters: PCR, SCR, MBS, MCR.
+.El
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig diag stats
+.Ar device
+.Xc
+Print driver specific statistics.
+.El
+.Ss NATM COMMAND
+The
+.Ic natm
+command is used to change
+.Xr natmip 4
+routes on the local host.
+The sub-commands for the routing table are:
+.Ic add
+(to add a new route),
+.Ic delete
+(to delete an existing route) and
+.Ic show
+(to print the currently installed NATM routes).
+.Pp
+.Bl -tag -width XXXX
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig natm add
+.Ar dest
+.Ar device
+.Ar vpi
+.Ar vci
+.Ar encaps
+.Xc
+.It Xo
+.Ic atmconfig natm add
+.Ar dest
+.Ar device
+.Ar vpi
+.Ar vci
+.Ar encaps
+.Ic ubr Oo Ar pcr Oc
+.Xc
+.It Xo
+.Ic atmconfig natm add
+.Ar dest
+.Ar device
+.Ar vpi
+.Ar vci
+.Ar encaps
+.Ic cbr Ar pcr
+.Xc
+.It Xo
+.Ic atmconfig natm add
+.Ar dest
+.Ar device
+.Ar vpi
+.Ar vci
+.Ar encaps
+.Ic vbr Ar pcr Ar scr Ar mbs
+.Xc
+.It Xo
+.Ic atmconfig natm add
+.Ar dest
+.Ar device
+.Ar vpi
+.Ar vci
+.Ar encaps
+.Ic abr Ar pcr Ar mcr Ar icr Ar tbe Ar nrm Ar trm Ar adtf Ar rif Ar rdf Ar cdf
+.Xc
+.Pp
+Add a new route to the routing table. The destination address (the address
+on the other end of the link) is given in
+.Ar dest .
+.Ar device ,
+.Ar vpi
+and
+.Ar vci
+are the name of the ATM device and the VPI and VCI values for the link.
+.Ar encaps
+may be either
+.Ic AAL5
+or
+.Ic LLC/SNAP
+both of which specify AAL5 encapsulation, the first one without additional
+encapsulation, the second one with LLC/SNAP headers.
+The first two forms of the command add an UBR (unspecified bit rate) channel,
+where the second form allows the optional specification of a peak cell
+rate (PCR).
+The third form adds a CBR (constant bit rate) channel where a PCR
+must be given.
+The fourth form adds a VBR (variable bit rate) channel.
+The arguments are the peak cell rate, the sustainable cell rate and the
+maximum bursts size.
+The last form of the command adds an ABR (available bit rate) channel.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig natm delete
+.Ar dest
+.Xc
+.It Xo
+.Ic atmconfig natm delete
+.Ar device
+.Ar vpi
+.Ar vci
+.Xc
+.Pp
+This commands deletes an NATM route.
+The route may be specified either by the destination address or
+by the
+.Ar device ,
+.Ar vpi and
+.Ar vci
+triple.
+.\"----------------------------------------
+.It Xo
+.Ic atmconfig natm show
+.Xc
+List all NATM routes.
+.El
+.Sh SEE ALSO
+.Xr natm 4 ,
+.Xr natmip 4 ,
+.Xr atm 8
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@freebsd.org
