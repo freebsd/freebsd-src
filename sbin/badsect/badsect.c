@@ -65,36 +65,20 @@ static const char rcsid[] =
 #include <err.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <libufs.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-union {
-	struct	fs fs;
-	char	fsx[SBLOCKSIZE];
-} ufs;
-#define sblock	ufs.fs
-union {
-	struct	cg cg;
-	char	cgx[MAXBSIZE];
-} ucg;
-#define	acg	ucg.cg
-struct	fs *fs;
-int	fso, fsi;
+#define sblock	disk.d_fs
+#define	acg	disk.d_cg
+struct	uufsd disk;
+struct	fs *fs = &sblock;
 int	errs;
-long	dev_bsize = 1;
 
-char buf[MAXBSIZE];
-
-void	rdfs(daddr_t, int, char *);
 int	chkuse(daddr_t, int);
-
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
 
 static void
 usage(void)
@@ -137,23 +121,12 @@ main(int argc, char *argv[])
 		    (u_long)stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
-	if ((fsi = open(name, O_RDONLY)) < 0)
-		err(6, "%s", name);
-	fs = &sblock;
-	for (i = 0; sblock_try[i] != -1; i++) {
-		rdfs(sblock_try[i] / dev_bsize, SBLOCKSIZE, (char *)fs);
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblock_try[i])) &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
+	if (ufs_disk_fillout(&disk, name) == -1) {
+		if (disk.d_error != NULL)
+			errx(6, "%s: %s", name, disk.d_error);
+		else
+			err(7, "%s", name);
 	}
-	if (sblock_try[i] == -1) {
-		printf("Cannot find file system\n");
-		exit(7);
-	}
-	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 	for (argc -= 2, argv += 2; argc > 0; argc--, argv++) {
 		number = atol(*argv);
 		if (chkuse(number, 1))
@@ -175,6 +148,7 @@ main(int argc, char *argv[])
 			errs++;
 		}
 	}
+	ufs_disk_close(&disk);
 	printf("Don't forget to run ``fsck %s''\n", name);
 	exit(errs);
 }
@@ -204,8 +178,11 @@ chkuse(daddr_t blkno, int cnt)
 			return (1);
 		}
 	}
-	rdfs(fsbtodb(fs, cgtod(fs, cg)), (int)sblock.fs_cgsize,
-	    (char *)&acg);
+	if (cgread1(&disk, cg) != 1) {
+		fprintf(stderr, "cg %d: could not be read\n", cg);
+		errs++;
+		return (1);
+	}
 	if (!cg_chkmagic(&acg)) {
 		fprintf(stderr, "cg %d: bad magic number\n", cg);
 		errs++;
@@ -215,23 +192,4 @@ chkuse(daddr_t blkno, int cnt)
 	if (isclr(cg_blksfree(&acg), bn))
 		printf("Warning: sector %ld is in use\n", (long)blkno);
 	return (0);
-}
-
-/*
- * read a block from the file system
- */
-void
-rdfs(daddr_t bno, int size, char *bf)
-{
-	int n;
-
-	if (lseek(fsi, (off_t)bno * dev_bsize, SEEK_SET) < 0) {
-		printf("seek error: %ld\n", (long)bno);
-		err(1, "rdfs");
-	}
-	n = read(fsi, bf, size);
-	if (n != size) {
-		printf("read error: %ld\n", (long)bno);
-		err(1, "rdfs");
-	}
 }
