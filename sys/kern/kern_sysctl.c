@@ -312,7 +312,7 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 		sysctl_unregister_oid(oidp);
 		if (del) {
 			if (oidp->descr)
-				free(oidp->descr, M_SYSCTLOID);
+				free((void *)(uintptr_t)(const void *)oidp->descr, M_SYSCTLOID);
 			free((void *)(uintptr_t)(const void *)oidp->oid_name,
 			     M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
@@ -377,7 +377,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 		int len = strlen(descr) + 1;
 		oidp->descr = malloc(len, M_SYSCTLOID, M_WAITOK);
 		if (oidp->descr)
-			strcpy(oidp->descr, descr);
+			strcpy((char *)(uintptr_t)(const void *)oidp->descr, descr);
 	}
 	/* Update the context, if used */
 	if (clist != NULL)
