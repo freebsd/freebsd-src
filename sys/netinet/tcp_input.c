@@ -391,6 +391,7 @@ tcp_input(m, off0, proto)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #endif /* INET6 */
+	int rstreason; /* For badport_bandlim accounting purposes */
 
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
@@ -640,11 +641,14 @@ findpcb:
 				goto drop;
 			}
 		}
-		goto maybedropwithreset;
+		rstreason = BANDLIM_RST_CLOSEDPORT;
+		goto dropwithreset;
 	}
 	tp = intotcpcb(inp);
-	if (tp == 0)
-		goto maybedropwithreset;
+	if (tp == 0) {
+		rstreason = BANDLIM_RST_CLOSEDPORT;
+		goto dropwithreset;
+	}
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
 
@@ -704,7 +708,8 @@ findpcb:
 				 */
 				if (thflags & TH_ACK) {
 					tcpstat.tcps_badsyn++;
-					goto maybedropwithreset;
+					rstreason = BANDLIM_RST_OPENPORT;
+					goto dropwithreset;
 				}
 				goto drop;
 			}
@@ -784,7 +789,8 @@ findpcb:
 				 */
 				if (thflags & TH_ACK) {
 					tcpstat.tcps_badsyn++;
-					goto maybedropwithreset;
+					rstreason = BANDLIM_RST_OPENPORT;
+					goto dropwithreset;
 				}
 				goto drop;
 			}
@@ -1010,8 +1016,10 @@ findpcb:
 
 		if (thflags & TH_RST)
 			goto drop;
-		if (thflags & TH_ACK)
-			goto maybedropwithreset;
+		if (thflags & TH_ACK) {
+			rstreason = BANDLIM_RST_OPENPORT;
+			goto dropwithreset;
+		}
 		if ((thflags & TH_SYN) == 0)
 			goto drop;
 		if (th->th_dport == th->th_sport) {
@@ -1203,8 +1211,10 @@ findpcb:
 	case TCPS_SYN_RECEIVED:
 		if ((thflags & TH_ACK) &&
 		    (SEQ_LEQ(th->th_ack, tp->snd_una) ||
-		     SEQ_GT(th->th_ack, tp->snd_max)))
-				goto maybedropwithreset;
+		     SEQ_GT(th->th_ack, tp->snd_max))) {
+				rstreason = BANDLIM_RST_OPENPORT;
+				goto dropwithreset;
+		}
 		break;
 
 	/*
@@ -1238,8 +1248,10 @@ findpcb:
 			 */
 			if (taop->tao_ccsent != 0)
 				goto drop;
-			else
+			else {
+				rstreason = BANDLIM_UNLIMITED;
 				goto dropwithreset;
+			}
 		}
 		if (thflags & TH_RST) {
 			if (thflags & TH_ACK)
@@ -1266,8 +1278,10 @@ findpcb:
 				if (tp->cc_send != to.to_ccecho) {
 					if (taop->tao_ccsent != 0)
 						goto drop;
-					else
+					else {
+						rstreason = BANDLIM_UNLIMITED;
 						goto dropwithreset;
+					}
 				}
 			} else
 				tp->t_flags &= ~TF_RCVD_CC;
@@ -1399,8 +1413,10 @@ trimthenstep6:
 		if ((thflags & TH_SYN) &&
 		    (to.to_flag & TOF_CC) && tp->cc_recv != 0) {
 			if (tp->t_state == TCPS_TIME_WAIT &&
-					(ticks - tp->t_starttime) > tcp_msl)
+					(ticks - tp->t_starttime) > tcp_msl) {
+				rstreason = BANDLIM_UNLIMITED;
 				goto dropwithreset;
+			}
 			if (CC_GT(to.to_cc, tp->cc_recv)) {
 				tp = tcp_close(tp);
 				goto findpcb;
@@ -1545,8 +1561,10 @@ trimthenstep6:
 	 * the sequence numbers haven't wrapped.  This is a partial fix
 	 * for the "LAND" DoS attack.
 	 */
-	if (tp->t_state == TCPS_SYN_RECEIVED && SEQ_LT(th->th_seq, tp->irs))
-		goto maybedropwithreset;
+	if (tp->t_state == TCPS_SYN_RECEIVED && SEQ_LT(th->th_seq, tp->irs)) {
+		rstreason = BANDLIM_RST_OPENPORT;
+		goto dropwithreset;
+	}
 
 	todrop = tp->rcv_nxt - th->th_seq;
 	if (todrop > 0) {
@@ -1602,6 +1620,7 @@ trimthenstep6:
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
 		tp = tcp_close(tp);
 		tcpstat.tcps_rcvafterclose++;
+		rstreason = BANDLIM_UNLIMITED;
 		goto dropwithreset;
 	}
 
@@ -1664,6 +1683,7 @@ trimthenstep6:
 	 */
 	if (thflags & TH_SYN) {
 		tp = tcp_drop(tp, ECONNRESET);
+		rstreason = BANDLIM_UNLIMITED;
 		goto dropwithreset;
 	}
 
@@ -2208,8 +2228,10 @@ dropafterack:
 	 */
 	if (tp->t_state == TCPS_SYN_RECEIVED && (thflags & TH_ACK) &&
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
-	     SEQ_GT(th->th_ack, tp->snd_max)) )
-		goto maybedropwithreset;
+	     SEQ_GT(th->th_ack, tp->snd_max)) ) {
+		rstreason = BANDLIM_RST_OPENPORT;
+		goto dropwithreset;
+	}
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
@@ -2220,22 +2242,7 @@ dropafterack:
 	(void) tcp_output(tp);
 	return;
 
-
-	/*
-	 * Conditionally drop with reset or just drop depending on whether
-	 * we think we are under attack or not.
-	 */
-maybedropwithreset:
-#ifdef ICMP_BANDLIM
-	if (badport_bandlim(1) < 0)
-		goto drop;
-#endif
-	/* fall through */
 dropwithreset:
-#ifdef TCP_RESTRICT_RST
-	if (restrict_rst)
-		goto drop;
-#endif
 	/*
 	 * Generate a RST, dropping incoming segment.
 	 * Make ACK acceptable to originator of segment.
@@ -2255,6 +2262,21 @@ dropwithreset:
 	    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
 		goto drop;
 	/* IPv6 anycast check is done at tcp6_input() */
+
+	/* 
+	 * Perform bandwidth limiting (and RST blocking
+	 * if kernel is so configured.)
+	 */
+#ifdef TCP_RESTRICT_RST
+	if (restrict_rst)
+		goto drop;
+#endif
+
+#ifdef ICMP_BANDLIM
+	if (badport_bandlim(rstreason) < 0)
+		goto drop;
+#endif
+
 #ifdef TCPDEBUG
 	if (tp == 0 || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
