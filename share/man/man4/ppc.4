@@ -31,10 +31,15 @@
 .Nm ppc
 .Nd Parallel Port Chipset driver
 .Sh SYNOPSIS
-.Cd "device ppc0 at isa? port? flags 0xXX irq 7"
+.Cd "device ppc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.ppc.0.at="isa"
+.Cd hint.ppc.0.irq="7"
 .Pp
 For one or more PPBUS busses:
-.Cd "device ppbus at ppc0"
+.Cd "device ppbus"
 .Sh DESCRIPTION
 The
 .Nm
@@ -115,7 +120,8 @@ mode is forced to the given mode and no other mode is available and
 ppb->ppb_avm field contains the available modes of the chipset.
 .Sh SEE ALSO
 .Xr ppbus 4 ,
-.Xr ppi 4
+.Xr ppi 4 ,
+.Xr device.hints 5
 .Sh BUGS
 The chipset detection process may corrupt your chipset configuration.
 You may
