@@ -239,7 +239,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		bp->b_ioflags &= ~BIO_ERROR;
 		if ((bp->b_flags & B_ASYNC) || bp->b_iodone != NULL)
 			BUF_KERNPROC(bp);
-		error = VOP_STRATEGY(vp, bp);
+		error = BUF_STRATEGY(bp);
 		curproc->p_stats->p_ru.ru_inblock++;
 		if (error)
 			return (error);
@@ -293,7 +293,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		rbp->b_ioflags &= ~BIO_ERROR;
 		if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
 			BUF_KERNPROC(rbp);
-		(void) VOP_STRATEGY(vp, rbp);
+		BUF_STRATEGY(rbp);
 		curproc->p_stats->p_ru.ru_inblock++;
 	}
 

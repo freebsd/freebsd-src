@@ -272,14 +272,16 @@ out:
  *	This routine may not block.
  */
 void
-free(addr, type)
-	void *addr;
+free(arg, type)
+	void const *arg;
 	struct malloc_type *type;
 {
 	register struct malloc_type *ksp = type;
 	uma_slab_t slab;
 	u_long size;
+	void *addr;
 
+	addr = __DECONST(void *, arg);
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
 		return;
@@ -387,7 +389,8 @@ reallocf(addr, size, type, flags)
 {
 	void *mem;
 
-	if ((mem = realloc(addr, size, type, flags)) == NULL)
+	mem = realloc(addr, size, type, flags);
+	if (mem == NULL)
 		free(addr, type);
 	return (mem);
 }

@@ -211,6 +211,11 @@ restart:
 		if ((*sipp)->subsystem == SI_SUB_DONE)
 			continue;
 
+		if (0 && bootverbose)
+			printf("Sysinit %p(%p) subsys %x order %x\n",
+			    (*sipp)->func, (*sipp)->udata,
+			    (*sipp)->subsystem, (*sipp)->order);
+
 		/* Call function */
 		(*((*sipp)->func))((*sipp)->udata);
 

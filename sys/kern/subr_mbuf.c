@@ -607,7 +607,7 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
  * the general container is empty, and we've run out of address space
  * in our map; then we try to block if we're willing to (M_TRYWAIT).
  */
-static __inline
+static 
 void *
 mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist, 
 	 int *pers_list)
@@ -854,7 +854,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list, short type)
  *	    waiting for the lock; our bucket is in the general container;
  *	    our bucket is empty.
  */
-static __inline
+static 
 void
 mb_free(struct mb_lstmngr *mb_list, void *m, short type, short persist,
 	int *pers_list)
