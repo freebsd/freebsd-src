@@ -94,10 +94,6 @@
 
 #include <i386/isa/intr_machdep.h>
 
-#ifdef DEV_MCA
-#include <i386/isa/mca_machdep.h>
-#endif
-
 #ifdef APIC_IO
 #include <i386/isa/intr_machdep.h>
 /* The interrupt triggered by the 8254 (timer) chip */
@@ -258,11 +254,6 @@ clkintr(struct clockframe frame)
 		}
 		break;
 	}
-#ifdef DEV_MCA
-	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
-	if (MCA_system)
-		outb(0x61, inb(0x61) | 0x80);
-#endif
 }
 
 /*
