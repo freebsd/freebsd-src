@@ -498,17 +498,7 @@ stf_output(ifp, m, dst, rt)
 		 * try to free it or keep a pointer a to it).
 		 */
 		u_int32_t af = AF_INET6;
-#ifdef HAVE_OLD_BPF
-		struct mbuf m0;
-		
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-		
-		BPF_MTAP(ifp, &m0);
-#else
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-#endif
 	}
 #endif /*NBPFILTER > 0*/
 
@@ -756,17 +746,7 @@ in_stf_input(m, off)
 		 * try to free it or keep a pointer a to it).
 		 */
 		u_int32_t af = AF_INET6;
-#ifdef HAVE_OLD_BPF
-		struct mbuf m0;
-		
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-		
-		BPF_MTAP(ifp, &m0);
-#else
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-#endif
 	}
 
 	/*
