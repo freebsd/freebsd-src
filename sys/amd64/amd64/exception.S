@@ -281,8 +281,9 @@ doreti_next:
 	 */
 	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
 	jz	doreti_notvm86
-	cmpl	$1,in_vm86call		/* are we in a vm86 call? XXXSMP */
-	jne	doreti_ast		/* can handle ASTs now if not */
+	movl	PCPU(CURPCB),%ecx
+	testl	$PCB_VM86CALL,PCB_FLAGS(%ecx)	/* are we in a vm86 call? */
+	jz	doreti_ast		/* can handle ASTS now if not */
   	jmp	doreti_exit
 
 doreti_notvm86:

@@ -67,6 +67,8 @@ struct pcb {
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_NPXTRAP	0x04	/* npx trap pending */
 #define	PCB_NPXINITDONE	0x08	/* fpu state is initialized */
+#define	PCB_VM86CALL	0x10	/* in vm86 call */
+
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	int	pcb_gs;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
