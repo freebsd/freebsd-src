@@ -577,6 +577,10 @@ loop:
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
@@ -906,6 +910,10 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		mtx_unlock(&mntvnode_mtx);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
