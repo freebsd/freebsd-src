@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.code.c,v 1.5 1996/08/31 14:51:18 wosch Exp $
+ * 	$Id: locate.code.c,v 1.6 1996/10/13 01:44:28 wosch Exp $
  */
 
 #ifndef lint
@@ -176,6 +176,13 @@ main(argc, argv)
 
 		/* remove newline */
 		for (cp = path; *cp != '\0'; cp++) {
+#ifndef LOCATE_CHAR30
+			/* old locate implementations core'd for char 30 */
+			if (*cp == SWITCH)
+				*cp = '?';
+			else
+#endif /* !LOCATE_CHAR30 */
+
 			/* chop newline */
 			if (*cp == '\n')
 				*cp = '\0';
