@@ -51,7 +51,6 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/unistd.h>
-#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_zone.h>

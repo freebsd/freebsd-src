@@ -29,7 +29,6 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <i386/isa/gpibreg.h>
 #include <i386/isa/gpib.h>
