@@ -565,6 +565,15 @@ ed_pccard_attach(device_t dev)
 	}
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
+	if (error == 0 && sc->vendor == ED_VENDOR_LINKSYS) {
+		/* Probe for an MII bus, but ignore errors. */
+		ed_pccard_dlink_mii_reset(sc);
+		sc->mii_readbits = ed_pccard_dlink_mii_readbits;
+		sc->mii_writebits = ed_pccard_dlink_mii_writebits;
+		mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
+		    ed_ifmedia_sts);
+	}
+
 	return (error);
 }
 
@@ -668,14 +677,9 @@ ed_pccard_Linksys(device_t dev)
 
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 	sc->isa16bit = 1;
+	sc->vendor = ED_VENDOR_LINKSYS;
 	sc->type = ED_TYPE_NE2000;
 	sc->type_str = "Linksys";
-
-	/* Probe for an MII bus, but continue as normal if there isn't one. */
-	ed_pccard_dlink_mii_reset(sc);
-	sc->mii_readbits = ed_pccard_dlink_mii_readbits;
-	sc->mii_writebits = ed_pccard_dlink_mii_writebits;
-	mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd, ed_ifmedia_sts);
 
 	return (1);
 }
