@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.133 1997/11/06 19:29:29 phk Exp $
+ * $Id: vfs_bio.c,v 1.134 1997/11/07 08:53:04 phk Exp $
  */
 
 /*
@@ -651,10 +651,6 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
-		/*
-		 * Get rid of the kva allocation *now*
-		 */
-		bfreekva(bp);
 
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
