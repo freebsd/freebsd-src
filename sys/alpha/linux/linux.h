@@ -55,9 +55,9 @@ MALLOC_DECLARE(M_LINUX);
 #define	LINUX_RLIMIT_STACK	3
 #define	LINUX_RLIMIT_CORE	4
 #define	LINUX_RLIMIT_RSS	5
+#define	LINUX_RLIMIT_AS		7       /* address space limit */
 #define	LINUX_RLIMIT_NPROC	8
 #define	LINUX_RLIMIT_NOFILE	6
-#define	LINUX_RLIMIT_AS		7       /* address space limit */
 #define	LINUX_RLIMIT_MEMLOCK	9
 
 #define	LINUX_RLIM_NLIMITS	10
@@ -65,8 +65,8 @@ MALLOC_DECLARE(M_LINUX);
 /* mmap options */
 #define	LINUX_MAP_SHARED	0x0001
 #define	LINUX_MAP_PRIVATE	0x0002
-#define	LINUX_MAP_FIXED		0x0100
 #define	LINUX_MAP_ANON		0x0010
+#define	LINUX_MAP_FIXED		0x0100
 #define	LINUX_MAP_GROWSDOWN	0x1000
 
 typedef char *	linux_caddr_t;
@@ -131,23 +131,23 @@ struct linux_new_utsname {
 #define	LINUX_SIGIO		29
 #define	LINUX_SIGPOLL		LINUX_SIGIO
 #define	LINUX_SIGPWR		30
-#define	LINUX_SIGUNUSED		31
+#define	LINUX_SIGTBLSZ		31
+#define	LINUX_SIGUNUSED		LINUX_SIGTBLSZ
 
 #define	LINUX_NSIG		64
-#define	LINUX_SIGTBLSZ		31
 
 /* sigaction flags */
+#define	LINUX_SA_ONSTACK	0x00000001
+#define	LINUX_SA_RESTART	0x00000002
 #define	LINUX_SA_NOCLDSTOP	0x00000004
+#define	LINUX_SA_NODEFER	0x00000008
+#define	LINUX_SA_RESETHAND	0x00000010
 #define	LINUX_SA_NOCLDWAIT	0x00000020
 #define	LINUX_SA_SIGINFO	0x00000040
 #define	LINUX_SA_RESTORER	0x04000000
-#define	LINUX_SA_ONSTACK	0x00000001
-#define	LINUX_SA_RESTART	0x00000002
 #define	LINUX_SA_INTERRUPT	0x20000000
 #define	LINUX_SA_NOMASK		LINUX_SA_NODEFER
 #define	LINUX_SA_ONESHOT	LINUX_SA_RESETHAND
-#define	LINUX_SA_NODEFER	0x00000008
-#define	LINUX_SA_RESETHAND	0x00000010
 
 /* sigprocmask actions */
 #define	LINUX_SIG_BLOCK		0
@@ -225,9 +225,6 @@ struct linux_sigframe {
 	linux_handler_t sf_handler;
 };
 
-extern struct sysentvec linux_sysvec;
-extern struct sysentvec elf_linux_sysvec;
-
 /*
  * Pluggable ioctl handlers
  */
@@ -253,16 +250,18 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_O_RDONLY		00
 #define	LINUX_O_WRONLY		01
 #define	LINUX_O_RDWR		02
+#define	LINUX_O_NONBLOCK	04
+#define	LINUX_O_APPEND		010
 #define	LINUX_O_CREAT		01000
+#define	LINUX_O_TRUNC		02000
 #define	LINUX_O_EXCL		04000
 #define	LINUX_O_NOCTTY		010000
-#define	LINUX_O_TRUNC		02000
-#define	LINUX_O_APPEND		010
-#define	LINUX_O_NONBLOCK	04
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
 #define	LINUX_O_SYNC		040000
+
 #define	LINUX_FASYNC		020000
 
+/* fcntl flags */
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
 #define	LINUX_F_SETFD		2
@@ -346,10 +345,10 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0
-#define	LINUX_SOL_IPX		256
-#define	LINUX_SOL_AX25		257
 #define	LINUX_SOL_TCP		6
 #define	LINUX_SOL_UDP		17
+#define	LINUX_SOL_IPX		256
+#define	LINUX_SOL_AX25		257
 
 #define	LINUX_SO_DEBUG		1
 #define	LINUX_SO_REUSEADDR	2
@@ -395,7 +394,7 @@ struct linux_ifmap {
 
 struct linux_ifreq {
 	union {
-		char	ifrn_name[LINUX_IFNAMSIZ];
+		char	ifrn_name[LINUX_IFNAMSIZ];    /* if name, e.g. "en0" */
 	} ifr_ifrn;
 
 	union {
@@ -423,6 +422,8 @@ extern int linux_szsigcode;
 /*extern const char linux_emul_path[];*/
 
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+extern struct sysentvec linux_sysvec;
+extern struct sysentvec elf_linux_sysvec;
 
 /* dummy struct definitions */
 struct image_params;
