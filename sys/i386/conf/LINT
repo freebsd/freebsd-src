@@ -202,8 +202,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # NO_F00F_HACK disables the hack that prevents Pentiums (and ONLY
 # Pentiums) from locking up when a LOCK CMPXCHG8B instruction is
-# executed.  This should be included for ALL kernels that won't run
-# on a Pentium.
+# executed.  This option is only needed if I586_CPU is also defined,
+# and should be included for any non-Pentium CPU that defines it.
 #
 # NO_MEMORY_HOLE is an optimisation for systems with AMD K6 processors
 # which indicates that the 15-16MB range is *definitely* not being
