@@ -1213,7 +1213,8 @@ wi_write_record(sc, ltv)
 	struct wi_softc		*sc;
 	struct wi_ltv_gen	*ltv;
 {
-	u_int16_t		*ptr;
+	uint16_t		*ptr;
+	uint16_t		val;
 	int			i;
 	struct wi_ltv_gen	p2ltv;
 
@@ -1239,23 +1240,31 @@ wi_write_record(sc, ltv)
 			case 11: p2ltv.wi_val = 8; break;
 			default: return EINVAL;
 			}
+			p2ltv.wi_val = htole16(p2ltv.wi_val);
 			ltv = &p2ltv;
 			break;
 		case WI_RID_ENCRYPTION:
 			p2ltv.wi_type = WI_RID_P2_ENCRYPTION;
 			p2ltv.wi_len = 2;
-			if (le16toh(ltv->wi_val)) {
-				p2ltv.wi_val =htole16(PRIVACY_INVOKED |
-				    EXCLUDE_UNENCRYPTED);
+			if (ltv->wi_val & htole16(0x01)) {
+				val = PRIVACY_INVOKED;
+				/*
+				 * If using shared key WEP we must set the
+				 * EXCLUDE_UNENCRYPTED bit.  Symbol cards
+				 * need this bit set even when not using
+				 * shared key. We can't just test for
+				 * IEEE80211_AUTH_SHARED since Symbol cards
+				 * have 2 shared key modes.
+				 */
+				if (sc->wi_authtype != IEEE80211_AUTH_OPEN ||
+				    sc->sc_firmware_type == WI_SYMBOL)
+					val |= EXCLUDE_UNENCRYPTED;
+				/* TX encryption is broken in Host AP mode. */
 				if (sc->wi_ptype == WI_PORTTYPE_HOSTAP)
-					/* 
-					 * Disable tx encryption...
-					 * it's broken.
-					 */
-					p2ltv.wi_val |= htole16(HOST_ENCRYPT);
+					val |= HOST_ENCRYPT;
 			} else
-				p2ltv.wi_val =
-				    htole16(HOST_ENCRYPT | HOST_DECRYPT);
+				val = HOST_ENCRYPT | HOST_DECRYPT;
+			p2ltv.wi_val = htole16(val);
 			ltv = &p2ltv;
 			break;
 		case WI_RID_TX_CRYPT_KEY:
