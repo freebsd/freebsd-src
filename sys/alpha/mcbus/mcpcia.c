@@ -34,6 +34,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <sys/proc.h>

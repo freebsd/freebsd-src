@@ -1132,7 +1132,7 @@ sab_cnterm(struct consdev *cn)
 }
 
 static int
-sab_cngetc(dev_t dev)
+sab_cngetc(struct consdev *cn)
 {
 	struct sabtty_softc *sc = sabtty_cons;
 
@@ -1142,7 +1142,7 @@ sab_cngetc(dev_t dev)
 }
 
 static int
-sab_cncheckc(dev_t dev)
+sab_cncheckc(struct consdev *cn)
 {
 	struct sabtty_softc *sc = sabtty_cons;
 
@@ -1152,7 +1152,7 @@ sab_cncheckc(dev_t dev)
 }
 
 static void
-sab_cnputc(dev_t dev, int c)
+sab_cnputc(struct consdev *cn, int c)
 {
 	struct sabtty_softc *sc = sabtty_cons;
 
@@ -1162,7 +1162,7 @@ sab_cnputc(dev_t dev, int c)
 }
 
 static void
-sab_cndbctl(dev_t dev, int c)
+sab_cndbctl(struct consdev *cn, int c)
 {
 }
 
