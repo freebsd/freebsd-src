@@ -37,10 +37,8 @@
  *	@(#)pt_tcp.c	8.5 (Berkeley) 4/28/95
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdlib.h>

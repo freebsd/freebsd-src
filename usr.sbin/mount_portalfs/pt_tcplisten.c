@@ -41,6 +41,9 @@
  * pt_tcp.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
