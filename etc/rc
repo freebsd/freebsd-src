@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.60 1995/03/30 06:26:09 rgrimes Exp $
+#	$Id: rc,v 1.61 1995/04/09 09:54:42 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -83,7 +83,7 @@ fi
 
 # start up the network
 if [ -f /etc/netstart ]; then
-	. /etc/netstart
+	sh /etc/netstart
 fi
 
 mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background

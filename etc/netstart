@@ -1,11 +1,14 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.25 1995/03/30 06:26:08 rgrimes Exp $
+#	$Id: netstart,v 1.26 1995/04/09 09:54:41 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
-# my-name is my symbolic name
-# my-netmask is specified in /etc/networks
-#
+# If there is a global system configuration file, suck it in.
+if [ -f /etc/sysconfig ]; then
+	. /etc/sysconfig
+fi
+
+# Set the host name if it is not already set
 if [ -z "`hostname -s`" ] ; then
 	hostname $hostname
 fi
@@ -16,16 +19,14 @@ if [ -z "`domainname`" -a -e "/etc/defaultdomain" ] ; then
 	domainname $domainname
 fi
 
-for i in /etc/hostname.*
-do
-	ifn=`expr $i : '/etc/hostname\.\(.*\)'`
-	if [ -e /etc/hostname.$ifn ]; then
-		if [ -e /etc/start_if.$ifn ]; then
-			sh /etc/start_if.$ifn $ifn
-		fi
-		ifconfig $ifn `cat /etc/hostname.$ifn`
-		ifconfig $ifn
+# Set up all the network interfaces, calling startup scripts if needed
+for ifn in ${network_interfaces}; do
+	if [ -e /etc/start_if.${ifn} ]; then
+		. /etc/start_if.${ifn} ${ifn}
 	fi
+	eval ifconfig_args=\$ifconfig_${ifn}
+	ifconfig ${ifn} ${ifconfig_args}
+	ifconfig ${ifn}
 done
 
 # set the address for the loopback interface
@@ -37,8 +38,6 @@ route add 224.0.0.0 -netmask 0xf0000000 -interface $hostname
 
 if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
 	route add default $defaultrouter
-elif [ -f /etc/defaultrouter ] ; then
-	route add default `cat /etc/defaultrouter`
 fi
 
 # use loopback, not the wire

@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.8 1995/03/30 00:01:09 ache Exp $
+#	$Id: sysconfig,v 1.9 1995/04/04 17:34:40 ache Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -59,6 +59,16 @@ saver=NO
 
 # Set to the name of your host - this is pretty important!
 hostname=myname.my.domain
+
+# Set to the list of network devices on this host.  You must have an
+# ifconfig_${network_interface} line for each interface listed here.
+# for example:
+#network_interfaces="ed0 sl0"
+
+# Set one for each network device listed in network_interfaces above.
+# for example:
+#ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
+#ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
 
 # Set to the host you'd like set as your default router, or NO of none.
 defaultrouter=NO
