@@ -1,6 +1,7 @@
 /*
- * $Id$
+ * $Id: tp_states.h,v 1.2 1994/08/02 07:51:24 davidg Exp $
  */
+#define ST_ERROR 0x0
 #define TP_CLOSED 0x1
 #define TP_CRSENT 0x2
 #define TP_AKWAIT 0x3
