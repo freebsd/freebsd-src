@@ -10,7 +10,16 @@ LIBS=	\
 	libfetch.so.2 \
 	libperl.so.3 \
 	libssl.so.1 \
-	libusb.so.0
+	libusb.so.0 \
+	pam_cleartext_pass_ok.so \
+	pam_deny.so \
+	pam_opie.so \
+	pam_permit.so \
+	pam_radius.so \
+	pam_skey.so \
+	pam_ssh.so \
+	pam_tacplus.so \
+	pam_unix.so \
 
 CLEANFILES+=	${LIBS}
 
