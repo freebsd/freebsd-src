@@ -12,7 +12,7 @@ NOSHARED=	yes
 
 BOOTS=/usr/mdec
 
-data.c:
+data.c:	libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
 	file2c 'const unsigned char boot1[] = {' '};' \
                 < ${BOOTS}/boot1 > tmp.c
 	file2c 'const unsigned char boot2[] = {' '};' \
