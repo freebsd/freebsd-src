@@ -6,7 +6,7 @@
 .\"this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\"----------------------------------------------------------------------------
 .\"
-.\"$Id: jail.2,v 1.1 1999/04/28 11:38:35 phk Exp $
+.\"$Id: jail.2,v 1.2 1999/05/16 10:51:42 phk Exp $
 .\"
 .\"
 .Dd April 28, 1999
@@ -51,8 +51,8 @@ can be set to the IP number assigned to the prison.
 Once a process has been put in a prison, it and its decendants cannot escape
 the prison.  It is not possible to add a process to a preexisting prison.
 .Pp
-Inside the prison, the concept of "superuser" is very diluted, in general
-it can be assumed that nothing can be mangled from inside a prison, that
+Inside the prison, the concept of "superuser" is very diluted.  In general,
+it can be assumed that nothing can be mangled from inside a prison which
 doesn't exist inside that prison (ie: the directory tree below
 .Dq Li path .
 .Pp
@@ -73,7 +73,7 @@ Please consult the
 .Xr chroot 2
 manual page for details.
 .Sh SEE ALSO
-.Xr chroot 2
+.Xr chroot 2 ,
 .Xr chdir 2
 .Sh HISTORY
 The
