@@ -1506,8 +1506,10 @@ rl_encap(sc, m_head)
 	 */
 	m_new = m_defrag(m_head, M_DONTWAIT);
 
-	if (m_new == NULL)
+	if (m_new == NULL) {
+		m_freem(m_head);
 		return(1);
+	}
 	m_head = m_new;
 
 	/* Pad frames to at least 60 bytes. */
@@ -1550,8 +1552,6 @@ rl_start(ifp)
 			break;
 
 		if (rl_encap(sc, m_head)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
 
