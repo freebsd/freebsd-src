@@ -26,7 +26,7 @@
 
 #ifndef LOCORE
 
-extern u_int			boot_cpu_id;
+extern u_int64_t		boot_cpu_id;
 
 void	ipi_selected(u_int cpus, u_int64_t ipi);
 void	ipi_all(u_int64_t ipi);

@@ -865,7 +865,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		/* This is not a 'struct user' */
 		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
 		pcpup = (struct pcpu *) pmap_steal_memory(sz);
-		pcpu_init(pcpup, alpha_pal_whami(), sz);
+		pcpu_init(pcpup, 0, sz);
+		pcpup->pc_pal_id = alpha_pal_whami();
 		alpha_pal_wrval((u_int64_t) pcpup);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 		PCPU_SET(curthread, &thread0);

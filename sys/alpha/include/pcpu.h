@@ -34,6 +34,7 @@
 
 #define	PCPU_MD_FIELDS							\
 	struct alpha_pcb pc_idlepcb;		/* pcb for idling */	\
+	u_int64_t	pc_pal_id;		/* physical CPU ID */	\
 	u_int64_t	pc_idlepcbphys;		/* pa of pc_idlepcb */	\
 	u_int64_t	pc_pending_ipis;	/* pending IPI's */	\
 	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\

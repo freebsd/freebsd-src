@@ -474,7 +474,7 @@ alpha_clock_interrupt(struct trapframe *framep)
 		/*
 		 * Only one processor drives the actual timer.
 		 */
-		if (PCPU_GET(cpuid) == boot_cpu_id) {
+		if (PCPU_GET(cpuid) == 0) {
 #endif
 			(*platform.clockintr)(framep);
 			/* divide hz (1024) by 8 to get stathz (128) */
