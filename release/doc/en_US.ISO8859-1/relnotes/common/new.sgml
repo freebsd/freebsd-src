@@ -86,11 +86,6 @@
     advisories for the base system that were issued after
     &release.prev; are also listed.</para>
 
-  <para>Many additional changes were made to &os; that are not listed
-    here for lack of space.  For example, documentation was corrected
-    and improved, minor bugs were fixed, insecure coding practices
-    were audited and corrected, and source code was cleaned up.</para>
-
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
@@ -230,7 +225,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ahc.4; driver was synchronized with the version
 	from &os; -CURRENT as of 29 April 2002.</para>
 
-      <para>The &man.ata.4; driver was sync-ed with the driver from
+      <para>The &man.ata.4; driver was synchronized with the driver from
 	&os; -CURRENT as of 18 March 2002.</para>
 
       <para>The &man.ata.4; driver now has support for creating,
@@ -350,6 +345,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.atacontrol.8; has been added to control various aspects
       of the &man.ata.4; driver.</para>
+
+    <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
+      <literal>speed</literal> command to set the maximum speed to be
+      used by the drive.</para>
 
     <para>&man.ctags.1; no longer creates a corrupt tags file if the
       source file used <literal>//</literal> (C++-style)
@@ -532,8 +531,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  and <filename>/etc/mail/README</filename> for more
 	  information.</para>
 
-	<para>Beginning with the import of
-	  <application>sendmail</application> 8.12.2, multiple
+	<para>With this 
+	  <application>sendmail</application> upgrade, multiple
 	  <application>sendmail</application> daemons (some required
 	  to handle outgoing mail) are started by &man.rc.8;, even if
 	  the <varname>sendmail_enable</varname> variable is set to
@@ -553,10 +552,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <title>Ports/Packages Collection</title>
 
       <para>The Ports Collection infrastructure now uses
-        <application>XFree86</application> 4.X as the default version
+        <application>XFree86</application> 4.2.0 as the default version
         of the X Window System for the purposes of satisfying
         dependencies.  To return to using
-        <application>XFree86</application> 3.X, add the following line
+        <application>XFree86</application> 3.3.6, add the following line
         to <filename>/etc/make.conf</filename>:</para>
 
       <programlisting>XFREE86_VERSION=3</programlisting>
