@@ -53,12 +53,23 @@ Support has been added for forwarding IP datagrams without inspecting or
 decreasing the TTL in order to make gateways and firewalls less visible
 and therefore less exposed to attacks.
 
+New networking security features include the ability to drop TCP packets with
+SYN+FIN (NOTE: this breaks rfc1644 extensions (T/TCP)), restrict emission of
+RST, ignore incoming ICMP REDIRECT messages, and also set to log incoming
+ICMP REDIRECT messages.  See rc.conf(5) for details on how to utilize these
+new features.
+
+Netgraph ???.
+
+
 1.2. SECURITY FIXES
 -------------------
 
 
 1.3. USERLAND CHANGES
 ---------------------
+
+inetd updated to have ....... new fetures ???.
 
 
 2. Supported Configurations
