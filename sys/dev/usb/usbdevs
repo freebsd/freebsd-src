@@ -912,6 +912,7 @@ product PRIMAX G2300		0x0302	G2-300 scanner
 product PRIMAX G2E3002		0x0303	G2E-300 scanner
 product PRIMAX 9600		0x0340	Colorado USB 9600 scanner
 product PRIMAX 600U		0x0341	Colorado 600u scanner
+product PRIMAX 6200		0x0345	Visioneer 6200 scanner
 product PRIMAX 19200		0x0360	Colorado USB 19200 scanner
 product PRIMAX 1200U		0x0361	Colorado 1200u scanner
 product PRIMAX G600		0x0380	G2-600 scanner
