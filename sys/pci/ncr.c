@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.74 1996/08/05 19:39:51 se Exp $
+**  $Id: ncr.c,v 1.75 1996/08/26 22:38:07 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.74 1996/08/05 19:39:51 se Exp $\n";
+	"\n$Id: ncr.c,v 1.75 1996/08/26 22:38:07 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -6797,9 +6797,18 @@ static void ncr_getclock (ncb_p np, u_char scntl3)
 	 *	For now just preserve the BIOS setting ...
 	 */
 
+	if ((scntl3 & 7) == 0) {
+		scntl3 = 3; /* assume 40MHz if no value supplied by BIOS */
+	}
+
+	np->ns_sync   = 25;
+	np->ns_async  = 50;
 	np->rv_scntl3 = ((scntl3 & 0x7) << 4) -0x20 + (scntl3 & 0x7);
-	if (bootverbose) printf ("\tinitial value of SCNTL3 = %02x, final = %02x\n",
-				 scntl3, np->rv_scntl3);
+
+	if (bootverbose) {
+		printf ("\tinitial value of SCNTL3 = %02x, final = %02x\n",
+			scntl3, np->rv_scntl3);
+	}
 }
 
 /*=========================================================================*/
