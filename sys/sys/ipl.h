@@ -38,17 +38,4 @@
 
 #include <machine/ipl.h>
 
-/*
- * Software interrupt bit numbers in priority order.  The priority only
- * determines which swi will be dispatched next; a higher priority swi
- * may be dispatched when a nested h/w interrupt handler returns.
- */
-#define	SWI_TTY		0
-#define	SWI_NET		1
-#define	SWI_CAMNET	2
-#define	SWI_CAMBIO	3
-#define	SWI_VM		4
-#define	SWI_TQ		5
-#define	SWI_CLOCK	6
-
 #endif /* !_SYS_IPL_H_ */
