@@ -34,12 +34,22 @@ A:active {
 
 .ok {
     background-color: white;
-    color: green;
+    color: #070;
+}
+
+.ok-stale {
+    background-color: white;
+    color: #797;
 }
 
 .fail {
     background-color: white;
-    color: red;
+    color: #700;
+}
+
+.fail-stale {
+    background-color: white;
+    color: #977;
 }
 
 TD, TH {
