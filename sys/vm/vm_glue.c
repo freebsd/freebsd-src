@@ -187,17 +187,15 @@ useracc(addr, len, rw)
  * MPSAFE
  */
 int
-vslock(td, addr, size)
-	struct thread *td;
-	vm_offset_t addr;
-	vm_size_t size;
+vslock(addr, len)
+	void *addr;
+	size_t len;
 {
 	vm_offset_t start, end;
-	struct proc *proc = td->td_proc;
 	int error, npages;
 
-	start = trunc_page(addr);
-	end = round_page(addr + size);
+	start = trunc_page((vm_offset_t)addr);
+	end = round_page((vm_offset_t)addr + len);
 
 	/* disable wrap around */
 	if (end <= start)
@@ -208,13 +206,13 @@ vslock(td, addr, size)
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 
-	PROC_LOCK(proc);
-	if (npages + pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)) >
-	    atop(lim_cur(proc, RLIMIT_MEMLOCK))) {
-		PROC_UNLOCK(proc);
+	PROC_LOCK(curproc);
+	if (npages + pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)) >
+	    atop(lim_cur(curproc, RLIMIT_MEMLOCK))) {
+		PROC_UNLOCK(curproc);
 		return (ENOMEM);
 	}
-	PROC_UNLOCK(proc);
+	PROC_UNLOCK(curproc);
 
 #if 0
 	/*
@@ -230,35 +228,29 @@ vslock(td, addr, size)
 		return (EAGAIN);
 #endif
 
-	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
+	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	
-	/* EINVAL is probably a better error to return than ENOMEM */
-	return (error == KERN_SUCCESS ? 0 : EINVAL);
+	/*
+	 * Return EFAULT on error to match copy{in,out}() behaviour
+	 * rather than returning ENOMEM like mlock() would.
+	 */
+	return (error == KERN_SUCCESS ? 0 : EFAULT);
 }
 
 /*
  * MPSAFE
  */
-int
-vsunlock(td, addr, size)
-	struct thread *td;
-	vm_offset_t addr;
-	vm_size_t size;
+void
+vsunlock(addr, len)
+	void *addr;
+	size_t len;
 {
-	vm_offset_t start, end;
-	int error;
 
-	start = trunc_page(addr);
-	end = round_page(addr + size);
-
-	/* disable wrap around */
-	if (end <= start)
-		return (EINVAL);
-
-	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
+	/* Rely on the parameter sanity checks performed by vslock(). */
+	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
+	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
-	return (error == KERN_SUCCESS ? 0 : EINVAL);
 }
 
 /*
