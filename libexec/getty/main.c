@@ -270,8 +270,8 @@ main(argc, argv)
 				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
 				exit(1);
 			}
-		} else { /* blocking open */
-			if (!opentty(ttyn, O_RDWR))
+		} else { /* maybe blocking open */
+			if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
 				exit(1);
 		}
 	    }
@@ -293,6 +293,7 @@ main(argc, argv)
 	tmode.c_oflag = TTYDEF_OFLAG;
 	tmode.c_lflag = TTYDEF_LFLAG;
 	tmode.c_cflag = TTYDEF_CFLAG;
+	tmode.c_cflag |= (NC ? CLOCAL : 0);
 	omode = tmode;
 
 	for (;;) {
