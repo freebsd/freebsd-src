@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.10.2.1 1997/01/05 05:12:06 kato Exp $
+ *	$Id: clock.c,v 1.10.2.2 1997/01/18 16:16:52 kato Exp $
  */
 
 /*
@@ -178,6 +178,7 @@ static void rtc_outb __P((int));
 #if defined(I586_CPU) || defined(I686_CPU)
 static	void	set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq);
 #endif
+static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static void
 clkintr(struct clockframe frame)
@@ -455,7 +456,7 @@ getit(void)
 void
 DELAY(int n)
 {
-	int prev_tick, tick, ticks_left, sec, usec;
+	int delta, prev_tick, tick, ticks_left, sec, usec;
 
 #ifdef DELAYDEBUG
 	int getit_calls = 1;
@@ -471,6 +472,13 @@ DELAY(int n)
 	if (state == 1)
 		printf("DELAY(%d)...", n);
 #endif
+	/*
+	 * Guard against the timer being uninitialized if we are called
+	 * early for console i/o.
+	 */
+	if (timer0_max_count == 0)
+		set_timer_freq(timer_freq, hz);
+
 	/*
 	 * Read the counter first, so that the rest of the setup overhead is
 	 * counted.  Guess the initial overhead is 20 usec (on most systems it
@@ -498,11 +506,20 @@ DELAY(int n)
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
-		if (tick > prev_tick)
-			ticks_left -= prev_tick - (tick - timer0_max_count);
-		else
-			ticks_left -= prev_tick - tick;
+		delta = prev_tick - tick;
 		prev_tick = tick;
+		if (delta < 0) {
+			delta += timer0_max_count;
+			/*
+			 * Guard against timer0_max_count being wrong.
+			 * This shouldn't happen in normal operation,
+			 * but it may happen if set_timer_freq() is
+			 * traced.
+			 */
+			if (delta < 0)
+				delta = 0;
+		}
+		ticks_left -= delta;
 	}
 #ifdef DELAYDEBUG
 	if (state == 1)

@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.10.2.2 1996/12/04 16:01:05 phk Exp $
+ * $Id: if_fe.c,v 1.10.2.3 1997/01/04 16:58:31 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -1026,7 +1026,7 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 	    return 0;
 #else
 	    /* Just log the fact and see what happens... FIXME.  */
-	    log( LOG_WARNING, "fe%d: strange I/O config?n", sc->sc_unit );
+	    log( LOG_WARNING, "fe%d: strange I/O config?\n", sc->sc_unit );
 #endif
 	}
 
@@ -1114,7 +1114,7 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 	} else if ( dev->id_irq != irqmap[ n ] ) {
 		/* Don't match.  */
 		log( LOG_WARNING,
-		    "fe%d: check IRQ in config; it may be incorrect",
+		    "fe%d: check IRQ in config; it may be incorrect\n",
 		    sc->sc_unit );
 	}
 
@@ -2349,7 +2349,7 @@ fe_emptybuffer ( struct fe_softc * sc )
 	u_char saved_dlcr5;
 
 #if FE_DEBUG >= 1
-	log( LOG_WARNING, "fe%d: emptying receive buffer", sc->sc_unit );
+	log( LOG_WARNING, "fe%d: emptying receive buffer\n", sc->sc_unit );
 #endif
 	/*
 	 * Stop receiving packets, temporarily.
