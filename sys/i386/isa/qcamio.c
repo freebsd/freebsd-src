@@ -1,8 +1,8 @@
 /*
- * FreeBSD Connectix QuickCam parallel-port camera video capture driver.
+ * Connectix QuickCam parallel-port camera video capture driver.
  * Copyright (c) 1996, Paul Traina.
  *
- * This driver is based in part on the Linux QuickCam driver which is
+ * This driver is based in part on work
  * Copyright (c) 1996, Thomas Davis.
  *
  * Additional ideas from code written by Michael Chinn and Nelson Minar.
@@ -35,37 +35,51 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(bsdi)
-#define	CSRG	/* a more specific way of saying not Linux and not SysV */
-#endif
-
-#ifdef	CSRG
-#include	"qcam.h"
+#ifndef	NQCAM
+#include	"qcam.h"		/* this file defines NQCAM _only_ */
 #endif
 
 #if NQCAM > 0
 
-#ifdef	CSRG
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include	<sys/param.h>
 #include	<machine/cpufunc.h>
-#include	<machine/clock.h>
 #ifdef	KERNEL
 #include	<sys/systm.h>
 #include	<sys/devconf.h>
-#endif	/* KERNEL */
+#include	<machine/clock.h>
 #include	<machine/qcam.h>
-#endif	/* CSRG */
+#else	/* user mode version of driver */
+#include	<unistd.h>
+#include	<stdio.h>
+#include	"qcam.h"
+#endif	/* KERNEL */
+#endif	/* FreeBSD or NetBSD */
+
+#ifdef	bsdi
+#include        <sys/param.h>
+#include	<sys/conf.h>
+#include	<sys/device.h>
+#include	"qcam.h"
+#endif	/* bsdi */
 
 #ifdef	LINUX
-#include	<sys/param.h>
 #include	<linux/kernel.h>
 #include	<linux/sched.h>
 #include	<linux/string.h>
 #include	<linux/delay.h>
 #include	<asm/io.h>
 #include	"qcam-linux.h"
-#include	"../include/qcam.h"
+#include	"qcam.h"
 #endif	/* LINUX */
+
+#ifdef	_SCO_DS
+#include	<limits.h>
+#include	<errno.h>
+#include	<sys/types.h>
+#include	"qcam-sco.h"
+#include	"qcam.h"
+#endif
 
 #include	"qcamreg.h"
 #include	"qcamdefs.h"
@@ -135,13 +149,13 @@ static u_short *qcam_rsblow_end  = &qcam_rsblow[STATBUFSIZE];
 }
 
 inline static int
-sendbyte (u_int port, int value, int delay)
+sendbyte (u_int port, int value, int sdelay)
 {
 	u_char s1, s2;
 
 	write_data(port, value);
-	if (delay) {
-	    DELAY(delay);
+	if (sdelay) {
+	    DELAY(sdelay);
 	    write_data(port, value);
 	}
 
@@ -233,9 +247,9 @@ qcam_waitfor_bi (u_int port)
  */
 
 #define	DECODE_WORD_BI4BPP(P, W) \
-	*(P)++ = 16 - (((W) >> 12) & 0x0f); \
-	*(P)++ = 16 - ((((W) >> 8) & 0x08) | (((W) >> 5) & 0x07)); \
-	*(P)++ = 16 - (((W) >>  1) & 0x0f);
+	*(P)++ = 15 - (((W) >> 12) & 0x0f); \
+	*(P)++ = 15 - ((((W) >> 8) & 0x08) | (((W) >> 5) & 0x07)); \
+	*(P)++ = 15 - (((W) >>  1) & 0x0f);
 
 static void
 qcam_bi_4bit (struct qcam_softc *qs)
@@ -316,7 +330,7 @@ qcam_bi_6bit (struct qcam_softc *qs)
  * the next nibble to come ready to do any data conversion operations.
  */
 #define	DECODE_WORD_UNI4BPP(P, W) \
-	*(P)++ = 16 - ((W) >> 4);
+	*(P)++ = 15 - ((W) >> 4);
 
 static void
 qcam_uni_4bit (struct qcam_softc *qs)
@@ -503,7 +517,8 @@ qcam_scan (struct qcam_softc *qs)
 }
 
 void
-qcam_default (struct qcam_softc *qs) {
+qcam_default (struct qcam_softc *qs)
+{
 	qs->contrast     = QC_DEF_CONTRAST;
 	qs->brightness   = QC_DEF_BRIGHTNESS;
 	qs->whitebalance = QC_DEF_WHITEBALANCE;
@@ -514,6 +529,64 @@ qcam_default (struct qcam_softc *qs) {
 	qs->bpp		 = QC_DEF_BPP;
 	qs->zoom	 = QC_DEF_ZOOM;
 	qs->exposure	 = QC_DEF_EXPOSURE;
+}
+
+int
+qcam_ioctl_get (struct qcam_softc *qs, struct qcam *info)
+{
+	info->qc_version	= QC_IOCTL_VERSION;
+	info->qc_xsize		= qs->x_size;
+	info->qc_ysize		= qs->y_size;
+	info->qc_xorigin	= qs->x_origin;
+	info->qc_yorigin	= qs->y_origin;
+	info->qc_bpp		= qs->bpp;
+	info->qc_zoom		= qs->zoom;
+	info->qc_exposure	= qs->exposure;
+	info->qc_brightness	= qs->brightness;
+	info->qc_whitebalance	= qs->whitebalance;
+	info->qc_contrast	= qs->contrast;
+
+	return 0;		/* success */
+}
+
+int
+qcam_ioctl_set (struct qcam_softc *qs, struct qcam *info)
+{
+	/*
+	 * sanity check parameters passed in by user
+	 * we're extra paranoid right now because the API
+	 * is in flux
+	 */
+	if (info->qc_xsize        > QC_MAX_XSIZE	||
+	    info->qc_ysize        > QC_MAX_YSIZE	||
+	    info->qc_xorigin      > QC_MAX_XSIZE	||
+	    info->qc_yorigin      > QC_MAX_YSIZE	||
+	    (info->qc_bpp != 4 && info->qc_bpp != 6)	||
+	    info->qc_zoom         > QC_ZOOM_200		||
+	    info->qc_brightness   > UCHAR_MAX		||
+	    info->qc_whitebalance > UCHAR_MAX		||
+	    info->qc_contrast     > UCHAR_MAX)
+	return 1;		/* failure */
+
+	/* version check */
+	if (info->qc_version != QC_IOCTL_VERSION)
+		return 1;	/* failure */
+
+	qs->x_size	  = info->qc_xsize;
+	qs->y_size	  = info->qc_ysize;
+	qs->x_origin	  = info->qc_xorigin;
+	qs->y_origin	  = info->qc_yorigin;
+	qs->bpp		  = info->qc_bpp;
+	qs->zoom	  = info->qc_zoom;
+	qs->exposure	  = info->qc_exposure;
+	qs->brightness	  = info->qc_brightness;
+	qs->whitebalance  = info->qc_whitebalance;
+	qs->contrast	  = info->qc_contrast;
+
+	/* request initialization before next scan pass */
+	qs->init_req = 1;
+
+	return 0;		/* success */
 }
 
 #ifndef	QCAM_INVASIVE_SCAN
@@ -527,7 +600,8 @@ qcam_default (struct qcam_softc *qs) {
  * way is safe.
  */
 int
-qcam_detect (u_int port) {
+qcam_detect (u_int port)
+{
 	int i, transitions = 0;
 	u_char reg, last;
 
@@ -544,7 +618,7 @@ qcam_detect (u_int port) {
 		transitions++;
 
 	    last = reg;
-	    DELAY(100000);	/* 100ms */
+	    LONGDELAY(100000);	/* 100ms */
 	}
 
 	return transitions >= QC_PROBECNTLOW &&
@@ -561,7 +635,8 @@ qcam_detect (u_int port) {
  * got a camera on the remote side.
  */
 int
-qcam_detect (u_int port) {
+qcam_detect (u_int port)
+{
 	write_control(port, 0x20);
 	write_data(port, 0x75);
 	read_data(port);
