@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.81 1996/10/05 16:33:03 jkh Exp $
+ * $Id: sysinstall.h,v 1.83 1996/11/04 12:56:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,14 @@
 #include "version.h"
 
 /*** Defines ***/
+
+/* Different packages we depend on - update this when package version change! */
+#define PACKAGE_GATED	"gated-3.5b3"
+#define PACKAGE_APACHE	"apache-1.1.1"
+#define PACKAGE_NETCON	"commerce/netcon/bsd60"
+#define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
+#define PACKAGE_SAMBA	"samba-1.9.15p8"
+#define PACKAGE_LYNX	"lynx-2.6"
 
 /* variable limits */
 #define VAR_NAME_MAX		128
@@ -96,7 +104,6 @@
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_FTP_HOST			"ftpHost"
-#define VAR_GATED			"gated"
 #define VAR_GATEWAY			"defaultrouter"
 #define VAR_GEOMETRY			"geometry"
 #define VAR_HOSTNAME			"hostname"
@@ -121,7 +128,8 @@
 #define VAR_PORTS_PATH			"ports"
 #define VAR_RELNAME			"releaseName"
 #define VAR_ROOT_SIZE			"rootSize"
-#define VAR_ROUTEDFLAGS			"routedflags"
+#define VAR_ROUTER			"router"
+#define VAR_ROUTERFLAGS			"routerflags"
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
@@ -366,8 +374,7 @@ extern int	configPackages(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configXFree86(dialogMenuItem *self);
-extern int	configRoutedFlags(dialogMenuItem *self);
-extern int	configGated(dialogMenuItem *self);
+extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);

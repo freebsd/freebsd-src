@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.47 1996/10/06 03:18:55 jkh Exp $
+ * $Id: package.c,v 1.49 1996/11/04 12:56:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,13 +87,13 @@ package_extract(Device *dev, char *name, Boolean depended)
     char path[511];
     int fd, ret;
 
-    /* If necessary, initialize the ldconfig hints */
-    if (!file_readable("/var/run/ld.so.hints"))
-	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
-
     /* Check to make sure it's not already there */
     if (package_exists(name))
 	return DITEM_SUCCESS;
+
+    /* If necessary, initialize the ldconfig hints */
+    if (!file_readable("/var/run/ld.so.hints"))
+	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
     if (!dev->init(dev)) {
 	msgConfirm("Unable to initialize media type for package extract.");
