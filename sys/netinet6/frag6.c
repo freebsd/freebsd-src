@@ -192,16 +192,15 @@ frag6_input(mp, offp, proto)
 	 */
 	if ((ip6f->ip6f_offlg & IP6F_MORE_FRAG) &&
 	    (((ntohs(ip6->ip6_plen) - offset) & 0x7) != 0)) {
-		icmp6_error(m, ICMP6_PARAM_PROB,
-			    ICMP6_PARAMPROB_HEADER,
-			    offsetof(struct ip6_hdr, ip6_plen));
+		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
+		    offsetof(struct ip6_hdr, ip6_plen));
 		in6_ifstat_inc(dstifp, ifs6_reass_fail);
 		return IPPROTO_DONE;
 	}
 
 	ip6stat.ip6s_fragments++;
 	in6_ifstat_inc(dstifp, ifs6_reass_reqd);
-	
+
 	/* offset now points to data portion */
 	offset += sizeof(struct ip6_frag);
 
@@ -231,7 +230,7 @@ frag6_input(mp, offp, proto)
 			goto dropfrag;
 		frag6_nfragpackets++;
 		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FTABLE,
-			M_DONTWAIT);
+		    M_DONTWAIT);
 		if (q6 == NULL)
 			goto dropfrag;
 		bzero(q6, sizeof(*q6));
@@ -257,8 +256,8 @@ frag6_input(mp, offp, proto)
 	 */
 	fragoff = ntohs(ip6f->ip6f_offlg & IP6F_OFF_MASK);
 	if (fragoff == 0) {
-		q6->ip6q_unfrglen = offset - sizeof(struct ip6_hdr)
-			- sizeof(struct ip6_frag);
+		q6->ip6q_unfrglen = offset - sizeof(struct ip6_hdr) -
+		    sizeof(struct ip6_frag);
 		q6->ip6q_nxt = ip6f->ip6f_nxt;
 	}
 
@@ -272,16 +271,15 @@ frag6_input(mp, offp, proto)
 		/* The 1st fragment has already arrived. */
 		if (q6->ip6q_unfrglen + fragoff + frgpartlen > IPV6_MAXPACKET) {
 			icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-				    offset - sizeof(struct ip6_frag) +
-					offsetof(struct ip6_frag, ip6f_offlg));
+			    offset - sizeof(struct ip6_frag) +
+			    offsetof(struct ip6_frag, ip6f_offlg));
 			frag6_doing_reass = 0;
 			return (IPPROTO_DONE);
 		}
-	}
-	else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
+	} else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    offset - sizeof(struct ip6_frag) +
-				offsetof(struct ip6_frag, ip6f_offlg));
+		    offset - sizeof(struct ip6_frag) +
+		    offsetof(struct ip6_frag, ip6f_offlg));
 		frag6_doing_reass = 0;
 		return (IPPROTO_DONE);
 	}
@@ -315,9 +313,9 @@ frag6_input(mp, offp, proto)
 				ip6err->ip6_dst = q6->ip6q_dst;
 
 				icmp6_error(merr, ICMP6_PARAM_PROB,
-					    ICMP6_PARAMPROB_HEADER,
-					    erroff - sizeof(struct ip6_frag) +
-						offsetof(struct ip6_frag, ip6f_offlg));
+				    ICMP6_PARAMPROB_HEADER,
+				    erroff - sizeof(struct ip6_frag) +
+				    offsetof(struct ip6_frag, ip6f_offlg));
 			}
 		}
 	}
@@ -515,7 +513,7 @@ insert:
 			plen += t->m_len;
 		m->m_pkthdr.len = plen;
 	}
-	
+
 	ip6stat.ip6s_reassembled++;
 	in6_ifstat_inc(dstifp, ifs6_reass_ok);
 
@@ -564,7 +562,7 @@ frag6_freef(q6)
 			/* adjust pointer */
 			ip6 = mtod(m, struct ip6_hdr *);
 
-			/* restoure source and destination addresses */
+			/* restore source and destination addresses */
 			ip6->ip6_src = q6->ip6q_src;
 			ip6->ip6_dst = q6->ip6q_dst;
 

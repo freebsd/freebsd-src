@@ -1534,8 +1534,8 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 		break;
 	    }
 
-	 case IPPROTO_HOPOPTS:
-	 case IPPROTO_DSTOPTS:
+	case IPPROTO_HOPOPTS:
+	case IPPROTO_DSTOPTS:
 	 {
 		struct ip6_ext *ip6e;
 		int hdrlen, optlen;
@@ -1603,7 +1603,7 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 		break;
 	 }
 
-	 case IPPROTO_ROUTING:
+	case IPPROTO_ROUTING:
 		/*
 		 * For an input packet, we can just calculate `as is'.
 		 * For an output packet, we assume ip6_output have already

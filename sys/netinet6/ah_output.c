@@ -333,7 +333,7 @@ ah_hdrlen(sav)
 {
 	const struct ah_algorithm *algo;
 	int plen, ahlen;
-	
+
 	algo = ah_algorithm_lookup(sav->alg_auth);
 	if (!algo)
 		return 0;

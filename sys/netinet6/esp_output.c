@@ -357,7 +357,7 @@ esp_output(m, nexthdrp, md, isr, af)
 		m->m_pkthdr.len += esphlen;
 		esp = mtod(md, struct esp *);
 	}
-	
+
 	nxt = *nexthdrp;
 	*nexthdrp = IPPROTO_ESP;
 	switch (af) {
@@ -426,7 +426,7 @@ esp_output(m, nexthdrp, md, isr, af)
 	/* ESP packet, including nxthdr field, must be length of 4n */
 	if (padbound < 4)
 		padbound = 4;
-	
+
 	extendsiz = padbound - (plen % padbound);
 	if (extendsiz == 1)
 		extendsiz = padbound + 1;

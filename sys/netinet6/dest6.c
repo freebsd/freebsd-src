@@ -107,7 +107,6 @@ dest6_input(mp, offp, proto)
 		case IP6OPT_PADN:
 			optlen = *(opt + 1) + 2;
 			break;
-
 		default:		/* unknown option */
 			optlen = ip6_unknown_opt(opt, m,
 			    opt - mtod(m, u_int8_t *));

@@ -331,8 +331,8 @@ noreplaycheck:
 	nxt = esptail.esp_nxt;
 	taillen = esptail.esp_padlen + sizeof(esptail);
 
-	if (m->m_pkthdr.len < taillen
-	 || m->m_pkthdr.len - taillen < hlen) {	/* ? */
+	if (m->m_pkthdr.len < taillen ||
+	    m->m_pkthdr.len - taillen < hlen) {	/* ? */
 		ipseclog((LOG_WARNING,
 		    "bad pad length in IPv4 ESP input: %s %s\n",
 		    ipsec4_logpacketstr(ip, spi), ipsec_logsastr(sav)));
@@ -715,14 +715,6 @@ noreplaycheck:
 		flowinfo = ip6->ip6_flow;
 		m_adj(m, off + esplen + ivlen);
 		if (m->m_len < sizeof(*ip6)) {
-#ifndef PULLDOWN_TEST
-			/*
-			 * m_pullup is prohibited in KAME IPv6 input processing
-			 * but there's no other way!
-			 */
-#else
-			/* okay to pullup in m_pulldown style */
-#endif
 			m = m_pullup(m, sizeof(*ip6));
 			if (!m) {
 				ipsec6stat.in_inval++;
@@ -743,7 +735,7 @@ noreplaycheck:
 		}
 
 		key_sa_recordxfer(sav, m);
-		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 || 
+		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 ||
 		    ipsec_addhist(m, IPPROTO_IPV6, 0) != 0) {
 			ipsec6stat.in_nomem++;
 			goto bad;
