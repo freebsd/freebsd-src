@@ -612,8 +612,7 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 
 	if (sc->cred)
 		crfree(sc->cred);
-	crhold(cred);
-	sc->cred = cred;
+	sc->cred = crhold(cred);
 
 	/*
 	 * Horrible kludge to establish credentials for NFS  XXX.

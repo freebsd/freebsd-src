@@ -1586,14 +1586,15 @@ crget()
 /*
  * Claim another reference to a ucred structure.
  */
-void
+struct ucred *
 crhold(cr)
 	struct ucred *cr;
 {
 
 	mtx_lock(&cr->cr_mtx);
 	cr->cr_ref++;
-	mtx_unlock(&(cr)->cr_mtx);
+	mtx_unlock(&cr->cr_mtx);
+	return (cr);
 }
 
 
@@ -1631,23 +1632,36 @@ crfree(cr)
 }
 
 /*
- * Copy cred structure to a new one and free the old one.
+ * Check to see if this ucred is shared.
  */
-struct ucred *
-crcopy(cr)
+int
+crshared(cr)
 	struct ucred *cr;
 {
-	struct ucred *newcr;
+	int shared;
 
 	mtx_lock(&cr->cr_mtx);
-	if (cr->cr_ref == 1) {
-		mtx_unlock(&cr->cr_mtx);
-		return (cr);
-	}
+	shared = (cr->cr_ref > 1);
 	mtx_unlock(&cr->cr_mtx);
-	newcr = crdup(cr);
-	crfree(cr);
-	return (newcr);
+	return (shared);
+}
+
+/*
+ * Copy a ucred's contents from a template.  Does not block.
+ */
+void
+crcopy(dest, src)
+	struct ucred *dest, *src;
+{
+
+	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
+	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
+	    (unsigned)((caddr_t)&src->cr_endcopy - 
+		(caddr_t)&src->cr_startcopy));
+	uihold(dest->cr_uidinfo);
+	uihold(dest->cr_ruidinfo);
+	if (jailed(dest))
+		prison_hold(dest->cr_prison);
 }
 
 /*
@@ -1659,15 +1673,8 @@ crdup(cr)
 {
 	struct ucred *newcr;
 
-	MALLOC(newcr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK);
-	*newcr = *cr;
-	bzero(&newcr->cr_mtx, sizeof(newcr->cr_mtx));
-	mtx_init(&newcr->cr_mtx, "ucred", MTX_DEF);
-	uihold(newcr->cr_uidinfo);
-	uihold(newcr->cr_ruidinfo);
-	if (jailed(newcr))
-		prison_hold(newcr->cr_prison);
-	newcr->cr_ref = 1;
+	newcr = crget();
+	crcopy(newcr, cr);
 	return (newcr);
 }
 

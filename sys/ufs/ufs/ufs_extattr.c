@@ -210,8 +210,7 @@ ufs_extattr_start(struct mount *mp, struct thread *td)
 
 	ump->um_extattr.uepm_flags |= UFS_EXTATTR_UEPM_STARTED;
 
-	crhold(td->td_proc->p_ucred);
-	ump->um_extattr.uepm_ucred = td->td_proc->p_ucred;
+	ump->um_extattr.uepm_ucred = crhold(td->td_proc->p_ucred);
 
 unlock:
 	ufs_extattr_uepm_unlock(ump, td);

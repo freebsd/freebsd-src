@@ -599,11 +599,8 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
-		if (bp->b_rcred == NOCRED) {
-			if (cred != NOCRED)
-				crhold(cred);
-			bp->b_rcred = cred;
-		}
+		if (bp->b_rcred == NOCRED && cred != NOCRED)
+			bp->b_rcred = crhold(cred);
 		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(vp, bp);
 		++readwait;
@@ -621,11 +618,8 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			rabp->b_flags &= ~B_INVAL;
 			rabp->b_ioflags &= ~BIO_ERROR;
 			rabp->b_iocmd = BIO_READ;
-			if (rabp->b_rcred == NOCRED) {
-				if (cred != NOCRED)
-					crhold(cred);
-				rabp->b_rcred = cred;
-			}
+			if (rabp->b_rcred == NOCRED && cred != NOCRED)
+				rabp->b_rcred = crhold(cred);
 			vfs_busy_pages(rabp, 0);
 			BUF_KERNPROC(rabp);
 			VOP_STRATEGY(vp, rabp);

@@ -274,11 +274,10 @@ coda_nc_enter(dcp, name, namelen, cred, cp)
      */
     vref(CTOV(cp));
     vref(CTOV(dcp));
-    crhold(cred); 
     cncp->dcp = dcp;
     cncp->cp = cp;
     cncp->namelen = namelen;
-    cncp->cred = cred;
+    cncp->cred = crhold(cred);
     
     bcopy(name, cncp->name, (unsigned)namelen);
     
