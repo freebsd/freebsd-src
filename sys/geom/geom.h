@@ -93,7 +93,7 @@ struct g_class {
 	g_create_geom_t		*create_geom;
 	/*
 	 * The remaning elements are private and classes should use
-	 * the G_CLASS_INITSTUFF macro to initialize them.
+	 * the G_CLASS_INITIALIZER macro to initialize them.
          */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
@@ -101,7 +101,7 @@ struct g_class {
 	u_int			protect;
 };
 
-#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0, 0
+#define G_CLASS_INITIALIZER { 0, 0 }, { 0 }, 0, 0
 
 /*
  * The g_geom is an instance of a g_class.
@@ -217,7 +217,7 @@ void g_enc_le4(u_char *p, uint32_t u);
 
 /* geom_event.c */
 void g_orphan_provider(struct g_provider *pp, int error);
-void g_rattle(void);
+void g_waitidle(void);
 void g_silence(void);
 
 /* geom_subr.c */
@@ -230,13 +230,13 @@ struct g_geom *g_create_geomf(char *class, struct g_provider *, char *fmt, ...);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
-void g_dettach(struct g_consumer *cp);
+void g_detach(struct g_consumer *cp);
 void g_error_provider(struct g_provider *pp, int error);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
-int g_haveattr(struct bio *bp, char *attribute, void *val, int len);
-int g_haveattr_int(struct bio *bp, char *attribute, int val);
-int g_haveattr_off_t(struct bio *bp, char *attribute, off_t val);
+int g_handleattr(struct bio *bp, char *attribute, void *val, int len);
+int g_handleattr_int(struct bio *bp, char *attribute, int val);
+int g_handleattr_off_t(struct bio *bp, char *attribute, off_t val);
 struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);

@@ -111,7 +111,7 @@ g_gpt_start(struct bio *bp)
 	 */
 	type = (memcmp(&gs->part[pp->index]->ent_type, &freebsd,
 	    sizeof(freebsd))) ? 0 : 165;
-	return ((g_haveattr_int(bp, "MBR::type", type)) ? 1 : 0);
+	return ((g_handleattr_int(bp, "MBR::type", type)) ? 1 : 0);
 }
 
 static void
@@ -246,7 +246,7 @@ static struct g_class g_gpt_class = {
 	"GPT",
 	g_gpt_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_gpt_class, g_gpt);
