@@ -563,8 +563,8 @@ wi_intr(void *arg)
 	WI_LOCK(sc);
 
 	if (sc->wi_gone || (ifp->if_flags & IFF_UP) == 0) {
-		CSR_WRITE_2(sc, WI_EVENT_ACK, ~0);
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
+		CSR_WRITE_2(sc, WI_EVENT_ACK, ~0);
 		WI_UNLOCK(sc);
 		return;
 	}
