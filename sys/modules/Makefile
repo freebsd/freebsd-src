@@ -12,8 +12,7 @@ _random=	random
 #	ncp \
 #	nwfs \
 
-SUBDIR=	3dfx \
-	accf_data \
+SUBDIR=	accf_data \
 	accf_http \
 	agp \
 	aha \
@@ -152,7 +151,8 @@ SUBDIR+=syscons
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=aic \
+SUBDIR+=3dfx \
+	aic \
 	aout \
 	apm \
 	ar \
