@@ -778,43 +778,7 @@
     </para>
 
     <para arch="i386,pc98">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
-    1 and Tigon 2 chipsets (&man.ti.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>3Com 3c985-SX (Tigon 1 and 2)</para>
-        </listitem>
-        <listitem>
-          <para>Alteon AceNIC (Tigon 1 and 2)</para>
-        </listitem>
-        <listitem>
-          <para>Alteon AceNIC 1000baseT (Tigon 2)</para>
-        </listitem>
-	<listitem>
-	  <para>Asante PCI 1000BASE-SX Gigabit Ethernet Adapter</para>
-	</listitem>
-	<listitem>
-	  <para>Asante GigaNIX1000T Gigabit Ethernet Adapter</para>
-	</listitem>
-	<listitem>
-	  <para>DEC/Compaq EtherWORKS 1000</para>
-        </listitem>
-	<listitem>
-	  <para>Farallon PN9000SX</para>
-	</listitem>
-	<listitem>
-	  <para>NEC Gigabit Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear GA620 (Tigon 2)</para>
-        </listitem>
-	<listitem>
-	  <para>Netgear GA620T (Tigon 2, 1000baseT)</para>
-        </listitem>
-	<listitem>
-	  <para>Silicon Graphics Gigabit Ethernet</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    1 and Tigon 2 chipsets (&man.ti.4; driver)</para>
 
     <para arch="i386,pc98,alpha">AMD PCnet NICs (&man.lnc.4; and &man.pcn.4; drivers)
       <itemizedlist>
