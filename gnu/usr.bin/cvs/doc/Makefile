@@ -1,4 +1,6 @@
-# $Id: Makefile,v 1.3 1996/08/20 23:55:34 peter Exp $
+# $Id: Makefile,v 1.4 1996/08/21 00:35:53 peter Exp $
+
+BINDIR?=	${INFODIR}
 
 .include "${.CURDIR}/../Makefile.inc"
 
