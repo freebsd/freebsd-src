@@ -124,6 +124,7 @@ TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 
 static int	mac_biba_slot;
 #define	SLOT(l)	((struct mac_biba *)LABEL_TO_SLOT((l), mac_biba_slot).l_ptr)
+#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_biba_slot).l_ptr = (val))
 
 static uma_zone_t	zone_biba;
 
@@ -501,14 +502,14 @@ static void
 mac_biba_init_label(struct label *label)
 {
 
-	SLOT(label) = biba_alloc(M_WAITOK);
+	SLOT_SET(label, biba_alloc(M_WAITOK));
 }
 
 static int
 mac_biba_init_label_waitcheck(struct label *label, int flag)
 {
 
-	SLOT(label) = biba_alloc(flag);
+	SLOT_SET(label, biba_alloc(flag));
 	if (SLOT(label) == NULL)
 		return (ENOMEM);
 
@@ -520,7 +521,7 @@ mac_biba_destroy_label(struct label *label)
 {
 
 	biba_free(SLOT(label));
-	SLOT(label) = NULL;
+	SLOT_SET(label, NULL);
 }
 
 /*
