@@ -99,9 +99,13 @@ SUBDIR+=aac \
 	ibcs2 \
 	linprocfs \
 	mly \
+	ncv \
+	nsp \
 	ray \
+	scsi_low \
 	smbfs \
 	splash \
+	stg \
 	streams \
 	svr4 \
 	vesa \
