@@ -69,11 +69,11 @@ static void     dpt_unphysmap(u_int8_t * vaddr, vm_size_t size);
 
 static void     dpt_get_sysinfo(void);
 
-static int      dpt_open(dev_t dev, int flags, int fmt, struct proc * p);
-static int      dpt_close(dev_t dev, int flags, int fmt, struct proc * p);
+static int      dpt_open(dev_t dev, int flags, int fmt, struct thread * td);
+static int      dpt_close(dev_t dev, int flags, int fmt, struct thread * td);
 static int      dpt_write(dev_t dev, struct uio * uio, int ioflag);
 static int      dpt_read(dev_t dev, struct uio * uio, int ioflag);
-static int      dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p);
+static int      dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct thread * td);
 
 
 /* This has to be modified as the processor and CPU are not known yet */
@@ -402,7 +402,7 @@ dpt_get_sysinfo(void)
 }
 
 static int
-dpt_open(dev_t dev, int flags, int fmt, struct proc * p)
+dpt_open(dev_t dev, int flags, int fmt, struct thread * td)
 {
 	int             minor_no;
 	int             ospl;
@@ -441,7 +441,7 @@ dpt_open(dev_t dev, int flags, int fmt, struct proc * p)
 }
 
 static int
-dpt_close(dev_t dev, int flags, int fmt, struct proc * p)
+dpt_close(dev_t dev, int flags, int fmt, struct thread * td)
 {
 	int             minor_no;
 	dpt_softc_t    *dpt;
@@ -660,7 +660,7 @@ dpt_read(dev_t dev, struct uio * uio, int ioflag)
  */
 
 static int
-dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
+dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct thread * td)
 {
 	int             minor_no;
 	dpt_softc_t    *dpt;
