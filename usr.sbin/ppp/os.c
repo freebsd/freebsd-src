@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.18 1997/05/24 17:32:41 brian Exp $
+ * $Id: os.c,v 1.19 1997/05/26 00:44:08 brian Exp $
  *
  */
 #include "fsm.h"
@@ -263,6 +263,8 @@ int type, mtu, speed;
 
   info.type = type;
   info.mtu = mtu;
+  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
+    info.mtu = VarPrefMTU;
   info.baudrate = speed;
   if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
     perror("TUNSIFINFO");
