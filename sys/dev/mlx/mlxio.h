@@ -79,6 +79,10 @@ struct mlx_usercommand
     /* command */
     u_int16_t	mu_status;	/* command status returned */
     u_int8_t	mu_command[16];	/* command mailbox contents */
+
+    /* wrapper */
+    int		mu_error;	/* result of submission to driver */
+
 };
 
 #define MLX_NEXT_CHILD		_IOWR('M', 0, int)
@@ -86,3 +90,4 @@ struct mlx_usercommand
 #define MLX_DETACH_DRIVE	_IOW ('M', 2, int)
 #define MLX_PAUSE_CHANNEL	_IOW ('M', 3, struct mlx_pause)
 #define MLX_COMMAND		_IOWR('M', 4, struct mlx_usercommand)
+
