@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.11 1995/12/10 13:38:20 phk Exp $
+ * $Id: asc.c,v 1.12 1995/12/15 00:29:27 bde Exp $
  */
 
 #include "asc.h"
@@ -88,7 +88,7 @@
  ***/
 
 #define PROBE_FAIL    0
-#define PROBE_SUCCESS 5	/* number of io ports... */
+#define PROBE_SUCCESS IO_ASCSIZE
 #define SUCCESS       0
 #define FAIL         -1
 #define INVALID       FAIL
