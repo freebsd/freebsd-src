@@ -47,7 +47,6 @@
 #include <pci/pcib_private.h>
 
 #include "pcib_if.h"
-#include "opt_pci.h"
 
 static int		pcib_probe(device_t dev);
 static int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
