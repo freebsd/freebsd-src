@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.6 1993/09/23 15:22:57 rgrimes Exp $
+ *	$Id: fd.c,v 1.7 1993/11/25 01:31:32 wollman Exp $
  *
  */
 
@@ -210,6 +210,12 @@ fdprobe(dev)
 	}
 
 	fdc_data[fdcu].baseport = dev->id_iobase;
+
+	/* First - lets reset the floppy controller */
+
+	outb(dev->id_iobase+fdout,0);
+	DELAY(100);
+	outb(dev->id_iobase+fdout,FDO_FRST);
 
 	/* see if it can handle a command */
 	if (out_fdc(fdcu,NE7CMD_SPECIFY) < 0)
