@@ -9,7 +9,7 @@ SRCS=	\
         bpf_filter.c bpf_image.c \
         grammar.y scanner.l
 
-CLEANFILES+= scanner.c tokdefs.h grammar.c scanner.c
+CLEANFILES+= lex.yy.c tokdefs.h grammar.c scanner.c
 # CFLAGS+=-Wall -I. -I${.CURDIR} -DFDDI -Dyylval=pcap_lval
 CFLAGS+=-DFDDI -I. -I${.CURDIR}
 MAN3=	pcap.3
@@ -25,7 +25,7 @@ beforeinstall:
 scanner.o: tokdefs.h
 
 tokdefs.h: grammar.c
-	mv -f grammar.tab.h tokdefs.h
+	mv -f y.tab.h tokdefs.h
 
 
 .include <bsd.lib.mk>
