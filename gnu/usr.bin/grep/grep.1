@@ -324,12 +324,12 @@ Select only those matches that exactly match the whole line.
 Obsolete synonym for
 .BR \-i .
 .TP
-.BR \-Z ", " \-\^\-null
+.B \-\^\-null
 Output a zero byte (the \s-1ASCII\s0
 .B NUL
 character) instead of the character that normally follows a file name.
 For example,
-.B "grep \-lZ"
+.B "grep \-l \-\^\-null"
 outputs a zero byte after each file name instead of the usual newline.
 This option makes the output unambiguous, even in the presence of file
 names containing unusual characters like newlines.  This option can be
