@@ -82,28 +82,35 @@ extern int	mcount_lock;
 
 #define	_MCOUNT_DECL static __inline void _mcount
 
-#define	MCOUNT \
-void \
-mcount() \
-{ \
-	uintfptr_t selfpc, frompc; \
-	/* \
-	 * Find the return address for mcount, \
-	 * and the return address for mcount's caller. \
-	 * \
-	 * selfpc = pc pushed by call to mcount \
-	 */ \
-	asm("movl 4(%%ebp),%0" : "=r" (selfpc)); \
-	/* \
-	 * frompc = pc pushed by call to mcount's caller. \
-	 * The caller's stack frame has already been built, so %ebp is \
-	 * the caller's frame pointer.  The caller's raddr is in the \
-	 * caller's frame following the caller's caller's frame pointer. \
-	 */ \
-	asm("movl (%%ebp),%0" : "=r" (frompc)); \
-	frompc = ((uintfptr_t *)frompc)[1]; \
-	_mcount(frompc, selfpc); \
+#ifdef	__GNUC__
+#define	MCOUNT								\
+void									\
+mcount()								\
+{									\
+	uintfptr_t selfpc, frompc;					\
+	/*								\
+	 * Find the return address for mcount,				\
+	 * and the return address for mcount's caller.			\
+	 *								\
+	 * selfpc = pc pushed by call to mcount				\
+	 */								\
+	asm("movl 4(%%ebp),%0" : "=r" (selfpc));			\
+	/*								\
+	 * frompc = pc pushed by call to mcount's caller.		\
+	 * The caller's stack frame has already been built, so %ebp is	\
+	 * the caller's frame pointer.  The caller's raddr is in the	\
+	 * caller's frame following the caller's caller's frame pointer.\
+	 */								\
+	asm("movl (%%ebp),%0" : "=r" (frompc));				\
+	frompc = ((uintfptr_t *)frompc)[1];				\
+	_mcount(frompc, selfpc);					\
 }
+#else	/* __GNUC__ */
+void			\
+mcount()		\
+{			\
+}
+#endif	/* __GNUC__ */
 
 typedef	unsigned int	uintfptr_t;
 
