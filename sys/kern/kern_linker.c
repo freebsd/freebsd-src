@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.20 1999/01/19 16:26:32 peter Exp $
+ *	$Id: kern_linker.c,v 1.21 1999/01/19 22:26:46 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -57,7 +57,7 @@ linker_file_t linker_kernel_file;
 
 static struct lock lock;	/* lock for the file list */
 static linker_class_list_t classes;
-static linker_file_list_t files;
+static linker_file_list_t linker_files;
 static int next_file_id = 1;
 
 static void
@@ -65,7 +65,7 @@ linker_init(void* arg)
 {
     lockinit(&lock, PVM, "klink", 0, 0);
     TAILQ_INIT(&classes);
-    TAILQ_INIT(&files);
+    TAILQ_INIT(&linker_files);
 }
 
 SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0);
@@ -304,7 +304,7 @@ linker_find_file_by_name(const char* filename)
     sprintf(koname, "%s.ko", filename);
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	if (!strcmp(lf->filename, koname))
 	    break;
 	if (!strcmp(lf->filename, filename))
@@ -324,7 +324,7 @@ linker_find_file_by_id(int fileid)
     linker_file_t lf = 0;
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link))
+    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link))
 	if (lf->id == fileid)
 	    break;
     lockmgr(&lock, LK_RELEASE, 0, curproc);
@@ -365,7 +365,7 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
 
     lf->priv = priv;
     lf->ops = ops;
-    TAILQ_INSERT_TAIL(&files, lf, link);
+    TAILQ_INSERT_TAIL(&linker_files, lf, link);
 
 out:
     lockmgr(&lock, LK_RELEASE, 0, curproc);
@@ -412,7 +412,7 @@ linker_file_unload(linker_file_t file)
 
     linker_file_sysuninit(file);
 
-    TAILQ_REMOVE(&files, file, link);
+    TAILQ_REMOVE(&linker_files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);
 
     for (i = 0; i < file->ndeps; i++)
@@ -491,7 +491,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	}
 
 	/* If we have not found it in the dependencies, search globally */
-	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	    /* But skip the current file if it's on the list */
 	    if (lf == file)
 		continue;
@@ -567,7 +567,7 @@ linker_ddb_lookup(char *symstr, linker_sym_t *sym)
 {
     linker_file_t lf;
 
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	if (lf->ops->lookup_symbol(lf, symstr, sym) == 0)
 	    return 0;
     }
@@ -585,7 +585,7 @@ linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp)
 
     best = 0;
     bestdiff = off;
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	if (lf->ops->search_symbol(lf, value, &es, &diff) != 0)
 	    continue;
 	if (es != 0 && diff < bestdiff) {
@@ -611,7 +611,7 @@ linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval)
 {
     linker_file_t lf;
 
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+    for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	if (lf->ops->symbol_values(lf, sym, symval) == 0)
 	    return 0;
     }
@@ -731,8 +731,8 @@ kldnext(struct proc* p, struct kldnext_args* uap)
     int error = 0;
 
     if (SCARG(uap, fileid) == 0) {
-	if (TAILQ_FIRST(&files))
-	    p->p_retval[0] = TAILQ_FIRST(&files)->id;
+	if (TAILQ_FIRST(&linker_files))
+	    p->p_retval[0] = TAILQ_FIRST(&linker_files)->id;
 	else
 	    p->p_retval[0] = 0;
 	return 0;
@@ -850,7 +850,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	} else
 	    error = ENOENT;
     } else {
-	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	    if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
 		lf->ops->symbol_values(lf, sym, &symval) == 0) {
 		lookup.symvalue = (u_long)symval.value;
