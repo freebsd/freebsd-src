@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.72.2.1 1999/06/07 00:06:21 peter Exp $
+ * $Id: nfs_serv.c,v 1.72.2.2 1999/06/30 22:05:14 julian Exp $
  */
 
 /*
@@ -1765,6 +1765,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			nfsm_srvpostop_attr(0, vap);
 		}
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
+		error = 0;
 	} else {
 		nfsm_srvfhtom(fhp, v3);
 		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
