@@ -56,7 +56,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <limits.h>
+#include <sys/syslimits.h>
+#include <machine/limits.h>
 
 /*
  * Depending on the desired operation, we view a `long long' (aka quad_t) in
