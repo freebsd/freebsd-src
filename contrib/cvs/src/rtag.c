@@ -739,6 +739,14 @@ rtag_dirproc (callerdat, dir, repos, update_dir, entries)
     char *update_dir;
     List *entries;
 {
+    if (ignore_directory (update_dir))
+    {
+	/* print the warm fuzzy message */
+	if (!quiet)
+	  error (0, 0, "Ignoring %s", update_dir);
+        return R_SKIP_ALL;
+    }
+
     if (!quiet)
 	error (0, 0, "%s %s", delete_flag ? "Untagging" : "Tagging",
 	       update_dir);
