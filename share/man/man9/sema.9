@@ -100,7 +100,9 @@ specifies the minimum time in ticks to wait before returning with failure.
 .Fn sema_value
 is used to read the current value of the semaphore.
 .Sh RETURN VALUES
+The
 .Fn sema_value
+function
 returns the current value of the semaphore.
 .Pp
 If decrementing the semaphore would result in its value being negative,
@@ -108,12 +110,15 @@ If decrementing the semaphore would result in its value being negative,
 returns 0 to indicate failure.
 Otherwise, a non-zero value is returned to indicate success.
 .Pp
+The
 .Fn sema_timedwait
+function
 returns 0 if waiting on the semaphore succeeded; otherwise a
 non-zero error code is returned.
 .Sh ERRORS
+The
 .Fn sema_timedwait
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EWOULDBLOCK
 Timeout expired.
