@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.228 1996/07/05 08:53:54 jkh Exp $
+#	$Id: Makefile,v 1.229 1996/07/05 21:48:49 jkh Exp $
 #
 # How to roll a release:
 #
@@ -42,7 +42,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed but doFS.sh.
 BOOTMFSSIZE=		1200
-MFSINODE=		42000
+MFSINODE=		65536
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
