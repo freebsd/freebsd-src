@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/linker_set.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
@@ -47,138 +48,89 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
 
-static int db_print_trap(struct thread *td, struct trapframe *);
-static void db_utrace(struct thread *td, struct trapframe *tf);
-
 #define	INKERNEL(va) \
 	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
 
+static db_varfcn_t db_frame;
+
+#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct	db_variable db_regs[] = {
-	{ "g0",	&ddb_regs.tf_global[0], FCN_NULL },
-	{ "g1",	&ddb_regs.tf_global[1], FCN_NULL },
-	{ "g2",	&ddb_regs.tf_global[2], FCN_NULL },
-	{ "g3",	&ddb_regs.tf_global[3], FCN_NULL },
-	{ "g4",	&ddb_regs.tf_global[4], FCN_NULL },
-	{ "g5",	&ddb_regs.tf_global[5], FCN_NULL },
-	{ "g6",	&ddb_regs.tf_global[6], FCN_NULL },
-	{ "g7",	&ddb_regs.tf_global[7], FCN_NULL },
-	{ "i0", &ddb_regs.tf_out[0], FCN_NULL },
-	{ "i1", &ddb_regs.tf_out[1], FCN_NULL },
-	{ "i2", &ddb_regs.tf_out[2], FCN_NULL },
-	{ "i3", &ddb_regs.tf_out[3], FCN_NULL },
-	{ "i4", &ddb_regs.tf_out[4], FCN_NULL },
-	{ "i5", &ddb_regs.tf_out[5], FCN_NULL },
-	{ "i6", &ddb_regs.tf_out[6], FCN_NULL },
-	{ "i7", &ddb_regs.tf_out[7], FCN_NULL },
-	{ "tnpc", &ddb_regs.tf_tnpc, FCN_NULL },
-	{ "tpc", &ddb_regs.tf_tpc, FCN_NULL },
-	{ "tstate", &ddb_regs.tf_tstate, FCN_NULL },
+	{ "g0",		DB_OFFSET(tf_global[0]),	db_frame },
+	{ "g1",		DB_OFFSET(tf_global[1]),	db_frame },
+	{ "g2",		DB_OFFSET(tf_global[2]),	db_frame },
+	{ "g3",		DB_OFFSET(tf_global[3]),	db_frame },
+	{ "g4",		DB_OFFSET(tf_global[4]),	db_frame },
+	{ "g5",		DB_OFFSET(tf_global[5]),	db_frame },
+	{ "g6",		DB_OFFSET(tf_global[6]),	db_frame },
+	{ "g7",		DB_OFFSET(tf_global[7]),	db_frame },
+	{ "i0",		DB_OFFSET(tf_out[0]),		db_frame },
+	{ "i1",		DB_OFFSET(tf_out[1]),		db_frame },
+	{ "i2",		DB_OFFSET(tf_out[2]),		db_frame },
+	{ "i3",		DB_OFFSET(tf_out[3]),		db_frame },
+	{ "i4",		DB_OFFSET(tf_out[4]),		db_frame },
+	{ "i5",		DB_OFFSET(tf_out[5]),		db_frame },
+	{ "i6",		DB_OFFSET(tf_out[6]),		db_frame },
+	{ "i7",		DB_OFFSET(tf_out[7]),		db_frame },
+	{ "tnpc",	DB_OFFSET(tf_tnpc),		db_frame },
+	{ "tpc",	DB_OFFSET(tf_tpc),		db_frame },
+	{ "tstate",	DB_OFFSET(tf_tstate),		db_frame },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
-void
-db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-		   char *modif)
+static int
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 {
-	struct trapframe *tf;
-	struct frame *fp;
-	struct proc *p;
-	struct thread *td;
-	const char *name;
-	c_db_sym_t sym;
-	db_expr_t offset;
-	db_expr_t value;
-	db_addr_t npc;
-	db_addr_t pc;
-	int trap;
-	int user;
-	pid_t pid;
+	uint64_t *reg;
 
-	trap = 0;
-	user = 0;
-	npc = 0;
-	if (count == -1)
-		count = 1024;
-	td = curthread;
-	p = td->td_proc;
-	/*
-	 * Provide an /a modifier to pass the stack address instead of a PID
-	 * as argument.
-	 * Note that, if this address is not on the stack of curthread, the
-	 * printed data may be wrong (at the moment, this applies only to the
-	 * sysent list).
-	 */
-	if (!have_addr)
-		addr = DDB_REGS->tf_out[6];
-	else if (strcmp(modif, "a") != 0) {
-		/*
-		 * addr was parsed as hex, convert so it is interpreted as
-		 * decimal (ugh).
-		 */
-		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
-		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
-		    ((addr >> 16) % 16) * 10000;
-		/*
-		 * The pcb for curproc is not valid at this point,
-		 * so fall back to the default case.
-		 */
-		if (pid == curthread->td_proc->p_pid) {
-			td = curthread;
-			p = td->td_proc;
-			addr = DDB_REGS->tf_out[6];
-		} else {
-			/* sx_slock(&allproc_lock); */
-			LIST_FOREACH(p, &allproc, p_list) {
-				if (p->p_pid == pid)
-					break;
+	if (kdb_frame == NULL)
+		return (0);
+	reg = (uint64_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+/*
+ * User stack trace (debugging aid).
+ */
+static void
+db_utrace(struct thread *td, struct trapframe *tf)
+{
+	struct pcb *pcb;
+	db_addr_t sp, rsp, o7, pc;
+	int i, found;
+
+	pcb = td->td_pcb;
+	sp = db_get_value((db_addr_t)&tf->tf_sp, sizeof(tf->tf_sp), FALSE);
+	o7 = db_get_value((db_addr_t)&tf->tf_out[7], sizeof(tf->tf_out[7]),
+	    FALSE);
+	pc = db_get_value((db_addr_t)&tf->tf_tpc, sizeof(tf->tf_tpc), FALSE);
+	db_printf("user trace: trap %%o7=%#lx\n", o7);
+	while (sp != 0) {
+		db_printf("pc %#lx, sp %#lx\n", pc, sp);
+		/* First, check whether the frame is in the pcb. */
+		found = 0;
+		for (i = 0; i < pcb->pcb_nsaved; i++) {
+			if (pcb->pcb_rwsp[i] == sp) {
+				found = 1;
+				sp = pcb->pcb_rw[i].rw_in[6];
+				pc = pcb->pcb_rw[i].rw_in[7];
+				break;
 			}
-			/* sx_sunlock(&allproc_lock); */
-			if (p == NULL) {
-				db_printf("pid %d not found\n", pid);
-				return;
-			}
-			if ((p->p_sflag & PS_INMEM) == 0) {
-				db_printf("pid %d swapped out\n", pid);
-				return;
-			}
-			td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-			addr = td->td_pcb->pcb_sp;
+		}
+		if (!found) {
+			rsp = sp + SPOFF;
+			sp = 0;
+			if (copyin((void *)(rsp + offsetof(struct frame, fr_fp)),
+			    &sp, sizeof(sp)) != 0 ||
+			    copyin((void *)(rsp + offsetof(struct frame, fr_pc)),
+			    &pc, sizeof(pc)) != 0)
+				break;
 		}
 	}
-	fp = (struct frame *)(addr + SPOFF);
-
-	while (count-- && !user) {
-		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
-		    sizeof(fp->fr_pc), FALSE);
-		if (trap) {
-			pc = npc;
-			trap = 0;
-		}
-		if (!INKERNEL((vm_offset_t)pc))
-			break;
-		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
-		if (sym == C_DB_SYM_NULL) {
-			value = 0;
-			name = NULL;
-		} else
-			db_symbol_values(sym, &name, &value);
-		if (name == NULL)
-			name = "(null)";
-		fp = (struct frame *)(db_get_value((db_addr_t)&fp->fr_fp,
-		   sizeof(fp->fr_fp), FALSE) + SPOFF);
-		if (bcmp(name, "tl0_", 4) == 0 ||
-		    bcmp(name, "tl1_", 4) == 0) {
-			tf = (struct trapframe *)(fp + 1);
-			npc = db_get_value((db_addr_t)&tf->tf_tpc,
-			    sizeof(tf->tf_tpc), FALSE);
-			user = db_print_trap(td, tf);
-			trap = 1;
-		} else {
-			db_printf("%s() at ", name);
-			db_printsym(pc, DB_STGY_PROC);
-			db_printf("\n");
-		}
-	}
+	db_printf("done\n");
 }
 
 static int
@@ -265,52 +217,88 @@ db_print_trap(struct thread *td, struct trapframe *tf)
 	return (user);
 }
 
-/*
- * User stack trace (debugging aid).
- */
-static void
-db_utrace(struct thread *td, struct trapframe *tf)
+static int
+db_backtrace(struct thread *td, struct frame *fp, int count)
 {
-	struct pcb *pcb;
-	db_addr_t sp, rsp, o7, pc;
-	int i, found;
+	struct trapframe *tf;
+	const char *name;
+	c_db_sym_t sym;
+	db_expr_t offset;
+	db_expr_t value;
+	db_addr_t npc;
+	db_addr_t pc;
+	int trap;
+	int user;
 
-	pcb = td->td_pcb;
-	sp = db_get_value((db_addr_t)&tf->tf_sp, sizeof(tf->tf_sp), FALSE);
-	o7 = db_get_value((db_addr_t)&tf->tf_out[7], sizeof(tf->tf_out[7]),
-	    FALSE);
-	pc = db_get_value((db_addr_t)&tf->tf_tpc, sizeof(tf->tf_tpc), FALSE);
-	db_printf("user trace: trap %%o7=%#lx\n", o7);
-	while (sp != 0) {
-		db_printf("pc %#lx, sp %#lx\n", pc, sp);
-		/* First, check whether the frame is in the pcb. */
-		found = 0;
-		for (i = 0; i < pcb->pcb_nsaved; i++) {
-			if (pcb->pcb_rwsp[i] == sp) {
-				found = 1;
-				sp = pcb->pcb_rw[i].rw_in[6];
-				pc = pcb->pcb_rw[i].rw_in[7];
-				break;
-			}
+	if (count == -1)
+		count = 1024;
+
+	trap = 0;
+	user = 0;
+	npc = 0;
+	while (count-- && !user) {
+		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
+		    sizeof(fp->fr_pc), FALSE);
+		if (trap) {
+			pc = npc;
+			trap = 0;
 		}
-		if (!found) {
-			rsp = sp + SPOFF;
-			sp = 0;
-			if (copyin((void *)(rsp + offsetof(struct frame, fr_fp)),
-			    &sp, sizeof(sp)) != 0 ||
-			    copyin((void *)(rsp + offsetof(struct frame, fr_pc)),
-			    &pc, sizeof(pc)) != 0)
-				break;
+		if (!INKERNEL((vm_offset_t)pc))
+			break;
+		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
+		if (sym == C_DB_SYM_NULL) {
+			value = 0;
+			name = NULL;
+		} else
+			db_symbol_values(sym, &name, &value);
+		if (name == NULL)
+			name = "(null)";
+		fp = (struct frame *)(db_get_value((db_addr_t)&fp->fr_fp,
+		   sizeof(fp->fr_fp), FALSE) + SPOFF);
+		if (bcmp(name, "tl0_", 4) == 0 ||
+		    bcmp(name, "tl1_", 4) == 0) {
+			tf = (struct trapframe *)(fp + 1);
+			npc = db_get_value((db_addr_t)&tf->tf_tpc,
+			    sizeof(tf->tf_tpc), FALSE);
+			user = db_print_trap(td, tf);
+			trap = 1;
+		} else {
+			db_printf("%s() at ", name);
+			db_printsym(pc, DB_STGY_PROC);
+			db_printf("\n");
 		}
 	}
-	db_printf("done\n");
+	return (0);
 }
 
 void
-db_print_backtrace(void)
+db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
-	u_long *sp;
+	struct thread *td;
 
-	sp = __builtin_frame_address(1);
-	db_stack_trace_cmd((db_expr_t)sp, TRUE, -1, "a");
+	td = (have_addr) ? kdb_thr_lookup(addr) : kdb_thread;
+	if (td == NULL) {
+		db_printf("Thread %d not found\n", (int)addr);
+		return;
+	}
+	db_trace_thread(td, count);
+}
+
+void
+db_trace_self(void)
+{
+	db_expr_t addr;
+
+	addr = (db_expr_t)__builtin_frame_address(1);
+	db_backtrace(curthread, (struct frame *)(addr + SPOFF), -1);
+}
+
+int
+db_trace_thread(struct thread *td, int count)
+{
+	struct pcb *ctx;
+
+	ctx = kdb_thr_ctx(td);
+	return (db_backtrace(td, (struct frame*)(ctx->pcb_sp + SPOFF), count));
 }

@@ -52,6 +52,7 @@ struct db_variable {
 extern struct db_variable	db_regs[];	/* machine registers */
 extern struct db_variable	*db_eregs;
 
-void	db_read_variable(struct db_variable *, db_expr_t *);
+int db_read_variable(struct db_variable *, db_expr_t *);
+int db_write_variable(struct db_variable *, db_expr_t);
 
 #endif /* _!DDB_DB_VARIABLES_H_ */

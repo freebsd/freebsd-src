@@ -36,6 +36,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
+
+#include <machine/kdb.h>
+#include <machine/pcb.h>
 
 #include <vm/vm.h>
 
@@ -61,14 +65,10 @@ int		db_load_count;
 int		db_store_count;
 
 #ifndef db_set_single_step
-extern void	db_set_single_step(db_regs_t *regs);
+void db_set_single_step(void);
 #endif
 #ifndef db_clear_single_step
-extern void	db_clear_single_step(db_regs_t *regs);
-#endif
-
-#ifdef notused
-static void	db_single_step(db_regs_t *regs);
+void db_clear_single_step(void);
 #endif
 
 boolean_t
@@ -78,10 +78,10 @@ db_stop_at_pc(is_breakpoint)
 	register db_addr_t	pc;
 	register db_breakpoint_t bkpt;
 
-	db_clear_single_step(DDB_REGS);
+	db_clear_single_step();
 	db_clear_breakpoints();
 	db_clear_watchpoints();
-	pc = PC_REGS(DDB_REGS);
+	pc = PC_REGS();
 
 #ifdef	FIXUP_PC_AFTER_BREAK
 	if (*is_breakpoint) {
@@ -90,7 +90,7 @@ db_stop_at_pc(is_breakpoint)
 	     * machine requires it.
 	     */
 	    FIXUP_PC_AFTER_BREAK
-	    pc = PC_REGS(DDB_REGS);
+	    pc = PC_REGS();
 	}
 #endif
 
@@ -171,7 +171,7 @@ void
 db_restart_at_pc(watchpt)
 	boolean_t watchpt;
 {
-	register db_addr_t	pc = PC_REGS(DDB_REGS);
+	register db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
 	    (db_run_mode == STEP_RETURN) ||
@@ -205,27 +205,15 @@ db_restart_at_pc(watchpt)
 		 * Step over breakpoint/watchpoint.
 		 */
 		db_run_mode = STEP_INVISIBLE;
-		db_set_single_step(DDB_REGS);
+		db_set_single_step();
 	    } else {
 		db_set_breakpoints();
 		db_set_watchpoints();
 	    }
 	} else {
-	    db_set_single_step(DDB_REGS);
+	    db_set_single_step();
 	}
 }
-
-#ifdef notused
-static void
-db_single_step(regs)
-	db_regs_t *regs;
-{
-	if (db_run_mode == STEP_CONTINUE) {
-	    db_run_mode = STEP_INVISIBLE;
-	    db_set_single_step(regs);
-	}
-}
-#endif
 
 #ifdef	SOFTWARE_SSTEP
 /*
@@ -261,11 +249,10 @@ db_breakpoint_t	db_not_taken_bkpt = 0;
 db_breakpoint_t	db_taken_bkpt = 0;
 
 void
-db_set_single_step(regs)
-	register db_regs_t *regs;
+db_set_single_step(void)
 {
-	db_addr_t pc = PC_REGS(regs), brpc;
-	 unsigned	 inst;
+	db_addr_t pc = PC_REGS(), brpc;
+	unsigned inst;
 
 	/*
 	 *	User was stopped at pc, e.g. the instruction
@@ -273,28 +260,27 @@ db_set_single_step(regs)
 	 */
 	inst = db_get_value(pc, sizeof(int), FALSE);
 	if (inst_branch(inst) || inst_call(inst)) {
-	    brpc = branch_taken(inst, pc, regs);
-	    if (brpc != pc) {	/* self-branches are hopeless */
-		db_taken_bkpt = db_set_temp_breakpoint(brpc);
-	    }
-	    pc = next_instr_address(pc,1);
+		brpc = branch_taken(inst, pc);
+		if (brpc != pc) {	/* self-branches are hopeless */
+			db_taken_bkpt = db_set_temp_breakpoint(brpc);
+		}
+		pc = next_instr_address(pc, 1);
 	}
-	pc = next_instr_address(pc,0);
+	pc = next_instr_address(pc, 0);
 	db_not_taken_bkpt = db_set_temp_breakpoint(pc);
 }
 
 void
-db_clear_single_step(regs)
-	db_regs_t *regs;
+db_clear_single_step(void)
 {
 
 	if (db_not_taken_bkpt != 0) {
-	    db_delete_temp_breakpoint(db_not_taken_bkpt);
-	    db_not_taken_bkpt = 0;
+		db_delete_temp_breakpoint(db_not_taken_bkpt);
+		db_not_taken_bkpt = 0;
 	}
 	if (db_taken_bkpt != 0) {
-	    db_delete_temp_breakpoint(db_taken_bkpt);
-	    db_taken_bkpt = 0;
+		db_delete_temp_breakpoint(db_taken_bkpt);
+		db_taken_bkpt = 0;
 	}
 }
 

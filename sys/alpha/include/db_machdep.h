@@ -31,54 +31,40 @@
 #ifndef	_ALPHA_DB_MACHDEP_H_
 #define	_ALPHA_DB_MACHDEP_H_
 
-/*
- * Machine-dependent defines for new kernel debugger.
- */
-#ifndef KLD_MODULE
-#include "opt_ddb.h"
-#endif
-
 #include <sys/param.h>
 #include <vm/vm.h>
 #include <machine/frame.h>
 
-#define DB_NO_AOUT
+#define	DB_NO_AOUT
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
 
-typedef struct trapframe db_regs_t;
-#ifdef	DDB
-extern db_regs_t	ddb_regs;	/* register state */
-#endif
-#define	DDB_REGS	(&ddb_regs)
-
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_regs[FRAME_PC])
+#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_context[7])
 
 #define	BKPT_INST	0x00000080	/* breakpoint instruction */
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define	FIXUP_PC_AFTER_BREAK \
-	(ddb_regs.tf_regs[FRAME_PC] -= BKPT_SIZE);
+#define	FIXUP_PC_AFTER_BREAK	(kdb_frame->tf_regs[FRAME_PC] -= BKPT_SIZE);
 
 #define	SOFTWARE_SSTEP	1		/* no hardware support */
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
-					 (code) == ALPHA_IF_CODE_BPT)
+
+#define	IS_BREAKPOINT_TRAP(type, code)	\
+	((type) == ALPHA_KENTRY_IF && (code) == ALPHA_IF_CODE_BPT)
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
 /*
  * Functions needed for software single-stepping.
  */
-
-boolean_t	db_inst_trap_return(int inst);
-boolean_t	db_inst_return(int inst);
-boolean_t	db_inst_call(int inst);
-boolean_t	db_inst_branch(int inst);
-boolean_t	db_inst_load(int inst);
-boolean_t	db_inst_store(int inst);
-boolean_t	db_inst_unconditional_flow_transfer(int inst);
-db_addr_t	db_branch_taken(int inst, db_addr_t pc, db_regs_t *regs);
+boolean_t db_inst_trap_return(int inst);
+boolean_t db_inst_return(int inst);
+boolean_t db_inst_call(int inst);
+boolean_t db_inst_branch(int inst);
+boolean_t db_inst_load(int inst);
+boolean_t db_inst_store(int inst);
+boolean_t db_inst_unconditional_flow_transfer(int inst);
+db_addr_t db_branch_taken(int inst, db_addr_t pc);
 
 #define	inst_trap_return(ins)	db_inst_trap_return(ins)
 #define	inst_return(ins)	db_inst_return(ins)
@@ -88,15 +74,12 @@ db_addr_t	db_branch_taken(int inst, db_addr_t pc, db_regs_t *regs);
 #define	inst_store(ins)		db_inst_store(ins)
 #define	inst_unconditional_flow_transfer(ins) \
 				db_inst_unconditional_flow_transfer(ins)
-#define	branch_taken(ins, pc, regs) \
-				db_branch_taken((ins), (pc), (regs))
+#define	branch_taken(ins, pc)	db_branch_taken(ins, pc)
 
 /* No delay slots on Alpha. */
 #define	next_instr_address(v, b) ((db_addr_t) ((b) ? (v) : ((v) + 4)))
 
-u_long	db_register_value(db_regs_t *, int);
-int	kdb_trap(unsigned long, unsigned long, unsigned long,
-	    unsigned long, struct trapframe *);
+u_long db_register_value(int);
 
 /*
  * Pretty arbitrary

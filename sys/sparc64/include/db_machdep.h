@@ -38,23 +38,19 @@
 typedef vm_offset_t	db_addr_t;
 typedef long		db_expr_t;
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
-
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
+#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_pc)
 
 #define	BKPT_INST	(0x91d03001)
 #define	BKPT_SIZE	(4)
 #define	BKPT_SET(inst)	(BKPT_INST)
 
 #define	BKPT_SKIP do {							\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc + 4;				\
-	ddb_regs.tf_tnpc += 8;						\
+	kdb_frame->tf_tpc = kdb_frame->tf_tnpc + 4;			\
+	kdb_frame->tf_tnpc += 8;					\
 } while (0)
 
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
+#define	db_clear_single_step	kdb_cpu_clear_singlestep
+#define	db_set_single_step	kdb_cpu_set_singlestep
 
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
 #define	IS_WATCHPOINT_TRAP(type, code)	(0)
