@@ -219,40 +219,35 @@ void
 vm_object_set_flag(vm_object_t object, u_short bits)
 {
 	GIANT_REQUIRED;
-	atomic_set_short(&object->flags, bits);
-	/* object->flags |= bits; */
+	object->flags |= bits;
 }
 
 void
 vm_object_clear_flag(vm_object_t object, u_short bits)
 {
 	GIANT_REQUIRED;
-	atomic_clear_short(&object->flags, bits);
-	/* object->flags &= ~bits; */
+	object->flags &= ~bits;
 }
 
 void
 vm_object_pip_add(vm_object_t object, short i)
 {
 	GIANT_REQUIRED;
-	atomic_add_short(&object->paging_in_progress, i);
-	/* object->paging_in_progress += i; */
+	object->paging_in_progress += i;
 }
 
 void
 vm_object_pip_subtract(vm_object_t object, short i)
 {
 	GIANT_REQUIRED;
-	atomic_subtract_short(&object->paging_in_progress, i);
-	/* object->paging_in_progress -= i; */
+	object->paging_in_progress -= i;
 }
 
 void
 vm_object_pip_wakeup(vm_object_t object)
 {
 	GIANT_REQUIRED;
-	atomic_subtract_short(&object->paging_in_progress, 1);
-	/* object->paging_in_progress--; */
+	object->paging_in_progress--;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
 		wakeup(object);
@@ -264,7 +259,7 @@ vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 	GIANT_REQUIRED;
 	if (i)
-		atomic_subtract_short(&object->paging_in_progress, i);
+		object->paging_in_progress -= i;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
 		wakeup(object);
