@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.4 1996/06/17 20:36:57 jkh Exp $
+ * $Id: ftpio.c,v 1.4.2.1 1996/06/23 01:43:41 jkh Exp $
  *
  */
 
@@ -48,6 +48,7 @@
 
 /* Internal routines - deal only with internal FTP_t type */
 static FTP_t	ftp_new(void);
+static void	check_passive(FILE *fp);
 static int	ftp_read_method(void *n, char *buf, int nbytes);
 static int	ftp_write_method(void *n, const char *buf, int nbytes);
 static int	ftp_close_method(void *n);
@@ -65,6 +66,7 @@ static int	get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_
 int FtpTimedOut;
 
 /* FTP status codes */
+#define FTP_ASCII_HAPPY	200
 #define FTP_BINARY_HAPPY	200
 #define FTP_PORT_HAPPY		200
 #define FTP_QUIT_HAPPY		221
@@ -107,24 +109,35 @@ check_code(FTP_t ftp, int var, int preferred)
 	}
     }
 }
-	    
-/* Returns a standard FILE pointer type representing an open control connection */
-FILE *
-ftpLogin(char *host, char *user, char *passwd, int port)
+    
+int
+ftpAscii(FILE *fp)
 {
-    FTP_t n;
-    FILE *fp;
+    FTP_t ftp = fcookie(fp);
+    int i;
 
-    if (networkInit() != SUCCESS)
-	return NULL;
+    if (!ftp->is_binary)
+	return SUCCESS;
+    i = cmd(ftp, "TYPE A");
+    if (i < 0 || check_code(ftp, i, FTP_ASCII_HAPPY))
+	return i;
+    ftp->is_binary = FALSE;
+    return SUCCESS;
+}
 
-    n = ftp_new();
-    fp = NULL;
-    if (n && ftp_login_session(n, host, user, passwd, port) == SUCCESS) {
-	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
-	fp->_file = n->fd_ctrl;
-    }
-    return fp;
+int
+ftpBinary(FILE *fp)
+{
+    FTP_t ftp = fcookie(fp);
+    int i;
+
+    if (ftp->is_binary)
+	return SUCCESS;
+    i = cmd(ftp, "TYPE I");
+    if (i < 0 || check_code(ftp, i, FTP_BINARY_HAPPY))
+	return i;
+    ftp->is_binary = TRUE;
+    return SUCCESS;
 }
 
 int
@@ -153,6 +166,7 @@ ftpGetSize(FILE *fp, char *name)
     char p[BUFSIZ], *cp;
     FTP_t ftp = fcookie(fp);
 
+    check_passive(fp);
     sprintf(p, "SIZE %s\r\n", name);
     i = writes(ftp->fd_ctrl, p);
     if (i)
@@ -172,6 +186,7 @@ ftpGetModtime(FILE *fp, char *name)
     FTP_t ftp = fcookie(fp);
     int i;
 
+    check_passive(fp);
     sprintf(p, "MDTM %s\r\n", name);
     i = writes(ftp->fd_ctrl, p);
     if (i)
@@ -199,9 +214,32 @@ ftpGet(FILE *fp, char *file, int *seekto)
     FILE *fp2;
     FTP_t ftp = fcookie(fp);
 
+    check_passive(fp);
+    if (ftpBinary(fp) != SUCCESS)
+	return NULL;
+
     if (ftp_file_op(ftp, "RETR", file, &fp2, "r", seekto) == SUCCESS)
 	return fp2;
     return NULL;
+}
+
+/* Returns a standard FILE pointer type representing an open control connection */
+FILE *
+ftpLogin(char *host, char *user, char *passwd, int port)
+{
+    FTP_t n;
+    FILE *fp;
+
+    if (networkInit() != SUCCESS)
+	return NULL;
+
+    n = ftp_new();
+    fp = NULL;
+    if (n && ftp_login_session(n, host, user, passwd, port) == SUCCESS) {
+	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
+	fp->_file = n->fd_ctrl;
+    }
+    return fp;
 }
 
 FILE *
@@ -210,26 +248,25 @@ ftpPut(FILE *fp, char *file)
     FILE *fp2;
     FTP_t ftp = fcookie(fp);
 
+    check_passive(fp);
     if (ftp_file_op(ftp, "STOR", file, &fp2, "w", NULL) == SUCCESS)
 	return fp2;
     return NULL;
 }
 
-int
-ftpBinary(FILE *fp, int st)
-{
-    FTP_t ftp = fcookie(fp);
-
-    ftp->binary = st;
-    return SUCCESS;
-}
-
+/* Unlike binary mode, passive mode is a toggle! :-( */
 int
 ftpPassive(FILE *fp, int st)
 {
     FTP_t ftp = fcookie(fp);
+    int i;
 
-    ftp->passive = st;
+    if (ftp->is_passive == st)
+	return SUCCESS;
+    i = cmd(ftp, "PASSIVE");
+    if (i < 0)
+        return i;
+    ftp->is_passive = !ftp->is_passive;
     return SUCCESS;
 }
 
@@ -321,10 +358,9 @@ ftp_new(void)
     memset(ftp, 0, sizeof *ftp);
     ftp->fd_ctrl = -1;
     ftp->con_state = init;
+    ftp->is_binary = FALSE;
+    ftp->is_passive = FALSE;
     ftp->errno = 0;
-    ftp->binary = TRUE;
-    if (getenv("FTP_PASSIVE_MODE"))
-	ftp->passive = 1;
     return ftp;
 }
 
@@ -358,6 +394,13 @@ ftp_close_method(void *n)
     i = ftp_close((FTP_t)n);
     free(n);
     return i;
+}
+
+static void
+check_passive(FILE *fp)
+{
+    if (getenv("FTP_PASSIVE_MODE"))
+	ftpPassive(fp, TRUE);
 }
 
 static void
@@ -575,18 +618,10 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
     if (ftp->con_state != isopen)
 	return botch("ftp_file_op", "open");
 
-    if (ftp->binary) {
-	i = cmd(ftp, "TYPE I");
-	if (check_code(ftp, i, FTP_BINARY_HAPPY)) {
-	    ftp_close(ftp);
-	    return i;
-	}
-    }
-
     if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
 	return FAILURE;
 
-    if (ftp->passive) {
+    if (ftp->is_passive) {
 	if (writes(ftp->fd_ctrl, "PASV\r\n")) {
 	    ftp_close(ftp);
 	    return FAILURE;
