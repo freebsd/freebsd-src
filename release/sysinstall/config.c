@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.21 1995/06/05 04:00:45 jkh Exp $
+ * $Id: config.c,v 1.15.2.22 1995/06/05 10:18:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -314,14 +314,13 @@ configResolv(void)
 {
     FILE *fp;
     char *cp;
-    static Boolean hostsModified = FALSE;
 
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
 
-    if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
+    if (!getenv(VAR_NAMESERVER)) {
 	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
-	    msgConfirm("Warning:  Missing domain name or name server value - network operations\nmay fail as a result!");
+	    msgConfirm("Warning:  Missing name server value - network operations\nmay fail as a result!");
 	goto skip;
     }
     Mkdir("/etc", NULL);
@@ -330,7 +329,8 @@ configResolv(void)
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
-    fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
+    if (getenv(VAR_DOMAINNAME))
+	fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     fclose(fp);
     if (isDebug())
@@ -339,13 +339,12 @@ configResolv(void)
 skip:
     /* Tack ourselves at the end of /etc/hosts */
     cp = getenv(VAR_IPADDR);
-    if (cp && *cp != '0' && !hostsModified) {
+    if (cp && *cp != '0' && getenv(VAR_HOSTNAME)) {
 	fp = fopen("/etc/hosts", "a");
 	fprintf(fp, "%s\t\t%s\n", cp, getenv(VAR_HOSTNAME));
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
-	hostsModified = TRUE;
     }
 }
 
@@ -368,7 +367,7 @@ configPackages(char *str)
 
     if (onCD) {
 	if (!(pid = fork())) {
-	    if (chdir("/cdrom/packages"))
+	    if (chdir("/cdrom/packages/All"))
 		exit(1);
 	    execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", "-add", (char *)NULL);
 	    exit(1);
