@@ -9,4 +9,3 @@ PANIC_REBOOT_WAIT_TIME	opt_machdep.h
 LARGEMEM		opt_machdep.h
 MAXMEM			opt_machdep.h
 LINUX			opt_linux.h
-COMPAT_LINUX		opt_linux.h
