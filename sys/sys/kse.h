@@ -39,7 +39,8 @@
 /*
  * This file defines the structures needed for communication between
  * the userland and the kernel when running a KSE-based threading system.
- * The only programs that should see this file are the UTS and the kernel.
+ * The only programs that should see this file are the user thread
+ * scheduler (UTS) and the kernel.
  */
 struct kse_mailbox;
 
@@ -61,7 +62,7 @@ struct kse_thr_mailbox {
 /*
  * KSE mailbox.
  *
- * Cummunication path between the UTS and the kernel scheduler specific to
+ * Communication path between the UTS and the kernel scheduler specific to
  * a single KSE.
  */
 struct kse_mailbox {
