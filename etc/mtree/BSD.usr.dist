@@ -350,6 +350,10 @@
                     test
                     ..
                 ..
+                dyn_sysctl
+                    module
+                    ..
+                ..
                 syscall
                     module
                     ..
