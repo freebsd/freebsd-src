@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.10 1996/02/19 05:57:22 pst Exp $
+ *	$Id: rm.c,v 1.11 1996/03/07 23:26:59 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
+static char const sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,9 +55,19 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <string.h>
 #include <unistd.h>
 
+/*
+ * XXX Until we get kernel support for the undelete(2) system call,
+ * this define *must* remain in place.
+ */
+#define BSD4_4_LITE
+
 extern char *flags_to_string __P((u_long, char *));
 
+#ifdef BSD4_4_LITE
 int dflag, eval, fflag, iflag, Pflag, stdin_ok;
+#else
+int dflag, eval, fflag, iflag, Pflag, Wflag, stdin_ok;
+#endif
 uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
@@ -81,8 +91,12 @@ main(argc, argv)
 {
 	int ch, rflag;
 
-	rflag = 0;
+	Pflag = rflag = 0;
+#ifdef BSD4_4_LITE
 	while ((ch = getopt(argc, argv, "dfiPRr")) != EOF)
+#else
+	while ((ch = getopt(argc, argv, "dfiPRrW")) != EOF)
+#endif
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -102,6 +116,11 @@ main(argc, argv)
 		case 'r':			/* Compatibility. */
 			rflag = 1;
 			break;
+#ifndef BSD4_4_LITE
+		case 'W':
+			Wflag = 1;
+			break;
+#endif
 		default:
 			usage();
 		}
@@ -112,16 +131,17 @@ main(argc, argv)
 		usage();
 
 	checkdot(argv);
-	if (!*argv)
-		exit (eval);
-
-	stdin_ok = isatty(STDIN_FILENO);
 	uid = geteuid();
 
-	if (rflag)
-		rm_tree(argv);
-	else
-		rm_file(argv);
+	if (*argv) {
+		stdin_ok = isatty(STDIN_FILENO);
+
+		if (rflag)
+			rm_tree(argv);
+		else
+			rm_file(argv);
+	}
+
 	exit (eval);
 }
 
@@ -132,13 +152,14 @@ rm_tree(argv)
 	FTS *fts;
 	FTSENT *p;
 	int needstat;
+	int flags;
 	int rval;
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
 	 * (-i) or can't ask anyway (stdin_ok), don't stat the file.
 	 */
-	needstat = !uid || !fflag && !iflag && stdin_ok;
+	needstat = !uid || (!fflag && !iflag && stdin_ok);
 
 	/*
 	 * If the -i option is specified, the user can skip on the pre-order
@@ -146,9 +167,14 @@ rm_tree(argv)
 	 */
 #define	SKIPPED	1
 
-	if (!(fts = fts_open(argv,
-	    needstat ? FTS_PHYSICAL|FTS_NOCHDIR :
-		FTS_PHYSICAL|FTS_NOSTAT|FTS_NOCHDIR, (int (*)())NULL)))
+	flags = FTS_PHYSICAL | FTS_NOCHDIR;
+	if (!needstat)
+		flags |= FTS_NOSTAT;
+#ifndef BSD4_4_LITE
+	if (Wflag)
+		flags |= FTS_WHITEOUT;
+#endif
+	if (!(fts = fts_open(argv, flags, (int (*)())NULL)))
 		err(1, NULL);
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
@@ -176,7 +202,7 @@ rm_tree(argv)
 			continue;
 		case FTS_D:
 			/* Pre-order: give user chance to skip. */
-			if (iflag && !check(p->fts_path, p->fts_accpath,
+			if (!fflag && !check(p->fts_path, p->fts_accpath,
 			    p->fts_statp)) {
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
@@ -193,10 +219,11 @@ rm_tree(argv)
 			if (p->fts_number == SKIPPED)
 				continue;
 			break;
+		default:
+			if (!fflag &&
+			    !check(p->fts_path, p->fts_accpath, p->fts_statp))
+				continue;
 		}
-		if (!fflag &&
-		    !check(p->fts_path, p->fts_accpath, p->fts_statp))
-			continue;
 
 		rval = 0;
 		if (!uid &&
@@ -210,15 +237,22 @@ rm_tree(argv)
 			 * able to remove it.  Don't print out the un{read,search}able
 			 * message unless the remove fails.
 			 */
-			if (p->fts_info == FTS_DP || p->fts_info == FTS_DNR) {
-				if (!rmdir(p->fts_accpath))
+			switch (p->fts_info) {
+			case FTS_DP:
+			case FTS_DNR:
+				if (!rmdir(p->fts_accpath) || (fflag && errno == ENOENT))
 					continue;
-				if (errno == ENOENT) {
-					if (fflag)
-						continue;
-				} else if (p->fts_info != FTS_DP)
-					warnx("%s: unable to read", p->fts_path);
-			} else {
+				break;
+
+#ifndef BSD4_4_LITE
+			case FTS_W:
+				if (!undelete(p->fts_accpath) ||
+			    	fflag && errno == ENOENT)
+					continue;
+				break;
+#endif
+
+			default:
 				if (Pflag)
 					rm_overwrite(p->fts_accpath, NULL);
 				if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
@@ -238,10 +272,9 @@ rm_file(argv)
 	char **argv;
 {
 	struct stat sb;
-	int df, rval;
+	int rval;
 	char *f;
 
-	df = dflag;
 	/*
 	 * Remove a file.  POSIX 1003.2 states that, by default, attempting
 	 * to remove a directory is an error, so must always stat the file.
@@ -249,18 +282,38 @@ rm_file(argv)
 	while ((f = *argv++) != NULL) {
 		/* Assume if can't stat the file, can't unlink it. */
 		if (lstat(f, &sb)) {
+#ifdef BSD4_4_LITE
 			if (!fflag || errno != ENOENT) {
 				warn("%s", f);
 				eval = 1;
+ 			}
+#else
+			if (Wflag) {
+				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
+			} else {
+				if (!fflag || errno != ENOENT) {
+					warn("%s", f);
+					eval = 1;
+				}
+				continue;
 			}
+		} else if (Wflag) {
+			warnx("%s: %s", f, strerror(EEXIST));
+			eval = 1;
+#endif
 			continue;
 		}
-		if (S_ISDIR(sb.st_mode) && !df) {
+
+		if (S_ISDIR(sb.st_mode) && !dflag) {
 			warnx("%s: is a directory", f);
 			eval = 1;
 			continue;
 		}
+#ifdef BSD4_4_LITE
 		if (!fflag && !check(f, f, &sb))
+#else
+		if (!fflag && !S_ISWHT(sb.st_mode) && !check(f, f, &sb))
+#endif
 			continue;
 		rval = 0;
 		if (!uid &&
@@ -268,7 +321,13 @@ rm_file(argv)
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
 		if (!rval) {
+#ifdef BSD4_4_LITE
 			if (S_ISDIR(sb.st_mode))
+#else
+			if (S_ISWHT(sb.st_mode))
+				rval = undelete(f);
+			else if (S_ISDIR(sb.st_mode))
+#endif
 				rval = rmdir(f);
 			else {
 				if (Pflag)
@@ -357,9 +416,9 @@ check(path, name, sp)
 		 * first because we may not have stat'ed the file.
 		 */
 		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
-		    !access(name, W_OK) &&
+		    (!access(name, W_OK) &&
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
-		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid))
+		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
 			return (1);
 		strmode(sp->st_mode, modep);
 		strcpy(flagsp, flags_to_string(sp->st_flags, NULL));
@@ -398,7 +457,8 @@ checkdot(argv)
 			if (!complained++)
 				warnx("\".\" and \"..\" may not be removed");
 			eval = 1;
-			for (save = t; (t[0] = t[1]) != NULL; ++t);
+			for (save = t; (t[0] = t[1]) != NULL; ++t)
+				continue;
 			t = save;
 		} else
 			++t;
@@ -409,6 +469,10 @@ void
 usage()
 {
 
+#ifdef BSD4_4_LITE
 	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRr] file ...\n");
+#else
+	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrW] file ...\n");
+#endif
 	exit(1);
 }
