@@ -186,6 +186,8 @@ chrdev	name		comments
 168	sab		Siemens SAB82532 serial chip <jake>
 169	ofwd		OpenFirmware disk <benno>
 170	pst		Promise SuperTrak
+171	mide		LSI MegaRAID IDE (control device)
+172	mided		LSI MegaRAID IDE (disk device)
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
