@@ -164,7 +164,7 @@ variable_get_value(char *var, char *prompt, int dirty)
     cp = variable_get(var);
     if (cp && variable_get(VAR_NONINTERACTIVE))
 	return cp;
-    else if ((cp = msgGetInput(cp, prompt)) != NULL)
+    else if ((cp = msgGetInput(cp, "%s", prompt)) != NULL)
 	variable_set2(var, cp, dirty);
     else
 	cp = NULL;

@@ -114,7 +114,7 @@ mediaInitNetwork(Device *dev)
 	 * for later killing.  It's just too convenient to call vsystem(), however, rather than
 	 * constructing a proper argument for exec() so we punt on doing slip right for now.
 	 */
-	if (vsystem(attach)) {
+	if (vsystem("%s", attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
 		       "the command is correct and try this operation again.");
 	    restorescr(w);
