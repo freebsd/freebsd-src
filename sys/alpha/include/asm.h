@@ -245,7 +245,10 @@
 
 #define PALVECT(_name_)						\
 	ESETUP(_name_);						\
-	ERSAVE()
+	ERSAVE();						\
+	br	pv, _name_##lgp;				\
+_name_##lgp:;							\
+	LDGP(pv)
 
 #define	ESETUP(_name_)						\
 	.loc	1 __LINE__;					\
