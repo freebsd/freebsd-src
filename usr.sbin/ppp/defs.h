@@ -111,6 +111,10 @@
 #define PARSE_REDUCE	1
 #define PARSE_NOHASH	2
 
+/* flags passed to loadmodules */
+#define	LOAD_QUIETLY	1
+#define	LOAD_VERBOSLY	2
+
 #define ROUNDUP(x) ((x) ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
 #if defined(__NetBSD__) || __FreeBSD__ < 3
@@ -135,3 +139,4 @@ extern void SetTitle(const char *);
 extern fd_set *mkfdset(void);
 extern void zerofdset(fd_set *);
 extern void Concatinate(char *, size_t, int, const char *const *);
+extern void loadmodules(int, const char *, ...);

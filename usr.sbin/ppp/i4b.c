@@ -305,6 +305,7 @@ static struct device basei4bdevice = {
   i4b_Raw,
   i4b_Offline,
   i4b_Cooked,
+  NULL,
   i4b_StopTimer,
   i4b_Free,
   NULL,

@@ -92,7 +92,7 @@ struct lcp {
     struct fsm_retry fsm;	/* How often/frequently to resend requests */
     unsigned acfcomp : 2;	/* Address & Control Field Compression neg */
     unsigned chap05 : 2;	/* Challenge Handshake Authentication proto */
-#ifdef HAVE_DES
+#ifndef NODES
     unsigned chap80nt : 2;	/* Microsoft (NT) CHAP */
     unsigned chap80lm : 2;	/* Microsoft (LANMan) CHAP */
     unsigned chap81 : 2;	/* Microsoft CHAP v2 */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 2000 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,12 @@
  * $FreeBSD$
  */
 
-#define HDLCSIZE	(MAX_MRU*2+6)
-
-struct async {
-  int mode;
-  int length;
-  u_char hbuff[HDLCSIZE];	/* recv buffer */
-  u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_int32_t my_accmap;
-  u_int32_t his_accmap;
-
-  struct {
-    u_char EscMap[33];
-  } cfg;
-};
-
-struct lcp;
-struct mbuf;
 struct physical;
-struct bundle;
+struct device;
 
-extern void async_Init(struct async *);
-extern void async_Setup(struct async *);
-extern void async_SetLinkParams(struct async *, u_int32_t, u_int32_t);
+#define DEF_NGCDDELAY	5	/* Default ``set cd'' value */
 
-extern struct layer asynclayer;
+extern struct device *ng_Create(struct physical *);
+extern struct device *ng_iov2device(int, struct physical *, struct iovec *,
+                                    int *, int, int *, int *);
+extern int ng_DeviceSize(void);
