@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.54 1996/10/06 10:15:27 jkh Exp $
+ **      $Id: userconfig.c,v 1.55 1996/10/06 15:27:36 davidg Exp $
  **/
 
 /**
@@ -121,13 +121,14 @@
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
-
 #ifdef USERCONFIG_BOOT
 char userconfig_from_boot[512] = "";
-char *next = userconfig_from_boot;
-int
-getchar(x)
+
+static int
+getchar(void)
 {
+    static char *next = userconfig_from_boot;
+
     if (next == userconfig_from_boot) {
 	if (strncmp(next, "USERCONFIG\n", 11)) {
 	    next++;
@@ -2211,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.54 1996/10/06 10:15:27 jkh Exp $
+ *      $Id: userconfig.c,v 1.55 1996/10/06 15:27:36 davidg Exp $
  */
 
 #include "scbus.h"
