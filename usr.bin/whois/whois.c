@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
 #define	BNICHOST	"whois.registro.br"
+#define NORIDHOST	"whois.norid.no"
 #define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
@@ -203,6 +204,12 @@ choose_server(char *domain)
 		*pos = '\0';
 	if (*domain == '\0')
 		errx(EX_USAGE, "can't search for a null string");
+	if (strlen(domain) > sizeof("-NORID")-1 &&
+	    strcasecmp(domain + strlen(domain) - sizeof("-NORID") + 1,
+		"-NORID") == 0) {
+		s_asprintf(&retval, "%s", NORIDHOST);
+		return (retval);
+	}
 	while (pos > domain && *pos != '.')
 		--pos;
 	if (pos <= domain)
