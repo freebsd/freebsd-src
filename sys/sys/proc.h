@@ -269,14 +269,13 @@ struct thread {
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
 	int		td_inhibitors;	/* (j) Why can not run */
+	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
 	struct kse	*td_last_kse;	/* (j) Previous value of td_kse */
 	struct kse	*td_kse;	/* (j) Current KSE if running. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
-	u_char		td_inktr;	/* (k) Currently handling a KTR. */
-	u_char		td_inktrace;	/* (k) Currently handling a KTRACE. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
@@ -333,7 +332,6 @@ struct thread {
 	struct td_sched	*td_sched;	/* (*) Scheduler specific data */
 };
 /* flags kept in td_flags */ 
-#define	TDF_OLDMASK	0x000001 /* Need to restore mask after suspend. */
 #define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
 #define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
@@ -351,6 +349,11 @@ struct thread {
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
+
+/* "private" flags kept in td_pflags */
+#define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
+#define	TDP_INKTR	0x0002 /* Thread is currently in KTR code. */
+#define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
