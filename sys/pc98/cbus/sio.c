@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.93 1999/05/09 13:00:48 phk Exp $
+ *	$Id: sio.c,v 1.94 1999/05/10 09:14:40 kato Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -4972,7 +4972,8 @@ pc98_check_if_type(device_t dev, struct siodev *iod)
 	} else {
 	    irr = if_16550a_type[if_type].irr_read;
 #ifdef COM_MULTIPORT
-	    if (!COM_ISMULTIPORT(dev) || dev->id_unit == COM_MPMASTER(dev))
+	    if (!COM_ISMULTIPORT(isa_get_flags(dev)) ||
+		    device_get_unit(dev) == COM_MPMASTER(isa_get_flags(dev)))
 #endif
 	    if (irr != -1) {
 		tmp = inb(io | irr);
