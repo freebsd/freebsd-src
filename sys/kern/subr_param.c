@@ -40,46 +40,38 @@
  */
 
 #include "opt_param.h"
+#include "opt_maxusers.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 
 /*
  * System parameter formulae.
- *
- * This file is copied into each directory where we compile
- * the kernel; it should be modified there to suit local taste
- * if necessary.
- *
- * Compiled with -DMAXUSERS=xx
  */
 
 #ifndef HZ
 #define	HZ 100
 #endif
-int	hz = HZ;
-int	tick = 1000000 / HZ;
-int	tickadj = howmany(30000, 60 * HZ);	/* can adjust 30ms in 60s */
-#define	NPROC (20 + 16 * MAXUSERS)
+#define	NPROC (20 + 16 * maxusers)
+#ifndef NBUF
+#define NBUF 0
+#endif
 #ifndef MAXFILES
-#define MAXFILES (NPROC*2)
+#define	MAXFILES (maxproc * 2)
 #endif
-int	maxproc = NPROC;			/* maximum # of processes */
-int	maxprocperuid = NPROC-1;		/* max # of procs per user */
-int	maxfiles = MAXFILES;			/* sys. wide open files limit */
-int	maxfilesperproc = MAXFILES;		/* per-proc open files limit */
-int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
 
-/*
- * These may be set to nonzero here or by patching.
- * If they are nonzero at bootstrap time then they are
- * initialized to values dependent on the memory size.
- */
-#ifdef	NBUF
-int	nbuf = NBUF;
-#else
-int	nbuf = 0;
-#endif
-int	nswbuf = 0;
+int	hz;
+int	tick;
+int	tickadj;			 /* can adjust 30ms in 60s */
+int	maxusers;			/* base tunable */
+int	maxproc;			/* maximum # of processes */
+int	maxprocperuid;			/* max # of procs per user */
+int	maxfiles;			/* sys. wide open files limit */
+int	maxfilesperproc;		/* per-proc open files limit */
+int	ncallout;			/* maximum # of timer events */
+int	nbuf;
+int	nswbuf;
 
 /*
  * These have to be allocated somewhere; allocating
@@ -95,3 +87,33 @@ struct	buf *swbuf;
 #define LOCKMUTEX	10
 #endif
 int	lock_nmtx = LOCKMUTEX;
+
+/*
+ * Boot time overrides
+ */
+void
+init_param(void)
+{
+
+	/* Base parameters */
+	maxusers = MAXUSERS;
+	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
+	hz = HZ;
+	TUNABLE_INT_FETCH("kern.hz", &hz);
+	tick = 1000000 / hz;
+	tickadj = howmany(30000, 60 * hz);	/* can adjust 30ms in 60s */
+
+	/* The following can be overridden after boot via sysctl */
+	maxproc = NPROC;
+	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
+	maxfiles = MAXFILES;
+	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
+	maxprocperuid = maxproc - 1;
+	maxfilesperproc = maxfiles;
+
+	/* Cannot be changed after boot */
+	nbuf = NBUF;
+	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+	ncallout = 16 + maxproc + maxfiles;
+	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+}
