@@ -578,7 +578,8 @@ initializecpu(void)
 			 */
 			if ((cpu_feature & CPUID_XMM) == 0 &&
 			    ((cpu_id & ~0xf) == 0x660 ||
-			     (cpu_id & ~0xf) == 0x670)) {
+			     (cpu_id & ~0xf) == 0x670 ||
+			     (cpu_id & ~0xf) == 0x680)) {
 				u_int regs[4];
 				wrmsr(0xC0010015, rdmsr(0xC0010015) & ~0x08000);
 				do_cpuid(1, regs);
