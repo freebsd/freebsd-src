@@ -519,9 +519,9 @@ release.5:
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
 .if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
-	cd ${j}_crunch; ${WMAKEENV} crunchgen ${.CURDIR}/${TARGET}/${j}_crunch.conf
+	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${TARGET}/${j}_crunch.conf
 .else
-	cd ${j}_crunch; ${WMAKEENV} crunchgen ${.CURDIR}/${j}_crunch.conf
+	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${j}_crunch.conf
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${TMAKE} build-tools
