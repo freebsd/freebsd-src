@@ -98,7 +98,7 @@ static const struct netid_af na_cvt[] = {
 	{ "udp6", AF_INET6, IPPROTO_UDP },
 	{ "tcp6", AF_INET6, IPPROTO_TCP },
 #endif
-	{ "unix", AF_LOCAL, 0 }
+	{ "local", AF_LOCAL, 0 }
 };
 
 #if 0
@@ -524,7 +524,9 @@ __rpc_nconf2sockinfo(const struct netconfig *nconf, struct __rpc_sockinfo *sip)
 	int i;
 
 	for (i = 0; i < (sizeof na_cvt) / (sizeof (struct netid_af)); i++)
-		if (!strcmp(na_cvt[i].netid, nconf->nc_netid)) {
+		if (strcmp(na_cvt[i].netid, nconf->nc_netid) == 0 || (
+		    strcmp(nconf->nc_netid, "unix") == 0 &&
+		    strcmp(na_cvt[i].netid, "local") == 0)) {
 			sip->si_af = na_cvt[i].af;
 			sip->si_proto = na_cvt[i].protocol;
 			sip->si_socktype =
@@ -554,13 +556,20 @@ __rpc_sockinfo2netid(struct __rpc_sockinfo *sip, const char **netid)
 {
 	int i;
 
-	for (i = 0; i < (sizeof na_cvt) / (sizeof (struct netid_af)); i++)
+	for (i = 0; i < (sizeof na_cvt) / (sizeof (struct netid_af)); i++) {
 		if (na_cvt[i].af == sip->si_af &&
 		    na_cvt[i].protocol == sip->si_proto) {
-			if (netid)
-				*netid = na_cvt[i].netid;
+			if (strcmp(na_cvt[i].netid, "local") == 0 &&
+			     getnetconfigent("local") == NULL) {
+				if (netid)
+					*netid = "unix";
+			} else {
+				if (netid)
+					*netid = na_cvt[i].netid;
+			}
 			return 1;
 		}
+	}
 
 	return 0;
 }

@@ -158,7 +158,9 @@ main(int argc, char *argv[])
 	tcptrans = "";
 #endif
 
-	nconf = getnetconfigent("unix");
+	nconf = getnetconfigent("local");
+	if (nconf == NULL)
+		nconf = getnetconfigent("unix");
 	if (nconf == NULL) {
 		syslog(LOG_ERR, "%s: can't find local transport\n", argv[0]);
 		exit(1);
@@ -279,7 +281,8 @@ init_transport(struct netconfig *nconf)
 		return (1);
 	}
 
-	if (!strcmp(nconf->nc_netid, "unix")) {
+	if ((strcmp(nconf->nc_netid, "local") == 0) ||
+	    (strcmp(nconf->nc_netid, "unix") == 0)) {
 		memset(&sun, 0, sizeof sun);
 		sun.sun_family = AF_LOCAL;
 		unlink(_PATH_RPCBINDSOCK);
@@ -438,7 +441,8 @@ init_transport(struct netconfig *nconf)
 		if (!checkbind)
 			return 1;
 	} else {
-		if (strcmp(nconf->nc_netid, "unix") != 0) {
+		if ((strcmp(nconf->nc_netid, "local") != 0) &&
+		    (strcmp(nconf->nc_netid, "unix") != 0)) {
 			if ((aicode = getaddrinfo(NULL, servname, &hints, &res))
 			    != 0) {
 				syslog(LOG_ERR,
@@ -502,7 +506,8 @@ init_transport(struct netconfig *nconf)
 	if ((strcmp(nconf->nc_protofmly, NC_INET) == 0 &&
 		(strcmp(nconf->nc_proto, NC_TCP) == 0 ||
 		strcmp(nconf->nc_proto, NC_UDP) == 0)) ||
-		strcmp(nconf->nc_netid, "unix") == 0) {
+		(strcmp(nconf->nc_netid, "unix") == 0) ||
+		(strcmp(nconf->nc_netid, "local") == 0)) {
 		struct pmaplist *pml;
 
 		if (!svc_register(my_xprt, PMAPPROG, PMAPVERS,
@@ -543,7 +548,9 @@ init_transport(struct netconfig *nconf)
 			/* Let's snarf the universal address */
 			/* "h1.h2.h3.h4.p1.p2" */
 			udp_uaddr = taddr2uaddr(nconf, &taddr.addr);
-		} else if (strcmp(nconf->nc_netid, "unix") == 0)
+		} else if (strcmp(nconf->nc_netid, "local") == 0)
+			pml->pml_map.pm_prot = IPPROTO_ST;
+		else if (strcmp(nconf->nc_netid, "unix") == 0)
 			pml->pml_map.pm_prot = IPPROTO_ST;
 		pml->pml_next = list_pml;
 		list_pml = pml;
