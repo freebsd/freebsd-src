@@ -70,6 +70,7 @@ typedef struct {
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
 typedef struct {
 	long long quot;
 	long long rem;
@@ -148,6 +149,7 @@ __uint32_t
 void	 arc4random_addrandom(unsigned char *dat, int datlen);
 void	 arc4random_stir(void);
 #ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
 long long
 	 atoll(const char *);
 #endif
@@ -172,6 +174,7 @@ __const char *
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
 char	*initstate(unsigned long, char *, long);
 #ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
 long long
 	 llabs(long long) __pure2;
 lldiv_t	 lldiv(long long, long long) __pure2;
@@ -191,11 +194,13 @@ void	 sranddev(void);
 void	 srandom(unsigned long);
 void	 srandomdev(void);
 #ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
 long long	 
 	 strtoll(const char *, char **, int);
 #endif
 __int64_t	 strtoq(const char *, char **, int);
 #ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
 unsigned long long
 	 strtoull(const char *, char **, int);
 #endif
