@@ -62,7 +62,7 @@ static int	ed_pci_probe(device_t);
 static int	ed_pci_attach(device_t);
 
 static int
-ed_pci_probe (device_t dev)
+ed_pci_probe(device_t dev)
 {
 	u_int32_t	type = pci_get_devid(dev);
 	struct _pcsid	*ep =pci_ids;
@@ -71,10 +71,9 @@ ed_pci_probe (device_t dev)
 		++ep;
 	if (ep->desc) {
 		device_set_desc(dev, ep->desc);
-		return 0;
-	} else {
-		return ENXIO;
+		return (0);
 	}
+	return (ENXIO);
 }
 
 static int
