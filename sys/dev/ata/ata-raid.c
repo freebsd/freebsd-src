@@ -119,6 +119,9 @@ ata_raid_attach()
     dev_t dev;
     int array, disk;
 
+    if (!ar_table)
+	return;
+
     for (array = 0; array < MAX_ARRAYS; array++) {
 	if (!(raid = ar_table[array]) || !raid->flags)
 	    continue;
