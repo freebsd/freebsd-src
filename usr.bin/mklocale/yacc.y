@@ -687,15 +687,15 @@ dump_tables()
     if (new_locale.encoding[0])
 	fprintf(stderr, "ENCODING	%s\n", new_locale.encoding);
     if (new_locale.variable)
-	fprintf(stderr, "VARIABLE	%s\n", new_locale.variable);
+	fprintf(stderr, "VARIABLE	%s\n", (char *)new_locale.variable);
 
     fprintf(stderr, "\nMAPLOWER:\n\n");
 
     for (x = 0; x < _CACHED_RUNES; ++x) {
 	if (isprint(maplower.map[x]))
-	    fprintf(stderr, " '%c'", maplower.map[x]);
+	    fprintf(stderr, " '%c'", (int)maplower.map[x]);
 	else if (maplower.map[x])
-	    fprintf(stderr, "%04x", maplower.map[x]);
+	    fprintf(stderr, "%04lx", maplower.map[x]);
 	else
 	    fprintf(stderr, "%4x", 0);
 	if ((x & 0xf) == 0xf)
@@ -712,9 +712,9 @@ dump_tables()
 
     for (x = 0; x < _CACHED_RUNES; ++x) {
 	if (isprint(mapupper.map[x]))
-	    fprintf(stderr, " '%c'", mapupper.map[x]);
+	    fprintf(stderr, " '%c'", (int)mapupper.map[x]);
 	else if (mapupper.map[x])
-	    fprintf(stderr, "%04x", mapupper.map[x]);
+	    fprintf(stderr, "%04lx", mapupper.map[x]);
 	else
 	    fprintf(stderr, "%4x", 0);
 	if ((x & 0xf) == 0xf)
@@ -735,9 +735,9 @@ dump_tables()
 
 	if (r) {
 	    if (isprint(x))
-		fprintf(stderr, " '%c': %2d", x, r & 0xff);
+		fprintf(stderr, " '%c': %2d", x, (int)(r & 0xff));
 	    else
-		fprintf(stderr, "%04x: %2d", x, r & 0xff);
+		fprintf(stderr, "%04x: %2d", x, (int)(r & 0xff));
 
 	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
 	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
@@ -761,7 +761,8 @@ dump_tables()
 	if (list->map && list->min + 3 < list->max) {
 	    unsigned long r = list->map;
 
-	    fprintf(stderr, "%04x: %2d", list->min, r & 0xff);
+	    fprintf(stderr, "%04lx: %2d",
+		(unsigned long)list->min, (int)(r & 0xff));
 
 	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
 	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
@@ -779,7 +780,8 @@ dump_tables()
 	    fprintf(stderr, " %4s", (r & _Q) ? "phon" : "");
 	    fprintf(stderr, "\n...\n");
 
-	    fprintf(stderr, "%04x: %2d", list->max, r & 0xff);
+	    fprintf(stderr, "%04lx: %2d",
+		(unsigned long)list->max, (int)(r & 0xff));
 
 	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
 	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
@@ -801,7 +803,7 @@ dump_tables()
 	    unsigned long r = ntohl(list->types[x - list->min]);
 
 	    if (r) {
-		fprintf(stderr, "%04x: %2d", x, r & 0xff);
+		fprintf(stderr, "%04x: %2d", x, (int)(r & 0xff));
 
 		fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
 		fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");

@@ -221,7 +221,7 @@ write_sample_server(def)
 				else
 					f_print(fout, "char *");
 				/* cannot have void type */
-				f_print(fout, " result;\n", proc->res_type);
+				f_print(fout, " result;\n");
 			}
 			else
 				f_print(fout, "\tbool_t retval;\n");

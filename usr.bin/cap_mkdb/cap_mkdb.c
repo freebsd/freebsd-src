@@ -102,7 +102,7 @@ main(argc, argv)
 	 */
 	(void)snprintf(buf, sizeof(buf), "%s.db", capname ? capname : *argv);
 	if ((capname = strdup(buf)) == NULL)
-		err(1, "");
+		err(1, (char *)NULL);
 	if ((capdbp = dbopen(capname,
 	    O_CREAT | O_TRUNC | O_RDWR, DEFFILEMODE, DB_HASH, NULL)) == NULL)
 		err(1, "%s", buf);
@@ -159,7 +159,7 @@ db_build(ifiles)
 		if (bplen <= len + 2) {
 			bplen += MAX(256, len + 2);
 			if ((data.data = realloc(data.data, bplen)) == NULL)
-				err(1, "");
+				err(1, (char *)NULL);
 		}
 
 		/* Find the end of the name field. */
