@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.11 1998/02/04 15:57:13 wollman Exp $
+.\"     $Id: rc.conf.5,v 1.12 1998/02/16 19:25:41 guido Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -608,11 +608,18 @@ seconds.
 (str) If not set to
 .Ar NO ,
 this is the actual screen saver to use (blank, snake, daemon, etc).
+.It Ar moused_enable
+(str) If set to
+.Ar YES ,
+the
+.Xr moused 8
+daemon is started for doing cut/paste selection on the console.
 .It Ar moused_type
-(str) If not set to
-.Ar NO ,
-this is the type of mouse you would like to use for doing
-cut/paste selection on the console.
+(str) This is the protocol type of mouse you would like to use.
+This variable must be set if 
+.Ar moused_enable
+is set to
+.Ar YES .
 The
 .Xr moused 8
 daemon
@@ -652,8 +659,10 @@ If the client program does not support the sysmouse type,
 specify the mousesystems type. It is the second prefered type.
 .It Ar moused_port
 (str) If
-.Ar moused_type
-is set, this is the actual port the mouse is on.
+.Ar moused_enable
+is set to
+.Ar YES ,
+this is the actual port the mouse is on.
 It might be
 .Pa /dev/cuaa0
 for a COM1 serial mouse,
