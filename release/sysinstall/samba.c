@@ -155,6 +155,5 @@ configSamba(dialogMenuItem *self)
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("samba", "YES");
     restorescr(w);
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
-

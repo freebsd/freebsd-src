@@ -64,6 +64,7 @@ mediaInitNetwork(Device *dev)
 
     /* Old PPP process lying around? */
     if (pppPID) {
+	msgNotify("Killing previous PPP process %d.", pppPID);
 	kill(pppPID, SIGTERM);
 	pppPID = 0;
     }
@@ -91,8 +92,10 @@ mediaInitNetwork(Device *dev)
 			  "correctness (default here is: VJ compression, Hardware flow-\n"
 			  "control, ignore carrier and 9600 baud data rate).  When you're\n"
 			  "ready, press [ENTER] to execute it.");
-	if (!val)
+	if (!val) {
+	    msgConfirm("slattach command was empty.  Try again!");
 	    return FALSE;
+	}
 	else
 	    SAFE_STRCPY(attach, val);
 	/*
@@ -102,7 +105,7 @@ mediaInitNetwork(Device *dev)
 	 */
 	if (vsystem(attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
-		       "the command is correct and try again.");
+		       "the command is correct and try this operation again.");
 	    return FALSE;
 	}
     }
@@ -145,8 +148,7 @@ mediaShutdownNetwork(Device *dev)
     if (!RunningAsInit || !networkInitialized)
 	return;
 
-    if (isDebug())
-	msgDebug("Shutdown called for network device %s\n", dev->name);
+    msgDebug("Shutdown called for network device %s\n", dev->name);
     /* Not a serial device? */
     if (strncmp("sl", dev->name, 2) && strncmp("ppp", dev->name, 3)) {
 	int i;
