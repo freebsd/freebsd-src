@@ -1,4 +1,4 @@
-/* BT848 1.41 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.42 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -291,6 +291,12 @@
                              options OVERRIDE_CARD=2
                              options OVERRIDE_TUNER=11
                              options BKTR_USE_PLL
+
+1.51       31 August 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Fixed bug in Miro Tuner detection. Missing Goto.
+                           Removed Hauppauge EEPROM 0x10 detection as I think
+			   0x10 should be a PAL tuner, not NTSC.
+			   Reinstated some Tuner Guesswork code from 1.27
 */
 
 #define DDB(x) x
@@ -4418,7 +4424,6 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	u_char probe_signature[128], *probe_temp;
         int   any_i2c_devices;
 	u_char probe_eeprom[128];
-	u_long code = 0;
 	u_long tuner_code = 0;
 
 
@@ -4526,65 +4531,43 @@ checkTuner:
 	    case 6: bktr->card.tuner = &tuners[ TEMIC_NTSC ]; break;
 	    case 7: bktr->card.tuner = &tuners[ TEMIC_PALI ]; break;
 	    }
+	    goto checkDBX;
 	    break;
-	default:
-	    if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
-		bktr->card.tuner = &tuners[ TEMIC_NTSC ];
-		goto checkDBX;
-	    }
 
-	}
+	case CARD_HAUPPAUGE:
+	    /* The Hauppauge Windows driver gives the following Tuner Table */
+	    /* To the right of this is the tuner models we select */
+	    /*
+	    1 External
+	    2 Unspecified
+	    3 Phillips FI1216
+	    4 Phillips FI1216MF
+	    5 Phillips FI1236           PHILIPS_NTSC
+	    6 Phillips FI1246
+	    7 Phillips FI1256
+	    8 Phillips FI1216 MK2       PHILIPS_PALI
+	    9 Phillips FI1216MF MK2
+	    a Phillips FI1236 MK2       PHILIPS_FR1236_NTSC
+	    b Phillips FI1246 MK2       PHILIPS_PALI
+	    c Phillips FI1256 MK2
+	    d Temic 4032FY5
+	    e Temic 4002FH5              TEMIC_PAL
+	    f Temic 4062FY5              TEMIC_PALI
+	    10 Phillips FR1216 MK2
+	    11 Phillips FR1216MF MK2
+	    12 Phillips FR1236 MK2       PHILIPS_FR1236_NTSC
+	    13 Phillips FR1246 MK2
+	    14 Phillips FR1256 MK2
+	    15 Phillips FM1216           PHILIPS_FR1216_PAL
+	    16 Phillips FM1216MF
+	    17 Phillips FM1236           PHILIPS_FR1236_NTSC
+	    */
 
-   /* The Hauppauge Windows driver gives the following Tuner Table */
-   /* To the right of this is the tuner models we select */
-   /*
-    1 External
-    2 Unspecified
-    3 Phillips FI1216
-    4 Phillips FI1216MF
-    5 Phillips FI1236           PHILIPS_NTSC
-    6 Phillips FI1246
-    7 Phillips FI1256
-    8 Phillips FI1216 MK2       PHILIPS_PALI
-    9 Phillips FI1216MF MK2
-    a Phillips FI1236 MK2       PHILIPS_FR1236_NTSC
-    b Phillips FI1246 MK2       PHILIPS_PALI
-    c Phillips FI1256 MK2
-    d Temic 4032FY5
-    e Temic 4002FH5              TEMIC_PAL
-    f Temic 4062FY5              TEMIC_PALI
-    10 Phillips FR1216 MK2
-    11 Phillips FR1216MF MK2
-    12 Phillips FR1236 MK2       PHILIPS_FR1236_NTSC
-    13 Phillips FR1246 MK2
-    14 Phillips FR1256 MK2
-    15 Phillips FM1216           PHILIPS_FR1216_PAL
-    16 Phillips FM1216MF
-    17 Phillips FM1236           PHILIPS_FR1236_NTSC
-   */
+	    readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
 
-	if ( card == CARD_HAUPPAUGE ) {
-	  bktr->card.tuner = &tuners[ TEMIC_PAL ];
-	  readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
-
-
-	  if (probe_eeprom[0] == 0x84) {
-	    if (probe_eeprom[8] == 0x8) {
-	      code = 1; /* NTSC */
-	    } else if (probe_eeprom[8] == 0x4 || probe_eeprom[8] == 0x10 ) {
-	      code = 2; /* PAL */
-	    }
-
-	    if (probe_eeprom[1] == 0x11 ||
-		probe_eeprom[1] == 0x12 ) {
-	      if (probe_eeprom[probe_eeprom[1]+2] == 1) {
-		code |= 1 << 8;
-	      }
-	    }
 	    tuner_code = probe_eeprom[9];
 	    switch (tuner_code) {
 
-               case 0x10:
 	       case 0x5:
 		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
 		 goto checkDBX;
@@ -4594,7 +4577,6 @@ checkTuner:
 	       case 0x17:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
 		 goto checkDBX;
-
 
 	       case 0x8:
 	       case 0xb:
@@ -4613,12 +4595,42 @@ checkTuner:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
 		 goto checkDBX;
 	    }
+	    /* Unknown Tuner Byte */
+	    break;
+
+	} /* end switch(card) */
+
+        /* At this point, a goto checkDBX has not occured */
+        /* We have not been able to select a Tuner */
+	/* We could simply go for No Tuner, but by some guesswork */
+	/* we can try and select a suitable tuner */
+
+   
+        /* At address 0xc0/0xc1 is TEMIC NTSC and PHILIPS_FR1236_SECAM tuner*/
+	/* If we find a tuner at this address, assume it is TEMIC NTSC */
+	/* Sorry SECAM users */
+
+        if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
+            bktr->card.tuner = &tuners[ TEMIC_NTSC ];
+            goto checkDBX;
+        }
+   
+        /* At address 0xc6/0xc7 is the PHILIPS NTSC Tuner */
+	/* If we find a tuner at this address, assume it is PHILIPS NTSC */
+        /* PHILIPS NTSC Tuner is at address 0xc6 / 0xc7 */
+
+        if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
+            bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
+            goto checkDBX;
+        }
+
+        /* At address 0xc2/0xc3 is the TEMIC_PALI, PHILIPS_PAL, */
+	/* PHILIPS_FR_NTSC and PHILIPS_FR_PAL Tuners */
+        /* and we cannot tell which is which. */
+        /* Default to No Tuner */
 
 
-	  }
-
-	}
-	    /* no tuner found */
+	/* no tuner found */
 	bktr->card.tuner = &tuners[ NO_TUNER ];
 
 
