@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.4 1994/10/02 01:45:41 phk Exp $
+ *	$Id: apm.c,v 1.5 1994/10/02 17:40:38 phk Exp $
  */
 
 #include "apm.h"
@@ -230,9 +230,6 @@ static int
 apm_default_suspend(void)
 {
 	int	pl;
-	pl = splhigh();
-	sync(curproc, NULL, NULL);
-	splx(pl);
 	microtime(&suspend_time);
 	apm_suspend_system();
 	return 0;
