@@ -65,19 +65,19 @@ Consult the
 .Xr builtin 1
 manual page.
 .Sh EXAMPLES
-$ nice -n 5 date
-.Pp
 Execute utility
 .Sq date
 at priority 5 assuming the priority of the
-shell is 0.
+shell is 0:
 .Pp
-# nice -n 16 nice -n -35 date
+.Dl "nice -n 5 date"
 .Pp
 Execute utility
 .Sq date
 at priority -19 assuming the priority of the
-shell is 0 and you are the super-user.
+shell is 0 and you are the super-user:
+.Pp
+.Dl "nice -n 16 nice -n -35 date"
 .Sh DIAGNOSTICS
 If
 .Ar utility
