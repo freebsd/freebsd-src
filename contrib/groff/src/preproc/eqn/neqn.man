@@ -1,3 +1,21 @@
+.ig
+Copyright (C) 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
 .TH @G@NEQN @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 @g@neqn \- format equations for ascii output
@@ -19,3 +37,7 @@ does not support low-resolution, typewriter-like devices (although it may
 work adequately for very simple input).
 .SH "SEE ALSO"
 .BR @g@eqn (@MAN1EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1,3 +1,7 @@
+2001-04-21  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	* Imakefile.in: Add support for recent HP architectures.
+
 2001-01-04  Rob Daasch  <daasch@ece.pdx.edu>
 
 	* parse.c (ParseInput): Added 'F' to command switch to swallow

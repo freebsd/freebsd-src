@@ -73,6 +73,8 @@ extern "C" {
 // initial size of buffer for reading names; expanded as necessary
 #define ABUF_SIZE 16
 
+extern "C" const char *Version_string;
+
 #ifdef COLUMN
 void init_column_requests();
 #endif /* COLUMN */
@@ -106,7 +108,7 @@ static void disable_warning(const char *);
 static int escape_char = '\\';
 static symbol end_macro_name;
 static symbol blank_line_macro_name;
-int compatible_flag = 0;
+static int compatible_flag = 0;
 int ascii_output_flag = 0;
 int suppress_output_flag = 0;
 int is_html = 0;
@@ -133,6 +135,7 @@ static void interpolate_arg(symbol);
 static request_or_macro *lookup_request(symbol);
 static int get_delim_number(units *, int);
 static int get_delim_number(units *, int, units);
+static symbol get_delim_file_name();
 static int get_line_arg(units *res, int si, charinfo **cp);
 static int read_size(int *);
 static symbol get_delim_name();
@@ -206,6 +209,8 @@ private:
   virtual int internal_level() { return 0; }
   virtual int is_file() { return 0; }
   virtual int is_macro() { return 0; }
+  virtual void save_compatible_flag(int) {}
+  virtual int get_compatible_flag() { return 0; }
 };
 
 input_iterator::input_iterator()
@@ -406,6 +411,8 @@ public:
   static int get_level();
   static void clear();
   static void pop_macro();
+  static void save_compatible_flag(int);
+  static int get_compatible_flag();
 
   static int limit;
 private:
@@ -624,6 +631,16 @@ void input_stack::pop_macro()
   // Keep while_request happy.
   for (; nboundaries > 0; --nboundaries)
     add_return_boundary();
+}
+
+inline void input_stack::save_compatible_flag(int f)
+{
+  top->save_compatible_flag(f);
+}
+
+inline int input_stack::get_compatible_flag()
+{
+  return top->get_compatible_flag();
 }
 
 void backtrace_request()
@@ -1272,6 +1289,13 @@ void token::next()
     if (cc != escape_char || escape_char == 0) {
     handle_normal_char:
       switch(cc) {
+      case COMPATIBLE_SAVE:
+	input_stack::save_compatible_flag(compatible_flag);
+	compatible_flag = 0;
+	continue;
+      case COMPATIBLE_RESTORE:
+	compatible_flag = input_stack::get_compatible_flag();
+	continue;
       case EOF:
 	type = TOKEN_EOF;
 	return;
@@ -2049,14 +2073,14 @@ static void trapping_blank_line()
 
 void do_request()
 {
-  int saved_compatible_flag = compatible_flag;
+  int old_compatible_flag = compatible_flag;
   compatible_flag = 0;
   symbol nm = get_name();
   if (nm.is_null())
     skip_line();
   else
     interpolate_macro(nm);
-  compatible_flag = saved_compatible_flag;
+  compatible_flag = old_compatible_flag;
 }
 
 inline int possibly_handle_first_page_transition()
@@ -2701,6 +2725,7 @@ class string_iterator : public input_iterator {
   char_block *bp;
   int count;			// of characters remaining
   node *nd;
+  int saved_compatible_flag;
 protected:
   symbol nm;
   string_iterator();
@@ -2710,6 +2735,8 @@ public:
   int peek();
   int get_location(int, const char **, int *);
   void backtrace();
+  void save_compatible_flag(int f) { saved_compatible_flag = f; }
+  int get_compatible_flag() { return saved_compatible_flag; }
 };
 
 string_iterator::string_iterator(const macro &m, const char *p, symbol s)
@@ -3447,11 +3474,12 @@ void handle_initial_title()
 static symbol dot_symbol(".");
 
 enum define_mode { DEFINE_NORMAL, DEFINE_APPEND, DEFINE_IGNORE };
+enum calling_mode { CALLING_NORMAL, CALLING_INDIRECT, CALLING_DISABLE_COMP };
 
-void do_define_macro(define_mode mode, int indirect)
+void do_define_macro(define_mode mode, calling_mode calling)
 {
   symbol nm, term;
-  if (indirect) {
+  if (calling == CALLING_INDIRECT) {
     symbol temp1 = get_name(1);
     if (temp1.is_null()) {
       skip_line();
@@ -3497,6 +3525,8 @@ void do_define_macro(define_mode mode, int indirect)
       mac = *mm;
   }
   int bol = 1;
+  if (calling == CALLING_DISABLE_COMP)
+    mac.append(COMPATIBLE_SAVE);
   for (;;) {
     while (c == ESCAPE_NEWLINE) {
       if (mode == DEFINE_NORMAL || mode == DEFINE_APPEND)
@@ -3505,7 +3535,7 @@ void do_define_macro(define_mode mode, int indirect)
     }
     if (bol && c == '.') {
       const char *s = term.contents();
-      int d;
+      int d = 0;
       // see if it matches term
       int i;
       for (i = 0; s[i] != 0; i++) {
@@ -3517,25 +3547,27 @@ void do_define_macro(define_mode mode, int indirect)
 	  && ((i == 2 && compatible_flag)
 	      || (d = get_copy(&n)) == ' '
 	      || d == '\n')) {	// we found it
-		if (d == '\n')
-		  tok.make_newline();
-		else
-		  tok.make_space();
-		if (mode == DEFINE_APPEND || mode == DEFINE_NORMAL) {
-		  if (!mm) {
-		    mm = new macro;
-		    request_dictionary.define(nm, mm);
-		  }
-		  *mm = mac;
-		}
-		if (term != dot_symbol) {
-		  ignoring = 0;
-		  interpolate_macro(term);
-		}
-		else
-		  skip_line();
-		return;
-	      }
+	if (d == '\n')
+	  tok.make_newline();
+	else
+	  tok.make_space();
+	if (mode == DEFINE_APPEND || mode == DEFINE_NORMAL) {
+	  if (!mm) {
+	    mm = new macro;
+	    request_dictionary.define(nm, mm);
+	  }
+	  if (calling == CALLING_DISABLE_COMP)
+	    mac.append(COMPATIBLE_RESTORE);
+	  *mm = mac;
+	}
+	if (term != dot_symbol) {
+	  ignoring = 0;
+	  interpolate_macro(term);
+	}
+	else
+	  skip_line();
+	return;
+      }
       if (mode == DEFINE_APPEND || mode == DEFINE_NORMAL) {
 	mac.append(c);
 	for (int j = 0; j < i; j++)
@@ -3575,23 +3607,33 @@ void do_define_macro(define_mode mode, int indirect)
 
 void define_macro()
 {
-  do_define_macro(DEFINE_NORMAL, 0);
+  do_define_macro(DEFINE_NORMAL, CALLING_NORMAL);
+}
+
+void define_nocomp_macro()
+{
+  do_define_macro(DEFINE_NORMAL, CALLING_DISABLE_COMP);
 }
 
 void define_indirect_macro()
 {
-  do_define_macro(DEFINE_NORMAL, 1);
+  do_define_macro(DEFINE_NORMAL, CALLING_INDIRECT);
 }
 
 void append_macro()
 {
-  do_define_macro(DEFINE_APPEND, 0);
+  do_define_macro(DEFINE_APPEND, CALLING_NORMAL);
+}
+
+void append_nocomp_macro()
+{
+  do_define_macro(DEFINE_APPEND, CALLING_DISABLE_COMP);
 }
 
 void ignore()
 {
   ignoring = 1;
-  do_define_macro(DEFINE_IGNORE, 0);
+  do_define_macro(DEFINE_IGNORE, CALLING_NORMAL);
   ignoring = 0;
 }
 
@@ -3954,6 +3996,11 @@ static int read_size(int *x)
   if (!bad) {
     switch (inc) {
     case 0:
+      if (val == 0) {
+	// special case -- \s[0] and \s0 means to revert to previous size
+	*x = 0;
+	return 1;
+      }
       *x = val;
       break;
     case 1:
@@ -3964,6 +4011,11 @@ static int read_size(int *x)
       break;
     default:
       assert(0);
+    }
+    if (*x <= 0) {
+      warning(WARN_RANGE,
+	      "\\s request results in non-positive point size; set to 1");
+      *x = 1;
     }
     return 1;
   }
@@ -4021,6 +4073,65 @@ static symbol get_delim_name()
   if (buf == abuf) {
     if (i == 0) {
       error("empty delimited name");
+      return NULL_SYMBOL;
+    }
+    else
+      return symbol(buf);
+  }
+  else {
+    symbol s(buf);
+    a_delete buf;
+    return s;
+  }
+}
+
+static symbol get_delim_file_name()
+{
+  token start;
+  start.next();
+  if (start.eof()) {
+    error("end of input at start of delimited file name");
+    return NULL_SYMBOL;
+  }
+  if (start.newline()) {
+    error("can't delimit file name with a newline");
+    return NULL_SYMBOL;
+  }
+  int start_level = input_stack::get_level();
+  char abuf[ABUF_SIZE];
+  char *buf = abuf;
+  int buf_size = ABUF_SIZE;
+  int i = 0;
+  for (;;) {
+    if (i + 1 > buf_size) {
+      if (buf == abuf) {
+	buf = new char[ABUF_SIZE*2];
+	memcpy(buf, abuf, buf_size);
+	buf_size = ABUF_SIZE*2;
+      }
+      else {
+	char *old_buf = buf;
+	buf = new char[buf_size*2];
+	memcpy(buf, old_buf, buf_size);
+	buf_size *= 2;
+	a_delete old_buf;
+      }
+    }
+    tok.next();
+    if (tok.ch() == ']' && input_stack::get_level() == start_level)
+      break;
+    if ((buf[i] = tok.ch()) == 0) {
+      error("missing delimiter (got %1)", tok.description());
+      if (buf != abuf)
+	a_delete buf;
+      return NULL_SYMBOL;
+    }
+    i++;
+  }
+  buf[i] = '\0';
+  if (buf == abuf) {
+    if (i == 0) {
+      error("empty delimited file name");
       return NULL_SYMBOL;
     }
     else
@@ -4273,6 +4384,14 @@ node *do_suppress()
 {
   tok.next();
   int c = tok.ch();
+  if (c != '[') {
+    error("argument(s) of \\O must be enclosed in brackets (got %1)",
+	  char(c));
+    return 0;
+  }
+  tok.next();
+  c = tok.ch();
+  tok.next();
   switch (c) {
   case '0':
     if (begin_level == 1)
@@ -4293,7 +4412,12 @@ node *do_suppress()
     begin_level--;
     break;
   case '5': {
-    symbol filename = get_delim_name();
+    symbol filename = get_delim_file_name();
+    tok.next();
+    if (filename.is_null()) {
+      error("missing filename as second argument to \\O");
+      return 0;
+    }
     if (begin_level == 1)
       return new suppress_node(filename, 'i');
     return 0;
@@ -6034,12 +6158,14 @@ struct string_list {
   string_list(const char *ss) : s(ss), next(0) {}
 };
 
+#if 0
 static void prepend_string(const char *s, string_list **p)
 {
   string_list *l = new string_list(s);
   l->next = *p;
   *p = l;
 }
+#endif
 
 static void add_string(const char *s, string_list **p)
 {
@@ -6095,7 +6221,6 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU troff (groff) version %s\n", Version_string);
 	exit(0);
 	break;
@@ -6346,7 +6471,9 @@ void init_input_requests()
   init_request("as", append_string);
   init_request("de", define_macro);
   init_request("dei", define_indirect_macro);
+  init_request("de1", define_nocomp_macro);
   init_request("am", append_macro);
+  init_request("am1", append_nocomp_macro);
   init_request("ig", ignore);
   init_request("rm", remove_macro);
   init_request("rn", rename_macro);
@@ -6638,7 +6765,7 @@ static struct {
 
 static int lookup_warning(const char *name)
 {
-  for (int i = 0;
+  for (unsigned int i = 0;
        i < sizeof(warning_table)/sizeof(warning_table[0]);
        i++)
     if (strcmp(name, warning_table[i].name) == 0)

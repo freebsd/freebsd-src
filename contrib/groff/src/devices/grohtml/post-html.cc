@@ -27,7 +27,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "stringclass.h"
 #include "cset.h"
 #include "html.h"
-#include "html-chars.h"
 #include "html-text.h"
 
 #include <time.h>
@@ -38,6 +37,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include <stdio.h>
 #include <fcntl.h>
+
+extern "C" const char *Version_string;
 
 #if !defined(TRUE)
 #   define TRUE  (1==1)
@@ -102,11 +103,13 @@ static int max (int a, int b)
  *  is_subsection - returns TRUE if a1..a2 is within b1..b2
  */
 
+#if 0
 static int is_subsection (int a1, int a2, int b1, int b2)
 {
   // easier to see whether this is not the case
   return( !((a1 < b1) || (a1 > b2) || (a2 < b1) || (a2 > b2)) );
 }
+#endif
 
 /*
  *  is_intersection - returns TRUE if range a1..a2 intersects with b1..b2
@@ -357,11 +360,11 @@ public:
   style           text_style;
   char           *text_string;
   unsigned int    text_length;
-  int             minv, maxv, minh, maxh;
+  int             minv, minh, maxv, maxh;
   int             is_raw_command;       // should the text be sent directly to the device?
   int             is_tag;               // is this a .br, .sp, .tl etc
-  int             is_line;              // is the command a <line>?
   int             is_img_auto;          // image created by eqn delim
+  int             is_line;              // is the command a <line>?
   int             thickness;            // the thickness of a line
 };
 
@@ -379,7 +382,7 @@ text_glob::text_glob (style *s, char *string, unsigned int length,
 }
 
 text_glob::text_glob ()
-  : text_string(0), text_length(0), minv(-1), maxv(-1), minh(-1), maxh(-1),
+  : text_string(0), text_length(0), minv(-1), minh(-1), maxv(-1), maxh(-1),
     is_raw_command(FALSE), is_tag(FALSE), is_line(FALSE), thickness(0)
 {
 }
@@ -455,7 +458,7 @@ struct element_list {
   element_list *left;
   text_glob    *datum;
   int           lineno;
-  int           minv, maxv, minh, maxh;
+  int           minv, minh, maxv, maxh;
 
   element_list  (text_glob *d,
 		 int line_number,
@@ -465,7 +468,7 @@ struct element_list {
 };
 
 element_list::element_list ()
-  : right(0), left(0), datum(0), lineno(0), minv(-1), maxv(-1), minh(-1), maxh(-1)
+  : right(0), left(0), datum(0), lineno(0), minv(-1), minh(-1), maxv(-1), maxh(-1)
 {
 }
 
@@ -2283,10 +2286,10 @@ html_printer::html_printer()
   end_tempindent(0),
   next_tag(INLINE),
   fill_on(TRUE),
+  linelength(0),
   pageoffset(0),
   indentation(0),
   prev_indent(0),
-  linelength(0),
   line_number(0)
 {
 #if defined(DEBUGGING)
@@ -2769,7 +2772,6 @@ html_printer::~html_printer()
   header.write_headings(stdout, FALSE);
   write_rule();
   {
-    extern const char *Version_string;
     html.begin_comment("Creator     : ")
        .put_string("groff ")
        .put_string("version ")
@@ -2877,12 +2879,11 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { NULL, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "o:i:F:vd?lrn", long_options, NULL))
+  while ((c = getopt_long(argc, argv, "o:i:I:D:F:vd?lrn", long_options, NULL))
 	 != EOF)
     switch(c) {
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU post-grohtml (groff) version %s\n", Version_string);
 	exit(0);
 	break;
@@ -2900,6 +2901,12 @@ int main(int argc, char **argv)
       /* handled by pre-html */
       break;
     case 'i':
+      /* handled by pre-html */
+      break;
+    case 'I':
+      /* handled by pre-html */
+      break;
+    case 'D':
       /* handled by pre-html */
       break;
     case 'n':
@@ -2928,6 +2935,6 @@ int main(int argc, char **argv)
 
 static void usage(FILE *stream)
 {
-  fprintf(stream, "usage: %s [-vld?n] [-F dir] [files ...]\n",
+  fprintf(stream, "usage: %s [-vld?n] [-D dir] [-I image_stem] [-F dir] [files ...]\n",
 	  program_name);
 }

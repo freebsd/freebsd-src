@@ -3,7 +3,8 @@
 # GNU eqn with groff -Tascii|-Tlatin1|-Tutf8|-Tcp1047 is supported.
 
 : ${GROFF_BIN_PATH=@BINDIR@}
-export PATH=$GROFF_BIN_PATH:$PATH
+PATH=$GROFF_BIN_PATH:$PATH
+export PATH
 exec @g@eqn -Tascii ${1+"$@"}
 
 # eof

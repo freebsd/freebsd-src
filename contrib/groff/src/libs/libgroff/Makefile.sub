@@ -18,6 +18,7 @@ OBJS=\
   lf.o \
   lineno.o \
   macropath.o \
+  maxfilename.o \
   nametoindex.o \
   new.o \
   prime.o \
@@ -49,6 +50,7 @@ CCSRCS=\
   $(srcdir)/lf.cc \
   $(srcdir)/lineno.cc \
   $(srcdir)/macropath.cc \
+  $(srcdir)/maxfilename.cc \
   $(srcdir)/nametoindex.cc \
   $(srcdir)/new.cc \
   $(srcdir)/prime.cc \
@@ -80,5 +82,5 @@ version.cc: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
 	@echo Making version.cc
 	@echo const char \*version_string = \"$(version)\"\; >$@
 	@echo const char \*revision_string = \"$(revision)\"\; >>$@
-	@echo const char \*Version_string = \"$(version).$(revision)\"\; | \
+	@echo extern \"C\" const char \*Version_string = \"$(version).$(revision)\"\; | \
 	  sed -e 's/\.0\"/\"/' >>$@

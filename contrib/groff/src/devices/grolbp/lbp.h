@@ -36,7 +36,7 @@ lbpinit(FILE *outfile)
 
 
 static inline void 
-lbpprintf(char *format, ... )
+lbpprintf(const char *format, ... )
 { /* Taken from cjet */
   va_list stuff;
 
@@ -46,7 +46,7 @@ lbpprintf(char *format, ... )
 };
 
 static inline void
-lbpputs(char *data)
+lbpputs(const char *data)
 {
 	fputs(data,lbpoutput);
 };
@@ -123,7 +123,7 @@ lbpruleabs(int x, int y, int hsize, int vsize)
 	fprintf(lbpoutput,"\033[9r");
 };
 
-static inline void vdmprintf(char *format, ... );
+static inline void vdmprintf(const char *format, ... );
 
 static inline char *
 vdmnum(int num,char *result)
@@ -179,7 +179,7 @@ vdmend()
 };
 
 static inline void 
-vdmprintf(char *format, ... )
+vdmprintf(const char *format, ... )
 { /* Taken from cjet */
   va_list stuff;
   

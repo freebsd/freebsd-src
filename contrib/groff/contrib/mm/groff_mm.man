@@ -1,5 +1,5 @@
 .\"
-.\" $Id: groff_mm.man,v 2.1 2001/04/13 09:03:52 wlemb Exp $
+.\" $Id: groff_mm.man,v 2.2 2001/06/27 12:47:16 wlemb Exp $
 .\"
 .de T2
 .ne 2v
@@ -1895,3 +1895,7 @@ Jörgen Hägg, Lund, Sweden <jh@axis.se>.
 .br
 .BR mm (@MAN7EXT@)
 .BR m@TMAC_M_PREFIX@mse (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

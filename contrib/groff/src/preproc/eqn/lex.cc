@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -251,7 +252,7 @@ static struct {
 
 void init_table(const char *device)
 {
-  int i;
+  unsigned int i;
   for (i = 0; i < sizeof(token_table)/sizeof(token_table[0]); i++) {
     definition *def = new definition;
     def->is_macro = 0;

@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -751,7 +752,7 @@ int font::load_desc()
   while (t.next()) {
     char *p = strtok(t.buf, WS);
     int found = 0;
-    int idx;
+    unsigned int idx;
     for (idx = 0; !found && idx < sizeof(table)/sizeof(table[0]); idx++)
       if (strcmp(table[idx].command, p) == 0)
 	found = 1;
