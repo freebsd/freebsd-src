@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.80 2003/12/31 04:19:50 kato Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.81 2004/01/21 16:02:20 ume Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -632,6 +632,9 @@
 #define	PCMCIA_CIS_PANASONIC_KXLC005	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_PANASONIC_KXLC005	0x2704
 #define	PCMCIA_STR_PANASONIC_KXLC005	"Panasonic 16X CD-ROM Interface Card"
+#define	PCMCIA_CIS_PANASONIC_KXLC005_1	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_PANASONIC_KXLC005_1	0x2904
+#define	PCMCIA_STR_PANASONIC_KXLC005_1	"Panasonic 16X CD-ROM Interface Card"
 #define	PCMCIA_CIS_PANASONIC_KME	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_PANASONIC_KME	0x2604
 #define	PCMCIA_STR_PANASONIC_KME	"Panasonic CD-R/RW Interface"
