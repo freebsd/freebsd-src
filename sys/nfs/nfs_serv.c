@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.44 1997/06/14 11:19:35 bde Exp $
+ * $Id: nfs_serv.c,v 1.45 1997/07/16 09:06:28 dfr Exp $
  */
 
 /*
@@ -2580,7 +2580,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	nqsrv_getl(vp, ND_READ);
 	if (v3) {
 		error = getret = VOP_GETATTR(vp, &at, cred, procp);
-		if (!error && toff && verf != at.va_filerev)
+		if (!error && toff && verf && verf != at.va_filerev)
 			error = NFSERR_BAD_COOKIE;
 	}
 	if (!error)
@@ -2842,7 +2842,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 		return (0);
 	}
 	error = getret = VOP_GETATTR(vp, &at, cred, procp);
-	if (!error && toff && verf != at.va_filerev)
+	if (!error && toff && verf && verf != at.va_filerev)
 		error = NFSERR_BAD_COOKIE;
 	if (!error) {
 		nqsrv_getl(vp, ND_READ);
