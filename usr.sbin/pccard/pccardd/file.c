@@ -62,6 +62,7 @@ static char *keys[] = {
 	"iosize",		/* 12 */
 	"debuglevel",		/* 13 */
 	"include",		/* 14 */
+	"function",		/* 15 */
 	0
 };
 
@@ -79,6 +80,16 @@ static char *keys[] = {
 #define KWD_IOSIZE		12
 #define KWD_DEBUGLEVEL		13
 #define KWD_INCLUDE		14
+#define KWD_FUNCTION		15
+
+/* for keyword compatibility with PAO/plain FreeBSD */
+static struct {
+	char	*alias;
+	u_int	key;
+} key_aliases[] = {
+	{"generic", KWD_FUNCTION},
+	{0, 0}
+};
 
 struct flags {
 	char   *name;
@@ -93,6 +104,7 @@ static void    error(char *);
 static int     keyword(char *);
 static int     irq_tok(int);
 static int     config_tok(unsigned char *);
+static int     func_tok(void);
 static int     debuglevel_tok(int);
 static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
@@ -101,7 +113,7 @@ static int     iosize_tok(void);
 static void    file_include(char *);
 
 static void    addcmd(struct cmd **);
-static void    parse_card(void);
+static void    parse_card(int);
 
 /*
  * Read a file and parse the pcmcia configuration data.
@@ -202,7 +214,11 @@ parsefile(void)
 			break;
 		case KWD_CARD:
 			/* Card definition. */
-			parse_card();
+			parse_card(DT_VERS);
+			break;
+		case KWD_FUNCTION:
+			/* Function definition. */
+			parse_card(DT_FUNC);
 			break;
 		case KWD_DEBUGLEVEL:
 			i = debuglevel_tok(0);
@@ -228,7 +244,7 @@ parsefile(void)
  *	Parse a card definition.
  */
 static void
-parse_card(void)
+parse_card(int deftype)
 {
 	char   *man, *vers, *tmp;
 	unsigned char index_type;
@@ -238,11 +254,25 @@ parse_card(void)
 	struct ether *ether;
 
 	confp = 0;
-	man = newstr(next_tok());
-	vers = newstr(next_tok());
 	cp = xmalloc(sizeof(*cp));
-	cp->manuf = man;
-	cp->version = vers;
+	cp->deftype = deftype;
+	switch (deftype) {
+	case DT_VERS:
+		man = newstr(next_tok());
+		vers = newstr(next_tok());
+		cp->manuf = man;
+		cp->version = vers;
+		cp->func_id = 0;
+		break;
+	case DT_FUNC:
+		cp->manuf = "";
+		cp->version = "";
+		cp->func_id = (u_char) func_tok();
+		break;
+	default:
+		fprintf(stderr, "parse_card: unknown deftype %d\n", deftype);
+		exit(1);
+	}
 	cp->reset_time = 50;
 	cp->next = 0;
 	if (!last_card) {
@@ -497,6 +527,21 @@ config_tok(unsigned char *index_type)
 	*index_type = NORMAL_INDEX;
 	return num_tok();
 }
+/*
+ *	Function ID token
+ */
+static int
+func_tok(void)
+{
+	if (strcmp("serial", next_tok()) == 0)	
+		return 2;
+	pusht = 1;
+	if (strcmp("fixed_disk", next_tok()) == 0)	
+		return 4;
+	pusht = 1;
+	return num_tok();
+}
+
 
 /*
  *	debuglevel token. Must be between 0 and 9.
@@ -548,6 +593,12 @@ keyword(char *str)
 	for (s = keys; *s; s++, i++)
 		if (strcmp(*s, str) == 0)
 			return (i);
+
+	/* search keyword aliases too */
+	for (i = 0; key_aliases[i].key ; i++)
+		if (strcmp(key_aliases[i].alias, str) == 0)
+			return (key_aliases[i].key);
+
 	return (0);
 }
 

@@ -195,6 +195,29 @@ and
 .Em remove
 commands are allowed, and they are executed in the order they
 are listed.
+.Ss "Wildcard entries"
+Following two wildcard entries of card identifiers are available
+for generic type of the cards:
+.Pp    
+.Dl generic serial
+.Dl generic fixed_disk
+.Pp 
+The keyword
+.Em serial
+matches ``Functional ID: Serial port/modem'' and
+.Em fixed_disk
+matches ``Fixed disk card''.
+The syntax is the same of
+.Em "card identifiers"
+but used ``generic'' instead of ``card'' in the first line.
+These are in the last of
+.Nm  
+because unmatched cards with the other
+.Em card
+entries can match these entries secondly.
+The alias ``function'' can be used instead of ``generic'' because of
+the historical reason.
+.Pp  
 .Sh EXAMPLE
 A typical configuration file may appear thus:
 .Bd -literal
