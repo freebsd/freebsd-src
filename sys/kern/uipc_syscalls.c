@@ -324,6 +324,7 @@ accept1(td, uap, compat)
 
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
+	so->so_state |= (head->so_state & SS_NBIO);
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 
