@@ -157,6 +157,7 @@ static SLIST_HEAD(, vn_softc) vn_list;
 static u_long	vn_options;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
+#define TESTOPT(vn,opt) (((vn)->sc_options|vn_options) & (opt))
 
 static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
 static void	vnclear (struct vn_softc *vn);
@@ -208,13 +209,22 @@ vnfindvn(dev_t dev)
 static	int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
-	int unit;
 	struct vn_softc *vn;
 
-	unit = dkunit(dev);
-	vn = dev->si_drv1;
-	if (!vn)
+	/*
+	 * Locate preexisting device
+	 */
+
+	if ((vn = dev->si_drv1) == NULL)
 		vn = vnfindvn(dev);
+
+	/*
+	 * Update si_bsize fields for device.  This data will be overriden by
+	 * the slice/parition code for vn accesses through partitions, and
+	 * used directly if you open the 'whole disk' device.
+	 */
+	dev->si_bsize_phys = vn->sc_secsize;
+	dev->si_bsize_best = vn->sc_secsize;
 
 	if (flags & FWRITE && vn->sc_flags & VNF_READONLY)
 		return (EACCES);
@@ -222,6 +232,10 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnopen(%s, 0x%x, 0x%x, %p)\n",
 		    devtoname(dev), flags, mode, (void *)p);
+
+	/*
+	 * Initialize label
+	 */
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_flags & VNF_INITED) {
@@ -241,8 +255,9 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
-		    mode != S_IFCHR)
+		    mode != S_IFCHR) {
 			return (ENXIO);
+		}
 	}
 	return(0);
 }
@@ -295,9 +310,9 @@ vnstrategy(struct buf *bp)
 			return;
 		}
 	} else {
-		int pbn;
+		int pbn;	/* in sc_secsize chunks */
 
-		pbn = bp->b_blkno * (vn->sc_secsize / DEV_BSIZE);
+		pbn = bp->b_blkno / (vn->sc_secsize / DEV_BSIZE);
 		sz = howmany(bp->b_bcount, vn->sc_secsize);
 
 		if (pbn < 0 || pbn + sz > vn->sc_size) {
@@ -356,8 +371,17 @@ vnstrategy(struct buf *bp)
 		 * OBJT_SWAP I/O
 		 *
 		 * ( handles read, write, freebuf )
+		 *
+		 * Note: if we pre-reserved swap, B_FREEBUF is disabled
 		 */
-		vm_pager_strategy(vn->sc_object, bp);
+		KASSERT((bp->b_bufsize & (vn->sc_secsize - 1)) == 0,
+		    ("vnstrategy: buffer %p to small for physio", bp));
+
+		if ((bp->b_flags & B_FREEBUF) && TESTOPT(vn, VN_RESERVE)) {
+			biodone(bp);
+		} else {
+			vm_pager_strategy(vn->sc_object, bp);
+		}
 	} else {
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EINVAL;
@@ -504,13 +528,20 @@ vniocattach_file(vn, vio, dev, flag, p)
 	VOP_UNLOCK(nd.ni_vp, 0, p);
 	vn->sc_secsize = DEV_BSIZE;
 	vn->sc_vp = nd.ni_vp;
-	vn->sc_size = vattr.va_size / vn->sc_secsize;	/* note truncation */
+
+	/*
+	 * If the size is specified, override the file attributes.  Note that
+	 * the vn_size argument is in PAGE_SIZE sized blocks.
+	 */
+	if (vio->vn_size)
+		vn->sc_size = (quad_t)vio->vn_size * PAGE_SIZE / vn->sc_secsize;
+	else
+		vn->sc_size = vattr.va_size / vn->sc_secsize;
 	error = vnsetcred(vn, p->p_ucred);
 	if (error) {
 		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
 		return(error);
 	}
-	dev->si_bsize_phys = vn->sc_secsize;
 	vn->sc_flags |= VNF_INITED;
 	if (flags == FREAD)
 		vn->sc_flags |= VNF_READONLY;
@@ -571,6 +602,13 @@ vniocattach_swap(vn, vio, dev, flag, p)
 	vn->sc_size = vio->vn_size;
 	vn->sc_object = 
 	 vm_pager_allocate(OBJT_SWAP, NULL, vn->sc_secsize * (vm_ooffset_t)vio->vn_size, VM_PROT_DEFAULT, 0);
+	IFOPT(vn, VN_RESERVE) {
+		if (swap_pager_reserve(vn->sc_object, 0, vn->sc_size) < 0) {
+			vm_pager_deallocate(vn->sc_object);
+			vn->sc_object = NULL;
+			return(EDOM);
+		}
+	}
 	vn->sc_flags |= VNF_INITED;
 
 	error = vnsetcred(vn, p->p_ucred);
