@@ -39,7 +39,7 @@ int	 crc(int, u_long *, u_long *);
 void	 cwalk(void);
 char	*flags_to_string(u_long);
 
-char	*inotype(u_int);
+const char	*inotype(u_int);
 u_int	 parsekey(char *, int *);
 char	*rlink(char *);
 NODE	*spec(void);

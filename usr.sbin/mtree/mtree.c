@@ -65,9 +65,7 @@ char fullpath[MAXPATHLEN];
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	char *dir, *p;
