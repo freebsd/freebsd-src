@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.43 1995/07/16 13:28:34 davidg Exp $
+ * $Id: swap_pager.c,v 1.44 1995/09/04 04:44:24 dyson Exp $
  */
 
 /*
@@ -728,7 +728,7 @@ swap_pager_haspage(object, offset, before, after)
 			int tix;
 			if (before) {
 				for(tix = ix - 1; tix >= 0; --tix) {
-					if ((swb->swb_block[tix] -
+					if ((swb->swb_block[tix] +
 						(ix - tix) * (PAGE_SIZE/DEV_BSIZE)) !=
 						swb->swb_block[ix])
 						break;
@@ -738,7 +738,7 @@ swap_pager_haspage(object, offset, before, after)
 
 			if (after) {
 				for(tix = ix + 1; tix < SWB_NPAGES; tix++) {
-					if ((swb->swb_block[tix] +
+					if ((swb->swb_block[tix] -
 						(tix - ix) * (PAGE_SIZE/DEV_BSIZE)) !=
 						swb->swb_block[ix])
 						break;
