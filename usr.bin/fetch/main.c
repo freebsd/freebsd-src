@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.14 1996/08/12 12:55:26 jkh Exp $ */
+/* $Id: main.c,v 1.15 1996/08/14 17:50:23 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -269,7 +269,7 @@ ftpget ()
 		    seekloc = size0 = 0;
 	    }
 	}	    
-	else
+	else if (!restart)
 	    seekloc = size0 = 0;
 
 	fp = ftpGet (ftp, file_to_get, &seekloc);
