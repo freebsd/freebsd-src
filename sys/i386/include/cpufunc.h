@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.66 1997/05/07 19:51:59 peter Exp $
+ *	$Id: cpufunc.h,v 1.67 1997/05/21 22:56:04 jdp Exp $
  */
 
 /*
@@ -419,7 +419,5 @@ void	load_cr3	__P((u_long cr3));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
-
-#include <machine/spl.h>	/* XXX belongs elsewhere */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
