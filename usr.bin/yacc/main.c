@@ -144,7 +144,7 @@ set_signals()
 
 usage()
 {
-    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n", myname);
+    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file_name] [-p symbol_prefix] filename\n", myname);
     exit(1);
 }
 
@@ -188,6 +188,15 @@ char *argv[];
 	case 'l':
 	    lflag = 1;
 	    break;
+
+	case 'o':
+	    if (*++s)
+		output_file_name = s;
+	    else if (++i < argc)
+		output_file_name = argv[i];
+	    else
+		usage();
+	    continue;
 
 	case 'p':
 	    if (*++s)
@@ -316,11 +325,13 @@ create_file_names()
 
     len = strlen(file_prefix);
 
+    if (!output_file_name) {
     output_file_name = MALLOC(len + 7);
     if (output_file_name == 0)
 	no_space();
     strcpy(output_file_name, file_prefix);
     strcpy(output_file_name + len, OUTPUT_SUFFIX);
+    }
 
     if (rflag)
     {
