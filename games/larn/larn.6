@@ -77,10 +77,11 @@ The
 .Fl o
 option specifies a different options file than
 .Pa ~/.larnopts .
+.El
 .Sh COMMANDS
 .Pp
 These are the movement commands:
-.Bl -column " print program version" " give present pack weight"
+.Bl -column "v print program version" "g give present pack weight"
 h move to the left	H run left	. stay here
 j move down	J run down	Z teleport yourself
 k move up	K run up	c cast a spell
@@ -104,8 +105,8 @@ may be used to set a few options for
 A sequence of words terminated by whitespace is used to specify options.
 .Pp
 .Bl -tag -width "savefile: xsave-file-namex" -compact
-.It Sy 	Word
-.Sy 	Meaning
+.It Sy "	Word
+.Sy "	Meaning
 .Pp
 .It bold-objects
 Select bold display of objects.
