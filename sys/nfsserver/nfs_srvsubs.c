@@ -557,8 +557,10 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		break;
 
 		case MOD_UNLOAD:
-		if (nfsrv_numnfsd != 0)
+		if (nfsrv_numnfsd != 0) {
+			NET_UNLOCK_GIANT();
 			return EBUSY;
+		}
 
 		callout_stop(&nfsrv_callout);
 		sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
