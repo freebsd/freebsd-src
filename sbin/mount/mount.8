@@ -147,14 +147,19 @@ flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
 file for the file system.
 .It Cm multilabel
-Enable Mandatory Access Control, or MAC.
-Must be used in conjunction with the
+Enable multi-label Mandatory Access Control, or MAC, on the specified file
+system.
+If the file system supports multilabel operation, individual labels will
+be maintained for each object in the file system, rather than using a
+single label for all obejcts.
+An alternative to
 .Em -l
 flag in
 .Xr tunefs 8 .
 See
 .Xr mac 4
-for more information.
+for more information, which cause the multilabel mount flag to be set
+automatically at mount-time.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
