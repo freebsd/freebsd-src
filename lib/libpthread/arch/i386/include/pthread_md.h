@@ -51,4 +51,16 @@ extern int _thr_getcontext(ucontext_t *);
 
 #define	THR_ALIGNBYTES	15
 #define	THR_ALIGN(td)	(((unsigned)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
+
+/*
+ * KSE Specific Data.
+ */
+struct ksd {
+	int	ldt;
+#define	KSDF_INITIALIZED	0x01
+	long	flags;
+	void	*base;
+	long	size;
+};
+
 #endif

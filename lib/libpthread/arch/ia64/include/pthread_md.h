@@ -35,4 +35,10 @@
 #define	THR_ALIGNBYTES	15
 #define	THR_ALIGN(td)	(((uintptr_t)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
 
+/* KSE Specific Data. */
+struct ksd {
+	void	*ksd_base;
+	int	ksd_size;
+};
+
 #endif /* _PTHREAD_MD_H_ */
