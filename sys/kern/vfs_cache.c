@@ -137,6 +137,86 @@ static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
  * Flags in namecache.nc_flag
  */
 #define NCF_WHITE	1
+
+/*
+ * Grab an atomic snapshot of the name cache hash chain lengths
+ */
+SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL, "hash table stats");
+
+static int
+sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct nchashhead *ncpp;
+	struct namecache *ncp;
+	int n_nchash;
+	int count;
+
+	n_nchash = nchash + 1;	/* nchash is max index, not count */
+	if (!req->oldptr)
+		return SYSCTL_OUT(req, 0, n_nchash * sizeof(int));
+
+	/* Scan hash tables for applicable entries */
+	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
+		count = 0;
+		LIST_FOREACH(ncp, ncpp, nc_hash) {
+			count++;
+		}
+		error = SYSCTL_OUT(req, (caddr_t)&count, sizeof(count));
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_debug_hashstat_rawnchash, "S,int", "nchash chain lengths");
+
+static int
+sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct nchashhead *ncpp;
+	struct namecache *ncp;
+	int n_nchash;
+	int count, maxlength, used, pct;
+
+	if (!req->oldptr)
+		return SYSCTL_OUT(req, 0, 4 * sizeof(int));
+
+	n_nchash = nchash + 1;	/* nchash is max index, not count */
+	used = 0;
+	maxlength = 0;
+
+	/* Scan hash tables for applicable entries */
+	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
+		count = 0;
+		LIST_FOREACH(ncp, ncpp, nc_hash) {
+			count++;
+		}
+		if (count)
+			used++;
+		if (maxlength < count)
+			maxlength = count;
+	}
+	n_nchash = nchash + 1;
+	pct = (used * 100 * 100) / n_nchash;
+	error = SYSCTL_OUT(req, (caddr_t)&n_nchash, sizeof(n_nchash));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&used, sizeof(used));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&maxlength, sizeof(maxlength));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, (caddr_t)&pct, sizeof(pct));
+	if (error)
+		return (error);
+	return (0);
+}
+SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_debug_hashstat_nchash, "I", "nchash chain lengths");
+
 /*
  * Delete an entry from its hash list and move it to the front
  * of the LRU list for immediate reuse.
