@@ -36,7 +36,7 @@
 .\"	@(#)tolower.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 3, 2002
 .Dt TOLOWER 3
 .Os
 .Sh NAME
@@ -67,10 +67,22 @@ If the argument is an upper-case letter, the
 .Fn tolower
 function returns the corresponding lower-case letter if there is
 one; otherwise the argument is returned unchanged.
+.Sh COMPATIBILITY
+Although
+.Fn tolower
+accepts arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets,
+this is a
+.Bx 4.4
+extension and the
+.Fn towlower
+function should be used instead for maximum portability.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr islower 3 ,
-.Xr multibyte 3
+.Xr multibyte 3 ,
+.Xr towlower 3
 .Sh STANDARDS
 The
 .Fn tolower
