@@ -4350,10 +4350,11 @@ static void
 xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 {
 	int	rundevq;
-	int	s;
+	int	s0, s1;
 
 	rundevq = 0;
-	s = splcam();
+	s0 = splsoftcam();
+	s1 = splcam();
 	if (dev->qfrozen_cnt > 0) {
 
 		count = (count > dev->qfrozen_cnt) ? dev->qfrozen_cnt : count;
@@ -4388,9 +4389,10 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 			}
 		}
 	}
-	splx(s);
+	splx(s1);
 	if (rundevq != 0)
 		xpt_run_dev_sendq(dev->target->bus);
+	splx(s0);
 }
 
 void
