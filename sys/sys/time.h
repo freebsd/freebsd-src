@@ -79,11 +79,9 @@ struct timezone {
 #define	DST_EET		5	/* Eastern European dst */
 #define	DST_CAN		6	/* Canada */
 
-/* start of struct bintime stuff */
-
 struct bintime {
-	time_t		sec;
-	uint64_t	frac;
+	time_t	sec;
+	uint64_t frac;
 };
 
 static __inline void
@@ -133,7 +131,6 @@ bintime_sub(struct bintime *bt, struct bintime *bt2)
  *   Even at 15:59:59.999999999 it's not four'o'clock.
  *
  *   time_second ticks after N.999999999 not after N.4999999999
- *
  */
 
 static __inline void
@@ -141,8 +138,7 @@ bintime2timespec(struct bintime *bt, struct timespec *ts)
 {
 
 	ts->tv_sec = bt->sec;
-	ts->tv_nsec =
-	    ((uint64_t)1000000000 * (uint32_t)(bt->frac >> 32)) >> 32;
+	ts->tv_nsec = ((uint64_t)1000000000 * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 static __inline void
@@ -159,8 +155,7 @@ bintime2timeval(struct bintime *bt, struct timeval *tv)
 {
 
 	tv->tv_sec = bt->sec;
-	tv->tv_usec =
-	    ((uint64_t)1000000 * (uint32_t)(bt->frac >> 32)) >> 32;
+	tv->tv_usec = ((uint64_t)1000000 * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 static __inline void
@@ -171,8 +166,6 @@ timeval2bintime(struct timeval *tv, struct bintime *bt)
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
 }
-
-/* end of struct bintime stuff */
 
 #ifdef _KERNEL
 
@@ -282,7 +275,7 @@ struct clockinfo {
 #ifdef _KERNEL
 extern time_t	time_second;
 
-/*-
+/*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
  *
  * Functions without the "get" prefix returns the best timestamp
@@ -305,27 +298,27 @@ extern time_t	time_second;
  */
 
 void	binuptime(struct bintime *bt);
-void	nanouptime(struct timespec *ts);
-void	microuptime(struct timeval *tv);
+void	nanouptime(struct timespec *tsp);
+void	microuptime(struct timeval *tvp);
 
 void	bintime(struct bintime *bt);
-void	nanotime(struct timespec *ts);
-void	microtime(struct timeval *tv);
+void	nanotime(struct timespec *tsp);
+void	microtime(struct timeval *tvp);
 
 void	getbinuptime(struct bintime *bt);
 void	getnanouptime(struct timespec *tsp);
-void	getmicrouptime(struct timeval *tv);
+void	getmicrouptime(struct timeval *tvp);
 
 void	getbintime(struct bintime *bt);
 void	getnanotime(struct timespec *tsp);
-void	getmicrotime(struct timeval *tv);
+void	getmicrotime(struct timeval *tvp);
 
-/* other prototypes */
+/* Other functions */
 int	itimerdecr(struct itimerval *itp, int usec);
 int	itimerfix(struct timeval *tv);
-void	timevaladd(struct timeval *, struct timeval *);
-void	timevalsub(struct timeval *, struct timeval *);
-int	tvtohz(struct timeval *);
+void	timevaladd(struct timeval *t1, struct timeval *t2);
+void	timevalsub(struct timeval *t1, struct timeval *t2);
+int	tvtohz(struct timeval *tv);
 #else /* !_KERNEL */
 #include <time.h>
 
