@@ -38,9 +38,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__ELF__) && defined(__alpha__)
+#ifdef __ELF__
 
 #include "opt_ddb.h"
+
+#ifdef DDB_NOKLDSYM
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -378,4 +380,6 @@ kdb_init(void)
 		X_db_sym_init(ksym_start, ksym_end, "kernel");
 }
 
-#endif
+#endif /* DDB_NOKLDSYM */
+
+#endif /* __ELF__ */

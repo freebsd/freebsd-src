@@ -186,6 +186,14 @@ options 	SYSVMSG
 options 	DDB
 
 #
+# Use direct symbol lookup routines for ddb instead of the kernel linker
+# ones, so that symbols (mostly) work before the kernel linker has been
+# initialized.  This is not the default because it breaks ddb's lookup of
+# symbols in loaded modules.
+#
+#!options 	DDB_NOKLDSYM
+
+#
 # Don't drop into DDB for a panic. Intended for unattended operation
 # where you may want to drop to DDB from the console, but still want
 # the machine to recover from a panic
