@@ -5,10 +5,12 @@
  * can do whatever you want with this stuff. If we meet some day, and you think
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
- *
- * $FreeBSD$
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <stdio.h>
 
@@ -17,6 +19,6 @@ main(int argc, char **argv)
 {
 
 	fprintf(stderr, "ERROR: vnconfig(8) has been discontinued\n");
-	fprintf(stderr, "\tPlease used mdconfig(8).\n");
+	fprintf(stderr, "\tPlease use mdconfig(8).\n");
 	exit (1);
 }
