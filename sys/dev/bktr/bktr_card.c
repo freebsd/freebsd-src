@@ -279,8 +279,10 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
-	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
-	   0x00 },				/* GPIO mask */
+	   /* Tuner, Extern, Intern, Mute, Enabled */
+	   { 0x621000, 0x621000, 0x621000, 0xE21000, 1 },	/* audio MUX values */
+	   0xfff000 },				/* GPIO mask */
+
 
 };
 
