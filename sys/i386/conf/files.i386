@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.24 1994/02/06 22:11:00 jkh Exp $
+#	$Id: files.i386,v 1.25 1994/02/07 04:27:59 alm Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -22,7 +22,6 @@ i386/isa/aha1742.c		optional	ahb	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
 i386/isa/com.c			optional	com	device-driver
-i386/isa/dcfclk.c		optional	dcfclk	device-driver
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
 i386/isa/if_ed.c		optional	ed	device-driver
