@@ -233,8 +233,8 @@ looutput(ifp, m, dst, rt)
 			goto contiguousfail;
 		}
 
-		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_len = m->m_pkthdr.len;
+		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
 		m = n;
 	}
