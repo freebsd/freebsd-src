@@ -1,3 +1,5 @@
+/*	$KAME: rrenum.c,v 1.3 2000/05/16 13:34:14 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -35,7 +37,9 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -60,14 +64,15 @@ struct rr_operation {
 	u_long	rro_segnum_bits[8];
 };
 
-static struct	rr_operation rro;
-static int	rr_rcvifindex;
-static int	rrcmd2pco[4] = {0,
-			   SIOCAIFPREFIX_IN6,
-			   SIOCCIFPREFIX_IN6,
-			   SIOCSGIFPREFIX_IN6
+static struct rr_operation rro;
+static int rr_rcvifindex;
+static int rrcmd2pco[RPM_PCO_MAX] = {
+	0,
+	SIOCAIFPREFIX_IN6,
+	SIOCCIFPREFIX_IN6,
+	SIOCSGIFPREFIX_IN6
 };
-static int	s;
+static int s = -1;
 
 /*
  * Check validity of a Prefix Control Operation(PCO).
@@ -206,6 +211,12 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 	if ((rr_pco_check(len, rpm) != NULL))
 		return 1;
 
+	if (s == -1 && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		syslog(LOG_ERR, "<%s> socket: %s", __FUNCTION__,
+		       strerror(errno));
+		exit(1);
+	}
+
 	memset(&irr, 0, sizeof(irr));
 	irr.irr_origin = PR_ORIG_RR;
 	irr.irr_m_len = rpm->rpm_matchlen;
@@ -254,12 +265,6 @@ do_rr(int len, struct icmp6_router_renum *rr)
 	/* get iflist block from kernel again, to get up-to-date information */
 	init_iflist();
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		syslog(LOG_ERR, "<%s> socket: %s", __FUNCTION__,
-		       strerror(errno));
-		exit(1);
-	}
-
 	while (cp < lim) {
 		int rpmlen;
 
@@ -268,7 +273,6 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		    tooshort:
 			syslog(LOG_ERR, "<%s> pkt too short. left len = %d. "
 			       "gabage at end of pkt?", __FUNCTION__, len);
-			close(s);
 			return 1;
 		}
 		rpmlen = rpm->rpm_len << 3;
@@ -284,7 +288,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		cp += rpmlen;
 		len -= rpmlen;
 	}
-	close(s);
+
 	return 0;
 }
 

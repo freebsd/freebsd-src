@@ -1,3 +1,5 @@
+/*	$KAME: advcap.c,v 1.3 2000/05/16 13:34:13 itojun Exp $	*/
+
 /*
  * Copyright (c) 1983 The Regents of the University of California.
  * All rights reserved.
@@ -33,10 +35,6 @@
  * $FreeBSD$
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)remcap.c	5.5 (Berkeley) 2/2/91";
-#endif /* not lint */
-
 /*
  * remcap - routines for dealing with the remote host data base
  *
@@ -66,6 +64,11 @@ static char sccsid[] = "@(#)remcap.c	5.5 (Berkeley) 2/2/91";
 #define	tgetflag	agetflag
 #define	tgetstr		agetstr
 
+#if 0
+#define V_TERMCAP	"REMOTE"
+#define V_TERM		"HOST"
+#endif
+
 char	*RM;
 
 /*
@@ -82,22 +85,22 @@ char	*RM;
  * doesn't, and because living w/o it is not hard.
  */
 
-static char	*tbuf;
-static int	hopcount;	/* detect infinite loops in termcap, init 0 */
+static	char *tbuf;
+static	int hopcount;	/* detect infinite loops in termcap, init 0 */
 
-static char	*remotefile;
+static	char *remotefile;
 
-extern char	*conffile;
+extern char *conffile;
 
-int	tgetent __P((char *, char *));
-int	getent __P((char *, char *, char *));
-int	tnchktc __P((void));
-int	tnamatch __P((char *));
-static char	*tskip __P((char *));
-int	tgetnum __P((char *));
-int	tgetflag __P((char *));
-char	*tgetstr __P((char *, char **));
-static char	*tdecode __P((char *, char **));
+int tgetent __P((char *, char *));
+int getent __P((char *, char *, char *));
+int tnchktc __P((void));
+int tnamatch __P((char *));
+static char *tskip __P((char *));
+int tgetnum __P((char *));
+int tgetflag __P((char *));
+char *tgetstr __P((char *, char **));
+static char *tdecode __P((char *, char **));
 
 /*
  * Get an entry for terminal name in buffer bp,
@@ -136,7 +139,7 @@ getent(bp, name, cp)
 		tf = open(RM = cp, O_RDONLY);
 	}
 	if (tf < 0) {
-		syslog(LOG_WARNING,
+		syslog(LOG_INFO,
 		       "<%s> open: %s", __FUNCTION__, strerror(errno));
 		return (-2);
 	}

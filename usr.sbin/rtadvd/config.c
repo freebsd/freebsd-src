@@ -1,7 +1,9 @@
+/*	$KAME: config.c,v 1.11 2000/05/16 13:34:13 itojun Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,7 +37,9 @@
 #include <sys/time.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <net/route.h>
 #include <net/if_dl.h>
 
@@ -44,6 +48,9 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
+#ifdef MIP6
+#include <netinet6/mip6.h>
+#endif
 
 #include <arpa/inet.h>
 
@@ -52,6 +59,9 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <search.h>
+#endif
 #include <unistd.h>
 
 #include "rtadvd.h"
@@ -60,11 +70,10 @@
 #include "if.h"
 #include "config.h"
 
-static void	makeentry __P((char *, int, char *, int));
-static void	make_packet __P((struct rainfo *));
-static void	get_prefix __P((struct rainfo *));
+static void makeentry __P((char *, int, char *, int));
+static void get_prefix __P((struct rainfo *));
 
-extern struct	rainfo *ralist;
+extern struct rainfo *ralist;
 
 void
 getconfig(intface)
@@ -78,8 +87,8 @@ getconfig(intface)
 	char *bp = buf;
 	char *addr;
 
-#define	MUSTHAVE(var, cap)	\
-    {									\
+#define MUSTHAVE(var, cap)	\
+    do {								\
 	int t;								\
 	if ((t = agetnum(cap)) < 0) {					\
 		fprintf(stderr, "rtadvd: need %s for interface %s\n",	\
@@ -87,12 +96,12 @@ getconfig(intface)
 		exit(1);						\
 	}								\
 	var = t;							\
-     }
-#define	MAYHAVE(var, cap, def)	\
-     {									\
+     } while (0)
+#define MAYHAVE(var, cap, def)	\
+     do {								\
 	if ((var = agetnum(cap)) < 0)					\
 		var = def;						\
-     }
+     } while (0)
 
 	if ((stat = agetent(tbuf, intface)) <= 0) {
 		memset(tbuf, 0, sizeof(tbuf));
@@ -136,7 +145,7 @@ getconfig(intface)
 	MAYHAVE(val, "maxinterval", DEF_MAXRTRADVINTERVAL);
 	if (val < MIN_MAXINTERVAL || val > MAX_MAXINTERVAL) {
 		syslog(LOG_ERR,
-		       "<%s> maxinterval must be between %d and %d",
+		       "<%s> maxinterval must be between %e and %u",
 		       __FUNCTION__, MIN_MAXINTERVAL, MAX_MAXINTERVAL);
 		exit(1);
 	}
@@ -144,7 +153,7 @@ getconfig(intface)
 	MAYHAVE(val, "mininterval", tmp->maxinterval/3);
 	if (val < MIN_MININTERVAL || val > (tmp->maxinterval * 3) / 4) {
 		syslog(LOG_ERR,
-		       "<%s> mininterval must be between %d and %d",
+		       "<%s> mininterval must be between %e and %d",
 		       __FUNCTION__,
 		       MIN_MININTERVAL,
 		       (tmp->maxinterval * 3) / 4);
@@ -158,6 +167,10 @@ getconfig(intface)
 	MAYHAVE(val, "raflags", 0);
 	tmp->managedflg= val & ND_RA_FLAG_MANAGED;
 	tmp->otherflg = val & ND_RA_FLAG_OTHER;
+#ifdef MIP6
+	if (mobileip6)
+		tmp->haflg = val & ND_RA_FLAG_HA;
+#endif
 
 	MAYHAVE(val, "rltime", tmp->maxinterval * 3);
 	if (val && (val < tmp->maxinterval || val > MAXROUTERLIFETIME)) {
@@ -186,6 +199,39 @@ getconfig(intface)
 		exit(1);
 	}
 	tmp->retranstimer = (u_int32_t)val;
+
+#ifdef MIP6
+	if (!mobileip6)
+#else
+	if (1)
+#endif
+	{
+		if (agetstr("hapref", &bp) || agetstr("hatime", &bp)) {
+			syslog(LOG_ERR,
+			       "<%s> mobile-ip6 configuration without "
+			       "proper command line option",
+			       __FUNCTION__);
+			exit(1);
+		}
+	}
+#ifdef MIP6
+	else {
+		tmp->hapref = 0;
+		if ((val = agetnum("hapref")) >= 0)
+			tmp->hapref = (int16_t)val;
+		if (tmp->hapref != 0) {
+			tmp->hatime = 0;
+			MUSTHAVE(val, "hatime");
+			tmp->hatime = (u_int16_t)val;
+			if (tmp->hatime <= 0) {
+				syslog(LOG_ERR,
+				       "<%s> home agent lifetime must be greater than 0",
+				       __FUNCTION__);
+				exit(1);
+			}
+		}
+	}
+#endif
 
 	/* prefix information */
 	if ((pfxs = agetnum("addrs")) < 0) {
@@ -216,6 +262,8 @@ getconfig(intface)
 			/* link into chain */
 			insque(pfx, &tmp->prefix);
 
+			pfx->origin = PREFIX_FROM_CONFIG;
+
 			makeentry(entbuf, i, "prefixlen", added);
 			MAYHAVE(val, entbuf, 64);
 			if (val < 0 || val > 128) {
@@ -227,10 +275,24 @@ getconfig(intface)
 			pfx->prefixlen = (int)val;
 
 			makeentry(entbuf, i, "pinfoflags", added);
-			MAYHAVE(val, entbuf,
-				(ND_OPT_PI_FLAG_ONLINK|ND_OPT_PI_FLAG_AUTO));
+#ifdef MIP6
+			if (mobileip6)
+			{
+				MAYHAVE(val, entbuf,
+				    (ND_OPT_PI_FLAG_ONLINK|ND_OPT_PI_FLAG_AUTO|
+					 ND_OPT_PI_FLAG_RTADDR));
+			} else
+#endif
+			{
+				MAYHAVE(val, entbuf,
+				    (ND_OPT_PI_FLAG_ONLINK|ND_OPT_PI_FLAG_AUTO));
+			}
 			pfx->onlinkflg = val & ND_OPT_PI_FLAG_ONLINK;
 			pfx->autoconfflg = val & ND_OPT_PI_FLAG_AUTO;
+#ifdef MIP6
+			if (mobileip6)
+				pfx->routeraddr = val & ND_OPT_PI_FLAG_RTADDR;
+#endif
 
 			makeentry(entbuf, i, "vltime", added);
 			MAYHAVE(val, entbuf, DEF_ADVVALIDLIFETIME);
@@ -380,6 +442,7 @@ get_prefix(struct rainfo *rai)
 		pp->preflifetime = DEF_ADVPREFERREDLIFETIME;
 		pp->onlinkflg = 1;
 		pp->autoconfflg = 1;
+		pp->origin = PREFIX_FROM_KERNEL;
 
 		/* link into chain */
 		insque(pp, &rai->prefix);
@@ -435,6 +498,7 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 	prefix->preflifetime = ipr->ipr_pltime;
 	prefix->onlinkflg = ipr->ipr_raf_onlink;
 	prefix->autoconfflg = ipr->ipr_raf_auto;
+	prefix->origin = PREFIX_FROM_DYNAMIC;
 
 	insque(prefix, &rai->prefix);
 
@@ -462,7 +526,7 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 /*
  * Delete a prefix to the list of specified interface and reconstruct
  * the outgoing packet.
- * The prefix must be in the list
+ * The prefix must be in the list.
  */
 void
 delete_prefix(struct rainfo *rai, struct prefix *prefix)
@@ -543,7 +607,7 @@ make_prefix(struct rainfo *rai, int ifindex, struct in6_addr *addr, int plen)
 	add_prefix(rai, &ipr);
 }
 
-static void
+void
 make_packet(struct rainfo *rainfo)
 {
 	size_t packlen, lladdroptlen = 0;
@@ -551,6 +615,10 @@ make_packet(struct rainfo *rainfo)
 	struct nd_router_advert *ra;
 	struct nd_opt_prefix_info *ndopt_pi;
 	struct nd_opt_mtu *ndopt_mtu;
+#ifdef MIP6
+	struct nd_opt_advint *ndopt_advint;
+	struct nd_opt_hai *ndopt_hai;
+#endif
 	struct prefix *pfx;
 
 	/* calculate total length */
@@ -570,6 +638,12 @@ make_packet(struct rainfo *rainfo)
 		packlen += sizeof(struct nd_opt_prefix_info) * rainfo->pfxs;
 	if (rainfo->linkmtu)
 		packlen += sizeof(struct nd_opt_mtu);
+#ifdef MIP6
+	if (mobileip6 && rainfo->maxinterval)
+		packlen += sizeof(struct nd_opt_advint);
+	if (mobileip6 && rainfo->hatime)
+		packlen += sizeof(struct nd_opt_hai);
+#endif
 
 	/* allocate memory for the packet */
 	if ((buf = malloc(packlen)) == NULL) {
@@ -595,6 +669,10 @@ make_packet(struct rainfo *rainfo)
 		rainfo->managedflg ? ND_RA_FLAG_MANAGED : 0;
 	ra->nd_ra_flags_reserved |=
 		rainfo->otherflg ? ND_RA_FLAG_OTHER : 0;
+#ifdef MIP6
+	ra->nd_ra_flags_reserved |=
+		rainfo->haflg ? ND_RA_FLAG_HA : 0;
+#endif
 	ra->nd_ra_router_lifetime = htons(rainfo->lifetime);
 	ra->nd_ra_reachable = htonl(rainfo->reachabletime);
 	ra->nd_ra_retransmit = htonl(rainfo->retranstimer);
@@ -614,6 +692,30 @@ make_packet(struct rainfo *rainfo)
 		buf += sizeof(struct nd_opt_mtu);
 	}
 
+#ifdef MIP6
+	if (mobileip6 && rainfo->maxinterval) {
+		ndopt_advint = (struct nd_opt_advint *)buf;
+		ndopt_advint->nd_opt_int_type = ND_OPT_ADV_INTERVAL;
+		ndopt_advint->nd_opt_int_len = 1;
+		ndopt_advint->nd_opt_int_reserved = 0;
+		ndopt_advint->nd_opt_int_interval = ntohl(rainfo->maxinterval *
+							  1000);
+		buf += sizeof(struct nd_opt_advint);
+	}
+#endif
+	
+#ifdef MIP6
+	if (rainfo->hatime) {
+		ndopt_hai = (struct nd_opt_hai *)buf;
+		ndopt_hai->nd_opt_hai_type = ND_OPT_HA_INFORMATION;
+		ndopt_hai->nd_opt_hai_len = 1;
+		ndopt_hai->nd_opt_hai_reserved = 0;
+		ndopt_hai->nd_opt_hai_pref = ntohs(rainfo->hapref);
+		ndopt_hai->nd_opt_hai_lifetime = ntohs(rainfo->hatime);
+		buf += sizeof(struct nd_opt_hai);
+	}
+#endif
+	
 	for (pfx = rainfo->prefix.next;
 	     pfx != &rainfo->prefix; pfx = pfx->next) {
 		ndopt_pi = (struct nd_opt_prefix_info *)buf;
@@ -627,6 +729,11 @@ make_packet(struct rainfo *rainfo)
 		if (pfx->autoconfflg)
 			ndopt_pi->nd_opt_pi_flags_reserved |=
 				ND_OPT_PI_FLAG_AUTO;
+#ifdef MIP6
+		if (pfx->routeraddr)
+			ndopt_pi->nd_opt_pi_flags_reserved |=
+				ND_OPT_PI_FLAG_RTADDR;
+#endif
 		ndopt_pi->nd_opt_pi_valid_time = ntohl(pfx->validlifetime);
 		ndopt_pi->nd_opt_pi_preferred_time =
 			ntohl(pfx->preflifetime);
