@@ -74,12 +74,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 int realstathz;
 int tickincr = 1;
 
-#ifdef SMP
-/* Callouts to handle load balancing SMP systems. */
-static struct callout kseq_lb_callout;
-static struct callout kseq_group_callout;
-#endif
-
 /*
  * These datastructures are allocated within their parent datastructure but
  * are scheduler specific.
@@ -249,12 +243,16 @@ static cpumask_t kseq_idle;
 static int ksg_maxid;
 static struct kseq	kseq_cpu[MAXCPU];
 static struct kseq_group kseq_groups[MAXCPU];
+static int bal_tick;
+static int gbal_tick;
+
 #define	KSEQ_SELF()	(&kseq_cpu[PCPU_GET(cpuid)])
 #define	KSEQ_CPU(x)	(&kseq_cpu[(x)])
 #define	KSEQ_ID(x)	((x) - kseq_cpu)
 #define	KSEQ_GROUP(x)	(&kseq_groups[(x)])
 #else	/* !SMP */
 static struct kseq	kseq_cpu;
+
 #define	KSEQ_SELF()	(&kseq_cpu)
 #define	KSEQ_CPU(x)	(&kseq_cpu)
 #endif
@@ -279,7 +277,8 @@ void kseq_print(int cpu);
 #ifdef SMP
 static int kseq_transfer(struct kseq *ksq, struct kse *ke, int class);
 static struct kse *runq_steal(struct runq *rq);
-static void sched_balance(void *arg);
+static void sched_balance(void);
+static void sched_balance_groups(void);
 static void sched_balance_group(struct kseq_group *ksg);
 static void sched_balance_pair(struct kseq *high, struct kseq *low);
 static void kseq_move(struct kseq *from, int cpu);
@@ -448,16 +447,14 @@ kseq_nice_rem(struct kseq *kseq, int nice)
  *
  */
 static void
-sched_balance(void *arg)
+sched_balance(void)
 {
 	struct kseq_group *high;
 	struct kseq_group *low;
 	struct kseq_group *ksg;
-	int timo;
 	int cnt;
 	int i;
 
-	mtx_lock_spin(&sched_lock);
 	if (smp_started == 0)
 		goto out;
 	low = high = NULL;
@@ -480,24 +477,19 @@ sched_balance(void *arg)
 		sched_balance_pair(LIST_FIRST(&high->ksg_members),
 		    LIST_FIRST(&low->ksg_members));
 out:
-	mtx_unlock_spin(&sched_lock);
-	timo = random() % (hz * 2);
-	callout_reset(&kseq_lb_callout, timo, sched_balance, NULL);
+	bal_tick = ticks + (random() % (hz * 2));
 }
 
 static void
-sched_balance_groups(void *arg)
+sched_balance_groups(void)
 {
-	int timo;
 	int i;
 
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (smp_started)
 		for (i = 0; i <= ksg_maxid; i++)
 			sched_balance_group(KSEQ_GROUP(i));
-	mtx_unlock_spin(&sched_lock);
-	timo = random() % (hz * 2);
-	callout_reset(&kseq_group_callout, timo, sched_balance_groups, NULL);
+	gbal_tick = ticks + (random() % (hz * 2));
 }
 
 static void
@@ -514,8 +506,6 @@ sched_balance_group(struct kseq_group *ksg)
 	high = NULL;
 	LIST_FOREACH(kseq, &ksg->ksg_members, ksq_siblings) {
 		load = kseq->ksq_load;
-		if (kseq == KSEQ_CPU(0))
-			load--;
 		if (high == NULL || load > high->ksq_load)
 			high = kseq;
 		if (low == NULL || load < low->ksq_load)
@@ -544,16 +534,6 @@ sched_balance_pair(struct kseq *high, struct kseq *low)
 		transferable = high->ksq_transferable;
 		high_load = high->ksq_load;
 		low_load = low->ksq_load;
-		/*
-		 * XXX If we encounter cpu 0 we must remember to reduce it's
-		 * load by 1 to reflect the swi that is running the callout.
-		 * At some point we should really fix load balancing of the
-		 * swi and then this wont matter.
-		 */
-		if (high == KSEQ_CPU(0))
-			high_load--;
-		if (low == KSEQ_CPU(0))
-			low_load--;
 	} else {
 		transferable = high->ksq_group->ksg_transferable;
 		high_load = high->ksq_group->ksg_load;
@@ -873,7 +853,7 @@ sched_setup(void *dummy)
 			ksq = &kseq_cpu[i];
 			ksg = &kseq_groups[i];
 			/*
-			 * Setup a kse group with one member.
+			 * Setup a kseq group with one member.
 			 */
 			ksq->ksq_transferable = 0;
 			ksq->ksq_group = ksg;
@@ -920,16 +900,13 @@ sched_setup(void *dummy)
 		}
 		ksg_maxid = smp_topology->ct_count - 1;
 	}
-	callout_init(&kseq_lb_callout, CALLOUT_MPSAFE);
-	callout_init(&kseq_group_callout, CALLOUT_MPSAFE);
-	sched_balance(NULL);
 	/*
 	 * Stagger the group and global load balancer so they do not
 	 * interfere with each other.
 	 */
+	bal_tick = ticks + hz;
 	if (balance_groups)
-		callout_reset(&kseq_group_callout, hz / 2,
-		    sched_balance_groups, NULL);
+		gbal_tick = ticks + (hz / 2);
 #else
 	kseq_setup(KSEQ_SELF());
 #endif
@@ -1398,6 +1375,13 @@ sched_clock(struct thread *td)
 	struct ksegrp *kg;
 	struct kse *ke;
 
+	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef SMP
+	if (ticks == bal_tick)
+		sched_balance();
+	if (ticks == gbal_tick)
+		sched_balance_groups();
+#endif
 	/*
 	 * sched_setup() apparently happens prior to stathz being set.  We
 	 * need to resolve the timers earlier in the boot so we can avoid
@@ -1417,7 +1401,6 @@ sched_clock(struct thread *td)
 	ke = td->td_kse;
 	kg = ke->ke_ksegrp;
 
-	mtx_assert(&sched_lock, MA_OWNED);
 	/* Adjust ticks for pctcpu */
 	ke->ke_ticks++;
 	ke->ke_ltick = ticks;
