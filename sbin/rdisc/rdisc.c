@@ -43,14 +43,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
-/*
- * The next include contains all defs and structures for multicast
- * that are not in SunOS 4.1.x. On a SunOS 4.1.x system none of this code
- * is ever used because it does not support multicast
- * Fraser Gardiner - Sun Microsystems Australia
- */
-
-#include "rdisc.h"
 #include <netdb.h>
 #include <arpa/inet.h>
 
@@ -95,21 +87,6 @@ static int join();
 #define ALL_ROUTERS_ADDRESS		"224.0.0.2"
 
 #define MAXIFS 32
-
-/* For router advertisement */
-struct icmp_ra {
-	u_char	icmp_type;		/* type of message, see below */
-	u_char	icmp_code;		/* type sub code */
-	u_short	icmp_cksum;		/* ones complement cksum of struct */
-	u_char	icmp_num_addrs;
-	u_char	icmp_wpa;		/* Words per address */
-	short 	icmp_lifetime;
-};
-
-struct icmp_ra_addr {
-	u_long	addr;
-	u_long preference;
-};
 
 /* Router constants */
 #define	MAX_INITIAL_ADVERT_INTERVAL	16
@@ -517,7 +494,7 @@ advertise(sin)
 	struct sockaddr_in *sin;
 {
 	static u_char outpack[MAXPACKET];
-	register struct icmp_ra *rap = (struct icmp_ra *) ALLIGN(outpack);
+	register struct icmp *rap = (struct icmp *) ALLIGN(outpack);
 	struct icmp_ra_addr *ap;
 	int packetlen, i, cc;
 
@@ -541,8 +518,8 @@ advertise(sin)
 		 * each address.)
 		 */
 		ap = (struct icmp_ra_addr *)ALLIGN(outpack + ICMP_MINLEN);
-		ap->addr = interfaces[i].localaddr.s_addr;
-		ap->preference = interfaces[i].preference;
+		ap->ira_addr = interfaces[i].localaddr.s_addr;
+		ap->ira_preference = interfaces[i].preference;
 		packetlen += rap->icmp_wpa * 4;
 		rap->icmp_num_addrs++;
 
@@ -681,7 +658,7 @@ struct sockaddr_in *from;
 	}
 	switch (icp->icmp_type) {
 	case ICMP_ROUTER_ADVERTISEMENT: {
-		struct icmp_ra *rap = (struct icmp_ra *)ALLIGN(icp);
+		struct icmp *rap = (struct icmp *)ALLIGN(icp);
 		struct icmp_ra_addr *ap;
 
 		if (responder)
@@ -736,6 +713,7 @@ struct sockaddr_in *from;
 					      rap->icmp_num_addrs * rap->icmp_wpa * 4);
 			return;
 		}
+		rap->icmp_lifetime = ntohs(rap->icmp_lifetime);
 		if (rap->icmp_lifetime < 4) {
 			if (verbose)
 				logtrace("ICMP %s from %s: Lifetime = %d\n",
@@ -758,15 +736,15 @@ struct sockaddr_in *from;
 			ap = (struct icmp_ra_addr *)
 				ALLIGN(buf + hlen + ICMP_MINLEN +
 				       i * rap->icmp_wpa * 4);
-			ina.s_addr = ntohl(ap->addr);
+			ina.s_addr = ap->ira_addr;
 			if (verbose)
 				logtrace("\taddress %s, preference 0x%x\n",
 					      pr_name(ina),
-					      ntohl(ap->preference));
+					      ntohl(ap->ira_preference));
 			if (!responder) {
 				if (is_directly_connected(ina))
 					record_router(ina,
-						      (long)ntohl(ap->preference),
+						      (long)ntohl(ap->ira_preference),
 						      rap->icmp_lifetime);
 			}
 		}
@@ -988,7 +966,7 @@ isbroadcast(sin)
 ismulticast(sin)
 	struct sockaddr_in *sin;
 {
-	return (IN_CLASSD(sin->sin_addr.s_addr));
+	return (IN_CLASSD(ntohl(sin->sin_addr.s_addr)));
 }
 
 /* From libc/rpc/pmap_rmt.c */
@@ -1114,7 +1092,7 @@ initifs()
 {
 	int	sock;
 	struct ifconf ifc;
-	struct ifreq ifreq, *ifr;
+	struct ifreq ifreq, *ifrp, *ifend;
 	struct sockaddr_in *sin;
 	int n, i;
 	char *buf;
@@ -1140,6 +1118,7 @@ initifs()
 		(void) close(sock);
 		return;
 	}
+	bzero(buf, bufsize);
 	if (interfaces)
 		interfaces = (struct interface *)ALLIGN(realloc((char *)interfaces,
 					 numifs * sizeof(struct interface)));
@@ -1162,14 +1141,18 @@ initifs()
 		(void) free(buf);
 		return;
 	}
-	ifr = ifc.ifc_req;
-	for (i = 0, n = ifc.ifc_len/sizeof (struct ifreq); n > 0; n--, ifr++) {
-		ifreq = *ifr;
+	ifrp = (struct ifreq *)buf;
+	ifend = (struct ifreq *)(buf + ifc.ifc_len);
+	for (i = 0; ifrp < ifend; ifrp = (struct ifreq *)((char *)ifrp + n)) {
+		ifreq = *ifrp;
 		if (ioctl(sock, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
 			logperror("initifs: ioctl (get interface flags)");
 			continue;
 		}
-		if (ifr->ifr_addr.sa_family != AF_INET)
+		n = ifrp->ifr_addr.sa_len + sizeof(ifrp->ifr_name);
+		if (n < sizeof(*ifrp))
+		    n = sizeof(*ifrp);
+		if (ifrp->ifr_addr.sa_family != AF_INET)
 			continue;
 		if ((ifreq.ifr_flags & IFF_UP) == 0)
 			continue;
@@ -1177,7 +1160,7 @@ initifs()
 			continue;
 		if ((ifreq.ifr_flags & (IFF_MULTICAST | IFF_BROADCAST)) == 0)
 			continue;
-		sin = (struct sockaddr_in *)ALLIGN(&ifr->ifr_addr);
+		sin = (struct sockaddr_in *)ALLIGN(&ifrp->ifr_addr);
 		interfaces[i].localaddr = sin->sin_addr;
 		interfaces[i].flags = ifreq.ifr_flags;
 		interfaces[i].netmask.s_addr = (unsigned long)0xffffffff;
@@ -1461,7 +1444,11 @@ add_route(addr)
 {
 	if (debug)
 		logdebug("Add default route to %s\n", pr_name(addr));
+#if 1
+	rtioctl(addr, RTM_ADD);
+#else
 	rtioctl(addr, SIOCADDRT);
+#endif
 }
 
 void
@@ -1470,7 +1457,11 @@ del_route(addr)
 {
 	if (debug)
 		logdebug("Delete default route to %s\n", pr_name(addr));
+#if 1
+	rtioctl(addr, RTM_DELETE);
+#else
 	rtioctl(addr, SIOCDELRT);
+#endif
 }
 
 void
@@ -1479,7 +1470,48 @@ rtioctl(addr, op)
 	int	op;
 {
 	int sock;
+#if 1
+	struct {
+		struct rt_msghdr m_rtm;
+		struct sockaddr_in m_dst;
+		struct sockaddr_in m_gateway;
+		struct sockaddr_in m_netmask;
+	} m_rtmsg;
+	static int seq = 0;
+
+	bzero(&m_rtmsg, sizeof(m_rtmsg));
+#define rtm m_rtmsg.m_rtm
+	rtm.rtm_type = op;
+	rtm.rtm_flags = RTF_GATEWAY | RTF_UP;		/* XXX more? */
+	rtm.rtm_version = RTM_VERSION;
+	rtm.rtm_seq = ++seq;
+	rtm.rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
+	bzero(&rtm.rtm_rmx, sizeof(rtm.rtm_rmx));	/* XXX ??? */
+	rtm.rtm_inits = 0;
+	rtm.rtm_msglen = sizeof(m_rtmsg);
+
+	m_rtmsg.m_dst.sin_len = m_rtmsg.m_gateway.sin_len =
+					sizeof(struct sockaddr_in);
+	m_rtmsg.m_netmask.sin_len = 0;
+	m_rtmsg.m_dst.sin_family = m_rtmsg.m_gateway.sin_family =
+		m_rtmsg.m_netmask.sin_family = AF_INET;
+	m_rtmsg.m_dst.sin_addr.s_addr = 0;		/* default */
+	m_rtmsg.m_netmask.sin_addr.s_addr = 0;		/* default */
+	m_rtmsg.m_gateway.sin_addr = addr;		/* gateway */
+
+	sock = socket(PF_ROUTE, SOCK_RAW, 0);
+	if (sock < 0) {
+		logperror("rtioctl: socket");
+		return;
+	}
+	if (write(sock, &m_rtmsg, sizeof(m_rtmsg)) != sizeof(m_rtmsg)) {
+		logperror("rtioctl: write");
+		return;
+	}
+	close(sock);
+#else
 	struct rtentry rt;
+
 	struct sockaddr_in *sin;
 	bzero((char *)&rt, sizeof(struct rtentry));
 	rt.rt_dst.sa_family = AF_INET;
@@ -1498,6 +1530,7 @@ rtioctl(addr, op)
 			logperror("ioctl (add/delete route)");
 	}
 	(void) close(sock);
+#endif
 }
 
 
@@ -1549,7 +1582,10 @@ logdebug(fmt, a,b,c,d,e,f,g,h)
 		(void) fprintf(stdout, fmt, a,b,c,d,e,f,g,h);
 }
 
+#if 0
 extern char *sys_errlist[];
+#endif
+
 extern int errno;
 
 void
