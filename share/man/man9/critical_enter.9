@@ -34,12 +34,14 @@
 .Nm critical_exit
 .Nd enter and exit a critical region
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
+.In sys/proc.h
 .In sys/systm.h
-.Ft critical_t
+.In machine/critical.h
+.Ft void
 .Fn cpu_critical_enter "void"
 .Ft void
-.Fn cpu_critical_exit "critical_t savecrit"
+.Fn cpu_critical_exit "void"
 .Ft void
 .Fn critical_enter "void"
 .Ft void
@@ -59,13 +61,6 @@ and
 .Fn cpu_critical_exit
 functions provide the machine dependent disabling of preemption, normally
 by disabling interrupts on the local CPU.
-The
-.Fn cpu_critical_enter
-function returns an opaque value of type
-.Vt critical_t .
-This value must be passed to the
-.Fn cpu_critical_exit
-function when leaving the critical region.
 .Pp
 The
 .Fn critical_enter
@@ -73,10 +68,7 @@ and
 .Fn critical_exit
 functions provide a machine independent wrapper around the machine dependent
 API.
-This wrapper currently saves state regarding nested critical sections as
-well as the
-.Vt critical_t
-value inside of a critical region in per-thread variables.
+This wrapper currently saves state regarding nested critical sections.
 Nearly all code should use these versions of the API.
 .Pp
 Note that these functions are not required to provide any inter-CPU
@@ -87,15 +79,8 @@ be used to protect shared data structures.
 .Pp
 These functions should be used with care as an infinite loop within a
 critical region will deadlock the CPU.
-Also, the machine dependent and machine independent functions should not
-be interlocked, and neither pair of functions should be interlocked with
-operations on mutexes, sx locks, semaphores, or other synchronization
-primitives.
-.Sh RETURN VALUES
-The
-.Fn cpu_critical_enter
-function returns an opaque value that must be passed to a corresponding call to
-.Fn cpu_critical_exit .
+Also, they should not be interlocked with operations on mutexes, sx locks,
+semaphores, or other synchronization primitives.
 .Sh EXAMPLES
 This example demonstrates the use of
 .Fn critical_enter
