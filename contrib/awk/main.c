@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -21,6 +21,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+ *
+ * $FreeBSD$
  */
 
 #include "awk.h"
@@ -439,8 +441,8 @@ FILE *fp;
 	fputs("\t-W traditional\t\t--traditional\n", fp);
 	fputs("\t-W usage\t\t--usage\n", fp);
 	fputs("\t-W version\t\t--version\n", fp);
-	fputs("\nReport bugs to bug-gnu-utils@prep.ai.mit.edu,\n", fp);
-	fputs("with a Cc: to arnold@gnu.ai.mit.edu\n", fp);
+	fputs("\nReport bugs to bug-gnu-utils@gnu.org,\n", fp);
+	fputs("with a Cc: to arnold@gnu.org\n", fp);
 	exit(exitval);
 }
 
@@ -450,7 +452,7 @@ static void
 copyleft()
 {
 	static char blurb_part1[] =
-"Copyright (C) 1989, 1991-1997 Free Software Foundation.\n\
+"Copyright (C) 1989, 1991-1999 Free Software Foundation.\n\
 \n\
 This program is free software; you can redistribute it and/or modify\n\
 it under the terms of the GNU General Public License as published by\n\

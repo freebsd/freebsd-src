@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -21,11 +21,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+ *
+ * $FreeBSD$
  */
 
 
 #include "awk.h"
-#include <assert.h>
 #undef HUGE
 #undef CHARBITS
 #undef INTBITS
@@ -410,6 +411,7 @@ register NODE *carg;
 	double tmpval;
 	char signchar = FALSE;
 	size_t len;
+	int zero_flag = FALSE;
 	static char sp[] = " ";
 	static char zero_string[] = "0";
 	static char lchbuf[] = "0123456789abcdef";
@@ -437,6 +439,7 @@ register NODE *carg;
 		prec = 0;
 		have_prec = FALSE;
 		signchar = FALSE;
+		zero_flag = FALSE;
 		lj = alt = big = bigbig = small = FALSE;
 		fill = sp;
 		cp = cend;
@@ -460,10 +463,9 @@ check_pos:
 			break;
 
 		case '0':
+			zero_flag = TRUE;
 			if (lj)
 				goto retry;
-			if (cur == &fw)
-				fill = zero_string;
 			/* FALL through */
 		case '1':
 		case '2':
@@ -587,6 +589,8 @@ check_pos:
 			goto retry;
 		case 'c':
 			need_format = FALSE;
+			if (zero_flag && ! lj)
+				fill = zero_string;
 			parse_next_arg();
 			/* user input that looks numeric is numeric */
 			if ((arg->flags & (MAYBE_NUM|NUMBER)) == MAYBE_NUM)
@@ -611,6 +615,8 @@ check_pos:
 			goto pr_tail;
 		case 's':
 			need_format = FALSE;
+			if (zero_flag && ! lj)
+				fill = zero_string;
 			parse_next_arg();
 			arg = force_string(arg);
 			if (! have_prec || prec > arg->stlen)
@@ -622,6 +628,14 @@ check_pos:
 			need_format = FALSE;
 			parse_next_arg();
 			tmpval = force_number(arg);
+
+			/*
+			 * ``The result of converting a zero value with a
+			 * precision of zero is no characters.''
+			 */
+			if (have_prec && prec == 0 && tmpval == 0)
+				goto pr_tail;
+
 			if (tmpval < 0) {
 				if (tmpval < LONG_MIN)
 					goto out_of_range;
@@ -639,17 +653,28 @@ check_pos:
 				*--cp = (char) ('0' + uval % 10);
 				uval /= 10;
 			} while (uval > 0);
+
+			/* add more output digits to match the precision */
+			if (have_prec) {
+				while (cend - cp < prec)
+					*--cp = '0';
+			}
+
 			if (sgn)
 				*--cp = '-';
 			else if (signchar)
 				*--cp = signchar;
 			/*
-			 * precision overrides '0' flags. however, for
-			 * integer formats, precsion is minimum number of
-			 * *digits*, not characters, thus we want to fill
-			 * with zeroes.
+			 * When to fill with zeroes is of course not simple.
+			 * First: No zero fill if left-justifying.
+			 * Next: There seem to be two cases:
+			 * 	A '0' without a precision, e.g. %06d
+			 * 	A precision with no field width, e.g. %.10d
+			 * Any other case, we don't want to fill with zeroes.
 			 */
-			if (have_prec)
+			if (! lj
+			    && ((zero_flag && ! have_prec)
+				 || (fw == 0 && have_prec)))
 				fill = zero_string;
 			if (prec > fw)
 				fw = prec;
@@ -673,6 +698,22 @@ check_pos:
 			need_format = FALSE;
 			parse_next_arg();
 			tmpval = force_number(arg);
+
+			/*
+			 * ``The result of converting a zero value with a
+			 * precision of zero is no characters.''
+			 *
+			 * If I remember the ANSI C standard, though,
+			 * it says that for octal conversions
+			 * the precision is artificially increased
+			 * to add an extra 0 if # is supplied.
+			 * Indeed, in C,
+			 * 	printf("%#.0o\n", 0);
+			 * prints a single 0.
+			 */
+			if (! alt && have_prec && prec == 0 && tmpval == 0)
+				goto pr_tail;
+
 			if (tmpval < 0) {
 				if (tmpval < LONG_MIN)
 					goto out_of_range;
@@ -685,18 +726,29 @@ check_pos:
 				uval = (unsigned long) tmpval;
 			}
 			/*
-			 * precision overrides '0' flags. however, for
-			 * integer formats, precsion is minimum number of
-			 * *digits*, not characters, thus we want to fill
-			 * with zeroes.
+			 * When to fill with zeroes is of course not simple.
+			 * First: No zero fill if left-justifying.
+			 * Next: There seem to be two cases:
+			 * 	A '0' without a precision, e.g. %06d
+			 * 	A precision with no field width, e.g. %.10d
+			 * Any other case, we don't want to fill with zeroes.
 			 */
-			if (have_prec)
+			if (! lj
+			    && ((zero_flag && ! have_prec)
+				 || (fw == 0 && have_prec)))
 				fill = zero_string;
 			do {
 				*--cp = chbuf[uval % base];
 				uval /= base;
 			} while (uval > 0);
-			if (alt) {
+
+			/* add more output digits to match the precision */
+			if (have_prec) {
+				while (cend - cp < prec)
+					*--cp = '0';
+			}
+
+			if (alt && tmpval != 0) {
 				if (base == 16) {
 					*--cp = cs1;
 					*--cp = '0';
@@ -755,7 +807,7 @@ check_pos:
 				*cp++ = signchar;
 			if (alt)
 				*cp++ = '#';
-			if (fill != sp)
+			if (zero_flag)
 				*cp++ = '0';
 			cp = strcpy(cp, "*.*") + 3;
 			*cp++ = cs1;
@@ -1084,6 +1136,7 @@ register NODE *tree;
 	register FILE *fp;
 	int numnodes, i;
 	NODE *save;
+	NODE *tval;
 
 	if (tree->rnode) {
 		int errflg;		/* not used, sigh */
@@ -1117,25 +1170,29 @@ register NODE *tree;
 		t[i] = dupnode(n);
 		free_temp(n);
 
-		if (t[i]->flags & NUMBER) {
+		if ((t[i]->flags & (NUMBER|STRING)) == NUMBER) {
 			if (OFMTidx == CONVFMTidx)
 				(void) force_string(t[i]);
-			else
-				t[i] = format_val(OFMT, OFMTidx, t[i]);
+			else {
+				tval = tmp_number(t[i]->numbr);
+				unref(t[i]);
+				t[i] = format_val(OFMT, OFMTidx, tval);
+			}
 		}
 	}
 
 	for (i = 0; i < numnodes; i++) {
 		efwrite(t[i]->stptr, sizeof(char), t[i]->stlen, fp, "print", rp, FALSE);
 		unref(t[i]);
-		if (i != numnodes - 1) {
-			if (OFSlen > 0)
-				efwrite(OFS, sizeof(char), (size_t) OFSlen,
-					fp, "print", rp, FALSE);
-		}
+
+		if (i != numnodes - 1 && OFSlen > 0)
+			efwrite(OFS, sizeof(char), (size_t) OFSlen,
+				fp, "print", rp, FALSE);
+
 	}
 	if (ORSlen > 0)
 		efwrite(ORS, sizeof(char), (size_t) ORSlen, fp, "print", rp, TRUE);
+
 	free(t);
 }
 
@@ -1512,6 +1569,7 @@ int how_many, backdigs;
 			 */
 			if (lastmatchnonzero && matchstart == matchend) {
 				lastmatchnonzero = FALSE;
+				matches--;
 				goto empty;
 			}
 			/*
@@ -2022,6 +2080,7 @@ size_t len;
 			case 'c':
 			case 'd':
 			case 'e':
+			case 'f':
 				val = *str - 'a' + 10;
 				break;
 			case 'A':
@@ -2029,6 +2088,7 @@ size_t len;
 			case 'C':
 			case 'D':
 			case 'E':
+			case 'F':
 				val = *str - 'A' + 10;
 				break;
 			default:
@@ -2039,11 +2099,12 @@ size_t len;
 	} else if (*str == '0') {
 		for (; len > 0; len--) {
 			if (! isdigit(*str) || *str == '8' || *str == '9')
-				goto done;
+				goto decimal;
 			retval = (retval * 8) + (*str - '0');
 			str++;
 		}
 	} else {
+decimal:
 		save = str[len];
 		retval = atof(str);
 		str[len] = save;
