@@ -40,18 +40,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#include <errno.h>
+
 int
 gethostname(name, namelen)
 	char *name;
-	int namelen;
+	size_t namelen;
 {
 	int mib[2];
-	size_t size;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_HOSTNAME;
-	size = namelen;
-	if (sysctl(mib, 2, name, &size, NULL, 0) == -1)
+	if (sysctl(mib, 2, name, &namelen, NULL, 0) == -1) {
+		if (errno == ENOMEM)
+			errno = ENAMETOOLONG;
 		return (-1);
+	}
 	return (0);
 }
