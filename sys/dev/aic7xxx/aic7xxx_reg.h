@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.11 1996/05/21 18:32:23 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.12 1996/06/09 17:29:12 gibbs Exp $
  */
 
 /*
@@ -407,8 +407,7 @@
 #define			SEND_REJECT	0x11	/* sending a message reject */
 #define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
 #define			NO_MATCH	0x31	/* no cmd match for reconnect */
-#define			SDTR_MSG	0x41	/* SDTR message received */
-#define			WDTR_MSG	0x51	/* WDTR message received */
+#define			EXTENDED_MSG	0x41	/* Extended message received */
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
@@ -527,10 +526,9 @@
  */
 #define SCBARRAY		0x0a0
 #define	SCB_CONTROL		0x0a0
-#define		NEEDWDTR        0x80
+#define		MK_MESSAGE      0x80
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
-#define		NEEDSDTR	0x10
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
 #define	SCB_TCL			0x0a1
@@ -682,10 +680,8 @@
  */
 #define LASTPHASE		0x03d
 #define ARG_1			0x03e
-#define		MAXOFFSET	0x01
 #define RETURN_1		0x03f
-#define		SEND_WDTR	0x80
-#define		SEND_SDTR	0x60
+#define		SEND_MSG	0x80
 #define		SEND_SENSE	0x40
 #define		SEND_REJ	0x20
 #define		SCB_PAGEDIN	0x10
@@ -747,6 +743,19 @@
 #define ULTRA_ENB		0x052
 #define ULTRA_ENB_B		0x053
 
+#define MSGIN_EXT_LEN		0x054
+#define MSGIN_EXT_OPCODE	0x055
+#define MSGIN_EXT_BYTE0		0x056
+#define MSGIN_EXT_BYTE1		0x057
+#define	MSGIN_EXT_LASTBYTE	0x058	/*
+					 * We don't use this location, but
+					 * continue to store bytes until
+					 * we reach this address (avoids
+					 * a more complicated compare).
+					 * So, we can store at most 2
+					 * bytes for now.
+					 */
+
 #define SCSICONF		0x05a
 #define		RESET_SCSI	0x40
 
@@ -756,23 +765,6 @@
 #define BIOSMODE		0x30
 #define BIOSDISABLED		0x30
 #define CHANNEL_B_PRIMARY	0x08
-
-/* Message codes */
-#define MSG_EXTENDED		0x01
-#define		MSG_SDTR	0x01
-#define		MSG_WDTR	0x03
-#define MSG_SDPTRS		0x02
-#define MSG_RDPTRS		0x03
-#define MSG_DISCONNECT		0x04
-#define MSG_INITIATOR_DET_ERROR	0x05
-#define MSG_ABORT		0x06
-#define	MSG_REJECT		0x07
-#define MSG_NOP			0x08
-#define MSG_MSG_PARITY_ERROR	0x09
-#define MSG_BUS_DEVICE_RESET	0x0c
-#define MSG_ABORT_TAG		0x0d
-#define MSG_SIMPLE_TAG		0x20
-#define MSG_IDENTIFY		0x80
 
 /* WDTR Message values */
 #define	BUS_8_BIT		0x00
