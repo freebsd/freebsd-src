@@ -14,12 +14,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.42 1994/11/15 14:47:49 bde Exp $
+ *      $Id: sd.c,v 1.43 1994/12/03 22:52:57 phk Exp $
  */
 
 #define SPLSD splbio
 #define ESUCCESS 0
-#include <sd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -106,7 +105,12 @@ struct sd_data {
 	struct buf buf_queue;
 	u_int32 xfer_block_wait;
 	int dkunit;		/* disk stats unit number */
-}      *sd_data[NSD];
+};
+
+struct sd_driver {
+	u_int32		size;
+	struct sd_data	**sd_data;
+} sd_driver;
 
 static u_int32 next_sd_unit = 0;
 
@@ -124,7 +128,8 @@ static int
 sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
 	       size_t len)
 {
-	return scsi_externalize(sd_data[kdc->kdc_unit]->sc_link, userp, &len);
+	return scsi_externalize(sd_driver.sd_data[kdc->kdc_unit]->sc_link,
+				userp, &len);
 }
 
 static struct kern_devconf kdc_sd_template = {
@@ -150,9 +155,9 @@ sd_registerdev(int unit)
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "sd%d", unit);
 		dk_wpms[dk_ndrive] = (8*1024*1024/2);
-		sd_data[unit]->dkunit = dk_ndrive++;
+		sd_driver.sd_data[unit]->dkunit = dk_ndrive++;
 	} else {
-		sd_data[unit]->dkunit = -1;
+		sd_driver.sd_data[unit]->dkunit = -1;
 	}
 }
 
@@ -166,26 +171,54 @@ sdattach(sc_link)
 	struct scsi_link *sc_link;
 {
 	u_int32 unit;
-	struct sd_data *sd;
+	struct sd_data *sd, **sdrealloc;
 	struct disk_parms *dp;
 
-	unit = next_sd_unit++;
 	SC_DEBUG(sc_link, SDEV_DB2, ("sdattach: "));
+
 	/*
-	 * Check we have the resources for another drive
+	 * allocate the resources for another drive
+	 * if we have already allocate a sd_data pointer we must
+	 * copy the old pointers into a new region that is
+	 * larger and release the old region, aka realloc
 	 */
-	if (unit >= NSD) {
-		printf("Too many scsi disks..(%ld > %d) reconfigure kernel\n",
-			(unit + 1), NSD);
-		return 0;
+	/* XXX
+	 * This if will always be true for now, but future code may
+	 * preallocate more units to reduce overhead.  This would be
+	 * done by changing the malloc to be (next_sd_unit * x) and
+	 * the sd_driver.size++ to be +x
+	 */
+	unit = next_sd_unit++;
+	if (unit >= sd_driver.size) {
+		sdrealloc =
+			malloc(sizeof(sd_driver.sd_data) * next_sd_unit,
+			M_DEVBUF, M_NOWAIT);
+		if (!sdrealloc) {
+			printf("sd%ld: malloc failed for sdrealloc\n", unit);
+			return (0);
+		}
+		/* Make sure we have something to copy before we copy it */
+		bzero(sdrealloc, sizeof(sd_driver.sd_data) * next_sd_unit);
+		if (sd_driver.size) {
+			bcopy(sd_driver.sd_data, sdrealloc,
+				sizeof(sd_driver.sd_data) * sd_driver.size);
+			free(sd_driver.sd_data, M_DEVBUF);
+		}
+		sd_driver.sd_data = sdrealloc;
+		sd_driver.sd_data[unit] = NULL;
+		sd_driver.size++;
 	}
-	if (sd_data[unit]) {
-		printf("sd%ld: unit already has storage allocated!\n", unit);
-		return 0;
+	if (sd_driver.sd_data[unit]) {
+		printf("sd%ld: Already has storage!\n", unit);
+		return (0);
 	}
-	sd = sd_data[unit] = malloc(sizeof(struct sd_data), M_DEVBUF, M_NOWAIT);
+	/*
+	 * alloate the per drive data area
+	 */
+	sd = sd_driver.sd_data[unit] =
+		malloc(sizeof(struct sd_data), M_DEVBUF, M_NOWAIT);
 	if (!sd) {
-		printf("malloc failed in sd.c\n");
+		printf("sd%ld: malloc failed for sd_data\n", unit);
 		return (0);
 	}
 	bzero(sd, sizeof(struct sd_data));
@@ -231,7 +264,7 @@ sdattach(sc_link)
 	    dp->secsiz);
 	sd->flags |= SDINIT;
 	sd_registerdev(unit);
-	return 0;
+	return (1);
 }
 
 /*
@@ -248,13 +281,13 @@ sdopen(dev)
 
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd = sd_data[unit];
 	/*
 	 * Check the unit is legal
 	 */
-	if (unit >= NSD) {
+	if (unit >= sd_driver.size) {
 		return (ENXIO);
 	}
+	sd = sd_driver.sd_data[unit];
 	/*
 	 * Make sure the disk has been initialised
 	 * At some point in the future, get the scsi driver
@@ -266,8 +299,8 @@ sdopen(dev)
 	sc_link = sd->sc_link;
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("sdopen: dev=0x%x (unit %d (of %d),partition %d)\n"
-		,dev, unit, NSD, part));
+	    ("sdopen: dev=0x%x (unit %d (of %d),partition %d)\n",
+		dev, unit, sd_driver.size, part));
 
 	/*
 	 * "unit attention" errors should occur here if the 
@@ -375,7 +408,7 @@ sdclose(dev)
 
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd = sd_data[unit];
+	sd = sd_driver.sd_data[unit];
 	sd->partflags[part] &= ~SDOPEN;
 	sd->openparts &= ~(1 << part);
 	scsi_prevent(sd->sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
@@ -395,7 +428,7 @@ void
 sdminphys(bp)
 	struct buf *bp;
 {
-	(*(sd_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
+	(*(sd_driver.sd_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
 }
 
 /*
@@ -414,7 +447,7 @@ sdstrategy(bp)
 
 	sdstrats++;
 	unit = UNIT((bp->b_dev));
-	sd = sd_data[unit];
+	sd = sd_driver.sd_data[unit];
 	SC_DEBUG(sd->sc_link, SDEV_DB2, ("sdstrategy "));
 	SC_DEBUG(sd->sc_link, SDEV_DB1,
 	    (" %d bytes @ blk%d\n", bp->b_bcount, bp->b_blkno));
@@ -531,7 +564,7 @@ void
 sdstart(unit)
 	u_int32 unit;
 {
-	register struct sd_data *sd = sd_data[unit];
+	register struct sd_data *sd = sd_driver.sd_data[unit];
 	register struct	scsi_link *sc_link = sd->sc_link;
 	struct buf *bp = 0;
 	struct buf *dp;
@@ -645,7 +678,7 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	 */
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd = sd_data[unit];
+	sd = sd_driver.sd_data[unit];
 	SC_DEBUG(sd->sc_link, SDEV_DB1, ("sdioctl (0x%x)", cmd));
 
 	/*
@@ -755,7 +788,7 @@ errval
 sdgetdisklabel(unsigned char unit)
 {
 	char   *errstring;
-	struct sd_data *sd = sd_data[unit];
+	struct sd_data *sd = sd_driver.sd_data[unit];
 	dev_t dev;
 
 	dev = makedev(0, (unit << UNITSHIFT) + RAWPART);
@@ -821,6 +854,7 @@ sd_size(unit, flags)
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
 	u_int32 size;
+	struct sd_data *sd = sd_driver.sd_data[unit];
 
 	/*
 	 * make up a scsi command and ask the scsi driver to do
@@ -833,7 +867,7 @@ sd_size(unit, flags)
 	 * If the command works, interpret the result as a 4 byte
 	 * number of blocks
 	 */
-	if (scsi_scsi_cmd(sd_data[unit]->sc_link,
+	if (scsi_scsi_cmd(sd->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		(u_char *) & rdcap,
@@ -862,6 +896,7 @@ sd_reassign_blocks(unit, block)
 {
 	struct scsi_reassign_blocks scsi_cmd;
 	struct scsi_reassign_blocks_data rbdata;
+	struct sd_data *sd = sd_driver.sd_data[unit];
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	bzero(&rbdata, sizeof(rbdata));
@@ -874,7 +909,7 @@ sd_reassign_blocks(unit, block)
 	rbdata.defect_descriptor[0].dlbaddr_1 = ((block >> 8) & 0xff);
 	rbdata.defect_descriptor[0].dlbaddr_0 = ((block) & 0xff);
 
-	return (scsi_scsi_cmd(sd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(sd->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		(u_char *) & rbdata,
@@ -895,7 +930,7 @@ errval
 sd_get_parms(unit, flags)
 	int	unit, flags;
 {
-	struct sd_data *sd = sd_data[unit];
+	struct sd_data *sd = sd_driver.sd_data[unit];
 	struct disk_parms *disk_parms = &sd->params;
 	struct scsi_mode_sense scsi_cmd;
 	struct scsi_mode_sense_data {
@@ -992,10 +1027,10 @@ sdsize(dev_t dev)
 	u_int32 unit = UNIT(dev), part = PARTITION(dev), val;
 	struct sd_data *sd;
 
-	if (unit >= NSD)
+	if (unit >= sd_driver.size)
 		return -1;
 
-	sd = sd_data[unit];
+	sd = sd_driver.sd_data[unit];
 	if (!sd)
 		return -1;
 	if ((sd->flags & SDINIT) == 0)
@@ -1044,10 +1079,10 @@ sddump(dev_t dev)
 	unit = UNIT(dev);	/* eventually support floppies? */
 	part = PARTITION(dev);	/* file system */
 	/* check for acceptable drive number */
-	if (unit >= NSD)
+	if (unit >= sd_driver.size)
 		return (ENXIO);
 
-	sd = sd_data[unit];
+	sd = sd_driver.sd_data[unit];
 	if (!sd)
 		return (ENXIO);
 	/* was it ever initialized etc. ? */
