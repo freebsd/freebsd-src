@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.189 1995/05/29 02:12:50 phk Exp $
+#	$Id: Makefile,v 1.190 1995/05/29 02:20:32 phk Exp $
 #
 # How to roll a release:
 #
@@ -366,7 +366,6 @@ release.9:
 	mkdir ${RD}/rootfd
 	cd ${RD}/rootfd && \
 		mkdir stand stand/info
-	ln -f ${RD}/kernels/GENERIC ${RD}/rootfd/kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
