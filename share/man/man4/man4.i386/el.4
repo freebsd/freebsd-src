@@ -21,7 +21,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: el.4,v 1.5 1997/02/22 13:25:20 peter Exp $
 .\"
 .Dd July 10, 1995
 .Dt EL 4 i386
@@ -37,11 +37,11 @@ The
 interface provides support for the 3Com 3c501 8bit ISA ethernet card.
 The 3c501 card is known to be quite slow, and a different ethernet card
 should be used if possible.
-However, they allows inexpensive access to 10 Mb/s Ethernet networks.
+However, they allow inexpensive access to 10 Mb/s Ethernet networks.
 .Pp
 The valid I/O ports are in the range 0x280-0x3f0.
 .Sh BUGS
-The driver assumes the card is configured for the same IRQ the kernel is.
+The driver assumes the card is configured for the same IRQ as the kernel.
 No probing or checking is done to determine if this is the case.
 .Pp
 Does not currently support DMA.
