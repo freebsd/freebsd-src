@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_nfs.h"
 
 #include <sys/param.h>
@@ -42,6 +43,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -131,6 +133,11 @@ osf1_statfs(td, uap)
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	if (error)
+		return (error);
+#endif
 	if ((error = VFS_STATFS(mp, sp, td)))
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
@@ -153,6 +160,13 @@ osf1_fstatfs(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)))
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	if (error) {
+		fdrop(fp, td);
+		return (error);
+	}
+#endif
 	sp = &mp->mnt_stat;
 	error = VFS_STATFS(mp, sp, td);
 	fdrop(fp, td);
@@ -183,6 +197,11 @@ osf1_getfsstat(td, uap)
 	for (count = 0, mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		if (osf_sfsp && count < maxcount) {
+#ifdef MAC
+			error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+			if (error)
+				continue;
+#endif
 			sp = &mp->mnt_stat;
 			/*
 			 * If OSF1_MNT_NOWAIT is specified, do not refresh the
