@@ -1080,8 +1080,7 @@ printf("%s: unimplemented message: %d\n", device_get_nameunit(sc->sc_dev), sc->s
 			 * singly linked list.
 			 */
 			lunit = sc->sc_imess[0] & 0x07;
-			for (ecb = TAILQ_FIRST(&sc->nexus_list); ecb;
-			     ecb = TAILQ_NEXT(ecb, chain)) {
+			TAILQ_FOREACH(ecb, &sc->nexus_list, chain) {
 				sc_link = ecb->xs->sc_link;
 				if (sc_link->lun == lunit &&
 				    sc->sc_selid == (1<<sc_link->target)) {

@@ -341,11 +341,9 @@ scsi_low_timeout(arg)
 	{
 		struct targ_info *ti;
 
-		for (ti = TAILQ_FIRST(&slp->sl_titab); ti != NULL;
-		     ti = TAILQ_NEXT(ti, ti_chain))
+		TAILQ_FOREACH(ti, &slp->sl_titab, ti_chain)
 		{
-			for (cb = TAILQ_FIRST(&ti->ti_discq); cb != NULL;
-			     cb = TAILQ_NEXT(cb, ccb_chain))
+			TAILQ_FOREACH(cb, &ti->ti_discq, ccb_chain)
 			{
 				cb->ccb_tc -= SCSI_LOW_TIMEOUT_CHECK_INTERVAL;
 				if (cb->ccb_tc < 0)
@@ -930,8 +928,7 @@ scsi_low_start(slp)
 	}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
-	for (cb = TAILQ_FIRST(&slp->sl_start); cb != NULL;
-	     cb = TAILQ_NEXT(cb, ccb_chain))
+	TAILQ_FOREACH(cb, &slp->sl_start, ccb_chain)
 	{
 		ti = cb->ti;
 		li = cb->li;
@@ -1347,8 +1344,7 @@ scsi_low_reset_nexus(slp, fdone)
 	}
 
 	/* disconnected nexus */
-	for (ti = TAILQ_FIRST(&slp->sl_titab); ti != NULL;
-	     ti = TAILQ_NEXT(ti, ti_chain))
+	TAILQ_FOREACH(ti, &slp->sl_titab, ti_chain)
 	{
 		for (cb = TAILQ_FIRST(&ti->ti_discq); cb != NULL; cb = ncb)
 		{
@@ -1363,8 +1359,7 @@ scsi_low_reset_nexus(slp, fdone)
 			}
 		}
 
-		for (li = LIST_FIRST(&ti->ti_litab); li != NULL;
-		     li = LIST_NEXT(li, lun_chain))
+		LIST_FOREACH(li, &ti->ti_litab, lun_chain)
 		{
 			li->li_state = UNIT_SLEEP;
 			li->li_disc = 0;
@@ -2496,8 +2491,7 @@ scsi_low_info(slp, ti, s)
 	printf("%s: SCSI_LOW: %s\n", slp->sl_xname, s);
 	if (ti == NULL)
 	{
-		for (ti = TAILQ_FIRST(&slp->sl_titab); ti != NULL;
-		     ti = TAILQ_NEXT(ti, ti_chain))
+		TAILQ_FOREACH(ti, &slp->sl_titab, ti_chain)
 			scsi_low_print(slp, ti);
 	}
 	else

@@ -861,8 +861,7 @@ pagedep_lookup(ip, lbn, flags, pagedeppp)
 	mp = ITOV(ip)->v_mount;
 	pagedephd = PAGEDEP_HASH(mp, ip->i_number, lbn);
 top:
-	for (pagedep = LIST_FIRST(pagedephd); pagedep;
-	     pagedep = LIST_NEXT(pagedep, pd_hash))
+	LIST_FOREACH(pagedep, pagedephd, pd_hash)
 		if (ip->i_number == pagedep->pd_ino &&
 		    lbn == pagedep->pd_lbn &&
 		    mp == pagedep->pd_mnt)
@@ -930,8 +929,7 @@ inodedep_lookup(fs, inum, flags, inodedeppp)
 	firsttry = 1;
 	inodedephd = INODEDEP_HASH(fs, inum);
 top:
-	for (inodedep = LIST_FIRST(inodedephd); inodedep;
-	     inodedep = LIST_NEXT(inodedep, id_hash))
+	LIST_FOREACH(inodedep, inodedephd, id_hash)
 		if (inum == inodedep->id_ino && fs == inodedep->id_fs)
 			break;
 	if (inodedep) {
@@ -1003,8 +1001,7 @@ newblk_lookup(fs, newblkno, flags, newblkpp)
 
 	newblkhd = NEWBLK_HASH(fs, newblkno);
 top:
-	for (newblk = LIST_FIRST(newblkhd); newblk;
-	     newblk = LIST_NEXT(newblk, nb_hash))
+	LIST_FOREACH(newblk, newblkhd, nb_hash)
 		if (newblkno == newblk->nb_newblkno && fs == newblk->nb_fs)
 			break;
 	if (newblk) {
@@ -1336,8 +1333,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 		FREE_LOCK(&lk);
 		return;
 	}
-	for (oldadp = TAILQ_FIRST(adphead); oldadp;
-	     oldadp = TAILQ_NEXT(oldadp, ad_next)) {
+	TAILQ_FOREACH(oldadp, adphead, ad_next) {
 		if (oldadp->ad_lbn >= lbn)
 			break;
 	}
@@ -1569,8 +1565,7 @@ setup_allocindir_phase2(bp, ip, aip)
 		panic("setup_allocindir_phase2: not indir blk");
 	for (indirdep = NULL, newindirdep = NULL; ; ) {
 		ACQUIRE_LOCK(&lk);
-		for (wk = LIST_FIRST(&bp->b_dep); wk;
-		     wk = LIST_NEXT(wk, wk_list)) {
+		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			if (wk->wk_type != D_INDIRDEP)
 				continue;
 			indirdep = WK_INDIRDEP(wk);
@@ -1861,8 +1856,7 @@ deallocate_dependencies(bp, inodedep)
 			 * If the inode has already been written, then they 
 			 * can be dumped directly onto the work list.
 			 */
-			for (dirrem = LIST_FIRST(&pagedep->pd_dirremhd); dirrem;
-			     dirrem = LIST_NEXT(dirrem, dm_next)) {
+			LIST_FOREACH(dirrem, &pagedep->pd_dirremhd, dm_next) {
 				LIST_REMOVE(dirrem, dm_next);
 				dirrem->dm_dirinum = pagedep->pd_ino;
 				if (inodedep == NULL ||
@@ -2964,8 +2958,7 @@ initiate_write_filepage(pagedep, bp)
 	pagedep->pd_state |= IOSTARTED;
 	ACQUIRE_LOCK(&lk);
 	for (i = 0; i < DAHASHSZ; i++) {
-		for (dap = LIST_FIRST(&pagedep->pd_diraddhd[i]); dap;
-		     dap = LIST_NEXT(dap, da_pdlist)) {
+		LIST_FOREACH(dap, &pagedep->pd_diraddhd[i], da_pdlist) {
 			ep = (struct direct *)
 			    ((char *)bp->b_data + dap->da_offset);
 			if (ep->d_ino != dap->da_newinum)
@@ -3270,8 +3263,7 @@ handle_allocdirect_partdone(adp)
 	 */
 	inodedep = adp->ad_inodedep;
 	bsize = inodedep->id_fs->fs_bsize;
-	for (listadp = TAILQ_FIRST(&inodedep->id_inoupdt); listadp;
-	     listadp = TAILQ_NEXT(listadp, ad_next)) {
+	TAILQ_FOREACH(listadp, &inodedep->id_inoupdt, ad_next) {
 		/* found our block */
 		if (listadp == adp)
 			break;
@@ -3290,8 +3282,7 @@ handle_allocdirect_partdone(adp)
 	 */
 	if (listadp == NULL) {
 #ifdef DEBUG
-		for (listadp = TAILQ_FIRST(&inodedep->id_newinoupdt); listadp;
-		     listadp = TAILQ_NEXT(listadp, ad_next))
+		TAILQ_FOREACH(listadp, &inodedep->id_newinoupdt, ad_next)
 			/* found our block */
 			if (listadp == adp)
 				break;
@@ -4005,8 +3996,7 @@ loop:
 	 * As we hold the buffer locked, none of its dependencies
 	 * will disappear.
 	 */
-	for (wk = LIST_FIRST(&bp->b_dep); wk;
-	     wk = LIST_NEXT(wk, wk_list)) {
+	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
 
 		case D_ALLOCDIRECT:
@@ -4226,8 +4216,7 @@ flush_inodedep_deps(fs, ino)
 		ACQUIRE_LOCK(&lk);
 		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
 			return (0);
-		for (adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
-		     adp = TAILQ_NEXT(adp, ad_next)) {
+		TAILQ_FOREACH(adp, &inodedep->id_inoupdt, ad_next) {
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
 			bp = adp->ad_buf;
@@ -4248,8 +4237,7 @@ flush_inodedep_deps(fs, ino)
 		}
 		if (adp != NULL)
 			continue;
-		for (adp = TAILQ_FIRST(&inodedep->id_newinoupdt); adp;
-		     adp = TAILQ_NEXT(adp, ad_next)) {
+		TAILQ_FOREACH(adp, &inodedep->id_newinoupdt, ad_next) {
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
 			bp = adp->ad_buf;
@@ -4545,8 +4533,7 @@ clear_remove(p)
 		pagedephd = &pagedep_hashtbl[next++];
 		if (next >= pagedep_hash)
 			next = 0;
-		for (pagedep = LIST_FIRST(pagedephd); pagedep;
-		     pagedep = LIST_NEXT(pagedep, pd_hash)) {
+		LIST_FOREACH(pagedep, pagedephd, pd_hash) {
 			if (LIST_FIRST(&pagedep->pd_dirremhd) == NULL)
 				continue;
 			mp = pagedep->pd_mnt;

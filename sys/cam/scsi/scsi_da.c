@@ -1568,8 +1568,7 @@ dashutdown(void * arg, int howto)
 	struct cam_periph *periph;
 	struct da_softc *softc;
 
-	for (periph = TAILQ_FIRST(&dadriver.units); periph != NULL;
-	     periph = TAILQ_NEXT(periph, unit_links)) {
+	TAILQ_FOREACH(periph, &dadriver.units, unit_links) {
 		union ccb ccb;
 		softc = (struct da_softc *)periph->softc;
 

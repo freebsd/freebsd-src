@@ -791,8 +791,7 @@ awi_init(sc)
 #ifdef __FreeBSD__
 	if (ifp->if_amcount != 0)
 		goto set_mib;
-	for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma != NULL;
-	    ifma = LIST_NEXT(ifma, ifma_link)) {
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (n == AWI_GROUP_ADDR_SIZE)
@@ -1939,8 +1938,7 @@ awi_recv_beacon(sc, m0, rxts, rssi)
 		return;
 	}
 
-	for (bp = TAILQ_FIRST(&sc->sc_scan); bp != NULL;
-	    bp = TAILQ_NEXT(bp, list)) {
+	TAILQ_FOREACH(bp, &sc->sc_scan, list) {
 		if (memcmp(bp->esrc, wh->i_addr2, ETHER_ADDR_LEN) == 0 &&
 		    memcmp(bp->bssid, wh->i_addr3, ETHER_ADDR_LEN) == 0)
 			break;
@@ -2182,8 +2180,7 @@ awi_recv_auth(sc, m0)
 	if (status != 0) {
 		printf("%s: authentication failed (reason %d)\n",
 		    sc->sc_dev.dv_xname, status);
-		for (bp = TAILQ_FIRST(&sc->sc_scan); bp != NULL;
-		    bp = TAILQ_NEXT(bp, list)) {
+		TAILQ_FOREACH(bp, &sc->sc_scan, list) {
 			if (memcmp(bp->esrc, sc->sc_bss.esrc, ETHER_ADDR_LEN)
 			    == 0) {
 				bp->fails++;
@@ -2294,8 +2291,7 @@ awi_recv_asresp(sc, m0)
 	if (status != 0) {
 		printf("%s: association failed (reason %d)\n",
 		    sc->sc_dev.dv_xname, status);
-		for (bp = TAILQ_FIRST(&sc->sc_scan); bp != NULL;
-		    bp = TAILQ_NEXT(bp, list)) {
+		TAILQ_FOREACH(bp, &sc->sc_scan, list) {
 			if (memcmp(bp->esrc, sc->sc_bss.esrc, ETHER_ADDR_LEN)
 			    == 0) {
 				bp->fails++;

@@ -80,8 +80,7 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 	if (devstat_num_devs == 1)
 		STAILQ_INSERT_TAIL(devstat_head, ds, dev_links);
 	else {
-		for (ds_tmp = STAILQ_FIRST(devstat_head); ds_tmp != NULL;
-		     ds_tmp = STAILQ_NEXT(ds_tmp, dev_links)) {
+		STAILQ_FOREACH(ds_tmp, devstat_head, dev_links) {
 			struct devstat *ds_next;
 
 			ds_next = STAILQ_NEXT(ds_tmp, dev_links);

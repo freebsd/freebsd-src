@@ -331,8 +331,7 @@ vfs_register(struct vfsconf *vfc)
 	 * preserved by re-registering the oid after modifying its
 	 * number.
 	 */
-	for (oidp = SLIST_FIRST(&sysctl__vfs_children); oidp;
-	     oidp = SLIST_NEXT(oidp, oid_link))
+	SLIST_FOREACH(oidp, &sysctl__vfs_children, oid_link)
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
 			oidp->oid_number = vfc->vfc_typenum;

@@ -2135,8 +2135,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 
 				jobref = fuword(&iocb->_aiocb_private.kernelinfo);
 
-				for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb;
-				    cb = TAILQ_NEXT(cb, plist)) {
+				TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
 					    == jobref) {
 						if (cb->uaiocb.aio_lio_opcode
@@ -2157,8 +2156,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 				}
 
 				s = splbio();
-				for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb;
-				    cb = TAILQ_NEXT(cb, plist)) {
+				TAILQ_FOREACH(cb, &ki->kaio_bufdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
 					    == jobref) {
 						found++;
