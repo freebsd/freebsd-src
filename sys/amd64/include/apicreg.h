@@ -33,10 +33,10 @@
  */
 
 /*
- * Pentium P54C+ Build-in APIC
+ * Pentium P54C+ Built-in APIC
  * (Advanced programmable Interrupt Controller)
  * 
- * Base Address of Build-in APIC in memory location
+ * Base Address of Built-in APIC in memory location
  * is 0xfee00000.
  * 
  * Map of APIC REgisters:
@@ -292,7 +292,7 @@ typedef struct IOAPIC ioapic_t;
 
 /* fields in ICR_HIGH */
 #define APIC_ID_MASK		0xff000000
-
+#define	APIC_ID_SHIFT		24
 
 /* fields in LVT1/2 */
 #define APIC_LVT_VECTOR		0x000000ff
