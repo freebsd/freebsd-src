@@ -57,31 +57,7 @@
  */
 #define PTE_NOCACHE	0
 #define PTE_CACHE	1
- 
-#define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDR_SHIFT)+((pti)<<PAGE_SHIFT)))
-#define PTDIPDE(ptd)	((ptd)/1024)
-#define PTDIPTE(ptd)	((ptd)%256)
-
-#ifndef	NKPT
-#define NKPT		120	/* actual number of kernel page tables */
-#endif
-
-#ifndef NKPDE
-#define NKPDE		1019	/* Maximum number of kernel PDE */ 
-#endif
-
-#define NPDEPTD		16	/* Number of PDE in each PTD */
-
-/*
- * The *PTDI values control the layout of virtual memory
- */
- 
-#define KPTDI		(NPDEPG-NKPDE)	/* ptd entry for kernel space begin */
-#define PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
-#define KPTPTDI		(PTDPTDI-1)	/* ptd entry for kernel PTEs */
-#define UPTPTDI		(KPTPTDI-3)	/* ptd entry for uspace PTEs */
-#define UMAXPTDI	(UPTPTDI-1)	/* ptd entry for user space end */
-#define UMAXPTEOFF	(NPTEPG)	/* pte entry for user space end */
+#define PTE_PAGETABLE	2
  
 #ifndef LOCORE
 
@@ -99,7 +75,7 @@
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 /*
- * Pmap sutff
+ * Pmap stuff
  */
 
 /*
@@ -175,6 +151,7 @@ typedef struct pmap *pmap_t;
 #ifdef _KERNEL
 extern pmap_t	kernel_pmap;
 #define pmap_kernel() kernel_pmap
+
 #endif
 
 
@@ -191,20 +168,6 @@ typedef struct pv_entry {
 } *pv_entry_t;
 
 #define PV_ENTRY_NULL   ((pv_entry_t) 0)
-
-#define PV_CI           0x01    /* all entries must be cache inhibited */
-#define PV_PTPAGE       0x02    /* entry maps a page table page */
-
-/*
- * Page hooks.
- * For speed we store the both the virtual address and the page table
- * entry address for each page hook.
- */
-typedef struct {
-        vm_offset_t va;
-        pt_entry_t *pte;
-} pagehook_t;
- 
 
 #ifdef _KERNEL
 
@@ -496,11 +459,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	pmap_pte_v(pte)		l2pte_valid(*(pte))
 #define	pmap_pte_pa(pte)	l2pte_pa(*(pte))
 
-/* Size of the kernel part of the L1 page table */
-#define KERNEL_PD_SIZE	\
-	(L1_TABLE_SIZE - (KERNEL_BASE >> L1_S_SHIFT) * sizeof(pd_entry_t))
-#define PTE_PAGETABLE	2
-
 /*
  * Flags that indicate attributes of pages or mappings of pages.
  *
@@ -542,6 +500,9 @@ const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
 
 void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
 void	pmap_devmap_register(const struct pmap_devmap *);
+
+extern char *_tmppt;
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
