@@ -232,11 +232,13 @@ pr_family(af)
 #ifndef INET6
 #define	WID_DST(af) 	18	/* width of destination column */
 #define	WID_GW(af)	18	/* width of gateway column */
+#define	WID_IF(af)	6	/* width of netif column */
 #else
 #define	WID_DST(af) \
 	((af) == AF_INET6 ? (lflag ? 39 : (nflag ? 33: 18)) : 18)
 #define	WID_GW(af) \
 	((af) == AF_INET6 ? (lflag ? 31 : (nflag ? 29 : 18)) : 18)
+#define	WID_IF(af)	((af) == AF_INET6 ? 8 : 6)
 #endif /*INET6*/
 
 /*
@@ -250,10 +252,17 @@ pr_rthdr(af)
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	if (af == AF_INET || lflag)
-		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
-			WID_DST(af), WID_DST(af), "Destination",
-			WID_GW(af), WID_GW(af), "Gateway",
-			"Flags", "Refs", "Use", "Netif", "Expire");
+		if (lflag)
+			printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s %5.5s %*.*s %6s\n",
+				WID_DST(af), WID_DST(af), "Destination",
+				WID_GW(af), WID_GW(af), "Gateway",
+				"Flags", "Refs", "Use", "Mtu",
+				WID_IF(af), WID_IF(af), "Netif", "Expire");
+		else
+			printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
+				WID_DST(af), WID_DST(af), "Destination",
+				WID_GW(af), WID_GW(af), "Gateway",
+				"Flags", "Refs", "Use", "Netif", "Expire");
 	else
 		printf("%-*.*s %-*.*s %-6.6s  %8.8s %6s\n",
 			WID_DST(af), WID_DST(af), "Destination",
