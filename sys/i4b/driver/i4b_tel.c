@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jul  9 08:35:30 1999]
+ *	last edit-date: [Sat Aug 28 22:28:25 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -297,11 +297,24 @@ i4btelattach()
 			tel_sc[i][j].audiofmt = CVT_NONE;
 			tel_sc[i][j].rcvttab = 0;
 			tel_sc[i][j].wcvttab = 0;
-			tel_sc[i][j].result = 0;			
-			tel_init_linktab(i);
-		  	make_dev(&i4btel_cdevsw, i,
-				UID_ROOT, GID_WHEEL, 0600, "i4btel%d", i);
+			tel_sc[i][j].result = 0;
+
+			switch(j)
+			{
+				case FUNCTEL:	/* normal i4btel device */
+				  	make_dev(&i4btel_cdevsw, i,
+						UID_ROOT, GID_WHEEL,
+						0600, "i4btel%d", i);
+					break;
+				
+				case FUNCDIAL:	/* i4bteld dialout device */
+				  	make_dev(&i4btel_cdevsw, i+(1<<UNITBITS),
+						UID_ROOT, GID_WHEEL,
+						0600, "i4bteld%d", i);
+					break;
+			}
 		}
+		tel_init_linktab(i);		
 	}
 }
 
