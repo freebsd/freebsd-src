@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -682,7 +681,8 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 		/* seek to required offset */
 		if (offset)
-			if (_ftp_cmd(conn, "REST %ju", (uintmax_t)offset) != FTP_FILE_OK)
+			if (_ftp_cmd(conn, "REST %llu",
+			    (unsigned long long)offset) != FTP_FILE_OK)
 				goto sysouch;
 
 		/* make the server initiate the transfer */
