@@ -75,7 +75,7 @@ struct	fpstate {
 	u_long	fp_fprs;
 };
 
-void	fp_init_pcb(struct pcb *);
+void	fp_init_proc(struct pcb *);
 int	fp_enable_proc(struct proc *);
 /*
  * Note: The pointers passed to the next two functions must be aligned on
