@@ -168,6 +168,7 @@ contigmalloc1(
 	for (pass = 0; pass <= 1; pass++) {
 		s = splvm();
 		vm_page_lock_queues();
+		mtx_lock_spin(&vm_page_queue_free_mtx);
 again:
 		/*
 		 * Find first page in array that is free, within range,
@@ -188,6 +189,7 @@ again:
 		 */
 		if ((i == cnt.v_page_count) ||
 			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
+			mtx_unlock_spin(&vm_page_queue_free_mtx);
 again1:
 			if (vm_contig_launder(PQ_INACTIVE))
 				goto again1;
@@ -224,7 +226,9 @@ again1:
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
 			}
-			mtx_lock_spin(&vm_page_queue_free_mtx);
+		}
+		for (i = start; i < (start + size / PAGE_SIZE); i++) {
+			vm_page_t m = &pga[i];
 			vm_pageq_remove_nowakeup(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			if (m->flags & PG_ZERO)
@@ -236,8 +240,8 @@ again1:
 			m->wire_count = 0;
 			m->busy = 0;
 			m->object = NULL;
-			mtx_unlock_spin(&vm_page_queue_free_mtx);
 		}
+		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		vm_page_unlock_queues();
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
