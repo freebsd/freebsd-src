@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.34 1996/04/03 13:52:20 phk Exp $
+ *	$Id: ip_output.c,v 1.35 1996/04/18 15:49:06 wollman Exp $
  */
 
 #define _IP_VHL
@@ -413,7 +413,7 @@ sendit:
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
 		if (mhip->ip_vhl == IP_VHL_BORING) {
-			mhip->ip_sum = in_cksum_hdr(ip);
+			mhip->ip_sum = in_cksum_hdr(mhip);
 		} else {
 			mhip->ip_sum = in_cksum(m, mhlen);
 		}
