@@ -243,10 +243,10 @@ as an option.
 This practice is wrong, and should not be used in any current development.
 It is provided for backward compatibility
 .Em only .
-The following code fragment works in most cases.
+The following code fragment works in most (but not all) cases.
 .Bd -literal -offset indent
 int length;
-char *p;
+char *p, *ep;
 
 while ((ch = getopt(argc, argv, "0123456789")) != -1)
 	switch (ch) {
@@ -254,9 +254,16 @@ while ((ch = getopt(argc, argv, "0123456789")) != -1)
 	case '5': case '6': case '7': case '8': case '9':
 		p = argv[optind - 1];
 		if (p[0] == '-' && p[1] == ch && !p[2])
-			length = atoi(++p);
-		else
-			length = atoi(argv[optind] + 1);
+			length = strtol(++p, &ep, 10);
+		else if (argv[optind] && argv[optind][1] == ch) {
+			length = strtol((p = argv[optind] + 1),
+			    &ep, 10);
+			optind++;
+			optreset = 1;
+		} else
+			usage();
+		if (*ep != '\0')
+			errx(EX_USAGE, "illegal number -- %s", p);
 		break;
 	}
 .Ed
