@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.19 1999/05/12 08:33:22 kato Exp $
+ *	$Id: diskslice_machdep.c,v 1.20 1999/06/26 02:47:15 mckusick Exp $
  */
 
 /*
@@ -325,7 +325,6 @@ reread_mbr:
 		/* IBM-PC HDD */
 		bp->b_flags = B_INVAL | B_AGE;
 		brelse(bp);
-		free(ssp, M_DEVBUF);
 		return atcompat_dsinit(dname, dev, strat, lp, sspp);
 	}
 #endif
