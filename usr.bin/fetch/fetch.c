@@ -61,6 +61,7 @@ char	*f_filename;	/*    -f: file to fetch */
 char	*h_hostname;	/*    -h: host to fetch from */
 int	 l_flag;	/*    -l: link rather than copy file: URLs */
 int	 m_flag;	/* -[Mm]: mirror mode */
+char	*N_filename;	/*    -N: netrc file name */
 int	 n_flag;	/*    -n: do not preserve modification time */
 int	 o_flag;	/*    -o: specify output file */
 int	 o_directory;	/*        output file is a directory */
@@ -120,6 +121,44 @@ struct xferstat {
 };
 
 /*
+ * Compute and display ETA
+ */
+static void
+stat_eta(struct xferstat *xs)
+{
+	long elapsed;
+	long remaining;
+
+	elapsed = xs->last.tv_sec - xs->start.tv_sec;
+	remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
+	if (remaining > 3600) {
+		fprintf(stderr, "%02ld:", remaining / 3600);
+		remaining %= 3600;
+	}
+	fprintf(stderr, "%02ld:%02ld",
+	    remaining / 60, remaining % 60);
+}
+
+/*
+ * Compute and display transfer rate
+ */
+static void
+stat_bps(struct xferstat *xs)
+{
+	long elapsed;
+	double bps;
+
+	elapsed = xs->last.tv_sec - xs->start.tv_sec;
+	bps = (xs->rcvd - xs->offset) / elapsed;
+	if (bps > 1024*1024)
+		fprintf(stderr, "%.2f MBps", bps / (1024*1024));
+	else if (bps > 1024)
+		fprintf(stderr, "%.2f kBps", bps / 1024);
+	else
+		fprintf(stderr, "%.2f Bps", bps);
+}
+
+/*
  * Update the stats display
  */
 static void
@@ -151,16 +190,13 @@ stat_display(struct xferstat *xs, int force)
 		    (int)((100.0 * xs->rcvd) / xs->size));
 		elapsed = xs->last.tv_sec - xs->start.tv_sec;
 		if (elapsed > 30 && xs->rcvd > 0) {
-			long remaining;
-
-			remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
 			fprintf(stderr, " (ETA ");
-			if (remaining > 3600) {
-				fprintf(stderr, "%02ld:", remaining / 3600);
-				remaining %= 3600;
+			stat_eta(xs);
+			if (v_level > 1) {
+				fprintf(stderr, " at ");
+				stat_bps(xs);
 			}
-			fprintf(stderr, "%02ld:%02ld)  ",
-			    remaining / 60, remaining % 60);
+			fprintf(stderr, ")  ");
 		}
 	}
 }
@@ -198,7 +234,6 @@ static void
 stat_end(struct xferstat *xs)
 {
 	double delta;
-	double bps;
 
 	if (!v_level)
 		return;
@@ -209,15 +244,10 @@ stat_end(struct xferstat *xs)
 	fputc('\n', stderr);
 	delta = (xs->end.tv_sec + (xs->end.tv_usec / 1.e6))
 	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
-	fprintf(stderr, "%lld bytes transferred in %.1f seconds ",
+	fprintf(stderr, "%lld bytes transferred in %.1f seconds (",
 	    (long long)(xs->rcvd - xs->offset), delta);
-	bps = (xs->rcvd - xs->offset) / delta;
-	if (bps > 1024*1024)
-		fprintf(stderr, "(%.2f MBps)\n", bps / (1024*1024));
-	else if (bps > 1024)
-		fprintf(stderr, "(%.2f kBps)\n", bps / 1024);
-	else
-		fprintf(stderr, "(%.2f Bps)\n", bps);
+	stat_bps(xs);
+	fprintf(stderr, ")\n");
 }
 
 /*
@@ -285,6 +315,16 @@ fetch(char *URL, const char *path)
 	f = of = NULL;
 	tmppath = NULL;
 
+	timeout = 0;
+	*flags = 0;
+	count = 0;
+
+	/* set verbosity level */
+	if (v_level > 1)
+		strcat(flags, "v");
+	if (v_level > 2)
+		fetchDebug = 1;
+
 	/* parse URL */
 	if ((url = fetchParseURL(URL)) == NULL) {
 		warnx("%s: parse error", URL);
@@ -301,15 +341,7 @@ fetch(char *URL, const char *path)
 			strcpy(url->scheme, SCHEME_HTTP);
 	}
 
-	timeout = 0;
-	*flags = 0;
-	count = 0;
-
 	/* common flags */
-	if (v_level > 1)
-		strcat(flags, "v");
-	if (v_level > 2)
-		fetchDebug = 1;
 	switch (family) {
 	case PF_INET:
 		strcat(flags, "4");
@@ -489,7 +521,7 @@ fetch(char *URL, const char *path)
 		 * remote files didn't match.
 		 */
 
-		if (url->offset != 0) {
+		if (url->offset > 0) {
 			/*
 			 * We tried to restart a transfer, but for
 			 * some reason gave up - so we have to restart
@@ -654,8 +686,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]",
-	    "             [-B bytes] [-T seconds] [-w seconds]",
+	    "usage: fetch [-146AFMPRUadlmnpqrsv] [-N netrc] [-o outputfile]",
+	    "             [-S bytes] [-B bytes] [-T seconds] [-w seconds]",
 	    "             [-h host -f file [-c dir] | URL ...]");
 }
 
@@ -673,7 +705,7 @@ main(int argc, char *argv[])
 	int c, e, r;
 
 	while ((c = getopt(argc, argv,
-	    "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != -1)
+	    "146AaB:bc:dFf:Hh:lMmN:nPpo:qRrS:sT:tUvw:")) != -1)
 		switch (c) {
 		case '1':
 			once_flag = 1;
@@ -731,6 +763,9 @@ main(int argc, char *argv[])
 				errx(1, "the -m and -r flags "
 				    "are mutually exclusive");
 			m_flag = 1;
+			break;
+		case 'N':
+			N_filename = optarg;
 			break;
 		case 'n':
 			n_flag = 1;
@@ -866,6 +901,8 @@ main(int argc, char *argv[])
 	/* authentication */
 	if (v_tty)
 		fetchAuthMethod = query_auth;
+	if (N_filename != NULL)
+		setenv("NETRC", N_filename, 1);
 
 	while (argc) {
 		if ((p = strrchr(*argv, '/')) == NULL)
