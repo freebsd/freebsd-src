@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: ftp_var.h,v 1.4 1997/06/25 08:56:41 msmith Exp $ */
 /*	$NetBSD: ftp_var.h,v 1.16 1997/04/14 09:09:23 lukem Exp $	*/
 
 /*
@@ -58,7 +58,7 @@
 #define	FTP_PORT	21	/* default if getservbyname("ftp/tcp") fails */
 #define	HTTP_PORT	80	/* default if getservbyname("http/tcp") fails */
 
-#define PAGER		"less"	/* default pager if $PAGER isn't set */
+#define PAGER		"more"	/* default pager if $PAGER isn't set */
 
 /*
  * Options and other state info.
