@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.142 1999/07/16 22:03:26 jkh Exp $
+ * $Id: dist.c,v 1.143 1999/07/19 11:58:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -140,6 +140,7 @@ static Distribution XF86DistTable[] = {
 
 /* The XFree86 server distribution */
 static Distribution XF86ServerDistTable[] = {
+#ifdef __i386__
 { "PC98-Servers/X9480",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9480,	NULL		},
 { "PC98-Servers/X9EGC",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9EGC,	NULL		},
 { "PC98-Servers/X9GA9",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GA9,	NULL		},
@@ -154,6 +155,7 @@ static Distribution XF86ServerDistTable[] = {
 { "PC98-Servers/X9WEP",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WEP,	NULL		},
 { "PC98-Servers/X9WS",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WS,	NULL		},
 { "PC98-Servers/X9WSN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WSN,	NULL		},
+#endif
 { "Servers/X3DL",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_3DL,	NULL		},
 { "Servers/X8514",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
 { "Servers/XAGX",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
@@ -168,6 +170,9 @@ static Distribution XF86ServerDistTable[] = {
 { "Servers/XSVGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
 { "Servers/XVG16",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
 { "Servers/XW32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+#ifdef __alpha__
+{ "Servers/XTGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_TGA,	NULL		},
+#endif
 { NULL },
 };
 

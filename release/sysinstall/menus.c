@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.213 1999/07/20 07:39:21 jkh Exp $
+ * $Id: menus.c,v 1.214 1999/07/20 07:50:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1040,8 +1040,13 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3V },
       { "W32",		"8-bit ET4000/W32, /W32i and /W32p cards",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
+#ifdef __i386__
       { "PC98",		"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
+#elif __alpha__
+      { "TGA",		"TGA cards (alpha architecture only)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_TGA },
+#endif
       { "All",		"Select all of the above",
 	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above",
