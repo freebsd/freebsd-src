@@ -157,7 +157,7 @@ clone_up()
 	_list=
 	for ifn in ${cloned_interfaces}; do
 		ifconfig ${ifn} create
-		if $? ; then
+		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
 		fi
@@ -174,7 +174,7 @@ clone_down()
 	_list=
 	for ifn in ${cloned_interfaces}; do
 		ifconfig ${ifn} destroy
-		if $? ; then
+		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
 		fi
