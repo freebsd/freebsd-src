@@ -23,9 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.7 1998/11/07 06:18:00 jkh Exp $
+ *	$Id: interp_forth.c,v 1.8 1998/12/22 11:41:51 abial Exp $
  */
 
+#include <string.h>
 #include <stand.h>
 #include "bootstrap.h"
 #include "ficl.h"
@@ -62,7 +63,7 @@ bf_command(FICL_VM *vm)
     name = vm->runningWord->name;
     
     /* Find our command structure */
-    cmd == NULL;
+    cmd = NULL;
     SET_FOREACH(cmdp, Xcommand_set) {
 	if (((*cmdp)->c_name != NULL) && !strcmp(name, (*cmdp)->c_name))
 	    cmd = (*cmdp)->c_fn;
