@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.6 1995/05/30 08:15:49 rgrimes Exp $
+ * $Id: kern_lock.c,v 1.7 1995/07/13 08:48:12 davidg Exp $
  */
 
 /*
@@ -89,8 +89,13 @@ lock_init(l, can_sleep)
 	lock_t l;
 	boolean_t can_sleep;
 {
-	bzero(l, sizeof(*l));
+	l->want_write = 0;
+	l->want_upgrade = 0;
+	l->waiting = 0;
 	l->can_sleep = can_sleep;
+	l->read_count = 0;
+	l->proc = NULL;
+	l->recursion_depth = 0;
 }
 
 void
