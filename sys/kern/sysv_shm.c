@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.36 1998/05/04 03:01:37 dyson Exp $ */
+/*	$Id: sysv_shm.c,v 1.37 1998/05/04 17:12:47 dyson Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -503,8 +503,8 @@ shmget_allocate_segment(p, uap, mode)
 	shm_handle->shm_object =
 		vm_pager_allocate(OBJT_SWAP, 0, OFF_TO_IDX(size),
 			VM_PROT_DEFAULT, 0);
-	shm_handle->shm_object->flags &= ~OBJ_ONEMAPPING;
-	shm_handle->shm_object->flags |= OBJ_NOSPLIT;
+	vm_object_clear_flag(shm_handle->shm_object, OBJ_ONEMAPPING);
+	vm_object_set_flag(shm_handle->shm_object, OBJ_NOSPLIT);
 
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;

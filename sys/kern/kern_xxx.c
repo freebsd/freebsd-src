@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.26 1997/11/06 19:29:18 phk Exp $
+ * $Id: kern_xxx.c,v 1.27 1997/12/16 17:40:21 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -60,10 +60,11 @@ ogethostname(p, uap)
 	struct gethostname_args *uap;
 {
 	int name[2];
+	size_t len = uap->len;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(p, name, 2, uap->hostname, &uap->len, 
+	return (userland_sysctl(p, name, 2, uap->hostname, &len, 
 		1, 0, 0, 0));
 }
 
@@ -149,7 +150,8 @@ uname(p, uap)
 	struct proc *p;
 	struct uname_args *uap;
 {
-	int name[2], len, rtval;
+	int name[2], rtval;
+	size_t len;
 	char *s, *us;
 
 	name[0] = CTL_KERN;
@@ -197,6 +199,7 @@ uname(p, uap)
 	if( rtval)
 		return rtval;
 
+	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
 	rtval = userland_sysctl(p, name, 2, uap->name->machine, &len, 

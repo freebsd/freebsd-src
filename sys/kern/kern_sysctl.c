@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.73 1997/11/06 19:29:15 phk Exp $
+ * $Id: kern_sysctl.c,v 1.74 1997/12/16 17:40:20 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -514,6 +514,60 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 }
 
 /*
+ * Handle an integer, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_long SYSCTL_HANDLER_ARGS
+{
+	int error = 0;
+
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(long));
+	else
+		error = SYSCTL_OUT(req, &arg2, sizeof(long));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(long));
+	return (error);
+}
+
+/*
+ * Handle an integer, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_intptr SYSCTL_HANDLER_ARGS
+{
+	int error = 0;
+
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(intptr_t));
+	else
+		error = SYSCTL_OUT(req, &arg2, sizeof(intptr_t));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(intptr_t));
+	return (error);
+}
+
+/*
  * Handle our generic '\0' terminated 'C' string.
  * Two cases:
  * 	a variable string:  point arg1 at it, arg2 is max length.
@@ -566,12 +620,14 @@ sysctl_handle_opaque SYSCTL_HANDLER_ARGS
  * XXX: rather untested at this point
  */
 static int
-sysctl_old_kernel(struct sysctl_req *req, const void *p, int l)
+sysctl_old_kernel(struct sysctl_req *req, const void *p, size_t l)
 {
-	int i = 0;
+	size_t i = 0;
 
 	if (req->oldptr) {
-		i = min(req->oldlen - req->oldidx, l);
+		i = l;
+		if (i > req->oldlen - req->oldidx)
+			i = req->oldlen - req->oldidx;
 		if (i > 0)
 			bcopy(p, (char *)req->oldptr + req->oldidx, i);
 	}
@@ -582,7 +638,7 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, int l)
 }
 
 static int
-sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
+sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 {
 	if (!req->newptr)
 		return 0;
@@ -594,7 +650,7 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
 }
 
 int
-kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, int *retval)
+kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
 	struct sysctl_req req;
@@ -656,16 +712,19 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldle
  * Transfer function to/from user space.
  */
 static int
-sysctl_old_user(struct sysctl_req *req, const void *p, int l)
+sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 {
-	int error = 0, i = 0;
+	int error = 0;
+	size_t i = 0;
 
 	if (req->lock == 1 && req->oldptr) {
 		vslock(req->oldptr, req->oldlen);
 		req->lock = 2;
 	}
 	if (req->oldptr) {
-		i = min(req->oldlen - req->oldidx, l);
+		i = l;
+		if (i > req->oldlen - req->oldidx)
+			i = req->oldlen - req->oldidx;
 		if (i > 0)
 			error = copyout(p, (char *)req->oldptr + req->oldidx,
 					i);
@@ -679,7 +738,7 @@ sysctl_old_user(struct sysctl_req *req, const void *p, int l)
 }
 
 static int
-sysctl_new_user(struct sysctl_req *req, void *p, int l)
+sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 {
 	int error;
 
@@ -773,7 +832,8 @@ struct sysctl_args {
 int
 __sysctl(struct proc *p, struct sysctl_args *uap)
 {
-	int error, i, j, name[CTL_MAXNAME];
+	int error, i, name[CTL_MAXNAME];
+	size_t j;
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
@@ -800,7 +860,7 @@ __sysctl(struct proc *p, struct sysctl_args *uap)
  * must be in kernel space.
  */
 int
-userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval)
+userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
 	struct sysctl_req req, req2;
@@ -944,7 +1004,7 @@ int
 ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 {
 	int error, name[6];
-	u_int size;
+	size_t size;
 
 	switch (uap->op & 0xff00) {
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.60 1998/04/24 04:15:52 dg Exp $
+ * $Id: sysctl.h,v 1.61 1998/07/28 22:34:12 joerg Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -100,13 +100,13 @@ struct sysctl_req {
 	struct proc	*p;
 	int		lock;
 	void		*oldptr;
-	int		oldlen;
-	int		oldidx;
-	int		(*oldfunc)(struct sysctl_req *, const void *, int);
+	size_t		oldlen;
+	size_t		oldidx;
+	int		(*oldfunc)(struct sysctl_req *, const void *, size_t);
 	void		*newptr;
-	int		newlen;
-	int		newidx;
-	int		(*newfunc)(struct sysctl_req *, void *, int);
+	size_t		newlen;
+	size_t		newidx;
+	int		(*newfunc)(struct sysctl_req *, void *, size_t);
 };
 
 /*
@@ -127,6 +127,8 @@ struct sysctl_oid {
 #define SYSCTL_OUT(r, p, l) (r->oldfunc)(r, p, l)
 
 int sysctl_handle_int SYSCTL_HANDLER_ARGS;
+int sysctl_handle_long SYSCTL_HANDLER_ARGS;
+int sysctl_handle_intptr SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
@@ -152,6 +154,16 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "I", descr)
+
+/* This is a integer, if ptr is NULL, val is returned */
+#define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_long, "L", descr)
+
+/* This is a integer, if ptr is NULL, val is returned */
+#define SYSCTL_INTPTR(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_intptr, "P", descr)
 
 /* This is anything, specified by a pointer and a lenth */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
@@ -448,8 +460,8 @@ extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
-int kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, int *retval);
-int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval);
+int kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval);
+int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval);
 /*
 int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.125 1998/07/14 12:26:15 bde Exp $
+ * $Id: vm_object.c,v 1.126 1998/08/06 08:33:19 dfr Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ _vm_object_allocate(type, size, object)
 	object->flags = 0;
 	object->id = ++objidnumber;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
-		object->flags |= OBJ_ONEMAPPING;
+		vm_object_set_flag(object, OBJ_ONEMAPPING);
 	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
@@ -275,7 +275,7 @@ vm_object_vndeallocate(object)
 	object->ref_count--;
 	if (object->ref_count == 0) {
 		vp->v_flag &= ~VTEXT;
-		object->flags &= ~OBJ_OPT;
+		vm_object_clear_flag(object, OBJ_OPT);
 	}
 	vrele(vp);
 }
@@ -317,7 +317,7 @@ vm_object_deallocate(object)
 		 * objects.
 		 */
 		if ((object->ref_count == 2) && (object->shadow_count == 0)) {
-			object->flags |= OBJ_ONEMAPPING;
+			vm_object_set_flag(object, OBJ_ONEMAPPING);
 			object->ref_count--;
 			return;
 		} else if ((object->ref_count == 2) && (object->shadow_count == 1)) {
@@ -385,7 +385,7 @@ doterm:
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
 			if (temp->ref_count == 0)
-				temp->flags &= ~OBJ_OPT;
+				vm_object_clear_flag(temp, OBJ_OPT);
 			temp->generation++;
 			object->backing_object = NULL;
 		}
@@ -411,7 +411,7 @@ vm_object_terminate(object)
 	/*
 	 * Make sure no one uses us.
 	 */
-	object->flags |= OBJ_DEAD;
+	vm_object_set_flag(object, OBJ_DEAD);
 
 	/*
 	 * wait for the pageout daemon to be done with the object
@@ -461,7 +461,7 @@ vm_object_terminate(object)
 			if (p->busy || (p->flags & PG_BUSY))
 				printf("vm_object_terminate: freeing busy page\n");
 #endif
-			p->flags |= PG_BUSY;
+			PAGE_SET_FLAG(p, PG_BUSY);
 			vm_page_free(p);
 			cnt.v_pfree++;
 		}
@@ -540,7 +540,7 @@ vm_object_page_clean(object, start, end, flags)
 
 	vp = object->handle;
 
-	object->flags |= OBJ_CLEANING;
+	vm_object_set_flag(object, OBJ_CLEANING);
 
 	tstart = start;
 	if (end == 0) {
@@ -550,12 +550,12 @@ vm_object_page_clean(object, start, end, flags)
 	}
 
 	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq)) {
-		p->flags |= PG_CLEANCHK;
+		PAGE_SET_FLAG(p, PG_CLEANCHK);
 		vm_page_protect(p, VM_PROT_READ);
 	}
 
 	if ((tstart == 0) && (tend == object->size)) {
-		object->flags &= ~(OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
 
 rescan:
@@ -569,19 +569,19 @@ rescan:
 			(pi < tstart) || (pi >= tend) ||
 			(p->valid == 0) ||
 			((p->queue - p->pc) == PQ_CACHE)) {
-			p->flags &= ~PG_CLEANCHK;
+			PAGE_CLEAR_FLAG(p, PG_CLEANCHK);
 			continue;
 		}
 
 		vm_page_test_dirty(p);
 		if ((p->dirty & p->valid) == 0) {
-			p->flags &= ~PG_CLEANCHK;
+			PAGE_CLEAR_FLAG(p, PG_CLEANCHK);
 			continue;
 		}
 
 		s = splvm();
 		while ((p->flags & PG_BUSY) || p->busy) {
-			p->flags |= PG_WANTED | PG_REFERENCED;
+			PAGE_SET_FLAG(p, PG_WANTED | PG_REFERENCED);
 			tsleep(p, PVM, "vpcwai", 0);
 			if (object->generation != curgeneration) {
 				splx(s);
@@ -597,12 +597,12 @@ rescan:
 					(tp->busy != 0))
 					break;
 				if((tp->queue - tp->pc) == PQ_CACHE) {
-					tp->flags &= ~PG_CLEANCHK;
+					PAGE_CLEAR_FLAG(tp, PG_CLEANCHK);
 					break;
 				}
 				vm_page_test_dirty(tp);
 				if ((tp->dirty & tp->valid) == 0) {
-					tp->flags &= ~PG_CLEANCHK;
+					PAGE_CLEAR_FLAG(tp, PG_CLEANCHK);
 					break;
 				}
 				maf[ i - 1 ] = tp;
@@ -622,12 +622,12 @@ rescan:
 						(tp->busy != 0))
 						break;
 					if((tp->queue - tp->pc) == PQ_CACHE) {
-						tp->flags &= ~PG_CLEANCHK;
+						PAGE_CLEAR_FLAG(tp, PG_CLEANCHK);
 						break;
 					}
 					vm_page_test_dirty(tp);
 					if ((tp->dirty & tp->valid) == 0) {
-						tp->flags &= ~PG_CLEANCHK;
+						PAGE_CLEAR_FLAG(tp, PG_CLEANCHK);
 						break;
 					}
 					mab[ i - 1 ] = tp;
@@ -641,14 +641,14 @@ rescan:
 		for(i=0;i<maxb;i++) {
 			int index = (maxb - i) - 1;
 			ma[index] = mab[i];
-			ma[index]->flags &= ~PG_CLEANCHK;
+			PAGE_CLEAR_FLAG(ma[index], PG_CLEANCHK);
 		}
-		p->flags &= ~PG_CLEANCHK;
+		PAGE_CLEAR_FLAG(p, PG_CLEANCHK);
 		ma[maxb] = p;
 		for(i=0;i<maxf;i++) {
 			int index = (maxb + i) + 1;
 			ma[index] = maf[i];
-			ma[index]->flags &= ~PG_CLEANCHK;
+			PAGE_CLEAR_FLAG(ma[index], PG_CLEANCHK);
 		}
 		runlen = maxb + maxf + 1;
 
@@ -657,7 +657,7 @@ rescan:
 		for (i = 0; i<runlen; i++) {
 			if (ma[i]->valid & ma[i]->dirty) {
 				vm_page_protect(ma[i], VM_PROT_READ);
-				ma[i]->flags |= PG_CLEANCHK;
+				PAGE_SET_FLAG(ma[i], PG_CLEANCHK);
 			}
 		}
 		if (object->generation != curgeneration)
@@ -666,7 +666,7 @@ rescan:
 
 	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 
-	object->flags &= ~OBJ_CLEANING;
+	vm_object_clear_flag(object, OBJ_CLEANING);
 	return;
 }
 
@@ -719,7 +719,7 @@ vm_object_pmap_copy(object, start, end)
 		vm_page_protect(p, VM_PROT_READ);
 	}
 
-	object->flags &= ~OBJ_WRITEABLE;
+	vm_object_clear_flag(object, OBJ_WRITEABLE);
 }
 
 /*
@@ -770,7 +770,7 @@ vm_object_pmap_remove(object, start, end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
 	if ((start == 0) && (object->size == end))
-		object->flags &= ~OBJ_WRITEABLE;
+		vm_object_clear_flag(object, OBJ_WRITEABLE);
 }
 
 /*
@@ -884,7 +884,7 @@ vm_object_shadow(object, offset, length)
 	result->backing_object = source;
 	if (source) {
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
-		source->flags &= ~OBJ_ONEMAPPING;
+		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		source->shadow_count++;
 		source->generation++;
 	}
@@ -941,7 +941,7 @@ vm_object_qcollapse(object)
 			p = next;
 			continue;
 		}
-		p->flags |= PG_BUSY;
+		PAGE_SET_FLAG(p, PG_BUSY);
 
 		new_pindex = p->pindex - backing_offset_index;
 		if (p->pindex < backing_offset_index ||
@@ -1053,7 +1053,7 @@ vm_object_collapse(object)
 
 		if (backing_object->ref_count == 1) {
 
-			backing_object->flags |= OBJ_DEAD;
+			vm_object_set_flag(backing_object, OBJ_DEAD);
 			/*
 			 * We can collapse the backing object.
 			 *
@@ -1066,7 +1066,7 @@ vm_object_collapse(object)
 			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
 
 				new_pindex = p->pindex - backing_offset_index;
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1216,7 +1216,7 @@ vm_object_collapse(object)
 					p = TAILQ_NEXT(p, listq)) {
 
 				new_pindex = p->pindex - backing_offset_index;
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1236,7 +1236,7 @@ vm_object_collapse(object)
 						return;
 					}
 
-					pp->flags |= PG_BUSY;
+					PAGE_SET_FLAG(pp, PG_BUSY);
 					if ((pp->valid == 0) &&
 				   	    !vm_pager_has_page(object, OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL)) {
 						/*
@@ -1341,7 +1341,7 @@ again:
 						continue;
 				}
 
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			}
@@ -1374,7 +1374,7 @@ again:
 					}
 				}
 
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			}

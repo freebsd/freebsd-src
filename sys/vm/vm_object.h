@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.49 1998/05/04 17:12:53 dyson Exp $
+ * $Id: vm_object.h,v 1.50 1998/08/06 08:33:19 dfr Exp $
  */
 
 /*
@@ -72,6 +72,7 @@
 #define	_VM_OBJECT_
 
 #include <sys/queue.h>
+#include <machine/atomic.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_DEAD };
 typedef enum obj_type objtype_t;
@@ -162,21 +163,35 @@ extern vm_object_t kmem_object;
 #ifdef KERNEL
 
 static __inline void
+vm_object_set_flag(vm_object_t object, u_int bits)
+{
+	atomic_set_short(&object->flags, bits);
+}
+
+static __inline void
+vm_object_clear_flag(vm_object_t object, u_int bits)
+{
+	atomic_clear_short(&object->flags, bits);
+}
+
+static __inline void
 vm_object_pip_add(vm_object_t object, int i)
 {
-	int s = splvm();
-	object->paging_in_progress += i;
-	splx(s);
+	atomic_add_short(&object->paging_in_progress, i);
+}
+
+static __inline void
+vm_object_pip_subtract(vm_object_t object, int i)
+{
+	atomic_subtract_short(&object->paging_in_progress, i);
 }
 
 static __inline void
 vm_object_pip_wakeup(vm_object_t object)
 {
-	int s = splvm();
-	object->paging_in_progress--;
-	splx(s);
+	atomic_subtract_short(&object->paging_in_progress, 1);
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
-		object->flags &= ~OBJ_PIPWNT;
+		vm_object_clear_flag(object, OBJ_PIPWNT);
 		wakeup(object);
 	}
 }
@@ -189,7 +204,7 @@ vm_object_pip_sleep(vm_object_t object, char *waitid)
 	if (object->paging_in_progress) {
 		s = splvm();
 		if (object->paging_in_progress) {
-			object->flags |= OBJ_PIPWNT;
+			vm_object_set_flag(object, OBJ_PIPWNT);
 			tsleep(object, PVM, waitid, 0);
 		}
 		splx(s);
