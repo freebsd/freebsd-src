@@ -150,14 +150,17 @@ reports back the hook name corresponding to the closed session.
 The hook will probably have been removed immediately after sending this
 message. At present this message is not yet used and a 'failed' message
 will be received at closure instead.
+.It Dv NGM_PPPOE_ACNAME
+This command is sent to the node that started this session with one of the
+above messages, and reports the Access Concentrator Name.
+.El
 .Pp
-The three commands above use a common data structure:
+The four commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_sts {
     char    hook[NG_HOOKLEN + 1]; /* hook associated with event session */
 };
 .Ed
-.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
