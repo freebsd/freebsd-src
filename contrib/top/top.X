@@ -262,7 +262,7 @@ command.
 .TP
 .B i
 (or
-.BR I)
+.BR I )
 Toggle the display of idle processes.
 .TP
 .B t
