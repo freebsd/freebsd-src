@@ -611,7 +611,9 @@ release.8:
 		ln -sf /stand $$dir; \
 	  done )
 	cp /sbin/dhclient-script ${RD}/mfsfd/stand
+.if ${MACHINE_ARCH} == "i386"
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
+.endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	( for F in netconfig protocols ; do \
