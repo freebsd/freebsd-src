@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: servconf.c,v 1.101 2002/02/04 12:15:25 markus Exp $");
+RCSID("$OpenBSD: servconf.c,v 1.111 2002/06/20 23:05:55 markus Exp $");
 RCSID("$FreeBSD$");
 
 #if defined(KRB4)
@@ -40,6 +40,8 @@ static void add_one_listen_addr(ServerOptions *, char *, u_short);
 
 /* AF_UNSPEC or AF_INET or AF_INET6 */
 extern int IPv4or6;
+/* Use of privilege separation or not */
+extern int use_privsep;
 
 /* Initializes the server options to their default values. */
 
@@ -90,6 +92,7 @@ initialize_server_options(ServerOptions *options)
 	options->challenge_response_authentication = -1;
 	options->permit_empty_passwd = -1;
 	options->use_login = -1;
+	options->compression = -1;
 	options->allow_tcp_forwarding = -1;
 	options->num_allow_users = 0;
 	options->num_deny_users = 0;
@@ -111,6 +114,9 @@ initialize_server_options(ServerOptions *options)
 	options->authorized_keys_file = NULL;
 	options->authorized_keys_file2 = NULL;
 	options->check_mail = -1;
+
+	/* Needs to be accessable in many places */
+	use_privsep = -1;
 }
 
 void
@@ -205,7 +211,7 @@ fill_default_server_options(ServerOptions *options)
 #endif
 #ifdef AFS
 	if (options->afs_token_passing == -1)
-		options->afs_token_passing = k_hasafs();
+		options->afs_token_passing = 0;
 #endif
 	if (options->password_authentication == -1)
 		options->password_authentication = 1;
@@ -217,6 +223,8 @@ fill_default_server_options(ServerOptions *options)
 		options->permit_empty_passwd = 0;
 	if (options->use_login == -1)
 		options->use_login = 0;
+	if (options->compression == -1)
+		options->compression = 1;
 	if (options->allow_tcp_forwarding == -1)
 		options->allow_tcp_forwarding = 1;
 	if (options->gateway_ports == -1)
@@ -242,6 +250,10 @@ fill_default_server_options(ServerOptions *options)
 	}
 	if (options->authorized_keys_file == NULL)
 		options->authorized_keys_file = _PATH_SSH_USER_PERMITTED_KEYS;
+
+	/* Turn privilege separation off by default */
+	if (use_privsep == -1)
+		use_privsep = 0;
 }
 
 /* Keyword tokens. */
@@ -264,13 +276,14 @@ typedef enum {
 	sPrintMotd, sPrintLastLog, sIgnoreRhosts,
 	sX11Forwarding, sX11DisplayOffset, sX11UseLocalhost,
 	sStrictModes, sEmptyPasswd, sKeepAlives,
-	sUseLogin, sAllowTcpForwarding,
+	sUseLogin, sAllowTcpForwarding, sCompression,
 	sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
 	sIgnoreUserKnownHosts, sCiphers, sMacs, sProtocol, sPidFile,
 	sGatewayPorts, sPubkeyAuthentication, sXAuthLocation, sSubsystem, sMaxStartups,
 	sBanner, sVerifyReverseMapping, sHostbasedAuthentication,
 	sHostbasedUsesNameFromPacketOnly, sClientAliveInterval,
 	sClientAliveCountMax, sAuthorizedKeysFile, sAuthorizedKeysFile2,
+	sUsePrivilegeSeparation,
 	sCheckMail, sVersionAddendum,
 	sDeprecated
 } ServerOpCodes;
@@ -324,6 +337,7 @@ static struct {
 	{ "strictmodes", sStrictModes },
 	{ "permitemptypasswords", sEmptyPasswd },
 	{ "uselogin", sUseLogin },
+	{ "compression", sCompression },
 	{ "keepalive", sKeepAlives },
 	{ "allowtcpforwarding", sAllowTcpForwarding },
 	{ "allowusers", sAllowUsers },
@@ -343,6 +357,7 @@ static struct {
 	{ "clientalivecountmax", sClientAliveCountMax },
 	{ "authorizedkeysfile", sAuthorizedKeysFile },
 	{ "authorizedkeysfile2", sAuthorizedKeysFile2 },
+	{ "useprivilegeseparation", sUsePrivilegeSeparation},
 	{ "checkmail", sCheckMail },
 	{ "versionaddendum", sVersionAddendum },
 	{ NULL, sBadOption }
@@ -681,6 +696,10 @@ parse_flag:
 		intptr = &options->use_login;
 		goto parse_flag;
 
+	case sCompression:
+		intptr = &options->compression;
+		goto parse_flag;
+
 	case sGatewayPorts:
 		intptr = &options->gateway_ports;
 		goto parse_flag;
@@ -713,6 +732,10 @@ parse_flag:
 
 	case sAllowTcpForwarding:
 		intptr = &options->allow_tcp_forwarding;
+		goto parse_flag;
+
+	case sUsePrivilegeSeparation:
+		intptr = &use_privsep;
 		goto parse_flag;
 
 	case sAllowUsers:

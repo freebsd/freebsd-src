@@ -1,4 +1,4 @@
-/*	$OpenBSD: channels.h,v 1.65 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$OpenBSD: channels.h,v 1.68 2002/06/10 22:28:41 markus Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -136,6 +136,18 @@ struct Channel {
 
 #define CHAN_CLOSE_SENT			0x01
 #define CHAN_CLOSE_RCVD			0x02
+#define CHAN_EOF_SENT			0x04
+#define CHAN_EOF_RCVD			0x08
+
+/* check whether 'efd' is still in use */
+#define CHANNEL_EFD_INPUT_ACTIVE(c) \
+	(compat20 && c->extended_usage == CHAN_EXTENDED_READ && \
+	(c->efd != -1 || \
+	buffer_len(&c->extended) > 0))
+#define CHANNEL_EFD_OUTPUT_ACTIVE(c) \
+	(compat20 && c->extended_usage == CHAN_EXTENDED_WRITE && \
+	((c->efd != -1 && !(c->flags & (CHAN_EOF_RCVD|CHAN_CLOSE_RCVD))) || \
+	buffer_len(&c->extended) > 0))
 
 /* channel management */
 
@@ -202,8 +214,6 @@ void	 deny_input_open(int, u_int32_t, void *);
 /* agent forwarding */
 
 void	 auth_request_forwarding(void);
-char	*auth_get_socket_name(void);
-int	 auth_input_request_forwarding(struct passwd *);
 void	 auth_input_open_request(int, u_int32_t, void *);
 
 /* channel close */

@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.41 2002/02/28 15:46:33 markus Exp $");
+RCSID("$OpenBSD: key.c,v 1.44 2002/05/31 13:16:48 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -780,6 +780,10 @@ key_sign(
 	}
 }
 
+/*
+ * key_verify returns 1 for a correct signature, 0 for an incorrect signature
+ * and -1 on error.
+ */
 int
 key_verify(
     Key *key,
@@ -801,4 +805,47 @@ key_verify(
 		return -1;
 		break;
 	}
+}
+
+/* Converts a private to a public key */
+
+Key *
+key_demote(Key *k)
+{
+	Key *pk;
+
+	pk = xmalloc(sizeof(*pk));
+	pk->type = k->type;
+	pk->flags = k->flags;
+	pk->dsa = NULL;
+	pk->rsa = NULL;
+
+	switch (k->type) {
+	case KEY_RSA1:
+	case KEY_RSA:
+		if ((pk->rsa = RSA_new()) == NULL)
+			fatal("key_demote: RSA_new failed");
+		if ((pk->rsa->e = BN_dup(k->rsa->e)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		if ((pk->rsa->n = BN_dup(k->rsa->n)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		break;
+	case KEY_DSA:
+		if ((pk->dsa = DSA_new()) == NULL)
+			fatal("key_demote: DSA_new failed");
+		if ((pk->dsa->p = BN_dup(k->dsa->p)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		if ((pk->dsa->q = BN_dup(k->dsa->q)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		if ((pk->dsa->g = BN_dup(k->dsa->g)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		if ((pk->dsa->pub_key = BN_dup(k->dsa->pub_key)) == NULL)
+			fatal("key_demote: BN_dup failed");
+		break;
+	default:
+		fatal("key_free: bad key type %d", k->type);
+		break;
+	}
+
+	return (pk);
 }
