@@ -4,18 +4,13 @@
 PROG=	nologin
 MAN=	nologin.5 nologin.8
 
+SYMLINKS=	${BINDIR}/nologin /sbin/nologin
+
 # It is important that nologin be statically linked for security
 # reasons.  A dynamic non-setuid binary can be linked against a trojan
 # libc by setting LD_LIBRARY_PATH appropriately.  Both sshd(8) and
 # login(1) make it possible to log in with an unsanitized environment,
 # rendering a dynamic nologin binary virtually useless.
 NOSHARED=	YES
-
-# Logging to syslog increases the size of the statically linked
-# binary by over 100K.  Provide an option for disabling this on
-# systems where conserving space on the root device is critical.
-.ifdef NO_NOLOGIN_LOG
-CFLAGS+=	-DNO_NOLOGIN_LOG
-.endif
 
 .include <bsd.prog.mk>
