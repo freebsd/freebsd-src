@@ -4,6 +4,7 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	bg_BG.CP1251 \
+		ca_ES.ISO8859-1 \
 		cs_CZ.ISO8859-2 \
 		da_DK.ISO8859-1 \
 		de_AT.ISO8859-1 \
@@ -48,7 +49,7 @@ LOCALES=	bg_BG.CP1251 \
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-LATIN15LINKS=	da_DK de_AT de_DE en_GB en_US es_ES fi_FI fr_FR is_IS \
+LATIN15LINKS=   ca_ES da_DK de_AT de_DE en_GB en_US es_ES fi_FI fr_FR is_IS \
 		it_IT la_LN nl_NL no_NO pt_PT sv_SE
 DE_LINKS=	de_CH
 FR_LINKS=	fr_BE fr_CA fr_CH
