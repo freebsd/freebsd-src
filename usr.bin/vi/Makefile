@@ -6,6 +6,7 @@
 #
 
 SRCDIR=		${.CURDIR}/../../contrib/nvi
+WARNS?=		0
 
 .if defined(RELEASE_CRUNCH)
 # When building `vi' for the fixit floppy, don't include any of the
