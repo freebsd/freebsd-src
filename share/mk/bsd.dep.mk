@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.8 1996/08/25 05:16:55 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.8.2.1 1997/04/20 20:15:42 jkh Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -44,16 +44,16 @@ __depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cxx}
 ${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
 .if defined(__depend_s) && !empty(__depend_s)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[ID]*} ${AINC} \
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} ${AINC} \
 		${.ALLSRC:M*.[sS]}
 .endif
 .if defined(__depend_c) && !empty(__depend_c)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[ID]*} \
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} \
 		${.ALLSRC:M*.c}
 .endif
 .if defined(__depend_cc) && !empty(__depend_cc)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[ID]*} \
+		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[BID]*} \
 		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
 .endif
 
