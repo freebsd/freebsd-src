@@ -38,6 +38,16 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
     mbstate_t * __restrict ps)
 {
 	static mbstate_t mbs;
+
+	if (ps == NULL)
+		ps = &mbs;
+	return (__mbsrtowcs(dst, src, len, ps));
+}
+
+size_t
+__mbsrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t len, mbstate_t * __restrict ps)
+{
 	const char *s;
 	size_t nchr;
 	wchar_t wc;
@@ -46,8 +56,6 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
 	s = *src;
 	nchr = 0;
 
-	if (ps == NULL)
-		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
 			if ((nb = (int)__mbrtowc(&wc, s, MB_CUR_MAX, ps)) < 0)
