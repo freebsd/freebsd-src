@@ -61,9 +61,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <signal.h>
 
-static int getstathz __P((void));
-static void humantime __P((FILE *, long, long));
-static void usage __P((void));
+static int getstathz(void);
+static void humantime(FILE *, long, long);
+static void usage(void);
 
 static char decimal_point;
 
@@ -122,13 +122,8 @@ main(argc, argv)
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
-		errno = 0;
 		execvp(*argv, argv);
-		warn("%s", *argv);
-		if (errno == ENOENT)
-			_exit(127); /* POSIX: utility could not be found */
-		else
-			_exit(126); /* POSIX: utility could not be invoked */
+		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 		/* NOTREACHED */
 	}
 	/* parent */
@@ -219,7 +214,7 @@ main(argc, argv)
 			ru.ru_nivcsw, "involuntary context switches");
 	}
 	if (exitonsig) {
-		if (signal(exitonsig, SIG_DFL) < 0)
+		if (signal(exitonsig, SIG_DFL) == SIG_ERR)
 			perror("signal");
 		else
 			kill(getpid(), exitonsig);
