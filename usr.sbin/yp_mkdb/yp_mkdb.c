@@ -28,44 +28,40 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_mkdb.c,v 1.3.2.1 1997/02/15 04:37:16 wpaul Exp $
  */
 
-#include <stdio.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <rpc/rpc.h>
+#include <rpcsvc/yp.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <time.h>
-#include <err.h>
-#include <rpc/rpc.h>
-#include <rpcsvc/yp.h>
 #include "yp_extern.h"
 #include "ypxfr_extern.h"
 
-#ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.3.2.1 1997/02/15 04:37:16 wpaul Exp $";
-#endif
-
 char *yp_dir = "";	/* No particular default needed. */
-char *progname = "yp_mkdb";
 int _rpcpmstart = 0;
 int debug = 1;
 
 static void usage()
 {
-	fprintf(stderr, "usage: %s -c\n", progname);
-	fprintf(stderr, "usage: %s -u dbname\n", progname);
-	fprintf(stderr, "usage: %s [-c] [-b] [-s] [-i inputfile] \
-[-o outputfile]\n", progname);
-	fprintf(stderr, "               [-d domainname ] [-m mastername] \
-inputfile dbname\n");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	"usage: yp_mkdb -c",
+	"       yp_mkdb -u dbname",
+	"       yp_mkdb [-c] [-b] [-s] [-i inputfile] [-o outputfile]",
+	"               [-d domainname ] [-m mastername] inputfile dbname");
 	exit(1);
 }
 
@@ -99,7 +95,7 @@ static void unwind(map)
 	return;
 }
 
-main (argc, argv)
+int main (argc, argv)
 	int argc;
 	char *argv[];
 {
