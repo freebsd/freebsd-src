@@ -101,6 +101,10 @@ logopen(dev_t dev, int flags, int mode, struct thread *td)
 	log_open = 1;
 	callout_init(&logsoftc.sc_callout, 0);
 	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+	if (log_wakeups_per_second < 1) {
+		printf("syslog wakeup is less than one.  Adjusting to 1.\n");
+		log_wakeups_per_second = 1;
+	}
 	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
 	    logtimeout, NULL);
 	return (0);
@@ -183,6 +187,10 @@ logtimeout(void *arg)
 
 	if (!log_open)
 		return;
+	if (log_wakeups_per_second < 1) {
+		printf("syslog wakeup is less than one.  Adjusting to 1.\n");
+		log_wakeups_per_second = 1;
+	}
 	if (msgbuftrigger == 0) {
 		callout_reset(&logsoftc.sc_callout,
 		    hz / log_wakeups_per_second, logtimeout, NULL);
