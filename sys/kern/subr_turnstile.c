@@ -507,7 +507,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		}
 
 		/*
-		 * We deffinately must sleep for this lock.
+		 * We definitely must sleep for this lock.
 		 */
 		mtx_assert(m, MA_NOTOWNED);
 
