@@ -40,84 +40,91 @@
 .\"
 .\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
 .\"
-.TH FACTOR 6 "Jan 7, 1999"
-.UC 7
-.SH NAME
-factor, primes \- factor a number, generate primes
-.SH SYNOPSIS
-.B factor
--[h] [ number ] ...
-.PP
-.B primes
--[h] [ start [ stop ]]
-.SH DESCRIPTION
+.Dd Oct 10, 2002
+.Dt FACTOR 6
+.Os
+.Sh NAME
+.Nm factor ,
+.Nm primes
+.Nd factor a number, generate primes
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Ar number ...
+.br
+.Nm primes
+.Op Fl h
+.Op Ar start Op Ar stop
+.Sh DESCRIPTION
 The
-.I factor
-utility will factor integers between 0 and ULONG_MAX (4294967295 on 32
-bit architectures, 18446744073709551615 on 64 bit ones), inclusive.
-When a number is factored, it is printed, followed by a ``:'',
+.Nm
+utility will factor positive integers.
+When a number is factored, it is printed, followed by a
+.Dq \&: ,
 and the list of factors on a single line.
 Factors are listed in ascending order, and are preceded by a space.
-If a factor divides a value more than once, it will be printed
-more than once.
-.PP
+If a factor divides a value more than once, it will be printed more than once.
+.Pp
 When
-.I factor
-is invoked with one or more arguments,
-each argument will be factored.
-.PP
+.Nm
+is invoked with one or more arguments, each argument will be factored.
+.Pp
 When
-.I factor
+.Nm
 is invoked with no arguments,
-.I factor
+.Nm
 reads numbers, one per line, from standard input, until end of file or error.
 Leading white-space and empty lines are ignored.
-Numbers may be preceded by a single - or +.
+Numbers may be preceded by a single +.
 Numbers are terminated by a non-digit character (such as a newline).
 After a number is read, it is factored.
-Input lines must not be longer than 255 characters.
-.PP
+.Pp
 The
-.I primes
+.Nm primes
 utility prints primes in ascending order, one per line, starting at or above
-.B start
+.Ar start
 and continuing until, but not including
-.B stop.
+.Ar stop .
 The
-.B start
+.Ar start
 value must be at least 0 and not greater than
-.B stop.\&
+.Ar stop .
 The
-.B stop
-value must not be greater than 4294967295.
-The default value of
-.B stop
-is 4294967295.
-.PP
+.Ar stop
+value must not be greater than the maximum.
+The default and maximum value of
+.Ar stop
+is 4294967295 on 32-bit architectures
+and 18446744073709551615 on 64-bit ones.
+.Pp
 When the
-.I primes
+.Nm primes
 utility is invoked with no arguments,
-.B start
-is read from standard input.
-.B Stop
-is taken to be 4294967295.
+.Ar start
+is read from standard input and
+.Ar stop
+is taken to be the maximum.
 The
-.B start
+.Ar start
 value may be preceded by a single +.
 The
-.B start
+.Ar start
 value is terminated by a non-digit character (such as a newline).
-The input line must not be longer than 255 characters.
-.SH OPTIONS
-.LP
-.TP 8
-.B \-h
-Print the results in hexadecimal rather than decimal.
-.SH DIAGNOSTICS
-Out of range or invalid input results in `ouch' being
-written to standard error.
-.SH BUGS
-.I Factor
-cannot handle the ``10 most wanted'' factor list,
-.I primes
+.Sh DIAGNOSTICS
+.Bl -item
+.It
+negative numbers aren't permitted
+.It
+illegal numeric format
+.It
+start value must be less than stop value
+.It
+Result too large
+.El
+.Sh BUGS
+.Nm
+cannot handle the
+.Dq 10 most wanted
+factor list,
+.Nm primes
 won't get you a world record.
