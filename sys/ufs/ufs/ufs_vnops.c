@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.52 1997/07/13 16:26:40 bde Exp $
+ * $Id: ufs_vnops.c,v 1.53 1997/08/21 01:42:47 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -692,11 +692,13 @@ ufs_remove(ap)
 		ip->i_flag |= IN_CHANGE;
 	}
 out:
+#if 0
 	if ((ip->i_nlink == 0) &&
 		((vp->v_object == NULL) && (vp->v_usecount == 1)) ||
 		(vp->v_usecount <= 2)) {
 		VOP_TRUNCATE(vp, (off_t)0, 0, NOCRED, NULL);
 	}
+#endif
 
 	if (dvp == vp)
 		vrele(vp);
