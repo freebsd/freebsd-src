@@ -301,12 +301,16 @@ el_source(el, fname)
     if ((fp = fopen(fname, "r")) == NULL)
 	return -1;
 
-    while ((ptr = fgetln(fp, &len)) != NULL)
-	ptr[len - 1] = '\0';
+    while ((ptr = fgetln(fp, &len)) != NULL) {
+	if (ptr[len - 1] == '\n')
+	    --len;
+	ptr[len] = '\0';
+
 	if (parse_line(el, ptr) == -1) {
 	    (void) fclose(fp);
 	    return -1;
 	}
+    }
 
     (void) fclose(fp);
     return 0;
