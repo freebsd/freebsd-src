@@ -306,7 +306,7 @@ epic_ifwatchdog(
  *
  * splimp() invoked before epic_intr_normal()
  */
-static inline void
+static __inline void
 epic_rx_done __P((
 	epic_softc_t *sc ))
 {
@@ -430,7 +430,7 @@ rxerror:
  *
  * splimp() invoked before epic_intr_normal()
  */
-static inline void
+static __inline void
 epic_tx_done __P(( 
     epic_softc_t *sc ))
 {

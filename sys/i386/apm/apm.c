@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.49.2.1 1997/11/04 19:02:13 nate Exp $
+ *	$Id: apm.c,v 1.49.2.2 1997/11/10 14:40:40 nate Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,7 @@ static struct addr48 {
 
 static int apm_errno;
 
-inline
+__inline
 int
 apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 {

@@ -340,8 +340,8 @@ typedef struct {
 #define epic_if epic_ac.ac_if
 #define epic_macaddr epic_ac.ac_enaddr
 
-//extern epic_softc_t *epics[];
-//extern u_long epic_pci_count;
+/*extern epic_softc_t *epics[];*/
+/*extern u_long epic_pci_count;*/
 
 static char* epic_pci_probe __P((pcici_t, pcidi_t));
 
@@ -358,8 +358,8 @@ static void epic_ifmedia_status __P((struct ifnet *, struct ifmediareq *));
 
 /* Following functions doesn't call splimp() */
 static void epic_intr_normal __P((void *));
-static inline void epic_rx_done __P((epic_softc_t *));
-static inline void epic_tx_done __P((epic_softc_t *));
+static __inline void epic_rx_done __P((epic_softc_t *));
+static __inline void epic_tx_done __P((epic_softc_t *));
 static void epic_shutdown __P((int, void *));
 
 static int epic_init_rings __P((epic_softc_t *));

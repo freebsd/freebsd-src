@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.32 1998/04/15 12:00:14 des Exp $
+ *  $Id: syscons.c,v 1.182.2.33 1998/05/19 09:30:42 yokota Exp $
  */
 
 #include "sc.h"
@@ -251,7 +251,7 @@ static int wait_scrn_saver_stop(void);
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
-static inline void move_crsr(scr_stat *scp, int x, int y);
+static __inline void move_crsr(scr_stat *scp, int x, int y);
 static void scan_esc(scr_stat *scp, u_char c);
 static void draw_cursor_image(scr_stat *scp); 
 static void remove_cursor_image(scr_stat *scp); 
@@ -316,7 +316,7 @@ static	struct cdevsw	scdevsw = {
 /*
  * These functions need to be before calls to them so they can be inlined.
  */
-static inline void
+static __inline void
 draw_cursor_image(scr_stat *scp)
 {
     u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
@@ -366,13 +366,13 @@ draw_cursor_image(scr_stat *scp)
     *ptr = cursor_image;
 }
 
-static inline void
+static __inline void
 remove_cursor_image(scr_stat *scp)
 {
     *(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
 }
 
-static inline void
+static __inline void
 move_crsr(scr_stat *scp, int x, int y)
 {
     if (x < 0)

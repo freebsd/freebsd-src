@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.22 1996/09/20 14:36:14 bde Exp $
+ * $Id: kernel.h,v 1.22.2.1 1998/05/06 19:15:41 gibbs Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -82,7 +82,7 @@ extern long timedelta;
  */
 #define MAKE_SET(set, sym, type) \
 	static void const * const __set_##set##_sym_##sym = &sym; \
-	asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
 #define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)

@@ -30,14 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.4 1996/08/28 20:32:19 bde Exp $
+ * $Id: qsort.c,v 1.5 1996/08/31 14:48:04 bde Exp $
  */
 
 #include <stdlib.h>
 
 typedef int		 cmp_t __P((const void *, const void *));
-static inline char	*med3 __P((char *, char *, char *, cmp_t *));
-static inline void	 swapfunc __P((char *, char *, int, int));
+static __inline char	*med3 __P((char *, char *, char *, cmp_t *));
+static __inline void	 swapfunc __P((char *, char *, int, int));
 
 #define min(a, b)	(a) < (b) ? a : b
 
@@ -58,7 +58,7 @@ static inline void	 swapfunc __P((char *, char *, int, int));
 #define SWAPINIT(a, es) swaptype = ((char *)a - (char *)0) % sizeof(long) || \
 	es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
-static inline void
+static __inline void
 swapfunc(a, b, n, swaptype)
 	char *a, *b;
 	int n, swaptype;
@@ -79,7 +79,7 @@ swapfunc(a, b, n, swaptype)
 
 #define vecswap(a, b, n) 	if ((n) > 0) swapfunc(a, b, n, swaptype)
 
-static inline char *
+static __inline char *
 med3(a, b, c, cmp)
 	char *a, *b, *c;
 	cmp_t *cmp;

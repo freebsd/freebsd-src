@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.72 1996/10/12 20:09:44 bde Exp $
+ * $Id: swap_pager.c,v 1.72.2.1 1998/02/14 16:13:27 nate Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ static void	swapsizecheck __P((void));
 
 #define SWAPLOW (vm_swap_size < (512 * btodb(PAGE_SIZE)))
 
-static inline void
+static __inline void
 swapsizecheck()
 {
 	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
@@ -325,7 +325,7 @@ swap_pager_alloc(handle, size, prot, offset)
  * if the block has been written
  */
 
-inline static daddr_t *
+__inline static daddr_t *
 swap_pager_diskaddr(object, pindex, valid)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -760,14 +760,14 @@ swap_pager_dealloc(object)
 	object->un_pager.swp.swp_blocks = NULL;
 }
 
-static inline int
+static __inline int
 swap_pager_block_index(pindex)
 	vm_pindex_t pindex;
 {
 	return (pindex / SWB_NPAGES);
 }
 
-static inline int
+static __inline int
 swap_pager_block_offset(pindex)
 	vm_pindex_t pindex;
 {

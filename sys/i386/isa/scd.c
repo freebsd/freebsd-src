@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.25 1996/09/06 23:07:59 phk Exp $ */
+/* $Id: scd.c,v 1.25.2.1 1998/05/06 19:09:11 gibbs Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -155,7 +155,7 @@ static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 
 static void process_attention(unsigned unit);
-static inline void write_control(unsigned port, unsigned data);
+static __inline void write_control(unsigned port, unsigned data);
 static int waitfor_status_bits(int unit, int bits_set, int bits_clear);
 static int send_cmd(u_int unit, u_char cmd, u_int nargs, ...);
 static void init_drive(unsigned unit);
@@ -1267,7 +1267,7 @@ read_toc(dev_t dev)
 	return 0;
 }
 
-static inline void
+static __inline void
 write_control(unsigned port, unsigned data)
 {
 	outb(port + OREG_CONTROL, data);

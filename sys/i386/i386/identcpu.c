@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.16 1998/02/14 13:44:42 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.17 1998/05/22 22:18:42 des Exp $
  */
 
 #include "opt_cpu.h"
@@ -590,7 +590,7 @@ static	volatile u_int trap_by_rdmsr;
  * be advanced.
  */
 inthand_t	bluetrap6;
-asm
+__asm
 ("
 	.text
 	.p2align 2,0x90
@@ -606,7 +606,7 @@ asm
  * Accessing non-existent MSR generates general protection fault.
  */
 inthand_t	bluetrap13;
-asm
+__asm
 ("
 	.text
 	.p2align 2,0x90

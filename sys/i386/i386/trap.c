@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.83.2.7 1998/05/06 19:04:08 gibbs Exp $
+ *	$Id: trap.c,v 1.83.2.8 1998/05/13 07:04:41 tg Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ extern struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
 
-static inline void
+static __inline void
 userret(p, frame, oticks)
 	struct proc *p;
 	struct trapframe *frame;

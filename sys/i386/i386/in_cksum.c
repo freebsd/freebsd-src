@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.7 1995/05/30 07:59:31 rgrimes Exp $
+ *	$Id: in_cksum.c,v 1.8 1995/12/03 18:35:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -58,10 +58,10 @@ extern int	in_cksum __P((struct mbuf *m, int len));
  * Thanks to gcc we don't have to guess
  * which registers contain sum & w.
  */
-#define ADD(n)	asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
-#define ADDC(n)	asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
-#define LOAD(n)	asm volatile("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
-#define MOP	asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
+#define ADD(n)	__asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define ADDC(n)	__asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define LOAD(n)	__asm volatile("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
+#define MOP	__asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
 
 int
 in_cksum(m, len)

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.11 1997/10/17 06:28:31 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.12 1998/03/03 14:20:52 dg Exp $
  */
 
 /*
@@ -216,7 +216,7 @@ const struct fxp_supported_media fxp_media[] = {
 static int fxp_mediachange	__P((struct ifnet *));
 static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
 void fxp_set_media		__P((struct fxp_softc *, int));
-static inline void fxp_scb_wait	__P((struct fxp_softc *));
+static __inline void fxp_scb_wait __P((struct fxp_softc *));
 static FXP_INTR_TYPE fxp_intr	__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *,
@@ -270,7 +270,7 @@ static int tx_threshold = 64;
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
  */
-static inline void
+static __inline void
 fxp_scb_wait(sc)
 	struct fxp_softc *sc;
 {

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.8 1995/12/06 23:33:39 bde Exp $
+# $Id: vnode_if.sh,v 1.9 1995/12/14 09:52:49 phk Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -135,7 +135,7 @@ $AWK '
 		}
 
 		# Print out inline struct.
-		printf("static inline int %s(", uname);
+		printf("static __inline int %s(", uname);
 		sep = ", ";
 		for (c2 = 0; c2 < c1; ++c2) {
 			if (c2 == c1 - 1)
@@ -371,7 +371,7 @@ struct vop_strategy_args {
 extern struct vnodeop_desc vop_strategy_desc;
 static int VOP_STRATEGY __P((
 	struct buf *bp));
-static inline int VOP_STRATEGY(bp)
+static __inline int VOP_STRATEGY(bp)
 	struct buf *bp;
 {
 	struct vop_strategy_args a;
@@ -388,7 +388,7 @@ struct vop_bwrite_args {
 extern struct vnodeop_desc vop_bwrite_desc;
 static int VOP_BWRITE __P((
 	struct buf *bp));
-static inline int VOP_BWRITE(bp)
+static __inline int VOP_BWRITE(bp)
 	struct buf *bp;
 {
 	struct vop_bwrite_args a;

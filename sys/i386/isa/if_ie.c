@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ie.c,v 1.36.2.3 1997/10/15 10:11:24 joerg Exp $
  */
 
 /*
@@ -1078,7 +1078,7 @@ static int iernr(unit, ie)
  * unrolled for speed.  I'd love to have an inline assembler
  * version of this...
  */
-static inline int ether_equal(u_char *one, u_char *two) {
+static __inline int ether_equal(u_char *one, u_char *two) {
   if(one[0] != two[0]) return 0;
   if(one[1] != two[1]) return 0;
   if(one[2] != two[2]) return 0;
@@ -1100,7 +1100,7 @@ static inline int ether_equal(u_char *one, u_char *two) {
  * only client which will fiddle with IFF_PROMISC is BPF.  This is
  * probably a good assumption, but we do not make it here.  (Yet.)
  */
-static inline int check_eh(struct ie_softc *ie,
+static __inline int check_eh(struct ie_softc *ie,
 			   struct ether_header *eh,
 			   int *to_bpf) {
   int i;
@@ -1194,12 +1194,12 @@ static inline int check_eh(struct ie_softc *ie,
  * IE_RBUF_SIZE is an even power of two.  If somehow the act_len exceeds
  * the size of the buffer, then we are screwed anyway.
  */
-static inline int ie_buflen(struct ie_softc *ie, int head) {
+static __inline int ie_buflen(struct ie_softc *ie, int head) {
   return (ie->rbuffs[head]->ie_rbd_actual
 	  & (IE_RBUF_SIZE | (IE_RBUF_SIZE - 1)));
 }
 
-static inline int ie_packet_len(int unit, struct ie_softc *ie) {
+static __inline int ie_packet_len(int unit, struct ie_softc *ie) {
   int i;
   int head = ie->rbhead;
   int acc = 0;
@@ -1234,7 +1234,7 @@ static inline int ie_packet_len(int unit, struct ie_softc *ie) {
  * chain of partially-full mbufs.  This should help to speed up the
  * operation considerably.  (Provided that it works, of course.)
  */
-static inline int ieget(unit, ie, mp, ehp, to_bpf)
+static __inline int ieget(unit, ie, mp, ehp, to_bpf)
      int unit;
      struct ie_softc *ie;
      struct mbuf **mp;
@@ -1845,7 +1845,7 @@ ee16_eeprom_clock(sc, state)
 	DELAY(9);		/* EESK must be stable for 8.38 uSec */
 }
 
-static inline void
+static __inline void
 ee16_interrupt_enable(sc)
 	struct ie_softc *sc;
 {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.9.4.1 1997/05/07 13:23:42 joerg Exp $
+ * $Id: iso.h,v 1.9.4.2 1997/08/17 13:28:43 joerg Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -247,56 +247,56 @@ static int isonum_731 __P((unsigned char *p));
 static int isonum_732 __P((unsigned char *p));
 static int isonum_733 __P((unsigned char *p));
   
-static inline int
+static __inline int
 isonum_711(p)
 	unsigned char *p;
 {
 	return *p;
 }
 
-static inline int
+static __inline int
 isonum_712(p)
 	char *p;
 {
 	return *p;
 }
 
-static inline int
+static __inline int
 isonum_721(p)
 	unsigned char *p;
 {
 	return *p|((char)p[1] << 8);
 }
 
-static inline int
+static __inline int
 isonum_722(p)
 	unsigned char *p;
 {
 	return ((char)*p << 8)|p[1];
 }
 
-static inline int
+static __inline int
 isonum_723(p)
 	unsigned char *p;
 {
 	return isonum_721(p);
 }
 
-static inline int
+static __inline int
 isonum_731(p)
 	unsigned char *p;
 {
 	return *p|(p[1] << 8)|(p[2] << 16)|(p[3] << 24);
 }
 
-static inline int
+static __inline int
 isonum_732(p)
 	unsigned char *p;
 {
 	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
 }
 
-static inline int
+static __inline int
 isonum_733(p)
 	unsigned char *p;
 {
