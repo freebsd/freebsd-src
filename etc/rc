@@ -743,9 +743,7 @@ esac
 #
 case ${svr4_enable} in
 [Yy][Ee][Ss])
-	echo -n ' svr4';
-	kldload streams > /dev/null 2>&1
-	kldload svr4 > /dev/null 2>&1
+	echo -n ' svr4';	kldload svr4 > /dev/null 2>&1
 	;;
 esac
 
