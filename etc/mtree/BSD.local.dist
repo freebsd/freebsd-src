@@ -211,6 +211,8 @@
             ..
             de_DE.ISO_8859-1
             ..
+	    el_GR.ISO_8859-7
+            ..
             en_AU.ISO_8859-1
             ..
             en_CA.ISO_8859-1
