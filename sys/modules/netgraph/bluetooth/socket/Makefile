@@ -3,7 +3,7 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/socket
 
-CFLAGS+=	-g -I../../../../netgraph/bluetooth/include \
+CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 \
 		-DWITNESS=1 -DWITNESS_SKIPSPIN=1
 
