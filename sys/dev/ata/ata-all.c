@@ -241,6 +241,19 @@ ata_detach(device_t dev)
 }
 
 int
+ata_suspend(device_t dev)
+{
+    struct ata_channel *ch;
+
+    if (!dev || !(ch = device_get_softc(dev)))
+	return ENXIO;
+
+    ch->locking(ch, ATA_LF_LOCK);
+    ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    return 0;
+}
+
+int
 ata_resume(device_t dev)
 {
     struct ata_channel *ch;
