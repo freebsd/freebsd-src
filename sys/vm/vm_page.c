@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.70 1996/11/05 04:19:08 dyson Exp $
+ *	$Id: vm_page.c,v 1.71 1996/11/17 02:38:31 dyson Exp $
  */
 
 /*
@@ -873,6 +873,26 @@ vm_page_alloc(object, pindex, page_req)
 
 	return (m);
 }
+
+void
+vm_wait()
+{
+	int s;
+
+	s = splvm();
+	if (curproc == pageproc) {
+		vm_pageout_pages_needed = 1;
+		tsleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
+	} else {
+		if (!vm_pages_needed) {
+			vm_pages_needed++;
+			wakeup(&vm_pages_needed);
+		}
+		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
+	}
+	splx(s);
+}
+
 
 /*
  *	vm_page_activate:
