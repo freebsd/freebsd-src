@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.28 1995/06/07 05:50:55 jkh Exp $
+ * $Id: dist.c,v 1.35.2.29 1995/06/07 20:50:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -363,7 +363,7 @@ distExtract(char *parent, Distribution *me)
 	    fd = (*mediaDevice->get)(mediaDevice, buf, dist_attr);
 	    if (fd < 0) {
 		dialog_clear();
-		msgConfirm("failed to retreive piece file %s after retries!\nAborting the transfer", buf);
+		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
 		goto punt;
 	    }
 	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
@@ -396,7 +396,7 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-		if (status && !msgYesNo("Would you like to clear all distributions from the %s group?"), path)
+		if (status && !msgYesNo("Would you like to clear all distributions from the %s group?", path))
 		    *(me[i].my_mask) = 0;
 	    }
 	}
