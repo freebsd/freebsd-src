@@ -120,7 +120,6 @@
 /* we need it for NLOOP. */
 #include "loop.h"
 #include "faith.h"
-#include "gif.h"
 
 #include <net/net_osdep.h>
 

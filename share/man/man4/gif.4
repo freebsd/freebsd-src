@@ -36,7 +36,7 @@
 .Nd
 .Tn Generic tunnel interface
 .Sh SYNOPSIS
-.Cd "pseudo-device gif" Op Ar count
+.Cd "pseudo-device gif"
 .Sh DESCRIPTION
 The
 .Nm
@@ -211,3 +211,6 @@ had a multi-destination behavior, configurable via
 .Dv IFF_LINK0
 flag.
 The behavior was obsoleted and is no longer supported.
+.El
+It is thought that this is not actually a bug in gif, but rather lies
+somewhere around a manipulation of an IPv6 routing table.

@@ -252,6 +252,15 @@ Set interface routing metric.
 The metric is used only by user-level routers.
 .It Dv SIOCGIFMETRIC
 Get interface metric.
+.It Dv SIOCIFCREATE
+Attempt to create the specified interface.
+If the interface name is given without a unit number the system
+will attempt to create a new interface with an arbitrary unit number.
+On sucessful return the
+.Ar ifr_name
+field will contain the new interface name.
+.It Dv SIOCIFDESTROY
+Attempt to destroy the specified interface.
 .El
 .Pp
 There are two requests that make use of a new structure:
@@ -293,6 +302,25 @@ pointed to by
 .Ar ifc_buf .
 On return it will contain the length, in bytes, of the
 configuration list.
+.It Dv SIOCIFGCLONERS
+Get list of clonable interfaces.
+This request takes an
+.Ar if_clonereq
+structure (see below) as a value-result parameter.
+The
+.Ar ifcr_count
+field should be set to the number of
+.Dv IFNAMSIZ
+sized strings that can be fit in the buffer pointed to by
+.Ar ifcr_buffer .
+On return
+.Ar ifcr_total
+will be set the the number of clonable interfaces and the buffer pointed
+to by
+.Ar ifcr_buffer
+will be filled with the names of clonable interfaces aligned on
+.Dv IFNAMSIZ
+boundaries.
 .El
 .Bd -literal
 /*
@@ -321,6 +349,15 @@ struct ifconf {
     } ifc_ifcu;
 #define ifc_buf ifc_ifcu.ifcu_buf /* buffer address */
 #define ifc_req ifc_ifcu.ifcu_req /* array of structures returned */
+};
+.Ed
+.Pp
+.Bd -literal
+/* Structure used in SIOCIFGCLONERS request. */
+struct if_clonereq {
+        int     ifcr_total;     /* total cloners (out) */
+        int     ifcr_count;     /* room for this many in user buffer */
+        char    *ifcr_buffer;   /* buffer for cloner names */
 };
 .Ed
 .Sh SEE ALSO
