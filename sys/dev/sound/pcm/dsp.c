@@ -172,6 +172,8 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	intrmask_t s;
 	u_int32_t fmt;
 	int devtype;
+	int rdref;
+	int error;
 
 	s = spltty();
 	d = dsp_get_info(i_dev);
@@ -206,6 +208,8 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	default:
 		panic("impossible devtype %d", devtype);
 	}
+
+	rdref = 0;
 
 	/* lock snddev so nobody else can monkey with it */
 	pcm_lock(d);
@@ -249,67 +253,66 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 			return EBUSY;
 		}
 		/* got a channel, already locked for us */
+		if (chn_reset(rdch, fmt)) {
+			pcm_chnrelease(rdch);
+			i_dev->si_drv1 = NULL;
+			pcm_unlock(d);
+			splx(s);
+			return ENODEV;
+		}
+
+		if (flags & O_NONBLOCK)
+			rdch->flags |= CHN_F_NBIO;
+		pcm_chnref(rdch, 1);
+	 	CHN_UNLOCK(rdch);
+		rdref = 1;
+		/*
+		 * Record channel created, ref'ed and unlocked
+		 */
 	}
 
 	if (flags & FWRITE) {
-		/* open for write */
-		wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
-		if (!wrch) {
-			/* no channel available */
-			if (flags & FREAD) {
-				/* just opened a read channel, release it */
-				pcm_chnrelease(rdch);
-			}
-			/* exit */
-			pcm_unlock(d);
-			splx(s);
-			return EBUSY;
+	    /* open for write */
+	    wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
+	    error = 0;
+
+	    if (!wrch)
+		error = EBUSY; /* XXX Right return code? */
+	    else if (chn_reset(wrch, fmt))
+		error = ENODEV;
+
+	    if (error != 0) {
+		if (wrch) {
+		    /*
+		     * Free play channel
+		     */
+		    pcm_chnrelease(wrch);
+		    i_dev->si_drv2 = NULL;
 		}
-		/* got a channel, already locked for us */
+		if (rdref) {
+		    /*
+		     * Lock, deref and release previously created record channel
+		     */
+		    CHN_LOCK(rdch);
+		    pcm_chnref(rdch, -1);
+		    pcm_chnrelease(rdch);
+		    i_dev->si_drv1 = NULL;
+		}
+
+		pcm_unlock(d);
+		splx(s);
+		return error;
+	    }
+
+	    if (flags & O_NONBLOCK)
+		wrch->flags |= CHN_F_NBIO;
+	    pcm_chnref(wrch, 1);
+	    CHN_UNLOCK(wrch);
 	}
 
 	i_dev->si_drv1 = rdch;
 	i_dev->si_drv2 = wrch;
 
-	/* Bump refcounts, reset and unlock any channels that we just opened,
-	 * and then release device lock.
-	 */
-	if (flags & FREAD) {
-		if (chn_reset(rdch, fmt)) {
-			pcm_chnrelease(rdch);
-			i_dev->si_drv1 = NULL;
-			if (wrch && (flags & FWRITE)) {
-				pcm_chnrelease(wrch);
-				i_dev->si_drv2 = NULL;
-			}
-			pcm_unlock(d);
-			splx(s);
-			return ENODEV;
-		}
-		if (flags & O_NONBLOCK)
-			rdch->flags |= CHN_F_NBIO;
-		pcm_chnref(rdch, 1);
-	 	CHN_UNLOCK(rdch);
-	}
-	if (flags & FWRITE) {
-		if (chn_reset(wrch, fmt)) {
-			pcm_chnrelease(wrch);
-			i_dev->si_drv2 = NULL;
-			if (flags & FREAD) {
-				CHN_LOCK(rdch);
-				pcm_chnref(rdch, -1);
-				pcm_chnrelease(rdch);
-				i_dev->si_drv1 = NULL;
-			}
-			pcm_unlock(d);
-			splx(s);
-			return ENODEV;
-		}
-		if (flags & O_NONBLOCK)
-			wrch->flags |= CHN_F_NBIO;
-		pcm_chnref(wrch, 1);
-	 	CHN_UNLOCK(wrch);
-	}
 	pcm_unlock(d);
 	splx(s);
 	return 0;
@@ -321,7 +324,7 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
 	intrmask_t s;
-	int exit;
+	int refs;
 
 	s = spltty();
 	d = dsp_get_info(i_dev);
@@ -329,53 +332,57 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	rdch = i_dev->si_drv1;
 	wrch = i_dev->si_drv2;
 
-	exit = 0;
+	refs = 0;
 
-	/* decrement refcount for each channel, exit if nonzero */
 	if (rdch) {
 		CHN_LOCK(rdch);
-		if (pcm_chnref(rdch, -1) > 0) {
-			CHN_UNLOCK(rdch);
-			exit = 1;
-		}
+		refs += pcm_chnref(rdch, -1);
+		CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
 		CHN_LOCK(wrch);
-		if (pcm_chnref(wrch, -1) > 0) {
-			CHN_UNLOCK(wrch);
-			exit = 1;
-		}
+		refs += pcm_chnref(wrch, -1);
+		CHN_UNLOCK(wrch);
 	}
-	if (exit) {
+
+	/*
+	 * If there are no more references, release the channels.
+	 */
+	if ((rdch || wrch) && refs == 0) {
+
+		if (pcm_getfakechan(d))
+			pcm_getfakechan(d)->flags = 0;
+
+		i_dev->si_drv1 = NULL;
+		i_dev->si_drv2 = NULL;
+
+		dsp_set_flags(i_dev, dsp_get_flags(i_dev) & ~SD_F_TRANSIENT);
+
 		pcm_unlock(d);
-		splx(s);
-		return 0;
-	}
 
-	/* both refcounts are zero, abort and release */
-
-	if (pcm_getfakechan(d))
-		pcm_getfakechan(d)->flags = 0;
-
-	i_dev->si_drv1 = NULL;
-	i_dev->si_drv2 = NULL;
-
-	dsp_set_flags(i_dev, dsp_get_flags(i_dev) & ~SD_F_TRANSIENT);
-	pcm_unlock(d);
-
-	if (rdch) {
-		chn_abort(rdch); /* won't sleep */
-		rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
-		chn_reset(rdch, 0);
-		pcm_chnrelease(rdch);
-	}
-	if (wrch) {
-		chn_flush(wrch); /* may sleep */
-		wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
-		chn_reset(wrch, 0);
-		pcm_chnrelease(wrch);
-	}
-
+		if (rdch) {
+			CHN_LOCK(rdch);
+			chn_abort(rdch); /* won't sleep */
+			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
+			chn_reset(rdch, 0);
+			pcm_chnrelease(rdch);
+		}
+		if (wrch) {
+			CHN_LOCK(wrch);
+			/*
+			 * XXX: Maybe the right behaviour is to abort on non_block.
+			 * It seems that mplayer flushes the audio queue by quickly
+			 * closing and re-opening.  In FBSD, there's a long pause
+			 * while the audio queue flushes that I presume isn't there in
+			 * linux.
+			 */
+			chn_flush(wrch); /* may sleep */
+			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
+			chn_reset(wrch, 0);
+			pcm_chnrelease(wrch);
+		}
+	} else 
+		pcm_unlock(d);
 	splx(s);
 	return 0;
 }
