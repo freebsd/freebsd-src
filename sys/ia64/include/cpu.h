@@ -56,20 +56,12 @@ struct clockframe {
 	struct trapframe cf_tf;
 };
 #define	CLKF_PC(cf)		((cf)->cf_tf.tf_special.iip)
-#define	CLKF_USERMODE(cf)	((CLKF_PC(cf) >> 61) < 5)
-
-/* Used by signaling code. */
-#define	cpu_getstack(td)	((td)->td_frame->tf_special.sp)
+#define	CLKF_CPL(cf)		((cf)->cf_tf.tf_special.psr & IA64_PSR_CPL)
+#define	CLKF_USERMODE(cf)	(CLKF_CPL(cf) == IA64_PSR_CPL_USER)
 
 #define	TRAPF_PC(tf)		((tf)->tf_special.iip)
 #define	TRAPF_CPL(tf)		((tf)->tf_special.psr & IA64_PSR_CPL)
-/*
- * User mode for use by ast() and VM faults. It's takes into account
- * that the gateway page is kernel space when looking at the VA, but
- * is to be treated as user space when running with user priveleges.
- */
-#define	TRAPF_USERMODE(tf)	\
-	((TRAPF_PC(tf) >> 61) < 5 || TRAPF_CPL(tf) == IA64_PSR_CPL_USER)
+#define	TRAPF_USERMODE(tf)	(TRAPF_CPL(tf) == IA64_PSR_CPL_USER)
 
 /*
  * CTL_MACHDEP definitions.
@@ -95,6 +87,9 @@ struct clockframe {
  * for non-critical timing.
  */
 #define	get_cyclecount		ia64_get_itc
+
+/* Used by signaling code. */
+#define	cpu_getstack(td)	((td)->td_frame->tf_special.sp)
 
 void	cpu_halt(void);
 void	cpu_reset(void);
