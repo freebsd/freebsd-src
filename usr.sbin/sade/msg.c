@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.6 1995/05/05 23:47:44 jkh Exp $
+ * $Id: msg.c,v 1.7 1995/05/07 03:38:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ msgYap(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     errstr[0] = '\0';
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -73,7 +73,7 @@ msgInfo(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     errstr[0] = '\0';
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -94,7 +94,7 @@ msgWarn(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     strcpy(errstr, "Warning: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -116,7 +116,7 @@ msgError(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     strcpy(errstr, "Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -138,7 +138,7 @@ msgFatal(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     strcpy(errstr, "Fatal Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -167,7 +167,7 @@ msgConfirm(char *fmt, ...)
     va_list args;
     char *errstr;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -184,7 +184,7 @@ msgNotify(char *fmt, ...)
     va_list args;
     char *errstr;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -202,7 +202,7 @@ msgYesNo(char *fmt, ...)
     char *errstr;
     int ret;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -222,7 +222,7 @@ msgGetInput(char *buf, char *fmt, ...)
     static char input_buffer[256];
     int rval;
 
-    errstr = (char *)malloc(FILENAME_MAX);
+    errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
