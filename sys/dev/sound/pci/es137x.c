@@ -194,6 +194,7 @@ static snd_mixer es1370_mixer = {
 	"AudioPCI 1370 mixer",
 	es1370_mixinit,
 	NULL,
+	NULL,
 	es1370_mixset,
 	es1370_mixsetrecsrc,
 };
