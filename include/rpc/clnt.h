@@ -338,6 +338,11 @@ extern CLIENT *clnt_vc_create __P((const int, const struct netbuf *,
 				   const rpcprog_t, const rpcvers_t,
 				   const u_int, const u_int));
 /*
+ * Added for compatibility to old rpc 4.0. Obsoleted by clnt_vc_create().
+ */
+extern CLIENT *clntunix_create  __P((struct sockaddr_un *,
+				     u_long, u_long, int *, u_int, u_int));
+/*
  *	const int fd;				-- open file descriptor
  *	const struct netbuf *svcaddr;		-- servers address
  *	const rpcprog_t prog;			-- program number
