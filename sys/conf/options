@@ -71,6 +71,7 @@ GEOM_CONCAT	opt_geom.h
 GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_GPT	opt_geom.h
+GEOM_LABEL	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_NOP	opt_geom.h
