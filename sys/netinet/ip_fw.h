@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.18 1996/04/03 13:52:15 phk Exp $
+ *	$Id: ip_fw.h,v 1.19 1996/06/02 00:14:50 gpalmer Exp $
  */
 
 /*
@@ -49,6 +49,9 @@ struct ip_fw {
     u_short fw_pts[IP_FW_MAX_PORTS];    /* Array of port numbers to match */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
+#define IP_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
+    unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
+    long timestamp;         		/* timestamp (tv_sec) of last match */
 };
 
 struct ip_fw_chain {
@@ -60,33 +63,37 @@ struct ip_fw_chain {
  * Values for "flags" field .
  */
 
-#define IP_FW_F_ALL	0x000	/* This is a universal packet rule    */
-#define IP_FW_F_TCP	0x001	/* This is a TCP packet rule          */
-#define IP_FW_F_UDP	0x002	/* This is a UDP packet rule          */
-#define IP_FW_F_ICMP	0x003	/* This is a ICMP packet rule         */
-#define IP_FW_F_KIND	0x003	/* Mask to isolate rule kind          */
+#define IP_FW_F_ALL	0x0000	/* This is a universal packet rule    */
+#define IP_FW_F_TCP	0x0001	/* This is a TCP packet rule          */
+#define IP_FW_F_UDP	0x0002	/* This is a UDP packet rule          */
+#define IP_FW_F_ICMP	0x0003	/* This is a ICMP packet rule         */
+#define IP_FW_F_KIND	0x0003	/* Mask to isolate rule kind          */
 
-#define IP_FW_F_IN	0x004	/* Inbound 			      */
-#define IP_FW_F_OUT	0x008	/* Outboun 			      */
+#define IP_FW_F_IN	0x0004	/* Inbound 			      */
+#define IP_FW_F_OUT	0x0008	/* Outbound			      */
 
-#define IP_FW_F_ACCEPT	0x010	/* This is an accept rule	      */
-#define IP_FW_F_COUNT	0x020	/* This is an accept rule	      */
-#define IP_FW_F_PRN	0x040	/* Print if this rule matches	      */
-#define IP_FW_F_ICMPRPL	0x080	/* Send back icmp unreachable packet  */
+#define IP_FW_F_ACCEPT	0x0010	/* This is an accept rule	      */
+#define IP_FW_F_COUNT	0x0020	/* This is an accept rule	      */
+#define IP_FW_F_PRN	0x0040	/* Print if this rule matches	      */
+#define IP_FW_F_ICMPRPL	0x0080	/* Send back icmp unreachable packet  */
 				 
-#define IP_FW_F_SRNG	0x100	/* The first two src ports are a min  *
+#define IP_FW_F_SRNG	0x0100	/* The first two src ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            */
 
-#define IP_FW_F_DRNG	0x200	/* The first two dst ports are a min  *
+#define IP_FW_F_DRNG	0x0200	/* The first two dst ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            */
 
-#define IP_FW_F_IFNAME	0x400	/* Use interface name/unit (not IP)   */
+#define IP_FW_F_IFNAME	0x0400	/* Use interface name/unit (not IP)   */
 
-#define IP_FW_F_FRAG	0x800	/* Fragment			      */
+#define IP_FW_F_FRAG	0x0800	/* Fragment			      */
 
-#define IP_FW_F_MASK	0xFFF	/* All possible flag bits mask        */
+#define IP_FW_F_ICMPBIT 0x1000	/* ICMP type bitmap is valid          */
+
+#define IP_FW_F_IFUWILD	0x2000	/* Match all interface units          */
+
+#define IP_FW_F_MASK	0x3FFF	/* All possible flag bits mask        */
 
 /*
  * Definitions for IP option names.
