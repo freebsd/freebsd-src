@@ -94,7 +94,7 @@ struct acpi_cpu_softc {
 		       rman_get_bushandle((reg)), 0, (val)))
 
 /*
- * Speeds are stored in counts, from 1 - CPU_MAX_SPEED, and
+ * Speeds are stored in counts, from 1 to CPU_MAX_SPEED, and
  * reported to the user in tenths of a percent.
  */
 static uint32_t		 cpu_duty_offset;
@@ -775,7 +775,7 @@ acpi_cpu_throttle_set(uint32_t speed)
 	/* If we're at maximum speed, that's all */
 	if (speed < CPU_MAX_SPEED) {
 	    /* Mask the old CLK_VAL off and or-in the new value */
-	    clk_val = CPU_MAX_SPEED << cpu_duty_offset;
+	    clk_val = (CPU_MAX_SPEED - 1) << cpu_duty_offset;
 	    p_cnt &= ~clk_val;
 	    p_cnt |= (speed << cpu_duty_offset);
 
