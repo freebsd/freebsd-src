@@ -48,7 +48,7 @@ static UINT32		InterruptOverride = 0;
 
 ACPI_STATUS
 AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
-    OSD_HANDLER ServiceRoutine, void *Context)
+    ACPI_OSD_HANDLER ServiceRoutine, void *Context)
 {
     struct acpi_softc	*sc;
 
@@ -105,7 +105,7 @@ error:
 }
 
 ACPI_STATUS
-AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine)
+AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber, ACPI_OSD_HANDLER ServiceRoutine)
 {
     struct acpi_softc	*sc;
 
