@@ -40,9 +40,9 @@
  * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 #if 0
-#define DBG printf("pppoe: %s\n", __func__ )
+#define	DBG do { printf("ng_device: %s\n", __func__ ); } while (0)
 #else
-#define DBG
+#define	DBG do {} while (0)
 #endif
 
 #include <sys/param.h>
