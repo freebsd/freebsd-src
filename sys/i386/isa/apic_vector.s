@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.31 1998/08/11 15:08:12 bde Exp $
+ *	$Id: apic_vector.s,v 1.32 1998/08/11 17:01:32 bde Exp $
  */
 
 
@@ -718,8 +718,6 @@ _Xforward_irq:
 	cmpb	$4, _intr_nesting_level
 	jae	2f
 	
-	jmp	3f
-
 	AVCPL_LOCK
 #ifdef CPL_AND_CML
 	movl	_cml, %eax
@@ -736,14 +734,6 @@ _Xforward_irq:
 
 	MEXITCOUNT
 	jmp	_doreti			/* Handle forwarded interrupt */
-4:	
-	lock	
-	decb	_intr_nesting_level
-	ISR_RELLOCK
-	MEXITCOUNT
-	addl	$8, %esp
-	POP_FRAME
-	iret
 1:
 	lock
 	incl	CNAME(forward_irq_misscnt)
