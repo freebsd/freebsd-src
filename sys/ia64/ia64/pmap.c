@@ -196,7 +196,6 @@ vm_offset_t vhpt_base, vhpt_size;
  * we use one page directory to index a set of pages containing
  * ia64_lptes. This gives us up to 2Gb of kernel virtual space.
  */
-static vm_object_t kptobj;
 static int nkpt;
 static struct ia64_lpte **kptdir;
 #define KPTE_DIR_INDEX(va) \
@@ -556,11 +555,6 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_prealloc(ptezone, initial_pvs);
-
-	/*
-	 * Create the object for the kernel's page tables.
-	 */
-	kptobj = vm_object_allocate(OBJT_DEFAULT, MAXKPT);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -924,8 +918,8 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kptobj, nkpt,
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		nkpg = vm_page_alloc(NULL, nkpt,
+		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
