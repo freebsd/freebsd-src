@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: loader.8,v 1.1 1999/03/15 08:52:23 dcs Exp $
+.\"	$Id: loader.8,v 1.2 1999/04/20 21:15:12 des Exp $
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -399,9 +399,10 @@ All backslash characters are preprocessed.
 .Tn ASCII
 11.
 .It
-\ez is just skipped.
+\ez is just skipped. Useful for things like
+.Dq \e0xf\ez\e0xf .
 .It
-\eN and \eNN are replaced by the hex N or NN.
+\e0xN and \e0xNN are replaced by the hex N or NN.
 .It
 \eNNN is replaced by the octal NNN
 .Tn ASCII
