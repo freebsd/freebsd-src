@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57 1999/08/08 17:35:35 brian Exp $
+#	$Id: Makefile,v 1.58 1999/08/22 23:17:57 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -21,7 +21,7 @@ MAN8=	ppp.8
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
-.if defined(NONAT) || defined(NOALIAS)
+.if defined(NOALIAS) || defined(NONAT)
 CFLAGS+=-DNONAT
 .else
 .if !defined(RELEASE_CRUNCH)
@@ -49,7 +49,7 @@ DPADD+= ${LIBRADIUS}
 .endif
 .endif
 
-.if defined(NOI4B)|| ${MACHINE_ARCH} == "alpha"
+.if defined(NOI4B) || ${MACHINE_ARCH} == "alpha"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
