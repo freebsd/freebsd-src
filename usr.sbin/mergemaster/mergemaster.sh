@@ -8,6 +8,7 @@
 # Copyright 1998, 1999 Douglas Barton
 # Doug@gorean.org
 
+# $FreeBSD$
 # $Revision: 1.36 $
 # $Date: 1999/09/10 20:56:33 $
 
