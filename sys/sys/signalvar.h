@@ -63,7 +63,7 @@ struct	sigacts {
 };
 
 /*
- * Compatibility
+ * Compatibility.
  */
 typedef struct {
 	struct osigcontext si_sc;
@@ -83,12 +83,9 @@ struct	osigaction {
 
 typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
 
-/*
- * additional signal action values, used only temporarily/internally
- * NOTE: SIG_HOLD was previously internal only, but has been moved to
- *       sys/signal.h
- */
-#define	SIG_CATCH	((__sighandler_t *)3)
+/* additional signal action values, used only temporarily/internally */
+#define	SIG_CATCH	((__sighandler_t *)2)
+#define SIG_HOLD        ((__sighandler_t *)3)
 
 /*
  * get signal action for process and signal; currently only for current process
@@ -166,7 +163,8 @@ typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
 #define SIG2OSIG(sig, osig)	osig = (sig).__bits[0]
 #define OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
 
-extern __inline int __sigisempty(sigset_t *set)
+extern __inline int
+__sigisempty(sigset_t *set)
 {
 	int i;
 
@@ -177,7 +175,8 @@ extern __inline int __sigisempty(sigset_t *set)
 	return (1);
 }
 
-extern __inline int __sigseteq(sigset_t *set1, sigset_t *set2)
+extern __inline int
+__sigseteq(sigset_t *set1, sigset_t *set2)
 {
 	int i;
 
@@ -199,6 +198,7 @@ extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
 /*
  * Machine-independent functions:
  */
+void	check_sigacts __P((void));
 void	execsigs __P((struct proc *p));
 void	gsignal __P((int pgid, int sig));
 int	issignal __P((struct proc *p));
@@ -210,15 +210,12 @@ void	psignal __P((struct proc *p, int sig));
 void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
-void	check_sigacts __P((void));
-int	__sig_ffs __P((sigset_t *set));
 int	__cursig __P((struct proc *p));
 
 /*
  * Machine-dependent functions:
  */
 void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
-int	md_sigreturn __P((struct proc *p, void *sigcntxp, sigset_t *mask));
 
 /*
  * Inline functions:
