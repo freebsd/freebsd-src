@@ -1011,11 +1011,11 @@ sched_exit_thread(struct thread *td, struct thread *child)
 }
 
 void
-sched_clock(struct kse *ke)
+sched_clock(struct thread *td)
 {
 	struct kseq *kseq;
 	struct ksegrp *kg;
-	struct thread *td;
+	struct kse *ke;
 #if 0
 	struct kse *nke;
 #endif
@@ -1036,7 +1036,7 @@ sched_clock(struct kse *ke)
 			tickincr = 1;
 	}
 
-	td = ke->ke_thread;
+	ke = td->td_kse;
 	kg = ke->ke_ksegrp;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1225,11 +1225,14 @@ retry:
 }
 
 void
-sched_add(struct kse *ke)
+sched_add(struct thread *td)
 {
 	struct kseq *kseq;
 	struct ksegrp *kg;
+	struct kse *ke;
 
+	ke = td->td_kse;
+	kg = td->td_ksegrp;
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_thread != NULL), ("sched_add: No thread on KSE"));
 	KASSERT((ke->ke_thread->td_kse != NULL),
@@ -1242,7 +1245,6 @@ sched_add(struct kse *ke)
 	KASSERT(ke->ke_runq == NULL,
 	    ("sched_add: KSE %p is still assigned to a run queue", ke));
 
-	kg = ke->ke_ksegrp;
 
 	switch (PRI_BASE(kg->kg_pri_class)) {
 	case PRI_ITHD:
@@ -1283,9 +1285,12 @@ sched_add(struct kse *ke)
 }
 
 void
-sched_rem(struct kse *ke)
+sched_rem(struct thread *td)
 {
 	struct kseq *kseq;
+	struct kse *ke;
+
+	ke = td->td_kse;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
@@ -1298,11 +1303,13 @@ sched_rem(struct kse *ke)
 }
 
 fixpt_t
-sched_pctcpu(struct kse *ke)
+sched_pctcpu(struct thread *td)
 {
 	fixpt_t pctcpu;
+	struct kse *ke;
 
 	pctcpu = 0;
+	ke = td->td_kse;
 
 	mtx_lock_spin(&sched_lock);
 	if (ke->ke_ticks) {
