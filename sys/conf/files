@@ -288,7 +288,7 @@ dev/amd/amd.c		optional amd
 dev/amr/amr_cam.c	optional amr
 dev/amr/amr.c		optional amr
 dev/amr/amr_disk.c	optional amr
-dev/amr/amr_pci.c	optional amr
+dev/amr/amr_pci.c	optional amr pci
 dev/an/if_an.c		optional an
 dev/an/if_an_isa.c	optional an isa
 dev/an/if_an_pccard.c	optional an card
@@ -343,8 +343,8 @@ dev/cs/if_cs_isa.c	optional cs isa
 dev/cs/if_cs_pccard.c	optional cs card
 dev/cs/if_cs_pccard.c	optional cs pccard
 dev/digi/digi.c		optional digi
-dev/digi/digi_isa.c	optional digi
-dev/digi/digi_pci.c	optional digi
+dev/digi/digi_isa.c	optional digi isa
+dev/digi/digi_pci.c	optional digi pci
 dev/digi/CX.c		optional digi_CX
 dev/digi/CX_PCI.c	optional digi_CX_PCI
 dev/digi/EPCX.c		optional digi_EPCX
@@ -506,12 +506,12 @@ dev/mii/miibus_if.m	optional miibus
 dev/mk48txx/mk48txx.c	optional mk48txx
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
-dev/mlx/mlx_pci.c	optional mlx
+dev/mlx/mlx_pci.c	optional mlx pci
 dev/mly/mly.c		optional mly
 dev/mpt/mpt.c		optional mpt
 dev/mpt/mpt_debug.c	optional mpt
 dev/mpt/mpt_freebsd.c	optional mpt
-dev/mpt/mpt_pci.c	optional mpt
+dev/mpt/mpt_pci.c	optional mpt pci
 dev/my/if_my.c		optional my
 dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
@@ -756,9 +756,9 @@ dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
 dev/usb/ehci.c		optional ehci
-dev/usb/ehci_pci.c	optional ehci
+dev/usb/ehci_pci.c	optional ehci pci
 dev/usb/ohci.c		optional ohci
-dev/usb/ohci_pci.c	optional ohci
+dev/usb/ohci_pci.c	optional ohci pci
 dev/usb/ubsa.c		optional ubsa ucom
 dev/usb/ucom.c		optional ucom
 dev/usb/udbp.c		optional udbp
@@ -766,7 +766,7 @@ dev/usb/ufm.c		optional ufm
 dev/usb/uftdi.c		optional uftdi ucom
 dev/usb/ugen.c		optional ugen
 dev/usb/uhci.c		optional uhci
-dev/usb/uhci_pci.c	optional uhci
+dev/usb/uhci_pci.c	optional uhci pci
 dev/usb/uhid.c		optional uhid
 dev/usb/uhub.c		optional usb
 dev/usb/ukbd.c		optional ukbd
@@ -1482,31 +1482,31 @@ pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
 pccard/pcic_isa.c	optional pcic card isa
 pccard/pcic_pci.c	optional pcic card pci
-pci/agp.c		optional agp
-pci/agp_if.m		optional agp
-pci/alpm.c		optional alpm
-pci/amdpm.c		optional amdpm
-pci/amdpm.c		optional nfpm
-pci/if_dc.c		optional dc
-pci/if_de.c		optional de
+pci/agp.c		optional agp pci
+pci/agp_if.m		optional agp pci
+pci/alpm.c		optional alpm pci
+pci/amdpm.c		optional amdpm pci
+pci/amdpm.c		optional nfpm pci
+pci/if_dc.c		optional dc pci
+pci/if_de.c		optional de pci
 pci/if_en_pci.c		optional en pci
-pci/if_mn.c		optional mn
-pci/if_pcn.c		optional pcn
-pci/if_rl.c		optional rl
-pci/if_sf.c		optional sf
-pci/if_sis.c		optional sis
-pci/if_sk.c		optional sk
-pci/if_ste.c		optional ste
-pci/if_ti.c		optional ti
-pci/if_tl.c		optional tl
-pci/if_vr.c		optional vr
-pci/if_wb.c		optional wb
-pci/if_xl.c		optional xl
-pci/intpm.c		optional intpm
+pci/if_mn.c		optional mn pci
+pci/if_pcn.c		optional pcn pci
+pci/if_rl.c		optional rl pci
+pci/if_sf.c		optional sf pci
+pci/if_sis.c		optional sis pci
+pci/if_sk.c		optional sk pci
+pci/if_ste.c		optional ste pci
+pci/if_ti.c		optional ti pci
+pci/if_tl.c		optional tl pci
+pci/if_vr.c		optional vr pci
+pci/if_wb.c		optional wb pci
+pci/if_xl.c		optional xl pci
+pci/intpm.c		optional intpm pci
 pci/meteor.c		count meteor pci nowerror
-pci/ncr.c		optional ncr
-pci/viapm.c		optional viapm
-pci/xrpu.c		optional xrpu
+pci/ncr.c		optional ncr pci
+pci/viapm.c		optional viapm pci
+pci/xrpu.c		optional xrpu pci
 posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard
 posix4/posix4_mib.c	standard
