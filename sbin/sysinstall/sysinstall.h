@@ -12,6 +12,10 @@
  * its use.
  */
 
+#define TITLE	"FreeBSD 2.0.1-Development Installation"
+
+#define MAXFS	25
+
 #define MAX_NO_DISKS 10
 #define SCRATCHSIZE 1024
 #define ERRMSGSIZE 256
@@ -41,6 +45,14 @@ struct sysinstall
 	char root_dev[90];
 };
 
+#ifndef EXTERN
+#  define EXTERN extern
+#endif
+
+EXTERN char *devicename[MAXFS+1];
+EXTERN char *mountpoint[MAXFS+1];
+EXTERN int dialog_active;
+
 extern int no_disks;
 extern int inst_disk;
 extern unsigned char *scratch;
@@ -49,7 +61,27 @@ extern int *avail_fds;
 extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
+/* utils.c */
 void	TellEm __P((char *fmt, ...));
 void	stage0	__P((void));
 void	*Malloc __P((size_t size));
+char	*StrAlloc __P((char *str));
+void	Fatal __P((char *fmt, ...));
+int	AskAbort __P((char *fmt, ...));
+int	exec __P((char *cmd, char *args, ...));
+void	MountUfs __P((char *device, char *prefix, char *mountpoint, int do_mkdir));
 
+/* stage0.c */
+void	stage0 __P((void));
+
+/* stage1.c */
+void	stage1 __P((void));
+
+/* stage2.c */
+void	stage2 __P((void));
+
+/* stage3.c */
+void	stage3 __P((void));
+
+/* termcap.c */
+int	set_termcap __P((void));
