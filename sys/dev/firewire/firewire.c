@@ -1112,7 +1112,7 @@ static void
 fw_bus_explore(struct firewire_comm *fc )
 {
 	int err = 0;
-	struct fw_device *fwdev, *tfwdev;
+	struct fw_device *fwdev, *pfwdev, *tfwdev;
 	u_int32_t addr;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
@@ -1176,18 +1176,18 @@ loop:
 		fwdev->speed = fc->speed_map->speed[fc->nodeid][fc->ongonode];
 #endif
 
-		tfwdev = TAILQ_FIRST(&fc->devices);
-		while( tfwdev != NULL &&
-			(tfwdev->eui.hi > fwdev->eui.hi) &&
-			((tfwdev->eui.hi == fwdev->eui.hi) &&
-				tfwdev->eui.lo > fwdev->eui.lo)){
-			tfwdev = TAILQ_NEXT( tfwdev, link);
+		pfwdev = NULL;
+		TAILQ_FOREACH(tfwdev, &fc->devices, link) {
+			if (tfwdev->eui.hi > fwdev->eui.hi ||
+					(tfwdev->eui.hi == fwdev->eui.hi &&
+					tfwdev->eui.lo > fwdev->eui.lo))
+				break;
+			pfwdev = tfwdev;
 		}
-		if(tfwdev == NULL){
-			TAILQ_INSERT_TAIL(&fc->devices, fwdev, link);
-		}else{
-			TAILQ_INSERT_BEFORE(tfwdev, fwdev, link);
-		}
+		if (pfwdev == NULL)
+			TAILQ_INSERT_HEAD(&fc->devices, fwdev, link);
+		else
+			TAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
 
 		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
 			linkspeed[fwdev->speed],
