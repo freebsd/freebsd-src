@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.79 1998/03/08 09:59:44 julian Exp $
+ * $Id: ufs_vnops.c,v 1.80 1998/03/26 20:54:05 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -752,7 +752,7 @@ ufs_link(ap)
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vp))
 		softdep_increase_linkcnt(ip);
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(vp, &tv, &tv, !DOINGSOFTDEP(vp));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
@@ -1012,7 +1012,7 @@ abortit:
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
 		softdep_increase_linkcnt(ip);
-	gettime(&tv);
+	getmicrotime(&tv);
 	if (error = UFS_UPDATE(fvp, &tv, &tv, !DOINGSOFTDEP(fvp))) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
@@ -1368,7 +1368,7 @@ ufs_mkdir(ap)
 	dp->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(dvp))
 		softdep_increase_linkcnt(dp);
-	gettime(&tv);
+	getmicrotime(&tv);
         error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(dvp));
 	if (error)
 		goto bad;
@@ -2118,7 +2118,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(tvp));
 	if (error)
 		goto bad;

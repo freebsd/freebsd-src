@@ -229,7 +229,7 @@ loop:
 #endif
 	}
 	splx(s);
-	gettime(&tv);
+	getmicrotime(&tv);
 	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
 
@@ -354,7 +354,7 @@ ext2_link(ap)
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(vp, &tv, &tv, 1);
 	if (!error)
 		error = ext2_direnter(ip, tdvp, cnp);
@@ -526,7 +526,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	gettime(&tv);
+	getmicrotime(&tv);
 	if (error = UFS_UPDATE(fvp, &tv, &tv, 1)) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
@@ -897,7 +897,7 @@ ext2_mkdir(ap)
 	ip->i_nlink = 2;
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(tvp, &tv, &tv, 1);
 
 	/*
@@ -1178,7 +1178,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(tvp, &tv, &tv, 1);
 	if (error)
 		goto bad;

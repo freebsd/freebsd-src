@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.114 1998/02/04 03:47:16 eivind Exp $
+**  $Id: ncr.c,v 1.115 1998/02/09 06:10:56 eivind Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -498,14 +498,14 @@ struct	usrcmd {
 */
 
 struct tstamp {
-	struct timeval	start;
-	struct timeval	end;
-	struct timeval	select;
-	struct timeval	command;
-	struct timeval	data;
-	struct timeval	status;
-	struct timeval	disconnect;
-	struct timeval	reselect;
+	int	start;
+	int	end;
+	int	select;
+	int	command;
+	int	data;
+	int	status;
+	int	disconnect;
+	int	reselect;
 };
 
 /*
@@ -1287,7 +1287,7 @@ struct scripth {
 #ifdef KERNEL
 static	void	ncr_alloc_ccb	(ncb_p np, u_long target, u_long lun);
 static	void	ncr_complete	(ncb_p np, ccb_p cp);
-static	int	ncr_delta	(struct timeval * from, struct timeval * to);
+static	int	ncr_delta	(int * from, int * to);
 static	void	ncr_exception	(ncb_p np);
 static	void	ncr_free_ccb	(ncb_p np, ccb_p cp, int flags);
 static	void	ncr_selectclock	(ncb_p np, u_char scntl3);
@@ -1342,7 +1342,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.114 1998/02/04 03:47:16 eivind Exp $\n";
+	"\n$Id: ncr.c,v 1.115 1998/02/09 06:10:56 eivind Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1471,8 +1471,8 @@ static char *ncr_name (ncb_p np)
 #define	FADDR(label,ofs)(RELOC_REGISTER | ((REG(label))+(ofs)))
 #define	KVAR(which)	(RELOC_KVAR | (which))
 
-#define KVAR_TIME_TV_SEC		(0)
-#define KVAR_TIME			(1)
+#define KVAR_SECOND			(0)
+#define KVAR_TICKS			(1)
 #define KVAR_NCR_CACHE			(2)
 
 #define	SCRIPT_KVAR_FIRST		(0)
@@ -1483,7 +1483,7 @@ static char *ncr_name (ncb_p np)
  * THESE MUST ALL BE ALIGNED TO A 4-BYTE BOUNDARY.
  */
 static void *script_kvars[] =
-	{ &time.tv_sec, &time, &ncr_cache };
+	{ &time_second, &ticks, &ncr_cache };
 
 static	struct script script0 = {
 /*--------------------------< START >-----------------------*/ {
@@ -1491,7 +1491,7 @@ static	struct script script0 = {
 	**	Claim to be still alive ...
 	*/
 	SCR_COPY (sizeof (((struct ncb *)0)->heartbeat)),
-		KVAR (KVAR_TIME_TV_SEC),
+		KVAR (KVAR_SECOND),
 		NADDR (heartbeat),
 	/*
 	**      Make data structure address invalid.
@@ -1710,7 +1710,7 @@ static	struct script script0 = {
 	**      Set a time stamp for this selection
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		KVAR (KVAR_TIME),
+		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.select),
 	/*
 	**      load the savep (saved pointer) into
@@ -1892,7 +1892,7 @@ static	struct script script0 = {
 	**	... set a timestamp ...
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		KVAR (KVAR_TIME),
+		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.command),
 	/*
 	**	... and send the command
@@ -1914,7 +1914,7 @@ static	struct script script0 = {
 	**	set the timestamp.
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		KVAR (KVAR_TIME),
+		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.status),
 	/*
 	**	If this is a GETCC transfer,
@@ -2219,7 +2219,7 @@ static	struct script script0 = {
 	**	and count the disconnects.
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		KVAR (KVAR_TIME),
+		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.disconnect),
 	SCR_COPY (4),
 		NADDR (disc_phys),
@@ -2462,7 +2462,7 @@ static	struct script script0 = {
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
 **		PADDR (no_data),
 **	SCR_COPY (sizeof (struct timeval)),
-**		KVAR (KVAR_TIME),
+**		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_IN,
 **		offsetof (struct dsb, data[ 0]),
@@ -2489,7 +2489,7 @@ static	struct script script0 = {
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT)),
 **		PADDR (no_data),
 **	SCR_COPY (sizeof (struct timeval)),
-**		KVAR (KVAR_TIME),
+**		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_OUT,
 **		offsetof (struct dsb, data[ 0]),
@@ -3058,7 +3058,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN));
 	*p++ =PADDR (no_data);
 	*p++ =SCR_COPY (sizeof (struct timeval));
-	*p++ =(ncrcmd) KVAR (KVAR_TIME);
+	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_IN;
 	*p++ =offsetof (struct dsb, data[ 0]);
@@ -3082,7 +3082,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT));
 	*p++ =PADDR (no_data);
 	*p++ =SCR_COPY (sizeof (struct timeval));
-	*p++ =(ncrcmd) KVAR (KVAR_TIME);
+	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_OUT;
 	*p++ =offsetof (struct dsb, data[ 0]);
@@ -4180,7 +4180,7 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 	*/
 
 	bzero (&cp->phys.header.stamp, sizeof (struct tstamp));
-	gettime(&cp->phys.header.stamp.start);
+	cp->phys.header.stamp.start = ticks;
 
 	/*----------------------------------------------------
 	**
@@ -4475,7 +4475,7 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 	*/
 
 	cp->jump_ccb.l_cmd	= (SCR_JUMP ^ IFFALSE (DATA (cp->tag)));
-	cp->tlimit		= time.tv_sec + xp->timeout / 1000 + 2;
+	cp->tlimit		= time_second + xp->timeout / 1000 + 2;
 	cp->magic		= CCB_MAGIC;
 
 	/*
@@ -5443,7 +5443,7 @@ static void ncr_usercmd (ncb_p np)
 static void ncr_timeout (void *arg)
 {
 	ncb_p	np = arg;
-	u_long	thistime = time.tv_sec;
+	u_long	thistime = time_second;
 	u_long	step  = np->ticks;
 	u_long	count = 0;
 	long signed   t;
@@ -5760,9 +5760,9 @@ void ncr_exception (ncb_p np)
 	**========================================
 	*/
 
-	if (time.tv_sec - np->regtime.tv_sec>10) {
+	if (time_second - np->regtime.tv_sec>10) {
 		int i;
-		gettime(&np->regtime);
+		getmicrotime(&np->regtime);
 		for (i=0; i<sizeof(np->regdump); i++)
 			((char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
@@ -7326,12 +7326,11 @@ static int ncr_snooptest (struct ncb* np)
 **	Compute the difference in milliseconds.
 **/
 
-static	int ncr_delta (struct timeval * from, struct timeval * to)
+static	int ncr_delta (int *from, int *to)
 {
-	if (!from->tv_sec) return (-1);
-	if (!to  ->tv_sec) return (-2);
-	return ( (to->tv_sec  - from->tv_sec  -       2)*1000+
-		+(to->tv_usec - from->tv_usec + 2000000)/1000);
+	if (!from) return (-1);
+	if (!to)   return (-2);
+	return ((to - from) * 1000 / hz);
 }
 
 #define PROFILE  cp->phys.header.stamp
@@ -7340,7 +7339,7 @@ static	void ncb_profile (ncb_p np, ccb_p cp)
 	int co, da, st, en, di, se, post,work,disc;
 	u_long diff;
 
-	gettime(&PROFILE.end);
+	PROFILE.end = ticks;
 
 	st = ncr_delta (&PROFILE.start,&PROFILE.status);
 	if (st<0) return;	/* status  not reached  */

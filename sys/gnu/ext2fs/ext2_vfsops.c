@@ -837,7 +837,7 @@ ext2_sync(mp, waitfor, cred, p)
 			panic("update: rofs mod");
 		}
 		fs->s_dirt = 0;
-		fs->s_es->s_wtime = time.tv_sec;
+		fs->s_es->s_wtime = time_second;
 		allerror = ext2_sbupdate(ump, waitfor);
 	}
 	/*

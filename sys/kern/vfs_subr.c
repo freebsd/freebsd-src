@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.146 1998/03/28 12:04:32 bde Exp $
+ * $Id: vfs_subr.c,v 1.147 1998/03/28 13:24:54 bde Exp $
  */
 
 /*
@@ -920,7 +920,7 @@ sched_sync(void)
 	struct proc *p = updateproc;
 
 	for (;;) {
-		starttime = time.tv_sec;
+		starttime = time_second;
 
 		/*
 		 * Push files whose dirty time has expired.
@@ -976,7 +976,7 @@ sched_sync(void)
 		 * matter as we are just trying to generally pace the
 		 * filesystem activity.
 		 */
-		if (time.tv_sec == starttime)
+		if (time_second == starttime)
 			tsleep(&lbolt, PPAUSE, "syncer", 0);
 	}
 }

@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.78 1998/02/12 00:57:04 alex Exp $
+ *	$Id: ip_fw.c,v 1.79 1998/03/15 00:36:27 alex Exp $
  */
 
 /*
@@ -561,7 +561,7 @@ got_match:
 		/* Update statistics */
 		f->fw_pcnt += 1;
 		f->fw_bcnt += ip->ip_len;
-		f->timestamp = time.tv_sec;
+		f->timestamp = time_second;
 
 		/* Log to console if desired */
 		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)

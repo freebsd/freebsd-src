@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.58 1998/03/16 10:19:12 phk Exp $
+ * $Id: kern_clock.c,v 1.59 1998/03/26 20:51:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -97,6 +97,8 @@ long tk_rawcc;
 
 struct timecounter *timecounter;
 
+time_t time_second;
+
 /*
  * Clock handling routines.
  *
@@ -136,7 +138,6 @@ int	ticks;
 static int psdiv, pscnt;		/* prof => stat divider */
 int	psratio;			/* ratio: prof / stat */
 
-struct	timeval time;
 volatile struct	timeval mono_time;
 
 /*
@@ -223,14 +224,10 @@ hardclock(frame)
 }
 
 /*
- * Compute number of hz until specified time.  Used to
- * compute third argument to timeout() from an absolute time.
- * XXX this interface is often inconvenient.  We often just need the
- * number of ticks in a timeval, but to use hzto() for that we have
- * to add `time' to the timeval and do everything at splclock().
+ * Compute number of ticks in the specified amount of time.
  */
 int
-hzto(tv)
+tvtohz(tv)
 	struct timeval *tv;
 {
 	register unsigned long ticks;
@@ -257,10 +254,8 @@ hzto(tv)
 	 * If ints have 32 bits, then the maximum value for any timeout in
 	 * 10ms ticks is 248 days.
 	 */
-	s = splclock();
-	sec = tv->tv_sec - time.tv_sec;
-	usec = tv->tv_usec - time.tv_usec;
-	splx(s);
+	sec = tv->tv_sec;
+	usec = tv->tv_usec;
 	if (usec < 0) {
 		sec--;
 		usec += 1000000;
@@ -271,7 +266,7 @@ hzto(tv)
 			sec++;
 			usec -= 1000000;
 		}
-		printf("hzto: negative time difference %ld sec %ld usec\n",
+		printf("tvotohz: negative time difference %ld sec %ld usec\n",
 		       sec, usec);
 #endif
 		ticks = 1;
@@ -286,6 +281,24 @@ hzto(tv)
 	if (ticks > INT_MAX)
 		ticks = INT_MAX;
 	return (ticks);
+}
+
+
+/*
+ * Compute number of hz until specified time.  Used to
+ * compute third argument to timeout() from an absolute time.
+ */
+int
+hzto(tv)
+	struct timeval *tv;
+{
+	register long sec, usec;
+	struct timeval t2;
+
+	getmicrotime(&t2);
+	t2.tv_sec = tv->tv_sec - t2.tv_sec;
+	t2.tv_usec = tv->tv_usec - t2.tv_usec;
+	return (tvtohz(&t2));
 }
 
 /*
@@ -637,8 +650,7 @@ set_timecounter(struct timespec *ts)
 	tc->offset_nano = (u_int64_t)ts->tv_nsec << 32;
 	tc->offset_micro = ts->tv_nsec / 1000;
 	tc->offset_count = tc->get_timecount();
-	time.tv_sec = tc->offset_sec;
-	time.tv_usec = tc->offset_micro;
+	time_second = tc->offset_sec;
 	timecounter = tc;
 	splx(s);
 }
@@ -711,8 +723,7 @@ tco_forward(void)
 
 	tc->offset_micro = (tc->offset_nano / 1000) >> 32;
 
-	time.tv_usec = tc->offset_micro;
-	time.tv_sec = tc->offset_sec;
+	time_second =  tc->offset_sec;
 	timecounter = tc;
 }
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.32 1997/10/12 20:25:38 phk Exp $
+ * $Id: nfs.h,v 1.33 1998/02/01 21:23:29 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -108,9 +108,9 @@
  */
 #define	NFS_ATTRTIMEO(np) \
 	((((np)->n_flag & NMODIFIED) || \
-	 (time.tv_sec - (np)->n_mtime) / 10 < NFS_MINATTRTIMO) ? NFS_MINATTRTIMO : \
-	 ((time.tv_sec - (np)->n_mtime) / 10 > NFS_MAXATTRTIMO ? NFS_MAXATTRTIMO : \
-	  (time.tv_sec - (np)->n_mtime) / 10))
+	 (time_second - (np)->n_mtime) / 10 < NFS_MINATTRTIMO) ? NFS_MINATTRTIMO : \
+	 ((time_second - (np)->n_mtime) / 10 > NFS_MAXATTRTIMO ? NFS_MAXATTRTIMO : \
+	  (time_second - (np)->n_mtime) / 10))
 
 /*
  * Expected allocation sizes for major data structures. If the actual size
@@ -571,6 +571,7 @@ extern int nfs_debug;
 
 #endif
 
+u_quad_t nfs_curusec __P((void));
 int	nfs_init __P((struct vfsconf *vfsp));
 int	nfs_reply __P((struct nfsreq *));
 int	nfs_getreq __P((struct nfsrv_descript *,struct nfsd *,int));

@@ -108,7 +108,7 @@ atm_output(ifp, m0, dst, rt0)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	gettime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 
 	/*
 	 * check route
@@ -263,7 +263,7 @@ atm_input(ifp, ah, m, rxhand)
 		m_freem(m);
 		return;
 	}
-	gettime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len;
 
 #if NBPFILTER > 0

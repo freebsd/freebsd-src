@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.19 1998/02/09 06:11:12 eivind Exp $
+ * $Id: ufs_quota.c,v 1.20 1998/03/08 09:59:33 julian Exp $
  */
 
 #include <sys/param.h>
@@ -201,7 +201,7 @@ chkdqchg(ip, change, cred, type)
 	 */
 	if (ncurblocks >= dq->dq_bsoftlimit && dq->dq_bsoftlimit) {
 		if (dq->dq_curblocks < dq->dq_bsoftlimit) {
-			dq->dq_btime = time.tv_sec +
+			dq->dq_btime = time_second +
 			    VFSTOUFS(ITOV(ip)->v_mount)->um_btime[type];
 			if (ip->i_uid == cred->cr_uid)
 				uprintf("\n%s: warning, %s %s\n",
@@ -209,7 +209,7 @@ chkdqchg(ip, change, cred, type)
 				    quotatypes[type], "disk quota exceeded");
 			return (0);
 		}
-		if (time.tv_sec > dq->dq_btime) {
+		if (time_second > dq->dq_btime) {
 			if ((dq->dq_flags & DQ_BLKS) == 0 &&
 			    ip->i_uid == cred->cr_uid) {
 				uprintf("\n%s: write failed, %s %s\n",
@@ -317,7 +317,7 @@ chkiqchg(ip, change, cred, type)
 	 */
 	if (ncurinodes >= dq->dq_isoftlimit && dq->dq_isoftlimit) {
 		if (dq->dq_curinodes < dq->dq_isoftlimit) {
-			dq->dq_itime = time.tv_sec +
+			dq->dq_itime = time_second +
 			    VFSTOUFS(ITOV(ip)->v_mount)->um_itime[type];
 			if (ip->i_uid == cred->cr_uid)
 				uprintf("\n%s: warning, %s %s\n",
@@ -325,7 +325,7 @@ chkiqchg(ip, change, cred, type)
 				    quotatypes[type], "inode quota exceeded");
 			return (0);
 		}
-		if (time.tv_sec > dq->dq_itime) {
+		if (time_second > dq->dq_itime) {
 			if ((dq->dq_flags & DQ_INODS) == 0 &&
 			    ip->i_uid == cred->cr_uid) {
 				uprintf("\n%s: write failed, %s %s\n",
@@ -559,11 +559,11 @@ setquota(mp, id, type, addr)
 	if (newlim.dqb_bsoftlimit &&
 	    dq->dq_curblocks >= newlim.dqb_bsoftlimit &&
 	    (dq->dq_bsoftlimit == 0 || dq->dq_curblocks < dq->dq_bsoftlimit))
-		newlim.dqb_btime = time.tv_sec + ump->um_btime[type];
+		newlim.dqb_btime = time_second + ump->um_btime[type];
 	if (newlim.dqb_isoftlimit &&
 	    dq->dq_curinodes >= newlim.dqb_isoftlimit &&
 	    (dq->dq_isoftlimit == 0 || dq->dq_curinodes < dq->dq_isoftlimit))
-		newlim.dqb_itime = time.tv_sec + ump->um_itime[type];
+		newlim.dqb_itime = time_second + ump->um_itime[type];
 	dq->dq_dqb = newlim;
 	if (dq->dq_curblocks < dq->dq_bsoftlimit)
 		dq->dq_flags &= ~DQ_BLKS;
@@ -612,10 +612,10 @@ setuse(mp, id, type, addr)
 	 */
 	if (dq->dq_bsoftlimit && dq->dq_curblocks < dq->dq_bsoftlimit &&
 	    usage.dqb_curblocks >= dq->dq_bsoftlimit)
-		dq->dq_btime = time.tv_sec + ump->um_btime[type];
+		dq->dq_btime = time_second + ump->um_btime[type];
 	if (dq->dq_isoftlimit && dq->dq_curinodes < dq->dq_isoftlimit &&
 	    usage.dqb_curinodes >= dq->dq_isoftlimit)
-		dq->dq_itime = time.tv_sec + ump->um_itime[type];
+		dq->dq_itime = time_second + ump->um_itime[type];
 	dq->dq_curblocks = usage.dqb_curblocks;
 	dq->dq_curinodes = usage.dqb_curinodes;
 	if (dq->dq_curblocks < dq->dq_bsoftlimit)
@@ -821,9 +821,9 @@ dqget(vp, id, ump, type, dqp)
 		dq->dq_flags |= DQ_FAKE;
 	if (dq->dq_id != 0) {
 		if (dq->dq_btime == 0)
-			dq->dq_btime = time.tv_sec + ump->um_btime[type];
+			dq->dq_btime = time_second + ump->um_btime[type];
 		if (dq->dq_itime == 0)
-			dq->dq_itime = time.tv_sec + ump->um_itime[type];
+			dq->dq_itime = time_second + ump->um_itime[type];
 	}
 	*dqp = dq;
 	return (0);

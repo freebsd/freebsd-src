@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.68 1998/01/24 02:54:08 eivind Exp $
+ *	$Id: apm.c,v 1.69 1998/02/09 06:08:06 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -364,9 +364,14 @@ apm_default_resume(void *arg)
 	pl = splsoftclock();
 	inittodr(0);			/* adjust time to RTC */
 	microtime(&resume_time);
-	tmp_time = time;		/* because 'time' is volatile */
+	getmicrotime(&tmp_time);
 	timevaladd(&tmp_time, &diff_time);
+
+#ifdef FIXME
+	/* XXX THIS DOESN'T WORK!!! */
 	time = tmp_time;
+#endif
+
 #ifdef APM_FIXUP_CALLTODO
 	/* Calculate the delta time suspended */
 	timevalsub(&resume_time, &suspend_time);

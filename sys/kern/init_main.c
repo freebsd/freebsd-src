@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.83 1998/02/06 12:13:21 eivind Exp $
+ * $Id: init_main.c,v 1.84 1998/02/15 04:16:57 dyson Exp $
  */
 
 #include "opt_devfs.h"
@@ -447,7 +447,7 @@ proc0_post(dummy)
 	 * from the file system.  Reset p->p_rtime as it may have been
 	 * munched in mi_switch() after the time got set.
 	 */
-	gettime(&boottime);
+	getmicrotime(&boottime);
 	proc0.p_stats->p_start = runtime = mono_time = boottime;
 	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
 
