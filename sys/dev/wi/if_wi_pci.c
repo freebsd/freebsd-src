@@ -100,6 +100,7 @@ static struct {
 	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11 PCI IEEE 802.11b"},
 	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Linksys WMP11 PCI Prism2.5"},
 	{0x10b7, 0x7770, WI_BUS_PCI_PLX, "3Com Airconnect IEEE 802.11b"},
+	{0x111a, 0x1023, WI_BUS_PCI_PLX, "Siemens SpeedStream IEEE 802.11b"},
 	{0, 0, 0, NULL}
 };
 
