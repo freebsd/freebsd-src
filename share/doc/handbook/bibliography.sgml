@@ -1,0 +1,110 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+    <chapt>
+      <heading>Bibliography</heading>
+
+      <p>While the manual pages provide the definative reference
+	for individual pieces of the FreeBSD operating system,
+	they are notorious for not illustrating how to put the
+	pieces together to make the whole operating system run
+	smoothly.  For this, there is no substitute for a good
+	book on Unix system administration, and a good users'
+	manual.  
+
+      <sect>
+	<heading>Users' guides</heading>
+
+	<p><itemize>
+	    <item>Gilley, Daniel. <sl>Unix in a Nutshell</sl>.
+	      O'Reilly &amp; Associates, Inc. 1990</item>
+	  </itemize>
+
+      <sect>
+	<heading>Administrators' guides</heading>
+
+	<p><itemize> 
+
+	    <item>Albitz, Paul; Liu, Cricket. <em>DNS and
+		BIND</em>.  O'Reilley &amp; Associates. 1993. ISBN
+		1-56592-010-4 </item>
+
+	    <item>Costales, Brian; Allman, Eric; Rickert,
+		Neil. <em>sendmail</em> O'Reilley &amp;
+		Associates. 1993. ISBN 1-56592-056-2 </item>
+
+	    <item>Frisch, &AElig;leen. <em>Essential System
+	      Administration</em>.  O'Reilley &amp;
+	      Associates. 1993. ISBN 0-937175-80-3 </item>
+
+	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>
+                O'Reilley &amp; Associates. 1992.  ISBN 0-937175-82-X</item>
+
+	    <item>Nemeth, Evi. <em>Unix System Administration
+		Handbook</em>.  Prentice Hall. 1989. ISBN
+		0-13-933441-6</item>
+
+	  </itemize>
+
+
+
+      <sect>
+	<heading>Programmers' guides</heading>
+
+	<p><itemize> 
+
+	    <item>Asente, Paul. <em>X Window System
+		Toolkit</em>. Digital Press.  ISBN
+		1-55558-051-3</item>
+
+	    <item>Ellis, Margaret A. and Stroustrup,
+		Bjarne. <em>The Annotated C++ Reference
+		Manual</em>. Addison-Wesley. 1990.  ISBN
+		0-201-51459-1</item>
+
+	    <item>Harbison, Samuel P. and Steele, Guy
+		L. Jr. <em>C: A Reference Manual</em>.  Prentice
+		Hall. 3rd Edition, 1991.  ISBN
+		0-13-110933-2</item>
+
+	    <item>Jolitz, William.  "Porting UNIX to the
+	      386". <em>Dr. Dobb's Journal</em>.  January
+	      1991-July 1992.</item>
+
+	    <item>Leffler, Samuel J. <em>The Design and
+		implementation of the 4.3BSD UNIX operating
+		system</em>.  Addison-Wesley. 1989.</item>
+
+	    <item>Plauger, P. J. <em>The Standard C
+		Library</em>. Prentice Hall.  1992.  ISBN
+		0-13-131509-9</item>
+
+	    <item>Wells, Bill.  "Writing Serial Drivers for UNIX".
+	      <em>Dr. Dobb's Journal</em>.  19(15), December
+	      1994. pp68-71, 97-99.</item>
+
+	  </itemize>
+
+      <sect>
+	<heading>Hardware reference</heading>
+
+	<p><itemize>
+
+	    <item>Stanley, Tom; Anderson, Don. <em>PCI System
+		Architechure</em>.  Mindshare, Inc. ISBN
+		1-881609-08-1</item>
+
+	  </itemize>
+
+      <sect>
+	<heading>Magazines and journals</heading>
+
+	<p><itemize>
+
+	    <item><em>The C/C++ Users Journal</em>.  R&amp;D Publications
+	      Inc. ISSN 1075-2838</item>
+
+	  </itemize>
+
+    </sect>
+
