@@ -89,6 +89,8 @@ struct em_osdep
 	struct device     *dev;
 };
 
+#define E1000_WRITE_FLUSH(a) E1000_READ_REG(a, STATUS)
+
 #define E1000_READ_REG(a, reg) (\
  ((a)->mac_type >= em_82543) ? \
    bus_space_read_4( ((struct em_osdep *)(a)->back)->mem_bus_space_tag, \
