@@ -171,6 +171,7 @@ MAN=	aac.4 \
 	txp.4 \
 	udbp.4 \
 	udp.4 \
+	ugen.4 \
 	uhci.4 \
 	ukbd.4 \
 	umass.4 \
