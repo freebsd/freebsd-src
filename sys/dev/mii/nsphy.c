@@ -276,7 +276,9 @@ nsphy_service(sc, mii, cmd)
 		 */
 		reg |= 0x0100 | 0x0400;
 
-		PHY_WRITE(sc, MII_NSPHY_PCR, reg);
+		if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
+		    "fxp") == 0)
+			PHY_WRITE(sc, MII_NSPHY_PCR, reg);
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
