@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: swiz.h,v 1.1 1998/07/27 09:40:35 dfr Exp $
  */
 
 #ifndef _MACHINE_SWIZ_H_
@@ -40,11 +40,17 @@
 #define SPARSE_WORD_OFFSET(o)		(((o) << 5) | (1 << 3))
 #define SPARSE_LONG_OFFSET(o)		(((o) << 5) | (3 << 3))
 
+#define SPARSE_BYTE_ADDRESS(base, o)	((base) + SPARSE_BYTE_OFFSET(o))
+#define SPARSE_WORD_ADDRESS(base, o)	((base) + SPARSE_WORD_OFFSET(o))
+#define SPARSE_LONG_ADDRESS(base, o)	((base) + SPARSE_LONG_OFFSET(o))
+
 #define SPARSE_BYTE_EXTRACT(o, d)	((d) >> (8*((o) & 3)))
 #define SPARSE_WORD_EXTRACT(o, d)	((d) >> (8*((o) & 2)))
+#define SPARSE_LONG_EXTRACT(o, d)	(d)
 
 #define SPARSE_BYTE_INSERT(o, d)	((d) << (8*((o) & 3)))
 #define SPARSE_WORD_INSERT(o, d)	((d) << (8*((o) & 2)))
+#define SPARSE_LONG_INSERT(o, d)	(d)
 
 #define SPARSE_READ_BYTE(base, o)	\
 	SPARSE_BYTE_EXTRACT(o, SPARSE_READ(base + SPARSE_BYTE_OFFSET(o)))
