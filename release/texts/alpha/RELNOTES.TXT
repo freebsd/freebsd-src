@@ -587,8 +587,8 @@ and ask about them!
 6. Acknowledgements
 -------------------
 
-FreeBSD represents the cumulative work of many dozens, if not
-hundreds, of individuals from around the world who have worked very
+FreeBSD represents the cumulative work of many hundreds, if not
+thousands, of individuals from around the world who have worked very
 hard to bring you this release.  For a complete list of FreeBSD
 project staffers, please see:
 
