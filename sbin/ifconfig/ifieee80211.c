@@ -99,6 +99,11 @@ set80211ssid(const char *val, int d, int s, const struct afswtch *rafp)
 	u_int8_t	data[33];
 
 	ssid = 0;
+	len = sizeof(val);
+	if (len > 2 && isdigit(val[0]) && val[1] == ':') {
+		ssid = atoi(val)-1;
+		val += 2;
+	}
 
 	bzero(data, sizeof(data));
 	len = sizeof(data);
@@ -296,6 +301,18 @@ ieee80211_status (s, info)
 	}
 	printf("\tssid ");
 	print_string(data, ireq.i_len);
+	num = 0;
+	ireq.i_type = IEEE80211_IOC_NUMSSIDS;
+	if (ioctl(s, SIOCG80211, &ireq) >= 0) {
+		num = ireq.i_val;
+	}
+	ireq.i_type = IEEE80211_IOC_SSID;
+	for (ireq.i_val = 0; ireq.i_val < num; ireq.i_val++) {
+		if (ioctl(s, SIOCG80211, &ireq) >= 0 && ireq.i_len > 0) {
+			printf(" %d:", ireq.i_val + 1);
+			print_string(data, ireq.i_len);
+		}
+	}
 	printf("\n");
 
 	ireq.i_type = IEEE80211_IOC_STATIONNAME;

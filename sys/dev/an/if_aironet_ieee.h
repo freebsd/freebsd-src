@@ -355,6 +355,7 @@ struct an_ltv_genconfig {
 #define AN_AUTHTYPE_ENABLE			0x0100
 #define AN_AUTHTYPE_PRIVACY_IN_USE		0x0100
 #define AN_AUTHTYPE_ALLOW_UNENCRYPTED		0x0200
+#define AN_AUTHTYPE_LEAP			0x1000
 
 #define AN_PSAVE_NONE				0x0000
 #define AN_PSAVE_CAM				0x0001
@@ -480,6 +481,7 @@ struct an_ltv_caps {
 	u_int16_t		an_softcaps;		/* 0x7C */
 	u_int16_t		an_bootblockrev;	/* 0x7E */
 	u_int16_t		an_req_hw_support;	/* 0x80 */
+	u_int16_t		an_unknown;		/* 0x82 */
 };
 
 /*
@@ -553,6 +555,7 @@ struct an_ltv_status {
 #define AN_STATUS_OPMODE_RX_ENABLED		0x0004
 #define AN_STATUS_OPMODE_IN_SYNC		0x0010
 #define AN_STATUS_OPMODE_ASSOCIATED		0x0020
+#define AN_STATUS_OPMODE_LEAP			0x0040
 #define AN_STATUS_OPMODE_ERROR			0x8000
 
 /*
@@ -565,6 +568,55 @@ struct an_ltv_wepkey {
 	u_int8_t		an_mac_addr[6];		/* 0x04 */
 	u_int16_t		an_key_len;		/* 0x0A */
 	u_int8_t		an_key[13];		/* 0x0C */
+};
+
+/*
+ * Receive frame structure.
+ */
+struct an_rxframe {
+	u_int32_t		an_rx_time;		/* 0x00 */
+	u_int16_t		an_rx_status;		/* 0x04 */
+	u_int16_t		an_rx_payload_len;	/* 0x06 */
+	u_int8_t		an_rsvd0;		/* 0x08 */
+	u_int8_t		an_rx_signal_strength;	/* 0x09 */
+	u_int8_t		an_rx_rate;		/* 0x0A */
+	u_int8_t		an_rx_chan;		/* 0x0B */
+	u_int8_t		an_rx_assoc_cnt;	/* 0x0C */
+	u_int8_t		an_rsvd1[3];		/* 0x0D */
+	u_int8_t		an_plcp_hdr[4];		/* 0x10 */
+	u_int16_t		an_frame_ctl;		/* 0x14 */
+	u_int16_t		an_duration;		/* 0x16 */
+	u_int8_t		an_addr1[6];		/* 0x18 */
+	u_int8_t		an_addr2[6];		/* 0x1E */
+	u_int8_t		an_addr3[6];		/* 0x24 */
+	u_int16_t		an_seq_ctl;		/* 0x2A */
+	u_int8_t		an_addr4[6];		/* 0x2C */
+	u_int8_t		an_gaplen;		/* 0x32 */
+} __attribute__((packed));
+
+
+/* Do not modify this unless you are modifying LEAP itself */
+#define LEAP_USERNAME_MAX 32
+#define LEAP_PASSWORD_MAX 32
+
+/*
+ * LEAP Username
+ */
+struct an_ltv_leap_username {
+	u_int16_t		an_len;			/* 0x00 */
+	u_int16_t		an_type;		/* 0xXX */
+	u_int16_t		an_username_len;	/* 0x02 */
+	u_int8_t		an_username[LEAP_USERNAME_MAX];	/* 0x04 */
+};
+
+/*
+ * LEAP Password
+ */
+struct an_ltv_leap_password {
+	u_int16_t		an_len;			/* 0x00 */
+	u_int16_t		an_type;		/* 0xXX */
+	u_int16_t		an_password_len;	/* 0x02 */
+	u_int8_t		an_password[LEAP_PASSWORD_MAX];	/* 0x04 */
 };
 
 /*
@@ -624,12 +676,76 @@ struct an_ltv_wepkey {
 /*
  *   FreeBSD fake RID
  */
+
 #define AN_RID_MONITOR_MODE	0x0001	/* Set monitor mode for driver */
 #define AN_MONITOR			 1
 #define AN_MONITOR_ANY_BSS		 2
 #define AN_MONITOR_INCLUDE_BEACON	 4
 #define AN_MONITOR_AIRONET_HEADER	 8
 
-#define DLT_AIRONET_HEADER 	120	/* Just something for now */
+#define DLT_AIRONET_HEADER 	120	/* Has been allocated at tcpdump.org */
+
+/*
+ * from the Linux driver from Cisco ... no copyright header.
+ * Removed duplicated information that already existed in the FreeBSD driver
+ * provides emulation of the Cisco extensions to the Linux Aironet driver.
+ */
+
+/*
+ * Ioctl constants to be used in airo_ioctl.command
+ */
+
+#define	AIROGCAP	0	/* Capability rid */
+#define AIROGCFG	1	/* USED A LOT  */
+#define AIROGSLIST	2	/* System ID list  */
+#define AIROGVLIST	3	/* List of specified AP's */
+#define AIROGDRVNAM	4	/* NOTUSED */
+#define AIROGEHTENC	5	/* NOTUSED */
+#define AIROGWEPKTMP	6
+#define AIROGWEPKNV	7
+#define AIROGSTAT	8
+#define AIROGSTATSC32	9
+#define AIROGSTATSD32	10
+
+/*
+ * Leave gap of 40 commands after AIROGSTATSD32
+ */
+
+#define AIROPCAP	AIROGSTATSD32	+ 40
+#define AIROPVLIST	AIROPCAP	+ 1
+#define AIROPSLIST	AIROPVLIST	+ 1
+#define AIROPCFG	AIROPSLIST	+ 1
+#define AIROPSIDS	AIROPCFG	+ 1
+#define AIROPAPLIST	AIROPSIDS	+ 1
+#define AIROPMACON	AIROPAPLIST	+ 1	/* Enable mac  */
+#define AIROPMACOFF	AIROPMACON	+ 1	/* Disable mac */
+#define AIROPSTCLR	AIROPMACOFF	+ 1
+#define AIROPWEPKEY	AIROPSTCLR	+ 1
+#define AIROPWEPKEYNV	AIROPWEPKEY	+ 1
+#define AIROPLEAPPWD	AIROPWEPKEYNV	+ 1
+#define AIROPLEAPUSR	AIROPLEAPPWD	+ 1
+
+/*
+ * Another gap of 40 commands before flash codes
+ */
+
+#define AIROFLSHRST	AIROPWEPKEYNV	+ 40
+#define AIROFLSHGCHR	AIROFLSHRST	+ 1
+#define AIROFLSHSTFL	AIROFLSHGCHR	+ 1
+#define AIROFLSHPCHR	AIROFLSHSTFL	+ 1
+#define AIROFLPUTBUF	AIROFLSHPCHR	+ 1
+#define AIRORESTART	AIROFLPUTBUF	+ 1
+
+/*
+ * Struct to enable up to 65535 ioctl's
+ */
+
+#define AIROMAGIC	0xa55a
+
+typedef struct aironet_ioctl {
+  unsigned short command;	/* What to do */
+  unsigned short len;		/* Len of data */
+  unsigned char *data;		/* d-data */
+} airo_ioctl;
 
 #endif
