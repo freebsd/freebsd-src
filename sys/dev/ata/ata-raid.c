@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
+#include <dev/ata/ata-pci.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
 
@@ -119,16 +120,12 @@ ata_raiddisk_attach(struct ad_softc *adp)
 	return 0;
     }
 
-    switch(adp->device->channel->chiptype) {
-    case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
-    case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
-    case 0x4d69105a: case 0x5275105a: case 0x6269105a:
-    case 0x7275105a:
-
+    switch(adp->device->channel->chiptype & 0xffff) {
+    case ATA_PROMISE_ID:
 	/* test RAID bit in PCI reg XXX */
 	return (ar_promise_read_conf(adp, ar_table, 0));
 
-    case 0x00041103: case 0x00051103: case 0x00081103:
+    case ATA_HIGHPOINT_ID:
 	return (ar_highpoint_read_conf(adp, ar_table));
 
     default:
@@ -228,7 +225,7 @@ ar_attach_raid(struct ar_softc *rdp, int update)
 	    else
 		printf(" %d FREE  ", disk);
 	    ad_print(AD_SOFTC(rdp->disks[disk]));
-	    printf("         ");
+	    printf("	     ");
 	    ata_enclosure_print(AD_SOFTC(rdp->disks[disk])->device);
 	}
 	else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
@@ -276,7 +273,7 @@ ata_raid_create(struct raid_setup *setup)
 	    }
 
 	    switch (rdp->disks[disk].device->channel->chiptype & 0xffff) {
-	    case 0x1103:
+	    case ATA_HIGHPOINT_ID:
 		ctlr |= AR_F_HIGHPOINT_RAID;
 		rdp->disks[disk].disk_sectors =
 		    AD_SOFTC(rdp->disks[disk])->total_secs;
@@ -286,7 +283,7 @@ ata_raid_create(struct raid_setup *setup)
 		ctlr |= AR_F_FREEBSD_RAID;
 		/* FALLTHROUGH */
 
-	    case 0x105a:	
+	    case ATA_PROMISE_ID:	
 		ctlr |= AR_F_PROMISE_RAID;
 		rdp->disks[disk].disk_sectors =
 		    PR_LBA(AD_SOFTC(rdp->disks[disk]));
@@ -302,7 +299,7 @@ ata_raid_create(struct raid_setup *setup)
 		rdp->flags |= ctlr;
 	    
 	    if (disk_size)
-	    	disk_size = min(rdp->disks[disk].disk_sectors, disk_size);
+		disk_size = min(rdp->disks[disk].disk_sectors, disk_size);
 	    else
 		disk_size = rdp->disks[disk].disk_sectors;
 	    rdp->disks[disk].flags = 
@@ -376,7 +373,14 @@ ata_raid_create(struct raid_setup *setup)
     rdp->flags |= AR_F_READY;
 
     ar_table[array] = rdp;
+
+    /* kick off rebuild here */
+    if (setup->type == 2) {
+	    rdp->disks[1].flags &= ~AR_DF_ONLINE;
+	    rdp->disks[1].flags |= AR_DF_SPARE;
+    }
     ar_attach_raid(rdp, 1);
+    ata_raid_rebuild(array);
     setup->unit = array;
     return 0;
 }
@@ -1184,7 +1188,7 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 	if (!info->raid.generation || info->raid.generation > raid->generation){
 	    raid->generation = info->raid.generation;
 	    raid->flags = AR_F_PROMISE_RAID;
-    	    if (local)
+	    if (local)
 		raid->flags |= AR_F_FREEBSD_RAID;
 	    raid->magic_0 = magic;
 	    raid->lun = array;

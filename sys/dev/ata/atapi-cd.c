@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1033,7 +1033,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDRIOCWRITESPEED:
-    	{
+	{
 	    int speed = *(int *)addr;
 
 	    if (speed < 177)
@@ -1060,11 +1060,11 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDRIOCREADFORMATCAPS:
-    	error = acd_read_format_caps(cdp, (struct cdr_format_capacities *)addr);
+	error = acd_read_format_caps(cdp, (struct cdr_format_capacities *)addr);
 	break;
 
     case CDRIOCFORMAT:
-    	error = acd_format(cdp, (struct cdr_format_params *)addr);
+	error = acd_format(cdp, (struct cdr_format_params *)addr);
 	break;
 
     case DVDIOCREPORTKEY:

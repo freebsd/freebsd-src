@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -299,7 +299,7 @@ struct write_param {
 #define CDR_WTYPE_RAW		0x03
 
     u_int8_t	test_write	:1;	/* test write enable */
-    u_int8_t	link_size_valid	:1;
+    u_int8_t	link_size_valid :1;
     u_int8_t	burnproof	:1;	/* BurnProof enable */
     u_int8_t	reserved2_7	:1;
     u_int8_t	track_mode	:4;	/* track mode */

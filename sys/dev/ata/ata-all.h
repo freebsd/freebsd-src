@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,11 +120,11 @@
 /* misc defines */
 #define ATA_PRIMARY			0x1f0
 #define ATA_SECONDARY			0x170
-#define	ATA_PC98_BANK			0x432
+#define ATA_PC98_BANK			0x432
 #define ATA_IOSIZE			0x08
 #define ATA_ALTIOSIZE			0x01
 #define ATA_BMIOSIZE			0x08
-#define	ATA_PC98_BANKIOSIZE		0x01
+#define ATA_PC98_BANKIOSIZE		0x01
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
 #define ATA_IOADDR_RID			0
@@ -145,7 +145,6 @@
 #define		ATA_BMCMD_WRITE_READ	0x08
 
 #define ATA_BMDEVSPEC_0			0x01
-
 #define ATA_BMSTAT_PORT			0x02
 #define		ATA_BMSTAT_ACTIVE	0x01
 #define		ATA_BMSTAT_ERROR	0x02
@@ -172,8 +171,8 @@ struct ata_dmastate {
     struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     bus_addr_t			mdmatab;	/* bus address of dmatab */
     int				flags;		/* debugging */
-#define	ATA_DS_ACTIVE			0x01	/* debugging */
-#define	ATA_DS_READ			0x02	/* transaction is a read */
+#define ATA_DS_ACTIVE			0x01	/* debugging */
+#define ATA_DS_READ			0x02	/* transaction is a read */
 };
 
 /* structure describing an ATA/ATAPI device */
@@ -192,10 +191,24 @@ struct ata_device {
 #define		ATA_D_MEDIA_CHANGED	0x0004
 #define		ATA_D_ENC_PRESENT	0x0008
 
-    int				mode;		/* transfermode */
     int				cmd;		/* last cmd executed */
     void			*result;	/* misc data */
+    int				mode;		/* transfermode */
+    void			(*setmode)(struct ata_device *, int);
     struct ata_dmastate		dmastate;	/* dma state */
+};
+
+/* structure holding DMA function pointers */
+struct ata_dma_funcs {
+    void (*create)(struct ata_channel *);
+    void (*destroy)(struct ata_channel *);
+    int (*alloc)(struct ata_device *);
+    void (*free)(struct ata_device *);
+    int (*setup)(struct ata_device *, caddr_t, int32_t);
+    int (*start)(struct ata_device *, caddr_t, int32_t, int);
+    int (*stop)(struct ata_device *);
+    int (*status)(struct ata_channel *);
+    u_int32_t alignment;			/* dma engine alignment */
 };
 
 /* structure describing an ATA channel */
@@ -208,10 +221,9 @@ struct ata_channel {
     bus_dma_tag_t		dmatag;		/* parent dma tag */
     struct resource		*r_irq;		/* interrupt of this channel */
     void			*ih;		/* interrupt handle */
-    int (*intr_func)(struct ata_channel *);	/* interrupt function */
-    u_int32_t			chiptype;	/* pciid of controller chip */
-    u_int32_t			alignment;	/* dma engine min alignment */
-    int				flags;		/* controller flags */
+    struct ata_dma_funcs	*dma;		/* DMA functions */
+    u_int32_t			chiptype;	/* controller chip PCI id */
+    int				flags;		/* channel flags */
 #define		ATA_NO_SLAVE		0x01
 #define		ATA_USE_16BIT		0x02
 #define		ATA_USE_PC98GEOM	0x04
@@ -243,7 +255,7 @@ struct ata_channel {
 #define		ATA_ACTIVE_ATAPI	0x0040
 #define		ATA_CONTROL		0x0080
 
-    void (*lock_func)(struct ata_channel *, int);/* controller lock function */
+    void (*locking)(struct ata_channel *, int);
 #define		ATA_LF_LOCK		0x0001
 #define		ATA_LF_UNLOCK		0x0002
 
@@ -286,16 +298,7 @@ char *ata_mode2str(int);
 int ata_pmode(struct ata_params *);
 int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);
-int ata_find_dev(device_t, u_int32_t, u_int32_t);
-
-int ata_dmaalloc(struct ata_device *);
-void ata_dmafree(struct ata_device *);
-void ata_dmafreetags(struct ata_channel *);
-void ata_dmainit(struct ata_device *, int, int, int);
-int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
-int ata_dmastart(struct ata_device *, caddr_t, int32_t, int);
-int ata_dmastatus(struct ata_channel *);
-int ata_dmadone(struct ata_device *);
+int ata_limit_mode(struct ata_device *, int, int);
 
 /* macros for locking a channel */
 #define ATA_LOCK_CH(ch, value) \
@@ -325,7 +328,7 @@ int ata_dmadone(struct ata_device *);
 			       (offset), (addr), (count))
 #define ATA_INSW_STRM(res, offset, addr, count) \
 	bus_space_read_multi_stream_2(rman_get_bustag((res)), \
-			 	      rman_get_bushandle((res)), \
+				      rman_get_bushandle((res)), \
 				      (offset), (addr), (count))
 #define ATA_INSL(res, offset, addr, count) \
 	bus_space_read_multi_4(rman_get_bustag((res)), \
@@ -333,7 +336,7 @@ int ata_dmadone(struct ata_device *);
 			       (offset), (addr), (count))
 #define ATA_INSL_STRM(res, offset, addr, count) \
 	bus_space_read_multi_stream_4(rman_get_bustag((res)), \
-			 	      rman_get_bushandle((res)), \
+				      rman_get_bushandle((res)), \
 				      (offset), (addr), (count))
 #define ATA_OUTB(res, offset, value) \
 	bus_space_write_1(rman_get_bustag((res)), \
@@ -350,7 +353,7 @@ int ata_dmadone(struct ata_device *);
 				(offset), (addr), (count))
 #define ATA_OUTSW_STRM(res, offset, addr, count) \
 	bus_space_write_multi_stream_2(rman_get_bustag((res)), \
-			 	       rman_get_bushandle((res)), \
+				       rman_get_bushandle((res)), \
 				       (offset), (addr), (count))
 #define ATA_OUTSL(res, offset, addr, count) \
 	bus_space_write_multi_4(rman_get_bustag((res)), \
@@ -358,5 +361,5 @@ int ata_dmadone(struct ata_device *);
 				(offset), (addr), (count))
 #define ATA_OUTSL_STRM(res, offset, addr, count) \
 	bus_space_write_multi_stream_4(rman_get_bustag((res)), \
-			 	       rman_get_bushandle((res)), \
+				       rman_get_bushandle((res)), \
 				       (offset), (addr), (count))
