@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.46 1999/01/27 21:49:55 dillon Exp $
+ *	$Id: imgact_elf.c,v 1.47 1999/01/29 22:59:43 dillon Exp $
  */
 
 #include "opt_rlimit.h"
@@ -143,6 +143,19 @@ elf_remove_brand_entry(Elf_Brandinfo *entry)
 	if (i == MAX_BRANDS)
 		return -1;
 	return 0;
+}
+
+int
+elf_brand_inuse(Elf_Brandinfo *entry)
+{
+	struct proc *p;
+
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		if (p->p_sysent == entry->sysvec)
+			return TRUE;
+	}
+
+	return FALSE;
 }
 
 static int
