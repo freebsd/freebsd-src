@@ -890,6 +890,7 @@ linux_ioctl_cdrom(struct proc *p, struct linux_ioctl_args *args)
 		    sizeof(struct cd_sub_channel_info));
 		bsdsc.address_format = CD_LBA_FORMAT;
 		bsdsc.data_format = CD_CURRENT_POSITION;
+		bsdsc.track = 0;
 		bsdsc.data_len = sizeof(struct cd_sub_channel_info);
 		bsdsc.data = bsdinfo;
 		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc, p);
