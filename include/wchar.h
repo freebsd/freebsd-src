@@ -141,6 +141,7 @@ size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
 wchar_t	*wcschr(const wchar_t *, wchar_t);
 int	wcscmp(const wchar_t *, const wchar_t *);
+int	wcscoll(const wchar_t *, const wchar_t *);
 wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
 size_t	wcscspn(const wchar_t *, const wchar_t *);
 size_t	wcsftime(wchar_t * __restrict, size_t, const wchar_t * __restrict,
@@ -156,6 +157,7 @@ size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict);
 size_t	wcsspn(const wchar_t *, const wchar_t *);
 wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict);
+size_t	wcsxfrm(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 int	wctob(wint_t);
 double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
 wchar_t	*wcstok(wchar_t * __restrict, const wchar_t * __restrict,
