@@ -169,7 +169,8 @@ dev/hfa/fore_transmit.c	optional hfa
 dev/hfa/fore_vcm.c	optional hfa
 dev/ie/if_ie.c		optional ie isa
 dev/ida/ida.c		optional ida
-dev/ida/ida_disk.c	optional id
+dev/ida/ida_disk.c	optional ida
+dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
