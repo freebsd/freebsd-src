@@ -222,26 +222,33 @@ struct readv_args {
 int
 readv(struct thread *td, struct readv_args *uap)
 {
+	struct uio *auio;
+	int error;
+
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_readv(td, uap->fd, auio);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+kern_readv(struct thread *td, int fd, struct uio *auio)
+{
 	struct file *fp;
-	struct uio *auio = NULL;
 	long cnt;
 	int error;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
 
-	error = fget_read(td, uap->fd, &fp);
+	error = fget_read(td, fd, &fp);
 	if (error)
 		return (error);
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
-	if (error) {
-		fdrop(fp, td);
-		return (error);
-	}
 	/* Finish zero length reads right here */
 	if (auio->uio_resid == 0) {
 		td->td_retval[0] = 0;
-		free(auio, M_IOV);
 		fdrop(fp, td);
 		return(0);
 	}
@@ -261,11 +268,10 @@ readv(struct thread *td, struct readv_args *uap)
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = cnt;
-		ktrgenio(uap->fd, UIO_READ, ktruio, error);
+		ktrgenio(fd, UIO_READ, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
-	free(auio, M_IOV);
 	fdrop(fp, td);
 	return (error);
 }
@@ -413,22 +419,30 @@ struct writev_args {
 int
 writev(struct thread *td, struct writev_args *uap)
 {
+	struct uio *auio;
+	int error;
+
+	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_writev(td, uap->fd, auio);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+kern_writev(struct thread *td, int fd, struct uio *auio)
+{
 	struct file *fp;
-	struct uio *auio = NULL;
 	long cnt;
 	int error;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
 
-	error = fget_write(td, uap->fd, &fp);
+	error = fget_write(td, fd, &fp);
 	if (error)
 		return (EBADF);
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
-	if (error) {
-		fdrop(fp, td);
-		return (error);
-	}
 	auio->uio_rw = UIO_WRITE;
 	auio->uio_td = td;
 #ifdef KTRACE
@@ -452,12 +466,11 @@ writev(struct thread *td, struct writev_args *uap)
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = cnt;
-		ktrgenio(uap->fd, UIO_WRITE, ktruio, error);
+		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
 	fdrop(fp, td);
-	free(auio, M_IOV);
 	return (error);
 }
 
