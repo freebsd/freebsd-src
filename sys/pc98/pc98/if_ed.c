@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.15 1998/05/31 17:31:49 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.16 1998/07/08 09:09:56 kato Exp $
  */
 
 /*
@@ -97,6 +97,9 @@
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
+#endif
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 
 #include <machine/clock.h>
@@ -3505,34 +3508,68 @@ ed_get_packet(sc, buf, len, multicast)
 	m->m_data += 2;
 	eh = mtod(m, struct ether_header *);
 
+#ifdef BRIDGE
+        /*
+         * Get link layer header, invoke brige_in, then
+         * depending on the outcome of the test fetch the rest of the
+         * packet and either pass up or call bdg_forward.
+         */
+        if (do_bridge) {
+            struct ifnet *ifp ;
+            int need_more = 1 ; /* in case not bpf */
+
+#if NBPFILTER > 0
+            if (sc->arpcom.ac_if.if_bpf) {
+                need_more = 0 ;
+                ed_ring_copy(sc, buf, (char *)eh, len);
+                bpf_mtap(&sc->arpcom.ac_if, m);
+            } else
+#endif
+            ed_ring_copy(sc, buf, (char *)eh, 14);
+            ifp = bridge_in(m);
+            if (ifp == BDG_DROP) {
+                m_freem(m);
+                return ;
+            }
+            /* else fetch rest of pkt and continue */
+            if (need_more)
+                ed_ring_copy(sc, buf+14, (char *)(eh+1), len - 14);
+            if (ifp != BDG_LOCAL )
+                bdg_forward(&m, ifp); /* not local, need forwarding */
+            if (ifp == BDG_LOCAL || ifp == BDG_BCAST || ifp == BDG_MCAST)
+                goto getit ;
+            /* not local and not multicast, just drop it */
+            if (m)
+                m_freem(m);
+            return ;
+        }
+#endif
 	/*
 	 * Get packet, including link layer address, from interface.
 	 */
 	ed_ring_copy(sc, buf, (char *)eh, len);
 
 #if NBPFILTER > 0
-
 	/*
 	 * Check if there's a BPF listener on this interface. If so, hand off
 	 * the raw packet to bpf.
 	 */
-	if (sc->arpcom.ac_if.if_bpf) {
+	if (sc->arpcom.ac_if.if_bpf)
 		bpf_mtap(&sc->arpcom.ac_if, m);
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no BPF listeners.  And if we are in promiscuous
-		 * mode, we have to check if this packet is really ours.
-		 */
-		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		      sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
-			m_freem(m);
-			return;
-		}
-	}
 #endif
 
+	/*
+	 * If we are in promiscuous mode, we have to check if
+	 * this packet is really ours.
+	 */
+	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+		bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+		    sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
+		m_freem(m);
+		return;
+	}
+
+getit:
 	/*
 	 * Remove link layer address.
 	 */
