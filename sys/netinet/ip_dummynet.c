@@ -1386,7 +1386,6 @@ dummynet_flush()
     heap_free(&ready_heap);
     heap_free(&wfq_ready_heap);
     heap_free(&extract_heap);
-    DUMMYNET_UNLOCK();
 
     /*
      * Now purge all queued pkts and delete all pipes
@@ -1403,6 +1402,7 @@ dummynet_flush()
 	p = p->next ;
 	free(curr_p, M_DUMMYNET);
     }
+    DUMMYNET_UNLOCK();
 }
 
 
