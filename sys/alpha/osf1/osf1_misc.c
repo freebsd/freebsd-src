@@ -1458,7 +1458,8 @@ osf1_uswitch(td, uap)
 		if (uap->mask & OSF1_USW_NULLP) {
 			rv = vm_mmap(&(p->p_vmspace->vm_map), &zero, PAGE_SIZE,
 			    VM_PROT_READ, VM_PROT_ALL,
-			    MAP_PRIVATE | MAP_FIXED | MAP_ANON, NULL, 0);
+			    MAP_PRIVATE | MAP_FIXED | MAP_ANON, OBJT_DEFAULT,
+			    NULL, 0);
 			if (!rv)
 				return(KERN_SUCCESS);
 			else {

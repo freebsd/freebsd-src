@@ -143,8 +143,8 @@ exec_linux_imgact(struct image_params *imgp)
 
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + a_out->a_data + file_offset),
-			VM_PROT_READ, VM_PROT_READ, 0,
-			(caddr_t) imgp->vp, trunc_page(file_offset));
+			VM_PROT_READ, VM_PROT_READ, 0, OBJT_VNODE,
+			imgp->vp, trunc_page(file_offset));
 	if (error)
 	    goto fail;
 
@@ -181,7 +181,8 @@ exec_linux_imgact(struct image_params *imgp)
 			VM_PROT_READ | VM_PROT_EXECUTE,
 			VM_PROT_ALL,
 			MAP_PRIVATE | MAP_FIXED,
-			(caddr_t)imgp->vp, file_offset);
+			OBJT_VNODE,
+			imgp->vp, file_offset);
 	if (error)
 	    goto fail;
 

@@ -80,6 +80,10 @@ typedef u_char vm_prot_t;	/* protection codes */
 #define VM_PROT_RW		(VM_PROT_READ|VM_PROT_WRITE)
 #define	VM_PROT_DEFAULT		VM_PROT_ALL
 
+enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
+		OBJT_DEAD };
+typedef u_char objtype_t;
+
 union vm_map_object;
 typedef union vm_map_object vm_map_object_t;
 
