@@ -1961,10 +1961,10 @@
       </note>
     </para>
 
-    <para arch="sparc64">Sun HME and QFE Ethernet NICs (hme driver)</para>
+    <para arch="sparc64">Sun HME and QFE Ethernet NICs (&man.hme.4; driver)</para>
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) and ERI (Fast
-    Ethernet) NICs (gem driver)</para>
+    Ethernet) NICs (&man.gem.4; driver)</para>
 
     <para arch="i386,pc98">Myson Ethernet NICs (my driver)
       <itemizedlist>
