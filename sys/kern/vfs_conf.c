@@ -165,7 +165,7 @@ vfs_mountroot_try(char *mountfrom)
         struct mount	*mp;
 	char		*vfsname, *path;
 	int		error;
-	char		patt[16];
+	char		patt[32];
 
 	vfsname = path = mp = NULL;
 	error = EINVAL;
