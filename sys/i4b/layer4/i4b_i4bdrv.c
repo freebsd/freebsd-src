@@ -91,6 +91,13 @@ static struct cdevsw i4b_cdevsw = {
 static void i4battach(void *);
 PSEUDO_SET(i4battach, i4b_i4bdrv);
 
+#if __FreeBSD_version >= 501113
+#ifndef TTIPRI
+/* don't want to include tty.h just to get this */
+#define TTIPRI (PSOCK + 1)
+#endif
+#endif
+
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
