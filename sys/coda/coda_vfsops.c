@@ -111,7 +111,7 @@ coda_mount(vfsp, path, data, ndp, td)
     char *path;			/* path covered: ignored by the fs-layer */
     caddr_t data;		/* Need to define a data type for this in netbsd? */
     struct nameidata *ndp;	/* Clobber this to lookup the device name */
-    struct thread *td;		/* The ever-famous proc pointer */
+    struct thread *td;
 {
     struct vnode *dvp;
     struct cnode *cp;
