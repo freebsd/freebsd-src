@@ -1439,7 +1439,8 @@ nfs4_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 			break;
 		} else if (rlen < len) {
 			backup = len - rlen;
-			(char *)uiop->uio_iov->iov_base -= backup;
+			uiop->uio_iov->iov_base =
+			    (char *)uiop->uio_iov->iov_base -  backup;
 			uiop->uio_iov->iov_len += backup;
                         uiop->uio_offset -= backup;
                         uiop->uio_resid += backup;
@@ -2146,7 +2147,7 @@ nfs4_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			blksiz = 0;
 		uiop->uio_offset += len;
 		uiop->uio_resid -= len;
-		(char *)uiop->uio_iov->iov_base += len;
+		uiop->uio_iov->iov_base = (char *)uiop->uio_iov->iov_base + len;
 		uiop->uio_iov->iov_len -= len;
 	}
 

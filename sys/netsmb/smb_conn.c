@@ -118,13 +118,16 @@ smb_sm_lookupint(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
 	struct smb_cred *scred,	struct smb_vc **vcpp)
 {
 	struct thread *td = scred->scr_td;
+	struct smb_connobj *scp;
 	struct smb_vc *vcp;
 	int exact = 1;
 	int error;
 
 	vcspec->shspec = shspec;
 	error = ENOENT;
-	SMBCO_FOREACH((struct smb_connobj*)vcp, &smb_vclist) {
+	vcp = NULL;
+	SMBCO_FOREACH(scp, &smb_vclist) {
+		vcp = (struct smb_vc *)scp;
 		error = smb_vc_lock(vcp, LK_EXCLUSIVE, td);
 		if (error)
 			continue;
@@ -594,12 +597,14 @@ smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *dp,
 	struct smb_cred *scred,	struct smb_share **sspp)
 {
 	struct thread *td = scred->scr_td;
+	struct smb_connobj *scp = NULL;
 	struct smb_share *ssp = NULL;
 	int error;
 
 	*sspp = NULL;
 	dp->scred = scred;
-	SMBCO_FOREACH((struct smb_connobj*)ssp, VCTOCP(vcp)) {
+	SMBCO_FOREACH(scp, VCTOCP(vcp)) {
+		ssp = (struct smb_share *)scp;
 		error = smb_share_lock(ssp, LK_EXCLUSIVE, td);
 		if (error)
 			continue;
@@ -848,6 +853,7 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 {
 	struct thread *td = req->td;
 	struct smb_cred scred;
+	struct smb_connobj *scp1, *scp2;
 	struct smb_vc *vcp;
 	struct smb_share *ssp;
 	struct smb_vc_info vci;
@@ -861,7 +867,8 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 	error = smb_sm_lockvclist(LK_SHARED, td);
 	if (error)
 		return error;
-	SMBCO_FOREACH((struct smb_connobj*)vcp, &smb_vclist) {
+	SMBCO_FOREACH(scp1, &smb_vclist) {
+		vcp = (struct smb_vc *)scp1;
 		error = smb_vc_lock(vcp, LK_SHARED, td);
 		if (error)
 			continue;
@@ -871,7 +878,8 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 			smb_vc_unlock(vcp, 0, td);
 			break;
 		}
-		SMBCO_FOREACH((struct smb_connobj*)ssp, VCTOCP(vcp)) {
+		SMBCO_FOREACH(scp2, VCTOCP(vcp)) {
+			ssp = (struct smb_share *)scp2;
 			error = smb_share_lock(ssp, LK_SHARED, td);
 			if (error) {
 				error = 0;

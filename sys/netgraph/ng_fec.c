@@ -134,6 +134,7 @@
  * should be unused, so we can use to hold our node context.
  */
 #define IFP2NG(ifp)  (struct ng_node *)(ifp->if_afdata[AF_NETGRAPH])
+#define IFP2NG_SET(ifp, val)  ifp->if_afdata[AF_NETGRAPH] = (val);
 #define FEC_INC(x, y)	(x) = (x + 1) % y
 
 /*
