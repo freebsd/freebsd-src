@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.17 1998/03/07 09:03:43 jkh Exp $";
+	"$Id: moused.c,v 1.18 1998/03/12 15:00:06 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -68,6 +68,8 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
@@ -184,6 +186,7 @@ static char *rnames[] = {
     "intellimouse",
     "thinkingmouse",
     "sysmouse",
+    "x10mouseremote",
 #if notyet
     "mariqua",
 #endif
@@ -322,6 +325,7 @@ static unsigned short rodentcflags[] =
     (CS7                   | CREAD | CLOCAL | HUPCL ),	/* IntelliMouse */
     (CS7                   | CREAD | CLOCAL | HUPCL ),	/* Thinking Mouse */
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* sysmouse */
+    (CS7	           | CREAD | CLOCAL | HUPCL ),	/* X10 MouseRemote */
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
 #endif
@@ -338,6 +342,8 @@ static struct rodentparam {
     int zmap;			/* MOUSE_{X|Y}AXIS or a button number */
     int mfd;			/* mouse file descriptor */
     int cfd;			/* /dev/consolectl file descriptor */
+    int mremsfd;		/* mouse remote server file descriptor */
+    int mremcfd;		/* mouse remote client file descriptor */
     long clickthreshold;	/* double click speed in msec */
     mousehw_t hw;		/* mouse device hardware information */
     mousemode_t mode;		/* protocol information */
@@ -352,6 +358,8 @@ static struct rodentparam {
     zmap: 0,
     mfd : -1,
     cfd : -1,
+    mremsfd : -1,
+    mremcfd : -1,
     clickthreshold : 500,	/* 0.5 sec */
 };
 
@@ -367,6 +375,7 @@ static jmp_buf env;
 
 static void	moused(void);
 static void	hup(int sig);
+static void	cleanup(int sig);
 static void	usage(void);
 
 static int	r_identify(void);
@@ -386,6 +395,9 @@ static symtab_t	*pnpproto(pnpid_t *id);
 
 static symtab_t	*gettoken(symtab_t *tab, char *s, int len);
 static char	*gettokenname(symtab_t *tab, int val);
+
+static void	mremote_serversetup();
+static void	mremote_clientchg(int add);
 
 void
 main(int argc, char *argv[])
@@ -586,6 +598,9 @@ main(int argc, char *argv[])
     for (;;) {
 	if (setjmp(env) == 0) {
 	    signal(SIGHUP, hup);
+	    signal(SIGINT , cleanup);
+	    signal(SIGQUIT, cleanup);
+	    signal(SIGTERM, cleanup);
             if ((rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK, 0)) 
 		== -1)
 	        logerr(1, "unable to open %s", rodent.portname);
@@ -682,9 +697,24 @@ moused(void)
 
 	FD_ZERO(&fds);
 	FD_SET(rodent.mfd, &fds);
+	if (rodent.mremsfd >= 0)  FD_SET(rodent.mremsfd, &fds);
+	if (rodent.mremcfd >= 0)  FD_SET(rodent.mremcfd, &fds);
+
 	if (select(FD_SETSIZE, &fds, NULL, NULL, NULL) <= 0)
 	    logwarn("failed to read from mouse", 0);
 
+	/*  MouseRemote client connect/disconnect  */
+	if ((rodent.mremsfd >= 0) && FD_ISSET(rodent.mremsfd, &fds)) {
+	    mremote_clientchg(TRUE);
+	    continue;
+	}
+	
+	if ((rodent.mremcfd >= 0) && FD_ISSET(rodent.mremcfd, &fds)) {
+	    mremote_clientchg(FALSE);
+	    continue;
+	}
+
+	/*  mouse event  */
 	read(rodent.mfd, &b, 1);
 	if (r_protocol(b, &action)) {	/* handler detected action */
 	    r_map(&action, &action2);
@@ -743,6 +773,14 @@ static void
 hup(int sig)
 {
     longjmp(env, 1);
+}
+
+static void 
+cleanup(int sig)
+{
+    if (rodent.rtype == MOUSE_PROTO_X10MOUSEREM)
+	unlink(_PATH_MOUSEREMOTE);
+    exit(0);
 }
 
 /**
@@ -825,6 +863,7 @@ static unsigned char proto[][7] = {
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x3f,  0x00 }, /* IntelliMouse */
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* ThinkingMouse */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* sysmouse */
+    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
 #if notyet
     {	0xf8,	0x80,	0x00,	0x00,	5,   ~0x2f,  0x10 }, /* Mariqua */
 #endif
@@ -1130,6 +1169,12 @@ r_init(void)
 	ioctl(rodent.mfd, MOUSE_SETMODE, &rodent.mode);
 	break;
 
+    case MOUSE_PROTO_X10MOUSEREM:
+	mremote_serversetup();
+	setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
+	break;
+
+
     default:
 	setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
 	break;
@@ -1349,6 +1394,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     {
     case MOUSE_PROTO_MS:		/* Microsoft */
     case MOUSE_PROTO_LOGIMOUSEMAN:	/* MouseMan/TrackMan */
+    case MOUSE_PROTO_X10MOUSEREM:	/* X10 MouseRemote */
 	act->button = act->obutton & MOUSE_BUTTON4DOWN;
 	if (rodent.flags & ChordMiddle)
 	    act->button |= ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
@@ -1357,6 +1403,18 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	else
 	    act->button |= (act->obutton & MOUSE_BUTTON2DOWN)
 		| butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
+        
+	/* Send X10 btn events to remote client (ensure -128-+127 range) */
+	if ((rodent.rtype == MOUSE_PROTO_X10MOUSEREM) && 
+	    ((pBuf[0] & 0xFC) == 0x44) && (pBuf[2] == 0x3F)) {
+	    if (rodent.mremcfd >= 0) {
+		unsigned char key = (signed char)(((pBuf[0] & 0x03) << 6) | 
+						  (pBuf[1] & 0x3F));
+		write( rodent.mremcfd, &key, 1 );
+	    }
+	    return 0;
+	}
+
 	act->dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	act->dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	break;
@@ -2113,3 +2171,64 @@ gettokenname(symtab_t *tab, int val)
     }
     return NULL;
 }
+
+static void 
+mremote_serversetup()
+{
+    struct sockaddr_un ad;
+
+    /* Open a UNIX domain stream socket to listen for mouse remote clients */
+    unlink(_PATH_MOUSEREMOTE);              
+
+    if ( (rodent.mremsfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	logerrx(1, "unable to create unix domain socket %s",_PATH_MOUSEREMOTE);
+
+    umask(0111);
+    
+    bzero(&ad, sizeof(ad));
+    ad.sun_family = AF_UNIX;
+    strcpy(ad.sun_path, _PATH_MOUSEREMOTE);
+#ifndef SUN_LEN
+#define SUN_LEN(unp) ( ((char *)(unp)->sun_path - (char *)(unp)) + \
+                       strlen((unp)->path) )
+#endif
+    if (bind(rodent.mremsfd, (struct sockaddr *) &ad, SUN_LEN(&ad)) < 0) 
+	logerrx(1, "unable to bind unix domain socket %s", _PATH_MOUSEREMOTE);
+
+    listen(rodent.mremsfd, 1);
+}
+
+static void 
+mremote_clientchg(int add)
+{
+    struct sockaddr_un ad;
+    int ad_len, fd;
+
+    if (rodent.rtype != MOUSE_PROTO_X10MOUSEREM)
+	return;
+
+    if ( add ) {
+	/*  Accept client connection, if we don't already have one  */
+	ad_len = sizeof(ad);
+	fd = accept(rodent.mremsfd, (struct sockaddr *) &ad, &ad_len);
+	if (fd < 0)
+	    logwarnx("failed accept on mouse remote socket");
+
+	if ( rodent.mremcfd < 0 ) {
+	    rodent.mremcfd = fd;
+	    debug("remote client connect...accepted");
+	}
+	else {
+	    close(fd);
+	    debug("another remote client connect...disconnected");
+	}
+    }
+    else {
+	/* Client disconnected */
+	debug("remote client disconnected");
+	close( rodent.mremcfd );
+	rodent.mremcfd = -1;
+    }
+}
+
+

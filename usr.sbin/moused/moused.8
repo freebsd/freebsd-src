@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.13 1998/03/23 08:24:24 charnier Exp $
+.\"	$Id: moused.8,v 1.14 1998/06/13 18:55:55 steve Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -257,6 +257,8 @@ ALPS GlidePoint protocol.
 Kensington ThinkingMouse protocol.
 .It Ar mmhittab
 Hitachi tablet protocol.
+.It Ar x10mouseremote
+X10 MouseRemote.
 .El
 .Pp
 For the bus and InPort mouse:
@@ -448,6 +450,8 @@ virtual consoles
 process id of the currently running
 .Nm
 daemon
+.It Pa /var/run/MouseRemote
+UNIX-domain stream socket for X10 MouseRemote events
 .El
 .Sh EXAMPLE
 .Pp
