@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.23 1997/12/02 21:07:02 phk Exp $
+ *      $Id: sctarg.c,v 1.24 1998/01/24 02:54:51 eivind Exp $
  */
 
 #include "opt_bounce.h"
@@ -83,18 +83,18 @@ static void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static struct scsi_device sctarg_switch =
 {
-    NULL,
-    sctargstart,			/* we have a queue, and this is how we service it */
-    NULL,
-    NULL,
-    "sctarg",
-    0,
+	NULL,
+	sctargstart,	/* we have a queue, and this is how we service it */
+	NULL,
+	NULL,
+	"sctarg",
+	0,
 	{0, 0},
 	SDEV_ONCE_ONLY,
-	0,
+	sctargattach,
 	"Processor Target",
 	sctargopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_TARGET,
 	0,
 	0,
@@ -103,6 +103,18 @@ static struct scsi_device sctarg_switch =
 	0,
 	sctarg_strategy,
 };
+
+static errval
+sctargattach(struct scsi_link *sc_link)
+{
+	struct scsi_data *sctarg;
+
+	sctarg = sc_link->sd;
+	bufq_init(&sctarg->buf_queue);
+	sctarg->flags = 0;
+
+	return 0;
+}
 
 static errval
 sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
