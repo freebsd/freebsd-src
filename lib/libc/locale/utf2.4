@@ -60,8 +60,8 @@ consist entirely of bytes whose high order bit is set.  The actual
 encoding is represented by the following table:
 .Bd -literal
 [0x0000 - 0x007f] [00000000.0bbbbbbb] -> 0bbbbbbb
-[0x0080 - 0x03ff] [00000bbb.bbbbbbbb] -> 110bbbbb, 10bbbbbb
-[0x0400 - 0xffff] [bbbbbbbb.bbbbbbbb] -> 1110bbbb, 10bbbbbb, 10bbbbbb
+[0x0080 - 0x07ff] [00000bbb.bbbbbbbb] -> 110bbbbb, 10bbbbbb
+[0x0800 - 0xffff] [bbbbbbbb.bbbbbbbb] -> 1110bbbb, 10bbbbbb, 10bbbbbb
 .Ed
 .Pp
 If more than a single representation of a value exists (for example,
