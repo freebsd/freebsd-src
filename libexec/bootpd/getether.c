@@ -19,6 +19,7 @@
 
 #include <ctype.h>
 #include <paths.h>
+#include <string.h>
 #include <syslog.h>
 
 #include "getether.h"
@@ -117,13 +118,14 @@ getether(ifname, eap)
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+int
 getether(ifname, eap)
 	char *ifname;				/* interface name from ifconfig structure */
 	char *eap;					/* Ether address (output) */
 {
 	int fd, rc = -1;
 	register int n;
-	struct ifreq ibuf[16], ifr;
+	struct ifreq ibuf[16];
 	struct ifconf ifc;
 	register struct ifreq *ifrp, *ifend;
 

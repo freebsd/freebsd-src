@@ -120,7 +120,7 @@ bootp_print(bp, length, sport, dport)
 		printf(" hops:%d", bp->bp_hops);
 
 	if (bp->bp_xid)
-		printf(" xid:%d", ntohl(bp->bp_xid));
+		printf(" xid:%ld", (long)ntohl(bp->bp_xid));
 
 	if (bp->bp_secs)
 		printf(" secs:%d", ntohs(bp->bp_secs));
@@ -336,7 +336,7 @@ rfc1048_print(bp, length)
 		case 'l':				/* Long words */
 			while (len >= 4) {
 				bcopy((char *) bp, (char *) &ul, 4);
-				printf("%d", ntohl(ul));
+				printf("%ld", (long)ntohl(ul));
 				bp += 4;
 				len -= 4;
 				if (len) printf(",");

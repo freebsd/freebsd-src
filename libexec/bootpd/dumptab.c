@@ -34,9 +34,11 @@
 #define P(args) ()
 #endif
 
+#ifdef DEBUG
 static void dump_generic P((FILE *, struct shared_bindata *));
 static void dump_host P((FILE *, struct host *));
 static void list_ipaddresses P((FILE *, struct in_addr_list *));
+#endif
 
 #undef P
 
@@ -262,7 +264,7 @@ dump_host(fp, hp)
 		/* NetBSD: domainname (see above) */
 		/* NetBSD: dumpfile (see above) */
 		if (hp->flags.time_offset) {
-			fprintf(fp, "\\\n\t:to=%ld:", hp->time_offset);
+			fprintf(fp, "\\\n\t:to=%ld:", (long)hp->time_offset);
 		}
 		if (hp->flags.time_server) {
 			fprintf(fp, "\\\n\t:ts=");
