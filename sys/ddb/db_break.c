@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.5 1994/08/18 22:34:19 wollman Exp $
+ *	$Id: db_break.c,v 1.6 1995/05/30 07:56:50 rgrimes Exp $
  */
 
 /*
@@ -42,7 +42,6 @@
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
-#include <ddb/db_break.h>
 
 #define	NBREAKPOINTS	100
 struct db_breakpoint	db_break_table[NBREAKPOINTS];
@@ -264,7 +263,7 @@ db_list_breakpoints()
 void
 db_delete_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -276,7 +275,7 @@ db_delete_cmd(addr, have_addr, count, modif)
 void
 db_breakpoint_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -288,7 +287,11 @@ db_breakpoint_cmd(addr, have_addr, count, modif)
 
 /* list breakpoints */
 void
-db_listbreak_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
+db_listbreak_cmd(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	db_list_breakpoints();
 }

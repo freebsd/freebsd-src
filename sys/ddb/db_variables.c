@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.6 1994/09/27 03:34:58 phk Exp $
+ *	$Id: db_variables.c,v 1.7 1995/05/30 07:57:17 rgrimes Exp $
  */
 
 /*
@@ -39,7 +39,9 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 
-static void db_write_variable(struct db_variable *, db_expr_t *);
+extern int	db_find_variable __P((struct db_variable **varp));
+extern int	db_set_variable __P((db_expr_t value));
+static void	db_write_variable __P((struct db_variable *, db_expr_t *));
 
 struct db_variable db_vars[] = {
 	{ "radix",	&db_radix, FCN_NULL },
@@ -109,7 +111,7 @@ db_read_variable(vp, valuep)
 	struct db_variable *vp;
 	db_expr_t	*valuep;
 {
-	int	(*func)() = vp->fcn;
+	db_varfcn_t	*func = vp->fcn;
 
 	if (func == FCN_NULL)
 	    *valuep = *(vp->valuep);
@@ -122,7 +124,7 @@ db_write_variable(vp, valuep)
 	struct db_variable *vp;
 	db_expr_t	*valuep;
 {
-	int	(*func)() = vp->fcn;
+	db_varfcn_t	*func = vp->fcn;
 
 	if (func == FCN_NULL)
 	    *(vp->valuep) = *valuep;
@@ -131,7 +133,11 @@ db_write_variable(vp, valuep)
 }
 
 void
-db_set_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
+db_set_cmd(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	db_expr_t	value;
 	struct db_variable *vp;

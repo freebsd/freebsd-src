@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.6 1994/09/27 03:34:56 phk Exp $
+ *	$Id: db_print.c,v 1.7 1995/05/30 07:57:06 rgrimes Exp $
  */
 
 /*
@@ -45,7 +45,11 @@
 #include <ddb/db_sym.h>
 
 void
-db_show_regs(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
+db_show_regs(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	register struct db_variable *regp;
 	db_expr_t	value, offset;
