@@ -81,6 +81,18 @@ extern int maxusers;		/* system tune hint */
 #endif
 
 /*
+ * XXX the hints declarations are even more misplaced than most declarations
+ * in this file, since they are needed in one file (per arch) and only used
+ * in two files.
+ * XXX most of these variables should be const.
+ */
+extern int envmode;
+extern int hintmode;		/* 0 = off. 1 = config, 2 = fallback */
+extern char *kern_envp;
+extern char static_env[];
+extern char static_hints[];	/* by config for now */
+
+/*
  * General function declarations.
  */
 
@@ -90,7 +102,6 @@ struct mtx;
 struct proc;
 struct kse;
 struct thread;
-struct timeval;
 struct tty;
 struct ucred;
 struct uio;
@@ -182,11 +193,9 @@ int	u_cansee __P((struct ucred *u1, struct ucred *u2));
 char	*getenv __P((const char *name));
 int	getenv_int __P((const char *name, int *data));
 quad_t	getenv_quad __P((const char *name, quad_t *data));
-extern char *kern_envp;
-extern char *static_env;
-extern int envmode;
 
 #ifdef APM_FIXUP_CALLTODO 
+struct timeval;
 void	adjust_timeout_calltodo __P((struct timeval *time_change)); 
 #endif /* APM_FIXUP_CALLTODO */ 
 
