@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/sf_buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -56,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 /*
- * Implement uiomove(9) from physical memory using the direct map to
+ * Implement uiomove(9) from physical memory using sf_bufs to
  * avoid the creation and destruction of ephemeral mappings.
  */
 int
@@ -69,6 +70,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	size_t cnt;
 	int error = 0;
 	int save = 0;
+	struct sf_buf *sf;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove_fromphys: mode"));
@@ -88,8 +90,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			cnt = n;
 		page_offset = offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - page_offset);
-		cp = (char *)VM_PAGE_TO_PHYS(ma[offset >> PAGE_SHIFT]) +
-		    page_offset;
+		sf = sf_buf_alloc(ma[offset >> PAGE_SHIFT], 0);
+		cp = (char*)sf_buf_kva(sf) + page_offset;
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
@@ -110,6 +112,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		case UIO_NOCOPY:
 			break;
 		}
+		sf_buf_free(sf);
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
