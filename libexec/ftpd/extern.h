@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
- *	$Id: extern.h,v 1.4 1996/09/22 21:53:21 wosch Exp $
+ *	$Id: extern.h,v 1.6 1996/10/18 17:09:24 ache Exp $
  */
 
 void	blkfree __P((char **));
@@ -69,4 +69,7 @@ void	yyerror __P((char *));
 int	yyparse __P((void));
 #if defined(SKEY) && defined(_PWD_H_) /* XXX evil */
 char   *skey_challenge __P((char *, struct passwd *, int));
+#endif
+#if defined(INTERNAL_LS)
+int	ls_main __P((int, char **));
 #endif
