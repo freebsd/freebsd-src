@@ -690,7 +690,7 @@ logical OR
 Logical
 .Tn AND ;
 of higher precedence than
-.Dq .
+.Ql Ic || .
 .El
 .Pp
 As in C,
@@ -762,8 +762,8 @@ is applied.
 Similarly, if the form is
 .Ql Ic .ifmake
 or
-.Ql Ic .ifnmake , the ``make''
-expression is applied.
+.Ql Ic .ifnmake ,                                            
+the ``make'' expression is applied.
 .Pp
 If the conditional evaluates to true the parsing of the makefile continues
 as before.
