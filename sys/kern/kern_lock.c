@@ -57,45 +57,21 @@ __FBSDID("$FreeBSD$");
  * Locks provide shared/exclusive sychronization.
  */
 
-#define LOCK_WAIT_TIME 100
-#define LOCK_SAMPLE_WAIT 7
-
-#if defined(DIAGNOSTIC)
-#define LOCK_INLINE
-#else
-#define LOCK_INLINE __inline
-#endif
-
 #define	COUNT(td, x)	if ((td)) (td)->td_locks += (x)
-
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
-
-/*
- * Mutex array variables.  Rather than each lockmgr lock having its own mutex,
- * share a fixed (at boot time) number of mutexes across all lockmgr locks in
- * order to keep sizeof(struct lock) down.
- */
-static struct mtx lock_mtx;
 
 static int acquire(struct lock **lkpp, int extflags, int wanted);
 static int acquiredrain(struct lock *lkp, int extflags) ;
 
-static void
-lockmgr_init(void *dummy __unused)
-{
-	mtx_init(&lock_mtx, "lockmgr", NULL, MTX_DEF);
-}
-SYSINIT(lmgrinit, SI_SUB_LOCKMGR, SI_ORDER_FIRST, lockmgr_init, NULL)
-
-static LOCK_INLINE void
+static __inline void
 sharelock(struct thread *td, struct lock *lkp, int incr) {
 	lkp->lk_flags |= LK_SHARE_NONZERO;
 	lkp->lk_sharecount += incr;
 	COUNT(td, incr);
 }
 
-static LOCK_INLINE void
+static __inline void
 shareunlock(struct thread *td, struct lock *lkp, int decr) {
 
 	KASSERT(lkp->lk_sharecount >= decr, ("shareunlock: count < decr"));
