@@ -327,6 +327,7 @@ uhci_init(sc)
 			 UHCI_FRAMELIST_ALIGN, &dma);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
+
 	sc->sc_pframes = KERNADDR(&dma);
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma)); /* set frame list */
@@ -744,7 +745,6 @@ uhci_check_intr(sc, ii)
 	if (ii->stdend->td->td_status & UHCI_TD_ACTIVE) {
 		for (std = ii->stdstart; std != ii->stdend; std = std->td->link.std){
 			status = std->td->td_status;
-			DPRINTF(("status=0x%04x\n", status));
 			if ((status & UHCI_TD_STALLED) ||
 			     (status & (UHCI_TD_SPD | UHCI_TD_ACTIVE)) == UHCI_TD_SPD)
 				goto done;
@@ -1466,16 +1466,12 @@ void
 uhci_device_intr_abort(reqh)
 	usbd_request_handle reqh;
 {
-	struct uhci_pipe *upipe;
-
 	DPRINTFN(1, ("uhci_device_intr_abort: reqh=%p\n", reqh));
-	/* XXX inactivate */
-	usb_delay_ms(reqh->pipe->device->bus, 2); /* make sure it is done */
 	if (reqh->pipe->intrreqh == reqh) {
 		DPRINTF(("uhci_device_intr_abort: remove\n"));
 		reqh->pipe->intrreqh = 0;
-		upipe = (struct uhci_pipe *)reqh->pipe;
-		uhci_intr_done(upipe->u.intr.qhs[0]->intr_info);
+		/* make sure it is done */
+		usb_delay_ms(reqh->pipe->device->bus, 2);
 	}
 }
 
@@ -1854,7 +1850,8 @@ uhci_intr_done(ii)
 	uhci_free_std_chain(sc, ii->stdstart, 0);
 
 	/* XXX Wasteful. */
-	if (reqh->pipe->intrreqh == reqh) {
+	if (reqh->pipe->intrreqh == reqh
+	    && reqh->status == USBD_NORMAL_COMPLETION) {
 		uhci_soft_td_t *xfer, *xferend;
 
 		/* This alloc cannot fail since we freed the chain above. */
@@ -1884,7 +1881,6 @@ uhci_intr_done(ii)
 	} else {
 		usb_freemem(sc->sc_dmatag, dma);
 		ii->stdstart = 0;	/* mark as inactive */
-		usb_start_next(reqh->pipe);
 	}
 }
 
