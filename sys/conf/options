@@ -117,6 +117,11 @@ NWFS
 # otherwise a STUB module will be compiled in.
 SOFTUPDATES	opt_ffs.h
 
+# Enabling this option turns on support for extended attributes
+# in FFS, which can be used to support high security configurations
+# as well as new file system features.
+FFS_EXTATTR	opt_ffs.h
+
 # The above static dependencies are planned removed, with a
 # <filesystem>_ROOT option to control if it usable as root.  This list
 # allows these options to be present in config files already (though

@@ -47,6 +47,7 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
