@@ -269,13 +269,12 @@ query_auth(struct url *URL)
 	tcflag_t saved_flags;
 	int i, nopwd;
 
-
 	fprintf(stderr, "Authentication required for <%s://%s:%d/>!\n",
 	    URL->scheme, URL->host, URL->port);
 
 	fprintf(stderr, "Login: ");
 	if (fgets(URL->user, sizeof URL->user, stdin) == NULL)
-		return -1;
+		return (-1);
 	for (i = 0; URL->user[i]; ++i)
 		if (isspace(URL->user[i]))
 			URL->user[i] = '\0';
@@ -293,12 +292,12 @@ query_auth(struct url *URL)
 		nopwd = (fgets(URL->pwd, sizeof URL->pwd, stdin) == NULL);
 	}
 	if (nopwd)
-		return -1;
+		return (-1);
 
 	for (i = 0; URL->pwd[i]; ++i)
 		if (isspace(URL->pwd[i]))
 			URL->pwd[i] = '\0';
-	return 0;
+	return (0);
 }
 
 /*
@@ -687,7 +686,7 @@ fetch(char *URL, const char *path)
 		fetchFreeURL(url);
 	if (tmppath != NULL)
 		free(tmppath);
-	return r;
+	return (r);
 }
 
 static void
