@@ -371,10 +371,6 @@ ascprobe (struct isa_device *isdp)
   int unit = isdp->id_unit;
   struct asc_unit *scu = unittab + unit;
   int stb;
-  static int once;
-
-  if (!once++)
-      cdevsw_add(&asc_cdevsw);
 
   scu->base = isdp->id_iobase; /*** needed by the following macros ***/
   scu->flags = FLAG_DEBUG;
