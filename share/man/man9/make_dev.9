@@ -51,8 +51,10 @@ The
 .Fn make_dev
 function creates a
 .Fa dev_t
-structure for a new device.  If DEVFS is available, it is also notified of
-the presence of the new device.  The device will be owned by
+structure for a new device.
+If DEVFS is available, it is also notified of
+the presence of the new device.
+The device will be owned by
 .Va uid ,
 with the group ownership as
 .Va gid ,

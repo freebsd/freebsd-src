@@ -57,13 +57,15 @@ If the unit is unknown then the caller should pass
 and the system will choose the next available unit number.
 .Pp
 The name of the device is used to determine which drivers might be
-appropriate for the device.  If a name is specified then only drivers
-of that name are probed.  If no name is given then all drivers for the
+appropriate for the device.
+If a name is specified then only drivers of that name are probed.
+If no name is given then all drivers for the
 owning bus are probed.
 .Pp
 This allows busses which can uniquely identify device instances (such
 as PCI) to allow each driver to check each device instance for a
-match.  For busses which rely on supplied probe hints where only one
+match.
+For busses which rely on supplied probe hints where only one
 driver can have a change of probing the device, the driver name should
 specified as the device name.
 .Pp
@@ -73,7 +75,8 @@ unit number of
 should be given.
 When a specific unit number is desired (e.g. for wiring a particular
 piece of hardware to a pre-configured unit number), that unit should
-be passed.  If the specified unit number is already allocated, a new
+be passed.
+If the specified unit number is already allocated, a new
 unit will be allocated and a diagnostic message printed.
 .Pp
 If the devices attached to a bus must be probed in a specific order

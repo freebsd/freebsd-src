@@ -75,8 +75,8 @@ Each device has a busy count which is incremented when
 .Fn device_busy
 is called and decremented when
 .Fn device_unbusy
-is called.  Both routines return an error if the device state is less
-than
+is called.
+Both routines return an error if the device state is less than
 .Dv DS_ATTACHED .
 .Pp
 When
