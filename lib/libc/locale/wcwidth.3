@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 18, 2002
+.Dd October 3, 2002
 .Dt WCWIDTH 3
 .Os
 .Sh NAME
@@ -52,6 +52,29 @@ argument is a null wide character (L'\e0'),
 is not printable,
 otherwise it returns the number of column positions the
 character occupies.
+.Sh EXAMPLES
+This code fragment reads text from standard input and
+breaks lines that are more than 20 column positions wide,
+similar to the
+.Xr fold 1
+utility:
+.Bd -literal -offset indent
+wint_t ch;
+int column, w;
+
+column = 0;
+while ((ch = getwchar()) != WEOF) {
+	if ((w = wcwidth(ch)) > 0)
+		column += w;
+	if (column >= 20) {
+		putwchar(L'\n');
+		column = 0;
+	}
+	putwchar(ch);
+	if (ch == L'\n')
+		column = 0;
+}
+.Ed
 .Sh SEE ALSO
 .Xr iswprint 3 ,
 .Xr wcswidth 3
