@@ -72,18 +72,23 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 				while ((e = readdir(d)) != NULL) {
 					char           *p = e->d_name;
 
-					sprintf(src, "%s/%s", skel, p);
-					if (stat(src, &st) == 0) {
+					if (snprintf(src, sizeof(src), "%s/%s", skel, p) >= (int)sizeof(src))
+						warn("warning: pathname too long '%s/%s' (skel not copied)", skel, p);
+					else if (stat(src, &st) == 0) {
 						if (strncmp(p, "dot.", 4) == 0)	/* Conversion */
 							p += 3;
-						sprintf(dst, "%s/%s", dir, p);
-						if (S_ISDIR(st.st_mode)) {	/* Recurse for this */
+						if (snprintf(dst, sizeof(dst), "%s/%s", dir, p) >= (int)sizeof(dst))
+							warn("warning: path too long '%s/%s' (skel file skipped)", dir, p);
+						else {
+						    if (S_ISDIR(st.st_mode)) {	/* Recurse for this */
 							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
 								copymkdir(dst, src, (st.st_mode & 0777), uid, gid);
+								chflags(dst, st.st_flags);	/* propogate flags */
 							/*
-							 * Note: don't propogate 'special' attributes
+							 * Note: don't propogate special attributes
+							 * but do propogate file flags
 							 */
-						} else if (S_ISREG(st.st_mode) && (outfd = open(dst, O_RDWR | O_CREAT | O_EXCL, st.st_mode)) != -1) {
+						    } else if (S_ISREG(st.st_mode) && (outfd = open(dst, O_RDWR | O_CREAT | O_EXCL, st.st_mode)) != -1) {
 							if ((infd = open(src, O_RDONLY)) == -1) {
 								close(outfd);
 								remove(dst);
@@ -98,9 +103,15 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 								while ((b = read(infd, copybuf, 4096)) > 0)
 									write(outfd, copybuf, b);
 								close(infd);
+								/*
+								 * Propogate special filesystem flags
+								 */
+								fchown(outfd, uid, gid);
+								fchflags(outfd, st.st_flags);
 								close(outfd);
 								chown(dst, uid, gid);
 							}
+						    }
 						}
 					}
 				}
