@@ -16,4 +16,8 @@ DPADD+=	${.CURDIR}/../lib/libcron.a
 
 LDADD+=	-lcron
 
+BINOWN= root
+BINMODE=4555
+INSTALLFLAGS=-fschg
+
 .include <bsd.prog.mk>
