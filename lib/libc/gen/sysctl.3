@@ -193,6 +193,7 @@ privilege may change the value.
 .It HW\_PHYSMEM	integer	no
 .It HW\_USERMEM	integer	no
 .It HW\_PAGESIZE	integer	no
+.It HW\_FLOATINGPOINT	integer	no
 .\".It HW\_DISKNAMES	integer	no
 .\".It HW\_DISKSTATS	integer	no
 .El
@@ -212,6 +213,8 @@ The bytes of physical memory.
 The bytes of non-kernel memory.
 .It Li HW_PAGESIZE
 The software page size.
+.It Li HW_FLOATINGPOINT
+Nonzero if the floating point support is in hardware.
 .\".It Fa HW_DISKNAMES
 .\".It Fa HW_DISKSTATS
 .El
@@ -224,36 +227,33 @@ The types of data currently available are process information,
 system vnodes, the open file entries, routing table entries,
 virtual memory statistics, load average history, and clock rate
 information.
-.Bl -column "KERNXCHOWNXRESTRICTEDXXX" "struct clockrateXXX" -offset indent
+.Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
 .It Sy Pa Second level name	Type	Changeable
 .It KERN\_ARGMAX	integer	no
+.It KERN\_BOOTFILE	string	yes
 .It KERN\_BOOTTIME	struct timeval	no
-.It KERN\_CHOWN\_RESTRICTED	integer	no
 .It KERN\_CLOCKRATE	struct clockinfo	no
 .It KERN\_FILE	struct file	no
 .It KERN\_HOSTID	integer	yes
 .It KERN\_HOSTNAME	string	yes
 .It KERN\_JOB\_CONTROL	integer	no
-.It KERN\_LINK\_MAX	integer	no
 .It KERN\_MAXFILES	integer	yes
+.It KERN\_MAXFILESPERPROC	integer	yes
 .It KERN\_MAXPROC	integer	yes
+.It KERN\_MAXPROCPERUID	integer	yes
 .It KERN\_MAXVNODES	integer	yes
-.It KERN\_MAX\_CANON	integer	no
-.It KERN\_MAX\_INPUT	integer	no
-.It KERN\_NAME\_MAX	integer	no
 .It KERN\_NGROUPS	integer	no
-.It KERN\_NO\_TRUNC	integer	no
+.It KERN\_NISDOMAINNAME	string	yes
+.It KERN\_OSRELDATE	integer	no
 .It KERN\_OSRELEASE	string	no
 .It KERN\_OSREV	integer	no
 .It KERN\_OSTYPE	string	no
-.It KERN\_PATH\_MAX	integer	no
-.It KERN\_PIPE\_BUF	integer	no
 .It KERN\_POSIX1	integer	no
 .It KERN\_PROC	struct proc	no
 .It KERN\_PROF	node	not applicable
 .It KERN\_SAVED\_IDS	integer	no
 .It KERN\_SECURELVL	integer	raise only
-.It KERN\_VDISABLE	integer	no
+.It KERN\_UPDATEINTERVAL	integer	no
 .It KERN\_VERSION	string	no
 .It KERN\_VNODE	struct vnode	no
 .El
@@ -262,15 +262,13 @@ information.
 .It Li KERN_ARGMAX
 The maximum bytes of argument to
 .Xr execve 2 .
+.It Li KERN_BOOTFILE
+The full pathname of the file from which the kernel was loaded.
 .It Li KERN_BOOTTIME
 A
 .Va struct timeval
 structure is returned.
 This structure contains the time that the system was booted.
-.It Li KERN_CHOWN_RESTRICTED
-Return 1 if appropriate privileges are required for the
-.Xr chown 2
-system call, otherwise 0.
 .It Li KERN_CLOCKRATE
 A
 .Va struct clockinfo
@@ -290,35 +288,38 @@ Get or set the host id.
 Get or set the hostname.
 .It Li KERN_JOB_CONTROL
 Return 1 if job control is available on this system, otherwise 0.
-.It Li KERN_LINK_MAX
-The maximum file link count.
 .It Li KERN_MAXFILES
-The maximum number of open files that may be open in the system.
+The maximum number of files that may be open in the system.
+.It Li KERN_MAXFILESPERPROC
+The maximum number of files that may be open for a single process.
+This limit only applies to processes with an effective uid of nonzero
+at the time of the open request.
+Files that have already been opened are not affected if the limit
+or the effective uid is changed.
 .It Li KERN_MAXPROC
-The maximum number of simultaneous processes the system will allow.
+The maximum number of concurrent processes the system will allow.
+.It Li KERN_MAXPROCPERUID
+The maximum number of concurrent processes the system will allow
+for a single effective uid.
+This limit only applies to processes with an effective uid of nonzero
+at the time of a fork request.
+Processes that have already been started are not affected if the limit
+is changed.
 .It Li KERN_MAXVNODES
 The maximum number of vnodes available on the system.
-.It Li KERN_MAX_CANON
-The maximum number of bytes in terminal canonical input line.
-.It Li KERN_MAX_INPUT
-The minimum maximum number of bytes for which space is available in
-a terminal input queue.
-.It Li KERN_NAME_MAX
-The maximum number of bytes in a file name.
 .It Li KERN_NGROUPS
 The maximum number of supplemental groups.
-.It Li KERN_NO_TRUNC
-Return 1 if file names longer than KERN_NAME_MAX are truncated.
+.It Li KERN_NISDOMAINNAME
+The name of the current YP/NIS domain.
+.It Li KERN_OSRELDATE
+The system release date in YYYYMM format
+(January 1996 is encoded as 199601).
 .It Li KERN_OSRELEASE
 The system release string.
 .It Li KERN_OSREV
 The system revision string.
 .It Li KERN_OSTYPE
 The system type string.
-.It Li KERN_PATH_MAX
-The maximum number of bytes in a pathname.
-.It Li KERN_PIPE_BUF
-The maximum number of bytes which will be written atomically to a pipe.
 .It Li KERN_POSIX1
 The version of ISO/IEC 9945 (POSIX 1003.1) with which the system
 attempts to comply.
@@ -378,8 +379,6 @@ Returns 1 if saved set-group and saved set-user ID is available.
 The system security level.
 This level may be raised by processes with appropriate privilege.
 It may only be lowered by process 1.
-.It Li KERN_VDISABLE
-Returns the terminal character disabling value.
 .It Li KERN_VERSION
 The system version string.
 .It Li KERN_VNODE
@@ -392,15 +391,23 @@ Each element of the array contains the kernel address of a vnode
 .Va struct vnode *
 followed by the vnode itself
 .Va struct vnode .
+.It Li KERN_UPDATEINTERVAL
+The interval between
+.Xr sync 2
+calls in the
+.Xr update 4
+process.
 .El
 .Sh CTL_MACHDEP
 The set of variables defined is architecture dependent.
-Most architectures define at least the following variables.
-.Bl -column "CONSOLE_DEVICEXXX" "integerXXX" -offset indent
+The following variables are defined for the i386 architecture.
+.Bl -column "CONSOLE_DEVICEXXX" "struct bootinfoXXX" -offset indent
 .It Sy Pa Second level name	Type	Changeable
 .It Li CPU_CONSDEV	dev_t	no
 .It Li CPU_ADJKERNTZ	int	yes
 .It Li CPU_DISRTCSET	int	yes
+.It Li CPU_BOOTINFO	struct bootinfo	no
+.It Li CPU_WALLCLOCK	int	yes
 .El
 .Sh CTL_NET
 The string and integer information available for the CTL_NET level
