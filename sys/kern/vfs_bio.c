@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.36 1995/03/16 18:12:47 bde Exp $
+ * $Id: vfs_bio.c,v 1.37 1995/03/26 23:28:50 davidg Exp $
  */
 
 /*
@@ -969,7 +969,7 @@ allocbuf(struct buf * bp, int size)
 								}
 							}
 							VM_WAIT;
-							if (vmio && (bp->b_flags & B_PDWANTED)) {
+							if (bp->b_flags & B_PDWANTED) {
 								bp->b_flags |= B_INVAL;
 								brelse(bp);
 								return 0;
@@ -992,7 +992,7 @@ allocbuf(struct buf * bp, int size)
 								vm_page_free(mt);
 							}
 						}
-						if (vmio && (bp->b_flags & B_PDWANTED)) {
+						if (bp->b_flags & B_PDWANTED) {
 							bp->b_flags |= B_INVAL;
 							brelse(bp);
 							VM_WAIT;
@@ -1026,7 +1026,7 @@ allocbuf(struct buf * bp, int size)
 								}
 							}
 							VM_WAIT;
-							if (vmio && (bp->b_flags & B_PDWANTED)) {
+							if (bp->b_flags & B_PDWANTED) {
 								bp->b_flags |= B_INVAL;
 								brelse(bp);
 								return 0;
