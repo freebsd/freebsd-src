@@ -3,6 +3,8 @@ BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
 
+.MAIN: all
+
 .SUFFIXES: .info .texi .texinfo
 .texi.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
