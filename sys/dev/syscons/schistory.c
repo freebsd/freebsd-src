@@ -135,6 +135,7 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 	if (prev_history != NULL) {
 		extra_history_size += delta;
 		sc_vtb_destroy(prev_history);
+		free(prev_history, M_DEVBUF);
 	}
 
 	scp->history = history;
