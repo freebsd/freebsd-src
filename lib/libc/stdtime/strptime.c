@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strptime.c,v 1.4 1998/09/12 21:13:29 dt Exp $";
+	"$Id: strptime.c,v 1.5 1999/04/25 01:42:18 wes Exp $";
 #endif
 
 #ifndef lint
@@ -333,7 +333,7 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 			}
 			if (c == 'Y')
 				i -= 1900;
-			if (c == 'y' && i < 70)
+			if (c == 'y' && i < 69)
 				i += 100;
 			if (i < 0)
 				return 0;

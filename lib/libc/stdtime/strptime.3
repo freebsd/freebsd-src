@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: strptime.3,v 1.2 1998/09/12 21:13:29 dt Exp $
+.\" $Id: strptime.3,v 1.3 1999/04/25 01:42:18 wes Exp $
 .\" "
 .Dd May 8, 1997
 .Dt STRPTIME 3
@@ -58,12 +58,12 @@ All conversion specifications are identical to those described in
 .Xr strftime 3 .
 .Pp
 Two-digit year values, including formats
-.Fa %d
+.Fa %y
 and 
 .Fa %D ,
-are now interpreted as beginning at 1970 per POSIX requirements.
-Years 70-99 are interpreted in the 20th century, years 00-69 in 
-the 21st century.
+are now interpreted as beginning at 1969 per POSIX requirements.
+Years 69-00 are interpreted in the 20th century (1969-2000), years
+01-68 in the 21st century (2001-2068).
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn strptime
