@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.68 1998/01/08 10:50:46 kato Exp $
+ *  $Id: syscons.c,v 1.69 1998/01/10 13:31:27 kato Exp $
  */
 
 #include "sc.h"
@@ -248,10 +248,8 @@ static const int	nsccons = MAXCONS+2;
 static int scattach(struct isa_device *dev);
 static int scparam(struct tty *tp, struct termios *t);
 static int scprobe(struct isa_device *dev);
-#ifndef PC98
 static int scvidprobe(int unit, int flags);
 static int sckbdprobe(int unit, int flags);
-#endif
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
@@ -469,11 +467,6 @@ move_crsr(scr_stat *scp, int x, int y)
 static int
 scprobe(struct isa_device *dev)
 {
-#ifdef PC98
-    sc_port = dev->id_iobase;
-    sc_kbdc = kbdc_open(sc_port);
-    return(16);
-#else
     if (!scvidprobe(dev->id_unit, dev->id_flags)) {
 	if (bootverbose)
 	    printf("sc%d: no video adapter is found.\n", dev->id_unit);
@@ -485,10 +478,8 @@ scprobe(struct isa_device *dev)
 	return (IO_KBDSIZE);
     else
         return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
-#endif
 }
 
-#ifndef PC98
 /* probe video adapters, return TRUE if found */ 
 static int
 scvidprobe(int unit, int flags)
@@ -511,6 +502,11 @@ scvidprobe(int unit, int flags)
      * bogus common variable so that it can be shared with pcvt, so it
      * can't be statically initialized.  XXX.
      */
+#ifdef PC98
+    Crtat = (u_short *)TEXT_VRAM;
+    Atrat = (u_short *)TEXT_VRAM + ATTR_OFFSET;
+    crtc_type = KD_PC98;
+#else
     Crtat = (u_short *)MONO_BUF;
     crtc_type = KD_MONO;
     /* If CGA memory seems to work, switch to color.  */
@@ -577,7 +573,7 @@ scvidprobe(int unit, int flags)
 		video_mode_ptr = (char *)pa_to_va(pa);
 	}
     }
-
+#endif	/* PC98 */
     return TRUE;
 }
 
@@ -590,7 +586,7 @@ sckbdprobe(int unit, int flags)
     int m;
 
     sc_kbdc = kbdc_open(sc_port);
-
+#ifndef	PC98
     if (!kbdc_lock(sc_kbdc, TRUE)) {
 	/* driver error? */
 	printf("sc%d: unable to lock the controller.\n", unit);
@@ -727,8 +723,9 @@ sckbdprobe(int unit, int flags)
 
     kbdc_set_device_mask(sc_kbdc, m | KBD_KBD_CONTROL_BITS),
     kbdc_lock(sc_kbdc, FALSE);
+#endif	/* !PC98 */
     return TRUE;
-
+#ifndef	PC98
 fail:
     if (c != -1)
         /* try to restore the command byte as before, if possible */
@@ -737,8 +734,8 @@ fail:
         (flags & DETECT_KBD) ? m : m | KBD_KBD_CONTROL_BITS);
     kbdc_lock(sc_kbdc, FALSE);
     return FALSE;
-}
 #endif /* !PC98 */
+}
 
 #if NAPM > 0
 static int
@@ -842,10 +839,12 @@ scattach(struct isa_device *dev)
 #endif
 
     printf("sc%d: ", dev->id_unit);
-#ifdef PC98
-	printf(" <text mode>");
-#else
     switch(crtc_type) {
+#ifdef PC98
+    case KD_PC98:
+	printf(" <text mode>");
+	break;
+#else
     case KD_VGA:
 	if (crtc_addr == MONO_BASE)
 	    printf("VGA mono");
@@ -866,8 +865,8 @@ scattach(struct isa_device *dev)
     default:
 	printf("MDA/hercules");
 	break;
-    }
 #endif /* PC98 */
+    }
     printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, flags);
 
 #if NAPM > 0
@@ -1114,11 +1113,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_CURRENT:  	/* get current adapter type */
-#ifdef PC98
-	*(int*)data = KD_PC98;
-#else
 	*(int *)data = crtc_type;
-#endif
 	return 0;
 
     case CONS_GET:      	/* get current video mode */
@@ -2273,12 +2268,10 @@ sccnprobe(struct consdev *cp)
 	return;
     }
 
-#ifndef PC98
     if (!scvidprobe(dvp->id_unit, dvp->id_flags)) {
 	cp->cn_pri = CN_DEAD;
 	return;
     }
-#endif
 
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLE);
@@ -3816,10 +3809,6 @@ scinit(void)
     if (init_done != COLD)
 	return;
     init_done = WARM;
-#ifdef PC98
-    Crtat = (u_short *)TEXT_VRAM;
-    Atrat = (u_short *)TEXT_VRAM + ATTR_OFFSET;
-#endif
 
 #ifdef PC98
 #ifdef AUTO_CLOCK
@@ -3927,8 +3916,9 @@ scinit(void)
 #ifdef PC98
     console[0]->atr_buf = Atrat;
     console[0]->cursor_atr = Atrat + hw_cursor;
-#endif
+#else
     console[0]->cursor_saveunder = *console[0]->cursor_pos;
+#endif
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
     for (i=1; i<MAXCONS; i++)
@@ -4032,7 +4022,9 @@ static scr_stat
 	set_mode(scp);
 */
     clear_screen(scp);
+#ifndef	PC98
     scp->cursor_saveunder = *scp->cursor_pos;
+#endif
     return scp;
 }
 
@@ -5058,10 +5050,12 @@ setup_grmode:
 void
 set_border(u_char color)
 {
-#ifdef PC98
-    outb(0x6c, color << 4);
-#else
     switch (crtc_type) {
+#ifdef PC98
+    case KD_PC98:
+	outb(0x6c, color << 4);
+	break;
+#else
     case KD_EGA:
     case KD_VGA:
         inb(crtc_addr + 6);		/* reset flip-flop */
@@ -5072,10 +5066,10 @@ set_border(u_char color)
 	break;
     case KD_MONO:
     case KD_HERCULES:
+#endif
     default:
 	break;
     }
-#endif
 }
 
 #ifndef PC98
