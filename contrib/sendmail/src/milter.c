@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.196 2002/04/14 03:55:07 gshapiro Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197 2002/06/12 22:33:48 gshapiro Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -1400,6 +1400,12 @@ milter_set_option(name, val, sticky)
 
 	if (tTd(37, 2) || tTd(64, 5))
 		sm_dprintf("milter_set_option(%s = %s)", name, val);
+
+	if (name == NULL)
+	{
+		syserr("milter_set_option: invalid Milter option, must specify suboption");
+		return;
+	}
 
 	for (mo = MilterOptTab; mo->mo_name != NULL; mo++)
 	{

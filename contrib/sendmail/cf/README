@@ -1213,7 +1213,7 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		A second argument can be used to change the default error
 		message.  Without that second argument, the error message
 		will be
-			Mail from IP-ADDRESS refused by blackhole site SERVER
+			Rejected: IP-ADDRESS listed at SERVER
 		where IP-ADDRESS and SERVER are replaced by the appropriate
 		information.  By default, temporary lookup failures are
 		ignored.  This behavior can be changed by specifying a
@@ -2430,7 +2430,7 @@ subscribed.  Contact MAPS to subscribe (http://mail-abuse.org/).
 You can specify an alternative RBL server to check by specifying an
 argument to the FEATURE.  The default error message is
 
-	Mail from IP-ADDRESS refused by blackhole site SERVER
+	Rejected: IP-ADDRESS listed at SERVER
 
 where IP-ADDRESS and SERVER are replaced by the appropriate
 information.  A second argument can be used to specify a different
@@ -4311,4 +4311,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.622 $, Last updated $Date: 2002/06/03 13:15:16 $
+$Revision: 8.623 $, Last updated $Date: 2002/06/07 14:14:14 $

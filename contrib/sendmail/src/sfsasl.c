@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.90 2002/05/09 20:44:11 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.91 2002/06/07 00:06:27 geir Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
@@ -151,7 +151,7 @@ sasl_close(fp)
 
 /* how to deallocate a buffer allocated by SASL */
 extern void	sm_sasl_free __P((void *));
-# define SASL_DEALLOC(b)	sm_sasl_free(b)
+#  define SASL_DEALLOC(b)	sm_sasl_free(b)
 
 /*
 **  SASL_READ -- read encrypted information and decrypt it for the caller

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.969 2002/05/24 23:48:55 gshapiro Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972 2002/06/18 16:11:44 ca Exp $")
 
 /* $FreeBSD$ */
 
@@ -2340,7 +2340,7 @@ typedef unsigned int	*pt_entry_t;
 */
 
 # ifdef SPT_ALIGN_SIZE
-#  define SPT_ALIGN(x, align)	((((x) + SPT_ALIGN_SIZE) >> (align)) << (align))
+#  define SPT_ALIGN(x, align)	(((((x) + SPT_ALIGN_SIZE) >> (align)) << (align)) - 1)
 # else /* SPT_ALIGN_SIZE */
 #  define SPT_ALIGN(x, align)	(x)
 # endif /* SPT_ALIGN_SIZE */

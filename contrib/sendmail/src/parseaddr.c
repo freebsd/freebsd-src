@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.359 2002/03/29 16:20:47 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.1 2002/06/19 18:24:26 gshapiro Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -1124,7 +1124,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				ap = macvalue(rp[1], e);
 				mlp->match_first = avp;
 				if (tTd(21, 2))
-					sm_dprintf("rewrite: LHS $&%s => \"%s\"\n",
+					sm_dprintf("rewrite: LHS $&{%s} => \"%s\"\n",
 						macname(rp[1]),
 						ap == NULL ? "(NULL)" : ap);
 
@@ -1309,7 +1309,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				}
 				else
 				{
-					/* $&x replacement */
+					/* $&{x} replacement */
 					char *mval = macvalue(rp[1], e);
 					char **xpvp;
 					int trsize = 0;
@@ -1318,7 +1318,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					char pvpbuf[PSBUFSIZE];
 
 					if (tTd(21, 2))
-						sm_dprintf("rewrite: RHS $&%s => \"%s\"\n",
+						sm_dprintf("rewrite: RHS $&{%s} => \"%s\"\n",
 							macname(rp[1]),
 							mval == NULL ? "(NULL)" : mval);
 					if (mval == NULL || *mval == '\0')
