@@ -945,7 +945,13 @@ static char *ignore_list[] = {
 };
 
 static char *spin_order_list[] = {
+#if defined(__i386__) && defined (SMP)
+	"com",
+#endif
 	"sio",
+#ifdef __i386__
+	"cy",
+#endif
 	"sched lock",
 #ifdef __i386__
 	"clk",
@@ -954,12 +960,15 @@ static char *spin_order_list[] = {
 	/*
 	 * leaf locks
 	 */
+	"ithread table lock",
+	"ithread list lock",
+#ifdef SMP
 #ifdef __i386__
 	"ap boot",
 	"imen",
 #endif
-	"com",
 	"smp rendezvous",
+#endif
 	NULL
 };
 
@@ -999,8 +1008,7 @@ witness_destroy(struct mtx *m)
 	struct mtx *m1;
 	struct proc *p;
 	p = CURPROC;
-	for ((m1 = LIST_FIRST(&p->p_heldmtx)); m1 != NULL;
-		m1 = LIST_NEXT(m1, mtx_held)) {
+	LIST_FOREACH(m1, &p->p_heldmtx, mtx_held) {
 		if (m1 == m) {
 			LIST_REMOVE(m, mtx_held);
 			break;
@@ -1014,12 +1022,18 @@ static void
 witness_display(void(*prnt)(const char *fmt, ...))
 {
 	struct witness *w, *w1;
+	int level, found;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	witness_levelall();
 
+	/*
+	 * First, handle sleep mutexes which have been acquired at least
+	 * once.
+	 */
+	prnt("Sleep mutexes:\n");
 	for (w = w_all; w; w = w->w_next) {
-		if (w->w_file == NULL)
+		if (w->w_file == NULL || w->w_spin)
 			continue;
 		for (w1 = w_all; w1; w1 = w1->w_next) {
 			if (isitmychild(w1, w))
@@ -1032,7 +1046,31 @@ witness_display(void(*prnt)(const char *fmt, ...))
 		 */
 		witness_displaydescendants(prnt, w);
 	}
-	prnt("\nMutex which were never acquired\n");
+	
+	/*
+	 * Now do spin mutexes which have been acquired at least once.
+	 */
+	prnt("\nSpin mutexes:\n");
+	level = 0;
+	while (level < sizeof(spin_order_list) / sizeof(char *)) {
+		found = 0;
+		for (w = w_all; w; w = w->w_next) {
+			if (w->w_file == NULL || !w->w_spin)
+				continue;
+			if (w->w_level == 1 << level) {
+				witness_displaydescendants(prnt, w);
+				level++;
+				found = 1;
+			}
+		}
+		if (found == 0)
+			level++;
+	}
+	
+	/*
+	 * Finally, any mutexes which have not been acquired yet.
+	 */
+	prnt("\nMutexes which were never acquired:\n");
 	for (w = w_all; w; w = w->w_next) {
 		if (w->w_file != NULL)
 			continue;
@@ -1298,13 +1336,14 @@ witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	p = CURPROC;
-	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
-	    m = LIST_NEXT(m, mtx_held)) {
+	LIST_FOREACH(m, &p->p_heldmtx, mtx_held) {
 		if (m == mtx)
 			continue;
 		for (sleep = sleep_list; *sleep!= NULL; sleep++)
 			if (strcmp(m->mtx_description, *sleep) == 0)
 				goto next;
+		if (n == 0)
+			printf("Whee!\n");
 		printf("%s:%d: %s with \"%s\" locked from %s:%d\n",
 			file, line, check_only ? "could sleep" : "sleeping",
 			m->mtx_description,
@@ -1528,7 +1567,9 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 {
 	struct witness *w;
 	int i;
-	int level = parent->w_level;
+	int level;
+
+	level = parent->w_spin ? ffs(parent->w_level) : parent->w_level;
 
 	prnt("%d", level);
 	if (level < 10)
@@ -1536,13 +1577,9 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 	for (i = 0; i < level; i++)
 		prnt(" ");
 	prnt("%s", parent->w_description);
-	if (parent->w_file != NULL) {
-		prnt(" -- last acquired @ %s", parent->w_file);
-#ifndef W_USE_WHERE
-		prnt(":%d", parent->w_line);
-#endif
-		prnt("\n");
-	}
+	if (parent->w_file != NULL)
+		prnt(" -- last acquired @ %s:%d\n", parent->w_file,
+		    parent->w_line);
 
 	for (w = parent; w != NULL; w = w->w_morechildren)
 		for (i = 0; i < w->w_childcnt; i++)
@@ -1611,8 +1648,7 @@ witness_list(struct proc *p)
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
 	nheld = 0;
-	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
-	    m = LIST_NEXT(m, mtx_held)) {
+	LIST_FOREACH(m, &p->p_heldmtx, mtx_held) {
 		printf("\t\"%s\" (%p) locked at %s:%d\n",
 		    m->mtx_description, m,
 		    m->mtx_witness->w_file, m->mtx_witness->w_line);
@@ -1624,12 +1660,17 @@ witness_list(struct proc *p)
 
 #ifdef DDB
 
-DB_COMMAND(witness_list, db_witness_list)
+DB_SHOW_COMMAND(mutexes, db_witness_list)
 {
 
 	witness_list(CURPROC);
 }
 
+DB_SHOW_COMMAND(witness, db_witness_display)
+{
+
+	witness_display(db_printf);
+}
 #endif
 
 void
