@@ -116,16 +116,19 @@ static struct filterops pipe_rfiltops =
 static struct filterops pipe_wfiltops =
 	{ 1, NULL, filt_pipedetach, filt_pipewrite };
 
-#define PIPE_GET_GIANT(pipe)							\
+#define PIPE_GET_GIANT(pipe)						\
 	do {								\
-		PIPE_UNLOCK(wpipe);					\
+		KASSERT(((pipe)->pipe_state & PIPE_LOCKFL) != 0,	\
+		    ("%s:%d PIPE_GET_GIANT: line pipe not locked",	\
+		     __FILE__, __LINE__));				\
+		PIPE_UNLOCK(pipe);					\
 		mtx_lock(&Giant);					\
 	} while (0)
 
 #define PIPE_DROP_GIANT(pipe)						\
 	do {								\
 		mtx_unlock(&Giant);					\
-		PIPE_LOCK(wpipe);					\
+		PIPE_LOCK(pipe);					\
 	} while (0)
 
 /*
@@ -770,9 +773,11 @@ retry:
 
 	wpipe->pipe_state |= PIPE_DIRECTW;
 
+	pipelock(wpipe, 0);
 	PIPE_GET_GIANT(wpipe);
 	error = pipe_build_write_buffer(wpipe, uio);
 	PIPE_DROP_GIANT(wpipe);
+	pipeunlock(wpipe);
 	if (error) {
 		wpipe->pipe_state &= ~PIPE_DIRECTW;
 		goto error1;
@@ -856,10 +861,10 @@ pipe_write(fp, uio, cred, flags, td)
 		(wpipe->pipe_buffer.cnt == 0)) {
 
 		if ((error = pipelock(wpipe,1)) == 0) {
-			PIPE_GET_GIANT(rpipe);
+			PIPE_GET_GIANT(wpipe);
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
 				nbigpipe++;
-			PIPE_DROP_GIANT(rpipe);
+			PIPE_DROP_GIANT(wpipe);
 			pipeunlock(wpipe);
 		}
 	}
