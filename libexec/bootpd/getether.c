@@ -82,7 +82,7 @@ getether(ifname, eap)
 	int nit;
 
 	bzero((char *) &ifrnit, sizeof(ifrnit));
-	strncpy(&ifrnit.ifr_name[0], ifname, IFNAMSIZ);
+	strlcpy(&ifrnit.ifr_name[0], ifname, IFNAMSIZ);
 
 	nit = open("/dev/nit", 0);
 	if (nit < 0) {
