@@ -471,22 +471,13 @@ random_ioctl(dev, cmd, data, flags, p)
 		return (ENOTTY);
 
 	/*
-	 * Even inspecting the state is privileged, since it gives a hint
-	 * about how easily the randomness might be guessed.
-	 */
-	error = suser(p);
-	if (error != 0 && cmd != FIONBIO && cmd != FIOASYNC)
-		return (error);
-
-	/*
 	 * XXX the data is 16-bit due to a historical botch, so we use
 	 * magic 16's instead of ICU_LEN and can't support 24 interrupts
 	 * under SMP.
+	 * Even inspecting the state is privileged, since it gives a hint
+	 * about how easily the randomness might be guessed.
 	 */
 	intr = *(int16_t *)data;
-	if (cmd != MEM_RETURNIRQ && (intr < 0 || intr >= 16))
-		return (EINVAL);
-
 	interrupt_mask = 1 << intr;
 	sc = &random_softc[intr];
 	switch (cmd) {
@@ -495,6 +486,11 @@ random_ioctl(dev, cmd, data, flags, p)
 	case FIONBIO:
 		break;
 	case MEM_SETIRQ:
+		error = suser(p);
+		if (error != 0)
+			return (error);
+		if (intr < 0 || intr >= 16)
+			return (EINVAL);
 		if (interrupt_allowed & interrupt_mask)
 			break;
 		interrupt_allowed |= interrupt_mask;
@@ -507,6 +503,11 @@ random_ioctl(dev, cmd, data, flags, p)
 		enable_intr();
 		break;
 	case MEM_CLEARIRQ:
+		error = suser(p);
+		if (error != 0)
+			return (error);
+		if (intr < 0 || intr >= 16)
+			return (EINVAL);
 		if (!(interrupt_allowed & interrupt_mask))
 			break;
 		interrupt_allowed &= ~interrupt_mask;
@@ -516,6 +517,9 @@ random_ioctl(dev, cmd, data, flags, p)
 		enable_intr();
 		break;
 	case MEM_RETURNIRQ:
+		error = suser(p);
+		if (error != 0)
+			return (error);
 		*(u_int16_t *)data = interrupt_allowed;
 		break;
 	}
