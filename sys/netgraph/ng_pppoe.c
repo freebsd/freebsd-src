@@ -397,7 +397,7 @@ pppoe_findsession(node_p node, struct pppoe_full_hdr *wh)
 	sessp	sp = NULL;
 	hook_p hook = NULL;
 	priv_p	privp = node->private;
-	u_int16_t	session = wh->ph.sid;
+	u_int16_t	session = ntohs(wh->ph.sid);
 
 	/*
 	 * find matching peer/session combination.
@@ -790,12 +790,15 @@ AAA
 		 * use them to decide where to send it.
 		 */
 		
+#if 0
 printf("got packet\n");
 LEAVE(0);
+#endif
 
  		privp->packets_in++;
 		m_pullup(m, sizeof(*wh)); /* Checks length */
 		if (m == NULL) {
+			printf("couldn't m_pullup\n");
 			LEAVE(ENOBUFS);
 		}
 		wh = mtod(m, struct pppoe_full_hdr *);
@@ -817,6 +820,7 @@ LEAVE(0);
 				 * We need to do extra work.
 				 */
 				printf("packet fragmented\n");
+				LEAVE(EMSGSIZE);
 			 }
 
 			switch(code) {
@@ -831,6 +835,7 @@ LEAVE(0);
 				 */
 				tag = get_tag(ph, PTT_SRV_NAME);
 				if (tag == NULL) {
+					printf("no service tag\n");
 					LEAVE(ENETUNREACH);
 				}
 				sendhook = pppoe_match_svc(hook->node,
@@ -838,6 +843,7 @@ LEAVE(0);
 				if (sendhook) {
 					NG_SEND_DATA(error, sendhook, m, meta);
 				} else {
+					printf("no such service\n");
 					LEAVE(ENETUNREACH);
 				}
 				break;
@@ -846,17 +852,19 @@ LEAVE(0);
 				 * We are a client:
 				 * Use the host_uniq tag to find the 
 				 * hook this is in response to.
-				 *
+				 * Received #2, now send #3
 				 * For now simply accept the first we receive.
 				 */
 				tag = get_tag(ph, PTT_HOST_UNIQ);
 				if ((tag == NULL)
 				|| (ntohs(tag->tag_len) != sizeof(sp))) {
+					printf("no host unique field\n");
 					LEAVE(ENETUNREACH);
 				}
 
 				sendhook = pppoe_finduniq(node, tag);
 				if (sendhook == NULL) {
+					printf("no matching session\n");
 					LEAVE(ENETUNREACH);
 				}
 
@@ -866,6 +874,7 @@ LEAVE(0);
 				 */
 				sp = sendhook->private;
 				if (sp->state != PPPOE_SINIT) {
+					printf("session in wrong state\n");
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
@@ -884,10 +893,11 @@ LEAVE(0);
 				neg->timeout = 0;
 				neg->pkt->pkt_header.ph.code = PADR_CODE;
 				init_tags(sp);
-				insert_tag(sp,&neg->service.hdr); /* Service */
+				insert_tag(sp, &neg->service.hdr); /* Service */
 				insert_tag(sp, tag);	      /* Host Unique */
 				tag = get_tag(ph, PTT_AC_COOKIE);
-				insert_tag(sp, tag);	 /* returned cookie */
+				if (tag)
+					insert_tag(sp, tag); /* return cookie */
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
@@ -937,7 +947,8 @@ LEAVE(0);
 				neg->pkt->pkt_header.ph.code = PADS_CODE;
 				if (sp->Session_ID == 0)
 					neg->pkt->pkt_header.ph.sid =
-					    sp->Session_ID = get_new_sid(node);
+					    htons(sp->Session_ID
+						= get_new_sid(node));
 				neg->timeout = 0;
 				/*
 				 * start working out the tags to respond with.
@@ -1001,7 +1012,7 @@ LEAVE(0);
 				neg = sp->neg;
 				untimeout(pppoe_ticker, sendhook,
 				    neg->timeout_handle);
-				sp->Session_ID = wh->ph.sid;
+				sp->Session_ID = ntohs(wh->ph.sid);
 				neg->timeout = 0;
 				sp->state = PPPOE_CONNECTED;
 				sendpacket(sp);
@@ -1316,7 +1327,7 @@ AAA
 	case	PPPOE_SNONE:
 	case	PPPOE_NEWCONNECTED:
 	case	PPPOE_CONNECTED:
-		printf("pppoe: timeout: unexpected state\n");
+		printf("pppoe: sendpacket: unexpected state\n");
 		break;
 
 	case	PPPOE_PRIMED:
@@ -1339,7 +1350,7 @@ AAA
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
 		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-		NG_SEND_DATA( error, sp->hook, m0, dummy);
+		NG_SEND_DATA( error, privp->ethernet_hook, m0, dummy);
 		neg->timeout_handle = timeout(pppoe_ticker, hook, hz);
 		neg->timeout = 2;
 		break;
