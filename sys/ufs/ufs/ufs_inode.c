@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.5 1994/10/15 04:08:44 ache Exp $
+ * $Id: ufs_inode.c,v 1.6 1995/01/04 23:48:04 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -173,6 +173,9 @@ ufs_reclaim(ap)
 	}
 #endif
 	switch (vp->v_mount->mnt_stat.f_type) {
+	case MOUNT_EXT2FS:
+		type = M_FFSNODE;
+		break;
 	case MOUNT_UFS:
 		type = M_FFSNODE;
 		break;

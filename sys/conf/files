@@ -347,6 +347,16 @@ ufs/lfs/lfs_vfsops.c	optional lfs
 ufs/lfs/lfs_vnops.c	optional lfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
+gnu/ext2fs/ext2_balloc.c	optional ext2fs
+gnu/ext2fs/ext2_inode.c		optional ext2fs
+gnu/ext2fs/ext2_subr.c		optional ext2fs
+gnu/ext2fs/ext2_vfsops.c	optional ext2fs
+gnu/ext2fs/ext2_vnops.c		optional ext2fs
+gnu/ext2fs/ext2_inode_cnv.c	optional ext2fs
+gnu/ext2fs/ext2_lookup.c	optional ext2fs
+gnu/ext2fs/ext2_linux_ialloc.c	optional ext2fs
+gnu/ext2fs/ext2_linux_balloc.c	optional ext2fs
+gnu/ext2fs/ext2_alloc.c		optional ext2fs
 ufs/ufs/ufs_bmap.c	standard
 ufs/ufs/ufs_disksubr.c	standard
 ufs/ufs/ufs_ihash.c	standard
