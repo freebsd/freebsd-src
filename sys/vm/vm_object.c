@@ -1084,7 +1084,7 @@ shadowlookup:
 
  		if (vm_page_sleep_busy(m, TRUE, "madvpo"))
   			goto relookup;
-
+		vm_page_lock_queues();
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
 		} else if (advise == MADV_DONTNEED) {
@@ -1109,9 +1109,10 @@ shadowlookup:
 			m->dirty = 0;
 			m->act_count = 0;
 			vm_page_dontneed(m);
-			if (tobject->type == OBJT_SWAP)
-				swap_pager_freespace(tobject, tpindex, 1);
 		}
+		vm_page_unlock_queues();
+		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
+			swap_pager_freespace(tobject, tpindex, 1);
 	}	
 	mtx_unlock(&Giant);
 }
