@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.32 1995/03/19 23:46:25 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.33 1995/03/20 10:20:42 davidg Exp $
  */
 
 /*
@@ -374,7 +374,7 @@ vnode_pager_setsize(vp, nsize)
 		if (round_page((vm_offset_t) nsize) < vnp->vnp_size) {
 			vm_object_lock(object);
 			vm_object_page_remove(object,
-			    round_page((vm_offset_t) nsize), vnp->vnp_size);
+			    round_page((vm_offset_t) nsize), vnp->vnp_size, FALSE);
 			vm_object_unlock(object);
 		}
 		/*
