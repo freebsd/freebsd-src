@@ -35,14 +35,29 @@
 .Os
 .Sh NAME
 .Nm vx
-.Nd PCI Ethernet device driver
+.Nd 3Com EtherLink III / Fast EtherLink III (3c59x) Ethernet driver
 .Sh SYNOPSIS
 .Cd "device vx"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the 3Com 3c590 and 3c595 EtherLink III and Fast
-EtherLink III PCI Ethernet cards in 10 Mbps mode.  The medium selection
+driver provides support for the 3Com
+.Dq Vortex
+chipset.
+The following Ethernet adapters are supported:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c590 EtherLink III PCI
+.It
+3Com 3c592 EtherLink III EISA
+.It
+3Com 3c595 Fast EtherLink III PCI in 10 Mbps mode
+.It
+3Com 3c597 Fast EtherLink III EISA in 10 Mbps mode
+.El
+.Pp
+The medium selection
 can be influenced by the following link flags to the
 .Xr ifconfig 8
 command:
