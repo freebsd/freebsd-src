@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.37 1997/03/12 17:41:35 joerg Exp $
+#	$Id: options.i386,v 1.38 1997/03/22 18:51:32 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -14,9 +14,9 @@ PERFMON			opt_perfmon.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
-COMCONSOLE		opt_comconsole.h
-CONADDR			opt_comconsole.h
-CONUNIT			opt_comconsole.h
+COMCONSOLE		opt_defunct.h
+CONADDR			opt_defunct.h
+CONUNIT			opt_defunct.h
 CONSPEED		opt_comconsole.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
