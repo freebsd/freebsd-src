@@ -93,6 +93,8 @@ SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
 static int		allocate_driver(struct slot *, struct dev_desc *);
 static void		inserted(void *);
 static void		disable_slot(struct slot *);
+static void		disable_slot_spl0(struct slot *);
+static void		disable_slot_to(void *);
 static int		invalid_io_memory(unsigned long, int);
 static void		power_off_slot(void *);
 
@@ -176,33 +178,51 @@ power_off_slot(void *arg)
 static void
 disable_slot(struct slot *slt)
 {
+	/* XXX Need to store pccarddev in slt. */
 	device_t pccarddev;
-	struct pccard_devinfo *devi;
+	device_t *kids;
+	int nkids;
 	int i;
+	int ret;
 
 	/*
-	 * Unload all the drivers on this slot. Note we can't
-	 * remove the device structures themselves, because this
-	 * may be called from the event routine, which is called
-	 * from the slot controller's ISR, and removing the structures
-	 * shouldn't happen during the middle of some driver activity.
-	 *
 	 * Note that a race condition is possible here; if a
 	 * driver is accessing the device and it is removed, then
 	 * all bets are off...
 	 */
-	pccarddev = devclass_get_device(pccard_devclass, 0);
-	for (devi = slt->devices; devi; devi = devi->next) {
-		if (devi->isahd.id_device != 0) {
-			device_delete_child(pccarddev, devi->isahd.id_device);
-			devi->isahd.id_device = 0;
-		}
-	}
+	pccarddev = devclass_get_device(pccard_devclass, slt->slotnum);
+	device_get_children(pccarddev, &kids, &nkids);
+	for (i = 0; i < nkids; i++) {
+		if ((ret = device_delete_child(pccarddev, kids[i])) != 0)
+			printf("pccard: delete failed: %d\n", ret);
+ 	}
 
 	/* Power off the slot 1/2 second after removal of the card */
 	slt->poff_ch = timeout(power_off_slot, (caddr_t)slt, hz / 2);
 	slt->pwr_off_pending = 1;
 }
+
+static void
+disable_slot_to(void *argp)
+{
+	struct slot *slt = (struct slot *) argp;
+
+	disable_slot(slt);
+	slt->state = empty;
+	printf("pccard: card removed, slot %d\n", slt->slotnum);
+	pccard_remove_beep();
+	selwakeup(&slt->selp);
+}
+
+/*
+ * Disables the slot later when we drop to spl0 via a timeout.
+ */
+static void
+disable_slot_spl0(struct slot *slt)
+{
+	slt->disable_ch = timeout(disable_slot_to, (caddr_t) slt, 0);
+}
+
 
 /*
  *	APM hooks for suspending and resuming.
@@ -226,6 +246,7 @@ slot_suspend(void *arg)
 	 * Disable any pending timeouts for this slot since we're
 	 * powering it down/disabling now.
 	 */
+	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	slt->ctrl->disable(slt);
 	return (0);
@@ -296,6 +317,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	}
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
+	callout_handle_init(&slt->disable_ch);
 #if NAPM > 0
 	{
 		struct apmhook *ap;
@@ -385,6 +407,7 @@ inserted(void *arg)
 	 * power it off right now.  Then, re-enable the power using
 	 * the (possibly new) power settings.
 	 */
+	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	power_off_slot(slt);
 	slt->ctrl->power(slt);
@@ -415,13 +438,7 @@ pccard_event(struct slot *slt, enum card_event event)
 		 *	data structures are not unlinked.
 		 */
 		if (slt->state == filled) {
-			int s = splhigh();
-			disable_slot(slt);
-			slt->state = empty;
-			splx(s);
-			printf("pccard: card removed, slot %d\n", slt->slotnum);
-			pccard_remove_beep();
-			selwakeup(&slt->selp);
+			disable_slot_spl0(slt);
 		}
 		break;
 	case card_inserted:

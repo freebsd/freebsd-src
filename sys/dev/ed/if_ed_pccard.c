@@ -48,7 +48,7 @@
  */
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
-static void	ed_pccard_detach(device_t);
+static int	ed_pccard_detach(device_t);
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -78,7 +78,7 @@ DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_pccard_devclass, 0, 0);
  *      and ensure that any driver entry points such as
  *      read and write do not hang.
  */
-static void
+static int
 ed_pccard_detach(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
@@ -86,13 +86,14 @@ ed_pccard_detach(device_t dev)
 
 	if (sc->gone) {
 		device_printf(dev, "already unloaded\n");
-		return;
+		return (0);
 	}
 	ifp->if_flags &= ~IFF_RUNNING;
-	if_down(ifp);
+	if_detach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, &sc->irq_handle);
 	sc->gone = 1;
 	device_printf(dev, "unload\n");
+	return (0);
 }
 
 /* 
