@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)decode.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id: decode.c,v 1.2 1999/05/30 18:06:53 hoek Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

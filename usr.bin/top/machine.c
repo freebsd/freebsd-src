@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.25 1999/05/11 14:32:15 peter Exp $
+ * $FreeBSD$
  */
 
 

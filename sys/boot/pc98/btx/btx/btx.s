@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.1 1999/02/03 08:39:08 kato Exp $
+# $FreeBSD$
 
 #
 # Memory layout.

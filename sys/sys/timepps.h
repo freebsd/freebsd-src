@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: timepps.h,v 1.7 1999/03/30 11:44:59 phk Exp $
+ * $FreeBSD$
  *
  * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
  * specification for Pulse Per Second timing interfaces.  

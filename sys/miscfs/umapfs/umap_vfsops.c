@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.24 1999/03/12 19:40:39 imp Exp $
+ * $FreeBSD$
  */
 
 /*

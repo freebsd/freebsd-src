@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $Id: Makefile,v 1.3 1997/03/29 11:17:26 peter Exp $
+# $FreeBSD$
 
 all:
 	@echo "make svr4_sysent.c only"

@@ -27,7 +27,7 @@
  *	i4b_l3timer.c - timer and timeout handling for layer 3
  *	------------------------------------------------------
  *
- *	$Id: i4b_l3timer.c,v 1.12 1999/04/21 07:50:31 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Wed Apr 21 09:46:59 1999]
  *

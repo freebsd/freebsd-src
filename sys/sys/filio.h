@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filio.h	8.1 (Berkeley) 3/28/94
- * $Id: filio.h,v 1.4 1997/02/22 09:45:16 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_FILIO_H_

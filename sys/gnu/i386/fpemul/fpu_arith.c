@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_arith.c,v 1.7 1997/02/22 09:29:03 peter Exp $
+ * $FreeBSD$
  *
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.13 1999/05/12 21:38:46 luoqi Exp $
+ * $FreeBSD$
  */
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */

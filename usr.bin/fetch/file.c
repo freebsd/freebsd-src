@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.4 1998/09/17 00:15:15 des Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

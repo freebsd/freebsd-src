@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.123 1999/08/17 05:56:00 alc Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

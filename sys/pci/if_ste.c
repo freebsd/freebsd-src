@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ste.c,v 1.1 1999/08/21 18:34:44 wpaul Exp $
+ * $FreeBSD$
  */
 
 
@@ -82,7 +82,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ste.c,v 1.1 1999/08/21 18:34:44 wpaul Exp $";
+  "$FreeBSD$";
 #endif
 
 /*

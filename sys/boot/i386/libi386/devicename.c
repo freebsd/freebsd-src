@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicename.c,v 1.2 1998/09/26 01:30:20 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: odsyntax.c,v 1.6 1997/11/04 05:33:14 ache Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

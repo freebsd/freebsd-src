@@ -33,7 +33,7 @@
  *	pcmcia_isic.h - common definitions for pcmcia isic cards
  *	--------------------------------------------------------
  *
- *	$Id: pcmcia_isic.h,v 1.2 1999/02/14 09:45:00 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:29:33 1999]
  *

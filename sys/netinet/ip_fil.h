@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 1.5 1998/06/08 09:47:41 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_FIL_H__

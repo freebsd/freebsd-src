@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.12 1998/03/23 16:27:43 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/callout.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strncmp.c,v 1.5 1997/02/22 09:40:03 peter Exp $
+ * $FreeBSD$
  */
 
 #include <string.h>

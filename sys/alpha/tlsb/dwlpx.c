@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.9 1999/05/08 21:58:51 dfr Exp $
+ * $FreeBSD$
  */
 
 #include "opt_simos.h"

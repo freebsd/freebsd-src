@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.6 1999/06/18 00:50:53 grog Exp grog $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

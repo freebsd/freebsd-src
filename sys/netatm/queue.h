@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: queue.h,v 1.2 1997/05/06 22:14:38 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

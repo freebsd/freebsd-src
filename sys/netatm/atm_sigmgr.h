@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_sigmgr.h,v 1.7 1998/03/24 20:43:59 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

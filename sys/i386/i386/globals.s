@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.11 1999/05/12 21:38:41 luoqi Exp $
+ * $FreeBSD$
  */
 
 #include "opt_user_ldt.h"

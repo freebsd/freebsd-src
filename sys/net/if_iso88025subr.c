@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_iso88025subr.c,v 1.2 1999/03/10 10:11:43 julian Exp $
+ * $FreeBSD$
  *
  */
 

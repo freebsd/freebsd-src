@@ -33,7 +33,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.7 1999/08/01 22:57:09 mdodd Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

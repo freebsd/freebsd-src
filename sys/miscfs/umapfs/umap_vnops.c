@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.27 1999/06/16 23:27:41 mckusick Exp $
+ * $FreeBSD$
  */
 
 /*

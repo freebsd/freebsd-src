@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: tcreg.h,v 1.1 1995/12/20 00:48:36 cgd Exp $	*/
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.7 1999/01/27 20:09:19 dillon Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/param.h>

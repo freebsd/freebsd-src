@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.45 1999/04/28 01:04:07 luoqi Exp $
+ * $FreeBSD$
  *
  */
 

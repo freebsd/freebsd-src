@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.16 1999/05/09 17:06:52 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

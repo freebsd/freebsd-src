@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.73 1999/04/28 11:38:10 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_SYSCTL_H_

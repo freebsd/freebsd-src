@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.10 1997/07/28 03:59:34 fsmp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_MPAPIC_H_

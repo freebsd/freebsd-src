@@ -1,4 +1,4 @@
-/* $Id: asm.h,v 1.2 1998/06/10 10:54:23 dfr Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp */
 
 /* 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 12:48:47 peter Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../miscfs/portal
 KMOD=	portal

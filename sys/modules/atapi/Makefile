@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/02/25 01:40:54 bde Exp $
+# $FreeBSD$
 
 .PATH:          ${.CURDIR}/../../i386/isa
 KMOD            = atapi

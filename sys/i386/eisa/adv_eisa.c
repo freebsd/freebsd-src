@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_eisa.c,v 1.5 1999/08/01 22:57:08 mdodd Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

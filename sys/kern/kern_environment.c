@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_environment.c,v 1.5 1999/01/27 21:24:50 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/* $FreeBSD$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.

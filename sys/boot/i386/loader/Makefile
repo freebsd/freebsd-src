@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.34 1999/04/24 17:49:47 dcs Exp $
+# $FreeBSD$
 
 BASE=		loader
 PROG=		${BASE}

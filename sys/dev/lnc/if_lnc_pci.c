@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.11 1999/07/03 20:17:04 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

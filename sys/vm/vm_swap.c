@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.83 1999/08/24 05:58:35 green Exp $
+ * $FreeBSD$
  */
 
 #include "opt_swap.h"

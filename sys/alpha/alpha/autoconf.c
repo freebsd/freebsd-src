@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.30 1999/07/21 21:11:28 dfr Exp $
+ * $FreeBSD$
  */
 
 #include "opt_bootp.h"

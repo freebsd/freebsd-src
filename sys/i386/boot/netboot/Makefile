@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/11/28 08:03:24 joerg Exp $
+# $FreeBSD$
 #
 # Makefile for NETBOOT
 #

@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.10 1999/04/11 12:19:02 simokawa Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*

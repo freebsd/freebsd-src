@@ -17,7 +17,7 @@
 # FAQ_Can_FreeBSD_handle_multiport_serial_cards_sharing_irqs_.html
 # [...]
 # 
-# $Id$
+# $FreeBSD$
 
 case $# in 0)
 	echo "usage `basename $0` file"

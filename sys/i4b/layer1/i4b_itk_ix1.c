@@ -26,7 +26,7 @@
  *	i4b_itk_ix1.c - ITK ix1 micro passive card driver for isdn4bsd
  *	--------------------------------------------------------------
  *
- *	$Id: i4b_itk_ix1.c,v 1.3 1999/02/14 09:44:59 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Sun Feb 14 10:28:00 1999]
  *

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.72 1999/08/21 17:40:39 wpaul Exp $
+# $FreeBSD$
 
 # XXX present but broken: atapi ip_mroute_mod joy pcic
 

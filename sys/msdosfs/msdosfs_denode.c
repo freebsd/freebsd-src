@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.44 1999/01/02 11:34:56 bde Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-

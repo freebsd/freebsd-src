@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_if.c,v 1.3 1998/12/04 22:54:45 archie Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -43,7 +43,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: eni_if.c,v 1.3 1998/12/04 22:54:45 archie Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 static void	eni_get_stats __P((Eni_unit *));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.38 1999/01/27 22:42:06 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

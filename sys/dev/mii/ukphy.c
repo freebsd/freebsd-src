@@ -91,7 +91,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 
 static int ukphy_probe		__P((device_t));

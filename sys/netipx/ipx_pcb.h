@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.11 1997/06/26 19:35:54 jhay Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETIPX_IPX_PCB_H_

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.8 1999/05/08 18:20:55 peter Exp $
+ * $FreeBSD$
  */
 
 #include "pnp.h"

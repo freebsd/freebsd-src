@@ -27,7 +27,7 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.24 1999/07/26 09:03:49 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Mon Jul 26 10:59:51 1999]
  *

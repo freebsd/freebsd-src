@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.124 1999/08/09 21:11:44 mdodd Exp $
+** $FreeBSD$
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **

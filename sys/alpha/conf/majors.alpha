@@ -1,4 +1,4 @@
-$Id: majors.alpha,v 1.7 1999/01/18 20:38:37 gallatin Exp $
+$FreeBSD$
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

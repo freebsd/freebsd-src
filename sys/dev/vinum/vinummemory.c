@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.20 1999/03/19 03:21:08 grog Exp grog $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

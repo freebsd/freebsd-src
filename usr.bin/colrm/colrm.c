@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: colrm.c,v 1.5 1997/12/29 00:08:59 alex Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sprite.h	8.1 (Berkeley) 6/6/93
- *	$Id: sprite.h,v 1.7 1997/02/22 19:27:21 peter Exp $
+ * $FreeBSD$
  */
 
 /*

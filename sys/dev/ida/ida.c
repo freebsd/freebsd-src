@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ida.c,v 1.1 1999/06/24 03:31:57 jlemon Exp $
+ * $FreeBSD$
  */
 
 /*

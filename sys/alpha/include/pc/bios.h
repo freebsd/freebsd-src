@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.h,v 1.3 1998/08/06 09:15:54 dfr Exp $
+ * $FreeBSD$
  *      from: i386/include/pc bios.h,v 1.2
  */
 

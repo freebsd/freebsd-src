@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.75 1999/07/29 08:33:00 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_user_ldt.h"

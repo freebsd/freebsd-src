@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.25 1999/07/10 15:27:58 bde Exp $
+ * $FreeBSD$
  */
 
 

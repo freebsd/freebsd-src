@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.106 1999/07/20 06:52:26 msmith Exp $
+ * $FreeBSD$
  */
 
 #include "opt_smp.h"

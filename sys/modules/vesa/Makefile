@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1999/01/11 03:18:56 yokota Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../dev/syscons ${.CURDIR}/../../i386/isa
 KMOD	=	vesa

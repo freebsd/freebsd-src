@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.13 1999/01/28 17:31:59 dillon Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

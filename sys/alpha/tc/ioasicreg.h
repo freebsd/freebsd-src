@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* $NetBSD: ioasicreg.h,v 1.2 1997/04/06 22:30:28 cgd Exp $ */
 
 /* 

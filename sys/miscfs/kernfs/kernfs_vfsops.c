@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.29 1999/08/13 10:29:22 phk Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.5 1999/01/18 07:38:09 simokawa Exp $
+# $FreeBSD$
 
 .if !defined(GLOBAL_MAKEFILE_INC_BEEN_HERE)
 

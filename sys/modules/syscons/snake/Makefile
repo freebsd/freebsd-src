@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/02/01 17:59:58 bde Exp $
+# $FreeBSD$
 
 KMOD=	snake_saver
 SRCS= 	snake_saver.c

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_mul.c,v 1.6 1997/02/22 09:29:23 peter Exp $
+ * $FreeBSD$
  *
  */
 

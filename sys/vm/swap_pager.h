@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.23 1999/01/21 08:29:10 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -29,7 +29,7 @@
  *
  *	BSDI int2f.c,v 2.2 1996/04/08 19:32:53 bostic Exp
  *
- * $Id: int2f.c,v 1.1 1997/08/09 01:42:50 dyson Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.11 1999/05/27 22:03:31 gallatin Exp $
+# $FreeBSD$
 
 EV5			opt_global.h
 EV4			opt_global.h

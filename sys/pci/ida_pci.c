@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ida_pci.c,v 1.3 1999/07/29 01:03:02 mdodd Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

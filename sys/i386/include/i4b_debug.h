@@ -27,7 +27,7 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.19 1999/05/28 15:03:32 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri May 28 16:27:07 1999]
  *

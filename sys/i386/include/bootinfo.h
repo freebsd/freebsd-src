@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.11 1998/10/01 18:22:52 msmith Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_

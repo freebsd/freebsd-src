@@ -37,7 +37,7 @@
  *	@(#)procfs_fpregs.c	8.2 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_fpregs.c,v 1.7 1997/08/02 14:32:11 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

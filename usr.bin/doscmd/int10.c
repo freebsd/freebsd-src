@@ -29,7 +29,7 @@
  *
  *	BSDI int10.c,v 2.3 1996/04/08 19:32:40 bostic Exp
  *
- * $Id: int10.c,v 1.2 1996/09/22 05:53:00 miff Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arch.c,v 1.10 1998/10/15 16:09:56 jdp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

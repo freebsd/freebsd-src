@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.23 1998/03/08 09:59:24 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _UFS_UFS_EXTERN_H_

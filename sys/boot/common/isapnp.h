@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: isapnp.h,v 1.2 1998/10/21 20:07:04 msmith Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_PNP_H_

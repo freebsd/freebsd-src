@@ -35,7 +35,7 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.9 1999/04/27 09:49:49 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Mon Apr 26 10:52:57 1999]
  *

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1.1.1 1999/07/28 20:28:47 se Exp $
+ * $FreeBSD$
  */
 
 

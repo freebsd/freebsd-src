@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.10 1998/08/30 16:54:58 wosch Exp $
+# $FreeBSD$
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.17 1999/05/30 18:09:17 wpaul Exp $
+ * $FreeBSD$
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */

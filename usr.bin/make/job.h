@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)job.h	8.1 (Berkeley) 6/6/93
- *	$Id: job.h,v 1.8 1997/04/21 20:32:11 phk Exp $
+ * $FreeBSD$
  */
 
 /*-

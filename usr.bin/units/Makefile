@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 19:57:30 peter Exp $
+# $FreeBSD$
 
 PROG=	units
 

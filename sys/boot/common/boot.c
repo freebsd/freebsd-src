@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.13 1999/07/15 20:40:52 n_hibma Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: gatea20.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ * $FreeBSD$
  * From: $NetBSD: gatea20.c,v 1.2 1997/10/29 00:32:49 fvdl Exp $
  */
 

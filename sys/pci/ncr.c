@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.149 1999/06/15 13:14:56 des Exp $
+** $FreeBSD$
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1360,7 +1360,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.149 1999/06/15 13:14:56 des Exp $\n";
+	"\n$FreeBSD$\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11

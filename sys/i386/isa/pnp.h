@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.8 1999/08/22 19:46:05 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_PNP_H_

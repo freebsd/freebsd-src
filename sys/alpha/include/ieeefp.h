@@ -1,4 +1,4 @@
-/* $Id: ieeefp.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: ieeefp.h,v 1.2 1997/04/06 08:47:28 cgd Exp */
 
 /* 

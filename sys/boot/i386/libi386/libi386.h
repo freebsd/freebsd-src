@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.8 1998/10/02 20:53:17 msmith Exp $
+ * $FreeBSD$
  */
 
 

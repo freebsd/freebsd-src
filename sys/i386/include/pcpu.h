@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.9 1999/05/12 21:39:00 luoqi Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.165 1999/08/15 21:55:20 alc Exp $
+ * $FreeBSD$
  */
 
 /*

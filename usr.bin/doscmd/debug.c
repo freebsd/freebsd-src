@@ -31,7 +31,7 @@
  *
  * from: BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: debug.c,v 1.5 1996/09/25 00:03:43 miff Exp $
+ * $FreeBSD$
  */
 
 

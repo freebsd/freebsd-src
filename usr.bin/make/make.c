@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: make.c,v 1.8 1997/02/22 19:27:16 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

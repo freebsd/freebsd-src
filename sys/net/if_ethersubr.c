@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.55 1999/01/31 08:17:16 julian Exp $
+ * $FreeBSD$
  */
 
 #include "opt_atalk.h"

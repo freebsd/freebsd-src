@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.22 1999/07/05 20:42:06 mjacob Exp $ */
+/* $FreeBSD$ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.

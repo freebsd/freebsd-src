@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ipl.h	1.21 6/5/96
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef	__IPL_H__

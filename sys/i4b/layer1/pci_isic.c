@@ -33,7 +33,7 @@
  *	pci_isic.c - pcmcia bus frontend for i4b_isic driver
  *	-------------------------------------------------------
  *
- *	$Id: pci_isic.c,v 1.3 1999/03/16 15:21:55 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Wed Mar 10 07:22:08 1999]
  *

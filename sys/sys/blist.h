@@ -24,7 +24,7 @@
  *		that.  Managing something like 512MB worth of 4K blocks 
  *		eats around 32 KBytes of memory. 
  *
- *	$Id: blist.h,v Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_BLIST_H_

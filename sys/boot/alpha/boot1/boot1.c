@@ -1,5 +1,5 @@
 /*
- * $Id: boot1.c,v 1.3 1998/10/18 19:05:07 dfr Exp $
+ * $FreeBSD$
  * From	$NetBSD: bootxx.c,v 1.4 1997/09/06 14:08:29 drochner Exp $ 
  */
 

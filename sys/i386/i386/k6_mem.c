@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: k6_mem.c,v 1.1 1999/06/18 19:56:02 green Exp $
+ * $FreeBSD$
  *
  */
 

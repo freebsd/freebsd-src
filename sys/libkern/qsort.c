@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qsort.c,v 1.8 1998/04/15 17:46:34 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/libkern.h>

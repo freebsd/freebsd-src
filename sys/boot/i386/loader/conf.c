@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.9 1998/10/22 20:23:58 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

@@ -1,4 +1,4 @@
-/* $Id: reg.h,v 1.3 1999/04/03 22:19:57 jdp Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: reg.h,v 1.3 1997/04/06 08:47:40 cgd Exp */
 
 /*

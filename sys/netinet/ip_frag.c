@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 1.2 1998/03/21 11:34:06 peter Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #if !defined(_KERNEL) && defined(KERNEL)

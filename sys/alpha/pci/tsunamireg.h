@@ -1,4 +1,4 @@
-/* $Id: tsunamireg.h,v 1.1 1999/05/26 23:22:03 gallatin Exp $ */
+/* $FreeBSD$ */
 
 /*
  * 21271 Chipset registers and constants.

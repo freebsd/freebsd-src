@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: file2c.c,v 1.3 1997/02/22 19:55:01 peter Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $FreeBSD$
  * Definitions for 3C507
  */
 

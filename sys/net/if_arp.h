@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_arp.h	8.1 (Berkeley) 6/10/93
- * $Id: if_arp.h,v 1.10 1998/01/10 07:29:10 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_ARP_H_

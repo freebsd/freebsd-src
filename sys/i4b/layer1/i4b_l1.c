@@ -27,7 +27,7 @@
  *	i4b_l1.c - isdn4bsd layer 1 handler
  *	-----------------------------------
  *
- *	$Id: i4b_l1.c,v 1.29 1999/02/14 19:51:02 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:28:10 1999]
  *

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* Derived from:  Id: linux_genassym.c,v 1.8 1998/07/29 15:50:41 bde Exp */
 
 #include <sys/param.h>

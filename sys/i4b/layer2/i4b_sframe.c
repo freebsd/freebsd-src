@@ -27,7 +27,7 @@
  *	i4b_sframe.c - s frame handling routines
  *	----------------------------------------
  *
- *	$Id: i4b_sframe.c,v 1.10 1999/05/28 15:03:32 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri May 28 16:14:04 1999]
  *

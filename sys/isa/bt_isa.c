@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.15 1999/06/28 09:19:58 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.87 1999/07/25 04:01:32 bde Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-

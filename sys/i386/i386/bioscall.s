@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bioscall.s,v 1.4 1999/08/25 06:44:32 peter Exp $
+ * $FreeBSD$
  */
 
 /*

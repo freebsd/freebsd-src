@@ -27,7 +27,7 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro ISA
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1i.c,v 1.15 1999/03/16 14:57:53 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Tue Mar 16 15:42:10 1999]
  *

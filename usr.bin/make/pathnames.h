@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *	$Id: pathnames.h,v 1.7 1997/02/22 19:27:20 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _PATH_OBJDIR

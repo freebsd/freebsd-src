@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: am7990reg.h,v 1.4 1997/03/27 21:01:49 veego Exp $	*/
 
 /*-

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_output.c,v 1.1 1998/09/15 08:23:09 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp_output.c,v 1.1 1998/09/15 08:23:09 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 
