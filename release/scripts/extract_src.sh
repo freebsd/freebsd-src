@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract_src.sh,v 1.4 1995/02/02 08:31:36 jkh Exp $
+# $Id: extract_src.sh,v 1.5 1995/02/10 07:22:39 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/usr/src
 
@@ -10,5 +10,4 @@ for DIST in base srcbin etc games gnu include lib libexec release sbin lkm \
 		cat ${DIST}.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	fi
 done
-rm -f /sys
-ln -s /usr/src/sys /sys
+ln -fs /usr/src/sys /sys
