@@ -133,26 +133,6 @@ union	descriptor	{
 #define	SDT_MEMERC	30	/* memory execute read conforming */
 #define	SDT_MEMERAC	31	/* memory execute read accessed conforming */
 
-/* is memory segment descriptor pointer ? */
-#define ISMEMSDP(s)	((s->d_type) >= SDT_MEMRO && (s->d_type) <= SDT_MEMERAC)
-
-/* is 286 gate descriptor pointer ? */
-#define IS286GDP(s)	(((s->d_type) >= SDT_SYS286CGT \
-				 && (s->d_type) < SDT_SYS286TGT))
-
-/* is 386 gate descriptor pointer ? */
-#define IS386GDP(s)	(((s->d_type) >= SDT_SYS386CGT \
-				&& (s->d_type) < SDT_SYS386TGT))
-
-/* is gate descriptor pointer ? */
-#define ISGDP(s)	(IS286GDP(s) || IS386GDP(s))
-
-/* is segment descriptor pointer ? */
-#define ISSDP(s)	(ISMEMSDP(s) || !ISGDP(s))
-
-/* is system segment descriptor pointer ? */
-#define ISSYSSDP(s)	(!ISMEMSDP(s) && !ISGDP(s))
-
 /*
  * Software definitions are in this convenient format,
  * which are translated into inconvenient segment descriptors
