@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.5 1998/09/25 17:38:32 rvb Exp $
  * 
  */
 
@@ -48,6 +48,11 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.5  1998/09/25 17:38:32  rvb
+ * Put "stray" printouts under DIAGNOSTIC.  Make everything build
+ * with DEBUG on.  Add support for lkm.  (The macro's don't work
+ * for me; for a good chuckle look at the end of coda_fbsd.c.)
+ *
  * Revision 1.4  1998/09/13 13:57:59  rvb
  * Finish conversion of cfs -> coda
  *
@@ -515,13 +520,13 @@ coda_close(v)
 
     if (IS_UNMOUNTING(cp)) {
 	if (cp->c_ovp) {
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 	    printf("coda_close: destroying container ref %d, ufs vp %p of vp %p/cp %p\n",
 		    vp->v_usecount, cp->c_ovp, vp, cp);
 #endif
 	    vgone(cp->c_ovp);
 	} else {
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 	    printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
 #endif
 	}
@@ -1910,6 +1915,7 @@ coda_bmap(v)
 
 	cp = VTOC(vp);
 	if (cp->c_ovp) {
+		return EINVAL;
 		ret =  VOP_BMAP(cp->c_ovp, bn, vpp, bnp, ap->a_runp, ap->a_runb);
 #if	0
 		printf("VOP_BMAP(cp->c_ovp %p, bn %p, vpp %p, bnp %p, ap->a_runp %p, ap->a_runb %p) = %d\n",
