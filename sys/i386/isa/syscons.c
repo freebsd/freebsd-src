@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.250 1998/02/11 15:00:24 yokota Exp $
+ *  $Id: syscons.c,v 1.251 1998/02/11 15:02:40 yokota Exp $
  */
 
 #include "sc.h"
@@ -85,8 +85,6 @@
 #undef SC_MAX_HISTORY_SIZE
 #define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS)
 #endif
-
-#define SC_MOUSE_CHAR		(0x03)
 
 #if !defined(SC_MOUSE_CHAR)
 #define SC_MOUSE_CHAR		(0xd0)
