@@ -465,7 +465,7 @@ found:
 	if (dp->i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
 		ufs_dirbad(dp, dp->i_offset, "i_size too small");
 		dp->i_size = dp->i_offset + DIRSIZ(OFSFMT(vdp), ep);
-		DIP(dp, i_size) = dp->i_size;
+		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	brelse(bp);
@@ -758,7 +758,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			return (error);
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
-		DIP(dp, i_size) = dp->i_size;
+		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		vnode_pager_setsize(dvp, (u_long)dp->i_size);
 		dirp->d_reclen = DIRBLKSIZ;
@@ -839,7 +839,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	 */
 	if (dp->i_offset + dp->i_count > dp->i_size) {
 		dp->i_size = dp->i_offset + dp->i_count;
-		DIP(dp, i_size) = dp->i_size;
+		DIP_SET(dp, i_size, dp->i_size);
 	}
 	/*
 	 * Get the block containing the space for the new directory entry.
@@ -1051,7 +1051,7 @@ out:
 		if (ip) {
 			ip->i_effnlink--;
 			ip->i_nlink--;
-			DIP(ip, i_nlink) = ip->i_nlink;
+			DIP_SET(ip, i_nlink, ip->i_nlink);
 			ip->i_flag |= IN_CHANGE;
 		}
 		if (flags & DOWHITEOUT)
@@ -1105,7 +1105,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 		bdwrite(bp);
 	} else {
 		oip->i_nlink--;
-		DIP(oip, i_nlink) = oip->i_nlink;
+		DIP_SET(oip, i_nlink, oip->i_nlink);
 		oip->i_flag |= IN_CHANGE;
 		if (DOINGASYNC(vdp)) {
 			bdwrite(bp);

@@ -667,7 +667,7 @@ ffs_write(ap)
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
-			DIP(ip, i_size) = ip->i_size;
+			DIP_SET(ip, i_size, ip->i_size);
 			extended = 1;
 		}
 
@@ -722,7 +722,7 @@ ffs_write(ap)
 	if (resid > uio->uio_resid && ap->a_cred && 
 	    suser_cred(ap->a_cred, SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~(ISUID | ISGID);
-		DIP(ip, i_mode) = ip->i_mode;
+		DIP_SET(ip, i_mode, ip->i_mode);
 	}
 	if (resid > uio->uio_resid)
 		VN_KNOTE(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));

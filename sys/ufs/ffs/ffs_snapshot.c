@@ -211,7 +211,7 @@ restart:
 	if (error)
 		goto out;
 	ip->i_size = lblktosize(fs, (off_t)numblks);
-	DIP(ip, i_size) = ip->i_size;
+	DIP_SET(ip, i_size, ip->i_size);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	if ((error = readblock(bp, numblks - 1)) != 0)
 		goto out;
@@ -286,7 +286,7 @@ restart:
 	 * Change inode to snapshot type file.
 	 */
 	ip->i_flags |= SF_SNAPSHOT;
-	DIP(ip, i_flags) = ip->i_flags;
+	DIP_SET(ip, i_flags, ip->i_flags);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
 	 * Ensure that the snapshot is completely on disk.
@@ -455,7 +455,7 @@ loop:
 				ffs_blkfree(copy_fs, vp, DIP(xp, i_db[loc]),
 				    len, xp->i_number);
 				blkno = DIP(xp, i_db[loc]);
-				DIP(xp, i_db[loc]) = 0;
+				DIP_SET(xp, i_db[loc], 0);
 			}
 		}
 		snaplistsize += 1;
@@ -466,7 +466,7 @@ loop:
 			error = expunge_ufs2(vp, xp, copy_fs, fullacct_ufs2,
 			    BLK_NOCOPY);
 		if (blkno)
-			DIP(xp, i_db[loc]) = blkno;
+			DIP_SET(xp, i_db[loc], blkno);
 		if (!error)
 			error = ffs_freefile(copy_fs, vp, xp->i_number,
 			    xp->i_mode);
@@ -738,9 +738,9 @@ cgaccount(cg, vp, nbp, passno)
 	if (base < NDADDR) {
 		for ( ; loc < NDADDR; loc++) {
 			if (ffs_isblock(fs, cg_blksfree(cgp), loc))
-				DIP(ip, i_db[loc]) = BLK_NOCOPY;
+				DIP_SET(ip, i_db[loc], BLK_NOCOPY);
 			else if (passno == 2 && DIP(ip, i_db[loc])== BLK_NOCOPY)
-				DIP(ip, i_db[loc]) = 0;
+				DIP_SET(ip, i_db[loc], 0);
 			else if (passno == 1 && DIP(ip, i_db[loc])== BLK_NOCOPY)
 				panic("ffs_snapshot: lost direct block");
 		}
@@ -1452,12 +1452,13 @@ ffs_snapremove(vp)
 	for (blkno = 1; blkno < NDADDR; blkno++) {
 		dblk = DIP(ip, i_db[blkno]);
 		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
-			DIP(ip, i_db[blkno]) = 0;
+			DIP_SET(ip, i_db[blkno], 0);
 		else if ((dblk == blkstofrags(fs, blkno) &&
 		     ffs_snapblkfree(fs, ip->i_devvp, dblk, fs->fs_bsize,
 		     ip->i_number))) {
-			DIP(ip, i_blocks) -= btodb(fs->fs_bsize);
-			DIP(ip, i_db[blkno]) = 0;
+			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) -
+			    btodb(fs->fs_bsize));
+			DIP_SET(ip, i_db[blkno], 0);
 		}
 	}
 	numblks = howmany(ip->i_size, fs->fs_bsize);
@@ -1500,7 +1501,7 @@ ffs_snapremove(vp)
 	 * Clear snapshot flag and drop reference.
 	 */
 	ip->i_flags &= ~SF_SNAPSHOT;
-	DIP(ip, i_flags) = ip->i_flags;
+	DIP_SET(ip, i_flags, ip->i_flags);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 }
 
@@ -1597,7 +1598,7 @@ retry:
 			}
 			snapshot_locked = 1;
 			if (lbn < NDADDR) {
-				DIP(ip, i_db[lbn]) = BLK_NOCOPY;
+				DIP_SET(ip, i_db[lbn], BLK_NOCOPY);
 				ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			} else if (ip->i_ump->um_fstype == UFS1) {
 				((ufs1_daddr_t *)(ibp->b_data))[indiroff] =
@@ -1644,7 +1645,7 @@ retry:
 				    (intmax_t)lbn, inum);
 #endif
 			if (lbn < NDADDR) {
-				DIP(ip, i_db[lbn]) = bno;
+				DIP_SET(ip, i_db[lbn], bno);
 			} else if (ip->i_ump->um_fstype == UFS1) {
 				((ufs1_daddr_t *)(ibp->b_data))[indiroff] = bno;
 				bdwrite(ibp);
@@ -1652,7 +1653,7 @@ retry:
 				((ufs2_daddr_t *)(ibp->b_data))[indiroff] = bno;
 				bdwrite(ibp);
 			}
-			DIP(ip, i_blocks) += btodb(size);
+			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(size));
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			VOP_UNLOCK(vp, 0, td);
 			return (1);
