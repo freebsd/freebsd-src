@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.308
+    Original revision: 1.313
 -->
 
 <articleinfo>
@@ -328,8 +328,14 @@
         ホームページ</ulink>をご覧ください.
       HP ScanJet 4100C, 5200C, 6300C の動作が確認されています. &merged;</para>
 
+    <para>セキュリティを向上させるため、<literal>UCONSOLE</literal>
+      カーネル設定オプションが削除されました。</para>
+
     <para><literal>USER_LDT</literal>
       カーネルオプションが標準設定で有効化されるようになりました.</para>
+
+    <para arch="i386">&man.viapm.4; ドライバが新しく追加されました。
+       これは VIA SMBus 電源管理コントローラに対応しています。</para>
 
     <para>VESA S3 リニアフレームバッファドライバが追加されました.</para>
 
@@ -915,7 +921,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
         &merged;</para>
 
-      <para>&man.ng.eth.4; netgraph ノードは Ethernet タイプの
+      <para>&man.ng.ether.4; netgraph ノードは Ethernet タイプの
 	パケットを, ethertype に応じて異なったフックでフィルタ
 	できるようになりました.</para>
 
@@ -1154,6 +1160,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	行なわれました.  一般的な設定における密度の選択は
 	自動化され, ドライバは様々なサブデバイスの密度設定
 	に柔軟に対応できるようになりました.</para>
+
+      <para>&man.geom.4; ディスク I/O 要求変換フレームワークが追加されました。
+        これは、カーネルの上位からのデバイスドライバに対する I/O 要求に、
+        さまざまな操作を加えられるように設計された、拡張可能なフレームワークです。</para>
 
       <para>ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
@@ -1693,11 +1703,6 @@ hw.pcic.irq="0"</programlisting>
     <para>安全でない一時ファイルを使用してしまうという
       &man.periodic.8; のバグが修正されました
       (セキュリティ勧告 FreeBSD-SA-01:12 参照).
-      &merged;</para>
-
-    <para>攻撃者が処理を中断させることができるという
-      &man.sort.1; のバグが修正されました
-      (セキュリティ勧告 FreeBSD-SA-01:13 参照).
       &merged;</para>
 
     <para><application>OpenSSH</application> において,
@@ -2265,7 +2270,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.ifconfig.8;
-      コマンドに <option>lladdr</option> パラメータが追加され,
+      コマンドに <option>link</option> パラメータが追加され,
       インターフェイスのリンク層アドレスを設定できるようになりました.
       &merged;</para>
 
@@ -2436,6 +2441,10 @@ hw.pcic.irq="0"</programlisting>
 
     <para><filename>libposix1e</filename> の関数が
       <filename>libc</filename> に統合されました.</para>
+
+    <para><filename>libusb</filename> の名前が、NetBSD
+       の命名規則に合わせて <filename>libusbhid</filename> に変更されました。
+       &merged;</para>
 
     <para>&man.ln.1; に,
       既存のファイルを上書きする前にユーザに確認を行なうようにする
@@ -3057,6 +3066,10 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.usbdevs.8; に, 各デバイスに対応するデバイスドライバ
       を表示する <option>-d</option> フラグが追加されました.</para>
 
+    <para>USB Human Interface Devices の操作を行なうための、
+      &man.usbhidctl.1; ユーティリティが追加されました。
+      &merged;</para>
+
     <para>&man.uudecode.1; に出力ファイルを指定する <option>-o</option>
       オプションが追加されました.</para>
 
@@ -3257,7 +3270,7 @@ hw.pcic.irq="0"</programlisting>
 	できます. &merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
-        3.0.1RC6 に更新されました.
+        3.0.1RC8 に更新されました.
         &merged;</para>
 
       <para><application>Kerberos IV</application> がバージョン
@@ -3321,6 +3334,12 @@ hw.pcic.irq="0"</programlisting>
 	ユーティリティのバージョン 1.4.3 がインポートされました.
 	&merged;</para>
 
+      <para>システムのソートプログラムが、
+        <application>GNU sort</application> から
+        <application>NetBSD</application> の
+        (2002 年 3 月 22 日時点の) &man.sort.1; に置き換えられました。</para>
+
+
       <para><application>tcpdump</application> がバージョン
         3.6.3 に更新されました. &merged;</para>
 
@@ -3335,6 +3354,10 @@ hw.pcic.irq="0"</programlisting>
 	この機能を統合しているため) これは必ずしも必要というわけでは
 	ありませんが, <application>xinetd</application> のような
 	&man.inetd.8; を置き換えるアプリケーションには有用です.</para>
+
+      <para><application>texinfo</application> がバージョン
+        4.1 に更新されました。
+        &merged;</para>
 
       <para><application>top</application> がバージョン 3.5b12
 	に更新されました.</para>
