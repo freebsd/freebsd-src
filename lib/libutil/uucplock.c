@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.5 1997/04/02 04:24:39 ache Exp $
+ * $Id: uucplock.c,v 1.6 1997/05/12 10:36:14 brian Exp $
  *
  */
 
@@ -70,13 +70,13 @@ int uu_lock (const char *ttyname)
 	int err;
 
 	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, ttyname);
-	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
+	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL|O_EXLOCK, 0660);
 	if (fd < 0) {
 		/*
 		 * file is already locked
 		 * check to see if the process holding the lock still exists
 		 */
-		fd = open(tbuf, O_RDWR, 0);
+		fd = open(tbuf, O_RDWR|O_SHLOCK);
 		if (fd < 0)
 			return UU_LOCK_OPEN_ERR;
 
@@ -100,13 +100,17 @@ int uu_lock (const char *ttyname)
 			errno = err;
 			return UU_LOCK_SEEK_ERR;
 		}
+		if (flock(fd, LOCK_EX|LOCK_NB) < 0) {
+			(void)close(fd);
+			return UU_LOCK_INUSE;
+		}
 		/* fall out and finish the locking process */
 	}
 	pid = getpid();
 	if (!put_pid (fd, pid)) {
 		err = errno;
-		(void)close(fd);
 		(void)unlink(tbuf);
+		(void)close(fd);
 		errno = err;
 		return UU_LOCK_WRITE_ERR;
 	}
