@@ -169,7 +169,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 #endif
 		    plex->lockwaits++;			    /* waited one more time */
 		    tsleep(lock, PRIBIO, "vrlock", 0);
-		    lock = plex->lock;			    /* start again */
+		    lock = &plex->lock[-1];		    /* start again */
 		    foundlocks = 0;
 		    pos = NULL;
 		}
@@ -222,8 +222,8 @@ unlockrange(int plexno, struct rangelock *lock)
     lock->stripe = 0;					    /* no longer used */
     plex->usedlocks--;					    /* one less lock */
     if (plex->usedlocks == PLEX_LOCKS - 1)		    /* we were full, */
-	wakeup_one(&plex->usedlocks);			    /* get a waiter if one's there */
-    wakeup_one((void *) lock);
+	wakeup(&plex->usedlocks);			    /* get a waiter if one's there */
+    wakeup((void *) lock);
 }
 
 /* Get a lock for the global config, wait if it's not available */
