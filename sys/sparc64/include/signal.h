@@ -46,10 +46,10 @@ typedef	long sig_atomic_t;
 
 typedef	u_int osigset_t;
 
-struct	osigcontext {
+struct osigcontext {
 };
 
-struct	sigcontext {
+struct sigcontext {
 };
 
 #endif /* !_ANSI_SOURCE */

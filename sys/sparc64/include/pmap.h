@@ -51,10 +51,10 @@
 
 typedef	struct pmap *pmap_t;
 
-struct	md_page {
+struct md_page {
 };
 
-struct	pmap {
+struct pmap {
 	struct	stte pm_stte;
 	vm_object_t pm_object;
 	u_int	pm_active;

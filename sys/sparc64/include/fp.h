@@ -65,11 +65,11 @@
 #define	FSR_FCC3(x)	(((x) >> FSR_FCC3_SHIFT) & 3)
 
 /* A block of 8 double-precision (16 single-precision) FP registers. */
-struct	fpblock {
+struct fpblock {
 	u_long	fpq_l[8];
 };
 
-struct	fpstate {
+struct fpstate {
 	struct	fpblock fp_fb[4];
 	u_long	fp_fsr;
 	u_long	fp_fprs;
