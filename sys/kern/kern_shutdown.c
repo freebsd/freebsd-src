@@ -563,6 +563,14 @@ dumpstatus(vm_offset_t addr, long count)
 static u_int panic_cpu = NOCPU;
 #endif
 
+/* This had probably better not go into a release. */
+static const char *face[4] = {
+	"\\|/ ____ \\|/",
+	"\"@'/ .. \\`@\"",
+	"/_| \\__/ |_\\",
+	"   \\__U_/   "
+};
+
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -573,7 +581,7 @@ static u_int panic_cpu = NOCPU;
 void
 panic(const char *fmt, ...)
 {
-	int bootopt;
+	int bootopt, i, offset;
 #if defined(DDB) && defined(RESTARTABLE_PANICS)
 	int holding_giant = 0;
 #endif
@@ -613,10 +621,9 @@ panic(const char *fmt, ...)
 		panicstr = fmt;
 
 	/* Test that the console is still working. */
-	printf("              \\|/ ____ \\|/\n"
-	       "              \"@'/ .. \\`@\"\n"
-	       "              /_| \\__/ |_\\\n"
-	       "                 \\__U_/\n");
+	offset = (60 + strlen(face[0])) / 2;
+	for (i = 0; i < 4; i++)
+		printf("%*s\n", offset, face[i]);
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
