@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.18 1994/08/23 11:57:19 paul Exp $
+ *	$Id: cpufunc.h,v 1.19 1994/08/23 13:41:37 paul Exp $
  */
 
 /*
@@ -93,7 +93,7 @@ outb(u_int port, u_char data)
 }
 
 static inline void
-tlbflush()
+pmap_update()
 {
 	__asm __volatile("movl %%cr3, %%eax; movl %%eax, %%cr3" : : : "ax");
 }
