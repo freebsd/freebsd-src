@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.105 1996/07/02 01:03:42 jkh Exp $
+ * $Id: install.c,v 1.106 1996/07/02 10:57:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -250,7 +250,7 @@ installFixitFloppy(dialogMenuItem *self)
     /* Link the spwd.db file */
     if (DITEM_STATUS(Mkdir("/etc", NULL)) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
-    else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1)
+    else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1 && errno != EEXIST)
 	msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
