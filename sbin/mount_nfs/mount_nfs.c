@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.25 1997/12/24 00:58:39 imp Exp $";
+	"$Id: mount_nfs.c,v 1.26 1997/12/26 23:28:12 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -70,9 +70,7 @@ static const char rcsid[] =
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#define KERNEL
 #include <nfs/nfs.h>
-#undef KERNEL
 #include <nfs/nqnfs.h>
 
 #include <arpa/inet.h>
