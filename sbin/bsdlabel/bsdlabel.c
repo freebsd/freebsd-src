@@ -161,12 +161,10 @@ main(int argc, char *argv[])
 				xxboot = optarg;
 				break;
 			case 'm':
-				if (!strcmp(optarg, "i386")) {
-					labelsoffset = 1;
-					labeloffset = 0;
-					bbsize = 8192;
-					alphacksum = 0;
-				} else if (!strcmp(optarg, "pc98")) {
+				if (!strcmp(optarg, "i386") ||
+				    !strcmp(optarg, "amd64") ||
+				    !strcmp(optarg, "ia64") ||
+				    !strcmp(optarg, "pc98")) {
 					labelsoffset = 1;
 					labeloffset = 0;
 					bbsize = 8192;
@@ -176,11 +174,6 @@ main(int argc, char *argv[])
 					labeloffset = 64;
 					bbsize = 8192;
 					alphacksum = 1;
-				} else if (!strcmp(optarg, "ia64")) {
-					labelsoffset = 1;
-					labeloffset = 0;
-					bbsize = 8192;
-					alphacksum = 0;
 				} else {
 					errx(1, "Unsupported architecture");
 				}
