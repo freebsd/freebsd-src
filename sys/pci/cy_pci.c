@@ -33,6 +33,10 @@
 
 #include "opt_cy_pci_fastintr.h"
 
+#ifndef COMPAT_OLDPCI
+#error "The cy device requires the old pci compatibility shims"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

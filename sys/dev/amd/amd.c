@@ -50,6 +50,10 @@
 /* #define AMD_DEBUG0           */
 /* #define AMD_DEBUG_SCSI_PHASE */
 
+#ifndef COMPAT_OLDPCI
+#error "The amd device requires the old pci compatibility shims"
+#endif
+
 #include <sys/param.h>
 
 #include <sys/systm.h>

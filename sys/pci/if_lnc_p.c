@@ -20,6 +20,10 @@
  * $FreeBSD$
  */
 
+#ifndef COMPAT_OLDPCI
+#error "The lnc device requires the old pci compatibility shims"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
