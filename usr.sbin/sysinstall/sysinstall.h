@@ -172,6 +172,7 @@
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define	VAR_OSF1_ENABLE			"osf1_enable"
+#define	VAR_RPCBIND_ENABLE		"rpcbind_enable"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
 #define VAR_PACKAGE			"package"
 #define VAR_PARTITION			"partition"
@@ -526,6 +527,7 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configInetd(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
+extern int	configRpcBind(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
 extern int	configSecurityProfile(dialogMenuItem *self);
 extern int	configSecurityExtreme(dialogMenuItem *self);
