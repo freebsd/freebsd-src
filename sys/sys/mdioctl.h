@@ -54,20 +54,20 @@ struct md_ioctl {
 	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
 	enum md_types	md_type ;	/* type of disk */
+	char		*md_file;	/* pathname of file to mount */
 	off_t		md_mediasize;	/* size of disk in bytes */
 	unsigned	md_sectorsize;	/* sectorsize */
 	unsigned	md_options;	/* options */
 	u_int64_t	md_base;	/* base address */
 	int		md_fwheads;	/* firmware heads */
 	int		md_fwsectors;	/* firmware sectors */
-	char		md_file[PATH_MAX]; /* pathname of file to mount */
 	int		md_pad[MDNPAD];	/* padding for future ideas */
 };
 
 #define MD_NAME		"md"
 #define MD_MODNAME	"g_md"
 #define MDCTL_NAME	"mdctl"
-#define MDIOVERSION	1
+#define MDIOVERSION	0
 
 /*
  * Before you can use a unit, it must be configured with MDIOCSET.
