@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
+MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 \
+	BUF_REFCNT.9 BUF_TIMELOCK.9 BUF_UNLOCK.9 \
+	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	MODULE_DEPEND.9 MODULE_VERSION.9 SPLASSERT.9 SYSCALL_MODULE.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
 	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
@@ -21,6 +23,7 @@ MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	get_cyclecounter.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	kernacc.9 kthread.9 ktr.9 \
+	lockcount.9 lockdestroy.9 lockmgr.9 lockmgr_printinfo.9 lockstatus.9 \
 	malloc.9 make_dev.9 mbuf.9 mbchain.9 mdchain.9 \
 	microseq.9 microtime.9 microuptime.9 \
 	mi_switch.9 module.9 mutex.9 \
