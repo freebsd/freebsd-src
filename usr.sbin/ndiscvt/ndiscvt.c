@@ -386,6 +386,7 @@ main(int argc, char *argv[])
 	fprintf(outfp, "\nextern unsigned char drv_data[];\n\n");
 
 	fprintf(outfp, "__asm__(\".data\");\n");
+	fprintf(outfp, "__asm__(\".globl  drv_data\");\n");
 	fprintf(outfp, "__asm__(\".type   drv_data, @object\");\n");
 	fprintf(outfp, "__asm__(\".size   drv_data, %d\");\n", fsize);
 	fprintf(outfp, "__asm__(\"drv_data:\");\n");

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/module.h>
 
 #include <sys/systm.h>
 #include <machine/clock.h>
@@ -223,13 +224,19 @@ READ_PORT_BUFFER_UCHAR(port, val, cnt)
  * until the current thread lowers the IRQL to something less than
  * DISPATCH_LEVEL.
  *
- * In FreeBSD, ISRs run in interrupt threads, so to duplicate the
- * Windows notion of IRQLs, we use the following rules:
+ * There's another commonly used IRQL in Windows, which is APC_LEVEL.
+ * An APC is an Asynchronous Procedure Call, which differs from a DPC
+ * (Defered Procedure Call) in that a DPC is queued up to run in
+ * another thread, while an APC runs in the thread that scheduled
+ * it (similar to a signal handler in a UNIX process). We don't
+ * actually support the notion of APCs in FreeBSD, so for now, the
+ * only IRQLs we're interested in are DISPATCH_LEVEL and PASSIVE_LEVEL.
  *
- * PASSIVE_LEVEL == normal kernel thread priority
- * DISPATCH_LEVEL == lowest interrupt thread priotity (PI_SOFT)
- * DEVICE_LEVEL == highest interrupt thread priority  (PI_REALTIME)
- * HIGH_LEVEL == interrupts disabled (critical_enter())
+ * To simulate DISPATCH_LEVEL, we raise the current thread's priority
+ * to PI_REALTIME, which is the highest we can give it. This should,
+ * if I understand things correctly, prevent anything except for an
+ * interrupt thread from preempting us. PASSIVE_LEVEL is basically
+ * everything else.
  *
  * Be aware that, at least on the x86 arch, the Windows spinlock
  * functions are divided up in peculiar ways. The actual spinlock
@@ -306,6 +313,9 @@ KfRaiseIrql(REGARGS1(uint8_t irql))
 	mtx_lock_spin(&sched_lock);
 	oldirql = curthread->td_base_pri;
 	sched_prio(curthread, PI_REALTIME);
+#if __FreeBSD_version < 600000
+	curthread->td_base_pri = PI_REALTIME;
+#endif
 	mtx_unlock_spin(&sched_lock);
 
 	return(oldirql);
@@ -321,6 +331,9 @@ KfLowerIrql(REGARGS1(uint8_t oldirql))
 		panic("IRQL_NOT_GREATER_THAN");
 
 	mtx_lock_spin(&sched_lock);
+#if __FreeBSD_version < 600000
+	curthread->td_base_pri = oldirql;
+#endif
 	sched_prio(curthread, oldirql);
 	mtx_unlock_spin(&sched_lock);
 
