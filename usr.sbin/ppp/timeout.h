@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.10 1997/06/09 03:27:39 brian Exp $
+ * $Id: timeout.h,v 1.11 1997/08/25 00:29:30 brian Exp $
  *
  *	TODO:
  */
@@ -48,6 +48,7 @@ extern void TimerService(void);
 extern void InitTimerService(void);
 extern void TermTimerService(void);
 extern void StartIdleTimer(void);
+extern void StopIdleTimer(void);
 extern void UpdateIdleTimer(void);
 extern void ShowTimers();
 
