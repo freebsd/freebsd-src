@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uucpd.c,v 1.11 1997/04/01 20:39:59 joerg Exp $
+ *	$Id: uucpd.c,v 1.12 1997/04/08 12:32:17 davidn Exp $
  */
 
 #ifndef lint
@@ -257,6 +257,7 @@ void dologin(struct passwd *pw, struct sockaddr_in *sin)
 	} else
 		strncpy(remotehost, inet_ntoa(sin->sin_addr),
 		    sizeof (remotehost));
+	remotehost[sizeof remotehost - 1] = '\0';
 	/* hack, but must be unique and no tty line */
 	sprintf(line, "uucp%ld", getpid());
 	time(&cur_time);
