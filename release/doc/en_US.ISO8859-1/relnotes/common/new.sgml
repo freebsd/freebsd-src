@@ -189,11 +189,11 @@
 
     <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
       synchronous serial adapters. This driver was known for a long time as
-      <quote>ct</quote> in its previous life outside &os; source tree. &merged;
+      <quote>ct</quote> in its previous life outside the &os; source tree. &merged;
 
       <note>
 	<para>The driver name has changed, but the network interface still
-	  has <quote>ct</quote> name.</para>
+	  has the <quote>ct</quote> name.</para>
       </note>
     </para>
 
@@ -344,7 +344,7 @@
       <para>The &man.ng.vlan.4; NetGraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
 
-      <para>A bug, which prevents VLAN support in the &man.nge.4; driver
+      <para>A bug that prevents VLAN support in the &man.nge.4; driver
         from working has been fixed.  &merged;</para>
 
       <para>Several bugs related to &man.polling.4; support
@@ -362,7 +362,7 @@
 
       <para>The &man.vr.4; driver now supports &man.polling.4;.</para>
 
-      <para>The hardware TX checksum support of the &man.xl.4; driver
+      <para>The hardware TX checksum support in the &man.xl.4; driver
 	has been disabled as it does not work correctly and slows down
 	the transmission rate.  &merged;</para>
     </sect3>
@@ -485,8 +485,8 @@
     <para>&man.bsdlabel.8; now supports a <option>-f</option> option
       to work on files instead of disk partitions.</para>
 
-    <para>The <command>bthidcontrol</command> and the
-      <command>bthidd</command> which support Bluetooth
+    <para>The <command>bthidcontrol</command> command and the
+      <command>bthidd</command> command, which support Bluetooth
       HID (Human Interface Device), have been added.</para>
 
     <para>The <command>doscmd</command> utility has been
@@ -497,7 +497,7 @@
       &man.fdread.1; utilities now work on &os;/pc98.</para>
 
     <para>The &man.find.1; now supports a option
-      <option>-acl</option> to locate files with &man.acl.3;</para>
+      <option>-acl</option> to locate files with &man.acl.3;.</para>
 
     <para>&man.indent.1; now supports a <option>-ldi</option> option
       to control indentation of local variables.  A number of other
@@ -602,17 +602,17 @@
       role="package">net/nss_ldap</filename>) and groups with large
       membership lists.</para>
 
-    <para>The &man.pgrep.1; and &man.pkill.1;, which come from NetBSD
+    <para>The &man.pgrep.1; and &man.pkill.1; commands, which come from NetBSD,
       have been added.  They also support a <option>-M</option> option
       to extract values associated with the name list from the
       specified core instead of the default <filename>/dev/kmem</filename>,
       and a <option>-N</option> option to extract the name list from
       the specified system instead of the default kernel.</para>
 
-    <para>&man.ps.1; has been improved in the POSIX/SUSv3 compatibility.
+    <para>&man.ps.1; compatibility with POSIX/SUSv3 has been improved.
       The changes include <option>-p</option> for a list of process IDs,
       <option>-t</option> for a list of terminal names,
-      <option>-A</option> which is equivalent with <option>-ax</option>,
+      <option>-A</option> which is equivalent to <option>-ax</option>,
       <option>-G</option> for a list of group IDs,
       <option>-X</option> which is the opposite of <option>-x</option>,
       and some minor improvements.  For more information, see &man.ps.1;.
