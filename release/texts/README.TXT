@@ -35,57 +35,52 @@ business with FreeBSD than in playing with the cutting edge of
 technology, however, then 3.x is almost certainly your best bet.
 
 
-ROAD MAP:
-            Most files here are also in the Documentation
-                    Menu of the boot floppy
+Most information here is also available from the Documentation menu
+during installation.
 
-  ERRATA.TXT    Please read this file!  It will tell you where to look
-                for the latest information on problems which have been
-                found and fixed in this release.
+  ERRATA.TXT    Read this file!  It will tell you where to look for the
+                latest information on problems which have been found and
+                fixed since this release was created (and may bite you).
 
   README.TXT    This file
 
   ABOUT.TXT     All about FreeBSD, including contact information
 
-  RELNOTES.TXT  Release Notes - what's new & different in this
-                release
+  RELNOTES.TXT  Release Notes - what's new & different in this release
 
-  LAYOUT.TXT    Information about the layout of the release
-                directory.  If you are installing from floppies,
-                it is especially important that you
-                *read this section!*
+  LAYOUT.TXT    Information about the layout of the release directory.
+                If you are installing from floppies, it is especially
+                important that you read this section!
 
 
-  HARDWARE.TXT  Information about the configuration of the
-                GENERIC kernel and supported hardware
+  HARDWARE.TXT  Information about the configuration of the GENERIC kernel
+                and supported hardware.  New installers should read this
+                file.
 
-  INSTALL.TXT   How to make a new installation of FreeBSD
-                on your PC using the data you see here
+  INSTALL.TXT   Installation instructions - new installers should read this.
 
-  UPGRADE.TXT   How to upgrade an existing FreeBSD
-                installation
+  UPGRADE.TXT   Upgrading an existing FreeBSD installation
 
-  TROUBLE.TXT   Troubleshooting information
+  TROUBLE.TXT   General troubleshooting information
 
 
-o For new installation instructions, see the INSTALL.TXT
-  and HARDWARE.TXT files.
+o It is, again, very important to check the ERRATA.TXT file for any
+  late-breaking issues with this release.  If you don't read the ERRATA,
+  you will probably fall right into the same problems that have already
+  been reported (and fixed as noted in the ERRATA).
 
-o If you are upgrading from a previous FreeBSD version,
-  please take a look at UPGRADE.TXT.
 
-o It is also important to check the ERRATA.TXT file for any
-  late-breaking issues with this release.  This file contains
-  the latest information on upgrade, security or other problems
-  that an administrator should be aware of.
+If you're a developer/hobbiest and not interested in QA'd releases
+so much as simply keeping up to date on the latest FreeBSD technology,
+you can also install one of our "snapshot" releases.
 
 For the most up-to-date software along the RELENG_3 branch
-(also known as 3.4-stable) which is now proceeding onwards toward
-the release of FreeBSD 3.5, please install from:
+(also known as 3.4-stable), now proceeding towards the release
+of FreeBSD 3.5, please install your snapshots from from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
-Or for the latest 4.0-Current (HEAD branch) snapshot releases,
+For the latest 4.0-current (HEAD branch) snapshot releases,
 please install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
