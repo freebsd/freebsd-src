@@ -1593,6 +1593,27 @@ witness_list_locks(struct lock_list_entry **lock_list)
 	return (nheld);
 }
 
+/*
+ * This is a bit risky at best.  We call this function when we have timed
+ * out acquiring a spin lock, and we assume that the other CPU is stuck
+ * with this lock held.  So, we go groveling around in the other CPU's
+ * per-cpu data to try to find the lock instance for this spin lock to
+ * see when it was last acquired.
+ */
+void
+witness_display_spinlock(struct lock_object *lock, struct thread *owner)
+{
+	struct lock_instance *instance;
+	struct pcpu *pc;
+
+	if (owner->td_critnest == 0 || owner->td_oncpu == NOCPU)
+		return;
+	pc = pcpu_find(owner->td_oncpu);
+	instance = find_instance(pc->pc_spinlocks, lock);
+	if (instance != NULL)
+		witness_list_lock(instance);
+}
+
 void
 witness_save(struct lock_object *lock, const char **filep, int *linep)
 {
