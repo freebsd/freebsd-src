@@ -15,7 +15,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <err.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -74,7 +73,7 @@ Int_Open_Disk(const char *name, u_long size)
 	strcat(device,name);
 
 	d = (struct disk *)malloc(sizeof *d);
-	if(!d) err(1,"malloc failed");
+	if(!d) barfout(1,"malloc failed");
 	memset(d,0,sizeof *d);
 
 	fd = open(device,O_RDONLY);
@@ -415,7 +414,7 @@ Clone_Disk(struct disk *d)
 	struct disk *d2;
 
 	d2 = (struct disk*) malloc(sizeof *d2);
-	if(!d2) err(1,"malloc failed");
+	if(!d2) barfout(1,"malloc failed");
 	*d2 = *d;
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
@@ -489,7 +488,7 @@ Disk_Names()
 	    disklist = (char *)malloc(listsize);
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
 	    if (error) 
-		    err(1, "sysctlbyname(\"kern.disks\") failed");
+		    barfout(1, "sysctlbyname(\"kern.disks\") failed");
 	    k = 0;
 	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && k < MAX_NO_DISKS; k++, dp++);
 	    return disks;
@@ -540,7 +539,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootipl_size = bootipl_size;
 		d->bootipl = malloc(bootipl_size);
-		if(!d->bootipl) err(1,"malloc failed");
+		if(!d->bootipl) barfout(1,"malloc failed");
 		memcpy(d->bootipl,bootipl,bootipl_size);
 	}
 
@@ -554,7 +553,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmenu_size = bootmenu_size;
 		d->bootmenu = malloc(bootmenu_size);
-		if(!d->bootmenu) err(1,"malloc failed");
+		if(!d->bootmenu) barfout(1,"malloc failed");
 		memcpy(d->bootmenu,bootmenu,bootmenu_size);
 	}
 #else
@@ -568,7 +567,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmgr_size = s;
 		d->bootmgr = malloc(s);
-		if(!d->bootmgr) err(1,"malloc failed");
+		if(!d->bootmgr) barfout(1,"malloc failed");
 		memcpy(d->bootmgr,b,s);
 	}
 #endif
@@ -580,16 +579,16 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 #if defined(__i386__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
-	if(!d->boot1) err(1,"malloc failed");
+	if(!d->boot1) barfout(1,"malloc failed");
 	memcpy(d->boot1,b1,512);
 	if (d->boot2) free(d->boot2);
 	d->boot2 = malloc(15*512);
-	if(!d->boot2) err(1,"malloc failed");
+	if(!d->boot2) barfout(1,"malloc failed");
 	memcpy(d->boot2,b2,15*512);
 #elif defined(__alpha__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(15*512);
-	if(!d->boot1) err(1,"malloc failed");
+	if(!d->boot1) barfout(1,"malloc failed");
 	memcpy(d->boot1,b1,15*512);
 #endif
 }
