@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: Makefile,v 1.5 1994/09/22 02:49:15 phk Exp $
 #
 
 PROG=		ctm
@@ -14,6 +14,9 @@ NOTYET=		ctm_ed.c
 SRCS=   	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
 		ctm_syntax.c ctm_ed.c
 LDADD+=		-lmd
+DPADD+=		${LIBMD}
 NOMAN=		1
 CFLAGS+=	-Wall -g
+
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>

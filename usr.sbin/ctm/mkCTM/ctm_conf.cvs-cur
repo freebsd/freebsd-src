@@ -1,9 +1,11 @@
 #!/usr/local/bin/tclsh
 
 set CTMname	cvs-cur
-set CTMdest	/u4/CTM
 set CTMref	/u1/CVS-FreeBSD
+set CTMdest	/u4/ftp/pub/CTM
 set CTMprefix	.
-set CTMcopy	$CTMdest/$CTMname
-set CTMtmp	$CTMdest/_tmp_$CTMname
+set CTMdont	{^/CVSROOT/history.*$|^/src/secure|^src/eBones}
+
+set CTMcopy	/u1/CTM/$CTMname
+set CTMtmp	/u1/CTM/tmp/_tmp_$CTMname
 set CTMdate	[exec date -u +%Y%m%d%H%M%SZ]
