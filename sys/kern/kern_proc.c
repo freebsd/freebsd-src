@@ -900,10 +900,18 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	int flags, doingzomb;
+	int flags, doingzomb, oid_number;
 	int error = 0;
 
-	if (oidp->oid_number == KERN_PROC_PID) {
+	oid_number = oidp->oid_number;
+	if (oid_number != KERN_PROC_ALL &&
+	    (oid_number & KERN_PROC_INC_THREAD) == 0)
+		flags = KERN_PROC_NOTHREADS;
+	else {
+		flags = 0;
+		oid_number &= ~KERN_PROC_INC_THREAD;
+	}
+	if (oid_number == KERN_PROC_PID) {
 		if (namelen != 1) 
 			return (EINVAL);
 		p = pfind((pid_t)name[0]);
@@ -913,11 +921,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			PROC_UNLOCK(p);
 			return (error);
 		}
-		error = sysctl_out_proc(p, req, KERN_PROC_NOTHREADS);
+		error = sysctl_out_proc(p, req, flags);
 		return (error);
 	}
 
-	switch (oidp->oid_number) {
+	switch (oid_number) {
 	case KERN_PROC_ALL:
 		if (namelen != 0)
 			return (EINVAL);
@@ -963,12 +971,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			flags = 0;
 			/*
 			 * TODO - make more efficient (see notes below).
 			 * do by session.
 			 */
-			switch (oidp->oid_number) {
+			switch (oid_number) {
 
 			case KERN_PROC_PGRP:
 				/* could do this by traversing pgrp */
@@ -1013,7 +1020,6 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				break;
 
 			case KERN_PROC_PROC:
-				flags |= KERN_PROC_NOTHREADS;
 				break;
 
 			default:
@@ -1187,3 +1193,21 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
 
 SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
 	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_PGRP | KERN_PROC_INC_THREAD), pgrp_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_TTY | KERN_PROC_INC_THREAD), tty_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_UID | KERN_PROC_INC_THREAD), uid_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_RUID | KERN_PROC_INC_THREAD), ruid_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_PID | KERN_PROC_INC_THREAD), pid_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Return process table, no threads");
