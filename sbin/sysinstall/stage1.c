@@ -302,9 +302,10 @@ stage1()
 			default_disklabel(&avail_disklabels[inst_disk],
 								mbr->dospart[inst_part].dp_size,
 								mbr->dospart[inst_part].dp_start);
-			dialog_msgbox(TITLE, "This is an example of how the disklabel configuration\nwill look. It doesn't pass the data back into the real\nstructures yet but you can play around with the\n field editing to get an idea of how it will work.\nHit escape to quit the editor.", 10,70,1);
+			dialog_msgbox(TITLE, "This is an experimental disklabel configuration\nmenu. It doesn't perform any validation of the entries\nas yet so BE SURE YOU TYPE THINGS CORRECTLY.\n\n    Hit escape to quit the editor.\n\nThere may be some delay exiting because of a dialog bug", 20,70,1);
 			dialog_clear();
 			edit_disklabel(&avail_disklabels[inst_disk]);
+			build_disklabel(&avail_disklabels[inst_disk]);
 			if (build_bootblocks(&avail_disklabels[inst_disk]) == -1)
 				Fatal(errmsg);
 		}
