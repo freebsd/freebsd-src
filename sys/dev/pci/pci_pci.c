@@ -45,6 +45,7 @@
 #include <pci/pcireg.h>
 
 #include "pcib_if.h"
+#include "opt_pci.h"
 
 /*
  * Bridge-specific data.
@@ -281,6 +282,10 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
+	    if (start < sc->iobase)
+		start = sc->iobase;
+	    if (end > sc->iolimit && start < end)
+		end = sc->iolimit;
 	    if ((start < sc->iobase) || (end > sc->iolimit)) {
 		device_printf(dev, "device %s%d requested unsupported I/O range 0x%lx-0x%lx"
 			      " (decoding 0x%x-0x%x)\n",
