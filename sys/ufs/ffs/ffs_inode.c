@@ -220,9 +220,9 @@ ffs_truncate(vp, length, flags, cred, td)
 	 */
 	if (osize < length) {
 		vnode_pager_setsize(ovp, length);
-		aflags = B_CLRBUF;
+		aflags = BA_CLRBUF;
 		if (flags & IO_SYNC)
-			aflags |= B_SYNC;
+			aflags |= BA_SYNC;
 		error = UFS_BALLOC(ovp, length - 1, 1,
 		    cred, aflags, &bp);
 		if (error)
@@ -231,7 +231,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP(oip, i_size) = length;
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & B_SYNC)
+		if (aflags & BA_SYNC)
 			bwrite(bp);
 		else
 			bawrite(bp);
@@ -252,9 +252,9 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP(oip, i_size) = length;
 	} else {
 		lbn = lblkno(fs, length);
-		aflags = B_CLRBUF;
+		aflags = BA_CLRBUF;
 		if (flags & IO_SYNC)
-			aflags |= B_SYNC;
+			aflags |= BA_SYNC;
 		error = UFS_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
 		if (error) {
 			return (error);
@@ -281,7 +281,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & B_SYNC)
+		if (aflags & BA_SYNC)
 			bwrite(bp);
 		else
 			bawrite(bp);

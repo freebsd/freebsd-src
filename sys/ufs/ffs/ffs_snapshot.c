@@ -203,7 +203,7 @@ restart:
 	 */
 	numblks = howmany(fs->fs_size, fs->fs_frag);
 	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
-	    fs->fs_bsize, KERNCRED, B_CLRBUF, &bp);
+	    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
 	if (error)
 		goto out;
 	ip->i_size = lblktosize(fs, (off_t)numblks);
@@ -225,7 +225,7 @@ restart:
 	 */
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, td->td_ucred, B_METAONLY, &ibp);
+		    fs->fs_bsize, td->td_ucred, BA_METAONLY, &ibp);
 		if (error)
 			goto out;
 		bdwrite(ibp);
@@ -604,7 +604,7 @@ cgaccount(cg, vp, nbp, passno)
 		}
 	}
 	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
-	    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+	    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -617,7 +617,7 @@ cgaccount(cg, vp, nbp, passno)
 			bawrite(ibp);
 			error = UFS_BALLOC(vp,
 			    lblktosize(fs, (off_t)(base + loc)),
-			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -706,7 +706,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	} else {
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
-		   fs->fs_bsize, KERNCRED, B_METAONLY, &bp);
+		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_proc->p_flag &= ~P_COWINPROGRESS;
 		if (error)
 			return (error);
@@ -853,7 +853,7 @@ snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
 			blkp = &((ufs1_daddr_t *)(ibp->b_data))
@@ -959,7 +959,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 	} else {
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
-		   fs->fs_bsize, KERNCRED, B_METAONLY, &bp);
+		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_proc->p_flag &= ~P_COWINPROGRESS;
 		if (error)
 			return (error);
@@ -1106,7 +1106,7 @@ snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
 			blkp = &((ufs2_daddr_t *)(ibp->b_data))
@@ -1248,7 +1248,7 @@ ffs_snapremove(vp)
 	numblks = howmany(ip->i_size, fs->fs_bsize);
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+		    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 		if (error)
 			continue;
 		if (fs->fs_size - blkno > NINDIR(fs))
@@ -1337,7 +1337,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_proc->p_flag &= ~P_COWINPROGRESS;
 			VOP_UNLOCK(vp, 0, td);
 			if (error)
@@ -1611,7 +1611,7 @@ retry:
 		} else {
 			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			   fs->fs_bsize, KERNCRED, B_METAONLY | B_NOWAIT, &ibp);
+			   fs->fs_bsize, KERNCRED, BA_METAONLY | BA_NOWAIT, &ibp);
 			td->td_proc->p_flag &= ~P_COWINPROGRESS;
 			if (error) {
 				VOP_UNLOCK(vp, 0, td);
@@ -1642,7 +1642,7 @@ retry:
 		 */
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-		    fs->fs_bsize, KERNCRED, B_NOWAIT, &cbp);
+		    fs->fs_bsize, KERNCRED, BA_NOWAIT, &cbp);
 		td->td_proc->p_flag &= ~P_COWINPROGRESS;
 		if (error) {
 			VOP_UNLOCK(vp, 0, td);

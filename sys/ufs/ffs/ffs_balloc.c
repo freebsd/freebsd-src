@@ -120,7 +120,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			ip->i_din1->di_size = ip->i_size;
 			ip->i_din1->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			if (flags & B_SYNC)
+			if (flags & BA_SYNC)
 				bwrite(bp);
 			else
 				bawrite(bp);
@@ -130,8 +130,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * The first NDADDR blocks are direct blocks
 	 */
 	if (lbn < NDADDR) {
-		if (flags & B_METAONLY)
-			panic("ffs_balloc_ufs1: B_METAONLY for direct block");
+		if (flags & BA_METAONLY)
+			panic("ffs_balloc_ufs1: BA_METAONLY for direct block");
 		nb = ip->i_din1->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
@@ -181,7 +181,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
-			if (flags & B_CLRBUF)
+			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
@@ -289,7 +289,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & BA_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -300,7 +300,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	/*
 	 * If asked only for the indirect block, then return it.
 	 */
-	if (flags & B_METAONLY) {
+	if (flags & BA_METAONLY) {
 		*bpp = bp;
 		return (0);
 	}
@@ -319,7 +319,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		*allocblk++ = nb;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
-		if (flags & B_CLRBUF)
+		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp))
 			softdep_setup_allocindir_page(ip, lbn, bp,
@@ -329,7 +329,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & BA_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -340,7 +340,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		return (0);
 	}
 	brelse(bp);
-	if (flags & B_CLRBUF) {
+	if (flags & BA_CLRBUF) {
 		error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
 		if (error) {
 			brelse(nbp);
@@ -382,7 +382,7 @@ fail:
 		} else {
 			bap = (ufs1_daddr_t *)bp->b_data;
 			bap[indirs[unwindidx].in_off] = 0;
-			if (flags & B_SYNC) {
+			if (flags & BA_SYNC) {
 				bwrite(bp);
 			} else {
 				if (bp->b_bufsize == fs->fs_bsize)
@@ -462,7 +462,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			ip->i_din2->di_size = ip->i_size;
 			ip->i_din2->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			if (flags & B_SYNC)
+			if (flags & BA_SYNC)
 				bwrite(bp);
 			else
 				bawrite(bp);
@@ -472,8 +472,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * The first NDADDR blocks are direct blocks
 	 */
 	if (lbn < NDADDR) {
-		if (flags & B_METAONLY)
-			panic("ffs_balloc_ufs2: B_METAONLY for direct block");
+		if (flags & BA_METAONLY)
+			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
 		nb = ip->i_din2->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
@@ -523,7 +523,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
-			if (flags & B_CLRBUF)
+			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
@@ -631,7 +631,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & BA_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -642,7 +642,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	/*
 	 * If asked only for the indirect block, then return it.
 	 */
-	if (flags & B_METAONLY) {
+	if (flags & BA_METAONLY) {
 		*bpp = bp;
 		return (0);
 	}
@@ -661,7 +661,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		*allocblk++ = nb;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
-		if (flags & B_CLRBUF)
+		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp))
 			softdep_setup_allocindir_page(ip, lbn, bp,
@@ -671,7 +671,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & BA_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -682,7 +682,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		return (0);
 	}
 	brelse(bp);
-	if (flags & B_CLRBUF) {
+	if (flags & BA_CLRBUF) {
 		error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
 		if (error) {
 			brelse(nbp);
@@ -724,7 +724,7 @@ fail:
 		} else {
 			bap = (ufs2_daddr_t *)bp->b_data;
 			bap[indirs[unwindidx].in_off] = 0;
-			if (flags & B_SYNC) {
+			if (flags & BA_SYNC) {
 				bwrite(bp);
 			} else {
 				if (bp->b_bufsize == fs->fs_bsize)

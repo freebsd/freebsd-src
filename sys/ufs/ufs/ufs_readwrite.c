@@ -471,7 +471,7 @@ WRITE(ap)
 	osize = ip->i_size;
 	flags = 0;
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
-		flags = B_SYNC;
+		flags = BA_SYNC;
 
 #ifdef ENABLE_VFS_IOOPT
 	if (object && (object->flags & OBJ_OPT)) {
@@ -495,9 +495,9 @@ WRITE(ap)
 		 * does not cover the entire buffer.
                  */
 		if (fs->fs_bsize > xfersize)
-			flags |= B_CLRBUF;
+			flags |= BA_CLRBUF;
 		else
-			flags &= ~B_CLRBUF;
+			flags &= ~BA_CLRBUF;
 /* XXX is uio->uio_offset the right thing here? */
 		error = UFS_BALLOC(vp, uio->uio_offset, xfersize,
 		    ap->a_cred, flags, &bp);
