@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.19 1998/09/10 12:20:09 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.20 1999/01/11 03:20:24 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -417,8 +417,13 @@ print_entry(FILE *fp, int value)
 }
 
 
+#ifdef __i386__
 void
 print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
+#else
+void
+print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
+#endif
 {
 	int i;
 
@@ -866,6 +871,7 @@ set_history(char *opt)
 		warn("setting history buffer size");
 }
 
+#ifdef __i386__
 static char
 *get_kbd_type_name(int type)
 {
@@ -959,15 +965,22 @@ release_keyboard(void)
 	if (ioctl(0, CONS_RELKBD, 0) == -1)
 		warn("unable to release the keyboard");
 }
+#endif /* __i386__ */
 
 
 static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
+#ifdef __i386__
 "usage: kbdcontrol [-dFKix] [-b  duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-k device] [-L mapfile]");
+#else
+"usage: kbdcontrol [-dFx] [-b  duration.pitch | [quiet.]belltype]",
+"                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
+"                  [-h size] [-L mapfile]");
+#endif
 	exit(1);
 }
 
@@ -977,7 +990,11 @@ main(int argc, char **argv)
 {
 	int		opt;
 
+#ifdef __i386__
 	while((opt = getopt(argc, argv, "b:df:h:iKk:Fl:L:r:x")) != -1)
+#else
+	while((opt = getopt(argc, argv, "b:df:h:Fl:L:r:x")) != -1)
+#endif
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
@@ -1001,6 +1018,7 @@ main(int argc, char **argv)
 			case 'h':
 				set_history(optarg);
 				break;
+#ifdef __i386__
 			case 'i':
 				show_kbd_info();
 				break;
@@ -1010,6 +1028,7 @@ main(int argc, char **argv)
 			case 'k':
 				set_keyboard(optarg);
 				break;
+#endif /* __i386__ */
 			case 'r':
 				set_keyrates(optarg);
 				break;
