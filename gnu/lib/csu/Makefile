@@ -25,6 +25,8 @@ SRCS+=		crtfastmath.c
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
 
+CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
+
 crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
 
 crtbegin.o:
@@ -43,7 +45,7 @@ crtend.So:
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
-CLEANFILES=	tconfig.h
+CLEANFILES+=	tconfig.h
 tconfig.h: ${CCDIR}/cc_tools/Makefile
 	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
