@@ -561,7 +561,7 @@ load_dr7(u_int sel)
 }
 
 static __inline void
-cpu_pause(void)
+pause(void)
 {
 	__asm __volatile("pause");
 }
