@@ -255,6 +255,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
+	    uk_UA.KOI8-U
+	    ..
             zh_CN.EUC
             ..
             zh_TW.Big5

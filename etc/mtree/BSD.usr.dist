@@ -511,6 +511,8 @@
             ..
             sv_SE.DIS_8859-15
             ..
+	    uk_UA.KOI8-U
+	    ..
             zh_CN.EUC
             ..
             zh_TW.Big5
@@ -743,6 +745,8 @@
             ..
             sv_SE.DIS_8859-15
             ..
+	    uk_UA.KOI8-U
+	    ..
             zh_CN.EUC
             ..
         ..
