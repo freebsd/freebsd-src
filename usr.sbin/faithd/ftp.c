@@ -120,16 +120,12 @@ ftp_relay(int ctl6, int ctl4)
 			 */
 			error = ftp_copycommand(ctl6, ctl4, &state);
 
-			switch (error) {
-			case -1:
+			if (error < 0)
 				goto bad;
-			case 0:
+			else if (error == 0) {
 				close(ctl4);
 				close(ctl6);
 				exit_success("terminating ftp control connection");
-				/*NOTREACHED*/
-			default:
-				break;
 			}
 		}
 		if (FD_ISSET(ctl4, &readfds)) {
@@ -139,16 +135,12 @@ ftp_relay(int ctl6, int ctl4)
 			 */
 			error = ftp_copyresult(ctl4, ctl6, state);
 
-			switch (error) {
-			case -1:
+			if (error < 0)
 				goto bad;
-			case 0:
+			else if (error == 0) {
 				close(ctl4);
 				close(ctl6);
 				exit_success("terminating ftp control connection");
-				/*NOTREACHED*/
-			default:
-				break;
 			}
 		}
 		if (0 <= port4 && 0 <= port6 && FD_ISSET(port4, &readfds)) {
