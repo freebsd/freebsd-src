@@ -275,6 +275,8 @@ ieee80211_media_init(struct ifnet *ifp,
 			ADD(ic, IFM_AUTO, mopt | IFM_IEEE80211_HOSTAP);
 		if (ic->ic_caps & IEEE80211_C_AHDEMO)
 			ADD(ic, IFM_AUTO, mopt | IFM_IEEE80211_ADHOC | IFM_FLAG0);
+		if (ic->ic_caps & IEEE80211_C_MONITOR)
+			ADD(ic, IFM_AUTO, mopt | IFM_IEEE80211_MONITOR);
 		if (mode == IEEE80211_MODE_AUTO)
 			continue;
 		if_printf(ifp, "%s rates: ", ieee80211_phymode_name[mode]);
@@ -294,6 +296,8 @@ ieee80211_media_init(struct ifnet *ifp,
 				ADD(ic, mword, mopt | IFM_IEEE80211_HOSTAP);
 			if (ic->ic_caps & IEEE80211_C_AHDEMO)
 				ADD(ic, mword, mopt | IFM_IEEE80211_ADHOC | IFM_FLAG0);
+			if (ic->ic_caps & IEEE80211_C_MONITOR)
+				ADD(ic, mword, mopt | IFM_IEEE80211_MONITOR);
 			/*
 			 * Add rate to the collection of all rates.
 			 */
@@ -325,6 +329,8 @@ ieee80211_media_init(struct ifnet *ifp,
 			ADD(ic, mword, IFM_IEEE80211_HOSTAP);
 		if (ic->ic_caps & IEEE80211_C_AHDEMO)
 			ADD(ic, mword, IFM_IEEE80211_ADHOC | IFM_FLAG0);
+		if (ic->ic_caps & IEEE80211_C_MONITOR)
+			ADD(ic, mword, IFM_IEEE80211_MONITOR);
 	}
 	ieee80211_media_status(ifp, &imr);
 	ifmedia_set(&ic->ic_media, imr.ifm_active);
@@ -441,6 +447,8 @@ ieee80211_media_change(struct ifnet *ifp)
 		newopmode = IEEE80211_M_HOSTAP;
 	else if (ime->ifm_media & IFM_IEEE80211_ADHOC)
 		newopmode = IEEE80211_M_IBSS;
+	else if (ime->ifm_media & IFM_IEEE80211_MONITOR)
+		newopmode = IEEE80211_M_MONITOR;
 	else
 		newopmode = IEEE80211_M_STA;
 
@@ -486,6 +494,7 @@ ieee80211_media_change(struct ifnet *ifp)
 		case IEEE80211_M_AHDEMO:
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_STA:
+		case IEEE80211_M_MONITOR:
 			ic->ic_flags &= ~IEEE80211_F_IBSSON;
 			break;
 		case IEEE80211_M_IBSS:
@@ -533,6 +542,9 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		break;
 	case IEEE80211_M_HOSTAP:
 		imr->ifm_active |= IFM_IEEE80211_HOSTAP;
+		break;
+	case IEEE80211_M_MONITOR:
+		imr->ifm_active |= IFM_IEEE80211_MONITOR;
 		break;
 	}
 	switch (ic->ic_curmode) {

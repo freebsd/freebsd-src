@@ -172,6 +172,9 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 		IEEE80211_ADDR_COPY(wh->i_addr2, ni->ni_bssid);
 		IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
 		break;
+	case IEEE80211_M_MONITOR:
+		m_freem(m), m = NULL;
+		break;
 	}
 	ieee80211_unref_node(&ni);
 	return m;
