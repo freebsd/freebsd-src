@@ -1,4 +1,4 @@
-# @(#)antarctica	7.21
+# @(#)antarctica	7.22
 
 # From Paul Eggert (1999-11-15):
 # To keep things manageable, we list only locations occupied year-round; see
@@ -39,8 +39,8 @@ Rule	ArgAQ	1974	only	-	Jan	23	0:00	1:00	S
 Rule	ArgAQ	1974	only	-	May	 1	0:00	0	-
 Rule	ArgAQ	1974	1976	-	Oct	Sun<=7	0:00	1:00	S
 Rule	ArgAQ	1975	1977	-	Apr	Sun<=7	0:00	0	-
-Rule	ChileAQ	1969	1997	-	Oct	Sun>=9	0:00	1:00	S
-Rule	ChileAQ	1970	1998	-	Mar	Sun>=9	0:00	0	-
+Rule	ChileAQ	1966	1997	-	Oct	Sun>=9	0:00	1:00	S
+Rule	ChileAQ	1967	1998	-	Mar	Sun>=9	0:00	0	-
 Rule	ChileAQ	1998	only	-	Sep	27	0:00	1:00	S
 Rule	ChileAQ	1999	only	-	Apr	 4	0:00	0	-
 Rule	ChileAQ	1999	max	-	Oct	Sun>=9	0:00	1:00	S
@@ -92,11 +92,13 @@ Zone Antarctica/Mawson	0	-	zzz	1954 Feb 13
 # Brazil - year-round base
 # Ferraz, King George Island, since 1983/4
 
-# Chile - year-round bases
+# Chile - year-round bases and towns
 # Escudero, South Shetland Is, -621157-0585735, since 1994
-# Frei, King George Is, -6214-05848, since 1969
+# Frei, King George Island, -6214-05848, since 1969-03-07
 # O'Higgins, Antarctic Peninsula, -6319-05704, since 1948-02
 # Prat, -6230-05941
+# Villa Las Estrellas (a town), King George Island, since 1984-04-09
+# These locations have always used Santiago time; use TZ='America/Santiago'.
 
 # China - year-round bases
 # Great Wall, King George Island, since 1985-02-20
@@ -218,6 +220,15 @@ Rule	NZAQ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 # 6 hours behind that (although only 2 miles away, i.e. 6 hours ahead
 # of GMT). This is a time zone I think two hours east of Moscow. The
 # natural time zone is in between the two: 8 hours ahead of GMT.''
+#
+# From Paul Eggert (2001-05-04):
+# This seems to be hopelessly confusing, so I asked Lee Hotz about it
+# in person.  He said that some Antartic locations set their local
+# time so that noon is the warmest part of the day, and that this
+# changes during the year and does not necessarily correspond to mean
+# solar noon.  So the Vostok time might have been whatever the clocks
+# happened to be during their visit.  So we still don't really know what time
+# it is at Vostok.  But we'll guess UTC+6.
 #
 Zone Antarctica/Vostok	0	-	zzz	1957 Dec 16
 			6:00	-	VOST	# Vostok time
