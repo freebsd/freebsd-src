@@ -67,18 +67,16 @@ struct file_list {
 /*
  * Attributes (flags).
  */
-#define	CONFIGDEP	1
-#define NO_IMPLCT_RULE	2
-#define NO_OBJ		4
-#define BEFORE_DEPEND	8
-#define NEED_COUNT	16
-#define ISDUP		32
+#define NO_IMPLCT_RULE	1
+#define NO_OBJ		2
+#define BEFORE_DEPEND	4
+#define NEED_COUNT	8
+#define ISDUP		16
 
 struct device {
 	int	d_done;			/* processed */
 	char	*d_name;		/* name of device (e.g. rk11) */
 	int	d_count;		/* device count */
-#define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
 	struct	device *d_next;		/* Next one in list */
 };
