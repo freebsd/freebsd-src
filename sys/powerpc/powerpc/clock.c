@@ -310,16 +310,12 @@ decr_get_timecount(struct timecounter *tc)
 void
 delay(int n)
 {
-	u_quad_t	tb;
-	u_long		tbh, tbl, scratch;
+	u_quad_t	tb, ttb;
 	
 	tb = mftb();
-	tb += (n * 1000 + ns_per_tick - 1) / ns_per_tick;
-	tbh = tb >> 32;
-	tbl = tb;
-	__asm ("1: mftbu %0; cmplw %0,%1; blt 1b; bgt 2f;"
-	       "mftb %0; cmplw %0,%2; blt 1b; 2:"
-	       : "=r"(scratch) : "r"(tbh), "r"(tbl));
+	ttb = tb + (n * 1000 + ns_per_tick - 1) / ns_per_tick;
+	while (tb < ttb)
+		tb = mftb();
 }
 
 /*
