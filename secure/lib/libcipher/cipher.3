@@ -27,23 +27,20 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: crypt.3,v 1.1 1994/09/07 08:55:24 g89r4222 Exp $
+.\"	$Id: crypt.3,v 1.5 1995/07/25 14:03:49 mark Exp $
 .\"
 .\" Manual page, using -mandoc macros
 .\"
 .Dd March 9, 1994
-.Dt CRYPT 3
+.Dt CIPHER 3
 .Os "FreeSec 1.0"
 .Sh NAME
-.Nm crypt ,
 .Nm setkey ,
 .Nm encrypt ,
 .Nm des_setkey ,
 .Nm des_cipher ,
 .Nd DES encryption
 .Sh SYNOPSIS
-.Ft char
-.Fn *crypt "const char *key" "const char *setting"
 .Ft int
 .Fn setkey "char *key"
 .Ft int
@@ -53,82 +50,6 @@
 .Ft int
 .Fn des_cipher "const char *in" "char *out" "long salt" "int count"
 .Sh DESCRIPTION
-The
-.Fn crypt
-function performs password encryption, based on the
-.Tn NBS
-Data Encryption Standard (DES).
-Additional code has been added to deter key search attempts.
-The first argument to
-.Nm crypt
-is a
-.Dv null Ns -terminated
-string, typically a user's typed password.
-The second is in one of two forms:
-if it begins with an underscore (``_'') then an extended format is used
-in interpreting both the the key and the setting, as outlined below.
-.Ss Extended crypt:
-.Pp
-The
-.Ar key
-is divided into groups of 8 characters (the last group is null-padded)
-and the low-order 7 bits of each each character (56 bits per group) are
-used to form the DES key as follows:
-the first group of 56 bits becomes the initial DES key.
-For each additional group, the XOR of the encryption of the current DES
-key with itself and the group bits becomes the next DES key.
-.Pp
-The setting is a 9-character array consisting of an underscore followed
-by 4 bytes of iteration count and 4 bytes of salt.
-These are encoded as printable characters, 6 bits per character,
-least significant character first.
-The values 0 to 63 are encoded as ``./0-9A-Za-z''.
-This allows 24 bits for both
-.Fa count
-and
-.Fa salt .
-.Ss "Traditional" crypt:
-.Pp
-The first 8 bytes of the key are null-padded, and the low-order 7 bits of
-each character is used to form the 56-bit
-.Tn DES
-key.
-.Pp
-The setting is a 2-character array of the ASCII-encoded salt.
-Thus only 12 bits of
-.Fa salt
-are used.
-.Fa count
-is set to 25.
-.Ss Algorithm:
-.Pp
-The
-.Fa salt
-introduces disorder in the
-.Tn DES
-algorithm in one of 16777216 or 4096 possible ways
-(ie. with 24 or 12 bits: if bit
-.Em i
-of the
-.Ar salt
-is set, then bits
-.Em i
-and
-.Em i+24
-are swapped in the
-.Tn DES
-E-box output).
-.Pp
-The DES key is used to encrypt a 64-bit constant using
-.Ar count
-iterations of
-.Tn DES .
-The value returned is a
-.Dv null Ns -terminated
-string, 20 or 13 bytes (plus null) in length, consisting of the
-.Ar setting
-followed by the encoded 64-bit encryption.
-.Pp
 The functions,
 .Fn encrypt ,
 .Fn setkey ,
@@ -137,7 +58,7 @@ and
 .Fn des_cipher
 provide access to the
 .Tn DES
-algorithm itself.
+algorithm.
 .Fn setkey
 is passed a 64-byte array of binary values (numeric 0 or 1).
 A 56-bit key is extracted from this array by dividing the
@@ -185,13 +106,21 @@ and stores the 64-bit result in the 8 characters at
 ).
 The
 .Fa salt
-specifies perturbations to the
+introduces disorder in the
 .Tn DES
-E-box output as described above.
+algorithm in one of 16777216 or 4096 possible ways
+(ie. with 24 or 12 bits: if bit
+.Em i
+of the
+.Ar salt
+is set, then bits
+.Em i
+and
+.Em i+24
+are swapped in the
+.Tn DES
+E-box output).
 .Pp
-The function
-.Fn crypt
-returns a pointer to the encrypted value on success, and NULL on failure.
 The functions
 .Fn setkey ,
 .Fn encrypt ,
@@ -201,32 +130,17 @@ and
 return 0 on success and 1 on failure.
 .Pp
 The
-.Fn crypt ,
 .Fn setkey
 and
 .Fn des_setkey
-functions all manipulate the same key space.
+functions manipulate the same key space.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
 .Xr getpass 3 ,
+.Xr crypt 3 ,
 .Xr passwd 5
-.Sh BUGS
-The
-.Fn crypt
-function returns a pointer to static data, and subsequent calls to
-.Fn crypt
-will modify the same object.
 .Sh HISTORY
-A rotor-based
-.Fn crypt
-function appeared in
-.At v6 .
-The current style
-.Fn crypt
-first appeared in
-.At v7 .
-.Pp
 This library (FreeSec 1.0) was developed outside the United States of America
 as an unencumbered replacement for the U.S.-only NetBSD libcrypt encryption
 library.
