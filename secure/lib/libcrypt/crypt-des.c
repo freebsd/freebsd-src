@@ -4,6 +4,10 @@
  * Copyright (c) 1994 David Burren
  * All rights reserved.
  *
+ * Adapted for FreeBSD-2.0 by Geoffrey M. Rehmet
+ *	crypt.c should now *only* export crypt(), in order to make
+ *	binaries of libcrypt exportable from the USA
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -57,6 +61,11 @@
 
 #ifdef DEBUG
 # include <stdio.h>
+#endif
+
+/* We can't always assume gcc */
+#ifdef __GNUC__
+#define INLINE inline
 #endif
 
 
@@ -184,7 +193,7 @@ static u_char	ascii64[] =
 /*	  0000000000111111111122222222223333333333444444444455555555556666 */
 /*	  0123456789012345678901234567890123456789012345678901234567890123 */
 
-static inline int
+static INLINE int
 ascii_to_bin(char ch)
 {
 	if (ch > 'z')
@@ -202,7 +211,6 @@ ascii_to_bin(char ch)
 	return(0);
 }
 
-
 static void
 des_init()
 {
@@ -333,7 +341,6 @@ des_init()
 	des_initialised = 1;
 }
 
-
 static void
 setup_salt(long salt)
 {
@@ -355,8 +362,7 @@ setup_salt(long salt)
 	}
 }
 
-
-int
+static int
 des_setkey(const char *key)
 {
 	u_long	k0, k1, rawkey0, rawkey1;
@@ -437,7 +443,6 @@ des_setkey(const char *key)
 	return(0);
 }
 
-
 static int
 do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
 {
@@ -554,8 +559,7 @@ do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
 	return(0);
 }
 
-
-int
+static int
 des_cipher(const char *in, char *out, long salt, int count)
 {
 	u_long	l_out, r_out, rawl, rawr;
@@ -576,52 +580,7 @@ des_cipher(const char *in, char *out, long salt, int count)
 	return(retval);
 }
 
-
-int
-setkey(char *key)
-{
-	int	i, j;
-	u_long	packed_keys[2];
-	u_char	*p;
 
-	p = (u_char *) packed_keys;
-
-	for (i = 0; i < 8; i++) {
-		p[i] = 0;
-		for (j = 0; j < 8; j++)
-			if (*key++ & 1)
-				p[i] |= bits8[j];
-	}
-	return(des_setkey(p));
-}
-
-
-int
-encrypt(char *block, int flag)
-{
-	u_long	io[2];
-	u_char	*p;
-	int	i, j, retval;
-
-	if (!des_initialised)
-		des_init();
-
-	setup_salt(0L);
-	p = block;
-	for (i = 0; i < 2; i++) {
-		io[i] = 0L;
-		for (j = 0; j < 32; j++)
-			if (*p++ & 1)
-				io[i] |= bits32[j];
-	}
-	retval = do_des(io[0], io[1], io, io + 1, flag ? -1 : 1);
-	for (i = 0; i < 2; i++)
-		for (j = 0; j < 32; j++)
-			block[(i << 5) | j] = (io[i] & bits32[j]) ? 1 : 0;
-	return(retval);
-}
-
-
 char *
 crypt(char *key, char *setting)
 {
