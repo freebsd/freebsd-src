@@ -31,6 +31,7 @@ struct cmdargs;
 
 extern int nat_RedirectPort(struct cmdargs const *);
 extern int nat_RedirectAddr(struct cmdargs const *);
+extern int nat_RedirectProto(struct cmdargs const *);
 extern int nat_ProxyRule(struct cmdargs const *);
 extern int nat_SetTarget(struct cmdargs const *);
 
