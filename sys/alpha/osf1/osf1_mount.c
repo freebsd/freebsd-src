@@ -150,11 +150,11 @@ osf1_fstatfs(td, uap)
 	struct statfs *sp;
 	struct osf1_statfs osfs;
 
-	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)))
+	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)))
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if ((error = VFS_STATFS(mp, sp, p)))
+	if ((error = VFS_STATFS(mp, sp, td)))
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	bsd2osf_statfs(sp, &osfs);
@@ -163,8 +163,8 @@ osf1_fstatfs(td, uap)
 }
 
 int
-osf1_getfsstat(p, uap)
-	struct proc *p;
+osf1_getfsstat(td, uap)
+	struct thread *td;
 	register struct osf1_getfsstat_args *uap;
 {
 	long count, error, maxcount;
@@ -189,7 +189,7 @@ osf1_getfsstat(p, uap)
 			 */
 			if (((SCARG(uap, flags) & OSF1_MNT_NOWAIT) == 0 ||
 			    (SCARG(uap, flags) & OSF1_MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, p)))
+			    (error = VFS_STATFS(mp, sp, td)))
 				continue;
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			bsd2osf_statfs(sp, &osfs);
@@ -209,8 +209,8 @@ osf1_getfsstat(p, uap)
 }
 
 int
-osf1_unmount(p, uap)
-	struct proc *p;
+osf1_unmount(td, uap)
+	struct thread *td;
 	struct osf1_unmount_args *uap;
 {
 	struct unmount_args a;
@@ -224,12 +224,12 @@ osf1_unmount(p, uap)
 	    (SCARG(uap, flags) & OSF1_MNT_NOFORCE) == 0)
 		SCARG(&a, flags) |= MNT_FORCE;
 
-	return unmount(p, &a);
+	return unmount(td, &a);
 }
 
 int
-osf1_mount(p, uap)
-	struct proc *p;
+osf1_mount(td, uap)
+	struct thread *td;
 	struct osf1_mount_args *uap;
 {
 	int error;
@@ -247,13 +247,13 @@ osf1_mount(p, uap)
 		break;
 
 	case OSF1_MOUNT_NFS:				/* XXX */
-		if ((error = osf1_mount_nfs(p, uap, &a)))
+		if ((error = osf1_mount_nfs(td, uap, &a)))
 			return error;
 		break;
 
 	case OSF1_MOUNT_MFS:				/* XXX */
 #ifdef notyet
-		if ((error = osf1_mount_mfs(p, uap, &a)))
+		if ((error = osf1_mount_mfs(td, uap, &a)))
 			return error;
 #endif
 		return EINVAL;
@@ -280,12 +280,12 @@ osf1_mount(p, uap)
 		return (EINVAL);
 	}
 
-	return mount(p, &a);
+	return mount(td, &a);
 }
 
 int
-osf1_mount_mfs(p, osf_argp, bsd_argp)
-	struct proc *p;
+osf1_mount_mfs(td, osf_argp, bsd_argp)
+	struct thread *td;
 	struct osf1_mount_args *osf_argp;
 	struct mount_args *bsd_argp;
 {
@@ -320,8 +320,8 @@ osf1_mount_mfs(p, osf_argp, bsd_argp)
 }
 
 int
-osf1_mount_nfs(p, osf_argp, bsd_argp)
-	struct proc *p;
+osf1_mount_nfs(td, osf_argp, bsd_argp)
+	struct thread *td;
 	struct osf1_mount_args *osf_argp;
 	struct mount_args *bsd_argp;
 {
