@@ -38,7 +38,8 @@
  */
 struct sn_softc {
 	struct arpcom   arpcom;	/* Ethernet common part */
-	short           sn_io_addr;	/* i/o bus address (BASE) */
+	bus_space_tag_t	bst;
+	bus_space_handle_t bsh;
 	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
 	int             intr_mask;	/* Most recently set interrupt mask */
 	device_t	dev;
@@ -57,5 +58,29 @@ void	sn_intr(void *);
 
 int	sn_activate(device_t);
 void	sn_deactivate(device_t);
+
+#define CSR_READ_1(sc, off) (bus_space_read_1((sc)->bst, (sc)->bsh, off))
+#define CSR_READ_2(sc, off) (bus_space_read_2((sc)->bst, (sc)->bsh, off))
+#define CSR_WRITE_1(sc, off, val) \
+	bus_space_write_1(sc->bst, sc->bsh, off, val)
+#define CSR_WRITE_2(sc, off, val) \
+	bus_space_write_2(sc->bst, sc->bsh, off, val)
+#define CSR_WRITE_MULTI_1(sc, off, addr, count) \
+	bus_space_write_multi_1(sc->bst, sc->bsh, off, addr, count)
+#define CSR_WRITE_MULTI_2(sc, off, addr, count) \
+	bus_space_write_multi_2(sc->bst, sc->bsh, off, addr, count)
+#define CSR_READ_MULTI_1(sc, off, addr, count) \
+	bus_space_read_multi_1(sc->bst, sc->bsh, off, addr, count)
+#define CSR_READ_MULTI_2(sc, off, addr, count) \
+	bus_space_read_multi_2(sc->bst, sc->bsh, off, addr, count)
+
+#define SN_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	SN_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define SN_LOCK_INIT(_sc) \
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define SN_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define SN_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define SN_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 #endif /* _IF_SNVAR_H */
