@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.6 1996/06/30 02:46:44 alex Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.7 1996/07/01 21:30:28 roberto Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -137,7 +137,7 @@ packets through <tt>syslogd(8)</tt>. Without this option, even if you
 specify that packets should be logged in the filter rules, nothing
 will happen.
 
-<tag/options "IPFIREWALL_VERBOSE_LIMIT=10"/ Limits the number of
+<tag/options IPFIREWALL_VERBOSE_LIMIT=10/ Limits the number of
 packets logged through <tt>syslogd(8)</tt> on a per entry basis.
 You may wish to use this option in hostile environments in which
 you want to log firewall activity, but do not want to be open to

@@ -1,4 +1,4 @@
-<!-- $Id: sio.sgml,v 1.1 1996/02/16 13:28:21 jkh Exp $ -->
+<!-- $Id: sio.sgml,v 1.2 1996/03/26 23:22:03 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -25,7 +25,7 @@
 	    Here is a config snippet from a machine with
 	    a Digi International PC/8 with 16550.  It has 8 modems connected
 	    to these 8 lines, and they work just great.  Do not
-	    forget to add <tt>options "COM_MULTIPORT"</tt> or it
+	    forget to add <tt>options COM_MULTIPORT</tt> or it
 	    will not work very well!
 
 <tscreen><verb>
@@ -82,7 +82,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	    <enum>
 		<item>Add the line 
 <tscreen><verb>
-options "COM_MULTIPORT"
+options COM_MULTIPORT
 </verb></tscreen>
 to the config file.
 </item>
