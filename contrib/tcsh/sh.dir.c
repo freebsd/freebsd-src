@@ -814,6 +814,7 @@ dcanon(cp, p)
 #ifdef apollo
     bool    slashslash;
 #endif /* apollo */
+    size_t  clen;
 
 #ifdef S_IFLNK			/* if we have symlinks */
     Char    link[MAXPATHLEN];
@@ -823,34 +824,40 @@ dcanon(cp, p)
 #endif /* S_IFLNK */
 
     /*
-     * kim: if the path given is too long abort().
+     * if the path given is too long truncate it!
      */
-    if (Strlen(cp) >= MAXPATHLEN)
-	abort();
+    if ((clen = Strlen(cp)) >= MAXPATHLEN)
+	cp[clen = MAXPATHLEN - 1] = '\0';
 
     /*
      * christos: if the path given does not start with a slash prepend cwd. If
-     * cwd does not start with a slash or the result would be too long abort().
+     * cwd does not start with a slash or the result would be too long try to
+     * correct it.
      */
     if (!ABSOLUTEP(cp)) {
 	Char    tmpdir[MAXPATHLEN];
+	size_t	len;
 
 	p1 = varval(STRcwd);
-	if (p1 == STRNULL || !ABSOLUTEP(p1))
-	    abort();
-	if (Strlen(p1) + Strlen(cp) + 1 >= MAXPATHLEN)
-	    abort();
+	if (p1 == STRNULL || !ABSOLUTEP(p1)) {
+	    char *tmp = (char *)getcwd((char *)tmpdir, sizeof(tmpdir));
+	    if (tmp == NULL || *tmp == '\0') {
+		xprintf("%s: %s\n", progname, strerror(errno));
+		set(STRcwd, SAVE("/"), VAR_READWRITE|VAR_NOGLOB);
+	    } else {
+		set(STRcwd, SAVE(tmp), VAR_READWRITE|VAR_NOGLOB);
+	    }
+	    p1 = varval(STRcwd);
+	}
+	len = Strlen(p1);
+	if (len + clen + 1 >= MAXPATHLEN)
+	    cp[MAXPATHLEN - (len + 1)] = '\0';
 	(void) Strcpy(tmpdir, p1);
 	(void) Strcat(tmpdir, STRslash);
 	(void) Strcat(tmpdir, cp);
 	xfree((ptr_t) cp);
 	cp = p = Strsave(tmpdir);
     }
-
-#ifdef COMMENT
-    if (*cp != '/')
-	abort();
-#endif /* COMMENT */
 
 #ifdef apollo
     slashslash = (cp[0] == '/' && cp[1] == '/');
