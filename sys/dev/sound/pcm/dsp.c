@@ -30,7 +30,7 @@
 #include <sys/queue.h>
 #include <sys/kernel.h>
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 static int getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch);
 

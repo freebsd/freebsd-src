@@ -28,12 +28,12 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 #if NPCM > 0
 
 /* board-specific include files */
-#include <dev/pcm/isa/mss.h>
+#include <dev/sound/isa/mss.h>
 
 struct mss_info;
 
