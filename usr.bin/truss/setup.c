@@ -27,25 +27,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Various setup functions for truss.  Not the cleanest-written code,
  * I'm afraid.
  */
-/*
- * $Id: setup.c,v 1.5 1997/12/13 03:13:47 sef Exp $
- */
 
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <err.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
 #include <sys/types.h>
@@ -66,7 +67,6 @@ setup_and_wait(char *command[]) {
   char buf[32];
   int fd;
   int pid;
-  extern char *prog;
   int flags;
 
   pid = vfork();
@@ -88,7 +88,7 @@ setup_and_wait(char *command[]) {
      * we want.
      */
     if (ioctl(fd, PIOCSFL, flags) == -1)
-      perror("cannot set PF_LINGER");
+      warn("cannot set PF_LINGER");
     execvp(command[0], command);
     mask = ~0;
     ioctl(fd, PIOCBIC, ~0);
@@ -151,7 +151,7 @@ start_tracing(int pid, int flags) {
    */
 
   if (ioctl(fd, PIOCSFL, 0) == -1)
-    perror("cannot clear PF_LINGER");
+    warn("cannot clear PF_LINGER");
 
   return fd;
 }

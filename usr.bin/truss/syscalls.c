@@ -27,17 +27,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * This file has routines used to print out system calls and their
  * arguments.
  */
-/*
- * $Id: syscalls.c,v 1.2 1997/12/06 06:51:14 sef Exp $
- */
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,8 +77,10 @@ struct syscall syscalls[] = {
 	  { { Int, 0}, { Ioctl, 1 }, { Hex, 2 }}},
 	{ "break", 1, 1, { { Hex, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
-	{ 0, 0, 0, { 0, 0 } },
+	{ 0, 0, 0, { { 0, 0 }}},
 };
+
+char * ioctlname __P((int));
 
 /*
  * If/when the list gets big, it might be desirable to do it
@@ -104,14 +108,12 @@ get_syscall(const char *name) {
 
 char *
 get_string(int procfd, void *offset, int max) {
-	char *buf, *tmp;
+	char *buf;
 	int size, len, c;
 	FILE *p;
 
-	if ((p = fdopen(procfd, "r")) == NULL) {
-		perror("fdopen");
-		exit(1);
-	}
+	if ((p = fdopen(procfd, "r")) == NULL)
+		err(1, "fdopen");
 	buf = malloc( size = (max ? max : 64 ) );
 	len = 0;
 	fseek(p, (long)offset, SEEK_SET);
@@ -164,7 +166,7 @@ make_quad(unsigned long p1, unsigned long p2) {
 
 char *
 print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
-  char *tmp;
+  char *tmp = NULL;
   switch (sc->type & ARG_MASK) {
   case Hex:
     tmp = malloc(12);
