@@ -1,5 +1,3 @@
-static volatile int print_tci = 1;
-
 /*-
  * Copyright (c) 1997, 1998 Poul-Henning Kamp <phk@FreeBSD.org>
  * Copyright (c) 1982, 1986, 1991, 1993
@@ -39,7 +37,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.79 1998/09/15 10:05:18 gibbs Exp $
+ * $Id: kern_clock.c,v 1.80 1998/10/06 23:17:44 alex Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +46,7 @@ static volatile int print_tci = 1;
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/timex.h>
@@ -68,6 +67,16 @@ static volatile int print_tci = 1;
 #include <machine/smp.h>
 #endif
 
+/*
+ * Number of timecounters used to implement stable storage
+ */
+#ifndef NTIMECOUNTER
+#define NTIMECOUNTER	2
+#endif
+
+static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
+	"Timecounter stable storage");
+
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
@@ -87,9 +96,30 @@ long tk_nin;
 long tk_nout;
 long tk_rawcc;
 
-struct timecounter *timecounter;
-
 time_t time_second;
+
+/*
+ * Implement a dummy timecounter which we can use until we get a real one
+ * in the air.  This allows the console and other early stuff to use
+ * timeservices.
+ */
+
+static unsigned 
+dummy_get_timecount(struct timecounter *tc)
+{
+	static unsigned now;
+	return (++now);
+}
+
+static struct timecounter dummy_timecounter = {
+	dummy_get_timecount,
+	0,
+	~0u,
+	1000000,
+	"dummy"
+};
+
+struct timecounter *timecounter = &dummy_timecounter;
 
 /*
  * Clock handling routines.
@@ -634,32 +664,28 @@ void
 init_timecounter(struct timecounter *tc)
 {
 	struct timespec ts0, ts1;
+	struct timecounter *t1, *t2, *t3;
 	int i;
 
 	tc->tc_adjustment = 0;
 	tco_setscales(tc);
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
-	tc[0].tc_tweak = &tc[0];
-	tc[2] = tc[1] = tc[0];
-	tc[1].tc_other = &tc[2];
-	tc[2].tc_other = &tc[1];
-	if (!timecounter || !strcmp(timecounter->tc_name, "dummy"))
-		timecounter = &tc[2];
-	tc = &tc[1];
+	tc->tc_tweak = tc;
+	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK);
+	*t1 = *tc;
+	t2 = t1;
+	for (i = 1; i < NTIMECOUNTER; i++) {
+		MALLOC(t3, struct timecounter *, sizeof *t3,
+		    M_TIMECOUNTER, M_WAITOK);
+		*t3 = *tc;
+		t3->tc_other = t2;
+		t2 = t3;
+	}
+	t1->tc_other = t3;
+	tc = t1;
 
-	/* 
-	 * Figure out the cost of calling this timecounter.
-	 */
-	nanotime(&ts0);
-	for (i = 0; i < 256; i ++) 
-		tc->tc_get_timecount(tc);
-	nanotime(&ts1);
-	ts1.tv_sec -= ts0.tv_sec;
-	tc->tc_cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
-	tc->tc_cost >>= 8;
-	if (print_tci && strcmp(tc->tc_name, "dummy"))
-		printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
-		    tc->tc_name, (u_long)tc->tc_frequency, tc->tc_cost);
+	printf("Timecounter \"%s\"  frequency %lu Hz\n", 
+	    tc->tc_name, (u_long)tc->tc_frequency);
 
 	/* XXX: For now always start using the counter. */
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
@@ -804,34 +830,3 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT | CTLFLAG_RW,
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), sysctl_kern_timecounter_adjustment, "I", "");
-
-/*
- * Implement a dummy timecounter which we can use until we get a real one
- * in the air.  This allows the console and other early stuff to use
- * timeservices.
- */
-
-static unsigned 
-dummy_get_timecount(struct timecounter *tc)
-{
-	static unsigned now;
-	return (++now);
-}
-
-static struct timecounter dummy_timecounter[3] = {
-	{
-		dummy_get_timecount,
-		0,
-		~0u,
-		1000000,
-		"dummy"
-	}
-};
-
-static void
-initdummytimecounter(void *dummy)
-{
-	init_timecounter(dummy_timecounter);
-}
-
-SYSINIT(dummytc, SI_SUB_CONSOLE, SI_ORDER_FIRST, initdummytimecounter, NULL)
