@@ -860,7 +860,7 @@ chn_setspeed(struct pcm_channel *c, int speed)
 	r = chn_tryspeed(c, speed);
 	if (r) {
 		DEB(printf("Failed to set speed %d falling back to %d\n", speed, oldspeed));
-		chn_tryspeed(c, oldspeed);
+		r = chn_tryspeed(c, oldspeed);
 	}
 	return r;
 }
