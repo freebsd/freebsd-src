@@ -1600,8 +1600,11 @@
     a specific point in the command line arguments rather than at the
     end. &merged;</para>
 
-    <para>&man.apmd.8; now supports monitoring of the battery state via the
-    <literal>apm_battery</literal> configuration directive.</para>
+    <para>&man.apmd.8; now has the ability to monitor battery levels and
+    execute commands based on percentage or minutes of battery life
+    remaining via the <literal>apm_battery</literal> configuration
+    directive.  See the commented out examples in
+    <filename>/etc/apmd.conf<filename> for the syntax. &merged;</para>
 
     <para>&man.telnet.1; now does autologin and encryption by default;
     a new <option>-y</option> option turns off encryption.</para>
