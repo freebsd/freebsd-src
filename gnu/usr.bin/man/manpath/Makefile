@@ -15,6 +15,8 @@ CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.OBJDIR}/../lib
 CLEANFILES+=	${MAN1}
 MANDEPEND+=	${MAN1}
 
+.PATH:	${.CURDIR}/../man
+
 ${MAN1}: ${.CURDIR}/manpath.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
