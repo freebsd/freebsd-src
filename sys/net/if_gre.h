@@ -23,7 +23,7 @@
  * 4. Neither the name of The NetBSD Foundation nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- *    
+ *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -58,15 +58,15 @@ struct gre_softc {
 	const struct encaptab *encap;	/* encapsulation cookie */
 
 	int called;		/* infinite recursion preventer */
-};	
+};
 
 
 struct gre_h {
 	u_int16_t flags;	/* GRE flags */
-	u_int16_t ptype;	/* protocol type of payload typically 
+	u_int16_t ptype;	/* protocol type of payload typically
 				   Ether protocol type*/
-/* 
- *  from here on: fields are optional, presence indicated by flags 
+/*
+ *  from here on: fields are optional, presence indicated by flags
  *
 	u_int_16 checksum	checksum (one-complements of GRE header
 				and payload
@@ -118,7 +118,7 @@ struct greip {
 struct gre_sre {
 	u_int16_t sre_family;	/* address family */
 	u_char	sre_offset;	/* offset to first octet of active entry */
-	u_char	sre_length;	/* number of octets in the SRE. 
+	u_char	sre_length;	/* number of octets in the SRE.
 				   sre_lengthl==0 -> last entry. */
 	u_char	*sre_rtinfo;	/* the routing information */
 };
@@ -151,12 +151,12 @@ struct mobip_h {
 
 #endif /* _KERNEL */
 
-/* 
- * ioctls needed to manipulate the interface 
+/*
+ * ioctls needed to manipulate the interface
  */
 
 #define GRESADDRS	_IOW('i', 101, struct ifreq)
-#define GRESADDRD	_IOW('i', 102, struct ifreq)   
+#define GRESADDRD	_IOW('i', 102, struct ifreq)
 #define GREGADDRS	_IOWR('i', 103, struct ifreq)
 #define GREGADDRD	_IOWR('i', 104, struct ifreq)
 #define GRESPROTO	_IOW('i' , 105, struct ifreq)
