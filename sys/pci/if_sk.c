@@ -178,68 +178,68 @@ static struct sk_type sk_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int skc_probe		(device_t);
-static int skc_attach		(device_t);
-static int skc_detach		(device_t);
-static void skc_shutdown	(device_t);
-static int sk_detach		(device_t);
-static int sk_probe		(device_t);
-static int sk_attach		(device_t);
-static void sk_tick		(void *);
-static void sk_intr		(void *);
-static void sk_intr_xmac	(struct sk_if_softc *);
-static void sk_intr_bcom	(struct sk_if_softc *);
-static void sk_intr_yukon	(struct sk_if_softc *);
-static void sk_rxeof		(struct sk_if_softc *);
-static void sk_txeof		(struct sk_if_softc *);
-static int sk_encap		(struct sk_if_softc *, struct mbuf *,
+static int skc_probe(device_t);
+static int skc_attach(device_t);
+static int skc_detach(device_t);
+static void skc_shutdown(device_t);
+static int sk_detach(device_t);
+static int sk_probe(device_t);
+static int sk_attach(device_t);
+static void sk_tick(void *);
+static void sk_intr(void *);
+static void sk_intr_xmac(struct sk_if_softc *);
+static void sk_intr_bcom(struct sk_if_softc *);
+static void sk_intr_yukon(struct sk_if_softc *);
+static void sk_rxeof(struct sk_if_softc *);
+static void sk_txeof(struct sk_if_softc *);
+static int sk_encap(struct sk_if_softc *, struct mbuf *,
 					u_int32_t *);
-static void sk_start		(struct ifnet *);
-static int sk_ioctl		(struct ifnet *, u_long, caddr_t);
-static void sk_init		(void *);
-static void sk_init_xmac	(struct sk_if_softc *);
-static void sk_init_yukon	(struct sk_if_softc *);
-static void sk_stop		(struct sk_if_softc *);
-static void sk_watchdog		(struct ifnet *);
-static int sk_ifmedia_upd	(struct ifnet *);
-static void sk_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-static void sk_reset		(struct sk_softc *);
-static int sk_newbuf		(struct sk_if_softc *,
+static void sk_start(struct ifnet *);
+static int sk_ioctl(struct ifnet *, u_long, caddr_t);
+static void sk_init(void *);
+static void sk_init_xmac(struct sk_if_softc *);
+static void sk_init_yukon(struct sk_if_softc *);
+static void sk_stop(struct sk_if_softc *);
+static void sk_watchdog(struct ifnet *);
+static int sk_ifmedia_upd(struct ifnet *);
+static void sk_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static void sk_reset(struct sk_softc *);
+static int sk_newbuf(struct sk_if_softc *,
 					struct sk_chain *, struct mbuf *);
-static int sk_alloc_jumbo_mem	(struct sk_if_softc *);
-static void *sk_jalloc		(struct sk_if_softc *);
-static void sk_jfree		(void *, void *);
-static int sk_init_rx_ring	(struct sk_if_softc *);
-static void sk_init_tx_ring	(struct sk_if_softc *);
-static u_int32_t sk_win_read_4	(struct sk_softc *, int);
-static u_int16_t sk_win_read_2	(struct sk_softc *, int);
-static u_int8_t sk_win_read_1	(struct sk_softc *, int);
-static void sk_win_write_4	(struct sk_softc *, int, u_int32_t);
-static void sk_win_write_2	(struct sk_softc *, int, u_int32_t);
-static void sk_win_write_1	(struct sk_softc *, int, u_int32_t);
-static u_int8_t sk_vpd_readbyte	(struct sk_softc *, int);
-static void sk_vpd_read_res	(struct sk_softc *, struct vpd_res *, int);
-static void sk_vpd_read		(struct sk_softc *);
+static int sk_alloc_jumbo_mem(struct sk_if_softc *);
+static void *sk_jalloc(struct sk_if_softc *);
+static void sk_jfree(void *, void *);
+static int sk_init_rx_ring(struct sk_if_softc *);
+static void sk_init_tx_ring(struct sk_if_softc *);
+static u_int32_t sk_win_read_4(struct sk_softc *, int);
+static u_int16_t sk_win_read_2(struct sk_softc *, int);
+static u_int8_t sk_win_read_1(struct sk_softc *, int);
+static void sk_win_write_4(struct sk_softc *, int, u_int32_t);
+static void sk_win_write_2(struct sk_softc *, int, u_int32_t);
+static void sk_win_write_1(struct sk_softc *, int, u_int32_t);
+static u_int8_t sk_vpd_readbyte(struct sk_softc *, int);
+static void sk_vpd_read_res(struct sk_softc *, struct vpd_res *, int);
+static void sk_vpd_read(struct sk_softc *);
 
-static int sk_miibus_readreg	(device_t, int, int);
-static int sk_miibus_writereg	(device_t, int, int, int);
-static void sk_miibus_statchg	(device_t);
+static int sk_miibus_readreg(device_t, int, int);
+static int sk_miibus_writereg(device_t, int, int, int);
+static void sk_miibus_statchg(device_t);
 
-static int sk_xmac_miibus_readreg	(struct sk_if_softc *, int, int);
-static int sk_xmac_miibus_writereg	(struct sk_if_softc *, int, int,
+static int sk_xmac_miibus_readreg(struct sk_if_softc *, int, int);
+static int sk_xmac_miibus_writereg(struct sk_if_softc *, int, int,
 						int);
-static void sk_xmac_miibus_statchg	(struct sk_if_softc *);
+static void sk_xmac_miibus_statchg(struct sk_if_softc *);
 
-static int sk_marv_miibus_readreg	(struct sk_if_softc *, int, int);
-static int sk_marv_miibus_writereg	(struct sk_if_softc *, int, int,
+static int sk_marv_miibus_readreg(struct sk_if_softc *, int, int);
+static int sk_marv_miibus_writereg(struct sk_if_softc *, int, int,
 						int);
-static void sk_marv_miibus_statchg	(struct sk_if_softc *);
+static void sk_marv_miibus_statchg(struct sk_if_softc *);
 
-static uint32_t sk_xmchash	(const uint8_t *);
-static uint32_t sk_gmchash	(const uint8_t *);
-static void sk_setfilt		(struct sk_if_softc *, caddr_t, int);
-static void sk_setmulti		(struct sk_if_softc *);
-static void sk_setpromisc	(struct sk_if_softc *);
+static uint32_t sk_xmchash(const uint8_t *);
+static uint32_t sk_gmchash(const uint8_t *);
+static void sk_setfilt(struct sk_if_softc *, caddr_t, int);
+static void sk_setmulti(struct sk_if_softc *);
+static void sk_setpromisc(struct sk_if_softc *);
 
 #ifdef SK_USEIOSPACE
 #define SK_RES		SYS_RES_IOPORT
@@ -1241,7 +1241,7 @@ skc_probe(dev)
 		if ((pci_get_vendor(dev) == t->sk_vid) &&
 		    (pci_get_device(dev) == t->sk_did)) {
 			device_set_desc(dev, t->sk_name);
-			return(0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
@@ -1319,7 +1319,7 @@ sk_probe(dev)
 		break;
 	}
 
-	return(0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*

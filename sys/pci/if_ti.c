@@ -195,67 +195,63 @@ static struct cdevsw ti_cdevsw = {
 	.d_name =	"ti",
 };
 
-static int ti_probe		(device_t);
-static int ti_attach		(device_t);
-static int ti_detach		(device_t);
-static void ti_txeof		(struct ti_softc *);
-static void ti_rxeof		(struct ti_softc *);
+static int ti_probe(device_t);
+static int ti_attach(device_t);
+static int ti_detach(device_t);
+static void ti_txeof(struct ti_softc *);
+static void ti_rxeof(struct ti_softc *);
 
-static void ti_stats_update	(struct ti_softc *);
-static int ti_encap		(struct ti_softc *, struct mbuf *, u_int32_t *);
+static void ti_stats_update(struct ti_softc *);
+static int ti_encap(struct ti_softc *, struct mbuf *, u_int32_t *);
 
-static void ti_intr		(void *);
-static void ti_start		(struct ifnet *);
-static int ti_ioctl		(struct ifnet *, u_long, caddr_t);
-static void ti_init		(void *);
-static void ti_init2		(struct ti_softc *);
-static void ti_stop		(struct ti_softc *);
-static void ti_watchdog		(struct ifnet *);
-static void ti_shutdown		(device_t);
-static int ti_ifmedia_upd	(struct ifnet *);
-static void ti_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void ti_intr(void *);
+static void ti_start(struct ifnet *);
+static int ti_ioctl(struct ifnet *, u_long, caddr_t);
+static void ti_init(void *);
+static void ti_init2(struct ti_softc *);
+static void ti_stop(struct ti_softc *);
+static void ti_watchdog(struct ifnet *);
+static void ti_shutdown(device_t);
+static int ti_ifmedia_upd(struct ifnet *);
+static void ti_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static u_int32_t ti_eeprom_putbyte	(struct ti_softc *, int);
-static u_int8_t	ti_eeprom_getbyte	(struct ti_softc *, int, u_int8_t *);
-static int ti_read_eeprom	(struct ti_softc *, caddr_t, int, int);
+static u_int32_t ti_eeprom_putbyte(struct ti_softc *, int);
+static u_int8_t	ti_eeprom_getbyte(struct ti_softc *, int, u_int8_t *);
+static int ti_read_eeprom(struct ti_softc *, caddr_t, int, int);
 
-static void ti_add_mcast	(struct ti_softc *, struct ether_addr *);
-static void ti_del_mcast	(struct ti_softc *, struct ether_addr *);
-static void ti_setmulti		(struct ti_softc *);
+static void ti_add_mcast(struct ti_softc *, struct ether_addr *);
+static void ti_del_mcast(struct ti_softc *, struct ether_addr *);
+static void ti_setmulti(struct ti_softc *);
 
-static void ti_mem		(struct ti_softc *, u_int32_t,
-					u_int32_t, caddr_t);
-static int ti_copy_mem		(struct ti_softc *, u_int32_t,
-					u_int32_t, caddr_t, int, int);
-static int ti_copy_scratch	(struct ti_softc *, u_int32_t,
-					u_int32_t, caddr_t, int, int, int);
-static int ti_bcopy_swap	(const void *, void *, size_t,
-					ti_swap_type);
-static void ti_loadfw		(struct ti_softc *);
-static void ti_cmd		(struct ti_softc *, struct ti_cmd_desc *);
-static void ti_cmd_ext		(struct ti_softc *, struct ti_cmd_desc *,
-					caddr_t, int);
-static void ti_handle_events	(struct ti_softc *);
+static void ti_mem(struct ti_softc *, u_int32_t, u_int32_t, caddr_t);
+static int ti_copy_mem(struct ti_softc *, u_int32_t, u_int32_t, caddr_t, int, int);
+static int ti_copy_scratch(struct ti_softc *, u_int32_t, u_int32_t, caddr_t,
+		int, int, int);
+static int ti_bcopy_swap(const void *, void *, size_t, ti_swap_type);
+static void ti_loadfw(struct ti_softc *);
+static void ti_cmd(struct ti_softc *, struct ti_cmd_desc *);
+static void ti_cmd_ext(struct ti_softc *, struct ti_cmd_desc *, caddr_t, int);
+static void ti_handle_events(struct ti_softc *);
 #ifdef TI_PRIVATE_JUMBOS
-static int ti_alloc_jumbo_mem	(struct ti_softc *);
-static void *ti_jalloc		(struct ti_softc *);
-static void ti_jfree		(void *, void *);
+static int ti_alloc_jumbo_mem(struct ti_softc *);
+static void *ti_jalloc(struct ti_softc *);
+static void ti_jfree(void *, void *);
 #endif /* TI_PRIVATE_JUMBOS */
-static int ti_newbuf_std	(struct ti_softc *, int, struct mbuf *);
-static int ti_newbuf_mini	(struct ti_softc *, int, struct mbuf *);
-static int ti_newbuf_jumbo	(struct ti_softc *, int, struct mbuf *);
-static int ti_init_rx_ring_std	(struct ti_softc *);
-static void ti_free_rx_ring_std	(struct ti_softc *);
-static int ti_init_rx_ring_jumbo	(struct ti_softc *);
-static void ti_free_rx_ring_jumbo	(struct ti_softc *);
-static int ti_init_rx_ring_mini	(struct ti_softc *);
-static void ti_free_rx_ring_mini	(struct ti_softc *);
-static void ti_free_tx_ring	(struct ti_softc *);
-static int ti_init_tx_ring	(struct ti_softc *);
+static int ti_newbuf_std(struct ti_softc *, int, struct mbuf *);
+static int ti_newbuf_mini(struct ti_softc *, int, struct mbuf *);
+static int ti_newbuf_jumbo(struct ti_softc *, int, struct mbuf *);
+static int ti_init_rx_ring_std(struct ti_softc *);
+static void ti_free_rx_ring_std(struct ti_softc *);
+static int ti_init_rx_ring_jumbo(struct ti_softc *);
+static void ti_free_rx_ring_jumbo(struct ti_softc *);
+static int ti_init_rx_ring_mini(struct ti_softc *);
+static void ti_free_rx_ring_mini(struct ti_softc *);
+static void ti_free_tx_ring(struct ti_softc *);
+static int ti_init_tx_ring(struct ti_softc *);
 
-static int ti_64bitslot_war	(struct ti_softc *);
-static int ti_chipinit		(struct ti_softc *);
-static int ti_gibinit		(struct ti_softc *);
+static int ti_64bitslot_war(struct ti_softc *);
+static int ti_chipinit(struct ti_softc *);
+static int ti_gibinit(struct ti_softc *);
 
 #ifdef TI_JUMBO_HDRSPLIT
 static __inline void ti_hdr_split	(struct mbuf *top, int hdr_len,
@@ -2008,7 +2004,7 @@ ti_probe(dev)
 		if ((pci_get_vendor(dev) == t->ti_vid) &&
 		    (pci_get_device(dev) == t->ti_did)) {
 			device_set_desc(dev, t->ti_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

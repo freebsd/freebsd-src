@@ -140,50 +140,48 @@ static struct wb_type wb_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int wb_probe		(device_t);
-static int wb_attach		(device_t);
-static int wb_detach		(device_t);
+static int wb_probe(device_t);
+static int wb_attach(device_t);
+static int wb_detach(device_t);
 
-static void wb_bfree		(void *addr, void *args);
-static int wb_newbuf		(struct wb_softc *,
-					struct wb_chain_onefrag *,
-					struct mbuf *);
-static int wb_encap		(struct wb_softc *, struct wb_chain *,
-					struct mbuf *);
+static void wb_bfree(void *addr, void *args);
+static int wb_newbuf(struct wb_softc *, struct wb_chain_onefrag *,
+		struct mbuf *);
+static int wb_encap(struct wb_softc *, struct wb_chain *, struct mbuf *);
 
-static void wb_rxeof		(struct wb_softc *);
-static void wb_rxeoc		(struct wb_softc *);
-static void wb_txeof		(struct wb_softc *);
-static void wb_txeoc		(struct wb_softc *);
-static void wb_intr		(void *);
-static void wb_tick		(void *);
-static void wb_start		(struct ifnet *);
-static int wb_ioctl		(struct ifnet *, u_long, caddr_t);
-static void wb_init		(void *);
-static void wb_stop		(struct wb_softc *);
-static void wb_watchdog		(struct ifnet *);
-static void wb_shutdown		(device_t);
-static int wb_ifmedia_upd	(struct ifnet *);
-static void wb_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void wb_rxeof(struct wb_softc *);
+static void wb_rxeoc(struct wb_softc *);
+static void wb_txeof(struct wb_softc *);
+static void wb_txeoc(struct wb_softc *);
+static void wb_intr(void *);
+static void wb_tick(void *);
+static void wb_start(struct ifnet *);
+static int wb_ioctl(struct ifnet *, u_long, caddr_t);
+static void wb_init(void *);
+static void wb_stop(struct wb_softc *);
+static void wb_watchdog(struct ifnet *);
+static void wb_shutdown(device_t);
+static int wb_ifmedia_upd(struct ifnet *);
+static void wb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static void wb_eeprom_putbyte	(struct wb_softc *, int);
-static void wb_eeprom_getword	(struct wb_softc *, int, u_int16_t *);
-static void wb_read_eeprom	(struct wb_softc *, caddr_t, int, int, int);
-static void wb_mii_sync		(struct wb_softc *);
-static void wb_mii_send		(struct wb_softc *, u_int32_t, int);
-static int wb_mii_readreg	(struct wb_softc *, struct wb_mii_frame *);
-static int wb_mii_writereg	(struct wb_softc *, struct wb_mii_frame *);
+static void wb_eeprom_putbyte(struct wb_softc *, int);
+static void wb_eeprom_getword(struct wb_softc *, int, u_int16_t *);
+static void wb_read_eeprom(struct wb_softc *, caddr_t, int, int, int);
+static void wb_mii_sync(struct wb_softc *);
+static void wb_mii_send(struct wb_softc *, u_int32_t, int);
+static int wb_mii_readreg(struct wb_softc *, struct wb_mii_frame *);
+static int wb_mii_writereg(struct wb_softc *, struct wb_mii_frame *);
 
-static void wb_setcfg		(struct wb_softc *, u_int32_t);
-static void wb_setmulti		(struct wb_softc *);
-static void wb_reset		(struct wb_softc *);
-static void wb_fixmedia		(struct wb_softc *);
-static int wb_list_rx_init	(struct wb_softc *);
-static int wb_list_tx_init	(struct wb_softc *);
+static void wb_setcfg(struct wb_softc *, u_int32_t);
+static void wb_setmulti(struct wb_softc *);
+static void wb_reset(struct wb_softc *);
+static void wb_fixmedia(struct wb_softc *);
+static int wb_list_rx_init(struct wb_softc *);
+static int wb_list_tx_init(struct wb_softc *);
 
-static int wb_miibus_readreg	(device_t, int, int);
-static int wb_miibus_writereg	(device_t, int, int, int);
-static void wb_miibus_statchg	(device_t);
+static int wb_miibus_readreg(device_t, int, int);
+static int wb_miibus_writereg(device_t, int, int, int);
+static void wb_miibus_statchg(device_t);
 
 #ifdef WB_USEIOSPACE
 #define WB_RES			SYS_RES_IOPORT
@@ -772,7 +770,7 @@ wb_probe(dev)
 		if ((pci_get_vendor(dev) == t->wb_vid) &&
 		    (pci_get_device(dev) == t->wb_did)) {
 			device_set_desc(dev, t->wb_name);
-			return(0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

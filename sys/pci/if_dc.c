@@ -221,77 +221,73 @@ static struct dc_type dc_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int dc_probe		(device_t);
-static int dc_attach		(device_t);
-static int dc_detach		(device_t);
-static int dc_suspend		(device_t);
-static int dc_resume		(device_t);
-static struct dc_type *dc_devtype	(device_t);
-static int dc_newbuf		(struct dc_softc *, int, int);
-static int dc_encap		(struct dc_softc *, struct mbuf **);
-static void dc_pnic_rx_bug_war	(struct dc_softc *, int);
-static int dc_rx_resync		(struct dc_softc *);
-static void dc_rxeof		(struct dc_softc *);
-static void dc_txeof		(struct dc_softc *);
-static void dc_tick		(void *);
-static void dc_tx_underrun	(struct dc_softc *);
-static void dc_intr		(void *);
-static void dc_start		(struct ifnet *);
-static int dc_ioctl		(struct ifnet *, u_long, caddr_t);
-static void dc_init		(void *);
-static void dc_stop		(struct dc_softc *);
-static void dc_watchdog		(struct ifnet *);
-static void dc_shutdown		(device_t);
-static int dc_ifmedia_upd	(struct ifnet *);
-static void dc_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static int dc_probe(device_t);
+static int dc_attach(device_t);
+static int dc_detach(device_t);
+static int dc_suspend(device_t);
+static int dc_resume(device_t);
+static struct dc_type *dc_devtype(device_t);
+static int dc_newbuf(struct dc_softc *, int, int);
+static int dc_encap(struct dc_softc *, struct mbuf **);
+static void dc_pnic_rx_bug_war(struct dc_softc *, int);
+static int dc_rx_resync(struct dc_softc *);
+static void dc_rxeof(struct dc_softc *);
+static void dc_txeof(struct dc_softc *);
+static void dc_tick(void *);
+static void dc_tx_underrun(struct dc_softc *);
+static void dc_intr(void *);
+static void dc_start(struct ifnet *);
+static int dc_ioctl(struct ifnet *, u_long, caddr_t);
+static void dc_init(void *);
+static void dc_stop(struct dc_softc *);
+static void dc_watchdog(struct ifnet *);
+static void dc_shutdown(device_t);
+static int dc_ifmedia_upd(struct ifnet *);
+static void dc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static void dc_delay		(struct dc_softc *);
-static void dc_eeprom_idle	(struct dc_softc *);
-static void dc_eeprom_putbyte	(struct dc_softc *, int);
-static void dc_eeprom_getword	(struct dc_softc *, int, u_int16_t *);
-static void dc_eeprom_getword_pnic
-				(struct dc_softc *, int, u_int16_t *);
-static void dc_eeprom_getword_xircom
-				(struct dc_softc *, int, u_int16_t *);
-static void dc_eeprom_width	(struct dc_softc *);
-static void dc_read_eeprom	(struct dc_softc *, caddr_t, int, int, int);
+static void dc_delay(struct dc_softc *);
+static void dc_eeprom_idle(struct dc_softc *);
+static void dc_eeprom_putbyte(struct dc_softc *, int);
+static void dc_eeprom_getword(struct dc_softc *, int, u_int16_t *);
+static void dc_eeprom_getword_pnic(struct dc_softc *, int, u_int16_t *);
+static void dc_eeprom_getword_xircom(struct dc_softc *, int, u_int16_t *);
+static void dc_eeprom_width(struct dc_softc *);
+static void dc_read_eeprom(struct dc_softc *, caddr_t, int, int, int);
 
-static void dc_mii_writebit	(struct dc_softc *, int);
-static int dc_mii_readbit	(struct dc_softc *);
-static void dc_mii_sync		(struct dc_softc *);
-static void dc_mii_send		(struct dc_softc *, u_int32_t, int);
-static int dc_mii_readreg	(struct dc_softc *, struct dc_mii_frame *);
-static int dc_mii_writereg	(struct dc_softc *, struct dc_mii_frame *);
-static int dc_miibus_readreg	(device_t, int, int);
-static int dc_miibus_writereg	(device_t, int, int, int);
-static void dc_miibus_statchg	(device_t);
-static void dc_miibus_mediainit	(device_t);
+static void dc_mii_writebit(struct dc_softc *, int);
+static int dc_mii_readbit(struct dc_softc *);
+static void dc_mii_sync(struct dc_softc *);
+static void dc_mii_send(struct dc_softc *, u_int32_t, int);
+static int dc_mii_readreg(struct dc_softc *, struct dc_mii_frame *);
+static int dc_mii_writereg(struct dc_softc *, struct dc_mii_frame *);
+static int dc_miibus_readreg(device_t, int, int);
+static int dc_miibus_writereg(device_t, int, int, int);
+static void dc_miibus_statchg(device_t);
+static void dc_miibus_mediainit(device_t);
 
-static void dc_setcfg		(struct dc_softc *, int);
-static uint32_t dc_mchash_le	(struct dc_softc *, const uint8_t *);
-static uint32_t dc_mchash_be	(const uint8_t *);
-static void dc_setfilt_21143	(struct dc_softc *);
-static void dc_setfilt_asix	(struct dc_softc *);
-static void dc_setfilt_admtek	(struct dc_softc *);
-static void dc_setfilt_xircom	(struct dc_softc *);
+static void dc_setcfg(struct dc_softc *, int);
+static uint32_t dc_mchash_le(struct dc_softc *, const uint8_t *);
+static uint32_t dc_mchash_be(const uint8_t *);
+static void dc_setfilt_21143(struct dc_softc *);
+static void dc_setfilt_asix(struct dc_softc *);
+static void dc_setfilt_admtek(struct dc_softc *);
+static void dc_setfilt_xircom(struct dc_softc *);
 
-static void dc_setfilt		(struct dc_softc *);
+static void dc_setfilt(struct dc_softc *);
 
-static void dc_reset		(struct dc_softc *);
-static int dc_list_rx_init	(struct dc_softc *);
-static int dc_list_tx_init	(struct dc_softc *);
+static void dc_reset(struct dc_softc *);
+static int dc_list_rx_init(struct dc_softc *);
+static int dc_list_tx_init(struct dc_softc *);
 
-static void dc_read_srom	(struct dc_softc *, int);
-static void dc_parse_21143_srom	(struct dc_softc *);
-static void dc_decode_leaf_sia	(struct dc_softc *, struct dc_eblock_sia *);
-static void dc_decode_leaf_mii	(struct dc_softc *, struct dc_eblock_mii *);
-static void dc_decode_leaf_sym	(struct dc_softc *, struct dc_eblock_sym *);
-static void dc_apply_fixup	(struct dc_softc *, int);
+static void dc_read_srom(struct dc_softc *, int);
+static void dc_parse_21143_srom(struct dc_softc *);
+static void dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
+static void dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
+static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
+static void dc_apply_fixup(struct dc_softc *, int);
 
-static void dc_dma_map_txbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
-				    int);
-static void dc_dma_map_rxbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
-				    int);
+static void dc_dma_map_txbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
+static void dc_dma_map_rxbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -1621,7 +1617,7 @@ dc_probe(device_t dev)
 
 	if (t != NULL) {
 		device_set_desc(dev, t->dc_name);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);

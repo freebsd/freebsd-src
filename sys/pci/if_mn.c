@@ -165,8 +165,8 @@ struct mn_softc;
 struct sockaddr;
 struct rtentry;
 
-static	int	mn_probe  (device_t self);
-static	int	mn_attach (device_t self);
+static	int	mn_probe(device_t self);
+static	int	mn_attach(device_t self);
 static	void	mn_create_channel(struct mn_softc *sc, int chan);
 static	int	mn_reset(struct mn_softc *sc);
 static	struct trxd * mn_alloc_desc(void);
@@ -1319,7 +1319,7 @@ mn_probe (device_t self)
 		return (ENXIO);
 
 	device_set_desc_copy(self, "Munich32X E1/T1 HDLC Controller");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

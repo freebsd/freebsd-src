@@ -106,7 +106,7 @@ agp_amd64_probe(device_t dev)
 	if ((desc = agp_amd64_match(dev))) {
 		device_verbose(dev);
 		device_set_desc(dev, desc);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 
 	return ENXIO;

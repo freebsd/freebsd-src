@@ -227,7 +227,7 @@ viapm_586b_probe(device_t dev)
 			return ENXIO;
 		}
 		device_set_desc(dev, "VIA VT82C586B Power Management Unit");
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 
 	default:
 		break;
@@ -306,7 +306,7 @@ viapm_pro_probe(device_t dev)
 		}
 
 		device_set_desc(dev, desc);
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 
 	default:
 		break;
@@ -636,8 +636,7 @@ viasmb_quick(device_t dev, u_char slave, int how)
 		VIAPM_OUTB(SMBHADDR, slave | LSB);
 		break;
 	default:
-		panic("%s: unknown QUICK command (%x)!", __FUNCTION__,
-			how);
+		panic("%s: unknown QUICK command (%x)!", __func__, how);
 	}
 
 	VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_QUICK);

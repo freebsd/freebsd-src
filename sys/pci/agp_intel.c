@@ -133,7 +133,7 @@ agp_intel_probe(device_t dev)
 	if (desc) {
 		device_verbose(dev);
 		device_set_desc(dev, desc);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 
 	return ENXIO;
