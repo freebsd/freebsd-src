@@ -78,6 +78,44 @@ exclude(struct bsdtar *bsdtar, const char *pattern)
 	matching->exclusions_count++;
 }
 
+/*
+ * Read lines from file and exclude() each one.  This uses
+ * a self-sizing buffer to handle arbitrarily-long lines.
+ */
+void
+exclude_from_file(struct bsdtar *bsdtar, const char *pathname)
+{
+	FILE *f;
+	char *buff;
+	size_t buff_length, line_length;
+
+	f = fopen(pathname, "r");
+	if (f == NULL)
+		bsdtar_errc(bsdtar, 1, errno, "Couldn't open %s", pathname);
+	buff_length = 256;
+	buff = malloc(buff_length);
+	if (buff == NULL)
+		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read %s", pathname);
+	while(fgets(buff, buff_length, f) != NULL) {
+		line_length = strlen(buff);
+		while (buff[line_length - 1] != '\n') {
+			buff = realloc(buff, buff_length *= 2);
+			if (buff == NULL)
+				bsdtar_errc(bsdtar, 1, ENOMEM,
+				    "Line too long in %s", pathname);
+			if (fgets(buff + line_length,
+			    buff_length - line_length, f) == NULL)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Bad input line in %s", pathname);
+			line_length = strlen(buff);
+		}
+		buff[line_length - 1] = '\0';
+		exclude(bsdtar, buff);
+	}
+	free(buff);
+	fclose(f);
+}
+
 void
 include(struct bsdtar *bsdtar, const char *pattern)
 {
