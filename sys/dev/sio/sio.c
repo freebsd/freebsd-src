@@ -758,7 +758,6 @@ sioprobe(dev, xrid, rclk, noprobe)
 /* EXTRA DELAY? */
 	failures[0] = sio_getreg(com, com_cfcr) - CFCR_8BITS;
 	failures[1] = sio_getreg(com, com_ier) - IER_ETXRDY;
-	failures[2] = (sio_getreg(com, com_mcr) & 0x7f) - mcr_image;
 	failures[2] = sio_getreg(com, com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
 	irqmap[1] = isa_irq_pending();
