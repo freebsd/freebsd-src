@@ -26,6 +26,11 @@
 .Nm at
 .Fl c Ar job Op Ar job ...
 .Nm at
+.Fl l Op Ar job ...
+.Nm at
+.Fl l
+.Fl q Ar queue
+.Nm at
 .Fl r Ar job Op Ar job ...
 .Pp
 .Nm atq
@@ -235,8 +240,8 @@ Read the job from
 .Ar file
 rather than standard input.
 .It Fl l
-Is an alias for
-.Nm atq .
+With no arguments, list all jobs for the invoking user. If one or more
+job numbers are given, list only those jobs.
 .It Fl d
 Is an alias for
 .Nm atrm
