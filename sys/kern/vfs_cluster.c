@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.22 1995/10/09 03:19:49 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.23 1995/10/29 15:31:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,7 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 int doreallocblks = 0;
-struct ctldebug debug13 = {"doreallocblks", &doreallocblks};
+SYSCTL_INT(_debug, 13, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 #else
 /* XXX for cluster_write */
