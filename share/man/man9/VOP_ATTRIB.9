@@ -51,7 +51,7 @@ The arguments are:
 .Bl -tag -width cred
 .It Ar vp
 the vnode of the file
-.It Ar vpp
+.It Ar vap
 the attributes of the file
 .It Ar cred
 the user credentials of the calling process
@@ -81,11 +81,11 @@ appropriate error is returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_getattr(struct vnode *vp, struct vattr *vpp,
+vop_getattr(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct proc *p)
 {
     /*
-     * Fill in the contents of *vpp with information from
+     * Fill in the contents of *vap with information from
      * the filesystem.
      */
     ...;
@@ -94,7 +94,7 @@ vop_getattr(struct vnode *vp, struct vattr *vpp,
 }
 
 int
-vop_setattr(struct vnode *vp, struct vattr *vpp,
+vop_setattr(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct proc *p)
 {
     /*
