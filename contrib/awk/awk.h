@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -299,6 +299,7 @@ typedef enum nodevals {
 	Node_K_do,		/* lnode is conditional, rnode stuff to run */
 	Node_K_return,		/* lnode is return value */
 	Node_K_delete,		/* lnode is array, rnode is subscript */
+	Node_K_delete_loop,	/* lnode is array, rnode is subscript */
 	Node_K_getline,		/* lnode is opt var, rnode is redirection */
 	Node_K_function,	/* lnode is statement list, rnode is params */
 	Node_K_nextfile,	/* no subs */
@@ -338,6 +339,7 @@ typedef enum nodevals {
 	Node_regex,		/* a regexp, text, compiled, flags, etc */
 	Node_hashnode,		/* an identifier in the symbol table */
 	Node_ahash,		/* an array element */
+	Node_array_ref,		/* array passed by ref as parameter */
 	Node_NF,		/* variables recognized in the grammar */
 	Node_NR,
 	Node_FNR,
@@ -462,6 +464,8 @@ typedef struct exp_node {
 #define var_array sub.nodep.r.av
 #define array_size sub.nodep.l.ll
 #define table_size sub.nodep.x.xl
+
+#define orig_array sub.nodep.x.extra
 
 #define condpair lnode
 #define triggered sub.nodep.r.r_ent
@@ -721,16 +725,19 @@ extern unsigned int hash P((const char *s, size_t len, unsigned long hsize));
 extern int in_array P((NODE *symbol, NODE *subs));
 extern NODE **assoc_lookup P((NODE *symbol, NODE *subs));
 extern void do_delete P((NODE *symbol, NODE *tree));
+extern void do_delete_loop P((NODE *symbol, NODE *tree));
 extern void assoc_scan P((NODE *symbol, struct search *lookat));
 extern void assoc_next P((struct search *lookat));
+extern NODE *assoc_dump P((NODE *symbol));
+extern NODE *do_adump P((NODE *tree));
 /* awktab.c */
 extern char *tokexpand P((void));
-extern char nextc P((void));
 extern NODE *node P((NODE *left, NODETYPE op, NODE *right));
 extern NODE *install P((char *name, NODE *value));
 extern NODE *lookup P((const char *name));
 extern NODE *variable P((char *name, int can_free, NODETYPE type));
 extern int yyparse P((void));
+extern NODE *stopme P((NODE *tree));
 /* builtin.c */
 extern double double_to_int P((double d));
 extern NODE *do_exp P((NODE *tree));
@@ -781,6 +788,7 @@ void set_OFS P((void));
 void set_ORS P((void));
 void set_OFMT P((void));
 void set_CONVFMT P((void));
+extern char *flags2str P((int));
 /* field.c */
 extern void init_fields P((void));
 extern void set_record P((char *buf, int cnt, int freeold));
