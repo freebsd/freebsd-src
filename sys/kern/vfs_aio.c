@@ -695,16 +695,9 @@ aio_daemon(void *uproc)
 	/*
 	 * Get rid of our current filedescriptors.  AIOD's don't need any
 	 * filedescriptors, except as temporarily inherited from the client.
-	 * Credentials are also cloned, and made equivalent to "root".
 	 */
 	fdfree(td);
 	mycp->p_fd = NULL;
-	mycp->p_ucred = crcopy(mycp->p_ucred);
-	mycp->p_ucred->cr_uid = 0;
-	uifree(mycp->p_ucred->cr_uidinfo);
-	mycp->p_ucred->cr_uidinfo = uifind(0);
-	mycp->p_ucred->cr_ngroups = 1;
-	mycp->p_ucred->cr_groups[0] = 1;
 
 	/* The daemon resides in its own pgrp. */
 	enterpgrp(mycp, mycp->p_pid, 1);
