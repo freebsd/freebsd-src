@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.73 1999/08/13 10:56:07 phk Exp $
+ * $Id: vfs_vnops.c,v 1.74 1999/08/13 11:22:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -437,8 +437,10 @@ vn_stat(vp, sb, p)
 	switch (vap->va_type) {
 	case VBLK:
 		sb->st_blksize = vp->v_rdev->si_bsize_best;
+		break;
 	case VCHR:
 		sb->st_blksize = vp->v_rdev->si_bsize_max;
+		break;
 	default:
 		sb->st_blksize = vap->va_blocksize;
 		break;
