@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.6 1995/10/27 02:12:38 jkh Exp $
+ * $Id: apache.c,v 1.7 1995/10/27 05:16:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -234,7 +234,7 @@ apacheOpenDialog()
     strcpy(tconf.userdir, "public_html");
     strcpy(tconf.readme, "README");
     strcpy(tconf.maxcon, "150");
-    sprintf(tconf.docroot, "%s/data", APACHE_BASE);
+    sprintf(tconf.docroot, "%s/htdocs", APACHE_BASE);
     
     /* Loop over the layout list, create the objects, and add them
        onto the chain of objects that dialog uses for traversal*/
@@ -390,7 +390,7 @@ int
 installApache(char *unused)
 {
     int i,maxcon;
-    char company[64], file[128], cmd[256];
+    char company[64], file[128];
     char *tptr;
     FILE *fptr;
 
@@ -431,29 +431,26 @@ installApache(char *unused)
     if (tconf.docroot[strlen(tconf.docroot)-1] == '/')
 	tconf.docroot[strlen(tconf.docroot)-1] = '\0';
     
-    if (! tconf.docroot[0])
+    if (!tconf.docroot[0])
 	sprintf(tconf.docroot,"%s/data",APACHE_BASE);
     
     /*** If DocRoot does not exist, create it ***/
     
-    if (! directoryExists(tconf.docroot))
-    {
-	sprintf(cmd,"mkdir -p %s",tconf.docroot);
-	system(cmd);
-    }
+    if (!directoryExists(tconf.docroot))
+	vsystem("mkdir -p %s", tconf.docroot);
     
     if (directoryExists(tconf.docroot))
     {
-	sprintf(file,"%s/welcome.html",tconf.docroot);
-	if (! file_readable(file))
+	sprintf(file,"%s/index.html", tconf.docroot);
+	if (!file_readable(file))
 	{
 	    dialog_clear();
 	    tptr = msgGetInput(NULL,
 			       "What is your company name?");
 	    if (tptr && strlen(tptr))
-		strcpy(company,tptr);
+		strcpy(company, tptr);
 	    else
-		strcpy(company,"our Web Page");
+		strcpy(company, "our Web Page");
 	    
 	    msgNotify("Creating sample web page...");
 	    fptr = fopen(file,"w");
@@ -473,9 +470,9 @@ installApache(char *unused)
 		if (tconf.email[0])
 		{
 		    fprintf(fptr,"<ADDRESS><H4>\n");
-		    fprintf(fptr,"    For questions or comments, send mail to:\n");
+		    fprintf(fptr,"    For questions or comments, please send mail to:\n");
 		    fprintf(fptr,"        <A HREF=\"mailto:%s\">%s</A>\n",
-			    tconf.email,tconf.email);
+			    tconf.email, tconf.email);
 		    fprintf(fptr,"</H4></ADDRESS>\n");
 		}
 		fprintf(fptr,"</CENTER>\n\n");
@@ -497,10 +494,8 @@ installApache(char *unused)
     (void)vsystem("mkdir -p %s/config", APACHE_BASE);
     sprintf(file, "%s/config/access.conf", APACHE_BASE);
     if (file_readable(file))
-    {
-	sprintf(cmd,"mv -f %s %s.ORIG", file, file);
-	system(cmd);
-    }
+	vsystem("mv -f %s %s.ORIG", file, file);
+
     fptr = fopen(file,"w");
     if (fptr)
     {
@@ -516,10 +511,8 @@ installApache(char *unused)
     
     sprintf(file, "%s/config/httpd.conf", APACHE_BASE);
     if (file_readable(file))
-    {
-	sprintf(cmd,"mv -f %s %s.ORIG", file, file);
-	system(cmd);
-    }
+	vsystem("mv -f %s %s.ORIG", file, file);
+
     fptr = fopen(file,"w");
     if (fptr)
     {
@@ -542,10 +535,7 @@ installApache(char *unused)
     
     sprintf(file, "%s/config/srm.conf", APACHE_BASE);
     if (file_readable(file))
-    {
-	sprintf(cmd,"mv -f %s %s.ORIG", file, file);
-	system(cmd);
-    }
+	vsystem("mv -f %s %s.ORIG", file, file);
     fptr = fopen(file,"w");
     if (fptr)
     {
