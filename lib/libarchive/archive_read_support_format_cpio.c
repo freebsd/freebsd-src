@@ -142,6 +142,7 @@ archive_read_support_format_cpio(struct archive *a)
 	    archive_read_format_cpio_bid,
 	    archive_read_format_cpio_read_header,
 	    archive_read_format_cpio_read_data,
+	    NULL,
 	    archive_read_format_cpio_cleanup);
 
 	if (r != ARCHIVE_OK)
