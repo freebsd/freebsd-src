@@ -147,18 +147,18 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
     	if (!pcm_devclass) {
     		pcm_devclass = device_get_devclass(dev);
-		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL),
-			 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
-		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP),
-			 UID_ROOT, GID_WHEEL, 0666, "dsp%d", unit);
-		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO),
-			 UID_ROOT, GID_WHEEL, 0666, "audio%d", unit);
-		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16),
-			 UID_ROOT, GID_WHEEL, 0666, "dspW%d", unit);
 		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_STATUS),
 			 UID_ROOT, GID_WHEEL, 0444, "sndstat");
-		/* XXX SND_DEV_NORESET? */
-    	}
+	}
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL),
+		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP),
+		 UID_ROOT, GID_WHEEL, 0666, "dsp%d", unit);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO),
+		 UID_ROOT, GID_WHEEL, 0666, "audio%d", unit);
+	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16),
+		 UID_ROOT, GID_WHEEL, 0666, "dspW%d", unit);
+	/* XXX SND_DEV_NORESET? */
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
     	sz = (numplay + numrec) * sizeof(pcm_channel *);
