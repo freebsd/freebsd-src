@@ -543,7 +543,7 @@ serve_root (arg)
     }
     (void) strcat (path, "/");
     (void) strcat (path, CVSROOTADM_HISTORY);
-    if (isfile (path) && !isaccessible (path, R_OK | W_OK))
+    if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
     {
 	save_errno = errno;
 	pending_error_text = malloc (80 + strlen (path));
