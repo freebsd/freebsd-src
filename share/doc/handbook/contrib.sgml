@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.60 1996/03/27 13:53:20 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.61 1996/03/28 12:32:44 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -191,6 +191,7 @@
 	  <item>Ishii Masahiro, R. Kym Horsell
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
+	  <item>James FitzGibbon &lt;james@nexis.net&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
@@ -219,6 +220,7 @@
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
+	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
