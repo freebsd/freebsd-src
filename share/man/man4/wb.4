@@ -30,23 +30,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 1998
+.Dd September 4, 2004
 .Dt WB 4
 .Os
 .Sh NAME
 .Nm wb
-.Nd Winbond W89C840F fast ethernet device driver
+.Nd Winbond W89C840F Fast Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device wb"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI ethernet adapters and embedded
-controllers based on the Winbond W89C840F fast ethernet controller
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Winbond W89C840F Fast Ethernet controller
 chip.
-This includes the Trendware TE100-PCIE and various other cheap
-boards.
 The 840F should not be confused with the 940F, which is
 an NE2000 clone and only supports 10Mbps speeds.
 .Pp
@@ -84,7 +82,7 @@ or
 .Ar half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Ar mediaopt
 option can also be used to select either
@@ -109,6 +107,16 @@ Note that the 100baseTX media type is only available if supported
 by the adapter.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Winbond W89C840F based Fast Ethernet
+adapters and embedded controllers including:
+.Pp
+.Bl -bullet -compact
+.It
+Trendware TE100-PCIE
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "wb%d: couldn't map memory"
