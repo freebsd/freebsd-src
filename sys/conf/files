@@ -1260,6 +1260,7 @@ pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 pci/simos.c		optional simos
 pci/uhci_pci.c		optional uhci
+pci/viapm.c		optional viapm
 pci/xrpu.c		optional xrpu
 posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,6 @@
  * I2C bus IP driver
  */
 
-#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -47,7 +46,6 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 
-#endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/netisr.h>
@@ -64,6 +62,8 @@
 #include <dev/iicbus/iicbus.h>
 
 #include "iicbus_if.h"
+
+#define PCF_MASTER_ADDRESS 0xaa
 
 #define ICHDRLEN	sizeof(u_int)
 #define ICMTU		1500		/* default mtu */
@@ -130,7 +130,7 @@ icattach(device_t dev)
 	struct ic_softc *sc = (struct ic_softc *)device_get_softc(dev);
 	struct ifnet *ifp = &sc->ic_if;
 
-	sc->ic_addr = iicbus_get_addr(dev);
+	sc->ic_addr = PCF_MASTER_ADDRESS;	/* XXX only PCF masters */
 
 	ifp->if_softc = sc;
 	ifp->if_name = "ic";
@@ -448,3 +448,5 @@ error:
 }
 
 DRIVER_MODULE(ic, iicbus, ic_driver, ic_devclass, 0, 0);
+MODULE_DEPEND(ic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(ic, 1);

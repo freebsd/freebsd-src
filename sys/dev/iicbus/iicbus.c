@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,45 +45,6 @@
 
 #define DEVTOIICBUS(dev) ((struct iicbus_device*)device_get_ivars(dev))
 
-/*
- * structure used to attach devices to the I2C bus
- */
-struct iicbus_device {
-	const char *iicd_name;		/* device name */
-	int iicd_class;			/* driver or slave device class */
-	const char *iicd_desc;		/* device descriptor */
-	u_char iicd_addr;		/* address of the device */
-	int iicd_waitack;		/* wait for ack timeout or delay */
-	int iicd_alive;			/* 1 if device found */
-};
-
-/*
- * Common I2C addresses
- */
-#define I2C_GENERAL_CALL	0x0
-#define PCF_MASTER_ADDRESS	0xaa
-#define FIRST_SLAVE_ADDR	0x2
-
-#define LAST_SLAVE_ADDR		255
-
-#define IICBUS_UNKNOWN_CLASS	0
-#define IICBUS_DEVICE_CLASS	1
-#define IICBUS_DRIVER_CLASS	2
-
-/*
- * list of known devices
- *
- * XXX only one smb driver should exist for each I2C interface
- */
-static struct iicbus_device iicbus_children[] = {
-	{ "iicsmb", IICBUS_DRIVER_CLASS, "I2C to SMB bridge" },
-	{ "iic", IICBUS_DRIVER_CLASS, "I2C general purpose I/O" },
-#if 0
-	{ "ic", IICBUS_DEVICE_CLASS, "network interface", PCF_MASTER_ADDRESS },
-#endif
-	{ NULL, 0 }
-};
-
 static devclass_t iicbus_devclass;
 
 /*
@@ -91,21 +52,19 @@ static devclass_t iicbus_devclass;
  */
 static int iicbus_probe(device_t);
 static int iicbus_attach(device_t);
-static int iicbus_print_child(device_t, device_t);
-static int iicbus_read_ivar(device_t , device_t, int, u_long *);
-static int iicbus_write_ivar(device_t , device_t, int, u_long);
+static int iicbus_detach(device_t);
+static int iicbus_add_child(device_t dev, int order, const char *name, int unit);
 
 static device_method_t iicbus_methods[] = {
         /* device interface */
         DEVMETHOD(device_probe,         iicbus_probe),
         DEVMETHOD(device_attach,        iicbus_attach),
-        DEVMETHOD(device_detach,        bus_generic_detach),
-        DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+        DEVMETHOD(device_detach,        iicbus_detach),
 
         /* bus interface */
-        DEVMETHOD(bus_print_child,      iicbus_print_child),
-        DEVMETHOD(bus_read_ivar,        iicbus_read_ivar),
-        DEVMETHOD(bus_write_ivar,       iicbus_write_ivar),
+        DEVMETHOD(bus_add_child,	iicbus_add_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+        DEVMETHOD(bus_print_child,      bus_generic_print_child),
 
         { 0, 0 }
 };
@@ -154,9 +113,6 @@ iic_probe_device(device_t dev, u_char addr)
 static int
 iicbus_attach(device_t dev)
 {
-	struct iicbus_device *iicdev;
-	device_t child;
-
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
 	/* device probing is meaningless since the bus is supposed to be
@@ -175,41 +131,33 @@ iicbus_attach(device_t dev)
 	}
 	printf("\n");
 #endif
+  
+	/* attach any known device */
+	device_add_child(dev, NULL, -1);
 
-	/* attach known devices */
-	for (iicdev = iicbus_children; iicdev->iicd_name; iicdev++) {
-		switch (iicdev->iicd_class) {
-		case IICBUS_DEVICE_CLASS:
-			/* check if the devclass exists */
-			if (devclass_find(iicdev->iicd_name))
-				iicdev->iicd_alive = 1;
-			else if (bootverbose)
-				printf("iicbus: %s devclass not found\n",
-					iicdev->iicd_name);
-			break;
-
-		case IICBUS_DRIVER_CLASS:
-			/* check if the devclass exists */
-    			if (devclass_find(iicdev->iicd_name))
-				iicdev->iicd_alive = 1;
-			else if (bootverbose)
-				printf("iicbus: %s devclass not found\n",
-					iicdev->iicd_name);
-			break;
-
-		default:
-			panic("%s: unknown class!", __func__);
-		}
-
-		if (iicdev->iicd_alive) {
-			child = device_add_child(dev, iicdev->iicd_name, -1);
-			device_set_ivars(child, iicdev);
-			device_set_desc(child, iicdev->iicd_desc);
-		}
-	}
 	bus_generic_attach(dev);
          
         return (0);
+}
+  
+static int
+iicbus_detach(device_t dev)
+{
+	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
+  
+	bus_generic_detach(dev);
+  
+	return (0);
+}
+  
+static int
+iicbus_add_child(device_t dev, int order, const char *name, int unit)
+{
+	device_add_child_ordered(dev, order, name, unit);
+
+	bus_generic_attach(dev);
+
+	return (0);
 }
 
 int
@@ -230,59 +178,7 @@ iicbus_null_repeated_start(device_t dev, u_char addr)
 	return (IIC_ENOTSUPP);
 }
 
-static int
-iicbus_print_child(device_t bus, device_t dev)
-{
-	struct iicbus_device* iicdev = DEVTOIICBUS(dev);
-	int retval = 0;
-
-	retval += bus_print_child_header(bus, dev);
-
-	switch (iicdev->iicd_class) {	
-	case IICBUS_DEVICE_CLASS:
-		retval += printf(" on %s addr 0x%x\n",
-				 device_get_nameunit(bus), iicdev->iicd_addr);
-		break;
-
-	case IICBUS_DRIVER_CLASS:
-		retval += bus_print_child_footer(bus, dev);
-		break;
-
-	default:
-		panic("%s: unknown class!", __func__);
-	}
-
-	return (retval);
-}
-
-static int
-iicbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
-{
-	struct iicbus_device* iicdev = DEVTOIICBUS(dev);
-
-	switch (index) {
-	case IICBUS_IVAR_ADDR:
-		*result = (u_long)iicdev->iicd_addr;
-		break;
-
-	default:
-		return (ENOENT);
-	}
-
-	return (0);
-}
-
-static int
-iicbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
-{
-	switch (index) {
-	default:
-		return (ENOENT);
-	}
-
-	return (0);
-}
-
 DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, bti2c, iicbus_driver, iicbus_devclass, 0, 0);
+MODULE_VERSION(iicbus, IICBUS_MODVER);
