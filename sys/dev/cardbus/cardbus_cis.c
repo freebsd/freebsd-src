@@ -586,8 +586,8 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 static int
 barsort(const void *a, const void *b)
 {
-	return ((*(const struct resource_list_entry **)b)->count -
-	    (*(const struct resource_list_entry **)a)->count);
+	return ((*(const struct resource_list_entry * const *)b)->count -
+	    (*(const struct resource_list_entry * const *)a)->count);
 }
 
 static int
