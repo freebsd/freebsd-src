@@ -35,6 +35,7 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
+#include <machine/pci_cfgreg.h>
 
 #include "pci_if.h"
 
