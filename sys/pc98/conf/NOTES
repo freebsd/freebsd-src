@@ -23,7 +23,7 @@ profile         2
 #####################################################################
 # SMP OPTIONS:
 #
-# APIC_IO enables the use of the IO APIC for Symmetric I/O.
+# The apic device enables the use of the IO APIC for Symmetric I/O.
 #
 # Notes:
 #
@@ -36,7 +36,7 @@ profile         2
 #
 
 # Mandatory:
-options 	APIC_IO			# Symmetric (APIC) I/O
+device		apic			# I/O apic
 
 #
 # Rogue SMP hardware:
