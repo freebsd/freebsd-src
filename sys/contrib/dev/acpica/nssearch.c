@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 89 $
+ *              $Revision: 92 $
  *
  ******************************************************************************/
 
@@ -129,14 +129,15 @@
  * FUNCTION:    AcpiNsSearchNode
  *
  * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
- *              *Node               - Starting table where search will begin
+ *              *Node               - Starting node where search will begin
  *              Type                - Object type to match
  *              **ReturnNode        - Where the matched Named obj is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Search a single namespace table.  Performs a simple search,
- *              does not add entries or search parents.
+ * DESCRIPTION: Search a single level of the namespace.  Performs a 
+ *              simple search of the specified level, and does not add 
+ *              entries or search parents.
  *
  *
  *      Named object lists are built (and subsequently dumped) in the
@@ -171,7 +172,7 @@ AcpiNsSearchNode (
         ScopeName = AcpiNsGetExternalPathname (Node);
         if (ScopeName)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (type %s)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (%s)\n",
                 ScopeName, Node, (char *) &TargetName, AcpiUtGetTypeName (Type)));
 
             ACPI_MEM_FREE (ScopeName);
@@ -180,8 +181,8 @@ AcpiNsSearchNode (
 #endif
 
     /*
-     * Search for name in this table, which is to say that we must search
-     * for the name among the children of this object
+     * Search for name at this namespace level, which is to say that we 
+     * must search for the name among the children of this object
      */
     NextNode = Node->Child;
     while (NextNode)
@@ -191,32 +192,8 @@ AcpiNsSearchNode (
         if (NextNode->Name.Integer == TargetName)
         {
             /*
-             * Found matching entry.  Capture the type if appropriate, before
-             * returning the entry.
-             *
-             * The DefFieldDefn and BankFieldDefn cases are actually looking up
-             * the Region in which the field will be defined
+             * Found matching entry.
              */
-            if ((INTERNAL_TYPE_FIELD_DEFN == Type) ||
-                (INTERNAL_TYPE_BANK_FIELD_DEFN == Type))
-            {
-                Type = ACPI_TYPE_REGION;
-            }
-
-            /*
-             * Scope, DefAny, and IndexFieldDefn are bogus "types" which do not
-             * actually have anything to do with the type of the name being
-             * looked up.  For any other value of Type, if the type stored in
-             * the entry is Any (i.e. unknown), save the actual type.
-             */
-            if (Type != INTERNAL_TYPE_SCOPE &&
-                Type != INTERNAL_TYPE_DEF_ANY &&
-                Type != INTERNAL_TYPE_INDEX_FIELD_DEFN &&
-                NextNode->Type == ACPI_TYPE_ANY)
-            {
-                NextNode->Type = (UINT8) Type;
-            }
-
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Name %4.4s Type [%s] found at %p\n",
                 (char *) &TargetName, AcpiUtGetTypeName (NextNode->Type), NextNode));
@@ -241,7 +218,7 @@ AcpiNsSearchNode (
         NextNode = NextNode->Peer;
     }
 
-    /* Searched entire table, not found */
+    /* Searched entire namespace level, not found */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Name %4.4s Type [%s] not found at %p\n",
         (char *) &TargetName, AcpiUtGetTypeName (Type), NextNode));
@@ -255,14 +232,14 @@ AcpiNsSearchNode (
  * FUNCTION:    AcpiNsSearchParentTree
  *
  * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
- *              *Node               - Starting table where search will begin
+ *              *Node               - Starting node where search will begin
  *              Type                - Object type to match
  *              **ReturnNode        - Where the matched Named Obj is returned
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Called when a name has not been found in the current namespace
- *              table.  Before adding it or giving up, ACPI scope rules require
+ *              level.  Before adding it or giving up, ACPI scope rules require
  *              searching enclosing scopes in cases identified by AcpiNsLocal().
  *
  *              "A name is located by finding the matching name in the current
@@ -292,25 +269,21 @@ AcpiNsSearchParentTree (
     ParentNode = AcpiNsGetParentNode (Node);
 
     /*
-     * If there is no parent (at the root) or type is "local", we won't be
-     * searching the parent tree.
+     * If there is no parent (i.e., we are at the root) or 
+     * type is "local", we won't be searching the parent tree.
      */
-    if ((AcpiNsLocal (Type)) ||
-        (!ParentNode))
+    if (!ParentNode)
     {
-        if (!ParentNode)
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
-                (char *) &TargetName));
-        }
+        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
+            (char *) &TargetName));
+         return_ACPI_STATUS (AE_NOT_FOUND);
+    }
 
-        if (AcpiNsLocal (Type))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
-                (char *) &TargetName, AcpiUtGetTypeName (Type)));
-        }
-
+    if (AcpiNsLocal (Type))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
+            "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
+            (char *) &TargetName, AcpiUtGetTypeName (Type)));
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
 
@@ -355,8 +328,8 @@ AcpiNsSearchParentTree (
  *
  * PARAMETERS:  TargetName          - Ascii ACPI name to search for (4 chars)
  *              WalkState           - Current state of the walk
- *              *Node               - Starting table where search will begin
- *              InterpreterMode     - Add names only in MODE_LoadPassX.
+ *              *Node               - Starting node where search will begin
+ *              InterpreterMode     - Add names only in ACPI_MODE_LOAD_PASS_x.
  *                                    Otherwise,search only.
  *              Type                - Object type to match
  *              Flags               - Flags describing the search restrictions
@@ -364,12 +337,12 @@ AcpiNsSearchParentTree (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Search for a name segment in a single name table,
+ * DESCRIPTION: Search for a name segment in a single namespace level,
  *              optionally adding it if it is not found.  If the passed
  *              Type is not Any and the type previously stored in the
  *              entry was Any (i.e. unknown), update the stored type.
  *
- *              In IMODE_EXECUTE, search only.
+ *              In ACPI_IMODE_EXECUTE, search only.
  *              In other modes, search and add if not found.
  *
  ******************************************************************************/
@@ -406,14 +379,12 @@ AcpiNsSearchAndEnter (
 
     if (!AcpiUtValidAcpiName (TargetName))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "*** Bad character in name: %08x *** \n",
+        ACPI_REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name: %X\n", 
             TargetName));
-
-        ACPI_REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
         return_ACPI_STATUS (AE_BAD_CHARACTER);
     }
 
-    /* Try to find the name in the table specified by the caller */
+    /* Try to find the name in the namespace level specified by the caller */
 
     *ReturnNode = ACPI_ENTRY_NOT_FOUND;
     Status = AcpiNsSearchNode (TargetName, Node, Type, ReturnNode);
@@ -449,7 +420,7 @@ AcpiNsSearchAndEnter (
         (Flags & ACPI_NS_SEARCH_PARENT))
     {
         /*
-         * Not found in table - search parent tree according
+         * Not found at this level - search parent tree according
          * to ACPI specification
          */
         Status = AcpiNsSearchParentTree (TargetName, Node,

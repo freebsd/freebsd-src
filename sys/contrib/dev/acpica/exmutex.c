@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 13 $
+ *              $Revision: 16 $
  *
  *****************************************************************************/
 
@@ -229,9 +229,19 @@ AcpiExAcquireMutex (
 
     ACPI_FUNCTION_TRACE_PTR ("ExAcquireMutex", ObjDesc);
 
+
     if (!ObjDesc)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /* Sanity check -- we must have a valid thread ID */
+
+    if (!WalkState->Thread)
+    {
+        ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], null thread info\n",
+                ObjDesc->Mutex.Node->Name.Ascii));
+        return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
     /*
@@ -240,13 +250,17 @@ AcpiExAcquireMutex (
      */
     if (WalkState->Thread->CurrentSyncLevel > ObjDesc->Mutex.SyncLevel)
     {
+        ACPI_REPORT_ERROR (("Cannot acquire Mutex [%4.4s], incorrect SyncLevel\n",
+                ObjDesc->Mutex.Node->Name.Ascii));
         return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
     }
 
     /*
      * Support for multiple acquires by the owning thread
      */
-    if (ObjDesc->Mutex.OwnerThread == WalkState->Thread)
+
+    if ((ObjDesc->Mutex.OwnerThread) &&
+        (ObjDesc->Mutex.OwnerThread->ThreadId == WalkState->Thread->ThreadId))
     {
         /*
          * The mutex is already owned by this thread,
@@ -313,13 +327,29 @@ AcpiExReleaseMutex (
 
     if (!ObjDesc->Mutex.OwnerThread)
     {
+        ACPI_REPORT_ERROR (("Cannot release Mutex [%4.4s], not acquired\n",
+                ObjDesc->Mutex.Node->Name.Ascii));
         return_ACPI_STATUS (AE_AML_MUTEX_NOT_ACQUIRED);
+    }
+
+    /* Sanity check -- we must have a valid thread ID */
+
+    if (!WalkState->Thread)
+    {
+        ACPI_REPORT_ERROR (("Cannot release Mutex [%4.4s], null thread info\n",
+                ObjDesc->Mutex.Node->Name.Ascii));
+        return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
     /* The Mutex is owned, but this thread must be the owner */
 
-    if (ObjDesc->Mutex.OwnerThread != WalkState->Thread)
+    if (ObjDesc->Mutex.OwnerThread->ThreadId != WalkState->Thread->ThreadId)
     {
+        ACPI_REPORT_ERROR ((
+            "Thread %X cannot release Mutex [%4.4s] acquired by thread %X\n",
+            WalkState->Thread->ThreadId,
+            ObjDesc->Mutex.Node->Name.Ascii, 
+            ObjDesc->Mutex.OwnerThread->ThreadId));
         return_ACPI_STATUS (AE_AML_NOT_OWNER);
     }
 
@@ -329,6 +359,8 @@ AcpiExReleaseMutex (
      */
     if (ObjDesc->Mutex.SyncLevel > WalkState->Thread->CurrentSyncLevel)
     {
+        ACPI_REPORT_ERROR (("Cannot release Mutex [%4.4s], incorrect SyncLevel\n",
+                ObjDesc->Mutex.Node->Name.Ascii));
         return_ACPI_STATUS (AE_AML_MUTEX_ORDER);
     }
 

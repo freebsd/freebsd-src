@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 112 $
+ *              $Revision: 115 $
  *
  *****************************************************************************/
 
@@ -179,6 +179,33 @@ AcpiExReadDataFromField (
             }
         }
     }
+    else if ((ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS))
+    {
+        /*
+         * This is an SMBus read.  We must create a buffer to hold the data
+         * and directly access the region handler.
+         */
+        BufferDesc = AcpiUtCreateBufferObject (ACPI_SMBUS_BUFFER_SIZE);
+        if (!BufferDesc)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
+
+        /* Lock entire transaction if requested */
+
+        Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
+
+        /*
+         * Perform the read.
+         * Note: Smbus protocol value is passed in upper 16-bits of Function
+         */
+        Status = AcpiExAccessRegion (ObjDesc, 0, 
+                        ACPI_CAST_PTR (ACPI_INTEGER, BufferDesc->Buffer.Pointer),
+                        ACPI_READ | (ObjDesc->Field.Attribute << 16));
+        AcpiExReleaseGlobalLock (Locked);
+        goto Exit;
+    }
 
     /*
      * Allocate a buffer for the contents of the field.
@@ -195,25 +222,11 @@ AcpiExReadDataFromField (
     {
         /* Field is too large for an Integer, create a Buffer instead */
 
-        BufferDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+        BufferDesc = AcpiUtCreateBufferObject (Length);
         if (!BufferDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
-
-        /* Create the actual read buffer */
-
-        BufferDesc->Buffer.Pointer = ACPI_MEM_CALLOCATE (Length);
-        if (!BufferDesc->Buffer.Pointer)
-        {
-            AcpiUtRemoveReference (BufferDesc);
-            return_ACPI_STATUS (AE_NO_MEMORY);
-        }
-
-        /* Complete the buffer object initialization */
-
-        BufferDesc->Common.Flags = AOPOBJ_DATA_VALID;
-        BufferDesc->Buffer.Length = Length;
         Buffer = BufferDesc->Buffer.Pointer;
     }
     else
@@ -240,17 +253,17 @@ AcpiExReadDataFromField (
         ObjDesc->CommonField.StartFieldBitOffset,
         ObjDesc->CommonField.BaseByteOffset));
 
+    /* Lock entire transaction if requested */
+
     Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
 
     /* Read from the field */
 
     Status = AcpiExExtractFromField (ObjDesc, Buffer, Length);
-
-    /*
-     * Release global lock if we acquired it earlier
-     */
     AcpiExReleaseGlobalLock (Locked);
 
+
+Exit:
     if (ACPI_FAILURE (Status))
     {
         AcpiUtRemoveReference (BufferDesc);
@@ -280,7 +293,8 @@ AcpiExReadDataFromField (
 ACPI_STATUS
 AcpiExWriteDataToField (
     ACPI_OPERAND_OBJECT     *SourceDesc,
-    ACPI_OPERAND_OBJECT     *ObjDesc)
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ResultDesc)
 {
     ACPI_STATUS             Status;
     UINT32                  Length;
@@ -288,6 +302,7 @@ AcpiExWriteDataToField (
     void                    *Buffer;
     void                    *NewBuffer;
     BOOLEAN                 Locked;
+    ACPI_OPERAND_OBJECT     *BufferDesc;
 
 
     ACPI_FUNCTION_TRACE_PTR ("ExWriteDataToField", ObjDesc);
@@ -314,6 +329,54 @@ AcpiExWriteDataToField (
                 return_ACPI_STATUS (Status);
             }
         }
+    }
+    else if ((ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS))
+    {
+        /*
+         * This is an SMBus write.  We will bypass the entire field mechanism
+         * and handoff the buffer directly to the handler.
+         *
+         * Source must be a buffer of sufficient size (ACPI_SMBUS_BUFFER_SIZE).
+         */
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_BUFFER)
+        {
+            ACPI_REPORT_ERROR (("SMBus write requires Buffer, found type %s\n",
+                AcpiUtGetObjectTypeName (SourceDesc)));
+            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+        }
+
+        if (SourceDesc->Buffer.Length < ACPI_SMBUS_BUFFER_SIZE)
+        {
+            ACPI_REPORT_ERROR (("SMBus write requires Buffer of length %X, found length %X\n",
+                ACPI_SMBUS_BUFFER_SIZE, SourceDesc->Buffer.Length));
+            return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);
+        }
+
+        BufferDesc = AcpiUtCreateBufferObject (ACPI_SMBUS_BUFFER_SIZE);
+        if (!BufferDesc)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
+
+        Buffer = BufferDesc->Buffer.Pointer;
+        ACPI_MEMCPY (Buffer, SourceDesc->Buffer.Pointer, ACPI_SMBUS_BUFFER_SIZE);
+
+        /* Lock entire transaction if requested */
+
+        Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
+
+        /* 
+         * Perform the write (returns status and perhaps data in the same buffer)
+         * Note: SMBus protocol type is passed in upper 16-bits of Function.
+         */
+        Status = AcpiExAccessRegion (ObjDesc, 0, 
+                        (ACPI_INTEGER *) Buffer,
+                        ACPI_WRITE | (ObjDesc->Field.Attribute << 16));
+        AcpiExReleaseGlobalLock (Locked);
+
+        *ResultDesc = BufferDesc;
+        return_ACPI_STATUS (Status);
     }
 
     /*
@@ -378,16 +441,13 @@ AcpiExWriteDataToField (
         ObjDesc->CommonField.StartFieldBitOffset,
         ObjDesc->CommonField.BaseByteOffset));
 
+    /* Lock entire transaction if requested */
+
     Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
 
-    /*
-     * Write to the field
-     */
-    Status = AcpiExInsertIntoField (ObjDesc, Buffer, Length);
+    /* Write to the field */
 
-    /*
-     * Release global lock if we acquired it earlier
-     */
+    Status = AcpiExInsertIntoField (ObjDesc, Buffer, Length);
     AcpiExReleaseGlobalLock (Locked);
 
     /* Free temporary buffer if we used one */

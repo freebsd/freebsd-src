@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 113 $
+ *              $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -137,7 +137,7 @@
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print warning message
+ * DESCRIPTION: Print warning message with full pathname
  *
  ******************************************************************************/
 
@@ -153,12 +153,16 @@ AcpiNsReportError (
     char                    *Name;
 
     
+    /* Convert path to external format */
+
     Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, InternalName, NULL, &Name);
 
     AcpiOsPrintf ("%8s-%04d: *** Error: Looking up ", 
         ModuleName, LineNumber);
 
-    if (Name)
+    /* Print target name */
+
+    if (ACPI_SUCCESS (Status))
     {
         AcpiOsPrintf ("[%s]", Name);
     }
@@ -889,7 +893,7 @@ UINT32
 AcpiNsOpensScope (
     ACPI_OBJECT_TYPE        Type)
 {
-    ACPI_FUNCTION_TRACE_U32 ("NsOpensScope", Type);
+    ACPI_FUNCTION_TRACE_STR ("NsOpensScope", AcpiUtGetTypeName (Type));
 
 
     if (!AcpiUtValidObjectType (Type))
@@ -1033,45 +1037,6 @@ AcpiNsFindParentName (
 
     return_VALUE (ACPI_UNKNOWN_NAME);
 }
-
-
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsExistDownstreamSibling
- *
- * PARAMETERS:  *Node          - pointer to first Node to examine
- *
- * RETURN:      TRUE if sibling is found, FALSE otherwise
- *
- * DESCRIPTION: Searches remainder of scope being processed to determine
- *              whether there is a downstream sibling to the current
- *              object.  This function is used to determine what type of
- *              line drawing character to use when displaying namespace
- *              trees.
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiNsExistDownstreamSibling (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-
-    if (!Node)
-    {
-        return (FALSE);
-    }
-
-    if (Node->Name.Integer)
-    {
-        return (TRUE);
-    }
-
-    return (FALSE);
-}
-
-#endif /* ACPI_DEBUG_OUTPUT */
 
 
 /*******************************************************************************

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 79 $
+ *              $Revision: 81 $
  *
  ******************************************************************************/
 
@@ -413,7 +413,7 @@ AcpiDbDecodeInternalObject (
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND)
     {
-        AcpiOsPrintf ("%p", ObjDesc);
+        AcpiOsPrintf (" %p", ObjDesc);
         return;
     }
 
@@ -456,7 +456,7 @@ AcpiDbDecodeInternalObject (
 
     default:
 
-        AcpiOsPrintf ("%p", ObjDesc);
+        AcpiOsPrintf (" %p", ObjDesc);
         break;
     }
 }
@@ -480,8 +480,8 @@ AcpiDbDecodeNode (
 {
 
 
-    AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
-        Node->Name.Ascii, AcpiUtGetTypeName (Node->Type));
+    AcpiOsPrintf ("<Node>            Name %4.4s",
+        Node->Name.Ascii);
 
     if (Node->Flags & ANOBJ_METHOD_ARG)
     {
@@ -544,7 +544,7 @@ AcpiDbDisplayInternalObject (
     case ACPI_DESC_TYPE_OPERAND:
 
         Type = ACPI_GET_OBJECT_TYPE (ObjDesc);
-        if (Type > INTERNAL_TYPE_MAX)
+        if (Type > ACPI_TYPE_LOCAL_MAX)
         {
             AcpiOsPrintf (" Type %X [Invalid Type]", (UINT32) Type);
             return;
@@ -554,7 +554,7 @@ AcpiDbDisplayInternalObject (
 
         switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
         {
-        case INTERNAL_TYPE_REFERENCE:
+        case ACPI_TYPE_LOCAL_REFERENCE:
 
             switch (ObjDesc->Reference.Opcode)
             {

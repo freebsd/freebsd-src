@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 4 $
+ *              $Revision: 5 $
  *
  ******************************************************************************/
 
@@ -285,6 +285,68 @@ const char                      *AcpiGbl_SIZDecode[4] =
     "Transfer16",
     "InvalidSize"
 };
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDecodeAttribute
+ *
+ * PARAMETERS:  Attribute       - Attribute field of AccessAs keyword
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode the AccessAs attribute byte.  (Mostly SMBus stuff)
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDecodeAttribute (
+    UINT8                   Attribute)
+{
+
+    switch (Attribute)
+    {
+    case AML_FIELD_ATTRIB_SMB_QUICK:
+
+        AcpiOsPrintf ("SMBQuick");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_SEND_RCV:
+
+        AcpiOsPrintf ("SMBSendReceive");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_BYTE:
+
+        AcpiOsPrintf ("SMBByte");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_WORD:
+
+        AcpiOsPrintf ("SMBWord");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_WORD_CALL:
+
+        AcpiOsPrintf ("SMBProcessCall");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_BLOCK:
+
+        AcpiOsPrintf ("SMBBlock");
+        break;
+
+    case AML_FIELD_ATTRIB_SMB_BLOCK_CALL:
+
+        AcpiOsPrintf ("SMBBlockProcessCall");
+        break;
+
+    default:
+
+        AcpiOsPrintf ("0x%.2X", Attribute);
+        break;
+    }
+}
 
 
 /*******************************************************************************

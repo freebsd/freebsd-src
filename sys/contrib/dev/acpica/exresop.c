@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 58 $
+ *              $Revision: 60 $
  *
  *****************************************************************************/
 
@@ -157,7 +157,7 @@ AcpiExCheckObjectType (
         return (AE_OK);
     }
 
-    if (TypeNeeded == INTERNAL_TYPE_REFERENCE)
+    if (TypeNeeded == ACPI_TYPE_LOCAL_REFERENCE)
     {
         /*
          * Allow the AML "Constant" opcodes (Zero, One, etc.) to be reference
@@ -284,7 +284,7 @@ AcpiExResolveOperands (
 
             /* Check for bad ACPI_OBJECT_TYPE */
 
-            if (!AcpiExValidateObjectType (ObjectType))
+            if (!AcpiUtValidObjectType (ObjectType))
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Bad operand object type [%X]\n",
                     ObjectType));
@@ -292,7 +292,7 @@ AcpiExResolveOperands (
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
             }
 
-            if (ObjectType == (UINT8) INTERNAL_TYPE_REFERENCE)
+            if (ObjectType == (UINT8) ACPI_TYPE_LOCAL_REFERENCE)
             {
                 /*
                  * Decode the Reference
@@ -374,14 +374,14 @@ AcpiExResolveOperands (
         case ARGI_FIXED_TARGET:         /* No implicit conversion before store to target */
         case ARGI_SIMPLE_TARGET:        /* Name, Local, or Arg - no implicit conversion  */
 
-            /* Need an operand of type INTERNAL_TYPE_REFERENCE */
+            /* Need an operand of type ACPI_TYPE_LOCAL_REFERENCE */
 
             if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) == ACPI_DESC_TYPE_NAMED) /* Node (name) ptr OK as-is */
             {
                 goto NextOperand;
             }
 
-            Status = AcpiExCheckObjectType (INTERNAL_TYPE_REFERENCE,
+            Status = AcpiExCheckObjectType (ACPI_TYPE_LOCAL_REFERENCE,
                             ObjectType, ObjDesc);
             if (ACPI_FAILURE (Status))
             {
@@ -410,7 +410,7 @@ AcpiExResolveOperands (
              * -- All others must be resolved below.
              */
             if ((Opcode == AML_STORE_OP) &&
-                (ACPI_GET_OBJECT_TYPE (*StackPtr) == INTERNAL_TYPE_REFERENCE) &&
+                (ACPI_GET_OBJECT_TYPE (*StackPtr) == ACPI_TYPE_LOCAL_REFERENCE) &&
                 ((*StackPtr)->Reference.Opcode == AML_INDEX_OP))
             {
                 goto NextOperand;
@@ -466,13 +466,6 @@ AcpiExResolveOperands (
             TypeNeeded = ACPI_TYPE_REGION;
             break;
 
-        case ARGI_IF:   /* If */
-
-            /* Need an operand of type INTERNAL_TYPE_IF */
-
-            TypeNeeded = INTERNAL_TYPE_IF;
-            break;
-
         case ARGI_PACKAGE:   /* Package */
 
             /* Need an operand of type ACPI_TYPE_PACKAGE */
@@ -512,15 +505,6 @@ AcpiExResolveOperands (
 
                 return_ACPI_STATUS (Status);
             }
-
-            if (ObjDesc != *StackPtr)
-            {
-                /* 
-                 * We just created a new object, remove a reference
-                 * on the original operand object
-                 */
-                AcpiUtRemoveReference (ObjDesc);
-            }
             goto NextOperand;
 
 
@@ -545,15 +529,6 @@ AcpiExResolveOperands (
 
                 return_ACPI_STATUS (Status);
             }
-
-            if (ObjDesc != *StackPtr)
-            {
-                /* 
-                 * We just created a new object, remove a reference
-                 * on the original operand object
-                 */
-                AcpiUtRemoveReference (ObjDesc);
-            }
             goto NextOperand;
 
 
@@ -577,15 +552,6 @@ AcpiExResolveOperands (
                 }
 
                 return_ACPI_STATUS (Status);
-            }
-
-            if (ObjDesc != *StackPtr)
-            {
-                /* 
-                 * We just created a new object, remove a reference
-                 * on the original operand object
-                 */
-                AcpiUtRemoveReference (ObjDesc);
             }
             goto NextOperand;
 
@@ -626,7 +592,7 @@ AcpiExResolveOperands (
             case ACPI_TYPE_PACKAGE:
             case ACPI_TYPE_STRING:
             case ACPI_TYPE_BUFFER:
-            case INTERNAL_TYPE_REFERENCE:
+            case ACPI_TYPE_LOCAL_REFERENCE:
 
                 /* Valid operand */
                 break;

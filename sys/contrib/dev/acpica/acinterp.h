@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 139 $
+ *       $Revision: 142 $
  *
  *****************************************************************************/
 
@@ -255,7 +255,8 @@ AcpiExReadDataFromField (
 ACPI_STATUS
 AcpiExWriteDataToField (
     ACPI_OPERAND_OBJECT     *SourceDesc,
-    ACPI_OPERAND_OBJECT     *ObjDesc);
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ResultDesc);
 
 /*
  * exmisc - ACPI AML (p-code) execution - specific opcodes
@@ -468,7 +469,7 @@ AcpiExSystemResetEvent(
 ACPI_STATUS
 AcpiExSystemWaitSemaphore (
     ACPI_HANDLE             Semaphore,
-    UINT32                  Timeout);
+    UINT16                  Timeout);
 
 
 /*
@@ -702,10 +703,6 @@ AcpiExExitInterpreter (
 void
 AcpiExTruncateFor32bitTable (
     ACPI_OPERAND_OBJECT     *ObjDesc);
-
-BOOLEAN
-AcpiExValidateObjectType (
-    ACPI_OBJECT_TYPE        Type);
 
 BOOLEAN
 AcpiExAcquireGlobalLock (

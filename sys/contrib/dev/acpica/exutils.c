@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 103 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -141,33 +141,6 @@
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exutils")
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExValidateObjectType
- *
- * PARAMETERS:  Type            Object type to validate
- *
- * DESCRIPTION: Determine if a type is a valid ACPI object type
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiExValidateObjectType (
-    ACPI_OBJECT_TYPE        Type)
-{
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    if ((Type > ACPI_TYPE_MAX && Type < INTERNAL_TYPE_BEGIN) ||
-        (Type > INTERNAL_TYPE_MAX))
-    {
-        return (FALSE);
-    }
-
-    return (TRUE);
-}
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 
@@ -313,7 +286,7 @@ AcpiExAcquireGlobalLock (
     {
         /* We should attempt to get the lock, wait forever */
 
-        Status = AcpiEvAcquireGlobalLock (ACPI_UINT32_MAX);
+        Status = AcpiEvAcquireGlobalLock (ACPI_WAIT_FOREVER);
         if (ACPI_SUCCESS (Status))
         {
             Locked = TRUE;
@@ -439,7 +412,7 @@ AcpiExEisaIdToString (
 
     EisaId = AcpiUtDwordByteSwap (NumericId);
 
-    OutString[0] = (char) ('@' + ((EisaId >> 26) & 0x1f));
+    OutString[0] = (char) ('@' + (((unsigned long) EisaId >> 26) & 0x1f));
     OutString[1] = (char) ('@' + ((EisaId >> 21) & 0x1f));
     OutString[2] = (char) ('@' + ((EisaId >> 16) & 0x1f));
     OutString[3] = AcpiUtHexToAsciiChar ((ACPI_INTEGER) EisaId, 12);
