@@ -1244,6 +1244,18 @@ hint.npx.0.irq="13"
 # Flag 0x08 automatically disables the i586 optimized routines.
 #
 
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+#
+device		acpica
+options		ACPI_DEBUG
+
 # ACPI Experimental Driver
 device		acpi
 options 	ACPI_DEBUG
