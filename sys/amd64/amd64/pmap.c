@@ -643,7 +643,7 @@ pmap_pte_quick(pmap, va)
 			return PTmap + index;
 		}
 		newpf = pde & PG_FRAME;
-		if ( ((*PMAP1) & PG_FRAME) != newpf) {
+		if (((*PMAP1) & PG_FRAME) != newpf) {
 			*PMAP1 = newpf | PG_RW | PG_V;
 			invltlb_1pg((vm_offset_t) PADDR1);
 		}
@@ -1240,7 +1240,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+			mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1290,7 +1290,7 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	ptdpg = vm_page_grab( pmap->pm_pteobj, PTDPTDI,
+	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
 			VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
 	ptdpg->wire_count = 1;
@@ -1490,7 +1490,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+			m = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
@@ -1927,7 +1927,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pdnxt = eindex;
 		}
 
-		for ( ;sindex != pdnxt; sindex++) {
+		for (; sindex != pdnxt; sindex++) {
 			vm_offset_t va;
 			if (ptbase[sindex] == 0) {
 				continue;
@@ -2343,7 +2343,7 @@ retry:
 					(pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
+					mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
 					pmap->pm_ptphint = mpte;
 				}
 				if (mpte == NULL)
@@ -3365,7 +3365,6 @@ pmap_mincore(pmap, addr)
 	pmap_t pmap;
 	vm_offset_t addr;
 {
-	
 	pt_entry_t *ptep, pte;
 	vm_page_t m;
 	int val = 0;
@@ -3541,7 +3540,7 @@ pads(pm)
 				va = (i << PDRSHIFT) + (j << PAGE_SHIFT);
 				if (pm == kernel_pmap && va < KERNBASE)
 					continue;
-				if (pm != kernel_pmap && va > VM_MAXUSER_ADDRESS)
+				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
 					continue;
 				ptep = pmap_pte_quick(pm, va);
 				if (pmap_pte_v(ptep))
