@@ -7,6 +7,7 @@ LOCALES=	bg_BG.CP1251 \
 		el_GR.ISO8859-7 \
 		ja_JP.eucJP \
 		ja_JP.SJIS \
+		hi_IN.ISCII-DEV \
 		ko_KR.eucKR \
 		la_LN.US-ASCII \
 		la_LN.ISO8859-1 \
