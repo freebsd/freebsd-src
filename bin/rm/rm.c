@@ -58,11 +58,12 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 extern char *flags_to_string __P((u_long, char *));
 
-int dflag, eval, fflag, iflag, Pflag, Wflag, stdin_ok;
+int dflag, eval, fflag, iflag, Pflag, Wflag, vflag, stdin_ok;
 uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
@@ -87,7 +88,7 @@ main(argc, argv)
 	int ch, rflag;
 
 	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiPRrW")) != -1)
+	while ((ch = getopt(argc, argv, "dfiPRrWv")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -109,6 +110,9 @@ main(argc, argv)
 			break;
 		case 'W':
 			Wflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		default:
 			usage();
@@ -222,6 +226,7 @@ rm_tree(argv)
 			rval = chflags(p->fts_accpath,
 				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
 		if (!rval) {
+			int e;
 			/*
 			 * If we can't read or search the directory, may still be
 			 * able to remove it.  Don't print out the un{read,search}able
@@ -230,21 +235,30 @@ rm_tree(argv)
 			switch (p->fts_info) {
 			case FTS_DP:
 			case FTS_DNR:
-				if (!rmdir(p->fts_accpath) || (fflag && errno == ENOENT))
+				if ((e=rmdir(p->fts_accpath)) || (fflag && errno == ENOENT)) {
+					if (e == 0 && vflag)
+						(void)printf("%s\n", p->fts_accpath);
 					continue;
+				}
 				break;
 
 			case FTS_W:
-				if (!undelete(p->fts_accpath) ||
-			    	(fflag && errno == ENOENT))
+				if (!(e=undelete(p->fts_accpath)) ||
+			    	(fflag && errno == ENOENT)) {
+					if (e == 0 && vflag)
+						(void)printf("%s\n", p->fts_accpath);
 					continue;
+				}
 				break;
 
 			default:
 				if (Pflag)
 					rm_overwrite(p->fts_accpath, NULL);
-				if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
+				if (!(e=unlink(p->fts_accpath)) || (fflag && errno == ENOENT)) {
+					if (e == 0 && vflag)
+						(void)printf("%s\n", p->fts_accpath);
 					continue;
+				}
 			}
 		}
 err:
@@ -312,6 +326,8 @@ rm_file(argv)
 			warn("%s", f);
 			eval = 1;
 		}
+		if (vflag)
+			(void)printf("%s\n", f);
 	}
 }
 
@@ -451,7 +467,6 @@ checkdot(argv)
 void
 usage()
 {
-
-	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrW] file ...\n");
-	exit(1);
+	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrWv] file ...\n");
+	exit(EX_USAGE);
 }
