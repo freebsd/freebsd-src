@@ -134,31 +134,22 @@ nexus_probe(device_t dev)
 	 * multi-ISA-bus systems.  PCI interrupts are routed to the ISA
 	 * component, so in a way, PCI can be a partial child of an ISA bus(!).
 	 * APIC interrupts are global though.
-	 * In the non-APIC case, disallow the use of IRQ 2.
+	 *
+	 * XXX We depend on the AT PIC driver correctly claiming IRQ 2
+	 *     to prevent its reuse elsewhere in the !APIC_IO case.
 	 */
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
 #ifdef APIC_IO
 	irq_rman.rm_end = APIC_INTMAPSIZE - 1;
-	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman,
-				  irq_rman.rm_start, irq_rman.rm_end))
-		panic("nexus_probe irq_rman");
 #else
 	irq_rman.rm_end = 15;
-#ifdef PC98
+#endif
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
 		panic("nexus_probe irq_rman");
-#else
-	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman, irq_rman.rm_start, 1)
-	    || rman_manage_region(&irq_rman, 3, irq_rman.rm_end))
-		panic("nexus_probe irq_rman");
-#endif /* PC98 */
-#endif
 
 	/*
 	 * ISA DMA on PCI systems is implemented in the ISA part of each
