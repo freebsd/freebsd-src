@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.3 1994/08/02 07:46:27 davidg Exp $
+ * $Id: netisr.h,v 1.4 1994/08/21 05:11:44 paul Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -62,6 +62,7 @@
 #define	NETISR_ISO	7		/* same as AF_ISO */
 #define	NETISR_CCITT	10		/* same as AF_CCITT */
 #define	NETISR_ARP	18		/* same as AF_LINK */
+#define	NETISR_ISDN	26		/* same as AF_E164 */
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
