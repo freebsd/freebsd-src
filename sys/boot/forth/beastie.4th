@@ -40,6 +40,7 @@ variable promptwidth
 
 variable bootkey
 variable bootacpikey
+variable bootusbkey
 variable bootsafekey
 variable bootverbosekey
 variable bootsinglekey
@@ -159,6 +160,11 @@ at-xy ."         `--{__________) [0m" 1+
 	printmenuitem ."  Boot FreeBSD in single user mode" bootsinglekey !
 	printmenuitem ."  Boot FreeBSD with verbose logging" bootverbosekey !
 	printmenuitem ."  Escape to loader prompt" escapekey !
+	s" arch-i386" environment? if
+		printmenuitem ."  Boot FreeBSD with USB keyboard" bootusbkey !
+	else
+		-2 bootacpikey !
+	then
 	printmenuitem ."  Reboot" rebootkey !
 	menuX @ 20 at-xy
 	." Select option, [Enter] for default"
@@ -221,6 +227,10 @@ set-current
 				s" YES" s" acpi_load" setenv
 				s" 0" s" hint.acpi.0.disabled" setenv
 			then
+			0 boot
+		then
+		dup bootusbkey @ = if
+			s" 0x1" s" hint.atkbd.0.flags" setenv
 			0 boot
 		then
 		dup bootsafekey @ = if
