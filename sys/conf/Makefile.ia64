@@ -44,8 +44,9 @@ S=	../../..
 .endif
 M=	${MACHINE_ARCH}
 
-SIZE?=		size
+NM?=		nm
 OBJCOPY?=	objcopy
+SIZE?=		size
 
 COPTFLAGS?=-O -pipe
 .if !defined(NO_CPU_COPTFLAGS)

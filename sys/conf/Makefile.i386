@@ -34,8 +34,9 @@ S=	../../..
 .endif
 M=	${MACHINE_ARCH}
 
-SIZE?=		size
+NM?=		nm
 OBJCOPY?=	objcopy
+SIZE?=		size
 
 COPTFLAGS?=-O -pipe
 .if !defined(NO_CPU_COPTFLAGS)
@@ -177,7 +178,7 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM=${NM} OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS} -elf $S/$M/$M/genassym.c
