@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.36 1997/09/02 20:05:33 bde Exp $
+ *	$Id: imgact_aout.c,v 1.37 1998/01/06 05:15:25 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,7 @@
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -43,6 +44,7 @@
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
 static int	exec_aout_imgact __P((struct image_params *imgp));
@@ -53,7 +55,9 @@ exec_aout_imgact(imgp)
 {
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
 	struct vmspace *vmspace;
-	vm_offset_t vmaddr;
+	struct vnode *vp;
+	vm_object_t object;
+	vm_offset_t text_end, data_end;
 	unsigned long virtual_offset;
 	unsigned long file_offset;
 	unsigned long bss_size;
@@ -145,44 +149,43 @@ exec_aout_imgact(imgp)
 	 */
 	vmspace = imgp->proc->p_vmspace;
 
-	/*
-	 * Map text/data read/execute
-	 */
-	vmaddr = virtual_offset;
-	error =
-	    vm_mmap(&vmspace->vm_map,			/* map */
-		&vmaddr,				/* address */
-		a_out->a_text + a_out->a_data,		/* size */
-		VM_PROT_READ | VM_PROT_EXECUTE,		/* protection */
-		VM_PROT_ALL,				/* max protection */
-		MAP_PRIVATE | MAP_FIXED,		/* flags */
-		(caddr_t)imgp->vp,			/* vnode */
-		file_offset);				/* offset */
+	vp = imgp->vp;
+	object = vp->v_object;
+	vm_object_reference(object);
+
+	text_end = virtual_offset + a_out->a_text;
+	error = vm_map_insert(&vmspace->vm_map, object,
+		file_offset,
+		virtual_offset, text_end,
+		VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
+		MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
 	if (error)
 		return (error);
 
-	/*
-	 * allow writing of data
-	 */
-	vm_map_protect(&vmspace->vm_map,
-		vmaddr + a_out->a_text,
-		vmaddr + a_out->a_text + a_out->a_data,
-		VM_PROT_ALL,
-		FALSE);
-
-	if (bss_size != 0) {
-		/*
-		 * Allocate demand-zeroed area for uninitialized data
-		 * "bss" = 'block started by symbol' - named after the IBM 7090
-		 *	instruction of the same name.
-		 */
-		vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-		error = vm_map_find(&vmspace->vm_map, NULL, 0,
-			&vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	data_end = text_end + a_out->a_data;
+	if (a_out->a_data) {
+		vm_object_reference(object);
+		error = vm_map_insert(&vmspace->vm_map, object,
+			file_offset + a_out->a_text,
+			text_end, data_end,
+			VM_PROT_ALL, VM_PROT_ALL,
+			MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
 		if (error)
 			return (error);
 	}
 
+	pmap_object_init_pt(&vmspace->vm_pmap, virtual_offset,
+		object, (vm_pindex_t) OFF_TO_IDX(file_offset),
+		a_out->a_text + a_out->a_data, 0);
+
+	if (bss_size) {
+		error = vm_map_insert(&vmspace->vm_map, NULL, 0,
+			data_end, data_end + bss_size,
+			VM_PROT_ALL, VM_PROT_ALL, 0);
+		if (error)
+			return (error);
+	}
+		
 	/* Fill in process VM information */
 	vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;
 	vmspace->vm_dsize = (a_out->a_data + bss_size) >> PAGE_SHIFT;
