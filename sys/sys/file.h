@@ -166,8 +166,6 @@ static __inline int fo_stat __P((struct file *fp, struct stat *sb,
 static __inline int fo_close __P((struct file *fp, struct thread *td));
 static __inline int fo_kqfilter __P((struct file *fp, struct knote *kn));
 struct proc;
-struct file *ffind_hold(struct thread *, int fd);
-struct file *ffind_lock(struct thread *, int fd);
 
 static __inline int
 fo_read(fp, uio, cred, flags, td)
