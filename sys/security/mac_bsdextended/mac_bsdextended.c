@@ -298,6 +298,22 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 }
 
 static int
+mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct vattr vap;
+	int error;
+
+	if (!mac_bsdextended_enabled)
+		return (0);
+
+	error = VOP_GETATTR(vp, &vap, cred, curthread);
+	if (error)
+		return (error);
+	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VWRITE));
+}
+
+static int
 mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
     struct label *label, int acc_mode)
 {
@@ -729,6 +745,7 @@ static struct mac_policy_ops mac_bsdextended_ops =
 {
 	.mpo_destroy = mac_bsdextended_destroy,
 	.mpo_init = mac_bsdextended_init,
+	.mpo_check_system_swapon = mac_bsdextended_check_system_swapon,
 	.mpo_check_vnode_access = mac_bsdextended_check_vnode_access,
 	.mpo_check_vnode_chdir = mac_bsdextended_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_bsdextended_check_vnode_chroot,
