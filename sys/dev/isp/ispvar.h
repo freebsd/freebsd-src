@@ -1,5 +1,5 @@
 /* $Id: $ */
-/* ispvar.h 1.21 */
+/* release_12_28_98_A */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -44,11 +44,11 @@
 #include <dev/isp/ispmbox.h>
 #endif
 #ifdef	__linux__
-#include <ispmbox.h>
+#include "ispmbox.h"
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	4
+#define	ISP_CORE_VERSION_MINOR	5
 
 /*
  * Vector for MD code to provide specific services.
@@ -177,6 +177,41 @@ typedef struct {
 #define	FW_REINIT		0x0006
 #define	FW_NON_PART		0x0007
 
+#ifdef	ISP_TARGET_MODE
+/*
+ * Some temporary Target Mode definitions
+ */
+typedef struct tmd_cmd {
+	u_int8_t	cd_iid;		/* initiator */
+	u_int8_t	cd_tgt;		/* target */
+	u_int8_t	cd_lun;		/* LUN for this command */
+	u_int8_t	cd_state;
+	u_int8_t	cd_cdb[16];	/* command bytes */
+	u_int8_t	cd_sensedata[20];
+	u_int16_t	cd_rxid;
+	u_int32_t	cd_datalen;
+	u_int32_t	cd_totbytes;
+	void *		cd_hba;
+} tmd_cmd_t;
+
+/*
+ * Async Target Mode Event Definitions
+ */
+#define	TMD_BUS_RESET	0
+#define	TMD_BDR		1
+
+/*
+ * Immediate Notify data structure.
+ */
+#define NOTIFY_MSGLEN	5
+typedef struct {
+	u_int8_t	nt_iid;			/* initiator */
+	u_int8_t	nt_tgt;			/* target */
+	u_int8_t	nt_lun;			/* LUN for this command */
+	u_int8_t	nt_msg[NOTIFY_MSGLEN];	/* SCSI message byte(s) */
+} tmd_notify_t;
+
+#endif
 
 /*
  * Soft Structure per host adapter
@@ -247,6 +282,27 @@ struct ispsoftc {
 	u_int32_t		isp_rquest_dma;
 	u_int32_t		isp_result_dma;
 
+#ifdef	ISP_TARGET_MODE
+	/*
+	 * Vectors for handling target mode support.
+	 *
+	 * isp_tmd_newcmd is for feeding a newly arrived command to some
+	 * upper layer.
+	 *
+	 * isp_tmd_event is for notifying some upper layer that an event has
+	 * occurred that is not necessarily tied to any target (e.g., a SCSI
+	 * Bus Reset).
+	 *
+	 * isp_tmd_notify is for notifying some upper layer that some
+	 * event is now occurring that is either pertinent for a specific
+	 * device or for a specific command (e.g., BDR or ABORT TAG).
+	 *
+	 * It is left undefined (for now) how pools of commands are managed.
+	 */
+	void		(*isp_tmd_newcmd) __P((void *, tmd_cmd_t *));
+	void		(*isp_tmd_event) __P((void *, int));
+	void		(*isp_tmd_notify) __P((void *, tmd_notify_t *));
+#endif	   
 };
 
 /*
@@ -332,11 +388,6 @@ void isp_reset __P((struct ispsoftc *));
 void isp_init __P((struct ispsoftc *));
 
 /*
- * Free any associated resources prior to decommissioning.
- */
-void isp_uninit __P((struct ispsoftc *));
-
-/*
  * Reset the ISP and call completion for any orphaned commands.
  */
 void isp_restart __P((struct ispsoftc *));
@@ -345,11 +396,6 @@ void isp_restart __P((struct ispsoftc *));
  * Interrupt Service Routine
  */
 int isp_intr __P((void *));
-
-/*
- * Watchdog Routine
- */
-void isp_watch __P((void *));
 
 /*
  * Command Entry Point
