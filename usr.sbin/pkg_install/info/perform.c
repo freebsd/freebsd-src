@@ -46,7 +46,7 @@ pkg_perform(char **pkgs)
     if (Flags & SHOW_PKGNAME) {
 	return matched_packages(pkgs);
     } else if (CheckPkg) {
-	return isinstalledpkg(CheckPkg) == TRUE ? 0 : 1;
+	return isinstalledpkg(CheckPkg) > 0 ? 0 : 1;
 	/* Not reached */
     } else if (!TAILQ_EMPTY(whead)) {
 	return find_pkg(whead);
@@ -92,7 +92,7 @@ pkg_do(char *pkg)
 {
     Boolean installed = FALSE, isTMP = FALSE;
     char log_dir[FILENAME_MAX];
-    char fname[FILENAME_MAX], extrlist[FILENAME_MAX];
+    char fname[FILENAME_MAX];
     Package plist;
     FILE *fp;
     struct stat sb;
@@ -135,29 +135,19 @@ pkg_do(char *pkg)
 	    goto bail;
 	}
 	Home = make_playpen(PlayPen, sb.st_size / 2);
-	snprintf(extrlist, sizeof(extrlist), "--fast-read %s %s %s",
-		 CONTENTS_FNAME, COMMENT_FNAME, DESC_FNAME);
-	if (Flags & SHOW_DISPLAY)
-	    snprintf(extrlist, sizeof(extrlist), "%s %s", extrlist,
-		     DISPLAY_FNAME);
-	if (Flags & SHOW_INSTALL)
-	    snprintf(extrlist, sizeof(extrlist), "%s %s %s", extrlist,
-		     INSTALL_FNAME, POST_INSTALL_FNAME);
-	if (Flags & SHOW_DEINSTALL)
-	    snprintf(extrlist, sizeof(extrlist), "%s %s %s", extrlist,
-		     DEINSTALL_FNAME, POST_DEINSTALL_FNAME);
-	if (Flags & SHOW_MTREE)
-	    snprintf(extrlist, sizeof(extrlist), "%s %s", extrlist,
-		     MTREE_FNAME);
-	if (unpack(fname, extrlist)) {
+	if (unpack(fname, "'+*'")) {
 	    warnx("error during unpacking, no info for '%s' available", pkg);
 	    code = 1;
 	    goto bail;
 	}
     }
-    /* It's not an ininstalled package, try and find it among the installed */
+    /* It's not an uninstalled package, try and find it among the installed */
     else {
-	if (!isinstalledpkg(pkg)) {
+	int isinstalled = isinstalledpkg(pkg);
+	if (isinstalled < 0) {
+	    warnx("the package info for package '%s' is corrupt", pkg);
+	    return 1;
+	} else if (isinstalled == 0) {
 	    warnx("can't find package '%s' installed or in a file!", pkg);
 	    return 1;
 	}
@@ -199,7 +189,7 @@ pkg_do(char *pkg)
 	    printf("%s%s:", InfoPrefix, pkg);
 	if (Flags & SHOW_COMMENT)
 	    show_file("Comment:\n", COMMENT_FNAME);
-	if (Flags & SHOW_REQUIRE)
+	if (Flags & SHOW_DEPEND)
 	    show_plist("Depends on:\n", &plist, PLIST_PKGDEP, FALSE);
 	if ((Flags & SHOW_REQBY) && !isemptyfile(REQUIRED_BY_FNAME))
 	    show_file("Required by:\n", REQUIRED_BY_FNAME);
@@ -209,6 +199,8 @@ pkg_do(char *pkg)
 	    show_file("Install notice:\n", DISPLAY_FNAME);
 	if (Flags & SHOW_PLIST)
 	    show_plist("Packing list:\n", &plist, (plist_t)0, TRUE);
+	if (Flags & SHOW_REQUIRE && fexists(REQUIRE_FNAME))
+	    show_file("Requirements script:\n", REQUIRE_FNAME);
 	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
 	    show_file("Install script:\n", INSTALL_FNAME);
 	if ((Flags & SHOW_INSTALL) && fexists(POST_INSTALL_FNAME))

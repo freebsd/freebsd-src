@@ -71,7 +71,7 @@ pkg_do(char *pkg)
     int code;
     PackingList p;
     struct stat sb;
-    int inPlace, conflictsfound, i, errcode;
+    int inPlace, conflictsfound, errcode;
     /* support for separate pre/post install scripts */
     int new_m = 0;
     char pre_script[FILENAME_MAX] = INSTALL_FNAME;
@@ -243,7 +243,7 @@ pkg_do(char *pkg)
      * See if we're already registered either with the same name (the same
      * version) or some other version with the same origin.
      */
-    if ((isinstalledpkg(Plist.name) ||
+    if ((isinstalledpkg(Plist.name) > 0 ||
          matchbyorigin(Plist.origin, NULL) != NULL) && !Force) {
 	warnx("package '%s' or its older version already installed",
 	      Plist.name);
@@ -254,13 +254,14 @@ pkg_do(char *pkg)
     /* Now check the packing list for conflicts */
     for (p = Plist.head; p != NULL; p = p->next) {
 	if (p->type == PLIST_CONFLICTS) {
+	    int i;
 	    conflict[0] = strdup(p->name);
 	    conflict[1] = NULL;
 	    matched = matchinstalled(MATCH_GLOB, conflict, &errcode);
 	    free(conflict[0]);
 	    if (errcode == 0 && matched != NULL)
 		for (i = 0; matched[i] != NULL; i++)
-		    if (isinstalledpkg(matched[i])) {
+		    if (isinstalledpkg(matched[i]) > 0) {
 			warnx("package '%s' conflicts with %s", Plist.name,
 				matched[i]);
 			conflictsfound = 1;
@@ -291,7 +292,7 @@ pkg_do(char *pkg)
 		printf(" with '%s' origin", deporigin);
 	    printf(".\n");
 	}
-	if (!isinstalledpkg(p->name) &&
+	if (isinstalledpkg(p->name) <= 0 &&
 	    !(deporigin != NULL && matchbyorigin(deporigin, NULL) != NULL)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
