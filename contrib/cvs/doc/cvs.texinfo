@@ -10513,6 +10513,7 @@ a file @file{sfile}.
 * Alias modules::             The simplest kind of module
 * Regular modules::
 * Ampersand modules::
+* Excluding directories::     Excluding directories from a module
 * Module options::            Regular and ampersand modules can take options
 @end menu
 
@@ -10684,6 +10685,25 @@ a future release of @sc{cvs}.
 @c In addition to discussing what each one does, we
 @c should put in a few words about why you would use one or
 @c the other in various situations.
+
+@node Excluding directories
+@appendixsubsec Excluding directories
+@cindex excluding directories, in modules file
+@cindex !, in modules file
+
+An alias module may exclude particular directories from
+other modules by using an exclamation mark (@samp{!})
+before the name of each directory to be excluded.
+
+For example, if the modules file contains:
+
+@example
+exmodule -a first-dir !first-dir/sdir
+@end example
+
+then checking out the module @samp{exmodule} will check
+out everything in @samp{first-dir} except any files in
+the subdirectory @samp{first-dir/sdir}.
 
 @node Module options
 @appendixsubsec Module options
