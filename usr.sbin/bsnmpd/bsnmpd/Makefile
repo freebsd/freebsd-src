@@ -6,7 +6,8 @@ CONTRIB=${.CURDIR}/../../../contrib/bsnmp
 .PATH:	${CONTRIB}/snmpd
 
 PROG=	bsnmpd
-SRCS=	oid.h tree.h tree.c main.c action.c config.c export.c trap.c
+SRCS=	oid.h tree.h tree.c main.c action.c config.c export.c trap.c \
+	trans_udp.c trans_lsock.c
 MAN=	bsnmpd.1 snmpmod.3
 WARNS=	6
 
