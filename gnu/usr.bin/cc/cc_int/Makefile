@@ -21,9 +21,9 @@ SRCS=	c-common.c c-dump.c c-format.c c-opts.c \
 	real.c recog.c reg-stack.c regclass.c \
 	reload.c reload1.c reorg.c rtl.c rtlanal.c \
 	sbitmap.c sdbout.c stmt.c stor-layout.c \
-	toplev.c tracer.c tree.c unroll.c varasm.c version.c xcoffout.c \
+	toplev.c tracer.c tree.c unroll.c varasm.c xcoffout.c \
 	alias.c bitmap.c dyn-string.c \
-	gcse.c genrtl.c profile.c regmove.c varray.c \
+	genrtl.c profile.c regmove.c varray.c \
 	attribs.c cselib.c debug.c rtl-error.c tree-dump.c tree-inline.c
 
 SRCS+=	${GCC_CPU}.c
@@ -45,7 +45,7 @@ insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F ${MD_FILE}
 .endfor
 
 #	shared between the drivers
-SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c mbchar.c concat.c make-temp-file.c underscore.c
+SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c mbchar.c concat.c make-temp-file.c
 #	C_AND_OBJC_OBJS
 #SRCS+=	attribs.o c-errors.o c-lex.o c-pragma.o c-decl.o c-typeck.o \
 #	c-convert.o c-aux-info.o c-common.o c-format.o c-semantics.o \
@@ -54,7 +54,7 @@ SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c mbchar.c
 #	XXX: shared by cc1, cc1obj & cpp0
 #	cc1plus seems to be able to tolerate these here,
 #	BUT only if the right .o's are specified in cc1plus/Makefile
-SRCS+=	c-lex.c c-typeck.c \
+SRCS+=	c-typeck.c \
 		c-errors.o c-pragma.o c-convert.o c-aux-info.o c-common.o c-format.o c-semantics.o c-objc-common.o
 
 #	libbackend
@@ -69,7 +69,7 @@ SRCS+=	cppdefault.c cpperror.c cppexp.c cppfiles.c cppinit.c cpphash.c \
 	cpplex.c cpplib.c cppmacro.c cppmain.c cpptrad.c mkdeps.c line-map.c
 
 #	stuff that makes libiberty now required (2.95) and shouldn't be...
-SRCS+=	obstack.c splay-tree.c hashtab.c partition.c lbasename.c md5.c hex.c getopt.c getopt1.c xmemdup.c physmem.c
+SRCS+=	splay-tree.c hashtab.c partition.c lbasename.c md5.c hex.c getopt.c getopt1.c xmemdup.c physmem.c
 CFLAGS+=	-DHAVE_CONFIG_H
 
 CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
