@@ -1067,8 +1067,9 @@ nfs_timer(void *arg)
 	struct nfsmount *nmp;
 	int timeo;
 	int s, error;
-	struct thread *td = &thread0; /* XXX for credentials, will break if sleep */
+	struct thread *td;
 
+	td = &thread0; /* XXX for credentials, may break if sleep */
 	s = splnet();
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
