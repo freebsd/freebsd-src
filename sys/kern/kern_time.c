@@ -156,13 +156,31 @@ int
 clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
+	struct timeval user, sys;
 
-	if (uap->clock_id == CLOCK_REALTIME)
+	switch (uap->clock_id) {
+	case CLOCK_REALTIME:
 		nanotime(&ats);
-	else if (uap->clock_id == CLOCK_MONOTONIC)
+		break;
+	case CLOCK_MONOTONIC:
 		nanouptime(&ats);
-	else
+		break;
+	case CLOCK_VIRTUAL:
+		calcru(td->td_proc, &user, &sys, NULL);
+		TIMEVAL_TO_TIMESPEC(&user, &ats);
+		break;
+	case CLOCK_PROF:
+		calcru(td->td_proc, &user, &sys, NULL);
+		ats.tv_sec = user.tv_sec + sys.tv_sec;
+		ats.tv_nsec = (user.tv_usec + sys.tv_usec) * 1000;
+		if (ats.tv_nsec > 1000000000) {
+			ats.tv_sec++;
+			ats.tv_nsec -= 1000000000;
+		}
+		break;
+	default:
 		return (EINVAL);
+	}
 	return (copyout(&ats, uap->tp, sizeof(ats)));
 }
 
@@ -216,19 +234,31 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 	struct timespec ts;
 	int error;
 
-	if (uap->clock_id != CLOCK_REALTIME)
-		return (EINVAL);
-	error = 0;
-	if (uap->tp) {
-		ts.tv_sec = 0;
+	ts.tv_sec = 0;
+
+	switch (uap->clock_id) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
 		/*
 		 * Round up the result of the division cheaply by adding 1.
 		 * Rounding up is especially important if rounding down
 		 * would give 0.  Perfect rounding is unimportant.
 		 */
 		ts.tv_nsec = 1000000000 / tc_getfrequency() + 1;
-		error = copyout(&ts, uap->tp, sizeof(ts));
+		break;
+	case CLOCK_VIRTUAL:
+	case CLOCK_PROF:
+		/* Accurately round up here because we can do so cheaply. */
+		ts.tv_nsec = (1000000000 + hz - 1) / hz;
+		break;
+	default:
+		return (EINVAL);
 	}
+
+	error = 0;
+	if (uap->tp)
+		error = copyout(&ts, uap->tp, sizeof(ts));
+
 	return (error);
 }
 
