@@ -904,17 +904,15 @@ socksetup(int af, int debuglvl)
 				close(*s);
 				continue;
 			}
-#ifdef IPV6_BINDV6ONLY
 		if (r->ai_family == AF_INET6) {
-			if (setsockopt(*s, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
 				       &on, sizeof(on)) < 0) {
 				syslog(LOG_ERR,
-				       "setsockopt (IPV6_BINDV6ONLY): %m");
+				       "setsockopt (IPV6_V6ONLY): %m");
 				close(*s);
 				continue;
 			}
 		}
-#endif
 		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
 			syslog(LOG_DEBUG, "bind(): %m");
 			close(*s);
