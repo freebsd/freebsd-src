@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: chown.c,v 1.7 1997/08/24 02:10:29 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -122,8 +122,7 @@ main(argc, argv)
 	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
 		if (hflag)
-			errx(1,
-		"the -R and -h options may not be specified together.");
+			errx(1, "the -R and -h options may not be specified together");
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
 		if (Lflag) {
@@ -266,8 +265,9 @@ chownerr(file)
 void
 usage()
 {
-	(void)fprintf(stderr,
-	    "usage: %s [-R [-H | -L | -P]] [-f] [-h] %s file ...\n",
-	    myname, ischown ? "[owner][:group]" : "group");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: chown [-R [-H | -L | -P]] [-f] [-h] owner[:group] file ...",
+	    "       chown [-R [-H | -L | -P]] [-f] [-h] :group file ...",
+	    "       chgrp [-R [-H | -L | -P]] [-f] [-h] group file ...");
 	exit(1);
 }

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chown.8	8.3 (Berkeley) 3/31/94
-.\"	$Id: chown.8,v 1.4 1997/02/22 16:04:35 peter Exp $
+.\"	$Id: chown.8,v 1.5 1997/03/31 13:03:47 peter Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHOWN 8
@@ -56,7 +56,7 @@
 .Op Fl f
 .Op Fl h
 .Ar :group
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
 .Nm Chown
 sets the user ID and/or the group ID of the specified files.
@@ -67,7 +67,7 @@ The options are as follows:
 If the
 .Fl R
 option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+(Symbolic links encountered in the tree traversal are not followed).
 .It Fl L
 If the
 .Fl R
@@ -122,11 +122,11 @@ The ownership of a file may only be altered by a super-user for
 obvious security reasons.
 .Pp
 The
-.Nm chown
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh COMPATIBILITY
 Previous versions of the
-.Nm chown
+.Nm
 utility used the dot (``.'') character to distinguish the group name.
 This has been changed to be a colon (``:'') character so that user and
 group names may contain the dot character.
@@ -141,8 +141,10 @@ owners.
 .Xr symlink 7
 .Sh STANDARDS
 The
-.Nm chown
-command is expected to be POSIX 1003.2 compliant.
+.Nm
+command is expected to be
+.St -p1003.2
+compliant.
 .Sh HISTORY
 A
 .Nm
