@@ -178,16 +178,27 @@ B<If you're using a Macintosh,>
 
 A. DECOMPRESS
 
-You can either use StuffIt Expander ( http://www.aladdinsys.com/ ) in
-combination with I<DropStuff with Expander Enhancer>
-(shareware), or the freeware MacGzip (
+In general, all Macintosh decompression utilities mentioned here
+can be found in the Info-Mac Hyperarchive
+( http://hyperarchive.lcs.mit.edu/HyperArchive.html ).
+Specificly the "Commpress & Translate" listing
+( http://hyperarchive.lcs.mit.edu/HyperArchive/Abstracts/cmp/HyperArchive.html ).
+
+
+You can either use the shareware StuffIt Expander 
+( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/stuffit-expander-401.hqx ) 
+in combination with I<DropStuff with Expander Enhancer>
+( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/drop-stuff-with-ee-40.hqx ) 
+or the freeware MacGzip (
 http://persephone.cps.unizar.es/general/gente/spd/gzip/gzip.html ).
+
 
 B. UNPACK
 
 If you're using DropStuff or Stuffit, you can just extract the tar
-archive.  Otherwise, you can use the freeware I<suntar> (
-http://www.cirfid.unibo.it/~speranza ).
+archive.  Otherwise, you can use the freeware I<suntar> 
+( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/suntar-221.hqx )
+or I<Tar> ( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/tar-40b.hqx ).
 
 C. BUILD
 
@@ -212,6 +223,15 @@ mail to mac-perl-request@iis.ee.ethz.ch.
 D. INSTALL
 
 Make sure the newlines for the modules are in Mac format, not Unix format.
+If they are not then you might have decompressed them incorrectly.  Check
+your decompression and unpacking utilities settings to make sure they are
+translating text files properly.
+As a last resort, you can use the perl one-liner:
+
+	perl -i.bak -pe 's/(?:\015)?\012/\015/g' filenames
+
+on the source files.
+
 Move the files manually into the correct folders.
 
 Move the files to their final destination: This will

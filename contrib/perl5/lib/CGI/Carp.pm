@@ -14,6 +14,12 @@ B<CGI::Carp> - CGI routines for writing to the HTTPD (or other) error log
     warn "I'm confused";
     die  "I'm dying.\n";
 
+    use CGI::Carp qw(cluck);
+    cluck "I wouldn't do that if I were you";
+
+    use CGI::Carp qw(fatalsToBrowser);
+    die "Fatal error messages are now sent to browser";
+
 =head1 DESCRIPTION
 
 CGI scripts have a nasty habit of leaving warning messages in the error
@@ -155,11 +161,21 @@ set_message() from within a BEGIN{} block.
 1.10 Patch from Chris Dean (ctdean@cogit.com) to allow 
      module to run correctly under mod_perl.
 
+1.11 Changed order of &gt; and &lt; escapes.
+
+1.12 Changed die() on line 217 to CORE::die to avoid B<-w> warning.
+
+1.13 Added cluck() to make the module orthogonal with Carp.
+    More mod_perl related fixes.
+
 =head1 AUTHORS
 
-Lincoln D. Stein <lstein@genome.wi.mit.edu>.  Feel free to redistribute
-this under the Perl Artistic License.
+Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.  
 
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+Address bug reports and comments to: lstein@cshl.org
 
 =head1 SEE ALSO
 
@@ -174,11 +190,11 @@ use Carp;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(confess croak carp);
-@EXPORT_OK = qw(carpout fatalsToBrowser wrap set_message);
+@EXPORT_OK = qw(carpout fatalsToBrowser wrap set_message cluck);
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.101';
+$CGI::Carp::VERSION = '1.13';
 $CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
@@ -194,7 +210,6 @@ sub import {
 }
 
 # These are the originals
-# XXX Why not just use CORE::die etc., instead of these two?  GSAR
 sub realwarn { CORE::warn(@_); }
 sub realdie { CORE::die(@_); }
 
@@ -230,8 +245,7 @@ sub warn {
 # eval.  These evals don't count when looking at the stack backtrace.
 sub _longmess {
     my $message = Carp::longmess();
-    my $mod_perl = ($ENV{'GATEWAY_INTERFACE'} 
-                    && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl\//);
+    my $mod_perl = exists $ENV{MOD_PERL};
     $message =~ s,eval[^\n]+Apache/Registry\.pm.*,,s if $mod_perl;
     return( $message );    
 }
@@ -240,7 +254,7 @@ sub die {
     my $message = shift;
     my $time = scalar(localtime);
     my($file,$line,$id) = id(1);
-    $message .= " at $file line $line.\n" unless $message=~/\n$/;
+    $message .= " at $file line $line." unless $message=~/\n$/;
     &fatalsToBrowser($message) if $WRAP && _longmess() !~ /eval [{\']/m;
     my $stamp = stamp;
     $message=~s/^/$stamp/gm;
@@ -258,8 +272,9 @@ sub set_message {
     local $^W=0;
     eval <<EOF;
 sub confess { CGI::Carp::die Carp::longmess \@_; }
-sub croak { CGI::Carp::die Carp::shortmess \@_; }
-sub carp { CGI::Carp::warn Carp::shortmess \@_; }
+sub croak   { CGI::Carp::die Carp::shortmess \@_; }
+sub carp    { CGI::Carp::warn Carp::shortmess \@_; }
+sub cluck   { CGI::Carp::warn Carp::longmess \@_; }
 EOF
     ;
 }
@@ -269,7 +284,7 @@ EOF
 sub carpout {
     my($in) = @_;
     my($no) = fileno(to_filehandle($in));
-    realdie "Invalid filehandle $in\n" unless defined $no;
+    realdie("Invalid filehandle $in\n") unless defined $no;
     
     open(SAVEERR, ">&STDERR");
     open(STDERR, ">&$no") or 
@@ -279,9 +294,9 @@ sub carpout {
 # headers
 sub fatalsToBrowser {
     my($msg) = @_;
+    $msg=~s/&/&amp;/g;
     $msg=~s/>/&gt;/g;
     $msg=~s/</&lt;/g;
-    $msg=~s/&/&amp;/g;
     $msg=~s/\"/&quot;/g;
     my($wm) = $ENV{SERVER_ADMIN} ? 
 	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
@@ -291,7 +306,9 @@ For help, please send mail to $wm, giving this error message
 and the time and date of the error.
 END
     ;
-    print STDOUT "Content-type: text/html\n\n";
+    my $mod_perl = exists $ENV{MOD_PERL};
+    print STDOUT "Content-type: text/html\n\n" 
+	unless $mod_perl;
 
     if ($CUSTOM_MSG) {
 	if (ref($CUSTOM_MSG) eq 'CODE') {
@@ -302,13 +319,30 @@ END
 	}
     }
     
-    print STDOUT <<END;
+    my $mess = <<END;
 <H1>Software error:</H1>
 <CODE>$msg</CODE>
 <P>
-$outer_message;
+$outer_message
 END
     ;
+
+    if ($mod_perl) {
+	my $r = Apache->request;
+	# If bytes have already been sent, then
+	# we print the message out directly.
+	# Otherwise we make a custom error
+	# handler to produce the doc for us.
+	if ($r->bytes_sent) {
+	    $r->print($mess);
+	    $r->exit;
+	} else {
+	    $r->status(500);
+	    $r->custom_response(500,$mess);
+	}
+    } else {
+	print STDOUT $mess;
+    }
 }
 
 # Cut and paste from CGI.pm so that we don't have the overhead of

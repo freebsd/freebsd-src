@@ -680,9 +680,12 @@ This method will be called when the handle is read from via the C<read>
 or C<sysread> functions.
 
     sub READ {
-	$r = shift;
-	my($buf,$len,$offset) = @_;
-	print "READ called, \$buf=$buf, \$len=$len, \$offset=$offset";
+	my $self = shift;
+	my $$bufref = \$_[0];
+	my(undef,$len,$offset) = @_;
+	print "READ called, \$buf=$bufref, \$len=$len, \$offset=$offset";
+	# add to $$bufref, set $len to number of characters read
+	$len;
     }
 
 =item READLINE this
@@ -690,7 +693,7 @@ or C<sysread> functions.
 This method will be called when the handle is read from via <HANDLE>.
 The method should return undef when there is no more data.
 
-    sub READLINE { $r = shift; "PRINT called $$r times\n"; }
+    sub READLINE { $r = shift; "READLINE called $$r times\n"; }
 
 =item GETC this
 

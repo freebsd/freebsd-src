@@ -4,7 +4,7 @@ use strict;
 
 use vars qw($VERSION);
 
-$VERSION = "1.09";
+$VERSION = "1.111";
 
 my %err = ();
 
@@ -21,7 +21,7 @@ unlink "errno.c" if -f "errno.c";
 sub process_file {
     my($file) = @_;
 
-    return unless defined $file;
+    return unless defined $file and -f $file;
 
     local *FH;
     if (($^O eq 'VMS') && ($Config{vms_cc_type} ne 'gnuc')) {
@@ -31,7 +31,9 @@ sub process_file {
 	}     
     } else {
 	unless(open(FH,"< $file")) {
-            warn "Cannot open '$file'";
+	    # This file could be a temporary file created by cppstdin
+	    # so only warn under -w, and return
+            warn "Cannot open '$file'" if $^W;
             return;
 	}
     }
@@ -40,6 +42,24 @@ sub process_file {
 	    if /^\s*#\s*define\s+(E\w+)\s+/;
    }
    close(FH);
+}
+
+my $cppstdin;
+
+sub default_cpp {
+    unless (defined $cppstdin) {
+	use File::Spec;
+	$cppstdin = $Config{cppstdin};
+	my $upup_cppstdin = File::Spec->catfile(File::Spec->updir,
+						File::Spec->updir,
+						"cppstdin");
+	my $cppstdin_is_wrapper =
+	    ($cppstdin eq 'cppstdin'
+		and -f $upup_cppstdin
+		    and -x $upup_cppstdin);
+	$cppstdin = $upup_cppstdin if $cppstdin_is_wrapper;
+    }
+    return "$cppstdin $Config{cppflags} $Config{cppminus}";
 }
 
 sub get_files {
@@ -56,6 +76,9 @@ sub get_files {
     } elsif ($^O eq 'os390') {
 	# OS/390 C compiler doesn't generate #file or #line directives
 	$file{'/usr/include/errno.h'} = 1;
+    } elsif ($^O eq 'vmesa') {
+	# OS/390 C compiler doesn't generate #file or #line directives
+	$file{'../../vmesa/errno.h'} = 1;
     } else {
 	open(CPPI,"> errno.c") or
 	    die "Cannot open errno.c";
@@ -65,9 +88,14 @@ sub get_files {
 	close(CPPI);
 
 	# invoke CPP and read the output
-
-	open(CPPO,"$Config{cpprun} $Config{cppflags} errno.c |") or
-	    die "Cannot exec $Config{cpprun}";
+	if ($^O eq 'MSWin32') {
+	    open(CPPO,"$Config{cpprun} $Config{cppflags} errno.c |") or
+		die "Cannot run '$Config{cpprun} $Config{cppflags} errno.c'";
+	} else {
+	    my $cpp = default_cpp();
+	    open(CPPO,"$cpp < errno.c |") or
+		die "Cannot exec $cpp";
+	}
 
 	my $pat;
 	if ($^O eq 'MSWin32' and $Config{cc} =~ /^bcc/i) {
@@ -77,7 +105,16 @@ sub get_files {
 	    $pat = '^#(?:line)?\s*\d+\s+"([^"]+)"';
 	}
 	while(<CPPO>) {
-	    $file{$1} = 1 if /$pat/o;
+	    if ($^O eq 'os2' or $^O eq 'MSWin32') {
+		if (/$pat/o) {
+		   my $f = $1;
+		   $f =~ s,\\\\,/,g;
+		   $file{$f} = 1;
+		}
+	    }
+	    else {
+		$file{$1} = 1 if /$pat/o;
+	    }
 	}
 	close(CPPO);
     }
@@ -86,6 +123,10 @@ sub get_files {
 
 sub write_errno_pm {
     my $err;
+
+    # quick sanity check
+
+    die "No error definitions found" unless keys %err;
 
     # create the CPP input
 
@@ -107,14 +148,13 @@ sub write_errno_pm {
 	$cpp =~ s/sys\$input//i;
 	open(CPPO,"$cpp  errno.c |") or
           die "Cannot exec $Config{cppstdin}";
-    } elsif(!$Config{'cpprun'} or $^O eq 'next') {
-	# NeXT will do syntax checking unless it is reading from stdin
-	my $cpp = "$Config{cppstdin} $Config{cppflags} $Config{cppminus}";
+    } elsif ($^O eq 'MSWin32') {
+	open(CPPO,"$Config{cpprun} $Config{cppflags} errno.c |") or
+	    die "Cannot run '$Config{cpprun} $Config{cppflags} errno.c'";
+    } else {
+	my $cpp = default_cpp();
 	open(CPPO,"$cpp < errno.c |")
 	    or die "Cannot exec $cpp";
-    } else {
-	open(CPPO,"$Config{cpprun} $Config{cppflags} errno.c |") or
-	    die "Cannot exec $Config{cpprun}";
     }
 
     %err = ();

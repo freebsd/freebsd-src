@@ -301,7 +301,7 @@ floats as
 =item number format
 
 canonical strings have the form /[+-]\d+E[+-]\d+/ .  Input values can
-have inbedded whitespace.
+have imbedded whitespace.
 
 =item Error returns 'NaN'
 

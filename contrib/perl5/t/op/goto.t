@@ -1,10 +1,8 @@
 #!./perl
 
-# $RCSfile: goto.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:56 $
-
 # "This IS structured code.  It's just randomly structured."
 
-print "1..9\n";
+print "1..13\n";
 
 while ($?) {
     $foo = 1;
@@ -56,7 +54,7 @@ sub bar {
 exit;
 
 FINALE:
-print "ok 9\n";
+print "ok 13\n";
 exit;
 
 bypass:
@@ -85,6 +83,23 @@ $LINE = __LINE__ + 1;
 $wherever = NOWHERE;
 eval { goto $wherever };
 print $@ =~ /Can't find label NOWHERE/ ? "ok 8\n" : "not ok 8\n";
+
+# see if a modified @_ propagates
+{
+  package Foo;
+  sub DESTROY	{ my $s = shift; print "ok $s->[0]\n"; }
+  sub show	{ print "# @_\nnot ok $_[0][0]\n" if @_ != 5; }
+  sub start	{ push @_, 1, "foo", {}; goto &show; }
+  for (9..11)	{ start(bless([$_]), 'bar'); }
+}
+
+sub auto {
+    goto &loadit;
+}
+
+sub AUTOLOAD { print @_ }
+
+auto("ok 12\n");
 
 $wherever = FINALE;
 goto $wherever;

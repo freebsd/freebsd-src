@@ -78,7 +78,7 @@ CGI::Apache - Make things work with CGI.pm against Perl-Apache API
 =head1 DESCRIPTION
 
 When using the Perl-Apache API, your applications are faster, but the
-enviroment is different than CGI.
+environment is different than CGI.
 This module attempts to set-up that environment as best it can.
 
 =head1 NOTE 1

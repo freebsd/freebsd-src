@@ -694,5 +694,17 @@ test($c, "bareword");	# 135
   test( scalar ($seven =~ /i/), '1')
 }
 
+{
+  package sorting;
+  use overload 'cmp' => \&comp;
+  sub new { my ($p, $v) = @_; bless \$v, $p }
+  sub comp { my ($x,$y) = @_; ($$x * 3 % 10) <=> ($$y * 3 % 10) or $$x cmp $$y }
+}
+{
+  my @arr = map sorting->new($_), 0..12;
+  my @sorted1 = sort @arr;
+  my @sorted2 = map $$_, @sorted1;
+  test "@sorted2", '0 10 7 4 1 11 8 5 12 2 9 6 3';
+}
 # Last test is:
-sub last {173}
+sub last {174}

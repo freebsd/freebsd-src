@@ -42,9 +42,13 @@ libswanted="$*"
 # shift
 # libswanted="$*"
 
-if [ "X$usethreads" = "X$define" ]; then
-    echo >&4 "IRIX 6.1 does not have POSIX threads."
-    echo >&4 "You should upgrade to at least IRIX 6.3."
-    echo >&4 "Cannot continue, aborting."
-    exit 1
-fi
+case "$usethreads" in
+$define|true|[yY]*)
+        cat >&4 <<EOM
+IRIX `uname -r` does not support POSIX threads.
+You should upgrade to at least IRIX 6.2 with pthread patches.
+EOM
+	exit 1
+	;;
+esac
+

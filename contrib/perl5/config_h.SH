@@ -239,6 +239,54 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  */
 #$d_fsetpos HAS_FSETPOS	/**/
 
+/* I_SYS_MOUNT:
+ *	This symbol, if defined, indicates to the C program that it should
+ *	include <sys/mount.h>.
+ */
+#$i_sysmount I_SYS_MOUNT		/**/
+
+/* HAS_FSTATFS:
+ *	This symbol, if defined, indicates that the fstatfs routine is
+ *	available to stat the filesystem of a file descriptor.
+ */
+#$d_fstatfs HAS_FSTATFS	/**/
+
+/* HAS_STRUCT_STATFS_FLAGS:
+ *	This symbol, if defined, indicates that the struct statfs has
+ *	the f_flags member for mount flags.
+ */
+#$d_statfsflags HAS_STRUCT_STATFS_FLAGS	/**/
+
+/* I_SYS_STATVFS:
+ *	This symbol, if defined, indicates to the C program that it should
+ *	include <sys/statvfs.h>.
+ */
+#$i_sysstatvfs I_SYS_STATVFS		/**/
+
+/* HAS_FSTATVFS:
+ *	This symbol, if defined, indicates that the fstatvfs routine is
+ *	available to stat the filesystem of a file descriptor.
+ */
+#$d_fstatvfs HAS_FSTATVFS	/**/
+
+/* I_MNTENT:
+ *	This symbol, if defined, indicates to the C program that it should
+ *	include <mntent.h>.
+ */
+#$i_mntent I_MNTENT		/**/
+
+/* HAS_GETMNTENT:
+ *	This symbol, if defined, indicates that the getmntent routine is
+ *	available to lookup mount entries in some data base or other.
+ */
+#$d_getmntent HAS_GETMNTENT	/**/
+
+/* HAS_HASMNTOPT:
+ *	This symbol, if defined, indicates that the hasmntopt routine is
+ *	available to query mount entries returned by getmntent.
+ */
+#$d_hasmntopt HAS_HASMNTOPT	/**/
+
 /* HAS_GETTIMEOFDAY:
  *	This symbol, if defined, indicates that the gettimeofday() system
  *	call is available for a sub-second accuracy clock. Usually, the file
@@ -1813,7 +1861,7 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  *	the sig_name list.
  */
 #define SIG_NAME $sig_name_init		/**/
-#define SIG_NUM  $sig_num			/**/
+#define SIG_NUM  $sig_num_init		/**/
 
 /* VOIDFLAGS:
  *	This symbol indicates how much support of the void type is given by this
@@ -1901,6 +1949,15 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  */
 #define PRIVLIB "$privlib"		/**/
 #define PRIVLIB_EXP "$privlibexp"		/**/
+
+/* SELECT_MIN_BITS:
+ *	This symbol holds the minimum number of bits operated by select.
+ *	That is, if you do select(n, ...), how many bits at least will be
+ *	cleared in the masks if some activity is detected.  Usually this
+ *	is either n or 32*ceil(n/32), especially many little-endians do
+ *	the latter.  This is only useful if you have select(), naturally.
+ */
+#define SELECT_MIN_BITS 	$selectminbits	/**/
 
 /* SITEARCH:
  *	This symbol contains the name of the private library for this package.
@@ -2016,6 +2073,18 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  *	instance.
  */
 #define ARCHNAME "$archname"		/**/
+
+/* I_MACH_CTHREADS:
+ *    This symbol, if defined, indicates to the C program that it should
+ *    include <mach/cthreads.h>.
+ */
+#$i_machcthreads	I_MACH_CTHREADS         /**/
+
+/* I_PTHREAD:
+ *    This symbol, if defined, indicates to the C program that it should
+ *    include <pthread.h>.
+ */
+#$i_pthread   I_PTHREAD               /**/
 
 /* HAS_PTHREAD_YIELD:
  *	This symbol, if defined, indicates that the pthread_yield 

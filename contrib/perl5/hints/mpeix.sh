@@ -51,8 +51,8 @@ toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
 # Linking.
 #
 lddlflags='-b'
-libs='-lbind -lsvipc -lsocket -lm -lc'
-loclibpth='/usr/local/lib /usr/contrib/lib /BIND/PUB/lib'
+libs='-lbind -lsyslog -lcurses -lsvipc -lsocket -lm -lc'
+loclibpth='/usr/local/lib /usr/contrib/lib /BIND/PUB/lib /SYSLOG/PUB'
 #
 # External functions and data items.
 #

@@ -1,6 +1,6 @@
 /*    doio.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -18,12 +18,11 @@
 #include "perl.h"
 
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
+#ifndef HAS_SEM
 #include <sys/ipc.h>
+#endif
 #ifdef HAS_MSG
 #include <sys/msg.h>
-#endif
-#ifdef HAS_SEM
-#include <sys/sem.h>
 #endif
 #ifdef HAS_SHM
 #include <sys/shm.h>
@@ -359,8 +358,12 @@ do_open(GV *gv, register char *name, I32 len, int as_raw, int rawmode, int rawpe
 	PerlIO_clearerr(fp);
     }
 #if defined(HAS_FCNTL) && defined(F_SETFD)
-    fd = PerlIO_fileno(fp);
-    fcntl(fd,F_SETFD,fd > PL_maxsysfd);
+    {
+	int save_errno = errno;
+	fd = PerlIO_fileno(fp);
+	fcntl(fd,F_SETFD,fd > PL_maxsysfd); /* can change errno */
+	errno = save_errno;
+    }
 #endif
     IoIFP(io) = fp;
     if (writing) {
@@ -545,7 +548,7 @@ nextargv(register GV *gv)
 	}
 	else
 	    PerlIO_printf(PerlIO_stderr(), "Can't open %s: %s\n",
-	      SvPV(sv, PL_na), Strerror(errno));
+	      SvPV(sv, oldlen), Strerror(errno));
     }
     if (PL_inplace) {
 	(void)do_close(PL_argvoutgv,FALSE);
@@ -759,7 +762,7 @@ do_binmode(PerlIO *fp, int iotype, int flag)
     if (flag != TRUE)
 	croak("panic: unsetting binmode"); /* Not implemented yet */
 #ifdef DOSISH
-#ifdef atarist
+#if defined(atarist) || defined(__MINT__)
     if (!PerlIO_flush(fp) && (fp->_flag |= _IOBIN))
 	return 1;
     else
@@ -920,6 +923,7 @@ my_stat(ARGSproto)
     else {
 	SV* sv = POPs;
 	char *s;
+	STRLEN n_a;
 	PUTBACK;
 	if (SvTYPE(sv) == SVt_PVGV) {
 	    tmpgv = (GV*)sv;
@@ -930,7 +934,7 @@ my_stat(ARGSproto)
 	    goto do_fstat;
 	}
 
-	s = SvPV(sv, PL_na);
+	s = SvPV(sv, n_a);
 	PL_statgv = Nullgv;
 	sv_setpv(PL_statname, s);
 	PL_laststype = OP_STAT;
@@ -946,6 +950,7 @@ my_lstat(ARGSproto)
 {
     djSP;
     SV *sv;
+    STRLEN n_a;
     if (PL_op->op_flags & OPf_REF) {
 	EXTEND(SP,1);
 	if (cGVOP->op_gv == PL_defgv) {
@@ -960,13 +965,13 @@ my_lstat(ARGSproto)
     PL_statgv = Nullgv;
     sv = POPs;
     PUTBACK;
-    sv_setpv(PL_statname,SvPV(sv, PL_na));
+    sv_setpv(PL_statname,SvPV(sv, n_a));
 #ifdef HAS_LSTAT
-    PL_laststatval = PerlLIO_lstat(SvPV(sv, PL_na),&PL_statcache);
+    PL_laststatval = PerlLIO_lstat(SvPV(sv, n_a),&PL_statcache);
 #else
-    PL_laststatval = PerlLIO_stat(SvPV(sv, PL_na),&PL_statcache);
+    PL_laststatval = PerlLIO_stat(SvPV(sv, n_a),&PL_statcache);
 #endif
-    if (PL_laststatval < 0 && PL_dowarn && strchr(SvPV(sv, PL_na), '\n'))
+    if (PL_laststatval < 0 && PL_dowarn && strchr(SvPV(sv, n_a), '\n'))
 	warn(warn_nl, "lstat");
     return PL_laststatval;
 }
@@ -976,6 +981,7 @@ do_aexec(SV *really, register SV **mark, register SV **sp)
 {
     register char **a;
     char *tmps;
+    STRLEN n_a;
 
     if (sp > mark) {
 	dTHR;
@@ -983,14 +989,14 @@ do_aexec(SV *really, register SV **mark, register SV **sp)
 	a = PL_Argv;
 	while (++mark <= sp) {
 	    if (*mark)
-		*a++ = SvPVx(*mark, PL_na);
+		*a++ = SvPVx(*mark, n_a);
 	    else
 		*a++ = "";
 	}
 	*a = Nullch;
 	if (*PL_Argv[0] != '/')	/* will execvp use PATH? */
 	    TAINT_ENV();		/* testing IFS here is overkill, probably */
-	if (really && *(tmps = SvPV(really, PL_na)))
+	if (really && *(tmps = SvPV(really, n_a)))
 	    PerlProc_execvp(tmps,PL_Argv);
 	else
 	    PerlProc_execvp(PL_Argv[0],PL_Argv);
@@ -1116,10 +1122,11 @@ apply(I32 type, register SV **mark, register SV **sp)
     char *what;
     char *s;
     SV **oldmark = mark;
+    STRLEN n_a;
 
 #define APPLY_TAINT_PROPER() \
     STMT_START {							\
-	if (PL_tainting && PL_tainted) { goto taint_proper_label; }	\
+	if (PL_tainted) { TAINT_PROPER(what); }				\
     } STMT_END
 
     /* This is a first heuristic; it doesn't catch tainting magic. */
@@ -1141,7 +1148,7 @@ apply(I32 type, register SV **mark, register SV **sp)
 	    APPLY_TAINT_PROPER();
 	    tot = sp - mark;
 	    while (++mark <= sp) {
-		char *name = SvPVx(*mark, PL_na);
+		char *name = SvPVx(*mark, n_a);
 		APPLY_TAINT_PROPER();
 		if (PerlLIO_chmod(name, val))
 		    tot--;
@@ -1158,7 +1165,7 @@ apply(I32 type, register SV **mark, register SV **sp)
 	    APPLY_TAINT_PROPER();
 	    tot = sp - mark;
 	    while (++mark <= sp) {
-		char *name = SvPVx(*mark, PL_na);
+		char *name = SvPVx(*mark, n_a);
 		APPLY_TAINT_PROPER();
 		if (PerlLIO_chown(name, val, val2))
 		    tot--;
@@ -1178,7 +1185,7 @@ nothing in the core.
 	APPLY_TAINT_PROPER();
 	if (mark == sp)
 	    break;
-	s = SvPVx(*++mark, PL_na);
+	s = SvPVx(*++mark, n_a);
 	if (isUPPER(*s)) {
 	    if (*s == 'S' && s[1] == 'I' && s[2] == 'G')
 		s += 3;
@@ -1248,7 +1255,7 @@ nothing in the core.
 	APPLY_TAINT_PROPER();
 	tot = sp - mark;
 	while (++mark <= sp) {
-	    s = SvPVx(*mark, PL_na);
+	    s = SvPVx(*mark, n_a);
 	    APPLY_TAINT_PROPER();
 	    if (PL_euid || PL_unsafe) {
 		if (UNLINK(s))
@@ -1277,23 +1284,23 @@ nothing in the core.
 	    struct utimbuf utbuf;
 #else
 	    struct {
-		long    actime;
-		long	modtime;
+		Time_t	actime;
+		Time_t	modtime;
 	    } utbuf;
 #endif
 
 	    Zero(&utbuf, sizeof utbuf, char);
 #ifdef BIG_TIME
-	    utbuf.actime = (Time_t)SvNVx(*++mark);    /* time accessed */
-	    utbuf.modtime = (Time_t)SvNVx(*++mark);    /* time modified */
+	    utbuf.actime = (Time_t)SvNVx(*++mark);	/* time accessed */
+	    utbuf.modtime = (Time_t)SvNVx(*++mark);	/* time modified */
 #else
-	    utbuf.actime = SvIVx(*++mark);    /* time accessed */
-	    utbuf.modtime = SvIVx(*++mark);    /* time modified */
+	    utbuf.actime = (Time_t)SvIVx(*++mark);	/* time accessed */
+	    utbuf.modtime = (Time_t)SvIVx(*++mark);	/* time modified */
 #endif
 	    APPLY_TAINT_PROPER();
 	    tot = sp - mark;
 	    while (++mark <= sp) {
-		char *name = SvPVx(*mark, PL_na);
+		char *name = SvPVx(*mark, n_a);
 		APPLY_TAINT_PROPER();
 		if (PerlLIO_utime(name, &utbuf))
 		    tot--;
@@ -1305,10 +1312,6 @@ nothing in the core.
 #endif
     }
     return tot;
-
-  taint_proper_label:
-    TAINT_PROPER(what);
-    return 0;	/* this should never happen */
 
 #undef APPLY_TAINT_PROPER
 }

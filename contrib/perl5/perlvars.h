@@ -173,8 +173,11 @@ PERLVARI(Gnumeric_local,	bool,	TRUE)
 /* constants (these are not literals to facilitate pointer comparisons) */
 PERLVARIC(GYes,		char *, "1")
 PERLVARIC(GNo,		char *, "")
-PERLVARIC(Ghexdigit,	char *, "0123456789abcdef0123456789ABCDEFx")
+PERLVARIC(Ghexdigit,	char *, "0123456789abcdef0123456789ABCDEF")
 PERLVARIC(Gpatleave,	char *, "\\.^$@dDwWsSbB+*?|()-nrtfeaxc0123456789[{]}")
 
 PERLVAR(Gspecialsv_list[4],SV *)	/* from byterun.h */
 
+#ifdef USE_THREADS
+PERLVAR(Gcred_mutex,      perl_mutex)     /* altered credentials in effect */
+#endif

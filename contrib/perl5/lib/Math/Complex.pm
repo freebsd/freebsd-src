@@ -14,7 +14,7 @@ use vars qw($VERSION @ISA @EXPORT %EXPORT_TAGS);
 
 my ( $i, $ip2, %logn );
 
-$VERSION = sprintf("%s", q$Id: Complex.pm,v 1.25 1998/02/05 16:07:37 jhi Exp $ =~ /(\d+\.\d+)/);
+$VERSION = sprintf("%s", q$Id: Complex.pm,v 1.26 1998/11/01 00:00:00 dsl Exp $ =~ /(\d+\.\d+)/);
 
 @ISA = qw(Exporter);
 
@@ -401,38 +401,21 @@ sub divide {
 }
 
 #
-# _zerotozero
-#
-# Die on zero raised to the zeroth.
-#
-sub _zerotozero {
-    my $mess = "The zero raised to the zeroth power is not defined.\n";
-
-    my @up = caller(1);
-
-    $mess .= "Died at $up[1] line $up[2].\n";
-
-    die $mess;
-}
-
-#
 # (power)
 #
 # Computes z1**z2 = exp(z2 * log z1)).
 #
 sub power {
 	my ($z1, $z2, $inverted) = @_;
-	my $z1z = $z1 == 0;
-	my $z2z = $z2 == 0;
-	_zerotozero if ($z1z and $z2z);
 	if ($inverted) {
-	    return 0 if ($z2z);
-	    return 1 if ($z1z or $z2 == 1);
+	    return 1 if $z1 == 0 || $z2 == 1;
+	    return 0 if $z2 == 0 && Re($z1) > 0;
 	} else {
-	    return 0 if ($z1z);
-	    return 1 if ($z2z or $z1 == 1);
+	    return 1 if $z2 == 0 || $z1 == 1;
+	    return 0 if $z1 == 0 && Re($z2) > 0;
 	}
-	my $w = $inverted ? CORE::exp($z1 * CORE::log($z2)) : CORE::exp($z2 * CORE::log($z1));
+	my $w = $inverted ? CORE::exp($z1 * CORE::log($z2))
+	                  : CORE::exp($z2 * CORE::log($z1));
 	# If both arguments cartesian, return cartesian, else polar.
 	return $z1->{c_dirty} == 0 &&
 	       (not ref $z2 or $z2->{c_dirty} == 0) ?
@@ -443,7 +426,7 @@ sub power {
 # (spaceship)
 #
 # Computes z1 <=> z2.
-# Sorts on the real part first, then on the imaginary part. Thus 2-4i > 3+8i.
+# Sorts on the real part first, then on the imaginary part. Thus 2-4i < 3+8i.
 #
 sub spaceship {
 	my ($z1, $z2, $inverted) = @_;
@@ -1273,7 +1256,7 @@ sub gcd {
     my ($a, $b) = @_;
 
     my $id = "$a $b";
-    
+
     unless (exists $gcd{$id}) {
 	$gcd{$id} = _gcd($a, $b);
 	$gcd{"$b $a"} = $gcd{$id};
@@ -1702,7 +1685,7 @@ Here are some examples:
 The division (/) and the following functions
 
 	log	ln	log10	logn
-	tan	sec 	csc	cot
+	tan	sec	csc	cot
 	atan	asec	acsc	acot
 	tanh	sech	csch	coth
 	atanh	asech	acsch	acoth

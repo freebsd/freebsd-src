@@ -335,3 +335,12 @@ cannot be controlled by C<use locale> because the pragma is tied to the
 block structure of the program, and, for historical reasons, formats
 exist outside that block structure.  See L<perllocale> for further
 discussion of locale handling.
+
+Inside of an expression, the whitespace characters \n, \t and \f are
+considered to be equivalent to a single space.  Thus, you could think
+of this filter being applied to each value in the format:
+
+ $value =~ tr/\n\t\f/ /;
+
+The remaining whitespace character, \r, forces the printing of a new
+line if allowed by the picture line.

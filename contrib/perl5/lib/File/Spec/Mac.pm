@@ -52,7 +52,7 @@ The fundamental requirement of this routine is that
 	  File::Spec->catdir(split(":",$path)) eq $path
 
 But because of the nature of Macintosh paths, some additional 
-possibilities are allowed to make using this routine give resonable results 
+possibilities are allowed to make using this routine give reasonable results 
 for some common situations.  Here are the rules that are used.  Each 
 argument has its trailing ":" removed.  Each argument, except the first,
 has its leading ":" removed.  They are then joined together by a ":".
@@ -78,7 +78,7 @@ Under MacPerl, there is an additional ambiguity.  Does the user intend that
 	  File::Spec->catfile("LWP","Protocol","http.pm")
 
 be relative or absolute?  There's no way of telling except by checking for the
-existance of LWP: or :LWP, and even there he may mean a dismounted volume or
+existence of LWP: or :LWP, and even there he may mean a dismounted volume or
 a relative path in a different directory (like in @INC).   So those checks
 aren't done here. This routine will treat this as absolute.
 

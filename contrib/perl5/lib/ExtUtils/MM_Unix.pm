@@ -8,7 +8,7 @@ use strict;
 use vars qw($VERSION $Is_Mac $Is_OS2 $Is_VMS $Is_Win32 $Is_Dos $Is_PERL_OBJECT
 	    $Verbose %pm %static $Xsubpp_Version);
 
-$VERSION = substr q$Revision: 1.12601 $, 10;
+$VERSION = substr q$Revision: 1.12602 $, 10;
 # $Id: MM_Unix.pm,v 1.126 1998/06/28 21:32:49 k Exp k $
 
 Exporter::import('ExtUtils::MakeMaker',
@@ -19,7 +19,7 @@ $Is_Mac = $^O eq 'MacOS';
 $Is_Win32 = $^O eq 'MSWin32';
 $Is_Dos = $^O eq 'dos';
 
-$Is_PERL_OBJECT   = 1 if $Config{'ccflags'} =~ /-DPERL_OBJECT/;
+$Is_PERL_OBJECT = $Config{'ccflags'} =~ /-DPERL_OBJECT/;
 
 if ($Is_VMS = $^O eq 'VMS') {
     require VMS::Filespec;
@@ -84,10 +84,10 @@ sub canonpath {
     if ( $^O eq 'qnx' && $path =~ s|^(//\d+)/|/| ) {
       $node = $1;
     }
-    $path =~ s|/+|/|g ;                            # xx////xx  -> xx/xx
+    $path =~ s|(?<=[^/])/+|/|g ;                   # xx////xx  -> xx/xx
     $path =~ s|(/\.)+/|/|g ;                       # xx/././xx -> xx/xx
     $path =~ s|^(\./)+|| unless $path eq "./";     # ./xx      -> xx
-    $path =~ s|/$|| unless $path eq "/";           # xx/       -> xx
+    $path =~ s|(?<=[^/])/$|| ;                     # xx/       -> xx
     "$node$path";
 }
 
@@ -233,6 +233,7 @@ sub ExtUtils::MM_Unix::tools_other ;
 sub ExtUtils::MM_Unix::top_targets ;
 sub ExtUtils::MM_Unix::writedoc ;
 sub ExtUtils::MM_Unix::xs_c ;
+sub ExtUtils::MM_Unix::xs_cpp ;
 sub ExtUtils::MM_Unix::xs_o ;
 sub ExtUtils::MM_Unix::xsubpp_version ;
 
@@ -374,9 +375,9 @@ sub cflags {
 	$self->{uc $_} ||= $cflags{$_}
     }
 
-    if ($self->{CAPI} && $Is_PERL_OBJECT == 1) {
+    if ($self->{CAPI} && $Is_PERL_OBJECT) {
         $self->{CCFLAGS} =~ s/-DPERL_OBJECT(\s|$)//;
-        $self->{CCFLAGS} .= '-DPERL_CAPI';
+        $self->{CCFLAGS} .= ' -DPERL_CAPI ';
         if ($Is_Win32 && $Config{'cc'} =~ /^cl.exe/i) {
             # Turn off C++ mode of the MSC compiler
             $self->{CCFLAGS} =~ s/-TP(\s|$)//;
@@ -818,7 +819,7 @@ ci :
 
 =item dist_core (o)
 
-Defeines the targets dist, tardist, zipdist, uutardist, shdist
+Defines the targets dist, tardist, zipdist, uutardist, shdist
 
 =cut
 
@@ -915,6 +916,7 @@ sub dlsyms {
 
     my($funcs) = $attribs{DL_FUNCS} || $self->{DL_FUNCS} || {};
     my($vars)  = $attribs{DL_VARS} || $self->{DL_VARS} || [];
+    my($funclist)  = $attribs{FUNCLIST} || $self->{FUNCLIST} || [];
     my(@m);
 
     push(@m,"
@@ -931,7 +933,8 @@ static :: $self->{BASEEXT}.exp
 $self->{BASEEXT}.exp: Makefile.PL
 ",'	$(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -e \'use ExtUtils::Mksymlists; \\
 	Mksymlists("NAME" => "',$self->{NAME},'", "DL_FUNCS" => ',
-	neatvalue($funcs),', "DL_VARS" => ', neatvalue($vars), ');\'
+	neatvalue($funcs), ', "FUNCLIST" => ', neatvalue($funclist),
+	', "DL_VARS" => ', neatvalue($vars), ');\'
 ');
 
     join('',@m);
@@ -2018,7 +2021,7 @@ uninstall_from_sitedirs ::
 
 =item installbin (o)
 
-Defines targets to install EXE_FILES.
+Defines targets to make and to install EXE_FILES.
 
 =cut
 
@@ -2045,7 +2048,7 @@ EXE_FILES = @{$self->{EXE_FILES}}
 } : q{FIXIN = $(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::MakeMaker \
     -e "MY->fixin(shift)"
 }).qq{
-all :: @to
+pure_all :: @to
 	$self->{NOECHO}\$(NOOP)
 
 realclean ::
@@ -2347,7 +2350,7 @@ $tmp/perlmain\$(OBJ_EXT): $tmp/perlmain.c
 $tmp/perlmain.c: $makefilename}, q{
 	}.$self->{NOECHO}.q{echo Writing $@
 	}.$self->{NOECHO}.q{$(PERL) $(MAP_PERLINC) -MExtUtils::Miniperl \\
-		-e "writemain(grep s#.*/auto/##, qw|$(MAP_STATIC)|)" > $@t && $(MV) $@t $@
+		-e "writemain(grep s#.*/auto/##, split(q| |, q|$(MAP_STATIC)|))" > $@t && $(MV) $@t $@
 
 };
     push @m, "\t",$self->{NOECHO}.q{$(PERL) $(INSTALLSCRIPT)/fixpmain
@@ -2746,10 +2749,13 @@ sub ppd {
     push(@m, "\t\@\$(PERL) -e \"print qq{<SOFTPKG NAME=\\\"$self->{DISTNAME}\\\" VERSION=\\\"$pack_ver\\\">\\n}");
     push(@m, ". qq{\\t<TITLE>$self->{DISTNAME}</TITLE>\\n}");
     my $abstract = $self->{ABSTRACT};
+    $abstract =~ s/\n/\\n/sg;
     $abstract =~ s/</&lt;/g;
     $abstract =~ s/>/&gt;/g;
     push(@m, ". qq{\\t<ABSTRACT>$abstract</ABSTRACT>\\n}");
     my ($author) = $self->{AUTHOR};
+    $author =~ s/</&lt;/g;
+    $author =~ s/>/&gt;/g;
     $author =~ s/@/\\@/g;
     push(@m, ". qq{\\t<AUTHOR>$author</AUTHOR>\\n}");
     push(@m, ". qq{\\t<IMPLEMENTATION>\\n}");
@@ -2757,9 +2763,11 @@ sub ppd {
     foreach $prereq (sort keys %{$self->{PREREQ_PM}}) {
         my $pre_req = $prereq;
         $pre_req =~ s/::/-/g;
-        push(@m, ". qq{\\t\\t<DEPENDENCY NAME=\\\"$pre_req\\\" />\\n}");
+        my ($dep_ver) = join ",", (split (/\./, $self->{PREREQ_PM}{$prereq}), (0) x 4) [0 .. 3];
+        push(@m, ". qq{\\t\\t<DEPENDENCY NAME=\\\"$pre_req\\\" VERSION=\\\"$dep_ver\\\" />\\n}");
     }
     push(@m, ". qq{\\t\\t<OS NAME=\\\"\$(OSNAME)\\\" />\\n}");
+    push(@m, ". qq{\\t\\t<ARCHITECTURE NAME=\\\"$Config{'archname'}\\\" />\\n}");
     my ($bin_location) = $self->{BINARY_LOCATION};
     $bin_location =~ s/\\/\\\\/g;
     if ($self->{PPM_INSTALL_SCRIPT}) {
@@ -2783,7 +2791,7 @@ Returns the attribute C<PERM_RW> or the string C<644>.
 Used as the string that is passed
 to the C<chmod> command to set the permissions for read/writeable files.
 MakeMaker chooses C<644> because it has turned out in the past that
-relying on the umask provokes hard-to-track bugreports.
+relying on the umask provokes hard-to-track bug reports.
 When the return value is used by the perl function C<chmod>, it is
 interpreted as an octal value.
 
@@ -2889,13 +2897,18 @@ sub processPL {
     return "" unless $self->{PL_FILES};
     my(@m, $plfile);
     foreach $plfile (sort keys %{$self->{PL_FILES}}) {
+        my $list = ref($self->{PL_FILES}->{$plfile})
+		? $self->{PL_FILES}->{$plfile}
+		: [$self->{PL_FILES}->{$plfile}];
+	foreach $target (@$list) {
 	push @m, "
-all :: $self->{PL_FILES}->{$plfile}
+all :: $target
 	$self->{NOECHO}\$(NOOP)
 
-$self->{PL_FILES}->{$plfile} :: $plfile
-	\$(PERL) -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) $plfile
+$target :: $plfile
+	\$(PERL) -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) $plfile $target
 ";
+	}
     }
     join "", @m;
 }
@@ -2943,7 +2956,11 @@ form Foo/Bar and replaces the slash with C<::>. Returns the replacement.
 
 sub replace_manpage_separator {
     my($self,$man) = @_;
-    $man =~ s,/+,::,g;
+	if ($^O eq 'uwin') {
+		$man =~ s,/+,.,g;
+	} else {
+		$man =~ s,/+,::,g;
+	}
     $man;
 }
 
@@ -3304,7 +3321,7 @@ sub tool_xsubpp {
 	}
     }
 
-    $xsubpp = $self->{CAPI} ? "xsubpp -object_capi" : "xsubpp";
+    my $xsubpp = $self->{CAPI} ? "xsubpp -object_capi" : "xsubpp";
 
     return qq{
 XSUBPPDIR = $xsdir
@@ -3454,7 +3471,7 @@ Version_check:
 
 =item writedoc
 
-Obsolete, depecated method. Not used since Version 5.21.
+Obsolete, deprecated method. Not used since Version 5.21.
 
 =cut
 
@@ -3478,7 +3495,22 @@ sub xs_c {
     return '' unless $self->needs_linking();
     '
 .xs.c:
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) $(XSPROTOARG) $(XSUBPPARGS) $*.xs >$*.tc && $(MV) $*.tc $@
+	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) $(XSPROTOARG) $(XSUBPPARGS) $*.xs >xstmp.c && $(MV) xstmp.c $*.c
+';
+}
+
+=item xs_cpp (o)
+
+Defines the suffix rules to compile XS files to C++.
+
+=cut
+
+sub xs_cpp {
+    my($self) = shift;
+    return '' unless $self->needs_linking();
+    '
+.xs.cpp:
+	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(XSUBPP) $(XSPROTOARG) $(XSUBPPARGS) $*.xs >xstmp.c && $(MV) xstmp.c $*.cpp
 ';
 }
 
@@ -3509,6 +3541,7 @@ and Win32 do.
 
 sub perl_archive
 {
+ return '$(PERL_INC)' . "/$Config{libperl}" if $^O eq "beos";
  return "";
 }
 

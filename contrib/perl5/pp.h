@@ -1,6 +1,6 @@
 /*    pp.h
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -61,14 +61,16 @@
 #define RETURNX(x)	return x, PUTBACK, NORMAL
 
 #define POPs		(*sp--)
-#define POPp		(SvPVx(POPs, PL_na))
+#define POPp		(SvPVx(POPs, PL_na))		/* deprecated */
+#define POPpx		(SvPVx(POPs, n_a))
 #define POPn		(SvNVx(POPs))
 #define POPi		((IV)SvIVx(POPs))
 #define POPu		((UV)SvUVx(POPs))
 #define POPl		((long)SvIVx(POPs))
 
 #define TOPs		(*sp)
-#define TOPp		(SvPV(TOPs, PL_na))
+#define TOPp		(SvPV(TOPs, PL_na))		/* deprecated */
+#define TOPpx		(SvPV(TOPs, n_a))
 #define TOPn		(SvNV(TOPs))
 #define TOPi		((IV)SvIV(TOPs))
 #define TOPu		((UV)SvUV(TOPs))

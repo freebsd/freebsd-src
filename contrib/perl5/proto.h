@@ -645,7 +645,7 @@ VIRTUAL struct perl_vars *Perl_GetVars _((void));
 protected:
 void hsplit _((HV *hv));
 void hfreeentries _((HV *hv));
-HE* more_he _((void));
+void more_he _((void));
 HE* new_he _((void));
 void del_he _((HE *p));
 HEK *save_hek _((char *str, I32 len, U32 hash));
@@ -655,10 +655,10 @@ SV *save_scalar_at _((SV **sptr));
 IV asIV _((SV* sv));
 UV asUV _((SV* sv));
 SV *more_sv _((void));
-XPVIV *more_xiv _((void));
-XPVNV *more_xnv _((void));
-XPV *more_xpv _((void));
-XRV *more_xrv _((void));
+void more_xiv _((void));
+void more_xnv _((void));
+void more_xpv _((void));
+void more_xrv _((void));
 XPVIV *new_xiv _((void));
 XPVNV *new_xnv _((void));
 XPV *new_xpv _((void));
@@ -687,7 +687,7 @@ void qsortsv _((SV ** array, size_t num_elts, SVCOMPARE f));
 I32 sortcv _((SV *a, SV *b));
 void save_magic _((MGS *mgs, SV *sv));
 int magic_methpack _((SV *sv, MAGIC *mg, char *meth));
-int magic_methcall _((MAGIC *mg, char *meth, I32 flags, int n, SV *val));
+int magic_methcall _((SV *sv, MAGIC *mg, char *meth, I32 flags, int n, SV *val));
 OP * doform _((CV *cv, GV *gv, OP *retop));
 void doencodes _((SV* sv, char* s, I32 len));
 SV* refto _((SV* sv));
@@ -758,7 +758,7 @@ OP *scalarboolean _((OP *o));
 OP *too_few_arguments _((OP *o, char* name));
 OP *too_many_arguments _((OP *o, char* name));
 void null _((OP* o));
-PADOFFSET pad_findlex _((char* name, PADOFFSET newoff, U32 seq, CV* startcv, I32 cx_ix));
+PADOFFSET pad_findlex _((char* name, PADOFFSET newoff, U32 seq, CV* startcv, I32 cx_ix, I32 saweval, U32 flags));
 OP *newDEFSVOP _((void));
 char* gv_ename _((GV *gv));
 CV *cv_clone2 _((CV *proto, CV *outside));
@@ -822,6 +822,8 @@ void debprof _((OP *o));
 
 void *bset_obj_store _((void *obj, I32 ix));
 OP *new_logop _((I32 type, I32 flags, OP **firstp, OP **otherp));
+I32     amagic_cmp _((register SV *str1, register SV *str2));
+I32     amagic_cmp_locale _((register SV *str1, register SV *str2));
 
 #define PPDEF(s) OP* CPerlObj::s _((ARGSproto));
 public:
@@ -866,6 +868,7 @@ void restore_rsfp _((void *f));
 void restore_expect _((void *e));
 void restore_lex_expect _((void *e));
 void yydestruct _((void *ptr));
+
 VIRTUAL int fprintf _((PerlIO *pf, const char *pat, ...));
 VIRTUAL SV**	get_specialsv_list _((void));
 
@@ -896,6 +899,10 @@ VIRTUAL void	sv_setpvn_mg _((SV *sv, const char *ptr, STRLEN len));
 VIRTUAL void	sv_setsv_mg _((SV *dstr, SV *sstr));
 VIRTUAL void	sv_usepvn_mg _((SV *sv, char *ptr, STRLEN len));
 
+VIRTUAL MGVTBL*	get_vtbl _((int vtbl_id));
+VIRTUAL OP*	dofile _((OP* term));
+VIRTUAL void	save_generic_svref _((SV** sptr));
+ 
 /* New virtual functions must be added here to maintain binary
  * compatablity with PERL_OBJECT
  */

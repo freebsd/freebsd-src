@@ -17,6 +17,15 @@ at the top of your program.  This will alias all the short names to the
 long names in the current package.  Some even have medium names,
 generally borrowed from B<awk>.
 
+Due to an unfortunate accident of Perl's implementation, "C<use English>"
+imposes a considerable performance penalty on all regular expression
+matches in a program, regardless of whether they occur in the scope of
+"C<use English>".  For that reason, saying "C<use English>" in
+libraries is strongly discouraged.  See the Devel::SawAmpersand module
+documentation from CPAN
+(http://www.perl.com/CPAN/modules/by-module/Devel/Devel-SawAmpersand-0.10.readme)
+for more information.
+
 To go a step further, those variables that depend on the currently
 selected filehandle may instead (and preferably) be set by calling an
 object method on the FileHandle object.  (Summary lines below for this
@@ -127,6 +136,10 @@ The string matched by the last successful pattern match (not counting
 any matches hidden within a BLOCK or eval() enclosed by the current
 BLOCK).  (Mnemonic: like & in some editors.)  This variable is read-only.
 
+The use of this variable anywhere in a program imposes a considerable
+performance penalty on all regular expression matches.  See the
+Devel::SawAmpersand module from CPAN for more information.
+
 =item $PREMATCH
 
 =item $`
@@ -135,6 +148,10 @@ The string preceding whatever was matched by the last successful
 pattern match (not counting any matches hidden within a BLOCK or eval
 enclosed by the current BLOCK).  (Mnemonic: C<`> often precedes a quoted
 string.)  This variable is read-only.
+
+The use of this variable anywhere in a program imposes a considerable
+performance penalty on all regular expression matches.  See the
+Devel::SawAmpersand module from CPAN for more information.
 
 =item $POSTMATCH
 
@@ -150,6 +167,10 @@ string.)  Example:
     print "$`:$&:$'\n";  	# prints abc:def:ghi
 
 This variable is read-only.
+
+The use of this variable anywhere in a program imposes a considerable
+performance penalty on all regular expression matches.  See the
+Devel::SawAmpersand module from CPAN for more information.
 
 =item $LAST_PAREN_MATCH
 
@@ -188,7 +209,10 @@ the C</s> and C</m> modifiers on pattern matching.
 =item $.
 
 The current input line number for the last file handle from
-which you read (or performed a C<seek> or C<tell> on).  An
+which you read (or performed a C<seek> or C<tell> on).  The value
+may be different from the actual physical line number in the file,
+depending on what notion of "line" is in effect--see L<$/> on how
+to affect that.  An
 explicit close on a filehandle resets the line number.  Because
 "C<E<lt>E<gt>>" never does an explicit close, line numbers increase
 across ARGV files (but see examples under eof()).  Localizing C<$.> has
@@ -204,7 +228,8 @@ number.)
 
 =item $/
 
-The input record separator, newline by default.  Works like B<awk>'s RS
+The input record separator, newline by default.  This is used to
+influence Perl's idea of what a "line" is.  Works like B<awk>'s RS
 variable, including treating empty lines as delimiters if set to the
 null string.  (Note: An empty line cannot contain any spaces or tabs.)
 You may set it to a multi-character string to match a multi-character
@@ -216,8 +241,8 @@ line.  Setting it to C<"\n\n"> will blindly assume that the next input
 character belongs to the next paragraph, even if it's a newline.
 (Mnemonic: / is used to delimit line boundaries when quoting poetry.)
 
-    undef $/;
-    $_ = <FH>; 		# whole file now here
+    undef $/;		# enable "slurp" mode
+    $_ = <FH>;		# whole file now here
     s/\n[ \t]+/ /g;
 
 Remember: the value of $/ is a string, not a regexp.  AWK has to be
@@ -241,8 +266,10 @@ get the record back in pieces.
 On VMS, record reads are done with the equivalent of C<sysread>, so it's
 best not to mix record and non-record reads on the same file. (This is
 likely not a problem, as any file you'd want to read in record mode is
-proably usable in line mode) Non-VMS systems perform normal I/O, so
+probably usable in line mode) Non-VMS systems perform normal I/O, so
 it's safe to mix record and non-record reads of a file.
+
+Also see L<$.>.
 
 =item autoflush HANDLE EXPR
 
@@ -626,6 +653,15 @@ of perl in the right bracket?)  Example:
 See also the documentation of C<use VERSION> and C<require VERSION>
 for a convenient way to fail if the Perl interpreter is too old.
 
+=item $COMPILING
+
+=item $^C
+
+The current value of the flag associated with the B<-c> switch. Mainly
+of use with B<-MO=...> to allow code to alter its behaviour when being compiled.
+(For example to automatically AUTOLOADing at compile time rather than normal
+deferred loading.)  Setting C<$^C = 1> is similar to calling C<B::minus_c>.
+
 =item $DEBUGGING
 
 =item $^D
@@ -643,7 +679,7 @@ descriptors are not.  Also, during an open(), system file descriptors are
 preserved even if the open() fails.  (Ordinary file descriptors are
 closed before the open() is attempted.)  Note that the close-on-exec
 status of a file descriptor will be decided according to the value of
-C<$^F> at the time of the open, not the time of the exec.
+C<$^F> when the open() or pipe() was called, not the time of the exec().
 
 =item $^H
 
@@ -714,7 +750,7 @@ Start with single-step on.
 
 =back
 
-Note that some bits may be relevent at compile-time only, some at
+Note that some bits may be relevant at compile-time only, some at
 run-time only. This is a new mechanism and the details may change.
 
 =item $^R
@@ -788,12 +824,16 @@ specified, and the value is the location of the file actually found.
 The C<require> command uses this array to determine whether a given file
 has already been included.
 
-=item %ENV  $ENV{expr}
+=item %ENV
+
+=item $ENV{expr}
 
 The hash %ENV contains your current environment.  Setting a
 value in C<ENV> changes the environment for child processes.
 
-=item %SIG  $SIG{expr}
+=item %SIG
+
+=item $SIG{expr}
 
 The hash %SIG is used to set signal handlers for various
 signals.  Example:
@@ -810,6 +850,10 @@ signals.  Example:
     ...
     $SIG{'INT'} = 'DEFAULT';	# restore default action
     $SIG{'QUIT'} = 'IGNORE';	# ignore SIGQUIT
+
+Using a value of C<'IGNORE'> usually has the effect of ignoring the
+signal, except for the C<CHLD> signal.  See L<perlipc> for more about
+this special case.
 
 The %SIG array contains values for only the signals actually set within
 the Perl script.  Here are some other examples:
@@ -867,7 +911,7 @@ respect: they may be called to report (probable) errors found by the
 parser.  In such a case the parser may be in inconsistent state, so
 any attempt to evaluate Perl code from such a handler will probably
 result in a segfault.  This means that calls which result/may-result
-in parsing Perl should be used with extreme causion, like this:
+in parsing Perl should be used with extreme caution, like this:
 
     require Carp if defined $^S;
     Carp::confess("Something wrong") if defined &Carp::confess;
@@ -934,3 +978,35 @@ pipe C<close>, overwriting the old value.
 
 For more details, see the individual descriptions at L<$@>, L<$!>, L<$^E>,
 and L<$?>.
+
+
+=head2 Technical Note on the Syntax of Variable Names
+
+Variable names in Perl can have several formats.  Usually, they must
+begin with a letter or underscore, in which case they can be
+arbitrarily long (up to an internal limit of 256 characters) and may
+contain letters, digits, underscores, or the special sequence C<::>.
+In this case the part before the last C<::> is taken to be a I<package
+qualifier>; see L<perlmod>. 
+
+Perl variable names may also be a sequence of digits or a single
+punctuation or control character.  These names are all reserved for
+special uses by Perl; for example, the all-digits names are used to
+hold backreferences after a regular expression match.  Perl has a
+special syntax for the single-control-character names: It understands
+C<^X> (caret C<X>) to mean the control-C<X> character.  For example,
+the notation C<$^W> (dollar-sign caret C<W>) is the scalar variable
+whose name is the single character control-C<W>.  This is better than
+typing a literal control-C<W> into your program.
+
+All Perl variables that begin with digits, control characters, or
+punctuation characters are exempt from the effects of the C<package>
+declaration and are always forced to be in package C<main>.  A few
+other names are also exempt:
+
+	ENV		STDIN
+	INC		STDOUT
+	ARGV		STDERR
+	ARGVOUT
+	SIG
+

@@ -1,4 +1,7 @@
-use Thread;
+use Thread 'async';
+use Config;
+use Tie::Hash;
+
 sub start_here {
     my $i;
     print "In start_here with args: @_\n";
@@ -7,6 +10,12 @@ sub start_here {
 	sleep 1;
     }
 }
+
+async {
+    tie my(%h), 'Tie::StdHash';
+    %h = %Config;
+    print "running on $h{archname}\n";
+};
 
 print "Starting new thread now\n";
 $t = new Thread \&start_here, qw(foo bar baz);

@@ -1,8 +1,9 @@
 #!./perl
 
-# $RCSfile: sort.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:24 $
+print "1..29\n";
 
-print "1..21\n";
+# XXX known to leak scalars
+$ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 
 sub backwards { $a lt $b ? 1 : $a gt $b ? -1 : 0 }
 
@@ -125,3 +126,34 @@ eval <<'CODE';
     my @result = sort 'one', 'two';
 CODE
 print $@ ? "not ok 21\n# $@" : "ok 21\n";
+
+{
+  my $sortsub = \&backwards;
+  my $sortglob = *backwards;
+  my $sortglobr = \*backwards;
+  my $sortname = 'backwards';
+  @b = sort $sortsub 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 22\n" : "not ok 22 |@b|\n");
+  @b = sort $sortglob 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 23\n" : "not ok 23 |@b|\n");
+  @b = sort $sortname 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 24\n" : "not ok 24 |@b|\n");
+  @b = sort $sortglobr 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 25\n" : "not ok 25 |@b|\n");
+}
+
+{
+  local $sortsub = \&backwards;
+  local $sortglob = *backwards;
+  local $sortglobr = \*backwards;
+  local $sortname = 'backwards';
+  @b = sort $sortsub 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 26\n" : "not ok 26 |@b|\n");
+  @b = sort $sortglob 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 27\n" : "not ok 27 |@b|\n");
+  @b = sort $sortname 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 28\n" : "not ok 28 |@b|\n");
+  @b = sort $sortglobr 4,1,3,2;
+  print ("@b" eq '4 3 2 1' ? "ok 29\n" : "not ok 29 |@b|\n");
+}
+

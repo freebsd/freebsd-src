@@ -19,6 +19,8 @@
 #define PL_colors				pPerl->PL_colors		
 #undef  PL_colorset		
 #define PL_colorset				pPerl->PL_colorset		
+#undef  PL_cred_mutex
+#define PL_cred_mutex				pPerl->PL_cred_mutex   
 #undef  PL_curcop		
 #define PL_curcop				pPerl->PL_curcop		
 #undef  PL_curpad		
@@ -443,6 +445,8 @@
 #define PL_strchop				pPerl->PL_strchop		
 #undef  PL_strtab		
 #define PL_strtab				pPerl->PL_strtab		
+#undef  PL_strtab_mutex
+#define PL_strtab_mutex				pPerl->PL_strtab_mutex
 #undef  PL_sub_generation	
 #define PL_sub_generation		pPerl->PL_sub_generation	
 #undef  PL_sublex_info		
@@ -902,6 +906,8 @@
 #define do_vecset           pPerl->Perl_do_vecset
 #undef  do_vop
 #define do_vop              pPerl->Perl_do_vop
+#undef  dofile
+#define dofile              pPerl->Perl_dofile
 #undef  dowantarray
 #define dowantarray         pPerl->Perl_dowantarray
 #undef  dump_all
@@ -966,6 +972,8 @@
 #define get_opargs	        pPerl->Perl_get_opargs
 #undef  get_specialsv_list
 #define get_specialsv_list  pPerl->Perl_get_specialsv_list
+#undef  get_vtbl
+#define get_vtbl            pPerl->Perl_get_vtbl
 #undef  gp_free
 #define gp_free             pPerl->Perl_gp_free
 #undef  gp_ref
@@ -1569,6 +1577,8 @@
 #define save_freeop         pPerl->Perl_save_freeop
 #undef  save_freepv
 #define save_freepv         pPerl->Perl_save_freepv
+#undef  save_generic_svref
+#define save_generic_svref  pPerl->Perl_generic_save_svref
 #undef  save_gp
 #define save_gp             pPerl->Perl_save_gp
 #undef  save_hash
@@ -1977,8 +1987,8 @@
 #define signal PerlProc_signal
 #define htonl PerlSock_htonl
 #define htons PerlSock_htons
-#define ntohs PerlSock_ntohl
-#define ntohl PerlSock_ntohs
+#define ntohl PerlSock_ntohl
+#define ntohs PerlSock_ntohs
 #define accept PerlSock_accept
 #define bind PerlSock_bind
 #define connect PerlSock_connect

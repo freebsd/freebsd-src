@@ -891,7 +891,7 @@ EXT char *op_desc[] = {
 	"line sequence",
 	"next statement",
 	"debug next statement",
-	"unstack",
+	"iteration finalizer",
 	"block entry",
 	"block exit",
 	"block",
@@ -2320,7 +2320,7 @@ EXT U32 opargs[] = {
 	0x00002505,	/* anonhash */
 	0x02993501,	/* splice */
 	0x0002351d,	/* push */
-	0x00003c14,	/* pop */
+	0x00003c04,	/* pop */
 	0x00003c04,	/* shift */
 	0x0002351d,	/* unshift */
 	0x0002d501,	/* sort */
@@ -2385,7 +2385,7 @@ EXT U32 opargs[] = {
 	0x09116504,	/* sysopen */
 	0x00116504,	/* sysseek */
 	0x0917651d,	/* sysread */
-	0x0911651d,	/* syswrite */
+	0x0991651d,	/* syswrite */
 	0x0911651d,	/* send */
 	0x0117651d,	/* recv */
 	0x0000ec14,	/* eof */

@@ -56,7 +56,17 @@ So to check whether signal 17 and SIGALRM were the same, do just this:
 
 You may also choose to assign the strings C<'IGNORE'> or C<'DEFAULT'> as
 the handler, in which case Perl will try to discard the signal or do the
-default thing.  Some signals can be neither trapped nor ignored, such as
+default thing.
+
+On most UNIX platforms, the C<CHLD> (sometimes also known as C<CLD>) signal
+has special behavior with respect to a value of C<'IGNORE'>.
+Setting C<$SIG{CHLD}> to C<'IGNORE'> on such a platform has the effect of
+not creating zombie processes when the parent process fails to C<wait()>
+on its child processes (i.e. child processes are automatically reaped).
+Calling C<wait()> with C<$SIG{CHLD}> set to C<'IGNORE'> usually returns
+C<-1> on such platforms.
+
+Some signals can be neither trapped nor ignored, such as
 the KILL and STOP (but not the TSTP) signals.  One strategy for
 temporarily ignoring signals is to use a local() statement, which will be
 automatically restored once your block is exited.  (Remember that local()
@@ -317,46 +327,33 @@ details).
 =head2 Complete Dissociation of Child from Parent
 
 In some cases (starting server processes, for instance) you'll want to
-complete dissociate the child process from the parent.    The easiest 
-way is to use:
+completely dissociate the child process from the parent.  This is
+often called daemonization.  A well behaved daemon will also chdir()
+to the root directory (so it doesn't prevent unmounting the filesystem
+containing the directory from which it was launched) and redirect its
+standard file descriptors from and to F</dev/null> (so that random
+output doesn't wind up on the user's terminal).
 
-    use POSIX qw(setsid);
-    setsid() 		or die "Can't start a new session: $!";
+    use POSIX 'setsid';
 
-However, you may not be on POSIX.  The following process is reported
-to work on most Unixish systems.  Non-Unix users should check their
-Your_OS::Process module for other solutions.
+    sub daemonize {
+	chdir '/'		or die "Can't chdir to /: $!";
+	open STDIN, '/dev/null' or die "Can't read /dev/null: $!";
+	open STDOUT, '>/dev/null'
+				or die "Can't write to /dev/null: $!";
+	defined(my $pid = fork)	or die "Can't fork: $!";
+	exit if $pid;
+	setsid			or die "Can't start a new session: $!";
+	open STDERR, '>&STDOUT'	or die "Can't dup stdout: $!";
+    }
 
-=over 4
+The fork() has to come before the setsid() to ensure that you aren't a
+process group leader (the setsid() will fail if you are).  If your
+system doesn't have the setsid() function, open F</dev/tty> and use the
+C<TIOCNOTTY> ioctl() on it instead.  See L<tty(4)> for details.
 
-=item *
-
-Open /dev/tty and use the TIOCNOTTY ioctl on it.  See L<tty(4)>
-for details.
-
-=item *
-
-Change directory to /
-
-=item *
-
-Reopen STDIN, STDOUT, and STDERR so they're not connected to the old
-tty.
-
-=item *
-
-Background yourself like this:
-
-    fork && exit;
-
-=item *
-
-Ignore hangup signals in case you're running on a shell that doesn't
-automatically no-hup you:
-
-    $SIG{HUP} = 'IGNORE';	# or whatever you'd like
-
-=back
+Non-Unix users should check their Your_OS::Process module for other
+solutions.
 
 =head2 Safe Pipe Opens
 
@@ -1194,7 +1191,7 @@ you'll have to use the C<sysread> variant of the interactive client above.
 This server accepts one of five different commands, sending output
 back to the client.  Note that unlike most network servers, this one
 only handles one incoming client at a time.  Multithreaded servers are
-covered in Chapter 6 of the Camel as well as later in this manpage.
+covered in Chapter 6 of the Camel.
 
 Here's the code.  We'll
 

@@ -55,13 +55,13 @@ PerlIO_tmpfile(void)
 
 #undef PerlIO_tmpfile
 PerlIO *
-PerlIO_tmpfile()
+PerlIO_tmpfile(void)
 {
  return sftmp(0);
 }
 
 void
-PerlIO_init()
+PerlIO_init(void)
 {
  /* Force this file to be included  in perl binary. Which allows 
   *  this file to force inclusion  of other functions that may be 
@@ -84,29 +84,28 @@ PerlIO_init()
 
 #undef PerlIO_stderr
 PerlIO *
-PerlIO_stderr()
+PerlIO_stderr(void)
 {
  return (PerlIO *) stderr;
 }
 
 #undef PerlIO_stdin
 PerlIO *
-PerlIO_stdin()
+PerlIO_stdin(void)
 {
  return (PerlIO *) stdin;
 }
 
 #undef PerlIO_stdout
 PerlIO *
-PerlIO_stdout()
+PerlIO_stdout(void)
 {
  return (PerlIO *) stdout;
 }
 
 #undef PerlIO_fast_gets
 int 
-PerlIO_fast_gets(f)
-PerlIO *f;
+PerlIO_fast_gets(PerlIO *f)
 {
 #if defined(USE_STDIO_PTR) && defined(STDIO_PTR_LVALUE) && defined(STDIO_CNT_LVALUE)
  return 1;
@@ -117,8 +116,7 @@ PerlIO *f;
 
 #undef PerlIO_has_cntptr
 int 
-PerlIO_has_cntptr(f)
-PerlIO *f;
+PerlIO_has_cntptr(PerlIO *f)
 {
 #if defined(USE_STDIO_PTR)
  return 1;
@@ -129,8 +127,7 @@ PerlIO *f;
 
 #undef PerlIO_canset_cnt
 int 
-PerlIO_canset_cnt(f)
-PerlIO *f;
+PerlIO_canset_cnt(PerlIO *f)
 {
 #if defined(USE_STDIO_PTR) && defined(STDIO_CNT_LVALUE)
  return 1;
@@ -141,9 +138,7 @@ PerlIO *f;
 
 #undef PerlIO_set_cnt
 void
-PerlIO_set_cnt(f,cnt)
-PerlIO *f;
-int cnt;
+PerlIO_set_cnt(PerlIO *f, int cnt)
 {
  if (cnt < -1)
   warn("Setting cnt to %d\n",cnt);
@@ -156,10 +151,7 @@ int cnt;
 
 #undef PerlIO_set_ptrcnt
 void
-PerlIO_set_ptrcnt(f,ptr,cnt)
-PerlIO *f;
-STDCHAR *ptr;
-int cnt;
+PerlIO_set_ptrcnt(PerlIO *f, STDCHAR *ptr, int cnt)
 {
 #ifdef FILE_bufsiz
  STDCHAR *e = FILE_base(f) + FILE_bufsiz(f);
@@ -183,8 +175,7 @@ int cnt;
 
 #undef PerlIO_get_cnt
 int 
-PerlIO_get_cnt(f)
-PerlIO *f;
+PerlIO_get_cnt(PerlIO *f)
 {
 #ifdef FILE_cnt
  return FILE_cnt(f);
@@ -196,8 +187,7 @@ PerlIO *f;
 
 #undef PerlIO_get_bufsiz
 int 
-PerlIO_get_bufsiz(f)
-PerlIO *f;
+PerlIO_get_bufsiz(PerlIO *f)
 {
 #ifdef FILE_bufsiz
  return FILE_bufsiz(f);
@@ -209,8 +199,7 @@ PerlIO *f;
 
 #undef PerlIO_get_ptr
 STDCHAR *
-PerlIO_get_ptr(f)
-PerlIO *f;
+PerlIO_get_ptr(PerlIO *f)
 {
 #ifdef FILE_ptr
  return FILE_ptr(f);
@@ -222,8 +211,7 @@ PerlIO *f;
 
 #undef PerlIO_get_base
 STDCHAR *
-PerlIO_get_base(f)
-PerlIO *f;
+PerlIO_get_base(PerlIO *f)
 {
 #ifdef FILE_base
  return FILE_base(f);
@@ -235,8 +223,7 @@ PerlIO *f;
 
 #undef PerlIO_has_base 
 int 
-PerlIO_has_base(f)
-PerlIO *f;
+PerlIO_has_base(PerlIO *f)
 {
 #ifdef FILE_base
  return 1;
@@ -247,62 +234,49 @@ PerlIO *f;
 
 #undef PerlIO_puts
 int
-PerlIO_puts(f,s)
-PerlIO *f;
-const char *s;
+PerlIO_puts(PerlIO *f, const char *s)
 {
  return fputs(s,f);
 }
 
 #undef PerlIO_open 
 PerlIO * 
-PerlIO_open(path,mode)
-const char *path;
-const char *mode;
+PerlIO_open(const char *path, const char *mode)
 {
  return fopen(path,mode);
 }
 
 #undef PerlIO_fdopen
 PerlIO * 
-PerlIO_fdopen(fd,mode)
-int fd;
-const char *mode;
+PerlIO_fdopen(int fd, const char *mode)
 {
  return fdopen(fd,mode);
 }
 
 #undef PerlIO_reopen
 PerlIO * 
-PerlIO_reopen(name, mode, f)
-const char *name;
-const char *mode;
-PerlIO *f;
+PerlIO_reopen(const char *name, const char *mode, PerlIO *f)
 {
  return freopen(name,mode,f);
 }
 
 #undef PerlIO_close
 int      
-PerlIO_close(f)
-PerlIO *f;
+PerlIO_close(PerlIO *f)
 {
  return fclose(f);
 }
 
 #undef PerlIO_eof
 int      
-PerlIO_eof(f)
-PerlIO *f;
+PerlIO_eof(PerlIO *f)
 {
  return feof(f);
 }
 
 #undef PerlIO_getname
 char *
-PerlIO_getname(f,buf)
-PerlIO *f;
-char *buf;
+PerlIO_getname(PerlIO *f, char *buf)
 {
 #ifdef VMS
  return fgetname(f,buf);
@@ -314,48 +288,42 @@ char *buf;
 
 #undef PerlIO_getc
 int      
-PerlIO_getc(f)
-PerlIO *f;
+PerlIO_getc(PerlIO *f)
 {
  return fgetc(f);
 }
 
 #undef PerlIO_error
 int      
-PerlIO_error(f)
-PerlIO *f;
+PerlIO_error(PerlIO *f)
 {
  return ferror(f);
 }
 
 #undef PerlIO_clearerr
 void
-PerlIO_clearerr(f)
-PerlIO *f;
+PerlIO_clearerr(PerlIO *f)
 {
  clearerr(f);
 }
 
 #undef PerlIO_flush
 int      
-PerlIO_flush(f)
-PerlIO *f;
+PerlIO_flush(PerlIO *f)
 {
  return Fflush(f);
 }
 
 #undef PerlIO_fileno
 int      
-PerlIO_fileno(f)
-PerlIO *f;
+PerlIO_fileno(PerlIO *f)
 {
  return fileno(f);
 }
 
 #undef PerlIO_setlinebuf
 void
-PerlIO_setlinebuf(f)
-PerlIO *f;
+PerlIO_setlinebuf(PerlIO *f)
 {
 #ifdef HAS_SETLINEBUF
     setlinebuf(f);
@@ -370,75 +338,57 @@ PerlIO *f;
 
 #undef PerlIO_putc
 int      
-PerlIO_putc(f,ch)
-PerlIO *f;
-int ch;
+PerlIO_putc(PerlIO *f, int ch)
 {
  return putc(ch,f);
 }
 
 #undef PerlIO_ungetc
 int      
-PerlIO_ungetc(f,ch)
-PerlIO *f;
-int ch;
+PerlIO_ungetc(PerlIO *f, int ch)
 {
  return ungetc(ch,f);
 }
 
 #undef PerlIO_read
 SSize_t
-PerlIO_read(f,buf,count)
-PerlIO *f;
-void *buf;
-Size_t count;
+PerlIO_read(PerlIO *f, void *buf, Size_t count)
 {
  return fread(buf,1,count,f);
 }
 
 #undef PerlIO_write
 SSize_t
-PerlIO_write(f,buf,count)
-PerlIO *f;
-const void *buf;
-Size_t count;
+PerlIO_write(PerlIO *f, const void *buf, Size_t count)
 {
  return fwrite1(buf,1,count,f);
 }
 
 #undef PerlIO_vprintf
 int      
-PerlIO_vprintf(f,fmt,ap)
-PerlIO *f;
-const char *fmt;
-va_list ap;
+PerlIO_vprintf(PerlIO *f, const char *fmt, va_list ap)
 {
  return vfprintf(f,fmt,ap);
 }
 
 
 #undef PerlIO_tell
-long
-PerlIO_tell(f)
-PerlIO *f;
+Off_t
+PerlIO_tell(PerlIO *f)
 {
  return ftell(f);
 }
 
 #undef PerlIO_seek
 int
-PerlIO_seek(f,offset,whence)
-PerlIO *f;
-off_t offset;
-int whence;
+PerlIO_seek(PerlIO *f, Off_t offset, int whence)
 {
  return fseek(f,offset,whence);
 }
 
 #undef PerlIO_rewind
 void
-PerlIO_rewind(f)
-PerlIO *f;
+PerlIO_rewind(PerlIO *f)
 {
  rewind(f);
 }
@@ -469,47 +419,40 @@ PerlIO_stdoutf(const char *fmt,...)
 
 #undef PerlIO_tmpfile
 PerlIO *
-PerlIO_tmpfile()
+PerlIO_tmpfile(void)
 {
  return tmpfile();
 }
 
 #undef PerlIO_importFILE
 PerlIO *
-PerlIO_importFILE(f,fl)
-FILE *f;
-int fl;
+PerlIO_importFILE(FILE *f, int fl)
 {
  return f;
 }
 
 #undef PerlIO_exportFILE
 FILE *
-PerlIO_exportFILE(f,fl)
-PerlIO *f;
-int fl;
+PerlIO_exportFILE(PerlIO *f, int fl)
 {
  return f;
 }
 
 #undef PerlIO_findFILE
 FILE *
-PerlIO_findFILE(f)
-PerlIO *f;
+PerlIO_findFILE(PerlIO *f)
 {
  return f;
 }
 
 #undef PerlIO_releaseFILE
 void
-PerlIO_releaseFILE(p,f)
-PerlIO *p;
-FILE *f;
+PerlIO_releaseFILE(PerlIO *p, FILE *f)
 {
 }
 
 void
-PerlIO_init()
+PerlIO_init(void)
 {
  /* Does nothing (yet) except force this file to be included 
     in perl binary. That allows this file to force inclusion
@@ -524,9 +467,7 @@ PerlIO_init()
 #ifndef HAS_FSETPOS
 #undef PerlIO_setpos
 int
-PerlIO_setpos(f,pos)
-PerlIO *f;
-const Fpos_t *pos;
+PerlIO_setpos(PerlIO *f, const Fpos_t *pos)
 {
  return PerlIO_seek(f,*pos,0); 
 }
@@ -534,9 +475,7 @@ const Fpos_t *pos;
 #ifndef PERLIO_IS_STDIO
 #undef PerlIO_setpos
 int
-PerlIO_setpos(f,pos)
-PerlIO *f;
-const Fpos_t *pos;
+PerlIO_setpos(PerlIO *f, const Fpos_t *pos)
 {
  return fsetpos(f, pos);
 }
@@ -546,9 +485,7 @@ const Fpos_t *pos;
 #ifndef HAS_FGETPOS
 #undef PerlIO_getpos
 int
-PerlIO_getpos(f,pos)
-PerlIO *f;
-Fpos_t *pos;
+PerlIO_getpos(PerlIO *f, Fpos_t *pos)
 {
  *pos = PerlIO_tell(f);
  return 0;
@@ -557,9 +494,7 @@ Fpos_t *pos;
 #ifndef PERLIO_IS_STDIO
 #undef PerlIO_getpos
 int
-PerlIO_getpos(f,pos)
-PerlIO *f;
-Fpos_t *pos;
+PerlIO_getpos(PerlIO *f, Fpos_t *pos)
 {
  return fgetpos(f, pos);
 }
@@ -569,17 +504,14 @@ Fpos_t *pos;
 #if (defined(PERLIO_IS_STDIO) || !defined(USE_SFIO)) && !defined(HAS_VPRINTF)
 
 int
-vprintf(pat, args)
-char *pat, *args;
+vprintf(char *pat, char *args)
 {
     _doprnt(pat, args, stdout);
     return 0;		/* wrong, but perl doesn't use the return value */
 }
 
 int
-vfprintf(fd, pat, args)
-FILE *fd;
-char *pat, *args;
+vfprintf(FILE *fd, char *pat, char *args)
 {
     _doprnt(pat, args, fd);
     return 0;		/* wrong, but perl doesn't use the return value */

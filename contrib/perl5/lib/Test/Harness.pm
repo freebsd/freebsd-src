@@ -160,7 +160,7 @@ sub runtests {
 	      } else {
 		push @failed, $next..$max;
 		$failed = @failed;
-		(my $txt, $canon) = canonfailed($max,@failed);
+		(my $txt, $canon) = canonfailed($max,$skipped,@failed);
 		$percent = 100*(scalar @failed)/$max;
 		print "DIED. ",$txt;
 	      }
@@ -173,7 +173,7 @@ sub runtests {
 	} elsif ($ok == $max && $next == $max+1) {
 	    if ($max and $skipped + $bonus) {
 		my @msg;
-		push(@msg, "$skipped subtest".($skipped>1?'s':'')." skipped")
+		push(@msg, "$skipped/$max subtest".($skipped>1?'s':'')." skipped")
 		    if $skipped;
 		push(@msg, "$bonus subtest".($bonus>1?'s':'').
 		     " unexpectedly succeeded")
@@ -191,7 +191,7 @@ sub runtests {
 		push @failed, $next..$max;
 	    }
 	    if (@failed) {
-		my ($txt, $canon) = canonfailed($max,@failed);
+		my ($txt, $canon) = canonfailed($max,$skipped,@failed);
 		print $txt;
 		$failedtests{$test} = { canon => $canon,  max => $max,
 					failed => scalar @failed,
@@ -300,7 +300,7 @@ sub corestatus {
 }
 
 sub canonfailed ($@) {
-    my($max,@failed) = @_;
+    my($max,$skipped,@failed) = @_;
     my %seen;
     @failed = sort {$a <=> $b} grep !$seen{$_}++, @failed;
     my $failed = @failed;
@@ -330,7 +330,12 @@ sub canonfailed ($@) {
     }
 
     push @result, "\tFailed $failed/$max tests, ";
-    push @result, sprintf("%.2f",100*(1-$failed/$max)), "% okay\n";
+    push @result, sprintf("%.2f",100*(1-$failed/$max)), "% okay";
+    my $ender = 's' x ($skipped > 1);
+    my $good = $max - $failed - $skipped;
+    my $goodper = sprintf("%.2f",100*($good/$max));
+    push @result, " (-$skipped skipped test$ender: $good okay, $goodper%)" if $skipped;
+    push @result, "\n";
     my $txt = join "", @result;
     ($txt, $canon);
 }

@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..7\n";
+print "1..8\n";
 
 $blurfl = 123;
 $foo = 3;
@@ -37,3 +37,17 @@ print $blurfl == 5 ? "ok 4\n" : "not ok 4\n";
 eval 'print $blurfl == 5 ? "ok 5\n" : "not ok 5\n";';
 eval 'package main; print $blurfl == 123 ? "ok 6\n" : "not ok 6\n";';
 print $blurfl == 5 ? "ok 7\n" : "not ok 7\n";
+
+package main;
+
+sub c { caller(0) }
+
+sub foo {
+   my $s = shift;
+   if ($s) {
+	package PQR;
+	main::c();
+   }
+}
+
+print((foo(1))[0] eq 'PQR' ? "ok 8\n" : "not ok 8\n");
