@@ -253,8 +253,7 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request_flags(sc->aue_udev, &req,
-	    &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->aue_udev, &req, &val);
 
 	AUE_UNLOCK(sc);
 
@@ -283,8 +282,7 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request_flags(sc->aue_udev, &req,
-	    &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->aue_udev, &req, &val);
 
 	AUE_UNLOCK(sc);
 
@@ -312,8 +310,7 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request_flags(sc->aue_udev, &req,
-	    &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->aue_udev, &req, &val);
 
 	AUE_UNLOCK(sc);
 
@@ -341,8 +338,7 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request_flags(sc->aue_udev, &req,
-	    &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->aue_udev, &req, &val);
 
 	AUE_UNLOCK(sc);
 
