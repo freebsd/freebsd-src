@@ -1232,7 +1232,7 @@ wdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	struct disklabel *dl;
 
 	lunit = dkunit(dev);
-	if (lunit >= NWD || dktype(dev) != 0)
+	if (lunit >= NWD || dksparebits(dev) != 0)
 		return (ENXIO);
 	du = wddrives[lunit];
 	if (du == NULL)
