@@ -3,10 +3,10 @@
 
 
 #ifndef HAVE_DEV_RANDOM
- # define HAVE_DEV_RANDOM 1
- #endif /* HAVE_DEV_RANDOM */
+# define HAVE_DEV_RANDOM 1
+#endif /* HAVE_DEV_RANDOM */
 
-const char *cmds[] = {
+static const char *cmds[] = {
 	"/bin/ps -axlw 2>&1",
 	"/usr/sbin/arp -an 2>&1",
 	"/usr/bin/netstat -an 2>&1",
@@ -20,7 +20,7 @@ const char *cmds[] = {
 	NULL
 };
 
-const char *dirs[] = {
+static const char *dirs[] = {
 	"/tmp",
 	"/usr/tmp",
 	".",
@@ -33,7 +33,7 @@ const char *dirs[] = {
 	NULL
 };
 
-const char *files[] = {
+static const char *files[] = {
 	"/var/log/messages",
 	"/var/log/wtmp",
 	"/var/log/lastlog",

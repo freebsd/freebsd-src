@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ixfr.c,v 8.25 2000/12/27 06:56:03 vixie Exp $";
+static const char rcsid[] = "$Id: ns_ixfr.c,v 8.26 2001/03/12 01:48:58 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -411,7 +411,8 @@ ixfr_log_maint(struct zoneinfo *zp) {
 	int error = 0;
 	long seek = 0;
 	FILE *to_fp, *from_fp, *db_fp;
-	static char   *tmpname;
+	char *tmpname;
+	int len;
 	struct stat db_sb;
 	struct stat sb;
 	static char buf[MAXBSIZE];
@@ -474,7 +475,8 @@ ixfr_log_maint(struct zoneinfo *zp) {
 		return (-1);
 	}
 
-	tmpname = memget(strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1);
+	len = strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1;
+	tmpname = memget(len);
 	if (!tmpname) {
 		ns_warning(ns_log_default, "memget failed");
 			return (-1);
@@ -489,14 +491,16 @@ ixfr_log_maint(struct zoneinfo *zp) {
 	if ((fd = mkstemp(tmpname)) == -1) {
 		ns_warning(ns_log_db, "can't make tmpfile (%s): %s", 
 				strerror(errno));
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
+		memput(tmpname, len);
+		(void) my_fclose(from_fp);
 	 	return (-1);
 	}
 	if ((to_fp = fdopen(fd, "r+")) == NULL) {
 		ns_warning(ns_log_db, "%s: %s",
 			   tmpname, strerror(errno));
 		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
+		memput(tmpname, len);
+		(void) my_fclose(from_fp);
 		(void) close(fd);
 	 	return (-1);
 	}
@@ -539,7 +543,8 @@ ixfr_log_maint(struct zoneinfo *zp) {
 		while ((rcount = fread(buf, sizeof(char), MAXBSIZE, from_fp)) > 0) {
 			wcount = fwrite(buf, sizeof(char), rcount, to_fp);
 			if (rcount != wcount || wcount == -1) {
-					ns_warning(ns_log_default, "ixfr_log_maint: error in writting copy");
+					ns_warning(ns_log_default,
+				     "ixfr_log_maint: error in writting copy");
 					break;
 			}
 		}
@@ -549,7 +554,6 @@ ixfr_log_maint(struct zoneinfo *zp) {
 	}
 	clean_up:
 	(void) my_fclose(to_fp);
-	(void) close(fd);
 	(void) my_fclose(from_fp);
 	if (error == 0) {
 		if (isc_movefile(tmpname, zp->z_ixfr_base) == -1) {
@@ -559,11 +563,13 @@ ixfr_log_maint(struct zoneinfo *zp) {
 		if ((from_fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
 			ns_warning(ns_log_db, "%s: %s",
 				   zp->z_ixfr_base, strerror(errno));
+			memput(tmpname, len);
 			return (-1);
 		}
 		if (fstat(fileno(from_fp), &sb) < 0) {
 			ns_warning(ns_log_db, "%s: %s",
 				   zp->z_ixfr_base, strerror(errno));
+			memput(tmpname, len);
 			(void) my_fclose(from_fp);
 			return (-1);
 		}
@@ -574,10 +580,10 @@ ixfr_log_maint(struct zoneinfo *zp) {
 					"chmod(%s,%o) failed, pressing on: %s",
 					 zp->z_source, sb.st_mode,
 					 strerror(errno));
+		(void) my_fclose(from_fp);
 	}
 	(void) unlink(tmpname);
-	memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-	(void) my_fclose(from_fp);
+	memput(tmpname, len);
 
 	zp->z_serial_ixfr_start = 0; /* signal to read for lowest serial number */	
 
