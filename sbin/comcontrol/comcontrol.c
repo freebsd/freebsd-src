@@ -38,35 +38,38 @@
 
 void usage(char *progname)
 {
-	fprintf(stderr, "usage: %s <filename> [dtrwait <n>]\n", progname);
+	fprintf(stderr, "usage: %s <filename> [dtrwait <n>] [drainwait <n>]\n", progname);
 	exit(1);
 }
 
 int main(int argc, char *argv[])
 {
 	int	fd;
-	int	res;
-	int     dtrwait;
+	int     res = 0;
+	int     dtrwait = -1, drainwait = -1;
 
 	if ((argc < 2) || (argc > 5)) usage(argv[0]);
 
 	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
 	if (fd < 0) {
-		fprintf(stderr, "%s: couldn't open file %s\n", argv[0], argv[1]);
 		perror("open");
-		exit(1);
+		fprintf(stderr, "%s: couldn't open file %s\n", argv[0], argv[1]);
+		return 1;
 	}
 
 	if (argc == 2) {
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
+			res = 1;
 			perror("TIOCMGDTRWAIT");
-			exit(1);
 		}
-		printf("dtrwait %d\n", dtrwait);
+		if (ioctl(fd, TIOCGDRAINWAIT, &drainwait) < 0) {
+			res = 1;
+			perror("TIOCGDRAINWAIT");
+		}
+		printf("dtrwait %d drainwait %d\n", dtrwait, drainwait);
 	} else {
 		char *prg = argv[0];
 
-		res = dtrwait = -1;
 		while (argv[2] != NULL) {
 			if (!strcmp(argv[2],"dtrwait")) {
 				if (dtrwait >= 0)
@@ -75,18 +78,30 @@ int main(int argc, char *argv[])
 					usage(prg);
 				dtrwait = atoi(argv[3]);
 				argv += 2;
-			} else {
+			} else if (!strcmp(argv[2],"drainwait")) {
+				if (drainwait >= 0)
+					usage(prg);
+				if (argv[3] == NULL || !isdigit(argv[3][0]))
+					usage(prg);
+				drainwait = atoi(argv[3]);
+				argv += 2;
+			} else
 				usage(prg);
-			}
 		}
 		if (dtrwait >= 0) {
 			if (ioctl(fd, TIOCMSDTRWAIT, &dtrwait) < 0) {
+				res = 1;
 				perror("TIOCMSDTRWAIT");
-				exit(1);
+			}
+		}
+		if (drainwait >= 0) {
+			if (ioctl(fd, TIOCSDRAINWAIT, &drainwait) < 0) {
+				res = 1;
+				perror("TIOCSDRAINWAIT");
 			}
 		}
 	}
 
 	close(fd);
-	exit(0);
+	return res;
 }
