@@ -317,6 +317,16 @@ s_runame(KINFO *k)
 	    return (strlen(user_from_uid(k->ki_p->ki_ruid, 0)));
 }
 
+
+void
+rss(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	(void)printf("%*ld", v->width, (long)ps_pgtok(k->ki_p->ki_rssize));
+}
+
 void
 tdev(KINFO *k, VARENT *ve)
 {
