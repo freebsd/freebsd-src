@@ -26,13 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.1 1998/09/15 06:46:32 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.2 1998/12/10 04:00:03 gibbs Exp $
  */
 
 #include <sys/types.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,18 +45,26 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_targetio.h>
 
-char  *appname;
-int    ifd;
-char  *ifilename;
-int    ofd;
-char  *ofilename;
-size_t bufsize = 64 * 1024;
-void  *buf;
-char  *targdevname;
-int    targfd;
+char	*appname;
+int	 ifd;
+char	*ifilename;
+int	 ofd;
+char	*ofilename;
+size_t	 bufsize = 64 * 1024;
+void	*buf;
+char	 targdevname[80];
+int	 targctlfd;
+int	 targfd;
+int	 quit;
+struct	 ioc_alloc_unit alloc_unit = {
+	CAM_BUS_WILDCARD,
+	CAM_TARGET_WILDCARD,
+	CAM_LUN_WILDCARD
+};
 
 static void pump_events();
 static void handle_exception();
+static void quit_handler();
 static void usage();
 
 int
@@ -63,7 +73,7 @@ main(int argc, char *argv[])
 	int  ch;
 
 	appname = *argv;
-	while ((ch = getopt(argc, argv, "i:o:")) != -1) {
+	while ((ch = getopt(argc, argv, "i:o:p:t:l:")) != -1) {
 		switch(ch) {
 		case 'i':
 			if ((ifd = open(optarg, O_RDONLY)) == -1) {
@@ -80,6 +90,15 @@ main(int argc, char *argv[])
 			}
 			ofilename = optarg;
 			break;
+		case 'p':
+			alloc_unit.path_id = atoi(optarg);
+			break;
+		case 't':
+			alloc_unit.target_id = atoi(optarg);
+			break;
+		case 'l':
+			alloc_unit.lun_id = atoi(optarg);
+			break;
 		case '?':
 		default:
 			usage();
@@ -89,15 +108,38 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1) {
-		fprintf(stderr, "%s: No target device specifiled\n", appname);
+	if (alloc_unit.path_id == CAM_BUS_WILDCARD
+	 || alloc_unit.target_id == CAM_TARGET_WILDCARD
+	 || alloc_unit.lun_id == CAM_LUN_WILDCARD) {
+		fprintf(stderr, "%s: Incomplete device path specifiled\n",
+			appname);
 		usage();
 		/* NOTREACHED */
 	}
 
-	targdevname = *argv;
+	if (argc != 0) {
+		fprintf(stderr, "%s: Too many arguments\n", appname);
+		usage();
+		/* NOTREACHED */
+	}
+
+	/* Allocate a new instance */
+	if ((targctlfd = open("/dev/targ.ctl", O_RDWR)) == -1) {
+		perror("/dev/targ.ctl");
+		exit(EX_UNAVAILABLE);
+	}
+
+	if (ioctl(targctlfd, TARGCTLIOALLOCUNIT, &alloc_unit) == -1) {
+		perror("TARGCTLIOALLOCUNIT");
+		exit(EX_SOFTWARE);
+	}
+
+	snprintf(targdevname, sizeof(targdevname), "/dev/targ%d",
+		 alloc_unit.unit);
+
 	if ((targfd = open(targdevname, O_RDWR)) == -1) {
 		perror(targdevname);
+		ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
 		exit(EX_NOINPUT);
 	}
 	
@@ -108,8 +150,20 @@ main(int argc, char *argv[])
 		exit(EX_OSERR);
 	}
 
+	signal(SIGHUP, quit_handler);
+	signal(SIGINT, quit_handler);
+	signal(SIGTERM, quit_handler);
+
 	pump_events();
 
+	close(targfd);
+
+	if (ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit) == -1) {
+		perror("TARGCTLIOFREEUNIT");
+		exit(EX_SOFTWARE);
+	}
+
+	close(targctlfd);
 	return (0);
 }
 
@@ -121,12 +175,14 @@ pump_events()
 	targpoll.fd = targfd;
 	targpoll.events = POLLRDNORM|POLLWRNORM;
 
-	while (1) {
+	while (quit == 0) {
 		int retval;
 
 		retval = poll(&targpoll, 1, INFTIM);
 
 		if (retval == -1) {
+			if (errno == EINTR)
+				continue;
 			perror("Poll Failed");
 			exit(EX_SOFTWARE);
 		}
@@ -260,11 +316,18 @@ handle_exception()
 }
 
 static void
+quit_handler(int signum)
+{
+	quit = 1;
+}
+
+static void
 usage()
 {
 
 	(void)fprintf(stderr,
-"usage: %-16s [-o output_file] [-i input_file] /dev/targ?\n", appname);
+"usage: %-16s [-o output_file] [-i input_file] -p path -t target -l lun\n",
+		      appname);
 
 	exit(EX_USAGE);
 }
