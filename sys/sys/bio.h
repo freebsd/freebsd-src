@@ -111,7 +111,6 @@ struct bio_queue_head {
 	daddr_t last_pblkno;
 	struct	bio *insert_point;
 	struct	bio *switch_point;
-	int busy;
 };
 
 void biodone(struct bio *bp);
