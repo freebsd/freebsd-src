@@ -226,6 +226,13 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	child = device_add_child(pccarddev, devi->name, desc->unit);
 	device_set_flags(child, desc->flags);
 	device_set_ivars(child, devi);
+	if (bootverbose) {
+		device_printf(pccarddev,
+		    "Assigning %s: io 0x%x-0x%x irq %d mem 0x%lx-0x%lx\n",
+		    device_get_nameunit(child),
+		    desc->iobase, desc->iobase + desc->iosize - 1,
+		    irq, desc->mem, desc->mem + desc->memsize - 1); 
+	}
 	err = bus_set_resource(child, SYS_RES_IOPORT, 0, desc->iobase,
 	    desc->iosize);
 	if (err)
@@ -435,36 +442,6 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-static int
-crdioctl_sresource(dev_t dev, caddr_t data)
-{
-	struct pccard_resource *pr;
-	struct resource *r;
-	int flags;
-	int rid = 0;
-	device_t bridgedev;
-
-	pr = (struct pccard_resource *)data;
-	pr->resource_addr = ~0ul;
-	bridgedev = PCCARD_DEV2SOFTC(dev)->dev;
-	switch(pr->type) {
-	default:
-		return (EINVAL);
-	case SYS_RES_MEMORY:
-	case SYS_RES_IRQ:
-	case SYS_RES_IOPORT:
-		break;
-	}
-	flags = rman_make_alignment_flags(pr->size);
-	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
-	   pr->size, flags);
-	if (r != NULL) {
-		pr->resource_addr = (u_long)rman_get_start(r);
-		bus_release_resource(bridgedev, pr->type, rid, r);
-	}
-	return (0);
-}
-
 /*
  *	ioctl calls - allows setting/getting of memory and I/O
  *	descriptors, and assignment of drivers.
@@ -630,9 +607,6 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		if (pccard_beep_select(*(int *)data)) {
 			return (EINVAL);
 		}
-		break;
-	case PIOCSRESOURCE:
-		return (crdioctl_sresource(dev, data));
 		break;
 	}
 	return (0);
