@@ -60,7 +60,7 @@
 .fi
 .in
 ..
-.TH NcFTP 1 "" NCEMRSoft
+.TH NcFTP 1 "1.9" NCEMRSoft
 .\"-------
 .SH "NAME"
 .\"-------
@@ -281,7 +281,7 @@ machine wuarchive.wustl.edu
 Then you could put in your username, password, and account if you like:
 .Ds
 user anonymous
-password \-mgleason@cse.unl.edu
+password \-mgleason@ftp.cs.unl.edu
 account wuarc.does.not.use.accounts
 .De
 .PP
@@ -306,7 +306,7 @@ I recommend you adhere to this format:
 .Ds
 machine wuarchive.wustl.edu
 	user anonymous
-	password \-mgleason@cse.unl.edu
+	password \-mgleason@ftp.cs.unl.edu
 	account wuarc.does.not.use.accounts
 	macdef init
 		cd /graphics/gif
@@ -1085,7 +1085,7 @@ facility.
 If you wanted to know the site's IP number, but only knew the name you
 could do:
 .Ds
-lookup cse.unl.edu
+lookup ftp.cs.unl.edu
 .De
 .PP
 This would spit out IP number for that site, in this case ``129.93.1.12''.
@@ -1095,7 +1095,7 @@ try:
 lookup 129.93.1.12
 .De
 .PP
-This would spit out the name for that site, in this case ``cse.unl.edu''.
+This would spit out the name for that site, in this case ``ftp.cs.unl.edu''.
 .\"-------
 .SH "Checking the configuration of the program"
 .\"-------
@@ -1177,10 +1177,10 @@ inserts the host and current
 directory path in
 .I "colon-mode"
 format, such as
-``cse.unl.edu:/pub/mgleason'', or ``(not connected)''.
+``ftp.cs.unl.edu:/pub/mgleason'', or ``(not connected)''.
 The
 .B @c
-flag is similar, only it will insert ``cse.unl.edu:/pub/mgleason'' and a
+flag is similar, only it will insert ``ftp.cs.unl.edu:/pub/mgleason'' and a
 newline if connected, otherwise it prints nothing.
 The default prompt uses
 this flag to print a two line prompt when connected and a one line prompt
@@ -1294,13 +1294,13 @@ This fetches
 .B CONTENTS
 and then quits:
 .Ds
-csh> ncftp cse.unl.edu:/pub/mgleason/CONTENTS
+csh> ncftp ftp.cs.unl.edu:/pub/mgleason/CONTENTS
 .De
 .PP
 Some others examples, with open options and main program options mixed in:
 .Ds
 csh> ncftp \-V quiet \-u ftp.unl.edu
-csh> ncftp \-c cse.unl.edu:/pub/mgleason/CONTENTS
+csh> ncftp \-c ftp.cs.unl.edu:/pub/mgleason/CONTENTS
 csh> ncftp \-D 2 \-r \-d 120 \-g 10 \-N ftp.unl.edu
 .De
 .\"-------
@@ -1326,7 +1326,7 @@ machine sumex\-aim.stanford.edu
 machine ftp.apple.com
 .sp
 # NcFTP will only ask for your password:
-machine cse.unl.edu
+machine ftp.cs.unl.edu
 	login mgleason
 .sp
 # You can supply a login and a password:
@@ -1359,13 +1359,16 @@ is copyrighted 1992, 1993 by NCEMRSoft
 and 1985, 1989 by the Regents of California.
 .PP
 Ideas and some code contributed by Phil Dietz,
-.I NCEMRSoft
-(pdietz@cse.unl.edu).
+.IR NCEMRSoft "."
 Testing and debugging done by Phil and
-Kok Hon Yin (hkok@cse.unl.edu).
+Kok Hon Yin
 .PP
 Extensive man page formatting work
 by DaviD W. Sanderson (dws@ssec.wisc.edu).
+.PP
+As of this writing, the most recent version is archived in
+/pub/ncftp, on
+.IR "ftp.cs.unl.edu" "."
 .\"-------
 .SH "BUGS"
 .\"-------
