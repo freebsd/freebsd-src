@@ -145,7 +145,7 @@ static void
 bdg_promisc_off(int clear_used)
 {
     struct ifnet *ifp ;
-    for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next ) {
+    TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	if ( (ifp2sc[ifp->if_index].flags & IFF_BDG_PROMISC) ) {
 	    int s, ret ;
 	    s = splimp();
@@ -172,7 +172,7 @@ bdg_promisc_on()
     struct ifnet *ifp ;
     int s ;
 
-    for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next ) {
+    TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	if ( !BDG_USED(ifp) )
 	    continue ;
 	if ( 0 == ( ifp->if_flags & IFF_UP) ) {
@@ -454,7 +454,7 @@ bdgtakeifaces(void)
 
     printf("BRIDGE 010131, have %d interfaces\n", if_index);
     for (i = 0 , ifp = ifnet.tqh_first ; i < if_index ;
-		i++, ifp = ifp->if_link.tqe_next)
+		i++, ifp = TAILQ_NEXT(ifp, if_link) )
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
 	    bp = &ifp2sc[ifp->if_index] ;
 	    ac = (struct arpcom *)ifp;
@@ -704,11 +704,8 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	 * is NULL.
 	 */
 	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
-	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) { /* drop */
-	    if (m0)
-		m_freem(m0);
-	    return NULL ;
-	}
+	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
+	    return m0 ;
 	/*
 	 * If we get here, the firewall has passed the pkt, but the mbuf
 	 * pointer might have changed. Restore ip and the fields NTOHS()'d.
@@ -846,7 +843,7 @@ forward:
 	     (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING) &&
 	     ifp != src && BDG_SAMECLUSTER(ifp, real_dst) )
 	    last = ifp ;
-	ifp = ifp->if_link.tqe_next ;
+	ifp = TAILQ_NEXT(ifp, if_link) ;
 	if (ifp == NULL)
 	    once = 1 ;
     }
