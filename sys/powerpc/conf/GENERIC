@@ -34,3 +34,4 @@ options         MD_ROOT
 options         MD_ROOT_SIZE=1024
 
 device		md
+device		ofwd

@@ -42,6 +42,7 @@ crypto/des/des_enc.c		optional	ipsec ipsec_esp
 
 dev/ofw/openfirm.c		standard
 dev/ofw/ofw_console.c		standard
+dev/ofw/ofw_disk.c		optional	ofwd
 
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
