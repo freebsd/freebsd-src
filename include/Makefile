@@ -39,8 +39,8 @@ LSUBDIRS=	cam/scsi dev/ic dev/ppbus dev/usb dev/wi dev/an fs/devfs \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
-	security/lomac \
-	ufs/ffs ufs/ufs
+	security/lomac security/mac_biba security/mac_bsdextended \
+	security/mac_mls ufs/ffs ufs/ufs
 
 # For SHARED=symlinks, cam and netatm are symlinks, so cam/scsi and netatm/*
 # are taken care of
