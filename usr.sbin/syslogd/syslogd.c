@@ -1445,21 +1445,13 @@ cfline(line, f, prog, host)
 
 	/* save hostname if any */
 	if (host && *host == '*') host = NULL;
-	if (host) {
-		f->f_host = calloc(1, strlen(host)+1);
-		if (f->f_host) {
-			strcpy(f->f_host, host);
-		}
-	}
+	if (host)
+		f->f_host = strdup(host);
 
 	/* save program name if any */
 	if(prog && *prog=='*') prog = NULL;
-	if(prog) {
-		f->f_program = calloc(1, strlen(prog)+1);
-		if(f->f_program) {
-			strcpy(f->f_program, prog);
-		}
-	}
+	if(prog)
+		f->f_program = strdup(host);
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
