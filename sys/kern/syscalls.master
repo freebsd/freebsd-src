@@ -556,7 +556,7 @@
 390	STD	{ int kenv(int what, const char *name, char *value, \
 		    int len); }
 391	STD	{ int lchflags(const char *path, int flags); }
-392	STD	{ int uuidgen(struct uuid *store, int count); }
+392	MSTD	{ int uuidgen(struct uuid *store, int count); }
 393	MSTD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 		    struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 394	MSTD	{ int mac_syscall(const char *policy, int call, \
