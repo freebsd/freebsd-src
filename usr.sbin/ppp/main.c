@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.57 1998/05/08 01:15:11 brian Exp $
+ * $Id: main.c,v 1.121.2.58 1998/05/08 18:50:21 brian Exp $
  *
  *	TODO:
  */
@@ -36,6 +36,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -473,11 +474,10 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     sig_Handle();
 
-    /* This may nuke a datalink */
-    descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
-                         &efds, &nfds);
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
+    descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
+                         &efds, &nfds);
 
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
@@ -491,6 +491,39 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       if (errno == EINTR)
 	continue;
       log_Printf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
+      if (log_IsKept(LogTIMER)) {
+        struct timeval t;
+
+        for (i = 0; i <= nfds; i++) {
+          if (FD_ISSET(i, &rfds)) {
+            log_Printf(LogTIMER, "Read set contains %d\n", i);
+            FD_CLR(i, &rfds);
+            t.tv_sec = t.tv_usec = 0;
+            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+              log_Printf(LogTIMER, "The culprit !\n");
+              break;
+            }
+          }
+          if (FD_ISSET(i, &wfds)) {
+            log_Printf(LogTIMER, "Write set contains %d\n", i);
+            FD_CLR(i, &wfds);
+            t.tv_sec = t.tv_usec = 0;
+            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+              log_Printf(LogTIMER, "The culprit !\n");
+              break;
+            }
+          }
+          if (FD_ISSET(i, &efds)) {
+            log_Printf(LogTIMER, "Error set contains %d\n", i);
+            FD_CLR(i, &efds);
+            t.tv_sec = t.tv_usec = 0;
+            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+              log_Printf(LogTIMER, "The culprit !\n");
+              break;
+            }
+          }
+        }
+      }
       break;
     }
 
@@ -512,7 +545,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
     if (descriptor_IsSet(&bundle->desc, &wfds))
       descriptor_Write(&bundle->desc, bundle, &wfds);
 
-    /* This may add a datalink */
     if (descriptor_IsSet(&bundle->desc, &rfds))
       descriptor_Read(&bundle->desc, bundle, &rfds);
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));

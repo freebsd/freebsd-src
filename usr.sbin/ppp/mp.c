@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.25 1998/05/06 23:49:48 brian Exp $
+ *	$Id: mp.c,v 1.1.2.26 1998/05/08 01:15:16 brian Exp $
  */
 
 #include <sys/types.h>
@@ -848,6 +848,7 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     if (*n < s->fd + 1)
       *n = s->fd + 1;
     FD_SET(s->fd, r);
+    log_Printf(LogTIMER, "mp: fdset(r) %d\n", s->fd);
     return 1;
   }
   return 0;

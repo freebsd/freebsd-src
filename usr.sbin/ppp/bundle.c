@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.79 1998/05/09 14:44:11 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.80 1998/05/10 10:21:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -373,10 +373,11 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     result += descriptor_UpdateSet(desc, r, w, e, n);
 
   /* If there are aren't many packets queued, look for some more. */
-  if (bundle->links && bundle_FillQueues(bundle) < 20) {
+  if (r && bundle->links && bundle_FillQueues(bundle) < 20) {
     if (*n < bundle->dev.fd + 1)
       *n = bundle->dev.fd + 1;
     FD_SET(bundle->dev.fd, r);
+    log_Printf(LogTIMER, "tun: fdset(r) %d\n", bundle->dev.fd);
     result++;
   }
 
