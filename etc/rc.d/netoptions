@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.16 1998/02/07 04:56:56 alex Exp $
+#	$Id: rc.network,v 1.17 1998/02/14 04:12:23 alex Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -117,6 +117,16 @@ network_pass1() {
 	    sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
     fi
     
+    if [ "X$forward_sourceroute" = X"YES" ]; then
+	    echo -n ' do source routing=YES'
+	    sysctl -w net.inet.ip.sourceroute=1 >/dev/null 2>&1
+    fi
+
+    if [ "X$accept_sourceroute" = X"YES" ]; then
+	    echo -n ' accept source routing=YES'
+	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null 2>&1
+    fi
+
     if [ "X$router_enable" = X"YES" ]; then
 	    echo -n " ${router}";	${router} ${router_flags}
     fi
