@@ -1277,7 +1277,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 			rt = rtalloc1(dst, 1, 0UL);
 			if (rt != NULL) {
 				RT_REMREF(rt);
-				RT_UNLOCK(rt);
+				/* XXX what about if change? */
 			} else
 				senderr(EHOSTUNREACH);
 			rt0 = rt;
