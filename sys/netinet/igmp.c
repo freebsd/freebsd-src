@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.5 1994/09/14 03:10:07 wollman Exp $
+ * $Id: igmp.c,v 1.6 1994/10/31 06:36:47 pst Exp $
  */
 
 /*
@@ -52,6 +52,9 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
+#include <sys/proc.h>		/* XXX needed for sysctl.h */
+#include <vm/vm.h>		/* XXX needed for sysctl.h */
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -628,4 +631,21 @@ igmp_sendleave(inm)
 	struct in_multi *inm;
 {
 	igmp_sendpkt(inm, IGMP_HOST_LEAVE_MESSAGE);
+}
+
+int
+igmp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
+	    void *newp, size_t newlen)
+{
+	/* All sysctl names at this level are terminal. */
+	if (namelen != 1)
+		return ENOTDIR;	/* XXX overloaded */
+
+	switch(name[0]) {
+	case IGMPCTL_STATS:
+		return sysctl_rdstruct(oldp, oldlenp, newp, &igmpstat, 
+				       sizeof igmpstat);
+	default:
+		return ENOPROTOOPT;
+	}
 }
