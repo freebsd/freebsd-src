@@ -425,6 +425,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 		goto dorecs;
 	}
 #endif
+	GIANT_REQUIRED;		/* XXX until socket locking is done */
+
 	auio.uio_td = NULL;
 	if (so->so_type == SOCK_STREAM) {
 		/*
@@ -724,6 +726,8 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 {
 	struct sockaddr *sendnam;
 	int error, soflags, flags;
+
+	GIANT_REQUIRED;		/* XXX until socket locking is done */
 
 	soflags = so->so_proto->pr_flags;
 	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))

@@ -376,6 +376,8 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	u_long l;
 	char buf[128];
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
 #elif defined(NFS_ROOT)
