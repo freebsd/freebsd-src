@@ -1,0 +1,214 @@
+################################################################################
+# Thelp DDisplay command help
+
+	help [topic [subtopic]]
+	?
+
+	The help command displays help on commands and their usage.
+
+	In command help, a term enclosed with <...> indicates a value as
+	described by the term.  A term enclosed with [...] is optional,
+	and may not be required by all forms of the command.
+
+	Some commands may not be availalble.  Use the '?' command to list
+	most available commands.
+
+################################################################################
+# Tautoboot DBoot after a delay
+
+	autoboot [<delay> [<prompt>]]
+
+	Displays <prompt> or a default prompt, and counts down <delay> seconds
+	before attempting to boot.  If <delay> is not specified, the default
+	value is 10.
+
+################################################################################
+# Tboot DBoot immediately
+
+	boot [-<arg> ...] [<kernelname>]
+
+	Boot the system.  If arguments are specified, they are added to the
+	arguments for the kernel.  If <kernelname> is specified, and a kernel
+	has not already been loaded, it will be booted instead of the default
+	kernel.
+
+################################################################################
+# Techo DEcho arguments
+
+	echo [-n] [<message>]
+
+	Emits <message>, with no trailing newline if -n is specified.  This is
+	most useful in conjunction with scripts and the '@' line prefix.
+
+	Variables are substituted by prefixing them with $, eg.
+
+		echo Current device is $currdev
+
+	will print the current device.
+
+################################################################################
+# Tload DLoad a kernel or module
+	
+	load [-t <type>] <filename>
+
+	Loads the module contained in <filename> into memory.  If no other
+	modules are loaded, <filename> must be a kernel or the command will
+	fail.
+
+	If -t is specified, the module is loaded as raw data of <type>, for
+	later use by the kernel or other modules.  <type> may be any string.
+
+################################################################################
+# Tls DList files
+
+	ls [-l] [<path>]
+
+	Displays a listing of files in the directory <path>, or the root
+	directory of the current device if <path> is not specified.
+
+	The -l argument displays file sizes as well; the process of obtaining
+	file sizes on some media may be very slow.
+
+################################################################################
+# Tlsdev DList devices
+
+	lsdev [-v]
+
+	List all of the devices from which it may be possible to load modules.
+	If -v is specified, print more details.
+
+################################################################################
+# Tlsmod DList modules
+
+	lsmod [-v]
+
+	List loaded modules. If [-v] is specified, print more details.
+
+################################################################################
+# Tpnpscan DScan for PnP devices
+
+	pnpscan [-v]
+
+	Scan for Plug-and-Play devices.  This command is normally automatically
+	run as part of the boot process, in order to dynamically load modules
+	required for system operation.
+
+	If the -v argument is specified, details on the devices found will
+	be printed.
+
+################################################################################
+# Tset DSet a variable
+
+	set <variable name>
+	set <variable name>=<value>
+
+	The set command is used to set variables.
+
+################################################################################
+# Tset Sautboot_delay DSet the default autoboot delay
+
+	set autoboot_delay=<value>
+
+	Sets the default delay for the autoboot command to <value> seconds.
+
+################################################################################
+# Tset Sbootfile DSet the default boot file set
+
+	set bootfile=<filename>[,<filename>...]
+
+	The default search path for bootable kernels is /kernel,/kernel.old.
+	It may be overridden by setting the bootfile variable to a 
+	semicolon-separated list of paths, which will be searched for in turn.
+
+################################################################################
+# Tset Sconsole DSet the current console
+
+	set console[=<value>]
+
+	Sets the current console.  If <value> is omitted, a list of valid
+	consoles will be displayed.
+
+################################################################################
+# Tset Scurrdev DSet the current device
+
+	set currdev=<device>
+
+	Selects the default device.  Syntax for devices is odd.
+
+################################################################################
+# Tset Smodule_path DSet the module search path
+
+	set module_path=<path>[,<path>...]
+
+	Sets the list of directories which will be searched in for modules
+	named in a load command or implicitly required by a dependancy.
+
+################################################################################
+# Tset Sprompt DSet the command prompt
+
+	set prompt=<value>
+
+	The command prompt is displayed when the loader is waiting for input.
+	Variable substitution is performed on the prompt.  The default 
+	prompt can be set with:
+
+		set prompt=\$currdev>
+
+################################################################################
+# Tshow DShow the values of variables
+
+	show [<variable>]
+
+	Displays the value of <variable>, or all variables if not specified.
+	Multiple paths can be separated with a semicolon.
+
+	See the set command for a list of some variables.
+
+################################################################################
+# Tsource DRead commands from a script file
+
+	source <filename>
+
+	The entire contents of <filename> are read into memory before executing
+	commands, so it is safe to source a file from removable media.
+
+	A number of modifiers may be prefixed to commands within a script file
+	to alter their behaviour:
+
+	@	Suppresses the printing of the command when executed.
+
+	-	Prevents the script from terminating if the command returns
+		an error.
+
+################################################################################
+# Tread DRead input from the terminal
+
+	read [-t <value>] [-p <prompt>] [<variable name>]
+
+	The read command reads a line of input from the terminal.  If the 
+	-t argument is specified, it will return nothing if no input has been
+	received after <value> seconds.  (Any keypress will cancel the 
+	timeout).
+
+	If -p is specified, <prompt> is printed before reading input. No 
+	newline is emitted after the prompt.
+
+	If a variable name is supplied, the variable is set to the value read,
+	less any terminating newline.
+
+################################################################################
+# Tunload DRemove all modules from memory
+
+	unload
+
+	This command removes any kernel and all loaded modules from memory.
+
+################################################################################
+# Tunset DUnset a variable
+
+	unset <variable name>
+
+	If allowed, the named variable's value is discarded and the variable
+	is removed.	
+
+################################################################################

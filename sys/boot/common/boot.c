@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.6 1998/10/11 10:10:41 peter Exp $
+ *	$Id: boot.c,v 1.7 1998/10/14 00:41:17 peter Exp $
  */
 
 /*
@@ -203,11 +203,13 @@ autoboot(int delay, char *prompt)
 	    break;
 	}
 	if (ntime != otime) {
-	    printf("\rBooting [%s] in %d seconds...", getbootfile(0), (int)(when - ntime));
+	    printf("\rBooting [%s] in %d seconds... ", getbootfile(0), (int)(when - ntime));
 	    otime = ntime;
 	    cr = 1;
 	}
     }
+    if (yes)
+	printf("\rBooting [%s]...               ", getbootfile(0));
     if (cr)
 	putchar('\n');
     if (yes) {
@@ -245,7 +247,7 @@ getbootfile(int try)
 	try--;
     }
     if (spec != NULL) {
-	if ((ep = strchr(spec, ',')) != NULL) {
+	if ((ep = strchr(spec, ';')) != NULL) {
 	    len = ep - spec;
 	} else {
 	    len = strlen(spec);

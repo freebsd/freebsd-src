@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.14 1998/10/11 10:29:49 peter Exp $
+ *	$Id: biosdisk.c,v 1.15 1998/10/30 07:15:52 luoqi Exp $
  */
 
 /*
@@ -105,6 +105,7 @@ static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
+static void	bd_print(int verbose);
 
 struct devsw biosdisk = {
     "disk", 
@@ -113,7 +114,8 @@ struct devsw biosdisk = {
     bd_strategy, 
     bd_open, 
     bd_close, 
-    noioctl
+    noioctl,
+    bd_print
 };
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
@@ -197,6 +199,24 @@ bd_int13probe(struct bdinfo *bd)
 	return(1);
     }
     return(0);
+}
+
+/*
+ * Print information about disks
+ */
+static void
+bd_print(int verbose)
+{
+    int		i;
+    char	line[80];
+    
+    for (i = 0; i < nbdinfo; i++) {
+	sprintf(line, "    disk%d:   BIOS drive %c:", i, 
+		(bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit) : ('C' + bdinfo[i].bd_unit - 0x80));
+	pager_output(line);
+	/* XXX more detail? */
+	pager_output("\n");
+    }
 }
 
 /*
