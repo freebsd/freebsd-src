@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: savemail.c,v 8.212.4.5 2000/08/22 22:46:00 gshapiro Exp $";
+static char id[] = "@(#)$Id: savemail.c,v 8.212.4.11 2000/12/18 18:00:44 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -995,6 +995,8 @@ errbody(mci, e, separator)
 
 	if (e->e_msgboundary != NULL)
 	{
+		time_t now = curtime();
+
 		putline("", mci);
 		(void) snprintf(buf, sizeof buf, "--%s", e->e_msgboundary);
 		putline(buf, mci);
@@ -1048,7 +1050,13 @@ errbody(mci, e, separator)
 			char *action;
 
 			if (QS_IS_BADADDR(q->q_state))
+			{
+				/* RFC 1891, 6.2.6 (b) */
+				if (bitset(QHASNOTIFY, q->q_flags) &&
+				    !bitset(QPINGONFAILURE, q->q_flags))
+					continue;
 				action = "failed";
+			}
 			else if (!bitset(QPRIMARY, q->q_flags))
 				continue;
 			else if (bitset(QDELIVERED, q->q_flags))
@@ -1198,7 +1206,7 @@ errbody(mci, e, separator)
 
 			/* Last-Attempt-Date: -- fine granularity */
 			if (q->q_statdate == (time_t) 0L)
-				q->q_statdate = curtime();
+				q->q_statdate = now;
 			(void) snprintf(buf, sizeof buf,
 					"Last-Attempt-Date: %s",
 					arpadate(ctime(&q->q_statdate)));
