@@ -33,7 +33,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	PC98			#PC98
 options 	MATH_EMULATE		#Support for x87 emulation
-options         SCHED_4BSD              #4BSD scheduler
+options		SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
