@@ -33,11 +33,11 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.3 1995/10/31 23:36:42 julian Exp $
+ * $Id: spx.h,v 1.4 1995/11/04 09:03:29 julian Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
-#define _NETIPX_SPX_H_
+#define	_NETIPX_SPX_H_
 
 /*
  * Definitions for IPX style Sequenced Packet Protocol
@@ -169,30 +169,34 @@ struct spxpcb {
 
 #ifdef KERNEL
 
-#include <sys/cdefs.h>
+void	spx_abort __P((struct ipxpcb *ipxp));
+struct spxpcb *
+	spx_close __P((struct spxpcb *cb));
+void	spx_ctlinput __P((int cmd, caddr_t arg));
+int	spx_ctloutput __P((int req, struct socket *so, int level, int name,
+			   struct mbuf **value));
+struct spxpcb *
+	spx_disconnect __P((struct spxpcb *cb));
+struct spxpcb *
+	spx_drop __P((struct spxpcb *cb, int errno));
+void	spx_fasttimo __P((void));
+void	spx_init __P((void));
+void	spx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
+int	spx_output __P((struct spxpcb *cb, struct mbuf *m0));
+void	spx_quench __P((struct ipxpcb *ipxp));
+int	spx_reass __P((struct spxpcb *cb, struct spx *si));
+void	spx_setpersist __P((struct spxpcb *cb));
+void	spx_slowtimo __P((void));
+void	spx_template __P((struct spxpcb *cb));
+struct spxpcb *
+	spx_timers __P((struct spxpcb *cb, int timer));
+struct spxpcb *
+	spx_usrclosed __P((struct spxpcb *cb));
+int	spx_usrreq __P((struct socket *so, int req, struct mbuf *m,
+			struct mbuf *nam, struct mbuf *controlp));
+int	spx_usrreq_sp __P((struct socket *so, int req, struct mbuf *m,
+			   struct mbuf *nam, struct mbuf *controlp));
 
-__BEGIN_DECLS
-int spx_reass __P((struct spxpcb *cb, struct spx *si));
-int spx_output __P((struct spxpcb *cb, struct mbuf *m0));
-int spx_usrreq __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *controlp));
-int spx_usrreq_sp __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *controlp));
-int spx_ctloutput __P((int req, struct socket *so, int level, int name, struct mbuf **value));
-void spx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
-void spx_ctlinput __P((int cmd, caddr_t arg));
-void spx_init __P((void));
-void spx_fasttimo __P((void));
-void spx_slowtimo __P((void));
-void spx_quench __P((struct ipxpcb *ipxp));
-void spx_setpersist __P((struct spxpcb *cb));
-void spx_template __P((struct spxpcb *cb));
-void spx_abort __P((struct ipxpcb *ipxp));
-struct spxpcb *spx_close __P((struct spxpcb *cb));
-struct spxpcb *spx_usrclosed __P((struct spxpcb *cb));
-struct spxpcb *spx_disconnect __P((struct spxpcb *cb));
-struct spxpcb *spx_drop __P((struct spxpcb *cb, int errno));
-struct spxpcb *spx_timers __P((struct spxpcb *cb, int timer));
-__END_DECLS
+#endif /* KERNEL */
 
-#endif
-
-#endif
+#endif /* !_NETIPX_SPX_H_ */

@@ -33,11 +33,11 @@
  *
  *	@(#)spx_debug.h
  *
- * $Id: spx_debug.h,v 1.3 1995/10/31 23:36:44 julian Exp $
+ * $Id: spx_debug.h,v 1.4 1995/11/04 09:03:35 julian Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_
-#define _NETIPX_SPX_DEBUG_H_
+#define	_NETIPX_SPX_DEBUG_H_
 
 struct	spx_debug {
 	u_long	sd_time;
@@ -65,17 +65,12 @@ struct	spx_debug spx_debug[SPX_NDEBUG];
 int	spx_debx;
 
 #ifdef KERNEL
-
 extern char *prurequests[];
 extern char *sanames[];
 extern char *tcpstates[];
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-void spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si, int req));
-__END_DECLS
-
+void	spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si,
+		       int req));
 #endif
 
-#endif
+#endif /* !_NETIPX_SPX_DEBUG_H_ */
