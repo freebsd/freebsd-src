@@ -684,11 +684,12 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			 */
 			rt2 = rtalloc1(dst, 0, RTF_PRCLONING);
 			if (rt2 && rt2->rt_parent) {
+				RT_UNLOCK(rt2);		/* XXX recursive lock */
 				rtrequest(RTM_DELETE,
 					  rt_key(rt2),
 					  rt2->rt_gateway,
 					  rt_mask(rt2), rt2->rt_flags, 0);
-				RTFREE_LOCKED(rt2);
+				RTFREE(rt2);
 				rn = rnh->rnh_addaddr(ndst, netmask,
 						      rnh, rt->rt_nodes);
 			} else if (rt2) {
