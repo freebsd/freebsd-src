@@ -478,13 +478,28 @@ pps_init(struct pps_state *pps)
 }
 
 void
-pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int event)
+pps_capture(struct pps_state *pps)
+{
+	struct timecounter *tc;
+
+	tc = timecounter;
+	pps->captc = tc;
+	pps->capgen = tc->tc_generation;
+	pps->capcount = tc->tc_get_timecount(tc);
+}
+
+void
+pps_event(struct pps_state *pps, int event)
 {
 	struct timespec ts, *tsp, *osp;
 	unsigned tcount, *pcount;
 	struct bintime bt;
 	int foff, fhard;
 	pps_seq_t	*pseq;
+
+	/* If the timecounter were wound up, bail. */
+	if (pps->capgen != pps->capgen)
+		return;
 
 	/* Things would be easier with arrays... */
 	if (event == PPS_CAPTUREASSERT) {
@@ -505,26 +520,32 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 
 	/* The timecounter changed: bail */
 	if (!pps->ppstc || 
-	    pps->ppstc->tc_name != tc->tc_name || 
-	    tc->tc_name != timecounter->tc_name) {
-		pps->ppstc = tc;
-		*pcount = count;
+	    pps->ppstc->tc_name != pps->captc->tc_name || 
+	    pps->captc->tc_name != timecounter->tc_name) {
+		pps->ppstc = pps->captc;
+		*pcount = pps->capcount;
+#ifdef PPS_SYNC
+		pps->ppscount[2] = pps->capcount;
+#endif
 		return;
 	}
 
 	/* Nothing really happened */
-	if (*pcount == count)
+	if (*pcount == pps->capcount)
 		return;
 
-	*pcount = count;
-
 	/* Convert the count to timespec */
-	tcount = count - tc->tc_offset_count;
-	tcount &= tc->tc_counter_mask;
-	bt = tc->tc_offset;
-	bintime_addx(&bt, tc->tc_scale * tcount);
+	tcount = pps->capcount - pps->captc->tc_offset_count;
+	tcount &= pps->captc->tc_counter_mask;
+	bt = pps->captc->tc_offset;
+	bintime_addx(&bt, pps->captc->tc_scale * tcount);
 	bintime2timespec(&bt, &ts);
 
+	/* If the timecounter were wound up, bail. */
+	if (pps->capgen != pps->capgen)
+		return;
+
+	*pcount = pps->capcount;
 	(*pseq)++;
 	*tsp = ts;
 
@@ -538,12 +559,12 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 #ifdef PPS_SYNC
 	if (fhard) {
 		/* magic, at its best... */
-		tcount = count - pps->ppscount[2];
-		pps->ppscount[2] = count;
-		tcount &= tc->tc_counter_mask;
+		tcount = pps->capcount - pps->ppscount[2];
+		pps->ppscount[2] = pps->capcount;
+		tcount &= pps->captc->tc_counter_mask;
 		bt.sec = 0;
 		bt.frac = 0;
-		bintime_addx(&bt, tc->tc_scale * tcount);
+		bintime_addx(&bt, pps->captc->tc_scale * tcount);
 		bintime2timespec(&bt, &ts);
 		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}

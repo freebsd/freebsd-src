@@ -131,7 +131,6 @@
 #include <sys/tty.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <sys/uio.h>
 
@@ -2568,8 +2567,6 @@ siointr1(com)
 	u_char	recv_data;
 	u_char	int_ctl;
 	u_char	int_ctl_new;
-	struct	timecounter *tc;
-	u_int	count;
 
 #ifdef PC98
 	u_char	tmp = 0;
@@ -2611,10 +2608,8 @@ more_intr:
 		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
 			modem_status = inb(com->modem_status_port);
 		        if ((modem_status ^ com->last_modem_status) & MSR_DCD) {
-				tc = timecounter;
-				count = tc->tc_get_timecount(tc);
-				pps_event(&com->pps, tc, count, 
-				    (modem_status & MSR_DCD) ? 
+				pps_capture(&com->pps);
+				pps_event(&com->pps, (modem_status & MSR_DCD) ? 
 				    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
 			}
 		}
