@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.23 1995/05/30 08:02:51 rgrimes Exp $
+ *	$Id: npx.c,v 1.24 1995/09/19 18:55:14 bde Exp $
  */
 
 #include "npx.h"
@@ -40,6 +40,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/proc.h>
@@ -104,6 +106,11 @@ struct	isa_driver npxdriver = {
 };
 
 int	hw_float;		/* XXX currently just alias for npx_exists */
+
+SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
+	CTLFLAG_RD, &hw_float, 0, 
+	"Floatingpoint instructions executed in hardware");
+
 u_int	npx0_imask = SWI_CLOCK_MASK;
 struct proc	*npxproc;
 

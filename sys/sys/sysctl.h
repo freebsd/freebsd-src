@@ -40,17 +40,6 @@
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
 
-
-/*
- * These are for the eproc structure defined below.
- */
-#ifndef KERNEL
-#include <sys/time.h>
-#include <sys/ucred.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#endif
-
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
  * for objects that can be examined or modified.  The name is expressed as
@@ -74,7 +63,7 @@ struct ctlname {
 	int	ctl_type;	/* type of name */
 };
 
-#define CTLTYPE		0xf	/* Mask */
+#define CTLTYPE		0xf	/* Mask for the type */
 #define	CTLTYPE_NODE	1	/* name is a node */
 #define	CTLTYPE_INT	2	/* name describes an integer */
 #define	CTLTYPE_STRING	3	/* name describes a string */
@@ -85,12 +74,11 @@ struct ctlname {
 #define CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
 #define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
-#define CTLFLAG_XLT	0x20000000	/* Variable is xlated by function */
-#define CTLFLAG_NOLOCK	0x10000000	/* XXX Don't Lock */
+#define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 
-#define CTLBEFORE	0
-#define CTLAFTER	1
-
+#ifdef KERNEL
+#define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2,\
+	void *oldp, size_t *oldlenp, void *newp, size_t newlen )
 
 struct sysctl_oid {
 	int		oid_number;
@@ -98,9 +86,12 @@ struct sysctl_oid {
 	void		*oid_arg1;
 	int		oid_arg2;
 	char		*oid_name;
-	int 		(*oid_handler)(struct sysctl_oid *, int, int);
+	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
 };
-typedef int (*sysctl_handler)(struct sysctl_oid *, int, int);
+
+int sysctl_handle_int SYSCTL_HANDLER_ARGS;
+int sysctl_handle_string SYSCTL_HANDLER_ARGS;
+int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 /* This is the "raw" function for a mib-oid */
 #define SYSCTL_OID(parent,number,name,kind,arg1,arg2,handler,descr) \
@@ -116,29 +107,30 @@ typedef int (*sysctl_handler)(struct sysctl_oid *, int, int);
 	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
 
 /* This is a string len can be 0 to indicate '\0' termination */
-#define SYSCTL_STRING(parent,number,name,access,arg,len,handler,descr) \
+#define SYSCTL_STRING(parent,number,name,access,arg,len,descr) \
 	SYSCTL_OID(parent,number,name, CTLTYPE_STRING|access,\
-		arg,len,handler,descr);
+		arg,len,sysctl_handle_string,descr);
 
 /* This is a integer, if ptr is NULL, val is returned */
-#define SYSCTL_INT(parent,number,name,access,ptr,val,handler,descr) \
+#define SYSCTL_INT(parent,number,name,access,ptr,val,descr) \
 	SYSCTL_OID(parent,number,name,CTLTYPE_INT|access,\
-		ptr,val,handler,descr);
+		ptr,val,sysctl_handle_int,descr);
 
 /* This is anything, specified by a pointer and a lenth */
-#define SYSCTL_OPAQUE(parent,number,name,access,ptr,len,handler,descr) \
+#define SYSCTL_OPAQUE(parent,number,name,access,ptr,len,descr) \
 	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
-		ptr,len,handler,descr);
+		ptr,len,sysctl_handle_opaque,descr);
 
 /* This is a struct, specified by a pointer and type */
-#define SYSCTL_STRUCT(parent,number,name,access,ptr,type,handler,descr) \
+#define SYSCTL_STRUCT(parent,number,name,access,ptr,type,descr) \
 	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
-		ptr,sizeof(struct type),handler,descr);
+		ptr,sizeof(struct type),sysctl_handle_opaque,descr);
 
 /* Needs a proc.  Specify by pointer and arg */
 #define SYSCTL_PROC(parent,number,name,access,ptr,arg,handler,descr) \
-	SYSCTL_OID(parent,number,name,CTLTYPE_PROC|access,\
+	SYSCTL_OID(parent,number,name,access,\
 		ptr,arg,handler,descr);
+#endif /* KERNEL */
 
 /*
  * Top-level identifiers
@@ -255,37 +247,6 @@ typedef int (*sysctl_handler)(struct sysctl_oid *, int, int);
 #define	KERN_PROC_RUID		6	/* by real uid */
 
 /*
- * KERN_PROC subtype ops return arrays of augmented proc structures:
- */
-struct kinfo_proc {
-	struct	proc kp_proc;			/* proc structure */
-	struct	eproc {
-		struct	proc *e_paddr;		/* address of proc */
-		struct	session *e_sess;	/* session pointer */
-		struct	pcred e_pcred;		/* process credentials */
-		struct	ucred e_ucred;		/* current credentials */
-		struct	vmspace e_vm;		/* address space */
-		pid_t	e_ppid;			/* parent process id */
-		pid_t	e_pgid;			/* process group id */
-		short	e_jobc;			/* job control counter */
-		dev_t	e_tdev;			/* controlling tty dev */
-		pid_t	e_tpgid;		/* tty process group id */
-		struct	session *e_tsess;	/* tty session pointer */
-#define	WMESGLEN	7
-		char	e_wmesg[WMESGLEN+1];	/* wchan message */
-		segsz_t e_xsize;		/* text size */
-		short	e_xrssize;		/* text rss */
-		short	e_xccount;		/* text references */
-		short	e_xswrss;
-		long	e_flag;
-#define	EPROC_CTTY	0x01	/* controlling tty vnode active */
-#define	EPROC_SLEADER	0x02	/* session leader */
-		char	e_login[MAXLOGNAME];	/* setlogin() name */
-		long	e_spare[4];
-	} kp_eproc;
-};
-
-/*
  * CTL_HW identifiers
  */
 #define	HW_MACHINE	 1		/* string: machine class */
@@ -400,7 +361,6 @@ extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
 #endif	/* DEBUG */
 
 extern char	cpu_model[];
-extern int	hw_float;
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
@@ -432,7 +392,6 @@ int sysctl_string __P((void *, size_t *, void *, size_t, char *, int));
 int sysctl_rdstring __P((void *, size_t *, void *, char *));
 int sysctl_rdstruct __P((void *, size_t *, void *, void *, int));
 int sysctl_struct __P((void *oldp, size_t *, void *, size_t, void *, int));
-void fill_eproc __P((struct proc *, struct eproc *));
 
 int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_vnode __P((char *, size_t*));
