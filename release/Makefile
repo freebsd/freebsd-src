@@ -687,7 +687,7 @@ doTARBALL:
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \
 		if [ "${SD}" != "/usr/src" ]; then \
-			mtree -c -i -p ${SD}/${ARG} \
+			mtree -L -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
 			  > ${RD}/dists/${TD}/$$tn.mtree ; \
 		else \
