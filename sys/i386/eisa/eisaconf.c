@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.22 1996/09/06 23:06:57 phk Exp $
+ *	$Id: eisaconf.c,v 1.24 1996/12/14 18:07:00 joerg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -95,6 +95,9 @@ static struct {
 	int	column;		/* How much we have output so far. */
 #define	MAX_COL 80
 } reg_state;
+
+/* XXX Global variable, so UserConfig can change it. */
+int num_eisa_slots = EISA_SLOTS;
 		
 /*
 ** probe for EISA devices
@@ -113,7 +116,7 @@ eisa_configure()
 
 	e_drvp = (struct eisa_driver**)eisadriver_set.ls_items;
 
-	for (slot = 0; slot < EISA_SLOTS; eisaBase+=0x1000, slot++) {
+	for (slot = 0; slot < num_eisa_slots; eisaBase+=0x1000, slot++) {
 		int id_size = sizeof(eisa_id);
 		eisa_id = 0;
     		for( i = 0; i < id_size; i++ ) {
