@@ -26,10 +26,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* RCSID("$Id: compat.h,v 1.4 1999/11/24 16:15:24 markus Exp $"); */
+/* RCSID("$Id: compat.h,v 1.7 2000/05/08 17:42:24 markus Exp $"); */
 
 #ifndef COMPAT_H
 #define COMPAT_H
+
+#define	SSH_PROTO_UNKNOWN 	0x00
+#define	SSH_PROTO_1		0x01
+#define	SSH_PROTO_1_PREFERRED	0x02
+#define	SSH_PROTO_2		0x04
+
+#define SSH_BUG_SIGBLOB		0x01
+#define SSH_BUG_PUBKEYAUTH	0x02
+#define SSH_BUG_HMAC		0x04
+#define SSH_BUG_X11FWD		0x08
+
 void    enable_compat13(void);
+void    enable_compat20(void);
+void    compat_datafellows(const char *s);
+int	proto_spec(const char *spec);
 extern int compat13;
+extern int compat20;
+extern int datafellows;
 #endif
