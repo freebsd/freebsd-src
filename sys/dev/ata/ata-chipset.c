@@ -1462,7 +1462,7 @@ ata_promise_mio_reset(struct ata_channel *ch)
     if (ctlr->chip->cfg2 & PRSX4X) {
 	struct ata_promise_sx4 *hpktp = ctlr->driver;
 
-	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), 0x00000800);
+	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), ch->unit + 1);
 	DELAY(1000);
 
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7),
