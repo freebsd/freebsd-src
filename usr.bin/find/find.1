@@ -117,6 +117,12 @@ and double
 quotes, backslash
 .Pq Dq Li \e ,
 space, tab and newline characters.
+.Pp
+However, you may wish to consider the
+.Fl print0
+primary in conjunction with
+.Ql xargs -0
+as an effective alternative.
 .It Fl d
 The
 .Fl d
@@ -677,6 +683,7 @@ recent than the current time minus one minute.
 .Xr locate 1 ,
 .Xr whereis 1 ,
 .Xr which 1 ,
+.Xr xargs 1 ,
 .Xr stat 2 ,
 .Xr fts 3 ,
 .Xr getgrent 3 ,
