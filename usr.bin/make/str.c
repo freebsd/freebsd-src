@@ -133,14 +133,17 @@ brk_string(str, store_argc)
 		switch(ch = *p) {
 		case '"':
 		case '\'':
-			if (inquote)
+			if (inquote) {
 				if (inquote == ch)
 					inquote = '\0';
 				else
 					break;
-			else
+			} else {
 				inquote = (char) ch;
-			continue;
+				start = t;
+				continue;
+			}
+			/* FALLTHROUGH */
 		case ' ':
 		case '\t':
 			if (inquote)
