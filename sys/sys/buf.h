@@ -465,7 +465,7 @@ extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 
 struct uio;
 
-caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est);
+caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est);
 void	bufinit(void);
 void	bwillwrite(void);
 int	buf_dirty_count_severe(void);

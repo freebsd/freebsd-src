@@ -189,13 +189,13 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 struct msgbuf *msgbufp=0;
 
-int Maxmem = 0;
+long Maxmem = 0;
 
-int	totalphysmem;		/* total amount of physical memory in system */
-int	physmem;		/* physical memory used by NetBSD + some rsvd */
-int	resvmem;		/* amount of memory reserved for PROM */
-int	unusedmem;		/* amount of memory for OS that we don't use */
-int	unknownmem;		/* amount of memory with an unknown use */
+long	totalphysmem;		/* total amount of physical memory in system */
+long	physmem;		/* physical memory used by NetBSD + some rsvd */
+long	resvmem;		/* amount of memory reserved for PROM */
+long	unusedmem;		/* amount of memory for OS that we don't use */
+long	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[10];
@@ -203,23 +203,30 @@ vm_offset_t phys_avail[10];
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0, alpha_ptob(physmem), req);
+	int error;
+	unsigned long val;
+
+	val = alpha_ptob(physmem);
+	error = sysctl_handle_long(oidp, &val, 0, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "I", "");
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0,
-		alpha_ptob(physmem - cnt.v_wire_count), req);
+	int error;
+	unsigned long val;
+
+	val = alpha_ptob(physmem - cnt.v_wire_count);
+	error = sysctl_handle_long(oidp, &val, 0, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "I", "");
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "LU", "");
 
 SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 

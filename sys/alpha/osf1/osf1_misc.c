@@ -256,7 +256,7 @@ osf1_open(td, uap)
 	return open(td, &a);
 }
 
-extern int totalphysmem;
+extern long totalphysmem;
 
 int
 osf1_getsysinfo(td, uap)

@@ -36,7 +36,7 @@
 extern	char	sigcode[];
 extern	char	esigcode[];
 extern	int	szsigcode;
-extern	int	Maxmem;
+extern	long	Maxmem;
 extern	int	busdma_swi_pending;
 
 extern	vm_offset_t	kstack0;

@@ -126,7 +126,7 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 	vm_offset_t firstaddr;
 	caddr_t v;
 	vm_size_t size = 0;
-	int physmem_est;
+	long physmem_est;
 	vm_offset_t minaddr;
 	vm_offset_t maxaddr;
 
@@ -159,7 +159,7 @@ again:
 		printf("Warning: no free entries in kernel_map.\n");
 		physmem_est = physmem;
 	} else {
-		physmem_est = min(physmem, btoc(kernel_map->max_offset -
+		physmem_est = lmin(physmem, btoc(kernel_map->max_offset -
 		    kernel_map->min_offset));
 	}
 
