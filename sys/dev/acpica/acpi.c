@@ -1168,6 +1168,12 @@ acpi_shutdown_final(void *arg, int howto)
      * not power off the system correctly if called from an AP.
      */
     if ((howto & RB_POWEROFF) != 0) {
+	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+	    printf("AcpiEnterSleepStatePrep failed - %s\n",
+		   AcpiFormatException(status));
+	    return;
+	}
 	printf("Powering system off using ACPI\n");
 	smp_rendezvous(NULL, acpi_shutdown_poweroff, NULL, NULL);
     } else {
@@ -1176,6 +1182,10 @@ acpi_shutdown_final(void *arg, int howto)
     }
 }
 
+/*
+ * Since this function may be called with locks held or in an unknown
+ * context, it cannot allocate memory, acquire locks, sleep, etc.
+ */
 static void
 acpi_shutdown_poweroff(void *arg)
 {
@@ -1187,12 +1197,6 @@ acpi_shutdown_poweroff(void *arg)
     if (PCPU_GET(cpuid) != 0)
 	return;
 
-    status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
-    if (ACPI_FAILURE(status)) {
-	printf("AcpiEnterSleepStatePrep failed - %s\n",
-	       AcpiFormatException(status));
-	return;
-    }
     ACPI_DISABLE_IRQS();
     status = AcpiEnterSleepState(ACPI_STATE_S5);
     if (ACPI_FAILURE(status)) {
