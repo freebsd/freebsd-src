@@ -94,7 +94,7 @@ static const char rcsid[] =
 #define DEFAULT_NEWFS_CPG    16U
 
 #define BIG_NEWFS_BLOCK  16384U
-#define BIG_NEWFS_FRAG   4096U
+#define BIG_NEWFS_FRAG   2048U
 #define BIG_NEWFS_CPG    64U
 
 #if defined(__i386__) || defined(__ia64__)
@@ -1169,8 +1169,6 @@ getasciilabel(FILE *f, struct disklabel *lp)
 		return (1); \
 	} else { \
 		cp = tp, tp = word(cp); \
-		if (tp == NULL) \
-			tp = cp; \
 		(n) = atoi(cp); \
 	} \
 } while (0)
@@ -1183,8 +1181,6 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	} else { \
 	        char *tmp; \
 		cp = tp, tp = word(cp); \
-		if (tp == NULL) \
-			tp = cp; \
 	        (n) = strtol(cp,&tmp,10); \
 		if (tmp) (w) = *tmp; \
 	} \
@@ -1278,12 +1274,14 @@ getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 				/*
 				 * FIX! These are too low, but are traditional
 				 */
-				pp->p_fsize = DEFAULT_NEWFS_BLOCK;
-				pp->p_frag = (unsigned char) DEFAULT_NEWFS_FRAG;
+				pp->p_fsize = DEFAULT_NEWFS_FRAG;
+				pp->p_frag = DEFAULT_NEWFS_BLOCK /
+				    DEFAULT_NEWFS_FRAG;
 				pp->p_cpg = DEFAULT_NEWFS_CPG;
 			} else {
-				pp->p_fsize = BIG_NEWFS_BLOCK;
-				pp->p_frag = (unsigned char) BIG_NEWFS_FRAG;
+				pp->p_fsize = BIG_NEWFS_FRAG;
+				pp->p_frag = BIG_NEWFS_BLOCK /
+				    BIG_NEWFS_FRAG;
 				pp->p_cpg = BIG_NEWFS_CPG;
 			}
 		}
