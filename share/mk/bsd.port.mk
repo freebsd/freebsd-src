@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.48 1994/10/04 15:50:43 jkh Exp $
+# $Id: bsd.port.mk,v 1.49 1994/10/05 22:28:45 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -265,7 +265,7 @@ pre-configure:
 # This is done with a .configure because configures are often expensive,
 # and you don't want it done again gratuitously when you're trying to get
 # a make of the whole tree to work.
-configure: pre-configure extract ${CONFIGURE_COOKIE}
+configure: extract pre-configure ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
