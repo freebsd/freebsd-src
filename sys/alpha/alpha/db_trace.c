@@ -268,7 +268,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		struct trace_request *tr;
 
 		tr = (struct trace_request *)addr;
-		if (tr->ksp >= KERNBASE && tr->pc >= KERNBASE) {
+		if (tr->ksp < KERNBASE || tr->pc < KERNBASE) {
 			db_printf("alpha trace requires known PC =eject=\n");
 			return;
 		}
@@ -391,15 +391,16 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 }
 
 void
-db_stack_trace_cmd(void)
+db_print_backtrace(void)
 {
 	struct trace_request tr;
 
 	__asm __volatile(
-		"	stq sp,%0 \n"
-		"	stq pc,%1 \n"
+		"	mov $30,%0 \n"
+		"	lda %1,1f \n"
+		"1:\n"
 		: "=r" (tr.ksp), "=r" (tr.pc));
-	db_stack_trace_cmd(&tr, 1, -1, NULL);
+	db_stack_trace_cmd((db_addr_t)&tr, 1, -1, NULL);
 }
 
 int
