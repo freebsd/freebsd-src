@@ -1013,7 +1013,7 @@ saveuser(KINFO *ki)
 			    ki->ki_p->ki_comm, MAXCOMLEN));
 		else
 			asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
-		if (ki->ki_env == NULL)
+		if (ki->ki_args == NULL)
 			errx(1, "malloc failed");
 	} else {
 		ki->ki_args = NULL;
