@@ -630,7 +630,6 @@ static struct periph_driver probe_driver =
 PERIPHDRIVER_DECLARE(xpt, xpt_driver);
 PERIPHDRIVER_DECLARE(probe, probe_driver);
 
-#define XPT_CDEV_MAJOR 104
 
 static d_open_t xptopen;
 static d_close_t xptclose;
@@ -641,7 +640,6 @@ static struct cdevsw xpt_cdevsw = {
 	.d_close =	xptclose,
 	.d_ioctl =	xptioctl,
 	.d_name =	"xpt",
-	.d_maj =	XPT_CDEV_MAJOR,
 };
 
 static struct intr_config_hook *xpt_config_hook;

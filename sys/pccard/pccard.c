@@ -80,11 +80,6 @@ static	d_write_t	crdwrite;
 static	d_ioctl_t	crdioctl;
 static	d_poll_t	crdpoll;
 
-#if __FreeBSD_version < 500000
-#define CDEV_MAJOR 50
-#else
-#define CDEV_MAJOR MAJOR_AUTO
-#endif
 static struct cdevsw crd_cdevsw = {
 	.d_open =	crdopen,
 	.d_close =	crdclose,
@@ -93,7 +88,6 @@ static struct cdevsw crd_cdevsw = {
 	.d_ioctl =	crdioctl,
 	.d_poll =	crdpoll,
 	.d_name =	"crd",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /*

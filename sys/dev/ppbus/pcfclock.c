@@ -67,13 +67,11 @@ static	d_open_t		pcfclock_open;
 static	d_close_t		pcfclock_close;
 static	d_read_t		pcfclock_read;
 
-#define CDEV_MAJOR 140
 static struct cdevsw pcfclock_cdevsw = {
 	.d_open =	pcfclock_open,
 	.d_close =	pcfclock_close,
 	.d_read =	pcfclock_read,
 	.d_name =	PCFCLOCK_NAME,
-	.d_maj =	CDEV_MAJOR,
 };
 
 #ifndef PCFCLOCK_MAX_RETRIES

@@ -81,7 +81,6 @@
 static struct consdev gdbconsdev;
 #endif
 
-#define	CDEV_MAJOR	184
 
 static d_open_t		dcons_open;
 static d_close_t	dcons_close;
@@ -96,7 +95,6 @@ static struct cdevsw dcons_cdevsw = {
 	.d_ioctl =	dcons_ioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"dcons",
-	.d_maj =	CDEV_MAJOR,
 #else
 	/* open */	dcons_open,
 	/* close */	dcons_close,

@@ -58,7 +58,6 @@
 #include <dev/digi/digi_mod.h>
 #include <dev/digi/digi_pci.h>
 
-#define	CDEV_MAJOR	162
 
 #define	CTRL_DEV		0x800000
 #define	CALLOUT_MASK		0x400000
@@ -150,7 +149,6 @@ static struct cdevsw digi_sw = {
 	.d_ioctl =	digiioctl,
 	.d_poll =	ttypoll,
 	.d_name =	driver_name,
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter
 };

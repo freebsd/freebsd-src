@@ -77,7 +77,6 @@ struct pass_softc {
 	dev_t			dev;
 };
 
-#define PASS_CDEV_MAJOR 31
 
 static	d_open_t	passopen;
 static	d_close_t	passclose;
@@ -110,7 +109,6 @@ static struct cdevsw pass_cdevsw = {
 	.d_close =	passclose,
 	.d_ioctl =	passioctl,
 	.d_name =	"pass",
-	.d_maj =	PASS_CDEV_MAJOR,
 };
 
 static void

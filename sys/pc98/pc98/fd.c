@@ -622,7 +622,6 @@ fdin_rd(fdc_p fdc)
 }
 #endif /* PC98 */
 
-#define CDEV_MAJOR 9
 static struct cdevsw fd_cdevsw = {
 	.d_open =	fdopen,
 	.d_close =	fdclose,
@@ -631,7 +630,6 @@ static struct cdevsw fd_cdevsw = {
 	.d_ioctl =	fdioctl,
 	.d_strategy =	fdstrategy,
 	.d_name =	"fd",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_DISK,
 };
 

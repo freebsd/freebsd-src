@@ -70,7 +70,6 @@ static	d_open_t	zsopen;
 static	d_close_t	zsclose;
 static	d_ioctl_t	zsioctl;
 
-#define CDEV_MAJOR 135
 static struct cdevsw zs_cdevsw = {
 	.d_open =	zsopen,
 	.d_close =	zsclose,
@@ -79,7 +78,6 @@ static struct cdevsw zs_cdevsw = {
 	.d_ioctl =	zsioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"zs",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void	zsstart(struct tty *);

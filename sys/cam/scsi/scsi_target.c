@@ -104,7 +104,6 @@ static int		targreadfilt(struct knote *kn, long hint);
 static struct filterops targread_filtops =
 	{ 1, NULL, targreadfiltdetach, targreadfilt };
 
-#define TARG_CDEV_MAJOR 65
 static struct cdevsw targ_cdevsw = {
 	.d_open =	targopen,
 	.d_close =	targclose,
@@ -113,7 +112,6 @@ static struct cdevsw targ_cdevsw = {
 	.d_ioctl =	targioctl,
 	.d_poll =	targpoll,
 	.d_name =	"targ",
-	.d_maj =	TARG_CDEV_MAJOR,
 	.d_kqfilter =	targkqfilter
 };
 

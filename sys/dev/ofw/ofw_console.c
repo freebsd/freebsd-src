@@ -51,7 +51,6 @@ static d_open_t		ofw_dev_open;
 static d_close_t	ofw_dev_close;
 static d_ioctl_t	ofw_dev_ioctl;
 
-#define	CDEV_MAJOR	97
 
 static struct cdevsw ofw_cdevsw = {
 	.d_open =	ofw_dev_open,
@@ -61,7 +60,6 @@ static struct cdevsw ofw_cdevsw = {
 	.d_ioctl =	ofw_dev_ioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"ofw",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static struct tty		*ofw_tp = NULL;
@@ -106,7 +104,7 @@ cn_drvinit(void *unused)
 	}
 }
 
-SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE + CDEV_MAJOR, cn_drvinit, NULL)
+SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL)
 
 static int	stdin;
 static int	stdout;

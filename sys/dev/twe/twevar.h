@@ -32,8 +32,6 @@
  * <major change>.<external release>.<3ware internal release>.<development release>
  */
 #define TWE_DRIVER_VERSION_STRING	"1.50.00.000"
-#define TWE_CDEV_MAJOR			146
-#define TWED_CDEV_MAJOR			147
 
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\

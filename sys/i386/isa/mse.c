@@ -139,7 +139,6 @@ static	d_read_t	mseread;
 static  d_ioctl_t	mseioctl;
 static	d_poll_t	msepoll;
 
-#define CDEV_MAJOR 27
 static struct cdevsw mse_cdevsw = {
 	.d_open =	mseopen,
 	.d_close =	mseclose,
@@ -147,7 +146,6 @@ static struct cdevsw mse_cdevsw = {
 	.d_ioctl =	mseioctl,
 	.d_poll =	msepoll,
 	.d_name =	"mse",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static	void		mseintr(void *);

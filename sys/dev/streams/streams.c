@@ -101,11 +101,9 @@ static struct fileops svr4_netops = {
 	.fo_close =  svr4_soo_close
 };
  
-#define CDEV_MAJOR 103
 static struct cdevsw streams_cdevsw = {
 	.d_open =	streamsopen,
 	.d_name =	"streams",
-	.d_maj =	CDEV_MAJOR,
 };
  
 struct streams_softc {

@@ -174,7 +174,6 @@ struct ch_softc {
 };
 
 #define CHUNIT(x)       (minor((x)))
-#define CH_CDEV_MAJOR	17
 
 static	d_open_t	chopen;
 static	d_close_t	chclose;
@@ -217,7 +216,6 @@ static struct cdevsw ch_cdevsw = {
 	.d_close =	chclose,
 	.d_ioctl =	chioctl,
 	.d_name =	"ch",
-	.d_maj =	CH_CDEV_MAJOR,
 };
 
 static void

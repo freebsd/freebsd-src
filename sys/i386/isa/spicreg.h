@@ -27,7 +27,6 @@
  *
  */
 
-#define CDEV_MAJOR	160
 
 /*
  * Find the PCI device that holds the G10 register needed to map in the SPIC

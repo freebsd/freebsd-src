@@ -90,7 +90,6 @@ static	d_ioctl_t	ppiioctl;
 static	d_write_t	ppiwrite;
 static	d_read_t	ppiread;
 
-#define CDEV_MAJOR 82
 static struct cdevsw ppi_cdevsw = {
 	.d_open =	ppiopen,
 	.d_close =	ppiclose,
@@ -98,7 +97,6 @@ static struct cdevsw ppi_cdevsw = {
 	.d_write =	ppiwrite,
 	.d_ioctl =	ppiioctl,
 	.d_name =	"ppi",
-	.d_maj =	CDEV_MAJOR,
 };
 
 #ifdef PERIPH_1284

@@ -361,7 +361,6 @@ static d_write_t	fbwrite;
 static d_ioctl_t	fbioctl;
 static d_mmap_t		fbmmap;
 
-#define CDEV_MAJOR	123	/* XXX */
 
 static struct cdevsw fb_cdevsw = {
 	.d_open =	fbopen,
@@ -371,7 +370,6 @@ static struct cdevsw fb_cdevsw = {
 	.d_ioctl =	fbioctl,
 	.d_mmap =	fbmmap,
 	.d_name =	FB_DRIVER_NAME,
-	.d_maj =	CDEV_MAJOR,
 };
 #endif
 
