@@ -151,7 +151,7 @@ struct exec {
 struct proc;
 
 __BEGIN_DECLS
-int aout_coredump __P((struct proc *));
+int aout_coredump __P((struct proc *, struct vnode *, off_t));
 __END_DECLS
 #endif /* KERNEL */
 

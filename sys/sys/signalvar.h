@@ -158,7 +158,6 @@ extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
  * Machine-independent functions:
  */
 void	execsigs __P((struct proc *p));
-char	*expand_name __P((const char*, uid_t, pid_t));
 void	gsignal __P((int pgid, int sig));
 int	issignal __P((struct proc *p));
 void	killproc __P((struct proc *p, char *why));
