@@ -2028,7 +2028,7 @@ options 	AHD_REG_PRETTY_PRINT
 #
 # The 'bktr' device is a PCI video capture device using the Brooktree
 # bt848/bt848a/bt849a/bt878/bt879 chipset. When used with a TV Tuner it forms a
-# TV card, eg Miro PC/TV, Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
+# TV card, e.g. Miro PC/TV, Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
 # Intel Smart Video III, AverMedia, IMS Turbo, FlyVideo.
 #
 # options 	OVERRIDE_CARD=xxx
@@ -2044,11 +2044,11 @@ options 	AHD_REG_PRETTY_PRINT
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
 # Specifies the default video capture mode.
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
-# to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
+# to prevent hangs during initialisation, e.g. VideoLogic Captivator PCI.
 #
 # options 	BKTR_USE_PLL
-# PAL or SECAM users who have a 28Mhz crystal (and no 35Mhz crystal)
-# must enable PLL mode with this option. eg some new Bt878 cards.
+# This is required for PAL or SECAM boards with a 28Mhz crystal and no 35Mhz
+# crystal, e.g. some new Bt878 cards.
 #
 # options 	BKTR_GPIO_ACCESS
 # This enable IOCTLs which give user level access to the GPIO port.
