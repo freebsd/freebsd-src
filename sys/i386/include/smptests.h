@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.12 1997/07/18 21:26:09 fsmp Exp $
+ *	$Id: smptests.h,v 1.16 1997/07/20 18:10:28 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -41,6 +41,14 @@
 #define POST_ADDR		0x80
  */
 
+
+/*
+ * 1st attempt to use ExtInt connected 8259 to attach 8254 timer.
+ * failing that, attempt to attach 8254 timer via direct APIC pin.
+ * failing that, panic!
+ * This overrides both APIC_PIN0_TIMER & TEST_ALTTIMER
+ */
+#define NEW_STRATEGY
 
 /*
  * Use 'regular Int' method to connect external 8254 timer via IO APIC pin 0.
