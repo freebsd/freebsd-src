@@ -29,11 +29,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chio.h,v 1.7 1996/09/21 14:59:21 bde Exp $
+ *	$Id: chio.h,v 1.7.2.1 1997/03/07 09:34:07 joerg Exp $
  */
 
-#ifndef _SYS_CHIO_H_
-#define _SYS_CHIO_H_
+#ifndef	_SYS_CHIO_H_
+#define	_SYS_CHIO_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 /*
  * Element types.  Used as "to" and "from" type indicators in move
@@ -148,4 +153,4 @@ struct changer_element_status {
 #define CHIOGPARAMS	_IOR('c', 0x06, struct changer_params)
 #define CHIOGSTATUS	_IOW('c', 0x08, struct changer_element_status)
 
-#endif /* _SYS_CHIO_H_ */
+#endif /* !_SYS_CHIO_H_ */
