@@ -775,7 +775,7 @@ cryptodev_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("crypto: <crypto device>\n");
-		crypto_dev = make_dev(&crypto_cdevsw, CRYPTO_MAJOR, 
+		crypto_dev = make_dev(&crypto_cdevsw, 0, 
 				      UID_ROOT, GID_WHEEL, 0666,
 				      "crypto");
 		return 0;
