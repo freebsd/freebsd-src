@@ -1,9 +1,9 @@
-# -*- mode: Fundamental; tab-width: 4; -*-
+ -*- mode: Fundamental; tab-width: 4; -*-
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.123 1995/03/22 21:28:31 jkh Exp $
+# $Id: bsd.port.mk,v 1.124 1995/03/22 21:46:04 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -341,7 +341,7 @@ describe:
 	else \
 		echo -n "|/dev/null"; \
 	fi
-	echo -n "|${MAINTAINER}"
+	@echo -n "|${MAINTAINER}"
 	@echo ""
 .endif
 
