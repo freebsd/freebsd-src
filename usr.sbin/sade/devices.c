@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.68 1998/01/22 21:14:31 jkh Exp $
+ * $Id: devices.c,v 1.69 1998/02/10 18:31:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -267,8 +267,11 @@ skipif:
 	    case DEVICE_TYPE_CDROM:
 		fd = deviceTry(device_names[i], try, j);
 		if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
+		    char n[BUFSIZ];
+
 		    if (fd >= 0) close(fd);
-		    (void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+		    snprintf(n, sizeof n, device_names[i].name, j);
+		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 					 mediaShutdownCDROM, NULL);
 		    msgDebug("Found a CDROM device for %s\n", try);
@@ -278,8 +281,11 @@ skipif:
 	    case DEVICE_TYPE_TAPE:
 		fd = deviceTry(device_names[i], try, j);
 		if (fd >= 0) {
+		    char n[BUFSIZ];
+
 		    close(fd);
-		    deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+		    snprintf(n, sizeof n, device_names[i].name, j);
+		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 				   DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
 		    msgDebug("Found a TAPE device for %s\n", try);
 		}
@@ -296,8 +302,11 @@ skipif:
 	    case DEVICE_TYPE_FLOPPY:
 		fd = deviceTry(device_names[i], try, j);
 		if (fd >= 0) {
+		    char n[BUFSIZ];
+
 		    close(fd);
-		    deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+		    snprintf(n, sizeof n, device_names[i].name, j);
+		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
 				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 				   mediaShutdownFloppy, NULL);
 		    msgDebug("Found a floppy device for %s\n", try);
