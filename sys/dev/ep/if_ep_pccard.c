@@ -98,6 +98,12 @@ ep_pccard_probe(device_t dev)
 		}
 	}
 	device_set_desc(dev, desc);
+
+	/*
+	 * For some reason the 3c574 needs this.
+	 */
+	ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
+
 	ep_free(dev);
 	return (0);
 }
