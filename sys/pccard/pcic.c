@@ -704,13 +704,6 @@ pcic_probe(void)
 			cinfo.name = "Unknown!";
 			break;
 		}
-#ifndef	PCIC_NOCLRREGS
-		/*
-		 *	clear out the registers.
-		 */
-		for (i = 2; i < 0x40; i++)
-			sp->putb(sp, i, 0);
-#endif	/* PCIC_NOCLRREGS */
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
