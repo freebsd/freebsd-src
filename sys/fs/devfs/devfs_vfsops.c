@@ -67,10 +67,8 @@ devfs_mount(struct mount *mp, struct thread *td)
 	struct vnode *rvp;
 
 	error = 0;
-	/*
-	 * XXX: flag changes.
-	 */
-	if (mp->mnt_flag & MNT_UPDATE)
+
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_NODEV))
 		return (EOPNOTSUPP);
 
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
