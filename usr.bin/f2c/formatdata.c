@@ -927,6 +927,63 @@ Len(long L, int type)
 	return buf;
 	}
 
+ static void
+#ifdef KR_headers
+fill_dcl(outfile, t, k, L) FILE *outfile; int t; int k; ftnint L;
+#else
+fill_dcl(FILE *outfile, int t, int k, ftnint L)
+#endif
+{
+	nice_printf(outfile, "%s fill_%d[%ld];\n", typename[t], k, L);
+	}
+
+ static int
+#ifdef KR_headers
+fill_type(L, loc, xtype) ftnint L; ftnint loc; int xtype;
+#else
+fill_type(ftnint L, ftnint loc, int xtype)
+#endif
+{
+	int ft, ft1, szshort;
+
+	if (xtype == TYCHAR)
+		return xtype;
+	szshort = typesize[TYSHORT];
+	ft = L % szshort ? TYCHAR : type_choice[L/szshort % 4];
+	ft1 = loc % szshort ? TYCHAR : type_choice[loc/szshort % 4];
+	if (typesize[ft] > typesize[ft1])
+		ft = ft1;
+	return ft;
+	}
+
+ static ftnint
+#ifdef KR_headers
+get_fill(dloc, loc, t0, t1, L0, L1, xtype) ftnint dloc; ftnint loc; int *t0; int *t1; ftnint *L0; ftnint *L1; int xtype;
+#else
+get_fill(ftnint dloc, ftnint loc, int *t0, int *t1, ftnint *L0, ftnint *L1, int xtype)
+#endif
+{
+	ftnint L, L2, loc0;
+
+	if (L = loc % typesize[xtype]) {
+		loc0 = loc;
+		loc += L = typesize[xtype] - L;
+		if (L % typesize[TYSHORT])
+			*t0 = TYCHAR;
+		else
+			L /= typesize[*t0 = fill_type(L, loc0, xtype)];
+		}
+	if (dloc < loc + typesize[xtype])
+		return 0;
+	*L0 = L;
+	L2 = (dloc - loc) / typesize[xtype];
+	loc += L2*typesize[xtype];
+	if (dloc -= loc)
+		dloc /= typesize[*t1 = fill_type(dloc, loc, xtype)];
+	*L1 = dloc;
+	return L2;
+	}
+
  void
 #ifdef KR_headers
 wr_equiv_init(outfile, memno, Values, iscomm)
@@ -939,12 +996,13 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 #endif
 {
 	struct Equivblock *eqv;
-	int btype, curtype, dtype, filltype, filltype1, j, k, wasblank, xtype;
+	int btype, curtype, dtype, filltype, j, k, n, t0, t1;
+	int wasblank, xfilled, xtype;
 	static char Blank[] = "";
 	register char *comma = Blank;
 	register chainp cp, v;
 	chainp sentinel, values, v1, vlast;
-	ftnint L, L1, dL, dloc, loc, loc0;
+	ftnint L, L0, L1, L2, dL, dloc, loc, loc0;
 	union Constant Const;
 	char imag_buf[50], real_buf[50];
 	int szshort = typesize[TYSHORT];
@@ -978,8 +1036,10 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 
 	if (halign && typealign[typepref[xtype]] < typealign[htype])
 		xtype = htype;
+	xtype = typepref[xtype];
 	*Values = values = revchain(vlast = *Values);
 
+	xfilled = 2;
 	if (xtype != TYCHAR) {
 
 		/* unless the data include a value of the appropriate
@@ -1007,6 +1067,10 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 			if (basetype[(int)cp->nextp->datap] == btype)
 				break;
 			dloc = (ftnint)cp->datap;
+			if (get_fill(dloc, loc, &t0, &t1, &L0, &L1, xtype)) {
+				xfilled = 0;
+				break;
+				}
 			L1 = dloc - loc;
 			if (L1 > 0
 			 && !(L1 % szshort)
@@ -1015,9 +1079,9 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 			 && btype <= type_choice[loc/szshort % 4])
 				break;
 			dtype = (int)cp->nextp->datap;
-			loc = dloc + dtype == TYBLANK
+			loc = dloc + (dtype == TYBLANK
 					? (ftnint)cp->nextp->nextp->datap
-					: typesize[dtype];
+					: typesize[dtype]);
 			}
 		}
 	sentinel = mkchain((char *)L, mkchain((char *)TYERROR,CHNULL));
@@ -1069,19 +1133,19 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 			loc0 = dloc;
 			}
 		if (L > 0) {
-			if (xtype == TYCHAR)
-				filltype = TYCHAR;
-			else {
-				filltype = L % szshort ? TYCHAR
-						: type_choice[L/szshort % 4];
-				filltype1 = loc % szshort ? TYCHAR
-						: type_choice[loc/szshort % 4];
-				if (typesize[filltype] > typesize[filltype1])
-					filltype = filltype1;
-				}
+			filltype = fill_type(L, loc, xtype);
 			L1 = L / typesize[filltype];
-			nice_printf(outfile, "%s fill_%d[%ld];\n",
-				typename[filltype], ++k, L1);
+			if (!xfilled && (L2 = get_fill(dloc, loc, &t0, &t1,
+							&L0, &L1, xtype))) {
+				xfilled = 1;
+				if (L0)
+					fill_dcl(outfile, t0, ++k, L0);
+				fill_dcl(outfile, xtype, ++k, L2);
+				if (L1)
+					fill_dcl(outfile, t1, ++k, L1);
+				}
+			else
+				fill_dcl(outfile, filltype, ++k, L1);
 			loc = dloc;
 			}
 		if (wasblank) {
@@ -1097,6 +1161,7 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 		? extsymtab[memno].cextname
 		: equiv_name(eqvmemno, CNULL));
 	loc = 0;
+	xfilled &= 2;
 	for(v = values; ; v = v->nextp) {
 		cp = (chainp)v->datap;
 		if (!cp)
@@ -1106,8 +1171,19 @@ wr_equiv_init(FILE *outfile, int memno, chainp *Values, int iscomm)
 			break;
 		dloc = (ftnint)cp->datap;
 		if (dloc > loc) {
-			nice_printf(outfile, "%s{0}", comma);
-			comma = ", ";
+			n = 1;
+			if (!xfilled && (L2 = get_fill(dloc, loc, &t0, &t1,
+							&L0, &L1, xtype))) {
+				xfilled = 1;
+				if (L0)
+					n = 2;
+				if (L1)
+					n++;
+				}
+			while(n--) {
+				nice_printf(outfile, "%s{0}", comma);
+				comma = ", ";
+				}
 			loc = dloc;
 			}
 		if (comma != Blank)

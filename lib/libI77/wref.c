@@ -1,10 +1,5 @@
 #include "f2c.h"
 #include "fio.h"
-#include "fmt.h"
-#include "fp.h"
-#ifndef VAX
-#include "ctype.h"
-#endif
 
 #ifndef KR_headers
 #undef abs
@@ -12,6 +7,12 @@
 #undef max
 #include "stdlib.h"
 #include "string.h"
+#endif
+
+#include "fmt.h"
+#include "fp.h"
+#ifndef VAX
+#include "ctype.h"
 #endif
 
 #ifdef KR_headers
@@ -117,8 +118,8 @@ nogood:
 	/* accommodate 3 significant digits in exponent */
 	if (s[2]) {
 #ifdef Pedantic
-		if (!e0 && !s[3]) 
-		    e1 = 2;/* for(s -= 2, e1 = 2; s[0] = s[1]; s++);
+		if (!e0 && !s[3])
+			for(s -= 2, e1 = 2; s[0] = s[1]; s++);
 
 	/* Pedantic gives the behavior that Fortran 77 specifies,	*/
 	/* i.e., requires that E be specified for exponent fields	*/

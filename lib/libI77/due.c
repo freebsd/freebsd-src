@@ -8,11 +8,11 @@ c_due(cilist *a)
 #endif
 {
 	if(!f__init) f_init();
-	if(a->ciunit>=MXUNIT || a->ciunit<0)
-		err(a->cierr,101,"startio");
 	f__sequential=f__formatted=f__recpos=0;
 	f__external=1;
 	f__curunit = &f__units[a->ciunit];
+	if(a->ciunit>=MXUNIT || a->ciunit<0)
+		err(a->cierr,101,"startio");
 	f__elist=a;
 	if(f__curunit->ufd==NULL && fk_open(DIR,UNF,a->ciunit) ) err(a->cierr,104,"due");
 	f__cf=f__curunit->ufd;

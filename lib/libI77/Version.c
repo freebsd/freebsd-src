@@ -1,4 +1,4 @@
-static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 19970226\n";
+static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 19980907\n";
 
 /*
 2.01	$ format added
@@ -242,3 +242,51 @@ wrtfmt.c:
 		 ftell_.c: change param "unit" to "Unit" for -DKR_headers. */
 /* 26 Feb. 1997: ftell_.c: on systems that define SEEK_SET, etc., use
 		 SEEK_SET, SEEK_CUR, SEEK_END for *whence = 0, 1, 2. */
+/* 7 Apr. 1997:	 fmt.c: adjust to complain at missing numbers in formats
+		 (but still treat missing ".nnn" as ".0"). */
+/* 11 Apr. 1997: err.c: attempt to make stderr line buffered rather
+		 than fully buffered.  (Buffering is needed for format
+		 items T and TR.) */
+/* 27 May 1997:  ftell_.c: fix typo (that caused the third argument to be
+		 treated as 2 on some systems). */
+/* 5 Aug. 1997:  lread.c: adjust to accord with a change to the Fortran 8X
+		 draft (in 1990 or 1991) that rescinded permission to elide
+		 quote marks in namelist input of character data; compile
+		 with -DF8X_NML_ELIDE_QUOTES to get the old behavior.
+		 wrtfmt.o: wrt_G: tweak to print the right number of 0's
+		 for zero under G format. */
+/* 16 Aug. 1997: iio.c: fix bug in internal writes to an array of character
+		 strings that sometimes caused one more array element than
+		 required by the format to be blank-filled.  Example:
+		 format(1x). */
+/* 16 Sept. 1997:fmt.[ch] rdfmt.c wrtfmt.c: tweak struct syl for machines
+		 with 64-bit pointers and 32-bit ints that did not 64-bit
+		 align struct syl (e.g., Linux on the DEC Alpha). */
+/* 19 Jan. 1998: backspace.c: for b->ufmt==0, change sizeof(int) to
+		 sizeof(uiolen).  On machines where this would make a
+		 difference, it is best for portability to compile libI77 with
+		 -DUIOLEN_int (which will render the change invisible). */
+/* 4 March 1998: open.c: fix glitch in comparing file names under
+		-DNON_UNIX_STDIO */
+/* 17 March 1998: endfile.c, open.c: acquire temporary files from tmpfile(),
+		 unless compiled with -DNON_ANSI_STDIO, which uses mktemp().
+		 New buffering scheme independent of NON_UNIX_STDIO for
+		 handling T format items.  Now -DNON_UNIX_STDIO is no
+		 longer be necessary for Linux, and libf2c no longer
+		 causes stderr to be buffered -- the former setbuf or
+		 setvbuf call for stderr was to make T format items work.
+		 open.c: use the Posix access() function to check existence
+		 or nonexistence of files, except under -DNON_POSIX_STDIO,
+		 where trial fopen calls are used. */
+/* 5 April 1998: wsfe.c: make $ format item work: this was lost in the
+		 changes of 17 March 1998. */
+/* 28 May 1998:	 backspace.c dfe.c due.c iio.c lread.c rsfe.c sue.c wsfe.c:
+		 set f__curunit sooner so various error messages will
+		 correctly identify the I/O unit involved. */
+/* 17 June 1998: lread.c: unless compiled with
+		 ALLOW_FLOAT_IN_INTEGER_LIST_INPUT #defined, treat
+		 floating-point numbers (containing either a decimal point
+		 or an exponent field) as errors when they appear as list
+		 input for integer data. */
+/* 7 Sept. 1998: move e_wdfe from sfe.c to dfe.c, where it was originally.
+		 Why did it ever move to sfe.c? */

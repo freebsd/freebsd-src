@@ -243,7 +243,7 @@ datavar:	  lhs
 		  np = pp -> namep;
 		  vardcl(np);
 		  if ((pp->fcharp || pp->lcharp)
-		   && (np->vtype != TYCHAR || np->vdim))
+		   && (np->vtype != TYCHAR || np->vdim && !pp->argsp))
 			sserr(np);
 		  if(np->vstg == STGCOMMON)
 			extsymtab[np->vardesc.varno].extinit = YES;

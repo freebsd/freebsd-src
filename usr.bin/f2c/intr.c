@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1994-6 by AT&T, Lucent Technologies and Bellcore.
+Copyright 1990, 1992, 1994-6, 1998 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -52,6 +52,7 @@ LOCAL struct Intrblock
 "real", 	{ INTRCONV, TYREAL, 1 },
 		/* 1 ==> real(TYDCOMPLEX) yields TYDREAL */
 "dble", 	{ INTRCONV, TYDREAL },
+"dreal",	{ INTRCONV, TYDREAL, 0, 0, 0, 1 },
 "cmplx", 	{ INTRCONV, TYCOMPLEX },
 "dcmplx", 	{ INTRCONV, TYDCOMPLEX, 0, 1 },
 "ifix", 	{ INTRCONV, TYLONG },

@@ -2,6 +2,7 @@
 #include "fio.h"
 #include "fmt.h"
 #include "lio.h"
+#include "string.h"
 
 #ifdef KR_headers
 integer s_wsle(a) cilist *a;
@@ -14,7 +15,7 @@ integer s_wsle(cilist *a)
 	f__reading=0;
 	f__external=1;
 	f__formatted=1;
-	f__putn = t_putc;
+	f__putn = x_putc;
 	f__lioproc = l_write;
 	L_len = LINE;
 	f__donewrec = x_wSL;
@@ -25,16 +26,11 @@ integer s_wsle(cilist *a)
 
 integer e_wsle(Void)
 {
-	t_putc('\n');
+	int n = f__putbuf('\n');
 	f__recpos=0;
 #ifdef ALWAYS_FLUSH
-	if (fflush(f__cf))
+	if (!n && fflush(f__cf))
 		err(f__elist->cierr, errno, "write end");
-#else
-	if (f__cf == stdout)
-		fflush(stdout);
-	else if (f__cf == stderr)
-		fflush(stderr);
 #endif
-	return(0);
+	return(n);
 	}
