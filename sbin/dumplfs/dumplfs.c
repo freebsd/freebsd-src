@@ -379,7 +379,7 @@ dump_sum(fd, lfsp, sp, segnum, addr)
 	daddr_t addr;
 {
 	FINFO *fp;
-	long *dp;
+	daddr_t *dp;
 	int i, j;
 	int ck;
 	int numblocks;
