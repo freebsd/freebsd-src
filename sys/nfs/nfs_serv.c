@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.22 1995/08/06 11:55:25 davidg Exp $
+ * $Id: nfs_serv.c,v 1.23 1995/08/24 10:45:15 dfr Exp $
  */
 
 /*
@@ -91,6 +91,12 @@ nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFNON,
 nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
 		      NFFIFO, NFNON };
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
+
+#ifdef NFS_ASYNC
+int nfs_async = 1;
+#else
+int nfs_async;
+#endif
 
 /*
  * nfs v3 access service
@@ -731,6 +737,8 @@ nfsrv_write(nfsd, slp, procp, mrq)
 		nfsm_dissect(tl, u_long *, 4 * NFSX_UNSIGNED);
 		off = (off_t)fxdr_unsigned(u_long, *++tl);
 		tl += 2;
+		if (nfs_async)
+	    		stable = NFSV3WRITE_UNSTABLE;
 	}
 	retlen = len = fxdr_unsigned(long, *tl);
 	cnt = i = 0;
@@ -930,6 +938,8 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 		nfsm_dissect(tl, u_long *, 4 * NFSX_UNSIGNED);
 		nfsd->nd_off = (off_t)fxdr_unsigned(u_long, *++tl);
 		tl += 2;
+		if (nfs_async)
+			nfsd->nd_stable = NFSV3WRITE_UNSTABLE;
 	    }
 	    len = fxdr_unsigned(long, *tl);
 	    nfsd->nd_len = len;
