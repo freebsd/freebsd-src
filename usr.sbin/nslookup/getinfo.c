@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: getinfo.c,v 4.9.1.6 1994/06/01 21:10:16 vixie Exp $";
+static char rcsid[] = "$Id: getinfo.c,v 1.1.1.1 1994/09/22 21:36:01 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -80,7 +80,6 @@ static char rcsid[] = "$Id: getinfo.c,v 4.9.1.6 1994/06/01 21:10:16 vixie Exp $"
 #include <stdio.h>
 #include <ctype.h>
 #include "res.h"
-#include "../../conf/portability.h"
 
 extern char *_res_resultcodes[];
 extern char *res_skip();
