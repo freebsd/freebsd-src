@@ -231,14 +231,18 @@ static void sbus_pwrfail(void *);
 /*
  * DVMA routines
  */
-static int sbus_dmamap_create(bus_dma_tag_t, int, bus_dmamap_t *);
-static int sbus_dmamap_destroy(bus_dma_tag_t, bus_dmamap_t);
-static int sbus_dmamap_load(bus_dma_tag_t, bus_dmamap_t, void *, bus_size_t,
-    bus_dmamap_callback_t *, void *, int);
-static void sbus_dmamap_unload(bus_dma_tag_t, bus_dmamap_t);
-static void sbus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
-static int sbus_dmamem_alloc(bus_dma_tag_t, void **, int, bus_dmamap_t *);
-static void sbus_dmamem_free(bus_dma_tag_t, void *, bus_dmamap_t);
+static int sbus_dmamap_create(bus_dma_tag_t, bus_dma_tag_t, int,
+    bus_dmamap_t *);
+static int sbus_dmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
+static int sbus_dmamap_load(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, void *,
+    bus_size_t, bus_dmamap_callback_t *, void *, int);
+static void sbus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
+static void sbus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    bus_dmasync_op_t);
+static int sbus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
+    bus_dmamap_t *);
+static void sbus_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
+    bus_dmamap_t);
 
 static device_method_t sbus_methods[] = {
 	/* Device interface */
@@ -909,62 +913,66 @@ sbus_alloc_bustag(struct sbus_softc *sc)
 }
 
 static int
-sbus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
+sbus_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
+    bus_dmamap_t *mapp)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	return (iommu_dvmamap_create(dmat, &sc->sc_is, flags, mapp));
+	return (iommu_dvmamap_create(pdmat, ddmat, &sc->sc_is, flags, mapp));
 
 }
 
 static int
-sbus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
+sbus_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	return (iommu_dvmamap_destroy(dmat, &sc->sc_is, map));
+	return (iommu_dvmamap_destroy(pdmat, ddmat, &sc->sc_is, map));
 }
 
 static int
-sbus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-    bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
-    int flags)
+sbus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
+    void *buf, bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	return (iommu_dvmamap_load(dmat, &sc->sc_is, map, buf, buflen, callback,
-	    callback_arg, flags));
+	return (iommu_dvmamap_load(pdmat, ddmat, &sc->sc_is, map, buf, buflen,
+	    callback, callback_arg, flags));
 }
 
 static void
-sbus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+sbus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	iommu_dvmamap_unload(dmat, &sc->sc_is, map);
+	iommu_dvmamap_unload(pdmat, ddmat, &sc->sc_is, map);
 }
 
 static void
-sbus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
+sbus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
     bus_dmasync_op_t op)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	iommu_dvmamap_sync(dmat, &sc->sc_is, map, op);
+	iommu_dvmamap_sync(pdmat, ddmat, &sc->sc_is, map, op);
 }
 
 static int
-sbus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags, bus_dmamap_t *mapp)
+sbus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
+    int flags, bus_dmamap_t *mapp)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	return (iommu_dvmamem_alloc(dmat, &sc->sc_is, vaddr, flags, mapp));
+	return (iommu_dvmamem_alloc(pdmat, ddmat, &sc->sc_is, vaddr, flags,
+		    mapp));
 }
 
 static void
-sbus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
+sbus_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
+    bus_dmamap_t map)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)dmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
 
-	iommu_dvmamem_free(dmat, &sc->sc_is, vaddr, map);
+	iommu_dvmamem_free(pdmat, ddmat, &sc->sc_is, vaddr, map);
 }
