@@ -17,15 +17,21 @@ CFLAGS+=-I${.CURDIR}/../../lib
 
 #ifdef	ENCRYPTION
 
-CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+CFLAGS += -DENCRYPTION
 
-.if exists(/usr/lib/libkrb.a)
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES) \
+	|| defined(MAKE_KERBEROS))
+CFLAGS+=-DAUTHENTICATION
 LDADD+= -ldes -lkrb
+DPADD+= ${LIBDES} ${LIBKRB}
 .endif
 
-.if exists(/usr/lib/libkrb5.a)
-LDADD+= -ldes -lkrb5
-.endif
+#.if exists(${DESTDIR}/usr/lib/libkrb5.a) && (defined(MAKE_EBONES) \
+#        || defined(MAKE_KERBEROS))
+#CFLAGS+=-DAUTHENTICATION
+#LDADD+= -ldes -lkrb5
+#DPADD+= ${LIBDES}
+#.endif
 
 # Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
 #LDADD+= -ldescrypt
