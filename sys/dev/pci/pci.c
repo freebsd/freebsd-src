@@ -1446,9 +1446,6 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 }
 #endif /* DDB */
 
-/*
- * XXX I'm not sure the following is good for 64-bit bars.
- */
 static struct resource *
 pci_alloc_map(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -1461,48 +1458,72 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	int mapsize;
 
 	/*
-	 * Weed out the bogons, and figure out how large the BAR/map is.
+	 * Weed out the bogons, and figure out how large the BAR/map
+	 * is.  Note: some devices have been found that are '0' after
+	 * a write of 0xffffffff.  We view these as 'special' and
+	 * allow drivers to allocate whatever they want with them.  So
+	 * far, these BARs have only appeared in certain south bridges
+	 * and ata controllers made by VIA, nVidia and AMD.
 	 */
+	res = NULL;
 	map = pci_read_config(child, *rid, 4);
-	if (pci_maptype(map) & PCI_MAPMEM) {
-		if (type != SYS_RES_MEMORY) {
-			device_printf(child, "rid %#x says memory, driver wants %d failed.\n", *rid, type);
-			return (NULL);
-		}
-	} else {
-		if (type != SYS_RES_IOPORT) {
-			device_printf(child, "rid %#x says ioport, driver wants %d failed.\n", *rid, type);
-			return (NULL);
-		}
-	}
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
-
+	if (testval != 0) {
+		if (pci_maptype(testval) & PCI_MAPMEM) {
+			if (type != SYS_RES_MEMORY) {
+				device_printf(child,
+				    "failed: rid %#x is memory, requested %d\n",
+				    *rid, type);
+				goto out;
+			}
+		} else {
+			if (type != SYS_RES_IOPORT) {
+				device_printf(child,
+				    "failed: rid %#x is ioport, requested %d\n",
+				    *rid, type);
+				goto out;
+			}
+		}
+		/*
+		 * For real BARs, we need to override the size that
+		 * the driver requests, because that's what the BAR
+		 * actually uses and we would otherwise have a
+		 * situation where we might allocate the excess to
+		 * another driver, which won't work.
+		 */
+		mapsize = pci_mapsize(testval);
+		count = 1 << mapsize;
+		if (RF_ALIGNMENT(flags) < mapsize)
+	    		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
+	}
+	else {
+		/* if (bootverbose) */
+		device_printf(child, "BAD BAR: skipping checks\n");
+	}
+	
 	/*
 	 * Allocate enough resource, and then write back the
-	 * appropriate bar for that resource (this is the part
-	 * I'm not sure is good for 64-bit bars).
+	 * appropriate bar for that resource.
 	 */
-	mapsize = pci_mapsize(testval);
-	count = 1 << mapsize;
-	if (RF_ALIGNMENT(flags) < mapsize)
-	    flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
 	    start, end, count, flags);
 	if (res == NULL) {
 		device_printf(child, "%#lx bytes of rid %#x res %d failed.\n",
 		    count, *rid, type);
-		pci_write_config(child, *rid, map, 4);
-		return (NULL);
+		goto out;
 	}
 	resource_list_add(rl, type, *rid, start, end, count);
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
 		panic("pci_alloc_map: unexpedly can't find resource.");
 	rle->res = res;
+	/* if (bootverbose) */
 	device_printf(child, "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
 	    count, *rid, type, rman_get_start(res));
-	pci_write_config(child, *rid, rman_get_start(res), 4);
+	map = rman_get_start(res);
+out:;
+	pci_write_config(child, *rid, map, 4);
 	return (res);
 }
 
@@ -1568,7 +1589,11 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle != NULL && rle->res != NULL) {
-			device_printf(child, "Bus reserved %#lx bytes for rid %#x type %d at %#lx\n", rman_get_size(rle->res), *rid, type, rman_get_start(rle->res));
+			/* if (bootverbose) */
+			device_printf(child,
+			    "Reserved %#lx bytes for rid %#x type %d at %#lx\n",
+			    rman_get_size(rle->res), *rid, type,
+			    rman_get_start(rle->res));
 			if ((flags & RF_ACTIVE) && 
 			    bus_generic_activate_resource(dev, child, type,
 			    *rid, rle->res) != 0)
