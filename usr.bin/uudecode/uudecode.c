@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <resolv.h>
 #include <stdio.h>
@@ -231,14 +233,41 @@ decode2(void)
 		return (1);
 	}
 
-	if (!pflag) {
-		if (iflag && !access(buffn, F_OK)) {
-			warnx("not overwritten: %s", buffn);
-			return (0);
+	if (pflag)
+		outfp = stdout;
+	else {
+		int flags = O_WRONLY|O_CREAT|O_EXCL;
+		if (lstat(buffn, &st) == 0) {
+			if (iflag) {
+				warnc(EEXIST, "%s: %s", filename, buffn);
+				return (0);
+			}
+			switch (st.st_mode & S_IFMT) {
+			case S_IFREG:
+			case S_IFLNK:
+				/* avoid symlink attacks */
+				if (unlink(buffn) == 0 || errno == ENOENT)
+					break;
+				warn("%s: unlink %s", filename, buffn);
+				return (1);
+			case S_IFDIR:
+				warnc(EISDIR, "%s: %s", filename, buffn);
+				return (1);
+			default:
+				if (oflag) {
+					/* trust command-line names */
+					flags &= ~O_EXCL;
+					break;
+				}
+				warnc(EEXIST, "%s: %s", filename, buffn);
+				return (1);
+			}
+		} else if (errno != ENOENT) {
+			warn("%s: %s", filename, buffn);
+			return (1);
 		}
-		if ((outfp = fopen(buffn, "w")) == NULL ||
-		    stat(buffn, &st) < 0 || (S_ISREG(st.st_mode) &&
-		    fchmod(fileno(outfp), getmode(mode, 0) & 0666) < 0)) {
+		if ((i = open(buffn, flags, getmode(mode, 0) & 0666)) < 0 ||
+		    (outfp = fdopen(i, "w")) == NULL) {
 			warn("%s: %s", filename, buffn);
 			return (1);
 		}
