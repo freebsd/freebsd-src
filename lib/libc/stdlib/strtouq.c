@@ -45,10 +45,7 @@ __FBSDID("$FreeBSD$");
  * Convert a string to an unsigned quad integer.
  */
 u_quad_t
-strtouq(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
+strtouq(const char *nptr, char **endptr, int base)
 {
 
 	return strtoull(nptr, endptr, base);
