@@ -1680,7 +1680,7 @@ dashutdown(void * arg, int howto)
 				       /*begin_lba*/0, /* whole disk */
 				       /*lb_count*/0,
 				       SSD_FULL_SIZE,
-				       5 * 60 * 1000);
+				       60 * 60 * 1000);
 
 		xpt_polled_action(&ccb);
 
