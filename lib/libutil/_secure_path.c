@@ -24,9 +24,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <syslog.h>
+
 #include <errno.h>
 #include <libutil.h>
+#include <stddef.h>
+#include <syslog.h>
 
 /*
  * Check for common security problems on a given path
