@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-#        On the handling of kernel options   
+#        On the handling of kernel options
 # 
 # All kernel options should be listed in LINT, with suitable
 # descriptions.  Negative options (options that make some code not
@@ -70,9 +70,9 @@ UCONSOLE
 ICMP_BANDLIM
 
 # POSIX kernel options
-P1003_1B	opt_posix.h
-_KPOSIX_PRIORITY_SCHEDULING opt_posix.h
-_KPOSIX_VERSION opt_posix.h
+P1003_1B			opt_posix.h
+_KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
+_KPOSIX_VERSION			opt_posix.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
@@ -311,15 +311,15 @@ SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 
 # These are VM related options
-VM_KMEM_SIZE	opt_vm.h
-VM_KMEM_SIZE_SCALE opt_vm.h
+VM_KMEM_SIZE		opt_vm.h
+VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
-NO_SWAPPING	opt_vm.h
-PQ_NOOPT	opt_vmpage.h
-PQ_NORMALCACHE	opt_vmpage.h
-PQ_MEDIUMCACHE	opt_vmpage.h
-PQ_LARGECACHE	opt_vmpage.h
-PQ_HUGECACHE	opt_vmpage.h
+NO_SWAPPING		opt_vm.h
+PQ_NOOPT		opt_vmpage.h
+PQ_NORMALCACHE		opt_vmpage.h
+PQ_MEDIUMCACHE		opt_vmpage.h
+PQ_LARGECACHE		opt_vmpage.h
+PQ_HUGECACHE		opt_vmpage.h
 
 # Standard SMP options
 SMP			opt_global.h
@@ -349,16 +349,16 @@ NFS_NOSERVER		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
 # For the Bt848/Bt848A/Bt849/Bt878/Bt879 driver
-OVERRIDE_CARD		opt_bktr.h
-OVERRIDE_TUNER		opt_bktr.h
-OVERRIDE_DBX		opt_bktr.h
-OVERRIDE_MSP		opt_bktr.h
-BROOKTREE_SYSTEM_DEFAULT opt_bktr.h
-BKTR_USE_PLL		opt_bktr.h	
-BKTR_GPIO_ACCESS	opt_bktr.h
-BKTR_NO_MSP_RESET	opt_bktr.h
-BKTR_430_FX_MODE	opt_bktr.h
-BKTR_SIS_VIA_MODE	opt_bktr.h
+OVERRIDE_CARD			opt_bktr.h
+OVERRIDE_TUNER			opt_bktr.h
+OVERRIDE_DBX			opt_bktr.h
+OVERRIDE_MSP			opt_bktr.h
+BROOKTREE_SYSTEM_DEFAULT	opt_bktr.h
+BKTR_USE_PLL			opt_bktr.h	
+BKTR_GPIO_ACCESS		opt_bktr.h
+BKTR_NO_MSP_RESET		opt_bktr.h
+BKTR_430_FX_MODE		opt_bktr.h
+BKTR_SIS_VIA_MODE		opt_bktr.h
 
 
 # meteor opt_meteor.h
@@ -369,9 +369,9 @@ METEOR_DEALLOC_PAGES	opt_meteor.h
 METEOR_DEALLOC_ABOVE	opt_meteor.h
 
 # Various mi ISA bus flags
-COM_ESP                 opt_sio.h
-COM_MULTIPORT           opt_sio.h
-EXTRA_SIO               opt_sio.h
+COM_ESP			opt_sio.h
+COM_MULTIPORT		opt_sio.h
+EXTRA_SIO		opt_sio.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 
 # Include tweaks for running under the SimOS machine simulator.
