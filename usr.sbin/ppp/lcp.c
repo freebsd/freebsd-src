@@ -1219,7 +1219,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         break;
       }
       break;
-      
+
     default:
       sz = (sizeof desc - 2) / 2;
       if (sz > opt->hdr.len - 2)

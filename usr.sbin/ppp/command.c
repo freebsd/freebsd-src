@@ -314,7 +314,7 @@ RenameCommand(struct cmdargs const *arg)
   if (bundle_RenameDatalink(arg->bundle, arg->cx, arg->argv[arg->argn]))
     return 0;
 
-  log_Printf(LogWARN, "%s -> %s: target name already exists\n", 
+  log_Printf(LogWARN, "%s -> %s: target name already exists\n",
              arg->cx->name, arg->argv[arg->argn]);
   return 1;
 }
@@ -527,7 +527,7 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[arg] = subst(nargv[arg], "COMPILATIONDATE", __DATE__);
     nargv[arg] = substip(nargv[arg], "DNS0", bundle->ncp.ipcp.ns.dns[0]);
     nargv[arg] = substip(nargv[arg], "DNS1", bundle->ncp.ipcp.ns.dns[1]);
-    nargv[arg] = subst(nargv[arg], "ENDDISC", 
+    nargv[arg] = subst(nargv[arg], "ENDDISC",
                        mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
                                   bundle->ncp.mp.cfg.enddisc.address,
                                   bundle->ncp.mp.cfg.enddisc.len));
@@ -538,20 +538,20 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->iface->name);
     nargv[arg] = substull(nargv[arg], "IPOCTETSIN",
                           bundle->ncp.ipcp.throughput.OctetsIn);
-    nargv[arg] = substull(nargv[arg], "IPOCTETSOUT", 
+    nargv[arg] = substull(nargv[arg], "IPOCTETSOUT",
                           bundle->ncp.ipcp.throughput.OctetsOut);
-    nargv[arg] = substull(nargv[arg], "IPPACKETSIN", 
+    nargv[arg] = substull(nargv[arg], "IPPACKETSIN",
                           bundle->ncp.ipcp.throughput.PacketsIn);
-    nargv[arg] = substull(nargv[arg], "IPPACKETSOUT", 
+    nargv[arg] = substull(nargv[arg], "IPPACKETSOUT",
                           bundle->ncp.ipcp.throughput.PacketsOut);
 #ifndef NOINET6
-    nargv[arg] = substull(nargv[arg], "IPV6OCTETSIN", 
+    nargv[arg] = substull(nargv[arg], "IPV6OCTETSIN",
                           bundle->ncp.ipv6cp.throughput.OctetsIn);
-    nargv[arg] = substull(nargv[arg], "IPV6OCTETSOUT", 
+    nargv[arg] = substull(nargv[arg], "IPV6OCTETSOUT",
                           bundle->ncp.ipv6cp.throughput.OctetsOut);
-    nargv[arg] = substull(nargv[arg], "IPV6PACKETSIN", 
+    nargv[arg] = substull(nargv[arg], "IPV6PACKETSIN",
                           bundle->ncp.ipv6cp.throughput.PacketsIn);
-    nargv[arg] = substull(nargv[arg], "IPV6PACKETSOUT", 
+    nargv[arg] = substull(nargv[arg], "IPV6PACKETSOUT",
                           bundle->ncp.ipv6cp.throughput.PacketsOut);
 #endif
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
@@ -1661,7 +1661,7 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_AUTOLOAD:
     if (arg->argc == arg->argn + 3) {
-      int v1, v2, v3; 
+      int v1, v2, v3;
       char *end;
 
       v1 = strtol(arg->argv[arg->argn], &end, 0);
@@ -2258,7 +2258,7 @@ static struct cmdtab const SetCommands[] = {
   "callback control", "set callback [none|auth|cbcp|"
   "E.164 *|number[,number]...]...", (const void *)VAR_CALLBACK},
   {"cbcp", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "CBCP control", "set cbcp [*|phone[,phone...] [delay [timeout]]]", 
+  "CBCP control", "set cbcp [*|phone[,phone...] [delay [timeout]]]",
   (const void *)VAR_CBCP},
   {"ccpretry", "ccpretries", SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
    "CCP retries", "set ccpretry value [attempts]", (const void *)VAR_CCPRETRY},
@@ -2277,7 +2277,7 @@ static struct cmdtab const SetCommands[] = {
   (const void *) VAR_WINSIZE},
 #ifndef NODES
   {"mppe", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "MPPE key size and state", "set mppe [40|56|128|* [stateful|stateless|*]]", 
+  "MPPE key size and state", "set mppe [40|56|128|* [stateful|stateless|*]]",
   (const void *) VAR_MPPE},
 #endif
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
@@ -2989,7 +2989,7 @@ ClearCommand(struct cmdargs const *arg)
         clear_type |= THROUGHPUT_PEAK;
       else
         return -1;
-  } else 
+  } else
     clear_type = THROUGHPUT_ALL;
 
   throughput_clear(t, clear_type, arg->prompt);

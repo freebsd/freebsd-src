@@ -184,7 +184,7 @@ sl_compress_tcp(struct mbuf * m,
 
     /*
      * Wasn't the first -- search for it.
-     * 
+     *
      * States are kept in a circularly linked list with last_cs pointing to the
      * end of the list.  The list is kept in lru order by moving a state to
      * the head of the list whenever it is referenced.  Since the list is

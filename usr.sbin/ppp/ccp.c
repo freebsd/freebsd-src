@@ -452,7 +452,7 @@ CcpLayerDown(struct fsm *fp)
     ccp->out.algorithm = -1;
   }
   ccp->his_reject = ccp->my_reject = 0;
-  
+
   while (ccp->out.opt) {
     next = ccp->out.opt->next;
     free(ccp->out.opt);

@@ -616,7 +616,7 @@ ng_Create(struct physical *p)
             break;
           }
         }
-        
+
         if (f == ninfo->hooks) {
           /* Attempt to load the module */
           snprintf(modname, sizeof modname, "ng_%s", nodetype);

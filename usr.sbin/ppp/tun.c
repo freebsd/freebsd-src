@@ -86,9 +86,9 @@ tun_configure(struct bundle *bundle)
 #ifdef __NetBSD__
   struct ifreq ifr;
   int s;
-  
+
   s = socket(PF_INET, SOCK_DGRAM, 0);
-  
+
   if (s < 0) {
     log_Printf(LogERROR, "tun_configure: socket(): %s\n", strerror(errno));
     return;
@@ -107,7 +107,7 @@ tun_configure(struct bundle *bundle)
   memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
   info.mtu = bundle->iface->mtu;
-  
+
   info.baudrate = bundle->bandwidth;
 #ifdef __OpenBSD__
   info.flags = IFF_UP|IFF_POINTOPOINT|IFF_MULTICAST;

@@ -170,7 +170,7 @@ atm_CreateDevice(struct physical *p, const char *iface, unsigned vpi,
 {
   struct atmdevice *dev;
   struct sockaddr_natm sock;
-  
+
   if ((dev = calloc(1, sizeof *dev)) == NULL) {
     log_Printf(LogWARN, "%s: Cannot allocate an atm device: %s\n",
                p->link.name, strerror(errno));
@@ -214,14 +214,14 @@ atm_Create(struct physical *p)
       && p->name.full[PPPOA_LEN] == ':') {
     char iface[25];
     unsigned vci, vpi;
-    
+
     if (sscanf(p->name.full + PPPOA_LEN + 1, "%25[A-Za-z0-9]:%u.%u", iface,
                &vpi, &vci) != 3) {
       log_Printf(LogWARN, "Malformed ATM device name \'%s\', "
                  "PPPoA:if:vpi.vci expected\n", p->name.full);
       return NULL;
     }
-    
+
     dev = atm_CreateDevice(p, iface, vpi, vci);
   }
 

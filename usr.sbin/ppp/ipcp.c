@@ -339,7 +339,7 @@ ipcp_RestoreDNS(struct ipcp *ipcp)
   } else if (remove(_PATH_RESCONF) == -1)
     log_Printf(LogERROR, "Failed removing %s: %s\n", _PATH_RESCONF,
                strerror(errno));
-  
+
 }
 
 int
@@ -938,7 +938,7 @@ IpcpLayerUp(struct fsm *fp)
     return 0;
 
 #ifndef NORADIUS
-  radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links, 
+  radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links,
                  RAD_START, &ipcp->peer_ip, &ipcp->ifmask, &ipcp->throughput);
 
   if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
