@@ -263,7 +263,7 @@ ata_pci_match(device_t dev)
 	return "Intel ICH0 ATA33 controller";
 
     case 0x24118086:
-    case 0x84ca8086:
+    case 0x76018086:
 	return "Intel ICH ATA66 controller";
 
     case 0x244a8086:
