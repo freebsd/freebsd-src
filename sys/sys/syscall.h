@@ -239,4 +239,5 @@
 #define	SYS_thr_wakeup	323
 #define	SYS_mlockall	324
 #define	SYS_munlockall	325
-#define	SYS_MAXSYSCALL	326
+#define	SYS___getcwd	326
+#define	SYS_MAXSYSCALL	327
