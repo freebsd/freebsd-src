@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include "talk.h"
+#include <locale.h>
 
 /*
  * talk:	A visual form of write. Using sockets, a two way
@@ -58,10 +59,15 @@ static char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
  *		Fixed to not run with unwriteable terminals MRVM 28/12/94
  */
 
+int main __P((int, char **));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	(void) setlocale(LC_CTYPE, "");
+
 	get_names(argc, argv);
 	check_writeable();
 	init_display();
@@ -73,4 +79,5 @@ main(argc, argv)
 	end_msgs();
 	set_edit_chars();
 	talk();
+	return 0;
 }

@@ -52,6 +52,7 @@ int	curses_initialized = 0;
  * max HAS to be a function, it is called with
  * a argument of the form --foo at least once.
  */
+int
 max(a,b)
 	int a, b;
 {
@@ -63,9 +64,10 @@ max(a,b)
  * Display some text on somebody's window, processing some control
  * characters while we are at it.
  */
+void
 display(win, text, size)
 	register xwin_t *win;
-	register unsigned char *text;
+	register char *text;
 	int size;
 {
 	register int i;
@@ -150,7 +152,7 @@ display(win, text, size)
 			cch = (*text & 63) + 64;
 			waddch(win->x_win, cch);
 		} else
-			waddch(win->x_win, *text);
+			waddch(win->x_win, (unsigned)*text);
 		getyx(win->x_win, win->x_line, win->x_col);
 		text++;
 	}
@@ -160,8 +162,11 @@ display(win, text, size)
 /*
  * Read the character at the indicated position in win
  */
+int
 readwin(win, line, col)
 	WINDOW *win;
+	int line;
+	int col;
 {
 	int oldline, oldcol;
 	register int c;
