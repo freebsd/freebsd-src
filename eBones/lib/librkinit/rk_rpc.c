@@ -1,7 +1,7 @@
 /* 
- * $Id: rk_rpc.c,v 1.1 1993/12/10 19:36:09 dglo Exp gibbs $
- * $Source: /usr/src/eBones/librkinit/RCS/rk_rpc.c,v $
- * $Author: dglo $
+ * $Id: rk_rpc.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $
+ * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_rpc.c,v $
+ * $Author: gibbs $
  *
  * This file contains functions that are used for network communication.
  * See the comment at the top of rk_lib.c for a description of the naming
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rk_rpc.c,v 1.1 1993/12/10 19:36:09 dglo Exp gibbs $";
+static char *rcsid = "$Id: rk_rpc.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>
@@ -187,7 +187,7 @@ int rki_setup_rpc(host)
 {
     struct hostent *hp;
     struct servent *sp;
-    int port;
+    int port, retval;
 
     SBCLEAR(saddr);
     SBCLEAR(hp);
@@ -214,7 +214,12 @@ int rki_setup_rpc(host)
 	rkinit_errmsg(errbuf);
 	return(RKINIT_SOCKET);
     }
-    
+    if ((retval = krb_bind_local_addr(sock)) != KSUCCESS) {
+	sprintf(errbuf, "krb_bind_local_addr: %s", krb_err_txt[retval]);
+	rkinit_errmsg(errbuf);
+	close(sock);
+	return(RKINIT_SOCKET);
+    }
     if (connect(sock, (struct sockaddr *)&saddr, sizeof (saddr)) < 0) {
 	sprintf(errbuf, "connect: %s", sys_errlist[errno]);
 	rkinit_errmsg(errbuf);

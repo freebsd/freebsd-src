@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id: krb.h,v 1.7 1995/09/07 20:50:36 mark Exp $
+ *	$Id: krb.h,v 1.6 1995/09/13 17:23:47 markm Exp $
  */
 
 /* Only one time, please */
@@ -259,6 +259,15 @@ typedef struct msg_dat MSG_DAT;
 /* Error code returned by kparse_name */
 #define		KNAME_FMT	81	/* Bad Kerberos name format */
 
+/* Error codes returned by get_local_addr and bind_local_addr */
+#define		GT_LADDR_NOSOCK  82	/* Can't open socket */
+#define		GT_LADDR_IFLIST	 83	/*
+					 * Can't retrieve local interface 
+					 * configuration list
+					 */
+#define		GT_LADDR_NVI	 84	/* No valid local interface found */
+#define		BND_LADDR_BIND	 85	/* Can't bind local address */
+
 /* Error code returned by krb_mk_safe */
 #define		SAFE_PRIV_ERROR	-1	/* syscall error */
 
@@ -456,6 +465,8 @@ int read_service_key __P((char *service, char *instance, char *realm, int kvno,
     char *file, char *key));
 int get_ad_tkt __P((char *service, char *sinstance, char *realm, int lifetime));
 int send_to_kdc __P((KTEXT pkt, KTEXT rpkt, char *realm));
+int krb_bind_local_addr __P((int s));
+int krb_get_local_addr __P((struct sockaddr_in *returned_addr));
 int krb_create_ticket __P((KTEXT tkt, unsigned char flags, char *pname,
     char *pinstance, char *prealm, long paddress, char *session, short life,
     long time_sec, char *sname, char *sinstance, C_Block key));

@@ -12,7 +12,7 @@
 static char rcsid_kadm_cli_wrap_c[] =
 "from: Id: kadm_cli_wrap.c,v 4.6 89/12/30 20:09:45 qjb Exp";
 static const char rcsid[] =
-	"$Id: kadm_cli_wrap.c,v 1.1 1995/07/18 16:40:23 mark Exp $";
+	"$Id: kadm_cli_wrap.c,v 1.4 1995/09/07 21:38:47 markm Exp $";
 #endif	lint
 #endif
 
@@ -422,10 +422,24 @@ int
 kadm_cli_conn()
 {					/* this connects and sets my_addr */
     int on = 1;
+    int kerror;
 
     if ((client_parm.admin_fd =
 	 socket(client_parm.admin_addr.sin_family, SOCK_STREAM,0)) < 0)
 	return KADM_NO_SOCK;		/* couldnt create the socket */
+    client_parm.my_addr_len = sizeof(client_parm.my_addr);
+    if ((kerror = krb_get_local_addr(&client_parm.my_addr)) != KSUCCESS) {
+	(void) close(client_parm.admin_fd);
+	client_parm.admin_fd = -1;
+	return KADM_NO_HERE;
+    }
+    if (bind(client_parm.admin_fd,
+		(struct sockaddr *) & client_parm.admin_addr,
+		sizeof(client_parm.my_addr))) {
+	(void) close(client_parm.admin_fd);
+	client_parm.admin_fd = -1;
+	return KADM_NO_HERE;
+    }
     if (connect(client_parm.admin_fd,
 		(struct sockaddr *) & client_parm.admin_addr,
 		sizeof(client_parm.admin_addr))) {
@@ -434,15 +448,6 @@ kadm_cli_conn()
 	return KADM_NO_CONN;		/* couldnt get the connect */
     }
     opipe = signal(SIGPIPE, SIG_IGN);
-    client_parm.my_addr_len = sizeof(client_parm.my_addr);
-    if (getsockname(client_parm.admin_fd,
-		    (struct sockaddr *) & client_parm.my_addr,
-		    &client_parm.my_addr_len) < 0) {
-	(void) close(client_parm.admin_fd);
-	client_parm.admin_fd = -1;
-	(void) signal(SIGPIPE, opipe);
-	return KADM_NO_HERE;		/* couldnt find out who we are */
-    }
     if (setsockopt(client_parm.admin_fd, SOL_SOCKET, SO_KEEPALIVE, &on,
 		   sizeof(on)) < 0) {
 	(void) close(client_parm.admin_fd);
