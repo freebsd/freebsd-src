@@ -335,6 +335,7 @@
 
 #define LGE_MAXCMDS		31
 
+
 /* Index for statistics counters. */
 #define LGE_STATS_TX_PKTS_OK		0x00
 #define LGE_STATS_SINGLE_COLL_PKTS	0x01
@@ -364,7 +365,6 @@
 #define LGE_STATS_TX_PKTS_DEFERRED	0x19
 #define LGE_STATS_TX_EXCESS_DEFER	0x1A
 #define LGE_STATS_CARRIER_SENSE_ERR	0x1B
-
 
 /*
  * RX and TX DMA descriptor structures for scatter/gather.
@@ -499,12 +499,18 @@ struct lge_mii_frame {
 #define LGE_JUMBO_MTU		(LGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define LGE_JSLOTS		384
 
-#define LGE_JRAWLEN (LGE_JUMBO_FRAMELEN + ETHER_ALIGN)
+#define LGE_JRAWLEN (LGE_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
 #define LGE_JLEN (LGE_JRAWLEN + (sizeof(u_int64_t) - \
 	(LGE_JRAWLEN % sizeof(u_int64_t))))
+#define LGE_MCLBYTES (LGE_JLEN - sizeof(u_int64_t))
 #define LGE_JPAGESZ PAGE_SIZE
 #define LGE_RESID (LGE_JPAGESZ - (LGE_JLEN * LGE_JSLOTS) % LGE_JPAGESZ)
 #define LGE_JMEM ((LGE_JLEN * LGE_JSLOTS) + LGE_RESID)
+
+struct lge_jslot {
+	caddr_t			lge_buf;
+	int			lge_inuse;
+};
 
 struct lge_jpool_entry {
 	int				slot;
@@ -517,7 +523,7 @@ struct lge_ring_data {
 	int			lge_tx_prod;
 	int			lge_tx_cons;
 	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			lge_jslots[LGE_JSLOTS];
+	struct lge_jslot	lge_jslots[LGE_JSLOTS];
 	void			*lge_jumbo_buf;
 };
 

@@ -204,6 +204,7 @@ dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
 dev/isp/isp_target.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
+dev/lge/if_lge.c	optional lge
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/mii.c		optional miibus
@@ -250,6 +251,7 @@ dev/mly/mly_pci.c	optional mly
 dev/musycc/musycc.c	optional musycc
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
+dev/nge/if_nge.c	optional nge
 dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
 dev/pccard/pccard.c	optional pccard

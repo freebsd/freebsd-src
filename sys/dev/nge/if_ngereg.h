@@ -608,12 +608,18 @@ struct nge_mii_frame {
 #define NGE_JUMBO_MTU		(NGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define NGE_JSLOTS		384
 
-#define NGE_JRAWLEN (NGE_JUMBO_FRAMELEN + ETHER_ALIGN)
+#define NGE_JRAWLEN (NGE_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
 #define NGE_JLEN (NGE_JRAWLEN + (sizeof(u_int64_t) - \
 	(NGE_JRAWLEN % sizeof(u_int64_t))))
+#define NGE_MCLBYTES (NGE_JLEN - sizeof(u_int64_t))
 #define NGE_JPAGESZ PAGE_SIZE
 #define NGE_RESID (NGE_JPAGESZ - (NGE_JLEN * NGE_JSLOTS) % NGE_JPAGESZ)
 #define NGE_JMEM ((NGE_JLEN * NGE_JSLOTS) + NGE_RESID)
+
+struct nge_jslot {
+	caddr_t			nge_buf;
+	int			nge_inuse;
+};
 
 struct nge_jpool_entry {
 	int				slot;
@@ -626,7 +632,7 @@ struct nge_ring_data {
 	int			nge_tx_cons;
 	int			nge_tx_cnt;
 	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			nge_jslots[NGE_JSLOTS];
+	struct nge_jslot	nge_jslots[NGE_JSLOTS];
 	void			*nge_jumbo_buf;
 };
 
@@ -650,7 +656,6 @@ struct nge_softc {
 	struct callout_handle	nge_stat_ch;
 	SLIST_HEAD(__nge_jfreehead, nge_jpool_entry)	nge_jfree_listhead;
 	SLIST_HEAD(__nge_jinusehead, nge_jpool_entry)	nge_jinuse_listhead;
-	struct mtx		nge_mtx;
 };
 
 /*
