@@ -635,12 +635,12 @@ _perl=	gnu/usr.bin/perl/miniperl
 .endif
 
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS4)
 _libroken4= kerberosIV/lib/libroken
 .endif
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS5)
 _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
@@ -721,7 +721,7 @@ _generic_libs=	gnu/lib
 _generic_libs+=	gnu/usr.bin/perl/libperl
 .endif
 
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS5)
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
@@ -729,7 +729,7 @@ _prebuild_libs+=	kerberos5/lib/libroken
 _generic_libs+=	kerberos5/lib
 .endif
 
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS4)
 _prebuild_libs+=	kerberosIV/lib/libkrb
 kerberosIV/lib/libkrb__L: lib/libcrypt__L
 _generic_libs+=	kerberosIV/lib
