@@ -68,11 +68,11 @@
  *	error occurs.  If no error occurs, the VOP_*() routines only free
  *	the path component if SAVESTART is NOT set.
  *
- *	Certain VOP calls (VOP_SYMLINK, VOP_MKNOD), lookup(), and namei()
+ *	VOP_SYMLINK, lookup(), and namei()
  *	may return garbage in various structural fields/return elements
  *	if an error is returned, and may garbage up nd.ni_dvp even if no
  *	error is returned and you did not request LOCKPARENT or WANTPARENT.
- *	VOP_SYMLINK/VOP_MKNOD return garbage in their return vnode (i.e. not
+ *	VOP_SYMLINK return garbage in its return vnode (i.e. not
  *	something we need to release) even if no error occurs.  Our cleanup
  *	code is sensitive to garbage, so we have to carefully clear it out.
  *
@@ -1694,16 +1694,17 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			vap->va_rdev = rdev;
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 
-			/*
-			 * VOP_MKNOD returns nd.ni_vp but already releases it,
-			 * so we just NULL the pointer.
-			 */
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
-			nd.ni_vp = NULL;
 			if (error) {
 				nd.ni_cnd.cn_flags &= ~HASBUF;
 				goto nfsmreply0;
 			}
+
+			/*
+			 * release vp we do not use
+			 */
+			vput(nd.ni_vp);
+			nd.ni_vp = NULL;
 
 			/*
 			 * release dvp prior to lookup
@@ -1906,17 +1907,17 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 			goto out;
 		nqsrv_getl(nd.ni_dvp, ND_WRITE);
 
-		/*
-		 * VOP_MKNOD does not return a referenced or locked nd.ni_vp,
-		 * but it may set it to (in my view) garbage.
-		 */
 		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
-		nd.ni_vp = NULL;
-
 		if (error) {
 			nd.ni_cnd.cn_flags &= ~HASBUF;
 			goto out;
 		}
+
+		/*
+		 * release vp we do not use
+		 */
+		vput(nd.ni_vp);
+		nd.ni_vp = NULL;
 
 		/*
 		 * Release dvp prior to lookup
