@@ -1169,8 +1169,8 @@ struct rainfo *rainfo;
 
 	if (i < 0 || i != rainfo->ra_datalen)  {
 		if (i < 0) {
-			syslog(LOG_ERR, "<%s> sendmsg: %s",
-			       __FUNCTION__, strerror(errno));
+			syslog(LOG_ERR, "<%s> sendmsg to %s: %s",
+			       __FUNCTION__, rainfo->ifname, strerror(errno));
 		}
 	}
 
