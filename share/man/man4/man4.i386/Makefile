@@ -15,7 +15,6 @@ MAN=	acpi_toshiba.4 \
 	ep.4 \
 	ex.4 \
 	fe.4 \
-	gsc.4 \
 	ie.4 \
 	io.4 \
 	linux.4 \
