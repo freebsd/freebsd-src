@@ -1,6 +1,6 @@
 /*	$NetBSD: sa11x0_io.c,v 1.12 2003/07/15 00:24:51 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited.
  * All rights reserved.

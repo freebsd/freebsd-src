@@ -1,6 +1,6 @@
 /*	$NetBSD: fusu.S,v 1.10 2003/12/01 13:34:44 rearnsha Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996-1998 Mark Brinicombe.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: i80321var.h,v 1.8 2003/10/06 16:06:06 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002, 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_armv4.S,v 1.1 2001/11/10 23:14:09 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001 ARM Limited
  * Copyright (c) 1997,1998 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited

@@ -1,7 +1,7 @@
 /*	$NetBSD: swi.h,v 1.1 2002/01/13 15:03:06 bjh21 Exp $	*/
 /* $FreeBSD$ */
 
-/*
+/*-
  * This file is in the Public Domain.
  * Ben Harris, 2002.
  */

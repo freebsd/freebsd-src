@@ -1,6 +1,6 @@
 /*	$NetBSD: arm32_machdep.c,v 1.44 2004/03/24 15:34:47 atatat Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.

@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_sa1.S,v 1.8 2002/08/17 16:36:32 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997,1998 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited
  * All rights reserved.

@@ -1,6 +1,6 @@
 /*	$NetBSD: db_interface.c,v 1.33 2003/08/25 04:51:10 mrg Exp $	*/
 
-/* 
+/*-
  * Copyright (c) 1996 Scott K. Stevens
  *
  * Mach Operating System

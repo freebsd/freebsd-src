@@ -1,6 +1,6 @@
 /*	$NetBSD: mainbus_io.c,v 1.13 2003/07/15 00:24:47 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Mark Brinicombe.
  * All rights reserved.
  *

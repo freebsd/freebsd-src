@@ -1,6 +1,6 @@
 /*	$NetBSD: disassem.c,v 1.14 2003/03/27 16:58:36 mycroft Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996 Mark Brinicombe.
  * Copyright (c) 1996 Brini.
  *

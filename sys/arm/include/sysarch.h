@@ -1,6 +1,6 @@
 /*	$NetBSD: sysarch.h,v 1.5 2003/09/11 09:40:12 kleink Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996-1997 Mark Brinicombe.
  * All rights reserved.
  *

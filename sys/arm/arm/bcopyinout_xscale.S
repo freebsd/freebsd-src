@@ -1,6 +1,6 @@
 /*	$NetBSD: bcopyinout_xscale.S,v 1.3 2003/12/15 09:27:18 scw Exp $	*/
 
-/*
+/*-
  * Copyright 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *
