@@ -47,6 +47,7 @@ SUBDIR=	${_3dfx} \
 	${_crypto} \
 	${_cryptodev} \
 	cue \
+	${_cx} \
 	dc \
 	dcons \
 	dcons_crom \
@@ -325,6 +326,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _ciss=		ciss
 _cm=		cm
+_cx=		cx
 _dpt=		dpt
 _el=		el
 _ex=		ex
