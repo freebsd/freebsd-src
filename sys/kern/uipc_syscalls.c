@@ -1705,7 +1705,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	int error, s, headersize = 0, headersent = 0;
 	struct iovec *hdr_iov = NULL;
 
-	NET_LOCK_GIANT();
+	mtx_lock(&Giant);
 
 	hdtr_size = 0;
 
@@ -2070,7 +2070,7 @@ done:
 	if (m_header)
 		m_freem(m_header);
 
-	NET_UNLOCK_GIANT();
+	mtx_unlock(&Giant);
 
 	if (error == ERESTART)
 		error = EINTR;
