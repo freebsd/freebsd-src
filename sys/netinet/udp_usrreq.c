@@ -615,12 +615,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
-		if (inp->inp_gencnt <= gencnt) {
-			if (cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket))
-				continue;
+		if (inp->inp_gencnt <= gencnt &&
+		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
 			inp_list[i++] = inp;
-		}
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&udbinfo);
