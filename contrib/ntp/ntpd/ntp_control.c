@@ -1656,17 +1656,8 @@ ctl_getitem(
 						cp++;
 					while (cp < reqend && *cp != ',') {
 						*tp++ = *cp++;
-						if (tp >= buf + sizeof(buf)) {
-							 msyslog(LOG_WARNING, "Attempted \"ntpdx\" exploit from IP %d.%d.%d.%d:%d (possibly spoofed)\n", 
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 24) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 16) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 8) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 0) & 0xff,
-	ntohs(rmt_addr->sin_port)
-);
-
+						if (tp >= buf + sizeof(buf))
 							return (0);
-						}
 					}
 					if (cp < reqend)
 						cp++;
