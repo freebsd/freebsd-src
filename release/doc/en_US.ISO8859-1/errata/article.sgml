@@ -184,6 +184,13 @@ hw.eisa_slots=0        # disable probing for EISA devices</programlisting>
       Research Projects Agency (DARPA): OpenPAM, NSS support, PAE
       support, various MAC framework updates, the GEOM disk geometry
       system.</para>
+
+    <para>An integer overflow could cause kernel panics on PAE-using
+      machines with certain memory sizes.  This bug has been corrected
+      on both the <literal>RELENG_5_1</literal> and
+      <literal>HEAD</literal> branches.  A workaround for this problem
+      is to remove some memory, update the system in question, and
+      reinstall the memory.</para>
 ]]>
 
   </sect1>
