@@ -64,6 +64,10 @@ VGA graphics to syscons ttys (sort of like Linux's libSVGA).
 
 Many many bugs fixed and security enhancements made.
 
+The TCP connection timeout in lpd & friends can now be specified by a
+printcap(5) capability, preventing it from hanging for too long when
+working in an environment with many network printservers.
+
 
 2. Supported Configurations
 ---------------------------
@@ -87,8 +91,6 @@ WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
@@ -96,6 +98,9 @@ Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
 Adaptec AIC7850 on-board SCSI controllers.
 
+Support for the following controllers is rather weak:
+Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
@@ -137,6 +142,11 @@ Seagate ST01/02 SCSI controllers.
 Future Domain 8xx/950 series SCSI controllers.
 
 WD7000 SCSI controller.
+
+FreeBSD 2.2.5 will be accompanied by a contributed driver for the
+Future Domain 36C20 / Adaptec AHA2920 controller.  This is not fully
+supported (yet), but basically functional.  Look into the /xperimnt
+section of the CD-ROM.
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
