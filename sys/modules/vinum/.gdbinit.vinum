@@ -1,0 +1,168 @@
+define rq
+rqq rq
+end
+document rq
+Show information about the request pointed to by the variable 
+rq in the current frame.
+end
+define rqq
+set $rq = (struct request *) $arg0
+printf "Request: \n" 
+output/x *$rq
+printf "\n"
+bpp $rq->bp
+set $rqg = $rq->rqg
+while ($rqg != 0)
+  printf "\nRequest group at %x:\n", $rqg
+  output/x *$rqg
+  printf "\n"
+  set $rqno = 0
+  while ($rqno < $rqg->count)
+    printf "rqg->rqe [%d]: ", $rqno
+    rrqe &$rqg->rqe[$rqno]
+    set $rqno = $rqno + 1
+    end
+  set $rqg = $rqg->next
+  end
+end
+document rqq
+Show information about the request (struct rq) pointed at by the parameter
+end
+define rqe
+rrqe rqe
+end
+define rrqe
+set $rqe = (struct rqelement *) $arg0
+    printf "sdoffset 0x%x, useroffset 0x%x, dataoffset 0x%x, datalen 0x%x, groupoffset 0x%x, grouplen 0x%x, buflen 0x%x\n", \
+      $rqe->sdoffset, \
+      $rqe->useroffset, \
+      $rqe->dataoffset, \
+      $rqe->datalen, \
+      $rqe->groupoffset, \
+      $rqe->grouplen, \
+      $rqe->buflen
+    printf "  Flags 0x%x,  Subdisk %d  Drive %d\n", \
+      $rqe->flags, \
+      $rqe->sdno, \
+      $rqe->driveno
+    bpp &$rqe->b
+end
+document rqe
+Show information about the request element pointed to by the
+variable rqe in the current frame.
+end
+document rrqe
+Show information about the request element (struct rqe) pointed
+at by the parameter.
+end
+define rqq0
+printf "rq->prq [0].rqe[0].sdno: " 
+output/x rq->prq[0].rqe[0].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[0].rqe[0].b.b_dev
+printf " data: " 
+output/x rq->prq[0].rqe[0].b.b_data
+printf " length: " 
+output/x rq->prq[0].rqe[0].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[0].rqe[0].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[0].rqe[0].sdoffset
+printf "\nFlags: " 
+if (rq->prq[0].rqe[0].b.b_flags & 0x10)
+printf "busy "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x200)
+printf "done "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x800)
+printf "error "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x100000)
+printf "read "
+end
+output/x rq->prq[0].rqe[0].b.b_flags
+printf "\nrq->prq [0].rqe[1].sdno: " 
+output/x rq->prq[0].rqe[1].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[0].rqe[1].b.b_dev
+printf " data: " 
+output/x rq->prq[0].rqe[1].b.b_data
+printf " length: " 
+output/x rq->prq[0].rqe[1].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[0].rqe[1].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[0].rqe[1].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[0].rqe[1].b.b_flags
+echo \n
+end
+define rqq1
+printf "\nrq->prq [1].rqe[0].sdno: " 
+output/x rq->prq[1].rqe[0].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[1].rqe[0].b.b_dev
+printf " data: " 
+output/x rq->prq[1].rqe[0].b.b_data
+printf " length: " 
+output/x rq->prq[1].rqe[0].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[1].rqe[0].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[1].rqe[0].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[1].rqe[0].b.b_flags
+printf "\nrq->prq [1].rqe[1].sdno: " 
+output/x rq->prq[1].rqe[1].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[1].rqe[1].b.b_dev
+printf " data: 0x%x  length 0x%x  drive offset 0x%x  sd offset 0x%x\n" rq->prq[1].rqe[1].b.b_data,
+ rq->prq[1].rqe[1].b.b_bcount,
+ rq->prq[1].rqe[1].b.b_blkno,
+ rq->prq[1].rqe[1].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[1].rqe[1].b.b_flags
+echo \n
+end
+define xy
+bpp
+echo stripeoffset
+p stripeoffset
+echo stripebase
+p stripebase
+echo sdno
+p sdno
+echo sdoffset
+p sdoffset
+echo rqe->sectors
+p rqe->sectors
+echo rqe->sdoffset
+p rqe->sdoffset
+end
+define rqi
+   set $rqipe = *VC->rqipp
+   set $rqip = $rqipe + 1
+   set $rqend  = VC->rqinfop + 32
+   if ($rqip == $rqend)
+      set $rqip = *VC->rqinfop
+   end
+   set $done = 0
+   while ($done == 0)
+      printf "%X:\t%d.%06d\tUBP: %x\t", $rqip, $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec, $rqip->bp
+      p $rqip->type
+      bpp $rqip->bp
+      if ($rqip->type < loginfo_rqe)
+         bpp &$rqip->info
+      else 
+         rrqe &$rqip->info
+      end
+      set $rqip = $rqip + 1
+      if ($rqip == $rqipe)
+         set $done = 1
+      end
+      if ($rqip == $rqend)
+         set $rqip = VC->rqinfop
+      end
+   end
+end

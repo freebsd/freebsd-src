@@ -1,0 +1,22 @@
+dir /usr/src/sys/modules/vinum
+dir /usr/src/sys/i386/conf
+dir /usr/src/sys
+file /var/crash/kernel.gdb
+define asf
+y
+   set $file = files.tqh_first
+   set $found = 0
+   while ($found == 0)
+	p *$file
+     if (*$file->filename == 'v')
+	set $found = 1
+     else
+       set $file = $file->link.tqe_next
+     end
+   end
+   shell /usr/bin/objdump --section-headers /modules/vinum/vinum.ko | grep ' .text' | awk '{print "add-symbol-file /modules/vinum/vinum.ko \$file->address+0x" $4}' > .asf
+   source .asf
+end
+document asf
+Find the load address of Vinum in the kernel and add the symbols at this address
+end
