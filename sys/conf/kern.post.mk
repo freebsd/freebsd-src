@@ -9,17 +9,30 @@
 # $FreeBSD$
 #
 
-# XXX why are only some phony targets marked phony?
-.PHONY:	all modules
+.MAIN: all
 
-clean:  kernel-clean
-cleandepend:  kernel-cleandepend
-cleandir:
-clobber: kernel-clobber
-depend: kernel-depend
-install: kernel-install
-reinstall: kernel-reinstall
-tags:  kernel-tags
+.for target in all clean cleandepend cleandir depend install obj reinstall tags
+${target}: kernel-${target}
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+${target}: modules-${target}
+modules-${target}:
+	cd $S/modules; ${MKMODULESENV} ${MAKE} ${target:reinstall=install}
+.endif
+.endfor
+
+.ORDER: kernel-install modules-install
+
+kernel-all: ${KERNEL_KO}
+
+kernel-cleandir kernel-obj:
+
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+modules: modules-all
+
+.if !defined(NO_MODULES_OBJ)
+modules-all modules-depend: modules-obj
+.endif
+.endif
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL_KO}
@@ -62,9 +75,6 @@ kernel-clean:
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
-
-kernel-clobber:
-	find . -type f ! -name version -delete
 
 lint: ${CFILES}
 	@${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC}
@@ -178,51 +188,6 @@ kernel-reinstall:
 .else
 	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
-
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
-all:	modules
-clean:  modules-clean
-cleandepend:  modules-cleandepend
-cleandir:  modules-cleandir
-clobber:  modules-clobber
-depend: modules-depend
-install: modules-install
-.ORDER: kernel-install modules-install
-reinstall: modules-reinstall
-tags:  modules-tags
-.endif
-
-modules:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} all
-
-modules-clean:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} clean
-
-modules-cleandepend:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandepend
-
-modules-cleandir:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandir
-
-modules-clobber:	modules-clean
-	rm -rf ${MKMODULESENV}
-
-modules-depend:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} depend
-
-modules-obj:
-	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj
-
-.if !defined(NO_MODULES_OBJ)
-modules modules-depend: modules-obj
-.endif
-
-modules-tags:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} tags
-
-modules-install modules-reinstall:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} install
 
 config.o:
 	${NORMAL_C}
