@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.24 1998/04/24 19:16:15 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.25 1998/04/30 23:53:54 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1540,7 +1540,7 @@ or directly to the screen:
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
 .It Li Connect	Generate complete Chat log
-.It Li Debug	Log (very verbose) debug information
+.It Li Debug	Log debug information
 .It Li HDLC	Dump HDLC packet in hex
 .It Li ID0	Log all function calls specifically made as user id 0.
 .It Li IPCP	Generate an IPCP packet trace
@@ -1548,6 +1548,7 @@ or directly to the screen:
 .It Li LQM	Generate LQR report
 .It Li Phase	Phase transition log output
 .It Li TCP/IP	Dump all TCP/IP packets
+.It Li Timer	Log timer manipulation
 .It Li TUN	Include the tun device on each log line
 .It Li Warning	Output to the terminal device.  If there is currently no
 terminal, output is sent to the log file using LOG_WARNING.
@@ -1576,7 +1577,7 @@ If The first argument to
 begins with a '+' or a '-' character, the current log levels are
 not cleared, for example:
 .Bd -literal -offset indent
-PPP ON awfulhak> set log carrier link phase
+PPP ON awfulhak> set log phase
 PPP ON awfulhak> show log
 Log:   Phase Warning Error Alert
 Local: Warning Error Alert

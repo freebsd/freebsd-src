@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18.2.6 1998/04/30 23:53:47 brian Exp $
+ *	$Id: log.h,v 1.18.2.7 1998/05/01 19:25:08 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -33,14 +33,14 @@
 #define LogCOMMAND	(4)
 #define LogCONNECT	(5)
 #define LogDEBUG	(6)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogTIMER	(7)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogHDLC		(8)
-#define LogID0		(9)
-#define LogIPCP		(10)
-#define LogLCP		(11)
-#define LogLQM		(12)
-#define LogPHASE	(13)
-#define LogTCPIP	(14)
+#define LogHDLC		(7)
+#define LogID0		(8)
+#define LogIPCP		(9)
+#define LogLCP		(10)
+#define LogLQM		(11)
+#define LogPHASE	(12)
+#define LogTCPIP	(13)
+#define LogTIMER	(14)	/* syslog(LOG_DEBUG, ....)	 */
 #define LogTUN		(15)	/* If set, tun%d is output with each message */
 #define LogMAXCONF	(15)
 #define LogWARN		(16)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
