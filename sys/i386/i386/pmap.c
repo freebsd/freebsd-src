@@ -162,8 +162,6 @@ static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 static int pgeflag;		/* PG_G or-in */
 static int pseflag;		/* PG_PS or-in */
 
-static vm_object_t kptobj;
-
 static int nkpt;
 vm_offset_t kernel_vm_end;
 extern u_int32_t KERNend;
@@ -488,11 +486,6 @@ pmap_init(phys_start, phys_end)
 {
 	int i;
 	int initial_pvs;
-
-	/*
-	 * object for kernel page table pages
-	 */
-	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
@@ -1580,8 +1573,8 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kptobj, nkpt,
-				     VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		nkpg = vm_page_alloc(NULL, nkpt,
+		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
