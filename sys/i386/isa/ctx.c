@@ -109,7 +109,6 @@
  */
 
 #include "ctx.h"
-#if NCTX > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -449,5 +448,3 @@ waitvb(int port)
 
 	return (0);
 }
-
-#endif				/* NCTX > 0 */

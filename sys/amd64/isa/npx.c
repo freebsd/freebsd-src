@@ -35,9 +35,6 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
-#if NNPX > 0
-
 #include "opt_debug_npx.h"
 #include "opt_math_emulate.h"
 
@@ -929,5 +926,3 @@ static devclass_t npx_devclass;
  * doesn't describe the processor as being `on isa'.
  */
 DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
-
-#endif /* NNPX > 0 */

@@ -36,7 +36,6 @@
  */
 
 #include "gsc.h"
-#if NGSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -830,5 +829,3 @@ gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
   default: return ENOTTY;
   }
 }
-
-#endif /* NGSC > 0 */

@@ -38,7 +38,6 @@
  */
 
 #include "asc.h"
-#if NASC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -877,5 +876,3 @@ ascpoll(dev_t dev, int events, struct proc *p)
     splx(sps);
     return 0;
 }
-
-#endif /* NASC > 0 */

@@ -26,9 +26,6 @@
  * $FreeBSD$
  */
 
-#include "mca.h"
-#if NMCA > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -159,4 +156,3 @@ mca_bus_nmi (void)
 
 	return (retval);
 }
-#endif
