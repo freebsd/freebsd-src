@@ -225,10 +225,13 @@ memcopy(from, to, len)
 	void *from, *to;
 	register size_t len;
 {
-
 	len >>= 2;
-	__asm __volatile("cld\n\trep\n\tmovsl" : :
-			 "S" (from), "D" (to), "c" (len) :
-			 "%esi", "%edi", "%ecx");
+	__asm __volatile("			\n\
+		cld				\n\
+		rep				\n\
+		movsl"				:
+	    "=D" (to), "=c" (len), "=S" (from)	:
+	    "0" (to), "1" (len), "2" (from)	:
+	    "memory", "cc");
 }
 #endif	/* __FreeBSD__ */
