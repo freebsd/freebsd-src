@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.39 1998/03/05 21:45:44 tegge Exp $
+ * $Id: smp.h,v 1.40 1998/03/07 21:34:59 dyson Exp $
  *
  */
 
@@ -78,8 +78,8 @@ int		try_mpintrlock		__P((void));
 extern volatile u_int		stopped_cpus;
 extern volatile u_int		started_cpus;
 
-extern unsigned int		checkstate_probed_cpus;
-extern unsigned int		checkstate_need_ast;
+extern volatile u_int		checkstate_probed_cpus;
+extern volatile u_int		checkstate_need_ast;
 
 /* functions in apic_ipl.s */
 void	apic_eoi		__P((void));
