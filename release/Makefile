@@ -194,8 +194,12 @@ BIGBOOTLABEL=		minimum2
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Things that need to be recompiled with Kerberos support.
+.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 K4PROGS!=	cd ${.CURDIR}/../kerberosIV; ${MAKE} -V KPROGS
+.endif
+.if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
+.endif
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
