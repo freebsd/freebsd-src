@@ -2298,7 +2298,7 @@ static int
 saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 {
 	static const char *toobig =
-	    "%d-byte tape record bigger than suplied buffer\n";
+	    "%d-byte tape record bigger than supplied buffer\n";
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
 	struct	ccb_scsiio *csio;
