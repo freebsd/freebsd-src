@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.63 1998/05/02 22:19:33 se Exp $
+**  $Id: pcisupport.c,v 1.64 1998/05/03 08:35:05 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -270,6 +270,15 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
 
+	/* NEC -- vendor 0x1033 */
+	case 0x00011033:
+		return ("NEC 0001 PCI to PC-98 C-bus bridge");
+	case 0x00021033:
+		return ("NEC 0002 PCI to PC-98 local bus bridge");
+	case 0x00161033:
+		return ("NEC 0016 PCI to PC-98 local bus bridge");
+	case 0x002c1033:
+		return ("NEC 002C PCI to PC-98 C-bus bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
@@ -956,6 +965,14 @@ static char* vga_probe (pcici_t tag, pcidi_t type)
 		vendor = "Chips & Technologies";
 		if ((id >> 16) == 0x00d8)
 			chip = "65545";
+		break;
+	case 0x1033:
+		vendor = "NEC";
+		switch (id >> 16) {
+		case 0x0009:
+			type = "PCI to PC-98 Core Graph bridge";
+			break;
+		}
 		break;
 	case 0x1039:
 		vendor = "SiS";
