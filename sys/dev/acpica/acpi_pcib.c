@@ -70,11 +70,13 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 
     /*
      * Get the PCI interrupt routing table for this bus.  If we can't
-     * get it, this is not an error but may reduce functionality.
+     * get it, this is not an error but may reduce functionality.  There
+     * are several valid bridges in the field that do not have a _PRT, so
+     * only warn about missing tables if bootverbose is set.
      */
     prt->Length = ACPI_ALLOCATE_BUFFER;
     status = AcpiGetIrqRoutingTable(acpi_get_handle(dev), prt);
-    if (ACPI_FAILURE(status))
+    if (ACPI_FAILURE(status) && (bootverbose || status != AE_NOT_FOUND))
 	device_printf(dev,
 	    "could not get PCI interrupt routing table for %s - %s\n",
 	    acpi_name(acpi_get_handle(dev)), AcpiFormatException(status));
