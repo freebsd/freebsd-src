@@ -267,9 +267,9 @@ static	int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
-	int	c, lines;
-	int	all = 0;
-
+	int c, quit;
+	
+	quit = 0;
 	lines = NUM_LINES_PER_PAGE;
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
@@ -277,28 +277,16 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 		db_ktr_verbose = 1;
 	else
 		db_ktr_verbose = 0;
-	if (strcmp(modif, "a") == 0)
-		all = 1;
-	while (db_mach_vtrace())
-		if (all) {
-			if (cncheckc() != -1)
-				return;
-		} else if (--lines == 0) {
-			db_printf("--More--");
-			c = cngetc();
-			db_printf("\r");
-			switch (c) {
-			case '\n':	/* one more line */
-				lines = 1;
+	if (strcmp(modif, "a") == 0) {
+		while (cncheckc() != -1)
+			if (db_mach_vtrace() == 0)
 				break;
-			case ' ':	/* one more page */
-				lines = NUM_LINES_PER_PAGE;
+	} else {
+		db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+		while (!quit)
+			if (db_mach_vtrace() == 0)
 				break;
-			default:
-				db_printf("\n");
-				return;
-			}
-		}
+	}
 }
 
 static int
