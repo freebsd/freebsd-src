@@ -141,6 +141,8 @@ static struct bge_type bge_devs[] = {
 		"Broadcom BCM5700 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5701,
 		"Broadcom BCM5701 Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5702X,
+		"Broadcom BCM5702X Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5703X,
 		"Broadcom BCM5703X Gigabit Ethernet" },
 	{ SK_VENDORID, SK_DEVICEID_ALTIMA,
