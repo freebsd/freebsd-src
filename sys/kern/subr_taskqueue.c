@@ -186,11 +186,14 @@ taskqueue_run(struct taskqueue *queue)
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
+		task->ta_flags |= TAF_PENDING;
 		mtx_unlock(&queue->tq_mutex);
 
 		task->ta_func(task->ta_context, pending);
 
 		mtx_lock(&queue->tq_mutex);
+		task->ta_flags &= ~TAF_PENDING;
+		wakeup(task);
 	}
 
 	/*
@@ -199,6 +202,17 @@ taskqueue_run(struct taskqueue *queue)
 	 */
 	if (!owned)
 		mtx_unlock(&queue->tq_mutex);
+}
+
+void
+taskqueue_drain(struct taskqueue *queue, struct task *task)
+{
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "taskqueue_drain");
+	mtx_lock(&queue->tq_mutex);
+	while (task->ta_pending != 0 || (task->ta_flags & TAF_PENDING)) {
+		msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
+	}
+	mtx_unlock(&queue->tq_mutex);
 }
 
 static void
