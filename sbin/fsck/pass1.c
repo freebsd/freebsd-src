@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,13 +49,17 @@ static char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
 
 static ufs_daddr_t badblk;
 static ufs_daddr_t dupblk;
+static ino_t lastino;		/* last inode in use */
+
 static void checkinode __P((ino_t inumber, struct inodesc *));
 
 void
 pass1()
 {
+	u_int8_t *cp;
 	ino_t inumber;
-	int c, i, cgd;
+	int c, i, cgd, inosused;
+	struct inostat *info;
 	struct inodesc idesc;
 
 	/*
@@ -77,15 +81,84 @@ pass1()
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass1check;
-	inumber = 0;
 	n_files = n_blks = 0;
-	resetinodebuf();
 	for (c = 0; c < sblock.fs_ncg; c++) {
-		for (i = 0; i < sblock.fs_ipg; i++, inumber++) {
-			if (inumber < ROOTINO)
+		inumber = c * sblock.fs_ipg;
+		setinodebuf(inumber);
+		inosused = sblock.fs_ipg;
+		/*
+		 * If we are using soft updates, then we can trust the
+		 * cylinder group inode allocation maps to tell us which
+		 * inodes are allocated. We will scan the used inode map
+		 * to find the inodes that are really in use, and then
+		 * read only those inodes in from disk.
+		 */
+		if (preen && usedsoftdep) {
+			getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
+			if (!cg_chkmagic(&cgrp))
+				pfatal("CG %d: BAD MAGIC NUMBER\n", c);
+			cp = &cg_inosused(&cgrp)[(sblock.fs_ipg - 1) / NBBY];
+			for ( ; inosused > 0; inosused -= NBBY, cp--) {
+				if (*cp == 0)
+					continue;
+				for (i = 1 << (NBBY - 1); i > 0; i >>= 1) {
+					if (*cp & i)
+						break;
+					inosused--;
+				}
+				break;
+			}
+			if (inosused < 0)
+				inosused = 0;
+		}
+		/*
+		 * Allocate inoinfo structures for the allocated inodes.
+		 */
+		inostathead[c].il_numalloced = inosused;
+		if (inosused == 0) {
+			inostathead[c].il_stat = 0;
+			continue;
+		}
+		info = calloc((unsigned)inosused, sizeof(struct inostat));
+		if (info == NULL)
+			pfatal("cannot alloc %u bytes for inoinfo\n",
+			    (unsigned)(sizeof(struct inostat) * inosused));
+		inostathead[c].il_stat = info;
+		/*
+		 * Scan the allocated inodes.
+		 */
+		for (i = 0; i < inosused; i++, inumber++) {
+			if (inumber < ROOTINO) {
+				(void)getnextinode(inumber);
 				continue;
+			}
 			checkinode(inumber, &idesc);
 		}
+		lastino += 1;
+		if (inosused < sblock.fs_ipg || inumber == lastino)
+			continue;
+		/*
+		 * If we were not able to determine in advance which inodes
+		 * were in use, then reduce the size of the inoinfo structure
+		 * to the size necessary to describe the inodes that we
+		 * really found.
+		 */
+		inosused = lastino - (c * sblock.fs_ipg);
+		if (inosused < 0)
+			inosused = 0;
+		inostathead[c].il_numalloced = inosused;
+		if (inosused == 0) {
+			free(inostathead[c].il_stat);
+			inostathead[c].il_stat = 0;
+			continue;
+		}
+		info = calloc((unsigned)inosused, sizeof(struct inostat));
+		if (info == NULL)
+			pfatal("cannot alloc %u bytes for inoinfo\n",
+			    (unsigned)(sizeof(struct inostat) * inosused));
+		memmove(info, inostathead[c].il_stat, inosused * sizeof(*info));
+		free(inostathead[c].il_stat);
+		inostathead[c].il_stat = info;
 	}
 	freeinodebuf();
 }
@@ -116,7 +189,7 @@ checkinode(inumber, idesc)
 				inodirty();
 			}
 		}
-		statemap[inumber] = USTATE;
+		inoinfo(inumber)->ino_state = USTATE;
 		return;
 	}
 	lastino = inumber;
@@ -153,8 +226,8 @@ checkinode(inumber, idesc)
 				errx(EEXIT, "cannot read symlink");
 			if (debug) {
 				symbuf[dp->di_size] = 0;
-				printf("convert symlink %d(%s) of size %d\n",
-					inumber, symbuf, (long)dp->di_size);
+				printf("convert symlink %lu(%s) of size %ld\n",
+				    (u_long)inumber, symbuf, (long)dp->di_size);
 			}
 			dp = ginode(inumber);
 			memmove(dp->di_shortlink, symbuf, (long)dp->di_size);
@@ -178,7 +251,8 @@ checkinode(inumber, idesc)
 	for (j = ndb; j < NDADDR; j++)
 		if (dp->di_db[j] != 0) {
 			if (debug)
-				printf("bad direct addr: %ld\n", dp->di_db[j]);
+				printf("bad direct addr: %ld\n",
+				    (long)dp->di_db[j]);
 			goto unknown;
 		}
 	for (j = 0, ndb -= NDADDR; ndb > 0; j++)
@@ -187,19 +261,21 @@ checkinode(inumber, idesc)
 		if (dp->di_ib[j] != 0) {
 			if (debug)
 				printf("bad indirect addr: %ld\n",
-					dp->di_ib[j]);
+				    (long)dp->di_ib[j]);
 			goto unknown;
 		}
 	if (ftypeok(dp) == 0)
 		goto unknown;
 	n_files++;
-	lncntp[inumber] = dp->di_nlink;
+	inoinfo(inumber)->ino_linkcnt = dp->di_nlink;
 	if (dp->di_nlink <= 0) {
 		zlnp = (struct zlncnt *)malloc(sizeof *zlnp);
 		if (zlnp == NULL) {
 			pfatal("LINK COUNT TABLE OVERFLOW");
-			if (reply("CONTINUE") == 0)
+			if (reply("CONTINUE") == 0) {
+				ckfini(0);
 				exit(EEXIT);
+			}
 		} else {
 			zlnp->zlncnt = inumber;
 			zlnp->next = zlnhead;
@@ -208,13 +284,14 @@ checkinode(inumber, idesc)
 	}
 	if (mode == IFDIR) {
 		if (dp->di_size == 0)
-			statemap[inumber] = DCLEAR;
+			inoinfo(inumber)->ino_state = DCLEAR;
 		else
-			statemap[inumber] = DSTATE;
+			inoinfo(inumber)->ino_state = DSTATE;
 		cacheino(dp, inumber);
+		countdirs++;
 	} else
-		statemap[inumber] = FSTATE;
-	typemap[inumber] = IFTODT(mode);
+		inoinfo(inumber)->ino_state = FSTATE;
+	inoinfo(inumber)->ino_type = IFTODT(mode);
 	if (doinglevel2 &&
 	    (dp->di_ouid != (u_short)-1 || dp->di_ogid != (u_short)-1)) {
 		dp = ginode(inumber);
@@ -242,9 +319,9 @@ checkinode(inumber, idesc)
 	return;
 unknown:
 	pfatal("UNKNOWN FILE TYPE I=%lu", inumber);
-	statemap[inumber] = FCLEAR;
+	inoinfo(inumber)->ino_state = FCLEAR;
 	if (reply("CLEAR") == 1) {
-		statemap[inumber] = USTATE;
+		inoinfo(inumber)->ino_state = USTATE;
 		dp = ginode(inumber);
 		clearinode(dp);
 		inodirty();
@@ -268,8 +345,10 @@ pass1check(idesc)
 				idesc->id_number);
 			if (preen)
 				printf(" (SKIPPING)\n");
-			else if (reply("CONTINUE") == 0)
+			else if (reply("CONTINUE") == 0) {
+				ckfini(0);
 				exit(EEXIT);
+			}
 			return (STOP);
 		}
 	}
@@ -286,15 +365,19 @@ pass1check(idesc)
 					idesc->id_number);
 				if (preen)
 					printf(" (SKIPPING)\n");
-				else if (reply("CONTINUE") == 0)
+				else if (reply("CONTINUE") == 0) {
+					ckfini(0);
 					exit(EEXIT);
+				}
 				return (STOP);
 			}
 			new = (struct dups *)malloc(sizeof(struct dups));
 			if (new == NULL) {
 				pfatal("DUP TABLE OVERFLOW.");
-				if (reply("CONTINUE") == 0)
+				if (reply("CONTINUE") == 0) {
+					ckfini(0);
 					exit(EEXIT);
+				}
 				return (STOP);
 			}
 			new->dup = blkno;

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,12 +62,14 @@ pass2()
 	struct dinode dino;
 	char pathbuf[MAXPATHLEN + 1];
 
-	switch (statemap[ROOTINO]) {
+	switch (inoinfo(ROOTINO)->ino_state) {
 
 	case USTATE:
 		pfatal("ROOT INODE UNALLOCATED");
-		if (reply("ALLOCATE") == 0)
+		if (reply("ALLOCATE") == 0) {
+			ckfini(0);
 			exit(EEXIT);
+		}
 		if (allocdir(ROOTINO, ROOTINO, 0755) != ROOTINO)
 			errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 		break;
@@ -80,8 +82,10 @@ pass2()
 				errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 			break;
 		}
-		if (reply("CONTINUE") == 0)
+		if (reply("CONTINUE") == 0) {
+			ckfini(0);
 			exit(EEXIT);
+		}
 		break;
 
 	case FSTATE:
@@ -93,8 +97,10 @@ pass2()
 				errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
 			break;
 		}
-		if (reply("FIX") == 0)
+		if (reply("FIX") == 0) {
+			ckfini(0);
 			exit(EEXIT);
+		}
 		dp = ginode(ROOTINO);
 		dp->di_mode &= ~IFMT;
 		dp->di_mode |= IFDIR;
@@ -105,12 +111,13 @@ pass2()
 		break;
 
 	default:
-		errx(EEXIT, "BAD STATE %d FOR ROOT INODE", statemap[ROOTINO]);
+		errx(EEXIT, "BAD STATE %d FOR ROOT INODE",
+		    inoinfo(ROOTINO)->ino_state);
 	}
-	statemap[ROOTINO] = DFOUND;
+	inoinfo(ROOTINO)->ino_state = DFOUND;
 	if (newinofmt) {
-		statemap[WINO] = FSTATE;
-		typemap[WINO] = DT_WHT;
+		inoinfo(WINO)->ino_state = FSTATE;
+		inoinfo(WINO)->ino_type = DT_WHT;
 	}
 	/*
 	 * Sort the directory list into disk block order.
@@ -139,8 +146,14 @@ pass2()
 			}
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
-			pwarn("DIRECTORY %s: LENGTH %d NOT MULTIPLE OF %d",
-				pathbuf, inp->i_isize, DIRBLKSIZ);
+			if (usedsoftdep)
+				pfatal("%s %s: LENGTH %d NOT MULTIPLE OF %d",
+					"DIRECTORY", pathbuf, inp->i_isize,
+					DIRBLKSIZ);
+			else
+				pwarn("%s %s: LENGTH %d NOT MULTIPLE OF %d",
+					"DIRECTORY", pathbuf, inp->i_isize,
+					DIRBLKSIZ);
 			if (preen)
 				printf(" (ADJUSTED)\n");
 			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
@@ -167,9 +180,9 @@ pass2()
 		inp = *inpp;
 		if (inp->i_parent == 0 || inp->i_isize == 0)
 			continue;
-		if (statemap[inp->i_parent] == DFOUND &&
-		    statemap[inp->i_number] == DSTATE)
-			statemap[inp->i_number] = DFOUND;
+		if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
+		    inoinfo(inp->i_number)->ino_state == DSTATE)
+			inoinfo(inp->i_number)->ino_state = DFOUND;
 		if (inp->i_dotdot == inp->i_parent ||
 		    inp->i_dotdot == (ino_t)-1)
 			continue;
@@ -179,15 +192,15 @@ pass2()
 			if (reply("FIX") == 0)
 				continue;
 			(void)makeentry(inp->i_number, inp->i_parent, "..");
-			lncntp[inp->i_parent]--;
+			inoinfo(inp->i_parent)->ino_linkcnt--;
 			continue;
 		}
 		fileerror(inp->i_parent, inp->i_number,
 		    "BAD INODE NUMBER FOR '..'");
 		if (reply("FIX") == 0)
 			continue;
-		lncntp[inp->i_dotdot]++;
-		lncntp[inp->i_parent]--;
+		inoinfo(inp->i_dotdot)->ino_linkcnt++;
+		inoinfo(inp->i_parent)->ino_linkcnt--;
 		inp->i_dotdot = inp->i_parent;
 		(void)changeino(inp->i_number, "..", inp->i_parent);
 	}
@@ -214,10 +227,10 @@ pass2check(idesc)
 	 * If converting, set directory entry type.
 	 */
 	if (doinglevel2 && dirp->d_ino > 0 && dirp->d_ino < maxino) {
-		dirp->d_type = typemap[dirp->d_ino];
+		dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
 		ret |= ALTERED;
 	}
-	/* 
+	/*
 	 * check for "."
 	 */
 	if (idesc->id_entryno != 0)
@@ -270,7 +283,7 @@ pass2check(idesc)
 		proto.d_reclen = entrysize;
 		memmove(dirp, &proto, (size_t)entrysize);
 		idesc->id_entryno++;
-		lncntp[dirp->d_ino]--;
+		inoinfo(dirp->d_ino)->ino_linkcnt--;
 		dirp = (struct direct *)((char *)(dirp) + entrysize);
 		memset(dirp, 0, (size_t)n);
 		dirp->d_reclen = n;
@@ -305,7 +318,7 @@ chk1:
 		proto.d_reclen = dirp->d_reclen - n;
 		dirp->d_reclen = n;
 		idesc->id_entryno++;
-		lncntp[dirp->d_ino]--;
+		inoinfo(dirp->d_ino)->ino_linkcnt--;
 		dirp = (struct direct *)((char *)(dirp) + n);
 		memset(dirp, 0, (size_t)proto.d_reclen);
 		dirp->d_reclen = proto.d_reclen;
@@ -342,7 +355,7 @@ chk1:
 	}
 	idesc->id_entryno++;
 	if (dirp->d_ino != 0)
-		lncntp[dirp->d_ino]--;
+		inoinfo(dirp->d_ino)->ino_linkcnt--;
 	return (ret|KEEPON);
 chk2:
 	if (dirp->d_ino == 0)
@@ -380,7 +393,7 @@ chk2:
 			ret |= ALTERED;
 	} else {
 again:
-		switch (statemap[dirp->d_ino]) {
+		switch (inoinfo(dirp->d_ino)->ino_state) {
 		case USTATE:
 			if (idesc->id_entryno <= 2)
 				break;
@@ -392,9 +405,9 @@ again:
 		case FCLEAR:
 			if (idesc->id_entryno <= 2)
 				break;
-			if (statemap[dirp->d_ino] == FCLEAR)
+			if (inoinfo(dirp->d_ino)->ino_state == FCLEAR)
 				errmsg = "DUP/BAD";
-			else if (!preen)
+			else if (!preen && !usedsoftdep)
 				errmsg = "ZERO LENGTH DIRECTORY";
 			else {
 				n = 1;
@@ -404,14 +417,14 @@ again:
 			if ((n = reply("REMOVE")) == 1)
 				break;
 			dp = ginode(dirp->d_ino);
-			statemap[dirp->d_ino] =
+			inoinfo(dirp->d_ino)->ino_state =
 			    (dp->di_mode & IFMT) == IFDIR ? DSTATE : FSTATE;
-			lncntp[dirp->d_ino] = dp->di_nlink;
+			inoinfo(dirp->d_ino)->ino_linkcnt = dp->di_nlink;
 			goto again;
 
 		case DSTATE:
-			if (statemap[idesc->id_number] == DFOUND)
-				statemap[dirp->d_ino] = DFOUND;
+			if (inoinfo(idesc->id_number)->ino_state == DFOUND)
+				inoinfo(dirp->d_ino)->ino_state = DFOUND;
 			/* fall through */
 
 		case DFOUND:
@@ -423,9 +436,12 @@ again:
 				pwarn("%s %s %s\n", pathbuf,
 				    "IS AN EXTRANEOUS HARD LINK TO DIRECTORY",
 				    namebuf);
-				if (preen)
-					printf(" (IGNORED)\n");
-				else if ((n = reply("REMOVE")) == 1)
+				if (preen) {
+					printf(" (REMOVED)\n");
+					n = 1;
+					break;
+				}
+				if ((n = reply("REMOVE")) == 1)
 					break;
 			}
 			if (idesc->id_entryno > 2)
@@ -433,19 +449,20 @@ again:
 			/* fall through */
 
 		case FSTATE:
-			if (newinofmt && dirp->d_type != typemap[dirp->d_ino]) {
+			if (newinofmt &&
+			    dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {
 				fileerror(idesc->id_number, dirp->d_ino,
 				    "BAD TYPE VALUE");
-				dirp->d_type = typemap[dirp->d_ino];
+				dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
 				if (reply("FIX") == 1)
 					ret |= ALTERED;
 			}
-			lncntp[dirp->d_ino]--;
+			inoinfo(dirp->d_ino)->ino_linkcnt--;
 			break;
 
 		default:
 			errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-			    statemap[dirp->d_ino], dirp->d_ino);
+			    inoinfo(dirp->d_ino)->ino_state, dirp->d_ino);
 		}
 	}
 	if (n == 0)

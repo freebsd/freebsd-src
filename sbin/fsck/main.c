@@ -32,50 +32,47 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
+static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <fstab.h>
 #include <string.h>
 
 #include "fsck.h"
 
-int	returntosingle;
-
 static int argtoi __P((int flag, char *req, char *str, int base));
 static int docheck __P((struct fstab *fsp));
 static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
 		int child));
-void main __P((int argc, char *argv[]));
+int main __P((int argc, char *argv[]));
 
-void
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
 {
 	int ch;
 	int ret, maxrun = 0;
-	extern char *optarg;
-	extern int optind;
+	struct rlimit rlimit;
 
 	sync();
-	while ((ch = getopt(argc, argv, "dpnNyYb:c:l:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != -1) {
 		switch (ch) {
 		case 'p':
 			preen++;
@@ -89,9 +86,13 @@ main(argc, argv)
 		case 'c':
 			cvtlevel = argtoi('c', "conversion level", optarg, 10);
 			break;
-		
+
 		case 'd':
 			debug++;
+			break;
+
+		case 'f':
+			fflag++;
 			break;
 
 		case 'l':
@@ -127,9 +128,24 @@ main(argc, argv)
 		(void)signal(SIGINT, catch);
 	if (preen)
 		(void)signal(SIGQUIT, catchquit);
+	/*
+	 * Push up our allowed memory limit so we can cope
+	 * with huge filesystems.
+	 */
+	if (getrlimit(RLIMIT_DATA, &rlimit) == 0) {
+		rlimit.rlim_cur = rlimit.rlim_max;
+		(void)setrlimit(RLIMIT_DATA, &rlimit);
+	}
 	if (argc) {
-		while (argc-- > 0)
-			(void)checkfilesys(blockcheck(*argv++), 0, 0L, 0);
+		while (argc-- > 0) {
+			char *path = blockcheck(*argv);
+
+			if (path == NULL)
+				pfatal("Can't check %s\n", *argv);
+			else
+				(void)checkfilesys(path, 0, 0L, 0);
+			++argv;
+		}
 		exit(0);
 	}
 	ret = checkfstab(preen, maxrun, docheck, checkfilesys);
@@ -198,6 +214,11 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		return (0);
 	}
 	/*
+	 * Cleared if any questions answered no. Used to decide if
+	 * the superblock should be marked clean.
+	 */
+	resolved = 1;
+	/*
 	 * 1: scan inodes tallying blocks used
 	 */
 	if (preen == 0) {
@@ -212,7 +233,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 * 1b: locate first references to duplicates, if any
 	 */
 	if (duplist) {
-		if (preen)
+		if (preen || usedsoftdep)
 			pfatal("INTERNAL ERROR: dups with -p");
 		printf("** Phase 1b - Rescan For More DUPS\n");
 		pass1b();
@@ -253,29 +274,28 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
 	pwarn("%ld files, %ld used, %ld free ",
 	    n_files, n_blks, n_ffree + sblock.fs_frag * n_bfree);
-	printf("(%ld frags, %ld blocks, %d.%d%% fragmentation)\n",
-	    n_ffree, n_bfree, (n_ffree * 100) / sblock.fs_dsize,
-	    ((n_ffree * 1000 + sblock.fs_dsize / 2) / sblock.fs_dsize) % 10);
+	printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
+	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug &&
 	    (n_files -= maxino - ROOTINO - sblock.fs_cstotal.cs_nifree))
-		printf("%ld files missing\n", n_files);
+		printf("%d files missing\n", n_files);
 	if (debug) {
 		n_blks += sblock.fs_ncg *
 			(cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
 		n_blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
 		n_blks += howmany(sblock.fs_cssize, sblock.fs_fsize);
 		if (n_blks -= maxfsblock - (n_ffree + sblock.fs_frag * n_bfree))
-			printf("%ld blocks missing\n", n_blks);
+			printf("%d blocks missing\n", n_blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
-				printf(" %ld,", dp->dup);
+				printf(" %d,", dp->dup);
 			printf("\n");
 		}
 		if (zlnhead != NULL) {
 			printf("The following zero link count inodes remain:");
 			for (zlnp = zlnhead; zlnp; zlnp = zlnp->next)
-				printf(" %lu,", zlnp->zlncnt);
+				printf(" %u,", zlnp->zlncnt);
 			printf("\n");
 		}
 	}
@@ -284,37 +304,41 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	muldup = (struct dups *)0;
 	inocleanup();
 	if (fsmodified) {
-		(void)time(&sblock.fs_time);
+		sblock.fs_time = time(NULL);
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
-		/* 
+		/*
 		 * Write out the duplicate super blocks
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
 			bwrite(fswritefd, (char *)&sblock,
 			    fsbtodb(&sblock, cgsblock(&sblock, cylno)), SBSIZE);
 	}
-	if (!hotroot) {
-		ckfini(1);
-	} else {
+	if (rerun)
+		resolved = 0;
+	flags = 0;
+	if (hotroot) {
 		struct statfs stfs_buf;
 		/*
 		 * Check to see if root is mounted read-write.
 		 */
 		if (statfs("/", &stfs_buf) == 0)
 			flags = stfs_buf.f_flags;
-		else
-			flags = 0;
-		ckfini(flags & MNT_RDONLY);
+		if ((flags & MNT_RDONLY) == 0)
+			resolved = 0;
 	}
-	free(blockmap);
-	free(statemap);
-	free((char *)lncntp);
-	if (!fsmodified)
-		return (0);
-	if (!preen)
+	ckfini(resolved);
+
+	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
+		if (inostathead[cylno].il_stat != NULL)
+			free((char *)inostathead[cylno].il_stat);
+	free((char *)inostathead);
+	inostathead = NULL;
+	if (fsmodified && !preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
+	if (rerun)
+		printf("\n***** PLEASE RERUN FSCK *****\n");
 	if (hotroot) {
 		struct ufs_args args;
 		int ret;
@@ -331,6 +355,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			if (ret == 0)
 				return (0);
 		}
+		if (!fsmodified)
+			return (0);
 		if (!preen)
 			printf("\n***** REBOOT NOW *****\n");
 		sync();

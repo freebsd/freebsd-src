@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
+static const char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,7 +42,6 @@ static char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <string.h>
 
@@ -87,6 +86,7 @@ reply(question)
 	printf("\n");
 	if (!persevere && (nflag || fswritefd < 0)) {
 		printf("%s? no\n\n", question);
+		resolved = 0;
 		return (0);
 	}
 	if (yflag || (persevere && nflag)) {
@@ -97,14 +97,38 @@ reply(question)
 		printf("%s? [yn] ", question);
 		(void) fflush(stdout);
 		c = getc(stdin);
-		while (c != '\n' && getc(stdin) != '\n')
-			if (feof(stdin))
+		while (c != '\n' && getc(stdin) != '\n') {
+			if (feof(stdin)) {
+				resolved = 0;
 				return (0);
+			}
+		}
 	} while (c != 'y' && c != 'Y' && c != 'n' && c != 'N');
 	printf("\n");
 	if (c == 'y' || c == 'Y')
 		return (1);
+	resolved = 0;
 	return (0);
+}
+
+/*
+ * Look up state information for an inode.
+ */
+struct inostat *
+inoinfo(inum)
+	ino_t inum;
+{
+	static struct inostat unallocated = { USTATE, 0, 0 };
+	struct inostatlist *ilp;
+	int iloff;
+
+	if (inum > maxino)
+		errx(EEXIT, "inoinfo: inumber %d out of range", inum);
+	ilp = &inostathead[inum / sblock.fs_ipg];
+	iloff = inum % sblock.fs_ipg;
+	if (iloff >= ilp->il_numalloced)
+		return (&unallocated);
+	return (&ilp->il_stat[iloff]);
 }
 
 /*
@@ -264,14 +288,21 @@ ckfini(markclean)
 	if (bufhead.b_size != cnt)
 		errx(EEXIT, "Panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
-	if (markclean && sblock.fs_clean == 0) {
-		sblock.fs_clean = 1;
+	if (sblock.fs_clean != markclean) {
+		sblock.fs_clean = markclean;
 		sbdirty();
 		ofsmodified = fsmodified;
 		flush(fswritefd, &sblk);
 		fsmodified = ofsmodified;
-		if (!preen)
-			printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
+		if (!preen) {
+			printf("\n***** FILE SYSTEM MARKED %s *****\n",
+			    markclean ? "CLEAN" : "DIRTY");
+			if (!markclean)
+				rerun = 1;
+		}
+	} else if (!preen && !markclean) {
+		printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
+		rerun = 1;
 	}
 	if (debug)
 		printf("cache missed %ld of %ld (%d%%)\n", diskreads,
@@ -316,6 +347,8 @@ bread(fd, buf, blk, size)
 		}
 	}
 	printf("\n");
+	if (errs)
+		resolved = 0;
 	return (errs);
 }
 
@@ -340,6 +373,7 @@ bwrite(fd, buf, blk, size)
 		fsmodified = 1;
 		return;
 	}
+	resolved = 0;
 	rwerror("WRITE", blk);
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK", blk);
@@ -360,7 +394,8 @@ ufs_daddr_t
 allocblk(frags)
 	long frags;
 {
-	register int i, j, k;
+	int i, j, k, cg, baseblk;
+	struct cg *cgp = &cgrp;
 
 	if (frags <= 0 || frags > sblock.fs_frag)
 		return (0);
@@ -375,9 +410,21 @@ allocblk(frags)
 				j += k;
 				continue;
 			}
-			for (k = 0; k < frags; k++)
+			cg = dtog(&sblock, i + j);
+			getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
+			if (!cg_chkmagic(cgp))
+				pfatal("CG %d: BAD MAGIC NUMBER\n", cg);
+			baseblk = dtogd(&sblock, i + j);
+			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
+				clrbit(cg_blksfree(cgp), baseblk + k);
+			}
 			n_blks += frags;
+			if (frags == sblock.fs_frag)
+				cgp->cg_cs.cs_nbfree--;
+			else
+				cgp->cg_cs.cs_nffree -= frags;
+			cgdirty();
 			return (i + j);
 		}
 	}
@@ -411,14 +458,14 @@ getpathname(namebuf, curdir, ino)
 	register char *cp;
 	struct inodesc idesc;
 	static int busy = 0;
-	extern int findname();
 
 	if (curdir == ino && ino == ROOTINO) {
 		(void)strcpy(namebuf, "/");
 		return;
 	}
 	if (busy ||
-	    (statemap[curdir] != DSTATE && statemap[curdir] != DFOUND)) {
+	    (inoinfo(curdir)->ino_state != DSTATE &&
+	     inoinfo(curdir)->ino_state != DFOUND)) {
 		(void)strcpy(namebuf, "?");
 		return;
 	}
@@ -477,7 +524,6 @@ void
 catchquit(sig)
 	int sig;
 {
-	extern returntosingle;
 
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
@@ -548,7 +594,8 @@ dofix(idesc, msg)
 
 /*
  * An unexpected inconsistency occured.
- * Die if preening, otherwise just print message and continue.
+ * Die if preening or filesystem is running with soft dependency protocol,
+ * otherwise just print message and continue.
  */
 void
 #if __STDC__
@@ -568,19 +615,25 @@ pfatal(fmt, va_alist)
 	if (!preen) {
 		(void)vfprintf(stderr, fmt, ap);
 		va_end(ap);
+		if (usedsoftdep)
+			(void)fprintf(stderr,
+			    "\nUNEXPECTED SOFT UPDATE INCONSISTENCY\n");
 		return;
 	}
+	if (cdevname == NULL)
+		cdevname = "fsck";
 	(void)fprintf(stderr, "%s: ", cdevname);
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr,
-	    "\n%s: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.\n",
-	    cdevname);
+	    "\n%s: UNEXPECTED%sINCONSISTENCY; RUN fsck MANUALLY.\n",
+	    cdevname, usedsoftdep ? " SOFT UPDATE " : " ");
+	ckfini(0);
 	exit(EEXIT);
 }
 
 /*
- * Pwarn just prints a message when not preening,
- * or a warning (preceded by filename) when preening.
+ * Pwarn just prints a message when not preening or running soft dependency
+ * protocol, or a warning (preceded by filename) when preening.
  */
 void
 #if __STDC__

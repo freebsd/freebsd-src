@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #include <ufs/ufs/dinode.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <fstab.h>
 #include <string.h>
 
@@ -206,12 +207,13 @@ finddisk(name)
 	register char *p;
 	size_t len;
 
-	for (len = strlen(name), p = name + len - 1; p >= name; --p)
-		if (isdigit(*p)) {
-			len = p - name + 1;
-			break;
-		}
-
+	p = strrchr(name, '/');
+	p = p == NULL ? name : p + 1;
+	while (*p != '\0' && !isdigit((u_char)*p))
+		p++;
+	while (isdigit((u_char)*p))
+		p++;
+	len = (size_t)(p - name);
 	for (dk = disks, dkp = &disks; dk; dkp = &dk->next, dk = dk->next) {
 		if (strncmp(dk->name, name, len) == 0 &&
 		    dk->name[len] == 0)
@@ -291,19 +293,18 @@ blockcheck(origname)
 {
 	struct stat stslash, stblock, stchar;
 	char *newname, *raw;
-	int retried = 0;
+	struct fstab *fsinfo;
+	int retried = 0, len;
 
 	hotroot = 0;
 	if (stat("/", &stslash) < 0) {
-		perror("/");
-		printf("Can't stat root\n");
+		printf("Can't stat /: %s\n", strerror(errno));
 		return (origname);
 	}
 	newname = origname;
 retry:
 	if (stat(newname, &stblock) < 0) {
-		perror(newname);
-		printf("Can't stat %s\n", newname);
+		printf("Can't stat %s: %s\n", newname, strerror(errno));
 		return (origname);
 	}
 	if ((stblock.st_mode & S_IFMT) == S_IFBLK) {
@@ -311,8 +312,7 @@ retry:
 			hotroot++;
 		raw = rawname(newname);
 		if (stat(raw, &stchar) < 0) {
-			perror(raw);
-			printf("Can't stat %s\n", raw);
+			printf("Can't stat %s: %s\n", raw, strerror(errno));
 			return (origname);
 		}
 		if ((stchar.st_mode & S_IFMT) == S_IFCHR) {
@@ -323,6 +323,19 @@ retry:
 		}
 	} else if ((stblock.st_mode & S_IFMT) == S_IFCHR && !retried) {
 		newname = unrawname(newname);
+		retried++;
+		goto retry;
+	} else if ((stblock.st_mode & S_IFMT) == S_IFDIR && !retried) {
+		len = strlen(origname) - 1;
+		if (len > 0 && origname[len] == '/')
+			/* remove trailing slash */
+			origname[len] = '\0';
+		if ((fsinfo = getfsfile(origname)) == NULL) {
+			printf("Can't resolve %s to character special device",
+			    origname);
+			return (0);
+		}
+		newname = fsinfo->fs_spec;
 		retried++;
 		goto retry;
 	}
