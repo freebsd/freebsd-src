@@ -157,14 +157,17 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 		if (IS_SCSI(isp)) {
 			u_int16_t oflags, nflags;
 			sdparam *sdp = isp->isp_param;
-			int s, tgt = xpt_path_target_id(path);
+			int s, rvf, tgt;
 
+			tgt = xpt_path_target_id(path);
+			rvf = ISP_FW_REVX(isp->isp_fwrev);
 			s = splcam();
 			sdp += cam_sim_bus(sim);
 			isp->isp_update |= (1 << cam_sim_bus(sim));
 			nflags = DPARM_SAFE_DFLT;
-			if (ISP_FW_REVX(isp->isp_fwrev) >=
-			    ISP_FW_REV(7, 55, 0)) {
+			if (rvf >= ISP_FW_REV(7, 55, 0) ||
+			   (ISP_FW_REV(4, 55, 0) <= rvf &&
+			   (rvf < ISP_FW_REV(5, 0, 0)))) {
 				nflags |= DPARM_NARROW | DPARM_ASYNC;
 			}
 			oflags = sdp->isp_devparam[tgt].dev_flags;
