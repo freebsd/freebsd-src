@@ -875,6 +875,7 @@ tcp_connect(tp, nam, td)
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
 	tp->iss = tcp_new_isn(tp);
+	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	/*
@@ -961,6 +962,7 @@ tcp6_connect(tp, nam, td)
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
 	tp->iss = tcp_new_isn(tp);
+	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	/*
