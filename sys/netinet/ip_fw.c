@@ -1654,9 +1654,9 @@ add_entry(struct ip_fw_head *head, struct ip_fw *rule)
 
 	/* If entry number is 0, find highest numbered rule and add 100 */
 	if (ftmp->fw_number == 0) {
-		LIST_FOREACH(ftmp, head, next) {
-			if (ftmp->fw_number != IPFW_DEFAULT_RULE)
-				nbr = ftmp->fw_number;
+		LIST_FOREACH(fcp, head, next) {
+			if (fcp->fw_number != IPFW_DEFAULT_RULE)
+				nbr = fcp->fw_number;
 			else
 				break;
 		}
