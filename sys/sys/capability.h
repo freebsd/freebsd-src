@@ -173,6 +173,10 @@ typedef	_BSD_SSIZE_T_	ssize_t;
 
 int	__cap_get_proc(struct cap *);
 int	__cap_set_proc(struct cap *);
+int	__cap_get_fd(int, struct cap *);
+int	__cap_get_file(const char *, struct cap *);
+int	__cap_set_fd(int, struct cap *);
+int	__cap_set_file(const char *, struct cap *);
 
 int	cap_clear(cap_t);
 ssize_t	cap_copy_ext(void *, cap_t, ssize_t);
