@@ -235,7 +235,7 @@ twe_attach(device_t dev)
 			   NULL, NULL, 				/* filter, filterarg */
 			   MAXBSIZE, TWE_MAX_SGL_LENGTH,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,			/* flags */
+			   0,					/* flags */
 			   NULL,				/* lockfunc */
 			   NULL,				/* lockarg */
 			   &sc->twe_parent_dmat)) {
@@ -271,7 +271,7 @@ twe_attach(device_t dev)
 			   sizeof(TWE_Command) *
 			   TWE_Q_LENGTH, 1,		/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,				/* flags */
 			   NULL,			/* lockfunc */
 			   NULL,			/* lockarg */
 			   &sc->twe_cmd_dmat)) {
@@ -302,7 +302,7 @@ twe_attach(device_t dev)
 			   NULL, NULL, 			/* filter, filterarg */
 			   MAXBSIZE, TWE_MAX_SGL_LENGTH,/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   0,				/* flags */
+			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &Giant,			/* lockarg */
 			   &sc->twe_buffer_dmat)) {
@@ -321,7 +321,7 @@ twe_attach(device_t dev)
 			   NULL, NULL, 			/* filter, filterarg */
 			   MAXBSIZE, 1,			/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,				/* flags */
 			   NULL,			/* lockfunc */
 			   NULL,			/* lockarg */
 			   &sc->twe_immediate_dmat)) {
