@@ -246,7 +246,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->dt_lockfunc = dflt_lock;
 		newtag->dt_lockfuncarg = NULL;
 	}
- 
+
 	newtag->dt_segments = NULL;
 
 	/* Take into account any restrictions imposed by our parent tag */
@@ -262,6 +262,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			    newtag->dt_boundary);
 		atomic_add_int(&parent->dt_ref_count, 1);
 	}
+
+	if (newtag->dt_boundary > 0)
+		newtag->dt_maxsegsz = ulmin(newtag->dt_maxsegsz,
+		    newtag->dt_boundary);
 
 	*dmat = newtag;
 	return (0);
