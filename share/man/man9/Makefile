@@ -20,7 +20,8 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_REVOKE.9 VOP_SETACL.9 VOP_SETEXTATTR.9 VOP_STRATEGY.9 \
 	accept_filter.9 accf_data.9 accf_http.9 acl.9 atomic.9 \
-	bios.9 boot.9 buf.9 bus_alloc_resource.9 bus_generic_attach.9 \
+	bios.9 boot.9 buf.9 bus_alloc_resource.9 bus_child_present.9 \
+	bus_generic_attach.9 \
 	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
