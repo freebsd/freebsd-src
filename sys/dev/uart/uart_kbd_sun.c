@@ -224,7 +224,9 @@ sunkbd_attach(struct uart_softc *sc)
 	if (sc->sc_sysdev != NULL) {
 		sunkbd_softc.sc_uart = sc;
 
+#ifdef KBD_INSTALL_CDEV
 		kbd_attach(&sunkbd_softc.sc_kbd);
+#endif
 		sunkbd_enable(&sunkbd_softc.sc_kbd);
 
 		swi_add(&tty_ithd, uart_driver_name, sunkbd_uart_intr,
