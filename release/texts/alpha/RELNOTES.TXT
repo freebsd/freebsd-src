@@ -119,6 +119,8 @@ that can dramatically reduce the efficiency of multiple processors.
 Interrupt handlers now have contexts associated with them that allow
 them to be blocked, which reduces the need to lock out interrupts.
 
+SMP support for the Alpha is now operational.
+
 The kernel and modules have been moved to the directory /boot/kernel,
 so they can be easily manipulated together.  The boot loader has been
 updated to make this change as seamless as possible.
@@ -347,7 +349,7 @@ The directory layout preference algorithm for FFS has been changed to
 improve its speed on large filesystems.
 
 The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
-(10/100/1000) adapters.
+(10/100/1000) adapters. [MERGED]
 
 The labpc(4) driver has been removed due to bitrot.
 
