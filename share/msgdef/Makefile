@@ -18,6 +18,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		fr_BE.ISO8859-1 \
 		fr_CH.ISO8859-1 \
 		fr_FR.ISO8859-1 \
+		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
@@ -37,6 +38,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		uk_UA.KOI8-U \
 		ko_KR.eucKR \
 		ja_JP.eucJP \
+		ja_JP.SJIS \
 		zh_TW.Big5 \
 		zh_CN.eucCN
 
@@ -52,6 +54,7 @@ DE_LINKS=	de_AT de_CH
 CZ_LINKS=	sk_SK
 IT_LINKS=	it_CH
 NL_LINKS=	nl_BE
+PT_LINKS=	pt_BR
 
 .SUFFIXES: .src .out
 
@@ -106,6 +109,10 @@ afterinstall:
 .for link in ${CZ_LINKS}
 	ln -sf ../cs_CZ.ISO8859-2/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-2/LC_MESSAGES
+.endfor
+.for link in ${PT_LINKS}
+	ln -sf ../pt_PT.ISO8859-1/LC_MESSAGES \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
 .endfor
 .for link in ${ASCIILINKS}
 	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
