@@ -182,7 +182,7 @@ devmenu_common(const char *title, const char *hfile, char **devnames,
 
 	name = resbuf;
 
-	if(dialog_menu((char *)title, prompt, 24, 78, nitems, nitems, items,
+	if(dialog_menu((char *)title, prompt, 24, 78, 18, nitems, items,
 		       resbuf, 0, 0) != 0) {
 		name = "none";
 	} 
