@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.1 1998/08/31 01:08:08 jb Exp $
+#	$Id: Makefile.inc1,v 1.2 1998/08/31 20:43:13 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -222,7 +222,7 @@ IXMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-buildworld:
+buildworld: check-objformat
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -938,6 +938,29 @@ legacy-install:
 	@echo " Installing legacy boot"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/sys/i386/boot; ${MAKE} -DNOMAN install
+.endif
+
+
+# Get the object format that the tools see.
+#
+#
+.if exists(/usr/bin/objformat)
+__OBJFORMAT!=	objformat
+.else
+__OBJFORMAT=	${OBJFORMAT}
+.endif
+
+#
+# Check if the local /etc/make.conf or /etc/make.conf.local have attempted
+# to override the OBJFORMAT without updating the environment for the tools
+# to see.
+#
+check-objformat	:
+.if	${__OBJFORMAT} != ${OBJFORMAT}
+	@/bin/sh -c "echo \"It looks like you set OBJFORMAT=${OBJFORMAT} in /etc/make.conf. Don't do that!\" "
+	@/bin/sh -c "echo \"If you want to override the installed object format, you must set OBJFORMAT\" "
+	@/bin/sh -c "echo \"in your environment.\" "
+	@exit 1
 .endif
 
 
