@@ -1207,7 +1207,7 @@ unisig_set_attrs(usp, msg, ap)
 		bcopy(&ie_cgad_absent,
 				&msg->msg_ie_cgad->ie_u.ie_cgad,
 				sizeof(ie_cgad_absent));
-		msg->msg_ie_cgsa->ie_ident = UNI_IE_CGSA;
+		msg->msg_ie_cgad->ie_ident = UNI_IE_CGAD;
 		ATM_ADDR_COPY(&ap->calling.addr,
 				&msg->msg_ie_cgad->ie_cgad_addr);
 
