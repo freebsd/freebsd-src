@@ -111,7 +111,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 static void
 intr_stray_level(struct trapframe *tf)
 {
-	printf("stray level interrupt %d\n", tf->tf_level);
+	printf("stray level interrupt %ld\n", tf->tf_level);
 }
 
 static void

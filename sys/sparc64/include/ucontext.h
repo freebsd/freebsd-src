@@ -32,14 +32,32 @@
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
-typedef struct __mcontext {
-	long	mc_global[8];
-	long	mc_out[8];
-	long	mc_onstack;
-	long	mc_tpc;
-	long	mc_tnpc;
-	long	mc_tstate;
-	long	mc_spare[2];
-} mcontext_t;
+struct __mcontext {
+	uint64_t mc_global[8];
+	uint64_t mc_out[8];
+	uint64_t mc_local[8];
+	uint64_t mc_in[8];
+	uint32_t mc_fp[64];
+} __aligned(64);
+
+typedef struct __mcontext mcontext_t;
+
+#define	mc_flags	mc_global[0]
+#define	mc_sp           mc_out[6]
+#define	mc_fprs         mc_local[0]
+#define	mc_fsr		mc_local[1]
+#define	mc_gsr		mc_local[2]
+#define	mc_tnpc         mc_in[0]
+#define	mc_tpc          mc_in[1]
+#define	mc_tstate       mc_in[2]
+#define	mc_y            mc_in[4]
+
+#define	_MC_VERSION_SHIFT	0
+#define	_MC_VERSION_BITS	32
+#define	_MC_VERSION		1L
+
+#define	_MC_FLAGS_SHIFT		32
+#define	_MC_FLAGS_BITS		32
+#define	_MC_VOLUNTARY		((1L << 0) << _MC_FLAGS_SHIFT)
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
