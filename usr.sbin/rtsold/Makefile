@@ -19,7 +19,7 @@ MAN=	rtsold.8
 MLINKS=	rtsold.8 rtsol.8
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
-CFLAGS+= -DINET6 -DHAVE_GETIFADDRS -DHAVE_ARC4RANDOM
+CFLAGS+= -DINET6 -DHAVE_ARC4RANDOM
 
 DPADD=	${LIBKVM}
 LDADD=	-lkvm

@@ -751,9 +751,6 @@ warnmsg(priority, func, msg, va_alist)
 static char **
 autoifprobe()
 {
-#ifndef HAVE_GETIFADDRS
-	errx(1, "-a is not available with the configuration");
-#else
 	static char ifname[IFNAMSIZ + 1];
 	static char *argv[2];
 	struct ifaddrs *ifap, *ifa, *target;
@@ -804,5 +801,4 @@ autoifprobe()
 		return argv;
 	else
 		return (char **)NULL;
-#endif
 }
