@@ -2256,10 +2256,8 @@ test_char:
 	ep = line;
 	while (*ep)
 	    ++ep;
-	while (ep > line && (ep[-1] == ' ' || ep[-1] == '\t')) {
-	    if (ep > line + 1 && ep[-2] == '\\')
-		break;
-	    if (ep == line + 1 && ep[-1] == '\t')
+	while (ep > line + 1 && (ep[-1] == ' ' || ep[-1] == '\t')) {
+	    if (ep[-2] == '\\')
 		break;
 	    --ep;
 	}
@@ -2405,7 +2403,7 @@ Parse_File(name, stream)
 		    goto nextLine;
 		}
 	    }
-	    if (*line == '#' || *line == '\0') {
+	    if (*line == '#') {
 		/* If we're this far, the line must be a comment. */
 		goto nextLine;
 	    }
