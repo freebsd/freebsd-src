@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.12 1995/10/21 14:06:32 jkh Exp $
+ * $Id: dist.c,v 1.36.2.13 1995/10/22 01:32:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -324,8 +324,10 @@ distExtract(char *parent, Distribution *me)
 	    mediaDevice->close(mediaDevice, fd);
 	    goto done;
 	}
-	else if (fd == -2)	/* Hard error, can't continue */
+	else if (fd == -2) {	/* Hard error, can't continue */
+	    mediaDevice->shutdown(mediaDevice);
 	    return FALSE;
+	}
 
 	/*
 	 * If we couldn't get it as one file then we need to get multiple pieces; locate and parse an

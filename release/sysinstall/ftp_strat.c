@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.21 1995/10/21 20:03:04 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.22 1995/10/22 01:32:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -109,6 +109,7 @@ ftpShouldAbort(Device *dev, int retries)
 
     cp = variable_get(VAR_FTP_ONERROR);
     if (cp && !strcmp(cp, "abort")) {
+	msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
 	reselectCount = 0;
 	return 1;
@@ -148,7 +149,7 @@ mediaInitFTP(Device *dev)
     hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
-	goto punt;
+	return FALSE;
     }
     strncpy(url, cp, BUFSIZ);
     if (isDebug())
@@ -171,7 +172,7 @@ mediaInitFTP(Device *dev)
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		   "name server, gateway and network interface are configured?", hostname);
-	goto punt;
+	return FALSE;
     }
     user = variable_get(VAR_FTP_USER);
     if (!user || !*user) {
@@ -202,7 +203,7 @@ retry:
 	if ((i = FtpChdir(ftp, dir)) != 0) {
 	    if (i == -2 || ftpShouldAbort(dev, ++retries))
 		goto punt;
-	    if (get_new_host(dev, FALSE))
+	    else if (get_new_host(dev, FALSE))
 		retries = 0;
 	    goto retry;
 	}
@@ -217,7 +218,8 @@ retry:
     return TRUE;
 
 punt:
-    mediaShutdownFTP(dev);
+    dev->shutdown(dev);
+    dev->init(dev);
     /* We used to shut down network here - not anymore */
     return FALSE;
 }
@@ -233,13 +235,11 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     fp = file;
     nretries = 0;
 
-    if (!dev->init(dev))
-	return -2;
-    msgDebug("Attempting to get %s from FTP.\n", file);
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2) {
 	    dev->shutdown(dev);
+	    dev->init(dev);
 	    return -2;
 	}
 	else if (tentative)
