@@ -2,9 +2,5 @@
 # $FreeBSD$
 
 PROG=	chflags
-SRCS=	chflags.c
-
-BINDIR=	/bin
-NOSHARED?=yes
 
 .include <bsd.prog.mk>
