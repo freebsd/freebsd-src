@@ -412,6 +412,9 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 #
 # ACPI_MAX_THREADS sets the number of task threads started.
 #
+# ACPI_NO_RESET_VIDEO disables calling the VESA reset BIOS vector on
+# the resume path.
+#
 # ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
 #
 # ACPICA_PEDANTIC enables strict checking of AML.  Our default is to
@@ -424,8 +427,8 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 device		acpi
 options 	ACPI_DEBUG
 options 	ACPI_MAX_THREADS=1
-#!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPI_NO_RESET_VIDEO
+#!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
 # DRM options:
