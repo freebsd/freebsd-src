@@ -552,12 +552,17 @@ case ${dumpdev} in
 	'')
 		dumpdir='/var/crash'
 		;;
+	[Nn][Oo])
+		dumpdir='NO'
+		;;
 	esac
 
-	if [ -e "${dumpdev}" -a -d "${dumpdir}" ]; then
+	if [ -e "${dumpdev}" ]; then
 		/sbin/dumpon -v ${dumpdev}
-		echo -n 'Checking for core dump: '
-		/sbin/savecore ${savecore_flags} "${dumpdir}"
+		if [ "$dumpdir" != 'NO' ]; then
+			echo -n 'Checking for core dump: '
+			/sbin/savecore ${savecore_flags} "${dumpdir}"
+		fi
 	fi
 	;;
 esac
