@@ -17,7 +17,11 @@ opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
 opt_inet6.h:
+.if defined(NOINET6)
+	echo > opt_inet6.h
+.else
 	echo "#define INET6 1" > opt_inet6.h
+.endif
 
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > opt_bpf.h
