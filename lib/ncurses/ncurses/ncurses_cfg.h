@@ -123,6 +123,7 @@
 #define MIXEDCASE_FILENAMES 1
 #define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
+#define NCURSES_PATHSEP ':'
 #define NDEBUG 1
 #define RETSIGTYPE void
 #define STDC_HEADERS 1

@@ -10,15 +10,14 @@ SHLIB_MINOR=0
 AWK?=	awk
 TERMINFODIR?=	${SHAREDIR}/misc
 
-NCURSES_MAJOR!=egrep 'NCURSES_MAJOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
-NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
-NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9]*//'
+NCURSES_MAJOR!=egrep 'NCURSES_MAJOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9]*%%'
+NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9]*%%'
+NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9]*%%'
 
 # From autoconf (!)
-NCURSES_CONST=
+NCURSES_CONST=	/* nothing */
 NCURSES_XNAMES=	1
-OSPEED_INCLUDES=\#include <termios.h>
-OSPEED_TYPE=	speed_t
+NCURSES_OSPEED=	short
 BUILTIN_BOOL=	1
 BOOL_TYPE=	0
 TYPE_OF_BOOL=	char
@@ -60,6 +59,7 @@ GENHDR= \
 
 # Installed
 HEADERS=curses.h term.h termcap.h unctrl.h
+SRCHDRS=ncurses_dll.h
 
 # Components of names.c and codes.c
 NAMESRC=boolnames boolfnames numnames numfnames strnames strfnames
@@ -254,13 +254,16 @@ DOCS=	ncurses-intro.html hackguide.html
 beforeinstall:	${HEADERS}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
 	    ${DESTDIR}/usr/include
+	cd ${NCURSES}/include ; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SRCHDRS} \
+	    ${DESTDIR}/usr/include
 	rm -f ${DESTDIR}/usr/include/ncurses.h
 	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
 
 .if !defined(NOHTML)
 afterinstall:
 .for file in ${DOCS}
-	cd ${.CURDIR}/../../contrib/ncurses/misc ; \
+	cd ${.CURDIR}/../../contrib/ncurses/doc/html ; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
 		${DESTDIR}${DOCSDIR}
 .endfor
@@ -336,37 +339,36 @@ make_hash:	comp_hash.c hashsize.h curses.h ncurses_def.h
 # ./configure generated
 MKterm.h.awk:	MKterm.h.awk.in
 	sed <${NCURSES}/include/$@.in >$@ \
-	    -e "/@NCURSES_MAJOR@/s//${NCURSES_MAJOR}/" \
-	    -e "/@NCURSES_MINOR@/s//${NCURSES_MINOR}/" \
-	    -e "/@NCURSES_CONST@/s//${NCURSES_CONST}/" \
-	    -e "/@NCURSES_XNAMES@/s//${NCURSES_XNAMES}/"
+	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
+	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
+	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
+	    -e "/@NCURSES_XNAMES@/s%%${NCURSES_XNAMES}%"
 
 termcap.h:	termcap.h.in
 	sed <${NCURSES}/include/$@.in >$@ \
-	    -e "/@NCURSES_MAJOR@/s//${NCURSES_MAJOR}/" \
-	    -e "/@NCURSES_MINOR@/s//${NCURSES_MINOR}/" \
-	    -e "/@NCURSES_CONST@/s//${NCURSES_CONST}/" \
-	    -e "/@OSPEED_INCLUDES@/s//${OSPEED_INCLUDES}/" \
-	    -e "/@OSPEED_TYPE@/s//${OSPEED_TYPE}/"
+	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
+	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
+	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
+	    -e "/@NCURSES_OSPEED@/s%%${NCURSES_OSPEED}%"
 
 curses.h:	curses.h.in
 	sed <${NCURSES}/include/$@.in >$@ \
-	    -e "/@NCURSES_MAJOR@/s//${NCURSES_MAJOR}/" \
-	    -e "/@NCURSES_MINOR@/s//${NCURSES_MINOR}/" \
-	    -e "/@NCURSES_PATCH@/s//${NCURSES_PATCH}/" \
-	    -e "/@NCURSES_CONST@/s//${NCURSES_CONST}/" \
-	    -e "s/@cf_cv_builtin_bool@/${BUILTIN_BOOL}/g" \
-	    -e "s/@cf_cv_cc_bool_type@/${BOOL_TYPE}/g" \
-	    -e "s/@cf_cv_type_of_bool@/${TYPE_OF_BOOL}/g" \
-	    -e "s/@cf_cv_typeof_chtype@/${TYPEOF_CHTYPE}/g" \
-	    -e "s/@cf_cv_widec_shift@/${WIDEC_SHIFT}/g" \
-	    -e "s/@cf_cv_shift_limit@/${SHIFT_LIMIT}/g" \
-	    -e "s/@cf_cv_1UL@/${ONEUL}/g"
+	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
+	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
+	    -e "/@NCURSES_PATCH@/s%%${NCURSES_PATCH}%" \
+	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
+	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
+	    -e "s%@cf_cv_cc_bool_type@%${BOOL_TYPE}%g" \
+	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
+	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
+	    -e "s%@cf_cv_widec_shift@%${WIDEC_SHIFT}%g" \
+	    -e "s%@cf_cv_shift_limit@%${SHIFT_LIMIT}%g" \
+	    -e "s%@cf_cv_1UL@%${ONEUL}%g"
 
 unctrl.h:	unctrl.h.in
 	sed <${NCURSES}/include/$@.in >$@ \
-	    -e "/@NCURSES_MAJOR@/s//${NCURSES_MAJOR}/" \
-	    -e "/@NCURSES_MINOR@/s//${NCURSES_MINOR}/"
+	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
+	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%"
 
 # MAN page gunk
 terminfo.5:	MKterminfo.sh terminfo.head Caps
@@ -374,7 +376,7 @@ terminfo.5:	MKterminfo.sh terminfo.head Caps
 	    ${NCURSES}/include/Caps ${NCURSES}/man/terminfo.tail >$@
 
 CLEANFILES+=	terminfo.5
-MANFILTER=	sed -e 's\#@DATADIR@\#${TERMINFODIR}/terminfo\#g'
+MANFILTER=	sed -e 's%@DATADIR@%${TERMINFODIR}/terminfo%g'
 
 MANx=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_beep.3x curs_bkgd.3x curs_border.3x curs_clear.3x curs_color.3x \
@@ -388,7 +390,7 @@ MANx=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_slk.3x curs_termattrs.3x curs_termcap.3x curs_terminfo.3x \
 	curs_touch.3x curs_trace.3x curs_util.3x curs_window.3x \
 	default_colors.3x define_key.3x \
-	dft_fgbg.3x keybound.3x keyok.3x ncurses.3x resizeterm.3x wresize.3x
+	keybound.3x keyok.3x ncurses.3x resizeterm.3x wresize.3x
 MAN=	term.5 terminfo.5
 MAN+=	term.7
 
