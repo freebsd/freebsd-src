@@ -94,7 +94,8 @@ cn_drvinit(void *unused)
 	char output[32];
 	dev_t dev;
 
-	if (ofw_consdev.cn_pri != CN_DEAD) {
+	if (ofw_consdev.cn_pri != CN_DEAD &&
+	    ofw_consdev.cn_name[0] != '\0') {
 		if ((options = OF_finddevice("/options")) == -1 ||
 		    OF_getprop(options, "output-device", output,
 		    sizeof(output)) == -1)
