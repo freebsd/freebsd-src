@@ -258,7 +258,7 @@ getbootfile(int try)
 	strncpy(name, spec, len);
 	name[len] = 0;
     }
-    if (name[0] == 0) {
+    if (name && name[0] == 0) {
 	free(name);
 	name = NULL;
     }
