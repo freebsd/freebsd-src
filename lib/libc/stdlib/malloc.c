@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: malloc.c,v 1.21 1997/02/22 15:03:12 peter Exp $
  *
  */
 
@@ -731,7 +731,9 @@ imalloc(size_t size)
     if (suicide)
 	abort();
 
-    if (size <= malloc_maxsize)
+    if ((size + malloc_pagesize) < size)	/* Check for overflow */
+	result = 0;
+    else if (size <= malloc_maxsize)
 	result =  malloc_bytes(size);
     else
 	result =  malloc_pages(size);
