@@ -99,9 +99,9 @@
 #define		ATA_S_READY		0x40	/* drive ready */
 #define		ATA_S_BUSY		0x80	/* busy */
 
+#define ATA_ALTSTAT			0x00	/* alternate status register */
 #define ATA_ALTOFFSET			0x206	/* alternate registers offset */
 #define ATA_PCCARD_ALTOFFSET		0x0e	/* do for PCCARD devices */
-#define ATA_ALTIOSIZE			0x01	/* alternate registers size */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
 #define		ATA_A_RESET		0x04	/* RESET controller */
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
@@ -110,13 +110,14 @@
 #define ATA_MASTER			0x00
 #define ATA_SLAVE			0x10
 #define ATA_IOSIZE			0x08
+#define ATA_ALTIOSIZE			0x01
+#define ATA_BMIOSIZE			0x08
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
 #define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
 #define ATA_PARAM(scp, device)		(scp->dev_param[ATA_DEV(device)])
 
 /* busmaster DMA related defines */
-#define ATA_BM_OFFSET1			0x08
 #define ATA_DMA_ENTRIES			256
 #define ATA_DMA_EOT			0x80000000
 
@@ -134,8 +135,6 @@
 #define ATA_BMSTAT_DMA_SIMPLEX		0x80
 
 #define ATA_BMDTP_PORT			0x04
-
-#define ATA_BMIOSIZE			0x20
 
 /* structure for holding DMA address data */
 struct ata_dmaentry {
@@ -283,9 +282,6 @@ struct ata_softc {
     struct resource		*r_bmio;	/* bmio addr resource handle */
     struct resource		*r_irq;		/* interrupt of this channel */
     void			*ih;		/* interrupt handle */
-    u_int32_t			ioaddr;		/* physical port addr */
-    u_int32_t			altioaddr;	/* physical alt port addr */
-    u_int32_t			bmaddr;		/* physical bus master port */
     u_int32_t			chiptype;	/* pciid of controller chip */
     u_int32_t			alignment;	/* dma engine min alignment */
     struct ata_params		*dev_param[2];	/* ptr to devices params */
@@ -362,3 +358,38 @@ int ata_dmasetup(struct ata_softc *, int, struct ata_dmaentry *, caddr_t, int);
 void ata_dmastart(struct ata_softc *, int, struct ata_dmaentry *, int);
 int ata_dmastatus(struct ata_softc *);
 int ata_dmadone(struct ata_softc *);
+
+#define ATA_INB(res, offset) \
+	bus_space_read_1(rman_get_bustag((res)), \
+			 rman_get_bushandle((res)), (offset))
+#define ATA_INW(res, offset) \
+	bus_space_read_2(rman_get_bustag((res)), \
+			 rman_get_bushandle((res)), (offset))
+#define ATA_INL(res, offset) \
+	bus_space_read_4(rman_get_bustag((res)), \
+			 rman_get_bushandle((res)), (offset))
+#define ATA_INSW(res, offset, addr, count) \
+	bus_space_read_multi_2(rman_get_bustag((res)), \
+			       rman_get_bushandle((res)), \
+			       (offset), (addr), (count))
+#define ATA_INSL(res, offset, addr, count) \
+	bus_space_read_multi_4(rman_get_bustag((res)), \
+			       rman_get_bushandle((res)), \
+			       (offset), (addr), (count))
+#define ATA_OUTB(res, offset, value) \
+	bus_space_write_1(rman_get_bustag((res)), \
+			  rman_get_bushandle((res)), (offset), (value))
+#define ATA_OUTW(res, offset, value) \
+	bus_space_write_2(rman_get_bustag((res)), \
+			  rman_get_bushandle((res)), (offset), (value))
+#define ATA_OUTL(res, offset, value) \
+	bus_space_write_4(rman_get_bustag((res)), \
+			  rman_get_bushandle((res)), (offset), (value))
+#define ATA_OUTSW(res, offset, addr, count) \
+	bus_space_write_multi_2(rman_get_bustag((res)), \
+				rman_get_bushandle((res)), \
+				(offset), (addr), (count))
+#define ATA_OUTSL(res, offset, addr, count) \
+	bus_space_write_multi_4(rman_get_bustag((res)), \
+				rman_get_bushandle((res)), \
+				(offset), (addr), (count))
