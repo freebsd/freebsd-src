@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.14 1993/10/08 16:52:43 rgrimes Exp $
+#	$Id: LINT,v 1.15 1993/10/12 06:24:02 rgrimes Exp $
 #
 
 machine		"i386"
@@ -90,7 +90,7 @@ controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fd0 drive 0
 disk		fd1	at fd0 drive 1
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
-device ie0 at isa? port 0x280 net irq 10 drq 7 vector ieintr
+device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 #device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 #special cased above:
