@@ -314,16 +314,16 @@ void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
   {
     /* Never heard of this host - why is it notifying us?		*/
     syslog(LOG_ERR, "Unsolicited notification from host %s", arg->mon_name);
-    return;
+    return (&dummy);
   }
   lp = hp->monList;
-  if (!lp) return (FALSE);	/* We know this host, but have no	*/
+  if (!lp) return (&dummy);	/* We know this host, but have no	*/
 				/* outstanding requests.		*/
   pid = fork();
   if (pid == -1)
   {
     syslog(LOG_ERR, "Unable to fork notify process - %s", strerror(errno));
-    return;
+    return (NULL);
   }
   if (pid) return (&dummy);	/* Parent returns			*/
 
