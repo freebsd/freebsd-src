@@ -93,6 +93,13 @@
     provide access to the system monitoring functions of the AMD 756
     chip set.</para>
 
+    <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
+    better compatability with some BIOS implementations that do not
+    completely implement the El Torito bootable CDROM standard.  This
+    boot loader supports <quote>no emulation</quote> mode booting,
+    thus eliminating the need for an emulated floppy disk image on
+    a bootable CDROM.</para>
+
     <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
