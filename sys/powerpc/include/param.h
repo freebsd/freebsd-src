@@ -57,7 +57,7 @@
 #endif
 
 #ifndef	_MACHINE
-#define	_MACHIN		"powerpc"
+#define	_MACHINE	"powerpc"
 #endif
 #ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	"powerpc"
