@@ -40,36 +40,33 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/limits.h>
 #include <sys/systm.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
+
 #include <sys/conf.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/lock.h>
+#include <sys/filio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/sysctl.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/proc.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
-#include <sys/unistd.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/event.h>
-#include <sys/sx.h>
-#include <sys/socketvar.h>
 #include <sys/signalvar.h>
+#include <sys/socketvar.h>
+#include <sys/stat.h>
+#include <sys/sx.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
 #include <vm/uma.h>
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
