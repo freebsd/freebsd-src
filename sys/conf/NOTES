@@ -2284,8 +2284,6 @@ options 	ATA_DEBUG
 # driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
 ##options 	BKTR_ALLOC_PAGES="(217*4+1)"
 options 	BROOKTREE_ALLOC_PAGES="(217*4+1)"
-# Broken:
-##options 	CAPABILITIES
 options 	MAXFILES=999
 # METEOR_TEST_VIDEO has no effect since meteor is broken.
 options 	METEOR_TEST_VIDEO
