@@ -206,6 +206,7 @@ sighup_restart()
 	log("Received SIGHUP; restarting.");
 	close_listen_socks();
 	execv(saved_argv[0], saved_argv);
+	execv("/proc/curproc/file", saved_argv);
 	log("RESTART FAILED: av0='%s', error: %s.", av0, strerror(errno));
 	exit(1);
 }
