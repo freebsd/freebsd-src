@@ -139,7 +139,7 @@ fundamental to both single-user and multi-user environments
 .It Pa /stand/
 programs used in a standalone environment
 .It Pa /tmp/
-temporary files
+temporary files that are not guaranteed to persist across system reboots
 .It Pa /usr/
 contains the majority of user utilities and applications
 .Pp
@@ -728,6 +728,12 @@ the directory where recovery files are stored
 the NIS maps
 .El
 .El
+.Sh NOTES
+This manual page documents the default FreeBSD filesystem layout, but
+the actual hierarchy on a given system is defined at the system
+administrator's discretion.
+A well-maintained installation will include a customized version of
+this document.
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr find 1 ,
