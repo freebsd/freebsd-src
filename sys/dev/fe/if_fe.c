@@ -102,7 +102,10 @@
 #include <i386/isa/icu.h>
 
 /* PCCARD suport */
+/* XXX FIXME! doesn't work with new pccard code, must be converted! */
+#ifdef notdef
 #include "card.h"
+#endif
 #if NCARD > 0
 #include <sys/kernel.h>
 #include <sys/select.h>
