@@ -12,4 +12,4 @@ NOMAN		 =
 opt_kbd.h:
 	echo '#define KBD_INSTALL_CDEV 1' > opt_kbd.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -29,4 +29,4 @@ opt_ipx.h:
 	echo "#define IPX ${IFACE_IPX}" > opt_ipx.h
 .endif
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

@@ -6,4 +6,4 @@ SRCS=   pccbb.c \
 	device_if.h bus_if.h
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -6,4 +6,4 @@ SRCS= 	apm_saver.c
 NOMAN=
 CFLAGS+= -I${.CURDIR}/..
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

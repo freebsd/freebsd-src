@@ -5,4 +5,4 @@ KMOD=		ng_tty
 SRCS= 		ng_tty.c
 MAN8=		ng_tty.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

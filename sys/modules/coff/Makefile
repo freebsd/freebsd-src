@@ -6,4 +6,4 @@ SRCS= 	imgact_coff.c vnode_if.h
 NOMAN=
 CFLAGS+=	-DCOMPAT_IBCS2
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

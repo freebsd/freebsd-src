@@ -17,4 +17,4 @@ opt_inet.h:
 sl.h:
 	echo "#define NSL ${NSL}" > sl.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

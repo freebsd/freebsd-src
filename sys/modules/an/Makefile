@@ -8,4 +8,4 @@ SRCS	+= opt_inet.h device_if.h bus_if.h pci_if.h isa_if.h
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

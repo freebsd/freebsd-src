@@ -8,4 +8,4 @@ CLEANFILES	= vlan.h
 vlan.h:
 	touch vlan.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

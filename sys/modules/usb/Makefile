@@ -26,4 +26,4 @@ SRCS		+= opt_bus.h pci_if.h
 
 NOMAN		 =
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

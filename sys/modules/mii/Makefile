@@ -7,4 +7,4 @@ SRCS	+= miibus_if.h device_if.h miibus_if.c exphy.c nsphy.c
 SRCS	+= mlphy.c tlphy.c rlphy.c amphy.c dcphy.c pnphy.c
 SRCS	+= brgphy.c xmphy.c
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -15,4 +15,4 @@ opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 .endif
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

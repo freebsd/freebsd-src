@@ -11,4 +11,4 @@ CLEANFILES=	ccd.h
 ccd.h:
 	echo "#define NCCD ${NCCD}" > ccd.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

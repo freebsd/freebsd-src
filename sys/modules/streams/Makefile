@@ -13,4 +13,4 @@ NOMAN=
 
 CFLAGS+=	-O
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

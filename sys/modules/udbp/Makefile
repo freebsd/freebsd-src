@@ -11,4 +11,4 @@ NOMAN		 =
 
 CFLAGS		+= -DUDBP_DEBUG
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -12,4 +12,4 @@ aha.h:
 opt_scsi.h:
 	echo "#define SCSI_DELAY 15000" > opt_scsi.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

@@ -38,4 +38,4 @@ load: all
 unload:
 	/sbin/kldunload ${PROG}
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"
