@@ -194,7 +194,6 @@ static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, int local, elf_lookup_fn lookup)
 {
-	Elf_Addr relocbase = (Elf_Addr)lf->address;
 	Elf_Addr *where;
 	Elf_Addr addend, addr;
 	Elf_Word rtype, symidx;
