@@ -315,7 +315,7 @@ aio_onceonly(void)
 	kaio_zone = zinit("AIO", sizeof(struct kaioinfo), 0, 0, 1);
 	aiop_zone = zinit("AIOP", sizeof(struct aiothreadlist), 0, 0, 1);
 	aiocb_zone = zinit("AIOCB", sizeof(struct aiocblist), 0, 0, 1);
-	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX * sizeof(int), 0, 0, 1);
+	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX*sizeof(intptr_t), 0, 0, 1);
 	aiolio_zone = zinit("AIOLIO", AIO_LISTIO_MAX * sizeof(struct
 	    aio_liojob), 0, 0, 1);
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
