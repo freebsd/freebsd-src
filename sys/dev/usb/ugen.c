@@ -266,7 +266,7 @@ ugen_make_devnodes(struct ugen_softc *sc)
 			 * In the if clause above we check whether one
 			 * of the structs is populated.
 			 */
-				dev = make_dev(&ugen_cdevsw,
+			dev = make_dev(&ugen_cdevsw,
 				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno),
 				UID_ROOT, GID_OPERATOR, 0644,
 				"%s.%d",
