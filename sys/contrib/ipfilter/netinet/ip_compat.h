@@ -261,7 +261,8 @@ typedef u_int32_t       u_32_t;
 #  endif   
 # endif
 # if !defined(_KERNEL) && !defined(IPFILTER_LKM) && !defined(USE_INET6)
-#  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000)) || \
+#  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000) && \
+       !defined(NOINET6)) || \
       (defined(OpenBSD) && (OpenBSD >= 200111)) || \
       (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105000000))
 #   define USE_INET6
