@@ -5029,7 +5029,7 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	}
 
 	switch (subcmd) {
-	case SPPPIOGDEFS:
+	case (int)SPPPIOGDEFS:
 		if (cmd != SIOCGIFGENERIC) {
 			rv = EINVAL;
 			break;
@@ -5064,7 +5064,7 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 			     sizeof(struct spppreq));
 		break;
 
-	case SPPPIOSDEFS:
+	case (int)SPPPIOSDEFS:
 		if (cmd != SIOCSIFGENERIC) {
 			rv = EINVAL;
 			break;
