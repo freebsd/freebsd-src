@@ -87,6 +87,8 @@ static VAR var[] = {
 	{"acflg", "", "acflag", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"blocked", "", "sigmask", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"caught", "", "sigcatch", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
+	{"comm", "COMMAND", NULL, COMM|LJUST|USER, command, NULL, 16, 0,
+		CHAR, NULL, 0},
 	{"command", "COMMAND", NULL, COMM|LJUST|USER, command, NULL, 16,
 		0, CHAR, NULL, 0},
 	{"cpu", "CPU", NULL, 0, kvar, NULL, 3, KOFF(ki_estcpu), UINT, "d",
