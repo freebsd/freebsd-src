@@ -1,25 +1,151 @@
-# @(#)antarctica	7.3
+# @(#)antarctica	7.4
 
-# From Arthur David Olson (February 13, 1988):
-# No data available.
+# From Paul Eggert (1996-09-03):
+# To keep things manageable, we list only locations occupied year-round;
+# see <URL:http://earth.agu.org/amen/nations.html> (1996-05-24).
+# Unless otherwise specified, we have no time zone information.
+#
+# I made up all time zone abbreviations mentioned here; corrections welcome!
+# FORMAT is `___' and GMTOFF is 0 for locations while uninhabited.
 
-# Balleny Is
 
-# British Antarctic Territories include
-#	South Orkney Is
-#	South Shetland Is
+# Argentina - 6 year-round bases
+# General Belgrano II
+# 5 others
 
-# Bouvet
-# uninhabited
+# Australia - territories
+# Heard Island, McDonald Islands
+#
+# year-round bases
+# Casey, Bailey Peninsula, since 1969
+# Davis, Vestfold Hills, since 1957-01-13 (except 1965-01 -  1969-02)
+# Mawson, Holme Bay, since 1954-02-13
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Casey	0	-	___	1969
+			8:00	-	WST	# Western (Aus) Standard Time
+#Zone Antartica/Davis	unknown
+Zone Antarctica/Mawson	0	-	___	1954 Feb 13
+			6:00	-	MAWT	# Mawson Time
+# References:
+# <URL:http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html> (1996-07-15)
+# <URL:http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html> (1996-04-19)
 
-# French Southern and Antarctic Lands (no indigenous inhabitants) include
-#	Amsterdam Island
-#	Crozet Is
-#	Kerguelen Is
-#	St Paul Island
+# Brazil - year-round base
+# Ferraz, King George Island, since 1983/4
 
-# Heard Island, McDonald Is
-# uninhabited
+# Chile - 4 year-round bases
 
-# Peter I Island
+# China - year-round bases
+# Great Wall, King George Island, since 1985-02-20
+# Zhongshan, Larsemann Hills, Prydz Bay, since 1989-02-26
+
+# Finland - year-round base
+# Aboa, Queen Maud Land, since 1988
+
+# France
+#
+# French Southern Territories with year-round inhabitants
+# Amsterdam Island
+# Crozet Islands
+# Kerguelen Islands
+# St Paul Island
+#
+# year-round base
+# Dumont d'Urville, Adelie Land, since IGY
+
+# Germany - year-round base
+# Georg von Neumayer
+
+# India - year-round base
+# Dakshin Gangotri
+
+# Japan - year-round bases
+# Dome Fuji
+# Syowa
+
+# S Korea - year-round base
+# King Sejong, King George Island, since 1988
+
+# New Zealand - claims
+# Balleny Islands
 # Scott Island
+#
+# year-round base
+# Scott, Ross Island, since 1957-01, is like Antarctica/McMurdo.
+#
+# These rules for New Zealand are stolen from the `australasia' file.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	NZAQ	1974	only	-	Nov	 3	2:00s	1:00	D
+Rule	NZAQ	1975	1988	-	Oct	lastSun	2:00s	1:00	D
+Rule	NZAQ	1989	only	-	Oct	 8	2:00s	1:00	D
+Rule	NZAQ	1990	max	-	Oct	Sun>=1	2:00s	1:00	D
+Rule	NZAQ	1975	only	-	Feb	23	2:00s	0	S
+Rule	NZAQ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
+Rule	NZAQ	1990	max	-	Mar	Sun>=15	2:00s	0	S
+
+# Norway - territories
+# Bouvet (uninhabited)
+#
+# claims
+# Peter I Island (uninhabited)
+
+# Poland - year-round base
+# Arctowski, King George Island, since 1977
+
+# Russia - year-round bases
+# Bellingshausen, King George Island
+# Mirny
+# Molodezhnaya
+# Novolazarevskaya
+# Vostok
+
+# S Africa - year-round bases
+# Marion Island
+# Sanae
+
+# UK
+#
+# British Antarctic Territories (BAT) claims
+# South Orkney Islands
+# South Shetland Islands
+#
+# year-round bases
+# Halley, Coates Land, -7535-2619, since 1956-01-06
+# Rothera, Adelaide Island, -6734-6808, since 1976-12-01
+
+# Uruguay - year round base
+# Artigas, King George Island
+
+# USA - year-round bases
+#
+# Palmer, Anvers Island
+#
+# McMurdo, Ross Island, since 1956
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/McMurdo	0	-	___	1956
+			12:00	NZAQ	NZ%sT
+#
+# Amundsen-Scott, South Pole, since 1957-01-23
+# From Paul Eggert (1996-09-03):
+# Normally it wouldn't have a separate entry, since it's like the
+# larger Antarctica/McMurdo since 1970, but it's too famous to omit.
+#
+# From Chris Carrier <72157.3334@CompuServe.COM> (1996-06-27):
+# Siple, the first commander of the South Pole station,
+# stated that he would have liked to have kept GMT at the station,
+# but that he found it more convenient to keep GMT+12
+# as supplies for the station were coming from McMurdo Sound,
+# which was on GMT+12 because New Zealand was on GMT+12 all year
+# at that time (1957).  (Source: Siple's book 90 degrees SOUTH.)
+#
+# From Susan Smith <URL:http://www.cybertours.com/whs/pole10.html>
+# (1995-11-13 16:24:56 +1300): We use the same time as McMurdo does.
+# And they use the same time as Christchurch, NZ does....
+# One last quirk about South Pole time.
+# All the electric clocks are usually wrong.
+# Something about the generators running at 60.1hertz or something
+# makes all of the clocks run fast.  So every couple of days,
+# we have to go around and set them back 5 minutes or so.
+# Maybe if we let them run fast all of the time, we'd get to leave here sooner!!
+#
+Link	Antarctica/McMurdo	Antarctica/South_Pole

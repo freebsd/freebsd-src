@@ -1,33 +1,35 @@
-# @(#)southamerica	7.12
+# @(#)southamerica	7.14
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks, The International Atlas (3rd edition),
 # San Diego: ACS Publications, Inc. (1991).
 # Except where otherwise noted, it is the source for the data below.
 #
-# I invented the abbreviations marked `*' in the following table;
-# the rest are from earlier versions of this file, or from other sources.
-# Some of these are just plausible excuses for common English abbreviations.
+# The following abbreviations are used in this file.
 # Corrections are welcome!
 #		std	dst
 #		LMT		Local Mean Time
 #	-2:00	FST	FDT	Fernando de Noronha
-#	-3:00	EST	EDT	Eastern South America (conflicts with -5:00)
-#	-3:00	ARST	ARDT	Argentina
-#	-4:00	AST	ADT	Andes*, Antilles*, Asuncion*, Atlantic
-#	-4:00	CST	CDT	Chile (conflicts with -6:00)
+#	-3:00	EST	EDT	Eastern Brazil
 #	-4:00	WST	WDT	Western Brazil
-#	-5:00	AST	ADT	Acre (conflicts with -4:00)
-#	-5:00	EST	EDT	Eastern, Ecuador*
-#	-6:00	CST	CDT	Archipelago of Columbus*, Central
-#	-7:00	MST	MDT	Mataveri*, Mountain
+#	-4:00	AST	ADT	Atlantic
+#	-5:00	AST	ADT	Acre
 #
-# See the `africa' file for Zone naming conventions.
+# See the `africa' file for time zone naming and abbreviation conventions.
+# Earlier editions of these tables used the North American style (e.g. ARST and
+# ARDT for Argentine Standard and Daylight Time), but the following quote
+# suggests that it's better to use European style (e.g. ART and ARST).
+#	I suggest the use of _Summer time_ instead of the more cumbersome
+#	_daylight-saving time_.  _Summer time_ seems to be in general use
+#	in Europe and South America.
+#	-- E O Cutler, _New York Times_ (1937-02-14), quoted in
+#	H L Mencken, _The American Language: Supplement I_ (1960), p 466
+
 
 # From Guy Harris:
 # From Official Airline Guide - Worldwide Edition (1987).  Countries not
@@ -43,98 +45,98 @@
 
 # Argentina
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # Argentina: first Sunday in October to first Sunday in April since 1976.
 # Double Summer time from 1969 to 1974.  Switches at midnight.
 
-# From U. S. Naval Observatory (January 19, 19889):
+# From U. S. Naval Observatory (1988-01-199):
 # ARGENTINA           3 H BEHIND   UTC
 
-# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# From Hernan G. Otero <hernan@isoft.com.ar> (1995-06-26):
 # I am sending modifications to the Argentinian time zone table...
 # AR was chosen because they are the ISO letters that represent Argentina.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Arg	1930	only	-	Dec	 1	0:00	1:00	D
-Rule	Arg	1931	only	-	Apr	 1	0:00	0	S
-Rule	Arg	1931	only	-	Oct	15	0:00	1:00	D
-Rule	Arg	1932	1940	-	Mar	 1	0:00	0	S
-Rule	Arg	1932	1939	-	Nov	 1	0:00	1:00	D
-Rule	Arg	1940	only	-	Jul	 1	0:00	1:00	D
-Rule	Arg	1941	only	-	Jun	15	0:00	0	S
-Rule	Arg	1941	only	-	Oct	15	0:00	1:00	D
-Rule	Arg	1943	only	-	Aug	 1	0:00	0	S
-Rule	Arg	1943	only	-	Oct	15	0:00	1:00	D
-Rule	Arg	1946	only	-	Mar	 1	0:00	0	S
-Rule	Arg	1946	only	-	Oct	 1	0:00	1:00	D
-Rule	Arg	1963	only	-	Oct	 1	0:00	0	S
-Rule	Arg	1963	only	-	Dec	15	0:00	1:00	D
-Rule	Arg	1964	1966	-	Mar	 1	0:00	0	S
-Rule	Arg	1964	1966	-	Oct	15	0:00	1:00	D
-Rule	Arg	1967	only	-	Apr	 1	0:00	0	S
-Rule	Arg	1967	1968	-	Oct	Sun<=7	0:00	1:00	D
-Rule	Arg	1968	1969	-	Apr	Sun<=7	0:00	0	S
-Rule	Arg	1974	only	-	Jan	23	0:00	1:00	D
-Rule	Arg	1974	only	-	May	 1	0:00	0	S
-Rule	Arg	1974	1976	-	Oct	Sun<=7	0:00	1:00	D
-Rule	Arg	1975	1977	-	Apr	Sun<=7	0:00	0	S
-Rule	Arg	1985	only	-	Nov	 2	0:00	1:00	D
-Rule	Arg	1986	only	-	Mar	14	0:00	0	S
-Rule	Arg	1986	1987	-	Oct	25	0:00	1:00	D
-Rule	Arg	1987	only	-	Feb	13	0:00	0	S
-Rule	Arg	1988	only	-	Feb	 7	0:00	0	S
-Rule	Arg	1988	only	-	Dec	 1	0:00	1:00	D
+Rule	Arg	1930	only	-	Dec	 1	0:00	1:00	S
+Rule	Arg	1931	only	-	Apr	 1	0:00	0	-
+Rule	Arg	1931	only	-	Oct	15	0:00	1:00	S
+Rule	Arg	1932	1940	-	Mar	 1	0:00	0	-
+Rule	Arg	1932	1939	-	Nov	 1	0:00	1:00	S
+Rule	Arg	1940	only	-	Jul	 1	0:00	1:00	S
+Rule	Arg	1941	only	-	Jun	15	0:00	0	-
+Rule	Arg	1941	only	-	Oct	15	0:00	1:00	S
+Rule	Arg	1943	only	-	Aug	 1	0:00	0	-
+Rule	Arg	1943	only	-	Oct	15	0:00	1:00	S
+Rule	Arg	1946	only	-	Mar	 1	0:00	0	-
+Rule	Arg	1946	only	-	Oct	 1	0:00	1:00	S
+Rule	Arg	1963	only	-	Oct	 1	0:00	0	-
+Rule	Arg	1963	only	-	Dec	15	0:00	1:00	S
+Rule	Arg	1964	1966	-	Mar	 1	0:00	0	-
+Rule	Arg	1964	1966	-	Oct	15	0:00	1:00	S
+Rule	Arg	1967	only	-	Apr	 1	0:00	0	-
+Rule	Arg	1967	1968	-	Oct	Sun<=7	0:00	1:00	S
+Rule	Arg	1968	1969	-	Apr	Sun<=7	0:00	0	-
+Rule	Arg	1974	only	-	Jan	23	0:00	1:00	S
+Rule	Arg	1974	only	-	May	 1	0:00	0	-
+Rule	Arg	1974	1976	-	Oct	Sun<=7	0:00	1:00	S
+Rule	Arg	1975	1977	-	Apr	Sun<=7	0:00	0	-
+Rule	Arg	1985	only	-	Nov	 2	0:00	1:00	S
+Rule	Arg	1986	only	-	Mar	14	0:00	0	-
+Rule	Arg	1986	1987	-	Oct	25	0:00	1:00	S
+Rule	Arg	1987	only	-	Feb	13	0:00	0	-
+Rule	Arg	1988	only	-	Feb	 7	0:00	0	-
+Rule	Arg	1988	only	-	Dec	 1	0:00	1:00	S
 #
-# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# From Hernan G. Otero <hernan@isoft.com.ar> (1995-06-26):
 # These corrections were contributed by InterSoft Argentina S.A.,
 # obtaining the data from the:
 # Talleres de Hidrografia Naval Argentina
 # (Argentinian Naval Hydrography Institute)
 #
 # Shanks gives 1989 Mar 16 and stops after 1990 Mar 4; go with Otero.
-Rule	Arg	1989	1993	-	Mar	Sun>=1	0:00	0	S
-Rule	Arg	1989	1992	-	Oct	Sun>=15	0:00	1:00	D
+Rule	Arg	1989	1993	-	Mar	Sun>=1	0:00	0	-
+Rule	Arg	1989	1992	-	Oct	Sun>=15	0:00	1:00	S
 #
-# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# From Hernan G. Otero <hernan@isoft.com.ar> (1995-06-26):
 # From this moment on, the law that mandated the daylight saving
 # time corrections was derogated and no more modifications
 # to the time zones (for daylight saving) are now made.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Nov
-			-4:17	-	CMT	1920 May    # Cordoba Mean Time
-			-4:00	-	AST	1930 Dec
-			-4:00	Arg	A%sT	1969 Oct 5
+			-4:16:44 -	CMT	1920 May    # Cordoba Mean Time
+			-4:00	-	ART	1930 Dec
+			-4:00	Arg	AR%sT	1969 Oct 5
 			-3:00	Arg	AR%sT
 
 # Aruba
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12	# Oranjestad
-			-4:30	-	NAST	1965	# Netherlands Antilles
+			-4:30	-	ANT	1965 # Netherlands Antilles Time
 			-4:00	-	AST
 
 # Bolivia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/La_Paz	-4:32:36 -	LMT	1890
-			-4:33	-	LPMT	1931 Oct 15 # La Paz Mean Time
-			-4:33	1:00	LPDT	1932 Mar 21
-			-4:00	-	AST
+			-4:32:36 -	LPMT	1931 Oct 15 # La Paz Mean Time
+			-4:32:36 1:00	BOST	1932 Mar 21 # Bolivia ST
+			-4:00	-	BOT	# Bolivia Time
 
 # Brazil
 
 # From Guy Harris:
-# The OAG lists October 25, 1987 and February 12, 1988 as the starting and
+# The OAG lists 1987-10-25 and 1988-02-12 as the starting and
 # ending dates, giving them as "estimated date(s) based on previous year".  We
 # infer a rule here from one example, always a dangerous practice....  Yes,
 # they really do switch on Saturday, according to the OAG.
 # "[America/Porto_Acre]" is for the Territory of Acre;
 # "[America/Noronha]" is for Fernando De Noronha.
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # The only information I found is that there was no DST up to 1985.
 # But there was some before 1952!
 
-# From U. S. Naval Observatory (January 16, 1989):
+# From U. S. Naval Observatory (1989-01-16):
 # BRAZIL     WEST     5 H  BEHIND UTC    TERRITORY OF ACRE
 # BRAZIL     WEST     4 H  BEHIND UTC    ACRE OCT 23, '88-FEB 11,
 # BRAZIL                                 '89 (ESTIMATED)
@@ -153,7 +155,7 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # BRAZIL                                 (ESTIMATED)
 # BRAZIL              3 H  BEHIND UTC    FOR MOST MAJOR AIRPORTS.
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # The mayor of Rio recently attempted to change the time zone rules
 # just in his city, in order to leave more summer time for the tourist trade.
 # The rule change lasted only part of the day;
@@ -164,26 +166,26 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # about time zone changes after 1990 Feb 11.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Brazil	1931	only	-	Oct	 3	11:00	1	D
+Rule	Brazil	1931	only	-	Oct	 3	11:00	1:00	D
 Rule	Brazil	1932	1933	-	Apr	 1	 0:00	0	S
-Rule	Brazil	1932	only	-	Oct	 3	 0:00	1	D
-Rule	Brazil	1949	1952	-	Dec	 1	 0:00	1	D
+Rule	Brazil	1932	only	-	Oct	 3	 0:00	1:00	D
+Rule	Brazil	1949	1952	-	Dec	 1	 0:00	1:00	D
 Rule	Brazil	1950	only	-	Apr	16	 0:00	0	S
 Rule	Brazil	1951	1953	-	Apr	 1	 0:00	0	S
-Rule	Brazil	1963	only	-	Dec	 9	 0:00	1	D
+Rule	Brazil	1963	only	-	Dec	 9	 0:00	1:00	D
 Rule	Brazil	1964	only	-	Mar	 1	 0:00	0	S
-Rule	Brazil	1965	only	-	Jan	31	 0:00	1	D
+Rule	Brazil	1965	only	-	Jan	31	 0:00	1:00	D
 Rule	Brazil	1965	only	-	Apr	 1	 0:00	0	S
-Rule	Brazil	1965	only	-	Dec	 1	 0:00	1	D
+Rule	Brazil	1965	only	-	Dec	 1	 0:00	1:00	D
 Rule	Brazil	1966	1968	-	Mar	 1	 0:00	0	S
-Rule	Brazil	1966	1967	-	Nov	 1	 0:00	1	D
-Rule	Brazil	1985	only	-	Nov	 2	 0:00	1	D
+Rule	Brazil	1966	1967	-	Nov	 1	 0:00	1:00	D
+Rule	Brazil	1985	only	-	Nov	 2	 0:00	1:00	D
 Rule	Brazil	1986	only	-	Mar	15	 0:00	0	S
-Rule	Brazil	1986	1987	-	Oct	Sat<=28	 0:00	1	D
+Rule	Brazil	1986	1987	-	Oct	Sat<=28	 0:00	1:00	D
 Rule	Brazil	1987	only	-	Feb	14	 0:00	0	S
 Rule	Brazil	1988	only	-	Feb	 7	 0:00	0	S
 Rule	Brazil	1989	only	-	Jan	22	 0:00	0	S
-Rule	Brazil	1988	max	-	Oct	Sun>=15	 0:00	1	D
+Rule	Brazil	1988	max	-	Oct	Sun>=15	 0:00	1:00	D
 Rule	Brazil	1990	max	-	Feb	Sun>=8	 0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Noronha	-2:09:40 -	LMT	1914
@@ -209,21 +211,21 @@ Zone America/Porto_Acre	-4:31:12 -	LMT	1914
 # of October....  The law is the same for March and October.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Chile	1918	only	-	Sep	1	0:00	1:00	D
-Rule	Chile	1919	only	-	Jul	2	0:00	0	S
-Rule	Chile	1927	1931	-	Sep	1	0:00	1:00	D
-Rule	Chile	1928	1932	-	Apr	1	0:00	0	S
-Rule	Chile	1969	max	-	Oct	Sun>=9	0:00	1:00	D
-Rule	Chile	1970	max	-	Mar	Sun>=9	0:00	0	S
+Rule	Chile	1918	only	-	Sep	1	0:00	1:00	S
+Rule	Chile	1919	only	-	Jul	2	0:00	0	-
+Rule	Chile	1927	1931	-	Sep	1	0:00	1:00	S
+Rule	Chile	1928	1932	-	Apr	1	0:00	0	-
+Rule	Chile	1969	max	-	Oct	Sun>=9	0:00	1:00	S
+Rule	Chile	1970	max	-	Mar	Sun>=9	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Santiago	-4:42:40 -	LMT	1890
-			-4:43	-	SMT	1910	    # Santiago Mean Time
-			-5:00	Chile	C%sT	1932 Sep
-			-4:00	Chile	C%sT
+			-4:42:40 -	SMT	1910	    # Santiago Mean Time
+			-5:00	Chile	CL%sT	1932 Sep    # Chile Time
+			-4:00	Chile	CL%sT
 Zone Pacific/Easter	-7:17:28 -	LMT	1890	    # Mataveri
-			-7:17	-	MMT	1932 Sep    # Mataveri Mean Time
-			-7:00	Chile	M%sT	1982 Mar 14
-			-6:00	Chile	C%sT
+			-7:17:28 -	MMT	1932 Sep    # Mataveri Mean Time
+			-7:00	Chile	EAS%sT	1982 Mar 14 # Easter I Time
+			-6:00	Chile	EAS%sT
 #
 # Whitman says Juan Fernandez Is are like America/Santiago.
 # San Ambrosio, San Felix
@@ -233,103 +235,104 @@ Zone Pacific/Easter	-7:17:28 -	LMT	1890	    # Mataveri
 # Colombia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Bogota	-4:56:20 -	LMT	1884 Mar 13
-			-4:56	-	BMT	1914 Nov 23 # Bogota Mean Time
-			-5:00	-	EST
+			-4:56:20 -	BMT	1914 Nov 23 # Bogota Mean Time
+			-5:00	-	COT	# Colombia Time
 # Malpelo, Providencia, San Andres
 # no information; probably like America/Bogota
 
 # Curacao
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Curacao	-4:35:44 -	LMT	1912 Feb 12	# Willemstad
-			-4:30	-	NAST	1965	# Netherlands Antilles
+			-4:30	-	ANT	1965 # Netherlands Antilles Time
 			-4:00	-	AST
 
 # Ecuador
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guayaquil	-5:19:20 -	LMT	1890
-			-5:14	-	QMT	1931 # Quito Mean Time
-			-5:00	-	EST
+			-5:14:00 -	QMT	1931 # Quito Mean Time
+			-5:00	-	ECT	     # Ecuador Time
 Zone Pacific/Galapagos	-5:58:24 -	LMT	1931 # Puerto Baquerizo Moreno
-			-5:00	-	EST	1986
-			-6:00	-	CST
+			-5:00	-	ECT	1986
+			-6:00	-	GALT	     # Galapagos Time
 
 # Falklands
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Falk	1937	1938	-	Sep	lastSun	0:00	1:00	D
-Rule	Falk	1938	1942	-	Mar	Sun>=19	0:00	0	S
-Rule	Falk	1939	only	-	Oct	1	0:00	1:00	D
-Rule	Falk	1940	1942	-	Sep	lastSun	0:00	1:00	D
-Rule	Falk	1943	only	-	Jan	1	0:00	0	S
-Rule	Falk	1983	only	-	Sep	lastSun	0:00	1:00	D
-Rule	Falk	1984	1985	-	Apr	lastSun	0:00	0	S
-Rule	Falk	1984	only	-	Sep	16	0:00	1:00	D
-Rule	Falk	1985	max	-	Sep	Sun>=9	0:00	1:00	D
-Rule	Falk	1986	max	-	Apr	Sun>=16	0:00	0	S
+Rule	Falk	1937	1938	-	Sep	lastSun	0:00	1:00	S
+Rule	Falk	1938	1942	-	Mar	Sun>=19	0:00	0	-
+Rule	Falk	1939	only	-	Oct	1	0:00	1:00	S
+Rule	Falk	1940	1942	-	Sep	lastSun	0:00	1:00	S
+Rule	Falk	1943	only	-	Jan	1	0:00	0	-
+Rule	Falk	1983	only	-	Sep	lastSun	0:00	1:00	S
+Rule	Falk	1984	1985	-	Apr	lastSun	0:00	0	-
+Rule	Falk	1984	only	-	Sep	16	0:00	1:00	S
+Rule	Falk	1985	max	-	Sep	Sun>=9	0:00	1:00	S
+Rule	Falk	1986	max	-	Apr	Sun>=16	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Stanley	-3:51:24 -	LMT	1890
-			-3:51	-	SMT	1912 Mar 12  # Stanley Mean Time
-			-4:00	Falk	A%sT	1983 May
-			-3:00	Falk	E%sT	1985 Sep 15
-			-4:00	Falk	A%sT
+			-3:51:24 -	SMT	1912 Mar 12  # Stanley Mean Time
+			-4:00	Falk	FK%sT	1983 May     # Falkland Is Time
+			-3:00	Falk	FK%sT	1985 Sep 15
+			-4:00	Falk	FK%sT
 
 # French Guiana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Cayenne	-3:29:20 -	LMT	1911 Jul
-			-4:00	-	AST	1967 Oct
-			-3:00	-	EST
+			-4:00	-	GFT	1967 Oct # French Guiana Time
+			-3:00	-	GFT
 
 # Guyana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Guyana	-3:52:40 -	LMT	1915 Mar	# Georgetown
-			-3:45	-	BGST	1975 Jul 31  # British Guiana ST
-			-3:00	-	EST
+			-3:45	-	GBGT	1966 May 26 # Br Guiana Time
+			-3:45	-	GYT	1975 Jul 31 # Guyana Time
+			-3:00	-	GYT
 
 
 # Paraguay
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # Paraguay: First day in October to last in March.  Midnight switch??
 # Since 1980.
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # PARAGUAY            4 H  BEHIND UTC
 # PARAGUAY            3 H  BEHIND UTC    OCT 1, '88-MAR 31, '89
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Para	1975	1978	-	Oct	 1	0:00	1:00	D
-Rule	Para	1975	1978	-	Mar	 1	0:00	0	S
+Rule	Para	1975	1978	-	Oct	 1	0:00	1:00	S
+Rule	Para	1975	1978	-	Mar	 1	0:00	0	-
 # Shanks says 1979 was all DST.
-Rule	Para	1980	max	-	Apr	 1	0:00	0	S
-Rule	Para	1980	1988	-	Oct	 1	0:00	1:00	D
-Rule	Para	1989	only	-	Oct	22	0:00	1:00	D
-Rule	Para	1990	max	-	Oct	 1	0:00	1:00	D
+Rule	Para	1980	max	-	Apr	 1	0:00	0	-
+Rule	Para	1980	1988	-	Oct	 1	0:00	1:00	S
+Rule	Para	1989	only	-	Oct	22	0:00	1:00	S
+Rule	Para	1990	max	-	Oct	 1	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
-			-3:51	-	AMT	1931 Oct 10 # Asuncion Mean Time
-			-4:00	-	AST	1972 Oct
-			-3:00	-	EST	1974 Apr
-			-4:00	Para	A%sT
+			-3:50:40 -	AMT	1931 Oct 10 # Asuncion Mean Time
+			-4:00	-	PYT	1972 Oct # Paraguay Time
+			-3:00	-	PYT	1974 Apr
+			-4:00	Para	PY%sT
 
 # Peru
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Peru	1938	only	-	Jan	 1	0:00	1:00	D
-Rule	Peru	1938	only	-	Apr	 1	0:00	0	S
-Rule	Peru	1938	1939	-	Sep	lastSun	0:00	1:00	D
-Rule	Peru	1939	1940	-	Mar	Sun>=24	0:00	0	S
-Rule	Peru	1987	only	-	Jan	 1	0:00	1:00	D
-Rule	Peru	1987	only	-	Apr	 1	0:00	0	S
-Rule	Peru	1990	only	-	Jan	 1	0:00	1:00	D
-Rule	Peru	1990	only	-	Apr	 1	0:00	0	S
+Rule	Peru	1938	only	-	Jan	 1	0:00	1:00	S
+Rule	Peru	1938	only	-	Apr	 1	0:00	0	-
+Rule	Peru	1938	1939	-	Sep	lastSun	0:00	1:00	S
+Rule	Peru	1939	1940	-	Mar	Sun>=24	0:00	0	-
+Rule	Peru	1987	only	-	Jan	 1	0:00	1:00	S
+Rule	Peru	1987	only	-	Apr	 1	0:00	0	-
+Rule	Peru	1990	only	-	Jan	 1	0:00	1:00	S
+Rule	Peru	1990	only	-	Apr	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Lima	-5:08:12 -	LMT	1890
-			-5:09	-	LMT	1908 Jul 28
-			-5:00	Peru	E%sT
+			-5:09	-	LMT	1908 Jul 28 # Lima Mean Time
+			-5:00	Peru	PE%sT	# Peru Time
 
 # South Georgia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890		# Grytviken
-			-2:00	-	FST
+			-2:00	-	GST	# South Georgia Time
 
 # South Sandwich Is
 # uninhabited
@@ -339,8 +342,9 @@ Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890		# Grytviken
 Zone America/Paramaribo	-3:40:40 -	LMT	1911
 			-3:40:52 -	PMT	1935     # Paramaribo Mean Time
 			-3:40:36 -	PMT	1945 Oct # The capital moved?
-			-3:30	-	DGST	1984 Oct # Dutch Guiana Std Time
-			-3:00	-	EST
+			-3:30	-	NEGT	1975 Nov 20 # Dutch Guiana Time
+			-3:30	-	SRT	1984 Oct # Suriname Time
+			-3:00	-	SRT
 
 # Trinidad and Tobago
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -348,60 +352,60 @@ Zone America/Port_of_Spain -4:06:04 -	LMT	1912 Mar 2
 			-4:00	-	AST
 
 # Uruguay
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # Uruguay wins the prize for the strangest peacetime manipulation of the rules.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Whitman gives 1923 Oct 1; go with Shanks.
-Rule	Uruguay	1923	only	-	Oct	 2	 0:00	0:30	HD
-Rule	Uruguay	1924	1926	-	Apr	 1	 0:00	0	S
-Rule	Uruguay	1924	1925	-	Oct	 1	 0:00	0:30	HD
-Rule	Uruguay	1933	1935	-	Oct	lastSun	 0:00	0:30	HD
+Rule	Uruguay	1923	only	-	Oct	 2	 0:00	0:30	HS
+Rule	Uruguay	1924	1926	-	Apr	 1	 0:00	0	-
+Rule	Uruguay	1924	1925	-	Oct	 1	 0:00	0:30	HS
+Rule	Uruguay	1933	1935	-	Oct	lastSun	 0:00	0:30	HS
 # Shanks gives 1935 Apr 1 0:00 and 1936 Mar 30 0:00; go with Whitman.
-Rule	Uruguay	1934	1936	-	Mar	Sat>=25	23:30s	0	S
-Rule	Uruguay	1936	only	-	Nov	 1	 0:00	0:30	HD
-Rule	Uruguay	1937	1941	-	Mar	lastSun	 0:00	0	S
+Rule	Uruguay	1934	1936	-	Mar	Sat>=25	23:30s	0	-
+Rule	Uruguay	1936	only	-	Nov	 1	 0:00	0:30	HS
+Rule	Uruguay	1937	1941	-	Mar	lastSun	 0:00	0	-
 # Whitman gives 1937 Oct 3; go with Shanks.
-Rule	Uruguay	1937	1940	-	Oct	lastSun	 0:00	0:30	HD
+Rule	Uruguay	1937	1940	-	Oct	lastSun	 0:00	0:30	HS
 # Whitman gives 1941 Oct 24 - 1942 Mar 27, 1942 Dec 14 - 1943 Apr 13,
 # and 1943 Apr 13 ``to present time''; go with Shanks.
-Rule	Uruguay	1941	only	-	Aug	 1	 0:00	0	S
-Rule	Uruguay	1942	only	-	Jan	 1	 0:00	0:30	HD
-Rule	Uruguay	1942	only	-	Dec	14	 0:00	1:00	D
-Rule	Uruguay	1943	only	-	Mar	14	 0:00	0	S
-Rule	Uruguay	1959	only	-	May	24	 0:00	1:00	D
-Rule	Uruguay	1959	only	-	Nov	15	 0:00	0	S
-Rule	Uruguay	1960	only	-	Jan	17	 0:00	1:00	D
-Rule	Uruguay	1960	only	-	Mar	 6	 0:00	0	S
-Rule	Uruguay	1965	1967	-	Apr	Sun>=1	 0:00	1:00	D
-Rule	Uruguay	1965	only	-	Sep	26	 0:00	0	S
-Rule	Uruguay	1966	1967	-	Oct	31	 0:00	0	S
-Rule	Uruguay	1968	1970	-	May	27	 0:00	0:30	HD
-Rule	Uruguay	1968	1970	-	Dec	 2	 0:00	0	S
-Rule	Uruguay	1972	only	-	Apr	24	 0:00	1:00	D
-Rule	Uruguay	1972	only	-	Aug	15	 0:00	0	S
-Rule	Uruguay	1974	only	-	Mar	10	 0:00	0:30	HD
-Rule	Uruguay	1974	only	-	Dec	22	 0:00	1:00	D
-Rule	Uruguay	1976	only	-	Oct	 1	 0:00	0	S
-Rule	Uruguay	1977	only	-	Dec	 4	 0:00	1:00	D
-Rule	Uruguay	1978	only	-	Apr	 1	 0:00	0	S
-Rule	Uruguay	1979	only	-	Oct	 1	 0:00	1:00	D
-Rule	Uruguay	1980	only	-	May	 1	 0:00	0	S
-Rule	Uruguay	1987	only	-	Dec	14	 0:00	1:00	D
-Rule	Uruguay	1988	only	-	Mar	14	 0:00	0	S
-Rule	Uruguay	1988	only	-	Dec	11	 0:00	1:00	D
-Rule	Uruguay	1989	only	-	Mar	12	 0:00	0	S
-Rule	Uruguay	1989	only	-	Oct	29	 0:00	1:00	D
-Rule	Uruguay	1990	only	-	Mar	 4	 0:00	0	S
+Rule	Uruguay	1941	only	-	Aug	 1	 0:00	0	-
+Rule	Uruguay	1942	only	-	Jan	 1	 0:00	0:30	HS
+Rule	Uruguay	1942	only	-	Dec	14	 0:00	1:00	S
+Rule	Uruguay	1943	only	-	Mar	14	 0:00	0	-
+Rule	Uruguay	1959	only	-	May	24	 0:00	1:00	S
+Rule	Uruguay	1959	only	-	Nov	15	 0:00	0	-
+Rule	Uruguay	1960	only	-	Jan	17	 0:00	1:00	S
+Rule	Uruguay	1960	only	-	Mar	 6	 0:00	0	-
+Rule	Uruguay	1965	1967	-	Apr	Sun>=1	 0:00	1:00	S
+Rule	Uruguay	1965	only	-	Sep	26	 0:00	0	-
+Rule	Uruguay	1966	1967	-	Oct	31	 0:00	0	-
+Rule	Uruguay	1968	1970	-	May	27	 0:00	0:30	HS
+Rule	Uruguay	1968	1970	-	Dec	 2	 0:00	0	-
+Rule	Uruguay	1972	only	-	Apr	24	 0:00	1:00	S
+Rule	Uruguay	1972	only	-	Aug	15	 0:00	0	-
+Rule	Uruguay	1974	only	-	Mar	10	 0:00	0:30	HS
+Rule	Uruguay	1974	only	-	Dec	22	 0:00	1:00	S
+Rule	Uruguay	1976	only	-	Oct	 1	 0:00	0	-
+Rule	Uruguay	1977	only	-	Dec	 4	 0:00	1:00	S
+Rule	Uruguay	1978	only	-	Apr	 1	 0:00	0	-
+Rule	Uruguay	1979	only	-	Oct	 1	 0:00	1:00	S
+Rule	Uruguay	1980	only	-	May	 1	 0:00	0	-
+Rule	Uruguay	1987	only	-	Dec	14	 0:00	1:00	S
+Rule	Uruguay	1988	only	-	Mar	14	 0:00	0	-
+Rule	Uruguay	1988	only	-	Dec	11	 0:00	1:00	S
+Rule	Uruguay	1989	only	-	Mar	12	 0:00	0	-
+Rule	Uruguay	1989	only	-	Oct	29	 0:00	1:00	S
+Rule	Uruguay	1990	only	-	Mar	 4	 0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
-			-3:45	-	MMT	1920 May  1	# Montevideo MT
-			-3:30	Uruguay	U%sT	1942 Dec 14	# Uruguay ST
-			-3:00	Uruguay	E%sT
+			-3:44:44 -	MMT	1920 May  1	# Montevideo MT
+			-3:30	Uruguay	UY%sT	1942 Dec 14	# Uruguay Time
+			-3:00	Uruguay	UY%sT
 
 # Venezuela
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
-			-4:28	-	CMT	1912 Feb 12  # Caracas Mean Time
-			-4:30	-	VZT	1965		# Venezuela Time
-			-4:00	-	AST
+			-4:27:44 -	CMT	1912 Feb 12  # Caracas Mean Time
+			-4:30	-	VET	1965	     # Venezuela Time
+			-4:00	-	VET
