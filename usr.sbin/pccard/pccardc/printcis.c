@@ -723,7 +723,7 @@ dump_device_desc(u_char *p, int len, char *type)
 			len--;
 			if (*p) {
 				printf("\t\t");
-				print_ext_speed(*p++, 0);
+				print_ext_speed(*p, 0);
 				while (*p & 0x80) {
 					p++;
 					len--;
