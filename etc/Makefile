@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.59 1994/05/19 12:29:28 rgrimes Exp $
+#	$Id: Makefile,v 1.60 1994/05/19 18:06:46 guido Exp $
 
 NOOBJ=	noobj
 
@@ -12,7 +12,7 @@ BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
 	inetd.conf login.access manpath.config motd myname netstart \
 	networks phones printcap protocols rc rc.local remote \
 	security services shells skey.access \
-	syslog.conf ttys etc.${MACHINE}/disktab rpc
+	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf
 
 # -rw-rw-rw-
 BIN2=	motd
