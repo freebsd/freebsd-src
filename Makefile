@@ -10,6 +10,7 @@
 # buildkernel         - Rebuild the kernel and the kernel-modules.
 # installkernel       - Install the kernel and the kernel-modules.
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
+# kernel		buildkernel + installkernel
 # update              - Convenient way to update your source tree (cvs).
 # upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
 # most                - Build user commands, no libraries or include files.
