@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)local.h	8.3 (Berkeley) 7/3/94
- *
  * $FreeBSD$
  */
 

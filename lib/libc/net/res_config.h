@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #define	DEBUG	1	/* enable debugging code (needed for dig) */
 #define	RESOLVSORT	/* allow sorting of addresses in gethostbyname */
 #define	RFC1535		/* comply with RFC1535 (STRONGLY reccomended by vixie)*/

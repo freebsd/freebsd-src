@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
+ *	@(#)SYS.h	5.5 (Berkeley) 5/7/91
  *	from: FreeBSD: src/lib/libc/i386/SYS.h,v 1.20 2001/01/29
  * $FreeBSD$
  */
