@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.19 1999/04/23 19:53:38 dt Exp $
+ *	$Id: pmap.c,v 1.20 1999/04/23 20:29:58 dt Exp $
  */
 
 /*
@@ -2935,7 +2935,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	 *	(2) if it was a write fault, mark page as modified.
 	 */
 	ppv = pa_to_pvh(pa);
-	ppv->pv_flags = PV_TABLE_REF;
+	ppv->pv_flags |= PV_TABLE_REF;
 	faultoff = PG_FOR | PG_FOE;
 	vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 	if (write) {
