@@ -1136,9 +1136,15 @@ static void
 send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
 {
 
-	if (code != ICMP_REJECT_RST) /* Send an ICMP unreach */
+	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
+		/* We need the IP header in host order for icmp_error(). */
+		if (args->eh != NULL) {
+			struct ip *ip = mtod(args->m, struct ip *);
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+		}
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
-	else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
+	} else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
 		if ( (tcp->th_flags & TH_RST) == 0)
