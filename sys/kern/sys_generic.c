@@ -858,19 +858,18 @@ poll(p, uap)
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
-	int s, ncoll, error = 0, timo, lim, nfds;
+	int s, ncoll, error = 0, timo, nfds;
 	size_t ni;
 
 	nfds = SCARG(uap, nfds);
 	/*
-	 * This is kinda bogus.  We have fd limits, but that doesn't
-	 * map too well to the size of the pfd[] array.  Make sure
-	 * we let the process use at least FD_SETSIZE entries.
-	 * The specs say we only have to support OPEN_MAX entries (64).
+	 * This is kinda bogus.  We have fd limits, but that is not
+	 * really related to the size of the pollfd array.  Make sure
+	 * we let the process use at least FD_SETSIZE entries and at
+	 * least enough for the current limits.  We want to be reasonably
+	 * safe, but not overly restrictive.
 	 */
-	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
-	lim = min(lim, FD_SETSIZE);
-	if (nfds > lim)
+	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE)
 		return (EINVAL);
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
