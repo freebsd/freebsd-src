@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.18 1998/11/29 13:20:04 bde Exp $
+.\"	$Id: ping.8,v 1.19 1999/01/06 07:54:27 imp Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -204,6 +204,13 @@ with the 8 bytes of
 .Tn ICMP
 header data.
 Only the super-user may use this option.
+.It Fl S Ar src_addr
+Use the following IP address as the source address in outgoing packets.
+On hosts with more than one IP address, this option can be used to
+force the source address to be something other than the IP address
+of the interface the probe packet is sent on.  If the IP address
+is not one of this machine's interface addresses, an error is
+returned and nothing is sent.
 .It Fl T Ar ttl
 Set the IP Time To Live for multicasted packets.
 This flag only applies if the ping destination is a multicast address.
