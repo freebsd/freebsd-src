@@ -4344,6 +4344,11 @@ softdep_sync_metadata(ap)
 	 */
 	waitfor = MNT_NOWAIT;
 top:
+	/*
+	 * We must wait for any I/O in progress to finish so that
+	 * all potential buffers on the dirty list will be visible.
+	 */
+	drain_output(vp, 1);
 	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
 		FREE_LOCK(&lk);
 		return (0);
@@ -4502,15 +4507,8 @@ loop:
 		goto loop;
 	}
 	/*
-	 * We must wait for any I/O in progress to finish so that
-	 * all potential buffers on the dirty list will be visible.
-	 * Once they are all there, proceed with the second pass
-	 * which will wait for the I/O as per above.
-	 */
-	drain_output(vp, 1);
-	/*
 	 * The brief unlock is to allow any pent up dependency
-	 * processing to be done.
+	 * processing to be done. Then proceed with the second pass.
 	 */
 	if (waitfor == MNT_NOWAIT) {
 		waitfor = MNT_WAIT;
@@ -4523,7 +4521,11 @@ loop:
 	 * If we have managed to get rid of all the dirty buffers,
 	 * then we are done. For certain directories and block
 	 * devices, we may need to do further work.
+	 *
+	 * We must wait for any I/O in progress to finish so that
+	 * all potential buffers on the dirty list will be visible.
 	 */
+	drain_output(vp, 1);
 	if (TAILQ_FIRST(&vp->v_dirtyblkhd) == NULL) {
 		FREE_LOCK(&lk);
 		return (0);
