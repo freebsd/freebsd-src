@@ -64,6 +64,7 @@
 #endif
 #include <sys/conf.h>
 #include <sys/tty.h>
+#include <sys/clist.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <sys/proc.h>
@@ -228,7 +229,9 @@ USB_ATTACH(umodem)
 	usb_endpoint_descriptor_t *ed;
 	usb_cdc_cm_descriptor_t *cmd;
 	char devinfo[1024];
+#if 0
 	usbd_status err;
+#endif
 	int data_ifaceno;
 	int i;
 	struct tty *tp;
@@ -309,6 +312,7 @@ USB_ATTACH(umodem)
 		goto bad;
 	}
 
+#if 0
 	if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
 		err = umodem_set_comm_feature(sc, UCDC_ABSTRACT_STATE,
 					    UCDC_DATA_MULTIPLEXED);
@@ -316,6 +320,7 @@ USB_ATTACH(umodem)
 			goto bad;
 		sc->sc_cm_over_data = 1;
 	}
+#endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	sc->sc_tty = tp = ttymalloc();
@@ -378,6 +383,7 @@ umodemstart(tp)
 	struct tty *tp;
 {
 	struct umodem_softc *sc;
+	struct cblock *cbp;
 	int s;
 	u_char *data;
 	int cnt;
@@ -427,7 +433,8 @@ umodemstart(tp)
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	cnt = ndqb(&tp->t_outq, 0);
 #elif defined(__FreeBSD__)
-	cnt = tp->t_outq.c_cc;
+	cbp = (struct cblock *) ((intptr_t) tp->t_outq.c_cf & ~CROUND);
+	cnt = min((char *) (cbp+1) - tp->t_outq.c_cf, tp->t_outq.c_cc);
 #endif
 
 	if (cnt == 0) {
