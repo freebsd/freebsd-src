@@ -140,7 +140,8 @@ static __inline struct ecb*
 ahbecbptov(struct ahb_softc *ahb, u_int32_t ecb_addr)
 {
 	return (ahb->ecb_array
-	      + ((struct ecb*)ecb_addr - (struct ecb*)ahb->ecb_physbase));
+	      + ((struct ecb*)(uintptr_t)ecb_addr 
+		- (struct ecb*)(uintptr_t)ahb->ecb_physbase));
 }
 
 static __inline u_int32_t
