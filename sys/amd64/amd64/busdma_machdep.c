@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,6 +77,7 @@ struct bounce_page {
 
 int busdma_swi_pending;
 
+static struct mtx bounce_lock;
 static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
 static int free_bpages;
 static int reserved_bpages;
@@ -102,20 +104,17 @@ static struct bus_dmamap nobounce_dmamap;
 static void init_bounce_pages(void *dummy);
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
-    				int commit);
+				int commit);
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
-/* To protect all the the bounce pages related lists and data. */
-static struct mtx bounce_lock;
-
 /*
  * Return true if a match is made.
- * 
+ *
  * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
- * 
+ *
  * If paddr is within the bounds of the dma tag then call the filter callback
  * to check for a match, if there is no filter callback then assume a match.
  */
@@ -372,7 +371,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	if (map != NULL) {
+	if (map != NULL && map != &nobounce_dmamap) {
 		if (STAILQ_FIRST(&map->bpages) != NULL)
 			return (EBUSY);
 		free(map, M_DEVBUF);
@@ -509,7 +508,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				map->buf = buf;
 				map->buflen = buflen;
 				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
-								map, links);
+				    map, links);
 				mtx_unlock(&bounce_lock);
 				return (EINPROGRESS);
 			}
@@ -639,8 +638,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 #endif
 	int nsegs, error;
 
-	KASSERT(m0->m_flags & M_PKTHDR,
-		("bus_dmamap_load_mbuf: no packet header"));
+	M_ASSERTPKTHDR(m0);
 
 	flags |= BUS_DMA_NOWAIT;
 	nsegs = 0;
