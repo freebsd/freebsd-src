@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 1.5 1995/05/30 03:47:00 rgrimes Exp $";
+static char rcsid[] = "$Id: do_command.c,v 1.6 1995/09/10 13:02:56 joerg Exp $";
 #endif
 
 
@@ -215,12 +215,13 @@ child_process(e, u)
 		/* set our directory, uid and gid.  Set gid first, since once
 		 * we set uid, we've lost root privledges.
 		 */
-		chdir(env_get("HOME", e->envp));
+		setgid(e->gid);
 # if defined(BSD)
 		initgroups(env_get("LOGNAME", e->envp), e->gid);
 # endif
-		setgid(e->gid);
+		setlogin(usernm);
 		setuid(e->uid);		/* we aren't root after this... */
+		chdir(env_get("HOME", e->envp));
 
 		/* exec the command.
 		 */
@@ -375,8 +376,8 @@ child_process(e, u)
 				auto char	hostname[MAXHOSTNAMELEN];
 
 				(void) gethostname(hostname, MAXHOSTNAMELEN);
-				(void) sprintf(mailcmd, MAILARGS,
-					       MAILCMD);
+				(void) snprintf(mailcmd, sizeof(mailcmd),
+					       MAILARGS, MAILCMD);
 				if (!(mail = cron_popen(mailcmd, "w"))) {
 					perror(MAILCMD);
 					(void) _exit(ERROR_EXIT);
@@ -434,7 +435,7 @@ child_process(e, u)
 			if (mailto && status) {
 				char buf[MAX_TEMPSTR];
 
-				sprintf(buf,
+				snprintf(buf, sizeof(buf),
 			"mailed %d byte%s of output but got status 0x%04x\n",
 					bytes, (bytes==1)?"":"s",
 					status);
