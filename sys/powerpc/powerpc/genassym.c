@@ -44,10 +44,11 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/errno.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/ktr.h>
