@@ -1132,6 +1132,9 @@ static int tl_attach(dev)
 		goto fail;
 	}
 
+	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_DEF);
+	TL_LOCK(sc);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -1243,9 +1246,6 @@ static int tl_attach(dev)
 		sc->tl_eeaddr = TL_EEPROM_EADDR;
 	if (t->tl_vid == OLICOM_VENDORID)
 		sc->tl_eeaddr = TL_EEPROM_EADDR_OC;
-
-	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_DEF);
-	TL_LOCK(sc);
 
 	/* Reset the adapter. */
 	tl_softreset(sc, 1);

@@ -1476,6 +1476,9 @@ static int ti_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ti_softc));
 
+	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_DEF);
+	TI_LOCK(sc);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -1526,9 +1529,6 @@ static int ti_attach(dev)
 		printf("ti%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
-
-	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_DEF);
-	TI_LOCK(sc);
 
 	sc->ti_unit = unit;
 
