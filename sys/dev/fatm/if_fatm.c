@@ -470,6 +470,8 @@ fatm_stop(struct fatm_softc *sc)
 
 	if (sc->ifatm.ifnet.if_flags & IFF_RUNNING) {
 		sc->ifatm.ifnet.if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+		ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+		    sc->utopia.carrier == UTP_CARR_OK);
 
 		/*
 		 * Collect transmit mbufs, partial receive mbufs and
@@ -1324,6 +1326,9 @@ fatm_init_locked(struct fatm_softc *sc)
 
 	/* start SUNI */
 	utopia_start(&sc->utopia);
+
+	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	    sc->utopia.carrier == UTP_CARR_OK);
 
 	DBG(sc, INIT, ("done"));
 }
@@ -2283,15 +2288,11 @@ fatm_open_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, u_int flags,
 		sc->vccs[vci].flags |= FATM_VCC_OPEN;
 		sc->open_vccs++;
 
-#ifdef notyet
 		/* inform management if this is not an NG
 		 * VCC or it's an NG PVC. */
 		if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
 		    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-			atm_message(&sc->ifatm.ifnet,
-			    ATM_MSG_VCC_CHANGED,
-			    (1 << 24) | (0 << 16) | vci);
-#endif
+			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 1);
 	} else
 		bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
 
@@ -2319,15 +2320,11 @@ fatm_close_vcc(struct fatm_softc *sc, u_int vpi, u_int vci)
 	error = fatm_waitvcc(sc, q);
 
 	if (error == 0) {
-#ifdef notyet
 		/* inform management of this is not an NG
 		 * VCC or it's an NG PVC. */
 		if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
 		    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-			atm_message(&sc->ifatm.ifnet,
-			    ATM_MSG_VCC_CHANGED,
-			    (0 << 24) | (0 << 16) | vci);
-#endif
+			ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 0);
 
 		bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
 		sc->open_vccs--;
@@ -2358,14 +2355,11 @@ fatm_open_complete(struct fatm_softc *sc, struct cmdqueue *q)
 	sc->vccs[vci].flags |= FATM_VCC_OPEN;
 	sc->open_vccs++;
 
-#ifdef notyet
 	/* inform management if this is not an NG
 	 * VCC or it's an NG PVC. */
 	if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
 	    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		    (1 << 24) | (0 << 16) | vci);
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 1);
 }
 
 /*
@@ -2385,14 +2379,11 @@ fatm_close_complete(struct fatm_softc *sc, struct cmdqueue *q)
 		return;
 	}
 
-#ifdef notyet
 	/* inform management of this is not an NG
 	 * VCC or it's an NG PVC. */
 	if (!(sc->vccs[vci].flags & ATMIO_FLAG_NG) ||
 	    (sc->vccs[vci].flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		    (0 << 24) | (0 << 16) | vci);
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, 0, vci, 0);
 
 	bzero(&sc->vccs[vci], sizeof(sc->vccs[vci]));
 	sc->open_vccs--;
@@ -2656,6 +2647,7 @@ fatm_sysctl_istats(SYSCTL_HANDLER_ARGS)
 
 /*
  * Sysctl handler for card statistics
+ * This is disable because it destroys the PHY statistics.
  */
 static int
 fatm_sysctl_stats(SYSCTL_HANDLER_ARGS)
