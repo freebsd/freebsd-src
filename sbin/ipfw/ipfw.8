@@ -2015,9 +2015,9 @@ on a net with per-host limits, rather than per-network limits:
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g. set 18:
 .Pp
-.Dl "ipfw disable set 18"
+.Dl "ipfw set disable 18"
 .Dl "ipfw add NN set 18 ...         # repeat as needed"
-.Dl "ipfw enable set 18"
+.Dl "ipfw set enable 18"
 .Pp
 To delete a set of rules atomically the command is simply:
 .Pp
@@ -2025,9 +2025,9 @@ To delete a set of rules atomically the command is simply:
 .Pp
 To test a ruleset and disable it and regain control if something goes wrong:
 .Pp
-.Dl "ipfw disable set 18"
+.Dl "ipfw set disable 18"
 .Dl "ipfw add NN set 18 ...         # repeat as needed"
-.Dl "ipfw enable set 18 ; echo done; sleep 30 && ipfw disable set 18"
+.Dl "ipfw set enable 18; echo done; sleep 30 && ipfw set disable 18"
 .Pp
 Here if everything goes well, you press control-C before the "sleep"
 terminates, and your ruleset will be left active. Otherwise, e.g. if
