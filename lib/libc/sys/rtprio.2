@@ -44,14 +44,14 @@
 .Sh DESCRIPTION
 .Fn rtprio
 is used to lookup or change the realtime or idle priority of a process.
-
+.Pp
 .Fa function
 specifies the operation to be performed.
 RTP_LOOKUP to lookup the current priority, 
 and RTP_SET to set the priority.
 .Fa pid
 specifies the process to be used, 0 for the current process.
-
+.Pp
 .Fa *rtp
 is a pointer to a struct rtprio which is used to specify the priority and priority type. 
 This structure has the following form:
@@ -71,9 +71,9 @@ The priority specified by the
 field ranges between 0 and  
 .Dv RTP_PRIO_MAX (usually 31) .
 0 is the highest possible priority.
-
+.Pp
 Realtime and idle priority is inherited through fork() and exec().
-
+.Pp
 A realtime process can only be preempted by a process of equal or
 higher priority, or by an interrupt; idle priority processes will run only
 when no other real/normal priority process is runnable.
