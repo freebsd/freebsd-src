@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
+ *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
  */
 
 /*
@@ -152,7 +152,7 @@ struct	ipq	ipq;			/* ip reass. queue */
 u_short	ip_id;				/* ip packet ctr, for ids */
 int	ip_defttl;			/* default IP ttl */
 
-int	 in_control __P((struct socket *, int, caddr_t, struct ifnet *));
+int	 in_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_deq __P((struct ipasfrag *));
 int	 ip_dooptions __P((struct mbuf *));

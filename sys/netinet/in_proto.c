@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
+ *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
  */
 
 #include <sys/param.h>
@@ -68,8 +68,8 @@ void	idpip_input(), nsip_ctlinput();
 #endif
 
 #ifdef TPIP
-void	tpip_input(), tpip_ctlinput(), tp_ctloutput();
-int	tp_init(), tp_slowtimo(), tp_drain(), tp_usrreq();
+void	tpip_input(), tpip_ctlinput(), tp_init(), tp_slowtimo(), tp_drain();
+int	tp_ctloutput(), tp_usrreq();
 #endif
 
 #ifdef EON

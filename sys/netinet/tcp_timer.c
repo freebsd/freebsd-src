@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
+ *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
  */
 
 #ifndef TUBA_INCLUDE
@@ -42,6 +42,8 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
+
+#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <net/if.h>
 #include <net/route.h>
@@ -60,8 +62,14 @@
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
+int	tcp_keepcnt = TCPTV_KEEPCNT;		/* max idle probes */
+int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;	/* max idle time in persist */
 int	tcp_maxidle;
+#else /* TUBA_INCLUDE */
+
+extern	int tcp_maxpersistidle;
 #endif /* TUBA_INCLUDE */
+
 /*
  * Fast timeout routine for processing delayed acks
  */
@@ -98,7 +106,7 @@ tcp_slowtimo()
 	int s = splnet();
 	register int i;
 
-	tcp_maxidle = TCPTV_KEEPCNT * tcp_keepintvl;
+	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 	/*
 	 * Search through tcb's and update active timers.
 	 */
@@ -110,7 +118,7 @@ tcp_slowtimo()
 	for (; ip != &tcb; ip = ipnxt) {
 		ipnxt = ip->inp_next;
 		tp = intotcpcb(ip);
-		if (tp == 0)
+		if (tp == 0 || tp->t_state == TCPS_LISTEN)
 			continue;
 		for (i = 0; i < TCPT_NTIMERS; i++) {
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
@@ -130,7 +138,7 @@ tpgone:
 	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
 #ifdef TCP_COMPAT_42
 	if ((int)tcp_iss < 0)
-		tcp_iss = 0;				/* XXX */
+		tcp_iss = TCP_ISSINCR;			/* XXX */
 #endif
 	tcp_now++;					/* for timestamps */
 	splx(s);
@@ -152,6 +160,8 @@ tcp_canceltimers(tp)
 
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
+
+int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
 
 /*
  * TCP timer processing.
@@ -256,6 +266,20 @@ tcp_timers(tp, timer)
 	 */
 	case TCPT_PERSIST:
 		tcpstat.tcps_persisttimeo++;
+		/*
+		 * Hack: if the peer is dead/unreachable, we do not
+		 * time out if the window is closed.  After a full
+		 * backoff, drop the connection if the idle time
+		 * (no responses to probes) reaches the maximum
+		 * backoff that we would use if retransmitting.
+		 */
+		if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+		    (tp->t_idle >= tcp_maxpersistidle ||
+		    tp->t_idle >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
+			tcpstat.tcps_persistdrop++;
+			tp = tcp_drop(tp, ETIMEDOUT);
+			break;
+		}
 		tcp_setpersist(tp);
 		tp->t_force = 1;
 		(void) tcp_output(tp);

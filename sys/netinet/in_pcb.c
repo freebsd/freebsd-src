@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1991, 1993
+ * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
+ *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
  */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@ in_pcballoc(so, head)
 {
 	register struct inpcb *inp;
 
-	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_WAITOK);
+	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
@@ -130,7 +130,7 @@ in_pcbbind(inp, nam)
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED &&
 			    (error = suser(p->p_ucred, &p->p_acflag)))
-				return (error);
+				return (EACCES);
 			t = in_pcblookup(head, zeroin_addr, 0,
 			    sin->sin_addr, lport, wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)

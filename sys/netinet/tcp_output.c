@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
+ *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
  */
 
 #include <sys/param.h>
@@ -318,9 +318,10 @@ send:
 	 * Adjust data length if insertion of options will
 	 * bump the packet length beyond the t_maxseg length.
 	 */
-	 if (len > tp->t_maxseg - optlen) {
+	if (len > tp->t_maxseg - optlen) {
 		len = tp->t_maxseg - optlen;
 		sendalot = 1;
+		flags &= ~TH_FIN;
 	 }
 
 
@@ -369,8 +370,11 @@ send:
 			m->m_len += len;
 		} else {
 			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
-			if (m->m_next == 0)
-				len = 0;
+			if (m->m_next == 0) {
+				(void) m_free(m);
+				error = ENOBUFS;
+				goto out;
+			}
 		}
 #endif
 		/*

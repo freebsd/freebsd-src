@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
+ *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
  */
 
 /*
@@ -142,14 +142,12 @@ u_char	ether_ipmulticast_min[6];
 u_char	ether_ipmulticast_max[6];
 struct	ifqueue arpintrq;
 
-struct	llinfo_arp *arptnew __P((struct in_addr *));
 struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
 
-void	arpwhohas __P((struct arpcom *, struct in_addr *));
+void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 void	arpintr __P((void));
 int	arpresolve __P((struct arpcom *,
-	   struct rtentry *, struct mbuf *, struct sockaddr *, u_char *));
-void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
+	    struct rtentry *, struct mbuf *, struct sockaddr *, u_char *));
 void	arpwhohas __P((struct arpcom *, struct in_addr *));
 
 int	ether_addmulti __P((struct ifreq *, struct arpcom *));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1993
+ * Copyright (c) 1982, 1986, 1988, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
+ *	@(#)tcp_usrreq.c	8.5 (Berkeley) 6/21/95
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ tcp_usrreq(so, req, m, nam, control)
 	int ostate;
 
 	if (req == PRU_CONTROL)
-		return (in_control(so, (int)m, (caddr_t)nam,
+		return (in_control(so, (u_long)m, (caddr_t)nam,
 			(struct ifnet *)control));
 	if (control && control->m_len) {
 		m_freem(control);
@@ -101,6 +101,18 @@ tcp_usrreq(so, req, m, nam, control)
 	 */
 	if (inp == 0 && req != PRU_ATTACH) {
 		splx(s);
+#if 0
+		/*
+		 * The following corrects an mbuf leak under rare
+		 * circumstances, but has not been fully tested.
+		 */
+		if (m && req != PRU_SENSE)
+			m_freem(m);
+#else
+		/* safer version of fix for mbuf leak */
+		if (m && (req == PRU_SEND || req == PRU_SENDOOB))
+			m_freem(m);
+#endif
 		return (EINVAL);		/* XXX */
 	}
 	if (inp) {
@@ -194,7 +206,7 @@ tcp_usrreq(so, req, m, nam, control)
 		tcpstat.tcps_connattempt++;
 		tp->t_state = TCPS_SYN_SENT;
 		tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
-		tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
+		tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/4;
 		tcp_sendseqinit(tp);
 		error = tcp_output(tp);
 		break;
