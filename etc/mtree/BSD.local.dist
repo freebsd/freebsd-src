@@ -67,8 +67,7 @@
         ..
         catn
         ..
-        de_DE.ISO_8859-1 \
-                        uname=root
+        de.ISO8859-1    uname=root
             cat1
             ..
             cat2
@@ -115,8 +114,42 @@
             mann
             ..
         ..
-        ja
+	en.ISO8859-1
 /set uname=man
+            cat1
+            ..
+            cat1aout
+            ..
+            cat2
+            ..
+            cat3
+            ..
+            cat4
+                alpha
+                ..
+                i386
+                ..
+            ..
+            cat5
+            ..
+            cat6
+            ..
+            cat7
+            ..
+            cat8
+                alpha
+                ..
+                i386
+                ..
+            ..
+            cat9
+                i386
+                ..
+            ..
+            catn
+            ..
+        ..
+        ja      uname=root
             cat1
             ..
             cat2
@@ -210,91 +243,137 @@
             ..
             bg_BG.CP1251
             ..
-            cs_CZ.ISO_8859-2
+            cs_CZ.ISO8859-2
             ..
-            da_DK.ISO_8859-1
+            da_DK.ISO8859-1
             ..
-            de_AT.ISO_8859-1
+            da_DK.ISO8859-15
             ..
-            de_CH.ISO_8859-1
+            de_AT.ISO8859-1
             ..
-            de_DE.ISO_8859-1
+            de_AT.ISO8859-15
             ..
-            en_AU.ISO_8859-1
+            de_CH.ISO8859-1
             ..
-            en_CA.ISO_8859-1
+            de_CH.ISO8859-15
             ..
-            en_GB.ISO_8859-1
+            de_DE.ISO8859-1
             ..
-            en_US.ISO_8859-1
+            de_DE.ISO8859-15
             ..
-            es_ES.ISO_8859-1
+            en_AU.ISO8859-1
             ..
-            fi_FI.ISO_8859-1
+            en_AU.ISO8859-15
             ..
-            fr_BE.ISO_8859-1
+            en_AU.US-ASCII
             ..
-            fr_CA.ISO_8859-1
+            en_CA.ISO8859-1
             ..
-            fr_CH.ISO_8859-1
+            en_CA.ISO8859-15
             ..
-            fr_FR.ISO_8859-1
+            en_CA.US-ASCII
             ..
-            hr_HR.ISO_8859-2
+            en_GB.ISO8859-1
             ..
-            hu_HU.ISO_8859-2
+            en_GB.ISO8859-15
             ..
-            is_IS.ISO_8859-1
+            en_GB.US-ASCII
             ..
-            it_CH.ISO_8859-1
+            en_US.ISO8859-1
             ..
-            it_IT.ISO_8859-1
+            en_US.ISO8859-15
             ..
-            ja_JP.EUC
+            es_ES.ISO8859-1
+            ..
+            es_ES.ISO8859-15
+            ..
+            fi_FI.ISO8859-1
+            ..
+            fi_FI.ISO8859-15
+            ..
+            fr_BE.ISO8859-1
+            ..
+            fr_BE.ISO8859-15
+            ..
+            fr_CA.ISO8859-1
+            ..
+            fr_CA.ISO8859-15
+            ..
+            fr_CH.ISO8859-1
+            ..
+            fr_CH.ISO8859-15
+            ..
+            fr_FR.ISO8859-1
+            ..
+            fr_FR.ISO8859-15
+            ..
+            hr_HR.ISO8859-2
+            ..
+            hu_HU.ISO8859-2
+            ..
+            is_IS.ISO8859-1
+            ..
+            is_IS.ISO8859-15
+            ..
+            it_CH.ISO8859-1
+            ..
+            it_CH.ISO8859-15
+            ..
+            it_IT.ISO8859-1
+            ..
+            it_IT.ISO8859-15
+            ..
+            ja_JP.eucJP
             ..
             ja_JP.SJIS
             ..
-            ja_JP.Shift_JIS
+            ko_KR.eucKR
             ..
-            ko_KR.EUC
+            la_LN.US-ASCII
             ..
-            la_LN.ASCII
+            la_LN.ISO8859-1
             ..
-            la_LN.DIS_8859-15
+            la_LN.ISO8859-15
             ..
-            la_LN.ISO_8859-1
+            la_LN.ISO8859-2
             ..
-            la_LN.ISO_8859-2
+            la_LN.ISO8859-4
             ..
-            la_LN.ISO_8859-4
+            lt_LT.ISO8859-4
             ..
-            lt_LT.ISO_8859-4
+            nl_BE.ISO8859-1
             ..
-            nl_BE.ISO_8859-1
+            nl_BE.ISO8859-15
             ..
-            nl_NL.ISO_8859-1
+            nl_NL.ISO8859-1
             ..
-            no_NO.ISO_8859-1
+            nl_NL.ISO8859-15
             ..
-            pl_PL.ISO_8859-2
+            no_NO.ISO8859-1
             ..
-            pt_PT.ISO_8859-1
+            pl_PL.ISO8859-2
             ..
-            ru_SU.CP866
+            pt_PT.ISO8859-1
             ..
-            ru_SU.ISO_8859-5
+            pt_PT.ISO8859-15
             ..
-            ru_SU.KOI8-R
+            ru_RU.CP866
             ..
-            sl_SI.ISO_8859-2
+            ru_RU.ISO8859-5
             ..
-            sv_SE.ISO_8859-1
+            ru_RU.KOI8-R
             ..
-            tr_TR.ISO_8859-9
+            sl_SI.ISO8859-2
+            ..
+            sv_SE.ISO8859-1
+            ..
+            sv_SE.ISO8859-15
+            ..
+            tr_TR.ISO8859-9
             ..
             uk_UA.KOI8-U
             ..
-            zh_CN.EUC
+            zh_CN.eucCN
             ..
             zh_TW.Big5
             ..
