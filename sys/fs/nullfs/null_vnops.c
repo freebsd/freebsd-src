@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.26 1998/01/31 07:23:13 eivind Exp $
+ *	$Id: null_vnops.c,v 1.27 1998/04/17 22:36:54 des Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.26 1998/01/31 07:23:13 eivind Exp $
+ * $Id: null_vnops.c,v 1.27 1998/04/17 22:36:54 des Exp $
  */
 
 /*
@@ -421,6 +421,8 @@ null_setattr(ap)
  		case VBLK:
  		case VSOCK:
  		case VFIFO:
+			if (vap->va_flags != VNOVAL)
+				return (EOPNOTSUPP);
 			return (0);
 		case VREG:
 		case VLNK:

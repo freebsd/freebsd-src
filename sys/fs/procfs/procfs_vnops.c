@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.56 1998/03/26 20:52:42 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.57 1998/05/19 00:00:14 tegge Exp $
  */
 
 /*
@@ -594,6 +594,10 @@ procfs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+
+	if (ap->a_vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
+
 	/*
 	 * just fake out attribute setting
 	 * it's not good to generate an error
