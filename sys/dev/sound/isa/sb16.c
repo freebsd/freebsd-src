@@ -331,6 +331,19 @@ sb16mix_init(struct snd_mixer *m)
 }
 
 static int
+rel2abs_volume(int x, int max)
+{
+	int temp;
+	
+	temp = ((x * max) + 50) / 100;
+	if (temp > max)
+		temp = max;
+	else if (temp < 0)
+		temp = 0;
+	return (temp);
+}
+
+static int
 sb16mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
@@ -340,8 +353,8 @@ sb16mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	e = &sb16_mixtab[dev];
 	max = (1 << e->bits) - 1;
 
-	left = (left * max) / 100;
-	right = (right * max) / 100;
+	left = rel2abs_volume(left, max);
+	right = rel2abs_volume(right, max);
 
 	sb_setmixer(sb, e->reg, left << e->ofs);
 	if (e->stereo)
