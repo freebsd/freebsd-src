@@ -86,8 +86,10 @@ int
 rand_r(unsigned int *ctx)
 {
 	u_long val = (u_long) *ctx;
-	*ctx = do_rand(&val);
-	return (int) *ctx;
+	int r = do_rand(&val);
+
+	*ctx = (unsigned int) val;
+	return (r);
 }
 
 
