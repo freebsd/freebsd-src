@@ -62,6 +62,7 @@
 
 #include <machine/cache.h>
 #include <machine/cpu.h>
+#include <machine/fsr.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
@@ -100,9 +101,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	/*
 	 * Ensure that p1's pcb is up to date.
 	 */
-	td1->td_pcb->pcb_y = rd(y);
-	td1->td_pcb->pcb_fpstate.fp_fprs = rd(fprs);
-	if ((td1->td_frame->tf_tstate & TSTATE_PEF) != 0) {
+	if ((td1->td_frame->tf_fprs & FPRS_FEF) != 0) {
 		mtx_lock_spin(&sched_lock);
 		savefpctx(&td1->td_pcb->pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
@@ -121,8 +120,9 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
 	tf->tf_out[0] = 0;			/* Child returns zero */
-	tf->tf_out[1] = 1;			/* XXX i386 returns 1 in %edx */
-	tf->tf_tstate &= ~(TSTATE_XCC_C | TSTATE_CWP_MASK);	/* success */
+	tf->tf_out[1] = 0;
+	tf->tf_tstate &= ~TSTATE_XCC_C;		/* success */
+	tf->tf_fprs = 0;
 
 	td2->td_frame = tf;
 	fp = (struct frame *)tf - 1;
