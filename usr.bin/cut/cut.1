@@ -41,17 +41,17 @@
 .Nm cut
 .Nd select portions of each line of a file
 .Sh SYNOPSIS
-.Nm cut
+.Nm
 .Fl c Ar list
 .Ar
-.Nm cut
+.Nm
 .Fl f Ar list
-.Op Fl d Ar string
+.Op Fl d Ar delim
 .Op Fl s
 .Ar
 .Sh DESCRIPTION
 The
-.Nm cut
+.Nm
 utility selects portions of each line (as specified by
 .Ar list  )
 from each
@@ -85,9 +85,9 @@ The options are as follows:
 The
 .Ar list
 specifies character positions.
-.It Fl d Ar string
+.It Fl d Ar delim
 Use the first character of
-.Ar string
+.Ar delim
 as the field delimiter character instead of the tab character.
 .It Fl f Ar list
 The
@@ -105,6 +105,6 @@ exits 0 on success, 1 if an error occurred.
 .Xr paste 1
 .Sh STANDARDS
 The
-.Nm cut
+.Nm
 utility is expected to conform to
 .St -p1003.2 .
