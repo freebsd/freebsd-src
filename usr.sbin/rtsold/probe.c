@@ -1,4 +1,4 @@
-/*	$KAME: probe.c,v 1.10 2000/08/13 06:14:59 itojun Exp $	*/
+/*	$KAME: probe.c,v 1.16 2002/06/10 20:00:36 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -40,6 +40,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_dl.h>
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -59,7 +60,7 @@
 static struct msghdr sndmhdr;
 static struct iovec sndiov[2];
 static int probesock;
-static void sendprobe __P((struct in6_addr *, int));
+static void sendprobe __P((struct in6_addr *, struct ifinfo *));
 
 int
 probe_init()
@@ -98,11 +99,12 @@ probe_init()
  * Probe if each router in the default router list is still alive.
  */
 void
-defrouter_probe(int ifindex)
+defrouter_probe(struct ifinfo *ifinfo)
 {
+	u_char ntopbuf[INET6_ADDRSTRLEN];
 	struct in6_drlist dr;
 	int s, i;
-	u_char ntopbuf[INET6_ADDRSTRLEN];
+	int ifindex = ifinfo->sdl->sdl_index;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
@@ -128,8 +130,7 @@ defrouter_probe(int ifindex)
 				    ntopbuf, INET6_ADDRSTRLEN));
 				continue; /* ignore the address */
 			}
-			sendprobe(&dr.defrouter[i].rtaddr,
-			    dr.defrouter[i].if_index);
+			sendprobe(&dr.defrouter[i].rtaddr, ifinfo);
 		}
 	}
 
@@ -138,18 +139,20 @@ closeandend:
 }
 
 static void
-sendprobe(struct in6_addr *addr, int ifindex)
+sendprobe(struct in6_addr *addr, struct ifinfo *ifinfo)
 {
+	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	struct sockaddr_in6 sa6_probe;
 	struct in6_pktinfo *pi;
 	struct cmsghdr *cm;
-	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
+	u_int32_t ifindex = ifinfo->sdl->sdl_index;
 	int hoplimit = 1;
 
 	memset(&sa6_probe, 0, sizeof(sa6_probe));
 	sa6_probe.sin6_family = AF_INET6;
 	sa6_probe.sin6_len = sizeof(sa6_probe);
 	sa6_probe.sin6_addr = *addr;
+	sa6_probe.sin6_scope_id = ifinfo->linkid;
 
 	sndmhdr.msg_name = (caddr_t)&sa6_probe;
 	sndmhdr.msg_iov[0].iov_base = NULL;
