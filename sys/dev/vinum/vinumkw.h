@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Nan Yang Computer
- *      Services Limited.
- * 4. Neither the name of the Company nor the names of its contributors
+ * 3. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,7 +29,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.16 2000/02/19 06:52:46 grog Exp grog $
+ * $Id: vinumkw.h,v 1.17 2000/05/20 08:23:07 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -128,6 +124,7 @@ enum keyword {
     kw_checkparity,
     kw_rebuildparity,
     kw_dumpconfig,
+    kw_retryerrors,
     kw_invalid_keyword = -1
 };
 
@@ -146,3 +143,8 @@ extern struct _keywords flag_keywords[];
 
 extern struct keywordset keyword_set;
 extern struct keywordset flag_set;
+
+/* Parser functions */
+
+enum keyword get_keyword(char *, struct keywordset *);
+int tokenize(char *, char *[], int);

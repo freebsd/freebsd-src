@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.12 2000/02/29 02:20:31 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.14 2000/10/27 03:07:53 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -135,28 +135,28 @@ vinumioctl(dev_t dev,
 	    index = *(int *) data;			    /* get the index */
 	    if (index >= (unsigned) vinum_conf.drives_allocated) /* can't do it */
 		return ENXIO;				    /* bang */
-	    bcopy(&DRIVE[index], data, sizeof(struct drive)); /* copy the config item out */
+	    bcopy(&DRIVE[index], data, sizeof(struct _drive)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_SDCONFIG:
 	    index = *(int *) data;			    /* get the index */
 	    if (index >= (unsigned) vinum_conf.subdisks_allocated) /* can't do it */
 		return ENXIO;				    /* bang */
-	    bcopy(&SD[index], data, sizeof(struct sd));	    /* copy the config item out */
+	    bcopy(&SD[index], data, sizeof(struct _sd));    /* copy the config item out */
 	    return 0;
 
 	case VINUM_PLEXCONFIG:
 	    index = *(int *) data;			    /* get the index */
 	    if (index >= (unsigned) vinum_conf.plexes_allocated) /* can't do it */
 		return ENXIO;				    /* bang */
-	    bcopy(&PLEX[index], data, sizeof(struct plex)); /* copy the config item out */
+	    bcopy(&PLEX[index], data, sizeof(struct _plex)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_VOLCONFIG:
 	    index = *(int *) data;			    /* get the index */
 	    if (index >= (unsigned) vinum_conf.volumes_allocated) /* can't do it */
 		return ENXIO;				    /* bang */
-	    bcopy(&VOL[index], data, sizeof(struct volume)); /* copy the config item out */
+	    bcopy(&VOL[index], data, sizeof(struct _volume)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_PLEXSDCONFIG:
@@ -167,7 +167,7 @@ vinumioctl(dev_t dev,
 		return ENXIO;				    /* bang */
 	    bcopy(&SD[PLEX[index].sdnos[sdno]],		    /* copy the config item out */
 		data,
-		sizeof(struct sd));
+		sizeof(struct _sd));
 	    return 0;
 
 	    /*
@@ -666,7 +666,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 	} else {					    /* valid plex number */
 	    plex = &PLEX[sd->plexno];
 	    if ((!msg->force)				    /* don't force things */
-&&((plex->state == plex_up)				    /* and the plex is up */
+	    &&((plex->state == plex_up)			    /* and the plex is up */
 	    ||((plex->state == plex_flaky) && sd->state == sd_up))) { /* or flaky with this sd up */
 		reply->error = EBUSY;			    /* we need this sd */
 		reply->msg[0] = '\0';
@@ -716,7 +716,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 
 	    vol = &VOL[volno];
 	    if ((!msg->force)				    /* don't force things */
-&&((vol->state == volume_up)				    /* and the volume is up */
+	    &&((vol->state == volume_up)		    /* and the volume is up */
 	    &&(vol->plexes == 1))) {			    /* and this is the last plex */
 		/*
 		   * XXX As elsewhere, check whether we will lose
