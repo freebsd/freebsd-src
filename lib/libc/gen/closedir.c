@@ -42,14 +42,14 @@ static char sccsid[] = "@(#)closedir.c	8.1 (Berkeley) 6/10/93";
 #include <stdlib.h>
 #include <unistd.h>
 
-extern void _reclaim_telldir __P(( const DIR * ));
+extern void _reclaim_telldir __P((DIR *));
 
 /*
  * close a directory.
  */
 int
 closedir(dirp)
-	register DIR *dirp;
+	DIR *dirp;
 {
 	int fd;
 
@@ -58,7 +58,7 @@ closedir(dirp)
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
 	free((void *)dirp->dd_buf);
-	free((void *)dirp);
 	_reclaim_telldir(dirp);
+	free((void *)dirp);
 	return(_close(fd));
 }
