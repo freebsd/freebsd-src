@@ -239,7 +239,7 @@ main(argc, argv)
 		usagestr = "swapinfo [-k] [-M core] [-N system]";
 	} else {
 		opts = "TM:N:fiknstv";
-		usagestr = "pstat [-Tfknstv] [-M core] [-N system]";
+		usagestr = "pstat [-Tfknst] [-M core] [-N system]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) != -1)
