@@ -378,7 +378,7 @@ restart:
 		 */
 		for (i = slot; (offset = DH_ENTRY(dh, i)) != DIRHASH_EMPTY;
 		    i = WRAPINCR(i, dh->dh_hlen))
-			if (offset == dh->dh_seqopt)
+			if (offset == dh->dh_seqoff)
 				break;
 		if (offset == dh->dh_seqoff) {
 			/*
