@@ -612,7 +612,7 @@ ENTRY(restorehighfp, 1)
 END(restorehighfp)
 
 /*
- * switch_trampoline()
+ * fork_trampoline()
  *
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
@@ -623,7 +623,7 @@ END(restorehighfp)
  * The callout function is in r4, the address to return to after executing
  * fork_exit() is in r5, and the argument is in r6.
  */
-ENTRY(switch_trampoline, 0)
+ENTRY(fork_trampoline, 0)
 	alloc	r14=ar.pfs,0,0,3,0
 	;;
 	mov	b0=r5
@@ -633,5 +633,5 @@ ENTRY(switch_trampoline, 0)
 	;;
 	br.call.sptk.few b6=fork_exit
 
-	END(switch_trampoline)
+	END(fork_trampoline)
 
