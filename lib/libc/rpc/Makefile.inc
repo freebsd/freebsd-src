@@ -13,7 +13,8 @@ SRCS+=	clnt_unix.c svc_unix.c
 
 SRCS+=	auth_des.c authdes_prot.c auth_time.c des_soft.c des_crypt.c \
 	key_call.c key_prot_xdr.c netname.c netnamer.c rpcdname.c rtime.c \
-	svc_auth_des.c crypt_clnt.c crypt_xdr.c crypt_client.c
+	svc_auth_des.c crypt_clnt.c crypt_xdr.c crypt_client.c \
+	getpublickey.c
 
 CFLAGS+= -DBROKEN_DES
 
