@@ -60,7 +60,7 @@ If it is on a queue prior to the call, it will still
 be there afterward.
 .Pp
 If the page needs to be held for a long period of time,
-.Fn vm_page_write
+.Xr vm_page_wire 9
 should be used.
 .Pp
 .Fn vm_page_unhold
