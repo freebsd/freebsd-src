@@ -123,7 +123,7 @@
 #define AN_CMD_ENABLE		0x0001 /* enable */
 #define AN_CMD_DISABLE		0x0002 /* disable */
 #define AN_CMD_FORCE_SYNCLOSS	0x0003 /* force loss of sync */
-#define AN_CMD_FW_RESTART	0x0004 /* firmware resrart */
+#define AN_CMD_FW_RESTART	0x0004 /* firmware restart */
 #define AN_CMD_HOST_SLEEP	0x0005
 #define AN_CMD_MAGIC_PKT	0x0006
 #define AN_CMD_READCFG		0x0008
