@@ -63,7 +63,7 @@ static void module_shutdown(void *, int);
 static int
 modevent_nop(module_t mod, int what, void *arg)
 {
-	return 0;
+	return (0);
 }
 
 
@@ -119,12 +119,12 @@ module_register(const moduledata_t *data, linker_file_t container)
 	if (newmod != NULL) {
 		printf("module_register: module %s already exists!\n", 
 		    data->name);
-		return EEXIST;
+		return (EEXIST);
 	}
 	namelen = strlen(data->name) + 1;
 	newmod = malloc(sizeof(struct module) + namelen, M_MODULE, M_WAITOK);
 	if (newmod == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 	newmod->refs = 1;
 	newmod->id = nextid++;
 	newmod->name = (char *)(newmod + 1);
@@ -137,7 +137,7 @@ module_register(const moduledata_t *data, linker_file_t container)
 	if (container)
 		TAILQ_INSERT_TAIL(&container->modules, newmod, flink);
 	newmod->file = container;
-	return 0;
+	return (0);
 }
 
 void
@@ -175,42 +175,42 @@ module_lookupbyname(const char *name)
 	TAILQ_FOREACH(mod, &modules, link) {
 		err = strcmp(mod->name, name);
 		if (err == 0)
-			return mod;
+			return (mod);
 	}
-	return 0;
+	return (NULL);
 }
 
 module_t
 module_lookupbyid(int modid)
 {
-	module_t        mod;
+	module_t mod;
 
 	TAILQ_FOREACH(mod, &modules, link) {
 		if (mod->id == modid)
-			return mod;
+			return (mod);
 	}
-	return 0;
+	return (NULL);
 }
 
 int
 module_unload(module_t mod)
 {
 
-	return MOD_EVENT(mod, MOD_UNLOAD);
+	return (MOD_EVENT(mod, MOD_UNLOAD));
 }
 
 int
 module_getid(module_t mod)
 {
 
-	return mod->id;
+	return (mod->id);
 }
 
 module_t
 module_getfnext(module_t mod)
 {
 
-	return TAILQ_NEXT(mod, flink);
+	return (TAILQ_NEXT(mod, flink));
 }
 
 void
@@ -344,7 +344,7 @@ modstat(struct thread *td, struct modstat_args *uap)
 	td->td_retval[0] = 0;
 out:
 	mtx_unlock(&Giant);
-	return error;
+	return (error);
 }
 
 /*
@@ -368,5 +368,5 @@ modfind(struct thread *td, struct modfind_args *uap)
 		td->td_retval[0] = mod->id;
 	mtx_unlock(&Giant);
 out:
-	return error;
+	return (error);
 }
