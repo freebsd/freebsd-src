@@ -20,13 +20,13 @@
 # the rights to redistribute these changes.
 #
 #	from: Mach, Revision 2.2	92/04/04  11:33:46  rpd
-#	$Id: Makefile,v 1.10 1994/06/20 04:32:40 jkh Exp $
+#	$Id: Makefile,v 1.11 1994/08/21 17:47:24 paul Exp $
 #
 
 wd0:
 	dd if=boot of=biosboot count=1
 	dd if=boot of=bootbios skip=1
-	disklabel -B -b biosboot -s bootbios wd0 nec5655
+	disklabel -B -b biosboot -s bootbios wd0 
 	rm biosboot bootbios
 
 NOPROG=	noprog
@@ -96,7 +96,7 @@ all: biosboot bootbios
 fd0:
 	dd if=boot of=biosboot count=1
 	dd if=boot of=bootbios skip=1
-	disklabel -B -b biosboot -s bootbios fd0 floppy 
+	disklabel -B -b biosboot -s bootbios fd0 
 	rm biosboot bootbios
 
 install: wd sd fd
