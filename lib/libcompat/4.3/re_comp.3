@@ -56,7 +56,7 @@ This interface is made obsolete by
 The
 .Fn re_comp
 function
-compiles a string into an internal form suitable for pattern matching. 
+compiles a string into an internal form suitable for pattern matching.
 The
 .Fn re_exec
 function
@@ -70,7 +70,7 @@ returns 0 if the string
 .Fa s
 was compiled successfully; otherwise a string containing an
 error message is returned.
-If 
+If
 .Fn re_comp
 is passed 0 or a null string, it returns without changing the currently
 compiled regular expression.
@@ -89,10 +89,10 @@ The strings passed to both
 .Fn re_comp
 and
 .Fn re_exec
-may have trailing or embedded newline characters; 
+may have trailing or embedded newline characters;
 they are terminated by
 .Dv NUL Ns s .
-The regular expressions recognized are described in the manual entry for 
+The regular expressions recognized are described in the manual entry for
 .Xr ed 1 ,
 given the above difference.
 .Sh DIAGNOSTICS
@@ -125,5 +125,5 @@ The
 .Fn re_comp
 and
 .Fn re_exec
-functions appeared in 
+functions appeared in
 .Bx 4.0 .

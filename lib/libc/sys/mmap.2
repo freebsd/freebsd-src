@@ -137,7 +137,7 @@ Region is not included in a core file.
 .It Dv MAP_NOSYNC
 Causes data dirtied via this VM map to be flushed to physical media
 only when necessary (usually by the pager) rather then gratuitously.
-Typically this prevents the update daemons from flushing pages dirtied 
+Typically this prevents the update daemons from flushing pages dirtied
 through such maps and thus allows efficient sharing of memory across
 unassociated processes using a file-backed shared memory map.  Without
 this option any VM pages you dirty may be flushed to disk every so often
@@ -193,7 +193,7 @@ The
 .Xr msync 2
 system call is obsolete since
 .Bx
-implements a coherent filesystem buffer cache.  However, it may be 
+implements a coherent filesystem buffer cache.  However, it may be
 used to associate dirty VM pages with filesystem buffers and thus cause
 them to be flushed to physical media sooner rather then later.
 .It Dv MAP_PRIVATE
@@ -217,26 +217,26 @@ to enable this option for other architechures.
 implies
 .Dv MAP_ANON ,
 and
-.Fa offset 
-of 0.   
-.Fa fd 
-must be -1 and 
-.Fa prot 
+.Fa offset
+of 0.
+.Fa fd
+must be -1 and
+.Fa prot
 must include at least
 .Dv PROT_READ
 and
 .Dv PROT_WRITE .
 This option creates
-a memory region that grows to at most 
-.Fa len 
+a memory region that grows to at most
+.Fa len
 bytes in size, starting from the stack top and growing down.  The
-stack top is the starting address returned by the call, plus 
-.Fa len 
+stack top is the starting address returned by the call, plus
+.Fa len
 bytes.  The bottom of the stack at maximum growth is the starting
 address returned by the call.
 .El
 .Pp
-The 
+The
 .Xr close 2
 function does not unmap pages, see
 .Xr munmap 2
@@ -332,7 +332,7 @@ was specified and insufficient memory was available.
 .Sh BUGS
 .Fa len
 is limited to 2GB.  Mmapping slightly more than 2GB doesn't work, but
-it is possible to map a window of size (filesize % 2GB) for file sizes 
+it is possible to map a window of size (filesize % 2GB) for file sizes
 of slightly less than 2G, 4GB, 6GB and 8GB.
 .Pp
 The limit is imposed for a variety of reasons.

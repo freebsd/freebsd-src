@@ -74,7 +74,7 @@ is undefined if called from a cancellation handler or destructor function
 that was invoked as the result of an implicit or explicit call to
 .Fn pthread_exit .
 .Pp
-After a thread has terminated, the result of access to local (auto) 
+After a thread has terminated, the result of access to local (auto)
 variables of the thread is undefined.
 Thus, references to local variables
 of the exiting thread should not be used for the

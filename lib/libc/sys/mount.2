@@ -82,7 +82,7 @@ suppress default semantics which affect filesystem access.
 .It Dv MNT_RDONLY
 The filesystem should be treated as read-only;
 Even the super-user may not write on it.
-Specifying MNT_UPDATE without this option will upgrade 
+Specifying MNT_UPDATE without this option will upgrade
 a read-only filesystem to read/write.
 .It Dv MNT_NOEXEC
 Do not allow files to be executed from the filesystem.
@@ -109,7 +109,7 @@ Disable write clustering.
 .Pp
 The flag
 .Dv MNT_UPDATE
-indicates that the mount command is being applied 
+indicates that the mount command is being applied
 to an already mounted filesystem.
 This allows the mount flags to be changed without requiring
 that the filesystem be unmounted and remounted.
@@ -164,7 +164,7 @@ The
 option requires the SUIDDIR option to have been compiled into the kernel
 to have any effect.
 See the
-.Xr mount 8 
+.Xr mount 8
 and
 .Xr chmod 2
 pages for more information.
@@ -225,7 +225,7 @@ does not exist.
 .Ar Fspec
 is not a block device.
 .It Bq Er ENXIO
-The major device number of 
+The major device number of
 .Ar fspec
 is out of range (this indicates no device driver exists
 for the associated hardware).

@@ -42,7 +42,7 @@ The current implementation requires this flag to always be set.
 If set, the child process will be dissociated from the parent.
 Upon
 exit the child will not leave a status for the parent to collect.
-See 
+See
 .Xr wait 2 .
 .It RFFDG
 If set, the invoker's file descriptor table (see
@@ -73,7 +73,7 @@ for information.
 If set, the kernel will force sharing the sigacts structure between the
 child and the parent.
 .It RFLINUXTHPN
-If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread 
+If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread
 exit for the child.  This is intended to mimic certain Linux clone behaviour.
 .El
 .Pp

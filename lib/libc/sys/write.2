@@ -62,7 +62,7 @@ from the buffer pointed to by
 .Fa buf .
 .Fn Writev
 performs the same action, but gathers the output data
-from the 
+from the
 .Fa iovcnt
 buffers specified by the members of the
 .Fa iov
@@ -71,9 +71,9 @@ array: iov[0], iov[1], ..., iov[iovcnt\|-\|1].
 performs the same function, but writes to the specified position in
 the file without modifying the file pointer.
 .Pp
-For 
+For
 .Fn writev ,
-the 
+the
 .Fa iovec
 structure is defined as:
 .Pp
@@ -84,7 +84,7 @@ struct iovec {
 };
 .Ed
 .Pp
-Each 
+Each
 .Fa iovec
 entry specifies the base address and length of an area
 in memory from which data should be written.
@@ -221,7 +221,7 @@ The file was marked for non-blocking I/O,
 and no data could be written immediately.
 .El
 .Pp
-In addition, 
+In addition,
 .Fn writev
 may return one of the following errors:
 .Bl -tag -width Er
@@ -269,7 +269,7 @@ The file descriptor is associated with a pipe, socket, or FIFO.
 .Sh STANDARDS
 The
 .Fn write
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 .
 The
 .Fn writev

@@ -43,7 +43,7 @@
 .Op Fl Daln
 .Sh DESCRIPTION
 .Nm Rlogind
-is the server for the 
+is the server for the
 .Xr rlogin 1
 program.  The server provides a remote login facility
 with authentication based on privileged port numbers from trusted hosts.
@@ -71,7 +71,7 @@ Enable Kerberos authentication.
 .It Fl v
 Enable vacuous mode.
 .It Fl x
-Enable 
+Enable
 .Tn DES
 encryption for all data passed via the rlogin
 session.  This may impact response time
@@ -112,14 +112,14 @@ verifying that the name and address correspond.
 Normal authentication is bypassed if the address verification fails.
 .El
 .Pp
-Once the source port and address have been checked, 
+Once the source port and address have been checked,
 .Nm
 proceeds with the authentication process described in
 .Xr rshd 8 .
-It then allocates a pseudo terminal (see 
+It then allocates a pseudo terminal (see
 .Xr pty 4 ) ,
 and manipulates file descriptors so that the slave
-half of the pseudo terminal becomes the 
+half of the pseudo terminal becomes the
 .Em stdin ,
 .Em stdout ,
 and
