@@ -751,7 +751,7 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 			pci_add_map(pcib, b, s, f, q->arg1, rl);
 	}
 
-	if (cfg->intpin > 0 && cfg->intline != 255) {
+	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
 #ifdef __ia64__
 		/*
 		 * Re-route interrupts on ia64 so that we can get the
@@ -760,8 +760,8 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 		 */
 		cfg->intline = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
 #endif
-		resource_list_add(rl, SYS_RES_IRQ, 0,
-				  cfg->intline, cfg->intline, 1);
+		resource_list_add(rl, SYS_RES_IRQ, 0, cfg->intline,
+		  cfg->intline, 1);
 	}
 }
 
@@ -1197,11 +1197,11 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * deserving of  an interrupt, try to assign it one.
 		 */
 		if ((type == SYS_RES_IRQ) &&
-		    (cfg->intline == 255 || cfg->intline == 0) &&
+		    !PCI_INTERRUPT_VALID(cfg->intline) &&
 		    (cfg->intpin != 0)) {
 			cfg->intline = PCIB_ROUTE_INTERRUPT(
 				device_get_parent(dev), child, cfg->intpin);
-			if (cfg->intline != 255) {
+			if (PCI_INTERRUPT_VALID(cfg->intline)) {
 				pci_write_config(child, PCIR_INTLINE,
 				    cfg->intline, 1);
 				resource_list_add(rl, SYS_RES_IRQ, 0,
