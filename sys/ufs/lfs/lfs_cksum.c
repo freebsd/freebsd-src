@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ *	@(#)lfs_cksum.c	8.2 (Berkeley) 10/9/94
+ * $Id: lfs_cksum.c,v 1.7 1997/02/22 09:47:18 peter Exp $
  */
 
 #ifdef KERNEL
@@ -63,7 +63,7 @@ cksum(str, len)
 	len &= ~(sizeof(u_short) - 1);
 	for (sum = 0; len; len -= sizeof(u_short)) {
 		sum ^= *(u_short *)str;
-		++(u_short *)str;
+		str = (void *)((u_short *)str + 1);
 	}
 	return (sum);
 }

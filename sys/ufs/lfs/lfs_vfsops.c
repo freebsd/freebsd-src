@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id$
+ *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
+ * $Id: lfs_vfsops.c,v 1.16 1997/02/22 09:47:25 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -85,10 +85,47 @@ struct vfsops lfs_vfsops = {
 	lfs_fhtovp,
 	lfs_vptofh,
 	lfs_init,
+#ifdef notyet
+	lfs_sysctl,
+#endif
 };
 
 VFS_SET(lfs_vfsops, lfs, MOUNT_LFS, 0);
 
+/*
+ * Called by main() when ufs is going to be mounted as root.
+ */
+lfs_mountroot()
+{
+	extern struct vnode *rootvp;
+	struct fs *fs;
+	struct mount *mp;
+	struct proc *p = curproc;	/* XXX */
+	int error;
+	
+	/*
+	 * Get vnodes for swapdev and rootdev.
+	 */
+	if ((error = bdevvp(swapdev, &swapdev_vp)) ||
+	    (error = bdevvp(rootdev, &rootvp))) {
+		printf("lfs_mountroot: can't setup bdevvp's");
+		return (error);
+	}
+	if (error = vfs_rootmountalloc("lfs", "root_device", &mp))
+		return (error);
+	if (error = lfs_mountfs(rootvp, mp, p)) {
+		mp->mnt_vfc->vfc_refcount--;
+		vfs_unbusy(mp, p);
+		free(mp, M_MOUNT);
+		return (error);
+	}
+	simple_lock(&mountlist_slock);
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	simple_unlock(&mountlist_slock);
+	(void)lfs_statfs(mp, &mp->mnt_stat, p);
+	vfs_unbusy(mp, p);
+	return (0);
+}
 
 /*
  * lfs_mount
@@ -143,6 +180,7 @@ lfs_mount(mp, path, data, ndp, p)
 	register struct lfs *fs;				/* LFS */
 	u_int size;
 	int err;
+	mode_t accessmode;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -180,15 +218,23 @@ lfs_mount(mp, path, data, ndp, p)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
-#ifdef NOTLFS							/* LFS */
-		fs = ump->um_fs;
-		if (fs->fs_ronly && (mp->mnt_flag & MNT_RDONLY) == 0)
-			fs->fs_ronly = 0;
-#else
-		fs = ump->um_lfs;
-		if (fs->lfs_ronly && (mp->mnt_flag & MNT_RDONLY) == 0)
+		if (fs->lfs_ronly && (mp->mnt_flag & MNT_WANTRDWR)) {
+			/*
+			 * If upgrade to read-write by non-root, then verify
+			 * that user has necessary permissions on the device.
+			 */
+			if (p->p_ucred->cr_uid != 0) {
+				vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY,
+				    p);
+				if (err = VOP_ACCESS(ump->um_devvp,
+				    VREAD | VWRITE, p->p_ucred, p)) {
+					VOP_UNLOCK(ump->um_devvp, 0, p);
+					return (err);
+				}
+				VOP_UNLOCK(ump->um_devvp, 0, p);
+			}
 			fs->lfs_ronly = 0;
-#endif
+		}
 		if (args.fspec == 0) {
 			/*
 			 * Process export requests.  Jumping to "success"
@@ -213,6 +259,21 @@ lfs_mount(mp, path, data, ndp, p)
 	if (major(devvp->v_rdev) >= nblkdev) {
 		err = ENXIO;
 		goto error_2;
+	}
+	/*
+	 * If mount by non-root, then verify that user has necessary
+	 * permissions on the device.
+	 */
+	if (p->p_ucred->cr_uid != 0) {
+		accessmode = VREAD;
+		if ((mp->mnt_flag & MNT_RDONLY) == 0)
+			accessmode |= VWRITE;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (err = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+			vput(devvp);
+			return (err);
+		}
+		VOP_UNLOCK(devvp, 0, p);
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0)
 		err = lfs_mountfs(devvp, mp, p);		/* LFS */
@@ -277,7 +338,9 @@ lfs_mountfs(devvp, mp, p)
 	struct partinfo dpart;
 	dev_t dev;
 	int error, i, ronly, size;
+	struct ucred *cred;
 
+	cred = p ? p->p_ucred : NOCRED;
 	/*
 	 * Disallow multiple mounts of the same device.
 	 * Disallow mounting of a device that is currently in use
@@ -288,14 +351,14 @@ lfs_mountfs(devvp, mp, p)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if (error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0))
+	if (error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0))
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p))
 		return (error);
 
-	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, p) != 0)
+	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, cred, p) != 0)
 		size = DEV_BSIZE;
 	else {
 		size = dpart.disklab->d_secsize;
@@ -312,7 +375,7 @@ lfs_mountfs(devvp, mp, p)
 	ump = NULL;
 
 	/* Read in the superblock. */
-	if (error = bread(devvp, LFS_LABELPAD / size, LFS_SBPAD, NOCRED, &bp))
+	if (error = bread(devvp, LFS_LABELPAD / size, LFS_SBPAD, cred, &bp))
 		goto out;
 	fs = (struct lfs *)bp->b_data;
 
@@ -350,9 +413,9 @@ lfs_mountfs(devvp, mp, p)
 	dev = devvp->v_rdev;
 	mp->mnt_data = (qaddr_t)ump;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
-	mp->mnt_stat.f_fsid.val[1] = MOUNT_LFS;
-	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_stat.f_fsid.val[1] = lfs_mount_type;
 	mp->mnt_maxsymlinklen = fs->lfs_maxsymlinklen;
+	mp->mnt_flag |= MNT_LOCAL;
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
@@ -379,7 +442,7 @@ lfs_mountfs(devvp, mp, p)
 out:
 	if (bp)
 		brelse(bp);
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, cred, p);
 	if (ump) {
 		free(ump->um_lfs, M_UFSMNT);
 		free(ump, M_UFSMNT);
@@ -402,11 +465,8 @@ lfs_unmount(mp, mntflags, p)
 	int i, error, flags, ronly;
 
 	flags = 0;
-	if (mntflags & MNT_FORCE) {
-		if (!doforce)
-			return (EINVAL);
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	}
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_lfs;
@@ -463,17 +523,23 @@ lfs_statfs(mp, sbp, p)
 	fs = ump->um_lfs;
 	if (fs->lfs_magic != LFS_MAGIC)
 		panic("lfs_statfs: magic");
-	sbp->f_type = MOUNT_LFS;
-	sbp->f_bsize = fs->lfs_bsize;
+	sbp->f_bsize = fs->lfs_fsize;
 	sbp->f_iosize = fs->lfs_bsize;
-	sbp->f_blocks = dbtofsb(fs,fs->lfs_dsize);
-	sbp->f_bfree = dbtofsb(fs, fs->lfs_bfree);
-	sbp->f_bavail = (fs->lfs_dsize * (100 - fs->lfs_minfree) / 100) -
-		(fs->lfs_dsize - fs->lfs_bfree);
-	sbp->f_bavail = dbtofsb(fs, sbp->f_bavail);
+	sbp->f_blocks = dbtofrags(fs,fs->lfs_dsize);
+	sbp->f_bfree = dbtofrags(fs, fs->lfs_bfree);
+	/*
+	 * To compute the available space.  Subtract the minimum free
+	 * from the total number of blocks in the file system.  Set avail
+	 * to the smaller of this number and fs->lfs_bfree.
+	 */
+	sbp->f_bavail = fs->lfs_dsize * (100 - fs->lfs_minfree) / 100;
+	sbp->f_bavail =
+	    sbp->f_bavail > fs->lfs_bfree ? fs->lfs_bfree : sbp->f_bavail;
+	sbp->f_bavail = dbtofrags(fs, sbp->f_bavail);
 	sbp->f_files = fs->lfs_nfiles;
 	sbp->f_ffree = sbp->f_bfree * INOPB(fs);
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
 			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
@@ -523,7 +589,7 @@ lfs_vget(mp, ino, vpp)
 	struct ifile *ifp;
 	struct vnode *vp;
 	struct ufsmount *ump;
-	daddr_t daddr;
+	ufs_daddr_t daddr;
 	dev_t dev;
 	int error;
 
@@ -652,4 +718,18 @@ lfs_vptofh(vp, fhp)
 	ufhp->ufid_ino = ip->i_number;
 	ufhp->ufid_gen = ip->i_gen;
 	return (0);
+}
+
+/*
+ * Initialize the filesystem, most work done by ufs_init.
+ */
+int lfs_mount_type;
+
+int
+lfs_init(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	lfs_mount_type = vfsp->vfc_typenum;
+	return (ufs_init(vfsp));
 }
