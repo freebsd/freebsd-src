@@ -1,0 +1,98 @@
+.\" Copyright (c) 2000 Josef Karthauser <joe@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 16, 2000
+.Dt STYLE.PERL 7
+.Os FreeBSD
+.Sh NAME
+.Nm style.perl 7
+.Nd "FreeBSD Perl source file style guide"
+.Sh DESCRIPTION
+This file specifies the preferred style for perl scripts in the
+.Tn FreeBSD
+source tree.
+.Bd -literal -offset 0i
+ #
+ # Style guide for Perl.  Based on the kernel style guide.
+ #
+
+ #
+ # VERY important single-line comments look like this.
+ #
+
+ # Most single-line comments look like this.
+
+ # Multi-line comments look like this.  Make them real sentences.
+ # Fill them so they look like real paragraphs.
+.Ed
+.Pp
+All scripts should use the 'strict' modules and run without
+warnings. For example:
+.Bd -literal -offset 0i
+ #!/usr/bin/perl -w
+
+ use strict;
+
+ ...
+.Ed
+.Pp
+Where possible run the script with taint mode switched on.  This
+is documented in
+.Xr perlsec 1 .
+.Bd -literal -offset 0i
+ #!/usr/bin/perl -wT
+.Ed
+.Pp
+All variables should be defined before use.  Globals should be
+defined at the top of the code using a var definition block.
+.Bd -literal -offset 0i
+ use var qw($globalscalar @globalarray %globalhash);
+.Ed
+.Pp
+Scope local variables should be defined using 'my $variable' and
+not 'local $variable'.  The 'local' declaration should only be used
+when it is required, and not by default.  Lots of perl4 scripts
+use 'local' because the 'my' definition didn't exist prior to perl5.
+.Bd -literal -offset 0i
+ sub foo {
+   my $var = shift;
+   my @list = ();
+   ...
+ }
+.Ed
+.Pp
+Whenever possible, code should be run through the code checker
+(e.g., "perl -wc script.pl" or "perl -wcT script.pl") and produce
+no warnings.
+
+.Sh SEE ALSO
+.Xr perlsec 1 ,
+.Xr style 9
+.Sh HISTORY
+This man page is largely based on the
+.Xr style 9
+man-page in
+.Tn FreeBSD .
