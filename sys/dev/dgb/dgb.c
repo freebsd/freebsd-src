@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.13 1995/12/10 20:54:21 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.14 1995/12/17 21:14:29 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -410,15 +410,17 @@ dgbprobe(dev)
 	return 4; /* we need I/O space of 4 ports */
 }
 
-static struct kern_devconf kdc_dgb[NDGB] = { {
+static struct kern_devconf kdc_dgb[NDGB];
+static struct kern_devconf kdc_dgb_init =  {
 	0, 0, 0,		/* filled in by dev_attach */
 	"dgb", 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,
-	"DigiBoard multiport card"
-} };
+	"DigiBoard multiport card",
+	DC_CLS_SERIAL,
+};
 
 static void
 dgbregisterdev(id)
@@ -427,13 +429,12 @@ dgbregisterdev(id)
 	int	unit;
 
 	unit = id->id_unit;
-	if (unit != 0)
-		kdc_dgb[unit] = kdc_dgb[0];
+	kdc_dgb[unit] = kdc_dgb_init;
 	kdc_dgb[unit].kdc_unit = unit;
 	kdc_dgb[unit].kdc_isa = id;
 
-	/* now we assume that multiport is always 'open' for simplicity */
-	kdc_dgb[unit].kdc_state = DC_BUSY;
+	/* no ports are open yet */
+	kdc_dgb[unit].kdc_state = DC_IDLE;
 	dev_attach(&kdc_dgb[unit]);
 }
 
@@ -878,6 +879,8 @@ load_fep:
 
 	hidewin(sc);
 
+	dgbregisterdev(dev);
+
 	/* register the polling function */
 	timeout(dgbpoll, (void *)unit, hz/25);
 
@@ -1040,6 +1043,12 @@ open_top:
 		port->active_out = TRUE;
 
 	port->used=1;
+
+	/* If any port is open (i.e. the open() call is completed for it) 
+	 * the device is busy
+	 */
+
+	kdc_dgb[unit].kdc_state = DC_BUSY;
 	
 out:
 	splx(s);
@@ -1066,6 +1075,7 @@ dgbclose(dev, flag, mode, p)
 	struct dgb_softc *sc;
 	struct dgb_p *port;
 	int s;
+	int i;
 
 	mynor=minor(dev);
 	unit=MINOR_TO_UNIT(mynor);
@@ -1089,6 +1099,15 @@ dgbclose(dev, flag, mode, p)
 	ttyclose(tp);
 	port->closing=0; wakeup(&port->closing);
 	port->used=0;
+
+	/* mark the card idle when all ports are closed */
+
+	for(i=0; i<sc->numports; i++)
+		if(sc->ports[i].used)
+			break;
+
+	if(i>= sc->numports)
+		kdc_dgb[unit].kdc_state = DC_IDLE;
 
 	splx(s);
 
@@ -1224,12 +1243,13 @@ dgbpoll(unit_c)
 		lstat=eventbuf[3];
 
 		port=&sc->ports[pnum];
-		bc=port->brdchan;
 		tp=&sc->ttys[pnum];
 
 		if(pnum>=sc->numports || port->status==DISABLED) {
 			printf("dgb%d: port %d: got event on nonexisting port\n",unit,pnum);
 		} else if(port->used || port->wopeners>0 ) {
+
+			bc=port->brdchan;
 
 			if( !(event & ALL_IND) ) 
 				printf("dgb%d: port%d: ? event 0x%x mstat 0x%x lstat 0x%x\n",
@@ -1382,14 +1402,15 @@ dgbpoll(unit_c)
 #endif
 			end_of_buffer:
 			}
+			bc->idata=1; 
+
 		} else {
+			bc=port->brdchan;
 			DPRINT4("dgb%d: port %d: got event 0x%x on closed port\n",
 				unit,pnum,event);
 			bc->rout=bc->rin;
 			bc->idata=bc->iempty=bc->ilow=0;
 		}
-			
-		bc->idata=1; 
 
 		tail= (tail+4) & (FEP_IMAX-FEP_ISTART-4);
 	}
@@ -1935,6 +1956,8 @@ dgbstart(tp)
 
 		ocount=q_to_b(&tp->t_outq, port->txptr+head, size);
 		head+=ocount;
+		if(head>=port->txbufsize)
+			head-=port->txbufsize;
 
 		setwin(sc,0);
 		bc->tin=head;
