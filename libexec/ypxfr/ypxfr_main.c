@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ypxfr_main.c,v 1.8 1997/02/22 14:22:48 peter Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.8 1997/02/22 14:22:48 peter Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -176,7 +176,7 @@ main(argc,argv)
 	if (argc < 2)
 		usage();
 
-	while ((ch = getopt(argc, argv, "fcd:h:s:p:C:")) != EOF) {
+	while ((ch = getopt(argc, argv, "fcd:h:s:p:C:")) != -1) {
 		int my_optind;
 		switch(ch) {
 		case 'f':

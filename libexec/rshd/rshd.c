@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rshd.c,v 1.13 1997/02/22 14:22:23 peter Exp $
  */
 
 #ifndef lint
@@ -112,7 +112,7 @@ main(argc, argv)
 	openlog("rshd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 
 	opterr = 0;
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
 		case 'a':
 			check_all = 1;
