@@ -77,11 +77,12 @@ pthread_join(pthread_t pthread, void **thread_return)
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
 		/* Check if the thread is not detached: */
-		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0)
+		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
 			/* Check if the return value is required: */
 			if (thread_return)
 				/* Return the thread's return value: */
 				*thread_return = pthread->ret;
+		}
 		else
 			/* Return an error: */
 			ret = ESRCH;
