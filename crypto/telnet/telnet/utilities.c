@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #endif
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	TELOPTS
 #define	TELCMDS
