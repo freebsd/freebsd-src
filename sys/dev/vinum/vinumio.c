@@ -564,7 +564,9 @@ daemon_save_config(void)
     struct drive *drive;				    /* point to current drive info */
     struct vinum_hdr *vhdr;				    /* and as header */
     char *config;					    /* point to config data */
+#ifdef NO_GEOM
     int wlabel_on;					    /* to set writing label on/off */
+#endif
 
     /* don't save the configuration while we're still working on it */
     if (vinum_conf.flags & VF_CONFIGURING)
@@ -614,23 +616,27 @@ daemon_save_config(void)
 		    sizeof(vhdr->label));
 		if ((drive->state != drive_unallocated)
 		    && (drive->state != drive_referenced)) { /* and it's a real drive */
+#ifdef NO_GEOM
 		    wlabel_on = 1;			    /* enable writing the label */
 		    (void) (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label writeable */
 			DIOCWLABEL,
 			(caddr_t) & wlabel_on,
 			FWRITE,
 			curthread);
+#endif
 		    error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
 		    if (error == 0)
 			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET); /* first config copy */
 		    if (error == 0)
 			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG);	/* second copy */
+#ifdef NO_GEOM
 		    wlabel_on = 0;			    /* enable writing the label */
 		    (void) (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label non-writeable again */
 			    DIOCWLABEL,
 			    (caddr_t) & wlabel_on,
 			    FWRITE,
 			    curthread);
+#endif
 		    unlockdrive(drive);
 		    if (error) {
 			log(LOG_ERR,

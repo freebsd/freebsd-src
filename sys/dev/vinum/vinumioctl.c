@@ -402,6 +402,7 @@ vinumioctl(dev_t dev,
 	case DIOCSDINFO:				    /* set partition info */
 	    return 0;					    /* not a titty */
 
+#ifdef NO_GEOM
 	case DIOCWLABEL:				    /* set or reset label writeable */
 	    if ((flag & FWRITE) == 0)			    /* not writeable? */
 		return EACCES;				    /* no, die */
@@ -410,7 +411,7 @@ vinumioctl(dev_t dev,
 	    else
 		vol->flags &= ~VF_WLABEL;		    /* no, reset */
 	    break;
-
+#endif
 	default:
 	    return ENOTTY;				    /* not my kind of ioctl */
 	}
