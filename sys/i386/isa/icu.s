@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.16 1994/12/03 10:03:16 bde Exp $
+ *	$Id: icu.s,v 1.17 1994/12/30 12:43:35 bde Exp $
  */
 
 /*
@@ -102,11 +102,32 @@ doreti_exit:
 	movl	%eax,_cpl
 	decb	_intr_nesting_level
 	MEXITCOUNT
+	.globl	doreti_popl_es
+doreti_popl_es:
 	popl	%es
+	.globl	doreti_popl_ds
+doreti_popl_ds:
 	popl	%ds
 	popal
 	addl	$8,%esp
+	.globl	doreti_iret
+doreti_iret:
 	iret
+
+	ALIGN_TEXT
+	.globl	doreti_iret_fault
+doreti_iret_fault:
+	subl	$8,%esp
+	pushal
+	pushl	%ds
+	.globl	doreti_popl_ds_fault
+doreti_popl_ds_fault:
+	pushl	%es
+	.globl	doreti_popl_es_fault
+doreti_popl_es_fault:
+	movl	$0,4+4+32+4(%esp)	/* XXX should be the error code */
+	movl	$T_PROTFLT,4+4+32+0(%esp)
+	jmp	alltraps_with_regs_pushed
 
 	ALIGN_TEXT
 doreti_unpend:
