@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.22 1998/03/02 05:47:58 peter Exp $
+ *	$Id: imgact_elf.c,v 1.23 1998/03/28 13:24:52 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -73,6 +73,7 @@ SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
 static struct sysentvec elf_freebsd_sysvec = {
         SYS_MAXSYSCALL,
         sysent,
+        0,
         0,
         0,
         0,

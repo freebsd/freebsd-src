@@ -1,7 +1,7 @@
 /*
  * sysentvec for native FreeBSD a.out executable format.
  *
- * $Id: init_sysvec.c,v 1.4 1997/02/22 09:38:59 peter Exp $
+ * $Id: init_sysvec.c,v 1.5 1997/08/02 14:31:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -13,6 +13,7 @@
 struct sysentvec aout_sysvec = {
 	SYS_MAXSYSCALL,
 	sysent,
+	0,
 	0,
 	0,
 	0,
