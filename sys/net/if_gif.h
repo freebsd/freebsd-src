@@ -68,7 +68,6 @@ struct gif_softc {
 	int		gif_flags;
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
-	struct resource *r_unit;	/* resource allocated for this unit */
 	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
 	LIST_ENTRY(gif_softc) gif_link; /* all gif's are linked */
 };

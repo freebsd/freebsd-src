@@ -48,7 +48,6 @@ struct	ifvlan {
 	}	ifv_mib;
 	SLIST_HEAD(__vlan_mchead, vlan_mc_entry)	vlan_mc_listhead;
 	LIST_ENTRY(ifvlan) ifv_list;
-	struct resource *r_unit;	/* resource allocated for this unit */
 };
 #define	ifv_if	ifv_ac.ac_if
 #define	ifv_tag	ifv_mib.ifvm_tag

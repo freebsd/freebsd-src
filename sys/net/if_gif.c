@@ -46,8 +46,6 @@
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
-#include <machine/bus.h>	/* XXX: Shouldn't really be required! */
-#include <sys/rman.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -82,10 +80,8 @@
 #include <net/net_osdep.h>
 
 #define GIFNAME		"gif"
-#define GIF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
-static struct rman gifunits[1];
 static LIST_HEAD(, gif_softc) gif_softc_list;
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
@@ -93,11 +89,11 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-int	gif_clone_create __P((struct if_clone *, int *));
+int	gif_clone_create __P((struct if_clone *, int));
 int	gif_clone_destroy __P((struct ifnet *));
 
-struct if_clone gif_cloner =
-    IF_CLONE_INITIALIZER("gif", gif_clone_create, gif_clone_destroy);
+struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
+    gif_clone_create, gif_clone_destroy, IF_MAXUNIT);
 
 static int gifmodevent __P((module_t, int, void *));
 void gif_delete_tunnel __P((struct gif_softc *));
@@ -158,34 +154,16 @@ SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
 int
 gif_clone_create(ifc, unit)
 	struct if_clone *ifc;
-	int *unit;
+	int unit;
 {
-	struct resource *r;
 	struct gif_softc *sc;
 
-	if (*unit > GIF_MAXUNIT)
-		return (ENXIO);
-
-	if (*unit < 0) {
-		r = rman_reserve_resource(gifunits, 0, GIF_MAXUNIT, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (ENOSPC);
-		*unit = rman_get_start(r);
-	} else {
-		r = rman_reserve_resource(gifunits, *unit, *unit, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (EEXIST);
-	}
-	
 	sc = malloc (sizeof(struct gif_softc), M_GIF, M_WAITOK);
 	bzero(sc, sizeof(struct gif_softc));
 
 	sc->gif_if.if_softc = sc;
 	sc->gif_if.if_name = GIFNAME;
-	sc->gif_if.if_unit = *unit;
-	sc->r_unit = r;
+	sc->gif_if.if_unit = unit;
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 #ifdef INET
@@ -252,9 +230,6 @@ gif_clone_destroy(ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 
-	err = rman_release_resource(sc->r_unit);
-	KASSERT(err == 0, ("Unexpected error freeing resource"));
-
 	free(sc, M_GIF);
 	return (0);
 }
@@ -265,22 +240,9 @@ gifmodevent(mod, type, data)
 	int type;
 	void *data;
 {
-	int err;
 
 	switch (type) {
 	case MOD_LOAD:
-		gifunits->rm_type = RMAN_ARRAY;
-		gifunits->rm_descr = "configurable if_gif units";
-		err = rman_init(gifunits);
-		if (err != 0)
-			return (err);
-		err = rman_manage_region(gifunits, 0, GIF_MAXUNIT);
-		if (err != 0) {
-			printf("%s: gifunits: rman_manage_region: Failed %d\n",
-			    GIFNAME, err);
-			rman_fini(gifunits);
-			return (err);
-		}
 		LIST_INIT(&gif_softc_list);
 		if_clone_attach(&gif_cloner);
 
@@ -295,9 +257,6 @@ gifmodevent(mod, type, data)
 		while (!LIST_EMPTY(&gif_softc_list))
 			gif_clone_destroy(&LIST_FIRST(&gif_softc_list)->gif_if);
 
-		err = rman_fini(gifunits);
-		if (err != 0)
-			return (err);
 #ifdef INET6
 		ip6_gif_hlim = 0;
 #endif
