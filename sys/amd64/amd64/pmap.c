@@ -1586,6 +1586,7 @@ pmap_growkernel(vm_offset_t addr)
 	pd_entry_t newpdir;
 
 	s = splhigh();
+	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = KERNBASE;
 		nkpt = 0;
