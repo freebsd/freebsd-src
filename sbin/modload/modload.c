@@ -29,11 +29,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modload.c,v 1.13.2.2 1997/08/21 22:47:42 jlemon Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
@@ -48,7 +50,6 @@
 #include <sys/lkm.h>
 #include <sys/file.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
 #include "pathnames.h"
 
 #define	min(a, b)	((a) < (b) ? (a) : (b))
@@ -57,8 +58,6 @@ int debug = 0;
 int verbose = 0;
 int quiet = 0;
 int dounlink = 0;
-
-extern char *sys_siglist[];
 
 /*
  * Expected linker options:
@@ -175,7 +174,7 @@ main(argc, argv)
 	int sz, bytesleft;
 	char buf[MODIOBUF];
 
-	while ((c = getopt(argc, argv, "dvquA:e:p:o:")) != EOF) {
+	while ((c = getopt(argc, argv, "dvquA:e:p:o:")) != -1) {
 		switch (c) {
 		case 'd':
 			debug = 1;
