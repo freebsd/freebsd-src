@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.1.4.1 1995/08/25 11:46:33 davidg Exp $
+ *	$Id: ether_addr.c,v 1.1.4.3 1996/06/05 02:48:19 jkh Exp $
  */
 
 
@@ -147,7 +147,6 @@ int ether_ntohost(hostname, e)
 			ether_a = ether_ntoa(e);
 			if (yp_match(yp_domain, "ethers.byaddr", ether_a,
 				strlen(ether_a), &result, &resultlen)) {
-				free(result);
 				continue;
 			}
 			strncpy((char *)&buf, result, resultlen);
@@ -197,7 +196,6 @@ int ether_hostton(hostname, e)
 				continue;
 			if (yp_match(yp_domain, "ethers.byname", hostname,
 				strlen(hostname), &result, &resultlen)) {
-				free(result);
 				continue;
 			}
 			strncpy((char *)&buf, result, resultlen);
