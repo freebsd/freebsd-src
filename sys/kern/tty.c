@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.69 1995/08/02 06:55:34 ache Exp $
+ * $Id: tty.c,v 1.70 1995/09/10 11:48:13 bde Exp $
  */
 
 /*-
@@ -205,6 +205,8 @@ ttyopen(device, tp)
 	tp->t_dev = device;
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
 		SET(tp->t_state, TS_ISOPEN);
+		if (ISSET(tp->t_cflag, CLOCAL))
+			SET(tp->t_state, TS_CONNECTED);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
 
@@ -249,6 +251,7 @@ ttyclose(tp)
 #endif
 
 	tp->t_gen++;
+	tp->t_line = TTYDISC;
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
 	tp->t_state = 0;
