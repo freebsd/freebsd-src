@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.67 1996/12/09 06:02:32 jkh Exp $
+ * $Id: system.c,v 1.68 1996/12/11 19:35:26 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -300,7 +300,7 @@ systemCreateHoloshell(void)
 	    extern int login_tty(int);
 	    
 	    ioctl(0, TIOCNOTTY, NULL);
-	    for (i = getdtablesize(); i; i--)
+	    for (i = getdtablesize(); i >= 0; --i)
 		close(i);
 	    fd = open("/dev/ttyv3", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
