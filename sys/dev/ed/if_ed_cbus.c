@@ -124,8 +124,10 @@ ed_cbus_probe(device_t dev)
 		 * Allied Telesis CenterCom LA-98-T
 		 */
 		error = ed_probe_Novell(dev, 0, flags);
-		if (error == 0)
+		if (error == 0) {
+			ed_Novell_read_mac(sc);
 			goto end;
+		}
 		break;
 
 	/*
