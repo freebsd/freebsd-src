@@ -1,5 +1,5 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.38 2001/03/11 20:37:08 christos Exp $
+.\" $Id: file.man,v 1.39 2001/04/27 22:48:33 christos Exp $
 .SH NAME
 file
 \- determine file type
@@ -10,11 +10,14 @@ file
 ]
 [
 .B \-f
-namefile ]
+.I namefile
+]
 [
 .B \-m 
-magicfiles ]
-file ...
+.I magicfiles
+]
+.I file
+\&...
 .br
 .B file
 .B -C
@@ -152,13 +155,14 @@ Do not prepend filenames to output lines (brief mode).
 .B \-c
 Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with 
-.B \-C
-Write a magic.mgc output file that contains a pre-parsed version of
-file.
 .B \-m
 to debug a new magic file before installing it.
 .TP 8
-.B \-f namefile
+.B \-C
+Write a magic.mgc output file that contains a pre-parsed version of
+file.
+.TP 8
+.BI \-f " namefile"
 Read the names of the files to be examined from 
 .I namefile
 (one per line) 
@@ -182,7 +186,7 @@ text file types, directories etc), and makes use of an alternative
 .B \-k
 Don't stop at the first match, keep going.
 .TP 8
-.B \-m list
+.BI \-m " list"
 Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
 .TP 8

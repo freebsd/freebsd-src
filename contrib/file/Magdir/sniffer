@@ -74,7 +74,7 @@
 >20	belong		3		(AX.25
 >20	belong		4		(ProNET
 >20	belong		5		(CHAOS
->20	belong		6		(IEEE 802.x network
+>20	belong		6		(Token Ring
 >20	belong		7		(ARCNET
 >20	belong		8		(SLIP
 >20	belong		9		(PPP
@@ -83,6 +83,16 @@
 >20	belong		12		(raw IP
 >20	belong		13		(BSD/OS SLIP
 >20	belong		14		(BSD/OS PPP
+>20	belong		50		(PPP or Cisco HDLC
+>20	belong		100		(RFC 1483 ATM
+>20	belong		101		(raw IP
+>20	belong		102		(BSD/OS SLIP
+>20	belong		103		(BSD/OS PPP
+>20	belong		104		(BSD/OS Cisco HDLC
+>20	belong		105		(Linux Classical IP over ATM
+>20	belong		108		(OpenBSD loopback
+>20	belong		109		(OpenBSD IPSEC encrypted
+>20	belong		113		(Linux "cooked"
 >16	belong		x		\b, capture length %d)
 0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
 >4	leshort		x		- version %d
@@ -93,7 +103,7 @@
 >20	lelong		3		(AX.25
 >20	lelong		4		(ProNET
 >20	lelong		5		(CHAOS
->20	lelong		6		(IEEE 802.x network
+>20	lelong		6		(Token Ring
 >20	lelong		7		(ARCNET
 >20	lelong		8		(SLIP
 >20	lelong		9		(PPP
@@ -102,6 +112,16 @@
 >20	lelong		12		(raw IP
 >20	lelong		13		(BSD/OS SLIP
 >20	lelong		14		(BSD/OS PPP
+>20	lelong		50		(PPP or Cisco HDLC
+>20	lelong		100		(RFC 1483 ATM
+>20	lelong		101		(raw IP
+>20	lelong		102		(BSD/OS SLIP
+>20	lelong		103		(BSD/OS PPP
+>20	lelong		104		(BSD/OS Cisco HDLC
+>20	lelong		105		(Linux Classical IP over ATM
+>20	lelong		108		(OpenBSD loopback
+>20	lelong		109		(OpenBSD IPSEC encrypted
+>20	lelong		113		(Linux "cooked"
 >16	lelong		x		\b, capture length %d)
 
 #
@@ -119,7 +139,7 @@
 >20	belong		3		(AX.25
 >20	belong		4		(ProNET
 >20	belong		5		(CHAOS
->20	belong		6		(IEEE 802.x network
+>20	belong		6		(Token Ring
 >20	belong		7		(ARCNET
 >20	belong		8		(SLIP
 >20	belong		9		(PPP
@@ -138,7 +158,7 @@
 >20	lelong		3		(AX.25
 >20	lelong		4		(ProNET
 >20	lelong		5		(CHAOS
->20	lelong		6		(IEEE 802.x network
+>20	lelong		6		(Token Ring
 >20	lelong		7		(ARCNET
 >20	lelong		8		(SLIP
 >20	lelong		9		(PPP

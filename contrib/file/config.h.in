@@ -58,6 +58,9 @@
 /* The number of bytes in a uint64_t.  */
 #define SIZEOF_UINT64_T 0
 
+/* Define if you have the mmap function.  */
+#undef HAVE_MMAP
+
 /* Define if you have the strerror function.  */
 #undef HAVE_STRERROR
 
@@ -66,6 +69,9 @@
 
 /* Define if you have the <locale.h> header file.  */
 #undef HAVE_LOCALE_H
+
+/* Define if you have the <sys/mman.h> header file.  */
+#undef HAVE_SYS_MMAN_H
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
