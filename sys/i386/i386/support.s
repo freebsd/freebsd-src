@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.43 1996/11/11 20:38:53 bde Exp $
+ *	$Id: support.s,v 1.44 1996/11/12 14:54:16 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -874,9 +874,10 @@ ENTRY(i586_copyin)
 	cmpl	$1024,%ecx
 	jb	slow_copyin
 
+	pushl	%ebx			/* XXX prepare for fastmove_fault */
 	pushl	%ecx
 	call	_fastmove
-	addl	$4,%esp
+	addl	$8,%esp
 	jmp	done_copyin
 #endif /* I586_CPU */
 
@@ -889,7 +890,13 @@ ENTRY(i586_copyin)
  */
 /* XXX use ENTRY() to get profiling.  fastmove() is actually a non-entry. */
 ENTRY(fastmove)
-	movl	4(%esp),%ecx
+	pushl	%ebp
+	movl	%esp,%ebp
+	subl	$PCB_SAVEFPU_SIZE+3*4,%esp
+	movl	_curpcb,%eax
+	movl	$fastmove_fault,PCB_ONFAULT(%eax)
+
+	movl	8(%ebp),%ecx
 	cmpl	$63,%ecx
 	jbe	fastmove_tail
 
@@ -898,10 +905,6 @@ ENTRY(fastmove)
 
 	testl	$7,%edi	/* check if dst addr is multiple of 8 */
 	jnz	fastmove_tail
-
-	pushl	%ebp
-	movl	%esp,%ebp
-	subl	$PCB_SAVEFPU_SIZE,%esp
 
 /* if (npxproc != NULL) { */
 	cmpl	$0,_npxproc
@@ -923,35 +926,35 @@ ENTRY(fastmove)
  * save the state somewhere else.
  */
 /* tmp = curpcb->pcb_savefpu; */
-	pushl	%edi
-	pushl	%esi
-	pushl	%ecx
-	leal	-PCB_SAVEFPU_SIZE(%ebp),%edi
+	movl	%ecx,-12(%ebp)
+	movl	%esi,-8(%ebp)
+	movl	%edi,-4(%ebp)
+	movl	%esp,%edi
 	movl	_curpcb,%esi
 	addl	$PCB_SAVEFPU,%esi
 	cld
 	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
 	rep
 	movsl
-	popl	%ecx
-	popl	%esi
-	popl	%edi
+	movl	-12(%ebp),%ecx
+	movl	-8(%ebp),%esi
+	movl	-4(%ebp),%edi
 /* stop_emulating(); */
 	clts
 /* npxproc = curproc; */
 	movl	_curproc,%eax
 	movl	%eax,_npxproc
 4:
-	pushl	%ecx
+	movl	%ecx,-12(%ebp)
 	cmpl	$1792,%ecx
 	jbe	2f
 	movl	$1792,%ecx
 2:
-	subl	%ecx,0(%esp)
+	subl	%ecx,-12(%ebp)
 	cmpl	$256,%ecx
 	jb	5f
-	pushl	%esi
-	pushl	%ecx
+	movl	%ecx,-8(%ebp)
+	movl	%esi,-4(%ebp)
 	ALIGN_TEXT
 3:
 	movl	0(%esi),%eax
@@ -966,8 +969,8 @@ ENTRY(fastmove)
 	subl	$256,%ecx
 	cmpl	$256,%ecx
 	jae	3b
-	popl	%ecx
-	popl	%esi
+	movl	-8(%ebp),%ecx
+	movl	-4(%ebp),%esi
 5:
 	ALIGN_TEXT
 fastmove_loop:
@@ -992,25 +995,25 @@ fastmove_loop:
 	addl	$64,%edi
 	cmpl	$63,%ecx
 	ja	fastmove_loop
-	popl	%eax
+	movl	-12(%ebp),%eax
 	addl	%eax,%ecx
 	cmpl	$64,%ecx
 	jae	4b
 	
 /* curpcb->pcb_savefpu = tmp; */
-	pushl	%edi
-	pushl	%esi
-	pushl	%ecx
+	movl	%ecx,-12(%ebp)
+	movl	%esi,-8(%ebp)
+	movl	%edi,-4(%ebp)
 	movl	_curpcb,%edi
 	addl	$PCB_SAVEFPU,%edi
-	leal	-PCB_SAVEFPU_SIZE(%ebp),%esi
+	movl	%esp,%esi
 	cld
 	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
 	rep
 	movsl
-	popl	%ecx
-	popl	%esi
-	popl	%edi
+	movl	-12(%ebp),%ecx
+	movl	-8(%ebp),%esi
+	movl	-4(%ebp),%edi
 
 /* start_emulating(); */
 	smsw	%ax
@@ -1018,8 +1021,6 @@ fastmove_loop:
 	lmsw	%ax
 /* npxproc = NULL; */
 	movl	$0,_npxproc
-	movl	%ebp,%esp
-	popl	%ebp
 	
 	ALIGN_TEXT
 fastmove_tail:
@@ -1033,6 +1034,21 @@ fastmove_tail:
 	rep
 	movsb
 
+	movl	%ebp,%esp
+	popl	%ebp
+	ret
+
+	ALIGN_TEXT
+fastmove_fault:
+	movl	%ebp,%esp
+	popl	%ebp
+	addl	$8,%esp
+	popl	%ebx
+	popl	%edi
+	popl	%esi
+	movl	_curpcb,%edx
+	movl	$0,PCB_ONFAULT(%edx)
+	movl	$EFAULT,%eax
 	ret
 #endif /* I586_CPU */
 
