@@ -267,7 +267,7 @@ npx_probe(dev)
 	    GSEL(GCODE_SEL, SEL_KPL));
 	ioport_rid = 0;
 	ioport_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &ioport_rid,
-	    IO_NPX, IO_NPX, IO_NPXSIZE, RF_ACTIVE);
+	    IO_NPX, IO_NPX + IO_NPXSIZE - 1, IO_NPXSIZE, RF_ACTIVE);
 	if (ioport_res == NULL)
 		panic("npx: can't get ports");
 #ifdef PC98
