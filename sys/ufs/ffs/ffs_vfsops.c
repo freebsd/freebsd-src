@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.95 1999/01/07 16:14:17 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.96 1999/01/28 00:57:54 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -158,9 +158,9 @@ ffs_mount( mp, path, data, ndp, p)
 			return (err);
 		}
 
-		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
+		if (bdevsw(major(rootdev))->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
+		if (bdevsw(major(rootdev))->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
@@ -194,9 +194,9 @@ ffs_mount( mp, path, data, ndp, p)
 		devvp = ump->um_devvp;
 		err = 0;
 		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
-		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERR)
+		if (bdevsw(major(ump->um_dev))->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERW)
+		if (bdevsw(major(ump->um_dev))->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
@@ -291,7 +291,7 @@ ffs_mount( mp, path, data, ndp, p)
 		goto error_2;
 	}
 	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	    bdevsw(major(devvp->v_rdev)) == NULL) {
 		err = ENXIO;
 		goto error_2;
 	}
@@ -347,9 +347,9 @@ ffs_mount( mp, path, data, ndp, p)
 		 ********************
 		 */
 
-		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
+		if (bdevsw(major(devvp->v_rdev))->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERW)
+		if (bdevsw(major(devvp->v_rdev))->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 
 		/*

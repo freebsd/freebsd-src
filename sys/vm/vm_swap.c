@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.63 1999/04/28 10:54:24 dt Exp $
+ * $Id: vm_swap.c,v 1.64 1999/05/07 07:03:47 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -209,7 +209,7 @@ swapon(p, uap)
 	switch (vp->v_type) {
 	case VBLK:
 		dev = vp->v_rdev;
-		if (major(dev) >= nblkdev || bdevsw[major(dev)] == NULL) {
+		if (major(dev) >= nblkdev || bdevsw(major(dev)) == NULL) {
 			error = ENXIO;
 			break;
 		}
@@ -281,8 +281,8 @@ swaponvp(p, vp, dev, nblks)
 	if (error)
 		return (error);
 
-	if (nblks == 0 && dev != NODEV && (bdevsw[major(dev)]->d_psize == 0 ||
-	    (nblks = (*bdevsw[major(dev)]->d_psize) (dev)) == -1)) {
+	if (nblks == 0 && dev != NODEV && (bdevsw(major(dev))->d_psize == 0 ||
+	    (nblks = (*bdevsw(major(dev))->d_psize) (dev)) == -1)) {
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 		return (ENXIO);
 	}

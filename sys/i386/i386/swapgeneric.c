@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.27 1999/04/15 14:52:24 bde Exp $
+ *	$Id: swapgeneric.c,v 1.28 1999/04/15 15:35:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,8 +73,8 @@ retry:
 	unit = *cp - '0';
 	*cp++ = '\0';
 	for (bd = 0; bd < nblkdev; bd++)
-		if (bdevsw[bd] != NULL &&
-		    strcmp(bdevsw[bd]->d_name, name) == 0)
+		if (bdevsw(bd) != NULL &&
+		    strcmp(bdevsw(bd)->d_name, name) == 0)
 			goto gotit;
 	goto bad;
 gotit:

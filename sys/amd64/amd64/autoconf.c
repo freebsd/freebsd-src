@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.114 1999/04/18 15:50:34 peter Exp $
+ *	$Id: autoconf.c,v 1.115 1999/05/06 22:16:19 peter Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ find_cdrom_root()
 			if (try_cdrom[j].major >= nblkdev)
 				continue;
 			rootdev = makedev(try_cdrom[j].major, i * 8);
-			bd = bdevsw[major(rootdev)];
+			bd = bdevsw(major(rootdev));
 			if (bd == NULL || bd->d_open == NULL)
 				continue;
 			if (bootverbose)
@@ -391,11 +391,11 @@ setdumpdev(dev)
 		return (0);
 	}
 	maj = major(dev);
-	if (maj >= nblkdev || bdevsw[maj] == NULL)
+	if (maj >= nblkdev || bdevsw(maj) == NULL)
 		return (ENXIO);		/* XXX is this right? */
-	if (bdevsw[maj]->d_psize == NULL)
+	if (bdevsw(maj)->d_psize == NULL)
 		return (ENXIO);		/* XXX should be ENODEV ? */
-	psize = bdevsw[maj]->d_psize(dev);
+	psize = bdevsw(maj)->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
 	/*
@@ -434,7 +434,7 @@ setroot()
 	if (boothowto & RB_DFLTROOT || (bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
 	majdev = B_TYPE(bootdev);
-	if (majdev >= nblkdev || bdevsw[majdev] == NULL)
+	if (majdev >= nblkdev || bdevsw(majdev) == NULL)
 		return;
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
@@ -458,7 +458,7 @@ setroot()
 
 	newrootdev = makedev(majdev, mindev);
 	rootdevs[0] = newrootdev;
-	sname = dsname(bdevsw[majdev]->d_name, unit, slice, part, partname);
+	sname = dsname(bdevsw(majdev)->d_name, unit, slice, part, partname);
 	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[0], "%s%s", sname, partname);
 
@@ -475,7 +475,7 @@ setroot()
 		return;
 	slice = COMPATIBILITY_SLICE;
 	rootdevs[1] = dkmodslice(newrootdev, slice);
-	sname = dsname(bdevsw[majdev]->d_name, unit, slice, part, partname);
+	sname = dsname(bdevsw(majdev)->d_name, unit, slice, part, partname);
 	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }

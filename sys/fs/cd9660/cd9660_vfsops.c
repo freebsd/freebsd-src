@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.52 1999/04/18 10:58:02 dcs Exp $
+ * $Id: cd9660_vfsops.c,v 1.53 1999/04/27 11:15:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ iso_get_ssector(dev, p)
 	struct cdevsw *bd;
 	d_ioctl_t *ioctlp;
 
-	bd = bdevsw[major(dev)];
+	bd = bdevsw(major(dev));
 	ioctlp = bd->d_ioctl;
 	if (ioctlp == NULL)
 		return 0;
@@ -189,7 +189,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	struct iso_mnt *imp = 0;
 
 	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
-		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
+		if (bdevsw(major(rootdev))->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
 	}
@@ -206,7 +206,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOISOFS(mp);
-		if (bdevsw[major(imp->im_devvp->v_rdev)]->d_flags &
+		if (bdevsw(major(imp->im_devvp->v_rdev))->d_flags &
 		    D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (args.fspec == 0)
@@ -226,7 +226,7 @@ cd9660_mount(mp, path, data, ndp, p)
 		return ENOTBLK;
 	}
 	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	    bdevsw(major(devvp->v_rdev)) == NULL) {
 		vrele(devvp);
 		return ENXIO;
 	}
@@ -247,7 +247,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	VOP_UNLOCK(devvp, 0, p);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
+		if (bdevsw(major(devvp->v_rdev))->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		error = iso_mountfs(devvp, mp, p, &args);
 	} else {

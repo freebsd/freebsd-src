@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.76 1999/04/27 11:14:13 phk Exp $
+ *	$Id: vn.c,v 1.77 1999/05/07 07:03:20 phk Exp $
  */
 
 /*
@@ -772,6 +772,6 @@ vn_modevent(module_t mod, int type, void *data)
 	return 0;
 }
 
-BDEV_MODULE(vn, BDEV_MAJOR, CDEV_MAJOR, vn_cdevsw, vn_modevent, 0);
+DEV_MODULE(vn, CDEV_MAJOR, BDEV_MAJOR, vn_cdevsw, vn_modevent, 0);
 
 #endif

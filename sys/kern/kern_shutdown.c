@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.48 1999/05/03 23:57:22 billf Exp $
+ * $Id: kern_shutdown.c,v 1.49 1999/05/06 18:12:44 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -377,14 +377,14 @@ dumpsys(void)
 		return;
 	if (dumpdev == NODEV)
 		return;
-	if (!(bdevsw[major(dumpdev)]))
+	if (!(bdevsw(major(dumpdev))))
 		return;
-	if (!(bdevsw[major(dumpdev)]->d_dump))
+	if (!(bdevsw(major(dumpdev))->d_dump))
 		return;
 	dumpsize = Maxmem;
 	printf("\ndumping to dev %lx, offset %ld\n", (u_long)dumpdev, dumplo);
 	printf("dump ");
-	switch ((*bdevsw[major(dumpdev)]->d_dump)(dumpdev)) {
+	switch ((*bdevsw(major(dumpdev))->d_dump)(dumpdev)) {
 
 	case ENXIO:
 		printf("device bad\n");
