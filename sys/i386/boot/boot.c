@@ -1,6 +1,4 @@
 /*
- * Ported to boot 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
@@ -25,90 +23,10 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: boot.c,v 1.6 1993/10/11 02:43:42 rgrimes Exp $
+ *	from: Mach, [92/04/03  16:51:14  rvb]
+ *	$Id: boot.c,v 1.7 1993/10/15 12:33:03 rgrimes Exp $
  */
 
-/*
- * HISTORY
- * $Log: boot.c,v $
- * Revision 1.6  1993/10/11  02:43:42  rgrimes
- * Fixed the options hd(1,... to be more accurate (removed word options it
- * now reads:
- *
- * printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
- *
- * I know the person wanted more explination, but there is little room in
- * the boot blocks for verbose text!
- *
- * Revision 1.5  1993/10/09  08:31:39  chmr
- * Changed the "Insert filesystem floppy" prompt to give the user a choice in
- * which drive he wants the root file system (A or B).
- *
- * Revision 1.4  1993/10/08  20:19:23  rgrimes
- * Remove the ``loader overlaps bss, kernel must bzero'' printf since that
- * is so often reported as an error condition when it is not.  We print the
- * size of things so for those who want to know if this happened they can
- * figure it out from the size information that is printed.
- *
- * Revision 1.3  1993/07/16  13:06:08  rgrimes
- * Changed header from 386BSD BOOT to FreeBSD BOOT.
- *
- * Revision 1.2  1993/07/13  18:15:24  root
- * New boot blocks, from Bruce Evans, and NetBSD fixes.  Allows kernel to
- * be loaded above 1MB.  Same boot code for floppies now.  Speed improvements.
- * etc etc etc. (I don't have much history on this, but then have been tested)
- *
- * Revision 1.8  1993/07/11  12:02:21  andrew
- * Fixes from bde, including support for loading @ any MB boundary (e.g. a
- * kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
- * buffering to speed booting from floppies.  Also works with aha174x
- * controllers in enhanced mode.
- *
- * Revision 1.7  1993/06/18  06:50:52  cgd
- * convert magic numbers to network byte order, and attendent changes
- *
- * Revision 1.6  1993/06/14  00:47:08  deraadt
- * *whoops*. The previous commit killed a few important characters of code.
- *
- * Revision 1.5  1993/06/05  22:52:11  cgd
- * make sure kernel is small enough; this is a really weird fix from
- * rod, pk patch #159.  the comment is:
- *
- * The +28672 is for memory allocated by locore.s that must fit in the bss!
- *
- * this seems way wrong to me, but i'm not going to fix it in locore right
- * now...
- *
- * Revision 1.4  1993/05/04  10:22:39  deraadt
- * if we timeout asking for kernel name, print a \n before proceeding.
- * Funny how one character can bug ya so much, eh?
- *
- * Revision 1.3  1993/04/28  06:37:58  cgd
- * bsd->netbsd
- *
- * Revision 1.2  1993/04/28  05:32:55  cgd
- * new kernel name is "bsd"  also, add "o*" to list of kernels to boot.
- *
- * Revision 1.1  1993/03/21  18:08:26  cgd
- * after 0.2.2 "stable" patches applied
- *
- * Revision 2.2  92/04/04  11:34:37  rpd
- *
- * 93/07/03  bde
- *	Write first 4096 bytes to load address, not always to address 0.
- *
- * 93/06/29  bde
- *	Don't clobber BIOS variables.
- *
- * 	Change date in banner.
- * 	[92/04/03  16:51:14  rvb]
- * 
- * 	Fix Intel Copyright as per B. Davies authorization.
- * 	[92/04/03            rvb]
- * 	From 2.5 version.
- * 	[92/03/30            mg32]
- * 
- */
 
 /*
   Copyright 1988, 1989, 1990, 1991, 1992 
@@ -158,7 +76,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.6 $");
+		"$Revision: 1.7 $");
 	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:

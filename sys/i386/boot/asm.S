@@ -1,6 +1,4 @@
 /*
- * Ported to boot 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,41 +22,11 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
+ *	$Id$
  */
 
-/*
- * HISTORY
- * $Log: asm.S,v $
-Revision 1.2  1993/07/11  12:02:19  andrew
-Fixes from bde, including support for loading @ any MB boundary (e.g. a
-kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
-buffering to speed booting from floppies.  Also works with aha174x
-controllers in enhanced mode.
-
- *
- * 93/06/28  bde
- *	Switch IDT for debugger.
- *
- *	Change all addr16's to addr32's and all data16's to data32's.
- *
- * 93/06/26  bde
- *	Avoid "pushw $xreal".  Gas botches it even for 32-bit mode.
- *
-Revision 1.1  1993/03/21  18:08:21  cgd
-after 0.2.2 "stable" patches applied
-
- * Revision 2.2  92/04/04  11:34:13  rpd
- * 	Fix Intel Copyright as per B. Davies authorization.
- * 	[92/04/03            rvb]
- * 	From 2.5 boot: pruned inb(), outb(), and pzero().
- * 	[92/03/30            rvb]
- * 
- * Revision 2.2  91/04/02  14:35:10  mbj
- * 	Added _sp() => where is the stack at. [kupfer]
- * 	Add Intel copyright
- * 	[90/02/09            rvb]
- * 
- */
 
 /*
   Copyright 1988, 1989, 1990, 1991, 1992 
