@@ -368,6 +368,7 @@ MALLOC_DECLARE(M_USBHC);
 		u_int len; \
 	} usb_dma_t
 
+#if __FreeBSD_version >= 500000
 typedef struct thread *usb_proc_ptr;
 
 #define uio_procp uio_td
@@ -385,6 +386,30 @@ typedef struct callout usb_callout_t;
 #define usb_callout_init(h)     callout_init(&(h), 0)
 #define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
+#else
+typedef struct proc *usb_proc_ptr;
+
+#define	PROC_LOCK(p)
+#define	PROC_UNLOCK(p)
+
+#define usb_kthread_create1(f, s, p, a0, a1) \
+		kthread_create((f), (s), (p), (a0), (a1))
+#define usb_kthread_create2(f, s, p, a0) \
+		kthread_create((f), (s), (p), (a0))
+#define usb_kthread_create	kthread_create
+
+#define	config_pending_incr()
+#define	config_pending_decr()
+
+typedef struct callout usb_callout_t;
+#define usb_callout_init(h)     callout_init(&(h))
+#define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
+#define usb_uncallout(h, f, d)  callout_stop(&(h))
+
+#define	BUS_DMA_COHERENT	0
+#define	ETHER_ALIGN		2
+#define	BPF_MTAP(ifp, m)	if ((ifp)->if_bpf) bpf_mtap((ifp), (m));
+#endif
 
 #define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))

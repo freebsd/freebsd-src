@@ -242,7 +242,9 @@ struct aue_softc {
 	int			aue_if_flags;
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
+#if __FreeBSD_version >= 500000
 	struct mtx		aue_mtx;
+#endif
 	u_int16_t		aue_flags;
 	char			aue_dying;
 	struct timeval		aue_rx_notice;
