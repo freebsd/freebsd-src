@@ -85,6 +85,7 @@
 >>18	leshort		51		Stanford MIPS-X,
 >>18	leshort		52		Motorola Coldfire,
 >>18	leshort		53		Motorola M68HC12,
+>>18	leshort		62		AMD x86-64,
 >>18	leshort		75		Digital VAX,
 >>18	leshort		0x9026		Alpha (unofficial),
 >>20	lelong		0		invalid version

@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(file.c)
-AM_INIT_AUTOMAKE(file, 3.36)
+AM_INIT_AUTOMAKE(file, 3.37)
 AM_CONFIG_HEADER(config.h)
 
 AC_MSG_CHECKING(for builtin ELF support)
@@ -66,6 +66,7 @@ AC_C_CONST
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_STRUCT_ST_RDEV
+AC_STRUCT_TIMEZONE_DAYLIGHT
 
 dnl FIXME: only found in standard headers!
 AC_CHECK_TYPE(uint8_t, unsigned char)
