@@ -58,7 +58,7 @@
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
 
-static int ext2_indirtrunc(struct inode *, daddr_t, daddr_t, daddr_t, int,
+static int ext2_indirtrunc(struct inode *, int32_t, int32_t, int32_t, int,
 	    long *);
 
 /*
@@ -124,10 +124,10 @@ ext2_truncate(vp, length, flags, cred, td)
 	struct thread *td;
 {
 	struct vnode *ovp = vp;
-	daddr_t lastblock;
+	int32_t lastblock;
 	struct inode *oip;
-	daddr_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
-	daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
+	int32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	struct ext2_sb_info *fs;
 	struct buf *bp;
 	int offset, size, level;
@@ -360,15 +360,15 @@ done:
 static int
 ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	struct inode *ip;
-	daddr_t lbn, lastbn;
-	daddr_t dbn;
+	int32_t lbn, lastbn;
+	int32_t dbn;
 	int level;
 	long *countp;
 {
 	struct buf *bp;
 	struct ext2_sb_info *fs = ip->i_e2fs;
 	struct vnode *vp;
-	daddr_t *bap, *copy, nb, nlbn, last;
+	int32_t *bap, *copy, nb, nlbn, last;
 	long blkcount, factor;
 	int i, nblocks, blocksreleased = 0;
 	int error = 0, allerror = 0;
@@ -411,11 +411,11 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		return (error);
 	}
 
-	bap = (daddr_t *)bp->b_data;
-	MALLOC(copy, daddr_t *, fs->s_blocksize, M_TEMP, M_WAITOK);
+	bap = (int32_t *)bp->b_data;
+	MALLOC(copy, int32_t *, fs->s_blocksize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->s_blocksize);
 	bzero((caddr_t)&bap[last + 1],
-	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (daddr_t));
+	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (int32_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
 	error = bwrite(bp);
@@ -433,7 +433,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			continue;
 		if (level > SINGLE) {
 			if ((error = ext2_indirtrunc(ip, nlbn,
-			    fsbtodb(fs, nb), (daddr_t)-1, level - 1, &blkcount)) != 0)
+			    fsbtodb(fs, nb), (int32_t)-1, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}

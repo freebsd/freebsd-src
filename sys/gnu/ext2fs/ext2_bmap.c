@@ -69,7 +69,7 @@ ext2_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
-	daddr_t blkno;
+	int32_t blkno;
 	int error;
 
 	/*
@@ -104,8 +104,8 @@ ext2_bmap(ap)
 int
 ext2_bmaparray(vp, bn, bnp, runp, runb)
 	struct vnode *vp;
-	daddr_t bn;
-	daddr_t *bnp;
+	int32_t bn;
+	int32_t *bnp;
 	int *runp;
 	int *runb;
 {
@@ -115,7 +115,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 	struct mount *mp;
 	struct vnode *devvp;
 	struct indir a[NIADDR+1], *ap;
-	daddr_t daddr;
+	int32_t daddr;
 	long metalbn;
 	int error, num, maxrun = 0;
 	int *nump;
@@ -148,7 +148,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 		if (*bnp == 0) {
 			*bnp = -1;
 		} else if (runp) {
-			daddr_t bnb = bn;
+			int32_t bnb = bn;
 			for (++bn; bn < NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
@@ -205,19 +205,19 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 			}
 		}
 
-		daddr = ((daddr_t *)bp->b_data)[ap->in_off];
+		daddr = ((int32_t *)bp->b_data)[ap->in_off];
 		if (num == 1 && daddr && runp) {
 			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump,
-			    ((daddr_t *)bp->b_data)[bn - 1],
-			    ((daddr_t *)bp->b_data)[bn]);
+			    ((int32_t *)bp->b_data)[bn - 1],
+			    ((int32_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
 			bn = ap->in_off;
 			if (runb && bn) {
 				for(--bn; bn >= 0 && *runb < maxrun &&
-			    		is_sequential(ump, ((daddr_t *)bp->b_data)[bn],
-					    ((daddr_t *)bp->b_data)[bn+1]);
+			    		is_sequential(ump, ((int32_t *)bp->b_data)[bn],
+					    ((int32_t *)bp->b_data)[bn+1]);
 			    		--bn, ++*runb);
 			}
 		}
@@ -255,7 +255,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 int
 ext2_getlbns(vp, bn, ap, nump)
 	struct vnode *vp;
-	daddr_t bn;
+	int32_t bn;
 	struct indir *ap;
 	int *nump;
 {
