@@ -24,7 +24,7 @@
 #		This specifies the server host which will supply the
 #		file updates.  You must change it to one of the CVSup
 #		mirror sites listed in the FreeBSD Handbook at
-#		http://www.freebsd.org/handbook/mirrors.html.
+#		http://www.freebsd.org/doc/handbook/mirrors.html.
 #		You can	override this setting on the command line
 #		with cvsup's "-h host" option.
 #
@@ -48,21 +48,23 @@
 #
 # DANGER!  WARNING!  LOOK OUT!  VORSICHT!
 #
-# If you add any of the ports collections to this file, be sure to
-# specify them like this:
+# If you add any of the ports or doc collections to this file, be sure to
+# specify them with a "tag" value set to ".", like this:
 #
 #   ports-all tag=.
+#   doc-all tag=.
 #
 # If you leave out the "tag=." portion, CVSup will delete all of
-# the files in your ports tree.  That is because the ports collections
-# do not use the same tags as the main part of the FreeBSD source tree.
+# the files in your ports or doc tree.  That is because the ports and doc
+# collections do not use the same tags as the main part of the FreeBSD 
+# source tree.
 #
 ###############################################################################
 
 # Defaults that apply to all the collections
 #
 # IMPORTANT: Change the next line to use one of the CVSup mirror sites
-# listed at http://www.freebsd.org/handbook/mirrors.html.
+# listed at http://www.freebsd.org/doc/handbook/mirrors.html.
 *default host=CHANGE_THIS.FreeBSD.org
 *default base=/usr
 *default prefix=/usr

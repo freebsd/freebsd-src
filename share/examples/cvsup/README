@@ -3,7 +3,7 @@
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
 with CVSup version 14.0 or later.  For general information on CVSup
-itself, please see http://www.freebsd.org/handbook/cvsup.html
+itself, please see http://www.freebsd.org/doc/handbook/cvsup.html
 
 To maintain the sources for the FreeBSD-current release, use:
 
@@ -27,7 +27,7 @@ To maintain a copy of the FreeBSD bug database, use the file:
 IMPORTANT: Before you use any of the supfiles in this directory,
 you will need to edit in an appropriate "host" setting.  See:
 
-    http://www.freebsd.org/handbook/mirrors.html
+    http://www.freebsd.org/doc/handbook/mirrors.html
 
 for an up-to-date list of public CVSup mirror sites.
 
