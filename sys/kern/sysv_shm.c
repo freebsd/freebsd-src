@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.8 1995/08/30 00:33:02 bde Exp $ */
+/*	$Id: sysv_shm.c,v 1.9 1995/09/09 18:10:09 davidg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -31,29 +31,44 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/shm.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/time.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/systm.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/vm_map.h>
-#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
+
+struct shmat_args;
+extern int shmat __P((struct proc *p, struct shmat_args *uap, int *retval));
+struct shmctl_args;
+extern int shmctl __P((struct proc *p, struct shmctl_args *uap, int *retval));
+struct shmdt_args;
+extern int shmdt __P((struct proc *p, struct shmdt_args *uap, int *retval));
+struct shmget_args;
+extern int shmget __P((struct proc *p, struct shmget_args *uap, int *retval));
 
 static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
-int	oshmctl();
-int	shmat(), shmctl(), shmdt(), shmget();
-int	(*shmcalls[])() = { shmat, oshmctl, shmdt, shmget, shmctl };
+struct oshmctl_args;
+int oshmctl __P((struct proc *p, struct oshmctl_args *uap, int *retval));
+static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap, int mode, int *retval));
+static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum, int *retval));
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+sy_call_t *shmcalls[] = {
+	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
+	(sy_call_t *)shmdt, (sy_call_t *)shmget,
+	(sy_call_t *)shmctl
+};
 
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
@@ -296,7 +311,8 @@ oshmctl(p, uap, retval)
 			return error;
 		break;
 	default:
-		return shmctl(p, uap, retval);
+		/* XXX casting to (sy_call_t *) is bogus, as usual. */
+		return ((sy_call_t *)shmctl)(p, uap, retval);
 	}
 	return 0;
 #else
@@ -507,19 +523,22 @@ shmget(p, uap, retval)
 	return shmget_allocate_segment(p, uap, mode, retval);
 }
 
-struct shmsys_args {
-	u_int	which;
-};
 int
 shmsys(p, uap, retval)
 	struct proc *p;
-	struct shmsys_args *uap;
+	/* XXX actually varargs. */
+	struct shmsys_args /* {
+		u_int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+	} */ *uap;
 	int *retval;
 {
 
 	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
 		return EINVAL;
-	return ((*shmcalls[uap->which])(p, &uap[1], retval));
+	return ((*shmcalls[uap->which])(p, &uap->a2, retval));
 }
 
 void
@@ -556,8 +575,8 @@ shmexit(p)
 }
 
 void
-shminit(udata)
-	void *udata;
+shminit(dummy)
+	void *dummy;
 {
 	int i;
 	vm_offset_t garbage1, garbage2;
