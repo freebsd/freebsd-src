@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.35 1994/03/04 16:43:07 ache Exp $
+ *	$Id: wd.c,v 1.36 1994/03/06 03:10:58 jkh Exp $
  */
 
 /* TODO:
@@ -209,8 +209,45 @@ wdprobe(struct isa_device *dvp)
 
 	/* execute a controller only command */
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_DIAGNOSE) != 0
-	    || wdwait(du, 0, TIMEOUT) != 0)
+	    || wdwait(du, 0, TIMEOUT) < 0)
 		goto nodevice;
+
+	/*
+	 * drive(s) did not time out during diagnostic :
+	 * Get error status and check that both drives are OK.
+	 * Table 9-2 of ATA specs suggests that we must check for 
+	 * a value of 0x01 
+	 *
+	 * Strangely, some controllers will return a status of
+	 * 0x81 (drive 0 OK, drive 1 failure), and then when
+	 * the DRV bit is set, return status of 0x01 (OK) for
+	 * drive 2.  (This seems to contradict the ATA spec.)
+	 */
+	du->dk_error = inb(du->dk_port + wd_error);
+	/* printf("Error : %x\n", du->dk_error); */
+	if(du->dk_error != 0x01) {
+		if(du->dk_error & 0x80) { /* drive 1 failure */ 
+
+			/* first set the DRV bit */
+			u_int sdh;
+			sdh = inb(du->dk_port+ wd_sdh);
+			sdh = sdh | 0x10;
+			outb(du->dk_port+ wd_sdh, sdh);
+
+			/* Wait, to make sure drv 1 has completed diags */
+			if ( wdwait(du, 0, TIMEOUT) < 0)
+				goto nodevice;
+
+			/* Get status for drive 1 */
+			du->dk_error = inb(du->dk_port + wd_error); 
+			/* printf("Error (drv 1) : %x\n", du->dk_error); */
+
+			if(du->dk_error != 0x01)
+				goto nodevice;
+		} else	/* drive 0 fail */
+			goto nodevice;
+	}
+	
 
 	free(du, M_TEMP);
 	return (IO_WDCSIZE);
