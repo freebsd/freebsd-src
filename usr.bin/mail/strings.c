@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)strings.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -58,38 +62,34 @@ char *
 salloc(size)
 	int size;
 {
-	register char *t;
-	register int s;
-	register struct strings *sp;
-	int index;
+	char *t;
+	int s, index;
+	struct strings *sp;
 
 	s = size;
-	s += (sizeof (char *) - 1);
-	s &= ~(sizeof (char *) - 1);
+	s += (sizeof(char *) - 1);
+	s &= ~(sizeof(char *) - 1);
 	index = 0;
 	for (sp = &stringdope[0]; sp < &stringdope[NSPACE]; sp++) {
-		if (sp->s_topFree == NOSTR && (STRINGSIZE << index) >= s)
+		if (sp->s_topFree == NULL && (STRINGSIZE << index) >= s)
 			break;
 		if (sp->s_nleft >= s)
 			break;
 		index++;
 	}
 	if (sp >= &stringdope[NSPACE])
-		panic("String too large");
-	if (sp->s_topFree == NOSTR) {
+		errx(1, "String too large");
+	if (sp->s_topFree == NULL) {
 		index = sp - &stringdope[0];
-		sp->s_topFree = malloc(STRINGSIZE << index);
-		if (sp->s_topFree == NOSTR) {
-			fprintf(stderr, "No room for space %d\n", index);
-			panic("Internal error");
-		}
+		if ((sp->s_topFree = malloc(STRINGSIZE << index)) == NULL)
+			err(1, "No room for space %d", index);
 		sp->s_nextFree = sp->s_topFree;
 		sp->s_nleft = STRINGSIZE << index;
 	}
 	sp->s_nleft -= s;
 	t = sp->s_nextFree;
 	sp->s_nextFree += s;
-	return(t);
+	return (t);
 }
 
 /*
@@ -100,14 +100,14 @@ salloc(size)
 void
 sreset()
 {
-	register struct strings *sp;
-	register int index;
+	struct strings *sp;
+	int index;
 
 	if (noreset)
 		return;
 	index = 0;
 	for (sp = &stringdope[0]; sp < &stringdope[NSPACE]; sp++) {
-		if (sp->s_topFree == NOSTR)
+		if (sp->s_topFree == NULL)
 			continue;
 		sp->s_nextFree = sp->s_topFree;
 		sp->s_nleft = STRINGSIZE << index;
@@ -122,8 +122,8 @@ sreset()
 void
 spreserve()
 {
-	register struct strings *sp;
+	struct strings *sp;
 
 	for (sp = &stringdope[0]; sp < &stringdope[NSPACE]; sp++)
-		sp->s_topFree = NOSTR;
+		sp->s_topFree = NULL;
 }

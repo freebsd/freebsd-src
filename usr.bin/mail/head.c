@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)head.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -53,16 +57,13 @@ int
 ishead(linebuf)
 	char linebuf[];
 {
-	register char *cp;
 	struct headline hl;
 	char parbuf[BUFSIZ];
 
-	cp = linebuf;
-	if (*cp++ != 'F' || *cp++ != 'r' || *cp++ != 'o' || *cp++ != 'm' ||
-	    *cp++ != ' ')
+	if (strncmp(linebuf, "From ", 5))
 		return (0);
 	parse(linebuf, &hl, parbuf);
-	if (hl.l_from == NOSTR || hl.l_date == NOSTR) {
+	if (hl.l_from == NULL || hl.l_date == NULL) {
 		fail(linebuf, "No from or date field");
 		return (0);
 	}
@@ -79,11 +80,11 @@ ishead(linebuf)
 /*ARGSUSED*/
 void
 fail(linebuf, reason)
-	char linebuf[], reason[];
+	const char *linebuf, *reason;
 {
 
 	/*
-	if (value("debug") == NOSTR)
+	if (value("debug") == NULL)
 		return;
 	fprintf(stderr, "\"%s\"\nnot a header because %s\n", linebuf, reason);
 	*/
@@ -98,15 +99,14 @@ fail(linebuf, reason)
 void
 parse(line, hl, pbuf)
 	char line[], pbuf[];
-	register struct headline *hl;
+	struct headline *hl;
 {
-	register char *cp;
-	char *sp;
+	char *cp, *sp;
 	char word[LINESIZE];
 
-	hl->l_from = NOSTR;
-	hl->l_tty = NOSTR;
-	hl->l_date = NOSTR;
+	hl->l_from = NULL;
+	hl->l_tty = NULL;
+	hl->l_date = NULL;
 	cp = line;
 	sp = pbuf;
 	/*
@@ -114,13 +114,13 @@ parse(line, hl, pbuf)
 	 */
 	cp = nextword(cp, word);
 	cp = nextword(cp, word);
-	if (*word)
+	if (*word != '\0')
 		hl->l_from = copyin(word, &sp);
-	if (cp != NOSTR && cp[0] == 't' && cp[1] == 't' && cp[2] == 'y') {
+	if (cp != NULL && cp[0] == 't' && cp[1] == 't' && cp[2] == 'y') {
 		cp = nextword(cp, word);
 		hl->l_tty = copyin(word, &sp);
 	}
-	if (cp != NOSTR)
+	if (cp != NULL)
 		hl->l_date = copyin(cp, &sp);
 }
 
@@ -132,14 +132,13 @@ parse(line, hl, pbuf)
  */
 char *
 copyin(src, space)
-	register char *src;
+	char *src;
 	char **space;
 {
-	register char *cp;
-	char *top;
+	char *cp, *top;
 
 	top = cp = *space;
-	while (*cp++ = *src++)
+	while ((*cp++ = *src++) != '\0')
 		;
 	*space = cp;
 	return (top);
@@ -170,7 +169,7 @@ isdate(date)
 	char date[];
 {
 
-	return cmatch(date, ctype) || cmatch(date, tmztype);
+	return (cmatch(date, ctype) || cmatch(date, tmztype));
 }
 
 /*
@@ -179,65 +178,65 @@ isdate(date)
  */
 int
 cmatch(cp, tp)
-	register char *cp, *tp;
+	char *cp, *tp;
 {
 
-	while (*cp && *tp)
+	while (*cp != '\0' && *tp != '\0')
 		switch (*tp++) {
 		case 'a':
 			if (!islower(*cp++))
-				return 0;
+				return (0);
 			break;
 		case 'A':
 			if (!isupper(*cp++))
-				return 0;
+				return (0);
 			break;
 		case ' ':
 			if (*cp++ != ' ')
-				return 0;
+				return (0);
 			break;
 		case '0':
 			if (!isdigit(*cp++))
-				return 0;
+				return (0);
 			break;
 		case 'O':
 			if (*cp != ' ' && !isdigit(*cp))
-				return 0;
+				return (0);
 			cp++;
 			break;
 		case ':':
 			if (*cp++ != ':')
-				return 0;
+				return (0);
 			break;
 		case 'N':
 			if (*cp++ != '\n')
-				return 0;
+				return (0);
 			break;
 		}
-	if (*cp || *tp)
-		return 0;
+	if (*cp != '\0' || *tp != '\0')
+		return (0);
 	return (1);
 }
 
 /*
  * Collect a liberal (space, tab delimited) word into the word buffer
  * passed.  Also, return a pointer to the next word following that,
- * or NOSTR if none follow.
+ * or NULL if none follow.
  */
 char *
 nextword(wp, wbuf)
-	register char *wp, *wbuf;
+	char *wp, *wbuf;
 {
-	register c;
+	int c;
 
-	if (wp == NOSTR) {
-		*wbuf = 0;
-		return (NOSTR);
+	if (wp == NULL) {
+		*wbuf = '\0';
+		return (NULL);
 	}
-	while ((c = *wp++) && c != ' ' && c != '\t') {
+	while ((c = *wp++) != '\0' && c != ' ' && c != '\t') {
 		*wbuf++ = c;
 		if (c == '"') {
- 			while ((c = *wp++) && c != '"')
+ 			while ((c = *wp++) != '\0' && c != '"')
  				*wbuf++ = c;
  			if (c == '"')
  				*wbuf++ = c;
@@ -248,7 +247,7 @@ nextword(wp, wbuf)
 	*wbuf = '\0';
 	for (; c == ' ' || c == '\t'; c = *wp++)
 		;
-	if (c == 0)
-		return (NOSTR);
+	if (c == '\0')
+		return (NULL);
 	return (wp - 1);
 }
