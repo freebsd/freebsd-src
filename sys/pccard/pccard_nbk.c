@@ -53,12 +53,15 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/types.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+
+#include <i386/isa/isa.h>
 
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
@@ -76,6 +79,16 @@ devclass_t	pccard_devclass;
 #define PCCARD_NDRQ	0
 
 #define PCCARD_DEVINFO(d) (struct pccard_devinfo *) device_get_ivars(d)
+
+SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
+
+static u_long pcic_mem_start = IOM_BEGIN;
+static u_long pcic_mem_end = IOM_END;
+
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, pcic_mem_start, CTLFLAG_RW,
+    &pcic_mem_start, 0, "");
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, pcic_mem_end, CTLFLAG_RW,
+    &pcic_mem_end, 0, "");
 
 /*
  * glue for NEWCARD/OLDCARD compat layer
@@ -215,7 +228,7 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	/*
 	 * Consider adding a resource definition. We allow rid 0 for
-	 * irq, 0-3 for memory and 0-1 for ports
+	 * irq, 0-4 for memory and 0-1 for ports
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault;
@@ -225,8 +238,8 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *res;
 
 	if (start == 0 && end == ~0 && type == SYS_RES_MEMORY && count != 1) {
-		start = 0xd0000;
-		end = 0xdffff;
+		start = pcic_mem_start;
+		end = pcic_mem_end;
 	}
 	isdefault = (start == 0UL && end == ~0UL);
 	if (!passthrough && !isdefault) {
