@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.4 1996/07/19 13:19:47 amurai Exp $
+ *	$Id: 3c5x9.c,v 1.5 1996/09/06 23:06:53 phk Exp $
  */
 
 #include "eisa.h"
@@ -68,7 +68,7 @@
 static int	ep_eisa_probe __P((void));
 static int	ep_eisa_attach __P((struct eisa_device *e_dev));
 
-struct eisa_driver ep_eisa_driver = {
+static struct eisa_driver ep_eisa_driver = {
 					"ep",
 					ep_eisa_probe,
 					ep_eisa_attach,
