@@ -34,11 +34,7 @@
 
 register struct globaldata *globalp __asm__("r13");
 
-#if 1
 #define	GLOBALP	globalp
-#else
-#define	GLOBALP	((struct globaldata *) alpha_pal_rdval())
-#endif
 
 #define	PCPU_GET(member)	(GLOBALP->gd_ ## member)
 #define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
