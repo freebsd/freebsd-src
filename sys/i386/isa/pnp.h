@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.4 1997/09/20 06:26:28 peter Exp $
+ *      $Id: pnp.h,v 1.5.2.1 1998/01/08 12:32:32 jkh Exp $
  */
 
 
@@ -45,9 +45,14 @@
 #define MAX_PNP_LDN	20
 
 /* Static ports to access PnP state machine */
+#if defined(PC98) && defined(KERNEL)
+/* pnp.h is included from pnpinfo.c. */
+#define _PNP_ADDRESS		0x259
+#define _PNP_WRITE_DATA		0xa59
+#else
 #define _PNP_ADDRESS		0x279
 #define _PNP_WRITE_DATA		0xa79
-
+#endif
 
 /* PnP Registers.  Write to ADDRESS and then use WRITE/READ_DATA */
 #define SET_RD_DATA		0x00

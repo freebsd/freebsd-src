@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.3 1997/09/19 15:20:24 jmg Exp $
+ *      $Id: pnp.c,v 1.4.2.1 1998/01/08 12:32:32 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -34,7 +34,11 @@
 
 #include <i386/isa/pnp.h>
 #include <i386/isa/isa_device.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/icu.h>
 
 int num_pnp_cards = 0;
