@@ -570,7 +570,7 @@ peg(mycrib)
 	prhand(ph, pnum, Playwin, FALSE);
 	prhand(ch, cnum, Compwin, TRUE);
 	prtable(sum);
-	if (last)
+	if (last) {
 		if (played) {
 			msg(quiet ? "I get one for last" :
 			    "I get one point for last");
@@ -583,6 +583,7 @@ peg(mycrib)
 			if (chkscr(&pscore, 1))
 				return TRUE;
 		}
+	}
 	return (FALSE);
 }
 

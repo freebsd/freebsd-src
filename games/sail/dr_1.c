@@ -346,11 +346,12 @@ compcombat()
 				hit++;
 			hit += QUAL[index][capship(sp)->specs->qual - 1];
 			for (n = 0; n < 3 && sp->file->captured == 0; n++)
-				if (!crew[n])
+				if (!crew[n]) {
 					if (index <= 5)
 						hit--;
 					else
 						hit -= 2;
+				}
 			if (ready & R_INITIAL) {
 				if (!r)
 					sp->file->readyL &= ~R_INITIAL;
@@ -361,11 +362,12 @@ compcombat()
 				else
 					hit += 2;
 			}
-			if (sp->file->captured != 0)
+			if (sp->file->captured != 0) {
 				if (index <= 1)
 					hit--;
 				else
 					hit -= 2;
+			}
 			hit += AMMO[index][load - 1];
 			temp = sp->specs->class;
 			if ((temp >= 5 || temp == 1) && windspeed == 5)
@@ -385,11 +387,12 @@ compcombat()
 
 next()
 {
-	if (++turn % 55 == 0)
+	if (++turn % 55 == 0) {
 		if (alive)
 			alive = 0;
 		else
 			people = 0;
+	}
 	if (people <= 0 || windspeed == 7) {
 		register struct ship *s;
 		struct ship *bestship;
