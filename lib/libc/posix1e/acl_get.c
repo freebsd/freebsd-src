@@ -44,13 +44,13 @@ acl_get_file(const char *path_p, acl_type_t type)
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
 	if (!aclp) {
-		return (0);
+		return (NULL);
 	}
 
 	error = __acl_get_file(path_p, type, aclp);
 	if (error) {
 		acl_free(aclp);
-		return (0);
+		return (NULL);
 	}
 
 	return (aclp);
@@ -64,13 +64,13 @@ acl_get_fd(int fd)
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
 	if (!aclp) {
-		return (0);
+		return (NULL);
 	}
 
 	error = __acl_get_fd(fd, ACL_TYPE_ACCESS, aclp);
 	if (error) {
 		acl_free(aclp);
-		return (0);
+		return (NULL);
 	}
 
 	return (aclp);
@@ -84,13 +84,13 @@ acl_get_fd_np(int fd, acl_type_t type)
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
 	if (!aclp) {
-		return (0);
+		return (NULL);
 	}
 
 	error = __acl_get_fd(fd, type, aclp);
 	if (error) {
 		acl_free(aclp);
-		return (0);
+		return (NULL);
 	}
 
 	return (aclp);
