@@ -137,7 +137,7 @@ elf64_exec(struct preloaded_file *fp)
 {
 	struct file_metadata	*md;
 	Elf_Ehdr		*hdr;
-	struct ia64_pte		pte;
+	pt_entry_t		pte;
 	struct bootinfo		*bi;
 	u_int64_t		psr;
 	UINTN			mapkey, pages, size;
@@ -193,25 +193,17 @@ elf64_exec(struct preloaded_file *fp)
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 
-	bzero(&pte, sizeof(pte));
-	pte.pte_p = 1;
-	pte.pte_ma = PTE_MA_WB;
-	pte.pte_a = 1;
-	pte.pte_d = 1;
-	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_RWX;
-	pte.pte_ppn = 0;
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | PTE_AR_RWX;
 
 	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_RR_BASE(7)));
 	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
 	__asm __volatile("ptr.i %0,%1" :: "r"(IA64_RR_BASE(7)), "r"(28<<2));
 	__asm __volatile("ptr.d %0,%1" :: "r"(IA64_RR_BASE(7)), "r"(28<<2));
 	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;"
-			 :: "r"(0), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
 	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.d dtr[%0]=%1;;"
-			 :: "r"(0), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
 	__asm __volatile("srlz.i;;");
 
 	enter_kernel(hdr->e_entry, bi);
