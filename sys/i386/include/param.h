@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.16 1994/09/18 22:05:22 bde Exp $
+ *	$Id: param.h,v 1.17 1995/01/23 19:21:49 davidg Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -134,18 +134,18 @@
 /* bytes to clicks */
 #define btoc(x)	(((unsigned)(x)+(NBPG-1))>>PGSHIFT)
 
-#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
-	((unsigned)(bytes) >> DEV_BSHIFT)
-#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
-	((unsigned)(db) << DEV_BSHIFT)
-
 /*
- * Map a ``block device block'' to a file system block.
- * This should be device dependent, and will be if we
- * add an entry to cdevsw/bdevsw for that purpose.
- * For now though just use DEV_BSIZE.
+ * This is messy and perhaps slow because `bytes' may be an off_t.  We
+ * have to shift an unsigned type to avoid sign extension and we don't
+ * want to widen `bytes' unnecessarily.  Assume that off_t is long long
+ * and daddr_t is unsigned long.
  */
-#define bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
+#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
+	(sizeof (bytes) > sizeof(long) \
+	 ? (unsigned long)((unsigned long long)(bytes) >> DEV_BSHIFT) \
+	 : (unsigned long)((unsigned long)(bytes) >> DEV_BSHIFT))
+#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
+	((unsigned long long)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
