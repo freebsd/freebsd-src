@@ -824,8 +824,8 @@ retry:
 			PIPE_GET_GIANT(wpipe);
 			pipe_destroy_write_buffer(wpipe);
 			PIPE_DROP_GIANT(wpipe);
-			pipeunlock(wpipe);
 			pipeselwakeup(wpipe);
+			pipeunlock(wpipe);
 			error = EPIPE;
 			goto error1;
 		}
