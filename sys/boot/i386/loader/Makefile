@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PROG=		loader.sym
+INTERNALPROG=
 NEWVERSWHAT=	"bootstrap loader" i386
 
 # architecture-specific loader code
@@ -20,11 +22,7 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)
@@ -40,10 +38,10 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.list loader.bin loader.sym loader.help
+CLEANFILES=	vers.c loader loader.list loader.bin loader.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-nostdlib -static -Ttext 0x0
+LDFLAGS=	-static -Ttext 0x0
 
 # i386 standalone support library
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
@@ -62,7 +60,7 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader: loader.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
+loader: loader.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} loader.bin
 #	/usr/bin/kzip ${.TARGET}
@@ -86,11 +84,10 @@ FILESDIR_loader.conf=	/boot/defaults
 FILES+=	${.CURDIR}/loader.rc
 .endif
 
-OBJS=	${SRCS:N*.h:R:S/$/.o/g}
+DPADD=	${BTXCRT} ${LIBFICL} ${LIBI386} ${LIBSTAND}
+LDADD=	${BTXCRT} ${LIBFICL} ${LIBI386} -lstand
 
-loader.sym: ${OBJS} ${LIBFICL} ${LIBI386} ${LIBSTAND}
-	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} \
-		${LIBFICL} ${LIBI386} ${LIBSTAND}
+.include <bsd.prog.mk>
 
 .if ${MACHINE_ARCH} == "amd64"
 beforedepend ${OBJS}: machine
@@ -98,5 +95,3 @@ CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
-
-.include <bsd.prog.mk>

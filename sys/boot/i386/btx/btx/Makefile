@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+PROG=	btx.out
+INTERNALPROG=
+NOMAN=
+SRCS=	btx.s
+CLEANFILES= btx
+
 M4?=	m4
 
 .if defined(PAGING)
@@ -27,14 +33,13 @@ ORG=	0x9000
 
 all: btx
 
-btx: btx.o
-	${LD} -N -e start -Ttext ${ORG} -o btx.out btx.o
+LDFLAGS=-N -e start -Ttext ${ORG}
+
+btx: btx.out
 	objcopy -S -O binary btx.out ${.TARGET}
 
 btx.o: btx.s
 	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btx.s) | \
 	   ${AS} ${AFLAGS} -o ${.TARGET}
-
-CLEANFILES+= btx btx.out btx.o
 
 .include <bsd.prog.mk>

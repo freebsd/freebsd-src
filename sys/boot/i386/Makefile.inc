@@ -6,6 +6,7 @@ BINDIR?=	/boot
 
 LOADER_ADDRESS?=0x200000
 CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2
+LDFLAGS+=	-nostdlib
 
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32
