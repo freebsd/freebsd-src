@@ -1,10 +1,10 @@
 # $FreeBSD$
 #
-# The user can override the default list of languages to build and install
-# with the DOC_LANG variable.
+# The user can override the default language to build and install
+# with the RELNOTES_LANG variable.
 # 
-.if defined(DOC_LANG) && !empty(DOC_LANG)
-SUBDIR = 	${DOC_LANG}
+.if defined(RELNOTES_LANG) && !empty(RELNOTES_LANG)
+SUBDIR = 	${RELNOTES_LANG}
 .else
 SUBDIR =	en_US.ISO_8859-1
 .endif
