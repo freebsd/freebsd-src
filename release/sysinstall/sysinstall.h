@@ -211,7 +211,13 @@ typedef struct _dmenu {
     char *prompt;			/* Our prompt			*/
     char *helpline;			/* Line of help at bottom	*/
     char *helpfile;			/* Help file for "F1"		*/
+#if (__STDC_VERSION__ >= 199901L) || (__GNUC__ >= 3) 
+    dialogMenuItem items[];		/* Array of menu items		*/
+#elif __GNUC__
     dialogMenuItem items[0];		/* Array of menu items		*/
+#else
+#error "Create hack for C89 and K&R compilers."
+#endif
 } DMenu;
 
 /* An rc.conf variable */
@@ -271,6 +277,7 @@ typedef struct _device {
     void (*shutdown)(struct _device *dev);
     void *private;
     unsigned int flags;
+    unsigned int volume;
 } Device;
 
 /* Some internal representations of partitions */
@@ -326,6 +333,7 @@ typedef struct _indexEntry {	/* A single entry in an INDEX file */
     int  depc;			/* how many depend on me	*/
     int  installed;		/* indicates if it is installed */
     char *maintainer;		/* maintainer			*/
+    unsigned int volume;	/* Volume of package            */
 } IndexEntry;
 typedef IndexEntry *IndexEntryPtr;
 
