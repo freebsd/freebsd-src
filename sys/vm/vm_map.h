@@ -101,6 +101,8 @@ union vm_map_object {
 struct vm_map_entry {
 	struct vm_map_entry *prev;	/* previous entry */
 	struct vm_map_entry *next;	/* next entry */
+	struct vm_map_entry *left;
+	struct vm_map_entry *right;
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
@@ -154,7 +156,7 @@ struct vm_map {
 	vm_size_t size;			/* virtual size */
 	u_char system_map;		/* Am I a system map? */
 	u_char infork;			/* Am I in fork processing? */
-	vm_map_entry_t hint;		/* hint for quick lookups */
+	vm_map_entry_t root;
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
 	pmap_t pmap;			/* (c) Physical map */
