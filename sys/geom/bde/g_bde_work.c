@@ -254,9 +254,6 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 		sp->used = time_uptime;
 	}
 	wp->ksp = sp;
-	if (sp == NULL) {
-		g_bde_purge_sector(sc, -1);
-	}
 	return(sp);
 }
 
@@ -333,8 +330,10 @@ g_bde_read_keysector(struct g_bde_softc *sc, struct g_bde_work *wp)
 
 	g_trace(G_T_TOPOLOGY, "g_bde_read_keysector(%p)", wp);
 	sp = g_bde_get_sector(wp, wp->kso);
-	if (sp == NULL)
+	if (sp == NULL) {
+		g_bde_purge_sector(sc, -1);
 		sp = g_bde_get_sector(wp, wp->kso);
+	}
 	if (sp == NULL)
 		return (sp);
 	if (sp->owner != wp)
