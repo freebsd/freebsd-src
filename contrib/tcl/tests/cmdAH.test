@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) cmdAH.test 1.30 97/06/23 18:17:47
+# SCCS: @(#) cmdAH.test 1.35 97/07/22 14:07:43
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -851,65 +851,83 @@ makeFile abcde gorp.file
 makeDirectory dir.file
 
 # readable
-# Can't run on macintosh - requires chmod
-if {$tcl_platform(platform) != "macintosh"} {
 
 test cmdAH-12.1 {Tcl_FileObjCmd: readable} {
     list [catch {file readable a b} msg] $msg
 } {1 {wrong # args: should be "file readable name"}}
-catch {exec chmod 444 gorp.file}
-test cmdAH-12.2 {Tcl_FileObjCmd: readable} {unixExecs} {file readable gorp.file} 1
-catch {exec chmod 333 gorp.file}
-if {$user != "root"} {
-    test cmdAH-12.3 {Tcl_FileObjCmd: readable} {unixOnly} {
-	file reada gorp.file
-    } 0
-}
-}
+testchmod 444 gorp.file
+test cmdAH-12.2 {Tcl_FileObjCmd: readable} {
+    file readable gorp.file
+} 1
+testchmod 333 gorp.file
+test cmdAH-12.3 {Tcl_FileObjCmd: readable} {unixOnly && !root} {
+    file reada gorp.file
+} 0
 
 # writable
-# Can't run on macintosh - requires chmod
-if {$tcl_platform(platform) != "macintosh"} {
 
 test cmdAH-13.1 {Tcl_FileObjCmd: writable} {
     list [catch {file writable a b} msg] $msg
 } {1 {wrong # args: should be "file writable name"}}
-catch {exec chmod 555 gorp.file}
-if {$user != "root"} {
-    test cmdAH-13.2 {Tcl_FileObjCmd: writable} {unixExecs} {
-	file writable gorp.file
-    } 0
-}
-catch {exec chmod 222 gorp.file}
-test cmdAH-13.3 {Tcl_FileObjCmd: writable} {unixExecs} {file w gorp.file} 1
-}
+testchmod 555 gorp.file
+test cmdAH-13.2 {Tcl_FileObjCmd: writable} {!root} {
+    file writable gorp.file
+} 0
+testchmod 222 gorp.file
+test cmdAH-13.3 {Tcl_FileObjCmd: writable} {
+    file writable gorp.file
+} 1
 
 # executable
-# Can't run on macintosh - requires chmod
-if {$tcl_platform(platform) != "macintosh"} {
 
-test cmdAH-14.1 {Tcl_FileObjCmd: executable} {unixExecs} {
+file delete -force dir.file gorp.file
+file mkdir dir.file
+makeFile abcde gorp.file
+
+test cmdAH-14.1 {Tcl_FileObjCmd: executable} {
     list [catch {file executable a b} msg] $msg
 } {1 {wrong # args: should be "file executable name"}}
-catch {exec chmod 000 dir.file}
-if {$user != "root"} {
-    test cmdAH-14.2 {Tcl_FileObjCmd: executable} {unixOnly} {
-	file executable gorp.file
-    } 0
-}
-catch {exec chmod 775 gorp.file}
-test cmdAH-14.3 {Tcl_FileObjCmd: executable} {unixExecs} {file exe gorp.file} 1
-}
+test cmdAH-14.2 {Tcl_FileObjCmd: executable} {
+    file executable gorp.file
+} 0
+test cmdAH-14.3 {Tcl_FileObjCmd: executable} {unix} {
+    # Only on unix will setting the execute bit on a regular file
+    # cause that file to be executable.   
+    
+    testchmod 775 gorp.file
+    file exe gorp.file
+} 1
 
+test cmdAH-14.4 {Tcl_FileObjCmd: executable} {mac} {
+    # On mac, the only executable files are of type APPL.
+
+    set x [file exe gorp.file]    
+    file attrib gorp.file -type APPL
+    lappend x [file exe gorp.file]
+} {0 1}
+test cmdAH-14.5 {Tcl_FileObjCmd: executable} {pc} {
+    # On pc, must be a .exe, .com, etc.
+    
+    set x [file exe gorp.file]
+    makeFile foo gorp.exe
+    lappend x [file exe gorp.exe]
+    file delete gorp.exe
+    set x
+} {0 1}
+test cmdAH-14.6 {Tcl_FileObjCmd: executable} {
+    # Directories are always executable.
+    
+    file exe dir.file
+} 1
+
+file delete -force dir.file  
+file delete gorp.file
+file delete link.file
 # exists
 
 test cmdAH-15.1 {Tcl_FileObjCmd: exists} {
     list [catch {file exists a b} msg] $msg
 } {1 {wrong # args: should be "file exists name"}}
-catch {exec chmod 777 dir.file}
-file delete -force dir.file  
-file delete gorp.file
-file delete link.file
 test cmdAH-15.2 {Tcl_FileObjCmd: exists} {file exists gorp.file} 0
 test cmdAH-15.3 {Tcl_FileObjCmd: exists} {
     file exists [file join dir.file gorp.file]
@@ -919,8 +937,10 @@ catch {
     makeDirectory dir.file
     makeFile 12345 [file join dir.file gorp.file]
 }
-test cmdAH-15.4 {Tcl_FileObjCmd: exists} {unixExecs} {file exists gorp.file} 1
-test cmdAH-15.5 {Tcl_FileObjCmd: exists} {unixExecs} {
+test cmdAH-15.4 {Tcl_FileObjCmd: exists} {
+    file exists gorp.file
+} 1
+test cmdAH-15.5 {Tcl_FileObjCmd: exists} {
     file exists [file join dir.file gorp.file]
 } 1
 
@@ -937,6 +957,14 @@ test cmdAH-15.8 {Tcl_FileObjCmd: nativename} {
     testsetplatform mac
     list [catch {file nativename a/b} msg] $msg [testsetplatform $platform]
 } {0 :a:b {}}
+
+test cmdAH-15.9 {Tcl_FileObjCmd: ~ : exists} {
+    file exists ~nOsUcHuSeR
+} 0
+test cmdAH-15.10 {Tcl_FileObjCmd: ~ : nativename} {
+    # should probably be 0 in fact...
+    catch {file nativename ~nOsUcHuSeR}
+} 1
 
 # The test below has to be done in /tmp rather than the current
 # directory in order to guarantee (?) a local file system:  some
@@ -986,8 +1014,12 @@ test cmdAH-16.3 {Tcl_FileObjCmd: atime} {
 test cmdAH-17.1 {Tcl_FileObjCmd: isdirectory} {
     list [catch {file isdirectory a b} msg] $msg
 } {1 {wrong # args: should be "file isdirectory name"}}
-test cmdAH-17.2 {Tcl_FileObjCmd: isdirectory} {file isdirectory gorp.file} 0
-test cmdAH-17.3 {Tcl_FileObjCmd: isdirectory} {unixExecs} {file isd dir.file} 1
+test cmdAH-17.2 {Tcl_FileObjCmd: isdirectory} {
+    file isdirectory gorp.file
+} 0
+test cmdAH-17.3 {Tcl_FileObjCmd: isdirectory} {
+    file isd dir.file
+} 1
 
 # isfile
 
@@ -1001,10 +1033,10 @@ test cmdAH-18.3 {Tcl_FileObjCmd: isfile} {file isfile dir.file} 0
 # sites will have symbolic links
 
 catch {exec ln -s gorp.file link.file}
-test cmdAH-19.1 {Tcl_FileObjCmd: lstat} {unixExecs} {
+test cmdAH-19.1 {Tcl_FileObjCmd: lstat} {
     list [catch {file lstat a} msg] $msg
 } {1 {wrong # args: should be "file lstat name varName"}}
-test cmdAH-19.2 {Tcl_FileObjCmd: lstat} {unixExecs} {
+test cmdAH-19.2 {Tcl_FileObjCmd: lstat} {
     list [catch {file lstat a b c} msg] $msg
 } {1 {wrong # args: should be "file lstat name varName"}}
 test cmdAH-19.3 {Tcl_FileObjCmd: lstat} {unixOnly nonPortable} {
@@ -1021,7 +1053,7 @@ test cmdAH-19.5 {Tcl_FileObjCmd: lstat errors} {nonPortable} {
     string tolower [list [catch {file lstat _bogus_ stat} msg] \
 	    $msg $errorCode]
 } {1 {couldn't lstat "_bogus_": no such file or directory} {posix enoent {no such file or directory}}}
-test cmdAH-19.6 {Tcl_FileObjCmd: lstat errors} {unixExecs nonPortable} {
+test cmdAH-19.6 {Tcl_FileObjCmd: lstat errors} {
     catch {unset x}
     set x 44
     list [catch {file lstat gorp.file x} msg] $msg $errorCode
@@ -1033,7 +1065,7 @@ catch {unset stat}
 test cmdAH-20.1 {Tcl_FileObjCmd: mtime} {
     list [catch {file mtime a b} msg] $msg
 } {1 {wrong # args: should be "file mtime name"}}
-test cmdAH-20.2 {Tcl_FileObjCmd: mtime} {unixExecs} {
+test cmdAH-20.2 {Tcl_FileObjCmd: mtime} {
     set old [file mtime gorp.file]
     after 2000
     set f [open gorp.file w]
@@ -1042,13 +1074,13 @@ test cmdAH-20.2 {Tcl_FileObjCmd: mtime} {unixExecs} {
     set new [file mtime gorp.file]
     expr {($new > $old) && ($new <= ($old+5))}
 } {1}
-test cmdAH-20.3 {Tcl_FileObjCmd: mtime} {unixExecs} {
+test cmdAH-20.3 {Tcl_FileObjCmd: mtime} {
     catch {unset stat}
     file stat gorp.file stat
     list [expr {[file mtime gorp.file] == $stat(mtime)}] \
 	    [expr {[file atime gorp.file] == $stat(atime)}]
 } {1 1}
-test cmdAH-20.4 {Tcl_FileObjCmd: mtime} {unixExecs} {
+test cmdAH-20.4 {Tcl_FileObjCmd: mtime} {
     string tolower [list [catch {file mtime _bogus_} msg] $msg \
 	    $errorCode]
 } {1 {couldn't stat "_bogus_": no such file or directory} {posix enoent {no such file or directory}}}
@@ -1079,10 +1111,12 @@ test cmdAH-20.5 {Tcl_FileObjCmd: mtime} {
 test cmdAH-21.1 {Tcl_FileObjCmd: owned} {
     list [catch {file owned a b} msg] $msg
 } {1 {wrong # args: should be "file owned name"}}
-test cmdAH-21.2 {Tcl_FileObjCmd: owned} {unixExecs} {file owned gorp.file} 1
-if {$user != "root"} {
-    test cmdAH-21.3 {Tcl_FileObjCmd: owned} {unixOnly} {file owned /} 0
-}
+test cmdAH-21.2 {Tcl_FileObjCmd: owned} {
+    file owned gorp.file
+} 1
+test cmdAH-21.3 {Tcl_FileObjCmd: owned} {unixOnly && !root} {
+    file owned /
+} 0
 
 # readlink
 
@@ -1140,16 +1174,21 @@ test cmdAH-24.3 {Tcl_FileObjCmd: stat} {
     file stat gorp.file stat
     lsort [array names stat]
 } {atime ctime dev gid ino mode mtime nlink size type uid}
-test cmdAH-24.4 {Tcl_FileObjCmd: stat} {unixOnly} {
+test cmdAH-24.4 {Tcl_FileObjCmd: stat} {
     catch {unset stat}
     file stat gorp.file stat
-    list $stat(nlink) $stat(size) [expr $stat(mode)&0777] $stat(type)
-} {1 12 501 file}
-test cmdAH-24.5 {Tcl_FileObjCmd: stat} {
+    list $stat(nlink) $stat(size) $stat(type)
+} {1 12 file}
+test cmdAH-24.5 {Tcl_FileObjCmd: stat} {unix} {
+    catch {unset stat}
+    file stat gorp.file stat
+    expr $stat(mode)&0777
+} {501}
+test cmdAH-24.6 {Tcl_FileObjCmd: stat} {
     string tolower [list [catch {file stat _bogus_ stat} msg] \
 	    $msg $errorCode]
 } {1 {couldn't stat "_bogus_": no such file or directory} {posix enoent {no such file or directory}}}
-test cmdAH-24.6 {Tcl_FileObjCmd: stat} {
+test cmdAH-24.7 {Tcl_FileObjCmd: stat} {
     catch {unset x}
     set x 44
     list [catch {file stat gorp.file x} msg] $msg $errorCode
@@ -1163,7 +1202,7 @@ file delete link.file
 test cmdAH-25.1 {Tcl_FileObjCmd: type} {
     list [catch {file size a b} msg] $msg
 } {1 {wrong # args: should be "file size name"}}
-test cmdAH-25.2 {Tcl_FileObjCmd: type} {unixExecs} {
+test cmdAH-25.2 {Tcl_FileObjCmd: type} {
     file type dir.file
 } directory
 test cmdAH-25.3 {Tcl_FileObjCmd: type} {

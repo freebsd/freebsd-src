@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) winPipe.test 1.7 97/06/23 17:30:41
+# SCCS: @(#) winPipe.test 1.9 97/08/05 11:44:28
 
 if {$tcl_platform(platform) != "windows"} {
     return
@@ -51,7 +51,7 @@ proc contents {file} {
     set r
 }
 
-if [file exists $cat32] {
+if {$testConfig(stdio) && [file exists $cat32]} {
 test winpipe-1.1 {32 bit comprehensive tests: from little file} {
     exec $cat32 < little > stdout 2> stderr
     list [contents stdout] [contents stderr]
@@ -166,15 +166,19 @@ test winpipe-1.25 {32 bit comprehensive tests: to socket} {
 } {}
 }
 
+set stderr16 "stderr16"
+if {$tcl_platform(os) == "Win32s"} {
+    set stderr16 "{}"
+}
 if [file exists $cat16] {
 test winpipe-2.1 {16 bit comprehensive tests: from little file} {
     exec $cat16 < little > stdout 2> stderr
     list [contents stdout] [contents stderr]
-} "little stderr16"
+} "little $stderr16"
 test winpipe-2.2 {16 bit comprehensive tests: from big file} {
     exec $cat16 < big > stdout 2> stderr
     list [contents stdout] [contents stderr] 
-} "{$big} stderr16"
+} "{$big} $stderr16"
 test winpipe-2.3 {16 bit comprehensive tests: a little from pipe} {nt} {
     exec more < little | $cat16 > stdout 2> stderr
     list [contents stdout] [contents stderr]
@@ -210,21 +214,21 @@ test winpipe-2.11 {16 bit comprehensive tests: from file handle} {
     exec $cat16 <@$f > stdout 2> stderr
     close $f
     list [contents stdout] [contents stderr]
-} "little stderr16"
+} "little $stderr16"
 test winpipe-2.12 {16 bit comprehensive tests: read from application} {
     set f [open "|$cat16 < little" r]
     gets $f line
     catch {close $f} msg
     list $line $msg
-} {little stderr16}
+} "little $stderr16"
 test winpipe-2.13 {16 bit comprehensive tests: a little to file} {
     exec $cat16 < little > stdout 2> stderr
     list [contents stdout] [contents stderr]
-} "little stderr16"
+} "little $stderr16"
 test winpipe-2.14 {16 bit comprehensive tests: a lot to file} {
     exec $cat16 < big > stdout 2> stderr
     list [contents stdout] [contents stderr]
-} "{$big} stderr16"
+} "{$big} $stderr16"
 test winpipe-2.15 {16 bit comprehensive tests: a little to pipe} {nt} {
     catch {exec $cat16 < little | more > stdout 2> stderr}
     list [contents stdout] [contents stderr]
@@ -244,7 +248,7 @@ test winpipe-2.18 {16 bit comprehensive tests: a lot to pipe} {95} {
 test winpipe-2.19 {16 bit comprehensive tests: to console} {
     catch {exec $cat16 << "You should see this\n" >@stdout} msg
     set msg
-} stderr16
+} [lindex $stderr16 0]
 test winpipe-2.20 {16 bit comprehensive tests: to NUL} {nt} {
     # some apps hang when sending a large amount to NUL.  cat16 isn't one.
     catch {exec $cat16 < big > nul} msg
@@ -260,8 +264,8 @@ test winpipe-2.22 {16 bit comprehensive tests: to file handle} {
     close $f1
     close $f2
     list [contents stdout] [contents stderr]
-} "little stderr16"
-test winpipe-2.23 {16 bit comprehensive tests: write to application} {
+} "little $stderr16"
+test winpipe-2.23 {16 bit comprehensive tests: write to application} {!win32s} {
     set f [open "|$cat16 > stdout" w]
     puts -nonewline $f "foo"
     catch {close $f} msg
@@ -280,4 +284,6 @@ test winpipe-2.25 {16 bit comprehensive tests: to socket} {
     # doesn't work
 } {}
 }
+
+file delete big little
 

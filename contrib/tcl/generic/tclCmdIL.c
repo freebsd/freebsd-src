@@ -13,7 +13,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdIL.c 1.163 97/06/13 18:16:52
+ * SCCS: @(#) tclCmdIL.c 1.168 97/07/29 12:52:40
  */
 
 #include "tclInt.h"
@@ -55,7 +55,7 @@ typedef struct SortInfo {
     Tcl_DString compareCmd;	/* The Tcl comparison command when sortMode
 				 * is SORTMODE_COMMAND.  Pre-initialized to
 				 * hold base of command.*/
-    long index;			/* If the -index option was specified, this
+    int index;			/* If the -index option was specified, this
 				 * holds the index of the list element
 				 * to extract for comparison.  If -index
 				 * wasn't specified, this is -1. */
@@ -472,7 +472,7 @@ InfoArgsCmd(dummy, interp, objc, objv)
     Tcl_Obj *listObjPtr;
 
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "args procname");
+        Tcl_WrongNumArgs(interp, 2, objv, "procname");
         return TCL_ERROR;
     }
 
@@ -532,7 +532,7 @@ InfoBodyCmd(dummy, interp, objc, objv)
     Proc *procPtr;
 
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "body procname");
+        Tcl_WrongNumArgs(interp, 2, objv, "procname");
         return TCL_ERROR;
     }
 
@@ -578,7 +578,7 @@ InfoCmdCountCmd(dummy, interp, objc, objv)
     Interp *iPtr = (Interp *) interp;
     
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "cmdcount");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -659,7 +659,7 @@ InfoCommandsCmd(dummy, interp, objc, objv)
 	    specificNsInPattern = (strcmp(simplePattern, pattern) != 0);
 	}
     } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "commands ?pattern?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
         return TCL_ERROR;
     }
 
@@ -749,7 +749,7 @@ InfoCompleteCmd(dummy, interp, objc, objv)
     char *command;
 
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "complete command");
+        Tcl_WrongNumArgs(interp, 2, objv, "command");
         return TCL_ERROR;
     }
 
@@ -797,7 +797,7 @@ InfoDefaultCmd(dummy, interp, objc, objv)
     Tcl_Obj *valueObjPtr;
 
     if (objc != 5) {
-        Tcl_WrongNumArgs(interp, 1, objv, "default procname arg varname");
+        Tcl_WrongNumArgs(interp, 2, objv, "procname arg varname");
         return TCL_ERROR;
     }
 
@@ -877,7 +877,7 @@ InfoExistsCmd(dummy, interp, objc, objv)
     Var *varPtr, *arrayPtr;
 
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "exists varName");
+        Tcl_WrongNumArgs(interp, 2, objv, "varName");
         return TCL_ERROR;
     }
 
@@ -933,7 +933,7 @@ InfoGlobalsCmd(dummy, interp, objc, objv)
     } else if (objc == 3) {
         pattern = Tcl_GetStringFromObj(objv[2], (int *) NULL);
     } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "globals ?pattern?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
         return TCL_ERROR;
     }
 
@@ -988,7 +988,7 @@ InfoHostnameCmd(dummy, interp, objc, objv)
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "hostname");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -1065,7 +1065,7 @@ InfoLevelCmd(dummy, interp, objc, objv)
         return TCL_OK;
     }
 
-    Tcl_WrongNumArgs(interp, 1, objv, "level ?number?");
+    Tcl_WrongNumArgs(interp, 2, objv, "?number?");
     return TCL_ERROR;
 }
 
@@ -1100,7 +1100,7 @@ InfoLibraryCmd(dummy, interp, objc, objv)
     char *libDirName;
 
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "library");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -1146,7 +1146,7 @@ InfoLoadedCmd(dummy, interp, objc, objv)
     int result;
 
     if ((objc != 2) && (objc != 3)) {
-        Tcl_WrongNumArgs(interp, 1, objv, "loaded ?interp?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?interp?");
         return TCL_ERROR;
     }
 
@@ -1201,7 +1201,7 @@ InfoLocalsCmd(dummy, interp, objc, objv)
     } else if (objc == 3) {
         pattern = Tcl_GetStringFromObj(objv[2], (int *) NULL);
     } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "locals ?pattern?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
         return TCL_ERROR;
     }
     
@@ -1280,7 +1280,7 @@ InfoNameOfExecutableCmd(dummy, interp, objc, objv)
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "nameofexecutable");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
     
@@ -1321,7 +1321,7 @@ InfoPatchLevelCmd(dummy, interp, objc, objv)
     char *patchlevel;
 
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "patchlevel");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -1374,7 +1374,7 @@ InfoProcsCmd(dummy, interp, objc, objv)
     } else if (objc == 3) {
         pattern = Tcl_GetStringFromObj(objv[2], (int *) NULL);
     } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "procs ?pattern?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
         return TCL_ERROR;
     }
 
@@ -1430,7 +1430,7 @@ InfoScriptCmd(dummy, interp, objc, objv)
 {
     Interp *iPtr = (Interp *) interp;
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "script");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -1469,7 +1469,7 @@ InfoSharedlibCmd(dummy, interp, objc, objv)
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "sharedlibextension");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
     
@@ -1509,7 +1509,7 @@ InfoTclVersionCmd(dummy, interp, objc, objv)
     char *version;
 
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "tclversion");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -1597,7 +1597,7 @@ InfoVarsCmd(dummy, interp, objc, objv)
 	    specificNsInPattern = (strcmp(simplePattern, pattern) != 0);
 	}
     } else {
-        Tcl_WrongNumArgs(interp, 1, objv, "vars ?pattern?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
         return TCL_ERROR;
     }
 
@@ -1624,7 +1624,8 @@ InfoVarsCmd(dummy, interp, objc, objv)
 	entryPtr = Tcl_FirstHashEntry(&nsPtr->varTable, &search);
 	while (entryPtr != NULL) {
 	    varPtr = (Var *) Tcl_GetHashValue(entryPtr);
-	    if (!TclIsVarUndefined(varPtr)) {
+	    if (!TclIsVarUndefined(varPtr)
+		    || (varPtr->flags & VAR_NAMESPACE_VAR)) {
 		varName = Tcl_GetHashKey(&nsPtr->varTable, entryPtr);
 		if ((simplePattern == NULL)
 	                || Tcl_StringMatch(varName, simplePattern)) {
@@ -1654,7 +1655,8 @@ InfoVarsCmd(dummy, interp, objc, objv)
 	    entryPtr = Tcl_FirstHashEntry(&globalNsPtr->varTable, &search);
 	    while (entryPtr != NULL) {
 		varPtr = (Var *) Tcl_GetHashValue(entryPtr);
-		if (!TclIsVarUndefined(varPtr)) {
+		if (!TclIsVarUndefined(varPtr)
+		        || (varPtr->flags & VAR_NAMESPACE_VAR)) {
 		    varName = Tcl_GetHashKey(&globalNsPtr->varTable,
 			    entryPtr);
 		    if ((simplePattern == NULL)
@@ -2426,14 +2428,9 @@ Tcl_LsortObjCmd(clientData, interp, objc, objv)
 			    -1);
 		    return TCL_ERROR;
 		}
-		if (Tcl_GetLongFromObj(interp, objv[i+1], &sortInfo.index)
+		if (TclGetIntForIndex(interp, objv[i+1], -2, &sortInfo.index)
 			!= TCL_OK) {
-		    if (strcmp("end", Tcl_GetStringFromObj(objv[i+1], &dummy))
-			    == 0) {
-			sortInfo.index = -2;
-		    } else {
-			return TCL_ERROR;
-		    }
+		    return TCL_ERROR;
 		}
 		cmdPtr = objv[i+1];
 		i++;
@@ -2675,7 +2672,7 @@ SortCompare(objPtr1, objPtr2, infoPtr)
 	if (objPtr == NULL) {
 	    objPtr = objPtr1;
 	    missingElement:
-	    sprintf(buffer, "%ld", infoPtr->index);
+	    sprintf(buffer, "%d", infoPtr->index);
 	    Tcl_AppendStringsToObj(Tcl_GetObjResult(infoPtr->interp),
 			"element ", buffer, " missing from sublist \"",
 			Tcl_GetStringFromObj(objPtr, (int *) NULL),

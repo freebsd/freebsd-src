@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) binary.test 1.6 97/05/13 15:56:39
+# SCCS: @(#) binary.test 1.10 97/08/06 08:56:11
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -22,7 +22,7 @@ test binary-1.2 {Tcl_BinaryObjCmd: bad args} {
 
 test binary-1.3 {Tcl_BinaryObjCmd: format error} {
     list [catch {binary f} msg] $msg
-} {1 {wrong # args: should be "binary f formatString ?arg arg ...?"}}
+} {1 {wrong # args: should be "binary format formatString ?arg arg ...?"}}
 test binary-1.4 {Tcl_BinaryObjCmd: format} {
     binary format ""
 } {}
@@ -439,10 +439,10 @@ test binary-13.11 {Tcl_BinaryObjCmd: format} {nonPortable pcOnly} {
 } \xcd\xcc\xcc\x3f\x9a\x99\x59\x40
 test binary-13.12 {Tcl_BinaryObjCmd: float overflow} {nonPortable macOrUnix} {
     binary format f -3.402825e+38
-} \x00\x80\x00\x00
+} \xff\x7f\xff\xff
 test binary-13.13 {Tcl_BinaryObjCmd: float overflow} {nonPortable pcOnly} {
     binary format f -3.402825e+38
-} \x00\x00\x80\x00
+} \xff\xff\x7f\xff
 test binary-13.14 {Tcl_BinaryObjCmd: format} {
     list [catch {binary format f2 {1.6}} msg] $msg
 } {1 {number of elements in list does not match count}}
@@ -560,7 +560,7 @@ test binary-18.1 {Tcl_BinaryObjCmd: format} {
 
 test binary-19.1 {Tcl_BinaryObjCmd: errors} {
     list [catch {binary s} msg] $msg
-} {1 {wrong # args: should be "binary s value formatString ?varName varName ...?"}}
+} {1 {wrong # args: should be "binary scan value formatString ?varName varName ...?"}}
 test binary-19.2 {Tcl_BinaryObjCmd: errors} {
     list [catch {binary scan foo} msg] $msg
 } {1 {wrong # args: should be "binary scan value formatString ?varName varName ...?"}}
@@ -1053,27 +1053,27 @@ test binary-31.1 {Tcl_BinaryObjCmd: scan} {
 test binary-31.2 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xcc\xcc\xcd\x40\x59\x99\x9a f* arg1] $arg1
-} {1 {1.6000000238418579 3.4000000953674316}}
+} {1 {1.60000002384 3.40000009537}}
 test binary-31.3 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \xcd\xcc\xcc\x3f\x9a\x99\x59\x40 f* arg1] $arg1
-} {1 {1.6000000238418579 3.4000000953674316}}
+} {1 {1.60000002384 3.40000009537}}
 test binary-31.4 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xcc\xcc\xcd\x40\x59\x99\x9a f arg1] $arg1
-} {1 1.6000000238418579}
+} {1 1.60000002384}
 test binary-31.5 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \xcd\xcc\xcc\x3f\x9a\x99\x59\x40 f arg1] $arg1
-} {1 1.6000000238418579}
+} {1 1.60000002384}
 test binary-31.6 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xcc\xcc\xcd f1 arg1] $arg1
-} {1 1.6000000238418579}
+} {1 1.60000002384}
 test binary-31.7 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \xcd\xcc\xcc\x3f f1 arg1] $arg1
-} {1 1.6000000238418579}
+} {1 1.60000002384}
 test binary-31.8 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xcc\xcc\xcd f0 arg1] $arg1
@@ -1085,11 +1085,11 @@ test binary-31.9 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
 test binary-31.10 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xcc\xcc\xcd\x40\x59\x99\x9a f2 arg1] $arg1
-} {1 {1.6000000238418579 3.4000000953674316}}
+} {1 {1.60000002384 3.40000009537}}
 test binary-31.11 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \xcd\xcc\xcc\x3f\x9a\x99\x59\x40 f2 arg1] $arg1
-} {1 {1.6000000238418579 3.4000000953674316}}
+} {1 {1.60000002384 3.40000009537}}
 test binary-31.12 {Tcl_BinaryObjCmd: scan} {
     catch {unset arg1}
     set arg1 foo
@@ -1105,13 +1105,13 @@ test binary-31.14 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     set arg1 foo
     set arg2 bar
     list [binary scan \x3f\xcc\xcc\xcd\x40\x59\x99\x9a\x05 f2c* arg1 arg2] $arg1 $arg2
-} {2 {1.6000000238418579 3.4000000953674316} 5}
+} {2 {1.60000002384 3.40000009537} 5}
 test binary-31.15 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1 arg2}
     set arg1 foo
     set arg2 bar
     list [binary scan \xcd\xcc\xcc\x3f\x9a\x99\x59\x40\x05 f2c* arg1 arg2] $arg1 $arg2
-} {2 {1.6000000238418579 3.4000000953674316} 5}
+} {2 {1.60000002384 3.40000009537} 5}
 
 test binary-32.1 {Tcl_BinaryObjCmd: scan} {
     list [catch {binary scan abc d} msg] $msg
@@ -1119,27 +1119,27 @@ test binary-32.1 {Tcl_BinaryObjCmd: scan} {
 test binary-32.2 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a\x40\x0b\x33\x33\x33\x33\x33\x33 d* arg1] $arg1
-} {1 {1.6000000000000001 3.3999999999999999}}
+} {1 {1.6 3.4}}
 test binary-32.3 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \x9a\x99\x99\x99\x99\x99\xf9\x3f\x33\x33\x33\x33\x33\x33\x0b\x40 d* arg1] $arg1
-} {1 {1.6000000000000001 3.3999999999999999}}
+} {1 {1.6 3.4}}
 test binary-32.4 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a\x40\x0b\x33\x33\x33\x33\x33\x33 d arg1] $arg1
-} {1 1.6000000000000001}
+} {1 1.6}
 test binary-32.5 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \x9a\x99\x99\x99\x99\x99\xf9\x3f\x33\x33\x33\x33\x33\x33\x0b\x40 d arg1] $arg1
-} {1 1.6000000000000001}
+} {1 1.6}
 test binary-32.6 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a d1 arg1] $arg1
-} {1 1.6000000000000001}
+} {1 1.6}
 test binary-32.7 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \x9a\x99\x99\x99\x99\x99\xf9\x3f d1 arg1] $arg1
-} {1 1.6000000000000001}
+} {1 1.6}
 test binary-32.8 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a d0 arg1] $arg1
@@ -1151,11 +1151,11 @@ test binary-32.9 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
 test binary-32.10 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     catch {unset arg1}
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a\x40\x0b\x33\x33\x33\x33\x33\x33 d2 arg1] $arg1
-} {1 {1.6000000000000001 3.3999999999999999}}
+} {1 {1.6 3.4}}
 test binary-32.11 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1}
     list [binary scan \x9a\x99\x99\x99\x99\x99\xf9\x3f\x33\x33\x33\x33\x33\x33\x0b\x40 d2 arg1] $arg1
-} {1 {1.6000000000000001 3.3999999999999999}}
+} {1 {1.6 3.4}}
 test binary-32.12 {Tcl_BinaryObjCmd: scan} {
     catch {unset arg1}
     set arg1 foo
@@ -1171,13 +1171,13 @@ test binary-32.14 {Tcl_BinaryObjCmd: scan} {nonPortable macOrUnix} {
     set arg1 foo
     set arg2 bar
     list [binary scan \x3f\xf9\x99\x99\x99\x99\x99\x9a\x40\x0b\x33\x33\x33\x33\x33\x33\x05 d2c* arg1 arg2] $arg1 $arg2
-} {2 {1.6000000000000001 3.3999999999999999} 5}
+} {2 {1.6 3.4} 5}
 test binary-32.15 {Tcl_BinaryObjCmd: scan} {nonPortable pcOnly} {
     catch {unset arg1 arg2}
     set arg1 foo
     set arg2 bar
     list [binary scan \x9a\x99\x99\x99\x99\x99\xf9\x3f\x33\x33\x33\x33\x33\x33\x0b\x40\x05 d2c* arg1 arg2] $arg1 $arg2
-} {2 {1.6000000000000001 3.3999999999999999} 5}
+} {2 {1.6 3.4} 5}
 
 test binary-33.1 {Tcl_BinaryObjCmd: scan} {
     catch {unset arg1}
@@ -1312,9 +1312,15 @@ test binary-37.8 {GetFormatSpec: numbers} {
     set arg1 foo
     list [binary scan abcdef "a0x3" arg1] $arg1
 } {1 {}}
+test binary-37.8 {GetFormatSpec: numbers} {
+    # test format of neg numbers
+    # bug report/fix provided by Harald Kirsch
+    set x [binary format f* {1 -1 2 -2 0}]
+    binary scan $x f* bla
+    set bla
+} {1.0 -1.0 2.0 -2.0 0.0}
 
 # FormatNumber is thoroughly tested above, so we don't have any explicit tests
-
 test binary-38.1 {ScanNumber: sign extension} {
     catch {unset arg1}
     list [binary scan \x52\xa3 c2 arg1] $arg1

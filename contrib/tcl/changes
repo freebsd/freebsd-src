@@ -1,6 +1,6 @@
 Recent user-visible changes to Tcl:
 
-SCCS: @(#) changes 1.251 97/06/30 08:48:28
+SCCS: @(#) changes 1.293 97/08/13 17:50:35
 
 1. No more [command1] [command2] construct for grouping multiple
 commands on a single command line.
@@ -2494,11 +2494,9 @@ following new library commands are provided:
 				   policy mechanism.
 	tcl_safeDeleteInterp	-- deletes a slave and deinitializes the
 				   policy mechanism.
-	tcl_safeAutoPath	-- manages per slave path for package
-				   finding and auto-loading.
-	tcl_safePolicyPath	-- manages global search path for finding
-				   security policies.
 Added a new file to the library, safeinit.tcl, to hold implementation. (JL)
+On 7/9/97, removed the policy loading mechanism from the Safe Base. Left
+only the Safe Base aliases dealing with auto-loading and source. (JL)
 
 12/6/96 (new feature) Implemented Tcl_Finalize, an API that should be
 called by a process when it is done using Tcl. This API runs all the exit
@@ -2934,8 +2932,8 @@ and to get the vector back later. (JL)
 leave an object result instead of a string result. (JL)
 
 5/14/97 (feature change) Improved the handling of the interpreter result.
-This is still either an object or a string, but the two values are now
-kept consistent unless some C code has set interp->result directly. See
+This is still either an object or a string, but the two values are now kept
+consistent unless some C code reads or writes interp->result directly. See
 the SetResult man page for details. Removed the Tcl_ResetObjResult
 procedure. (BL)
 *** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2 ***
@@ -3094,3 +3092,184 @@ Tcl_ExprObj. (BL)
 *** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl 7.6 ***
 
 ----------------- Released 8.0b2, 6/30/97 -----------------------
+
+7/1/97 (new feature) TCL_BUILD_SHARED flag set in tclConfig.sh
+when Tcl has been built with --enable-shared. A new tclLibObjs
+make target, echoing the list of the .o's needed to build a tcl
+library, is now provided. (DL)
+
+7/1/97 (feature change) compat/getcwd.c removed and changed the
+only place where getcwd is used so a new USEGETWD flag selects
+the use of the replacement "getwd". Adding this flag is recommended
+for Solaris (because getcwd on solaris uses a pipe to pwd(1)!).(DL)
+
+7/7/97 (feature change) The split command now supports binary data (i.e.,
+null characters in strings). (BL)
+
+7/7/97 (bug fix) string first returned the wrong result if the first
+argument string was empty. (BL)
+
+7/8/97 (bug fix) Fixed core dump in fcopy that could occur when a command
+callback was supplied and an error or eof condition caused no background
+activity.  A refcount bug triggered a panic in Tcl_ListObjAppendElement. (BW)
+
+7/8/97 (bug fix) Relaxed the pattern matching on http_get so you do not
+need a trailing path component.  You can now get away with just
+http_get sunscript.sun.com					(BW)
+
+7/9/97 (bug fix) Creating anonymous interpreters no longer smashes existing
+commands with names similar to the generated name. Previously creating an
+anonymous interpreter could smash an existing command, now it skips until
+it finds a command name that isn't being used. (JL)
+
+7/9/97 (feature change) Removed the policy management mechanism from the
+Safe Base; left the aliases to source and load modules, and to do a limited
+form of the "file" command. See entry of 11/15/96. (JL)
+
+7/9/97 (bug fixes) Fixed various compilation-related bugs:
+    - Line numbers in errorInfo now are the same as those in Tcl7.6 unless
+there are compilation errors. Compilation error messages now include the
+entire command in error.
+    - Trailing ::s after namespace names weren't being ignored.
+    - Could not refer to an namespace variable with an empty name using a
+name of the form "n::". (BL)
+
+7/9/97 (bug fix) Fixed bug in Tcl_Export that prevented you from exporting
+from other than the current namespace. (BL)
+
+7/9/97 (bug fix) env.test was removing env var needed for proper finding
+of libraries in child process. (DL)
+
+7/10/97 (bug fixes/new feature) Cleanup in Tcl_MakeSafe. Less information
+is leaked to safe interps. Error message fixes for interp sub commands.
+Likewise changes in safealias.tcl; tcl_safeCreateInterp can now be called
+without argument to generate the slave name (like in interp create). (DL)
+
+7/10/97 (bug fixes) Bytecode compiler now generates more detailed 
+command location information: subcommands as well as commands now have
+location information. This means command trace procedures now get the
+correct source string for each command in their command parameter. (BL)
+
+7/22/97 (bug fixes) Performance improvement in Safe interpreters
+handling. Added new mask value to (tclInt.h) Interp.flags record. (DL)
+
+7/22/97 (bug fix) Fixed panic in 'interp target {} foo'. This bug
+was present since Tcl 7.6. (JL)
+
+7/22/97 (bug fix) Fixed bug in compilation of procedures in namespaces: the
+procedure's namespace must be used to look up compile procedures, not the
+current namespace. (BL)
+
+7/22/97 (bug fix) Use of the -channel option of http_get was not setting
+the end of line translations mode on the channel, so copying binary data
+with the -channel option was corrupting the result on non-unix platforms. (BW)
+
+7/22/97 (bug fixes) file commands and ~user (seg fault and other
+improper returns). (DL)
+
+7/23/97 (feature change) Reenabled "vwait" in Safe Base. (JL)
+
+7/23/97 (bug fixes) Fixed two bugs involving read traces on array variables
+in procedures: trace procedures were sometimes not called, and reading
+nonexistant array elements didn't create undefined element variables that
+could later be defined by trace procedures. (BL)
+
+7/24/97 (bug fix) Windows memory allocation performance was
+superlinear in some cases.  Made the Mac allocator generic and changed
+both the Mac and Windows platforms to use the new allocator instead of
+malloc and free. (SS)
+
+7/24/97 - 8/12/97 (bug fixes/change of features) Completely revamped safe
+sourcing/loading (see safe.n) to hide pathnames, use virtual
+paths tokens instead, improved security in several respects and made it
+more tunable. Multi level interp loading can work too now. Package auto
+loading now works in safe interps as long as the package directory is in 
+the auto_path (no deep crawling allowed in safe interps). (DL)
+*** POTENTIAL INCOMPATIBILITY with previous alpha and beta releases ***
+
+7/24/97 (bug fixes) Made Tcl_SetVar* and Tcl_NewString* treat a NULL value
+as an empty string. (This fixes hairy crash case where you would crash
+because load command for other interps assumed presence of
+errorInfo...). (DL)
+
+7/28/97 (bug fix) Fixed pkg_mkIndex to understand namespaces.  It will
+use the export list of a namespace and create auto_index entries for
+all export commands.  Those names are in their fully qualified form in the
+auto_index.  Therefore, I tweaked unknown to try both $cmd and ::$cmd.
+Also fixed pkg_mkIndex so you can have "package require" commands inside
+your packages.  These commands are ignored, which is mostly ok except
+when you must load another package before loading yours because of
+linking dependencies. (BW)
+
+7/28/97 (bug fix) A variable created by the variable command now persists
+until the namespace is destroyed or the variable is unset. This is true even
+if the variable has not been initialized; these variables used to be
+destroyed if an error occurred when accessing them. In addition, the "info
+vars" command lists uninitialized namespace variables, while the "info
+exists" command returns 0 for them. (BL)
+
+7/29/97 (feature change)  Changed the http package to use the ::http
+namespace. http_get renamed to http::geturl, http_config renamed to
+http::config, http_formatQuery renamed to http::formatQuery.
+It now provides the 2.0 version of the package.  
+The 1.0 version is still available with the old names.
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b2 but not with Tcl 7.6 ***
+
+7/29/97 (bug fix, new feature) Tcl_Main now uses Tcl objects internally to
+preserve NULLs in commands and command output. Added new API procedure
+Tcl_RecordAndEvalObj that resembles Tcl_RecordAndEval but takes an object
+containing a command. (BL)
+
+7/30/97 (bug fix) Tcl freed strings in the environ array even if it
+did not allocate them. (SS)
+
+7/30/97 (bug fix) If a procedure is renamed into a different namespace, it
+now executes in the context of that namespace. (BL)
+
+7/30/97 (bug fix) Prevent renaming of commands into and from namespaces as
+part of hiding them. (JL)
+
+7/31/97 (feature change) Moved the history command from C to tcl.
+This uses the ::history namespace.  The "words" and "substitute" options
+are no longer supported.  In addition, the "keep" option without a value
+returns the current keep limit.  There is a new "clear" option.
+The unknown command now supports !! again. (BW)
+*** POTENTIAL INCOMPATIBILTY  ***
+
+7/30/97 (bug fix) Made sure that a slave can not fool the master into
+hiding the wrong command. Made sure we don't crash in hiding + namespaces
+issues. (DL)
+
+8/4/97 (bug fix) Concat, eval, uplevel, and similar commands were
+incorrectly trimming trailing space characters from their arguments
+even when the space characters were preceded by a backslash. (JO)
+
+8/4/97 (bug fix) Removed the hard link between bgerror and tkerror.
+Only bgerror is supported in tcl core. Tk will still look for a
+tkerror but using regular tcl code for that feature. (DL)
+*** POTENTIAL INCOMPATIBILTY with code relying on the hard link ***
+
+8/6/97 (bug fix) Reduced size required for compiled bytecodes by using a
+more compact encoding for the command pc-to-source map. (BL)
+
+8/6/97 (new feature) Added support for additional compilation and execution
+statistics when Tcl is compiled with the TCL_COMPILE_STATS flag. (BL)
+
+8/7/97 (bug fix) Expressions not in {}s that have a comparison operator as
+the topmost operator must be compiled out-of-line (call the expr cmd at
+runtime) to properly support expr's two-level substitution semantics. An
+example is "set a 2; set b {$a}; puts [expr $b == 2]". (BL)
+
+8/11/97 (bug fix) The catch command would sometimes crash if a variable name
+was given and the bytecode evaluation stack was grown when executing the
+argument script. (BL)
+
+8/12/97 (feature change) Reinstated the variable tcl_precision to control
+the number of digits used when floating-point values are converted to
+strings, with default of 12 digits.  However, had to make tcl_precision
+shared among all interpreters (except that safe interpreters can't
+modify it).  This makes the Tcl 8.0 behavior almost identical to 7.6
+except that the default precision is 12 instead of 6. (JO)
+*** POTENTIAL INCOMPATIBILITY ***
+
+----------------- Released 8.0, 8/13/97 -----------------------

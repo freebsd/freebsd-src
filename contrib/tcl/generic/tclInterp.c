@@ -9,27 +9,13 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclInterp.c 1.115 97/06/19 18:06:39
+ * SCCS: @(#) tclInterp.c 1.125 97/08/05 15:22:51
  */
 
 #include <stdio.h>
 #include "tclInt.h"
 #include "tclPort.h"
 
-/*
- * Tcl script to make an interpreter safe.
- */
-
-static char makeSafeScript[] =
-"if {[info exists env(DISPLAY)]} {\n\
-    set ___x___ $env(DISPLAY)\n\
-}\n\
-unset env\n\
-if {[info exists ___x___]} {\n\
-    set env(DISPLAY) $___x___\n\
-    unset ___x___\n\
-}";
-
 /*
  * Counter for how many aliases were created (global)
  */
@@ -108,13 +94,15 @@ typedef struct {
 /*
  * struct Master:
  *
- * This record is used for three purposes: First, slaveTable (a hashtable)
+ * This record is used for two purposes: First, slaveTable (a hashtable)
  * maps from names of commands to slave interpreters. This hashtable is
  * used to store information about slave interpreters of this interpreter,
  * to map over all slaves, etc. The second purpose is to store information
  * about all aliases in slaves (or siblings) which direct to target commands
- * in this interpreter (using the targetTable hashtable). The third field in
- * the record, isSafe, denotes whether the interpreter is safe or not. Safe
+ * in this interpreter (using the targetTable hashtable).
+ * 
+ * NB: the flags field in the interp structure, used with SAFE_INTERP
+ * mask denotes whether the interpreter is safe or not. Safe
  * interpreters have restricted functionality, can only create safe slave
  * interpreters and can only load safe extensions.
  */
@@ -122,7 +110,6 @@ typedef struct {
 typedef struct {
     Tcl_HashTable slaveTable;	/* Hash table for slave interpreters.
                                  * Maps from command names to Slave records. */
-    int isSafe;			/* Am I a "safe" interpreter? */
     Tcl_HashTable targetTable;	/* Hash table for Target Records. Contains
                                  * all Target records which denote aliases
                                  * from slaves or sibling interpreters that
@@ -202,6 +189,9 @@ static int		InterpShareHelper _ANSI_ARGS_((Tcl_Interp *interp,
 			    Master *masterPtr, int objc,
         		    Tcl_Obj *CONST objv[]));
 static int		InterpTargetHelper _ANSI_ARGS_((Tcl_Interp *interp,
+			    Master *masterPtr, int objc,
+        		    Tcl_Obj *CONST objv[]));
+static int		InterpTransferHelper _ANSI_ARGS_((Tcl_Interp *interp,
 			    Master *masterPtr, int objc,
         		    Tcl_Obj *CONST objv[]));
 static int		MarkTrusted _ANSI_ARGS_((Tcl_Interp *interp));
@@ -351,15 +341,9 @@ static int
 MarkTrusted(interp)
     Tcl_Interp *interp;		/* Interpreter to be marked unsafe. */
 {
-    Master *masterPtr;		/* Master record for interpreter to
-                                 * be marked unsafe. */
+    Interp *iPtr = (Interp *) interp;
 
-    masterPtr = (Master *) Tcl_GetAssocData(interp, "tclMasterRecord",
-            NULL);
-    if (masterPtr == (Master *) NULL) {
-        panic("MarkTrusted: could not find master record");
-    }
-    masterPtr->isSafe = 0;
+    iPtr->flags &= ~SAFE_INTERP;
     return TCL_OK;
 }
 
@@ -386,28 +370,40 @@ int
 Tcl_MakeSafe(interp)
     Tcl_Interp *interp;		/* Interpreter to be made safe. */
 {
-    Master *masterPtr;				/* Master record of interp
-                                                 * to be made safe. */
     Tcl_Channel chan;				/* Channel to remove from
                                                  * safe interpreter. */
-    Tcl_Obj *objPtr;
+    Interp *iPtr = (Interp *) interp;
 
     TclHideUnsafeCommands(interp);
-    masterPtr = (Master *) Tcl_GetAssocData(interp, "tclMasterRecord",
-            NULL);
-    if (masterPtr == (Master *) NULL) {
-        panic("MakeSafe: could not find master record");
-    }
-    masterPtr->isSafe = 1;
-    objPtr = Tcl_NewStringObj(makeSafeScript, -1);
-    Tcl_IncrRefCount(objPtr);
+    
+    iPtr->flags |= SAFE_INTERP;
 
-    if (Tcl_EvalObj(interp, objPtr) == TCL_ERROR) {
-        Tcl_DecrRefCount(objPtr);
-        return TCL_ERROR;
-    }
+    /*
+     *  Unsetting variables : (which should not have been set 
+     *  in the first place, but...)
+     */
 
-    Tcl_DecrRefCount(objPtr);
+    /*
+     * No env array in a safe slave.
+     */
+
+    Tcl_UnsetVar(interp, "env", TCL_GLOBAL_ONLY);
+
+    /* 
+     * Remove unsafe parts of tcl_platform
+     */
+
+    Tcl_UnsetVar2(interp, "tcl_platform", "os", TCL_GLOBAL_ONLY);
+    Tcl_UnsetVar2(interp, "tcl_platform", "osVersion", TCL_GLOBAL_ONLY);
+    Tcl_UnsetVar2(interp, "tcl_platform", "machine", TCL_GLOBAL_ONLY);
+
+    /*
+     * Unset path informations variables
+     * (the only one remaining is [info nameofexecutable])
+     */
+
+    Tcl_UnsetVar(interp, "tcl_library", TCL_GLOBAL_ONLY);
+    Tcl_UnsetVar(interp, "tcl_pkgPath", TCL_GLOBAL_ONLY);
     
     /*
      * Remove the standard channels from the interpreter; safe interpreters
@@ -557,7 +553,7 @@ CreateSlave(interp, masterPtr, slavePath, safe)
         ckfree((char *) masterPath);
         slavePath = argv[argc-1];
         if (!safe) {
-            safe = masterPtr->isSafe;
+            safe = Tcl_IsSafe(masterInterp);
         }
     }
     hPtr = Tcl_CreateHashEntry(&(masterPtr->slaveTable), slavePath, &new);
@@ -572,7 +568,7 @@ CreateSlave(interp, masterPtr, slavePath, safe)
     if (slaveInterp == (Tcl_Interp *) NULL) {
         panic("CreateSlave: out of memory while creating a new interpreter");
     }
-    slavePtr = (Slave *) ckalloc((unsigned) sizeof(Slave));
+    slavePtr = (Slave *) Tcl_GetAssocData(slaveInterp, "tclSlaveRecord", NULL);
     slavePtr->masterInterp = masterInterp;
     slavePtr->slaveEntry = hPtr;
     slavePtr->slaveInterp = slaveInterp;
@@ -648,10 +644,10 @@ CreateInterpObject(interp, masterPtr, objc, objv)
 
     moreFlags = 1;
     slavePath = NULL;
-    safe = masterPtr->isSafe;
+    safe = Tcl_IsSafe(interp);
     
     if ((objc < 2) || (objc > 5)) {
-        Tcl_WrongNumArgs(interp, 1, objv, "create ?-safe? ?--? ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?-safe? ?--? ?path?");
         return TCL_ERROR;
     }
     for (i = 2; i < objc; i++) {
@@ -675,8 +671,23 @@ CreateInterpObject(interp, masterPtr, objc, objv)
         }
     }
     if (slavePath == (char *) NULL) {
-        sprintf(localSlaveName, "interp%d", interpCounter);
-        interpCounter++;
+
+        /*
+         * Create an anonymous interpreter -- we choose its name and
+         * the name of the command. We check that the command name that
+         * we use for the interpreter does not collide with an existing
+         * command in the master interpreter.
+         */
+        
+        while (1) {
+            Tcl_CmdInfo cmdInfo;
+            
+            sprintf(localSlaveName, "interp%d", interpCounter);
+            interpCounter++;
+            if (!(Tcl_GetCommandInfo(interp, localSlaveName, &cmdInfo))) {
+                break;
+            }
+        }
         slavePath = localSlaveName;
     }
     if (CreateSlave(interp, masterPtr, slavePath, safe) != NULL) {
@@ -850,19 +861,12 @@ AliasCreationHelper(curInterp, slaveInterp, masterInterp, masterPtr,
     slavePtr = (Slave *) Tcl_GetAssocData(slaveInterp, "tclSlaveRecord", NULL);
 
     /*
-     * Fix it up if there is no slave record. This can happen if someone
-     * uses "" as the source for an alias.
+     * Slave record should be always present because it is created when
+     * the interpreter is created.
      */
     
     if (slavePtr == (Slave *) NULL) {
-        slavePtr = (Slave *) ckalloc((unsigned) sizeof(Slave));
-        slavePtr->masterInterp = (Tcl_Interp *) NULL;
-        slavePtr->slaveEntry = (Tcl_HashEntry *) NULL;
-        slavePtr->slaveInterp = slaveInterp;
-        slavePtr->interpCmd = (Tcl_Command) NULL;
-        Tcl_InitHashTable(&(slavePtr->aliasTable), TCL_STRING_KEYS);
-        (void) Tcl_SetAssocData(slaveInterp, "tclSlaveRecord",
-                SlaveRecordDeleteProc, (ClientData) slavePtr);
+        panic("AliasCreationHelper: could not find slave record");
     }
 
     if ((targetName == (char *) NULL) || (targetName[0] == '\0')) {
@@ -1018,7 +1022,7 @@ InterpAliasesHelper(interp, masterPtr, objc, objv)
     Tcl_Obj *listObjPtr, *elemObjPtr;	/* Local object pointers. */
     
     if ((objc != 2) && (objc != 3)) {
-        Tcl_WrongNumArgs(interp, 1, objv, " aliases ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?path?");
         return TCL_ERROR;
     }
     if (objc == 3) {
@@ -1092,8 +1096,8 @@ InterpAliasHelper(interp, masterPtr, objc, objv)
     int len;
 
     if (objc < 4) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "alias slavePath slaveCmd masterPath masterCmd ?args ..?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "slavePath slaveCmd masterPath masterCmd ?args ..?");
         return TCL_ERROR;
     }
     slaveInterp = GetInterp(interp, masterPtr,
@@ -1114,8 +1118,8 @@ InterpAliasHelper(interp, masterPtr, objc, objv)
                 Tcl_GetStringFromObj(objv[3], &len));
     }
     if (objc < 6) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "alias slavePath slaveCmd masterPath masterCmd ?args ..?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "slavePath slaveCmd masterPath masterCmd ?args ..?");
         return TCL_ERROR;
     }
     masterInterp = GetInterp(interp, masterPtr,
@@ -1159,19 +1163,19 @@ InterpExistsHelper(interp, masterPtr, objc, objv)
     int len;
 
     if (objc > 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "exists ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?path?");
         return TCL_ERROR;
     }
     if (objc == 3) {
         if (GetInterp(interp, masterPtr,
                 Tcl_GetStringFromObj(objv[2], &len), NULL) ==
                 (Tcl_Interp *) NULL) {
-            objPtr = Tcl_NewStringObj("0", 1);
+            objPtr = Tcl_NewIntObj(0);
         } else {
-            objPtr = Tcl_NewStringObj("1", 1);
+            objPtr = Tcl_NewIntObj(1);
         }
     } else {
-        objPtr = Tcl_NewStringObj("1", 1);
+        objPtr = Tcl_NewIntObj(1);
     }
     Tcl_SetObjResult(interp, objPtr);
     
@@ -1210,7 +1214,7 @@ InterpEvalHelper(interp, masterPtr, objc, objv)
     char *string;
 
     if (objc < 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, " eval path arg ?arg ...?");
+        Tcl_WrongNumArgs(interp, 2, objv, "path arg ?arg ...?");
         return TCL_ERROR;
     }
     slaveInterp = GetInterp(interp, masterPtr,
@@ -1306,8 +1310,8 @@ InterpExposeHelper(interp, masterPtr, objc, objv)
     int len;				/* Dummy length variable. */
 
     if ((objc != 4) && (objc != 5)) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "expose path hiddenCmdName ?cmdName?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "path hiddenCmdName ?cmdName?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -1368,8 +1372,8 @@ InterpHideHelper(interp, masterPtr, objc, objv)
     int len;				/* Dummy length variable. */
 
     if ((objc != 4) && (objc != 5)) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                " hide path cmdName ?hiddenCmdName?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "path cmdName ?hiddenCmdName?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -1431,7 +1435,7 @@ InterpHiddenHelper(interp, masterPtr, objc, objv)
     Tcl_Obj *listObjPtr;		/* Local object pointer. */
 
     if (objc > 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "hidden ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?path?");
         return TCL_ERROR;
     }
     if (objc == 3) {
@@ -1498,8 +1502,8 @@ InterpInvokeHiddenHelper(interp, masterPtr, objc, objv)
     char *string;
             
     if (objc < 4) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "invokehidden path ?-global? cmd ?arg ..?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "path ?-global? cmd ?arg ..?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -1511,8 +1515,8 @@ InterpInvokeHiddenHelper(interp, masterPtr, objc, objv)
     if (strcmp(Tcl_GetStringFromObj(objv[3], &len), "-global") == 0) {
         doGlobal = 1;
         if (objc < 5) {
-            Tcl_WrongNumArgs(interp, 1, objv,
-                    "invokehidden path ?-global? cmd ?arg ..?");
+            Tcl_WrongNumArgs(interp, 2, objv,
+                    "path ?-global? cmd ?arg ..?");
             return TCL_ERROR;
         }
     }
@@ -1607,7 +1611,7 @@ InterpMarkTrustedHelper(interp, masterPtr, objc, objv)
     int len;				/* Dummy length variable. */
 
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "marktrusted path");
+        Tcl_WrongNumArgs(interp, 2, objv, "path");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -1658,7 +1662,7 @@ InterpIsSafeHelper(interp, masterPtr, objc, objv)
     Tcl_Obj *objPtr;			/* Local object pointer. */
 
     if (objc > 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "issafe ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?path?");
         return TCL_ERROR;
     }
     if (objc == 3) {
@@ -1671,11 +1675,9 @@ InterpIsSafeHelper(interp, masterPtr, objc, objv)
                     (char *) NULL);
             return TCL_ERROR;
         }
-    }
-    if (masterPtr->isSafe == 0) {
-        objPtr = Tcl_NewStringObj("0", 1);
+	objPtr = Tcl_NewIntObj(Tcl_IsSafe(slaveInterp));
     } else {
-        objPtr = Tcl_NewStringObj("1", 1);
+	objPtr = Tcl_NewIntObj(Tcl_IsSafe(interp));
     }
     Tcl_SetObjResult(interp, objPtr);
     return TCL_OK;
@@ -1710,7 +1712,7 @@ InterpSlavesHelper(interp, masterPtr, objc, objv)
     Tcl_Obj *listObjPtr;		/* Local object pointers. */
 
     if ((objc != 2) && (objc != 3)) {
-        Tcl_WrongNumArgs(interp, 1, objv, "slaves ?path?");
+        Tcl_WrongNumArgs(interp, 2, objv, "?path?");
         return TCL_ERROR;
     }
     if (objc == 3) {
@@ -1768,7 +1770,7 @@ InterpShareHelper(interp, masterPtr, objc, objv)
     Tcl_Channel chan;
 
     if (objc != 5) {
-        Tcl_WrongNumArgs(interp, 1, objv, "share srcPath channelId destPath");
+        Tcl_WrongNumArgs(interp, 2, objv, "srcPath channelId destPath");
         return TCL_ERROR;
     }
     masterInterp = GetInterp(interp, masterPtr,
@@ -1826,7 +1828,7 @@ InterpTargetHelper(interp, masterPtr, objc, objv)
     int len;
     
     if (objc != 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, "target path alias");
+        Tcl_WrongNumArgs(interp, 2, objv, "path alias");
         return TCL_ERROR;
     }
     return GetTarget(interp,
@@ -1865,8 +1867,8 @@ InterpTransferHelper(interp, masterPtr, objc, objv)
     Tcl_Channel chan;
             
     if (objc != 5) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "transfer srcPath channelId destPath");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "srcPath channelId destPath");
         return TCL_ERROR;
     }
     masterInterp = GetInterp(interp, masterPtr,
@@ -1944,24 +1946,14 @@ DescribeAlias(interp, slaveInterp, aliasName)
 
     slavePtr = (Slave *) Tcl_GetAssocData(slaveInterp, "tclSlaveRecord",
             NULL);
-    if (slavePtr == (Slave *) NULL) {
 
-        /*
-         * It's possible that the interpreter still does not have a slave
-         * record. If so, create such a record now. This is only possible
-         * for interpreters that were created with Tcl_CreateInterp, not
-         * those created with Tcl_CreateSlave, so this interpreter does
-         * not have a master.
-         */
-        
-        slavePtr = (Slave *) ckalloc((unsigned) sizeof(Slave));
-        slavePtr->masterInterp = (Tcl_Interp *) NULL;
-        slavePtr->slaveEntry = (Tcl_HashEntry *) NULL;
-        slavePtr->slaveInterp = slaveInterp;
-        slavePtr->interpCmd = (Tcl_Command) NULL;
-        Tcl_InitHashTable(&(slavePtr->aliasTable), TCL_STRING_KEYS);
-        (void) Tcl_SetAssocData(slaveInterp, "tclSlaveRecord",
-                SlaveRecordDeleteProc, (ClientData) slavePtr);
+    /*
+     * The slave record should always be present because it is created
+     * by Tcl_CreateInterp.
+     */
+    
+    if (slavePtr == (Slave *) NULL) {
+        panic("DescribeAlias: could not find slave record");
     }
     hPtr = Tcl_FindHashEntry(&(slavePtr->aliasTable), aliasName);
     if (hPtr == (Tcl_HashEntry *) NULL) {
@@ -2322,8 +2314,8 @@ SlaveAliasHelper(interp, slaveInterp, slavePtr, objc, objv)
 
     switch (objc-2) {
         case 0:
-            Tcl_WrongNumArgs(interp, 1, objv,
-                    "alias aliasName ?targetName? ?args..?");
+            Tcl_WrongNumArgs(interp, 2, objv,
+                    "aliasName ?targetName? ?args..?");
             return TCL_ERROR;
 
         case 1:
@@ -2430,7 +2422,7 @@ SlaveEvalHelper(interp, slaveInterp, slavePtr, objc, objv)
     int result;
     
     if (objc < 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "eval arg ?arg ...?");
+        Tcl_WrongNumArgs(interp, 2, objv, "arg ?arg ...?");
         return TCL_ERROR;
     }
 
@@ -2517,7 +2509,7 @@ SlaveExposeHelper(interp, slaveInterp, slavePtr, objc, objv)
     int len;
     
     if ((objc != 3) && (objc != 4)) {
-        Tcl_WrongNumArgs(interp, 1, objv, "expose hiddenCmdName ?cmdName?");
+        Tcl_WrongNumArgs(interp, 2, objv, "hiddenCmdName ?cmdName?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -2566,7 +2558,7 @@ SlaveHideHelper(interp, slaveInterp, slavePtr, objc, objv)
     int len;
 
     if ((objc != 3) && (objc != 4)) {
-        Tcl_WrongNumArgs(interp, 1, objv, "hide cmdName ?hiddenCmdName?");
+        Tcl_WrongNumArgs(interp, 2, objv, "cmdName ?hiddenCmdName?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -2618,7 +2610,7 @@ SlaveHiddenHelper(interp, slaveInterp, slavePtr, objc, objv)
     Tcl_HashSearch hSearch;		/* For local searches. */
     
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "hidden");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
@@ -2661,24 +2653,15 @@ SlaveIsSafeHelper(interp, slaveInterp, slavePtr, objc, objv)
     int objc;				/* Count of arguments. */
     Tcl_Obj *CONST objv[];		/* Vector of arguments. */
 {
-    Master *masterPtr;			/* Master record for slave interp. */
-    Tcl_Obj *namePtr;			/* Local object pointer. */
+    Tcl_Obj *resultPtr;			/* Local object pointer. */
 
     if (objc > 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "issafe");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
-    masterPtr = (Master *) Tcl_GetAssocData(slaveInterp,
-            "tclMasterRecord", NULL);
-    if (masterPtr == (Master *) NULL) {
-        panic("SlaveObjectCmd: could not find master record");
-    }
-    if (masterPtr->isSafe == 1) {
-        namePtr = Tcl_NewStringObj("1", 1);
-    } else {
-        namePtr = Tcl_NewStringObj("0", 1);
-    }
-    Tcl_SetObjResult(interp, namePtr);
+    resultPtr = Tcl_NewIntObj(Tcl_IsSafe(slaveInterp));
+
+    Tcl_SetObjResult(interp, resultPtr);
     return TCL_OK;
 }
 
@@ -2715,8 +2698,8 @@ SlaveInvokeHiddenHelper(interp, slaveInterp, slavePtr, objc, objv)
     Tcl_Obj *namePtr, *objPtr;
             
     if (objc < 3) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-                "invokehidden ?-global? cmd ?arg ..?");
+        Tcl_WrongNumArgs(interp, 2, objv,
+                "?-global? cmd ?arg ..?");
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -2728,8 +2711,8 @@ SlaveInvokeHiddenHelper(interp, slaveInterp, slavePtr, objc, objv)
     if (strcmp(Tcl_GetStringFromObj(objv[2], &len), "-global") == 0) {
         doGlobal = 1;
         if (objc < 4) {
-            Tcl_WrongNumArgs(interp, 1, objv,
-                    "invokehidden path ?-global? cmd ?arg ..?");
+            Tcl_WrongNumArgs(interp, 2, objv,
+                    "path ?-global? cmd ?arg ..?");
             return TCL_ERROR;
         }
     }
@@ -2821,7 +2804,7 @@ SlaveMarkTrustedHelper(interp, slaveInterp, slavePtr, objc, objv)
     int len;
     
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "marktrusted");
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
     if (Tcl_IsSafe(interp)) {
@@ -3459,14 +3442,26 @@ TclInterpInit(interp)
     Tcl_Interp *interp;			/* Interpreter to initialize. */
 {
     Master *masterPtr;			/* Its Master record. */
+    Slave *slavePtr;			/* And its slave record. */
 
     masterPtr = (Master *) ckalloc((unsigned) sizeof(Master));
-    masterPtr->isSafe = 0;
+
     Tcl_InitHashTable(&(masterPtr->slaveTable), TCL_STRING_KEYS);
     Tcl_InitHashTable(&(masterPtr->targetTable), TCL_ONE_WORD_KEYS);
 
     (void) Tcl_SetAssocData(interp, "tclMasterRecord", MasterRecordDeleteProc,
             (ClientData) masterPtr);
+
+    slavePtr = (Slave *) ckalloc((unsigned) sizeof(Slave));
+
+    slavePtr->masterInterp = (Tcl_Interp *) NULL;
+    slavePtr->slaveEntry = (Tcl_HashEntry *) NULL;
+    slavePtr->slaveInterp = interp;
+    slavePtr->interpCmd = (Tcl_Command) NULL;
+    Tcl_InitHashTable(&(slavePtr->aliasTable), TCL_STRING_KEYS);
+
+    (void) Tcl_SetAssocData(interp, "tclSlaveRecord", SlaveRecordDeleteProc,
+            (ClientData) slavePtr);
     
     return TCL_OK;
 }
@@ -3491,16 +3486,14 @@ int
 Tcl_IsSafe(interp)
     Tcl_Interp *interp;		/* Is this interpreter "safe" ? */
 {
-    Master *masterPtr;		/* Its master record. */
+    Interp *iPtr;
 
     if (interp == (Tcl_Interp *) NULL) {
         return 0;
     }
-    masterPtr = (Master *) Tcl_GetAssocData(interp, "tclMasterRecord", NULL);
-    if (masterPtr == (Master *) NULL) {
-        panic("Tcl_IsSafe: could not find master record");
-    }
-    return masterPtr->isSafe;
+    iPtr = (Interp *) interp;
+
+    return ( (iPtr->flags) & SAFE_INTERP ) ? 1 : 0 ;
 }
 
 /*

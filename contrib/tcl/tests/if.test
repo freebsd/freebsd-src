@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) if.test 1.8 97/06/23 18:18:30
+# SCCS: @(#) if.test 1.9 97/07/02 16:40:58
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -27,7 +27,7 @@ test if-1.3 {TclCompileIfCmd: error in if/elseif test} {
 } {1 {syntax error in expression "1+"} {syntax error in expression "1+"
     ("if" test expression)
     while compiling
-"if"}}
+"if {1+}"}}
 test if-1.4 {TclCompileIfCmd: if/elseif test in braces} {
     set a {}
     if {1<2} {set a 1}
@@ -65,9 +65,9 @@ test if-1.10 {TclCompileIfCmd: error in "then" body} {
 } {1 {wrong # args: should be "set varName ?newValue?"} {wrong # args: should be "set varName ?newValue?"
     while compiling
 "set"
-    ("if" body script)
+    ("if" then script line 1)
     while compiling
-"if"}}
+"if {$a!="xxx"} then {set}"}}
 test if-1.11 {TclCompileIfCmd: error in "then" body} {
     list [catch {if 2 then {[error "error in then clause"]}} msg] $msg
 } {1 {error in then clause}}
@@ -179,7 +179,7 @@ test if-2.4 {TclCompileIfCmd: error in expression after "elseif"} {
 } {1 {syntax error in expression "1>"} {syntax error in expression "1>"
     ("if" test expression)
     while compiling
-"if"}}
+"if 3>4 {set a 1} elseif {1>}"}}
 test if-2.5 {TclCompileIfCmd: test jumpFalse instruction replacement after long "elseif" body} {
     catch {unset i}
     set a {}
@@ -307,9 +307,9 @@ test if-3.4 {TclCompileIfCmd: error compiling body after "else"} {
 } {wrong # args: should be "set varName ?newValue?"
     while compiling
 "set"
-    ("if" else script)
+    ("if" else script line 1)
     while compiling
-"if"}
+"if 2<1 {set a 1} else {set}"}
 test if-3.5 {TclCompileIfCmd: extra arguments after "else" argument} {
     set a {}
     catch {if 2<1 {set a 1} else {set a 2} or something} msg 

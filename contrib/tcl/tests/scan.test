@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) scan.test 1.25 97/01/21 21:16:03
+# SCCS: @(#) scan.test 1.26 97/08/06 08:56:08
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -67,14 +67,12 @@ test scan-1.11 {integer scanning} {nonPortable} {
 
 test scan-2.1 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "2.1 -3.0e8 .99962 a" "%f%g%e%f" a b c d] \
-	    [format %.6g $a] [format %.6g $b] [format %.6g $c] $d
-} {3 2.1 -3e+08 0.99962 {}}
+    list [scan "2.1 -3.0e8 .99962 a" "%f%g%e%f" a b c d] $a $b $c $d
+} {3 2.1 -300000000.0 0.99962 {}}
 test scan-2.2 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "-1.2345 +8.2 9" "%3e %3lf %f %f" a b c d] \
-	    [format %.6g $a] [format %.6g $b] [format %.6g $c] [format %.6g $d]
-} {4 -1 234 5 8.2}
+    list [scan "-1.2345 +8.2 9" "%3e %3lf %f %f" a b c d] $a $b $c $d
+} {4 -1.0 234.0 5.0 8.2}
 test scan-2.3 {floating-point scanning} {
     set a {}; set b {}; set c {}
     list [scan "1e00004 332E-4 3e+4" "%Lf %*2e %f %f" a b c] $a $c
@@ -89,22 +87,19 @@ test scan-2.4 {floating-point scanning} {nonPortable} {
 } {3 1.0 200.0 3.0}
 test scan-2.5 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "4.6 99999.7 876.43e-1 118" "%f %f %f %e" a b c d] \
-	    [format %.6g $a] [format %.6g $b] [format %.6g $c] [format %.6g $d]
-} {4 4.6 99999.7 87.643 118}
+    list [scan "4.6 99999.7 876.43e-1 118" "%f %f %f %e" a b c d] $a $b $c $d
+} {4 4.6 99999.7 87.643 118.0}
 test scan-2.6 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "1.2345 697.0e-3 124 .00005" "%f %e %f %e" a b c d] \
-	    [format %.6g $a] [format %.6g $b] [format %.6g $c] [format %.6g $d]
-} {4 1.2345 0.697 124 5e-05}
+    list [scan "1.2345 697.0e-3 124 .00005" "%f %e %f %e" a b c d] $a $b $c $d
+} {4 1.2345 0.697 124.0 5e-05}
 test scan-2.7 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "4.6abc" "%f %f %f %f" a b c d] [format %.6g $a] $b $c $d
+    list [scan "4.6abc" "%f %f %f %f" a b c d] $a $b $c $d
 } {1 4.6 {} {} {}}
 test scan-2.8 {floating-point scanning} {
     set a {}; set b {}; set c {}; set d {}
-    list [scan "4.6 5.2" "%f %f %f %f" a b c d] \
-	    [format %.6g $a] [format %.6g $b] $c $d
+    list [scan "4.6 5.2" "%f %f %f %f" a b c d] $a $b $c $d
 } {2 4.6 5.2 {} {}}
 
 test scan-3.1 {string and character scanning} {

@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdAH.c 1.146 97/06/26 13:45:20
+ * SCCS: @(#) tclCmdAH.c 1.156 97/08/12 18:10:15
  */
 
 #include "tclInt.h"
@@ -92,6 +92,7 @@ Tcl_CaseObjCmd(dummy, interp, objc, objv)
     char *string, *arg;
     int argLen, caseObjc;
     Tcl_Obj *CONST *caseObjv;
+    Tcl_Obj *armPtr;
 
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv,
@@ -187,11 +188,12 @@ Tcl_CaseObjCmd(dummy, interp, objc, objv)
 
     match:
     if (body != -1) {
+	armPtr = caseObjv[body-1];
 	result = Tcl_EvalObj(interp, caseObjv[body]);
 	if (result == TCL_ERROR) {
 	    char msg[100];
 	    
-	    arg = Tcl_GetStringFromObj(caseObjv[body-1], &argLen);
+	    arg = Tcl_GetStringFromObj(armPtr, &argLen);
 	    sprintf(msg, "\n    (\"%.*s\" arm line %d)", argLen, arg,
 	            interp->errorLine);
 	    Tcl_AddObjErrorInfo(interp, msg, -1);
@@ -231,6 +233,7 @@ Tcl_CatchObjCmd(dummy, interp, objc, objv)
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
+    Tcl_Obj *varNamePtr = NULL;
     int result;
 
     if ((objc != 2) && (objc != 3)) {
@@ -244,10 +247,15 @@ Tcl_CatchObjCmd(dummy, interp, objc, objv)
      * stack rendering objv invalid.
      */
     
-    result = Tcl_EvalObj(interp, objv[1]);
     if (objc == 3) {
-	if (Tcl_ObjSetVar2(interp, objv[2], NULL, Tcl_GetObjResult(interp),
-                    TCL_PARSE_PART1) == NULL) {
+	varNamePtr = objv[2];
+    }
+    
+    result = Tcl_EvalObj(interp, objv[1]);
+    
+    if (objc == 3) {
+	if (Tcl_ObjSetVar2(interp, varNamePtr, NULL,
+		    Tcl_GetObjResult(interp), TCL_PARSE_PART1) == NULL) {
 	    Tcl_ResetResult(interp);
 	    Tcl_AppendToObj(Tcl_GetObjResult(interp),  
 	            "couldn't save command result in variable", -1);
@@ -270,7 +278,7 @@ Tcl_CatchObjCmd(dummy, interp, objc, objv)
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_CdCmd --
+ * Tcl_CdObjCmd --
  *
  *	This procedure is invoked to process the "cd" Tcl command.
  *	See the user documentation for details on what it does.
@@ -286,24 +294,24 @@ Tcl_CatchObjCmd(dummy, interp, objc, objv)
 
 	/* ARGSUSED */
 int
-Tcl_CdCmd(dummy, interp, argc, argv)
-    ClientData dummy;			/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_CdObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     char *dirName;
+    int dirLength;
     Tcl_DString buffer;
     int result;
 
-    if (argc > 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" dirName\"", (char *) NULL);
+    if (objc > 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "dirName");
 	return TCL_ERROR;
     }
 
-    if (argc == 2) {
-	dirName = argv[1];
+    if (objc == 2) {
+	dirName = Tcl_GetStringFromObj(objv[1], &dirLength);
     } else {
 	dirName = "~";
     }
@@ -482,7 +490,7 @@ Tcl_EvalObjCmd(dummy, interp, objc, objv)
     
 	objPtr = Tcl_ConcatObj(objc-1, objv+1);
 	result = Tcl_EvalObj(interp, objPtr);
-	TclDecrRefCount(objPtr);  /* we're done with the object */
+	Tcl_DecrRefCount(objPtr);  /* we're done with the object */
     }
     if (result == TCL_ERROR) {
 	char msg[60];
@@ -612,7 +620,7 @@ Tcl_ExprObjCmd(dummy, interp, objc, objv)
      * Free allocated resources.
      */
     
-    TclDecrRefCount(objPtr);
+    Tcl_DecrRefCount(objPtr);
     return result;
 }
 
@@ -790,8 +798,8 @@ enum {FILE_ATIME, FILE_ATTRIBUTES, FILE_COPY, FILE_DELETE, FILE_DIRNAME,
 	    }
 
 	    /*
-	     * Return the last component, unless it is the only component, and it
-	     * is the root of an absolute path.
+	     * Return the last component, unless it is the only component,
+	     * and it is the root of an absolute path.
 	     */
 
 	    if (pargc > 0) {
@@ -826,10 +834,10 @@ enum {FILE_ATIME, FILE_ATTRIBUTES, FILE_COPY, FILE_DELETE, FILE_DIRNAME,
 	    	errorString = "extension name";
 	    	goto not3Args;
 	    }
-	    extension = TclGetExtension(Tcl_GetStringFromObj(objv[2], &length));
+	    extension = TclGetExtension(Tcl_GetStringFromObj(objv[2],&length));
 
 	    if (extension != NULL) {
-	    	Tcl_SetStringObj(resultPtr, extension, (int) strlen(extension));
+	    	Tcl_SetStringObj(resultPtr, extension, (int)strlen(extension));
 	    }
 	    goto done;
 	case FILE_PATHTYPE:
@@ -878,7 +886,8 @@ enum {FILE_ATIME, FILE_ATTRIBUTES, FILE_COPY, FILE_DELETE, FILE_DIRNAME,
 	    	pargv[i - 2] = Tcl_GetStringFromObj(objv[i], &length);
 	    }
 	    Tcl_JoinPath(objc - 2, pargv, &buffer);
-	    Tcl_SetStringObj(resultPtr, Tcl_DStringValue(&buffer), buffer.length);
+	    Tcl_SetStringObj(resultPtr, Tcl_DStringValue(&buffer), 
+                    buffer.length);
 	    ckfree((char *) pargv);
 	    Tcl_DStringFree(&buffer);
 	    goto done;
@@ -930,7 +939,11 @@ enum {FILE_ATIME, FILE_ATTRIBUTES, FILE_COPY, FILE_DELETE, FILE_DIRNAME,
 	case FILE_NATIVENAME:
 	    fileName = Tcl_TranslateFileName(interp,
 	    	    Tcl_GetStringFromObj(objv[2], &length), &buffer);
-	    Tcl_SetStringObj(resultPtr, fileName, -1);
+	    if (fileName == NULL) {
+		result = TCL_ERROR ;
+	    } else {
+		Tcl_SetStringObj(resultPtr, fileName, -1);
+	    }
 	    goto done;
     }
 
@@ -950,8 +963,16 @@ enum {FILE_ATIME, FILE_ATTRIBUTES, FILE_COPY, FILE_DELETE, FILE_DIRNAME,
 	    }
 	    mode = R_OK;
 checkAccess:
-	    Tcl_SetBooleanObj(resultPtr, !((fileName == NULL) 
-	    	    || (access(fileName, mode) == -1)));
+	    /*
+	     * The result might have been set within Tcl_TranslateFileName
+	     * (like no such user "blah" for file exists ~blah)
+	     * but we don't want to flag an error in that case.
+	     */
+	    if (fileName == NULL) {
+		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+	    } else {
+		Tcl_SetBooleanObj(resultPtr, (access(fileName, mode) != -1));
+	    }
 	    goto done;
 	  case FILE_WRITABLE:
 	    if (objc != 3) {
@@ -1237,7 +1258,8 @@ StoreStatData(interp, varName, statPtr)
 	return TCL_ERROR;
     }
     if (Tcl_SetVar2(interp, varName, "type",
-	    GetTypeFromMode((int) statPtr->st_mode), TCL_LEAVE_ERR_MSG) == NULL) {
+	    GetTypeFromMode((int) statPtr->st_mode), TCL_LEAVE_ERR_MSG) 
+            == NULL) {
 	return TCL_ERROR;
     }
     return TCL_OK;
@@ -1343,7 +1365,7 @@ Tcl_ForCmd(dummy, interp, argc, argv)
         if ((result != TCL_OK) && (result != TCL_CONTINUE)) {
             if (result == TCL_ERROR) {
                 char msg[60];
-                sprintf(msg, "\n    (\"for\" body line %d)", interp->errorLine);
+                sprintf(msg, "\n    (\"for\" body line %d)",interp->errorLine);
                 Tcl_AddErrorInfo(interp, msg);
             }
             break;
@@ -1398,13 +1420,24 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
     int v;			/* v selects a loop variable */
     int numLists;		/* Count of value lists */
     Tcl_Obj *bodyPtr;
-	
-#define STATIC_SIZE 4
-    int indexArray[STATIC_SIZE];	  /* Array of value list indices */
-    int varcListArray[STATIC_SIZE];	  /* # loop variables per list */
-    Tcl_Obj **varvListArray[STATIC_SIZE]; /* Array of variable name lists */
-    int argcListArray[STATIC_SIZE];	  /* Array of value list sizes */
-    Tcl_Obj **argvListArray[STATIC_SIZE]; /* Array of value lists */
+
+    /*
+     * We copy the argument object pointers into a local array to avoid
+     * the problem that "objv" might become invalid. It is a pointer into
+     * the evaluation stack and that stack might be grown and reallocated
+     * if the loop body requires a large amount of stack space.
+     */
+    
+#define NUM_ARGS 9
+    Tcl_Obj *(argObjStorage[NUM_ARGS]);
+    Tcl_Obj **argObjv = argObjStorage;
+    
+#define STATIC_LIST_SIZE 4
+    int indexArray[STATIC_LIST_SIZE];	  /* Array of value list indices */
+    int varcListArray[STATIC_LIST_SIZE];  /* # loop variables per list */
+    Tcl_Obj **varvListArray[STATIC_LIST_SIZE]; /* Array of var name lists */
+    int argcListArray[STATIC_LIST_SIZE];  /* Array of value list sizes */
+    Tcl_Obj **argvListArray[STATIC_LIST_SIZE]; /* Array of value lists */
 
     int *index = indexArray;
     int *varcList = varcListArray;
@@ -1419,6 +1452,18 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
     }
 
     /*
+     * Create the object argument array "argObjv". Make sure argObjv is
+     * large enough to hold the objc arguments.
+     */
+
+    if (objc > NUM_ARGS) {
+	argObjv = (Tcl_Obj **) ckalloc(objc * sizeof(Tcl_Obj *));
+    }
+    for (i = 0;  i < objc;  i++) {
+	argObjv[i] = objv[i];
+    }
+
+    /*
      * Manage numList parallel value lists.
      * argvList[i] is a value list counted by argcList[i]
      * varvList[i] is the list of variables associated with the value list
@@ -1427,7 +1472,7 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
      */
 
     numLists = (objc-2)/2;
-    if (numLists > STATIC_SIZE) {
+    if (numLists > STATIC_LIST_SIZE) {
 	index = (int *) ckalloc(numLists * sizeof(int));
 	varcList = (int *) ckalloc(numLists * sizeof(int));
 	varvList = (Tcl_Obj ***) ckalloc(numLists * sizeof(Tcl_Obj **));
@@ -1449,7 +1494,7 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
 
     maxj = 0;
     for (i = 0;  i < numLists;  i++) {
-	result = Tcl_ListObjGetElements(interp, objv[1+i*2],
+	result = Tcl_ListObjGetElements(interp, argObjv[1+i*2],
 	        &varcList[i], &varvList[i]);
 	if (result != TCL_OK) {
 	    goto done;
@@ -1461,7 +1506,7 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
 	    goto done;
 	}
 	
-	result = Tcl_ListObjGetElements(interp, objv[2+i*2],
+	result = Tcl_ListObjGetElements(interp, argObjv[2+i*2],
 	        &argcList[i], &argvList[i]);
 	if (result != TCL_OK) {
 	    goto done;
@@ -1481,9 +1526,30 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
      * If some value lists run out of values, set loop vars to ""
      */
     
-    bodyPtr = objv[objc-1];
+    bodyPtr = argObjv[objc-1];
     for (j = 0;  j < maxj;  j++) {
 	for (i = 0;  i < numLists;  i++) {
+	    /*
+	     * If a variable or value list object has been converted to
+	     * another kind of Tcl object, convert it back to a list object
+	     * and refetch the pointer to its element array.
+	     */
+
+	    if (argObjv[1+i*2]->typePtr != &tclListType) {
+		result = Tcl_ListObjGetElements(interp, argObjv[1+i*2],
+		        &varcList[i], &varvList[i]);
+		if (result != TCL_OK) {
+		    panic("Tcl_ForeachObjCmd: could not reconvert variable list %d to a list object\n", i);
+		}
+	    }
+	    if (argObjv[2+i*2]->typePtr != &tclListType) {
+		result = Tcl_ListObjGetElements(interp, argObjv[2+i*2],
+	                &argcList[i], &argvList[i]);
+		if (result != TCL_OK) {
+		    panic("Tcl_ForeachObjCmd: could not reconvert value list %d to a list object\n", i);
+		}
+	    }
+	    
 	    for (v = 0;  v < varcList[i];  v++) {
 		int k = index[i]++;
 		Tcl_Obj *valuePtr, *varValuePtr;
@@ -1536,21 +1602,25 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
     }
 
     done:
-    if (numLists > STATIC_SIZE) {
+    if (numLists > STATIC_LIST_SIZE) {
 	ckfree((char *) index);
 	ckfree((char *) varcList);
 	ckfree((char *) argcList);
 	ckfree((char *) varvList);
 	ckfree((char *) argvList);
     }
+    if (argObjv != argObjStorage) {
+	ckfree((char *) argObjv);
+    }
     return result;
-#undef STATIC_SIZE
+#undef STATIC_LIST_SIZE
+#undef NUM_ARGS
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_FormatCmd --
+ * Tcl_FormatObjCmd --
  *
  *	This procedure is invoked to process the "format" Tcl command.
  *	See the user documentation for details on what it does.
@@ -1566,14 +1636,16 @@ Tcl_ForeachObjCmd(dummy, interp, objc, objv)
 
 	/* ARGSUSED */
 int
-Tcl_FormatCmd(dummy, interp, argc, argv)
-    ClientData dummy;			/* Not used. */
-    Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+Tcl_FormatObjCmd(dummy, interp, objc, objv)
+    ClientData dummy;    	/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     register char *format;	/* Used to read characters from the format
 				 * string. */
+    int formatLen;              /* The length of the format string */
+    char *endPtr;               /* Points to the last char in format array */
     char newFormat[40];		/* A new format specifier is generated here. */
     int width;			/* Field width from field specifier, or 0 if
 				 * no width given. */
@@ -1595,17 +1667,19 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 #   define INT_VALUE 0
 #   define PTR_VALUE 1
 #   define DOUBLE_VALUE 2
-    char *dst = interp->result;	/* Where result is stored.  Starts off at
-				 * interp->resultSpace, but may get dynamically
-				 * re-allocated if this isn't enough. */
-    int dstSize = 0;		/* Number of non-null characters currently
-				 * stored at dst. */
-    int dstSpace = TCL_RESULT_SIZE;
-				/* Total amount of storage space available
-				 * in dst (not including null terminator. */
+#   define MAX_FLOAT_SIZE 320
+    
+    Tcl_Obj *resultPtr;  	/* Where result is stored finally. */
+    char staticBuf[MAX_FLOAT_SIZE];
+                                /* A static buffer to copy the format results 
+				 * into */
+    char *dst = staticBuf;      /* The buffer that sprintf writes into each
+				 * time the format processes a specifier */
+    int dstSize = MAX_FLOAT_SIZE;
+                                /* The size of the dst buffer */
     int noPercent;		/* Special case for speed:  indicates there's
-				 * no field specifier, just a string to copy. */
-    int argIndex;		/* Index of argument to substitute next. */
+				 * no field specifier, just a string to copy.*/
+    int objIndex;		/* Index of argument to substitute next. */
     int gotXpg = 0;		/* Non-zero means that an XPG3 %n$-style
 				 * specifier has been seen. */
     int gotSequential = 0;	/* Non-zero means that a regular sequential
@@ -1620,20 +1694,25 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
      * 1. this procedure can't trust its arguments.
      * 2. we must be able to provide a large enough result area to hold
      *    whatever's generated.  This is hard to estimate.
-     * 2. there's no way to move the arguments from argv to the call
+     * 2. there's no way to move the arguments from objv to the call
      *    to sprintf in a reasonable way.  This is particularly nasty
      *    because some of the arguments may be two-word values (doubles).
      * So, what happens here is to scan the format string one % group
      * at a time, making many individual calls to sprintf.
      */
 
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" formatString ?arg arg ...?\"", (char *) NULL);
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv,
+		"formatString ?arg arg ...?");
 	return TCL_ERROR;
     }
-    argIndex = 2;
-    for (format = argv[1]; *format != 0; ) {
+
+    format = Tcl_GetStringFromObj(objv[1], &formatLen);
+    endPtr = format + formatLen;
+    resultPtr = Tcl_NewObj();
+    objIndex = 2;
+
+    while (format < endPtr) {
 	register char *newPtr = newFormat;
 
 	width = precision = noPercent = useShort = 0;
@@ -1642,17 +1721,12 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	/*
 	 * Get rid of any characters before the next field specifier.
 	 */
-
 	if (*format != '%') {
-	    register char *p;
-
-	    ptrValue = p = format;
-	    while ((*format != '%') && (*format != 0)) {
-		*p = *format;
-		p++;
+	    ptrValue = format;
+	    while ((*format != '%') && (format < endPtr)) {
 		format++;
 	    }
-	    size = p - ptrValue;
+	    size = format - ptrValue;
 	    noPercent = 1;
 	    goto doField;
 	}
@@ -1670,7 +1744,6 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	 * will be needed to store the result, and substitute for
 	 * "*" size specifiers.
 	 */
-
 	*newPtr = '%';
 	newPtr++;
 	format++;
@@ -1692,8 +1765,8 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    if (gotSequential) {
 		goto mixedXPG;
 	    }
-	    argIndex = tmp+1;
-	    if ((argIndex < 2) || (argIndex >= argc)) {
+	    objIndex = tmp+1;
+	    if ((objIndex < 2) || (objIndex >= objc)) {
 		goto badIndex;
 	    }
 	    goto xpgCheckDone;
@@ -1716,13 +1789,14 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    width = strtoul(format, &end, 10);
 	    format = end;
 	} else if (*format == '*') {
-	    if (argIndex >= argc) {
+	    if (objIndex >= objc) {
 		goto badIndex;
 	    }
-	    if (Tcl_GetInt(interp, argv[argIndex], &width) != TCL_OK) {
+	    if (Tcl_GetIntFromObj(interp, objv[objIndex], 
+                    &width) != TCL_OK) {
 		goto fmtError;
 	    }
-	    argIndex++;
+	    objIndex++;
 	    format++;
 	}
 	if (width > 100000) {
@@ -1751,13 +1825,14 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    precision = strtoul(format, &end, 10);
 	    format = end;
 	} else if (*format == '*') {
-	    if (argIndex >= argc) {
+	    if (objIndex >= objc) {
 		goto badIndex;
 	    }
-	    if (Tcl_GetInt(interp, argv[argIndex], &precision) != TCL_OK) {
+	    if (Tcl_GetIntFromObj(interp, objv[objIndex], 
+                    &precision) != TCL_OK) {
 		goto fmtError;
 	    }
-	    argIndex++;
+	    objIndex++;
 	    format++;
 	}
 	if (precision != 0) {
@@ -1777,7 +1852,7 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	*newPtr = *format;
 	newPtr++;
 	*newPtr = 0;
-	if (argIndex >= argc) {
+	if (objIndex >= objc) {
 	    goto badIndex;
 	}
 	switch (*format) {
@@ -1788,20 +1863,19 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    case 'u':
 	    case 'x':
 	    case 'X':
-		if (Tcl_GetInt(interp, argv[argIndex], (int *) &intValue)
-			!= TCL_OK) {
+		if (Tcl_GetIntFromObj(interp, objv[objIndex], 
+		        (int *) &intValue) != TCL_OK) {
 		    goto fmtError;
 		}
 		whichValue = INT_VALUE;
 		size = 40 + precision;
 		break;
 	    case 's':
-		ptrValue = argv[argIndex];
-		size = strlen(argv[argIndex]);
+		ptrValue = Tcl_GetStringFromObj(objv[objIndex], &size);
 		break;
 	    case 'c':
-		if (Tcl_GetInt(interp, argv[argIndex], (int *) &intValue)
-			!= TCL_OK) {
+		if (Tcl_GetIntFromObj(interp, objv[objIndex], 
+                        (int *) &intValue) != TCL_OK) {
 		    goto fmtError;
 		}
 		whichValue = INT_VALUE;
@@ -1812,12 +1886,12 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    case 'f':
 	    case 'g':
 	    case 'G':
-		if (Tcl_GetDouble(interp, argv[argIndex], &doubleValue)
-			!= TCL_OK) {
+		if (Tcl_GetDoubleFromObj(interp, objv[objIndex], 
+			&doubleValue) != TCL_OK) {
 		    goto fmtError;
 		}
 		whichValue = DOUBLE_VALUE;
-		size = 320;
+		size = MAX_FLOAT_SIZE;
 		if (precision > 10) {
 		    size += precision;
 		}
@@ -1829,14 +1903,13 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 		goto fmtError;
 	    default:
 		{
-		    char buf[80];
-		    
+		    char buf[40];
 		    sprintf(buf, "bad field specifier \"%c\"", *format);
 		    Tcl_SetResult(interp, buf, TCL_VOLATILE);
 		    goto fmtError;
 		}
 	}
-	argIndex++;
+	objIndex++;
 	format++;
 
 	/*
@@ -1848,62 +1921,56 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	if (width > size) {
 	    size = width;
 	}
-	if ((dstSize + size) > dstSpace) {
-	    char *newDst;
-	    int newSpace;
-
-	    newSpace = 2*(dstSize + size);
-	    newDst = (char *) ckalloc((unsigned) newSpace+1);
-	    if (dstSize != 0) {
-		memcpy((VOID *) newDst, (VOID *) dst, (size_t) dstSize);
-	    }
-	    if (dstSpace != TCL_RESULT_SIZE) {
-		ckfree(dst);
-	    }
-	    dst = newDst;
-	    dstSpace = newSpace;
-	}
 	if (noPercent) {
-	    memcpy((VOID *) (dst+dstSize), (VOID *) ptrValue, (size_t) size);
-	    dstSize += size;
-	    dst[dstSize] = 0;
+	    Tcl_AppendToObj(resultPtr, ptrValue, size);
 	} else {
+	    if (size > dstSize) {
+	        if (dst != staticBuf) {
+		    ckfree(dst);
+		}
+		dst = (char *) ckalloc((unsigned) (size + 1));
+		dstSize = size;
+	    }
+
 	    if (whichValue == DOUBLE_VALUE) {
-		sprintf(dst+dstSize, newFormat, doubleValue);
+	        sprintf(dst, newFormat, doubleValue);
 	    } else if (whichValue == INT_VALUE) {
 		if (useShort) {
-		    sprintf(dst+dstSize, newFormat, (short) intValue);
+		    sprintf(dst, newFormat, (short) intValue);
 		} else {
-		    sprintf(dst+dstSize, newFormat, intValue);
+		    sprintf(dst, newFormat, intValue);
 		}
 	    } else {
-		sprintf(dst+dstSize, newFormat, ptrValue);
+	        sprintf(dst, newFormat, ptrValue);
 	    }
-	    dstSize += strlen(dst+dstSize);
+	    Tcl_AppendToObj(resultPtr, dst, -1);
 	}
     }
 
-    if (dstSpace != TCL_RESULT_SIZE) {
-	Tcl_SetResult(interp, dst, TCL_DYNAMIC);
-    } else {
-	Tcl_SetResult(interp, dst, TCL_STATIC);
+    Tcl_SetObjResult(interp, resultPtr);
+    if(dst != staticBuf) {
+        ckfree(dst);
     }
     return TCL_OK;
 
     mixedXPG:
-    interp->result = "cannot mix \"%\" and \"%n$\" conversion specifiers";
+    Tcl_SetResult(interp, 
+            "cannot mix \"%\" and \"%n$\" conversion specifiers", TCL_STATIC);
     goto fmtError;
 
     badIndex:
     if (gotXpg) {
-	interp->result = "\"%n$\" argument index out of range";
+        Tcl_SetResult(interp, 
+                "\"%n$\" argument index out of range", TCL_STATIC);
     } else {
-	interp->result = "not enough arguments for all format specifiers";
+        Tcl_SetResult(interp, 
+                "not enough arguments for all format specifiers", TCL_STATIC);
     }
 
     fmtError:
-    if (dstSpace != TCL_RESULT_SIZE) {
-	ckfree(dst);
+    if(dst != staticBuf) {
+        ckfree(dst);
     }
+    Tcl_DecrRefCount(resultPtr);
     return TCL_ERROR;
 }

@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) set-old.test 1.19 96/09/09 18:36:24
+# SCCS: @(#) set-old.test 1.20 97/07/25 17:45:55
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -292,7 +292,7 @@ test set-old-8.6 {array command} {
     catch {unset a}
     set a(22) 3
     list [catch {array gorp a} msg] $msg
-} {1 {bad option "gorp": should be anymore, donesearch, exists, get, names, nextelement, set, size, or startsearch}}
+} {1 {bad option "gorp": must be anymore, donesearch, exists, get, names, nextelement, set, size, or startsearch}}
 test set-old-8.7 {array command, anymore option} {
     catch {unset a}
     list [catch {array anymore a x} msg] $msg

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) @(#) while.test 1.8 97/06/24 10:36:56
+# SCCS: @(#) @(#) while.test 1.9 97/07/02 16:41:35
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -29,7 +29,7 @@ test while-1.2 {TclCompileWhileCmd: error in test expression} {
 } {syntax error in expression "$i<"
     ("while" test expression)
     while compiling
-"while"}
+"while {$i<}"}
 test while-1.3 {TclCompileWhileCmd: error in test expression} {
     set err [catch {while {"a"+"b"} {error "loop aborted"}} msg]
     list $err $msg
@@ -71,7 +71,7 @@ test while-1.8 {TclCompileWhileCmd: error compiling command body} {
 "set"
     ("while" body line 1)
     while compiling
-"while"}
+"while {$i < 5} {set}"}
 test while-1.9 {TclCompileWhileCmd: simple command body} {
     set a {}
     set i 1

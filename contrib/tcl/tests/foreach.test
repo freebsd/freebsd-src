@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) foreach.test 1.7 97/06/23 18:23:42
+# SCCS: @(#) foreach.test 1.8 97/08/12 18:19:27
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -156,6 +156,15 @@ test foreach-3.1 {compiled foreach backward jump works correctly} {
     array set x {0 zero 1 one 2 two 3 three}
     foo x
 } {{0 zero} {1 one} {2 two} {3 three}}
+
+test foreach-4.1 {noncompiled foreach and shared variable or value list objects that are converted to another type} {
+    catch {unset x}
+    foreach {12.0} {a b c} {
+        set x 12.0  
+        set x [expr $x + 1]
+    }
+    set x
+} 13.0
 
 # Check "continue".
 

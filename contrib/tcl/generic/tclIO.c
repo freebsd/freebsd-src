@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIO.c 1.265 97/06/20 13:24:48
+ * SCCS: @(#) tclIO.c 1.268 97/07/28 14:20:36
  */
 
 #include	"tclInt.h"
@@ -1682,6 +1682,10 @@ FlushChannel(interp, chanPtr, calledFromAsyncFlush)
                 }
             } else {
                 Tcl_SetErrno(errorCode);
+		if (interp != NULL) {
+		    Tcl_SetResult(interp,
+			    Tcl_PosixError(interp), TCL_VOLATILE);
+		}
             }
 
             /*
@@ -4969,7 +4973,9 @@ ChannelEventScriptInvoker(clientData, mask)
      */
     
     if (result != TCL_OK) {
-        DeleteScriptRecord(interp, chanPtr, mask);
+	if (chanPtr->typePtr != NULL) {
+	    DeleteScriptRecord(interp, chanPtr, mask);
+	}
         Tcl_BackgroundError(interp);
     }
     Tcl_Release((ClientData) interp);
@@ -5662,14 +5668,6 @@ TclCopyChannel(interp, inChan, outChan, toRead, cmdPtr)
     csPtr->total = 0;
     csPtr->interp = interp;
     if (cmdPtr) {
-	/*
-	 * We save this command object and mutate it later with
-	 * extra arguments, so we need a private copy.
-	 */
-
-	if (Tcl_IsShared(cmdPtr)) {
-	    cmdPtr = Tcl_DuplicateObj(cmdPtr);
-	}
 	Tcl_IncrRefCount(cmdPtr);
     }
     csPtr->cmdPtr = cmdPtr;
@@ -5838,18 +5836,22 @@ CopyData(csPtr, mask)
 
     /*
      * Make the callback or return the number of bytes transferred.
-     * The local total is used because StopCopoy frees csPtr.
+     * The local total is used because StopCopy frees csPtr.
      */
 
     total = csPtr->total;
     if (cmdPtr) {
+	/*
+	 * Get a private copy of the command so we can mutate it
+	 * by adding arguments.  Note that StopCopy frees our saved
+	 * reference to the original command obj.
+	 */
+
+	cmdPtr = Tcl_DuplicateObj(cmdPtr);
 	Tcl_IncrRefCount(cmdPtr);
 	StopCopy(csPtr);
 	Tcl_Preserve((ClientData) interp);
 
-	/*
-	 * This is already a private object, so we mutate it to add args.
-	 */
 	Tcl_ListObjAppendElement(interp, cmdPtr, Tcl_NewIntObj(total));
 	if (errObj) {
 	    Tcl_ListObjAppendElement(interp, cmdPtr, errObj);

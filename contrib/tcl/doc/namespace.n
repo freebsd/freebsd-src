@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) namespace.n 1.8 97/06/20 16:48:18
+'\" SCCS: @(#) namespace.n 1.9 97/08/13 17:08:25
 '\" 
 .so man.macros
 .TH namespace n 8.0 Tcl "Tcl Built-In Commands"
@@ -14,7 +14,7 @@
 .SH NAME
 namespace \- create and manipulate contexts for commands and variables
 .SH SYNOPSIS
-\fBnamespace ?\fIsubcommand\fR? ?\fIarg ...\fR?
+\fBnamespace \fR?\fIoption\fR? ?\fIarg ...\fR?
 .BE
 
 .SH DESCRIPTION
@@ -23,38 +23,45 @@ The \fBnamespace\fR command lets you create, access, and destroy
 separate contexts for commands and variables.
 See the section \fBWHAT IS A NAMESPACE?\fR below
 for a brief overview of namespaces.
-The legal \fIsubcommand\fR's are listed below.
-Note that you can abbreviate the names of subcommands.
+The legal \fIoption\fR's are listed below.
+Note that you can abbreviate the \fIoption\fR's.
 .TP
-\fBnamespace children \fR?\fIname\fR? ?\fIpattern\fR?
+\fBnamespace children \fR?\fInamespace\fR? ?\fIpattern\fR?
 Returns a list of all child namespaces that belong to the
-namespace \fIname\fR.
-If \fIname\fR is not specified,
+namespace \fInamespace\fR.
+If \fInamespace\fR is not specified,
 then the children are returned for the current namespace.
-This command returns fully-qualified names which start with \fB::\fR.
+This command returns fully-qualified names,
+which start with \fB::\fR.
 If the optional \fIpattern\fR is given,
 then this command returns only the names that match the glob-style pattern.
 The actual pattern used is determined as follows:
 a pattern that starts with \fB::\fR is used directly,
-otherwise the namespace \fIname\fR
+otherwise the namespace \fInamespace\fR
 (or the fully-qualified name of the current namespace)
 is prepended onto the the pattern.
 .TP
-\fBnamespace code \fIarg\fR
+\fBnamespace code \fIscript\fR
 Captures the current namespace context for later execution
-of the script \fIarg\fR.
-It returns a new Tcl scoped command that can be evaluated later
-to execute \fIarg\fR in the current namespace.
-It is typically used to create callback scripts, 
-where the \fIarg\fR argument is a list containing a script.
-The command it produces is equivalent to that produced by
-\fBlist namespace inscope [namespace current] $arg\fR
-If \fIarg\fR is itself a scoped command starting with
-\fBnamespace inscope\fR,
-the result is just \fIarg\fR.
-.br
-.sp
-Extensions like Tk normally execute callback scripts
+of the script \fIscript\fR.
+It returns a new script in which \fIscript\fR has been wrapped
+in a \fBnamespace code\fR command.
+The new script has two important properties.
+First, it can be evaluated in any namespace and will cause
+\fIscript\fR to be evaluated in the current namespace
+(the one where the \fBnamespace code\fR command was invoked).
+Second, additional arguments can be appended to the resulting script
+and they will be passed to \fIscript\fR as additional arguments.
+For example, suppose the command
+\fBset script [namespace code {foo bar}]\fR
+is invoked in namespace \fB::a::b\fR.
+Then \fBeval "$script x y"\fR
+can be executed in any namespace (assuming the value of
+\fBscript\fR has been passed in properly)
+and will have the same effect as the command
+\fBnamespace eval ::a::b {foo bar x y}\fR.
+This command is needed because
+extensions like Tk normally execute callback scripts
 in the global namespace.
 A scoped command captures a command together with its namespace context
 in a way that allows it to be executed properly later.
@@ -67,19 +74,11 @@ The actual name of the global namespace is ``''
 (i.e., an empty string),
 but this command returns \fB::\fR for the global namespace
 as a convenience to programmers.
-Tcl treats ``'' and \fB::\fR as synonyms
-for the name of the global namespace.
-This make it easier to manipulate namespace names
-and ensures that commands like
-\fBset [namespace current]::x\fR
-always work.
 .TP
-\fBnamespace delete \fR?\fIname name ...\fR?
-Each namespace \fIname\fR is deleted
+\fBnamespace delete \fR?\fInamespace namespace ...\fR?
+Each namespace \fInamespace\fR is deleted
 and all variables, procedures, and child namespaces
 contained in the namespace are deleted.
-\fIname\fR may include a sequence of namespace qualifiers
-separated by \fB::\fRs.
 If a procedure is currently executing inside the namespace,
 the namespace will be kept alive until the procedure returns;
 however, the namespace is marked to prevent other code from
@@ -87,42 +86,21 @@ looking it up by name.
 If a namespace doesn't exist, this command returns an error.
 If no namespace names are given, this command does nothing.
 .TP
-\fBnamespace eval\fR \fIname arg\fR ?\fIarg ...\fR?
-Activates a namespace called \fIname\fR and evaluates some code
+\fBnamespace eval\fR \fInamespace arg\fR ?\fIarg ...\fR?
+Activates a namespace called \fInamespace\fR and evaluates some code
 in that context.
 If the namespace does not already exist, it is created.
-This command is normally used to define the
-commands and variables in a namespace.
 If more than one \fIarg\fR argument is specified,
 the arguments are concatenated together with a space between each one
-in the same fashion as the \fBconcat\fR command,
+in the same fashion as the \fBeval\fR command,
 and the result is evaluated.
 .br
 .sp
-If a \fBnamespace eval\fR command creates a new namespace \fIname\fR,
-then \fIname\fR determines its parent namespace and
-the new namespace's position in the hierarchy of namespaces.
-If \fIname\fR includes a sequence of namespace qualifiers
-separated by \fB::\fRs,
-it is created as a child of the specified parent namespace;
-otherwise, the namespace is created as a child of the current namespace.
-If \fIname\fR has leading namespace qualifiers
+If \fInamespace\fR has leading namespace qualifiers
 and any leading namespaces do not exist,
 they are automatically created.
-.br
-.sp
-\fBnamespace eval\fR is another way (besides procedure calls)
-that the Tcl naming context can change.
-It adds a call frame to the stack to represent the namespace context.
-This means each \fBnamespace eval\fR command
-counts as another call level for \fBuplevel\fR and \fBupvar\fR commands.
-For example, \fBinfo level 1\fR will return a list
-describing a command that is either
-the outermost procedure call or the outermost \fBnamespace eval\fR command.
-Also, \fBuplevel #0\fR evaluates a script
-at top-level in the outermost namespace (the global namespace).
 .TP
-\fBnamespace export \fR?\fB-clear\fR? ?\fIpattern pattern ...\fR?
+\fBnamespace export \fR?\-\fBclear\fR? ?\fIpattern pattern ...\fR?
 Specifies which commands are exported from a namespace.
 The exported commands are those that can be later imported
 into another namespace using a \fBnamespace import\fR command.
@@ -136,15 +114,15 @@ but it may not include any namespace qualifiers.
 That is, the pattern can only specify commands
 in the current (exporting) namespace.
 Each \fIpattern\fR is appended onto the namespace's list of export patterns.
-If the \fB-clear\fR flag is given,
+If the \-\fBclear\fR flag is given,
 the namespace's export pattern list is reset to empty before any
 \fIpattern\fR arguments are appended.
-If no \fIpattern\fRs are given and the \fB-clear\fR flag isn't given,
+If no \fIpattern\fRs are given and the \-\fBclear\fR flag isn't given,
 this command returns the namespace's current export list.
 .TP
 \fBnamespace forget \fR?\fIpattern pattern ...\fR?
 Removes previously imported commands from a namespace.
-Each \fIpattern\fR is a \fIqualified name\fR like
+Each \fIpattern\fR is a qualified name such as
 \fBfoo::x\fR or \fBa::b::p*\fR.
 Qualified names contain \fB::\fRs and qualify a name
 with the name of one or more namespaces.
@@ -155,10 +133,10 @@ Glob characters may not appear in a namespace name.
 This command first finds the matching exported commands.
 It then checks whether any of those those commands
 were previously imported by the current namespace.
-If so, this command deletes the corresponding imported command. 
+If so, this command deletes the corresponding imported commands. 
 In effect, this un-does the action of a \fBnamespace import\fR command.
 .TP
-\fBnamespace import \fR?\fB-force\fR? ?\fIpattern\fR \fIpattern ...\fR?
+\fBnamespace import \fR?\fB\-force\fR? ?\fIpattern\fR \fIpattern ...\fR?
 Imports commands into a namespace.
 Each \fIpattern\fR is a qualified name like
 \fBfoo::x\fR or \fBa::p*\fR.
@@ -167,17 +145,24 @@ and may have glob-style special characters in the command name
 at the end of the qualified name.
 Glob characters may not appear in a namespace name.
 All the commands that match a \fIpattern\fR string
-and which are exported from their namespace
+and which are currently exported from their namespace
 are added to the current namespace.
 This is done by creating a new command in the current namespace
 that points to the exported command in its original namespace;
 when the new imported command is called, it invokes the exported command.
 This command normally returns an error
 if an imported command conflicts with an existing command.
-However, if the \fB-force\fR option is given,
+However, if the \-\fBforce\fR option is given,
 imported commands will silently replace existing commands.
+The \fBnamespace import\fR command has snapshot semantics:
+that is, only requested commands that are currently defined
+in the exporting namespace are imported.
+In other words, you can import only the commands that are in a namespace
+at the time when the \fBnamespace import\fR command is executed.
+If another command is defined and exported in this namespace later on,
+it will not be imported.
 .TP
-\fBnamespace inscope\fR \fIname arg\fR ?\fIarg ...\fR?
+\fBnamespace inscope\fR \fInamespace arg\fR ?\fIarg ...\fR?
 Executes a script in the context of a particular namespace.
 This command is not expected to be used directly by programmers;
 calls to it are generated implicitly when applications
@@ -195,9 +180,9 @@ is equivalent to
 This \fBlappend\fR semantics is important because many callback scripts
 are actually prefixes.
 .TP
-\fBnamespace origin name\fR
+\fBnamespace origin \fIcommand\fR
 Returns the fully-qualified name of the original command
-to which the imported command \fIname\fR refers.
+to which the imported command \fIcommand\fR refers.
 When a command is imported into a namespace,
 a new command is created in that namespace
 that points to the actual command in the exporting namespace.
@@ -206,13 +191,13 @@ If a command is imported into a sequence of namespaces
 just imports the command from the previous namespace,
 this command returns the fully-qualified name of the original command
 in the first namespace, \fIa\fR.
-If \fIname\fR does not refer to an imported command,
+If \fIcommand\fR does not refer to an imported command,
 the command's own fully-qualified name is returned.
 .TP
-\fBnamespace parent\fR ?\fIname\fR?
+\fBnamespace parent\fR ?\fInamespace\fR?
 Returns the fully-qualified name of the parent namespace
-for namespace \fIname\fR.
-If \fIname\fR is not specified,
+for namespace \fInamespace\fR.
+If \fInamespace\fR is not specified,
 the fully-qualified name of the current namespace's parent is returned.
 .TP
 \fBnamespace qualifiers\fR \fIstring\fR
@@ -236,7 +221,7 @@ This command is the complement of the \fBnamespace qualifiers\fR command.
 It does not check whether the namespace names are, in fact,
 the names of currently defined namespaces.
 .TP
-\fBnamespace which\fR ?\fB-command\fR? ?\fB-variable\fR? \fIname\fR
+\fBnamespace which\fR ?\-\fBcommand\fR? ?\-\fBvariable\fR? \fIname\fR
 Looks up \fIname\fR as either a command or variable
 and returns its fully-qualified name.
 For example, if \fIname\fR does not exist in the current namespace
@@ -274,7 +259,7 @@ the procedure \fBBump\fR.
 The commands and variables in this namespace are separate from
 other commands and variables in the same program.
 If there is a command named \fBBump\fR in the global namespace,
-for example, it will not interfere with the command \fBBump\fR
+for example, it will be different from the command \fBBump\fR
 in the \fBCounter\fR namespace.
 .PP
 Namespace variables resemble global variables in Tcl.
@@ -283,8 +268,8 @@ but can be accessed in a procedure via the \fBvariable\fR command,
 as shown in the example above.
 .PP
 Namespaces are dynamic.
-You can add and delete commands and variables at any time.
-So you can build up the contents of a
+You can add and delete commands and variables at any time,
+so you can build up the contents of a
 namespace over time using a series of \fBnamespace eval\fR commands.
 For example, the following series of commands has the same effect
 as the namespace definition shown above:
@@ -312,66 +297,37 @@ Namespaces can have other namespaces within them,
 so they nest hierarchically.
 A nested namespace is encapsulated inside its parent namespace
 and can not interfere with other namespaces.
-If namespaces are used to represent packages,
-this feature lets one package contain its own copy of another package. 
 
 .SH "QUALIFIED NAMES"
-Procedures execute in the context of the namespace that contains them.
-So in the following namespace,
-.CS
-\fBnamespace eval Counter {
-    namespace export Bump Reset
-    variable num 0
-
-    proc Bump {{by 1}} {
-        variable num
-        return [incr num $by]
-    }
-    proc Reset {} {
-        variable num
-        set num 0
-    }
-}\fR
-.CE
-procedures like \fBBump\fR and \fBReset\fR execute in the context of
-namespace \fBCounter\fR.
 .PP
-In this context, you can access the commands and variables that
-reside in the namespace using simple names.
-In the example above,
-we access the \fBnum\fR variable with the command \fBvariable num\fR.
-(We can't use \fBglobal num\fR since that would only
-look up \fBnum\fR in the global namespace.)
-We can access the \fBBump\fR and \fBReset\fR procedures in
-another procedure like this:
-.CS
-\fBnamespace eval Counter {
-    namespace export Rebump
-    proc Rebump {{by 1}} {
-        Reset
-        Bump $by
-    }
-}\fR
-.CE
-This is the real benefit of namespaces.
-The commands and variables in a namespace fit together as a module.
+Each namespace has a textual name such as
+\fBhistory\fR or \fB::safe::interp\fR.
+Since namespaces may nest,
+qualified names are used to refer to
+commands, variables, and child namespaces contained inside namespaces.
+Qualified names are similar to the hierarchical path names for
+Unix files or Tk widgets,
+except that \fB::\fR is used as the separator
+instead of \fB/\fR or \fB.\fR.
+The topmost or global namespace has the name ``'' (i.e., an empty string),
+although \fB::\fR is a synonym.
+As an example, the name \fB::safe::interp::create\fR
+refers to the command \fBcreate\fR in the namespace \fBinterp\fR
+that is a child of of namespace \fB::safe\fR,
+which in turn is a child of the global namespace \fB::\fR.
 .PP
 If you want to access commands and variables from another namespace,
 you must use some extra syntax.
 Names must be qualified by the namespace that contains them.
-The \fB::\fR string acts as a separator
-between the various qualifiers in a name.
 From the global namespace,
 we might access the \fBCounter\fR procedures like this:
 .CS
 \fBCounter::Bump 5
-Counter::Reset
-Counter::Rebump 10\fR
+Counter::Reset\fR
 .CE
 We could access the current count like this:
 .CS
-\fBputs "count = $Counter::num"
-set Counter::num 35\fR
+\fBputs "count = $Counter::num"\fR
 .CE
 When one namespace contains another, you may need more than one
 qualifier to reach its elements.
@@ -381,23 +337,6 @@ from the global namespace like this:
 .CS
 \fBFoo::Counter::Bump 3\fR
 .CE
-You can think of namespaces like directories in a file system.
-When you are sitting in a particular directory context,
-you can access files with simple names.
-But from another context, you must use a proper path name.
-A name like \fBFoo::Counter::Bump\fR
-is just like a file name \fBFoo/Counter/Bump\fR,
-except that we have used \fB::\fR instead of \fB/\fR as the separator.
-Just as the file system has a root directory \fB/\fR,
-all namespaces are rooted in the global namespace named \fB::\fR.
-So all names can be given with an absolute path that begins with \fB::\fR.
-For example, we can say:
-.CS
-\fB::Foo::Counter::Bump 3\fR
-.CE
-With this name, you can be sure that you'll get the \fBBump\fR procedure
-in the \fBCounter\fR namespace, in the \fBFoo\fR namespace, in the global
-namespace\-no matter what the current namespace context may be.
 .PP
 You can also use qualified names when you create and rename commands.
 For example, you could add a procedure to the \fBFoo\fR
@@ -412,8 +351,9 @@ And you could move the same procedure to another namespace like this:
 .PP
 There are a few remaining points about qualified names
 that we should cover.
-\fB::\fR is disallowed in both simple command and variable names except
-as a namespace separator.
+Namespaces have nonempty names except for the global namespace.
+\fB::\fR is disallowed in simple command, variable, and namespace names
+except as a namespace separator.
 Extra \fB:\fRs in a qualified name are ignored;
 that is, two or more \fB:\fRs are treated as a namespace separator.
 A trailing \fB::\fR in a qualified variable or command name
@@ -471,26 +411,14 @@ You can use the \fBnamespace which\fR command to clear up any question
 about name resolution.
 For example, the command:
 .CS
-\fBnamespace eval Foo::Debug {namespace which -variable traceLevel}\fR
+\fBnamespace eval Foo::Debug {namespace which \-variable traceLevel}\fR
 .CE
 returns \fB::traceLevel\fR.
 On the other hand, the command,
 .CS
-\fBnamespace eval Foo {namespace which -variable traceLevel}\fR
+\fBnamespace eval Foo {namespace which \-variable traceLevel}\fR
 .CE
 returns \fB::Foo::traceLevel\fR.
-.PP
-Although Tcl always follows the
-``look in the current then in the global namespace''
-rule for variables and commands,
-there is a question of how to resolve a
-qualified name like \fBfoo::bar::cmd\fR.
-A relative name like this might resolve to either
-\fB[namespace current]::foo::bar::cmd\fR
-or to \fB::foo::bar::cmd\fR.
-If \fBcmd\fR does not appear in \fB[namespace current]::foo::bar\fR
-but does appear in \fB::foo::bar\fR,
-Tcl assumes it refers to the latter command.
 .PP
 As mentioned above,
 namespace names are looked up differently
@@ -508,7 +436,7 @@ by the name resolution rule above,
 you can access the element.
 .PP
 You can access a namespace variable
-within a procedure in the same namespace
+from a procedure in the same namespace
 by using the \fBvariable\fR command.
 Much like the \fBglobal\fR command,
 this creates a local link to the namespace variable.
@@ -529,7 +457,7 @@ For example, suppose that all of the commands in a package
 like BLT are contained in a namespace called \fBBlt\fR.
 Then you might access these commands like this:
 .CS
-\fBBlt::graph .g -background red
+\fBBlt::graph .g \-background red
 Blt::table . .g 0,0\fR
 .CE
 If you use the \fBgraph\fR and \fBtable\fR commands frequently,
@@ -539,12 +467,16 @@ like this:
 .CS
 \fBnamespace import Blt::*\fR
 .CE
-This adds all commands from the \fBBlt\fR namespace into the current
-namespace context, so you can write code like this:
+This adds all exported commands from the \fBBlt\fR namespace
+into the current namespace context, so you can write code like this:
 .CS
-\fBgraph .g -background red
+\fBgraph .g \-background red
 table . .g 0,0\fR
 .CE
+The \fBnamespace import\fR command only imports commands
+from a namespace that that namespace exported
+with a \fBnamespace export\fR command.
+.PP
 Importing \fIevery\fR command from a namespace is generally
 a bad idea since you don't know what you will get.
 It is better to import just the specific commands you need.
@@ -555,23 +487,15 @@ For example, the command
 imports only the \fBgraph\fR and \fBtable\fR commands into the
 current context.
 .PP
-The \fBnamespace import\fR command has snapshot semantics:
-that is, only requested commands that are currently defined
-in the exporting namespace are imported.
-In other words, you can import only the commands that are in a namespace
-like \fBBlt\fR at the time when the \fBnamespace import\fR command is
-executed.  If another command appears in this namespace later on, it
-will not be imported.
-.PP
 If you try to import a command that already exists, you will get an
 error.  This prevents you from importing the same command from two
 different packages.  But from time to time (perhaps when debugging),
 you may want to get around this restriction.  You may want to
 reissue the \fBnamespace import\fR command to pick up new commands
 that have appeared in a namespace.  In that case, you can use the
-\fB-force\fR option, and existing commands will be silently overwritten:
+\fB\-force\fR option, and existing commands will be silently overwritten:
 .CS
-\fBnamespace import -force Blt::graph Blt::table\fR
+\fBnamespace import \-force Blt::graph Blt::table\fR
 .CE
 If for some reason, you want to stop using the imported commands,
 you can remove them with an \fBnamespace forget\fR command, like this:
@@ -631,30 +555,6 @@ The \fBnamespace export\fR command specifies what commands
 may be imported by other namespaces.
 If a \fBnamespace import\fR command specifies a command
 that is not exported, the command is not imported.
-
-.SH "SCOPED VALUES"
-.PP
-Extensions like Tk execute ordinary code fragments in the global
-namespace.
-A scoped command captures a script together with
-its namespace in a way that allows it to be executed properly later.
-It is needed, for example, to wrap up script
-when a Tk widget is used within a namespace.
-It is also needed for commands such as \fBafter\fR that
-execute a script at the global level at some future time.
-If a \fBafter\fR command is executed in a namespace,
-a \fBnamespace code\fR command is needed to ensure
-its script executes in the correct context:
-.CS
-\fBnamespace eval Foo {
-    variable v 123
-    proc report {msg} {
-        puts "$msg"
-    }
-
-    after 2000 [namespace code {report "Hello World, v = $v"}]
-}\fR
-.CE
 
 .SH "SEE ALSO"
 variable(n)

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) fCmd.test 1.30 97/06/23 17:29:36
+# SCCS: @(#) fCmd.test 1.31 97/08/05 11:42:09
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -468,7 +468,10 @@ test fCmd-6.16 {CopyRenameOneFile: TclpCopyRenameOneFile fails} {
     file mkdir td2
     list [catch {file rename -force td2 td1} msg] $msg
 } [subst {1 {error renaming "td2" to "[file join td1 td2]": file already exists}}]
-test fCmd-6.17 {CopyRenameOneFile: errno == EINVAL} {
+test fCmd-6.17 {CopyRenameOneFile: errno == EINVAL} {!$testConfig(win32s) || ($root == "C:/")} {
+    # Don't run this test under Win32s on a drive mounted from an NT 
+    # machine; it causes the NT machine to die.
+
     cleanup
     list [catch {file rename -force $root tf1} msg] $msg
 } [subst {1 {error renaming "$root" to "tf1": trying to rename a volume or move a directory into itself}}]

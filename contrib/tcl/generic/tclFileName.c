@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclFileName.c 1.28 97/05/14 13:23:48
+ * SCCS: @(#) tclFileName.c 1.31 97/08/05 15:23:04
  */
 
 #include "tclInt.h"
@@ -1088,7 +1088,9 @@ DoTildeSubst(interp, user, resultPtr)
 	}
 	Tcl_JoinPath(1, &dir, resultPtr);
     } else {
-	if (TclGetUserHome(user, resultPtr) == NULL) {
+	
+	/* lint, TclGetuserHome() always NULL under windows. */
+	if (TclGetUserHome(user, resultPtr) == NULL) {	
 	    if (interp) {
 		Tcl_ResetResult(interp);
 		Tcl_AppendResult(interp, "user \"", user, "\" doesn't exist",

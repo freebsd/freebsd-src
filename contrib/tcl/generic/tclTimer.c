@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclTimer.c 1.6 97/05/20 11:08:02
+ * SCCS: @(#) tclTimer.c 1.9 97/07/29 16:21:53
  */
 
 #include "tclInt.h"
@@ -692,7 +692,7 @@ TclServiceIdle()
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_AfterCmd --
+ * Tcl_AfterObjCmd --
  *
  *	This procedure is invoked to process the "after" Tcl command.
  *	See the user documentation for details on what it does.
@@ -708,13 +708,13 @@ TclServiceIdle()
 
 	/* ARGSUSED */
 int
-Tcl_AfterCmd(clientData, interp, argc, argv)
+Tcl_AfterObjCmd(clientData, interp, objc, objv)
     ClientData clientData;	/* Points to the "tclAfter" assocData for
 				 * this interpreter, or NULL if the assocData
 				 * hasn't been created yet.*/
     Tcl_Interp *interp;		/* Current interpreter. */
-    int argc;			/* Number of arguments. */
-    char **argv;		/* Argument strings. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     /*
      * The variable below is used to generate unique identifiers for
@@ -731,11 +731,15 @@ Tcl_AfterCmd(clientData, interp, argc, argv)
     AfterInfo *afterPtr;
     AfterAssocData *assocPtr = (AfterAssocData *) clientData;
     Tcl_CmdInfo cmdInfo;
-    size_t length;
-
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " option ?arg arg ...?\"", (char *) NULL);
+    int length;
+    char *arg;
+    int index, result;
+    static char *subCmds[] = {
+        "cancel", "idle", "info",
+        (char *) NULL};
+    
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "option ?arg arg ...?");
 	return TCL_ERROR;
     }
 
@@ -752,39 +756,44 @@ Tcl_AfterCmd(clientData, interp, argc, argv)
 	assocPtr->firstAfterPtr = NULL;
 	Tcl_SetAssocData(interp, "tclAfter", AfterCleanupProc,
 		(ClientData) assocPtr);
-	cmdInfo.proc = Tcl_AfterCmd;
-	cmdInfo.clientData = (ClientData) assocPtr;
-	cmdInfo.objProc = NULL;
-	cmdInfo.objClientData = (ClientData) NULL;
+	cmdInfo.proc = NULL;
+	cmdInfo.clientData = (ClientData) NULL;
+	cmdInfo.objProc = Tcl_AfterObjCmd;
+	cmdInfo.objClientData = (ClientData) assocPtr;
 	cmdInfo.deleteProc = NULL;
 	cmdInfo.deleteData = (ClientData) assocPtr;
-	Tcl_SetCommandInfo(interp, argv[0], &cmdInfo);
+	Tcl_SetCommandInfo(interp, Tcl_GetStringFromObj(objv[0], &length),
+		&cmdInfo);
     }
 
     /*
-     * Parse the command.
+     * First lets see if the command was passed a number as the first argument.
      */
-
-    length = strlen(argv[1]);
-    if (isdigit(UCHAR(argv[1][0]))) {
-	if (Tcl_GetInt(interp, argv[1], &ms) != TCL_OK) {
+    
+    arg = Tcl_GetStringFromObj(objv[1], &length);
+    if (isdigit(UCHAR(arg[0]))) {
+	if (Tcl_GetIntFromObj(interp, objv[1], &ms) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (ms < 0) {
 	    ms = 0;
 	}
-	if (argc == 2) {
+	if (objc == 2) {
 	    Tcl_Sleep(ms);
 	    return TCL_OK;
 	}
 	afterPtr = (AfterInfo *) ckalloc((unsigned) (sizeof(AfterInfo)));
 	afterPtr->assocPtr = assocPtr;
-	if (argc == 3) {
-	    afterPtr->command = (char *) ckalloc((unsigned)
-		    (strlen(argv[2]) + 1));
-	    strcpy(afterPtr->command, argv[2]);
+	if (objc == 3) {
+	    arg = Tcl_GetStringFromObj(objv[2], &length);
+	    afterPtr->command = (char *) ckalloc((unsigned) (length + 1));
+	    strcpy(afterPtr->command, arg);
 	} else {
-	    afterPtr->command = Tcl_Concat(argc-2, argv+2);
+	    Tcl_Obj *objPtr = Tcl_ConcatObj(objc-2, objv+2);
+	    arg = Tcl_GetStringFromObj(objPtr, &length);
+	    afterPtr->command = (char *) ckalloc((unsigned) (length + 1));
+	    strcpy(afterPtr->command, arg);
+	    Tcl_DecrRefCount(objPtr);
 	}
 	afterPtr->id = nextId;
 	nextId += 1;
@@ -793,95 +802,113 @@ Tcl_AfterCmd(clientData, interp, argc, argv)
 	afterPtr->nextPtr = assocPtr->firstAfterPtr;
 	assocPtr->firstAfterPtr = afterPtr;
 	sprintf(interp->result, "after#%d", afterPtr->id);
-    } else if (strncmp(argv[1], "cancel", length) == 0) {
-	char *arg;
+	return TCL_OK;
+    }
 
-	if (argc < 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " cancel id|command\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	if (argc == 3) {
-	    arg = argv[2];
-	} else {
-	    arg = Tcl_Concat(argc-2, argv+2);
-	}
-	for (afterPtr = assocPtr->firstAfterPtr; afterPtr != NULL;
-		afterPtr = afterPtr->nextPtr) {
-	    if (strcmp(afterPtr->command, arg) == 0) {
-		break;
-	    }
-	}
-	if (afterPtr == NULL) {
-	    afterPtr = GetAfterEvent(assocPtr, arg);
-	}
-	if (arg != argv[2]) {
-	    ckfree(arg);
-	}
-	if (afterPtr != NULL) {
-	    if (afterPtr->token != NULL) {
-		Tcl_DeleteTimerHandler(afterPtr->token);
-	    } else {
-		Tcl_CancelIdleCall(AfterProc, (ClientData) afterPtr);
-	    }
-	    FreeAfterPtr(afterPtr);
-	}
-    } else if ((strncmp(argv[1], "idle", length) == 0)
-	     && (length >= 2)) {
-	if (argc < 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " idle script script ...\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	afterPtr = (AfterInfo *) ckalloc((unsigned) (sizeof(AfterInfo)));
-	afterPtr->assocPtr = assocPtr;
-	if (argc == 3) {
-	    afterPtr->command = (char *) ckalloc((unsigned)
-		    (strlen(argv[2]) + 1));
-	    strcpy(afterPtr->command, argv[2]);
-	} else {
-	    afterPtr->command = Tcl_Concat(argc-2, argv+2);
-	}
-	afterPtr->id = nextId;
-	nextId += 1;
-	afterPtr->token = NULL;
-	afterPtr->nextPtr = assocPtr->firstAfterPtr;
-	assocPtr->firstAfterPtr = afterPtr;
-	Tcl_DoWhenIdle(AfterProc, (ClientData) afterPtr);
-	sprintf(interp->result, "after#%d", afterPtr->id);
-    } else if ((strncmp(argv[1], "info", length) == 0)
-	     && (length >= 2)) {
-	if (argc == 2) {
-	    char buffer[30];
-	    
-	    for (afterPtr = assocPtr->firstAfterPtr; afterPtr != NULL;
-		    afterPtr = afterPtr->nextPtr) {
-		if (assocPtr->interp == interp) {
-		    sprintf(buffer, "after#%d", afterPtr->id);
-		    Tcl_AppendElement(interp, buffer);
-		}
-	    }
-	    return TCL_OK;
-	}
-	if (argc != 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " info ?id?\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	afterPtr = GetAfterEvent(assocPtr, argv[2]);
-	if (afterPtr == NULL) {
-	    Tcl_AppendResult(interp, "event \"", argv[2],
-		    "\" doesn't exist", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	Tcl_AppendElement(interp, afterPtr->command);
-	Tcl_AppendElement(interp,
-		(afterPtr->token == NULL) ? "idle" : "timer");
-    } else {
-	Tcl_AppendResult(interp, "bad argument \"", argv[1],
+    /*
+     * If it's not a number it must be a subcommand.
+     */
+    result = Tcl_GetIndexFromObj(NULL, objv[1], subCmds, "option",
+            0, (int *) &index);
+    if (result != TCL_OK) {
+	Tcl_AppendResult(interp, "bad argument \"", arg,
 		"\": must be cancel, idle, info, or a number",
 		(char *) NULL);
 	return TCL_ERROR;
+    }
+
+    switch (index) {
+        case 0:		/* cancel */
+	    {
+		char *arg;
+		Tcl_Obj *objPtr = NULL;
+
+		if (objc < 3) {
+		    Tcl_WrongNumArgs(interp, 2, objv, "id|command");
+		    return TCL_ERROR;
+		}
+		if (objc == 3) {
+		    arg = Tcl_GetStringFromObj(objv[2], &length);
+		} else {
+		    objPtr = Tcl_ConcatObj(objc-2, objv+2);;
+		    arg = Tcl_GetStringFromObj(objPtr, &length);
+		}
+		for (afterPtr = assocPtr->firstAfterPtr; afterPtr != NULL;
+		     afterPtr = afterPtr->nextPtr) {
+		    if (strcmp(afterPtr->command, arg) == 0) {
+			break;
+		    }
+		}
+		if (afterPtr == NULL) {
+		    afterPtr = GetAfterEvent(assocPtr, arg);
+		}
+		if (objPtr != NULL) {
+		    Tcl_DecrRefCount(objPtr);
+		}
+		if (afterPtr != NULL) {
+		    if (afterPtr->token != NULL) {
+			Tcl_DeleteTimerHandler(afterPtr->token);
+		    } else {
+			Tcl_CancelIdleCall(AfterProc, (ClientData) afterPtr);
+		    }
+		    FreeAfterPtr(afterPtr);
+		}
+		break;
+	    }
+	case 1:		/* idle */
+	    if (objc < 3) {
+		Tcl_WrongNumArgs(interp, 2, objv, "script script ...");
+		return TCL_ERROR;
+	    }
+	    afterPtr = (AfterInfo *) ckalloc((unsigned) (sizeof(AfterInfo)));
+	    afterPtr->assocPtr = assocPtr;
+	    if (objc == 3) {
+		arg = Tcl_GetStringFromObj(objv[2], &length);
+		afterPtr->command = (char *) ckalloc((unsigned) length + 1);
+		strcpy(afterPtr->command, arg);
+	    } else {
+		Tcl_Obj *objPtr = Tcl_ConcatObj(objc-2, objv+2);;
+		arg = Tcl_GetStringFromObj(objPtr, &length);
+		afterPtr->command = (char *) ckalloc((unsigned) (length + 1));
+		strcpy(afterPtr->command, arg);
+		Tcl_DecrRefCount(objPtr);
+	    }
+	    afterPtr->id = nextId;
+	    nextId += 1;
+	    afterPtr->token = NULL;
+	    afterPtr->nextPtr = assocPtr->firstAfterPtr;
+	    assocPtr->firstAfterPtr = afterPtr;
+	    Tcl_DoWhenIdle(AfterProc, (ClientData) afterPtr);
+	    sprintf(interp->result, "after#%d", afterPtr->id);
+	    break;
+	case 2:		/* info */
+	    if (objc == 2) {
+		char buffer[30];
+	    
+		for (afterPtr = assocPtr->firstAfterPtr; afterPtr != NULL;
+		     afterPtr = afterPtr->nextPtr) {
+		    if (assocPtr->interp == interp) {
+			sprintf(buffer, "after#%d", afterPtr->id);
+			Tcl_AppendElement(interp, buffer);
+		    }
+		}
+		return TCL_OK;
+	    }
+	    if (objc != 3) {
+		Tcl_WrongNumArgs(interp, 2, objv, "?id?");
+		return TCL_ERROR;
+	    }
+	    arg = Tcl_GetStringFromObj(objv[2], &length);
+	    afterPtr = GetAfterEvent(assocPtr, arg);
+	    if (afterPtr == NULL) {
+		Tcl_AppendResult(interp, "event \"", arg,
+			"\" doesn't exist", (char *) NULL);
+		return TCL_ERROR;
+	    }
+	    Tcl_AppendElement(interp, afterPtr->command);
+	    Tcl_AppendElement(interp,
+		    (afterPtr->token == NULL) ? "idle" : "timer");
+	    break;
     }
     return TCL_OK;
 }

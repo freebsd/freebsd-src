@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) defs 1.52 97/06/24 11:13:36
+# SCCS: @(#) defs 1.60 97/08/13 18:10:19
 
 if ![info exists VERBOSE] {
     set VERBOSE 0
@@ -31,6 +31,7 @@ if {$tcl_platform(platform) == "unix"} {
     if {$user == "root"} {
         puts stdout "Warning: you're executing as root.  I'll have to"
         puts stdout "skip some of the tests, since they'll fail as root."
+	set testConfig(root) 1
     }
 }
 
@@ -69,6 +70,10 @@ if {[info commands memory] == ""} {
 #			where the configuration is well known.  The presence
 #			of the file "doAllTests" in this directory indicates
 #			that it is safe to run non-portable tests.
+#       knownBug -      The test is known to fail and the bug is not yet
+#                       fixed. The test will be run only if the file
+#                       "doBuggyTests" exists (intended for Tcl dev. group
+#                       internal use only).
 #	tempNotPc -	The inverse of pcOnly.  This flag is used to
 #			temporarily disable a test.
 #	tempNotMac -	The inverse of macOnly.  This flag is used to
@@ -111,7 +116,8 @@ if {$tcl_platform(platform) == "windows"} {
 set testConfig(unixOrPc) [expr $testConfig(unixOnly) || $testConfig(pcOnly)]
 set testConfig(macOrPc) [expr $testConfig(macOnly) || $testConfig(pcOnly)]
 set testConfig(macOrUnix) [expr $testConfig(macOnly) || $testConfig(unixOnly)]
-set testConfig(nonPortable)   [file exists doAllTests]
+set testConfig(nonPortable)	[expr [file exists doAllTests] || [file exists doAllTe]]
+set testConfig(knownBug) [expr [file exists doBuggyTests] || [file exists doBuggyT]]
 set testConfig(notIfCompiled) [file exists doAllCompilerTests]
 
 set testConfig(unix)	$testConfig(unixOnly)
@@ -126,7 +132,7 @@ set testConfig(win32s)	[expr {$tcl_platform(os) == "Win32s"}]
 # certain platforms, so that they can be reactivated again when the
 # underlying problem is fixed.
 
-set testConfig(winCrash) $testConfig(macOrUnix)
+set testConfig(pcCrash) $testConfig(macOrUnix)
 set testConfig(macCrash) $testConfig(unixOrPc)
 set testConfig(unixCrash) $testConfig(macOrPc)
 
@@ -221,9 +227,13 @@ if {($testConfig(unixExecs) == 1) && ($tcl_platform(platform) == "windows")} {
     }
 }    
 
-proc print_verbose {name description script code answer} {
+proc print_verbose {name description constraints script code answer} {
     puts stdout "\n"
-    puts stdout "==== $name $description"
+    if {[string length $constraints]} {
+	puts stdout "==== $name $description\t--- ($constraints) ---"
+    } else {
+	puts stdout "==== $name $description"
+    }
     puts stdout "==== Contents of test case:"
     puts stdout "$script"
     if {$code != 0} {
@@ -282,7 +292,7 @@ proc test {name description script answer args} {
     }
     set i [llength $args]
     if {$i == 0} {
-	# Empty body
+	set constraints {}
     } elseif {$i == 1} {
 	# "constraints" argument exists;  shuffle arguments down, then
 	# make sure that the constraints are satisfied.
@@ -294,7 +304,7 @@ proc test {name description script answer args} {
 	if {[string match {*[$\[]*} $constraints] != 0} {
 	    # full expression, e.g. {$foo > [info tclversion]}
 
-	    catch {set doTest [uplevel #0 expr $constraints]}
+	    catch {set doTest [uplevel #0 expr [list $constraints]]} msg
 	} elseif {[regexp {[^.a-zA-Z0-9 ]+} $constraints] != 0} {
 	    # something like {a || b} should be turned into 
 	    # $testConfig(a) || $testConfig(b).
@@ -325,18 +335,20 @@ proc test {name description script answer args} {
     memory tag $name
     set code [catch {uplevel $script} result]
     if {$code != 0} {
-	print_verbose $name $description $script \
+	print_verbose $name $description $constraints $script \
 		$code $result
     } elseif {[string compare $result $answer] == 0} then { 
 	if $VERBOSE then {
 	    if {$VERBOSE > 0} {
-		print_verbose $name $description $script \
+		print_verbose $name $description $constraints $script \
 		    $code $result
 	    }
-	    puts stdout "++++ $name PASSED"
+	    if {$VERBOSE != -2} {
+		puts stdout "++++ $name PASSED"
+	    }
 	}
     } else { 
-	print_verbose $name $description $script \
+	print_verbose $name $description $constraints $script \
 		$code $result
 	puts stdout "---- Result should have been:"
 	puts stdout "$answer"
@@ -397,10 +409,39 @@ proc viewFile {name} {
 
 # Locate tcltest executable
 
-set tcltest [list [info nameofexecutable]]
+set tcltest [info nameofexecutable]
+
 if {$tcltest == "{}"} {
     set tcltest {}
     puts "Unable to find tcltest executable, multiple process tests will fail."
 }
 
+if {$tcl_platform(os) != "Win32s"} {
+    # Don't even try running another copy of tcltest under win32s, or you 
+    # get an error dialog about multiple instances.
+
+    catch {
+	file delete -force tmp
+	set f [open tmp w]
+	puts $f {
+	    exit
+	}
+	close $f
+	set f [open "|[list $tcltest tmp]" r]
+	close $f
+	set testConfig(stdio) 1
+    }
+}
+
+if {($tcl_platform(platform) == "windows") && ($testConfig(stdio) == 0)} {
+    puts "(will skip tests that redirect stdio of exec'd 32-bit applications)"
+}
+
+catch {socket} msg
+set testConfig(socket) [expr {$msg != "sockets are not available on this system"}]
+
+if {$testConfig(socket) == 0} {
+    puts "(will skip tests that use sockets)"
+}
     
+        
