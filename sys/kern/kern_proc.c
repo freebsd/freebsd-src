@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.9 1994/10/10 01:00:45 phk Exp $
+ * $Id: kern_proc.c,v 1.10 1995/05/30 08:05:37 rgrimes Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/acct.h>
@@ -415,3 +417,146 @@ pgrpdump()
 	}
 }
 #endif /* debug */
+
+/*
+ * Fill in an eproc structure for the specified process.
+ */
+void
+fill_eproc(p, ep)
+	register struct proc *p;
+	register struct eproc *ep;
+{
+	register struct tty *tp;
+
+	bzero(ep, sizeof(*ep));
+
+	ep->e_paddr = p;
+	if (p->p_cred) {
+		ep->e_pcred = *p->p_cred;
+		if (p->p_ucred)
+			ep->e_ucred = *p->p_ucred;
+	}
+	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
+		register struct vmspace *vm = p->p_vmspace;
+
+#ifdef pmap_resident_count
+		ep->e_vm.vm_rssize = pmap_resident_count(&vm->vm_pmap); /*XXX*/
+#else
+		ep->e_vm.vm_rssize = vm->vm_rssize;
+#endif
+		ep->e_vm.vm_tsize = vm->vm_tsize;
+		ep->e_vm.vm_dsize = vm->vm_dsize;
+		ep->e_vm.vm_ssize = vm->vm_ssize;
+#ifndef sparc
+		ep->e_vm.vm_pmap = vm->vm_pmap;
+#endif
+	}
+	if (p->p_pptr)
+		ep->e_ppid = p->p_pptr->p_pid;
+	if (p->p_pgrp) {
+		ep->e_sess = p->p_pgrp->pg_session;
+		ep->e_pgid = p->p_pgrp->pg_id;
+		ep->e_jobc = p->p_pgrp->pg_jobc;
+	}
+	if ((p->p_flag & P_CONTROLT) &&
+	    (ep->e_sess != NULL) &&
+	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
+		ep->e_tdev = tp->t_dev;
+		ep->e_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
+		ep->e_tsess = tp->t_session;
+	} else
+		ep->e_tdev = NODEV;
+	if (ep->e_sess && ep->e_sess->s_ttyvp)
+		ep->e_flag = EPROC_CTTY;
+	if (SESS_LEADER(p))
+		ep->e_flag |= EPROC_SLEADER;
+	if (p->p_wmesg) {
+		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
+		ep->e_wmesg[WMESGLEN] = 0;
+	}
+}
+
+static int
+sysctl_kern_proc SYSCTL_HANDLER_ARGS
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int doingzomb;
+	struct eproc eproc;
+	int error = 0;
+
+	if (namelen != 2 && !(namelen == 1 && name[0] == KERN_PROC_ALL))
+		return (EINVAL);
+	if (!req->oldptr) {
+		/*
+		 * try over estimating by 5 procs
+		 */
+		error = SYSCTL_OUT(req, 0, sizeof (struct kinfo_proc) * 5);
+		if (error)
+			return (error);
+	}
+	p = (struct proc *)allproc;
+	doingzomb = 0;
+again:
+	for (; p != NULL; p = p->p_next) {
+		/*
+		 * Skip embryonic processes.
+		 */
+		if (p->p_stat == SIDL)
+			continue;
+		/*
+		 * TODO - make more efficient (see notes below).
+		 * do by session.
+		 */
+		switch (name[0]) {
+
+		case KERN_PROC_PID:
+			/* could do this with just a lookup */
+			if (p->p_pid != (pid_t)name[1])
+				continue;
+			break;
+
+		case KERN_PROC_PGRP:
+			/* could do this by traversing pgrp */
+			if (p->p_pgrp == NULL || p->p_pgrp->pg_id != (pid_t)name[1])
+				continue;
+			break;
+
+		case KERN_PROC_TTY:
+			if ((p->p_flag & P_CONTROLT) == 0 ||
+			    p->p_session == NULL ||
+			    p->p_session->s_ttyp == NULL ||
+			    p->p_session->s_ttyp->t_dev != (dev_t)name[1])
+				continue;
+			break;
+
+		case KERN_PROC_UID:
+			if (p->p_ucred == NULL || p->p_ucred->cr_uid != (uid_t)name[1])
+				continue;
+			break;
+
+		case KERN_PROC_RUID:
+			if (p->p_ucred == NULL || p->p_cred->p_ruid != (uid_t)name[1])
+				continue;
+			break;
+		}
+
+		fill_eproc(p, &eproc);
+		error = SYSCTL_OUT(req,(caddr_t)p, sizeof(struct proc));
+		if (error)
+			return (error);
+		error = SYSCTL_OUT(req,(caddr_t)&eproc, sizeof(eproc));
+		if (error)
+			return (error);
+	}
+	if (doingzomb == 0) {
+		p = zombproc;
+		doingzomb++;
+		goto again;
+	}
+	return (0);
+}
+
+SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD, 
+	sysctl_kern_proc, "Process table");
