@@ -53,6 +53,10 @@ adding
 .Ar link2
 to
 .Xr ifconfig 8 .
+.Pp
+Alternately, the driver can be compiled to support
+.Xr netgraph 4
+(see below).
 .Sh NUMBERING
 Only one line for each card is needed in the kernel configuration file.
 The first card's ports will be installed from ar0. The numbering of the
@@ -64,6 +68,17 @@ The card only supports IRQ 3, 5, 7, 10, 11, 12 and 15.
 .Pp
 The iomem area is a 16Kb block and must start at a 16Kb boundary.
 .Pp
+.Sh NETGRAPH SUPPORT
+If the kernel is compiled with
+.Dv "options NETGRAPH"
+then the sppp and Cisco HDLC modes are disabled (and the sppp driver
+is unneeded), and this driver functions as a
+.Xr netgraph 4
+node with a single hook named
+.Dv rawdata .
+Connecting to this hook enables the transmission of raw HDLC frames.
+The node will have the same name as the device, e.g.,
+.Dv ar0 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ar%d: Warning illegal interrupt %d."
@@ -74,6 +89,7 @@ The card cannot use the specified interrupt. Choose a different one.
 .It Pa /sys/i386/isa/ic/hd64570.h
 .It Pa /sys/i386/isa/if_arregs.h
 .It Pa /sys/i386/isa/if_ar.c
+.It Pa /sys/i386/isa/if_ar.h
 .It Pa /sys/pci/if_ar_p.c
 .El
 .Sh BUGS
@@ -88,7 +104,8 @@ Please report bugs to
 .Xr cx 4 ,
 .Xr sr 4 ,
 .Xr netintro 4 ,
-.Xr ifconfig 8
+.Xr netgraph 4 ,
+.Xr ifconfig 8 .
 .Sh HISTORY
 The
 .Nm ar
@@ -99,3 +116,5 @@ The
 .Nm ar
 device driver was written by
 .An John Hay Aq jhay@FreeBSD.org .
+Netgraph support was added by
+.An Julian Elischer Aq julian@FreeBSD.org .
