@@ -143,9 +143,12 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
 			goto done2;
-		error = holdsock(td->td_proc->p_fd, nfsdarg.sock, &fp);
-		if (error)
+		if ((error = fget(td, nfsdarg.sock, &fp)) != 0)
 			goto done2;
+		if (fp->f_type != DTYPE_SOCKET) {
+			fdrop(fp, td);
+			goto done2;
+		}
 		/*
 		 * Get the client address for connected sockets.
 		 */

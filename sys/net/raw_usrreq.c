@@ -142,8 +142,8 @@ raw_uabort(struct socket *so)
 	if (rp == 0)
 		return EINVAL;
 	raw_disconnect(rp);
-	sofree(so);
-	soisdisconnected(so);
+	sotryfree(so);
+	soisdisconnected(so);	/* XXX huh? called after the sofree()? */
 	return 0;
 }
 

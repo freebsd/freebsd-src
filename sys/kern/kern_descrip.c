@@ -60,6 +60,8 @@
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
 #include <sys/event.h>
+#include <sys/sx.h>
+#include <sys/socketvar.h>
 
 #include <machine/limits.h>
 
@@ -1423,6 +1425,51 @@ int
 fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
 {
 	return(_fgetvp(td, fd, vpp, FWRITE));
+}
+
+/*
+ * Like fget() but loads the underlying socket, or returns an error if
+ * the descriptor does not represent a socket.
+ *
+ * We bump the ref count on the returned socket.  XXX Also obtain the SX lock in
+ * the future.
+ */
+int
+fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	struct socket *so;
+
+	GIANT_REQUIRED;
+	fdp = td->td_proc->p_fd;
+	*spp = NULL;
+	if (fflagp)
+		*fflagp = 0;
+	if ((u_int)fd >= fdp->fd_nfiles)
+		return(EBADF);
+	if ((fp = fdp->fd_ofiles[fd]) == NULL)
+		return(EBADF);
+	if (fp->f_type != DTYPE_SOCKET)
+		return(ENOTSOCK);
+	if (fp->f_data == NULL)
+		return(EINVAL);
+	so = (struct socket *)fp->f_data;
+	if (fflagp)
+		*fflagp = fp->f_flag;
+	soref(so);
+	*spp = so;
+	return(0);
+}
+
+/*
+ * Drop the reference count on the the socket and XXX release the SX lock in
+ * the future.  The last reference closes the socket.
+ */
+void
+fputsock(struct socket *so)
+{
+	sorele(so);
 }
 
 int

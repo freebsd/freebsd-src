@@ -210,6 +210,8 @@ sodropablereq(head)
  * then we allocate a new structure, propoerly linked into the
  * data structure of the original socket, and return this.
  * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
+ *
+ * note: the ref count on the socket is 0 on return
  */
 struct socket *
 sonewconn(head, connstatus)
@@ -246,7 +248,7 @@ sonewconn3(head, connstatus, td)
 		so->so_cred = crhold(head->so_cred);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
-		sodealloc(so);
+		sotryfree(so);
 		return ((struct socket *)0);
 	}
 

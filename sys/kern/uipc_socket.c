@@ -91,6 +91,10 @@ SYSCTL_DECL(_kern_ipc);
 static int somaxconn = SOMAXCONN;
 SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW,
     &somaxconn, 0, "Maximum pending socket connection queue size");
+static int numopensockets;
+SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
+    &numopensockets, 0, "Number of open sockets");
+
 
 /*
  * Socket operation routines.
@@ -106,6 +110,8 @@ SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW,
  * Note that it would probably be better to allocate socket
  * and PCB at the same time, but I'm not convinced that all
  * the protocols can be easily modified to do this.
+ *
+ * soalloc() returns a socket with a ref count of 0.
  */
 struct socket *
 soalloc(waitok)
@@ -119,11 +125,17 @@ soalloc(waitok)
 		bzero(so, sizeof *so);
 		so->so_gencnt = ++so_gencnt;
 		so->so_zone = socket_zone;
+		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
+		++numopensockets;
 	}
 	return so;
 }
 
+/*
+ * socreate returns a socket with a ref count of 1.  The socket should be
+ * closed with soclose().
+ */
 int
 socreate(dom, aso, type, proto, td)
 	int dom;
@@ -162,10 +174,11 @@ socreate(dom, aso, type, proto, td)
 	so->so_type = type;
 	so->so_cred = crhold(td->td_proc->p_ucred);
 	so->so_proto = prp;
+	soref(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
 		so->so_state |= SS_NOFDREF;
-		sofree(so);
+		sorele(so);
 		return (error);
 	}
 	*aso = so;
@@ -186,11 +199,11 @@ sobind(so, nam, td)
 	return (error);
 }
 
-void
-sodealloc(so)
-	struct socket *so;
+static void
+sodealloc(struct socket *so)
 {
 
+	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
 	so->so_gencnt = ++so_gencnt;
 	if (so->so_rcv.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
@@ -210,7 +223,9 @@ sodealloc(so)
 	}
 #endif
 	crfree(so->so_cred);
+	/* sx_destroy(&so->so_sxlock); */
 	zfree(so->so_zone, so);
+	--numopensockets;
 }
 
 int
@@ -242,6 +257,8 @@ sofree(so)
 {
 	struct socket *head = so->so_head;
 
+	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
+
 	if (so->so_pcb || (so->so_state & SS_NOFDREF) == 0)
 		return;
 	if (head != NULL) {
@@ -272,6 +289,10 @@ sofree(so)
  * Close a socket on last file table reference removal.
  * Initiate disconnect if connected.
  * Free socket when disconnect complete.
+ *
+ * This function will sorele() the socket.  Note that soclose() may be
+ * called prior to the ref count reaching zero.  The actual socket
+ * structure will not be freed until the ref count reaches zero.
  */
 int
 soclose(so)
@@ -329,7 +350,7 @@ discard:
 	if (so->so_state & SS_NOFDREF)
 		panic("soclose: NOFDREF");
 	so->so_state |= SS_NOFDREF;
-	sofree(so);
+	sorele(so);
 	splx(s);
 	return (error);
 }
@@ -345,7 +366,7 @@ soabort(so)
 
 	error = (*so->so_proto->pr_usrreqs->pru_abort)(so);
 	if (error) {
-		sofree(so);
+		sotryfree(so);	/* note: does not decrement the ref count */
 		return error;
 	}
 	return (0);

@@ -491,8 +491,8 @@ idp_usrreq(so, req, m, nam, control)
 
 	case PRU_ABORT:
 		ns_pcbdetach(nsp);
-		sofree(so);
-		soisdisconnected(so);
+		sotryfree(so);
+		soisdisconnected(so);	/* XXX huh, called after sofree()? */
 		break;
 
 	case PRU_SOCKADDR:

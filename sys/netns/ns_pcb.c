@@ -232,7 +232,7 @@ ns_pcbdetach(nsp)
 	struct socket *so = nsp->nsp_socket;
 
 	so->so_pcb = 0;
-	sofree(so);
+	sotryfree(so);
 	if (nsp->nsp_route.ro_rt)
 		rtfree(nsp->nsp_route.ro_rt);
 	remque(nsp);
