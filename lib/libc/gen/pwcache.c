@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <grp.h>
-#include <string.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <string.h>
 #include <utmp.h>
 
 #define	NCACHE	64			/* power of 2 */

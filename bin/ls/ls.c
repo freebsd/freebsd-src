@@ -58,8 +58,10 @@ static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <grp.h>
 #include <limits.h>
 #include <locale.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
