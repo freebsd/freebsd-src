@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.110 1998/03/24 09:51:54 jkh Exp $
+ * $Id: config.c,v 1.111 1998/09/23 12:13:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -720,28 +720,6 @@ configPackages(dialogMenuItem *self)
     index_init(NULL, &plist);
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
-
-#ifdef NETCON_EXTENTIONS
-/* Load novell client/server package */
-int
-configNovell(dialogMenuItem *self)
-{
-    int ret = DITEM_SUCCESS;
-
-    if (!RunningAsInit) {
-	msgConfirm("This package can only be installed in multi-user mode.");
-	return ret;
-    }
-    if (variable_get(VAR_NOVELL))
-	variable_unset(VAR_NOVELL);
-    else {
-	ret = package_add(PACKAGE_NETCON);
-	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
-	    variable_set2(VAR_NOVELL, "YES");
-    }
-    return ret | DITEM_RESTORE;
-}
-#endif
 
 /* Load pcnfsd package */
 int
