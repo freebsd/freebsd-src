@@ -192,7 +192,7 @@ exec_linux_imgact(struct image_params *imgp)
 
 #ifdef DEBUG
 	printf("imgact: startaddr=%08lx, length=%08lx\n",
-	    (u_long)vmaddr, a_out->a_text + a_out->a_data);
+	    (u_long)vmaddr, (u_long)a_out->a_text + (u_long)a_out->a_data);
 #endif
 	/*
 	 * allow read/write of data
