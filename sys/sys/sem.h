@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.2 1994/09/17 13:24:28 davidg Exp $ */
+/* $Id: sem.h,v 1.4 1995/07/08 16:36:28 joerg Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -64,6 +64,12 @@ union semun {
 #define SETVAL	8	/* Set the value of semval to arg.val {ALTER} */
 #define SETALL	9	/* Set semvals from arg.array {ALTER} */
 
+/*
+ * Permissions
+ */
+#define SEM_A		0200	/* alter permission */
+#define SEM_R		0400	/* read permission */
+
 #ifdef KERNEL
 /*
  * Kernel implementation stuff
@@ -71,11 +77,6 @@ union semun {
 #define SEMVMX	32767		/* semaphore maximum value */
 #define SEMAEM	16384		/* adjust on exit max value */
 
-/*
- * Permissions
- */
-#define SEM_A		0200	/* alter permission */
-#define SEM_R		0400	/* read permission */
 
 /*
  * Undo structure (one per process)
