@@ -195,6 +195,7 @@ For the same reason SLIP has been removed from the mfsroot image as well.
 
 Support for AlphaServer 2100A ('Lynx') has been added.
 
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -274,13 +275,18 @@ Interoperability with other ssh2 clients/servers has been improved.  A
 new feature to limit the number of outstanding unauthenticated ssh
 connections in sshd has been added. [MERGED]
 
+OpenSSH has been upgraded to 2.3.0.  This version adds support for the
+Rijndael encryption algorithm.
+
+PAM support for OpenSSH has been added.
+
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 SRM does not support USB devices at the moment, so you must still use
 an AT keyboard if you are not using a serial console. [MERGED]
 
 The csh(1) shell has been replaced by tcsh(1), although it can still
-be run as csh(1). [MERGED]
+be run as csh(1). [MERGED]  tcsh has been updated to version 6.10.
 
 The more(1) command has been replaced by less(1), although it can still
 be run as more(1). [MERGED]
@@ -456,6 +462,26 @@ file(1) has been contribify-ed, and imported as version 3.33. [MERGED]
 stty(1) now has support for an "erase2" control character, so that
 both "delete" and "backspace" can be used to erase characters.
 
+The ibcs2(8), linux(8), osf1(8), and svr4(8) scripts, whose sole
+purpose was to load emulation kernel modules, have been removed.  The
+kernel module system will automatically load them as needed to fulfill
+dependencies.
+
+top(1) will now use the full width of its tty.
+
+groff(1) and its related utilities have been updated to FSF version
+1.16.1. [MERGED]
+
+A number of cleanups have been applied to the PCI subsystem.
+/usr/share/misc/pci_vendors now contains a vendor/device database,
+which can be used by pciconf(8).
+
+growfs(8), a utility for growing FFS filesystems, has been added.
+ffsinfo(8), a utility for dump all the meta-information of an existing
+filesystem, has also been added.
+
+indent(1) has gained some new formatting options. [MERGED]
+
 
 2. Supported Configurations
 ---------------------------
@@ -595,7 +621,7 @@ RealTek 8129/8139 Fast Ethernet NICs including the following:
   OvisLink LEF-8139TX
   Netronix Inc. EA-1210 NetEther 10/100
   KTX-9130TX 10/100 Fast Ethernet
-  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+  Accton "Cheetah" EN1207D (MPX 5030/5038; RealTek 8139 clone)
   SMC EZ Card 10/100 PCI 1211-TX
 
 Lite-On 82c168/82c169 PNIC Fast Ethernet NICs including the following:
