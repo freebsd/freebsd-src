@@ -404,8 +404,8 @@ fddi_input(ifp, m)
 	 * Set mbuf flags for bcast/mcast.
 	 */
 	if (fh->fddi_dhost[0] & 1) {
-		if (bcmp((caddr_t)ifp->if_broadcastaddr,
-			 (caddr_t)fh->fddi_dhost, FDDI_ADDR_LEN) == 0)
+		if (bcmp(ifp->if_broadcastaddr, fh->fddi_dhost,
+		    FDDI_ADDR_LEN) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
