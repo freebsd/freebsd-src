@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.33 1997/09/07 19:25:23 smp Exp smp $
+ *	$Id: smptests.h,v 1.26 1997/09/07 22:02:02 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -39,7 +39,7 @@
  */
 #define PUSHDOWN_LEVEL_1
 #define PUSHDOWN_LEVEL_2
-#define PUSHDOWN_LEVEL_3
+#define PUSHDOWN_LEVEL_3_NOT
 #define PUSHDOWN_LEVEL_4_NOT
 
 
