@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.15 1994/03/24 23:12:35 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.16 1994/03/30 02:17:47 davidg Exp $
  */
 
 #include "npx.h"
@@ -244,7 +244,7 @@ vm_bounce_alloc(bp)
 		return;
 
 	vastart = (vm_offset_t) bp->b_un.b_addr;
-	vaend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+	vaend = (vm_offset_t) bp->b_un.b_addr + bp->b_bufsize;
 
 	vapstart = i386_trunc_page(vastart);
 	vapend = i386_round_page(vaend);
@@ -338,8 +338,8 @@ vm_bounce_free(bp)
 	bouncekva = (vm_offset_t) bp->b_un.b_addr;
 
 	vastart = bouncekva;
-	vaend = bouncekva + bp->b_bcount;
-	bcount = bp->b_bcount;
+	vaend = bouncekva + bp->b_bufsize;
+	bcount = bp->b_bufsize;
 	
 	vapstart = i386_trunc_page(vastart);
 	vapend = i386_round_page(vaend);
@@ -577,22 +577,11 @@ kvtop(void *addr)
 extern vm_map_t phys_map;
 
 /*
- * Map an IO request into kernel virtual address space.  Requests fall into
- * one of five catagories:
+ * Map an IO request into kernel virtual address space.
  *
- *	B_PHYS|B_UAREA:	User u-area swap.
- *			Address is relative to start of u-area (p_addr).
- *	B_PHYS|B_PAGET:	User page table swap.
- *			Address is a kernel VA in usrpt (Usrptmap).
- *	B_PHYS|B_DIRTY:	Dirty page push.
- *			Address is a VA in proc2's address space.
- *	B_PHYS|B_PGIN:	Kernel pagein of user pages.
- *			Address is VA in user's address space.
- *	B_PHYS:		User "raw" IO request.
- *			Address is VA in user's address space.
- *
- * All requests are (re)mapped into kernel VA space via the useriomap
- * (a name with only slightly more meaning than "kernelmap")
+ * All requests are (re)mapped into kernel VA space.
+ * Notice that we use b_bufsize for the size of the buffer
+ * to be mapped.  b_bcount might be modified by the driver.
  */
 void
 vmapbuf(bp)
@@ -611,7 +600,7 @@ vmapbuf(bp)
 	addr = bp->b_saveaddr = bp->b_un.b_addr;
 	off = (int)addr & PGOFSET;
 	p = bp->b_proc;
-	npf = btoc(round_page(bp->b_bcount + off));
+	npf = btoc(round_page(bp->b_bufsize + off));
 	kva = kmem_alloc_wait(phys_map, ctob(npf));
 	bp->b_un.b_addr = (caddr_t) (kva + off);
 	while (npf--) {
@@ -639,7 +628,7 @@ vunmapbuf(bp)
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
-	npf = btoc(round_page(bp->b_bcount + ((int)addr & PGOFSET)));
+	npf = btoc(round_page(bp->b_bufsize + ((int)addr & PGOFSET)));
 	kva = (vm_offset_t)((int)addr & ~PGOFSET);
 	kmem_free_wakeup(phys_map, kva, ctob(npf));
 	bp->b_un.b_addr = bp->b_saveaddr;
