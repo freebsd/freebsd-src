@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.96 1999/04/24 19:59:20 peter Exp $
+ * $Id: pci.c,v 1.97 1999/05/06 22:05:38 peter Exp $
  *
  */
 
@@ -69,16 +69,6 @@
 static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
 static u_int32_t pci_generation = 0;
-
-/* return highest PCI bus number known to be used, or -1 if none */
-
-static int
-pci_bushigh(void)
-{
-	if (pci_cfgopen() == 0)
-		return (-1);
-	return (0);
-}
 
 /* return base address of memory or port map */
 
