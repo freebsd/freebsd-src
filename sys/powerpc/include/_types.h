@@ -57,13 +57,10 @@ typedef	unsigned long long	__uint64_t;
  * Standard type definitions.
  */
 typedef	__uint32_t	__clock_t;		/* clock()... */
-typedef	__int32_t	__clockid_t;		/* clock_gettime()... */
 typedef	__int32_t	__critical_t;
-typedef	__uint32_t	__fflags_t;		/* file flags */
 typedef	__int32_t	__intfptr_t;
 typedef	__int64_t	__intmax_t;
 typedef	__int32_t	__intptr_t;
-typedef	__uint32_t	__intrmask_t;
 typedef	__int32_t	__int_fast8_t;
 typedef	__int32_t	__int_fast16_t;
 typedef	__int32_t	__int_fast32_t;
@@ -72,16 +69,12 @@ typedef	__int8_t	__int_least8_t;
 typedef	__int16_t	__int_least16_t;
 typedef	__int32_t	__int_least32_t;
 typedef	__int64_t	__int_least64_t;
-typedef	__int64_t	__off_t;		/* file offset */
-typedef	__int32_t	__pid_t;		/* process [group] */
 typedef	__int32_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int32_t	__register_t;
 typedef	__int32_t	__segsz_t;		/* segment size (in pages) */
 typedef	__uint32_t	__size_t;		/* sizeof() */
-typedef	__uint32_t	__socklen_t;
 typedef	__int32_t	__ssize_t;		/* byte count or error */
 typedef	__int32_t	__time_t;		/* time()... */
-typedef	__int32_t	__timer_t;		/* timer_gettime()... */
 typedef	__uint32_t	__uintfptr_t;
 typedef	__uint64_t	__uintmax_t;
 typedef	__uint32_t	__uintptr_t;
@@ -102,36 +95,6 @@ typedef	__uint32_t	__vm_size_t;
 /*
  * Unusual type definitions.
  */
-/*
- * The rune type above is declared to be an ``int'' instead of the more natural
- * ``unsigned long'' or ``long''.  Two things are happening here.  It is not
- * unsigned so that EOF (-1) can be naturally assigned to it and used.  Also,
- * it looks like 10646 will be a 31 bit standard.  This means that if your
- * ints cannot hold 32 bits, you will be in trouble.  The reason an int was
- * chosen over a long is that the is*() and to*() routines take ints (says
- * ANSI C), but they use __ct_rune_t instead of int.  By changing it here, you
- * lose a bit of ANSI conformance, but your programs will still work.
- *
- * NOTE: rune_t is not covered by ANSI nor other standards, and should not
- * be instantiated outside of lib/libc/locale.  Use wchar_t.  wchar_t and
- * rune_t must be the same type.  Also wint_t must be no narrower than
- * wchar_t, and should also be able to hold all members of the largest
- * character set plus one extra value (WEOF). wint_t must be at least 16 bits.
- */
-typedef	__int32_t		__ct_rune_t;
-typedef	__int32_t		__rune_t;
-typedef	__int32_t		__wchar_t;
-typedef	__int32_t		__wint_t;
-
-/*
- * mbstate_t is an opaque object to keep conversion state, during multibyte
- * stream conversions.  The content must not be referenced by user programs.
- */
-typedef union {
-	char		__mbstate8[128];
-	__int64_t	_mbstateL;		/* for alignment */
-} __mbstate_t;
-
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 typedef __builtin_va_list	__va_list;	/* internally known to gcc */
 #else
