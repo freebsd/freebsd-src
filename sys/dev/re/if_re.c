@@ -104,8 +104,8 @@ __FBSDID("$FreeBSD$");
  * interrupt moderation using the timer interrupt registers, which
  * significantly reduces TX interrupt load. There is also support
  * for jumbo frames, however the 8169/8169S/8110S can not transmit
- * jumbo frames larger than 7.5K, so the max MTU possible with this
- * driver is 7500 bytes.
+ * jumbo frames larger than 7440, so the max MTU possible with this
+ * driver is 7422 bytes.
  */
 
 #include <sys/param.h>
@@ -203,6 +203,10 @@ static int re_allocmem		(device_t, struct rl_softc *);
 static int re_newbuf		(struct rl_softc *, int, struct mbuf *);
 static int re_rx_list_init	(struct rl_softc *);
 static int re_tx_list_init	(struct rl_softc *);
+#ifdef RE_FIXUP_RX
+static __inline void re_fixup_rx
+				(struct mbuf *);
+#endif
 static void re_rxeof		(struct rl_softc *);
 static void re_txeof		(struct rl_softc *);
 #ifdef DEVICE_POLLING
@@ -1371,14 +1375,20 @@ re_newbuf(sc, idx, m)
 	} else
 		m->m_data = m->m_ext.ext_buf;
 
-	/*
-	 * Initialize mbuf length fields and fixup
-	 * alignment so that the frame payload is
-	 * longword aligned.
-	 */
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
-	m_adj(m, ETHER_ALIGN);
-
+#ifdef RE_FIXUP_RX
+	/*
+	 * This is part of an evil trick to deal with non-x86 platforms.
+	 * The RealTek chip requires RX buffers to be aligned on 64-bit
+	 * boundaries, but that will hose non-x86 machines. To get around
+	 * this, we leave some empty space at the start of each buffer
+	 * and for non-x86 hosts, we copy the buffer back six bytes
+	 * to achieve word alignment. This is slightly more efficient
+	 * than allocating a new buffer, copying the contents, and
+	 * discarding the old buffer.
+	 */
+	m_adj(m, RE_ETHER_ALIGN);
+#endif
 	arg.sc = sc;
 	arg.rl_idx = idx;
 	arg.rl_maxsegs = 1;
@@ -1403,6 +1413,26 @@ re_newbuf(sc, idx, m)
 
 	return (0);
 }
+
+#ifdef RE_FIXUP_RX
+static __inline void
+re_fixup_rx(m)
+	struct mbuf		*m;
+{
+	int                     i;
+	uint16_t                *src, *dst;
+
+	src = mtod(m, uint16_t *);
+	dst = src - (RE_ETHER_ALIGN - ETHER_ALIGN) / sizeof *src;
+
+	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
+		*dst++ = *src++;
+
+	m->m_data -= RE_ETHER_ALIGN - ETHER_ALIGN;
+
+	return;
+}
+#endif
 
 static int
 re_tx_list_init(sc)
@@ -1478,7 +1508,6 @@ re_rxeof(sc)
 	    BUS_DMASYNC_POSTREAD);
 
 	while (!RL_OWN(&sc->rl_ldata.rl_rx_list[i])) {
-
 		cur_rx = &sc->rl_ldata.rl_rx_list[i];
 		m = sc->rl_ldata.rl_rx_mbuf[i];
 		total_len = RL_RXBYTES(cur_rx);
@@ -1494,7 +1523,7 @@ re_rxeof(sc)
 		    sc->rl_ldata.rl_rx_dmamap[i]);
 
 		if (!(rxstat & RL_RDESC_STAT_EOF)) {
-			m->m_len = MCLBYTES - ETHER_ALIGN;
+			m->m_len = RE_RX_DESC_BUFLEN;
 			if (sc->rl_head == NULL)
 				sc->rl_head = sc->rl_tail = m;
 			else {
@@ -1526,7 +1555,12 @@ re_rxeof(sc)
 		if (sc->rl_type == RL_8169)
 			rxstat >>= 1;
 
-		if (rxstat & RL_RDESC_STAT_RXERRSUM) {
+		/*
+		 * if total_len > 2^13-1, both _RXERRSUM and _GIANT will be
+		 * set, but if CRC is clear, it will still be a valid frame.
+		 */
+		if (rxstat & RL_RDESC_STAT_RXERRSUM && !(total_len > 8191 &&
+		    (rxstat & RL_RDESC_STAT_ERRS) == RL_RDESC_STAT_GIANT)) {
 			ifp->if_ierrors++;
 			/*
 			 * If this is part of a multi-fragment packet,
@@ -1560,7 +1594,9 @@ re_rxeof(sc)
 		RL_DESC_INC(i);
 
 		if (sc->rl_head != NULL) {
-			m->m_len = total_len % (MCLBYTES - ETHER_ALIGN);
+			m->m_len = total_len % RE_RX_DESC_BUFLEN;
+			if (m->m_len == 0)
+				m->m_len = RE_RX_DESC_BUFLEN;
 			/*
 			 * Special case: if there's 4 bytes or less
 			 * in this buffer, the mbuf can be discarded:
@@ -1583,6 +1619,9 @@ re_rxeof(sc)
 			m->m_pkthdr.len = m->m_len =
 			    (total_len - ETHER_CRC_LEN);
 
+#ifdef RE_FIXUP_RX
+		re_fixup_rx(m);
+#endif
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 
@@ -1858,8 +1897,8 @@ re_encap(sc, m_head, idx)
 	/*
 	 * Set up checksum offload. Note: checksum offload bits must
 	 * appear in all descriptors of a multi-descriptor transmit
-	 * attempt. (This is according to testing done with an 8169
-	 * chip. I'm not sure if this is a requirement or a bug.)
+	 * attempt. This is according to testing done with an 8169
+	 * chip. This is a requirement.
 	 */
 
 	arg.rl_flags = 0;
@@ -1913,7 +1952,7 @@ re_encap(sc, m_head, idx)
 	/*
 	 * Insure that the map for this transmission
 	 * is placed at the array index of the last descriptor
-	 * in this chain.
+	 * in this chain.  (Swap last and first dmamaps.)
 	 */
 	sc->rl_ldata.rl_tx_dmamap[*idx] =
 	    sc->rl_ldata.rl_tx_dmamap[arg.rl_idx];
@@ -2177,7 +2216,6 @@ re_init_locked(sc)
 	 * reloaded on each transmit. This gives us TX interrupt
 	 * moderation, which dramatically improves TX frame rate.
 	 */
-
 	if (sc->rl_type == RL_8169)
 		CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x800);
 	else
