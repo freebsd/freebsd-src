@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.17 1998/02/24 02:01:11 bde Exp $
+ * $Id: signalvar.h,v 1.18 1998/03/28 10:33:23 bde Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -153,10 +153,13 @@ static int sigprop[NSIG + 1] = {
 struct pgrp;
 struct proc;
 
+extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
+
 /*
  * Machine-independent functions:
  */
 void	execsigs __P((struct proc *p));
+char	*expand_name __P((const char*, int, int));
 void	gsignal __P((int pgid, int sig));
 int	issignal __P((struct proc *p));
 void	killproc __P((struct proc *p, char *why));

@@ -23,19 +23,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.40 1998/02/20 13:11:48 bde Exp $
+ *	$Id: imgact_aout.c,v 1.41 1998/07/15 05:00:26 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/acct.h>
 #include <sys/resourcevar.h>
 #include <sys/exec.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/syscall.h>
 #include <sys/vnode.h>
 #include <sys/systm.h>
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -44,8 +53,27 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <sys/user.h>
 
 static int	exec_aout_imgact __P((struct image_params *imgp));
+
+struct sysentvec aout_sysvec = {
+	SYS_MAXSYSCALL,
+	sysent,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	sendsig,
+	sigcode,
+	&szsigcode,
+	0,
+	"FreeBSD a.out",
+	aout_coredump
+};
 
 static int
 exec_aout_imgact(imgp)
@@ -201,6 +229,72 @@ exec_aout_imgact(imgp)
 	imgp->vp->v_flag |= VTEXT;
 
 	return (0);
+}
+
+/*
+ * Dump core, into a file named "progname.core", unless the process was
+ * setuid/setgid.
+ */
+int
+aout_coredump(p)
+	register struct proc *p;
+{
+	register struct vnode *vp;
+	register struct ucred *cred = p->p_cred->pc_ucred;
+	register struct vmspace *vm = p->p_vmspace;
+	struct nameidata nd;
+	struct vattr vattr;
+	int error, error1;
+	char *name;			/* name of corefile */
+
+	STOPEVENT(p, S_CORE, 0);
+
+	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
+		return (EFAULT);
+	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
+	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
+		return (EFAULT);
+	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	if (name == NULL)
+		return (EFAULT);	/* XXX -- not the best error */
+	
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
+	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
+	free(name, M_TEMP);
+	if (error)
+		return (error);
+	vp = nd.ni_vp;
+
+	/* Don't dump to non-regular files or files with links. */
+	if (vp->v_type != VREG ||
+	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
+		error = EFAULT;
+		goto out;
+	}
+	VATTR_NULL(&vattr);
+	vattr.va_size = 0;
+	VOP_LEASE(vp, p, cred, LEASE_WRITE);
+	VOP_SETATTR(vp, &vattr, cred, p);
+	p->p_acflag |= ACORE;
+	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
+	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
+	error = cpu_coredump(p, vp, cred);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
+		    (int)ctob(vm->vm_dsize), (off_t)ctob(UPAGES), UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp,
+		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    round_page(ctob(vm->vm_ssize)),
+		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+out:
+	VOP_UNLOCK(vp, 0, p);
+	error1 = vn_close(vp, FWRITE, cred, p);
+	if (error == 0)
+		error = error1;
+	return (error);
 }
 
 /*
