@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.2 1995/08/30 17:11:54 ache Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.4 1995/10/22 14:10:08 jkh Exp $
  |
  */
 
@@ -62,7 +62,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.2.4  $Revision: 1.2 $";
+char *version = "@(#) ee, version 1.2.4  $Revision: 1.4 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -3799,6 +3799,8 @@ ee_init()	/* check for init file and read it if it exists	*/
 	int temp_int;
 
 	string = getenv("HOME");
+	if (!string)
+	    string = "/root"; /* Set to reasonable default so we don't crash */
 	str1 = home = malloc(strlen(string)+10);
 	strcpy(home, string);
 	strcat(home, "/.init.ee");

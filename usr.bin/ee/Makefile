@@ -7,7 +7,7 @@ LINKS=	${BINDIR}/ee ${BINDIR}/ree
 DPADD=	${LIBNCURSES} ${LIBMYTINFO}
 LDADD=	-lncurses -lmytinfo
 
-LANGS=	en_US.ISO_8859-1 fr_FR.ISO_8859-1
+LANGS=	en_US.ISO_8859-1 fr_FR.ISO_8859-1 de_DE.ISO_8859-1
 
 afterinstall:
 	@for i in ${LANGS}; do \
