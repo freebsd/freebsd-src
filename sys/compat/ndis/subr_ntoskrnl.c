@@ -1530,7 +1530,9 @@ ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+#ifdef __i386__
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
+#endif
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
@@ -1580,7 +1582,9 @@ ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+#ifdef __i386__
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
+#endif
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
