@@ -1,11 +1,25 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		32
+#define	patchlevel		33
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.32 2000/08/05 18:24:18 christos Exp $
+ * $Id: patchlevel.h,v 1.33 2000/11/13 00:30:50 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.33  2000/11/13 00:30:50  christos
+ * - wordperfect magic fix: freebsd pr 9388
+ * - more msdos fixes from freebsd pr's 20131 and 20812
+ * - sas and spss magic [Bruce Foster]
+ * - mkinstalldirs [John Fremlin]
+ * - sgi opengl fixes [Michael Pruett]
+ * - netbsd magic fixes [Ignatios Souvatzis]
+ * - audio additions [Michael Pruett]
+ * - fix problem with non ansi RCSID [Andreas Ley]
+ * - oggs magic [Felix von Leitner]
+ * - gmon magic [Eugen Dedu]
+ * - TNEF magic [Joomy]
+ * - netpbm magic and misc other image stuff [Bryan Henderson]
+ *
  * Revision 1.32  2000/08/05 18:24:18  christos
  * Correct indianness detection in elf (Charles Hannum)
  * FreeBSD elf core support (Guy Harris)

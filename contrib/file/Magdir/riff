@@ -91,3 +91,5 @@
 # Notation Interchange File Format (big-endian only)
 >8	string		NIFF		\b, Notation Interchange File Format
 
+# SoundFont 2 <mpruett@sgi.com>
+>8	string		sfbk		SoundFont 2

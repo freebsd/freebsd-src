@@ -46,7 +46,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: ascmagic.c,v 1.28 2000/08/05 17:36:47 christos Exp $")
+FILE_RCSID("@(#)$Id: ascmagic.c,v 1.29 2000/08/05 19:00:11 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -69,11 +69,9 @@ ascmagic(buf, nbytes)
 	int nbytes;	/* size actually read */
 {
 	int i;
-	unsigned char *s;
 	char nbuf[HOWMANY+1];		/* one extra for terminating '\0' */
 	unichar ubuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	int ulen;
-	char *token;
 	struct names *p;
 
 	char *code = NULL;

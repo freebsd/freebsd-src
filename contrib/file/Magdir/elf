@@ -12,12 +12,31 @@
 0	string		\177ELF		ELF
 >4	byte		0		invalid class
 >4	byte		1		32-bit
-# only for MIPS R3000_BE
+# only for MIPS
 >>18	beshort		8
+>>18	beshort		10
 >>>36   belong          &0x20           N32
 >4	byte		2		64-bit
 >5	byte		0		invalid byte order
 >5	byte		1		LSB
+# only for MIPS R3000_BE
+>>18    leshort		8
+# only for 32-bit
+>>>4	byte		1
+>>>>36  lelong&0xf0000000       0x00000000      mips-1
+>>>>36  lelong&0xf0000000       0x10000000      mips-2
+>>>>36  lelong&0xf0000000       0x20000000      mips-3
+>>>>36  lelong&0xf0000000       0x30000000      mips-4
+>>>>36  lelong&0xf0000000       0x40000000      mips-5
+>>>>36  lelong&0xf0000000       0x50000000      mips-6
+# only for 64-bit
+>>>4	byte		2
+>>>>48  lelong&0xf0000000       0x00000000      mips-1
+>>>>48  lelong&0xf0000000       0x10000000      mips-2
+>>>>48  lelong&0xf0000000       0x20000000      mips-3
+>>>>48  lelong&0xf0000000       0x30000000      mips-4
+>>>>48  lelong&0xf0000000       0x40000000      mips-5
+>>>>48  lelong&0xf0000000       0x50000000      mips-6
 >>16	leshort		0		no file type,
 >>16	leshort		1		relocatable,
 >>16	leshort		2		executable,
@@ -36,7 +55,8 @@
 >>18	leshort		5		Motorola 88000 - invalid byte order,
 >>18	leshort		6		Intel 80486,
 >>18	leshort		7		Intel 80860,
->>18	leshort		8		MIPS R3000_BE - invalid byte order,
+# "officially" big endian, but binutils bfd only emits magic #8 for MIPS.
+>>18	leshort		8		MIPS R3000_LE [bfd bug],
 >>18	leshort		9		Amdahl - invalid byte order,
 >>18	leshort		10		MIPS R3000_LE,
 >>18	leshort		11		RS6000 - invalid byte order,
