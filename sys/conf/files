@@ -100,6 +100,10 @@ ddb/db_trap.c		optional ddb
 ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
+dev/aac/aac.c		optional aac
+#dev/aac/aac_debug.c	optional aac
+dev/aac/aac_disk.c	optional aac
+dev/aac/aac_pci.c	optional aac pci
 dev/advansys/adv_eisa.c	optional adv eisa
 dev/advansys/adv_pci.c	optional adv pci
 dev/advansys/advansys.c	optional adv
