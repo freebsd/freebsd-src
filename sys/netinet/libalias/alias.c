@@ -769,26 +769,20 @@ UdpAliasIn(struct ip *pip)
         alias_port = ud->uh_dport;
         ud->uh_dport = GetOriginalPort(link);
 
+/* Special processing for IP encoding protocols */
+	if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+	    AliasHandleCUSeeMeIn(pip, original_address);
 /* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-		if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-         || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER )
-		{
-            r = AliasHandleUdpNbt(pip, link, &original_address, ud->uh_dport);
-		} else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-         || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER )
-		{
-            r = AliasHandleUdpNbtNS(pip, link, 
-								&alias_address,
-								&alias_port,
-								&original_address, 
-								&ud->uh_dport );
-		}
-
-        if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-            AliasHandleCUSeeMeIn(pip, original_address);
+	else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
+	      || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
+	    r = AliasHandleUdpNbt(pip, link, &original_address, ud->uh_dport);
+	else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
+	      || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
+	    r = AliasHandleUdpNbtNS(pip, link, &alias_address, &alias_port,
+				    &original_address, &ud->uh_dport);
 
 /* If UDP checksum is not zero, then adjust since destination port */
-/* is being unaliased and destination port is being altered.       */
+/* is being unaliased and destination address is being altered.    */
         if (ud->uh_sum != 0)
         {
             accumulate  = alias_port;
@@ -843,23 +837,17 @@ UdpAliasOut(struct ip *pip)
         alias_address = GetAliasAddress(link);
         alias_port = GetAliasPort(link);
 
-        if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-            AliasHandleCUSeeMeOut(pip, link);
-
+/* Special processing for IP encoding protocols */
+	if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+	    AliasHandleCUSeeMeOut(pip, link);
 /* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-		if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-         || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER )
-		{
-            AliasHandleUdpNbt(pip, link, &alias_address, alias_port);
-		} else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-         || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER )
-		{
-            AliasHandleUdpNbtNS(pip, link,
-								&pip->ip_src,
-								&ud->uh_sport,
-							    &alias_address,
-							 	&alias_port); 
-		}
+	else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
+	      || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
+	    AliasHandleUdpNbt(pip, link, &alias_address, alias_port);
+	else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
+	      || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
+	    AliasHandleUdpNbtNS(pip, link, &pip->ip_src, &ud->uh_sport,
+				&alias_address, &alias_port);
 
 /* If UDP checksum is not zero, adjust since source port is */
 /* being aliased and source address is being altered        */
