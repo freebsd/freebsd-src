@@ -979,7 +979,6 @@ static int
 bge_chipinit(sc)
 	struct bge_softc *sc;
 {
-	u_int32_t		cachesize;
 	int			i;
 
 	/* Set endianness before we access any non-PCI registers. */
@@ -1037,53 +1036,11 @@ bge_chipinit(sc)
 	    BGE_MODECTL_NO_RX_CRC|BGE_MODECTL_TX_NO_PHDR_CSUM|
 	    BGE_MODECTL_RX_NO_PHDR_CSUM);
 
-	/* Get cache line size. */
-	cachesize = pci_read_config(sc->bge_dev, BGE_PCI_CACHESZ, 1);
-
 	/*
-	 * Avoid violating PCI spec on certain chip revs.
+	 * Disable memory write invalidate.  Apparently it is not supported
+	 * properly by these devices.
 	 */
-	if (pci_read_config(sc->bge_dev, BGE_PCI_CMD, 4) & PCIM_CMD_MWIEN) {
-		switch(cachesize) {
-		case 1:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_16BYTES, 4);
-			break;
-		case 2:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_32BYTES, 4);
-			break;
-		case 4:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_64BYTES, 4);
-			break;
-		case 8:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_128BYTES, 4);
-			break;
-		case 16:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_256BYTES, 4);
-			break;
-		case 32:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_512BYTES, 4);
-			break;
-		case 64:
-			PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-			    BGE_PCI_WRITE_BNDRY_1024BYTES, 4);
-			break;
-		default:
-		/* Disable PCI memory write and invalidate. */
-			if (bootverbose)
-				printf("bge%d: cache line size %d not "
-				    "supported; disabling PCI MWI\n",
-				    sc->bge_unit, cachesize);
-			PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
-			    PCIM_CMD_MWIEN, 4);
-			break;
-		}
-	}
+	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
 
 #ifdef __brokenalpha__
 	/*
