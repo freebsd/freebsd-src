@@ -396,7 +396,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case AMR_IO_COMMAND:
-	debug(1, "AMR_IO_COMMAND");
+	debug(1, "AMR_IO_COMMAND  0x%x", au->au_cmd[0]);
 	/* handle inbound data buffer */
 	if (au->au_length != 0) {
 	    if ((dp = malloc(au->au_length, M_DEVBUF, M_WAITOK)) == NULL) {
@@ -405,6 +405,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    }
 	    if ((error = copyin(au->au_buffer, dp, au->au_length)) != 0)
 		break;
+	    debug(2, "copyin %ld bytes from %p -> %p", au->au_length, au->au_buffer, dp);
 	}
 
 	if ((ac = amr_alloccmd(sc)) == NULL) {
@@ -465,6 +466,10 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		ac->ac_flags |= AMR_CMD_DATAIN;
 	    if (au->au_direction & AMR_IO_WRITE)
 		ac->ac_flags |= AMR_CMD_DATAOUT;
+
+	    /* XXX debugging */
+	    if ((au->au_direction & AMR_IO_READ) && !(au->au_direction & AMR_IO_WRITE))
+		memset(dp, 0xa5, au->au_length);
 	}
 
 	/* run the command */
@@ -474,6 +479,9 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	/* copy out data and set status */
 	if (au->au_length != 0)
 	    error = copyout(dp, au->au_buffer, au->au_length);
+	debug(2, "copyout %ld bytes from %p -> %p", au->au_length, dp, au->au_buffer);
+	if (dp != NULL)
+	    debug(2, "%16D", dp, " ");
 	au->au_status = ac->ac_status;
 	break;
 	
@@ -832,7 +840,6 @@ out:
 static int
 amr_wait_command(struct amr_command *ac)
 {
-    struct amr_softc	*sc = ac->ac_sc;
     int			error, count;
     
     debug_called(1);
@@ -938,6 +945,7 @@ amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     struct amr_softc	*sc = ac->ac_sc;
     struct amr_sgentry	*sg;
     int			i;
+    u_int8_t		*sgc;
 
     debug_called(3);
 
@@ -947,12 +955,19 @@ amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     /* save data physical address */
     ac->ac_dataphys = segs[0].ds_addr;
 
+    /* for AMR_CMD_CONFIG the s/g count goes elsewhere */
+    if (ac->ac_mailbox.mb_command == AMR_CMD_CONFIG) {
+	sgc = &(((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_param);
+    } else {
+	sgc = &ac->ac_mailbox.mb_nsgelem;
+    }
+
     /* decide whether we need to populate the s/g table */
     if (nsegments < 2) {
-	ac->ac_mailbox.mb_nsgelem = 0;
+	*sgc = 0;
 	ac->ac_mailbox.mb_physaddr = ac->ac_dataphys;
     } else {
-	ac->ac_mailbox.mb_nsgelem = nsegments;
+	*sgc = nsegments;
 	ac->ac_mailbox.mb_physaddr = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
 	for (i = 0; i < nsegments; i++, sg++) {
 	    sg->sg_addr = segs[i].ds_addr;
@@ -980,14 +995,14 @@ amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     /* save pointer to passthrough in command   XXX is this already done above? */
     ac->ac_mailbox.mb_physaddr = ac->ac_dataphys;
 
-    debug(2, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
+    debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
 	   ap->ap_no_sg_elements, ap->ap_data_transfer_address, ac->ac_dataphys);
     
     /* populate s/g table (overwrites previous call which mapped the passthrough) */
     for (i = 0; i < nsegments; i++, sg++) {
 	sg->sg_addr = segs[i].ds_addr;
 	sg->sg_count = segs[i].ds_len;
-	debug(2, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
     }
 }
 
@@ -996,7 +1011,7 @@ amr_mapcmd(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
 
-    debug_called(2);
+    debug_called(3);
 
     /* if the command involves data at all, and hasn't been mapped */
     if (!(ac->ac_flags & AMR_CMD_MAPPED)) {
@@ -1028,7 +1043,7 @@ amr_unmapcmd(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
 
-    debug_called(2);
+    debug_called(3);
 
     /* if the command involved data at all and was mapped */
     if (ac->ac_flags & AMR_CMD_MAPPED) {
@@ -1062,7 +1077,7 @@ amr_start(struct amr_command *ac)
     struct amr_softc	*sc = ac->ac_sc;
     int			done, s, i;
     
-    debug_called(2);
+    debug_called(3);
 
     /* mark command as busy so that polling consumer can tell */
     ac->ac_flags |= AMR_CMD_BUSY;
@@ -1094,20 +1109,20 @@ amr_start(struct amr_command *ac)
      * XXX perhaps we should wait for less time, and count on the deferred command
      * handling to deal with retries?
      */
-    debug(2, "wait for mailbox");
+    debug(4, "wait for mailbox");
     for (i = 10000, done = 0; (i > 0) && !done; i--) {
 	s = splbio();
 	
 	/* is the mailbox free? */
 	if (sc->amr_mailbox->mb_busy == 0) {
-	    debug(2, "got mailbox");
+	    debug(4, "got mailbox");
 	    sc->amr_mailbox64->mb64_segment = 0;
 	    bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, AMR_MBOX_CMDSIZE);
 	    done = 1;
 
 	    /* not free, spin waiting */
 	} else {
-	    debug(3, "busy flag %x\n", sc->amr_mailbox->mb_busy);
+	    debug(4, "busy flag %x\n", sc->amr_mailbox->mb_busy);
 	    /* this is somewhat ugly */
 	    DELAY(100);
 	}
@@ -1123,7 +1138,7 @@ amr_start(struct amr_command *ac)
 	    sc->amr_mailbox->mb_busy = 0;
 	    return(EBUSY);
 	}
-	debug(2, "posted command");
+	debug(3, "posted command");
 	return(0);
     }
     
@@ -1146,7 +1161,7 @@ amr_done(struct amr_softc *sc)
     struct amr_mailbox	mbox;
     int			i, idx, result;
     
-    debug_called(2);
+    debug_called(3);
 
     /* See if there's anything for us to do */
     result = 0;
@@ -1207,7 +1222,7 @@ amr_complete(void *context, int pending)
     struct amr_softc	*sc = (struct amr_softc *)context;
     struct amr_command	*ac;
 
-    debug_called(2);
+    debug_called(3);
 
     /* pull completed commands off the queue */
     for (;;) {
