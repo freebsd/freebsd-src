@@ -126,25 +126,36 @@ upcall_remove(struct thread *td)
 
 #ifndef _SYS_SYSPROTO_H_
 struct kse_switchin_args {
-	const struct __mcontext *mcp;
-	long val;
-	long *loc;
+	struct kse_thr_mailbox *tmbx;
+	int flags;
 };
 #endif
 
 int
 kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 {
-	mcontext_t mc;
+	struct kse_thr_mailbox tmbx;
+	struct kse_upcall *ku;
 	int error;
 
-	error = (uap->mcp == NULL) ? EINVAL : 0;
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
+		return (EINVAL);
+	error = (uap->tmbx == NULL) ? EINVAL : 0;
 	if (!error)
-		error = copyin(uap->mcp, &mc, sizeof(mc));
-	if (!error && uap->loc != NULL)
-		error = (suword(uap->loc, uap->val) != 0) ? EINVAL : 0;
+		error = copyin(uap->tmbx, &tmbx, sizeof(tmbx));
+	if (!error && (uap->flags & KSE_SWITCHIN_SETTMBX))
+		error = (suword(&ku->ku_mailbox->km_curthread,
+			 (long)uap->tmbx) != 0 ? EINVAL : 0);
 	if (!error)
-		error = set_mcontext(td, &mc);
+		error = set_mcontext(td, &tmbx.tm_context.uc_mcontext);
+	if (!error) {
+		if (uap->flags & KSE_SWITCHIN_SETTMBX) {
+			td->td_mailbox = uap->tmbx;
+			mtx_lock_spin(&sched_lock);
+			td->td_flags |= TDF_CAN_UNBIND;
+			mtx_unlock_spin(&sched_lock);
+		}
+	}
 	return ((error == 0) ? EJUSTRETURN : error);
 }
 
