@@ -211,9 +211,8 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-static vm_offset_t buffer_sva, buffer_eva;
-vm_offset_t clean_sva, clean_eva;
-static vm_offset_t pager_sva, pager_eva;
+struct kva_md_info kmi;
+
 static struct trapframe proc0_tf;
 #ifndef SMP
 static struct globaldata __globaldata;
@@ -226,14 +225,6 @@ static void
 cpu_startup(dummy)
 	void *dummy;
 {
-	register unsigned i;
-	register caddr_t v;
-	vm_offset_t maxaddr;
-	vm_size_t size = 0;
-	int firstaddr;
-	vm_offset_t minaddr;
-	int physmem_est;	/* in pages */
-
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
@@ -261,6 +252,9 @@ cpu_startup(dummy)
 		}
 	}
 
+	vm_ksubmap_init(&kmi);
+
+#if 0
 	/*
 	 * Calculate callout wheel size
 	 */
@@ -397,6 +391,7 @@ again:
 	}
 
 	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+#endif
 
 #if defined(USERCONFIG)
 	userconfig();
