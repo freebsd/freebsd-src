@@ -37,7 +37,9 @@
 .Nd filter incoming connections
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
+.Fd #include <sys/module.h>
 .Fd #include <sys/socket.h>
+.Fd #define ACCEPT_FILTER_MOD
 .Fd #include <sys/socketvar.h>
 .Ft int
 .Fn accept_filt_add "struct accept_filter *filt"
