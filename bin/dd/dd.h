@@ -40,37 +40,39 @@
 
 /* Input/output stream state. */
 typedef struct {
-	u_char	*db;			/* buffer address */
-	u_char	*dbp;			/* current buffer I/O address */
-	u_long	dbcnt;			/* current buffer byte count */
-	int	dbrcnt;			/* last read byte count */
-	u_long	dbsz;			/* buffer size */
+	u_char		*db;		/* buffer address */
+	u_char		*dbp;		/* current buffer I/O address */
+	/* XXX ssize_t? */
+	size_t		dbcnt;		/* current buffer byte count */
+	size_t		dbrcnt;		/* last read byte count */
+	size_t		dbsz;		/* buffer size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
-#define	ISPIPE		0x02		/* pipe (not truncatable) */
-#define	ISTAPE		0x04		/* tape (not seekable) */
-#define	NOREAD		0x08		/* not readable */
-	u_int	flags;
+#define	ISPIPE		0x02		/* pipe-like (not truncatable) */
+#define	ISTAPE		0x04		/* tape */
+#define	ISSEEK		0x08		/* valid to seek on */
+#define	NOREAD		0x10		/* not readable */
+	u_int		flags;
 
-	char 	*name;			/* name */
-	int	fd;			/* file descriptor */
-	u_long	offset;			/* # of blocks to skip */
+	char 		*name;		/* name */
+	int		fd;		/* file descriptor */
+	off_t		offset;		/* # of blocks to skip */
 
-	u_long	f_stats;		/* # of full blocks processed */
-	u_long	p_stats;		/* # of partial blocks processed */
-	u_long	s_stats;		/* # of odd swab blocks */
-	u_long	t_stats;		/* # of truncations */
+	u_quad_t	f_stats;	/* # of full blocks processed */
+	u_quad_t	p_stats;	/* # of partial blocks processed */
+	u_quad_t	s_stats;	/* # of odd swab blocks */
+	u_quad_t	t_stats;	/* # of truncations */
 } IO;
 
 typedef struct {
-	u_long	in_full;		/* # of full input blocks */
-	u_long	in_part;		/* # of partial input blocks */
-	u_long	out_full;		/* # of full output blocks */
-	u_long	out_part;		/* # of partial output blocks */
-	u_long	trunc;			/* # of truncated records */
-	u_long	swab;			/* # of odd-length swab blocks */
-	u_int64_t	bytes;		/* # of bytes written */
-	double	start; 			/* start time of dd */
+	u_quad_t	in_full;	/* # of full input blocks */
+	u_quad_t	in_part;	/* # of partial input blocks */
+	u_quad_t	out_full;	/* # of full output blocks */
+	u_quad_t	out_part;	/* # of partial output blocks */
+	u_quad_t	trunc;		/* # of truncated records */
+	u_quad_t	swab;		/* # of odd-length swab blocks */
+	u_quad_t	bytes;		/* # of bytes written */
+	double		start; 			/* start time of dd */
 } STAT;
 
 /* Flags (in ddflags). */

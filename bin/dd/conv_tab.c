@@ -46,10 +46,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 
 /*
- * There are currently eight tables:
- *
- *	lower-case	-> upper-case			conv=upper
- *	upper-case	-> lower-case			conv=lower
+ * There are currently six tables:
  *
  *	ebcdic		-> ascii	32V		conv=oldascii
  *	ascii		-> ebcdic	32V		conv=oldebcdic
@@ -72,14 +69,10 @@ static const char rcsid[] =
  * ACM, Volume 11, Number 11, November 1968, pp. 783-789.
  */
 
-/* Lower-case to upper-case */
-u_char l2u[256];
-
-/* Upper-case to lower-case */
-u_char u2l[256];
+u_char casetab[256];
 
 /* EBCDIC to ASCII -- 32V compatible. */
-u_char e2a_32V[] = {
+const u_char e2a_32V[] = {
 	0000, 0001, 0002, 0003, 0234, 0011, 0206, 0177,		/* 0000 */
 	0227, 0215, 0216, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0235, 0205, 0010, 0207,		/* 0020 */
@@ -115,7 +108,7 @@ u_char e2a_32V[] = {
 };
 
 /* ASCII to EBCDIC -- 32V compatible. */
-u_char a2e_32V[] = {
+const u_char a2e_32V[] = {
 	0000, 0001, 0002, 0003, 0067, 0055, 0056, 0057,		/* 0000 */
 	0026, 0005, 0045, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0074, 0075, 0062, 0046,		/* 0020 */
@@ -151,7 +144,7 @@ u_char a2e_32V[] = {
 };
 
 /* ASCII to IBM EBCDIC -- 32V compatible. */
-u_char a2ibm_32V[] = {
+const u_char a2ibm_32V[] = {
 	0000, 0001, 0002, 0003, 0067, 0055, 0056, 0057,		/* 0000 */
 	0026, 0005, 0045, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0074, 0075, 0062, 0046,		/* 0020 */
@@ -187,7 +180,7 @@ u_char a2ibm_32V[] = {
 };
 
 /* EBCDIC to ASCII -- POSIX and System V compatible. */
-u_char e2a_POSIX[] = {
+const u_char e2a_POSIX[] = {
 	0000, 0001, 0002, 0003, 0234, 0011, 0206, 0177,		/* 0000 */
 	0227, 0215, 0216, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0235, 0205, 0010, 0207,		/* 0020 */
@@ -223,7 +216,7 @@ u_char e2a_POSIX[] = {
 };
 
 /* ASCII to EBCDIC -- POSIX and System V compatible. */
-u_char a2e_POSIX[] = {
+const u_char a2e_POSIX[] = {
 	0000, 0001, 0002, 0003, 0067, 0055, 0056, 0057,		/* 0000 */
 	0026, 0005, 0045, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0074, 0075, 0062, 0046,		/* 0020 */
@@ -259,7 +252,7 @@ u_char a2e_POSIX[] = {
 };
 
 /* ASCII to IBM EBCDIC -- POSIX and System V compatible. */
-u_char a2ibm_POSIX[] = {
+const u_char a2ibm_POSIX[] = {
 	0000, 0001, 0002, 0003, 0067, 0055, 0056, 0057,		/* 0000 */
 	0026, 0005, 0045, 0013, 0014, 0015, 0016, 0017,		/* 0010 */
 	0020, 0021, 0022, 0023, 0074, 0075, 0062, 0046,		/* 0020 */

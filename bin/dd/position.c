@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/mtio.h>
 
 #include <err.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include "dd.h"
@@ -61,11 +62,16 @@ static const char rcsid[] =
 void
 pos_in()
 {
-	int bcnt, cnt, nr, warned;
+	off_t cnt;
+	int warned;
+	ssize_t nr;
+	size_t bcnt;
 
-	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE))) {
-		if (lseek(in.fd, (off_t)in.offset * in.dbsz, SEEK_CUR) == -1)
+	/* If known to be seekable, try to seek on it. */
+	if (in.flags & ISSEEK) {
+		errno = 0;
+		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1 &&
+		    errno != 0)
 			err(1, "%s", in.name);
 		return;
 	}
@@ -116,7 +122,8 @@ void
 pos_out()
 {
 	struct mtop t_op;
-	int cnt, n;
+	off_t cnt;
+	ssize_t n;
 
 	/*
 	 * If not a tape, try seeking on the file.  Seeking on a pipe is
@@ -124,8 +131,9 @@ pos_out()
 	 * have specified the seek operand.
 	 */
 	if (!(out.flags & ISTAPE)) {
-		if (lseek(out.fd,
-		    (off_t)out.offset * out.dbsz, SEEK_SET) == -1)
+		errno = 0;
+		if (lseek(out.fd, out.offset * out.dbsz, SEEK_CUR) == -1 &&
+		    errno != 0)
 			err(1, "%s", out.name);
 		return;
 	}
@@ -135,7 +143,7 @@ pos_out()
 		t_op.mt_op = MTFSR;
 		t_op.mt_count = out.offset;
 
-		if (ioctl(out.fd, MTIOCTOP, &t_op) < 0)
+		if (ioctl(out.fd, MTIOCTOP, &t_op) == -1)
 			err(1, "%s", out.name);
 		return;
 	}
@@ -145,7 +153,7 @@ pos_out()
 		if ((n = read(out.fd, out.db, out.dbsz)) > 0)
 			continue;
 
-		if (n < 0)
+		if (n == -1)
 			err(1, "%s", out.name);
 
 		/*
