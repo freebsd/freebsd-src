@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.9 1994/11/29 22:43:15 jkh Exp $
+$Id: MIRROR.SITES,v 1.10 1994/11/29 23:44:07 jkh Exp $
 
 The FreeBSD 2.0 distribution (or later) is being mirrored at the following
 locations:
@@ -55,3 +55,9 @@ Japan		ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0-RELEASE
 
 Japan           ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0-RELEASE
 		ftp-admin@u-aizu.ac.jp
+
+UK		ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0-RELEASE
+		wizards@doc.ic.ac.uk
+
+UK		ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/2.0-RELEASE
+		archive-admin@unix.hensa.ac.uk
