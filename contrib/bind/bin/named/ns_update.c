@@ -299,8 +299,6 @@ printupdatelog(struct sockaddr_in srcaddr,
 	sprintf(time, "at %lu", (u_long)tt.tv_sec);
 	fprintf(fp, "[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
 	        ntohs(hp->id), sin_ntoa(srcaddr), time, (long)getpid());
-	fprintf(ifp, "[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
-	        ntohs(hp->id), sin_ntoa(srcaddr), time, (long)getpid());
 	if (ifp)
 		fprintf(ifp,
 			"[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
