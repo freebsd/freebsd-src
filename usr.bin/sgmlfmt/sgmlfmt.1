@@ -1,4 +1,4 @@
-.Dd May 6, 1995
+.Dd June 30, 1995
 .Os FreeBSD 2.0.5
 .Dt SGMLFMT 1
 .Sh NAME
@@ -6,7 +6,8 @@
 .Nd Formats SGML files tagged according to the linuxdoc DTD.
 .Sh SYNOPSIS
 .Nm
-.Fl Ar format Op Fl Ar format...
+.Fl Ar format Op Fl Ar format... 
+.Op Fl Ar links
 .Ar 
 .Sh DESCRIPTION
 The
@@ -58,6 +59,23 @@ or
 This is actually an intermediate conversion used by the
 .Fl ascii
 format option.
+.It Fl links
+When used with the
+.Fl html
+option, for each <label id="foo"> in the document source 
+.Nm
+generates a symbolic link
+.Pa foo.html
+pointing to the numbered
+.Pa .html
+file containing the reference.  Since the number of the file
+containing a particular section can change when a document
+is modified, this provides a convenient hook by which separate
+documents can provide links into another document without the
+links becoming invalid when the target document is modified.
+When creating a symbolic link, any occurence of a slash (/) in label 
+is replaced with percent (%), while any occurence of a space is replaced
+with an underscore (_).
 .El
 .Pp
 If the input file name ends with
@@ -95,11 +113,14 @@ The linuxdoc DTD was written by Matt Welsh
 and based on the Qwertz DTD written by Tom Gordon
 .Aq thomas.gordon@gmd.de .
 .Sh BUGS
+The ASCII output has many, many bugs including no table of
+contents, no meaningful cross references, and numerous formatting
+errors.
+.Pp
 A line in the SGML source file beginning with a period (.) will
 confuse
 .Xr groff 1
-which is used to generate ASCII output.  In general, the ASCII
-output leaves much to be desired.
+which is used to generate ASCII output.  
 .Pp
 The divison of the sources file into separate HTML files is
 currently fixed. 
