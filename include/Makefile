@@ -14,7 +14,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
 	pthread.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h regexp.h \
 	resolv.h rune.h runetype.h search.h setjmp.h sgtty.h signal.h stab.h \
-	stdbool.h stddef.h stdio.h stdlib.h strhash.h string.h stringlist.h \
+	stdbool.h stddef.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h time.h timeconv.h timers.h ttyent.h \
 	ulimit.h unistd.h utime.h utmp.h uuid.h varargs.h vis.h wchar.h \
 	wctype.h wordexp.h
