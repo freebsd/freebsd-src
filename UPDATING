@@ -5,6 +5,10 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20010628:
+	The kernel compile module has moved from src/sys/compile/FOO
+	to src/sys/${MACHINE}/compile/FOO.
+
 20010625:
 	The pccard modem issue has been corrected.  OLDCARD support is
 	still a little weak in -current.  slot 1 is known not to work
