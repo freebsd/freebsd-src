@@ -1,0 +1,36 @@
+# 
+# Format <file>:<lang>:<description>
+#
+# lang: en de (see also locale)
+# Example:
+# 	german.iso.kbd:de:deutsch iso
+# 	german.iso.kbd:en:german iso
+#
+# If lang empty use 'en' (english) as default.
+#
+danish.iso.kbd::Danish ISO
+danish.iso.kbd:de:Dänisch ISO
+danish.cp865.kbd::Danish cp865
+danish.cp865.kbd:de:Dänisch cp865
+fr.iso.kbd::French ISO
+german.iso.kbd:en:German ISO
+german.iso.kbd:de:Deutsch ISO-8859-1
+german.cp850.kbd::German cp850
+german.cp850.kbd:de:Deutsch cp850
+#german.iso.my.kbd::German iso.my
+ru.koi8-r.kbd::Russian koi8-r
+ru.koi8-r.kbd:de:Russisch koi8-r
+ru.koi8-r.shift.kbd::Russian koi8-r.shift
+ru.koi8-r.shift.kbd:de:Russisch koi8-r.shift
+swedish.iso.kbd::Swedish ISO
+swedish.iso.kbd:de:Schwedisch ISO
+swedish.cp850.kbd::Swedish cp850
+swedish.cp850.kbd:de:Schwedisch cp850
+uk.iso.kbd::UK ISO
+uk.iso.kbd:de:Vereinigtes Königreich von GB und Nordirland ISO
+uk.cp850.kbd::UK cp850
+uk.cp850.kbd:de:Vereinigtes Königreich von GB und Nordirland cp850
+us.iso.emacs.kbd:en:US ISO for Emacs
+us.iso.emacs.kbd:de:US-amerikanisch ISO für Emacs
+us.iso.kbd::US ISO
+us.iso.kbd:de:US-amerikanisch ISO
