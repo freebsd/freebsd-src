@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $NetBSD: dhclient,v 1.6 2000/07/26 00:11:49 lukem Exp $
+#
+
+# PROVIDE: dhclient
+# REQUIRE: network mountcritlocal
+#
+#	Note that there no syslog logging of dhclient messages at boot because
+#	dhclient needs to start before services that syslog depends upon do.
+#
+
+. /etc/rc.subr
+
+name="dhclient"
+rcvar=$name
+command="/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"

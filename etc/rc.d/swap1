@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# $NetBSD: swap1,v 1.4 2000/05/13 08:45:09 lukem Exp $
+#
+
+# PROVIDE: localswap
+# REQUIRE: disks
+
+. /etc/rc.subr
+
+name="swap1"
+
+#		Add all block-type swap devices; these might be necessary
+#		during disk checks.
+#
+start_cmd='swapctl -A -t blk'
+
+#		Remove all block-type swap devices
+#
+stop_cmd="swapctl -U -t blk"
+
+load_rc_config swap
+run_rc_command "$1"

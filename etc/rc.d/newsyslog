@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $NetBSD$
+#
+
+# PROVIDE: newsyslog
+# REQUIRE: mountcritremote sysdb
+# BEFORE: syslogd
+
+. /etc/rc.subr
+
+name="newsyslog"
+required_files="/etc/newsyslog.conf"
+start_precmd="checkyesno newsyslog"
+start_cmd="newsyslog_start"
+stop_cmd=":"
+
+newsyslog_start()
+{
+	echo -n "Trimming log files:"
+	/usr/bin/newsyslog -s $newsyslog_flags
+	echo " done."
+}
+
+load_rc_config $name
+run_rc_command "$1"

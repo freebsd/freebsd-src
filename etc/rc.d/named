@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $NetBSD: named,v 1.5 2000/05/13 08:45:07 lukem Exp $
+#
+
+# PROVIDE: named
+# REQUIRE: SERVERS
+
+. /etc/rc.subr
+
+name="named"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+extra_commands="reload"
+
+load_rc_config $name
+run_rc_command "$1"

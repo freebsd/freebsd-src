@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $NetBSD: dhcrelay,v 1.3 2000/05/13 08:45:06 lukem Exp $
+#
+
+# PROVIDE: dhcrelay
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="dhcrelay"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"

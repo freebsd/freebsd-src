@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $NetBSD: mountd,v 1.6 2000/06/02 22:54:11 fvdl Exp $
+#
+
+# PROVIDE: mountd
+# REQUIRE: NETWORK mountall beforemountlkm rpcbind quota
+
+. /etc/rc.subr
+
+name="mountd"
+rcvar="nfs_server"
+command="/usr/sbin/${name}"
+required_files="/etc/exports"
+start_precmd="mountd_precmd"
+extra_commands="reload"
+
+mountd_precmd()
+{
+	rm -f /var/db/mountdtab
+	echo -n > /var/db/mountdtab
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"
