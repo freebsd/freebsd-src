@@ -664,6 +664,7 @@ kread(u_long addr, char *buf, int size)
 		 * XXX.
 		 */
 		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
+		setgid(getgid());
 		if (kvmd != NULL) {
 			if (kvm_nlist(kvmd, nl) < 0) {
 				if(nlistf)
