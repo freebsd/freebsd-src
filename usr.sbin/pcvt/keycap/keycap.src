@@ -442,7 +442,7 @@ nl|netherlands|Dutch mapping:\
 	:l1#62:a0:
 
 # Norwegian keyboard map with national characters.
-# Anders Nordby, nickerne@nome.no
+# Anders Nordby, anders@fix.no
 no|norway|Norwegian 8bit mapping ISO 8859-1:\
 	:K1=\174:S1=\247:\
 	:K2=\61:S2=\41:\
