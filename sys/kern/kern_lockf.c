@@ -39,6 +39,7 @@
 
 #include "opt_debug_lockf.h"
 
+#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -105,6 +106,8 @@ lf_advlock(ap, head, size)
 	off_t start, end;
 	int error;
 
+	if (fl->l_len < 0)
+		return (EINVAL);
 	/*
 	 * Convert the flock structure into a start and end.
 	 */
@@ -120,6 +123,9 @@ lf_advlock(ap, head, size)
 		break;
 
 	case SEEK_END:
+		/* size always >= 0 */
+		if (fl->l_start > 0 && size > OFF_MAX - fl->l_start)
+			return (EOVERFLOW);
 		start = size + fl->l_start;
 		break;
 
@@ -131,7 +137,12 @@ lf_advlock(ap, head, size)
 	if (fl->l_len == 0)
 		end = -1;
 	else {
-		end = start + fl->l_len - 1;
+		off_t oadd = fl->l_len - 1;
+
+		/* fl->l_len & start are non-negative */
+		if (oadd > OFF_MAX - start)
+			return (EOVERFLOW);
+		end = start + oadd;
 		if (end < start)
 			return (EINVAL);
 	}
