@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.53 1999/01/28 00:57:54 dillon Exp $
+ * $Id: ffs_inode.c,v 1.54 1999/05/02 23:56:48 alc Exp $
  */
 
 #include "opt_quota.h"
@@ -107,7 +107,7 @@ ffs_update(vp, waitfor)
 		panic("ffs_update: bad link cnt");
 	*((struct dinode *)bp->b_data +
 	    ino_to_fsbo(fs, ip->i_number)) = ip->i_din;
-	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
+	if (waitfor && !DOINGASYNC(vp)) {
 		return (bwrite(bp));
 	} else {
 		if (bp->b_bufsize == fs->fs_bsize)
@@ -218,8 +218,6 @@ ffs_truncate(vp, length, flags, cred, p)
 			bp->b_flags |= B_CLUSTEROK;
 		if (aflags & B_SYNC)
 			bwrite(bp);
-		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
-			bdwrite(bp);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -256,8 +254,6 @@ ffs_truncate(vp, length, flags, cred, p)
 			bp->b_flags |= B_CLUSTEROK;
 		if (aflags & B_SYNC)
 			bwrite(bp);
-		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
-			bdwrite(bp);
 		else
 			bawrite(bp);
 	}
@@ -472,12 +468,12 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->fs_bsize);
 		bzero((caddr_t)&bap[last + 1],
 		    (u_int)(NINDIR(fs) - (last + 1)) * sizeof (ufs_daddr_t));
-		if ((vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
+		if (DOINGASYNC(vp)) {
+			bawrite(bp);
+		} else {
 			error = bwrite(bp);
 			if (error)
 				allerror = error;
-		} else {
-			bawrite(bp);
 		}
 		bap = copy;
 	}
