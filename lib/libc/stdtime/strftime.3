@@ -68,15 +68,15 @@ No more than
 .Fa maxsize
 characters will be placed into the array.
 If the total number of resulting characters, including the terminating
-null character, is not more than
+NUL character, is not more than
 .Fa maxsize ,
 .Fn strftime
 returns the number of characters in the array, not counting the
-terminating null.
+terminating NUL.
 Otherwise, zero is returned and the buffer contents is indeterminate.
 .Pp
-Each conversion specification is replaced by the characters as
-follows which are then copied into the buffer.
+The conversion specifications are copied to the buffer after expansion
+as follows:-
 .Bl -tag -width "xxxx"
 .It Cm \&%A
 is replaced by national representation of the full weekday name.
@@ -197,7 +197,7 @@ is replaced by the year without century as a decimal number (00-99).
 is replaced by the time zone name.
 .It Cm %+
 is replaced by national representation of the date and time
-(the format is similar with produced by
+(the format is similar to that produced by
 .Xr date 1 ) .
 .It Cm %%
 is replaced by
