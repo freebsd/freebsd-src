@@ -619,7 +619,7 @@ xe_attach (device_t dev) {
   bpfattach(scp->ifp, DLT_EN10MB, sizeof(struct ether_header));
 
   /* Done */
-  return 1;
+  return 0;
 }
 
 
