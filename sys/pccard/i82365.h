@@ -37,10 +37,12 @@
 #define	PCIC_IBM	1		/* IBM clone */
 #define	PCIC_VLSI	2		/* VLSI chip */
 #define	PCIC_PD672X	3		/* Cirrus logic 627x */
-#define	PCIC_PD6710	4
+#define	PCIC_PD6710	4		/* Cirrus logic 6710 */
 #define	PCIC_CL6729	5
 #define	PCIC_VG468	6
 #define	PCIC_VG469	7
+#define	PCIC_RF5C396	8		/* Ricoh RF5C396 */
+#define	PCIC_IBM_KING	9		/* IBM KING PCMCIA Controller */
 /*
  *	Address of the controllers. Each controller can manage
  *	two PCMCIA slots. Up to 8 slots are supported in total.
@@ -89,6 +91,7 @@
 #define PCIC_INTEL1	0x83	/* Intel 82365SL Rev. 1; Both Memory and I/O */
 #define PCIC_IBM1	0x88	/* IBM PCIC clone; Both Memory and I/O */
 #define PCIC_IBM2	0x89	/* IBM PCIC clone; Both Memory and I/O */
+#define PCIC_IBM3	0x8a	/* IBM KING PCIC clone; Both Memory and I/O */
 
 /* For Interface Status register (PCIC_STATUS) */
 #define PCIC_VPPV	0x80	/* Vpp_valid */
@@ -106,6 +109,7 @@
 #define	PCIC_VCC	0x18	/* Vcc control bits */
 #define	PCIC_VCC_5V	0x10	/* 5 volts */
 #define	PCIC_VCC_3V	0x18	/* 3 volts */
+#define	PCIC_VCC_5V_KING	0x14	/* 5 volts for KING PCIC */
 #define	PCIC_VPP	0x0C	/* Vpp control bits */
 #define	PCIC_VPP_5V	0x01	/* 5 volts */
 #define	PCIC_VPP_12V	0x02	/* 12 volts */
