@@ -53,6 +53,8 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
