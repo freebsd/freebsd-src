@@ -252,11 +252,11 @@ static char const * const fdstates[] =
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
 static int volatile fd_debug = 0;
-#define TRACE0(arg) if(fd_debug) printf(arg)
-#define TRACE1(arg1, arg2) if(fd_debug) printf(arg1, arg2)
+#define TRACE0(arg) do { if (fd_debug) printf(arg); } while (0)
+#define TRACE1(arg1, arg2) do { if (fd_debug) printf(arg1, arg2); } while (0)
 #else /* FDC_DEBUG */
-#define TRACE0(arg)
-#define TRACE1(arg1, arg2)
+#define TRACE0(arg) do { } while (0)
+#define TRACE1(arg1, arg2) do { } while (0)
 #endif /* FDC_DEBUG */
 
 static void
@@ -2413,7 +2413,11 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 #ifdef FDC_DEBUG
 	case FD_DEBUG:
-		fd_debug = *(int *)addr;
+		if ((fd_debug != 0) != (*(int *)addr != 0)) {
+			fd_debug = (*(int *)addr != 0);
+			printf("fd%d: debugging turned %s\n",
+			    fd->fdu, fd_debug ? "on" : "off");
+		}
 		break;
 #endif
 
