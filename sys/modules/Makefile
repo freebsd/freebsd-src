@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.21 1996/03/16 01:43:26 jmz Exp $
+#	$Id: Makefile,v 1.22 1996/03/24 00:30:38 pst Exp $
 
 # XXX present but broken: ip_mroute_mod mfs
-SUBDIR=	atapi cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
+SUBDIR=	atapi ccd cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
 	ipfw joy kernfs linux msdos nfs nullfs \
 	pcic portal procfs qcam syscons umapfs union wcd
 
