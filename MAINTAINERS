@@ -94,6 +94,7 @@ binutils	obrien	Insists on BU blocked from unapproved commits
 geom_concat	pjd	Pre-commit review requested.
 geom_gate	pjd	Pre-commit review requested.
 geom_label	pjd	Pre-commit review requested.
+geom_mirror	pjd	Pre-commit review requested.
 geom_nop	pjd	Pre-commit review requested.
 geom_stripe	pjd	Pre-commit review requested.
 sbin/geom	pjd	Pre-commit review requested.
