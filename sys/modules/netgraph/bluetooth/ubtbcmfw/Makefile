@@ -8,7 +8,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 
 KMOD=		ubtbcmfw
 SRCS=		ubtbcmfw.c bus_if.h device_if.h vnode_if.h opt_usb.h
-MAN4=		ubtbcmfw.4
 
 .include <bsd.kmod.mk>
 

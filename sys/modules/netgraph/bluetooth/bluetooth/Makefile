@@ -7,7 +7,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include
 
 KMOD=		ng_bluetooth
 SRCS=		ng_bluetooth.c
-MAN4=		ng_bluetooth.4
 
 .include <bsd.kmod.mk>
 

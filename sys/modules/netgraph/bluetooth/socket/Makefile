@@ -11,6 +11,5 @@ SRCS=		ng_btsocket.c \
 		ng_btsocket_l2cap_raw.c \
 		ng_btsocket_l2cap.c \
 		ng_btsocket_rfcomm.c
-MAN4=		ng_btsocket.4
 
 .include <bsd.kmod.mk>
