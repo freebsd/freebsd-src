@@ -113,6 +113,18 @@ static int verbose_limit;
 static struct callout ipfw_timeout;
 #define	IPFW_DEFAULT_RULE	65535
 
+/*
+ * Data structure to cache our ucred related
+ * information. This structure only gets used if
+ * the user specified UID/GID based constraints in
+ * a firewall rule.
+ */
+struct ip_fw_ugid {
+	gid_t		fw_groups[NGROUPS];
+	int		fw_ngroups;
+	uid_t		fw_uid;
+};
+
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
@@ -1529,13 +1541,23 @@ static int
 check_uidgid(ipfw_insn_u32 *insn,
 	int proto, struct ifnet *oif,
 	struct in_addr dst_ip, u_int16_t dst_port,
-	struct in_addr src_ip, u_int16_t src_port)
+	struct in_addr src_ip, u_int16_t src_port,
+	struct ip_fw_ugid *ugp, int *lookup)
 {
 	struct inpcbinfo *pi;
 	int wildcard;
 	struct inpcb *pcb;
 	int match;
+	struct ucred *cr;
+	gid_t *gp;
 
+	/*
+	 * If we have already been here and the packet has no
+	 * PCB entry associated with it, then we can safely
+	 * assume that this is a no match.
+	 */
+	if (*lookup == -1)
+		return (0);
 	if (proto == IPPROTO_TCP) {
 		wildcard = 0;
 		pi = &tcbinfo;
@@ -1544,37 +1566,51 @@ check_uidgid(ipfw_insn_u32 *insn,
 		pi = &udbinfo;
 	} else
 		return 0;
-
 	match = 0;
-
-	INP_INFO_RLOCK(pi);	/* XXX LOR with IPFW */
-	pcb =  (oif) ?
-		in_pcblookup_hash(pi,
-		    dst_ip, htons(dst_port),
-		    src_ip, htons(src_port),
-		    wildcard, oif) :
-		in_pcblookup_hash(pi,
-		    src_ip, htons(src_port),
-		    dst_ip, htons(dst_port),
-		    wildcard, NULL);
-	if (pcb != NULL) {
-		INP_LOCK(pcb);
-		if (pcb->inp_socket != NULL) {
-#if __FreeBSD_version < 500034
-#define socheckuid(a,b)	((a)->so_cred->cr_uid != (b))
-#endif
-			if (insn->o.opcode == O_UID) {
-				match = !socheckuid(pcb->inp_socket,
-				   (uid_t)insn->d[0]);
-			} else  {
-				match = groupmember((uid_t)insn->d[0],
-				    pcb->inp_socket->so_cred);
+	if (*lookup == 0) {
+		INP_INFO_RLOCK(pi);	/* XXX LOR with IPFW */
+		pcb =  (oif) ?
+			in_pcblookup_hash(pi,
+				dst_ip, htons(dst_port),
+				src_ip, htons(src_port),
+				wildcard, oif) :
+			in_pcblookup_hash(pi,
+				src_ip, htons(src_port),
+				dst_ip, htons(dst_port),
+				wildcard, NULL);
+		if (pcb != NULL) {
+			INP_LOCK(pcb);
+			if (pcb->inp_socket != NULL) {
+				cr = pcb->inp_socket->so_cred;
+				ugp->fw_uid = cr->cr_uid;
+				ugp->fw_ngroups = cr->cr_ngroups;
+				bcopy(cr->cr_groups, ugp->fw_groups,
+					sizeof(ugp->fw_groups));
+				*lookup = 1;
 			}
+			INP_UNLOCK(pcb);
 		}
-		INP_UNLOCK(pcb);
-	}
-	INP_INFO_RUNLOCK(pi);
-
+		INP_INFO_RUNLOCK(pi);
+		if (*lookup == 0) {
+			/*
+			 * If the lookup did not yield any results, there
+			 * is no sense in coming back and trying again. So
+			 * we can set lookup to -1 and ensure that we wont
+			 * bother the pcb system again.
+			 */
+			*lookup = -1;
+			return (0);
+		}
+	} 
+	if (insn->o.opcode == O_UID)
+		match = (ugp->fw_uid == (uid_t)insn->d[0]);
+	else if (insn->o.opcode == O_GID)
+		for (gp = ugp->fw_groups;
+			gp < &ugp->fw_groups[ugp->fw_ngroups]; gp++)
+			if (*gp == (gid_t)insn->d[0]) {
+				match = 1;
+				break;
+			}
 	return match;
 }
 
@@ -1640,6 +1676,16 @@ ipfw_chk(struct ip_fw_args *args)
 	 */
 	struct mbuf *m = args->m;
 	struct ip *ip = mtod(m, struct ip *);
+
+	/*
+	 * For rules which contain uid/gid or jail constraints, cache
+	 * a copy of the users credentials after the pcb lookup has been
+	 * executed. This will speed up the processing of rules with
+	 * these types of constraints, as well as decrease contention
+	 * on pcb related locks.
+	 */
+	struct ip_fw_ugid fw_ugid_cache;
+	int ugid_lookup = 0;
 
 	/*
 	 * oif | args->oif	If NULL, ipfw_chk has been called on the
@@ -1891,7 +1937,8 @@ check_body:
 						    (ipfw_insn_u32 *)cmd,
 						    proto, oif,
 						    dst_ip, dst_port,
-						    src_ip, src_port);
+						    src_ip, src_port, &fw_ugid_cache,
+						    &ugid_lookup);
 				break;
 
 			case O_RECV:
