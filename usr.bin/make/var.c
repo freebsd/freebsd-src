@@ -256,9 +256,9 @@ VarPossiblyExpand(const char *name, GNode *ctxt)
 static Var *
 VarFind(const char *name, GNode *ctxt, int flags)
 {
-    Boolean		localCheckEnvFirst;
-    LstNode         	*var;
-    Var		  	*v;
+	Boolean	localCheckEnvFirst;
+	LstNode	*var;
+	char	*env;
 
 	/*
 	 * If the variable name begins with a '.', it could very well be one of
@@ -299,54 +299,60 @@ VarFind(const char *name, GNode *ctxt, int flags)
 		}
 	}
 
-    /*
-     * Note whether this is one of the specific variables we were told through
-     * the -E flag to use environment-variable-override for.
-     */
-    if (Lst_Find(&envFirstVars, name, (CompareProc *)strcmp) != NULL) {
-	localCheckEnvFirst = TRUE;
-    } else {
-	localCheckEnvFirst = FALSE;
-    }
-
-    /*
-     * First look for the variable in the given context. If it's not there,
-     * look for it in VAR_CMD, VAR_GLOBAL and the environment, in that order,
-     * depending on the FIND_* flags in 'flags'
-     */
-    var = Lst_Find(&ctxt->context, name, VarCmp);
-
-    if ((var == NULL) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
-	var = Lst_Find(&VAR_CMD->context, name, VarCmp);
-    }
-    if ((var == NULL) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
-	!checkEnvFirst && !localCheckEnvFirst)
-    {
-	var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
-    }
-    if ((var == NULL) && (flags & FIND_ENV)) {
-	char *env;
-
-	if ((env = getenv(name)) != NULL) {
-	    v = VarCreate(name, env, VAR_FROM_ENV);
-	    return (v);
-	} else if ((checkEnvFirst || localCheckEnvFirst) &&
-		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
-	{
-	    var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
-	    if (var == NULL) {
-		return (NULL);
-	    } else {
-		return (Lst_Datum(var));
-	    }
+	/*
+	 * Note whether this is one of the specific variables we were told
+	 * through the -E flag to use environment-variable-override for.
+	 */
+	if (Lst_Find(&envFirstVars, name, (CompareProc *)strcmp) != NULL) {
+		localCheckEnvFirst = TRUE;
 	} else {
-	    return (NULL);
+		localCheckEnvFirst = FALSE;
 	}
-    } else if (var == NULL) {
+
+	/*
+	 * First look for the variable in the given context. If it's not there,
+	 * look for it in VAR_CMD, VAR_GLOBAL and the environment,
+	 * in that order, depending on the FIND_* flags in 'flags'
+	 */
+	var = Lst_Find(&ctxt->context, name, VarCmp);
+	if (var != NULL) {
+		/* got it */
+		return (Lst_Datum(var));
+	}
+
+	/* not there - try command line context */
+	if ((flags & FIND_CMD) && (ctxt != VAR_CMD)) {
+		var = Lst_Find(&VAR_CMD->context, name, VarCmp);
+		if (var != NULL)
+			return (Lst_Datum(var));
+	}
+
+	/* not there - try global context, but only if not -e/-E */
+	if ((flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
+	    !checkEnvFirst && !localCheckEnvFirst) {
+		var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
+		if (var != NULL)
+			return (Lst_Datum(var));
+	}
+
+	if (!(flags & FIND_ENV))
+		/* we were not told to look into the environment */
+		return (NULL);
+
+	/* look in the environment */
+	if ((env = getenv(name)) != NULL) {
+		/* craft this variable from the environment value */
+		return (VarCreate(name, env, VAR_FROM_ENV));
+	}
+
+	/* deferred check for the environment (in case of -e/-E) */
+	if ((checkEnvFirst || localCheckEnvFirst) &&
+	    (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL)) {
+		var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
+		if (var != NULL)
+			return (Lst_Datum(var));
+	}
 	return (NULL);
-    } else {
-	return (Lst_Datum(var));
-    }
 }
 
 /*-
