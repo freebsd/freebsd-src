@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.4 1996/04/24 18:32:22 wpaul Exp wpaul $";
+static char *rcsid = "$Id: yplib.c,v 1.18 1996/05/02 15:44:53 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -412,9 +412,11 @@ static void
 _yp_unbind(ypb)
 	struct dom_binding *ypb;
 {
-	clnt_destroy(ypb->dom_client);
+	if (ypb->dom_client)
+		clnt_destroy(ypb->dom_client);
 	ypb->dom_client = NULL;
 	ypb->dom_socket = -1;
+	ypb->dom_vers = -1;
 }
 
 int
@@ -433,7 +435,7 @@ yp_unbind(dom)
 	ypbp = NULL;
 	for(ypb=_ypbindlist; ypb; ypb=ypb->dom_pnext) {
 		if( strcmp(dom, ypb->dom_domain) == 0) {
-			clnt_destroy(ypb->dom_client);
+			_yp_unbind(ypb);
 			if(ypbp)
 				ypbp->dom_pnext = ypb->dom_pnext;
 			else
@@ -500,7 +502,7 @@ again:
 		xdr_ypreq_key, &yprk, xdr_ypresp_val, &yprv, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_match: clnt_call");
-		ysd->dom_vers = -1;
+		_yp_unbind(ysd);
 		goto again;
 	}
 
@@ -513,8 +515,7 @@ again:
 		if( strcmp(_yp_domain, indomain)==0 )
 			 ypmatch_add(inmap, inkey, inkeylen, *outval, *outvallen);
 #endif
-	} else
-		_yp_unbind(ysd);
+	}
 
 	xdr_free(xdr_ypresp_val, (char *)&yprv);
 	return r;
@@ -571,7 +572,7 @@ again:
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_key_val, &yprkv, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_first: clnt_call");
-		ysd->dom_vers = 0;
+		_yp_unbind(ysd);
 		goto again;
 	}
 	if( !(r=ypprot_err(yprkv.stat)) ) {
@@ -583,8 +584,7 @@ again:
 		*outval = (char *)malloc(*outvallen+1);
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
-	} else
-		_yp_unbind(ysd);
+	}
 
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
 	return r;
@@ -634,7 +634,7 @@ again:
 		xdr_ypreq_key, &yprk, xdr_ypresp_key_val, &yprkv, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_next: clnt_call");
-		ysd->dom_vers = -1;
+		_yp_unbind(ysd);
 		goto again;
 	}
 	if( !(r=ypprot_err(yprkv.stat)) ) {
@@ -646,8 +646,7 @@ again:
 		*outval = (char *)malloc(*outvallen+1);
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
-	} else
-		_yp_unbind(ysd);
+	}
 
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
 	return r;
@@ -673,11 +672,16 @@ yp_all(indomain, inmap, incallback)
 	    inmap == NULL || !strlen(inmap))
 		return YPERR_BADARGS;
 
+again:
+
 	if( _yp_dobind(indomain, &ysd) != 0)
 		return YPERR_DOMAIN;
 
 	tv.tv_sec = _yplib_timeout;
 	tv.tv_usec = 0;
+
+	/* YPPROC_ALL manufactures its own channel to ypserv using TCP */
+
 	clnt_sock = RPC_ANYSOCK;
 	clnt_sin = ysd->dom_server_addr;
 	clnt_sin.sin_port = 0;
@@ -692,13 +696,18 @@ yp_all(indomain, inmap, incallback)
 	ypresp_allfn = incallback->foreach;
 	ypresp_data = (void *)incallback->data;
 
-	(void) clnt_call(clnt, YPPROC_ALL,
-		xdr_ypreq_nokey, &yprnk, xdr_ypresp_all_seq, &status, tv);
+	if (clnt_call(clnt, YPPROC_ALL,
+		xdr_ypreq_nokey, &yprnk,
+		xdr_ypresp_all_seq, &status, tv) != RPC_SUCCESS) {
+			clnt_perror(ysd->dom_client, "yp_next: clnt_call");
+			clnt_destroy(clnt);
+			_yp_unbind(ysd);
+			goto again;
+	}
+
 	clnt_destroy(clnt);
 	savstat = status;
 	xdr_free(xdr_ypresp_all_seq, (char *)&status);	/* not really needed... */
-	_yp_unbind(ysd);
-
 	if(savstat != YP_NOMORE)
 		return ypprot_err(savstat);
 	return 0;
@@ -738,18 +747,16 @@ again:
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_order, &ypro, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_order: clnt_call");
-		ysd->dom_vers = -1;
+		_yp_unbind(ysd);
 		goto again;
 	}
 
 	if( !(r=ypprot_err(ypro.stat)) ) {
 		*outorder = ypro.ordernum;
-	} else
-		_yp_unbind(ysd);
+	}
 
 	xdr_free(xdr_ypresp_order, (char *)&ypro);
-	_yp_unbind(ysd);
-	return ypprot_err(ypro.stat);
+	return (r);
 }
 
 int
@@ -785,16 +792,16 @@ again:
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_master, &yprm, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_master: clnt_call");
-		ysd->dom_vers = -1;
+		_yp_unbind(ysd);
 		goto again;
 	}
+
 	if( !(r=ypprot_err(yprm.stat)) ) {
 		*outname = (char *)strdup(yprm.peer);
-	} else
-		_yp_unbind(ysd);
+	}
 
 	xdr_free(xdr_ypresp_master, (char *)&yprm);
-	return r;
+	return (r);
 }
 int
 yp_maplist(indomain, outmaplist)
@@ -824,15 +831,15 @@ again:
 		xdr_domainname,(char *)&indomain,xdr_ypresp_maplist,&ypml,tv);
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_maplist: clnt_call");
-		ysd->dom_vers = -1;
+		_yp_unbind(ysd);
 		goto again;
 	}
 	if( !(r=ypprot_err(ypml.stat)) ) {
 		*outmaplist = ypml.maps;
-	} else
-		_yp_unbind(ysd);
+	}
+
 	/* NO: xdr_free(xdr_ypresp_maplist, &ypml);*/
-	return ypprot_err(ypml.stat);
+	return (r);
 }
 
 char *
