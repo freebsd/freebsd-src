@@ -688,16 +688,13 @@ do_string_compare:
 			}
 		    } else {
 			char *c = CondCvtArg(rhs, &right);
-			if (*c != '\0' && !isspace((unsigned char) *c))
+			if (c == rhs)
 			    goto do_string_compare;
 			if (rhs == condExpr) {
 			    /*
 			     * Skip over the right-hand side
 			     */
-			    while(!isspace((unsigned char) *condExpr) &&
-				  (*condExpr != '\0')) {
-				condExpr++;
-			    }
+			    condExpr = c;
 			}
 		    }
 

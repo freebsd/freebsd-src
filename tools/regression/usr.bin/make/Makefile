@@ -41,6 +41,9 @@ all:
 	@echo "Running test funny_targets"
 	@${MAKE} funny_targets || ${MAKE} failure
 	@echo "PASS: Test funny_targets detected no regression."
+	@echo "Running test arith_expr"
+	@${MAKE} arith_expr || ${MAKE} failure
+	@echo "PASS: Test arith_expr detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -88,6 +91,15 @@ modifiers:
 funny_targets: colons::target exclamation!target
 colons::target:
 exclamation!target: 
+.endif
+
+.if make(arith_expr)
+arith_expr:
+# See if arithmetic expression parsing is broken.
+# The different spacing below is intentional.
+VALUE=	0
+.if (${VALUE} < 0)||(${VALUE}>0)
+.endif
 .endif
 
 failure:
