@@ -62,7 +62,7 @@
 #PasswordAuthentication yes
 #PermitEmptyPasswords no
 
-# Change to no to disable s/key passwords
+# Change to no to disable PAM authentication
 #ChallengeResponseAuthentication yes
 
 # Kerberos options
@@ -74,10 +74,6 @@
 
 # Kerberos TGT Passing only works with the AFS kaserver
 #KerberosTgtPassing no
-
-# Set this to 'yes' to enable PAM keyboard-interactive authentication 
-# Warning: enabling this may bypass the setting of 'PasswordAuthentication'
-#PAMAuthenticationViaKbdInt yes
 
 #X11Forwarding yes
 #X11DisplayOffset 10
