@@ -500,33 +500,51 @@ int ips_adapter_free(ips_softc_t *sc)
         return 0;
 }
 
-void ips_morpheus_intr(void *void_sc)
+static __inline int ips_morpheus_check_intr(ips_softc_t *sc)
 {
-        ips_softc_t *sc = (ips_softc_t *)void_sc;
-	u_int32_t oisr, iisr;
 	int cmdnumber;
 	ips_cmd_status_t status;
+	ips_command_t *command;
+	int found = 0;
+	u_int32_t oisr;
 
-	mtx_lock(&sc->queue_mtx);
-	iisr =ips_read_4(sc, MORPHEUS_REG_IISR);
-	oisr =ips_read_4(sc, MORPHEUS_REG_OISR);
-        PRINTF(9,"interrupt registers in:%x out:%x\n",iisr, oisr);
+	oisr = ips_read_4(sc, MORPHEUS_REG_OISR);
+	PRINTF(9, "interrupt registers out:%x\n", oisr);
 	if(!(oisr & MORPHEUS_BIT_CMD_IRQ)){
 		DEVICE_PRINTF(2,sc->dev, "got a non-command irq\n");
 		mtx_unlock(&sc->queue_mtx);
-		return;	
+		return (0);	
 	}
 	while((status.value = ips_read_4(sc, MORPHEUS_REG_OQPR)) != 0xffffffff){
 		cmdnumber = status.fields.command_id;
-		sc->commandarray[cmdnumber].status.value = status.value;
-		sc->commandarray[cmdnumber].timeout = 0;
-		sc->commandarray[cmdnumber].callback(&(sc->commandarray[cmdnumber]));
-		
+		command = &sc->commandarray[cmdnumber];
+		command->status.value = status.value;
+		command->timeout = 0;
+		command->callback(command);
 
-		DEVICE_PRINTF(9,sc->dev, "got command %d\n", cmdnumber);
+		found = 1;
 	}
+        return (found);
+}
+
+void ips_morpheus_intr(void *void_sc)
+{
+	ips_softc_t *sc = void_sc;
+
+	mtx_lock(&sc->queue_mtx);
+	ips_morpheus_check_intr(sc);
 	mtx_unlock(&sc->queue_mtx);
-        return;
+}
+
+void ips_morpheus_poll(ips_command_t *command)
+{
+	uint32_t ts;
+
+	ts = time_second + command->timeout;
+	while ((command->timeout != 0)
+	 && (ips_morpheus_check_intr(command->sc) == 0)
+	 && (ts > time_second))
+		DELAY(1000);
 }
 
 void ips_issue_morpheus_cmd(ips_command_t *command)
@@ -718,3 +736,8 @@ printf("sem bit still set, can't send a command\n");
 	ips_write_2(command->sc, COPPER_REG_CCCR, COPPER_CMD_START);
 }
 
+void ips_copperhead_poll(ips_command_t *command)
+{
+
+	printf("ips: cmd polling not implemented for copperhead devices\n");
+}
