@@ -696,7 +696,7 @@ maybe_dedicate(Disk* d)
     }
 
     if (!c) {
-	msgDebug("dedicating disk");
+	msgDebug("dedicating disk\n");
 	All_FreeBSD(d, 1);
     }
 }
