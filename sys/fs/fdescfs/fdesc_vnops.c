@@ -93,13 +93,13 @@ fdesc_init(vfsp)
 }
 
 int
-fdesc_allocvp(ftype, ix, mp, vpp)
+fdesc_allocvp(ftype, ix, mp, vpp, p)
 	fdntype ftype;
 	int ix;
 	struct mount *mp;
 	struct vnode **vpp;
+	struct proc *p;
 {
-	struct proc *p = curproc;	/* XXX */
 	struct fdhashhead *fc;
 	struct fdescnode *fd;
 	int error = 0;
@@ -216,7 +216,7 @@ fdesc_lookup(ap)
 		goto bad;
 	}
 
-	error = fdesc_allocvp(Fdesc, FD_DESC+fd, dvp->v_mount, &fvp);
+	error = fdesc_allocvp(Fdesc, FD_DESC+fd, dvp->v_mount, &fvp, p);
 	if (error)
 		goto bad;
 	VTOFDESC(fvp)->fd_fd = fd;
@@ -256,11 +256,6 @@ fdesc_open(ap)
 	return (ENODEV);
 }
 
-/*
- * !!!! READ THIS !!!!
- * the proper way to handle this sort of thing is to do proper exclusion,
- * so that adding new filetypes works properly at runtime
- */
 static int
 fdesc_getattr(ap)
 	struct vop_getattr_args /* {
@@ -306,59 +301,44 @@ fdesc_getattr(ap)
 		if (fd >= fdp->fd_nfiles || (fp = fdp->fd_ofiles[fd]) == NULL)
 			return (EBADF);
 
-		switch (fp->f_type) {
-		case DTYPE_FIFO:
-		case DTYPE_VNODE:
-			error = VOP_GETATTR((struct vnode *) fp->f_data, vap,
-			    ap->a_cred, ap->a_p);
-			if (error == 0 && vap->va_type == VDIR) {
-				/*
-				 * directories can cause loops in the namespace,
-				 * so turn off the 'r' and 'x' bits to avoid
-				 * trouble.
-				 */
+		bzero(&stb, sizeof(stb));
+		error = fo_stat(fp, &stb, ap->a_p);
+		if (error == 0) {
+			VATTR_NULL(vap);
+			vap->va_type = IFTOVT(stb.st_mode);
+			vap->va_mode = stb.st_mode;
 #define FDRX (VREAD|VEXEC)
+			if (vap->va_type == VDIR)
 				vap->va_mode &= ~((FDRX)|(FDRX>>3)|(FDRX>>6));
 #undef FDRX
-			}
-			/*
-			 * Make sure these nodes reflect data as it pertains
-			 * to fdesc and not the original file system.
-			 */
+			vap->va_nlink = 1;
+			vap->va_flags = 0;
+			vap->va_bytes = stb.st_blocks * stb.st_blksize;
 			vap->va_fileid = VTOFDESC(vp)->fd_ix;
-			vap->va_fsid = VNOVAL;
-			break;
+			vap->va_size = stb.st_size;
+			vap->va_blocksize = stb.st_blksize;
+			vap->va_rdev = stb.st_rdev;
 
-		default:	
-			bzero(&stb, sizeof(stb));
-			error = fo_stat(fp, &stb, ap->a_p);
-			if (error == 0) {
-				VATTR_NULL(vap);
-				vap->va_type = IFTOVT(stb.st_mode);
-				vap->va_mode = S_IRUSR | S_IWUSR | S_IRGRP |
-				    S_IWGRP | S_IROTH | S_IWOTH;
-				vap->va_nlink = 1;
-				vap->va_flags = 0;
-				vap->va_bytes = stb.st_blocks * stb.st_blksize;
-				vap->va_fileid = VTOFDESC(vp)->fd_ix;
-				vap->va_size = stb.st_size;
-				vap->va_blocksize = stb.st_blksize;
+			/*
+			 * If no time data is provided, use the current time.
+			 */
+			if (stb.st_atimespec.tv_sec == 0 &&
+			    stb.st_atimespec.tv_nsec == 0)
+				nanotime(&stb.st_atimespec);
 
-				/*
-				 * XXX Only pipes have any mtime/atime/ctime data.
-				 */
-				if (fp->f_type != DTYPE_PIPE) {
-					nanotime(&stb.st_atimespec);
-					stb.st_mtimespec = stb.st_atimespec;
-					stb.st_ctimespec = stb.st_mtimespec;
-				}
-				vap->va_atime = stb.st_atimespec;
-				vap->va_mtime = stb.st_mtimespec;
-				vap->va_ctime = stb.st_ctimespec;
-				vap->va_uid = stb.st_uid;
-				vap->va_gid = stb.st_gid;
-			}
-			break;
+			if (stb.st_ctimespec.tv_sec == 0 &&
+			    stb.st_ctimespec.tv_nsec == 0)
+				nanotime(&stb.st_ctimespec);
+
+			if (stb.st_mtimespec.tv_sec == 0 &&
+			    stb.st_mtimespec.tv_nsec == 0)
+				nanotime(&stb.st_mtimespec);
+
+			vap->va_atime = stb.st_atimespec;
+			vap->va_mtime = stb.st_mtimespec;
+			vap->va_ctime = stb.st_ctimespec;
+			vap->va_uid = stb.st_uid;
+			vap->va_gid = stb.st_gid;
 		}
 		break;
 
@@ -381,7 +361,6 @@ fdesc_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct filedesc *fdp = ap->a_p->p_fd;
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
 	struct mount *mp;
@@ -396,30 +375,30 @@ fdesc_setattr(ap)
 		return (EACCES);
 
 	fd = VTOFDESC(ap->a_vp)->fd_fd;
-	if (fd >= fdp->fd_nfiles || (fp = fdp->fd_ofiles[fd]) == NULL)
-		return (EBADF);
 
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	switch (fp->f_type) {
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		vp = (struct vnode *)fp->f_data;
-		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-			return (error);
-		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_p);
-		vn_finished_write(mp);
-		break;
-
-	default:
-		if (vap->va_flags != VNOVAL)
-			error = EOPNOTSUPP;
-		else
-			error = 0;
-		break;
+	error = getvnode(ap->a_p->p_fd, fd, &fp);
+	if (error) {
+		/*
+		 * getvnode() returns EINVAL if the file descriptor is not
+		 * backed by a vnode.  Silently drop all changes except
+		 * chflags(2) in this case.
+		 */
+		if (error == EINVAL) {
+			if (vap->va_flags != VNOVAL)
+				error = EOPNOTSUPP;
+			else
+				error = 0;
+		}
+		return (error);
 	}
-
+	vp = (struct vnode *)fp->f_data;
+	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+		return (error);
+	error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_p);
+	vn_finished_write(mp);
 	return (error);
 }
 
