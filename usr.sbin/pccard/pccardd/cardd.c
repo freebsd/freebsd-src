@@ -980,9 +980,7 @@ setup_slot(struct slot *sp)
 		drv.iobase = sp->io.addr;
 	else
 		drv.iobase = 0;
-#ifdef DEV_DESC_HAS_SIZE
 	drv.iosize = sp->io.size;
-#endif
 	if (debug_level > 0) {
 		logmsg("Assign %s%d, io 0x%x-0x%x, mem 0x%lx, %d bytes, "
 		    "irq %d, flags %x\n", drv.name, drv.unit, drv.iobase, 
