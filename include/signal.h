@@ -56,11 +56,6 @@ int	sigdelset __P((sigset_t *, int));
 int	sigemptyset __P((sigset_t *));
 int	sigfillset __P((sigset_t *));
 int	sigismember __P((const sigset_t *, int));
-#ifndef _POSIX_SOURCE
-struct timespec;
-int	signanosleep __P((const struct timespec *, struct timespec *,
-			  sigset_t *));
-#endif
 int	sigpending __P((sigset_t *));
 int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
