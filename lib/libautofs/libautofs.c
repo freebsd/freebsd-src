@@ -43,7 +43,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
-#include <autofs.h>
+#include <fs/autofs/autofs.h>
 
 #include "libautofs.h"
 
