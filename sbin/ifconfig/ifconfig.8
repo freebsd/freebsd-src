@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.7 1996/02/13 17:30:26 wollman Exp $
+.\"	$Id: ifconfig.8,v 1.8 1996/07/09 02:38:11 julian Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -236,6 +236,14 @@ portion.
 .\" for
 .\" .Tn AFI
 .\" 37 type addresses.
+.It Cm range
+Under appletalk, set the interface to respond to a 
+.Em netrange.
+of the form startnet-endnet. Appletalk uses this scheme instead of 
+netmasks though FreeBSD impliments it internally as a set of netmasks.
+.It Cm phase
+The argument following this specifies the version (phase) of the 
+Appletalk network attached to the interface. Values of 1 or 2 are permitted.
 .It Cm link[0-2]
 Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
