@@ -865,12 +865,12 @@ print_header ( Hdr )
 void
 parse_oids ( h, bp )
 	Snmp_Header	*h;
-	caddr_t		*bp;
+	u_char		**bp;
 {
 	int		len = h->varlen;
 	int		sublen;
 	Variable	*var;
-	caddr_t		bufp = *bp;
+	u_char		*bufp = *bp;
 
 	while ( len > 0 ) {
 	    if ( *bufp++ == ASN_SEQUENCE ) {
@@ -900,7 +900,7 @@ parse_oids ( h, bp )
 			*bp = bufp;
 			return;
 		}
-		asn_get_objid ( &bufp, &var->oid, &len );
+		asn_get_objid ( (u_char **)&bufp, &var->oid, &len );
 		var->type = *bufp++;
 		len--;
 		switch ( var->type ) {
@@ -2371,7 +2371,7 @@ ilmi_do_state ()
 	for ( ; ; ) {
 	    int		count;
 	    int		n;
-	    caddr_t	bpp;
+	    u_char	*bpp;
 	    Snmp_Header	*Hdr;
 
 	    /*
@@ -2550,8 +2550,8 @@ ilmi_do_state ()
 				break;
 			    case PDU_TYPE_SET:
 				/* Look for SET_PREFIX Objid */
-				if ( oid_ncmp ( (caddr_t)&Hdr->head->oid,
-				    (caddr_t)&Objids[SETPFX_OBJID],
+				if ( oid_ncmp ( &Hdr->head->oid,
+					&Objids[SETPFX_OBJID],
 					Objids[SETPFX_OBJID].oid[0] ) == 0 ) {
 					    set_prefix ( &Hdr->head->oid, Hdr, intf );
 					    /* Reply to SET before sending our ADDRESS */
@@ -2591,8 +2591,8 @@ ilmi_do_state ()
 				break;
 			    case PDU_TYPE_SET:
 				/* Look for SET_PREFIX Objid */
-				if ( oid_ncmp ( (caddr_t)&Hdr->head->oid,
-				    (caddr_t)&Objids[SETPFX_OBJID],
+				if ( oid_ncmp ( &Hdr->head->oid,
+					&Objids[SETPFX_OBJID],
 					Objids[SETPFX_OBJID].oid[0] ) == 0 ) {
 					    set_prefix ( &Hdr->head->oid, Hdr, intf );
 					    /* Reply to SET before sending our ADDRESS */
