@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1999/03/05 04:55:03 obrien Exp $
+# $Id: Makefile,v 1.14 1999/04/04 16:36:34 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -20,7 +20,7 @@ CFLAGS+= -I${GCCDIR}/cp -I.
 
 .ORDER: parse.c parse.h
 parse.c parse.h: parse.y
-	${BISON} -d ${GCCDIR}/cp/parse.y -o parse.c 
+	${BISON} -d -o parse.c ${GCCDIR}/cp/parse.y
 	grep '^#define[   ]*YYEMPTY' parse.c >>parse.h
 
 CLEANFILES+=	parse.c parse.h
