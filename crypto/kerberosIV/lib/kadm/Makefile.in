@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.47 1998/10/13 16:50:44 joda Exp $
+# $Id: Makefile.in,v 1.47.4.1 2000/06/23 03:20:01 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -11,6 +11,7 @@ CC = @CC@
 LINK = @LINK@
 AR = ar
 RANLIB = @RANLIB@
+CP = cp
 LN_S = @LN_S@
 DEFS = @DEFS@ -DROKEN_RENAME
 CFLAGS = @CFLAGS@ $(WFLAGS)
@@ -66,7 +67,7 @@ Wall:
 
 install: all
 	$(MKINSTALLDIRS) $(DESTDIR)$(libdir)
-	$(INSTALL_DATA) -m 0555 $(LIB) $(DESTDIR)$(libdir)/$(LIB)
+	$(INSTALL_DATA)  $(LIB) $(DESTDIR)$(libdir)/$(LIB)
 	@install_symlink_command@
 	$(MKINSTALLDIRS) $(DESTDIR)$(includedir)
 	@for i in $(inc_DATA); do \
@@ -117,8 +118,8 @@ roken_rename.h:
 all-local: $(inc_DATA)
 	@for i in $(inc_DATA); do \
 		if cmp -s  $$i $(idir)/$$i 2> /dev/null ; then :; else\
-			echo " $(INSTALL_DATA) $$i $(idir)/$$i"; \
-			$(INSTALL_DATA) $$i $(idir)/$$i; \
+			echo " $(CP) $$i $(idir)/$$i"; \
+			$(CP) $$i $(idir)/$$i; \
 		fi ; \
 	done
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: bsd_locl.h,v 1.111 1999/12/02 16:58:28 joda Exp $ */
+/* $Id: bsd_locl.h,v 1.111.2.1 2000/06/23 02:34:20 assar Exp $ */
 
 #define LOGALL
 #define KERBEROS
@@ -395,3 +395,5 @@ void prepare_utmp (struct utmp *utmp, char *tty, char *username,
 #endif
 
 int do_osfc2_magic(uid_t);
+
+void paranoid_setuid (uid_t uid);

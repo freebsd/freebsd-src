@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.18 1999/03/10 19:01:11 joda Exp $
+# $Id: Makefile.in,v 1.18.4.1 2000/06/23 02:54:59 assar Exp $
 
 SHELL = /bin/sh
 
@@ -8,12 +8,13 @@ VPATH = @srcdir@
 CC = @CC@
 LINK = @LINK@
 AR = ar
-DEFS = @DEFS@
+DEFS = @DEFS@ -DLIBEXECDIR="\"$(libexecdir)\""
 CFLAGS = @CFLAGS@ $(WFLAGS)
 WFLAGS = @WFLAGS@
 LD_FLAGS = @LD_FLAGS@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
 LIBS = @LIBS@
 MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
 
@@ -27,7 +28,8 @@ EXECSUFFIX=@EXECSUFFIX@
 
 PROG_BIN	= kip$(EXECSUFFIX)
 PROG_LIBEXEC	= kipd$(EXECSUFFIX)
-PROGS = $(PROG_BIN) $(PROG_LIBEXEC)
+SCRIPT_LIBEXEC	= kip-join-network kipd-control
+PROGS = $(PROG_BIN) $(PROG_LIBEXEC) $(SCRIPT_LIBEXEC)
 
 SOURCES_KIP     = kip.c
 SOURCES_KIPD    = kipd.c
@@ -55,12 +57,18 @@ install: all
 	for x in $(PROG_LIBEXEC); do \
 	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
 	done
+	for x in $(SCRIPT_LIBEXEC); do \
+	  $(INSTALL_SCRIPT) $$x $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	done
 
 uninstall:
 	for x in $(PROG_BIN); do \
 	  rm -f $(DESTDIR)$(bindir)/`echo $$x | sed '$(transform)'`; \
 	done
 	for x in $(PROG_LIBEXEC); do \
+	  rm -f $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	done
+	for x in $(SCRIPT_LIBEXEC); do \
 	  rm -f $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
 	done
 
@@ -90,5 +98,13 @@ kipd$(EXECSUFFIX): $(OBJECTS_KIPD)
 	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ $(OBJECTS_KIPD) $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
 
 $(OBJECTS): ../../include/config.h
+
+kip-join-network: kip-join-network.in
+	sed -e "s!%bindir%!$(bindir)!" $(srcdir)/kip-join-network.in > $@
+	chmod +x $@
+
+kipd-control: kipd-control.in
+	sed -e "s!%bindir%!$(bindir)!" $(srcdir)/kipd-control.in > $@
+	chmod +x $@
 
 .PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

@@ -1,5 +1,5 @@
 
-PUSH(8)                  UNIX System Manager's Manual                  PUSH(8)
+PUSH(8)                     System Manager's Manual                    PUSH(8)
 
 NNAAMMEE
      ppuusshh - fetch mail via POP
@@ -69,7 +69,7 @@ EEXXAAMMPPLLEESS
      using Kerberos 5.
 
 SSEEEE AALLSSOO
-     movemail(8),  popper(8),  from(1)
+     movemail(8),  popper(8),  from(1),  pfrom(1)
 
 HHIISSTTOORRYY
      ppuusshh was written while waiting for mmoovveemmaaiill to finish getting the mail.
