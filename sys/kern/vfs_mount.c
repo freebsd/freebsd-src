@@ -377,76 +377,6 @@ nmount(td, uap)
 	return (error);
 }
 
-struct mntarg {
-	struct iovec *v;
-	int len;
-};
-
-struct mntarg *
-mount_arg(struct mntarg *ma, const char *name, const void *val, int len)
-{
-
-	if (ma == NULL)
-		ma = malloc(sizeof *ma, M_MOUNT, M_WAITOK | M_ZERO);
-
-	ma->v = realloc(ma->v, sizeof *ma->v * (ma->len + 2),
-	    M_MOUNT, M_WAITOK);
-	ma->v[ma->len].iov_base = (void *)(uintptr_t)name;
-	ma->v[ma->len].iov_len = strlen(name) + 1;
-	ma->len++;
-
-	ma->v[ma->len].iov_base = (void *)(uintptr_t)val;
-	if (len < 0)
-		ma->v[ma->len].iov_len = strlen(val) + 1;
-	else
-		ma->v[ma->len].iov_len = len;
-	ma->len++;
-	return (ma);
-}
-
-int
-kernel_mount(struct mntarg *ma, int flags)
-{
-	struct uio auio;
-	int error;
-
-	KASSERT(ma != NULL, ("kernel_mount NULL ma"));
-	KASSERT(ma->v != NULL, ("kernel_mount NULL ma->v"));
-	KASSERT(!(ma->len & 1), ("kernel_mount odd ma->len (%d)", ma->len));
-
-	auio.uio_iov = ma->v;
-	auio.uio_iovcnt = ma->len;
-	auio.uio_segflg = UIO_SYSSPACE;
-
-	error = vfs_donmount(curthread, flags, &auio);
-	free(ma->v, M_MOUNT);
-	free(ma, M_MOUNT);
-	return (error);
-}
-
-int
-kernel_vmount(int flags, ...)
-{
-	struct mntarg *ma = NULL;
-	va_list ap;
-	const char *cp;
-	const void *vp;
-	int error;
-
-	va_start(ap, flags);
-	for (;;) {
-		cp = va_arg(ap, const char *);
-		if (cp == NULL)
-			break;
-		vp = va_arg(ap, const void *);
-		ma = mount_arg(ma, cp, vp, -1);
-	}
-	va_end(ap);
-
-	error = kernel_mount(ma, flags);
-	return (error);
-}
-
 /*
  * Allocate and initialize the mount point struct.
  */
@@ -1541,5 +1471,209 @@ __vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
 	if (sbp != &mp->mnt_stat)
 		memcpy(sbp, &mp->mnt_stat, sizeof sbp);
+	return (error);
+}
+
+/*
+ * ---------------------------------------------------------------------
+ * This is the api for building mount args and mounting filesystems from
+ * inside the kernel.
+ *
+ * The API works by accumulation of individual args.  First error is
+ * latched.
+ *
+ * XXX: should be documented in new manpage kernel_mount(9)
+ */
+
+/* A memory allocation which must be freed when we are done */
+struct mntaarg {
+	SLIST_ENTRY(mntaarg)	next;
+};
+
+/* The header for the mount arguments */
+struct mntarg {
+	struct iovec *v;
+	int len;
+	int error;
+	SLIST_HEAD(, mntaarg)	list;
+};
+
+/*
+ * Add a boolean argument.
+ *
+ * flag is the boolean value.
+ * name must start with "no".
+ */
+struct mntarg *
+mount_argb(struct mntarg *ma, int flag, const char *name)
+{
+
+	KASSERT(name[0] == 'n' && name[1] == 'o',
+	    ("mount_argb(...,%s): name must start with 'no'", name));
+
+	return (mount_arg(ma, name + (flag ? 2 : 0), NULL, 0));
+}
+
+/*
+ * Add an argument printf style
+ */
+struct mntarg *
+mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...)
+{
+	va_list ap;
+	struct mntaarg *maa;
+	struct sbuf *sb;
+	int len;
+
+	if (ma == NULL) {
+		ma = malloc(sizeof *ma, M_MOUNT, M_WAITOK | M_ZERO);
+		SLIST_INIT(&ma->list);
+	}
+	if (ma->error)
+		return (ma);
+
+	ma->v = realloc(ma->v, sizeof *ma->v * (ma->len + 2),
+	    M_MOUNT, M_WAITOK);
+	ma->v[ma->len].iov_base = (void *)(uintptr_t)name;
+	ma->v[ma->len].iov_len = strlen(name) + 1;
+	ma->len++;
+
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	len = sbuf_len(sb) + 1;
+	maa = malloc(sizeof *maa + len, M_MOUNT, M_WAITOK | M_ZERO);
+	SLIST_INSERT_HEAD(&ma->list, maa, next);
+	bcopy(sbuf_data(sb), maa + 1, len);
+	sbuf_delete(sb);
+
+	ma->v[ma->len].iov_base = maa + 1;
+	ma->v[ma->len].iov_len = len;
+	ma->len++;
+
+	return (ma);
+}
+
+/*
+ * Add an argument which is a userland string.
+ */
+struct mntarg *
+mount_argsu(struct mntarg *ma, const char *name, const void *val, int len)
+{
+	struct mntaarg *maa;
+	char *tbuf;
+
+	if (val == NULL)
+		return (ma);
+	if (ma == NULL) {
+		ma = malloc(sizeof *ma, M_MOUNT, M_WAITOK | M_ZERO);
+		SLIST_INIT(&ma->list);
+	}
+	if (ma->error)
+		return (ma);
+	maa = malloc(sizeof *maa + len, M_MOUNT, M_WAITOK | M_ZERO);
+	SLIST_INSERT_HEAD(&ma->list, maa, next);
+	tbuf = (void *)(maa + 1);
+	ma->error = copyinstr(val, tbuf, len, NULL);
+	return (mount_arg(ma, name, tbuf, -1));
+}
+
+/*
+ * Plain argument.
+ *
+ * If length is -1, use printf.
+ */
+struct mntarg *
+mount_arg(struct mntarg *ma, const char *name, const void *val, int len)
+{
+
+	if (ma == NULL) {
+		ma = malloc(sizeof *ma, M_MOUNT, M_WAITOK | M_ZERO);
+		SLIST_INIT(&ma->list);
+	}
+	if (ma->error)
+		return (ma);
+
+	ma->v = realloc(ma->v, sizeof *ma->v * (ma->len + 2),
+	    M_MOUNT, M_WAITOK);
+	ma->v[ma->len].iov_base = (void *)(uintptr_t)name;
+	ma->v[ma->len].iov_len = strlen(name) + 1;
+	ma->len++;
+
+	ma->v[ma->len].iov_base = (void *)(uintptr_t)val;
+	if (len < 0)
+		ma->v[ma->len].iov_len = strlen(val) + 1;
+	else
+		ma->v[ma->len].iov_len = len;
+	ma->len++;
+	return (ma);
+}
+
+/*
+ * Free a mntarg structure
+ */
+void
+free_mntarg(struct mntarg *ma)
+{
+	struct mntaarg *maa;
+
+	while (!SLIST_EMPTY(&ma->list)) {
+		maa = SLIST_FIRST(&ma->list);
+		SLIST_REMOVE_HEAD(&ma->list, next);
+		free(maa, M_MOUNT);
+	}
+	free(ma->v, M_MOUNT);
+	free(ma, M_MOUNT);
+}
+
+/*
+ * Mount a filesystem
+ */
+int
+kernel_mount(struct mntarg *ma, int flags)
+{
+	struct uio auio;
+	int error;
+
+	KASSERT(ma != NULL, ("kernel_mount NULL ma"));
+	KASSERT(ma->v != NULL, ("kernel_mount NULL ma->v"));
+	KASSERT(!(ma->len & 1), ("kernel_mount odd ma->len (%d)", ma->len));
+
+	auio.uio_iov = ma->v;
+	auio.uio_iovcnt = ma->len;
+	auio.uio_segflg = UIO_SYSSPACE;
+
+	error = ma->error;
+	if (!error)
+		error = vfs_donmount(curthread, flags, &auio);
+	free_mntarg(ma);
+	return (error);
+}
+
+/*
+ * A printflike function to mount a filesystem.
+ */
+int
+kernel_vmount(int flags, ...)
+{
+	struct mntarg *ma = NULL;
+	va_list ap;
+	const char *cp;
+	const void *vp;
+	int error;
+
+	va_start(ap, flags);
+	for (;;) {
+		cp = va_arg(ap, const char *);
+		if (cp == NULL)
+			break;
+		vp = va_arg(ap, const void *);
+		ma = mount_arg(ma, cp, vp, -1);
+	}
+	va_end(ap);
+
+	error = kernel_mount(ma, flags);
 	return (error);
 }
