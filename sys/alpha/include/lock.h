@@ -55,6 +55,8 @@ s_unlock(struct simplelock *lkp)
 	lkp->lock_data = 0;
 }
 
+extern struct simplelock	panic_lock;
+
 #if !defined(SIMPLELOCK_DEBUG) && MAXCPU > 1
 /*
  * This set of defines turns on the real functions in i386/isa/apic_ipl.s.
