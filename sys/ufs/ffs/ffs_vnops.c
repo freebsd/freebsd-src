@@ -824,10 +824,10 @@ ffs_getpages(ap)
 	 * user programs might reference data beyond the actual end of file
 	 * occuring within the page.  We have to zero that data.
 	 */
+	VM_OBJECT_LOCK(mreq->object);
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
-		VM_OBJECT_LOCK(mreq->object);
 		vm_page_lock_queues();
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
@@ -838,7 +838,7 @@ ffs_getpages(ap)
 		VM_OBJECT_UNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}
-
+	VM_OBJECT_UNLOCK(mreq->object);
 	vp = ap->a_vp;
 	obj = vp->v_object;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
@@ -868,14 +868,15 @@ ffs_getpages(ap)
 				vm_page_free(ap->a_m[i]);
 		}
 		vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(obj);
 		if (reqblkno == -1) {
 			if ((mreq->flags & PG_ZERO) == 0)
 				pmap_zero_page(mreq);
 			vm_page_undirty(mreq);
 			mreq->valid = VM_PAGE_BITS_ALL;
+			VM_OBJECT_UNLOCK(obj);
 			return VM_PAGER_OK;
 		} else {
+			VM_OBJECT_UNLOCK(obj);
 			return VM_PAGER_ERROR;
 		}
 	}
