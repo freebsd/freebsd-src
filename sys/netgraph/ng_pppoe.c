@@ -1,4 +1,4 @@
-
+#define SIGNOFF "session closed"
 /*
  * ng_pppoe.c
  *
@@ -1081,6 +1081,10 @@ AAA
 				/* Packet too short, dump it */
 				LEAVE(EMSGSIZE);
 			}
+
+			if (m->m_pkthdr.len > length) {
+				m_adj(m, -((int)(m->m_pkthdr.len - length)));
+			}
 			/* XXX also need to trim excess at end I should think */
 			if ( sp->state != PPPOE_CONNECTED) {
 				if (sp->state == PPPOE_NEWCONNECTED) {
@@ -1257,6 +1261,36 @@ AAA
 		sp = hook->private;
 		if (sp->state != PPPOE_SNONE ) {
 			pppoe_send_event(sp, NGM_PPPOE_CLOSE);
+		}
+		if ((privp->ethernet_hook)
+		&& ((sp->state == PPPOE_CONNECTED)
+		 || (sp->state == PPPOE_NEWCONNECTED))) {
+			struct mbuf *m;
+			struct pppoe_full_hdr *wh;
+			struct pppoe_tag *tag;
+			int	msglen = strlen(SIGNOFF);
+			void *dummy = NULL;
+			int error = 0;
+
+			/* revert the stored header to DISC/PADT mode */
+		 	wh = &sp->pkt_hdr;
+			wh->ph.code = PADT_CODE;
+			wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
+
+			/* generate a packet of that type */
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			m->m_pkthdr.rcvif = NULL;
+			m->m_pkthdr.len = m->m_len = sizeof(*wh);
+			bcopy((caddr_t)wh, mtod(m, caddr_t), sizeof(*wh));
+			/* Add a General error message and adjust sizes */
+			wh = mtod(m, struct pppoe_full_hdr *);
+			tag = wh->ph.tag;
+			tag->tag_type = PTT_GEN_ERR;
+			tag->tag_len = htons((u_int16_t)msglen);
+			strncpy(tag->tag_data, SIGNOFF, msglen);
+			m->m_pkthdr.len = (m->m_len += sizeof(*tag) + msglen);
+			wh->ph.length = htons(sizeof(*tag) + msglen);
+			NG_MESSAGE_SEND(error, privp->ethernet_hook, m, dummy);
 		}
 		if (sp->neg) {
 			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
