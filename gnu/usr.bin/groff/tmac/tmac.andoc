@@ -7,6 +7,6 @@
 ..
 .de TH
 .rm TH
-.mso tmac.an
+.mso tmac.groff_an
 \\*(TH\\
 ..
