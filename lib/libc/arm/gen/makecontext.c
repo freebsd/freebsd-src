@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdarg.h>
 
-extern void _ctx_start(ucontext_t *, int argc, ...);
+extern void _ctx_start(void);
 
 void
 ctx_done(ucontext_t *ucp)
@@ -72,7 +72,8 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 
 	/* Compute and align stack pointer. */
 	sp = (unsigned int *)
-	    (((uintptr_t)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size) & ~7);
+	    (((uintptr_t)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size -
+	      sizeof(double)) & ~7);
 	/* Allocate necessary stack space for arguments exceeding r0-3. */
 	if (argc > 4)
 		sp -= argc - 4;
@@ -80,8 +81,9 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	/* Wipe out frame pointer. */
 	gr[_REG_FP] = 0;
 	/* Arrange for return via the trampoline code. */
-	gr[_REG_LR] = (__greg_t)_ctx_start;
-	gr[_REG_PC] = (__greg_t)func;
+	gr[_REG_PC] = (__greg_t)_ctx_start;
+	gr[_REG_R4] = (__greg_t)func;
+	gr[_REG_R5] = (__greg_t)ucp;
 
 	va_start(ap, argc);
 	/* Pass up to four arguments in r0-3. */
