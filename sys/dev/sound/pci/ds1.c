@@ -291,9 +291,10 @@ ds_initcd(void *devinfo)
 		 * "pcm0: ac97 codec init failed"
 		 * Maybe this is needed for all YMF740's?
 		 * 400ms and 500ms here seem to work, 300ms does not.
+		 *
+		 * do it for all chips -cg
 		 */
-		if (sc->type == 8)
-			DELAY(400000);
+		DELAY(400000);
 	}
 
 	return ds_cdbusy(sc, 0);
