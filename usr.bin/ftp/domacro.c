@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: domacro.c,v 1.10 1997/07/20 09:45:45 lukem Exp $	*/
 
 /*

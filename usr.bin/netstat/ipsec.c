@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NetBSD: inet.c,v 1.35.2.1 1999/04/29 14:57:08 perry Exp $	*/
 /*	$KAME: ipsec.c,v 1.25 2001/03/12 09:04:39 itojun Exp $	*/
 

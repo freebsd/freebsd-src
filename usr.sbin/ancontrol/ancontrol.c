@@ -28,9 +28,14 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
+	Bill Paul. All rights reserved.";
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
@@ -51,13 +56,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
-
-#if !defined(lint)
-static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
-	Bill Paul. All rights reserved.";
-static const char rcsid[] =
-  "@(#) $FreeBSD$";
-#endif
 
 static void an_getval		__P((const char *, struct an_req *));
 static void an_setval		__P((const char *, struct an_req *));

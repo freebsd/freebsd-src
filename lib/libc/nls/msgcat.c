@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
 
@@ -33,7 +31,8 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 /*

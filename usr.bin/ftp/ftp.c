@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*

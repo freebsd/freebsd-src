@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: cmdtab.c,v 1.17 1997/08/18 10:20:17 lukem Exp $	*/
 
 /*

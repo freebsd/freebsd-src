@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  *
  * $TSHeader: src/sbin/ffsinfo/ffsinfo.c,v 1.4 2000/12/12 19:30:55 tomsoft Exp $
- * $FreeBSD$
  *
  */
 
