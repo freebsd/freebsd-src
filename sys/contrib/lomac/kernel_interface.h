@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_interface.h,v 1.21 2001/10/15 17:58:32 bfeldman Exp $
+ * $FreeBSD$
  */
 #ifndef KERNEL_INTERFACE_H
 #define KERNEL_INTERFACE_H

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_util.h,v 1.4 2001/11/14 16:30:17 bfeldman Exp $
+ * $FreeBSD$
  */
 #ifndef KERNEL_UTIL_H
 #define KERNEL_UTIL_H

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_interface.c,v 1.25 2001/10/25 21:21:59 tfraser Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

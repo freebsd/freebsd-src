@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lomacfs_subr.c,v 1.24 2001/11/05 20:57:41 tfraser Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

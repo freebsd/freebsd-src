@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_util.c,v 1.22 2001/11/15 20:51:13 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
