@@ -592,7 +592,11 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		}
 		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_SIZE);
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN);
-		if (chan > IEEE80211_CHAN_MAX || isclr(ic->ic_chan_active, chan)) {
+		if (
+#if IEEE80211_CHAN_MAX < 255
+		    chan > IEEE80211_CHAN_MAX ||
+#endif
+		    isclr(ic->ic_chan_active, chan)) {
 			IEEE80211_DPRINTF(("%s: ignore %s with invalid channel "
 				"%u\n", __func__,
 				ISPROBE(subtype) ? "probe response" : "beacon",
@@ -775,7 +779,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		case IEEE80211_M_IBSS:
 			if (ic->ic_state != IEEE80211_S_RUN || seq != 1)
 				return;
-			ieee80211_new_state(&ic->ic_if, IEEE80211_S_AUTH,
+			ieee80211_new_state(ic, IEEE80211_S_AUTH,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 
@@ -822,7 +826,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 				}
 				return;
 			}
-			ieee80211_new_state(&ic->ic_if, IEEE80211_S_ASSOC,
+			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		}
@@ -1011,7 +1015,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 				IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
 		if (ni->ni_rates.rs_nrates != 0)
-			ieee80211_new_state(ifp, IEEE80211_S_RUN,
+			ieee80211_new_state(ic, IEEE80211_S_RUN,
 				wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		break;
 	}
@@ -1026,7 +1030,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		reason = le16toh(*(u_int16_t *)frm);
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
-			ieee80211_new_state(&ic->ic_if, IEEE80211_S_AUTH,
+			ieee80211_new_state(ic, IEEE80211_S_AUTH,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
@@ -1055,7 +1059,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		reason = le16toh(*(u_int16_t *)frm);
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
-			ieee80211_new_state(&ic->ic_if, IEEE80211_S_ASSOC,
+			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
