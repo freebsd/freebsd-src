@@ -73,6 +73,7 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <ctype.h>
 #include <errno.h>
+#include <locale.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <termios.h>
@@ -160,7 +161,7 @@ int argc; char *argv[];
 #ifdef UNBUFFERED
 	setbuf(stdout, NULL);
 #endif
-
+	setlocale(LC_ALL, "");
 
 	time(&t);
 	setuid(uid = getuid());
@@ -854,9 +855,9 @@ FILE *infile;
 
 char *
 nxtfld(s)
-char *s;
+unsigned char *s;
 {
-	if (*s) while (*s && *s > ' ') s++;	/* skip over this field */
-	if (*s) while (*s && *s <= ' ') s++;	/* find start of next field */
+	if (*s) while (*s && !isspace(*s)) s++;     /* skip over this field */
+	if (*s) while (*s && isspace(*s)) s++;    /* find start of next field */
 	return (s);
 }
