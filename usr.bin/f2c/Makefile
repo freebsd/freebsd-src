@@ -18,7 +18,7 @@ gram.c:	${GRAMFILES} ${.CURDIR}/defs.h tokdefs.h
 	(sed < tokdefs.h "s/#define/%token/" ; \
 	cat ${GRAMFILES}) > gram.in
 	$(YACC) $(YFLAGS) gram.in
-	echo "(expect 4 shift/reduce)"
+	echo "# expect 4 shift/reduce conflicts"
 	sed 's/^# line.*/\/* & *\//' y.tab.c >gram.c
 	rm -f gram.in y.tab.c
 
