@@ -485,6 +485,12 @@ main(int argc, char *argv[])
 
 	AcpiDbgLevel = ACPI_DEBUG_DEFAULT;
 
+	/*
+	 * Match kernel options for the interpreter.  Global variable names
+	 * can be found in acglobal.h.
+	 */
+	AcpiGbl_EnableInterpreterSlack = TRUE;
+
 	aml_simulation_regload("region.ini");
 	if (load_dsdt(argv[1]) == 0) {
 		aml_simulation_regdump("region.dmp");
