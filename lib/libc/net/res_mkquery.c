@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_mkquery.c,v 4.9.1.7 1994/06/01 21:09:58 vixie Exp $";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.2 1994/09/25 02:12:38 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -85,11 +85,9 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	struct rrec *newrr = (struct rrec *) newrr_in;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
-#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_mkquery(%d, %s, %d, %d)\n",
 		       op, dname, class, type);
-#endif
 	/*
 	 * Initialize header fields.
 	 */

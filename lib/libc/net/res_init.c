@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static char rcsid[] = "$Id: res_init.c,v 4.9.1.12 1994/06/11 22:05:04 vixie Exp $";
+static char rcsid[] = "$Id: res_init.c,v 1.2 1994/09/25 02:12:36 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -341,7 +341,6 @@ res_init()
 			dots--;
 		}
 		*pp = NULL;
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG) {
 			printf(";; res_init()... default dnsrch list:\n");
 			for (pp = _res.dnsrch;  *pp;  pp++) {
@@ -349,7 +348,6 @@ res_init()
 			}
 			printf(";;\t..END..\n");
 		}
-#endif /*DEBUG*/
 #endif /*!RFC1535*/
 	}
 
@@ -368,12 +366,10 @@ res_setoptions(options, source)
 	char *cp = options;
 	int i;
 
-#ifdef DEBUG
 	if (_res.options & RES_DEBUG) {
 		printf(";; res_setoptions(\"%s\", \"%s\")...\n",
 		       options, source);
 	}
-#endif
 	while (*cp) {
 		/* skip leading and inner runs of spaces */
 		while (*cp == ' ' || *cp == '\t')
@@ -385,20 +381,16 @@ res_setoptions(options, source)
 				_res.ndots = i;
 			else
 				_res.ndots = RES_MAXNDOTS;
-#ifdef DEBUG
 			if (_res.options & RES_DEBUG) {
 				printf(";;\tndots=%d\n", _res.ndots);
 			}
-#endif
 		} else if (!strncmp(cp, "debug", sizeof("debug")-1)) {
-#ifdef DEBUG
 			if (!(_res.options & RES_DEBUG)) {
 				printf(";; res_setoptions(\"%s\", \"%s\")..\n",
 				       options, source);
 				_res.options |= RES_DEBUG;
 			}
 			printf(";;\tdebug\n");
-#endif
 		} else {
 			/* XXX - print a warning here? */
 		}
