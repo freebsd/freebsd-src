@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 300.calendar,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 300.calendar,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
 #
 # `calendar -a' needs to die. Why? Because it's a bad idea, particular
 # with networked home directories, but also in general.  If you want the
@@ -13,5 +13,6 @@ exit 0		# do not run by default
 if [ -f /usr/bin/calendar ] ; then
     echo ""
     echo "Running calendar:"
+
     calendar -a
 fi
