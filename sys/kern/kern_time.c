@@ -45,7 +45,6 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
-#include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/time.h>
