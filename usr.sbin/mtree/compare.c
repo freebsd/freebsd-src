@@ -74,10 +74,7 @@ static const char *ftype(u_int);
 	}
 
 int
-compare(name, s, p)
-	char *name __unused;
-	register NODE *s;
-	register FTSENT *p;
+compare(char *name __unused, NODE *s, FTSENT *p)
 {
 	uint32_t val;
 	int fd, label;
@@ -307,8 +304,7 @@ typeerr:		LABEL;
 }
 
 const char *
-inotype(type)
-	u_int type;
+inotype(u_int type)
 {
 	switch(type & S_IFMT) {
 	case S_IFBLK:
@@ -332,8 +328,7 @@ inotype(type)
 }
 
 static const char *
-ftype(type)
-	u_int type;
+ftype(u_int type)
 {
 	switch(type) {
 	case F_BLOCK:
@@ -357,11 +352,10 @@ ftype(type)
 }
 
 char *
-rlink(name)
-	char *name;
+rlink(char *name)
 {
 	static char lbuf[MAXPATHLEN];
-	register int len;
+	int len;
 
 	if ((len = readlink(name, lbuf, sizeof(lbuf) - 1)) == -1)
 		err(1, "line %d: %s", lineno, name);

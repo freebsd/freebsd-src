@@ -63,7 +63,7 @@ static void	miss(NODE *, char *);
 static int	vwalk(void);
 
 int
-verify()
+verify(void)
 {
 	int rval;
 
@@ -74,11 +74,11 @@ verify()
 }
 
 static int
-vwalk()
+vwalk(void)
 {
-	register FTS *t;
-	register FTSENT *p;
-	register NODE *ep, *level;
+	FTS *t;
+	FTSENT *p;
+	NODE *ep, *level;
 	int specdepth, rval;
 	char *argv[2];
 	char dot[] = ".";
@@ -159,12 +159,10 @@ extra:
 }
 
 static void
-miss(p, tail)
-	register NODE *p;
-	register char *tail;
+miss(NODE *p, char *tail)
 {
-	register int create;
-	register char *tp;
+	int create;
+	char *tp;
 	const char *type;
 
 	for (; p; p = p->next) {
