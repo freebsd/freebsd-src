@@ -3,7 +3,7 @@
  *
  * $Id$
  *
- * Version 0.92, last modified 21-Sep-95
+ * Version 0.95, last modified 18-Oct-95
  * 
  * Copyright Theodore Ts'o, 1994, 1995.  All rights reserved.
  *
@@ -50,23 +50,34 @@
 #ifndef _MACHINE_RANDOM_H_
 #define _MACHINE_RANDOM_H_ 1
 
+#if defined(KERNEL)
+#include <i386/isa/icu.h>
+#endif
 #include <sys/ioctl.h>
 
-#define	MEM_SETIRQ	_IOW('r', 1, int)	/* set interrupt */
-#define	MEM_CLEARIRQ	_IOW('r', 2, int)	/* clear interrupt */
-#define	MEM_RETURNIRQ	_IOR('r', 3, int)	/* return interrupt */
+#define	MEM_SETIRQ	_IOW('r', 1, u_int16_t)	/* set interrupt */
+#define	MEM_CLEARIRQ	_IOW('r', 2, u_int16_t)	/* clear interrupt */
+#define	MEM_RETURNIRQ	_IOR('r', 3, u_int16_t)	/* return interrupt */
+
+#if defined(KERNEL)
 
 /* Interrupts to be used in the randomising process */
 
-extern u_int16_t interrupt_allowed;
+extern inthand2_t *sec_intr_handler[ICU_LEN];
+extern int sec_intr_unit[ICU_LEN];
 
 /* Exported functions */
 
 void rand_initialize(void);
 void add_keyboard_randomness(u_char scancode);
+void add_interrupt_randomness(int irq);
+void add_blkdev_randomness(int major);
 
 void get_random_bytes(void *buf, u_int nbytes);
 u_int read_random(char *buf, u_int size);
 u_int read_random_unlimited(char *buf, u_int size);
+u_int write_random(const char *buf, u_int nbytes);
+
+#endif
 
 #endif
