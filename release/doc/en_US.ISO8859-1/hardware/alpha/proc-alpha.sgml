@@ -1102,8 +1102,8 @@ cpu	EV4</programlisting>
       <title>Evaluation Board 64plus (<quote>EB64+</quote>), Aspen Alpine</title>
 
       <para>In its attempts to popularize the Alpha CPU DEC produced a number 
-      of so called Evaluation Boards. The EB64+ family boards have the 
-      following feature set:</para>
+      of so called Evaluation Boards. The EB64+ family of evaluation
+      boards has the following feature set:</para>
 
       <para><itemizedlist>
         <listitem>
@@ -1165,7 +1165,8 @@ cpu	EV4</programlisting>
       with 2 Mbytes of cache already soldered onto the mainboard. It has 
       jumpers to select the use of 60, 70 or 80ns SIMM speeds.</para>
 
-      <para>36 bits SIMMs work fine, 3 bits simply remain unused.</para>
+      <para>36 bits SIMMs work fine, 3 bits simply remain unused. Note
+      the systems use Fast Page Mode memory, no EDO.</para>
 
       <para>The SRM console code is housed in an UV-erasable EPROM. No 
       easy flash SRM upgrades for the EB64+ The latest SRM version available 
@@ -1224,7 +1225,8 @@ cpu		EV4</programlisting></para>
 	      <para>36 bit, Fast Page Mode, uses ECC, [EB164 / PC164]</para>
             </listitem>
 	    <listitem>
-	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164SX / PC164LX]</para>
+	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164SX / PC164LX]
+	      </para>
             </listitem></itemizedlist>
           </para>
         </listitem>
@@ -1255,7 +1257,7 @@ cpu		EV4</programlisting></para>
       speedups over a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must 
       be of the same type to make this work. The system must be explicitly 
       setup to use the 8 SIMM memory arrangement. You must have 8 SIMMs, 
-      4 SIMMs distributed over 2 banks does not work.</para>
+      4 SIMMs distributed over 2 banks will not work.</para>
 
       <para>The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A].
       Newer Symbios 810 revisions like the Symbios 810AE are not recognized by
@@ -1325,7 +1327,8 @@ cpu             EV5</programlisting></para>
         <para>DECchip 21071-AA core logic chip-set</para>
       </listitem>
       <listitem>
-        <para>Bcache / L2 cache: 512 Kbytes (200 and 400 series) or 2048KBytes (250 series)</para>
+        <para>Bcache / L2 cache: 512 Kbytes (200 and 400 series) 
+	or 2048KBytes (250 series)</para>
       </listitem>
       <listitem>
 	<para>memory:
@@ -1363,10 +1366,12 @@ cpu             EV5</programlisting></para>
         <para>floppy disk interface</para>
       </listitem>
       <listitem>
-        <para>32 bit PCI expansion slots (3 for 400 series, 2 for 200 & 250 series)</para>
+        <para>32 bit PCI expansion slots (3 for the AS400-series, 
+	2 for the AS200 & 250-series)</para>
       </listitem>
       <listitem>
-        <para>ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
+        <para>ISA expansion slots (4 for the AS400-series, 
+	2 for the AS200 & 250-series) 
         (some ISA/PCI slots are physically shared)</para>
       </listitem>
       <listitem>
@@ -1680,29 +1685,59 @@ cpu	EV5	# depends on the CPU model installed</programlisting>
       <sect4>
         <title><quote>Webbrick / Slate</quote></title>
 
-<para>
-Features:
-- 21264 EV6 CPU at 466 MHz
-- L2 / Bcache: 2MB, ECC protected
-- memory bus: 128 bit via crossbar, 1.3GB/sec to memory
-- memory: industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
-	  4 DIMM slots (2 for DS10L)
-	  installed in pairs of 2
-	  max memory is 2 Gb (1Gb for DS10L)
-- 21271 Core Logic chipset ("Tsunami")
-- 2 on-board 21143 Fast Ethernet controllers
-- AcerLabs M5237 (Aladdin-V) USB controller
-- AcerLabs M1533 PCI-ISA bridge   
-- AcerLabs Aladdin ATA-33 controller 
-- embedded dual EIDE 
-- expansion: 3 64-bit PCI slots
+        <itemizedlist>
+	  <listitem>
+	    <para>21264 EV6 CPU at 466 MHz</para>
+	  </listitem>
+	  <listitem>
+	    <para>L2 / Bcache: 2MB, ECC protected</para>
+	  </listitem>
+	  <listitem>
+	    <para>memory bus: 128 bit via crossbar, 1.3GB/sec memory
+	    bandwith</para>
+	  </listitem>
+	  <listitem>
+	    <para>industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
+	    4 DIMM slots (2 for DS10L)
+	    installed in pairs of 2
+	    max memory is 2 Gb (1Gb for DS10L)</para>
+	  </listitem>
+	  <listitem>
+	    <para>21271 Core Logic chipset ("Tsunami")</para>
+	  </listitem>
+	  <listitem>
+	    <para>2 on-board 21143 Fast Ethernet controllers</para>
+	  </listitem>
+          <listitem>
+	    <para>AcerLabs M5237 (Aladdin-V) USB controller</para>
+	  </listitem>
+	  <listitem>
+            <para>AcerLabs M1533 PCI-ISA bridge</para>
+	  </listitem>
+	  <listitem>
+            <para>AcerLabs Aladdin ATA-33 controller </para>
+	  </listitem>
+	  <listitem>
+            <para>embedded dual EIDE </para>
+	  </listitem>
+	  <listitem>
+            <para>expansion: 3 64-bit PCI slots
              1 32-bit PCI slots
-	     DS10L has a single 64bit PCI slot
-- 2x 16550A serial ports
-- 1x parallel port
-- 2x USB
-- PS/2 keyboard & mouse port        
-</para>
+	     DS10L has a single 64bit PCI slot</para>
+	  </listitem>
+	  <listitem>
+             <para>2x 16550A serial ports</para>
+	  </listitem>
+	  <listitem>
+            <para>1x parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>2x USB</para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 keyboard & mouse port</para>
+	  </listitem>
+	</itemizedlist>
 
       <para>The system has a smart power controller. This means that parts 
       of the system remain powered when it is switched off (like an ATX-style 
@@ -1751,86 +1786,137 @@ cpu	EV5</programlisting></para>
     <sect4>
       <title><quote>Monet</quote></title>
 
-<programlisting>
-Features:
-- 21264 EV6 at 500 MHz
-  21264 EV67 at 500 or 667 MHz (XP1000G, codenamed Brisbane)
-  CPU is mounted on a daughter-card which is field-upgradable
-- L2 / Bcache: 4MB, ECC protected
-- memory bus: 256 bit 
-- memory: 128 or 256 Mbytes 100 MHz (PC100) 168 pin JEDEC standard,
-	  registered ECC SDRAM DIMMs
-- 21271 Core Logic chip-set ("Tsunami")
-- 1 on-board 21143 Ethernet controller
-- Cypress 82C693 USB controller       
-- Cypress 82C693 PCI-ISA bridge       
-- Cypress 82C693 controller 
-- expansion: 2 independent PCI buses, driven by high-speed I/O
-	     channels called 'hoses':
-        hose 0: (the upper 3 slots)
-             2 64-bit PCI slots    
-             1 32-bit PCI slot     
-        hose 1: (the bottom 2 slots)
-             2 32-bit PCI slots (behind a 21154 PCI-PCI bridge)
-	2 of the 64-bit PCI slots are for full-length cards
-	all of the 32-bit PCI slots are for short cards
-	1 of the 32-bit PCI slots is physically shared with an ISA slot
-   	all PCI slots run at 33MHz
-- 1x Ultra-Wide SCSI port based on a Qlogic 1040 chip
-- 2x 16550A serial port        
-- 1x parallel port        
-- PS/2 keyboard & mouse port        
-- embedded 16-bit ESS ES1888 sound chip
-- 2x USB
-- graphics options: ELSA Gloria Synergy or DEC/Compaq PowerStorm 3D
-	            accelerator cards
+      <itemizedlist>
+	<listitem>
+          <para>21264 EV6 at 500 MHz
+            21264 EV67 at 500 or 667 MHz (XP1000G, codenamed Brisbane)
+            CPU is mounted on a daughter-card which is field-upgradable</para>
+	</listitem>
+	<listitem>
+          <para>L2 / Bcache: 4MB, ECC protected</para>
+	</listitem>
+	<listitem>
+          <para>memory bus: 256 bit</para>
+	</listitem>
+	<listitem>
+          <para>memory: 128 or 256 Mbytes 100 MHz (PC100) 168 pin 
+	  JEDEC standard, registered ECC SDRAM DIMMs</para>
+	</listitem>
+	<listitem>
+          <para>21271 Core Logic chip-set ("Tsunami")</para>
+	</listitem>
+	<listitem>
+          <para>1 on-board 21143 Ethernet controller</para>
+	</listitem>
+	<listitem>
+          <para>Cypress 82C693 USB controller</para>
+	</listitem>
+	<listitem>
+          <para>Cypress 82C693 PCI-ISA bridge</para>
+	</listitem>
+	<listitem>
+          <para>Cypress 82C693 controller</para>
+	</listitem>
+	<listitem>
+          <para>expansion: 2 independent PCI buses, driven by high-speed I/O
+ 	     channels called 'hoses':
+	     <itemizedlist>
+	       <listitem>
+		 <para>hose 0: (the upper 3 slots)
+                   2 64-bit PCI slots    
+                   1 32-bit PCI slot     
+		 </para>
+	       </listitem>
+	       <listitem>
+		 <para>hose 1: (the bottom 2 slots)
+                   2 32-bit PCI slots (behind a 21154 PCI-PCI bridge)
+		 </para>
+	       </listitem>
+	       <listitem>
+		 <para>2 of the 64-bit PCI slots are for 
+		 full-length cards</para>
+               </listitem>
+	       <listitem>
+	         <para>all of the 32-bit PCI slots are for short cards</para>
+               </listitem>
+	       <listitem>
+	         <para>1 of the 32-bit PCI slots is physically shared 
+		 with an ISA slot</para>
+               </listitem>
+	       <listitem>
+   	         <para>all PCI slots run at 33MHz</para>
+	       </listitem>
+	     </itemizedlist></para>
+	</listitem>
+	<listitem>
+          <para>1x Ultra-Wide SCSI port based on a Qlogic 1040 chip
+	</listitem>
+	<listitem>
+          <para>2x 16550A serial port        
+	</listitem>
+	<listitem>
+          <para>1x parallel port        
+	</listitem>
+	<listitem>
+          <para>PS/2 keyboard & mouse port        
+	</listitem>
+	<listitem>
+          <para>embedded 16-bit ESS ES1888 sound chip
+	</listitem>
+	<listitem>
+          <para>2 USB ports
+	</listitem>
+	<listitem>
+          <para>graphics options: ELSA Gloria Synergy or 
+	  DEC/Compaq PowerStorm 3D accelerator cards</para>
+        </listitem>
+      </itemizedlist>
 
-</programlisting>
+      <para>Monet is housed in a mini-tower like enclosure quite similar 
+      to the Miata box.</para>
 
-       <para>Monet is housed in a mini-tower like enclosure quite similar 
-       to the Miata box.</para>
+      <para>The on-board Qlogic UW-SCSI chip supports up to 4 internal 
+      devices. There is no external connector for the on-board SCSI.</para>
 
-       <para>The on-board Qlogic UW-SCSI chip supports up to 4 internal 
-       devices. There is no external connector for the on-board SCSI.</para>
+      <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
+      DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
+      with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
+      DIMMs are installed 'physically interleaved', note the markings of the
+      slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
+      live on the CPU daughter-card. Note that the system uses ECC RAM so you 
+      need DIMMs with 72 bits (not the generic PC-class 64 bit DIMMs)</para>
 
-       <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
-       DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
-       with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
-       DIMMs are installed 'physically interleaved', note the markings of the
-       slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
-       live on the CPU daughter-card. Note that the system uses ECC RAM so you 
-       need DIMMs with 72 bits (not the generic PC-class 64 bit DIMMs)</para>
+      <para>The EIDE interface is usable / SRM bootable so &os; can be rooted 
+      on an EIDE disk. Although the Cypress chip has potential for 2 
+      EIDE channels Monet uses only one of them.</para>
 
-       <para>The EIDE interface is usable / SRM bootable so &os; can be rooted 
-       on an EIDE disk. Although the Cypress chip has potential for 2 
-       EIDE channels Monet uses only one of them.</para>
+      <para>The USB interface is supported by &os;.If you experience 
+      problems trying to use the USB interface please check if
+      the SRM variable "usb_enable" is set to "on". You can change this by
+      performing: <prompt>&gt;&gt;&gt;</prompt> 
+      <userinput>SET USB_ENABLE ON</userinput></para>
 
-       <para>The USB interface is supported by &os;.If you experience 
-       problems trying to use the USB interface please check if
-       the SRM variable "usb_enable" is set to "on". You can change this by
-       performing: <prompt>&gt;&gt;&gt;</prompt> 
-       <userinput>SET USB_ENABLE ON</userinput></para>
+      <important><para>Don&quot;t try to use Symbios-chip based SCSI 
+      adapters in the PCI slots connected to hose 1. There is a 
+      not-yet-found &os; bug that prevents this from working 
+      correctly.</para></important>
 
-       <important><para>Don&quot;t try to use Symbios-chip based SCSI adapters in the 
-       PCI slots connected to hose 1. There is a not-yet-found &os; bug 
-       that prevents this from working correctly.</para></important>
+      <important><para>Not all VGA cards will work behind the PCI-PCI bridge (so 
+      in slots 4 and 5). Only cards that implement VGA-legacy addressing 
+      correctly will work. Workaround is to put the VGA card 
+      <quote>before</quote> the bridge.</para></important>
 
-       <important><para>Not all VGA cards will work behind the PCI-PCI bridge (so 
-       in slots 4 and 5). Only cards that implement VGA-legacy addressing 
-       correctly will work. Workaround is to put the VGA card 
-       <quote>before</quote> the bridge.</para></important>
-
-       <para>The sound chip is not currently supported with &os;. There 
-       is work in progress in this area.</para>
+      <para>The sound chip is not currently supported with &os;. There 
+      is work in progress in this area.</para>
   
-       <para>The kernel config file must contain:
-       <programlisting>options	DEC_ST6600    
+      <para>The kernel config file must contain:
+      <programlisting>options	DEC_ST6600    
 cpu	EV5</programlisting></para>
 
-       <note><para>Contrary to expectation there is no 
-       <literal>cpu EV6</literal> defined for inclusion in the kernel 
-       config file. The <literal>cpu EV5</literal> is mandatory to 
-       keep &man.config.8; happy.</para></note>
+      <note><para>Contrary to expectation there is no 
+      <literal>cpu EV6</literal> defined for inclusion in the kernel 
+      config file. The <literal>cpu EV5</literal> is mandatory to 
+      keep &man.config.8; happy.</para></note>
 
      </sect4>
     </sect3>
@@ -1994,17 +2080,31 @@ cpu	EV5</programlisting>
       machine into a Lynx by swapping the I/O backplane (the C-bus 
       backplane remains). CPU upgrades were available as well.</para>
 
-<programlisting>
-Features:
-- 21064 EV4[5] CPU[s] at 200, 233, 275 MHz
-- 21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz
-- cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
-- embedded floppy controller driving a 2.88 Mbytes drive
-- embedded 10Mbit 21040 Ethernet [AS2100 only]
-- 2 serial ports
-- 1 parallel port
-- PS/2 style keyboard & mouse port
-</programlisting>
+      <itemizedlist>
+        <listitem>
+	  <para>21064 EV4[5] CPU[s] at 200, 233, 275 MHz or
+          21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz</para>
+	</listitem>
+	<listitem>
+          <para>cache: varies in size with the CPU model; 1, 4 or 
+	  8Mbyte per CPU</para>
+	</listitem>
+	<listitem>
+          <para>embedded floppy controller driving a 2.88 Mbytes drive</para>
+	</listitem>
+	<listitem>
+          <para>embedded 10Mbit 21040 Ethernet [AS2100 only]</para>
+	</listitem>
+	<listitem>
+          <para>2 serial ports</para>
+	</listitem>
+	<listitem>
+          <para>1 parallel port</para>
+	</listitem>
+	<listitem>
+          <para>PS/2 style keyboard & mouse port</para>
+	</listitem>
+      </itemizedlist>
 
       <para>The CPUs spec-ed as 200 MHz are in reality running at 
       190 MHz. Maximum number of CPUs is 4. All CPUs must be of the 
@@ -2066,57 +2166,61 @@ Features:
       <prompt>&gt;&gt;&gt;</prompt> <userinput>SET PKA0_FAST 1
       </userinput>enables Fast SCSI speeds.</para>
 
-<programlisting>
-Internal disk storage:
-AS2100[A] come equipped with a StorageWorks 7 slot SCSI cage. A second cage
-can be added inside the cabinet. AS2000 has a single 7 slot SCSI cage,
-which cannot be expanded with an additional one. Note that the slot
-locations in these cages map differently to SCSI IDs compared to the 
-standard StorageWorks shelves. Slot IDs from top to bottom 
-are 0, 4, 1, 5, 2, 6, 3 when using a single bus configuration. The cage
-can also be set to provide two independent SCSI buses. This is used for
-embedded RAID controllers like the KZPSC (Mylex DAC960). Slot ID assignments
-for split bus are, from top to bottom: 0A, 0B, 1A, 1B, 2A, 2B, 3A, 3B. 
-Where A and B signify a SCSI bus. In a single bus configuration the 
-terminator module on the back of the SCSI cage is on the TOP. The jumper
-module is on the BOTTOM. For split bus operation these two modules are
-reversed. The terminator can be distinguished from the jumper by noting the 
-chips on the terminator. The jumper does not have any active components on
-it.
+      <para>AS2100[A] come equipped with a StorageWorks 7 slot SCSI 
+      cage. A second cage can be added inside the cabinet. AS2000 
+      has a single 7 slot SCSI cage, which cannot be expanded with 
+      an additional one. Note that the slot locations in these cages 
+      map differently to SCSI IDs compared to the standard StorageWorks 
+      shelves. Slot IDs from top to bottom are 0, 4, 1, 5, 2, 6, 3 
+      when using a single bus configuration.</para>
 
-Expansion:
-DemiSable has 7 EISA slots and 3 PCI slots. Sable has 8 EISA and 3 PCI
-slots. Lynx, being newer, has 8 PCI and 3 EISA slots. The Lynx PCI slots 
-are grouped in sets of 4. The 4 PCI slots closest to the CPU/memory
-slots are the primary slots, so logically before the PCI bridge chip.
-Note that contrary to expectation the primary PCI slots are the highest
-numbered ones (PCI4 - PCI7). 
+      <para>The cage can also be set to provide two independent SCSI 
+      buses. This is used for embedded RAID controllers like the 
+      KZPSC (Mylex DAC960). Slot ID assignments for split bus are, 
+      from top to bottom: 0A, 0B, 1A, 1B, 2A, 2B, 3A, 3B. 
+      Where A and B signify a SCSI bus. In a single bus configuration the 
+      terminator module on the back of the SCSI cage is on the TOP. The jumper
+      module is on the BOTTOM. For split bus operation these two modules are
+      reversed. The terminator can be distinguished from the jumper 
+      by noting the chips on the terminator. The jumper does not have 
+      any active components on it.</para>
 
-Make sure you run the EISA Configuration Utility (from floppy) when 
-adding/change expansion cards in EISA slots or after upgrading your 
-console firmware. This is done by inserting the ECU floppy and typing
-RUNECU at the SRM &gt;&gt;&gt; prompt.
+      <para>DemiSable has 7 EISA slots and 3 PCI slots. Sable has 
+      8 EISA and 3 PCI slots. Lynx, being newer, has 8 PCI 
+      and 3 EISA slots. The Lynx PCI slots are grouped in 
+      sets of 4. The 4 PCI slots closest to the CPU/memory
+      slots are the primary slots, so logically before the PCI bridge chip.
+      Note that contrary to expectation the primary PCI slots are the highest
+      numbered ones (PCI4 - PCI7).</para>
 
-	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
-	      EISA VGA adapter is treated as an ISA device. It therefore
-	      works OK as a console.
+      <para>Make sure you run the EISA Configuration Utility (from floppy) 
+      when adding/change expansion cards in EISA slots or after 
+      upgrading your console firmware. This is done by inserting the 
+      ECU floppy and typing <prompt>&gt;&gt;&gt;</prompt> <userinput>RUNECU
+      </userinput>.
 
-A special Extended I/O module for use on the C-bus was planned-for. 
-Whether they ever saw daylight is unknown. In any case &os; has never
-been verified with an ExtIO module.
+      <note><para>EISA slots are currently unsupported, but the Compaq Qvision
+      EISA VGA adapter is treated as an ISA device. It therefore
+      works OK as a console.</para></note>
 
-Power:
-The machines can be equipped with redundant power supplies. Note that
-the enclosure is equipped with interlock switches that switch off power
-when the enclosure is opened. The system's cooling fans are speed
-controlled. When the machine has more than 2 CPUs and more than 1 memory
-board dual power supplies are mandatory.
+      <para>A special Extended I/O module for use on the C-bus was 
+      planned-for. If they ever saw daylight is unknown. In any case 
+      &os; has never been verified with an ExtIO module.</para>
 
-The kernel config file must contain:
-       options         DEC_2100_A500
-       cpu             EV4
-       cpu	       EV5
-</programlisting>
+      <para>The machines can be equipped with redundant power supplies. Note 
+      that the enclosure is equipped with interlock switches that switch 
+      off power when the enclosure is opened. The system's cooling 
+      fans are speed controlled. When the machine has more than 2 
+      CPUs and more than 1 memory board dual power supplies 
+      are mandatory.</para>
+
+      <para>The kernel config file must contain:
+
+<programlisting>	options	DEC_2100_A500
+	cpu	EV4	#dependent on CPU model installed
+	cpu	EV5	#dependent on CPU model installed</programlisting>
+      </para>
+
     </sect3>
 
     <sect3>
