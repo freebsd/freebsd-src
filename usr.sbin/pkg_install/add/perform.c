@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: perform.c,v 1.41 1997/02/22 16:09:20 peter Exp $";
 #endif
 
 /*
@@ -458,11 +458,6 @@ cleanup(int signo)
 {
     if (signo)
 	printf("Signal %d received, cleaning up..\n", signo);
-    if (Plist.head) {
-	if (!Fake)
-	    delete_package(FALSE, FALSE, &Plist);
-	free_plist(&Plist);
-    }
     if (!Fake && LogDir[0])
 	vsystem("%s -rf %s", REMOVE_CMD, LogDir);
     leave_playpen(Home);
