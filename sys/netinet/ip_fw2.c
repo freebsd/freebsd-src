@@ -42,7 +42,6 @@
 #endif /* INET */
 #endif
 
-#define IPFW2	1
 #if IPFW2
 #include <sys/param.h>
 #include <sys/systm.h>
