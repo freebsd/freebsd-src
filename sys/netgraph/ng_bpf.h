@@ -53,7 +53,7 @@ struct ng_bpf_hookprog {
 	char		ifMatch[NG_HOOKLEN+1];		/* match dest hook */
 	char		ifNotMatch[NG_HOOKLEN+1];	/* !match dest hook */
 	int32_t		bpf_prog_len;			/* #isns in program */
-	struct bpf_insn	bpf_prog[0];			/* bpf program */
+	struct bpf_insn	bpf_prog[];			/* bpf program */
 };
 
 #define NG_BPF_HOOKPROG_SIZE(numInsn)	\
