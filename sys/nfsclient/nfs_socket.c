@@ -288,6 +288,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			int val;
 
 			bzero(&sopt, sizeof sopt);
+			sopt.sopt_dir = SOPT_SET;
 			sopt.sopt_level = SOL_SOCKET;
 			sopt.sopt_name = SO_KEEPALIVE;
 			sopt.sopt_val = &val;
@@ -300,6 +301,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			int val;
 
 			bzero(&sopt, sizeof sopt);
+			sopt.sopt_dir = SOPT_SET;
 			sopt.sopt_level = IPPROTO_TCP;
 			sopt.sopt_name = TCP_NODELAY;
 			sopt.sopt_val = &val;
