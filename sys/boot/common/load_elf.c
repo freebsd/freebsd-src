@@ -58,6 +58,8 @@ typedef struct elf_file {
     Elf_Hashelt	nchains;
     Elf_Hashelt	*buckets;
     Elf_Hashelt	*chains;
+    Elf_Rel	*rel;
+    size_t	relsz;
     Elf_Rela	*rela;
     size_t	relasz;
     char	*strtab;
@@ -71,11 +73,10 @@ typedef struct elf_file {
 
 static int __elfN(loadimage)(struct preloaded_file *mp, elf_file_t ef, u_int64_t loadaddr);
 static int __elfN(lookup_symbol)(struct preloaded_file *mp, elf_file_t ef, const char* name, Elf_Sym* sym);
-#ifdef __sparc__
-static void __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
-    void *p, void *val, size_t len);
-#endif
+static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
+    Elf_Addr p, void *val, size_t len);
 static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef);
+static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
 
 const char	*__elfN(kerneltype) = "elf kernel";
@@ -481,6 +482,12 @@ nosyms:
 	case DT_SYMTAB:
 	    ef->symtab = (Elf_Sym*)(uintptr_t)(dp[i].d_un.d_ptr + off);
 	    break;
+	case DT_REL:
+	    ef->rel = (Elf_Rel *)(uintptr_t)(dp[i].d_un.d_ptr + off);
+	    break;
+	case DT_RELSZ:
+	    ef->relsz = dp[i].d_un.d_val;
+	    break;
 	case DT_RELA:
 	    ef->rela = (Elf_Rela *)(uintptr_t)(dp[i].d_un.d_ptr + off);
 	    break;
@@ -563,7 +570,7 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
     struct mod_version mver;
     Elf_Sym sym;
     char *s;
-    int modcnt, minfolen;
+    int error, modcnt, minfolen;
     Elf_Addr v, p, p_stop;
 
     if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
@@ -576,25 +583,31 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
     modcnt = 0;
     while (p < p_stop) {
 	COPYOUT(p, &v, sizeof(v));
-#ifdef __sparc64__
-	__elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
-#else
-	v += ef->off;
-#endif
+	error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
+	if (error == EOPNOTSUPP)
+	    v += ef->off;
+	else if (error != 0)
+	    return (error);
 #if defined(__i386__) && __ELF_WORD_SIZE == 64
 	COPYOUT(v, &md64, sizeof(md64));
+	error = __elfN(reloc_ptr)(fp, ef, v, &md64, sizeof(md64));
+	if (error == EOPNOTSUPP) {
+	    md64.md_cval += ef->off;
+	    md64.md_data += ef->off;
+	} else if (error != 0)
+	    return (error);
 	md.md_version = md64.md_version;
 	md.md_type = md64.md_type;
-	md.md_cval = (const char *)(uintptr_t)(md64.md_cval + ef->off);
-	md.md_data = (void *)(uintptr_t)(md64.md_data + ef->off);
+	md.md_cval = (const char *)(uintptr_t)md64.md_cval;
+	md.md_data = (void *)(uintptr_t)md64.md_data;
 #else
 	COPYOUT(v, &md, sizeof(md));
-#ifdef __sparc64__
-	__elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));
-#else
-	md.md_cval += ef->off;
-	md.md_data += ef->off;
-#endif
+	error = __elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));
+	if (error == EOPNOTSUPP) {
+	    md.md_cval += ef->off;
+	    md.md_data += ef->off;
+	} else if (error != 0)
+	    return (error);
 #endif
 	p += sizeof(Elf_Addr);
 	switch(md.md_type) {
@@ -687,29 +700,53 @@ __elfN(lookup_symbol)(struct preloaded_file *fp, elf_file_t ef, const char* name
     return ENOENT;
 }
 
-#ifdef __sparc__
 /*
- * Apply any intra-module relocations to the value. *p is the load address
+ * Apply any intra-module relocations to the value. p is the load address
  * of the value and val/len is the value to be modified. This does NOT modify
  * the image in-place, because this is done by kern_linker later on.
+ *
+ * Returns EOPNOTSUPP if no relocation method is supplied.
  */
-static void
+static int
 __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
-    void *p, void *val, size_t len)
+    Elf_Addr p, void *val, size_t len)
 {
-	Elf_Addr off = (Elf_Addr)p - ef->off, word;
 	size_t n;
-	Elf_Rela r;
+	Elf_Rela a;
+	Elf_Rel r;
+	int error;
 
-	for (n = 0; n < ef->relasz / sizeof(r); n++) {
-		COPYOUT(ef->rela + n, &r, sizeof(r));
+	/*
+	 * The kernel is already relocated, but we still want to apply
+	 * offset adjustments.
+	 */
+	if (ef->kernel)
+		return (EOPNOTSUPP);
 
-		if (r.r_offset >= off && r.r_offset < off + len &&
-		    ELF_R_TYPE(r.r_info) == R_SPARC_RELATIVE) {
-			word = ef->off + r.r_addend;
-			bcopy(&word, (char *)val + (r.r_offset - off),
-			    sizeof(word));
-		}
+	for (n = 0; n < ef->relsz / sizeof(r); n++) {
+		COPYOUT(ef->rel + n, &r, sizeof(r));
+
+		error = __elfN(reloc)(ef, __elfN(symaddr), &r, ELF_RELOC_REL,
+		    ef->off, p, val, len);
+		if (error != 0)
+			return (error);
 	}
+	for (n = 0; n < ef->relasz / sizeof(a); n++) {
+		COPYOUT(ef->rela + n, &a, sizeof(a));
+
+		error = __elfN(reloc)(ef, __elfN(symaddr), &a, ELF_RELOC_RELA,
+		    ef->off, p, val, len);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
 }
-#endif
+
+static Elf_Addr
+__elfN(symaddr)(struct elf_file *ef, Elf_Word symidx)
+{
+
+	/* Symbol lookup by index not required here. */
+	return (0);
+}
