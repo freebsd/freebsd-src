@@ -222,7 +222,7 @@
       <groupname>kmem</groupname> で SGID
       されている必要はなくなりました。&merged;</para>
 
-    <para>カーネル環境が新たに &man.kenv.2; システムコールを利用して
+    <para>カーネル環境変数が &man.kenv.2; システムコールを使って
       動的に変更することができるようになりました。</para>
 
     <para role="historic">&os; カーネルに &man.kqueue.2;
@@ -1021,7 +1021,7 @@
         &merged;</para>
 
       <para role="historic">&man.vlan.4;
-	デバイスがロード/アンロード/クローニングに
+	デバイスがロード/アンロード/クローン化に
 	対応しました。&merged;</para>
 
       <para role="historic">&man.wi.4;
@@ -1029,17 +1029,17 @@
 	に対応しました。104/128 ビット WEP も Prism カードで動くように
 	なりました。&merged;</para>
 
-      <para role="historic">&man.wi.4; ドライバが
-	&os; ホストを無線アクセスポイントとして利用できるようになりました。
+      <para role="historic">&man.wi.4; ドライバを使って、
+	&os; ホストを無線アクセスポイントとして使用できるようになりました。
 	この機能は &man.ifconfig.8; の <literal>mediaopt hostap</literal>
-	オプションを使って有効にすることができます。ただし、これは
-	Prism II チップセットベースの無線アダプタを利用する場合に限ります。
+	オプションで有効にすることができます。ただし、この機能に対応しているのは
+	Prism II チップセットベースの無線アダプタのみです。
 	&merged;</para>
 
-      <para role="historic">The &man.wi.4; driver now has support for
-	<application>bsd-airtools</application>. &merged;</para>
+      <para role="historic">&man.wi.4; ドライバが
+	<application>bsd-airtools</application> に対応しました。&merged;</para>
 
-      <para role="historic">xe ドライバがモジュールとして
+      <para role="historic">xe ドライバがカーネルモジュールとして
         構築できるようになりました。&merged;</para>
 
       <para role="historic">&man.xl.4; ドライバが
@@ -1048,39 +1048,46 @@
         &merged;</para>
 
       <para role="historic">&man.xl.4; ドライバが
-        (<quote>Cyclone</quote> チップセットおよび、
-        新しいチップセットにおいて)
-        VLAN タグフレームの受信をサポートしました。
+        VLAN タグフレームの受信に対応しました
+        (ただし <quote>Cyclone</quote> チップセットおよび、
+        それ以降の新しいチップセットのみ)。
         &merged;</para>
 
-      <para role="historic">&man.xl.4; は 3C905B、3C905C、3C980C などのように
-	その機能を実装しているカードにおいて、
-	受信側/送信側 TCP/IP のチェックサム offload に対応しました。
+      <para role="historic">&man.xl.4;
+        ドライバが新しく、送信側・受信側双方における TCP/IP
+        チェックサムの負荷低減機能に対応しました。これは、
+        この機能に対応している 3C905B、3C905C、3C980C などの
+        NIC に対して有効です。
 	&merged;</para>
 
-      <para role="historic">統計情報が溢れた時の割り込みの扱いに関連して、
-	パケットレートが中から高の時に遅くなってしまうという
-	&man.xl.4; ドライバのバグが修正されました。&merged;</para>
+      <para role="historic">&man.xl.4;
+        ドライバにおいて、
+        統計情報のオーバフロー割り込みの処理に関連するバグが修正されました。
+        これはパケットの送受信速度が中から高程度になった時に、
+        処理速度が低下する原因となっていたものです。
+        &merged;</para>
 
-      <para role="historic">インターフェイス毎に用意される
+      <para role="historic">インターフェイス一つ一つに用意される
         <varname>ifnet</varname> 構造体に、
-        ネットワークインターフェイスが対応している機能、
-        および、そのうち有効化されている機能を格納する部分が追加されました。
-        また &man.ifconfig.8; が、その機能の検索に対応しています。
-	&merged;</para>
+        ネットワークインターフェイスが対応している機能と、
+        どの機能が有効化されているかを示す部分が追加されました。
+        また &man.ifconfig.8; を使って、
+        これらの情報を表示することが可能になっています。&merged;</para>
 
-      <para role="historic">インターフェイス毎の <varname>if_inaddr</varname>
-	線形リストをハッシュテーブルで置き換えることにより、
-	IP エイリアスを多数持つホストでの性能が改善されました。&merged;</para>
+      <para role="historic">インターフェイス一つ一つに用意される
+        <varname>if_inaddr</varname>構造体が、
+        線形リストからハッシュテーブルに変更されました。
+        これにより、多数の別名 IP
+        アドレスを持っているホストの性能が向上しています。&merged;</para>
 
-      <para>ネットワークデバイスは特殊ファイルとして
+      <para>ネットワークデバイスが特殊ファイルとして
 	<filename>/dev/net</filename> 以下に
 	自動的に作成されるようになりました。
-	<!-- XXX: kuriyama: should be translated -->
-	Interface hardware ioctls (not protocol or routing) can be
-	 performed on these devices.
-	 <varname>SIOCGIFCONF</varname> ioctl は特殊な
-	 <filename>/dev/network</filename> ノードで動作します。</para>
+        これらのデバイスに対しては、(プロトコルやルーティング以外の)
+        インターフェイスハードウェア ioctl が使用できます。
+        また、<varname>SIOCGIFCONF</varname> ioctl は
+        <filename>/dev/network</filename>
+        特殊ファイルに対して使用することが可能です。</para>
 
       <para role="historic">いくつかのネットワークドライバは、
 	システムが攻撃や過負荷により耐えられるように、半ポーリング
@@ -1102,10 +1109,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&merged;</para>
 
       <para arch="i386,pc98" role="historic">
-	不必要なバッファのコピーを無くすことにより、
 	いくつかのネットワークドライバ (特に &man.dc.4; と
-	&man.sis.4;) におけるパケットフォワーディングの性能が向上
-	しました。&merged;</para>
+	&man.sis.4;) におけるパケット転送の性能が向上しました。
+        これは不必要なバッファコピーの削除によるものです。
+        &merged;</para>
 
       <para><quote>Zero copy</quote> support has been added to the
         networking stack.  This feature can eliminate a copy of
@@ -1240,8 +1247,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         netgraph ノードタイプ &man.ng.one2many.4; が新たに追加されました。
         &merged;</para>
 
-      <para>A new ng_split node type has been added for splitting a
-        bidirectional packet flow into two unidirectional flows.</para>
+      <para>新しく ng_split ノードタイプが追加されました。
+	これは一つの双方向パケットフローを
+        二つの単方向パケットフローに分割します。</para>
 
       <para role="historic">sysctl 変数
 	<varname>net.inet.ip.check_interface</varname>
@@ -1335,8 +1343,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	RFC 1948 (Defending Against Sequence Number Attacks) に対応しました。
 	sysctl 変数 <varname>net.inet.tcp.isn_reseed_interval</varname> 
 	は RFC 1948 初期シーケンスナンバーの計算において利用される
-	秘密データの reseeding を制御します。
-	<!-- XXX: rushani: should be translated -->
+	秘密データの再設定間隔を制御します。
 	&merged;</para>
 
       <para role="historic">&os; の TCP 実装は、顕著な受信 SYN セグメントの
@@ -1364,8 +1371,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>TCP、UDP で使われるエフェメラルポート
 	(ephemeral port) の範囲が 1024&ndash;5000 から
 	49152&ndash;65535 に変更されました。
-	これにより並列に出ていくことのできる接続/ストリームの数が増加します。
-	&merged;</para>
+	これにより並列に出ていくことのできる接続/ストリームの数が増加します。</para>
 
     <para>The &man.tcp.4; protocol's retransmission timer can now be
       manipulated with two sysctl variables,
@@ -1928,6 +1934,17 @@ hw.pcic.irq="0"</programlisting>
         3/4/5/Banshee (tdfxdrm), AGI ATI Rage 128 (r128drm), and AGP
         ATI Radeon (radeondrm).</para>
 
+      <para arch="i386">Direct Rendering Infrastructure (DRI)
+	用ドライバが追加されました。
+	このドライバは <application>XFree86</application> の
+	3D アクセラレーション機能を提供します。
+	対応するビデオカードは
+	3Dlabs Oxygen GMX 2000 (gammadrm)、
+	AGP Matrox G200/G400/G450/G550 (mgadrm)、
+	3dfx Voodoo 3/4/5/Banshee (tdfxdrm)、
+	AGI ATI Rage 128 (r128drm)、
+	AGP ATI Radeon (radeondrm) です。</para>
+
     </sect3>
 
     <sect3>
@@ -1964,12 +1981,9 @@ hw.pcic.irq="0"</programlisting>
 	<para><application>isdn4bsd</application> が
           バージョン 1.0.2 に更新されました。</para>
 
-	<para role="historic">The &man.ifpi.4; driver for supporting the AVM
-	  Fritz!Card PCI controller has been added. &merged;</para>
-
-	<para role="historic">&man.ifpi.4;
-	  ドライバは AVM Fritz!Card PCI version 2
-	  コントローラに対応しました。&merged;</para>
+	<para role="historic">&man.ifpi.4; ドライバが追加されました。
+          これは AVM Fritz!Card PCI version 2 コントローラに対応しています。
+          &merged;</para>
 
 	<para role="historic">Cologne Chip Designs HFC デバイスを
           <application>isdn4bsd</application> に対応させる
@@ -2002,15 +2016,13 @@ hw.pcic.irq="0"</programlisting>
           これは一つの接続がオープン状態にある時間を制限します。
           &merged;</para>
 
-	<para role="historic">&man.isdnphone.8; はキーパッド経由でメッセージを
-	  PBX や
-	  exchange office に送るための <option>-k</option> オプションをサポート
-	  しました。&merged;</para>
-	<!-- XXX: kuriyama: exchange office って MS の? -->
+	<para role="historic">&man.isdnphone.8; に、
+          キーパッドを使ってメッセージを PBX や電話交換局に送ることができる
+          <option>-k</option> オプションが追加されました。
+          &merged;</para>
 
-	<para><application>isdn4bsd</application> now supports Q.931
-	  subaddressing.</para>
-
+	<para><application>isdn4bsd</application> が
+	  Q.931 のサブアドレッシングに対応しました。</para>
       </sect4>
 
       <sect4 id="kame-kernel">
@@ -2373,167 +2385,158 @@ hw.pcic.irq="0"</programlisting>
       このバグは修正されています。
       (セキュリティ勧告 FreeBSD-SA-02:07 参照)。&merged;</para>
 
-    <para><application>OpenSSH</application> の 多重化コードに
-      含まれる <quote>一つ違い</quote> バグが修正されました。
-      このバグにより、認証されたリモートユーザが &man.sshd.8;
-      にスーパユーザ権限で任意のコードを実行できます。
-      また、悪意のある SSH サーバがそのクライアントシステムの
-      クライアントユーザの権限で
-      任意のコードを実行させることができます。
-      (セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
-      参照)。&merged;</para>
-
-    <para><application>zlib</application> のプログラムエラーにより
-      メモリの解放が複数回行なわれていました。
-      &os; で使われている &man.malloc.3;/&man.free.3; ルーチンは
-      このエラーによって脆弱となることはありませんが、
-      不正に圧縮されたデータの特殊ブロックを受け取ったアプリケーション
-      は間違って動作するか中断してしまうかも知れません。
-      この <application>zlib</application> のバグは修正されました。
-      対策と解法はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
-      を参照してください。&merged;</para>
-
-    <para>TCP SYN cache (<quote>syncache</quote>) と
-      SYN cookie (<quote>syncookie</quote>) の実装にあった、正規の TCP/IP
-      トラフィックによりマシンがクラッシュする可能性を持つバグが
-      修正されました。
-      回避策と問題を解決するためのパッチはセキュリティ勧告
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>
+    <para><application>OpenSSH</application> の多重化に関するコードにおいて
+      <quote>一つ違い (off-by-one)</quote> バグが修正されました。
+      このバグは認証されたリモートユーザが
+      &man.sshd.8;
+      に任意のコードをスーパユーザ権限で実行したり、
+      悪意のある SSH サーバがクライアントユーザの権限で
+      (クライアントユーザの) システム上の任意のコードを実行することが可能です。
+      詳細はセキュリティ勧告 <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
       をご覧ください。&merged;</para>
 
-    <para>経路表においてメモリリークが発生する危険性があり、
-      リモートの攻撃者が対象マシンのメモリを枯渇させることができる
-      可能性がありました。
-      現在、このバグは修正されています。
-      回避策と問題を解決するためのパッチはセキュリティ勧告
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>
-      をご覧ください。
-      &merged;</para>
+    <para><application>zlib</application> には、
+      メモリを複数回解放するように仕向けることが可能な
+      プログラミング上の誤りが存在します。
+      &os; が採用している &man.malloc.3;/&man.free.3; ルーチンは
+      この誤りによるセキュリティ上の弱点はありませんが、
+      アプリケーションが特殊な細工が施された不正な圧縮データブロックを
+      受け取った場合、この仕組みを悪用して
+      機能を正常に働かなくさせたり異常終了させることが可能です。
+      なお、この <application>zlib</application> のバグは修正済みです。
+      この問題の回避方法および解決方法はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>memory-mapped I/O
-      に潜んでいたシステムをクラッシュさせる可能性のあるバグが修正されました。
-      解決策に関する詳細な情報はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>
-      から得ることができます。
-      &merged;</para>
+    <para>TCP SYN cache (<quote>syncache</quote>) と
+      SYN cookie (<quote>syncookie</quote>) の実装にあった、
+      正規の TCP/IP トラフィックによりマシンを
+      クラッシュさせる可能性のあるバグが修正されました。
+      この問題の回避方法や修正パッチはセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-0
+2:20.syncache.asc">FreeBSD-SA-02:20</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A security hole, in which SUID programs could be made to
-      read from or write to inappropriate files through manipulation
-      of their standard I/O file descriptors, has been fixed.
-      Information regarding a solution can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
-      &merged;</para>
+    <para>リモートの攻撃者から攻撃対象のマシン上のメモリを
+      枯渇させることのできる、経路表のメモリリークが修正されました。
+      回避方法やパッチはセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-0
+2:21.tcpip.asc">FreeBSD-SA-02:21</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>Some unexpected behavior could be allowed with &man.k5su.8;
-      because it does not require that an invoking user be a member of
-      the <groupname>wheel</groupname> group when attempting to become
-      the superuser (this is the case with &man.su.1;).  To avoid this
-      situation, &man.k5su.8; is now installed non-SUID by default
-      (effectively disabling it).  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.
-      &merged;</para>
+    <para>システムクラッシュを起こす可能性のある
+      memory-mapped I/O のバグが修正されました。
+      詳細と解決方法はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-0
+2:22.mmap.asc">FreeBSD-SA-02:22</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
-      utility, which could allow files to be overwritten without
-      warning or allow local users unintended access to files.  These
-      problems have been corrected with a new import of
-      <application>bzip2</application>.  For more information, see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
-      &merged;</para>
+    <para>標準入出力ファイル記述子を操作することによって、
+      SUID されたプログラムを悪用して不正にファイルを
+      読み書きすることが可能なセキュリティホールが修正されました。
+      この問題に関する解決策はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A bug has been fixed in the implementation of the TCP SYN
-      cache (<quote>syncache</quote>), which could allow a remote
-      attacker to deny access to a service when accept filters
-      (see &man.accept.filter.9;) were in use.  This bug has been
-      fixed; for more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.
-      &merged;</para>
+    <para>&man.k5su.8; は (&man.su.1; のように)
+      権限を行使するユーザが <groupname>wheel</groupname> グループに
+      所属していることを必要としないため、予想に反した挙動を示す可能性があります。
+      このような状況を回避するために、
+      &man.k5su.8; はデフォルトで (事実上、上記の機能を無効化するために)
+      SUID せずにインストールされるようになりました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
-      may be able to remove the contents of arbitrary files if
-      <filename>/tmp/.X11-unix</filename> does not exist and the
-      system can be made to reboot.  This bug has been corrected (see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).
-      &merged;</para>
+    <para>&man.bzip2.1; ユーティリティに、
+      事前に警告することなく既存のファイルを上書きしたり、
+      許可属性の競合状態により意図しないユーザにファイルのアクセスを許す
+      といった複数の弱点が発見されました。
+      この問題は新しい <application>bzip2</application> の
+      import により修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A buffer overflow in the resolver, which could be exploited
-      by a malicious domain name server or an attacker forging DNS
-      messages, has been fixed.  See security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
-      for more details. &merged;</para>
+    <para>TCP SYN cache (<quote>syncache</quote>) の実装において
+      accept filter (&man.accept.filter.9; 参照) が使用されていた時に
+      リモートの攻撃者がサービス妨害を実現できる可能性のあるバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A buffer overflow in &man.tcpdump.1;, which could be triggered by
-      badly-formed NFS packets, has been fixed.  See security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
-      for more details. &merged;</para>
+    <para>&man.rc.8; においてシェルのグロブ演算子が不適切な使われ方をしていたため、
+      <filename>/tmp/.X11-unix</filename> が存在せず、システムを再起動可能な場合、
+      ユーザが任意のファイルの中身を消すことができるようになっていました。
+      このバグは修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>&man.ktrace.1; can no longer trace the operation of formerly
-      privileged processes; this prevents the leakage of sensitive
-      information that the process could have obtained before
-      abandoning its privileges.  For a discussion of this issue, see
-      security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
-      for more details. &merged;</para>
+    <para>悪意を持ったドメインネームサーバや
+      DNS メッセージを生成できる攻撃者が悪用可能な、
+      リゾルバのバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A race condition in &man.pppd.8;, which could be used to
-      change the permissions of an arbitrary file, has been corrected.
-      For more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
-      &merged;</para>
+    <para>不正な NFS パケットによって悪用される可能性がある、
+      &man.tcpdump.1; のバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>Multiple buffer overflows in
-      <application>OpenSSL</application> have been corrected, by way
-      of an upgrade to the base system version of
-      <application>OpenSSL</application>.  More details can be found
-      in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
-      &merged;</para>
+    <para>高い権限を放棄したプロセスに対して、&man.ktrace.1; を使った追跡
+      (trace) 操作ができないようになりました。
+      これにより、そのプロセスが権限を放棄する前に得たセキュリティ上重要な
+      情報の漏洩を防ぐことができます。この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      をご覧ください。&merged;</para>
 
-    <para>A heap buffer overflow in the XDR decoder has been fixed.
-      For more details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.
-      &merged;</para>
+    <para>任意のファイルの許可属性を変更するのに使用可能な、
+      &man.pppd.8; にあった競合状態が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink> をご覧ください。&merged;</para>
 
-    <para>A bug that could allow local users to read and write
-      arbitrary blocks on an FFS filesystem has been corrected.  More
-      details can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.
-      &merged;</para>
+    <para>ベースシステムの <application>OpenSSL</application>
+      が新しいバージョンにアップグレードされ、
+      <application>OpenSSL</application>
+      に存在していた複数のバッファオーバフロー問題が修正されました。
+      この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink> をご覧ください。&merged;</para>
 
-    <para>A bug in the NFS server code, which could allow a remote
-      denial of service attack, has been fixed.  Security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
-      has more details. &merged;</para>
+    <para>XDR デコーダにあったヒープバッファオーバフローが修正されました。
+      この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink> をご覧ください。&merged;</para>
 
-    <para>A bug that could allow local users to panic a system using
-      the &man.kqueue.2; mechanism has been fixed.  More information
-      is contained in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
-      &merged;</para>
+    <para>ローカルユーザが FFS
+      ファイルシステム上の任意のブロックを読み書きできるというバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink> をご覧ください。&merged;</para>
 
-    <para>Several bounds-checking bugs in system calls, which could
-      result in some system calls returning a large portion of kernel
-      memory, have been fixed.  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
-      &merged;</para>
+    <para>NFS サーバのコードに含まれていた、
+      リモートからのサービス妨害攻撃を可能にするバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink> をご覧ください。&merged;</para>
 
-    <para>A bug that could allow applications using
-      <filename>libkvm</filename> to leak sensitive file descriptors
-      has been corrected.  (See security advisory <ulink
+    <para>&man.kqueue.2; 機構を使うことで、
+      ローカルユーザがシステムパニックを引き起こすことができる可能性のあるバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink> をご覧ください。&merged;</para>
+
+    <para>カーネルメモリの大きな部分を返してしまうという、
+      いくつかのシステムコールにあった境界チェックのバグが修正されました。
+      この問題の詳細は、
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink> をご覧ください。&merged;</para>
+
+    <para><filename>libkvm</filename> を使っているアプリケーションから
+      セキュリティ上重要な記述子が漏洩する可能性があるバグが修正されました
+      この問題の詳細は <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
-      for more details.)
-      &merged;</para>
+      をご覧ください。&merged;</para>
 
     <para>Buffer overflows in kadmind(8) and k5admin have been
       corrected.  More details can be found in security advisory <ulink
@@ -2599,11 +2602,16 @@ hw.pcic.irq="0"</programlisting>
       option to remove jobs and the <option>-t</option> option to
       specify times in POSIX time format.</para>
 
+    <para>&man.at.1; に
+      ジョブを削除する <option>-r</option> オプションと
+      POSIX 時刻フォーマットで時間を指定する <option>-t</option> オプションが
+      追加されました。</para>
+
     <para role="historic">&man.ata.4; ドライバの動作を制御するコマンド
       &man.atacontrol.8; が追加されました。&merged;</para>
 
-    <para>The system &man.awk.1; now refers to
-      <application>BWK awk</application>.</para>
+    <para>システムの &man.awk.1; が
+      <application>BWK awk</application> になりました。</para>
 
     <para>&man.basename.1; now accept <option>-a</option> and
       <option>-s</option> flags, which allow it to perform the
@@ -2698,6 +2706,12 @@ hw.pcic.irq="0"</programlisting>
       used by the drive (the maximum possible speed can be selected
       setting the speed to <literal>max</literal>).</para>
 
+    <para>&man.cdcontrol.1; が
+      ATAPI CDROM ドライブの最大速度を設定する
+      <literal>speed</literal> コマンドに対応しました
+      (速度に <literal>max</literal> と指定することで、
+      ドライブの最大速度と同じ値に設定することも可能)。&merged;</para>
+
     <para>A &man.check.utility.compat.3; library function has been
       added to <filename>libc</filename>, to determine
       whether certain &os; base system utilities should behave in &os;
@@ -2764,8 +2778,8 @@ hw.pcic.irq="0"</programlisting>
       option to automatically answer <quote>no</quote> when it would
       ask to overwrite a file. &merged;</para>
 
-    <para>A new &man.csplit.1; utility, which splits files based on
-      context, has been added.</para>
+    <para>コンテキストを判断してファイルの分割を行なう
+      &man.csplit.1; ユーティリティが新たに追加されました。</para>
 
     <para role="historic">ソースファイルで C++ 風の <literal>//</literal>
       コメント
@@ -2868,14 +2882,16 @@ hw.pcic.irq="0"</programlisting>
       に置かれています。&merged;</para>
 
     <para>&man.expr.1; が
-      POSIX ユーティリティシンタックスガイドラインに適合しました。
-      しかしながら、&man.expr.1; の古く、
-      歴史的な振舞いに依存するプログラムがいくつかあります
-      (<filename role="package">devel/libtool</filename> の
-      port/package がその顕著な例でしたし、また今でもそうです)。
-      このような状況であるため、
-      環境変数 <envar>EXPR_COMPAT</envar> を定義すると
-      &man.expr.1; は以前のように振舞わせることができます。</para>
+      POSIX.2-1992 (および POSIX.1-2001) 準拠しました。
+      ただし、いくつかのプログラムは &man.expr.1; の古い歴史的な動作に依存しており、
+      引数をコマンドラインオプションと誤って解釈しないようにするための
+      指定を適切に行ないません
+      (大きなものに、GNU プログラムの多くが使っている
+      <filename role="package">devel/libtool</filename> の
+      port/package があります)。
+      &man.check.utility.compat.3;
+      で説明されている互換モードを有効にすると、
+      &man.expr.1; を従来と同じ動作にすることが可能です。</para>
 
     <para>&man.fbtab.5; はターゲットデバイスとして、特定のデバイスや
       ディレクトリだけではなく、グロブマッチングパターンも受け付ける
@@ -2947,6 +2963,10 @@ hw.pcic.irq="0"</programlisting>
     <para role="historic">&man.fsdb.8; now supports a <literal>blocks</literal>
       command to list the blocks allocated by a particular
       inode. &merged;</para>
+
+    <para role="historic">&man.fsdb.8; に
+      ある特定の inode に割り当てられたブロックの一覧を表示する
+      <literal>blocks</literal> コマンドが追加されました。&merged;</para>
 
     <para>&man.fsck.8; が、
       フォアグラウンドチェック (<option>-F</option>)
@@ -3111,17 +3131,16 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>デフォルトでは、
-      &man.inetd.8; は起動時に &man.rc.8;から起動されなくなりました。
-      しかし、バイナリインストールの際には &man.sysinstall.8;
-      によってこのオプションは有効化されるようになっています。
-      &man.inetd.8; は <filename>/etc/rc.conf</filename>
-      に次の行を加えて有効にすることができます:</para>
+      &man.inetd.8; は起動時に &man.rc.8; から起動しなくなりました。
+      しかし、&man.sysinstall.8; を使ったバイナリインストールの際には、 
+      &man.inetd.8; を有効にするかどうかの選択ができるようになっています。
+      また、&man.inetd.8; は <filename>/etc/rc.conf</filename>
+      に次の行を加えることでも有効にすることが可能です。</para>
 
     <programlisting>inetd_enable="YES"</programlisting>
 
-    <para>&man.inetd.8; now has the capability for limiting the
-      maximum number of simultaneous invocations of each service from
-      a single IP address. &merged;</para>
+    <para>&man.inetd.8; に、同一の IP アドレスからの同時アクセス数の最大値を
+      各サービスに対して設定する機能が追加されました。&merged;</para>
 
     <para role="historic">&man.install.1; に数多くの新機能が追加されました。
       それには既存の対象ファイルのバックアップを作成する
@@ -3187,8 +3206,7 @@ hw.pcic.irq="0"</programlisting>
       コマンドが新たに追加されました。
       &merged;</para>
 
-    <para>&man.kenv.1; がカーネル環境変数を
-      設定したり削除したりできるようになりました。</para>
+    <para>&man.kenv.1; がカーネル環境変数の設定・削除に対応しました。</para>
 
     <para role="historic">Perl スクリプトだった &man.keyinfo.1; が
       C プログラムに変更されました。&merged;</para>
@@ -3204,8 +3222,9 @@ hw.pcic.irq="0"</programlisting>
       &man.regex.3; の正規表現文法に従います。
       &merged;</para>
 
-    <para>&man.killall.1; が <option>-z</option> フラグが指定されない限り、
-      ゾンビプロセスを kill しようとしなくなりました。</para>
+    <para>&man.killall.1; が、<option>-z</option>
+      フラグが指定されない場合にゾンビプロセスを
+      kill しようとしなくなりました。</para>
 
     <para role="historic">新しいユーティリティ &man.kldconfig.8;
       が追加されました。
@@ -3341,7 +3360,7 @@ hw.pcic.irq="0"</programlisting>
       setstatus</command> command can be used to set a printer's
       status message. &merged;</para>
 
-    <para role="historic">&man.lpd.8; に新しいオプションが二つ追加されました。
+    <para role="historic">&man.lpd.8; に新しいオプションが 2 つ追加されました。
       <option>-c</option> オプションフラグは
       すべての接続エラーのログを &man.syslogd.8; に送り、
       <option>-W</option>
@@ -3361,10 +3380,12 @@ hw.pcic.irq="0"</programlisting>
       プリントジョブ用ソケットを開かないようにします)。&merged;</para>
 
     <para role="historic">&man.lpd.8; now implements a new <literal>rc</literal>
-      printcap option.  When specified in a print queue for a remote
-      host, boolean option causes &man.lpd.8; to resend the data file
-      for each copy the user requested via <command>lpr
-      -#<replaceable>n</replaceable></command>. &merged;</para>
+    <para role="historic">&man.lpd.8; に新しく
+      <literal>rc</literal> printcap オプションが実装されました。
+      この bool オプションがリモートホストのプリントキューに指定されると、
+      <command>lpr -#<replaceable>n</replaceable></command>
+      というユーザの要求に対して、&man.lpd.8; はデータファイルを
+      指定回数分繰り返して転送します。&merged;</para>
 
     <para role="historic">&man.lpr.1;, &man.lpd.8;, &man.syslogd.8;,
       &man.logger.1;
@@ -3383,11 +3404,11 @@ hw.pcic.irq="0"</programlisting>
       デフォルトでカラー表示を行なうことが可能です。
       &merged;</para>
 
-    <para role="historic">&man.ls.1; now accepts a <option>-h</option>
-      flag, which
-      when combined with the <option>-l</option> flag, causes file
-      sizes to be printed with unit suffixes, such that the number of
-      digits printed is fewer than four. &merged;</para>
+    <para role="historic">&man.ls.1; に
+      <option>-h</option> フラグが追加されました。
+      <option>-l</option> フラグと組み合わせると、 
+      ファイルに単位 (訳注: B, KB, MB など) をつけて
+      3 以下の桁数でファイルサイズを出力させることができます。&merged;</para>
 
     <para>The &man.ls.1; program now supports a <option>-m</option>
       flag to list files across a page, a <option>-p</option> flag to
@@ -3395,8 +3416,8 @@ hw.pcic.irq="0"</programlisting>
       a <option>-x</option> flag to sort filenames across a
       page. &merged;</para>
 
-    <para role="historic">&man.m4.1; が &man.cpp.1; で利用される
-      <literal>#line</literal> 識別子を受け付けるようになりました。
+    <para role="historic">&man.m4.1; が &man.cpp.1; で利用されている
+      <literal>#line</literal> 指示子を受け付けるようになりました。
       &merged;</para>
 
     <para role="historic">&man.mail.1; に新しいオプション
@@ -3662,56 +3683,56 @@ hw.pcic.irq="0"</programlisting>
       added.</para>
 
     <para>&man.pam.ftp.8; モジュールが追加されました。
-      これは匿名 FTP ユーザの認証を実現します。</para>
+      これは anonymous FTP ユーザの認証を可能にするものです。</para>
 
     <para>A &man.pam.ftpusers.8; module has been added to perform
       checks against the &man.ftpusers.5; file.</para>
+
+    <para>&man.ftpusers.5; ファイルをチェックする
+      &man.pam.ftpusers.8; モジュールが追加されました。</para>
 
     <para>A &man.pam.ksu.8; module has been added to do Kerberos 5
       authentication and <filename>$HOME/.k5login</filename>
       authorization for &man.su.1;.</para>
 
-    <para>&man.pam.lastlog.8; モジュールが追加されました。
-      これは &man.utmp.5;、&man.wtmp.5;、&man.lastlog.5; データベースの
-      セションの記録を実現します。</para>
+    <para>ログインセションを &man.utmp.5;、&man.wtmp.5;、
+      &man.lastlog.5; データベースに記録する
+      &man.pam.lastlog.8; モジュールが追加されました。</para>
 
-    <para>&man.pam.login.access.8; モジュールが追加されました。
-      これは <filename>/etc/login.access</filename>
-      の検査を実現します。</para>
+    <para><filename>/etc/login.access</filename> をチェックする
+      &man.pam.login.access.8; モジュールが追加されました。</para>
 
-    <para>&man.pam.nologin.8; モジュールが追加されました。
-      これは &man.nologin.5; を利用したログインの無効化に実現します。</para>
+    <para>&man.nologin.5; を利用してログインを拒否する
+      &man.pam.nologin.8; モジュールが追加されました。</para>
 
-    <para>&man.pam.opie.8; および
-      &man.pam.opieaccess.8; モジュールが追加されました。
-      これは &man.opie.4; を経由した認証の制御を実現します。&merged;</para>
-
-    <para>&man.pam.passwdqc.8; モジュールが追加されました。
-      これはパスワード変更の際に入力されたパスワードの
-      品質の検査を実現します。</para>
-
-    <para>&man.pam.rhosts.8; モジュールが追加されました。
-      これは &man.rhosts.5; 認証を実現します。</para>
-
-    <para>&man.pam.rootok.8; モジュールが追加されました。
-      これはスーパーユーザのみが認証を利用できます。</para>
-
-    <para>&man.pam.securetty.8; モジュールが追加されました。
-      &man.ttys.5; に記載されている TTY の
-      <quote>セキュリティ</quote> を検査します。</para>
-
-    <para>&man.pam.self.8; モジュールが追加されました。
-      これはユーザ自身の認証を実現します。</para>
-
-    <para role="historic">&man.pam.ssh.8; が追加されました。
-      これは、SSH のパスフレーズと暗号鍵対を使った認証の利用を実現します。
-      また、このモジュールは
-      &man.ssh-agent.1; を起動することでセッション管理も行ないます。
+    <para>&man.opie.4; を使った認証制御を可能にする
+      &man.pam.opie.8;、&man.pam.opieaccess.8; モジュールが追加されました。
       &merged;</para>
 
-    <para>&man.pam.wheel.8; モジュールが追加されました。
-      これはグループのメンバの認証を可能にします
-      (デフォルトは <groupname>wheel</groupname> です)。</para>
+    <para>パスワードの変更の際に入力されたパスワードの品質をチェックする
+      &man.pam.passwdqc.8; モジュールが追加されました。</para>
+
+    <para>&man.rhosts.5; 認証に対応した
+      &man.pam.rhosts.8; モジュールが追加されました。</para>
+
+    <para>スーパーユーザのみが認証に利用できる
+      &man.pam.rootok.8; モジュールが追加されました。</para>
+
+    <para>&man.ttys.5; に書かれている TTY の <quote>security</quote> を
+      チェックする &man.pam.securetty.8; モジュールが追加されました。</para>
+
+    <para>ユーザの自己認証を可能にする
+      &man.pam.self.8; モジュールが追加されました。</para>
+
+    <para role="historic">SSH のパスフレーズと暗号鍵対を使った認証を
+      可能にする &man.pam.ssh.8; が追加されました。
+      また、このモジュールは
+      &man.ssh-agent.1; を呼び出してセションの管理も行ないます。
+      &merged;</para>
+
+    <para>あるグループ (デフォルトは <groupname>wheel</groupname>) に
+      所属しているかどうかでの認証を可能にする
+      &man.pam.wheel.8; モジュールが追加されました。</para>
 
     <para role="historic">&man.passwd.1; および &man.pw.8; で
       パスワードハッシュアルゴリズムを切り替えられるようになりました。
@@ -3772,7 +3793,7 @@ hw.pcic.irq="0"</programlisting>
       最大受信セグメントサイズがインターフェイスの MTU を超えないようにします。
       &merged;</para>
 
-    <para role="historic">&man.ppp.8; が IPv6 に対応しました。</para>
+    <para role="historic">&man.ppp.8; が IPv6 に対応しました。&merged;</para>
 
     <para role="historic">&man.pppd.8; (カーネル PPP の制御用プログラム)
       のインストール時の許可属性が <literal>4555</literal>
@@ -3783,9 +3804,9 @@ hw.pcic.irq="0"</programlisting>
       &man.pppd.8; を利用している場合は、グループ設定を変更する必要があります。
       &merged;</para>
 
-    <para role="historic">&man.pr.1; が、
+    <para role="historic">&man.pr.1; に、
       端末への出力を一時停止するよう指示する
-      <option>-f</option>、<option>-p</option> フラグに対応しました。
+      <option>-f</option>、<option>-p</option> フラグが追加されました。
       &merged;</para>
 
     <para>prefix(8) is obsolete and has been removed.  Its
@@ -3807,8 +3828,8 @@ hw.pcic.irq="0"</programlisting>
       &man.realpath.1; プログラムの機能が統合されました。
       &merged;</para>
 
-    <para>&man.pwd.1; now supports the <option>-L</option> flag to
-      print the logical current working directory. &merged;</para>
+    <para>&man.pwd.1; に、論理カレントディレクトリを表示する
+      <option>-L</option> フラグが追加されました。&merged;</para>
 
     <para>&man.quota.1; now takes a <option>-l</option> flag to
       suppress quote checks on NFS filesystems.</para>
@@ -3837,9 +3858,10 @@ hw.pcic.irq="0"</programlisting>
       <filename role="package">net/44bsd-rdist</filename>
       として用意されるようになりました。</para>
 
-    <para role="historic">&man.reboot.8;
-      now takes a <option>-k</option> to specify
-      the next kernel to boot. &merged;</para>
+    <para role="historic">&man.reboot.8; に、
+      再起動時のカーネルを指定する
+      <option>-k</option> オプションが追加されました。
+      &merged;</para>
 
     <para>&man.renice.8; コマンドに、
       プロセスの優先度に対する増分を指定する
@@ -3925,8 +3947,8 @@ hw.pcic.irq="0"</programlisting>
       <option>-E</option> オプションが追加されました。
       &merged;</para>
 
-    <para>&man.sed.1; now takes a <option>-i</option> option to enable
-      in-place editing of files. &merged;</para>
+    <para>&man.sed.1; に、指定ファイルそのものを編集する
+      <option>-i</option> オプションが追加されました。&merged;</para>
 
     <para role="historic">&man.send-pr.1;
       に、障害報告の <literal>Fix:</literal>
@@ -3996,9 +4018,8 @@ hw.pcic.irq="0"</programlisting>
       が 2GB を超えるファイルの分割に対応しました。
       &merged;</para>
 
-    <para>&man.split.1; now supports a <option>-a</option> option to
-      specify the number of letters to use for the suffix of split
-      files. &merged;</para>
+    <para>&man.split.1; に、分割ファイルの接尾子に使用する文字数を指定する
+      <option>-a</option> オプションが追加されました。&merged;</para>
 
     <para><filename>&lt;sys/select.h&gt;</filename> を
       SUSv2/POSIX 規格に適合させるため、
@@ -4047,8 +4068,8 @@ hw.pcic.irq="0"</programlisting>
       これは出てきた出力をまた &man.sysctl.8; に戻す場合などに
       有用です。&merged;</para>
 
-    <para>&man.sysctl.8; now accepts a <option>-d</option> flag to print
-      the descriptions of variables.</para>
+    <para>&man.sysctl.8; に
+      変数の説明を出力する <option>-d</option> フラグが追加されました。</para>
 
     <para role="historic">&man.sysinstall.8; が、バイナリアップグレードの際に
       <filename>/etc/mail</filename> をきちんと保存するようになりました。
@@ -4093,12 +4114,14 @@ hw.pcic.irq="0"</programlisting>
       が削除されると自動的にその容量を吸収するようになりました。
       &merged;</para>
 
-    <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
-      filesystem by default on new installs.</para>
+    <para>&man.sysinstall.8; は新規インストールの際にデフォルトで
+      &man.procfs.5; を mount しなくなりました。</para>
 
-    <para role="historic">&man.sysinstall.8; now has rudimentary support for
-      retrieving packages from the correct volume of a multiple-volume
-      installation (such as a multi-CD distribution). &merged;</para>
+    <para role="historic">未完成ですが、&man.sysinstall.8; が
+      (複数の CD による配布のような)
+      複数のボリュームを利用するインストールにおいて、
+      正しいボリュームから package を拾い出す機能に対応しました。
+      &merged;</para>
 
     <para role="historic">&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました。
@@ -4225,8 +4248,9 @@ hw.pcic.irq="0"</programlisting>
       現在は Ports Collection の
       <filename role="package">net/freebsd-uucp</filename> にあります。</para>
 
-    <para>&man.unexpand.1; now supports a <option>-t</option> to
-      specify tabstops analogous to &man.expand.1;. &merged;</para>
+    <para>&man.unexpand.1; に、
+      &man.expand.1; と同じようにタブ位置を指定する
+      <option>-t</option> オプションが追加されました。&merged;</para>
 
     <para role="historic">&man.units.1;
       に対していくつかの更新とバグ修正が加えられました。
@@ -4239,12 +4263,12 @@ hw.pcic.irq="0"</programlisting>
       &man.usbhidctl.1; ユーティリティが追加されました。
       &merged;</para>
 
-    <para role="historic">&man.uuencode.1;
-      and &man.uudecode.1; now accept a <option>-o</option> option to
-      set their output files.  &man.uuencode.1;
-      can now be made to do base64 encoding
-      when given the <option>-m</option> flag, while &man.uudecode.1;
-      can now automatically decode base64 files. &merged;</para>
+    <para role="historic">&man.uuencode.1; と &man.uudecode.1; に
+      出力ファイルを指定する <option>-o</option> が追加されました。
+      &man.uuencode.1; は <option>-m</option> フラグを指定すると
+      base64 エンコーディングを行なうようになりました。 
+      また、&man.uudecode.1; は自動的に
+      base64 ファイルをデコードするようになっています。&merged;</para>
 
     <para>The base64 capabilities of &man.uuencode.1; and
       &man.uudecode.1; can now be automatically enabled by invoking
@@ -4318,11 +4342,12 @@ hw.pcic.irq="0"</programlisting>
     <para>Perl スクリプトだった &man.which.1; が
       C プログラムに変更されました。</para>
 
-    <para>&man.who.1; now has a number of new options:
-      <option>-H</option> shows column headings; <option>-T</option>
-      shows &man.mesg.1; state; <option>-m</option> is an equivalent
-      to <option>am i</option>; <option>-u</option> shows idle time;
-      <option>-q</option> to list names in columns. &merged;</para>
+    <para>&man.who.1; に数多くのオプションが追加されました。
+      <option>-H</option> はカラムヘッダを出力し、
+      <option>-T</option> は &man.mesg.1; の設定を表示します。
+      <option>-m</option> は <option>am i</option> と等価であり、
+      <option>-u</option> はアイドル時間の表示、
+      <option>-q</option> はログイン名を列で表示します。&merged;</para>
 
     <para role="historic">&man.whois.1; は、IP アドレスの問い合わせを
       ARIN に送るように変更されました。
@@ -4343,14 +4368,13 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.xargs.1; に新しいオプション <option>-I</option>
       <replaceable>replstr</replaceable> が追加されました。
       これは標準入力から読み込まれたデータをコマンドライン引数の最後ではなく、
-      指定した点に挿入するように制御するためのものです。
-      (A &os;-specific <option>-J</option> option is
-      similar.) &merged;
-    </para>
+      指定した点に挿入するように制御するためのものです
+      (&os; 独自の <option>-J</option> オプションと同様の機能です)。
+      &merged;</para>
 
-    <para>&man.xargs.1; now supports a <option>-L</option> option to
-      force its utility argument to be called after some number of
-      lines. &merged;</para>
+    <para>&man.xargs.1; に、入力を指定行数ごとに区切り、
+      それを引数にして入力がなくなるまで複数回コマンドを呼び出すという
+      <option>-L</option> オプションが追加されました。&merged;</para>
 
     <para role="historic">コンパイラが FSF が提供している
       C/C++ ランタイム初期化コードを使用するように変更されました。
@@ -4403,6 +4427,15 @@ hw.pcic.irq="0"</programlisting>
       utility.  The standards conformance of each utility or library
       function is generally listed in its manual page.</para>
 
+    <para>多くのユーティリティとライブラリが改良され、
+      Single UNIX Specification (SUSv3) および
+      IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>)
+      との適合性が向上しました。
+      個々のユーティリティにおいて追加された機能は
+      リリースノートに記載されています。
+      個々のユーティリティやライブラリ関数の標準への適合性は
+      そのマニュアルページに記載されています。</para>
+
     <para>A number of games have been removed from the base system.
       These include: adventure(6), arithmetic(6), atc(6),
       backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
@@ -4431,7 +4464,7 @@ hw.pcic.irq="0"</programlisting>
       <para>Bell Labs の <application>awk</application>
 	( <quote>BWK awk</quote> や <quote>The One True	AWK</quote>
 	として知られています ) の 2002/02/10 版スナップショット
-	がインポートされました。
+	が統合されました。
 	<command>awk</command>、<command>nawk</command>
 	としてインストールされます。</para>
 
@@ -4560,19 +4593,19 @@ hw.pcic.irq="0"</programlisting>
 
       <para>&os; の &man.ftp.1; プログラムが
 	<application>lukemftp</application>
-	1.6 beta 2 (NetBSD からの FTP クライアント)
+	1.6 beta 2 (NetBSD 由来の FTP クライアント)
 	に置き換えられました。
 	これにより、より自動化された動作や、標準への準拠、転送レート制御、
 	カスタマイズ可能なコマンドラインプロンプトなどが
 	提供されます。
 	いくつかの環境変数やコマンドライン引数が変更となっています。</para>
 
-      <para>NetBSD からの FTP デーモンである
-	<application>lukemftpd</application> 1.2 beta 1 がインポートされ、
+      <para>NetBSD に由来する FTP デーモン
+	<application>lukemftpd</application> 1.2 beta 1 が統合され、
 	&man.lukemftpd.8; として利用できるようになりました。&merged;</para>
 
-      <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
-	2002. &merged;</para>
+      <para>OpenBSD から 2002 年 4 月 26 日時点の
+	&man.m4.1; が統合されました。&merged;</para>
 
       <para><application>ncurses</application> がバージョン
         5.2-20020615 に更新されました。</para>
@@ -4627,7 +4660,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para arch="i386,pc98"><application>smbfs</application> ユーザランド
-	ユーティリティのバージョン 1.4.5 がインポートされました。</para>
+	ユーティリティのバージョン 1.4.5 が統合されました。</para>
 
       <para><application>GNU sort</application> has been updated to
 	the version from <application>GNU textutils
@@ -5115,6 +5148,14 @@ hw.pcic.irq="0"</programlisting>
 	the <filename role="package">sysutils/portupgrade</filename>
 	port.</para>
 
+      <para>ある期間、&os; 5.0-CURRENT (および、いくつかの 4.X-RELEASE) には
+	インストール済みの package とその依存関係を更新する
+	pkg_update(1) ユーティリティが含まれていましたが、
+        このユーティリティは削除されました。
+        代わりに、より高機能な
+	<filename role="package">sysutils/portupgrade</filename>
+	port が提供されています。</para>
+
       <para role="historic">&man.pkg.version.1;
 	のバージョン番号比較ルーチンが、
         Porters Handbook (日本語訳:「port 作成者のためのハンドブック」)
@@ -5160,12 +5201,12 @@ hw.pcic.irq="0"</programlisting>
         調べられるようにするためのものです。
         &merged;</para>
 
-      <para>The Ports Collection infrastructure now uses
-        <application>XFree86</application> 4.2.1 as the default version
-        of the X Window System for the purposes of satisfying
-        dependencies.  To return to using
-        <application>XFree86</application> 3.3.6, add the following line
-        to <filename>/etc/make.conf</filename>: &merged;</para>
+       <para>Ports Collection において、(訳注: 各 port が) 依存する
+	X Window System のデフォルトのバージョンが
+	<application>XFree86</application> 4.2.1 に変更されました。
+	<application>XFree86</application> 3.3.6 に戻すには、
+	<filename>/etc/make.conf</filename> に次の行を加えてください。
+	&merged;</para>
 
       <programlisting>XFREE86_VERSION=3</programlisting>
 
@@ -5187,8 +5228,8 @@ hw.pcic.irq="0"</programlisting>
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para><filename>bin</filename> 配布物の名前が
-      総合したインストール / リカバリディスクの作成を容易にするために
+    <para>インストール / リカバリ統合ディスクの作成を容易にするため、
+      <filename>bin</filename> 配布物の名前が
       <filename>base</filename> に変更されました。</para>
 
     <para arch="i386">ISO イメージと CDROM は、デフォルトで
@@ -5199,19 +5240,22 @@ hw.pcic.irq="0"</programlisting>
       (その代わり、古い BIOS との互換性は損なわれています)。</para>
 
     <para arch="i386,pc98,alpha" role="historic">
-      <application>XFree86</application> 4.2.0 は
+      <application>XFree86</application> 4.2.0 が
       &man.sysinstall.8; が対応する
       X Window System のデフォルトのバージョンになりました。
       &man.sysinstall.8; は <application>XFree86</application> を
-      標準のバイナリパッケージセットとしてインストールするため、
+      標準のバイナリパッケージセットとしてインストールするようになったため、
       &man.pkg.info.1; のような通常の package ユーティリティを使って
-      それらのコンポーネントを調べたり操作することが可能です。&merged;</para>
+      それらのコンポーネントを調べたり操作することが可能になっています。
+      &merged;</para>
 
-    <para>It is now possible to make releases of &os;
-      5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
-      (building a release for a target architecture on a host of a
-      different architecture) releases are also possible.  See
-      &man.release.7; for details. &merged;</para>
+    <para>&os; 5-CURRENT ホスト上での &os; 4-STABLE の make release、
+      および &os; 4-STABLE ホスト上での &os; 5-CURRENT の make release
+      ができるようになりました。
+      クロスアーキテクチャのリリース構築
+      (ホストと異なるアーキテクチャのリリースを構築すること)
+      も可能になっています。
+      詳しくは &man.release.7; をご覧ください。&merged;</para>
 
     <para>A third <filename>drivers.flp</filename> floppy has been
       added to floppy releases.  It holds loadable modules
