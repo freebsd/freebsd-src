@@ -1467,7 +1467,6 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 		case SIGHUP:
 		case SIGUSR1:
 		case SIGUSR2:
-		case SIGTHR:
 			/*
 			 * Generally, permit job and terminal control
 			 * signals.
