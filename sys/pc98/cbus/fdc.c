@@ -429,7 +429,7 @@ static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
-static int fdformat(dev_t, struct fd_formb *, struct proc *);
+static int fdformat(dev_t, struct fd_formb *, struct thread *);
 
 static int enable_fifo(fdc_p fdc);
 static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
@@ -1863,7 +1863,7 @@ out_fdc(struct fdc_data *fdc, int x)
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
 int
-Fdopen(dev_t dev, int flags, int mode, struct proc *p)
+Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
@@ -1956,7 +1956,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 }
 
 int
-fdclose(dev_t dev, int flags, int mode, struct proc *p)
+fdclose(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	struct fd_data *fd;
@@ -2837,11 +2837,12 @@ fdbiodone(struct bio *bp)
 }
 
 static int
-fdformat(dev, finfo, p)
+fdformat(dev, finfo, td)
 	dev_t dev;
 	struct fd_formb *finfo;
-	struct proc *p;
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
  	fdu_t	fdu;
  	fd_p	fd;
 
@@ -2908,12 +2909,12 @@ fdformat(dev, finfo, p)
  */
 
 static int
-fdioctl(dev, cmd, addr, flag, p)
+fdioctl(dev, cmd, addr, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t addr;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
  	fdu_t	fdu = FDUNIT(minor(dev));
  	fd_p	fd = devclass_get_softc(fd_devclass, fdu);
@@ -2979,7 +2980,7 @@ fdioctl(dev, cmd, addr, flag, p)
 			FD_FORMAT_VERSION)
 			error = EINVAL;	/* wrong version of formatting prog */
 		else
-			error = fdformat(dev, (struct fd_formb *)addr, p);
+			error = fdformat(dev, (struct fd_formb *)addr, td);
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
@@ -2988,7 +2989,7 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
-		if (suser(p) != 0)
+		if (suser_td(td) != 0)
 			return EPERM;
 		*fd->ft = *(struct fd_type *)addr;
 		break;
@@ -3002,7 +3003,7 @@ fdioctl(dev, cmd, addr, flag, p)
 		break;
 
 	case FD_CLRERR:
-		if (suser(p) != 0)
+		if (suser_td(td) != 0)
 			return EPERM;
 		fd->fdc->fdc_errs = 0;
 		break;
