@@ -27,7 +27,8 @@
  */
 
 /* NOTE NOTE NOTE - This is not finished! It will supply numbers, but
-                    it is not yet cryptographically secure!! */
+ *                  it is not yet cryptographically secure!!
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,13 +48,14 @@
 
 static void generator_gate(void);
 static void reseed(int);
-static void random_harvest_internal(struct timespec *nanotime, u_int64_t entropy, u_int bits, u_int frac, enum esource source);
+static void random_harvest_internal(struct timespec *, u_int64_t, u_int, u_int, enum esource);
 
 /* Structure holding the entropy state */
 struct random_state random_state;
 
-/* When enough entropy has been harvested, asynchronously "stir" it in */
-/* The regate task is run at splsofttq()                               */
+/* When enough entropy has been harvested, asynchronously "stir" it in.
+ * The regate task is run at splsofttq()
+ */
 static struct task regate_task[2];
 
 struct context {
@@ -101,9 +103,10 @@ random_deinit(void)
 static void
 reseed(int fastslow)
 {
-	/* Interrupt-context stack is a limited resource; make static */
-	/* large structures; XXX Revisit - needs to move to the large */
-	/* random_state structure.                                    */
+	/* Interrupt-context stack is a limited resource; make static
+	 * large structures; XXX Revisit - needs to move to the large
+	 * random_state structure.
+	 */
 	static unsigned char v[TIMEBIN][KEYSIZE];	/* v[i] */
 	unsigned char hash[KEYSIZE];			/* h' */
 	static BF_KEY hashkey;
@@ -150,8 +153,9 @@ reseed(int fastslow)
 		}
 	}
 
-	/* 2. Compute hash values for all v. _Supposed_ to be computationally */
-	/*    intensive.                                                      */
+	/* 2. Compute hash values for all v. _Supposed_ to be computationally
+	 *    intensive.
+	 */
 
 	if (random_state.bins > TIMEBIN)
 		random_state.bins = TIMEBIN;
@@ -207,7 +211,7 @@ reseed(int fastslow)
 	bzero((void *)temp, sizeof(temp));
 	bzero((void *)hash, sizeof(hash));
 
-	/* 7. Dump to seed file (XXX done by external process?) */
+	/* 7. Dump to seed file (done by external process) */
 
 }
 
@@ -279,13 +283,13 @@ write_random(char *buf, u_int count)
 {
 	u_int i;
 	intrmask_t mask;
-	struct timespec nanotime;
+	struct timespec timebuf;
 
 	/* The reseed task must not be jumped on */
 	mask = splsofttq();
 	for (i = 0; i < count/sizeof(u_int64_t); i++) {
-		getnanotime(&nanotime);
-		random_harvest_internal(&nanotime,
+		nanotime(&timebuf);
+		random_harvest_internal(&timebuf,
 			*(u_int64_t *)&buf[i*sizeof(u_int64_t)],
 			0, 0, RANDOM_WRITE);
 	}
@@ -320,11 +324,12 @@ generator_gate(void)
 	splx(mask);
 }
 
-/* Entropy harvesting routine. This is supposed to be fast; do */
-/* not do anything slow in here!                               */
+/* Entropy harvesting routine. This is supposed to be fast; do
+ * not do anything slow in here!
+ */
 
 static void
-random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
+random_harvest_internal(struct timespec *timep, u_int64_t entropy,
 	u_int bits, u_int frac, enum esource origin)
 {
 	u_int insert;
@@ -355,7 +360,7 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 		if (!bucket->nanotime.tv_sec && !bucket->nanotime.tv_nsec) {
 
 			/* nanotime provides clock jitter */
-			bucket->nanotime = *nanotime;
+			bucket->nanotime = *timep;
 
 			/* the harvested entropy */
 			bucket->data = entropy;
@@ -368,7 +373,7 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 				source->frac %= 1024;
 			}
 			if (source->bits >= pool->thresh) {
-				/* XXX Slowoverthresh nees to be considered */
+				/* XXX Slowoverthresh needs to be considered */
 				taskqueue_enqueue(taskqueue_swi, &regate_task[which]);
 			}
 

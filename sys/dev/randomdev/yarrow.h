@@ -26,13 +26,14 @@
  * $FreeBSD$
  */
 
-#define ENTROPYBIN	256	/* buckets to harvest entropy events */
-#define ENTROPYSOURCE	2	/* entropy sources (actually classes)    */
-				/* The entropy classes will as follows:  */
-				/*    0 - Keyboard                       */
-				/*    1 - Mouse                          */
-				/* to start with. More will be added     */
+/* #define ENTROPYSOURCE nn	   entropy sources (actually classes)
+ *				   The entropy classes will as follows:
+ *					0 - Direct write
+ *					1 - Keyboard
+ *					2 - Mouse
+ */
 
+#define ENTROPYBIN	256	/* buckets to harvest entropy events  */
 #define TIMEBIN		16	/* max value for Pt/t */
 #define KEYSIZE		32	/* 32 bytes == 256 bits */
 
@@ -44,7 +45,9 @@ void random_deinit(void);
 void random_init_harvester(void (*)(struct timespec *, u_int64_t, u_int, u_int, enum esource));
 void random_deinit_harvester(void);
 
-/* This is the beasite that needs protecting. It contains all of the
+void write_random(char *, u_int);
+
+/* This is the beastie that needs protecting. It contains all of the
  * state that we are excited about.
  * This is a biiig structure. It may move over to a malloc(9)ed
  * replacement.
