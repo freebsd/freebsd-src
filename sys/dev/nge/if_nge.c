@@ -69,10 +69,22 @@
  * via software. This affects the size of certain fields in the DMA
  * descriptors.
  *
- * As far as I can tell, the 83820 and 83821 are decent chips, marred by
- * only one flaw: the RX buffers must be aligned on 64-bit boundaries.
- * So far this is the only gigE MAC that I've encountered with this
- * requirement.
+ * There are two bugs/misfeatures in the 83820/83821 that I have
+ * discovered so far:
+ *
+ * - Receive buffers must be aligned on 64-bit boundaries, which means
+ *   you must resort to copying data in order to fix up the payload
+ *   alignment.
+ *
+ * - In order to transmit jumbo frames larger than 8170 bytes, you have
+ *   to turn off transmit checksum offloading, because the chip can't
+ *   compute the checksum on an outgoing frame unless it fits entirely
+ *   within the TX FIFO, which is only 8192 bytes in size. If you have
+ *   TX checksum offload enabled and you transmit attempt to transmit a
+ *   frame larger than 8170 bytes, the transmitter will wedge.
+ *
+ * To work around the latter problem, TX checksum offload is disabled
+ * if the user selects an MTU larger than 8152 (8170 - 18).
  */
 
 #include "vlan.h"
@@ -1288,20 +1300,18 @@ static void nge_rxeof(sc)
 		m_adj(m, sizeof(struct ether_header));
 
 		/* Do IP checksum checking. */
-		if (ifp->if_hwassist) {
-			if (extsts & NGE_RXEXTSTS_IPPKT)
-				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if (!(extsts & NGE_RXEXTSTS_IPCSUMERR))
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-			if ((extsts & NGE_RXEXTSTS_TCPPKT &&
-			    !(extsts & NGE_RXEXTSTS_TCPCSUMERR)) ||
-			    (extsts & NGE_RXEXTSTS_UDPPKT &&
-			    !(extsts & NGE_RXEXTSTS_UDPCSUMERR))) {
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
-                }
+		if (extsts & NGE_RXEXTSTS_IPPKT)
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+		if (!(extsts & NGE_RXEXTSTS_IPCSUMERR))
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		if ((extsts & NGE_RXEXTSTS_TCPPKT &&
+		    !(extsts & NGE_RXEXTSTS_TCPCSUMERR)) ||
+		    (extsts & NGE_RXEXTSTS_UDPPKT &&
+		    !(extsts & NGE_RXEXTSTS_UDPCSUMERR))) {
+			m->m_pkthdr.csum_flags |=
+			    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
 
 #if NVLAN > 0
 		/*
@@ -1721,8 +1731,7 @@ static void nge_init(xsc)
 	 * Enable hardware checksum validation for all IPv4
 	 * packets, do not reject packets with bad checksums.
 	 */
-	if (ifp->if_hwassist)
-		CSR_WRITE_4(sc, NGE_VLAN_IP_RXCTL, NGE_VIPRXCTL_IPCSUM_ENB);
+	CSR_WRITE_4(sc, NGE_VLAN_IP_RXCTL, NGE_VIPRXCTL_IPCSUM_ENB);
 
 #if NVLAN > 0
 	/*
@@ -1740,8 +1749,7 @@ static void nge_init(xsc)
 	/*
 	 * Enable TX IPv4 checksumming on a per-packet basis.
 	 */
-	if (ifp->if_hwassist)
-		CSR_WRITE_4(sc, NGE_VLAN_IP_TXCTL, NGE_VIPTXCTL_CSUM_PER_PKT);
+	CSR_WRITE_4(sc, NGE_VLAN_IP_TXCTL, NGE_VIPTXCTL_CSUM_PER_PKT);
 
 #if NVLAN > 0
 	/*
@@ -1856,8 +1864,18 @@ static int nge_ioctl(ifp, command, data)
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > NGE_JUMBO_MTU)
 			error = EINVAL;
-		else
+		else {
 			ifp->if_mtu = ifr->ifr_mtu;
+			/*
+			 * Workaround: if the MTU is larger than
+			 * 8152 (TX FIFO size minus 64 minus 18), turn off
+			 * TX checksum offloading.
+			 */
+			if (ifr->ifr_mtu == 8152)
+				ifp->if_hwassist = 0;
+			else
+				ifp->if_hwassist = NGE_CSUM_FEATURES;
+		}
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
