@@ -20,6 +20,17 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	continue to work, even after the upgrade).  See src/Makefile
 	for more details.
 
+19981224:
+	The old wcd driver has been deleted from the kernel.  The
+	driver that replaces it is named acd.  You'll need to change
+	this in your configuration files.
+
+	Failure to do this will result in "ATAPI CD-ROMs not
+	configured" at boot time.
+
+	The floppy tape driver (ft) has been removed from the kernel,
+	with no replacement driver.
+
 19981202:
 	New groups from 19981201 commented out of mtree, so they
 	aren't strictly needed, but still a good idea to have.
@@ -42,4 +53,4 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.4 1998/12/31 08:01:12 imp Exp $
+$Id: UPDATING,v 1.5 1999/01/05 05:46:37 imp Exp $
