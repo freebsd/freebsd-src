@@ -146,6 +146,7 @@ extern int hz;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFSYNC, PFSYNCNAME, "Packet Filter State Sync. Interface");
 static LIST_HEAD(pfsync_list, pfsync_softc) pfsync_list;
+#define	SCP2IFP(sc)		(&(sc)->sc_if)
 IFC_SIMPLE_DECLARE(pfsync, 1);
 
 static void
@@ -185,7 +186,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	sc->sc_ureq_received = 0;
 	sc->sc_ureq_sent = 0;
 
-	ifp = &sc->sc_if;
+	ifp = SCP2IFP(sc);
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_ioctl = pfsyncioctl;
 	ifp->if_output = pfsyncoutput;
@@ -204,11 +205,11 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	callout_init(&sc->sc_tmo, 0);
 	callout_init(&sc->sc_bulk_tmo, 0);
 	callout_init(&sc->sc_bulkfail_tmo, 0);
-	if_attach(&sc->sc_if);
+	if_attach(ifp);
 
 	LIST_INSERT_HEAD(&pfsync_list, sc, sc_next);
 #if NBPFILTER > 0
-	bpfattach(&sc->sc_if, DLT_PFSYNC, PFSYNC_HDRLEN);
+	bpfattach(ifp, DLT_PFSYNC, PFSYNC_HDRLEN);
 #endif
 
 	return (0);
@@ -930,14 +931,22 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		s = splnet();
+#ifdef __FreeBSD__
+		if (sifp->if_mtu < SCP2IFP(sc)->if_mtu ||
+#else
 		if (sifp->if_mtu < sc->sc_if.if_mtu ||
+#endif
 		    (sc->sc_sync_ifp != NULL &&
 		    sifp->if_mtu < sc->sc_sync_ifp->if_mtu) ||
 		    sifp->if_mtu < MCLBYTES - sizeof(struct ip))
 			pfsync_sendout(sc);
 		sc->sc_sync_ifp = sifp;
 
+#ifdef __FreeBSD__
+		pfsync_setmtu(sc, SCP2IFP(sc)->if_mtu);
+#else
 		pfsync_setmtu(sc, sc->sc_if.if_mtu);
+#endif
 
 		if (imo->imo_num_memberships > 0) {
 			in_delmulti(imo->imo_membership[--imo->imo_num_memberships]);
@@ -1010,8 +1019,13 @@ pfsync_setmtu(struct pfsync_softc *sc, int mtu_req)
 	    sizeof(struct pfsync_state);
 	if (sc->sc_maxcount > 254)
 	    sc->sc_maxcount = 254;
+#ifdef __FreeBSD__
+	SCP2IFP(sc)->if_mtu = sizeof(struct pfsync_header) +
+	    sc->sc_maxcount * sizeof(struct pfsync_state);
+#else
 	sc->sc_if.if_mtu = sizeof(struct pfsync_header) +
 	    sc->sc_maxcount * sizeof(struct pfsync_state);
+#endif
 }
 
 struct mbuf *
@@ -1026,7 +1040,11 @@ pfsync_get_mbuf(struct pfsync_softc *sc, u_int8_t action, void **sp)
 #endif
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
+#ifdef __FreeBSD__
+		SCP2IFP(sc)->if_oerrors++;
+#else
 		sc->sc_if.if_oerrors++;
+#endif
 		return (NULL);
 	}
 
@@ -1061,7 +1079,11 @@ pfsync_get_mbuf(struct pfsync_softc *sc, u_int8_t action, void **sp)
 		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
+#ifdef __FreeBSD__
+			SCP2IFP(sc)->if_oerrors++;
+#else
 			sc->sc_if.if_oerrors++;
+#endif
 			return (NULL);
 		}
 		m->m_data += (MCLBYTES - len) &~ (sizeof(long) - 1);
@@ -1090,7 +1112,7 @@ int
 pfsync_pack_state(u_int8_t action, struct pf_state *st, int compress)
 {
 #ifdef __FreeBSD__
-	struct ifnet *ifp = &(LIST_FIRST(&pfsync_list))->sc_if;
+	struct ifnet *ifp = SCP2IFP(LIST_FIRST(&pfsync_list));
 #else
 	struct ifnet *ifp = &pfsyncif.sc_if;
 #endif
@@ -1299,7 +1321,7 @@ int
 pfsync_request_update(struct pfsync_state_upd *up, struct in_addr *src)
 {
 #ifdef __FreeBSD__
-	struct ifnet *ifp = &(LIST_FIRST(&pfsync_list))->sc_if;
+	struct ifnet *ifp = SCP2IFP(LIST_FIRST(&pfsync_list));
 #else
 	struct ifnet *ifp = &pfsyncif.sc_if;
 #endif
@@ -1352,7 +1374,7 @@ int
 pfsync_clear_states(u_int32_t creatorid, char *ifname)
 {
 #ifdef __FreeBSD__
-	struct ifnet *ifp = &(LIST_FIRST(&pfsync_list))->sc_if;
+	struct ifnet *ifp = SCP2IFP(LIST_FIRST(&pfsync_list));
 #else
 	struct ifnet *ifp = &pfsyncif.sc_if;
 #endif
@@ -1530,7 +1552,11 @@ pfsync_sendout(sc)
 	struct pfsync_softc *sc;
 {
 #if NBPFILTER > 0
-	struct ifnet *ifp = &sc->sc_if;
+# ifdef __FreeBSD__
+	struct ifnet *ifp = SCP2IFP(sc);
+# else
+	struct ifnet *ifp = &sc->if_sc;
+# endif
 #endif
 	struct mbuf *m;
 
@@ -1645,7 +1671,7 @@ pfsync_modevent(module_t mod, int type, void *data)
 		if_clone_detach(&pfsync_cloner);
 		while (!LIST_EMPTY(&pfsync_list))
 			pfsync_clone_destroy(
-				&LIST_FIRST(&pfsync_list)->sc_if);
+			    SCP2IFP(LIST_FIRST(&pfsync_list)));
 		break;
 
 	default:
