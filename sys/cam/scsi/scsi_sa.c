@@ -81,7 +81,6 @@
 /*
  * Additional options that can be set for config: SA_1FM_AT_EOT
  */
-
 #ifndef	UNUSED_PARAMETER
 #define	UNUSED_PARAMETER(x)	x = x
 #endif
