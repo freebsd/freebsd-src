@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.4 1993/09/18 03:38:48 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.5 1993/10/08 01:19:28 jkh Exp $";
 #endif
 
 /*
@@ -115,7 +115,7 @@ pkg_do(char *pkg)
 	if (AddMode == MASTER) {
 	    printf("%s\n", where_playpen());
 	    write_plist(&Plist, stdout);
-	    return;
+	    return 0;
 	}
     }
     PkgName = find_name(&Plist);
@@ -126,7 +126,7 @@ pkg_do(char *pkg)
 	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
 	    whinge("Package %s fails requirements - not installed.",
 		   pkg_fullname);
-	    goto fail;
+	    return 1;
 	}
     }
     if (!NoInstall && fexists(INSTALL_FNAME)) {
