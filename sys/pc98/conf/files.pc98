@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.43 1997/12/02 08:20:34 kato Exp $
+#	$Id: files.pc98,v 1.44 1997/12/10 09:28:57 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -192,11 +192,14 @@ i386/isa/sound/gus_vol.c	optional	gus	device-driver
 i386/isa/sound/gus_wave.c	optional	gus	device-driver
 i386/isa/sound/ics2101.c	optional	gus	device-driver
 i386/isa/sound/sound_timer.c	optional	gus	device-driver
+i386/isa/sound/sound_timer.c	optional	css	device-driver
+i386/isa/sound/sound_timer.c	optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
 i386/isa/sound/ad1848.c		optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
+i386/isa/sound/ad1848.c		optional	css	device-driver
 i386/isa/sound/sound_timer.c    optional        mss     device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
@@ -219,7 +222,9 @@ i386/isa/sound/sb16_dsp.c	optional	sbxvi	device-driver
 i386/isa/sound/sb16_midi.c	optional	sbmidi	device-driver
 i386/isa/sound/uart6850.c	optional	uart	device-driver
 i386/isa/sound/midi_synth.c	optional	uart	device-driver
+i386/isa/sound/midi_synth.c	optional	css	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
+i386/isa/sound/midibuf.c	optional	css	device-driver
 i386/isa/sound/trix.c		optional	trix	device-driver
 i386/isa/sound/adlib_card.c     optional        trix    device-driver
 i386/isa/sound/opl3.c           optional        trix    device-driver
@@ -232,6 +237,7 @@ i386/isa/sound/mpu401.c		optional	sscape	device-driver
 i386/isa/sound/midi_synth.c	optional	sscape	device-driver
 i386/isa/sound/midibuf.c	optional	sscape	device-driver
 i386/isa/sound/awe_wave.c	optional	awe	device-driver
+i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 pc98/pc98/spkr.c		optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
