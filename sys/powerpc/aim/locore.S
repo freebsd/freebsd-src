@@ -148,23 +148,6 @@ __start:
 	sync
 	isync
 
-	mtibatu	0,0
-	mtibatu	1,0
-	mtibatu	2,0
-	mtibatu	3,0
-	mtdbatu	0,0
-	mtdbatu	1,0
-	mtdbatu	2,0
-	mtdbatu	3,0
-
-	li	9,0x12
-	mtibatl	0,9
-	mtdbatl	0,9
-	li	9,0x1ffe
-	mtibatu	0,9
-	mtdbatu	0,9
-	isync
-
 	/* Save the argument pointer and length */
 	mr	20,6
 	mr	21,7
