@@ -401,6 +401,7 @@ extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*
 extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
 extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu	*/
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
+extern DMenu		MenuSendmail;		/* Sendmail configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
