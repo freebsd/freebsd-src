@@ -30,6 +30,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
+#define STARTFILE_SPEC  \
+  "%{pg:gcrt0.o%s}%{!pg:%{p:mcrt0.o%s}%{!p:%{static:scrt0.o%s}%{!static:crt0.o%s}}}"
+
 #define INCLUDE_DEFAULTS { \
 	{ "/usr/include", 0 }, \
 	{ "/usr/include/g++", 1 }, \
