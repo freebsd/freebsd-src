@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.48 1998/03/30 09:56:05 phk Exp $
+ * $Id: ffs_vnops.c,v 1.49 1998/05/11 21:41:13 julian Exp $
  */
 
 #include <sys/param.h>
@@ -175,7 +175,8 @@ loop2:
 			 * for them below.
 			 */
 			if ((bp->b_vp == vp) || (ap->a_waitfor != MNT_WAIT)) {
-				if (bp->b_flags & B_CLUSTEROK) {
+				if ((bp->b_flags & B_CLUSTEROK) &&
+				    ap->a_waitfor != MNT_WAIT) {
 					(void) vfs_bio_awrite(bp);
 					splx(s);
 				} else {
@@ -213,26 +214,22 @@ loop2:
 		skipmeta = 0;
 		goto loop2; /* stay within the splbio() */
 	}
-	splx(s);
 
 	if (ap->a_waitfor == MNT_WAIT) {
+		while (vp->v_numoutput) {
+			vp->v_flag |= VBWAIT;
+			(void) tsleep((caddr_t)&vp->v_numoutput,
+					PRIBIO + 4, "ffsfsn", 0);
+  		}
 
+		/* 
+		 * Ensure that any filesystem metatdata associated
+		 * with the vnode has been written.
+		 */
+		splx(s);
+		if ((error = softdep_sync_metadata(ap)) != 0)
+			return (error);
 		s = splbio();
-		if (!DOINGSOFTDEP(vp)) {
-			while (vp->v_numoutput) {
-				vp->v_flag |= VBWAIT;
-				(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 4, "ffsfsn", 0);
-			}
-		} else {
-			/* 
-			 * Ensure that any filesystem metatdata associated
-			 * with the vnode has been written.
-			 */
-			if ((error = softdep_sync_metadata(ap)) != 0) {
-				splx(s);
-				return (error);
-			}
-		}
 
 		if (vp->v_dirtyblkhd.lh_first) {
 			/*
@@ -252,11 +249,10 @@ loop2:
 				vprint("ffs_fsync: dirty", vp);
 #endif
 		}
-		splx(s);
 	}
+	splx(s);
 	getmicrotime(&tv);
-	error = UFS_UPDATE(ap->a_vp, &tv, &tv, (ap->a_waitfor == MNT_WAIT));
-	if (error)
+	if ((error = UFS_UPDATE(vp, &tv, &tv, ap->a_waitfor == MNT_WAIT)) != 0)
 		return (error);
 	if (DOINGSOFTDEP(vp) && ap->a_waitfor == MNT_WAIT)
 		error = softdep_fsync(vp);
