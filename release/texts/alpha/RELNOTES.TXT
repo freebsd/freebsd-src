@@ -1,23 +1,22 @@
                                  RELEASE NOTES
-                              FreeBSD 4.1-RELEASE
+                         FreeBSD snapshot of 4.1-stable
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.1-RELEASE
+For information about FreeBSD and the layout of the 4.1-STABLE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest 4.1-stable snapshots (post-4.1 snaps), you should
-always see:
+For the latest of these 4.1-stable snapshots, you should always see:
 
         ftp://releng4.freebsd.org/pub/FreeBSD
 
 Table of contents:
 ------------------
-1. What's new since 4.0-RELEASE
+1. What's new since 4.1-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -40,135 +39,17 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 4.0-RELEASE
+1. What's new since 4.1-RELEASE
 --------------------------------------
 
 1.1. KERNEL CHANGES
 -------------------
 
-FreeBSD 4.1-RELEASE contains updated code from the KAME project
-(http://www.kame.net) including the following features:
-
-* Significantly improved IPSEC functionality.  In particular, IPSEC
-  security associations must no longer be manually keyed: the new code
-  supports racoon, the KAME IKE daemon, which is located in
-  /usr/ports/security/racoon.  Racoon has been shown to interoperate
-  well with other vendor IKE systems, meaning that FreeBSD 4.1 can be
-  used in a heterogeneous IPSEC environment.  However, racoon *is*
-  still a work in progress, meaning that there may still be bugs,
-  configuration syntax changes, etc.
-
-* About 9 months of fixes and improvements to the IPv6 code relative to
-  what was in 4.0-RELEASE.
-
-* FreeBSD 4.1 can now be installed on an IPv6-only network - this will be
-  the first release of FreeBSD that never needs to operate using IPv4 at
-  all! ftp7.jp.freebsd.org (Listed as Japan #7 in sysinstall) is an
-  IPv6-reachable mirror site for installation and package-fetching.
-
-* The ALTQ traffic-shaping system has not yet been merged - it will
-  hopefully be added before the release of 4.2.  The more experimental
-  KAME code has also not been merged.  If you need those features, 
-  consider using the the 4.1-RELEASE+KAME snapshots from
-  ftp://ftp.kame.net which will become available after 4.1-RELEASE.
-
-* KNOWN ISSUES: NFS mounts over IPSEC do not seem to work reliably in
-  all cases - mount hangs and possible data corruption have been
-  observed.
-
-A new event notification facility called kqueue was added to the
-FreeBSD kernel.  This is a new interface which is able to replace
-poll/select, offering improved performance, as well as the ability
-to report many different types of events.  Support for monitoring
-changes in sockets, pipes, fifos, and files are present, as well as
-for signals and processes. 
-
-FreeBSD/alpha now posseses a loader with FICL (Forth support) builtin. 
-
-Parallel ports are now supported.
-
-Support for multiple new Alpha system types has been added. Please
-check HARDWARE.TXT for details.
-
-AlphaServer 4100 (Rawhide) does not want to allow installation using
-floppies or cdrom. Workaround is to install using another Alpha machine and 
-move the disk to the AS4100. Once installed FreeBSD runs fine.
-
-AlphaServer 2100A (Lynx) is not supported in this release. Note that
-AlphaServer 2100 (Sable) works fine.
-
-Machines that have onboard IDE interfaces that their SRM can boot from 
-are now supported with the IDE disk being the root/boot device. See
-HARDWARE.TXT for machine specifics like speed, use of DMA etc.
-
-Note that TGA consoles (either builtin or on TGA expansion cards) will
-not work. You will need to use a serial console or install a VGA card.
-
-If you are seeing "going nowhere without my init" crashes on install
-please make sure you have no other bootable disks (Tru64, VMS, whatever)
-connected to your system during install. There are conflicting reports on
-this. According to some this is a reproducible problem whereas others 
-using multi-disk/multi-OS installations have never seen it.
-
 1.2. SECURITY FIXES
 -------------------
 
-The kernel and userland have been audited for bugs and security
-vulnerabilities resulting from the incorrect use of format strings in
-vfprintf()-like functions.  No vulnerabilities were discovered.
-
-For additional security fixes, see the list of released Security
-Advisories located at http://www.freebsd.org/security/
-
 1.3. USERLAND CHANGES
 ---------------------
-
-Support for the KAME IKE daemon, racoon, as noted in section 1.1 above.
-
-Several additional system utilities (whois, fetch, and possibly
-others) have gained the ability to operate over IPv6.
-
-cdcontrol(1) now supports a "cdid" command, which calculates and
-displays the CD serial number, using the same algorithm used by the CDDB
-database.
-
-mtree(8) now includes support for a file listing pathnames to be excluded
-when creating and verifying prototypes.  This makes it easier to use
-mtree as a part of an intrusion-detection system.
-
-The OPIE one-time-password suite has been updated to 2.32.
-
-OpenSSH has been upgraded to 2.1.0, which provides support for the
-SSH2 protocol, including DSA keys.  Therefore, OpenSSH users in the US
-no longer need to rely on the restrictively-licensed RSAREF toolkit
-which is required to handle RSA keys.  OpenSSH 2.1 interoperates well
-with other SSH2 clients and servers, including the ssh2 port.  See
-http://www.openssh.com for more details.
-
-OpenSSH can now authenticate using OPIE passwords in SSH1 mode.
-Support is not yet available in SSH2 mode.
-
-camcontrol(8) now includes a built in 'format' function to low-level
-format SCSI disks.
-
-Support for USB devices was added to the GENERIC kernel and to the
-installation programs to support USB devices out of the box.  Note that
-SRM does not support USB devices at the moment, so you must still use
-an AT keyboard if you are not using a serial console. Note that the
-bootfloppy kernel does not have USB due to lack of space.
-
-libfetch has been greatly improved.  fetch(1) and the pkg tools now use
-libfetch instead of libftpio, which means that the pkg tools have gained
-HTTP support, and both have gained IPv6 support.
-
-The csh(1) shell has been replaced by tcsh(1), although it can still
-be run as csh(1).
-
-The more(1) command has been replaced by less(1), although it can still
-be run as more(1).
-
-ls(1) can produce colorized listings with the -G flag (and appropriate
-terminal support).
 
 2. Supported Configurations
 ---------------------------
