@@ -191,7 +191,8 @@ setnetgrent(group)
 		 */
 			if (_use_only_yp && _yp_innetgr) {
 				/* dohw! */
-				fclose(netf);
+				if (netf != NULL)
+					fclose(netf);
 				return;
 			}
 #else
