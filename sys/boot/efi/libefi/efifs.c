@@ -56,7 +56,7 @@ efifs_open(const char *upath, struct open_file *f)
 		return ENOENT;
 
 	/*
-	 * Fine the root directory.
+	 * Find the root directory.
 	 */
 	status = sfs->OpenVolume(sfs, &root);
 
