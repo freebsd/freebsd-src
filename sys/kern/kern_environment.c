@@ -151,3 +151,18 @@ kernenv_next(char *cp)
     return(cp);
 }
 
+void
+tunable_int_init(void *data)
+{
+	struct tunable_int *d = (struct tunable_int *)data;
+
+	TUNABLE_INT_FETCH(d->path, d->var);
+}
+
+void
+tunable_str_init(void *data)
+{
+	struct tunable_str *d = (struct tunable_str *)data;
+
+	TUNABLE_STR_FETCH(d->path, d->var, d->size);
+}
