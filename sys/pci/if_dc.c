@@ -2217,7 +2217,7 @@ static int dc_list_tx_init(sc)
 	cd = &sc->dc_cdata;
 	ld = sc->dc_ldata;
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
-		nexti = (i == (DC_TX_LIST_CNT - 1)) ? 0 : i+1 ;
+		nexti = (i == (DC_TX_LIST_CNT - 1)) ? 0 : i+1;
 		ld->dc_tx_list[i].dc_next = vtophys(&ld->dc_tx_list[nexti]);
 		cd->dc_tx_chain[i] = NULL;
 		ld->dc_tx_list[i].dc_data = 0;
@@ -2248,7 +2248,7 @@ static int dc_list_rx_init(sc)
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
 		if (dc_newbuf(sc, i, NULL) == ENOBUFS)
 			return(ENOBUFS);
-		nexti =  (i == (DC_RX_LIST_CNT - 1)) ? 0 : i+1 ;
+		nexti = (i == (DC_RX_LIST_CNT - 1)) ? 0 : i+1;
 		ld->dc_rx_list[i].dc_next = vtophys(&ld->dc_rx_list[nexti]);
 	}
 
@@ -2272,11 +2272,16 @@ static int dc_newbuf(sc, i, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			printf("dc%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->dc_unit);
 			return(ENOBUFS);
+		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
+			printf("dc%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->dc_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
