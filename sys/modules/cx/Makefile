@@ -5,7 +5,6 @@
 KMOD=   if_cx
 SRCS=   if_cx.c cxddk.c csigma.c opt_netgraph.h opt_ng_cronyx.h bpf.h \
 	sppp.h device_if.h bus_if.h isa_if.h
-NOMAN=
 
 NBPF?=		0
 PROTOS?=	-DINET
