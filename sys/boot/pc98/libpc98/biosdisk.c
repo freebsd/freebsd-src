@@ -958,15 +958,16 @@ bd_getbigeom(int bunit)
 {
 
 #ifdef PC98
-    int unit = 0x80;
     int hds = 0;
+    int unit = 0x80;		/* IDE HDD */
     u_int addr = 0xA155d;
+
     while (unit < 0xa7) {
-	if (*(u_char *)PTOV(addr) & ((1 << unit) & 0xf))
-	    if (++hds == bunit)
+	if (*(u_char *)PTOV(addr) & (1 << (unit & 0x0f)))
+	    if (hds++ == bunit)
 		break;
 	if (++unit == 0x84) {
-	    unit = 0xa0;
+	    unit = 0xa0;	/* SCSI HDD */
 	    addr = 0xA1482;
 	}
     }
