@@ -228,7 +228,7 @@ extern int	needtermstat;
 #   ifdef ultrix
 #    define DEFAULT_IM	"\r\n\r\nULTRIX (%h) (%t)\r\n\r\r\n\r"
 #   else
-#    define DEFAULT_IM	"\r\n\r\n4.4 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
+#    define DEFAULT_IM	"\r\n\r\nFreeBSD (%h) (%t)\r\n\r\r\n\r"
 #   endif
 #  endif
 # endif
