@@ -12,6 +12,12 @@ CFLAGS += -Wall -g -static
 LDADD =  -ldialog -lncurses -lmytinfo
 DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
+.if exists(${.CURDIR}/../../sys/i386/boot/biosboot/obj)
+BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj
+.else
+BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
+.endif
+
 makedevs.c:	dev2c.sh Makefile
 	mkdir -p dev
 	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
@@ -19,16 +25,10 @@ makedevs.c:	dev2c.sh Makefile
 	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
 	rm -rf dev
 	uudecode < ${.CURDIR}/bteasy17.uu
-	file2c 'const char boot0[] = {' '};' < \
-		bteasy17 \
-		>> makedevs.tmp
+	file2c 'const char boot0[] = {' '};' < bteasy17 >> makedevs.tmp
 	rm -rf bteasy17
-	file2c 'const char boot1[] = {' '};' < \
-		../../sys/i386/boot/biosboot/boot1 \
-		>> makedevs.tmp
-	file2c 'const char boot2[] = {' '};' < \
-		../../sys/i386/boot/biosboot/boot2 \
-		>> makedevs.tmp
+	file2c 'const char boot1[] = {' '};' < ${BOOTS}/boot1 >> makedevs.tmp
+	file2c 'const char boot2[] = {' '};' < ${BOOTS}/boot2 >> makedevs.tmp
 	tset -Q -S cons25 | sed 's/^.* //' | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp
