@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.31 1998/06/28 21:05:48 bde Exp $";
+	"$Id: print.c,v 1.32 1998/09/14 08:32:20 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -503,8 +503,8 @@ getpcpu(k)
 	if (p->p_swtime == 0 || (p->p_flag & P_INMEM) == 0)
 		return (0.0);
 	if (rawcpu)
-		return (10000.0 / sysconf(_SC_CLK_TCK) * fxtofl(p->p_pctcpu));
-	return (10000.0 / sysconf(_SC_CLK_TCK) * fxtofl(p->p_pctcpu) /
+		return (100.0 * fxtofl(p->p_pctcpu));
+	return (100.0 * fxtofl(p->p_pctcpu) /
 		(1.0 - exp(p->p_swtime * log(fxtofl(ccpu)))));
 }
 
