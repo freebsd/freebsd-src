@@ -44,7 +44,8 @@ divert(-1)
 #  for back compatibility.
 #
 
-VERSIONID(`@(#)mailspool.cs.mc	8.3 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)mailspool.cs.mc	8.4 (Berkeley) 3/23/96')
 OSTYPE(sunos4.1)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

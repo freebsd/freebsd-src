@@ -34,14 +34,14 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)hpux10.m4	8.6 (Berkeley) 11/13/95')
+VERSIONID(`@(#)hpux10.m4	8.8 (Berkeley) 9/25/96')
 
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /etc/mail/aliases)')dnl
+define(`ALIAS_FILE', /etc/mail/aliases)dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /etc/mail/sendmail.st)')dnl
 ifdef(`HELP_FILE',, `define(`HELP_FILE', /usr/share/lib/sendmail.hf)')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/bin/rmail)')dnl
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `m')')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `m9')')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `rmail -d $u')')dnl
 ifdef(`LOCAL_SHELL_PATH',, `define(`LOCAL_SHELL_PATH', /usr/bin/sh)')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gC $h!rmail ($u)')')dnl

@@ -43,7 +43,8 @@ divert(-1)
 #  to a name of your own choosing.
 #
 
-VERSIONID(`@(#)cs-sunos4.1.mc	8.3 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)cs-sunos4.1.mc	8.4 (Berkeley) 3/23/96')
 OSTYPE(sunos4.1)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

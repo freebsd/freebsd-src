@@ -1,5 +1,5 @@
 /*-
- *	@(#)READ_ME	8.25 (Berkeley) 11/19/95
+ *	@(#)READ_ME	8.29 (Berkeley) 9/24/96
  */
 
 			SENDMAIL RELEASE 8
@@ -8,6 +8,9 @@ This directory has the latest sendmail software from Berkeley.  See
 doc/changes/changes.me for a summary of changes since 5.67.
 
 Report any bugs to sendmail-bugs@sendmail.ORG
+
+There is a web site at http://WWW.Sendmail.ORG -- see that site for
+the latest updates.
 
 ******************************************************************
 **  DO NOT USE MAKE to compile sendmail.  Instead, cd src and	**
@@ -128,13 +131,20 @@ Important RFCs for electronic mail are:
 	RFC976	UUCP mail format
 	RFC1123	Host requirements (modifies 821, 822, and 974)
 	RFC1413	Identification server
-	RFC1425	SMTP Service Extensions (ESMTP spec)
-	RFC1426	SMTP Service Extension for 8bit-MIMEtransport
-	RFC1427	SMTP Service Extension for Message Size Declaration
+	RFC1869	SMTP Service Extensions (ESMTP spec)
+	RFC1652	SMTP Service Extension for 8bit-MIMEtransport
+	RFC1870	SMTP Service Extension for Message Size Declaration
 	RFC1521	MIME: Multipurpose Internet Mail Extensions
 	RFC1344	Implications of MIME for Internet Mail Gateways
 	RFC1428	Transition of Internet Mail from Just-Send-8 to
 		8-bit SMTP/MIME
+	RFC1891	SMTP Service Extension for Delivery Status Notifications
+	RFC1892	Multipart/Report Content Type for the Reporting of
+		Mail System Administrative Messages
+	RFC1893	Enhanced Mail System Status Codes
+	RFC1894	An Extensible Message Format for Delivery Status
+		Notifications
+	RFC1985	SMTP Service Extension for Remote Message Queue Starting
 
 Other standards that may be of interest (but which are less directly
 relevant to sendmail) are:

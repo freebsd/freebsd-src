@@ -42,7 +42,8 @@ divert(-1)
 #  This file is for the primary CS Division mail server.
 #
 
-VERSIONID(`@(#)mail.cs.mc	8.9 (Berkeley) 8/25/95')
+divert(0)dnl
+VERSIONID(`@(#)mail.cs.mc	8.10 (Berkeley) 3/23/96')
 OSTYPE(ultrix4)dnl
 DOMAIN(Berkeley.EDU)dnl
 MASQUERADE_AS(CS.Berkeley.EDU)dnl

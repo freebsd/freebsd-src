@@ -42,7 +42,8 @@ divert(-1)
 #  `SITECONFIG' for routing of UUCP within your domain.
 #
 
-VERSIONID(`@(#)ucbvax.mc	8.5 (Berkeley) 8/25/95')
+divert(0)dnl
+VERSIONID(`@(#)ucbvax.mc	8.6 (Berkeley) 3/23/96')
 OSTYPE(bsd4.3)
 DOMAIN(CS.Berkeley.EDU)
 MASQUERADE_AS(CS.Berkeley.EDU)
