@@ -787,6 +787,7 @@ product NETGEAR EA101		0x1001	Ethernet adapter
 product NIKON E990		0x0102	Digital Camera E990
 
 /* Olympus products */
+product OLYMPUS C1		0x0102	C-1 Digital Camera
 product OLYMPUS C700		0x0105	C-700 Ultra Zoom
 
 /* OmniVision Technologies, Inc. products */
