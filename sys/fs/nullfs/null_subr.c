@@ -42,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -65,7 +66,7 @@
 
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static u_long null_node_hash;
-struct lock null_hashlock;
+struct mtx null_hashmtx;
 
 static MALLOC_DEFINE(M_NULLFSHASH, "NULLFS hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "NULLFS node", "NULLFS vnode private part");
@@ -85,7 +86,7 @@ nullfs_init(vfsp)
 
 	NULLFSDEBUG("nullfs_init\n");		/* printed during system boot */
 	null_node_hashtbl = hashinit(NNULLNODECACHE, M_NULLFSHASH, &null_node_hash);
-	lockinit(&null_hashlock, PVFS, "nullhs", 0, 0);
+	mtx_init(&null_hashmtx, "nullhs", NULL, MTX_DEF);
 	return (0);
 }
 
@@ -94,10 +95,8 @@ nullfs_uninit(vfsp)
 	struct vfsconf *vfsp;
 {
 
-        if (null_node_hashtbl) {
-		lockdestroy(&null_hashlock);
-		free(null_node_hashtbl, M_NULLFSHASH);
-	}
+	mtx_destroy(&null_hashmtx);
+	free(null_node_hashtbl, M_NULLFSHASH);
 	return (0);
 }
 
@@ -123,29 +122,24 @@ null_node_find(mp, lowervp)
 	 */
 	hd = NULL_NHASH(lowervp);
 loop:
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
+	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
-			lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+			mtx_lock(&vp->v_interlock);
+			mtx_unlock(&null_hashmtx);
 			/*
 			 * We need vget for the VXLOCK
 			 * stuff, but we don't want to lock
 			 * the lower node.
 			 */
-			if (vget(vp, LK_EXCLUSIVE | LK_CANRECURSE, td)) {
-				printf ("null_node_find: vget failed.\n");
+			if (vget(vp, LK_EXCLUSIVE | LK_THISLAYER | LK_INTERLOCK, td))
 				goto loop;
-			};
-			/*
-			 * Now we got both vnodes locked, so release the
-			 * lower one.
-			 */
-			VOP_UNLOCK(lowervp, 0, td);
+
 			return (vp);
 		}
 	}
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+	mtx_unlock(&null_hashmtx);
 
 	return NULLVP;
 }
@@ -214,7 +208,6 @@ null_node_alloc(mp, lowervp, vpp)
 	 * NULL, then we copy that up and manually lock the new vnode.
 	 */
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
 	vp->v_vnlock = lowervp->v_vnlock;
 	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, td);
 	if (error)
@@ -222,8 +215,9 @@ null_node_alloc(mp, lowervp, vpp)
 
 	VREF(lowervp);
 	hd = NULL_NHASH(lowervp);
+	mtx_lock(&null_hashmtx);
 	LIST_INSERT_HEAD(hd, xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+	mtx_unlock(&null_hashmtx);
 	return 0;
 }
 
@@ -293,11 +287,10 @@ void
 null_hashrem(xp)
 	struct null_node *xp;
 {
-	struct thread *td = curthread;	/* XXX */
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
+	mtx_lock(&null_hashmtx);
 	LIST_REMOVE(xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+	mtx_unlock(&null_hashmtx);
 }
 
 #ifdef DIAGNOSTIC
