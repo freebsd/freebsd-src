@@ -24,6 +24,12 @@ hint.wd.0.drive="0"
 #hint.wd.3.at="wdc0"
 #hint.wd.3.drive="3"
 
+# PC-9801-100
+hint.aic.0.at="isa"
+hint.aic.0.port="0x1840"
+hint.aic.0.irq="5"
+hint.aic.0.flags="0x10000"
+
 # PC-9801-92
 hint.bs.0.at="isa"
 hint.bs.0.port="0xCC0"
@@ -63,11 +69,24 @@ hint.bs.0.flags="0"
 #hint.bs.0.drq="3"
 #hint.bs.0.flags="0x50000"
 
-# PC-9801-100
-hint.aic.0.at="isa"
-hint.aic.0.port="0x1840"
-hint.aic.0.irq="5"
-hint.aic.0.flags="0x10000"
+# GENERIC
+hint.ct.0.at="isa"
+# SC98
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x10000"
+# TEXA
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x20000"
+# ELECOM
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x30000"
+# SMIT
+#hint.ct.0.at="isa"
+#hint.ct.0.maddr="0xdc000"
+#hint.ct.0.flags="0x40000"
+# LOGITEC
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x50000"
 
 hint.pckbd.0.at="isa"
 hint.pckbd.0.port="0x041"
