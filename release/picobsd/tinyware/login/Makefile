@@ -21,6 +21,5 @@ LDADD+=	${MINUSLPAM}
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
-NEED_LIBNAMES= yes
 
 .include <bsd.prog.mk>
