@@ -279,7 +279,7 @@ int main (int argc, char *argv[])
 	if (sigcounts[SIGUSR1] != 1)
 		fprintf (stderr,
 		    "FAIL: sigwait doesn't wake up for SIGUSR1.\n");
-	/* Add SIGHUP to the waiters pending signals. */
+	/* Add SIGUSR1 to the waiters pending signals. */
 	send_thread_signal (tid, SIGUSR1);
 	/* Release the waiter thread and allow him to run. */
 	pthread_mutex_unlock (&waiter_mutex);
