@@ -83,7 +83,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_sync,
 	ffs_vget,
 	ffs_fhtovp,
-	ufs_check_export,
+	vfs_stdcheckexp,
 	ffs_vptofh,
 	ffs_init,
 	vfs_stduninit,
@@ -268,7 +268,7 @@ ffs_mount(mp, path, data, ndp, p)
 		 * If not updating name, process export requests.
 		 */
 		if (args.fspec == 0)
-			return (vfs_export(mp, &ump->um_export, &args.export));
+			return (vfs_export(mp, &args.export));
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */

@@ -73,8 +73,6 @@ static int cd9660_root __P((struct mount *, struct vnode **));
 static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
 static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
 static int cd9660_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-static int cd9660_checkexp __P((struct mount *, struct sockaddr *,
-	    int *, struct ucred **));
 static int cd9660_vptofh __P((struct vnode *, struct fid *));
 
 static struct vfsops cd9660_vfsops = {
@@ -87,7 +85,7 @@ static struct vfsops cd9660_vfsops = {
 	vfs_stdsync,
 	cd9660_vget,
 	cd9660_fhtovp,
-	cd9660_checkexp,
+	vfs_stdcheckexp,
 	cd9660_vptofh,
 	cd9660_init,
 	cd9660_uninit,
@@ -207,7 +205,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOISOFS(mp);
 		if (args.fspec == 0)
-			return (vfs_export(mp, &imp->im_export, &args.export));
+			return (vfs_export(mp, &args.export));
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
@@ -649,30 +647,6 @@ cd9660_fhtovp(mp, fhp, vpp)
 		return (ESTALE);
 	}
 	*vpp = nvp;
-	return (0);
-}
-
-int
-cd9660_checkexp(mp, nam, exflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-	register struct netcred *np;
-	register struct iso_mnt *imp;
-
-	imp = VFSTOISOFS(mp);	
-
-	/*
-	 * Get the export permission structure for this <mp, client> tuple.
-	 */
-	np = vfs_export_lookup(mp, &imp->im_export, nam);
-	if (np == NULL)
-		return (EACCES);
-
-	*exflagsp = np->netc_exflags;
-	*credanonp = &np->netc_anon;
 	return (0);
 }
 

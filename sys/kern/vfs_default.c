@@ -708,16 +708,6 @@ vfs_stdfhtovp (mp, fhp, vpp)
 	return (EOPNOTSUPP);
 }
 
-int 
-vfs_stdcheckexp (mp, nam, extflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *extflagsp;
-	struct ucred **credanonp;
-{
-	return (EOPNOTSUPP);
-}
-
 int
 vfs_stdinit (vfsp) 
 	struct vfsconf *vfsp;

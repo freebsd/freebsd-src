@@ -85,7 +85,7 @@ static struct vfsops ifs_vfsops = {
 	ffs_sync,
 	ifs_vget,
 	ffs_fhtovp,
-	ufs_check_export,
+	vfs_stdcheckexp,
 	ffs_vptofh,
 	ifs_init,
         vfs_stduninit,

@@ -96,7 +96,7 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_sync,
 	ext2_vget,
 	ext2_fhtovp,
-	ufs_check_export,
+	vfs_stdcheckexp,
 	ext2_vptofh,
 	ext2_init,
 	vfs_stduninit,
@@ -264,7 +264,7 @@ ext2_mount(mp, path, data, ndp, p)
 			/*
 			 * Process export requests.
 			 */
-			return (vfs_export(mp, &ump->um_export, &args.export));
+			return (vfs_export(mp, &args.export));
 		}
 	}
 	/*
