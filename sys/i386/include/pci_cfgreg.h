@@ -50,5 +50,7 @@
 int		pci_cfgregopen(void);
 u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
 void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
-int		pci_cfgintr(int bus, int device, int pin, int oldirq);
-int		pci_probe_route_table(int bus);
+void		pci_pir_open(void);
+void		pci_pir_parse(void);
+int		pci_pir_probe(int bus, int require_parse);
+int		pci_pir_route_interrupt(int bus, int device, int func, int pin);
