@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.134 1998/06/16 19:40:27 brian Exp $
+ * $Id: main.c,v 1.135 1998/06/16 19:40:39 brian Exp $
  *
  *	TODO:
  */
@@ -40,6 +40,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "probe.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -442,7 +443,10 @@ static void
 DoLoop(struct bundle *bundle)
 {
   fd_set rfds, wfds, efds;
-  int i, nfds;
+  int i, nfds, nothing_done;
+  struct probe probe;
+
+  probe_Init(&probe);
 
   do {
     nfds = 0;
@@ -514,14 +518,32 @@ DoLoop(struct bundle *bundle)
     if (i <= nfds)
       break;
 
-    if (descriptor_IsSet(&server.desc, &rfds))
+    nothing_done = 1;
+
+    if (descriptor_IsSet(&server.desc, &rfds)) {
       descriptor_Read(&server.desc, bundle, &rfds);
+      nothing_done = 0;
+    }
+
+    if (descriptor_IsSet(&bundle->desc, &rfds)) {
+      descriptor_Read(&bundle->desc, bundle, &rfds);
+      nothing_done = 0;
+    }
 
     if (descriptor_IsSet(&bundle->desc, &wfds))
-      descriptor_Write(&bundle->desc, bundle, &wfds);
+      if (!descriptor_Write(&bundle->desc, bundle, &wfds) && nothing_done) {
+        /*
+         * This is disasterous.  The OS has told us that something is
+         * writable, and all our write()s have failed.  Rather than
+         * going back immediately to do our UpdateSet()s and select(),
+         * we sleep for a bit to avoid gobbling up all cpu time.
+         */
+        struct timeval t;
 
-    if (descriptor_IsSet(&bundle->desc, &rfds))
-      descriptor_Read(&bundle->desc, bundle, &rfds);
+        t.tv_sec = 0;
+        t.tv_usec = 100000;
+        select(0, NULL, NULL, NULL, &t);
+      }
 
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
 
