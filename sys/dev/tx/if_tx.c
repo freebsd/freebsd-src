@@ -94,7 +94,7 @@ static int epic_common_attach(epic_softc_t *);
 static void epic_ifstart(struct ifnet *);
 static void epic_ifwatchdog(struct ifnet *);
 static void epic_stats_update(epic_softc_t *);
-static int epic_init(epic_softc_t *);
+static void epic_init(void *);
 static void epic_stop(epic_softc_t *);
 static void epic_rx_done(epic_softc_t *);
 static void epic_tx_done(epic_softc_t *);
@@ -219,7 +219,7 @@ epic_attach(dev)
 	int unit, error;
 	int i, s, rid, tmp;
 
-	s = splimp ();
+	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -238,7 +238,7 @@ epic_attach(dev)
 	ifp->if_ioctl = epic_ifioctl;
 	ifp->if_start = epic_ifstart;
 	ifp->if_watchdog = epic_ifwatchdog;
-	ifp->if_init = (if_init_f_t*)epic_init;
+	ifp->if_init = epic_init;
 	ifp->if_timer = 0;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
@@ -249,7 +249,6 @@ epic_attach(dev)
 	rid = EPIC_RID;
 	sc->res = bus_alloc_resource(dev, EPIC_RES, &rid, 0, ~0, 1,
 	    RF_ACTIVE);
-
 	if (sc->res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
@@ -263,7 +262,6 @@ epic_attach(dev)
 	rid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
-
 	if (sc->irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
@@ -271,20 +269,9 @@ epic_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	    epic_intr, sc, &sc->sc_ih);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
-	}
-
 	/* Do OS independent part, including chip wakeup and reset */
 	error = epic_common_attach(sc);
 	if (error) {
-		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		error = ENXIO;
@@ -295,7 +282,6 @@ epic_attach(dev)
 	if (mii_phy_probe(dev, &sc->miibus,
 	    epic_ifmedia_upd, epic_ifmedia_sts)) {
 		device_printf(dev, "ERROR! MII without any PHY!?\n");
-		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		error = ENXIO;
@@ -307,12 +293,14 @@ epic_attach(dev)
 
 	/* board type and ... */
 	printf(" type ");
-	for(i=0x2c;i<0x32;i++) {
+	for(i = 0x2c; i < 0x32; i++) {
 		tmp = epic_read_eeprom(sc, i);
-		if (' ' == (u_int8_t)tmp) break;
+		if (' ' == (u_int8_t)tmp)
+			break;
 		printf("%c", (u_int8_t)tmp);
 		tmp >>= 8;
-		if (' ' == (u_int8_t)tmp) break;
+		if (' ' == (u_int8_t)tmp)
+			break;
 		printf("%c", (u_int8_t)tmp);
 	}
 	printf("\n");
@@ -323,10 +311,28 @@ epic_attach(dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	callout_handle_init(&sc->stat_ch);
 
+	/* Initialize rings */
+	if (epic_init_rings(sc)) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
+		device_printf(dev, "failed to init rings\n");
+		error = ENXIO;
+		goto fail;
+	}	
+
+	/* Activate our interrupt handler. */
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+	    epic_intr, sc, &sc->sc_ih);
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
+	}
+
 fail:
 	splx(s);
-
-	return(error);
+	return (error);
 }
 
 /*
@@ -356,6 +362,7 @@ epic_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 
+	epic_free_rings(sc);
 	free(sc->tx_flist, M_DEVBUF);
 	free(sc->tx_desc, M_DEVBUF);
 	free(sc->rx_desc, M_DEVBUF);
@@ -1114,19 +1121,20 @@ epic_miibus_mediainit(dev)
 /*
  * Reset chip, allocate rings, and update media.
  */
-static int
-epic_init(sc)
-	epic_softc_t *sc;
+static void
+epic_init(xsc)
+	void *xsc;
 {
+	epic_softc_t *sc = xsc;
 	struct ifnet *ifp = &sc->sc_if;
-	int s,i;
+	int s, i;
 
 	s = splimp();
 
 	/* If interface is already running, then we need not do anything */
 	if (ifp->if_flags & IFF_RUNNING) {
 		splx(s);
-		return 0;
+		return;
 	}
 
 	/* Soft reset the chip (we have to power up card before) */
@@ -1144,13 +1152,6 @@ epic_init(sc)
 
 	/* Workaround for Application Note 7-15 */
 	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
-
-	/* Initialize rings */
-	if (epic_init_rings(sc)) {
-		device_printf(sc->dev, "failed to init rings\n");
-		splx(s);
-		return -1;
-	}	
 
 	/* Give rings to EPIC */
 	CSR_WRITE_4(sc, PRCDAR, vtophys(sc->rx_desc));
@@ -1200,8 +1201,6 @@ epic_init(sc)
 	sc->stat_ch = timeout((timeout_t *)epic_stats_update, sc, hz);
 
 	splx(s);
-
-	return 0;
 }
 
 /*
@@ -1470,9 +1469,6 @@ epic_stop(sc)
 
 	/* Make chip go to bed */
 	CSR_WRITE_4(sc, GENCTL, GENCTL_POWER_DOWN);
-
-	/* Free memory allocated for rings */
-	epic_free_rings(sc);
 
 	/* Mark as stoped */
 	sc->sc_if.if_flags &= ~IFF_RUNNING;
