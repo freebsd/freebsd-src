@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- * $Id: tcp_usrreq.c,v 1.7 1995/02/09 23:13:27 wollman Exp $
+ *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
+ *	$Id: tcp_usrreq.c,v 1.9 1995/02/16 00:55:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ tcp_usrreq(so, req, m, nam, control)
 		if (error)
 			break;
 		if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-			so->so_linger = TCP_LINGERTIME;
+			so->so_linger = TCP_LINGERTIME * hz;
 		tp = sototcpcb(so);
 		break;
 
