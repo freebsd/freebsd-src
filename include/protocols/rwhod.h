@@ -42,7 +42,7 @@
 struct	outmp {
 	char	out_line[8];		/* tty name */
 	char	out_name[8];		/* user id */
-	long	out_time;		/* time on */
+	int32_t	out_time;		/* time on */
 };
 
 struct	whod {
