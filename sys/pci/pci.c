@@ -878,7 +878,8 @@ pci_compat_probe(device_t dev)
 		name = dvp->pd_probe(cfg, (cfg->device << 16) + cfg->vendor);
 		if (name) {
 			device_set_desc_copy(dev, name);
-			error = 0;
+			/* Allow newbus drivers to match "better" */
+			error = -1000;
 		}
 	}
 
