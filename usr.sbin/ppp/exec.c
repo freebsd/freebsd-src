@@ -141,15 +141,20 @@ exec_Create(struct physical *p)
 
           log_Printf(LogDEBUG, "Exec'ing ``%s''\n", p->name.base);
 
+          if ((argc = MakeArgs(p->name.base, argv, VECSIZE(argv))) < 0) {
+            log_Printf(LogWARN, "Syntax error in exec command\n");
+            _exit(127);
+          }
+
+          command_Expand(argv, argc, (char const *const *)argv,
+                         p->dl->bundle, 0, realpid);
+
           dup2(fids[1], STDIN_FILENO);
           dup2(fids[1], STDOUT_FILENO);
           dup2(fids[1], STDERR_FILENO);
           for (i = getdtablesize(); i > STDERR_FILENO; i--)
             fcntl(i, F_SETFD, 1);
 
-          argc = MakeArgs(p->name.base, argv, VECSIZE(argv));
-          command_Expand(argv, argc, (char const *const *)argv,
-                         p->dl->bundle, 0, realpid);
           execvp(*argv, argv);
           printf("execvp failed: %s: %s\r\n", *argv, strerror(errno));
           _exit(127);

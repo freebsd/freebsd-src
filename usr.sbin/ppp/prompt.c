@@ -190,7 +190,8 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       if (n) {
         if ((op = log_PromptContext) == NULL)
           log_PromptContext = p;
-        command_Decode(bundle, linebuff, n, p, p->src.from);
+        if (!command_Decode(bundle, linebuff, n, p, p->src.from))
+          prompt_Printf(p, "Syntax error\n");
         log_PromptContext = op;
       }
     } else if (n <= 0) {
