@@ -393,10 +393,13 @@ and assumes that you've updated
 with the natd entry as above.  If you specify real firewall rules, it's
 best to specify line 2 at the start of the script so that
 .Nm
-sees all packets before they are dropped by the firewall.  The firewall
-rules will be run again on each packet after translation by
+sees all packets before they are dropped by the firewall.
+.Pp
+After translation by
 .Nm natd ,
-minus any divert rules.
+packets re-enter the firewall at the rule number following the rule number
+that caused the diversion (not the next rule if there are several at the
+same number).
 
 .It
 Enable your firewall by setting
