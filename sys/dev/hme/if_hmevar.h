@@ -48,9 +48,8 @@
  * TX descriptors have less static cost (a dma map is allocated which could
  * cause bounce buffers to be reserved; other that that, the only required
  * memory is sizeof(struct hme_txdesc)).
- * Both must be a multiple of 16, and <= 128.
  */
-#define HME_NRXDESC	32
+#define HME_NRXDESC	128
 #define HME_NTXDESC	64
 
 /* Maximum size of a mapped RX buffer. */
