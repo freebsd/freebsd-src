@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.22 2002/01/18 18:14:17 stevesk Exp $");
+RCSID("$OpenBSD: bufaux.c,v 1.25 2002/04/20 09:14:58 markus Exp $");
 
 #include <openssl/bn.h>
 #include "bufaux.h"
@@ -137,10 +137,18 @@ buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 	BN_bin2bn(bin, len, value);
 	xfree(bin);
 }
-
 /*
- * Returns an integer from the buffer (4 bytes, msb first).
+ * Returns integers from the buffer (msb first).
  */
+
+u_short
+buffer_get_short(Buffer *buffer)
+{
+	u_char buf[2];
+	buffer_get(buffer, (char *) buf, 2);
+	return GET_16BIT(buf);
+}
+
 u_int
 buffer_get_int(Buffer *buffer)
 {
@@ -158,8 +166,16 @@ buffer_get_int64(Buffer *buffer)
 }
 
 /*
- * Stores an integer in the buffer in 4 bytes, msb first.
+ * Stores integers in the buffer, msb first.
  */
+void
+buffer_put_short(Buffer *buffer, u_short value)
+{
+	char buf[2];
+	PUT_16BIT(buf, value);
+	buffer_append(buffer, buf, 2);
+}
+
 void
 buffer_put_int(Buffer *buffer, u_int value)
 {
@@ -192,7 +208,7 @@ buffer_get_string(Buffer *buffer, u_int *length_ptr)
 	/* Get the length. */
 	len = buffer_get_int(buffer);
 	if (len > 256 * 1024)
-		fatal("Received packet with bad string length %d", len);
+		fatal("buffer_get_string: bad string length %d", len);
 	/* Allocate space for the string.  Add one byte for a null character. */
 	value = xmalloc(len + 1);
 	/* Get the string. */
@@ -217,6 +233,8 @@ buffer_put_string(Buffer *buffer, const void *buf, u_int len)
 void
 buffer_put_cstring(Buffer *buffer, const char *s)
 {
+	if (s == NULL)
+		fatal("buffer_put_cstring: s == NULL");
 	buffer_put_string(buffer, s, strlen(s));
 }
 

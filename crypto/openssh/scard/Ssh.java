@@ -1,4 +1,4 @@
-// $Id: Ssh.java,v 1.2 2001/07/30 20:08:14 rees Exp $
+// $Id: Ssh.java,v 1.3 2002/03/21 22:44:05 rees Exp $
 //
 // Ssh.java
 // SSH / smartcard integration project, smartcard side
@@ -42,6 +42,9 @@ import javacardx.crypto.*;
 
 public class Ssh extends javacard.framework.Applet
 {
+    // Change this when the applet changes; hi byte is major, low byte is minor
+    static final short applet_version = (short)0x0102;
+
     /* constants declaration */
     // code of CLA byte in the command APDU header
     static final byte Ssh_CLA =(byte)0x05;
@@ -50,19 +53,18 @@ public class Ssh extends javacard.framework.Applet
     static final byte DECRYPT = (byte) 0x10;
     static final byte GET_KEYLENGTH = (byte) 0x20;
     static final byte GET_PUBKEY = (byte) 0x30;
+    static final byte GET_VERSION = (byte) 0x32;
     static final byte GET_RESPONSE = (byte) 0xc0;
 
-    /* instance variables declaration */
     static final short keysize = 1024;
+    static final short root_fid = (short)0x3f00;
+    static final short privkey_fid = (short)0x0012;
+    static final short pubkey_fid = (short)(('s'<<8)|'h');
 
-    //RSA_CRT_PrivateKey rsakey;
+    /* instance variables declaration */
     AsymKey rsakey;
     CyberflexFile file;
     CyberflexOS os;
-
-    byte buffer[];
-
-    static byte[] keyHdr = {(byte)0xC2, (byte)0x01, (byte)0x05};
 
     private Ssh()
     {
@@ -98,7 +100,8 @@ public class Ssh extends javacard.framework.Applet
 	// APDU object carries a byte array (buffer) to
 	// transfer incoming and outgoing APDU header
 	// and data bytes between card and CAD
-	buffer = apdu.getBuffer();
+	byte buffer[] = apdu.getBuffer();
+	short size, st;
 
 	// verify that if the applet can accept this
 	// APDU message
@@ -111,29 +114,47 @@ public class Ssh extends javacard.framework.Applet
 	    if (buffer[ISO.OFFSET_CLA] != Ssh_CLA)
 		ISOException.throwIt(ISO.SW_CLA_NOT_SUPPORTED);
 	    //decrypt (apdu);
-	    short size = (short) (buffer[ISO.OFFSET_LC] & 0x00FF);
+	    size = (short) (buffer[ISO.OFFSET_LC] & 0x00FF);
 
 	    if (apdu.setIncomingAndReceive() != size)
 		ISOException.throwIt (ISO.SW_WRONG_LENGTH);
+
+	    // check access; depends on bit 2 (x/a)
+	    file.selectFile(root_fid);
+	    file.selectFile(privkey_fid);
+	    st = os.checkAccess(ACL.EXECUTE);
+	    if (st != ST.ACCESS_CLEARED) {
+		CyberflexAPDU.prepareSW1SW2(st);
+		ISOException.throwIt(CyberflexAPDU.getSW1SW2());
+	    }
 
 	    rsakey.cryptoUpdate (buffer, (short) ISO.OFFSET_CDATA, size,
 				 buffer, (short) ISO.OFFSET_CDATA);
 
 	    apdu.setOutgoingAndSend ((short) ISO.OFFSET_CDATA, size);
-	    return;
+	    break;
 	case GET_PUBKEY:
-	    file.selectFile((short)(0x3f<<8)); // select root
-	    file.selectFile((short)(('s'<<8)|'h')); // select public key file
-	    os.readBinaryFile (buffer, (short)0, (short)0, (short)(keysize/8));
-	    apdu.setOutgoingAndSend((short)0, (short)(keysize/8));
-	    return;
+	    file.selectFile(root_fid); // select root
+	    file.selectFile(pubkey_fid); // select public key file
+	    size = (short)(file.getFileSize() - 16);
+	    st = os.readBinaryFile(buffer, (short)0, (short)0, size);
+	    if (st == ST.SUCCESS)
+		apdu.setOutgoingAndSend((short)0, size);
+	    else {
+		CyberflexAPDU.prepareSW1SW2(st);
+		ISOException.throwIt(CyberflexAPDU.getSW1SW2());
+	    }
+	    break;
 	case GET_KEYLENGTH:
-	    buffer[0] = (byte)((keysize >> 8) & 0xff);
-	    buffer[1] = (byte)(keysize & 0xff);
+	    Util.setShort(buffer, (short)0, keysize);
 	    apdu.setOutgoingAndSend ((short)0, (short)2);
-	    return;
+	    break;
+	case GET_VERSION:
+	    Util.setShort(buffer, (short)0, applet_version);
+	    apdu.setOutgoingAndSend ((short)0, (short)2);
+	    break;
 	case GET_RESPONSE:
-	    return;
+	    break;
 	default:
 	    ISOException.throwIt (ISO.SW_INS_NOT_SUPPORTED);
 	}

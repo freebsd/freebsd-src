@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.33 2002/02/26 19:06:43 deraadt Exp $
+.\" $OpenBSD: sftp.1,v 1.35 2002/06/20 20:00:05 stevesk Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -83,9 +83,9 @@ and
 .It Fl o Ar ssh_option
 Can be used to pass options to
 .Nm ssh
-in the format used in the
-.Xr ssh 1
-configuration file. This is useful for specifying options
+in the format used in
+.Xr ssh_config 5 .
+This is useful for specifying options
 for which there is no separate
 .Nm sftp
 command-line flag.  For example, to specify an alternate
@@ -100,7 +100,7 @@ does not have an sftp subsystem configured.
 .It Fl v
 Raise logging level. This option is also passed to ssh.
 .It Fl B Ar buffer_size
-Specify  the size of the buffer that 
+Specify  the size of the buffer that
 .Nm
 uses when transferring files. Larger buffers require fewer round trips at
 the cost of higher memory consumption. The default is 32768 bytes.
@@ -115,13 +115,13 @@ per-user configuration file for
 This option is directly passed to
 .Xr ssh 1 .
 .It Fl P Ar sftp_server path
-Connect directly to a local 
-.Nm sftp-server 
+Connect directly to a local
+.Nm sftp-server
 (rather than via
 .Nm ssh )
 This option may be useful in debugging the client and server.
 .It Fl R Ar num_requests
-Specify how many requests may be outstanding at any one time. Increasing 
+Specify how many requests may be outstanding at any one time. Increasing
 this may slightly improve file transfer speed but will increase memory
 usage. The default is 16 outstanding requests.
 .It Fl S Ar program
@@ -263,6 +263,7 @@ Damien Miller <djm@mindrot.org>
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
 .Xr sftp-server 8 ,
 .Xr sshd 8
 .Rs

@@ -1,7 +1,7 @@
-#	$OpenBSD: sshd_config,v 1.48 2002/02/19 02:50:59 deraadt Exp $
+#	$OpenBSD: sshd_config,v 1.56 2002/06/20 23:37:12 markus Exp $
 
-# This is the sshd server system-wide configuration file.  See sshd(8)
-# for more information.
+# This is the sshd server system-wide configuration file.  See
+# sshd_config(5) for more information.
 
 # The strategy used for options in the default sshd_config shipped with
 # OpenSSH is to specify options with their default value where
@@ -58,13 +58,11 @@
 #ChallengeResponseAuthentication yes
 
 # Kerberos options
-# KerberosAuthentication automatically enabled if keyfile exists
-#KerberosAuthentication yes
+#KerberosAuthentication no
 #KerberosOrLocalPasswd yes
 #KerberosTicketCleanup yes
 
-# AFSTokenPassing automatically enabled if k_hasafs() is true
-#AFSTokenPassing yes
+#AFSTokenPassing no
 
 # Kerberos TGT Passing only works with the AFS kaserver
 #KerberosTgtPassing no
@@ -76,6 +74,8 @@
 #PrintLastLog yes
 #KeepAlive yes
 #UseLogin no
+#UsePrivilegeSeparation yes
+#Compression yes
 
 #MaxStartups 10
 # no default banner path

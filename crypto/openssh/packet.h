@@ -1,4 +1,4 @@
-/*	$OpenBSD: packet.h,v 1.33 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$OpenBSD: packet.h,v 1.35 2002/06/19 18:01:00 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -24,6 +24,7 @@ int      packet_get_connection_in(void);
 int      packet_get_connection_out(void);
 void     packet_close(void);
 void	 packet_set_encryption_key(const u_char *, u_int, int);
+u_int	 packet_get_encryption_key(u_char *);
 void     packet_set_protocol_flags(u_int);
 u_int	 packet_get_protocol_flags(void);
 void     packet_start_compression(int);
@@ -55,6 +56,16 @@ void	*packet_get_raw(int *length_ptr);
 void	*packet_get_string(u_int *length_ptr);
 void     packet_disconnect(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 void     packet_send_debug(const char *fmt,...) __attribute__((format(printf, 1, 2)));
+
+void	 set_newkeys(int mode);
+int	 packet_get_keyiv_len(int);
+void	 packet_get_keyiv(int, u_char *, u_int);
+int	 packet_get_keycontext(int, u_char *);
+void	 packet_set_keycontext(int, u_char *);
+u_int32_t packet_get_seqnr(int);
+void	 packet_set_seqnr(int, u_int32_t);
+int	 packet_get_ssh1_cipher(void);
+void	 packet_set_iv(int, u_char *);
 
 void     packet_write_poll(void);
 void     packet_write_wait(void);

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.94 2002/02/25 16:33:27 markus Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.100 2002/06/19 00:27:55 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -29,8 +29,6 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.94 2002/02/25 16:33:27 markus Exp $");
 #include "readpass.h"
 
 #ifdef SMARTCARD
-#include <sectok.h>
-#include <openssl/engine.h>
 #include "scard.h"
 #endif
 
@@ -138,7 +136,7 @@ load_identity(char *filename)
 }
 
 #define SSH_COM_PUBLIC_BEGIN		"---- BEGIN SSH2 PUBLIC KEY ----"
-#define SSH_COM_PUBLIC_END  		"---- END SSH2 PUBLIC KEY ----"
+#define SSH_COM_PUBLIC_END		"---- END SSH2 PUBLIC KEY ----"
 #define SSH_COM_PRIVATE_BEGIN		"---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----"
 #define	SSH_COM_PRIVATE_KEY_MAGIC	0x3f6ff9eb
 
@@ -288,6 +286,7 @@ do_convert_from_ssh2(struct passwd *pw)
 {
 	Key *k;
 	int blen;
+	u_int len;
 	char line[1024], *p;
 	u_char blob[8096];
 	char encoded[8096];
@@ -332,6 +331,12 @@ do_convert_from_ssh2(struct passwd *pw)
 		*p = '\0';
 		strlcat(encoded, line, sizeof(encoded));
 	}
+	len = strlen(encoded);
+	if (((len % 4) == 3) &&
+	    (encoded[len-1] == '=') &&
+	    (encoded[len-2] == '=') &&
+	    (encoded[len-3] == '='))
+		encoded[len-3] = '\0';
 	blen = uudecode(encoded, blob, sizeof(blob));
 	if (blen < 0) {
 		fprintf(stderr, "uudecode failed.\n");
@@ -385,145 +390,47 @@ do_print_public(struct passwd *pw)
 }
 
 #ifdef SMARTCARD
-#define NUM_RSA_KEY_ELEMENTS 5+1
-#define COPY_RSA_KEY(x, i) \
-	do { \
-		len = BN_num_bytes(prv->rsa->x); \
-		elements[i] = xmalloc(len); \
-		debug("#bytes %d", len); \
-		if (BN_bn2bin(prv->rsa->x, elements[i]) < 0) \
-			goto done; \
-	} while (0)
-
-static int
-get_AUT0(char *aut0)
-{
-	EVP_MD *evp_md = EVP_sha1();
-	EVP_MD_CTX md;
-	char *pass;
-
-	pass = read_passphrase("Enter passphrase for smartcard: ", RP_ALLOW_STDIN);
-	if (pass == NULL)
-		return -1;
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, pass, strlen(pass));
-	EVP_DigestFinal(&md, aut0, NULL);
-	memset(pass, 0, strlen(pass));
-	xfree(pass);
-	return 0;
-}
-
 static void
 do_upload(struct passwd *pw, const char *sc_reader_id)
 {
 	Key *prv = NULL;
 	struct stat st;
-	u_char *elements[NUM_RSA_KEY_ELEMENTS];
-	u_char key_fid[2];
-	u_char DEFAUT0[] = {0xad, 0x9f, 0x61, 0xfe, 0xfa, 0x20, 0xce, 0x63};
-	u_char AUT0[EVP_MAX_MD_SIZE];
-	int len, status = 1, i, fd = -1, ret;
-	int sw = 0, cla = 0x00;
+	int ret;
 
-	for (i = 0; i < NUM_RSA_KEY_ELEMENTS; i++)
-		elements[i] = NULL;
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");
 	if (stat(identity_file, &st) < 0) {
 		perror(identity_file);
-		goto done;
+		exit(1);
 	}
 	prv = load_identity(identity_file);
 	if (prv == NULL) {
 		error("load failed");
-		goto done;
+		exit(1);
 	}
-	COPY_RSA_KEY(q, 0);
-	COPY_RSA_KEY(p, 1);
-	COPY_RSA_KEY(iqmp, 2);
-	COPY_RSA_KEY(dmq1, 3);
-	COPY_RSA_KEY(dmp1, 4);
-	COPY_RSA_KEY(n, 5);
-	len = BN_num_bytes(prv->rsa->n);
-	fd = sectok_friendly_open(sc_reader_id, STONOWAIT, &sw);
-	if (fd < 0) {
-		error("sectok_open failed: %s", sectok_get_sw(sw));
-		goto done;
-	}
-	if (! sectok_cardpresent(fd)) {
-		error("smartcard in reader %s not present",
-		    sc_reader_id);
-		goto done;
-	}
-	ret = sectok_reset(fd, 0, NULL, &sw);
-	if (ret <= 0) {
-		error("sectok_reset failed: %s", sectok_get_sw(sw));
-		goto done;
-	}
-	if ((cla = cyberflex_inq_class(fd)) < 0) {
-		error("cyberflex_inq_class failed");
-		goto done;
-	}
-	memcpy(AUT0, DEFAUT0, sizeof(DEFAUT0));
-	if (cyberflex_verify_AUT0(fd, cla, AUT0, sizeof(DEFAUT0)) < 0) {
-		if (get_AUT0(AUT0) < 0 ||
-		    cyberflex_verify_AUT0(fd, cla, AUT0, sizeof(DEFAUT0)) < 0) {
-			error("cyberflex_verify_AUT0 failed");
-			goto done;
-		}
-	}
-	key_fid[0] = 0x00;
-	key_fid[1] = 0x12;
-	if (cyberflex_load_rsa_priv(fd, cla, key_fid, 5, 8*len, elements,
-	    &sw) < 0) {
-		error("cyberflex_load_rsa_priv failed: %s", sectok_get_sw(sw));
-		goto done;
-	}
-	if (!sectok_swOK(sw))
-		goto done;
-	log("cyberflex_load_rsa_priv done");
-	key_fid[0] = 0x73;
-	key_fid[1] = 0x68;
-	if (cyberflex_load_rsa_pub(fd, cla, key_fid, len, elements[5],
-	    &sw) < 0) {
-		error("cyberflex_load_rsa_pub failed: %s", sectok_get_sw(sw));
-		goto done;
-	}
-	if (!sectok_swOK(sw))
-		goto done;
-	log("cyberflex_load_rsa_pub done");
-	status = 0;
+	ret = sc_put_key(prv, sc_reader_id);
+	key_free(prv);
+	if (ret < 0)
+		exit(1);
 	log("loading key done");
-done:
-
-	memset(elements[0], '\0', BN_num_bytes(prv->rsa->q));
-	memset(elements[1], '\0', BN_num_bytes(prv->rsa->p));
-	memset(elements[2], '\0', BN_num_bytes(prv->rsa->iqmp));
-	memset(elements[3], '\0', BN_num_bytes(prv->rsa->dmq1));
-	memset(elements[4], '\0', BN_num_bytes(prv->rsa->dmp1));
-	memset(elements[5], '\0', BN_num_bytes(prv->rsa->n));
-
-	if (prv)
-		key_free(prv);
-	for (i = 0; i < NUM_RSA_KEY_ELEMENTS; i++)
-		if (elements[i])
-			xfree(elements[i]);
-	if (fd != -1)
-		sectok_close(fd);
-	exit(status);
+	exit(0);
 }
 
 static void
 do_download(struct passwd *pw, const char *sc_reader_id)
 {
-	Key *pub = NULL;
+	Key **keys = NULL;
+	int i;
 
-	pub = sc_get_key(sc_reader_id);
-	if (pub == NULL)
+	keys = sc_get_keys(sc_reader_id, NULL);
+	if (keys == NULL)
 		fatal("cannot read public key from smartcard");
-	key_write(pub, stdout);
-	key_free(pub);
-	fprintf(stdout, "\n");
+	for (i = 0; keys[i]; i++) {
+		key_write(keys[i], stdout);
+		key_free(keys[i]);
+		fprintf(stdout, "\n");
+	}
+	xfree(keys);
 	exit(0);
 }
 #endif /* SMARTCARD */
