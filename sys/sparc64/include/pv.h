@@ -188,6 +188,7 @@ void pv_insert(pmap_t pm, vm_offset_t pa, vm_offset_t va, struct stte *stp);
 void pv_remove_virt(struct stte *stp);
 
 void pv_bit_clear(vm_page_t m, u_long bits);
+int pv_bit_count(vm_page_t m, u_long bits);
 void pv_bit_set(vm_page_t m, u_long bits);
 int pv_bit_test(vm_page_t m, u_long bits);
 

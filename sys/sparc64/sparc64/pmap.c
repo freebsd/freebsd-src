@@ -229,7 +229,7 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 		va = TSB_KERNEL_MIN_ADDRESS + i * PAGE_SIZE_4M;
 		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
-		    TD_MOD | TD_REF | TD_TSB | TD_L | TD_CP | TD_P | TD_W;
+		    TD_L | TD_CP | TD_P | TD_W;
 		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
 		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
@@ -368,8 +368,10 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
-	    TD_MOD | TD_REF | TD_CP | TD_P | TD_W;
+	    TD_REF | TD_SW | TD_CP | TD_P | TD_W;
 	stp = tsb_kvtostte(va);
+	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx stp=%p data=%#lx",
+	    va, pa, stp, stp->st_tte.tte_data);
 	stp->st_tte = tte;
 }
 
@@ -382,6 +384,7 @@ pmap_kremove(vm_offset_t va)
 	struct stte *stp;
 
 	stp = tsb_kvtostte(va);
+	CTR2(KTR_PMAP, "pmap_kremove: va=%#lx stp=%p", va, stp);
 	tte_invalidate(&stp->st_tte);
 }
 
@@ -424,8 +427,13 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct stte *stp;
 	struct tte tte;
 	vm_offset_t pa;
+	u_long data;
 
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_enter: non current pmap"));
 	pa = VM_PAGE_TO_PHYS(m);
+	CTR5(KTR_PMAP, "pmap_enter: ctx=%p va=%#lx pa=%#lx prot=%#x wired=%d",
+	    pm->pm_context, va, pa, prot, wired);
 	tte.tte_tag = TT_CTX(pm->pm_context) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
 	    TD_CP | TD_CV;
@@ -434,10 +442,10 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (wired == TRUE) {
 		tte.tte_data |= TD_REF;
 		if (prot & VM_PROT_WRITE)
-			tte.tte_data |= TD_MOD;
+			tte.tte_data |= TD_W;
 	}
 	if (prot & VM_PROT_WRITE)
-		tte.tte_data |= TD_W;
+		tte.tte_data |= TD_SW;
 	if (prot & VM_PROT_EXECUTE) {
 		tte.tte_data |= TD_EXEC;
 		icache_global_flush(pa);
@@ -447,6 +455,14 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	PMAP_LOCK(pm);
 	if ((stp = tsb_stte_lookup(pm, va)) != NULL) {
+		data = stp->st_tte.tte_data;
+		if (TD_PA(data) == pa) {
+			if (prot & VM_PROT_WRITE)
+				tte.tte_data |= TD_W;
+			CTR3(KTR_PMAP,
+			    "pmap_enter: update pa=%#lx data=%#lx to %#lx",
+			    pa, data, tte.tte_data);	
+		}
 		if (stp->st_tte.tte_data & TD_MNG)
 			pv_remove_virt(stp);
 		tsb_stte_remove(stp);
@@ -464,6 +480,8 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 {
 	struct stte *stp;
 
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_remove: non current pmap"));
 	PMAP_LOCK(pm);
 	for (; start < end; start += PAGE_SIZE) {
 		if ((stp = tsb_stte_lookup(pm, start)) == NULL)
@@ -530,23 +548,6 @@ pmap_pinit2(pmap_t pmap)
 void
 pmap_growkernel(vm_offset_t addr)
 {
-}
-
-/*
- * Zero a page of physical memory by temporarily mapping it into the tlb.
- */
-void
-pmap_zero_page(vm_offset_t pa)
-{
-	struct tte tte;
-	vm_offset_t va;
-
-	va = CADDR2;
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
-	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
-	bzero((void *)va, PAGE_SIZE);
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
 
 /*
@@ -621,7 +622,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	if (m->flags & PG_FICTITIOUS || prot & VM_PROT_WRITE)
 		return;
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE))
-		pv_bit_clear(m, TD_W);
+		pv_bit_clear(m, TD_W | TD_SW);
 	else
 		pv_global_remove_all(m);
 }
@@ -632,7 +633,34 @@ pmap_clear_modify(vm_page_t m)
 
 	if (m->flags & PG_FICTITIOUS)
 		return;
-	pv_bit_clear(m, TD_MOD);
+	pv_bit_clear(m, TD_W);
+}
+
+boolean_t
+pmap_is_modified(vm_page_t m)
+{
+
+	if (m->flags & PG_FICTITIOUS)
+		return FALSE;
+	return (pv_bit_test(m, TD_W));
+}
+
+void
+pmap_clear_reference(vm_page_t m)
+{
+
+	if (m->flags & PG_FICTITIOUS)
+		return;
+	pv_bit_clear(m, TD_REF);
+}
+
+int
+pmap_ts_referenced(vm_page_t m)
+{
+
+	if (m->flags & PG_FICTITIOUS)
+		return (0);
+	return (pv_bit_count(m, TD_REF));
 }
 
 void
@@ -667,10 +695,43 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	/* XXX */
 }
 
+/*
+ * Copy a page of physical memory by temporarily mapping it into the tlb.
+ */
 void
 pmap_copy_page(vm_offset_t src, vm_offset_t dst)
 {
-	TODO;
+	struct tte tte;
+
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR1);
+	tte.tte_data = TD_V | TD_8K | TD_PA(src) | TD_L | TD_CP | TD_P | TD_W;
+	tlb_store(TLB_DTLB, CADDR1, TLB_CTX_KERNEL, tte);
+
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR2);
+	tte.tte_data = TD_V | TD_8K | TD_PA(dst) | TD_L | TD_CP | TD_P | TD_W;
+	tlb_store(TLB_DTLB, CADDR2, TLB_CTX_KERNEL, tte);
+
+	bcopy((void *)CADDR1, (void *)CADDR2, PAGE_SIZE);
+
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, CADDR1);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, CADDR2);
+}
+
+/*
+ * Zero a page of physical memory by temporarily mapping it into the tlb.
+ */
+void
+pmap_zero_page(vm_offset_t pa)
+{
+	struct tte tte;
+	vm_offset_t va;
+
+	va = CADDR2;
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
+	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
+	bzero((void *)va, PAGE_SIZE);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
 
 void
@@ -690,26 +751,6 @@ pmap_zero_page_area(vm_offset_t pa, int off, int size)
 
 vm_offset_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
-{
-	TODO;
-	return (0);
-}
-
-boolean_t
-pmap_is_modified(vm_page_t m)
-{
-	TODO;
-	return (0);
-}
-
-void
-pmap_clear_reference(vm_page_t m)
-{
-	TODO;
-}
-
-int
-pmap_ts_referenced(vm_page_t m)
 {
 	TODO;
 	return (0);
@@ -744,14 +785,18 @@ pmap_page_exists(pmap_t pmap, vm_page_t m)
 }
 
 void
-pmap_prefault(pmap_t pmap, vm_offset_t va, vm_map_entry_t entry)
+pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
 {
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_prefault: non current pmap"));
 	/* XXX */
 }
 
 void
-pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
+pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_protect: non current pmap"));
 	/* XXX */
 }
 
@@ -770,15 +815,16 @@ pmap_reference(pmap_t pm)
 }
 
 void
-pmap_release(pmap_t pmap)
+pmap_release(pmap_t pm)
 {
 	/* XXX */
 }
 
 void
-pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-
+	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
+	    ("pmap_remove_pages: non current pmap"));
 	/* XXX */
 }
 
