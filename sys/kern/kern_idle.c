@@ -28,17 +28,12 @@
 #endif
 
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/mutex.h>
 #include <machine/smp.h>
 
 #include <machine/globaldata.h>
 #include <machine/globals.h>
-
-#ifdef SMP_DEBUG
-#include <sys/bus.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
-#endif
 
 static void idle_setup(void *dummy);
 SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
@@ -79,22 +74,33 @@ idle_setup(void *dummy)
 static void
 idle_proc(void *dummy)
 {
+#ifdef DIAGNOSTIC
 	int count;
+#endif
 
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
+#ifdef DIAGNOSTIC
 		count = 0;
 
 		while (count >= 0 && procrunnable() == 0) {
+#else
+		while (procrunnable() == 0) {
+#endif
 		/*
 		 * This is a good place to put things to be done in
 		 * the background, including sanity checks.
 		 */
 
+#ifdef DIAGNOSTIC
 			if (count++ < 0)
 				CTR0(KTR_PROC, "idle_proc: timed out waiting"
 				    " for a process");
+#endif
+
+			if (vm_page_zero_idle() != 0)
+				continue;
 
 			/* call out to any cpu-becoming-idle events */
 			EVENTHANDLER_FAST_INVOKE(idle_event, count);
