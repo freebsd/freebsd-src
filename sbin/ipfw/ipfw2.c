@@ -998,7 +998,7 @@ show_ipfw(struct ip_fw *rule)
 				printf(" iplen %u", cmd->arg1 );
 				break;
 
-			case O_IPOPTS:
+			case O_IPOPT:
 				print_flags("ipoptions", cmd, f_ipopts);
 				break;
 
@@ -1571,7 +1571,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		d = (u_int32_t *)&cmd->mask;
 		cmd->o.opcode = O_IP_DST_SET;	/* default */
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + (cmd->o.arg1+31)/32;
-		for (i = 0; i < cmd->o.arg1/32 ; i++)
+		for (i = 0; i < (cmd->o.arg1+31)/32 ; i++)
 			d[i] = 0;	/* clear masks */
 
 		av = p+1;
@@ -2170,7 +2170,7 @@ add(int ac, char *av[])
 	 * various flags used to record that we entered some fields.
 	 */
 	int have_mac = 0;	/* set if we have a MAC address */
-	int have_state = 0;	/* check-state or keep-state */
+	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
 
 	int i;
 
@@ -2219,7 +2219,7 @@ add(int ac, char *av[])
 	action->len = 1;	/* default */
 	switch(i) {
 	case TOK_CHECKSTATE:
-		have_state = 1;
+		have_state = action;
 		action->opcode = O_CHECK_STATE;
 		break;
 
@@ -2344,10 +2344,8 @@ add(int ac, char *av[])
 		cmd = next_cmd(cmd);
 	}
 
-	if (have_state) {
-		have_state = 0;
+	if (have_state)	/* must be a check-state, we are done */
 		goto done;
-	}
 
 #define OR_START(target)					\
 	if (ac && (*av[0] == '(' || *av[0] == '{')) {		\
@@ -2610,13 +2608,13 @@ read_options:
 
 		case TOK_IPOPTS:
 			NEED1("missing argument for ipoptions");
-			fill_flags(cmd, O_IPOPTS, f_ipopts, *av);
+			fill_flags(cmd, O_IPOPT, f_ipopts, *av);
 			ac--; av++;
 			break;
 
 		case TOK_IPTOS:
 			NEED1("missing argument for iptos");
-			fill_flags(cmd, O_IPOPTS, f_iptos, *av);
+			fill_flags(cmd, O_IPTOS, f_iptos, *av);
 			ac--; av++;
 			break;
 
@@ -2697,17 +2695,18 @@ read_options:
 
 		case TOK_KEEPSTATE:
 			if (have_state)
-				errx(EX_USAGE, "only one of check-state "
+				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
-			have_state = 1;
+			have_state = cmd;
 			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
 			break;
 
 		case TOK_LIMIT:
 			NEED1("limit needs mask and # of connections");
 			if (have_state)
-				errx(EX_USAGE, "only one of check-state "
+				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
+			have_state = cmd;
 		    {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
 
@@ -2730,7 +2729,6 @@ read_options:
 			if (c->limit_mask == 0)
 				errx(EX_USAGE, "missing limit mask");
 			ac--; av++;
-			have_state = 1;
 		    }
 			break;
 
@@ -2756,22 +2754,35 @@ done:
 	/*
 	 * generate O_PROBE_STATE if necessary
 	 */
-	if (have_state) {
+	if (have_state && have_state->opcode != O_CHECK_STATE) {
 		fill_cmd(dst, O_PROBE_STATE, 0, 0);
 		dst = next_cmd(dst);
 	}
 	/*
-	 * copy all commands but O_LOG
+	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT
 	 */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
 
-		if (src->opcode != O_LOG) {
+		switch (src->opcode) {
+		case O_LOG:
+		case O_KEEP_STATE:
+		case O_LIMIT:
+			break;
+		default:
 			bcopy(src, dst, i * sizeof(u_int32_t));
 			dst += i;
 		}
 	}
 
+	/*
+	 * put back the have_state command as last opcode
+	 */
+	if (have_state) {
+		i = F_LEN(have_state);
+		bcopy(have_state, dst, i * sizeof(u_int32_t));
+		dst += i;
+	}
 	/*
 	 * start action section
 	 */
