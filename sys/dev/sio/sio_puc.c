@@ -66,7 +66,7 @@ static int
 sio_puc_attach(dev)
 	device_t	dev;
 {
-	u_int rclk;
+	uintptr_t rclk;
 
 	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
 	    &rclk) != 0)
@@ -78,7 +78,7 @@ static int
 sio_puc_probe(dev)
 	device_t	dev;
 {
-	u_int rclk;
+	uintptr_t rclk;
 
 	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
 	    &rclk) != 0)
@@ -86,7 +86,7 @@ sio_puc_probe(dev)
 #ifdef PC98
 	SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
 #endif
-	return (sioprobe(dev, 0, (u_long)rclk, 1));
+	return (sioprobe(dev, 0, rclk, 1));
 }
 
 DRIVER_MODULE(sio, puc, sio_puc_driver, sio_devclass, 0, 0);
