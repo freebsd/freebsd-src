@@ -18,6 +18,10 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <dialog.h>
 #include "dialog.priv.h"
@@ -182,7 +186,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     print_perc(dialog, height-3, width-9, (float) (startline+theight)/max_lines);
     wmove(dialog, height-2, width/2-3);
     wrefresh(dialog);
-    while ((key != ESC) && (key != '\n') && (key != '\r')) {
+    while ((key != ESC) && (key != '\n') && (key != '\r') && (key != ' ')) {
 	key = wgetch(dialog);
 	switch(key) {
 	case KEY_HOME:

@@ -17,6 +17,10 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <dialog.h>
 #include <stdio.h>
@@ -37,7 +41,7 @@ dialog_notify(char *msg)
 	exit(1);
     }
     tmphlp = get_helpline();
-    use_helpline("Press enter to continue");
+    use_helpline("Press enter or space");
     dialog_mesgbox("Message", msg, -1, -1);
     restore_helpline(tmphlp);
     touchwin(w);
