@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26 1997/03/22 21:31:26 mpp Exp $
+#	$Id: Makefile,v 1.27 1997/03/22 22:06:05 mpp Exp $
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
 	devfs_add_devswf.9 \
@@ -6,7 +6,8 @@ MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
 	panic.9 physio.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
 	store.9 style.9 time.9 timeout.9 uio.9 \
-	vnode.9 vget.9 vput.9 vref.9 vrele.9 VOP_ABORTOP.9 VOP_ACCESS.9 \
+	vnode.9 vget.9 vput.9 vref.9 vrele.9 vslock.9 \
+	VOP_ABORTOP.9 VOP_ACCESS.9 \
 	VOP_ADVLOCK.9 VOP_ATTRIB.9 VOP_BLKATOFF.9 VOP_BWRITE.9 VOP_CREATE.9 \
 	VOP_FSYNC.9 VOP_GETPAGES.9 VOP_INACTIVE.9 VOP_IOCTL.9 VOP_LINK.9 \
 	VOP_LOCK.9 VOP_LOOKUP.9 VOP_MMAP.9 VOP_OPENCLOSE.9 \
@@ -38,6 +39,7 @@ MLINKS+= store.9 subyte.9 store.9 susword.9 store.9 suswintr.9 store.9 suword.9
 MLINKS+= time.9 boottime.9 time.9 mono_time.9 time.9 runtime.9
 MLINKS+= timeout.9 untimeout.9
 MLINKS+= vref.9 VREF.9
+MLINKS+= vslock.9 vsunlock.9
 MLINKS+= VOP_CREATE.9 VOP_MKNOD.9
 MLINKS+= VOP_CREATE.9 VOP_MKDIR.9
 MLINKS+= VOP_CREATE.9 VOP_SYMLINK.9
