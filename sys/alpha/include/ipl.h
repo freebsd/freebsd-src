@@ -29,6 +29,9 @@
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
 
+
+#include <machine/cpu.h> 	/* for pal inlines */
+
 /*
  * Software interrupt bit numbers
  */
@@ -41,20 +44,65 @@
 #define NSWI		32
 #define NHWI		0
 
-extern int splsoft(void);
-extern int splsoftclock(void);
-extern int splsoftnet(void);
-extern int splsoftcam(void);
-extern int splsoftvm(void);
-extern int splnet(void);
-extern int splbio(void);
-extern int splcam(void);
-extern int splimp(void);
-extern int spltty(void);
-extern int splvm(void);
-extern int splclock(void);
-extern int splstatclock(void);
-extern int splhigh(void);
+extern u_int32_t ipending;
+
+#define getcpl()	(alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)
+
+#define SPLDOWN(name, pri)			\
+						\
+static __inline int name(void)			\
+{						\
+    int s;					\
+    s = alpha_pal_swpipl(ALPHA_PSL_IPL_##pri);	\
+    return s;					\
+}
+
+SPLDOWN(splsoftclock, SOFT)
+SPLDOWN(splsoft, SOFT)
+
+#define SPLUP(name, pri)				\
+							\
+static __inline int name(void)				\
+{							\
+    int cpl = getcpl();					\
+    if (ALPHA_PSL_IPL_##pri > cpl) {			\
+	int s = alpha_pal_swpipl(ALPHA_PSL_IPL_##pri);	\
+	return s;					\
+    } else						\
+	return cpl;					\
+}
+
+SPLUP(splsoftcam, SOFT)
+SPLUP(splsoftnet, SOFT)
+SPLUP(splsoftvm, SOFT)
+SPLUP(splnet, IO)
+SPLUP(splbio, IO)
+SPLUP(splcam, IO)
+SPLUP(splimp, IO)
+SPLUP(spltty, IO)
+SPLUP(splvm, IO)
+SPLUP(splclock, CLOCK)
+SPLUP(splstatclock, CLOCK)
+SPLUP(splhigh, HIGH)
+
+static __inline void
+spl0(void)
+{
+    if (ipending)
+	do_sir();		/* lowers ipl to SOFT */
+
+    alpha_pal_swpipl(ALPHA_PSL_IPL_0);
+}
+
+static __inline void
+splx(int s)
+{
+    if (s)
+	alpha_pal_swpipl(s);
+    else
+	spl0();
+}
+
 
 extern void setdelayed(void);
 extern void setsofttty(void);
@@ -70,9 +118,6 @@ extern void schedsoftcamnet(void);
 extern void schedsoftcambio(void);
 extern void schedsoftvm(void);
 extern void schedsoftclock(void);
-
-extern void spl0(void);
-extern void splx(int);
 
 #if 0
 /* XXX bogus */
