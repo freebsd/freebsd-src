@@ -101,7 +101,9 @@ thr_exit1(void)
 	PROC_UNLOCK(p);
 	td->td_kse = NULL;
 	td->td_state = TDS_INACTIVE;
+#if 0
 	td->td_proc = NULL;
+#endif
 	td->td_ksegrp = NULL;
 	td->td_last_kse = NULL;
 	thread_stash(td);
