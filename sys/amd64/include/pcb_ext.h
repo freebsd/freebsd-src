@@ -43,4 +43,22 @@ struct pcb_ext {
 	struct	vm86_kernel ext_vm86;	/* vm86 area */
 };
 
+struct pcb_ldt {
+	caddr_t	ldt_base;
+	int	ldt_len;
+	int	ldt_refcnt;
+	u_long	ldt_active;
+	struct	segment_descriptor ldt_sd;
+};
+
+#ifdef KERNEL
+
+#ifdef USER_LDT
+void set_user_ldt __P((struct pcb *));
+struct pcb_ldt *user_ldt_alloc __P((struct pcb *, int));
+void user_ldt_free __P((struct pcb *));
+#endif
+
+#endif
+
 #endif /* _I386_PCB_EXT_H_ */

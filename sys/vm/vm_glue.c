@@ -209,6 +209,21 @@ vm_fork(p1, p2, flags)
 {
 	register struct user *up;
 
+	if ((flags & RFPROC) == 0) {
+		/*
+		 * Divorce the memory, if it is shared, essentially
+		 * this changes shared memory amongst threads, into
+		 * COW locally.
+		 */
+		if ((flags & RFMEM) == 0) {
+			if (p1->p_vmspace->vm_refcnt > 1) {
+				vmspace_unshare(p1);
+			}
+		}
+		cpu_fork(p1, p2, flags);
+		return;
+	}
+
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
 		p1->p_vmspace->vm_refcnt++;
@@ -259,7 +274,7 @@ vm_fork(p1, p2, flags)
 	 * cpu_fork will copy and update the pcb, set up the kernel stack,
 	 * and make the child ready to run.
 	 */
-	cpu_fork(p1, p2);
+	cpu_fork(p1, p2, flags);
 }
 
 /*

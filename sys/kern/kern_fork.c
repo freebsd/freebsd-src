@@ -167,16 +167,7 @@ fork1(p1, flags, procp)
 	 */
 	if ((flags & RFPROC) == 0) {
 
-		/*
-		 * Divorce the memory, if it is shared, essentially
-		 * this changes shared memory amongst threads, into
-		 * COW locally.
-		 */
-		if ((flags & RFMEM) == 0) {
-			if (p1->p_vmspace->vm_refcnt > 1) {
-				vmspace_unshare(p1);
-			}
-		}
+		vm_fork(p1, 0, flags);
 
 		/*
 		 * Close all file descriptors.

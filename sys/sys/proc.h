@@ -429,7 +429,7 @@ void	wakeup_one __P((void *chan));
 
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
-void	cpu_fork __P((struct proc *, struct proc *));
+void	cpu_fork __P((struct proc *, struct proc *, int));
 void	cpu_set_fork_handler __P((struct proc *, void (*)(void *), void *));
 int	fork1 __P((struct proc *, int, struct proc **));
 int	trace_req __P((struct proc *));
