@@ -268,6 +268,7 @@ ipx_pcbdetach(ipxp)
 {
 	struct socket *so = ipxp->ipxp_socket;
 
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_pcb = 0;
 	sotryfree(so);

@@ -158,6 +158,8 @@ struct socket {
  * until such time as it proves to be a good idea.
  */
 extern struct mtx accept_mtx;
+#define	ACCEPT_LOCK_ASSERT()		mtx_assert(&accept_mtx, MA_OWNED)
+#define	ACCEPT_UNLOCK_ASSERT()		mtx_assert(&accept_mtx, MA_NOTOWNED)
 #define	ACCEPT_LOCK()			mtx_lock(&accept_mtx)
 #define	ACCEPT_UNLOCK()			mtx_unlock(&accept_mtx)
 
@@ -344,21 +346,27 @@ struct xsocket {
 } while (0)
 
 #define	sorele(so) do {							\
+	ACCEPT_LOCK_ASSERT();						\
 	SOCK_LOCK_ASSERT(so);						\
 	if ((so)->so_count <= 0)					\
 		panic("sorele");					\
 	if (--(so)->so_count == 0)					\
 		sofree(so);						\
-	else								\
+	else {								\
 		SOCK_UNLOCK(so);					\
+		ACCEPT_UNLOCK();					\
+	}								\
 } while (0)
 
 #define	sotryfree(so) do {						\
+	ACCEPT_LOCK_ASSERT();						\
 	SOCK_LOCK_ASSERT(so);						\
 	if ((so)->so_count == 0)					\
 		sofree(so);						\
-	else								\
+	else {								\
 		SOCK_UNLOCK(so);					\
+		ACCEPT_UNLOCK();					\
+	}								\
 } while(0)
 
 /*

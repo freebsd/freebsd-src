@@ -1417,6 +1417,7 @@ ng_btsocket_hci_raw_detach(struct socket *so)
 	bzero(pcb, sizeof(*pcb));
 	FREE(pcb, M_NETGRAPH_BTSOCKET_HCI_RAW);
 
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	sotryfree(so);

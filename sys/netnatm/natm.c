@@ -135,6 +135,7 @@ natm_usr_detach(struct socket *so)
      * we turn on 'drain' *before* we sofree.
      */
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
+    ACCEPT_LOCK();
     SOCK_LOCK(so);
     so->so_pcb = NULL;
     sotryfree(so);
@@ -464,6 +465,7 @@ struct proc *p;
        */
 
       npcb_free(npcb, NPCB_DESTROY);	/* drain */
+      ACCEPT_LOCK();
       SOCK_LOCK(so);
       so->so_pcb = NULL;
       sotryfree(so);
