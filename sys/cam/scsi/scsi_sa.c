@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.9 1998/12/18 04:31:43 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.10 1998/12/19 23:33:21 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -132,7 +132,8 @@ typedef enum {
 	SA_QUIRK_NOCOMP		= 0x01,	/* can't deal with compression at all */
 	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
 	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
-	SA_QUIRK_2FM		= 0x05	/* Two File Marks at EOD */
+	SA_QUIRK_2FM		= 0x05,	/* Two File Marks at EOD */
+	SA_QUIRK_NORRLS		= 0x06	/* Don't attempt RESERVE/RELEASE */
 } sa_quirks;
 
 struct sa_softc {
@@ -160,10 +161,20 @@ struct sa_softc {
 	/*
 	 * Latched Error Info
 	 */
-	struct scsi_sense_data last_io_sense;
-	u_int32_t last_io_resid;
-	struct scsi_sense_data last_ctl_sense;
-	u_int32_t last_ctl_resid;
+	struct {
+		struct scsi_sense_data _last_io_sense;
+		u_int32_t _last_io_resid;
+		u_int8_t _last_io_cdb[CAM_MAX_CDBLEN];
+		struct scsi_sense_data _last_ctl_sense;
+		u_int32_t _last_ctl_resid;
+		u_int8_t _last_ctl_cdb[CAM_MAX_CDBLEN];
+#define	last_io_sense	errinfo._last_io_sense
+#define	last_io_resid	errinfo._last_io_resid
+#define	last_io_cdb	errinfo._last_io_cdb
+#define	last_ctl_sense	errinfo._last_ctl_sense
+#define	last_ctl_resid	errinfo._last_ctl_resid
+#define	last_ctl_cdb	errinfo._last_ctl_cdb
+	} errinfo;
 };
 
 struct sa_quirk_entry {
@@ -353,6 +364,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	int	unit;
 	int	mode;
 	int	error;
+	int	closedbits = SA_FLAG_OPEN;
 
 	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
@@ -392,9 +404,11 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	case SA_MODE_OFFLINE:
 		sarewind(periph);
 		saloadunload(periph, FALSE);
+		closedbits |= SA_FLAG_TAPE_MOUNTED;	/* not mounted now */
 		break;
 	case SA_MODE_REWIND:
 		sarewind(periph);
+		closedbits |= SA_FLAG_TAPE_MOUNTED;	/* not mounted now */
 		break;
 	case SA_MODE_NOREWIND:
 		/*
@@ -412,6 +426,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 				   " filemarks at EOD- opting for safety\n");
 				sarewind(periph);
 				saloadunload(periph, FALSE);
+				closedbits |= SA_FLAG_TAPE_MOUNTED;
 			}
 		}
 		break;
@@ -427,7 +442,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	 * And we are no longer open for business.
 	 */
 
-	softc->flags &= ~SA_FLAG_OPEN;
+	softc->flags &= ~closedbits;
 	
 	/* release the device */
 	sareservereleaseunit(periph, FALSE);
@@ -627,17 +642,16 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 
 		bzero(sep, sizeof(*sep));
 		sep->io_resid = softc->last_io_resid;
-		sep->ctl_resid = softc->last_ctl_resid;
 		bcopy((caddr_t) &softc->last_io_sense, sep->io_sense,
 		    sizeof (sep->io_sense));
+		bcopy((caddr_t) &softc->last_io_cdb, sep->io_cdb,
+		    sizeof (sep->io_cdb));
+		sep->ctl_resid = softc->last_ctl_resid;
 		bcopy((caddr_t) &softc->last_ctl_sense, sep->ctl_sense,
 		    sizeof (sep->ctl_sense));
-		softc->last_io_resid = 0;
-		softc->last_ctl_resid = 0;
-		bzero((caddr_t) &softc->last_io_sense,
-		    sizeof (softc->last_io_sense));
-		bzero((caddr_t) &softc->last_ctl_sense,
-		    sizeof (softc->last_ctl_sense));
+		bcopy((caddr_t) &softc->last_ctl_cdb, sep->ctl_cdb,
+		    sizeof (sep->ctl_cdb));
+		bzero((caddr_t) &softc->errinfo, sizeof (softc->errinfo));
 		error = 0;
 		break;
 	}
@@ -657,14 +671,19 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		case MTWEOF:	/* write an end-of-file marker */
 			error = sawritefilemarks(periph, count, FALSE);
 			break;
+		case MTWSS:	/* write a setmark */
+			error = sawritefilemarks(periph, count, TRUE);
+			break;
 		case MTBSR:	/* backward space record */
 		case MTFSR:	/* forward space record */
 		case MTBSF:	/* backward space file */
 		case MTFSF:	/* forward space file */
+		case MTBSS:	/* backward space setmark */
+		case MTFSS:	/* forward space setmark */
 		case MTEOD:	/* space to end of recorded medium */
 		{
 			int nmarks;
-			scsi_space_code spaceop;
+			scsi_space_code spaceop = SS_FILEMARKS;
 
 			nmarks = softc->filemarks;
 			error = sacheckeod(periph);
@@ -675,30 +694,45 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 				break;
 			}
 			nmarks -= softc->filemarks;
-			/*
-			 * XXX: This very interestingly treats filemarks as
-			 * XXX: marks we can just BSR over if the op is indeed
-			 * XXX: a MTBSR.
-			 */
-			if ((mt->mt_op == MTBSR) || (mt->mt_op == MTBSF))
+			switch(mt->mt_op) {
+			case MTBSR:
 				count = -count;
-
-			if ((mt->mt_op == MTBSF) || (mt->mt_op == MTFSF))
-				spaceop = SS_FILEMARKS;
-			else if ((mt->mt_op == MTBSR) || (mt->mt_op == MTFSR))
+				/* FALLTHROUGH */
+			case MTFSR:
 				spaceop = SS_BLOCKS;
-			else {
+				break;
+			case MTBSF:
+				count = -count;
+				/* FALLTHROUGH */
+			case MTFSF:
+				break;
+			case MTBSS:
+				count = -count;
+				/* FALLTHROUGH */
+			case MTFSS:
+				spaceop = SS_SETMARKS;
+				break;
+			case MTEOD:
 				spaceop = SS_EOD;
 				count = 0;
 				nmarks = 0;
+				break;
+			default:
+				error = EINVAL;
+				break;
 			}
+			if (error)
+				break;
 
 			nmarks = softc->filemarks;
+			/*
+			 * XXX: Why are we checking again?
+			 */
 			error = sacheckeod(periph);
+			if (error)
+				break;
 			nmarks -= softc->filemarks;
-			if (error == 0)
-				error = saspace(periph, count - nmarks,
-						spaceop);
+			error = saspace(periph, count - nmarks, spaceop);
 			/*
 			 * At this point, clear that we've written the tape
 			 * and that we've written any filemarks. We really
@@ -716,7 +750,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 			(void) sacheckeod(periph);
 			error = sarewind(periph);
 			/* see above */
-			softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
+			softc->flags &=
+			    ~SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_MOUNTED;
 			softc->filemarks = 0;
 			break;
 		case MTERASE:	/* erase */
@@ -1677,10 +1712,14 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		if (csio->ccb_h.ccb_type == SA_CCB_BUFFER_IO) {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_io_sense,
 			    sizeof (struct scsi_sense_data));
+			bcopy(csio->cdb_io.cdb_bytes, softc->last_io_cdb,
+			    (int) csio->cdb_len);
 			softc->last_io_resid = resid;
 		} else {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_ctl_sense,
 			    sizeof (struct scsi_sense_data));
+			bcopy(csio->cdb_io.cdb_bytes, softc->last_ctl_cdb,
+			    (int) csio->cdb_len);
 			softc->last_ctl_resid = resid;
 		}
 	}
@@ -1923,7 +1962,7 @@ retry:
 			xpt_print_path(periph->path);
 			printf("Mode Sense Data=");
 			for (idx = 0; idx < mode_buffer_len; idx++)
-				printf(" 0x%02x", xyz[idx]);
+				printf(" 0x%02x", xyz[idx] & 0xff);
 			printf("\n");
 		}
 	} else if (status == CAM_SCSI_STATUS_ERROR) {
@@ -2142,18 +2181,20 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 			/*sense_len*/ SSD_FULL_SIZE,
 			/*timeout*/ 5000);
 
-	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
+				  /*sense_flags*/ 0, &softc->device_stats);
+
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO) ||
+	    params_to_set == SA_PARAM_BUFF_MODE) {
 		int idx;
 		char *xyz = mode_buffer;
 		xpt_print_path(periph->path);
-		printf("Mode Select Data=");
+		printf("Err%d, Mode Select Data=", error);
 		for (idx = 0; idx < mode_buffer_len; idx++)
-			printf(" 0x%02x", xyz[idx]);
+			printf(" 0x%02x", xyz[idx] & 0xff);
 		printf("\n");
 	}
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-				  /*sense_flags*/ 0, &softc->device_stats);
 
 	if (error == 0) {
 		xpt_release_ccb(ccb);
@@ -2479,13 +2520,15 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	struct sa_softc *softc;
 	int error, sflags;
 
+	softc = (struct sa_softc *)periph->softc;
+	if (softc->quirks & SA_QUIRK_NORRLS)
+		return (0);
+
 	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
 		sflags = SF_RETRY_UA;
 	else
 		sflags = SF_RETRY_UA|SF_QUIET_IR;
 		
-	softc = (struct sa_softc *)periph->softc;
-
 	ccb = cam_periph_getccb(periph, /*priority*/ 1);
 
 	scsi_reserve_release_unit(&ccb->csio,
@@ -2520,8 +2563,10 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	 * If the error was Illegal Request, then the device doesn't support
 	 * RESERVE/RELEASE. This is not an error.
 	 */
-	if (error == EINVAL)
+	if (error == EINVAL) {
+		softc->quirks |= SA_QUIRK_NORRLS;
 		error = 0;
+	}
 
 	return (error);
 }
