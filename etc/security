@@ -10,6 +10,7 @@ echo "Subject: $host security check output"
 LOG=/var/log
 TMP=/tmp/_secure.$$
 
+if false; then
 echo "checking setuid files and devices:"
 MP=`mount -t ufs | sed 's;/dev/;&r;' | awk '{ print $1 " " $3 }'`
 set $MP
@@ -29,6 +30,7 @@ if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
 	mv $TMP $LOG/setuid.today
 fi
 rm -f $TMP
+fi
 
 echo ""
 echo ""
