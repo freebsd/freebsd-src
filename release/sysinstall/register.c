@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.5 1997/03/19 10:09:24 jkh Exp $
+ * $Id: register.c,v 1.6 1997/03/25 03:07:46 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -181,6 +181,7 @@ handle_registration(void)
     if (!msgYesNo("Do you have a working network connection and outgoing email\n"
 		  "enabled at this time?  I need to be able to reach freebsd.org\n"
 		  "in order to submit your registration.")) {
+	dialog_clear_norefresh();
 	if (!vsystem("mail %s < %s", REGISTRATION_ADDRESS, REGISTRATION_FNAME)) {
 	    msgConfirm("Thank you!  Your registration has been sent in successfully.\n");
 	    (void)unlink(REGISTRATION_FNAME);
