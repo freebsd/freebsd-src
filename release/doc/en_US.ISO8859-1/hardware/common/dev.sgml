@@ -1253,7 +1253,8 @@
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
     driver)</para>
 
-    <para arch="i386">Xircom X3201 (Cardbus) based Ethernet cards, including the following:
+    <para arch="i386">Xircom X3201 (Cardbus) based Ethernet cards
+      (&man.dc.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>IBM EtherJet Cardbus Adapter</para>
