@@ -2146,6 +2146,29 @@ sis_init(xsc)
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
 
+	if (sc->sis_type == SIS_TYPE_83815 &&
+	     IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
+		uint32_t reg;
+
+		/*
+		 * Some DP83815s experience problems when used with short
+		 * (< 30m/100ft) Ethernet cables in 100BaseTX mode.  This
+		 * sequence adjusts the DSP's signal attenuation to fix the
+		 * problem.
+		 */
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
+
+		reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
+		CSR_WRITE_4(sc, NS_PHY_DSPCFG, (reg & 0xfff) | 0x1000);
+		DELAY(100);
+		reg = CSR_READ_4(sc, NS_PHY_TDATA);
+		if ((reg & 0x0080) == 0 || (reg & 0xff) >= 0xd8) {
+			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
+			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
+		}
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
+	}
+
 	/*
 	 * Enable interrupts.
 	 */
