@@ -1059,7 +1059,7 @@ calcipg(cpg, bpcg, usedbp)
 	 * Prepare to scale by fssize / (number of sectors in cylinder groups).
 	 * Note that fssize is still in sectors, not filesystem blocks.
 	 */
-	ncyl = howmany(fssize, secpercyl);
+	ncyl = howmany(fssize, (u_int)secpercyl);
 	ncg = howmany(ncyl, cpg);
 	/*
 	 * Iterate a few times to allow for ipg depending on itself.
