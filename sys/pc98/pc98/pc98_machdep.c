@@ -1,5 +1,9 @@
 /*
- * Copyright (c) KATO Takenori, 1996.  All rights reserved.
+ * Copyright (c) KATO Takenori, 1996, 1997.
+ *
+ * All rights reserved.  Unpublished rights reserved under the copyright
+ * laws of Japan.
+ *
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,13 +52,35 @@
 extern	int Maxmem;
 extern	int Maxmem_under16M;
 
+#ifdef notyet
 static	void init_cpu_accel_mem __P((void));
+#endif
 void	pc98_init_dmac __P((void));
 void	pc98_getmemsize __P((void));
+
+/*
+ * Initialize DMA controller
+ */
+void
+pc98_init_dmac(void)
+{
+	outb(0x439, (inb(0x439) & 0xfb));	/* DMA Accsess Control over 1MB */
+	outb(0x29, (0x0c | 0));				/* Bank Mode Reg. 16M mode */
+	outb(0x29, (0x0c | 1));				/* Bank Mode Reg. 16M mode */
+	outb(0x29, (0x0c | 2));				/* Bank Mode Reg. 16M mode */
+	outb(0x29, (0x0c | 3));				/* Bank Mode Reg. 16M mode */
+	outb(0x11, 0x50);
+}
 
 #ifdef EPSON_MEMWIN
 static	void init_epson_memwin __P((void));
 
+/*
+ * Disconnect phisical memory in 15-16MB region.
+ *
+ * EPSON PC-486GR, P, SR, SE, HX, HG and HA only.  Other system support
+ * this feature with software DIP switch.
+ */
 static void
 init_epson_memwin(void)
 {
@@ -185,17 +211,9 @@ init_cpu_accel_mem(void)
 }
 #endif
 
-void
-pc98_init_dmac(void)
-{
-	outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
-	outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
-	outb(0x29, (0x0c | 1));	/* Bank Mode Reg. 16M mode */
-	outb(0x29, (0x0c | 2));	/* Bank Mode Reg. 16M mode */
-	outb(0x29, (0x0c | 3));	/* Bank Mode Reg. 16M mode */
-	outb(0x11, 0x50);	/* PC98 must be 0x40 */
-}
-
+/*
+ * Get physical memory size
+ */
 void
 pc98_getmemsize(void)
 {
