@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.14 1995/01/12 10:34:37 jkh Exp $
+# $Id: miscfuncs.sh,v 1.1 1995/01/14 07:41:48 jkh Exp $
 
 if [ "${_MISCFUNCS_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -32,13 +32,14 @@ INSTALL_TYPE=""
 # the hardwired constants will be replaced with tokens that get sed'd for
 # the real sizes.
 #
-BINSIZE="40MB"
-GAMESIZE="8MB"
-MANSIZE="8MB"
-PROFSIZE="4MB"
-DICTSIZE="2MB"
-SRCSIZE="120MB"
-SECRSIZE="4MB"
+BINSIZE="28MB"
+GAMESIZE="6MB"
+MANSIZE="4MB"
+INFOSIZE="2MB"
+PROFSIZE="2MB"
+DICTSIZE="3MB"
+SRCSIZE="56MB"
+SECRSIZE="1MB"
 COMPATSIZE="3MB"
 X11SIZE="50MB"
 
