@@ -46,22 +46,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/reboot.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/conf.h>
+#include <sys/cons.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/smp.h>		/* smp_active, cpuid */
+#include <sys/proc.h>
+#include <sys/reboot.h>
+#include <sys/resourcevar.h>
+#include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
-#include <sys/conf.h>
 #include <sys/sysproto.h>
-#include <sys/cons.h>
+#include <sys/vnode.h>
 
 #include <machine/pcb.h>
 #include <machine/md_var.h>
@@ -259,6 +258,7 @@ boot(int howto)
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_lock_spin(&sched_lock);
      					setrunqueue(curproc);
+					curproc->p_stats->p_ru.ru_nvcsw++;
      					mi_switch(); /* Allow interrupt threads to run */
      					mtx_unlock_spin(&sched_lock);
      					DELAY(1000);
