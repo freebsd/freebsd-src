@@ -703,6 +703,9 @@
 /* Define if `mask' is member of `pcfs_args_t'. */
 #define HAVE_PCFS_ARGS_T_MASK 1
 
+/* Define if `dirmask' is member of `pcfs_args_t'. */
+#define HAVE_PCFS_ARGS_T_DIRMASK 1
+
 /* Define if `secondswest' is member of `pcfs_args_t'. */
 /* #undef HAVE_PCFS_ARGS_T_SECONDSWEST */
 

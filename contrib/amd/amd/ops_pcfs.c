@@ -39,6 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: ops_pcfs.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -133,6 +134,10 @@ mount_pcfs(char *dir, char *fs_name, char *opts)
 #ifdef HAVE_PCFS_ARGS_T_MASK
   pcfs_args.mask = 0777;	/* this may be the msdos file modes */
 #endif /* HAVE_PCFS_ARGS_T_MASK */
+
+#ifdef HAVE_PCFS_ARGS_T_DIRMASK
+  pcfs_args.dirmask = 0777;	/* this may be the msdos dir modes */
+#endif /* HAVE_PCFS_ARGS_T_DIRMASK */
 
 #ifdef HAVE_PCFS_ARGS_T_UID
   pcfs_args.uid = 0;		/* root */
