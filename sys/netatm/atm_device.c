@@ -449,19 +449,7 @@ atm_dev_alloc(size, align, flags)
 	 *
 	 * This is obviously very OS-specific stuff
 	 */
-#ifdef sun
-	if (flags & ATM_DEV_NONCACHE) {
-		/* Byte-aligned */
-		kalign = sizeof(long);
-	} else {
-		/* Doubleword-aligned */
-		kalign = sizeof(double);
-	}
-#elif (defined(BSD) && (BSD >= 199103))
 	kalign = MINALLOCSIZE;
-#else
-	#error Unsupported/unconfigured OS
-#endif
 
 	/*
 	 * Figure out how much memory we must allocate to satify the
@@ -476,13 +464,7 @@ atm_dev_alloc(size, align, flags)
 	 * Finally, go get the memory
 	 */
 	if (flags & ATM_DEV_NONCACHE) {
-#ifdef sun
-		mep->me_kaddr = IOPBALLOC(ksize);
-#elif defined(__i386__)
 		mep->me_kaddr = KM_ALLOC(ksize, M_DEVBUF, M_NOWAIT);
-#else
-		#error Unsupported/unconfigured OS
-#endif
 	} else {
 		mep->me_kaddr = KM_ALLOC(ksize, M_DEVBUF, M_NOWAIT);
 	}
@@ -572,13 +554,7 @@ atm_dev_free(uaddr)
 	 * Give the memory space back to the kernel
 	 */
 	if (mep->me_flags & ATM_DEV_NONCACHE) {
-#ifdef sun
-		IOPBFREE(mep->me_kaddr, mep->me_ksize);
-#elif defined(__i386__)
 		KM_FREE(mep->me_kaddr, mep->me_ksize, M_DEVBUF);
-#else
-		#error Unsupported/unconfigured OS
-#endif
 	} else {
 		KM_FREE(mep->me_kaddr, mep->me_ksize, M_DEVBUF);
 	}

@@ -115,20 +115,12 @@ atm_initialize()
 		return;
 	atm_init = 1;
 
-#ifndef __FreeBSD__
-	/*
-	 * Add ATM protocol family
-	 */
-	(void) protocol_family(&atmdomain, NULL, NULL);
-#endif
 
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 #ifdef sgi
 	atm_intr_index = register_isr(atm_intr);
 #endif
-#ifdef __FreeBSD__
 	register_netisr(NETISR_ATM, atm_intr);
-#endif
 
 	/*
 	 * Initialize subsystems

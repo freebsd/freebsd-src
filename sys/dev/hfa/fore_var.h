@@ -163,9 +163,6 @@ typedef struct buf_handle	Buf_handle;
  */
 struct fore_unit {
 	Cmn_unit	fu_cmn;		/* Common unit stuff */
-#ifdef sun
-	struct dev_info	*fu_devinfo;	/* Device node for this unit */
-#endif
 	Fore_reg	*fu_ctlreg;	/* Device control register */
 #ifdef FORE_SBUS
 	Fore_reg	*fu_intlvl;	/* Interrupt level register */

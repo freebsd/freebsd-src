@@ -37,10 +37,6 @@
 #include <net/netisr.h>
 #include <net/intrq.h>
 
-#ifdef __i386__
-#include <netatm/kern_include.h>	/* XXX overkill, fixme! */
-#endif
-
 /*
  * If the appropriate intrq_present variable is zero, don't use
  * the queue (as it'll never get processed).
@@ -49,9 +45,7 @@
  */
 const int	atintrq1_present;
 const int	atintrq2_present;
-#ifdef NETISR_ATM
 const int	atmintrq_present;
-#endif
 const int	ipintrq_present;
 const int	ip6intrq_present;
 const int	ipxintrq_present;
@@ -60,9 +54,7 @@ const int	nsintrq_present;
 
 struct ifqueue	atintrq1;
 struct ifqueue	atintrq2;
-#ifdef NETISR_ATM
 struct ifqueue	atm_intrq;
-#endif
 struct ifqueue	ipintrq;
 struct ifqueue	ip6intrq;
 struct ifqueue	ipxintrq;
@@ -76,9 +68,7 @@ static const struct {
 	int const *present;
 	int isr;
 } queue[] = {
-#ifdef NETISR_ATM
 	{ AF_ATM, &atm_intrq, &atmintrq_present, NETISR_ATM },
-#endif
 	{ AF_INET, &ipintrq, &ipintrq_present, NETISR_IP },
 	{ AF_INET6, &ip6intrq, &ip6intrq_present, NETISR_IPV6 },
 	{ AF_IPX, &ipxintrq, &ipxintrq_present, NETISR_IPX },

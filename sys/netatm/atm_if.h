@@ -376,13 +376,7 @@ struct atm_ncm {
 typedef	void (atm_intr_t) __P((void *, KBuffer *)); /* Callback function type */
 typedef	atm_intr_t	*atm_intr_func_t; /* Pointer to callback function */
 
-#ifdef sun
-#define	SCHED_ATM	schednetisr(atm_intr) 
-#endif
-#ifdef __FreeBSD__
-#define	NETISR_ATM	AF_ATM
 #define	SCHED_ATM	schednetisr(NETISR_ATM) 
-#endif
 #ifdef sgi
 extern	int	atm_intr_index;
 #define	SCHED_ATM	schednetisr(atm_intr_index) 

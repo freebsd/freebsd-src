@@ -59,21 +59,11 @@
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 
-#ifdef sun
-#include <machine/cpu.h>
-#include <machine/mmu.h>
-#include <machine/psl.h>
-#include <sun/openprom.h>
-#include <sun/vddrv.h>
-#include <sundev/mbvar.h>
-#endif
 
-#ifdef __FreeBSD__
 #include <sys/eventhandler.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#endif
 
 /*
  * Networking support
