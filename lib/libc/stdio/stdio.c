@@ -164,11 +164,6 @@ _sseek(fp, offset, whence)
 	errret = errno;
 	if (errno == 0)
 		errno = serrno;
-
-	if (errret == 0 && (offset != 0 || whence != SEEK_CUR))
-		/* Disallow fseek() optimization inside read buffer */
-		fp->_flags |= __SMOD;
-
 	/*
 	 * Disallow negative seeks per POSIX.
 	 * It is needed here to help upper level caller
