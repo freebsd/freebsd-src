@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.151 1998/08/24 07:11:48 gpalmer Exp $
+#	$Id: rc,v 1.152 1998/09/05 04:27:35 jdp Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -166,10 +166,11 @@ if [ "X${clear_tmp_enable}" = X"YES" ]; then
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
 	    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
 
-	# Also remove X lock files since it will prevent you from
-	# restarting X11 after a system crash.
-	rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 fi
+
+# Remove X lock files, since they will prevent you from restarting X11 
+# after a system crash.
+rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 
 # snapshot any kernel -c changes back to disk
 echo 'recording kernel -c changes'
