@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.40 1999/05/30 16:52:35 phk Exp $ */
+/* $Id: matcd.c,v 1.41 1999/05/31 11:26:55 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -549,7 +549,6 @@ static struct cdevsw matcd_cdevsw = {
 	Internal function declarations
 ---------------------------------------------------------------------------*/
 
-static	void	matcd_drvinit(void *unused);
 static	void	matcd_start(int controller);
 static	void	zero_cmd(char *);
 static	void	matcd_pread(int port, int count, unsigned char * data);
