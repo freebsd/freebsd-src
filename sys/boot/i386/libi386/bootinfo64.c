@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.16 1999/01/24 00:12:04 msmith Exp $
+ *	$Id: bootinfo.c,v 1.17 1999/03/08 11:05:52 dcs Exp $
  */
 
 #include <stand.h>
@@ -207,7 +207,8 @@ bi_copymodules(vm_offset_t addr)
 
 	MOD_NAME(addr, mp->m_name);	/* this field must come first */
 	MOD_TYPE(addr, mp->m_type);
-	MOD_ARGS(addr, mp->m_args);
+	if (mp->m_args)
+	    MOD_ARGS(addr, mp->m_args);
 	MOD_ADDR(addr, mp->m_addr);
 	MOD_SIZE(addr, mp->m_size);
 	for (md = mp->m_metadata; md != NULL; md = md->md_next)
