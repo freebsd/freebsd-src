@@ -863,7 +863,6 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	struct lock_list_entry **lock_list, *lle;
 	struct lock_instance *lock1;
 	struct thread *td;
-	critical_t savecrit;
 	int i, n;
 
 	if (witness_dead || panicstr != NULL)
@@ -873,7 +872,7 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	/*
 	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
 	 */
-	savecrit = cpu_critical_enter();	
+	critical_enter();
 	td = curthread;
 	lock_list = &td->td_sleeplocks;
 again:
@@ -908,7 +907,7 @@ again:
 	if (witness_ddb && n)
 		Debugger(__func__);
 #endif /* DDB */
-	cpu_critical_exit(savecrit);
+	critical_exit();
 	return (n);
 }
 
@@ -1308,7 +1307,6 @@ witness_list_locks(struct lock_list_entry **lock_list)
 int
 witness_list(struct thread *td)
 {
-	critical_t savecrit;
 	int nheld;
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
@@ -1331,15 +1329,20 @@ witness_list(struct thread *td)
 	 * the per-cpu data for a given cpu then we could use
 	 * td->td_kse->ke_oncpu to get the list of spinlocks for this thread
 	 * and "fix" this.
+	 *
+	 * That still wouldn't really fix this unless we locked sched_lock
+	 * or stopped the other CPU to make sure it wasn't changing the list
+	 * out from under us.  It is probably best to just not try to handle
+	 * threads on other CPU's for now.
 	 */
 	if (td == curthread) {
 		/*
 		 * Preemption bad because we need PCPU_PTR(spinlocks) to not
 		 * change.
 		 */
-		savecrit = cpu_critical_enter();
+		critical_enter();
 		nheld += witness_list_locks(PCPU_PTR(spinlocks));
-		cpu_critical_exit(savecrit);
+		critical_exit();
 	}
 	return (nheld);
 }
