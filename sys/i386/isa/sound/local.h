@@ -37,9 +37,6 @@
 #ifndef EXCLUDE_SB
 #define EXCLUDE_SB
 #endif
-#ifndef EXCLUDE_ADLIB
-#define EXCLUDE_ADLIB
-#endif
 #ifndef EXCLUDE_GUS
 #define EXCLUDE_GUS
 #endif
@@ -76,9 +73,6 @@
 #endif
 #ifdef AUDIO_SB
 #undef EXCLUDE_SB
-#endif
-#ifdef AUDIO_ADLIB
-#undef EXCLUDE_ADLIB
 #endif
 #ifdef AUDIO_GUS
 #undef EXCLUDE_GUS
