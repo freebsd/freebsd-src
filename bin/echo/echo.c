@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: echo.c,v 1.2 1994/09/24 02:55:18 davidg Exp $
  */
 
 #ifndef lint
@@ -62,8 +62,14 @@ main(argc, argv)
 	else
 		nflag = 0;
 
-	while (*argv) {
-		(void)printf("%s", *argv);
+	while (argv[0]) {
+		int len = strlen(argv[0]);
+
+		if (len >= 2 && !argv[1] && argv[0][len - 2] == '\\' && argv[0][len - 1] == 'c') {
+			argv[0][len - 2] = '\0';
+			nflag = 1;
+		}
+		(void)printf("%s", argv[0]);
 		if (*++argv)
 			putchar(' ');
 	}
