@@ -147,7 +147,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 	struct route_in6 ip6route;
 	struct sockaddr_in6 *dst;
 	int error = 0;
-	struct in6_ifaddr *ia;
+	struct in6_ifaddr *ia = NULL;
 	u_long mtu;
 	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
 	struct ip6_exthdrs exthdrs;
@@ -857,6 +857,12 @@ skip_ipsec2:;
 #endif
 	    )
 	{
+		/* Record statistics for this interface address. */
+		if (ia && !(flags & IPV6_FORWARDING)) {
+			ia->ia_ifa.if_opackets++;
+			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+		}
+
 		error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		goto done;
 	} else if (mtu < IPV6_MMTU) {
@@ -973,6 +979,12 @@ sendorfree:
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
 		if (error == 0) {
+			/* Record statistics for this interface address. */
+			if (ia) {
+				ia->ia_ifa.if_opackets++;
+				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			}
+
 			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		} else
 			m_freem(m);
