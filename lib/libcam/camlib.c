@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camlib.c,v 1.3 1998/11/15 23:12:42 ken Exp $
+ *	$Id: camlib.c,v 1.4 1998/11/15 23:17:39 ken Exp $
  */
 
 #include <sys/types.h>
@@ -132,7 +132,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 
 	if (path == NULL) {
 		sprintf(cam_errbuf, "%s: device pathname was NULL", func_name);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -159,7 +159,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	if (*tmpstr == '\0') {
 		sprintf(cam_errbuf, "%s: no text after slash", func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -172,7 +172,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	if (*tmpstr == '\0') {
 		sprintf(cam_errbuf, "%s: no text after leading 'n'", func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -184,7 +184,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	if (*tmpstr == '\0') {
 		sprintf(cam_errbuf, "%s: no text after leading 'r'", func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -227,7 +227,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 			"%s: must have both device name and unit number",
 			func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -239,7 +239,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 			"%s: device name cannot begin with a number",
 			func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -251,7 +251,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 		sprintf(cam_errbuf, "%s: unable to find device unit number",
 			func_name);
 		free(newpath);
-		return(0);
+		return(-1);
 	}
 
 	/*
@@ -302,7 +302,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	/* Clean up allocated memory */
 	free(newpath);
 
-	return(1);
+	return(0);
 
 }
 
@@ -321,7 +321,7 @@ cam_open_device(const char *path, int flags)
 	 * cam_get_device() has already put an error message in cam_errbuf,
 	 * so we don't need to.
 	 */
-	if (cam_get_device(path, dev_name, DEV_IDLEN + 1, &unit) == 0)
+	if (cam_get_device(path, dev_name, DEV_IDLEN + 1, &unit) == -1)
 		return(NULL);
 
 	return(cam_lookup_pass(dev_name, unit, flags, path, NULL));
