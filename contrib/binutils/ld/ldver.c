@@ -1,5 +1,5 @@
 /* ldver.c -- Print linker version.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -30,16 +30,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldemul.h"
 #include "ldmain.h"
 
-const char *ld_program_version = VERSION;
-
 void
 ldversion (noisy)
      int noisy;
 {
-  fprintf (stdout, _("GNU ld version %s (with BFD %s)\n"),
-	   ld_program_version, BFD_VERSION);
+  /* Output for noisy == 2 is intended to follow the GNU standards.  */
+  fprintf (stdout, _("GNU ld version %s\n"), BFD_VERSION_STRING);
 
-  if (noisy)
+  if (noisy & 2)
+    {
+      printf (_("Copyright 2002 Free Software Foundation, Inc.\n"));
+      printf (_("\
+This program is free software; you may redistribute it under the terms of\n\
+the GNU General Public License.  This program has absolutely no warranty.\n"));
+    }
+
+  if (noisy & 1)
     {
       ld_emulation_xfer_type **ptr = ld_emulations;
 

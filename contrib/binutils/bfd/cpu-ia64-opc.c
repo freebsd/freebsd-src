@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Logically, this code should be part of libopcode but since some of
    the operand insertion/extraction functions help bfd to implement
-   relocations, this code is included as part of elf64-ia64.c.  This
+   relocations, this code is included as part of cpu-ia64.c.  This
    avoids circular dependencies between libopcode and libbfd and also
    obviates the need for applications to link in libopcode when all
    they really want is libbfd.

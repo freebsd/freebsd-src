@@ -1,4 +1,4 @@
-/* Copyright (C) 1991, 1994, 1995, 1996 Free Software Foundation, Inc.
+/* Copyright (C) 1991, 1994, 1995, 1996, 2002 Free Software Foundation, Inc.
    This file based on putenv.c in the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -16,6 +16,19 @@
    write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
+/*
+
+@deftypefn Supplemental int putenv (const char *@var{string})
+
+Uses @code{setenv} or @code{unsetenv} to put @var{string} into
+the environment or remove it.  If @var{string} is of the form
+@samp{name=value} the string is added; if no @samp{=} is present the
+name is unset/removed.
+
+@end deftypefn
+
+*/
+
 #if defined (_AIX) && !defined (__GNUC__)
  #pragma alloca
 #endif
@@ -25,6 +38,8 @@
 #endif
 
 #include "ansidecl.h"
+
+#define putenv libiberty_putenv
 
 #if HAVE_STDLIB_H
 # include <stdlib.h>
@@ -44,6 +59,8 @@ extern char *alloca ();
 #  endif /* __GNUC__ */
 # endif /* alloca */
 #endif /* HAVE_ALLOCA_H */
+
+#undef putenv
 
 /* Below this point, it's verbatim code from the glibc-2.0 implementation */
 

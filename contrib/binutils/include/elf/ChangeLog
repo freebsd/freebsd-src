@@ -1,15 +1,125 @@
+2002-01-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (DT_PPC64_GLINK): Define.
+
+2002-01-09  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* common.h: Update copyright years.
+	(NT_NETBSDCORE_PROCINFO): Define.
+	(NT_NETBSDCORE_FIRSTMACH): Define. 
+
+2002-01-06  Steve Ellcey  <sje@cup.hp.com>
+
+	* ia64.h (ELF_STRING_ia64_unwind_hdr): New Macro for HP-UX.
+	(SHT_IA_64_HP_OPT_ANOT): Ditto
+	(PT_IA_64_HP_OPT_ANOT): Ditto
+	(PT_IA_64_HP_HSL_ANOT): Ditto
+	(PT_IA_64_HP_STACK): Ditto
+	(SHN_IA_64_ANSI_COMMON): Ditto
+
+2001-12-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* external.h (Elf_External_Sym_Shndx): Declare.
+	* internal.h (struct elf_internal_sym <st_shndx>): Make it an
+	unsigned int.
+	* common.h (SHN_BAD): Define.
+
+2001-12-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* common.h (SHN_XINDEX): Comment typo fix.
+	* internal.h (Elf_Internal_Ehdr): Change existing "unsigned short"
+	size, count and index fields to "unsigned int".
+
+2001-12-07  Geoffrey Keating  <geoffk@redhat.com>
+	    Richard Henderson  <rth@redhat.com>
+
+	* common.h (EM_XSTORMY16): Define.
+	* xstormy16.h: New file.
+
+2001-11-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* common.h (NT_ARCH): Define.  Remove incorrect comment.
+
+2001-11-11  Geoffrey Keating  <geoffk@redhat.com>
+
+	* dwarf2.h (dwarf_line_number_ops): Add DWARF 3 opcodes.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* mmix.h: New file.
+
+2001-10-23  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h: White space changes to keep lines under 80 chars.
+
+2001-10-16  Jeff Holcomb  <jeffh@redhat.com>
+
+	* internal.h (elf_internal_shdr): Make contents a unsigned char *.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h (elf_internal_rela): Make r_addend a bfd_vma.
+
+2001-09-13  Alexandre Oliva  <aoliva@redhat.com>
+
+	* common.h (EM_OPENRISC_OLD): Renamed the old EM_OPENRISC entry.
+
+2001-09-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* common.h (EM_AVR_OLD): Renamed from...
+	(EM_AVR): this, redefined as in the current ELF standard.
+	(EM_PJ_OLD): Renamed from...
+	(EM_PJ): this, redefined as in the current ELF standard.
+	(EM_R30, EM_D10V, EM_D30V, EM_V850, EM_M32R, EM_MN10300,
+	EM_MN10200, EM_OPENRISC, EM_ARC_A5, EM_XTENSA): Defined as in
+	the current ELF standard.
+	(EM_CYGNUS_ARC): Removed, unused for a long time.
+
+2001-09-04  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (R_ALPHA_OP*, R_ALPHA_IMMED*, R_ALPHA_GPVALUE): Remove.
+	(R_ALPHA_GPREL16): Rename from R_ALPHA_IMMED_GP_16.
+
+2001-08-30  Eric Christopher  <echristo@redhat.com>
+
+	* mips.h: Remove E_MIPS_MACH_MIPS32_4K.
+
+2001-08-29  Jeff Law <law@redhat.com>
+
+	* h8.h (EF_H8_MACH): New mask for encoded machine type.
+	(E_H8_MACH_H8300, E_H8_MACH_H8300H, E_H8_MACH_H8300S): New
+	machine types.
+
+Tue Aug 26 23:32:34 2001  J"orn Rennecke <amylaar@redhat.com>
+
+	* h8.h: New file.
+
+2001-08-27  Staffan Ulfberg  <staffanu@swox.se>
+
+	* ppc.h: Add relocs from the 64-bit PowerPC ELF ABI revision 1.2.
+
+2001-06-30  Daniel Berlin  <dan@cgsoftware.com>
+
+	* dwarf2.h: Remerge with gcc version,
+	including all new DWARF 2.1 extensions.
+
 2001-06-29  James Cownie <jcownie@etnus.com>
 
 	* dwarf2.h: Add DWARF 2.1 attribues.
 
-2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+2001-06-15  Per Bothner  <per@bothner.com>
 
-	Merge from mainline.
-	2001-05-15  Ralf Baechle  <ralf@gnu.org>
+	* dwarf2.h:  Partial merge with gcc version.
+	(enum dwarf_descrim_list):  Fix typo -> dwarf_discrim_list.
+	(DW_LANG_Java):  Use value from dwarf 2.1 draft (also used in gcc).
+
+2001-05-15  Ralf Baechle  <ralf@gnu.org>
+
 	* common.h: Remove definition of EM_MIPS_RS4_BE.  The constant was
 	never in active use and is used otherwise by the ABI.
 
-	2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
 	* external.h: Fix typo.
 	* mips.h: Add/Extend many comments with reference to the MIPS ELF64
 	spec v. 2.4, available at e.g.
@@ -28,15 +138,40 @@
 	(ELF64_MIPS_R_TYPE): Likewise.
 	(OHW_R10KLDL): Define.
 
-	2001-04-24  Todd Fries  <todd@fries.net>
+2001-04-24  Todd Fries  <todd@fries.net>
+
 	* sparc.h: Fix typo.
 
-	2001-03-23  Nick Clifton  <nickc@redhat.com>
+2001-04-20  Johan Rydberg  <jrydberg@opencores.org>
+
+	* openrisc.h: New file.
+	* common.h (EM_OPENRISC): New constant.
+
+2001-04-23  Bo Thorsen  <bo@suse.de>
+
+	* x86-64.h: Add vtable support.
+
+2001-03-23  Nick Clifton  <nickc@redhat.com>
+
 	* mips.h: Remove extraneous whitespace.
 
-2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+2001-03-22  Hans-Peter Nilsson  <hp@axis.com>
 
-	* Many files: Update copyright notices.
+	* cris.h: Add leading comment about PC-relative location.
+	(R_CRIS_COPY, R_CRIS_GLOB_DAT, R_CRIS_JUMP_SLOT, R_CRIS_RELATIVE,
+	R_CRIS_16_GOT, R_CRIS_32_GOT, R_CRIS_16_GOTPLT, R_CRIS_32_GOTPLT,
+	R_CRIS_32_GOTREL, R_CRIS_32_PLT_GOTREL, R_CRIS_32_PLT_PCREL):
+	New relocs.
+
+2001-02-27  Philip Blundell  <pb@futuretv.com>
+
+	* arm.h: Add new definitions from ARM document SWS ESPC 0003 B-01.
+	(EF_PIC, et al.): Rename to EF_ARM_xx.
+
+2001-02-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* common.h: Add linux target for S/390.
+	* s390.h: New file.
 
 2001-01-11  Peter Targett  <peter.targett@arccores.com>
 

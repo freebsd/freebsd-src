@@ -1,5 +1,6 @@
 /* BFD ECOFF object file private structure.
-   Copyright 1993, 1994, 1995, 1996, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1999, 2001
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -165,7 +166,7 @@ typedef struct ecoff_symbol_struct
   PTR native;
 } ecoff_symbol_type;
 
-/* We take the address of the first element of a asymbol to ensure that the
+/* We take the address of the first element of an asymbol to ensure that the
    macro is only ever applied to an asymbol.  */
 #define ecoffsymbol(asymbol) ((ecoff_symbol_type *) (&((asymbol)->the_bfd)))
 
@@ -320,7 +321,7 @@ extern long _bfd_ecoff_canonicalize_reloc
 /* ecoff_bfd_reloc_type_lookup defined by backend. */
 
 extern boolean _bfd_ecoff_set_arch_mach
-  PARAMS ((bfd *, enum bfd_architecture, unsigned long machine));
+  PARAMS ((bfd *, enum bfd_architecture, unsigned long));
 extern boolean _bfd_ecoff_set_section_contents
   PARAMS ((bfd *, asection *, PTR location, file_ptr, bfd_size_type));
 
@@ -340,8 +341,8 @@ extern PTR _bfd_ecoff_mkobject_hook PARAMS ((bfd *, PTR filehdr, PTR aouthdr));
 #define _bfd_ecoff_set_alignment_hook \
   ((void (*) PARAMS ((bfd *, asection *, PTR))) bfd_void)
 extern boolean _bfd_ecoff_set_arch_mach_hook PARAMS ((bfd *abfd, PTR filehdr));
-extern flagword _bfd_ecoff_styp_to_sec_flags
-  PARAMS ((bfd *abfd, PTR hdr, const char *name, asection *section));
+extern boolean _bfd_ecoff_styp_to_sec_flags
+  PARAMS ((bfd *, PTR, const char *, asection *, flagword *));
 extern boolean _bfd_ecoff_slurp_symbol_table PARAMS ((bfd *abfd));
 
 /* ECOFF auxiliary information swapping routines.  These are the same

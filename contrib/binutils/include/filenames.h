@@ -5,7 +5,7 @@
    use forward- and back-slash in path names interchangeably, and
    some of them have case-insensitive file names.
 
-   Copyright 2000 Free Software Foundation, Inc.
+   Copyright 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef FILENAMES_H
 #define FILENAMES_H
 
-#if defined(__MSDOS__) || defined(_WIN32) || defined(__OS2__)
+#if defined(__MSDOS__) || defined(_WIN32) || defined(__OS2__) || defined (__CYGWIN__)
 
 #ifndef HAVE_DOS_BASED_FILE_SYSTEM
 #define HAVE_DOS_BASED_FILE_SYSTEM 1

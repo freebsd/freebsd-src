@@ -364,7 +364,9 @@ bfd_cache_lookup_worker (abfd)
     {
       if (bfd_open_file (abfd) == NULL)
 	return NULL;
-      if (fseek ((FILE *) abfd->iostream, abfd->where, SEEK_SET) != 0)
+      if (abfd->where != (unsigned long) abfd->where)
+	return NULL;
+      if (fseek ((FILE *) abfd->iostream, (long) abfd->where, SEEK_SET) != 0)
 	return NULL;
     }
 

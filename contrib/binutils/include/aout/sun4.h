@@ -1,8 +1,24 @@
-/* SPARC-specific values for a.out files */
+/* SPARC-specific values for a.out files 
+
+   Copyright 2001 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Some systems, e.g., AIX, may have defined this in header files already
    included.  */
-#undef TARGET_PAGE_SIZE
+#undef  TARGET_PAGE_SIZE
 #define TARGET_PAGE_SIZE	0x2000		/* 8K.  aka NBPG in <sys/param.h> */
 /* Note that some SPARCs have 4K pages, some 8K, some others.  */
 

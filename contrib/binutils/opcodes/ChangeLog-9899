@@ -86,9 +86,9 @@ Thu Oct  7 00:12:43 MDT 1999	Diego Novillo <dnovillo@cygnus.com>
 
 1999-10-04  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-asm.c,fr30-desc.h: Rebuild.
-	* m32r-asm.c,m32r-desc.c,m32r-desc.h: Rebuild.  Add m32rx support.
-	* m32r-dis.c,m32r-ibld.c,m32r-opc.c,m32r-opc.h,m32r-opinst.c: Ditto.
+	* fr30-asm.c, fr30-desc.h: Rebuild.
+	* m32r-asm.c, m32r-desc.c, m32r-desc.h: Rebuild.  Add m32rx support.
+	* m32r-dis.c, m32r-ibld.c, m32r-opc.c, m32r-opc.h, m32r-opinst.c: Ditto.
 
 1999-09-29  Nick Clifton  <nickc@cygnus.com>
 
@@ -178,8 +178,8 @@ Mon Aug 30 18:56:14 1999  Richard Henderson  <rth@cygnus.com>
 
 1999-08-04  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-asm.c,fr30-desc.h,fr30-dis.c,fr30-ibld.c,fr30-opc.c: Rebuild.
-	* m32r-asm.c,m32r-desc.h,m32r-dis.c,m32r-ibld.c,m32r-opc.c: Rebuild.
+	* fr30-asm.c, fr30-desc.h, fr30-dis.c, fr30-ibld.c, fr30-opc.c: Rebuild.
+	* m32r-asm.c, m32r-desc.h, m32r-dis.c, m32r-ibld.c, m32r-opc.c: Rebuild.
 	* m32r-opinst.c: Rebuild.
 
 Sat Aug 28 00:27:24 1999  Jerry Quinn <jquinn@nortelnetworks.com>
@@ -446,8 +446,8 @@ Mon Jun  7 12:04:52 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
 
 1999-04-14  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-desc.c,fr30-desc.h,fr30-dis.c,fr30-ibld.c,fr30-opc.c: Rebuild.
-	* m32r-desc.c,m32r-desc.h,m32r-dis.c,m32r-ibld.c,m32r-opc.c: Rebuild.
+	* fr30-desc.c, fr30-desc.h, fr30-dis.c, fr30-ibld.c, fr30-opc.c: Rebuild.
+	* m32r-desc.c, m32r-desc.h, m32r-dis.c, m32r-ibld.c, m32r-opc.c: Rebuild.
 
 Mon Apr 12 23:46:17 1999  Jeffrey A Law  (law@cygnus.com)
 
@@ -456,8 +456,8 @@ Mon Apr 12 23:46:17 1999  Jeffrey A Law  (law@cygnus.com)
 
 1999-04-10  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-desc.c,fr30-desc.h,fr30-ibld.c: Rebuild.
-	* m32r-desc.c,m32r-desc.h,m32r-opinst.c: Rebuild.
+	* fr30-desc.c, fr30-desc.h, fr30-ibld.c: Rebuild.
+	* m32r-desc.c, m32r-desc.h, m32r-opinst.c: Rebuild.
 
 1999-04-06  Ian Lance Taylor  <ian@zembu.com>
 
@@ -484,10 +484,10 @@ Mon Apr 12 23:46:17 1999  Jeffrey A Law  (law@cygnus.com)
 
 	* cgen-opc.c (cgen_set_cpu): Delete.
 	(cgen_lookup_insn): max_insn_size renamed to max_insn_bitsize.
-	* fr30-desc.c,fr30-desc.h,fr30-dis.c,fr30-ibld.c,fr30-opc.c,fr30-opc.h:
-	Rebuild.
-	* m32r-desc.c,m32r-desc.h,m32r-dis.c,m32r-ibld.c,m32r-opc.c,m32r-opc.h:
-	Rebuild.
+	* fr30-desc.c, fr30-desc.h, fr30-dis.c, fr30-ibld.c, fr30-opc.c,
+	fr30-opc.h: Rebuild.
+	* m32r-desc.c, m32r-desc.h, m32r-dis.c, m32r-ibld.c, m32r-opc.c,
+	m32r-opc.h: Rebuild.
 	* po/opcodes.pot: Rebuild.
 
 1999-03-16  Martin Hunt  <hunt@cygnus.com>
@@ -499,16 +499,16 @@ Mon Apr 12 23:46:17 1999  Jeffrey A Law  (law@cygnus.com)
 	* cgen-opc.c (cgen_set_cpu): New arg `isa'.  All callers updated.
 	(cgen_operand_lookup_by_name,cgen_operand_lookup_by_num): New fns.
 	(cgen_get_insn_operands): Rewrite test for hardcoded/operand index.
-	* fr30-asm.c,fr30-desc.c,fr30-desc.h,fr30-dis.c,fr30-ibld.c: Rebuild.
-	* m32r-asm.c,m32r-desc.c,m32r-desc.h,m32r-dis.c,m32r-ibld.c: Rebuild.
+	* fr30-asm.c, fr30-desc.c, fr30-desc.h, fr30-dis.c, fr30-ibld.c: Rebuild.
+	* m32r-asm.c, m32r-desc.c, m32r-desc.h, m32r-dis.c, m32r-ibld.c: Rebuild.
 	* m32r-opinst.c: Rebuild.
 
 1999-02-25  Doug Evans  <devans@casey.cygnus.com>
 
 	* cgen-opc.c (cgen_hw_lookup_by_name): Rewrite.
 	(cgen_hw_lookup_by_num): Rewrite.
-	* fr30-desc.c,fr30-desc.h,fr30-dis.c,fr30-ibld.c,fr30-opc.c: Rebuild.
-	* m32r-desc.c,m32r-desc.h,m32r-dis.c,m32r-ibld.c,m32r-opc.c: Rebuild.
+	* fr30-desc.c, fr30-desc.h, fr30-dis.c, fr30-ibld.c, fr30-opc.c: Rebuild.
+	* m32r-desc.c, m32r-desc.h, m32r-dis.c, m32r-ibld.c, m32r-opc.c: Rebuild.
 	* m32r-opinst.c: Rebuild.
 
 Sat Feb 13 14:06:19 1999  Richard Henderson  <rth@cygnus.com>
@@ -523,11 +523,11 @@ Sat Feb 13 14:06:19 1999  Richard Henderson  <rth@cygnus.com>
 
 1999-02-09  Doug Evans  <devans@casey.cygnus.com>
 
-	* i960c-asm.c,i960c-dis.c,i960c-opc.c,i960c-opc.h: Delete.
+	* i960c-asm.c, i960c-dis.c, i960c-opc.c, i960c-opc.h: Delete.
 	* i960-dis.c (print_insn_i960): Rename from print_insn_i960_orig.
 	* Makefile.am: Remove references to them.
-	(HFILES): Add fr30-desc.h,m32r-desc.h.
-	(CFILES): Add fr30-desc.c,fr30-ibld.c,m32r-desc.c,m32r-ibld.c,
+	(HFILES): Add fr30-desc.h, m32r-desc.h.
+	(CFILES): Add fr30-desc.c, fr30-ibld.c, m32r-desc.c, m32r-ibld.c,
 	m32r-opinst.c.
 	(ALL_MACHINES): Update.
 	* configure.in: Redo handling of cgen_files.
@@ -540,8 +540,8 @@ Sat Feb 13 14:06:19 1999  Richard Henderson  <rth@cygnus.com>
 	* cgen-opc.c (*): CGEN_OPCODE_DESC renamed to CGEN_CPU_DESC.
 	(cgen_lookup_insn,cgen_get_insn_operands): Define here.
 	(cgen_lookup_get_insn_operands): Ditto.
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerate.
-	* m32r-asm.c,m32r-dis.c,m32r-opc.c,m32r-opc.h: Regenerate.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerate.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.c, m32r-opc.h: Regenerate.
 	* po/POTFILES.in: Rebuild.
 	* po/opcodes.pot: Rebuild.
 
@@ -592,8 +592,8 @@ Mon Feb  1 20:54:36 1999  Catherine Moore  <clm@cygnus.com>
 
 1999-01-27  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-opc.h,fr30-opc.c: Rebuild.
-	* i960c-opc.h,i960c-opc.c: Rebuild.
+	* fr30-opc.h, fr30-opc.c: Rebuild.
+	* i960c-opc.h, i960c-opc.c: Rebuild.
 	* m32r-opc.c: Rebuild.
 
 Tue Jan 19 18:01:54 1999  David Taylor  <taylor@texas.cygnus.com>
@@ -612,7 +612,7 @@ Tue Jan 19 10:51:01 1999  David Taylor  <taylor@texas.cygnus.com>
 
 1999-01-12  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-opc.c,i960c-opc.c: Regenerate.
+	* fr30-opc.c, i960c-opc.c: Regenerate.
 
 1999-01-11  Doug Evans  <devans@casey.cygnus.com>
 
@@ -624,9 +624,9 @@ Tue Jan 19 10:51:01 1999  David Taylor  <taylor@texas.cygnus.com>
 
 1999-01-05  Doug Evans  <devans@casey.cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.h,fr30-opc.c: Regenerate.
-	* i960c-asm.c,i960c-dis.c,i960c-opc.h,i960c-opc.c: Regenerate.
-	* m32r-asm.c,m32r-dis.c,m32r-opc.h,m32r-opc.c: Regenerate.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.h, fr30-opc.c: Regenerate.
+	* i960c-asm.c, i960c-dis.c, i960c-opc.h, i960c-opc.c: Regenerate.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.h, m32r-opc.c: Regenerate.
 
 1999-01-04  Jason Molenda  (jsm@bugshack.cygnus.com)
 
@@ -646,15 +646,15 @@ Wed Dec 16 16:17:49 1998  Dave Brolley  <brolley@cygnus.com>
 
 1998-12-15  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-opc.c, fr30-opc.h: Regenerated.
 
 1998-12-14  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-opc.c, fr30-opc.h: Regenerated.
 
 Thu Dec 10 18:39:46 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-opc.c, fr30-opc.h: Regenerated.
 
 Thu Dec 10 12:49:24 1998  Doug Evans  <devans@canuck.cygnus.com>
 
@@ -667,7 +667,7 @@ Tue Dec  8 13:56:18 1998  David Taylor  <taylor@texas.cygnus.com>
 
 Tue Dec  8 13:12:44 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerated.
 
 Tue Dec  8 10:50:46 1998  David Taylor  <taylor@texas.cygnus.com>
 
@@ -715,7 +715,7 @@ Tue Dec  8 10:50:46 1998  David Taylor  <taylor@texas.cygnus.com>
 
 Mon Dec  7 14:33:44 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerated.
 
 Sun Dec  6 14:06:48 1998  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -730,34 +730,34 @@ Fri Dec  4 17:45:51 1998  Doug Evans  <devans@canuck.cygnus.com>
 
 Fri Dec  4 17:08:08 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerated.
 
 Thu Dec  3 14:26:20 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerated.
 
 Thu Dec  3 00:09:17 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerate.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerate.
 
 1998-11-30  Doug Evans  <devans@casey.cygnus.com>
 
 	* cgen-dis.c (hash_insn_array): CGEN_INSN_VALUE ->
 	CGEN_INSN_BASE_VALUE.
-	* m32r-opc.c,m32r-opc.h,m32r-asm.c,m32r-dis.c: Regenerate.
-	* fr30-opc.c,fr30-opc.h,fr30-asm.c,fr30-dis.c: Regenerate.
+	* m32r-opc.c, m32r-opc.h, m32r-asm.c, m32r-dis.c: Regenerate.
+	* fr30-opc.c, fr30-opc.h, fr30-asm.c, fr30-dis.c: Regenerate.
 
 Thu Nov 26 11:26:32 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c: Regenerated.
 
 Tue Nov 24 11:20:54 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c: Regenerated.
+	* fr30-asm.c, fr30-dis.c: Regenerated.
 
 Mon Nov 23 18:28:48 1998  Dave Brolley  <brolley@cygnus.com>
 
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c,fr30-opc.h: Regenerated.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c, fr30-opc.h: Regenerated.
 
 1998-11-20  Doug Evans  <devans@tobor.to.cygnus.com>
 
@@ -785,8 +785,8 @@ Wed Nov 18 21:36:37 1998  Dave Brolley  <brolley@cygnus.com>
 
 1998-11-18  Doug Evans  <devans@casey.cygnus.com>
 
-	* m32r-asm.c,m32r-dis.c,m32r-opc.c: Rebuild.
-	* fr30-asm.c,fr30-dis.c,fr30-opc.c: Rebuild.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.c: Rebuild.
+	* fr30-asm.c, fr30-dis.c, fr30-opc.c: Rebuild.
 
 Wed Nov 18 11:30:04 1998  Dave Brolley  <brolley@cygnus.com>
 
@@ -813,8 +813,8 @@ Tue Nov 10 15:26:27 1998  Nick Clifton  <nickc@cygnus.com>
 
 Tue Nov 10 11:00:04 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* m32r-dis.c,m32r-opc.c,m32r-opc.h: Rebuild.
-	* fr30-dis.c,fr30-opc.c,fr30-opc.h: Rebuild.
+	* m32r-dis.c, m32r-opc.c, m32r-opc.h: Rebuild.
+	* fr30-dis.c, fr30-opc.c, fr30-opc.h: Rebuild.
 
 Mon Nov  9 18:22:55 1998  Dave Brolley  <brolley@cygnus.com>
 
@@ -852,11 +852,11 @@ Tue Oct 27 08:58:37 1998  Gavin Romig-Koch  <gavin@cygnus.com>
 
 Mon Oct 19 13:03:19 1998  Doug Evans  <devans@seba.cygnus.com>
 
-	* m32r-opc.c,m32r-opc.h,m32r-asm.c,m32r-dis.c: Regenerate.
+	* m32r-opc.c, m32r-opc.h, m32r-asm.c, m32r-dis.c: Regenerate.
 
 Fri Oct  9 14:01:56 1998  Doug Evans  <devans@seba.cygnus.com>
 
-	* m32r-opc.h,m32r-opc.c: Regenerate.
+	* m32r-opc.h, m32r-opc.c: Regenerate.
 
 Sun Oct  4 21:01:44 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
 
@@ -894,7 +894,7 @@ Tue Sep 22 17:55:14 1998  Nick Clifton  <nickc@cygnus.com>
 
 Tue Sep 15 15:14:45 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* m32r-opc.h,m32r-opc.c: Add bbpc,bbpsw support.
+	* m32r-opc.h, m32r-opc.c: Add bbpc,bbpsw support.
 
 1998-09-09  Michael Meissner  <meissner@cygnus.com>
 
@@ -969,7 +969,7 @@ Mon Aug  3 12:43:16 1998  Doug Evans  <devans@seba.cygnus.com>
 	(cgen_dis_init): Delete.
 	* cgen-opc.c (all fns): New first arg of opcode table descriptor.
 	(cgen_current_{opcode_table_mach,endian}): Delete.
-	* m32r-asm.c,m32r-dis.c,m32r-opc.c,m32r-opc.h: Regenerate.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.c, m32r-opc.h: Regenerate.
 
 Thu Jul 30 21:41:10 1998  Frank Ch. Eigler  <fche@cygnus.com>
 
@@ -983,11 +983,11 @@ Tue Jul 28 11:00:09 1998  Jeffrey A Law  (law@cygnus.com)
 
 Fri Jul 24 11:41:37 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* m32r-asm.c,m32r-opc.c: Regenerate (-Wall cleanups).
+	* m32r-asm.c, m32r-opc.c: Regenerate (-Wall cleanups).
 
 Tue Jul 21 13:41:07 1998  Doug Evans  <devans@seba.cygnus.com>
 
-	* m32r-opc.h,m32r-opc.c,m32r-asm.c,m32r-dis.c: Regenerate.
+	* m32r-opc.h, m32r-opc.c, m32r-asm.c, m32r-dis.c: Regenerate.
 
 Mon Jul 13 14:53:59 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
 
@@ -1004,7 +1004,7 @@ Thu Jul  2 17:11:27 1998  Doug Evans  <devans@seba.cygnus.com>
 
 Wed Jul  1 16:11:16 1998  Doug Evans  <devans@seba.cygnus.com>
 
-	* m32r-asm.c,m32r-dis.c,m32r-opc.c,m32r-opc.h: Regenerate.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.c, m32r-opc.h: Regenerate.
 
 Fri Jun 26 11:08:55 1998  Jeffrey A Law  (law@cygnus.com)
 
@@ -1197,7 +1197,7 @@ Tue May 26 16:14:39 1998  Nick Clifton  <nickc@cygnus.com>
 
 Fri May 22 16:00:00 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* m32r-asm.c,m32r-dis.c: Regenerate.
+	* m32r-asm.c, m32r-dis.c: Regenerate.
 
 Tue May 19 17:36:08 1998  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -1329,7 +1329,7 @@ Mon Apr 27 10:33:56 1998  Doug Evans  <devans@seba.cygnus.com>
 	(hash_insn_array,hash_insn_list): New functions.
 	(build_asm_hash_table): Use them.  Hash macro insns as well.
 	(cgen_asm_lookup_insn): Update.
-	* cgen_dis.c (cgen_current_opcode_table): Renamed from ..._data.
+	* cgen-dis.c (cgen_current_opcode_table): Renamed from ..._data.
 	(dis_hash_table_entries): New variable.
 	(cgen_dis_init): Free dis_hash_table_entries.
 	(hash_insn_array,hash_insn_list): New functions.
@@ -1338,7 +1338,7 @@ Mon Apr 27 10:33:56 1998  Doug Evans  <devans@seba.cygnus.com>
 	* cgen-opc.c (cgen_current_opcode_table): Renamed from ..._data.
 	(cgen_set_cpu,cgen_hw_lookup,cgen_insn_count): Update.
 	(cgen_macro_insn_count): New function.
-	* m32r-opc.h,m32r-opc.c,m32r-asm.c,m32r-dis.c: Regenerate.
+	* m32r-opc.h, m32r-opc.c, m32r-asm.c, m32r-dis.c: Regenerate.
 
 Fri Apr 24 16:07:57 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
 
@@ -1497,7 +1497,7 @@ Sat Mar 14 23:47:14 1998  Doug Evans  <devans@seba.cygnus.com>
 
 Wed Mar  4 12:08:14 1998  Doug Evans  <devans@canuck.cygnus.com>
 
-	* m32r-opc.h,m32r-opc.c,m32r-asm.c,m32r-dis.c: Regenerate.
+	* m32r-opc.h, m32r-opc.c, m32r-asm.c, m32r-dis.c: Regenerate.
 
 Sat Feb 28 16:02:34 1998  Nick Clifton  <nickc@cygnus.com>
 
@@ -1529,8 +1529,8 @@ Tue Feb 24 11:06:18 1998  Nick Clifton  <nickc@cygnus.com>
 Mon Feb 23 13:16:17 1998  Doug Evans  <devans@seba.cygnus.com>
 
 	* cgen-asm.c: Include symcat.h.
-	* cgen-dis.c,cgen-opc.c: Ditto.
-	* m32r-asm.c,m32r-dis.c,m32r-opc.h,m32r-opc.c: Regenerate.
+	* cgen-dis.c, cgen-opc.c: Ditto.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.h, m32r-opc.c: Regenerate.
 
 Mon Feb 23 10:34:58 1998  Jeffrey A Law  (law@cygnus.com)
 
@@ -1544,7 +1544,7 @@ Tue Feb 17 17:14:50 1998  Doug Evans  <devans@seba.cygnus.com>
 
 	* cgen-asm.c (cgen_parse_{signed,unsigned}_integer): Delete min,max
 	arguments.  Don't perform validation here.
-	* m32r-asm.c,m32r-dis.c,m32r-opc.c: Regenerate.
+	* m32r-asm.c, m32r-dis.c, m32r-opc.c: Regenerate.
 
 Fri Feb 13 14:26:06 1998  Doug Evans  <devans@canuck.cygnus.com>
 

@@ -81,16 +81,16 @@ extern const unsigned alpha_num_opcodes;
 struct alpha_operand
 {
   /* The number of bits in the operand.  */
-  int bits;
+  unsigned int bits : 5;
 
   /* How far the operand is left shifted in the instruction.  */
-  int shift;
+  unsigned int shift : 5;
 
   /* The default relocation type for this operand.  */
-  int default_reloc;
+  signed int default_reloc : 16;
 
   /* One bit syntax flags.  */
-  unsigned flags;
+  unsigned int flags : 16;
 
   /* Insertion function.  This is used by the assembler.  To insert an
      operand value into an instruction, check this field.
