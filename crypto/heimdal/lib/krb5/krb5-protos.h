@@ -541,6 +541,15 @@ krb5_change_password (
 	krb5_data */*result_string*/);
 
 krb5_error_code
+krb5_check_transited (
+	krb5_context /*context*/,
+	krb5_const_realm /*client_realm*/,
+	krb5_const_realm /*server_realm*/,
+	krb5_realm */*realms*/,
+	int /*num_realms*/,
+	int */*bad_realm*/);
+
+krb5_error_code
 krb5_check_transited_realms (
 	krb5_context /*context*/,
 	const char *const */*realms*/,
@@ -1638,6 +1647,16 @@ krb5_h_errno_to_heim_errno (int /*eai_errno*/);
 
 krb5_boolean
 krb5_have_error_string (krb5_context /*context*/);
+
+krb5_error_code
+krb5_hmac (
+	krb5_context /*context*/,
+	krb5_cksumtype /*cktype*/,
+	const void */*data*/,
+	size_t /*len*/,
+	unsigned /*usage*/,
+	krb5_keyblock */*key*/,
+	Checksum */*result*/);
 
 krb5_error_code
 krb5_init_context (krb5_context */*context*/);

@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-RCSID("$Id: init_c.c,v 1.45 2003/04/01 15:06:41 lha Exp $");
+RCSID("$Id: init_c.c,v 1.45.2.1 2003/12/21 22:48:13 lha Exp $");
 
 static void
 set_funcs(kadm5_client_context *c)
@@ -72,24 +72,37 @@ _kadm5_c_init_context(kadm5_client_context **ctx,
     krb5_add_et_list (context, initialize_kadm5_error_table_r);
     set_funcs(*ctx);
     (*ctx)->context = context;
-    if(params->mask & KADM5_CONFIG_REALM)
+    if(params->mask & KADM5_CONFIG_REALM) {
+	ret = 0;
 	(*ctx)->realm = strdup(params->realm);
-    else
-	krb5_get_default_realm((*ctx)->context, &(*ctx)->realm);
+	if ((*ctx)->realm == NULL)
+	    ret = ENOMEM;
+    } else
+	ret = krb5_get_default_realm((*ctx)->context, &(*ctx)->realm);
+    if (ret) {
+	free(*ctx);
+	return ret;
+    }
     if(params->mask & KADM5_CONFIG_ADMIN_SERVER)
 	(*ctx)->admin_server = strdup(params->admin_server);
     else {
 	char **hostlist;
 
 	ret = krb5_get_krb_admin_hst (context, &(*ctx)->realm, &hostlist);
-	if (ret)
+	if (ret) {
+	    free((*ctx)->realm);
+	    free(*ctx);
 	    return ret;
+	}
 	(*ctx)->admin_server = strdup(*hostlist);
 	krb5_free_krbhst (context, hostlist);
     }
 
-    if ((*ctx)->admin_server == NULL)
+    if ((*ctx)->admin_server == NULL) {
 	return ENOMEM;
+	free((*ctx)->realm);
+	free(*ctx);
+    }
     colon = strchr ((*ctx)->admin_server, ':');
     if (colon != NULL)
 	*colon++ = '\0';

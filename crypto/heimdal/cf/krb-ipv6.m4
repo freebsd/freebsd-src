@@ -1,8 +1,8 @@
-dnl $Id: krb-ipv6.m4,v 1.13 2002/04/30 16:48:13 joda Exp $
+dnl $Id: krb-ipv6.m4,v 1.13.8.1 2004/04/01 07:27:34 joda Exp $
 dnl
 dnl test for IPv6
 dnl
-AC_DEFUN(AC_KRB_IPV6, [
+AC_DEFUN([AC_KRB_IPV6], [
 AC_ARG_WITH(ipv6,
 	AC_HELP_STRING([--without-ipv6],[do not enable IPv6 support]),[
 if test "$withval" = "no"; then

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "iprop.h"
 
-RCSID("$Id: truncate_log.c,v 1.1 2000/07/24 04:27:06 assar Exp $");
+RCSID("$Id: truncate_log.c,v 1.1.8.1 2003/10/14 15:58:46 joda Exp $");
 
 static char *realm;
 static int version_flag;
@@ -83,6 +83,7 @@ main(int argc, char **argv)
     server_context = (kadm5_server_context *)kadm_handle;
 
     ret = kadm5_log_truncate (server_context);
+    if(ret)
 	krb5_err (context, 1, ret, "kadm5_log_truncate");
     return 0;
 }

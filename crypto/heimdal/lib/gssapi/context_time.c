@@ -33,7 +33,31 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: context_time.c,v 1.7 2003/03/16 17:48:33 lha Exp $");
+RCSID("$Id: context_time.c,v 1.7.2.1 2003/08/15 14:25:50 lha Exp $");
+
+OM_uint32
+gssapi_lifetime_left(OM_uint32 *minor_status, 
+		     OM_uint32 lifetime,
+		     OM_uint32 *lifetime_rec)
+{
+    krb5_timestamp timeret;
+    krb5_error_code kret;
+
+    kret = krb5_timeofday(gssapi_krb5_context, &timeret);
+    if (kret) {
+	*minor_status = kret;
+	gssapi_krb5_set_error_string ();
+	return GSS_S_FAILURE;
+    }
+
+    if (lifetime < timeret) 
+	*lifetime_rec = 0;
+    else
+	*lifetime_rec = lifetime - timeret;
+
+    return GSS_S_COMPLETE;
+}
+
 
 OM_uint32 gss_context_time
            (OM_uint32 * minor_status,
@@ -42,26 +66,20 @@ OM_uint32 gss_context_time
            )
 {
     OM_uint32 lifetime;
-    OM_uint32 ret;
-    krb5_error_code kret;
-    krb5_timestamp timeret;
+    OM_uint32 major_status;
 
     GSSAPI_KRB5_INIT ();
 
-    ret = gss_inquire_context(minor_status, context_handle,
-			      NULL, NULL, &lifetime, NULL, NULL, NULL, NULL);
-    if (ret) {
-        return ret;
-    }
+    lifetime = context_handle->lifetime;
 
-    kret = krb5_timeofday(gssapi_krb5_context, &timeret);
-    if (kret) {
-	*minor_status = kret;
-	gssapi_krb5_set_error_string ();
-        return GSS_S_FAILURE;
-    }
+    major_status = gssapi_lifetime_left(minor_status, lifetime, time_rec);
+    if (major_status != GSS_S_COMPLETE)
+	return major_status;
 
-    *time_rec = lifetime - timeret;
     *minor_status = 0;
+
+    if (*time_rec == 0)
+	return GSS_S_CONTEXT_EXPIRED;
+	
     return GSS_S_COMPLETE;
 }

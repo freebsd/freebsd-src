@@ -1,3 +1,31 @@
+2004-03-14  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ftpd.c: 1.169: (main): setpag if there is krb4 OR krb5
+	support
+
+2003-08-20  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ftpd.8: 1.20->1.21: document --gss-bindings
+	
+	* ftpd/ftpd.c: 1.166->1.168: wrap gssapi stuff with KRB5,
+	(args): add gss-bindings
+
+	* ftp/main.c: 1.33->1.35: wrap gssapi stuff with KRB5,
+	(args): add gss-bindings
+	(main): set ftp_do_gss_bindings to 1 to make client use them
+	
+	* ftp/security.h: 1.9->1.10: add ftp_do_gss_bindings
+	
+	* ftp/gssapi.c: 1.24->1.25: Optionally support gss bindings,
+	client does it by default, server not.  This is to make it work
+	for clients behind NAT.
+
+	* ftp/ftp.1: 1.12->1.15: gssapi bindings + madoc fixes
+	
+2003-08-15  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftp/gssapi.c: 1.23->1.24: (gss_adat): fix name allocation bug
+	
 2003-04-16  Love Hörnquist Åstrand <lha@it.su.se>
 
 	* ftpd/ftpd.c: make sure argument to is* functions are unsigned

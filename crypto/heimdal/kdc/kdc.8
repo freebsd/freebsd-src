@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\"
-.\" $Id: kdc.8,v 1.23 2003/04/06 17:48:40 lha Exp $
+.\" $Id: kdc.8,v 1.23.2.1 2003/10/21 20:06:01 lha Exp $
 .\"
-.Dd August 22, 2002
+.Dd October 21, 2003
 .Dt KDC 8
 .Os HEIMDAL
 .Sh NAME
@@ -185,6 +185,10 @@ Permit tickets with no addresses.
 This option is only relevant when check-ticket-addresses is TRUE.
 .It Li allow-anonymous = Va boolean
 Permit anonymous tickets with no addresses.
+.It Li enforce-transited-policy = Va boolean
+Always verify the transited policy, ignoring the
+.Va disable-transited-check 
+flag if set in the KDC client request.
 .It encode_as_rep_as_tgs_rep = Va boolean
 Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE code.
 The Heimdal clients allow both.

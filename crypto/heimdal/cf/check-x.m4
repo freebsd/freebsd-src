@@ -1,9 +1,9 @@
 dnl 
 dnl See if there is any X11 present
 dnl
-dnl $Id: check-x.m4,v 1.2 1999/11/05 04:25:23 assar Exp $
+dnl $Id: check-x.m4,v 1.2.20.1 2004/04/01 07:27:33 joda Exp $
 
-AC_DEFUN(KRB_CHECK_X,[
+AC_DEFUN([KRB_CHECK_X],[
 AC_PATH_XTRA
 
 # try to figure out if we need any additional ld flags, like -R

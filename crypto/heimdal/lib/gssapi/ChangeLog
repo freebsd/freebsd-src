@@ -1,3 +1,72 @@
+2003-12-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c: 1.40->1.41: Don't require timestamp to be
+	set on delegated token, its already protected by the outer token
+	(and windows doesn't alway send it) Pointed out by Zi-Bin Yang
+	<zbyang@decru.com> on heimdal-discuss
+
+2003-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* add_cred.c: 1.3->1.4: If its a MEMORY cc, make a copy. We need
+	to do this since now gss_release_cred will destroy the cred. This
+	should be really be solved a better way.
+	
+2003-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* release_cred.c: 1.9->1.10:
+	(gss_release_cred): if its a mcc, destroy it rather the just release it
+	Found by: "Zi-Bin Yang" <zbyang@decru.com>
+	
+2003-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c: 1.13->1.14: remove depenency on gss_arcfour_mic_token
+	and gss_arcfour_warp_token
+	
+	* arcfour.h: 1.3->1.4: remove depenency on gss_arcfour_mic_token
+	and gss_arcfour_warp_token
+
+	* arcfour.c: make build
+	
+	* get_mic.c, verify_mic.c, unwrap.c, wrap.c:
+	glue in arcfour support
+
+	* gssapi_locl.h: 1.32->1.33: add _gssapi_verify_pad
+	
+2003-09-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* encapsulate.c: add _gssapi_make_mech_header
+	
+	* gssapi_locl.h: add "arcfour.h" and prototype for
+	_gssapi_make_mech_header
+
+	* gssapi_locl.h: add gssapi_{en,de}code_{be_,}om_uint32
+	
+	* 8003.c: 1.12->1.13: export and rename
+	encode_om_uint32/decode_om_uint32 and start to use them
+	
+2003-08-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c: 1.21->1.22: make sure minor_status is always set,
+	pointed out by Luke Howard <lukeh@PADL.COM>
+	
+2003-08-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* context_time.c: 1.7->1.10: return time in seconds from now
+	
+	* gssapi_locl.h: add gssapi_lifetime_left
+	
+	* init_sec_context.c: part of 1.37->1.38: (init_auth): if the cred
+	is expired before we tries to create a token, fail so the peer
+	doesn't need reject us
+	(*): make sure time is returned in seconds from now, not in
+	kerberos time
+
+	* acquire_cred.c: 1.14->1.15: (gss_aquire_cred): make sure time is
+	returned in seconds from now, not in kerberos time
+	
+	* accept_sec_context.c: 1.34->1.35: (gss_accept_sec_context): make
+	sure time is returned in seconds from now, not in kerberos time
+	
 2003-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
 
 	* gssapi.h: 1.27->1.28:
