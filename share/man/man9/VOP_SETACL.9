@@ -83,9 +83,9 @@ appropriate error code is returned.
 .It Bq Er EINVAL
 The ACL type passed is invalid for this vnode, or the ACL data is invalid.
 .It Bq Er EACCES
-Permission denied
+The the caller does not have the appropriate privilege.
 .It Bq Er ENOMEM
-Insufficient memory available to fulfill request
+Sufficient memory is not available to fulfill the request.
 .It Bq Er EOPNOTSUPP
 The filesystem does not support
 .Fn VOP_SETACL .
