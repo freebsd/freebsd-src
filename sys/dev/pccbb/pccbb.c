@@ -483,7 +483,7 @@ cbb_chipinit(struct cbb_softc *sc)
 		/*
 		 * Disable zoom video.  Some machines initialize this
 		 * improperly and exerpience has shown that this helps
-		 * on some machines.
+		 * prevent strange behavior.
 		 */
 		pci_write_config(sc->dev, CBBR_MMCTRL, 0, 4);
 		break;
@@ -494,7 +494,7 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * in addition to the ISA IRQ being generated, INT#
 		 * will also be generated at the same time.
 		 *
-		 * Some of our older controllers have an issue in
+		 * Some of the older controllers have an issue in
 		 * which the slot's PCI INT# will be asserted whenever
 		 * IREQ# or STSCGH# is asserted even if ExCA registers
 		 * 03h or 05h have an ISA IRQ selected.
