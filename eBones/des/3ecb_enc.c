@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: 3ecb_enc.c,v 1.2 1994/07/19 19:21:38 g89r4222 Exp $
+ *	$Id: 3ecb_enc.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
  */
 
 #include "des_locl.h"
@@ -13,7 +13,7 @@ des_cblock *output;
 des_key_schedule ks1,ks2;
 int encrypt;
 	{
-	register unsigned long l0,l1,t;
+	register unsigned long l0,l1;
 	register unsigned char *in,*out;
 	unsigned long ll[2];
 
