@@ -40,7 +40,9 @@ static void isp_action(struct cam_sim *, union ccb *);
 static void isp_relsim(void *);
 
 /* #define	ISP_LUN0_ONLY	1 */
-#ifdef	CAMDEBUG
+#ifdef	DEBUG
+int isp_debug = 2;
+#elif defined(CAMDEBUG) || defined(DIAGNOSTIC)
 int isp_debug = 1;
 #else
 int isp_debug = 0;
@@ -103,7 +105,7 @@ isp_attach(struct ispsoftc *isp)
 	/*
 	 * If we have a second channel, construct SIM entry for that.
 	 */
-	if (IS_12X0(isp)) {
+	if (IS_DUALBUS(isp)) {
 		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
 		    isp->isp_unit, 1, isp->isp_maxcmds, devq);
 		if (sim == NULL) {
