@@ -1,11 +1,9 @@
-# Makefile for which
-# $Id: Makefile,v 1.6 1995/01/24 17:58:35 bde Exp $
+#	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
-NOOBJ=	yes
-SRCS=
+MAN1=	which.1
 
-afterinstall:
-	install -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
-		which.pl $(DESTDIR)$(BINDIR)/which
+beforeinstall:
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/which.pl ${DESTDIR}/${BINDIR}/which
 
 .include <bsd.prog.mk>
