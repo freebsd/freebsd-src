@@ -138,7 +138,7 @@ struct power {
 };
 
 /*
- *	Th PC-Card resource IOC_GET_RESOURCE_RANGE
+ *	The PC-Card resource IOC_GET_RESOURCE_RANGE
  */
 struct pccard_resource {
 	int		type;
