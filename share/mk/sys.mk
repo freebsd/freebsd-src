@@ -89,19 +89,21 @@ YFLAGS		?=	-d
 .s.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
+# XXX not -j safe
 .y.o:
-	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
-	${CC} ${CFLAGS} -c ${.PREFIX}.tab.c -o ${.TARGET}
-	rm -f ${.PREFIX}.tab.c
+	${YACC} ${YFLAGS} ${.IMPSRC}
+	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
+	rm -f y.tab.c
 
 .l.o:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 
+# XXX not -j safe
 .y.c:
-	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
-	mv ${.PREFIX}.tab.c ${.TARGET}
+	${YACC} ${YFLAGS} ${.IMPSRC}
+	mv y.tab.c ${.TARGET}
 
 .l.c:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
@@ -114,10 +116,11 @@ YFLAGS		?=	-d
 	    ${LDLIBS} -o ${.TARGET}
 	rm -f ${.PREFIX}.o
 
+# XXX not -j safe
 .y.out:
-	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
-	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tab.c ${LDLIBS} -ly -o ${.TARGET}
-	rm -f ${.PREFIX}.tab.c
+	${YACC} ${YFLAGS} ${.IMPSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
+	rm -f y.tab.c
 
 .l.out:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
