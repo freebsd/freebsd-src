@@ -123,14 +123,14 @@ verify_track(int fd, int track, int tracksize)
 static const char *
 makename(const char *arg, const char *suffix)
 {
-	static char namebuff[20];	/* big enough for "/dev/rfd0a"... */
+	static char namebuff[20];	/* big enough for "/dev/fd0a"... */
 
 	memset(namebuff, 0, 20);
 	if(*arg == '\0') /* ??? */
 		return arg;
 	if(*arg == '/')  /* do not convert absolute pathnames */
 		return arg;
-	strcpy(namebuff, "/dev/r");
+	strcpy(namebuff, "/dev/");
 	strncat(namebuff, arg, 3);
 	strcat(namebuff, suffix);
 	return namebuff;
