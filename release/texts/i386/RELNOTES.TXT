@@ -86,7 +86,7 @@ are now available with the GENERIC kernel. [MERGED]
 
 A driver for AGP hardware has been added. [MERGED]
 
-ipfilter has been updated to 3.4.9.
+ipfilter has been updated to 3.4.12.
 
 Various fixes and improvements to the IPv6 code have been merged in
 from the KAME project, including significantly-improved IPSEC
@@ -219,6 +219,12 @@ The ncv, nsp, and stg drivers have been ported from NetBSD/pc98.
 They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
 based PC-Card/ISA SCSI controllers.
 
+The cd(4) driver now has support for write operations.  This allows
+writing to DVD-RAM, PD and similar drives that probe as CD devices.
+Note that change affects only random-access writeable devices, not
+sequential-only writeable devices such as CD-R drives, which are
+supported by cdrecord.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -269,7 +275,7 @@ handle DSA keys.  An sftp server interoperable with ssh.com clients
 and others has been added.  scp(1) can now handle files >2GB.
 Interoperability with other ssh2 clients/servers has been improved.  A
 new feature to limit the number of outstanding unauthenticated ssh
-connections in sshd has been added.
+connections in sshd has been added. [MERGED]
 
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
@@ -387,7 +393,7 @@ setproctitle(3) has been moved from libutil to libc. [MERGED]
 
 chio(1) now has the ability to specify elements by volume tag instead
 of by their physical location as well as the ability to return an
-element to its previous location.
+element to its previous location. [MERGED]
 
 sed(1) now takes a -E option for extended regular expression
 support. [MERGED]
@@ -428,10 +434,14 @@ gperf has been updated to 2.7.2.
 style.perl.7, a style guide for Perl code in the FreeBSD base system,
 has been added.
 
-The ISC library from the BIND distribution is now built as libisc.
+The ISC library from the BIND distribution is now built as
+libisc. [MERGED]
 
 The "in use" percentage metric displayed by netstat(1) now really
 reflects the percentage of network mbufs used. [MERGED]
+
+mergemaster(8) has gained some new features, has been cleaned up
+somewhat, and is now more cross-platform friendly.
 
 
 2. Supported Configurations
