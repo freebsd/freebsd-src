@@ -539,6 +539,7 @@ vendor AMD			-1	AMD
 vendor BILLIONTON		-1	Billionton Systems Inc.
 vendor CNET			-1	CNet
 vendor COREGA			-1	Corega K.K.
+vendor DIGITAL2			-1 	Digital Equipment Corporation
 vendor DLINK			-1 	D-Link
 vendor DYNALINK			-1	DynaLink
 vendor EIGERLABS		-1	Eiger labs,Inc.
@@ -593,7 +594,7 @@ product COREGA WIRELESS_LAN_PCCA_11	{ "corega&spK.K.", "Wireless&spLAN&spPCCA-11
 product COREGA WIRELESS_LAN_PCCB_11	{ "corega_K.K.", "Wireless_LAN_PCCB-11", NULL, NULL } Corega Wireless LAN PCCB-11
 product COREGA WIRELESS_LAN_PCCL_11    { "corega", "WL&spPCCL-11", NULL, NULL } Corega Wireless LAN PCCL-11
 
-product DIGITAL DEPCMXX		{ "DIGITAL", "DEPCM-XX", NULL, NULL } DEC DEPCM-BA
+product DIGITAL2 DEPCMXX	{ "DIGITAL", "DEPCM-XX", NULL, NULL } DEC DEPCM-BA
 product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
 product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
