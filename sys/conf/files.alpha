@@ -170,6 +170,7 @@ dev/syscons/sysmouse.c		optional	sc
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/fd.c			optional	fd
+isa/ppc.c                       optional        ppc
 isa/psm.c			optional	psm
 isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
