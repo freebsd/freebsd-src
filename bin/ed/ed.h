@@ -237,7 +237,7 @@ void lpqueue __P((line_t *));
 void makekey __P((char *));
 char *makesub __P((int));
 char *translit __P((char *, int, int, int));
-int move __P((long));
+int move __P((long, int));
 int oddesc __P((char *, char *));
 void onhup __P((int));
 void onintr __P((int));
@@ -253,7 +253,7 @@ int catsub __P((char *, regmatch_t *, int));
 int subst __P((pattern_t *, int));
 int tobinhex __P((int, int));
 int transfer __P((long));
-int undo __P((void));
+int undo __P((int));
 undo_t *upush __P((int, long, long));
 void ureset __P((void));
 
