@@ -21,6 +21,12 @@ o Major changes from -current's pthread implementation merged: This includes
   file locking based on FILE *, signal fixes, read/write-locks, better POSIX
   compliance and better performance.
 
+o Add a new flexible bandwidth limiter/delay emulator called
+  dummynet. See dummynet(4).
+
+o Add support for bridging on multiple interfaces (10 and 100 Mbit/s).
+  See bridge(4).
+
 
 Userland features:
 ------------------
