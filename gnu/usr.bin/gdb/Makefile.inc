@@ -19,6 +19,10 @@ OBJ_GDB= ${OBJ_ROOT}/gdb
 TARGET_ARCH?= ${MACHINE_ARCH}
 TARGET_SUBDIR= ${BMAKE_GDB}/arch/${TARGET_ARCH}
 
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+GDB_CROSS_DEBUGGER=
+.endif
+
 .if !defined(INFO)
 
 .PATH:	${CNTRB_GDB}/gdb ${CNTRB_GDB}/gdb/cli ${CNTRB_GDB}/gdb/mi	\
