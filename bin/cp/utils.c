@@ -133,7 +133,8 @@ copy_file(const FTSENT *entp, int dne)
 	 * wins some CPU back.
 	 */
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-	if (S_ISREG(fs->st_mode) && fs->st_size <= 8 * 1048576) {
+	if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
+	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
 			warn("%s", entp->fts_path);
