@@ -106,54 +106,7 @@ int		 mac_set_proc(const mac_t _label);
 int		 mac_syscall(const char *_policyname, int _call, void *_arg);
 int		 mac_to_text(mac_t mac, char **_text);
 
-#endif /* !_KERNEL */
-
-/*
- * XXXMAC: For compatibility until the labels on disk are changed.  We
- * will enable the definitions in various policy include files once
- * these can be disabled.
- */
-
-#define	MAC_BIBA_MAX_COMPARTMENTS	256
-
-struct mac_biba_element {
-	u_short	mbe_type;
-	u_short	mbe_grade;
-	u_char	mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
-};
-
-struct mac_biba {
-	int			mb_flags;
-	struct mac_biba_element	mb_single;
-	struct mac_biba_element	mb_rangelow, mb_rangehigh;
-};
-
-#define	MAC_MLS_MAX_COMPARTMENTS	256
-
-struct mac_mls_element {
-	u_short	mme_type;
-	u_short	mme_level;
-	u_char	mme_compartments[MAC_MLS_MAX_COMPARTMENTS >> 3];
-};
-
-struct mac_mls {
-	int			mm_flags;
-	struct mac_mls_element	mm_single;
-	struct mac_mls_element	mm_rangelow, mm_rangehigh;
-};
-
-struct mac_sebsd {
-	uint32_t	ms_psid;
-};
-
-struct oldmac {
-	int			m_macflags;
-	struct mac_biba		m_biba;
-	struct mac_mls		m_mls;
-	struct mac_sebsd	m_sebsd;
-};
-
-#ifdef _KERNEL
+#else /* _KERNEL */
 
 /*
  * Kernel functions to manage and evaluate labels.
@@ -373,6 +326,6 @@ int	mac_pipe_label_set(struct ucred *cred, struct pipe *pipe,
  */
 int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
-#endif /* _KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_MAC_H */
