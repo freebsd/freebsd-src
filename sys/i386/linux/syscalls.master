@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.9 1998/03/29 07:53:19 peter Exp $
+	$Id: syscalls.master,v 1.10 1998/03/29 07:59:10 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -22,10 +22,10 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
+#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
