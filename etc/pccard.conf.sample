@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.24.2.5 1999/04/25 10:29:58 brian Exp $
+# $Id: pccard.conf.sample,v 1.24.2.6 1999/05/03 19:09:58 brian Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -471,3 +471,11 @@ card "AT&T" "V34+ Fax Modem"
 # Motorola Montana 
 card "Motorola" "MONTANA 33.6 FAX/MODEM"
 	config 0x21 "sio1" 10
+
+# AmbiCom 10BaseT card
+card "AmbiCom Inc" "AMB8002T"
+	config 0x20 "ed0" 11
+	insert echo AmbiCom 8002T inserted
+	insert /etc/pccard_ether ed0
+	remove echo AmbiCom 8002T removed
+	remove /sbin/ifconfig ed0 delete
