@@ -59,11 +59,13 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 void	login_protect	__P((char *, char *, int, uid_t, gid_t));
@@ -91,7 +93,7 @@ gid_t   gid;
 	return;
 
     while (fgets(buf, sizeof(buf), fp)) {
-	if (cp = strchr(buf, '#'))
+	if ((cp = strchr(buf, '#')))
 	    *cp = 0;				/* strip comment */
 	if ((cp = devname = strtok(buf, WSPACE)) == 0)
 	    continue;				/* empty or comment */

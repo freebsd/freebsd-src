@@ -9,7 +9,7 @@
 
 #ifdef LOGIN_ACCESS
 #ifndef lint
-static char sccsid[] = "%Z% %M% %I% %E% %U%";
+static const char sccsid[] = "%Z% %M% %I% %E% %U%";
 #endif
 
 #include <stdio.h>

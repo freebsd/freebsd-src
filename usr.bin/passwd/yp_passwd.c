@@ -45,6 +45,7 @@
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 #include <pw_yp.h>
+#include <err.h>
 #include "yppasswd_private.h"
 
 extern char *getnewpasswd __P(( struct passwd * , int ));
@@ -52,7 +53,6 @@ extern char *getnewpasswd __P(( struct passwd * , int ));
 int
 yp_passwd(char *user)
 {
-	struct timeval timeout;
 	struct yppasswd yppasswd;
 	struct master_yppasswd master_yppasswd;
 	struct passwd *pw;
