@@ -2831,6 +2831,14 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	loc &= ~15;
 	db_read_bundle(loc, &b);
 
+	/*
+	 * The uses a Restart Instruction value of one to represent
+	 * the L+X slot of an MLX template bundle but the opcode is
+	 * actually in slot two.
+	 */
+	if ((b.template == 4 || b.template == 5) && slot == 1)
+		slot = 2;
+
 	if (b.slot[slot] & 63)
 		db_printf("(p%ld) ", b.slot[slot] & 63);
 	(prints[b.template][slot])(loc, b.slot[slot], altfmt);
@@ -2839,9 +2847,13 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	else
 		db_printf("\n");
 
+	/*
+	 * Handle MLX bundles by advancing from slot one to the
+	 * following bundle.
+	 */
 	if (b.template == 4 || b.template == 5) {
 		if (slot == 0)
-			loc += 2;
+			loc += 1;
 		else
 			loc += 16;
 	} else {
