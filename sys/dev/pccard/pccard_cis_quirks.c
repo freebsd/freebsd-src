@@ -1,4 +1,4 @@
-/*	$NetBSD: pcmcia_cis_quirks.c,v 1.3 1998/12/29 09:00:28 marc Exp $	*/
+/*	$NetBSD: pcmcia_cis_quirks.c,v 1.5 1999/10/11 17:50:21 thorpej Exp $	*/
 /* $FreeBSD$ */
 
 #define	PCCARDDEBUG
@@ -98,6 +98,48 @@ static struct pccard_config_entry pccard_3cxem556_func1_cfe0 = {
 	0,			/* maxtwins */
 };
 
+static struct pccard_function pccard_3ccfem556bi_func0 = {
+	0,			/* function number */
+	PCCARD_FUNCTION_NETWORK,
+	0x07,			/* last cfe number */
+	0x1000,			/* ccr_base */
+	0x267,			/* ccr_mask */
+};
+
+static struct pccard_config_entry pccard_3ccfem556bi_func0_cfe0 = {
+	0x07,			/* cfe number */
+	PCCARD_CFE_IO8 | PCCARD_CFE_IO16 | PCCARD_CFE_IRQLEVEL,
+	PCCARD_IFTYPE_IO,
+	1,			/* num_iospace */
+	5,			/* iomask */
+	{ { 0x0020, 0 } },	/* iospace */
+	0xffff,			/* irqmask */
+	0,			/* num_memspace */
+	{ },			/* memspace */
+	0,			/* maxtwins */
+};
+
+static struct pccard_function pccard_3ccfem556bi_func1 = {
+	1,			/* function number */
+	PCCARD_FUNCTION_SERIAL,
+	0x27,			/* last cfe number */
+	0x1100,			/* ccr_base */
+	0x277,			/* ccr_mask */
+};
+
+static struct pccard_config_entry pccard_3ccfem556bi_func1_cfe0 = {
+	0x27,			/* cfe number */
+	PCCARD_CFE_IO8 | PCCARD_CFE_IRQLEVEL,
+	PCCARD_IFTYPE_IO,
+	1,			/* num_iospace */
+	3,			/* iomask */
+	{ { 0x0008, 0 } },	/* iospace */
+	0xffff,			/* irqmask */
+	0,			/* num_memspace */
+	{ },			/* memspace */
+	0,			/* maxtwins */
+};
+
 static struct pccard_function pccard_sveclancard_func0 = {
 	0,			/* function number */
 	PCCARD_FUNCTION_NETWORK,
@@ -125,6 +167,16 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
 	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556, PCCARD_CIS_INVALID,
 	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },
+	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556INT, PCCARD_CIS_INVALID, 
+	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
+	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556INT, PCCARD_CIS_INVALID,
+	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },
+	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CCFEM556BI,
+	  PCCARD_CIS_INVALID,
+	  &pccard_3ccfem556bi_func0, &pccard_3ccfem556bi_func0_cfe0 },
+	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CCFEM556BI,
+	  PCCARD_CIS_INVALID,
+	  &pccard_3ccfem556bi_func1, &pccard_3ccfem556bi_func1_cfe0 },
 	{ PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, PCCARD_CIS_SVEC_LANCARD,
 	  &pccard_sveclancard_func0, &pccard_sveclancard_func0_cfe0 },
 };
