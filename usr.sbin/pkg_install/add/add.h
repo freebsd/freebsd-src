@@ -23,6 +23,8 @@
 #ifndef _INST_ADD_H_INCLUDE
 #define _INST_ADD_H_INCLUDE
 
+typedef enum { NORMAL, MASTER, SLAVE } add_mode_t;
+
 extern char	*Prefix;
 extern Boolean	NoInstall;
 extern Boolean	NoRecord;
@@ -31,6 +33,8 @@ extern char	*Owner;
 extern char	*Group;
 extern char	*Directory;
 extern char	*PkgName;
+extern char	*PlayPen;
+extern add_mode_t AddMode;
 
 int		make_hierarchy(char *);
 void		extract_plist(char *, Package *);
