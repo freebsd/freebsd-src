@@ -99,6 +99,9 @@
 #define	UQUAD_MAX	ULLONG_MAX	/* max value for a uquad_t */
 #define	QUAD_MAX	LLONG_MAX	/* max value for a quad_t */
 #define	QUAD_MIN	LLONG_MIN	/* min value for a quad_t */
+
+#define LONG_BIT	32
+
 #endif /* !_POSIX_SOURCE */
 #endif /* !_ANSI_SOURCE */
 
