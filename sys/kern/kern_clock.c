@@ -479,7 +479,7 @@ statclock(frame)
 			rss = pgtok(vmspace_resident_count(vm));
 			if (ru->ru_maxrss < rss)
 				ru->ru_maxrss = rss;
-        	}
+		}
 	}
 }
 
@@ -869,37 +869,56 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
 int
 pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 {
-        pps_params_t *app;
-        pps_info_t *api;
+	pps_params_t *app;
+	struct pps_fetch_args *fapi;
+	struct pps_kcbind_args *kapi;
 
-        switch (cmd) {
-        case PPS_IOC_CREATE:
-                return (0);
-        case PPS_IOC_DESTROY:
-                return (0);
-        case PPS_IOC_SETPARAMS:
-                app = (pps_params_t *)data;
-                if (app->mode & ~pps->ppscap)
-                        return (EINVAL);
-                pps->ppsparam = *app;         
-                return (0);
-        case PPS_IOC_GETPARAMS:
-                app = (pps_params_t *)data;
-                *app = pps->ppsparam;
-                return (0);
-        case PPS_IOC_GETCAP:
-                *(int*)data = pps->ppscap;
-                return (0);
-        case PPS_IOC_FETCH:
-                api = (pps_info_t *)data;
-                pps->ppsinfo.current_mode = pps->ppsparam.mode;         
-                *api = pps->ppsinfo;
-                return (0);
-        case PPS_IOC_WAIT:
-                return (EOPNOTSUPP);
-        default:
-                return (ENOTTY);
-        }
+	switch (cmd) {
+	case PPS_IOC_CREATE:
+		return (0);
+	case PPS_IOC_DESTROY:
+		return (0);
+	case PPS_IOC_SETPARAMS:
+		app = (pps_params_t *)data;
+		if (app->mode & ~pps->ppscap)
+			return (EINVAL);
+		pps->ppsparam = *app;         
+		return (0);
+	case PPS_IOC_GETPARAMS:
+		app = (pps_params_t *)data;
+		*app = pps->ppsparam;
+		app->api_version = PPS_API_VERS_1;
+		return (0);
+	case PPS_IOC_GETCAP:
+		*(int*)data = pps->ppscap;
+		return (0);
+	case PPS_IOC_FETCH:
+		fapi = (struct pps_fetch_args *)data;
+		if (fapi->tsformat && fapi->tsformat != PPS_TSFMT_TSPEC)
+			return (EINVAL);
+		if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec)
+			return (EOPNOTSUPP);
+		pps->ppsinfo.current_mode = pps->ppsparam.mode;         
+		fapi->pps_info_buf = pps->ppsinfo;
+		return (0);
+	case PPS_IOC_KCBIND:
+#ifdef PPS_SYNC
+		kapi = (struct pps_kcbind_args *)data;
+		/* XXX Only root should be able to do this */
+		if (kapi->tsformat && kapi->tsformat != PPS_TSFMT_TSPEC)
+			return (EINVAL);
+		if (kapi->kernel_consumer != PPS_KC_HARDPPS)
+			return (EINVAL);
+		if (kapi->edge & ~pps->ppscap)
+			return (EINVAL);
+		pps->kcmode = kapi->edge;
+		return (0);
+#else
+		return (EOPNOTSUPP);
+#endif
+	default:
+		return (ENOTTY);
+	}
 }
 
 void
@@ -910,12 +929,6 @@ pps_init(struct pps_state *pps)
 		pps->ppscap |= PPS_OFFSETASSERT;
 	if (pps->ppscap & PPS_CAPTURECLEAR)
 		pps->ppscap |= PPS_OFFSETCLEAR;
-#ifdef PPS_SYNC
-	if (pps->ppscap & PPS_CAPTUREASSERT)
-		pps->ppscap |= PPS_HARDPPSONASSERT;
-	if (pps->ppscap & PPS_CAPTURECLEAR)
-		pps->ppscap |= PPS_HARDPPSONCLEAR;
-#endif
 }
 
 void
@@ -932,14 +945,14 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 		tsp = &pps->ppsinfo.assert_timestamp;
 		osp = &pps->ppsparam.assert_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETASSERT;
-		fhard = pps->ppsparam.mode & PPS_HARDPPSONASSERT;
+		fhard = pps->kcmode & PPS_CAPTUREASSERT;
 		pcount = &pps->ppscount[0];
 		pseq = &pps->ppsinfo.assert_sequence;
 	} else {
 		tsp = &pps->ppsinfo.clear_timestamp;
 		osp = &pps->ppsparam.clear_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETCLEAR;
-		fhard = pps->ppsparam.mode & PPS_HARDPPSONCLEAR;
+		fhard = pps->kcmode & PPS_CAPTURECLEAR;
 		pcount = &pps->ppscount[1];
 		pseq = &pps->ppsinfo.clear_sequence;
 	}
@@ -977,7 +990,7 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 
 	(*pseq)++;
 	*tsp = ts;
-	
+
 	if (foff) {
 		timespecadd(tsp, osp);
 		if (tsp->tv_nsec < 0) {
@@ -998,4 +1011,3 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	}
 #endif
 }
-
