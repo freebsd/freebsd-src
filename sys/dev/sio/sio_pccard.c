@@ -40,17 +40,27 @@
 #include <machine/resource.h>
 #include <sys/timepps.h>
 
+#include <dev/pccard/pccardreg.h>
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+
 #include <dev/sio/siovar.h>
 
 static	int	sio_pccard_attach __P((device_t dev));
 static	int	sio_pccard_detach __P((device_t dev));
+static	int	sio_pccard_match __P((device_t self));
 static	int	sio_pccard_probe __P((device_t dev));
 
 static device_method_t sio_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		sio_pccard_probe),
-	DEVMETHOD(device_attach,	sio_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	sio_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	sio_pccard_match),
+	DEVMETHOD(card_compat_probe,	sio_pccard_probe),
+	DEVMETHOD(card_compat_attach,	sio_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -60,6 +70,24 @@ static driver_t sio_pccard_driver = {
 	sio_pccard_methods,
 	sizeof(struct com_s),
 };
+
+static int
+sio_pccard_match(device_t dev)
+{
+	int		error = 0;
+	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	/*
+	 * If a serial card, we are likely the right driver.
+	 */
+	if (fcn == PCCARD_FUNCTION_SERIAL)
+		return (0);
+
+	return(ENXIO);
+}
 
 static int
 sio_pccard_probe(dev)
