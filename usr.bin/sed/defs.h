@@ -134,12 +134,3 @@ typedef struct {
 	char *back;		/* Backing memory. */
 	size_t blen;		/* Backing memory length. */
 } SPACE;
-
-/*
- * Error severity codes:
- */
-#define	FATAL		0	/* Exit immediately with 1 */
-#define	ERROR		1	/* Continue, but change exit value */
-#define	WARNING		2	/* Just print the warning */
-#define	COMPILE		3	/* Print error, count and finish script */
-#define	COMPILE2	3	/* Print error, count and finish script */
