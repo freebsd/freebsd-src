@@ -2,7 +2,7 @@
 /*
  * Machine and OS Independent Target Mode Code for the Qlogic SCSI/FC adapters.
  *
- * Copyright (c) 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1999, 2000, 2001 by Matthew Jacob
  * All rights reserved.
  * mjacob@feral.com
  *
@@ -87,7 +87,7 @@ static void isp_handle_ctio2(struct ispsoftc *, ct2_entry_t *);
  * The third group that can show up in the response queue are Immediate
  * Notification events. These include things like notifications of SCSI bus
  * resets, or Bus Device Reset messages or other messages received. This
- * a classic oddbins area. It can get  a little wierd because you then turn
+ * a classic oddbins area. It can get  a little weird because you then turn
  * around and acknowledge the Immediate Notify by writing an entry onto the
  * request queue and then the f/w turns around and gives you an acknowledgement
  * to *your* acknowledgement on the response queue (the idea being to let
@@ -420,7 +420,7 @@ isp_target_put_atio(isp, iid, tgt, lun, ttype, tval)
  */
 
 int
-isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int32_t hdl)
+isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 {
 	int sts;
 	union {
@@ -467,6 +467,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int32_t hdl)
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		cto->ct_header.rqs_entry_count = 1;
+		cto->ct_fwhandle = aep->at_handle;
 		cto->ct_iid = aep->at_iid;
 		cto->ct_tgt = aep->at_tgt;
 		cto->ct_lun = aep->at_lun;
