@@ -246,20 +246,40 @@ Dev:
 	;
 
 Device_spec:
-	DEVICE Dev
+	DEVICE Dev_list
+		|
+	NODEVICE NoDev_list
+		;
+
+Dev_list:
+	Dev_list COMMA Device
+		|
+	Device
+		;
+
+NoDev_list:
+	NoDev_list COMMA NoDevice
+		|
+	NoDevice
+		;
+
+Device:
+	Dev
 	      = {
-		newopt(&opt, devopt($2), ns("1"));
+		newopt(&opt, devopt($1), ns("1"));
 		/* and the device part */
-		newdev($2);
-		} |
-	NODEVICE Dev
+		newdev($1);
+		}
+
+NoDevice:
+	Dev
 	      = {
-		char *s = devopt($2);
+		char *s = devopt($1);
 
 		rmopt(&opt, s);
 		free(s);
 		/* and the device part */
-		rmdev($2);
+		rmdev($1);
 		} ;
 
 %%
