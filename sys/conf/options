@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.10 1998/03/06 23:43:58 julian Exp $
+#	$Id: options,v 1.18.2.11 1998/06/05 21:38:02 julian Exp $
 
 # Format:
 # Option name	filename
@@ -111,3 +111,6 @@ DPT_HANDLE_TIMEOUTS      opt_dpt.h
 DPT_ALLOW_MEMIO          opt_dpt.h
 DPT_HINTR_CHECK_SOFTC    opt_dpt.h
 TCPDEBUG
+PPP_BSDCOMP		opt_ppp.h
+PPP_DEFLATE		opt_ppp.h
+PPP_FILTER		opt_ppp.h

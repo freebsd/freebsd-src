@@ -40,19 +40,14 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * from: Id: bsd-comp.c,v 1.11 1995/07/04 03:35:11 paulus Exp
- * $Id: bsd_comp.c,v 1.3 1995/10/31 20:51:22 peter Exp $
+ * $Id: bsd_comp.c,v 1.10 1997/10/28 15:58:29 bde Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_types.h>
 #include <net/ppp_defs.h>
-#include <net/if_ppp.h>
 
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>
@@ -207,7 +202,6 @@ bsd_clear(db)
     db->ratio = 0;
     db->bytes_out = 0;
     db->in_count = 0;
-    db->incomp_count = 0;
     db->checkpoint = CHECK_GAP;
 }
 
@@ -315,7 +309,7 @@ bsd_alloc(options, opt_len, decomp)
     u_int newlen, hsize, hshift, maxmaxcode;
     struct bsd_db *db;
 
-    if (opt_len != CILEN_BSD_COMPRESS || options[0] != CI_BSD_COMPRESS
+    if (opt_len < CILEN_BSD_COMPRESS || options[0] != CI_BSD_COMPRESS
 	|| options[1] != CILEN_BSD_COMPRESS
 	|| BSD_VERSION(options[2]) != BSD_CURRENT_VERSION)
 	return NULL;
@@ -413,11 +407,11 @@ bsd_init(db, options, opt_len, unit, hdrlen, mru, debug, decomp)
 {
     int i;
 
-    if (opt_len != CILEN_BSD_COMPRESS || options[0] != CI_BSD_COMPRESS
+    if (opt_len < CILEN_BSD_COMPRESS || options[0] != CI_BSD_COMPRESS
 	|| options[1] != CILEN_BSD_COMPRESS
 	|| BSD_VERSION(options[2]) != BSD_CURRENT_VERSION
 	|| BSD_NBITS(options[2]) != db->maxbits
-	|| decomp && db->lens == NULL)
+	|| (decomp && db->lens == NULL))
 	return 0;
 
     if (decomp) {
@@ -715,7 +709,6 @@ bsd_incomp(state, dmsg)
     if (ent < 0x21 || ent > 0xf9)
 	return;
 
-    db->incomp_count++;
     db->seqno++;
     ilen = 1;		/* count the protocol as 1 byte */
     rptr += PPP_HDRLEN;
@@ -945,7 +938,7 @@ bsd_decompress(state, cmp, dmpp)
 	}
 
 	if (incode > max_ent + 2 || incode > db->maxmaxcode
-	    || incode > max_ent && oldcode == CLEAR) {
+	    || (incode > max_ent && oldcode == CLEAR)) {
 	    m_freem(mret);
 	    if (db->debug) {
 		printf("bsd_decomp%d: bad code 0x%x oldcode=0x%x ",
