@@ -27,24 +27,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Linux/i386-specific system call handling.  Given how much of this code
  * is taken from the freebsd equivalent, I can probably put even more of
  * it in support routines that can be used by any personality support.
  */
-/*
- * $Id: i386-linux.c,v 1.1 1997/12/06 05:22:54 sef Exp $
- */
+
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
@@ -91,7 +92,6 @@ i386_linux_syscall_entry(int pid, int nargs) {
   struct reg regs = { 0 };
   int syscall;
   int i;
-  int memfd;
   struct syscall *sc;
 
   if (fd == -1 || pid != cpid) {
@@ -149,7 +149,6 @@ i386_linux_syscall_entry(int pid, int nargs) {
   lsc.sc = sc;
 
   if (lsc.name) {
-    char *tmp;
 
 #ifdef DEBUG
     fprintf(stderr, "syscall %s(", lsc.name);
