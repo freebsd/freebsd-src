@@ -413,17 +413,17 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 	 *              arrays are left pointing to the collected strings.
 	 */
 	if (kd->argspc == 0) {
-		kd->argspc = (char *)_kvm_malloc(kd, NBPG);
+		kd->argspc = (char *)_kvm_malloc(kd, PAGE_SIZE);
 		if (kd->argspc == 0)
 			return (0);
-		kd->arglen = NBPG;
+		kd->arglen = PAGE_SIZE;
 	}
 	/*
 	 * kd->argbuf : used to pull in pages from the target process.
 	 *              the strings are copied out of here.
 	 */
 	if (kd->argbuf == 0) {
-		kd->argbuf = (char *)_kvm_malloc(kd, NBPG);
+		kd->argbuf = (char *)_kvm_malloc(kd, PAGE_SIZE);
 		if (kd->argbuf == 0)
 			return (0);
 	}
@@ -454,22 +454,22 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 	while (argv < kd->argv + narg && *argv != 0) {
 
 		/* get the address that the current argv string is on */
-		addr = (u_long)*argv & ~(NBPG - 1);
+		addr = (u_long)*argv & ~(PAGE_SIZE - 1);
 
 		/* is it the same page as the last one? */
 		if (addr != oaddr) {
-			if (kvm_uread(kd, p, addr, kd->argbuf, NBPG) !=
-			    NBPG)
+			if (kvm_uread(kd, p, addr, kd->argbuf, PAGE_SIZE) !=
+			    PAGE_SIZE)
 				return (0);
 			oaddr = addr;
 		}
 
 		/* offset within the page... kd->argbuf */
-		addr = (u_long)*argv & (NBPG - 1);
+		addr = (u_long)*argv & (PAGE_SIZE - 1);
 
 		/* cp = start of string, cc = count of chars in this chunk */
 		cp = kd->argbuf + addr;
-		cc = NBPG - addr;
+		cc = PAGE_SIZE - addr;
 
 		/* dont get more than asked for by user process */
 		if (maxcnt > 0 && cc > maxcnt - len)
