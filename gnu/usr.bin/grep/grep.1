@@ -16,7 +16,7 @@
 .Id $Id: grep.1,v 1.9 2000/01/26 03:42:16 alainm Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
-grep, egrep, fgrep, zgrep \- print lines matching a pattern
+grep, egrep, fgrep, zgrep, zegrep, zfgrep \- print lines matching a pattern
 .SH SYNOPSIS
 .B grep
 .RI [ options ]
@@ -59,6 +59,12 @@ is the same as
 .B zgrep
 is the same as
 .BR "grep\ \-Z" .
+.B zegrep
+is the same as
+.BR "grep\ \-EZ" .
+.B zfgrep
+is the same as
+.BR "grep\ \-FZ" .
 .SH OPTIONS
 .TP
 .BI \-A " NUM" "\fR,\fP \-\^\-after-context=" NUM
