@@ -1,4 +1,5 @@
 .\"	$NetBSD: ftpd.conf.5,v 1.19 2002/01/15 02:20:50 wiz Exp $
+.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -80,7 +81,7 @@ is used to determine which
 .Nm
 entries apply to the user.
 The following special classes exist when parsing entries in
-.Nm "" :
+.Nm :
 .Bl -tag -width "chroot" -compact -offset indent
 .It Sy all
 Matches any class.
@@ -114,7 +115,7 @@ The
 .Xr ftpd 8
 .Sy STAT
 command will return the class settings for the current user as defined by
-.Nm "" ,
+.Nm ,
 unless the
 .Sy private
 directive is set for the class.
