@@ -27,7 +27,6 @@
 LIB=		pam_deny
 SHLIB_NAME=	pam_deny.so
 SRCS=		pam_deny.c
+MAN=		pam_deny.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_deny

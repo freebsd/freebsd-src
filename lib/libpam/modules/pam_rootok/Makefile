@@ -27,7 +27,6 @@
 LIB=		pam_rootok
 SHLIB_NAME=	pam_rootok.so
 SRCS=		pam_rootok.c
+MAN=		pam_rootok.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_rootok

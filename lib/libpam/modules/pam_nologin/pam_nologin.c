@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Mark R V Murray
+ * Copyright 2001 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,26 +26,34 @@
  * $FreeBSD$
  */
 
+#define PAM_SM_AUTH
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pwd.h>
-#include <ttyent.h>
-#include <string.h>
 
-#define PAM_SM_AUTH
+#include <security/_pam_macros.h>
 #include <security/pam_modules.h>
-#include <pam_mod_misc.h>
+#include "pam_mod_misc.h"
 
-#define TTY_PREFIX	"/dev/"
+#define	NOLOGIN	"/var/run/nologin"
 
-PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct ttyent *ttyfileinfo;
+	struct pam_conv *conv;
+	struct pam_message message, *pmessage;
+	struct pam_response *resp;
 	struct passwd *user_pwd;
-	int retval;
-	const char *user, *ttyname;
+	struct stat st;
+	int retval, fd;
+	const char *user;
+	char *mtmp;
 
 	pam_std_option(&options, NULL, argc, argv);
 
@@ -57,42 +65,51 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_item(pamh, PAM_TTY, (const void **)&ttyname);
-	if (retval != PAM_SUCCESS)
+	fd = open(NOLOGIN, O_RDONLY, 0);
+	if (fd < 0)
+		PAM_RETURN(PAM_SUCCESS);
+
+	PAM_LOG("Opened %s file", NOLOGIN);
+
+	user_pwd = getpwnam(user);
+	if (user_pwd && user_pwd->pw_uid == 0) {
+		message.msg_style = PAM_TEXT_INFO;
+		retval = PAM_SUCCESS;
+	}
+	else {
+		message.msg_style = PAM_ERROR_MSG;
+		if (!user_pwd)
+			retval = PAM_USER_UNKNOWN;
+		else
+			retval = PAM_AUTH_ERR;
+	}
+	
+	if (fstat(fd, &st) < 0)
+		PAM_RETURN(retval);
+	message.msg = mtmp = malloc(st.st_size + 1);
+	if (!message.msg)
 		PAM_RETURN(retval);
 
-	PAM_LOG("Got TTY: %s", ttyname);
+	read(fd, mtmp, st.st_size);
+	mtmp[st.st_size] = '\0';
 
-	/* Ignore any "/dev/" on the PAM_TTY item */
-	if (strncmp(TTY_PREFIX, ttyname, sizeof(TTY_PREFIX) - 1) == 0)
-		ttyname += sizeof(TTY_PREFIX) - 1;
+	pmessage = &message;
+	resp = NULL;
+	pam_get_item(pamh, PAM_CONV, (const void **)&conv);
+	conv->conv(1, (const struct pam_message **)&pmessage, &resp,
+	    conv->appdata_ptr);
 
-	/* If the user is not root, secure ttys do not apply */
-	user_pwd = getpwnam(user);
-	if (user_pwd == NULL)
-		PAM_RETURN(PAM_IGNORE);
-	else if (user_pwd->pw_uid != 0)
-		PAM_RETURN(PAM_SUCCESS);
-
-	PAM_LOG("User is not root");
-
-	ttyfileinfo = getttynam(ttyname);
-	if (ttyfileinfo == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-
-	PAM_LOG("Got ttyfileinfo");
-
-	if (ttyfileinfo->ty_status & TTY_SECURE)
-		PAM_RETURN(PAM_SUCCESS);
-	else
-		PAM_RETURN(PAM_PERM_DENIED);
+	free(mtmp);
+	if (resp)
+		   _pam_drop_reply(resp, 1);
+	
+	PAM_RETURN(retval);
 }
 
-PAM_EXTERN
-int 
-pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	return PAM_SUCCESS;
 }
 
-PAM_MODULE_ENTRY("pam_securetty");
+PAM_MODULE_ENTRY("pam_nologin");

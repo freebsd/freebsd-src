@@ -39,22 +39,22 @@
 .\" $FreeBSD$
 .\"
 .Dd August 2, 1999
-.Dt PAM_RADIUS 8
+.Dt PAM_TACPLUS 8
 .Os FreeBSD
 .Sh NAME
-.Nm pam_radius
-.Nd RADIUS authentication PAM module
+.Nm pam_tacplus
+.Nd TACACS+ authentication PAM module
 .Sh SYNOPSIS
 .Op Ar service-name
 .Ar module-type
 .Ar control-flag
-.Pa pam_radius
+.Pa pam_tacplus
 .Op Ar options
 .Sh DESCRIPTION
 The
 .Nm
 module provides authentication services based
-upon the RADIUS (Remote Authentication Dial In User Service) protocol
+upon the TACACS+ protocol
 for the PAM (Pluggable Authentication Module) framework.
 .Pp
 The
@@ -78,8 +78,8 @@ causes echoing to be left on if
 .Nm
 prompts for a password.
 .It Cm conf Ns No = Ns Ar pathname
-specifies a non-standard location for the RADIUS client configuration file
-(normally located in /etc/radius.conf).
+specifies a non-standard location for the TACACS+ client configuration file
+(normally located in /etc/tacplus.conf).
 .It Cm template_user Ns No = Ns Ar username
 specifies a user whose
 .Xr passwd 5
@@ -99,30 +99,28 @@ in the system databases equal to the supplied one (as determined by call to
 the authentication will fail.
 .El
 .Sh FILES
-.Bl -tag -width /etc/radius.conf -compact
-.It Pa /etc/radius.conf
-The standard RADIUS client configuration file for
+.Bl -tag -width /etc/tacplus.conf -compact
+.It Pa /etc/tacplus.conf
+The standard TACACS+ client configuration file for
 .Nm
 .El
 .Sh SEE ALSO
 .Xr passwd 5 ,
-.Xr radius.conf 5 ,
+.Xr tacplus.conf 5 ,
 .Xr pam 8
 .Sh HISTORY
 The
 .Nm
 module first appeared in
 .Fx 3.1 .
-The
-.Nm
-manual page first appeared in
-.Fx 3.3 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 manual page was written by
-.An Andrzej Bialecki Aq abial@FreeBSD.org .
+.An Andrzej Bialecki Aq abial@FreeBSD.org
+and adapted to TACACS+ from RADIUS by
+.An Mark R V Murray Aq markm@FreeBSD.org .
 .Pp
 The
 .Nm

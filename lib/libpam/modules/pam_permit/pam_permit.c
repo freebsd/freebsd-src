@@ -1,5 +1,5 @@
 /*-
- * Copyright 1998 Juniper Networks, Inc.
+ * Copyright 2001 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,47 +23,104 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <skey.h>
+#define	PAM_SM_AUTH
+#define	PAM_SM_ACCOUNT
+#define	PAM_SM_SESSION
+#define	PAM_SM_PASSWORD
 
-#define PAM_SM_AUTH
 #include <security/pam_modules.h>
+#include <security/_pam_macros.h>
+#include "pam_mod_misc.h"
+
+#define NOBODY "nobody"
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
+	struct options options;
 	int retval;
-	const void *item;
 	const char *user;
-	const char *tty;
-	const char *rhost;
 
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	/* We always need to know who the user is */
+	user = NULL;
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		return retval;
-	retval = pam_get_item(pamh, PAM_TTY, &item);
-	if (retval != PAM_SUCCESS)
-		return retval;
-	tty = (const char *)item;
-	retval = pam_get_item(pamh, PAM_RHOST, &item);
-	if (retval != PAM_SUCCESS)
-		return retval;
-	rhost = (const char *)item;
-	/*
-	 * The cast in the next statement is necessary only because the
-	 * declaration of skeyaccess is wrong.
-	 */
-	return skeyaccess((char *)user, tty, rhost, NULL) ?
-	    PAM_SUCCESS : PAM_AUTH_ERR;
+		PAM_RETURN(retval);
+
+	PAM_LOG("Got user: %s", user);
+
+	if (user == NULL || *user == '\0')
+		pam_set_item(pamh, PAM_USER, (const void *)NOBODY);
+	user = NULL;
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
-PAM_MODULE_ENTRY("pam_cleartext_pass_ok");
+PAM_EXTERN int
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
+}
+
+PAM_EXTERN int
+pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
+}
+
+PAM_EXTERN int
+pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
+}
+
+PAM_EXTERN int
+pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
+}
+
+PAM_MODULE_ENTRY("pam_permit");

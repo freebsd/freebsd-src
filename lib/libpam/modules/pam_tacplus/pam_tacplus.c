@@ -40,9 +40,13 @@
 
 #include "pam_mod_misc.h"
 
-/* Option names, including the "=" sign. */
-#define OPT_CONF		"conf="
-#define OPT_TMPL		"template_user="
+enum { PAM_OPT_CONF=PAM_OPT_STD_MAX, PAM_OPT_TEMPLATE_USER };
+
+static struct opttab other_options[] = {
+	{ "conf",		PAM_OPT_CONF },
+	{ "template_user",	PAM_OPT_TEMPLATE_USER },
+	{ NULL, 0 }
+};
 
 typedef int (*set_func)(struct tac_handle *, const char *);
 
@@ -58,7 +62,8 @@ do_item(pam_handle_t *pamh, struct tac_handle *tach, int item,
 	int retval;
 	const void *value;
 
-	if ((retval = pam_get_item(pamh, item, &value)) != PAM_SUCCESS)
+	retval = pam_get_item(pamh, item, &value);
+	if (retval != PAM_SUCCESS)
 	    return retval;
 	if (value != NULL && (*func)(tach, (const char *)value) == -1) {
 		syslog(LOG_CRIT, "%s: %s", funcname, tac_strerror(tach));
@@ -73,7 +78,8 @@ get_msg(struct tac_handle *tach)
 {
 	char *msg;
 
-	if ((msg = tac_get_msg(tach)) == NULL) {
+	msg = tac_get_msg(tach);
+	if (msg == NULL) {
 		syslog(LOG_CRIT, "tac_get_msg: %s", tac_strerror(tach));
 		tac_close(tach);
 		return NULL;
@@ -96,48 +102,57 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     const char **argv)
 {
+	struct options options;
 	int retval;
 	struct tac_handle *tach;
-	const char *conf_file = NULL;
-	const char *template_user = NULL;
-	int options = 0;
-	int i;
+	char *conf_file;
+	char *template_user;
 
-	for (i = 0;  i < argc;  i++) {
-		size_t len;
+	pam_std_option(&options, other_options, argc, argv);
 
-		pam_std_option(&options, argv[i]);
-		if (strncmp(argv[i], OPT_CONF, (len = strlen(OPT_CONF))) == 0)
-			conf_file = argv[i] + len;
-		else if (strncmp(argv[i], OPT_TMPL,
-		    (len = strlen(OPT_TMPL))) == 0)
-			template_user = argv[i] + len;
-	}
+	PAM_LOG("Options processed");
 
-	if ((tach = tac_open()) == NULL) {
+	conf_file = NULL;
+	pam_test_option(&options, PAM_OPT_CONF, &conf_file);
+	template_user = NULL;
+	pam_test_option(&options, PAM_OPT_TEMPLATE_USER, &template_user);
+
+	tach = tac_open();
+	if (tach == NULL) {
 		syslog(LOG_CRIT, "tac_open failed");
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
 	if (tac_config(tach, conf_file) == -1) {
 		syslog(LOG_ALERT, "tac_config: %s", tac_strerror(tach));
 		tac_close(tach);
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
 	if (tac_create_authen(tach, TAC_AUTHEN_LOGIN, TAC_AUTHEN_TYPE_ASCII,
 	    TAC_AUTHEN_SVC_LOGIN) == -1) {
 		syslog(LOG_CRIT, "tac_create_authen: %s", tac_strerror(tach));
 		tac_close(tach);
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
-	if ((retval = do_item(pamh, tach, PAM_USER,
-	    tac_set_user, "tac_set_user")) != PAM_SUCCESS)
-		return retval;
-	if ((retval = do_item(pamh, tach, PAM_TTY,
-	    tac_set_port, "tac_set_port")) != PAM_SUCCESS)
-		return retval;
-	if ((retval = do_item(pamh, tach, PAM_RHOST,
-	    tac_set_rem_addr, "tac_set_rem_addr")) != PAM_SUCCESS)
-		return retval;
+
+	PAM_LOG("Done tac_open() ... tac_close()");
+
+	retval = do_item(pamh, tach, PAM_USER, tac_set_user, "tac_set_user");
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+
+	PAM_LOG("Done user");
+
+	retval = do_item(pamh, tach, PAM_TTY, tac_set_port, "tac_set_port");
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+
+	PAM_LOG("Done tty");
+
+	retval = do_item(pamh, tach, PAM_RHOST, tac_set_rem_addr,
+	    "tac_set_rem_addr");
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+
 	for ( ; ; ) {
 		char *srvr_msg;
 		size_t msg_len;
@@ -145,16 +160,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 		char *data_msg;
 		int sflags;
 		int status;
-		int echo;
 
-		if ((sflags = tac_send_authen(tach)) == -1) {
+		sflags = tac_send_authen(tach);
+		if (sflags == -1) {
 			syslog(LOG_CRIT, "tac_send_authen: %s",
 			    tac_strerror(tach));
 			tac_close(tach);
-			return PAM_AUTHINFO_UNAVAIL;
+			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 		}
 		status = TAC_AUTHEN_STATUS(sflags);
-		echo = TAC_AUTHEN_NOECHO(sflags) ? 0 : PAM_OPT_ECHO_PASS;
+		if (!TAC_AUTHEN_NOECHO(sflags))
+			pam_set_option(&options, PAM_OPT_ECHO_PASS);
 		switch (status) {
 
 		case TAC_AUTHEN_STATUS_PASS:
@@ -162,6 +178,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			if (template_user != NULL) {
 				const void *item;
 				const char *user;
+
+				PAM_LOG("Trying template user: %s",
+				    template_user);
 
 				/*
 				 * If the given user name doesn't exist in
@@ -171,58 +190,60 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 				 */
 				retval = pam_get_item(pamh, PAM_USER, &item);
 				if (retval != PAM_SUCCESS)
-					return retval;
+					PAM_RETURN(retval);
 				user = (const char *)item;
-				if (getpwnam(user) == NULL)
+				if (getpwnam(user) == NULL) {
 					pam_set_item(pamh, PAM_USER,
 					    template_user);
+					PAM_LOG("Using template user");
+				}
 			}
-			return PAM_SUCCESS;
+			PAM_RETURN(PAM_SUCCESS);
 
 		case TAC_AUTHEN_STATUS_FAIL:
 			tac_close(tach);
-			return PAM_AUTH_ERR;
+			PAM_RETURN(PAM_AUTH_ERR);
 
 		case TAC_AUTHEN_STATUS_GETUSER:
 		case TAC_AUTHEN_STATUS_GETPASS:
 			if ((srvr_msg = get_msg(tach)) == NULL)
-				return PAM_SERVICE_ERR;
+				PAM_RETURN(PAM_SERVICE_ERR);
 			if (status == TAC_AUTHEN_STATUS_GETUSER)
 				retval = pam_get_user(pamh, &user_msg,
 				    srvr_msg[0] != '\0' ? srvr_msg : NULL);
 			else if (status == TAC_AUTHEN_STATUS_GETPASS)
 				retval = pam_get_pass(pamh, &user_msg,
 				    srvr_msg[0] != '\0' ? srvr_msg :
-				    "Password:", options | echo);
+				    "Password:", &options);
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
 				tac_close(tach);
-				return retval;
+				PAM_RETURN(retval);
 			}
 			if (set_msg(tach, user_msg) == -1)
-				return PAM_SERVICE_ERR;
+				PAM_RETURN(PAM_SERVICE_ERR);
 			break;
 
 		case TAC_AUTHEN_STATUS_GETDATA:
 			if ((srvr_msg = get_msg(tach)) == NULL)
-				return PAM_SERVICE_ERR;
+				PAM_RETURN(PAM_SERVICE_ERR);
 			retval = pam_prompt(pamh,
-			    (options|echo) & PAM_OPT_ECHO_PASS ?
-			    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
+			    pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL)
+				? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
 			    srvr_msg[0] != '\0' ? srvr_msg : "Data:",
 			    &data_msg);
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
 				tac_close(tach);
-				return retval;
+				PAM_RETURN(retval);
 			}
 			retval = set_msg(tach, data_msg);
 			memset(data_msg, 0, strlen(data_msg));
 			free(data_msg);
 			if (retval == -1)
-				return PAM_SERVICE_ERR;
+				PAM_RETURN(PAM_SERVICE_ERR);
 			break;
 
 		case TAC_AUTHEN_STATUS_ERROR:
@@ -231,11 +252,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 				syslog(LOG_CRIT, "tac_send_authen:"
 				    " server detected error: %s", srvr_msg);
 				free(srvr_msg);
-			} else
+			}
+			else
 				syslog(LOG_CRIT,
 				    "tac_send_authen: server detected error");
 			tac_close(tach);
-			return PAM_AUTHINFO_UNAVAIL;
+			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 			break;
 
 		case TAC_AUTHEN_STATUS_RESTART:
@@ -244,7 +266,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			syslog(LOG_CRIT,
 			    "tac_send_authen: unexpected status %#x", status);
 			tac_close(tach);
-			return PAM_AUTHINFO_UNAVAIL;
+			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 		}
 	}
 }

@@ -27,7 +27,6 @@
 LIB=		pam_permit
 SHLIB_NAME=	pam_permit.so
 SRCS=		pam_permit.c
+MAN=		pam_permit.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_permit

@@ -39,12 +39,16 @@
 
 #include "pam_mod_misc.h"
 
-#define MAX_CHALLENGE_MSGS	10
-#define PASSWORD_PROMPT	"RADIUS password:"
+enum { PAM_OPT_CONF=PAM_OPT_STD_MAX, PAM_OPT_TEMPLATE_USER };
 
-/* Option names, including the "=" sign. */
-#define OPT_CONF		"conf="
-#define OPT_TMPL		"template_user="
+static struct opttab other_options[] = {
+	{ "conf",		PAM_OPT_CONF },
+	{ "template_user",	PAM_OPT_TEMPLATE_USER },
+	{ NULL, 0 }
+};
+
+#define	MAX_CHALLENGE_MSGS	10
+#define	PASSWORD_PROMPT		"RADIUS password:"
 
 static int	 build_access_request(struct rad_handle *, const char *,
 		    const char *, const void *, size_t);
@@ -194,48 +198,59 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
+	struct options options;
 	struct rad_handle *radh;
-	const char *user;
-	const char *pass;
-	const char *conf_file = NULL;
-	const char *template_user = NULL;
-	int options = 0;
+	const char *user, *tmpuser, *pass;
+	char *conf_file, *template_user;
 	int retval;
-	int i;
 	int e;
 
-	for (i = 0;  i < argc;  i++) {
-		size_t len;
+	pam_std_option(&options, other_options, argc, argv);
 
-		pam_std_option(&options, argv[i]);
-		if (strncmp(argv[i], OPT_CONF, (len = strlen(OPT_CONF))) == 0)
-			conf_file = argv[i] + len;
-		else if (strncmp(argv[i], OPT_TMPL,
-		    (len = strlen(OPT_TMPL))) == 0)
-			template_user = argv[i] + len;
-	}
-	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
-		return retval;
-	if ((retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
-		return retval;
+	PAM_LOG("Options processed");
 
-	if ((radh = rad_open()) == NULL) {
+	conf_file = NULL;
+	pam_test_option(&options, PAM_OPT_CONF, &conf_file);
+	template_user = NULL;
+	pam_test_option(&options, PAM_OPT_TEMPLATE_USER, &template_user);
+
+	retval = pam_get_user(pamh, &user, NULL);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+
+	PAM_LOG("Got user: %s", user);
+
+	retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT, &options);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+
+	PAM_LOG("Got password");
+
+	radh = rad_open();
+	if (radh == NULL) {
 		syslog(LOG_CRIT, "rad_open failed");
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
+
+	PAM_LOG("Radius opened");
+
 	if (rad_config(radh, conf_file) == -1) {
 		syslog(LOG_ALERT, "rad_config: %s", rad_strerror(radh));
 		rad_close(radh);
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
+
+	PAM_LOG("Radius config file read");
+
 	if (build_access_request(radh, user, pass, NULL, 0) == -1) {
 		rad_close(radh);
-		return PAM_SERVICE_ERR;
+		PAM_RETURN(PAM_SERVICE_ERR);
 	}
+
+	PAM_LOG("Radius build access done");
+
 	for ( ; ; ) {
 		switch (rad_send_request(radh)) {
 
@@ -243,10 +258,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			e = do_accept(pamh, radh);
 			rad_close(radh);
 			if (e == -1)
-				return PAM_SERVICE_ERR;
+				PAM_RETURN(PAM_SERVICE_ERR);
 			if (template_user != NULL) {
-				const void *item;
-				const char *user;
+
+				PAM_LOG("Trying template user: %s",
+				    template_user);
 
 				/*
 				 * If the given user name doesn't exist in
@@ -254,25 +270,28 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 				 * to the value given in the "template_user"
 				 * option.
 				 */
-				retval = pam_get_item(pamh, PAM_USER, &item);
+				retval = pam_get_item(pamh, PAM_USER,
+				    (void *)&tmpuser);
 				if (retval != PAM_SUCCESS)
-					return retval;
-				user = (const char *)item;
-				if (getpwnam(user) == NULL)
+					PAM_RETURN(retval);
+				if (getpwnam(tmpuser) == NULL) {
 					pam_set_item(pamh, PAM_USER,
 					    template_user);
+					PAM_LOG("Using template user");
+				}
+
 			}
-			return PAM_SUCCESS;
+			PAM_RETURN(PAM_SUCCESS);
 
 		case RAD_ACCESS_REJECT:
 			rad_close(radh);
-			return PAM_AUTH_ERR;
+			PAM_RETURN(PAM_AUTH_ERR);
 
 		case RAD_ACCESS_CHALLENGE:
-			if ((retval = do_challenge(pamh, radh, user)) !=
-			    PAM_SUCCESS) {
+			retval = do_challenge(pamh, radh, user);
+			if (retval != PAM_SUCCESS) {
 				rad_close(radh);
-				return retval;
+				PAM_RETURN(retval);
 			}
 			break;
 
@@ -280,13 +299,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			syslog(LOG_CRIT, "rad_send_request: %s",
 			    rad_strerror(radh));
 			rad_close(radh);
-			return PAM_AUTHINFO_UNAVAIL;
+			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 
 		default:
 			syslog(LOG_CRIT,
 			    "rad_send_request: unexpected return value");
 			rad_close(radh);
-			return PAM_SERVICE_ERR;
+			PAM_RETURN(PAM_SERVICE_ERR);
 		}
 	}
 }
