@@ -5,7 +5,7 @@ ipf \- alters packet filtering lists for IP packet input and output
 .SH SYNOPSIS
 .B ipf
 [
-.B \-AdDEInoPrsUvVyzZ
+.B \-6AdDEInoPrsUvVyzZ
 ] [
 .B \-l
 <block|pass|nomatch>
@@ -30,6 +30,9 @@ is added to the kernel's internal lists if there are no parsing problems.
 Rules are added to the end of the internal lists, matching the order in
 which they appear when given to \fBipf\fP.
 .SH OPTIONS
+.TP
+.B \-6
+This option is required to parse IPv6 rules and to have them loaded.
 .TP
 .B \-A
 Set the list to make changes to the active list (default).

@@ -5,13 +5,15 @@ ipmon \- monitors /dev/ipl for logged packets
 .SH SYNOPSIS
 .B ipmon
 [
-.B \-aFhnstvxX
+.B \-aDFhnpstvxX
+] [
+.B "\-N <device>"
 ] [
 .B "\-o [NSI]"
 ] [
 .B "\-O [NSI]"
 ] [
-.B "\-N <device>"
+.B "\-P <pidfile>"
 ] [
 .B "\-S <device>"
 ] [
@@ -75,6 +77,10 @@ In order for \fBipmon\fP to properly work, the kernel option
 Open all of the device logfiles for reading log entries from.  All entries
 are displayed to the same output 'device' (stderr or syslog).
 .TP
+.B \-D
+Cause ipmon to turn itself into a daemon.  Using subshells or backgrounding
+of ipmon is not required to turn it into an orphan so it can run indefinately.
+.TP
 .B "\-f <device>"
 specify an alternative device/file from which to read the log information
 for normal IP Filter log records.
@@ -100,14 +106,19 @@ Specify which log files you do not wish to read from.  This is most sensibly
 used with the \fB-a\fP.  Letters available as parameters to this are the same
 as for \fB-o\fP.
 .TP
+.B \-p
+Cause the port number in log messages to always be printed as a number and
+never attempt to look it up as from \fI/etc/services\fP, etc.
+.TP
+.B \-P <pidfile>
+Write the pid of the ipmon process to a file.  By default this is
+\fI//etc/opt/ipf/ipmon.pid\fP (Solaris), \fI/var/run/ipmon.pid\fP (44BSD
+or later) or \fI/etc/ipmon.pid\fP for all others.
+.TP
 .B \-s
 Packet information read in will be sent through syslogd rather than
 saved to a file.  The default facility when compiled and installed is
 \fBlocal0\fP.  The following levels are used:
-.TP
-.B "\-S <device>"
-Set the logfile to be opened for reading state log records from to <device>.
-.TP
 .IP
 .B LOG_INFO
 \- packets logged using the "log" keyword as the action rather
@@ -122,6 +133,9 @@ than pass or block.
 .B LOG_ERR
 \- packets which have been logged and which can be considered
 "short".
+.TP
+.B "\-S <device>"
+Set the logfile to be opened for reading state log records from to <device>.
 .TP
 .B \-t
 read the input file/device in a manner akin to tail(1).
@@ -144,6 +158,8 @@ recorded data.
 /dev/ipnat
 .br
 /dev/ipstate
+.br
+/etc/services
 .SH SEE ALSO
 ipl(4), ipf(8), ipfstat(8), ipnat(8)
 .\".SH BUGS
