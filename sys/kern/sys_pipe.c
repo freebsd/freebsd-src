@@ -732,7 +732,7 @@ pipe_build_write_buffer(wpipe, uio)
 		 * We need to allocate space for an extra page because the
 		 * address range might (will) span pages at times.
 		 */
-		wpipe->pipe_map.kva = kmem_alloc_pageable(kernel_map,
+		wpipe->pipe_map.kva = kmem_alloc_nofault(kernel_map,
 			wpipe->pipe_buffer.size + PAGE_SIZE);
 		atomic_add_int(&amountpipekva,
 		    wpipe->pipe_buffer.size + PAGE_SIZE);
