@@ -45,6 +45,28 @@
  * happen for small transfers so that the system will not spend all of
  * its time context switching.  PIPE_SIZE is constrained by the
  * amount of kernel virtual memory.
+ *
+ * In order to limit the resource use of pipes, three sysctls exist:
+ *
+ * kern.ipc.maxpipes - A limit on the total number of pipes in the system.
+ * Note that since pipes are bidirectional, the effective value is this
+ * number divided by two.
+ *
+ * kern.ipc.maxpipekva - This value limits the amount of pageable memory that
+ * can be used by pipes.  Whenever the amount in use exceeds this value,
+ * all new pipes will be SMALL_PIPE_SIZE in size, rather than PIPE_SIZE.
+ * Big pipe creation will be limited as well.
+ *
+ * kern.ipc.maxpipekvawired - This value limits the amount of memory that may
+ * be wired in order to facilitate direct copies using page flipping.
+ * Whenever this value is exceeded, pipes will fall back to using regular
+ * copies.
+ *
+ * These values are autotuned in subr_param.c.
+ *
+ * Memory usage may be monitored through the sysctls
+ * kern.ipc.pipes, kern.ipc.pipekva and kern.ipc.pipekvawired.
+ *
  */
 
 #include <sys/cdefs.h>
@@ -68,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
 #include <sys/proc.h>
@@ -148,24 +171,29 @@ static struct filterops pipe_wfiltops =
 #define MAXPIPESIZE (2*PIPE_SIZE/3)
 
 /*
- * Maximum amount of kva for pipes -- this is kind-of a soft limit, but
- * is there so that on large systems, we don't exhaust it.
- */
-#define MAXPIPEKVA (8*1024*1024)
-
-/*
- * Limit for direct transfers, we cannot, of course limit
- * the amount of kva for pipes in general though.
- */
-#define LIMITPIPEKVA (16*1024*1024)
-
-/*
  * Limit the number of "big" pipes
  */
 #define LIMITBIGPIPES	32
 static int nbigpipe;
 
+static int amountpipes;
 static int amountpipekva;
+static int amountpipekvawired;
+
+SYSCTL_DECL(_kern_ipc);
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipes, CTLFLAG_RW,
+	   &maxpipes, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RW,
+	   &maxpipekva, 0, "Pipe KVA limit");
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekvawired, CTLFLAG_RW,
+	   &maxpipekvawired, 0, "Pipe KVA wired limit");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,
+	   &amountpipes, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
+	   &amountpipekva, 0, "Pipe KVA usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipekvawired, CTLFLAG_RD,
+	   &amountpipekvawired, 0, "Pipe wired KVA usage");
 
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
@@ -303,10 +331,18 @@ pipespace(cpipe, size)
 	struct vm_object *object;
 	caddr_t buffer;
 	int npages, error;
+	static int curfail = 0;
+	static struct timeval lastfail;
 
 	GIANT_REQUIRED;
 	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
 	       ("pipespace: pipe mutex locked"));
+
+	if (amountpipes > maxpipes) {
+		if (ppsratecheck(&lastfail, &curfail, 1))
+			printf("kern.maxpipes exceeded, please see tuning(7).\n");
+		return (ENOMEM);
+	}
 
 	npages = round_page(size)/PAGE_SIZE;
 	/*
@@ -339,6 +375,7 @@ pipespace(cpipe, size)
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = 0;
+	atomic_add_int(&amountpipes, 1);
 	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
@@ -385,7 +422,13 @@ pipe_create(cpipep)
 #endif
 
 	cpipe->pipe_mtxp = NULL;	/* avoid pipespace assertion */
-	error = pipespace(cpipe, PIPE_SIZE);
+	/*
+	 * Reduce to 1/4th pipe size if we're over our global max.
+	 */
+	if (amountpipekva > maxpipekva)
+		error = pipespace(cpipe, SMALL_PIPE_SIZE);
+	else
+		error = pipespace(cpipe, PIPE_SIZE);
 	if (error)
 		return (error);
 
@@ -654,8 +697,11 @@ pipe_build_write_buffer(wpipe, uio)
 			int j;
 
 			vm_page_lock_queues();
-			for (j = 0; j < i; j++)
+			for (j = 0; j < i; j++) {
 				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
+				atomic_subtract_int(&amountpipekvawired,
+					 	    PAGE_SIZE);
+			}
 			vm_page_unlock_queues();
 			return (EFAULT);
 		}
@@ -663,6 +709,7 @@ pipe_build_write_buffer(wpipe, uio)
 		m = PHYS_TO_VM_PAGE(paddr);
 		vm_page_lock_queues();
 		vm_page_wire(m);
+		atomic_add_int(&amountpipekvawired, PAGE_SIZE);
 		vm_page_unlock_queues();
 		wpipe->pipe_map.ms[i] = m;
 	}
@@ -719,7 +766,7 @@ pipe_destroy_write_buffer(wpipe)
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
-		if (amountpipekva > MAXPIPEKVA) {
+		if (amountpipekva > maxpipekva) {
 			vm_offset_t kva = wpipe->pipe_map.kva;
 			wpipe->pipe_map.kva = 0;
 			kmem_free(kernel_map, kva,
@@ -729,8 +776,10 @@ pipe_destroy_write_buffer(wpipe)
 		}
 	}
 	vm_page_lock_queues();
-	for (i = 0; i < wpipe->pipe_map.npages; i++)
+	for (i = 0; i < wpipe->pipe_map.npages; i++) {
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
+		atomic_subtract_int(&amountpipekvawired, PAGE_SIZE);
+	}
 	vm_page_unlock_queues();
 	wpipe->pipe_map.npages = 0;
 }
@@ -904,6 +953,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	 * so.
 	 */
 	if ((uio->uio_resid > PIPE_SIZE) &&
+		(amountpipekva < maxpipekva) &&
 		(nbigpipe < LIMITBIGPIPES) &&
 		(wpipe->pipe_state & PIPE_DIRECTW) == 0 &&
 		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
@@ -950,7 +1000,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
-			(wpipe->pipe_map.kva || (amountpipekva < LIMITPIPEKVA)) &&
+			 amountpipekvawired < maxpipekvawired &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
@@ -1357,6 +1407,7 @@ pipe_free_kmem(cpipe)
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
 			--nbigpipe;
 		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
+		atomic_subtract_int(&amountpipes, 1);
 		kmem_free(kernel_map,
 			(vm_offset_t)cpipe->pipe_buffer.buffer,
 			cpipe->pipe_buffer.size);
