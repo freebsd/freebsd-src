@@ -174,7 +174,12 @@ wx_match(parent, match, aux)
 	if (PCI_VENDOR(pa->pa_id) != WX_VENDOR_INTEL) {
 		return (0);
 	}
-	if (PCI_PRODUCT(pa->pa_id) != WX_PRODUCT_82452) {
+	switch (PCI_PRODUCT(pa->pa_id)) {
+	case WX_PRODUCT_82452:
+	case WX_PRODUCT_LIVENGOOD:
+	case WX_PRODUCT_82452_SC:
+		break;
+	default:
 		return (0);
 	}
 	return (1);
@@ -224,7 +229,7 @@ wx_attach(parent, self, aux)
 		return;
 	}
 	printf("%s: interrupting at %s\n", sc->wx_name, intrstr);
-	sc->revision =
+	sc->wx_idnrev = (PCI_PRODUCT(pa->pa_id) << 16) |
 		pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_CLASS_REG) & 0xff;
 
 	data = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG);
@@ -510,12 +515,22 @@ static wx_softc_t *wxlist;
 static int
 wx_probe(device_t dev)
 {
-	if ((pci_get_vendor(dev) == WX_VENDOR_INTEL) &&
-	    (pci_get_device(dev) == WX_PRODUCT_82452)) {
-		device_set_desc(dev, "Intel GigaBit Ethernet");
-		return 0;
+	if (pci_get_vendor(dev) != WX_VENDOR_INTEL) {
+		return (ENXIO);
 	}
-	return (ENXIO);
+	switch (pci_get_device(dev)) {
+	case WX_PRODUCT_82452:
+		device_set_desc(dev, "Intel GigaBit Ethernet (WISEMAN)");
+		break;
+	case WX_PRODUCT_LIVENGOOD:
+		device_set_desc(dev, "Intel GigaBit Ethernet (LIVENGOOD)");
+	case WX_PRODUCT_82452_SC:
+		device_set_desc(dev, "Intel GigaBit Ethernet (LIVENGOOD_SC)");
+		break;
+	default:
+		return (ENXIO);
+	}
+	return (0);
 }
 
 static int
@@ -557,7 +572,13 @@ wx_attach(device_t dev)
 		}
 	}
 
+
 	s = splimp();
+	/*
+ 	 * get revision && id...
+	 */
+	sc->wx_idnrev = (pci_get_device(dev) << 16) | (pci_get_revid(dev));
+
 	/*
 	 * Enable bus mastering, make sure that the cache line size is right.
 	 */
@@ -570,10 +591,6 @@ wx_attach(device_t dev)
 		pci_write_config(dev, PCIR_CACHELNSZ, 0x10, 1);
 	}
 
-	/*
- 	 * get revision
-	 */
-	sc->revision = pci_read_config(dev, PCIR_CLASS, 1);
 
 	/*
 	 * Map control/status registers.
@@ -772,9 +789,9 @@ wx_attach_common(sc)
 	/*
 	 * First, check for revision support.
 	 */
-	if (sc->revision < 2) {
-		printf("%s: cannot support revision %d chips\n",
-		    sc->wx_name, sc->revision);
+	if (sc->wx_idnrev < WX_WISEMAN_2_0) {
+		printf("%s: cannot support ID 0x%x, revision %d chips\n",
+		    sc->wx_name, sc->wx_idnrev >> 16, sc->wx_idnrev & 0xffff);
 		return (ENXIO);
 	}
 
@@ -1265,7 +1282,7 @@ wx_check_link(sc)
 			    sc->wx_name);
 		}
 		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT & ~WXTXCW_ANE);
-		if (sc->revision == 2)
+		if (sc->wx_idnrev < WX_WISEMAN_2_1)
 			sc->wx_dcr &= ~WXDCR_TFCE;
 		sc->wx_dcr |= WXDCR_SLU;
      		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
@@ -1587,14 +1604,14 @@ wx_hw_stop(sc)
 	wx_softc_t *sc;
 {
 	u_int32_t icr;
-	if (sc->revision == 2) {
+	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_whackon(sc);
 	}
 	WRITE_CSR(sc, WXREG_DCR, WXDCR_RST);
 	DELAY(20 * 1000);
 	WRITE_CSR(sc, WXREG_IMASK, ~0);
 	icr = READ_CSR(sc, WXREG_ICR);
-	if (sc->revision == 2) {
+	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_unwhack(sc);
 	}
 	WX_DISABLE_INT(sc);
@@ -1620,11 +1637,18 @@ wx_hw_initialize(sc)
 {
 	int i;
 
+	if (IS_LIVENGOOD(sc)) {
+		if ((READ_CSR(sc, WXREG_DSR) & WXDSR_TBIMODE) == 0) {
+			printf("%s: no fibre mode detected\n", sc->wx_name);
+			return (-1);
+		}
+	}
+
 	WRITE_CSR(sc, WXREG_VET, 0);
 	for (i = 0; i < (WX_VLAN_TAB_SIZE << 2); i += 4) {
 		WRITE_CSR(sc, (WXREG_VFTA + i), 0);
 	}
-	if (sc->revision == 2) {
+	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_whackon(sc);
 		WRITE_CSR(sc, WXREG_RCTL, WXRCTL_RST);
 		DELAY(5 * 1000);
@@ -1649,7 +1673,7 @@ wx_hw_initialize(sc)
 		i++;
 	}
 
-	if (sc->revision == 2) {
+	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		WRITE_CSR(sc, WXREG_RCTL, 0);
 		DELAY(1 * 1000);
 		wx_mwi_unwhack(sc);
@@ -1668,6 +1692,14 @@ wx_hw_initialize(sc)
 	WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr | WXDCR_LRST);
 	DELAY(50 * 1000);
 
+
+	if (IS_LIVENGOOD(sc)) {
+		u_int16_t tew;
+		wx_read_eeprom(sc, &tew, WX_EEPROM_CTLR2_OFF, 1);
+		tew = (tew & WX_EEPROM_CTLR2_SWDPIO) << WX_EEPROM_EXT_SHIFT;
+		WRITE_CSR(sc, WXREG_EXCT, (u_int32_t)tew);
+	}
+
 	if (sc->wx_dcr & (WXDCR_RFCE|WXDCR_TFCE)) {
 		WRITE_CSR(sc, WXREG_FCAL, FC_FRM_CONST_LO);
 		WRITE_CSR(sc, WXREG_FCAH, FC_FRM_CONST_HI);
@@ -1678,7 +1710,8 @@ wx_hw_initialize(sc)
 		WRITE_CSR(sc, WXREG_FCT, 0);
 	}
 	WRITE_CSR(sc, WXREG_FLOW_XTIMER, WX_XTIMER_DFLT);
-	if (sc->revision == 2) {
+
+	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		WRITE_CSR(sc, WXREG_FLOW_RCV_HI, 0);
 		WRITE_CSR(sc, WXREG_FLOW_RCV_LO, 0);
 		sc->wx_dcr &= ~(WXDCR_RFCE|WXDCR_TFCE);
@@ -1848,7 +1881,11 @@ wx_init(xsc)
 	WRITE_CSR(sc, WXREG_TDT, 0);
 	WRITE_CSR(sc, WXREG_TQSA_HI, 0);
 	WRITE_CSR(sc, WXREG_TQSA_LO, 0);
-	WRITE_CSR(sc, WXREG_TIPG, WX_TIPG_DFLT);
+	if (IS_WISEMAN(sc)) {
+		WRITE_CSR(sc, WXREG_TIPG, WX_WISEMAN_TIPG_DFLT);
+	} else {
+		WRITE_CSR(sc, WXREG_TIPG, WX_LIVENGOOD_TIPG_DFLT);
+	}
 	WRITE_CSR(sc, WXREG_TIDV, sc->wx_txint_delay);
 	WRITE_CSR(sc, WXREG_TCTL, (WXTCTL_CT(WX_COLLISION_THRESHOLD) |
 	    WXTCTL_COLD(WX_FDX_COLLISION_DX) | WXTCTL_EN));
@@ -2054,6 +2091,7 @@ wx_ifmedia_sts(ifp, ifmr)
 	struct ifnet *ifp;
 	struct ifmediareq *ifmr;
 {
+	u_int32_t dsr;
 	struct wx_softc *sc = SOFTC_IFP(ifp);
 
 	ifmr->ifm_status = IFM_AVALID;
@@ -2062,7 +2100,20 @@ wx_ifmedia_sts(ifp, ifmr)
 	if (sc->linkup == 0)
 		return;
 
-	ifmr->ifm_status |= IFM_ACTIVE|IFM_1000_SX;
-	if (READ_CSR(sc, WXREG_DSR) & WXDSR_FD)
+	ifmr->ifm_status |= IFM_ACTIVE;
+	dsr = READ_CSR(sc, WXREG_DSR);
+	if (IS_LIVENGOOD(sc)) {
+		if (dsr &  WXDSR_1000BT) {
+			ifmr->ifm_status |= IFM_1000_SX;
+		} else if (dsr & WXDSR_100BT) {
+			ifmr->ifm_status |= IFM_100_FX;	/* ?? */
+		} else {
+			ifmr->ifm_status |= IFM_10_T;	/* ?? */
+		}
+	} else {
+		ifmr->ifm_status |= IFM_1000_SX;
+	}
+	if (dsr & WXDSR_FD) {
 		ifmr->ifm_active |= IFM_FDX;
+	}
 }
