@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.12 1996/01/10 21:27:53 phk Exp $
+ * $Id: main.c,v 1.13 1996/01/11 17:48:52 phk Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -638,8 +638,6 @@ DoLoop()
   dial_up = FALSE;			/* XXXX */
   tries = 0;
   for (;;) {
-    if ( modem )
-	IpStartOutput();
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
 
    /*
@@ -676,6 +674,12 @@ DoLoop()
       }
     }
     qlen = ModemQlen();
+
+    if (qlen == 0) {
+      IpStartOutput();
+      qlen = ModemQlen();
+    }
+
     if (modem) {
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);

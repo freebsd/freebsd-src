@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.3 1995/05/30 03:50:28 rgrimes Exp $
+ * $Id: chap.c,v 1.4 1996/01/10 21:27:37 phk Exp $
  *
  *	TODO:
  */
@@ -64,7 +64,7 @@ int count;
   DumpBp(bp);
 #endif
   LogPrintf(LOG_LCP, "ChapOutput: %s\n", chapcodes[code]);
-  HdlcOutput(PRI_NORMAL, PROTO_CHAP, bp);
+  HdlcOutput(PRI_LINK, PROTO_CHAP, bp);
 }
 
 

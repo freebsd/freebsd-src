@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.3 1995/05/30 03:50:55 rgrimes Exp $
+ * $Id: pred.c,v 1.4 1996/01/10 21:27:59 phk Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -152,7 +152,7 @@ struct mbuf *bp;
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  HdlcOutput(pri, PROTO_COMPD, mwp);
+  HdlcOutput(PRI_NORMAL, PROTO_COMPD, mwp);
 }
 
 void
@@ -179,8 +179,10 @@ struct mbuf *bp;
     CcpInfo.compin += olen;
     len &= 0x7fff;
     if (len != len1) {	/* Error is detected. Send reset request */
+      LogPrintf(LOG_LCP, "%s: Length Error\n", CcpFsm.name);
       CcpSendResetReq(&CcpFsm);
       pfree(bp);
+      pfree(wp);
       return;
     }
     cp += olen - 4;
@@ -195,7 +197,8 @@ struct mbuf *bp;
   *pp++ = *cp++;
   fcs = HdlcFcs(INITFCS, bufp, wp->cnt = pp - bufp);
 #ifdef DEBUG
-  logprintf("fcs = %04x (%s), len = %x, olen = %x\n",
+  if (fcs != GOODFCS)
+  logprintf("fcs = 0x%04x (%s), len = 0x%x, olen = 0x%x\n",
        fcs, (fcs == GOODFCS)? "good" : "bad", len, olen);
 #endif
   if (fcs == GOODFCS) {
@@ -212,6 +215,11 @@ struct mbuf *bp;
       proto = (proto << 8) | *pp++;
     }
     DecodePacket(proto, wp);
+  }
+  else
+  {
+      LogDumpBp(LOG_HDLC, "Bad FCS", wp);
+      pfree(wp);
   }
   pfree(bp);
 }

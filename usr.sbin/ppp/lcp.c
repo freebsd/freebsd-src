@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.6 1995/09/17 16:14:47 amurai Exp $
+ * $Id: lcp.c,v 1.7 1996/01/11 17:48:51 phk Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -331,6 +331,7 @@ StopAllTimers()
   StopIdleTimer();
   StopTimer(&AuthPapInfo.authtimer);
   StopTimer(&AuthChapInfo.authtimer);
+  StopLqrTimer();
 }
 
 static void
@@ -376,7 +377,6 @@ struct fsm *fp;
 {
   LogPrintf(LOG_LCP, "%s: LayerDown\n", fp->name);
   StopAllTimers();
-  StopLqr( LQM_LQR );
   OsLinkdown();
   NewPhase(PHASE_TERMINATE);
 }
