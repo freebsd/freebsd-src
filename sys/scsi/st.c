@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.39 1995/10/12 02:02:03 julian Exp $
+ * $Id: st.c,v 1.40 1995/10/12 02:05:47 julian Exp $
  */
 
 /*
@@ -153,29 +153,29 @@ static struct rogues gallery[] =	/* ends with an all-null entry */
 };
 #endif /* NEW_SCSICONF */
 
-errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
-errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
-errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags));
+static errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
+static errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
+static errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags));
 static errval st_mode_sense __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen, u_int32 pagecode));
-errval	st_decide_mode __P((u_int32 unit, boolean first_read));
-errval	st_rd_blk_lim __P((u_int32 unit, u_int32 flags));
-errval	st_touch_tape __P((u_int32 unit));
-errval	st_write_filemarks __P((u_int32 unit, int32 number, u_int32 flags));
-errval	st_load __P((u_int32 unit, u_int32 type, u_int32 flags));
-errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
+static errval	st_decide_mode __P((u_int32 unit, boolean first_read));
+static errval	st_rd_blk_lim __P((u_int32 unit, u_int32 flags));
+static errval	st_touch_tape __P((u_int32 unit));
+static errval	st_write_filemarks __P((u_int32 unit, int32 number, u_int32 flags));
+static errval	st_load __P((u_int32 unit, u_int32 type, u_int32 flags));
+static errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen));
-errval	st_comp __P((u_int32 unit, u_int32 mode));
+static errval	st_comp __P((u_int32 unit, u_int32 mode));
 void    ststrategy();
-int32   st_chkeod();
-void	ststart(u_int32	unit, u_int32 flags);
-void	st_unmount();
-errval	st_mount_tape();
-void	st_loadquirks();
+static int32   st_chkeod();
+static void	ststart(u_int32	unit, u_int32 flags);
+static void	st_unmount();
+static errval	st_mount_tape();
+static void	st_loadquirks();
 #ifndef NEW_SCSICONF
-void	st_identify_drive();
+static void	st_identify_drive();
 #endif
-errval  st_interpret_sense();
+static errval  st_interpret_sense();
 
 #define ESUCCESS 0
 #define NOEJECT 0
@@ -227,17 +227,17 @@ struct scsi_data {
 static int stunit(dev_t dev) { return STUNIT(dev); }
 static dev_t stsetunit(dev_t dev, int unit) { return STSETUNIT(dev, unit); }
 
-errval st_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link);
-errval st_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval st_open(dev_t dev, int flags, int fmt, struct proc *p,
+		struct scsi_link *sc_link);
+static errval st_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
-errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
+static errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
-void st_strategy(struct buf *bp, struct scsi_link *sc_link);
+static void st_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(st)
 
-struct scsi_device st_switch =
+static struct scsi_device st_switch =
 {
     st_interpret_sense,		/* check errors with us first */
     ststart,			/* we have a queue, and this is how we service it */
@@ -1320,7 +1320,7 @@ try_new_value:
 /*
  * Do a synchronous read.
  */
-errval
+static errval
 st_read(unit, buf, size, flags)
 	u_int32 unit, size, flags;
 	char   *buf;
@@ -1567,7 +1567,7 @@ st_mode_select(unit, flags, page, pagelen)
 		flags | SCSI_DATA_OUT));
 }
 
-int noisy_st = 0;
+static int noisy_st = 0;
 /***************************************************************\
 * Set the compression mode of the drive to on (1) or off (0)	*
 	still doesn't work! grrr!
