@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.17 1999/01/10 13:29:52 peter Exp $
+ *	$Id: boot2.c,v 1.18 1999/01/11 11:36:03 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -283,6 +283,7 @@ load(const char *fname)
     }
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(fname);
+    bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
