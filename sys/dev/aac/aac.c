@@ -157,14 +157,9 @@ static d_ioctl_t	aac_ioctl;
 static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
 static void		aac_handle_aif(struct aac_softc *sc,
 				       struct aac_aif_command *aif);
-#ifdef AAC_COMPAT_LINUX
-static int		aac_linux_rev_check(struct aac_softc *sc,
-					    caddr_t udata);
-static int		aac_linux_getnext_aif(struct aac_softc *sc,
-					    caddr_t arg);
-static int		aac_linux_return_aif(struct aac_softc *sc,
-					    caddr_t uptr);
-#endif
+static int		aac_rev_check(struct aac_softc *sc, caddr_t udata);
+static int		aac_getnext_aif(struct aac_softc *sc, caddr_t arg);
+static int		aac_return_aif(struct aac_softc *sc, caddr_t uptr);
 
 #define AAC_CDEV_MAJOR	150
 
@@ -1775,9 +1770,7 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
     union aac_statrequest	*as = (union aac_statrequest *)arg;
     struct aac_softc		*sc = dev->si_drv1;
     int				error = 0;
-#ifdef AAC_COMPAT_LINUX
     int				i;
-#endif
 
     debug_called(2);
 
@@ -1798,16 +1791,20 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	}
 	break;
 	
-#ifdef AAC_COMPAT_LINUX
     case FSACTL_SENDFIB:
+	arg = *(caddr_t *)arg;
+    case FSACTL_LNX_SENDFIB:
 	debug(1, "FSACTL_SENDFIB");
 	error = aac_ioctl_sendfib(sc, arg);
 	break;
     case FSACTL_AIF_THREAD:
+    case FSACTL_LNX_AIF_THREAD:
 	debug(1, "FSACTL_AIF_THREAD");
 	error = EINVAL;
 	break;
     case FSACTL_OPEN_GET_ADAPTER_FIB:
+	arg = *(caddr_t *)arg;
+    case FSACTL_LNX_OPEN_GET_ADAPTER_FIB:
 	debug(1, "FSACTL_OPEN_GET_ADAPTER_FIB");
 	/*
 	 * Pass the caller out an AdapterFibContext.
@@ -1823,18 +1820,22 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	error = copyout(&i, arg, sizeof(i));
 	break;
     case FSACTL_GET_NEXT_ADAPTER_FIB:
+	arg = *(caddr_t *)arg;
+    case FSACTL_LNX_GET_NEXT_ADAPTER_FIB:
 	debug(1, "FSACTL_GET_NEXT_ADAPTER_FIB");
-	error = aac_linux_getnext_aif(sc, arg);
+	error = aac_getnext_aif(sc, arg);
 	break;
     case FSACTL_CLOSE_GET_ADAPTER_FIB:
+    case FSACTL_LNX_CLOSE_GET_ADAPTER_FIB:
 	debug(1, "FSACTL_CLOSE_GET_ADAPTER_FIB");
 	/* don't do anything here */
 	break;
     case FSACTL_MINIPORT_REV_CHECK:
+	arg = *(caddr_t *)arg;
+    case FSACTL_LNX_MINIPORT_REV_CHECK:
 	debug(1, "FSACTL_MINIPORT_REV_CHECK");
-	error = aac_linux_rev_check(sc, arg);
+	error = aac_rev_check(sc, arg);
 	break;
-#endif
     default:
 	device_printf(sc->aac_dev, "unsupported cmd 0x%lx\n", cmd);
 	error = EINVAL;
@@ -1969,6 +1970,8 @@ aac_linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
     return(fo_ioctl(fp, cmd, (caddr_t)args->arg, p));
 }
 
+#endif
+
 /******************************************************************************
  * Return the Revision of the driver to userspace and check to see if the
  * userspace app is possibly compatible.  This is extremely bogus right now
@@ -1976,7 +1979,7 @@ aac_linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
  * needed, though, to get aaccli working.
  */
 static int
-aac_linux_rev_check(struct aac_softc *sc, caddr_t udata)
+aac_rev_check(struct aac_softc *sc, caddr_t udata)
 {
     struct aac_rev_check	rev_check;
     struct aac_rev_check_resp	rev_check_resp;
@@ -2009,7 +2012,7 @@ aac_linux_rev_check(struct aac_softc *sc, caddr_t udata)
  * Pass the caller the next AIF in their queue
  */
 static int
-aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg)
+aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 {
     struct get_adapter_fib_ioctl	agf;
     int					error, s;
@@ -2026,14 +2029,14 @@ aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg)
 	} else {
 
 	    s = splbio();
-	    error = aac_linux_return_aif(sc, agf.AifFib);
+	    error = aac_return_aif(sc, agf.AifFib);
 
 	    if ((error == EAGAIN) && (agf.Wait)) {
 		sc->aac_state |= AAC_STATE_AIF_SLEEPER;
 		while (error == EAGAIN) {
 		    error = tsleep(sc->aac_aifq, PRIBIO | PCATCH, "aacaif", 0);
 		    if (error == 0)
-			error = aac_linux_return_aif(sc, agf.AifFib);
+			error = aac_return_aif(sc, agf.AifFib);
 		}
 		sc->aac_state &= ~AAC_STATE_AIF_SLEEPER;
 	    }
@@ -2047,7 +2050,7 @@ aac_linux_getnext_aif(struct aac_softc *sc, caddr_t arg)
  * Hand the next AIF off the top of the queue out to userspace.
  */
 static int
-aac_linux_return_aif(struct aac_softc *sc, caddr_t uptr)
+aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 {
     int		error, s;
 
@@ -2065,6 +2068,3 @@ aac_linux_return_aif(struct aac_softc *sc, caddr_t uptr)
     splx(s);
     return(error);
 }
-
-
-#endif /* AAC_COMPAT_LINUX */
