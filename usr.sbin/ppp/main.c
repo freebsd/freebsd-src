@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.18 1998/02/10 03:21:57 brian Exp $
+ * $Id: main.c,v 1.121.2.19 1998/02/10 03:23:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -690,7 +690,7 @@ DoLoop(struct bundle *bundle)
       qlen = link_QueueLen(physical2link(bundle->physical));
     }
 
-    /* handle_signals(); */
+    handle_signals();
 
     descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
