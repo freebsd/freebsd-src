@@ -68,8 +68,7 @@ headers(void)
 			for (dp = dtab; dp != 0; dp = dp->d_next) {
 				if (eq(dp->d_name, fl->f_needs)) {
 					match++;
-					if ((dp->d_type & TYPEMASK) == DEVICE)
-						dp->d_type |= DEVDONE;
+					dp->d_done |= DEVDONE;
 				}
 			}
 			if (fl->f_flags & NEED_COUNT)
@@ -77,11 +76,9 @@ headers(void)
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if ((dp->d_type & TYPEMASK) == DEVICE) {
-			if (!(dp->d_type & DEVDONE))
-				errx(1, "Error: device \"%s\" is unknown",
-				       dp->d_name);
-		}
+		if (!(dp->d_done & DEVDONE))
+			errx(1, "Error: device \"%s\" is unknown",
+			       dp->d_name);
 	}
 }
 
