@@ -977,20 +977,22 @@ amr_quartz_poll_command(struct amr_command *ac)
 
     s = splbio();
 
-    count=0;
-    while (sc->amr_busyslots){
-	tsleep(sc, PRIBIO | PCATCH, "amrpoll", hz);
-	if(count++>10) {
-	    break;
+    if (sc->amr_state & AMR_STATE_INTEN) {
+	count=0;
+	while (sc->amr_busyslots) {
+	    tsleep(sc, PRIBIO | PCATCH, "amrpoll", hz);
+	    if(count++>10) {
+		break;
+	    }
 	}
-    }
 
-    if(sc->amr_busyslots) {
-	device_printf(sc->amr_dev, "adapter is busy\n");
-	splx(s);
-	amr_unmapcmd(ac);
-    	ac->ac_status=0;
-	return(1);
+	if(sc->amr_busyslots) {
+	    device_printf(sc->amr_dev, "adapter is busy\n");
+	    splx(s);
+	    amr_unmapcmd(ac);
+    	    ac->ac_status=0;
+	    return(1);
+	}
     }
 
     bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, AMR_MBOX_CMDSIZE);
@@ -1778,6 +1780,47 @@ amr_describe_controller(struct amr_softc *sc)
     }    	
     free(ae, M_DEVBUF);
 }
+
+int
+amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int blks)
+{
+    struct amr_command	*ac;
+    int			error = EIO;
+
+    debug_called(1);
+
+    sc->amr_state &= ~AMR_STATE_INTEN;
+
+    /* get ourselves a command buffer */
+    if ((ac = amr_alloccmd(sc)) == NULL)
+	goto out;
+    /* set command flags */
+    ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
+    
+    /* point the command at our data */
+    ac->ac_data = data;
+    ac->ac_length = blks * AMR_BLKSIZE;
+    
+    /* build the command proper */
+    ac->ac_mailbox.mb_command 	= AMR_CMD_LWRITE;
+    ac->ac_mailbox.mb_blkcount	= blks;
+    ac->ac_mailbox.mb_lba	= lba;
+    ac->ac_mailbox.mb_drive	= unit;
+
+    /* can't assume that interrupts are going to work here, so play it safe */
+    if (sc->amr_poll_command(ac))
+	goto out;
+    error = ac->ac_status;
+    
+ out:
+    if (ac != NULL)
+	amr_releasecmd(ac);
+
+    sc->amr_state |= AMR_STATE_INTEN;
+    return (error);
+}
+
+
 
 #ifdef AMR_DEBUG
 /********************************************************************************
