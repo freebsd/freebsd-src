@@ -522,7 +522,7 @@ Non standard capabilities:
 $	scroll_left		sl1	Sl
 $	scroll_right		sr1	Sr
 $G	parm_scroll_left	sl	SL
-$G	parm_scroll_right	sr	SR
+$G      parm_scroll_right       sr      SI
 
 Dummy (must be present and last):
 
