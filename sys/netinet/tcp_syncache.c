@@ -1128,24 +1128,6 @@ syncache_respond(sc, m)
 
 		th = (struct tcphdr *)(ip + 1);
 	}
-
-	ip->ip_ttl = sc->sc_tp->t_inpcb->inp_ip_ttl;   /* XXX */
-	ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
-
-	/*
-	 * See if we should do MTU discovery.  We do it only if the following
-	 * are true:
-	 *      1) we have a valid route to the destination
-	 *      2) the MTU is not locked (if it is, then discovery has been  
-	 *         disabled)
-	 */
-	if (path_mtu_discovery
-	    && (rt != NULL)
-	    && rt->rt_flags & RTF_UP
-	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
-	       ip->ip_off |= IP_DF;
-	}
-
 	th->th_sport = sc->sc_inc.inc_lport;
 	th->th_dport = sc->sc_inc.inc_fport;
 
