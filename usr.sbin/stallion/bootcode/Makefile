@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/05/04 08:02:10 peter Exp $
+# $Id: Makefile,v 1.2 1996/05/05 07:40:46 peter Exp $
 
 FILES	= 	2681.sys cdk.sys
 
@@ -13,7 +13,7 @@ install:
 	@if [ ! -d ${DESTDIR}${BOOTDIR} ]; then mkdir ${DESTDIR}${BOOTDIR};fi
 	@for i in ${FILES}; do \
 		${ECHO} "installing $$i into ${DESTDIR}${BOOTDIR}"; \
-		${INSTALL} -c -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
+		${INSTALL} ${COPY} -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
 		$$i ${DESTDIR}${BOOTDIR}; \
 	done
 
@@ -29,4 +29,3 @@ cdk.sys: ${.CURDIR}/cdk.sys.uu
 2681.sys: ${.CURDIR}/2681.sys.uu
 	@rm -f $@
 	uudecode ${.CURDIR}/$@.uu
-

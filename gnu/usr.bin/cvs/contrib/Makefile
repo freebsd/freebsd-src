@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1996/08/20 23:53:00 peter Exp $
+#	$Id: Makefile,v 1.6 1996/09/05 08:43:50 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -31,7 +31,7 @@ all:	${SCRIPTS}
 
 beforeinstall:
 .for file in ${SCRIPTS}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${file} ${DESTDIR}${EXAMPDIR}/contrib
 .endfor
 .for file in ${FILES}
