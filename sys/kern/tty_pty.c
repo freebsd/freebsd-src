@@ -182,11 +182,10 @@ ptsopen(dev, flag, devtype, td)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
+	} else if (tp->t_state & TS_XCLUDE && suser(td))
 		return (EBUSY);
-	} else if (pti->pt_prison != td->td_ucred->cr_prison) {
+	else if (pti->pt_prison != td->td_ucred->cr_prison)
 		return (EBUSY);
-	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
