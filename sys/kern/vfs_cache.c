@@ -169,6 +169,8 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
 
 
 static void cache_zap(struct namecache *ncp);
+static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, u_int buflen);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -700,14 +702,6 @@ static int disablecwd;
 SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
    "Disable the getcwd syscall");
 
-/* Various statistics for the getcwd syscall */
-static u_long numcwdcalls; STATNODE(CTLFLAG_RD, numcwdcalls, &numcwdcalls);
-static u_long numcwdfail1; STATNODE(CTLFLAG_RD, numcwdfail1, &numcwdfail1);
-static u_long numcwdfail2; STATNODE(CTLFLAG_RD, numcwdfail2, &numcwdfail2);
-static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
-static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
-static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
-
 /* Implementation of the getcwd syscall */
 int
 __getcwd(td, uap)
@@ -722,94 +716,31 @@ int
 kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 {
 	char *bp, *tmpbuf;
-	int error, i, slash_prefixed;
 	struct filedesc *fdp;
-	struct namecache *ncp;
-	struct vnode *vp;
+	int error;
 
-	numcwdcalls++;
 	if (disablecwd)
 		return (ENODEV);
 	if (buflen < 2)
 		return (EINVAL);
 	if (buflen > MAXPATHLEN)
 		buflen = MAXPATHLEN;
-	mtx_lock(&Giant);
-	error = 0;
-	tmpbuf = bp = malloc(buflen, M_TEMP, M_WAITOK);
-	bp += buflen - 1;
-	*bp = '\0';
+
+	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
-	slash_prefixed = 0;
+	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
-	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
-		if (vp->v_vflag & VV_ROOT) {
-			if (vp->v_mount == NULL) {	/* forced unmount */
-				error = EBADF;
-				goto out;
-			}
-			vp = vp->v_mount->mnt_vnodecovered;
-			continue;
-		}
-		if (vp->v_dd->v_id != vp->v_ddid) {
-			numcwdfail1++;
-			error = ENOTDIR;
-			goto out;
-		}
-		CACHE_LOCK();
-		ncp = TAILQ_FIRST(&vp->v_cache_dst);
-		if (!ncp) {
-			numcwdfail2++;
-			CACHE_UNLOCK();
-			error = ENOENT;
-			goto out;
-		}
-		if (ncp->nc_dvp != vp->v_dd) {
-			numcwdfail3++;
-			CACHE_UNLOCK();
-			error = EBADF;
-			goto out;
-		}
-		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
-			if (bp == tmpbuf) {
-				numcwdfail4++;
-				CACHE_UNLOCK();
-				error = ENOMEM;
-				goto out;
-			}
-			*--bp = ncp->nc_name[i];
-		}
-		if (bp == tmpbuf) {
-			numcwdfail4++;
-			CACHE_UNLOCK();
-			error = ENOMEM;
-			goto out;
-		}
-		*--bp = '/';
-		slash_prefixed = 1;
-		vp = vp->v_dd;
-		CACHE_UNLOCK();
-	}
-	if (!slash_prefixed) {
-		if (bp == tmpbuf) {
-			numcwdfail4++;
-			error = ENOMEM;
-			goto out;
-		}
-		*--bp = '/';
-	}
+	error = vn_fullpath1(td, fdp->fd_cdir, fdp->fd_rdir, tmpbuf,
+	    &bp, buflen);
 	FILEDESC_UNLOCK(fdp);
 	mtx_unlock(&Giant);
-	numcwdfound++;
-	if (bufseg == UIO_SYSSPACE)
-		bcopy(bp, buf, strlen(bp) + 1);
-	else
-		error = copyout(bp, buf, strlen(bp) + 1);
-	free(tmpbuf, M_TEMP);
-	return (error);
-out:
-	FILEDESC_UNLOCK(fdp);
-	mtx_unlock(&Giant);
+
+	if (!error) {
+		if (bufseg == UIO_SYSSPACE)
+			bcopy(bp, buf, strlen(bp) + 1);
+		else
+			error = copyout(bp, buf, strlen(bp) + 1);
+	}
 	free(tmpbuf, M_TEMP);
 	return (error);
 }
@@ -827,10 +758,10 @@ static int disablefullpath;
 SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW, &disablefullpath, 0,
 	"Disable the vn_fullpath function");
 
+/* These count for kern___getcwd(), too. */
 STATNODE(numfullpathcalls);
 STATNODE(numfullpathfail1);
 STATNODE(numfullpathfail2);
-STATNODE(numfullpathfail3);
 STATNODE(numfullpathfail4);
 STATNODE(numfullpathfound);
 
@@ -841,90 +772,116 @@ STATNODE(numfullpathfound);
 int
 vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 {
-	char *bp, *buf;
-	int i, slash_prefixed;
+	char *buf;
 	struct filedesc *fdp;
-	struct namecache *ncp;
-	struct vnode *vp;
+	int error;
 
-	numfullpathcalls++;
 	if (disablefullpath)
 		return (ENODEV);
 	if (vn == NULL)
 		return (EINVAL);
+
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	bp = buf + MAXPATHLEN - 1;
-	*bp = '\0';
 	fdp = td->td_proc->p_fd;
-	slash_prefixed = 0;
-	ASSERT_VOP_LOCKED(vn, "vn_fullpath");
+	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
-	for (vp = vn; vp != fdp->fd_rdir && vp != rootvnode;) {
-		if (vp->v_vflag & VV_ROOT) {
-			if (vp->v_mount == NULL) {	/* forced unmount */
-				FILEDESC_UNLOCK(fdp);
-				free(buf, M_TEMP);
-				return (EBADF);
-			}
-			vp = vp->v_mount->mnt_vnodecovered;
-			continue;
-		}
-		if (vp != vn && vp->v_dd->v_id != vp->v_ddid) {
-			FILEDESC_UNLOCK(fdp);
-			free(buf, M_TEMP);
-			numfullpathfail1++;
-			return (ENOTDIR);
-		}
-		CACHE_LOCK();
+	error = vn_fullpath1(td, vn, fdp->fd_rdir, buf, retbuf, MAXPATHLEN);
+	FILEDESC_UNLOCK(fdp);
+	mtx_unlock(&Giant);
+
+	if (!error)
+		*freebuf = buf;
+	else
+		free(buf, M_TEMP);
+	return (error);
+}
+
+/*
+ * The magic behind kern___getcwd() and vn_fullpath().
+ */
+static int
+vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, u_int buflen)
+{
+	char *bp;
+	int error, i, slash_prefixed;
+	struct namecache *ncp;
+
+	mtx_assert(&Giant, MA_OWNED);
+
+	bp = buf + buflen - 1;
+	*bp = '\0';
+	error = 0;
+	slash_prefixed = 0;
+
+	CACHE_LOCK();
+	numfullpathcalls++;
+	if (vp->v_type != VDIR) {
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
 			numfullpathfail2++;
 			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(buf, M_TEMP);
 			return (ENOENT);
 		}
-		if (vp != vn && ncp->nc_dvp != vp->v_dd) {
-			numfullpathfail3++;
-			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(buf, M_TEMP);
-			return (EBADF);
-		}
-		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
-			if (bp == buf) {
-				numfullpathfail4++;
-				CACHE_UNLOCK();
-				FILEDESC_UNLOCK(fdp);
-				free(buf, M_TEMP);
-				return (ENOMEM);
-			}
+		for (i = ncp->nc_nlen - 1; i >= 0 && bp > buf; i--)
 			*--bp = ncp->nc_name[i];
-		}
 		if (bp == buf) {
 			numfullpathfail4++;
 			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(buf, M_TEMP);
 			return (ENOMEM);
 		}
 		*--bp = '/';
 		slash_prefixed = 1;
 		vp = ncp->nc_dvp;
+	}
+	while (vp != rdir && vp != rootvnode) {
+		if (vp->v_vflag & VV_ROOT) {
+			if (vp->v_mount == NULL) {	/* forced unmount */
+				error = EBADF;
+				break;
+			}
+			vp = vp->v_mount->mnt_vnodecovered;
+			continue;
+		}
+		if (vp->v_dd->v_id != vp->v_ddid) {
+			numfullpathfail1++;
+			error = ENOTDIR;
+			break;
+		}
+		ncp = TAILQ_FIRST(&vp->v_cache_dst);
+		if (!ncp) {
+			numfullpathfail2++;
+			error = ENOENT;
+			break;
+		}
+		MPASS(ncp->nc_dvp == vp->v_dd);
+		for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
+			*--bp = ncp->nc_name[i];
+		if (bp == buf) {
+			numfullpathfail4++;
+			error = ENOMEM;
+			break;
+		}
+		*--bp = '/';
+		slash_prefixed = 1;
+		vp = ncp->nc_dvp;
+	}
+	if (error) {
 		CACHE_UNLOCK();
+		return (error);
 	}
 	if (!slash_prefixed) {
 		if (bp == buf) {
 			numfullpathfail4++;
-			FILEDESC_UNLOCK(fdp);
-			free(buf, M_TEMP);
+			CACHE_UNLOCK();
 			return (ENOMEM);
+		} else {
+			*--bp = '/';
 		}
-		*--bp = '/';
 	}
-	FILEDESC_UNLOCK(fdp);
 	numfullpathfound++;
+	CACHE_UNLOCK();
+
 	*retbuf = bp;
-	*freebuf = buf;
 	return (0);
 }
