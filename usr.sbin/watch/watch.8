@@ -19,26 +19,26 @@ allows the superuser to examine all data coming through a specified tty.
 writes to standard output.
 .Pp
 The options are as follows:
-.Bl -tag -width "-l nul  "
+.Bl -tag -width indent
 .It Fl c
 Reconnect on close.  If the tty observed by
-.Nm watch
+.Nm
 is closed,  automatically reattach to the same tty.
 If this option is not specified,
-.Nm watch
+.Nm
 will request a new tty if running in interactive mode or exit if running
 without a controlling tty.
 .It Fl i
 Force interactive mode.
 Interactive mode is a default if
-.Nm watch
+.Nm
 is started from a tty.
 If output is redirected to a file, interactive mode can still be requested
 by specifying this option.
 .It Fl o
 Reconnect on overflow.
 The behavior of
-.Nm watch
+.Nm
 if the observed tty overflows is similar to the behavior if the observed tty
 is closed.
 For more info see
@@ -63,14 +63,14 @@ While running in interactive mode, all user input is discarded except for:
 .Bl -tag -width "XXXX" -compact
 .It Sy "<control-G>"
 Exit
-.Nm watch .
+.Nm Ns .
 .It Sy "<control-W>"
 Clear screen.
 .It Sy "<control-X>"
 Change attached tty.
 .Sh RESTRICTIONS
 Only the superuser can run
-.Nm watch .
+.Nm Ns .
 .Sh SEE ALSO
 .Xr pty 4 ,
 .Xr sio 4 ,
@@ -79,7 +79,7 @@ Only the superuser can run
 No terminal emulation is performed.
 All user output is reproduced as-is.
 .Sh AUTHOR
-Ugen J.S. Antsilevich <ugen@NetVision.net.il> 
+.An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il
 .Sh HISTORY
 .Nm Watch
 first appeared in
