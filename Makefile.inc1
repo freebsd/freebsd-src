@@ -17,6 +17,7 @@
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
+#	-DNO_PERL do not build perl5 and related libraries
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
@@ -581,7 +582,7 @@ _share=	share/syscons/scrnmaps
 _fortran= gnu/usr.bin/cc/f771
 .endif
 
-.if !defined(NOPERL)
+.if !defined(NOPERL) || defined(NO_PERL)
 _perl=	gnu/usr.bin/perl/miniperl
 .endif
 
@@ -767,7 +768,7 @@ _kerberos5_lib=	kerberos5/lib
 _libkeycap=	usr.sbin/pcvt/keycap
 .endif
 
-.if !defined(NOPERL)
+.if !defined(NOPERL) || defined(NO_PERL)
 _libperl=	gnu/usr.bin/perl/libperl
 .endif
 
