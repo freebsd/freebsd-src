@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tzsetup.c,v 1.1 1996/11/19 18:09:40 wollman Exp $
  */
 
 /*
@@ -617,7 +617,6 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int ch, sc;
 
 	while ((c = getopt(argc, argv, "n")) != -1) {
 		switch(c) {
@@ -644,7 +643,7 @@ main(int argc, char **argv)
 
 	init_dialog();
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 
-		    NCONTINENTS, -NCONTINENTS, continents, 0, &ch, &sc);
+		    NCONTINENTS, -NCONTINENTS, continents, 0, NULL, NULL);
 	end_dialog();
 	return 0;
 }
