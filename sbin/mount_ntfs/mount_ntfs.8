@@ -32,7 +32,7 @@
 .\"
 .Dd January 3, 1999
 .Dt MOUNT_NTFS 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm mount_ntfs
 .Nd mount an NTFS file system
@@ -82,10 +82,14 @@ on which the file system is being mounted.
 Specify the maximum file permissions for files
 in the file system.
 .It Fl W Ar u2wtable
-Specify unix to unicode translation table. This option is
-completly stolen from
+Specify
+.Ux
+to
+.Tn Unicode
+translation table.
+See
 .Xr mount_msdos 8
-so refer its manpage.
+for the description of this option.
 .El
 .Sh FEATURES
 NTFS file attributes are accessed in following way:
@@ -125,7 +129,8 @@ files are also not supported.
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
-.Xr mount 8
+.Xr mount 8 ,
+.Xr mount_msdos 8
 .Sh CAVEATS
 This utility is primarily used for read access to an NTFS volume.
 See the

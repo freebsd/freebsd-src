@@ -34,7 +34,7 @@
 .\"
 .Dd September 23, 1994
 .Dt SAVECORE 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm savecore
 .Nd "save a core dump of the operating system"
@@ -113,8 +113,9 @@ is meant to be called near the end of the initialization file
 .Sh BUGS
 The minfree code does not consider the effect of compression.
 .Sh SEE ALSO
-.Xr getbootfile 3 ,
 .Xr gzip 1 ,
+.Xr getbootfile 3 ,
+.Xr dumpon 8 ,
 .Xr syslogd 8
 .Sh HISTORY
 The

@@ -38,14 +38,16 @@
 .\"
 .Dd May 13, 1996
 .Dt MOUNT_STD 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm mount_std ,
 .Nm mount_fdesc ,
 .Nm mount_kernfs ,
 .Nm mount_linprocfs ,
 .Nm mount_procfs
-.Nd mount ``standard'' filesystems
+.Nd mount
+.Dq standard
+filesystems
 .Sh SYNOPSIS
 .Nm mount_ Ns Ar fsname
 .Op Fl o Ar options
@@ -70,7 +72,7 @@ accepts only the standard
 .Fl o
 options
 .Dq ro
-.Pq ``rdonly'' ,
+.Pq Dq rdonly ,
 .Dq rw ,
 .Dq nodev ,
 .Dq noexec ,
