@@ -1,7 +1,7 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/24/93
 
 PROG=	tcpdump
-CFLAGS+=-DCSLIP -I.
+CFLAGS+=-DCSLIP -DPPP -I.
 MAN1=	tcpdump.1
 SRCS=	version.c addrtoname.c bpf_dump.c bpf_filter.c bpf_image.c etherent.c \
 	gencode.c inet.c md.c nametoaddr.c optimize.c os.c pcap.c \
