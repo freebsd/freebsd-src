@@ -38,7 +38,7 @@
 .\"     @(#)putc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2001
+.Dd October 10, 2002
 .Dt PUTWC 3
 .Os
 .Sh NAME
@@ -68,12 +68,7 @@ to the output stream pointed to by
 .Pp
 .Fn putwc
 acts essentially identically to
-.Fn fputwc ,
-but is a macro that expands in-line. It may evaluate
-.Fa stream
-more than once, so arguments given to
-.Fn putwc
-should not be expressions with potential side effects.
+.Fn fputwc .
 .Pp
 .Fn putwchar
 is identical to
@@ -100,6 +95,6 @@ The functions
 .Fn fputwc ,
 .Fn putwc ,
 and
-.Fn putwchar ,
+.Fn putwchar
 conform to
 .St -isoC-99 .
