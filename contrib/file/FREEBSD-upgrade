@@ -6,8 +6,8 @@ Christos Zoulas `file'
 
 Imported by:
 
-	cvs import -m "Virgin import of Christos Zoulas's FILE 3.35." \
-		src/contrib/file ZOULAS file_3_35
+	cvs import -m "Virgin import of Christos Zoulas's FILE 3.39." \
+		src/contrib/file ZOULAS file_3_39
 
 
 Never make local changes to ZOULAS `file'.  Christos is very willing to
@@ -16,4 +16,4 @@ to him <christos@zoulas.com> and wait for the next release and vendor
 import to get them.
         
 obrien@NUXI.com
-25-April-2001
+15-Sept-2002
