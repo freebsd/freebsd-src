@@ -392,15 +392,13 @@ run(char **argv)
 		(void)fprintf(stderr, "%s", *argv);
 		for (p = argv + 1; *p; ++p)
 			(void)fprintf(stderr, " %s", *p);
-		if (pflag) {
-			if ((ttyfp = fopen("/dev/tty", "r")) != NULL) {
-				(void)fprintf(stderr, "?");
-				(void)fflush(stderr);
-				ch = getc(ttyfp);
-				fclose(ttyfp);
-				if (ch != 'y')
-					return;
-			}
+		if (pflag && (ttyfp = fopen("/dev/tty", "r")) != NULL) {
+			(void)fprintf(stderr, "?");
+			(void)fflush(stderr);
+			ch = getc(ttyfp);
+			fclose(ttyfp);
+			if (ch != 'y')
+				return;
 		} else {
 			(void)fprintf(stderr, "\n");
 			(void)fflush(stderr);
