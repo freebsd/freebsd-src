@@ -28,7 +28,6 @@ maxusers	32
 #hints		"GENERIC.hints"		#Default places to look for devices.
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	KERNEL=kernel.GENERIC
 
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
