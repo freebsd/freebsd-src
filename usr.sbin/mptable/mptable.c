@@ -276,7 +276,6 @@ static void sasEntry( void );
 static void bhdEntry( void );
 static void cbasmEntry( void );
 
-static void doOptionList( void );
 static void doDmesg( void );
 static void pnstr( char* s, int c );
 
@@ -378,9 +377,6 @@ main( int argc, char *argv[] )
         MPConfigDefault( defaultConfig );
     else
 	MPConfigTableHeader( mpfps.pap );
-
-    /* build "options" entries for the kernel config file */
-    doOptionList();
 
     /* do a dmesg output */
     if ( dmesg )
@@ -1089,28 +1085,6 @@ doDmesg( void )
     printf( "dmesg output:\n\n" );
     fflush( stdout );
     system( "dmesg" );
-}
-
-
-/*
- *  build "options" entries for the kernel config file
- */
-static void
-doOptionList( void )
-{
-    puts( SEP_LINE );
-
-    printf( "# SMP kernel config file options:\n\n" );
-    printf( "\n# Required:\n" );
-    printf( "options		SMP\t\t\t# Symmetric MultiProcessor Kernel\n" );
-    printf( "options		APIC_IO\t\t\t# Symmetric (APIC) I/O\n" );
-
-    printf( "\n# Optional (built-in defaults will work in most cases):\n" );
-    printf( "#options		NCPU=%d\t\t\t# number of CPUs\n", ncpu );
-    printf( "#options		NBUS=%d\t\t\t# number of busses\n", nbus );
-    printf( "#options		NAPIC=%d\t\t\t# number of IO APICs\n", napic );
-    printf( "#options		NINTR=%d\t\t# number of INTs\n",
-		(nintr < 24) ? 24 : nintr );
 }
 
 
