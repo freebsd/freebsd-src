@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_ipc.c,v 1.12 1997/07/20 09:39:42 bde Exp $
+ * $Id: ibcs2_ipc.c,v 1.13 1997/11/06 19:28:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,8 @@ static void cvt_semid2isemid __P((struct semid_ds *, struct ibcs2_semid_ds *));
 static void cvt_isemid2semid __P((struct ibcs2_semid_ds *, struct semid_ds *));
 static void cvt_shmid2ishmid __P((struct shmid_ds *, struct ibcs2_shmid_ds *));
 static void cvt_ishmid2shmid __P((struct ibcs2_shmid_ds *, struct shmid_ds *));
+static void cvt_perm2iperm   __P((struct ipc_perm *, struct ibcs2_ipc_perm *));
+static void cvt_iperm2perm   __P((struct ibcs2_ipc_perm *, struct ipc_perm *));
 
 
 /*
@@ -66,7 +68,7 @@ cvt_msqid2imsqid(bp, ibp)
 struct msqid_ds *bp;
 struct ibcs2_msqid_ds *ibp;
 {
-	ibp->msg_perm = bp->msg_perm;
+	cvt_perm2iperm(&bp->msg_perm, &ibp->msg_perm);
 	ibp->msg_first = bp->msg_first;
 	ibp->msg_last = bp->msg_last;
 	ibp->msg_cbytes = (u_short)bp->msg_cbytes;
@@ -85,7 +87,7 @@ cvt_imsqid2msqid(ibp, bp)
 struct ibcs2_msqid_ds *ibp;
 struct msqid_ds *bp;
 {
-	bp->msg_perm = ibp->msg_perm;
+	cvt_iperm2perm(&ibp->msg_perm, &bp->msg_perm);
 	bp->msg_first = ibp->msg_first;
 	bp->msg_last = ibp->msg_last;
 	bp->msg_cbytes = ibp->msg_cbytes;
@@ -177,11 +179,39 @@ struct sem *bp;
 #endif
 
 static void
+cvt_iperm2perm(ipp, pp)
+struct ibcs2_ipc_perm *ipp;
+struct ipc_perm *pp;
+{
+	pp->uid = ipp->uid;
+	pp->gid = ipp->gid;
+	pp->cuid = ipp->cuid;
+	pp->cgid = ipp->cgid;
+	pp->mode = ipp->mode;
+	pp->seq = ipp->seq;
+	pp->key = ipp->key;
+}
+
+static void
+cvt_perm2iperm(pp, ipp)
+struct ipc_perm *pp;
+struct ibcs2_ipc_perm *ipp;
+{
+	ipp->uid = pp->uid;
+	ipp->gid = pp->gid;
+	ipp->cuid = pp->cuid;
+	ipp->cgid = pp->cgid;
+	ipp->mode = pp->mode;
+	ipp->seq = pp->seq;
+	ipp->key = pp->key;
+}
+
+static void
 cvt_semid2isemid(bp, ibp)
 struct semid_ds *bp;
 struct ibcs2_semid_ds *ibp;
 {
-	ibp->sem_perm = bp->sem_perm;
+	cvt_perm2iperm(&bp->sem_perm, &ibp->sem_perm);
 	ibp->sem_base = (struct ibcs2_sem *)bp->sem_base;
 	ibp->sem_nsems = bp->sem_nsems;
 	ibp->sem_otime = bp->sem_otime;
@@ -194,7 +224,7 @@ cvt_isemid2semid(ibp, bp)
 struct ibcs2_semid_ds *ibp;
 struct semid_ds *bp;
 {
-	bp->sem_perm = ibp->sem_perm;
+	cvt_iperm2perm(&ibp->sem_perm, &bp->sem_perm);
 	bp->sem_base = (struct sem *)ibp->sem_base;
 	bp->sem_nsems = ibp->sem_nsems;
 	bp->sem_otime = ibp->sem_otime;
@@ -216,18 +246,22 @@ ibcs2_semsys(p, uap)
 		    {
 			struct ibcs2_semid_ds *isp;
 			struct semid_ds *sp;
+			union semun *sup, ssu;
 			caddr_t sg = stackgap_init();
 
-			isp = (struct ibcs2_semid_ds *)SCARG(uap, a5);
+
+			ssu = (union semun) SCARG(uap, a5);
 			sp = stackgap_alloc(&sg, sizeof(struct semid_ds));
-			SCARG(uap, a5) = (int)sp;
+			sup = stackgap_alloc(&sg, sizeof(union semun));
+			sup->buf = sp;
+			SCARG(uap, a5) = (int)sup;
 			error = semsys(p, (struct semsys_args *)uap);
 			if (!error) {
-				SCARG(uap, a5) = (int)isp;
+				SCARG(uap, a5) = (int)ssu.buf;
 				isp = stackgap_alloc(&sg, sizeof(*isp));
 				cvt_semid2isemid(sp, isp);
 				error = copyout((caddr_t)isp,
-						(caddr_t)SCARG(uap, a5),
+						(caddr_t)ssu.buf,
 						sizeof(*isp));
 			}
 			return error;
@@ -281,7 +315,7 @@ cvt_shmid2ishmid(bp, ibp)
 struct shmid_ds *bp;
 struct ibcs2_shmid_ds *ibp;
 {
-	ibp->shm_perm = bp->shm_perm;
+	cvt_perm2iperm(&bp->shm_perm, &ibp->shm_perm);
 	ibp->shm_segsz = bp->shm_segsz;
 	ibp->shm_lpid = bp->shm_lpid;
 	ibp->shm_cpid = bp->shm_cpid;
@@ -298,7 +332,7 @@ cvt_ishmid2shmid(ibp, bp)
 struct ibcs2_shmid_ds *ibp;
 struct shmid_ds *bp;
 {
-	bp->shm_perm = ibp->shm_perm;
+	cvt_iperm2perm(&ibp->shm_perm, &bp->shm_perm);
 	bp->shm_segsz = ibp->shm_segsz;
 	bp->shm_lpid = ibp->shm_lpid;
 	bp->shm_cpid = ibp->shm_cpid;

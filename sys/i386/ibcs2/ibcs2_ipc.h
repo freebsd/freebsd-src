@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_ipc.h,v 1.3 1997/02/22 09:33:20 peter Exp $
  */
 
 
@@ -49,7 +49,6 @@ struct ibcs2_semid_ds {
         struct ipc_perm sem_perm;
 	struct ibcs2_sem *sem_base;
 	u_short sem_nsems;
-	int pad1;
 	ibcs2_time_t sem_otime;
 	ibcs2_time_t sem_ctime;
 };
