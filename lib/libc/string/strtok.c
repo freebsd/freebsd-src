@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Softweyr LLC.  All rights reserved.
  *
  * strtok_r, from Berkeley strtok
@@ -10,7 +10,6 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
  *    notices, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -40,6 +39,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if 0
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)strtok.c	8.1 (Berkeley) 6/4/93";
+#endif /* LIBC_SCCS and not lint */
+#endif
+
 #include <stddef.h>
 #ifdef DEBUG_STRTOK
 #include <stdio.h>
@@ -49,8 +54,8 @@ __FBSDID("$FreeBSD$");
 char *
 strtok_r(char *s, const char *delim, char **last)
 {
+	char *spanp, *tok;
 	int c, sc;
-	char *spanp, *tok, *w;
 
 	if (s == NULL && (s = *last) == NULL)
 		return (NULL);
@@ -60,9 +65,10 @@ strtok_r(char *s, const char *delim, char **last)
 	 */
 cont:
 	c = *s++;
-	for (spanp = (char *)delim; (sc = *spanp++) != 0;)
+	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
 			goto cont;
+	}
 
 	if (c == 0) {		/* no non-delimiter characters */
 		*last = NULL;
@@ -81,10 +87,8 @@ cont:
 			if ((sc = *spanp++) == c) {
 				if (c == 0)
 					s = NULL;
-				else {
-					w = s - 1;
-					*w = '\0';
-				}
+				else
+					s[-1] = '\0';
 				*last = s;
 				return (tok);
 			}
@@ -93,7 +97,6 @@ cont:
 	/* NOTREACHED */
 }
 
-
 char *
 strtok(char *s, const char *delim)
 {
@@ -101,7 +104,6 @@ strtok(char *s, const char *delim)
 
 	return (strtok_r(s, delim, &last));
 }
-
 
 #ifdef DEBUG_STRTOK
 /*
