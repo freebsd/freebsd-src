@@ -40,6 +40,7 @@
 #ifndef NO_RSA
 
 #include <stdio.h>
+#include <openssl/rsa.h>
 
 #define VERBOSE_STUBS	/* undef if you don't want missing rsaref reported */
 
@@ -164,6 +165,12 @@ R_RandomUpdate_stub(void *randomStruct,
     return 0;
 }
 __weak_reference(R_RandomUpdate_stub, R_RandomUpdate);
+
+int
+RSA_libversion()
+{
+	return RSALIB_RSAREF;
+}
 
 #else	/* !PIC */
 
