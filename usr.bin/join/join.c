@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,6 +121,8 @@ main(argc, argv)
 	INPUT *F1, *F2;
 	int aflag, ch, cval, vflag;
 	char *end;
+
+	setlocale(LC_ALL, "");
 
 	F1 = &input1;
 	F2 = &input2;
@@ -365,7 +368,7 @@ cmp(lp1, fieldno1, lp2, fieldno2)
 		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
 	if (lp2->fieldcnt <= fieldno2)
 		return (-1);
-	return (strcmp(lp1->fields[fieldno1], lp2->fields[fieldno2]));
+	return (strcoll(lp1->fields[fieldno1], lp2->fields[fieldno2]));
 }
 
 void
@@ -543,8 +546,13 @@ obsolete(argv)
 			 * on the command line.  (Well, we could reallocate
 			 * the argv array, but that hardly seems worthwhile.)
 			 */
-			if (ap[2] == '\0')
+			if (ap[2] == '\0' && (argv[1] == NULL ||
+			    (strcmp(argv[1], "1") != 0 &&
+			    strcmp(argv[1], "2") != 0))) {
 				ap[1] = '\01';
+				warnx("-a option used without an argument; "
+				    "reverting to historical behavior");
+			}
 			break;
 		case 'j':
 			/*

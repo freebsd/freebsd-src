@@ -35,7 +35,7 @@
 .\"	@(#)join.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd April 18, 2002
 .Dt JOIN 1
 .Os
 .Sh NAME
@@ -91,11 +91,6 @@ The following options are available:
 In addition to the default output, produce a line for each unpairable
 line in file
 .Ar file_number .
-(The argument to
-.Fl a
-must not be preceded by a space; see the
-.Sx COMPATIBILITY
-section.)
 .It Fl e Ar string
 Replace empty output fields with
 .Ar string .
@@ -182,10 +177,6 @@ the following options are available:
 .It Fl a
 In addition to the default output, produce a line for each unpairable line
 in both file 1 and file 2.
-(To distinguish between this and
-.Fl a Ar file_number ,
-.Nm
-currently requires that the latter not include any white space.)
 .It Fl j1 Ar field
 Join on the
 .Ar field Ns 'th
@@ -220,10 +211,7 @@ modification and should not be used.
 The
 .Nm
 command conforms to
-.St -p1003.1-2001
-except for the requirement that there be no space between the
-.Fl a
-option and its argument.
+.St -p1003.1-2001 .
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr comm 1 ,
