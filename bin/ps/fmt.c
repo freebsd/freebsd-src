@@ -70,7 +70,7 @@ shquote(char **argv)
 	if (buf == NULL) {
 		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 			errx(1, "sysconf _SC_ARG_MAX failed");
-		if (arg_max >= LONG_MAX / 4 || 4 * arg_max + 1 > (long)SIZE_MAX)
+		if (arg_max >= LONG_MAX / 4 || arg_max >= (long)(SIZE_MAX / 4))
 			errx(1, "sysconf _SC_ARG_MAX preposterously large");
 		buf_size = 4 * arg_max + 1;
 		if ((buf = malloc(buf_size)) == NULL)
