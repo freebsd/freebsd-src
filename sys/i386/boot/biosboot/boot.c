@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.30 1995/01/20 07:48:19 wpaul Exp $
+ *	$Id: boot.c,v 1.31 1995/01/25 21:37:38 bde Exp $
  */
 
 
@@ -93,8 +93,8 @@ int drive;
 	printf("\n\
 >> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n\
 Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n\
-Usage: [[[%s(%d,a)]%s][-s][-r][-a][-c][-d][-D][-b][-v][-h]]\n\
-Use ? for file list or simply press Return for defaults\n",
+Usage: [[[%s(%d,a)]%s][-Dabcdhrsv]]\n\
+Use ? for file list or press Enter for defaults\n\n",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       devs[drive & 0x80 ? 0 : 2], drive & 0x7f, name);
 
@@ -313,27 +313,27 @@ getbootdev(howto)
 			if (c=='-')
 				while ((c = *++ptr) && c!=' ')
 					switch (c) {
-					      case 'r':
-						*howto |= RB_DFLTROOT; continue;
-					      case 'a':
-						*howto |= RB_ASKNAME; continue;
-					      case 'c':
-						*howto |= RB_CONFIG; continue;
-					      case 's':
-						*howto |= RB_SINGLE; continue;
-					      case 'd':
-						*howto |= RB_KDB; continue;
 					      case 'D':
 						loadsyms = 1; continue;
+					      case 'a':
+						*howto |= RB_ASKNAME; continue;
 					      case 'b':
 						*howto |= RB_HALT; continue;
-					      case 'v':
-						*howto |= RB_VERBOSE; continue;
+					      case 'c':
+						*howto |= RB_CONFIG; continue;
+					      case 'd':
+						*howto |= RB_KDB; continue;
 					      case 'h':
 						*howto ^= RB_SERIAL;
 						if (*howto & RB_SERIAL)
 							init_serial();
 						continue;
+					      case 'r':
+						*howto |= RB_DFLTROOT; continue;
+					      case 's':
+						*howto |= RB_SINGLE; continue;
+					      case 'v':
+						*howto |= RB_VERBOSE; continue;
 					}
 			else {
 				name = ptr;
