@@ -424,7 +424,6 @@ main(argc, argv)
 
 #define	DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
-
 	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
 	    DEFAULT_WARN);
 
