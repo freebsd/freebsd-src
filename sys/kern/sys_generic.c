@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.25 1997/03/23 03:36:23 bde Exp $
+ * $Id: sys_generic.c,v 1.26 1997/03/24 11:52:25 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -99,6 +99,7 @@ read(p, uap, retval)
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
+	auio.uio_offset = -1;
 
 	auio.uio_resid = uap->nbyte;
 	if (auio.uio_resid < 0)
@@ -176,6 +177,7 @@ readv(p, uap, retval)
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
+	auio.uio_offset = -1;
 	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;
@@ -250,6 +252,7 @@ write(p, uap, retval)
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
+	auio.uio_offset = -1;
 	auio.uio_resid = uap->nbyte;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
@@ -327,6 +330,7 @@ writev(p, uap, retval)
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
+	auio.uio_offset = -1;
 	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;

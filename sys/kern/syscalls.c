@@ -335,4 +335,16 @@ char *syscallnames[] = {
 	"#311",			/* 311 = setresuid */
 	"#312",			/* 312 = setresgid */
 	"signanosleep",			/* 313 = signanosleep */
+	"aio_return",			/* 314 = aio_return */
+	"aio_suspend",			/* 315 = aio_suspend */
+	"aio_cancel",			/* 316 = aio_cancel */
+	"aio_error",			/* 317 = aio_error */
+	"aio_read",			/* 318 = aio_read */
+	"aio_write",			/* 319 = aio_write */
+	"lio_listio",			/* 320 = lio_listio */
+	"yield",			/* 321 = yield */
+	"thr_sleep",			/* 322 = thr_sleep */
+	"thr_wakeup",			/* 323 = thr_wakeup */
+	"mlockall",			/* 324 = mlockall */
+	"munlockall",			/* 325 = munlockall */
 };

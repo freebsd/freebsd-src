@@ -119,6 +119,8 @@ kern/vfs_lookup.c	standard
 kern/vfs_subr.c		standard
 kern/vfs_syscalls.c	standard
 kern/vfs_vnops.c	standard
+kern/kern_threads.c	standard
+kern/vfs_aio.c		standard
 miscfs/deadfs/dead_vnops.c	standard
 miscfs/devfs/devfs_tree.c	optional devfs
 miscfs/devfs/devfs_vfsops.c	optional devfs

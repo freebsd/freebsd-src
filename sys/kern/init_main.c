@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.62 1997/05/11 18:05:36 tegge Exp $
+ * $Id: init_main.c,v 1.63 1997/05/29 04:52:03 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -338,6 +338,12 @@ proc0_init(dummy)
 	p->p_nice = NZERO;
 	p->p_rtprio.type = RTP_PRIO_NORMAL;
 	p->p_rtprio.prio = 0;
+
+/*
+ * Link for kernel based threads
+ */
+	p->p_peers = 0;
+	p->p_leader = p;
 
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
