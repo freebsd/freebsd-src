@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.21 1995/03/11 03:49:50 phk Exp $
+ *	$Id: support.s,v 1.22 1995/05/02 05:20:26 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -40,21 +40,6 @@
 
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10
-
-/*
- * Support routines for GCC, general C-callable functions
- */
-ENTRY(__udivsi3)
-	movl 4(%esp),%eax
-	xorl %edx,%edx
-	divl 8(%esp)
-	ret
-
-ENTRY(__divsi3)
-	movl 4(%esp),%eax
-	cltd
-	idivl 8(%esp)
-	ret
 
 /*
  * Support for reading real time clock registers

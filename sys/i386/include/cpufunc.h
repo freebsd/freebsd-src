@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.39 1995/08/08 04:50:52 dyson Exp $
+ *	$Id: cpufunc.h,v 1.40 1995/08/26 20:45:59 bde Exp $
  */
 
 /*
@@ -355,11 +355,8 @@ void	remque		__P((void *a));
 
 /*
  * XXX the following declarations document garbage in support.s.
- * gcc hasn't needed _divsi* for years.
  * bcopy[bwx]() was used by pccons but isn't used now.
  */
-int	__divsi3	__P((int factor1, int factor2));
-u_int	__udivsi3	__P((u_int factor1, u_int factor2));
 void	bcopyb		__P((const void *from, void *to, size_t len));
 void	bcopyw		__P((const void *from, void *to, size_t len));
 void	bcopyx		__P((const void *from, void *to, size_t len,
