@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.50 1999/02/03 08:59:30 msmith Exp $
+ *	$Id: tcp_subr.c,v 1.49.2.1 1999/02/04 06:40:28 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -552,10 +552,15 @@ tcp_pcblist SYSCTL_HANDLER_ARGS
 		inp = inp_list[i];
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
+			caddr_t inp_ppcb;
 			xt.xt_len = sizeof xt;
 			/* XXX should avoid extra copy */
 			bcopy(inp, &xt.xt_inp, sizeof *inp);
-			bcopy(inp->inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
+			inp_ppcb = inp->inp_ppcb;
+			if (inp_ppcb != NULL)
+				bcopy(inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
+			else
+				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xt.xt_socket);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
