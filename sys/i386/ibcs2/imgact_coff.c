@@ -50,6 +50,8 @@
 #include <i386/ibcs2/coff.h>
 #include <i386/ibcs2/ibcs2_util.h>
 
+MODULE_DEPEND(coff, ibcs2, 1, 1, 1);
+
 extern struct sysentvec ibcs2_svr3_sysvec;
 
 static int coff_load_file __P((struct proc *p, char *name));
