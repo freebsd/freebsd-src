@@ -762,23 +762,9 @@ void
 threadinit(void)
 {
 
-#ifndef __ia64__
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    UMA_ALIGN_CACHE, 0);
-#else
-	/*
-	 * XXX the ia64 kstack allocator is really lame and is at the mercy
-	 * of contigmallloc().  This hackery is to pre-construct a whole
-	 * pile of thread structures with associated kernel stacks early
-	 * in the system startup while contigmalloc() still works. Once we
-	 * have them, keep them.  Sigh.
-	 */
-	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
-	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
-	uma_prealloc(thread_zone, 512);		/* XXX arbitary */
-#endif
 	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
 	    NULL, NULL, ksegrp_init, NULL,
 	    UMA_ALIGN_CACHE, 0);
