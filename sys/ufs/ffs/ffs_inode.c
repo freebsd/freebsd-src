@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.8 1994/10/10 01:04:37 phk Exp $
+ * $Id: ffs_inode.c,v 1.9 1994/10/22 02:27:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,12 +67,12 @@ ffs_init()
 
 /*
  * Update the access, modified, and inode change times as specified by the
- * IACCESS, IUPDATE, and ICHANGE flags respectively. The IMODIFIED flag is
- * used to specify that the inode needs to be updated but that the times have
- * already been set. The access and modified times are taken from the second
- * and third parameters; the inode change time is always taken from the current
- * time. If waitfor is set, then wait for the disk write of the inode to
- * complete.
+ * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively. The IN_MODIFIED
+ * flag is used to specify that the inode needs to be updated even if none
+ * of the times needs to be updated. The access and modified times are taken
+ * from the second and third parameters; the inode change time is always
+ * taken from the current time. If waitfor is set, then wait for the disk
+ * write of the inode to complete.
  */
 int
 ffs_update(ap)
@@ -87,6 +87,7 @@ ffs_update(ap)
 	struct buf *bp;
 	struct inode *ip;
 	int error;
+	time_t tv_sec;
 
 	ip = VTOI(ap->a_vp);
 	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY) {
@@ -97,14 +98,29 @@ ffs_update(ap)
 	if ((ip->i_flag &
 	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
 		return (0);
+	/*
+	 * Use a copy of the current time to get consistent timestamps
+	 * (a_access and a_modify are sometimes aliases for &time).
+	 *
+	 * XXX in 2.0, a_access and a_modify are often pointers to the
+	 * same copy of `time'.  This is not as good.  Some callers forget
+	 * to make a copy; others make a copy too early (before the i/o
+	 * has completed)...
+	 *
+	 * XXX there should be a function or macro for reading the time
+	 * (e.g., some machines may require splclock()).
+	 */
+	tv_sec = time.tv_sec;
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime.ts_sec = ap->a_access->tv_sec;
+		ip->i_atime.ts_sec =
+		    (ap->a_access == &time ? tv_sec : ap->a_access->tv_sec);
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime.ts_sec = ap->a_modify->tv_sec;
+		ip->i_mtime.ts_sec =
+		    (ap->a_modify == &time ? tv_sec : ap->a_modify->tv_sec);
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
-		ip->i_ctime.ts_sec = time.tv_sec;
+		ip->i_ctime.ts_sec = tv_sec;
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_fs;
 	/*
@@ -266,7 +282,7 @@ ffs_truncate(ap)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	error = VOP_UPDATE(ovp, &tv, &tv, MNT_WAIT);
+	error = VOP_UPDATE(ovp, &tv, &tv, 1);
 	if (error)
 		allerror = error;
 	/*
