@@ -56,7 +56,7 @@ static int		stub_zero(void);
 #define	PJT_DUAL_ENTRY(entry)	\
 	(pthread_func_t)entry, (pthread_func_t)entry
 
-pthread_func_t __thr_jtable[PJT_MAX][2] = {
+pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_BROADCAST */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_DESTROY */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_COND_INIT */
