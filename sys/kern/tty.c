@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.75 1995/12/14 22:32:39 bde Exp $
+ * $Id: tty.c,v 1.76 1995/12/15 01:01:00 bde Exp $
  */
 
 /*-
@@ -221,7 +221,8 @@ ttyopen(device, tp)
 	 * the standard line discipline.
 	 */
 	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
-	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
+	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + OBUFSIZ + 100,
+			    TTMAXHIWAT + OBUFSIZ + 100);
 	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, TTYHOG);
 
 	splx(s);
