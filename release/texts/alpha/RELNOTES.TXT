@@ -318,6 +318,14 @@ tcpdump(1) has received some updates and bugfixes. [MERGED]
 
 User-land ppp(8) has received a number of updates and bugfixes. [MERGED]
 
+To improve performance and disk utilization, the "ports skeletons" in
+the FreeBSD Ports Collection have been restructured.  Installed ports
+and packages should not be affected. [MERGED]
+
+make(1) has gained the :C/// (regexp substitution), :L (lowercase),
+and :U (uppercase) variable modifiers.  These were added to reduce the
+differences between the FreeBSD and OpenBSD/NetBSD make programs.
+
 
 2. Supported Configurations
 ---------------------------
