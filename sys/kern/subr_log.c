@@ -90,10 +90,7 @@ int	log_open;			/* also used in log() */
 
 /*ARGSUSED*/
 static	int
-logopen(dev, flags, mode, p)
-	dev_t dev;
-	int flags, mode;
-	struct proc *p;
+logopen(dev_t dev, int flags, int mode, struct proc *p)
 {
 	if (log_open)
 		return (EBUSY);
@@ -104,10 +101,7 @@ logopen(dev, flags, mode, p)
 
 /*ARGSUSED*/
 static	int
-logclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag, mode;
-	struct proc *p;
+logclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 
 	log_open = 0;
@@ -118,14 +112,11 @@ logclose(dev, flag, mode, p)
 
 /*ARGSUSED*/
 static	int
-logread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+logread(dev_t dev, struct uio *uio, int flag)
 {
-	register struct msgbuf *mbp = msgbufp;
-	register long l;
-	register int s;
+	struct msgbuf *mbp = msgbufp;
+	long l;
+	int s;
 	int error = 0;
 
 	s = splhigh();
@@ -164,10 +155,7 @@ logread(dev, uio, flag)
 
 /*ARGSUSED*/
 static	int
-logpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+logpoll(dev_t dev, int events, struct proc *p)
 {
 	int s;
 	int revents = 0;
@@ -185,7 +173,7 @@ logpoll(dev, events, p)
 }
 
 void
-logwakeup()
+logwakeup(void)
 {
 	if (!log_open)
 		return;
@@ -200,12 +188,7 @@ logwakeup()
 
 /*ARGSUSED*/
 static	int
-logioctl(dev, com, data, flag, p)
-	dev_t dev;
-	u_long com;
-	caddr_t data;
-	int flag;
-	struct proc *p;
+logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct proc *p)
 {
 	long l;
 	int s;
@@ -254,13 +237,10 @@ logioctl(dev, com, data, flag, p)
 	return (0);
 }
 
-
-static void log_drvinit __P((void *unused));
-
 static void
-log_drvinit(unused)
-	void *unused;
+log_drvinit(void *unused)
 {
+
 	make_dev(&log_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "klog");
 }
 
