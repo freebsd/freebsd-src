@@ -97,6 +97,9 @@ do
         then
           [ $processed = 1 ] && plural= || plural=s
           echo "No output from the $processed file$plural processed"
+        else
+          echo ""
+          echo "-- End of $arg output --"
         fi
     } | eval $pipe
 done
