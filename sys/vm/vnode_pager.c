@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.65 1996/10/17 02:49:35 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.65.2.1 1997/03/25 04:54:38 dyson Exp $
  */
 
 /*
@@ -690,9 +690,14 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
 	 * then, the entire page is valid --
+	 * XXX no it isn't
 	 */
+	if (m[reqpage]->valid != VM_PAGE_BITS_ALL)
+	    m[reqpage]->valid = 0;
+
 	if (m[reqpage]->valid) {
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
+
 		for (i = 0; i < count; i++) {
 			if (i != reqpage)
 				vnode_pager_freepage(m[i]);
