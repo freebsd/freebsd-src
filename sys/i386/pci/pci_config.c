@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_config.c,v 2.1 94/09/16 08:01:25 wolf Rel $
+**  $Id: pci_config.c,v 1.5 1994/09/28 16:34:09 se Exp $
 **
 **  @PCI@ this should be part of "ioconf.c".
 **
@@ -66,9 +66,9 @@ struct pci_device pci_devtab[] = {
 #endif
 
 #if NDE>0
-	{&dedevice, 0x00011011ul, "de", 0}, /* FIXME!!! */
+	{&dedevice, 0x00021011ul, "de", 0}, /* FIXME!!! */
 #else
-	{0, 0x00011011ul, "de", PDF_LOADABLE}, /* FIXME!!! */
+	{0, 0x00021011ul, "de", PDF_LOADABLE}, /* FIXME!!! */
 #endif
 
 	{0, 0x10001042ul, "wd", PDF_COVERED},
