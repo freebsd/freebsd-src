@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.28 1999/02/06 08:41:05 bde Exp $
+ * $Id: asnames.h,v 1.29 1999/02/22 15:13:34 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -358,6 +358,7 @@
 #define _switchtime			switchtime
 #define _syscall			syscall
 #define _szsigcode			szsigcode
+#define _ticks				ticks
 #define _time				time
 #define _timer0_max_count		timer0_max_count
 #define _timer0_overflow_threshold	timer0_overflow_threshold
