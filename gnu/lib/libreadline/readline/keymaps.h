@@ -1,13 +1,36 @@
 /* keymaps.h -- Manipulation of readline keymaps. */
 
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
+
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 1, or
+   (at your option) any later version.
+
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   675 Mass Ave, Cambridge, MA 02139, USA. */
+
 #ifndef _KEYMAPS_H_
 #define _KEYMAPS_H_
 
 #include <readline/chardefs.h>
 
-#ifndef __FUNCTION_DEF
+#if !defined (__FUNCTION_DEF)
+#  define __FUNCTION_DEF
 typedef int Function ();
-#define __FUNCTION_DEF
+typedef void VFunction ();
+typedef char *CPFunction ();
+typedef char **CPPFunction ();
 #endif
 
 /* A keymap contains one entry for each key in the ASCII set.
@@ -20,12 +43,17 @@ typedef struct _keymap_entry {
   Function *function;
 } KEYMAP_ENTRY;
 
+/* This must be large enough to hold bindings for all of the characters
+   in a desired character set (e.g, 128 for ASCII, 256 for ISO Latin-x,
+   and so on). */
+#define KEYMAP_SIZE 256
+
 /* I wanted to make the above structure contain a union of:
    union { Function *function; struct _keymap_entry *keymap; } value;
    but this made it impossible for me to create a static array.
    Maybe I need C lessons. */
 
-typedef KEYMAP_ENTRY KEYMAP_ENTRY_ARRAY[128];
+typedef KEYMAP_ENTRY KEYMAP_ENTRY_ARRAY[KEYMAP_SIZE];
 typedef KEYMAP_ENTRY *Keymap;
 
 /* The values that TYPE can have in a keymap entry. */
@@ -47,5 +75,15 @@ Keymap rl_copy_keymap ();
    the lowercase Meta characters bound to run their equivalents, and
    the Meta digits bound to produce numeric arguments. */
 Keymap rl_make_keymap ();
+
+/* Return the keymap corresponding to a given name.  Names look like
+   `emacs' or `emacs-meta' or `vi-insert'. */
+Keymap rl_get_keymap_by_name ();
+
+/* Return the current keymap. */
+Keymap rl_get_keymap ();
+
+/* Set the current keymap to MAP. */
+void rl_set_keymap ();
 
 #endif /* _KEYMAPS_H_ */

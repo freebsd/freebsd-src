@@ -306,6 +306,3 @@ main ()
     @}
 @}
 @end smallexample
-
-
-

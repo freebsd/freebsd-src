@@ -1,18 +1,34 @@
 /* Readline.h -- the names of functions callable from within readline. */
 
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
+
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 1, or
+   (at your option) any later version.
+
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   675 Mass Ave, Cambridge, MA 02139, USA. */
+
 #if !defined (_READLINE_H_)
 #define _READLINE_H_
 
 #include <readline/keymaps.h>
 
-#if !defined (__FUNCTION_DEF)
-typedef int Function ();
-#define __FUNCTION_DEF
-#endif /* __FUNCTION_DEF */
-
 /* The functions for manipulating the text of the line within readline.
 Most of these functions are bound to keys by default. */
 extern int
+  rl_tilde_expand (),
   rl_beg_of_line (), rl_backward (), rl_delete (), rl_end_of_line (),
   rl_forward (), ding (), rl_backward (), rl_newline (), rl_kill_line (),
   rl_clear_screen (), rl_get_next_history (), rl_get_previous_history (),
@@ -21,19 +37,32 @@ extern int
   rl_yank (), rl_rubout (), rl_backward_word (), rl_kill_word (),
   rl_forward_word (), rl_tab_insert (), rl_yank_pop (), rl_yank_nth_arg (),
   rl_backward_kill_word (), rl_backward_kill_line (), rl_transpose_words (),
-  rl_complete (), rl_possible_completions (), rl_do_lowercase_version (),
+  rl_complete (), rl_possible_completions (), rl_insert_completions (),
+  rl_do_lowercase_version (),
   rl_digit_argument (), rl_universal_argument (), rl_abort (),
   rl_undo_command (), rl_revert_line (), rl_beginning_of_history (),
   rl_end_of_history (), rl_forward_search_history (), rl_insert (),
   rl_upcase_word (), rl_downcase_word (), rl_capitalize_word (),
-  rl_restart_output (), rl_re_read_init_file (), rl_dump_functions ();
+  rl_restart_output (), rl_re_read_init_file (), rl_dump_functions (),
+  rl_delete_horizontal_space ();
+
+/* #define PAREN_MATCHING */
+#if defined (PAREN_MATCHING)
+extern int rl_insert_close ();
+#endif /* PAREN_MATCHING */
 
 /* These are *both* defined even when VI_MODE is not. */
 extern int rl_vi_editing_mode (), rl_emacs_editing_mode ();
 
+/* Non incremental history searching. */
+extern int
+  rl_noninc_forward_search (), rl_noninc_reverse_search (),
+  rl_noninc_forward_search_again (), rl_noninc_reverse_search_again ();
+
 #if defined (VI_MODE)
 /* Things for vi mode. */
 extern int
+  rl_vi_redo (), rl_vi_tilde_expand (),
   rl_vi_movement_mode (), rl_vi_insertion_mode (), rl_vi_arg_digit (),
   rl_vi_prev_word (), rl_vi_next_word (), rl_vi_char_search (),
   rl_vi_eof_maybe (), rl_vi_append_mode (), rl_vi_put (),
@@ -42,9 +71,9 @@ extern int
   rl_vi_bWord (), rl_vi_eword (), rl_vi_eWord (), rl_vi_end_word (),
   rl_vi_change_case (), rl_vi_match (), rl_vi_bracktype (),
   rl_vi_change_char (), rl_vi_yank_arg (), rl_vi_search (),
-  rl_vi_search_again (), rl_vi_dosearch (), rl_vi_subst (),
-  rl_vi_overstrike (), rl_vi_overstrike_delete (), rl_vi_replace(),
-  rl_vi_column (), rl_vi_delete_to (), rl_vi_change_to (), rl_vi_yank_to (),
+  rl_vi_search_again (),  rl_vi_subst (), rl_vi_overstrike (),
+  rl_vi_overstrike_delete (), rl_vi_replace(), rl_vi_column (),
+  rl_vi_delete_to (), rl_vi_change_to (), rl_vi_yank_to (),
   rl_vi_complete (), rl_vi_fetch_history ();
 #endif /* VI_MODE */
 
@@ -144,13 +173,7 @@ extern Function *rl_ignore_some_completions_function;
    If this function exists and returns NULL then call the value of
    rl_completion_entry_function to try to match, otherwise use the
    array of strings returned. */
-extern Function *rl_attempted_completion_function;
-
-/* If non-null, this contains the address of a function to call if the
-   standard meaning for expanding a tilde fails.  The function is called
-   with the text (sans tilde, as in "foo"), and returns a malloc()'ed string
-   which is the expansion, or a NULL pointer if there is no expansion. */
-extern Function *rl_tilde_expander;
+extern CPPFunction *rl_attempted_completion_function;
 
 /* If non-zero, then this is the address of a function to call just
    before readline_internal () prints the first prompt. */
@@ -161,8 +184,8 @@ extern Function *rl_startup_hook;
    the address of a string (the current directory name) as an arg. */
 extern Function *rl_symbolic_link_hook;
 
-/* If non-zero then this is the address of a function you want called
-   while Readline is waiting for character input.     */
+/* The address of a function to call periodically while Readline is
+   awaiting character input, or NULL, for no event handling. */
 extern Function *rl_event_hook;
 
 /* Non-zero means that modified history lines are preceded

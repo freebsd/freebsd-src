@@ -1,26 +1,25 @@
 /* vi_mode.c -- A vi emulation mode for Bash.
    Derived from code written by Jeff Sparkes (jsparkes@bnr.ca).  */
 
-/* Copyright (C) 1988, 1991 Free Software Foundation, Inc.
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
 
-   This file is part of the GNU Readline Library (the Library), a set of
-   routines for providing Emacs style line input to programs that ask
-   for it.
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
 
-   The Library is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
-   The Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
-
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* **************************************************************** */
 /*								    */
@@ -29,9 +28,24 @@
 /* **************************************************************** */
 #if defined (VI_MODE)
 
-/* Some standard library routines. */
-#include "sysdep.h"
+#include <sys/types.h>
+
+#if defined (HAVE_STDLIB_H)
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif /* HAVE_STDLIB_H */
+
+#if defined (STATIC_MALLOC)
+static char *xmalloc (), *xrealloc ();
+#else
+extern char *xmalloc (), *xrealloc ();
+#endif /* STATIC_MALLOC */
+
 #include <stdio.h>
+
+/* Some standard library routines. */
+#include "rldefs.h"
 #include "readline.h"
 #include "history.h"
 
@@ -48,7 +62,7 @@
 #endif
 
 #ifndef member
-#define member(c, s) ((c) ? index ((s), (c)) : 0)
+#define member(c, s) ((c) ? (char *)strchr ((s), (c)) : 0)
 #endif
 
 #ifndef isident
@@ -59,24 +73,24 @@
 #define exchange(x, y) {int temp = x; x = y; y = temp;}
 #endif
 
+#ifndef VI_COMMENT_BEGIN_DEFAULT
+#define VI_COMMENT_BEGIN_DEFAULT "#"
+#endif
+
 /* Variables imported from readline.c */
 extern int rl_point, rl_end, rl_mark, rl_done;
 extern FILE *rl_instream;
 extern int rl_line_buffer_len, rl_explicit_arg, rl_numeric_arg;
-extern Keymap keymap;
+extern Keymap _rl_keymap;
 extern char *rl_prompt;
 extern char *rl_line_buffer;
 extern int rl_arg_sign;
 
-extern char *xmalloc (), *xrealloc ();
 extern void rl_extend_line_buffer ();
-
-/* Last string searched for from `/' or `?'. */
-static char *vi_last_search = (char *)NULL;
-static int vi_histpos;
+extern int rl_vi_check (), rl_digit_loop1 ();
 
 /* Non-zero means enter insertion mode. */
-int vi_doing_insert = 0;
+int _rl_vi_doing_insert = 0;
 
 /* String inserted into the line by rl_vi_comment (). */
 char *rl_vi_comment_begin = (char *)NULL;
@@ -92,16 +106,70 @@ static Keymap vi_replace_map = (Keymap)NULL;
 /* The number of characters inserted in the last replace operation. */
 static int vi_replace_count = 0;
 
+int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
+int _rl_vi_last_repeat = 1;
+int _rl_vi_last_arg_sign = 1;
+static int _rl_vi_last_motion = 0;
+static int _rl_vi_last_search_char = 0;
+static int _rl_vi_last_replacement = 0;
+
+static int vi_redoing = 0;
+
+/* Text modification commands.  These are the `redoable' commands. */
+static char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
+
+void
+rl_vi_set_last ()
+{
+  _rl_vi_last_command = 'i';
+  _rl_vi_last_repeat = 1;
+  _rl_vi_last_arg_sign = 1;
+  _rl_vi_last_motion = 0;
+}
+
+/* Is the command C a VI mode text modification command? */
+int
+rl_vi_textmod_command (c)
+     int c;
+{
+  return (member (c, vi_textmod) != (char *)NULL);
+}
+
+/* Bound to `.'.  Called from command mode, so we know that we have to
+   redo a text modification command.  The default for _rl_vi_last_command
+   puts you back into insert mode. */
+rl_vi_redo (count, c)
+     int count, c;
+{
+  if (!rl_explicit_arg)
+    {
+      rl_numeric_arg = _rl_vi_last_repeat;
+      rl_arg_sign = _rl_vi_last_arg_sign;
+    }
+
+  vi_redoing = 1;
+  rl_dispatch (_rl_vi_last_command, _rl_keymap);
+  vi_redoing = 0;
+
+  return (0);
+}
+    
 /* Yank the nth arg from the previous line into this line at point. */
 rl_vi_yank_arg (count)
      int count;
 {
+  /* vi mode is defined to insert a space before the last argument. */
+  rl_insert (1, ' ');
+
   /* Readline thinks that the first word on a line is the 0th, while vi
      thinks the first word on a line is the 1st.  Compensate. */
   if (rl_explicit_arg)
     rl_yank_nth_arg (count - 1, 0);
   else
     rl_yank_nth_arg ('$', 0);
+
+  rl_vi_insertion_mode ();
+  return (0);
 }
 
 /* With an argument, move back that many history lines, else move to the
@@ -109,7 +177,6 @@ rl_vi_yank_arg (count)
 rl_vi_fetch_history (count, c)
      int count, c;
 {
-  extern int rl_explicit_arg;
   int current = where_history ();
 
   /* Giving an argument of n means we want the nth command in the history
@@ -127,176 +194,45 @@ rl_vi_fetch_history (count, c)
     }
   else
     rl_beginning_of_history (count, 0);
+  return (0);
 }
 
 /* Search again for the last thing searched for. */
-rl_vi_search_again (ignore, key)
-     int ignore, key;
+rl_vi_search_again (count, key)
+     int count, key;
 {
   switch (key)
     {
     case 'n':
-      rl_vi_dosearch (vi_last_search, -1);
+      rl_noninc_reverse_search_again (count, key);
       break;
 
     case 'N':
-      rl_vi_dosearch (vi_last_search, 1);
+      rl_noninc_forward_search_again (count, key);
       break;
     }
+  return (0);
 }
 
 /* Do a vi style search. */
 rl_vi_search (count, key)
      int count, key;
 {
-  int dir, c, save_pos;
-  char *p;
-
   switch (key)
     {
     case '?':
-      dir = 1;
+      rl_noninc_forward_search (count, key);
       break;
 
     case '/':
-      dir = -1;
+      rl_noninc_reverse_search (count, key);
       break;
 
     default:
       ding ();
-      return;
+      break;
     }
-
-  vi_histpos = where_history ();
-  maybe_save_line ();
-  save_pos = rl_point;
-
-  /* Reuse the line input buffer to read the search string. */
-  rl_line_buffer[0] = 0;
-  rl_end = rl_point = 0;
-  p = (char *)alloca (2 + (rl_prompt ? strlen (rl_prompt) : 0));
-
-  sprintf (p, "%s%c", rl_prompt ? rl_prompt : "", key);
-
-  rl_message (p, 0, 0);
-
-  while (c = rl_read_key ())
-    {
-      switch (c)
-	{
-	case CTRL('H'):
-	case RUBOUT:
-	  if (rl_point == 0)
-	    {
-	      maybe_unsave_line ();
-	      rl_clear_message ();
-	      rl_point = save_pos;
-	      return;
-	    }
-
-	case CTRL('W'):
-	case CTRL('U'):
-	  rl_dispatch (c, keymap);
-	  break;
-
-	case ESC:
-	case RETURN:
-	case NEWLINE:
-	  goto dosearch;
-	  break;
-
-	case CTRL('C'):
-	  maybe_unsave_line ();
-	  rl_clear_message ();
-	  rl_point = 0;
-	  ding ();
-	  return;
-
-	default:
-	  rl_insert (1, c);
-	  break;
-	}
-      rl_redisplay ();
-    }
- dosearch:
-  if (vi_last_search)
-    free (vi_last_search);
-
-  vi_last_search = savestring (rl_line_buffer);
-  rl_vi_dosearch (rl_line_buffer, dir);
-}
-
-/* Search for STRING in the history list.  DIR is < 0 for searching
-   backwards.  POS is an absolute index into the history list at
-   which point to begin searching.  If the first character of STRING
-   is `^', the string must match a prefix of a history line, otherwise
-   a full substring match is performed. */
-static int
-vi_history_search_pos (string, dir, pos)
-     char *string;
-     int dir, pos;
-{
-  int ret, old = where_history ();
-
-  history_set_pos (pos);
-
-  if (*string == '^')
-    ret = history_search_prefix (string + 1, dir);
-  else
-    ret = history_search (string, dir);
-    
-  if (ret == -1)
-    {
-      history_set_pos (old);
-      return (-1);
-    }
-
-  ret = where_history ();
-  history_set_pos (old);
-  return ret;
-}
-
-rl_vi_dosearch (string, dir)
-     char *string;
-     int dir;
-{
-  int old, save = vi_histpos;
-  HIST_ENTRY *h;
-
-  if (string == 0 || *string == 0 || vi_histpos < 0)
-    {
-      ding ();
-      return;
-    }
-
-  if ((save = vi_history_search_pos (string, dir, vi_histpos + dir)) == -1)
-    {
-      maybe_unsave_line ();
-      rl_clear_message ();
-      rl_point = 0;
-      ding ();
-      return;
-    }
-
-  vi_histpos = save;
-
-  old = where_history ();
-  history_set_pos (vi_histpos);
-  h = current_history ();
-  history_set_pos (old);
-
-  {
-    int line_len = strlen (h->line);
-
-    if (line_len >= rl_line_buffer_len)
-      rl_extend_line_buffer (line_len);
-    strcpy (rl_line_buffer, h->line);
-  }
-
-  rl_undo_list = (UNDO_LIST *)h->data;
-  rl_end = strlen (rl_line_buffer);
-  rl_point = 0;
-  rl_clear_message ();
+  return (0);
 }
 
 /* Completion, from vi's point of view. */
@@ -318,6 +254,19 @@ rl_vi_complete (ignore, key)
     rl_complete_internal (TAB);	/* Standard Readline completion. */
   else
     rl_complete (0, key);
+
+  if (key == '*' || key == '\\')
+    rl_vi_insertion_mode ();
+  return (0);
+}
+
+/* Tilde expansion for vi mode. */
+rl_vi_tilde_expand (ignore, key)
+     int ignore, key;
+{
+  rl_tilde_expand (0, key);
+  rl_vi_insertion_mode ();
+  return (0);
 }
 
 /* Previous word in vi mode. */
@@ -325,21 +274,20 @@ rl_vi_prev_word (count, key)
      int count, key;
 {
   if (count < 0)
-    {
-      rl_vi_next_word (-count, key);
-      return;
-    }
+    return (rl_vi_next_word (-count, key));
 
   if (rl_point == 0)
     {
       ding ();
-      return;
+      return (0);
     }
 
   if (uppercase_p (key))
     rl_vi_bWord (count);
   else
     rl_vi_bword (count);
+
+  return (0);
 }
 
 /* Next word in vi mode. */
@@ -347,21 +295,19 @@ rl_vi_next_word (count, key)
      int count;
 {
   if (count < 0)
-    {
-      rl_vi_prev_word (-count, key);
-      return;
-    }
+    return (rl_vi_prev_word (-count, key));
 
   if (rl_point >= (rl_end - 1))
     {
       ding ();
-      return;
+      return (0);
     }
 
   if (uppercase_p (key))
     rl_vi_fWord (count);
   else
     rl_vi_fword (count);
+  return (0);
 }
 
 /* Move to the end of the ?next? word. */
@@ -371,13 +317,14 @@ rl_vi_end_word (count, key)
   if (count < 0)
     {
       ding ();
-      return;
+      return -1;
     }
 
   if (uppercase_p (key))
     rl_vi_eWord (count);
   else
     rl_vi_eword (count);
+  return (0);
 }
 
 /* Move forward a word the way that 'W' does. */
@@ -394,6 +341,7 @@ rl_vi_fWord (count)
       while (whitespace (rl_line_buffer[rl_point]) && rl_point < rl_end)
 	rl_point++;
     }
+  return (0);
 }
 
 rl_vi_bWord (count)
@@ -416,6 +364,7 @@ rl_vi_bWord (count)
 	  rl_point++;
 	}
     }
+  return (0);
 }
 
 rl_vi_eWord (count)
@@ -444,6 +393,7 @@ rl_vi_eWord (count)
 	  rl_point--;
 	}
     }
+  return (0);
 }
 
 rl_vi_fword (count)
@@ -468,6 +418,7 @@ rl_vi_fword (count)
       while (whitespace (rl_line_buffer[rl_point]) && rl_point < rl_end)
 	rl_point++;
     }
+  return (0);
 }
 
 rl_vi_bword (count)
@@ -505,6 +456,7 @@ rl_vi_bword (count)
 	  rl_point++;
 	}
     }
+  return (0);
 }
 
 rl_vi_eword (count)
@@ -528,13 +480,14 @@ rl_vi_eword (count)
 	}
       rl_point--;
     }
+  return (0);
 }
 
 rl_vi_insert_beg ()
 {
   rl_beg_of_line ();
   rl_vi_insertion_mode ();
-  return 0;
+  return (0);
 }
 
 rl_vi_append_mode ()
@@ -542,21 +495,21 @@ rl_vi_append_mode ()
   if (rl_point < rl_end)
     rl_point += 1;
   rl_vi_insertion_mode ();
-  return 0;
+  return (0);
 }
 
 rl_vi_append_eol ()
 {
   rl_end_of_line ();
   rl_vi_append_mode ();
-  return 0;
+  return (0);
 }
 
 /* What to do in the case of C-d. */
 rl_vi_eof_maybe (count, c)
      int count, c;
 {
-  rl_newline (1, '\n');
+  return (rl_newline (1, '\n'));
 }
 
 /* Insertion mode stuff. */
@@ -565,7 +518,8 @@ rl_vi_eof_maybe (count, c)
    switching keymaps. */
 rl_vi_insertion_mode ()
 {
-  keymap = vi_insertion_keymap;
+  _rl_keymap = vi_insertion_keymap;
+  return (0);
 }
 
 rl_vi_movement_mode ()
@@ -573,26 +527,30 @@ rl_vi_movement_mode ()
   if (rl_point > 0)
     rl_backward (1);
 
-  keymap = vi_movement_keymap;
+  rl_vi_set_last ();
+
+  _rl_keymap = vi_movement_keymap;
   vi_done_inserting ();
+  return (0);
 }
 
 vi_done_inserting ()
 {
-  if (vi_doing_insert)
+  if (_rl_vi_doing_insert)
     {
       rl_end_undo_group ();
-      vi_doing_insert = 0;
+      _rl_vi_doing_insert = 0;
     }
+  return (0);
 }
 
 rl_vi_arg_digit (count, c)
      int count, c;
 {
   if (c == '0' && rl_numeric_arg == 1 && !rl_explicit_arg)
-    rl_beg_of_line ();
+    return (rl_beg_of_line ());
   else
-    rl_digit_argument (count, c);
+    return (rl_digit_argument (count, c));
 }
 
 rl_vi_change_case (count, ignore)
@@ -602,7 +560,7 @@ rl_vi_change_case (count, ignore)
 
   /* Don't try this on an empty line. */
   if (rl_point >= rl_end)
-    return;
+    return (0);
 
   while (count-- && rl_point < rl_end)
     {
@@ -610,6 +568,12 @@ rl_vi_change_case (count, ignore)
 	c = to_lower (rl_line_buffer[rl_point]);
       else if (lowercase_p (rl_line_buffer[rl_point]))
 	c = to_upper (rl_line_buffer[rl_point]);
+      else
+	{
+	  /* Just skip over characters neither upper nor lower case. */
+	  rl_forward (1);
+	  continue;
+	}
 
       /* Vi is kind of strange here. */
       if (c)
@@ -623,6 +587,7 @@ rl_vi_change_case (count, ignore)
       else
 	rl_forward (1);
     }
+  return (0);
 }
 
 rl_vi_put (count, key)
@@ -633,12 +598,14 @@ rl_vi_put (count, key)
 
   rl_yank ();
   rl_backward (1);
+  return (0);
 }
 
 rl_vi_check ()
 {
   if (rl_point && rl_point == rl_end)
     rl_point--;
+  return (0);
 }
 
 rl_vi_column (count)
@@ -647,6 +614,7 @@ rl_vi_column (count)
     rl_end_of_line ();
   else
     rl_point = count - 1;
+  return (0);
 }
 
 int
@@ -654,9 +622,7 @@ rl_vi_domove (key, nextkey)
      int key, *nextkey;
 {
   int c, save;
-  int old_end, added_blank;
-
-  added_blank = 0;
+  int old_end;
 
   rl_mark = rl_point;
   c = rl_read_key ();
@@ -679,26 +645,28 @@ rl_vi_domove (key, nextkey)
 	{
 	  rl_mark = rl_end;
 	  rl_beg_of_line ();
+	  _rl_vi_last_motion = c;
 	  return (0);
 	}
       else
 	return (-1);
     }
 
+  _rl_vi_last_motion = c;
+
   /* Append a blank character temporarily so that the motion routines
      work right at the end of the line. */
   old_end = rl_end;
-  rl_line_buffer[rl_end++] = ' ';	/* This looks pretty bogus to me??? */
+  rl_line_buffer[rl_end++] = ' ';
   rl_line_buffer[rl_end] = '\0';
-  added_blank++;
 
-  rl_dispatch (c, keymap);
+  rl_dispatch (c, _rl_keymap);
 
   /* Remove the blank that we added. */
   rl_end = old_end;
   rl_line_buffer[rl_end] = '\0';
   if (rl_point > rl_end)
-    rl_point = rl_end - 1;
+    rl_point = rl_end;
 
   /* No change in position means the command failed. */
   if (rl_mark == rl_point)
@@ -712,12 +680,18 @@ rl_vi_domove (key, nextkey)
     rl_point--;
 
   /* If cw or cW, back up to the end of a word, so the behaviour of ce
-     or cE is the actual result.  Brute-force, no subtlety.  Do the same
-     thing for dw or dW. */
+     or cE is the actual result.  Brute-force, no subtlety. */
   if (key == 'c' && (to_upper (c) == 'W'))
     {
       while (rl_point && whitespace (rl_line_buffer[rl_point]))
 	rl_point--;
+
+      /* Move past the end of the word so that the kill doesn't remove the
+	 last letter of the previous word.  Only do this if we are not at
+	 the end of the line. */
+      if ((rl_point >= 0) && (rl_point < (rl_end - 1)) &&
+	  !whitespace (rl_line_buffer[rl_point]))
+	rl_point++;
     }
 
   if (rl_mark < rl_point)
@@ -737,8 +711,8 @@ rl_digit_loop1 ()
       rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg, 0);
       key = c = rl_read_key ();
 
-      if (keymap[c].type == ISFUNC &&
-	  keymap[c].function == rl_universal_argument)
+      if (_rl_keymap[c].type == ISFUNC &&
+	  _rl_keymap[c].function == rl_universal_argument)
 	{
 	  rl_numeric_arg *= 4;
 	  continue;
@@ -760,6 +734,7 @@ rl_digit_loop1 ()
 	  break;
 	}
     }
+  return (0);
 }
 
 rl_vi_delete_to (count, key)
@@ -769,40 +744,58 @@ rl_vi_delete_to (count, key)
 
   if (uppercase_p (key))
     rl_stuff_char ('$');
+  else if (vi_redoing)
+    rl_stuff_char (_rl_vi_last_motion);
 
   if (rl_vi_domove (key, &c))
     {
       ding ();
-      return;
+      return -1;
     }
 
-  if ((c != 'l') && (c != '|') && (c != 'h') && rl_mark < rl_end)
+  /* These are the motion commands that do not require adjusting the
+     mark. */
+  if ((strchr (" l|h^0%bB", c) == 0) && (rl_mark < rl_end))
     rl_mark++;
 
   rl_kill_text (rl_point, rl_mark);
+  return (0);
 }
 
 rl_vi_change_to (count, key)
      int count, key;
 {
-  int c;
+  int c, start_pos;
 
   if (uppercase_p (key))
     rl_stuff_char ('$');
+  else if (vi_redoing)
+    rl_stuff_char (_rl_vi_last_motion);
+
+  start_pos = rl_point;
 
   if (rl_vi_domove (key, &c))
     {
       ding ();
-      return;
+      return -1;
     }
 
-  if ((c != 'l') && (c != '|') && (c != 'h') && rl_mark < rl_end)
+  /* These are the motion commands that do not require adjusting the
+     mark.  c[wW] are handled by special-case code in rl_vi_domove(),
+     and already leave the mark at the correct location. */
+  if ((strchr (" l|hwW^0%bB", c) == 0) && (rl_mark < rl_end))
     rl_mark++;
 
+  /* The cursor never moves with c[wW]. */
+  if ((to_upper (c) == 'W') && rl_point < start_pos)
+    rl_point = start_pos;
+
   rl_begin_undo_group ();
-  vi_doing_insert = 1;
+  _rl_vi_doing_insert = 1;
   rl_kill_text (rl_point, rl_mark);
   rl_vi_insertion_mode ();
+
+  return (0);
 }
 
 rl_vi_yank_to (count, key)
@@ -816,10 +809,12 @@ rl_vi_yank_to (count, key)
   if (rl_vi_domove (key, &c))
     {
       ding ();
-      return;
+      return -1;
     }
 
-  if ((c != 'l') && (c != '|') && (c != 'h') && rl_mark < rl_end)
+  /* These are the motion commands that do not require adjusting the
+     mark. */
+  if ((strchr (" l|h^0%bB", c) == 0) && (rl_mark < rl_end))
     rl_mark++;
 
   rl_begin_undo_group ();
@@ -827,16 +822,19 @@ rl_vi_yank_to (count, key)
   rl_end_undo_group ();
   rl_do_undo ();
   rl_point = save;
+
+  return (0);
 }
 
 rl_vi_delete (count)
+     int count;
 {
   int end;
 
   if (rl_end == 0)
     {
       ding ();
-      return;
+      return -1;
     }
 
   end = rl_point + count;
@@ -848,6 +846,7 @@ rl_vi_delete (count)
   
   if (rl_point > 0 && rl_point == rl_end)
     rl_backward (1);
+  return (0);
 }
 
 /* Turn the current line into a comment in shell history.
@@ -859,15 +858,16 @@ rl_vi_comment ()
   if (rl_vi_comment_begin != (char *)NULL)
     rl_insert_text (rl_vi_comment_begin);
   else
-    rl_insert_text (": ");	/* Default. */
+    rl_insert_text (VI_COMMENT_BEGIN_DEFAULT);	/* Default. */
 
   rl_redisplay ();
   rl_newline (1, '\010');
+  return (0);
 }
 
 rl_vi_first_print ()
 {
-  rl_back_to_indent (0, 0);
+  return (rl_back_to_indent ());
 }
 
 rl_back_to_indent (ignore1, ignore2)
@@ -876,6 +876,7 @@ rl_back_to_indent (ignore1, ignore2)
   rl_beg_of_line ();
   while (rl_point < rl_end && whitespace (rl_line_buffer[rl_point]))
     rl_point++;
+  return (0);
 }
 
 /* NOTE: it is necessary that opposite directions are inverses */
@@ -895,7 +896,10 @@ rl_vi_char_search (count, key)
     dir = (key == ';' ? orig_dir : -orig_dir);
   else
     {
-      target = rl_getc (rl_instream);
+      if (vi_redoing)
+	target = _rl_vi_last_search_char;
+      else
+	_rl_vi_last_search_char = target = rl_getc (rl_instream);
 
       switch (key)
         {
@@ -946,7 +950,7 @@ rl_vi_char_search (count, key)
 	  if (pos < 0)
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 	}
       else
@@ -954,7 +958,7 @@ rl_vi_char_search (count, key)
 	  if (pos >= rl_end)
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 
 	  pos++;
@@ -974,10 +978,11 @@ rl_vi_char_search (count, key)
 	  if (pos >= (rl_end - 1))
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 	}
     }
+  return (0);
 }
 
 /* Match brackets */
@@ -996,7 +1001,7 @@ rl_vi_match ()
 	{
 	  rl_point = pos;
 	  ding ();
-	  return;
+	  return -1;
 	}
     }
 
@@ -1017,7 +1022,7 @@ rl_vi_match ()
 	  else
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 	}
     }
@@ -1036,11 +1041,12 @@ rl_vi_match ()
 	  else
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 	}
     }
   rl_point = pos;
+  return (0);
 }
 
 int
@@ -1064,10 +1070,13 @@ rl_vi_change_char (count, key)
 {
   int c;
 
-  c = rl_getc (rl_instream);
+  if (vi_redoing)
+    c = _rl_vi_last_replacement;
+  else
+    _rl_vi_last_replacement = c = rl_getc (rl_instream);
 
   if (c == '\033' || c == CTRL ('C'))
-    return;
+    return -1;
 
   while (count-- && rl_point < rl_end)
     {
@@ -1080,13 +1089,14 @@ rl_vi_change_char (count, key)
 
       rl_end_undo_group ();
     }
+  return (0);
 }
 
 rl_vi_subst (count, key)
      int count, key;
 {
   rl_begin_undo_group ();
-  vi_doing_insert = 1;
+  _rl_vi_doing_insert = 1;
 
   if (uppercase_p (key))
     {
@@ -1097,7 +1107,9 @@ rl_vi_subst (count, key)
     rl_delete (count, key);
 
   rl_end_undo_group ();
+
   rl_vi_insertion_mode ();
+  return (0);
 }
 
 rl_vi_overstrike (count, key)
@@ -1105,9 +1117,9 @@ rl_vi_overstrike (count, key)
 {
   int i;
 
-  if (vi_doing_insert == 0)
+  if (_rl_vi_doing_insert == 0)
     {
-      vi_doing_insert = 1;
+      _rl_vi_doing_insert = 1;
       rl_begin_undo_group ();
     }
 
@@ -1126,6 +1138,7 @@ rl_vi_overstrike (count, key)
 
       rl_end_undo_group ();
     }
+  return (0);
 }
 
 rl_vi_overstrike_delete (count)
@@ -1149,12 +1162,13 @@ rl_vi_overstrike_delete (count)
 	rl_backward (1);
     }
 
-  if (vi_replace_count == 0 && vi_doing_insert)
+  if (vi_replace_count == 0 && _rl_vi_doing_insert)
     {
       rl_end_undo_group ();
       rl_do_undo ();
-      vi_doing_insert = 0;
+      _rl_vi_doing_insert = 0;
     }
+  return (0);
 }
 
 rl_vi_replace (count, key)
@@ -1184,24 +1198,24 @@ rl_vi_replace (count, key)
 	vi_replace_map[CTRL ('H')].function = rl_vi_overstrike_delete;
 
     }
-  keymap = vi_replace_map;
+  _rl_keymap = vi_replace_map;
+  return (0);
 }
 
-/*
- * Try to complete the word we are standing on or the word that ends with
- * the previous character. A space matches everything.
- * Word delimiters are space and ;.
- */
+/* Try to complete the word we are standing on or the word that ends with
+   the previous character.  A space matches everything.  Word delimiters are
+   space and ;. */
 rl_vi_possible_completions()
 {
   int save_pos = rl_point;
 
-  if (!index (" ;", rl_line_buffer[rl_point]))
+  if (rl_line_buffer[rl_point] != ' ' && rl_line_buffer[rl_point] != ';')
     {
-      while (!index(" ;", rl_line_buffer[++rl_point]))
+      while (rl_line_buffer[rl_point] != ' ' &&
+	     rl_line_buffer[rl_point] != ';')
 	;
     }
-  else if (rl_line_buffer[rl_point-1] == ';')
+  else if (rl_line_buffer[rl_point - 1] == ';')
     {
       ding ();
       return (0);
@@ -1212,5 +1226,52 @@ rl_vi_possible_completions()
 
   return (0);
 }
+
+#if defined (STATIC_MALLOC)
+
+/* **************************************************************** */
+/*								    */
+/*			xmalloc and xrealloc ()		     	    */
+/*								    */
+/* **************************************************************** */
+
+static void memory_error_and_abort ();
+
+static char *
+xmalloc (bytes)
+     int bytes;
+{
+  char *temp = (char *)malloc (bytes);
+
+  if (!temp)
+    memory_error_and_abort ();
+  return (temp);
+}
+
+static char *
+xrealloc (pointer, bytes)
+     char *pointer;
+     int bytes;
+{
+  char *temp;
+
+  if (!pointer)
+    temp = (char *)xmalloc (bytes);
+  else
+    temp = (char *)realloc (pointer, bytes);
+
+  if (!temp)
+    memory_error_and_abort ();
+
+  return (temp);
+}
+
+static void
+memory_error_and_abort ()
+{
+  fprintf (stderr, "readline: Out of virtual memory!\n");
+  abort ();
+}
+#endif /* STATIC_MALLOC */
 
 #endif /* VI_MODE */
