@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.148 1999/02/14 12:16:41 brian Exp $
+.\" $Id: ppp.8,v 1.149 1999/02/16 00:16:56 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2111,7 +2111,7 @@ may be one of the following:
 Default: Enabled and Accepted.  ACFComp stands for Address and Control
 Field Compression.  Non LCP packets usually have very similar address
 and control fields - making them easily compressible.
-.It chap
+.It chap[05]
 Default: Disabled and Accepted.  CHAP stands for Challenge Handshake
 Authentication Protocol.  Only one of CHAP and PAP (below) may be
 negotiated.  With CHAP, the authenticator sends a "challenge" message
@@ -2210,6 +2210,18 @@ them.  The answer is taken from
 unless the
 .Dq set dns
 command is used as an override.
+.It LANMan|chap80lm
+Default: Disabled and Accepted.  The use of this authentication protocol
+is discouraged as it partially violates the authentication protocol by
+implementing two different mechanisms (LANMan & NT) under the guise of
+a single CHAP type (0x80).
+.Dq LANMan
+uses a simple DES encryption mechanism and is the least secure of the
+CHAP alternatives (although is still more secure than PAP).
+.Pp
+Refer to the
+.Dq MSChap
+description below for more details.
 .It lqr
 Default: Disabled and Accepted.  This option decides if Link Quality
 Requests will be sent or accepted.  LQR is a protocol that allows
@@ -2238,6 +2250,39 @@ level, and any appropriate
 .Dq reconnect
 values are honoured as if the peer were responsible for dropping the
 connection.
+.It MSChap|chap80nt
+Default: Disabled and Accepted.  The use of this authentication protocol
+is discouraged as it partially violates the authentication protocol by
+implementing two different mechanisms (LANMan & NT) under the guise of
+a single CHAP type (0x80).  It is very similar to standard CHAP (type 0x05)
+except that it issues challenges of a fixed 8 bytes in length and uses a
+combination of MD4 and DES to encrypt the challenge rather than using the
+standard MD5 mechanism.  CHAP type 0x80 for LANMan is also supported - see
+.Dq enable LANMan
+for details.
+.Pp
+Because both
+.Dq LANMan
+and
+.Dq NT
+use CHAP type 0x80, when acting as authenticator with both
+.Dq enable Ns No d ,
+.Nm
+will rechallenge the peer up to three times if it responds using the wrong
+one of the two protocols.  This gives the peer a chance to attempt using
+both protocols.
+.Pp
+Conversely, when
+.Nm
+acts as the authenticatee with both protocols
+.Dq accept Ns No ed ,
+the protocols are used alternately in response to challenges.
+.Pp
+Note:  If only LANMan is enabled,
+.Xr pppd 8
+(version 2.3.5) misbehaves when acting as authenticatee.  It provides both
+the NT and the LANMan answers, but also suggests that only the NT answer
+should be used.
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
 Protocol.  Only one of PAP and CHAP (above) may be negotiated.  With
@@ -2253,7 +2298,9 @@ and have an entry in
 .Pa /etc/ppp/ppp.secret
 for the peer (although see the
 .Dq passwdauth
-option below).
+and
+.Dq set radius
+options below).
 .Pp
 When using PAP as the client, you need only specify
 .Dq AuthName

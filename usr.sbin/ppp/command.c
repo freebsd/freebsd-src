@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.180 1999/02/11 10:14:07 brian Exp $
+ * $Id: command.c,v 1.181 1999/02/16 00:16:55 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -127,19 +127,21 @@
 
 /* ``accept|deny|disable|enable'' values */
 #define NEG_ACFCOMP	40
-#define NEG_CHAP	41
-#define NEG_DEFLATE	42
-#define NEG_LQR		43
-#define NEG_PAP		44
-#define NEG_PPPDDEFLATE	45
-#define NEG_PRED1	46
-#define NEG_PROTOCOMP	47
-#define NEG_SHORTSEQ	48
-#define NEG_VJCOMP	49
-#define NEG_DNS		50
+#define NEG_CHAP05	41
+#define NEG_CHAP80	42
+#define NEG_CHAP80LM	43
+#define NEG_DEFLATE	44
+#define NEG_LQR		45
+#define NEG_PAP		46
+#define NEG_PPPDDEFLATE	47
+#define NEG_PRED1	48
+#define NEG_PROTOCOMP	49
+#define NEG_SHORTSEQ	50
+#define NEG_VJCOMP	51
+#define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/02/11 10:14:07 $";
+const char VersionDate[] = "$Date: 1999/02/16 00:16:55 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2170,10 +2172,20 @@ NegotiateSet(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.acfcomp &= keep;
       cx->physical->link.lcp.cfg.acfcomp |= add;
       break;
-    case NEG_CHAP:
-      cx->physical->link.lcp.cfg.chap &= keep;
-      cx->physical->link.lcp.cfg.chap |= add;
+    case NEG_CHAP05:
+      cx->physical->link.lcp.cfg.chap05 &= keep;
+      cx->physical->link.lcp.cfg.chap05 |= add;
       break;
+#ifdef HAVE_DES
+    case NEG_CHAP80:
+      cx->physical->link.lcp.cfg.chap80nt &= keep;
+      cx->physical->link.lcp.cfg.chap80nt |= add;
+      break;
+    case NEG_CHAP80LM:
+      cx->physical->link.lcp.cfg.chap80lm &= keep;
+      cx->physical->link.lcp.cfg.chap80lm |= add;
+      break;
+#endif
     case NEG_DEFLATE:
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] &= keep;
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] |= add;
@@ -2257,9 +2269,17 @@ static struct cmdtab const NegotiateCommands[] = {
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
   (const void *)NEG_ACFCOMP},
-  {"chap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  {"chap", "chap05", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Challenge Handshake Authentication Protocol", "accept|deny|disable|enable",
-  (const void *)NEG_CHAP},
+  (const void *)NEG_CHAP05},
+#ifdef HAVE_DES
+  {"mschap", "chap80nt", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Microsoft (NT) CHAP", "accept|deny|disable|enable",
+  (const void *)NEG_CHAP80},
+  {"LANMan", "chap80lm", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
+  "Microsoft (NT) CHAP", "accept|deny|disable|enable",
+  (const void *)NEG_CHAP80LM},
+#endif
   {"deflate", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
   "Deflate compression", "accept|deny|disable|enable",
   (const void *)NEG_DEFLATE},
