@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 4, 1997
+.Dd Nov 26, 1997
 .Dt BTREEOP 1
 .Os BSD 4
 .Sh NAME
@@ -38,13 +38,10 @@
 .Nm btreeop
 .Op Fl A
 .Op Fl C
-.Op Fl D Ar key
-.Op Fl K Ar key
+.Op Fl D[keyno] Ar key
+.Op Fl K[keyno] Ar key
 .Op Fl L
-.Op Fl b
-.Op Fl c Ar cashesize
-.Op Fl l
-.Op Fl p Ar psize
+.Op Fl k Ar prefix
 .Op Ar dbname
 .Sh DESCRIPTION
 .Nm Btreeop
@@ -52,9 +49,11 @@ execute simple operations for
 .Xr btree 3
 database.
 .Nm Btreeop
-can create database, write record, read record (sequential or index) and
+can create database, write record, read record (sequential or indexed) and
 delete record from it.
 Duplicate entries are allowed.
+Multi-key is available but only primary key can use index of
+.Xr btree 3 .
 .Sh OPTIONS
 A capital letter means a command. If no command specified
 then it assume sequential read operation.
@@ -63,26 +62,25 @@ then it assume sequential read operation.
 append records. If database doesn't exist, btreeop creates it.
 .It Fl C
 create database and write records to it.
-.It Fl D Ar key
-delete records by the key.
-.It Fl K Ar key
-search records by the key.
+.It Fl D[keyno] Ar key
+delete records by the key. By default, keyno is 0 (primary key).
+.It Fl K[keyno] Ar key
+search records by the key. By default, keyno is 0 (primary key).
 .It Fl L
-list all keys. It is identical to following command line.
+list all primary keys.
+Following two command lines are identical except that the latter is much faster.
 
-	btreeop | awk '{print $1}' | sort | uniq
-.It Fl b
-assume BIG_ENDIAN byte order. default is LITTLE_ENDIAN.
-.It Fl c Ar cashesize
-specify cashesize. It's identical to 
-.Nm info.cachesize
-of BTREEINFO. (see btree(3))
-.It Fl l
-assume LITTLE_ENDIAN byte order. (the default)
-.It Fl p Ar psize
-specify page size. It's identical to 
-.Nm info.psize
-of BTREEINFO. (see btree(3))
+	btreeop | awk '{print $1}' | uniq
+
+	btreeop -L
+.It Fl k Ar prefix
+scan records which have the prefix as a primary key.
+This option is valid only with sequential read operation (-L command or non command).
+Following two command lines are identical except that the latter is much faster.
+
+	btreeop | awk '$1 ~ /^fo/ {print }'
+
+	btreeop -k fo
 .It Ar dbname
 database name. default is 'btree'.
 .Sh DATA FORMAT
@@ -91,8 +89,11 @@ To creat (or append) database,
 read data from stdin.
 The format of the data is the following.
 
-  Key         Data\\n
-  Key         Data\\n
+  Primary-key  Secondary-key-1  Secondary-key-2  Data
+  (keyno = 0)  (keyno = 1)      (keyno = 2)
+  --------------------------------------------------------------
+  main         246              main.c           main (){\\n
+  func         120              library.c        func(a1, a2)\\n
   .
   .
   .
@@ -101,16 +102,16 @@ The format of the data is the following.
 
 .Bl -enum -offset indent
 .It
-Key and Data are separated by blank('\\t' or ' '). 
+All key and data are separated by blank('\\t' or ' '). 
 .It
 Key cannot include blank.
 .It
 Data can include blank.
 .It
-Null Data not allowed.
+Null data not allowed.
 .It
 Additionally, META record is available. META record has a key that start with
-a blank. You can read this record only by indexed search (with -K option).
+a blank. You can read this record only by indexed read operation (-K option).
 Usage is unlimited by btreeop.
 .El
 .Sh EXAMPLES
@@ -149,7 +150,7 @@ Indexed read.
    __.VERSION 2
   %
 
-List kyes.
+List primary keys.
 
   % btreeop -L
   key1
@@ -170,7 +171,7 @@ default database name.
 .El
 .Sh DIAGNOSTICS
 .Nm Btreeop
-exits with a value of 1 if an error occurred, 0 otherwise.
+exits with a non 0 value if an error occurred, 0 otherwise.
 .Sh SEE ALSO
 .Xr btree 3
 .Sh AUTHOR
@@ -178,4 +179,4 @@ Shigio Yamaguchi (shigio@wafu.netgate.net)
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 2.2.
+command appeared in FreeBSD 2.2.2.

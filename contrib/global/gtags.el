@@ -30,12 +30,12 @@
 ;; OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ;; SUCH DAMAGE.
 ;;
-;;	gtags.el	6-Jul-97
+;;	gtags.el	31-Aug-97
 ;;
 
 ;; This file is part of GLOBAL.
 ;; Author: Shigio Yamaguchi <shigio@wafu.netgate.net>
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: tools
 
 ;;; Code
@@ -56,6 +56,8 @@
   "Keymap used in gtags mode.")
 (define-key gtags-mode-map "\et" 'gtags-find-tag)
 (define-key gtags-mode-map "\er" 'gtags-find-rtag)
+(define-key gtags-mode-map "\es" 'gtags-find-symbol)
+(define-key gtags-mode-map "\eg" 'gtags-find-pattern)
 (define-key gtags-mode-map "\C-]" 'gtags-find-tag-from-here)
 (define-key gtags-mode-map "\C-t" 'gtags-pop-stack)
 (define-key gtags-mode-map "\e." 'etags-style-find-tag)
@@ -69,13 +71,17 @@
 (define-key gtags-select-mode-map "\C-m" 'gtags-select-tag)
 (define-key gtags-select-mode-map " " 'scroll-up)
 (define-key gtags-select-mode-map "\^?" 'scroll-down)
+(define-key gtags-select-mode-map "\C-f" 'scroll-up)
+(define-key gtags-select-mode-map "\C-b" 'scroll-down)
 (define-key gtags-select-mode-map "n" 'next-line)
 (define-key gtags-select-mode-map "p" 'previous-line)
+(define-key gtags-select-mode-map "j" 'next-line)
+(define-key gtags-select-mode-map "k" 'previous-line)
 (define-key gtags-select-mode-map [mouse-2] 'gtags-select-tag-by-event)
 (define-key gtags-select-mode-map [mouse-3] 'gtags-pop-stack)
 
 ;;
-;; utirity
+;; utility
 ;;
 (defun match-string (n)
   (buffer-substring (match-beginning n) (match-end n)))
@@ -114,6 +120,15 @@
 (defun exist-in-stack (buffer)
   (memq buffer gtags-buffer-stack))
 
+;; is it a function?
+(defun is-function ()
+  (save-excursion
+    (while (and (not (eolp)) (looking-at "[0-9A-Za-z_]"))
+      (forward-char 1))
+    (while (and (not (eolp)) (looking-at "[ \t]"))
+      (forward-char 1))
+    (if (looking-at "(") t nil)))
+
 ;; is it a definition?
 (defun is-definition ()
   (save-excursion
@@ -139,7 +154,7 @@
   (let (tagname)
     (setq tagname (completing-read ":tag " gtags-complete-list))
     (push-context)
-    (gtags-goto-tag tagname t)))
+    (gtags-goto-tag tagname "")))
 
 (defun etags-style-find-tag ()
   "Input tag name and move to the definition.(etags style)"
@@ -152,7 +167,33 @@
     (setq input (completing-read prompt gtags-complete-list))
     (if (not (equal "" input)) (setq tagname input))
     (push-context)
-    (gtags-goto-tag tagname t)))
+    (gtags-goto-tag tagname "")))
+
+(defun gtags-find-symbol ()
+  "Input symbol and move to the locations."
+  (interactive)
+  (let (tagname prompt input)
+    (setq tagname (gtags-current-token))
+    (if tagname
+        (setq prompt (concat "Find symbol: (default " tagname ") "))
+      (setq prompt "Find symbol: "))
+    (setq input (read-string prompt))
+    (if (not (equal "" input)) (setq tagname input))
+    (push-context)
+    (gtags-goto-tag tagname "s")))
+
+(defun gtags-find-pattern ()
+  "Input pattern and move to the locations."
+  (interactive)
+  (let (tagname prompt input)
+    (setq tagname (gtags-current-token))
+    (if tagname
+        (setq prompt (concat "Find pattern: (default " tagname ") "))
+      (setq prompt "Find pattern: "))
+    (setq input (read-string prompt))
+    (if (not (equal "" input)) (setq tagname input))
+    (push-context)
+    (gtags-goto-tag tagname "g")))
 
 (defun gtags-find-rtag ()
   "Input tag name and move to the referenced point."
@@ -160,17 +201,20 @@
   (let (tagname)
     (setq tagname (completing-read ":rtag " gtags-complete-list))
     (push-context)
-    (gtags-goto-tag tagname nil)))
+    (gtags-goto-tag tagname "r")))
 
 (defun gtags-find-tag-from-here ()
   "Get the expression as a tagname around here and move there."
   (interactive)
-  (let (tagname)
+  (let (tagname flag)
     (setq tagname (gtags-current-token))
+    (if (is-function)
+        (if (is-definition) (setq flag "r") (setq flag ""))
+      (setq flag "s"))
     (if (not tagname)
         nil
       (push-context)
-      (gtags-goto-tag tagname (not (is-definition))))))
+      (gtags-goto-tag tagname flag))))
 
 (defun gtags-find-tag-by-event (event)
   "Get the expression as a tagname around here and move there."
@@ -178,16 +222,17 @@
   (select-window (posn-window (event-end event)))
   (set-buffer (window-buffer (posn-window (event-end event))))
   (goto-char (posn-point (event-end event)))
-  (let (tagname definition)
-    (setq definition nil)
+  (let (tagname flag)
     (if (= 0 (count-lines (point-min) (point-max)))
-        (setq tagname "main")
+        (progn (setq tagname "main") (setq flag ""))
       (setq tagname (gtags-current-token))
-      (setq definition (is-definition)))
+      (if (is-function)
+          (if (is-definition) (setq flag "r") (setq flag ""))
+        (setq flag "s")))
     (if (not tagname)
         nil
       (push-context)
-      (gtags-goto-tag tagname (not definition)))))
+      (gtags-goto-tag tagname flag))))
 
 (defun gtags-select-tag ()
   "Select a tagname in [GTAGS SELECT MODE] and move there."
@@ -223,16 +268,22 @@
 ;;
 
 ;; goto tag's point
-(defun gtags-goto-tag (tagname definition)
-  (let (save flags buffer lines)
+(defun gtags-goto-tag (tagname flag)
+  (let (save prefix buffer lines)
     (setq save (current-buffer))
-    (if definition
-        (setq flags "") (setq flags "-r"))
+    (cond
+     ((equal flag "g")
+      (setq prefix "(G)"))
+     ((equal flag "s")
+      (setq prefix "(S)"))
+     ((equal flag "r")
+      (setq prefix "(R)"))
+     (t (setq prefix "(D)")))
     ;; load tag
-    (setq buffer (generate-new-buffer (generate-new-buffer-name (concat (if (equal flags "") "(D)" "(R)") tagname))))
+    (setq buffer (generate-new-buffer (generate-new-buffer-name (concat prefix tagname))))
     (set-buffer buffer)
-    (if (not (= 0 (call-process "global" nil t nil (concat "-ax" flags) tagname)))
-	(progn (message "cannot execute global.")
+    (if (not (= 0 (call-process "global" nil t nil (concat "-ax" flag) tagname)))
+	(progn (message (buffer-substring (point-min)(1- (point-max))))
                (pop-context))
       (goto-char (point-min))
       (setq lines (count-lines (point-min) (point-max)))
@@ -253,7 +304,8 @@
   (let (line file)
     ;; get context from current tag line
     (beginning-of-line)
-    (if (not (looking-at "[A-Za-z_][A-Za-z_0-9]*[ \t]+\\([0-9]+\\)[ \t]\\([^ \t]+\\)[ \t]"))
+;;    (if (not (looking-at "[A-Za-z_][A-Za-z_0-9]*[ \t]+\\([0-9]+\\)[ \t]\\([^ \t]+\\)[ \t]"))
+    (if (not (looking-at "[^ \t]+[ \t]+\\([0-9]+\\)[ \t]\\([^ \t]+\\)[ \t]"))
         (pop-context)
       (setq line (string-to-number (match-string 1)))
       (setq file (match-string 2))

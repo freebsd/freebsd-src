@@ -1,5 +1,3 @@
-#	@(#)Makefile	29-Dec-96
-
 PROG   = systags
 BINDIR = /usr/bin
 

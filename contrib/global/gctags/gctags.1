@@ -39,7 +39,7 @@
 .Nd create a tags file (special command for GLOBAL)
 .Sh SYNOPSIS
 .Nm gctags
-.Op Fl BDFadertuwvx
+.Op Fl BDFacderstuvwx
 .Op Fl f Ar tagsfile
 .Ar name ...
 .Sh DESCRIPTION
@@ -77,6 +77,8 @@ use forward searching patterns
 append to
 .Ar tags
 file.
+.It Fl c
+print with compact format. It is valid only with -x option.
 .It Fl d
 create tags for
 .Li #defines
@@ -88,11 +90,13 @@ force a function to end when reach a '}' at the first column. (C source only)
 .It Fl f
 place the tag descriptions in a file called
 .Ar tagsfile .
-The default behavior is to place them in a file called
+The default behaviour is to place them in a file called
 .Ar tags .
 .It Fl r
 locate function references instead of function definitions. GTAGS file is
 needed at the current directory. (C source only)
+.It Fl s
+collect symbols except for functions.
 .It Fl t
 create tags for typedefs, structs, unions, and enums.
 .It Fl u
@@ -184,7 +188,7 @@ tags file for GLOBAL
 .El
 .Sh DIAGNOSTICS
 .Nm Gctags
-exits with a value of 1 if an error occurred, 0 otherwise.
+exits with a non 0 value if an error occurred, 0 otherwise.
 Duplicate objects are not considered errors.
 .Sh SEE ALSO
 .Xr btreeop 1 ,
@@ -234,4 +238,4 @@ kernel source.
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 2.2.
+command appeared in FreeBSD 2.2.2.
