@@ -41,7 +41,7 @@ disk_dev_synth(dev_t dev)
 	int u, s, p;
 	dev_t pdev;
 
-	if (dktype(dev))
+	if (dksparebits(dev))
 		return;
 	LIST_FOREACH(dp, &disklist, d_list) {
 		if (major(dev) != dp->d_devsw->d_maj)

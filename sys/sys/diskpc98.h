@@ -428,7 +428,7 @@ struct dos_partition {
     _________________________________________________________________
     | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
     -----------------------------------------------------------------
-    |    TYPE     |UNIT_2 | SLICE   |  MAJOR?       |  UNIT   |PART |
+    |    SPARE    |UNIT_2 | SLICE   |  MAJOR?       |  UNIT   |PART |
     -----------------------------------------------------------------
 */
 
@@ -451,7 +451,7 @@ dkmodslice(dev_t dev, int slice)
 
 #define	dkpart(dev)		(minor(dev) & 7)
 #define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
-#define	dktype(dev)       	((minor(dev) >> 25) & 0x7f)
+#define	dksparebits(dev)       	((minor(dev) >> 25) & 0x7f)
 
 static __inline u_int
 dkunit(dev_t dev)
