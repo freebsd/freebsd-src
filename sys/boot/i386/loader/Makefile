@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 1998/10/21 20:10:33 msmith Exp $
+# $Id: Makefile,v 1.14 1998/10/22 20:23:58 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -20,7 +20,7 @@ HAVE_ISABUS=	yes
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin
+CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x1000
