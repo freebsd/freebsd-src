@@ -912,10 +912,10 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		p = pfind((pid_t)name[0]);
 		if (!p)
-			return (0);
-		if (p_cansee(curthread, p)) {
+			return (ESRCH);
+		if ((error = p_cansee(curthread, p))) {
 			PROC_UNLOCK(p);
-			return (0);
+			return (error);
 		}
 		error = sysctl_out_proc(p, req, KERN_PROC_NOTHREADS);
 		return (error);
@@ -1091,11 +1091,11 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 
 	p = pfind((pid_t)name[0]);
 	if (!p)
-		return (0);
+		return (ESRCH);
 
-	if ((!ps_argsopen) && p_cansee(curthread, p)) {
+	if ((!ps_argsopen) && (error = p_cansee(curthread, p))) {
 		PROC_UNLOCK(p);
-		return (0);
+		return (error);
 	}
 
 	if (req->newptr && curproc != p) {
@@ -1135,6 +1135,7 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 	char *sv_name;
 	int *name;
 	int namelen;
+	int error;
 
 	namelen = arg2;
 	if (namelen != 1) 
@@ -1142,10 +1143,10 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (0);
-	if (p_cansee(curthread, p)) {
+		return (ESRCH);
+	if ((error = p_cansee(curthread, p))) {
 		PROC_UNLOCK(p);
-		return (0);
+		return (error);
 	}
 	sv_name = p->p_sysent->sv_name;
 	PROC_UNLOCK(p);
