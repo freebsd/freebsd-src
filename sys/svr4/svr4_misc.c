@@ -84,7 +84,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
-#include <vm/vm_prot.h>
 
 #if defined(NetBSD)
 # if defined(UVM)

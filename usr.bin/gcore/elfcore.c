@@ -33,7 +33,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_prot.h>
 #include <elf.h>
 #include <err.h>
 #include <errno.h>

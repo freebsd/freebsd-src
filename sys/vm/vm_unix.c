@@ -55,7 +55,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
-#include <vm/vm_prot.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct obreak_args {

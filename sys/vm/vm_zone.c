@@ -24,7 +24,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>

@@ -41,7 +41,6 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>

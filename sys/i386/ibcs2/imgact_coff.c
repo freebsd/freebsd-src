@@ -41,7 +41,6 @@
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>

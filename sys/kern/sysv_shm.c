@@ -47,14 +47,12 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_inherit.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmat_args;
