@@ -116,10 +116,6 @@ xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905, 3c905B, 3c905C,
                                         3c980, 3cSOHO100 ((Fast) Etherlink XL)
 cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
                                         cards.
-ze0     300     5       n/a     d8000   IBM/National Semiconductor
-                                        PCMCIA Ethernet Controller
-zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
-                                        PCMCIA Ethernet Controller
 --- End of table ---
 
 

@@ -113,8 +113,6 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"wb",		"Winbond W89C840F PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"xl",		"3COM 3c90x / 3c90xB PCI ethernet card"				},
-    { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16, 'c'		},
     { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
