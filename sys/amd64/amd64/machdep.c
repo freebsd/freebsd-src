@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.177 1996/03/03 01:57:43 jkh Exp $
+ *	$Id: machdep.c,v 1.178 1996/03/11 02:21:42 hsu Exp $
  */
 
 #include "npx.h"
@@ -44,6 +44,7 @@
 #include "opt_ddb.h"
 #include "opt_bounce.h"
 #include "opt_machdep.h"
+#include "opt_perfmon.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -109,6 +110,9 @@
 #include <machine/devconf.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
+#ifdef PERFMON
+#include <machine/perfmon.h>
+#endif
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -649,6 +653,9 @@ identifycpu()
 	default:
 		break;
 	}
+#ifdef PERFMON
+	perfmon_init();
+#endif
 	dev_attach(&kdc_cpu0);
 }
 
