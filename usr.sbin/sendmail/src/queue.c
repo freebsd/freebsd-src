@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if QUEUE
-static char sccsid[] = "@(#)queue.c	8.169 (Berkeley) 6/14/97 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.169 (Berkeley) 6/14/97 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -431,7 +431,9 @@ queueup(e, announce)
 
 	fprintf(tfp, ".\n");
 
-	if (fflush(tfp) < 0 || fsync(fileno(tfp)) < 0 || ferror(tfp))
+	if (fflush(tfp) < 0 ||
+	    (SuperSafe && fsync(fileno(tfp)) < 0) ||
+	    ferror(tfp))
 	{
 		if (newid)
 			syserr("!552 Error writing control file %s", tf);
@@ -553,7 +555,6 @@ runqueue(forkflag, verbose)
 	extern ENVELOPE BlankEnvelope;
 	extern void clrdaemon __P((void));
 	extern void runqueueevent __P((void));
-	extern void drop_privileges __P((void));
 
 	DoQueueRun = FALSE;
 
@@ -670,7 +671,7 @@ runqueue(forkflag, verbose)
 
 	/* drop privileges */
 	if (geteuid() == (uid_t) 0)
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 
 	/*
 	**  Create ourselves an envelope
@@ -684,7 +685,7 @@ runqueue(forkflag, verbose)
 	if (forkflag)
 	{
 		disconnect(1, e);
-		OnlyOneError = QuickAbort = FALSE;
+		QuickAbort = FALSE;
 	}
 
 	/*
@@ -1463,6 +1464,7 @@ dowork(id, forkflag, requeueflag, e)
 		{
 			if (tTd(40, 4))
 				printf("readqf(%s) failed\n", e->e_id);
+			e->e_id = NULL;
 			if (forkflag)
 				exit(EX_OK);
 			else
@@ -2325,13 +2327,17 @@ loseqfile(e, why)
 	char *why;
 {
 	char *p;
-	char buf[MAXQFNAME];
+	char buf[MAXQFNAME + 1];
 
 	if (e == NULL || e->e_id == NULL)
 		return;
-	if (strlen(e->e_id) > (SIZE_T) sizeof buf - 4)
+	p = queuename(e, 'q');
+	if (strlen(p) > MAXQFNAME)
+	{
+		syserr("loseqfile: queuename (%s) too long", p);
 		return;
-	strcpy(buf, queuename(e, 'q'));
+	}
+	strcpy(buf, p);
 	p = queuename(e, 'Q');
 	if (rename(buf, p) < 0)
 		syserr("cannot rename(%s, %s), uid=%d", buf, p, geteuid());
