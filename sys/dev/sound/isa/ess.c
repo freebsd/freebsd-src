@@ -799,10 +799,9 @@ ess_attach(device_t dev)
     	char status[SND_STATUSLEN], buf[64];
 	int ver;
 
-    	sc = (struct ess_info *)malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+    	sc = (struct ess_info *)malloc(sizeof *sc, M_DEVBUF, M_NOWAIT | M_ZERO);
     	if (!sc)
 		return ENXIO;
-    	bzero(sc, sizeof *sc);
 
 	sc->parent_dev = device_get_parent(dev);
     	if (ess_alloc_resources(sc, dev))

@@ -432,25 +432,22 @@ sbc_attach(device_t dev)
 	}
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) goto bad;
-	bzero(func, sizeof(*func));
 	func->func = SCF_PCM;
 	scp->child_pcm = device_add_child(dev, "pcm", -1);
 	device_set_ivars(scp->child_pcm, func);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) goto bad;
-	bzero(func, sizeof(*func));
 	func->func = SCF_MIDI;
 	scp->child_midi1 = device_add_child(dev, "midi", -1);
 	device_set_ivars(scp->child_midi1, func);
 
 	/* OPL FM Synthesizer */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) goto bad;
-	bzero(func, sizeof(*func));
 	func->func = SCF_SYNTH;
 	scp->child_midi2 = device_add_child(dev, "midi", -1);
 	device_set_ivars(scp->child_midi2, func);

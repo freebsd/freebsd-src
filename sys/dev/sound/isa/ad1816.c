@@ -589,9 +589,8 @@ ad1816_attach(device_t dev)
 	struct ad1816_info *ad1816;
     	char status[SND_STATUSLEN];
 
-	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT);
+	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ad1816) return ENXIO;
-	bzero(ad1816, sizeof *ad1816);
 
 	ad1816->lock = snd_mtxcreate(device_get_nameunit(dev));
 	ad1816->io_rid = 2;

@@ -450,11 +450,10 @@ via_attach(device_t dev)
 	char status[SND_STATUSLEN];
 	u_int32_t data;
 
-	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-	bzero(via, sizeof *via);
 
 	/* Get resources */
 	data = pci_read_config(dev, PCIR_COMMAND, 2);

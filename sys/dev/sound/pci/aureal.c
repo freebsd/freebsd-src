@@ -557,12 +557,11 @@ au_pci_attach(device_t dev)
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
-	if ((au = malloc(sizeof(*au), M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((au = malloc(sizeof(*au), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(au, sizeof(*au));
 	au->unit = device_get_unit(dev);
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
