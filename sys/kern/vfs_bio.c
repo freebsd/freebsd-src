@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.46.4.4 1995/07/23 19:38:35 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46.4.5 1995/07/25 05:07:40 davidg Exp $
  */
 
 /*
@@ -411,70 +411,83 @@ brelse(struct buf * bp)
 		vm_object_t obj;
 		int i, resid;
 		vm_page_t m;
+		struct vnode *vp;
 		int iototal = bp->b_bufsize;
 
-		foff = 0;
-		obj = 0;
+		vp = bp->b_vp;
+		if (!vp) 
+			panic("brelse: missing vp");
+		if (!vp->v_mount)
+			panic("brelse: missing mount info");
+
 		if (bp->b_npages) {
-			if (bp->b_vp && bp->b_vp->v_mount) {
-				foff = bp->b_vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
-			} else {
-				/*
-				 * vnode pointer has been ripped away --
-				 * probably file gone...
-				 */
-				foff = bp->b_pages[0]->offset;
-			}
-		}
-		for (i = 0; i < bp->b_npages; i++) {
-			m = bp->b_pages[i];
-			if (m == bogus_page) {
-				m = vm_page_lookup(obj, foff);
-				if (!m) {
-					panic("brelse: page missing\n");
+			obj = (vm_object_t) vp->v_vmdata;
+			foff = trunc_page(vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno);
+			for (i = 0; i < bp->b_npages; i++) {
+				m = bp->b_pages[i];
+				if (m == bogus_page) {
+					m = vm_page_lookup(obj, foff);
+					if (!m) {
+						panic("brelse: page missing\n");
+					}
+					bp->b_pages[i] = m;
+					pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 				}
-				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
-			}
-			resid = (m->offset + PAGE_SIZE) - foff;
-			if (resid > iototal)
-				resid = iototal;
-			if (resid > 0) {
-				/*
-				 * Don't invalidate the page if the local machine has already
-				 * modified it.  This is the lesser of two evils, and should
-				 * be fixed.
-				 */
-				if (bp->b_flags & (B_NOCACHE | B_ERROR)) {
-					vm_page_test_dirty(m);
-					if (m->dirty == 0) {
-						vm_page_set_invalid(m, foff, resid);
-						if (m->valid == 0)
-							vm_page_protect(m, VM_PROT_NONE);
+				resid = (m->offset + PAGE_SIZE) - foff;
+				if (resid > iototal)
+					resid = iototal;
+				if (resid > 0) {
+					/*
+					 * Don't invalidate the page if the local machine has already
+					 * modified it.  This is the lesser of two evils, and should
+					 * be fixed.
+					 */
+					if (bp->b_flags & (B_NOCACHE | B_ERROR)) {
+						vm_page_test_dirty(m);
+						if (m->dirty == 0) {
+							vm_page_set_invalid(m, foff, resid);
+							if (m->valid == 0)
+								vm_page_protect(m, VM_PROT_NONE);
+						}
 					}
 				}
+				foff += resid;
+				iototal -= resid;
 			}
-			foff += resid;
-			iototal -= resid;
 		}
 
 		if (bp->b_flags & (B_INVAL | B_RELBUF)) {
-			for(i=0;i<bp->b_npages;i++) {
+			for(i = 0; i < bp->b_npages; i++) {
 				m = bp->b_pages[i];
 				--m->bmapped;
 				if (m->bmapped == 0) {
 					if (m->flags & PG_WANTED) {
-						wakeup((caddr_t) m);
+						wakeup(m);
 						m->flags &= ~PG_WANTED;
 					}
-					vm_page_test_dirty(m);
-					if ((m->dirty & m->valid) == 0 &&
-						(m->flags & PG_REFERENCED) == 0 &&
-							!pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-						vm_page_cache(m);
-					} else if ((m->flags & PG_ACTIVE) == 0) {
-						vm_page_activate(m);
-						m->act_count = 0;
+					if ((m->busy == 0) && ((m->flags & PG_BUSY) == 0)) {
+						vm_page_test_dirty(m);
+						/*
+						 * if page isn't valid, no sense in keeping it around
+						 */
+						if (m->valid == 0) {
+							vm_page_protect(m, VM_PROT_NONE);
+							vm_page_free(m);
+						/*
+						 * if page isn't dirty and hasn't been referenced by
+						 * a process, then cache it
+						 */
+						} else if ((m->dirty & m->valid) == 0 &&
+						    (m->flags & PG_REFERENCED) == 0 &&
+						    !pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+							vm_page_cache(m);
+						/*
+						 * otherwise activate it
+						 */
+						} else if ((m->flags & PG_ACTIVE) == 0) {
+							vm_page_activate(m);
+							m->act_count = 0;
+						}
 					}
 				}
 			}
