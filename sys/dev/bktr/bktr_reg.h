@@ -37,17 +37,119 @@
  */
 #define	BROOKTREE_848_ID			0x0350109E
 
-typedef volatile u_int 	breg_t;
+typedef volatile u_int 	bregister_t;
+/*
+ * if other persuasion endian, then compiler will probably require that
+ * these next
+ * macros be reversed
+ */
+#define	BTBYTE(what)	bregister_t  what:8; int :24
+#define	BTWORD(what)	bregister_t  what:16; int: 16
+#define BTLONG(what)	bregister_t  what:32
+
+struct bt848_registers {
+    BTBYTE (dstatus);		/* 0, 1,2,3 */
+#define BT848_DSTATUS_PRES	(1<<7)
+#define BT848_DSTATUS_HLOC	(1<<6)
+#define BT848_DSTATUS_FIELD	(1<<5)
+#define BT848_DSTATUS_NUML	(1<<4)
+#define BT848_DSTATUS_CSEL	(1<<3)
+#define BT848_DSTATUS_LOF	(1<<1)
+#define BT848_DSTATUS_COF	(1<<0)
+    BTBYTE (iform);		/* 4, 5,6,7 */
+    BTBYTE (tdec);		/* 8, 9,a,b */
+    BTBYTE (e_crop);		/* c, d,e,f */
+    BTBYTE (e_vdelay_lo);	/* 10, 11,12,13 */
+    BTBYTE (e_vactive_lo);	/* 14, 15,16,17 */
+    BTBYTE (e_delay_lo);	/* 18, 19,1a,1b */
+    BTBYTE (e_hactive_lo);	/* 1c, 1d,1e,1f */
+    BTBYTE (e_hscale_hi);	/* 20, 21,22,23 */
+    BTBYTE (e_hscale_lo);	/* 24, 25,26,27 */
+    BTBYTE (bright);		/* 28, 29,2a,2b */
+    BTBYTE (e_control);		/* 2c, 2d,2e,2f */
+    BTBYTE (contrast_lo);	/* 30, 31,32,33 */
+    BTBYTE (sat_u_lo);		/* 34, 35,36,37 */
+    BTBYTE (sat_v_lo);		/* 38, 39,3a,3b */
+    BTBYTE (hue);		/* 3c, 3d,3e,3f */
+    BTBYTE (e_scloop);		/* 40, 41,42,43 */
+    int		:32;		/* 44, 45,46,47 */
+    BTBYTE (oform);		/* 48, 49,4a,4b */
+    BTBYTE (e_vscale_hi);	/* 4c, 4d,4e,4f */
+    BTBYTE (e_vscale_lo);	/* 50, 51,52,53 */
+    BTBYTE (test);		/* 54, 55,56,57 */
+    int		:32;		/* 58, 59,5a,5b */
+    int		:32;		/* 5c, 5d,5e,5f */
+    BTLONG (adelay);		/* 60, 61,62,63 */
+    BTBYTE (bdelay);		/* 64, 65,66,67 */
+    BTBYTE (adc);		/* 68, 69,6a,6b */
+    BTBYTE (e_vtc);		/* 6c, 6d,6e,6f */
+    int		:32;		/* 70, 71,72,73 */
+    int 	:32;		/* 74, 75,76,77 */
+    int		:32;		/* 78, 79,7a,7b */
+    BTLONG (sreset);		/* 7c, 7d,7e,7f */
+    u_char 	filler[0x8c-0x80];
+    BTBYTE (o_crop);		/* 8c, 8d,8e,8f */
+    BTBYTE (o_vdelay_lo);	/* 90, 91,92,93 */
+    BTBYTE (o_vactive_lo);	/* 94, 95,96,97 */
+    BTBYTE (o_delay_lo);	/* 98, 99,9a,9b */
+    BTBYTE (o_hactive_lo);	/* 9c, 9d,9e,9f */
+    BTBYTE (o_hscale_hi);	/* a0, a1,a2,a3 */
+    BTBYTE (o_hscale_lo);	/* a4, a5,a6,a7 */
+    int		:32;		/* a8, a9,aa,ab */
+    BTBYTE (o_control);		/* ac, ad,ae,af */
+    u_char	fillter1[16];
+    BTBYTE (o_scloop);		/* c0, c1,c2,c3 */
+    int		:32;		/* c4, c5,c6,c7 */
+    int		:32;		/* c8, c9,ca,cb */
+    BTBYTE (o_vscale_hi);	/* cc, cd,ce,cf */
+    BTBYTE (o_vscale_lo);	/* d0, d1,d2,d3 */
+    BTBYTE (color_fmt);		/* d4, d5,d6,d7 */
+    BTBYTE (color_ctl);		/* d8, d9,da,db */
+    BTBYTE (cap_ctl);		/* dc, dd,de,df */
+    BTBYTE (vbi_pack_size);	/* e0, e1,e2,e3 */
+    BTBYTE (vbi_pack_del);	/* e4, e5,e6,e7 */
+    int		:32;		/* e8, e9,ea,eb */
+    BTBYTE (o_vtc);		/* ec, ed,ee,ef */
+    u_char	filler2[0x100-0xf0];
+    BTLONG (int_stat);		/* 100, 101,102,103 */
+    BTLONG (int_mask);		/* 104, 105,106,107 */
+#define BT848_INT_RISCS		(0xf<<28)
+#define BT848_INT_RISC_EN	(1<<27)
+#define BT848_INT_RACK		(1<<25)
+#define BT848_INT_FIELD		(1<<24)
+#define BT848_INT_SCERR		(1<<19)
+#define BT848_INT_OCERR		(1<<18)
+#define BT848_INT_PABORT	(1<<17)
+#define BT848_INT_RIPERR	(1<<16)
+#define BT848_INT_PPERR		(1<<15)
+#define BT848_INT_FDSR		(1<<14)
+#define BT848_INT_FTRGT		(1<<13)
+#define BT848_INT_FBUS		(1<<12)
+#define BT848_INT_RISCI		(1<<11)
+#define BT848_INT_GPINT		(1<<9)
+#define BT848_INT_I2CDONE	(1<<8)
+#define BT848_INT_VPRES		(1<<5)
+#define BT848_INT_HLOCK		(1<<4)
+#define BT848_INT_OFLOW		(1<<3)
+#define BT848_INT_HSYNC		(1<<2)
+#define BT848_INT_VSYNC		(1<<1)
+#define BT848_INT_FMTCHG	(1<<0)
+    int		:32;		/* 108, 109,10a,10b */
+    BTWORD (gpio_dma_ctl);	/* 10c, 10d,10e,10f */
+    BTLONG (i2c_data_ctl);	/* 110, 111,112,113 */
+    BTLONG (risc_strt_add);	/* 114, 115,116,117 */
+    BTLONG (gpio_out_en);	/* 118, 119,11a,11b */	/* really 24 bits */
+    BTLONG (gpio_reg_inp);	/* 11c, 11d,11e,11f */	/* really 24 bits */
+    BTLONG (risc_count);	/* 120, 121,122,123 */
+    u_char	filler3[0x200-0x124];
+    BTLONG (gpio_data);		/* 200, 201,202,203 */	/* really 24 bits */
+};
+
+typedef volatile struct bt848_registers *bt848_reg_t;
+typedef volatile struct bt848_registers *bt848_regptr_t;
 
 
 #define BKTR_DSTATUS			0x000
-# define BT848_DSTATUS_PRES		(1<<7)
-# define BT848_DSTATUS_HLOC		(1<<6)
-# define BT848_DSTATUS_FIELD		(1<<5)
-# define BT848_DSTATUS_NUML		(1<<4)
-# define BT848_DSTATUS_CSEL		(1<<3)
-# define BT848_DSTATUS_LOF		(1<<1)
-# define BT848_DSTATUS_COF		(1<<0)
 #define BKTR_IFORM			0x004
 #define BKTR_TDEC			0x008
 #define BKTR_EVEN_CROP			0x00C
@@ -92,27 +194,6 @@ typedef volatile u_int 	breg_t;
 #define BKTR_VBI_PACK_DEL		0x0E4
 #define BKTR_INT_STAT			0x100
 #define BKTR_INT_MASK			0x104
-# define BT848_INT_RISCS		(0xf<<28)
-# define BT848_INT_RISC_EN		(1<<27)
-# define BT848_INT_RACK			(1<<25)
-# define BT848_INT_FIELD		(1<<24)
-# define BT848_INT_SCERR		(1<<19)
-# define BT848_INT_OCERR		(1<<18)
-# define BT848_INT_PABORT		(1<<17)
-# define BT848_INT_RIPERR		(1<<16)
-# define BT848_INT_PPERR		(1<<15)
-# define BT848_INT_FDSR			(1<<14)
-# define BT848_INT_FTRGT		(1<<13)
-# define BT848_INT_FBUS			(1<<12)
-# define BT848_INT_RISCI		(1<<11)
-# define BT848_INT_GPINT		(1<<9)
-# define BT848_INT_I2CDONE		(1<<8)
-# define BT848_INT_VPRES		(1<<5)
-# define BT848_INT_HLOCK		(1<<4)
-# define BT848_INT_OFLOW		(1<<3)
-# define BT848_INT_HSYNC		(1<<2)
-# define BT848_INT_VSYNC		(1<<1)
-# define BT848_INT_FMTCHG		(1<<0)
 #define BKTR_RISC_COUNT			0x120
 #define BKTR_RISC_STRT_ADD		0x114
 #define BKTR_GPIO_DMA_CTL		0x10C
@@ -125,20 +206,29 @@ typedef volatile u_int 	breg_t;
 /*
  * device support for onboard tv tuners
  */
-struct tvtuner {
+struct TVTUNER {
 	int	frequency;
 	u_char	chnlset;
 	u_char	channel;
 	u_char	band;
 };
 
+#define EEPROMBLOCKSIZE		32
+struct CARDTYPE {
+	char*	name;
+	u_char	tuner;
+	u_char	dbx;
+	u_char	eepromAddr;
+	u_char	eepromSize;	/* bytes / EEPROMBLOCKSIZE */
+	u_char	audiomuxs[4];	/* tuner, external, internal/unused, mute */
+};
 
 /*
  * BrookTree 848  info structure, one per bt848 card installed.
  */
 typedef struct bktr_softc {
-    char *      base;	/* saa7116 register physical address */
-    vm_offset_t phys_base;	/* saa7116 register physical address */
+    bt848_reg_t base;		/* Bt848 register physical address */
+    vm_offset_t phys_base;	/* Bt848 register physical address */
     pcici_t	tag;		/* PCI tag, for doing PCI commands */
     vm_offset_t bigbuf;		/* buffer that holds the captured image */
     int		alloc_pages;	/* number of pages in bigbuf */
@@ -209,10 +299,12 @@ typedef struct bktr_softc {
     void	*devfs_token;
 #endif
     struct meteor_video video;
-    struct tvtuner	tuner;
+    struct TVTUNER	tuner;
+    struct CARDTYPE*	card;
     u_char      card_type;		/* brand of card */
     u_char      audio_mux_select;	/* current mode of the audio */
     u_char      audio_mute_state;	/* mute state of the audio */
 } bktr_reg_t;
+
 
 

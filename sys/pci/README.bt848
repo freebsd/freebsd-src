@@ -1,4 +1,24 @@
 -------------------------------------------------------------------------------
+This model now separates the "tuner control" items into a minor device:
+
+Create a video device:
+mknod bktr0 c 79 0
+
+Create a tuner device:
+mknod tuner0 c 79 16
+
+minor device layout:  xxxxxxxx xxxT UUUU
+
+ UUUU:   the card (ie UNIT) identifier, 0 thru 15
+ T == 0: video device
+ T == 1: tuner device
+
+Access your tuner ioctl thru your tuner device handle and anything
+which controls the video capture process thru the video device handle.
+
+Certain ioctl()s such as video source are available thru both devices.
+
+-------------------------------------------------------------------------------
 There are 3 files necessary for the bt848 driver:
 
 src/sys/i386/include/ioctl_bt848.h
