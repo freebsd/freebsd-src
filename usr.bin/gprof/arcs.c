@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)arcs.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -52,6 +53,7 @@ int oldcycle;
     /*
      *	add (or just increment) an arc
      */
+void
 addarc( parentp , childp , count )
     nltype	*parentp;
     nltype	*childp;
@@ -80,6 +82,8 @@ addarc( parentp , childp , count )
 	return;
     }
     arcp = (arctype *)calloc( 1 , sizeof *arcp );
+    if (arcp == NULL)
+	errx( 1 , "malloc failed" );
     arcp -> arc_parentp = parentp;
     arcp -> arc_childp = childp;
     arcp -> arc_count = count;
@@ -105,6 +109,7 @@ addarc( parentp , childp , count )
      */
 nltype	**topsortnlp;
 
+int
 topcmp( npp1 , npp2 )
     nltype	**npp1;
     nltype	**npp2;
@@ -202,9 +207,8 @@ doarcs()
 	 *	Sort the symbol table in reverse topological order
 	 */
     topsortnlp = (nltype **) calloc( nname , sizeof(nltype *) );
-    if ( topsortnlp == (nltype **) 0 ) {
-	fprintf( stderr , "[doarcs] ran out of memory for topo sorting\n" );
-    }
+    if ( topsortnlp == (nltype **) 0 )
+	errx( 1 , "[doarcs] ran out of memory for topo sorting" );
     for ( index = 0 ; index < nname ; index += 1 ) {
 	topsortnlp[ index ] = &nl[ index ];
     }
@@ -230,7 +234,7 @@ doarcs()
     doflags();
 	/*
 	 *	starting from the topological bottom,
-	 *	propogate children times up to parents.
+	 *	propagate children times up to parents.
 	 */
     dotime();
 	/*
@@ -239,9 +243,8 @@ doarcs()
 	 *	and cycle headers.
 	 */
     timesortnlp = (nltype **) calloc( nname + ncycle , sizeof(nltype *) );
-    if ( timesortnlp == (nltype **) 0 ) {
-	warnx("ran out of memory for sorting");
-    }
+    if ( timesortnlp == (nltype **) 0 )
+	errx( 1 , "ran out of memory for sorting" );
     for ( index = 0 ; index < nname ; index++ ) {
 	timesortnlp[index] = &nl[index];
     }
@@ -255,6 +258,7 @@ doarcs()
     return( timesortnlp );
 }
 
+void
 dotime()
 {
     int	index;
@@ -265,6 +269,7 @@ dotime()
     }
 }
 
+void
 timepropagate( parentp )
     nltype	*parentp;
 {
@@ -353,6 +358,7 @@ timepropagate( parentp )
     }
 }
 
+void
 cyclelink()
 {
     register nltype	*nlp;
@@ -362,7 +368,7 @@ cyclelink()
     arctype		*arcp;
 
 	/*
-	 *	Count the number of cycles, and initialze the cycle lists
+	 *	Count the number of cycles, and initialize the cycle lists
 	 */
     ncycle = 0;
     for ( nlp = nl ; nlp < npe ; nlp++ ) {
@@ -378,11 +384,9 @@ cyclelink()
 	 *	i.e. it is origin 1, not origin 0.
 	 */
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
-    if ( cyclenl == 0 ) {
-	warnx("no room for %d bytes of cycle headers",
+    if ( cyclenl == 0 )
+	errx( 1 , "no room for %d bytes of cycle headers" ,
 		   ( ncycle + 1 ) * sizeof( nltype ) );
-	done();
-    }
 	/*
 	 *	now link cycles to true cycleheads,
 	 *	number them, accumulate the data for the cycle
@@ -447,6 +451,7 @@ cyclelink()
     /*
      *	analyze cycles to determine breakup
      */
+bool
 cycleanalyze()
 {
     arctype	**cyclestack;
@@ -482,11 +487,9 @@ cycleanalyze()
 	    continue;
 	done = FALSE;
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
-	if ( cyclestack == 0 ) {
-	    warnx("no room for %d bytes of cycle stack",
+	if ( cyclestack == 0 )
+	    errx( 1, "no room for %d bytes of cycle stack" ,
 			   ( size + 1 ) * sizeof( arctype * ) );
-	    return;
-	}
 #	ifdef DEBUG
 	    if ( debug & BREAKCYCLE ) {
 		printf( "[cycleanalyze] starting cycle %d of %d, size %d\n" ,
@@ -524,6 +527,7 @@ cycleanalyze()
     return( done );
 }
 
+bool
 descend( node , stkstart , stkp )
     nltype	*node;
     arctype	**stkstart;
@@ -555,8 +559,10 @@ descend( node , stkstart , stkp )
 	if ( ret == FALSE )
 	    return( FALSE );
     }
+    return( TRUE );
 }
 
+bool
 addcycle( stkstart , stkend )
     arctype	**stkstart;
     arctype	**stkend;
@@ -600,7 +606,7 @@ addcycle( stkstart , stkend )
     clp = (cltype *)
 	calloc( 1 , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
     if ( clp == 0 ) {
-	warnx("no room for %d bytes of subcycle storage",
+	warnx( "no room for %d bytes of subcycle storage" ,
 	    sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
 	return( FALSE );
     }
@@ -632,6 +638,7 @@ addcycle( stkstart , stkend )
     return( TRUE );
 }
 
+void
 compresslist()
 {
     cltype	*clp;
@@ -747,6 +754,7 @@ compresslist()
 }
 
 #ifdef DEBUG
+void
 printsubcycle( clp )
     cltype	*clp;
 {
@@ -762,6 +770,7 @@ printsubcycle( clp )
 }
 #endif /* DEBUG */
 
+void
 cycletime()
 {
     int			cycle;
@@ -791,6 +800,7 @@ cycletime()
      *		propfraction as the sum of fractional parents' propfractions
      *	and while we're here, sum time for functions.
      */
+void
 doflags()
 {
     int		index;
@@ -856,7 +866,7 @@ doflags()
 		/*
 		 *	it has parents to pass time to,
 		 *	but maybe someone wants to shut it up
-		 *	by puttting it on -E list.  (but favor -F over -E)
+		 *	by putting it on -E list.  (but favor -F over -E)
 		 */
 	    if (  !onlist( Flist , childp -> name )
 		&& onlist( Elist , childp -> name ) ) {
@@ -885,6 +895,7 @@ doflags()
      *	print flag of the child (cycle) appropriately.
      *	similarly, deal with propagation fractions from parents.
      */
+void
 inheritflags( childp )
     nltype	*childp;
 {

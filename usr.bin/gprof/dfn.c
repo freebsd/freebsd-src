@@ -31,17 +31,16 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)dfn.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
+#include <err.h>
 #include "gprof.h"
 
 #define	DFN_DEPTH	100
@@ -56,6 +55,7 @@ int	dfn_depth;
 
 int	dfn_counter;
 
+void
 dfn_init()
 {
 
@@ -66,6 +66,7 @@ dfn_init()
     /*
      *	given this parent, depth first number its children.
      */
+void
 dfn( parentp )
     nltype	*parentp;
 {
@@ -79,7 +80,7 @@ dfn( parentp )
 	}
 #   endif /* DEBUG */
 	/*
-	 *	if we're already numbered, no need to look any furthur.
+	 *	if we're already numbered, no need to look any further.
 	 */
     if ( dfn_numbered( parentp ) ) {
 	return;
@@ -112,15 +113,14 @@ dfn( parentp )
     /*
      *	push a parent onto the stack and mark it busy
      */
+void
 dfn_pre_visit( parentp )
     nltype	*parentp;
 {
 
     dfn_depth += 1;
-    if ( dfn_depth >= DFN_DEPTH ) {
-	fprintf( stderr , "[dfn] out of my depth (dfn_stack overflow)\n" );
-	exit( 1 );
-    }
+    if ( dfn_depth >= DFN_DEPTH )
+	errx( 1 , "[dfn] out of my depth (dfn_stack overflow)" );
     dfn_stack[ dfn_depth ].nlentryp = parentp;
     dfn_stack[ dfn_depth ].cycletop = dfn_depth;
     parentp -> toporder = DFN_BUSY;
@@ -161,6 +161,7 @@ dfn_busy( childp )
     /*
      *	MISSING: an explanation
      */
+void
 dfn_findcycle( childp )
     nltype	*childp;
 {
@@ -179,10 +180,8 @@ dfn_findcycle( childp )
 	    break;
 	}
     }
-    if ( cycletop <= 0 ) {
-	fprintf( stderr , "[dfn_findcycle] couldn't find head of cycle\n" );
-	exit( 1 );
-    }
+    if ( cycletop <= 0 )
+	errx( 1 , "[dfn_findcycle] couldn't find head of cycle" );
 #   ifdef DEBUG
 	if ( debug & DFNDEBUG ) {
 	    printf( "[dfn_findcycle] dfn_depth %d cycletop %d " ,
@@ -271,6 +270,7 @@ dfn_findcycle( childp )
      *	deal with self-cycles
      *	for lint: ARGSUSED
      */
+void
 dfn_self_cycle( parentp )
     nltype	*parentp;
 {
@@ -292,6 +292,7 @@ dfn_self_cycle( parentp )
      *	[MISSING: an explanation]
      *	and pop it off the stack
      */
+void
 dfn_post_visit( parentp )
     nltype	*parentp;
 {
