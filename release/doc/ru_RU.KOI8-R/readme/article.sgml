@@ -2,9 +2,9 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.8 2004/09/06 14:05:03 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.9 2004/09/13 09:24:01 den Exp $
 
-   Original revision: 1.34
+   Original revision: 1.35
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -59,11 +59,13 @@
       <title>О &os;</title>
 
       <para>&os; это операционная система, основанная на 4.4 BSD Lite для
-	аппаратного обеспечения PC на <quote>x86</quote> (&i386;) процессорах
-	Intel, AMD, Cyrix или NexGen, NEC PC-9801/9821 series PC и
-	совместимых (pc98), компьютеров DEC/Compaq/HP Alpha (alpha),
-	и &ultrasparc; (&sparc64;).  Версии для IA64 (ia64),
-	&powerpc; (&powerpc;), и AMD <quote>Hammer</quote> (amd64)
+	аппаратного обеспечения DEC/Compaq/HP Alpha/AXP компьютеров (alpha),
+	PC на оборудовании AMD64 и Intel EM64T (amd64),
+	PC на оборудовании Intel, AMD, Cyrix или NexGen <quote>x86</quote>
+	(i386), компьютеры на Intel Itanium Processor (ia64),
+	PC NEC PC-9801/9821 и совместимые (pc98)
+	и машины &ultrasparc; (sparc64).  Версии для
+	&powerpc; (powerpc) и &mips; (mips)
 	также разрабатываются.  &os; работает с широким набором периферийного
 	оборудования, в различных конфигурациях и может использоваться
 	в любых целях, от разработки программного обеспечения, игр до
