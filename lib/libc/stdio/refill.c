@@ -73,6 +73,7 @@ lflush(FILE *fp)
 int
 __srefill(FILE *fp)
 {
+
 	/* make sure stdio is set up */
 	if (!__sdidinit)
 		__sinit();
