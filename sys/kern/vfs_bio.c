@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.18 1995/01/10 07:32:35 davidg Exp $
+ * $Id: vfs_bio.c,v 1.19 1995/01/10 09:20:34 davidg Exp $
  */
 
 /*
@@ -658,14 +658,14 @@ vfs_bio_awrite(struct buf * bp)
 	int i;
 	daddr_t lblkno = bp->b_lblkno;
 	struct vnode *vp = bp->b_vp;
-	int size = vp->v_mount->mnt_stat.f_iosize;
 	int s;
 	int ncl;
 	struct buf *bpa;
 
 	s = splbio();
-	ncl = 1;
-	if (vp->v_flag & VVMIO) {
+	if( vp->v_mount && (vp->v_flag & VVMIO) &&
+		(bp->b_flags & (B_CLUSTEROK|B_INVAL)) == B_CLUSTEROK) {
+		int size  = vp->v_mount->mnt_stat.f_iosize;
 		for (i = 1; i < MAXPHYS / size; i++) {
 			if ((bpa = incore(vp, lblkno + i)) &&
 			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_BUSY | B_CLUSTEROK | B_INVAL)) == B_DELWRI | B_CLUSTEROK) &&
@@ -678,18 +678,21 @@ vfs_bio_awrite(struct buf * bp)
 			}
 		}
 		ncl = i;
+		/*
+		 * this is a possible cluster write
+		 */
+		if (ncl != 1) {
+			cluster_wbuild(vp, NULL, size, lblkno, ncl, -1);
+			splx(s);
+			return;
+		}
 	}
 	/*
-	 * we don't attempt to cluster meta-data or INVALID??? buffers
+	 * default (old) behavior, writing out only one block
 	 */
-	if ((ncl != 1) &&
-	    (bp->b_flags & (B_INVAL | B_CLUSTEROK)) == B_CLUSTEROK) {
-		cluster_wbuild(vp, NULL, size, lblkno, ncl, -1);
-	} else {
-		bremfree(bp);
-		bp->b_flags |= B_BUSY | B_ASYNC;
-		bwrite(bp);
-	}
+	bremfree(bp);
+	bp->b_flags |= B_BUSY | B_ASYNC;
+	bwrite(bp);
 	splx(s);
 }
 
@@ -879,13 +882,8 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int s;
 	struct bufhashhdr *bh;
 	vm_offset_t off;
-	int bsize;
 	int nleft;
 
-	bsize = DEV_BSIZE;
-	if (vp->v_mount) {
-		bsize = vp->v_mount->mnt_stat.f_iosize;
-	}
 	s = splbio();
 loop:
 	if ((cnt.v_free_count + cnt.v_cache_count) <
