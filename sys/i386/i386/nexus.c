@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.1 1999/04/16 21:22:14 peter Exp $
+ *	$Id: nexus.c,v 1.2 1999/04/18 14:30:55 kato Exp $
  */
 
 /*
@@ -71,13 +71,10 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
-#include <pci/pcivar.h>
-
-#include "eisa.h"
-#include "isa.h"
 #include "pci.h"
-#include "npx.h"
-#include "apm.h"
+#if NPCI > 0
+#include <pci/pcivar.h>
+#endif
 
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
@@ -174,44 +171,31 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
-#if NNPX > 0
 	child = device_add_child(dev, "npx", 0, 0);
 	if (child == 0)
-		panic("nexus_probe npx");
-#endif /* NNPX > 0 */
-#if NAPM > 0
+		printf("nexus_probe npx\n");
+
 	child = device_add_child(dev, "apm", 0, 0);
 	if (child == 0)
-		panic("nexus_probe apm");
-#endif /* NAPM > 0 */
+		printf("nexus_probe apm\n");
+
 #if NPCI > 0
-	/* Add a PCI bridge if pci bus is present */
+	/* pci_cfgopen() should come out of here so it could be loadable */
 	if (pci_cfgopen() != 0) {
 		child = device_add_child(dev, "pcib", 0, 0);
 		if (child == 0)
-			panic("nexus_probe pcib");
+			printf("nexus_probe pcib\n");
 	}
 #endif
-#if 0 && NEISA > 0
+
 	child = device_add_child(dev, "eisa", 0, 0);
 	if (child == 0)
-		panic("nexus_probe eisa");
-#endif
-#if NISA > 0
-#ifdef PC98
-	/* Add an ISA bus directly */
+		printf("nexus_probe eisa\n");
+
 	child = device_add_child(dev, "isa", 0, 0);
 	if (child == 0)
 		panic("nexus_probe isa");
-#else
-	/* Add an ISA bus directly if pci bus is not present */
-	if (pci_cfgopen() == 0) {
-		child = device_add_child(dev, "isa", 0, 0);
-		if (child == 0)
-			panic("nexus_probe isa");
-	}
-#endif
-#endif
+
 	return 0;
 }
 
