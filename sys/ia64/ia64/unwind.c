@@ -122,42 +122,23 @@ static struct ia64_unwind_table_list ia64_unwind_tables;
 static struct ia64_unwind_state ia64_unwind_state_static[MAX_UNWIND_STATES];
 static LIST_HEAD(ia64_unwind_state_list, ia64_unwind_state) ia64_unwind_states;
 
-struct ia64_unwind_table *
-ia64_add_unwind_table(u_int64_t *base, u_int64_t *start, u_int64_t *end)
+static void
+ia64_initialise_unwind(void *arg __unused)
 {
-	struct ia64_unwind_table *ut;
+	int i;
 
-	if (!ia64_unwind_initialised) {
-		int i;
-		LIST_INIT(&ia64_unwind_tables);
-		LIST_INIT(&ia64_unwind_states);
-		for (i = 0; i < MAX_UNWIND_STATES; i++) {
-			LIST_INSERT_HEAD(&ia64_unwind_states,
-					 &ia64_unwind_state_static[i],
-					 us_link);
-		}
-		ia64_unwind_initialised = 1;
+	KASSERT(!ia64_unwind_initialised, ("foo"));
+
+	LIST_INIT(&ia64_unwind_tables);
+	LIST_INIT(&ia64_unwind_states);
+	for (i = 0; i < MAX_UNWIND_STATES; i++) {
+		LIST_INSERT_HEAD(&ia64_unwind_states,
+		    &ia64_unwind_state_static[i], us_link);
 	}
 
-	ut = malloc(sizeof(struct ia64_unwind_table), M_UNWIND, M_NOWAIT);
-	if (!ut)
-		return 0;
-
-	ut->ut_base = (u_int64_t) base;
-	ut->ut_start = (struct ia64_unwind_table_entry *) start;
-	ut->ut_end = (struct ia64_unwind_table_entry *) end;
-	ut->ut_limit = (u_int64_t) base + ut->ut_end[-1].ue_end;
-	LIST_INSERT_HEAD(&ia64_unwind_tables, ut, ut_link);
-
-	return ut;
+	ia64_unwind_initialised = 1;
 }
-
-void
-ia64_free_unwind_table(struct ia64_unwind_table *ut)
-{
-	LIST_REMOVE(ut, ut_link);
-	free(ut, M_UNWIND);
-}
+SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, ia64_initialise_unwind, 0);
 
 static struct ia64_unwind_table *
 find_table(u_int64_t ip)
@@ -196,6 +177,46 @@ find_entry(struct ia64_unwind_table *ut, u_int64_t ip)
 	}
 
 	return 0;
+}
+
+int
+ia64_add_unwind_table(vm_offset_t base, vm_offset_t start, vm_offset_t end)
+{
+	struct ia64_unwind_table *ut;
+
+	KASSERT(ia64_unwind_initialised, ("foo"));
+
+	ut = malloc(sizeof(struct ia64_unwind_table), M_UNWIND, M_NOWAIT);
+	if (ut == NULL)
+		return (ENOMEM);
+
+	ut->ut_base = base;
+	ut->ut_start = (struct ia64_unwind_table_entry*)start;
+	ut->ut_end = (struct ia64_unwind_table_entry*)end;
+	ut->ut_limit = base + ut->ut_end[-1].ue_end;
+	LIST_INSERT_HEAD(&ia64_unwind_tables, ut, ut_link);
+
+	if (bootverbose)
+		printf("UNWIND: table added: base=%lx, start=%lx, end=%lx\n",
+		    base, start, end);
+
+	return (0);
+}
+
+void
+ia64_delete_unwind_table(vm_offset_t base)
+{
+	struct ia64_unwind_table *ut;
+
+	KASSERT(ia64_unwind_initialised, ("foo"));
+
+	ut = find_table(base);
+	if (ut != NULL) {
+		LIST_REMOVE(ut, ut_link);
+		free(ut, M_UNWIND);
+		if (bootverbose)
+			printf("UNWIND: table removed: base=%lx\n", base);
+	}
 }
 
 struct ia64_unwind_state *

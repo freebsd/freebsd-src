@@ -109,8 +109,6 @@ struct user *proc0uarea;
 vm_offset_t proc0kstack;
 
 extern u_int64_t kernel_text[], _end[];
-extern u_int64_t _ia64_unwind_start[];
-extern u_int64_t _ia64_unwind_end[];
 
 FPSWA_INTERFACE *fpswa_interface;
 
@@ -302,18 +300,6 @@ identifycpu(void)
 	       "\020"
 	       "\001LB");
 }
-
-static void
-add_kernel_unwind_tables(void *arg)
-{
-	/*
-	 * Register the kernel's unwind table.
-	 */
-	ia64_add_unwind_table(kernel_text,
-			      _ia64_unwind_start,
-			      _ia64_unwind_end);
-}
-SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, add_kernel_unwind_tables, 0);
 
 void
 map_pal_code(void)
