@@ -31,7 +31,7 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-#	afterdistribute, afterinstall, all, beforeinstall, checkdpadd,
+#	afterdistribute, afterinstall, all, all-man, beforeinstall, checkdpadd,
 #	clean, cleandepend, cleandir, depend, install, lint, maninstall,
 #	obj, objlink, realinstall, regress, tags
 #
@@ -87,7 +87,7 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all checkdpadd clean cleandepend cleandir depend lint \
+.for __target in all all-man checkdpadd clean cleandepend cleandir depend lint \
 		 maninstall obj objlink regress tags
 .if !target(${__target})
 ${__target}: _SUBDIRUSE
