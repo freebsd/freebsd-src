@@ -50,7 +50,6 @@
 #include <dev/random/yarrow.h>
 
 /* #define DEBUG */
-/* #define DEBUG1 */	/* Very noisy - prints plenty harvesting stats */
 
 static void generator_gate(void);
 static void reseed(int);
@@ -69,14 +68,12 @@ struct harvest {
 	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
-	u_int pool;			/* which pool this goes into */
 };
 
 /* Ring buffer holding harvested entropy */
 static struct harvestring {
-	struct mtx	lockout_mtx;
-	int		head;
-	int		tail;
+	volatile int	head;
+	volatile int	tail;
 	struct harvest	data[HARVEST_RING_SIZE];
 } harvestring;
 
@@ -91,7 +88,7 @@ static struct proc *random_kthread_proc;
 static void
 random_kthread(void *arg /* NOTUSED */)
 {
-	int pl, src, overthreshhold[2], head, newtail;
+	int pl, src, overthreshhold[2], newtail;
 	struct harvest *event;
 	struct source *source;
 
@@ -107,31 +104,29 @@ random_kthread(void *arg /* NOTUSED */)
 
 	for (;;) {
 
-		head = atomic_load_acq_int(&harvestring.head);
-		newtail = (harvestring.tail + 1) % HARVEST_RING_SIZE;
-		if (harvestring.tail == head)
-			tsleep(&harvestring.head, PUSER, "rndslp", hz/10);
+		if (harvestring.tail == harvestring.head)
+			tsleep(&harvestring, PUSER, "rndslp", hz/10);
 
 		else {
-#ifdef DEBUG1
-			mtx_lock(&Giant);
-			printf("HARVEST src=%d bits=%d/%d pool=%d count=%lld\n",
-				event->source, event->bits, event->frac,
-				event->pool, event->somecounter);
-			mtx_unlock(&Giant);
-#endif
 
 			/* Suck the harvested entropy out of the queue and hash
 			 * it into the appropriate pool.
 			 */
 
+			newtail = (harvestring.tail + 1) & HARVEST_RING_MASK;
 			event = &harvestring.data[harvestring.tail];
+
+			/* Bump the ring counter. This action is assumed
+			 * to be atomic.
+			 */
 			harvestring.tail = newtail;
 
-			source = &random_state.pool[event->pool].source[event->source];
-			yarrow_hash_iterate(&random_state.pool[event->pool].hash,
+			pl = random_state.which = !random_state.which;
+
+			source = &random_state.pool[pl].source[event->source];
+			yarrow_hash_iterate(&random_state.pool[pl].hash,
 				event->entropy, sizeof(event->entropy));
-			yarrow_hash_iterate(&random_state.pool[event->pool].hash,
+			yarrow_hash_iterate(&random_state.pool[pl].hash,
 				&event->somecounter, sizeof(event->somecounter));
 			source->frac += event->frac;
 			source->bits += event->bits + source->frac/1024;
@@ -189,6 +184,9 @@ random_init(void)
 	 */
 	random_state.seeded = 1;
 
+	/* Yarrow parameters. Do not adjust these unless you have
+	 * have a very good clue about what they do!
+	 */
 	random_state.gengateinterval = 10;
 	random_state.bins = 10;
 	random_state.pool[0].thresh = 100;
@@ -196,9 +194,7 @@ random_init(void)
 	random_state.slowoverthresh = 2;
 	random_state.which = FAST;
 
-	/* Initialise the mutexes */
 	mtx_init(&random_reseed_mtx, "random reseed", MTX_DEF);
-	mtx_init(&harvestring.lockout_mtx, "random harvest", MTX_DEF);
 
 	harvestring.head = 0;
 	harvestring.tail = 0;
@@ -240,11 +236,8 @@ random_deinit(void)
 #endif
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
-	mtx_lock(&harvestring.lockout_mtx);
 	random_kthread_control = -1;
-	msleep((void *)&random_kthread_control, &harvestring.lockout_mtx, PUSER,
-		"rndend", 0);
-	mtx_unlock(&harvestring.lockout_mtx);
+	tsleep((void *)&random_kthread_control, PUSER, "rndend", 0);
 
 #ifdef DEBUG
 	mtx_lock(&Giant);
@@ -252,9 +245,7 @@ random_deinit(void)
 	mtx_unlock(&Giant);
 #endif
 
-	/* Remove the mutexes */
 	mtx_destroy(&random_reseed_mtx);
-	mtx_destroy(&harvestring.lockout_mtx);
 
 #ifdef DEBUG
 	mtx_lock(&Giant);
@@ -492,52 +483,32 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
 	struct harvest *harvest;
-	int newhead, tail;
+	int newhead;
 
-#ifdef DEBUG1
-	mtx_lock(&Giant);
-	printf("Random harvest\n");
-	mtx_unlock(&Giant);
-#endif
-	if (origin < ENTROPYSOURCE) {
+	newhead = (harvestring.head + 1) & HARVEST_RING_MASK;
 
-		/* Add the harvested data to the ring buffer, but
-		 * do not block.
+	if (newhead != harvestring.tail) {
+
+		/* Add the harvested data to the ring buffer */
+
+		harvest = &harvestring.data[harvestring.head];
+
+		/* Stuff the harvested data into the ring */
+		harvest->somecounter = somecounter;
+		count = count > HARVESTSIZE ? HARVESTSIZE : count;
+		memcpy(harvest->entropy, entropy, count);
+		harvest->size = count;
+		harvest->bits = bits;
+		harvest->frac = frac;
+		harvest->source = origin < ENTROPYSOURCE ? origin : 0;
+
+		/* Bump the ring counter. This action is assumed
+		 * to be atomic.
 		 */
-		if (mtx_trylock(&harvestring.lockout_mtx)) {
-
-			tail = atomic_load_acq_int(&harvestring.tail);
-			newhead = (harvestring.head + 1) % HARVEST_RING_SIZE;
-
-			if (newhead != tail) {
-
-				harvest = &harvestring.data[harvestring.head];
-
-				/* toggle the pool for next insertion */
-				harvest->pool = random_state.which;
-				random_state.which = !random_state.which;
-
-				/* Stuff the harvested data into the ring */
-				harvest->somecounter = somecounter;
-				count = count > HARVESTSIZE ? HARVESTSIZE : count;
-				memcpy(harvest->entropy, entropy, count);
-				harvest->size = count;
-				harvest->bits = bits;
-				harvest->frac = frac;
-				harvest->source = origin;
-
-				/* Bump the ring counter and shake the reseed
-				 * process
-				 */
-				harvestring.head = newhead;
-				wakeup(&harvestring.head);
-
-			}
-			mtx_unlock(&harvestring.lockout_mtx);
-
-		}
+		harvestring.head = newhead;
 
 	}
+
 }
 
 /* Helper routine to perform explicit reseeds */
