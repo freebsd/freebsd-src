@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshpty.c,v 1.1 2001/03/04 01:46:30 djm Exp $");
+RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include <libutil.h>
@@ -132,7 +132,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	*ttyfd = open(name, O_RDWR | O_NOCTTY);
 	if (*ttyfd < 0) {
 		error("Could not open pty slave side %.100s: %.100s",
-		      name, strerror(errno));
+		    name, strerror(errno));
 		close(*ptyfd);
 		return 0;
 	}
@@ -225,7 +225,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 	fd = open(_PATH_TTY, O_WRONLY);
 	if (fd < 0)
 		error("open /dev/tty failed - could not set controlling tty: %.100s",
-		      strerror(errno));
+		    strerror(errno));
 	else {
 		close(fd);
 	}
@@ -235,7 +235,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 
 void
 pty_change_window_size(int ptyfd, int row, int col,
-		       int xpixel, int ypixel)
+	int xpixel, int ypixel)
 {
 	struct winsize w;
 	w.ws_row = row;
@@ -265,7 +265,8 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 
 	/*
 	 * Change owner and mode of the tty as required.
-	 * Warn but continue if filesystem is read-only and the uids match.
+	 * Warn but continue if filesystem is read-only and the uids match/
+	 * tty is owned by root.
 	 */
 	if (stat(ttyname, &st))
 		fatal("stat(%.100s) failed: %.100s", ttyname,
@@ -273,14 +274,15 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 
 	if (st.st_uid != pw->pw_uid || st.st_gid != gid) {
 		if (chown(ttyname, pw->pw_uid, gid) < 0) {
-			if (errno == EROFS && st.st_uid == pw->pw_uid)
+			if (errno == EROFS &&
+			   (st.st_uid == pw->pw_uid || st.st_uid == 0))
 				error("chown(%.100s, %d, %d) failed: %.100s",
-				      ttyname, pw->pw_uid, gid,
-				      strerror(errno));
+				    ttyname, pw->pw_uid, gid,
+				    strerror(errno));
 			else
 				fatal("chown(%.100s, %d, %d) failed: %.100s",
-				      ttyname, pw->pw_uid, gid,
-				      strerror(errno));
+				    ttyname, pw->pw_uid, gid,
+				    strerror(errno));
 		}
 	}
 
@@ -289,10 +291,10 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 			if (errno == EROFS &&
 			    (st.st_mode & (S_IRGRP | S_IROTH)) == 0)
 				error("chmod(%.100s, 0%o) failed: %.100s",
-				      ttyname, mode, strerror(errno));
+				    ttyname, mode, strerror(errno));
 			else
 				fatal("chmod(%.100s, 0%o) failed: %.100s",
-				      ttyname, mode, strerror(errno));
+				    ttyname, mode, strerror(errno));
 		}
 	}
 }

@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.39 2001/04/05 10:42:48 markus Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.48 2002/02/24 19:14:59 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -59,7 +59,8 @@ int	decode_reply(int type);
 
 /* macro to check for "agent failure" message */
 #define agent_failed(x) \
-    ((x == SSH_AGENT_FAILURE) || (x == SSH_COM_AGENT2_FAILURE))
+    ((x == SSH_AGENT_FAILURE) || (x == SSH_COM_AGENT2_FAILURE) || \
+     (x == SSH2_AGENT_FAILURE))
 
 /* Returns the number of the authentication fd, or -1 if there is none. */
 
@@ -67,7 +68,7 @@ int
 ssh_get_authentication_socket(void)
 {
 	const char *authsocket;
-	int sock, len;
+	int sock;
 	struct sockaddr_un sunaddr;
 
 	authsocket = getenv(SSH_AUTHSOCKET_ENV_NAME);
@@ -76,8 +77,6 @@ ssh_get_authentication_socket(void)
 
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
-	len = SUN_LEN(&sunaddr)+1;
-	sunaddr.sun_len = len;
 
 	sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0)
@@ -88,14 +87,14 @@ ssh_get_authentication_socket(void)
 		close(sock);
 		return -1;
 	}
-	if (connect(sock, (struct sockaddr *) & sunaddr, len) < 0) {
+	if (connect(sock, (struct sockaddr *) &sunaddr, sizeof sunaddr) < 0) {
 		close(sock);
 		return -1;
 	}
 	return sock;
 }
 
-int
+static int
 ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply)
 {
 	int l, len;
@@ -219,7 +218,7 @@ ssh_get_num_identities(AuthenticationConnection *auth, int version)
 	int type, code1 = 0, code2 = 0;
 	Buffer request;
 
-	switch(version){
+	switch (version) {
 	case 1:
 		code1 = SSH_AGENTC_REQUEST_RSA_IDENTITIES;
 		code2 = SSH_AGENT_RSA_IDENTITIES_ANSWER;
@@ -288,7 +287,7 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
 	 * Get the next entry from the packet.  These will abort with a fatal
 	 * error if the packet is too short or contains corrupt data.
 	 */
-	switch(version){
+	switch (version) {
 	case 1:
 		key = key_new(KEY_RSA1);
 		bits = buffer_get_int(&auth->identities);
@@ -346,7 +345,7 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 	buffer_put_bignum(&buffer, key->rsa->e);
 	buffer_put_bignum(&buffer, key->rsa->n);
 	buffer_put_bignum(&buffer, challenge);
-	buffer_append(&buffer, (char *) session_id, 16);
+	buffer_append(&buffer, session_id, 16);
 	buffer_put_int(&buffer, response_type);
 
 	if (ssh_request_reply(auth, &buffer, &buffer) == 0) {
@@ -376,8 +375,8 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 int
 ssh_agent_sign(AuthenticationConnection *auth,
     Key *key,
-    u_char **sigp, int *lenp,
-    u_char *data, int datalen)
+    u_char **sigp, u_int *lenp,
+    u_char *data, u_int datalen)
 {
 	extern int datafellows;
 	Buffer msg;
@@ -418,7 +417,7 @@ ssh_agent_sign(AuthenticationConnection *auth,
 
 /* Encode key for a message to the agent. */
 
-void
+static void
 ssh_encode_identity_rsa1(Buffer *b, RSA *key, const char *comment)
 {
 	buffer_clear(b);
@@ -431,16 +430,16 @@ ssh_encode_identity_rsa1(Buffer *b, RSA *key, const char *comment)
 	buffer_put_bignum(b, key->iqmp);	/* ssh key->u */
 	buffer_put_bignum(b, key->q);	/* ssh key->p, SSL key->q */
 	buffer_put_bignum(b, key->p);	/* ssh key->q, SSL key->p */
-	buffer_put_string(b, comment, strlen(comment));
+	buffer_put_cstring(b, comment);
 }
 
-void
+static void
 ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 {
 	buffer_clear(b);
 	buffer_put_char(b, SSH2_AGENTC_ADD_IDENTITY);
 	buffer_put_cstring(b, key_ssh_name(key));
-	switch(key->type){
+	switch (key->type) {
 	case KEY_RSA:
 		buffer_put_bignum2(b, key->rsa->n);
 		buffer_put_bignum2(b, key->rsa->e);
@@ -533,6 +532,25 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 	return decode_reply(type);
 }
 
+int
+ssh_update_card(AuthenticationConnection *auth, int add, const char *reader_id)
+{
+	Buffer msg;
+	int type;
+
+	buffer_init(&msg);
+	buffer_put_char(&msg, add ? SSH_AGENTC_ADD_SMARTCARD_KEY :
+	    SSH_AGENTC_REMOVE_SMARTCARD_KEY);
+	buffer_put_cstring(&msg, reader_id);
+	if (ssh_request_reply(auth, &msg, &msg) == 0) {
+		buffer_free(&msg);
+		return 0;
+	}
+	type = buffer_get_char(&msg);
+	buffer_free(&msg);
+	return decode_reply(type);
+}
+
 /*
  * Removes all identities from the agent.  This call is not meant to be used
  * by normal applications.
@@ -565,6 +583,7 @@ decode_reply(int type)
 	switch (type) {
 	case SSH_AGENT_FAILURE:
 	case SSH_COM_AGENT2_FAILURE:
+	case SSH2_AGENT_FAILURE:
 		log("SSH_AGENT_FAILURE");
 		return 0;
 	case SSH_AGENT_SUCCESS:

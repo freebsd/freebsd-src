@@ -223,9 +223,9 @@ int do_pam_account(char *username, char *remote_user)
 	do_pam_set_conv(&conv);
 	
 	debug("PAM setting rhost to \"%.200s\"", 
-	    get_canonical_hostname(options.reverse_mapping_check));
+	    get_canonical_hostname(options.verify_reverse_mapping));
 	pam_retval = pam_set_item(pamh, PAM_RHOST, 
-		get_canonical_hostname(options.reverse_mapping_check));
+		get_canonical_hostname(options.verify_reverse_mapping));
 	if (pam_retval != PAM_SUCCESS) {
 		fatal("PAM set rhost failed[%d]: %.200s", 
 			pam_retval, PAM_STRERROR(pamh, pam_retval));

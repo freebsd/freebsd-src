@@ -23,83 +23,61 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-chall.c,v 1.7 2001/04/05 10:42:47 markus Exp $");
+RCSID("$OpenBSD: auth-chall.c,v 1.8 2001/05/18 14:13:28 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "auth.h"
 #include "log.h"
+#include "xmalloc.h"
 
-#ifdef BSD_AUTH
+/* limited protocol v1 interface to kbd-interactive authentication */
+
+extern KbdintDevice *devices[];
+static KbdintDevice *device;
+
 char *
-get_challenge(Authctxt *authctxt, char *devs)
+get_challenge(Authctxt *authctxt)
 {
-	char *challenge;
+	char *challenge, *name, *info, **prompts;
+	u_int i, numprompts;
+	u_int *echo_on;
 
-	if (authctxt->as != NULL) {
-		debug2("try reuse session");
-		challenge = auth_getitem(authctxt->as, AUTHV_CHALLENGE);
-		if (challenge != NULL) {
-			debug2("reuse bsd auth session");
-			return challenge;
-		}
-		auth_close(authctxt->as);
-		authctxt->as = NULL;
+	device = devices[0]; /* we always use the 1st device for protocol 1 */
+	if (device == NULL)
+		return NULL;
+	if ((authctxt->kbdintctxt = device->init_ctx(authctxt)) == NULL)
+		return NULL;
+	if (device->query(authctxt->kbdintctxt, &name, &info,
+	    &numprompts, &prompts, &echo_on)) {
+		device->free_ctx(authctxt->kbdintctxt);
+		authctxt->kbdintctxt = NULL;
+		return NULL;
 	}
-	debug2("new bsd auth session");
-	if (devs == NULL || strlen(devs) == 0)
-		devs = authctxt->style;
-	debug3("bsd auth: devs %s", devs ? devs : "<default>");
-	authctxt->as = auth_userchallenge(authctxt->user, devs, "auth-ssh",
-	    &challenge);
-	if (authctxt->as == NULL)
-		return NULL;
-	debug2("get_challenge: <%s>", challenge ? challenge : "EMPTY");
-	return challenge;
-}
-int
-verify_response(Authctxt *authctxt, char *response)
-{
-	int authok;
+	if (numprompts < 1)
+		fatal("get_challenge: numprompts < 1");
+	challenge = xstrdup(prompts[0]);
+	for (i = 0; i < numprompts; i++)
+		xfree(prompts[i]);
+	xfree(prompts);
+	xfree(name);
+	xfree(echo_on);
+	xfree(info);
 
-	if (authctxt->as == 0)
-		error("verify_response: no bsd auth session");
-	authok = auth_userresponse(authctxt->as, response, 0);
-	authctxt->as = NULL;
-	debug("verify_response: <%s> = <%d>", response, authok);
-	return authok != 0;
+	return (challenge);
 }
-#else
-#ifdef SKEY
-#include <opie.h>
+int
+verify_response(Authctxt *authctxt, const char *response)
+{
+	char *resp[1];
+	int res;
 
-char *
-get_challenge(Authctxt *authctxt, char *devs)
-{
-	static char challenge[1024];
-	struct opie opie;
-	if (opiechallenge(&opie, authctxt->user, challenge) == -1)
-		return NULL;
-	strlcat(challenge, "\nS/Key Password: ", sizeof challenge);
-	return challenge;
+	if (device == NULL)
+		return 0;
+	if (authctxt->kbdintctxt == NULL)
+		return 0;
+	resp[0] = (char *)response;
+	res = device->respond(authctxt->kbdintctxt, 1, resp);
+	device->free_ctx(authctxt->kbdintctxt);
+	authctxt->kbdintctxt = NULL;
+	return res ? 0 : 1;
 }
-int
-verify_response(Authctxt *authctxt, char *response)
-{
-	return (authctxt->valid &&
-	    opie_haskey(authctxt->pw->pw_name) == 0 &&
-	    opie_passverify(authctxt->pw->pw_name, response) != -1);
-}
-#else
-/* not available */
-char *
-get_challenge(Authctxt *authctxt, char *devs)
-{
-	return NULL;
-}
-int
-verify_response(Authctxt *authctxt, char *response)
-{
-	return 0;
-}
-#endif
-#endif
