@@ -679,6 +679,29 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 
+	case SIOCGIFMEDIA:
+		if (ifv->ifv_p != NULL) {
+			error = (ifv->ifv_p->if_ioctl)(ifv->ifv_p, SIOCGIFMEDIA, data);
+			/* Limit the result to the parent's current config. */
+			if (error == 0) {
+				struct ifmediareq *ifmr;
+
+				ifmr = (struct ifmediareq *) data;
+				if (ifmr->ifm_count >= 1 && ifmr->ifm_ulist) {
+					ifmr->ifm_count = 1;
+					error = copyout(&ifmr->ifm_current,
+						ifmr->ifm_ulist, 
+						sizeof(int));
+				}
+			}
+		} else
+			error = EINVAL;
+		break;
+
+	case SIOCSIFMEDIA:
+		error = EINVAL;
+		break;
+
 	case SIOCSIFMTU:
 		/*
 		 * Set the interface MTU.
