@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)beyond43.ms	5.1 (Berkeley) 6/5/90
+.\" $FreeBSD$
 .\"
 .\" *troff -ms
 .rm CM
@@ -153,7 +154,7 @@ creation time.
 Old kernels will treat the new filesystems as read-only,
 and new kernels
 will accommodate both formats.
-The filesystem check facility, \fCfsck\fP, has also been modified to check
+The filesystem check facility, \fBfsck\fP, has also been modified to check
 either type.
 .br
 .ne 10
