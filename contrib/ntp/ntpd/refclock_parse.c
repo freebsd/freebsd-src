@@ -802,7 +802,7 @@ static struct parse_clockinfo
 	const char *cl_description;		/* device name */
 	const char *cl_format;		/* fixed format */
 	u_char  cl_type;		/* clock type (ntp control) */
-	u_long  cl_maxunsync;		/* time to trust oscillator after loosing synch */
+	u_long  cl_maxunsync;		/* time to trust oscillator after losing synch */
 	u_long  cl_speed;		/* terminal input & output baudrate */
 	u_long  cl_cflag;             /* terminal control flags */
 	u_long  cl_iflag;             /* terminal input flags */
@@ -1181,7 +1181,7 @@ static struct parse_clockinfo
 		"WHARTON 400A Series clock Output Format 1",	/* fixed format */
 			/* Must match a format-name in a libparse/clk_xxx.c file */
 		DCF_TYPE,			/* clock type (ntp control) */
-		(1*60*60),		        /* time to trust oscillator after loosing synch */
+		(1*60*60),		        /* time to trust oscillator after losing synch */
 		B9600,				/* terminal input & output baudrate */
 		(CS8|CREAD|PARENB|CLOCAL|HUPCL),/* terminal control flags */
 		0,				/* terminal input flags */
@@ -1240,10 +1240,10 @@ static struct parse_clockinfo
 
 static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
 
-#define CLK_REALTYPE(x) ((int)(((x)->ttlmax) & 0x7F))
+#define CLK_REALTYPE(x) ((int)(((x)->ttl) & 0x7F))
 #define CLK_TYPE(x)	((CLK_REALTYPE(x) >= ncltypes) ? ~0 : CLK_REALTYPE(x))
 #define CLK_UNIT(x)	((int)REFCLOCKUNIT(&(x)->srcadr))
-#define CLK_PPS(x)	(((x)->ttlmax) & 0x80)
+#define CLK_PPS(x)	(((x)->ttl) & 0x80)
 
 /*
  * Other constant stuff
@@ -3095,7 +3095,7 @@ parse_event(
 			NLOG(NLOG_CLOCKEVENT) /* conditional if clause for conditional syslog */
 				ERR(ERR_BADEVENT)
 				msyslog(LOG_ERR,
-					"clock %s fault '%s' (0x%02x)", refnumtoa(parse->peer->srcadr.sin_addr.s_addr), ceventstr(event),
+					"clock %s fault '%s' (0x%02x)", refnumtoa(&parse->peer->srcadr), ceventstr(event),
 					(u_int)event);
 		}
 		else
@@ -3103,7 +3103,7 @@ parse_event(
 			NLOG(NLOG_CLOCKEVENT) /* conditional if clause for conditional syslog */
 				if (event == CEVNT_NOMINAL || list_err(parse, ERR_BADEVENT))
 				    msyslog(LOG_INFO,
-					    "clock %s event '%s' (0x%02x)", refnumtoa(parse->peer->srcadr.sin_addr.s_addr), ceventstr(event),
+					    "clock %s event '%s' (0x%02x)", refnumtoa(&parse->peer->srcadr), ceventstr(event),
 					    (u_int)event);
 		}
 
@@ -3728,11 +3728,11 @@ gps16x_message(
 			case GPS_ANT_INFO:
 				{
 					ANT_INFO antinfo;
-					char buffer[512];
-					char *p;
+					u_char buffer[512];
+					u_char *p;
 					
 					get_mbg_antinfo(&bufp, &antinfo);
-					sprintf((char *)buffer, "meinberg_antenna_status=\"");
+					sprintf(buffer, "meinberg_antenna_status=\"");
 					p = buffer + strlen(buffer);
 					
 					switch (antinfo.status)
@@ -3750,20 +3750,20 @@ gps16x_message(
 								CLK_UNIT(parse->peer), p);
 						
 						p += strlen(p);
-						mbg_tm_str((unsigned char **)&p, &antinfo.tm_disconn);
+						mbg_tm_str(&p, &antinfo.tm_disconn);
 						*p = '\0';
 						break;
 		    
 					case ANT_RECONN:
 						strcat(p, "RECONNECTED on ");
 						p += strlen(p);
-						mbg_tm_str((unsigned char **)&p, &antinfo.tm_reconn);
+						mbg_tm_str(&p, &antinfo.tm_reconn);
 						sprintf(p, ", reconnect clockoffset %c%ld.%07ld s, disconnect time ",
 							(antinfo.delta_t < 0) ? '-' : '+',
 							ABS(antinfo.delta_t) / 10000,
 							ABS(antinfo.delta_t) % 10000);
 						p += strlen(p);
-						mbg_tm_str((unsigned char **)&p, &antinfo.tm_disconn);
+						mbg_tm_str(&p, &antinfo.tm_disconn);
 						*p = '\0';
 						break;
 		    
@@ -3786,8 +3786,8 @@ gps16x_message(
 			case GPS_CFGH:
 				{
 					CFGH cfgh;
-					char buffer[512];
-					char *p;
+					u_char buffer[512];
+					u_char *p;
 					
 					get_mbg_cfgh(&bufp, &cfgh);
 					if (cfgh.valid)
@@ -3797,7 +3797,7 @@ gps16x_message(
 						p = buffer;
 						strcpy(buffer, "gps_tot_51=\"");
 						p += strlen(p);
-						mbg_tgps_str((unsigned char **)&p, &cfgh.tot_51);
+						mbg_tgps_str(&p, &cfgh.tot_51);
 						*p++ = '"';
 						*p   = '\0';
 						set_var(&parse->kv, buffer, sizeof(buffer), RO);
@@ -3805,7 +3805,7 @@ gps16x_message(
 						p = buffer;
 						strcpy(buffer, "gps_tot_63=\"");
 						p += strlen(p);
-						mbg_tgps_str((unsigned char **)&p, &cfgh.tot_63);
+						mbg_tgps_str(&p, &cfgh.tot_63);
 						*p++ = '"';
 						*p   = '\0';
 						set_var(&parse->kv, buffer, sizeof(buffer), RO);
@@ -3813,7 +3813,7 @@ gps16x_message(
 						p = buffer;
 						strcpy(buffer, "gps_t0a=\"");
 						p += strlen(p);
-						mbg_tgps_str((unsigned char **)&p, &cfgh.t0a);
+						mbg_tgps_str(&p, &cfgh.t0a);
 						*p++ = '"';
 						*p   = '\0';
 						set_var(&parse->kv, buffer, sizeof(buffer), RO);
@@ -5176,7 +5176,7 @@ rawdcf_init_1(
 }
 #else
 static int
-rawdcfdtr_init(
+rawdcfdtr_init_1(
 	struct parseunit *parse
 	)
 {

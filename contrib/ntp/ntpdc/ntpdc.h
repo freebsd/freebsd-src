@@ -22,6 +22,7 @@
 #define	UINT	0x2		/* unsigned integer */
 #define	INT	0x3		/* signed integer */
 #define	ADD	0x4		/* IP network address */
+#define IP_VERSION 0x5		/* IP version */
 
 /*
  * Arguments are returned in a union
@@ -30,7 +31,7 @@ typedef union {
 	char *string;
 	long ival;
 	u_long uval;
-	u_int32 netnum;
+	struct sockaddr_storage netnum;
 } arg_v;
 
 /*
@@ -55,5 +56,9 @@ struct xcmd {
   const char *comment;
 };
 
-extern	int	doquery	P((int, int, int, int, int, char *, int *, int *, char **, int));
-extern	char *	nntohost	P((u_int32));
+extern	int impl_ver;
+extern	int showhostnames;
+extern	int s_port;
+
+extern	int	doquery	P((int, int, int, int, int, char *, int *, int *, char **, int, int));
+extern	char *	nntohost	P((struct sockaddr_storage *));

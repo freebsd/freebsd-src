@@ -344,8 +344,9 @@ usno_receive(
 	 * protocol module to chuck out the data. Finaly, we unhook the
 	 * timeout, arm for the next call, fold the tent and go home.
 	 */
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	pp->sloppyclockflag &= ~CLK_FLAG1;
 	up->pollcnt = 0;
 	up->state = 0;
@@ -437,7 +438,7 @@ usno_timeout(
 		peer->nextdate = current_time + ANSWER;
 		return;
 	}
-	switch (peer->ttlmax) {
+	switch (peer->ttl) {
 
 		/*
 		 * In manual mode the calling program is activated

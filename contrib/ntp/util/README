@@ -28,8 +28,8 @@ size (32 or 64 bits).  See the configure scripts for further details.
 
 The testrs6000.c program is used for testing purposes with the IBM
 RS/6000 AIX machines. Bill Jones <jones@chpc.utexas.edu> reports:
-"I could not get a tickadj of less then 40 us to work on a RS6000.
-If you set it less then 40 us do so at your own risk!"
+"I could not get a tickadj of less than 40 us to work on a RS6000.
+If you set it less than 40 us do so at your own risk!"
 
 The tickadj.c program can be used to read and set various kernel
 parameters affecting NTP operations. See the tickadj page in the HTML

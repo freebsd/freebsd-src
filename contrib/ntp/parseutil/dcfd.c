@@ -177,7 +177,7 @@ static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
  */
 #define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
 #define DCFB_DST                0x0002 /* DST in effect */
-#define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurence) */
+#define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurrence) */
 #define DCFB_ALTERNATE		0x0008 /* alternate antenna used */
 
 struct clocktime		/* clock time broken up from time code */
@@ -1564,7 +1564,7 @@ main(
 		}
 
 		/*
-		 * loose terminal if in daemon operation
+		 * lose terminal if in daemon operation
 		 */
 		if (!interactive)
 		    detach();
@@ -1800,8 +1800,8 @@ main(
 					/*
 					 * output interpreted DCF77 data
 					 */
-					PRINTF(offsets ? "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s> (%c%d.%06ds)" :
-					       "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
+					PRINTF(offsets ? "%s, %2ld:%02ld:%02d, %ld.%02ld.%02ld, <%s%s%s%s> (%c%ld.%06lds)" :
+					       "%s, %2ld:%02ld:%02d, %ld.%02ld.%02ld, <%s%s%s%s>",
 					       wday[clock_time.wday],
 					       clock_time.hour, clock_time.minute, i, clock_time.day, clock_time.month,
 					       clock_time.year,

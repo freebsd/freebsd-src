@@ -215,7 +215,6 @@ chronolog_receive(
 	 * calls since it is transmitted a few seconds ahead of the
 	 * timestamp.
 	 */
-	pp->msec = 0;
 	got_good=0;
 	if (sscanf(pp->a_lastcode, "Y %d/%d/%d", &up->year,&up->month,&up->day))
 	{
@@ -293,8 +292,9 @@ chronolog_receive(
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	up->lasthour = pp->hour;
 }
 

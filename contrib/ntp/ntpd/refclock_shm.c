@@ -87,6 +87,9 @@ struct shmTime {
 	int    valid;
 	int    dummy[10]; 
 };
+
+struct shmTime *getShmTime(int);
+
 struct shmTime *getShmTime (int unit) {
 #ifndef SYS_WINNT
 	int shmid=0;
@@ -149,7 +152,6 @@ struct shmTime *getShmTime (int unit) {
 		return p;
 	}
 #endif
-	return 0;
 }
 /*
  * shm_start - attach to shared memory
@@ -201,7 +203,8 @@ shm_shutdown(
 	pp = peer->procptr;
 	up = (struct shmTime *)pp->unitptr;
 #ifndef SYS_WINNT
-	shmdt (up);
+	/* HMS: shmdt()wants char* or const void * */
+	(void) shmdt (up);
 #else
 	UnmapViewOfFile (up);
 #endif
@@ -272,8 +275,7 @@ shm_poll(
 			pp->hour=t->tm_hour;
 			pp->minute=t->tm_min;
 			pp->second=t->tm_sec;
-			pp->msec=0;
-			pp->usec=tvt.tv_usec;
+			pp->nsec=tvt.tv_usec * 1000;
 			peer->precision=up->precision;
 			pp->leap=up->leap;
 		} 
@@ -285,13 +287,16 @@ shm_poll(
 	}
 	else {
 		refclock_report(peer, CEVNT_TIMEOUT);
+		/*
 		msyslog (LOG_NOTICE, "SHM: no new value found in shared memory");
+		*/
 		return;
 	}
 	if (!refclock_process(pp)) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 }
 

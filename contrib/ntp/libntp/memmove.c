@@ -48,6 +48,8 @@ static char sccsid[] = "@(#)bcopy.c	8.1 (Berkeley) 6/4/93";
 #endif
 #include <string.h>
 
+#include "l_stdlib.h"
+
 /*
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
@@ -103,7 +105,8 @@ memmove(
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)dst = *(word *)src; src += wsize; dst += wsize);
+		TLOOP(*(word *)dst = *(const word *)src; src += wsize;
+		    dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
 	} else {
@@ -124,7 +127,8 @@ memmove(
 			TLOOP1(*--dst = *--src);
 		}
 		t = length / wsize;
-		TLOOP(src -= wsize; dst -= wsize; *(word *)dst = *(word *)src);
+		TLOOP(src -= wsize; dst -= wsize;
+		    *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}

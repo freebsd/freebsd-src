@@ -164,19 +164,19 @@ struct ntp_control {
 #define CS_VERSION	17
 #define	CS_STABIL	18
 #define CS_VARLIST	19
-#ifdef PUBKEY
+#ifdef OPENSSL
 #define CS_FLAGS	20
 #define CS_HOST		21
 #define CS_PUBLIC	22
 #define	CS_CERTIF	23
-#define CS_DHPARAMS	24
-#define	CS_REVTIME	25
-#define CS_LEAPTAB	26
-#define CS_TAI		27
-#define	CS_MAXCODE	CS_TAI
+#define	CS_REVTIME	24
+#define CS_LEAPTAB	25
+#define CS_TAI		26
+#define CS_DIGEST	27
+#define	CS_MAXCODE	CS_DIGEST
 #else
 #define	CS_MAXCODE	CS_VARLIST
-#endif /* PUBKEY */
+#endif /* OPENSSL */
 
 /*
  * Peer variables we understand
@@ -217,22 +217,20 @@ struct ntp_control {
 #define	CP_FILTERROR	34
 #define	CP_FLASH	35
 #define CP_TTL		36
-#define CP_TTLMAX	37
+#define	CP_RANK		37
 #define CP_VARLIST	38
-#ifdef PUBKEY
+#ifdef OPENSSL
 #define CP_FLAGS	39
 #define CP_HOST		40
-#define CP_PUBLIC	41
-#define	CP_CERTIF	42
-#define	CP_SESKEY	43
-#define	CP_SASKEY	44
-#define	CP_INITSEQ	45
-#define	CP_INITKEY	46
-#define	CP_INITTSP	47
-#define	CP_MAXCODE	CP_INITTSP
+#define	CP_INITSEQ	41
+#define	CP_INITKEY	42
+#define	CP_INITTSP	43
+#define	CP_DIGEST	44
+#define CP_IDENT	45
+#define	CP_MAXCODE	CP_IDENT
 #else
 #define	CP_MAXCODE	CP_VARLIST
-#endif /* PUBKEY */
+#endif /* OPENSSL */
 
 /*
  * Clock variables we understand
@@ -258,7 +256,7 @@ struct ntp_control {
  * ntp_request.c wants to see this.
  */
 struct ctl_trap {
-	struct sockaddr_in tr_addr;	/* address of trap recipient */
+	struct sockaddr_storage tr_addr;/* address of trap recipient */
 	struct interface *tr_localaddr;	/* interface to send this through */
 	u_long tr_settime;		/* time trap was set */
 	u_long tr_count;		/* async messages sent to this guy */

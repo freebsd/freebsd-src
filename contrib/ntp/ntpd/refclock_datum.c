@@ -712,6 +712,7 @@ datum_pts_receive(
 			       &datum_pts->yearstart,
 			       &datum_pts->lastref.l_ui) ) {
 
+			datum_pts->lastref.l_uf = 0;
 			error = datum_pts->lastref.l_ui - datum_pts->lastrec.l_ui;
 
 #ifdef DEBUG_DATUM_PTC
@@ -813,6 +814,7 @@ datum_pts_receive(
 	** necessary to use fudge factors in the ntp.conf file. Maybe later we will.
 	*/
       /*LFPTOD(&tstmp, doffset);*/
+	datum_pts->lastref = datum_pts->lastrec;
 	refclock_receive(datum_pts->peer);
 
 	/*

@@ -1,9 +1,14 @@
 /* Microsoft Developer Support Copyright (c) 1993 Microsoft Corporation. */
 
+/* Skip asynch rpc inclusion */
+#ifndef __RPCASYNC_H__
+#define __RPCASYNC_H__
+#endif
+
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
 
 #include "messages.h"
 #include "log.h"
@@ -13,7 +18,7 @@
 
 
 /*********************************************************************
-* FUNCTION: addSourceToRegistry(void)                                *
+* FUNCTION: addSourceToRegistry(LPSTR pszAppname, LPSTR pszMsgDLL)   *
 *                                                                    *
 * PURPOSE: Add a source name key, message DLL name value, and        *
 *          message type supported value to the registry              *
@@ -28,6 +33,8 @@ void addSourceToRegistry(LPSTR pszAppname, LPSTR pszMsgDLL)
   HKEY hk;                      /* registry key handle */
   DWORD dwData;
   BOOL bSuccess;
+  char   regarray[200];
+  char *lpregarray = regarray;
 
   /* When an application uses the RegisterEventSource or OpenEventLog
      function to get a handle of an event log, the event loggging service
@@ -36,9 +43,11 @@ void addSourceToRegistry(LPSTR pszAppname, LPSTR pszMsgDLL)
      under the Application key and adding registry values to the new
      subkey. */
 
+  strcpy(lpregarray, "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\");
+  strcat(lpregarray, pszAppname);
+
   /* Create a new key for our application */
-  bSuccess = RegCreateKey(HKEY_LOCAL_MACHINE,
-      "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\NTP", &hk);
+  bSuccess = RegCreateKey(HKEY_LOCAL_MACHINE,lpregarray, &hk);
   PERR(bSuccess == ERROR_SUCCESS, "RegCreateKey");
 
   /* Add the Event-ID message-file name to the subkey. */

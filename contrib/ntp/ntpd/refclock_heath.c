@@ -177,14 +177,6 @@ static int day2tab[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 static int speed[] = {B1200, B2400, B4800, B9600};
 
 /*
- * Unit control structure
- */
-struct heathunit {
-	int	pollcnt;	/* poll message counter */
-	l_fp	tstamp;		/* timestamp of last poll */
-};
-
-/*
  * Function prototypes
  */
 static	int	heath_start	P((int, struct peer *));
@@ -215,7 +207,6 @@ heath_start(
 	struct peer *peer
 	)
 {
-	register struct heathunit *up;
 	struct refclockproc *pp;
 	int fd;
 	char device[20];
@@ -224,18 +215,8 @@ heath_start(
 	 * Open serial port
 	 */
 	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, speed[peer->ttlmax & 0x3], 0)))
+	if (!(fd = refclock_open(device, speed[peer->ttl & 0x3], 0)))
 	    return (0);
-
-	/*
-	 * Allocate and initialize unit structure
-	 */
-	if (!(up = (struct heathunit *)
-	      emalloc(sizeof(struct heathunit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct heathunit));
 	pp = peer->procptr;
 	pp->io.clock_recv = heath_receive;
 	pp->io.srcclock = (caddr_t)peer;
@@ -243,10 +224,8 @@ heath_start(
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
 		(void) close(fd);
-		free(up);
 		return (0);
 	}
-	pp->unitptr = (caddr_t)up;
 
 	/*
 	 * Initialize miscellaneous variables
@@ -255,7 +234,6 @@ heath_start(
 	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
-	up->pollcnt = 2;
 	return (1);
 }
 
@@ -269,13 +247,10 @@ heath_shutdown(
 	struct peer *peer
 	)
 {
-	register struct heathunit *up;
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct heathunit *)pp->unitptr;
 	io_closeclock(&pp->io);
-	free(up);
 }
 
 
@@ -287,7 +262,6 @@ heath_receive(
 	struct recvbuf *rbufp
 	)
 {
-	register struct heathunit *up;
 	struct refclockproc *pp;
 	struct peer *peer;
 	l_fp trtmp;
@@ -300,25 +274,8 @@ heath_receive(
 	 */
 	peer = (struct peer *)rbufp->recv_srcclock;
 	pp = peer->procptr;
-	up = (struct heathunit *)pp->unitptr;
 	pp->lencode = refclock_gtlin(rbufp, pp->a_lastcode, BMAX,
 	    &trtmp);
-
-	/*
-	 * We get a buffer and timestamp for each <cr>; however, we use
-	 * the timestamp captured at the RTS modem control line toggle
-	 * on the assumption that's what the radio bases the timecode
-	 * on. Apparently, the radio takes about a second to make up its
-	 * mind to send a timecode, so the receive timestamp is
-	 * worthless.
-	 */
-	pp->lastrec = up->tstamp;
-	up->pollcnt = 2;
-#ifdef DEBUG
-	if (debug)
-	    printf("heath: timecode %d %s\n", pp->lencode,
-		   pp->a_lastcode);
-#endif
 
 	/*
 	 * We get down to business, check the timecode format and decode
@@ -396,7 +353,7 @@ heath_receive(
 	if (!isdigit((int)dsec))
 		pp->leap = LEAP_NOTINSYNC;
 	else {
-		pp->msec = (dsec - '0') * 100;
+		pp->nsec = (dsec - '0') * 100000000;
 		pp->leap = LEAP_NOWARNING;
 	}
 	if (!refclock_process(pp))
@@ -413,7 +370,6 @@ heath_poll(
 	struct peer *peer
 	)
 {
-	register struct heathunit *up;
 	struct refclockproc *pp;
 	int bits = TIOCM_RTS;
 
@@ -421,10 +377,11 @@ heath_poll(
 	 * At each poll we check for timeout and toggle the RTS modem
 	 * control line, then take a timestamp. Presumably, this is the
 	 * event the radio captures to generate the timecode.
+	 * Apparently, the radio takes about a second to make up its
+	 * mind to send a timecode, so the receive timestamp is
+	 * worthless.
 	 */
 	pp = peer->procptr;
-	up = (struct heathunit *)pp->unitptr;
-	pp->polls++;
 
 	/*
 	 * We toggle the RTS modem control lead (GC-1000) and sent a T
@@ -437,19 +394,26 @@ heath_poll(
 	 */
 	if (ioctl(pp->io.fd, TIOCMBIC, (char *)&bits) < 0)
 		refclock_report(peer, CEVNT_FAULT);
-	get_systime(&up->tstamp);
-	ioctl(pp->io.fd, TIOCMBIS, (char *)&bits);
+	get_systime(&pp->lastrec);
 	if (write(pp->io.fd, "T", 1) != 1)
 		refclock_report(peer, CEVNT_FAULT);
+	ioctl(pp->io.fd, TIOCMBIS, (char *)&bits);
 	if (peer->burst > 0)
 		return;
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
-	peer->burst = NSTAGE;
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+#ifdef DEBUG
+	if (debug)
+	    printf("heath: timecode %d %s\n", pp->lencode,
+		   pp->a_lastcode);
+#endif
+	peer->burst = MAXSTAGE;
+	pp->polls++;
 }
 
 #else

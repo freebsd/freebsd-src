@@ -5,55 +5,36 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include "ntp_stdlib.h"
 
 int
 decodenetnum(
 	const char *num,
-	u_int32 *netnum
+	struct sockaddr_storage *netnum
 	)
 {
+	struct addrinfo hints, *ai = NULL;
+	register int err, i;
 	register const char *cp;
-	register char *bp;
-	register int i;
-	register int temp;
-	register int eos;
-	char buf[80];		/* will core dump on really stupid stuff */
+	char name[80];
 
 	cp = num;
-	*netnum = 0;
 
 	if (*cp == '[') {
-		eos = ']';
 		cp++;
-	} else {
-		eos = '\0';
+		for (i = 0; *cp != ']'; cp++, i++)
+			name[i] = *cp;
+	name[i] = '\0';
+	num = name; 
 	}
-
-	for (i = 0; i < 4; i++) {
-		bp = buf;
-		while (isdigit((int)*cp))
-		    *bp++ = *cp++;
-		if (bp == buf)
-		    break;
-
-		if (i < 3) {
-			if (*cp++ != '.')
-			    break;
-		} else if (*cp != eos)
-		    break;
-
-		*bp = '\0';
-		temp = atoi(buf);
-		if (temp > 255)
-		    break;
-		*netnum <<= 8;
-		*netnum += temp;
-	}
-	
-	if (i < 4)
-	    return 0;
-	*netnum = htonl(*netnum);
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_flags = AI_NUMERICHOST;
+	err = getaddrinfo(num, NULL, &hints, &ai);
+	if (err != 0)
+		return 0;
+	memcpy(netnum, (struct sockaddr_storage *)ai->ai_addr, ai->ai_addrlen); 
+	freeaddrinfo(ai);
 	return 1;
 }

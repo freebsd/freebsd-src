@@ -755,8 +755,8 @@ getoffsets(
 		else
 		{
 			(void) fprintf(stderr,
-				       "%s: nlist didn't find needed symbols from <%s>: %m\n",
-				       progname, *kname);
+				       "%s: nlist didn't find needed symbols from <%s>: %s\n",
+				       progname, *kname, strerror(errno));
 		}
 	}
 	if (*kname == NULL)
