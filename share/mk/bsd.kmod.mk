@@ -292,9 +292,9 @@ CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}: @
 .if exists(@)
-${_src}: @/kern/makedevops.pl @/${_srcsrc}
+${_src}: @/kern/makeobjops.pl @/${_srcsrc}
 .endif
-	perl @/kern/makedevops.pl -${_ext} @/${_srcsrc}
+	perl @/kern/makeobjops.pl -${_ext} @/${_srcsrc}
 .endif
 .endfor # _src
 .endfor # _ext
