@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.7 1994/10/12 02:33:21 se Exp $
+**  $Id: pci.c,v 1.8 1994/10/25 23:09:08 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -64,6 +64,15 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/pci/pcireg.h>
+
+#ifdef __FreeBSD2__
+#include <sys/devconf.h>
+	
+struct pci_devconf {
+	struct kern_devconf pdc_kdc;
+	struct pci_info     pdc_pi;
+};
+#endif
 
 /*
 **	Function prototypes missing in system headers
@@ -163,6 +172,15 @@ static unsigned long pci_seen[NPCI];
 
 static int pci_conf_count;
 
+#ifdef __FreeBSD2__
+static int
+pci_externalize (struct proc *, struct kern_devconf *, void *, size_t);
+ 
+static int
+pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
+
+#endif /* __FreeBSD2__ */
+
 void pci_configure()
 {
 	u_char	device,last_device;
@@ -175,10 +193,14 @@ void pci_configure()
 	int	pciint;
 	int	irq;
 	char*	name=0;
-	int	newdev=0;
+	vm_offset_t old_addr=pci_paddr;
 
 	struct pci_driver *drp=0;
 	struct pci_device *dvp;
+
+#ifdef __FreeBSD2__
+	struct pci_devconf *pdcp;
+#endif
 
 	/*
 	**	check pci bus present
@@ -247,7 +269,6 @@ void pci_configure()
 		**	Announce this device
 		*/
 
-		newdev++;
 		printf ("%s%d <%s>", dvp->pd_name, unit, name);
 
 		/*
@@ -300,19 +321,69 @@ void pci_configure()
 		pci_conf_write (tag, (u_char) PCI_COMMAND_STATUS_REG, data);
 
 		/*
+		**	show pci slot.
+		*/
+
+		printf (" on pci%d:%d\n", bus, device);
+
+#ifdef __FreeBSD2__
+
+		/*
+		**	Allocate a devconf structure
+		*/
+
+		pdcp = (struct pci_devconf *)
+                	malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
+
+		/*
+		**	Fill in.
+		**
+		**	Sorry, this is not yet complete.
+		**	We should, and eventually will, set the
+		**	parent pointer to a pci bus devconf structure,
+		**	and arrange to set the state field dynamically.
+		**
+		**	But I'll go to vacation today, and after all,
+		**	wasn't there a new feature freeze on Oct 1.?
+		*/
+
+		pdcp -> pdc_pi.pi_bus	 = bus;
+		pdcp -> pdc_pi.pi_device = device;
+
+		pdcp -> pdc_kdc.kdc_name = dvp->pd_name;
+		pdcp -> pdc_kdc.kdc_unit = unit;
+
+		pdcp -> pdc_kdc.kdc_md.mddc_devtype = MDDT_PCI;
+
+		pdcp -> pdc_kdc.kdc_externalize = pci_externalize;
+		pdcp -> pdc_kdc.kdc_internalize = pci_internalize;
+
+		pdcp -> pdc_kdc.kdc_datalen     = PCI_EXTERNAL_LEN;
+		pdcp -> pdc_kdc.kdc_parentdata  = &pdcp->pdc_pi;
+		pdcp -> pdc_kdc.kdc_state       = DC_UNKNOWN;
+		pdcp -> pdc_kdc.kdc_description = name;
+
+		/*
+		**	And register this device
+		*/
+
+		dev_attach (&pdcp->pdc_kdc);
+
+#endif /* __FreeBSD2__ */
+
+
+		/*
 		**	attach device
 		**	may produce additional log messages,
 		**	i.e. when installing subdevices.
 		*/
-
-		printf (" on pci%d:%d\n", bus, device);
 
 		(*drp->attach) (tag, unit);
 	    };
 	};
 
 #ifndef PCI_QUIET
-	if (newdev)
+	if (pci_paddr != old_addr)
 		printf ("pci uses physical addresses from 0x%lx to 0x%lx\n",
 			(u_long)PCI_PMEM_START, (u_long)pci_paddr);
 #endif
@@ -434,6 +505,43 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	pci_paddr += vsize;
 
 	return (1);
+}
+
+/*------------------------------------------------------------
+**
+**	Interface functions for the devconf module.
+**
+**------------------------------------------------------------
+*/
+
+static int
+pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
+{
+	struct pci_externalize_buffer buffer;
+	struct pci_info * pip = kdcp->kdc_parentdata;
+        pcici_t tag;
+	int	i;
+
+	if (l < sizeof buffer) {
+                return ENOMEM;
+	};
+
+	tag = pcitag (pip->pi_bus, pip->pi_device, 0);
+
+	buffer.peb_pci_info	= *pip;
+
+	for (i=0; i<PCI_EXT_CONF_LEN; i++) {
+		buffer.peb_config[i] = pci_conf_read (tag, i*4);
+	};
+
+        return copyout(&buffer, u, sizeof buffer);
+}
+ 
+ 
+static int
+pci_internalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t s)
+{
+        return EOPNOTSUPP;
 }
 
 /*-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 2.2 94/10/11 19:01:08 wolf Oct11 $
+**  $Id: pcireg.h,v 1.1 1994/10/12 02:25:03 se Exp $
 **
 **  Declarations for pci bus drivers.
 **
@@ -103,6 +103,27 @@ struct pci_driver {
     void   (*attach) (pcici_t tag, int     unit);
     u_long  *count;
 };
+
+/*-----------------------------------------------------------------
+**
+**	The pci-devconf interface.
+**
+**-----------------------------------------------------------------
+*/
+
+struct pci_info {
+        u_short pi_bus;
+        u_short pi_device;
+};  
+   
+#define PCI_EXT_CONF_LEN (16)
+#define PCI_EXTERNAL_LEN (sizeof(struct pci_externalize_buffer))
+
+struct pci_externalize_buffer {
+	struct pci_info	peb_pci_info;
+	u_long		peb_config[PCI_EXT_CONF_LEN];
+};
+
 
 /*-----------------------------------------------------------------
 **
