@@ -71,7 +71,7 @@ pkg_do(char *pkg)
     if (fexists(pkg)) {
 	char fname[FILENAME_MAX];
 
-	home = make_playpen();
+	home = make_playpen(PlayPen);
 	if (pkg[0] == '/')
 	    strcpy(fname, pkg);
 	else
