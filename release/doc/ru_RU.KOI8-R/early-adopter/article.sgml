@@ -2,9 +2,9 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.1 2004/06/28 13:24:45 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.2 2004/07/01 07:19:35 den Exp $
 
-   Original revision: 1.17
+   Original revision: 1.19
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -31,7 +31,7 @@
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
-<!ENTITY release.4last "4.9-RELEASE">
+<!ENTITY release.4last "4.10-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
 
 ]>
@@ -49,6 +49,7 @@
     <copyright>
       <year>2002</year>
       <year>2003</year>
+      <year>2004</year>
       <holder role="mailto:re@FreeBSD.org">Группа подготовки релизов
 	&os;</holder>
     </copyright>
@@ -359,7 +360,8 @@
     <para>Важно заметить, что не смотря на выпуск релизов серии
       &release.5x;, поддержка релизов &release.4x; продолжится еще
       некоторое время.  На самом деле, &os; 4.8 была выпущена
-      двумя месяцами после 5.0, в апреле 2003, затем 4.9 в октябре 2003.
+      двумя месяцами после 5.0, в апреле 2003, затем 4.9 в октябре 2003
+      и 4.10 в мае 2004.
       Следующие релизы из ветви 4-STABLE будут зависеть от нескольких
       факторов.  Наиболее важный из них это существование и стабильность
       ветви 5-STABLE.  Если CURRENT недостаточно стабильна для создания
@@ -388,8 +390,21 @@
       и исправлениями безопасности.  По собственному усмотрению
       группа может вносить определенные исправления и в другие релизы.</para>
 
-<!-- skip completly outdated para -->
-
+    <para>На данный момент у группы подготовки релизов нет определенных
+      планов по дальнейшим релизам из ветви разработки 4-STABLE,
+      и мы решили продолжать поддержку 4.10-RELEASE в качестве
+      <quote>ветви исправлений</quote> (<quote>Errata Branch</quote>).
+      Ранее ветвь, из которой выпускался релиз, поддерживалась 
+      &a.security-officer; в качестве <quote>ветви безопасности</quote>
+      (<quote>Security Branch</quote>) в течение определенного периода,
+      и в нее вносились только критически важные исправления безопасности.
+      Для FreeBSD 4.10-RELEASE набор исправлений будет расширен
+      для включения исправлений локальных DoS, а также других
+      ключевых и хорошо протестированных исправлений, которые могут
+      не относиться к безопасности.  Хотя эти исправления скорее всего
+      не будут опубликованы в качестве <quote>релиза</quote> из ветви,
+      сообщения о проблемах &os; будут включать их подобно
+      сообщениям безопасности &os;.</para>
   </sect1>
 
   <sect1 id="upgrade">
