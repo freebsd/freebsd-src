@@ -1,11 +1,11 @@
+Note:  This version is no longer being enhanced.  As of this writing, version
+2.0 is the officially supported version.  Only bug fixes and portability
+tweaks will be applied to the 1.9 series.
+
 If you are a novice user, and don't know how to compile things, try
 contacting your local guru first (get them to do it for you :-).  Please
 understand that I don't have time to walk newbies through the whole
 installation procedure.
-
-One of these months, I will write a Configure script that does all this for
-you. I just don't have time to learn another language (dist-3.0) just to
-write the script! Perhaps for 2.0.
 
 1. READ this entire file.  Part A, below, tells what to do if you want to
    use NcFTP with a command-line editor.  Part B tells you how to configure
@@ -31,14 +31,7 @@ would also like to hear from you if you had a system that wasn't covered
 in sys.h, so I can add an entry for other users of your system.
 
 The latest version of ncftp is available in the directory:
-	cse.unl.edu:/pub/mgleason
-This machine is heavily used by students and faculty alike, so please
-do not call during working hours (9AM - 5PM American Central time).  In fact,
-I have a cron entry that changes all the file permissions to public
-unreadable during that period, so you won't be able to download anyway.
-
-I am grateful to Shari Deiana and the University of Nebraska for making this
-possible!
+	ftp.cs.unl.edu:/pub/ncftp
 
 
 Part A.  Installing with a command line editor:
@@ -299,63 +292,5 @@ Add these as applicable to the PDEFS line in the Makefile.
 	verbose.  You may want to do this if you are a programmer examining this
 	code, and want to know where in the source the Perror's are coming
 	from.
-
-Part D.  Sending me patches:
----------------------------
-
-I apologize in advance for problems that my coding style may cause.  The code
-itself is formatted such that each indent-level is a tab (intended to be
-equivalent to 4 spaces), and not spaces nor a combination of tabs and spaces.
-The reason for this, besides being more logical to me, is that I use a
-Macintosh editor to compose the code and I prefer it's indenting method.
-Another problem in my coding-style is that I write C-code intended for ANSI
-C compilers.  This means that I will use the new-style function declarations
-and function prototypes, like:
-
-
-   long Foobar(long, long, char *);
-   long Foobar(long t0, long t1, char *str)
-   {
-   }
-
-as opposed to:
-
-   long Foobar();
-   long Foobar(t0, t1, str)
-	   long t0, t1;
-	   char *str;
-   {
-   }
-
-Another thing may annoy you is that I always use function prototypes for any
-function I call, including functions that return an int.  This is a good
-practice that I learned from the Macintosh programming world.  
-
-So if you send me patches, please conform to my coding style so that 'patch'
-won't screw up, and also that some continuity will be preserved.
-
-Before you make your patch, you should be sure that you are using the most
-current version of the program.  This is especially important if you are
-reporting a bug; I may have already fixed it!  See the above info to get it
-via ftp.  Major versions are always posted to comp.sources.misc.  Bug reports
-are posted to comp.sources.bugs.  Patches that need to be posted ASAP are
-posted to this group first, so it is advisable that you check this group.
-
-If you make changes to the code, surround your code in #ifdef/#endif blocks.
-Instead of doing things like #ifdef SunOS, use a name that describes the
-bug fix or feature, and not your system type, like #ifdef NO_UNISTDH,
-or #ifdef GETLINE.  That way in case another system has the same problem,
-it can be added to sys.h without cluttering up the source code.  Then, add
-the symbol you used to the end of cmds.c, in the 'CPP Hell' part of the
-version() command.  You'll see a list of CPP symbols, so just add yours in
-a similar fashion, like #ifdef GETLINE/DStrs[nDStrs++] = "GETLINE";/#endif.
-
-If you don't know how to make a patch, here's how to do it.  Things are easy
-if you've only changed one file.  Then all you need to do pipe the output of
-diff -c into a file and send it to me, i.e. "diff -c cmds.c cmds.c.hack >pch."
-If you've hacked several files, the way I do it is to keep the originals in
-one directory (you did make a copy of everything first didn't you?) and the
-revisions in another directory.  Then you change directory to the one with the
-originals and do "diff -c . ../revisions > ../pch."
 
 --mg (mgleason@cse.unl.edu)
