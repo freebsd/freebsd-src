@@ -686,10 +686,9 @@ vfs_stdquotactl (mp, cmds, uid, arg, td)
 }
 
 int
-vfs_stdsync(mp, waitfor, cred, td)
+vfs_stdsync(mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 	struct vnode *vp, *nvp;
@@ -718,7 +717,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		error = VOP_FSYNC(vp, cred, waitfor, td);
+		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
 
@@ -731,10 +730,9 @@ loop:
 }
 
 int
-vfs_stdnosync (mp, waitfor, cred, td)
+vfs_stdnosync (mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 

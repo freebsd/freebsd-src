@@ -469,8 +469,7 @@ typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
 		    caddr_t arg, struct thread *td);
 typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp,
 		    struct thread *td);
-typedef	int vfs_sync_t(struct mount *mp, int waitfor, struct ucred *cred,
-		    struct thread *td);
+typedef	int vfs_sync_t(struct mount *mp, int waitfor, struct thread *td);
 typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 		    struct vnode **vpp);
 typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
@@ -513,7 +512,7 @@ vfs_statfs_t	__vfs_statfs;
 #define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
 #define VFS_QUOTACTL(MP,C,U,A,P)  (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, P)
 #define VFS_STATFS(MP, SBP, P)	  __vfs_statfs((MP), (SBP), (P))
-#define VFS_SYNC(MP, WAIT, C, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, C, P)
+#define VFS_SYNC(MP, WAIT, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, P)
 #define VFS_VGET(MP, INO, FLAGS, VPP) \
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
 #define VFS_FHTOVP(MP, FIDP, VPP) \

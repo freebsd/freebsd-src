@@ -395,7 +395,7 @@ fail:
 	 * occurence. The error return from fsync is ignored as we already
 	 * have an error to return to the user.
 	 */
-	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
+	(void) VOP_FSYNC(vp, MNT_WAIT, td);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(fs, ip->i_devvp, *blkp, fs->fs_bsize, ip->i_number);
 		deallocated += fs->fs_bsize;
@@ -432,7 +432,7 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
+	(void) VOP_FSYNC(vp, MNT_WAIT, td);
 	return (error);
 }
 
@@ -862,7 +862,7 @@ fail:
 	 * occurence. The error return from fsync is ignored as we already
 	 * have an error to return to the user.
 	 */
-	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
+	(void) VOP_FSYNC(vp, MNT_WAIT, td);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(fs, ip->i_devvp, *blkp, fs->fs_bsize, ip->i_number);
 		deallocated += fs->fs_bsize;
@@ -899,6 +899,6 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
+	(void) VOP_FSYNC(vp, MNT_WAIT, td);
 	return (error);
 }

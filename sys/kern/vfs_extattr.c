@@ -133,8 +133,7 @@ sync(td, uap)
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
 			mp->mnt_flag &= ~MNT_ASYNC;
 			vfs_msync(mp, MNT_NOWAIT);
-			VFS_SYNC(mp, MNT_NOWAIT,
-			    ((td != NULL) ? td->td_ucred : NOCRED), td);
+			VFS_SYNC(mp, MNT_NOWAIT, td);
 			mp->mnt_flag |= asyncflag;
 			vn_finished_write(mp);
 		}
@@ -3053,7 +3052,7 @@ fsync(td, uap)
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_UNLOCK(obj);
 	}
-	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, td);
+	error = VOP_FSYNC(vp, MNT_WAIT, td);
 	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)
 	    && softdep_fsync_hook != NULL)
 		error = (*softdep_fsync_hook)(vp);

@@ -950,7 +950,7 @@ dounmount(mp, flags, td)
 		vput(fsrootvp);
 	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td)) == 0) ||
+	     (error = VFS_SYNC(mp, MNT_WAIT, td)) == 0) ||
 	    (flags & MNT_FORCE)) {
 		error = VFS_UNMOUNT(mp, flags, td);
 	}
