@@ -1348,6 +1348,10 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	return (ENOIOCTL);
 }
 
+#define IFP_IS_ETH(ifp) ((ifp->if_flags & \
+	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST)) == \
+	IFF_BROADCAST)
+
 /*
  * Construct the Linux name for an interface
  */
@@ -1355,7 +1359,7 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 int
 linux_ifname(struct ifnet *ifp, char *name, size_t size)
 {
-	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+	if (IFP_IS_ETH(ifp))
 		return snprintf(name, LINUX_IFNAMSIZ,
 		    "eth%d", ifp->if_index);
 	return snprintf(name, LINUX_IFNAMSIZ,
@@ -1368,7 +1372,7 @@ linux_ifname(struct ifnet *ifp, char *name, size_t size)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
-#if 0
+
 static struct ifnet *
 ifname_bsd_to_linux(const char *bsdname, char *lxname)
 {
@@ -1394,7 +1398,6 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
 	
 	return (ifp);
 }
-#endif
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
@@ -1402,6 +1405,7 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
+
 static struct ifnet *
 ifname_linux_to_bsd(const char *lxname, char *bsdname)
 {
@@ -1422,8 +1426,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		if (ifp->if_unit == unit && ifp->if_name[len] == '\0' &&
 		    strncmp(ifp->if_name, lxname, len) == 0)
 			break;
-		if (ifp->if_index == unit &&
-		    (ifp->if_flags & IFF_BROADCAST) != 0 &&
+		if (ifp->if_index == unit && IFP_IS_ETH(ifp) &&
 		    strncmp(lxname, "eth", len) == 0)
 			break;
 	}
@@ -1500,7 +1503,7 @@ linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
 #define ARPHRD_LOOPBACK	772
 
 static int
-linux_gifhwaddr(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
+linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -1563,16 +1566,23 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 #endif
 		break;
 		
-	case LINUX_SIOCGIFADDR:
-	case LINUX_SIOCGIFBRDADDR:
-	case LINUX_SIOCGIFDSTADDR:
 	case LINUX_SIOCGIFFLAGS:
-	case LINUX_SIOCGIFHWADDR:
+	case LINUX_SIOCGIFADDR:
+	case LINUX_SIOCGIFDSTADDR:
+	case LINUX_SIOCGIFBRDADDR:
 	case LINUX_SIOCGIFNETMASK:
-        case LINUX_SIOCDEVPRIVATE:
-        case LINUX_SIOCDEVPRIVATE+1:
+	case LINUX_SIOCSIFNETMASK:
+	case LINUX_SIOCGIFMTU:
+	case LINUX_SIOCSIFMTU:
+	case LINUX_SIOCSIFNAME:
+	case LINUX_SIOCGIFHWADDR:
+	case LINUX_SIOCSIFHWADDR:
+	case LINUX_SIOCDEVPRIVATE:
+	case LINUX_SIOCDEVPRIVATE+1:
 		/* copy in the interface name and translate it. */
-		copyin((char *)(args->arg), lifname, LINUX_IFNAMSIZ);
+		error = copyin((char *)args->arg, lifname, LINUX_IFNAMSIZ);
+		if (error != 0)
+			return (error);
 #ifdef DEBUG
 		printf(__FUNCTION__ "(): ioctl %d on %.*s\n",
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
@@ -1586,7 +1596,9 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		 * the ifreq to be in user space and have the correct
 		 * interface name.
 		 */
-		copyout(ifname, (char *)(args->arg), IFNAMSIZ);
+		error = copyout(ifname, (char *)args->arg, IFNAMSIZ);
+		if (error != 0)
+			return (error);
 #ifdef DEBUG
 		printf(__FUNCTION__ "(): %s translated to %s\n",
 		    lifname, ifname);
@@ -1651,15 +1663,36 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	case LINUX_SIOCGIFNETMASK:
-		/* XXX doesn't seem to work */
 		args->cmd = OSIOCGIFNETMASK;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
 
+	case LINUX_SIOCSIFNETMASK:
+		error = ENOIOCTL;
+		break;
+		
+	case LINUX_SIOCGIFMTU:
+		args->cmd = SIOCGIFMTU;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+		
+	case LINUX_SIOCSIFMTU:
+		args->cmd = SIOCSIFMTU;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+		
+	case LINUX_SIOCSIFNAME:
+		error = ENOIOCTL;
+		break;
+		
 	case LINUX_SIOCGIFHWADDR:
-		error = linux_gifhwaddr(td, ifp, (struct l_ifreq *)args->arg);
+		error = linux_gifhwaddr(ifp, (struct l_ifreq *)args->arg);
 		break;
 
+	case LINUX_SIOCSIFHWADDR:
+		error = ENOIOCTL;
+		break;
+		
 	case LINUX_SIOCADDMULTI:
 		args->cmd = SIOCADDMULTI;
 		error = ioctl(td, (struct ioctl_args *)args);
@@ -1674,18 +1707,20 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	 * XXX This is slightly bogus, but these ioctls are currently
 	 * XXX only used by the aironet (if_an) network driver.
 	 */
-        case LINUX_SIOCDEVPRIVATE:
-                args->cmd = SIOCGPRIVATE_0;
-                error = ioctl(td, (struct ioctl_args *)args);
+	case LINUX_SIOCDEVPRIVATE:
+		args->cmd = SIOCGPRIVATE_0;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
 		
-        case LINUX_SIOCDEVPRIVATE+1:
-                args->cmd = SIOCGPRIVATE_1;
-                error = ioctl(td, (struct ioctl_args *)args);
+	case LINUX_SIOCDEVPRIVATE+1:
+		args->cmd = SIOCGPRIVATE_1;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
 	}
 
 	if (ifp != NULL)
 		/* restore the original interface name */
-		copyout(lifname, (char *)(args->arg), LINUX_IFNAMSIZ);
+		copyout(lifname, (char *)args->arg, LINUX_IFNAMSIZ);
 
 #ifdef DEBUG
 	printf(__FUNCTION__ "(): returning %d\n", error);
