@@ -323,13 +323,19 @@ find_idle_and_ttywrite(w)
 {
 	extern time_t now;
 	struct stat sb;
+	time_t touched;
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_DEV, w->tty);
 	if (stat(tbuf, &sb) < 0) {
 		warn("%s", tbuf);
 		return;
 	}
-	w->idletime = now < sb.st_atime ? 0 : now - sb.st_atime;
+	touched = sb.st_atime;
+	if (touched < w->loginat) {
+		/* tty untouched since before login */
+		touched = w->loginat;
+	}
+	w->idletime = now < touched ? 0 : now - touched;
 
 #define	TALKABLE	0220		/* tty is writable if 220 mode */
 	w->writable = ((sb.st_mode & TALKABLE) == TALKABLE);
