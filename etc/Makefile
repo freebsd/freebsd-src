@@ -188,6 +188,14 @@ distrib-dirs:
 		ln -s "$$2" "$$1"; \
 		shift; shift; \
 	done
+	cd ${DESTDIR}/usr/share/openssl/man; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done
 	cd ${DESTDIR}/usr/share/locale; \
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.alias`; \
 	while [ $$# -gt 0 ] ; \
