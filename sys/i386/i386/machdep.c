@@ -1692,7 +1692,7 @@ init386(first)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 
 	/* Init basic tunables, hz etc */
-	init_param();
+	init_param1();
 
 	/*
 	 * make gdt memory segments, the code segment goes up to end of the
@@ -1869,6 +1869,7 @@ init386(first)
 
 	vm86_initialize();
 	getmemsize(first);
+	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 

@@ -26,7 +26,7 @@ cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
 ident		NEWCARD
-maxusers	32
+maxusers	0
 
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"NEWCARD.hints"		#Default places to look for devices.

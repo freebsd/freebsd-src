@@ -523,7 +523,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	fpswa_interface = (FPSWA_INTERFACE*)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
 
 	/* Init basic tunables, including hz */
-	init_param();
+	init_param1();
 
 	p = getenv("kernelname");
 	if (p)
@@ -623,6 +623,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	phys_avail[phys_avail_cnt] = 0;
 
 	Maxmem = physmem;
+	init_param2(physmem);
 
 	/*
 	 * Initialize error message buffer (at end of core).
