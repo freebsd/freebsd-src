@@ -173,18 +173,104 @@ io_apic_get_id(int apic)
 /*
  * Setup the IO APIC.
  */
+
 extern int	apic_pin_trigger;	/* 'opaque' */
-int
-io_apic_setup(int apic)
+
+void
+io_apic_setup_intpin(int apic, int pin)
 {
-	int		maxpin;
+	int bus, bustype, irq;
 	u_char		select;		/* the select register is 8 bits */
 	u_int32_t	flags;		/* the window register is 32 bits */
 	u_int32_t	target;		/* the window register is 32 bits */
 	u_int32_t	vector;		/* the window register is 32 bits */
-	int		pin, level;
+	int		level;
+	u_int		eflags;
 
 	target = IOART_DEST;
+
+	select = pin * 2 + IOAPIC_REDTBL0;	/* register */
+	/* 
+	 * Always disable interrupts, and by default map
+	 * pin X to IRQX because the disable doesn't stick
+	 * and the uninitialize vector will get translated 
+	 * into a panic.
+	 *
+	 * This is correct for IRQs 1 and 3-15.  In the other cases, 
+	 * any robust driver will handle the spurious interrupt, and 
+	 * the effective NOP beats a panic.
+	 *
+	 * A dedicated "bogus interrupt" entry in the IDT would
+	 * be a nicer hack, although some one should find out 
+	 * why some systems are generating interrupts when they
+	 * shouldn't and stop the carnage.
+	 */
+	vector = NRSVIDT + pin;			/* IDT vec */
+	eflags = read_eflags();
+	__asm __volatile("cli" : : : "memory");
+	s_lock(&imen_lock);
+	io_apic_write(apic, select,
+		      (io_apic_read(apic, select) & ~IOART_INTMASK 
+		       & ~0xff)|IOART_INTMSET|vector);
+	s_unlock(&imen_lock);
+	write_eflags(eflags);
+	
+	/* we only deal with vectored INTs here */
+	if (apic_int_type(apic, pin) != 0)
+		return;
+	
+	irq = apic_irq(apic, pin);
+	if (irq < 0)
+		return;
+	
+	/* determine the bus type for this pin */
+	bus = apic_src_bus_id(apic, pin);
+	if (bus == -1)
+		return;
+	bustype = apic_bus_type(bus);
+	
+	if ((bustype == ISA) &&
+	    (pin < IOAPIC_ISA_INTS) && 
+	    (irq == pin) &&
+	    (apic_polarity(apic, pin) == 0x1) &&
+	    (apic_trigger(apic, pin) == 0x3)) {
+		/* 
+		 * A broken BIOS might describe some ISA 
+		 * interrupts as active-high level-triggered.
+		 * Use default ISA flags for those interrupts.
+		 */
+		flags = DEFAULT_ISA_FLAGS;
+	} else {
+		/* 
+		 * Program polarity and trigger mode according to 
+		 * interrupt entry.
+		 */
+		flags = DEFAULT_FLAGS;
+		level = trigger(apic, pin, &flags);
+		if (level == 1)
+			apic_pin_trigger |= (1 << irq);
+		polarity(apic, pin, &flags, level);
+	}
+	
+	/* program the appropriate registers */
+	if (apic != 0 || pin != irq)
+		printf("IOAPIC #%d intpin %d -> irq %d\n",
+		       apic, pin, irq);
+	vector = NRSVIDT + irq;			/* IDT vec */
+	eflags = read_eflags();
+	__asm __volatile("cli" : : : "memory");
+	s_lock(&imen_lock);
+	io_apic_write(apic, select, flags | vector);
+	io_apic_write(apic, select + 1, target);
+	s_unlock(&imen_lock);
+	write_eflags(eflags);
+}
+
+int
+io_apic_setup(int apic)
+{
+	int		maxpin;
+	int		pin;
 
 	if (apic == 0)
 		apic_pin_trigger = 0;	/* default to edge-triggered */
@@ -193,73 +279,7 @@ io_apic_setup(int apic)
 	printf("Programming %d pins in IOAPIC #%d\n", maxpin, apic);
 	
 	for (pin = 0; pin < maxpin; ++pin) {
-		int bus, bustype, irq;
-		
-		select = pin * 2 + IOAPIC_REDTBL0;	/* register */
-		/* 
-		 * Always disable interrupts, and by default map
-		 * pin X to IRQX because the disable doesn't stick
-		 * and the uninitialize vector will get translated 
-		 * into a panic.
-		 *
-		 * This is correct for IRQs 1 and 3-15.  In the other cases, 
-		 * any robust driver will handle the spurious interrupt, and 
-		 * the effective NOP beats a panic.
-		 *
-		 * A dedicated "bogus interrupt" entry in the IDT would
-		 * be a nicer hack, although some one should find out 
-		 * why some systems are generating interrupts when they
-		 * shouldn't and stop the carnage.
-		 */
-		vector = NRSVIDT + pin;			/* IDT vec */
-		io_apic_write(apic, select,
-			      (io_apic_read(apic, select) & ~IOART_INTMASK 
-			      & ~0xff)|IOART_INTMSET|vector);
-		
-		/* we only deal with vectored INTs here */
-		if (apic_int_type(apic, pin) != 0)
-			continue;
-
-		irq = apic_irq(apic, pin);
-		if (irq < 0)
-			continue;
-		
-		/* determine the bus type for this pin */
-		bus = apic_src_bus_id(apic, pin);
-		if (bus == -1)
-			continue;
-		bustype = apic_bus_type(bus);
-		
-		if ((bustype == ISA) &&
-		    (pin < IOAPIC_ISA_INTS) && 
-		    (irq == pin) &&
-		    (apic_polarity(apic, pin) == 0x1) &&
-		    (apic_trigger(apic, pin) == 0x3)) {
-			/* 
-			 * A broken BIOS might describe some ISA 
-			 * interrupts as active-high level-triggered.
-			 * Use default ISA flags for those interrupts.
-			 */
-			flags = DEFAULT_ISA_FLAGS;
-		} else {
-			/* 
-			 * Program polarity and trigger mode according to 
-			 * interrupt entry.
-			 */
-			flags = DEFAULT_FLAGS;
-			level = trigger(apic, pin, &flags);
-			if (level == 1)
-				apic_pin_trigger |= (1 << irq);
-			polarity(apic, pin, &flags, level);
-		}
-		
-		/* program the appropriate registers */
-		if (apic != 0 || pin != irq)
-			printf("IOAPIC #%d intpin %d -> irq %d\n",
-			       apic, pin, irq);
-		vector = NRSVIDT + irq;			/* IDT vec */
-		io_apic_write(apic, select, flags | vector);
-		io_apic_write(apic, select + 1, target);
+		io_apic_setup_intpin(apic, pin);
 	}
 
 	/* return GOOD status */

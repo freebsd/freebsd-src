@@ -560,6 +560,9 @@ mp_enable(u_int boot_addr)
 	if (x)
 		default_mp_table(x);
 
+	/* initialize all SMP locks */
+	init_locks();
+
 	/* post scan cleanup */
 	fix_mp_table();
 	setup_apic_irq_mapping();
@@ -615,9 +618,6 @@ mp_enable(u_int boot_addr)
 #endif  /** TEST_TEST1 */
 
 #endif	/* APIC_IO */
-
-	/* initialize all SMP locks */
-	init_locks();
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
@@ -1032,6 +1032,37 @@ revoke_apic_irq(int irq)
 }
 
 
+static void
+allocate_apic_irq(int intr)
+{
+	int apic;
+	int intpin;
+	int irq;
+	
+	if (io_apic_ints[intr].int_vector != 0xff)
+		return;		/* Interrupt handler already assigned */
+	
+	if (io_apic_ints[intr].int_type != 0 &&
+	    (io_apic_ints[intr].int_type != 3 ||
+	     (io_apic_ints[intr].dst_apic_id == IO_TO_ID(0) &&
+	      io_apic_ints[intr].dst_apic_int == 0)))
+		return;		/* Not INT or ExtInt on != (0, 0) */
+	
+	irq = 0;
+	while (irq < APIC_INTMAPSIZE &&
+	       int_to_apicintpin[irq].ioapic != -1)
+		irq++;
+	
+	if (irq >= APIC_INTMAPSIZE)
+		return;		/* No free interrupt handlers */
+	
+	apic = ID_TO_IO(io_apic_ints[intr].dst_apic_id);
+	intpin = io_apic_ints[intr].dst_apic_int;
+	
+	assign_apic_irq(apic, intpin, irq);
+	io_apic_setup_intpin(apic, intpin);
+}
+
 
 static void
 swap_apic_id(int apic, int oldid, int newid)
@@ -1274,46 +1305,18 @@ setup_apic_irq_mapping(void)
 		}
 	}
 
-	/* Assign interrupts on first 24 intpins on IOAPIC #0 */
+	/* Assign ExtInt entry if no ISA/EISA interrupt 0 entry */
 	for (x = 0; x < nintrs; x++) {
-		int_vector = io_apic_ints[x].dst_apic_int;
-		if (int_vector < APIC_INTMAPSIZE &&
+		if (io_apic_ints[x].dst_apic_int == 0 &&
 		    io_apic_ints[x].dst_apic_id == IO_TO_ID(0) &&
 		    io_apic_ints[x].int_vector == 0xff && 
-		    int_to_apicintpin[int_vector].ioapic == -1 &&
-		    (io_apic_ints[x].int_type == 0 ||
-		     io_apic_ints[x].int_type == 3)) {
-			assign_apic_irq(0,
-					io_apic_ints[x].dst_apic_int,
-					int_vector);
+		    int_to_apicintpin[0].ioapic == -1 &&
+		    io_apic_ints[x].int_type == 3) {
+			assign_apic_irq(0, 0, 0);
+			break;
 		}
 	}
-	/* 
-	 * Assign interrupts for remaining intpins.
-	 * Skip IOAPIC #0 intpin 0 if the type is ExtInt, since this indicates
-	 * that an entry for ISA/EISA irq 0 exist, and a fallback to mixed mode
-	 * due to 8254 interrupts not being delivered can reuse that low level
-	 * interrupt handler.
-	 */
-	int_vector = 0;
-	while (int_vector < APIC_INTMAPSIZE &&
-	       int_to_apicintpin[int_vector].ioapic != -1)
-		int_vector++;
-	for (x = 0; x < nintrs && int_vector < APIC_INTMAPSIZE; x++) {
-		if ((io_apic_ints[x].int_type == 0 ||
-		     (io_apic_ints[x].int_type == 3 &&
-		      (io_apic_ints[x].dst_apic_id != IO_TO_ID(0) ||
-		       io_apic_ints[x].dst_apic_int != 0))) &&
-		    io_apic_ints[x].int_vector == 0xff) {
-			assign_apic_irq(ID_TO_IO(io_apic_ints[x].dst_apic_id),
-					io_apic_ints[x].dst_apic_int,
-					int_vector);
-			int_vector++;
-			while (int_vector < APIC_INTMAPSIZE &&
-			       int_to_apicintpin[int_vector].ioapic != -1)
-				int_vector++;
-		}
-	}
+	/* PCI interrupt assignment is deferred */
 }
 
 
@@ -1486,8 +1489,11 @@ isa_apic_irq(int isa_irq)
 		if (INTTYPE(intr) == 0) {		/* standard INT */
 			if (SRCBUSIRQ(intr) == isa_irq) {
 				if (apic_int_is_bus_type(intr, ISA) ||
-			            apic_int_is_bus_type(intr, EISA))
+			            apic_int_is_bus_type(intr, EISA)) {
+					if (INTIRQ(intr) == 0xff)
+						return -1; /* unassigned */
 					return INTIRQ(intr);	/* found */
+				}
 			}
 		}
 	}
@@ -1513,8 +1519,13 @@ pci_apic_irq(int pciBus, int pciDevice, int pciInt)
 		    && (SRCBUSID(intr) == pciBus)
 		    && (SRCBUSDEVICE(intr) == pciDevice)
 		    && (SRCBUSLINE(intr) == pciInt))	/* a candidate IRQ */
-			if (apic_int_is_bus_type(intr, PCI))
+			if (apic_int_is_bus_type(intr, PCI)) {
+				if (INTIRQ(intr) == 0xff)
+					allocate_apic_irq(intr);
+				if (INTIRQ(intr) == 0xff)
+					return -1;	/* unassigned */
 				return INTIRQ(intr);	/* exact match */
+			}
 
 	return -1;					/* NOT found */
 }
