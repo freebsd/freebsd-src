@@ -39,7 +39,7 @@
 .Nd display name list (symbol table)
 .Sh SYNOPSIS
 .Nm nm
-.Op Fl agnopruw
+.Op Fl agnoprtuw
 .Ar
 .Sh DESCRIPTION
 The symbol table (name list) of each object in
@@ -71,6 +71,8 @@ Display full path or library name of object on every line.
 Do not sort at all.
 .It Fl r
 Reverse order sort.
+.It Fl t
+Output in tabular format more suitable for other programs digestive system.
 .It Fl u
 Display undefined symbols only.
 .It Fl w
