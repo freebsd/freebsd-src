@@ -264,7 +264,8 @@ deget(pmp, dirclust, diroffset, depp)
 		return error;
 	}
 	bzero((caddr_t)ldep, sizeof *ldep);
-	lockinit(&ldep->de_lock, PINOD, "denode", 0, 0);
+	lockinit(&nvp->v_lock, PINOD, "denode", 0, 0);
+	nvp->v_vnlock = &nvp->v_lock;
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
@@ -280,7 +281,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * of at the start of msdosfs_hashins() so that reinsert() can
 	 * call msdosfs_hashins() with a locked denode.
 	 */
-	if (lockmgr(&ldep->de_lock, LK_EXCLUSIVE, (struct mtx *)0, p))
+	if (VOP_LOCK(nvp, LK_EXCLUSIVE, p) != 0)
 		panic("deget: unexpected lock failure");
 
 	/*
@@ -662,7 +663,7 @@ msdosfs_reclaim(ap)
 #if 0 /* XXX */
 	dep->de_flag = 0;
 #endif
-	lockdestroy(&dep->de_lock);
+	lockdestroy(&vp->v_lock);
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
 

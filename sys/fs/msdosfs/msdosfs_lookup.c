@@ -116,6 +116,7 @@ msdosfs_lookup(ap)
 	int wincnt = 1;
 	int chksum = -1;
 	int olddos = 1;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): looking for %s\n", cnp->cn_nameptr);
@@ -363,8 +364,10 @@ notfound:
 		 * information cannot be used.
 		 */
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (EJUSTRETURN);
 	}
 	/*
@@ -452,8 +455,10 @@ foundroot:
 		if (error)
 			return (error);
 		*vpp = DETOV(tdp);
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 
@@ -483,8 +488,10 @@ foundroot:
 			return (error);
 		*vpp = DETOV(tdp);
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 
@@ -510,15 +517,20 @@ foundroot:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, p);
+		cnp->cn_flags |= PDIRUNLOCK;
 		error = deget(pmp, cluster, blkoff,  &tdp);
 		if (error) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p); 
+			cnp->cn_flags &= ~PDIRUNLOCK;
 			return (error);
 		}
-		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
-			vput(DETOV(tdp));
-			return (error);
+		if (lockparent && (flags & ISLASTCN)) {
+			error = vn_lock(pdp, LK_EXCLUSIVE, p);
+			if (error) {
+				vput(DETOV(tdp));
+				return (error);
+			}
+			cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 		*vpp = DETOV(tdp);
 	} else if (dp->de_StartCluster == scn && isadir) {
@@ -527,8 +539,10 @@ foundroot:
 	} else {
 		if ((error = deget(pmp, cluster, blkoff, &tdp)) != 0)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN))
+		if (!lockparent || !(flags & ISLASTCN)) {
 			VOP_UNLOCK(pdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		*vpp = DETOV(tdp);
 	}
 
