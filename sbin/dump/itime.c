@@ -42,15 +42,8 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/time.h>
-#ifdef sunos
-#include <sys/vnode.h>
 
-#include <ufs/fsdir.h>
-#include <ufs/inode.h>
-#include <ufs/fs.h>
-#else
 #include <ufs/ufs/dinode.h>
-#endif
 
 #include <protocols/dumprestore.h>
 
@@ -114,8 +107,8 @@ static void
 readdumptimes(df)
 	FILE *df;
 {
-	register int i;
-	register struct	dumptime *dtwalk;
+	int i;
+	struct	dumptime *dtwalk;
 
 	for (;;) {
 		dtwalk = (struct dumptime *)calloc(1, sizeof (struct dumptime));
@@ -140,8 +133,8 @@ readdumptimes(df)
 void
 getdumptime()
 {
-	register struct dumpdates *ddp;
-	register int i;
+	struct dumpdates *ddp;
+	int i;
 	char *fname;
 
 	fname = disk;
@@ -173,8 +166,8 @@ void
 putdumptime()
 {
 	FILE *df;
-	register struct dumpdates *dtwalk;
-	register int i;
+	struct dumpdates *dtwalk;
+	int i;
 	int fd;
 	char *fname;
 	char *tmsg;
