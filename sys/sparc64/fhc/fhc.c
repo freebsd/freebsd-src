@@ -361,7 +361,7 @@ fhc_release_resource(device_t bus, device_t child, int type, int rid,
 	int error;
 
 	error = bus_generic_release_resource(bus, child, type, rid, r);
-	if (error != 0)
+	if (type != SYS_RES_MEMORY || error != 0)
 		return (error);
 	fdi = device_get_ivars(child);
 	rle = resource_list_find(&fdi->fdi_rl, type, rid);
