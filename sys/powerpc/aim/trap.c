@@ -125,7 +125,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x1100, "data load tlb miss" },
 	{ 0x1200, "data store tlb miss" },
 	{ 0x1300, "instruction breakpoint" },
-	{ 0x1400, "system management" },		
+	{ 0x1400, "system management" },
 	{ 0x1600, "altivec assist" },
 	{ 0x1700, "thermal management" },
 	{ 0x2000, "run mode/trace" },
@@ -345,11 +345,14 @@ syscall(struct trapframe *frame)
 	p = td->td_proc;
 
 	atomic_add_int(&cnt.v_syscall, 1);
-			
+
+	if (p->p_flag & P_SA)
+		thread_user_enter(p, td);
+
 	code = frame->fixreg[0];
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
 	n = NARGREG;
-			
+
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
@@ -413,7 +416,7 @@ syscall(struct trapframe *frame)
 	}
 	switch (error) {
 	case 0:
-		if ((frame->fixreg[0] == SYS___syscall) && 
+		if ((frame->fixreg[0] == SYS___syscall) &&
 		    (code != SYS_lseek)) {
 			/*
 			 * 64-bit return, 32-bit syscall. Fixup byte order
@@ -449,7 +452,7 @@ syscall(struct trapframe *frame)
 		break;
 	}
 
-	
+
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
@@ -466,7 +469,7 @@ syscall(struct trapframe *frame)
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);	
+	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 static int
@@ -499,7 +502,7 @@ trap_pfault(struct trapframe *frame, int user)
 		if ((eva >> ADDR_SR_SHFT) == USER_SR) {
 			if (p->p_vmspace == NULL)
 				return (SIGSEGV);
-				
+
 			__asm ("mfsr %0, %1"
 			    : "=r"(user_sr)
 			    : "K"(USER_SR));
