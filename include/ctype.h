@@ -103,16 +103,9 @@ __END_DECLS
 #endif
 
 #if defined(_USE_CTYPE_INLINE_)
-
-#ifndef EOF
-#define EOF (-1)
-#endif
-
 static __inline int
 __istype(_BSD_RUNE_T_ c, unsigned long f)
 {
-	if (c == EOF)
-		return 0;
 	if (c < 0)
 		c = (unsigned char) c;
 	return((((c & _CRMASK) ? ___runetype(c) :
@@ -122,8 +115,6 @@ __istype(_BSD_RUNE_T_ c, unsigned long f)
 static __inline int
 __isctype(_BSD_RUNE_T_ c, unsigned long f)
 {
-	if (c == EOF)
-		return 0;
 	if (c < 0)
 		c = (unsigned char) c;
 	return((((c & _CRMASK) ? 0 :
@@ -135,8 +126,6 @@ __isctype(_BSD_RUNE_T_ c, unsigned long f)
 static __inline _BSD_RUNE_T_
 toupper(_BSD_RUNE_T_ c)
 {
-	if (c == EOF)
-		return EOF;
 	if (c < 0)
 		c = (unsigned char) c;
 	return((c & _CRMASK) ?
@@ -146,8 +135,6 @@ toupper(_BSD_RUNE_T_ c)
 static __inline _BSD_RUNE_T_
 tolower(_BSD_RUNE_T_ c)
 {
-	if (c == EOF)
-		return EOF;
 	if (c < 0)
 		c = (unsigned char) c;
 	return((c & _CRMASK) ?
