@@ -396,6 +396,47 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		      sizeof(struct ata_params));
 	    return 0;
 	}
+
+	case ATAPICMD: {
+	    struct ata_softc *scp;
+	    struct atapi_softc *atp;
+	    caddr_t buf;
+
+	    scp = device_get_softc(device);
+	    if (!scp)
+		return ENODEV;
+
+	    if (!scp->dev_softc[iocmd->device] || 
+		!(scp->devices & 
+		  (iocmd->device == 0 ? ATA_ATAPI_MASTER : ATA_ATAPI_SLAVE)))
+		return ENODEV;
+
+    	    if (!(buf = malloc(iocmd->u.atapi.count, M_ATA, M_NOWAIT)))
+		return ENOMEM;
+
+	    atp = scp->dev_softc[iocmd->device];
+	    if (iocmd->u.atapi.flags & ATAPI_CMD_WRITE) {
+		error = copyin(iocmd->u.atapi.data, buf, iocmd->u.atapi.count);
+		if (error)
+		    return error;
+	    }
+	    error = atapi_queue_cmd(atp, iocmd->u.atapi.ccb,
+				    buf, iocmd->u.atapi.count,
+				    (iocmd->u.atapi.flags == ATAPI_CMD_READ ?
+					ATPR_F_READ : 0) | ATPR_F_QUIET, 
+				    iocmd->u.atapi.timeout, NULL, NULL);
+	    if (error) {
+		iocmd->u.atapi.error = error;
+		bcopy(&atp->sense, iocmd->u.atapi.sense_data,
+		      sizeof(struct atapi_reqsense));
+		error = 0;
+	    }
+	    else if (iocmd->u.atapi.flags & ATAPI_CMD_READ)
+		error = copyout(buf, iocmd->u.atapi.data, iocmd->u.atapi.count);
+
+	    free(buf, M_ATA);
+	    return error;
+	}
     }
     return ENOTTY;
 }
