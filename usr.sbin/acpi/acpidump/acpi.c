@@ -792,7 +792,7 @@ dsdt_from_fadt(struct FADTbody *fadt)
 {
 	struct	ACPIsdt *sdt;
 
-	/* Use the DSDT address if it is valid and version 2, else X_DSDT */
+	/* Use the DSDT address if it is valid and version 1, else X_DSDT */
 	if (addr_size == 4 ||
 	    (addr_size == 8 && fadt->dsdt_ptr != 0 &&
 	    (fadt->x_dsdt_ptr & 0xffffffff) != fadt->dsdt_ptr))
