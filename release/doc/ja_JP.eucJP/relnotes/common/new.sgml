@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.356
+    Original revision: 1.22.2.357
 -->
 
 <articleinfo>
@@ -189,6 +189,11 @@
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
+
+    <para>&man.chroot.8; が、chroot 環境で使うユーザとプライマリグループ、
+      グループリストの設定に対応しました。
+      設定にはそれぞれ、<option>-u</option>, <option>-g</option>,
+      <option>-G</option> オプションを使います。</para>
 
     <para>&man.uudecode.1; と &man.b64decode.1; に、
       先頭フレーム行、もしくは最終フレーム行が欠けた、
