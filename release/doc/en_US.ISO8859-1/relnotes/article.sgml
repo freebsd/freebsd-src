@@ -687,7 +687,7 @@
 
     <para>A vulnerability in &man.inetd.8; that could allow
     read-access to the initial 16 bytes of
-    <username>wheel</username>-accessible files has been fixed (see security
+    <groupname>wheel</groupname>-accessible files has been fixed (see security
     advisory FreeBSD-SA-01:11). &merged;</para>
 
     <para>A bug in &man.periodic.8; that used insecure temporary files has been
