@@ -205,6 +205,7 @@ tcpOpenDialog(Device *devp)
     char                *tmp;
     char		title[80];
 
+    save = savescr();
     /* Initialise vars from previous device values */
     if (devp->private) {
 	DevInfo *di = (DevInfo *)devp->private;
@@ -282,7 +283,6 @@ tcpOpenDialog(Device *devp)
 	    SAFE_STRCPY(nameserver, tmp);
     }
 
-    save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
     if (variable_get(VAR_NONINTERACTIVE) &&
 	!variable_get(VAR_NETINTERACTIVE)) {

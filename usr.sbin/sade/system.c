@@ -399,8 +399,11 @@ systemCreateHoloshell(void)
 	    exit(1);
 	}
 	else {
+	    WINDOW *w = savescr();
+
 	    msgNotify("Starting an emergency holographic shell on VTY4");
 	    sleep(2);
+	    restorescr(w);
 	}
     }
 }

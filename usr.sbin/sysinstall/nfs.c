@@ -48,6 +48,7 @@ Boolean
 mediaInitNFS(Device *dev)
 {
     Device *netDevice = (Device *)dev->private;
+    WINDOW *w = savescr();
 
     if (NFSMounted)
 	return TRUE;
@@ -65,11 +66,13 @@ mediaInitNFS(Device *dev)
 	msgConfirm("Error mounting %s on %s: %s.", dev->name, mountpoint, strerror(errno));
 	if (netDevice)
 	    netDevice->shutdown(netDevice);
+	restorescr(w);
 	return FALSE;
     }
     NFSMounted = TRUE;
     if (isDebug())
 	msgDebug("Mounted NFS device %s onto %s\n", dev->name, mountpoint);
+    restorescr(w);
     return TRUE;
 }
 
@@ -85,7 +88,7 @@ mediaShutdownNFS(Device *dev)
     if (!NFSMounted)
 	return;
 
-    msgNotify("Unmounting NFS partition on %s", mountpoint);
+    msgDebug("Unmounting NFS partition on %s", mountpoint);
     if (unmount(mountpoint, MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
     NFSMounted = FALSE;
