@@ -7,6 +7,12 @@ here, and it only starts on Novemeber 18, 1998.  If you have an
 earlier version of FreeBSD, you are on your own to get to November 18,
 1998.
 
+19990119:
+	More work on the syscons driver has been committed.  Since
+	files moved around, you will need to reconfigure your kernel,
+	and make clean; make depend before rebuilding the kernel.  No
+	config file changes are needed.
+
 19990111:
 	New keyboard and video card drivers are introduced as the first
 	stage of console driver reorganization.  You are required to
@@ -79,4 +85,4 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
 
-$Id: UPDATING,v 1.12 1999/01/14 05:59:52 imp Exp $
+$Id: UPDATING,v 1.13 1999/01/17 17:39:32 imp Exp $
