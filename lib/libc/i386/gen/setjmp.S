@@ -49,7 +49,6 @@
  * The previous signal state is restored.
  */
 
-#include "DEFS.h"
 #include "SYS.h"
 
 ENTRY(setjmp)

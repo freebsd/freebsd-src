@@ -41,7 +41,7 @@
 
 /* hostorder = ntohl(netorder) */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(ntohl)
 	movl	4(%esp),%eax

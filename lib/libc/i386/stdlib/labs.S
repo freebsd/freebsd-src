@@ -39,7 +39,7 @@
 	.asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(labs)
 	movl	4(%esp),%eax

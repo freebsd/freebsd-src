@@ -41,7 +41,7 @@
 
 /* netorder = htonl(hostorder) */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(htonl)
 	movl	4(%esp),%eax
