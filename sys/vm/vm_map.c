@@ -2681,7 +2681,7 @@ Retry:
 		max_grow = stack_entry->start - end;
 	} else {
 		KASSERT(stack_entry->eflags & MAP_ENTRY_GROWS_UP, ("foo"));
-		KASSERT(addr > stack_entry->end, ("foo"));
+		KASSERT(addr >= stack_entry->end, ("foo"));
 		end = (next_entry != &map->header) ? next_entry->start :
 		    stack_entry->end + stack_entry->avail_ssize;
 		grow_amount = roundup(addr + 1 - stack_entry->end, PAGE_SIZE);
@@ -2800,6 +2800,7 @@ Retry:
 		    OFF_TO_IDX(stack_entry->offset),
 		    (vm_size_t)(stack_entry->end - stack_entry->start),
 		    (vm_size_t)grow_amount)) {
+			map->size += (addr - stack_entry->end);
 			/* Update the current entry. */
 			stack_entry->end = addr;
 			rv = KERN_SUCCESS;
