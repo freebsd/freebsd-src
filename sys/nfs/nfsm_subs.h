@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.6 1995/05/30 08:12:51 rgrimes Exp $
+ * $Id: nfsm_subs.h,v 1.7 1995/06/27 11:06:55 dfr Exp $
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
@@ -50,7 +50,13 @@
 /*
  * First define what the actual subs. return
  */
-extern struct mbuf *nfsm_reqh();
+struct mbuf *nfsm_reqh __P((struct vnode *vp, u_long procid, int hsiz,
+			    caddr_t *bposp));
+struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
+			       int auth_type, int auth_len, char *auth_str,
+			       int verf_len, char *verf_str,
+			       struct mbuf *mrest, int mrest_len,
+			       struct mbuf **mbp, u_long *xidp));
 
 #define	M_HASCL(m)	((m)->m_flags & M_EXT)
 #define	NFSMINOFF(m) \
