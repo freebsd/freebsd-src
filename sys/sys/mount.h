@@ -407,6 +407,7 @@ void	vfs_getnewfsid __P((struct mount *));
 struct	mount *vfs_getvfs __P((fsid_t *));      /* return vfs given fsid */
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
 int	vfs_mountroot __P((char *));
+int	vfs_mountrootfs __P((char *));
 int	vfs_rootmountalloc __P((char *, char *, struct mount **));
 void	vfs_unbusy __P((struct mount *, struct proc *));
 void	vfs_unmountall __P((void));
