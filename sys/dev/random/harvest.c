@@ -33,7 +33,7 @@
 #include <sys/kthread.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/random.h>
 
 #include <machine/cpu.h>

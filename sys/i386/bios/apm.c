@@ -26,7 +26,7 @@
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <sys/bus.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/poll.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>

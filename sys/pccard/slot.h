@@ -47,6 +47,8 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <sys/selinfo.h>
+
 /*
  *	Controller data - Specific to each slot controller.
  */

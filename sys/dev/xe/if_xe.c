@@ -113,7 +113,6 @@
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>

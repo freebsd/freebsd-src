@@ -60,7 +60,11 @@
 #endif
 #include <sys/conf.h>
 #include <sys/tty.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>

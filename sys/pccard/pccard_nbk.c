@@ -54,7 +54,6 @@
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
-#include <sys/select.h>
 #include <sys/types.h>
 
 #include <sys/bus.h>

@@ -51,7 +51,11 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/file.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
