@@ -56,8 +56,8 @@
 #define _QUAD_LOWWORD 0
 #define __ntohl(x)        (__bswap32(x))
 #define __ntohs(x)        (__bswap16(x))
-#define __htonl(x)        (__bswap16(x))
-#define __htons(x)        (__bswap32(x))
+#define __htonl(x)        (__bswap32(x))
+#define __htons(x)        (__bswap16(x))
 
 static __inline __uint64_t
 __bswap64(__uint64_t _x)
