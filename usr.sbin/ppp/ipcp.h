@@ -108,6 +108,7 @@ struct ipcp {
 
   unsigned heis1172 : 1;		/* True if he is speaking rfc1172 */
 
+  unsigned peer_req : 1;		/* Any TY_IPADDR REQs from the peer ? */
   struct in_addr peer_ip;		/* IP address he's willing to use */
   u_int32_t peer_compproto;		/* VJ params he's willing to use */
 
