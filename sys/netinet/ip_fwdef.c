@@ -28,31 +28,28 @@
 #include <net/if.h>
 #include <net/route.h>
 
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-
 #include <netinet/ip_fw.h>
 
-struct  ip_fw *ip_fw_chain=NULL;
-u_short ip_fw_policy=0;
-
-struct  ip_fw *ip_acct_chain=NULL;
+u_short ip_fw_policy;
+struct  ip_fw *ip_fw_chain;
+struct  ip_fw *ip_acct_chain;
 
 #ifdef IPFIREWALL
-int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *)=&ip_fw_chk;
-int (*ip_fw_ctl_ptr)(int,struct mbuf *)=&ip_fw_ctl;
+int (*ip_fw_chk_ptr)(struct ip *, struct ifnet *, struct ip_fw *) = &ip_fw_chk;
+int (*ip_fw_ctl_ptr)(int, struct mbuf *) = &ip_fw_ctl;
 #else
-int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *)=NULL;
-int (*ip_fw_ctl_ptr)(int,struct mbuf *)=NULL;
+int (*ip_fw_chk_ptr)(struct ip *, struct ifnet *, struct ip_fw *);
+int (*ip_fw_ctl_ptr)(int, struct mbuf *);
 #endif
 
 
 #ifdef IPACCT
-void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int)=&ip_acct_cnt;
-int  (*ip_acct_ctl_ptr)(int,struct mbuf *)=&ip_acct_ctl;
+void (*ip_acct_cnt_ptr)(struct ip *, struct ifnet *, struct ip_fw *, int) = &ip_acct_cnt;
+int  (*ip_acct_ctl_ptr)(int, struct mbuf *) = &ip_acct_ctl;
 #else
-void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int)=NULL;
-int  (*ip_acct_ctl_ptr)(int,struct mbuf *)=NULL;
+void (*ip_acct_cnt_ptr)(struct ip *, struct ifnet *, struct ip_fw *, int);
+int  (*ip_acct_ctl_ptr)(int, struct mbuf *);
 #endif
