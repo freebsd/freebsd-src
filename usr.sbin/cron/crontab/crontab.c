@@ -309,6 +309,7 @@ edit_cmd() {
 	WAIT_T		waiter;
 	PID_T		pid, xpid;
 	mode_t		um;
+	int		syntax_error = 0;
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -446,15 +447,15 @@ edit_cmd() {
 	}
 	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
 		errx(ERROR_EXIT, "temp file must be edited in place");
-	if (mtime == statbuf.st_mtime) {
+	if (mtime == statbuf.st_mtime && !syntax_error) {
 		warnx("no changes made to crontab");
 		goto remove;
 	}
 	warnx("installing new crontab");
 	switch (replace_cmd()) {
-	case 0:
+	case 0:			/* Success */
 		break;
-	case -1:
+	case -1:		/* Syntax error */
 		for (;;) {
 			printf("Do you want to retry the same edit? ");
 			fflush(stdout);
@@ -462,6 +463,7 @@ edit_cmd() {
 			(void) fgets(q, sizeof q, stdin);
 			switch (islower(q[0]) ? q[0] : tolower(q[0])) {
 			case 'y':
+				syntax_error = 1;
 				goto again;
 			case 'n':
 				goto abandon;
@@ -470,7 +472,7 @@ edit_cmd() {
 			}
 		}
 		/*NOTREACHED*/
-	case -2:
+	case -2:		/* Install error */
 	abandon:
 		warnx("edits left in %s", Filename);
 		goto done;
