@@ -26,11 +26,9 @@ insn-$F.h: gen$F ${MD_FILE}
 GENSRCS+=	insn-$F.h
 .endfor
 
-.for F in attrtab emit extract opinit output peep recog
-insn-$F.c: gen$F ${MD_FILE}
-	./gen$F ${MD_FILE} > insn-$F.c
-GENSRCS+=	insn-$F.c
-.endfor
+GENSRCS+=	gen-time-stamp
+gen-time-stamp: genattrtab genemit genextract genopinit genoutput genpeep genrecog
+	touch ${.TARGET}
 
 .for F in attr codes config emit extract flags opinit output peep recog
 build-tools: gen$F
