@@ -199,7 +199,6 @@ pv_global_remove_all(vm_page_t m)
 	pa = VM_PAGE_TO_PHYS(m);
 	pvh = pv_lookup(pa);
 	PV_LOCK();
-	pv_dump(pvh);
 	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp))
 		pv_atomic_bit_clear(pstp, TD_V);
 	PV_UNLOCK();
@@ -207,7 +206,6 @@ pv_global_remove_all(vm_page_t m)
 	PV_LOCK();
 	while ((pstp = pvh_get_first(pvh)) != 0)
 		pv_remove_phys(pstp);
-	pv_dump(pvh);
 	PV_UNLOCK();
 }
 
