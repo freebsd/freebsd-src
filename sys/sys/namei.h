@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.15 1997/05/11 14:54:41 phk Exp $
+ * $Id: namei.h,v 1.16 1997/09/07 05:27:18 bde Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -136,8 +136,8 @@ struct nameidata {
 #define ISSYMLINK	0x010000 /* symlink needs interpretation */
 #define	ISWHITEOUT	0x020000 /* found whiteout */
 #define	DOWHITEOUT	0x040000 /* do whiteouts */
-#define WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
-#define ISUNICODE	0x100000 /* current component name is unicode*/
+#define	WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
+#define	ISUNICODE	0x100000 /* current component name is unicode*/
 #define PARAMASK	0x1fff00 /* mask of parameter descriptors */
 /*
  * Initialization of an nameidata structure.
@@ -164,7 +164,7 @@ struct	namecache {
 	struct	vnode *nc_vp;		/* vnode the name refers to */
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
-	char	nc_name[0];	/* segment name */
+	char	nc_name[0];		/* segment name */
 };
 
 #ifdef KERNEL
