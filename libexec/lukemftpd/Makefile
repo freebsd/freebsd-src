@@ -28,6 +28,10 @@ CFLAGS+=-I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm
 
+CFLAGS+= -DUSE_OPIE -DUSE_PAM
+DPADD+=	${LIBOPIE} ${LIBPAM}
+LDADD+=	-lopie -lpam
+
 CLEANFILES+=	ls-unmain.c
 ls-unmain.c: ls.c
 	sed -e 's/^main(/ls_main(/g' -e 's,extern.h,${LSDIR}/extern.h,' \
