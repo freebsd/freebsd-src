@@ -154,8 +154,6 @@ struct platform platform;
 alpha_chipset_t chipset;
 struct bootinfo_kernel bootinfo;
 
-struct mtx sched_lock;
-struct mtx Giant;
 struct mtx icu_lock;
 
 struct	user *proc0uarea;
@@ -916,6 +914,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		pcpu_init(pcpup, alpha_pal_whami(), sz);
 		alpha_pal_wrval((u_int64_t) pcpup);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
+		PCPU_SET(curthread, &thread0);
 #ifdef SMP
 		thread0.td_md.md_kernnest = 1;
 #endif
@@ -945,20 +944,9 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
 	thread0.td_pcb->pcb_hw.apcb_ksp = (u_int64_t)thread0.td_frame;
 
-	/* Setup curthread so that mutexes work */
-	PCPU_SET(curthread, &thread0);
-
-	LIST_INIT(&thread0.td_contested);
-
-	/*
-	 * Initialise mutexes.
-	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
+	mutex_init();
 	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&icu_lock, "icu", MTX_SPIN);
-	mtx_lock(&Giant);
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.

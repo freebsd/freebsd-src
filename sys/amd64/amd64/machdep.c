@@ -210,8 +210,6 @@ static struct trapframe proc0_tf;
 static struct pcpu __pcpu;
 #endif
 
-struct mtx sched_lock;
-struct mtx Giant;
 struct mtx icu_lock;
 
 static void
@@ -1693,11 +1691,7 @@ init386(first)
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
-
-	/* setup curproc so that mutexes work */
 	PCPU_SET(curthread, &thread0);
-
-	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Initialize mutexes.
@@ -1707,12 +1701,9 @@ init386(first)
 	 *	     must be able to get the icu lock, so it can't be
 	 *	     under witness.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
+	mutex_init();
 	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&icu_lock, "icu", MTX_SPIN | MTX_NOWITNESS);
-	mtx_lock(&Giant);
 
 	/* make ldt memory segments */
 	/*

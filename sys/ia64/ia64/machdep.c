@@ -96,9 +96,6 @@ u_int64_t va_bootinfo;
 struct bootinfo bootinfo;
 int bootinfo_error; /* XXX temporary ad-hoc error mask to help debugging */
 
-struct mtx sched_lock;
-struct mtx Giant;
-
 extern char kstack[]; 
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
@@ -688,6 +685,10 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	pcpu_init(pcpup, 0, PAGE_SIZE);
 	pcpup->pc_current_pmap = kernel_pmap;
 	ia64_set_k4((u_int64_t) pcpup);
+	PCPU_SET(curthread, &thread0);
+
+	/* We pretend to own FP state so that ia64_fpstate_check() works */
+	PCPU_SET(fpcurthread, &thread0);
 
 	/*
 	 * Initialize the rest of proc 0's PCB.
@@ -702,21 +703,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	thread0.td_pcb->pcb_sp = (u_int64_t)thread0.td_frame - 16;
 	thread0.td_pcb->pcb_bspstore = (u_int64_t)proc0kstack;
 
-	/* Setup curproc so that mutexes work */
-	PCPU_SET(curthread, &thread0);
-
-	/* We pretend to own FP state so that ia64_fpstate_check() works */
-	PCPU_SET(fpcurthread, &thread0);
-
-	LIST_INIT(&thread0.td_contested);
-
-	/*
-	 * Initialise mutexes.
-	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
-	mtx_lock(&Giant);
+	mutex_init();
 
 	/*
 	 * Initialize the virtual memory system.
