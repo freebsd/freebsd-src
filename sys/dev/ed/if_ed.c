@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.60 1994/12/31 17:09:56 jkh Exp $
+ * $Id: if_ed.c,v 1.61 1995/01/01 03:54:34 davidg Exp $
  */
 
 #include "ed.h"
@@ -2234,13 +2234,17 @@ ed_pio_write_mbufs(sc, m, dst)
 	struct mbuf *m;
 	unsigned short dst;
 {
-	unsigned short len;
+	unsigned short len, dma_len;
 	struct mbuf *mp;
 	int     maxwait = 100;	/* about 120us */
 
 	/* First, count up the total number of bytes to copy */
 	for (len = 0, mp = m; mp; mp = mp->m_next)
 		len += mp->m_len;
+
+	dma_len = len;
+	if (sc->isa16bit && (dma_len & 1))
+		dma_len++;
 
 	/* select page 0 registers */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
@@ -2249,8 +2253,8 @@ ed_pio_write_mbufs(sc, m, dst)
 	outb(sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
 
 	/* set up DMA byte count */
-	outb(sc->nic_addr + ED_P0_RBCR0, len);
-	outb(sc->nic_addr + ED_P0_RBCR1, len >> 8);
+	outb(sc->nic_addr + ED_P0_RBCR0, dma_len);
+	outb(sc->nic_addr + ED_P0_RBCR1, dma_len >> 8);
 
 	/* set up destination address in NIC mem */
 	outb(sc->nic_addr + ED_P0_RSAR0, dst);
