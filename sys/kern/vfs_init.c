@@ -197,9 +197,6 @@ vfs_register(struct vfsconf *vfc)
 	KASSERT(vfsops->vfs_unmount != NULL,
 	    ("Filesystem %s has no unmount op", vfc->vfc_name));
 
-	if (vfsops->vfs_start == NULL)
-		/* make a file system operational */ 
-		vfsops->vfs_start =	vfs_stdstart;
 	if (vfsops->vfs_root == NULL)
 		/* return file system's root vnode */
 		vfsops->vfs_root =	vfs_stdroot;
