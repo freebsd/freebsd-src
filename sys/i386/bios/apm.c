@@ -402,69 +402,6 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 	apm_del_hook(&hook[apmh], ah);
 }
 
-
-static struct timeval suspend_time;
-static struct timeval diff_time;
-
-static int
-apm_default_resume(void *arg)
-{
-	int pl;
-	u_int second, minute, hour;
-	struct timeval resume_time, tmp_time;
-
-	/* modified for adjkerntz */
-	pl = splsoftclock();
-	i8254_restore();		/* restore timer_freq and hz */
-	inittodr(0);			/* adjust time to RTC */
-	microtime(&resume_time);
-	getmicrotime(&tmp_time);
-	timevaladd(&tmp_time, &diff_time);
-
-#ifdef FIXME
-	/* XXX THIS DOESN'T WORK!!! */
-	time = tmp_time;
-#endif
-
-#ifdef APM_FIXUP_CALLTODO
-	/* Calculate the delta time suspended */
-	timevalsub(&resume_time, &suspend_time);
-	/* Fixup the calltodo list with the delta time. */
-	adjust_timeout_calltodo(&resume_time);
-#endif /* APM_FIXUP_CALLTODOK */
-	splx(pl);
-#ifndef APM_FIXUP_CALLTODO
-	second = resume_time.tv_sec - suspend_time.tv_sec; 
-#else /* APM_FIXUP_CALLTODO */
-	/* 
-	 * We've already calculated resume_time to be the delta between 
-	 * the suspend and the resume. 
-	 */
-	second = resume_time.tv_sec; 
-#endif /* APM_FIXUP_CALLTODO */
-	hour = second / 3600;
-	second %= 3600;
-	minute = second / 60;
-	second %= 60;
-	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n",
-		hour, minute, second);
-	return 0;
-}
-
-static int
-apm_default_suspend(void *arg)
-{
-	int	pl;
-
-	pl = splsoftclock();
-	microtime(&diff_time);
-	inittodr(0);
-	microtime(&suspend_time);
-	timevalsub(&diff_time, &suspend_time);
-	splx(pl);
-	return 0;
-}
-
 static int apm_record_event __P((struct apm_softc *, u_int));
 static void apm_processevent(void);
 
@@ -489,6 +426,7 @@ apm_do_suspend(void)
 		} else {
 			apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 			if (apm_suspend_system(PMST_SUSPEND) == 0) {
+				sc->suspending = 1;
 				apm_processevent();
 			} else {
 				/* Failure, 'resume' the system again */
@@ -515,7 +453,6 @@ apm_do_standby(void)
 		 * As far as standby, we don't need to execute 
 		 * all of suspend hooks.
 		 */
-		apm_default_suspend(&apm_softc);
 		if (apm_suspend_system(PMST_STANDBY) == 0)
 			apm_processevent();
 	}
@@ -600,6 +537,10 @@ apm_resume(void)
 	if (!sc)
 		return;
 
+	if (sc->suspending == 0)
+		return;
+
+	sc->suspending = 0;
 	if (sc->initialized) {
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
 		DEVICE_RESUME(root_bus);
@@ -987,7 +928,6 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
 			apm_record_event(sc, apm_event);
-			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
 			if (apm_record_event(sc, apm_event)) {
@@ -1095,26 +1035,12 @@ apm_attach(device_t dev)
 		}
 	}
 
-        /* default suspend hook */
-        sc->sc_suspend.ah_fun = apm_default_suspend;
-        sc->sc_suspend.ah_arg = sc;
-        sc->sc_suspend.ah_name = "default suspend";
-        sc->sc_suspend.ah_order = APM_MAX_ORDER;
-
-        /* default resume hook */
-        sc->sc_resume.ah_fun = apm_default_resume;
-        sc->sc_resume.ah_arg = sc;
-        sc->sc_resume.ah_name = "default resume";
-        sc->sc_resume.ah_order = APM_MIN_ORDER;
-
-        apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
-        apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
-
 	/* Power the system off using APM */
 	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
 			      SHUTDOWN_PRI_LAST);
 
 	sc->initialized = 1;
+	sc->suspending = 0;
 
 	make_dev(&apm_cdevsw, 0, 0, 5, 0660, "apm");
 	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");
