@@ -120,7 +120,7 @@ sed	-e '/pty/d' \
 	-e '/cue/d' \
 	-e '/kue/d' \
 	-e '/maxusers/d' \
-	-e 's/GENERIC/BOOTMFS/g'
+	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 fi
 
 # reset maxusers to something lower
