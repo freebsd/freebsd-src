@@ -35,6 +35,7 @@
 
 #include <sys/queue.h>
 #include <sys/event.h>
+#include <sys/priority.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
@@ -60,11 +61,12 @@ struct filedesc {
 	u_short	fd_refcnt;		/* reference count */
 
 	struct	mtx fd_mtx;		/* protects members of this struct */
+	int	fd_locked;		/* long lock flag */
+	int	fd_wanted;		/* "" */
 	struct	kqlist fd_kqlist;	/* list of kqueues on this filedesc */
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };
-
 
 /*
  * Structure to keep track of (process leader, struct fildedesc) tuples.
@@ -93,14 +95,61 @@ struct filedesc_to_leader {
 #ifdef _KERNEL
 
 /* Lock a file descriptor table. */
-#define	FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
-#define	FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
-#define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
-#define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
-#define	FILEDESC_LOCK_DESC	"filedesc structure"
+#define	FILEDESC_LOCK(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		(fd)->fd_wanted++;							\
+		while ((fd)->fd_locked)							\
+			msleep(&(fd)->fd_locked, &(fd)->fd_mtx, PLOCK, "fdesc", 0);	\
+		(fd)->fd_locked = 2;							\
+		(fd)->fd_wanted--;							\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
 
-#define	FILEDESC_LOCK_FAST(fd)		FILEDESC_LOCK(fd);
-#define	FILEDESC_UNLOCK_FAST(fd)	FILEDESC_UNLOCK(fd);
+#define	FILEDESC_UNLOCK(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		KASSERT((fd)->fd_locked == 2,						\
+		    ("fdesc locking mistake %d should be %d", (fd)->fd_locked, 2));	\
+		(fd)->fd_locked = 0;							\
+		if ((fd)->fd_wanted)							\
+			wakeup(&(fd)->fd_locked);					\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
+
+#define	FILEDESC_LOCK_FAST(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		(fd)->fd_wanted++;							\
+		while ((fd)->fd_locked)							\
+			msleep(&(fd)->fd_locked, &(fd)->fd_mtx, PLOCK, "fdesc", 0);	\
+		(fd)->fd_locked = 1;							\
+		(fd)->fd_wanted--;							\
+	} while (0);
+
+#define	FILEDESC_UNLOCK_FAST(fd)							\
+	do {										\
+		KASSERT((fd)->fd_locked == 1,						\
+		    ("fdesc locking mistake %d should be %d", (fd)->fd_locked, 1));	\
+		(fd)->fd_locked = 0;							\
+		if ((fd)->fd_wanted)							\
+			wakeup(&(fd)->fd_locked);					\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
+
+#ifdef INVARIANT_SUPPORT
+#define	FILEDESC_LOCK_ASSERT(fd, arg)							\
+	do {										\
+		if ((arg) == MA_OWNED)							\
+			KASSERT((fd)->fd_locked != 0, ("fdesc locking mistake"));	\
+		else									\
+			KASSERT((fd)->fd_locked == 0, ("fdesc locking mistake"));	\
+	} while (0);
+#else
+#define	FILEDESC_LOCK_ASSERT(fd, arg)
+#endif
+
+#define	FILEDESC_LOCK_DESC	"filedesc structure"
 
 struct thread;
 
