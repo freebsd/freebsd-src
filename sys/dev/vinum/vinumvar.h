@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.21 1999/10/12 04:39:08 grog Exp grog $
+ * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -166,7 +166,7 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
+    INITIAL_LOCKS = 256,				    /* number of locks to allocate to a plex */
     MAX_REVIVE_BLOCKSIZE = 65536,			    /* maximum revive block size */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
