@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.22 1996/01/28 23:33:23 joerg Exp $
+ *      $Id: worm.c,v 1.23 1996/01/29 19:46:26 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -138,6 +138,11 @@ static errval rf4100_prepare_track(struct scsi_link *, int audio, int preemp);
 static errval rf4100_finalize_track(struct scsi_link *);
 static errval rf4100_finalize_disk(struct scsi_link *, int toc_type, int onp);
 
+static errval hp4020i_prepare_disk(struct scsi_link *, int dummy, int speed);
+static errval hp4020i_prepare_track(struct scsi_link *, int audio, int preemp);
+static errval hp4020i_finalize_track(struct scsi_link *);
+static errval hp4020i_finalize_disk(struct scsi_link *, int toc_type, int onp);
+
 static worm_devsw_installed = 0;
 
 static	d_open_t	wormopen;
@@ -189,6 +194,11 @@ struct worm_quirks worm_quirks[] = {
 		"PLASMON", "RF410",
 		rf4100_prepare_disk, rf4100_prepare_track,
 		rf4100_finalize_track, rf4100_finalize_disk
+	},
+	{
+		"HP", "4020i",
+		hp4020i_prepare_disk, hp4020i_prepare_track,
+		hp4020i_finalize_track, hp4020i_finalize_disk
 	},
 	{0}
 };
@@ -712,7 +722,7 @@ struct plasmon_rf4100_pages
 			u_char	reserved1;
 			u_char	mode;
 #define RF4100_RAW_MODE		0x10	/* raw mode enabled */
-#define RF4100_MIXED_MODE	0x08	/* midex mode data enabled */
+#define RF4100_MIXED_MODE	0x08	/* mixed mode data enabled */
 #define RF4100_AUDIO_MODE	0x04	/* audio mode data enabled */
 #define RF4100_MODE_1		0x01	/* mode 1 blocks are enabled */
 #define RF4110_MODE_2		0x02	/* mode 2 blocks are enabled */
@@ -916,4 +926,238 @@ rf4100_finalize_disk(struct scsi_link *sc_link, int toc_type, int onp)
 
 /*
  * End Plasmon RF4100/4102 section.
+ */
+
+/*
+ * HP C4324/C4325 (This is what the scsi spec. and firmware says) 
+ * Drive model 4020i
+ *  This is very similar to the Plasmon above.
+ */
+
+/* The following mode pages might apply to other drives as well. */
+
+struct hp_4020i_pages
+{
+	u_char	page_code;
+#define HP4020I_PAGE_CODE_20 0x20
+#define HP4020I_PAGE_CODE_21 0x21
+#define HP4020I_PAGE_CODE_22 0x22
+#define HP4020I_PAGE_CODE_23 0x23
+#define HP4020I_PAGE_CODE_24 0x24
+#define HP4020I_PAGE_CODE_25 0x25
+	u_char	param_len;
+	union
+	{
+		/* page 0x20 omitted by now */
+		struct
+		{
+			u_char	reserved1;
+			u_char	mode;
+#define HP4020I_RAW_MODE		0x10	/* raw mode enabled */
+#define HP4020I_MIXED_MODE	0x08	/* mixed mode data enabled */
+#define HP4020I_AUDIO_MODE	0x04	/* audio mode data enabled */
+#define HP4020I_MODE_1		0x01	/* mode 1 blocks are enabled */
+#define HP4020I_MODE_2		0x02	/* mode 2 blocks are enabled */
+			u_char	track_number;
+			u_char	isrc_i1; /* country code, ASCII */
+			u_char	isrc_i2;
+			u_char	isrc_i3; /* owner code, ASCII */
+			u_char	isrc_i4;
+			u_char	isrc_i5;
+			u_char	isrc_i6_7; /* country code, BCD */
+			u_char	isrc_i8_9; /* serial number, BCD */
+			u_char	isrc_i10_11;
+			u_char	isrc_i12_0;
+			u_char	reserved2[2];
+		}
+		page_0x21;
+		/* mode page 0x22 omitted by now */
+		struct
+		{
+			u_char	speed_select;
+#define HP4020I_SPEED_AUDIO	0x01
+#define HP4020I_SPEED_DOUBLE	0x02
+			u_char	dummy_write;
+#define HP4020I_DUMMY_WRITE	0x01
+			u_char	reserved[4];
+		}
+		page_0x23;
+		/* pages 0x24 and 0x25 omitted by now */
+	}
+	pages;
+};
+
+
+static errval
+hp4020i_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
+{
+	struct scsi_mode_select scsi_cmd;
+	struct {
+		struct scsi_mode_header header;
+		struct hp_4020i_pages page;
+	} dat;
+	u_int32 pagelen, dat_len;
+
+	pagelen = sizeof(dat.page.pages.page_0x23) + PAGE_HEADERLEN;
+	dat_len = sizeof(struct scsi_mode_header) + pagelen;
+
+	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_prepare_disk"));
+
+	if (speed != HP4020I_SPEED_AUDIO && speed != HP4020I_SPEED_DOUBLE)
+		return EINVAL;
+
+	/*
+	 * Set up a mode page 0x23
+	 */
+	bzero(&dat, sizeof(dat));
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	scsi_cmd.op_code = MODE_SELECT;
+	scsi_cmd.byte2 |= SMS_PF;
+	scsi_cmd.length = dat_len;
+	/* dat.header.dev_spec = host application code; (see spec) */
+	dat.page.page_code = HP4020I_PAGE_CODE_23;
+	dat.page.param_len = sizeof(dat.page.pages.page_0x23);
+	dat.page.pages.page_0x23.speed_select = speed;
+	dat.page.pages.page_0x23.dummy_write = dummy? HP4020I_DUMMY_WRITE: 0;
+	/*
+	 * Fire it off.
+	 */
+	return scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &scsi_cmd,
+			     sizeof(scsi_cmd),
+			     (u_char *) &dat,
+			     dat_len,
+			     /*WORM_RETRIES*/ 4,
+			     5000,
+			     NULL,
+			     SCSI_DATA_OUT);
+}
+
+
+static errval
+hp4020i_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
+{
+	struct scsi_mode_select scsi_cmd;
+	struct {
+		struct scsi_mode_header header;
+		struct blk_desc blk_desc;
+		struct hp_4020i_pages page;
+	} dat;
+	u_int32 pagelen, dat_len, blk_len;
+
+	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
+	dat_len = sizeof(struct scsi_mode_header)
+		+ sizeof(struct blk_desc)
+		+ pagelen;
+
+	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_prepare_track"));
+
+	if (!audio && preemp)
+		return EINVAL;
+
+	/*
+	 * By now, make a simple decision about the block length to be
+	 * used.  It's just only Red Book (Audio) == 2352 bytes, or
+	 * Yellow Book (CD-ROM) Mode 1 == 2048 bytes.
+	 */
+	blk_len = audio? 2352: 2048;
+
+	/*
+	 * Set up a mode page 0x21.  Note that the block descriptor is
+	 * mandatory in at least one of the MODE SELECT commands, in
+	 * order to select the block length in question.  We do this
+	 * here, just prior to opening the write channel.  (Spec:
+	 * ``All information for the write is included in the MODE
+	 * SELECT, MODE PAGE 21h, and the write channel can be
+	 * considered open on receipt of the first WRITE command.''  I
+	 * didn't have luck with an explicit WRITE TRACK command
+	 * anyway, this might be different for other CD-R drives. -
+	 * Jörg)
+	 */
+	bzero(&dat, sizeof(dat));
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	scsi_cmd.op_code = MODE_SELECT;
+	scsi_cmd.byte2 |= SMS_PF;
+	scsi_cmd.length = dat_len;
+	dat.header.blk_desc_len = sizeof(struct blk_desc);
+	/* dat.header.dev_spec = host application code; (see spec) */
+	scsi_uto3b(blk_len, dat.blk_desc.blklen);
+	dat.page.page_code = HP4020I_PAGE_CODE_21;
+	dat.page.param_len = sizeof(dat.page.pages.page_0x21);
+	dat.page.pages.page_0x21.mode =
+		(audio? HP4020I_AUDIO_MODE: HP4020I_MODE_1) +
+		(preemp? HP4020I_MODE_1: 0);
+	/* dat.page.pages.page_0x21.track_number = 0; (current track) */
+	
+	/*
+	 * Fire it off.
+	 */
+	return scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &scsi_cmd,
+			     sizeof(scsi_cmd),
+			     (u_char *) &dat,
+			     dat_len,
+			     /*WORM_RETRIES*/ 4,
+			     5000,
+			     NULL,
+			     SCSI_DATA_OUT);
+}
+
+
+static errval
+hp4020i_finalize_track(struct scsi_link *sc_link)
+{
+	struct scsi_synchronize_cache cmd;
+	
+	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_finalize_track"));
+
+	/*
+	 * Only a "synchronize cache" is needed.
+	 */
+	bzero(&cmd, sizeof(cmd));
+	cmd.op_code = SYNCHRONIZE_CACHE;
+	return scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &cmd,
+			     sizeof(cmd),
+			     0,	/* no data transfer */
+			     0,
+			     1,
+			     60000, /* this may take a while */
+			     NULL,
+			     0);
+}
+
+
+static errval
+hp4020i_finalize_disk(struct scsi_link *sc_link, int toc_type, int onp)
+{
+	struct scsi_fixation cmd;
+
+	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_finalize_disk"));
+
+	if (toc_type < 0 || toc_type > WORM_TOC_TYPE_CDI)
+		return EINVAL;
+
+	/*
+	 * Fixate this session.  Mark the next one as opened if onp
+	 * is true.  Otherwise, the disk will be finalized once and
+	 * for all.  ONP stands for "open next program area".
+	 */
+	
+	bzero(&cmd, sizeof(cmd));
+	cmd.op_code = FIXATION;
+	cmd.action = (onp? WORM_FIXATION_ONP: 0) + toc_type;
+	return scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &cmd,
+			     sizeof(cmd),
+			     0,	/* no data transfer */
+			     0,
+			     1,
+			     20*60*1000, /* takes a huge amount of time */
+			     NULL,
+			     0);
+}
+
+/*
+ * End HP C4324/C4325 (4020i) section.
  */
