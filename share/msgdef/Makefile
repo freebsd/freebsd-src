@@ -126,5 +126,7 @@ afterinstall:
 	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.US-ASCII/LC_MESSAGES
 .endfor
+	ln -sf ../ko_KR.eucKR/LC_MESSAGES \
+		${LOCALEDIR}/ko_KR.CP949/LC_MESSAGES
 
 .include <bsd.prog.mk>
