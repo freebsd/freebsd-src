@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.17 1997/02/25 04:53:54 hanai Exp $ -->
+<!-- $Id: authors.sgml,v 1.18 1997/02/28 04:07:56 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.61 -->
+<!-- Original revision: 1.62 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -176,6 +176,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.imp "Warner Losh 
   <tt><htmlurl url='mailto:imp@FreeBSD.ORG' 
   name='&lt;imp@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.jb  "John Birrell 
+  <tt><htmlurl url='mailto:jb@cimlogic.com.au'
+  name='&lt;jb@cimlogic.com.au&gt;'></tt>">
 
 <!ENTITY a.jdp  "John Polstra 
   <tt><htmlurl url='mailto:jdp@FreeBSD.ORG'

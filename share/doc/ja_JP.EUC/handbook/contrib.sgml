@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.42 1997/03/26 05:51:03 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.43 1997/03/31 02:40:10 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.228 -->
+<!-- Original revision: 1.229 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -48,6 +48,7 @@
 
       <itemize>
 	<item>&a.mbarkah;
+	<item>&a.jb;
         <item>&a.torstenb;
 	<item>&a.danny;
         <item>&a.gclarkii;
