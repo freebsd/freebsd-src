@@ -31,7 +31,10 @@
  *					an enum in sys/random.h
  */
 
+/* The ring size _MUST_ be a power of 2 */
 #define HARVEST_RING_SIZE	1024	/* harvest ring buffer size */
+#define HARVEST_RING_MASK	(HARVEST_RING_SIZE - 1)
+
 #define TIMEBIN		16	/* max value for Pt/t */
 
 #define HARVESTSIZE	16	/* max size of each harvested entropy unit */
@@ -72,6 +75,7 @@ struct random_state {
 	int which;		/* toggle - shows the current insertion pool */
 	int seeded;		/* 0 causes blocking 1 allows normal output */
 	struct selinfo rsel;	/* For poll(2) */
+	u_char raw[HARVESTSIZE];/* Raw buffer for checking */
 };
 
 extern struct random_state random_state;
