@@ -186,6 +186,13 @@ static const struct ng_cmdlist ng_iface_cmds[] = {
 	  NULL,
 	  &ng_cisco_ipaddr_type
 	},
+	{
+	  NGM_IFACE_COOKIE,
+	  NGM_IFACE_GET_IFINDEX,
+	  "getifindex",
+	  NULL,
+	  &ng_parse_uint32_type
+	},
 	{ 0 }
 };
 
@@ -666,6 +673,15 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			break;
 		    }
+
+		case NGM_IFACE_GET_IFINDEX:
+			NG_MKRESPONSE(resp, msg, sizeof(uint32_t), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			*((uint32_t *)resp->data) = priv->ifp->if_index;
+			break;
 
 		default:
 			error = EINVAL;
