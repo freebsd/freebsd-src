@@ -105,12 +105,17 @@ void	shmfork(struct proc *, struct proc *);
 
 #include <sys/cdefs.h>
 
+#ifndef _SIZE_T_DECLARED
+typedef __size_t        size_t;
+#define _SIZE_T_DECLARED
+#endif
+
 __BEGIN_DECLS
 int shmsys(int, ...);
-void *shmat(int, void *, int);
-int shmget(key_t, int, int);
+void *shmat(int, const void *, int);
+int shmget(key_t, size_t, int);
 int shmctl(int, int, struct shmid_ds *);
-int shmdt(void *);
+int shmdt(const void *);
 __END_DECLS
 
 #endif /* !_KERNEL */
