@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57 1996/09/14 11:54:55 bde Exp $
+ * $Id: vm_map.c,v 1.58 1996/11/30 22:41:47 dyson Exp $
  */
 
 /*
@@ -581,6 +581,7 @@ vm_map_lookup_entry(map, address, entry)
 	return (FALSE);
 }
 
+#define VM_MAP_INSERT_NULL_OBJECT_ONLY
 /*
  *	vm_map_insert:
  *
@@ -604,6 +605,10 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	register vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
 	vm_object_t prev_object;
+
+	if ((object != NULL) && (cow & MAP_NOFAULT)) {
+		panic("vm_map_insert: paradoxical MAP_NOFAULT request");
+	}
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -633,7 +638,11 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 
 	if ((prev_entry != &map->header) &&
 		(prev_entry->end == start) &&
+#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
 		((object == NULL) || (prev_entry->object.vm_object == object)) &&
+#else
+		(object == NULL) &&
+#endif
 		(prev_entry->is_a_map == FALSE) &&
 		(prev_entry->is_sub_map == FALSE) &&
 		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
@@ -646,12 +655,21 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	 * See if we can avoid creating a new entry by extending one of our
 	 * neighbors.
 	 */
+#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
 		if (object == NULL) {
-			if (vm_object_coalesce(prev_entry->object.vm_object,
+#endif
+			u_char needs_copy = (cow & MAP_COPY_NEEDED) != 0;
+			u_char copy_on_write = (cow & MAP_COPY_ON_WRITE) != 0;
+			u_char nofault = (cow & MAP_NOFAULT) != 0;
+
+			if ((needs_copy == prev_entry->needs_copy) &&
+			    (copy_on_write == prev_entry->copy_on_write) &&
+			    (nofault == prev_entry->nofault) &&
+				(nofault || vm_object_coalesce(prev_entry->object.vm_object,
 				OFF_TO_IDX(prev_entry->offset),
 				(vm_size_t) (prev_entry->end
 				    - prev_entry->start),
-				(vm_size_t) (end - prev_entry->end))) {
+				(vm_size_t) (end - prev_entry->end)))) {
 
 				/*
 				 * Coalesced the two objects - can extend the
@@ -660,11 +678,15 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				 */
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
-				prev_object = prev_entry->object.vm_object;
-				default_pager_convert_to_swapq(prev_object);
+				if (!nofault) {
+					prev_object = prev_entry->object.vm_object;
+					default_pager_convert_to_swapq(prev_object);
+				}
 				return (KERN_SUCCESS);
 			}
+#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
 		}
+#endif
 	}
 	/*
 	 * Create a new entry
