@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include <netinet/in.h>
 #include <arpa/tftp.h>
@@ -68,6 +69,7 @@ static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <pwd.h>
 
 #include "tftpsubs.h"
 
@@ -113,15 +115,20 @@ main(argc, argv)
 	register int n;
 	int ch, on;
 	struct sockaddr_in sin;
+	char *chroot_dir = NULL;
+	struct passwd *nobody;
 
 	openlog("tftpd", LOG_PID, LOG_FTP);
-	while ((ch = getopt(argc, argv, "ln")) != EOF) {
+	while ((ch = getopt(argc, argv, "lns:")) != EOF) {
 		switch (ch) {
 		case 'l':
 			logging = 1;
 			break;
 		case 'n':
 			suppress_naks = 1;
+			break;
+		case 's':
+			chroot_dir = optarg;
 			break;
 		default:
 			syslog(LOG_WARNING, "ignoring unknown option -%c", ch);
@@ -139,6 +146,10 @@ main(argc, argv)
 				dirp++;
 			}
 		}
+	}
+	else if (chroot_dir) {
+		dirs->name = "/";
+		dirs->len = 1;
 	}
 
 	on = 1;
@@ -203,6 +214,26 @@ main(argc, argv)
 			exit(0);
 		}
 	}
+
+	/*
+	 * Since we exit here, we should do that only after the above
+	 * recvfrom to keep inetd from constantly forking should there
+	 * be a problem.  See the above comment about system clogging.
+	 */
+	if (chroot_dir) {
+		/* Must get this before chroot because /etc might go away */
+		if ((nobody = getpwnam("nobody")) == NULL) {
+			syslog(LOG_ERR, "nobody: no such user");
+			exit(1);
+		}
+		if (chroot(chroot_dir)) {
+			syslog(LOG_ERR, "chroot: %s: %m", chroot_dir);
+			exit(1);
+		}
+		chdir( "/" );
+		setuid(nobody->pw_uid);
+	}
+
 	from.sin_family = AF_INET;
 	alarm(0);
 	close(0);
