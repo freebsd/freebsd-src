@@ -156,6 +156,8 @@ static struct rl_type rl_devs[] = {
 		"Corega FEther CB-TXD" },
 	{ COREGA_VENDORID, COREGA_DEVICEID_FETHERIICBTXD,
 		"Corega FEtherII CB-TXD" },
+	{ PEPPERCON_VENDORID, PEPPERCON_DEVICEID_ROLF,
+		"Peppercon AG ROL-F" },
 	{ 0, 0, NULL }
 };
 
