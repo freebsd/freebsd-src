@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_broken;
-u_int		tsc_present = 1;
 
 #ifdef SMP
 static int	smp_tsc;
@@ -59,7 +58,8 @@ static struct timecounter tsc_timecounter = {
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
 	0,			/* frequency */
-	 "TSC"			/* name */
+	 "TSC",			/* name */
+	800,			/* quality (adjusted in code) */
 };
 
 void
@@ -89,8 +89,6 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
-
-	return;
 }
 
 static int
