@@ -6,9 +6,14 @@
   */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#) pmap_set.c 1.1 92/06/11 22:53:16";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif
 
+#include <err.h>
 #include <stdio.h>
 #include <sys/types.h>
 #ifdef SYSV40
@@ -17,6 +22,9 @@ static char sccsid[] = "@(#) pmap_set.c 1.1 92/06/11 22:53:16";
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
+int parse_line __P((char *, u_long *, u_long *, int *, unsigned *));
+
+int
 main(argc, argv)
 int     argc;
 char  **argv;
@@ -32,17 +40,18 @@ char  **argv;
 
     while (fgets(buf, sizeof(buf), stdin)) {
 	if (parse_line(buf, &prog, &vers, &prot, &port) == 0) {
-	    fprintf(stderr, "%s: malformed line: %s", argv[0], buf);
+	    warnx("malformed line: %s", buf);
 	    return (1);
 	}
 	if (pmap_set(prog, vers, prot, (unsigned short) port) == 0)
-	    fprintf(stderr, "not registered: %s", buf);
+	    warnx("not registered: %s", buf);
     }
     return (0);
 }
 
 /* parse_line - convert line to numbers */
 
+int
 parse_line(buf, prog, vers, prot, port)
 char   *buf;
 u_long *prog;
