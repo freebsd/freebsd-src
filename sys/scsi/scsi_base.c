@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.16 1995/01/08 13:38:31 dufault Exp $
+ *      $Id: scsi_base.c,v 1.17 1995/01/19 12:41:35 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -405,6 +405,21 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	struct scsi_xfer *xs;
 	errval  retval;
 	u_int32 s;
+
+	/*
+	 * Illegal command lengths will wedge host adapter software.
+	 * Reject zero length commands and assert all defined commands
+	 * are the correct length.
+	 */
+	if (cmdlen == 0)
+		return EFAULT;
+	else
+	{
+		static u_int8 sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
+		u_int8 size = sizes[((scsi_cmd->opcode) >> 5)];
+		if (size && (size != cmdlen))
+			return EIO;
+	}
 
 	if (bp && !(flags & SCSI_USER)) flags |= SCSI_NOSLEEP;
 	SC_DEBUG(sc_link, SDEV_DB2, ("scsi_cmd\n"));

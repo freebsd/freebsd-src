@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.23 1994/12/16 06:03:26 phk Exp $
+ * $Id: st.c,v 1.24 1995/01/08 13:38:36 dufault Exp $
  */
 
 /*
@@ -602,7 +602,7 @@ stopen(dev, flags)
 	 * This time take notice of the return result
 	 */
 	if (errno = (scsi_test_unit_ready(sc_link, 0))) {
-		printf("st%d: not ready\n", unit);
+		uprintf("st%d: not ready\n", unit);
 		st_unmount(unit, NOEJECT);
 		return (errno);
 	}
