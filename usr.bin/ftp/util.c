@@ -117,6 +117,7 @@ setpeer(argc, argv)
 		}
 
 		connected = 1;
+		try_epsv = 1;
 		/*
 		 * Set up defaults for FTP.
 		 */
