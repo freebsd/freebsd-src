@@ -140,7 +140,6 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 	struct tte *bucket;
 	struct tte *rtp;
 	struct tte *tp;
-	vm_page_t om;
 	vm_offset_t ova;
 	int b0;
 	int i;
