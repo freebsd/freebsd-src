@@ -52,7 +52,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_PROCESSOR
-MODULE_NAME("PROCESSOR")
+ACPI_MODULE_NAME("PROCESSOR")
 
 struct acpi_cpu_softc {
     device_t		cpu_dev;
@@ -143,7 +143,7 @@ acpi_cpu_attach(device_t dev)
     u_int32_t			duty_end;
     int				rid;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_ASSERTLOCK;
 
