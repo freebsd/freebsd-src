@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c 1.2 1998/08/21 15:01:13 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.1 1998/09/12 22:03:20 luigi Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
 #include <sys/queue.h>			/* XXX */
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
@@ -68,7 +69,7 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, calls, CTLFLAG_RD, &dn_calls, 0, "")
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, idle, CTLFLAG_RD, &dn_idle, 0, "");
 #endif
 
-static int ip_dn_ctl(int optname, struct mbuf **mm);
+static int ip_dn_ctl(struct sockopt *sopt);
 
 static void dummynet(void);
 static void dn_restart(void);
@@ -116,7 +117,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
      */
     if ( pipe->p.head == NULL &&
 		pipe->ticks_from_last_insert != pipe->delay) {
-	printf("Warning, empty pipe and delay %d (should be %a)d\n",
+	printf("Warning, empty pipe and delay %d (should be %d)\n",
 		pipe->ticks_from_last_insert, pipe->delay);
 	pipe->ticks_from_last_insert = pipe->delay;
     }
@@ -402,16 +403,23 @@ dn_rule_delete(void *r)
 {
 
     struct dn_pipe *q, *p = all_pipes ;
-
+    int matches = 0 ;
     for ( p= all_pipes ; p ; p = p->next ) {
 	struct dn_pkt *x ;
 	for (x = p->r.head ; x ; x = (struct dn_pkt *)x->dn_next )
-	    if (x->hdr.mh_data == r)
+	    if (x->hdr.mh_data == r) {
+		matches++ ;
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
+	    }
 	for (x = p->p.head ; x ; x = (struct dn_pkt *)x->dn_next )
-	    if (x->hdr.mh_data == r)
+	    if (x->hdr.mh_data == r) {
+		matches++ ;
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
     }
+}
+    printf("dn_rule_delete, r 0x%x, default 0x%x%s, %d matches\n",
+	    r, ip_fw_default_rule,
+	r == ip_fw_default_rule ? "  AARGH!":"",  matches);
 }
 
 /*
@@ -419,51 +427,53 @@ dn_rule_delete(void *r)
  * (get, flush, config, del)
  */
 static int
-ip_dn_ctl(int optname, struct mbuf **mm)
+ip_dn_ctl(struct sockopt *sopt)
 {
-	struct mbuf *m ;
-	if (optname == IP_DUMMYNET_GET) {
-	    struct dn_pipe *p = all_pipes ;
-	    *mm = m = m_get(M_WAIT, MT_SOOPTS);
-	    m->m_len = 0 ;
-	    m->m_next = NULL ;
-	    for (; p ;  p = p->next ) {
-		struct dn_pipe *q = mtod(m,struct dn_pipe *) ;
-		memcpy( m->m_data, p, sizeof(*p) );
+    int error = 0 ;
+    size_t size ;
+    char *buf, *bp ;
+    struct dn_pipe *p, *q, tmp_pipe ;
+
+    struct dn_pipe *x, *a, *b ;
+
+    /* Disallow sets in really-really secure mode. */
+    if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
+	return (EPERM);
+
+    switch (sopt->sopt_name) {
+    default :
+	panic("ip_dn_ctl -- unknown option");
+
+    case IP_DUMMYNET_GET :
+	for (p = all_pipes, size = 0 ; p ; p = p->next )
+	    size += sizeof( *p ) ;
+	buf = malloc(size, M_TEMP, M_WAITOK);
+	if (buf == 0) {
+	    error = ENOBUFS ;
+	    break ;
+	}
+	for (p = all_pipes, bp = buf ; p ; p = p->next ) {
+	    struct dn_pipe *q = (struct dn_pipe *)bp ;
+
+	    bcopy(p, bp, sizeof( *p ) );
 		/*
 		 * return bw and delay in bits/s and ms, respectively
 		 */
 		q->bandwidth *= (8*hz) ;
 		q->delay = (q->delay * 1000) / hz ;
-
-		m->m_len = sizeof(*p) ;
-		m->m_next = m_get(M_WAIT, MT_SOOPTS);
-		m = m->m_next ;
-		m->m_len = 0 ;
-	    }
-	    return 0 ;
+	    bp += sizeof( *p ) ;
 	}
-	if (securelevel > 2) { /* like in the firewall code... */
-	    if (m) (void)m_free(m);
-	    return (EPERM) ;
-	}
-	m = *mm ;
-	if (optname == IP_DUMMYNET_FLUSH) {
+	error = sooptcopyout(sopt, buf, size);
+	FREE(buf, M_TEMP);
+	break ;
+    case IP_DUMMYNET_FLUSH :
 	    dummynet_flush() ;
-	    if (m) (void)m_free(m);
-	    return 0 ;
-	}
-	if (!m)		/* need an argument for the following */
-		return (EINVAL);
-	if (optname == IP_DUMMYNET_CONFIGURE) {
-	    struct dn_pipe *p = mtod(m,struct dn_pipe *) ;
-	    struct dn_pipe *x, *a, *b ;
-	    if (m->m_len != sizeof (*p) ) {
-		printf("dn_pipe Invalid length, %d instead of %d\n",
-			m->m_len, sizeof(*p) );
-		(void)m_free(m);
-		return (EINVAL);
-	    }
+	break ;
+    case IP_DUMMYNET_CONFIGURE :
+	p = &tmp_pipe ;
+	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
+	if (error)
+	    break ;
 	    /*
 	     * The config program passes parameters as follows:
 	     * bandwidth = bits/second (0 = no limits);
@@ -509,7 +519,8 @@ ip_dn_ctl(int optname, struct mbuf **mm)
 		x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT) ;
 		if (x == NULL) {
 		    printf("ip_dummynet.c: sorry no memory\n");
-		    return (ENOSPC) ;
+		error = ENOSPC ;
+		break ;
 		}
 		bzero(x, sizeof(*x) );
 		x->bandwidth = p->bandwidth ;
@@ -528,12 +539,13 @@ ip_dn_ctl(int optname, struct mbuf **mm)
 		    a->next = x ;
 		splx(s);
 	    }
-	    (void)m_free(m);
-	    return 0 ;
-	}
-	if (optname == IP_DUMMYNET_DEL) {
-	    struct dn_pipe *p = mtod(m,struct dn_pipe *) ;
-	    struct dn_pipe *x, *a, *b ;
+	break ;
+
+    case IP_DUMMYNET_DEL :
+	p = &tmp_pipe ;
+	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
+	if (error)
+	    break ;
 
 	    for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
 		 a = b , b = b->next) ;
@@ -557,8 +569,9 @@ ip_dn_ctl(int optname, struct mbuf **mm)
 		purge_pipe(b);	/* remove pkts from here */
 		free(b, M_IPFW);
 	    }
+	break ;
 	}
-	return 0 ;
+    return error ;
 }
 
 void

@@ -16,6 +16,8 @@
 #ifndef _IP_DUMMYNET_H
 #define _IP_DUMMYNET_H
 
+typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
+extern ip_dn_ctl_t *ip_dn_ctl_ptr;
 /*
  * Definition of dummynet data structures.
  * Dummynet handles a list of pipes, each one identified by a unique
@@ -85,12 +87,20 @@ struct dn_pipe {			/* a pipe */
 };
 
 /*
+ * The following is used to define a new mbuf type that is
+ * prepended to the packet when it comes out of a pipe. The definition
+ * ought to go in /sys/sys/mbuf.h but here it is less intrusive.
+ */
+
+#define MT_DUMMYNET MT_CONTROL
+/*
  * what to do of a packet when it comes out of a pipe
  */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
 #ifdef KERNEL
+MALLOC_DECLARE(M_IPFW);
 void ip_dn_init(void);	/* called in ip_input.c */
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
