@@ -133,10 +133,15 @@ ad_attach(struct ata_softc *scp, int device)
 		    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
 	printf("ad%d: enabling readahead cache failed\n", adp->lun);
 
+#if defined(ATA_ENABLE_WC) || defined(ATA_ENABLE_TAGS)
     if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
 		    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
 	printf("ad%d: enabling write cache failed\n", adp->lun);
-
+#else
+    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+		    0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
+	printf("ad%d: disabling write cache failed\n", adp->lun);
+#endif
     /* use DMA if drive & controller supports it */
     ata_dmainit(adp->controller, adp->unit,
     		ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
