@@ -1,4 +1,4 @@
-/*	$NetBSD: util.c,v 1.114 2003/08/07 11:13:57 agc Exp $	*/
+/*	$NetBSD: util.c,v 1.115 2004/04/10 12:21:39 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
@@ -71,7 +71,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: util.c,v 1.114 2003/08/07 11:13:57 agc Exp $");
+__RCSID("$NetBSD: util.c,v 1.115 2004/04/10 12:21:39 lukem Exp $");
 #endif /* not lint */
 
 /*
@@ -1204,14 +1204,29 @@ isipv6addr(const char *addr)
 
 
 /*
- * Internal version of connect(2); sets socket buffer sizes first.
+ * Internal version of connect(2); sets socket buffer sizes first and
+ * handles the syscall being interrupted.
+ * Returns -1 upon failure (with errno set to the problem), or 0 on success.
  */
 int
 xconnect(int sock, const struct sockaddr *name, int namelen)
 {
+	int	rv;
 
 	setupsockbufsize(sock);
-	return (connect(sock, name, namelen));
+	rv = connect(sock, name, namelen);
+	if (rv == -1 && errno == EINTR) {
+		fd_set	connfd;
+
+		FD_ZERO(&connfd);
+		FD_SET(sock, &connfd);
+		do {
+			rv = select(sock + 1, NULL, &connfd, NULL, NULL);
+		} while (rv == -1 && errno == EINTR);
+		if (rv > 0)
+			rv = 0;
+	}
+	return (rv);
 }
 
 /*
