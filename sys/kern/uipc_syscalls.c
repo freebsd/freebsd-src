@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.14 1996/02/13 18:16:21 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.15 1996/02/24 13:38:07 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -167,7 +167,7 @@ accept1(p, uap, retval, compat)
 	struct file *fp;
 	struct mbuf *nam;
 	int namelen, error, s;
-	register struct socket *so;
+	struct socket *head, *so;
 
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
@@ -179,30 +179,30 @@ accept1(p, uap, retval, compat)
 	if (error)
 		return (error);
 	s = splnet();
-	so = (struct socket *)fp->f_data;
-	if ((so->so_options & SO_ACCEPTCONN) == 0) {
+	head = (struct socket *)fp->f_data;
+	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		splx(s);
 		return (EINVAL);
 	}
-	if ((so->so_state & SS_NBIO) && so->so_qlen == 0) {
+	if ((head->so_state & SS_NBIO) && head->so_comp.tqh_first == NULL) {
 		splx(s);
 		return (EWOULDBLOCK);
 	}
-	while (so->so_qlen == 0 && so->so_error == 0) {
-		if (so->so_state & SS_CANTRCVMORE) {
-			so->so_error = ECONNABORTED;
+	while (head->so_comp.tqh_first == NULL && head->so_error == 0) {
+		if (head->so_state & SS_CANTRCVMORE) {
+			head->so_error = ECONNABORTED;
 			break;
 		}
-		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH,
+		error = tsleep((caddr_t)&head->so_timeo, PSOCK | PCATCH,
 		    "accept", 0);
 		if (error) {
 			splx(s);
 			return (error);
 		}
 	}
-	if (so->so_error) {
-		error = so->so_error;
-		so->so_error = 0;
+	if (head->so_error) {
+		error = head->so_error;
+		head->so_error = 0;
 		splx(s);
 		return (error);
 	}
@@ -211,11 +211,15 @@ accept1(p, uap, retval, compat)
 		splx(s);
 		return (error);
 	}
-	{ struct socket *aso = so->so_q;
-	  if (soqremque(aso, 1) == 0)
-		panic("accept");
-	  so = aso;
-	}
+
+	so = head->so_comp.tqh_first;
+	if (so == NULL)
+		panic("accept: nothing queued");
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	so->so_state &= ~SS_COMP;
+	so->so_head = NULL;
+	head->so_qlen--;
+
 	fp->f_type = DTYPE_SOCKET;
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_ops = &socketops;
