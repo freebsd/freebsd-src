@@ -1127,6 +1127,9 @@ SCLASS	volatile int	_sigq_check_reqd
 #endif
 ;
 
+/* The signal stack. */
+SCLASS struct sigaltstack _thread_sigstack;
+
 /* Thread switch hook. */
 SCLASS pthread_switch_routine_t _sched_switch_hook
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -1268,7 +1271,7 @@ int     _thread_sys_sigsuspend(const sigset_t *);
 int     _thread_sys_siginterrupt(int, int);
 int     _thread_sys_sigpause(int);
 int     _thread_sys_sigreturn(ucontext_t *);
-int     _thread_sys_sigaltstack(const struct sigaltstack *, struct sigstack *);
+int     _thread_sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int     _thread_sys_sigstack(const struct sigstack *, struct sigstack *);
 int     _thread_sys_sigvec(int, struct sigvec *, struct sigvec *);
 void    _thread_sys_psignal(unsigned int, const char *);
