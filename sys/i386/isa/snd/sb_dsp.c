@@ -172,7 +172,7 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
     DEB(printf("<%s>%d : open\n", d->name, unit));
 
     if (d->flags & SND_F_BUSY) {
-	DEB(printf("<%s>%d open: device busy\n", d->name, unit));
+	printf("<%s>%d open: device busy\n", d->name, unit);
 	return EBUSY ;
     }
 
@@ -304,24 +304,23 @@ again:
 	/* this tells us if the source is 8-bit or 16-bit dma. We
 	 * have to check the io channel to map it to read or write...
 	 */
-        if ( (d->bd_flags & BD_F_SB16X) == 0 ) {
 	    reason = 0 ;
 	    if ( c & 1 ) { /* 8-bit dma */
-		if (d->dbuf_out.chan < 4)
+	    if (d->play_fmt == AFMT_U8 || d->play_fmt == AFMT_MU_LAW )
 		    reason |= 1;
-		if (d->dbuf_in.chan < 4)
+	    if (d->rec_fmt == AFMT_U8 || d->rec_fmt == AFMT_MU_LAW )
 		    reason |= 2;
 	    }
 	    if ( c & 2 ) { /* 16-bit dma */
-		if (d->dbuf_out.chan >= 4)
+	    if (d->play_fmt == AFMT_S16_LE)
 		    reason |= 1;
-		if (d->dbuf_in.chan >= 4)
+	    if (d->rec_fmt == AFMT_S16_LE)
 		    reason |= 2;
 	    }
 	}
-    }
     /* XXX previous location of ack... */
-    DEB(printf("sbintr, flags 0x%08lx reason %d\n", d->flags, reason));
+    DEB(printf("sbintr, flags 0x%08lx reason %d c 0x%x\n",
+	d->flags, reason, c));
     if ( reason & 1 ) { /* possibly a write interrupt */
 	if ( d->dbuf_out.dl )
 	    dsp_wrintr(d);
@@ -387,7 +386,7 @@ sb_callback(snddev_info *d, int reason)
 	    d->flags &= ~SND_F_XLAT8 ;
 
 	/*
-	 * there are too many SB for my taste... here i try to do
+	 * there are too many flavours of SB for my taste... here i try to do
 	 * the proper initialization for each one.
 	 */
 	if (PLAIN_SB16(d->bd_flags)) {
@@ -1223,75 +1222,6 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
 
     snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
     pcmattach(dev); 
-}
-
-static char *opti925_probe(u_long csn, u_long vend_id);
-static void opti925_attach(u_long csn, u_long vend_id, char *name,
-        struct isa_device *dev);
-
-static struct pnp_device opti925 = {
-        "opti925",
-        opti925_probe,
-        opti925_attach,
-        &nsnd,  /* use this for all sound cards */
-        &tty_imask      /* imask */
-};
-DATA_SET (pnpdevice_set, opti925);
-    
-static char *
-opti925_probe(u_long csn, u_long vend_id)
-{   
-    if (vend_id == 0x2509143e) {
-	struct pnp_cinfo d ;
-	read_pnp_parms ( &d , 1 ) ;
-	if (d.enable == 0) {
-	    printf("This is an OPTi925, but LDN 1 is disabled\n");
-	    return NULL;
-	}
-        return "OPTi925" ;
-    }
-    return NULL ;
-}
-    
-static void
-opti925_attach(u_long csn, u_long vend_id, char *name,
-        struct isa_device *dev)
-{   
-    struct pnp_cinfo d ;
-    snddev_info tmp_d ; /* patched copy of the basic snddev_info */
-    int the_irq = 0 ; 
-    
-    tmp_d = sb_op_desc;
-    snddev_last_probed = &tmp_d;
-
-    read_pnp_parms ( &d , 3 );  /* disable LDN 3 */
-    the_irq = d.irq[0];
-    d.port[0] = 0 ;
-    d.enable = 0 ;
-    write_pnp_parms ( &d , 3 );
-    
-    read_pnp_parms ( &d , 2 ); /* disable LDN 2 */
-    d.port[0] = 0 ;
-    d.enable = 0 ;
-    write_pnp_parms ( &d , 2 );
- 
-    read_pnp_parms ( &d , 1 ) ;
-    d.irq[0] = the_irq ;
-    dev->id_iobase = d.port[0];
-    write_pnp_parms ( &d , 1 );
-    enable_pnp_card();
-
-    tmp_d.conf_base = d.port[3];
-
-    dev->id_drq = d.drq[0] ; /* primary dma */
-    dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ; 
-    dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
-
-    snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
-    
-    pcmattach(dev); 
-
 }
 
 /*

@@ -213,7 +213,7 @@ DATA SHEETS:
     good (i.e. bug-free) emulation of the WSS, so it is fully
     supported by the driver.
 
-    pnp 1 0 os enable port0 0x220 port1 0x530 port2 0x388 port3 0x370 irq0 5 drq0 1 drq1 5
+    pnp 1 0 os enable port0 0x220 port1 0x530 port2 0x388 port3 0x370 irq0 5 drq0 1 drq1 0
 
     this card emulates a WSS or SB. Have reports that it works, although
     it has incomplete mixer support (Yamaha defines an additional set

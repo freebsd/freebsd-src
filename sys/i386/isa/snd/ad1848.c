@@ -239,8 +239,35 @@ mss_attach(struct isa_device *dev)
 	    outb(dev->id_iobase, bits );
 	}
     }
+    if (1) { /* machine-specific code for the libretto */
+	/*
+	 * XXX should probably read before writing
+	 */
+        u_char r6, r9;
+        outb( 0x370, 6 /* dma config */ );
+        outb( 0x371, 0xa9 /* config: DMA-B for rec, DMA-A for play */);
+        r6 = inb( 0x371 /* read */ ); 
+        outb( 0x370, 0xa /* version */ );
+        r9 = inb( 0x371 /* read */ );
+        DEB(printf("Yamaha: ver 0x%x DMA config 0x%x\n", r6, r9);)
+	/*
+	 * yamaha - set volume to max
+	 */
+	outb( 0x370, 7 /* volume left */ );
+	outb( 0x371, 0 /* max level */ );
+	outb( 0x370, 8 /* volume right */ );
+	outb( 0x371, 0 /* max level */ );
+    }
     if ( FULL_DUPLEX(d) )
 	d->audio_fmt |= AFMT_FULLDUPLEX ;
+    if (d->bd_id == MD_YM0020) {
+	DDB(printf("setting up yamaha registers\n"));
+	outb(0x370, 6 /* dma config */ ) ;
+	if (FULL_DUPLEX(d))
+	    outb(0x371, 0xa9 ); /* use both dma chans */
+	else
+	    outb(0x371, 0x8b ); /* use low dma chan */
+    }
     mss_reinit(d);
     ad1848_mixer_reset(d);
     return 0;
@@ -417,7 +444,7 @@ mss_callback(snddev_info *d, int reason)
 	    cnt /= 2;
 	cnt-- ;
 
-	DEB(printf("-- (re)start cnt %d\n", cnt));
+	DEB(printf("-- mss_callback, (re)start cnt %d\n", cnt));
 	m = ad_read(d,9) ;
 	DEB( if (m & 4) printf("OUCH! reg 9 0x%02x\n", m); );
 	m |= wr ? I9_PEN : I9_CEN ; /* enable DMA */
@@ -639,7 +666,6 @@ gus_readw(int io_base, u_char reg)
     return inw(io_base+4);
 }
 
-
 /*
  * AD_WAIT_INIT waits if we are initializing the board and
  * we cannot modify its settings
@@ -664,13 +690,14 @@ ad_read(snddev_info *d, int reg)
     int             x;
 
     flags = spltty();
-    AD_WAIT_INIT(d, 100);
+    AD_WAIT_INIT(d, 201);
     x = inb(io_Index_Addr(d)) & ~IA_AMASK ;
     outb(io_Index_Addr(d), (u_char) (reg & IA_AMASK) | x ) ;
     x = inb(io_Indexed_Data(d));
     splx(flags);
     return x;
 }
+
 
 static void
 ad_write(snddev_info *d, int reg, u_char data)
@@ -679,7 +706,7 @@ ad_write(snddev_info *d, int reg, u_char data)
 
     int x ;
     flags = spltty();
-    AD_WAIT_INIT(d, 100);
+    AD_WAIT_INIT(d, 1002);
     x = inb(io_Index_Addr(d)) & ~IA_AMASK ;
     outb(io_Index_Addr(d), (u_char) (reg & IA_AMASK) | x ) ;
     outb(io_Indexed_Data(d), data);
@@ -738,7 +765,7 @@ ad_enter_MCE(snddev_info *d)
     int prev;
 
     d->bd_flags |= BD_F_MCE_BIT;
-    AD_WAIT_INIT(d, 100);
+    AD_WAIT_INIT(d, 203);
     prev = inb(io_Index_Addr(d));
     prev &= ~IA_TRD ;
     outb(io_Index_Addr(d), prev | IA_MCE ) ;
@@ -860,10 +887,11 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 
     d->mix_levels[dev] = left | (right << 8);
 
+#if 0
     /* Scale volumes */
     left = mix_cvt[left];
     right = mix_cvt[right];
-
+#endif
     /*
      * Set the left channel
      */
@@ -926,6 +954,16 @@ ad1848_mixer_reset(snddev_info *d)
 	ad_write(d, 20, 0x88);
 	ad_write(d, 21, 0x88);
 	break;
+
+    case MD_YM0020:
+	/* set master volume to max */
+	DDB(printf("set yamaha master volume to max"); )
+	outb(0x370, 7) ;
+	outb(0x371, 0) ;
+	outb(0x370, 8) ;
+	outb(0x371, 0) ;
+	break;
+
     case MD_GUSPNP:
 	/* this is only necessary in mode 3 ... */
 	ad_write(d, 22, 0x88);
@@ -1004,7 +1042,7 @@ mss_format(snddev_info *d)
 	arg = AFMT_U8 ;
 
     /* ulaw/alaw seems broken on the opti931... */
-    if (d->bd_id == MD_OPTI931) {
+    if (d->bd_id == MD_OPTI931 || d->bd_id == MD_GUSPNP) {
 	if (arg == AFMT_MU_LAW) {
 	    arg = AFMT_U8 ;
 	    d->flags |= SND_F_XLAT8 ;
@@ -1059,7 +1097,7 @@ mss_detect(struct isa_device *dev)
      * Check that the I/O address is in use.
      * 
      * bit 7 of the base I/O port is known to be 0 after the chip has
-     * performed it's power on initialization. Just assume this has
+     * performed its power on initialization. Just assume this has
      * happened before the OS is starting.
      * 
      * If the I/O address is unused, it typically returns 0xff.
@@ -1240,6 +1278,13 @@ mss_detect(struct isa_device *dev)
 			d->bd_id = MD_AD1845;
 		    }
 		    ad_write(d, 23, tmp);	/* Restore */
+		    DDB(printf("... try to identify the yamaha\n") ;)
+		    tmp = inb(0x370) ;
+		    outb(0x370, 6 /* dma config */ ) ;
+		    if (inb(0x370) != 6 ) /* not a yamaha... restore. */
+			outb(0x370, tmp ) ;
+		    else
+			d->bd_id = MD_YM0020 ;
 		    break;
 
 		case 0x83:	/* CS4236 */
@@ -1251,7 +1296,6 @@ mss_detect(struct isa_device *dev)
 		default:	/* Assume CS4231 */
 		    BVDDB(printf("unknown id 0x%02x, assuming CS4231\n", id);)
 		    d->bd_id = MD_CS4231;
-
 		}
 	    }
 	    ad_write(d, 25, tmp1);	/* Restore bits */
@@ -1369,10 +1413,10 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "Yamaha SA2";
     else if ( id == 0x3000a865)
 	s = "Yamaha SA3";
+    else if (vend_id == 0x0000a865)
+	s = "Yamaha YMF719 OPL-SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
-    else if (vend_id == 0x0008a865)
-	s = "Yamaha SA3";
     if (s) {
 	struct pnp_cinfo d;
 	read_pnp_parms(&d, 0);
@@ -1424,7 +1468,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 
 	case 0x2000a865:	/* Yamaha SA2 */
 	case 0x3000a865:	/* Yamaha SA3 */
-	case 0x0000a865:	/* Yamaha SA3 again */
+	case 0x0000a865:	/* Yamaha TMF719 SA3 */
 	    dev->id_iobase = d.port[1];
 	    tmp_d.alt_base = d.port[0];
 	    tmp_d.conf_base = d.port[4];
@@ -1542,8 +1586,11 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     tmp_d.io_base = dev->id_iobase; /* needed for ad_write to work... */
     tmp_d.alt_base = d.port[2];
     tmp_d.synth_base = d.port[1];
+    DEB(printf("opti_attach: selecting mode\n");)
     opti_write(p, 4, 0xd6 /* fifo empty, OPL3, audio enable, SB3.2 */ );
+    DELAY(1000*300);
     ad_write (&tmp_d, 10, 2); /* enable interrupts */
+    DEB(printf("opti_attach: int enabled\n");)
 
     if (d.flags & DV_PNP_SBCODEC) { /* sb-compatible codec */
 	/*
@@ -1570,6 +1617,76 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
     dev->id_intr = pcmintr ;
+    pcmattach(dev);
+}
+
+static char *opti925_probe(u_long csn, u_long vend_id);
+static void opti925_attach(u_long csn, u_long vend_id, char *name,
+        struct isa_device *dev);
+    
+static struct pnp_device opti925 = {
+        "opti925",
+        opti925_probe,
+        opti925_attach,
+        &nsnd,  /* use this for all sound cards */
+        &tty_imask      /* imask */ 
+};  
+DATA_SET (pnpdevice_set, opti925);
+    
+static char *
+opti925_probe(u_long csn, u_long vend_id)
+{
+    if (vend_id == 0x2509143e) {
+        struct pnp_cinfo d ;
+        read_pnp_parms ( &d , 1 ) ;
+        if (d.enable == 0) {
+            printf("This is an OPTi925, but LDN 1 is disabled\n");
+            return NULL;
+        }
+        return "OPTi925" ;
+    }
+    return NULL ;
+}  
+
+static void 
+opti925_attach(u_long csn, u_long vend_id, char *name, 
+        struct isa_device *dev) 
+{
+    struct pnp_cinfo d ; 
+    snddev_info tmp_d ; /* patched copy of the basic snddev_info */
+    int the_irq = 0 ; 
+
+    tmp_d = mss_op_desc;
+    snddev_last_probed = &tmp_d; 
+  
+    read_pnp_parms ( &d , 3 );  /* disable LDN 3 */
+    the_irq = d.irq[0];
+    d.port[0] = 0 ;
+    d.enable = 0 ;
+    write_pnp_parms ( &d , 3 );
+
+    read_pnp_parms ( &d , 2 ); /* disable LDN 2 */
+    d.port[0] = 0 ;
+    d.enable = 0 ; 
+    write_pnp_parms ( &d , 2 );
+
+    read_pnp_parms ( &d , 1 ) ;
+    d.irq[0] = the_irq ;
+    dev->id_iobase = d.port[1];
+    tmp_d.alt_base = d.port[0];  
+    write_pnp_parms ( &d , 1 );
+    enable_pnp_card();
+
+    tmp_d.conf_base = d.port[3];
+
+    dev->id_drq = d.drq[0] ; /* primary dma */
+    dev->id_irq = (1 << d.irq[0] ) ;
+    dev->id_intr = pcmintr ;
+    dev->id_flags = DV_F_DUAL_DMA | d.drq[1] ;
+    tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
+
+    snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
+ 
     pcmattach(dev);
 }
 
