@@ -1671,6 +1671,7 @@ crdup(cr)
 
 	MALLOC(newcr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK);
 	*newcr = *cr;
+	bzero(&newcr->cr_mtx, sizeof(newcr->cr_mtx));
 	mtx_init(&newcr->cr_mtx, "ucred", MTX_DEF);
 	uihold(newcr->cr_uidinfo);
 	uihold(newcr->cr_ruidinfo);
