@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.63 1999/05/09 04:26:06 kato Exp $
+#	$Id: Makefile.pc98,v 1.64 1999/05/10 09:00:29 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -49,7 +49,7 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 # Use the default object format for genassym, etc.
-GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -UKERNEL
 
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
@@ -135,7 +135,7 @@ ${KERNEL}:	${FULLKERNEL}
 .endif
 .endif
 
-${FULLKERNEL}:	${SYSTEM_DEP} vers.o
+${FULLKERNEL}:	${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
