@@ -31,7 +31,6 @@
 
 #define	__bool_true_false_are_defined	1
 
-/* And those constants must also be available as macros */
 #define	false	0
 #define	true	1
 
