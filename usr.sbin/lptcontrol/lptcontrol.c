@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lptcontrol/lptcontrol.c,v 1.14 2003/05/03 21:06:37 obrien Exp $");
 
 #include <ctype.h>
 #include <err.h>

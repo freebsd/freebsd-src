@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/uart/Makefile,v 1.6 2003/09/17 03:00:08 marcel Exp $
 
 .PATH: ${.CURDIR}/../../dev/uart
 

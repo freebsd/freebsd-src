@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/snmp_mibII/genfiles,v 1.1 2003/11/10 09:17:33 harti Exp $
 
 CONTRIB="../../../../contrib/bsnmp/snmp_mibII"
 
@@ -12,7 +12,7 @@ gensnmptree <${CONTRIB}/mibII_tree.def -l -p mibII_
 for i in mibII_tree.h mibII_tree.c mibII_oid.h ; do
 	ex $i <<'EOF'
 0a
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libbsnmp/modules/snmp_mibII/genfiles,v 1.1 2003/11/10 09:17:33 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 .
 wq

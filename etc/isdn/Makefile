@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/Makefile,v 1.11 2003/08/18 15:33:08 obrien Exp $
 
 I4BETCPROG=	answer			\
 		isdntel.sh		\

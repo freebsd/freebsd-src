@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/if_ic.c,v 1.19 2003/10/31 18:32:02 brooks Exp $");
 
 /*
  * I2C bus IP driver

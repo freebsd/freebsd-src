@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/libpc98/time.c,v 1.5 2003/09/08 09:11:20 obrien Exp $");
 
 #include <stand.h>
 #include <btxv86.h>

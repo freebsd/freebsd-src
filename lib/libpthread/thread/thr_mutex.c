@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_mutex.c,v 1.43 2003/11/04 19:53:32 deischen Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

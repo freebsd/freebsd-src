@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/firewire/fwcrom.c,v 1.9 2003/10/02 04:06:55 simokawa Exp $");
 
 #include <sys/param.h>
 #if defined(_KERNEL) || defined(TEST)

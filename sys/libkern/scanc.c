@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/scanc.c,v 1.10 2003/07/25 15:54:23 bde Exp $");
 
 #include <sys/libkern.h>
 

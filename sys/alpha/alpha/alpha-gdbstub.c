@@ -93,7 +93,7 @@
  ****************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/alpha-gdbstub.c,v 1.15 2003/08/17 06:42:07 marcel Exp $");
 
 #include "opt_ddb.h"
 

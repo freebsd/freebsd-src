@@ -1,5 +1,5 @@
 /* Shared between kernel & process */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pc98/pc98/wormio.h,v 1.2 2000/04/29 05:55:33 nyan Exp $ */
 
 #ifndef	_SYS_WORMIO_H_
 #define	_SYS_WORMIO_H_

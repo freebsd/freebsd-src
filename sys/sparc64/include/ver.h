@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/ver.h,v 1.4 2002/11/07 16:07:46 tmm Exp $
  */
 
 #ifndef	_MACHINE_VER_H_

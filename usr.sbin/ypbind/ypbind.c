@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ypbind/ypbind.c,v 1.39 2003/05/03 21:06:41 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/dial/floppy.tree/etc/ppp/ppp.conf.template,v 1.2 1999/08/28 01:33:19 peter Exp $
 #  	PPP  Sample Configuration File
 #
 default:

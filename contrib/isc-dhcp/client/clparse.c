@@ -44,7 +44,7 @@
 #ifndef lint
 static char copyright[] =
 "$Id: clparse.c,v 1.62.2.4 2003/02/10 00:39:57 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n"
-"$FreeBSD$\n";
+"$FreeBSD: src/contrib/isc-dhcp/client/clparse.c,v 1.11 2003/09/02 11:13:20 mbr Exp $\n";
 #endif /* not lint */
 
 #include "dhcpd.h"

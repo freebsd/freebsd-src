@@ -19,7 +19,7 @@
 
     <corpauthor>The &os; Project</corpauthor>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/readme/article.sgml,v 1.27 2003/09/08 14:53:02 simon Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

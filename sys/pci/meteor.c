@@ -144,7 +144,7 @@
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/meteor.c,v 1.66 2003/08/26 16:57:24 nectar Exp $");
 
 #ifdef COMPILING_LINT
 #warning "The meteor driver is broken and is not compiled with LINT"

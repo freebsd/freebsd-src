@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_timeout.c,v 1.83 2003/11/15 18:33:54 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

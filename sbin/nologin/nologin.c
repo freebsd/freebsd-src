@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/nologin/nologin.c,v 1.1 2003/11/17 06:39:38 das Exp $");
 
 #include <sys/types.h>
 #include <sys/uio.h>

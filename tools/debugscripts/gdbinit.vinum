@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/debugscripts/gdbinit.vinum,v 1.1 2003/06/07 01:01:42 grog Exp $
 # gdb macros for debugging Vinum.
 # This file gets included from the .gdbinit files in 
 # the kernel build directory and /var/crash.

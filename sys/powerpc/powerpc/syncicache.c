@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/syncicache.c,v 1.4 2003/04/03 21:36:33 obrien Exp $");
 
 #include <sys/param.h>
 #if	defined(_KERNEL) || defined(_STANDALONE)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/pci/pci_cfgreg.c,v 1.2 2001/10/03 08:25:58 dfr Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/gpt/mkdisk.sh,v 1.1 2002/07/20 19:27:43 peter Exp $
 
 dd if=/dev/zero of=disk count=125307
 sudo mdconfig -a -t vnode -f disk -u 4

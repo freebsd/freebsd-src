@@ -34,7 +34,7 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/uart/uart_dev_sab82532.h,v 1.1 2003/09/06 23:13:47 marcel Exp $
  */
 
 /*

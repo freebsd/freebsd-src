@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/linux/linux_sysvec.c,v 1.126 2003/09/25 01:10:24 peter Exp $");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"

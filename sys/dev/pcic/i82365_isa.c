@@ -3,7 +3,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pcic/i82365_isa.c,v 1.25 2003/08/24 17:54:15 obrien Exp $");
 /*
  * Copyright (c) 1998 Bill Sommerfeld.  All rights reserved.
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.

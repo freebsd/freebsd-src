@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/string/bzero.S,v 1.5 2003/03/03 01:09:46 obrien Exp $
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/bzero.S,v 1.5 2003/03/03 01:09:46 obrien Exp $");
 
 ENTRY(bzero, 2)
 	

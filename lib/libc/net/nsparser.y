@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/nsparser.y,v 1.4 2003/04/17 14:14:22 nectar Exp $");
 
 #include "namespace.h"
 #define _NS_PRIVATE

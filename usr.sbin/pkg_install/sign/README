@@ -52,4 +52,4 @@ libraries on OpenBSD 2.7 and FreeBSD 5.0, your mileage may vary.
 --
 
 	Wes Peters, Dec 2000
-	$FreeBSD$
+	$FreeBSD: src/usr.sbin/pkg_install/sign/README,v 1.1 2001/02/06 06:46:42 wes Exp $

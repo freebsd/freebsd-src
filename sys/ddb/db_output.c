@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_output.c,v 1.29 2003/07/31 17:27:52 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

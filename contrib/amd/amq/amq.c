@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/amd/amq/amq.c,v 1.8 2003/09/02 15:42:56 mbr Exp $");
 
 /*
  * Automounter query tool

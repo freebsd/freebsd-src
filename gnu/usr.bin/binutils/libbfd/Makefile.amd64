@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.amd64,v 1.2 2003/07/01 17:29:48 obrien Exp $
 
 .include "${.CURDIR}/Makefile.i386"
 

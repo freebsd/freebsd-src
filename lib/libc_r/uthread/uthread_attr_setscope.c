@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_setscope.c,v 1.7 2002/02/14 15:20:36 maxim Exp $
  */
 #include <errno.h>
 #include <pthread.h>

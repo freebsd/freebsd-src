@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_ntptime.c,v 1.52 2003/06/25 20:56:40 imp Exp $");
 
 #include "opt_ntp.h"
 

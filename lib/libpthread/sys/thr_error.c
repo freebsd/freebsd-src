@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/sys/thr_error.c,v 1.7 2003/04/23 21:46:50 deischen Exp $
  */
 #include <pthread.h>
 #include "libc_private.h"

@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/stallion/stlload/stlload.c,v 1.12 2002/02/11 02:34:25 dbaker Exp $";
 #endif /* not lint */
 
 #include <err.h>

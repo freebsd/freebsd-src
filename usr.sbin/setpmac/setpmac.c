@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/setpmac/setpmac.c,v 1.1 2002/10/23 03:15:24 rwatson Exp $
  */
 #include <sys/types.h>
 #include <sys/mac.h>

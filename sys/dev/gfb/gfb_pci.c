@@ -28,12 +28,12 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gfb/gfb_pci.c,v 1.9 2003/09/26 10:41:43 phk Exp $");
 
 #include "opt_fb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gfb/gfb_pci.c,v 1.9 2003/09/26 10:41:43 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/gcore/Makefile,v 1.8 2002/09/13 16:33:35 peter Exp $
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c

@@ -20,7 +20,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/alpha/freebsd.h,v 1.17 2003/08/24 16:56:31 obrien Exp $ */
 
 /* Provide a FBSD_TARGET_CPU_CPP_BUILTINS and CPP_SPEC appropriate for
    FreeBSD/alpha.  Besides the dealing with

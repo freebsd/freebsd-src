@@ -34,7 +34,7 @@
 <!--
     FreeBSD Japanese Documentation Project
 
-    $FreeBSD$
+    $FreeBSD: src/release/doc/ja_JP.eucJP/early-adopter/article.sgml,v 1.9 2003/10/11 08:56:04 hrs Exp $
     Original revision: 1.16
 -->
 
@@ -46,7 +46,7 @@
       <corpauthor>&os; リリースエンジニアリングチーム</corpauthor>
     </authorgroup>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ja_JP.eucJP/early-adopter/article.sgml,v 1.9 2003/10/11 08:56:04 hrs Exp $</pubdate>
 
     <copyright>
       <year>2002</year>

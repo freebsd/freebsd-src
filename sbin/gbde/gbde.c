@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/gbde/gbde.c,v 1.18 2003/10/13 20:14:02 phk Exp $
  *
  * XXX: Future stuff
  * 

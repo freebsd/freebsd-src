@@ -26,7 +26,7 @@ Boston, MA 02111-1307, USA.  */
    Further work by David O'Brien <obrien@FreeBSD.org> and
    Loren J. Rittle <ljrittle@acm.org>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/freebsd.h,v 1.38 2003/07/11 05:08:01 kan Exp $ */
 
 /* In case we need to know.  */
 #define USING_CONFIG_FREEBSD 1

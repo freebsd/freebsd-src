@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ministat/Makefile,v 1.2 2003/10/31 13:25:43 phk Exp $
 PROG=	ministat
 NOMAN=	yes
 

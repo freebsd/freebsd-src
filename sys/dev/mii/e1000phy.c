@@ -1,7 +1,7 @@
 /*
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/e1000phy.c,v 1.10 2003/09/20 10:53:08 wilko Exp $");
  * Principal Author: Parag Patel
  * Copyright (c) 2001
  * All rights reserved.

@@ -35,7 +35,7 @@
  *
  *	$NetBSD: mk48txxreg.h,v 1.4 2000/11/11 11:59:42 pk Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mk48txx/mk48txxreg.h,v 1.1 2002/04/04 23:44:42 tmm Exp $
  */
 
 /*

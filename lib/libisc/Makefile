@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libisc/Makefile,v 1.8 2003/06/17 08:43:19 dougb Exp $
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind
 

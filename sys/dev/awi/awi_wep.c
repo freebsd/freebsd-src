@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/awi_wep.c,v 1.15 2003/09/05 11:09:26 phk Exp $");
 
 /*
  * WEP support framework for the awi driver.

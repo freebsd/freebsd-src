@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/sys/setlogin.S,v 1.4 2003/08/16 18:59:08 marcel Exp $");
 
 #include "SYS.h"
 

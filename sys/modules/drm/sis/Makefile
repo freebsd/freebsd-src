@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/sis/Makefile,v 1.1 2003/09/09 00:29:02 anholt Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD= 	sis

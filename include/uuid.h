@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/uuid.h,v 1.2 2002/11/05 10:55:16 jmallett Exp $
  */
 
 #ifndef _UUID_H_

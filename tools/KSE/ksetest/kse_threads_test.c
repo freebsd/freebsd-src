@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/KSE/ksetest/kse_threads_test.c,v 1.6 2003/02/20 08:24:22 davidxu Exp $
  */
 
 #include <sys/types.h>

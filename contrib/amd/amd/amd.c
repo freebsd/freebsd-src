@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: amd.c,v 1.8.2.5 2002/12/27 22:44:29 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/amd.c,v 1.9 2003/09/02 15:42:56 mbr Exp $
  *
  */
 

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	$NetBSD: makelist,v 1.6 2000/09/04 23:45:18 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libedit/makelist,v 1.8 2003/08/04 21:31:51 ache Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.

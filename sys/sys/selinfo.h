@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)select.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/selinfo.h,v 1.16 2003/11/09 09:17:26 tanimura Exp $
  */
 
 #ifndef _SYS_SELINFO_H_

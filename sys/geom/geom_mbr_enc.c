@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/geom_mbr_enc.c,v 1.2 2003/06/11 06:49:15 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/endian.h,v 1.1 2003/03/11 11:45:43 ru Exp $
  */
 
 #include <sys/types.h>

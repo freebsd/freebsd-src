@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/gen/signalcontext.c,v 1.5 2003/03/29 16:38:15 deischen Exp $
  */
 
 #include <sys/cdefs.h>

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/em/if_em_hw.c,v 1.12 2003/11/14 18:02:24 pdeuskar Exp $");
 
 #include <dev/em/if_em_hw.h>
 

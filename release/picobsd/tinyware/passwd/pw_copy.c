@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/passwd/pw_copy.c,v 1.2 2002/10/10 00:25:33 alfred Exp $
  */
 
 #ifndef lint
@@ -38,7 +38,7 @@ static const char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/release/picobsd/tinyware/passwd/pw_copy.c,v 1.2 2002/10/10 00:25:33 alfred Exp $");
 
 /*
  * This module is used to copy the master password file, replacing a single

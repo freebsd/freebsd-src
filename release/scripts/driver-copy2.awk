@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/driver-copy2.awk,v 1.3 2002/08/09 07:45:42 jhay Exp $
 # 
 
 function usage()

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hfa/hfa/Makefile,v 1.1 2002/04/17 00:25:44 mdodd Exp $
 
 .PATH:	${.CURDIR}/../../../dev/hfa
 

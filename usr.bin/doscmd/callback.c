@@ -1,7 +1,7 @@
 /* No copyright?! */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/callback.c,v 1.7 2002/03/07 12:52:26 obrien Exp $");
 
 #include <sys/queue.h>
 #include "doscmd.h"

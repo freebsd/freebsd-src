@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/utrap.h,v 1.4 2003/04/29 21:30:59 jake Exp $
  */
 
 #ifndef	_MACHINE_UTRAP_H_

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libbsnmp/modules/snmp_netgraph/netgraph_tree.h,v 1.1 2003/11/10 09:17:34 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 int	op_ng_config(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_begemotNgControlNodeName 1

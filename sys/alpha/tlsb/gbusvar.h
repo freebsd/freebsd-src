@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/tlsb/gbusvar.h,v 1.4 1999/08/28 00:39:16 peter Exp $
  */
 /* $NetBSD: gbusvar.h,v 1.1 1998/05/13 02:50:29 thorpej Exp $ */
 

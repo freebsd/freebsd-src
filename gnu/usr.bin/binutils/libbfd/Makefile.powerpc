@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.powerpc,v 1.6 2002/12/02 09:59:05 obrien Exp $
 
 DEFAULT_VECTOR=	bfd_elf32_powerpc_vec
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_var.h,v 1.48 2003/11/14 21:02:21 andre Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_

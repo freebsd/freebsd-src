@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/isdnmonitor/Makefile,v 1.7 2003/04/04 17:49:14 obrien Exp $
 
 PROG=	isdnmonitor
 MAN=	isdnmonitor.8

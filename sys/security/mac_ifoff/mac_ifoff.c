@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_ifoff/mac_ifoff.c,v 1.8 2003/11/18 00:39:06 rwatson Exp $
  */
 
 /*

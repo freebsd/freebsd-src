@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/input.c,v 1.10 2002/02/18 20:35:19 mike Exp $
  */
 
 #include "defs.h"
@@ -41,7 +41,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)input.c	8.1 (Berkeley) 6/5/9
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/input.c,v 1.10 2002/02/18 20:35:19 mike Exp $"
 
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);

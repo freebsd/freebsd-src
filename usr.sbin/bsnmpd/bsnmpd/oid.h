@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/bsnmpd/bsnmpd/oid.h,v 1.1 2003/11/10 09:22:40 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 #define OID_snmpMIB	1
 #define OIDLEN_snmpMIB	7

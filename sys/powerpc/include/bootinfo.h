@@ -24,7 +24,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/bootinfo.h,v 1.8 2002/03/20 23:17:49 alfred Exp $
  */
 
 /*

@@ -64,7 +64,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/kld/cdev/test/Makefile,v 1.4 2003/08/03 10:39:29 mbr Exp $
 #
 PROG=	testcdev
 NOMAN=

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/22/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/nologin/Makefile,v 1.9 2003/11/17 06:39:38 das Exp $
 
 PROG=	nologin
 MAN=	nologin.5 nologin.8

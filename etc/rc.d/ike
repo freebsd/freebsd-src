@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ike,v 1.1 2003/11/28 17:28:42 bms Exp $
 #
 
 # PROVIDE: ike

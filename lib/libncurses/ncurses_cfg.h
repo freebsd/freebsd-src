@@ -44,7 +44,7 @@
  *	ftp://dickey.his.com/autoconf/
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libncurses/ncurses_cfg.h,v 1.5 2002/05/21 05:40:28 peter Exp $ */
 
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H

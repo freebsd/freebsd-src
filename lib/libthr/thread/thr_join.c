@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_join.c,v 1.11 2003/07/06 10:18:48 mtm Exp $
  */
 #include <errno.h>
 #include <pthread.h>

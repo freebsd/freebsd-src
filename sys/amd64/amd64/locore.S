@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/locore.S,v 1.175 2003/05/31 06:54:28 peter Exp $
  */
 
 #include <machine/asmacros.h>

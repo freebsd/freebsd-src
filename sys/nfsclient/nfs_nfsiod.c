@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/nfs_nfsiod.c,v 1.79 2003/11/14 20:54:08 alfred Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

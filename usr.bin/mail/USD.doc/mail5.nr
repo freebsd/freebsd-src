@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail5.nr	8.1 (Berkeley) 6/8/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.bin/mail/USD.doc/mail5.nr,v 1.4 2000/11/29 10:56:59 ru Exp $
 .\"
 .bp
 .sh 1 "Additional features"

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/strlen.c,v 1.8 2003/06/11 05:23:04 obrien Exp $");
 
 #include <sys/libkern.h>
 

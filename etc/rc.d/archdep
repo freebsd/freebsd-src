@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/archdep,v 1.5 2003/05/06 00:09:51 obrien Exp $
 #
 
 # PROVIDE: archdep

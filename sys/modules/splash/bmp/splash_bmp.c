@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/modules/splash/bmp/splash_bmp.c,v 1.17 2002/11/11 10:17:01 mux Exp $
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/AsyncIO.c,v 1.9 2002/05/10 10:40:46 tg Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

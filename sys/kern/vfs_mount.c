@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_mount.c,v 1.117 2003/11/30 23:30:09 iedowse Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

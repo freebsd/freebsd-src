@@ -27,7 +27,7 @@
  *   Gareth Hughes <gareth@valinux.com>
  *   Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_scatter.h,v 1.5 2003/08/19 02:57:31 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sbin/raidctl/rf_configure.c,v 1.1 2002/10/20 08:17:34 scottl Exp $ */
 /*	$NetBSD: rf_configure.c,v 1.13 2001/01/27 19:32:47 oster Exp $	*/
 
 /*

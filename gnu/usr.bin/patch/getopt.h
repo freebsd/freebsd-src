@@ -16,7 +16,7 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/patch/getopt.h,v 1.5 2002/04/28 01:33:45 gad Exp $
  */
 
 #ifndef _GETOPT_H

@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: am_defs.h,v 1.15.2.13 2002/12/27 22:45:09 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/include/am_defs.h,v 1.13 2003/09/02 15:42:57 mbr Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/find-sb/README,v 1.1 2002/10/04 03:06:16 wollman Exp $
 
 find-sb is a program which scans the input file you specify (normally a
 raw disk slice) for filesystems.  It's not very smart, nor particularly

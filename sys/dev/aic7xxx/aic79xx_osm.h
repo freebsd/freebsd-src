@@ -32,7 +32,7 @@
  *
  * $Id: aic79xx_osm.h,v 1.11 2003/07/01 15:51:52 scottl Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic79xx_osm.h,v 1.12 2003/08/22 05:51:24 imp Exp $
  */
 
 #ifndef _AIC79XX_FREEBSD_H_

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_exec.c,v 1.232 2003/11/12 03:14:29 rwatson Exp $");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"

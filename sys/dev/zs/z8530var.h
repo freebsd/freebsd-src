@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/zs/z8530var.h,v 1.1 2003/01/08 23:36:16 jake Exp $
  */
 
 #ifndef _DEV_ZS_ZSVAR_H_

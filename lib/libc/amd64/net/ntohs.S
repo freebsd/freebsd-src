@@ -38,7 +38,7 @@
 	.asciz "@(#)ntohs.s	5.2 (Berkeley) 12/17/90"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/net/ntohs.S,v 1.10 2003/04/30 18:07:23 peter Exp $");
 
 /* hostorder = ntohs(netorder) */
 

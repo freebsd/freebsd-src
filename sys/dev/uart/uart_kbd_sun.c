@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/uart/uart_kbd_sun.c,v 1.1 2003/11/11 07:33:24 jake Exp $
  */
 
 #include "opt_kbd.h"

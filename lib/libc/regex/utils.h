@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utils.h	8.3 (Berkeley) 3/20/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/utils.h,v 1.2 2002/03/22 23:41:56 obrien Exp $
  */
 
 /* utility definitions */

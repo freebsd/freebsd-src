@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/critical.c,v 1.12 2003/11/03 21:06:54 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

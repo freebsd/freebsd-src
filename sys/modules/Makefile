@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/Makefile,v 1.356 2003/12/03 21:13:06 jhb Exp $
 
 .if !defined(NOCRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)

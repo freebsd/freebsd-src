@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/110.clean-tmps,v 1.12 2002/10/06 18:48:20 joerg Exp $
 #
 # Perform temporary directory cleaning so that long-lived systems
 # don't end up with excessively old files there.

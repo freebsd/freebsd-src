@@ -65,7 +65,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/module/cdevmod.c,v 1.5 2003/08/03 10:39:28 mbr Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

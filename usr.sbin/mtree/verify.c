@@ -33,7 +33,7 @@ static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mtree/verify.c,v 1.22 2003/11/05 20:07:40 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

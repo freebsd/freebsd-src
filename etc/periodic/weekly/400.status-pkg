@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/400.status-pkg,v 1.8 2002/09/25 03:01:42 brian Exp $
 #
 
 # If there is a global system configuration file, suck it in.

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/prof_machdep.c,v 1.18 2003/06/02 16:32:55 obrien Exp $");
 
 #ifdef GUPROF
 #include "opt_i586_guprof.h"

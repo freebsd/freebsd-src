@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pc98/pc98/nmi.c,v 1.1 2003/11/04 13:01:41 nyan Exp $");
 
 #include <sys/types.h>
 #include <sys/syslog.h>

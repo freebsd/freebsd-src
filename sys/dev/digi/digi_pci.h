@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/digi/digi_pci.h,v 1.1 2001/05/02 01:08:04 brian Exp $
  */
 
 #define	PCI_VENDOR_DIGI		0x114F

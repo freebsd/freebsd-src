@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sio/sio_ebus.c,v 1.4 2003/08/23 00:11:16 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mca/mca_busvar.h,v 1.2 1999/09/26 07:02:05 mdodd Exp $
  */
 
 typedef u_int16_t mca_id_t;

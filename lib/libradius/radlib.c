@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libradius/radlib.c,v 1.10 2002/06/12 00:21:07 brian Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

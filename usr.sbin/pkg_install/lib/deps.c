@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/lib/deps.c,v 1.10 2002/05/14 21:42:37 sobomax Exp $");
 
 #include "lib.h"
 #include <err.h>

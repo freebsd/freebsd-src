@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/ypxfr/yp_dbwrite.c,v 1.11 2003/05/04 00:59:13 obrien Exp $");
 
 #include <db.h>
 #include <errno.h>

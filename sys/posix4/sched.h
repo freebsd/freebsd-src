@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/sched.h,v 1.7 2002/10/03 06:27:50 mike Exp $
  */
 
 /* sched.h: POSIX 1003.1b Process Scheduling header */

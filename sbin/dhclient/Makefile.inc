@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/Makefile.inc,v 1.7 2003/11/30 21:09:58 murray Exp $
 
 MAINTAINER=     mbr
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/mcbus/mcbusreg.h,v 1.2 2001/02/13 22:45:53 mjacob Exp $ */
 
 /*
  * Copyright (c) 1998, 2000 by Matthew Jacob

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/ia64_unaligned/unaligned.c,v 1.1 2001/10/19 22:10:13 dfr Exp $
  */
 
 #include <sys/param.h>

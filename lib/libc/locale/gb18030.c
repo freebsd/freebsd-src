@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/gb18030.c,v 1.1 2003/07/29 07:52:44 ache Exp $");
 
 #include <rune.h>
 #include <stddef.h>

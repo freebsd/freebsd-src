@@ -62,7 +62,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_turnstile.c,v 1.134.2.1 2003/12/11 20:01:52 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -9,7 +9,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/vnconfig/vnconfig.c,v 1.23 2001/06/24 20:25:22 dd Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

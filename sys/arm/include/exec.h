@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/exec.h,v 1.1 2001/01/04 05:23:06 obrien Exp $
  */
 
 #ifndef _EXEC_H_

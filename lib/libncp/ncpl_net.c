@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libncp/ncpl_net.c,v 1.3 2003/02/28 04:31:29 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

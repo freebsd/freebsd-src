@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/binutils/libbfd/elf-fbsd-brand.c,v 1.1 2003/04/26 03:28:21 obrien Exp $
  */
 
 #include "bfd.h"

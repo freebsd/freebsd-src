@@ -1,6 +1,6 @@
 /*	$NetBSD: cast128sb.h,v 1.1 2003/08/26 16:37:37 thorpej Exp $	*/
 /*      $OpenBSD: castsb.h,v 1.1 2000/02/28 23:13:04 deraadt Exp $       */
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/cast128/cast128sb.h,v 1.1 2003/10/10 15:06:16 ume Exp $	*/
 
 /*
  *	CAST-128 in C

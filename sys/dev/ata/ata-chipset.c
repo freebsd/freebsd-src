@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/ata-chipset.c,v 1.48.2.1 2003/12/18 21:39:38 jhb Exp $");
 
 #include "opt_ata.h"
 #include <sys/param.h>

@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/conf/GENERIC,v 1.65.2.2 2003/12/07 23:52:54 scottl Exp $
 
 machine		sparc64
 cpu		SUN4U

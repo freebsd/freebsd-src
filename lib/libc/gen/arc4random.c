@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/gen/arc4random.c,v 1.6 2002/03/22 21:52:05 obrien Exp $ */
 
 /*
  * Arc4 random number generator for OpenBSD.
@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/arc4random.c,v 1.6 2002/03/22 21:52:05 obrien Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

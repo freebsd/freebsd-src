@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netgraph/atm/sscop/ng_sscop.c,v 1.1 2003/10/24 07:39:11 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

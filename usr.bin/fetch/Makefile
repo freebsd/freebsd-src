@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/fetch/Makefile,v 1.15 2003/07/22 13:54:31 ru Exp $
 
 PROG=		fetch
 CSTD?=		c99

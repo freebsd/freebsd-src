@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/coda/coda_fbsd.c,v 1.31 2003/07/26 07:32:20 phk Exp $");
 
 #include "vcoda.h"
 

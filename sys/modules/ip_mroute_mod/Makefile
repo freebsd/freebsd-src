@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ip_mroute_mod/Makefile,v 1.11 2002/10/20 22:59:17 rwatson Exp $
 
 .PATH: ${.CURDIR}/../../netinet
 

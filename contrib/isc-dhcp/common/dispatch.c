@@ -44,7 +44,7 @@
 #ifndef lint
 static char copyright[] =
 "$Id: dispatch.c,v 1.63.2.3 2002/11/17 02:26:57 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n"
-"$FreeBSD$\n";
+"$FreeBSD: src/contrib/isc-dhcp/common/dispatch.c,v 1.4 2003/08/10 22:01:37 mbr Exp $\n";
 #endif /* not lint */
 
 #include "dhcpd.h"

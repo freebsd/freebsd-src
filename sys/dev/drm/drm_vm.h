@@ -22,7 +22,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_vm.h,v 1.8 2003/10/24 01:48:16 anholt Exp $
  */
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102

@@ -12,7 +12,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cx/ng_cx.h,v 1.1 2003/12/03 07:29:38 imp Exp $
  */
 
 #ifdef NETGRAPH

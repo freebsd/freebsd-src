@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/spigot.c,v 1.60 2003/08/10 23:04:55 nectar Exp $");
 
 #include	"spigot.h"
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/19.memacros/Makefile,v 1.8 2002/10/29 14:56:08 ru Exp $
 
 VOLUME=		usd/19.memacros
 SRCS=		meintro.me-sed

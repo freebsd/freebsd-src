@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/yppoll/yppoll.c,v 1.11 2003/05/03 21:06:41 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

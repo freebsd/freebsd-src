@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fwscanf.c,v 1.1 2002/09/23 12:40:06 tjr Exp $");
 
 #include <stdarg.h>
 #include <stdio.h>

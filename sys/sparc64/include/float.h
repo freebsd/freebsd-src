@@ -41,7 +41,7 @@
  *
  *	@(#)float.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: float.h,v 1.3 2001/09/21 20:48:02 eeh Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/float.h,v 1.3 2003/02/08 20:37:55 mike Exp $
  */
 
 #ifndef _MACHINE_FLOAT_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/boot0/Makefile,v 1.1 2000/08/02 08:46:08 kato Exp $
 
 PROG=		boot0
 OBJS=		boot0.o

@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/28/95";
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/lpc/cmds.c,v 1.32 2003/07/14 22:24:28 gad Exp $");
 
 /*
  * lpc -- line printer control program -- commands:

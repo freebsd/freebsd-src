@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/glob.c,v 1.21 2003/10/29 10:45:01 tjr Exp $");
 
 /*
  * glob(3) -- a superset of the one defined in POSIX 1003.2.

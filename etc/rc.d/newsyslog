@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: newsyslog,v 1.5 2002/03/24 15:51:26 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/newsyslog,v 1.2 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: newsyslog

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.6 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/sysperf/Makefile,v 1.8 2002/10/29 14:56:07 ru Exp $
 
 VOLUME=		papers
 DOC=		sysperf

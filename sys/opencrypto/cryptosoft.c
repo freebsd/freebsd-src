@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/cryptosoft.c,v 1.4 2003/06/27 20:07:09 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

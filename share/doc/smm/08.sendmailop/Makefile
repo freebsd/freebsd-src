@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 2/28/94
-# $FreeBSD$
+# $FreeBSD: src/share/doc/smm/08.sendmailop/Makefile,v 1.8 2003/07/07 03:54:03 gshapiro Exp $
 
 VOLUME=		smm/08.sendmailop
 SRCS=		op.me

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/Makefile,v 1.3 2001/12/17 13:59:30 ru Exp $
 
 NOOBJ=	noobj
 

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/getconf/getconf.h,v 1.4 2002/10/27 04:14:08 wollman Exp $
  */
 
 #ifdef STABLE

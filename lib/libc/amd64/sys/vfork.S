@@ -38,7 +38,7 @@
 	.asciz "@(#)Ovfork.s	5.1 (Berkeley) 4/23/90"
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/sys/vfork.S,v 1.22 2003/09/04 00:26:40 peter Exp $");
 
 #include "SYS.h"
 

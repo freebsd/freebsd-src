@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)accton.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/accton/accton.c,v 1.7 2003/05/03 21:06:35 obrien Exp $");
 
 #include <sys/types.h>
 #include <err.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.sparc64,v 1.8 2003/08/24 01:54:06 jake Exp $
 
 SUN4U			opt_global.h
 

@@ -40,7 +40,7 @@
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  * 	from: FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.167 2001/07/12
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/vm_machdep.c,v 1.55 2003/11/16 23:40:06 alc Exp $
  */
 
 #include "opt_kstack_pages.h"

@@ -1,5 +1,5 @@
 #	@(#)remote	5.2 (Berkeley) 6/30/90
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/remote,v 1.2 2001/04/24 07:46:27 joe Exp $
 # remote -- remote host description file
 # see tip(1), remote(5)
 #

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/file2c/regress.sh,v 1.3 2002/06/24 14:22:35 jmallett Exp $
 
 REGRESSION_START($1)
 

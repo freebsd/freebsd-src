@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/net/htonl.S,v 1.1 2002/05/15 20:40:35 obrien Exp $");
 
 /* netorder = htonl(hostorder) */
 

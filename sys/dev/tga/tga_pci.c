@@ -28,12 +28,12 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tga/tga_pci.c,v 1.6 2003/08/24 17:55:53 obrien Exp $");
 
 #include "opt_fb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tga/tga_pci.c,v 1.6 2003/08/24 17:55:53 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/io_apic.c,v 1.6 2003/11/12 18:13:57 jhb Exp $");
 
 #include "opt_isa.h"
 #include "opt_no_mixed_mode.h"

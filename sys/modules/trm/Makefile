@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/trm/Makefile,v 1.1 2002/10/13 18:44:26 cognet Exp $
 
 .PATH: ${.CURDIR}/../../dev/trm
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/info/Makefile,v 1.17 2003/05/19 15:52:00 des Exp $
 
 PROG=	pkg_info
 SRCS=	main.c perform.c show.c

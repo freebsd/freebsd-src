@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/debug.c,v 1.8 2002/03/07 12:52:26 obrien Exp $");
 
 #include <stdarg.h>
 

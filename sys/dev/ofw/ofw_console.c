@@ -24,10 +24,10 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/ofw_console.c,v 1.17 2003/09/28 06:51:47 jake Exp $");
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/ofw_console.c,v 1.17 2003/09/28 06:51:47 jake Exp $");
 
 #include "opt_ddb.h"
 #include "opt_comconsole.h"

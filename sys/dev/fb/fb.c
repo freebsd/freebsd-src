@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/fb.c,v 1.29 2003/09/26 10:41:43 phk Exp $");
 
 #include "opt_fb.h"
 

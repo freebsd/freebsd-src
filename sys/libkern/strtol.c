@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/strtol.c,v 1.7 2003/06/11 05:23:04 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

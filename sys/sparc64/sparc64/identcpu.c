@@ -6,7 +6,7 @@
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/identcpu.c,v 1.11 2003/08/22 07:38:08 imp Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

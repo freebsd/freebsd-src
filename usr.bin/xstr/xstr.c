@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/xstr/xstr.c,v 1.8 2002/11/01 12:48:28 tjr Exp $");
 
 #ifndef lint
 static const char copyright[] =

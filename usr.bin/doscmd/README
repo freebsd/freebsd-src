@@ -1,5 +1,5 @@
 /* BSDI README,v 2.2 1996/04/08 19:32:16 bostic Exp*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/doscmd/README,v 1.4 2002/05/16 02:18:59 trhodes Exp $ */
 
 This is the merged doscmd/rundos project.  Please read the man
 page for help on configuring doscmd.

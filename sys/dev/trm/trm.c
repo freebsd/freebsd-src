@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/trm/trm.c,v 1.17 2003/09/02 17:30:39 jhb Exp $");
 
 /*
  *	HISTORY:					
@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/trm/trm.c,v 1.17 2003/09/02 17:30:39 jhb Exp $");
 
 #include <sys/param.h>
 

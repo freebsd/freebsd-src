@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/patch/Makefile,v 1.7 2001/03/27 14:59:03 ru Exp $
 
 PROG= 	patch
 SRCS=	backupfile.c getopt.c getopt1.c inp.c patch.c pch.c util.c \

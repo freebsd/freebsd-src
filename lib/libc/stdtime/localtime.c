@@ -9,7 +9,7 @@
 static char	elsieid[] __unused = "@(#)localtime.c	7.57";
 #endif /* !defined NOID */
 #endif /* !defined lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/localtime.c,v 1.36 2003/02/16 17:29:11 nectar Exp $");
 
 /*
 ** Leap second handling from Bradley White (bww@k.gp.cs.cmu.edu).

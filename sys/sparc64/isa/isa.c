@@ -26,7 +26,7 @@
  *
  *	from: FreeBSD: src/sys/alpha/isa/isa.c,v 1.26 2001/07/11
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/isa/isa.c,v 1.10 2003/08/23 00:11:15 imp Exp $
  */
 
 #include "opt_ofw_pci.h"

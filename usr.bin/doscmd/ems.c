@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/ems.c,v 1.12 2002/05/16 02:18:59 trhodes Exp $");
 
 /* 
  * EMS memory emulation

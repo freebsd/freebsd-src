@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_time.c,v 1.105 2003/10/26 02:19:00 alfred Exp $");
 
 #include "opt_mac.h"
 

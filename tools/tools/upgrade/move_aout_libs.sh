@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/upgrade/move_aout_libs.sh,v 1.7 2002/10/01 13:29:45 ru Exp $
 # 
 # Search for a.out libraries and move them to an aout subdirectory of
 # the elf library directory.

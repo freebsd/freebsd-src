@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/iconv_xlat16.c,v 1.1.2.1 2003/12/17 11:35:11 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

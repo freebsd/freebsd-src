@@ -1,5 +1,5 @@
 /* $NetBSD$	 */
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/compat/pecoff/imgact_pecoff.h,v 1.1 2000/12/20 12:51:03 takawata Exp $	*/
 /*
  * Copyright (c) 2000 Masaru OKI
  */

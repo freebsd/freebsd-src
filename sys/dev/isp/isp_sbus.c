@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_sbus.c,v 1.11 2003/09/02 19:52:31 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

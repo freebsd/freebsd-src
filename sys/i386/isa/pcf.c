@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/pcf.c,v 1.21 2003/06/20 07:22:54 jmg Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,7 +1,7 @@
 #
 # Tinderbox setup for dwp.des.no
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/dwp.rc,v 1.2 2003/08/01 07:24:31 des Exp $
 #
 
 comment		= Tinderbox development

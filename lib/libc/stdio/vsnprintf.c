@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)vsnprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vsnprintf.c,v 1.22 2003/07/02 07:08:44 jkh Exp $");
 
 #include <limits.h>
 #include <stdio.h>

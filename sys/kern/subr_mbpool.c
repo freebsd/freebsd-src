@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_mbpool.c,v 1.1 2003/07/15 08:59:37 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/lock.h>

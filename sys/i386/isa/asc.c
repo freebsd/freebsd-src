@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/asc.c,v 1.56 2003/11/09 09:17:23 tanimura Exp $");
 
 #include "asc.h"
 #include <sys/param.h>

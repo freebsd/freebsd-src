@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/powerpc/powerpc/db_memrw.c,v 1.2 2002/10/04 01:19:18 grehan Exp $ */
 /*	$NetBSD: db_memrw.c,v 1.5 2001/12/27 10:25:41 dbj Exp $	*/
 /*	$OpenBSD: db_memrw.c,v 1.2 1996/12/28 06:21:52 rahnds Exp $	*/
 

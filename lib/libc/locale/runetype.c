@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/runetype.c,v 1.8 2002/08/21 16:19:56 mike Exp $");
 
 #include <stdio.h>
 #include <rune.h>

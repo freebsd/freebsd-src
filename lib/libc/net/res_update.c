@@ -21,7 +21,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/res_update.c,v 1.7 2002/09/15 16:51:09 nectar Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

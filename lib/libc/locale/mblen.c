@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/mblen.c,v 1.5 2003/08/07 09:34:51 tjr Exp $");
 
 #include <stdlib.h>
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/apmd/contrib/pccardq.c,v 1.5 2001/08/20 15:09:32 brian Exp $ */
 
 #include <err.h>
 #include <errno.h>

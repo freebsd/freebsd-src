@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mail/mailertable.sample,v 1.2 2000/03/18 06:38:22 rwatson Exp $
 #
 # List of domains (possibly wildcarded) and destination mailers
 #

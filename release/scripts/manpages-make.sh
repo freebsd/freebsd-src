@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/manpages-make.sh,v 1.5 2002/05/25 17:31:27 ru Exp $
 #
 
 # Move all the manpages out to their own dist, using the base dist as a

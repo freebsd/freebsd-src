@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/uni/sscop_pdu.c,v 1.13 2003/07/24 09:14:50 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/advansys/advansys.c,v 1.27 2003/08/24 17:48:01 obrien Exp $");
  
 #include <sys/param.h>
 #include <sys/systm.h>

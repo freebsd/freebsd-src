@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/sgmap.c,v 1.6 2003/08/22 07:20:25 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

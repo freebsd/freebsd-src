@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)clri.c	8.2 (Berkeley) 9/23/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/clri/clri.c,v 1.13 2003/05/03 18:41:56 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>

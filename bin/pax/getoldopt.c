@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/pax/getoldopt.c,v 1.4 2003/05/03 16:39:33 markm Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

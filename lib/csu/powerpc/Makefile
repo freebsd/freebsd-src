@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/powerpc/Makefile,v 1.9 2002/07/29 09:40:11 ru Exp $
 
 .PATH: ${.CURDIR}/../common
 

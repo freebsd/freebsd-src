@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/sapicreg.h,v 1.1 2001/10/05 10:30:08 dfr Exp $
  */
 
 #ifndef _MACHINE_SAPICREG_H_

@@ -8,7 +8,7 @@
  */
 #include <sys/types.h>
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/lsearch.c,v 1.1 2002/10/16 14:29:22 robert Exp $");
 
 #define	_SEARCH_PRIVATE
 #include <search.h>

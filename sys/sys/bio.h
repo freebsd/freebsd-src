@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/bio.h,v 1.135 2003/10/18 17:53:34 phk Exp $
  */
 
 #ifndef _SYS_BIO_H_

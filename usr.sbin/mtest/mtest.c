@@ -6,7 +6,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mtest/mtest.c,v 1.6 2003/07/06 12:44:11 charnier Exp $");
 
 #include <err.h>
 #include <stdio.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/majors.awk,v 1.1 2003/02/27 08:52:11 phk Exp $
 /^#/	{ next }
 NF == 1 { next }
 $2 == "??" { next }

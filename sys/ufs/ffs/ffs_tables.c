@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_tables.c,v 1.10 2003/06/11 06:31:28 obrien Exp $");
 
 #include <sys/param.h>
 #include <ufs/ufs/dinode.h>

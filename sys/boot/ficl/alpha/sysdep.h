@@ -46,7 +46,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/alpha/sysdep.h,v 1.9 2002/05/16 21:21:50 trhodes Exp $ */
 
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 

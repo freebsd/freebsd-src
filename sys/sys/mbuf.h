@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mbuf.h,v 1.128 2003/11/24 03:57:03 sam Exp $
  */
 
 #ifndef _SYS_MBUF_H_

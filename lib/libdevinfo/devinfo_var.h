@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libdevinfo/devinfo_var.h,v 1.3 2003/02/17 18:56:00 imp Exp $
  */
 
 #include <sys/rman.h>

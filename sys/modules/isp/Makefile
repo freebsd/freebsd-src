@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/isp/Makefile,v 1.1 2002/10/31 19:50:18 jhb Exp $
 
 .PATH: ${.CURDIR}/../../dev/isp
 

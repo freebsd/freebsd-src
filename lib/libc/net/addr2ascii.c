@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/addr2ascii.c,v 1.2 2002/03/22 21:52:28 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumparser.c,v 1.33 2003/08/24 17:55:56 obrien Exp $");
 
 /*
  * This file contains the parser for the configuration routines.  It's used

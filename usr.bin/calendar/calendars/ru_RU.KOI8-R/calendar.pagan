@@ -1,7 +1,7 @@
 /*
  * Языческие праздники
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/ru_RU.KOI8-R/calendar.pagan,v 1.5 2000/05/04 11:31:16 phantom Exp $
  */
 
 #ifndef _ru_RU_KOI8_R_pagan_

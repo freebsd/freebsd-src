@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_extern.h,v 1.13 2003/03/04 23:19:51 jlemon Exp $
  */
 struct mbuf;
 struct sockaddr_at;

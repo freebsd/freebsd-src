@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/ftpusers,v 1.11 2003/04/27 05:49:53 imp Exp $
 #
 # list of users disallowed any ftp access.
 # read by ftpd(8).

@@ -91,7 +91,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/pmap.c,v 1.65 2003/10/03 22:46:53 alc Exp $");
 
 /*
  * Manages physical address maps.

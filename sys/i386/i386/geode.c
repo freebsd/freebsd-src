@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/geode.c,v 1.1 2003/08/31 16:20:34 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -38,7 +38,7 @@
 #define	OBSOLETE_IN_6
 
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/setinvalidrune.c,v 1.4 2003/06/13 07:13:54 tjr Exp $");
 
 #include <rune.h>
 

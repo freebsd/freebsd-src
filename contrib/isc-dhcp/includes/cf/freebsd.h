@@ -40,7 +40,7 @@
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/isc-dhcp/includes/cf/freebsd.h,v 1.6 2003/06/29 18:46:17 gordon Exp $
  */
 
 #include <syslog.h>

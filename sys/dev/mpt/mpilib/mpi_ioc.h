@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi_ioc.h,v 1.4 2003/06/03 17:47:48 mjacob Exp $ */
 /*
  * Copyright (c) 2000, 2001 by LSI Logic Corporation
  *

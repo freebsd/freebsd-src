@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/snmp_netgraph/Makefile,v 1.3 2003/11/12 17:09:13 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

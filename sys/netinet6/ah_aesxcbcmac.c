@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ah_aesxcbcmac.c,v 1.1 2003/10/13 04:56:04 ume Exp $
  */
 
 #include <sys/param.h>

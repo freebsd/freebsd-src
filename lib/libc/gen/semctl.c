@@ -27,7 +27,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/semctl.c,v 1.9 2003/02/16 17:29:09 nectar Exp $");
 
 #include <sys/types.h>
 #include <sys/ipc.h>

@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_bmap.c,v 1.59 2003/10/18 14:10:27 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

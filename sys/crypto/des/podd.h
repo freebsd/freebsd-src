@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/podd.h,v 1.4 2002/04/19 04:46:21 suz Exp $	*/
 /*	$KAME: podd.h,v 1.4 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/podd.h */

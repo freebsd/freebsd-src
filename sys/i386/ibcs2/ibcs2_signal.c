@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/ibcs2/ibcs2_signal.c,v 1.32 2003/10/12 04:25:26 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -33,7 +33,7 @@ static char sccsid[] = "@(#)spec.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mtree/spec.c,v 1.21 2003/11/19 15:28:21 phk Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

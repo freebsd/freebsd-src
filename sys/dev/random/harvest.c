@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/random/harvest.c,v 1.21 2003/11/17 23:02:21 markm Exp $");
 
 #include <sys/param.h>
 #include <sys/kthread.h>

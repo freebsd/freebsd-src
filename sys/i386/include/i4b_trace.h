@@ -27,7 +27,7 @@
  *	i4b_trace.h - header file for trace data read device
  *	----------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_trace.h,v 1.8 2002/03/17 09:33:13 hm Exp $
  *
  *      last edit-date: [Sun Mar 17 10:10:52 2002]
  *

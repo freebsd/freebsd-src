@@ -1,7 +1,7 @@
 /*	$NetBSD: rf_threadstuff.c,v 1.5 1999/12/07 02:13:28 oster Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/raidframe/rf_threadstuff.c,v 1.2 2003/08/24 17:54:18 obrien Exp $");
 /*
  * rf_threadstuff.c
  */

@@ -21,10 +21,10 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ep/if_ep_eisa.c,v 1.28 2003/10/26 22:28:20 imp Exp $");
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ep/if_ep_eisa.c,v 1.28 2003/10/26 22:28:20 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

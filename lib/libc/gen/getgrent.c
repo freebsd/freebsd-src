@@ -31,7 +31,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getgrent.c,v 1.31 2003/05/01 19:03:13 nectar Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  *
  *	from: src/sys/i386/isa/prof_machdep.c,v 1.16 2000/07/04 11:25:19
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/prof_machdep.c,v 1.1 2002/07/29 00:45:13 jake Exp $
  */
 
 #ifdef GUPROF

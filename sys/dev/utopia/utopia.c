@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/utopia/utopia.c,v 1.4 2003/07/30 08:35:58 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

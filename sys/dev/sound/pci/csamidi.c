@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/csamidi.c,v 1.13 2003/09/02 17:30:37 jhb Exp $
  */
 
 #include <dev/sound/midi/midi.h>

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/xdr/xdr_sizeof.c,v 1.5 2003/03/07 13:19:40 nectar Exp $");
 
 #include "namespace.h"
 #include <rpc/types.h>

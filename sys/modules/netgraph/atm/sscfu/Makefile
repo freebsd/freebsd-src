@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/atm/sscfu/Makefile,v 1.1 2003/10/24 07:42:08 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #

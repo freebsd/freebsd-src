@@ -19,7 +19,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/dptsig.h,v 1.7 2002/05/14 21:59:10 obrien Exp $
  */
 
 #ifndef __DPTSIG_H_

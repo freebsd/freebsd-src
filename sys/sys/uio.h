@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/uio.h,v 1.28 2003/10/02 15:00:55 nectar Exp $
  */
 
 #ifndef _SYS_UIO_H_

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_xl.c,v 1.162 2003/11/28 05:28:29 imp Exp $");
 
 /*
  * 3Com 3c90x Etherlink XL PCI NIC driver

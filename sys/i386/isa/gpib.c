@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/gpib.c,v 1.41 2003/06/02 16:32:54 obrien Exp $");
 
 /* Please read the README file for usage information */
 

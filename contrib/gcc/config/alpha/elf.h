@@ -20,7 +20,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.    */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/alpha/elf.h,v 1.10 2003/07/11 05:05:45 kan Exp $ */
 
 #undef OBJECT_FORMAT_COFF
 #undef EXTENDED_COFF

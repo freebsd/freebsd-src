@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/pc98/dokern.sh,v 1.79 2003/08/02 09:36:49 ru Exp $
 #
 
 if [ $# -lt 1 ]; then

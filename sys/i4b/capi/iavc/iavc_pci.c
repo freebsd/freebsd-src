@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/capi/iavc/iavc_pci.c,v 1.8 2003/08/22 15:06:23 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

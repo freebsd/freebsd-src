@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/as/powerpc-freebsd/config.h,v 1.7 2003/06/26 16:13:36 obrien Exp $ */
 
 #define HAVE_DECL_GETOPT 1
 

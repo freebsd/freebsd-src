@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/geom_apple.c,v 1.12 2003/06/11 06:49:15 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/endian.h>

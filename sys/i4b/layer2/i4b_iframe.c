@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer2/i4b_iframe.c,v 1.13 2003/06/10 23:55:01 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

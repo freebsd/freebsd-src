@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_auth.h,v 1.13 2003/02/15 06:23:45 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

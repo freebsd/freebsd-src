@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/vm_machdep.c,v 1.96 2003/11/16 23:40:05 alc Exp $");
 
 #include "opt_kstack_pages.h"
 

@@ -105,7 +105,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/asr/asr.c,v 1.38 2003/09/26 15:56:42 phk Exp $");
 
 #define	ASR_VERSION	1
 #define	ASR_REVISION	'0'

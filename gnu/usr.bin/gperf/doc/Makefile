@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gperf/doc/Makefile,v 1.7 2000/03/25 07:50:02 kris Exp $
 
 INFO = gperf
 INFOSECTION= "Programming & development tools."

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cs/Makefile,v 1.1 2003/11/04 01:36:35 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/cs
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ww.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/ww.h,v 1.4 2000/10/16 08:28:50 brian Exp $
  */
 
 #include <sys/types.h>

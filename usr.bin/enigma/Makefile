@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/enigma/Makefile,v 1.8 2003/10/09 10:00:53 tjr Exp $
 
 PROG=	enigma
 

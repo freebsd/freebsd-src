@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/sleep.c,v 1.31 2002/02/01 00:57:29 obrien Exp $");
 
 #include "namespace.h"
 #include <errno.h>

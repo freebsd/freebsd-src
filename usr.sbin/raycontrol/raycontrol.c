@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/raycontrol/raycontrol.c,v 1.6 2003/06/28 06:19:37 sam Exp $
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/mount_nfs4/mount_nfs4.c,v 1.2 2003/11/22 02:18:30 alfred Exp $ */
 /* $Id: mount_nfs.c,v 1.5 2003/11/05 14:58:58 rees Exp $ */
 
 /*
@@ -73,7 +73,7 @@ static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/mount_nfs4/mount_nfs4.c,v 1.2 2003/11/22 02:18:30 alfred Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

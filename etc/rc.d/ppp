@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# $NetBSD: ppp,v 1.6 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD: src/etc/rc.d/ppp,v 1.2 2002/06/13 22:14:36 gordon Exp $
+#
+
+# PROVIDE: ppp
+# REQUIRE: mountcritremote syslogd
+# BEFORE:  SERVERS
+#
+#	Note that this means that syslogd will not be listening on
+#	any PPP addresses.  This is considered a feature.
+#
+
+. /etc/rc.subr
+
+name="ppp"
+start_cmd="ppp_start"
+stop_cmd="ppp_stop"
+sig_stop="-INT"
+sig_hup="-HUP"
+hup_cmd="ppp_hup"
+extra_commands="hup"
+
+ppp_start()
+{
+	#	/etc/ppp/peers and $ppp_peers contain boot configuration
+	#	information for pppd.  each value in $ppp_peers that has a
+	#	file in /etc/ppp/peers of the same name, will be run as
+	#	`pppd call <peer>'.
+	#
+	if [ -n "$ppp_peers" ]; then
+		set -- $ppp_peers
+		echo -n "Starting pppd:"
+		while [ $# -ge 1 ]; do
+			peer=$1
+			shift
+			if [ -f /etc/ppp/peers/$peer ]; then
+				pppd call $peer
+				echo -n " $peer"
+			fi
+		done
+		echo "."
+	fi
+}
+
+ppp_hup()
+{
+	pids="`check_process pppd`"
+	if [ -n "$pids" ]; then
+		for pid in $pids; do
+			kill $sig_hup $pid
+		done
+	fi
+}
+
+ppp_stop()
+{
+	pids="`check_process pppd`"
+	if [ -n "$pids" ]; then
+		for pid in $pids; do
+			kill $sig_stop $pid
+		done
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

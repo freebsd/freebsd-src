@@ -1,5 +1,5 @@
 # Cronyx Id: sys.modules.cx.Makefile,v 1.1.2.2 2003/01/21 15:15:49 rik Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cx/Makefile,v 1.1 2003/12/03 07:29:38 imp Exp $
 
 .PATH:  ${.CURDIR}/../../dev/cx
 KMOD=   if_cx

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/runq.h,v 1.4 2002/05/25 01:12:23 jake Exp $
  */
 
 #ifndef	_RUNQ_H_

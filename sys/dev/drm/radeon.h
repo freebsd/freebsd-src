@@ -27,7 +27,7 @@
  *    Gareth Hughes <gareth@valinux.com>
  *    Keith Whitwell <keith@tungstengraphics.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon.h,v 1.7 2003/11/12 20:56:30 anholt Exp $
  */
 
 #ifndef __RADEON_H__

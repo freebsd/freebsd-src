@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/random.c,v 1.12 2003/08/10 17:56:58 ache Exp $");
 
 #include <sys/libkern.h>
 

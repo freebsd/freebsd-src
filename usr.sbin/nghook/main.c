@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nghook/main.c,v 1.11 2003/10/24 10:01:36 harti Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

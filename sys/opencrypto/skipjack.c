@@ -13,7 +13,7 @@
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/skipjack.c,v 1.2 2003/06/11 05:57:50 obrien Exp $");
 
 #include <sys/param.h>
 

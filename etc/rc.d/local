@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: local,v 1.6 2002/03/22 04:33:59 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/local,v 1.4 2002/10/17 23:46:32 sobomax Exp $
 #
 
 # PROVIDE: local

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/kgzldr/Makefile,v 1.16 2003/06/30 00:15:38 ru Exp $
 
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 OBJS=	${SRCS:N*.h:R:S/$/.o/g}

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/bridge/Makefile,v 1.3 2003/09/23 17:54:04 sam Exp $
 
 .PATH:	${.CURDIR}/../../net
 KMOD=	bridge

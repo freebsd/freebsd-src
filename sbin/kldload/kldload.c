@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/kldload/kldload.c,v 1.10 2003/05/03 18:41:57 obrien Exp $");
 
 #include <err.h>
 #include <stdio.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/forwback.c,v 1.3 2000/05/23 08:18:52 ps Exp $ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *

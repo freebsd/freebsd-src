@@ -14,7 +14,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 	Modified by cmetz for OPIE 2.31. Added time.h.
 	Created by cmetz for OPIE 2.22.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/libopie/newseed.c,v 1.5 2003/01/22 10:55:36 des Exp $
 */
 
 #include "opie_cfg.h"

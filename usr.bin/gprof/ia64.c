@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/gprof/ia64.c,v 1.2 2002/06/30 05:21:21 obrien Exp $");
 
 #include "gprof.h"
 

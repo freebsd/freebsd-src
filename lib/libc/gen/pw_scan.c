@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)pw_scan.c	8.3 (Berkeley) 4/2/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/pw_scan.c,v 1.24 2002/10/11 11:35:30 maxim Exp $");
 
 /*
  * This module is used to "verify" password entries by chpass(1) and

@@ -9,7 +9,7 @@
 #
 # Sort options by "Matthew Emmerton" <matt@gsicomp.on.ca>
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/kernxref/kernxref.sh,v 1.19 2003/01/03 17:21:39 phk Exp $
 #
 # This shell script will make a cross reference of the symbols of a kernel.
 #

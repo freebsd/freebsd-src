@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/getsecs.c,v 1.2 1999/08/28 00:39:27 peter Exp $
  * From:	$NetBSD: getsecs.c,v 1.5 1998/01/05 07:02:49 perry Exp $	
  */
 

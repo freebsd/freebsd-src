@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/time.h,v 1.63 2003/10/26 02:38:34 alfred Exp $
  */
 
 #ifndef _SYS_TIME_H_

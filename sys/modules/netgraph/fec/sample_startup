@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/fec/sample_startup,v 1.1 2002/10/29 19:12:44 julian Exp $
 kldload ./ng_fec.ko
 ngctl mkpeer fec dummy fec
 ngctl msg fec0: add_iface '"dc0"'

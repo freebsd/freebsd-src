@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/cy.c,v 1.137 2003/12/02 12:36:00 bde Exp $");
 
 #include "opt_compat.h"
 #include "cy.h"

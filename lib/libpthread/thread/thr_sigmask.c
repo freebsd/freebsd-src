@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_sigmask.c,v 1.19 2003/09/18 12:19:28 davidxu Exp $
  */
 #include <sys/param.h>
 #include <sys/types.h>

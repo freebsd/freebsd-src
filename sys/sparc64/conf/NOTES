@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/conf/NOTES,v 1.4 2003/07/01 15:13:07 tmm Exp $
 #
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.

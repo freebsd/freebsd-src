@@ -44,7 +44,7 @@
  *
  * From:
  *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_dbregs.c,v 1.23 2003/10/02 15:00:55 nectar Exp $
  */
 
 #include <sys/param.h>

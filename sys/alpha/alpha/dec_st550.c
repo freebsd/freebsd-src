@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/dec_st550.c,v 1.16 2003/08/25 03:43:07 marcel Exp $");
 
 #include "opt_ddb.h"
 #include "opt_dev_sc.h"

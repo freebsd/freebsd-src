@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_tunvar.h,v 1.10 2003/09/27 21:43:16 phk Exp $
  */
 
 #ifndef _NET_IF_TUNVAR_H_

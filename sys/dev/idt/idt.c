@@ -77,7 +77,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/idt/idt.c,v 1.7 2003/11/16 22:33:42 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/localeck/Makefile,v 1.3 2002/03/26 13:02:15 ru Exp $
 
 PROG=	localeck
 NOMAN=	noman

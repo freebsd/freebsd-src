@@ -31,14 +31,14 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/rlphy.c,v 1.18 2003/09/08 02:11:24 wpaul Exp $");
 
 /*
  * driver for RealTek 8139 internal PHYs
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/rlphy.c,v 1.18 2003/09/08 02:11:24 wpaul Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

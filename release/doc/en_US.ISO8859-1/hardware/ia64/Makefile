@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/ia64/Makefile,v 1.2 2001/11/17 20:53:23 bmah Exp $
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/Makefile.inc,v 1.3 2002/02/06 18:13:12 markm Exp $
 
 BINDIR?=	/usr/bin
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/grep/Makefile,v 1.25 2002/10/20 07:50:20 obrien Exp $
 
 GREP_LIBZ=YES
 

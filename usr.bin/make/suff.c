@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/suff.c,v 1.28 2002/12/30 21:18:11 schweikh Exp $");
 
 /*-
  * suff.c --

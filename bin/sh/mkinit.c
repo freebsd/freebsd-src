@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)mkinit.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/mkinit.c,v 1.16 2002/06/30 05:15:03 obrien Exp $");
 
 /*
  * This program scans all the source files for code to handle various

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_vfsops.c,v 1.3 2003/11/22 02:21:49 alfred Exp $ */
 /* $Id: nfs_vfsops.c,v 1.38 2003/11/05 14:59:01 rees Exp $ */
 
 /*
@@ -64,7 +64,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfs4client/nfs4_vfsops.c,v 1.3 2003/11/22 02:21:49 alfred Exp $");
 
 #include "opt_bootp.h"
 #include "opt_nfsroot.h"

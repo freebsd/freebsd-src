@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nwfs/Makefile,v 1.12 2003/11/19 05:08:26 imp Exp $
 
 .PATH: ${.CURDIR}/../../fs/nwfs
 

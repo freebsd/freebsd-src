@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libbsnmp/modules/snmp_mibII/mibII_tree.h,v 1.1 2003/11/10 09:17:33 harti Exp $ */
 /* generated file, don't edit - use ./genfiles */
 int	op_interfaces(struct snmp_context *, struct snmp_value *, u_int, u_int, enum snmp_op);
 # define LEAF_ifNumber 1
