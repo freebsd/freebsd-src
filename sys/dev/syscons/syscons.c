@@ -99,6 +99,8 @@ static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
 static  struct consdev	*sc_consptr;
 static	void		*kernel_console_ts;
+static	scr_stat	main_console;
+static	dev_t		main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
@@ -151,6 +153,7 @@ static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
+static scr_stat *sc_get_stat(dev_t devptr);
 #if !__alpha__
 static void scterm(int unit, int flags);
 #endif
@@ -331,7 +334,7 @@ sc_attach_unit(int unit, int flags)
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
-    scp = SC_STAT(sc->dev[0]);
+    scp = sc_get_stat(sc->dev[0]);
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
@@ -388,6 +391,9 @@ sc_attach_unit(int unit, int flags)
 		dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
 		    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
 		sc->dev[vc] = dev;
+	    	sc->dev[vc]->si_tty = ttymalloc(sc->dev[vc]->si_tty);
+		if (vc == 0 && sc->dev == main_devs)
+			SC_STAT(sc->dev[0]) = &main_console;
 	}
 	/*
 	 * The first vty already has struct tty and scr_stat initialized
@@ -497,7 +503,7 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
 
     error = (*linesw[tp->t_line].l_open)(dev, tp);
 
-    scp = SC_STAT(dev);
+    scp = sc_get_stat(dev);
     if (scp == NULL) {
 	scp = SC_STAT(dev) = alloc_scp(sc, SC_VTY(dev));
 	if (ISGRAPHSC(scp))
@@ -519,7 +525,7 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
     int s;
 
     if (SC_VTY(dev) != SC_CONSOLECTL) {
-	scp = SC_STAT(tp->t_dev);
+	scp = sc_get_stat(tp->t_dev);
 	/* were we in the middle of the VT switching process? */
 	DPRINTF(5, ("sc%d: scclose(), ", scp->sc->unit));
 	s = spltty();
@@ -682,7 +688,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return error;
 #endif
 
-    scp = SC_STAT(tp->t_dev);
+    scp = sc_get_stat(tp->t_dev);
     /* assert(scp != NULL) */
     /* scp is sc_console, if SC_VTY(dev) == SC_CONSOLECTL. */
     sc = scp->sc;
@@ -1015,7 +1021,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	splx(s);
 	if (error)
 	    return error;
-	scp = SC_STAT(SC_DEV(sc, i));
+	scp = sc_get_stat(SC_DEV(sc, i));
 	if (scp == scp->sc->cur_scp)
 	    return 0;
 	while ((error=tsleep(&scp->smode, PZERO|PCATCH,
@@ -1353,7 +1359,7 @@ scstart(struct tty *tp)
     struct clist *rbp;
     int s, len;
     u_char buf[PCBURST];
-    scr_stat *scp = SC_STAT(tp->t_dev);
+    scr_stat *scp = sc_get_stat(tp->t_dev);
 
     if (scp->status & SLKED ||
 	(scp == scp->sc->cur_scp && scp->sc->blink_in_progress))
@@ -1417,7 +1423,7 @@ sccninit(struct consdev *cp)
     sc_get_cons_priority(&unit, &flags);
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
-    sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
+    sc_console = sc_get_stat(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     sc_consptr = cp;
 #endif /* !__alpha__ */
 
@@ -1475,7 +1481,7 @@ sccnattach(void)
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
     sc_consptr = &consdev;
-    sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
+    sc_console = sc_get_stat(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     sprintf(consdev.cn_name, "ttyv%r", 0);
     cnadd(&consdev);
 }
@@ -2312,7 +2318,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     ++sc->switch_in_progress;
     sc->delayed_next_scr = 0;
     sc->old_scp = cur_scp;
-    sc->new_scp = SC_STAT(SC_DEV(sc, next_scr));
+    sc->new_scp = sc_get_stat(SC_DEV(sc, next_scr));
     if (sc->new_scp == sc->old_scp) {
 	sc->switch_in_progress = 0;
 	/*
@@ -2624,7 +2630,7 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
     for (i = sc->first_vty; i < sc->first_vty + sc->vtys; ++i) {
 	if ((dev = SC_DEV(sc, i)) == NODEV)
 	    continue;
-	if ((scp = SC_STAT(dev)) == NULL)
+	if ((scp = sc_get_stat(dev)) == NULL)
 	    continue;
 	scp->dflt_curs_attr = sc->curs_attr;
 	change_cursor_shape(scp, CONS_RESET_CURSOR, -1, -1);
@@ -2642,9 +2648,6 @@ scinit(int unit, int flags)
      * static buffers for the console.  This is less than ideal, 
      * but is necessry evil for the time being.  XXX
      */
-    static scr_stat main_console;
-    static dev_t main_devs[MAXCONS];
-    static struct tty main_tty;
 #ifdef PC98
     static u_short sc_buffer[ROW*COL*2];/* XXX */
 #else
@@ -2727,11 +2730,12 @@ scinit(int unit, int flags)
 	sc->first_vty = unit*MAXCONS;
 	sc->vtys = MAXCONS;		/* XXX: should be configurable */
 	if (flags & SC_KERNEL_CONSOLE) {
+	    /*
+	     * Set up devs structure but don't use it yet, calling make_dev()
+	     * might panic kernel.  Wait for sc_attach_unit() to actually
+	     * create the devices.
+	     */
 	    sc->dev = main_devs;
-	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
-	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
-	    sc->dev[0]->si_tty = &main_tty;
-	    ttyregister(&main_tty);
 	    scp = &main_console;
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
@@ -2748,8 +2752,8 @@ scinit(int unit, int flags)
 	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
 	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
 	    scp = alloc_scp(sc, sc->first_vty);
+	    SC_STAT(sc->dev[0]) = scp;
 	}
-	SC_STAT(sc->dev[0]) = scp;
 	sc->cur_scp = scp;
 
 #ifndef __sparc64__
@@ -2879,7 +2883,7 @@ scterm(int unit, int flags)
 	vid_release(sc->adp, &sc->adapter);
 
     /* stop the terminal emulator, if any */
-    scp = SC_STAT(sc->dev[0]);
+    scp = sc_get_stat(sc->dev[0]);
     if (scp->tsw)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
@@ -3412,7 +3416,7 @@ scmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
     scr_stat *scp;
 
-    scp = SC_STAT(dev);
+    scp = sc_get_stat(dev);
     if (scp != scp->sc->cur_scp)
 	return -1;
     return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, paddr, nprot);
@@ -3620,4 +3624,21 @@ blink_screen(void *arg)
 	scp->sc->blink_in_progress--;
 	timeout(blink_screen, scp, hz / 10);
     }
+}
+
+/*
+ * Until sc_attach_unit() gets called no dev structures will be available
+ * to store the per-screen current status.  This is the case when the
+ * kernel is initially booting and needs access to its console.  During
+ * this early phase of booting the console's current status is kept in
+ * one statically defined scr_stat structure, and any pointers to the
+ * dev structures will be NULL.
+ */
+
+static scr_stat *
+sc_get_stat(dev_t devptr)
+{
+	if (devptr == NULL)
+		return (&main_console);
+	return (SC_STAT(devptr));
 }
