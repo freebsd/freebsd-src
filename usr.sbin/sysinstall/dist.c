@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.49 1996/05/01 08:42:40 jkh Exp $
+ * $Id: dist.c,v 1.50 1996/05/01 08:50:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -183,7 +183,7 @@ int
 distSetXDeveloper(dialogMenuItem *self)
 {
     distReset(NULL);
-    Dists = _DIST_DEVELOPER | DIST_XF86;
+    Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
