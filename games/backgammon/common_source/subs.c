@@ -74,8 +74,8 @@ register char	*s1, *s2;
 	while ( (*s1++ = *s2++) != '\0');
 }
 
-addbuf (c)
-register char	c;
+int addbuf (c)
+register int	c;
 
 {
 	buffnum++;
@@ -85,6 +85,7 @@ register char	c;
 		buffnum = 0;
 	}
 	outbuff[buffnum] = c;
+	return (0);
 }
 
 buflush ()  {
