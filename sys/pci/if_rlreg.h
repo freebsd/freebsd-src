@@ -602,6 +602,7 @@ struct rl_dmaload_arg {
 	struct rl_softc		*sc;
 	int			rl_idx;
 	int			rl_maxsegs;
+	u_int32_t		rl_flags;
 	struct rl_desc		*rl_ring;
 };
 
