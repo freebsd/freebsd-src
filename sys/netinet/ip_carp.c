@@ -1405,7 +1405,7 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 	sc->sc_if.if_flags |= IFF_UP;
 	if (own)
 		sc->sc_advskew = 0;
-	carp_set_state(sc, INIT);
+	carp_carpdev_state(cif);
 	carp_setrun(sc, 0);
 
 	return (0);
@@ -1970,7 +1970,7 @@ carp_carpdev_state(void *v)
 
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list) {
-		if (sc->sc_ifp->if_link_state == LINK_STATE_DOWN ||
+		if (sc->sc_ifp->if_link_state != LINK_STATE_UP ||
 		    !(sc->sc_ifp->if_flags & IFF_UP)) {
 			sc->sc_flags_backup = sc->sc_if.if_flags;
 			sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
