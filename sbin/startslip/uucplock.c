@@ -139,7 +139,7 @@ static int put_pid (int fd, pid_t pid)
 	char buf[32];
 	int len;
 
-	len = sprintf (buf, "%10ld\n", pid);
+	len = sprintf (buf, "%10d\n", pid);
 	return write (fd, buf, len) == len;
 }
 
