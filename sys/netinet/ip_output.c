@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.36 1996/04/21 13:47:43 bde Exp $
+ *	$Id: ip_output.c,v 1.37 1996/05/06 17:42:13 wollman Exp $
  */
 
 #define _IP_VHL
@@ -657,6 +657,7 @@ ip_ctloutput(op, so, level, optname, mp)
 					break;
 				}
 			}
+			break;
 
 		default:
 			error = ENOPROTOOPT;
