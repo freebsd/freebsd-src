@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2004
+.Dd February 22, 2005
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -672,6 +672,19 @@ This makes the
 .Xr netstat 1
 entry look rather weird but is intended for
 use with transparent proxy servers.
+.Pp
+To enable
+.Cm fwd
+a custom kernel needs to be compiled with the option
+.Cd "options IPFIREWALL_FORWARD" .
+With the additional option
+.Cd "options IPFIREWALL_FORWARD_EXTENDED"
+all safeguards are removed and it also makes it possible to redirect
+packets destined to locally configured IP addresses.
+Please note that such rules apply to locally generated packets as
+well and great care is required to ensure proper behaviour for
+automatically generated packets like ICMP message size exceeded
+and others.
 .It Cm pipe Ar pipe_nr
 Pass packet to a
 .Xr dummynet 4
