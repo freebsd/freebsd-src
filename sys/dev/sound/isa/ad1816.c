@@ -413,6 +413,7 @@ ad1816chan_trigger(void *data, int go)
 		if (!(io_rd(ad1816, reg) & AD1816_ENABLE)) {
 	    		int cnt = ((ch->buffer->dl) >> 2) - 1;
 	    		ad1816_write(ad1816, wr? 8 : 10, cnt); /* count */
+	    		ad1816_write(ad1816, wr? 9 : 11, 0); /* reset cur cnt */
 	    		ad1816_write(ad1816, 1, ad1816_read(ad1816, 1) |
 				     (wr? 0x8000 : 0x4000)); /* enable int */
 	    		/* enable playback */

@@ -38,7 +38,7 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
-#define ESS_BUFFSIZE (16384)
+#define ESS_BUFFSIZE (4096)
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
 /* audio2 never generates irqs and sounds very noisy */
