@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#10 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#11 $
  *
  * $FreeBSD$
  */
