@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.96 1998/09/14 19:56:40 sos Exp $
+ * $Id: init_main.c,v 1.97 1998/10/06 11:55:40 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -60,6 +60,7 @@
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
 #include <sys/unistd.h>
+#include <sys/malloc.h>
 
 #include <machine/cpu.h>
 
@@ -122,6 +123,48 @@ void __main() {}
  */
 SYSINIT(placeholder, SI_SUB_DUMMY,SI_ORDER_ANY, NULL, NULL)
 
+/*
+ * The sysinit table itself.  Items are checked off as the are run.
+ * If we want to register new sysinit types, add them to newsysinit.
+ */
+struct sysinit **sysinit = (struct sysinit **)sysinit_set.ls_items;
+struct sysinit **newsysinit;
+
+/*
+ * Merge a new sysinit set into the current set, reallocating it if
+ * necessary.  This can only be called after malloc is running.
+ */
+void
+sysinit_add(set)
+	struct sysinit **set;
+{
+	struct sysinit **newset;
+	struct sysinit **sipp;
+	struct sysinit **xipp;
+	int count = 0;
+
+	for (sipp = sysinit; *sipp; sipp++)
+		count++;
+	for (sipp = set; *sipp; sipp++)
+		count++;
+	if (newsysinit)
+		for (sipp = set; *sipp; sipp++)
+			count++;
+	newset = malloc(count * sizeof(*sipp), M_TEMP, M_NOWAIT);
+	if (newset == NULL)
+		panic("cannot malloc for sysinit");
+	xipp = newset;
+	for (sipp = sysinit; *sipp; sipp++)
+		*xipp++ = *sipp;
+	for (sipp = set; *sipp; sipp++)
+		*xipp++ = *sipp;
+	if (newsysinit) {
+		for (sipp = newsysinit; *sipp; sipp++)
+			*xipp++ = *sipp;
+		free(newset, M_TEMP);
+	}
+	newsysinit = newset;
+}
 
 /*
  * System startup; initialize the world, create process 0, mount root
@@ -149,17 +192,15 @@ main(framep)
 	 */
 	init_framep = framep;
 
+restart:
 	/*
 	 * Perform a bubble sort of the system initialization objects by
 	 * their subsystem (primary key) and order (secondary key).
-	 *
-	 * Since some things care about execution order, this is the
-	 * operation which ensures continued function.
 	 */
-	for( sipp = (struct sysinit **)sysinit_set.ls_items; *sipp; sipp++) {
-		for( xipp = sipp + 1; *xipp; xipp++) {
-			if( (*sipp)->subsystem < (*xipp)->subsystem ||
-			    ( (*sipp)->subsystem == (*xipp)->subsystem &&
+	for (sipp = sysinit; *sipp; sipp++) {
+		for (xipp = sipp + 1; *xipp; xipp++) {
+			if ((*sipp)->subsystem < (*xipp)->subsystem ||
+			     ((*sipp)->subsystem == (*xipp)->subsystem &&
 			      (*sipp)->order < (*xipp)->order))
 				continue;	/* skip*/
 			save = *sipp;
@@ -175,15 +216,18 @@ main(framep)
 	 * The last item on the list is expected to be the scheduler,
 	 * which will not return.
 	 */
-	for( sipp = (struct sysinit **)sysinit_set.ls_items; *sipp; sipp++) {
+	for (sipp = sysinit; *sipp; sipp++) {
 
-		if( (*sipp)->subsystem == SI_SUB_DUMMY)
+		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
+
+		if ((*sipp)->subsystem == SI_SUB_DONE)
+			continue;
 
 		switch( (*sipp)->type) {
 		case SI_TYPE_DEFAULT:
 			/* no special processing*/
-			(*((*sipp)->func))( (*sipp)->udata);
+			(*((*sipp)->func))((*sipp)->udata);
 			break;
 
 		case SI_TYPE_KTHREAD:
@@ -204,7 +248,19 @@ main(framep)
 			break;
 
 		default:
-			panic( "init_main: unrecognized init type");
+			panic("init_main: unrecognized init type");
+		}
+
+		/* Check off the one we're just done */
+		(*sipp)->subsystem = SI_SUB_DONE;
+
+		/* Check if we've installed more sysinit items via KLD */
+		if (newsysinit != NULL) {
+			if (sysinit != (struct sysinit **)sysinit_set.ls_items)
+				free(sysinit, M_TEMP);
+			sysinit = newsysinit;
+			newsysinit = NULL;
+			goto restart;
 		}
 	}
 
