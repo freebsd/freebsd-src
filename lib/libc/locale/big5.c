@@ -55,8 +55,7 @@ int	_BIG5_mbsinit(const mbstate_t *);
 size_t	_BIG5_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
-	int	count;
-	u_char	bytes[2];
+	wchar_t	ch;
 } _BIG5State;
 
 int
@@ -75,7 +74,7 @@ int
 _BIG5_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((const _BIG5State *)ps)->count == 0);
+	return (ps == NULL || ((const _BIG5State *)ps)->ch == 0);
 }
 
 static __inline int
@@ -92,12 +91,12 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 {
 	_BIG5State *bs;
 	wchar_t wc;
-	int i, len, ocount;
-	size_t ncopy;
+	size_t len;
 
 	bs = (_BIG5State *)ps;
 
-	if (bs->count < 0 || bs->count > sizeof(bs->bytes)) {
+	if ((bs->ch & ~0xFF) != 0) {
+		/* Bad conversion state. */
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -108,28 +107,43 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		pwc = NULL;
 	}
 
-	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(bs->bytes) - bs->count);
-	memcpy(bs->bytes + bs->count, s, ncopy);
-	ocount = bs->count;
-	bs->count += ncopy;
-	s = (char *)bs->bytes;
-	n = bs->count;
-
-	if (n == 0 || (size_t)(len = _big5_check(*s)) > n)
+	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
-	if (len == 2 && s[1] == '\0') {
-		errno = EILSEQ;
-		return ((size_t)-1);
+
+	if (bs->ch != 0) {
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (bs->ch << 8) | (*s & 0xFF);
+		if (pwc != NULL)
+			*pwc = wc;
+		bs->ch = 0;
+		return (1);
 	}
-	wc = 0;
-	i = len;
-	while (i-- > 0)
-		wc = (wc << 8) | (unsigned char)*s++;
-	if (pwc != NULL)
-		*pwc = wc;
-	bs->count = 0;
-	return (wc == L'\0' ? 0 : len - ocount);
+
+	len = (size_t)_big5_check(*s);
+	wc = *s++ & 0xff;
+	if (len == 2) {
+		if (n < 2) {
+			/* Incomplete multibyte sequence */
+			bs->ch = wc;
+			return ((size_t)-2);
+		}
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (wc << 8) | (*s++ & 0xff);
+		if (pwc != NULL)
+			*pwc = wc;
+                return (2);
+	} else {
+		if (pwc != NULL)
+			*pwc = wc;
+		return (wc == L'\0' ? 0 : 1);
+	}
 }
 
 size_t
@@ -139,7 +153,7 @@ _BIG5_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 
 	bs = (_BIG5State *)ps;
 
-	if (bs->count != 0) {
+	if (bs->ch != 0) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
