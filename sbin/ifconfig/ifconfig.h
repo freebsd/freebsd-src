@@ -56,6 +56,9 @@ struct cmd {
 };
 void	cmd_register(struct cmd *);
 
+typedef	void callback_func(int s, void *);
+void	callback_register(callback_func *, void *);
+
 /*
  * Macros for declaring command functions and initializing entries.
  */
