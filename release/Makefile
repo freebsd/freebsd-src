@@ -695,7 +695,10 @@ release.9:
 	    ${RD}/trees/base/etc/services | \
 	    sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
 	    > ${RD}/mfsfd/stand/etc/services
+	grep 'operator' ${RD}/trees/base/etc/group \
+	    > ${RD}/mfsfd/stand/etc/group
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
+	ln ${RD}/mfsfd/stand/etc/group ${RD}/mfsfd/etc/group
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
 	cp ${RD}/trees/base/COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 .if !defined(NODOC)
