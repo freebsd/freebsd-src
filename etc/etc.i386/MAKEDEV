@@ -73,8 +73,10 @@
 #	vat	VAT compatibility audio driver (requires snd*)
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
+#	tun	Tunneling IP device
+#	spigot	Video Spigot video aquisition card
 #
-#	$Id: MAKEDEV,v 1.63 1995/01/25 21:21:28 jmz Exp $
+#	$Id: MAKEDEV,v 1.64 1995/02/01 23:15:11 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -691,6 +693,12 @@ joy)
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
 	chmod 444 joy0 joy1
+	;;
+
+spigot)
+	rm -f spigot
+	mknod spigot 11 0
+	chmod 444 spigot
 	;;
 
 tun?)
