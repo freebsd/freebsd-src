@@ -76,6 +76,7 @@ static char *info_suffixes[] = {
 static COMPRESSION_ALIST compress_suffixes[] = {
   { ".Z", "uncompress" },
   { ".Y", "unyabba" },
+  { ".gz", "gunzip" },
   { ".z", "gunzip" },
   { (char *)NULL, (char *)NULL }
 };
