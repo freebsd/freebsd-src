@@ -166,10 +166,6 @@ for infrequent traffic.
 
 <sect1><heading>List charters<label id="eresources:charters"></heading>
 
-<p>
-<descrip>
-<tag/FREEBSD-ADMIN/ <em>Administrative issues</em><newline>
-
 <p><bf>All</bf>FreeBSD mailing lists have certain basic rules
 which must be adhered to by anyone using them.  Failure to adhere
 to these rules will result in two (2) written warnings from the
@@ -217,6 +213,13 @@ today's Internet is a pretty harsh environment, it would seem.
 </itemize>
 
 <p><bf>Individual list charters:</bf>
+
+<p>
+<descrip>
+<tag/FREEBSD-ADMIN/ <em>Administrative issues</em><newline>
+This list is purely for discussion of freebsd.org related issues
+and to report problems or abuse of project resources.  It is a closed
+list, though anyone may report a problem (with our systems!) to it.
 
 <tag/FREEBSD-ANNOUNCE/ <em>Important events / milestones</em><newline>
 This is the mailing list for people interested only in occasional
