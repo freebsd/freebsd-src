@@ -384,7 +384,6 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	switch(ft) {
 	case ETHER_FT_EII:
 		return (ef_inputEII(m, eh, ether_type));
-		break;
 #ifdef IPX
 	case ETHER_FT_8023:		/* only IPX can be here */
 		isr = NETISR_IPX;
@@ -392,10 +391,8 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 #endif
 	case ETHER_FT_SNAP:
 		return (ef_inputSNAP(m, eh, l, ether_type));
-		break;
 	case ETHER_FT_8022:
 		return (ef_input8022(m, eh, l, ether_type));
-		break;
 	default:
 		EFDEBUG("No support for frame %d and proto %04x\n",
 			ft, ether_type);
