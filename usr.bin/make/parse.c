@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: parse.c,v 1.14.2.2 1997/07/28 06:47:31 charnier Exp $";
 #endif /* not lint */
 
 /*-
@@ -251,6 +251,7 @@ static int ParseReadc __P((void));
 static void ParseUnreadc __P((int));
 static void ParseHasCommands __P((ClientData));
 static void ParseDoInclude __P((char *));
+static void ParseDoError __P((char *));
 #ifdef SYSVINCLUDE
 static void ParseTraditionalInclude __P((char *));
 #endif
@@ -1552,6 +1553,35 @@ Parse_AddIncludeDir (dir)
     Dir_AddDir (parseIncPath, dir);
 }
 
+/*---------------------------------------------------------------------
+ * ParseDoError  --
+ *	Handle error directive
+ *
+ *	The input is the line minus the ".error".  We substitute variables,
+ *	print the message and exit(1) or just print a warning if the ".error"
+ *	directive is malformed.
+ *
+ *---------------------------------------------------------------------
+ */
+static void
+ParseDoError(errmsg)
+    char          *errmsg;	/* error message */
+{
+	if (!isspace(*errmsg)) {
+		Parse_Error(PARSE_WARNING, "invalid syntax: .error%s", errmsg);
+		return;
+	}
+	
+	while (isspace(*errmsg))
+		errmsg++;
+	
+	errmsg = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
+
+	/* use fprintf/exit instead of Parse_Error to terminate immediately */
+	fprintf(stderr, "\"%s\", line %d: %s\n", fname, lineno, errmsg);
+	exit(1);
+}
+
 /*-
  *---------------------------------------------------------------------
  * ParseDoInclude  --
@@ -1732,6 +1762,7 @@ ParseDoInclude (file)
 	(void) ParseEOF(0);
     }
 }
+
 
 
 /*-
@@ -2385,6 +2416,9 @@ Parse_File(name, stream)
 		if (strncmp (cp, "include", 7) == 0) {
 		    ParseDoInclude (cp + 7);
 		    goto nextLine;
+		} else if (strncmp (cp, "error", 5) == 0) {
+		    ParseDoError(cp + 5);
+	            goto nextLine;	    
 		} else if (strncmp(cp, "undef", 5) == 0) {
 		    char *cp2;
 		    for (cp += 5; isspace((unsigned char) *cp); cp++) {
