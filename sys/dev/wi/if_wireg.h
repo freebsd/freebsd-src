@@ -538,7 +538,7 @@ struct wi_ltv_pcf {
 #define WI_PORTTYPE_WDS		0x2
 #define WI_PORTTYPE_ADHOC	0x3
 #define WI_PORTTYPE_IBSS	0x4
-#define WI_PORTTYPE_AP		0x6
+#define WI_PORTTYPE_HOSTAP	0x6
 
 /*
  * Mac addresses. (0xFC01, 0xFC08)
