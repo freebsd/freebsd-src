@@ -52,7 +52,7 @@ usage_recover(void)
 }
 
 static void
-recover(int fd)
+recover(int fd __unused)
 {
 
 	/* TODO */
