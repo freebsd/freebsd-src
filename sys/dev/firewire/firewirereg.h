@@ -143,6 +143,9 @@ struct firewire_comm{
 	u_int32_t csr_arc[CSRSIZE/4];
 #define CROMSIZE 0x400
 	u_int32_t *config_rom;
+	struct crom_src_buf *crom_src_buf;
+	struct crom_src *crom_src;
+	struct crom_chunk *crom_root;
 	struct fw_topology_map *topology_map;
 	struct fw_speed_map *speed_map;
 	struct callout busprobe_callout;
