@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #else
 static const char rcsid[] =
-	"$Id: print.c,v 1.15 1998/04/21 22:02:01 des Exp $";
+	"$Id: print.c,v 1.16 1998/04/24 07:49:50 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -137,8 +137,6 @@ printlong(dp)
 	}
 }
 
-#define	TAB	8
-
 void
 printcol(dp)
 	DISPLAY *dp;
@@ -149,6 +147,12 @@ printcol(dp)
 	FTSENT *p;
 	int base, chcnt, cnt, col, colwidth, num;
 	int endcol, numcols, numrows, row;
+	int tabwidth;
+
+	if (f_notabs)
+		tabwidth = 1;
+	else
+		tabwidth = 8;
 
 	/*
 	 * Have to do random access in the linked list -- build a table
@@ -174,7 +178,7 @@ printcol(dp)
 	if (f_type)
 		colwidth += 1;
 
-	colwidth = (colwidth + TAB) & ~(TAB - 1);
+	colwidth = (colwidth + tabwidth) & ~(tabwidth - 1);
 	if (termwidth < 2 * colwidth) {
 		printscol(dp);
 		return;
@@ -194,8 +198,9 @@ printcol(dp)
 			    dp->s_block);
 			if ((base += numrows) >= num)
 				break;
-			while ((cnt = ((chcnt + TAB) & ~(TAB - 1))) <= endcol){
-				(void)putchar('\t');
+			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
+			    <= endcol){
+				(void)putchar(f_notabs ? ' ' : '\t');
 				chcnt = cnt;
 			}
 			endcol += colwidth;
