@@ -94,41 +94,46 @@ typedef struct  /* PLATFORM INTERRUPT SOURCE */
 static void
 parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *override)
 {
-	printf("\t\tBus=%d, Source=%d, Irq=0x%x\n",
-	       override->Bus,
-	       override->Source,
-	       override->GlobalSystemInterrupt);
+	if (bootverbose)
+		printf("\t\tBus=%d, Source=%d, Irq=0x%x\n",
+		       override->Bus,
+		       override->Source,
+		       override->GlobalSystemInterrupt);
 }
 
 static void
 parse_io_sapic(IO_SAPIC *sapic)
 {
-	printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
-	       sapic->IoSapicId,
-	       sapic->Vector,
-	       sapic->IoSapicAddress);
+	if (bootverbose)
+		printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
+		       sapic->IoSapicId,
+		       sapic->Vector,
+		       sapic->IoSapicAddress);
+	sapic_create(sapic->IoSapicId, sapic->Vector, sapic->IoSapicAddress);
 }
 
 static void
 parse_local_sapic(LOCAL_SAPIC *sapic)
 {
-	printf("\t\tProcessorId=0x%x, Id=0x%x, Eid=0x%x\n",
-	       sapic->ProcessorId,
-	       sapic->LocalSapicId,
-	       sapic->LocalSapicEid);
+	if (bootverbose)
+		printf("\t\tProcessorId=0x%x, Id=0x%x, Eid=0x%x\n",
+		       sapic->ProcessorId,
+		       sapic->LocalSapicId,
+		       sapic->LocalSapicEid);
 }
 
 static void
 parse_platform_interrupt(PLATFORM_INTERRUPT_SOURCE *source)
 {
-	printf("\t\tPolarity=%d, TriggerMode=%d, Id=0x%x, "
-	       "Eid=0x%x, Vector=0x%x, Irq=%d\n",
-	       source->Polarity,
-	       source->TriggerMode,
-	       source->ProcessorId,
-	       source->ProcessorEid,
-	       source->IoSapicVector,
-	       source->GlobalSystemInterrupt);
+	if (bootverbose)
+		printf("\t\tPolarity=%d, TriggerMode=%d, Id=0x%x, "
+		       "Eid=0x%x, Vector=0x%x, Irq=%d\n",
+		       source->Polarity,
+		       source->TriggerMode,
+		       source->ProcessorId,
+		       source->ProcessorEid,
+		       source->IoSapicVector,
+		       source->GlobalSystemInterrupt);
 }
 
 static void
@@ -144,7 +149,8 @@ parse_madt(APIC_TABLE *madt)
 	for (p = (char *) (madt + 1); p < end; ) {
 		APIC_HEADER *head = (APIC_HEADER *) p;
 
-		printf("\t");
+		if (bootverbose)
+			printf("\t");
 		switch (head->Type) {
 		case APIC_PROC:
 			if (bootverbose)
