@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.11 1998/08/10 07:53:58 dfr Exp $
+ *	$Id: machdep.c,v 1.12 1998/08/22 10:32:38 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1729,6 +1729,33 @@ set_regs(p, regs)
 	tp->tf_regs[FRAME_PC] = regs->r_regs[R_ZERO];
 	pcb->pcb_hw.apcb_usp = regs->r_regs[R_SP];
 
+	return (0);
+}
+
+int
+fill_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	if (p == fpcurproc) {
+		alpha_pal_wrfen(1);
+		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+		alpha_pal_wrfen(0);
+	}
+
+	bcopy(&p->p_addr->u_pcb.pcb_fp, fpregs, sizeof *fpregs);
+	return (0);
+}
+
+int
+set_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	if (p == fpcurproc)
+		fpcurproc = NULL;
+
+	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
 	return (0);
 }
 

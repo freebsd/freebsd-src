@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.1 1998/06/10 10:55:11 dfr Exp $
+ *	$Id: md_var.h,v 1.2 1998/07/12 16:32:09 dfr Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -39,6 +39,10 @@ extern	int	szsigcode;
 extern	int	Maxmem;
 extern	void	(*netisrs[32]) __P((void));
 
+struct fpreg;
+struct proc;
+struct reg;
+
 void	cpu_power_down __P((void));
 void	cpu_halt __P((void));
 void	cpu_reset __P((void));
@@ -47,5 +51,7 @@ void	swi_vm __P((void));
 int	vm_page_zero_idle __P((void));
 int	fill_regs __P((struct proc *, struct reg *));
 int	set_regs __P((struct proc *, struct reg *));
+int	fill_fpregs __P((struct proc *, struct fpreg *));
+int	set_fpregs __P((struct proc *, struct fpreg *));
 
 #endif /* !_MACHINE_MD_VAR_H_ */

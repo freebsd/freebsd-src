@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.23 1998/02/01 23:00:53 bde Exp $
+ *	$Id: md_var.h,v 1.24 1998/07/11 05:59:35 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -64,6 +64,7 @@ extern	int	szsigcode;
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
 struct	reg;
+struct	fpreg;
 
 void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
@@ -78,6 +79,7 @@ void	doreti_popl_ds __P((void)) __asm(__STRING(doreti_popl_ds));
 void	doreti_popl_ds_fault __P((void)) __asm(__STRING(doreti_popl_ds_fault));
 void	doreti_popl_es __P((void)) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
+int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	fill_regs __P((struct proc *p, struct reg *regs));
 void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
 int	is_physical_memory __P((vm_offset_t addr));

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.307 1998/09/01 02:04:12 kato Exp $
+ *	$Id: machdep.c,v 1.308 1998/09/14 11:47:40 abial Exp $
  */
 
 #include "apm.h"
@@ -1792,6 +1792,24 @@ set_regs(p, regs)
 	pcb = &p->p_addr->u_pcb;
 	pcb->pcb_fs = regs->r_fs;
 	pcb->pcb_gs = regs->r_gs;
+	return (0);
+}
+
+int
+fill_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	bcopy(&p->p_addr->u_pcb.pcb_savefpu, fpregs, sizeof *fpregs);
+	return (0);
+}
+
+int
+set_fpregs(p, fpregs)
+	struct proc *p;
+	struct fpreg *fpregs;
+{
+	bcopy(fpregs, &p->p_addr->u_pcb.pcb_savefpu, sizeof *fpregs);
 	return (0);
 }
 
