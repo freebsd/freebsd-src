@@ -587,7 +587,7 @@ psycho_attach(device_t dev)
 			sclr = malloc(sizeof(*sclr), M_DEVBUF, M_WAITOK);
 			sclr->psc_sc = sc;
 			sclr->psc_clr = clr;
-			intr_setup(PIL_LOW, intr_dequeue, INTVEC(mr),
+			intr_setup(PIL_LOW, intr_fast, INTVEC(mr),
 			    psycho_intr_stray, sclr);
 		}
 #endif
