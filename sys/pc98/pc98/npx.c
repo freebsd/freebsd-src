@@ -143,7 +143,7 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	"Floatingpoint instructions executed in hardware");
 
 #ifndef SMP
-static	u_int			npx0_imask = SWI_LOW_MASK;
+static	u_int			npx0_imask = 0;
 static	struct gate_descriptor	npx_idt_probeintr;
 static	int			npx_intrno;
 static	volatile u_int		npx_intrs_while_probing;
