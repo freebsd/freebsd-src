@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.66 2001/02/25 23:30:35 gshapiro Exp $";
+static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.81 2001/05/23 02:15:42 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -135,22 +135,31 @@ sendall(e, mode)
 
 	if (e->e_hopcount > MaxHopCount)
 	{
+		char *recip;
+
+		if (e->e_sendqueue != NULL &&
+		    e->e_sendqueue->q_paddr != NULL)
+			recip = e->e_sendqueue->q_paddr;
+		else
+			recip = "(nobody)";
+
 		errno = 0;
 #if QUEUE
 		queueup(e, mode == SM_QUEUE || mode == SM_DEFER);
 #endif /* QUEUE */
 		e->e_flags |= EF_FATALERRS|EF_PM_NOTIFY|EF_CLRQUEUE;
 		ExitStat = EX_UNAVAILABLE;
-		syserr("554 5.0.0 Too many hops %d (%d max): from %s via %s, to %s",
-			e->e_hopcount, MaxHopCount, e->e_from.q_paddr,
-			RealHostName == NULL ? "localhost" : RealHostName,
-			e->e_sendqueue->q_paddr);
+		syserr("554 5.4.6 Too many hops %d (%d max): from %s via %s, to %s",
+		       e->e_hopcount, MaxHopCount, e->e_from.q_paddr,
+		       RealHostName == NULL ? "localhost" : RealHostName,
+		       recip);
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
 			if (QS_IS_DEAD(q->q_state))
 				continue;
 			q->q_state = QS_BADADDR;
 			q->q_status = "5.4.6";
+			q->q_rstatus = "554 5.4.6 Too many hops";
 		}
 		return;
 	}
@@ -635,6 +644,11 @@ sendall(e, mode)
 			return;
 		}
 
+		/* Reset global flags */
+		RestartRequest = NULL;
+		ShutdownRequest = NULL;
+		PendingSignal = 0;
+
 		/*
 		**  Since we have accepted responsbility for the message,
 		**  change the SIGTERM handler.  intsig() (the old handler)
@@ -931,7 +945,7 @@ dup_queue_file(e, ee, type)
 **		returns twice, once in parent and once in child.
 */
 
-int
+pid_t
 dofork()
 {
 	register pid_t pid = -1;
@@ -1451,7 +1465,7 @@ deliver(e, firstto)
 		if (l > tobufsize)
 		{
 			if (tobuf != NULL)
-				free(tobuf);
+				sm_free(tobuf);
 			tobufsize = l;
 			tobuf = xalloc(tobufsize);
 		}
@@ -1719,10 +1733,10 @@ tryhost:
 						m->m_name);
 				i = makeconnection(hostbuf, port, mci, e);
 			}
+			mci->mci_errno = errno;
 			mci->mci_lastuse = curtime();
 			mci->mci_deliveries = 0;
 			mci->mci_exitstat = i;
-			mci->mci_errno = errno;
 # if NAMED_BIND
 			mci->mci_herrno = h_errno;
 # endif /* NAMED_BIND */
@@ -1912,6 +1926,11 @@ tryhost:
 			int new_gid = NO_GID;
 			struct stat stb;
 			extern int DtableSize;
+
+			/* Reset global flags */
+			RestartRequest = NULL;
+			ShutdownRequest = NULL;
+			PendingSignal = 0;
 
 			if (e->e_lockfp != NULL)
 				(void) close(fileno(e->e_lockfp));
@@ -2511,7 +2530,9 @@ reconnect:	/* after switching to an authenticated connection */
 						  mci->mci_host,
 						  macvalue(macid("{auth_type}",
 								 NULL), e),
-						  *ssf);
+						  result == SASL_OK ? *ssf
+						  		    : 0);
+
 				/*
 				**  only switch to encrypted connection
 				**  if a security layer has been negotiated
@@ -3041,6 +3062,12 @@ static jmp_buf	EndWaitTimeout;
 static void
 endwaittimeout()
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
 	errno = ETIMEDOUT;
 	longjmp(EndWaitTimeout, 1);
 }
@@ -3059,6 +3086,19 @@ endmailer(mci, e, pv)
 
 	mci_unlock_host(mci);
 
+	/* close output to mailer */
+	if (mci->mci_out != NULL)
+		(void) fclose(mci->mci_out);
+
+	/* copy any remaining input to transcript */
+	if (mci->mci_in != NULL && mci->mci_state != MCIS_ERROR &&
+	    e->e_xfp != NULL)
+	{
+		while (sfgets(buf, sizeof buf, mci->mci_in,
+		       TimeOuts.to_quit, "Draining Input") != NULL)
+			(void) fputs(buf, e->e_xfp);
+	}
+
 #if SASL
 	/* shutdown SASL */
 	if (bitset(MCIF_AUTHACT, mci->mci_flags))
@@ -3072,19 +3112,6 @@ endmailer(mci, e, pv)
 	/* shutdown TLS */
 	(void) endtlsclt(mci);
 #endif /* STARTTLS */
-
-	/* close output to mailer */
-	if (mci->mci_out != NULL)
-		(void) fclose(mci->mci_out);
-
-	/* copy any remaining input to transcript */
-	if (mci->mci_in != NULL && mci->mci_state != MCIS_ERROR &&
-	    e->e_xfp != NULL)
-	{
-		while (sfgets(buf, sizeof buf, mci->mci_in,
-		       TimeOuts.to_quit, "Draining Input") != NULL)
-			(void) fputs(buf, e->e_xfp);
-	}
 
 	/* now close the input */
 	if (mci->mci_in != NULL)
@@ -3375,7 +3402,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e)
 	if (status != EX_OK && (status != EX_TEMPFAIL || e->e_message == NULL))
 	{
 		if (e->e_message != NULL)
-			free(e->e_message);
+			sm_free(e->e_message);
 		e->e_message = newstr(statmsg + off);
 	}
 	errno = 0;
@@ -3947,7 +3974,7 @@ putbody(mci, e, separator)
 							    TrafficLogFile);
 					if (c == '\n')
 						(void) fputs(mci->mci_mailer->m_eol,
-						      TrafficLogFile);
+							     TrafficLogFile);
 				}
 				if (padc != EOF)
 				{
@@ -4375,6 +4402,11 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		int err;
 		volatile int oflags = O_WRONLY|O_APPEND;
 
+		/* Reset global flags */
+		RestartRequest = NULL;
+		ShutdownRequest = NULL;
+		PendingSignal = 0;
+
 		if (e->e_lockfp != NULL)
 			(void) close(fileno(e->e_lockfp));
 
@@ -4391,7 +4423,8 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		}
 
 		if (TimeOuts.to_fileopen > 0)
-			ev = setevent(TimeOuts.to_fileopen, mailfiletimeout, 0);
+			ev = setevent(TimeOuts.to_fileopen,
+				      mailfiletimeout, 0);
 		else
 			ev = NULL;
 
@@ -4705,7 +4738,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER);
 		(*e->e_putbody)(&mcibuf, e, NULL);
 		putline("\n", &mcibuf);
-		if (fflush(f) < 0 ||
+		if (fflush(f) != 0 ||
 		    (SuperSafe && fsync(fileno(f)) < 0) ||
 		    ferror(f))
 		{
@@ -4755,6 +4788,13 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 static void
 mailfiletimeout()
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(CtxMailfileTimeout, 1);
 }
 /*
@@ -4802,17 +4842,19 @@ hostsignature(m, host)
 		dprintf("hostsignature(%s)\n", host);
 
 	/*
-	**  If local delivery, just return a constant.
+	**  If local delivery (and not remote), just return a constant.
 	*/
 
-	if (bitnset(M_LOCALMAILER, m->m_flags))
+	p = m->m_mailer;
+	if (bitnset(M_LOCALMAILER, m->m_flags) &&
+	    strcmp(p, "[IPC]") != 0 &&
+	    strcmp(p, "[TCP]") != 0)
 		return "localhost";
 
 	/*
 	**  Check to see if this uses IPC -- if not, it can't have MX records.
 	*/
 
-	p = m->m_mailer;
 	if (strcmp(p, "[IPC]") != 0 &&
 	    strcmp(p, "[TCP]") != 0)
 	{
@@ -4920,7 +4962,7 @@ hostsignature(m, host)
 		if (s->s_hostsig != NULL)
 		{
 			(void) strlcpy(p, s->s_hostsig, len);
-			free(s->s_hostsig);
+			sm_free(s->s_hostsig);
 			s->s_hostsig = p;
 			hl = strlen(p);
 			p += hl;

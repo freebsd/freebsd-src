@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.32 2001/01/29 23:45:22 gshapiro Exp $
+#	$Id: README,v 8.263.2.1.2.35 2001/05/09 20:58:32 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -459,6 +459,9 @@ SNPRINTF_IS_BROKEN
 		Set this if your system has an snprintf() implementation
 		which does not NUL terminate the string being filled in.
 		Use test/t_snprintf.c to test your system.
+NEEDSGETIPNODE	Set this if your system supports IPv6 but doesn't include
+		the getipnodeby{name,addr}() functions.  Set automatically
+		for Linux's glibc.
 
 +-----------------------+
 | COMPILE-TIME FEATURES |
@@ -1448,6 +1451,21 @@ UNICOS 8.0.3.4
 	problems.  You may want to turn this off if you have problems
 	running sendmail.  Reported by Jerry G. DeLapp <jgd@acl.lanl.gov>.
 
+Mac OS X (10.0.X)
+	From: Mike Zimmerman <zimmy@torrentnet.com>
+	From scratch here is what Darwin users need to do to the standard
+	10.0.0, 10.0.1 install to get sendmail working.
+	From http://www.macosx.com/forums/showthread.php?s=6dac0e9e1f3fd118a4870a8a9b559491&threadid=2242:
+	1. chmod g-w / /private /private/etc
+	2. Properly set HOSTNAME in /etc/hostconfig to your FQDN:
+	   HOSTNAME=-my.domain.com-
+	3. Edit /etc/rc.boot:
+	   hostname my.domain.com
+	   domainname domain.com
+	4. Edit /System/Library/StartupItems/Sendmail/Sendmail:
+	   Remove the "&" after the sendmail command:
+	   /usr/sbin/sendmail -bd -q1h
+
 GNU getopt
 	I'm told that GNU getopt has a problem in that it gets confused
 	by the double call.  Use the version in conf.c instead.
@@ -1688,4 +1706,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.32 $, last update $Date: 2001/01/29 23:45:22 $ )
+(Version $Revision: 8.263.2.1.2.35 $, last update $Date: 2001/05/09 20:58:32 $ )

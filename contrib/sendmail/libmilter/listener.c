@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.21 2001/02/14 02:20:40 gshapiro Exp $";
+static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.22 2001/05/16 17:15:58 ca Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -515,6 +515,8 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	int ret = MI_SUCCESS;
 	int mcnt = 0;
 	int tcnt = 0;
+	int acnt = 0;
+	int save_errno = 0;
 	sthread_t thread_id;
 	_SOCK_ADDR cliaddr;
 	SOCKADDR_LEN_T socksize;
@@ -574,10 +576,9 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		}
 		if (r < 0)
 		{
-			int err = errno;
-
+			save_errno = errno;
 			(void) smutex_unlock(&L_Mutex);
-			if (err == EINTR)
+			if (save_errno == EINTR)
 				continue;
 			ret = MI_FAILURE;
 			break;
@@ -593,6 +594,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		memset(&cliaddr, '\0', sizeof cliaddr);
 		connfd = accept(listenfd, (struct sockaddr *) &cliaddr,
 				&clilen);
+		save_errno = errno;
 		(void) smutex_unlock(&L_Mutex);
 
 		/*
@@ -610,14 +612,23 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		{
 			(void) close(connfd);
 			connfd = INVALID_SOCKET;
-			errno = EINVAL;
+			save_errno = EINVAL;
 		}
 
 		if (!ValidSocket(connfd))
 		{
 			smi_log(SMI_LOG_ERR,
-				"%s: accept() returned invalid socket",
-				smfi->xxfi_name);
+				"%s: accept() returned invalid socket (%s)",
+				smfi->xxfi_name, strerror(save_errno));
+			if (save_errno == EINTR)
+				continue;
+			acnt++;
+			MI_SLEEP(acnt);
+			if (acnt >= MAX_FAILS_A)
+			{
+				ret = MI_FAILURE;
+				break;
+			}
 			continue;
 		}
 
@@ -643,6 +654,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			continue;
 		}
 		mcnt = 0;
+		acnt = 0;
 		memset(ctx, '\0', sizeof *ctx);
 		ctx->ctx_sd = connfd;
 		ctx->ctx_dbg = dbg;

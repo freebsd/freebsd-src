@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.40.8.4 2000/10/26 18:27:44 gshapiro Exp $
+#	$Id: Makefile,v 8.40.8.5 2001/04/12 22:39:52 gshapiro Exp $
 #
 
 #
@@ -117,7 +117,6 @@ M4FILES=\
 	${CFDIR}/ostype/aix4.m4 \
 	${CFDIR}/ostype/altos.m4 \
 	${CFDIR}/ostype/amdahl-uts.m4 \
-	${CFDIR}/ostype/aux.m4 \
 	${CFDIR}/ostype/bsd4.3.m4 \
 	${CFDIR}/ostype/bsd4.4.m4 \
 	${CFDIR}/ostype/bsdi.m4 \

@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.50 2001/02/22 18:56:24 gshapiro Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.64 2001/05/23 17:49:13 ca Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -881,6 +881,7 @@ MAP
 #define MF_DEFER	0x00080000	/* don't lookup map in defer mode */
 #define MF_SINGLEMATCH	0x00100000	/* successful only if match one key */
 #define MF_NOREWRITE	0x00200000	/* don't rewrite result, return as-is */
+#define MF_CLOSING	0x00400000	/* map is being closed */
 
 #define DYNOPENMAP(map) if (!bitset(MF_OPEN, (map)->map_mflags)) \
 	{	\
@@ -969,6 +970,9 @@ struct ldapmap_struct
 	/* args for ldap_result */
 	struct timeval	ldap_timeout;
 	LDAPMessage	*ldap_res;
+
+	/* Linked list of maps sharing the same LDAP binding */
+	MAP		*ldap_next;
 };
 
 typedef struct ldapmap_struct	LDAPMAP_STRUCT;
@@ -1076,7 +1080,7 @@ struct symtab
 		struct hdrinfo	sv_header;	/* header metainfo */
 		char		*sv_service[MAXMAPSTACK]; /* service switch */
 #ifdef LDAPMAP
-		LDAP		*sv_ldap;	/* LDAP connection */
+		MAP		*sv_lmap;	/* Maps for LDAP connection */
 #endif /* LDAPMAP */
 #if _FFR_MILTER
 		struct milter	*sv_milter;	/* milter filter name */
@@ -1101,7 +1105,7 @@ typedef struct symtab	STAB;
 #define ST_SERVICE	11	/* service switch entry */
 #define ST_HEADER	12	/* special header flags */
 #ifdef LDAPMAP
-# define ST_LDAP	13	/* LDAP connection */
+# define ST_LMAP	13	/* List head of maps for LDAP connection */
 #endif /* LDAPMAP */
 #if _FFR_MILTER
 # define ST_MILTER	14	/* milter filter */
@@ -1122,7 +1126,7 @@ typedef struct symtab	STAB;
 #define s_service	s_value.sv_service
 #define s_header	s_value.sv_header
 #ifdef LDAPMAP
-# define s_ldap		s_value.sv_ldap
+# define s_lmap		s_value.sv_lmap
 #endif /* LDAPMAP */
 #if _FFR_MILTER
 # define s_milter	s_value.sv_milter
@@ -1151,7 +1155,7 @@ struct event
 	void		(*ev_func)__P((int));
 					/* function to call */
 	int		ev_arg;		/* argument to ev_func */
-	int		ev_pid;		/* pid that set this event */
+	pid_t		ev_pid;		/* pid that set this event */
 	struct event	*ev_link;	/* link to next item */
 };
 
@@ -1161,6 +1165,7 @@ typedef struct event	EVENT;
 extern void	clrevent __P((EVENT *));
 extern void	clear_events __P((void));
 extern EVENT	*setevent __P((time_t, void(*)(), int));
+extern EVENT	*sigsafe_setevent __P((time_t, void(*)(), int));
 
 /*
 **  Operation, send, error, and MIME modes
@@ -1626,6 +1631,51 @@ extern void	inittimeouts __P((char *, bool));
 /* variables */
 extern u_char	tTdvect[100];	/* trace vector */
 /*
+**  Critical signal sections
+*/
+
+#define PEND_SIGHUP	0x0001
+#define PEND_SIGINT	0x0002
+#define PEND_SIGTERM	0x0004
+#define PEND_SIGUSR1	0x0008
+
+#define ENTER_CRITICAL()	InCriticalSection++
+
+#define LEAVE_CRITICAL()						\
+do									\
+{									\
+	if (InCriticalSection > 0)					\
+		InCriticalSection--;					\
+} while (0)
+
+#define CHECK_CRITICAL(sig)						\
+{									\
+	if (InCriticalSection > 0 && (sig) != 0)			\
+	{								\
+		pend_signal((sig));					\
+		return SIGFUNC_RETURN;					\
+	}								\
+}
+
+/* reset signal in case System V semantics */
+#ifdef SYS5SIGNALS
+# define FIX_SYSV_SIGNAL(sig, handler)					\
+{									\
+	if ((sig) != 0)							\
+		(void) setsignal((sig), (handler));			\
+}
+#else /* SYS5SIGNALS */
+# define FIX_SYSV_SIGNAL(sig, handler)	{ /* EMPTY */ }
+#endif /* SYS5SIGNALS */
+
+/* variables */
+EXTERN u_int	volatile InCriticalSection;	/* >0 if in a critical section */
+EXTERN int	volatile PendingSignal;	/* pending signal to resend */
+
+/* functions */
+extern void	pend_signal __P((int));
+
+/*
 **  Miscellaneous information.
 */
 
@@ -1662,9 +1712,9 @@ EXTERN bool	CheckAliases;	/* parse addresses during newaliases */
 EXTERN bool	ChownAlwaysSafe;	/* treat chown(2) as safe */
 EXTERN bool	ColonOkInAddr;	/* single colon legal in address */
 EXTERN bool	ConfigFileRead;	/* configuration file has been read */
-EXTERN bool	DataProgress;	/* have we sent anything since last check */
+EXTERN bool	volatile DataProgress;	/* have we sent anything since last check */
 EXTERN bool	DisConnected;	/* running with OutChannel redirected to xf */
-EXTERN bool	DoQueueRun;	/* non-interrupt time queue run needed */
+EXTERN bool	volatile DoQueueRun;	/* non-interrupt time queue run needed */
 EXTERN bool	DontExpandCnames;	/* do not $[...$] expand CNAMEs */
 EXTERN bool	DontInitGroups;	/* avoid initgroups() because of NIS cost */
 EXTERN bool	DontLockReadFiles;	/* don't read lock support files */
@@ -1693,6 +1743,7 @@ EXTERN bool	SendMIMEErrors;	/* send error messages in MIME format */
 EXTERN bool	SevenBitInput;	/* force 7-bit data on input */
 EXTERN bool	SingleLineFromHeader;	/* force From: header to be one line */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
+EXTERN bool	volatile StopRequest;	/* stop sending output */
 EXTERN bool	SuperSafe;	/* be extra careful, even if expensive */
 EXTERN bool	SuprErrs;	/* set if we are suppressing errors */
 EXTERN bool	TryNullMXList;	/* if we are the best MX, try host directly */
@@ -1708,7 +1759,7 @@ EXTERN char	SpaceSub;	/* substitution for <lwsp> */
 EXTERN int	CheckpointInterval;	/* queue file checkpoint interval */
 EXTERN int	ConfigLevel;	/* config file level */
 EXTERN int	ConnRateThrottle;	/* throttle for SMTP connection rate */
-EXTERN int	CurChildren;	/* current number of daemonic children */
+EXTERN int	volatile CurChildren;	/* current number of daemonic children */
 EXTERN int	CurrentLA;	/* current load average */
 EXTERN int	DefaultNotify;	/* default DSN notification flags */
 EXTERN int	Errors;		/* set if errors (local to single pass) */
@@ -1813,9 +1864,11 @@ EXTERN time_t	QueueMaxDelay;	/* maximum queue delay */
 #endif /* _FFR_QUEUEDELAY */
 EXTERN char	*RealHostName;	/* name of host we are talking to */
 EXTERN char	*RealUserName;	/* real user name of caller */
+EXTERN char	*volatile RestartRequest;/* a sendmail restart has been requested */
 EXTERN char	*RunAsUserName;	/* user to become for bulk of run */
 EXTERN char	*SafeFileEnv;	/* chroot location for file delivery */
 EXTERN char	*ServiceSwitchFile;	/* backup service switch */
+EXTERN char	*volatile ShutdownRequest;/* a sendmail shutdown has been requested */
 EXTERN char	*SmtpGreeting;	/* SMTP greeting message (old $e macro) */
 EXTERN char	*SmtpPhase;	/* current phase in SMTP processing */
 EXTERN char	SmtpError[MAXLINE];	/* save failure error messages */
@@ -1825,6 +1878,7 @@ EXTERN char	*UdbSpec;	/* user database source spec */
 EXTERN char	*UnixFromLine;	/* UNIX From_ line (old $l macro) */
 EXTERN char	**ExternalEnviron;	/* input environment */
 					/* saved user environment */
+EXTERN char	**SaveArgv;	/* argument vector for re-execing */
 EXTERN BITMAP256	DontBlameSendmail;	/* DontBlameSendmail bits */
 #if SFIO
 EXTERN Sfio_t	*InChannel;	/* input connection */
@@ -1838,7 +1892,6 @@ EXTERN FILE	*TrafficLogFile;	/* file in which to log all traffic */
 EXTERN void	*HesiodContext;
 #endif /* HESIOD */
 EXTERN ENVELOPE	*CurEnv;	/* envelope currently being processed */
-EXTERN EVENT	*EventQueue;	/* head of event queue */
 EXTERN MAILER	*LocalMailer;	/* ptr to local mailer */
 EXTERN MAILER	*ProgMailer;	/* ptr to program mailer */
 EXTERN MAILER	*FileMailer;	/* ptr to *file* mailer */
@@ -1876,6 +1929,7 @@ extern int	sasl_encode64 __P((const char *, unsigned, char *, unsigned, unsigned
 
 #if STARTTLS
 extern void	apps_ssl_info_cb __P((SSL *, int , int));
+extern bool	init_tls_library __P((void));
 extern bool	inittls __P((SSL_CTX **, u_long, bool, char *, char *, char *, char *, char *));
 extern bool	initclttls __P((void));
 extern bool	initsrvtls __P((void));
@@ -1972,6 +2026,7 @@ extern char	*milter_data __P((ENVELOPE *, char *));
 #endif /* _FFR_MILTER */
 
 extern char	*addquotes __P((char *));
+extern void	allsignals __P((bool));
 extern char	*arpadate __P((char *));
 extern bool	atobool __P((char *));
 extern int	atooct __P((char *));
@@ -1998,7 +2053,7 @@ extern char	*defcharset __P((ENVELOPE *));
 extern char	*denlstring __P((char *, bool, bool));
 extern void	disconnect __P((int, ENVELOPE *));
 extern bool	dns_getcanonname __P((char *, int, bool, int *));
-extern int	dofork __P((void));
+extern pid_t	dofork __P((void));
 extern int	drop_privileges __P((bool));
 extern int	dsntoexitstat __P((char *));
 extern void	dumpfd __P((int, bool, bool));
@@ -2012,6 +2067,11 @@ extern struct passwd	*finduser __P((char *, bool *));
 extern void	finis __P((bool, volatile int));
 extern void	fixcrlf __P((char *, bool));
 extern long	freediskspace __P((char *, long *));
+#if NETINET6 && NEEDSGETIPNODE
+# if _FFR_FREEHOSTENT
+extern void	freehostent __P((struct hostent *));
+# endif /* _FFR_FREEHOSTENT */
+#endif /* NEEDSGETIPNODE && NETINET6 */
 extern char	*get_column __P((char *, int, int, char *, int));
 extern char	*getauthinfo __P((int, bool *));
 extern char	*getcfname __P((void));
@@ -2026,7 +2086,6 @@ extern void	inithostmaps __P((void));
 extern void	initmacros __P((ENVELOPE *));
 extern void	initsetproctitle __P((int, char **, char **));
 extern void	init_vendor_macros __P((ENVELOPE *));
-extern SIGFUNC_DECL	intindebug __P((int));
 extern SIGFUNC_DECL	intsig __P((int));
 extern bool	isloopback __P((SOCKADDR sa));
 extern void	load_if_names __P((void));
@@ -2046,11 +2105,10 @@ extern void	printmailer __P((MAILER *));
 extern void	printopenfds __P((bool));
 extern void	printqueue __P((void));
 extern void	printrules __P((void));
-extern int	prog_open __P((char **, int *, ENVELOPE *));
+extern pid_t	prog_open __P((char **, int *, ENVELOPE *));
 extern void	putline __P((char *, MCI *));
 extern void	putxline __P((char *, size_t, MCI *, int));
 extern void	queueup_macros __P((int, FILE *, ENVELOPE *));
-extern SIGFUNC_DECL	quiesce __P((int));
 extern void	readcf __P((char *, bool, ENVELOPE *));
 extern SIGFUNC_DECL	reapchild __P((int));
 extern int	releasesignal __P((int));
@@ -2072,9 +2130,9 @@ extern char	*sfgets __P((char *, int, FILE *, time_t, char *));
 extern char	*shortenstring __P((const char *, int));
 extern char	*shorten_hostname __P((char []));
 extern bool	shorten_rfc822_string __P((char *, size_t));
-extern SIGFUNC_DECL	sigusr1 __P((int));
-extern SIGFUNC_DECL	sighup __P((int));
+extern void	shutdown_daemon __P((void));
 extern void	sm_dopr __P((char *, const char *, va_list));
+extern void	sm_free __P((void *));
 extern struct hostent	*sm_gethostbyname __P((char *, int));
 extern struct hostent	*sm_gethostbyaddr __P((char *, int, int));
 extern int	sm_getla __P((ENVELOPE *));
@@ -2082,13 +2140,13 @@ extern struct passwd	*sm_getpwnam __P((char *));
 extern struct passwd	*sm_getpwuid __P((UID_T));
 extern void	sm_setproctitle __P((bool, ENVELOPE *, const char *, ...));
 extern int	sm_strcasecmp __P((const char *, const char *));
+extern void	stop_sendmail __P((void));
 extern bool	strcontainedin __P((char *, char *));
 extern void	stripquotes __P((char *));
 extern int	switch_map_find __P((char *, char *[], short []));
 extern bool	transienterror __P((int));
 extern void	tTflag __P((char *));
 extern void	tTsetup __P((u_char *, int, char *));
-extern SIGFUNC_DECL	tick __P((int));
 extern char	*ttypath __P((void));
 extern void	unlockqueue __P((ENVELOPE *));
 #if !HASUNSETENV
@@ -2101,6 +2159,8 @@ extern void	vendor_pre_defaults __P((ENVELOPE *));
 extern int	waitfor __P((pid_t));
 extern bool	writable __P((char *, ADDRESS *, long));
 extern char	*xalloc __P((int));
+extern char	*xcalloc __P((size_t, size_t));
+extern char	*xrealloc __P((void *, size_t));
 extern void	xputs __P((const char *));
 extern char	*xtextify __P((char *, char *));
 extern bool	xtextok __P((char *));
