@@ -29,9 +29,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
 static char sccsid[] = "@(#)krb4encpwd.c	8.3 (Berkeley) 5/30/95";
@@ -73,27 +75,20 @@ static char sccsid[] = "@(#)krb4encpwd.c	8.3 (Berkeley) 5/30/95";
  */
 
 #include <sys/types.h>
+#include <openssl/des.h>
 #include <arpa/telnet.h>
+#include <krb.h>
 #include <pwd.h>
 #include <stdio.h>
-
-#include <openssl/des.h>
-#include <krb.h>
-#ifdef	__STDC__
 #include <stdlib.h>
-#endif
-#ifdef	NO_STRING_H
-#include <strings.h>
-#else
 #include <string.h>
-#endif
 
 #include "encrypt.h"
 #include "auth.h"
 #include "misc.h"
 
-int krb_mk_encpwd_req P((KTEXT, char *, char *, char *, char *, char *, char *));
-int krb_rd_encpwd_req P((KTEXT, char *, char *, u_long, AUTH_DAT *, char *, char *, char *, char *));
+int krb_mk_encpwd_req(KTEXT, char *, char *, char *, char *, char *, char *);
+int krb_rd_encpwd_req(KTEXT, char *, char *, u_long, AUTH_DAT *, char *, char *, char *, char *);
 
 extern auth_debug_mode;
 
@@ -430,18 +425,4 @@ char *name, *passwd;
   return(passwdok_status);
 }
 
-#endif
-
-#ifdef notdef
-
-prkey(msg, key)
-	char *msg;
-	unsigned char *key;
-{
-	register int i;
-	printf("%s:", msg);
-	for (i = 0; i < 8; i++)
-		printf(" %3d", key[i]);
-	printf("\r\n");
-}
 #endif

@@ -31,43 +31,46 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)getent.c	8.2 (Berkeley) 12/15/93";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
 #endif
 #endif /* not lint */
 
+#include <stdlib.h>
+#include <string.h>
+
+#include "misc-proto.h"
+
 static char *area;
+static char gettytab[] = "/etc/gettytab";
 
 /*ARGSUSED*/
-getent(cp, name)
-char *cp, *name;
+int
+getent(char *cp __unused, const char *name)
 {
-#ifdef	HAS_CGETENT
-	char *dba[2];
+	int retval;
+	char *tempnam, *dba[2] = { gettytab, NULL };
 
-	dba[0] = "/etc/gettytab";
-	dba[1] = 0;
-	return((cgetent(&area, dba, name) == 0) ? 1 : 0);
-#else
-	return(0);
-#endif
+	tempnam = strdup(name);
+	retval =  cgetent(&area, dba, tempnam) == 0 ? 1 : 0;
+	free(tempnam);
+	return(retval);
 }
 
-#ifndef	SOLARIS
 /*ARGSUSED*/
 char *
-Getstr(id, cpp)
-char *id, **cpp;
+Getstr(const char *id, char **cpp __unused)
 {
-# ifdef	HAS_CGETENT
-	char *answer;
-	return((cgetstr(area, id, &answer) > 0) ? answer : 0);
-# else
-	return(0);
-# endif
+	int retval;
+	char *answer, *tempid;
+
+	tempid = strdup(id);
+	retval = cgetstr(area, tempid, &answer);
+	free(tempid);
+	return((retval > 0) ? answer : NULL);
 }
-#endif
