@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.18 1999/05/30 18:48:01 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.19 1999/06/19 20:01:32 wpaul Exp $
  */
 
 /*
@@ -307,9 +307,12 @@
 #define RL_RXCFG_CONFIG (RL_RX_FIFOTHRESH|RL_RX_MAXDMA|RL_RX_BUF_SZ)
 #define RL_TXCFG_CONFIG	(RL_TXCFG_IFG|RL_TX_MAXDMA)
 
+#define RL_ETHER_ALIGN	2
+
 struct rl_chain_data {
 	u_int16_t		cur_rx;
 	caddr_t			rl_rx_buf;
+	caddr_t			rl_rx_buf_ptr;
 
 	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
 	u_int8_t		last_tx;
@@ -608,3 +611,9 @@ struct rl_softc {
 #define PHY_BMSR_LINKSTAT		0x0004
 #define PHY_BMSR_JABBER			0x0002
 #define PHY_BMSR_EXTENDED		0x0001
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
+#endif
