@@ -32,7 +32,7 @@ build and install as described in the COMMON ITEMS section.
 20020731:	p4	FreeBSD-SA-02:34.rpc
 	A bounds checking error in the XDR decoder was corrected.
 
-20020730:	p3
+20020730:	p3	FreeBSD-SA-02:33.openssl
 	Upgrade to OpenSSL 0.9.6e.
 
 20020730:	p2	FreeBSD-SA-02:32.pppd
