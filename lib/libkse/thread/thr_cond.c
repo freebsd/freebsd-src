@@ -146,6 +146,15 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	 */
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
+		/*
+		 * If the condvar was statically allocated, properly
+		 * initialize the tail queue.
+		 */
+		if (((*cond)->c_flags & COND_FLAGS_INITED) == 0) {
+			TAILQ_INIT(&(*cond)->c_queue);
+			(*cond)->c_flags |= COND_FLAGS_INITED;
+		}
+
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
@@ -238,6 +247,16 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 */
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
+		/*
+		 * If the condvar was statically allocated, properly
+		 * initialize the tail queue.
+		 */
+		if (((*cond)->c_flags & COND_FLAGS_INITED) == 0) {
+			TAILQ_INIT(&(*cond)->c_queue);
+			(*cond)->c_flags |= COND_FLAGS_INITED;
+		}
+
+
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
