@@ -74,11 +74,13 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2>
     <title>Hardware Requirements</title>
 
-    <para arch="i386">&os; for the &arch; requires a 386 or better
-    processor to run (sorry, there is no support for 286 processors)
-    and at least 5 megs of RAM to install and 4 megs of RAM to
-    run. You will need at least 100MB of free hard drive space for the
-    most minimal installation.  See below for ways of shrinking
+    <para arch="i386">&os; for the &arch; requires an 80386 or better
+    processor.  The &man.sysinstall.8 installation program requires
+    16MB of RAM; after installation, &os; itself can be run in 
+    4&ndash;8MB of RAM with a pared-down kernel.
+    You will need at least 100MB of free hard drive space for the
+    most minimal installation; a more realistic minimum is on the
+    order of 250&ndash;350MB.  See below for ways of shrinking
     existing DOS partitions in order to install &os;.</para>
 
     <para arch="alpha">&os; for the &arch; supports the alpha platforms

@@ -170,6 +170,11 @@
 
     <screen>&prompt.root; <userinput>pccardc power <replaceable>slot</replaceable> 0</userinput></screen>
 
+    <para>On the i386, the minimum memory requirement for installing
+      &os; via &man.sysinstall.8; is 16MB, with 4&ndash;8MB required
+      to run &os; with a pared-down kernel.  The installation
+      instructions in <filename>INSTALL.TXT</filename> (and other
+      renditions thereof) cited somewhat lower figures.</para> 
 ]]>
   </sect1>
 </article>
