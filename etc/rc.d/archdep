@@ -53,22 +53,11 @@ ibcs2_compat()
 	fi
 }
 
-# X-10 Daemon
-#
-x10_daemon()
-{
-	if checkyesno xtend_enable; then
-		echo -n ' xtend'
-		/usr/libexec/xtend
-	fi
-}
-
 _arch=`${SYSCTL_N} hw.machine`
 echo -n "Initial $_arch initialization:"
 case $_arch in
 i386)
 	ibcs2_compat
-	x10_daemon
 	;;
 alpha)
 	osf1_compat
