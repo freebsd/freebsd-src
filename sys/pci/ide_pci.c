@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.24 1999/01/16 00:36:53 msmith Exp $
+ *	$Id: ide_pci.c,v 1.25 1999/01/16 03:55:46 msmith Exp $
  */
 
 #include "pci.h"
@@ -404,7 +404,7 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 
 		/* UDMA enable by SET FEATURES, DMA cycles, cycle time 2T */
 		mask = 0xe3000000 >> (unitno * 8);
-		new = 0x80000000 >> (unitno * 8);
+		new = 0x40000000 >> (unitno * 8);
 
 		word50 &= ~mask;
 		word50 |= new;
