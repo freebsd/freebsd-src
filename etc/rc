@@ -267,8 +267,7 @@ purgedir() {
 
 clean_var() {
 	if [ ! -f /var/run/clean_var ]; then
-		rm -rf /var/run/*
-		purgedir /var/spool/lock
+		purgedir /var/run /var/spool/lock
 		rm -rf /var/spool/uucp/.Temp/*
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
