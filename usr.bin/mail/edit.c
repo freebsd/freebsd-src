@@ -148,7 +148,7 @@ run_editor(fp, size, type, readonly)
 	time_t modtime;
 	char *edit;
 	struct stat statb;
-	extern char tempEdit[];
+	extern char *tempEdit;
 
 	if ((t = creat(tempEdit, readonly ? 0400 : 0600)) < 0) {
 		perror(tempEdit);
