@@ -622,7 +622,7 @@ ktrcanset(td, targetp)
 	    suser_cred(td->td_ucred, PRISON_ROOT))
 		return (0);
 
-	if (p_candebug(td->td_proc, targetp) != 0)
+	if (p_candebug(td, targetp) != 0)
 		return (0);
 
 	return (1);

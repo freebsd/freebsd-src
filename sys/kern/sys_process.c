@@ -388,12 +388,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			return (ESRCH);
 		}
 	}
-	if (p_cansee(td->td_proc, p)) {
+	if (p_cansee(td, p)) {
 		error = ESRCH;
 		goto fail;
 	}
 
-	if ((error = p_candebug(td->td_proc, p)) != 0)
+	if ((error = p_candebug(td, p)) != 0)
 		goto fail;
 
 	/*

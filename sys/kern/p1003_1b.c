@@ -131,7 +131,7 @@ int sched_setparam(struct thread *td,
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
-	e = p_cansched(td->td_proc, targetp);
+	e = p_cansched(td, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_setparam(&td->td_retval[0], ksched, targettd,
@@ -167,7 +167,7 @@ int sched_getparam(struct thread *td,
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
-	e = p_cansee(td->td_proc, targetp);
+	e = p_cansee(td, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		goto done2;
@@ -209,7 +209,7 @@ int sched_setscheduler(struct thread *td,
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
-	e = p_cansched(td->td_proc, targetp);
+	e = p_cansched(td, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_setscheduler(&td->td_retval[0], ksched, targettd,
@@ -244,7 +244,7 @@ int sched_getscheduler(struct thread *td,
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
-	e = p_cansee(td->td_proc, targetp);
+	e = p_cansee(td, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0)
 		e = ksched_getscheduler(&td->td_retval[0], ksched, targettd);
@@ -320,7 +320,7 @@ int sched_rr_get_interval(struct thread *td,
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
-	e = p_cansee(td->td_proc, targetp);
+	e = p_cansee(td, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,

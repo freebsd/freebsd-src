@@ -196,7 +196,7 @@ filt_procattach(struct knote *kn)
 	p = pfind(kn->kn_id);
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_cansee(curproc, p))) {
+	if ((error = p_cansee(curthread, p))) {
 		PROC_UNLOCK(p);
 		return (error);
 	}

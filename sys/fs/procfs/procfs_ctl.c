@@ -122,7 +122,7 @@ procfs_control(struct thread *td, struct proc *p, int op)
 	if (op == PROCFS_CTL_ATTACH) {
 		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
-		if ((error = p_candebug(td->td_proc, p)) != 0)
+		if ((error = p_candebug(td, p)) != 0)
 			goto out;
 		if (p->p_flag & P_TRACED) {
 			error = EBUSY;
@@ -165,7 +165,7 @@ out:
 	 */
 	PROC_LOCK(p);
 	if (op != PROCFS_CTL_DETACH &&
-	    ((error = p_candebug(td->td_proc, p)))) {
+	    ((error = p_candebug(td, p)))) {
 		PROC_UNLOCK(p);
 		return (error);
 	}
