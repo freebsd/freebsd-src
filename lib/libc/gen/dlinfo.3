@@ -93,7 +93,33 @@ and
 are called.
 See
 .Sx EXAMPLES
-(Example 1)
+(Example 1.)
+.Pp
+The
+.Ft Link_map
+structure is defined in <link.h> and have following members:
+.Pp
+.Bd -literal
+  caddr_t         l_addr;    /* Base Address of library */
+  const char      *l_name;   /* Absolute Path to Library */
+  const void      *l_ld;     /* Pointer to .dynamic in memory */
+  struct link_map *l_next,   /* linked list of of mapped libs */
+                  *l_prev;     
+.Ed
+.Bl -tag -width Ds
+.It l_addr
+The base address of the object loaded into memory.
+.It l_name
+The full name of loaded shared object.
+.It l_ld
+The address of dynamic linking information segment
+.Dv ( PT_DYNAMIC )
+loaded into memory.
+.It l_next
+The next Link_map structure on the link-map list.
+.It l_prev
+The previous Link_map structure on the link-map list.
+.El
 .It RTLD_DI_SERINFO
 Retrieve the library search paths associated with given
 .Fa handle
@@ -178,6 +204,8 @@ it first appeared in
 .Fx 4.8 .
 .Sh AUTHORS
 The
+.Fx
+implementation of
 .Fn dlinfo
 function was originally written by
 .An Alexey Zelkin
