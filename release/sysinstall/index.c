@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.8 1995/10/16 07:31:00 jkh Exp $
+ * $Id: index.c,v 1.9 1995/10/16 09:25:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -458,7 +458,7 @@ is_selected_in(char *name, char *result)
 	    break;
 	}
 	else {
-	    ret = !strncmp(name, result, cp - result);
+	    ret = !strncmp(name, result, cp - result - 1);
 	    if (ret)
 		break;
 	}
