@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN4=	linux.4 osf1.4
+MAN=	linux.4 osf1.4
 
 MANSUBDIR=/alpha
 

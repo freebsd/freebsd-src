@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-MAN1=	builtin.1 intro.1
+MAN=	builtin.1 intro.1
 
 # Create MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name:
