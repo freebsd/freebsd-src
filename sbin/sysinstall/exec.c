@@ -57,8 +57,9 @@ exec(int magic, char *cmd, char *args, ...)
 			close(2); open("/dev/null",O_WRONLY);
 			break;
 		case 1:
-			break;
 			close(2); open("/dev/null",O_WRONLY);
+			break;
+		case 2:
 		default:
 			break;
 		}
