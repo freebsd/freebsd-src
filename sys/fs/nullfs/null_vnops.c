@@ -753,24 +753,6 @@ null_print(struct vop_print_args *ap)
 }
 
 /*
- * Let an underlying filesystem do the work
- */
-static int
-null_createvobject(struct vop_createvobject_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-	struct vnode *lowervp = VTONULL(vp) ? NULLVPTOLOWERVP(vp) : NULL;
-	int error;
-
-	if (vp->v_type == VNON || lowervp == NULL)
-		return 0;
-	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_td);
-	if (error)
-		return (error);
-	return (0);
-}
-
-/*
  * We have nothing to destroy and this operation shouldn't be bypassed.
  */
 static int
@@ -801,7 +783,6 @@ struct vop_vector null_vnodeops = {
 	.vop_access =		null_access,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_close =		null_close,
-	.vop_createvobject =	null_createvobject,
 	.vop_destroyvobject =	null_destroyvobject,
 	.vop_getattr =		null_getattr,
 	.vop_getvobject =	null_getvobject,
