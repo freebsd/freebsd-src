@@ -1,8 +1,8 @@
 #
-#	$Id: Makefile,v 1.77 1996/03/11 14:59:10 jkh Exp $
+#	$Id: Makefile,v 1.78 1996/03/24 13:16:45 paul Exp $
 #
 # Make command line options:
-#	-DCLOBBER will remove /usr/include and MOST of /usr/lib
+#	-DCLOBBER will remove /usr/include
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
@@ -100,6 +100,8 @@ CLEANDIR=	cleandir
 .endif
 .endif
 
+MK_FLAGS=	-DNOMAN -DNOPROFILE
+
 world:	hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools includes lib-tools libraries build-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
@@ -110,10 +112,10 @@ world:	hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools includes lib-tool
 	@echo "make world completed on `date`"
 
 bootstrap:
-	cd ${.CURDIR}/usr.bin/xlint && ${MAKE} lint1 lint2 xlint
-	cd ${.CURDIR}/usr.bin/xlint/lint1 && ${MAKE} install
-	cd ${.CURDIR}/usr.bin/xlint/lint2 && ${MAKE} install
-	cd ${.CURDIR}/usr.bin/xlint/xlint && ${MAKE} install
+	cd ${.CURDIR}/usr.bin/xlint && ${MAKE} ${MK_FLAGS} lint1 lint2 xlint
+	cd ${.CURDIR}/usr.bin/xlint/lint1 && ${MAKE} ${MK_FLAGS} install
+	cd ${.CURDIR}/usr.bin/xlint/lint2 && ${MAKE} ${MK_FLAGS} install
+	cd ${.CURDIR}/usr.bin/xlint/xlint && ${MAKE} ${MK_FLAGS} install
 
 reinstall:	hierarchy mk includes
 	@echo "--------------------------------------------------------------"
@@ -265,71 +267,67 @@ lib-tools:
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/usr.bin/xinstall && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/ld && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ar && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ranlib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/nm && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/compile_et && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} && \
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} && \
 		rm -f /usr/sbin/compile_et
 	cd ${.CURDIR}/usr.bin/mk_cmds && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 
 libraries:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR}/usr/lib"
 	@echo "--------------------------------------------------------------"
 	@echo
-.if defined(CLOBBER)
-	find ${DESTDIR}/usr/lib \! -name '*.s[ao].*' -a \! -type d | \
-		xargs rm -rf
-.endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
 	cd ${.CURDIR}/lib/libncurses && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
 	cd ${.CURDIR}/lib/libtermcap && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
 	cd ${.CURDIR}/lib/csu/i386 && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/lex/lib)
 	cd ${.CURDIR}/usr.bin/lex/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
 	cd ${.CURDIR}/usr.sbin/pcvt/keycap && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
 include-tools:
@@ -338,9 +336,9 @@ include-tools:
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/usr.bin/xinstall && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/rpcgen && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 
 build-tools:
 	@echo "--------------------------------------------------------------"
@@ -348,16 +346,16 @@ build-tools:
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/gnu/usr.bin/cc && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/symorder && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/sgmlfmt && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/share/sgml && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/usr.sbin/zic && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 
 .include <bsd.subdir.mk>
