@@ -1053,10 +1053,10 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	vm_page_t m;
 	u_long data;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	data = atomic_readandclear_long(&tp->tte_data);
 	if ((data & TD_FAKE) == 0) {
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
-		vm_page_lock_queues();
 		TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
 		if ((data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
@@ -1070,7 +1070,6 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 			pm->pm_stats.resident_count--;
 		}
 		pmap_cache_remove(m, va);
-		vm_page_unlock_queues();
 	}
 	TTE_ZERO(tp);
 	if (PMAP_REMOVE_DONE(pm))
@@ -1087,6 +1086,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	struct tte *tp;
 	vm_offset_t va;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	CTR3(KTR_PMAP, "pmap_remove: ctx=%#lx start=%#lx end=%#lx",
 	    pm->pm_context[PCPU_GET(cpuid)], start, end);
 	if (PMAP_REMOVE_DONE(pm))
