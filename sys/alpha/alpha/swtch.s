@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.6 1998/11/15 18:25:15 dfr Exp $ */
+/* $Id: swtch.s,v 1.7 1998/12/02 10:24:56 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -265,11 +265,6 @@ Lcs7:
  * pointer to the executing process's proc structure.
  */
 LEAF(switch_trampoline, 0)
-	ldq	a0, curproc
-	ldiq	a1, P_SWITCHTIME
-	addq	a0, a1, a0
-	CALL(microuptime)
-
 	mov	s0, pv
 	mov	s1, ra
 	mov	s2, a0

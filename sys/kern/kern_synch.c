@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.72 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_synch.c,v 1.73 1999/02/22 16:57:47 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -769,6 +769,7 @@ wakeup_one(ident)
 void
 mi_switch()
 {
+	struct timeval new_switchtime;
 	register struct proc *p = curproc;	/* XXX */
 	register struct rlimit *rlim;
 	int x;
@@ -800,9 +801,9 @@ mi_switch()
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
 	 */
-	microuptime(&switchtime);
-	p->p_runtime += (switchtime.tv_usec - p->p_switchtime.tv_usec) +
-	    (switchtime.tv_sec - p->p_switchtime.tv_sec) * (int64_t)1000000;
+	microuptime(&new_switchtime);
+	p->p_runtime += (new_switchtime.tv_usec - switchtime.tv_usec) +
+	    (new_switchtime.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
@@ -826,11 +827,10 @@ mi_switch()
 	 * Pick a new current process and record its start time.
 	 */
 	cnt.v_swtch++;
+	switchtime = new_switchtime;
 	cpu_switch(p);
-	if (switchtime.tv_sec)
-		p->p_switchtime = switchtime;
-	else
-		microuptime(&p->p_switchtime);
+	if (switchtime.tv_sec == 0)
+		microuptime(&switchtime);
 	switchticks = ticks;
 
 	splx(x);
