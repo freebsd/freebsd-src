@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.2 1997/04/19 20:28:50 peter Exp $
+ * $Id: machine.c,v 1.3.2.1 1997/05/31 03:18:12 gpalmer Exp $
  */
 
 
@@ -38,6 +38,8 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
+#include <sys/resource.h>
+#include <sys/rtprio.h>
 
 /* Swap */
 #include <stdlib.h>
@@ -584,7 +586,17 @@ char *(*get_userid)();
 	    PP(pp, p_pid),
 	    (*get_userid)(EP(pp, e_pcred.p_ruid)),
 	    PP(pp, p_priority) - PZERO,
-	    PP(pp, p_nice) - NZERO,
+
+	    /*
+	     * normal time      -> nice value -20 - +20 
+	     * real time 0 - 31 -> nice value -52 - -21
+	     * idle time 0 - 31 -> nice value +21 - +52
+             */
+	    (PP(pp, p_rtprio.type) ==  RTP_PRIO_NORMAL ? 
+	    	PP(pp, p_nice) - NZERO : 
+	    	(PP(pp, p_rtprio.type) ==  RTP_PRIO_REALTIME ?
+		    (PRIO_MIN - 1 - RTP_PRIO_MAX + PP(pp, p_rtprio.prio)) : 
+		    (PRIO_MAX + 1 + PP(pp, p_rtprio.prio)))), 
 	    format_k2(pagetok(PROCSIZE(pp))),
 	    format_k2(pagetok(VP(pp, vm_rssize))),
 	    status,
