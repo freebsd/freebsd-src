@@ -52,6 +52,7 @@
 #define CHET_ST		1	/* storage transport (slot) */
 #define CHET_IE		2	/* import/export (portal) */
 #define CHET_DT		3	/* data transfer (drive) */
+#define CHET_MAX	CHET_DT
 
 /*
  * Maximum length of a volume identification string
