@@ -817,6 +817,19 @@ gv_object_type(struct gv_softc *sc, char *name)
 }
 
 void
+gv_kill_drive_thread(struct gv_drive *d)
+{
+	if (d->flags & GV_DRIVE_THREAD_ACTIVE) {
+		d->flags |= GV_DRIVE_THREAD_DIE;
+		wakeup(d);
+		while (!(d->flags & GV_DRIVE_THREAD_DEAD))
+			tsleep(d, PRIBIO, "gv_die", hz);
+		d->flags &= ~GV_DRIVE_THREAD_ACTIVE;
+		mtx_destroy(&d->bqueue_mtx);
+	}
+}
+
+void
 gv_kill_plex_thread(struct gv_plex *p)
 {
 	if ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_THREAD_ACTIVE)) {
