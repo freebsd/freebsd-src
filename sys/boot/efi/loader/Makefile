@@ -1,11 +1,11 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../common
+
 BASE= 		loader
 PROG= 		${BASE}.efi
 NOMAN=
 NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
-
-.PATH:		${.CURDIR}/../common
 
 SRCS+=		main.c conf.c
 
@@ -24,16 +24,16 @@ LIBFICL=
 .endif
 
 # Always add MI sources 
-.PATH:		${.CURDIR}/../../common
-.include	<${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-I-
-CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/../../.. -I.
-CFLAGS+=	-I${.CURDIR}/../libefi
-CFLAGS+=	-DLOADER
-CFLAGS+=	-Wall
+.PATH: ${.CURDIR}/../../common
+.include <${.CURDIR}/../../common/Makefile.inc>
+
+CFLAGS+= -I-
+CFLAGS+= -I${.CURDIR}/../include
+CFLAGS+= -I${.CURDIR}/../include/${MACHINE_ARCH}
+CFLAGS+= -I${.CURDIR}/../../common -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}/../../.. -I.
+CFLAGS+= -I${.CURDIR}/../libefi
+CFLAGS+= -DLOADER
 
 LDSCRIPT=	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}
 LDFLAGS=	-nostdlib -T ${LDSCRIPT} -shared -Bsymbolic
@@ -43,9 +43,9 @@ CLEANFILES+=	setdef0.c setdef0.o setdef1.c setdef1.o setdefs.h start.o \
 CLEANFILES+=	loader.help
 CLEANFILES+=	machine
 
-CRT=		start.o
+CRT=	start.o
 
-all:		${PROG}
+all: ${PROG}
 
 vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -65,25 +65,26 @@ ${BASE}.efi: ${BASE}.sym
 
 ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
 	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
-	${CRT} {OBJS} vers.o \
-	${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
-	> ${.OBJDIR}/${BASE}.list
+	    ${CRT} {OBJS} vers.o \
+	    ${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
+	    > ${.OBJDIR}/${BASE}.list
 
 ${BASE}.help:	help.common help.efi
-	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
+	    > ${.TARGET}
 
 beforeinstall:
 .if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+	    ${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
 .else
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+	    ${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
 
 # Other fragments still to be brought in from ../Makfile.booters?
-start.o:	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
-	${CC} -c ${CFLAGS} $<
+start.o: ${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
+	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 machine:
 	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
