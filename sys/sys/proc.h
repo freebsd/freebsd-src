@@ -216,7 +216,7 @@ struct ksegrp;
  * A process is the owner of all system resources allocated to a task
  * except CPU quanta.
  * All KSEGs under one process see, and have the same access to, these
- * resources (e.g. files, memory, sockets, permissions kqueues).
+ * resources (e.g. files, memory, sockets, credential, kqueues).
  * A process may compete for CPU cycles on the same basis as a
  * forked process cluster by spawning several KSEGRPs.
  */
