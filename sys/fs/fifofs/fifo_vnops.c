@@ -495,7 +495,6 @@ filt_fifowrite(struct knote *kn, long hint)
 	if (need_lock)
 		SOCKBUF_LOCK(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
-	/* Unlocked read. */
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		result = 1;
