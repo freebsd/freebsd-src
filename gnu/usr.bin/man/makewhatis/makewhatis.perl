@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.perl,v 1.5 1995/03/31 04:00:53 joerg Exp $
+# $Id: makewhatis.perl,v 1.6 1995/04/01 11:43:09 joerg Exp $
 #
 
 sub usage {
@@ -220,8 +220,9 @@ sub ext {
 sub name {
     local($name) = @_;
 
-    $name =~ s/.*\///g;
-    $name =~ s/\.[^.]*$//;
+    $name =~ s=.*/==;
+    $name =~ s=$ext$==o;
+    $name =~ s=\.[^\.]+$==;
 
     return "$name";
 }
@@ -250,6 +251,9 @@ sub out {
     $man =~ s/[,. ]+$//;
     $man =~ s/,/($extension),/g;
     $man .= "($extension)";
+
+    &manpagename;
+
     $desc =~ s/^[ \t]+//;
 
     for($i = length($man); $i < $indent && $desc; $i++) {
@@ -260,6 +264,31 @@ sub out {
     } else {
 	push(@a, "$man\n");
     }
+}
+
+# The filename of manual page is not a keyword. 
+# This may be dangerous, because you don't find the manpage
+# whith: $ man <section> <keyword>
+#
+# Add filename if a) filename is not a keyword and b) no keyword(s)
+# exist as file in same mansection
+#
+sub manpagename {
+    foreach (split(/,\s+/, $man)) {
+	s/\(.+//;
+	# filename is keyword
+	return if $name eq $_;
+    }
+
+    $name =~ s=\[=\\\[=g;	# shit '['
+    foreach (split(/,\s+/, $man)) {
+	s/\(.+//;
+	($f = $file) =~ s/$name/$_/;
+	# a keyword exist as file
+	return if -e "$f";    
+    }
+
+    $man .= ", $name($extension)";
 }
 
 # looking for NAME
@@ -384,7 +413,7 @@ sub variables {
     # if no argument for directories given
     @defaultmanpath = ( '/usr/share/man' );
 
-    $ext = ".gz";		# extension
+    $ext = '.gz';		# extension
     umask(022);
 
     $err = 0;			# exit code
