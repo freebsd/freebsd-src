@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.124 1998/07/11 11:30:45 bde Exp $
+ * $Id: vm_object.c,v 1.125 1998/07/14 12:26:15 bde Exp $
  */
 
 /*
@@ -1102,9 +1102,9 @@ vm_object_collapse(object)
 			 */
 
 			if (backing_object->type == OBJT_SWAP) {
-				backing_object->paging_in_progress++;
+				vm_object_pip_add(backing_object, 1);
 				if (object->type == OBJT_SWAP) {
-					object->paging_in_progress++;
+					vm_object_pip_add(object, 1);
 					/*
 					 * copy shadow object pages into ours
 					 * and destroy unneeded pages in
@@ -1118,7 +1118,7 @@ vm_object_collapse(object)
 					    OFF_TO_IDX(object->backing_object_offset), TRUE);
 					vm_object_pip_wakeup(object);
 				} else {
-					object->paging_in_progress++;
+					vm_object_pip_add(object, 1);
 					/*
 					 * move the shadow backing_object's pager data to
 					 * "object" and convert "object" type to OBJT_SWAP.
@@ -1314,7 +1314,7 @@ vm_object_page_remove(object, start, end, clean_only)
 
 	all = ((end == 0) && (start == 0));
 
-	object->paging_in_progress++;
+	vm_object_pip_add(object, 1);
 again:
 	size = end - start;
 	if (all || size > 4 || size >= object->size / 4) {

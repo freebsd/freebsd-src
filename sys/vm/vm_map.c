@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.131 1998/07/11 11:30:43 bde Exp $
+ * $Id: vm_map.c,v 1.132 1998/07/14 12:14:58 bde Exp $
  */
 
 /*
@@ -2001,7 +2001,7 @@ vm_map_split(entry)
 	}
 
 	if (orig_object->type == OBJT_SWAP) {
-		orig_object->paging_in_progress++;
+		vm_object_pip_add(orig_object, 1);
 		/*
 		 * copy orig_object pages into new_object
 		 * and destroy unneeded pages in
@@ -2778,7 +2778,7 @@ vm_freeze_copyopts(object, froma, toa)
 			continue;
 		}
 
-		robject->paging_in_progress++;
+		vm_object_pip_add(robject, 1);
 
 		for (idx = 0; idx < robject->size; idx++) {
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.48 1998/04/29 04:28:12 dyson Exp $
+ * $Id: vm_object.h,v 1.49 1998/05/04 17:12:53 dyson Exp $
  */
 
 /*
@@ -160,10 +160,21 @@ extern vm_object_t kmem_object;
 #endif				/* KERNEL */
 
 #ifdef KERNEL
+
+static __inline void
+vm_object_pip_add(vm_object_t object, int i)
+{
+	int s = splvm();
+	object->paging_in_progress += i;
+	splx(s);
+}
+
 static __inline void
 vm_object_pip_wakeup(vm_object_t object)
 {
+	int s = splvm();
 	object->paging_in_progress--;
+	splx(s);
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		object->flags &= ~OBJ_PIPWNT;
 		wakeup(object);

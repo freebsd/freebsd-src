@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.65 1998/07/11 10:45:45 bde Exp $
+ * $Id: vfs_cluster.c,v 1.66 1998/07/29 17:38:14 bde Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -309,7 +309,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 {
 	struct buf *bp, *tbp;
 	daddr_t bn;
-	int i, inc, j;
+	int i, inc, j, s;
 
 #ifdef DIAGNOSTIC
 	if (size != vp->v_mount->mnt_stat.f_iosize)
@@ -417,8 +417,10 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
+			s = splvm();
 			++m->busy;
 			++m->object->paging_in_progress;
+			splx(s);
 			if ((bp->b_npages == 0) ||
 				(bp->b_pages[bp->b_npages-1] != m)) {
 				bp->b_pages[bp->b_npages] = m;
@@ -782,8 +784,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 					
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
+					s = splvm();
 					++m->busy;
 					++m->object->paging_in_progress;
+					splx(s);
 					if ((bp->b_npages == 0) ||
 					  (bp->b_pages[bp->b_npages - 1] != m)) {
 						bp->b_pages[bp->b_npages] = m;
