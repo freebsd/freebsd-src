@@ -898,6 +898,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
+#ifdef COMPAT_43
 int
 osigreturn(struct proc *p,
 	struct osigreturn_args /* {
@@ -906,6 +907,7 @@ osigreturn(struct proc *p,
 {
 	return EOPNOTSUPP;
 }
+#endif
 
 /*
  * System call to cleanup state after a signal
