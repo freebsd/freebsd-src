@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.7 1996/10/01 02:16:15 peter Exp $
+ *	$Id: ldd.c,v 1.8 1996/10/29 18:45:20 peter Exp $
  */
 
 #include <sys/types.h>
@@ -52,7 +52,9 @@ usage()
 {
 	extern char *__progname;
 
-	fprintf(stderr, "Usage: %s <filename> ...\n", __progname);
+	fprintf(stderr, "Usage: %s [-f format] [-v] <filename> ...\n",
+			__progname);
+
 	exit(1);
 }
 
