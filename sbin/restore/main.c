@@ -295,11 +295,11 @@ usage()
 
 	(void)fprintf(stderr, "usage:\t%s %s\n\t%s %s\n\t%s %s\n"
 	    "\t%s %s %s\n\t%s %s %s\n",
-	    "restore -i [-cdhmNuvy]", common,
-	    "restore -R [-cdNuvy]", common,
-	    "restore -r [-cdNuvy]", common,
-	    "restore -t [-cdhNuvy]", common, fileell,
-	    "restore -x [-cdhmNuvy]", common, fileell);
+	    "restore -i [-dhmNuvy]", common,
+	    "restore -R [-dNuvy]", common,
+	    "restore -r [-dNuvy]", common,
+	    "restore -t [-dhNuvy]", common, fileell,
+	    "restore -x [-dhmNuvy]", common, fileell);
 	done(1);
 }
 
