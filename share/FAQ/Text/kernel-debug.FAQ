@@ -1,6 +1,8 @@
+# Hello emacs, this is -*- indented-text -*-
+
                    Kernel debugging FAQ for FreeBSD
 
-$Id: kernel-debug.FAQ,v 1.1 1995/03/21 20:19:31 jkh Exp $
+$Id: kernel-debug.FAQ,v 1.2 1995/03/25 12:35:00 joerg Exp $
 
 
 *** Debugging a kernel crash dump with kgdb ***
@@ -13,19 +15,30 @@ $Id: kernel-debug.FAQ,v 1.1 1995/03/21 20:19:31 jkh Exp $
   Here are some instructions for getting kernel debugging working on a
   crash dump, it assumes that you have enough swap space for a crash
   dump.  If you happen to have multiple swap partitions with the first
-  one being too small to keep the dump, you can configure your kernel to
-  use an alternate dump device (in the ``kernel'' line).  Dumps to non-
-  swap devices (e.g. tapes) are currently not supported.
+  one being too small to keep the dump, you can configure your kernel
+  to use an alternate dump device (in the ``config kernel'' line), or
+  you can tell this using the dumpon(8) command.  Dumps to non-swap
+  devices (e.g. tapes) are currently not supported.
 
   Config your kernel using config -g
 
-  Remember that you need to specify ``options DODUMP'' in your config
-  file in order to get kernel core dumps.
+  Either, use the dumpon(8) command to tell the kernel where to dump
+  to (note that this will have to be done after configuring the
+  partition in question as swap space via swapon(8)).  This is
+  normally arranged via sysconfig and /etc/rc.  Alternatively, you can
+  hard-code the dump device via the `dump' clause in the `config' line
+  of your kernel config file.  This is deprecated, but might be the
+  only chance to get a crash dump from a kernel that's not booting at
+  all, so that you didn't had the ability to run any command before it
+  used to crash.
 
-  When the kernel's been built make a copy of it, say kernel.debug, and
-  then run strip -x on the original. Install the original as normal.
-  You may also install the unstripped kernel, but symtab lookup time
-  for some programs might drastically increase.
+  When the kernel's been built make a copy of it, say kernel.debug,
+  and then run strip -x on the original. Install the original as
+  normal.  You may also install the unstripped kernel, but symtab
+  lookup time for some programs might drastically increase, and since
+  the whole kernel is loaded entirely at boot time and cannot be
+  swapped out later, you're going to waste several megabytes of
+  physical RAM.
 
   If you are testing a new kernel (e.g. by typing the new kernel's
   name at the boot prompt), but need to boot a different one in order
@@ -185,12 +198,11 @@ $Id: kernel-debug.FAQ,v 1.1 1995/03/21 20:19:31 jkh Exp $
 
   Not everything is lost here.  Don't panic. :-)
 
-  Of course, you still need to configure all your kernels with the
-  DODUMP option being set, otherwise you won't get a core dump at all.
-  (This is for safety reasons in the default kernels, to avoid them
-  trying to dump e.g. during system installation where there's no
-  FreeBSD partition at all and valuable data on the disk could be
-  destroyed.)
+  Of course, you still need to enable crash dumps at all.  See above
+  on the options you've got to do this.  (This is for safety reasons
+  in the default kernels, to avoid them trying to dump e.g. during
+  system installation where there's no FreeBSD partition at all and
+  valuable data on the disk could be destroyed.)
 
   Go to your kernel compile directory, and edit the line containing
   COPTFLAGS?=-O.  Add the `-g' option there (but DON'T change anything
@@ -249,9 +261,10 @@ $Id: kernel-debug.FAQ,v 1.1 1995/03/21 20:19:31 jkh Exp $
 
   The second scenario is a hot-key on the keyboard, usually Ctrl-Alt-
   ESC.  (For syscons, this can be remapped, and some of the
-  distributed maps do this, so watch out.)  There are patches
-  available for a COMCONSOLE kernel, ask me (joerg@FreeBSD.org) for
-  them.
+  distributed maps do this, so watch out.)  There's an option
+  available for a COMCONSOLE kernel (``options BREAK_TO_DEBUGGER'')
+  that allows the use of a serial line BREAK on the console line to
+  enter DDB.
 
   The third way is that any panic condition will branch to DDB if the
   kernel is configured to use it.  (Thus it is not wise to configure a
