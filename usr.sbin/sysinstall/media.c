@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.7 1995/05/20 00:13:11 jkh Exp $
+ * $Id: media.c,v 1.8 1995/05/20 03:49:09 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,28 @@
 #include <stdio.h>
 #include "sysinstall.h"
 
+static int
+genericHook(char *str, DeviceType type)
+{
+    Device **devs;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return 0;
+    devs = deviceFind(str, type);
+    if (devs)
+	mediaDevice = devs[0];
+    return devs ? 1 : 0;
+}
+
+static int
+cdromHook(char *str)
+{
+    return genericHook(str, DEVICE_TYPE_CDROM);
+}
+
 /*
  * Return 1 if we successfully found and set the installation type to
  * be a CD.
@@ -54,8 +76,10 @@ mediaSetCDROM(char *str)
     Device **devs;
     int cnt;
 
-    if (OnCDROM == TRUE)
+    if (OnCDROM == TRUE) {
+	/* XXX point mediaDevice at something meaningful here - perhaps a static device structure */
 	return 1;
+    }
     else {
 	devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
 	cnt = deviceCount(devs);
@@ -64,13 +88,24 @@ mediaSetCDROM(char *str)
 	    return 0;
         }
 	else if (cnt > 1) {
-	    /* put up a menu */
+	    DMenu *menu;
+
+	    menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
+	    if (!menu)
+		msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
+	    dmenuOpenSimple(menu);
+	    free(menu);
 	}
-	else {
+	else
 	    mediaDevice = devs[0];
-	}
     }
-    return 0;
+    return mediaDevice ? 1 : 0;
+}
+
+static int
+floppyHook(char *str)
+{
+    return genericHook(str, DEVICE_TYPE_FLOPPY);
 }
 
 /*
@@ -80,8 +115,27 @@ mediaSetCDROM(char *str)
 int
 mediaSetFloppy(char *str)
 {
-    dmenuOpenSimple(&MenuMediaFloppy);
-    return 0;
+    Device **devs;
+    int cnt;
+
+    devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No floppy devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
+	return 0;
+    }
+    else if (cnt > 1) {
+	DMenu *menu;
+
+	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook);
+	if (!menu)
+	    msgFatal("Unable to create Floppy menu!  Something is seriously wrong.");
+	dmenuOpenSimple(menu);
+	free(menu);
+    }
+    else
+	mediaDevice = devs[0];
+    return mediaDevice ? 1 : 0;
 }
 
 /*
@@ -92,11 +146,31 @@ int
 mediaSetDOS(char *str)
 {
     Device **devs;
+    Disk *d;
+    Chunk *c1;
+    int i;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs)
 	msgConfirm("No disk devices found!");
-    return 0;
+    for (i = 0; devs[i]; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+	d = (Disk *)devs[i]->private;
+	/* Now try to find a DOS partition */
+	for (c1 = d->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == fat) {
+		/* Got one! */
+		mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DISK, TRUE,
+					     mediaInitDOS, mediaGetDOS, mediaCloseDOS, NULL);
+		msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+		break;
+	    }
+	}
+    }
+    if (!mediaDevice)
+	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
+    return mediaDevice ? 1 : 0;
 }
 
 /*
@@ -158,14 +232,7 @@ mediaExtractDist(FILE *fp)
 Boolean
 mediaGetType(void)
 {
-    char *cp;
-
     dmenuOpenSimple(&MenuMedia);
-#if 0
-    cp = getenv(MEDIA_TYPE);
-    if (!cp)
-	return FALSE;
-#endif
     return TRUE;
 }
 

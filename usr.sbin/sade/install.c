@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.32 1995/05/20 00:13:10 jkh Exp $
+ * $Id: install.c,v 1.33 1995/05/20 08:31:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,6 +45,7 @@
 #include <sys/disklabel.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 Boolean SystemWasInstalled;
@@ -92,7 +93,7 @@ installInitial(void)
     /* If things aren't kosher, or we refuse to proceed, bail. */
     if (!preInstallCheck()
 	|| msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
-	return 0;
+	return;
 
     mbrContents = NULL;
     if (!msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
@@ -272,7 +273,6 @@ static void
 cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
-    extern int wait(int *status);
 
     tryagain:
     j = fork();
@@ -319,7 +319,7 @@ cpio_extract(void)
 	    msgConfirm("gunzip returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
 	    exit(1);
 	}
-	i = waitpid(cpid, &j);
+	i = waitpid(cpid, &j, 0);
 	if (i < 0 || j) {
 	    msgConfirm("cpio returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
 	    exit(2);

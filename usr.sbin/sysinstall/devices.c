@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.19 1995/05/19 02:31:13 jkh Exp $
+ * $Id: devices.c,v 1.20 1995/05/20 00:13:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,9 +69,6 @@
 static Device *Devices[DEV_MAX];
 static int numDevs;
 
-#define CHECK_DEVS \
-	if (numDevs == DEV_MAX) msgFatal("Too many devices found!")
-
 static struct {
     DeviceType type;
     char *name;
@@ -110,7 +107,7 @@ static struct {
     { NULL },
 };
 
-static Device *
+Device *
 new_device(char *name)
 {
     Device *dev;
@@ -143,6 +140,29 @@ deviceDiskFree(Device *dev)
     Free_Disk(dev->private);
 }
 
+/* Register a new device in the devices array */
+Device *
+deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
+	       Boolean (*init)(Device *), Boolean (*get)(char *), void (*close)(Device *), void *private)
+{
+    Device *newdev;
+
+    if (numDevs == DEV_MAX)
+	msgFatal("Too many devices found!");
+    newdev = new_device(name);
+    newdev->description = desc;
+    newdev->devname = devname;
+    newdev->type = type;
+    newdev->enabled = enabled;
+    newdev->init = init;
+    newdev->get = get;
+    newdev->close = close;
+    newdev->private = private;
+    Devices[numDevs] = newdev;
+    Devices[++numDevs] = NULL;
+    return newdev;
+}
+		
 /* Get all device information for devices we have attached */
 void
 deviceGetAll(void)
@@ -159,18 +179,15 @@ deviceGetAll(void)
 	int i;
 
 	for (i = 0; names[i]; i++) {
-	    CHECK_DEVS;
-	    Devices[numDevs] = new_device(names[i]);
-	    Devices[numDevs]->type = DEVICE_TYPE_DISK;
-	    Devices[numDevs]->enabled = FALSE;
-	    Devices[numDevs]->init = mediaInitUFS;
-	    Devices[numDevs]->get = mediaGetUFS;
-	    Devices[numDevs]->close = deviceDiskFree;
-	    Devices[numDevs]->private = Open_Disk(names[i]);
-	    if (!Devices[numDevs]->private)
-		msgFatal("Unable to open device for %s!", names[i]);
+	    Disk *d;
+
+	    d = Open_Disk(names[i]);
+	    if (!d)
+		msgFatal("Unable to open disk %s", names[i]);
+
+	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
+				 mediaInitUFS, mediaGetUFS, deviceDiskFree, d);
 	    msgDebug("Found a device of type disk named: %s\n", names[i]);
-	    ++numDevs;
 	}
 	free(names);
     }
@@ -187,19 +204,9 @@ deviceGetAll(void)
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
 		close(fd);
-		CHECK_DEVS;
-		Devices[numDevs] = new_device(device_names[i].name);
-		Devices[numDevs]->type = DEVICE_TYPE_CDROM;
-		Devices[numDevs]->description = device_names[i].description;
-		Devices[numDevs]->devname = strdup(try);
-		Devices[numDevs]->enabled = TRUE;	/* XXX check for FreeBSD disk later XXX */
-		Devices[numDevs]->init = mediaInitCDROM;
-		Devices[numDevs]->get = mediaGetCDROM;
-		Devices[numDevs]->close = NULL;
-		Devices[numDevs]->private = NULL;
-		msgDebug("Found a device of type CDROM named: %s\n",
-			 device_names[i].name);
-		++numDevs;
+		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, mediaCloseCDROM, NULL);
+		msgDebug("Found a device of type CDROM named: %s\n", device_names[i].name);
 	    }
 	    break;
 
@@ -207,17 +214,9 @@ deviceGetAll(void)
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
 		close(fd);
-		CHECK_DEVS;
-		Devices[numDevs] = new_device(device_names[i].name);
-		Devices[numDevs]->type = DEVICE_TYPE_TAPE;
-		Devices[numDevs]->devname = strdup(try);
-		Devices[numDevs]->enabled = TRUE;
-		Devices[numDevs]->init = mediaInitTape;
-		Devices[numDevs]->get = mediaGetTape;
-		Devices[numDevs]->close = mediaCloseTape;
-		Devices[numDevs]->private = NULL;
+		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaCloseTape, NULL);
 		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
-		++numDevs;
 	    }
 	    break;
 
@@ -225,17 +224,9 @@ deviceGetAll(void)
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
 		close(fd);
-		CHECK_DEVS;
-		Devices[numDevs] = new_device(device_names[i].name);
-		Devices[numDevs]->type = DEVICE_TYPE_FLOPPY;
-		Devices[numDevs]->devname = strdup(try);
-		Devices[numDevs]->enabled = TRUE;
-		Devices[numDevs]->init = mediaInitFloppy;
-		Devices[numDevs]->get = mediaGetFloppy;
-		Devices[numDevs]->close = mediaCloseFloppy;
-		Devices[numDevs]->private = NULL;
+		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, mediaCloseFloppy, NULL);
 		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
-		++numDevs;
 	    }
 	    break;
 
@@ -243,17 +234,9 @@ deviceGetAll(void)
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
 		close(fd);
-		CHECK_DEVS;
-		Devices[numDevs] = new_device(device_names[i].name);
-		Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
-		Devices[numDevs]->devname = strdup(try);
-		Devices[numDevs]->enabled = FALSE;
-		Devices[numDevs]->init = mediaInitNetwork;
-		Devices[numDevs]->get = mediaGetNetwork;
-		Devices[numDevs]->close = mediaCloseNetwork;
-		Devices[numDevs]->private = NULL;
+		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
+			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, mediaGetNetwork, mediaCloseNetwork, NULL);
 		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
-		++numDevs;
 	    }
 	    break;
 
@@ -285,33 +268,23 @@ deviceGetAll(void)
 	if (!strncmp(ifptr->ifr_name, "tun", 3)
 	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
-	CHECK_DEVS;
-	Devices[numDevs] = new_device(ifptr->ifr_name);
-	Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
-	Devices[numDevs]->devname = NULL;
-	Devices[numDevs]->enabled = FALSE;
-	Devices[numDevs]->init = mediaInitNetwork;
-	Devices[numDevs]->get = mediaGetNetwork;
-	Devices[numDevs]->close = mediaCloseNetwork;
-	Devices[numDevs]->private = NULL;
+	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name,
+		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, mediaGetNetwork, mediaCloseNetwork, NULL);
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
-	++numDevs;
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 	    msgConfirm("ifconfig: socket");
 	    continue;
 	}
-	if (ifptr->ifr_addr.sa_len)	/* Dohw! */
-	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len
-				     - sizeof(struct sockaddr));
+	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
+	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
     }
-    /* Terminate the devices array */
-    Devices[numDevs] = NULL;
 }
 
 /*
  * Find all devices that match the criteria, allowing "wildcarding" as well
- * by allowing NULL or ANY values to match all.
+ * by allowing NULL or ANY values to match all.  The array returned is static
+ * and may be used until the next invocation of deviceFind().
  */
 Device **
 deviceFind(char *name, DeviceType class)
