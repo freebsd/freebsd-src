@@ -116,7 +116,7 @@ Marc Frajola <marc@escargot.rain.com>
 Mark Murray <mark@grondar.za>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
-Matt Thomas <?>
+Matt Thomas <thomas@lkg.dec.com>
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Poul-Henning Kamp <phk@login.dkuug.dk>
@@ -234,4 +234,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.11 1995/02/14 19:19:15 phk Exp $
+$Id: CONTRIB.FreeBSD,v 1.12 1995/02/14 19:39:50 phk Exp $
