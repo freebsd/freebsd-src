@@ -178,7 +178,9 @@ case ${firewall_type} in
 	${fwcmd} add deny all from 192.168.0.0/16 to any via ${oif}
 	${fwcmd} add deny all from any to 192.168.0.0/16 via ${oif}
 
-	# Stop draft-manning-dsua-01.txt nets on the outside interface
+	# Stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
+	# DHCP auto-configuration, NET-TEST, MULTICAST (class D), and class E)
+	# on the outside interface
 	${fwcmd} add deny all from 0.0.0.0/8 to any via ${oif}
 	${fwcmd} add deny all from any to 0.0.0.0/8 via ${oif}
 	${fwcmd} add deny all from 169.254.0.0/16 to any via ${oif}
