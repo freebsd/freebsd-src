@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.3 1994/08/02 07:54:20 davidg Exp $
+ * $Id: ffs_inode.c,v 1.4 1994/08/02 13:51:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -335,7 +335,7 @@ ffs_truncate(ap)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ffs_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
@@ -351,13 +351,13 @@ done:
 #ifdef DIAGNOSTIC
 	for (level = SINGLE; level <= TRIPLE; level++)
 		if (newblks[NDADDR + level] != oip->i_ib[level])
-			panic("itrunc1");
+			panic("ffs_truncate1");
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
-			panic("itrunc2");
+			panic("ffs_truncate2");
 	if (length == 0 &&
 	    (ovp->v_dirtyblkhd.lh_first || ovp->v_cleanblkhd.lh_first))
-		panic("itrunc3");
+		panic("ffs_truncate3");
 #endif /* DIAGNOSTIC */
 	/*
 	 * Put back the real size.
