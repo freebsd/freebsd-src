@@ -1941,10 +1941,11 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	if (obj == NULL)
 		obj = vm_object_allocate(OBJT_DEFAULT,
 		    pages);
-	else 
+	else {
+		VM_OBJECT_LOCK_INIT(obj);
 		_vm_object_allocate(OBJT_DEFAULT,
 		    pages, obj);
-
+	}
 	ZONE_LOCK(zone);
 	zone->uz_kva = kva;
 	zone->uz_obj = obj;
