@@ -8,7 +8,6 @@ FILES=	100.clean-disks \
 	150.clean-hoststat \
 	200.backup-passwd \
 	210.backup-aliases \
-	220.backup-distfile \
 	300.calendar \
 	310.accounting \
 	330.news \
