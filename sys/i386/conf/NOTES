@@ -307,11 +307,6 @@ device		pci
 # AGP GART support
 device		agp
 
-# PCI options
-#
-#Enable pci resources left off by a "lazy" BIOS:
-options 	PCI_ENABLE_IO_MODES
-
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
