@@ -46,6 +46,8 @@ struct fdc_data {
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
 #define FDC_NODMA	0x40
+#define FDC_KTHREAD_EXIT	0x1000 /* request worker thread to stop */
+#define FDC_KTHREAD_ALIVE	0x2000 /* worker thread is alive */
 	struct	fd_data *fd;	/* The active drive */
 	int	retry;
 	int	fdout;		/* mirror of the w/o digital output reg */

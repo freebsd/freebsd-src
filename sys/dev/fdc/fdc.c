@@ -761,8 +761,17 @@ fdc_worker(struct fdc_data *fdc)
 			if (fdc->bp == NULL)
 				msleep(&fdc->head, &fdc->fdc_mtx,
 				    PRIBIO, "-", hz);
-		} while (fdc->bp == NULL);
+		} while (fdc->bp == NULL &&
+		    (fdc->flags & FDC_KTHREAD_EXIT) == 0);
 		mtx_unlock(&fdc->fdc_mtx);
+
+		if (fdc->bp == NULL)
+			/*
+			 * Nothing to do, worker thread has been
+			 * requested to stop.
+			 */
+			return (0);
+
 		bp = fdc->bp;
 		fd = fdc->fd = bp->bio_driver1;
 		fdc->retry = 0;
@@ -1118,7 +1127,8 @@ fdc_thread(void *arg)
 	fdc = arg;
 	int i;
 
-	for (;;) {
+	fdc->flags |= FDC_KTHREAD_ALIVE;
+	while ((fdc->flags & FDC_KTHREAD_EXIT) == 0) {
 		i = fdc_worker(fdc);
 		if (i && debugflags & 0x20) {
 			if (fdc->bp != NULL) {
@@ -1129,6 +1139,8 @@ fdc_thread(void *arg)
 		}
 		fdc->retry += i;
 	}
+	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
+	wakeup(&fdc->fdc_thread);
 }
 
 /*
@@ -1624,7 +1636,13 @@ fdc_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
-	/* XXX: kill thread */
+	/* kill worker thread */
+	fdc->flags |= FDC_KTHREAD_EXIT;
+	mtx_lock(&fdc->fdc_mtx);
+	while ((fdc->flags & FDC_KTHREAD_ALIVE) != 0)
+		msleep(&fdc->fdc_thread, &fdc->fdc_mtx, PRIBIO, "fdcdet", 0);
+	mtx_unlock(&fdc->fdc_mtx);
+
 	/* reset controller, turn motor off */
 	fdout_wr(fdc, 0);
 
