@@ -832,6 +832,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_dd = vp;
 		bo = &vp->v_bufobj;
 		bo->bo_private = vp;
+		bo->__bo_vnode = vp;
 		bo->bo_mtx = &vp->v_interlock;
 		vp->v_vnlock = &vp->v_lock;
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
@@ -1552,7 +1553,7 @@ sched_sync(void)
 		if (net_worklist_len > 0 && syncer_state == SYNCER_FINAL_DELAY)
 			syncer_state = SYNCER_SHUTTING_DOWN;
 		while ((bo = LIST_FIRST(slp)) != NULL) {
-			vp = bo->bo_private; 	/* XXX */
+			vp = bo->__bo_vnode; 	/* XXX */
 			if (VOP_ISLOCKED(vp, NULL) != 0 ||
 			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 				LIST_REMOVE(bo, bo_synclist);
