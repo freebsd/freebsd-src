@@ -35,7 +35,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.5 1998/09/29 09:49:46 grog Exp grog $
+.\" $Id: vinum.4,v 1.3 1998/11/03 07:02:58 grog Exp $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
@@ -137,7 +137,10 @@ offers automatic startup.  Unlike UNIX file systems,
 .Nm
 volumes contain all the configuration information needed to ensure that they are
 started correctly when the subsystem is enabled.  This is also a significant
-advantage over the Veritas\(tm File System.  This feature regards the presence
+advantage over the 
+.if t Veritas\ (tm
+.if n Veritas(tm)
+File System.  This feature regards the presence
 of the volumes.  It does not mean that the volumes will be mounted
 automatically, since the standard startup procedures with
 .Pa /etc/fstab 
