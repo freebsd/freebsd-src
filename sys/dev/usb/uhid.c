@@ -363,7 +363,7 @@ uhidopen(dev, flag, mode, p)
 		return (EBUSY);
 	sc->sc_state |= UHID_OPEN;
 
-	if (clalloc(&sc->sc_q, UHID_BSIZE, 0) == -1) {
+	if (clalloc(&sc->sc_q, UHID_BSIZE, UHID_BSIZE) == -1) {
 		sc->sc_state &= ~UHID_OPEN;
 		return (ENOMEM);
 	}
