@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.267 1996/06/18 23:21:28 nate Exp $
+#	$Id: LINT,v 1.268 1996/06/19 15:37:52 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -466,9 +466,10 @@ controller	isa0
 # Some broken EISA and VLB hardware may need this, too.
 #
 # MAXMEM specifies the amount of RAM on the machine; if this is not
-# specified, only the first 64MB will be used. The amount is in kilobytes,
-# so for a machine with 128MB of RAM, it would be 131072 (128 * 1024).
-# Not needed if you have 64MB or less.
+# specified, FreeBSD will read the amount of memory from the CMOS RAM,
+# so the amount of memory will be limited to 64MB or 16MB depending on
+# the BIOS.  The amount is in kilobytes, so for a machine with 128MB of
+# RAM, it would be 131072 (128 * 1024).
 #
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
@@ -482,7 +483,7 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-#options	"MAXMEM=(128*1024)"
+options		"MAXMEM=(128*1024)"
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
