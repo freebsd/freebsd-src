@@ -102,7 +102,10 @@ struct acpi_asus_softc {
 	int			s_lcd;
 };
 
-/* Models we know about */
+/*
+ * We can identify Asus laptops from the string they return
+ * as a result of calling the ATK0100 'INIT' method.
+ */
 static struct acpi_asus_model acpi_asus_models[] = {
 	{
 		.name		= "L2D",
@@ -163,6 +166,15 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.lcd_get	= "\\GP06",
 		.lcd_set	= "\\Q10"
 	},
+
+	{ .name = NULL }
+};
+
+/*
+ * Samsung P30/P35 laptops have an Asus ATK0100 gadget interface,
+ * but they can't be probed quite the same way as Asus laptops.
+ */
+static struct acpi_asus_model acpi_samsung_models[] = {
 	{
 		.name		= "P30",
 		.wled_set	= "WLED",
@@ -228,11 +240,6 @@ acpi_asus_probe(device_t dev)
 		sc->dev = dev;
 		sc->handle = acpi_get_handle(dev);
 	
-		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-				
-		if (sb == NULL)
-			return (ENOMEM);
-
 		Arg.Type = ACPI_TYPE_INTEGER;
 		Arg.Integer.Value = 0;
 
@@ -243,13 +250,44 @@ acpi_asus_probe(device_t dev)
 		Buf.Length = ACPI_ALLOCATE_BUFFER;
 	
 		AcpiEvaluateObject(sc->handle, "INIT", &Args, &Buf);
-		
 		Obj = Buf.Pointer;
 
+		/*
+		 * The Samsung P30 returns a null-pointer from INIT, we
+		 * can identify it from the 'ODEM' string in the DSDT.
+		 */
+		if (Obj->String.Pointer == NULL) {
+			ACPI_STATUS		status;
+			ACPI_TABLE_HEADER	th;
+
+			status = AcpiGetTableHeader(ACPI_TABLE_DSDT, 1, &th);
+			if (ACPI_FAILURE(status)) {
+				device_printf(dev, "Unsupported laptop\n");
+				AcpiOsFree(Buf.Pointer);
+				return (ENXIO);
+			}
+
+			if (strncmp("ODEM", th.OemTableId, 4) == 0) {
+				sc->model = &acpi_samsung_models[0];
+				device_set_desc(dev,
+				    "Samsung P30 Laptop Extras");
+				AcpiOsFree(Buf.Pointer);
+				return (0);
+			}
+		}
+
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+				
+		if (sb == NULL)
+			return (ENOMEM);
+
+		/*
+		 * Asus laptops are simply identified by name, easy!
+		 */
 		for (model = acpi_asus_models; model->name != NULL; model++)
 			if (strcmp(Obj->String.Pointer, model->name) == 0) {
 				sbuf_printf(sb, "Asus %s Laptop Extras",
-						Obj->String.Pointer);
+				    Obj->String.Pointer);
 				sbuf_finish(sb);
 				
 				sc->model = model;
@@ -261,7 +299,7 @@ acpi_asus_probe(device_t dev)
 			}
 
 		sbuf_printf(sb, "Unsupported Asus laptop detected: %s\n",
-				Obj->String.Pointer);
+		    Obj->String.Pointer);
 		sbuf_finish(sb);
 
 		device_printf(dev, sbuf_data(sb));
