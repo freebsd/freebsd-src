@@ -66,6 +66,8 @@ struct bio {
 	void			*bio_data;
 	const char		*bio_attribute;	/* BIO_GETATTR/BIO_SETATTR */
 	int			bio_error;
+	u_int			bio_children;	/* Number of spawned bios */
+
 
 	struct bio		*bio_linkage;
 	int			bio_flags;
@@ -137,17 +139,20 @@ void g_simdisk_stop(char *name);
 void g_simdisk_restart(char *name);
 
 #define DECLARE_GEOM_CLASS(class, name) 	\
+void name##_init(void);				\
 	void					\
 	name##_init(void)			\
 	{					\
 		g_add_class(&class);		\
 	}
 
-void g_pc98_init(void);
-void g_sunlabel_init(void);
+void g_aes_init(void);
 void g_bsd_init(void);
 void g_mbr_init(void);
 void g_mbrext_init(void);
+void g_sunlabel_init(void);
+void g_pc98_init(void);
+
 
 void *thread_sim(void *ptr);
 
