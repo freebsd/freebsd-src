@@ -18,9 +18,8 @@ LSDIR=	../../bin/ls
 SRCS+=	ls.c cmp.c print.c util.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 
-.if defined(NOPAM)
-CFLAGS+=-DNOPAM
-.else
+.if !defined(NOPAM)
+CFLAGS+=-DUSE_PAM
 DPADD+= ${LIBPAM}
 LDADD+= ${MINUSLPAM}
 .endif

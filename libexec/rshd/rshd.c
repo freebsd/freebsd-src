@@ -76,9 +76,27 @@ static const char rcsid[] =
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#ifdef	LOGIN_CAP
 #include <login_cap.h>
-#endif
+
+#ifdef USE_PAM
+#include <security/pam_appl.h>
+#include <sys/wait.h>
+
+static int export_pam_environment __P((void));
+static int ok_to_export __P((const char *));
+
+static pam_handle_t *pamh;
+static char **environ_pam;
+
+#define PAM_END { \
+	if ((retcode = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS) \
+		syslog(LOG_ERR|LOG_AUTH, "pam_setcred: %s", pam_strerror(pamh, retcode)); \
+	if ((retcode = pam_close_session(pamh,0)) != PAM_SUCCESS) \
+		syslog(LOG_ERR|LOG_AUTH, "pam_close_session: %s", pam_strerror(pamh, retcode)); \
+	if ((retcode = pam_end(pamh, retcode)) != PAM_SUCCESS) \
+		syslog(LOG_ERR|LOG_AUTH, "pam_end: %s", pam_strerror(pamh, retcode)); \
+}
+#endif /* USE_PAM */
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
@@ -188,6 +206,20 @@ main(argc, argv)
 	return(0);
 }
 
+#ifdef USE_PAM
+/*
+ * We can't have a conversation with the client over the rsh connection.
+ * You must use auth methods that don't require one, like pam_rhosts.
+ */
+
+int null_conv(int num_msg, const struct pam_message **msg,
+              struct pam_response **resp, void *appdata_ptr)
+{
+	syslog(LOG_ERR, "PAM conversation is not supported");
+	return PAM_CONV_ERR;
+}
+#endif /* USE_PAM */
+
 char	username[20] = "USER=";
 char	homedir[64] = "HOME=";
 char	shell[64] = "SHELL=";
@@ -216,9 +248,11 @@ doit(fromp)
 	int rc;
 	int pv1[2], pv2[2];
 #endif
-#ifdef	LOGIN_CAP
 	login_cap_t *lc;
-#endif
+#ifdef USE_PAM
+	static struct pam_conv conv = { null_conv, NULL };
+	int retcode;
+#endif /* USE_PAM */
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
@@ -229,7 +263,7 @@ doit(fromp)
 	    && af != AF_INET6
 #endif
 	    ) {
-		syslog(LOG_ERR, "malformed \"from\" address (af %d)\n", af);
+		syslog(LOG_ERR, "malformed \"from\" address (af %d)", af);
 		exit(1);
 	}
 	err = getnameinfo((struct sockaddr *)fromp, fromp->su_len, numericname,
@@ -341,6 +375,52 @@ doit(fromp)
 
 	getstr(locuser, sizeof(locuser), "locuser");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
+
+#ifdef USE_PAM
+	retcode = pam_start("rsh", locuser, &conv, &pamh);
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR|LOG_AUTH, "pam_start: %s", pam_strerror(pamh, retcode));
+		error("Login incorrect.\n");
+		exit(1);
+	}
+
+	retcode = pam_set_item (pamh, PAM_RUSER, remuser);
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_RUSER): %s", pam_strerror(pamh, retcode));
+		error("Login incorrect.\n");
+		exit(1);
+	}
+	retcode = pam_set_item (pamh, PAM_RHOST, fromhost);
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_RHOST): %s", pam_strerror(pamh, retcode));
+		error("Login incorrect.\n");
+		exit(1);
+	}
+	retcode = pam_set_item (pamh, PAM_TTY, "tty");
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_TTY): %s", pam_strerror(pamh, retcode));
+		error("Login incorrect.\n");
+		exit(1);
+	}
+
+	retcode = pam_authenticate(pamh, 0);
+	if (retcode == PAM_SUCCESS) {
+		if ((retcode = pam_get_item(pamh, PAM_USER, (const void **) &cp)) == PAM_SUCCESS) {
+			strncpy(locuser, cp, sizeof(locuser));
+			locuser[sizeof(locuser) - 1] = '\0';
+		} else
+			syslog(LOG_ERR|LOG_AUTH, "pam_get_item(PAM_USER): %s",
+			       pam_strerror(pamh, retcode));
+		retcode = pam_acct_mgmt(pamh, 0);
+	}
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: permission denied (%s). cmd='%.80s'",
+		       remuser, fromhost, locuser, pam_strerror(pamh, retcode), cmdbuf);
+		error("Login incorrect.\n");
+		exit(1);
+	}
+#endif /* USE_PAM */
+
 	setpwent();
 	pwd = getpwnam(locuser);
 	if (pwd == NULL) {
@@ -349,13 +429,36 @@ doit(fromp)
 		    remuser, fromhost, locuser, cmdbuf);
 		if (errorstr == NULL)
 			errorstr = "Login incorrect.\n";
-		goto fail;
+		error(errorstr, fromhost);
+		exit(1);
 	}
-#ifdef	LOGIN_CAP
+
+#ifndef USE_PAM
+	if (errorstr ||
+	    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
+	    iruserok_sa(fromp, fromp->su_len, pwd->pw_uid == 0,
+			remuser, locuser) < 0) {
+		if (__rcmd_errstr)
+			syslog(LOG_INFO|LOG_AUTH,
+			       "%s@%s as %s: permission denied (%s). cmd='%.80s'",
+			       remuser, fromhost, locuser, __rcmd_errstr,
+			       cmdbuf);
+		else
+			syslog(LOG_INFO|LOG_AUTH,
+			       "%s@%s as %s: permission denied. cmd='%.80s'",
+			       remuser, fromhost, locuser, cmdbuf);
+		if (errorstr == NULL)
+			errorstr = "Login incorrect.\n";
+		error(errorstr, fromhost);
+		exit(1);
+	}
+#endif /* USE_PAM */
+
 	lc = login_getpwclass(pwd);
-#endif
+	if (pwd->pw_uid)
+		auth_checknologin(lc);
+
 	if (chdir(pwd->pw_dir) < 0) {
-#ifdef	LOGIN_CAP
 		if (chdir("/") < 0 ||
 		    login_getcapbool(lc, "requirehome", !!pwd->pw_uid)) {
 			syslog(LOG_INFO|LOG_AUTH,
@@ -364,44 +467,9 @@ doit(fromp)
 			error("No remote home directory.\n");
 			exit(0);
 		}
-#else
-		(void) chdir("/");
-#ifdef notdef
-		syslog(LOG_INFO|LOG_AUTH,
-		    "%s@%s as %s: no home directory. cmd='%.80s'",
-		    remuser, fromhost, locuser, cmdbuf);
-		error("No remote directory.\n");
-		exit(1);
-#endif
-#endif
 		pwd->pw_dir = "/";
 	}
 
-		if (errorstr ||
-		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
-		    iruserok_sa(fromp, fromp->su_len, pwd->pw_uid == 0,
-				 remuser, locuser) < 0) {
-			if (__rcmd_errstr)
-				syslog(LOG_INFO|LOG_AUTH,
-			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
-				    remuser, fromhost, locuser, __rcmd_errstr,
-				    cmdbuf);
-			else
-				syslog(LOG_INFO|LOG_AUTH,
-			    "%s@%s as %s: permission denied. cmd='%.80s'",
-				    remuser, fromhost, locuser, cmdbuf);
-fail:
-			if (errorstr == NULL)
-				errorstr = "Login incorrect.\n";
-			error(errorstr, fromhost);
-			exit(1);
-		}
-
-	if (pwd->pw_uid && !access(_PATH_NOLOGIN, F_OK)) {
-		error("Logins currently disabled.\n");
-		exit(1);
-	}
-#ifdef	LOGIN_CAP
 	if (lc != NULL && fromp->su_family == AF_INET) {	/*XXX*/
 		char	remote_ip[MAXHOSTNAMELEN];
 
@@ -421,12 +489,29 @@ fail:
 			exit(1);
 		}
 	}
-#endif	/* !LOGIN_CAP */
 #if	BSD > 43
 	/* before fork, while we're session leader */
 	if (setlogin(pwd->pw_name) < 0)
 		syslog(LOG_ERR, "setlogin() failed: %m");
 #endif
+
+	/*
+	 * PAM modules might add supplementary groups in
+	 * pam_setcred(), so initialize them first.
+	 * But we need to open the session as root.
+	 */
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETGROUP) != 0) {
+                syslog(LOG_ERR, "setusercontext: %m");
+		exit(1);
+	}
+
+#ifdef USE_PAM
+	if ((retcode = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_open_session: %s", pam_strerror(pamh, retcode));
+	} else if ((retcode = pam_setcred(pamh, PAM_ESTABLISH_CRED)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, retcode));
+	}
+#endif /* USE_PAM */
 
 	(void) write(STDERR_FILENO, "\0", 1);
 	sent_null = 1;
@@ -569,6 +654,9 @@ fail:
 			    (doencrypt && FD_ISSET(pv1[0], &readfrom)) ||
 #endif
 			    FD_ISSET(pv[0], &readfrom));
+#ifdef USE_PAM
+			PAM_END;
+#endif /* USE_PAM */
 			exit(0);
 		}
 		setpgrp(0, getpid());
@@ -586,9 +674,38 @@ fail:
 		dup2(pv[1], 2);
 		close(pv[1]);
 	}
+#ifdef USE_PAM
+	else {
+		pid = fork();
+		if (pid == -1)  {
+			error("Can't fork; try again.\n");
+			exit(1);
+		}
+		if (pid) {
+			/* Parent. */
+			wait(NULL);
+			PAM_END;
+			exit(0);
+		}
+	}
+#endif /* USE_PAM */
+
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 	environ = envinit;
+
+#ifdef USE_PAM
+	/*
+	 * Add any environmental variables that the
+	 * PAM modules may have set.
+	 */
+	environ_pam = pam_getenvlist(pamh);
+	if (environ_pam)
+		export_pam_environment();
+	if ((retcode = pam_end(pamh, PAM_DATA_SILENT)) != PAM_SUCCESS)
+		syslog(LOG_ERR|LOG_AUTH, "pam_end: %s", pam_strerror(pamh, retcode));
+#endif /* USE_PAM */
+
 	strncat(homedir, pwd->pw_dir, sizeof(homedir)-6);
 	strcat(path, _PATH_DEFPATH);
 	strncat(shell, pwd->pw_shell, sizeof(shell)-7);
@@ -598,17 +715,13 @@ fail:
 		cp++;
 	else
 		cp = pwd->pw_shell;
-#ifdef	LOGIN_CAP
-	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
+
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL & ~LOGIN_SETGROUP) != 0) {
                 syslog(LOG_ERR, "setusercontext: %m");
 		exit(1);
 	}
 	login_close(lc);
-#else
-	(void) setgid((gid_t)pwd->pw_gid);
-	initgroups(pwd->pw_name, pwd->pw_gid);
-	(void) setuid((uid_t)pwd->pw_uid);
-#endif
+
 	endpwent();
 	if (log_success || pwd->pw_uid == 0) {
 		    syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: cmd='%.80s'",
@@ -716,6 +829,51 @@ topdomain(h)
 	}
 	return (maybe);
 }
+
+#ifdef USE_PAM
+static int
+export_pam_environment()
+{
+	char	**pp;
+
+	for (pp = environ_pam; *pp != NULL; pp++) {
+		if (ok_to_export(*pp))
+			(void) putenv(*pp);
+		free(*pp);
+	}
+	return PAM_SUCCESS;
+}
+
+/*
+ * Sanity checks on PAM environmental variables:
+ * - Make sure there is an '=' in the string.
+ * - Make sure the string doesn't run on too long.
+ * - Do not export certain variables.  This list was taken from the
+ *   Solaris pam_putenv(3) man page.
+ */
+static int
+ok_to_export(s)
+	const char *s;
+{
+	static const char *noexport[] = {
+		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
+		"IFS", "PATH", NULL
+	};
+	const char **pp;
+	size_t n;
+
+	if (strlen(s) > 1024 || strchr(s, '=') == NULL)
+		return 0;
+	if (strncmp(s, "LD_", 3) == 0)
+		return 0;
+	for (pp = noexport; *pp != NULL; pp++) {
+		n = strlen(*pp);
+		if (s[n] == '=' && strncmp(s, *pp, n) == 0)
+			return 0;
+	}
+	return 1;
+}
+#endif /* USE_PAM */
 
 void
 usage()

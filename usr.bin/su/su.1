@@ -173,6 +173,13 @@ to remind one of its awesome power.
 .Bl -tag -width /etc/auth.conf -compact
 .It Pa /etc/auth.conf
 configure authentication services
+.It Pa /etc/pam.conf
+if
+.Nm
+is configured with PAM support, it uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq su
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
