@@ -567,13 +567,6 @@ rip6_attach(struct socket *so, int proto, struct proc *p)
 	inp->in6p_ip6_nxt = (long)proto;
 	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->in6p_sp);
-	if (error != 0) {
-		in6_pcbdetach(inp);
-		return (error);
-	}
-#endif /*IPSEC*/
 	MALLOC(inp->in6p_icmp6filt, struct icmp6_filter *,
 	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
 	ICMP6_FILTER_SETPASSALL(inp->in6p_icmp6filt);

@@ -553,13 +553,6 @@ udp6_attach(struct socket *so, int proto, struct proc *p)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = ip_defttl;
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->in6p_sp);
-	if (error != 0) {
-		in6_pcbdetach(inp);
-		return (error);
-	}
-#endif /*IPSEC*/
 	return 0;
 }
 
