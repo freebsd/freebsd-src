@@ -20,19 +20,19 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.1.1.1 1996/06/17 12:26:06 jkh Exp $
+ * $Id: ftpio.h,v 1.2 1996/06/17 15:28:08 jkh Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */
 typedef struct {
     enum { init, isopen } con_state;
     int		fd_ctrl;
-    int		binary;
-    int		passive;
     int		addrtype;
     char	*host;
     char	*file;
     int		errno;
+    int		is_binary;
+    int		is_passive;
 } *FTP_t;
 
 /* Exported routines - deal only with FILE* type */
@@ -42,7 +42,8 @@ extern int	ftpErrno(FILE *fp);
 extern size_t	ftpGetSize(FILE *fp, char *file);
 extern FILE	*ftpGet(FILE *fp, char *file, int *seekto);
 extern FILE	*ftpPut(FILE *fp, char *file);
-extern int	ftpBinary(FILE *fp, int status);
+extern int	ftpAscii(FILE *fp);
+extern int	ftpBinary(FILE *fp);
 extern int	ftpPassive(FILE *fp, int status);
 extern FILE	*ftpGetURL(char *url, char *user, char *passwd);
 extern FILE	*ftpPutURL(char *url, char *user, char *passwd);
