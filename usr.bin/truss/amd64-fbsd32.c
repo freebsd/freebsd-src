@@ -35,7 +35,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 /*
- * FreeBSD/386-specific system call handling.  This is probably the most
+ * FreeBSD/i386-specific system call handling.  This is probably the most
  * complex part of the entire truss program, although I've got lots of
  * it handled relatively cleanly now.  The system call names are generated
  * automatically, thanks to /usr/src/sys/kern/syscalls.master.  The
