@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_output.c,v 1.4 1995/10/11 18:57:28 jhay Exp $
+ *	$Id: sap_output.c,v 1.1 1995/10/26 21:28:24 julian Exp $
  */
 
 /*
@@ -60,8 +60,8 @@ sap_supply_toall(void)
 		dst = ifp->int_flags & IFF_BROADCAST ? ifp->int_broadaddr :
 		      ifp->int_flags & IFF_POINTOPOINT ? ifp->int_dstaddr :
 		      ifp->int_addr;
-		if (ipx_dst->sipx_addr.x_port == 0)
-			ipx_dst->sipx_addr.x_port = htons(IPXPORT_SAP);
+
+		ipx_dst->sipx_addr.x_port = htons(IPXPORT_SAP);
 
 		flags = ifp->int_flags & IFF_INTERFACE ? MSG_DONTROUTE : 0;
 		sap_supply(&dst, flags, ifp, SAP_WILDCARD);

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: startup.c,v 1.3 1995/10/11 18:57:30 jhay Exp $
+ *	$Id: startup.c,v 1.1 1995/10/26 21:28:26 julian Exp $
  */
 
 #ifndef lint
@@ -62,8 +62,6 @@ int	lookforinterfaces = 1;
 int	performnlist = 1;
 int	gateway = 0;
 int	externalinterfaces = 0;		/* # of remote and local interfaces */
-char	ether_broadcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 
 void
 quit(s)
