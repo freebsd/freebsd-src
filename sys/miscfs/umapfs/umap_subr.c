@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.6 (Berkeley) 1/26/94
  *
- * $Id: lofs_subr.c, v 1.11 1992/05/30 10:05:43 jsp Exp jsp $
+ * $Id: umap_subr.c,v 1.2 1994/05/25 09:09:07 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -212,7 +212,8 @@ umap_node_alloc(mp, lowervp, vpp)
 	struct vnode *othervp, *vp;
 	int error;
 
-	if (error = getnewvnode(VT_UMAP, mp, umap_vnodeop_p, vpp))
+	error = getnewvnode(VT_UMAP, mp, umap_vnodeop_p, vpp);
+	if (error)
 		return (error);
 	vp = *vpp;
 
@@ -227,7 +228,8 @@ umap_node_alloc(mp, lowervp, vpp)
 	 * check to see if someone else has beaten us to it.
 	 * (We could have slept in MALLOC.)
 	 */
-	if (othervp = umap_node_find(lowervp)) {
+	othervp = umap_node_find(lowervp);
+	if (othervp) {
 		FREE(xp, M_TEMP);
 		vp->v_type = VBAD;	/* node is discarded */
 		vp->v_usecount = 0;	/* XXX */
@@ -254,7 +256,8 @@ umap_node_create(mp, targetvp, newvpp)
 {
 	struct vnode *aliasvp;
 
-	if (aliasvp = umap_node_find(mp, targetvp)) {
+	aliasvp = umap_node_find(mp, targetvp);
+	if (aliasvp) {
 		/*
 		 * Take another reference to the alias vnode
 		 */
@@ -274,7 +277,8 @@ umap_node_create(mp, targetvp, newvpp)
 		/*
 		 * Make new vnode reference the umap_node.
 		 */
-		if (error = umap_node_alloc(mp, targetvp, &aliasvp))
+		error = umap_node_alloc(mp, targetvp, &aliasvp);
+		if (error)
 			return (error);
 
 		/*

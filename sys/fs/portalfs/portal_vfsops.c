@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.3 1994/09/22 19:38:17 wollman Exp $
+ * $Id: portal_vfsops.c,v 1.4 1994/09/23 11:01:58 davidg Exp $
  */
 
 /*
@@ -94,10 +94,12 @@ portal_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
-	if (error = copyin(data, (caddr_t) &args, sizeof(struct portal_args)))
+	error = copyin(data, (caddr_t) &args, sizeof(struct portal_args));
+	if (error)
 		return (error);
 
-	if (error = getsock(p->p_fd, args.pa_socket, &fp))
+	error = getsock(p->p_fd, args.pa_socket, &fp);
+	if (error)
 		return (error);
 	so = (struct socket *) fp->f_data;
 	if (so->so_proto->pr_domain->dom_family != AF_UNIX)
@@ -177,7 +179,8 @@ portal_unmount(mp, mntflags, p)
 #endif
 	if (rootvp->v_usecount > 1)
 		return (EBUSY);
-	if (error = vflush(mp, rootvp, flags))
+	error = vflush(mp, rootvp, flags);
+	if (error)
 		return (error);
 
 	/*

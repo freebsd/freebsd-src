@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_status.c,v 1.1.1.1 1994/05/24 10:05:08 rgrimes Exp $
+ *	$Id: procfs_status.c,v 1.2 1994/08/02 07:45:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -104,7 +104,7 @@ procfs_dostatus(curp, p, pfs, uio)
 		ps += sprintf(ps, "noflags");
 
 	if (p->p_flag & P_INMEM)
-		ps += sprintf(ps, " %d,%d",
+		ps += sprintf(ps, " %ld,%ld",
 			p->p_stats->p_start.tv_sec,
 			p->p_stats->p_start.tv_usec);
 	else
@@ -114,7 +114,7 @@ procfs_dostatus(curp, p, pfs, uio)
 		struct timeval ut, st;
 
 		calcru(p, &ut, &st, (void *) 0);
-		ps += sprintf(ps, " %d,%d %d,%d",
+		ps += sprintf(ps, " %ld,%ld %ld,%ld",
 			ut.tv_sec,
 			ut.tv_usec,
 			st.tv_sec,
@@ -126,9 +126,9 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	cr = p->p_ucred;
 
-	ps += sprintf(ps, " %d", cr->cr_uid, cr->cr_gid);
+	ps += sprintf(ps, " %ld %ld", cr->cr_uid, cr->cr_gid);
 	for (i = 0; i < cr->cr_ngroups; i++)
-		ps += sprintf(ps, ",%d", cr->cr_groups[i]);
+		ps += sprintf(ps, ",%ld", cr->cr_groups[i]);
 	ps += sprintf(ps, "\n");
 
 	xlen = ps - psbuf;

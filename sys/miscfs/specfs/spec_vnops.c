@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.5 1994/09/21 03:47:09 wollman Exp $
+ * $Id: spec_vnops.c,v 1.6 1994/10/06 21:06:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -196,9 +196,12 @@ spec_open(ap)
 		 * Do not allow opens of block devices that are
 		 * currently mounted.
 		 */
-		if (error = vfs_mountedon(vp))
+		error = vfs_mountedon(vp);
+		if (error)
 			return (error);
 		return ((*bdevsw[maj].d_open)(dev, ap->a_mode, S_IFBLK, ap->a_p));
+	default:
+		break;
 	}
 	return (0);
 }
@@ -589,7 +592,8 @@ spec_close(ap)
 		 * we must invalidate any in core blocks, so that
 		 * we can, for instance, change floppy disks.
 		 */
-		if (error = vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 0, 0))
+		error = vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 0, 0);
+		if (error)
 			return (error);
 		/*
 		 * We do not want to really close the device if it

@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.4 1994/09/21 03:47:02 wollman Exp $
+ * $Id: null_vnops.c,v 1.5 1994/09/21 23:22:41 wollman Exp $
  */
 
 /*
@@ -321,7 +321,8 @@ null_getattr(ap)
 	} */ *ap;
 {
 	int error;
-	if (error = null_bypass(ap))
+	error = null_bypass(ap);
+	if (error)
 		return (error);
 	/* Requires that arguments be restored. */
 	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -381,7 +382,7 @@ null_print(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	printf ("\ttag VT_NULLFS, vp=%x, lowervp=%x\n", vp, NULLVPTOLOWERVP(vp));
+	printf ("\ttag VT_NULLFS, vp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
 	return (0);
 }
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id: union_subr.c,v 1.3 1994/08/02 07:45:44 davidg Exp $
+ * $Id: union_subr.c,v 1.4 1994/10/06 21:06:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -224,7 +224,6 @@ union_allocvp(vpp, mp, undvp, dvp, cnp, uppervp, lowervp)
 {
 	int error;
 	struct union_node *un = 0;
-	struct union_node **pp;
 	struct vnode *xlowervp = NULLVP;
 	int hash = 0;
 	int try;
@@ -594,7 +593,8 @@ union_mkshadow(um, dvp, cnp, vpp)
 	cn.cn_consume = cnp->cn_consume;
 
 	VREF(dvp);
-	if (error = relookup(dvp, vpp, &cn))
+	error = relookup(dvp, vpp, &cn);
+	if (error)
 		return (error);
 	vrele(dvp);
 
@@ -638,7 +638,6 @@ union_vn_create(vpp, un, p)
 	int fmode = FFLAGS(O_WRONLY|O_CREAT|O_TRUNC|O_EXCL);
 	int error;
 	int cmode = UN_FILEMODE & ~p->p_fd->fd_cmask;
-	char *cp;
 	struct componentname cn;
 
 	*vpp = NULLVP;
@@ -664,7 +663,8 @@ union_vn_create(vpp, un, p)
 	cn.cn_consume = 0;
 
 	VREF(un->un_dirvp);
-	if (error = relookup(un->un_dirvp, &vp, &cn))
+	error = relookup(un->un_dirvp, &vp, &cn);
+	if (error)
 		return (error);
 	vrele(un->un_dirvp);
 
@@ -692,10 +692,12 @@ union_vn_create(vpp, un, p)
 	vap->va_type = VREG;
 	vap->va_mode = cmode;
 	LEASE_CHECK(un->un_dirvp, p, cred, LEASE_WRITE);
-	if (error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap))
+	error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap);
+	if (error)
 		return (error);
 
-	if (error = VOP_OPEN(vp, fmode, cred, p)) {
+	error = VOP_OPEN(vp, fmode, cred, p);
+	if (error) {
 		vput(vp);
 		return (error);
 	}

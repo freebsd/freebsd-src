@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.5 1994/09/21 03:47:12 wollman Exp $
+ * $Id: umap_vnops.c,v 1.6 1994/09/21 23:22:43 wollman Exp $
  */
 
 /*
@@ -141,7 +141,7 @@ umap_bypass(ap)
 		credp = *credpp;
 
 		if (umap_bug_bypass && credp->cr_uid != 0)
-			printf("umap_bypass: user was %d, group %d\n", 
+			printf("umap_bypass: user was %ld, group %ld\n", 
 			    credp->cr_uid, credp->cr_gid);
 
 		/* Map all ids in the credential structure. */
@@ -149,7 +149,7 @@ umap_bypass(ap)
 		umap_mapids(vp1->v_mount, credp);
 
 		if (umap_bug_bypass && credp->cr_uid != 0)
-			printf("umap_bypass: user now %d, group %d\n", 
+			printf("umap_bypass: user now %ld, group %ld\n", 
 			    credp->cr_uid, credp->cr_gid);
 	}
 
@@ -167,7 +167,7 @@ umap_bypass(ap)
 		compcredp = (*compnamepp)->cn_cred = crdup(savecompcredp);
 
 		if (umap_bug_bypass && compcredp->cr_uid != 0)
-			printf("umap_bypass: component credit user was %d, group %d\n", 
+			printf("umap_bypass: component credit user was %ld, group %ld\n", 
 			    compcredp->cr_uid, compcredp->cr_gid);
 
 		/* Map all ids in the credential structure. */
@@ -175,7 +175,7 @@ umap_bypass(ap)
 		umap_mapids(vp1->v_mount, compcredp);
 
 		if (umap_bug_bypass && compcredp->cr_uid != 0)
-			printf("umap_bypass: component credit user now %d, group %d\n", 
+			printf("umap_bypass: component credit user now %ld, group %ld\n", 
 			    compcredp->cr_uid, compcredp->cr_gid);
 	}
 
@@ -222,25 +222,25 @@ umap_bypass(ap)
 	 */
 	if (descp->vdesc_cred_offset != VDESC_NO_OFFSET) {
 		if (umap_bug_bypass && credp && credp->cr_uid != 0)
-			printf("umap_bypass: returning-user was %d\n",
+			printf("umap_bypass: returning-user was %ld\n",
 					credp->cr_uid);
 
 		crfree(credp);
 		(*credpp) = savecredp;
 		if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-		 	printf("umap_bypass: returning-user now %d\n\n", 
+		 	printf("umap_bypass: returning-user now %ld\n\n", 
 			    (*credpp)->cr_uid);
 	}
 
 	if (descp->vdesc_componentname_offset != VDESC_NO_OFFSET) {
 		if (umap_bug_bypass && compcredp && compcredp->cr_uid != 0)
-		printf("umap_bypass: returning-component-user was %d\n", 
+		printf("umap_bypass: returning-component-user was %ld\n", 
 				compcredp->cr_uid);
 
 		crfree(compcredp);
 		(*compnamepp)->cn_cred = savecompcredp;
 		if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-		 	printf("umap_bypass: returning-component-user now %d\n", 
+		 	printf("umap_bypass: returning-component-user now %ld\n", 
 					compcredp->cr_uid);
 	}
 
@@ -266,7 +266,8 @@ umap_getattr(ap)
 	struct vnode **vp1p;
 	struct vnodeop_desc *descp = ap->a_desc;
 
-	if (error = umap_bypass(ap))
+	error = umap_bypass(ap);
+	if (error)
 		return (error);
 	/* Requires that arguments be restored. */
 	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -407,7 +408,7 @@ umap_print(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	printf("\ttag VT_UMAPFS, vp=%x, lowervp=%x\n", vp, UMAPVPTOLOWERVP(vp));
+	printf("\ttag VT_UMAPFS, vp=%p, lowervp=%p\n", vp, UMAPVPTOLOWERVP(vp));
 	return (0);
 }
 
@@ -441,7 +442,7 @@ umap_rename(ap)
 	compcredp = compnamep->cn_cred = crdup(savecompcredp);
 
 	if (umap_bug_bypass && compcredp->cr_uid != 0)
-		printf("umap_rename: rename component credit user was %d, group %d\n", 
+		printf("umap_rename: rename component credit user was %ld, group %ld\n", 
 		    compcredp->cr_uid, compcredp->cr_gid);
 
 	/* Map all ids in the credential structure. */
@@ -449,7 +450,7 @@ umap_rename(ap)
 	umap_mapids(vp->v_mount, compcredp);
 
 	if (umap_bug_bypass && compcredp->cr_uid != 0)
-		printf("umap_rename: rename component credit user now %d, group %d\n", 
+		printf("umap_rename: rename component credit user now %ld, group %ld\n", 
 		    compcredp->cr_uid, compcredp->cr_gid);
 
 	error = umap_bypass(ap);

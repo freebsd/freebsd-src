@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.4 1994/08/18 22:35:14 wollman Exp $
+ *	$Id: procfs_vfsops.c,v 1.5 1994/09/21 03:47:06 wollman Exp $
  */
 
 /*
@@ -114,7 +114,8 @@ procfs_unmount(mp, mntflags, p)
 		flags |= FORCECLOSE;
 	}
 
-	if (error = vflush(mp, 0, flags))
+	error = vflush(mp, 0, flags);
+	if (error)
 		return (error);
 
 	return (0);
