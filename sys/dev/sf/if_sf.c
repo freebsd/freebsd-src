@@ -255,7 +255,6 @@ csr_write_4(sc, reg, val)
 #else
 	CSR_WRITE_4(sc, (reg + SF_RMAP_INTREG_BASE), val);
 #endif
-	return;
 }
 
 /*
@@ -403,8 +402,6 @@ sf_miibus_statchg(dev)
 		SF_CLRBIT(sc, SF_MACCFG_1, SF_MACCFG1_FULLDUPLEX);
 		csr_write_4(sc, SF_BKTOBKIPG, SF_IPGT_HDX);
 	}
-
-	return;
 }
 
 static void
@@ -450,8 +447,6 @@ sf_setmulti(sc)
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), 0);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -494,8 +489,6 @@ sf_ifmedia_sts(ifp, ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 static int
@@ -575,7 +568,6 @@ sf_reset(sc)
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
-	return;
 }
 
 /*
@@ -831,8 +823,6 @@ sf_init_tx_ring(sc)
 
 	ld->sf_tx_dlist[SF_TX_DLIST_CNT - 1].sf_end = 1;
 	sc->sf_tx_cnt = 0;
-
-	return;
 }
 
 static int
@@ -943,8 +933,6 @@ sf_rxeof(sc)
 	    (rxcons & ~SF_CQ_CONSIDX_RXQ1) | cmpconsidx);
 	csr_write_4(sc, SF_RXDQ_PTR_Q1,
 	    (rxprod & ~SF_RXDQ_PRODIDX) | bufprodidx);
-
-	return;
 }
 
 /*
@@ -997,8 +985,6 @@ sf_txeof(sc)
 	csr_write_4(sc, SF_CQ_CONSIDX,
 	    (txcons & ~SF_CQ_CONSIDX_TXQ) |
 	    ((cmpconsidx << 16) & 0xFFFF0000));
-
-	return;
 }
 
 static void
@@ -1021,8 +1007,6 @@ sf_txthresh_adjust(sc)
 #endif
 		csr_write_4(sc, SF_TX_FRAMCTL, txfctl);
 	}
-
-	return;
 }
 
 static void
@@ -1082,7 +1066,6 @@ sf_intr(arg)
 		sf_start(ifp);
 
 	SF_UNLOCK(sc);
-	return;
 }
 
 static void
@@ -1196,8 +1179,6 @@ sf_init(xsc)
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
 
 	SF_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -1342,8 +1323,6 @@ sf_start(ifp)
 	ifp->if_timer = 5;
 
 	SF_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -1388,8 +1367,6 @@ sf_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 	SF_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -1439,8 +1416,6 @@ sf_stats_update(xsc)
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
 
 	SF_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -1464,8 +1439,6 @@ sf_watchdog(ifp)
 		sf_start(ifp);
 
 	SF_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -1477,6 +1450,4 @@ sf_shutdown(dev)
 	sc = device_get_softc(dev);
 
 	sf_stop(sc);
-
-	return;
 }
