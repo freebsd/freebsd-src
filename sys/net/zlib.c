@@ -776,7 +776,7 @@ int deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
         windowBits = -windowBits;
     }
     if (memLevel < 1 || memLevel > MAX_MEM_LEVEL || method != Z_DEFLATED ||
-        windowBits < 8 || windowBits > 15 || level < 0 || level > 9 ||
+        windowBits < 9 || windowBits > 15 || level < 0 || level > 9 ||
 	strategy < 0 || strategy > Z_HUFFMAN_ONLY) {
         return Z_STREAM_ERROR;
     }
@@ -3951,11 +3951,15 @@ int r;
           r = Z_MEM_ERROR;
           LEAVE
         }
+	/*
+	 * this ZFREE must occur *BEFORE* we mess with sub.decode, because
+	 * sub.trees is union'd with sub.decode.
+	 */
+        ZFREE(z, s->sub.trees.blens);
         s->sub.decode.codes = c;
         s->sub.decode.tl = tl;
         s->sub.decode.td = td;
       }
-      ZFREE(z, s->sub.trees.blens);
       s->mode = CODES;
     case CODES:
       UPDATE
