@@ -226,7 +226,7 @@ adv_isa_probe(device_t dev)
 					   /*filter*/NULL,
 					   /*filterarg*/NULL,
 					   maxsize,
-					   /*nsegs*/BUS_SPACE_UNRESTRICTED,
+					   /*nsegs*/~0,
 					   maxsegsz,
 					   /*flags*/0,
 					   &adv->parent_dmat); 
