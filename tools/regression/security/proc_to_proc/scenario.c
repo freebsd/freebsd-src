@@ -290,6 +290,7 @@ enact_scenario(int scenario)
 			exit(0);
 		default:
 			/* parent */
+			break;
 		}
 
 		/*
@@ -402,6 +403,7 @@ enact_scenario(int scenario)
 
 		default:
 			/* parent */
+			break;
 		}
 
 		error = waitpid(pid2, NULL, 0);
