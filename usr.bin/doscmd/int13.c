@@ -758,8 +758,7 @@ int13(regcontext_t *REGS)
 		    start -= di->offset;
 	    }
 
-	    debug(D_DISK, "Verify %2d sectors from %d\n",
-		  sectors, start);
+	    debug(D_DISK, "Verify %2d sectors from %qd\n", sectors, start);
 	    if (lseek(di->fd, start * di->secsize, 0) < 0) {
 		debug(D_DISK, "Seek error\n");
 		seterror(INT13_ERR_SEEK);

@@ -60,8 +60,8 @@ fake_int(regcontext_t *REGS, int intnum)
     if (R_CS == 0xF000 || (ivec[intnum] >> 16) == 0xF000) {
 	if (R_CS != 0xF000)
 	    intnum = ((u_char *)VECPTR(ivec[intnum]))[1];
-	debug (D_ITRAPS|intnum, "int %02x:%02x %04x:%04x/%08x\n",
-	       intnum, R_AH, R_CS, R_IP, ivec[intnum]);
+	debug(D_ITRAPS | intnum, "INT %02x:%02x %04x:%04x/%08lx\n",
+	      intnum, R_AH, R_CS, R_IP, ivec[intnum]);
 	switch (intnum) {
 	case 0x2f: 			/* multiplex interrupt */
 	    int2f((regcontext_t *)&REGS->sc); 
@@ -73,15 +73,14 @@ fake_int(regcontext_t *REGS, int intnum)
 	    if (vflag) dump_regs(REGS);
 	    fatal("no interrupt set up for 0x%02x\n", intnum);
 	}
-	debug (D_ITRAPS|intnum, "\n");
 	return;
     }
 
     /* user_int: */
-    debug (D_TRAPS|intnum, 
-	   "INT %02x:%02x [%04x:%04x] %04x %04x %04x %04x from %04x:%04x\n",
-	   intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
-	   R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);
+    debug(D_TRAPS,
+	  "INT %02x:%02x [%04lx:%04lx] %04x %04x %04x %04x from %04x:%04x\n",
+	  intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
+	  R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);
 
 #if 0
     if ((intnum == 0x13) && (*(u_char *)VECPTR(ivec[intnum]) != 0xf4)) {
@@ -306,7 +305,7 @@ sigbus(struct sigframe *sf)
 	    /* nothing but accesses to video memory can fault for now */
 	    if (vmem_pageflt(sf) == 0)
 		goto out;
-	    /* FALLTHRU */
+	    /* FALLTHROUGH */
 	default:
 	    dump_regs(REGS);
 	    fatal("SIGBUS code %d, trapno: %d, err: %d\n",
@@ -366,7 +365,7 @@ sigbus(struct sigframe *sf)
 	    break;
 	    
 	case PUSHF:
-	    debug (D_TRAPS2, "pushf <- 0x%x\n", R_EFLAGS);
+	    debug (D_TRAPS2, "pushf <- 0x%lx\n", R_EFLAGS);
 	    R_IP++;
             PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), 
 		REGS);
@@ -395,7 +394,7 @@ sigbus(struct sigframe *sf)
 
 	    /* restore pseudo PSL_I flag */
 	    IntState = tempflags & PSL_I;
-	    debug(D_TRAPS2, "popf -> 0x%x\n", R_EFLAGS);
+	    debug(D_TRAPS2, "popf -> 0x%lx\n", R_EFLAGS);
 	    break;
 
 	case TRACETRAP:

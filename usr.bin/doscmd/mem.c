@@ -92,7 +92,7 @@ mem_print(void)
     char *mp;
 
     for (mp = dosmem; ; mp = Next(mp)) {
-	debug(D_ALWAYS, "%05x: mark %c owner %04x size %04x\n",
+	debug(D_ALWAYS, "%8p: mark %c owner %04x size %04x\n",
 	      mp, Mark(mp), Owner(mp), Size(mp));
 
 	if (Mark(mp) != 'M')
@@ -140,7 +140,7 @@ mem_init(void)
 
     dosmem_size = avail_memory / 16;
 
-    debug(D_MEMORY, "dosmem = 0x%x base = 0x%x avail = 0x%x (%dK)\n",
+    debug(D_MEMORY, "dosmem = %p base = 0x%x avail = 0x%x (%dK)\n",
 	  dosmem, base, dosmem_size, avail_memory / 1024);
 
     Mark(dosmem) = 'Z';
