@@ -1,7 +1,7 @@
 PROG= rcs
 
 SRCS=	rcs.c 
-LDADD=	-L${.CURDIR}/../lib/obj -lrcs
+LDADD=	-L${.CURDIR}/../lib/${.CURDIR} -lrcs
 CFLAGS+= -I${.CURDIR}/../lib
 
 MAN1=	rcs.0 rcsintro.0
