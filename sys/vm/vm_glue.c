@@ -585,6 +585,7 @@ retry:
 			vmspace_free(vm);
 		}
 nextproc:
+		continue;
 	}
 	sx_sunlock(&allproc_lock);
 	/*

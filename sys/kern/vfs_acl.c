@@ -158,6 +158,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			break;
 
 		default:
+			break;
 		}
 	}
 
@@ -274,6 +275,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			break;
 
 		default:
+			break;
 		}
 	}
 
@@ -326,6 +328,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				return (0);
 
 			default:
+				break;
 			}
 		}
 		/*
