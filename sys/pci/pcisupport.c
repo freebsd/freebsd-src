@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.120 1999/06/15 12:01:26 roger Exp $
+**  $Id: pcisupport.c,v 1.121 1999/06/16 12:26:40 billf Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -170,9 +170,9 @@ fixbushigh_Ross(device_t dev)
 
 	/* just guessing the secondary bus register number ... */
 	secondarybus = pci_read_config(dev, 0x45, 1);
-	if (secondarybus != 0) {
-		pci_set_secondarybus(dev, secondarybus + 1);
-		pci_set_subordinatebus(dev, secondarybus + 1);
+	if (secondarybus != 0 && secondarybus != 0xff) {
+		pci_set_secondarybus(dev, secondarybus);
+		pci_set_subordinatebus(dev, secondarybus);
 	}
 }
 
@@ -834,6 +834,11 @@ pcib_match(device_t dev)
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
+
+	/* Ross (?) -- vendor 0x1166 */
+	case 0x00051166:
+		fixbushigh_Ross(dev);
+		return ("Ross (?) host to PCI bridge");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1202,11 +1207,6 @@ chip_match(device_t dev)
 	case 0xc8611045:
 		return ("OPTi 82C861 (FireLink) USB controller");
 #endif
-
-	/* Ross (?) -- vendor 0x1166 */
-	case 0x00051166:
-		fixbushigh_Ross(dev);
-		return ("Ross (?) host to PCI bridge");
 
 	/* NEC -- vendor 0x1033 */
 
