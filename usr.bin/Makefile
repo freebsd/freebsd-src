@@ -20,6 +20,7 @@ SUBDIR=	apply \
 	calendar \
 	cap_mkdb \
 	catman \
+	cd \
 	chat \
 	checknr \
 	chflags \
@@ -32,6 +33,7 @@ SUBDIR=	apply \
 	colrm \
 	column \
 	comm \
+	command \
 	compile_et \
 	compress \
 	csplit \
