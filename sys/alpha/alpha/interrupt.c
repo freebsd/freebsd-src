@@ -67,6 +67,8 @@ dummy_perf(unsigned long vector, struct trapframe *framep)
 void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
 
+static u_int schedclk2;
+
 void
 interrupt(a0, a1, a2, framep)
 	unsigned long a0, a1, a2;
@@ -95,8 +97,12 @@ interrupt(a0, a1, a2, framep)
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		if (platform.clockintr)
+		if (platform.clockintr){
 			(*platform.clockintr)(framep);
+			/* divide hz (1024) by 8 to get stathz (128) */
+			if((++schedclk2 & 0x7) == 0)
+				statclock((struct clockframe *)framep);
+		}
 		break;
 
 	case  ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
