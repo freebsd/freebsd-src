@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.46.2.17 1997/04/14 02:31:28 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.46.2.18 1997/04/18 16:38:19 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -980,6 +980,8 @@ findSCB_loop:
 	mov	ALLZEROS	call	get_free_or_disc_scb;
 	mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
 	mov	ARG_1	call dma_scb;
+	test	SCB_RESID_SGCNT, 0xff jz . + 2;
+	or	SCB_CONTROL, MUST_DMAUP_SCB;
 	test	SCB_CONTROL, ABORT_SCB jz return;
 find_error:
 	mvi	SINDEX, SCB_LIST_NULL ret;
@@ -1117,6 +1119,9 @@ dequeue_disc_scb:
  * and we have to send this SCB back up to the kernel so that the
  * saved data pointers and residual information isn't lost.
  */
+	test	SCB_CONTROL, MUST_DMAUP_SCB jz . + 3;
+	and	SCB_CONTROL, ~MUST_DMAUP_SCB;
+	jmp	dma_up_scb;
 	test	SCB_RESID_SGCNT,0xff	jnz dma_up_scb;
 	cmp	SCB_LINKED_NEXT, SCB_LIST_NULL je unlink_disc_scb;
 dma_up_scb:

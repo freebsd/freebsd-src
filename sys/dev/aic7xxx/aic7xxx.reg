@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.1 1997/03/16 07:08:11 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.1.2.1 1997/04/14 02:31:23 gibbs Exp $
  */
 
 /*
@@ -764,7 +764,7 @@ scb {
 		bit	MK_MESSAGE      0x80
 		bit	DISCENB         0x40
 		bit	TAG_ENB		0x20
-		bit	SPLIT_SG	0x10
+		bit	MUST_DMAUP_SCB	0x10
 		bit	ABORT_SCB	0x08
 		bit	DISCONNECTED	0x04
 		mask	SCB_TAG_TYPE	0x03
