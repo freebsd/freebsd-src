@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.rc.5,v 1.51 2000/10/09 11:17:07 hm Exp $ 
-.\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Mon Oct  9 13:12:29 2000]
+.\"     last edit-date: [Mon May 21 11:20:26 2001]
 .\"
-.Dd October 9, 2000
+.Dd May 21, 2001
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -295,6 +293,16 @@ ITU Recommendations Q.921 and Q.931.
 .It Ar d64s
 An ISDN leased line with a single B-channel (called D64S in Germany).
 .El
+.It Li firmware
+This is keyword ist used like firmware=/path/to/file to download the
+firmware to active controllers supported by the
+.Em iavc
+driver (AVM B1, T1). This keyword is supported for all controller types,
+and causes I4B_CTRL_DOWNLOAD ioctl to be invoked with the specified file
+as an argument. In systems equipped with both active and passive adapters,
+and the passive cards being detected first, dummy 'controller' entries
+are required for the passive cards to get the correct firmwares to
+correct adapters.
 .El
 .It Li entry
 This keyword starts one configuration entry.
@@ -380,6 +388,11 @@ and calling back the remote site.
 The time in seconds to wait for a remote site calling back the local site
 after a call from the local site to the remote site has been made.
 (optional)
+.It Li clone
+This causes the contents of the specified entry to be copied from the 
+existing named entry to the current one.
+When using this feature at least a new entry specific 'name' and 
+'usrdeviceunit' value should be specified for the current entry.
 .It Li connectprog
 specifies a program run every time after a connection is established and
 address negotiation is complete (i.e.: the connection is usable).
@@ -982,7 +995,7 @@ ISDN daemon.
 The 
 .Xr isdnd 8
 daemon and this manual page were written by 
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
 .Pp
 Additions to this manual page by 
 .An Barry Scott Aq barry@scottb.demon.co.uk .
