@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
+static int force;
 static int primary_only;
 
 static void
@@ -46,7 +47,7 @@ usage_create(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-p] device ...\n", getprogname());
+	    "usage: %s [-fp] device ...\n", getprogname());
 	exit(1);
 }
 
@@ -70,9 +71,15 @@ create(int fd)
 		warnx("%s: error: device already contains a GPT", device_name);
 		return;
 	}
-	if (map_find(MAP_TYPE_MBR) != NULL) {
-		warnx("%s: error: device contains a MBR", device_name);
-		return;
+	map = map_find(MAP_TYPE_MBR);
+	if (map != NULL) {
+		if (!force) {
+			warnx("%s: error: device contains a MBR", device_name);
+			return;
+		}
+
+		/* Nuke the MBR in our internal map. */
+		map->map_type = MAP_TYPE_UNUSED;
 	}
 
 	/*
@@ -206,8 +213,11 @@ cmd_create(int argc, char *argv[])
 {
 	int ch, fd;
 
-	while ((ch = getopt(argc, argv, "p")) != -1) {
+	while ((ch = getopt(argc, argv, "fp")) != -1) {
 		switch(ch) {
+		case 'f':
+			force = 1;
+			break;
 		case 'p':
 			primary_only = 1;
 			break;
