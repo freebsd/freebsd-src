@@ -35,10 +35,11 @@ static const char rcsid[] =
 #include <string.h>
 #include "decode.h"
 
-int decode(FILE *fd, char *buffer)
+int decode(FILE *fd, char *buffer, int len)
 {
-	int n, pos = 0;
-	char *p;
+	int n, pos = 0, tpos;
+	char *bp, *p;
+	char tbuffer[3];
 	char temp[128];
 
 #define	DEC(c)	(((c) - ' ') & 0x3f)
@@ -48,31 +49,49 @@ int decode(FILE *fd, char *buffer)
 			return(0);
 	} while (strncmp(temp, "begin ", 6));
 	sscanf(temp, "begin %o %s", &n, temp);
+	bp = buffer;
 	for (;;) {
 		if (!fgets(p = temp, sizeof(temp), fd))
 			return(0);
 		if ((n = DEC(*p)) <= 0)
 			break;
-		for (++p; n > 0; p += 4, n -= 3)
+		for (++p; n > 0; p += 4, n -= 3) {
+			tpos = 0;
 			if (n >= 3) {
-				buffer[pos++] = DEC(p[0])<<2 | DEC(p[1])>>4;
-				buffer[pos++] = DEC(p[1])<<4 | DEC(p[2])>>2;
-				buffer[pos++] = DEC(p[2])<<6 | DEC(p[3]);
+				tbuffer[tpos++] = DEC(p[0])<<2 | DEC(p[1])>>4;
+				tbuffer[tpos++] = DEC(p[1])<<4 | DEC(p[2])>>2;
+				tbuffer[tpos++] = DEC(p[2])<<6 | DEC(p[3]);
 			}
 			else {
 				if (n >= 1) {
-					buffer[pos++] =
+					tbuffer[tpos++] =
 						DEC(p[0])<<2 | DEC(p[1])>>4;
 				}
 				if (n >= 2) {
-					buffer[pos++] =
+					tbuffer[tpos++] =
 						DEC(p[1])<<4 | DEC(p[2])>>2;
 				}
 				if (n >= 3) {
-					buffer[pos++] =
+					tbuffer[tpos++] =
 						DEC(p[2])<<6 | DEC(p[3]);
 				}
 			}
+			if (tpos == 0)
+				continue;
+			if (tpos + pos > len) {
+				tpos = len - pos;
+				/*
+				 * Arrange return value > len to indicate
+				 * overflow.
+				 */
+				pos++;
+			}
+			bcopy(tbuffer, bp, tpos);
+			pos += tpos;
+			bp += tpos;
+			if (pos > len)
+				return(pos);
+		}
 	}
 	if (!fgets(temp, sizeof(temp), fd) || strcmp(temp, "end\n"))
 		return(0);
