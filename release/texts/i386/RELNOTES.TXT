@@ -90,6 +90,14 @@ User-land ppp(8) has received a number of updates and bugfixes.
 
 sendmail(8) and the related utilities has been updated to version 8.11.1.
 
+The internal procedure for building perl has changed, and no longer
+depends on (nor installs) miniperl.  Users upgrading from
+source should delete /usr/bin/miniperl.
+
+To improve performance and disk utilization, the "ports skeletons" in
+the FreeBSD Ports Collection have been restructured.  Installed ports
+and packages should not be affected.
+
 
 2. Supported Configurations
 ---------------------------
