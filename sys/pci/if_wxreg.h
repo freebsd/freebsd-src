@@ -312,3 +312,4 @@ typedef struct {
 #define	WX_MIN_XPKT_SIZE	16
 #define	WX_MIN_RPKT_SIZE	60
 #define	WX_MAX_PKT_SIZE		1514
+#define	WX_MAX_PKT_SIZE_JUMBO	9014
