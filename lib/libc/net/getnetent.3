@@ -44,13 +44,15 @@
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
 .Ft struct netent *
-.Fn getnetent 
+.Fn getnetent void
 .Ft struct netent *
 .Fn getnetbyname "const char *name"
 .Ft struct netent *
 .Fn getnetbyaddr "unsigned long net" "int type"
+.Ft void
 .Fn setnetent "int stayopen"
-.Fn endnetent 
+.Ft void
+.Fn endnetent void
 .Sh DESCRIPTION
 The
 .Fn getnetent ,
