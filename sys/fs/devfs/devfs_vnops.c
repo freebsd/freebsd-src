@@ -1,4 +1,3 @@
-#define DEBUG 1
 /*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,6 +33,9 @@
  *
  * $FreeBSD$
  */
+
+#include <opt_devfs.h>
+#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -193,10 +195,6 @@ devfs_getattr(ap)
 	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
 
-#ifdef DEBUG
-	if (error)
-		printf("devfs_getattr: return error %d\n", error);
-#endif
 	return (error);
 }
 
@@ -711,3 +709,4 @@ static struct vnodeopv_desc devfs_specop_opv_desc =
 	{ &devfs_specop_p, devfs_specop_entries };
 
 VNODEOP_SET(devfs_specop_opv_desc);
+#endif

@@ -35,6 +35,7 @@
  */
 
 #include "opt_devfs.h"
+#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -207,3 +208,4 @@ static struct vfsops devfs_vfsops = {
 };
 
 VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC);
+#endif
