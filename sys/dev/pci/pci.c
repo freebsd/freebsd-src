@@ -747,9 +747,20 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 			pci_add_map(pcib, b, s, f, q->arg1, rl);
 	}
 
-	if (cfg->intpin > 0 && cfg->intline != 255)
+	if (cfg->intpin > 0 && cfg->intline != 255) {
+#ifdef __ia64__
+		/*
+		 * Re-route interrupts on ia64 so that we can get the
+		 * I/O SAPIC interrupt numbers (the BIOS leaves legacy
+		 * PIC interrupt numbers in the intline registers).
+		 */
+		cfg->intline = PCIB_ROUTE_INTERRUPT(pcib,
+						    dev,
+						    cfg->intpin);
+#endif
 		resource_list_add(rl, SYS_RES_IRQ, 0,
 				  cfg->intline, cfg->intline, 1);
+	}
 }
 
 static void
