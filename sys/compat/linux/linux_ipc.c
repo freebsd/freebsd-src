@@ -224,9 +224,14 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	caddr_t sg;
 
 	sg = stackgap_init();
+
+	/* Make sure the arg parameter can be copied in. */
+	unptr = stackgap_alloc(&sg, sizeof(union semun));
+	bcopy(unptr, &args->arg, sizeof(union semun));
+
 	bsd_args.semid = args->semid;
 	bsd_args.semnum = args->semnum;
-	bsd_args.arg = (union semun *)&args->arg;
+	bsd_args.arg = unptr;
 
 	switch (args->cmd) {
 	case LINUX_IPC_RMID:
@@ -253,10 +258,8 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		    sizeof(linux_semid));
 		if (error)
 			return (error);
-		unptr = stackgap_alloc(&sg, sizeof(union semun));
 		unptr->buf = stackgap_alloc(&sg, sizeof(struct semid_ds));
 		linux_to_bsd_semid_ds(&linux_semid, unptr->buf);
-		bsd_args.arg = unptr;
 		return __semctl(td, &bsd_args);
 	case LINUX_IPC_STAT:
 	case LINUX_SEM_STAT:
@@ -264,9 +267,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 			bsd_args.cmd = IPC_STAT;
 		else
 			bsd_args.cmd = SEM_STAT;
-		unptr = stackgap_alloc(&sg, sizeof(union semun));
 		unptr->buf = stackgap_alloc(&sg, sizeof(struct semid_ds));
-		bsd_args.arg = unptr;
 		error = __semctl(td, &bsd_args);
 		if (error)
 			return error;
