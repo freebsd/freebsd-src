@@ -1152,7 +1152,8 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
      */
     if (bootverbose) {
 	ciss_printf(sc, "logical drive %d: %s, %dMB ",
-		    cbc->log_drive, ciss_name_ldrive_org(ld->cl_ldrive->fault_tolerance),
+		    ld->cl_address.logical.lun,
+		    ciss_name_ldrive_org(ld->cl_ldrive->fault_tolerance),
 		    ((ld->cl_ldrive->blocks_available / (1024 * 1024)) *
 		     ld->cl_ldrive->block_size));
 
