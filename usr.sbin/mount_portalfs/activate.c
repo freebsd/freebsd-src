@@ -35,20 +35,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)activate.c	8.3 (Berkeley) 4/28/95
- *
- * $Id: activate.c,v 1.3 1997/02/22 14:32:53 peter Exp $
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <errno.h>
-#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/syslog.h>
 #include <sys/uio.h>
 
