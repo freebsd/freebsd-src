@@ -4,7 +4,7 @@ LIB=	geom
 SRCS=	geom_stats.c
 INCS=	libgeom.h
 
-WARNS?=	4
+WARNS?=	3
 
 MAN=	libgeom.3
 
