@@ -787,11 +787,12 @@ domem()
 	for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
-		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9lld%5u%6u",
+		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9llu%5u%6u",
 		    ks->ks_shortdesc,
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
-		    (ks->ks_limit + 1023) / 1024, (long long)ks->ks_calls,
+		    (ks->ks_limit + 1023) / 1024,
+		    (unsigned long long)ks->ks_calls,
 		    ks->ks_limblocks, ks->ks_mapblocks);
 		first = 1;
 		for (j =  1 << MINBUCKET; j < 1 << (MINBUCKET + 16); j <<= 1) {
@@ -811,10 +812,10 @@ domem()
 		totuse += ks->ks_memuse;
 		totreq += ks->ks_calls;
 	}
-	(void)printf("\nMemory Totals:  In Use    Free                Requests\n");
-	(void)printf("              %7ldK %6ldK    %20llu\n",
-	     (totuse + 1023) / 1024,
-	     (totfree + 1023) / 1024, (unsigned long long)totreq);
+	(void)printf("\nMemory Totals:  In Use    Free      Requests\n");
+	(void)printf("              %7ldK %6ldK    %13llu\n",
+	     (totuse + 1023) / 1024, (totfree + 1023) / 1024,
+	     (unsigned long long)totreq);
 }
 
 void
