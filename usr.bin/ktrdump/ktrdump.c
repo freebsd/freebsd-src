@@ -95,7 +95,6 @@ main(int ac, char **av)
 	int in;
 	int c;
 	int i;
-	int n;
 
 	/*
 	 * Parse commandline arguments.
