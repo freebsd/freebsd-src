@@ -193,6 +193,7 @@ rerelease release:
 	-rm -rf ${CHROOTDIR}
 .endif
 	mkdir -p ${CHROOTDIR}
+	@echo ">>> make release started on `LC_TIME=C date`"
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
@@ -311,7 +312,7 @@ rerelease release:
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
-	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
+	echo "echo \">>> make ${.TARGET} Finished on `LC_TIME=C date`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
