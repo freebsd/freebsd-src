@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.28 1994/11/08 18:36:45 jkh Exp $
+#	$Id: Makefile,v 1.29 1994/11/09 20:27:32 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -119,7 +119,7 @@ release20:
 	( cd ${.CURDIR}/../etc ; \
 		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
 			NOCRYPT=yes SHARED=copies)
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR/filesys}; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
