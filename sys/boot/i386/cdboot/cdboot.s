@@ -151,7 +151,6 @@ lookup_path:	push %si			# Save file name pointer
 		mov $0xffff,%cx			#  path name by
 		repnz				#  scanning for
 		scasb				#  nul char
-		inc %di				# Skip nul
 		mov %di,%si			# Point %si at next path
 		mov (%si),%al			# Get first char of next path
 		or %al,%al			# Is it double nul?
