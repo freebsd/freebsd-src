@@ -449,9 +449,9 @@ print_part(int i)
 	part_mb *= secsize;
 	part_mb /= (1024 * 1024);
 	printf("sysid %d,(%s)\n", partp->dp_typ, get_type(partp->dp_typ));
-	printf("    start %ld, size %ld (%qd Meg), flag %x%s\n",
-		partp->dp_start,
-		partp->dp_size, 
+	printf("    start %lu, size %lu (%qd Meg), flag %x%s\n",
+		(u_long)partp->dp_start,
+		(u_long)partp->dp_size, 
 		part_mb,
 		partp->dp_flag,
 		partp->dp_flag == ACTIVE ? " (active)" : "");
@@ -1144,9 +1144,9 @@ process_partition(command)
 		break;
 	    }
 	    fprintf(stderr,
-		    "%s: WARNING: adjusting start offset of partition '%d' from %d\n\
-    to %d, to round to an head boundary.\n",
-		    name, partition, partp->dp_start, adj_size);
+		    "%s: WARNING: adjusting start offset of partition '%d' from %lu\n\
+    to %lu, to round to an head boundary.\n",
+		    name, partition, (u_long)partp->dp_start, adj_size);
 	    partp->dp_start = adj_size;
 	}
 
@@ -1160,9 +1160,9 @@ process_partition(command)
 	if (adj_size != partp->dp_size)
 	{
 	    fprintf(stderr,
-		    "%s: WARNING: adjusting size of partition '%d' from %d to %d,\n\
+		    "%s: WARNING: adjusting size of partition '%d' from %lu to %lu,\n\
     to round to a cylinder boundary.\n",
-		    name, partition, partp->dp_size, adj_size);
+		    name, partition, (u_long)partp->dp_size, adj_size);
 	    if (chunks > 0)
 	    {
 		partp->dp_size = adj_size;
