@@ -38,22 +38,26 @@
 #ifndef	_MACHINE_SIGNAL_H_
 #define	_MACHINE_SIGNAL_H_
 
+#include <sys/cdefs.h>
+
 typedef	long sig_atomic_t;
 
-#ifndef	_ANSI_SOURCE
-
+#if __XSI_VISIBLE
 #define	MINSIGSTKSZ	(1024 * 4)
+#endif
 
+#if _KERNEL
 typedef	int osigset_t;
 
 struct osigcontext {
 	int	dummy;
 };
+#endif
 
+#if __BSD_VISIBLE
 struct sigcontext {
-	int	dummy;
+	int	_dummy;
 };
-
-#endif /* !_ANSI_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #endif /* !_MACHINE_SIGNAL_H_ */
