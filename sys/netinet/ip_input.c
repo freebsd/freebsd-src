@@ -1852,7 +1852,6 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 			RTFREE(rt);
 	}
 
-    {
 	if (next_hop) {
 		struct m_tag *mtag = m_tag_get(PACKET_TAG_IPFORWARD,
 		    sizeof(struct sockaddr_in *), M_NOWAIT);
@@ -1864,7 +1863,6 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		m_tag_prepend(m, mtag);
 	}
 	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
-    }
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
