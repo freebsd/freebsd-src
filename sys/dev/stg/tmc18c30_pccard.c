@@ -79,26 +79,23 @@ extern struct stg_softc *stgdata[];
 #define	STG_HOSTID	7
 
 /* pccard support */
-#include "apm.h"
-#if NAPM > 0
-#include	<machine/apm_bios.h>
-#endif
-
 #include	"card.h"
 #if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
+#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
 #include	<sys/select.h>
+#endif
 #include	<pccard/cardinfo.h>
 #include	<pccard/slot.h>
 
 static	int	stgprobe(DEVPORT_PDEVICE devi);
 static	int	stgattach(DEVPORT_PDEVICE devi);
 
-static	int	stg_card_intr	__P((DEVPORT_PDEVICE));
 static	void	stg_card_unload	__P((DEVPORT_PDEVICE));
 #if defined(__FreeBSD__) && __FreeBSD_version < 400001
 static	int	stg_card_init	__P((DEVPORT_PDEVICE));
+static	int	stg_card_intr	__P((DEVPORT_PDEVICE));
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 400001
@@ -141,12 +138,17 @@ static int
 stg_alloc_resource(DEVPORT_PDEVICE dev)
 {
 	struct stg_softc	*sc = device_get_softc(dev);
-	u_long			maddr, msize;
+	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
+
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
+	if (error || iosize < STGIOSZ) {
+		return(ENOMEM);
+	}
 
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, STGIOSZ, RF_ACTIVE);
+					  0, ~0, 0, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		stg_release_resource(dev);
 		return(ENOMEM);
@@ -304,6 +306,13 @@ stg_card_init(DEVPORT_PDEVICE devi)
 
 	return (0);
 }
+
+static	int
+stg_card_intr(DEVPORT_PDEVICE devi)
+{
+	stgintr(DEVPORT_PDEVGET_SOFTC(devi));
+	return 1;
+}
 #endif
 
 static	void
@@ -314,13 +323,6 @@ stg_card_unload(DEVPORT_PDEVICE devi)
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
-}
-
-static	int
-stg_card_intr(DEVPORT_PDEVICE devi)
-{
-	stgintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
 }
 
 static	int
@@ -344,7 +346,9 @@ stgprobe(DEVPORT_PDEVICE devi)
 static	int
 stgattach(DEVPORT_PDEVICE devi)
 {
+#if defined(__FreeBSD__) && __FreeBSD_version < 400001
 	int unit = DEVPORT_PDEVUNIT(devi);
+#endif
 	struct stg_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);

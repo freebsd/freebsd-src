@@ -47,6 +47,7 @@ struct ncv_softc {
 	bus_space_handle_t sc_ioh;
 
 	void *sc_ih;
+	int sc_wc;			/* weight counter */
 	int sc_selstop;			/* sel atn stop asserted */
 	int sc_compseq;			/* completion seq cmd asserted */
 	int sc_tdatalen;		/* temp xfer data len */
@@ -54,9 +55,11 @@ struct ncv_softc {
 	struct ncv_hw sc_hw;		/* hardware register images */
 #if defined (__FreeBSD__) && __FreeBSD_version >= 400001
 	int port_rid;
+	int port_rid_dmy;
 	int irq_rid;
 	int mem_rid;
 	struct resource *port_res;
+	struct resource *port_res_dmy;
 	struct resource *irq_res;
 	struct resource *mem_res;
 	void *ncv_intrhand;
@@ -64,14 +67,14 @@ struct ncv_softc {
 };
 
 /*****************************************************************
- * Lun information 
+ * Target information 
  *****************************************************************/
-struct ncv_lun_info {
-	struct lun_info nli_li;
+struct ncv_targ_info {
+	struct targ_info nti_ti;
 	
-	u_int8_t nli_reg_cfg3;		/* cfg3 images per lun */
-	u_int8_t nli_reg_offset;	/* synch offset register per lun */
-	u_int8_t nli_reg_period;	/* synch period register per lun */
+	u_int8_t nti_reg_cfg3;		/* cfg3 images per target */
+	u_int8_t nti_reg_offset;	/* synch offset register per target */
+	u_int8_t nti_reg_period;	/* synch period register per target */
 };
 
 /*****************************************************************

@@ -128,6 +128,10 @@ extern struct cfdriver ncv_cd;
 /**************************************************************
  * DECLARE
  **************************************************************/
+#ifdef __NetBSD__
+extern int delaycount;
+#endif
+
 /* static */
 static void ncv_pio_read __P((struct ncv_softc *, u_int8_t *, u_int));
 static void ncv_pio_write __P((struct ncv_softc *, u_int8_t *, u_int));
@@ -153,13 +157,12 @@ static int ncv_nexus __P((struct ncv_softc *, struct targ_info *));
 #ifdef	NCV_POWER_CONTROL
 static int ncvhw_power __P((struct ncv_softc *, u_int));
 #endif
-static int ncv_lun_init __P((struct ncv_softc *, struct targ_info *, struct lun_info *));
-static void settimeout __P((void *));
+static int ncv_targ_init __P((struct ncv_softc *, struct targ_info *));
 
 struct scsi_low_funcs ncv_funcs = {
 	SC_LOW_INIT_T ncv_world_start,
 	SC_LOW_BUSRST_T ncvhw_bus_reset,
-	SC_LOW_LUN_INIT_T ncv_lun_init,
+	SC_LOW_TARG_INIT_T ncv_targ_init,
 
 	SC_LOW_SELECT_T ncvhw_start_selection,
 	SC_LOW_NEXUS_T ncv_nexus,
@@ -434,18 +437,24 @@ ncv_world_start(sc, fdone)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	u_int8_t stat;
+#ifdef __FreeBSD__
 	intrmask_t s;
+#endif
 
 	ncvhw_reset(iot, ioh, &sc->sc_hw);
 	ncvhw_init(iot, ioh, &sc->sc_hw);
 
+#ifdef __FreeBSD__
 	s = splcam();
-	scsi_low_bus_reset((struct scsi_low_softc *) sc);
+#endif
+	scsi_low_bus_reset(slp);
 
 	ncvhw_select_register_0(iot, ioh, &sc->sc_hw);
 	bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_stat);
 	stat = bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_istat);
+#ifdef __FreeBSD__
 	splx(s);
+#endif
 	delay(1000);
 
 	if (((stat & INTR_SBR) == 0) ||
@@ -462,41 +471,39 @@ ncv_msg(sc, ti, msg)
 	struct targ_info *ti;
 	u_int msg;
 {
-	struct lun_info *li = ti->ti_li;
-	struct ncv_lun_info *nli = (void *) li;
+	struct ncv_targ_info *nti = (void *) ti;
 	u_int hwcycle, period;
 
 	if ((msg & SCSI_LOW_MSG_SYNCH) == 0)
 		return 0;
 
-	period = li->li_maxsynch.period;
+	period = ti->ti_maxsynch.period;
 	hwcycle = 1000 / ((sc->sc_hw.clk == 0) ? 40 : (5 * sc->sc_hw.clk));
 
 	if (period < 200 / 4 && period >= 100 / 4)
-		nli->nli_reg_cfg3 |= C3_FSCSI;
+		nti->nti_reg_cfg3 |= C3_FSCSI;
 	else
-		nli->nli_reg_cfg3 &= ~C3_FSCSI;
+		nti->nti_reg_cfg3 &= ~C3_FSCSI;
 
 	period = ((period * 40 / hwcycle) + 5) / 10;
-	nli->nli_reg_period = period & 0x1f;
-	nli->nli_reg_offset = li->li_maxsynch.offset;
+	nti->nti_reg_period = period & 0x1f;
+	nti->nti_reg_offset = ti->ti_maxsynch.offset;
 	return 0;
 }
 
 static int
-ncv_lun_init(sc, ti, li)
+ncv_targ_init(sc, ti)
 	struct ncv_softc *sc;
 	struct targ_info *ti;
-	struct lun_info *li;
 {
-	struct ncv_lun_info *nli = (void *) li;
+	struct ncv_targ_info *nti = (void *) ti;
 
-	li->li_maxsynch.period = sc->sc_hw.mperiod;
-	li->li_maxsynch.offset = sc->sc_hw.moffset;
+	ti->ti_maxsynch.period = sc->sc_hw.mperiod;
+	ti->ti_maxsynch.offset = sc->sc_hw.moffset;
 
-	nli->nli_reg_cfg3 = sc->sc_hw.cfg3;
-	nli->nli_reg_period = 0;
-	nli->nli_reg_offset = 0;
+	nti->nti_reg_cfg3 = sc->sc_hw.cfg3;
+	nti->nti_reg_period = 0;
+	nti->nti_reg_offset = 0;
 	return 0;
 }	
 
@@ -590,9 +597,14 @@ ncvattachsubr(sc)
 	printf("\n");
 	sc->sc_hw = ncv_template;
 	ncv_setup_img(&sc->sc_hw, slp->sl_cfgflags, slp->sl_hostid);
+#ifdef __FreeBSD__
+	sc->sc_wc = 0x2000 * 2000;	/* XXX need calibration */
+#else /* NetBSD */
+	sc->sc_wc = delaycount * 2000;	/* 2 sec */
+#endif
 	slp->sl_funcs = &ncv_funcs;
 	(void) scsi_low_attach(slp, 2, NCV_NTARGETS, NCV_NLUNS,
-			       sizeof(struct ncv_lun_info));
+			       sizeof(struct ncv_targ_info));
 }
 
 /**************************************************************
@@ -678,12 +690,8 @@ ncv_pio_read(sc, buf, reqlen)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
-	int s;
-	int tout = 0;
+	int tout = sc->sc_wc;
 	register u_int8_t fstat;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
 
 	ncvhw_select_register_1(iot, ioh, &sc->sc_hw);
 	bus_space_write_1(iot, ioh, cr1_pflag, 0);
@@ -696,12 +704,7 @@ ncv_pio_read(sc, buf, reqlen)
 	bus_space_write_1(iot, ioh, cr1_fstat, FIFO_EN);
 	slp->sl_flags |= HW_PDMASTART;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (reqlen >= FIFO_F_SZ && tout == 0)
+	while (reqlen >= FIFO_F_SZ && tout > 0)
 	{
 		fstat = bus_space_read_1(iot, ioh, cr1_fstat);
 		if (fstat & FIFO_F)
@@ -721,6 +724,7 @@ ncv_pio_read(sc, buf, reqlen)
 		else if (fstat & FIFO_BRK)
 			break;
 
+		tout --;
 	}
 
 	if (reqlen >= FIFO_2_SZ)
@@ -740,7 +744,7 @@ ncv_pio_read(sc, buf, reqlen)
 		}
 	}
 
-	while (reqlen > 0 && tout == 0)
+	while (reqlen > 0 && tout > 0)
 	{
 		fstat = bus_space_read_1(iot, ioh, cr1_fstat);
 		if ((fstat & FIFO_E) == 0)
@@ -752,23 +756,14 @@ ncv_pio_read(sc, buf, reqlen)
 		else if (fstat & FIFO_BRK)
 			break;
 
+		tout --;
 	}
 
 	ncvhw_select_register_0(iot, ioh, &sc->sc_hw);
 	sc->sc_tdatalen = reqlen;
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio read timeout\n", slp->sl_xname);
-	}
 }
 
 static void
@@ -780,12 +775,8 @@ ncv_pio_write(sc, buf, reqlen)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
-	int s;
-	int tout = 0;
+	int tout = sc->sc_wc;
 	register u_int8_t fstat;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
 
 	ncvhw_select_register_1(iot, ioh, &sc->sc_hw);
 	bus_space_write_1(iot, ioh, cr1_pflag, 0);
@@ -798,12 +789,7 @@ ncv_pio_write(sc, buf, reqlen)
 	bus_space_write_1(iot, ioh, cr1_fstat, FIFO_EN);
 	slp->sl_flags |= HW_PDMASTART;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (reqlen >= FIFO_F_SZ && tout == 0)
+	while (reqlen >= FIFO_F_SZ && tout > 0)
 	{
 		fstat = bus_space_read_1(iot, ioh, cr1_fstat);
 		if (fstat & FIFO_BRK)
@@ -821,9 +807,11 @@ ncv_pio_write(sc, buf, reqlen)
 			buf += FIFO_F_SZ;
 			reqlen -= FIFO_F_SZ;
 		}
+		else
+			tout --;
 	}
 
-	while (reqlen > 0 && tout == 0)
+	while (reqlen > 0 && tout > 0)
 	{
 		fstat = bus_space_read_1(iot, ioh, cr1_fstat);
 		if (fstat & FIFO_BRK)
@@ -834,32 +822,15 @@ ncv_pio_write(sc, buf, reqlen)
 			bus_space_write_1(iot, ioh, cr1_fdata, *buf++);
 			reqlen --;
 		}
+		else
+			tout --;
 	}
 
 done:
 	ncvhw_select_register_0(iot, ioh, &sc->sc_hw);
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio write timeout\n", slp->sl_xname);
-	}
-}
-
-static void
-settimeout(arg)
-	void *arg;
-{
-	int *tout = arg;
-
-	*tout = 1;
 }
 
 /**************************************************************
@@ -928,15 +899,15 @@ ncv_nexus(sc, ti)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct lun_info *li = ti->ti_li;
-	struct ncv_lun_info *nli = (void *) li;
+	struct ncv_targ_info *nti = (void *) ti;
 
 	if (li->li_flags & SCSI_LOW_NOPARITY)
 		bus_space_write_1(iot, ioh, cr0_cfg1, sc->sc_hw.cfg1);
 	else
 		bus_space_write_1(iot, ioh, cr0_cfg1, sc->sc_hw.cfg1 | C1_PARENB);
-	bus_space_write_1(iot, ioh, cr0_period, nli->nli_reg_period);
-	bus_space_write_1(iot, ioh, cr0_offs, nli->nli_reg_offset);
-	bus_space_write_1(iot, ioh, cr0_cfg3, nli->nli_reg_cfg3);
+	bus_space_write_1(iot, ioh, cr0_period, nti->nti_reg_period);
+	bus_space_write_1(iot, ioh, cr0_offs, nti->nti_reg_offset);
+	bus_space_write_1(iot, ioh, cr0_cfg3, nti->nti_reg_cfg3);
 	return 0;
 }
 

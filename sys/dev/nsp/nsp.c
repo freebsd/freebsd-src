@@ -138,6 +138,10 @@ extern struct cfdriver nsp_cd;
 /**************************************************************
  * DECLARE
  **************************************************************/
+#ifdef __NetBSD__
+extern int delaycount;
+#endif
+
 /* static */
 static void nsp_pio_read __P((struct nsp_softc *, struct targ_info *));
 static void nsp_pio_write __P((struct nsp_softc *, struct targ_info *));
@@ -158,13 +162,12 @@ static int nsp_expect_signal __P((struct nsp_softc *, u_int8_t, u_int8_t));
 static __inline void nsp_start_timer __P((struct nsp_softc *, int));
 static int nsp_dataphase_bypass __P((struct nsp_softc *, struct targ_info *));
 static void nsp_setup_fifo __P((struct nsp_softc *, int));
-static int nsp_lun_init __P((struct nsp_softc *, struct targ_info *, struct lun_info *));
-static void settimeout __P((void *));
+static int nsp_targ_init __P((struct nsp_softc *, struct targ_info *));
 
 struct scsi_low_funcs nspfuncs = {
 	SC_LOW_INIT_T nsp_world_start,
 	SC_LOW_BUSRST_T nsphw_bus_reset,
-	SC_LOW_LUN_INIT_T nsp_lun_init,
+	SC_LOW_TARG_INIT_T nsp_targ_init,
 
 	SC_LOW_SELECT_T nsphw_start_selection,
 	SC_LOW_NEXUS_T nsp_nexus,
@@ -214,19 +217,10 @@ nsp_expect_signal(sc, curphase, mask)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
-	int rv = -1;
-	int s;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int wc = (sc->sc_wc >> 2);
 	u_int8_t ph, isrc;
+	int rv = -1;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, hz/2);
-#else
-	timeout(settimeout, &tout, hz/2);
-#endif
 	do 
 	{
 		ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
@@ -244,18 +238,9 @@ nsp_expect_signal(sc, curphase, mask)
 			break;
 		}
 	}
-	while (tout == 0);
+	while (wc -- > 0);
 
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (wc <= 0) {
 		printf("%s: nsp_expect_signal timeout\n", slp->sl_xname);
 		rv = -1;
 	}
@@ -341,6 +326,18 @@ nsphw_bus_reset(sc)
 	bus_space_write_1(bst, bsh, nsp_irqcr, IRQSR_MASK);
 }
 
+static __inline void
+nsp_start_timer(sc, time)
+	struct nsp_softc *sc;
+	int time;
+{
+	bus_space_tag_t bst = sc->sc_iot;
+	bus_space_handle_t bsh = sc->sc_ioh;
+
+	sc->sc_timer = time;
+	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, time);
+}
+
 static int
 nsphw_start_selection(sc, cb)
 	struct nsp_softc *sc;
@@ -351,11 +348,7 @@ nsphw_start_selection(sc, cb)
 	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti = cb->ti;
 	register u_int8_t arbs, ph;
-	int s;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int s, wc = sc->sc_wc;
 
 	/* check bus free */
 	if (slp->sl_disc > 0)
@@ -373,28 +366,13 @@ nsphw_start_selection(sc, cb)
 	/* start arbitration */
 	SCSI_LOW_SETUP_PHASE(ti, PH_ARBSTART);
 	nsp_cr_write_1(bst, bsh, NSPR_ARBITS, ARBITS_EXEC);
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
 	do 
 	{
 		/* XXX: what a stupid chip! */
 		arbs = nsp_cr_read_1(bst, bsh, NSPR_ARBITS);
 		delay(1);
 	} 
-	while ((arbs & (ARBITS_WIN | ARBITS_FAIL)) == 0 && tout == 0);
-
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-	}
-	splx(s);
+	while ((arbs & (ARBITS_WIN | ARBITS_FAIL)) == 0 && wc -- > 0);
 
 	if ((arbs & ARBITS_WIN) == 0)
 	{
@@ -431,9 +409,11 @@ nsp_world_start(sc, fdone)
 	int fdone;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
+#ifdef __FreeBSD__
 	intrmask_t s;
 
 	s = splcam();
+#endif
 	sc->sc_cnt = 0;
 	sc->sc_seltout = 0;
 	if ((slp->sl_cfgflags & CFG_NOATTEN) == 0)
@@ -444,7 +424,9 @@ nsp_world_start(sc, fdone)
 
 	nsphw_init(sc);
 	scsi_low_bus_reset(slp);
+#ifdef __FreeBSD__
 	splx(s);
+#endif
 
 	SOFT_INTR_REQUIRED(slp);
 	return 0;
@@ -479,16 +461,15 @@ nsp_msg(sc, ti, msg)
 	u_int msg;
 {
 	struct ncp_synch_data *sdp;
-	struct lun_info *li = ti->ti_li;
-	struct nsp_lun_info *nli = (void *) li;
+	struct nsp_targ_info *nti = (void *) ti;
 	u_int period, offset;
 	int i;
 
 	if ((msg & SCSI_LOW_MSG_SYNCH) == 0)
 		return 0;
 
-	period = li->li_maxsynch.period;
-	offset = li->li_maxsynch.offset;
+	period = ti->ti_maxsynch.period;
+	offset = ti->ti_maxsynch.offset;
 	if (sc->sc_iclkdiv == CLKDIVR_20M)
 		sdp = &ncp_sync_data_20M[0];
 	else
@@ -506,45 +487,32 @@ nsp_msg(sc, ti, msg)
 		 * NO proper period/offset found,
 		 * Retry neg with the target.
 		 */
-		li->li_maxsynch.period = 0;
-		li->li_maxsynch.offset = 0;
-		nli->nli_reg_syncr = 0;
-		nli->nli_reg_ackwidth = 0;
+		ti->ti_maxsynch.period = 0;
+		ti->ti_maxsynch.offset = 0;
+		nti->nti_reg_syncr = 0;
+		nti->nti_reg_ackwidth = 0;
 		return EINVAL;
 	}
 
-	nli->nli_reg_syncr = (sdp->chip_period << SYNCR_PERS) |
+	nti->nti_reg_syncr = (sdp->chip_period << SYNCR_PERS) |
 			      (offset & SYNCR_OFFM);
-	nli->nli_reg_ackwidth = sdp->ack_width;
+	nti->nti_reg_ackwidth = sdp->ack_width;
 	return 0;
 }
 
 static int
-nsp_lun_init(sc, ti, li)
+nsp_targ_init(sc, ti)
 	struct nsp_softc *sc;
 	struct targ_info *ti;
-	struct lun_info *li;
 {
-	struct nsp_lun_info *nli = (void *) li;
+	struct nsp_targ_info *nti = (void *) ti;
 
-	li->li_maxsynch.period = 200 / 4;
-	li->li_maxsynch.offset = 15;
-	nli->nli_reg_syncr = 0;
-	nli->nli_reg_ackwidth = 0;
+	ti->ti_maxsynch.period = 200 / 4;
+	ti->ti_maxsynch.offset = 15;
+	nti->nti_reg_syncr = 0;
+	nti->nti_reg_ackwidth = 0;
 	return 0;
 }	
-
-static __inline void
-nsp_start_timer(sc, time)
-	struct nsp_softc *sc;
-	int time;
-{
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
-
-	sc->sc_timer = time;
-	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, time);
-}
 
 /**************************************************************
  * General probe attach
@@ -582,6 +550,11 @@ nspattachsubr(sc)
 
 	printf("\n");
 
+#ifdef __FreeBSD__
+	sc->sc_wc = 0x2000 * 2000;	/* XXX need calibration */
+#else
+	sc->sc_wc = delaycount * 2000;	/* 2 sec */
+#endif
 	sc->sc_idbit = (1 << slp->sl_hostid);
 	slp->sl_funcs = &nspfuncs;
 	if (sc->sc_memh != NULL)
@@ -590,7 +563,7 @@ nspattachsubr(sc)
 		sc->sc_xmode = NSP_PIO;
 
 	(void) scsi_low_attach(slp, 2, NSP_NTARGETS, NSP_NLUNS,
-			       sizeof(struct nsp_lun_info));
+			       sizeof(struct nsp_targ_info));
 }
 
 /**************************************************************
@@ -706,23 +679,14 @@ nsp_pio_read(sc, ti)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
-	int s;
-	int tout = 0;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int tout = sc->sc_wc;
 	u_int res, ocount, mask = sc->sc_mask;
 	u_int8_t stat, fstat;
 
 	slp->sl_flags |= HW_PDMASTART;
 	ocount = sc->sc_cnt;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (slp->sl_scp.scp_datalen > 0 && tout == 0)
+	while (slp->sl_scp.scp_datalen > 0 && tout -- > 0)
 	{
 		stat = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 		stat &= SCBUSMON_PHMASK;
@@ -772,18 +736,8 @@ nsp_pio_read(sc, ti)
 	}
 
 	sc->sc_cnt = ocount;
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio read timeout\n", slp->sl_xname);
-	}
 }
 
 static void
@@ -795,21 +749,12 @@ nsp_pio_write(sc, ti)
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int res, ocount, mask = sc->sc_mask;
-	int s;
-	int tout = 0;
+	int tout = sc->sc_wc;
 	register u_int8_t stat;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
 
 	ocount = sc->sc_cnt;
 	slp->sl_flags |= HW_PDMASTART;
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, 2 * hz);
-#else
-	timeout(settimeout, &tout, 2 * hz);
-#endif
-	while (slp->sl_scp.scp_datalen > 0 && tout == 0)
+	while (slp->sl_scp.scp_datalen > 0 && tout -- > 0)
 	{
 		stat = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 		stat &= SCBUSMON_PHMASK;
@@ -847,27 +792,8 @@ nsp_pio_write(sc, ti)
 	}
 
 	sc->sc_cnt = ocount;
-	s = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(s);
-	} else {
-		splx(s);
+	if (tout <= 0)
 		printf("%s pio write timeout\n", slp->sl_xname);
-	}
-}
-
-static void
-settimeout(arg)
-	void *arg;
-{
-	int *tout = arg;
-
-	*tout = 1;
 }
 
 static int
@@ -879,38 +805,19 @@ nsp_negate_signal(sc, mask, s)
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
-	int tout = 0;
-	int ss;
-#ifdef __FreeBSD__
-	struct callout_handle ch;
-#endif
+	int wc = (sc->sc_wc >> 2);
 	u_int8_t regv;
 
-#ifdef __FreeBSD__
-	ch = timeout(settimeout, &tout, hz/2);
-#else
-	timeout(settimeout, &tout, hz/2);
-#endif
 	do 
 	{
 		regv = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 		if (regv == 0xff)
 			break;
 	}
-	while ((regv & mask) != 0 && tout == 0);
+	while ((regv & mask) != 0 && (-- wc) > 0);
 
-	ss = splhigh();
-	if (tout == 0) {
-#ifdef __FreeBSD__
-		untimeout(settimeout, &tout, ch);
-#else
-		untimeout(settimeout, &tout);
-#endif
-		splx(ss);
-	} else {
-		splx(ss);
+	if (wc <= 0)
 		printf("%s: %s singla off timeout \n", slp->sl_xname, s);
-	}
 
 	return 0;
 }
@@ -1063,11 +970,11 @@ nsp_nexus(sc, ti)
 {
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
-	struct nsp_lun_info *nli = (void *) ti->ti_li;
+	struct nsp_targ_info *nti = (void *) ti;
 
 	/* setup synch transfer registers */
-	nsp_cr_write_1(bst, bsh, NSPR_SYNCR, nli->nli_reg_syncr);
-	nsp_cr_write_1(bst, bsh, NSPR_ACKWIDTH, nli->nli_reg_ackwidth);
+	nsp_cr_write_1(bst, bsh, NSPR_SYNCR, nti->nti_reg_syncr);
+	nsp_cr_write_1(bst, bsh, NSPR_ACKWIDTH, nti->nti_reg_ackwidth);
 
 	/* setup pdma fifo */
 	nsp_setup_fifo(sc, 1);

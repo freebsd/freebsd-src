@@ -50,6 +50,8 @@ struct stg_softc {
 
 	void *sc_ih;
 
+	int sc_wc;			/* weight counter */
+
 	u_int sc_chip;			/* chip type */
 	u_int sc_fsz;			/* fifo size */
 	u_int sc_idbit;			/* host id bit */
@@ -75,12 +77,12 @@ struct stg_softc {
 };
 
 /*****************************************************************
- * Lun information 
+ * Target information 
  *****************************************************************/
-struct stg_lun_info {
-	struct lun_info sli_li;		/* generic data */
+struct stg_targ_info {
+	struct targ_info sti_ti;	/* generic data */
 
-	u_int8_t sli_reg_synch;		/* synch register per lun */
+	u_int8_t sti_reg_synch;		/* synch register per target */
 };
 
 /*****************************************************************
