@@ -381,6 +381,16 @@ NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
 NETGRAPH_ATM_ATMPIF	opt_netgraph.h
 
+# NgBluetooth options
+NETGRAPH_BLUETOOTH		opt_netgraph.h
+NETGRAPH_BLUETOOTH_BT3C		opt_netgraph.h
+NETGRAPH_BLUETOOTH_H4		opt_netgraph.h
+NETGRAPH_BLUETOOTH_UBT		opt_netgraph.h
+NETGRAPH_BLUETOOTH_UBTBCMFW	opt_netgraph.h
+NETGRAPH_BLUETOOTH_HCI		opt_netgraph.h
+NETGRAPH_BLUETOOTH_L2CAP	opt_netgraph.h
+NETGRAPH_BLUETOOTH_SOCKET	opt_netgraph.h
+
 # NgATM options
 NGATM_ATM		opt_netgraph.h
 NGATM_ATMBASE		opt_netgraph.h
