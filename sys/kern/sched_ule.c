@@ -150,12 +150,12 @@ struct td_sched *thread0_sched = &td_sched;
  *
  * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
  *		before throttling back.
- * SLP_RUN_THROTTLE:	Divisor for reducing slp/run time at fork time.
+ * SLP_RUN_FORK:	Maximum slp+run time to inherit at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 5) << 10)
-#define	SCHED_SLP_RUN_THROTTLE	(100)
+#define	SCHED_SLP_RUN_FORK	((hz / 2) << 10)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(30)
@@ -240,6 +240,7 @@ static void sched_slice(struct kse *ke);
 static void sched_priority(struct ksegrp *kg);
 static int sched_interact_score(struct ksegrp *kg);
 static void sched_interact_update(struct ksegrp *kg);
+static void sched_interact_fork(struct ksegrp *kg);
 static void sched_pctcpu_update(struct kse *ke);
 
 /* Operations on per processor queues */
@@ -788,26 +789,48 @@ sched_slice(struct kse *ke)
 	    ke, ke->ke_slice, kg->kg_nice, kseq->ksq_nicemin,
 	    kseq->ksq_loads[PRI_TIMESHARE], SCHED_INTERACTIVE(kg));
 
-	/*
-	 * Check to see if we need to scale back the slp and run time
-	 * in the kg.  This will cause us to forget old interactivity
-	 * while maintaining the current ratio.
-	 */
-	sched_interact_update(kg);
-
 	return;
 }
 
+/*
+ * This routine enforces a maximum limit on the amount of scheduling history
+ * kept.  It is called after either the slptime or runtime is adjusted.
+ * This routine will not operate correctly when slp or run times have been
+ * adjusted to more than double their maximum.
+ */
 static void
 sched_interact_update(struct ksegrp *kg)
 {
-        int ratio;
+	int sum;
 
-	if ((kg->kg_runtime + kg->kg_slptime) > SCHED_SLP_RUN_MAX) {
-		ratio = ((SCHED_SLP_RUN_MAX * 15) / (kg->kg_runtime +
-		    kg->kg_slptime ));
-		kg->kg_runtime = (kg->kg_runtime * ratio) / 16;
-		kg->kg_slptime = (kg->kg_slptime * ratio) / 16;
+	sum = kg->kg_runtime + kg->kg_slptime;
+	if (sum < SCHED_SLP_RUN_MAX)
+		return;
+	/*
+	 * If we have exceeded by more than 1/5th then the algorithm below
+	 * will not bring us back into range.  Dividing by two here forces
+	 * us into the range of [3/5 * SCHED_INTERACT_MAX, SCHED_INTERACT_MAX]
+	 */
+	if (sum > (SCHED_INTERACT_MAX / 5) * 6) {
+		kg->kg_runtime /= 2;
+		kg->kg_slptime /= 2;
+		return;
+	}
+	kg->kg_runtime = (kg->kg_runtime / 5) * 4;
+	kg->kg_slptime = (kg->kg_slptime / 5) * 4;
+}
+
+static void
+sched_interact_fork(struct ksegrp *kg)
+{
+	int ratio;
+	int sum;
+
+	sum = kg->kg_runtime + kg->kg_slptime;
+	if (sum > SCHED_SLP_RUN_FORK) {
+		ratio = sum / SCHED_SLP_RUN_FORK;
+		kg->kg_runtime /= ratio;
+		kg->kg_slptime /= ratio;
 	}
 }
 
@@ -891,7 +914,7 @@ sched_pickcpu(void)
 		}
 	}
 
-	CTR1(KTR_RUNQ, "sched_pickcpu: %d", cpu);
+	CTR1(KTR_ULE, "sched_pickcpu: %d", cpu);
 	return (cpu);
 }
 #endif
@@ -1025,9 +1048,14 @@ sched_wakeup(struct thread *td)
 		int hzticks;
 
 		kg = td->td_ksegrp;
-		hzticks = ticks - td->td_slptime;
-		kg->kg_slptime += hzticks << 10;
-		sched_interact_update(kg);
+		hzticks = (ticks - td->td_slptime) << 10;
+		if (hzticks >= SCHED_SLP_RUN_MAX) {
+			kg->kg_slptime = SCHED_SLP_RUN_MAX;
+			kg->kg_runtime = 1;
+		} else {
+			kg->kg_slptime += hzticks;
+			sched_interact_update(kg);
+		}
 		sched_priority(kg);
 		if (td->td_kse)
 			sched_slice(td->td_kse);
@@ -1070,17 +1098,19 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 void
 sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
-
 	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
-	/* XXX Need something better here */
 
-	child->kg_slptime = kg->kg_slptime / SCHED_SLP_RUN_THROTTLE;
-	child->kg_runtime = kg->kg_runtime / SCHED_SLP_RUN_THROTTLE;
+	child->kg_slptime = kg->kg_slptime;
+	child->kg_runtime = kg->kg_runtime;
+	child->kg_user_pri = kg->kg_user_pri;
+	child->kg_nice = kg->kg_nice;
+	sched_interact_fork(child);
 	kg->kg_runtime += tickincr << 10;
 	sched_interact_update(kg);
 
-	child->kg_user_pri = kg->kg_user_pri;
-	child->kg_nice = kg->kg_nice;
+	CTR6(KTR_ULE, "sched_fork_ksegrp: %d(%d, %d) - %d(%d, %d)",
+	    kg->kg_proc->p_pid, kg->kg_slptime, kg->kg_runtime, 
+	    child->kg_proc->p_pid, child->kg_slptime, child->kg_runtime);
 }
 
 void
@@ -1122,7 +1152,6 @@ sched_class(struct ksegrp *kg, int class)
 void
 sched_exit(struct proc *p, struct proc *child)
 {
-	/* XXX Need something better here */
 	mtx_assert(&sched_lock, MA_OWNED);
 	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(child));
 	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(child));
@@ -1366,7 +1395,7 @@ sched_add(struct thread *td)
 		ke->ke_slice = SCHED_SLICE_MIN;
 		break;
 	default:
-		panic("Unknown pri class.\n");
+		panic("Unknown pri class.");
 		break;
 	}
 #ifdef SMP
