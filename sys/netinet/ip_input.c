@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.42 1996/05/08 04:28:57 gpalmer Exp $
+ * $Id: ip_input.c,v 1.43 1996/06/08 08:18:57 bde Exp $
  */
+
+#include "opt_ipfw.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
