@@ -40,8 +40,8 @@
  * $Whistle: ng_pptpgre.h,v 1.3 1999/12/08 00:11:36 archie Exp $
  */
 
-#ifndef _NETGRAPH_PPTPGRE_H_
-#define _NETGRAPH_PPTPGRE_H_
+#ifndef _NETGRAPH_NG_PPTPGRE_H_
+#define _NETGRAPH_NG_PPTPGRE_H_
 
 /* Node type name and magic cookie */
 #define NG_PPTPGRE_NODE_TYPE	"pptpgre"
@@ -125,4 +125,4 @@ enum {
 	NGM_PPTPGRE_GETCLR_STATS,	/* returns & clears stats */
 };
 
-#endif /* _NETGRAPH_PPTPGRE_H_ */
+#endif /* _NETGRAPH_NG_PPTPGRE_H_ */

@@ -30,8 +30,8 @@
  */
 
 
-#ifndef _NG_SPLIT_H
-#define _NG_SPLIT_H
+#ifndef _NETGRAPH_NG_SPLIT_H_
+#define _NETGRAPH_NG_SPLIT_H_
 
 /* Node type name and magic cookie */
 #define NG_SPLIT_NODE_TYPE	"split"
@@ -42,4 +42,4 @@
 #define NG_SPLIT_HOOK_OUT	"out"	/* Output to outhook (sending out) */
 #define NG_SPLIT_HOOK_IN	"in"	/* Input from inhook (recieving) */
 
-#endif /* _NG_SPLIT_H */
+#endif /* _NETGRAPH_NG_SPLIT_H_ */

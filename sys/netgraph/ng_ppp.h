@@ -40,8 +40,8 @@
  * $Whistle: ng_ppp.h,v 1.8 1999/01/25 02:40:02 archie Exp $
  */
 
-#ifndef _NETGRAPH_PPP_H_
-#define _NETGRAPH_PPP_H_
+#ifndef _NETGRAPH_NG_PPP_H_
+#define _NETGRAPH_NG_PPP_H_
 
 /* Node type name and magic cookie */
 #define NG_PPP_NODE_TYPE	"ppp"
@@ -197,4 +197,4 @@ struct ng_ppp_link_stat {
 	  { NULL }						\
 }
 
-#endif /* _NETGRAPH_PPP_H_ */
+#endif /* _NETGRAPH_NG_PPP_H_ */

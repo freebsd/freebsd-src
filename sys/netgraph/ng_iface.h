@@ -40,8 +40,8 @@
  * $Whistle: ng_iface.h,v 1.5 1999/01/20 00:22:13 archie Exp $
  */
 
-#ifndef _NETGRAPH_IFACE_H_
-#define _NETGRAPH_IFACE_H_
+#ifndef _NETGRAPH_NG_IFACE_H_
+#define _NETGRAPH_NG_IFACE_H_
 
 /* Node type name and magic cookie */
 #define NG_IFACE_NODE_TYPE		"iface"
@@ -75,4 +75,4 @@ struct ng_iface_ifname {
 	char    ngif_name[NG_IFACE_IFACE_NAME_MAX + 1];
 };
 
-#endif /* _NETGRAPH_IFACE_H_ */
+#endif /* _NETGRAPH_NG_IFACE_H_ */

@@ -40,8 +40,8 @@
  * $Whistle: ng_tty.h,v 1.7 1999/01/20 00:22:15 archie Exp $
  */
 
-#ifndef _NETGRAPH_TTY_H_
-#define _NETGRAPH_TTY_H_
+#ifndef _NETGRAPH_NG_TTY_H_
+#define _NETGRAPH_NG_TTY_H_
 
 /* Node type name and magic cookie */
 #define NG_TTY_NODE_TYPE	"tty"
@@ -59,4 +59,4 @@ enum {
 	NGM_TTY_SET_HOTCHAR,
 };
 
-#endif /* _NETGRAPH_TTY_H_ */
+#endif /* _NETGRAPH_NG_TTY_H_ */

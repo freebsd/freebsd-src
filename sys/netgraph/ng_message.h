@@ -41,7 +41,7 @@
  */
 
 #ifndef _NETGRAPH_NG_MESSAGE_H_
-#define _NETGRAPH_NG_MESSAGE_H_ 1
+#define _NETGRAPH_NG_MESSAGE_H_
 
 /* ASCII string size limits */
 #define NG_TYPELEN	15	/* max type name len (16 with null) */

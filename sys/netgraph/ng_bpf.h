@@ -40,8 +40,8 @@
  * $Whistle: ng_bpf.h,v 1.3 1999/12/03 20:30:23 archie Exp $
  */
 
-#ifndef _NETGRAPH_BPF_H_
-#define _NETGRAPH_BPF_H_
+#ifndef _NETGRAPH_NG_BPF_H_
+#define _NETGRAPH_NG_BPF_H_
 
 /* Node type name and magic cookie */
 #define NG_BPF_NODE_TYPE	"bpf"
@@ -99,4 +99,4 @@ enum {
 	NGM_BPF_GETCLR_STATS,		/* supply name as char[NG_HOOKLEN+1] */
 };
 
-#endif /* _NETGRAPH_BPF_H_ */
+#endif /* _NETGRAPH_NG_BPF_H_ */

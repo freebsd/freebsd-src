@@ -40,8 +40,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_L2TP_H_
-#define _NETGRAPH_L2TP_H_
+#ifndef _NETGRAPH_NG_L2TP_H_
+#define _NETGRAPH_NG_L2TP_H_
 
 /* Node type name and magic cookie */
 #define NG_L2TP_NODE_TYPE	"l2tp"
@@ -158,4 +158,4 @@ enum {
 	NGM_L2TP_ACK_FAILURE,		/* sent *from* node after ack timeout */
 };
 
-#endif /* _NETGRAPH_L2TP_H_ */
+#endif /* _NETGRAPH_NG_L2TP_H_ */

@@ -31,8 +31,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_ETHERTYPE_FILTER_H_
-#define _NETGRAPH_ETHERTYPE_FILTER_H_
+#ifndef _NETGRAPH_NG_ETF_H_
+#define _NETGRAPH_NG_ETF_H_
 
 /* Node type name. This should be unique among all netgraph node types */
 #define NG_ETF_NODE_TYPE	"etf"
@@ -85,4 +85,4 @@ struct ng_etffilter {
 	  { NULL }						\
 }
 
-#endif /* _NETGRAPH_ETHERTYPE_FILTER_H_ */
+#endif /* _NETGRAPH_NG_ETF_H_ */

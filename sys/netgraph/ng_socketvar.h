@@ -41,7 +41,7 @@
  */
 
 #ifndef _NETGRAPH_NG_SOCKETVAR_H_
-#define _NETGRAPH_NG_SOCKETVAR_H_ 1
+#define _NETGRAPH_NG_SOCKETVAR_H_
 
 /* Netgraph protocol control block for each socket */
 struct ngpcb {
