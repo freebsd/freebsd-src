@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.19.4.4 1996/02/26 15:23:37 phk Exp $
+ * $Id: ip_output.c,v 1.19.4.5 1996/03/04 04:56:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -467,6 +467,8 @@ bad:
  * Insert IP options into preformed packet.
  * Adjust IP destination as required for IP source routing,
  * as indicated by a non-zero in_addr at the start of the options.
+ *
+ * XXX This routine assumes that the packet has no options in place.
  */
 static struct mbuf *
 ip_insertoptions(m, opt, phlen)
@@ -505,6 +507,7 @@ ip_insertoptions(m, opt, phlen)
 	ip = mtod(m, struct ip *);
 	(void)memcpy(ip + 1, p->ipopt_list, (unsigned)optlen);
 	*phlen = sizeof(struct ip) + optlen;
+	ip->ip_hl = *phlen >> 2;
 	ip->ip_len += optlen;
 	return (m);
 }
