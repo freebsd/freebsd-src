@@ -882,6 +882,7 @@ dev/sound/pci/csapcm.c	optional csa pcm
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 #dev/sound/pci/aureal.c	optional pcm pci
+libkern/arc4random.c	standard
 libkern/strtol.c	standard
 libkern/strtoq.c	standard
 libkern/strtoul.c	standard
