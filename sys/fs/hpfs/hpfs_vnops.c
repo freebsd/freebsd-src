@@ -1030,12 +1030,8 @@ hpfs_lookup(ap)
 	int error;
 	int nameiop = cnp->cn_nameiop;
 	int flags = cnp->cn_flags;
-#if HPFS_DEBUG
-	int wantparent = flags & (LOCKPARENT|WANTPARENT);
-#endif
 	dprintf(("hpfs_lookup(0x%x, %s, %ld, %d): \n",
-		dhp->h_no, cnp->cn_nameptr, cnp->cn_namelen,
-		wantparent));
+		dhp->h_no, cnp->cn_nameptr, cnp->cn_namelen));
 
 	if (nameiop != CREATE && nameiop != DELETE && nameiop != LOOKUP) {
 		printf("hpfs_lookup: LOOKUP, DELETE and CREATE are only supported\n");
