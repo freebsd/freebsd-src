@@ -1007,6 +1007,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       through the use of a filesystem test tool, have been fixed.
       Under certain circumstances (primarily related to use of NFS),
       these bugs could cause data corruption or kernel panics. &merged;</para>
+
+      <para>Network filesystems (such as NFS and smbfs filesystems)
+      listed in <filename>/etc/fstab</filename> can now be properly
+      mounted during startup initialization; their mounts are deferred
+      until after the network is initialized.</para>
     </sect3>
 
     <sect3>
