@@ -935,6 +935,8 @@ ste_txeof(sc)
 		ifp->if_flags &= ~IFF_OACTIVE;
 		if (idx == sc->ste_cdata.ste_tx_prod)
 			ifp->if_timer = 0;
+		else if (ifp->if_timer == 0)
+			ifp->if_timer = 5;
 	}
 }
 
