@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.54 1998/11/10 00:32:39 brian Exp $
+ * $Id: ip.c,v 1.55 1999/01/28 01:56:32 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -553,7 +553,7 @@ ip_FlushPacket(struct link *l, struct bundle *bundle)
 
   for (queue = &ipcp->Queue[PRI_FAST]; queue >= ipcp->Queue; queue--)
     if (queue->top) {
-      bp = mbuf_Dequeue(queue);
+      bp = mbuf_Contiguous(mbuf_Dequeue(queue));
       if (bp) {
         struct ip *pip = (struct ip *)MBUF_CTOP(bp);
 
