@@ -13,31 +13,32 @@
  * functioning of this software in any circumstances.
  *
  *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
  * HISTORY
- * $Log: bt742a.c,v $
- * Revision 1.2  1993/07/29  11:55:35  nate
- * Syncing our sources back with Julian's, and removing PATCHKIT headers.
- *
- * Large Bustek changes, most everything else is minimal.
- *
- * Revision 1.1.1.1  1993/06/12  14:57:58  rgrimes
- * Initial import, 0.1 + pk 0.2.4-B1
- *
- * Revision 1.11  93/05/27  13:39:52  julian
+ * $Log:	bt742a.c,v $
+ * Revision 1.12  93/08/07  13:20:44  julian
+ * replace private timeout stuff with system timeout calls.
+ * 
+ * Revision 1.11  93/05/27  13:39:52  root
  * Enable mail box round-robin scheme by new host adapter command appeared
  *  at FirmWare V3.31 ( This release is shipped without testing at V3.31 )
  * 
- * Revision 1.10  93/05/22  16:38:22  julian
+ * Revision 1.10  93/05/22  16:38:22  root
  * under OSF, the dev_pic must be set up before it's used.
  * was only done ifndef OSF.
  * 
- * Revision 1.9  93/05/07  11:37:24  julian
+ * Revision 1.9  93/05/07  11:37:24  root
  * fix SLEEPTIME calculation.
  * 
- * Revision 1.8  93/05/07  11:27:00  julian
+ * Revision 1.8  93/05/07  11:27:00  root
  * Merge with 1.7.1
  * 
  * Revision 1.7.1 1993/01/01  04:01:02  amurai
@@ -131,6 +132,7 @@ int	Debugger();
 int	Debugger();
 #endif	MACH
 
+extern int hz;
 extern int delaycount;	/* from clock setup code */
 typedef unsigned long int physaddr;
 
@@ -309,17 +311,12 @@ struct bt_ccb {
 	/*------------------------------------longword boundary */
 	struct	bt_mbx_out	*mbx;		/* pointer to mail box */
 	/*------------------------------------longword boundary */
-	long	int	delta;	/* difference from previous*/
-	struct bt_ccb	*later,*sooner;
 	int		flags;
 #define	CCB_FREE	0
 #define CCB_ACTIVE	1
 #define	CCB_ABORTED	2
 };
 
-struct	bt_ccb *bt_soonest = (struct bt_ccb *)0;
-struct	bt_ccb *bt_latest = (struct bt_ccb *)0;
-long int	bt_furtherest = 0;	/* longest time in the timeout queue */
 /*
  * opcode fields
  */
@@ -684,7 +681,7 @@ struct	isa_dev	*dev;
 
 
 #ifdef  __386BSD__
-	printf("bt%d: **probing for scsi devices**\n", unit);
+	printf(" probing for scsi devices**\n");
 #endif  __386BSD__
 
 	/***********************************************\
@@ -694,10 +691,6 @@ struct	isa_dev	*dev;
 #if defined(OSF)
 	bt_attached[unit]=1;
 #endif /* defined(OSF) */
-	if(!unit) /* only one for all boards */
-	{
-		bt_timeout(0);
-	}
 #ifdef  __386BSD__
 	printf("bt%d",unit);
 #endif  __386BSD__
@@ -822,7 +815,7 @@ AGAIN:
 		wmbi->stat = BT_MBI_FREE;
 		if(ccb)
 		{
-			bt_remove_timeout(ccb);
+			untimeout(bt_timeout,ccb);
 			bt_done(unit,ccb);
 		}
 
@@ -1537,7 +1530,7 @@ struct scsi_xfer *xs;
 #endif
 	if (!(flags & SCSI_NOMASK))
 	{
-		bt_add_timeout(ccb,xs->timeout);
+		timeout(bt_timeout,ccb,(xs->timeout * hz) / 1000);
 		return(SUCCESSFULLY_QUEUED);
 	} else
 	/***********************************************\
@@ -1610,174 +1603,57 @@ struct scsi_xfer *xs;
 	}
 }
 
-/*
- *               +----------+     +----------+     +----------+
- * bt_soonest--->|    later |---->|     later|---->|     later|--->0
- *               | [Delta]  |     | [Delta]  |     | [Delta]  |
- *        0<-----|sooner    |<----|sooner    |<----|sooner    |<----bt_latest
- *               +----------+     +----------+     +----------+
- *
- *     bt_furtherest = sum(Delta[1..n])
- */
-bt_add_timeout(ccb,time)
-struct	bt_ccb	*ccb;
-int	time;
+
+bt_timeout(struct bt_ccb *ccb)
 {
-	int	timeprev;
-	struct bt_ccb *prev;
-	int	s = splbio();
-
-	if(prev = bt_latest) /* yes, an assign */
-	{
-		timeprev = bt_furtherest;
-	}
-	else
-	{
-		timeprev = 0;
-	}
-	while(prev && (timeprev > time)) 
-	{
-		timeprev -= prev->delta;
-		prev = prev->sooner;
-	}
-	if(prev)
-	{
-		ccb->delta = time - timeprev;
-		if( ccb->later = prev->later) /* yes an assign */
-		{
-			ccb->later->sooner = ccb;
-			ccb->later->delta -= ccb->delta;
-		}
-		else
-		{
-			bt_furtherest = time;
-			bt_latest = ccb;
-		}
-		ccb->sooner = prev;
-		prev->later = ccb;
-	}
-	else
-	{
-		if( ccb->later = bt_soonest) /* yes, an assign*/
-		{
-			ccb->later->sooner = ccb;
-			ccb->later->delta -= time;
-		}
-		else
-		{
-			bt_furtherest = time;
-			bt_latest = ccb;
-		}
-		ccb->delta = time;
-		ccb->sooner = (struct bt_ccb *)0;
-		bt_soonest = ccb;
-	}
-	splx(s);
-}
-
-bt_remove_timeout(ccb)
-struct	bt_ccb	*ccb;
-{
-	int	s = splbio();
-
-	if(ccb->sooner)
-	{
-		ccb->sooner->later = ccb->later;
-	}
-	else
-	{
-		bt_soonest = ccb->later;
-	}
-	if(ccb->later)
-	{
-		ccb->later->sooner = ccb->sooner;
-		ccb->later->delta += ccb->delta;
-	}
-	else
-	{
-		bt_latest = ccb->sooner;
-		bt_furtherest -= ccb->delta;
-	}
-	ccb->sooner = ccb->later = (struct bt_ccb *)0;
-	splx(s);
-}
-
-
-extern int 	hz;
-#define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * ONETICK) / 1000)
-bt_timeout(arg)
-int	arg;
-{
-	struct  bt_ccb  *ccb;
 	int	unit;
 	int	s	= splbio();
 
-	while( ccb = bt_soonest )
-	{
-		if(ccb->delta <= ONETICK)
-		/***********************************************\
-		* It has timed out, we need to do some work	*
-		\***********************************************/
-		{
-			unit = ccb->xfer->adapter;
-			printf("bt%d:%d device timed out\n",unit
-					,ccb->xfer->targ);
-			if(bt_debug & BT_SHOWCCBS)
-				tfs_print_active_ccbs();
+	unit = ccb->xfer->adapter;
+	printf("bt%d:%d device timed out\n",unit
+			,ccb->xfer->targ);
+#ifdef	UTEST
+	if(bt_debug & BT_SHOWCCBS)
+		bt_print_active_ccbs(unit);
+#endif
 
-			/***************************************\
-			* Unlink it from the queue		*
-			\***************************************/
-			bt_remove_timeout(ccb);
- 			/***************************************\
- 			* If The ccb's mbx is not free, then	*
- 			* the board has gone Far East ?         *
- 			\***************************************/
- 			if((struct bt_ccb *)PHYSTOKV(ccb->mbx->ccb_addr)==ccb &&
- 			    ccb->mbx->cmd != BT_MBO_FREE )
-			{
- 				printf("bt%d not taking commands!\n"
- 							,unit);
- 				Debugger();
- 			}
-			/***************************************\
-			* If it has been through before, then	*
-			* a previous abort has failed, don't	*
-			* try abort again			*
-			\***************************************/
-			if(ccb->flags == CCB_ABORTED) /* abort timed out */
-			{
-				printf("Abort Operation has timed out.\n");
-				ccb->xfer->retries = 0; /* I MEAN IT ! */
-				ccb->host_stat = BT_ABORTED;
-				bt_done(unit,ccb);
-			}
-			else	/* abort the operation that has timed out */
-			{
-				printf("Try to abort\n");
-	                	bt_send_mbo( unit, ~SCSI_NOMASK,
-					     BT_MBO_ABORT, ccb );
-					/* 2 secs for the abort */
-				bt_add_timeout(ccb,2000 + ONETICK);
-				ccb->flags = CCB_ABORTED;
-			}
-		}
-		else
-		/***********************************************\
-		* It has not timed out, adjust and leave	*
-		\***********************************************/
-		{
-			ccb->delta -= ONETICK;
-			bt_furtherest -= ONETICK;
-			break;
-		}
+ 	/***************************************\
+ 	* If The ccb's mbx is not free, then	*
+ 	* the board has gone Far East ?         *
+ 	\***************************************/
+ 	if((struct bt_ccb *)PHYSTOKV(ccb->mbx->ccb_addr)==ccb &&
+ 	    ccb->mbx->cmd != BT_MBO_FREE )
+	{
+ 		printf("bt%d not taking commands!\n"
+ 					,unit);
+ 		Debugger();
+ 	}
+	/***************************************\
+	* If it has been through before, then	*
+	* a previous abort has failed, don't	*
+	* try abort again			*
+	\***************************************/
+	if(ccb->flags == CCB_ABORTED) /* abort timed out */
+	{
+		printf("Abort Operation has timed out.\n");
+		ccb->xfer->retries = 0; /* I MEAN IT ! */
+		ccb->host_stat = BT_ABORTED;
+		bt_done(unit,ccb);
+	}
+	else	/* abort the operation that has timed out */
+	{
+		printf("Try to abort\n");
+               	bt_send_mbo( unit, ~SCSI_NOMASK,
+			     BT_MBO_ABORT, ccb );
+			/* 2 secs for the abort */
+		timeout(bt_timeout,ccb,2 * hz);
+		ccb->flags = CCB_ABORTED;
 	}
 	splx(s);
-	timeout(bt_timeout,arg,SLEEPTIME);
 }
 
-tfs_print_ccb(ccb)
+#ifdef	UTEST
+bt_print_ccb(ccb)
 struct	bt_ccb *ccb;
 {
 	printf("ccb:%x op:%x cmdlen:%d senlen:%d\n"
@@ -1785,23 +1661,24 @@ struct	bt_ccb *ccb;
 		,ccb->opcode
 		,ccb->scsi_cmd_length
 		,ccb->req_sense_length);
-	printf("	datlen:%d hstat:%x tstat:%x delta:%d flags:%x\n"
+	printf("	datlen:%d hstat:%x tstat:%x flags:%x\n"
 		,ccb->data_length
 		,ccb->host_stat
 		,ccb->target_stat
-		,ccb->delta
 		,ccb->flags);
 }
 
-tfs_print_active_ccbs()
+bt_print_active_ccbs(int unit)
 {
 	struct	bt_ccb *ccb;
-	ccb = bt_soonest;
+	ccb = &(bt_ccb[unit][0]);
+	int	i = BT_CCB_SIZE;
 
-	while(ccb)
+	while(i--)
 	{
-		tfs_print_ccb(ccb);
-		ccb = ccb->later;
+		if(ccb->flags != CCB_FREE)
+			bt_print_ccb(ccb);
+		ccb++;
 	}
-	printf("Furtherest = %d\n",bt_furtherest);
 }
+#endif	/*UTEST*/
