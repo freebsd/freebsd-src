@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.60 1998/12/07 21:58:45 archie Exp $ */
+/* $Id: brooktree848.c,v 1.61 1998/12/14 06:32:54 dillon Exp $ */
 /* BT848 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -85,6 +85,8 @@
  */
 
 /*		Change History:
+Note: These version numbers represent the authors own numbering.
+They are unrelated to Revision Control numbering of FreeBSD or any other system.
 1.0		1/24/97	   First Alpha release
 
 1.1		2/20/97	   Added video ioctl so we can do PCI To PCI
@@ -316,6 +318,15 @@
                            Hauppauge Tech Support confirmed all Hauppauge 878
                            PAL/SECAM boards will use PLL mode.
 			   Added to card probe. Thanks to Ken and Fred.
+
+1.56          21 Jan 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Added detection of Hauppauge IR remote control.
+			   and MSP34xx Audio chip. Fixed i2c read error.
+                           Hauppauge supplied details of new Tuner Types.
+                           Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
+                           AverMedia detection with PCI subsystem vendor id.
+			
+
 */
 
 #define DDB(x) x
@@ -677,6 +688,12 @@ static struct {
 /* 20000 is equivalent to 20000MHz/16 = 1.25GHz - this area is unused.	*/
 #define RADIO_OFFSET		20000
 
+/* address(s) of the Hauppauge Infra-Red Remote Control adapter */
+#define HAUP_REMOTE_INT_WADDR   0x30
+#define HAUP_REMOTE_INT_RADDR   0x31
+ 
+#define HAUP_REMOTE_EXT_WADDR   0x34
+#define HAUP_REMOTE_EXT_RADDR   0x35
 
 /* address of BTSC/SAP decoder chip */
 #define TDA9850_WADDR		0xb6
@@ -693,6 +710,7 @@ static struct {
 
 
 /* EEProm (256 * 8) on a Hauppauge card */
+/* and on most BT878s cards to store the sub-system vendor id */
 #define PFC8582_WADDR		0xa0
 #define PFC8582_RADDR		0xa1
 
@@ -1743,7 +1761,7 @@ tuner_open( bktr_ptr_t bktr )
         bktr->tuner.radio_mode = 0;
 
 	/* enable drivers on the GPIO port that control the MUXes */
-	bktr->base->gpio_out_en = GPIO_AUDIOMUX_BITS;
+	bktr->base->gpio_out_en |= GPIO_AUDIOMUX_BITS;
 
 	/* unmute the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
@@ -1825,7 +1843,7 @@ tuner_close( bktr_ptr_t bktr )
 	set_audio( bktr, AUDIO_MUTE );
 
 	/* disable drivers on the GPIO port that control the MUXes */
-	bktr->base->gpio_out_en = 0;
+	bktr->base->gpio_out_en = bktr->base->gpio_out_en & ~GPIO_AUDIOMUX_BITS;
 
 	return( 0 );
 }
@@ -4212,7 +4230,7 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	if (smbus_readb(bktr->i2c_sc.smbus, addr, cmd, &result))
 		return (-1);
 
-	return ((int)result);
+	return ((int)((unsigned char)result));
 }
 
 #else /* defined(__FreeBSD__) */
@@ -4488,26 +4506,67 @@ static int locate_tuner_address( bktr_ptr_t bktr) {
  * OVERRIDE_CARD, OVERRIDE_TUNER, OVERRIDE_DBX and OVERRIDE_MSP
  * can be used to select a specific device, regardless of the
  * autodetection and i2c device checks.
+ *
+ * The scheme used for probing cards has one major drawback:
+ *  on bt848/849 based cards, it is impossible to work out which type
+ *  of tuner is actually fitted, or if there is extra hardware on board
+ *  connected to GPIO pins (eg radio chips or MSP34xx reset logic)
+ *  The driver cannot tell if the Tuner is PAL,NTSC, Temic or Philips.
+ *
+ *  All Hauppauge cards have a configuration eeprom which tells us the
+ *  tuner type and other features of the their cards.
+ *  Also, Bt878 based cards (certainly Hauppauge and AverMedia) should support 
+ *  sub-system vendor id, identifying the make and model of the card.
+ *
+ * The current probe code works as follows
+ * 1) Check if it is a BT878. If so, read the sub-system vendor id.
+ *    Select the required tuner and other onboard features.
+ * 2) If it is a BT848, 848A or 849, continue on:
+ *   3) Some cards have no I2C devices. Check if the i2c bus is empty
+ *      and if so, our detection job is nearly over.
+ *   4) Check I2C address 0xa0. If present this will be a Hauppauge card.
+ *      Use the Hauppauge EEPROM to determine on board tuner type and other
+ *       features. 
+ *   4) Check I2C address 0xa8. If present this is a STB card.
+ *      Still have to guess on the tuner type.
+ *   5) Otherwise we are in the dark. Miro cards have the tuner type
+ *      hard-coded on the GPIO pins, but we do not actually know if we have 
+ *      a Miro card.
+ *      Some older makes of card put Philips tuners and Temic tuners at
+ *      different I2C addresses, so an i2c bus probe can help, but it is
+ *      really just a guess.
+ *              
+ * 6) After determining the Tuner Type, we probe the i2c bus for other
+ *    devices at known locations, eg IR-Remote Control, MSP34xx and TDA
+ *    stereo chips.
  */
+
+#define VENDOR_AVER_MEDIA 0x1431
+#define VENDOR_HAUPPAUGE  0x0070
+
 static void
 probeCard( bktr_ptr_t bktr, int verbose )
 {
-	int	card, i,j, card_found;
-	int	status;
+	int		card, i,j, card_found;
+	int		status;
 	bt848_ptr_t	bt848;
-	u_char probe_signature[128], *probe_temp;
-        int   any_i2c_devices;
-	u_char probe_eeprom[128];
-	u_long tuner_code = 0;
-	int tuner_i2c_address = -1;
+	u_char 		probe_signature[128], *probe_temp;
+        int   		any_i2c_devices;
+	u_char 		probe_eeprom[128];
+	u_char 		tuner_code = 0;
+	int 		tuner_i2c_address = -1;
+        u_int  subsystem_vendor_id; /* vendors own PCI-SIG registered ID */
+        u_int  subsystem_id;        /* the boards revision/version number */
 
         any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
 
+	/* Select all GPIO bits as inputs */
 	bt848->gpio_out_en = 0;
 	if (bootverbose)
 	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
 
+	/* Check for a user specified override on the card selection */
 #if defined( OVERRIDE_CARD )
 	bktr->card = cards[ (card = OVERRIDE_CARD) ];
 	goto checkTuner;
@@ -4518,23 +4577,60 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	}
 
 
-   /* Check for i2c devices */
+	/* No override, so try and determine the make of the card */
+
+        /* On BT878/879 cards, read the sub-system vendor id */
+        if (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) {
+
+            subsystem_vendor_id =
+                pci_conf_read( bktr->tag, PCIR_SUBVEND_0) & 0xffff;
+            subsystem_id        =
+               (pci_conf_read( bktr->tag, PCIR_SUBDEV_0) >> 16) & 0xffff;
+
+            if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
+                bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
+		bktr->card.eepromAddr = 0xa0;
+		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+                goto checkTuner;
+            }
+
+            if (subsystem_vendor_id == VENDOR_HAUPPAUGE) {
+                bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+                goto checkTuner;
+            }
+
+           /* Vendor is unknown. We will use the standard probe code which */
+           /* may not give best results */
+           printf("Warning - card vendor %4x unknown. This can cause poor performance\n",subsystem_vendor_id);
+        } /* end of subsystem vendor id code */
+
+	/* So, we must have a Bt848/848a/849 card or a Bt878 with an unknown */
+        /* subsystem vendor id */
+        /* Try and determine the make of card by clever i2c probing */
+
+   	/* Check for i2c devices. If none, move on */
 	if (!any_i2c_devices) {
 		bktr->card = cards[ (card = CARD_INTEL) ];
 		goto checkTuner;
 	}
 
 
-	/* look for a hauppauge card */
-	if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
-		bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
-		goto checkTuner;
-	}
+        /* Look for Hauppauge and STB cards by the presence of an EEPROM */
+        /* Note: Bt878 based cards also use EEPROMs so we can only do this */
+        /* test on BT848/848a and 849 based cards. */
+	if (bktr->id==BROOKTREE_848_ID || bktr->id==BROOKTREE_849_ID) {
+            /* look for a hauppauge card */
+            if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
+                    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+                    goto checkTuner;
+            }
 
-	/* look for an STB card */
-	if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
-		bktr->card = cards[ (card = CARD_STB) ];
-		goto checkTuner;
+            /* look for an STB card */
+            if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
+                    bktr->card = cards[ (card = CARD_STB) ];
+                    goto checkTuner;
+            }
+
 	}
 
 	signCard( bktr, 1, 128, (u_char *)  &probe_signature );
@@ -4588,7 +4684,7 @@ checkTuner:
 	  goto checkDBX;
 	}
 
-   /* Check for i2c devices */
+	/* Check for i2c devices */
 	if (!any_i2c_devices) {
 		bktr->card.tuner = &tuners[ NO_TUNER ];
 		goto checkDBX;
@@ -4612,32 +4708,46 @@ checkTuner:
 	    break;
 
 	case CARD_HAUPPAUGE:
-	    /* The Hauppauge Windows driver gives the following Tuner Table */
-	    /* To the right of this is the tuner models we select */
+	    /* Hauppauge kindly supplied the following Tuner Table */
+	    /* FIXME: I think the tuners the driver selects for types */
+	    /* 0x08, 0xa and 0x15 are incorrect but no one has complained. */
 	    /*
-	    1 External
-	    2 Unspecified
-	    3 Phillips FI1216
-	    4 Phillips FI1216MF
-	    5 Phillips FI1236           PHILIPS_NTSC
-	    6 Phillips FI1246
-	    7 Phillips FI1256
-	    8 Phillips FI1216 MK2       PHILIPS_PALI
-	    9 Phillips FI1216MF MK2
-	    a Phillips FI1236 MK2       PHILIPS_FR1236_NTSC
-	    b Phillips FI1246 MK2       PHILIPS_PALI
-	    c Phillips FI1256 MK2
-	    d Temic 4032FY5              TEMIC_NTSC
-	    e Temic 4002FH5              TEMIC_PAL
-	    f Temic 4062FY5              TEMIC_PALI
-	    10 Phillips FR1216 MK2
-	    11 Phillips FR1216MF MK2
-	    12 Phillips FR1236 MK2       PHILIPS_FR1236_NTSC
-	    13 Phillips FR1246 MK2
-	    14 Phillips FR1256 MK2
-	    15 Phillips FM1216           PHILIPS_FR1216_PAL
-	    16 Phillips FM1216MF
-	    17 Phillips FM1236           PHILIPS_FR1236_NTSC
+   	    	ID Tuner Model          Format         	We select Format
+	   	 0 NONE               
+		 1 EXTERNAL             
+		 2 OTHER                
+		 3 Philips FI1216       BG 
+		 4 Philips FI1216MF     BGLL' 
+		 5 Philips FI1236       MN 		PHILIPS_NTSC
+		 6 Philips FI1246       I 
+		 7 Philips FI1256       DK 
+		 8 Philips FI1216 MK2   BG 		PHILIPS_PALI
+		 9 Philips FI1216MF MK2 BGLL' 
+		 a Philips FI1236 MK2   MN 		PHILIPS_FR1236_NTSC
+		 b Philips FI1246 MK2   I 		PHILIPS_PALI
+		 c Philips FI1256 MK2   DK 
+		 d Temic 4032FY5        NTSC		TEMIC_NTSC
+		 e Temic 4002FH5        BG		TEMIC_PAL
+		 f Temic 4062FY5        I 		TEMIC_PALI
+		10 Philips FR1216 MK2   BG 
+		11 Philips FR1216MF MK2 BGLL' 
+		12 Philips FR1236 MK2   MN 		PHILIPS_FR1236_NTSC
+		13 Philips FR1246 MK2   I 
+		14 Philips FR1256 MK2   DK 
+		15 Philips FM1216       BG 		PHILIPS_FR1216_PAL
+		16 Philips FM1216MF     BGLL' 
+		17 Philips FM1236       MN 		PHILIPS_FR1236_NTSC
+		18 Philips FM1246       I 
+		19 Philips FM1256       DK 
+		1a Temic 4036FY5        MN - FI1236 MK2 clone
+		1b Samsung TCPN9082D    MN 
+		1c Samsung TCPM9092P    Pal BG/I/DK 
+		1d Temic 4006FH5        BG 
+		1e Samsung TCPN9085D    MN/Radio 
+		1f Samsung TCPB9085P    Pal BG/I/DK / Radio 
+		20 Samsung TCPL9091P    Pal BG & Secam L/L' 
+		21 Temic 4039FY5        NTSC Radio
+
 	    */
 
 	    readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
@@ -4646,6 +4756,7 @@ checkTuner:
 	    switch (tuner_code) {
 
 	       case 0x5:
+	       case 0x1a:
 		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
 		 goto checkDBX;
 
@@ -4675,8 +4786,10 @@ checkTuner:
                case 0x15:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
 		 goto checkDBX;
+
+	       default :
+		 printf("Warning - Unknown Hauppauge Tuner 0x%x\n",tuner_code);
 	    }
-	    /* Unknown Tuner Byte */
 	    break;
 
 	} /* end switch(card) */
@@ -4721,19 +4834,58 @@ checkDBX:
 		bktr->card.dbx = 1;
 
 checkMSP:
+	/* If this is a Hauppauge card, we need to reset and enable the MSP */
+        /* chip. The chip's reset line is wired to GPIO pin 5 */
+
+	/* Toggle GPIO line 5 which resets the MSP stereo decoder */
+        if (card == CARD_HAUPPAUGE) {
+            bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
+            bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
+            tsleep( (caddr_t)bktr, PZERO, "bktrio", hz/10 );
+            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+        }
+
 #if defined( OVERRIDE_MSP )
 	bktr->card.msp3400c = OVERRIDE_MSP;
-	goto checkEnd;
+	goto checkMSPEnd;
 #endif
-   /* Check for i2c devices */
+
+	/* Check for i2c devices */
 	if (!any_i2c_devices) {
-		goto checkEnd;
+		goto checkMSPEnd;
 	}
 
 	if ( i2cRead( bktr, MSP3400C_RADDR ) != ABSENT )
 		bktr->card.msp3400c = 1;
 
-checkEnd:
+checkMSPEnd:
+
+/* Start of Check Remote */
+        /* Check for the Hauppauge IR Remote Control */
+        /* If there is an external unit, the internal will be ignored */
+
+        bktr->remote_control = 0; /* initial value */
+
+        if (any_i2c_devices) {
+            if (i2cRead( bktr, HAUP_REMOTE_EXT_RADDR ) != ABSENT )
+                {
+                bktr->remote_control      = 1;
+                bktr->remote_control_addr = HAUP_REMOTE_EXT_RADDR;
+                }
+            else if (i2cRead( bktr, HAUP_REMOTE_INT_RADDR ) != ABSENT )
+                {
+                bktr->remote_control      = 1;
+                bktr->remote_control_addr = HAUP_REMOTE_INT_RADDR;
+                }
+
+        }
+        /* If a remote control is found, poll it 5 times to turn off the LED */
+        if (bktr->remote_control) {
+                int i;
+                for (i=0; i<5; i++)
+                        i2cRead( bktr, bktr->remote_control_addr );
+        }
+/* End of Check Remote */
 
 #if defined( BKTR_USE_PLL )
 	bktr->xtal_pll_mode = BT848_USE_PLL;
@@ -4760,6 +4912,8 @@ checkPLLEnd:
 			printf( ", dbx stereo" );
 		if ( bktr->card.msp3400c )
 			printf( ", msp3400c stereo" );
+                if ( bktr->remote_control )
+                        printf( ", remote control" );
 		printf( ".\n" );
 	}
 }
