@@ -152,6 +152,7 @@ dev/kbd/kbd.c			optional	vt
 dev/lnc/if_lnc_isa.c		optional	lnc isa
 dev/ppc/ppc.c			optional	ppc
 dev/ppc/ppc_puc.c		optional	ppc puc pci
+dev/random/nehemiah.c		optional	random
 dev/sbni/if_sbni.c		optional	sbni
 dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/sbni/if_sbni_pci.c		optional	sbni pci
