@@ -243,7 +243,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
-	gp->dumpconf = g_sunlabel_dumpconf;
 	do {
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
@@ -276,6 +275,7 @@ static struct g_class g_sunlabel_class = {
 	.name = SUNLABEL_CLASS_NAME,
 	.taste = g_sunlabel_taste,
 	.ctlreq = g_sunlabel_config,
+	.dumpconf = g_sunlabel_dumpconf,
 };
 
 DECLARE_GEOM_CLASS(g_sunlabel_class, g_sunlabel);

@@ -357,10 +357,6 @@ g_fox_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->softc = g_malloc(sizeof(struct g_fox_softc), M_WAITOK | M_ZERO);
 	sc = gp->softc;
 
-	gp->start = g_fox_start;
-	gp->spoiled = g_fox_orphan;
-	gp->orphan = g_fox_orphan;
-	gp->access= g_fox_access;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
@@ -466,6 +462,10 @@ static struct g_class g_fox_class	= {
 	.name = FOX_CLASS_NAME,
 	.taste = g_fox_taste,
 	.destroy_geom = g_fox_destroy_geom,
+	.start = g_fox_start,
+	.spoiled = g_fox_orphan,
+	.orphan = g_fox_orphan,
+	.access= g_fox_access,
 };
 
 DECLARE_GEOM_CLASS(g_fox_class, g_fox);

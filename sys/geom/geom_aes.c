@@ -283,9 +283,6 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "aes_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	gp = g_new_geomf(mp, "%s.aes", pp->name);
-	gp->start = g_aes_start;
-	gp->orphan = g_aes_orphan;
-	gp->spoiled = g_std_spoiled;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
@@ -321,7 +318,6 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		}
 		g_free(buf);
 		gp->softc = sc;
-		gp->access = g_aes_access;
 		sc->sectorsize = sectorsize;
 		sc->mediasize = mediasize - sectorsize;
 		rijndael_cipherInit(&sc->ci, MODE_CBC, NULL);
@@ -369,6 +365,10 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 static struct g_class g_aes_class	= {
 	.name = AES_CLASS_NAME,
 	.taste = g_aes_taste,
+	.start = g_aes_start,
+	.orphan = g_aes_orphan,
+	.spoiled = g_std_spoiled,
+	.access = g_aes_access,
 };
 
 DECLARE_GEOM_CLASS(g_aes_class, g_aes);

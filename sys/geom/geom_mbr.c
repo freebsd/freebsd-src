@@ -241,8 +241,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (gp == NULL)
 		return (NULL);
 	g_topology_unlock();
-	gp->dumpconf = g_mbr_dumpconf;
-	gp->ioctl = g_mbr_ioctl;
 	do {
 		/* XXX: phk think about this! */
 		if (gp->rank != 2 &&
@@ -279,6 +277,8 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 static struct g_class g_mbr_class	= {
 	.name = MBR_CLASS_NAME,
 	.taste = g_mbr_taste,
+	.dumpconf = g_mbr_dumpconf,
+	.ioctl = g_mbr_ioctl,
 };
 
 DECLARE_GEOM_CLASS(g_mbr_class, g_mbr);
@@ -348,7 +348,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	if (gp == NULL)
 		return (NULL);
 	g_topology_unlock();
-	gp->dumpconf = g_mbrext_dumpconf;
 	off = 0;
 	slice = 0;
 	do {
@@ -420,6 +419,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 static struct g_class g_mbrext_class	= {
 	.name = MBREXT_CLASS_NAME,
 	.taste = g_mbrext_taste,
+	.dumpconf = g_mbrext_dumpconf,
 };
 
 DECLARE_GEOM_CLASS(g_mbrext_class, g_mbrext);
