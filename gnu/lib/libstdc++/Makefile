@@ -8,11 +8,6 @@ SUPDIR=	${SRCDIR}/libsupc++
        ${SRCDIR}/config/locale/generic ${SRCDIR} ${SRCDIR}/std \
        ${SUPDIR} ${GCCDIR}
 
-.if ${MACHINE_ARCH} == "amd64"
-NOPIC=		broken		# need libgcc.so or libgcc_pic.a
-NOSHARED=	broken
-.endif
-
 #SUBDIR=	doc
 
 LIB=		stdc++
