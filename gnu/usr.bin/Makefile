@@ -16,7 +16,7 @@ SUBDIR+=groff
 .endif
 
 .if !defined(NO_CVS)
-SUBDIR+=cvs
+#SUBDIR+=cvs
 .endif
 
 .include <bsd.subdir.mk>
