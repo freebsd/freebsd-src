@@ -291,21 +291,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 	} else
 		sp = NULL;
 	if (sp) {
-		/*
-		 * We need a reference to keep the vnode from being
-		 * recycled by getnewvnode while we do the I/O
-		 * associated with discarding the buffers unless we
-		 * are being forcibly unmounted in which case we already
-		 * have our own reference.
-		 */
-		if (vrefcnt(ap->a_vp) > 0)
-			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
-		else if (vget(ap->a_vp, 0, td))
-			panic("nfs_inactive: lost vnode");
-		else {
-			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
-			vrele(ap->a_vp);
-		}
+		(void)nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
