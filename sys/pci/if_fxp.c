@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.7 1996/01/03 05:22:32 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8 1996/01/15 10:12:41 davidg Exp $
  */
 
 /*
@@ -143,7 +143,7 @@ static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
 static void fxp_init		__P((struct ifnet *));
 static void fxp_stop		__P((struct fxp_softc *));
-static void fxp_watchdog	__P((struct ifnet *));
+static void fxp_watchdog	__P((int));
 static void fxp_get_macaddr	__P((struct fxp_softc *));
 static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
 
@@ -781,10 +781,12 @@ fxp_stop(sc)
  * card has wedged for some reason.
  */
 static void
-fxp_watchdog(ifp)
-	struct ifnet *ifp;
+fxp_watchdog(unit)
+	int unit;
 {
-	log(LOG_ERR, "fxp%d: device timeout\n", ifp->if_unit);
+	struct ifnet *ifp = (struct ifnet *)fxp_sc[unit];
+
+	log(LOG_ERR, "fxp%d: device timeout\n", unit);
 	ifp->if_oerrors++;
 
 	fxp_init(ifp);
