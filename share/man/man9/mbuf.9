@@ -658,7 +658,7 @@ end: zeroed
 .Vt mbufs
 will be allocated to fill the space.
 .\"
-.It Fn m_length buf last
+.It Fn m_length mbuf last
 Return the length of the
 .Vt mbuf chain ,
 and optionally a pointer to the last
@@ -705,7 +705,7 @@ will have the flag
 .Dv M_PKTHDR
 and the per-packet attributes cleared.
 .\"
-.It Fn m_fixhdr buf
+.It Fn m_fixhdr mbuf
 Set the packet-header length to the length of the
 .Vt mbuf chain .
 .\"
