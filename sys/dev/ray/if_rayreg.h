@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayreg.h,v 1.5 2000/03/05 22:04:09 dmlb Exp $
+ * $Id: if_rayreg.h,v 1.6 2000/03/12 22:52:00 dmlb Exp $
  *
  */
 
@@ -364,7 +364,7 @@ struct ray_net_params {
     u_int8_t	p_privacy_can_join;
 };
 
-/* RAY_CMD_UPDATE_ASSOC */
+/* RAY_CMD_START_ASSOC */
 struct ray_cmd_update_assoc {
     u_int8_t	c_status;		/* ccs generic header */
     u_int8_t	c_cmd;			/* " */
