@@ -634,7 +634,7 @@ sb_dsp_detect (struct address_info *hw_config)
 }
 
 #ifndef EXCLUDE_AUDIO
-static struct audio_operations sb_dsp_operations =
+struct audio_operations sb_dsp_operations =
 {
   "SoundBlaster",
   sb_dsp_open,
