@@ -164,7 +164,10 @@ swapdev_strategy(ap)
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);
-	VOP_SPECSTRATEGY(bp->b_vp, bp);
+	if (bp->b_vp->v_type == VCHR)
+		VOP_SPECSTRATEGY(bp->b_vp, bp);
+	else
+		VOP_STRATEGY(bp->b_vp, bp);
 	return 0;
 }
 
