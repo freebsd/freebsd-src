@@ -482,9 +482,9 @@ EcGpeQueryHandler(void *Context)
 	}
     }
         /* I know I request Level trigger cleanup */
-    if(AcpiClearEvent(sc->ec_gpebit,ACPI_EVENT_GPE) != AE_OK)
+    if(AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
 	    printf("EcGpeQueryHandler:ClearEvent Failed\n");
-    if(AcpiEnableEvent(sc->ec_gpebit,ACPI_EVENT_GPE) != AE_OK)
+    if(AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0) != AE_OK)
 	    printf("EcGpeQueryHandler:EnableEvent Failed\n");
     return_VOID;
 }
@@ -741,7 +741,7 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
 
     if (AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
 	device_printf(sc->ec_dev, "EcRequest: Unable to clear the EC GPE.\n");
-    if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
+    if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0) != AE_OK)
 	device_printf(sc->ec_dev, "EcRequest: Unable to re-enable the EC GPE.\n");
 
     return(Status);

@@ -857,7 +857,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 
     /* Enable and clear fixed events and install handlers. */
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->PwrButton == 0)) {
-	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
+	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED, 0);
 	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
 				     acpi_eventhandler_power_button_for_sleep, sc);
@@ -866,7 +866,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	}
     }
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->SleepButton == 0)) {
-	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
+	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED, 0);
 	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
 				     acpi_eventhandler_sleep_button_for_sleep, sc);
@@ -896,8 +896,11 @@ acpi_DeviceIsPresent(device_t dev)
 	return(FALSE);
     if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
 	return(FALSE);
-    /* XXX 0xf is probably not appropriate */
-    if ((devinfo.Valid & ACPI_VALID_HID) && (devinfo.CurrentStatus & 0xf))
+    /* if no _STA method, must be present */
+    if (!(devinfo.Valid & ACPI_VALID_STA))
+	return(TRUE);
+    /* return true for 'present' and 'functioning' */
+    if ((devinfo.CurrentStatus & 0x9) == 0x9)
 	return(TRUE);
     return(FALSE);
 }
