@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.5 1995/10/20 21:57:14 jkh Exp $
+ * $Id: installFinal.c,v 1.7 1995/10/22 17:39:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -51,17 +51,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mount.h>
-
-/* place-holder for now */
-int
-installApache(void)
-{
-    dialog_clear();
-    msgConfirm("UNDER CONSTRUCTION\n\n"
-	       "This installation option is not yet implemented.  It will\n"
-	       "hopefully be in the final release.");
-    return RET_SUCCESS;
-}
 
 static DMenu MenuSamba = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
@@ -133,7 +122,7 @@ installFinal(char *unused)
 
     /* Set this machine up as a web server? */
     if (variable_get("apache_httpd")) {
-	i = installApache();
+	i = installApache(NULL);
     }
 
     /* Set this machine up as a Samba server? */
