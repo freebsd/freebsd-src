@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #define KTR_ULE	KTR_NFS
 
+#error "The SCHED_ULE scheduler is broken.  Please use SCHED_4BSD"
+
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 /* XXX This is bogus compatability crap for ps */
 static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
