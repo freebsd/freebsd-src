@@ -25,13 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.1 1999/03/28 18:57:19 sos Exp $
+ *	$Id: ata-dma.c,v 1.2 1999/03/29 14:24:42 sos Exp $
  */
 
 #include "ata.h"
-#if NATA > 0
 #include "pci.h"
-#if NPCI > 0
+#if NATA > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,6 +44,8 @@
 
 /* misc defines */
 #define MIN(a,b) ((a)>(b)?(b):(a))    
+
+#if NPCI > 0
 
 int32_t
 ata_dmainit(struct ata_softc *scp, int32_t device, 
