@@ -33,6 +33,8 @@
 
 #define FTP_DEFAULT_PORT	21
 #define HTTP_DEFAULT_PORT	80
+#define FTP_DEFAULT_PROXY_PORT	21
+#define HTTP_DEFAULT_PROXY_PORT	3128
 
 /* Structure used for error message lists */
 struct fetcherr {  
@@ -43,6 +45,8 @@ struct fetcherr {
 void		 _fetch_seterr(struct fetcherr *p, int e);
 void		 _fetch_syserr(void);
 void		 _fetch_info(char *fmt, ...);
+int		 _fetch_default_port(char *);
+int		 _fetch_default_proxy_port(char *);
 int		 _fetch_connect(char *host, int port, int af, int verbose);
 int		 _fetch_getln(int fd, char **buf, size_t *size, size_t *len);
 int		 _fetch_putln(int fd, char *str, size_t len);
