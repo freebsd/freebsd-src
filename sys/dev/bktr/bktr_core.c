@@ -1,5 +1,5 @@
 $Id$
-/* BT848 1.54 Driver for Brooktree's Bt848 based cards.
+/* BT848 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -311,6 +311,11 @@ $Id$
 1.54          18 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
                            Changed tuner code to autodetect tuner i2c address.
                            Addresses were incorrectly hardcoded.
+
+1.55          21 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Hauppauge Tech Support confirmed all Hauppauge 878
+                           PAL/SECAM boards will use PLL mode.
+			   Added to card probe. Thanks to Ken and Fred.
 */
 
 #define DDB(x) x
@@ -909,7 +914,7 @@ static const struct TUNER tuners[] = {
 #define	CARD_STB		3
 #define	CARD_INTEL		4
 #define	CARD_IMS_TURBO		5
-#define	CARD_AVER_MEDIA		6
+#define CARD_AVER_MEDIA		6
 #define Bt848_MAX_CARD          7
 
 /*
@@ -989,6 +994,7 @@ static const struct CARDTYPE cards[] = {
            0,                                   /* EEProm type */
            0,                                   /* EEProm size */
            { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -1660,12 +1666,13 @@ video_open( bktr_ptr_t bktr )
 	bt848->bdelay = format_params[bktr->format_params].bdelay;
 	frame_rate    = format_params[bktr->format_params].frame_rate;
 
-#ifdef BKTR_USE_PLL
-	bt848->tgctrl=0;
-	bt848->pll_f_lo=0xf9;
-	bt848->pll_f_hi=0xdc;
-	bt848->pll_f_xci=0x8e;
-#endif
+	/* enable PLL mode using 28Mhz crystal for PAL/SECAM users */
+	if (bktr->xtal_pll_mode == BT848_USE_PLL) {
+		bt848->tgctrl=0;
+		bt848->pll_f_lo=0xf9;
+		bt848->pll_f_hi=0xdc;
+		bt848->pll_f_xci=0x8e;
+	}
 
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
@@ -3861,13 +3868,12 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 
 	/* end of video params */
 
-#ifdef BKTR_USE_PLL
-	if (fp->iform_xtsel==BT848_IFORM_X_XT1) {
+	if ((bktr->xtal_pll_mode == BT848_USE_PLL)
+	   && (fp->iform_xtsel==BT848_IFORM_X_XT1)) {
 		bt848->tgctrl=8; /* Select PLL mode */
 	} else {
 		bt848->tgctrl=0; /* Select Normal xtal 0/xtal 1 mode */
 	}
-#endif
 
 	/* capture control */
 	switch (i_flag) {
@@ -4623,7 +4629,8 @@ checkTuner:
         /* At this point, a goto checkDBX has not occured */
         /* We have not been able to select a Tuner */
         /* Some cards make use of the tuner address to */
-        /* identifty the make/model of tuner */
+        /* identify the make/model of tuner */
+
         /* At address 0xc0/0xc1 we often find a TEMIC NTSC */
         if ( i2cRead( bktr, 0xc1 ) != ABSENT ) {
             bktr->card.tuner = &tuners[ TEMIC_NTSC ];
@@ -4672,6 +4679,20 @@ checkMSP:
 		bktr->card.msp3400c = 1;
 
 checkEnd:
+
+checkPLL:
+#if defined( BKTR_USE_PLL )
+	bktr->xtal_pll_mode = BT848_USE_PLL;
+	goto checkPLLEnd;
+#endif
+	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
+	bktr->xtal_pll_mode = BT848_USE_XTALS;
+
+	if ((card == CARD_HAUPPAUGE) &&
+	   (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+checkPLLEnd:
+
 
 	bktr->card.tuner_pllAddr = tuner_i2c_address;
 
