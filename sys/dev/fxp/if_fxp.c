@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.17 1996/09/20 04:11:53 davidg Exp $
+ *	$Id: if_fxp.c,v 1.18 1996/09/20 11:05:39 davidg Exp $
  */
 
 /*
@@ -124,7 +124,7 @@ static u_char fxp_cb_config_template[] = {
 	0x0, 0x0
 };
 
-static inline int fxp_scb_wait	__P((struct fxp_csr *));
+static inline void fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 static void fxp_intr		__P((void *));
@@ -160,7 +160,7 @@ static int tx_threshold = 64;
  * of transmit buffers that can be chained in the CB list.
  * This must be a power of two.
  */
-#define FXP_NTXCB	64
+#define FXP_NTXCB	128
 
 /*
  * TxCB list index mask. This is used to do list wrap-around.
@@ -188,14 +188,13 @@ static int tx_threshold = 64;
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
  */
-static inline int
+static inline void
 fxp_scb_wait(csr)
 	struct fxp_csr *csr;
 {
 	int i = 10000;
 
 	while ((csr->scb_command & FXP_SCB_COMMAND_MASK) && --i);
-	return (i);
 }
 
 /*
@@ -423,13 +422,11 @@ fxp_start(ifp)
 
 txloop:
 	/*
-	 * See if a TxCB is available. If not, indicate this to the
-	 * outside world and exit.
+	 * See if we're all filled up with buffers to transmit.
 	 */
-	if (sc->tx_queued >= FXP_NTXCB) {
-		ifp->if_flags |= IFF_OACTIVE;
+	if (sc->tx_queued >= FXP_NTXCB)
 		return;
-	}
+
 	/*
 	 * Grab a packet to transmit.
 	 */
@@ -490,6 +487,7 @@ tbdinit:
 	}
 
 	txp->tbd_number = segment;
+	txp->mb_head = mb_head;
 
 	/*
 	 * Finish the initialization of this TxCB.
@@ -498,7 +496,6 @@ tbdinit:
 	txp->cb_command =
 	    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
 	txp->tx_threshold = tx_threshold;
-	txp->mb_head = mb_head;
 	
 	/*
 	 * Advance the end-of-list forward.
@@ -507,25 +504,23 @@ tbdinit:
 	sc->cbl_last = txp;
 
 	/*
-	 * If no packets were previously queued then advance the first
-	 * pointer to this TxCB.
+	 * Advance the beginning of the list forward if there are
+	 * no other packets queued (when nothing is queued, cbl_first
+	 * sits on the last TxCB that was sent out)..
 	 */
-	if (sc->tx_queued++ == 0) {
+	if (sc->tx_queued == 0)
 		sc->cbl_first = txp;
-	}
 
-	if (!fxp_scb_wait(csr)) {
+	sc->tx_queued++;
+
+	if (csr->scb_cus == FXP_SCB_CUS_SUSPENDED) {
+		fxp_scb_wait(csr);
+
 		/*
-		 * Hmmm, card has gone out to lunch
+		 * Resume transmission.
 		 */
-		fxp_init(ifp);
-		goto txloop;
+		csr->scb_command = FXP_SCB_COMMAND_CU_RESUME;
 	}
-
-	/*
-	 * Resume transmission if suspended.
-	 */
-	csr->scb_command = FXP_SCB_COMMAND_CU_RESUME;
 
 #if NBPFILTER > 0
 	/*
@@ -554,7 +549,7 @@ fxp_intr(arg)
 	struct fxp_softc *sc = arg;
 	struct fxp_csr *csr = sc->csr;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	u_char statack;
+	u_int8_t statack;
 
 	while ((statack = csr->scb_statack) != 0) {
 		/*
@@ -569,23 +564,17 @@ fxp_intr(arg)
 			struct fxp_cb_tx *txp;
 
 			for (txp = sc->cbl_first;
-			    (txp->cb_status & FXP_CB_STATUS_C) &&
-			    txp->mb_head != NULL;
+			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
 			    txp = txp->next) {
-				m_freem(txp->mb_head);
-				txp->mb_head = NULL;
-				sc->tx_queued--;
+				if (txp->mb_head != NULL) {
+					m_freem(txp->mb_head);
+					txp->mb_head = NULL;
+					sc->tx_queued--;
+				}
+				if (txp->cb_command & FXP_CB_COMMAND_S)
+					break;
 			}
 			sc->cbl_first = txp;
-			/*
-			 * We unconditionally clear IFF_OACTIVE since it
-			 * doesn't hurt to do so even if the tx queue is
-			 * still full - it will just get set again in
-			 * fxp_start(). If we get a CNA interrupt, it is
-			 * (almost?) certain that we've freed up space for
-			 * at least one more packet.
-			 */
-			ifp->if_flags &= ~IFF_OACTIVE;
 			/*
 			 * Clear watchdog timer. It may or may not be set
 			 * again in fxp_start().
@@ -647,7 +636,7 @@ rcvloop:
 			if (statack & FXP_SCB_STATACK_RNR) {
 				struct fxp_csr *csr = sc->csr;
 
-				(void) fxp_scb_wait(csr);
+				fxp_scb_wait(csr);
 				csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 				csr->scb_command = FXP_SCB_COMMAND_RU_START;
 			}
@@ -703,7 +692,7 @@ fxp_stats_update(arg)
 		 * writing scb_command in other parts of the driver.
 		 */
 		sc->csr->scb_command = FXP_SCB_COMMAND_CU_DUMPRESET;
-		(void) fxp_scb_wait(sc->csr);
+		fxp_scb_wait(sc->csr);
 	} else {
 		/*
 		 * A previous command is still waiting to be accepted.
@@ -831,13 +820,13 @@ fxp_init(ifp)
 	csr->scb_general = 0;
 	csr->scb_command = FXP_SCB_COMMAND_CU_BASE;
 
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_RU_BASE;
 
 	/*
 	 * Initialize base of dump-stats buffer.
 	 */
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_general = vtophys(sc->fxp_stats);
 	csr->scb_command = FXP_SCB_COMMAND_CU_DUMP_ADR;
 
@@ -862,8 +851,8 @@ fxp_init(ifp)
 	cbp->rx_fifo_limit =	8;	/* rx fifo threshold */
 	cbp->tx_fifo_limit =	0;	/* tx fifo threshold */
 	cbp->adaptive_ifs =	0;	/* (no) adaptive interframe spacing */
-	cbp->rx_dma_bytecount =	0;	/* (no) rx DMA max */
-	cbp->tx_dma_bytecount =	0;	/* (no) tx DMA max */
+	cbp->rx_dma_bytecount =	16;	/* (no) rx DMA max */
+	cbp->tx_dma_bytecount =	16;	/* (no) tx DMA max */
 	cbp->dma_bce =		1;	/* (enable) dma max counters */
 	cbp->late_scb =		0;	/* (don't) defer SCB update */
 	cbp->tno_int =		0;	/* (disable) tx not okay interrupt */
@@ -892,7 +881,7 @@ fxp_init(ifp)
 	/*
 	 * Start the config command/DMA.
 	 */
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_general = vtophys(cbp);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 	/* ...and wait for it to complete. */
@@ -912,7 +901,7 @@ fxp_init(ifp)
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
 	 */
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 	/* ...and wait for it to complete. */
 	while (!(cb_ias->cb_status & FXP_CB_STATUS_C));
@@ -938,13 +927,13 @@ fxp_init(ifp)
 	sc->cbl_first = sc->cbl_last = txp;
 	sc->tx_queued = 0;
 
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 
 	/*
 	 * Initialize receiver buffer area - RFA.
 	 */
-	(void) fxp_scb_wait(csr);
+	fxp_scb_wait(csr);
 	csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 	csr->scb_command = FXP_SCB_COMMAND_RU_START;
 
