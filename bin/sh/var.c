@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: var.c,v 1.12 1998/05/18 06:44:24 charnier Exp $";
 #endif /* not lint */
 
 #include <unistd.h>
@@ -218,7 +218,7 @@ setvarsafe(name, val, flags)
 }
 
 /*
- * Set the value of a variable.  The flags argument is ored with the
+ * Set the value of a variable.  The flags argument is stored with the
  * flags of the variable.  If val is NULL, the variable is unset.
  */
 
@@ -302,6 +302,8 @@ setvareq(s, flags)
 {
 	struct var *vp, **vpp;
 
+	if (aflag)
+		flags |= VEXPORT;
 	vpp = hashvar(s);
 	for (vp = *vpp ; vp ; vp = vp->next) {
 		if (varequal(s, vp->text)) {
