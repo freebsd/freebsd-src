@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.63 1996/11/02 19:50:32 jkh Exp $
+ * $Id: media.c,v 1.64 1996/11/04 02:12:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -337,6 +337,7 @@ mediaSetFTP(dialogMenuItem *self)
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    mediaDevice->shutdown(mediaDevice);
 	    network_init = TRUE;
+	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
 	else
