@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.226 1996/06/26 19:06:11 jkh Exp $
+#	$Id: Makefile,v 1.227 1996/06/29 02:22:36 jkh Exp $
 #
 # How to roll a release:
 #
@@ -364,7 +364,7 @@ release.8: write_mfs_in_kernel
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
+	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
@@ -372,9 +372,11 @@ release.8: write_mfs_in_kernel
 	mv fs-image fs-image.4
 	mv fs-image.size fs-image.4.size
 	# add more stuff for the complete bootfd
+	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	@echo "Making the regular boot floppy."
+	@echo "Compressing doc files..."
+	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
@@ -382,6 +384,7 @@ release.8: write_mfs_in_kernel
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
+	@echo "Regular boot floppy made."
 	touch release.8
 
 #
