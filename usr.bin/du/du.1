@@ -43,7 +43,7 @@
 .Op Fl P | Fl H | Fl L
 .Op Fl a | s | d Ar depth
 .Op Fl c
-.Op Fl k
+.Op Fl h | k
 .Op Fl x
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -73,6 +73,14 @@ hierarchies are not followed.
 Symbolic links on the command line and in file hierarchies are followed.
 .It Fl a
 Display an entry for each file in a file hierarchy.
+.It Fl h
+"Human-readable" output.  Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte
+.It Fl r
+Generate messages about directories that cannot be read, files
+that cannot be opened, and so on.  This is the default case.
+This option exists solely for conformance with
+.St -xpg4 .
 .It Fl s
 Display an entry for each specified file. (Equivalent to
 .Fl d
