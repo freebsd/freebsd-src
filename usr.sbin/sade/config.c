@@ -650,7 +650,9 @@ int
 configXSetup(dialogMenuItem *self)
 {
     char *config, *execfile, *execcmd, *style, *tmp;
+#ifdef WITH_MICE
     char *moused;
+#endif
     WINDOW *w = savescr();
     
     setenv("XWINHOME", "/usr/X11R6", 1);
@@ -697,6 +699,7 @@ tryagain:
 	    *tmp = '\0';
     if (file_executable(execfile)) {
 	free(execfile);
+#ifdef WITH_MICE
 	moused = variable_get(VAR_MOUSED);
 	while (!moused || strcmp(moused, "YES")) {
 	    if (msgYesNo("The X server may access the mouse in two ways: direct access\n"
@@ -714,6 +717,7 @@ tryagain:
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
+#endif
 	Mkdir("/etc/X11");	/* XXX:Remove this later after we are happy mtree will have created this for us. */
 	systemExecute(execcmd);
 	if (!file_readable("/etc/X11/XF86Config")) {
