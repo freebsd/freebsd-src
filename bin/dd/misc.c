@@ -66,16 +66,16 @@ summary()
 		secs = 1e-6;
 	/* Use snprintf(3) so that we don't reenter stdio(3). */
 	(void)snprintf(buf, sizeof(buf),
-	    "%lu+%lu records in\n%lu+%lu records out\n",
+	    "%qu+%qu records in\n%qu+%qu records out\n",
 	    st.in_full, st.in_part, st.out_full, st.out_part);
 	(void)write(STDERR_FILENO, buf, strlen(buf));
 	if (st.swab) {
-		(void)snprintf(buf, sizeof(buf), "%lu odd length swab %s\n",
+		(void)snprintf(buf, sizeof(buf), "%qu odd length swab %s\n",
 		     st.swab, (st.swab == 1) ? "block" : "blocks");
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
 	if (st.trunc) {
-		(void)snprintf(buf, sizeof(buf), "%lu truncated %s\n",
+		(void)snprintf(buf, sizeof(buf), "%qu truncated %s\n",
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}

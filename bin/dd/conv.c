@@ -60,8 +60,9 @@ static const char rcsid[] =
 void
 def()
 {
-	int cnt;
-	u_char *inp, *t;
+	u_char *inp;
+	const u_char *t;
+	size_t cnt;
 
 	if ((t = ctab) != NULL)
 		for (inp = in.dbp - (cnt = in.dbrcnt); cnt--; ++inp)
@@ -103,9 +104,11 @@ def_close()
 void
 block()
 {
+	u_char *inp, *outp;
+	const u_char *t;
+	size_t cnt, maxlen;
 	static int intrunc;
-	int ch, cnt, maxlen;
-	u_char *inp, *outp, *t;
+	int ch;
 
 	/*
 	 * Record truncation can cross block boundaries.  If currently in a
@@ -114,8 +117,8 @@ block()
 	 * left empty.
 	 */
 	if (intrunc) {
-		for (inp = in.db, cnt = in.dbrcnt;
-		    cnt && *inp++ != '\n'; --cnt);
+		for (inp = in.db, cnt = in.dbrcnt; cnt && *inp++ != '\n'; --cnt)
+			;
 		if (!cnt) {
 			in.dbcnt = 0;
 			in.dbp = in.db;
@@ -135,19 +138,19 @@ block()
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
 		maxlen = MIN(cbsz, in.dbcnt);
 		if ((t = ctab) != NULL)
-			for (cnt = 0;
-			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
+			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
+			    ++cnt)
 				*outp++ = t[ch];
 		else
-			for (cnt = 0;
-			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
+			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
+			    ++cnt)
 				*outp++ = ch;
 		/*
 		 * Check for short record without a newline.  Reassemble the
 		 * input block.
 		 */
 		if (ch != '\n' && in.dbcnt < cbsz) {
-			memmove(in.db, in.dbp - in.dbcnt, in.dbcnt);
+			(void)memmove(in.db, in.dbp - in.dbcnt, in.dbcnt);
 			break;
 		}
 
@@ -197,9 +200,9 @@ block_close()
 	 */
 	if (in.dbcnt) {
 		++st.trunc;
-		memmove(out.dbp, in.dbp - in.dbcnt, in.dbcnt);
-		(void)memset(out.dbp + in.dbcnt,
-		    ctab ? ctab[' '] : ' ', cbsz - in.dbcnt);
+		(void)memmove(out.dbp, in.dbp - in.dbcnt, in.dbcnt);
+		(void)memset(out.dbp + in.dbcnt, ctab ? ctab[' '] : ' ',
+		    cbsz - in.dbcnt);
 		out.dbcnt += cbsz;
 	}
 }
@@ -214,8 +217,9 @@ block_close()
 void
 unblock()
 {
-	int cnt;
-	u_char *inp, *t;
+	u_char *inp;
+	const u_char *t;
+	size_t cnt;
 
 	/* Translation and case conversion. */
 	if ((t = ctab) != NULL)
@@ -227,35 +231,36 @@ unblock()
 	 * spaces.
 	 */
 	for (inp = in.db; in.dbcnt >= cbsz; inp += cbsz, in.dbcnt -= cbsz) {
-		for (t = inp + cbsz - 1; t >= inp && *t == ' '; --t);
+		for (t = inp + cbsz - 1; t >= inp && *t == ' '; --t)
+			;
 		if (t >= inp) {
 			cnt = t - inp + 1;
-			memmove(out.dbp, inp, cnt);
+			(void)memmove(out.dbp, inp, cnt);
 			out.dbp += cnt;
 			out.dbcnt += cnt;
 		}
-		++out.dbcnt;
 		*out.dbp++ = '\n';
-		if (out.dbcnt >= out.dbsz)
+		if (++out.dbcnt >= out.dbsz)
 			dd_out(0);
 	}
 	if (in.dbcnt)
-		memmove(in.db, in.dbp - in.dbcnt, in.dbcnt);
+		(void)memmove(in.db, in.dbp - in.dbcnt, in.dbcnt);
 	in.dbp = in.db + in.dbcnt;
 }
 
 void
 unblock_close()
 {
-	int cnt;
 	u_char *t;
+	size_t cnt;
 
 	if (in.dbcnt) {
 		warnx("%s: short input record", in.name);
-		for (t = in.db + in.dbcnt - 1; t >= in.db && *t == ' '; --t);
+		for (t = in.db + in.dbcnt - 1; t >= in.db && *t == ' '; --t)
+			;
 		if (t >= in.db) {
 			cnt = t - in.db + 1;
-			memmove(out.dbp, in.db, cnt);
+			(void)memmove(out.dbp, in.db, cnt);
 			out.dbp += cnt;
 			out.dbcnt += cnt;
 		}

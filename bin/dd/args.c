@@ -67,10 +67,11 @@ static void	f_obs __P((char *));
 static void	f_of __P((char *));
 static void	f_seek __P((char *));
 static void	f_skip __P((char *));
-static u_long	get_bsz __P((char *));
+static quad_t	get_num __P((char *));
+static off_t	get_offset __P((char *));
 
-static struct arg {
-	char *name;
+static const struct arg {
+	const char *name;
 	void (*f) __P((char *));
 	u_int set, noset;
 } args[] = {
@@ -141,14 +142,14 @@ jcl(argv)
 	 * Ascii/ebcdic and cbs implies block/unblock.
 	 * Block/unblock requires cbs and vice-versa.
 	 */
-	if (ddflags & (C_BLOCK|C_UNBLOCK)) {
+	if (ddflags & (C_BLOCK | C_UNBLOCK)) {
 		if (!(ddflags & C_CBS))
 			errx(1, "record operations require cbs");
 		if (cbsz == 0)
 			errx(1, "cbs cannot be zero");
 		cfunc = ddflags & C_BLOCK ? block : unblock;
 	} else if (ddflags & C_CBS) {
-		if (ddflags & (C_ASCII|C_EBCDIC)) {
+		if (ddflags & (C_ASCII | C_EBCDIC)) {
 			if (ddflags & C_ASCII) {
 				ddflags |= C_UNBLOCK;
 				cfunc = unblock;
@@ -158,23 +159,14 @@ jcl(argv)
 			}
 		} else
 			errx(1, "cbs meaningless if not doing record operations");
-		if (cbsz == 0)
-			errx(1, "cbs cannot be zero");
 	} else
 		cfunc = def;
 
-	if (in.dbsz == 0 || out.dbsz == 0)
-		errx(1, "buffer sizes cannot be zero");
-
 	/*
-	 * Read, write and seek calls take ints as arguments.  Seek sizes
-	 * could be larger if we wanted to do it in stages or check only
-	 * regular files, but it's probably not worth it.
+	 * Bail out if the calculation of a file offset would overflow.
 	 */
-	if (in.dbsz > INT_MAX || out.dbsz > INT_MAX)
-		errx(1, "buffer sizes cannot be greater than %d", INT_MAX);
-	if (in.offset > INT_MAX / in.dbsz || out.offset > INT_MAX / out.dbsz)
-		errx(1, "seek offsets cannot be larger than %d", INT_MAX);
+	if (in.offset > QUAD_MAX / in.dbsz || out.offset > QUAD_MAX / out.dbsz)
+		errx(1, "seek offsets cannot be larger than %qd", QUAD_MAX);
 }
 
 static int
@@ -182,23 +174,32 @@ c_arg(a, b)
 	const void *a, *b;
 {
 
-	return (strcmp(((struct arg *)a)->name, ((struct arg *)b)->name));
+	return (strcmp(((const struct arg *)a)->name,
+	    ((const struct arg *)b)->name));
 }
 
 static void
 f_bs(arg)
 	char *arg;
 {
+	quad_t res;
 
-	in.dbsz = out.dbsz = (int)get_bsz(arg);
+	res = get_num(arg);
+	if (res < 1 || res > SSIZE_MAX)
+		errx(1, "bs must be between 1 and %d", SSIZE_MAX);
+	in.dbsz = out.dbsz = (size_t)res;
 }
 
 static void
 f_cbs(arg)
 	char *arg;
 {
+	quad_t res;
 
-	cbsz = (int)get_bsz(arg);
+	res = get_num(arg);
+	if (res < 1 || res > SSIZE_MAX)
+		errx(1, "cbs must be between 1 and %d", SSIZE_MAX);
+	cbsz = (size_t)res;
 }
 
 static void
@@ -206,9 +207,11 @@ f_count(arg)
 	char *arg;
 {
 
-	cpy_cnt = (u_int)get_bsz(arg);
-	if (!cpy_cnt)
-		terminate(0);
+	cpy_cnt = get_num(arg);
+	if (cpy_cnt < 0)
+		errx(1, "count cannot be negative");
+	if (cpy_cnt == 0)
+		cpy_cnt = -1;
 }
 
 static void
@@ -216,16 +219,23 @@ f_files(arg)
 	char *arg;
 {
 
-	files_cnt = (int)get_bsz(arg);
+	files_cnt = get_num(arg);
+	if (files_cnt < 1)
+		errx(1, "files must be between 1 and %qd", QUAD_MAX);
 }
 
 static void
 f_ibs(arg)
 	char *arg;
 {
+	quad_t res;
 
-	if (!(ddflags & C_BS))
-		in.dbsz = (int)get_bsz(arg);
+	if (!(ddflags & C_BS)) {
+		res = get_num(arg);
+		if (res < 1 || res > SSIZE_MAX)
+			errx(1, "ibs must be between 1 and %d", SSIZE_MAX);
+		in.dbsz = (size_t)res;
+	}
 }
 
 static void
@@ -240,9 +250,14 @@ static void
 f_obs(arg)
 	char *arg;
 {
+	quad_t res;
 
-	if (!(ddflags & C_BS))
-		out.dbsz = (int)get_bsz(arg);
+	if (!(ddflags & C_BS)) {
+		res = get_num(arg);
+		if (res < 1 || res > SSIZE_MAX)
+			errx(1, "obs must be between 1 and %d", SSIZE_MAX);
+		out.dbsz = (size_t)res;
+	}
 }
 
 static void
@@ -258,7 +273,7 @@ f_seek(arg)
 	char *arg;
 {
 
-	out.offset = (u_int)get_bsz(arg);
+	out.offset = get_offset(arg);
 }
 
 static void
@@ -266,13 +281,13 @@ f_skip(arg)
 	char *arg;
 {
 
-	in.offset = (u_int)get_bsz(arg);
+	in.offset = get_offset(arg);
 }
 
-static struct conv {
-	char *name;
+static const struct conv {
+	const char *name;
 	u_int set, noset;
-	u_char *ctab;
+	const u_char *ctab;
 } clist[] = {
 	{ "ascii",	C_ASCII,	C_EBCDIC,	e2a_POSIX },
 	{ "block",	C_BLOCK,	C_UNBLOCK,	NULL },
@@ -300,9 +315,9 @@ f_conv(arg)
 
 	while (arg != NULL) {
 		tmp.name = strsep(&arg, ",");
-		if (!(cp = (struct conv *)bsearch(&tmp, clist,
-		    sizeof(clist)/sizeof(struct conv), sizeof(struct conv),
-		    c_conv)))
+		cp = bsearch(&tmp, clist, sizeof(clist) / sizeof(struct conv),
+		    sizeof(struct conv), c_conv);
+		if (cp == NULL)
 			errx(1, "unknown conversion %s", tmp.name);
 		if (ddflags & cp->noset)
 			errx(1, "%s: illegal conversion combination", tmp.name);
@@ -317,34 +332,38 @@ c_conv(a, b)
 	const void *a, *b;
 {
 
-	return (strcmp(((struct conv *)a)->name, ((struct conv *)b)->name));
+	return (strcmp(((const struct conv *)a)->name,
+	    ((const struct conv *)b)->name));
 }
 
 /*
- * Convert an expression of the following forms to an unsigned long.
+ * Convert an expression of the following forms to a quad_t.
  * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a b (mult by 512).
- *	3) A positive decimal number followed by a k (mult by 1024).
- *	4) A positive decimal number followed by a m (mult by 512).
- *	5) A positive decimal number followed by a w (mult by sizeof int)
- *	6) Two or more positive decimal numbers (with/without k,b or w).
+ *	2) A positive decimal number followed by a b (mult by 512.)
+ *	3) A positive decimal number followed by a k (mult by 1 << 10.)
+ *	4) A positive decimal number followed by a m (mult by 1 << 20.)
+ *	5) A positive decimal number followed by a g (mult by 1 << 30.)
+ *	5) A positive decimal number followed by a w (mult by sizeof int.)
+ *	6) Two or more positive decimal numbers (with/without [bkmgw])
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
-static u_long
-get_bsz(val)
+static quad_t
+get_num(val)
 	char *val;
 {
-	u_long num, t;
+	quad_t num, t;
 	char *expr;
 
-	num = strtoul(val, &expr, 0);
-	if (num == ULONG_MAX)			/* Overflow. */
+	errno = 0;
+	num = strtoq(val, &expr, 0);
+	if (errno != 0)				/* Overflow or underflow. */
 		err(1, "%s", oper);
-	if (expr == val)			/* No digits. */
+	
+	if (expr == val)			/* No valid digits. */
 		errx(1, "%s: illegal numeric value", oper);
 
-	switch(*expr) {
+	switch (*expr) {
 	case 'b':
 		t = num;
 		num *= 512;
@@ -354,14 +373,21 @@ get_bsz(val)
 		break;
 	case 'k':
 		t = num;
-		num *= 1024;
+		num *= 1 << 10;
 		if (t > num)
 			goto erange;
 		++expr;
 		break;
 	case 'm':
 		t = num;
-		num *= 1048576;
+		num *= 1 << 20;
+		if (t > num)
+			goto erange;
+		++expr;
+		break;
+	case 'g':
+		t = num;
+		num *= 1 << 30;
 		if (t > num)
 			goto erange;
 		++expr;
@@ -375,18 +401,31 @@ get_bsz(val)
 		break;
 	}
 
-	switch(*expr) {
+	switch (*expr) {
 		case '\0':
 			break;
 		case '*':			/* Backward compatible. */
 		case 'x':
 			t = num;
-			num *= get_bsz(expr + 1);
-			if (t > num)
-erange:				errx(1, "%s: %s", oper, strerror(ERANGE));
-			break;
+			num *= get_num(expr + 1);
+			if (t <= num)
+				break;
+erange:
+			errx(1, "%s: %s", oper, strerror(ERANGE));
 		default:
 			errx(1, "%s: illegal numeric value", oper);
 	}
 	return (num);
+}
+
+static off_t
+get_offset(val)
+	char *val;
+{
+	quad_t num;
+
+	num = get_num(val);
+	if (num > QUAD_MAX || num < 0)		/* XXX quad_t != off_t */
+		errx(1, "%s: illegal offset", oper);	/* Too big/negative. */
+	return ((off_t)num);
 }
