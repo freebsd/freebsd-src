@@ -524,7 +524,7 @@ linux_sigaltstack(p, uap)
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
-	    (long)p->p_pid, args->uss, args->uoss);
+	    (long)p->p_pid, uap->uss, uap->uoss);
 #endif
 
 	error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
