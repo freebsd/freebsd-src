@@ -289,7 +289,7 @@ g_post_event(enum g_events ev, ...)
 		if (p == NULL)
 			break;
 		g_trace(G_T_TOPOLOGY, "  ref %p", p);
-		ep->ref[n++] = p;
+		ep->ref[n] = p;
 	}
 	va_end(ap);
 	KASSERT(p == NULL, ("Too many references to event"));
