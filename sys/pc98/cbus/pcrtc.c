@@ -141,9 +141,9 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	statclock_disable;
 #ifndef TIMER_FREQ
 #ifdef PC98
-#define	TIMER_FREQ	2457600;
+#define TIMER_FREQ   2457600
 #else /* IBM-PC */
-#define	TIMER_FREQ	1193182;
+#define TIMER_FREQ   1193182
 #endif /* PC98 */
 #endif
 u_int	timer_freq = TIMER_FREQ;
@@ -887,7 +887,7 @@ set_timer_freq(u_int freq, int intr_freq)
  * when it happnes, it messes up the hardclock interval and system clock,
  * which leads to the infamous "calcru: negative time" problem.
  */
-void
+static void
 i8254_restore(void)
 {
 
@@ -896,6 +896,31 @@ i8254_restore(void)
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
 	mtx_unlock_spin(&clock_lock);
+}
+
+#ifndef PC98
+static void
+rtc_restore(void)
+{
+
+	/* Reenable RTC updates and interrupts. */
+	/* XXX locking is needed for RTC access? */
+	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+	writertc(RTC_STATUSB, rtc_statusb);
+}
+#endif
+
+/*
+ * Restore all the timers atomically.
+ */
+void
+timer_restore(void)
+{
+
+	i8254_restore();		/* restore timer_freq and hz */
+#ifndef PC98
+	rtc_restore();			/* reenable RTC interrupts */
+#endif
 }
 
 /*
@@ -1303,13 +1328,15 @@ resettodr()
 void
 cpu_initclocks()
 {
+#ifndef PC98
+	int diag;
+#endif
 #ifdef APIC_IO
 	int apic_8254_trial;
 	void *clkdesc;
 #endif /* APIC_IO */
-#ifndef PC98
-	int diag;
 
+#ifndef PC98
 	if (statclock_disable) {
 		/*
 		 * The stat interrupt mask is different without the
@@ -1474,6 +1501,7 @@ setup_8254_mixed_mode()
 	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
 	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
 #endif	
+	
 	/* program IO APIC for type 3 INT on INT0 */
 	if (ext_int_setup(0, 0) < 0)
 		panic("8254 redirect via APIC pin0 impossible!");
@@ -1625,3 +1653,6 @@ static driver_t attimer_driver = {
 static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
+#ifndef PC98
+DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+#endif
