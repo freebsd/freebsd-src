@@ -222,11 +222,13 @@ again:
 	if (ipfw == 0 && args.next_hop != NULL) {
 		/* Overwrite existing tag. */
 		fwd_tag = m_tag_find(*m0, PACKET_TAG_IPFORWARD, NULL);
-		if (fwd_tag == NULL)
+		if (fwd_tag == NULL) {
 			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD,
 				sizeof(struct sockaddr_in), M_NOWAIT);
-		if (fwd_tag == NULL)
-			goto drop;
+			if (fwd_tag == NULL)
+				goto drop;
+		} else
+			m_tag_unlink(*m0, fwd_tag);
 		bcopy(args.next_hop, (fwd_tag+1), sizeof(struct sockaddr_in));
 		m_tag_prepend(*m0, fwd_tag);
 
