@@ -48,7 +48,7 @@ enum __ftw_modes {
 
 /* Prototype this so that we can have it later */
 
-static int __ftw_core(const char *, void *, int, int, enum __ftw_modes);
+static int __ftw_core(const char *, void (*)(), int, int, enum __ftw_modes);
 
 /*
  * The external function calls are really just wrappers around __ftw_core,
@@ -56,11 +56,11 @@ static int __ftw_core(const char *, void *, int, int, enum __ftw_modes);
  */
 
 int ftw (const char *dir, __ftw_func_t func, int descr) {
-    return __ftw_core(dir, func, descr, 0, MODE_FTW);
+    return __ftw_core(dir, (void (*)())func, descr, 0, MODE_FTW);
 }
 
 int nftw (const char *dir, __nftw_func_t func, int descr, int flags) {
-    return __ftw_core(dir, func, descr, flags, MODE_NFTW);
+    return __ftw_core(dir, (void (*)())func, descr, flags, MODE_NFTW);
 }
 
 /*
@@ -70,7 +70,7 @@ typedef int (*__nftw_func_t) \
     (const char *file, const struct stat status, int flag, struct FTW detail);
 */
 
-static int __ftw_core(const char *dir, void *func, int descr, int flags,
+static int __ftw_core(const char *dir, void (*func)(), int descr, int flags,
                       enum __ftw_modes mode) {
     FTS *hierarchy;
     FTSENT *entry;
