@@ -467,6 +467,7 @@ find_queue(struct dn_pipe *pipe)
 	last_pkt.dst_port &= pipe->flow_mask.dst_port ;
 	last_pkt.src_port &= pipe->flow_mask.src_port ;
 	last_pkt.proto &= pipe->flow_mask.proto ;
+	last_pkt.flags = 0 ; /* we don't care about this one */
 	/* then, hash function */
 	i = ( (last_pkt.dst_ip) & 0xffff ) ^
 	    ( (last_pkt.dst_ip >> 15) & 0xffff ) ^
