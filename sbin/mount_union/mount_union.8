@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_union.8	8.6 (Berkeley) 3/27/94
-.\"	$Id$
+.\"	$Id: mount_union.8,v 1.4 1998/07/15 06:13:45 charnier Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT_UNION 8
@@ -183,6 +183,15 @@ accessible via
 .Xr mount 8 ,
 .Xr mount_null 8
 .Sh BUGS
+
+THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
+OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
+
+This code also needs an owner in order to be less dangerous - serious
+hackers can apply by sending mail to hackers@freebsd.org and announcing
+their intent to take it over.
+
 Without whiteout support from the filesystem backing the upper layer,
 there is no way that delete and rename operations on lower layer
 objects can be done.
@@ -200,3 +209,4 @@ The
 .Nm
 command first appeared in
 .Bx 4.4 .
+It first worked in FreeBSD-(fill this in).
