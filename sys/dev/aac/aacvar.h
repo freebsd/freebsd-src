@@ -389,7 +389,7 @@ extern void		aac_dump_complete(struct aac_softc *sc);
 	} while (0)
 # define debug_called(level)						\
 	do {								\
-	if (level <= AAC_DEBUG) printf(__func__ ": called\n");	\
+	if (level <= AAC_DEBUG) printf("%s: called\n", __func__);	\
 	} while (0)
 
 extern void	aac_print_queues(struct aac_softc *sc);
