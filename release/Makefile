@@ -208,8 +208,8 @@ MFSINODE=		8192
 BIGBOOTLABEL=		auto
 MFSLABEL=		auto
 .elif ${TARGET_ARCH} == "ia64"
-BIGBOOTLABEL=		fd120m
-BIGBOOTSIZE=		123264
+BIGBOOTLABEL=		efi
+BIGBOOTSIZE=		5154
 BOOTINODE=		15872
 MFSINODE=		8192
 MFSLABEL=		auto
@@ -247,6 +247,13 @@ CD_DISC2=		${CD}/disc2
 
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
+
+# ia64 is different enough that we want our own doFS.sh.
+.if ${TARGET_ARCH} == "ia64"
+DOFS_SH=	${.CURDIR}/ia64/doFS.sh
+.else
+DOFS_SH=	${.CURDIR}/scripts/doFS.sh
+.endif
 
 .if ${TARGET_ARCH} == "sparc64"
 CRUNCH_TARGETS= boot
@@ -678,10 +685,10 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
-	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot-small ${RD} ${MNT} \
+	sh -e ${DOFS_SH} -s mfsroot-small ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot-small > mfsroot-small.gz
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot-small.flp \
+	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot-small.gz \
 		${BOOTINODE} ${SMALLBOOTLABEL}
 .endif
@@ -698,19 +705,19 @@ release.9:
 	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
 	-@rmdir ${RD}/driversfd
 	if [ -d ${RD}/driversfd ]; then \
-	    sh -e ${.CURDIR}/scripts/doFS.sh \
+	    sh -e ${DOFS_SH} \
 		${RD}/floppies/drivers.flp ${RD} ${MNT} ${DRIVERSIZE} \
 		${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
 	fi
 .endif
-	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
+	sh -e ${DOFS_SH} -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
 	@mkdir -p ${RD}/mfsroot
 	@cp mfsroot.gz ${RD}/mfsroot
 .if !defined(NO_FLOPPIES)
 .if defined(BOOTSIZE)
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
+	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 .endif
@@ -747,7 +754,7 @@ release.10:
 .if defined(SMALLFIXITSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit-small \
 		DIR=${RD}/fixitfd/stand ZIP=false
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit-small.flp \
+	@sh -e ${DOFS_SH} ${RD}/floppies/fixit-small.flp \
 		${RD} ${MNT} ${SMALLFIXITSIZE} ${RD}/fixitfd ${FIXITINODE} \
 		${SMALLFIXITLABEL}
 	@rm -rf ${RD}/fixitfd/stand
@@ -755,7 +762,7 @@ release.10:
 .endif
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
+	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
@@ -1045,15 +1052,15 @@ doMFSKERN:
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "BIG"
 	@cp mfsroot.gz ${RD}/image.${FSIMAGE}
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BIGBOOTLABEL}
 .elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${SMALLBOOTLABEL}
 .else
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BOOTLABEL}
 .endif
