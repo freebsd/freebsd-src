@@ -315,7 +315,7 @@ main(int argc, char *argv[])
 	 * pam_setcred(pamh, PAM_DELETE_CRED) as root.
 	 */
 	sa.sa_flags = SA_RESTART;
-	sa.__sigaction_u.__sa_handler = SIG_IGN;
+	sa.sa_handler = SIG_IGN;
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
