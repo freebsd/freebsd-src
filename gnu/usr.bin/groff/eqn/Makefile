@@ -4,7 +4,6 @@ PROG=		eqn
 SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \
 		box.cc limit.cc list.cc over.cc text.cc \
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
-CFLAGS+=	-I.
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 MAN1=		eqn.1 neqn.1
@@ -20,6 +19,8 @@ eqn.tab.h: eqn.cc
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
+
+INCLUDES+=	-I${DIST_DIR} -I.
 
 neqn: ${DIST_DIR}/neqn.sh
 	sed -e 's/@g@/${g}/g' ${.ALLSRC} > ${.TARGET}
