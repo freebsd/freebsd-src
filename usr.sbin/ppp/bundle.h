@@ -136,6 +136,7 @@ struct bundle {
 
 #ifndef NORADIUS
   struct radius radius;       /* Info retrieved from radius server */
+  struct radacct radacct;
 #endif
 };
 

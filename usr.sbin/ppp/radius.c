@@ -117,6 +117,12 @@ radius_Process(struct radius *r, int got)
       rad_close(r->cx.rad);
       return;
 
+    case RAD_ACCOUNTING_RESPONSE:
+      log_Printf(LogPHASE, "Radius: Accounting response received\n");
+      /* No further processing for accounting requests, please */
+      rad_close(r->cx.rad);
+      return;
+
     case -1:
       log_Printf(LogPHASE, "radius: %s\n", rad_strerror(r->cx.rad));
       auth_Failure(r->cx.auth);
@@ -325,6 +331,7 @@ radius_Init(struct radius *r)
   r->desc.Read = radius_Read;
   r->desc.Write = radius_Write;
   memset(&r->cx.timer, '\0', sizeof r->cx.timer);
+  log_Printf(LogDEBUG, "Radius: radius_Init\n");
 }
 
 /*
@@ -334,6 +341,7 @@ void
 radius_Destroy(struct radius *r)
 {
   r->valid = 0;
+  log_Printf(LogDEBUG, "Radius: radius_Destroy\n");
   timer_Stop(&r->cx.timer);
   route_DeleteAll(&r->routes);
   if (r->cx.fd != -1) {
@@ -368,8 +376,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
 
   radius_Destroy(r);
 
-  if ((r->cx.rad = rad_open()) == NULL) {
-    log_Printf(LogERROR, "rad_open: %s\n", strerror(errno));
+  if ((r->cx.rad = rad_auth_open()) == NULL) {
+    log_Printf(LogERROR, "rad_auth_open: %s\n", strerror(errno));
     return;
   }
 
@@ -457,6 +465,159 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     r->cx.timer.name = "radius";
     r->cx.timer.arg = r;
     r->cx.auth = authp;
+    timer_Start(&r->cx.timer);
+  }
+}
+
+/*
+ * Send an accounting request to the RADIUS server
+ */
+void
+radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl, 
+               int acct_type, struct in_addr *peer_ip, struct in_addr *netmask,
+               struct pppThroughput *stats)
+{
+  struct ttyent *ttyp;
+  struct timeval tv;
+  int got, slot;
+  char hostname[MAXHOSTNAMELEN];
+  struct hostent *hp;
+  struct in_addr hostaddr;
+
+  if (!*r->cfg.file)
+    return;
+
+  if (r->cx.fd != -1)
+    /*
+     * We assume that our name/key/challenge is the same as last time,
+     * and just continue to wait for the RADIUS server(s).
+     */
+    return;
+
+  radius_Destroy(r);
+
+  if ((r->cx.rad = rad_auth_open()) == NULL) {
+    log_Printf(LogERROR, "rad_auth_open: %s\n", strerror(errno));
+    return;
+  }
+
+  if (rad_config(r->cx.rad, r->cfg.file) != 0) {
+    log_Printf(LogERROR, "rad_config: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (rad_create_request(r->cx.rad, RAD_ACCOUNTING_REQUEST) != 0) {
+    log_Printf(LogERROR, "rad_create_request: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  /* Grab some accounting data and initialize structure */
+  if (acct_type == RAD_START) {
+    ac->rad_parent = r;
+    /* Fetch username from datalink */
+    strncpy(ac->user_name, dl->peer.authname, sizeof ac->user_name);
+    ac->user_name[AUTHLEN-1] = '\0';
+
+    ac->authentic = 2;		/* Assume RADIUS verified auth data */
+ 
+    /* Generate a session ID */
+    snprintf(ac->session_id, sizeof ac->session_id, "%s%d-%s%lu",
+             dl->bundle->cfg.auth.name, (int)getpid(),
+             dl->peer.authname, (unsigned long)stats->uptime);
+
+    /* And grab our MP socket name */
+    snprintf(ac->multi_session_id, sizeof ac->multi_session_id, "%s",
+             dl->bundle->ncp.mp.active ?
+             dl->bundle->ncp.mp.server.socket.sun_path : "");
+
+    /* Fetch IP, netmask from IPCP */
+    memcpy(&ac->ip, peer_ip, sizeof(ac->ip));
+    memcpy(&ac->mask, netmask, sizeof(ac->mask));
+  };
+
+  if (rad_put_string(r->cx.rad, RAD_USER_NAME, ac->user_name) != 0 ||
+      rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
+      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0 || 
+      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS, ac->ip) != 0 || 
+      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_NETMASK, ac->mask) != 0) {
+    log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (gethostname(hostname, sizeof hostname) != 0)
+    log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
+  else {
+    if ((hp = gethostbyname(hostname)) != NULL) {
+      hostaddr.s_addr = *(u_long *)hp->h_addr;
+      if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
+        log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                   rad_strerror(r->cx.rad));
+        rad_close(r->cx.rad);
+        return;
+      }
+    }
+    if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
+      log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                 rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+  }
+
+  if (dl->physical->handler &&
+      dl->physical->handler->type == TTY_DEVICE) {
+    setttyent();
+    for (slot = 1; (ttyp = getttyent()); ++slot)
+      if (!strcmp(ttyp->ty_name, dl->physical->name.base)) {
+        if(rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
+          log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                      rad_strerror(r->cx.rad));
+          rad_close(r->cx.rad);
+          endttyent();
+          return;
+        }
+        break;
+      }
+    endttyent();
+  }
+
+  if (rad_put_int(r->cx.rad, RAD_ACCT_STATUS_TYPE, acct_type) != 0 ||
+      rad_put_string(r->cx.rad, RAD_ACCT_SESSION_ID, ac->session_id) != 0 || 
+      rad_put_string(r->cx.rad, RAD_ACCT_MULTI_SESSION_ID,
+                     ac->multi_session_id) != 0 ||
+      rad_put_int(r->cx.rad, RAD_ACCT_DELAY_TIME, 0) != 0) { 
+/* XXX ACCT_DELAY_TIME should be increased each time a packet is waiting */
+    log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (acct_type == RAD_STOP)
+  /* Show some statistics */
+    if (rad_put_int(r->cx.rad, RAD_ACCT_INPUT_OCTETS, stats->OctetsIn) != 0 ||
+        rad_put_int(r->cx.rad, RAD_ACCT_INPUT_PACKETS, stats->PacketsIn) != 0 ||
+        rad_put_int(r->cx.rad, RAD_ACCT_OUTPUT_OCTETS, stats->OctetsOut) != 0 ||
+        rad_put_int(r->cx.rad, RAD_ACCT_OUTPUT_PACKETS, stats->PacketsOut)
+        != 0 ||
+        rad_put_int(r->cx.rad, RAD_ACCT_SESSION_TIME, throughput_uptime(stats))
+        != 0) {
+      log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+
+  if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
+    radius_Process(r, got);
+  else {
+    log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
+    r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
+    r->cx.timer.func = radius_Timeout;
+    r->cx.timer.name = "radius";
+    r->cx.timer.arg = r;
+    r->cx.auth = NULL; /* Not valid for accounting requests */
     timer_Start(&r->cx.timer);
   }
 }
