@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.69 1999/06/28 02:37:34 billf Exp $
+ * $Id: index.c,v 1.70 1999/07/02 22:36:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,6 +97,7 @@ static char *descrs[] = {
     "elisp", "Things related to Emacs Lisp.",
     "elisp", "Emacs lisp ports.",
     "emulators", "Utilities for emulating other OS types.",
+    "emulators", "FTP client and server utilities.",
     "games", "Various and sundry amusements.",
     "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
