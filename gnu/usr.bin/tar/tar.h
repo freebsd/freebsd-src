@@ -22,6 +22,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/mknod.h>
 #endif
 
+/* 
+ * We need to include <sys/types.h> for the u_quad_t definition
+ */
+
+#include <sys/types.h>
+
 /*
  * Kludge for handling systems that can't cope with multiple
  * external definitions of a variable.  In ONE routine (tar.c),
@@ -168,7 +174,7 @@ TAR_EXTERN char filename_terminator;	/* \n or \0. */
 TAR_EXTERN char *tar;		/* Name of this program */
 TAR_EXTERN struct sp_array *sparsearray;	/* Pointer to the start of the scratch space */
 TAR_EXTERN int sp_array_size;	/* Initial size of the sparsearray */
-TAR_EXTERN int tot_written;	/* Total written to output */
+TAR_EXTERN u_quad_t tot_written;	/* Total written to output */
 TAR_EXTERN struct re_pattern_buffer
  *label_pattern;		/* compiled regex for extract label */
 TAR_EXTERN char **ar_files;	/* list of tape drive names */
