@@ -501,6 +501,7 @@ typedef struct cfg_entry {
 #define	BUDGET_TYPE_CBACK 1
 #define	BUDGET_TYPE_COUT  2
 
+	char 	keypad[KEYPAD_MAX];	/* keypad string		*/
 } cfg_entry_t;
 
 /*---------------------------------------------------------------------------*
@@ -752,6 +753,7 @@ int exec_connect_prog ( cfg_entry_t *cep, const char *prog, int link_down );
 pid_t exec_prog ( char *prog, char **arglist );
 cfg_entry_t * find_by_device_for_dialout ( int drivertype, int driverunit );
 cfg_entry_t *find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd);
+cfg_entry_t *find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd);
 cfg_entry_t * find_matching_entry_incoming ( msg_connect_ind_t *mp );
 cfg_entry_t * find_active_entry_by_driver ( int drivertype, int driverunit );
 void finish_log ( void );

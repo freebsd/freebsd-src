@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +49,7 @@ extern void i4b_l4_daemon_attached(void);
 extern void i4b_l4_daemon_detached(void);
 extern void i4b_l4_dialout( int driver, int driver_unit );
 extern void i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd);
+extern void i4b_l4_keypad(int driver, int driver_unit, int cmdlen, char *cmd);
 extern void i4b_l4_disconnect_ind ( call_desc_t *cd );
 extern void i4b_l4_drvrdisc (int driver, int driver_unit );
 extern void i4b_l4_negcomplete( call_desc_t *cd );

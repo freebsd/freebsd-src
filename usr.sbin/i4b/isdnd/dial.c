@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,6 +45,9 @@ void
 select_first_dialno(cfg_entry_t *cep)
 {
 	int i, j;
+
+	if(cep->keypad[0] != '\0')
+		return;
 
 	if(cep->remote_numbers_count < 1)
 	{

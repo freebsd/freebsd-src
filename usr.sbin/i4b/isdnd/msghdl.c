@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -868,6 +868,60 @@ msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: get_cdid() returned 0!")));
 		return;
 	}
+
+	cep->keypad[0] = '\0';	
+	cep->charge = 0;
+	cep->last_charge = 0;
+	cep->hangup = 0;
+
+	next_state(cep, EV_MDO);	
+}
+
+/*---------------------------------------------------------------------------*
+ *	handle incoming KEYPAD message
+ *---------------------------------------------------------------------------*/
+void
+msg_keypad(msg_keypad_ind_t *mp)
+{
+	cfg_entry_t *cep;
+	
+	DBGL(DL_DRVR, (log(LL_DBG, "msg_keypad: dial req from %s, unit %d", bdrivername(mp->driver), mp->driver_unit)));
+
+	if((cep = find_by_device_for_keypad(mp->driver, mp->driver_unit, mp->cmdlen, mp->cmd)) == NULL)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_keypad: config entry reserved or no match")));
+		return;
+	}
+
+	if(cep->inout == DIR_INONLY)
+	{
+		dialresponse(cep, DSTAT_INONLY);
+		return;
+	}
+	
+	if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+	{
+		cep->budget_calltype = 0;
+		cep->budget_callout_req++;
+		
+		if(cep->budget_calloutncalls_cnt == 0)
+		{
+			log(LL_CHD, "%05d %s no budget for calling out", 0, cep->name);
+			cep->budget_callout_rej++;
+			dialresponse(cep, DSTAT_TFAIL);
+			return;
+		}
+		else
+		{
+			cep->budget_calltype = BUDGET_TYPE_COUT;
+		}
+	}
+
+	if((cep->cdid = get_cdid()) == 0)
+	{
+		DBGL(DL_DRVR, (log(LL_DBG, "msg_keypad: get_cdid() returned 0!")));
+		return;
+	}
 	
 	cep->charge = 0;
 	cep->last_charge = 0;
@@ -1166,6 +1220,7 @@ sendm_connect_req(cfg_entry_t *cep)
 	
 	strcpy(mcr.dst_telno, cep->remote_phone_dialout);
 	strcpy(mcr.src_telno, cep->local_phone_dialout);
+	strcpy(mcr.keypad, cep->keypad);	
 
 	cep->last_dial_time = time(NULL);
 	cep->direction = DIR_OUT;

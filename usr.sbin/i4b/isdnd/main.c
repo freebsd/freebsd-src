@@ -713,6 +713,10 @@ isdnrdhdl(void)
 				msg_packet_ind((msg_packet_ind_t *)msg_rd_buf);
 				break;
 
+			case MSG_KEYPAD_IND:
+				msg_keypad((msg_keypad_ind_t *)msg_rd_buf);
+				break;
+
 			default:
 				log(LL_WRN, "ERROR, unknown message received from %sisdn (0x%x)", _PATH_DEV, msg_rd_buf[0]);
 				break;
