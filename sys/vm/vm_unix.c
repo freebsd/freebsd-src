@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.3 1994/08/02 07:55:41 davidg Exp $
+ * $Id: vm_unix.c,v 1.4 1995/01/09 16:05:59 davidg Exp $
  */
 
 /*
@@ -79,14 +79,14 @@ obreak(p, uap, retval)
 		if (swap_pager_full) {
 			return (ENOMEM);
 		}
-		rv = vm_allocate(&vm->vm_map, &old, diff, FALSE);
+		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
 	} else if (diff < 0) {
 		diff = -diff;
-		rv = vm_deallocate(&vm->vm_map, new, diff);
+		rv = vm_map_remove(&vm->vm_map, new, new + diff);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}
