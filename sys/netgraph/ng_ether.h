@@ -67,6 +67,7 @@ enum {
 	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
 	NGM_ETHER_ADD_MULTI,		/* add multicast membership */
 	NGM_ETHER_DEL_MULTI,		/* delete multicast membership */
+	NGM_ETHER_DETACH,		/* our way to be shut down */
 };
 
 #endif /* _NETGRAPH_NG_ETHER_H_ */
