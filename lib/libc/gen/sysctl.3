@@ -559,7 +559,14 @@ The fifth and sixth level names are as follows:
 .It "NET_RT_FLAGS	rtflags"
 .It "NET_RT_DUMP	None"
 .It "NET_RT_IFLIST	0 or if_index"
+.It "NET_RT_IFMALIST	0 or if_index"
 .El
+.Pp
+The
+.Dv NET_RT_IFMALIST
+name returns information about multicast group memberships on all interfaces
+if 0 is specified, or for the interface specified by
+.Va if_index .
 .It Li PF_INET
 Get or set various global information about the IPv4
 (Internet Protocol version 4).
