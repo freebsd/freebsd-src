@@ -240,7 +240,7 @@ static int	ip_dooptions(struct mbuf *m, int,
 static void	ip_forward(struct mbuf *m, int srcrt,
 			struct sockaddr_in *next_hop);
 static void	ip_freef(struct ipqhead *, struct ipq *);
-static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *, struct ipq *);
+static struct	mbuf *ip_reass(struct mbuf *);
 
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -296,7 +296,6 @@ void
 ip_input(struct mbuf *m)
 {
 	struct ip *ip = NULL;
-	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
 	int    i, checkif, hlen = 0;
@@ -726,103 +725,19 @@ ours:
 	}
 
 	/*
-	 * If offset or IP_MF are set, must reassemble.
-	 * Otherwise, nothing need be done.
-	 * (We could look in the reassembly queue to see
-	 * if the packet was previously fragmented,
-	 * but it's not worth the time; just let them time out.)
+	 * Attempt reassembly; if it succeeds, proceed.
+	 * ip_reass() will return a different mbuf.
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
-
-		/* If maxnipq is 0, never accept fragments. */
-		if (maxnipq == 0) {
-                	ipstat.ips_fragments++;
-			ipstat.ips_fragdropped++;
-			goto bad;
-		}
-
-		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
-		IPQ_LOCK();
-		/*
-		 * Look for queue of fragments
-		 * of this datagram.
-		 */
-		TAILQ_FOREACH(fp, &ipq[sum], ipq_list)
-			if (ip->ip_id == fp->ipq_id &&
-			    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
-			    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
-#ifdef MAC
-			    mac_fragment_match(m, fp) &&
-#endif
-			    ip->ip_p == fp->ipq_p)
-				goto found;
-
-		fp = NULL;
-
-		/*
-		 * Enforce upper bound on number of fragmented packets
-		 * for which we attempt reassembly;
-		 * If maxnipq is -1, accept all fragments without limitation.
-		 */
-		if ((nipq > maxnipq) && (maxnipq > 0)) {
-		    /*
-		     * drop something from the tail of the current queue
-		     * before proceeding further
-		     */
-		    struct ipq *q = TAILQ_LAST(&ipq[sum], ipqhead);
-		    if (q == NULL) {   /* gak */
-			for (i = 0; i < IPREASS_NHASH; i++) {
-			    struct ipq *r = TAILQ_LAST(&ipq[i], ipqhead);
-			    if (r) {
-				ipstat.ips_fragtimeout += r->ipq_nfrags;
-				ip_freef(&ipq[i], r);
-				break;
-			    }
-			}
-		    } else {
-			ipstat.ips_fragtimeout += q->ipq_nfrags;
-			ip_freef(&ipq[sum], q);
-		    }
-		}
-found:
-		/*
-		 * Adjust ip_len to not reflect header,
-		 * convert offset of this to bytes.
-		 */
-		ip->ip_len -= hlen;
-		if (ip->ip_off & IP_MF) {
-		        /*
-		         * Make sure that fragments have a data length
-			 * that's a non-zero multiple of 8 bytes.
-		         */
-			if (ip->ip_len == 0 || (ip->ip_len & 0x7) != 0) {
-				IPQ_UNLOCK();
-				ipstat.ips_toosmall++; /* XXX */
-				goto bad;
-			}
-			m->m_flags |= M_FRAG;
-		} else
-			m->m_flags &= ~M_FRAG;
-		ip->ip_off <<= 3;
-
-		/*
-		 * Attempt reassembly; if it succeeds, proceed.
-		 * ip_reass() will return a different mbuf.
-		 */
-		ipstat.ips_fragments++;
-		m->m_pkthdr.header = ip;
-		m = ip_reass(m, &ipq[sum], fp);
-		IPQ_UNLOCK();
-		if (m == 0)
+		m = ip_reass(m);
+		if (m == NULL)
 			return;
-		ipstat.ips_reassembled++;
 		ip = mtod(m, struct ip *);
 		/* Get the header length of the reassembled packet */
 		hlen = ip->ip_hl << 2;
 #ifdef IPDIVERT
 		/* Restore original checksum before diverting packet */
 		if (divert_find_info(m) != 0) {
-			ip->ip_len += hlen;
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
 			ip->ip_sum = 0;
@@ -832,11 +747,15 @@ found:
 				ip->ip_sum = in_cksum(m, hlen);
 			ip->ip_off = ntohs(ip->ip_off);
 			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_len -= hlen;
 		}
 #endif
-	} else
-		ip->ip_len -= hlen;
+	}
+
+	/*
+	 * Further protocols expect the packet length to be w/o the
+	 * IP header.
+	 */
+	ip->ip_len -= hlen;
 
 #ifdef IPDIVERT
 	/*
@@ -951,27 +870,112 @@ bad:
 
 /*
  * Take incoming datagram fragment and try to reassemble it into
- * whole datagram.  If a chain for reassembly of this datagram already
- * exists, then it is given as fp; otherwise have to make a chain.
- *
- * When IPDIVERT enabled, keep additional state with each packet that
- * tells us if we need to divert or tee the packet we're building.
- * In particular, *divinfo includes the port and TEE flag,
- * *divert_rule is the number of the matching rule.
+ * whole datagram.  If the argument is the first fragment or one
+ * in between the function will return NULL and store the mbuf
+ * in the fragment chain.  If the argument is the last fragment
+ * the packet will be reassembled and the pointer to the new
+ * mbuf returned for further processing.  Only m_tags attached
+ * to the first packet/fragment are preserved.
+ * The IP header is *NOT* adjusted out of iplen.
  */
 
-static struct mbuf *
-ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp)
+struct mbuf *
+ip_reass(struct mbuf *m)
 {
-	struct ip *ip = mtod(m, struct ip *);
-	register struct mbuf *p, *q, *nq;
-	struct mbuf *t;
-	int hlen = ip->ip_hl << 2;
-	int i, next;
+	struct ip *ip;
+	struct mbuf *p, *q, *nq, *t;
+	struct ipq *fp = NULL;
+	struct ipqhead *head;
+	int i, hlen, next;
 	u_int8_t ecn, ecn0;
+	u_short hash;
 
-	IPQ_LOCK_ASSERT();
+	/* If maxnipq is 0, never accept fragments. */
+	if (maxnipq == 0) {
+		ipstat.ips_fragments++;
+		ipstat.ips_fragdropped++;
+		goto dropfrag;
+	}
 
+	ip = mtod(m, struct ip *);
+	hlen = ip->ip_hl << 2;
+
+	hash = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
+	head = &ipq[hash];
+	IPQ_LOCK();
+
+	/*
+	 * Look for queue of fragments
+	 * of this datagram.
+	 */
+	TAILQ_FOREACH(fp, head, ipq_list)
+		if (ip->ip_id == fp->ipq_id &&
+		    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
+		    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
+#ifdef MAC
+		    mac_fragment_match(m, fp) &&
+#endif
+		    ip->ip_p == fp->ipq_p)
+			goto found;
+
+	fp = NULL;
+
+	/*
+	 * Enforce upper bound on number of fragmented packets
+	 * for which we attempt reassembly;
+	 * If maxnipq is -1, accept all fragments without limitation.
+	 */
+	if ((nipq > maxnipq) && (maxnipq > 0)) {
+		/*
+		 * drop something from the tail of the current queue
+		 * before proceeding further
+		 */
+		struct ipq *q = TAILQ_LAST(head, ipqhead);
+		if (q == NULL) {   /* gak */
+			for (i = 0; i < IPREASS_NHASH; i++) {
+				struct ipq *r = TAILQ_LAST(&ipq[i], ipqhead);
+				if (r) {
+					ipstat.ips_fragtimeout += r->ipq_nfrags;
+					ip_freef(&ipq[i], r);
+					break;
+				}
+			}
+		} else {
+			ipstat.ips_fragtimeout += q->ipq_nfrags;
+			ip_freef(head, q);
+		}
+	}
+
+found:
+	/*
+	 * Adjust ip_len to not reflect header,
+	 * convert offset of this to bytes.
+	 */
+	ip->ip_len -= hlen;
+	if (ip->ip_off & IP_MF) {
+		/*
+		 * Make sure that fragments have a data length
+		 * that's a non-zero multiple of 8 bytes.
+		 */
+		if (ip->ip_len == 0 || (ip->ip_len & 0x7) != 0) {
+			IPQ_UNLOCK();
+			ipstat.ips_toosmall++; /* XXX */
+			goto dropfrag;
+		}
+		m->m_flags |= M_FRAG;
+	} else
+		m->m_flags &= ~M_FRAG;
+	ip->ip_off <<= 3;
+
+
+	/*
+	 * Attempt reassembly; if it succeeds, proceed.
+	 * ip_reass() will return a different mbuf.
+	 */
+	ipstat.ips_fragments++;
+	m->m_pkthdr.header = ip;
+
+	/* Previous ip_reass() started here. */
 	/*
 	 * Presence of header sizes in mbufs
 	 * would confuse code below.
@@ -1114,7 +1118,7 @@ inserted:
 				ipstat.ips_fragdropped += fp->ipq_nfrags;
 				ip_freef(head, fp);
 			}
-			return (0);
+			goto done;
 		}
 		next += GETIP(q)->ip_len;
 	}
@@ -1124,7 +1128,7 @@ inserted:
 			ipstat.ips_fragdropped += fp->ipq_nfrags;
 			ip_freef(head, fp);
 		}
-		return (0);
+		goto done;
 	}
 
 	/*
@@ -1136,7 +1140,7 @@ inserted:
 		ipstat.ips_toolong++;
 		ipstat.ips_fragdropped += fp->ipq_nfrags;
 		ip_freef(head, fp);
-		return (0);
+		goto done;
 	}
 
 	/*
@@ -1161,12 +1165,11 @@ inserted:
 #endif
 
 	/*
-	 * Create header for new ip packet by
-	 * modifying header of first packet;
-	 * dequeue and discard fragment reassembly header.
+	 * Create header for new ip packet by modifying header of first
+	 * packet;  dequeue and discard fragment reassembly header.
 	 * Make header visible.
 	 */
-	ip->ip_len = next;
+	ip->ip_len = (ip->ip_hl << 2) + next;
 	ip->ip_src = fp->ipq_src;
 	ip->ip_dst = fp->ipq_dst;
 	TAILQ_REMOVE(head, fp, ipq_list);
@@ -1177,6 +1180,8 @@ inserted:
 	/* some debugging cruft by sklower, below, will go away soon */
 	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
 		m_fixhdr(m);
+	ipstat.ips_reassembled++;
+	IPQ_UNLOCK();
 	return (m);
 
 dropfrag:
@@ -1184,7 +1189,9 @@ dropfrag:
 	if (fp != NULL)
 		fp->ipq_nfrags--;
 	m_freem(m);
-	return (0);
+done:
+	IPQ_UNLOCK();
+	return (NULL);
 
 #undef GETIP
 }
