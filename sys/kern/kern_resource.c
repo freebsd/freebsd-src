@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.6 1994/10/02 04:45:49 davidg Exp $
+ * $Id: kern_resource.c,v 1.7 1994/10/10 01:00:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -362,16 +362,16 @@ dosetrlimit(p, which, limp)
 	switch (which) {
 
 	case RLIMIT_DATA:
-		if (limp->rlim_cur > MAXDSIZ)
+		if ((u_quad_t) limp->rlim_cur > MAXDSIZ)
 			limp->rlim_cur = MAXDSIZ;
-		if (limp->rlim_max > MAXDSIZ)
+		if ((u_quad_t) limp->rlim_max > MAXDSIZ)
 			limp->rlim_max = MAXDSIZ;
 		break;
 
 	case RLIMIT_STACK:
-		if (limp->rlim_cur > MAXSSIZ)
+		if ((u_quad_t) limp->rlim_cur > MAXSSIZ)
 			limp->rlim_cur = MAXSSIZ;
-		if (limp->rlim_max > MAXSSIZ)
+		if ((u_quad_t) limp->rlim_max > MAXSSIZ)
 			limp->rlim_max = MAXSSIZ;
 		/*
 		 * Stack is allocated to the max at exec time with only
@@ -383,7 +383,7 @@ dosetrlimit(p, which, limp)
 			vm_size_t size;
 			vm_prot_t prot;
 
-			if (limp->rlim_cur > alimp->rlim_cur) {
+			if ((u_quad_t) limp->rlim_cur > alimp->rlim_cur) {
 				prot = VM_PROT_ALL;
 				size = limp->rlim_cur - alimp->rlim_cur;
 				addr = USRSTACK - limp->rlim_cur;
