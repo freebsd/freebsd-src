@@ -92,7 +92,6 @@ ia64/ia64/clock.c		standard
 ia64/ia64/clock_if.m		standard
 ia64/ia64/context.S		standard
 ia64/ia64/critical.c		standard
-ia64/ia64/db_disasm.c		optional	ddb
 ia64/ia64/db_interface.c	optional	ddb
 ia64/ia64/db_trace.c		optional	ddb
 ia64/ia64/dump_machdep.c	standard
