@@ -31,7 +31,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" @(#)pcvt.4, 3.20, Last Edit-Date: [Sun Apr  2 18:23:39 1995]
-.\"	$Id: pcvt.4,v 1.7 1997/03/07 02:49:54 jmg Exp $
+.\"	$Id: pcvt.4,v 1.8 1997/03/21 20:13:53 mpp Exp $
 .\"
 .\" Man page pcvt(4) created after pcvt_ioctl.h on 13-Jan-93
 .\" by Joerg Wunsch
@@ -81,9 +81,8 @@ vector
 The
 .Nm pcvt
 driver provides a virtual screen system with several additional
-features not available in
-.Xr pc 4
-standard console device driver. Besides the ability of handling
+features not available in historic console drivers.
+Besides the ability of handling
 multiple virtual screens,
 the probably most important is an emulation of a wide range
 of DEC VT-220
@@ -860,8 +859,8 @@ Brian Dunford-Shore
 .br
 .It This driver is based on several people's previous
 .It work, notably by :
-William Jolitz' and Don Ahn's
-.Xr pc 4
+William Jolitz' and Don Ahn's historic
+.Xr pccons 4
 implementation
 .Pq ljolitz@cardio.ucsf.edu
 .br
