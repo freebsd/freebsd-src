@@ -14,6 +14,7 @@
 
 clean:  kernel-clean
 cleandepend:  kernel-cleandepend
+cleandir:
 clobber: kernel-clobber
 depend: kernel-depend
 install: kernel-install
