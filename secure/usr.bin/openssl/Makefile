@@ -1,12 +1,9 @@
 # $FreeBSD$
 
-PROG=	xopenssl
-PROGNAME=	openssl
+PROG=	openssl
 
 DPADD=	${LIBSSL} ${LIBCRYPTO}
 LDADD=	-lssl -lcrypto
-
-NOLINT=		true
 
 .if exists(Makefile.man)
 .include "Makefile.man"
