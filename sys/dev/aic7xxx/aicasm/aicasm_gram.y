@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm_gram.y#4 $
  *
  * $FreeBSD$
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +63,7 @@ static symbol_ref_t sindex;
 static int instruction_ptr;
 static int sram_or_scb_offset;
 static int download_constant_count;
+static int in_critical_section;
 
 static void process_bitmask(int mask_type, symbol_t *sym, int mask);
 static void initialize_symbol(symbol_t *symbol);
@@ -111,6 +113,10 @@ static int  is_download_const(expression_t *immed);
 %token T_ACCESS_MODE
 
 %token <value> T_MODE
+
+%token T_BEGIN_CS
+
+%token T_END_CS
 
 %token T_BIT
 
@@ -184,6 +190,10 @@ program:
 |	program scb
 |	label
 |	program label
+|	critical_section_start
+|	program critical_section_start
+|	critical_section_end
+|	program critical_section_end
 |	conditional
 |	program conditional
 |	code
@@ -643,6 +653,35 @@ ret:
 |	T_RET
 	{ $$ = 1; }
 ;
+
+critical_section_start:
+	T_BEGIN_CS
+	{
+		critical_section_t *cs;
+
+		if (in_critical_section != FALSE) {
+			stop("Critical Section within Critical Section",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
+		cs = cs_alloc();
+		cs->begin_addr = instruction_ptr;
+		in_critical_section = TRUE;
+	}
+
+critical_section_end:
+	T_END_CS
+	{
+		critical_section_t *cs;
+
+		if (in_critical_section == FALSE) {
+			stop("Unballanced 'end_cs'", EX_DATAERR);
+			/* NOTREACHED */
+		}
+		cs = TAILQ_LAST(&cs_tailq, cs_tailq);
+		cs->end_addr = instruction_ptr;
+		in_critical_section = FALSE;
+	}
 
 label:
 	T_SYMBOL ':'

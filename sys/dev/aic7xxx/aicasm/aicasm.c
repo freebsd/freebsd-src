@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm.c#4 $
  *
  * $FreeBSD$
  */
@@ -36,6 +36,7 @@
 #include <sys/mman.h>
 
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,6 +77,7 @@ char *listfilename;
 FILE *listfile;
 
 static STAILQ_HEAD(,instruction) seq_program;
+struct cs_tailq cs_tailq;
 struct scope_list scope_stack;
 symlist_t patch_functions;
 
@@ -101,6 +103,7 @@ main(int argc, char *argv[])
 	STAILQ_INIT(&patches);
 	SLIST_INIT(&search_path);
 	STAILQ_INIT(&seq_program);
+	TAILQ_INIT(&cs_tailq);
 	SLIST_INIT(&scope_stack);
 
 	/* Set Sentinal scope node */
@@ -302,6 +305,7 @@ output_code()
 {
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
+	critical_section_t *cs;
 	symbol_node_t *cur_node;
 	int instrcount;
 
@@ -366,6 +370,21 @@ struct patch {
 		fprintf(ofile, "\t{ ahc_patch%d_func, %d, %d, %d },\n",
 			cur_patch->patch_func, cur_patch->begin,
 			cur_patch->skip_instr, cur_patch->skip_patch);
+	}
+
+	fprintf(ofile, "\n};\n");
+
+	fprintf(ofile,
+"struct cs {
+	u_int16_t	begin;
+	u_int16_t	end;
+} critical_sections[] = {\n");
+
+	for(cs = TAILQ_FIRST(&cs_tailq);
+	    cs != NULL;
+	    cs = TAILQ_NEXT(cs, links)) {
+		fprintf(ofile, "\t{ %d, %d },\n",
+			cs->begin_addr, cs->end_addr);
 	}
 
 	fprintf(ofile, "\n};\n");
@@ -648,6 +667,20 @@ seq_alloc()
 	STAILQ_INSERT_TAIL(&seq_program, new_instr, links);
 	new_instr->srcline = yylineno;
 	return new_instr;
+}
+
+critical_section_t *
+cs_alloc()
+{
+	critical_section_t *new_cs;
+
+	new_cs= (critical_section_t *)malloc(sizeof(critical_section_t));
+	if (new_cs == NULL)
+		stop("Unable to malloc critical_section object", EX_SOFTWARE);
+	memset(new_cs, 0, sizeof(*new_cs));
+	
+	TAILQ_INSERT_TAIL(&cs_tailq, new_cs, links);
+	return new_cs;
 }
 
 scope_t *
