@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.31 1997/04/13 15:12:14 davidn Exp $
+#	$Id: Makefile.inc,v 1.33 1997/05/03 03:49:54 jb Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -17,7 +17,7 @@ SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	scandir.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
 	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
-	sigsetops.c sleep.c sysconf.c sysctl.c syslog.c \
+	sigsetops.c sleep.c sysconf.c sysctl.c sysctlbyname.c syslog.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
 	wait3.c waitpid.c
