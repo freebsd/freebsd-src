@@ -52,6 +52,7 @@
 #include <sys/errno.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -281,6 +282,39 @@ printf("errx=%d\n",error);
 	} while (0);
 
 #else
+	/*
+	 * Hack alert!
+	 * We look into the message and if it mkpeers a node of unknown type, we
+	 * try to load it. We need to do this now, in syscall thread, because if
+	 * message gets queued and applied later we will get panic.
+	 */
+	if (msg->header.cmd == NGM_MKPEER) {
+		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) msg->data;
+		struct ng_type *type;
+
+		if ((type = ng_findtype(mkp->type)) == NULL) {
+			char filename[NG_TYPESIZ + 3];
+			linker_file_t lf;
+			int error;
+
+			/* Not found, try to load it as a loadable module */
+			snprintf(filename, sizeof(filename), "ng_%s", mkp->type);
+			error = linker_load_module(NULL, filename, NULL, NULL, &lf);
+			if (error != 0) {
+				FREE(msg, M_NETGRAPH_MSG);
+				goto release;
+			}
+			lf->userrefs++;
+
+			/* Try again, as now the type should have linked itself in */
+			if ((type = ng_findtype(mkp->type)) == NULL) {
+				FREE(msg, M_NETGRAPH_MSG);
+				error =  ENXIO;
+				goto release;
+			}
+		}
+	}
+
 	/* The callee will free the msg when done. The path is our business. */
 	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, 0);
 #endif
