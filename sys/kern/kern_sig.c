@@ -1019,7 +1019,7 @@ killpg1(td, sig, pgid, all)
 		}
 		sx_sunlock(&allproc_lock);
 	} else {
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		if (pgid == 0) {
 			/*
 			 * zero pgid means send to my process group.
@@ -1029,11 +1029,11 @@ killpg1(td, sig, pgid, all)
 		} else {
 			pgrp = pgfind(pgid);
 			if (pgrp == NULL) {
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 				return (ESRCH);
 			}
 		}
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);	      
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM) {
@@ -1145,9 +1145,9 @@ gsignal(pgid, sig)
 	struct pgrp *pgrp;
 
 	if (pgid != 0) {
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		pgrp = pgfind(pgid);
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		if (pgrp != NULL) {
 			pgsignal(pgrp, sig, 0);
 			PGRP_UNLOCK(pgrp);
