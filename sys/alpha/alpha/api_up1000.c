@@ -45,7 +45,7 @@
 #include <alpha/pci/irongatereg.h>
 #include <alpha/pci/irongatevar.h>
 
-#include "sc.h"
+#include "opt_dev_sc.h"
 
 #ifndef CONSPEED
 #define CONSPEED TTYDEF_SPEED
@@ -109,7 +109,7 @@ api_up1000_cons_init()
 	case 3:
 		/* display console ... */
 		/* XXX */
-#if NSC > 0
+#ifdef DEV_SC
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
