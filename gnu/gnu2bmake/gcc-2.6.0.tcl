@@ -15,13 +15,13 @@ source gnu2bmake.tcl
 #######################################################################
 # Parameters to tweak
 ########
-set sdir /u7/gcc-2.6.0
-set ddir /usr/src/gnu/usr.bin/cc26
+set sdir /a/phk/gcc-2.6.0
+set ddir /a/phk/cc26
 
 #######################################################################
 # Do the stunt
 ########
-sh "cd $sdir ; sh configure"
+sh "cd $sdir ; sh configure i386--freebsd"
 
 # .h files on their way to ~/include
 set l_include {config tm pcp tree input c-lex c-tree flags machmode real 
@@ -109,6 +109,27 @@ puts $f "PGMDIR=\tcc_int cpp cc1 cc cc1plus c++ libgcc"
 puts $f "SUBDIR=\t\$(PGMDIR)"
 puts $f "\n.include <bsd.subdir.mk>"
 close $f
+
+# do ~/legal
+sh "mkdir $ddir/legal"
+sh "cp $sdir/gen-*.c $sdir/md $ddir/legal"
+set f [open $ddir/README w]
+puts $f {
+$FreeBSD$
+
+This directory contains gcc in a form that uses "bmake" makefiles.
+This is not the place you want to start, if you want to hack gcc.
+we have included everything here which is part of the source-code
+of gcc, but still, don't use this as a hacking-base.
+
+If you suspect a problem with gcc, or just want to hack it in general,
+get a complete gcc-X.Y.Z.tar.gz from somewhere, and use that.
+
+Please look in the directory src/gnu/gnu2bmake to find the tools
+to generate these files.
+
+Thankyou.
+}
 
 # do ~/libgcc
 sh "mkdir $ddir/libgcc"

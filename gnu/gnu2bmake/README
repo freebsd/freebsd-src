@@ -1,6 +1,10 @@
 This directory contains tools to convert GNU-distributions into bmake-able
 trees to be included in the FreeBSD distribution.
 
+*** If you want to hack and of the GNU-sources, get the real thing !
+*** We only do this because it is easier for us to cut a release when
+*** all directories are "bmakeable".
+
 The tools are written in Tcl, so you need to install that first.
 
 If there is a patch-file, you should apply that to the distribution first.
