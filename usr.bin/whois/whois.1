@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 1, 1999
+.Dd November 17, 1999
 .Dt WHOIS 1
 .Os BSD 4.3
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd Internet domain name and network number directory service
 .Sh SYNOPSIS
 .Nm whois
-.Op Fl adgiprR
+.Op Fl adgimpQrR
 .Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
@@ -67,9 +67,18 @@ Use the US non-military federal government database, which contains points of
 contact for subdomains of
 .Tn \&.GOV .
 .It Fl h Ar host
-Use the specified host instead of the default NIC
-(whois.crsnic.net).
+Use the specified host instead of the default variant.
 Either a host name or an IP address may be specified.
+.Pp
+By default
+.Nm
+construct the name of a whois server to use from the top-level domain
+.Pq Tn TLD
+of the supplied (single) argument, and appending ".whois-servers.net".
+This effectively allows a suitable whois server to be selected
+automatically for a large number of TLDs.
+If no required whois-servers.net subdomain found, fallback
+to whois.crsnic.net provided.
 .It Fl i
 Use the Network Solutions Registry for Internet Numbers
 .Pq Tn InterNIC
@@ -81,11 +90,22 @@ for most of
 and
 .Tn \&.EDU
 domains.
+.It Fl m
+Use the Route Arbiter Database
+.Pq Tn RADB
+database. It contains route policy specifications for a large
+number of operators' networks.
 .It Fl p
 Use the Asia/Pacific Network Information Center
 .Pq Tn APNIC
 database.  It contains network numbers used in East Asia, Australia,
 New Zealand, and the Pacific islands.
+.It Fl Q
+Do a quick lookup.  This means that
+.Nm
+will not attempt to lookup the name in the authoratative whois
+server (if one is listed) nor will it contact InterNic if a lookup
+fails.  This flag has no effect when combined with any other flag.
 .It Fl r
 Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
