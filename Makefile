@@ -1,21 +1,21 @@
 #
-#	$Id: Makefile,v 1.8 1994/08/14 16:53:33 jkh Exp $
+#	$Id: Makefile,v 1.9 1994/08/16 02:55:14 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
-# XXX1	-DNOCRYPT will prevent building of crypt versions (BROKEN RIGHT NOW)
+#	-DNOCRYPT will prevent building of crypt versions
+# XXX2	-DNOKERBEROS do not build Kerberos
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
+#	-DNOSECURE do not go into secure subdir
 #
-# XXX1	This has not yet been implemented in FreeBSD 2.0.0, the only way
-#	to build the system is with full crypt and KerberosIV
-#
+# XXX2	Mandatory, and Kerberos will not build sucessfully yet
 
 # Put initial settings here.
-NOCRYPT=	yes
+NOKERBEROS=	yes
 SUBDIR=
 
 .if exists(bin)
@@ -39,7 +39,7 @@ SUBDIR+= include
 .if exists(lib)
 SUBDIR+= lib
 .endif
-.if exists(kerberosIV) && !defined(NOCRYPT)
+.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
 SUBDIR+= kerberosIV
 .endif
 .if exists(libexec)
@@ -47,6 +47,9 @@ SUBDIR+= libexec
 .endif
 .if exists(sbin)
 SUBDIR+= sbin
+.endif
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+SUBDIR+= secure
 .endif
 .if exists(share)
 SUBDIR+= share
@@ -143,7 +146,7 @@ includes:
 	cd ${.CURDIR}/include &&		${MAKE} install
 #XXX	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
 #XXX	cd ${.CURDIR}/gnu/usr.bin/cc26/libobjc &&	${MAKE} beforeinstall
-.if !defined(NOCRYPT)
+.if !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
 .endif
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
@@ -171,13 +174,17 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/cc26/libgcc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	# You need the lex lib before you can build kerberosIV
 #XXX	# We don't have lex in the 2.0 tree yet!
 #XXX	cd ${.CURDIR}/usr.bin/lex/lib && \
 #XXX		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.if !defined(NOCRYPT)
+.if !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/acl && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/kerberosIV/des && \
