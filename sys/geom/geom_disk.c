@@ -65,7 +65,7 @@ static g_start_t g_disk_start;
 static g_ioctl_t g_disk_ioctl;
 static g_dumpconf_t g_disk_dumpconf;
 
-struct g_class g_disk_class = {
+static struct g_class g_disk_class = {
 	.name = "DISK",
 	.version = G_VERSION,
 	.init = g_disk_init,
