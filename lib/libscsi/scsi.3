@@ -96,7 +96,7 @@ The "super scsi"
 device also accepts the ioctl.
 .Pp
 Most of the SCSI library functions build up and manipulate the
-.Ar scsireq
+.Fa scsireq
 structure found in the include file
 .Aq Pa sys/scsiio.h :
 .Bd -literal -offset indent
@@ -121,7 +121,7 @@ typedef struct	scsireq {
 .Pp
 .Fn scsireq_new
 allocates a new
-.Ar scsireq
+.Fa scsireq
 structure and returns a pointer to it or NULL if it can't allocate
 memory.
 .Pp
@@ -130,26 +130,26 @@ resets the structure to reasonable values and returns the same pointer passed
 in to it.
 It gracefully handles the NULL pointer passed in to it so that you can
 unconditionally use
-.Ar scsireq_new .
+.Fa scsireq_new .
 .Pp
 .Fn scsireq_build
 builds up a scsireq structure based on the information provided in
 the variable argument list.
 It gracefully handles a NULL pointer passed to it.
 .Pp
-.Fr len
+.Fa len
 is the length of the data phase; the data transfer direction is
 determined by the
-.Ar flags
+.Fa flags
 argument.
 .Pp
-.Fr buf
+.Fa buf
 is the data buffer used during the SCSI data phase.  If it is NULL it
 is allocated via malloc and
-.Ar scsireq->databuf
+.Fa scsireq->databuf
 is set to point to the newly allocated memory.
 .Pp
-.Fr flags
+.Fa flags
 are the flags defined in
 .Aq Pa sys/scsiio.h :
 .Bd -literal -offset indent
@@ -161,14 +161,14 @@ are the flags defined in
 #define SCCMD_TARGET		0x00000020
 .Ed
 Only two of these flags are supported in this release of the software:
-.Fr SCCMD_READ
+.Dv SCCMD_READ
 indicates a data in phase (a transfer into the user buffer at
-.Ar scsireg->databuf
+.Fa scsireg->databuf
 ), and
-.Fr SCCMD_WRITE
+.Dv SCCMD_WRITE
 indicates a data out phase (a transfer out of the user buffer).
 .Pp
-.Fr fmt
+.Fa fmt
 is a CDB format specifier used to build up the SCSI CDB.
 This text string is made up of a list of field specifiers.  Field
 specifiers specify the value for each CDB field (including indicating
@@ -182,7 +182,7 @@ The optional name is the first part of a field specifier and
 is in curly braces.  The text in curly braces in this example are
 the names:
 .Bd -literal -offset indent
-.Fr "{PS} v:b1 {Reserved} 0:b1 {Page Code} v:b6 # Mode select page"
+.Fa "{PS} v:b1 {Reserved} 0:b1 {Page Code} v:b6 # Mode select page"
 .Ed
 .Pp
 This field specifier has two one bit fields and one six bit field.
@@ -193,22 +193,22 @@ Multi byte fields are swapped into the SCSI byte order in the
 CDB and white space is ignored.
 .Pp
 When the field is a hex value or the letter v, (e.g.,
-.Fr "1A"
+.Fa "1A"
 or
-.Fr "v" )
+.Fa "v" )
 then a single byte value
 is copied to the next unused byte of the CDB.
 When the letter
-.Fr v
+.Fa v
 is used the next integer argument is taken from the variable argument list
 and that value used.
 .Pp
 A constant hex value followed by a field width specifier or the letter
-.Fr v
+.Fa v
 followed by a field width specifier (e.g.,
-.Fr 3:4 ,
-.Fr 3:b4 ,
-.Fr 3:i3 ,
+.Fa 3:4 ,
+.Fa 3:b4 ,
+.Fa 3:i3 ,
 .FR v:i3 )
 specifies a field of a given bit or byte width.
 Either the constant value or (for the V specifier) the next integer value from
@@ -216,22 +216,22 @@ the variable argument list is copied to the next unused
 bits or bytes of the CDB.
 .Pp
 A decimal number or the letter
-.Fr b
+.Fa b
 followed by a decimal number field width indicates a bit field of that width.
 The bit fields are packed as tightly as possible beginning with the
 high bit (so that it reads the same as the SCSI spec), and a new byte of
 the CDB is started whenever a byte fills completely or when an
-.Fr i
+.Fa i
 field is encountered.
 .Pp
 A field width specifier consisting of the letter
-.Fr i
+.Fa i
 followed by either
 1, 2, 3 or 4 indicates a 1, 2, 3 or 4 byte integral value that must
 be swapped into SCSI byte order (MSB first).
 .Pp
 For the
-.Fr v
+.Fa v
 field specifier the next integer argument is taken from the variable argument
 list and that value is used swapped into SCSI byte order.
 .Pp
@@ -243,30 +243,30 @@ The decoding is similar to
 the command specifier processing of
 .Fn scsireq_build
 except that the data is extracted from the data pointed to by
-.Fr scsireq->databuf.
+.Fa scsireq->databuf.
 The stdarg list should be pointers to integers instead of integer
 values.
 A seek field type and a suppression modifier are added.
 The
-.Fr *
+.Fa *
 suppression modifier (e.g.,
-.Fr *i3
+.Fa *i3
 or
-.Fr *b4 )
+.Fa *b4 )
 suppresses assignment from the field and can be used to skip
 over bytes or bits in the data, without having to copy
 them to a dummy variable in the arg list.
 .Pp
 The seek field type
-.Fr s
+.Fa s
 permits you to skip over data.
 This seeks to an absolute position (
-.Fr s3 )
+.Fa s3 )
 or a relative position (
-.Fr s+3 )
+.Fa s+3 )
 in the data, based on whether or not the presence of the '+' sign.
 The seek value can be specified as
-.Fr v
+.Fa v
 and the next integer value from the argument list will be
 used as the seek value.
 .Pp
@@ -315,7 +315,8 @@ and
 return the same pointer as the one passed in.
 .Pp
 The functions
-.Fn scsireq_buff_decode and
+.Fn scsireq_buff_decode
+and
 .Fn scsireq_decode
 return the number of assignments performed.
 .Pp
