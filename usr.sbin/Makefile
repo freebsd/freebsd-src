@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.132 1998/09/17 08:55:02 dfr Exp $
+#	$Id: Makefile,v 1.133 1998/10/02 11:31:36 jkh Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -22,12 +22,16 @@ SUBDIR= ac \
 	diskpart \
 	edquota \
 	inetd \
+	iostat \
+	kbdcontrol \
+	kbdmap \
 	kernbb \
 	keyadmin \
 	keyserv \
 	kvm_mkdb \
 	lpr \
 	manctl \
+	moused \
 	mrouted \
 	mtest \
 	mtree \
@@ -62,6 +66,7 @@ SUBDIR= ac \
 	rpc.yppasswdd \
 	rpc.ypxfrd \
 	rpc.ypupdated \
+	rtprio \
 	rwhod \
 	sa \
 	sliplogin \
@@ -74,6 +79,7 @@ SUBDIR= ac \
 	traceroute \
 	trpt \
 	tzsetup \
+	vidcontrol \
 	vipw \
 	vnconfig \
 	watch \
@@ -118,30 +124,13 @@ SUBDIR+=apm \
 	fdformat \
 	fdwrite \
 	fdcontrol \
-	iostat \
-	kbdcontrol \
-	kbdmap \
 	lptcontrol \
 	mixer \
-	moused \
 	mptable \
-	rtprio \
 	sgsc \
 	sicontrol \
 	spkrtest \
-	stallion \
-	vidcontrol
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=kvm_mkdb \
-	natd \
-	kbdcontrol \
-	kbdmap \
-	moused \
-	pstat \
-	rtprio \
-	vidcontrol
+	stallion
 .endif
 
 .include <bsd.subdir.mk>
