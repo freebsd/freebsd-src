@@ -15,19 +15,6 @@ TYPE=	real
 # THE FOURTH LINE
 #TYPE=	fake
 
-# Try to find these in the build tree
-.if exists(/usr/games/strfile)
-STRFILE=/usr/games/strfile
-.else
-STRFILE=../strfile/strfile
-.endif
-
-.if exists(/usr/games/caesar)
-CAESAR=/usr/games/caesar
-.else
-CAESAR=../../caesar/caesar
-.endif
-
 CLEANFILES+=${BLDS}
 
 all: ${FILES} ${BLDS}
@@ -39,12 +26,12 @@ install:
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
 fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
-	${STRFILE} -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
+	strfile -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
 
 fortunes-o.dat: fortunes-o
-	${STRFILE} -rsx fortunes-o ${.TARGET}
+	strfile -rsx fortunes-o ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	${CAESAR} 13 < ${.ALLSRC} > ${.TARGET}
+	caesar 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
