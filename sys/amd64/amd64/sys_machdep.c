@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.32 1998/02/09 06:08:18 eivind Exp $
+ *	$Id: sys_machdep.c,v 1.33 1998/02/13 05:25:37 bde Exp $
  *
  */
 
@@ -140,7 +140,7 @@ i386_extend_pcb(struct proc *p)
 	if (ext == 0)
 		return (ENOMEM);
 	p->p_addr->u_pcb.pcb_ext = ext;
-	bzero(&ext->ext_tss, sizeof(struct i386tss)); 
+	bzero(ext, sizeof(struct pcb_ext)); 
 	ext->ext_tss.tss_esp0 = (unsigned)p->p_addr + ctob(UPAGES) - 16;
         ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	/*
@@ -153,7 +153,6 @@ i386_extend_pcb(struct proc *p)
 	    (offset - ((unsigned)&ext->ext_tss - (unsigned)ext)) << 16;
 	ext->ext_iomap = (caddr_t)ext + offset;
 	ext->ext_vm86.vm86_intmap = (caddr_t)ext + offset - 32;
-	ext->ext_vm86.vm86_inited = 0;
 
 	addr = (u_long *)ext->ext_vm86.vm86_intmap;
 	for (i = 0; i < (ctob(IOPAGES) + 32 + 16) / sizeof(u_long); i++)
