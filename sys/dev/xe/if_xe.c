@@ -185,8 +185,8 @@ static void      xe_disable_intr	(struct xe_softc *scp);
 static void      xe_setmulti		(struct xe_softc *scp);
 static void      xe_setaddrs		(struct xe_softc *scp);
 static int       xe_pio_write_packet	(struct xe_softc *scp, struct mbuf *mbp);
-static u_int32_t xe_compute_crc		(u_int8_t *data, int len);
-static int       xe_compute_hashbit	(u_int32_t crc);
+static u_int32_t xe_compute_crc		(u_int8_t *data, int len) __unused;
+static int       xe_compute_hashbit	(u_int32_t crc) __unused;
 
 /*
  * MII functions
