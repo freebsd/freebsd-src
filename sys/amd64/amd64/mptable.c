@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.38 1997/09/05 20:23:34 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.52 1997/09/07 22:03:59 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -222,6 +222,7 @@ int	mp_napics;		/* # of IO APICs */
 int	boot_cpu_id;		/* designated BSP */
 vm_offset_t cpu_apic_address;
 vm_offset_t io_apic_address[NAPICID];	/* NAPICID is more than enough */
+extern	int nkpt;
 
 u_int32_t cpu_apic_versions[NCPU];
 u_int32_t io_apic_versions[NAPIC];
@@ -1510,7 +1511,9 @@ start_all_aps(u_int boot_addr)
 	u_long  mpbioswarmvec;
 	pd_entry_t *newptd;
 	pt_entry_t *newpt;
-	int *newpp, *stack;
+	int *newpp;
+	char *stack;
+	pd_entry_t	*myPTD;
 
 	POSTCODE(START_ALL_APS_POST);
 
@@ -1549,7 +1552,7 @@ start_all_aps(u_int boot_addr)
 						((u_long)KPTphys & PG_FRAME));
 
 		/* store PTD for this AP's boot sequence */
-		bootPTD = (pd_entry_t *)vtophys(newptd);
+		myPTD = (pd_entry_t *)vtophys(newptd);
 
 		/* alloc new page table page */
 		newpt = (pt_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
@@ -1577,12 +1580,13 @@ start_all_aps(u_int boot_addr)
 			newpt[i] = SMP_prvpt[i];
 
 		/* allocate and set up an idle stack data page */
-		stack = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
-		newpt[3] = (pt_entry_t)(PG_V | PG_RW | vtophys(stack));
+		stack = (char *)kmem_alloc(kernel_map, UPAGES*PAGE_SIZE);
+		for (i = 0; i < UPAGES; i++)
+			newpt[i + 3] = (pt_entry_t)(PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
-		newpt[4] = 0;			/* *prv_CMAP1 */
-		newpt[5] = 0;			/* *prv_CMAP2 */
-		newpt[6] = 0;			/* *prv_CMAP3 */
+		newpt[5] = 0;			/* *prv_CMAP1 */
+		newpt[6] = 0;			/* *prv_CMAP2 */
+		newpt[7] = 0;			/* *prv_CMAP3 */
 
 		/* prime data page for it to use */
 		newpp[0] = x;			/* cpuid */
@@ -1593,11 +1597,11 @@ start_all_aps(u_int boot_addr)
 		newpp[5] = 0;			/* runtime.tv_usec */
 		newpp[6] = x << 24;		/* cpu_lockid */
 		newpp[7] = 0;			/* other_cpus */
-		newpp[8] = (int)bootPTD;	/* my_idlePTD */
+		newpp[8] = (int)myPTD;		/* my_idlePTD */
 		newpp[9] = 0;			/* ss_tpr */
-		newpp[10] = (int)&newpt[4];	/* prv_CMAP1 */
-		newpp[11] = (int)&newpt[5];	/* prv_CMAP2 */
-		newpp[12] = (int)&newpt[6];	/* prv_CMAP3 */
+		newpp[10] = (int)&newpt[5];	/* prv_CMAP1 */
+		newpp[11] = (int)&newpt[6];	/* prv_CMAP2 */
+		newpp[12] = (int)&newpt[7];	/* prv_CMAP3 */
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -1605,6 +1609,7 @@ start_all_aps(u_int boot_addr)
 		outb(CMOS_REG, BIOS_RESET);
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
+		bootPTD = myPTD;
 		/* attempt to start the Application Processor */
 		CHECK_INIT(99);	/* setup checkpoints */
 		if (!start_ap(x, boot_addr)) {
@@ -1651,10 +1656,15 @@ start_all_aps(u_int boot_addr)
 	my_idlePTD = (pd_entry_t *)vtophys(newptd);
 
 	/* Allocate and setup BSP idle stack */
-	stack = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
-	SMP_prvpt[3] = (pt_entry_t)(PG_V | PG_RW | vtophys(stack));
+	stack = (char *)kmem_alloc(kernel_map, UPAGES * PAGE_SIZE);
+	for (i = 0; i < UPAGES; i++)
+		SMP_prvpt[i + 3] = (pt_entry_t)(PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
 	pmap_set_opt_bsp();
+
+	for (i = 0; i < mp_ncpus; i++) {
+		bcopy( (int *) PTD + KPTDI, (int *) IdlePTDS[i] + KPTDI, NKPDE * sizeof (int));
+	}
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.160 1997/08/26 18:10:32 peter Exp $
+ *	$Id: pmap.c,v 1.161 1997/09/07 01:15:13 dyson Exp $
  */
 
 /*
@@ -146,6 +146,7 @@ static int protection_codes[8];
 
 static struct pmap kernel_pmap_store;
 pmap_t kernel_pmap;
+extern pd_entry_t my_idlePTD;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -157,8 +158,7 @@ int pgeflag;		/* PG_G or-in */
 int pseflag;		/* PG_PS or-in */
 int pv_npg;
 
-static int nkpt;
-static vm_page_t nkpg;
+int nkpt;
 vm_offset_t kernel_vm_end;
 
 extern vm_offset_t clean_sva, clean_eva;
@@ -438,9 +438,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	}
 
 	/* BSP does this itself, AP's get it pre-set */
-	prv_CMAP1 = (pt_entry_t *)&SMP_prvpt[4];
-	prv_CMAP2 = (pt_entry_t *)&SMP_prvpt[5];
-	prv_CMAP3 = (pt_entry_t *)&SMP_prvpt[6];
+	prv_CMAP1 = (pt_entry_t *)&SMP_prvpt[5];
+	prv_CMAP2 = (pt_entry_t *)&SMP_prvpt[6];
+	prv_CMAP3 = (pt_entry_t *)&SMP_prvpt[7];
 #endif
 
 	invltlb();
@@ -1427,9 +1427,13 @@ pmap_growkernel(vm_offset_t addr)
 	struct proc *p;
 	struct pmap *pmap;
 	int s;
+	vm_offset_t ptpkva, ptppaddr;
+	vm_page_t nkpg;
 #ifdef SMP
 	int i;
 #endif
+	pd_entry_t newpdir;
+	vm_pindex_t ptpidx;
 
 	s = splhigh();
 	if (kernel_vm_end == 0) {
@@ -1447,38 +1451,37 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 		++nkpt;
-		if (!nkpg) {
-			vm_offset_t ptpkva = (vm_offset_t) vtopte(addr);
-			/*
-			 * This index is bogus, but out of the way
-			 */
-			vm_pindex_t ptpidx = (ptpkva >> PAGE_SHIFT); 
-			nkpg = vm_page_alloc(kernel_object,
-				ptpidx, VM_ALLOC_SYSTEM);
-			if (!nkpg)
-				panic("pmap_growkernel: no memory to grow kernel");
-			vm_page_wire(nkpg);
-			vm_page_remove(nkpg);
-			pmap_zero_page(VM_PAGE_TO_PHYS(nkpg));
-		}
-		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
+		ptpkva = (vm_offset_t) vtopte(addr);
+		ptpidx = (ptpkva >> PAGE_SHIFT); 
+		/*
+		 * This index is bogus, but out of the way
+		 */
+		nkpg = vm_page_alloc(kernel_object,
+			ptpidx, VM_ALLOC_SYSTEM);
+		if (!nkpg)
+			panic("pmap_growkernel: no memory to grow kernel");
+
+		vm_page_wire(nkpg);
+		vm_page_remove(nkpg);
+		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
+		pmap_zero_page(ptppaddr);
+		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW);
+		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
 #ifdef SMP
 		for (i = 0; i < mp_ncpus; i++) {
 			if (IdlePTDS[i])
-				pdir_pde(IdlePTDS[i], kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
+				pdir_pde(IdlePTDS[i], kernel_vm_end) = newpdir;
 		}
 #endif
-
-		nkpg = NULL;
 
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			if (p->p_vmspace) {
 				pmap = &p->p_vmspace->vm_pmap;
-				*pmap_pde(pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
+				*pmap_pde(pmap, kernel_vm_end) = newpdir;
 			}
 		}
-		*pmap_pde(kernel_pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
+		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 	}
 	splx(s);
@@ -1996,8 +1999,28 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-	if (va < UPT_MIN_ADDRESS)
+	if (va < UPT_MIN_ADDRESS) {
 		mpte = pmap_allocpte(pmap, va);
+	}
+#if 0 && defined(PMAP_DIAGNOSTIC)
+	else {
+		vm_offset_t *pdeaddr = (vm_offset_t *)pmap_pde(pmap, va);
+		if (((origpte = (vm_offset_t) *pdeaddr) & PG_V) == 0) { 
+			panic("pmap_enter: invalid kernel page table page(0), pdir=%p, pde=%p, va=%p\n",
+				pmap->pm_pdir[PTDPTDI], origpte, va);
+		}
+		if (smp_active) {
+			pdeaddr = (vm_offset_t *) IdlePTDS[cpuid];
+			if (((newpte = pdeaddr[va >> PDRSHIFT]) & PG_V) == 0) {
+				if ((vm_offset_t) my_idlePTD != (vm_offset_t) vtophys(pdeaddr))
+					printf("pde mismatch: %x, %x\n", my_idlePTD, pdeaddr);
+				printf("cpuid: %d, pdeaddr: 0x%x\n", cpuid, pdeaddr);
+				panic("pmap_enter: invalid kernel page table page(1), pdir=%p, npde=%p, pde=%p, va=%p\n",
+					pmap->pm_pdir[PTDPTDI], newpte, origpte, va);
+			}
+		}
+	}
+#endif
 
 	pte = pmap_pte(pmap, va);
 	/*
