@@ -65,11 +65,11 @@ static const char rcsid[] =
 
 #include "find.h"
 
-static PLAN *palloc __P((OPTION *));
-static long long find_parsenum __P((PLAN *, const char *, char *, char *));
-static long long find_parsetime __P((PLAN *, const char *, char *));
-static char *nextarg __P((OPTION *, char ***));
-time_t get_date __P((char *, struct timeb *));
+static PLAN *palloc(OPTION *);
+static long long find_parsenum(PLAN *, const char *, char *, char *);
+static long long find_parsetime(PLAN *, const char *, char *);
+static char *nextarg(OPTION *, char ***);
+time_t get_date(char *, struct timeb *);
 
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\

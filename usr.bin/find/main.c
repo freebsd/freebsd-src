@@ -76,7 +76,7 @@ int isxargs;			/* don't permit xargs delimiting chars */
 int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
 int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
