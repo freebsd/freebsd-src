@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.6 1999/05/07 10:10:40 phk Exp $
+ * $Id: psm.c,v 1.7 1999/05/08 21:59:29 dfr Exp $
  */
 
 /*
@@ -62,7 +62,9 @@
  */
 
 #include "psm.h"
-/* #include "apm.h" */
+#ifdef __i386__
+#include "apm.h"
+#endif
 #include "opt_devfs.h"
 #include "opt_psm.h"
 
@@ -85,6 +87,9 @@
 #include <sys/select.h>
 #include <sys/uio.h>
 
+#ifdef __i386__
+#include <machine/apm_bios.h>
+#endif
 #include <machine/clock.h>
 #include <machine/limits.h>
 #include <machine/mouse.h>
@@ -2176,7 +2181,7 @@ enable_msintelli(struct psm_softc *sc)
 static int
 psmresume(void *dummy)
 {
-    struct psm_softc *sc = psm_softc[(int)dummy];
+    struct psm_softc *sc = PSM_SOFTC((int)dummy);
     int unit = (int)dummy;
     int err = 0;
     int s;
