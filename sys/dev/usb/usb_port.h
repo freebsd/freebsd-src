@@ -86,6 +86,8 @@ typedef struct callout usb_callout_t;
 #define usb_callout(h, t, f, d) ((h) = timeout((f), (d), (t)))
 #define usb_uncallout(h, f, d) untimeout((f), (d))
 
+typedef int usb_malloc_type;
+
 #define logprintf printf
 
 #define USB_DECLARE_DRIVER(dname)  \
@@ -182,6 +184,8 @@ typedef struct proc *usb_proc_ptr;
 
 #define	config_pending_incr()
 #define	config_pending_decr()
+
+typedef int usb_malloc_type;
 
 #define	usbpoll			usbselect
 #define	uhidpoll		uhidselect
@@ -334,6 +338,8 @@ typedef struct callout usb_callout_t;
 
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
+
+typedef struct malloc_type *usb_malloc_type;
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
 Static device_probe_t __CONCAT(dname,_match); \
