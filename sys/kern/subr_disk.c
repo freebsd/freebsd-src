@@ -99,6 +99,13 @@ bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error)
 }
 
 void
+bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
+{
+
+	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
+}
+
+void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
 
