@@ -73,7 +73,7 @@ as defined below.
 .Pp
 The
 .Fn wait4
-call provides a more general interface for programs
+system call provides a more general interface for programs
 that need to wait for certain child processes,
 that need resource utilization statistics accumulated by child processes,
 or that require options.
@@ -145,7 +145,7 @@ of 0.
 .Pp
 The
 .Fn waitpid
-call is identical to
+function is identical to
 .Fn wait4
 with an
 .Fa rusage
@@ -266,7 +266,9 @@ is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Wait
+The
+.Fn wait
+function
 will fail and return immediately if:
 .Bl -tag -width Er
 .It Bq Er ECHILD
@@ -307,7 +309,7 @@ call are extensions to the POSIX interface.
 .Xr _exit 2 ,
 .Xr exit 3
 .Sh HISTORY
-A
+The
 .Fn wait
-function call appeared in
+function appeared in
 .At v6 .

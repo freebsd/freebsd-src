@@ -71,7 +71,7 @@ write the file, or be the super-user.
 If
 .Fa times
 is
-.Pf non- Dv NULL ,
+.No non- Ns Dv NULL ,
 it is assumed to point to an array of two timeval structures.
 The access time is set to the value of the first element, and the
 modification time is set to the value of the second element.
@@ -89,7 +89,9 @@ The caller must be the owner of the file or be the super-user.
 In either case, the inode-change-time of the file is set to the current
 time.
 .Pp
+The
 .Fn lutimes
+system call
 is like
 .Fn utimes
 except in the case where the named file is a symbolic link,
@@ -102,9 +104,11 @@ changes the times of the file the link references.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
+The
 .Fn utimes
 and
 .Fn lutimes
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EACCES
@@ -146,7 +150,9 @@ does not match the owner of the file and is not the super-user.
 The file system containing the file is mounted read-only.
 .El
 .Pp
+The
 .Fn futimes
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -154,7 +160,7 @@ will fail if:
 does not refer to a valid descriptor.
 .El
 .Pp
-All of the functions will fail if:
+All of the system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EACCES
 The
@@ -185,11 +191,11 @@ The file system containing the file is mounted read-only.
 .Sh HISTORY
 The
 .Fn utimes
-function call appeared in
+system call appeared in
 .Bx 4.2 .
 The
 .Fn futimes
 and
 .Fn lutimes
-function calls first appeared in
+system calls first appeared in
 .Fx 3.0 .

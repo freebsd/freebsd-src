@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn sched_setscheduler
-function sets the scheduling policy and scheduling parameters
+system call sets the scheduling policy and scheduling parameters
 of the process specified by
 .Fa pid
 to
@@ -61,7 +61,7 @@ the scheduling policy specified by
 .Pp
 In this implementation, if the value of
 .Fa pid
-is negative the function will fail.
+is negative the system call will fail.
 .Pp
 If a process specified by
 .Fa pid
@@ -104,7 +104,7 @@ struct sched_param {
 .Pp
 The
 .Fn sched_getscheduler
-function returns the scheduling policy of the process specified
+system call returns the scheduling policy of the process specified
 by
 .Fa pid .
 .Pp
@@ -125,7 +125,7 @@ If
 is zero, the scheduling parameters for the calling process will be
 returned.  In this implementation, the
 .Fa sched_getscheduler
-function will fail if
+system call will fail if
 .Fa pid
 is negative.
 .Sh RETURN VALUES
@@ -162,5 +162,5 @@ The
 .Fn sched_setscheduler
 and
 .Fn sched_getscheduler
-functions conform to
+system calls conform to
 .St -p1003.1b-93 .

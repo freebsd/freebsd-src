@@ -56,7 +56,7 @@ and is listening for connections after a
 .Xr listen 2 .
 The
 .Fn accept
-call
+system call
 extracts the first connection request
 on the queue of pending connections, creates
 a new socket with the same properties as
@@ -125,7 +125,7 @@ integer that is a descriptor for the accepted socket.
 .Sh ERRORS
 The
 .Fn accept
-will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is invalid.
@@ -165,5 +165,5 @@ on the listen queue.
 .Sh HISTORY
 The
 .Fn accept
-function appeared in
+system call appeared in
 .Bx 4.2 .

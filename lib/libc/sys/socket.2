@@ -46,7 +46,9 @@
 .Ft int
 .Fn socket "int domain" "int type" "int protocol"
 .Sh DESCRIPTION
-.Fn Socket
+The
+.Fn socket
+system call
 creates an endpoint for communication and returns a descriptor.
 .Pp
 The
@@ -156,7 +158,7 @@ to pipes.  A stream socket must be in a
 state before any data may be sent or received
 on it.  A connection to another socket is created with a
 .Xr connect 2
-call.
+system call.
 Once connected, data may be transferred using
 .Xr read 2
 and
@@ -165,14 +167,14 @@ calls or some variant of the
 .Xr send 2
 and
 .Xr recv 2
-calls.
+functions.
 (Some protocol families, such as the Internet family,
 support the notion of an
 .Dq implied connect ,
 which permits data to be sent piggybacked onto a connect operation by
 using the
 .Xr sendto 2
-call.)
+system call.)
 When a session has been completed a
 .Xr close 2
 may be performed.
@@ -229,7 +231,7 @@ which returns the next datagram with its return address.
 .Pp
 An
 .Xr fcntl 2
-call can be used to specify a process group to receive
+system call can be used to specify a process group to receive
 a
 .Dv SIGURG
 signal when the out-of-band data arrives.
@@ -252,7 +254,7 @@ value is a descriptor referencing the socket.
 .Sh ERRORS
 The
 .Fn socket
-call fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EPROTONOSUPPORT
 The protocol type or the specified protocol is not supported
@@ -300,5 +302,5 @@ The socket cannot be created until sufficient resources are freed.
 .Sh HISTORY
 The
 .Fn socket
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -38,7 +38,7 @@
 .Sh DESCRIPTION
 The
 .Fn sched_yield
-function forces the running process to relinquish the processor until it
+system call forces the running process to relinquish the processor until it
 again becomes the head of its process list.  It takes no arguments.
 .Sh RETURN VALUES
 .Rv -std sched_yield
@@ -53,5 +53,5 @@ The system is not configured to support this functionality.
 .Sh STANDARDS
 The
 .Fn sched_yield
-function conforms to
+system call conforms to
 .St -p1003.1b-93 .

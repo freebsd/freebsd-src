@@ -45,14 +45,18 @@
 .Ft int
 .Fn vfork void
 .Sh DESCRIPTION
-.Fn Vfork
+The
+.Fn vfork
+system call
 can be used to create new processes without fully copying the address
 space of the old process, which is horrendously inefficient in a paged
 environment.  It is useful when the purpose of
 .Xr fork 2
 would have been to create a new system context for an
 .Xr execve 2 .
-.Fn Vfork
+The
+.Fn vfork
+system call
 differs from
 .Xr fork 2
 in that the child borrows the parent's memory and thread of
@@ -63,11 +67,15 @@ or an exit (either by a call to
 or abnormally).
 The parent process is suspended while the child is using its resources.
 .Pp
-.Fn Vfork
+The
+.Fn vfork
+system call
 returns 0 in the child's context and (later) the pid of the child in
 the parent's context.
 .Pp
-.Fn Vfork
+The
+.Fn vfork
+system call
 can normally be used just like
 .Xr fork 2 .
 It does not work, however, to return while running in the childs context
@@ -128,5 +136,5 @@ and input attempts result in an end-of-file indication.
 .Sh HISTORY
 The
 .Fn vfork
-function call appeared in
+system call appeared in
 .Bx 2.9 .

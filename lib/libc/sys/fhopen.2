@@ -1,5 +1,4 @@
 .\"	$NetBSD: fhopen.2,v 1.1 1999/06/30 01:32:15 wrstuden Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1999 National Aeronautics & Space Administration
 .\" All rights reserved.
@@ -31,7 +30,9 @@
 .\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\"/
+.\"
+.\" $FreeBSD$
+.\"
 .Dd June 29, 1999
 .Dt FHOPEN 2
 .Os
@@ -53,12 +54,14 @@
 .Ft int
 .Fn fhstatfs "const fhandle_t *fhp" "struct statfs *buf"
 .Sh DESCRIPTION
-These functions provide a means to access a file given the file handle
+These system calls provide a means to access a file given the file handle
 .Fa fhp .
 As this method bypasses directory access restrictions, these calls are
 restricted to the superuser.
 .Pp
+The
 .Fn fhopen
+system call
 opens the file referenced by
 .Fa fhp
 for reading and/or writing as specified by the argument
@@ -70,13 +73,15 @@ are specified by
 .Em or Ns 'ing
 together the flags used for the
 .Xr open 2
-call.
+system call.
 All said flags are valid except for
 .Dv O_CREAT .
 .Pp
+The
 .Fn fhstat
 and
 .Fn fhstatfs
+system calls
 provide the functionality of the
 .Xr fstat 2
 and
@@ -128,11 +133,12 @@ The
 .Fn fhstat ,
 and
 .Fn fhstatfs
-functions first appeared in
+system calls first appeared in
 .Nx 1.5
 and were adapted to
 .Fx 4.0
-by Alfred Perlstein.
+by
+.An Alfred Perlstein .
 .Sh AUTHORS
 This man page was written by
 .An William Studenmund

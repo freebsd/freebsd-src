@@ -45,7 +45,9 @@
 .Ft int
 .Fn sigreturn "ucontext_t *scp"
 .Sh DESCRIPTION
-.Fn Sigreturn
+The
+.Fn sigreturn
+system call
 allows users to atomically unmask, switch stacks,
 and return from a signal context.
 The processes signal mask and stack status are
@@ -68,7 +70,9 @@ Otherwise, a value of -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Sigreturn
+The
+.Fn sigreturn
+system call
 will fail and the process context will remain unchanged
 if one of the following occurs.
 .Bl -tag -width Er
@@ -87,5 +91,5 @@ raise the privilege level of the process.
 .Sh HISTORY
 The
 .Fn sigreturn
-function call appeared in
+system call appeared in
 .Bx 4.3 .

@@ -52,7 +52,7 @@
 .Sh DESCRIPTION
 The
 .Fn nfssvc
-function is used by the NFS daemons to pass information into and out
+system call is used by the NFS daemons to pass information into and out
 of the kernel and also to enter the kernel as a server daemon.
 The
 .Fa flags
@@ -76,7 +76,7 @@ set to
 .Dv NULL
 to enter the kernel as a block I/O server daemon.
 For
-.Nm NQNFS ,
+.Tn NQNFS ,
 .Xr mount_nfs 8
 calls
 .Fn nfssvc
@@ -243,7 +243,7 @@ The caller is not the super-user.
 .Sh HISTORY
 The
 .Fn nfssvc
-function first appeared in
+system call first appeared in
 .Bx 4.4 .
 .Sh BUGS
 The

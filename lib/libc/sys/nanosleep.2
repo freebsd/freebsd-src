@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\"	$OpenBSD: nanosleep.2,v 1.1 1997/04/20 20:56:20 tholo Exp $
 .\"	$NetBSD: nanosleep.2,v 1.1 1997/04/17 18:12:02 jtc Exp $
 .\"
@@ -34,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd April 17, 1997
 .Dt NANOSLEEP 2
@@ -48,7 +48,9 @@
 .Ft int
 .Fn nanosleep "const struct timespec *rqtp" "struct timespec *rmtp"
 .Sh DESCRIPTION
-.Fn Nanosleep
+The
+.Fn nanosleep
+system call
 causes the process to sleep for the specified time.  An unmasked signal will
 cause it to terminate the sleep early, regardless of the
 .Dv SA_RESTART
@@ -56,25 +58,25 @@ value on the interrupting signal.
 .Sh RETURN VALUES
 If the
 .Fn nanosleep
-function returns because the requested time has elapsed, the value
+system call returns because the requested time has elapsed, the value
 returned will be zero.
 .Pp
 If the
 .Fn nanosleep
-function returns due to the delivery of a signal, the value returned
+system call returns due to the delivery of a signal, the value returned
 will be the -1, and the global variable
 .Va errno
 will be set to indicate the interruption.
 If
 .Fa rmtp
 is
-.Pf non- Dv NULL ,
+.No non- Ns Dv NULL ,
 the timespec structure it references is updated to contain the
 unslept amount (the request time minus the time actually slept).
 .Sh ERRORS
 The
 .Fn nanosleep
-call fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 Either
@@ -84,14 +86,18 @@ or
 points to memory that is not a valid part of the process
 address space.
 .It Bq Er EINTR
+The
 .Fn nanosleep
+system call
 was interrupted by the delivery of a signal.
 .It Bq Er EINVAL
 .Fa rqtp
 specified a nanosecond value less than zero
 or greater than or equal to 1000 million.
 .It Bq Er ENOSYS
+The
 .Fn nanosleep
+system call
 is not supported by this implementation.
 .El
 .Sh SEE ALSO
@@ -100,5 +106,5 @@ is not supported by this implementation.
 .Sh STANDARDS
 The
 .Fn nanosleep
-function conforms to
+system call conforms to
 .St -p1003.1b-93 .

@@ -73,7 +73,9 @@ MS_INVALIDATE	Invalidate all cached data
 .Sh RETURN VALUES
 .Rv -std msync
 .Sh ERRORS
+The
 .Fn msync
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -97,5 +99,5 @@ An I/O error occurred while writing to the file system.
 .Sh HISTORY
 The
 .Fn msync
-function first appeared in
+system call first appeared in
 .Bx 4.4 .

@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn pipe
-function
+system call
 creates a
 .Em pipe ,
 which is an object allowing
@@ -92,7 +92,7 @@ pipe in one direction.
 .Sh ERRORS
 The
 .Fn pipe
-call will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EMFILE
 Too many descriptors are active.
@@ -111,9 +111,9 @@ space.
 .Xr socketpair 2 ,
 .Xr write 2
 .Sh HISTORY
-A
+The
 .Fn pipe
-function call appeared in
+function appeared in
 .At v3 .
 .Pp
 Bidirectional pipes were first used on

@@ -46,7 +46,9 @@
 .Ft int
 .Fn getpeername "int s" "struct sockaddr *name" "socklen_t *namelen"
 .Sh DESCRIPTION
-.Fn Getpeername
+The
+.Fn getpeername
+system call
 returns the name of the peer connected to
 socket
 .Fa s .
@@ -92,5 +94,5 @@ process address space.
 .Sh HISTORY
 The
 .Fn getpeername
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -46,7 +46,9 @@
 .Ft int
 .Fn getfh "const char *path" "fhandle_t *fhp"
 .Sh DESCRIPTION
-.Fn Getfh
+The
+.Fn getfh
+system call
 returns a file handle for the specified file or directory
 in the file handle pointed to by
 .Fa fhp .
@@ -54,7 +56,9 @@ This system call is restricted to the superuser.
 .Sh RETURN VALUES
 .Rv -std getfh
 .Sh ERRORS
-.Fn Getfh
+The
+.Fn getfh
+system call
 fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -89,6 +93,5 @@ error occurred while reading from or writing to the file system.
 .Sh HISTORY
 The
 .Fn getfh
-function
-first appeared in
+system call first appeared in
 .Bx 4.4 .

@@ -57,7 +57,7 @@
 .Ft int
 .Fn kse_thr_interrupt "struct kse_thr_mailbox *tmbx"
 .Sh DESCRIPTION
-These functions implement kernel support for multi-threaded processes.
+These system calls implement kernel support for multi-threaded processes.
 .\"
 .Ss Overview
 .\"
@@ -210,7 +210,9 @@ received).
 .\"
 To become multi-threaded, a process must first invoke
 .Fn kse_create .
+The
 .Fn kse_create
+system call
 creates a new KSE (except for the very first invocation; see below).
 The KSE will be associated with the mailbox pointed to by
 .Fa mbx .
@@ -248,20 +250,24 @@ There may however be arbitrarily many user threads, and it is up to the
 user thread scheduler to handle mapping the application's user threads
 onto the available KSEs.
 .Pp
+The
 .Fn kse_exit
+system call
 causes the KSE assigned to the currently running thread to be destroyed.
 If this KSE is the last one in the KSE group, there must be no remaining
 threads associated with the KSE group blocked in the kernel.
-This function does not return.
+This system call does not return.
 .Pp
 As a special case, if the last remaining KSE in the last remaining KSE group
-invokes this function, then the KSE is not destroyed;
+invokes this system call, then the KSE is not destroyed;
 instead, the KSE just looses the association with its mailbox and
 .Fn kse_exit
 returns normally.
 This returns the process to its original, unthreaded state.
 .Pp
+The
 .Fn kse_release
+system call
 is used to
 .Dq park
 the KSE assigned to the currently running thread when it is not needed,
@@ -272,13 +278,15 @@ If successful,
 .Fn kse_release
 does not return.
 .Pp
+The
 .Fn kse_wakeup
+system call
 is the opposite of
 .Fn kse_release .
 It causes the KSE associated with the mailbox pointed to by
 .Fa mbx
 to be woken up, causing it to upcall.
-If the KSE has already woken up for another reason, this function has no
+If the KSE has already woken up for another reason, this system call has no
 effect.
 The
 .Fa mbx
@@ -287,7 +295,9 @@ may be
 to specify
 .Dq "any KSE in the current KSE group" .
 .Pp
+The
 .Fn kse_thr_interrupt
+system call
 is used to interrupt a currently blocked thread.
 The thread must either be blocked in the kernel or assigned to a KSE
 (i.e., executing).
@@ -488,22 +498,28 @@ may contain any of the following bits OR'ed together:
 (No flags are defined yet.)
 .El
 .Sh RETURN VALUES
+The
 .Fn kse_create , kse_wakeup ,
 and
 .Fn kse_thr_interrupt
+system calls
 return zero if successful.
+The
 .Fn kse_exit
 and
 .Fn kse_release
+system calls
 do not return if successful.
 .Pp
-All of these functions return a non-zero error code in case of an error.
+All of these system calls return a non-zero error code in case of an error.
 .Pp
 .Em Note :
 error codes are returned directly rather than via
 .Va errno .
 .Sh ERRORS
+The
 .Fn kse_create
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENXIO
@@ -535,7 +551,9 @@ would be exceeded (see
 points to an address which is not a valid part of the process address space.
 .El
 .Pp
+The
 .Fn kse_exit
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EDEADLK
@@ -548,7 +566,9 @@ in traditional, unthreaded mode (in this case use
 to exit the process).
 .El
 .Pp
+The
 .Fn kse_release
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -556,7 +576,9 @@ The current KSE has no associated mailbox, i.e., the process is operating is
 traditional, unthreaded mode.
 .El
 .Pp
+The
 .Fn kse_wakeup
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -574,7 +596,9 @@ and the current KSE has no associated mailbox, i.e., the process is operating
 in traditional, unthreaded mode.
 .El
 .Pp
+The
 .Fn kse_thr_interrupt
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -601,7 +625,7 @@ kernel.
 .%T "Scheduler activations: effective kernel support for the user-level management of parallelism"
 .Re
 .Sh HISTORY
-The KSE function calls first appeared in
+The KSE system calls first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 KSE was originally implemented by

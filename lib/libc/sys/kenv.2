@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn kenv
-function manipulates kernel environment variables.
+system call manipulates kernel environment variables.
 It supports the well known userland actions of getting, setting and unsetting
 environment variables, as well as the ability to dump all of the entries in
 the kernel environment.
@@ -119,7 +119,7 @@ points to.
 .Sh RETURN VALUES
 The
 .Fn kenv
-function returns 0 if successful in the case of
+system call returns 0 if successful in the case of
 .Dv KENV_SET
 and
 .Dv KENV_UNSET ,
@@ -134,7 +134,9 @@ the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
+The
 .Fn kenv
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL

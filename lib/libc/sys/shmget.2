@@ -67,9 +67,9 @@ is specified and the IPC_CREAT bit is set in
 .Fa flag ,
 a new one will be created.
 .It
-.Fn ftok
-may be used to generate a key from a pathname.  See
-.Xr ftok 3 .
+The
+.Xr ftok 3
+may be used to generate a key from a pathname.
 .El
 .Pp
 The mode of a newly created IPC object is determined by
@@ -111,7 +111,9 @@ Otherwise, -1 is returned and
 .Va errno
 set to indicate the error.
 .Sh ERRORS
-.Fn Shmget
+The
+.Fn shmget
+system call
 will fail if:
 .Bl -tag -width Er
 .\"

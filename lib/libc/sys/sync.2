@@ -47,21 +47,22 @@
 .Sh DESCRIPTION
 The
 .Fn sync
-function forces a write of dirty (modified) buffers
+system call forces a write of dirty (modified) buffers
 in the block buffer cache out
 to disk.
 The kernel keeps this information in core to reduce
 the number of disk I/O transfers required by the system.
-As information in the cache is lost after a system crash a
+As information in the cache is lost after a system crash, a
 .Fn sync
-call is issued
+system call is issued
 frequently
 by the user process
 .Xr syncer 4
 (about every 30 seconds).
 .Pp
-The function
+The
 .Xr fsync 2
+system call
 may be used to synchronize individual file descriptor
 attributes.
 .Sh SEE ALSO
@@ -69,10 +70,12 @@ attributes.
 .Xr syncer 4 ,
 .Xr sync 8
 .Sh BUGS
-.Fn Sync
+The
+.Fn sync
+system call
 may return before the buffers are completely flushed.
 .Sh HISTORY
-A
+The
 .Fn sync
-function call appeared in
+function appeared in
 .At v6 .

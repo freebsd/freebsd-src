@@ -110,7 +110,7 @@ appearing to interrupt the handlers for the previous signals
 before their first instructions.
 The set of pending signals is returned by the
 .Xr sigpending 2
-function.
+system call.
 When a caught signal
 is delivered, the current state of the process is saved,
 a new signal mask is calculated (as described below),
@@ -124,20 +124,22 @@ must arrange to restore the previous context itself.
 When a signal is delivered to a process a new signal mask is
 installed for the duration of the process' signal handler
 (or until a
-.Xr sigprocmask
-call is made).
+.Xr sigprocmask 2
+system call is made).
 This mask is formed by taking the union of the current signal mask set,
 the signal to be delivered, and
 the signal mask associated with the handler to be invoked.
 .Pp
-.Fn Sigaction
+The
+.Fn sigaction
+system call
 assigns an action for a signal specified by
 .Fa sig .
 If
 .Fa act
 is non-zero, it
 specifies an action
-.Pf ( Dv SIG_DFL ,
+.Dv ( SIG_DFL ,
 .Dv SIG_IGN ,
 or a handler routine) and mask
 to be used when delivering the specified signal.
@@ -149,7 +151,7 @@ is returned to the user.
 Once a signal handler is installed, it normally remains installed
 until another
 .Fn sigaction
-call is made, or an
+system call is made, or an
 .Xr execve 2
 is performed.
 A signal-specific default action may be reset by
@@ -535,7 +537,9 @@ The
 argument to a POSIX SA_SIGINFO handler points to an instance of
 ucontext_t.
 .Sh ERRORS
-.Fn Sigaction
+The
+.Fn sigaction
+system call
 will fail and no new signal handler will be installed if one
 of the following occurs:
 .Bl -tag -width Er
@@ -558,7 +562,7 @@ or
 .Sh STANDARDS
 The
 .Fn sigaction
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 The
 .Dv SA_ONSTACK

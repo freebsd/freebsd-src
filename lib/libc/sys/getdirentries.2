@@ -53,7 +53,7 @@ The
 .Fn getdirentries
 and
 .Fn getdents
-functions read directory entries from the directory
+system calls read directory entries from the directory
 referenced by the file descriptor
 .Fa fd
 into the buffer pointed to by
@@ -68,7 +68,7 @@ argument must be greater than or equal to the
 block size associated with the file,
 see
 .Xr stat 2 .
-Some file systems may not support these functions
+Some file systems may not support these system calls
 with buffers smaller than this size.
 .Pp
 The data in the buffer is a series of
@@ -130,7 +130,7 @@ the end of the directory has been reached.
 .Pp
 The
 .Fn getdirentries
-function writes the position of the block read into the location pointed to by
+system call writes the position of the block read into the location pointed to by
 .Fa basep .
 Alternatively, the current position pointer may be set and retrieved by
 .Xr lseek 2 .
@@ -138,7 +138,7 @@ The current position pointer should only be set to a value returned by
 .Xr lseek 2 ,
 a value returned in the location pointed to by
 .Fa basep
-.Pf ( Fn getdirentries
+.Fn ( getdirentries
 only)
 or zero.
 .Sh RETURN VALUES
@@ -147,7 +147,9 @@ Otherwise, -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Getdirentries
+The
+.Fn getdirentries
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -177,9 +179,9 @@ error occurred while reading from or writing to the file system.
 .Sh HISTORY
 The
 .Fn getdirentries
-function first appeared in
+system call first appeared in
 .Bx 4.4 .
 The
 .Fn getdents
-function first appeared in
+system call first appeared in
 .Fx 3.0 .

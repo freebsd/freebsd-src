@@ -23,7 +23,7 @@
 .Fn jail "struct jail *jail"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn jail
 system call sets up a jail and locks the current process in it.
 .Pp
 The argument is a pointer to a structure describing the prison:
@@ -75,7 +75,9 @@ it will show a field near the end of the line, either as
 a single hyphen for a process at large, or the hostname currently
 set for the prison for jailed processes.
 .Sh ERRORS
+The
 .Fn jail
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -96,7 +98,7 @@ manual page for details.
 .Sh HISTORY
 The
 .Fn jail
-function call appeared in
+system call appeared in
 .Fx 4.0 .
 .Sh AUTHORS
 The jail feature was written by

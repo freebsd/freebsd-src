@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn execve
-function
+system call
 transforms the calling process into a new process.
 The new process is constructed from an ordinary file,
 whose name is pointed to by
@@ -183,7 +183,7 @@ the calling process:
 .Pp
 When a program is executed as a result of an
 .Fn execve
-call, it is entered as follows:
+system call, it is entered as follows:
 .Bd -literal -offset indent
 main(argc, argv, envp)
 int argc;
@@ -202,7 +202,7 @@ to the arguments themselves.
 .Sh RETURN VALUES
 As the
 .Fn execve
-function overlays the current process image
+system call overlays the current process image
 with a new process image the successful call
 has no process to return to.
 If
@@ -214,7 +214,7 @@ is set to indicate the error.
 .Sh ERRORS
 The
 .Fn execve
-function
+system call
 will fail and return to the calling process if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -289,7 +289,7 @@ of a super-user as well.
 .Sh STANDARDS
 The
 .Fn execve
-function conforms to
+system call conforms to
 .St -p1003.1-2001 ,
 with the exception of reopening descriptors 0, 1, and/or 2 in certain
 circumstances.
@@ -300,5 +300,5 @@ The support for executing interpreted programs is an extension.
 .Sh HISTORY
 The
 .Fn execve
-function call appeared in
+system call appeared in
 .Bx 4.2 .

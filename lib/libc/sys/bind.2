@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn bind
-function
+system call
 assigns the local protocol address to a socket.
 When a socket is created
 with
@@ -56,7 +56,7 @@ with
 it exists in an address family space but has no protocol address assigned.
 The
 .Fn bind
-function requests that
+system call requests that
 .Fa addr
 be assigned to the socket.
 .Sh NOTES
@@ -76,7 +76,7 @@ before populating it and passing it to
 .Sh ERRORS
 The
 .Fn bind
-call will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 Kernel resources to complete the request are
@@ -127,5 +127,5 @@ An empty pathname was specified.
 .Sh HISTORY
 The
 .Fn bind
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -50,7 +50,7 @@
 .Sh DESCRIPTION
 The
 .Fn dup
-function
+system call
 duplicates an existing object descriptor and returns its value to
 the calling process
 .Fa ( newd
@@ -89,7 +89,7 @@ If a separate pointer into the file is desired, a different
 object reference to the file must be obtained by issuing an
 additional
 .Xr open 2
-call.
+system call.
 The close-on-exec flag on the new file descriptor is unset.
 .Pp
 In
@@ -100,9 +100,9 @@ is specified.  If this descriptor is already in use and
 .Fa oldd
 \*(Ne
 .Fa newd ,
-the descriptor is first deallocated as if a
+the descriptor is first deallocated as if the
 .Xr close 2
-call had been used.
+system call had been used.
 If
 .Fa oldd
 is not a valid descriptor, then
@@ -127,7 +127,7 @@ The
 .Fn dup
 and
 .Fn dup2
-functions fail if:
+system calls fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa Oldd
@@ -151,12 +151,12 @@ The
 .Fn dup
 and
 .Fn dup2
-function calls are expected to conform to
+system calls are expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn dup
-and a
+and
 .Fn dup2
-function call appeared in
+functions appeared in
 .At v7 .

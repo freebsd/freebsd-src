@@ -71,19 +71,19 @@ They exist as
 pairs within a set of namespaces.
 The
 .Fn extattr_get_file
-call retrieves the value of the specified extended attribute into
+system call retrieves the value of the specified extended attribute into
 a buffer pointed to by
 .Fa data
 of size
 .Fa nbytes .
 The
 .Fn extattr_set_file
-call sets the value of the specified extended attribute to the data
+system call sets the value of the specified extended attribute to the data
 described by
 .Fa data .
 The
 .Fn extattr_delete_file
-call deletes the extended attribute specified.
+system call deletes the extended attribute specified.
 The
 .Fn extattr_get_file
 and
@@ -111,11 +111,11 @@ The
 .Fn extattr_get_link ,
 and
 .Fn extattr_set_link
-functions behave in the same way as their _file counterparts, except that
+system calls behave in the same way as their _file counterparts, except that
 they do not follow symlinks.
 .Pp
 The
-.Fn extatttr_get_fd ,
+.Fn extattr_get_fd ,
 .Fn extattr_set_fd ,
 and
 .Fn extattr_delete_fd
@@ -195,7 +195,7 @@ The
 .Fn extattr_set_fd ,
 and
 .Fn extattr_delete_fd
-functions may also fail if:
+system calls may also fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The file descriptor referenced by

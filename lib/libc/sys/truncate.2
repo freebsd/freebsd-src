@@ -48,7 +48,9 @@
 .Ft int
 .Fn ftruncate "int fd" "off_t length"
 .Sh DESCRIPTION
-.Fn Truncate
+The
+.Fn truncate
+system call
 causes the file named by
 .Fa path
 or referenced by
@@ -67,7 +69,9 @@ the file must be open for writing.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Truncate
+The
+.Fn truncate
+system call
 succeeds unless:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -96,7 +100,9 @@ An I/O error occurred updating the inode.
 points outside the process's allocated address space.
 .El
 .Pp
-.Fn Ftruncate
+The
+.Fn ftruncate
+system call
 succeeds unless:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -124,5 +130,5 @@ to extend a file is not portable.
 .Sh HISTORY
 The
 .Fn truncate
-function call appeared in
+system call appeared in
 .Bx 4.2 .

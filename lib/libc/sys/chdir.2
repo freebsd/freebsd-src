@@ -53,7 +53,7 @@ The
 argument points to the pathname of a directory.
 The
 .Fn chdir
-function
+system call
 causes the named directory
 to become the current working directory, that is,
 the starting point for path searches of pathnames not beginning with
@@ -62,7 +62,7 @@ a slash,
 .Pp
 The
 .Fn fchdir
-function
+system call
 causes the directory referenced by
 .Fa fd
 to become the current working directory,
@@ -77,7 +77,7 @@ a process must have execute (search) access to the directory.
 .Sh ERRORS
 The
 .Fn chdir
-function
+system call
 will fail and the current working directory will be unchanged if
 one or more of the following are true:
 .Bl -tag -width Er
@@ -102,7 +102,7 @@ An I/O error occurred while reading from or writing to the file system.
 .Pp
 The
 .Fn fchdir
-function
+system call
 will fail and the current working directory will be unchanged if
 one or more of the following are true:
 .Bl -tag -width Er
@@ -121,15 +121,14 @@ is not a valid file descriptor.
 .Sh STANDARDS
 The
 .Fn chdir
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn chdir
-function call appeared in
+system call appeared in
 .At v7 .
 The
 .Fn fchdir
-function call
-appeared in
+system call appeared in
 .Bx 4.2 .

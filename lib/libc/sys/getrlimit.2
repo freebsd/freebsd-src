@@ -53,9 +53,9 @@
 Limits on the consumption of system resources by the current process
 and each process it creates may be obtained with the
 .Fn getrlimit
-call, and set with the
+system call, and set with the
 .Fn setrlimit
-call.
+system call.
 .Pp
 The
 .Fa resource
@@ -72,14 +72,14 @@ each process.
 The maximum size (in bytes) of the data segment for a process;
 this defines how far a program may extend its break with the
 .Xr sbrk 2
-system call.
+function.
 .It Li RLIMIT_FSIZE
 The largest size (in bytes) file that may be created.
 .It Li RLIMIT_MEMLOCK
 The maximum size (in bytes) which a process may lock into memory
 using the
 .Xr mlock 2
-function.
+system call.
 .It Li RLIMIT_NOFILE
 The maximum number of open files for this process.
 .It Li RLIMIT_NPROC
@@ -137,7 +137,7 @@ is thus a built-in command to
 The system refuses to extend the data or stack space when the limits
 would be exceeded in the normal way: a
 .Xr brk 2
-call fails if the data space limit is reached.
+function fails if the data space limit is reached.
 When the stack limit is reached, the process receives
 a segmentation fault
 .Pq Dv SIGSEGV ;
@@ -157,9 +157,11 @@ offending process.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Getrlimit
+The
+.Fn getrlimit
 and
 .Fn setrlimit
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
@@ -183,5 +185,5 @@ raised the maximum limit value, and the caller is not the super-user.
 .Sh HISTORY
 The
 .Fn getrlimit
-function call appeared in
+system call appeared in
 .Bx 4.2 .
