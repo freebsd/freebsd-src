@@ -290,7 +290,7 @@ static void
 sis_eeprom_idle(sc)
 	struct sis_softc	*sc;
 {
-	register int		i;
+	int		i;
 
 	SIO_SET(SIS_EECTL_CSEL);
 	sis_delay(sc);
@@ -321,7 +321,7 @@ sis_eeprom_putbyte(sc, addr)
 	struct sis_softc	*sc;
 	int			addr;
 {
-	register int		d, i;
+	int		d, i;
 
 	d = addr | SIS_EECMD_READ;
 
@@ -353,7 +353,7 @@ sis_eeprom_getword(sc, addr, dest)
 	int			addr;
 	u_int16_t		*dest;
 {
-	register int		i;
+	int		i;
 	u_int16_t		word = 0;
 
 	/* Force EEPROM to idle state. */
@@ -522,7 +522,7 @@ sis_read_mac(sc, dev, dest)
 static void sis_mii_sync(sc)
 	struct sis_softc	*sc;
 {
-	register int		i;
+	int		i;
  
  	SIO_SET(SIS_MII_DIR|SIS_MII_DATA);
  
@@ -972,7 +972,7 @@ static void
 sis_reset(sc)
 	struct sis_softc	*sc;
 {
-	register int		i;
+	int		i;
 
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RESET);
 
@@ -2347,7 +2347,7 @@ static void
 sis_stop(sc)
 	struct sis_softc	*sc;
 {
-	register int		i;
+	int		i;
 	struct ifnet		*ifp;
 
 	if (sc->sis_stopped)
