@@ -116,6 +116,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_KYE, USB_PRODUCT_KYE_VIVIDPRO }, 0 },
 
   /* HP */
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_2200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_3300C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_3400CSE }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_4100C }, 0 },
