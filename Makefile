@@ -104,7 +104,7 @@ buildworld: upgrade_checks
 .endif
 
 #
-# This 'realclean' target is not included in TGTS, because it is not a
+# This 'cleanworld' target is not included in TGTS, because it is not a
 # recursive target.  All of the work for it is done right here.   It is
 # expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
 # created by bsd.obj.mk, except that we don't want to .include that file
@@ -118,7 +118,7 @@ buildworld: upgrade_checks
 # needed to correctly handle all the possible situations.
 #
 BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
-realclean:
+cleanworld:
 .if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 .if exists(${BW_CANONICALOBJDIR}/)
 	-rm -rf ${BW_CANONICALOBJDIR}/*
