@@ -125,7 +125,7 @@ loop:
 	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
-			mtx_lock(&vp->v_interlock);
+			VI_LOCK(vp);
 			mtx_unlock(&ufs_ihash_mtx);
 			error = vget(vp, flags | LK_INTERLOCK, td);
 			if (error == ENOENT)
@@ -162,7 +162,7 @@ loop:
 	LIST_FOREACH(oip, ipp, i_hash) {
 		if (ip->i_number == oip->i_number && ip->i_dev == oip->i_dev) {
 			ovp = ITOV(oip);
-			mtx_lock(&ovp->v_interlock);
+			VI_LOCK(ovp);
 			mtx_unlock(&ufs_ihash_mtx);
 			error = vget(ovp, flags | LK_INTERLOCK, td);
 			if (error == ENOENT)
