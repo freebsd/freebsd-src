@@ -119,6 +119,7 @@ static struct isa_pnp_id pcic_ids[] = {
 	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
 	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
+	{PCIC_PNP_ACTIONTEC,            NULL},          /* AEI0218 */ 
 	{0}
 };
 
