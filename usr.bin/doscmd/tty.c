@@ -129,13 +129,17 @@ static struct termios tty_cook, tty_raw;
 static void	_kbd_event(int, int, void *, regcontext_t *);
 static void	Failure(void *);
 static void	SetVREGCur(void);
+#ifndef NO_X
 static void	debug_event(int, int, void *, regcontext_t *);
+#endif
 static unsigned char	inb_port60(int);
 static int	inrange(int, int, int);
+#ifndef NO_X
 static void	kbd_event(int, int, void *, regcontext_t *);
 static u_short	read_raw_kbd(int, u_short *);
 static void	setgc(u_short);
 static void	video_async_event(int, int, void *, regcontext_t *);
+#endif
 
 #ifndef NO_X
 static void	dac2rgb(XColor *, int);
@@ -325,7 +329,7 @@ console_init()
 }
 
 void
-video_setborder(int color)
+video_setborder(int color __unused)
 {
 #ifndef NO_X
 	XSetWindowBackground(dpy, win, pixels[color & 0xf]);
@@ -337,10 +341,10 @@ video_blink(int mode)
 	blink = mode;
 }
 
+#ifndef NO_X
 static void
 setgc(u_short attr)
 {
-#ifndef NO_X
 	XGCValues v;
 	if (blink && !show && (attr & 0x8000))
 		v.foreground = pixels[(attr >> 12) & 0x07];
@@ -349,8 +353,8 @@ setgc(u_short attr)
 
 	v.background = pixels[(attr >> 12) & (blink ? 0x07 : 0x0f)];
 	XChangeGC(dpy, gc, GCForeground|GCBackground, &v);
-#endif
 }
+#endif
 
 void
 video_update(regcontext_t *REGS __unused)
@@ -531,7 +535,6 @@ vram2ximage()
     
     return;
 }
-#endif
 
 static u_short Ascii2Scan[] = {
  0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff,
@@ -551,6 +554,7 @@ static u_short Ascii2Scan[] = {
  0x0019, 0x0010, 0x0013, 0x001f, 0x0014, 0x0016, 0x002f, 0x0011,
  0x002d, 0x0015, 0x002c, 0x011a, 0x012b, 0x011b, 0x0129, 0xffff,
 };
+#endif
 
 struct {
     u_short	base;
@@ -649,8 +653,9 @@ struct {
     {	0x8600, 0x5888, 0x8a00, 0x8c00 }, /* key 88 - F12 */
 };
 
+#ifndef NO_X
 void
-debug_event(int fd, int cond, void *arg, regcontext_t *REGS)
+debug_event(int fd __unused, int cond, void *arg __unused, regcontext_t *REGS)
 {
     static char ibuf[1024];
     static int icnt = 0;
@@ -768,6 +773,7 @@ debug_event(int fd, int cond, void *arg, regcontext_t *REGS)
 	ibuf[icnt] = 0;
     }
 }
+#endif
 
 unsigned char
 inb_port60(int port __unused)
@@ -778,8 +784,9 @@ inb_port60(int port __unused)
     return(r);
 }       
 
+#ifndef NO_X
 void
-kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
+kbd_event(int fd, int cond, void *arg __unused, regcontext_t *REGS __unused)
 {
     if (!(cond & AS_RD))
        return;
@@ -790,6 +797,7 @@ kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
     if ((break_code = read_raw_kbd(fd, &scan_code)) != 0xffff)
 	hardint(0x01);
 }
+#endif
 
 void
 int09(REGISTERS __unused)
@@ -807,6 +815,7 @@ int09(REGISTERS __unused)
     send_eoi();
 }
 
+#ifndef NO_X
 u_short
 read_raw_kbd(int fd, u_short *code)
 {
@@ -978,11 +987,12 @@ printf("FORCED REDRAW\n");
 	return(0xffff);
     }
 }
+#endif
 
-void
-video_async_event(int fd, int cond, void *arg, regcontext_t *REGS)
-{
 #ifndef NO_X
+void
+video_async_event(int fd, int cond, void *arg __unused, regcontext_t *REGS __unused)
+{
     	int int9 = 0;
 
 	if (!(cond & AS_RD))
@@ -1032,8 +1042,8 @@ video_async_event(int fd, int cond, void *arg, regcontext_t *REGS)
                         break;
                 }
         }
-#endif
 }
+#endif
 
 #ifndef NO_X
 static int
