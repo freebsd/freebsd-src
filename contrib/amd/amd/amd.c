@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
+ * $Id: amd.c,v 1.3 1998/11/14 03:13:19 obrien Exp $
  *
  */
 
@@ -55,23 +55,29 @@
 struct amu_global_options gopt;	/* where global options are stored */
 
 char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
+#if 0
 char *progname;			/* "amd" */
+#endif
 char *hostdomain = "unknown.domain";
+#if 0
 char hostname[MAXHOSTNAMELEN + 1] = "localhost"; /* Hostname */
+#endif
 char hostd[2 * MAXHOSTNAMELEN + 1]; /* Host+domain */
 char *endian = ARCH_ENDIAN;	/* Big or Little endian */
 char *cpu = HOST_CPU;		/* CPU type */
 char *PrimNetName;		/* name of primary network */
 char *PrimNetNum;		/* number of primary network */
 
-int foreground = 1;		/* This is the top-level server */
 int immediate_abort;		/* Should close-down unmounts be retried */
-int orig_umask;
+int orig_umask = 022;
 int select_intr_valid;
 
 jmp_buf select_intr;
+#if 0
 pid_t mypid;			/* Current process id */
 serv_state amd_state;
+int foreground = 1;		/* This is the top-level server */
+#endif
 struct amd_stats amd_stats;	/* Server statistics */
 struct in_addr myipaddr;	/* (An) IP address of this host */
 time_t do_mapc_reload = 0;	/* mapc_reload() call required? */
@@ -168,7 +174,7 @@ daemon_mode(void)
      */
     for (;;)
       pause();
-    /* should never reache here */
+    /* should never reach here */
   }
 #ifdef HAVE_SIGACTION
   sigaction(SIGQUIT, &osa, NULL);
@@ -181,7 +187,7 @@ daemon_mode(void)
    */
   if (gopt.flags & CFM_PRINT_PID) {
     if (STREQ(gopt.pid_file, "/dev/stdout")) {
-      printf("%ld\n", (long) mypid);
+      printf("%ld\n", (long) am_mypid);
       fflush(stdout);
       /* do not fclose stdout */
     } else {
@@ -190,7 +196,7 @@ daemon_mode(void)
 
       f = fopen(gopt.pid_file, "w");
       if (f) {
-	fprintf(f, "%ld\n", (long) mypid);
+	fprintf(f, "%ld\n", (long) am_mypid);
 	(void) fclose(f);
       } else {
 	fprintf(stderr, "cannot open %s (errno=%d)\n", gopt.pid_file, errno);
@@ -307,6 +313,8 @@ main(int argc, char *argv[])
   char *domdot, *verstr;
   int ppid = 0;
   int error;
+  char *progname = NULL;		/* "amd" */
+  char hostname[MAXHOSTNAMELEN + 1] = "localhost"; /* Hostname */
 #ifdef HAVE_SIGACTION
   struct sigaction sa;
 #endif /* HAVE_SIGACTION */
@@ -334,13 +342,14 @@ main(int argc, char *argv[])
   }
   if (!progname)
     progname = "amd";
+  am_set_progname(progname);
 
   /*
-   * Initialise process id.  This is kept
+   * Initialize process id.  This is kept
    * cached since it is used for generating
    * and using file handles.
    */
-  mypid = getpid();
+  am_set_mypid();
 
   /*
    * Get local machine name
@@ -359,13 +368,18 @@ main(int argc, char *argv[])
     going_down(1);
   }
 
+#ifdef DEBUG
+  /* initialize debugging flags (Register AMQ, Enter daemon mode) */
+  debug_flags = D_AMQ | D_DAEMON;
+#endif /* DEBUG */
+
   /*
    * Initialize global options structure.
    */
   init_global_options();
 
   /*
-   * Partially initialise hostd[].  This
+   * Partially initialize hostd[].  This
    * is completed in get_args().
    */
   if ((domdot = strchr(hostname, '.'))) {
@@ -378,6 +392,7 @@ main(int argc, char *argv[])
     hostdomain = domdot;
   }
   strcpy(hostd, hostname);
+  am_set_hostname(hostname);
 
   /*
    * Trap interrupts for shutdowns.
@@ -519,7 +534,7 @@ main(int argc, char *argv[])
 #endif /* DEBUG */
     ppid = daemon_mode();
 
-  sprintf(pid_fsname, "%s:(pid%ld)", hostname, (long) mypid);
+  sprintf(pid_fsname, "%s:(pid%ld)", am_get_hostname(), (long) am_mypid);
 
   do_mapc_reload = clocktime() + ONE_HOUR;
 
@@ -528,7 +543,7 @@ main(int argc, char *argv[])
    */
   error = mount_automounter(ppid);
   if (error && ppid)
-    kill(SIGALRM, ppid);
+    kill(ppid, SIGALRM);
   going_down(error);
 
   abort();
