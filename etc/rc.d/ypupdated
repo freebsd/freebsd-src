@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypupdated
+# REQUIRE: rpcbind ypserv
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="ypupdated"
+rcvar="rpc_ypupdated_enable"
+command="/usr/sbin/rpc.${name}"
+required_vars="portmap_enable nis_server_enable"
+start_precmd="rpc_ypupdated_precmd"
+
+rpc_ypupdated_precmd()
+{
+        _domain=`domainname`
+        if [ -z "$_domain" ]; then
+                warn "domainname(1) is not set."
+                return 1
+        fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: wscons,v 1.5 2000/08/21 23:02:25 lukem Exp $
+# $NetBSD: wscons,v 1.9 2002/04/26 00:06:54 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: wscons
 # REQUIRE: mountcritremote
+# BEFORE:  LOGIN
 
 . /etc/rc.subr
 
@@ -17,8 +19,9 @@ wscons_start()
 {
 	wscfg=/usr/sbin/wsconscfg
 	wsfld=/usr/sbin/wsfontload
+	wsctl=/sbin/wsconsctl
 	config=/etc/wscons.conf
-	usage="usage: wsconfig [-n] [-f configfile] [-font fontpgm] [-screen screenpgm]"
+	usage="Usage: wsconfig [-n] [-f configfile] [-font fontpgm] [-screen screenpgm]"
 	DOIT=
 
 	while [ $# -gt 0 ]; do
@@ -55,6 +58,7 @@ wscons_start()
 			\#*|"")
 				continue
 				;;
+
 			font)
 				name=$arg1
 				width=$arg2
@@ -87,6 +91,7 @@ wscons_start()
 				cmd="$cmd -N $name $file"
 				eval $DOIT $cmd
 				;;
+
 			screen)
 				idx=$arg1
 				scr=$arg2
@@ -110,6 +115,7 @@ wscons_start()
 				cmd="$cmd $idx"
 				eval $DOIT $cmd
 				;;
+
 			keyboard)
 				kbd=$arg1
 				cmd=$wscfg
@@ -123,10 +129,39 @@ wscons_start()
 				esac
 				eval $DOIT $cmd
 				;;
+
+			encoding)
+				map=$arg1
+				cmd="$wsctl -w \"encoding=$map\""
+				eval $DOIT $cmd
+				;;
+
+			mapfile)
+				mapfile=$arg1
+				( while read entry; do
+				    case "$entry" in
+					\#*|"")
+					    continue
+					    ;;
+					*)
+					    cmd="$wsctl -w \"map+=$entry\""
+					    cmd="$cmd >/dev/null"
+					    eval $DOIT $cmd
+					    ;;
+				    esac
+				done ) < $mapfile
+				;;
+
 			mux)
 				cmd="$wscfg -m $arg1"
 				eval $DOIT $cmd
 				;;
+
+			setvar)
+				cmd="$wsctl -w $arg1"
+				eval $DOIT $cmd
+				;;
+
 		esac
 	done ) < $config
 }

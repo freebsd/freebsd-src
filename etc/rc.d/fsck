@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD$
+# $NetBSD: fsck,v 1.2 2001/06/18 06:42:35 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: fsck
 # REQUIRE: localswap
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
@@ -25,14 +27,26 @@ stop_boot()
 
 fsck_start()
 {
-	if [ -e /fastboot ]; then
+	if [ "$autoboot" = no ]; then
 		echo "Fast boot: skipping disk checks."
 	elif [ "$autoboot" = yes ]; then
 					# During fsck ignore SIGQUIT
 		trap : 3
 
-		echo "Automatic boot in progress: starting file system checks."
-		fsck -p
+		echo "Starting file system checks:"
+		case `${CMD_OSTYPE}` in
+		FreeBSD)
+			if checkyesno background_fsck; then
+				fsck -F -p
+			else
+				fsck -p
+			fi
+			;;
+		NetBSD)
+			fsck -p
+			;;
+		esac
+
 		case $? in
 		0)
 			;;
@@ -46,9 +60,30 @@ fsck_start()
 			stop_boot
 			;;
 		8)
+		case `${CMD_OSTYPE}` in
+		FreeBSD)
+			if checkyesno fsck_y_enable; then
+				echo "File system preen failed, trying fsck -y."
+				fsck -y
+				case $? in
+				0)
+					;;
+				*)
+				echo "Automatic file system check failed; help!"
+					stop_boot
+					;;
+				esac
+			else
+				echo "Automatic file system check failed; help!"
+				stop_boot
+			fi
+			;;
+		NetBSD)
 			echo "Automatic file system check failed; help!"
 			stop_boot
 			;;
+		esac
+		;;	
 		12)
 			echo "Boot interrupted."
 			stop_boot

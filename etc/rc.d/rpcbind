@@ -1,17 +1,36 @@
 #!/bin/sh
 #
-# $NetBSD: rpcbind,v 1.4 2000/07/26 00:11:49 lukem Exp $
+# $NetBSD: rpcbind,v 1.6 2002/01/31 01:26:06 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: rpcbind
-# REQUIRE: NETWORK ntpdate syslogd named ppp
+# REQUIRE: NETWORKING ntpdate syslogd named ppp
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="rpcbind"
-rcvar=$name
-command="/usr/sbin/${name}"
-pidfile="/var/run/${name}.pid"
 
+# XXX - Executable may be in a different location. The $name variable
+#	is different from the variable in rc.conf(5) so the
+#	subroutines in rc.subr won't catch it.
+#
 load_rc_config $name
+command="${portmap_program:-/usr/sbin/${name}}"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	pidfile=
+	rcvar="portmap_enable"
+	command="${portmap_program:-/usr/sbin/${name}}"
+	eval ${name}_flags=\"${portmap_flags}\"
+	;;
+NetBSD)
+	rcvar=$name
+	command="/usr/sbin/${name}"
+	pidfile="/var/run/${name}.pid"
+	;;
+esac
+
 run_rc_command "$1"

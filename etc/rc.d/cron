@@ -1,16 +1,17 @@
 #!/bin/sh
 #
-# $NetBSD: cron,v 1.4 2000/07/17 15:24:48 lukem Exp $
+# $NetBSD: cron,v 1.5 2000/09/19 13:04:38 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: cron
 # REQUIRE: LOGIN
-# KEYWORD: shutdown
+# KEYWORD: FreeBSD NetBSD shutdown
 
 . /etc/rc.subr
 
 name="cron"
-rcvar=$name
+rcvar="`set_rcvar`"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 

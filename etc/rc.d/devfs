@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: devfs
+# REQUIRE: LOGIN
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="devfs"
+
+load_rc_config $name
+
+# Setup DEVFS, ie permissions, links etc.
+#
+ln -fs /dev/ttyv0 /dev/vga
+

@@ -1,23 +1,50 @@
 #!/bin/sh
 #
-# $NetBSD: swap1,v 1.4 2000/05/13 08:45:09 lukem Exp $
+# $NetBSD: swap1,v 1.8 2002/03/24 15:52:41 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: localswap
 # REQUIRE: disks
+# KEYWORD: FreeBSD NetBSD shutdown
 
 . /etc/rc.subr
 
 name="swap1"
 
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	start_cmd='swapon -a'
+	stop_cmd=':'
+	;;
+NetBSD)
+	#	Add all block-type swap devices; these might be necessary
+	#	during disk checks.
+	#
+	start_cmd="swap1_start"
+	stop_cmd="swap1_stop"
+	;;
+esac
+
 #		Add all block-type swap devices; these might be necessary
 #		during disk checks.
 #
-start_cmd='swapctl -A -t blk'
+swap1_start()
+{
+	if ! checkyesno no_swap; then
+		swapctl -A -t blk
+	fi
+}
 
 #		Remove all block-type swap devices
 #
-stop_cmd="swapctl -U -t blk"
+swap1_stop()
+{
+	if checkyesno swapoff || [ -n "$rc_force" ]; then
+		echo "Removing block-type swap devices"
+		swapctl -U -t blk
+	fi
+}
 
 load_rc_config swap
 run_rc_command "$1"

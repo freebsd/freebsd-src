@@ -1,18 +1,31 @@
 #!/bin/sh
 #
-# $NetBSD: yppasswdd,v 1.4 2000/06/02 22:54:13 fvdl Exp $
+# $NetBSD: yppasswdd,v 1.6 2002/03/22 04:34:01 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: yppasswdd
 # REQUIRE: ypserv ypbind
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="yppasswdd"
-rcvar=$name
-command="/usr/sbin/rpc.${name}"
-required_vars="rpcbind ypserv"
+command="/usr/sbin/rpc.{name}"
 start_precmd="yppasswdd_precmd"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	rcvar="nis_yppasswdd_enable"
+	required_vars="portmap_enable nis_server_enable"
+	command_args="${nis_yppasswdd_flags}"
+	;;
+NetBSD)
+	rcvar=$name
+	required_vars="rpcbind ypserv"
+	;;
+esac
 
 yppasswdd_precmd()
 {

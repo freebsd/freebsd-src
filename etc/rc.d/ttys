@@ -1,10 +1,12 @@
 #!/bin/sh
 #
 # $NetBSD: ttys,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: tty
 # REQUIRE: root
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
@@ -14,18 +16,34 @@ stop_cmd=":"
 
 ttyflags_start()
 {
-	#	set flags on ttys.
-	#	(do early, in case they use tty for SLIP in network)
-	#
-	echo "Setting tty flags."
-	ttyflags -a
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
 
-	#	setup ptys
-	#
-	#	XXX:	there may be more ptys than this; maybe use
-	#		sysctl to find out how many?
-	#
-	chmod 666 /dev/tty[pqrs]*
+		# Whack the pty perms back into shape.
+		#	XXX:	there may be more ptys than this; maybe use
+		#		sysctl to find out how many?
+		#
+		if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
+			chflags 0 /dev/tty[pqrsPQRS]*
+			chmod 666 /dev/tty[pqrsPQRS]*
+			chown root:wheel /dev/tty[pqrsPQRS]*
+		fi
+		;;
+	NetBSD)
+		#	set flags on ttys.
+		#	(do early, in case they use tty for SLIP in network)
+		#
+		echo "Setting tty flags."
+		ttyflags -a
+
+		#	setup ptys
+		#
+		#	XXX:	there may be more ptys than this; maybe use
+		#		sysctl to find out how many?
+		#
+		chmod 666 /dev/tty[pqrs]*
+		;;
+	esac
 }
 
 load_rc_config $name

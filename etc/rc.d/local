@@ -1,11 +1,13 @@
 #!/bin/sh
 #
-# $NetBSD: local,v 1.4 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: local,v 1.6 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
 #
 
-# REQUIRE: DAEMON
 # PROVIDE: local
-# KEYWORD: shutdown
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD shutdown
 
 . /etc/rc.subr
 

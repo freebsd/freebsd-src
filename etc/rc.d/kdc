@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: kdc,v 1.2 2000/09/19 13:04:38 lukem Exp $
+# $NetBSD: kdc,v 1.5 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: kdc
-# REQUIRE: NETWORK
+# REQUIRE: NETWORKING
+# BEFORE:  SERVERS
 
 . /etc/rc.subr
 

@@ -1,29 +1,41 @@
 #!/bin/sh
 #
-# $NetBSD: ntpdate,v 1.5 2000/08/21 14:48:39 abs Exp $
+# $NetBSD: ntpdate,v 1.8 2002/03/22 04:16:39 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: ntpdate
-# REQUIRE: NETWORK syslogd
+# REQUIRE: NETWORKING syslogd
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="ntpdate"
-rcvar=$name
-start_cmd="ntpdate_start"
-stop_cmd=":"
+rcvar=`set_rcvar`
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	command="/usr/sbin/${name}"
+	command_args=">/dev/null 2>&1"
+	pidfile="/var/run/${name}.pid"
+	;;
+NetBSD)
+	start_cmd="ntpdate_start"
+	stop_cmd=":"
+	;;
+esac
 
 ntpdate_start()
 {
 	if [ -z "$ntpdate_hosts" ]; then
 		ntpdate_hosts=`awk '
-		    /^server[ \t]*127.127/	{next}
-		    /^(server|peer)/		{print $2}
+		    /^server[ \t]*127.127/      {next}
+		    /^(server|peer)/            {print $2}
 		' </etc/ntp.conf`
 	fi
 	if [ -n "$ntpdate_hosts"  ]; then
 		echo "Setting date via ntp."
-		ntpdate $ntpdate_flags $ntpdate_hosts
+		ntpdate $rc_flags $ntpdate_hosts
 	fi
 }
 
