@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.17 1998/02/20 10:36:18 markm Exp $
+#	$Id: MAKEDEV,v 1.127.2.18 1998/02/27 20:59:44 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -827,7 +827,9 @@ cuaA*)
 		minor=`expr $port - 1`
 		name=`expr $port + 1000 | cut -c 3-4` 
 		mknod cuaA$name c $major `expr $minor + 128`
-		chown uucp.dialer cuaA$name
+		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
+		mknod cualA$name c $major `expr $minor + 128 + 131072`
+		chown uucp.dialer cuaA$name cuaiA$name cualA$name
 		port=`expr $port + 1`
 	done
 	umask 77
