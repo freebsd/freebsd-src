@@ -70,8 +70,12 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	/* Allocate space for a maximum of 6 arguments on the stack. */
 	args = sp - 6;
 
-	/* Account for arguments on stack and align to 16 bytes. */
-	sp -= 8;
+	/*
+	 * Account for arguments on stack and do the funky C entry alignment.
+	 * This means that we need an 8-byte-odd alignment since the ABI expects
+	 * the return address to be pushed, thus breaking the 16 byte alignment.
+	 */
+	sp -= 7;
 
 	/* Add the arguments: */
 	va_start(ap, argc);
