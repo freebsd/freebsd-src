@@ -36,7 +36,6 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <dev/aac/aac_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
@@ -69,9 +68,6 @@ static	disk_strategy_t	aac_disk_strategy;
 static	dumper_t	aac_disk_dump;
 
 static devclass_t	aac_disk_devclass;
-#ifdef FREEBSD_4
-static int		disks_registered = 0;
-#endif
 
 static device_method_t aac_disk_methods[] = {
 	DEVMETHOD(device_probe,	aac_disk_probe),
@@ -287,19 +283,9 @@ aac_biodone(struct bio *bp)
 	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
 
 	devstat_end_transaction_bio(&sc->ad_stats, bp);
-	if (bp->bio_flags & BIO_ERROR) {
-#if __FreeBSD_version > 500039
+	if (bp->bio_flags & BIO_ERROR)
 		disk_err(bp, "hard error", -1, 1);
-#elif __FreeBSD_version > 500005
-		int blkno;
-		blkno = (sc->ad_label.d_nsectors) ? 0 : -1;
-		diskerr(bp, (char *)bp->bio_driver1, blkno, &sc->ad_label);
-#else
-		int blkno;
-		blkno = (sc->ad_label.d_nsectors) ? 0 : -1;
-		diskerr(bp, (char *)bp->bio_driver1, 0, blkno, &sc->ad_label);
-#endif
-	}
+
 	biodone(bp);
 }
 
@@ -394,10 +380,6 @@ aac_disk_detach(device_t dev)
 
 	devstat_remove_entry(&sc->ad_stats);
 	disk_destroy(&sc->ad_disk);
-#ifdef FREEBSD_4
-	if (--disks_registered == 0)
-		cdevsw_remove(&aac_disk_cdevsw);
-#endif
 
 	return(0);
 }
