@@ -122,6 +122,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
+device		arcmsr		# Areca SATA II RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		iir		# Intel Integrated RAID

@@ -20,6 +20,7 @@ SUBDIR=	${_3dfx} \
 	${_aout} \
 	${_apm} \
 	${_ar} \
+	${_arcmsr} \
 	${_arcnet} \
 	${_arl} \
 	${_asr} \
@@ -306,6 +307,7 @@ _amd=		amd
 _aout=		aout
 _apm=		apm
 _ar=		ar
+_arcmsr=	arcmsr
 _arcnet=	arcnet
 _ath_hal=	ath_hal
 _awi=		awi
@@ -406,6 +408,7 @@ _sppp=		sppp
 _aac=		aac
 #_acpi=		acpi		# doesn't work on amd64 yet
 _agp=		agp
+_arcmsr=	arcmsr
 _ciss=		ciss
 _cpufreq=	cpufreq
 _digi=		digi
