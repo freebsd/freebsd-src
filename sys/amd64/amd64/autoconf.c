@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.29 1995/05/11 19:26:07 rgrimes Exp $
+ *	$Id: autoconf.c,v 1.30 1995/05/12 19:17:11 wollman Exp $
  */
 
 /*
@@ -57,7 +57,6 @@
 #include <machine/md_var.h>
 #include <machine/pte.h>
 
-static void swapconf(void);
 static void setroot(void);
 
 /*
@@ -209,41 +208,7 @@ configure()
 	 * parameter based on device(s) used.
 	 */
 	setconf();
-	swapconf();
 	cold = 0;
-}
-
-/*
- * Configure swap space and related parameters.
- */
-static void
-swapconf()
-{
-	register struct swdevt *swp;
-	register int nblks;
-
-	for (swp = swdevt; swp->sw_dev > 0; swp++)
-	{
-		unsigned d = major(swp->sw_dev);
-
-		if (d > nblkdev) break;
-		if (bdevsw[d].d_psize) {
-			nblks = (*bdevsw[d].d_psize)(swp->sw_dev);
-			if (nblks > 0 &&
-			    (swp->sw_nblks == 0 || swp->sw_nblks > nblks))
-				swp->sw_nblks = nblks;
-			else
-				swp->sw_nblks = 0;
-		}
-		swp->sw_nblks = ctod(dtoc(swp->sw_nblks));
-	}
-	if (dumpdev != NODEV) {
-		if (dumplo == 0 && bdevsw[major(dumpdev)].d_psize)
-			dumplo = (*bdevsw[major(dumpdev)].d_psize)(dumpdev) -
-				Maxmem*NBPG/512;
-		if (dumplo < 0)
-			dumplo = 0;
-	}
 }
 
 int
@@ -267,7 +232,6 @@ setdumpdev(dev_t dev)
 	/*NOTREACHED*/
 }	
 
-#define	DOSWAP			/* change swdevt and dumpdev */
 u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
 
 static	char devname[][2] = {
@@ -325,25 +289,4 @@ setroot()
 		devname[majdev][0], devname[majdev][1],
 		mindev >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
 		part + 'a');
-#ifdef DOSWAP
-	mindev &= ~PARTITIONMASK;
-	for (swp = swdevt; swp->sw_dev; swp++) {
-		if (majdev == major(swp->sw_dev) &&
-		    mindev == (minor(swp->sw_dev) & ~PARTITIONMASK)) {
-
-			temp = swdevt[0].sw_dev;
-			swdevt[0].sw_dev = swp->sw_dev;
-			swp->sw_dev = temp;
-			break;
-		}
-	}
-	if (swp->sw_dev == 0)
-		return;
-	/*
-	 * If dumpdev was the same as the old primary swap
-	 * device, move it to the new primary swap device.
-	 */
-	if (temp == dumpdev)
-		dumpdev = swdevt[0].sw_dev;
-#endif
 }

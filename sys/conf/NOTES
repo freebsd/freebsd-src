@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.179 1995/05/11 02:15:37 jkh Exp $
+#	$Id: LINT,v 1.180 1995/05/12 15:17:55 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -58,7 +58,7 @@ options		MATH_EMULATE		#Support for x87 emulation
 #  - The kernel can swap on wd0b and sd0b, defaulting to the former
 #  - Crash dumps will be written to wd0b, if possible
 #
-config		kernel	root on wd0 swap on wd0 and sd0 dumps on wd0
+config		kernel	root on wd0 
 
 
 #####################################################################
@@ -251,7 +251,9 @@ options		UNION			#Union filesystem
 # of kilobytes to reserve for the filesystem.
 options		"MFS_ROOT=10"
 
-#
+# Allow this many swap-devices.
+options		"NSWAPDEV=20"
+
 # Disk quotas are supported when this option is enabled.  If you
 # change the value of this option, you must do a `make clean' in your
 # kernel compile directory in order to get a working kernel.
