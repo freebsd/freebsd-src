@@ -21,8 +21,6 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 #include "defs.h"
 #include <errno.h>
 #include "gdb_string.h"
@@ -1363,11 +1361,7 @@ find_core_target (void)
   for (t = target_structs; t < target_structs + target_struct_size;
        ++t)
     {
-#if defined(__FreeBSD__)
-      if ((*t)->to_stratum == (kernel_debugging ? kcore_stratum : core_stratum))
-#else
       if ((*t)->to_stratum == core_stratum)
-#endif
 	{
 	  runable = *t;
 	  ++count;

@@ -21,8 +21,6 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 #ifndef DEFS_H
 #define DEFS_H
 
@@ -811,6 +809,10 @@ enum lval_type
   };
 
 struct frame_info;
+
+/* From readline (but not in any readline .h files).  */
+
+extern char *tilde_expand (char *);
 
 /* Control types for commands */
 
