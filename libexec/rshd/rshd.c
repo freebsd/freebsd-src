@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,6 +127,7 @@ union sockunion {
 #define su_port		su_si.si_port
 
 void	 doit __P((union sockunion *));
+static void	 rshd_errx __P((int, const char *, ...));
 void	 getstr __P((char *, int, char *));
 int	 local_domain __P((char *));
 char	*topdomain __P((char *));
@@ -360,7 +362,7 @@ doit(fromp)
 		if (getsockname(0, (struct sockaddr *)&local_addr,
 		    &rc) < 0) {
 			syslog(LOG_ERR, "getsockname: %m");
-			errx(1, "rlogind: getsockname: %m"); /* XXX */
+			rshd_errx(1, "rlogind: getsockname: %m"); /* XXX */
 		}
 		authopts = KOPT_DO_MUTUAL;
 		rc = krb_recvauth(authopts, 0, ticket,
@@ -379,23 +381,23 @@ doit(fromp)
 	retcode = pam_start("rsh", locuser, &conv, &pamh);
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_ERR|LOG_AUTH, "pam_start: %s", pam_strerror(pamh, retcode));
-		errx(1, "Login incorrect.");
+		rshd_errx(1, "Login incorrect.");
 	}
 
 	retcode = pam_set_item (pamh, PAM_RUSER, remuser);
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_RUSER): %s", pam_strerror(pamh, retcode));
-		errx(1, "Login incorrect.");
+		rshd_errx(1, "Login incorrect.");
 	}
 	retcode = pam_set_item (pamh, PAM_RHOST, fromhost);
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_RHOST): %s", pam_strerror(pamh, retcode));
-		errx(1, "Login incorrect.");
+		rshd_errx(1, "Login incorrect.");
 	}
 	retcode = pam_set_item (pamh, PAM_TTY, "tty");
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(PAM_TTY): %s", pam_strerror(pamh, retcode));
-		errx(1, "Login incorrect.");
+		rshd_errx(1, "Login incorrect.");
 	}
 
 	retcode = pam_authenticate(pamh, 0);
@@ -411,7 +413,7 @@ doit(fromp)
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: permission denied (%s). cmd='%.80s'",
 		       remuser, fromhost, locuser, pam_strerror(pamh, retcode), cmdbuf);
-		errx(1, "Login incorrect.");
+		rshd_errx(1, "Login incorrect.");
 	}
 #endif /* USE_PAM */
 
@@ -423,7 +425,7 @@ doit(fromp)
 		    remuser, fromhost, locuser, cmdbuf);
 		if (errorstr == NULL)
 			errorstr = "Login incorrect.";
-		errx(1, errorstr, fromhost);
+		rshd_errx(1, errorstr, fromhost);
 	}
 
 #ifndef USE_PAM
@@ -442,7 +444,7 @@ doit(fromp)
 			       remuser, fromhost, locuser, cmdbuf);
 		if (errorstr == NULL)
 			errorstr = "Login incorrect.";
-		errx(1, errorstr, fromhost);
+		rshd_errx(1, errorstr, fromhost);
 	}
 #endif /* USE_PAM */
 
@@ -456,7 +458,7 @@ doit(fromp)
 			syslog(LOG_INFO|LOG_AUTH,
 			"%s@%s as %s: no home directory. cmd='%.80s'",
 			remuser, fromhost, locuser, cmdbuf);
-			errx(0, "No remote home directory.");
+			rshd_errx(0, "No remote home directory.");
 		}
 		pwd->pw_dir = "/";
 	}
@@ -472,10 +474,10 @@ doit(fromp)
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
 			    remuser, fromhost, locuser, __rcmd_errstr,
 			    cmdbuf);
-			errx(1, "Login incorrect.");
+			rshd_errx(1, "Login incorrect.");
 		}
 		if (!auth_timeok(lc, time(NULL)))
-			errx(1, "Logins not available right now");
+			rshd_errx(1, "Logins not available right now");
 	}
 #if	BSD > 43
 	/* before fork, while we're session leader */
@@ -506,18 +508,18 @@ doit(fromp)
 
 	if (port) {
 		if (pipe(pv) < 0)
-			errx(1, "Can't make pipe.");
+			rshd_errx(1, "Can't make pipe.");
 #ifdef CRYPT
 		if (doencrypt) {
 			if (pipe(pv1) < 0)
-				errx(1, "Can't make 2nd pipe.");
+				rshd_errx(1, "Can't make 2nd pipe.");
 			if (pipe(pv2) < 0)
-				errx(1, "Can't make 3rd pipe.");
+				rshd_errx(1, "Can't make 3rd pipe.");
 		}
 #endif
 		pid = fork();
 		if (pid == -1)
-			errx(1, "Can't fork; try again.");
+			rshd_errx(1, "Can't fork; try again.");
 		if (pid) {
 #ifdef CRYPT
 			if (doencrypt) {
@@ -658,7 +660,7 @@ doit(fromp)
 	else {
 		pid = fork();
 		if (pid == -1)
-			errx(1, "Can't fork; try again.");
+			rshd_errx(1, "Can't fork; try again.");
 		if (pid) {
 			/* Parent. */
 			wait(NULL);
@@ -710,6 +712,26 @@ doit(fromp)
 	exit(1);
 }
 
+/*
+ * Report error to client.  Note: can't be used until second socket has
+ * connected to client, or older clients will hang waiting for that
+ * connection first.
+ */
+
+static void
+rshd_errx(int errcode, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+
+	if (sent_null == 0)
+		write(STDERR_FILENO, "\1", 1);
+
+	verrx(errcode, fmt, ap);
+	/* NOTREACHED */
+}
+
 void
 getstr(buf, cnt, err)
 	char *buf, *err;
@@ -722,7 +744,7 @@ getstr(buf, cnt, err)
 			exit(1);
 		*buf++ = c;
 		if (--cnt == 0)
-			errx(1, "%s too long", err);
+			rshd_errx(1, "%s too long", err);
 	} while (c != 0);
 }
 
