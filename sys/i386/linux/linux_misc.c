@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.34 1998/02/25 05:33:06 bde Exp $
+ *  $Id: linux_misc.c,v 1.35 1998/03/30 09:49:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -694,8 +694,7 @@ linux_times(struct proc *p, struct linux_times_args *args)
 	    	    sizeof(struct linux_times_argv))))
 	return error;
 
-    microtime(&tv);
-    timevalsub(&tv, &boottime);
+    microruntime(&tv);
     p->p_retval[0] = (int)CONVTCK(tv);
     return 0;
 }
