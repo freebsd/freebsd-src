@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.19 1995/11/12 04:55:38 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.20 1996/02/19 02:35:56 mpp Exp $";
 #endif
 
 /*
@@ -432,17 +432,21 @@ unpack(char *pkg, char *flist)
 {
     char args[10], suffix[80], *cp;
 
+    args[0] = '\0';
     /*
      * Figure out by a crude heuristic whether this or not this is probably
      * compressed.
      */
-    args[0] = '\0';
-    cp = rindex(pkg, '.');
-    if (cp) {
-	strcpy(suffix, cp + 1);
-	if (index(suffix, 'z') || index(suffix, 'Z'))
-	    strcpy(args, "-z");
+    if (strcmp(pkg, "-")) {
+	cp = rindex(pkg, '.');
+	if (cp) {
+	    strcpy(suffix, cp + 1);
+	    if (index(suffix, 'z') || index(suffix, 'Z'))
+		strcpy(args, "-z");
+	}
     }
+    else
+	strcpy(args, "z");
     strcat(args, "xpf");
     if (vsystem("tar %s %s %s", args, pkg, flist ? flist : "")) {
 	whinge("Tar extract of %s failed!", pkg);
