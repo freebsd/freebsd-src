@@ -2862,7 +2862,7 @@ tcp_timewait(tw, to, th, m, tlen)
 		if ((ticks - tw->t_starttime) > tcp_msl)
 			goto reset;
 		if (CC_GT(to->to_cc, tw->cc_recv)) {
-			tcp_twclose(tw);
+			(void) tcp_twclose(tw, 0);
 			return (1);
 		}
 		goto drop;
@@ -2892,7 +2892,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	 * are above the previous ones.
 	 */
 	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
-		tcp_twclose(tw);
+		(void) tcp_twclose(tw, 0);
 		return (1);
 	}
 
@@ -2908,8 +2908,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	if (thflags & TH_FIN) {
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tw->rcv_nxt)
-			callout_reset(tw->tt_2msl,
-			    2 * tcp_msl, tcp_timer_2msl_tw, tw);
+			tcp_timer_2msl_reset(tw, 2 * tcp_msl);
 	}
 
 	/*

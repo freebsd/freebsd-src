@@ -202,10 +202,6 @@ struct	tcpcb_mem {
 	struct	callout tcpcb_mem_rexmt, tcpcb_mem_persist, tcpcb_mem_keep;
 	struct	callout tcpcb_mem_2msl, tcpcb_mem_delack;
 };
-struct	tcptw_mem {
-	struct	tcptw tw;
-	struct	callout tcptw_mem_2msl;
-};
 
 static uma_zone_t tcpcb_zone;
 static uma_zone_t tcptw_zone;
@@ -261,10 +257,10 @@ tcp_init()
 	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
-	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw_mem), 
+	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcptw_zone, maxsockets);
-
+	tcp_timer_init();
 	syncache_init();
 }
 
@@ -1599,18 +1595,19 @@ void
 tcp_twstart(tp)
 	struct tcpcb *tp;
 {
-	struct tcptw_mem *tm;
 	struct tcptw *tw;
 	struct inpcb *inp;
 	int tw_time, acknow;
 	struct socket *so;
 
-	tm = uma_zalloc(tcptw_zone, M_NOWAIT);
-	if (tm == NULL)
-		/* EEEK! -- preserve old structure or just kill everything? */
-		/* must obtain tcbinfo lock in order to drop the structure. */
-		panic("uma_zalloc(tcptw)");
-	tw = &tm->tw;
+	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
+	if (tw == NULL) {
+		tw = tcp_timer_2msl_tw(1);
+		if (tw == NULL) {
+			tcp_close(tp);
+			return;
+		}
+	}
 	inp = tp->t_inpcb;
 	tw->tw_inpcb = inp;
 
@@ -1633,7 +1630,7 @@ tcp_twstart(tp)
 	tw->cc_recv = tp->cc_recv;
 	tw->cc_send = tp->cc_send;
 	tw->t_starttime = tp->t_starttime;
-	callout_init(tw->tt_2msl = &tm->tcptw_mem_2msl, 0);
+	tw->tw_time = 0;
 
 /* XXX
  * If this code will
@@ -1658,23 +1655,21 @@ tcp_twstart(tp)
 	inp->inp_socket = NULL;
 	inp->inp_ppcb = (caddr_t)tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
-	callout_reset(tw->tt_2msl, tw_time, tcp_timer_2msl_tw, tw);
+	tcp_timer_2msl_reset(tw, tw_time);
 	if (acknow)
 		tcp_twrespond(tw, TH_ACK);
 	INP_UNLOCK(inp);
 }
 
-void
-tcp_twclose(tw)
-	struct tcptw *tw;
+struct tcptw *
+tcp_twclose(struct tcptw *tw, int reuse)
 {
 	struct inpcb *inp;
 
 	inp = tw->tw_inpcb;
 	tw->tw_inpcb = NULL;
-	callout_stop(tw->tt_2msl);
+	tcp_timer_2msl_stop(tw);
 	inp->inp_ppcb = NULL;
-	uma_zfree(tcptw_zone, tw);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO)
 		in6_pcbdetach(inp);
@@ -1682,6 +1677,10 @@ tcp_twclose(tw)
 #endif
 		in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
+	if (reuse)
+		return (tw);
+	uma_zfree(tcptw_zone, tw);
+	return (NULL);
 }
 
 int
