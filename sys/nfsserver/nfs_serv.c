@@ -225,8 +225,13 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(nfsmode);
 nfsmout:
-	if (vp)
+	if (vp) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		vput(vp);
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
+	}
 	return(error);
 }
 
