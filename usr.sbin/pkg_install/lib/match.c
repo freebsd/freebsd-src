@@ -85,9 +85,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     if (retval != NULL)
 	*retval = 0;
 
-    tmp = getenv(PKG_DBDIR);
-    if (!tmp)
-	tmp = DEF_LOG_DIR;
+    tmp = LOG_DIR;
     if (!isdir(tmp)) {
 	if (retval != NULL)
 	    *retval = 1;

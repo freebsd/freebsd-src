@@ -127,7 +127,7 @@ main(int argc, char **argv)
     if (pkgs == start && MatchType != MATCH_ALL)
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
-    tmp = getenv(PKG_DBDIR) ? getenv(PKG_DBDIR) : DEF_LOG_DIR;
+    tmp = LOG_DIR;
     (void) stat(tmp, &stat_s);
     if (!Fake && getuid() && geteuid() != stat_s.st_uid) {
 	if (!Force)
