@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.17 1997/06/02 10:44:08 dfr Exp $
+ *	$Id: mp_machdep.c,v 1.18 1997/06/22 16:03:18 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -587,7 +587,7 @@ mptable_pass1(void)
 		io_apic_address[0] = DEFAULT_IO_APIC_BASE;
 
 		/* fill in with defaults */
-		mp_naps = 1;
+		mp_naps = 2;		/* includes BSP */
 		mp_nbusses = default_data[mpfps->mpfb1 - 1][0];
 #if defined(APIC_IO)
 		mp_napics = 1;
