@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.6.2.2 1997/06/19 14:25:04 charnier Exp $
+.\"	$Id: scsi.8,v 1.6.2.3 1997/08/24 08:51:37 joerg Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -48,22 +48,38 @@
 .Nm scsi
 .Nd program to assist with scsi devices
 .Sh SYNOPSIS
-.Bd -literal -offset
-Usage:
-scsi -f device -d debug_level                    # To set debug level
-scsi -f device [-v] -z seconds                   # To freeze bus
-scsi -f device -m page [-P pc] [-e]              # To read mode pages
-scsi -f device -p [-b bus] [-l lun]              # To probe all devices
-scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device
-scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn] # A command...
-               -o count out_fmt [arg0 ... argn]  #   EITHER (for data out)
-               -i count in_fmt                   #   OR     (for data in)
-.Pp
-"out_fmt" can be "-" to read output data from stdin;
-"in_fmt" can be "-" to write input data to stdout;
-.Pp
-If debugging is not compiled in the kernel, "-d" will have no effect
-.Ed
+.Nm scsi
+.Fl f Ar device
+.Fl d Ar debug_level
+.Nm scsi
+.Fl f Ar device
+.Fl z Ar seconds
+.Op Fl v
+.Nm scsi
+.Fl f Ar device
+.Fl m Ar page
+.Op Fl P Ar pc
+.Op Fl e
+.Nm scsi
+.Fl f Ar device
+.Fl p
+.Op Fl b Ar bus
+.Op Fl l Ar lun
+.Nm scsi
+.Fl f Ar device
+.Fl r
+.Op Fl b Ar bus
+.Op Fl t Ar targ
+.Op Fl l Ar lun
+.Nm scsi
+.Fl f Ar device
+.Fl c Ar cmd_fmt
+.Op Ar arg0 ... argn
+.Op Fl s Ar seconds
+.Op Fl v
+.Fl o Ar count out_fmt
+.Op Ar arg0 ... argn
+.Fl i Ar count in_fmt
 .Sh DESCRIPTION
 The
 .Nm scsi
@@ -71,56 +87,65 @@ program is used to send commands to a scsi device. It is also
 a sample usage of the user level SCSI commands.
 .Pp
 The
-.Fr -d
+.Fl d
 option sets the SCSI kernel debug level.  The kernel must have been compiled
 with the
-.Em SCSIDEBUG
+.Dv SCSIDEBUG
 option.  See
-.Fr /sys/scsi/scsi_debug.h
+.Pa /sys/scsi/scsi_debug.h
 to figure out what to set the kernel debug level to.
 .Pp
 The
-.Fr -z
+.Fl z
 option freezes all activity on all SCSI busses for a given number of
 seconds.  If
-.Fr -v
+.Fl v
 is also specified then a BEL character is sent to the standard
 output at the start and finish of the bus freeze.
-This requires that the kernel be built with the SCSI_FREEZE kernel option.
+This requires that the kernel be built with the
+.Dv SCSI_FREEZE
+kernel option.
 This kernel code is not committed yet.
 .Pp
 The
-.Fr -m
+.Fl m
 option is used to read a device mode page.  The file
-.Fr /usr/share/misc/scsi_modes
+.Pa /usr/share/misc/scsi_modes
 is read to look at for how to interpret the mode data.  The environment
-variable SCSI_MODES can specify a different file to use.
+variable
+.Ev SCSI_MODES
+can specify a different file to use.
 .Pp
-.in +.25i
 The
-.Fr -P
+.Fl P
 option can be used to specify a page control field.  The page control
-fields are
-.Bd -literal -offset
-0 Current Values
-1 Changeable Values
-2 Default Values
-3 Saved Values
-.Ed
+fields are:
+.Pp
+.Bl -tag -width xxxx -indent offset -compact
+.It 0
+Current Values
+.It 1
+Changeable Values
+.It 2
+Default Values
+.It 3
+Saved Values
+.El
 .Pp
 The
-.Fr -e
+.Fl e
 option permits you to edit the fields.  It will use the editor specified
-by your EDITOR environment variable.  To store changes permanently, 
+by your
+.Ev EDITOR
+environment variable.  To store changes permanently, 
 edit page control 3 using the
-.Fr -P
+.Fl P
 flag.
-.in -.25i
 .Pp
 The
-.Fr -p
+.Fl p
 option can be used against the "super scsi" device
-.Fr /dev/scsi/super
+.Pa /dev/scsi/super
 to probe all devices with a given SCSI lun on a given SCSI bus.
 The bus can be selected with the
 .Fl b
@@ -133,7 +158,7 @@ See
 for a description of the "super scsi" device.
 .Pp
 The
-.Fr -r
+.Fl r
 option can be used in 
 .Tn FreeBSD 
 1.1 to reprobe a specific SCSI device at a given
@@ -142,31 +167,33 @@ This is not needed in
 .Fx 2.1 ,
 since opening a fixed SCSI device
 has the side effect of reprobing it, and probing with the bus with the
--p option should bring on line any newly found devices.
+.Fl p
+option should bring on line any newly found devices.
 See
 .Xr scsi 4
 for a description of fixed scsi devices.
 .Pp
 The
-.Fr -c
+.Fl c
 option permits you to send user level SCSI commands specified on
 the command line to a
-device.  The command is sent using the SCIOCCOMMAND ioctl, so the
+device.  The command is sent using the
+.Dv SCIOCCOMMAND
+ioctl, so the
 device you are accessing must permit this ioctl. See
 .Xr scsi 4
 for full details of which minor devices permit the ioctl, and
 .Xr scsi 3
 for the full details on how to build up the commands and data phases
 using the format arguments.
-.in +.25i
 .Pp
-.Fr -v
+.Fl v
 turns on more verbose information.
 .Pp
-.Fr -s
+.Fl s
 sets the command timeout in seconds.  The default is two seconds.
 .Pp
-.Fr "-c cmd_fmt"
+.Fl c Ar cmd_fmt
 specifies the command as described in
 .Xr scsi 3 "."
 The additional arguments provide values for any variables
@@ -177,32 +204,34 @@ command-line are subject to the common
 .Dq C
 number notation.
 .Pp
-.Fr "-o count out_fmt arg0 ... argn"
+.Fl o 
+.Ar count
+.Ar out_fmt
+.Op Ar arg0 ... argn
 indicates that this is a data out command (i.e., data will be sent from
 the system to the device) with
 .Fr count
 bytes of data. The data out is built up using the facilities described in
 .Xr scsi 3
 using the provided arguments to fill in any integer variables.
-.Fr out_fmt
+.Ar out_fmt
 can be specified as a hyphen ("-") to indicate that the
-.Fr count
+.Ar count
 bytes of data should be read from the standard input.
 .Pp
-.Fr "-i count in_fmt"
+.Fl i Ar count Ar in_fmt
 indicates that this is a data in command (i.e., data will be read from
 the device into the system) with
-.Fr count
+.Ar count
 bytes of data read in.  The information is extracted according to
-.Fr in_fmt
+.Ar in_fmt
 using the facilities described in
 .Xr scsi 3
 and displayed on the standard output.
-.Fr in_fmt
+.Ar in_fmt
 can be specified as a hyphen ("-") to indicate that the
-.Fr count
+.Ar count
 bytes of data input should be written to the standard output.
-.in -.25i
 .Sh EXAMPLES
 To verify that the device type for the disk
 .Pa /dev/rsd0c
@@ -229,38 +258,54 @@ root# scsi -f /dev/rsd2c -m 1 -e -P 3
 .Ed
 .Pp
 .Sh ENVIRONMENT
-The SU_DEBUG_OUTPUT variable can be set to a file to send debugging
+The
+.Ev SU_DEBUG_OUTPUT
+variable can be set to a file to send debugging
 output to that file.
 .Pp
-The SU_DEBUG_LEVEL variable can be set to a non-zero integer to increase
+The
+.Ev SU_DEBUG_LEVEL
+variable can be set to a non-zero integer to increase
 the level of debugging.  Currently this is a on or off thing; it should
 perhaps use the ioctl to set the debug level in the kernel and then set
 it back to zero at program exit.
 .Pp
-The SU_DEBUG_TRUNCATE variable can be set to an integer to limit the
+The
+.Ev SU_DEBUG_TRUNCATE
+variable can be set to an integer to limit the
 amount of data phase output sent to the debugging file.
 .Pp
-The EDITOR variable determines the editor to use for the mode editor.
+The
+.Ev EDITOR
+variable determines the editor to use for the mode editor.
 .Sh SEE ALSO
 .Xr scsi 3 ,
 .Xr scsi 4
 .Sh BUGS
 .Pp
-This command wasn't ready for inclusion in 2.0R and so is missing in
-that release.
-.Pp
 Some devices respond to an inquiry for all LUNS.  This will cause them
 to come on line to 8 times during reprobe to different logical units.
 .Pp
-The "-i" option to do an inquiry went away in 2.1.  The new facilities
-provided by "-c" supercede that.
+The
+.Fl i
+option to do an inquiry went away in
+.Fx 2.1 .
+The new facilities
+provided by
+.Fl c
+supercede that.
 .Pp
 Check your permissions carefully.
-"scsi -f /dev/rsd0c -c "4 0 0 0 0 0" permits anyone who can open
-/dev/rsd0c to format the disk drive.  This must be changed to
+.Ql scsi -f /dev/rsd0c -c "4 0 0 0 0 0
+permits anyone who can open
+.Pa /dev/rsd0c
+to format the disk drive.  This must be changed to
 at least require write access to the drive.
 .Sh HISTORY
 The
 .Nm scsi
-command appeared in 386BSD 0.1.2.4/FreeBSD to support the new reprobe
-and user SCSI commands.
+command appeared in 386BSD 0.1.2.4 to support the new reprobe
+and user SCSI commands.  It first appeared in 
+.Tn FreeBSD
+in
+.Fx 2.0.5 .
