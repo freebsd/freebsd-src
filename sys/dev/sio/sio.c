@@ -778,8 +778,12 @@ sioprobe(dev, xrid)
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
 
-	if (atomic_cmpset_int(&sio_inited, 0, 1))
-		mtx_init(&sio_lock, driver_name, MTX_SPIN);
+	while (sio_inited != 2)
+		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
+			mtx_init(&sio_lock, driver_name, (comconsole != -1) ?
+			    MTX_SPIN | MTX_QUIET : MTX_SPIN);
+			atomic_store_rel_int(&sio_inited, 2);
+		}
 
 #if 0
 	/*
