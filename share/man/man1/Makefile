@@ -20,7 +20,8 @@ MLINKS=	builtin.1 alias.1 builtin.1 alloc.1 builtin.1 bg.1 \
 	builtin.1 history.1 builtin.1 if.1 builtin.1 jobid.1 \
 	builtin.1 jobs.1 builtin.1 limit.1 builtin.1 logout.1 \
 	builtin.1 notify.1 builtin.1 onintr.1 builtin.1 popd.1 \
-	builtin.1 pushd.1 builtin.1 readonly.1 builtin.1 rehash.1 \
+	builtin.1 pushd.1 builtin.1 read.1 builtin.1 readonly.1 \
+	builtin.1 rehash.1 \
 	builtin.1 repeat.1 builtin.1 set.1 builtin.1 setenv.1 \
 	builtin.1 setvar.1 builtin.1 shift.1 builtin.1 source.1 \
 	builtin.1 stop.1 builtin.1 suspend.1 builtin.1 switch.1 \
