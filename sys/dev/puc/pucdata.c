@@ -763,15 +763,15 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 8 },
 	    },
 	},
-        {   "Titan PCI-200H",
+	{   "Titan PCI-200H",
 	    NULL,
-            {   0x14d2, 0xa005, 0,      0       },
-            {   0xffff, 0xffff, 0,      0       },
-            {
-                { PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
-                { PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
-            },
-        },
+	    {	0x14d2,	0xa005,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 8 },
+	    },
+	},
 
 	{   "Titan VScom PCI-200HV2",	/* 2S */
 	    NULL,
@@ -893,13 +893,13 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
-	/* Actiontec  56K PCI Master */
+	/* Actiontec 56K PCI Master */
 	{   "Actiontec 56K PCI Master",
 	    NULL,
-	    {	0x11c1,	0x0480,	0x0, 	0x0	},
+	    {	0x11c1,	0x0480,	0x0,	0x0	},
 	    {	0xffff,	0xffff,	0x0,	0x0	},
 	    {
-		{ PUC_PORT_TYPE_COM,	0x14,	0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
 	    },
 	},
 
