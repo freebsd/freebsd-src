@@ -426,7 +426,7 @@ bs_alloc_buf(ti)
 			ti->bounce_phys = (u_int8_t *) physaddr;
 			return;
 		}
-		free(buf, M_DEVBUF);
+		free(addr, M_DEVBUF);
 	}
 	addr = contigmalloc(ti->bounce_size, M_DEVBUF, M_NOWAIT,
 						0ul, RAM_END, 1ul, 0x10000ul);
