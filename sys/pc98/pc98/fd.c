@@ -58,7 +58,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
@@ -846,7 +845,7 @@ static struct isa_pnp_id fdc_ids[] = {
 };
 
 static int
-fdc_read_ivar(device_t dev, device_t child, int which, u_long *result)
+fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct fdc_ivars *ivars = device_get_ivars(child);
 
@@ -2627,6 +2626,12 @@ retrier(struct fdc_data *fdc)
 	return (1);
 }
 
+static void
+fdbiodone(struct bio *bp)
+{
+	wakeup(bp);
+}
+
 static int
 fdformat(dev, finfo, p)
 	dev_t dev;
@@ -2636,7 +2641,7 @@ fdformat(dev, finfo, p)
  	fdu_t	fdu;
  	fd_p	fd;
 
-	struct buf *bp;
+	struct bio *bp;
 	int rv = 0, s;
 	size_t fdblk;
 
@@ -2645,36 +2650,34 @@ fdformat(dev, finfo, p)
 	fdblk = 128 << fd->ft->secsize;
 
 	/* set up a buffer header for fdstrategy() */
-	bp = (struct buf *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
+	bp = (struct bio *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
 	if(bp == 0)
-		return ENOBUFS;
+		return ENOMEM;
 	/*
 	 * keep the process from being swapped
 	 */
 	PHOLD(p);
-	bzero((void *)bp, sizeof(struct buf));
-	BUF_LOCKINIT(bp);
-	BUF_LOCK(bp, LK_EXCLUSIVE);
-	bp->b_flags = B_PHYS;
-	bp->b_iocmd = BIO_FORMAT;
+	bzero((void *)bp, sizeof(*bp));
+	bp->bio_cmd = BIO_FORMAT;
 
 	/*
 	 * calculate a fake blkno, so fdstrategy() would initiate a
 	 * seek to the requested cylinder
 	 */
-	bp->b_blkno = (finfo->cyl * (fd->ft->sectrac * fd->ft->heads)
+	bp->bio_blkno = (finfo->cyl * (fd->ft->sectrac * fd->ft->heads)
 		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
 
-	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->b_data = (caddr_t)finfo;
+	bp->bio_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
+	bp->bio_data = (caddr_t)finfo;
 
 	/* now do the format */
-	bp->b_dev = dev;
-	DEV_STRATEGY(bp, 0);
+	bp->bio_dev = dev;
+	bp->bio_done = fdbiodone;
+	fdstrategy(bp);
 
 	/* ...and wait for it to complete */
 	s = splbio();
-	while(!(bp->b_flags & B_DONE)) {
+	while(!(bp->bio_flags & BIO_DONE)) {
 		rv = tsleep((caddr_t)bp, PRIBIO, "fdform", 20 * hz);
 		if (rv == EWOULDBLOCK)
 			break;
@@ -2685,16 +2688,13 @@ fdformat(dev, finfo, p)
 		/* timed out */
 		rv = EIO;
 		device_unbusy(fd->dev);
-		bufdone(bp);
 	}
-	if (bp->b_flags & BIO_ERROR)
-		rv = bp->b_error;
+	if (bp->bio_flags & BIO_ERROR)
+		rv = bp->bio_error;
 	/*
 	 * allow the process to be swapped
 	 */
 	PRELE(p);
-	BUF_UNLOCK(bp);
-	BUF_LOCKFREE(bp);
 	free(bp, M_TEMP);
 	return rv;
 }
