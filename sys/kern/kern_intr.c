@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.4 1997/06/01 16:05:13 peter Exp $
+ * $Id: kern_intr.c,v 1.5 1997/06/02 08:19:06 dfr Exp $
  *
  */
 
@@ -55,8 +55,6 @@ typedef struct intrec {
 	int		intr;
 	intrmask_t	*maskptr;
 	int		flags;
-#define	INTR_FAST		0x00000001 /* fast interrupt handler */
-#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
 } intrec;
 
 /*

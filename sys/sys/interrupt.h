@@ -23,10 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: interrupt.h,v 1.2 1997/05/31 09:33:29 peter Exp $
+ * $Id: interrupt.h,v 1.3 1997/06/01 16:05:14 peter Exp $
  */
 
 /* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
+#define	INTR_FAST		0x00000001 /* fast interrupt handler */
+#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+
 struct intrec *intr_create(void *dev_instance, int irq, inthand2_t handler,
 			   void *arg, intrmask_t *maskptr, int flags);
 
