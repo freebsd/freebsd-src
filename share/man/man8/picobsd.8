@@ -108,7 +108,7 @@ is used, but the principle also applies to the subdirectories
 and 
 .Pa router .
 .Bl -hang
-.It Em Build the kernel.
+.It Em "Build the kernel" .
 Each directory contains a configuration file with a name starting with
 .Pa PICOBSD .
 When building a custom
@@ -118,19 +118,19 @@ occupies about 600 kB after compression, and it is easy to have a kernel as
 large as 900 kB.  It is probably not possible to build a first
 .Nm
 floppy with a kernel of 900 kB.
-.It Em Create the MFS image.
+.It Em "Create the MFS image" .
 The MFS image for the first floppy is created as a
 .Nm vnode
 file system which is subsequently mounted as
 .Pa /dev/vn0 
 on
 .Pa custom/mmnt .
-.It Em Create the crunched executables.
+.It Em "Create the crunched executables" .
 The executables for the first floppy are built in the directory
 .Pa crunch/crunch1/ .
 The contents of this executable are determined by the file
 .Pa crunch/crunch1/crunch.conf .
-.It Em Build the floppy image.
+.It Em "Build the floppy image" .
 A second file system image, which will later become the first floppy, is built
 and mounted as 
 .Pa /dev/vn1
@@ -145,7 +145,7 @@ if the latter directory exists.  This dual method allows specific files in
 .Pa floppy.tree/custom/ 
 to overlay files from 
 .Pa floppy.tree/ .
-.It Em Create the image for the second floppy.
+.It Em "Create the image for the second floppy" .
 Finally, the image for the second floppy is built.  There is only one file on
 this floppy, which will be copied to the MFS-relative directory 
 .Pa /bin
@@ -153,7 +153,7 @@ at boot time.  The contents are built in the directory
 .Pa crunch/crunch2/ .
 The contents of this executable are determined by the file
 .Pa crunch/crunch2/crunch.conf .
-.It Em Copy the data to the floppies.
+.It Em "Copy the data to the floppies" .
 The previous steps are performed by the
 .Nm make all
 step.
@@ -163,7 +163,7 @@ does not copy data to the floppy disks.  Instead, use
 for the first floppy, and
 .Nm make floppy2
 for the second disk.
-.It Em Create additional floppies.
+.It Em "Create additional floppies" .
 You can theoretically possible to read a large number of floppies into the MFS.
 Each additional floppy, including the second, is a gzipped tar file containing
 files relative to

@@ -75,7 +75,7 @@ This size is returned by the
 .Dv BIOCGBLEN
 ioctl (see below), and 
 can be set with
-.Dv BIOCSBLEN.
+.Dv BIOCSBLEN .
 Note that an individual packet larger than this size is necessarily
 truncated.
 .Pp
@@ -250,7 +250,8 @@ is given by the
 .Li bf_len
 field.
 Also, the actions of
-.Dv BIOCFLUSH are performed.
+.Dv BIOCFLUSH
+are performed.
 See section
 .Sx "FILTER MACHINE"
 for an explanation of the filter language.
@@ -458,7 +459,7 @@ or a word in the scratch memory store
 For 
 .Dv BPF_IND
 and
-.Dv BPF_ABS,
+.Dv BPF_ABS ,
 the data size must be specified as a word
 .Pq Dv BPF_W ,
 halfword

@@ -316,7 +316,7 @@ then if the reference count of the storage is not greater than 1.
 The
 .Dv M_RDONLY
 flag can be set in the mbuf's
-.Dv m_flags.
+.Dv m_flags .
 This can be achieved during setup of the external storage,
 by passing the
 .Dv M_RDONLY
@@ -366,7 +366,8 @@ must be less than
 or
 .Dv MHLEN ,
 depending on the
-.Dv M_PKTHDR flag setting.
+.Dv M_PKTHDR
+flag setting.
 .\"
 .It Fn m_pullup mbuf len
 Arrange that the first

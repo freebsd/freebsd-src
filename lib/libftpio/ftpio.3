@@ -49,31 +49,31 @@
 .Ft FILE *
 .Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
 .Ft int
-.Fn ftpChdir "FILE *stream, char *dirname"
+.Fn ftpChdir "FILE *stream" "char *dirname"
 .Ft int
 .Fn ftpErrno "FILE *stream"
 .Ft const char *
 .Fn ftpErrString "int errno"
 .Ft time_t
-.Fn ftpGetModtime "FILE *stream, char *file"
+.Fn ftpGetModtime "FILE *stream" "char *file"
 .Ft off_t
-.Fn ftpGetSize "FILE *stream, char *file"
+.Fn ftpGetSize "FILE *stream" "char *file"
 .Ft FILE *
-.Fn ftpGet "FILE *stream, char *file, off_t *seekto"
+.Fn ftpGet "FILE *stream" "char *file" "off_t *seekto"
 .Ft FILE *
-.Fn ftpPut "FILE *stream, char *file"
+.Fn ftpPut "FILE *stream" "char *file"
 .Ft int
 .Fn ftpAscii "FILE *stream"
 .Ft int
 .Fn ftpBinary "FILE *stream"
 .Ft int
-.Fn ftpPassive "FILE *stream, int status"
+.Fn ftpPassive "FILE *stream" "int status"
 .Ft void
-.Fn ftpVerbose "FILE *stream, int status"
+.Fn ftpVerbose "FILE *stream" "int status"
 .Ft FILE *
-.Fn ftpGetURL "char *url, char *user, char *passwd, int *retcode"
+.Fn ftpGetURL "char *url" "char *user" "char *passwd" "int *retcode"
 .Ft FILE *
-.Fn ftpPutURL "char *url, char *user, char *passwd, int *retcode"
+.Fn ftpPutURL "char *url" "char *user" "char *passwd" "int *retcode"
 .Ft int
 .Fn ftpLoginAf "char *host" "int af" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
 .Ft FILE *
@@ -86,7 +86,7 @@ These functions implement a high-level library for managing FTP connections.
 .Fn ftpLogin
 attempts to log in using the supplied
 .Fa user ,
-.Fa passwd,
+.Fa passwd ,
 .Fa ftp_port
 (if passed as 0,
 .Fa ftp_port
@@ -101,7 +101,7 @@ will have the error code returned by the foreign server.
 .Pp
 .Fn ftpChdir
 attempts to issue a server CD command to the directory named in
-.Fa dir.
+.Fa dir .
 On success, zero is returned.  On failure, the error code from the server.
 .Pp
 .Fn ftpErrno

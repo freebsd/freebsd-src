@@ -91,7 +91,7 @@ Each time a user logs in, the
 program looks up the user's
 .Tn UID
 in the file
-.Nm lastlog.
+.Nm lastlog .
 If it is found, the timestamp of the last time the user logged
 in, the terminal line and the hostname
 are written to the standard output (unless the login is
@@ -179,7 +179,7 @@ is recorded in the field
 In the field
 .Fa ut_line ,
 the character
-.Ql \\*(Ba
+.Ql \&|
 indicates the time prior to the change, and the character
 .Ql \&{
 indicates the new time.

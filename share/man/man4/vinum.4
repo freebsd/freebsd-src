@@ -799,9 +799,9 @@ sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 4098
 The first line contains the
 .Nm 
 label and must start with the text
-.Li IN VINO.
+.Li IN VINO .
 It also contains the name of the system.  The exact definition is contained in 
-.Pa /usr/src/sys/dev/vinum/vinumvar.h.
+.Pa /usr/src/sys/dev/vinum/vinumvar.h .
 The saved configuration starts in the middle of the line with the text
 .Li volume obj state up
 and starts in sector 9 of the disk.
@@ -904,7 +904,8 @@ To perform remote serial debugging,
 link 
 .Pa /var/crash/.gdbinit.serial
 to 
-.Pa /var/crash/.gdbinit and enter
+.Pa /var/crash/.gdbinit
+and enter
 .Bd -literal
 # cd /var/crash
 # gdb -k kernel.debug

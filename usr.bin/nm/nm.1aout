@@ -44,7 +44,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The symbol table (name list) of each object in
-.Ar file(s)
+.Ar file Ns (s)
 is displayed.
 If a library (archive) is given,
 .Nm 

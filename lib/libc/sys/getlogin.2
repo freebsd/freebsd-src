@@ -86,8 +86,8 @@ is normally used only when a new session is being created on behalf
 of the named user
 (for example, at login time, or when a remote shell is invoked).
 .Pp
-.Em NOTE:
-There is only one `login name' per `session .
+.Em NOTE :
+There is only one login name per session.
 .Pp
 It is
 .Em CRITICALLY
@@ -107,9 +107,9 @@ which is an ideal way of detaching from a controlling terminal and
 forking into the background.
 .Pp
 In particular, doing a
-.Fn ioctl ttyfd TIOCNOTTY ...
+.Fn ioctl ttyfd TIOCNOTTY ...\&
 or
-.Fn setpgrp ...
+.Fn setpgrp ...\&
 is
 .Em NOT
 sufficient.

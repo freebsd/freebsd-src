@@ -45,7 +45,10 @@
 .Op Fl c Ar cc-addr
 .Op Fl b Ar bcc-addr
 .Ar to-addr ...
-.Op \&- Ar sendmail-option ...
+.Oo
+.Fl
+.Ar sendmail-option ...
+.Oc
 .Nm
 .Op Fl iInNv
 .Fl f
@@ -419,7 +422,7 @@ Takes a list of messages and points the text editor at each one in
 turn.
 On return from the editor, the message is read back in.
 .It Ic exit
-.Pf ( Ic ex
+.Ic ( ex
 or
 .Ic x )
 Effects an immediate return to the Shell without
@@ -469,7 +472,7 @@ argument is given, the previous 18\-message group is printed.
 A synonym for
 .Ic \&?
 .It Ic hold
-.Pf ( Ic ho ,
+.Ic ( ho ,
 also
 .Ic preserve )
 Takes a message list and marks each
@@ -952,7 +955,7 @@ If set, will be used to initialize the Reply-To field for outgoing
 messages.
 .It Ev SHELL
 Pathname of the shell to use in the
-.Ic \&!
+.Ic !\&
 command and the
 .Ic \&~!
 escape.
@@ -1025,9 +1028,9 @@ default in /var/mail.
 .Bl -tag -width /usr/share/misc/mail.*help -compact
 .It Pa /var/mail/*
 Post office.
-.It ~/mbox
+.It Pa ~/mbox
 User's old mail.
-.It ~/.mailrc
+.It Pa ~/.mailrc
 File giving initial mail commands.
 .It Pa /tmp/R*
 Temporary files.

@@ -51,7 +51,9 @@
 .Op Fl P Ar rshcmd
 .Fl c
 .Ar name ...\&
-.Oo login@ Oc Ns Ar host Ns Op :dest
+.Oo Ar login Ns @ Oc Ns Xo
+.Ar host Ns Op : Ns Ar dest
+.Xc
 .Sh DESCRIPTION
 .Nm Rdist
 is a program to maintain identical copies of files over multiple hosts.
@@ -110,7 +112,7 @@ The equivalent distfile is as follows.
 .Bd -filled -offset indent -compact
 .Pq Ar name ...\&
 .Li ->
-.Op Ar login@
+.Op Ar login Ns @
 .Ar host
 .Bd -filled -offset indent -compact
 .Li install

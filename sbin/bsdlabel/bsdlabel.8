@@ -182,7 +182,7 @@ auto
 The required arguments to
 .Nm
 are the drive to be labeled and the drive type as described in the
-.Pa disktab(5)
+.Xr disktab 5
 file.  The drive parameters and partitions are taken from that file.  If
 different disks of the same physical type are to have different partitions, it
 will be necessary to have separate disktab entries describing each, or to edit
@@ -301,7 +301,7 @@ are used to install bootstrap code.  If you are creating a
 .Dq dangerously-dedicated
 partition for compatibility with older PC systems,
 you generally want to specify the raw disk name such as
-.Pa da0.
+.Pa da0 .
 If you are creating a label within an existing DOS slice, you should specify
 the slice name such as
 .Pa da0s1 .

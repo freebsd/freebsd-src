@@ -14,7 +14,7 @@
 .Nd "tape archiver; manipulate ""tar"" archive files"
 .Sh SYNOPSIS
 .Nm
-.Op [-] Ns Ar bundled-options Ar Args
+.Op Oo Fl Oc Ns Ar bundled-options Ar Args
 .Op Ar gnu-style-flags
 .Op Ar filenames | Fl C Ar directory-name
 .Ar ...
@@ -312,7 +312,7 @@ Unlink files before creating them.
 Lists files written to archive with
 .Fl -create
 or extracted with
-.Fl -extract;
+.Fl -extract ;
 lists file protection information along with file names with
 .Fl -list .
 .It Fl V Ar volume-name

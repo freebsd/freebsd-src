@@ -193,11 +193,11 @@ taken as a pointer to a
 (see above).
 .Dv F_SETLK
 is used to establish shared (or read) locks
-.Dv (F_RDLCK)
+.Pq Dv F_RDLCK
 or exclusive (or write) locks,
-.Dv (F_WRLCK) ,
+.Pq Dv F_WRLCK ,
 as well as remove either type of lock
-.Dv (F_UNLCK) .
+.Pq Dv F_UNLCK .
 If a shared or exclusive lock cannot be set,
 .Fn fcntl
 returns immediately with
@@ -392,11 +392,11 @@ The argument
 is
 .Dv F_SETLK ,
 the type of lock
-.Fa (l_type)
+.Pq Fa l_type
 is a shared lock
-.Dv (F_RDLCK)
+.Pq Dv F_RDLCK
 or exclusive lock
-.Dv (F_WRLCK) ,
+.Pq Dv F_WRLCK ,
 and the segment of a file to be locked is already
 exclusive-locked by another process;
 or the type is an exclusive lock and some portion of the
@@ -413,9 +413,9 @@ is
 or
 .Dv F_SETLKW ,
 the type of lock
-.Fa (l_type)
+.Pq Fa l_type
 is a shared lock
-.Dv (F_RDLCK) ,
+.Pq Dv F_RDLCK ,
 and
 .Fa fildes
 is not a valid file descriptor open for reading.
@@ -427,9 +427,9 @@ is
 or
 .Dv F_SETLKW ,
 the type of lock
-.Fa (l_type)
+.Pq Fa l_type
 is an exclusive lock
-.Dv (F_WRLCK) ,
+.Pq Dv F_WRLCK ,
 and
 .Fa fildes
 is not a valid file descriptor open for writing.
