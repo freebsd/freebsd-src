@@ -169,10 +169,12 @@ yes(const char *fmt, ...)
 	fflush(stderr);
 
 	l = read(2, buff, sizeof(buff));
+	if (l <= 0)
+		return (0);
 	buff[l] = 0;
 
 	for (p = buff; *p != '\0'; p++) {
-		if (isspace(*p))
+		if (isspace(0xff & (int)*p))
 			continue;
 		switch(*p) {
 		case 'y': case 'Y':
@@ -301,7 +303,7 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 		} else {
 			/* Line is too big; enlarge the buffer. */
 			p = realloc(buff, buff_length *= 2);
-			if (buff == NULL)
+			if (p == NULL)
 				bsdtar_errc(bsdtar, 1, ENOMEM,
 				    "Line too long in %s", pathname);
 			buff_end = p + (buff_end - buff);
