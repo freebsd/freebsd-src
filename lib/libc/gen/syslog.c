@@ -33,10 +33,10 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*
-static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
+static char sccsid[] = "@(#)syslog.c	8.5 (Berkeley) 4/29/95";
 */
 static const char rcsid[] =
-  "$Id: syslog.c,v 1.9.2.2 1998/03/05 22:19:54 brian Exp $";
+  "$Id: syslog.c,v 1.9.2.3 1998/03/06 02:12:55 brian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -303,8 +303,7 @@ connectlog()
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
 		SyslogAddr.sun_family = AF_UNIX;
 		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
-		    sizeof SyslogAddr.sun_path - 1);
-		SyslogAddr.sun_path[sizeof SyslogAddr.sun_path - 1] = '\0';
+		    sizeof SyslogAddr.sun_path);
 		connected = connect(LogFile, (struct sockaddr *)&SyslogAddr,
 			sizeof(SyslogAddr)) != -1;
 
@@ -314,7 +313,7 @@ connectlog()
 			 * compatibility.
 			 */
 			(void)strncpy(SyslogAddr.sun_path, _PATH_OLDLOG,
-			    sizeof SyslogAddr.sun_path - 1);
+			    sizeof SyslogAddr.sun_path);
 			connected = connect(LogFile,
 				(struct sockaddr *)&SyslogAddr,
 				sizeof(SyslogAddr)) != -1;

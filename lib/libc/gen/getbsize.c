@@ -88,7 +88,7 @@ fmterr:			warnx("%s: unknown blocksize", p);
 			break;
 		}
 		if (n > max) {
-			warnx("maximum blocksize is %dG", MAXB / GB);
+			warnx("maximum blocksize is %ldG", MAXB / GB);
 			n = max;
 		}
 		if ((blocksize = n * mul) < 512) {

@@ -119,7 +119,7 @@ int cursor = SP->_cursor;
 
 int delay_output(int ms)
 {
-int speed;
+int speed = 0;
 
 	T(("delay_output(%d) called", ms));
 

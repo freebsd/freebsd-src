@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.24.2.3 1998/03/20 23:27:17 jkh Exp $
+ * $Id: create_chunk.c,v 1.24.2.4 1998/03/21 00:32:20 jkh Exp $
  *
  */
 
@@ -254,17 +254,20 @@ MakeDev(struct chunk *c1, const char *path)
 	return 0;
     
     if (!strncmp(p, "wd", 2))
-	bmaj = 0, cmaj = 3, p += 2;
+	bmaj = 0, cmaj = 3;
     else if (!strncmp(p, "sd", 2))
-	bmaj = 4, cmaj = 13, p += 2;
+	bmaj = 4, cmaj = 13;
     else if (!strncmp(p, "od", 2))
-	bmaj = 20, cmaj = 70, p += 2;
+	bmaj = 20, cmaj = 70;
     else if (!strncmp(p, "wfd", 3))
-	bmaj = 1, cmaj = 87, p += 3;
+	bmaj = 1, cmaj = 87;
+    else if (!strncmp(p, "da", 2))	/* CAM support */
+	bmaj = 4, cmaj = 13;
     else {
 	msgDebug("MakeDev: Unknown major/minor for devtype %s\n", p);
 	return 0;
     }
+    p += 2;
     if (!isdigit(*p)) {
 	msgDebug("MakeDev: Invalid disk unit passed: %s\n", p);
 	return 0;

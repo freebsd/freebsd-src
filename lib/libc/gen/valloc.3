@@ -39,8 +39,8 @@
 .Nd aligned memory allocation function
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
-.Ft char *
-.Fn valloc "unsigned size"
+.Ft void *
+.Fn valloc "size_t size"
 .Sh DESCRIPTION
 .Bf -symbolic
 Valloc is obsoleted by the current version of malloc(3),

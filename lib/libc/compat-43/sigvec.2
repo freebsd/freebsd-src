@@ -42,7 +42,7 @@
 .Bd -literal
 struct sigvec {
         void     (*sv_handler)();
-	sigset_t sv_mask;
+	int      sv_mask;
 	int      sv_flags;
 };
 .Ed

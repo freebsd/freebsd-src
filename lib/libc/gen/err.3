@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
-.\"	$Id: err.3,v 1.3 1996/02/11 22:33:27 mpp Exp $
+.\"	$Id: err.3,v 1.4 1996/08/22 23:25:29 mpp Exp $
 .\"
 .Dd April 13, 1995
 .Dt ERR 3
@@ -52,23 +52,24 @@
 .Ft void
 .Fn err "int eval" "const char *fmt" "..."
 .Ft void
-.Fn verr "int eval" "const char *fmt" "va_list args"
-.Ft void
 .Fn errx "int eval" "const char *fmt" "..."
-.Ft void
-.Fn verrx "int eval" "const char *fmt" "va_list args"
 .Ft void
 .Fn warn "const char *fmt" "..."
 .Ft void
-.Fn vwarn "const char *fmt" "va_list args"
-.Ft void
 .Fn warnx "const char *fmt" "..."
-.Ft void
-.Fn vwarnx "const char *fmt" "va_list args"
 .Ft void
 .Fn err_set_file "void *fp"
 .Ft void
 .Fn err_set_exit "void (*exitf)(int)"
+.Fd #include <stdarg.h>
+.Ft void
+.Fn verr "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn verrx "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarn "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarnx "const char *fmt" "va_list args"
 .Sh DESCRIPTION
 The
 .Fn err
@@ -82,18 +83,19 @@ In all cases, the last component of the program name, a colon character,
 and a space are output.
 If the
 .Va fmt
-argument is not NULL, the formatted error message, a colon character,
-and a space are output.
+argument is not NULL, the formatted error message is output.
 In the case of the
 .Fn err ,
 .Fn verr ,
 .Fn warn ,
 and
 .Fn vwarn
-functions, the error message string affiliated with the current value of
+functions,
+the error message string affiliated with the current value of
 the global variable
 .Va errno 
-is output.
+is also output,
+preceded by another colon and space if necessary.
 In all cases, the output is followed by a newline character.
 .Pp
 The

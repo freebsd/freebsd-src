@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)nice.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <errno.h>
 #include <unistd.h>
 
 /*
@@ -48,7 +49,6 @@ nice(incr)
 	int incr;
 {
 	int prio;
-	extern int errno;
 
 	errno = 0;
 	prio = getpriority(PRIO_PROCESS, 0);
