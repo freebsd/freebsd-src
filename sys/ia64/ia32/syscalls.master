@@ -79,7 +79,7 @@
 23	MNOPROTO POSIX	{ int setuid(uid_t uid); }
 24	MNOPROTO POSIX	{ uid_t getuid(void); }
 25	MNOPROTO POSIX	{ uid_t geteuid(void); }
-26	NOPROTO	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
+26	MNOPROTO BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
 			    int data); }
 27	UNIMPL	BSD	recvmsg
 28	MNOPROTO BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
@@ -96,12 +96,12 @@
 38	UNIMPL	POSIX	ostat
 39	MNOPROTO POSIX	{ pid_t getppid(void); }
 40	UNIMPL	POSIX	olstat
-41	NOPROTO	POSIX	{ int dup(u_int fd); }
-42	NOPROTO	POSIX	{ int pipe(void); }
+41	MNOPROTO POSIX	{ int dup(u_int fd); }
+42	MNOPROTO POSIX	{ int pipe(void); }
 43	MNOPROTO POSIX	{ gid_t getegid(void); }
 44	MNOPROTO BSD	{ int profil(caddr_t samples, size_t size, \
 			    size_t offset, u_int scale); }
-45	NOPROTO	BSD	{ int ktrace(const char *fname, int ops, int facs, \
+45	MNOPROTO BSD	{ int ktrace(const char *fname, int ops, int facs, \
 			    int pid); }
 46	UNIMPL	POSIX	osigaction
 47	MNOPROTO POSIX	{ gid_t getgid(void); }
@@ -110,7 +110,7 @@
 50	MNOPROTO BSD	{ int setlogin(char *namebuf); }
 51	MNOPROTO BSD	{ int acct(char *path); }
 52	MNOPROTO POSIX	{ int sigpending(void); }
-53	STD	BSD	{ int ia32_sigaltstack(struct sigaltstack32 *ss, struct sigaltstack32 *oss); }
+53	MSTD	BSD	{ int ia32_sigaltstack(struct sigaltstack32 *ss, struct sigaltstack32 *oss); }
 54	MNOPROTO POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
 55	MNOPROTO BSD	{ int reboot(int opt); }
 56	NOPROTO	POSIX	{ int revoke(char *path); }
@@ -250,7 +250,7 @@
 162	MNOPROTO BSD	{ int getdomainname(char *domainname, int len); }
 163	MNOPROTO BSD	{ int setdomainname(char *domainname, int len); }
 164	MNOPROTO BSD	{ int uname(struct utsname *name); }
-165	NOPROTO	BSD	{ int sysarch(int op, char *parms); }
+165	MNOPROTO BSD	{ int sysarch(int op, char *parms); }
 166	MNOPROTO BSD	{ int rtprio(int function, pid_t pid, \
 			    struct rtprio *rtp); }
 167	UNIMPL	NOHIDE	nosys
@@ -386,7 +386,7 @@
 251	MNOPROTO BSD	{ int rfork(int flags); }
 252	MNOPROTO BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
-253	NOPROTO	BSD	{ int issetugid(void); }
+253	MNOPROTO BSD	{ int issetugid(void); }
 254	NOPROTO	BSD	{ int lchown(char *path, int uid, int gid); }
 255	UNIMPL	NOHIDE	nosys
 256	UNIMPL	NOHIDE	nosys
@@ -473,7 +473,7 @@
 332	MNOPROTO POSIX	{ int sched_get_priority_max (int policy); }
 333	MNOPROTO POSIX	{ int sched_get_priority_min (int policy); }
 334	MNOPROTO POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
-335	NOPROTO	BSD	{ int utrace(const void *addr, size_t len); }
+335	MNOPROTO BSD	{ int utrace(const void *addr, size_t len); }
 ; XXX note - bigendian is different
 336	MCOMPAT4 BSD	{ int ia32_sendfile(int fd, int s, u_int32_t offsetlo,\
 			    u_int32_t offsethi, size_t nbytes, \
@@ -484,7 +484,7 @@
 340	MNOPROTO POSIX	{ int sigprocmask(int how, const sigset_t *set, \
 			    sigset_t *oset); }
 341	MNOPROTO POSIX	{ int sigsuspend(const sigset_t *sigmask); }
-342	STD POSIX	{ int ia32_sigaction(int sig, \
+342	MSTD POSIX	{ int ia32_sigaction(int sig, \
 			    struct sigaction32 *act, \
 			    struct sigaction32 *oact); }
 343	MNOPROTO POSIX	{ int sigpending(sigset_t *set); }
