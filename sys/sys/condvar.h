@@ -50,10 +50,6 @@ struct cv {
 };
 
 #ifdef _KERNEL
-#define	CV_DECLARE(modifiers, name, descr)				\
-	static const char __cv_descr_##name[] = descr;			\
-	modifiers struct cv name = {{NULL, NULL}, NULL, __cv_descr_##name}
-
 void	cv_init(struct cv *cvp, const char *desc);
 void	cv_destroy(struct cv *cvp);
 
