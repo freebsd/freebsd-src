@@ -484,3 +484,6 @@ See boot(8), loader(8) for details.
 %
 You can open up a new split-screen window in (n)vi with :N or :E and then
 use ^w to switch between the two.
+%
+sh (the default bourne shell in FreeBSD) supports command-line editing.  Just
+``set -o emacs'' or ``set -o vi'' to enable it.
