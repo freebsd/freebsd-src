@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.131 1999/06/20 04:55:27 alc Exp $
+ *	$Id: vm_page.c,v 1.132 1999/06/20 21:47:02 alc Exp $
  */
 
 /*
@@ -141,9 +141,6 @@ vm_page_queue_init(void) {
 vm_page_t vm_page_array = 0;
 static int vm_page_array_size = 0;
 long first_page = 0;
-static long last_page;
-static vm_size_t page_mask;
-static int page_shift;
 int vm_page_zero_count = 0;
 
 static __inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
@@ -155,21 +152,14 @@ static void vm_page_free_wakeup __P((void));
  *	Sets the page size, perhaps based upon the memory
  *	size.  Must be called before any use of page-size
  *	dependent functions.
- *
- *	Sets page_shift and page_mask from cnt.v_page_size.
  */
 void
 vm_set_page_size()
 {
-
 	if (cnt.v_page_size == 0)
 		cnt.v_page_size = PAGE_SIZE;
-	page_mask = cnt.v_page_size - 1;
-	if ((page_mask & cnt.v_page_size) != 0)
+	if (((cnt.v_page_size - 1) & cnt.v_page_size) != 0)
 		panic("vm_set_page_size: page size not a power of two");
-	for (page_shift = 0;; page_shift++)
-		if ((1 << page_shift) == cnt.v_page_size)
-			break;
 }
 
 /*
@@ -284,9 +274,8 @@ vm_page_startup(starta, enda, vaddr)
 	 */
 
 	first_page = phys_avail[0] / PAGE_SIZE;
-	last_page = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE;
 
-	page_range = last_page - (phys_avail[0] / PAGE_SIZE);
+	page_range = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE - first_page;
 	npages = (total - (page_range * sizeof(struct vm_page)) -
 	    (start - phys_avail[biggestone])) / PAGE_SIZE;
 
