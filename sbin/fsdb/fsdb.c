@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: fsdb.c,v 1.5.2.1 1997/06/12 07:01:23 charnier Exp $
  */
 
 #ifndef lint
@@ -238,7 +238,7 @@ cmdloop()
 
     while ((elline = el_gets(elptr, &scratch)) != NULL && scratch != 0) {
 	if (debug)
-	    printf("command `%s'\n", line);
+	    printf("command `%s'\n", elline);
 
 	history(hist, H_ENTER, elline);
 
