@@ -211,8 +211,7 @@ uiomove_frombuf(void *buf, int buflen, struct uio *uio)
  * Experimental support for zero-copy I/O
  */
 static int
-userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
-    int disposable)
+userspaceco(void *cp, u_int cnt, struct uio *uio, int disposable)
 {
 	struct iovec *iov;
 	int error;
@@ -220,7 +219,6 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 	iov = uio->uio_iov;
 	if (uio->uio_rw == UIO_READ) {
 		if ((so_zero_copy_receive != 0)
-		 && (obj == NULL)
 		 && ((cnt & PAGE_MASK) == 0)
 		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
 		 && ((uio->uio_offset & PAGE_MASK) == 0)
@@ -254,8 +252,7 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 }
 
 int
-uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
-    int disposable)
+uiomoveco(void *cp, int n, struct uio *uio, int disposable)
 {
 	struct iovec *iov;
 	u_int cnt;
@@ -283,7 +280,7 @@ uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 
-			error = userspaceco(cp, cnt, uio, obj, disposable);
+			error = userspaceco(cp, cnt, uio, disposable);
 
 			if (error)
 				return (error);

@@ -94,8 +94,7 @@ int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,
 	    struct uio *uio);
-int	uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
-	    int disposable);
+int	uiomoveco(void *cp, int n, struct uio *uio, int disposable);
 
 #else /* !_KERNEL */
 
