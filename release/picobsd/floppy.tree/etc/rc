@@ -49,7 +49,7 @@ fi
 if [ -n "$network_pass2_done" ]; then
     network_pass3
 fi
-if [ "X${inetd_enable}" = X"YES" ]; then
+if [ "X${inetd_enable}" = X"YES" -a -f /stand/inetd ]; then
 	echo "Starting inetd."; inetd ${inetd_flags}
 fi
 
