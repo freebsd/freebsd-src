@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.34 1996/04/03 13:52:13 phk Exp $
+ *	$Id: ip_fw.c,v 1.35 1996/05/06 20:31:04 phk Exp $
  */
 
 /*
@@ -72,6 +72,11 @@ static void	ipfw_report __P((char *txt, int rule, struct ip *ip));
 
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
+
+static int	ip_fw_chk __P((struct ip **pip, int hlen, struct ifnet *rif,
+			       int dir, struct mbuf **m));
+static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
+
 
 /*
  * Returns 1 if the port is matched by the vector, 0 otherwise
@@ -228,7 +233,7 @@ ipfw_report(char *txt, int rule, struct ip *ip)
  * Returns 1 if it should be accepted, 0 otherwise.
  */
 
-int 
+static int 
 ip_fw_chk(pip, hlen, rif, dir, m)
 	struct ip **pip;
 	struct ifnet *rif;
@@ -570,7 +575,7 @@ check_ipfw_struct(m)
 	return frwl;
 }
 
-int
+static int
 ip_fw_ctl(stage, mm)
 	int stage;
 	struct mbuf **mm;
