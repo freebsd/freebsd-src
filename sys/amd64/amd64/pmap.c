@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.166 1997/10/25 04:49:01 dyson Exp $
+ *	$Id: pmap.c,v 1.167 1997/10/26 12:33:39 dyson Exp $
  */
 
 /*
@@ -1562,7 +1562,8 @@ static pv_entry_t
 get_pv_entry(void)
 {
 	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
+	if (pv_entry_high_water &&
+		(pv_entry_count > pv_entry_high_water) &&
 		(pmap_pagedaemon_waken == 0)) {
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
