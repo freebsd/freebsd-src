@@ -397,23 +397,22 @@ udf_read(struct vop_read_args *a)
 	struct buf *bp;
 	uint8_t *data;
 	int error = 0;
-	int size, n, fsize, offset;
+	int size, fsize, offset;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
 	fsize = node->fentry->inf_len;
-	size = 0;
+
 	while (uio->uio_offset < fsize && uio->uio_resid > 0) {
 		offset = uio->uio_offset;
+		size = uio->uio_resid;
 		error = udf_readatoffset(node, &size, offset, &bp, &data);
 		if (error)
 			return (error);
-		n = min(size, size - bp->b_resid);
-		error = uiomove((caddr_t)data, n, uio);
+		error = uiomove((caddr_t)data, size, uio);
 		if (bp != NULL)
 			brelse(bp);
-		size -= n;
 		if (error)
 			break;
 	};
@@ -606,8 +605,12 @@ udf_readdir(struct vop_readdir_args *a)
 
 		fid = (struct fileid_desc*)&data[off];
 
-		/* Check to see if the fid is fragmented */
-		if (off >= size || off + fid_size > size ||
+		/*
+		 * Check to see if the fid is fragmented. The first test
+		 * ensures that we don't wander off the end of the buffer
+		 * looking for the l_iu and l_fi fields.
+		 */
+		if (off + fid_size > size ||
 		    off + fid->l_iu + fid->l_fi + fid_size > size) {
 			struct fileid_desc *fid_buf;
 			uint8_t *buf;
@@ -653,7 +656,8 @@ udf_readdir(struct vop_readdir_args *a)
 			MALLOC(fid, struct fileid_desc *, total_fid_size,
 			    M_UDFFID, M_NOWAIT | M_ZERO);
 			if (fid == NULL) {
-				brelse(bp);
+				if (bp != NULL)
+					brelse(bp);
 				error = ENOMEM;
 				break;
 			}
@@ -886,8 +890,12 @@ lookloop:
 	while (offset + off < fsize) {
 		fid = (struct fileid_desc*)&data[off];
 
-		/* Check to see if the fid is fragmented */
-		if (off >= size || off + fid_size > size ||
+		/*
+		 * Check to see if the fid is fragmented. The first test
+		 * ensures that we don't wander off the end of the buffer
+		 * looking for the l_iu and l_fi fields.
+		 */
+		if (off + fid_size > size ||
 		    off + fid_size + fid->l_iu + fid->l_fi > size) {
 			struct fileid_desc *fid_buf;
 			uint8_t *buf;
@@ -934,7 +942,8 @@ lookloop:
 			MALLOC(fid, struct fileid_desc *, total_fid_size,
 			    M_UDFFID, M_NOWAIT | M_ZERO);
 			if (fid == NULL) {
-				brelse(bp);
+				if (bp != NULL)
+					brelse(bp);
 				return (ENOMEM);
 			}
 			bcopy(fid_buf, fid, frag_size);
@@ -1094,13 +1103,10 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 		return (error);
 	}
 
+	/* Adjust the size so that it is within range */
 	if (*size == 0 || *size > max_size)
 		*size = max_size;
-
-	/* XXX Read only one block at a time? Could read-ahead help? */
-	*size = min(*size, udfmp->bsize);
-	if (*size == 0)
-		return (EIO);
+	*size = min(*size, MAXBSIZE);
 
 	if ((error = udf_readlblks(udfmp, sector, *size, bp))) {
 		printf("udf_readlblks returned %d\n", error);
