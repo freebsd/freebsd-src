@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.18 1999/01/11 11:36:03 rnordier Exp $
+ *	$Id: boot2.c,v 1.19 1999/01/24 00:10:10 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -571,7 +571,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 		    dsk.type = MAJ_DA;
 		dsk.init++;
 	    }
-	    if (dsk.part >= d->d_npartitions) {
+	    if (dsk.part >= d->d_npartitions ||
+		!d->d_partitions[dsk.part].p_size) {
 		printf("Invalid %s\n", "partition");
 		return -1;
 	    }
