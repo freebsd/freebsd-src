@@ -210,8 +210,8 @@ struct bktr_capture_area {
    int      x_size;
    int      y_size;
 };
-#define BT848SCAPAREA   _IOW('x', 69, struct bktr_capture_area)
-#define BT848GCAPAREA   _IOR('x', 69, struct bktr_capture_area)
+#define BT848_SCAPAREA   _IOW('x', 69, struct bktr_capture_area)
+#define BT848_GCAPAREA   _IOR('x', 69, struct bktr_capture_area)
 
 /* Read/Write the BT848's I2C bus directly
  * b7-b0:    data (read/write)
