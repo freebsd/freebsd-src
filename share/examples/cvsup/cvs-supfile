@@ -130,7 +130,9 @@ ports-all
 #ports-games
 #ports-german
 #ports-graphics
+#ports-irc
 #ports-japanese
+#ports-java
 #ports-korean
 #ports-lang
 #ports-mail
@@ -152,5 +154,6 @@ ports-all
 #ports-x11-clocks
 #ports-x11-fm
 #ports-x11-fonts
+#ports-x11-servers
 #ports-x11-toolkits
 #ports-x11-wm
