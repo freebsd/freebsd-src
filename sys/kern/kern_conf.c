@@ -40,8 +40,6 @@
 #include <sys/ctype.h>
 #include <machine/stdarg.h>
 
-#define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
-
 static struct cdevsw 	*cdevsw[NUMCDEVSW];
 
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
