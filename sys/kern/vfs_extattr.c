@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* For 4.3 integer FS ID compatibility */
 #include "opt_compat.h"
 #include "opt_mac.h"
 
@@ -174,7 +173,6 @@ struct quotactl_args {
 	caddr_t arg;
 };
 #endif
-/* ARGSUSED */
 int
 quotactl(td, uap)
 	struct thread *td;
@@ -213,7 +211,6 @@ struct statfs_args {
 	struct statfs *buf;
 };
 #endif
-/* ARGSUSED */
 int
 statfs(td, uap)
 	struct thread *td;
@@ -265,7 +262,6 @@ struct fstatfs_args {
 	struct statfs *buf;
 };
 #endif
-/* ARGSUSED */
 int
 fstatfs(td, uap)
 	struct thread *td;
@@ -410,7 +406,6 @@ struct freebsd4_statfs_args {
 	struct ostatfs *buf;
 };
 #endif
-/* ARGSUSED */
 int
 freebsd4_statfs(td, uap)
 	struct thread *td;
@@ -454,7 +449,6 @@ struct freebsd4_fstatfs_args {
 	struct ostatfs *buf;
 };
 #endif
-/* ARGSUSED */
 int
 freebsd4_fstatfs(td, uap)
 	struct thread *td;
@@ -594,16 +588,11 @@ freebsd4_fhstatfs(td, uap)
 	fhandle_t fh;
 	int error;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
-
 	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
-
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
@@ -670,7 +659,6 @@ struct fchdir_args {
 	int	fd;
 };
 #endif
-/* ARGSUSED */
 int
 fchdir(td, uap)
 	struct thread *td;
@@ -729,7 +717,6 @@ struct chdir_args {
 	char	*path;
 };
 #endif
-/* ARGSUSED */
 int
 chdir(td, uap)
 	struct thread *td;
@@ -814,7 +801,6 @@ struct chroot_args {
 	char	*path;
 };
 #endif
-/* ARGSUSED */
 int
 chroot(td, uap)
 	struct thread *td;
@@ -1151,7 +1137,6 @@ struct mknod_args {
 	int	dev;
 };
 #endif
-/* ARGSUSED */
 int
 mknod(td, uap)
 	struct thread *td;
@@ -1268,7 +1253,6 @@ struct mkfifo_args {
 	int	mode;
 };
 #endif
-/* ARGSUSED */
 int
 mkfifo(td, uap)
 	struct thread *td;
@@ -1343,7 +1327,6 @@ struct link_args {
 	char	*link;
 };
 #endif
-/* ARGSUSED */
 int
 link(td, uap)
 	struct thread *td;
@@ -1462,7 +1445,6 @@ struct symlink_args {
 	char	*link;
 };
 #endif
-/* ARGSUSED */
 int
 symlink(td, uap)
 	struct thread *td;
@@ -1545,7 +1527,6 @@ out:
 /*
  * Delete a whiteout from the filesystem.
  */
-/* ARGSUSED */
 int
 undelete(td, uap)
 	struct thread *td;
@@ -1600,7 +1581,6 @@ struct unlink_args {
 	char	*path;
 };
 #endif
-/* ARGSUSED */
 int
 unlink(td, uap)
 	struct thread *td;
@@ -1921,7 +1901,6 @@ struct ostat_args {
 	struct ostat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 ostat(td, uap)
 	struct thread *td;
@@ -1958,7 +1937,6 @@ struct olstat_args {
 	struct ostat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 olstat(td, uap)
 	struct thread *td;
@@ -2027,7 +2005,6 @@ struct stat_args {
 	struct stat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 stat(td, uap)
 	struct thread *td;
@@ -2067,7 +2044,6 @@ struct lstat_args {
 	struct stat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 lstat(td, uap)
 	struct thread *td;
@@ -2132,7 +2108,6 @@ struct nstat_args {
 	struct nstat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 nstat(td, uap)
 	struct thread *td;
@@ -2169,7 +2144,6 @@ struct lstat_args {
 	struct stat *ub;
 };
 #endif
-/* ARGSUSED */
 int
 nlstat(td, uap)
 	struct thread *td;
@@ -2208,7 +2182,6 @@ struct pathconf_args {
 	int	name;
 };
 #endif
-/* ARGSUSED */
 int
 pathconf(td, uap)
 	struct thread *td;
@@ -2245,7 +2218,6 @@ struct readlink_args {
 	int	count;
 };
 #endif
-/* ARGSUSED */
 int
 readlink(td, uap)
 	struct thread *td;
@@ -2351,7 +2323,6 @@ struct chflags_args {
 	int	flags;
 };
 #endif
-/* ARGSUSED */
 int
 chflags(td, uap)
 	struct thread *td;
@@ -2404,7 +2375,6 @@ struct fchflags_args {
 	int	flags;
 };
 #endif
-/* ARGSUSED */
 int
 fchflags(td, uap)
 	struct thread *td;
@@ -2461,7 +2431,6 @@ struct chmod_args {
 	int	mode;
 };
 #endif
-/* ARGSUSED */
 int
 chmod(td, uap)
 	struct thread *td;
@@ -2498,7 +2467,6 @@ struct lchmod_args {
 	int	mode;
 };
 #endif
-/* ARGSUSED */
 int
 lchmod(td, uap)
 	struct thread *td;
@@ -2528,7 +2496,6 @@ struct fchmod_args {
 	int	mode;
 };
 #endif
-/* ARGSUSED */
 int
 fchmod(td, uap)
 	struct thread *td;
@@ -2589,7 +2556,6 @@ struct chown_args {
 	int	gid;
 };
 #endif
-/* ARGSUSED */
 int
 chown(td, uap)
 	struct thread *td;
@@ -2629,7 +2595,6 @@ struct lchown_args {
 	int	gid;
 };
 #endif
-/* ARGSUSED */
 int
 lchown(td, uap)
 	struct thread *td;
@@ -2669,7 +2634,6 @@ struct fchown_args {
 	int	gid;
 };
 #endif
-/* ARGSUSED */
 int
 fchown(td, uap)
 	struct thread *td;
@@ -2773,7 +2737,6 @@ struct utimes_args {
 	struct	timeval *tptr;
 };
 #endif
-/* ARGSUSED */
 int
 utimes(td, uap)
 	struct thread *td;
@@ -2815,7 +2778,6 @@ struct lutimes_args {
 	struct	timeval *tptr;
 };
 #endif
-/* ARGSUSED */
 int
 lutimes(td, uap)
 	struct thread *td;
@@ -2857,7 +2819,6 @@ struct futimes_args {
 	struct	timeval *tptr;
 };
 #endif
-/* ARGSUSED */
 int
 futimes(td, uap)
 	struct thread *td;
@@ -2897,7 +2858,6 @@ struct truncate_args {
 	off_t	length;
 };
 #endif
-/* ARGSUSED */
 int
 truncate(td, uap)
 	struct thread *td;
@@ -2960,7 +2920,6 @@ struct ftruncate_args {
 	off_t	length;
 };
 #endif
-/* ARGSUSED */
 int
 ftruncate(td, uap)
 	struct thread *td;
@@ -3019,7 +2978,6 @@ struct otruncate_args {
 	long	length;
 };
 #endif
-/* ARGSUSED */
 int
 otruncate(td, uap)
 	struct thread *td;
@@ -3048,7 +3006,6 @@ struct oftruncate_args {
 	long	length;
 };
 #endif
-/* ARGSUSED */
 int
 oftruncate(td, uap)
 	struct thread *td;
@@ -3077,7 +3034,6 @@ struct fsync_args {
 	int	fd;
 };
 #endif
-/* ARGSUSED */
 int
 fsync(td, uap)
 	struct thread *td;
@@ -3127,7 +3083,6 @@ struct rename_args {
 	char	*to;
 };
 #endif
-/* ARGSUSED */
 int
 rename(td, uap)
 	struct thread *td;
@@ -3257,7 +3212,6 @@ struct mkdir_args {
 	int	mode;
 };
 #endif
-/* ARGSUSED */
 int
 mkdir(td, uap)
 	struct thread *td;
@@ -3341,7 +3295,6 @@ struct rmdir_args {
 	char	*path;
 };
 #endif
-/* ARGSUSED */
 int
 rmdir(td, uap)
 	struct thread *td;
@@ -3731,7 +3684,6 @@ struct revoke_args {
 	char	*path;
 };
 #endif
-/* ARGSUSED */
 int
 revoke(td, uap)
 	struct thread *td;
@@ -3835,9 +3787,6 @@ lgetfh(td, uap)
 	register struct vnode *vp;
 	int error;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
@@ -3873,9 +3822,6 @@ getfh(td, uap)
 	register struct vnode *vp;
 	int error;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
@@ -3929,13 +3875,9 @@ fhopen(td, uap)
 	struct file *nfp;
 	int indx;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
-
 	fmode = FFLAGS(uap->flags);
 	/* why not allow a non-read/write open for our lockd? */
 	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
@@ -4123,17 +4065,12 @@ fhstat(td, uap)
 	struct vnode *vp;
 	int error;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
-
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
-
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
@@ -4169,16 +4106,11 @@ fhstatfs(td, uap)
 	fhandle_t fh;
 	int error;
 
-	/*
-	 * Must be super user
-	 */
 	error = suser(td);
 	if (error)
 		return (error);
-
 	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
-
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
