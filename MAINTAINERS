@@ -77,3 +77,5 @@ regression	jmallett	Will help write new tests, etc.
 libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
+libc		nectar	Opportuntity for pre-commit review appreciated for
+			nsdispatch(3) and its consumers.
