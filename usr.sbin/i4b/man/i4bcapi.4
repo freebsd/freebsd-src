@@ -33,23 +33,27 @@
 .Nm i4bcapi
 .Nd CAPI driver for the isdn4bsd kernel part
 .Sh SYNOPSIS
-.Cd device \&"i4bcapi\&"
+.Cd "device \*[q]i4bcapi\*[q]"
 .Sh DESCRIPTION
 .Nm
-is a CAPI driver for the 
+is a CAPI driver for the
 .Em isdn4bsd
-package. It sits between layer 4 of isdn4bsd and a driver for an active 
+package.
+It sits between layer\~4 of isdn4bsd and a driver for an active
 ISDN card; currently only the
 .Xr iavc 4
 driver for the AVM B1 and T1 family of active cards is supported.
 .Sh STANDARDS
-CAPI 2.0 (http://www.capi.org/)
+CAPI 2.0
+.Pq Pa http://www.capi.org/
 .Sh SEE ALSO
 .Xr iavc 4
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-device driver was written by 
-.An Juha-Matti Liukkonen (Cubical Solutions Ltd, Finnland) Aq jml@cubical.fi .
-This manpage was written by 
-.An Hellmuth Michaelis Aq hm@freebsd.org .
+device driver was written by
+.An Juha-Matti Liukkonen Aq jml@cubical.fi
+(Cubical Solutions Ltd, Finland).
+This manpage was written by
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
