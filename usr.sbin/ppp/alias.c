@@ -826,7 +826,7 @@ struct ip *pip;
     }
     else
     {
-            FragmentOut(pip);
+        FragmentOut(pip);
     }
 
 /* Adjust IP checksum, if original is correct */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24 1996/10/13 15:05:14 sos Exp $
+ * $Id: command.c,v 1.27 1996/12/22 17:29:30 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -164,7 +164,7 @@ char **argv;
 {
   const char *shell;
   pid_t shpid;
-  
+
   if((shell = getenv("SHELL")) == 0) {
     shell = _PATH_BSHELL;
   }
@@ -222,7 +222,7 @@ char **argv;
      }
      else
        execl(shell, shell, NULL);
-      
+
      fprintf(stdout, "exec() of %s failed\n", argc > 0? argv[0]: shell);
      exit(255);
   }
@@ -232,9 +232,9 @@ char **argv;
     int status;
     (void)waitpid(shpid, &status, 0);
   }
-  
+
   TtyCommandMode(1);
-      
+
   return(0);
 }
 
@@ -822,7 +822,7 @@ char **argv;
     	if (--argc > 0) {
       		ParseAddr(argc, argv++,
 		        &DefTriggerAddress.ipaddr,
-			&DefTriggerAddress.mask, 
+			&DefTriggerAddress.mask,
 			&DefTriggerAddress.width);
 	}
       }
@@ -949,6 +949,23 @@ int param;
   return(1);
 }
 
+static int SetCtsRts(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc > 0) {
+    if (strcmp(*argv, "on") == 0)
+      VarCtsRts = TRUE;
+    else if (strcmp(*argv, "off") == 0)
+      VarCtsRts = FALSE;
+    else
+      printf("usage: set ctsrts [on|off].\n");
+  }
+  return(1);
+}
+
+
 static int SetOpenMode(list, argc, argv)
 struct cmdtab *list;
 int argc;
@@ -964,7 +981,6 @@ char **argv;
   }
   return(1);
 }
-
 static char StrChatStr[] = "chat-script";
 static char StrValue[] = "value";
 
@@ -979,6 +995,8 @@ struct cmdtab const SetCommands[] = {
 	"Set authentication key", "key", (void *)VAR_AUTHKEY},
   { "authname", NULL,     SetVariable,		LOCAL_AUTH,
 	"Set authentication name", "name", (void *)VAR_AUTHNAME},
+  { "ctsrts", NULL,	  SetCtsRts,		LOCAL_AUTH,
+	"Use CTS/RTS modem signalling", "[on|off]"},
   { "debug",    NULL,	  SetDebugLevel,	LOCAL_AUTH,
 	"Set debug level", StrValue},
   { "device",     "line", SetVariable, 		LOCAL_AUTH,

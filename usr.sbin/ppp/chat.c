@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11 1996/06/09 20:40:56 ache Exp $
+ * $Id: chat.c,v 1.12 1996/12/15 20:39:29 pst Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
