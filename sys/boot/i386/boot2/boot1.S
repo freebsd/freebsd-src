@@ -197,13 +197,16 @@ main.5: 	mov %dx,MEM_ARG			# Save args
 		xorb %al,%al			# Zero assumed bss from
 		rep				#  the end of boot2.bin
 		stosb				#  up to 0x10000
-		callw seta20			# Enable A20
-		jmp start+MEM_JMP-MEM_ORG	# Start BTX
+
 /*
  * Enable A20 so we can access memory above 1 meg.
+ * Use the zero-valued %cx as a timeout for embedded hardware which do not
+ * have a keyboard controller.
  */
 seta20: 	cli				# Disable interrupts
-seta20.1:	inb $0x64,%al			# Get status
+seta20.1:	dec %cx				# Timeout?
+		jz seta20.3			# Yes
+		inb $0x64,%al			# Get status
 		testb $0x2,%al			# Busy?
 		jnz seta20.1			# Yes
 		movb $0xd1,%al			# Command: Write
@@ -213,8 +216,12 @@ seta20.2:	inb $0x64,%al			# Get status
 		jnz seta20.2			# Yes
 		movb $0xdf,%al			# Enable
 		outb %al,$0x60			#  A20
+seta20.3:
 		sti				# Enable interrupts
-		retw				# To caller
+
+		jmp start+MEM_JMP-MEM_ORG	# Start BTX
+
+
 /*
  * Trampoline used to call read from within boot1.
  */
