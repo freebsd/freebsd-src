@@ -177,7 +177,7 @@ options 	WITNESS_SKIPSPIN
 #  debug.mutex.prof.collisions - number of hash collisions
 #  debug.mutex.prof.stats - profiling statistics
 #
-options		MUTEX_PROFILING
+options 	MUTEX_PROFILING
 
 
 #####################################################################
@@ -628,7 +628,7 @@ options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	SMBFS			#SMB/CIFS filesystem
-options		UDF			#Universal Disk Format
+options 	UDF			#Universal Disk Format
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # options 	NODEVFS			#disable devices filesystem
@@ -1228,14 +1228,14 @@ options 	AHC_DUMP_EEPROM
 options 	AHC_TMODE_ENABLE
 
 # Compile in aic79xx debugging code.
-options		AHD_DEBUG
+options 	AHD_DEBUG
 
 # Aic79xx driver debugging options.   
 # See the ahd(4) manpage
-options		AHD_DEBUG_OPTS=0xFFFFFFFF
+options 	AHD_DEBUG_OPTS=0xFFFFFFFF
 
 # Print human-readable register definitions when debugging
-options		AHD_REG_PRETTY_PRINT
+options 	AHD_REG_PRETTY_PRINT
 
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
