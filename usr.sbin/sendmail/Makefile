@@ -42,8 +42,9 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
-.if exists(../../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && \
-	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && \
+	!defined(NOSECURE) && !defined(NO_OPENSSL) && \
+	!defined(RELEASE_CRUNCH)
 # STARTTLS support
 DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
