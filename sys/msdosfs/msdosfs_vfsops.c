@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.16 1997/02/22 09:40:48 peter Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.17 1997/02/26 14:23:14 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -528,6 +528,7 @@ mountmsdosfs(devvp, mp, p)
 	mp->mnt_data = (qaddr_t) pmp;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
+	mp->mnt_flag |= MNT_LOCAL;
 	devvp->v_specflags |= SI_MOUNTEDON;
 
 	return 0;
@@ -587,6 +588,7 @@ msdosfs_unmount(mp, mntflags, p)
 	free((caddr_t) pmp->pm_inusemap, M_MSDOSFSFAT);
 	free((caddr_t) pmp, M_MSDOSFSMNT);
 	mp->mnt_data = (qaddr_t) 0;
+	mp->mnt_flag &= ~MNT_LOCAL;
 	return error;
 }
 
