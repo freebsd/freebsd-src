@@ -260,7 +260,6 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **
 
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
-struct cdevsw *devsw(struct cdev *_dev);
 struct cdevsw *dev_refthread(struct cdev *_dev);
 void	dev_relthread(struct cdev *_dev);
 const char *devtoname(struct cdev *_dev);

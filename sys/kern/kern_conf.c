@@ -232,14 +232,6 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 
 #define no_dump		(dumper_t *)enodev
 
-struct cdevsw *
-devsw(struct cdev *dev)
-{
-	if (dev->si_devsw != NULL)
-		return (dev->si_devsw);
-	return (&dead_cdevsw);
-}
-
 /*
  * struct cdev * and u_dev_t primitives
  */
