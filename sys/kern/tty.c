@@ -1083,7 +1083,6 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	}
 	case TIOCSETD: {		/* set line discipline */
 		int t = *(int *)data;
-		struct cdev *device = tp->t_dev;
 
 		if ((u_int)t >= nlinesw)
 			return (ENXIO);
@@ -1092,7 +1091,8 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		s = spltty();
 		ttyld_close(tp, flag);
 		tp->t_line = t;
-		error = ttyld_open(tp, device);
+		/* XXX: we should use the correct cdev here */
+		error = ttyld_open(tp, tp->t_dev);
 		if (error) {
 			/*
 			 * If we fail to switch line discipline we cannot
@@ -1102,7 +1102,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 			 * will allways succeed.
 			 */
 			tp->t_line = TTYDISC;
-			(void)ttyld_open(tp, device);
+			(void)ttyld_open(tp, tp->t_dev);
 		}
 		splx(s);
 		return (error);
@@ -2787,10 +2787,25 @@ ttymalloc(struct tty *tp)
 		return(tp);
 	}
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
+	mtx_init(&tp->t_mtx, "tty", NULL, MTX_DEF);
+
+	/*
+	 * Set up the initial state
+	 */
+	tp->t_refcnt = 1;
 	tp->t_timeout = -1;
 	tp->t_dtr_wait = 3 * hz;
-	mtx_init(&tp->t_mtx, "tty", NULL, MTX_DEF);
-	tp->t_refcnt = 1;
+
+	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
+	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
+	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
+	tp->t_init_in.c_lflag = TTYDEF_LFLAG;
+	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
+	bcopy(ttydefchars, tp->t_init_in.c_cc, sizeof tp->t_init_in.c_cc);
+
+	/* Make callout the same as callin */
+	tp->t_init_out = tp->t_init_in;
+
 	mtx_lock(&tty_list_mutex);
 	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
 	mtx_unlock(&tty_list_mutex);
@@ -2974,7 +2989,6 @@ ttyclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	return (0);
 }
 
-
 int
 ttyread(struct cdev *dev, struct uio *uio, int flag)
 {
@@ -2985,7 +2999,7 @@ ttyread(struct cdev *dev, struct uio *uio, int flag)
 	tp = dev->si_tty;
 	KASSERT(tp != NULL,
 	    ("ttyread(): no tty pointer on device (%s)", devtoname(dev)));
-	if (tp == NULL)
+	if (tp->t_state & TS_GONE)
 		return (ENODEV);
 	return (ttyld_read(tp, uio, flag));
 }
@@ -3000,7 +3014,7 @@ ttywrite(struct cdev *dev, struct uio *uio, int flag)
 	tp = dev->si_tty;
 	KASSERT(tp != NULL,
 	    ("ttywrite(): no tty pointer on device (%s)", devtoname(dev)));
-	if (tp == NULL)
+	if (tp->t_state & TS_GONE)
 		return (ENODEV);
 	return (ttyld_write(tp, uio, flag));
 }
