@@ -962,7 +962,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	    fprintf(stderr, "%s can only be attached to a plex\n", objname);
 	    return;
 	}
-	if (plex.organization != plex_concat) {		    /* not a cat plex, */
+	if ((plex.organization != plex_concat)		    /* not a cat plex, */
+	&&(!force)) {
 	    fprintf(stderr, "Can't attach subdisks to a %s plex\n", plex_org(plex.organization));
 	    return;
 	}
