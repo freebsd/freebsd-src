@@ -99,4 +99,5 @@ static driver_t puc_sbus_driver = {
 	sizeof(struct puc_softc),
 };
 
+DRIVER_MODULE(puc, fhc, puc_sbus_driver, puc_devclass, 0, 0);
 DRIVER_MODULE(puc, sbus, puc_sbus_driver, puc_devclass, 0, 0);
