@@ -111,7 +111,7 @@ readdir_r(dirp, entry, result)
 		errno = saved_errno;
 
 	if (dp != NULL)
-		memcpy(entry, dp, sizeof *entry);
+		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
 
 #ifdef _THREAD_SAFE
 	_FD_UNLOCK(dirp->dd_fd, FD_READ);
