@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.10 1995/05/30 08:13:37 rgrimes Exp $
+ * $Id: scsi_driver.c,v 1.11 1995/12/05 04:41:20 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -54,7 +54,8 @@
 #include <scsi/scsi_driver.h>
 
 #define GETUNIT(DEVICE, DEV) \
-	((DEVICE)->getunit) ? (*(DEVICE)->getunit)((DEV)) : minor((DEV))
+	((DEVICE)->getunit) ? (*(DEVICE)->getunit)((DEV)) \
+				: (minor((DEV)) & ~SCSI_CONTROL_MASK)
 
 int
 scsi_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
