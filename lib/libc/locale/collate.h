@@ -36,7 +36,8 @@
 
 #define STR_LEN 10
 #define TABLE_SIZE 100
-#define COLLATE_VERSION "1.0\n"
+#define COLLATE_VERSION    "1.0\n"
+#define COLLATE_VERSION1_1 "1.1\n"
 
 struct __collate_st_char_pri {
 	int prim, sec;
@@ -52,8 +53,7 @@ extern int __collate_substitute_nontrivial;
 extern u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 #define __collate_char_pri_table (*__collate_char_pri_table_ptr)
 extern struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
-#define __collate_chain_pri_table (*__collate_chain_pri_table_ptr)
-extern struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
+extern struct __collate_st_chain_pri *__collate_chain_pri_table;
 
 __BEGIN_DECLS
 u_char	*__collate_strdup(u_char *);
