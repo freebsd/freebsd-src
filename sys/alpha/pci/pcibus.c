@@ -262,7 +262,7 @@ alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		else if (flags & PCI_RF_BWX)
 			va = ALPHAPCI_CVT_BWX(bus, rv->r_start);
 		else
-			va = (void *) rv->r_start; /* maybe NULL? */
+			va = (void *)ALPHA_PHYS_TO_K0SEG(rv->r_start);
 		rman_set_virtual(rv, va);
 
 		break;
