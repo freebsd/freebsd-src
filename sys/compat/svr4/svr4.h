@@ -34,8 +34,6 @@
 
 extern struct sysentvec svr4_sysvec;
 
-#define memset(x,y,z) bzero(x,z)
-
 #define COMPAT_SVR4_SOLARIS2
 #define KTRACE
 
