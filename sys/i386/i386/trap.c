@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.76 1996/05/18 03:36:19 dyson Exp $
+ *	$Id: trap.c,v 1.77 1996/06/12 05:02:54 gpalmer Exp $
  */
 
 /*
@@ -318,6 +318,14 @@ trap(frame)
 		case T_PAGEFLT:			/* page fault */
 			(void) trap_pfault(&frame, FALSE);
 			return;
+
+		case T_DNA:
+#if NNPX > 0
+			/* if a transparent fault (due to context switch "late") */
+			if (npxdna())
+				return;
+#endif	/* NNPX > 0 */
+			break;
 
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
