@@ -134,6 +134,13 @@ struct tm *gmtime_r(const time_t *, struct tm *);
 struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
+#if __POSIX_VISIBLE >= 199309
+int clock_getres(clockid_t, struct timespec *);
+int clock_gettime(clockid_t, struct timespec *);
+int clock_settime(clockid_t, const struct timespec *);
+int nanosleep(const struct timespec *, struct timespec *);
+#endif /* __POSIX_VISIBLE >= 199309 */
+
 #if __XSI_VISIBLE
 char *strptime(const char *, const char *, struct tm *);
 #endif
@@ -144,14 +151,6 @@ void tzsetwall(void);
 time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
 #endif /* __BSD_VISIBLE */
-
-#if __POSIX_VISIBLE >= 199309
-/* Introduced in POSIX 1003.1b-1993, not part of 1003.1-1990. */
-int clock_getres(clockid_t, struct timespec *);
-int clock_gettime(clockid_t, struct timespec *);
-int clock_settime(clockid_t, const struct timespec *);
-int nanosleep(const struct timespec *, struct timespec *);
-#endif /* __POSIX_VISIBLE >= 199309 */
 __END_DECLS
 
 #endif /* !_TIME_H_ */
