@@ -286,6 +286,7 @@ struct thread {
 	struct kse_thr_mailbox *td_mailbox; /* the userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
+	struct thread	*td_standin;	/* (?) use this for an upcall */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_md
 
@@ -344,6 +345,7 @@ struct thread {
 #define	TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
 #define	TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
 #define	TD_ON_LOCK(td)		((td)->td_inhibitors & TDI_LOCK)
+#define	TD_LENT(td)		((td)->td_inhibitors & TDI_LOAN)
 #define	TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
 #define	TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
 #define	TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
@@ -929,7 +931,7 @@ void	thread_suspend_one(struct thread *td);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 
-void	thread_sanity_check(struct thread *td);
+void	thread_sanity_check(struct thread *td, char *);
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

@@ -274,7 +274,7 @@ trap(frame)
 		 * XXX p_singlethread not locked, but should be safe.
 		 */
 		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
-			PROC_LOCK(p); /* check if thisis really needed */
+			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
 			thread_exit();
 			/* NOTREACHED */
@@ -965,18 +965,39 @@ syscall(frame)
 		cred_update_thread(td);
 	if (p->p_flag & P_KSES) {
 		/*
+		 * First check that we shouldn't just abort.
+		 * But check if we are the single thread first!
+		 * XXX p_singlethread not locked, but should be safe.
+		 */
+		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
+			PROC_LOCK(p);
+			mtx_lock_spin(&sched_lock);
+			thread_exit();
+			/* NOTREACHED */
+		}
+
+		/*
 		 * If we are doing a syscall in a KSE environment,
 		 * note where our mailbox is. There is always the
 		 * possibility that we could do this lazily (in sleep()),
 		 * but for now do it every time.
 		 */
+#if 0
 		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
 		    + offsetof(struct kse_mailbox, km_curthread));
+#else /* if user pointer arithmetic is ok in the kernel */
+		td->td_mailbox =
+		    (void *)fuword(
+		    (void *)&td->td_kse->ke_mailbox->km_curthread);
+#endif
 		if ((td->td_mailbox == NULL) ||
 		(td->td_mailbox == (void *)-1)) {
 			td->td_mailbox = NULL;	/* single thread it.. */
 			td->td_flags &= ~TDF_UNBOUND;
 		} else {
+			if (td->td_standin == NULL) {
+				td->td_standin = thread_alloc();
+			}
 			td->td_flags |= TDF_UNBOUND;
 		}
 	}

@@ -130,16 +130,14 @@ cv_check_upcall(struct thread *td)
 	if ((td->td_proc->p_flag & P_KSES) && td->td_mailbox &&
 	    (td->td_flags & TDF_INMSLEEP) == 0) {
 		/*
-		 * If we have no queued work to do,
-		 * upcall to the UTS to see if it has more work.
 		 * We don't need to upcall now, just queue it.
+		 * The upcall will happen when other n-kernel work
+		 * in this SKEGRP has completed.
+		 * Don't recurse here!
 		 */
-		if (TAILQ_FIRST(&td->td_ksegrp->kg_runq) == NULL) {
-			/* Don't recurse here! */
-			td->td_flags |= TDF_INMSLEEP;
-			thread_schedule_upcall(td, td->td_kse);
-			td->td_flags &= ~TDF_INMSLEEP;
-		}
+		td->td_flags |= TDF_INMSLEEP;
+		thread_schedule_upcall(td, td->td_kse);
+		td->td_flags &= ~TDF_INMSLEEP;
 	}
 }
 

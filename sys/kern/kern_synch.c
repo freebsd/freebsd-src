@@ -474,18 +474,16 @@ msleep(ident, mtx, priority, wmesg, timo)
 			return (EINTR);
 		if (td->td_mailbox && (!(td->td_flags & TDF_INMSLEEP))) {
 			/*
-			 * If we have no queued work to do, then
-			 * upcall to the UTS to see if it has more to do.
-			 * We don't need to upcall now, just make it and
-			 * queue it.
+			 * Arrange for an upcall to be readied.
+			 * it will not actually happen until all
+			 * pending in-kernel work for this KSEGRP
+			 * has been done.
 			 */
 			mtx_lock_spin(&sched_lock);
-			if (TAILQ_FIRST(&td->td_ksegrp->kg_runq) == NULL) {
-				/* Don't recurse here! */
-				td->td_flags |= TDF_INMSLEEP;
-				thread_schedule_upcall(td, td->td_kse);
-				td->td_flags &= ~TDF_INMSLEEP;
-			}
+			/* Don't recurse here! */
+			td->td_flags |= TDF_INMSLEEP;
+			thread_schedule_upcall(td, td->td_kse);
+			td->td_flags &= ~TDF_INMSLEEP;
 			mtx_unlock_spin(&sched_lock);
 		}
 	}
@@ -818,23 +816,15 @@ mi_switch(void)
 	 * or stopped or any thing else similar.
 	 */
 	if (TD_IS_RUNNING(td)) {
-		KASSERT(((ke->ke_flags & KEF_IDLEKSE) == 0),
-		    ("Idle thread in mi_switch with wrong state"));
 		/* Put us back on the run queue (kse and all). */
 		setrunqueue(td);
-	} else if (td->td_flags & TDF_UNBOUND) {
+	} else if (p->p_flag & P_KSES) {
 		/*
 		 * We will not be on the run queue. So we must be
-		 * sleeping or similar. If it's available,
+		 * sleeping or similar. As it's available,
 		 * someone else can use the KSE if they need it.
-		 * XXXKSE KSE loaning will change this.
+		 * (If bound LOANING can still occur).
 		 */
-		td->td_kse = NULL;
-		kse_reassign(ke);
-	} else if (p->p_flag & P_KSES) {
-		KASSERT(((ke->ke_bound == NULL) || (ke->ke_bound == td)),
-			("mi_switch: bad bound state"));
-		ke->ke_bound = td;
 		kse_reassign(ke);
 	}
 
