@@ -821,7 +821,6 @@ ath_init(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = &sc->sc_if;
 	struct ieee80211_node *ni;
-	enum ieee80211_phymode mode;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
@@ -893,9 +892,7 @@ ath_init(void *arg)
 	 */
 	ni = ic->ic_bss;
 	ni->ni_chan = ic->ic_ibss_chan;
-	mode = ieee80211_chan2mode(ic, ni->ni_chan);
-	if (mode != sc->sc_curmode)
-		ath_setcurmode(sc, mode);
+	ath_chan_change(sc, ni->ni_chan);
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
@@ -2614,6 +2611,10 @@ rx_accept:
 		sc->sc_stats.ast_ant_rx[ds->ds_rxstat.rs_antenna]++;
 
 		if (sc->sc_drvbpf) {
+			const void *data;
+			int hdrsize, hdrspace;
+			u_int8_t rix;
+
 			/*
 			 * Discard anything shorter than an ack or cts.
 			 */
@@ -2625,14 +2626,40 @@ rx_accept:
 				m_freem(m);
 				goto rx_next;
 			}
-			sc->sc_rx_th.wr_rate =
-				sc->sc_hwmap[ds->ds_rxstat.rs_rate];
+			rix = ds->ds_rxstat.rs_rate;
+			sc->sc_rx_th.wr_flags = sc->sc_hwflags[rix];
+			sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix];
 			sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi;
 			sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
 			/* XXX TSF */
 
-			bpf_mtap2(sc->sc_drvbpf,
-				&sc->sc_rx_th, sc->sc_rx_th_len, m);
+			/*
+			 * Gag, deal with hardware padding of headers. This
+			 * only happens for QoS frames.  We copy the 802.11
+			 * header out-of-line and supply it separately, then
+			 * adjust the mbuf chain.  It would be better if we
+			 * could just flag the packet in the radiotap header
+			 * and have applications DTRT.
+			 */
+			if (len > sizeof(struct ieee80211_qosframe)) {
+				data = mtod(m, const void *);
+				hdrsize = ieee80211_anyhdrsize(data);
+				if (hdrsize & 3) {
+					bcopy(data, &sc->sc_rx_wh, hdrsize);
+					hdrspace = roundup(hdrsize,
+						sizeof(u_int32_t));
+					m->m_data += hdrspace;
+					m->m_len -= hdrspace;
+					bpf_mtap2(sc->sc_drvbpf, &sc->sc_rx,
+						sc->sc_rx_rt_len + hdrsize, m);
+					m->m_data -= hdrspace;
+					m->m_len += hdrspace;
+				} else
+					bpf_mtap2(sc->sc_drvbpf,
+					     &sc->sc_rx, sc->sc_rx_rt_len, m);
+			} else
+				bpf_mtap2(sc->sc_drvbpf,
+				    &sc->sc_rx, sc->sc_rx_rt_len, m);
 		}
 
 		/*
@@ -3194,12 +3221,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (ic->ic_rawbpf)
 		bpf_mtap(ic->ic_rawbpf, m0);
 	if (sc->sc_drvbpf) {
-		sc->sc_tx_th.wt_flags = 0;
-		if (shortPreamble)
-			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+		sc->sc_tx_th.wt_flags = sc->sc_hwflags[txrate];
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-		sc->sc_tx_th.wt_rate = ni->ni_rates.rs_rates[ni->ni_txrate];
+		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate];
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
@@ -3649,6 +3674,7 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	enum ieee80211_phymode mode;
+	u_int16_t flags;
 
 	/*
 	 * Change channels and update the h/w rate map
@@ -3658,12 +3684,23 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	/*
-	 * Update BPF state.
+	 * Update BPF state.  NB: ethereal et. al. don't handle
+	 * merged flags well so pick a unique mode for their use.
 	 */
+	if (IEEE80211_IS_CHAN_A(chan))
+		flags = IEEE80211_CHAN_A;
+	/* XXX 11g schizophrenia */
+	else if (IEEE80211_IS_CHAN_G(chan) ||
+	    IEEE80211_IS_CHAN_PUREG(chan))
+		flags = IEEE80211_CHAN_G;
+	else
+		flags = IEEE80211_CHAN_B;
+	if (IEEE80211_IS_CHAN_T(chan))
+		flags |= IEEE80211_CHAN_TURBO;
 	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
 		htole16(chan->ic_freq);
 	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
-		htole16(chan->ic_flags);
+		htole16(flags);
 }
 
 /*
@@ -4066,10 +4103,15 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	for (i = 0; i < rt->rateCount; i++)
 		sc->sc_rixmap[rt->info[i].dot11Rate & IEEE80211_RATE_VAL] = i;
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
+	memset(sc->sc_hwflags, 0, sizeof(sc->sc_hwflags));
 	for (i = 0; i < 32; i++) {
 		u_int8_t ix = rt->rateCodeToIndex[i];
-		if (ix != 0xff)
-			sc->sc_hwmap[i] = rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
+		if (ix == 0xff)
+			continue;
+		sc->sc_hwmap[i] = rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[ix].shortPreamble ||
+		    rt->info[ix].phy == IEEE80211_T_OFDM)
+			sc->sc_hwflags[i] |= IEEE80211_RADIOTAP_F_SHORTPRE;
 	}
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
@@ -4488,8 +4530,8 @@ ath_bpfattach(struct ath_softc *sc)
 	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
 	sc->sc_tx_th.wt_ihdr.it_present = htole32(ATH_TX_RADIOTAP_PRESENT);
 
-	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
-	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
+	sc->sc_rx_rt_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
+	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_rt_len);
 	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
 }
 
