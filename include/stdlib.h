@@ -236,8 +236,8 @@ extern void (*_malloc_message)(const char *, const char *, const char *,
 #define alloca(sz) __builtin_alloca(sz)
 #elif defined(lint)
 void	*alloca(size_t);
-#error Please add alloca support on all FreeBSD architectures for this compiler.
 #else
+#error Please add alloca support on all FreeBSD architectures for this compiler.
 #endif
 
 __uint32_t
