@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.6 1998/12/28 16:32:39 peter Exp $
+ * $Id: list.c,v 1.17 1999/01/17 02:58:44 grog Exp grog $
  */
 
 #include <ctype.h>
@@ -350,56 +350,6 @@ vinum_lpi(int plexno, int recurse)
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
-	    if (plex.state == plex_reviving) {
-		printf("\t\tRevive pointer:\t\t%s (%d%%)\n",
-		    roughlength(plex.revived << DEV_BSHIFT, 0),
-		    (int) (((u_int64_t) (plex.revived * 100)) / plex.length));
-		printf("\t\tRevive blocksize:\t%s\n"
-		    "\t\tRevive interval:\t%10d seconds\n",
-		    roughlength(plex.revive_blocksize, 0),
-		    plex.revive_interval);
-	    }
-	    if (Verbose) {				    /* show the unmapped and defective parts */
-		int re;					    /* freelist entry */
-		struct plexregion region;
-		struct rerq {				    /* request to pass to ioctl */
-		    int plexno;				    /* plex for the request */
-		    int re;				    /* region */
-		} *rerq = (struct rerq *) &region;
-
-		if (plex.unmapped_regions) {
-		    printf("\t\tPlex contains %d unmapped regions:\n\t\t   Offset\t Size\n",
-			plex.unmapped_regions);
-		    for (re = 0; re < plex.unmapped_regions; re++) {
-			rerq->plexno = plex.plexno;
-			rerq->re = re;
-			if (ioctl(superdev, VINUM_GETUNMAPPED, &region) < 0) {
-			    fprintf(stderr,
-				"Can't get unmapped region %d: %s\n",
-				re,
-				strerror(errno));
-			    longjmp(command_fail, -1);
-			}
-			printf("\t\t%9qd\t%9qd\n", region.offset, region.length);
-		    }
-		}
-		if (plex.defective_regions) {
-		    printf("\t\tPlex contains %d defective regions:\n\t\t   Offset\t Size\n",
-			plex.defective_regions);
-		    for (re = 0; re < plex.defective_regions; re++) {
-			rerq->plexno = plex.plexno;
-			rerq->re = re;
-			if (ioctl(superdev, VINUM_GETDEFECTIVE, &region) < 0) {
-			    fprintf(stderr,
-				"Can't get defective region %d: %s\n",
-				re,
-				strerror(errno));
-			    longjmp(command_fail, -1);
-			}
-			printf("\t\t%9qd\t%9qd\n", region.offset, region.length);
-		    }
-		}
-	    }
 	} else {
 	    char *org = "";				    /* organization */
 
@@ -438,12 +388,15 @@ vinum_lpi(int plexno, int recurse)
 	    if (plex.writes != 0)
 		printf("\t\tAverage write:\t%16qd bytes\n",
 		    plex.bytes_written / plex.writes);
-	    if ((plex.organization == plex_striped)
-		|| (plex.organization == plex_raid5))
-		printf("\t\tMultiblock:\t%16qd\n"
-		    "\t\tMultistripe:\t%16qd\n",
+	    if (((plex.reads + plex.writes) > 0)
+		&& ((plex.organization == plex_striped)
+		    || (plex.organization == plex_raid5)))
+		printf("\t\tMultiblock:\t%16qd (%d%%)\n"
+		    "\t\tMultistripe:\t%16qd (%d%%)\n",
 		    plex.multiblock,
-		    plex.multistripe);
+		    (int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
+		    plex.multistripe,
+		    (int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
 	}
 	if (plex.subdisks > 0) {
 	    int sdno;
@@ -512,10 +465,16 @@ vinum_lsi(int sdno, int recurse)
 	    if (sd.plexno >= 0) {
 		get_plex_info(&plex, sd.plexno);
 		printf("\t\tPlex %s", plex.name);
-		if (plex.organization == plex_concat)
-		    printf(" at offset %qd\n", (long long) sd.plexoffset * DEV_BSIZE);
-		else
-		    printf("\n");
+		printf(" at offset %qd\n", (long long) sd.plexoffset * DEV_BSIZE);
+	    }
+	    if (sd.state == sd_reviving) {
+		printf("\t\tRevive pointer:\t\t%s (%d%%)\n",
+		    roughlength(sd.revived << DEV_BSHIFT, 0),
+		    (int) (((u_int64_t) (sd.revived * 100)) / sd.sectors));
+		printf("\t\tRevive blocksize:\t%s\n"
+		    "\t\tRevive interval:\t%10d seconds\n",
+		    roughlength(sd.revive_blocksize, 0),
+		    sd.revive_interval);
 	    }
 	} else {
 	    printf("S %-21s State: %s\tPO: %s ",
@@ -633,7 +592,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 #if VINUMDEBUG
     struct rqinfo rq;
 #endif
-    
+
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
 	return;
@@ -668,7 +627,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	}
 #if VINUMDEBUG
     if (Verbose) {
-	printf("\nTime\t\t Event\t     Buf\tSD\tDev\tOffset\tBytes\tDoffset\tGoffset\n\n");
+	printf("\nTime\t\t Event\t     Buf\tDev\tOffset\t\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
 	    *((int *) &rq) = i;
 	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
@@ -680,75 +639,77 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s 1VS %s %p\t\t0x%x\t0x%x\t%ld\n",
+		printf("%s 1VS %s %p\t0x%x\t0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		/* no subdisk */
 		    rq.info.b.b_dev,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s 2LR %s %p\t\t0x%x\t0x%x\t%ld\n",
+		printf("%s 2LR %s %p\t0x%x\t0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		/* no subdisk */
 		    rq.info.b.b_dev,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_rqe:				    /* user RQE */
-		printf("%s 3RQ %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		printf("%s 3RQ %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.sdno,
 		    rq.info.rqe.b.b_dev,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
 		break;
 
 	    case loginfo_iodone:			    /* iodone called */
-		printf("%s 4DN %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		printf("%s 4DN %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.sdno,
 		    rq.info.rqe.b.b_dev,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
 		break;
 
 	    case loginfo_raid5_data:			    /* RAID-5 write data block */
-		printf("%s 5RD %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		printf("%s 5RD %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.sdno,
 		    rq.info.rqe.b.b_dev,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
 		break;
 
 	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
-		printf("%s 6RP %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		printf("%s 6RP %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.sdno,
 		    rq.info.rqe.b.b_dev,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
 	    }
@@ -820,7 +781,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 		plex_state(plex.state),
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
-		) {
+		|| (plex.organization == plex_raid5)) {
 		fprintf(of, "%db ", (int) plex.stripesize);
 	    }
 	    if (plex.volno >= 0) {			    /* we have a volume */
