@@ -342,6 +342,7 @@ all)
 	sh MAKEDEV nsmb0				# cdev, SMB/CIFS
 	sh MAKEDEV crypto				# cdev, crypto
 	sh MAKEDEV fw0					# cdev, firewire
+	sh MAKEDEV dcons				# cdev, dcons
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1177,6 +1178,11 @@ fw?)
 	done
 	ln -sf fw$unit.0 fw$unit
 	ln -sf fwmem$unit.0 fwmem$unit
+	;;
+
+dcons)
+	mknod dcons c 184 0 root:wheel
+	chmod 600 dcons
 	;;
 
 tty?|tty0?|ttyd?|ttyd??)
