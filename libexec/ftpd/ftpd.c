@@ -3175,9 +3175,9 @@ logxfer(char *name, off_t size, time_t start)
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
-		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%qd!%ld\n",
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%jd!%ld\n",
 			ctime(&now)+4, ident, remotehost,
-			path, name, (long long)size,
+			path, name, (intmax_t)size,
 			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
