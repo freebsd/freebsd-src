@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.10 1994/11/19 18:47:57 phk Exp $
+ *	$Id: isa.h,v 1.11 1994/11/19 18:59:04 phk Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -79,11 +79,12 @@
 #define IO_WD1		0x1f0		/* Primary Fixed Disk Controller */
 #define IO_GAME		0x200		/* Game Controller */
 
-					/* 0x208 - 0x277 Open */
+#define IO_GSC1         0x270 /* -- 0x27B! GeniScan GS-4500 addr.grp. 1 */
+#define IO_GSC2         0x2e0           /* GeniScan GS-4500 addr.grp. 2 */
+#define IO_GSC3         0x370           /* GeniScan GS-4500 addr.grp. 3 */
+#define IO_GSC4         0x3e0           /* GeniScan GS-4500 addr.grp. 4 */
 
 #define IO_LPT2		0x278		/* Parallel Port #2 */
-
-					/* 0x280 - 0x2E7 Open */
 
 #define	IO_COM4		0x2e8		/* COM4 i/o address */
 
