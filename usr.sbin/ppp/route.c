@@ -71,6 +71,7 @@
 #include "prompt.h"
 #include "iface.h"
 
+
 static void
 p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
            struct sockaddr *pmask, int width)
@@ -86,10 +87,10 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
     log_Printf(LogDEBUG, "Found the following sockaddr:\n");
     log_Printf(LogDEBUG, "  Family %d, len %d\n",
                (int)phost->sa_family, (int)phost->sa_len);
-    inet_ntop(phost->sa_family, phost, tmp, sizeof tmp);
+    inet_ntop(phost->sa_family, phost->sa_data, tmp, sizeof tmp);
     log_Printf(LogDEBUG, "  Addr %s\n", tmp);
     if (pmask) {
-      inet_ntop(pmask->sa_family, pmask, tmp, sizeof tmp);
+      inet_ntop(pmask->sa_family, pmask->sa_data, tmp, sizeof tmp);
       log_Printf(LogDEBUG, "  Mask %s\n", tmp);
     }
   }
@@ -312,6 +313,8 @@ Index2Nam(int idx)
     have = 0;
     for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
       ifm = (struct if_msghdr *)ptr;
+      if (ifm->ifm_type != RTM_IFINFO)
+        break;
       dl = (struct sockaddr_dl *)(ifm + 1);
       if (ifm->ifm_index > 0) {
         if (ifm->ifm_index > have) {
@@ -366,12 +369,28 @@ Index2Nam(int idx)
   return ifs[idx-1];
 }
 
+void
+route_ParseHdr(struct rt_msghdr *rtm, struct sockaddr *sa[RTAX_MAX])
+{
+  char *wp;
+  int rtax;
+
+  wp = (char *)(rtm + 1);
+
+  for (rtax = 0; rtax < RTAX_MAX; rtax++)
+    if (rtm->rtm_addrs & (1 << rtax)) {
+      sa[rtax] = (struct sockaddr *)wp;
+      wp += ROUNDUP(sa[rtax]->sa_len);
+    } else
+      sa[rtax] = NULL;
+}
+
 int
 route_Show(struct cmdargs const *arg)
 {
   struct rt_msghdr *rtm;
-  struct sockaddr *sa_dst, *sa_gw, *sa_mask;
-  char *sp, *ep, *cp, *wp;
+  struct sockaddr *sa[RTAX_MAX];
+  char *sp, *ep, *cp;
   size_t needed;
   int mib[6];
 
@@ -398,36 +417,13 @@ route_Show(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "%-20s%-20sFlags  Netif\n",
                 "Destination", "Gateway");
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
-    rtm = (struct rt_msghdr *) cp;
-    wp = (char *)(rtm+1);
+    rtm = (struct rt_msghdr *)cp;
 
-    /*
-     * This code relies on RTA_DST, RTA_GATEWAY and RTA_NETMASK
-     * having values 1, 2 and 4 respectively (or at least relies
-     * on them being the first 3 possible sockaddrs in that order) !
-     */
+    route_ParseHdr(rtm, sa);
 
-    if (rtm->rtm_addrs & RTA_DST) {
-      sa_dst = (struct sockaddr *)wp;
-      wp += sa_dst->sa_len;
-    } else
-      sa_dst = NULL;
-
-    if (rtm->rtm_addrs & RTA_GATEWAY) {
-      sa_gw = (struct sockaddr *)wp;
-      wp += sa_gw->sa_len;
-    } else
-      sa_gw = NULL;
-
-    if (rtm->rtm_addrs & RTA_NETMASK) {
-      sa_mask = (struct sockaddr *)wp;
-      wp += sa_mask->sa_len;
-    } else
-      sa_mask = NULL;
-
-    if (sa_dst && sa_gw) {
-      p_sockaddr(arg->prompt, sa_dst, sa_mask, 20);
-      p_sockaddr(arg->prompt, sa_gw, NULL, 20);
+    if (sa[RTAX_DST] && sa[RTAX_GATEWAY]) {
+      p_sockaddr(arg->prompt, sa[RTAX_DST], sa[RTAX_NETMASK], 20);
+      p_sockaddr(arg->prompt, sa[RTAX_GATEWAY], NULL, 20);
 
       p_flags(arg->prompt, rtm->rtm_flags, 6);
       prompt_Printf(arg->prompt, " %s\n", Index2Nam(rtm->rtm_index));
@@ -445,8 +441,9 @@ void
 route_IfDelete(struct bundle *bundle, int all)
 {
   struct rt_msghdr *rtm;
-  struct sockaddr *sa;
-  struct in_addr sa_dst, sa_none;
+  struct sockaddr *sa[RTAX_MAX];
+  struct sockaddr_in **in;
+  struct in_addr sa_none;
   int pass;
   size_t needed;
   char *sp, *cp, *ep;
@@ -454,6 +451,7 @@ route_IfDelete(struct bundle *bundle, int all)
 
   log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->iface->index);
   sa_none.s_addr = INADDR_ANY;
+  in = (struct sockaddr_in **)sa;
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
@@ -482,7 +480,7 @@ route_IfDelete(struct bundle *bundle, int all)
   for (pass = 0; pass < 2; pass++) {
     /*
      * We do 2 passes.  The first deletes all cloned routes.  The second
-     * deletes all non-cloned routes.  This is necessary to avoid
+     * deletes all non-cloned routes.  This is done to avoid
      * potential errors from trying to delete route X after route Y where
      * route X was cloned from route Y (and is no longer there 'cos it
      * may have gone with route Y).
@@ -491,28 +489,30 @@ route_IfDelete(struct bundle *bundle, int all)
       /* So we can't tell ! */
       continue;
     for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
-      rtm = (struct rt_msghdr *) cp;
-      sa = (struct sockaddr *) (rtm + 1);
-      log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
-                " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
-                Index2Nam(rtm->rtm_index), rtm->rtm_flags,
-	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
-      if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	  rtm->rtm_index == bundle->iface->index &&
-	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
-        sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-        sa = (struct sockaddr *)((char *)sa + sa->sa_len);
-        if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
-          if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
-              (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
-            log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n", pass);
-            bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0, 0);
+      rtm = (struct rt_msghdr *)cp;
+      route_ParseHdr(rtm, sa);
+      if (sa[RTAX_DST]) {
+        log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
+                  " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
+                  Index2Nam(rtm->rtm_index), rtm->rtm_flags,
+	          inet_ntoa(((struct sockaddr_in *)sa[RTAX_DST])->sin_addr));
+        if (sa[RTAX_GATEWAY] && rtm->rtm_index == bundle->iface->index &&
+	    (all || (rtm->rtm_flags & RTF_GATEWAY))) {
+          if (sa[RTAX_GATEWAY]->sa_family == AF_INET ||
+              sa[RTAX_GATEWAY]->sa_family == AF_LINK) {
+            if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
+                (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
+              log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n",
+                         pass);
+              bundle_SetRoute(bundle, RTM_DELETE, in[RTAX_DST]->sin_addr,
+                              sa_none, sa_none, 0, 0);
+            } else
+              log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
           } else
-            log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
-        } else
-          log_Printf(LogDEBUG,
-                    "route_IfDelete: Can't remove routes of %d family !\n",
-                    sa->sa_family);
+            log_Printf(LogDEBUG,
+                      "route_IfDelete: Can't remove routes of %d family !\n",
+                      sa[RTAX_GATEWAY]->sa_family);
+        }
       }
     }
   }

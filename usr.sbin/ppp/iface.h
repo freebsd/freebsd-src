@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+struct ifa_msghdr;
+
 struct iface_addr {
   struct in_addr ifa;		/* local address */
   struct in_addr mask;		/* netmask */
@@ -60,3 +62,4 @@ extern int iface_Show(struct cmdargs const *);
 extern int iface_SetFlags(struct iface *, int);
 extern int iface_ClearFlags(struct iface *, int);
 extern void iface_Destroy(struct iface *);
+extern void iface_ParseHdr(struct ifa_msghdr *, struct sockaddr *[RTAX_MAX]);

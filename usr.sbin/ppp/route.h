@@ -23,6 +23,8 @@
 
 struct bundle;
 struct cmdargs;
+struct rt_msghdr;
+struct sockaddr;
 
 #define ROUTE_STATIC		0
 #define ROUTE_DSTMYADDR		1
@@ -52,3 +54,4 @@ extern void route_DeleteAll(struct sticky_route **);
 extern void route_Clean(struct bundle *, struct sticky_route *);
 extern void route_ShowSticky(struct prompt *, struct sticky_route *,
                              const char *, int);
+extern void route_ParseHdr(struct rt_msghdr *, struct sockaddr *[RTAX_MAX]);
