@@ -120,7 +120,8 @@ SUPFLAGS+=	-h ${SUPHOST}
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
-OSRELDATE!=	sysctl -n kern.osreldate
+OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		/usr/include/osreldate.h
 .endif
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
