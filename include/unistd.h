@@ -154,7 +154,9 @@ int	 mkstemp __P((char *));
 char	*mktemp __P((char *));
 int	 nfssvc __P((int, void *));
 int	 nice __P((int));
+ssize_t	 pread __P((int, void *, size_t, off_t));
 int	 profil __P((char *, int, int, int));
+ssize_t	 pwrite __P((int, const void *, size_t, off_t));
 int	 rcmd __P((char **, int, const char *,
 		const char *, const char *, int *));
 char	*re_comp __P((const char *));
