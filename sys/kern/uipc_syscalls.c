@@ -1910,7 +1910,7 @@ retry_lookup:
 			 * Get the page from backing store.
 			 */
 			bsize = vp->v_mount->mnt_stat.f_iosize;
-			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
+			vn_lock(vp, LK_SHARED | LK_RETRY, td);
 			/*
 			 * XXXMAC: Because we don't have fp->f_cred here,
 			 * we pass in NOCRED.  This is probably wrong, but

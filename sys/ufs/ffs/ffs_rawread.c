@@ -119,7 +119,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
 			upgraded = 1;
 			/* Upgrade to exclusive lock, this might block */
-			VOP_LOCK(vp, LK_UPGRADE | LK_NOPAUSE, td);
+			VOP_LOCK(vp, LK_UPGRADE, td);
 		} else
 			upgraded = 0;
 			
