@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -23,17 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ptio.h,v 1.1 1999/08/20 03:48:11 ken Exp $
  */
-#ifndef _SYS_PTIO_H
-#define _SYS_PTIO_H	1
 
-#ifndef KERNEL
-#include <sys/types.h>
-#endif
+#ifndef _SYS_PTIO_H_
+#define	_SYS_PTIO_H_
+
 #include <sys/ioccom.h>
 
-#define PTIOCGETTIMEOUT	_IOR('T', 1, int)
-#define PTIOCSETTIMEOUT	_IOW('T', 2, int)
+#define	PTIOCGETTIMEOUT	_IOR('T', 1, int)
+#define	PTIOCSETTIMEOUT	_IOW('T', 2, int)
 
-#endif	/* !_SYS_PTIO_H */
+#endif /* !_SYS_PTIO_H_ */
