@@ -13,7 +13,7 @@
 This manual page documents the format of the magic file as
 used by the
 .Nm
-command, version 3.36.
+command, version 3.37.
 The
 .Nm file
 command identifies the type of a file using,
@@ -66,21 +66,38 @@ in the magic match both lower and upper case characters in the
 targer, whereas upper case characters in the magic, only much
 uppercase characters in the target.
 .It date
-A four-byte value interpreted as a unix date.
+A four-byte value interpreted as a
+.Ux
+date.
+.It ldate
+A four-byte value interpreted as a
+.Ux Ns -style
+date, but interpreted as
+local time rather than UTC.
 .It beshort
 A two-byte value (on most systems) in big-endian byte order.
 .It belong
 A four-byte value (on most systems) in big-endian byte order.
 .It bedate
 A four-byte value (on most systems) in big-endian byte order,
-interpreted as a unix date.
+interpreted as a
+.Ux
+date.
 .It leshort
 A two-byte value (on most systems) in little-endian byte order.
 .It lelong
 A four-byte value (on most systems) in little-endian byte order.
 .It ledate
 A four-byte value (on most systems) in little-endian byte order,
-interpreted as a unix date.
+interpreted as a
+.Ux
+date.
+.It leldate
+A four-byte value (on most systems) in little-endian byte order,
+interpreted as a
+.Ux Ns -style
+date, but interpreted as local time rather
+than UTC.
 .El
 .El
 .Pp
@@ -242,3 +259,4 @@ indirect offsets.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
+.\" @(#)$Id: magic.man,v 1.17 2001/08/07 15:38:42 christos Exp $
