@@ -31,22 +31,14 @@
 #ifndef	_STDBOOL_H_
 #define	_STDBOOL_H_	
 
-/* `_Bool' type must promote to `int' or `unsigned int' */
-typedef enum {
-	false = 0,
-	true = 1
-} _Bool;
+#define __bool_true_false_are_defined 1
 
 /* And those constants must also be available as macros */
-#define	false	false
-#define	true	true
+#define	false	0
+#define	true	1
 
 /* User visible type `bool' is provided as a macro which may be redefined */
 #define bool _Bool
-
-/* Inform that everything is fine */
-#define __bool_true_false_are_defined 1
-
 #if __STDC_VERSION__ < 199901L
 typedef int	_Bool;		/* not built into pre-C99 compilers */
 #endif
