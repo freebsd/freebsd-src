@@ -40,7 +40,7 @@ An archive hacked so that it will build on just about any version of
 FreeBSD or OpenBSD is frequently generated and made available via
 http://www.Awfulhak.org/ppp.html.
 
-A FAQ is available at http://www.FreeBSD.org/FAQ/userppp.html.  It applies
+A FAQ is available at http://www.FreeBSD.org/doc/faq/ppp.html.  It applies
 equally to OpenBSD as it does to FreeBSD.  The man page is quite extensive,
 and there are lots of examples in /usr/share/examples/ppp/.
 
