@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.32 1996/03/12 15:37:44 davidg Exp $
+ *	$Id: genassym.c,v 1.33 1996/03/27 17:21:57 bde Exp $
  */
 
 #include <stdio.h>
@@ -157,6 +157,7 @@ main()
 	printf("#define\tRU_MINFLT %p\n", &rup->ru_minflt);
 	printf("#define\tPCB_FLAGS %p\n", &pcb->pcb_flags);
 	printf("#define\tPCB_SAVEFPU %p\n", &pcb->pcb_savefpu);
+	printf("#define\tPCB_SAVEFPU_SIZE %d\n", sizeof pcb->pcb_savefpu);
 	printf("#define\tPCB_INL %p\n", &pcb->pcb_inl);
 	printf("#define\tPCB_ONFAULT %p\n", &pcb->pcb_onfault);
 
