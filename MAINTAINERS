@@ -8,3 +8,6 @@ binutils	obrien	Insists to keep BU blocked from other's unapproved
 gcc		obrien	Do not commit w/o approval until Gcc 3.1 WIP completed
 ATA/IDE		sos	Prefers to pre-approve commits
 ahc(4)		gibbs	Prefers to pre-approve commits
+NEWCARD		imp	Pre-commit review strongly requested
+OLDCARD		imp	Pre-commit review preferred
+wi		imp	Would like to review patches
