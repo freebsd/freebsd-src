@@ -46,6 +46,7 @@
 #define TI113X_PCI_CARD_CONTROL		0x91	/* Card Control */
 #define TI113X_PCI_DEVICE_CONTROL	0x92	/* Device Control */
 #define TI113X_PCI_BUFFER_CONTROL	0x93	/* Buffer Control */
+#define TI12XX_PCI_DIAGNOSTIC		0x93	/* Diagnostic register */
 #define TI113X_PCI_SOCKET_DMA0		0x94	/* Socket DMA Register 0 */
 #define TI113X_PCI_SOCKET_DMA1		0x98	/* Socket DMA Register 1 */
 
@@ -80,6 +81,10 @@
 #define	TI113X_DEVCNTL_INTR_SERIAL	0x04u
 /* TI12XX specific code */
 #define	TI12XX_DEVCNTL_INTR_ALLSERIAL	0x06u
+
+/* Diagnostic register (misnamed) TI12XX_PCI_DIAGNOSTIC == 0x93 */
+#define TI12XX_DIAG_CSC_INTR		0x20	/* see datasheet */
+
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
 #define	TI113X_ExCA_IO_OFFSET0		0x36	/* Offset of I/O window */
 #define	TI113X_ExCA_IO_OFFSET1		0x38	/* Offset of I/O window */
