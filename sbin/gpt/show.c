@@ -49,6 +49,33 @@ usage_show(void)
 	exit(1);
 }
 
+static const char *
+friendly(uuid_t *t)
+{
+	uuid_t efi_slice = GPT_ENT_TYPE_EFI;
+	uuid_t freebsd = GPT_ENT_TYPE_FREEBSD;
+	uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+	uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+	uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+	static char buf[80];
+	char *s;
+
+	if (memcmp(t, &efi_slice, sizeof(uuid_t)) == 0)
+		return "EFI System partition";
+	else if (memcmp(t, &freebsd, sizeof(uuid_t)) == 0)
+		return "FreeBSD disklabel container";
+	else if (memcmp(t, &swap, sizeof(uuid_t)) == 0)
+		return "FreeBSD swap partition";
+	else if (memcmp(t, &ufs, sizeof(uuid_t)) == 0)
+		return "FreeBSD ufs partition";
+	else if (memcmp(t, &vinum, sizeof(uuid_t)) == 0)
+		return "FreeBSD vinum partition";
+	uuid_to_string(t, &s, NULL);
+	strlcpy(buf, s, sizeof buf);
+	free(s);
+	return buf;
+}
+
 static void
 show(int fd __unused)
 {
@@ -56,7 +83,6 @@ show(int fd __unused)
 	map_t *m, *p;
 	struct mbr *mbr;
 	struct gpt_ent *ent;
-	char *s;
 	unsigned int i;
 
 	printf("  %*s", lbawidth, "start");
@@ -107,9 +133,7 @@ show(int fd __unused)
 		case MAP_TYPE_GPT_PART:
 			printf("GPT part ");
 			ent = m->map_data;
-			uuid_to_string(&ent->ent_type, &s, NULL);
-			printf("%s", s);
-			free(s);
+			printf("- %s", friendly(&ent->ent_type));
 			break;
 		case MAP_TYPE_PMBR:
 			printf("PMBR");
