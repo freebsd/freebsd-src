@@ -528,7 +528,7 @@ do {									\
     -m elf_i386 \
     %{Wl,*:%*} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
-    %{shared:-Bshared %{h*} %{soname*}} \
+    %{shared:-Bshareable %{h*} %{soname*}} \
     %{symbolic:-Bsymbolic} \
     %{!shared: \
       %{!static: \
