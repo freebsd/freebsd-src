@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.3 1994/08/02 07:52:08 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.4 1994/08/13 14:21:55 davidg Exp $
  */
 
 /*
@@ -321,7 +321,7 @@ doreply:
  * Just set up args and let nqsrv_getlease() do the rest.
  */
 void
-lease_check(vp, p, cred, flag)
+nfs_lease_check(vp, p, cred, flag)
 	struct vnode *vp;
 	struct proc *p;
 	struct ucred *cred;
@@ -1120,7 +1120,7 @@ if (vp->v_mount->mnt_stat.f_fsid.val[1] != MOUNT_NFS) panic("trash4");
  * Called from the settimeofday() syscall.
  */
 void
-lease_updatetime(deltat)
+nfs_lease_updatetime(deltat)
 	register int deltat;
 {
 	register struct nqlease *lp;
