@@ -20,6 +20,7 @@ sed	\
 	-e '/SYSV/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/WITNESS/d' \
+	-e '/IA32/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
 	-e '/	atapist	/d' \
 	-e '/	faith	/d' \
