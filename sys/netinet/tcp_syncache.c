@@ -1204,22 +1204,20 @@ no_options:
 
 /*
  * The values below are chosen to minimize the size of the tcp_secret
- * table, as well as providing roughly a 4 second lifetime for the cookie.
+ * table, as well as providing roughly a 16 second lifetime for the cookie.
  */
 
-#define SYNCOOKIE_HASHSHIFT	2	/* log2(# of 32bit words from hash) */
-#define SYNCOOKIE_WNDBITS	7	/* exposed bits for window indexing */
-#define SYNCOOKIE_TIMESHIFT	5	/* scale ticks to window time units */
+#define SYNCOOKIE_WNDBITS	5	/* exposed bits for window indexing */
+#define SYNCOOKIE_TIMESHIFT	1	/* scale ticks to window time units */
 
-#define SYNCOOKIE_HASHMASK	((1 << SYNCOOKIE_HASHSHIFT) - 1)
 #define SYNCOOKIE_WNDMASK	((1 << SYNCOOKIE_WNDBITS) - 1)
-#define SYNCOOKIE_NSECRETS	(1 << (SYNCOOKIE_WNDBITS - SYNCOOKIE_HASHSHIFT))
+#define SYNCOOKIE_NSECRETS	(1 << SYNCOOKIE_WNDBITS)
 #define SYNCOOKIE_TIMEOUT \
     (hz * (1 << SYNCOOKIE_WNDBITS) / (1 << SYNCOOKIE_TIMESHIFT))
 #define SYNCOOKIE_DATAMASK 	((3 << SYNCOOKIE_WNDBITS) | SYNCOOKIE_WNDMASK)
 
 static struct {
-	u_int32_t	ts_secbits;
+	u_int32_t	ts_secbits[4];
 	u_int		ts_expire;
 } tcp_secret[SYNCOOKIE_NSECRETS];
 
@@ -1228,6 +1226,14 @@ static int tcp_msstab[] = { 0, 536, 1460, 8960 };
 static MD5_CTX syn_ctx;
 
 #define MD5Add(v)	MD5Update(&syn_ctx, (u_char *)&v, sizeof(v))
+
+struct md5_add {
+	u_int32_t laddr, faddr;
+	u_int32_t secbits[4];
+	u_int16_t lport, fport;
+};
+
+CTASSERT(sizeof(struct md5_add) == 28);
 
 /*
  * Consider the problem of a recreated (and retransmitted) cookie.  If the
@@ -1244,35 +1250,42 @@ syncookie_generate(struct syncache *sc)
 {
 	u_int32_t md5_buffer[4];
 	u_int32_t data;
-	int wnd, idx;
+	int idx, i;
+	struct md5_add add;
 
-	wnd = ((ticks << SYNCOOKIE_TIMESHIFT) / hz) & SYNCOOKIE_WNDMASK;
-	idx = wnd >> SYNCOOKIE_HASHSHIFT;
+	idx = ((ticks << SYNCOOKIE_TIMESHIFT) / hz) & SYNCOOKIE_WNDMASK;
 	if (tcp_secret[idx].ts_expire < ticks) {
-		tcp_secret[idx].ts_secbits = arc4random();
+		for (i = 0; i < 4; i++)
+			tcp_secret[idx].ts_secbits[i] = arc4random();
 		tcp_secret[idx].ts_expire = ticks + SYNCOOKIE_TIMEOUT;
 	}
 	for (data = sizeof(tcp_msstab) / sizeof(int) - 1; data > 0; data--)
 		if (tcp_msstab[data] <= sc->sc_peer_mss)
 			break;
-	data = (data << SYNCOOKIE_WNDBITS) | wnd;
+	data = (data << SYNCOOKIE_WNDBITS) | idx;
 	data ^= sc->sc_irs;				/* peer's iss */
 	MD5Init(&syn_ctx);
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
 		MD5Add(sc->sc_inc.inc6_laddr);
 		MD5Add(sc->sc_inc.inc6_faddr);
+		add.laddr = 0;
+		add.faddr = 0;
 	} else
 #endif
 	{
-		MD5Add(sc->sc_inc.inc_laddr);
-		MD5Add(sc->sc_inc.inc_faddr);
+		add.laddr = sc->sc_inc.inc_laddr.s_addr;
+		add.faddr = sc->sc_inc.inc_faddr.s_addr;
 	}
-	MD5Add(sc->sc_inc.inc_lport);
-	MD5Add(sc->sc_inc.inc_fport);
-	MD5Add(tcp_secret[idx].ts_secbits);
+	add.lport = sc->sc_inc.inc_lport;
+	add.fport = sc->sc_inc.inc_fport;
+	add.secbits[0] = tcp_secret[idx].ts_secbits[0];
+	add.secbits[1] = tcp_secret[idx].ts_secbits[1];
+	add.secbits[2] = tcp_secret[idx].ts_secbits[2];
+	add.secbits[3] = tcp_secret[idx].ts_secbits[3];
+	MD5Add(add);
 	MD5Final((u_char *)&md5_buffer, &syn_ctx);
-	data ^= (md5_buffer[wnd & SYNCOOKIE_HASHMASK] & ~SYNCOOKIE_WNDMASK);
+	data ^= (md5_buffer[0] & ~SYNCOOKIE_WNDMASK);
 	return (data);
 }
 
@@ -1286,10 +1299,10 @@ syncookie_lookup(inc, th, so)
 	struct syncache *sc;
 	u_int32_t data;
 	int wnd, idx;
+	struct md5_add add;
 
 	data = (th->th_ack - 1) ^ (th->th_seq - 1);	/* remove ISS */
-	wnd = data & SYNCOOKIE_WNDMASK;
-	idx = wnd >> SYNCOOKIE_HASHSHIFT;
+	idx = data & SYNCOOKIE_WNDMASK;
 	if (tcp_secret[idx].ts_expire < ticks ||
 	    sototcpcb(so)->ts_recent + SYNCOOKIE_TIMEOUT < ticks)
 		return (NULL);
@@ -1298,17 +1311,23 @@ syncookie_lookup(inc, th, so)
 	if (inc->inc_isipv6) {
 		MD5Add(inc->inc6_laddr);
 		MD5Add(inc->inc6_faddr);
+		add.laddr = 0;
+		add.faddr = 0;
 	} else
 #endif
 	{
-		MD5Add(inc->inc_laddr);
-		MD5Add(inc->inc_faddr);
+		add.laddr = inc->inc_laddr.s_addr;
+		add.faddr = inc->inc_faddr.s_addr;
 	}
-	MD5Add(inc->inc_lport);
-	MD5Add(inc->inc_fport);
-	MD5Add(tcp_secret[idx].ts_secbits);
+	add.lport = inc->inc_lport;
+	add.fport = inc->inc_fport;
+	add.secbits[0] = tcp_secret[idx].ts_secbits[0];
+	add.secbits[1] = tcp_secret[idx].ts_secbits[1];
+	add.secbits[2] = tcp_secret[idx].ts_secbits[2];
+	add.secbits[3] = tcp_secret[idx].ts_secbits[3];
+	MD5Add(add);
 	MD5Final((u_char *)&md5_buffer, &syn_ctx);
-	data ^= md5_buffer[wnd & SYNCOOKIE_HASHMASK];
+	data ^= md5_buffer[0];
 	if ((data & ~SYNCOOKIE_DATAMASK) != 0)
 		return (NULL);
 	data = data >> SYNCOOKIE_WNDBITS;
