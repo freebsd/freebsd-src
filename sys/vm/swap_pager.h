@@ -82,7 +82,7 @@ struct swblock {
 extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
 extern struct blist *swapblist;
-extern uma_zone_t swap_zone;
+extern struct uma_zone *swap_zone;
 
 void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 boolean_t swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
