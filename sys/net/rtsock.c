@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.38 1999/01/27 22:42:14 dillon Exp $
+ *	$Id: rtsock.c,v 1.39 1999/04/28 11:37:38 phk Exp $
  */
 
 
@@ -996,7 +996,7 @@ static struct protosw routesw[] = {
 };
 
 static struct domain routedomain =
-    { PF_ROUTE, "route", route_init, 0, 0,
+    { PF_ROUTE, "route", 0, 0, 0,
       routesw, &routesw[sizeof(routesw)/sizeof(routesw[0])] };
 
 DOMAIN_SET(route);
