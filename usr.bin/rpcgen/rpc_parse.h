@@ -25,14 +25,42 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
- *
- *	from: @(#)rpc_parse.h 1.3 87/03/09 (C) 1987 SMI
- *	$Id: rpc_parse.h,v 1.1 1993/09/13 23:20:17 jtc Exp $
  */
+#pragma ident   "@(#)rpc_parse.h 1.10     94/05/15 SMI"
+
+/*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
+/*	  All Rights Reserved  	*/
+
+/*	THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF AT&T	*/
+/*	The copyright notice above does not evidence any   	*/
+/*	actual or intended publication of such source code.	*/
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*	PROPRIETARY NOTICE (Combined)
+*
+* This source code is unpublished proprietary information
+* constituting, or derived under license from AT&T's UNIX(r) System V.
+* In addition, portions of such source code were derived from Berkeley
+* 4.3 BSD under license from the Regents of the University of
+* California.
+*
+*
+*
+*	Copyright Notice 
+*
+* Notice of copyright on this source code product does not indicate 
+*  publication.
+*
+*	(c) 1986,1987,1988.1989  Sun Microsystems, Inc
+*	(c) 1983,1984,1985,1986,1987,1988,1989  AT&T.
+*          All rights reserved.
+*/ 
+
+/*      @(#)rpc_parse.h  1.3  90/08/29  (C) 1987 SMI   */
 
 /*
  * rpc_parse.h, Definitions for the RPCL parser 
- * Copyright (C) 1987, Sun Microsystems, Inc. 
  */
 
 enum defkind {
@@ -63,7 +91,6 @@ struct typedef_def {
 };
 typedef struct typedef_def typedef_def;
 
-
 struct enumval_list {
 	char *name;
 	char *assignment;
@@ -76,7 +103,6 @@ struct enum_def {
 };
 typedef struct enum_def enum_def;
 
-
 struct declaration {
 	char *prefix;
 	char *type;
@@ -85,7 +111,6 @@ struct declaration {
 	char *array_max;
 };
 typedef struct declaration declaration;
-
 
 struct decl_list {
 	declaration decl;
@@ -98,9 +123,9 @@ struct struct_def {
 };
 typedef struct struct_def struct_def;
 
-
 struct case_list {
 	char *case_name;
+	int contflag;
 	declaration case_decl;
 	struct case_list *next;
 };
@@ -113,19 +138,23 @@ struct union_def {
 };
 typedef struct union_def union_def;
 
-
+struct arg_list {
+	char *argname; /* name of struct for arg*/
+	decl_list *decls;
+};
+	
+typedef struct arg_list arg_list;
 
 struct proc_list {
 	char *proc_name;
 	char *proc_num;
-	char *arg_type;
-	char *arg_prefix;
+	arg_list args;
+	int arg_num;
 	char *res_type;
 	char *res_prefix;
 	struct proc_list *next;
 };
 typedef struct proc_list proc_list;
-
 
 struct version_list {
 	char *vers_name;
@@ -155,5 +184,14 @@ struct definition {
 };
 typedef struct definition definition;
 
-/* @(#)rpc_parse.h	2.1 88/08/01 4.0 RPCSRC */
 definition *get_definition();
+
+
+struct bas_type
+{
+  char *name;
+  int length;
+  struct bas_type *next;
+};
+
+typedef struct bas_type bas_type;
