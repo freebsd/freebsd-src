@@ -1261,7 +1261,20 @@ ENTRY(do_syscall, 0)
 	dep	r30=0,sp,61,3;;		// physical address
 	add	r31=16,r30;;		// secondary pointer
 
-	// save minimal state for syscall
+	// Save minimal state for syscall.
+	// We need to save enough state so that sendsig doesn't
+	// trash things if we take a signal during the system call.
+	// Essentially we need to save all the function-preserved
+	// state. Note that if we didn't take a signal, we don't need
+	// to restore much of that state on the way out.
+	// The function-preserved state (including syscall number) is:
+	//
+	//	r1,r4-r7,sp,r15
+	//	f16-f31
+	//	p1-p5,p16-p63
+	//	b0-b5
+	//	various ar's
+	//
 	mov	r18=cr.iip
 	mov	r19=cr.ipsr
 	mov	r20=cr.isr
@@ -1304,24 +1317,41 @@ ENTRY(do_syscall, 0)
 	;;
 	st8	[r30]=r20,16		// save ar.ccv
 	st8	[r31]=r21,16		// save ar.fpsr
-	mov	r16=b0
+	mov	r18=b0
+	mov	r19=b1
 	;;
-	st8	[r30]=r16,TF_R-TF_B+FRAME_R4*8 // save b0, r1=&tf_r[FRAME_SP]
+	st8	[r30]=r18,16		// save b0
+	st8	[r31]=r19,16		// save b1
+	mov	r20=b2
+	mov	r21=b3
 	;;
-	st8.spill [r30]=r4,8		// save r4
+	st8	[r30]=r20,16		// save b2
+	st8	[r31]=r21,16		// save b3
+	mov	r18=b4
+	mov	r19=b5
+	;;
+	st8	[r30]=r18,TF_R_R1-(TF_B+4*8) // save b4, skip to r1
+	st8	[r31]=r19,TF_R_R4-(TF_B+5*8) // save b5, skip to r4
+	;;
+	st8	[r30]=r1,TF_R_R5-TF_R_R1 // save r1, skip to r5
+	.mem.offset 8,0
+	st8.spill [r31]=r4,16		// save r4
+	;;
+	.mem.offset 0,0
+	st8.spill [r30]=r5,16		// save r5
+	.mem.offset 8,0
+	st8.spill [r31]=r6,TF_R_SP-TF_R_R6 // save r6
 	;; 
-	st8.spill [r30]=r5,8		// save r5
-	;; 
-	st8.spill [r30]=r6,8		// save r6
-	;; 
-	st8.spill [r30]=r7,(FRAME_SP-FRAME_R7)*8 // save r7
-	;; 
-	st8	[r30]=r17		// save user sp
+	.mem.offset 0,0
+	st8.spill [r30]=r7,TF_R_R15-TF_R_R7 // save r7
+	st8	[r31]=r17		// save user sp
+	;;
+	st8	[r30]=r15		// save r15 (syscall number)
 	;;
 	bsw.1				// switch back to bank 1
 	;;
 	mov	r18=sp			// trapframe pointer
-	;;
+	;; 
 	add	sp=-(8*8),sp		// reserve stack for arguments
 	;;
 	br.call.sptk.few b0=Lsaveargs	// dump args
@@ -1384,17 +1414,17 @@ ENTRY(do_syscall, 0)
 	add	r16=SIZEOF_TRAPFRAME,loc1
 	;;
 	mov	ar.k6=r16		// restore kernel sp
-	add	r30=TF_R+FRAME_SP*8,r30	// &tf_r[FRAME_SP]
+	add	r30=TF_R_SP,r30		// &tf_r[FRAME_SP]
 	mov	r15=loc0		// saved syscall number
 	alloc	r14=ar.pfs,0,0,0,0	// discard register frame
 	;;
-	ld8	sp=[r30],-16		// restore user sp
+	ld8	sp=[r30],TF_R_R10-TF_R_SP // restore user sp
 	;;
 	ld8	r10=[r30],-8		// ret2
 	;;
 	ld8	r9=[r30],-8		// ret1
 	;;
-	ld8	r8=[r30],-(TF_R+7*8-TF_B) // ret0
+	ld8	r8=[r30],TF_B-TF_R_R8	// ret0
 	;;
 	ld8	r16=[r30],-16		// restore b0
 	;;	
