@@ -507,7 +507,7 @@ ext2_reload(mp, cred, td)
 	 */
 	devvp = VFSTOEXT2(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (vinvalbuf(devvp, 0, cred, td, 0, 0) != 0)
+	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ext2_reload: dirty1");
 	VOP_UNLOCK(devvp, 0, td);
 
@@ -557,7 +557,7 @@ loop:
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, cred, td, 0, 0))
+		if (vinvalbuf(vp, 0, td, 0, 0))
 			panic("ext2_reload: dirty2");
 		/*
 		 * Step 6: re-read inode data for all active vnodes.
