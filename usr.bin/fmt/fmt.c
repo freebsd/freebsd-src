@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)fmt.c	8.1 (Berkeley) 7/20/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fmt.c,v 1.9 1997/07/03 07:19:46 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -162,7 +162,11 @@ fmt(fi)
 	register char *cp, *cp2, cc;
 	register int c, col;
 #define CHUNKSIZE 1024
-	static int lbufsize = 0, cbufsize = 0;
+	static int lbufsize = 0, cbufsize = CHUNKSIZE;
+
+	canonb = malloc(CHUNKSIZE);
+	if (canonb == 0)
+		abort();
 
 	if (center) {
 		linebuf = malloc(BUFSIZ);
