@@ -216,7 +216,7 @@ compatibles has been added. [MERGED]
 The Inode Filesystem (IFS) has been added; more information can be
 found in /usr/src/sys/ufs/ifs/README.
 
-The uscanner(4) driver for USB scanners has been added.
+The uscanner(4) driver for USB scanners has been added. [MERGED]
 
 The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
 They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
