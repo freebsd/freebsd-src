@@ -887,10 +887,6 @@
     cause it to abort processing has been fixed (see security advisory
     FreeBSD-SA-01:13). &merged;</para>
 
-    <para>To fix a remotely-exploitable buffer overflow,
-    <application>BIND</application> has been updated
-    to 8.2.3 (see security advisory FreeBSD-SA-01:18). &merged;</para>
-
     <para><application>OpenSSH</application> now has code to prevent
     (instead of just mitigating through connection limits) an attack
     that can lead to guessing the server key (not host key) by
