@@ -750,7 +750,6 @@ register INTSTAT {
 						 * that require a kernel based
 						 * message state engine.
 						 */
-	mask	TARGET_MSG_HELP	0xb0|SEQINT
 	mask	TRACEPOINT	0xd0|SEQINT
 	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
 						 * Target changed phase on us

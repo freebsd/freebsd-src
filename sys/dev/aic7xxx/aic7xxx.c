@@ -170,7 +170,7 @@
 typedef enum {
 	ROLE_UNKNOWN,
 	ROLE_INITIATOR,
-	ROLE_TARGET,
+	ROLE_TARGET
 } role_t;
 
 struct ahc_devinfo {
@@ -261,6 +261,11 @@ static void	ahc_clear_msg_state(struct ahc_softc *ahc);
 static void	ahc_handle_message_phase(struct ahc_softc *ahc,
 					 struct cam_path *path);
 static int	ahc_sent_msg(struct ahc_softc *ahc, u_int msgtype, int full);
+typedef enum {
+	MSGLOOP_IN_PROG,
+	MSGLOOP_MSGCOMPLETE,
+	MSGLOOP_TERMINATED
+} msg_loop_stat;
 static int	ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 			      struct ahc_devinfo *devinfo);
 static void	ahc_handle_ign_wide_residue(struct ahc_softc *ahc,
@@ -277,19 +282,20 @@ static int	ahc_check_patch(struct ahc_softc *ahc,
 static void	ahc_download_instr(struct ahc_softc *ahc,
 				   int instrptr, u_int8_t *dconsts);
 static int	ahc_match_scb(struct scb *scb, int target, char channel,
-			      int lun, u_int tag);
+			      int lun, u_int tag, role_t role);
 #ifdef AHC_DEBUG
 static void	ahc_print_scb(struct scb *scb);
 #endif
 static int	ahc_search_qinfifo(struct ahc_softc *ahc, int target,
 				   char channel, int lun, u_int tag,
-				   u_int32_t status, ahc_search_action action);
+				   role_t role, u_int32_t status,
+				   ahc_search_action action);
 static void	ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim,
 			      union ccb *ccb);
 static int	ahc_reset_channel(struct ahc_softc *ahc, char channel,
 				  int initiate_reset);
 static int	ahc_abort_scbs(struct ahc_softc *ahc, int target,
-			       char channel, int lun, u_int tag,
+			       char channel, int lun, u_int tag, role_t role,
 			       u_int32_t status);
 static int	ahc_search_disc_list(struct ahc_softc *ahc, int target,
 				     char channel, int lun, u_int tag);
@@ -341,6 +347,12 @@ static void	ahc_set_recoveryscb(struct ahc_softc *ahc, struct scb *scb);
 
 static timeout_t
 		ahc_timeout;
+static void	ahc_queue_lstate_event(struct ahc_softc *ahc,
+				       struct tmode_lstate *lstate,
+				       u_int initiator_id, u_int event_type,
+				       u_int event_arg);
+static void	ahc_send_lstate_events(struct ahc_softc *ahc,
+				       struct tmode_lstate *lstate);
 static __inline int  sequencer_paused(struct ahc_softc *ahc);
 static __inline void pause_sequencer(struct ahc_softc *ahc);
 static __inline void unpause_sequencer(struct ahc_softc *ahc,
@@ -356,6 +368,7 @@ static __inline cam_status ahc_ccb_status(union ccb* ccb);
 static __inline void	   ahcsetccbstatus(union ccb* ccb,
 					   cam_status status);
 static __inline void	   ahc_run_tqinfifo(struct ahc_softc *ahc);
+static __inline void	   ahc_run_qoutfifo(struct ahc_softc *ahc);
 
 static __inline struct ahc_initiator_tinfo *
 			   ahc_fetch_transinfo(struct ahc_softc *ahc,
@@ -496,6 +509,38 @@ ahc_run_tqinfifo(struct ahc_softc *ahc)
 			ahc_outb(ahc, KERNEL_TQINPOS, ahc->tqinfifonext - 1);
 			unpause_sequencer(ahc, /*unpause_always*/FALSE);
 		}
+	}
+}
+
+static __inline void
+ahc_run_qoutfifo(struct ahc_softc *ahc)
+{
+	struct scb *scb;
+	u_int  scb_index;
+
+	while (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL) {
+		scb_index = ahc->qoutfifo[ahc->qoutfifonext];
+		ahc->qoutfifo[ahc->qoutfifonext++] = SCB_LIST_NULL;
+
+		scb = &ahc->scb_data->scbarray[scb_index];
+		if (scb_index >= ahc->scb_data->numscbs
+		  || (scb->flags & SCB_ACTIVE) == 0) {
+			printf("%s: WARNING no command for scb %d "
+			       "(cmdcmplt)\nQOUTPOS = %d\n",
+			       ahc_name(ahc), scb_index,
+			       ahc->qoutfifonext - 1);
+			continue;
+		}
+
+		/*
+		 * Save off the residual
+		 * if there is one.
+		 */
+		if (scb->hscb->residual_SG_count != 0)
+			ahc_calc_residual(scb);
+		else
+			scb->ccb->csio.resid = 0;
+		ahc_done(ahc, scb);
 	}
 }
 
@@ -785,7 +830,7 @@ ahcinitscbdata(struct ahc_softc *ahc)
 	 */
 
 	/* DMA tag for our hardware scb structures */
-	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -815,7 +860,7 @@ ahcinitscbdata(struct ahc_softc *ahc)
 	scb_data->init_level++;
 
 	/* DMA tag for our sense buffers */
-	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -845,7 +890,7 @@ ahcinitscbdata(struct ahc_softc *ahc)
 	scb_data->init_level++;
 
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -1597,33 +1642,8 @@ ahc_intr(void *arg)
 #endif
 
 	if (intstat & CMDCMPLT) {
-		struct scb *scb;
-		u_int  scb_index;
-
 		ahc_outb(ahc, CLRINT, CLRCMDINT);
-		while (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL) {
-			scb_index = ahc->qoutfifo[ahc->qoutfifonext];
-			ahc->qoutfifo[ahc->qoutfifonext++] = SCB_LIST_NULL;
-
-			scb = &ahc->scb_data->scbarray[scb_index];
-			if (scb_index >= ahc->scb_data->numscbs
-			  || (scb->flags & SCB_ACTIVE) == 0) {
-				printf("%s: WARNING no command for scb %d "
-				       "(cmdcmplt)\nQOUTPOS = %d\n",
-				       ahc_name(ahc), scb_index,
-				       ahc->qoutfifonext - 1);
-				continue;
-			}
-
-			/*
-			 * Save off the residual
-			 * if there is one.
-			 */
-			if (scb->hscb->residual_SG_count != 0)
-				ahc_calc_residual(scb);
-			ahc_done(ahc, scb);
-		}
-
+		ahc_run_qoutfifo(ahc);
 		if ((ahc->flags & AHC_TARGETMODE) != 0) {
 			ahc_run_tqinfifo(ahc);
 		}
@@ -1646,7 +1666,8 @@ ahc_intr(void *arg)
 
 		/* Tell everyone that this HBA is no longer availible */
 		ahc_abort_scbs(ahc, CAM_TARGET_WILDCARD, ALL_CHANNELS,
-			       CAM_LUN_WILDCARD, SCB_LIST_NULL, CAM_NO_HBA);
+			       CAM_LUN_WILDCARD, SCB_LIST_NULL, ROLE_UNKNOWN,
+			       CAM_NO_HBA);
 	}
 	if (intstat & SEQINT)
 		ahc_handle_seqint(ahc, intstat);
@@ -1753,6 +1774,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 		/* Are we already enabled?? */
 		if (lstate != NULL) {
+			xpt_print_path(ccb->ccb_h.path);
 			printf("Lun already enabled\n");
 			ccb->ccb_h.status = CAM_LUN_ALRDY_ENA;
 			return;
@@ -1776,6 +1798,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 		if (target != CAM_TARGET_WILDCARD && tstate == NULL) {
 			tstate = ahc_alloc_tstate(ahc, target, channel);
 			if (tstate == NULL) {
+				xpt_print_path(ccb->ccb_h.path);
 				printf("Couldn't allocate tstate\n");
 				ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 				return;
@@ -1783,11 +1806,23 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 		}
 		lstate = malloc(sizeof(*lstate), M_DEVBUF, M_NOWAIT);
 		if (lstate == NULL) {
+			xpt_print_path(ccb->ccb_h.path);
 			printf("Couldn't allocate lstate\n");
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			return;
 		}
 		bzero(lstate, sizeof(*lstate));
+		status = xpt_create_path(&lstate->path, /*periph*/NULL,
+					 xpt_path_path_id(ccb->ccb_h.path),
+					 xpt_path_target_id(ccb->ccb_h.path),
+					 xpt_path_lun_id(ccb->ccb_h.path));
+		if (status != CAM_REQ_CMP) {
+			free(lstate, M_DEVBUF);
+			xpt_print_path(ccb->ccb_h.path);
+			printf("Couldn't allocate path\n");
+			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			return;
+		}
 		SLIST_INIT(&lstate->accept_tios);
 		SLIST_INIT(&lstate->immed_notifies);
 		s = splcam();
@@ -1893,6 +1928,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Target mode disabled\n");
+			xpt_free_path(lstate->path);
 			free(lstate, M_DEVBUF);
 
 			pause_sequencer(ahc);
@@ -2221,6 +2257,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 				 */
 				if (hscb->residual_SG_count != 0)
 					ahc_calc_residual(scb);
+				else
+					scb->ccb->csio.resid = 0;
 
 #ifdef AHC_DEBUG
 				if (ahc_debug & AHC_SHOWSENSE) {
@@ -2310,14 +2348,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       ahc_inb(ahc, SCB_DATACNT));
 		break;
 	}
-	case TARGET_MSG_HELP:
-	{
-		/*
-		 * XXX Handle BDR, Abort, Abort Tag, and transfer negotiations.
-		 */
-		restart_sequencer(ahc);
-		return;
-	}
 	case HOST_MSG_LOOP:
 	{
 		/*
@@ -2334,10 +2364,18 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			u_int bus_phase;
 
 			bus_phase = ahc_inb(ahc, SCSISIGI) & PHASE_MASK;
-			if (bus_phase != P_MESGIN && bus_phase != P_MESGOUT)
-				panic("ahc_intr: HOST_MSG_LOOP bad phase 0x%x",
+			if (bus_phase != P_MESGIN
+			 && bus_phase != P_MESGOUT) {
+				printf("ahc_intr: HOST_MSG_LOOP bad "
+				       "phase 0x%x\n",
 				      bus_phase);
-
+				/*
+				 * Probably transitioned to bus free before
+				 * we got here.  Just punt the message.
+				 */
+				ahc_clear_intstat(ahc);
+				restart_sequencer(ahc);
+			}
 			if (devinfo.role == ROLE_INITIATOR) {
 				struct scb *scb;
 				u_int scb_index;
@@ -2569,10 +2607,12 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 					tag = SCB_LIST_NULL;
 				ahc_abort_scbs(ahc, target, channel,
 					       SCB_LUN(scb), tag,
+					       ROLE_INITIATOR,
 					       CAM_UNEXP_BUSFREE);
 			} else {
 				ahc_abort_scbs(ahc, target, channel,
 					       CAM_LUN_WILDCARD, SCB_LIST_NULL,
+					       ROLE_INITIATOR,
 					       CAM_UNEXP_BUSFREE);
 				printf("%s: ", ahc_name(ahc));
 			}
@@ -2920,7 +2960,8 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 */
 		ahc_search_qinfifo(ahc, SCB_TARGET(scb), SCB_CHANNEL(scb),
 				   SCB_LUN(scb), /*tag*/SCB_LIST_NULL,
-				   CAM_REQUEUE_REQ, SEARCH_COMPLETE);
+				   ROLE_INITIATOR, CAM_REQUEUE_REQ,
+				   SEARCH_COMPLETE);
 	} else {
 		/*
 		 * Otherwise, we ignore it.
@@ -3134,13 +3175,23 @@ reswitch:
 		ahc_outb(ahc, SXFRCTL0, ahc_inb(ahc, SXFRCTL0) & ~SPIOEN);
 		ahc->msgin_buf[ahc->msgin_index] = ahc_inb(ahc, SCSIDATL);
 		msgdone = ahc_parse_msg(ahc, path, &devinfo);
+		if (msgdone == MSGLOOP_TERMINATED) {
+			/*
+			 * The message is *really* done in that it caused
+			 * us to go to bus free.  The sequencer has already
+			 * been reset at this point, so pull the ejection
+			 * handle.
+			 */
+			return;
+		}
+		
 		ahc->msgin_index++;
 
 		/*
 		 * XXX Read spec about initiator dropping ATN too soon
 		 *     and use msgdone to detect it.
 		 */
-		if (msgdone) {
+		if (msgdone == MSGLOOP_MSGCOMPLETE) {
 			ahc->msgin_index = 0;
 
 			/*
@@ -3233,7 +3284,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 	int	response;
 	u_int	targ_scsirate;
 
-	done = FALSE;
+	done = MSGLOOP_IN_PROG;
 	response = FALSE;
 	reject = FALSE;
 	tinfo = ahc_fetch_transinfo(ahc, devinfo->channel, devinfo->our_scsiid,
@@ -3256,7 +3307,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 		response = ahc_handle_msg_reject(ahc, devinfo);
 		/* FALLTHROUGH */
 	case MSG_NOOP:
-		done = TRUE;
+		done = MSGLOOP_MSGCOMPLETE;
 		break;
 	case MSG_IGN_WIDE_RESIDUE:
 	{
@@ -3265,7 +3316,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 			if (ahc->msgin_buf[1] != 1
 			 || tinfo->current.width == MSG_EXT_WDTR_BUS_8_BIT) {
 				reject = TRUE;
-				done = TRUE;
+				done = MSGLOOP_MSGCOMPLETE;
 			} else
 				ahc_handle_ign_wide_residue(ahc, devinfo);
 		}
@@ -3332,7 +3383,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 				ahc->msgout_index = 0;
 				response = TRUE;
 			}
-			done = TRUE;
+			done = MSGLOOP_MSGCOMPLETE;
 			break;
 		}
 		case MSG_EXT_WDTR:
@@ -3448,7 +3499,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 					response = TRUE;
 				}
 			}
-			done = TRUE;
+			done = MSGLOOP_MSGCOMPLETE;
 			break;
 		}
 		default:
@@ -3458,15 +3509,45 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 		}
 		break;
 	}
-	case MSG_ABORT:
-	case MSG_ABORT_TAG:
 	case MSG_BUS_DEV_RESET:
-	case MSG_CLEAR_QUEUE:
-	case MSG_TERM_IO_PROC:
-		/* Target mode messages */
-		if (devinfo->role != ROLE_TARGET)
-			reject = TRUE;
+		ahc_handle_devreset(ahc, devinfo,
+				    CAM_BDR_SENT, AC_SENT_BDR,
+				    "Bus Device Reset Received",
+				    /*verbose_only*/FALSE);
+		restart_sequencer(ahc);
+		done = MSGLOOP_TERMINATED;
 		break;
+	case MSG_ABORT_TAG:
+	case MSG_ABORT:
+	case MSG_CLEAR_QUEUE:
+		/* Target mode messages */
+		if (devinfo->role != ROLE_TARGET) {
+			reject = TRUE;
+			break;
+		}
+		ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
+			       devinfo->lun,
+			       ahc->msgin_buf[0] == MSG_ABORT_TAG
+						  ? SCB_LIST_NULL
+						  : ahc_inb(ahc, INITIATOR_TAG),
+			       ROLE_TARGET, CAM_REQ_ABORTED);
+
+		tstate = ahc->enabled_targets[devinfo->our_scsiid];
+		if (tstate != NULL) {
+			struct tmode_lstate* lstate;
+
+			lstate = tstate->enabled_luns[devinfo->lun];
+			if (lstate != NULL) {
+				ahc_queue_lstate_event(ahc, lstate,
+						       devinfo->our_scsiid,
+						       ahc->msgin_buf[0],
+						       /*arg*/0);
+				ahc_send_lstate_events(ahc, lstate);
+			}
+		}
+		done = MSGLOOP_MSGCOMPLETE;
+		break;
+	case MSG_TERM_IO_PROC:
 	default:
 		reject = TRUE;
 		break;
@@ -3474,17 +3555,16 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 
 	if (reject) {
 		/*
-		 * Assert attention and setup to
-		 * reject the message.
+		 * Setup to reject the message.
 		 */
 		ahc->msgout_index = 0;
 		ahc->msgout_len = 1;
 		ahc->msgout_buf[0] = MSG_MESSAGE_REJECT;
-		done = TRUE;
+		done = MSGLOOP_MSGCOMPLETE;
 		response = TRUE;
 	}
 
-	if (done && !response)
+	if (done != MSGLOOP_IN_PROG && !response)
 		/* Clear the outgoing message buffer */
 		ahc->msgout_len = 0;
 
@@ -3582,8 +3662,33 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	struct cam_path *path;
 	int found;
 	int error;
+	struct tmode_tstate* tstate;
+	u_int lun;
 
 	error = ahc_create_path(ahc, devinfo, &path);
+
+	found = ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
+			       CAM_LUN_WILDCARD, SCB_LIST_NULL, devinfo->role,
+			       status);
+
+	/*
+	 * Send an immediate notify ccb to all target more peripheral
+	 * drivers affected by this action.
+	 */
+	tstate = ahc->enabled_targets[devinfo->our_scsiid];
+	if (tstate != NULL) {
+		for (lun = 0; lun <= 7; lun++) {
+			struct tmode_lstate* lstate;
+
+			lstate = tstate->enabled_luns[lun];
+			if (lstate == NULL)
+				continue;
+
+			ahc_queue_lstate_event(ahc, lstate, devinfo->our_scsiid,
+					       MSG_BUS_DEV_RESET, /*arg*/0);
+			ahc_send_lstate_events(ahc, lstate);
+		}
+	}
 
 	/*
 	 * Go back to async/narrow transfers and renegotiate.
@@ -3595,8 +3700,6 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	ahc_set_syncrate(ahc, devinfo, path, /*syncrate*/NULL,
 			 /*period*/0, /*offset*/0, AHC_TRANS_CUR,
 			 /*paused*/TRUE);
-	found = ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
-			       CAM_LUN_WILDCARD, SCB_LIST_NULL, status);
 	
 	if (error == CAM_REQ_CMP && acode != 0)
 		xpt_async(AC_SENT_BDR, path, NULL);
@@ -3647,7 +3750,9 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	ahc_index_busy_tcl(ahc, scb->hscb->tcl, /*unbusy*/TRUE);
 
 	if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO) {
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		if (ahc_ccb_status(ccb) == CAM_REQ_INPROG)
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		ahcfreescb(ahc, scb);
 		xpt_done(ccb);
 		return;
@@ -3682,7 +3787,8 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		 * SCB into the QINFIFO.
 		 */
 		ahc_search_qinfifo(ahc, SCB_TARGET(scb), SCB_CHANNEL(scb),
-				   SCB_LUN(scb), scb->hscb->tag, /*status*/0,
+				   SCB_LUN(scb), scb->hscb->tag,
+				   ROLE_INITIATOR, /*status*/0,
 				   SEARCH_REMOVE);
 		if (ahc_ccb_status(ccb) == CAM_BDR_SENT)
 			ahcsetccbstatus(ccb, CAM_CMD_TIMEOUT);
@@ -3803,7 +3909,7 @@ ahc_init(struct ahc_softc *ahc)
 	}
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -3828,7 +3934,7 @@ ahc_init(struct ahc_softc *ahc)
 	driver_data_size = 3 * 256 * sizeof(u_int8_t);
 	if ((ahc->flags & AHC_TARGETMODE) != 0)
 		driver_data_size += AHC_TMODE_CMDS * sizeof(struct target_cmd);
-	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -4077,8 +4183,10 @@ ahc_init(struct ahc_softc *ahc)
 		}
 		tstate->ultraenb = ultraenb;
 		tstate->discenable = discenable;
-		tstate->tagenable = tagenable;
+		tstate->tagenable = 0; /* Wait until the XPT says its okay */
 	}
+	ahc->user_discenable = discenable;
+	ahc->user_tagenable = tagenable;
 
 	/*
 	 * Tell the sequencer where it can find the our arrays in memory.
@@ -4421,12 +4529,10 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		if (ccb->ccb_h.func_code == XPT_NOTIFY_ACK) {
-			/* Clear notification state */
-		}
 		SLIST_INSERT_HEAD(&lstate->immed_notifies, &ccb->ccb_h,
 				  sim_links.sle);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
+		ahc_send_lstate_events(ahc, lstate);
 		break;
 	}
 	case XPT_EN_LUN:		/* Enable LUN as a target */
@@ -4444,6 +4550,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		struct	ccb_trans_settings *cts;
 		struct	ahc_initiator_tinfo *tinfo;
 		struct	tmode_tstate *tstate;
+		u_int16_t *discenable;
+		u_int16_t *tagenable;
 		u_int	update_type;
 		int	s;
 
@@ -4457,25 +4565,34 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 					    devinfo.our_scsiid,
 					    devinfo.target, &tstate);
 		update_type = 0;
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
+		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
 			update_type |= AHC_TRANS_GOAL;
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
+			discenable = &tstate->discenable;
+			tagenable = &tstate->tagenable;
+		} else if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
 			update_type |= AHC_TRANS_USER;
+			discenable = &ahc->user_discenable;
+			tagenable = &ahc->user_tagenable;
+		} else {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 		
 		s = splcam();
 
 		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
 			if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-				tstate->discenable |= devinfo.target_mask;
+				*discenable |= devinfo.target_mask;
 			else
-				tstate->discenable &= ~devinfo.target_mask;
+				*discenable &= ~devinfo.target_mask;
 		}
 		
 		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
 			if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-				tstate->tagenable |= devinfo.target_mask;
+				*tagenable |= devinfo.target_mask;
 			else
-				tstate->tagenable &= ~devinfo.target_mask;
+				*tagenable &= ~devinfo.target_mask;
 		}	
 
 		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
@@ -4568,11 +4685,19 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		s = splcam();
 
 		cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-		if ((tstate->discenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_DISC_ENB;
+		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
+			if ((ahc->user_discenable & devinfo.target_mask) != 0)
+				cts->flags |= CCB_TRANS_DISC_ENB;
 
-		if ((tstate->tagenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_TAG_ENB;
+			if ((ahc->user_tagenable & devinfo.target_mask) != 0)
+				cts->flags |= CCB_TRANS_TAG_ENB;
+		} else {
+			if ((tstate->discenable & devinfo.target_mask) != 0)
+				cts->flags |= CCB_TRANS_DISC_ENB;
+
+			if ((tstate->tagenable & devinfo.target_mask) != 0)
+				cts->flags |= CCB_TRANS_TAG_ENB;
+		}
 
 		cts->sync_period = tinfo->period;
 		cts->sync_offset = tinfo->offset;
@@ -4955,8 +5080,8 @@ ahc_freeze_devq(struct ahc_softc *ahc, struct cam_path *path)
 	channel = xpt_path_sim(path)->bus_id == 0 ? 'A' : 'B';
 	
 	ahc_search_qinfifo(ahc, target, channel, lun,
-			   /*tag*/SCB_LIST_NULL, CAM_REQUEUE_REQ,
-			   SEARCH_COMPLETE);
+			   /*tag*/SCB_LIST_NULL, ROLE_UNKNOWN,
+			   CAM_REQUEUE_REQ, SEARCH_COMPLETE);
 }
 
 static void
@@ -5430,11 +5555,13 @@ bus_reset:
 		} else {
 			int	 disconnected;
 
+			/* XXX Shouldn't panic.  Just punt instead */
 			if ((scb->hscb->control & TARGET_SCB) != 0)
 				panic("Timed-out target SCB but bus idle");
 
 			if (bus_state != P_BUSFREE
 			 && (ahc_inb(ahc, SSTAT0) & TARGET) != 0) {
+				/* XXX What happened to the SCB? */
 				/* Hung target selection.  Goto busfree */
 				printf("%s: Hung target selection\n",
 				       ahc_name(ahc));
@@ -5443,8 +5570,8 @@ bus_reset:
 			}
 
 			if (ahc_search_qinfifo(ahc, target, channel, lun,
-					       scb->hscb->tag, /*status*/0,
-					       SEARCH_COUNT) > 0) {
+					       scb->hscb->tag, ROLE_INITIATOR,
+					       /*status*/0, SEARCH_COUNT) > 0) {
 				disconnected = FALSE;
 			} else {
 				disconnected = TRUE;
@@ -5481,6 +5608,7 @@ bus_reset:
 						   channel, SCB_LUN(scb),
 						   SCB_LIST_NULL,
 						   CAM_REQUEUE_REQ,
+						   ROLE_INITIATOR,
 						   SEARCH_COMPLETE);
 				xpt_print_path(scb->ccb->ccb_h.path);
 				printf("Queuing a BDR SCB\n");
@@ -5513,7 +5641,7 @@ bus_reset:
 
 static int
 ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
-		   int lun, u_int tag, u_int32_t status,
+		   int lun, u_int tag, role_t role, u_int32_t status,
 		   ahc_search_action action)
 {
 	struct	 scb *scbp;
@@ -5533,7 +5661,7 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 
 	while (qinpos != qintail) {
 		scbp = &ahc->scb_data->scbarray[ahc->qinfifo[qinpos]];
-		if (ahc_match_scb(scbp, target, channel, lun, tag)) {
+		if (ahc_match_scb(scbp, target, channel, lun, tag, role)) {
 			/*
 			 * We found an scb that needs to be removed.
 			 */
@@ -5658,7 +5786,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
  */
 static int
 ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
-	       int lun, u_int tag, u_int32_t status)
+	       int lun, u_int tag, role_t role, u_int32_t status)
 {
 	struct	scb *scbp;
 	u_int	active_scb;
@@ -5669,7 +5797,7 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	active_scb = ahc_inb(ahc, SCBPTR);
 
 	found = ahc_search_qinfifo(ahc, target, channel, lun, tag,
-				   CAM_REQUEUE_REQ, SEARCH_COMPLETE);
+				   CAM_REQUEUE_REQ, role, SEARCH_COMPLETE);
 
 	/*
 	 * Search waiting for selection list.
@@ -5691,8 +5819,8 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 				      scb_index, ahc->scb_data->numscbs);
 			}
 			scbp = &ahc->scb_data->scbarray[scb_index];
-			if (ahc_match_scb(scbp, target, channel, lun, tag)) {
-
+ 			if (ahc_match_scb(scbp, target, channel,
+					  lun, tag, role)) {
 				next = ahc_abort_wscb(ahc, next, prev);
 			} else {
 				
@@ -5718,7 +5846,8 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 		scbid = ahc_inb(ahc, SCB_TAG);
 		if (scbid < ahc->scb_data->numscbs) {
 			scbp = &ahc->scb_data->scbarray[scbid];
-			if (ahc_match_scb(scbp, target, channel, lun, tag)) {
+			if (ahc_match_scb(scbp, target, channel,
+					  lun, tag, role)) {
 				ahc_add_curscb_to_free_list(ahc);
                         }
 		}
@@ -5732,13 +5861,12 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	{
 		struct ccb_hdr *ccb_h;
 
-
 		ccb_h = ahc->pending_ccbs.lh_first;
-
 		while (ccb_h != NULL) {
 			scbp = (struct scb *)ccb_h->ccb_scb_ptr;
 			ccb_h = ccb_h->sim_links.le.le_next;
-			if (ahc_match_scb(scbp, target, channel, lun, tag)) {
+			if (ahc_match_scb(scbp, target, channel,
+					  lun, tag, role)) {
 				if (ahc_ccb_status(scbp->ccb) == CAM_REQ_INPROG)
 					ahcsetccbstatus(scbp->ccb, status);
 				ahc_freeze_ccb(scbp->ccb);
@@ -5779,9 +5907,9 @@ ahc_search_disc_list(struct ahc_softc *ahc, int target, char channel,
 			      scb_index, ahc->scb_data->numscbs);
 		}
 		scbp = &ahc->scb_data->scbarray[scb_index];
-		if (ahc_match_scb(scbp, target, channel, lun, tag)) {
-			next = ahc_rem_scb_from_disc_list(ahc, prev,
-							  next);
+		if (ahc_match_scb(scbp, target, channel, lun,
+				  tag, ROLE_INITIATOR)) {
+			next = ahc_rem_scb_from_disc_list(ahc, prev, next);
 			count++;
 		} else {
 			prev = next;
@@ -5810,7 +5938,7 @@ ahc_rem_scb_from_disc_list(struct ahc_softc *ahc, u_int prev, u_int scbptr)
 	} else
 		ahc_outb(ahc, DISCONNECTED_SCBH, next);
 
-	return next;
+	return (next);
 }
 
 static void
@@ -5908,18 +6036,80 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	u_int	sblkctl;
 	u_int	our_id;
 	int	found;
+	int	restart_needed;
 	char	cur_channel;
 
 	ahc->pending_device = NULL;
 
 	pause_sequencer(ahc);
+
+	/*
+	 * Run our command complete fifos to ensure that we perform
+	 * completion processing on any commands that 'completed'
+	 * before the reset occurred.
+	 */
+	ahc_run_qoutfifo(ahc);
+	if ((ahc->flags & AHC_TARGETMODE) != 0) {
+		ahc_run_tqinfifo(ahc);
+	}
+
+	/*
+	 * Reset the bus if we are initiating this reset
+	 */
+	sblkctl = ahc_inb(ahc, SBLKCTL);
+	cur_channel = 'A';
+	if ((ahc->features & AHC_TWIN) != 0
+	 && ((sblkctl & SELBUSB) != 0))
+	    cur_channel = 'B';
+	if (cur_channel != channel) {
+		/* Case 1: Command for another bus is active
+		 * Stealthily reset the other bus without
+		 * upsetting the current bus.
+		 */
+		ahc_outb(ahc, SBLKCTL, sblkctl ^ SELBUSB);
+		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
+		ahc_outb(ahc, SCSISEQ,
+			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
+		if (initiate_reset)
+			ahc_reset_current_bus(ahc);
+		ahc_clear_intstat(ahc);
+		ahc_outb(ahc, SBLKCTL, sblkctl);
+		restart_needed = FALSE;
+	} else {
+		/* Case 2: A command from this bus is active or we're idle */
+		ahc_clear_msg_state(ahc);
+		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
+		ahc_outb(ahc, SCSISEQ,
+			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
+		if (initiate_reset)
+			ahc_reset_current_bus(ahc);
+		ahc_clear_intstat(ahc);
+
+		/*
+		 * Since we are going to restart the sequencer, avoid
+		 * a race in the sequencer that could cause corruption
+		 * of our Q pointers by starting over from index 0.
+		 */
+		ahc->qoutfifonext = 0;
+		if ((ahc->features & AHC_QUEUE_REGS) != 0)
+			ahc_outb(ahc, SDSCB_QOFF, 0);
+		else
+			ahc_outb(ahc, QOUTPOS, 0);
+		if ((ahc->flags & AHC_TARGETMODE) != 0) {
+			ahc->tqinfifonext = 0;
+			ahc_outb(ahc, KERNEL_TQINPOS, ahc->tqinfifonext - 1);
+			ahc_outb(ahc, TQINPOS, 0);
+		}
+		restart_needed = TRUE;
+	}
+
 	/*
 	 * Clean up all the state information for the
 	 * pending transactions on this bus.
 	 */
 	found = ahc_abort_scbs(ahc, CAM_TARGET_WILDCARD, channel,
 			       CAM_LUN_WILDCARD, SCB_LIST_NULL,
-			       CAM_SCSI_BUS_RESET);
+			       ROLE_UNKNOWN, CAM_SCSI_BUS_RESET);
 	if (channel == 'B') {
 		path = ahc->path_b;
 		our_id = ahc->our_id_b;
@@ -5928,13 +6118,38 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		our_id = ahc->our_id;
 	}
 
+	max_scsiid = (ahc->features & AHC_WIDE) ? 15 : 7;
+
+	/*
+	 * Send an immediate notify ccb to all target more peripheral
+	 * drivers affected by this action.
+	 */
+	for (target = 0; target <= max_scsiid; target++) {
+		struct tmode_tstate* tstate;
+		u_int lun;
+
+		tstate = ahc->enabled_targets[target];
+		if (tstate == NULL)
+			continue;
+		for (lun = 0; lun <= 7; lun++) {
+			struct tmode_lstate* lstate;
+
+			lstate = tstate->enabled_luns[lun];
+			if (lstate == NULL)
+				continue;
+
+			ahc_queue_lstate_event(ahc, lstate, CAM_TARGET_WILDCARD,
+					       EVENT_TYPE_BUS_RESET, /*arg*/0);
+			ahc_send_lstate_events(ahc, lstate);
+		}
+	}
+
 	/* Notify the XPT that a bus reset occurred */
 	xpt_async(AC_BUS_RESET, path, NULL);
 
 	/*
 	 * Revert to async/narrow transfers until we renegotiate.
 	 */
-	max_scsiid = (ahc->features & AHC_WIDE) ? 15 : 7;
 	for (target = 0; target <= max_scsiid; target++) {
 
 		if (ahc->enabled_targets[target] == NULL)
@@ -5955,45 +6170,16 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		}
 	}
 
-	/*
-	 * Reset the bus if we are initiating this reset and
-	 * restart/unpause the sequencer
-	 */
-	sblkctl = ahc_inb(ahc, SBLKCTL);
-	cur_channel = 'A';
-	if ((ahc->features & AHC_TWIN) != 0
-	 && ((sblkctl & SELBUSB) != 0))
-	    cur_channel = 'B';
-	if (cur_channel != channel) {
-		/* Case 1: Command for another bus is active
-		 * Stealthily reset the other bus without
-		 * upsetting the current bus.
-		 */
-		ahc_outb(ahc, SBLKCTL, sblkctl ^ SELBUSB);
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
-		ahc_outb(ahc, SCSISEQ,
-			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
-		if (initiate_reset)
-			ahc_reset_current_bus(ahc);
-		ahc_clear_intstat(ahc);
-		ahc_outb(ahc, SBLKCTL, sblkctl);
-		unpause_sequencer(ahc, /*unpause_always*/FALSE);
-	} else {
-		/* Case 2: A command from this bus is active or we're idle */
-		ahc_clear_msg_state(ahc);
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
-		ahc_outb(ahc, SCSISEQ,
-			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
-		if (initiate_reset)
-			ahc_reset_current_bus(ahc);
-		ahc_clear_intstat(ahc);
+	if (restart_needed)
 		restart_sequencer(ahc);
-	}
+	else
+		unpause_sequencer(ahc, /*unpause_always*/FALSE);
 	return found;
 }
 
 static int
-ahc_match_scb (struct scb *scb, int target, char channel, int lun, u_int tag)
+ahc_match_scb(struct scb *scb, int target, char channel,
+	      int lun, role_t role, u_int tag)
 {
 	int targ = SCB_TARGET(scb);
 	char chan = SCB_CHANNEL(scb);
@@ -6005,9 +6191,20 @@ ahc_match_scb (struct scb *scb, int target, char channel, int lun, u_int tag)
 		match = ((targ == target) || (target == CAM_TARGET_WILDCARD));
 	if (match != 0)
 		match = ((lun == slun) || (lun == CAM_LUN_WILDCARD));
-	if (match != 0)
-		match = ((tag == scb->hscb->tag) || (tag == SCB_LIST_NULL));
+	if (match != 0) {
+		int group;
 
+		group = XPT_FC_GROUP(scb->ccb->ccb_h.func_code);
+		if (role == ROLE_INITIATOR) {
+			match = (group == XPT_FC_GROUP_COMMON)
+			      && ((tag == scb->ccb->csio.tag_id)
+			       || (tag == SCB_LIST_NULL));
+		} else if (role == ROLE_TARGET) {
+			match = (group == XPT_FC_GROUP_TMODE)
+			      && ((tag == scb->ccb->csio.tag_id)
+			       || (tag == SCB_LIST_NULL));
+		}
+	}
 	return match;
 }
 
@@ -6272,4 +6469,107 @@ ahc_shutdown(int howto, void *arg)
 
 	for (i = TARG_SCSIRATE; i < HA_274_BIOSCTRL; i++)
 		ahc_outb(ahc, i, 0);
+}
+
+/*
+ * Add a target mode event to this lun's queue
+ */
+static void
+ahc_queue_lstate_event(struct ahc_softc *ahc, struct tmode_lstate *lstate,
+		       u_int initiator_id, u_int event_type, u_int event_arg)
+{
+	struct ahc_tmode_event *event;
+	int pending;
+
+	xpt_freeze_devq(lstate->path, /*count*/1);
+	if (lstate->event_w_idx >= lstate->event_r_idx)
+		pending = lstate->event_w_idx - lstate->event_r_idx;
+	else
+		pending = AHC_TMODE_EVENT_BUFFER_SIZE + 1
+			- (lstate->event_r_idx - lstate->event_w_idx);
+
+	if (event_type == EVENT_TYPE_BUS_RESET
+	 || event_type == MSG_BUS_DEV_RESET) {
+		struct ccb_relsim crs;
+
+		/*
+		 * Any earlier events are irrelevant, so reset our buffer.
+		 * This has the effect of allowing us to deal with reset
+		 * floods (an external device holding down the reset line)
+		 * without losing the event that is really interesting.
+		 */
+		lstate->event_r_idx = 0;
+		lstate->event_w_idx = 0;
+		xpt_setup_ccb(&crs.ccb_h, lstate->path, /*priority*/1);
+		crs.ccb_h.func_code = XPT_REL_SIMQ;
+		crs.ccb_h.flags = 0;
+		crs.release_flags = 0;
+		crs.openings = 0;
+		crs.release_timeout = 0;
+		while (pending--)
+			xpt_action((union ccb *)&crs);
+	}
+
+	if (pending == AHC_TMODE_EVENT_BUFFER_SIZE) {
+		struct ccb_relsim crs;
+
+		xpt_print_path(lstate->path);
+		printf("immediate event %x:%x lost\n",
+		       lstate->event_buffer[lstate->event_r_idx].event_type,
+		       lstate->event_buffer[lstate->event_r_idx].event_arg);
+		lstate->event_r_idx++;
+		if (lstate->event_r_idx == AHC_TMODE_EVENT_BUFFER_SIZE)
+			lstate->event_r_idx = 0;
+		xpt_setup_ccb(&crs.ccb_h, lstate->path, /*priority*/1);
+		crs.ccb_h.func_code = XPT_REL_SIMQ;
+		crs.ccb_h.flags = 0;
+		crs.release_flags = 0;
+		crs.openings = 0;
+		crs.release_timeout = 0;
+		xpt_action((union ccb *)&crs);
+	}
+
+	event = &lstate->event_buffer[lstate->event_w_idx];
+	event->initiator_id = initiator_id;
+	event->event_type = event_type;
+	event->event_arg = event_arg;
+	lstate->event_w_idx++;
+	if (lstate->event_w_idx == AHC_TMODE_EVENT_BUFFER_SIZE)
+		lstate->event_w_idx = 0;
+}
+
+/*
+ * Send any target mode events queued up waiting
+ * for immediate notify resources.
+ */
+static void
+ahc_send_lstate_events(struct ahc_softc *ahc, struct tmode_lstate *lstate)
+{
+	struct ccb_hdr *ccbh;
+	struct ccb_immed_notify *inot;
+
+	while (lstate->event_r_idx != lstate->event_w_idx
+	    && (ccbh = SLIST_FIRST(&lstate->immed_notifies)) != NULL) {
+		struct ahc_tmode_event *event;
+
+		event = &lstate->event_buffer[lstate->event_r_idx];
+		SLIST_REMOVE_HEAD(&lstate->immed_notifies, sim_links.sle);
+		inot = (struct ccb_immed_notify *)ccbh;
+		switch (event->event_type) {
+		case EVENT_TYPE_BUS_RESET:
+			ccbh->status = CAM_SCSI_BUS_RESET|CAM_DEV_QFRZN;
+			break;
+		default:
+			ccbh->status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+			inot->message_args[0] = event->event_type;
+			inot->message_args[1] = event->event_arg;
+			break;
+		}
+		inot->initiator_id = event->initiator_id;
+		inot->sense_len = 0;
+		xpt_done((union ccb *)inot);
+		lstate->event_r_idx++;
+		if (lstate->event_r_idx == AHC_TMODE_EVENT_BUFFER_SIZE)
+			lstate->event_r_idx = 0;
+	}
 }

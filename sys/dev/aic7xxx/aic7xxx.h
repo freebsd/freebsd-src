@@ -96,12 +96,14 @@ typedef enum {
 	AHC_CHIPID_MASK	= 0x00FF,
 	AHC_AIC7770	= 0x0001,
 	AHC_AIC7850	= 0x0002,
-	AHC_AIC7860	= 0x0003,
-	AHC_AIC7870	= 0x0004,
-	AHC_AIC7880	= 0x0005,
-	AHC_AIC7890	= 0x0006,
-	AHC_AIC7895	= 0x0007,
-	AHC_AIC7896	= 0x0008,
+	AHC_AIC7855	= 0x0003,
+	AHC_AIC7859	= 0x0004,
+	AHC_AIC7860	= 0x0005,
+	AHC_AIC7870	= 0x0006,
+	AHC_AIC7880	= 0x0007,
+	AHC_AIC7890	= 0x0008,
+	AHC_AIC7895	= 0x0009,
+	AHC_AIC7896	= 0x000a,
 	AHC_VL		= 0x0100,	/* Bus type VL */
 	AHC_EISA	= 0x0200,	/* Bus type EISA */
 	AHC_PCI		= 0x0400,	/* Bus type PCI */
@@ -122,14 +124,17 @@ typedef enum {
 	AHC_HS_MAILBOX	= 0x0400,	/* Has HS_MAILBOX register */
 	AHC_AIC7770_FE	= AHC_FENONE,	
 	AHC_AIC7850_FE	= AHC_FENONE|AHC_SPIOCAP,
+	AHC_AIC7855_FE	= AHC_FENONE|AHC_SPIOCAP,
+	AHC_AIC7859_FE	= AHC_ULTRA|AHC_SPIOCAP,
 	AHC_AIC7860_FE	= AHC_ULTRA|AHC_SPIOCAP,
 	AHC_AIC7870_FE	= AHC_FENONE,
 	AHC_AIC7880_FE	= AHC_ULTRA,
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
 			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX,
 	AHC_AIC7895_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA,
+	AHC_AIC7895C_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA|AHC_MULTI_TID,
 	AHC_AIC7896_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
-			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX,
+			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
 } ahc_feature;
 
 typedef enum {
@@ -262,12 +267,28 @@ struct target_cmd {
 };
 
 /*
+ * Number of events we can buffer up if we run out
+ * of immediate notify ccbs.
+ */
+#define AHC_TMODE_EVENT_BUFFER_SIZE 8
+struct ahc_tmode_event {
+	u_int8_t initiator_id;
+	u_int8_t event_type;	/* MSG type or EVENT_TYPE_BUS_RESET */
+#define	EVENT_TYPE_BUS_RESET 0xFF
+	u_int8_t event_arg;
+};
+
+/*
  * Per lun target mode state including accept TIO CCB
  * and immediate notify CCB pools.
  */
 struct tmode_lstate {
+	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
+	struct ahc_tmode_event event_buffer[AHC_TMODE_EVENT_BUFFER_SIZE];
+	u_int8_t event_r_idx;
+	u_int8_t event_w_idx;
 };
 
 #define AHC_TRANS_CUR		0x01	/* Modify current neogtiation status */
@@ -538,6 +559,9 @@ struct ahc_softc {
 
 	/* Initialization level of this data structure */
 	u_int			 init_level;
+
+	u_int16_t	 user_discenable;/* Disconnection allowed  */
+	u_int16_t	 user_tagenable; /* Tagged Queuing allowed */
 };
 
 struct full_ahc_softc {
