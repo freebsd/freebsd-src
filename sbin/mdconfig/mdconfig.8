@@ -43,7 +43,7 @@
 .\"
 .Dd December 31, 2000
 .Dt MDCONFIG 8
-.Os FreeBSD 5
+.Os FreeBSD
 .Sh NAME
 .Nm mdconfig
 .Nd configure and enable memory disks
@@ -51,7 +51,10 @@
 .Nm
 .Fl a
 .Fl t Ar type 
-.Op Fl o Ar [no]option
+.Oo
+.Fl o
+.Oo Cm no Oc Ns Ar option
+.Oc
 .Op Fl b Ar baseaddress
 .Op Fl s Ar size
 .Op Fl f Ar file
@@ -63,66 +66,89 @@
 The
 .Nm
 command configures and enables 
-.Xr md(4)
+.Xr md 4
 devices.
 .Pp
 Options indicate an action to be performed:
 .Bl -tag -width indent
 .It Fl a
-Attach a memory disk.  This will configure and attach a memory disk with the
+Attach a memory disk.
+This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
 .It Fl d
-Dettach a memory disk from the system and release all resources.
-.It Fl t
+Detach a memory disk from the system and release all resources.
+.It Fl t Ar type 
 Select the type of the memory disk.
-.Bl -tag -width indent
-.It Ar malloc
+.Bl -tag -width "preload"
+.It Cm malloc
 Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
 This limits the size to the malloc bucket limit in the kernel.
-.It Ar preload
-This type represents memory disks which are backed by memory outside the kernels normal address space.
-These can be instantiated automatically by objects loaded by the bootloader or configured on the fly.
-.It Ar vnode
+.It Cm preload
+This type represents memory disks which are backed by memory outside
+the kernels normal address space.
+These can be instantiated automatically by objects loaded by the
+bootloader or configured on the fly.
+.It Cm vnode
 A file specified with 
 .Fl f Ar file
 becomes the backingstore for this memory disk.
-.It Ar swap
+.It Cm swap
 swapspace is used to back this memory disk.
 .El
 .It Fl b Ar baseaddress
-Starting address in kernel virtual space of the memory to be used for a ``preload'' type disk.
+Starting address in kernel virtual space of the memory to be used for a
+.Cm preload
+type disk.
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
 .It Fl s Ar size
 Size of the memory disk.
 .Ar Size
-is the number of 512 bytes sectors unless suffixed with a 'k', 'm', or 'g' which
+is the number of 512 bytes sectors unless suffixed with a
+.Cm k , m ,
+or
+.Cm g
+which
 denotes kilobyte, megabyte and gigabyte respectively.
-.It Fl o Ar [no]option
+.It Xo
+.Fl o Oo Cm no Oc Ns Ar option
+.Xc
 Set or reset options.
 .Bl -tag -width indent
-.It Ar [no]reserve
+.It Xo
+.Oo Cm no Oc Ns Cm reserve
+.Xc
 Allocate and reserve all needed storage from the start, rather than as needed.
-.It Ar [no]cluster
+.It Xo
+.Oo Cm no Oc Ns Cm cluster
+.Xc
 Enable clustering on this disk.
-.It Ar [no]autounit
+.It Xo
+.Oo Cm no Oc Ns Cm autounit
+.Xc
 Automatically allocate the next free unit number for this disk.
 The basename of the disk is printed on stdout.
-.It Ar [no]compress
+.It Xo
+.Oo Cm no Oc Ns Cm compress
+.Xc
 Enable/Disable compression features to reduce memory usage.
-.It Ar [no]readonly
+.It Xo
+.Oo Cm no Oc Ns Cm readonly
+.Xc
 Enable/Disable readonly mode.
 .El
 .It Fl u Ar unit
 Force the
-.Xr md(4)
+.Xr md 4
 device to use a specific unit number.
 .El
 .Sh EXAMPLES
-.Pp
-To create a 4 megabyte malloc(9) backed memory disk.
-The name of the allocated unit will be output on stdout like ``md3'':
+To create a 4 megabyte
+.Xr malloc 9
+backed memory disk.
+The name of the allocated unit will be output on stdout like
+.Dq Li md3 :
 .Pp
 .Dl mdconfig -a -t malloc -s 4m
 .Pp
@@ -134,27 +160,31 @@ as backing:
 .Pp
 .Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
 .Pp
-To dettach and free all resources used by
+To detach and free all resources used by
 .Pa /dev/md4 :
 .Pp
 .Dl mdconfig -d -u 4
 .Pp
 To create and mount a 128MByte swap backed filesystem on
 .Pa /tmp :
+.Bd -literal -offset indent
+mdconfig -a -t swap -s 128M -u 10
+disklabel -r -w md10 auto
+newfs -f 4096 /dev/md10c
+tunefs -n enable /dev/md10c
+mount /dev/md10c /tmp
+.Ed
 .Pp
-.Dl mdconfig -a -t swap -s 128M -u 10
-.Dl disklabel -r -w md10 auto
-.Dl newfs -f 4096 /dev/md10c
-.Dl tunefs -n enable /dev/md10c
-.Dl mount /dev/md10c /tmp
-.Pp
-It is practically impossible to give a universal example of the ``preload'' type of disk,
-it is mainly useful in the embedded systems market, but to give a feel for how it works:
-On most standard PC architecture machines this will create a disk backed by the BIOS ROM:
+It is practically impossible to give a universal example of the
+.Cm preload
+type of disk, it is mainly useful in the embedded systems market,
+but to give a feel for how it works:
+On most standard PC architecture machines this will create a disk
+backed by the BIOS ROM:
 .Pp
 .Dl mdconfig -a -t preload -s 128k -b 0xc00fe000
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr disklabel 8 ,
 .Xr fdisk 8 ,
-.Xr malloc 9 .
+.Xr malloc 9
