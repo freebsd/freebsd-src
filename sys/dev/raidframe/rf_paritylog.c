@@ -690,9 +690,9 @@ rf_ParityLogAppend(
 	 * 
 	 * NON-BLOCKING */
 
+	RF_ASSERT(logData != NULL);
 	raidPtr = logData->common->raidPtr;
 	/* lock the region for the first item in logData */
-	RF_ASSERT(logData != NULL);
 	regionID = logData->regionID;
 	RF_LOCK_MUTEX(raidPtr->regionInfo[regionID].mutex);
 	RF_ASSERT(raidPtr->regionInfo[regionID].loggingEnabled);
