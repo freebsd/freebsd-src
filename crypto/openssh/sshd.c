@@ -1063,11 +1063,11 @@ main(int ac, char **av)
 		options.rhosts_authentication = 0;
 		options.rhosts_rsa_authentication = 0;
 	}
-#ifdef KRB4
+#if defined(KRB4) && !defined(KRB5)
 	if (!packet_connection_is_ipv4() &&
-	    options.krb4_authentication) {
+	    options.kerberos_authentication) {
 		debug("Kerberos Authentication disabled, only available for IPv4.");
-		options.krb4_authentication = 0;
+		options.kerberos_authentication = 0;
 	}
 #endif /* KRB4 */
 
@@ -1164,18 +1164,13 @@ do_ssh1_kex()
 		auth_mask |= 1 << SSH_AUTH_RHOSTS_RSA;
 	if (options.rsa_authentication)
 		auth_mask |= 1 << SSH_AUTH_RSA;
-#ifdef KRB4
-	if (options.krb4_authentication)
-		auth_mask |= 1 << SSH_AUTH_KRB4;
+#if defined(KRB4) || defined(KRB5)
+	if (options.kerberos_authentication)
+		auth_mask |= 1 << SSH_AUTH_KERBEROS;
 #endif
 #ifdef KRB5
-	if (options.krb5_authentication) {
-	  	auth_mask |= 1 << SSH_AUTH_KRB5;
-                /* compatibility with MetaCentre ssh */
-		auth_mask |= 1 << SSH_AUTH_KRB4;
-        }
 	if (options.krb5_tgt_passing)
-	  	auth_mask |= 1 << SSH_PASS_KRB5_TGT;
+	  	auth_mask |= 1 << SSH_PASS_KERBEROS_TGT;
 #endif /* KRB5 */
 
 #ifdef AFS

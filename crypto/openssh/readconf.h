@@ -38,13 +38,11 @@ typedef struct {
 	int     rsa_authentication;	/* Try RSA authentication. */
 	int     dsa_authentication;	/* Try DSA authentication. */
 	int     skey_authentication;	/* Try S/Key or TIS authentication. */
-#ifdef KRB4
-	int     krb4_authentication;		/* Try Kerberos v4
-						 * authentication. */
+#if defined(KRB4) || defined(KRB5)
+	int     kerberos_authentication; /* Try Kerberos authentication. */
 #endif
 
 #ifdef KRB5
-	int	krb5_authentication;
 	int	krb5_tgt_passing;
 #endif /* KRB5 */
 

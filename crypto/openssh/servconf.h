@@ -61,9 +61,10 @@ typedef struct {
 						 * authentication. */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
 	int     dsa_authentication;	/* If true, permit DSA authentication. */
+#if defined(KRB4) || defined(KRB5)
+	int     kerberos_authentication; /* If true, permit Kerberos auth. */
+#endif /* KRB4 || KRB5 */
 #ifdef KRB4
-	int     krb4_authentication;		/* If true, permit Kerberos v4
-						 * authentication. */
 	int     krb4_or_local_passwd;		/* If true, permit kerberos v4
 						 * and any other password
 						 * authentication mechanism,
@@ -73,7 +74,6 @@ typedef struct {
 						 * file on logout. */
 #endif
 #ifdef KRB5
-	int     krb5_authentication;
 	int     krb5_tgt_passing;
 
 #endif /* KRB5 */
