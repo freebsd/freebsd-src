@@ -837,9 +837,9 @@ lim_alloc()
 	struct plimit *limp;
 
 	limp = (struct plimit *)malloc(sizeof(struct plimit), M_PLIMIT,
-	    M_WAITOK | M_ZERO);
+	    M_WAITOK);
 	limp->pl_refcnt = 1;
-	mtx_init(&limp->pl_mtx, "plimit lock", NULL, MTX_DEF);
+	limp->pl_mtx = mtx_pool_alloc(mtxpool_sleep);
 	return (limp);
 }
 
@@ -862,7 +862,7 @@ lim_free(limp)
 	LIM_LOCK(limp);
 	KASSERT(limp->pl_refcnt > 0, ("plimit refcnt underflow"));
 	if (--limp->pl_refcnt == 0) {
-		mtx_destroy(&limp->pl_mtx);
+		LIM_UNLOCK(limp);
 		free((void *)limp, M_PLIMIT);
 		return;
 	}
