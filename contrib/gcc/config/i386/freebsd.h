@@ -501,7 +501,7 @@ do {									\
 
 /* Like the default, except no -lg, and no -p.  */
 #undef LIB_SPEC
-#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_r}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
+#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
 
 /* Let gcc locate this for us according to the -m rules */
 #undef  LIBGCC_SPEC
