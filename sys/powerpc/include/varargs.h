@@ -35,7 +35,11 @@
 
 #include <sys/_types.h>
 
+#ifndef _VA_LIST_DECLARED
+#define	_VA_LIST_DECLARED
 typedef	__va_list	va_list;
+#endif
+
 typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 
 #define	va_alist		__builtin_va_alist
