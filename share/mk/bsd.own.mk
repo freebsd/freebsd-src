@@ -158,6 +158,10 @@ NLSMODE?=	${NOBINMODE}
 INCLUDEDIR?=	/usr/include
 
 # Common variables
+.if !defined(DEBUG_FLAGS)
+STRIP?=		-s
+.endif
+
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
