@@ -6,7 +6,7 @@ BCDIR=	${.CURDIR}/../../../contrib/bc
 
 PROG=	dc
 SRCS=	array.c dc.c eval.c misc.c numeric.c stack.c string.c \
-	getopt.c getopt1.c number.c
+	number.c
 CFLAGS+=-I${.CURDIR}/../bc -I${BCDIR}/h -DHAVE_CONFIG_H
 DPADD=	${LIBM}
 LDADD=	-lm
