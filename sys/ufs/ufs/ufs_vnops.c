@@ -411,13 +411,17 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		/*
-		 * Privileged processes in jail() are permitted to modify
-		 * arbitrary user flags on files, but are not permitted
-		 * to modify system flags.
+		 * Callers may only modify the file flags on objects they
+		 * have VADMIN rights for.
 		 */
-		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser_xxx(cred, p, PRISON_ROOT)))
+		if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
 			return (error);
+		/*
+		 * Unprivileged processes and privileged processes in
+		 * jail() are not permitted to set system flags.
+		 * Privileged processes not in jail() may only set system
+		 * flags if the securelevel <= 0.
+		 */
 		if (!suser_xxx(cred, NULL, 0)) {
 			if ((ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
@@ -450,7 +454,8 @@ ufs_setattr(ap)
 	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if ((error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred, p)) != 0)
+		if ((error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred,
+		    p)) != 0)
 			return (error);
 	}
 	if (vap->va_size != VNOVAL) {
@@ -480,8 +485,15 @@ ufs_setattr(ap)
 			return (EROFS);
 		if ((ip->i_flags & SF_SNAPSHOT) != 0)
 			return (EPERM);
-		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser_xxx(cred, p, PRISON_ROOT)) &&
+		/*
+		 * From utimes(2):
+		 * If times is NULL, ... The caller must be the owner of
+		 * the file, have permission to write the file, or be the
+		 * super-user.
+		 * If times is non-NULL, ... The caller must be the owner of
+		 * the file or be the super-user.
+		 */
+		if ((error = VOP_ACCESS(vp, VADMIN, cred, p)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
 			return (error);
@@ -529,11 +541,17 @@ ufs_chmod(vp, mode, cred, p)
 	register struct inode *ip = VTOI(vp);
 	int error;
 
-	if (cred->cr_uid != ip->i_uid) {
-	    error = suser_xxx(cred, p, PRISON_ROOT);
-	    if (error)
+	/*
+	 * To modify the permissions on a file, must possess VADMIN
+	 * for that file.
+	 */
+	if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
 		return (error);
-	}
+	/*
+	 * Privileged processes may set the sticky bit on non-directories,
+	 * as well as set the setgid bit on a file with a group that the
+	 * process is not a member of.
+	 */
 	if (suser_xxx(cred, NULL, PRISON_ROOT)) {
 		if (vp->v_type != VDIR && (mode & S_ISTXT))
 			return (EFTYPE);
@@ -572,11 +590,17 @@ ufs_chown(vp, uid, gid, cred, p)
 	if (gid == (gid_t)VNOVAL)
 		gid = ip->i_gid;
 	/*
-	 * If we don't own the file, are trying to change the owner
-	 * of the file, or are not a member of the target group,
-	 * the caller must be superuser or the call fails.
+	 * To modify the ownership of a file, must possess VADMIN
+	 * for that file.
 	 */
-	if ((cred->cr_uid != ip->i_uid || uid != ip->i_uid ||
+	if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
+		return (error);
+	/*
+	 * To change the owner of a file, or change the group of a file
+	 * to a group of which we are not a member, the caller must
+	 * have privilege.
+	 */
+	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
 	    (error = suser_xxx(cred, p, PRISON_ROOT)))
 		return (error);
@@ -1095,15 +1119,14 @@ abortit:
 		if (xp->i_number == ip->i_number)
 			panic("ufs_rename: same file");
 		/*
-		 * If the parent directory is "sticky", then the user must
-		 * own the parent directory, or the destination of the rename,
-		 * otherwise the destination may not be changed (except by
-		 * root). This implements append-only directories.
+		 * If the parent directory is "sticky", then the caller
+		 * must possess VADMIN for the parent directory, or the
+		 * destination of the rename.  This implements append-only
+		 * directories.
 		 */
 		if ((dp->i_mode & S_ISTXT) &&
-		    suser_xxx(tcnp->cn_cred, NULL, PRISON_ROOT) &&
-		    tcnp->cn_cred->cr_uid != dp->i_uid &&
-		    xp->i_uid != tcnp->cn_cred->cr_uid) {
+		    VOP_ACCESS(tdvp, VADMIN, tcnp->cn_cred, p) &&
+		    VOP_ACCESS(tvp, VADMIN, tcnp->cn_cred, p)) {
 			error = EPERM;
 			goto bad;
 		}

@@ -476,9 +476,8 @@ found:
 		 * implements append-only directories.
 		 */
 		if ((dp->i_mode & ISVTX) &&
-		    suser_xxx(cred, p, PRISON_ROOT) &&
-		    cred->cr_uid != dp->i_uid &&
-		    VTOI(tdp)->i_uid != cred->cr_uid) {
+		    VOP_ACCESS(vdp, VADMIN, cred, cnp->cn_proc) &&
+		    VOP_ACCESS(tdp, VADMIN, cred, cnp->cn_proc)) {
 			vput(tdp);
 			return (EPERM);
 		}
