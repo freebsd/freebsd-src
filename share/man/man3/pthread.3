@@ -28,9 +28,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pthread.3,v 1.5 1998/01/02 19:19:50 alex Exp $
+.\"	$Id: pthread.3,v 1.6 1998/04/10 09:33:09 jb Exp $
 .\"
-.Dd April 4, 1996
+.Dd September 10, 1998
 .Dt PTHREAD 3
 .Os BSD 4
 .Sh NAME
@@ -47,13 +47,15 @@ The POSIX thread functions are summarized in this section in the following
 groups:
 .Bl -bullet -offset indent
 .It
-Thread routines
+Thread Routines
 .It
 Attribute Object Routines
 .It
 Mutex Routines
 .It
 Condition Variable Routines
+.It
+Read/Write Lock Routines
 .It
 Per-Thread Context Routines
 .It
@@ -148,6 +150,36 @@ Wait no longer than the specified time for a condition and lock the specified mu
 .It int Fn pthread_cond_wait "pthread_cond_t *" "pthread_mutex_t *mutex"
 Wait for a condition and lock the specified mutex.
 .El
+.Sh READ/WRITE LOCK ROUTINES
+.Bl -tag -width Er
+.It int Fn pthread_rwlock_destroy "pthread_rwlock_t *lock"
+Destroy a read/write lock object.
+.It int Fn pthread_rwlock_init "pthread_rwlock_t *lock" "const pthread_rwlockattr_t *attr"
+Initialize a read/write lock object.
+.It int Fn pthread_rwlock_rdlock "pthread_rwlock_t *lock"
+Lock a read/write lock for reading, blocking until the lock can be
+acquired.
+.It int Fn pthread_rwlock_tryrdlock "pthread_rwlock_t *lock"
+Attempt to lock a read/write lock for reading, without blocking if the
+lock is unavailable.
+.It int Fn pthread_rwlock_trywrlock "pthread_rwlock_t *lock"
+Attempt to lock a read/write lock for writing, without blocking if the
+lock is unavailable.
+.It int Fn pthread_rwlock_unlock "pthread_rwlock_t *lock"
+Unlock a read/write lock.
+.It int Fn pthread_rwlock_wrlock "pthread_rwlock_t *lock"
+Lock a read/write lock for writing, blocking until the lock can be
+acquired.
+.It int Fn pthread_rwlockattr_destroy "pthread_rwlockattr_t *attr"
+Destroy a read/write lock attribute object.
+.It int Fn pthread_rwlockattr_getpshared "pthread_rwlockattr_t *attr" "int *pshared"
+Retrieve the process shared setting for the read/write lock attribute
+object.
+.It int Fn pthread_rwlockattr_init "pthread_rwlockattr_t *attr"
+Initialize a read/write lock attribute object.
+.It int Fn pthread_rwlockattr_setpshared "pthread_rwlockattr_t *attr" "int *pshared"
+Set the process shared setting for the read/write lock attribute object.
+.El
 .Sh PER-THREAD CONTEXT ROUTINES
 .Bl -tag -width Er
 .It int Fn pthread_key_create "pthread_key_t *key" "void (*routine)(void *)"
@@ -197,7 +229,9 @@ with the
 .Fa pthread_
 prefix and not
 .Fa _np
-suffix conform to IEEE
+suffix or
+.Fa pthread_rwlock
+prefix conform to IEEE
 .Pq Dq Tn POSIX
 Std 1003.1 Second Edition 1996-07-12
 .Pp
@@ -206,3 +240,8 @@ The functions in libc_r with the
 prefix and
 .Fa _np
 suffix are non-portable extensions to POSIX threads.
+.Pp
+The functions in libc_r with the
+.Fa pthread_rwlock
+prefix are extensions created by The Open Group as part of the Single
+UNIX Specification, Version 2.
