@@ -221,7 +221,7 @@ _worldtmp:
 	@echo
 	@echo "*** Error: path to source tree contains a comma ','"
 	@echo
-	@false
+	false
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -387,7 +387,7 @@ sparc64_installcheck:
 	@echo "      export NEWSPARC_TIMETYPE"
 	@echo "* and repeat your 'make' command."
 	@echo ""
-	@false
+	false
 .endif
 	@echo ""
 .elif ${NEWSPARC_TIMETYPE} != ${SRC_TIMETYPE}
@@ -395,7 +395,7 @@ sparc64_installcheck:
 	@echo "***  ERROR: The variable NEWSPARC_TIMETYPE is set to '${NEWSPARC_TIMETYPE}'"
 	@echo "***         but ${.CURDIR}/sys/sparc64/include/_types.h"
 	@echo "***         has __time_t defined as:  '${SRC_TIMETYPE}'"
-	@false
+	false
 .else
 	@# in sparc64_installcheck, all TIMETYPEs == '${NEWSPARC_TIMETYPE}'
 .endif
@@ -508,7 +508,7 @@ INSTALLKERNEL= ${_kernel}
 buildkernel:
 .if empty(BUILDKERNELS)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF}).";
-	@false
+	false
 .endif
 .if defined(KERNWARN)
 	@echo "--------------------------------------------------------------"
@@ -558,7 +558,7 @@ buildkernel:
 .endfor
 
 #
-# installkernel
+# installkernel, etc.
 #
 # Install the kernel defined by INSTALLKERNEL
 #
@@ -566,7 +566,7 @@ installkernel installkernel.debug \
 reinstallkernel reinstallkernel.debug: ${SPECIAL_INSTALLCHECKS}
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."
-	@false
+	false
 .endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
