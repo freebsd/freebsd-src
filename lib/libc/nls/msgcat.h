@@ -36,26 +36,19 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-
-#include <sys/types.h>
-
 /*
- * On disk data structures
+ * Magic definitions
  */
+
+#define MCMagicLen	8
+#define MCMagic		"*nazgul*"
+
+#define MCMajorVer	1L
+#define MCMinorVer	0
 
 /* For or'd constants */
 #define MCMakeId(s,m)		(unsigned long) ( ((unsigned short)s << (sizeof(short)*8)) \
 						 | (unsigned short)m )
-#define MCSetId(id)		(unsigned int) ( id >> (sizeof(short) * 8) )
-#define MCMsgId(id)		(unsigned int) ( (id << (sizeof(short) * 8)) \
-						>> (sizeof(short) * 8) )
-#define MCMagicLen	8
-#define MCMagic		"*nazgul*"
-#define MCLastMsg	0
-#define MCLastSet	0
-
-#define MCMajorVer	1L
-#define MCMinorVer	0
 
 /*
  * Critical note here.  Sets and Messages *MUST* be stored in ascending
@@ -83,11 +76,6 @@ up-to-date.  Many thanks.
  * them in gencat (it just reads everything into memory), so there is
  * no guarantee that this will all work.
  */
-
-/* These should be publicly available */
-
-#define MCLoadBySet	0	/* Load entire sets as they are used */
-#define MCLoadAll	1	/* Load entire DB on catopen */
 
 /*
  * MCOffsetT - Union to handle both disk and runtime pointers
@@ -129,7 +117,6 @@ typedef struct _MCSetT {
  * MCCatT - Runtime catalog pointer
  */
 typedef struct {
-    long	loadType;	/* How to load the messages (see MSLoadType) */
     FILE        *fp;            /* File descriptor of catalog (if load-on-demand) */
     long	numSets;	/* Number of sets */
     MCSetT	*sets;		/* Pointer to the sets */
