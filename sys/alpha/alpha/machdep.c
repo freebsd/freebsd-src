@@ -154,8 +154,8 @@ struct bootinfo_kernel bootinfo;
 
 struct cpuhead cpuhead;
 
-MUTEX_DECLARE( ,sched_lock);
-MUTEX_DECLARE( ,Giant);
+struct mtx sched_lock;
+struct mtx Giant;
 
 struct	user *proc0paddr;
 
@@ -1003,8 +1003,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/*
 	 * Initialise mutexes.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD | MTX_RECURSE);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.

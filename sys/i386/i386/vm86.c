@@ -50,7 +50,7 @@ extern int i386_extend_pcb	__P((struct proc *));
 extern int vm86pa;
 extern struct pcb *vm86pcb;
 
-MUTEX_DECLARE(static, vm86pcb_lock);
+static struct mtx vm86pcb_lock;
 
 extern int vm86_bioscall(struct vm86frame *);
 extern void vm86_biosret(struct vm86frame *);
@@ -426,7 +426,7 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
-	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF | MTX_COLD);
+	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF);
 
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;

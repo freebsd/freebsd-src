@@ -80,7 +80,7 @@
 extern int lock_nmtx;
 int lock_mtx_selector;
 struct mtx *lock_mtx_array;
-MUTEX_DECLARE(static, lock_mtx);
+static struct mtx lock_mtx;
 
 static int acquire(struct lock *lkp, int extflags, int wanted);
 static int apause(struct lock *lkp, int flags);
@@ -98,7 +98,7 @@ lockmgr_init(void *dummy __unused)
 	 * initialized in a call to lockinit().
 	 */
 	if (lock_mtx_selector == 0)
-		mtx_init(&lock_mtx, "lockmgr", MTX_DEF | MTX_COLD);
+		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
 	else {
 		/*
 		 * This is necessary if (lock_nmtx == 1) and doesn't hurt
@@ -546,7 +546,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 			 * so there's no reason to protect modification of
 			 * lock_mtx_selector or lock_mtx.
 			 */
-			mtx_init(&lock_mtx, "lockmgr", MTX_DEF | MTX_COLD);
+			mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
 			lock_mtx_selector = 1;
 		}
 		lkp->lk_interlock = &lock_mtx;

@@ -39,8 +39,7 @@
 .Nm mtx_exit ,
 .Nm mtx_destroy ,
 .Nm mtx_owned ,
-.Nm mtx_assert ,
-.Nm MUTEX_DECLARE
+.Nm mtx_assert
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
 .Fd #include <sys/mutex.h>
@@ -58,7 +57,6 @@
 .Fn mtx_owned "struct mtx *mutex"
 .Ft void
 .Fn mtx_assert "struct mtx *mutex" "int what"
-.Fn MUTEX_DECLARE "modifiers" "name"
 .Sh DESCRIPTION
 Mutexes are the most basic and primary method of process synchronization.
 The major design considerations for mutexes are:
@@ -226,34 +224,6 @@ This assertion is only valid in conjuction with
 .Dv MA_OWNED .
 .El
 .Pp
-The
-.Fn MUTEX_DECLARE
-macro is used to declare a mutex that is initialized before
-.Xr malloc 9
-is operating.
-Unfortunately, mutex initialization may require
-.Xr malloc 9 .
-However, some mutexes are initialized and used before
-.Xr malloc 9
-can be used.
-Declaring these mutexes with the
-.Fn MUTEX_DECLARE
-macro and then using the
-.Dv MTX_COLD
-flag when calling
-.Fn mtx_init
-allows these early mutexes to be initialized and used before
-.Xr malloc 9
-is available.
-The
-.Ar modifiers
-argument is a list of attributes to be applied to the mutex structure being
-declared such as
-.Dq static .
-The
-.Ar name
-argument is the name of the mutex structure to declare.
-.Pp
 The type of a mutex is not an attribute of the mutex,
 but instead a function of the
 .Fa flags
@@ -398,14 +368,6 @@ This should be specified when it is known
 that the lock will usually remain unavailable for some time
 when it is not immediately available
 (i.e.: coarse grained locks protecting large subsystems).
-.It Dv MTX_COLD
-This option is only used in
-.Fn mtx_init
-and is used in conjunction with mutexes declared with
-.Fn MUTEX_DECLARE
-to initialize mutexes that are needed before
-.Xr malloc 9
-is available for use.
 .It Dv MTX_QUIET
 This option is used to quiet logging messages during mutex operations.
 This can be used to trim superfluous logging messages for debugging purposes.
