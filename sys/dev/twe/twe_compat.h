@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -56,43 +58,9 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-/*
- * These macros allows us to build a version of the driver which can 
- * safely be loaded into a kernel which already contains a 'twe' driver,
- * and which will override it in all things.
- *
- * All public symbols must be listed here.
- */
-#ifdef TWE_OVERRIDE
-#define twe_setup		Xtwe_setup
-#define twe_init		Xtwe_init
-#define twe_deinit		Xtwe_deinit
-#define twe_intr		Xtwe_intr
-#define twe_submit_bio		Xtwe_submit_bio
-#define twe_ioctl		Xtwe_ioctl
-#define twe_describe_controller	Xtwe_describe_controller
-#define twe_print_controller	Xtwe_print_controller
-#define twe_enable_interrupts	Xtwe_enable_interrupts
-#define twe_disable_interrupts	Xtwe_disable_interrupts
-#define twe_attach_drive	Xtwe_attach_drive
-#define twed_intr		Xtwed_intr
-#define twe_allocate_request	Xtwe_allocate_request
-#define twe_free_request	Xtwe_free_request
-#define twe_map_request		Xtwe_map_request
-#define twe_unmap_request	Xtwe_unmap_request
-#define twe_describe_code	Xtwe_describe_code
-#define twe_table_status	Xtwe_table_status
-#define twe_table_unitstate	Xtwe_table_unitstate
-#define twe_table_unittype	Xtwe_table_unittype
-#define twe_table_aen		Xtwe_table_aen
-#define TWE_DRIVER_NAME		Xtwe
-#define TWED_DRIVER_NAME	Xtwed
-#define TWE_MALLOC_CLASS	M_XTWE
-#else
 #define TWE_DRIVER_NAME		twe
 #define TWED_DRIVER_NAME	twed
 #define TWE_MALLOC_CLASS	M_TWE
-#endif
 
 /* 
  * Wrappers for bus-space actions
@@ -142,6 +110,7 @@
 #if __FreeBSD_version < 500003
 # include <machine/clock.h>
 # define INTR_ENTROPY			0
+# define FREEBSD_4
 
 # include <sys/buf.h>			/* old buf style */
 typedef struct buf			twe_bio;
@@ -164,6 +133,7 @@ typedef struct buf_queue_head		twe_bioq;
 # define TWE_BIO_STATS_END(bp)		devstat_end_transaction_buf(&((struct twed_softc *)TWE_BIO_SOFTC(bp))->twed_stats, bp)
 #else
 # include <sys/bio.h>
+# include <geom/geom_disk.h>
 typedef struct bio			twe_bio;
 typedef struct bio_queue_head		twe_bioq;
 # define TWE_BIO_QINIT(bq)		bioq_init(&bq);

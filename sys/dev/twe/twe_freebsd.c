@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -31,19 +33,13 @@
  * FreeBSD-specific code.
  */
 
-#include <sys/param.h>
-#include <sys/cons.h>
-#include <machine/bus.h>
-#include <machine/clock.h>
-#include <machine/md_var.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <dev/twe/twe_compat.h>
-#include <geom/geom_disk.h>
 #include <dev/twe/twereg.h>
 #include <dev/twe/tweio.h>
 #include <dev/twe/twevar.h>
 #include <dev/twe/twe_tables.h>
+
+#include <vm/vm.h>
 
 static devclass_t	twe_devclass;
 
@@ -69,8 +65,6 @@ static void	twe_setup_request_dmamap(void *arg, bus_dma_segment_t *segs, int nse
 static	d_open_t		twe_open;
 static	d_close_t		twe_close;
 static	d_ioctl_t		twe_ioctl_wrapper;
-
-#define TWE_CDEV_MAJOR  146
 
 static struct cdevsw twe_cdevsw = {
 	.d_open =	twe_open,
@@ -127,7 +121,7 @@ static int	twe_probe(device_t dev);
 static int	twe_attach(device_t dev);
 static void	twe_free(struct twe_softc *sc);
 static int	twe_detach(device_t dev);
-static void	twe_shutdown(device_t dev);
+static int	twe_shutdown(device_t dev);
 static int	twe_suspend(device_t dev);
 static int	twe_resume(device_t dev);
 static void	twe_pci_intr(void *arg);
@@ -153,11 +147,7 @@ static driver_t twe_pci_driver = {
 	sizeof(struct twe_softc)
 };
 
-#ifdef TWE_OVERRIDE
-DRIVER_MODULE(Xtwe, pci, twe_pci_driver, twe_devclass, 0, 0);
-#else
 DRIVER_MODULE(twe, pci, twe_pci_driver, twe_devclass, 0, 0);
-#endif
 
 /********************************************************************************
  * Match a 3ware Escalade ATA RAID controller.
@@ -171,12 +161,8 @@ twe_probe(device_t dev)
     if ((pci_get_vendor(dev) == TWE_VENDOR_ID) &&
 	((pci_get_device(dev) == TWE_DEVICE_ID) || 
 	 (pci_get_device(dev) == TWE_DEVICE_ID_ASIC))) {
-	device_set_desc(dev, TWE_DEVICE_NAME);
-#ifdef TWE_OVERRIDE
+	device_set_desc_copy(dev, TWE_DEVICE_NAME ". Driver version " TWE_DRIVER_VERSION_STRING);
 	return(0);
-#else
-	return(-10);
-#endif
     }
     return(ENXIO);
 }
@@ -208,7 +194,7 @@ twe_attach(device_t dev)
 	return (ENXIO);
     }
     SYSCTL_ADD_STRING(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	OID_AUTO, "driver_version", CTLFLAG_RD, "$Revision$", 0,
+	OID_AUTO, "driver_version", CTLFLAG_RD, TWE_DRIVER_VERSION_STRING, 0,
 	"TWE driver version");
 
     /*
@@ -459,7 +445,8 @@ twe_detach(device_t dev)
     /*	
      * Shut the controller down.
      */
-    twe_shutdown(dev);
+    if (twe_shutdown(dev))
+	goto out;
 
     twe_free(sc);
 
@@ -475,11 +462,11 @@ twe_detach(device_t dev)
  * Note that we can assume that the bioq on the controller is empty, as we won't
  * allow shutdown if any device is open.
  */
-static void
+static int
 twe_shutdown(device_t dev)
 {
     struct twe_softc	*sc = device_get_softc(dev);
-    int			i, s;
+    int			i, s, error = 0;
 
     debug_called(4);
 
@@ -489,7 +476,10 @@ twe_shutdown(device_t dev)
      * Delete all our child devices.
      */
     for (i = 0; i < TWE_MAX_UNITS; i++) {
-	twe_detach_drive(sc, i);
+	if (sc->twe_drive[i].td_disk != 0) {
+	    if ((error = twe_detach_drive(sc, i)) != 0)
+		goto out;
+	}
     }
 
     /*
@@ -497,7 +487,9 @@ twe_shutdown(device_t dev)
      */
     twe_deinit(sc);
 
+out:
     splx(s);
+    return(error);
 }
 
 /********************************************************************************
@@ -564,9 +556,9 @@ twe_intrhook(void *arg)
 /********************************************************************************
  * Given a detected drive, attach it to the bio interface.
  *
- * This is called from twe_init.
+ * This is called from twe_add_unit.
  */
-void
+int
 twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
 {
     char	buf[80];
@@ -574,8 +566,8 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
 
     dr->td_disk =  device_add_child(sc->twe_dev, NULL, -1);
     if (dr->td_disk == NULL) {
-	twe_printf(sc, "device_add_child failed\n");
-	return;
+	twe_printf(sc, "Cannot add unit\n");
+	return (EIO);
     }
     device_set_ivars(dr->td_disk, dr);
 
@@ -584,13 +576,16 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
      * always set...
      */
     sprintf(buf, "Unit %d, %s, %s",
-	    dr->td_unit,
+	    dr->td_twe_unit,
 	    twe_describe_code(twe_table_unittype, dr->td_type),
 	    twe_describe_code(twe_table_unitstate, dr->td_state & TWE_PARAM_UNITSTATUS_MASK));
     device_set_desc_copy(dr->td_disk, buf);
 
-    if ((error = bus_generic_attach(sc->twe_dev)) != 0)
-	twe_printf(sc, "bus_generic_attach returned %d\n", error);
+    if ((error = bus_generic_attach(sc->twe_dev)) != 0) {
+	twe_printf(sc, "Cannot attach unit to controller. error = %d\n", error);
+	return (EIO);
+    }
+    return (0);
 }
 
 /********************************************************************************
@@ -598,15 +593,17 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
  *
  * This is called from twe_del_unit.
  */
-void
+int
 twe_detach_drive(struct twe_softc *sc, int unit)
 {
+    int error = 0;
 
-    if (sc->twe_drive[unit].td_disk != 0) {
-	if (device_delete_child(sc->twe_dev, sc->twe_drive[unit].td_disk) != 0)
-	    twe_printf(sc, "failed to delete unit %d\n", unit);
-	sc->twe_drive[unit].td_disk = 0;
+    if ((error = device_delete_child(sc->twe_dev, sc->twe_drive[unit].td_disk)) != 0) {
+	twe_printf(sc, "failed to delete unit %d\n", unit);
+	return(error);
     }
+    bzero(&sc->twe_drive[unit], sizeof(sc->twe_drive[unit]));
+    return(error);
 }
 
 /********************************************************************************
@@ -638,7 +635,7 @@ twe_clear_pci_abort(struct twe_softc *sc)
 /*
  * Disk device softc
  */
-struct twed_softc 
+struct twed_softc
 {
     device_t		twed_dev;
     struct twe_softc	*twed_controller;	/* parent device softc */
@@ -667,11 +664,7 @@ static driver_t twed_driver = {
 };
 
 static devclass_t	twed_devclass;
-#ifdef TWE_OVERRIDE
-DRIVER_MODULE(Xtwed, Xtwe, twed_driver, twed_devclass, 0, 0);
-#else
 DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
-#endif
 
 /*
  * Disk device control interface.
@@ -714,11 +707,11 @@ twed_strategy(twe_bio *bp)
 
     debug_called(4);
 
-    bp->bio_driver1 = &sc->twed_drive->td_unit;
+    bp->bio_driver1 = &sc->twed_drive->td_twe_unit;
     TWED_BIO_IN;
 
     /* bogus disk? */
-    if (sc == NULL) {
+    if (sc == NULL || sc->twed_drive->td_disk == NULL) {
 	TWE_BIO_SET_ERROR(bp, EINVAL);
 	printf("twe: bio for invalid disk!\n");
 	TWE_BIO_DONE(bp);
@@ -755,7 +748,7 @@ twed_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 	return(ENXIO);
 
     if (length > 0) {
-	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_unit, offset / TWE_BLOCK_SIZE, virtual, length / TWE_BLOCK_SIZE)) != 0)
+	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_twe_unit, offset / TWE_BLOCK_SIZE, virtual, length / TWE_BLOCK_SIZE)) != 0)
 	    return(error);
     }
     return(0);
@@ -822,8 +815,9 @@ twed_attach(device_t dev)
     sc->twed_disk.d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
     sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
     sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
+    sc->twed_drive->td_sys_unit = device_get_unit(dev);
 
-    disk_create(device_get_unit(dev), &sc->twed_disk, 0, NULL, NULL);
+    disk_create(sc->twed_drive->td_sys_unit, &sc->twed_disk, 0, NULL, NULL);
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
@@ -846,13 +840,12 @@ twed_detach(device_t dev)
     if (sc->twed_disk.d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
+    disk_destroy(&sc->twed_disk);
+
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
 	cdevsw_remove(&tweddisk_cdevsw);
-#else
-    disk_destroy(&sc->twed_disk);
 #endif
-
     return(0);
 }
 

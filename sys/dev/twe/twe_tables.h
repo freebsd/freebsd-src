@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -44,21 +46,6 @@ extern struct twe_code_lookup twe_table_unittype[];
 extern struct twe_code_lookup twe_table_aen[];
 extern struct twe_code_lookup twe_table_opcode[];
 #else /* TWE_DEFINE_TABLES */
-
-/********************************************************************************
- * Look up a text description of a numeric code and return a pointer to same.
- */
-char *
-twe_describe_code(struct twe_code_lookup *table, u_int32_t code)
-{
-    int		i;
-
-    for (i = 0; table[i].string != NULL; i++)
-	if (table[i].code == code)
-	    return(table[i].string);
-    return(table[i+1].string);
-}
-
 
 struct twe_code_lookup twe_table_status[] = {
     /* success */
@@ -117,7 +104,7 @@ struct twe_code_lookup twe_table_unittype[] = {
 struct twe_code_lookup twe_table_aen[] = {
     {"q queue empty",			0x00},
     {"q soft reset",			0x01},
-    {"c degraded mirror",		0x02},
+    {"c degraded unit",			0x02},
     {"a controller error",		0x03},
     {"c rebuild fail",			0x04},
     {"c rebuild done",			0x05},
