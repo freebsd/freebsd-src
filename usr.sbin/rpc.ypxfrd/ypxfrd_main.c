@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypxfrd_main.c,v 1.1.1.1.2.2 1997/11/06 07:32:21 charnier Exp $";
 #endif /* not lint */
 
 #include "ypxfrd.h"
@@ -63,9 +63,6 @@ static const char rcsid[] =
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-#ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_main.c,v 1.1.1.1.2.1 1997/08/29 05:15:58 imp Exp $";
-#endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
