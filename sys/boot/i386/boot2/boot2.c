@@ -49,7 +49,7 @@
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
 
-#define RBX_MASK	0xffff
+#define RBX_MASK	0x2000ffff
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
