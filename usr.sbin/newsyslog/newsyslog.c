@@ -230,7 +230,7 @@ PRS(int argc, char **argv)
 	if ((p = strchr(hostname, '.'))) {
 		*p = '\0';
 	}
-	while ((c = getopt(argc, argv, "nrvFf:a:t:")) != -1)
+	while ((c = getopt(argc, argv, "nrvFf:a:")) != -1)
 		switch (c) {
 		case 'n':
 			noaction++;
