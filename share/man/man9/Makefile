@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.44 1999/01/30 15:33:20 nsouch Exp $
+#	$Id: Makefile,v 1.45 1999/03/06 17:37:20 bde Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -15,7 +15,7 @@ MAN9=	MD5.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 microseq.9 \
 	mi_switch.9 namei.9 panic.9 physio.9 posix4.9 psignal.9 \
-	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
+	resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
 
