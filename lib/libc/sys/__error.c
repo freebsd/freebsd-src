@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -41,7 +42,8 @@ extern int errno;
  */
 #pragma weak __error=__error_unthreaded
 
-int * __error_unthreaded()
+int *
+__error_unthreaded()
 {
 	return(&errno);
 }
