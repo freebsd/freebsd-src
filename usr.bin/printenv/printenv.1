@@ -44,7 +44,6 @@
 .Nm
 .Op Ar name
 .Nm env
-.Op Fl
 .Op Fl i
 .Op Ar name Ns = Ns Ar value ...
 .Op Ar utility Oo Ar argument ... Oc
@@ -89,10 +88,6 @@ The environment inherited
 by
 .Nm env
 is ignored completely.
-.It Fl
-Identical to the
-.Fl i
-option, available for backward compatibility.
 .El
 .Pp
 If no utility is specified,
@@ -129,6 +124,13 @@ was found, but could not be executed.
 An exit status of 127 indicates
 .Ar utility
 could not be found.
+.Sh COMPATIBILITY
+The
+.Nm env
+utility accepts the
+.Fl
+option as a synonym for
+.Fl i .
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr sh 1 ,
