@@ -51,8 +51,9 @@ is actually run.
 .Sh RETURN VALUES
 .Rv -std sem_getvalue
 .Sh ERRORS
+The
 .Fn sem_getvalue
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa sem
@@ -64,8 +65,9 @@ points to an invalid semaphore.
 .Xr sem_wait 3 ,
 .Xr sem 4
 .Sh STANDARDS
+The
 .Fn sem_getvalue
-conforms to
+function conforms to
 .St -p1003.1-96 .
 .Pp
 The value of the semaphore is never negative, even if there are threads blocked

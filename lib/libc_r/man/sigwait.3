@@ -65,8 +65,9 @@ returns 0 and sets the location pointed to by
 to the cleared signal number.
 Otherwise, an error number is returned.
 .Sh ERRORS
+The
 .Fn sigwait
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa set
@@ -79,6 +80,7 @@ specifies one or more invalid signal numbers.
 .Xr pause 3 ,
 .Xr pthread_sigmask 3
 .Sh STANDARDS
+The
 .Fn sigwait
-conforms to
+function conforms to
 .St -p1003.1-96

@@ -59,10 +59,11 @@ an error is returned.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
+The
 .Fn sem_wait
 and
 .Fn sem_trywait
-will fail if:
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa sem
@@ -80,8 +81,9 @@ The semaphore value was zero, and thus could not be decremented.
 .Xr sem_post 3 ,
 .Xr sem 4
 .Sh STANDARDS
+The
 .Fn sem_wait
 and
 .Fn sem_trywait
-conform to
+functions conform to
 .St -p1003.1-96 .
