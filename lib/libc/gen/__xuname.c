@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";*/
 static const char rcsid[] =
-	"$Id: uname.c,v 1.2 1994/10/13 20:31:19 wollman Exp $";
+	"$Id: uname.c,v 1.3 1995/05/30 05:40:29 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ uname(name)
 		else
 			rval = -1;
 	}
+	name->sysname[sizeof(name->sysname) - 1] = '\0';
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_HOSTNAME;
@@ -74,6 +75,7 @@ uname(name)
 		else
 			rval = -1;
 	}
+	name->nodename[sizeof(name->nodename) - 1] = '\0';
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_OSRELEASE;
@@ -85,6 +87,7 @@ uname(name)
 		else
 			rval = -1;
 	}
+	name->release[sizeof(name->release) - 1] = '\0';
 
 	/* The version may have newlines in it, turn them into spaces. */
 	mib[0] = CTL_KERN;
@@ -96,14 +99,14 @@ uname(name)
 			errno = oerrno;
 		else
 			rval = -1;
-	} else {
-		for (p = name->version; len--; ++p) {
-			if (*p == '\n' || *p == '\t') {
-				if (len > 1)
-					*p = ' ';
-				else
-					*p = '\0';
-			}
+	}
+	name->version[sizeof(name->version) - 1] = '\0';
+	for (p = name->version; len--; ++p) {
+		if (*p == '\n' || *p == '\t') {
+			if (len > 1)
+				*p = ' ';
+			else
+				*p = '\0';
 		}
 	}
 
@@ -117,5 +120,6 @@ uname(name)
 		else
 			rval = -1;
 	}
+	name->machine[sizeof(name->machine) - 1] = '\0';
 	return (rval);
 }
