@@ -57,8 +57,6 @@
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
-static void change_ruid(struct proc *p, uid_t ruid);
-
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
@@ -1142,7 +1140,7 @@ change_euid(p, euid)
  * The per-uid process count for this process is transfered from
  * the old uid to the new uid.
  */
-static void
+void
 change_ruid(p, ruid)
 	struct	proc *p;
 	uid_t	ruid;
