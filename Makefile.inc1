@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.49 1998/12/21 09:41:26 dillon Exp $
+#	$Id: Makefile.inc1,v 1.50 1998/12/27 21:11:07 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -8,7 +8,6 @@
 #	-DNOCLEAN do not clean at all
 #	-DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
-#	-DNOLKM do not build loadable kernel modules
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
@@ -81,9 +80,6 @@ SUBDIR+= usr.sbin
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 SUBDIR+= secure
-.endif
-.if exists(lkm) && !defined(NOLKM) && ${OBJFORMAT} == "aout"
-SUBDIR+= lkm
 .endif
 
 # etc must be last for "distribute" to work
@@ -744,9 +740,6 @@ _perl=		gnu/usr.bin/perl/miniperl
 .if !defined(NOSHARE) && exists(${.CURDIR}/share)
 _scrnmaps=	share/syscons/scrnmaps
 .endif
-.if !defined(NOLKM) && exists(${.CURDIR}/lkm) && ${OBJFORMAT} == "aout"
-_linux=		lkm/linux
-.endif
 .if ${MACHINE_ARCH} == i386
 _kldlinux=	sys/modules/linux
 .endif
@@ -892,14 +885,6 @@ legacy-build:
 	cd ${.CURDIR}/libexec/rtld-aout; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
-.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building legacy lkms"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/lkm; \
-		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
-	@echo
-.endif
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
@@ -936,13 +921,6 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
 	@echo
-.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing legacy lkms"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/lkm; ${MAKE} -DNOMAN install
-	@echo
-.endif
 .if ${MACHINE_ARCH} != "alpha"
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
