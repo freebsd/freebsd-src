@@ -1,6 +1,10 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.14 1997/09/18 22:43:42 danny Exp $
+# $Id: rc.firewall,v 1.15 1997/10/21 00:54:08 danny Exp $
+
+if [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:
