@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.21 1998/09/11 18:35:57 msmith Exp $
+# $Id: pccard.conf.sample,v 1.22 1998/09/12 18:53:49 msmith Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -251,6 +251,12 @@ card "Hayes" "OPTIMA 288 + FAX fo"
 	reset	10000
 	insert	echo Optima 288 inserted
 	remove	echo Optima 288 removed
+
+# This one does work though
+card "HAYES" "OPT288"
+        config  0x23 "sio3" 9
+        insert  echo Hayes Optima 28.8k inserted
+        remove  echo Hayes Optima 28.8k removed
 
 # PREMAX FM288 FAX/Data Modem
 card "PREMAX" "FM288 "
