@@ -29,14 +29,17 @@ modules-${target}:
 
 # Handle out of tree ports 
 .if defined(PORTS_MODULES)
-.if defined(SYSDIR)
-PORTSMODULESENV=SYSDIR=${SYSDIR}
+.for _dir in ${.CURDIR}/../../..
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
+SYSDIR=	${_dir}
 .endif
+.endfor
+PORTSMODULESENV=SYSDIR=${SYSDIR}
 .for __target in all install clean
-${__target}: ports-${target}
+${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
-	cd $${PORTSDIR:-/usr/ports/}${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/}
 .endfor
 .endfor
 .endif
