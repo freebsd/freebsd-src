@@ -10,7 +10,6 @@ MAN=	umount.8
 MOUNT=	${.CURDIR}/../mount
 UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall
 CFLAGS+= -I${MOUNT} -I${UMNTALL}
-WARNS=	0
 
 .PATH: ${MOUNT} ${UMNTALL}
 
