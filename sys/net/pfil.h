@@ -58,7 +58,7 @@ struct pfil_head {
 	pfil_list_t	ph_in;
 	pfil_list_t	ph_out;
 	int		ph_init;
-} pfil_head_t;
+};
 
 struct packet_filter_hook *pfil_hook_get __P((int, struct pfil_head *));
 int	pfil_add_hook __P((int (*func) __P((void *, int,
