@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.16 1993/12/11 11:58:24 jkh Exp $
+ *	$Id: ld.c,v 1.17 1993/12/22 23:28:08 jkh Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -585,14 +585,13 @@ decode_option(swt, arg)
 		return;
 #endif
 
-#ifdef QMAGIC
 	case 'Q':
-		magic = oldmagic = QMAGIC;
+		magic = QMAGIC;
 		return;
 	case 'Z':
-		magic = oldmagic = ZMAGIC;
+		magic = ZMAGIC;
+		netzmagic = 1;
 		return;
-#endif
 
 	case 'o':
 		output_filename = arg;
@@ -658,7 +657,7 @@ decode_option(swt, arg)
 		return;
 
 	case 'z':
-		oldmagic = magic = ZMAGIC;
+		magic = ZMAGIC;
 		return;
 
 	default:
@@ -1438,7 +1437,7 @@ digest_symbols ()
 	 * the padding in the text segment size.
 	 */
 
-	if (magic == ZMAGIC || page_align_data) {
+	if (magic == ZMAGIC || magic == QMAGIC || page_align_data) {
 		int  text_end = text_size + N_TXTOFF(outheader);
 		text_pad = PALIGN(text_end, page_size) - text_end;
 		text_size += text_pad;
@@ -1491,7 +1490,7 @@ printf("bssstart = %#x, bsssize = %#x\n",
 	if (specified_data_size && specified_data_size > data_size)
 		data_pad = specified_data_size - data_size;
 
-	if (magic == ZMAGIC)
+	if (magic == ZMAGIC || magic == QMAGIC)
 		data_pad = PALIGN(data_pad + data_size, page_size) - data_size;
 
 	bss_size -= data_pad;
@@ -2177,9 +2176,7 @@ write_header ()
 {
 	int flags = (rrs_section_type == RRS_FULL) ? EX_DYNAMIC : 0;
 
-#ifdef QMAGIC
-	if (!oldmagic)
-#endif
+	if (netzmagic || magic == QMAGIC || (link_mode & DYNAMIC))
 		N_SET_FLAG (outheader, flags);
 
 	outheader.a_text = text_size;

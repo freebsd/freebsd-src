@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.8 1993/11/04 10:51:41 pk Exp $
+ *	$Id: crt0.c,v 1.6 1993/11/09 04:26:11 paul Exp $
  */
 
 
@@ -264,7 +264,7 @@ __do_dynamic_link ()
 	if (read(crt.crt_ldfd, &hdr, sizeof hdr) < sizeof hdr) {
 		_FATAL("Failure reading ld.so\n");
 	}
-	if (N_GETMAGIC(hdr) != ZMAGIC) {
+	if ((N_GETMAGIC_NET(hdr) != ZMAGIC) && (N_GETMAGIC(hdr) != QMAGIC)) {
 		_FATAL("Bad magic: ld.so\n");
 	}
 
@@ -287,7 +287,7 @@ __do_dynamic_link ()
 #endif
 
 	/* Map in ld.so */
-	crt.crt_ba = mmap(0, hdr.a_text+hdr.a_data+hdr.a_bss,
+	crt.crt_ba = mmap(0, hdr.a_text,
 			PROT_READ|PROT_EXEC,
 			MAP_FILE|MAP_COPY,
 			crt.crt_ldfd, N_TXTOFF(hdr));
@@ -308,7 +308,7 @@ __do_dynamic_link ()
 
 	/* Map in data segment of ld.so writable */
 	if (mmap(crt.crt_ba+N_DATADDR(hdr), hdr.a_data,
-			PROT_READ|PROT_EXEC|PROT_WRITE,
+			PROT_READ|PROT_WRITE,
 			MAP_FIXED|MAP_FILE|MAP_COPY,
 			crt.crt_ldfd, N_DATOFF(hdr)) == -1) {
 		_FATAL("Cannot map ld.so\n");
@@ -316,7 +316,7 @@ __do_dynamic_link ()
 
 	/* Map bss segment of ld.so zero */
 	if (hdr.a_bss && mmap(crt.crt_ba+N_BSSADDR(hdr), hdr.a_bss,
-			PROT_READ|PROT_EXEC|PROT_WRITE,
+			PROT_READ|PROT_WRITE,
 			MAP_FIXED|MAP_ANON|MAP_COPY,
 			crt.crt_dzfd, 0) == -1) {
 		_FATAL("Cannot map ld.so\n");

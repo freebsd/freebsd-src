@@ -1,4 +1,4 @@
-/*	$Id: ld.h,v 1.7 1993/12/04 00:52:58 jkh Exp $	*/
+/*	$Id: ld.h,v 1.8 1993/12/11 11:58:26 jkh Exp $	*/
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -54,12 +54,10 @@ char *progname;
 /* Define this to specify the default executable format.  */
 
 #ifndef DEFAULT_MAGIC
-#define DEFAULT_MAGIC ZMAGIC
+#define DEFAULT_MAGIC QMAGIC
 #endif
 
-#ifdef QMAGIC
-int oldmagic;
-#endif
+extern netzmagic;
 
 
 /*
