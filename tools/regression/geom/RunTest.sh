@@ -15,13 +15,19 @@ do
 	b=`basename $f`
 	mdconfig -d -u $MD > /dev/null 2>&1 || true
 	if [ -c /dev/md$MD ] ; then
+		sleep 1
+	fi
+	if [ -c /dev/md$MD ] ; then
+		sleep 1
+	fi
+	if [ -c /dev/md$MD ] ; then
 		echo "/dev/md$MD is busy" 1>&2
 		exit 1
 	fi
 	MdLoad/MdLoad md${MD} $f
 	if [ -f Ref/$b ] ; then
 		if diskinfo /dev/md${MD}* | 
-		   diff -I '$FreeBSD' -u - Ref/$b > $TMP; then
+		   diff -I '$FreeBSD' -u Ref/$b - > $TMP; then
 			echo "PASSED: $b"
 		else
 			echo "FAILED: $b" 
