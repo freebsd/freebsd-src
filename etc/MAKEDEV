@@ -64,29 +64,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         4       00170
-# --------------------         -----   ----------------------
-#
-# 16 Feb 93	Julian Elischer		ADDED for SCSI system
-# 16 Feb 93	Julian Elischer		media changer device
-# 10 Mar 93	Rodney W. Grimes	general clean up of above patches
-#					typo in rm of kmem (was kmdem)
-#					major number for /dev/fd/* and /dev/std*
-#					added lpt, lpa, bpf, vga, vgaco, kbdco
-# 08 Apr 93	Rodney W. Grimes	Cleanup chgrp, chown and chmod stuff
-#					Added duplicate name tty=com,
-#					added speaker, dcf
-# 22 Apr 93	Holger Veit		device create for co,pc,vty
-# 26 May 93	Rodney W. Grimes	Redid all to be in bdev/cdev order.
-# 26 May 93	Gene Stark		Added tw xten power controller
-#		Rodney W. Grimes	Added sio serial port (fast interrupt)
-# 09 Jun 93	Jordan K. Hubbard	Make all makes both pc0 and co0, this
-#					can be very bad.  Rod: I removed co0
-#					from the all.
-# 20 Jun 93	Holger Viet		Fixed co*) entry to be correct minor
-#					and to do the proper clean ups.
+#	$Id$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -209,28 +187,42 @@ pty*)
 st*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	st*) name=st;  chr=14; blk=5;;
+	st*) name=st;  chr=14;;
 	esac
-	rm -f $name$unit n$name$unit e$name$unit en$name$unit \
-		r$name$unit nr$name$unit er$name$unit enr$name$unit 
+	rm -f r$name$unit nr$name$unit er$name$unit enr$name$unit 
+	rm -f hr$name$unit hnr$name$unit her$name$unit henr$name$unit 
+	rm -f mr$name$unit mnr$name$unit mer$name$unit menr$name$unit 
+	rm -f lr$name$unit lnr$name$unit ler$name$unit lenr$name$unit 
 	case $unit in
 	0|1|2|3|4|5|6)
-		mknod ${name}${unit}	b $blk `expr $unit '*' 16 + 0`
-		mknod n${name}${unit}	b $blk `expr $unit '*' 16 + 1`
-		mknod e${name}${unit}	b $blk `expr $unit '*' 16 + 2`
-		mknod en${name}${unit}	b $blk `expr $unit '*' 16 + 3`
 		mknod r${name}${unit}	c $chr `expr $unit '*' 16 + 0`
 		mknod nr${name}${unit}	c $chr `expr $unit '*' 16 + 1`
 		mknod er${name}${unit}	c $chr `expr $unit '*' 16 + 2`
-		mknod enr${name}${unit}	c $chr `expr $unit '*' 16 + 3`
-		chgrp operator ${name}${unit} n${name}${unit} \
-			e$name$unit en$name$unit \
-			r${name}${unit} nr${name}${unit} \
-			er${name}${unit} enr${name}${unit} 
-		chmod 640 ${name}${unit} n${name}${unit} \
-			e$name$unit en$name$unit \
-			r${name}${unit} nr${name}${unit} \
-			er${name}${unit} enr${name}${unit} 
+		mknod hr${name}${unit}	c $chr `expr $unit '*' 16 + 4`
+		mknod hnr${name}${unit}	c $chr `expr $unit '*' 16 + 5`
+		mknod her${name}${unit}	c $chr `expr $unit '*' 16 + 6`
+		mknod mr${name}${unit}	c $chr `expr $unit '*' 16 + 8`
+		mknod mnr${name}${unit}	c $chr `expr $unit '*' 16 + 9`
+		mknod mer${name}${unit}	c $chr `expr $unit '*' 16 + 10`
+		mknod lr${name}${unit}	c $chr `expr $unit '*' 16 + 12`
+		mknod lnr${name}${unit}	c $chr `expr $unit '*' 16 + 13`
+		mknod ler${name}${unit}	c $chr `expr $unit '*' 16 + 14`
+		chgrp operator r${name}${unit} nr${name}${unit} \
+			er${name}${unit}  
+		chgrp operator hr${name}${unit} hnr${name}${unit} \
+			her${name}${unit}  
+		chgrp operator mr${name}${unit} mnr${name}${unit} \
+			mer${name}${unit}  
+		chgrp operator lr${name}${unit} lnr${name}${unit} \
+			ler${name}${unit}  
+		chmod 640 r${name}${unit} nr${name}${unit} \
+			er${name}${unit} 
+		chmod 640 hr${name}${unit} hnr${name}${unit} \
+			her${name}${unit} 
+		chmod 640 mr${name}${unit} mnr${name}${unit} \
+			mer${name}${unit} 
+		chmod 640 lr${name}${unit} lnr${name}${unit} \
+			ler${name}${unit} 
 		;;
 	*)
 		echo bad unit for tape in: $i
