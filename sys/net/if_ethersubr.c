@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.39 1997/11/07 08:53:18 phk Exp $
+ * $Id: if_ethersubr.c,v 1.40 1997/12/15 20:30:59 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -704,7 +704,10 @@ ether_ifattach(ifp)
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 
 int
-ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
+ether_ioctl(ifp, command, data)
+	struct ifnet *ifp;
+	int command;
+	caddr_t data;
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
