@@ -560,6 +560,11 @@ main(argc, argv)
 	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
 
+	if (!uid) {
+		(void)setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&hold,
+		    sizeof(hold));
+	}
+
 	if (to->sin_family == AF_INET) {
 		(void)printf("PING %s (%s)", hostname,
 		    inet_ntoa(to->sin_addr));
