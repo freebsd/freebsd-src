@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.193.2.1 1999/01/22 05:36:12 dillon Exp $
+ * $Id: vfs_bio.c,v 1.193.2.2 1999/01/25 01:59:26 dg Exp $
  */
 
 /*
@@ -1466,7 +1466,10 @@ loop:
 		 * contain fully valid pages.  Normal (old-style) buffers
 		 * should be fully valid.
 		 */
-		if (bp->b_flags & B_VMIO) {
+		if (
+		    (bp->b_flags & (B_VMIO|B_CACHE)) == (B_VMIO|B_CACHE) &&
+		    (bp->b_vp->v_tag != VT_NFS || bp->b_validend <= 0)
+		) {
 			int checksize = bp->b_bufsize;
 			int poffset = bp->b_offset & PAGE_MASK;
 			int resid;
