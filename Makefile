@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.41 1995/02/26 01:27:27 phk Exp $
+#	$Id: Makefile,v 1.42 1995/03/06 05:52:47 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -224,7 +224,7 @@ includes:
 
 lib-tools:
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools needed to build the libraries
+	@echo " Rebuilding tools needed to build the libraries"
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/usr.bin/ar && \
