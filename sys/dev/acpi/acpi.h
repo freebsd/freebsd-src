@@ -34,13 +34,30 @@
 struct acpi_powerres_device {
 	LIST_ENTRY(acpi_powerres_device) links;
 	struct	aml_name *name;
+
+/* _PR[0-2] */
 #define ACPI_D_STATE_D0		0
 #define ACPI_D_STATE_D1		1
 #define ACPI_D_STATE_D2		2
 #define ACPI_D_STATE_D3		3
+#define ACPI_D_STATE_UNKNOWN	255
 	u_int8_t	state;		/* D0 to D3 */
 	u_int8_t	next_state;	/* initialized with D0 */
+/* _PRW */
+#define ACPI_D_WAKECAP_DISABLE	0
+#define ACPI_D_WAKECAP_ENABLE	1
+#define ACPI_D_WAKECAP_UNKNOWN	255
+#define ACPI_D_WAKECAP_DEFAULT	1 	/* XXX default enable for testing */
+	u_int8_t	wake_cap;	/* wake capability */
+	boolean_t	gpe_enabled;	/* GEPx_EN enabled/disabled */
+	union aml_object *prw_val[2];	/* elements of _PRW package */
 };
+
+/* Device Power Management Chind Object Type */
+#define ACPI_D_PM_TYPE_IRC	0	/* _IRC */
+#define ACPI_D_PM_TYPE_PRW	1	/* _PRW */
+#define ACPI_D_PM_TYPE_PRX	2	/* _PR0 - _PR2 */
+/* and more... */
 
 struct acpi_powerres_device_ref {
 	LIST_ENTRY(acpi_powerres_device_ref) links;
@@ -55,6 +72,7 @@ struct acpi_powerres_info {
 	u_int8_t	state;		/* OFF or ON */
 #define ACPI_PR_MAX		3	/* _PR[0-2] */
 	LIST_HEAD(, acpi_powerres_device_ref) reflist[ACPI_PR_MAX];
+	LIST_HEAD(, acpi_powerres_device_ref) prwlist;
 };
 /*Event Structure */
 struct acpi_event {
@@ -91,6 +109,8 @@ typedef struct acpi_softc {
 u_int8_t	 acpi_get_current_device_state(struct aml_name *);
 void		 acpi_set_device_state(acpi_softc_t *, struct aml_name *,
 				       u_int8_t);
+void		 acpi_set_device_wakecap(acpi_softc_t *, struct aml_name *,
+					 u_int8_t);
 
 /* PowerResource State */
 void		 acpi_powerres_init(acpi_softc_t *);
@@ -99,6 +119,9 @@ u_int8_t	 acpi_get_current_powerres_state(struct aml_name *);
 void		 acpi_set_powerres_state(acpi_softc_t *, struct aml_name *,
 				         u_int8_t);
 void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
+
+/* GPE enable bit manipulation */
+void		 acpi_gpe_enable_bit(acpi_softc_t *, u_int32_t, boolean_t);
 
 /*Event queue*/
 void acpi_queue_event(int, int);

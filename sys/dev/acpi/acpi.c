@@ -299,6 +299,34 @@ acpi_pmap_vtp(vm_offset_t va)
  * ACPI Registers I/O
  */
 
+void
+acpi_gpe_enable_bit(acpi_softc_t *sc, u_int32_t bit, boolean_t on_off)
+{
+	int		x;
+	u_int32_t	pos, value;
+	void		(*GPEx_EN[])(acpi_softc_t *, boolean_t, u_int32_t *) = {
+				acpi_io_gpe0_enable, acpi_io_gpe0_enable
+			};
+
+	x = -1;
+	pos = bit;
+	if (bit < sc->facp_body->gpe0_len * 4) {
+		x = 0;
+	} else {
+		/* should we check gpe1_len too? */
+		pos = bit - sc->facp_body->gpe1_base;
+		x = 1;
+	}
+
+	if (x == -1 || (on_off != 0 && on_off != 1)) {
+		return;
+	}
+
+	GPEx_EN[x](sc, ACPI_REGISTERS_INPUT, &value);
+	value = (value & (~(1 << pos))) | (on_off << pos);
+	GPEx_EN[x](sc, ACPI_REGISTERS_OUTPUT, &value);
+}
+
 static __inline void
 acpi_register_input(u_int32_t ioaddr, u_int32_t *value, u_int32_t size)
 {
@@ -1166,11 +1194,12 @@ acpi_intr(void *data)
 		acpi_debug = 0;		/* Shut up again */
 	}
 
+	acpi_debug = debug;	/* Restore debug level */
+
 	/* do something to handle the events... */
 	acpi_process_event(sc, status_a, status_b, status_0, status_1);
-
-	acpi_debug = debug;	/* Restore debug level */
 }
+
 static int acpi_set_gpe_bits(struct aml_name *name,va_list ap)
 {
 	struct acpi_softc *sc=va_arg(ap, struct acpi_softc *);
