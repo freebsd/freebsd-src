@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.7 1996/01/30 22:58:48 mpp Exp $
+ * $Id: ipx.h,v 1.7.4.1 1997/06/28 09:22:24 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_H_

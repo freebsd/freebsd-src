@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.4.2.6 1998/06/02 23:28:15 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.4.2.7 1998/08/26 19:12:14 gibbs Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"

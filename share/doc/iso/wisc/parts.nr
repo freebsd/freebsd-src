@@ -1,5 +1,5 @@
-.\"$Header: parts.nr,v 1.1 88/12/05 18:10:50 nhall Exp $
-.\"$Source: /usr/argo/doc/kernel/RCS/parts.nr,v $
+.\"$Header: /home/ncvs/src/share/doc/iso/wisc/Attic/parts.nr,v 1.1.1.1 1994/05/30 19:08:06 rgrimes Exp $
+.\"$Source: /home/ncvs/src/share/doc/iso/wisc/Attic/parts.nr,v $
 .\"
 .\"
 .\" LOOK FOR ALL CASES OF 'writing' (as in, "at this writing")

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.10 1998/09/10 22:09:11 cracauer Exp $
+ *	$Id: jobs.h,v 1.3.2.5 1998/11/03 15:57:35 cracauer Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */

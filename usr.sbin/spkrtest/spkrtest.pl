@@ -32,7 +32,7 @@
 #
 # NOTE for iso-* (latin1) fonts: use TERM=cons25-iso8859-1
 #
-# $Id: spkrtest.pl,v 1.2 1996/07/02 23:35:21 wosch Exp $
+# $Id: spkrtest.pl,v 1.3 1996/08/27 20:04:42 wosch Exp $
 
 $title = qq{
 reveille   -- Reveille

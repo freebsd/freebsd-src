@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_finite.S,v 1.2.8.3 1997/12/28 19:41:13 steve Exp $")
+RCSID("$Id: s_finite.S,v 1.2.8.4 1998/02/18 05:35:24 jkh Exp $")
 
 ENTRY(finite)
 	movl	8(%esp),%eax

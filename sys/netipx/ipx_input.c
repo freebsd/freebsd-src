@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.9.2.1 1997/06/28 09:22:30 jhay Exp $
+ * $Id: ipx_input.c,v 1.9.2.2 1998/06/27 07:42:00 jhay Exp $
  */
 
 #include <sys/param.h>

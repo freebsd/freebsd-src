@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.c,v 1.2.2.1 1998/01/12 05:11:17 obrien Exp $
+ *	$Id: calendar.c,v 1.2.2.2 1998/01/12 06:21:00 obrien Exp $
  */
 
 #include "calendar.h"

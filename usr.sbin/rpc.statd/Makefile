@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/07/09 22:40:39 nate Exp $
+#	$Id: Makefile,v 1.3.2.1 1997/05/23 08:44:03 asami Exp $
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c statd.c procs.c

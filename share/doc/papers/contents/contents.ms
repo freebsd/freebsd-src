@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: contents.ms,v 1.3 1997/02/22 13:02:55 peter Exp $
+.\" $Id: contents.ms,v 1.1.4.1 1997/03/15 23:33:59 jkh Exp $
 .\"
 .OH '''Papers Contents'
 .EH 'Papers Contents'''

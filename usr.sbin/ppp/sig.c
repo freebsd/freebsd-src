@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.13 1998/05/21 21:48:20 brian Exp $
+ *	$Id: sig.c,v 1.2.2.6 1998/11/26 07:14:46 jkh Exp $
  */
 
 #include <sys/types.h>

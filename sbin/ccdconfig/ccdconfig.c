@@ -1,4 +1,4 @@
-/* $Id: ccdconfig.c,v 1.4.4.1 1997/06/11 06:58:39 charnier Exp $ */
+/* $Id: ccdconfig.c,v 1.4.4.2 1997/12/30 05:15:13 imp Exp $ */
 
 /*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_spinlock.c,v 1.4 1998/06/09 23:13:10 jb Exp $
+ * $Id: uthread_spinlock.c,v 1.4.2.1 1998/11/04 08:42:12 tg Exp $
  *
  */
 

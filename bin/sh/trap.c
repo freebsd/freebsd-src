@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.17 1998/09/10 22:09:11 cracauer Exp $";
+	"$Id: trap.c,v 1.4.2.7 1998/11/03 15:57:37 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>

@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Id: ee.msg,v 1.5 1998/01/12 07:52:06 charnier Exp $
+$ $Id: ee.msg,v 1.2.2.2 1998/03/08 08:09:02 jkh Exp $
 $ 
 $set 1
 $quote "

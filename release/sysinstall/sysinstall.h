@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.55 1998/11/24 00:20:46 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.56 1998/11/26 20:32:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

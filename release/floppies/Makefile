@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/08/22 09:45:27 julian Exp $
+#	$Id: Makefile,v 1.3.4.1 1998/07/16 10:16:01 jkh Exp $
 #
 SUBDIR= bin boot fixit
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _spinlock_stub.c,v 1.3 1998/06/09 08:32:22 jb Exp $
+ * $Id: _spinlock_stub.c,v 1.3.2.1 1998/11/04 08:42:01 tg Exp $
  *
  */
 

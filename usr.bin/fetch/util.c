@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.5 1997/02/11 20:46:06 wollman Exp $
+ *	$Id: util.c,v 1.5.2.1 1998/07/16 23:51:53 jkh Exp $
  */
 
 #include <sys/types.h>

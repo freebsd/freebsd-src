@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.8.2.1 1996/12/13 17:15:11 joerg Exp $
+ *	$Id: df.c,v 1.8.2.2 1997/12/03 05:40:01 imp Exp $
  */
 
 #ifndef lint

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stat_flags.c,v 1.2 1994/09/24 02:55:57 davidg Exp $
+ *	$Id: stat_flags.c,v 1.2.8.1 1997/06/29 08:48:48 julian Exp $
  */
 
 #ifndef lint

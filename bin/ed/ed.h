@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
- *	$Id: ed.h,v 1.8 1994/11/03 21:46:55 davidg Exp $
+ *	$Id: ed.h,v 1.8.8.1 1998/02/15 11:10:06 jkh Exp $
  */
 
 #include <sys/param.h>		/* for MAXPATHLEN */

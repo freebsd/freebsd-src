@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)setvbuf.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-		"$Id: setvbuf.c,v 1.6 1998/04/11 07:40:47 jb Exp $";
+		"$Id: setvbuf.c,v 1.3.2.1 1998/11/04 08:42:02 tg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

@@ -92,7 +92,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.7.2.2 1997/09/14 20:39:24 jkh Exp $";
+static char rcsid[] = "$Id: at.c,v 1.7.2.3 1998/11/25 14:09:15 mckay Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"

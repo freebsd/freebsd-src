@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)acutab.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: acutab.c,v 1.2.6.1 1997/08/20 07:06:23 charnier Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"

@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.1.4.1 1997/05/11 18:01:26 tegge Exp $	*/
+/*	$Id: krpc_subr.c,v 1.1.4.2 1997/08/15 13:33:21 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

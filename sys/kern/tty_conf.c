@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.7 1995/07/29 13:35:34 bde Exp $
+ * $Id: tty_conf.c,v 1.8 1995/11/05 20:25:50 bde Exp $
  */
 
 #include <sys/param.h>

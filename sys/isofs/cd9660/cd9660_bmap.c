@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_bmap.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_bmap.c,v 1.3 1995/09/04 00:20:04 dyson Exp $
+ * $Id: cd9660_bmap.c,v 1.3.4.1 1997/08/17 13:28:30 joerg Exp $
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */

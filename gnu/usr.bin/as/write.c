@@ -21,7 +21,7 @@
 /* This thing should be set up to do byteordering correctly.  But... */
 
 #ifndef lint
-static char rcsid[] = "$Id: write.c,v 1.7 1995/05/30 04:46:40 rgrimes Exp $";
+static char rcsid[] = "$Id: write.c,v 1.8 1996/10/01 00:12:04 peter Exp $";
 #endif
 
 #include "as.h"

@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: profile,v 1.8.2.3 1998/09/03 22:14:37 brian Exp $
 #
 # System-wide .profile file for sh(1).
 # Uncomment this to give you the default 4.2 behavior, where disk 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.5 1995/11/06 00:35:51 bde Exp $
+ * $Id: subr_xxx.c,v 1.5.4.1 1998/11/29 22:52:13 imp Exp $
  */
 
 /*

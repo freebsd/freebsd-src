@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: dial.sample,v 1.2.8.1 1998/09/13 23:10:49 brian Exp $
 
 # This is an example of dial, the dialer configuration file for Taylor
 # UUCP.  To use it, you must compile the package with

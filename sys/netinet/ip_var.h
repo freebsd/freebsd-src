@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.24.2.4 1998/06/05 21:38:12 julian Exp $
+ *	$Id: ip_var.h,v 1.24.2.5 1998/07/01 01:38:38 julian Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.3.8.1 1998/10/28 12:00:31 jkh Exp $
 
 .if exists(${.OBJDIR}/../lib)
 LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a

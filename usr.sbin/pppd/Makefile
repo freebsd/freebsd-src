@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4.2.1 1998/06/23 21:41:21 peter Exp $
+#	$Id: Makefile,v 1.4.2.2 1998/06/26 14:45:17 dt Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 

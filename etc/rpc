@@ -1,5 +1,5 @@
 #
-#	$Id:$
+#	$Id: rpc,v 1.3.2.3 1998/09/03 22:14:37 brian Exp $
 # rpc 88/08/01 4.0 RPCSRC; from 1.12   88/02/07 SMI
 #
 portmapper	100000	portmap sunrpc

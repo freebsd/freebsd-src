@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.9 1996/03/08 07:27:52 bde Exp $
+ *	$Id: asm.S,v 1.9.4.1 1998/02/27 22:56:12 msmith Exp $
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id: ppp.shells.sample,v 1.2 1998/09/02 01:34:57 brian Exp $
+#	$Id: ppp.shells.sample,v 1.1.2.2 1998/11/26 12:43:27 jkh Exp $
 #
 # List of acceptable shells for pppd(8).
 # Pppd will not accept a system password login

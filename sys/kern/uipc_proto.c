@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.6 1995/12/14 08:32:08 phk Exp $
+ * $Id: uipc_proto.c,v 1.7 1996/05/08 04:28:52 gpalmer Exp $
  */
 
 #include <sys/param.h>

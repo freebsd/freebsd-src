@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.4 1998/07/19 15:02:39 rnordier Exp $";
+	"$Id: newfs_msdos.c,v 1.4.2.1 1998/09/29 17:44:20 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

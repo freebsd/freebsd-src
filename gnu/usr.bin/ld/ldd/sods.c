@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sods.c,v 1.1.2.1 1997/08/08 02:18:12 jdp Exp $
+ * $Id: sods.c,v 1.1.2.2 1998/01/10 20:46:17 jdp Exp $
  */
 
 #include <assert.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.8 1997/03/03 01:09:51 wosch Exp $
+#	$Id: Makefile,v 1.3.2.2 1997/03/15 23:35:17 jkh Exp $
 
 VOLUME=	psd/19.curses
 SRCS=	Master

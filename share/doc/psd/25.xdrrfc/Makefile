@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 13:05:01 peter Exp $
+#	$Id: Makefile,v 1.1.6.1 1997/03/15 23:35:33 jkh Exp $
 
 VOLUME=	psd/25.xdrrfc
 SRCS=	xdr.rfc.ms

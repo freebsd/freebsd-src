@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)fsi_util.c  8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fsi_util.c,v 1.2.6.1 1997/09/03 06:27:11 charnier Exp $";
 #endif
 
 #include "../fsinfo/fsinfo.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.h,v 1.7 1998/05/29 18:33:09 brian Exp $
+ *	$Id: id.h,v 1.3.2.3 1998/11/26 07:14:41 jkh Exp $
  */
 
 struct utmp;

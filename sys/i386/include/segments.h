@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.10 1996/01/30 22:54:59 mpp Exp $
+ *	$Id: segments.h,v 1.11 1996/09/27 13:33:49 peter Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_

@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.6 1997/05/10 18:55:38 davidn Exp $
+ *	$Id: login_class.c,v 1.6.2.1 1998/06/04 22:24:55 steve Exp $
  */
 
 #include <stdio.h>

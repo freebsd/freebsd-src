@@ -25,7 +25,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $Id$
+ * $Id: si2_z280.c,v 1.1.2.2 1998/03/23 19:36:24 peter Exp $
  */
 
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lstIsEmpty.c,v 1.2 1996/10/08 04:07:44 steve Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1997/03/02 14:04:13 wosch Exp $
+#	$Id: Makefile,v 1.1.6.1 1997/03/15 23:36:46 jkh Exp $
 
 VOLUME=	usd
 SRCS=	Title

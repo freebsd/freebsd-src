@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.35 1998/08/21 18:10:14 brian Exp $
+ *	$Id: log.c,v 1.4.2.11 1998/11/26 07:14:42 jkh Exp $
  */
 
 #include <sys/types.h>

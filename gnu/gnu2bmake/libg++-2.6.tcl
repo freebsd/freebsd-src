@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: libg++-2.6.tcl,v 1.1.8.1 1998/03/01 17:50:19 jkh Exp $
 #
 
 source gnu2bmake.tcl

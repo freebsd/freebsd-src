@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id: extern.h,v 1.3 1996/10/21 07:30:23 peter Exp $
+ *	$Id: extern.h,v 1.3.2.1 1998/06/04 22:20:29 steve Exp $
  */
 
 struct kinfo;

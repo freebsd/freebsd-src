@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scd1400.h,v 1.2 1996/05/04 08:53:27 peter Exp $
  */
 
 /*****************************************************************************/

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.17.2.1 1996/11/28 21:51:15 phk Exp $
+ * $Id: write_disk.c,v 1.17.2.2 1998/07/19 06:51:40 jkh Exp $
  *
  */
 

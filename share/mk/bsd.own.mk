@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.7.2.1 1997/04/11 16:58:45 asami Exp $
+#	$Id: bsd.own.mk,v 1.7.2.2 1998/03/07 13:18:02 jkh Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.

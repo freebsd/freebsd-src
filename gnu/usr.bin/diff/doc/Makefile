@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1995/10/29 09:08:35 peter Exp $
+# $Id: Makefile,v 1.1.4.1 1997/04/11 16:58:23 asami Exp $
 
 INFO = diff
 

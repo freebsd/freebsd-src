@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: group,v 1.13.2.4 1998/09/13 23:10:08 brian Exp $
 #
 wheel:*:0:root
 daemon:*:1:daemon

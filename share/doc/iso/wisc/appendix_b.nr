@@ -1,4 +1,4 @@
-.\" $Header: appendix_b.nr,v 1.1 88/12/05 18:08:02 nhall Exp $
+.\" $Header: /home/ncvs/src/share/doc/iso/wisc/Attic/appendix_b.nr,v 1.1.1.1 1994/05/30 19:08:06 rgrimes Exp $
 .(x
 Appendix B
 .)x

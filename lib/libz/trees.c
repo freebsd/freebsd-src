@@ -29,7 +29,7 @@
  *          Addison-Wesley, 1983. ISBN 0-201-06672-6.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libz/trees.c,v 1.1.1.1.2.1 1998/02/28 06:19:07 steve Exp $ */
 
 /* #define GEN_TREES_H */
 

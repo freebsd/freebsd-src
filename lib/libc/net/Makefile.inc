@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
-#	$Id: Makefile.inc,v 1.20.2.3 1997/06/24 03:51:33 julian Exp $
+#	$Id: Makefile.inc,v 1.20.2.4 1997/06/28 07:46:46 peter Exp $
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/net ${.CURDIR}/../libc/net

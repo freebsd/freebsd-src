@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3.2.3 1997/11/24 23:07:51 alex Exp $
+#	$Id: Makefile.inc,v 1.3.2.4 1998/11/04 08:42:09 tg Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread

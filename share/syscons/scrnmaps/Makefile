@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.5.2.2 1998/03/07 11:45:54 jkh Exp $
 
 SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm
 

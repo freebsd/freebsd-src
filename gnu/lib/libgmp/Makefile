@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1996/10/24 18:00:43 markm Exp $
+# $Id: Makefile,v 1.8.2.1 1998/09/11 14:27:01 dt Exp $
 #
 
 LIB=	gmp

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: spp_var.h,v 1.3 1994/08/21 06:22:12 paul Exp $
+ * $Id: spp_var.h,v 1.7 1996/10/17 18:42:33 jkh Exp $
  */
 
 #ifndef _NETNS_SPP_VAR_H_

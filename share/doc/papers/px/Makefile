@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6 1997/02/22 13:04:05 peter Exp $
+#	$Id: Makefile,v 1.3.2.1 1997/03/15 23:35:01 jkh Exp $
 
 VOLUME=	papers
 DOC=	px

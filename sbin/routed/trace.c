@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.4 $"
+#ident "$Revision: 1.1.1.1.2.1 $"
 
 #define	RIPCMDS
 #include "defs.h"

@@ -1,4 +1,4 @@
-#	$Id: bsd.kern.mk,v 1.2 1996/10/09 18:41:40 bde Exp $
+#	$Id: bsd.kern.mk,v 1.2.2.1 1996/11/12 08:01:32 phk Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.

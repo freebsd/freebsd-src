@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-sunos4.h,v 1.31 96/06/24 02:39:07 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/traceroute/lbl/os-sunos4.h,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $ (LBL)
  */
 
 #define SIGRET void

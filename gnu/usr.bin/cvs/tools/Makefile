@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/08/21 00:04:28 peter Exp $
+#	$Id: Makefile,v 1.1.2.1 1998/04/05 03:22:30 peter Exp $
 
 FILES=	INSTALL NEWS README \
 	pcl-cvs-lucid.el pcl-cvs-startup.el \

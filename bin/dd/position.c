@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: position.c,v 1.2 1994/09/24 02:55:03 davidg Exp $
+ *	$Id: position.c,v 1.2.8.1 1997/08/24 21:45:33 jkh Exp $
  */
 
 #ifndef lint

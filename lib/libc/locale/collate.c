@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.8.2.4 1997/02/05 23:20:45 joerg Exp $
+ * $Id: collate.c,v 1.8.2.5 1997/02/08 14:15:45 joerg Exp $
  */
 
 #include <rune.h>

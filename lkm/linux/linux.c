@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.8.2.1 1997/05/01 06:07:32 jkh Exp $
+ *	$Id: linux.c,v 1.8.2.2 1998/03/06 05:27:04 jkh Exp $
  */
 
 #include <sys/param.h>

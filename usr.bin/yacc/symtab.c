@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: symtab.c,v 1.1.1.1.8.1 1998/03/08 14:53:03 jkh Exp $
  */
 
 #ifndef lint

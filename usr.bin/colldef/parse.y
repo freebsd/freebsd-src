@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.5.2.2 1997/06/30 11:26:13 charnier Exp $
+ * $Id: parse.y,v 1.5.2.3 1997/09/14 23:17:08 jkh Exp $
  */
 
 #include <err.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)api_bsd.c	8.2 (Berkeley) 1/7/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: api_bsd.c,v 1.1.1.1.8.1 1997/08/20 07:12:44 charnier Exp $";
 #endif /* not lint */
 
 #if	defined(unix)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vary.h,v 1.2.2.1 1998/02/15 11:01:40 jkh Exp $
  */
 
 struct vary {

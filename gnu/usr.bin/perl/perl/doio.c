@@ -1,4 +1,4 @@
-/* $RCSfile: doio.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:03:00 $
+/* $RCSfile: doio.c,v $$Revision: 1.3.6.1 $$Date: 1998/02/15 16:30:08 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doio.c,v $
+ * Revision 1.3.6.1  1998/02/15 16:30:08  jkh
+ * MFC: security tweak, support for -T and -B flags.
+ *
  * Revision 1.3  1995/05/30 05:03:00  rgrimes
  * Remove trailing whitespace.
  *

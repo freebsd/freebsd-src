@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.8 1996/10/17 19:31:59 bde Exp $
+ * $Id: profile.h,v 1.8.2.1 1997/02/27 17:24:46 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_

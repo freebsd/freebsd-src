@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.22.2.1 1998/05/06 19:15:41 gibbs Exp $
+ * $Id: kernel.h,v 1.22.2.2 1998/07/07 05:24:32 gibbs Exp $
  */
 
 #ifndef _SYS_KERNEL_H_

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: logwtmp.c,v 1.3.2.2 1998/02/18 05:30:05 jkh Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

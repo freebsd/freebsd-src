@@ -13,7 +13,7 @@
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
  *
- * $Id$
+ * $Id: if_tun.h,v 1.6.2.4 1998/01/26 19:58:21 brian Exp $
  */
 
 #ifndef _NET_IF_TUN_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.18.2.2 1997/09/14 19:53:00 jkh Exp $
+ * $Id: startslip.c,v 1.18.2.3 1998/08/12 06:37:07 charnier Exp $
  */
 
 #ifndef lint

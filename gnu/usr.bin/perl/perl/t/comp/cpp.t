@@ -1,6 +1,6 @@
 #!./perl -P
 
-# $RCSfile: cpp.t,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:06 $
+# $RCSfile: cpp.t,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:40 $
 
 open(CONFIG,"../config.sh") || die;
 while (<CONFIG>) {

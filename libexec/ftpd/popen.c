@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.4.2.7 1998/05/15 16:53:45 ache Exp $";
+	"$Id: popen.c,v 1.4.2.8 1998/05/18 00:07:15 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id: Makefile,v 1.6 1997/02/22 13:06:31 peter Exp $
+#	$Id: Makefile,v 1.4.2.1 1997/03/15 23:36:25 jkh Exp $
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: async.h,v 1.4 1998/06/27 12:03:48 brian Exp $
+ *	$Id: async.h,v 1.2.2.2 1998/11/26 07:14:38 jkh Exp $
  */
 
 #define HDLCSIZE	(MAX_MRU*2+6)

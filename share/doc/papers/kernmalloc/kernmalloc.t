@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)kernmalloc.t	5.1 (Berkeley) 4/16/91
-.\"	$Id: kernmalloc.t,v 1.4 1997/02/22 13:03:14 peter Exp $
+.\"	$Id: kernmalloc.t,v 1.2.2.1 1997/03/15 23:34:22 jkh Exp $
 .\"
 .\" reference a system routine name
 .de RN

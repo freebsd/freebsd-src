@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.5 1998/06/12 20:12:26 brian Exp $
+ *	$Id: throughput.h,v 1.2.2.2 1998/11/26 07:14:47 jkh Exp $
  */
 
 #define SAMPLE_PERIOD 5

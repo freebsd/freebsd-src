@@ -20,7 +20,7 @@
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *          Monte Mitzelfelt <monte@gonefishing.org>
  *
- * $Id: machine.c,v 1.3.2.6 1998/08/07 18:39:02 wosch Exp $
+ * $Id: machine.c,v 1.3.2.7 1998/08/12 10:39:43 des Exp $
  */
 
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swapon.c,v 1.4.2.1 1997/06/23 06:35:35 charnier Exp $
+ *	$Id: swapon.c,v 1.4.2.2 1997/09/14 19:53:31 jkh Exp $
  */
 
 #ifndef lint

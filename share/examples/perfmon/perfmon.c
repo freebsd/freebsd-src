@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.1.1.1 1996/03/28 21:20:22 wollman Exp $
+ *	$Id: perfmon.c,v 1.1.1.1.2.1 1998/03/06 13:48:32 jkh Exp $
  */
 
 #include <sys/types.h>

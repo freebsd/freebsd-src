@@ -1,7 +1,7 @@
 /*
  * Computer
  *
- * $Id: calendar.computer,v 1.2.2.1 1997/02/25 01:57:39 mpp Exp $
+ * $Id: calendar.computer,v 1.2.2.2 1998/03/08 06:27:29 jkh Exp $
  */
 
 #ifndef _calendar_computer_

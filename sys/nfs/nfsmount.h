@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.7.4.1 1996/11/09 21:11:17 phk Exp $
+ * $Id: nfsmount.h,v 1.7.4.2 1997/05/14 08:19:30 dfr Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_

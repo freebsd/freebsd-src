@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.19 1998/03/01 22:20:11 steve Exp $
+#	$Id: MAKEDEV,v 1.127.2.20 1998/07/06 10:59:17 des Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

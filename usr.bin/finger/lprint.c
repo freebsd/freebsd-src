@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id: lprint.c,v 1.5.2.1 1997/07/03 07:12:38 charnier Exp $";
+	"$Id: lprint.c,v 1.5.2.2 1998/03/08 09:08:07 jkh Exp $";
 #endif
 #endif /* not lint */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.6 1998/10/25 23:35:15 brian Exp $
+ *	$Id: cbcp.c,v 1.7 1998/10/31 17:38:48 brian Exp $
  */
 
 #include <sys/types.h>

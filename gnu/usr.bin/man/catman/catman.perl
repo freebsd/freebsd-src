@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $Id: catman.perl,v 1.8.2.1 1998/05/01 13:30:14 des Exp $
+# $Id: catman.perl,v 1.8.2.2 1998/08/04 12:04:34 thepish Exp $
 
 
 sub usage {

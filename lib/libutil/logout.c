@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logout.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: logout.c,v 1.2.2.1 1998/02/18 05:30:00 jkh Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

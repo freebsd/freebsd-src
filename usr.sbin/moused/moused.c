@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.4.2.6 1998/03/07 09:05:56 jkh Exp $";
+	"$Id: moused.c,v 1.4.2.7 1998/03/13 11:21:18 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>

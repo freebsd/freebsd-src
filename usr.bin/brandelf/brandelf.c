@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1.2.6 1998/03/08 12:04:57 jkh Exp $
+ *  $Id: brandelf.c,v 1.1.2.7 1998/07/16 23:50:50 jkh Exp $
  */
 
 #include <elf.h>

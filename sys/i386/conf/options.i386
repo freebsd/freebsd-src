@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.18 1998/08/10 09:00:09 yokota Exp $
+#	$Id: options.i386,v 1.26.2.19 1998/09/24 13:41:11 yokota Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

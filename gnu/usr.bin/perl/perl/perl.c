@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.9 $$Date: 1998/03/10 19:43:27 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.7.2.2 $$Date: 1998/03/12 19:27:47 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.9 $$Date: 1998/03/10 19:43:27 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.7.2.2  1998/03/12 19:27:47  guido
+ * MFC: mktemp -> mkstemp
+ *
  * Revision 1.7.2.1  1998/02/15 16:30:09  jkh
  * MFC: security tweak, support for -T and -B flags.
  *

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: targ.c,v 1.5 1996/10/08 04:06:13 steve Exp $
  */
 
 #ifndef lint

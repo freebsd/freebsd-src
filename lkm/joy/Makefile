@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1996/09/22 21:56:49 wosch Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	= joy_mod

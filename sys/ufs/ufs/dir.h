@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $Id: dir.h,v 1.3 1994/08/21 07:16:14 paul Exp $
+ * $Id: dir.h,v 1.4 1995/08/28 09:19:15 julian Exp $
  */
 
 #ifndef _UFS_UFS_DIR_H_

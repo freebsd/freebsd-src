@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.9.2.1 1998/05/13 07:04:46 tg Exp $
+ *  $Id: linux_sysvec.c,v 1.9.2.2 1998/09/23 14:13:01 jkh Exp $
  */
 
 /* XXX we use functions that might not exist. */

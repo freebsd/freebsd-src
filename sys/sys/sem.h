@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.8 1996/06/12 05:11:08 gpalmer Exp $ */
+/* $Id: sem.h,v 1.8.2.1 1998/09/07 21:17:36 steve Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.6 1996/04/13 12:53:52 bde Exp $
+ * $Id: spx_debug.c,v 1.6.2.1 1997/06/28 09:22:53 jhay Exp $
  */
 
 #include <sys/param.h>

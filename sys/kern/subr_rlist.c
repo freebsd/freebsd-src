@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.19.2.1 1998/07/07 05:23:48 gibbs Exp $
+ *	$Id: subr_rlist.c,v 1.19.2.2 1998/08/05 14:10:09 dg Exp $
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nodes.c.pat	8.2 (Berkeley) 5/4/95
- *	$Id: nodes.c.pat,v 1.6 1997/04/28 03:14:04 steve Exp $
+ *	$Id: nodes.c.pat,v 1.3.2.2 1998/11/03 15:57:36 cracauer Exp $
  */
 
 #include <stdlib.h>

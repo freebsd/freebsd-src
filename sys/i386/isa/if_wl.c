@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.8 1997/08/25 22:34:25 bde Exp $ */
+/* $Id: if_wl.c,v 1.8.2.1 1998/08/20 05:52:44 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

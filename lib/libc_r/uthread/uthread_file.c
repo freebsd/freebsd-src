@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_file.c,v 1.6 1998/09/09 16:50:33 dt Exp $
+ * $Id: uthread_file.c,v 1.1.2.1 1998/11/04 08:42:10 tg Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_if.h
  *
- * $Id: ipx_if.h,v 1.5 1995/11/24 12:25:05 bde Exp $
+ * $Id: ipx_if.h,v 1.5.4.1 1997/06/28 09:22:29 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_IF_H_

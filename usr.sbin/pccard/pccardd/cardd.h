@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.5.2.2 1997/11/25 19:41:37 nate Exp $
+ * $Id: cardd.h,v 1.5.2.3 1998/04/18 23:28:49 nate Exp $
  *
  *	Common include file for PCMCIA daemon
  */

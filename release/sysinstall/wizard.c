@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.8.2.1 1997/01/15 04:50:23 jkh Exp $
+ * $Id: wizard.c,v 1.8.2.2 1998/09/08 10:46:53 jkh Exp $
  *
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.23 1998/08/09 15:34:11 brian Exp $
+ *	$Id: log.h,v 1.6.2.7 1998/11/26 07:14:42 jkh Exp $
  */
 
 #define LogMIN		(1)

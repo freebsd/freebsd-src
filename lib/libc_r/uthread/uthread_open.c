@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_open.c,v 1.2.2.1 1997/06/24 00:28:06 julian Exp $
+ * $Id: uthread_open.c,v 1.2.2.2 1998/11/04 08:42:11 tg Exp $
  *
  */
 #include <stdarg.h>

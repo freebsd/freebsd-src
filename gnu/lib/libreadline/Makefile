@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.23 1996/08/30 18:33:31 ache Exp $
+#       $Id: Makefile,v 1.23.2.1 1997/04/11 16:42:04 asami Exp $
 
 SRCDIR= ${.CURDIR}/../../../contrib/libreadline
 .PATH: ${SRCDIR}

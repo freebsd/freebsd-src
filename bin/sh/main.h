@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)main.h	8.2 (Berkeley) 5/4/95
- *	$Id: main.h,v 1.5 1997/02/22 13:58:34 peter Exp $
+ *	$Id: main.h,v 1.3.2.1 1998/11/03 15:57:36 cracauer Exp $
  */
 
 extern int rootpid;	/* pid of main shell */

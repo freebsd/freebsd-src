@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: callout.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: callout.c,v 1.7 1996/01/06 21:09:34 peter Exp $
  */
 
 #include "defs.h"

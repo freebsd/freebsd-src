@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.6.2.1 1998/08/27 16:01:49 cracauer Exp $
+ *	$Id: compat.c,v 1.6.2.2 1998/09/14 04:52:57 jkoshy Exp $
  */
 
 #ifndef lint

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: ufs_vfsops.c,v 1.4 1995/03/10 22:06:39 davidg Exp $
+ * $Id: ufs_vfsops.c,v 1.5 1996/01/05 18:31:56 wollman Exp $
  */
 
 #include "opt_quota.h"

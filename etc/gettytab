@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: gettytab,v 1.12.2.4 1998/09/03 22:14:37 brian Exp $
 #	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
 #
 # Most of the table entries here are just copies of the old getty table,

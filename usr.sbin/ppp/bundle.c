@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.39 1998/10/27 22:53:22 brian Exp $
+ *	$Id: bundle.c,v 1.40 1998/10/29 23:47:10 brian Exp $
  */
 
 #include <sys/param.h>

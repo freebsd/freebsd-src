@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.28.2.2 1997/06/18 03:11:21 asami Exp $
+#	$Id: bsd.kmod.mk,v 1.28.2.3 1997/06/21 15:48:17 jkh Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,

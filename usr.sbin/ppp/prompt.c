@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.11 1998/08/09 15:34:11 brian Exp $
+ *	$Id: prompt.c,v 1.12 1998/08/26 17:39:37 brian Exp $
  */
 
 #include <sys/param.h>

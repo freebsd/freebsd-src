@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/28/93
-# 	$Id: Makefile,v 1.3 1996/05/07 23:19:49 wosch Exp $
+# 	$Id: Makefile,v 1.3.2.1 1997/10/26 23:54:24 jkh Exp $
 
 PROG=	fsinfo
 MAN8=	fsinfo.8

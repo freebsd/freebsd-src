@@ -125,7 +125,6 @@ struct vm_page {
  */
 /* Each of PQ_FREE, PQ_ZERO and PQ_CACHE have PQ_HASH_SIZE entries */
 
-#if 0 /* Page coloring is broken in 2.2.x */
 /* Define one of the following */
 #if defined(PQ_LARGECACHE)
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
@@ -162,13 +161,6 @@ struct vm_page {
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
 #define PQ_L1_SIZE 2	/* Two page L1 cache */
 #endif
-#endif
-
-#define PQ_PRIME1 1
-#define PQ_PRIME2 1
-#define PQ_PRIME3 1
-#define PQ_L2_SIZE 1
-#define PQ_L1_SIZE 1
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
 

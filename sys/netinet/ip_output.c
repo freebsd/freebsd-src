@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *      $Id: ip_output.c,v 1.44.2.11 1998/09/21 08:55:22 luigi Exp $
+ *      $Id: ip_output.c,v 1.44.2.12 1998/11/20 03:09:02 jkoshy Exp $
  */
 
 #define _IP_VHL

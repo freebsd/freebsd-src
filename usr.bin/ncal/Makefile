@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1.2.1 1998/01/12 05:10:59 obrien Exp $
+#	$Id: Makefile,v 1.1.1.1.2.2 1998/01/12 06:21:20 obrien Exp $
 PROG= ncal
 SRCS= ncal.c
 

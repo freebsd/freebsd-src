@@ -42,7 +42,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freebsd.mc	$Revision: 1.3 $')
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.1.4.4 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

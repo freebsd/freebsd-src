@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: complete.c,v 1.4 1997/12/13 20:38:14 pst Exp $	*/
 /*	$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $	*/
 
 /*-
@@ -41,7 +41,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id$");
+__RCSID("$Id: complete.c,v 1.4 1997/12/13 20:38:14 pst Exp $");
 __RCSID_SOURCE("$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $");
 #endif /* not lint */
 

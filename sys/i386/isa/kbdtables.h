@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.32.2.5 1998/06/06 17:46:28 steve Exp $
+ *	$Id: kbdtables.h,v 1.32.2.6 1998/11/18 08:36:02 kato Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */

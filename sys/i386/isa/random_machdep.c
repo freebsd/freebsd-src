@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.13 1996/10/30 22:39:01 asami Exp $
+ * $Id: random_machdep.c,v 1.13.2.1 1998/07/07 05:23:19 gibbs Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 

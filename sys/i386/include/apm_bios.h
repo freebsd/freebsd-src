@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.12.2.1 1997/03/09 16:52:49 kato Exp $
+ *	$Id: apm_bios.h,v 1.12.2.2 1997/11/04 19:02:35 nate Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkubglue.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkubglue.c,v 1.3.2.1 1997/09/16 06:57:11 charnier Exp $";
 #endif /* not lint */
 
 /*

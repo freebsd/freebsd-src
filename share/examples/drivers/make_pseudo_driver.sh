@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id:\$"
+# \$Id: make_pseudo_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../../dev/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id:\$
+ * \$Id: make_pseudo_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $
  */
 
 

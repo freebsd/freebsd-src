@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.22 1996/06/19 16:24:10 wollman Exp $
+ * $Id: if_loop.c,v 1.22.2.1 1998/05/13 11:19:05 danny Exp $
  */
 
 /*

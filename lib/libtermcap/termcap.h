@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: termcap.h,v 1.11 1997/04/13 11:41:59 bde Exp $ */
+/* $Id: termcap.h,v 1.8.2.1 1997/11/21 16:03:28 ache Exp $ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_

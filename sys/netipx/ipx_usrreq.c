@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.7.2.1 1996/11/25 07:18:10 phk Exp $
+ * $Id: ipx_usrreq.c,v 1.7.2.2 1997/06/28 09:22:45 jhay Exp $
  */
 
 #include <sys/param.h>

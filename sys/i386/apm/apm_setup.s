@@ -10,7 +10,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.7 1996/07/10 15:09:48 nate Exp $
+ *	$Id: apm_setup.s,v 1.7.2.1 1997/11/04 19:02:17 nate Exp $
  */
 
 #include "apm.h"

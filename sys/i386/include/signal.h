@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/11/93
- * $Id: signal.h,v 1.4 1994/08/21 04:55:30 paul Exp $
+ * $Id: signal.h,v 1.5 1995/06/28 02:14:13 bde Exp $
  */
 
 #ifndef _MACHINE_SIGNAL_H_

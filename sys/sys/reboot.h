@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.3 (Berkeley) 12/13/94
- * $Id: reboot.h,v 1.14 1996/10/16 00:19:39 julian Exp $
+ * $Id: reboot.h,v 1.14.2.1 1998/03/09 04:48:54 msmith Exp $
  */
 
 #ifndef _SYS_REBOOT_H_

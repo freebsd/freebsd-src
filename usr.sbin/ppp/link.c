@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.5 1998/08/25 17:48:42 brian Exp $
+ *  $Id: link.c,v 1.6 1998/08/26 18:07:56 brian Exp $
  *
  */
 

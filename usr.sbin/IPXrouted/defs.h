@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.3 1996/04/13 15:13:17 jhay Exp $
+ *	$Id: defs.h,v 1.3.2.1 1997/07/06 08:14:15 jhay Exp $
  */
 
 #include <sys/types.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tlocnm_rcsid[] = "$Id: tlocnm.c,v 1.6 1995/06/21 19:24:45 ian Rel $";
+const char _uuconf_tlocnm_rcsid[] = "$Id: tlocnm.c,v 1.3 1995/08/19 21:28:23 ache Exp $";
 #endif
 
 #include <errno.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.24 1996/08/31 16:52:24 bde Exp $
+ * $Id: imgact_gzip.c,v 1.24.2.1 1996/12/22 23:21:21 joerg Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.

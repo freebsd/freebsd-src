@@ -23,7 +23,7 @@
  * This file was copied from tcpdump-2.1.1 and modified.
  * There is an e-mail list for tcpdump: <tcpdump@ee.lbl.gov>
  *
- *	$Id: print-bootp.c,v 1.2 1996/09/22 21:52:58 wosch Exp $
+ *	$Id: print-bootp.c,v 1.2.2.1 1998/02/18 05:55:37 jkh Exp $
  */
 
 #include <stdio.h>

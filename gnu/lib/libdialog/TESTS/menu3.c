@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: menu3.c,v 1.4 1996/04/18 13:21:26 jkh Exp $
+ * $Id: menu3.c,v 1.5 1996/07/02 01:03:56 jkh Exp $
  */
 
 #include <stdio.h>

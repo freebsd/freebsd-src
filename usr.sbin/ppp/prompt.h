@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.3 1998/05/23 22:24:49 brian Exp $
+ *	$Id: prompt.h,v 1.4 1998/06/15 19:06:54 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01

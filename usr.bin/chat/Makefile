@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/10/31 23:28:20 peter Exp $
+#	$Id: Makefile,v 1.2.2.1 1997/09/14 20:39:29 jkh Exp $
 
 PROG=	chat
 SRCS=	chat.c

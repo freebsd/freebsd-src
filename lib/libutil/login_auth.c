@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_auth.c,v 1.7.2.1 1997/07/19 04:51:04 davidn Exp $
+ *	$Id: login_auth.c,v 1.7.2.2 1998/02/18 05:29:53 jkh Exp $
  */
 
 #include <sys/types.h>

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.3.2.2 1997/09/15 08:07:04 jkh Exp $
+ *	$Id: fetch.h,v 1.3.2.3 1998/09/23 12:23:29 jkh Exp $
  */
 
 #ifndef fetch_h

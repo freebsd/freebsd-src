@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/09/30 07:07:59 jb Exp $
+#	$Id: Makefile,v 1.2.2.1 1998/11/04 08:42:08 tg Exp $
 #
 # Tests for libc_r functionality.
 #

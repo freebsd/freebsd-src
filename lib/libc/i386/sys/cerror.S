@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.9 1998/04/30 09:32:48 jb Exp $
+ *	$Id: cerror.S,v 1.6.2.1 1998/11/04 08:42:01 tg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: cerror.S,v 1.9 1998/04/30 09:32:48 jb Exp $"
+	.asciz "$Id: cerror.S,v 1.6.2.1 1998/11/04 08:42:01 tg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

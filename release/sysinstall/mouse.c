@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mouse.c,v 1.1.2.2 1998/03/23 05:58:10 jkh Exp $
+ * $Id: mouse.c,v 1.1.2.3 1998/03/23 06:12:59 yokota Exp $
  */
 
 #include "sysinstall.h"

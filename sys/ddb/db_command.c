@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.20 1996/09/14 09:13:13 bde Exp $
+ *	$Id: db_command.c,v 1.20.2.1 1997/02/13 07:10:19 bde Exp $
  */
 
 /*

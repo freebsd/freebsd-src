@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/07/16 12:24:19 julian Exp $
+#	$Id: Makefile,v 1.1 1997/07/22 02:50:58 julian Exp $
 #
 PROG=dumpnlist
 NOMAN=yes

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
 
 PROG=	revnetgroup
 SRCS=	revnetgroup.c hash.c parse_netgroup.c

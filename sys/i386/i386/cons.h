@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.12 1995/12/08 11:13:23 julian Exp $
+ *	$Id: cons.h,v 1.13 1995/12/09 20:39:46 phk Exp $
  */
 
 #ifndef _MACHINE_CONS_H_

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.9.2.1 1998/10/28 12:00:33 jkh Exp $
 
 PROG= pkg_info
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.12.2.4 1998/01/14 08:10:49 kato Exp $
+ *	$Id: wdreg.h,v 1.12.2.5 1998/08/06 18:15:24 sos Exp $
  */
 
 /*

@@ -164,8 +164,12 @@ installUpgrade(dialogMenuItem *self)
 	return installUpgradeNonInteractive(self);
 
     variable_set2(SYSTEM_STATE, "upgrade");
+    systemDisplayHelp("UPGRADE");
 
     dialog_clear_norefresh();
+    if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
+		 "risk it all and proceed with this upgrade?") != 0)
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (!Dists) {
 	msgConfirm("First, you must select some distribution components.  The upgrade procedure\n"
@@ -188,9 +192,6 @@ installUpgrade(dialogMenuItem *self)
     /* Still?!  OK!  They must know what they're doing.. */
     if (!(Dists & DIST_BIN))
 	extractingBin = FALSE;
-
-    if (msgYesNo("Last chance, are you sure you want to proceed with this upgrade?") != 0)
-	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (RunningAsInit) {
 	Device **devs;

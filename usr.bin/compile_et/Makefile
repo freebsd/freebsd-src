@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1995/02/09 00:24:00 jkh Exp $
+#	$Id: Makefile,v 1.5.6.1 1998/09/03 10:10:05 obrien Exp $
 
 PROG=	compile_et
 SRCS=	compile_et.c error_table.y

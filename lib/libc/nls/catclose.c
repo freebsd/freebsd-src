@@ -1,4 +1,4 @@
-/*	$Id: catclose.c,v 1.3 1997/02/22 15:00:45 peter Exp $ */
+/*	$Id: catclose.c,v 1.1.6.1 1998/04/30 16:48:41 ache Exp $ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

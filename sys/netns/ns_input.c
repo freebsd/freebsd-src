@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_input.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_input.c,v 1.5 1995/05/30 08:12:27 rgrimes Exp $
+ * $Id: ns_input.c,v 1.8 1996/10/17 18:41:59 jkh Exp $
  */
 
 #include <sys/param.h>

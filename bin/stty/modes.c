@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modes.c,v 1.3 1995/04/29 15:17:17 bde Exp $
+ *	$Id: modes.c,v 1.3.6.1 1997/08/25 09:24:06 jkh Exp $
  */
 
 #ifndef lint

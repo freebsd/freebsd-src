@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7.6.2 1996/11/28 22:02:33 phk Exp $
+#	$Id: Makefile,v 1.7.6.3 1998/01/02 13:35:52 steve Exp $
 
 SCRIPTS= adduser.perl rmuser.perl
 MAN8=	 adduser.8    rmuser.8

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sync.c,v 1.4 1994/09/24 02:59:09 davidg Exp $
+ *	$Id: sync.c,v 1.4.8.1 1997/08/25 09:25:27 jkh Exp $
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpio.c,v 1.4.2.2 1997/09/14 13:07:17 jkh Exp $
+ *	$Id: cpio.c,v 1.4.2.3 1998/02/15 11:18:16 jkh Exp $
  */
 
 #ifndef lint

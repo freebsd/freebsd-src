@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.15.2.5 1998/10/30 08:29:07 asami Exp $
+#	$Id: bsd.port.subdir.mk,v 1.15.2.6 1998/11/08 10:30:55 asami Exp $
 #
 # The include file <bsd.port.subdir.mk> contains the default targets
 # for building ports subdirectories. 

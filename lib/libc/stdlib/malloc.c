@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.18.2.5 1998/04/30 07:53:36 tg Exp $
+ * $Id: malloc.c,v 1.18.2.6 1998/11/04 08:42:04 tg Exp $
  *
  */
 

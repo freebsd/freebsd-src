@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.27.2.1 1997/03/25 04:54:22 dyson Exp $
+ * $Id: vm_extern.h,v 1.27.2.2 1998/09/22 01:30:53 jdp Exp $
  */
 
 #ifndef _VM_EXTERN_H_

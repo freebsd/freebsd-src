@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.10.4.1 1998/02/06 14:34:03 kato Exp $
+ * $Id: umap_vfsops.c,v 1.10.4.2 1998/02/07 01:38:04 kato Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
 
 /* dpt_ctlinfo.c:  Dunp a DPT HBA Information Block */
 
-#ident "$Id: dpt_ctlinfo.c,v 1.1 1998/01/22 23:32:27 ShimonR Exp ShimonR $"
+#ident "$Id: dpt_sysinfo.c,v 1.1 1998/01/26 06:20:48 julian Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

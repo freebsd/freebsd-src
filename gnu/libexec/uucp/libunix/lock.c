@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char lock_rcsid[] = "$Id: lock.c,v 1.20 1995/06/21 19:19:38 ian Rel $";
+const char lock_rcsid[] = "$Id: lock.c,v 1.4 1995/08/19 21:25:36 ache Exp $";
 #endif
 
 #include "uudefs.h"

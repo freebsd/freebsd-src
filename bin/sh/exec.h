@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 6/8/95
- *	$Id: exec.h,v 1.7 1997/04/28 03:08:38 steve Exp $
+ *	$Id: exec.h,v 1.3.2.2 1998/11/03 15:57:35 cracauer Exp $
  */
 
 /* values of cmdtype */

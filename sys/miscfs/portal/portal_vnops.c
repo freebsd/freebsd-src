@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.13 1996/06/12 05:09:59 gpalmer Exp $
+ * $Id: portal_vnops.c,v 1.14 1996/09/03 14:23:04 bde Exp $
  */
 
 /*

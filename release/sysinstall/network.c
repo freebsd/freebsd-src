@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.16.2.15 1998/11/15 09:07:38 jkh Exp $
+ * $Id: network.c,v 1.16.2.16 1998/11/26 12:42:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

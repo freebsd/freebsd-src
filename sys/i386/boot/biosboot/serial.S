@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.3.8.1 1996/11/06 10:05:10 phk Exp $
+ *	$Id: serial.S,v 1.3.8.2 1997/07/01 05:55:53 pst Exp $
  */
 
 /*

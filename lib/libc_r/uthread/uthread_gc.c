@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.2 1998/09/30 19:17:51 dt Exp $
+ *	$Id: uthread_gc.c,v 1.2.2.1 1998/11/04 08:42:10 tg Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *

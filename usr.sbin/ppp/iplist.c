@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.c,v 1.7 1998/06/27 23:48:47 brian Exp $
+ *	$Id: iplist.c,v 1.4.2.2 1998/11/26 07:14:41 jkh Exp $
  */
 
 #include <sys/types.h>

@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.14 1998/01/21 15:10:14 ache Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.8.2.3 1998/01/21 19:01:54 ache Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.8.2.3  1998/01/21 19:01:54  ache
+ * MFC: -I, --index-first option to emulate FreeBSD hack
+ *
  * Revision 1.14  1998/01/21 15:10:14  ache
  * Add -I or --index-first option to take Index: precedence over context diff,
  * as it was in hacked FreeBSD version
@@ -36,6 +39,9 @@
  *
  * Revision 1.8  1996/04/12 11:37:32  markm
  * Attempt to break a $Log: pch.c,v $
+ * Attempt to break a Revision 1.8.2.3  1998/01/21 19:01:54  ache
+ * Attempt to break a MFC: -I, --index-first option to emulate FreeBSD hack
+ * Attempt to break a
  * Attempt to break a Revision 1.14  1998/01/21 15:10:14  ache
  * Attempt to break a Add -I or --index-first option to take Index: precedence over context diff,
  * Attempt to break a as it was in hacked FreeBSD version

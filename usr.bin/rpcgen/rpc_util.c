@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)rpc_util.c 1.11 89/02/22 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rpc_util.c,v 1.4.2.1 1997/08/07 06:38:42 charnier Exp $";
 #endif
 
 /*

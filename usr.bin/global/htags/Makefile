@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/12/15 23:34:55 cwt Exp $
+# $Id: Makefile,v 1.1.1.1.2.1 1998/02/05 04:53:29 cwt Exp $
 
 GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
 .PATH:		${GLOBAL_DIR}/htags

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.6 1997/05/02 11:26:03 gj Exp $
+#	$Id: Makefile,v 1.13.2.7 1997/10/26 22:47:44 jkh Exp $
 
 PROG = gdb
 

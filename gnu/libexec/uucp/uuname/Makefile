@@ -1,5 +1,5 @@
 # Makefile for uuname
-# $Id: Makefile,v 1.1 1993/08/05 18:27:42 conklin Exp $
+# $Id: Makefile,v 1.1.10.1 1998/03/03 06:12:56 jkh Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

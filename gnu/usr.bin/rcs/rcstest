@@ -15,7 +15,7 @@
 
 # The current directory and ./RCS must be readable, writable, and searchable.
 
-#	$Id: rcstest,v 5.14 1995/06/16 06:19:24 eggert Exp $
+#	$Id: rcstest,v 1.2 1995/10/28 21:49:04 peter Exp $
 
 
 #    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

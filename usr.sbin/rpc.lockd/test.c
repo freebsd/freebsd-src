@@ -4,7 +4,7 @@ static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";
 static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: test.c,v 1.3 1997/10/13 11:11:02 charnier Exp $";
+	"$Id: test.c,v 1.2.2.1 1997/11/05 07:33:37 charnier Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>

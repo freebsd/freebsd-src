@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1997/03/09 09:41:44 bde Exp $
+#	$Id: Makefile,v 1.9.2.3 1998/01/27 16:49:14 wollman Exp $
 
 CLEANFILES+=	yearistype
 
