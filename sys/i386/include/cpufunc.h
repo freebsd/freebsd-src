@@ -71,6 +71,14 @@ tlbflush()
 	__asm __volatile("movl %%cr3, %%eax; movl %%eax, %%cr3" : : : "ax");
 }
 
+static inline u_long
+rcr2()
+{
+	u_long data;
+	__asm __volatile("movl %%cr2,%%eax" : "=a" (data));
+	return data;
+}
+
 #else /* not __GNUC__ */
 extern	void insque __P((void *, void *));
 extern	void remque __P((void *));
@@ -87,7 +95,6 @@ void	load_cr0	__P((u_int cr0));
 u_int	rcr0	__P((void));
 void load_cr3(u_long);
 u_long rcr3(void);
-u_long rcr2(void);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);

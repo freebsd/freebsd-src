@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.6 1994/04/02 07:00:29 davidg Exp $
+ *	$Id: support.s,v 1.10 1994/06/06 14:23:49 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -616,15 +616,22 @@ ENTRY(copyin)
 	movl	16(%esp),%edi			/* caddr_t to */
 	movl	20(%esp),%ecx			/* size_t  len */
 
+	/*
+	 * make sure address is valid
+	 */
+	movl	%esi,%edx
+	addl	%ecx,%edx
+	jc	copyin_fault
+	cmpl	$VM_MAXUSER_ADDRESS,%edx
+	ja	copyin_fault
+
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
-	gs
 	rep
 	movsl
 	movb	%al,%cl
 	andb	$3,%cl				/* copy remaining bytes */
-	gs
 	rep
 	movsb
 
@@ -651,8 +658,11 @@ ALTENTRY(fuiword)
 ENTRY(fuword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-	gs
+	movl	4(%esp),%edx			/* from */
+
+	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
+	ja	fusufault
+
 	movl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
@@ -672,7 +682,10 @@ ENTRY(fusword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-	gs
+
+	cmpl	$VM_MAXUSER_ADDRESS-2,%edx
+	ja	fusufault
+
 	movzwl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
@@ -682,7 +695,10 @@ ENTRY(fubyte)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-	gs
+
+	cmpl	$VM_MAXUSER_ADDRESS-1,%eax
+	ja	fusufault
+
 	movzbl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
@@ -732,8 +748,10 @@ ENTRY(suword)
 #endif
 
 2:	
+	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
+	ja	fusufault
+
 	movl	8(%esp),%eax
-	gs
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
@@ -772,8 +790,10 @@ ENTRY(susword)
 #endif
 
 2:
+	cmpl	$VM_MAXUSER_ADDRESS-2,%edx	/* verify address validity */
+	ja	fusufault
+
 	movw	8(%esp),%ax
-	gs
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
@@ -812,8 +832,10 @@ ENTRY(subyte)
 #endif
 
 2:
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edx	/* verify address validity */
+	ja	fusufault
+
 	movb	8(%esp),%al
-	gs
 	movb	%al,(%edx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
@@ -849,8 +871,8 @@ ENTRY(copyoutstr)
 	 * we look at a page at a time and the end address is on a page
 	 * boundary.
 	 */
-	cmpl	$VM_MAXUSER_ADDRESS,%edi
-	jae	cpystrflt
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
+	ja	cpystrflt
 
 	movl	%edi,%eax
 	shrl	$IDXSHIFT,%eax
@@ -908,13 +930,11 @@ ENTRY(copyoutstr)
 	decl	%edx
 	jz	2f
 	/*
-	 * gs override doesn't work for stosb.  Use the same explicit check
-	 * as in copyout().  It's much slower now because it is per-char.
-	 * XXX - however, it would be faster to rewrite this function to use
+	 * XXX - would be faster to rewrite this function to use
 	 * strlen() and copyout().
 	 */
-	cmpl	$VM_MAXUSER_ADDRESS,%edi
-	jae	cpystrflt
+	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
+	ja	cpystrflt
 
 	lodsb
 	stosb
@@ -932,6 +952,24 @@ ENTRY(copyoutstr)
 
 #endif /* I486_CPU || I586_CPU */
 
+cpystrflt:
+	movl	$EFAULT,%eax
+cpystrflt_x:
+	/* set *lencopied and return %eax */
+	movl	_curpcb,%ecx
+	movl	$0,PCB_ONFAULT(%ecx)
+	movl	20(%esp),%ecx
+	subl	%edx,%ecx
+	movl	24(%esp),%edx
+	orl	%edx,%edx
+	jz	1f
+	movl	%ecx,(%edx)
+1:
+	popl	%edi
+	popl	%esi
+	ret
+
+
 /*
  * copyinstr(from, to, maxlen, int *lencopied)
  *	copy a string from from to to, stop when a 0 character is reached.
@@ -943,16 +981,18 @@ ENTRY(copyinstr)
 	pushl	%esi
 	pushl	%edi
 	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)
+	movl	$copyinstr_fault,PCB_ONFAULT(%ecx)
 
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	pushl	%gs
+	movl	__udatasel,%eax
+	movl	%ax,%gs
 	incl	%edx
-
 1:
 	decl	%edx
-	jz	4f
+	jz	2f
 	gs
 	lodsb
 	stosb
@@ -962,26 +1002,26 @@ ENTRY(copyinstr)
 	/* Success -- 0 byte reached */
 	decl	%edx
 	xorl	%eax,%eax
-	jmp	6f
-4:
+	jmp	3f
+2:
 	/* edx is zero -- return ENAMETOOLONG */
 	movl	$ENAMETOOLONG,%eax
-	jmp	6f
+	jmp	3f
 
-cpystrflt:
+copyinstr_fault:
 	movl	$EFAULT,%eax
-cpystrflt_x:
-6:
+3:
 	/* set *lencopied and return %eax */
 	movl	_curpcb,%ecx
 	movl	$0,PCB_ONFAULT(%ecx)
-	movl	20(%esp),%ecx
+	movl	24(%esp),%ecx
 	subl	%edx,%ecx
-	movl	24(%esp),%edx
+	movl	28(%esp),%edx
 	orl	%edx,%edx
-	jz	7f
+	jz	4f
 	movl	%ecx,(%edx)
-7:
+4:
+	popl	%gs
 	popl	%edi
 	popl	%esi
 	ret
@@ -1097,15 +1137,6 @@ ENTRY(ssdtosd)
 	popl	%ebx
 	ret
 
-#if 0
-/* tlbflush() */
-ENTRY(tlbflush)
-	movl	%cr3,%eax
-	orl	$I386_CR3PAT,%eax
-	movl	%eax,%cr3
-	ret
-#endif
-
 /* load_cr0(cr0) */
 ENTRY(load_cr0)
 	movl	4(%esp),%eax
@@ -1115,11 +1146,6 @@ ENTRY(load_cr0)
 /* rcr0() */
 ENTRY(rcr0)
 	movl	%cr0,%eax
-	ret
-
-/* rcr2() */
-ENTRY(rcr2)
-	movl	%cr2,%eax
 	ret
 
 /* rcr3() */
