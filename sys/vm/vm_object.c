@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.104 1998/01/06 05:26:04 dyson Exp $
+ * $Id: vm_object.c,v 1.105 1998/01/07 03:12:19 dyson Exp $
  */
 
 /*
@@ -332,12 +332,14 @@ vm_object_deallocate(object)
 					if (robject->paging_in_progress) {
 						robject->flags |= OBJ_PIPWNT;
 						tsleep(robject, PVM, "objde1", 0);
+						splx(s);
 						goto retry;
 					}
 
 					if (object->paging_in_progress) {
 						object->flags |= OBJ_PIPWNT;
 						tsleep(object, PVM, "objde2", 0);
+						splx(s);
 						goto retry;
 					}
 					splx(s);

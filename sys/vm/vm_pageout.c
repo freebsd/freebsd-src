@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.105 1997/12/29 00:25:03 dyson Exp $
+ * $Id: vm_pageout.c,v 1.106 1998/01/06 05:26:11 dyson Exp $
  */
 
 /*
@@ -382,10 +382,10 @@ vm_pageout_flush(mc, count, sync)
 
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
-			++anyok;
+			anyok++;
 			break;
 		case VM_PAGER_PEND:
-			++anyok;
+			anyok++;
 			break;
 		case VM_PAGER_BAD:
 			/*
@@ -592,6 +592,23 @@ vm_pageout_map_deactivate_pages(map, desired)
 }
 #endif
 
+void
+vm_pageout_page_free(vm_page_t m) {
+	vm_object_t objref = NULL;
+
+	m->flags |= PG_BUSY;
+	if (m->object->type == OBJT_VNODE) {
+		objref = m->object;
+		vm_object_reference(objref);
+	}
+	vm_page_protect(m, VM_PROT_NONE);
+	PAGE_WAKEUP(m);
+	vm_page_free(m);
+	if (objref) {
+		vm_object_vndeallocate(objref);
+	}
+}
+
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
@@ -716,17 +733,16 @@ rescan0:
 		 * Invalid pages can be easily freed
 		 */
 		if (m->valid == 0) {
-			vm_page_protect(m, VM_PROT_NONE);
-			vm_page_free(m);
+			vm_pageout_page_free(m);
 			cnt.v_dfree++;
-			++pages_freed;
+			pages_freed++;
 
 		/*
 		 * Clean pages can be placed onto the cache queue.
 		 */
 		} else if (m->dirty == 0) {
 			vm_page_cache(m);
-			++pages_freed;
+			pages_freed++;
 
 		/*
 		 * Dirty pages need to be paged out.  Note that we clean
@@ -774,7 +790,7 @@ rescan0:
 						splx(s);
 					}
 					if (object->flags & OBJ_MIGHTBEDIRTY)
-						++vnodes_skipped;
+						vnodes_skipped++;
 					continue;
 				}
 
@@ -784,7 +800,7 @@ rescan0:
 				 */
 				if (m->queue != PQ_INACTIVE) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
-						++vnodes_skipped;
+						vnodes_skipped++;
 					vput(vp);
 					continue;
 				}
@@ -808,7 +824,7 @@ rescan0:
 					TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 					splx(s);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
-						++vnodes_skipped;
+						vnodes_skipped++;
 					vput(vp);
 					continue;
 				}
@@ -922,7 +938,7 @@ rescan0:
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 			if (vm_pageout_algorithm_lru ||
 				(m->object->ref_count == 0) || (m->act_count == 0)) {
-				--page_shortage;
+				page_shortage--;
 				if (m->object->ref_count == 0) {
 					vm_page_protect(m, VM_PROT_NONE);
 					if (m->dirty == 0)
@@ -953,7 +969,7 @@ rescan0:
 		if (!m)
 			break;
 		cache_rover = (cache_rover + PQ_PRIME2) & PQ_L2_MASK;
-		vm_page_free(m);
+		vm_pageout_page_free(m);
 		cnt.v_dfree++;
 	}
 	splx(s);

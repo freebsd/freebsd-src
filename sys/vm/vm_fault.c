@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.72 1997/12/19 09:03:10 dyson Exp $
+ * $Id: vm_fault.c,v 1.73 1998/01/06 05:25:54 dyson Exp $
  */
 
 /*
@@ -523,8 +523,10 @@ readrest:
 		}
 	}
 
+#if defined(DIAGNOSTIC)
 	if ((m->flags & PG_BUSY) == 0)
 		panic("vm_fault: not busy after main loop");
+#endif
 
 	/*
 	 * PAGE HAS BEEN FOUND. [Loop invariant still holds -- the object lock
