@@ -1537,7 +1537,7 @@ static int ti_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->ti_mtx, "ti", MTX_DEF);
+	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_DEF);
 	TI_LOCK(sc);
 
 	sc->ti_unit = unit;

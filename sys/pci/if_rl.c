@@ -887,7 +887,7 @@ static int rl_attach(dev)
 
 	callout_handle_init(&sc->rl_stat_ch);
 
-	mtx_init(&sc->rl_mtx, "rl", MTX_DEF);
+	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_DEF);
 	RL_LOCK(sc);
 
 	/* Reset the adapter. */

@@ -398,7 +398,8 @@ static int pcn_probe(dev)
 			}
 			sc->pcn_btag = rman_get_bustag(sc->pcn_res);
 			sc->pcn_bhandle = rman_get_bushandle(sc->pcn_res);
-			mtx_init(&sc->pcn_mtx, "pcn", MTX_DEF);
+			mtx_init(&sc->pcn_mtx,
+			    device_get_nameunit(dev), MTX_DEF);
 			PCN_LOCK(sc);
 			pcn_reset(sc);
 			chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
@@ -534,7 +535,7 @@ static int pcn_attach(dev)
 	}
 
 	/* Initialize our mutex. */
-	mtx_init(&sc->pcn_mtx, "pcn", MTX_DEF);
+	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_DEF);
 	PCN_LOCK(sc);
 
 	/* Reset the adapter. */
