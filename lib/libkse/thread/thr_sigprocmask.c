@@ -44,5 +44,8 @@ __weak_reference(_sigprocmask, sigprocmask);
 int
 _sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	return (pthread_sigmask(how, set, oset));
+	if (_kse_isthreaded() != 0)
+		return (pthread_sigmask(how, set, oset));
+	else
+		return (__sys_sigprocmask(how, set, oset));
 }
