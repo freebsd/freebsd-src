@@ -330,6 +330,7 @@ extern int slk_touch(void);
 #define setsyx(y,x)		(stdscr->_cury = y, stdscr->_curx = x)
 
 #define wbkgdset(win,ch)        ((win)->_bkgd = ch)
+#define getbkgd(win)            ((win)->_bkgd)
 
 /* It seems older SYSV curses define these */
 #define getattrs(win)		(win->_attrs)
