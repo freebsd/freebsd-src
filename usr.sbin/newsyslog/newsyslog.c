@@ -58,26 +58,24 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-#define kbytes(size)  (((size) + 1023) >> 10)
-
-#ifdef _IBMR2
-/* Calculates (db * DEV_BSIZE) */
-#define dbtob(db)  ((unsigned)(db) << UBSHIFT)
-#endif
-
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
  */
 #define CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
 #define CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
-#define	CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
+#define CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
 				/*    before starting the next step. */
 #define CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
 				/*    messages to logfile(s) when rotating. */
-#define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
+#define CE_NOSIGNAL	0x0010	/* There is no process to signal when */
 				/*    trimming this file. */
-#define	CE_TRIMAT	0x0020	/* trim file at a specific time. */
-#define	CE_GLOB		0x0040	/* name of the log is file name pattern. */
+#define CE_TRIMAT	0x0020	/* trim file at a specific time. */
+#define CE_GLOB		0x0040	/* name of the log is file name pattern. */
+
+#define MIN_PID         5	/* Don't touch pids lower than this */
+#define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
+
+#define kbytes(size)  (((size) + 1023) >> 10)
 
 struct conf_entry {
 	char *log;		/* Name of the log */
@@ -114,8 +112,6 @@ char *archdirname;		/* Directory path to old logfiles archive */
 const char *conf;		/* Configuration file to use */
 time_t timenow;
 
-#define MIN_PID         5
-#define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
 char hostname[MAXHOSTNAMELEN];	/* hostname */
 char daytime[16];		/* timenow in human readable form */
 
@@ -129,7 +125,7 @@ static void do_entry(struct conf_entry * ent);
 static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
-static void PRS(int argc, char **argv);
+static void parse_args(int argc, char **argv);
 static void usage(void);
 static void dotrim(const struct conf_entry *ent, char *log,
 		int numdays, int flags);
@@ -162,7 +158,7 @@ main(int argc, char **argv)
 	glob_t pglob;
 	int i;
 
-	PRS(argc, argv);
+	parse_args(argc, argv);
 	argc -= optind;
 	argv += optind;
 
@@ -368,26 +364,25 @@ do_entry(struct conf_entry * ent)
 }
 
 static void
-PRS(int argc, char **argv)
+parse_args(int argc, char **argv)
 {
-	int c;
+	int ch;
 	char *p;
 
-	timenow = time((time_t *) 0);
+	timenow = time(NULL);
 	(void)strncpy(daytime, ctime(&timenow) + 4, 15);
 	daytime[15] = '\0';
 
 	/* Let's get our hostname */
-	(void) gethostname(hostname, sizeof(hostname));
+	(void)gethostname(hostname, sizeof(hostname));
 
 	/* Truncate domain */
-	if ((p = strchr(hostname, '.'))) {
+	if ((p = strchr(hostname, '.')) != NULL)
 		*p = '\0';
-	}
 
 	/* Parse command line options. */
-	while ((c = getopt(argc, argv, "a:f:nrsvFR:")) != -1)
-		switch (c) {
+	while ((ch = getopt(argc, argv, "a:f:nrsvFR:")) != -1)
+		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
@@ -414,6 +409,7 @@ PRS(int argc, char **argv)
 			rotatereq++;
 			requestor = strdup(optarg);
 			break;
+		case 'm':	/* Used by OpenBSD for "monitor mode" */
 		default:
 			usage();
 			/* NOTREACHED */
@@ -608,7 +604,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
 	struct conf_entry *working, *worklist;
-	struct passwd *pass;
+	struct passwd *pwd;
 	struct group *grp;
 	int eol;
 
@@ -674,11 +670,11 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			*group++ = '\0';
 			if (*q) {
 				if (!(isnumber(*q))) {
-					if ((pass = getpwnam(q)) == NULL)
+					if ((pwd = getpwnam(q)) == NULL)
 						errx(1,
 				     "error in config file; unknown user:\n%s",
 						    errline);
-					working->uid = pass->pw_uid;
+					working->uid = pwd->pw_uid;
 				} else
 					working->uid = atoi(q);
 			} else
@@ -783,7 +779,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			case 'b':
 				working->flags |= CE_BINARY;
 				break;
-			case 'c':
+			case 'c':	/* Used by NetBSD  for "CE_CREATE" */
 				/*
 				 * netbsd uses 'c' for "create".  We will
 				 * temporarily accept it for 'g', because
@@ -810,6 +806,9 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				break;
 			case '-':
 				break;
+			case 'f':	/* Used by OpenBSD for "CE_FOLLOW" */
+			case 'm':	/* Used by OpenBSD for "CE_MONITOR" */
+			case 'p':	/* Used by NetBSD  for "CE_PLAIN0" */
 			default:
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
@@ -1042,8 +1041,9 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 		}
 	}
 
+	/* Now move the new log file into place */
 	if (noaction)
-		printf("Start new log...");
+		printf("Start new log...\n");
 	else {
 		strlcpy(tfile, log, sizeof(tfile));
 		strlcat(tfile, ".XXXXXX", sizeof(tfile));
@@ -1232,7 +1232,7 @@ age_old_log(char *file)
 	if (stat(strcat(tmp, ".0"), &sb) < 0)
 		if (stat(strcat(tmp, COMPRESS_POSTFIX), &sb) < 0)
 			return (-1);
-	return ((int) (timenow - sb.st_mtime + 1800) / 3600);
+	return ((int)(timenow - sb.st_mtime + 1800) / 3600);
 }
 
 static pid_t
