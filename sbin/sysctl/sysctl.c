@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.8 1995/11/17 16:28:42 phk Exp $";
+	"$Id: sysctl.c,v 1.9 1995/12/21 12:39:25 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -137,6 +137,9 @@ parse(char *string)
 			cp++;
 		newval = cp;
 		newsize = strlen(cp);
+	} else {
+		if (wflag)
+			usage();
 	}
 	len = name2oid(bufp, mib);
 
