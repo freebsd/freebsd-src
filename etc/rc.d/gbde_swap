@@ -26,11 +26,8 @@ gbde_swap_attach()
 		esac
 		passphrase=`dd if=/dev/random count=1 2>/dev/null | md5 -q`
 		device="${device%.bde}"
-		lockfile="/var/run/${device##*/}.lock"
-		gbde init "${device}" -L "${lockfile}" -P "${passphrase}" ||
-			return 1
-		gbde attach "${device}" -l "${lockfile}" -p "${passphrase}" ||
-			return 1
+		gbde init "${device}" -P "${passphrase}" || return 1
+		gbde attach "${device}" -p "${passphrase}" || return 1
 	done
 }
 
