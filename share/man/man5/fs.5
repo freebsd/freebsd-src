@@ -40,8 +40,8 @@
 .Nd format of file system volume
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
-.Fd #include <ufs/fs.h>
-.Fd #include <ufs/inode.h>
+.Fd #include <ufs/ffs/fs.h>
+.Fd #include <ufs/ufs/inode.h>
 .Sh DESCRIPTION
 The files
 .Aq Pa fs.h
@@ -69,7 +69,7 @@ that is of size
 .Dv SBSIZE .
 The following structure described the super-block and is
 from the file
-.Aq Pa ufs/fs.h :
+.Aq Pa ufs/ffs/fs.h :
 .Bd -literal
 #define	FS_MAGIC 0x011954
 struct fs {
