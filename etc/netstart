@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.14 1994/09/29 17:27:45 pst Exp $
+#	$Id: netstart,v 1.15 1994/10/06 20:52:00 pst Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -20,8 +20,10 @@ name_server=NO
 # my-name is my symbolic name
 # my-netmask is specified in /etc/networks
 #
-hostname=`cat /etc/myname`
-hostname $hostname
+if [ -z "`hostname -s`" ] ; then
+	hostname=`cat /etc/myname`
+	hostname $hostname
+fi
 
 for i in /etc/hostname.*
 do
