@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.43 1997/08/19 17:05:26 peter Exp $ */
+/* $Id: if_ppp.c,v 1.44 1997/08/22 11:34:05 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -79,7 +79,8 @@
 #include "opt_ppp.h"
 
 #define VJC
-#define PPP_COMPRESS	/* XXX option to cut size? */
+#define PPP_COMPRESS
+#define PPP_FILTER
 
 #include <sys/param.h>
 #include <sys/systm.h>
