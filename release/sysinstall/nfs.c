@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.11.2.3 1997/01/19 09:59:36 jkh Exp $
+ * $Id: nfs.c,v 1.11.2.4 1997/01/22 00:28:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,7 +46,7 @@ Boolean NFSMounted;
 Boolean
 mediaInitNFS(Device *dev)
 {
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
     Device *netDevice = (Device *)dev->private;
 
     if (NFSMounted)
@@ -58,7 +58,7 @@ mediaInitNFS(Device *dev)
     if (Mkdir(mountpoint))
 	return FALSE;
 
-    msgNotify("Mounting %s over NFS.", dev->name);
+    msgNotify("Mounting %s over NFS on %s", dev->name, mountpoint);
     if (vsystem("mount_nfs %s %s %s %s",
 		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name, mountpoint)) {
@@ -96,7 +96,7 @@ void
 mediaShutdownNFS(Device *dev)
 {
     /* Device *netdev = (Device *)dev->private; */
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (!NFSMounted)
 	return;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.23 1997/01/20 16:15:28 jkh Exp $
+ * $Id: install.c,v 1.134.2.24 1997/01/22 00:28:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -227,11 +227,9 @@ installInitial(void)
     }
 
     if (chroot("/mnt") == -1) {
-	msgConfirm("Unable to chroot to /mnt - this is bad!");
+	msgConfirm("Unable to chroot to %s - this is bad!", "/mnt");
 	return DITEM_FAILURE;
     }
-    else
-	Chrooted = TRUE;
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
@@ -638,6 +636,7 @@ int
 installCommit(dialogMenuItem *self)
 {
     int i;
+    char *str;
     Boolean need_bin;
 
     if (!Dists) {
@@ -645,21 +644,14 @@ installCommit(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-media:
     if (!mediaDevice) {
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    if (!mediaDevice->init(mediaDevice)) {
-	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
-		      "adjust your media configuration and try again?")) {
-	    mediaDevice = NULL;
-	    goto media;
-	}
-	else
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
+    str = variable_get(SYSTEM_STATE);
+    if (isDebug())
+	msgDebug("installCommit: System state is `%s'\n", str);
 
     if (RunningAsInit) {
 	/* Do things we wouldn't do to a multi-user system */
@@ -667,6 +659,19 @@ media:
 	    return i;
 	if (DITEM_STATUS((i = configFstab())) == DITEM_FAILURE)
 	    return i;
+    }
+
+try_media:
+    if (!mediaDevice->init(mediaDevice)) {
+	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
+		      "adjust your media configuration and try again?")) {
+	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+		return DITEM_FAILURE | DITEM_RESTORE;
+	    else
+		goto try_media;
+	}
+	else
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     need_bin = Dists & DIST_BIN;

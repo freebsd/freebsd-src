@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.26.2.4 1997/01/15 04:50:02 jkh Exp $
+ * $Id: cdrom.c,v 1.26.2.5 1997/01/22 00:28:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,7 +60,7 @@ mediaInitCDROM(Device *dev)
     Attribs *cd_attr;
     char *cp;
     Boolean readInfo = TRUE;
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (cdromMounted)
 	return TRUE;
@@ -148,7 +148,7 @@ mediaGetCDROM(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownCDROM(Device *dev)
 {
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (!cdromMounted)
 	return;

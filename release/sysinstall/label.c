@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.1 1996/12/09 09:29:01 jkh Exp $
+ * $Id: label.c,v 1.63.2.2 1997/01/15 04:50:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -460,7 +460,7 @@ static void
 print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount pt.");
     if (!RunningAsInit)
 	mvprintw(18, 47, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");

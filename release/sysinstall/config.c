@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.16 1997/01/19 09:59:23 jkh Exp $
+ * $Id: config.c,v 1.51.2.17 1997/01/20 16:15:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -231,11 +231,13 @@ configFstab(void)
 
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
+    fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump?\tfsck pass#\n");
+    fprintf(fstab, "#\t\t\t\t\t\t\t\t\t(0=no) (0=no fsck)\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t%s\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc");
-    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
+    fprintf(fstab, "proc\t\t/proc\tprocfs\t\trw\t0\t0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -247,7 +249,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro,noauto 0 0\n", devs[0]->name);
+	    fprintf(fstab, "/dev/%s\t\t/cdrom\tcd9660\t\tro,noauto\t0\t0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -259,7 +261,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro,noauto 0 0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\t\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())
@@ -396,16 +398,26 @@ configUsers(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
-    if (file_executable("/usr/X11R6/bin/XF86Setup")) {
+    char *config, *execfile;
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuXF86Config, FALSE); 
+
+    config = variable_get(VAR_XF86_CONFIG);
+    if (!config)
+	return DITEM_FAILURE | DITEM_RESTORE;
+    execfile = string_concat("/usr/X11R6/bin/", config);
+    if (file_executable(execfile)) {
 	dialog_clear_norefresh();
 	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
 	    dmenuOpenSimple(&MenuMouse, FALSE); 
 	dialog_clear();
 	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-	systemExecute("/usr/X11R6/bin/XF86Setup");
+	systemExecute(execfile);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
 		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE;

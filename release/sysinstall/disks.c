@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.7 1997/01/17 08:53:42 jkh Exp $
+ * $Id: disks.c,v 1.70.2.8 1997/01/19 09:59:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,7 +105,8 @@ print_chunks(Disk *d)
 	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
-		 chunk_info[i]->type, chunk_n[chunk_info[i]->type],
+		 chunk_info[i]->type, 
+		 slice_type_name(chunk_info[i]->type, chunk_info[i]->subtype),
 		 chunk_info[i]->subtype, ShowChunkFlags(chunk_info[i]));
 	if (i == current_chunk)
 	    attrset(A_NORMAL);
@@ -116,11 +117,11 @@ static void
 print_command_summary()
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
-    mvprintw(17, 0, "D = Delete Partition   G = Set Drive Geometry S = Set Bootable");
+    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan       C = Create Slice");
+    mvprintw(17, 0, "D = Delete Slice       G = Set Drive Geometry   S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
     if (!RunningAsInit)
-	mvprintw(18, 46, "W = Write Changes");
+	mvprintw(18, 48, "W = Write Changes");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
@@ -269,7 +270,7 @@ diskPartition(Device *dev, Disk *d)
 	    
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
-		msg = "Can only scan for bad blocks in FreeBSD partition.";
+		msg = "Can only scan for bad blocks in FreeBSD slice.";
 	    else if (strncmp(d->name, "sd", 2) ||
 		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\n"
 			       "Are you sure you want to do this on a SCSI disk?")) {
@@ -283,14 +284,14 @@ diskPartition(Device *dev, Disk *d)
 	    
 	case 'C':
 	    if (chunk_info[current_chunk]->type != unused)
-		msg = "Partition in use, delete it first or move to an unused one.";
+		msg = "Slice in use, delete it first or move to an unused one.";
 	    else {
 		char *val, tmp[20], *cp;
 		int size, subtype;
 		chunk_e partitiontype;
 		
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
-		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks\n"
+		val = msgGetInput(tmp, "Please specify the size for new FreeBSD slice in blocks\n"
 				  "or append a trailing `M' for megabytes (e.g. 20M).");
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
@@ -298,7 +299,7 @@ diskPartition(Device *dev, Disk *d)
 		    strcpy(tmp, "165");
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
 				      "Pressing Enter will choose the default, a native FreeBSD\n"
-				      "partition (type 165).  You can choose other types, 6 for a\n"
+				      "slice (type 165).  You can choose other types, 6 for a\n"
 				      "DOS partition or 131 for a Linux partition, for example.\n\n"
 				      "Note:  If you choose a non-FreeBSD partition type, it will not\n"
 				      "be formatted or otherwise prepared, it will simply reserve space\n"
@@ -324,7 +325,7 @@ diskPartition(Device *dev, Disk *d)
 	case KEY_DC:
 	case 'D':
 	    if (chunk_info[current_chunk]->type == unused)
-		msg = "Partition is already unused!";
+		msg = "Slice is already unused!";
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
 		variable_set2(DISK_PARTITIONED, "yes");
@@ -439,9 +440,9 @@ diskPartition(Device *dev, Disk *d)
 	char buf[FILENAME_MAX];
 	
 	dialog_clear_norefresh();
-        use_helpline("Press F1 to read more about disk partitioning.");
+        use_helpline("Press F1 to read more about disk slices.");
 	use_helpfile(systemHelpFile("partition", buf));
-	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);
+	dialog_mesgbox("Disk slicing warning:", p, -1, -1);
 	free(p);
     }
     restorescr(w);
@@ -559,7 +560,7 @@ diskPartitionWrite(dialogMenuItem *self)
 	    if (c1->flags & CHUNK_BAD144) {
 		int ret;
 
-		msgNotify("Running bad block scan on partition %s", c1->name);
+		msgNotify("Running bad block scan on slice %s", c1->name);
 		if (!Fake) {
 		    ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
 		    if (ret)

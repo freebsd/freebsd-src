@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.14 1997/01/17 08:53:46 jkh Exp $
+ * $Id: menus.c,v 1.89.2.15 1997/01/22 00:28:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -328,14 +328,14 @@ DMenu MenuDocumentation = {
 static int
 whichMouse(dialogMenuItem *self)
 {
+    int i;
     char buf[BUFSIZ];
     
     if (!file_readable("/dev/mouse"))
 	return FALSE;
-    if (readlink("/dev/mouse", buf, sizeof buf) == -1)
+    if ((i = readlink("/dev/mouse", buf, sizeof buf)) == -1)
 	return FALSE;
-    if (isDebug)
-	msgDebug("The evil link value is `%s'\n", buf);
+    buf[i] = '\0';
     if (!strcmp(self->prompt, "COM1"))
 	return !strcmp(buf, "/dev/cuaa0");
     else if (!strcmp(self->prompt, "COM2"))
@@ -375,6 +375,25 @@ DMenu MenuMouse = {
 	"ln -fs /dev/mse0 /dev/mouse", '(', '*', ')', 1 },
       { "PS/2",	"PS/2 style mouse (must enable psm0 device)", whichMouse, dmenuSystemCommand, NULL,
 	"ln -fs /dev/psm0 /dev/mouse", '(', '*', ')', 1 },
+      { NULL } },
+};
+
+DMenu MenuXF86Config = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select the XFree86 configuration tool you want to use.",
+    "The first tool, XF86Setup, is fully graphical and requires the\n"
+    "VGA16 server in order to work (should have been selected by\n"
+    "default, but if you de-selected it then you won't be able to\n"
+    "use this fancy setup tool).  The second tool, xf86config, is\n"
+    "a more simplistic shell-script based tool and less friendly to\n"
+    "new users, but it may work in situations where the fancier one\n"
+    "does not.",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86",
+    { { "XF86Setup",	"Use the fully graphical XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
+      { "xf86config",	"Use the shell-script based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { NULL } },
 };
 
@@ -505,8 +524,10 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://SunSITE.icm.edu.pl/pub/FreeBSD/" },
       { "Portugal",	"ftp.ua.pt", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ua.pt/pub/misc/FreeBSD/" },
-      { "Russia",	"ftp.kiae.su", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp.kiae.su/FreeBSD/" },
+      { "Russia",	"ftp.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.ru.freebsd.org/FreeBSD/" },
+      { "Russia #2",	"ftp2.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp2.ru.freebsd.org/FreeBSD/" },
       { "South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.za.freebsd.org/pub/FreeBSD/" },
       { "South Africa #2", "ftp2.za.freebsd.org", NULL, dmenuSetVariable, NULL,
