@@ -98,13 +98,19 @@ static int xmphy_probe(dev)
 
 	ma = device_get_ivars(dev);
 
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxXAQTI ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_XAQTI_XMACII)
-		return(ENXIO);
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxXAQTI &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_XAQTI_XMACII) {
+		device_set_desc(dev, MII_STR_XAQTI_XMACII);
+		return(0);
+	}
 
-	device_set_desc(dev, MII_STR_XAQTI_XMACII);
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_JATO &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_JATO_BASEX) {
+		device_set_desc(dev, MII_STR_JATO_BASEX);
+		return(0);
+	}
 
-	return(0);
+	return(ENXIO);
 }
 
 static int xmphy_attach(dev)
@@ -210,11 +216,13 @@ xmphy_service(sc, mii, cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
+#ifdef foo
 			/*
 			 * If we're already in auto mode, just return.
 			 */
 			if (PHY_READ(sc, XMPHY_MII_BMCR) & XMPHY_BMCR_AUTOEN)
 				return (0);
+#endif
 			(void) xmphy_mii_phy_auto(sc, 1);
 			break;
 		case IFM_1000_SX:
@@ -349,11 +357,13 @@ xmphy_mii_phy_auto(mii, waitfor)
 	struct mii_softc *mii;
 	int waitfor;
 {
-	int bmsr, i;
+	int bmsr, anar = 0, i;
 
 	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		PHY_WRITE(mii, XMPHY_MII_ANAR,
-		    XMPHY_ANAR_FDX|XMPHY_ANAR_HDX);
+		anar = PHY_READ(mii, XMPHY_MII_ANAR);
+		anar |= XMPHY_ANAR_FDX|XMPHY_ANAR_HDX;
+		PHY_WRITE(mii, XMPHY_MII_ANAR, anar);
+		DELAY(1000);
 		PHY_WRITE(mii, XMPHY_MII_BMCR,
 		    XMPHY_BMCR_AUTOEN | XMPHY_BMCR_STARTNEG);
 	}
