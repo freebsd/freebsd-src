@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.25 1995/12/08 23:20:54 phk Exp $
+ * $Id: wt.c,v 1.26 1995/12/10 13:39:27 phk Exp $
  *
  */
 
@@ -84,7 +84,7 @@
 /*
  * Uncomment this to enable internal device tracing.
  */
-#define DEBUG(s)                /* printf s */
+#define TRACE(s)                /* printf s */
 
 #define WTPRI                   (PZERO+10)      /* sleep priority */
 
@@ -636,14 +636,14 @@ void wtintr (int u)
 	unsigned char s;
 
 	if (u >= NWT || t->type == UNKNOWN) {
-		DEBUG (("wtintr() -- device not configured\n"));
+		TRACE (("wtintr() -- device not configured\n"));
 		return;
 	}
 
 	s = inb (t->STATPORT);                  /* get status */
-	DEBUG (("wtintr() status=0x%x -- ", s));
+	TRACE (("wtintr() status=0x%x -- ", s));
 	if ((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP)) {
-		DEBUG (("busy\n"));
+		TRACE (("busy\n"));
 		return;                         /* device is busy */
 	}
 
@@ -651,7 +651,7 @@ void wtintr (int u)
 	 * Check if rewind finished.
 	 */
 	if (t->flags & TPREW) {
-		DEBUG (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
+		TRACE (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
 			"rewind busy?\n" : "rewind finished\n"));
 		t->flags &= ~TPREW;             /* Rewind finished. */
 		wtsense (t, 1, TP_WRP);
@@ -663,7 +663,7 @@ void wtintr (int u)
 	 * Check if writing/reading of file mark finished.
 	 */
 	if (t->flags & (TPRMARK | TPWMARK)) {
-		DEBUG (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
+		TRACE (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
 			"marker r/w busy?\n" : "marker r/w finished\n"));
 		if (! (s & t->NOEXCEP))         /* operation failed */
 			wtsense (t, 1, (t->flags & TPRMARK) ? TP_WRP : 0);
@@ -676,7 +676,7 @@ void wtintr (int u)
 	 * Do we started any i/o?  If no, just return.
 	 */
 	if (! (t->flags & TPACTIVE)) {
-		DEBUG (("unexpected interrupt\n"));
+		TRACE (("unexpected interrupt\n"));
 		return;
 	}
 	t->flags &= ~TPACTIVE;
@@ -697,7 +697,7 @@ void wtintr (int u)
 	 * On exception, check for end of file and end of volume.
 	 */
 	if (! (s & t->NOEXCEP)) {
-		DEBUG (("i/o exception\n"));
+		TRACE (("i/o exception\n"));
 		wtsense (t, 1, (t->dmaflags & B_READ) ? TP_WRP : 0);
 		if (t->error.err & (TP_EOM | TP_FIL))
 			t->flags |= TPVOL;      /* end of file */
@@ -710,13 +710,13 @@ void wtintr (int u)
 	if (t->dmacount < t->dmatotal) {        /* continue i/o */
 		t->dmavaddr += t->bsize;
 		wtdma (t);
-		DEBUG (("continue i/o, %d\n", t->dmacount));
+		TRACE (("continue i/o, %d\n", t->dmacount));
 		return;
 	}
 	if (t->dmacount > t->dmatotal)          /* short last block */
 		t->dmacount = t->dmatotal;
 	wakeup ((caddr_t)t);	/* wake up user level */
-	DEBUG (("i/o finished, %d\n", t->dmacount));
+	TRACE (("i/o finished, %d\n", t->dmacount));
 }
 
 /* start the rewind operation */
@@ -798,7 +798,7 @@ static int wtcmd (wtinfo_t *t, int cmd)
 {
 	int s, x;
 
-	DEBUG (("wtcmd() cmd=0x%x\n", cmd));
+	TRACE (("wtcmd() cmd=0x%x\n", cmd));
 	x = splbio();
 	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
 	if (! (s & t->NOEXCEP)) {                       /* error */
@@ -821,7 +821,7 @@ static int wtwait (wtinfo_t *t, int catch, char *msg)
 {
 	int error;
 
-	DEBUG (("wtwait() `%s'\n", msg));
+	TRACE (("wtwait() `%s'\n", msg));
 	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK))
 		if (error = tsleep ((caddr_t)t, WTPRI | catch, msg, 0))
 			return (error);
@@ -849,7 +849,7 @@ static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 {
 	int s, x;
 
-	DEBUG (("wtstart()\n"));
+	TRACE (("wtstart()\n"));
 	x = splbio();
 	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
 	if (! (s & t->NOEXCEP)) {
@@ -895,7 +895,7 @@ static void wtimer (void *xt)
 	/* If i/o going, simulate interrupt. */
 	s = splbio ();
 	if ((inb (t->STATPORT) & (t->BUSY | t->NOEXCEP)) != (t->BUSY | t->NOEXCEP)) {
-		DEBUG (("wtimer() -- "));
+		TRACE (("wtimer() -- "));
 		wtintr (t->unit);
 	}
 	splx (s);
@@ -939,7 +939,7 @@ static int wtsense (wtinfo_t *t, int verb, int ignor)
 	char *msg = 0;
 	int err;
 
-	DEBUG (("wtsense() ignor=0x%x\n", ignor));
+	TRACE (("wtsense() ignor=0x%x\n", ignor));
 	t->flags &= ~(TPRO | TPWO);
 	if (! wtstatus (t))
 		return (0);
