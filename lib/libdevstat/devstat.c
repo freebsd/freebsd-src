@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.c,v 1.3 1998/09/20 00:11:09 ken Exp $
+ *	$Id: devstat.c,v 1.4 1998/10/14 23:28:26 ken Exp $
  */
 
 #include <sys/types.h>
@@ -200,18 +200,12 @@ checkversion(void)
 
                 if (version < DEVSTAT_VERSION)
 			snprintf(tmpstr, sizeof(tmpstr),
-				 "%s: you really should know better"
-				 " than to upgrade your\n%s: "
-				 "userland binaries without "
-				 "upgrading your kernel",
-				 func_name, func_name);
+				 "%s: libdevstat newer than kernel\n",
+				 func_name);
                 else
 			snprintf(tmpstr, sizeof(tmpstr),
-				 "%s: you really should know better"
-				 " than to upgrade your kernel "
-				 "without\n%s: upgrading your "
-				 "userland binaries",
-				 func_name, func_name);
+				 "%s: kernel newer than libdevstat\n",
+				 func_name);
 
 		strncat(devstat_errbuf, tmpstr,
 			DEVSTAT_ERRBUF_SIZE - buflen - 1);
