@@ -195,7 +195,15 @@ g_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		g_trace(G_T_TOPOLOGY, "g_modevent(%s, LOAD)", hh->mp->name);
-		g_post_event(g_load_class, hh, M_WAITOK, NULL);
+		/*
+		 * Once the system is not cold, MOD_LOAD calls will be
+		 * from the userland and the g_event thread will be able
+		 * to acknowledge their completion.
+		 */
+		if (cold)
+			g_post_event(g_load_class, hh, M_WAITOK, NULL);
+		else
+			g_waitfor_event(g_load_class, hh, M_WAITOK, NULL);
 		error = 0;
 		break;
 	case MOD_UNLOAD:
