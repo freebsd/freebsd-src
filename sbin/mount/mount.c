@@ -288,7 +288,11 @@ main(argc, argv)
 		 */
 		if (vfslist == NULL && ((ep = strchr(argv[0], '@')) != NULL) ||
 		    ((ep = strchr(argv[0], ':')) != NULL)) {
-			cp = argv[0];
+			if (*ep == '@') {
+				cp = ep + 1;
+				ep = cp + strlen(cp);
+			} else
+				cp = argv[0];
 			while (cp != ep) {
 				if (!isdigit(*cp) && !isalpha(*cp) &&
 				    *cp != '.' && *cp != '-' && *cp != ':')
