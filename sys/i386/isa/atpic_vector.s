@@ -59,13 +59,13 @@ IDTVEC(vec_name) ;							\
 	pushl	%ds ;		/* save data and extra segments ... */	\
 	pushl	%es ;							\
 	pushl	%fs ;							\
-	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */		\
-	mov	%ax,%ds ;						\
-	mov	%ax,%es ;						\
-	mov	$KPSEL,%ax ;						\
-	mov	%ax,%fs ;						\
+	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
+	movl	%eax, %ds ;						\
+	movl	%eax, %es ;						\
+	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
+	movl	%eax, %fs ;						\
 ;									\
-	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
+	FAKE_MCOUNT(13*4(%esp)) ;					\
 	pushl	$irq_num; 	/* pass the IRQ */			\
 	call	atpic_handle_intr ;					\
 	addl	$4, %esp ;	/* discard the parameter */		\
