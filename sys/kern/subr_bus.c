@@ -1578,7 +1578,15 @@ device_probe_child(device_t dev, device_t child)
 			device_set_driver(child, dl->driver);
 			if (!hasclass)
 				device_set_devclass(child, dl->driver->name);
+
+			/* Fetch any flags for the device before probing. */
+			resource_int_value(dl->driver->name, child->unit,
+			    "flags", &child->devflags);
+
 			result = DEVICE_PROBE(child);
+
+			/* Reset flags and devclass before the next probe. */
+			child->devflags = 0;
 			if (!hasclass)
 				device_set_devclass(child, 0);
 
@@ -1645,9 +1653,14 @@ device_probe_child(device_t dev, device_t child)
 		if (child->state > DS_ALIVE && best->driver != child->driver)
 			if ((result = device_detach(dev)) != 0)
 				return (result);
+
+		/* Set the winning driver, devclass, and flags. */
 		if (!child->devclass)
 			device_set_devclass(child, best->driver->name);
 		device_set_driver(child, best->driver);
+		resource_int_value(best->driver->name, child->unit,
+		    "flags", &child->devflags);
+
 		if (pri < 0) {
 			/*
 			 * A bit bogus. Call the probe method again to make
@@ -2074,7 +2087,7 @@ int
 device_set_devclass(device_t dev, const char *classname)
 {
 	devclass_t dc;
-	int error, flags;
+	int error;
 
 	if (!classname) {
 		if (dev->devclass)
@@ -2092,10 +2105,6 @@ device_set_devclass(device_t dev, const char *classname)
 		return (ENOMEM);
 
 	error = devclass_add_device(dc, dev);
-
-	/* Fetch any hints for the device before it is probed. */
-	if (resource_int_value(classname, dev->unit, "flags", &flags) == 0)
-		dev->devflags = flags;
 
 	bus_data_generation_update();
 	return (error);
