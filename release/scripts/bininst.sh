@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.2 1995/01/14 21:08:05 jkh Exp $
+# $Id: bininst.sh,v 1.3 1995/01/28 01:18:41 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
 	error "Error, $0 loaded more than once!"
@@ -61,11 +61,12 @@ do_last_config()
 "Don't forget that the login name \"root\" has no password.
 If you didn't create any users with adduser, you can at least log in
 as this user.  Also be aware that root is the _superuser_, which means
-that you can easily wipe out your system if you're not careful!
+that you can easily wipe out your system with it if you're not careful!
 
 Further information may be obtained by sending mail to
 questions@freebsd.org (though please read the docs first,
-we get LOTS of questions! :-) or browsing http://www.freebsd.org/
+we get LOTS of questions! :-) or browsing through our
+WEB site:  http://www.freebsd.org/
 
 If you encounter a bug and can send/receive Internet email, please
 use the \`send-pr\' command to submit a report - this will ensure
