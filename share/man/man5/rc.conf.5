@@ -718,6 +718,44 @@ is set to
 these flags are passed to the
 .Xr pfctl 8
 program when loading the ruleset.
+.It Va pflog_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables
+.Xr pflogd 8
+which logs packtes from the
+.Xr pf 4
+packet filter.
+.It Va pflog_logfile
+.Pq Vt str
+If
+.Va pflog_enable
+is set to
+.Dq Li YES
+this controls where
+.Xr pflogd 8
+stores the logfile.
+(default
+.Pa /var/log/pflog ) .
+Check
+.Pa /etc/newsyslog.conf
+to enable logfile rotation for this.
+.It Va pflog_program
+.Pq Vt str
+Path to
+.Xr pflogd 8
+(default
+.Pa /sbin/pflogd ) .
+.It Va pflog_flags
+.Pq Vt str
+Empty by default.
+This variable contains additional flags passed to the
+.Xr pflogd 8
+program.
 .It Va tcp_extensions
 .Pq Vt bool
 Set to
@@ -2910,6 +2948,7 @@ sessions.
 .Xr udp 4 ,
 .Xr exports 5 ,
 .Xr motd 5 ,
+.Xr newsyslog.conf 5 ,
 .Xr accton 8 ,
 .Xr amd 8 ,
 .Xr apm 8 ,
