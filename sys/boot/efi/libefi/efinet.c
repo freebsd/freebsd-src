@@ -56,25 +56,38 @@ efinet_probe(struct netif *nif, void *machdep_hint)
 int
 efinet_put(struct iodesc *desc, void *pkt, size_t len)
 {
-	EFI_SIMPLE_NETWORK *net = desc->io_netif->nif_devdata;
+	struct netif *nif = desc->io_netif;
+	EFI_SIMPLE_NETWORK *net;
 	EFI_STATUS status;
-	int i;
+	void *buf;
+
+	net = nif->nif_devdata;
 
 	status = net->Transmit(net, 0, len, pkt, 0, 0, 0);
-	if (!EFI_ERROR(status))
-		return len;
-	else
+	if (status != EFI_SUCCESS)
 		return -1;
+
+	/* Wait for the buffer to be transmitted */
+	buf = 0;	/* XXX Is this needed? */
+	do {
+		status = net->GetStatus(net, 0, &buf);
+	} while (status == EFI_SUCCESS && buf != pkt);
+
+	/* XXX How do we deal with status != EFI_SUCCESS now? */
+	return (status == EFI_SUCCESS) ? len : -1;
 }
 
 
 int
 efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 {
-	EFI_SIMPLE_NETWORK *net = desc->io_netif->nif_devdata;
+	struct netif *nif = desc->io_netif;
+	EFI_SIMPLE_NETWORK *net;
 	EFI_STATUS status;
 	UINTN bufsz;
 	time_t t;
+
+	net = nif->nif_devdata;
 
 	t = time(0);
 	while ((time(0) - t) < timeout) {
@@ -92,13 +105,11 @@ efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 void
 efinet_init(struct iodesc *desc, void *machdep_hint)
 {
-	struct netif		*nif;
-	EFI_SIMPLE_NETWORK	*net;
-	int			i;
+	struct netif *nif = desc->io_netif;
+	EFI_SIMPLE_NETWORK *net;
 
-	nif = desc->io_netif;
 	net = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
-	desc->io_netif->nif_devdata = net;
+	nif->nif_devdata = net;
 
 	net->Start(net);
 	net->Initialize(net, 0, 0);
@@ -145,7 +156,6 @@ efinet_init_driver()
 		dif->dif_unit = i;
 		dif->dif_nsel = 1;
 		dif->dif_stats = &stats[i];
-		dif->dif_private = handles[i];
 
 		BS->HandleProtocol(handles[i], &netid,
 				   (VOID**) &dif->dif_private);
