@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.10 1996/08/20 05:43:51 pst Exp $
+# $Id: Makefile,v 1.11 1996/08/21 16:50:08 pst Exp $
 
 LIB=    pcap
 SRCS=	pcap-bpf.c \
@@ -27,13 +27,10 @@ CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl
 .PATH:	${PCAP_DISTDIR}/bpf/net
 
 beforeinstall:
-	-cmp -s ${PCAP_DISTDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
-	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${PCAP_DISTDIR}/pcap.h ${DESTDIR}/usr/include; )
-	-cmp -s ${PCAP_DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include/pcap-namedb.h || \
-	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${PCAP_DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include; )
-
+.for i in pcap.h pcap-namedb.h
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${PCAP_DISTDIR}/$i \
+		${DESTDIR}/usr/include
+.endfor
 
 scanner.o: tokdefs.h
 
