@@ -2,7 +2,6 @@
 
 .if ${MACHINE} == "pc98"
 .PATH: ${.CURDIR}/../../pc98/apm
-CFLAGS+= -DPC98
 .else
 .PATH: ${.CURDIR}/../../i386/apm
 .endif

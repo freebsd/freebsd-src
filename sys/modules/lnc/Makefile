@@ -13,8 +13,5 @@ SRCS+=	opt_inet.h device_if.h bus_if.h isa_if.h pci_if.h
 #SRCS+=	miibus_if.h
 
 CFLAGS+= -g -I${.CURDIR}/../../dev/lnc
-.if ${MACHINE} == "pc98"
-CFLAGS+= -DPC98
-.endif
 
 .include <bsd.kmod.mk>
