@@ -75,8 +75,12 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
+#include <machine/ofw_mem.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
+
+extern struct ofw_mem_region sparc64_memreg[];
+extern int sparc64_nmemreg;
 
 PMAP_STATS_VAR(uma_nsmall_alloc);
 PMAP_STATS_VAR(uma_nsmall_alloc_oc);
@@ -295,9 +299,12 @@ cpu_wait(struct proc *p)
 int
 is_physical_memory(vm_offset_t addr)
 {
+	struct ofw_mem_region *mr;
 
-	/* There is no device memory in the midst of the normal RAM. */
-	return (1);
+	for (mr = sparc64_memreg; mr < sparc64_memreg + sparc64_nmemreg; mr++)
+		if (addr >= mr->mr_start && addr < mr->mr_start + mr->mr_size)
+			return (1);
+	return (0);
 }
 
 void
@@ -367,4 +374,3 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	vm_page_free(m);
 	vm_page_unlock_queues();
 }
-
