@@ -176,7 +176,7 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 		bcopy (buf, mtod (p, caddr_t) + p->m_len, n);
 
 		p->m_len += n;
-		buf += n;
+		buf = (char *)buf + n;
 		len -= n;
 	}
 	return (m);
