@@ -62,7 +62,7 @@ for following subsequent
 calls. Then it goes to background pause which ends with SIGTERM.
 After receiving SIGTERM it acts like
 .Nm "'adjkerntz -a'"
-to be shure to have proper CMOS clock before reboot.
+to insure that the CMOS clock reflects the current local time zone.
 .It Cm Fl a
 This form is needed, when time zone changes occur.
 .Nm Adjkerntz
