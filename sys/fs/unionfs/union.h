@@ -44,6 +44,7 @@ struct union_mount {
 	struct ucred	*um_cred;	/* Credentials of user calling mount */
 	int		um_cmode;	/* cmask from mount process */
 	int		um_op;		/* Operation mode */
+	dev_t		um_upperdev;	/* Upper root node fsid[0]*/
 };
 
 #ifdef _KERNEL
