@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.10 1995/02/20 18:08:17 davidg Exp $
+ * $Id: vm_extern.h,v 1.11 1995/02/20 23:58:09 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -104,7 +104,6 @@ void thread_block __P((char *));
 void thread_sleep __P((int, simple_lock_t, boolean_t));
 void thread_wakeup __P((int));
 int useracc __P((caddr_t, int, int));
-int vm_allocate_with_pager __P((vm_map_t, vm_offset_t *, vm_size_t, boolean_t, vm_pager_t, vm_offset_t, boolean_t));
 int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
