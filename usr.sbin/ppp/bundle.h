@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.11 1998/02/27 01:22:17 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.12 1998/03/01 01:07:39 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -47,6 +47,12 @@ struct bundle {
 
   struct fsm_parent fsm;      /* Our callback functions */
   struct datalink *links;     /* Our data links */
+
+  struct {
+    int idle_timeout;         /* NCP Idle timeout value */
+  } cfg;
+
+  struct pppTimer IdleTimer;  /* timeout after cfg.idle_timeout */
 };
 
 extern struct bundle *bundle_Create(const char *);
@@ -66,6 +72,10 @@ extern int bundle_UpdateSet(struct bundle *, fd_set *, fd_set *, fd_set *,
                             int *);
 extern int bundle_FillQueues(struct bundle *);
 extern int bundle_ShowLinks(struct cmdargs const *);
+extern void bundle_StartIdleTimer(struct bundle *);
+extern void bundle_SetIdleTimer(struct bundle *, int);
+extern void bundle_StopIdleTimer(struct bundle *);
+extern int bundle_RemainingIdleTime(struct bundle *);
 
 extern struct link *bundle2link(struct bundle *, const char *);
 extern struct physical *bundle2physical(struct bundle *, const char *);

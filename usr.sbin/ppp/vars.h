@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.10 1998/03/06 00:34:47 brian Exp $
+ * $Id: vars.h,v 1.42.2.11 1998/03/09 19:24:58 brian Exp $
  *
  *	TODO:
  */
@@ -58,7 +58,6 @@ struct pppvars {
   u_short var_mru;		/* Initial MRU value */
   u_short pref_mtu;		/* Preferred MTU value */
   int var_accmap;		/* Initial ACCMAP value */
-  int idle_timeout;		/* Idle timeout value */
   int lqr_timeout;		/* LQR timeout value */
   int retry_timeout;		/* Retry timeout value */
   int loopback;			/* Turn around packets addressed to me */
@@ -89,7 +88,6 @@ struct pppvars {
 #define VarPrefMTU		pppVars.pref_mtu
 #define	VarOpenMode		pppVars.open_mode
 #define	VarLocalAuth		pppVars.lauth
-#define VarIdleTimeout  	pppVars.idle_timeout
 #define	VarLqrTimeout		pppVars.lqr_timeout
 #define	VarRetryTimeout		pppVars.retry_timeout
 #define	VarAuthKey		pppVars.auth_key

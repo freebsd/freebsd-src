@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.8 1998/02/23 00:38:32 brian Exp $
+ * $Id: ip.c,v 1.38.2.9 1998/03/02 17:25:22 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -66,69 +66,6 @@
 #include "modem.h"
 #include "tun.h"
 #include "ip.h"
-
-static struct pppTimer IdleTimer;
-
-static void 
-IdleTimeout(void *v)
-{
-  LogPrintf(LogPHASE, "Idle timer expired.\n");
-  bundle_Close(LcpInfo.fsm.bundle, NULL, 1);
-}
-
-/*
- *  Start Idle timer. If timeout is reached, we call bundle_Close() to
- *  close LCP and link.
- */
-void
-StartIdleTimer()
-{
-  static time_t IdleStarted;
-
-  if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
-    StopTimer(&IdleTimer);
-    IdleTimer.func = IdleTimeout;
-    IdleTimer.load = VarIdleTimeout * SECTICKS;
-    IdleTimer.state = TIMER_STOPPED;
-    time(&IdleStarted);
-    IdleTimer.arg = (void *)&IdleStarted;
-    StartTimer(&IdleTimer);
-  }
-}
-
-void
-UpdateIdleTimer(const struct bundle *bundle)
-{
-  if (bundle_LinkIsUp(bundle))
-    StartIdleTimer();
-}
-
-void
-StopIdleTimer()
-{
-  StopTimer(&IdleTimer);
-}
-
-int
-RemainingIdleTime()
-{
-  if (VarIdleTimeout == 0 || IdleTimer.state != TIMER_RUNNING ||
-      IdleTimer.arg == NULL)
-    return -1;
-  return VarIdleTimeout - (time(NULL) - *(time_t *)IdleTimer.arg);
-}
-
-/*
- *  If any IP layer traffic is detected, refresh IdleTimer.
- */
-static void
-RestartIdleTimer(void)
-{
-  if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && ipKeepAlive) {
-    time((time_t *)IdleTimer.arg);
-    StartTimer(&IdleTimer);
-  }
-}
 
 static const u_short interactive_ports[32] = {
   544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -261,7 +198,8 @@ IcmpError(struct ip * pip, int code)
     bp = mballoc(cnt, MB_IPIN);
     memcpy(MBUF_CTOP(bp), ptr, cnt);
     SendPppFrame(bp);
-    RestartIdleTimer();
+    if (ipKeepAlive)
+      bundle_StartIdleTimer(bundle);
     IpcpAddOutOctets(cnt);
   }
 #endif
@@ -483,7 +421,8 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   }
   pfree(bp);
 
-  RestartIdleTimer();
+  if (ipKeepAlive)
+    bundle_StartIdleTimer(bundle);
 }
 
 static struct mqueue IpOutputQueues[PRI_FAST + 1];
@@ -525,7 +464,8 @@ IpStartOutput(struct link *l, struct bundle *bundle)
       if (bp) {
 	cnt = plength(bp);
 	SendPppFrame(l, bp, bundle);
-	RestartIdleTimer();
+        if (ipKeepAlive)
+	  bundle_StartIdleTimer(bundle);
         IpcpAddOutOctets(cnt);
 	break;
       }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.17 1998/02/27 01:22:25 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.18 1998/02/27 21:46:23 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -510,7 +510,6 @@ IpcpLayerDown(struct fsm *fp)
 
   throughput_stop(&ipcp->throughput);
   throughput_log(&ipcp->throughput, LogIPCP, NULL);
-
   /*
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
@@ -567,7 +566,6 @@ IpcpLayerUp(struct fsm *fp)
       SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
 
   throughput_start(&ipcp->throughput);
-  StartIdleTimer();
   prompt_Display(&prompt, fp->bundle);
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.18 1998/03/01 01:07:39 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.19 1998/03/02 17:25:19 brian Exp $
  */
 
 #include <sys/param.h>
@@ -184,6 +184,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
   /*
    * The given fsm is now up
    * If it's a datalink, enter network phase
+   * If it's the first NCP, start the idle timer.
    * If it's an NCP, tell our background mode parent to go away.
    */
 
@@ -192,7 +193,8 @@ bundle_LayerUp(void *v, struct fsm *fp)
   if (fp->proto == PROTO_LCP)
     bundle_NewPhase(bundle, link2physical(fp->link), PHASE_NETWORK);
 
-  if (fp == &IpcpInfo.fsm)
+  if (fp == &IpcpInfo.fsm) {
+    bundle_StartIdleTimer(bundle);
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
       char c = EX_NORMAL;
 
@@ -203,6 +205,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
       close(BGFiledes[1]);
       BGFiledes[1] = -1;
     }
+  }
 }
 
 static void
@@ -210,9 +213,13 @@ bundle_LayerDown(void *v, struct fsm *fp)
 {
   /*
    * The given FSM has been told to come down.
-   * We don't do anything here, as the FSM will eventually
-   * come up or down and will call LayerUp or LayerFinish.
+   * If it's our last NCP, stop the idle timer.
    */
+
+  struct bundle *bundle = (struct bundle *)v;
+
+  if (fp->proto == PROTO_IPCP)
+    bundle_StopIdleTimer(bundle);
 }
 
 static void
@@ -383,6 +390,8 @@ bundle_Create(const char *prefix)
   bundle.fsm.LayerDown = bundle_LayerDown;
   bundle.fsm.LayerFinish = bundle_LayerFinish;
   bundle.fsm.object = &bundle;
+
+  bundle.cfg.idle_timeout = NCP_IDLE_TIMEOUT;
 
   bundle.links = datalink_Create("Modem", &bundle, &bundle.fsm);
   if (bundle.links == NULL) {
@@ -731,4 +740,52 @@ bundle_ShowLinks(struct cmdargs const *arg)
   }
 
   return 0;
+}
+
+static void 
+bundle_IdleTimeout(void *v)
+{
+  struct bundle *bundle = (struct bundle *)v;
+
+  LogPrintf(LogPHASE, "IPCP Idle timer expired.\n");
+  bundle_Close(bundle, NULL, 1);
+}
+
+/*
+ *  Start Idle timer. If timeout is reached, we call bundle_Close() to
+ *  close LCP and link.
+ */
+void
+bundle_StartIdleTimer(struct bundle *bundle)
+{
+  if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
+    StopTimer(&bundle->IdleTimer);
+    bundle->IdleTimer.func = bundle_IdleTimeout;
+    bundle->IdleTimer.load = bundle->cfg.idle_timeout * SECTICKS;
+    bundle->IdleTimer.state = TIMER_STOPPED;
+    bundle->IdleTimer.arg = bundle;
+    StartTimer(&bundle->IdleTimer);
+  }
+}
+
+void
+bundle_SetIdleTimer(struct bundle *bundle, int value)
+{
+  bundle->cfg.idle_timeout = value;
+  if (bundle_LinkIsUp(bundle))
+    bundle_StartIdleTimer(bundle);
+}
+
+void
+bundle_StopIdleTimer(struct bundle *bundle)
+{
+  StopTimer(&bundle->IdleTimer);
+}
+
+int
+bundle_RemainingIdleTime(struct bundle *bundle)
+{
+  if (bundle->cfg.idle_timeout == 0 || bundle->IdleTimer.state != TIMER_RUNNING)
+    return -1;
+  return bundle->IdleTimer.rest / SECTICKS;
 }

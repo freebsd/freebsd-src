@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.31 1998/03/06 00:34:42 brian Exp $
+ * $Id: command.c,v 1.131.2.32 1998/03/09 19:24:53 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -444,9 +444,9 @@ ShowTimeout(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(&prompt, " Idle Timer: %d secs   LQR Timer: %d secs"
-	        "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
-	        VarRetryTimeout);
-  remaining = RemainingIdleTime();
+	        "   Retry Timer: %d secs\n", arg->bundle->cfg.idle_timeout,
+                VarLqrTimeout, VarRetryTimeout);
+  remaining = bundle_RemainingIdleTime(arg->bundle);
   if (remaining != -1)
     prompt_Printf(&prompt, " %d secs remaining\n", remaining);
 
@@ -1151,9 +1151,7 @@ static int
 SetIdleTimeout(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
-    VarIdleTimeout = atoi(arg->argv[0]);
-    /* If we're connected, restart the idle timer */
-    UpdateIdleTimer(arg->bundle);
+    bundle_SetIdleTimer(arg->bundle, atoi(arg->argv[0]));
     if (arg->argc > 1) {
       VarLqrTimeout = atoi(arg->argv[1]);
       if (VarLqrTimeout < 1)
