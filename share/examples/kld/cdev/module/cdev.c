@@ -64,7 +64,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *
+ * $FreeBSD$
  */
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -90,11 +94,17 @@
 
 #define CDEV_IOCTL1         _IOR('C', 1, u_int)
 
+/* Stores string recv'd by _write() */
+static char buf[512+1];
+static int len;
+
 int
 mydev_open(dev_t dev, int flag, int otyp, struct proc *procp)
 {
     printf("mydev_open: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
 	   dev2udev(dev), flag, otyp, procp);
+    memset(&buf, '\0', 513);
+    len = 0;
     return (0);
 }
 
@@ -124,4 +134,44 @@ mydev_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *procp)
 	break;
     }
     return error;
+}
+
+/*
+ * mydev_write takes in a character string and saves it
+ * to buf for later accessing.
+ */
+int
+mydev_write(dev_t dev, struct uio *uio, int ioflag)
+{
+    int err = 0;
+
+    printf("mydev_write: dev_t=%d, uio=%p, ioflag=%d\n",
+	dev2udev(dev), uio, ioflag);
+
+    err = copyinstr(uio->uio_iov->iov_base, &buf, 512, &len);
+    if (err != 0) {
+	printf("Write to \"cdev\" failed.\n");
+    }
+    return(err);
+}
+
+/*
+ * The mydev_read function just takes the buf that was saved 
+ * via mydev_write() and returns it to userland for
+ * accessing.
+ */
+int
+mydev_read(dev_t dev, struct uio *uio, int ioflag)
+{
+    int err = 0;
+
+    printf("mydev_read: dev_t=%d, uio=%p, ioflag=%d\n",
+	dev2udev(dev), uio, ioflag);
+
+    if (len <= 0) {
+	err = -1; 
+    } else {	/* copy buf to userland */
+	copystr(&buf, uio->uio_iov->iov_base, 513, &len);
+    }
+    return(err);
 }
