@@ -24,8 +24,8 @@
 #include <sys/sysctl.h>
 #include <sys/linker.h>
 
-#ifndef MDNSECT
-#define MDNSECT (10000 * 2)
+#ifndef MD_NSECT
+#define MD_NSECT (10000 * 2)
 #endif
 
 MALLOC_DEFINE(M_MD, "MD disk", "Memory Disk");
@@ -375,7 +375,7 @@ mdcreate_malloc(void)
 	sc = mdcreate(&md_cdevsw);
 	sc->type = MD_MALLOC;
 
-	sc->nsect = MDNSECT;	/* for now */
+	sc->nsect = MD_NSECT;	/* for now */
 	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK);
 	bzero(sc->secp, sizeof(u_char *));
 	sc->nsecp = 1;
