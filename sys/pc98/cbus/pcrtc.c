@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.18 1997/03/05 16:19:48 kato Exp $
+ *	$Id: clock.c,v 1.19 1997/04/07 10:53:14 kato Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
  */
 
 #include "opt_clock.h"
+#include "opt_smp.h"
 #include "opt_cpu.h"
 
 #include <sys/param.h>
@@ -110,7 +111,7 @@
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 u_int	i586_ctr_bias;
 u_int	i586_ctr_comultiplier;
 u_int	i586_ctr_freq;
@@ -176,7 +177,7 @@ static int rtc_inb __P((void));
 static void rtc_outb __P((int));
 #endif
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 static	void	set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq);
 #endif
 static	void	set_timer_freq(u_int freq, int intr_freq);
@@ -694,7 +695,7 @@ calibrate_clocks(void)
 		goto fail;
 	tot_count = 0;
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686)
 		wrmsr(0x10, 0LL);	/* XXX 0x10 is the MSR for the TSC */
 #endif
@@ -727,7 +728,7 @@ calibrate_clocks(void)
 			goto fail;
 	}
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	/*
 	 * Read the cpu cycle counter.  The timing considerations are
 	 * similar to those for the i8254 clock.
@@ -832,7 +833,7 @@ startrtclock()
 			printf(
 		    "%d Hz differs from default of %d Hz by more than 1%%\n",
 			       freq, timer_freq);
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 		i586_ctr_freq = 0;
 #endif
 	}
@@ -840,7 +841,7 @@ startrtclock()
 
 	set_timer_freq(timer_freq, hz);
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 #ifndef CLK_USE_I586_CALIBRATION
 	if (i586_ctr_freq != 0) {
 		if (bootverbose)
@@ -1123,12 +1124,29 @@ resettodr()
 #endif
 }
 
+#if defined(APIC_IO)
+
+/* from icu.s: */
+extern u_int	hwisrs[];
+extern void	vec8254	__P((void));
+extern void	vecRTC	__P((void));
+extern u_int	ivectors[];
+extern u_int	Xintr8254;
+extern u_int	XintrRTC;
+extern u_int	mask8254;
+extern u_int	maskRTC;
+
+#endif /* APIC_IO */
+
 /*
  * Start both clocks running.
  */
 void
 cpu_initclocks()
 {
+#if defined(APIC_IO)
+	int x;
+#endif /* APIC_IO */
 #ifndef PC98
 	int diag;
 
@@ -1149,11 +1167,51 @@ cpu_initclocks()
 #endif
 
 	/* Finish initializing 8253 timer 0. */
+#if defined(APIC_IO)
+	/* 8254 is traditionally on ISA IRQ0 */
+	if ((x = get_isa_apic_irq(0)) < 0) {
+		/*
+		 * bummer, this mb doesn't have the 8254 on ISA irq0,
+		 *  perhaps it's on the EISA bus...
+		 */
+		if ((x = get_eisa_apic_irq(0)) < 0) {
+			/* double bummer, attempt to redirect thru the 8259 */
+			if (bootverbose)
+				printf("APIC missing 8254 connection\n");
+
+			/* allow 8254 timer to INTerrupt 8259 */
+#if !defined(IO_ICU1)
+#ifdef PC98
+#define IO_ICU1 0x00
+#else
+#define IO_ICU1 0x20
+#endif
+#endif
+			x = inb(IO_ICU1 + 1);	/* current mask in 8259 */
+			x &= ~1;		/* clear 8254 timer mask */
+			outb(IO_ICU1 + 1, x);	/* write new mask */
+
+			/* program IO APIC for type 3 INT on INT0 */
+			if (ext_int_setup(0, 0) < 0)
+				panic("8254 redirect impossible!");
+			x = 0;			/* 8259 is on 0 */
+		}
+	}
+
+	hwisrs[x] = (u_int)vec8254;
+	Xintr8254 = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
+	mask8254 = (1 << x);
+	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
+		      /* unit */ 0);
+	INTREN(mask8254);
+#else
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
 	INTREN(IRQ0);
-#if defined(I586_CPU) || defined(I686_CPU)
+#endif /* APIC_IO */
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
@@ -1172,12 +1230,37 @@ cpu_initclocks()
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+#if defined(APIC_IO)
+	/* RTC is traditionally on ISA IRQ8 */
+	if ((x = get_isa_apic_irq(8)) < 0) {
+		if ((x = get_eisa_apic_irq(8)) < 0) {
+			panic("APIC missing RTC connection");
+	    }
+	}
+
+	hwisrs[x] = (u_int)vecRTC;
+	XintrRTC = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
+	maskRTC = (1 << x);
+	register_intr(/* irq */ x, /* XXX id */ 1, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
+		      /* unit */ 0);
+	INTREN(maskRTC);
+#else
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
 	INTREN(IRQ8);
+#endif /* APIC_IO */
 	writertc(RTC_STATUSB, rtc_statusb);
 #endif
+
+#if defined(APIC_IO)
+	printf("Enabled INTs: ");
+	for (x = 0; x < 24; ++x)
+		if ((imen & (1 << x)) == 0)
+	        	printf("%d, ", x);
+	printf("imen: 0x%08x\n", imen);
+#endif /* APIC_IO */
 }
 
 void
@@ -1208,7 +1291,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 		if (timer0_state != 0)
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 		set_i586_ctr_freq(i586_ctr_freq, timer_freq);
 #endif
 	}
@@ -1218,7 +1301,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 static void
 set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq)
 {
@@ -1257,4 +1340,4 @@ sysctl_machdep_i586_freq SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_machdep, OID_AUTO, i586_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_i586_freq, "I", "");
-#endif /* defined(I586_CPU) || defined(I686_CPU) */
+#endif /* (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP) */

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.15 1997/03/24 12:29:39 bde Exp $
+ *	$Id: npx.c,v 1.16 1997/04/22 12:20:50 kato Exp $
  */
 
 #include "npx.h"
@@ -40,6 +40,7 @@
 
 #include "opt_cpu.h"
 #include "opt_math_emulate.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -60,6 +61,10 @@
 #include <machine/trap.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
+#if defined(APIC_IO)
+#include <machine/apic.h>
+#include <machine/mpapic.h>
+#endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
@@ -138,7 +143,12 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	"Floatingpoint instructions executed in hardware");
 
 static u_int	npx0_imask = SWI_CLOCK_MASK;
+#ifdef SMP
+#define npxproc	(SMPnpxproc[cpunumber()])
+struct proc	*SMPnpxproc[NCPU];
+#else
 struct proc	*npxproc;
+#endif
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
@@ -153,8 +163,32 @@ static	volatile u_int		npx_traps_while_probing;
  * interrupts.  We'll still need a special exception 16 handler.  The busy
  * latch stuff in probeintr() can be moved to npxprobe().
  */
-
 inthand_t probeintr;
+
+#if defined(APIC_IO)
+
+asm
+("
+	.text
+	.p2align 2,0x90
+" __XSTRING(CNAME(probeintr)) ":
+	ss
+	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "
+	pushl	%eax
+	movl	" __XSTRING(CNAME(apic_base)) ",%eax	# EOI to local APIC
+	movl	$0,0xb0(,%eax,1)	# movl $0, APIC_EOI(%eax)
+	movb	$0,%al
+#ifdef PC98
+	outb	%al,$0xf8		# clear BUSY# latch
+#else
+	outb	%al,$0xf0		# clear BUSY# latch
+#endif
+	popl	%eax
+	iret
+");
+
+#else
+
 asm
 ("
 	.text
@@ -181,6 +215,8 @@ asm
 	iret
 ");
 
+#endif /* APIC_IO */
+
 inthand_t probetrap;
 asm
 ("
@@ -205,8 +241,12 @@ npxprobe(dvp)
 {
 	int	result;
 	u_long	save_eflags;
+#if defined(APIC_IO)
+	u_int	save_apic_mask;
+#else
 	u_char	save_icu1_mask;
 	u_char	save_icu2_mask;
+#endif /* APIC_IO */
 	struct	gate_descriptor save_idt_npxintr;
 	struct	gate_descriptor save_idt_npxtrap;
 	/*
@@ -219,6 +259,9 @@ npxprobe(dvp)
 	npx_intrno = NRSVIDT + ffs(dvp->id_irq) - 1;
 	save_eflags = read_eflags();
 	disable_intr();
+#if defined(APIC_IO)
+	save_apic_mask = INTRGET();
+#else
 #ifdef PC98
 	save_icu1_mask = inb(IO_ICU1 + 2);
 	save_icu2_mask = inb(IO_ICU2 + 2);
@@ -226,8 +269,12 @@ npxprobe(dvp)
 	save_icu1_mask = inb(IO_ICU1 + 1);
 	save_icu2_mask = inb(IO_ICU2 + 1);
 #endif
+#endif /* APIC_IO */
 	save_idt_npxintr = idt[npx_intrno];
 	save_idt_npxtrap = idt[16];
+#if defined(APIC_IO)
+	INTRSET( ~dvp->id_irq );
+#else
 #ifdef PC98
 	outb(IO_ICU1 + 2, ~(IRQ_SLAVE | dvp->id_irq));
 	outb(IO_ICU2 + 2, ~(dvp->id_irq >> 8));
@@ -235,12 +282,16 @@ npxprobe(dvp)
 	outb(IO_ICU1 + 1, ~(IRQ_SLAVE | dvp->id_irq));
 	outb(IO_ICU2 + 1, ~(dvp->id_irq >> 8));
 #endif
+#endif /* APIC_IO */
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	npx_idt_probeintr = idt[npx_intrno];
 	enable_intr();
 	result = npxprobe1(dvp);
 	disable_intr();
+#if defined(APIC_IO)
+	INTRSET( save_apic_mask );
+#else
 #ifdef PC98
 	outb(IO_ICU1 + 2, save_icu1_mask);
 	outb(IO_ICU2 + 2, save_icu2_mask);
@@ -248,6 +299,7 @@ npxprobe(dvp)
 	outb(IO_ICU1 + 1, save_icu1_mask);
 	outb(IO_ICU2 + 1, save_icu2_mask);
 #endif
+#endif /* APIC_IO */
 	idt[npx_intrno] = save_idt_npxintr;
 	idt[16] = save_idt_npxtrap;
 	write_eflags(save_eflags);
@@ -406,7 +458,8 @@ npxattach(dvp)
 	}
 	npxinit(__INITIAL_NPXCW__);
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && !defined(SMP)
+	/* FPU not working under SMP yet */
 	if (cpu_class == CPUCLASS_586 && npx_ex16) {
 		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
 			bcopy_vector = i586_bcopy;
@@ -622,13 +675,21 @@ void
 npxsave(addr)
 	struct save87 *addr;
 {
+#if defined(APIC_IO)
+	u_int	apic_mask;
+	u_int	old_apic_mask;
+#else
 	u_char	icu1_mask;
 	u_char	icu2_mask;
 	u_char	old_icu1_mask;
 	u_char	old_icu2_mask;
+#endif /* APIC_IO */
 	struct gate_descriptor	save_idt_npxintr;
 
 	disable_intr();
+#if defined(APIC_IO)
+	old_apic_mask = INTRGET();
+#else
 #ifdef PC98
 	old_icu1_mask = inb(IO_ICU1 + 2);
 	old_icu2_mask = inb(IO_ICU2 + 2);
@@ -636,7 +697,12 @@ npxsave(addr)
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
 #endif
+#endif /* APIC_IO */
 	save_idt_npxintr = idt[npx_intrno];
+#if defined(APIC_IO)
+	/** FIXME: try clrIoApicMaskBit( npx0_imask ); */
+	INTRSET( old_apic_mask & ~(npx0_imask & 0xffff) );
+#else
 #ifdef PC98
 	outb(IO_ICU1 + 2, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
 	outb(IO_ICU2 + 2, old_icu2_mask & ~(npx0_imask >> 8));
@@ -644,6 +710,7 @@ npxsave(addr)
 	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
 	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
 #endif
+#endif /* APIC_IO */
 	idt[npx_intrno] = npx_idt_probeintr;
 	enable_intr();
 	stop_emulating();
@@ -652,6 +719,11 @@ npxsave(addr)
 	start_emulating();
 	npxproc = NULL;
 	disable_intr();
+#if defined(APIC_IO)
+	apic_mask = INTRGET();		/* masks may have changed */
+        INTRSET( (apic_mask & ~(npx0_imask & 0xffff)) |
+		 (old_apic_mask & (npx0_imask & 0xffff)));
+#else
 #ifdef PC98
 	icu1_mask = inb(IO_ICU1 + 2);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 2);
@@ -669,6 +741,7 @@ npxsave(addr)
 	     (icu2_mask & ~(npx0_imask >> 8))
 	     | (old_icu2_mask & (npx0_imask >> 8)));
 #endif
+#endif /* APIC_IO */
 	idt[npx_intrno] = save_idt_npxintr;
 	enable_intr();		/* back to usual state */
 }
