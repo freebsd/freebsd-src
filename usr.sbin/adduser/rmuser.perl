@@ -533,10 +533,10 @@ sub remove_at_jobs {
     
     return 1 if ($user eq "");
     
-    print STDERR "Removing user's at jobs:";
     @at = invoke_atq($user);
     return 0 if ($#at == -1);
     
+    print STDERR "Removing user's at jobs:";
     print STDERR " @at:";
     $atrm = invoke_atrm($user, @at);
     if ($atrm ne "") {
@@ -544,7 +544,7 @@ sub remove_at_jobs {
 	return 1;
     }
     
-    print STDERR "done.\n";
+    print STDERR " done.\n";
     return 0;
 }
 
