@@ -1105,6 +1105,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	    ata_prtdev(atadev, "can't translate cmd to 48bit version\n");
 	    return -1;
 	}
+	atadev->channel->flags |= ATA_48BIT_ACTIVE;
     }
     else {
 	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, feature);

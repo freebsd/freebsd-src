@@ -217,6 +217,7 @@ struct ata_channel {
 #define		ATA_ATAPI_DMA_RO	0x08
 #define		ATA_QUEUED		0x10
 #define		ATA_DMA_ACTIVE		0x20
+#define		ATA_48BIT_ACTIVE	0x40
 
     struct ata_device		device[2];	/* devices on this channel */
 #define		MASTER			0x00
