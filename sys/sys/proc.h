@@ -268,6 +268,7 @@ struct thread {
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
+	int		td_tid;		/* (b) Thread ID. */
 
 /* Cleared during fork1() or thread_sched_upcall(). */
 #define	td_startzero td_flags
@@ -902,6 +903,7 @@ void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct ksegrp *kg);
+int	thread_new_tid(void);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 int	thread_single(int how);
