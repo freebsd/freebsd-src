@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.325
+    Original revision: 1.22.2.327
 -->
 
 <articleinfo>
@@ -270,6 +270,27 @@
     <para>FireWire サブシステムをユーザから操作・制御するための
       &man.fwcontrol.8; ユーティリティが追加されました。</para>
 
+    <para>&man.ftpd.8; に、サーバメッセージ中に &man.ftpd.8;
+      のバージョンやホスト名などの固有情報を表示しないようにする
+      <option>-h</option> オプションが追加されました。</para>
+
+    <para>&man.ftpd.8; に、デーモンモードで listen するポート番号を
+      指定する <option>-P</option> が追加されました。
+      また、デフォルトのデータポート番号は制御ポート番号より 1 少ない値になっており、
+      特定の固定値は使わなくなりました。</para>
+
+    <para>&man.ftpd.8; に使われる <filename>/etc/ftpchroot</filename>
+      ファイルの書式が拡張されました。詳しくは、新しく追加された
+      &man.ftpchroot.5; のマニュアルページをご覧ください。</para>
+
+    <para>&man.ftpd.8; のログインディレクトリのパス名に、
+      &man.chroot.2; 用のディレクトリと、
+      chroot 環境でのカレントディレクトリが指定できるようになりました。
+      指定には、他の FTP デーモンでも使われている
+      <literal>/./</literal>
+      というセパレータを使います。
+      これは &man.ftpchroot.5; と &man.passwd.5; の両方で指定可能です。</para>
+
     <para>&man.getconf.1; ユーティリティが追加されました。
       これは POSIX、X/Open パスの値、
       あるいはシステム設定変数の値を出力します。</para>
@@ -294,6 +315,11 @@
 
     <para>パス名の妥当性や他の POSIX システムとの移植性をチェックする
       &man.pathchk.1; ユーティリティが追加されました。</para>
+
+    <para>&man.pw.8; が、<literal>$</literal>
+      文字で終わるユーザの追加に対応しました。
+      これは、主に <application>Samba</application>
+      サービスの管理を容易にするための変更です。</para>
 
     <para>&man.rarpd.8; に
       <filename>/tftpboot</filename> ディレクトリを変更する
