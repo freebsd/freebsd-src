@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)utils.c	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: utils.c,v 1.2 1997/06/29 19:00:29 steve Exp $
  *
  * From: Utah Hdr: utils.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -84,7 +84,7 @@ DispPkt(rconn, direct)
 	static char ReadFmt[] = "\t\tRetCode:%u Offset:%lx SessID:%x\n";
 
 	struct tm *tmp;
-	register struct rmp_packet *rmp;
+	struct rmp_packet *rmp;
 	int i, omask;
 	u_int32_t t;
 
@@ -210,8 +210,8 @@ GetEtherAddr(addr)
 {
 	static char Hex[] = "0123456789abcdef";
 	static char etherstr[RMP_ADDRLEN*3];
-	register int i;
-	register char *cp;
+	int i;
+	char *cp;
 
 	/*
 	 *  For each byte in `addr', convert it to "<hexchar><hexchar>:".
@@ -247,10 +247,10 @@ GetEtherAddr(addr)
 */
 void
 DspFlnm(size, flnm)
-	register u_int size;
-	register char *flnm;
+	u_int size;
+	char *flnm;
 {
-	register int i;
+	int i;
 
 	(void) fprintf(DbgFp, "\n\t\tFile Name (%u): <", size);
 	for (i = 0; i < size; i++)
@@ -284,8 +284,8 @@ NewClient(addr)
 		return(NULL);
 	}
 
-	bzero(ctmp, sizeof(CLIENT));
-	bcopy(addr, &ctmp->addr[0], RMP_ADDRLEN);
+	memset(ctmp, 0, sizeof(CLIENT));
+	memmove(&ctmp->addr[0], addr, RMP_ADDRLEN);
 	return(ctmp);
 }
 
@@ -308,7 +308,7 @@ NewClient(addr)
 void
 FreeClients()
 {
-	register CLIENT *ctmp;
+	CLIENT *ctmp;
 
 	while (Clients != NULL) {
 		ctmp = Clients;
@@ -386,7 +386,7 @@ NewConn(rconn)
 	 *  Copy template into `rtmp', init file descriptor to `-1' and
 	 *  set ptr to next elem NULL.
 	 */
-	bcopy((char *)rconn, (char *)rtmp, sizeof(RMPCONN));
+	memmove((char *)rtmp, (char *)rconn, sizeof(RMPCONN));
 	rtmp->bootfd = -1;
 	rtmp->next = NULL;
 
@@ -408,7 +408,7 @@ NewConn(rconn)
 */
 void
 FreeConn(rtmp)
-	register RMPCONN *rtmp;
+	RMPCONN *rtmp;
 {
 	/*
 	 *  If the file descriptor is in use, close the file.
@@ -444,7 +444,7 @@ FreeConn(rtmp)
 void
 FreeConns()
 {
-	register RMPCONN *rtmp;
+	RMPCONN *rtmp;
 
 	while (RmpConns != NULL) {
 		rtmp = RmpConns;
@@ -475,7 +475,7 @@ FreeConns()
 */
 void
 AddConn(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
 	if (RmpConns != NULL)
 		rconn->next = RmpConns;
@@ -503,9 +503,9 @@ AddConn(rconn)
 */
 RMPCONN *
 FindConn(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
-	register RMPCONN *rtmp;
+	RMPCONN *rtmp;
 
 	for (rtmp = RmpConns; rtmp != NULL; rtmp = rtmp->next)
 		if (bcmp((char *)&rconn->rmp.hp_hdr.saddr[0],
@@ -533,9 +533,9 @@ FindConn(rconn)
 */
 void
 RemoveConn(rconn)
-	register RMPCONN *rconn;
+	RMPCONN *rconn;
 {
-	register RMPCONN *thisrconn, *lastrconn;
+	RMPCONN *thisrconn, *lastrconn;
 
 	if (RmpConns == rconn) {		/* easy case */
 		RmpConns = RmpConns->next;
