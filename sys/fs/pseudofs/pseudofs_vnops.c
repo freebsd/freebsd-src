@@ -716,10 +716,8 @@ static int
 pfs_setattr(struct vop_setattr_args *va)
 {
 	PFS_TRACE((((struct pfs_vdata *)va->a_vp->v_data)->pvd_pn->pn_name));
-	
-	if (va->a_vap->va_flags != (u_long)VNOVAL)
-		PFS_RETURN (EOPNOTSUPP);
-	PFS_RETURN (EPERM);
+
+	PFS_RETURN (EOPNOTSUPP);
 }
 
 /*
