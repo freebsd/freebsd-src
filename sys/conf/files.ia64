@@ -99,7 +99,9 @@ dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+geom/geom_bsd.c			standard
 geom/geom_gpt.c			standard
+geom/geom_mbr.c			standard
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/fd.c			optional	fdc
