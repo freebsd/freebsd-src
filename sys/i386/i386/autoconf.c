@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.119 1999/05/09 16:45:49 phk Exp $
+ *	$Id: autoconf.c,v 1.120 1999/05/09 16:56:09 phk Exp $
  */
 
 /*
@@ -75,9 +75,8 @@
 
 #include <i386/isa/icu.h>
 
-#include "isa.h"
-#if NISA > 0
-device_t isa_bus_device = 0;
+#ifdef MFS_ROOT
+#include <ufs/mfs/mfs_extern.h>
 #endif
 
 #include "pnp.h"
@@ -94,6 +93,11 @@ device_t isa_bus_device = 0;
 #include "pci.h"
 #if NPCI > 0
 #include <pci/pcivar.h>
+#endif
+
+#include "isa.h"
+#if NISA > 0
+device_t isa_bus_device = 0;
 #endif
 
 static void	configure_first __P((void *));
@@ -177,10 +181,6 @@ find_cdrom_root()
 	return EINVAL;
 }
 #endif /* CD9660 || CD9660_ROOT */
-
-#ifdef MFS_ROOT
-extern u_char *mfs_getimage __P((void));
-#endif
 
 static void
 configure_start()
