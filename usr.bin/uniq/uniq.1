@@ -41,7 +41,7 @@
 .Nm uniq
 .Nd report or filter out repeated lines in a file
 .Sh SYNOPSIS
-.Nm uniq
+.Nm
 .Op Fl c | Fl d | Fl u
 .Op Fl f Ar fields
 .Op Fl s Ar chars
@@ -51,7 +51,7 @@
 .Oc
 .Sh DESCRIPTION
 The
-.Nm uniq
+.Nm
 utility reads the standard input comparing adjacent lines, and writes
 a copy of each unique input line to the standard output.
 The second and succeeding copies of identical adjacent input lines are
@@ -112,7 +112,7 @@ such argument is used as the name of an input file, the second is used
 as the name of an output file.
 .Pp
 The
-.Nm uniq
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh COMPATIBILITY
 The historic
@@ -124,7 +124,7 @@ options have been deprecated but are still supported in this implementation.
 .Xr sort 1
 .Sh STANDARDS
 The
-.Nm uniq
+.Nm
 utility is expected to be
 .St -p1003.2
 compatible.
