@@ -19,6 +19,7 @@ SRCS=	ssh.c sshconnect.c log-client.c readconf.c clientloop.c
 
 .if defined(MAKE_KERBEROS4) && \
 	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
+DISTRIBUTION=krb4
 CFLAGS+= -DKRB4
 LDADD+=	 -lkrb -lcom_err
 DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
@@ -26,9 +27,10 @@ DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
 
 .if defined(MAKE_KERBEROS5) && \
 	((${MAKE_KERBEROS5} == "yes") || (${MAKE_KERBEROS5} == "YES"))
+DISTRIBUTION=krb5
 CFLAGS+= -DKRB5
-LDADD+=	 -lkrb5 -lcom_err
-DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR}
+LDADD+=	 -lkrb5 -lkafs -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
+DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBKAFS} ${LIBASN1} ${LIBMD}
 .endif # MAKE_KERBEROS5
 
 .include <bsd.prog.mk>
