@@ -822,7 +822,6 @@ distExtract(char *parent, Distribution *me)
 	    (void)mount("devfs", "/dev", 0, NULL);
 	    unmounted_dev = 0;
 	}
-      }
     }
     properties_free(dist_attr);
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
