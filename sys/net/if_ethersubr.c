@@ -183,8 +183,7 @@ ether_output(ifp, m, dst, rt0)
 #ifdef INET6
 	case AF_INET6:
 		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
-			/* this must be impossible, so we bark */
-			printf("nd6_storelladdr failed\n");
+			/* Something bad happened */
 			return(0);
 		}
 		off = m->m_pkthdr.len - m->m_len;
