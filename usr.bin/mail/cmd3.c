@@ -194,7 +194,7 @@ int
 respond(msgvec)
 	int *msgvec;
 {
-	if (value("Replyall") == NULL)
+	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (dorespond(msgvec));
 	else
 		return (doRespond(msgvec));
@@ -588,7 +588,7 @@ int
 Respond(msgvec)
 	int *msgvec;
 {
-	if (value("Replyall") == NULL)
+	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (doRespond(msgvec));
 	else
 		return (dorespond(msgvec));
