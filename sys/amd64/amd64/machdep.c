@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.35 1994/02/08 09:25:53 davidg Exp $
+ *	$Id: machdep.c,v 1.36 1994/02/08 12:58:44 davidg Exp $
  */
 
 #include "npx.h"
@@ -486,6 +486,7 @@ sendsig(catcher, sig, mask, code)
 	fp->sf_sc.sc_ps = regs[tEFLAGS];
 	regs[tESP] = (int)fp;
 	regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
+	regs[tEFLAGS] &= ~PSL_VM;
 	regs[tCS] = _ucodesel;
 	regs[tDS] = _udatasel;
 	regs[tES] = _udatasel;
@@ -515,6 +516,7 @@ sigreturn(p, uap, retval)
 	register struct sigcontext *scp;
 	register struct sigframe *fp;
 	register int *regs = p->p_regs;
+	int eflags;
 
 	/*
 	 * (XXX old comment) regs[tESP] points to the return address.
@@ -528,6 +530,48 @@ sigreturn(p, uap, retval)
 
 	if (useracc((caddr_t)fp, sizeof (*fp), 0) == 0)
 		return(EINVAL);
+
+	eflags = scp->sc_ps;
+	if ((eflags & PSL_USERCLR) != 0 ||
+	    (eflags & PSL_USERSET) != PSL_USERSET ||
+	    (eflags & PSL_IOPL) < (regs[tEFLAGS] & PSL_IOPL)) {
+#ifdef DEBUG
+    		printf("sigreturn:  eflags=0x%x\n", eflags);
+#endif
+    		return(EINVAL);
+	}
+
+	/*
+	 * Sanity check the user's selectors and error if they
+	 * are suspect.
+	 */
+#define max_ldt_sel(pcb) \
+	((pcb)->pcb_ldt ? (pcb)->pcb_ldt_len : (sizeof(ldt) / sizeof(ldt[0])))
+
+#define valid_ldt_sel(sel) \
+	(ISLDT(sel) && ISPL(sel) == SEL_UPL && \
+	 IDXSEL(sel) < max_ldt_sel(&p->p_addr->u_pcb))
+
+#define null_sel(sel) \
+	(!ISLDT(sel) && IDXSEL(sel) == 0)
+
+	if ((scp->sc_cs&0xffff != _ucodesel && !valid_ldt_sel(scp->sc_cs)) ||
+	    (scp->sc_ss&0xffff != _udatasel && !valid_ldt_sel(scp->sc_ss)) ||
+	    (scp->sc_ds&0xffff != _udatasel && !valid_ldt_sel(scp->sc_ds) &&
+	     !null_sel(scp->sc_ds)) ||
+	    (scp->sc_es&0xffff != _udatasel && !valid_ldt_sel(scp->sc_es) &&
+	     !null_sel(scp->sc_es))) {
+#ifdef DEBUG
+    		printf("sigreturn:  cs=0x%x ss=0x%x ds=0x%x es=0x%x\n",
+			scp->sc_cs, scp->sc_ss, scp->sc_ds, scp->sc_es);
+#endif
+		trapsignal(p, SIGBUS, T_PROTFLT);
+		return(EINVAL);
+	}
+
+#undef max_ldt_sel
+#undef valid_ldt_sel
+#undef null_sel
 
 	/* restore scratch registers */
 	regs[tEAX] = scp->sc_eax;
@@ -544,18 +588,14 @@ sigreturn(p, uap, retval)
 
 	if (useracc((caddr_t)scp, sizeof (*scp), 0) == 0)
 		return(EINVAL);
-#ifdef notyet
-	if ((scp->sc_ps & PSL_MBZ) != 0 || (scp->sc_ps & PSL_MBO) != PSL_MBO) {
-		return(EINVAL);
-	}
-#endif
-        p->p_sigacts->ps_onstack = scp->sc_onstack & 01;
+
+	p->p_sigacts->ps_onstack = scp->sc_onstack & 01;
 	p->p_sigmask = scp->sc_mask &~
 	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
 	regs[tEBP] = scp->sc_fp;
 	regs[tESP] = scp->sc_sp;
 	regs[tEIP] = scp->sc_pc;
-	regs[tEFLAGS] = scp->sc_ps;
+	regs[tEFLAGS] = eflags;
 	return(EJUSTRETURN);
 }
 
