@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.158 1998/03/17 17:36:05 dyson Exp $
+ * $Id: vfs_bio.c,v 1.159 1998/03/19 22:48:12 dyson Exp $
  */
 
 /*
@@ -2293,8 +2293,7 @@ vfs_clean_pages(struct buf * bp)
 void
 vfs_bio_clrbuf(struct buf *bp) {
 	int i;
-	if (((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) ||
-		((bp->b_flags & (B_VMIO | B_MALLOC)) == 0) && (bp->b_npages > 0) ) {
+	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE)) {
 			int mask;
 			mask = 0;
@@ -2362,6 +2361,7 @@ tryagain:
 		}
 		vm_page_wire(p);
 		p->valid = VM_PAGE_BITS_ALL;
+		p->flags &= ~PG_ZERO;
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
 		bp->b_pages[index] = p;
 		PAGE_WAKEUP(p);
