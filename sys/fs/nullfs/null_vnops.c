@@ -592,6 +592,7 @@ null_lock(ap)
 	struct thread *td = ap->a_td;
 	struct vnode *lvp;
 	int error;
+	struct null_node *nn;
 
 	if (flags & LK_THISLAYER) {
 		if (vp->v_vnlock != NULL) {
@@ -614,13 +615,65 @@ null_lock(ap)
 		 * going away doesn't mean the struct lock below us is.
 		 * LK_EXCLUSIVE is fine.
 		 */
+		if ((flags & LK_INTERLOCK) == 0) {
+			VI_LOCK(vp);
+			flags |= LK_INTERLOCK;
+		}
+		nn = VTONULL(vp);
 		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
 			NULLFSDEBUG("null_lock: avoiding LK_DRAIN\n");
-			return(lockmgr(vp->v_vnlock,
-				(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE,
-				&vp->v_interlock, td));
+			/*
+			 * Emulate lock draining by waiting for all other
+			 * pending locks to complete.  Afterwards the
+			 * lockmgr call might block, but no other threads
+			 * will attempt to use this nullfs vnode due to the
+			 * VI_XLOCK flag.
+			 */
+			while (nn->null_pending_locks > 0) {
+				nn->null_drain_wakeup = 1;
+				msleep(&nn->null_pending_locks,
+				       VI_MTX(vp),
+				       PVFS,
+				       "nuldr", 0);
+			}
+			error = lockmgr(vp->v_vnlock,
+					(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE,
+					VI_MTX(vp), td);
+			return error;
 		}
-		return(lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td));
+		nn->null_pending_locks++;
+		error = lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td);
+		VI_LOCK(vp);
+		/*
+		 * If we're called from vrele then v_usecount can have been 0
+		 * and another process might have initiated a recycle 
+		 * operation.  When that happens, just back out.
+		 */
+		if (error == 0 && (vp->v_iflag & VI_XLOCK) != 0 &&
+		    td != vp->v_vxproc) {
+			lockmgr(vp->v_vnlock,
+				(flags & ~LK_TYPE_MASK) | LK_RELEASE,
+				VI_MTX(vp), td);
+			VI_LOCK(vp);
+			error = ENOENT;
+		}
+		nn->null_pending_locks--;
+		/*
+		 * Wakeup the process draining the vnode after all
+		 * pending lock attempts has been failed.
+		 */
+		if (nn->null_pending_locks == 0 &&
+		    nn->null_drain_wakeup != 0) {
+			nn->null_drain_wakeup = 0;
+			wakeup(&nn->null_pending_locks);
+		}
+		if (error == ENOENT && (vp->v_iflag & VI_XLOCK) != 0 &&
+		    vp->v_vxproc != curthread) {
+			vp->v_iflag |= VI_XWANT;
+			msleep(vp, VI_MTX(vp), PINOD, "nulbo", 0);
+		}
+		VI_UNLOCK(vp);
+		return error;
 	} else {
 		/*
 		 * To prevent race conditions involving doing a lookup
