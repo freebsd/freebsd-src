@@ -73,9 +73,20 @@ struct extract {
 	mode_t			 umask;
 	struct archive_string	 mkdirpath;
 	struct fixup_entry	*fixup_list;
+
+	/*
+	 * Cached stat data from disk for the current entry.
+	 * If this is valid, pst points to st.  Otherwise,
+	 * pst is null.
+	 *
+	 * TODO: Have all of the stat calls use this cached data
+	 * if possible.
+	 */
+	struct stat		 st;
+	struct stat		*pst;
 };
 
-/* Default mode for dirs created automatically. */
+/* Default mode for dirs created automatically (will be modified by umask). */
 #define DEFAULT_DIR_MODE 0777
 /*
  * Mode to use for newly-created dirs during extraction; the correct
@@ -84,34 +95,29 @@ struct extract {
 #define SECURE_DIR_MODE 0700
 
 static void	archive_extract_cleanup(struct archive *);
-static int	archive_read_extract_block_device(struct archive *,
+static int	extract_block_device(struct archive *,
 		    struct archive_entry *, int);
-static int	archive_read_extract_char_device(struct archive *,
+static int	extract_char_device(struct archive *,
 		    struct archive_entry *, int);
-static int	archive_read_extract_device(struct archive *,
+static int	extract_device(struct archive *,
 		    struct archive_entry *, int flags, mode_t mode);
-static int	archive_read_extract_dir(struct archive *,
-		    struct archive_entry *, int);
-static int	archive_read_extract_fifo(struct archive *,
-		    struct archive_entry *, int);
-static int	archive_read_extract_hard_link(struct archive *,
-		    struct archive_entry *, int);
-static int	archive_read_extract_regular(struct archive *,
-		    struct archive_entry *, int);
-static int	archive_read_extract_symbolic_link(struct archive *,
-		    struct archive_entry *, int);
+static int	extract_dir(struct archive *, struct archive_entry *, int);
+static int	extract_fifo(struct archive *, struct archive_entry *, int);
+static int	extract_file(struct archive *, struct archive_entry *, int);
+static int	extract_hard_link(struct archive *, struct archive_entry *, int);
+static int	extract_symlink(struct archive *, struct archive_entry *, int);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
 static int	mkdirpath(struct archive *, const char *);
 static int	mkdirpath_recursive(struct archive *, char *,
 		    const struct stat *, mode_t, int);
+static int	restore_metadata(struct archive *, struct archive_entry *,
+		    int flags);
 #ifdef HAVE_POSIX_ACL
 static int	set_acl(struct archive *, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
 static int	set_acls(struct archive *, struct archive_entry *);
-static int	set_extended_perm(struct archive *, struct archive_entry *,
-		    int flags);
 static int	set_fflags(struct archive *, const char *name, mode_t mode,
 		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive *, struct archive_entry *, int);
@@ -151,11 +157,8 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	}
 	extract = a->extract;
 	umask(extract->umask = umask(0)); /* Read the current umask. */
-
+	extract->pst = NULL;
 	restore_pwd = -1;
-
-	if (archive_entry_hardlink(entry) != NULL)
-		return (archive_read_extract_hard_link(a, entry, flags));
 
 	/*
 	 * TODO: If pathname is longer than PATH_MAX, record starting
@@ -168,28 +171,40 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		/* XXX Update pathname in 'entry' XXX */
 	}
 
-	mode = archive_entry_mode(entry);
-	switch (mode & S_IFMT) {
-	default:
-		/* Fall through, as required by POSIX. */
-	case S_IFREG:
-		ret =  archive_read_extract_regular(a, entry, flags);
-		break;
-	case S_IFLNK:	/* Symlink */
-		ret =  archive_read_extract_symbolic_link(a, entry, flags);
-		break;
-	case S_IFCHR:
-		ret =  archive_read_extract_char_device(a, entry, flags);
-		break;
-	case S_IFBLK:
-		ret =  archive_read_extract_block_device(a, entry, flags);
-		break;
-	case S_IFDIR:
-		ret =  archive_read_extract_dir(a, entry, flags);
-		break;
-	case S_IFIFO:
-		ret =  archive_read_extract_fifo(a, entry, flags);
-		break;
+	if (stat(archive_entry_pathname(entry), &extract->st) == 0)
+		extract->pst = &extract->st;
+
+	if (extract->pst != NULL &&
+	    extract->pst->st_dev == a->skip_file_dev &&
+	    extract->pst->st_ino == a->skip_file_ino) {
+		archive_set_error(a, 0, "Refusing to overwrite archive");
+		ret = ARCHIVE_WARN;
+	} else if (archive_entry_hardlink(entry) != NULL)
+		ret = extract_hard_link(a, entry, flags);
+	else {
+		mode = archive_entry_mode(entry);
+		switch (mode & S_IFMT) {
+		default:
+			/* Fall through, as required by POSIX. */
+		case S_IFREG:
+			ret = extract_file(a, entry, flags);
+			break;
+		case S_IFLNK:	/* Symlink */
+			ret = extract_symlink(a, entry, flags);
+			break;
+		case S_IFCHR:
+			ret = extract_char_device(a, entry, flags);
+			break;
+		case S_IFBLK:
+			ret = extract_block_device(a, entry, flags);
+			break;
+		case S_IFDIR:
+			ret = extract_dir(a, entry, flags);
+			break;
+		case S_IFIFO:
+			ret = extract_fifo(a, entry, flags);
+			break;
+		}
 	}
 
 	/* If we changed directory above, restore it here. */
@@ -218,8 +233,8 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
  * name from archive_read_finish) reduces static link pollution, since
  * applications that don't use this API won't get this file linked in.
  */
-static
-void archive_extract_cleanup(struct archive *a)
+static void
+archive_extract_cleanup(struct archive *a)
 {
 	struct fixup_entry *next, *p;
 	struct extract *extract;
@@ -320,15 +335,16 @@ sort_dir_list(struct fixup_entry *p)
 }
 
 static int
-archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
-    int flags)
+extract_file(struct archive *a, struct archive_entry *entry, int flags)
 {
+	struct extract *extract;
 	const char *name;
 	mode_t mode;
-	int fd, r;
+	int fd, r, r2;
 
+	extract = a->extract;
 	name = archive_entry_pathname(entry);
-	mode = archive_entry_mode(entry);
+	mode = archive_entry_mode(entry) & 0777;
 	r = ARCHIVE_OK;
 
 	/*
@@ -356,31 +372,25 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 	r = archive_read_data_into_fd(a, fd);
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	/* Always reset permissions for regular files. */
-	set_perm(a, entry, archive_entry_mode(entry),
-	    flags | ARCHIVE_EXTRACT_PERM);
-	set_extended_perm(a, entry, flags);
+	extract->pst = NULL; /* Cached stat data no longer valid. */
+	r2 = restore_metadata(a, entry, flags);
 	close(fd);
-	return (r);
+	return (err_combine(r, r2));
 }
 
 static int
-archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
-    int flags)
+extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 {
 	struct extract *extract;
 	const struct stat *st;
 	char *p;
-	int ret, ret2;
 	size_t len;
 
 	extract = a->extract;
-	st = archive_entry_stat(entry);
 
 	/* Copy path to mutable storage. */
-	archive_strcpy(&(extract->mkdirpath), archive_entry_pathname(entry));
+	archive_strcpy(&(extract->mkdirpath),
+	    archive_entry_pathname(entry));
 	p = extract->mkdirpath.s;
 	len = strlen(p);
 	if (len > 2 && p[len - 1] == '.' && p[len - 2] == '/')
@@ -388,12 +398,12 @@ archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
 	if (len > 2 && p[len - 1] == '/')
 		p[--len] = '\0'; /* Remove trailing "/" */
 	/* Recursively try to build the path. */
+	st = archive_entry_stat(entry);
+	extract->pst = NULL; /* Invalidate cached stat data. */
 	if (mkdirpath_recursive(a, p, st, st->st_mode, flags))
 		return (ARCHIVE_WARN);
-	set_ownership(a, entry, flags);
-	ret = set_perm(a, entry, 0700, flags);
-	ret2 = set_extended_perm(a, entry, flags);
-	return (err_combine(ret, ret2));
+	archive_entry_set_mode(entry, 0700);
+	return (restore_metadata(a, entry, flags));
 }
 
 
@@ -428,10 +438,10 @@ mkdirpath(struct archive *a, const char *path)
  * Otherwise, returns ARCHIVE_WARN.
  */
 static int
-mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
-    mode_t mode, int flags)
+mkdirpath_recursive(struct archive *a, char *path,
+    const struct stat *desired_stat, mode_t mode, int flags)
 {
-	struct stat sb;
+	struct stat st;
 	struct extract *extract;
 	struct fixup_entry *le;
 	char *p;
@@ -444,7 +454,7 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 		return (ARCHIVE_OK);
 
 	if (mode != writable_mode ||
-	    (st != NULL && (flags & ARCHIVE_EXTRACT_TIME))) {
+	    (desired_stat != NULL && (flags & ARCHIVE_EXTRACT_TIME))) {
 		/* Add this dir to the fixup list. */
 		le = malloc(sizeof(struct fixup_entry));
 		le->fixup = 0;
@@ -458,10 +468,10 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 			mode = writable_mode;
 		}
 		if (flags & ARCHIVE_EXTRACT_TIME) {
-			le->mtime = st->st_mtime;
-			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
-			le->atime = st->st_atime;
-			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
+			le->mtime = desired_stat->st_mtime;
+			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(desired_stat);
+			le->atime = desired_stat->st_atime;
+			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(desired_stat);
 			le->fixup |= FIXUP_TIMES;
 		}
 	}
@@ -486,10 +496,12 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 	 * here loses the ability to extract through symlinks.  If
 	 * clients don't want to extract through symlinks, they should
 	 * specify ARCHIVE_EXTRACT_UNLINK.
+	 *
+	 * Note that this cannot use the extract->st cache.
 	 */
-	if (stat(path, &sb) == 0) {
+	if (stat(path, &st) == 0) {
 		/* Already exists! */
-		if (S_ISDIR(sb.st_mode))
+		if (S_ISDIR(st.st_mode))
 			return (ARCHIVE_OK);
 		if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 			archive_set_error(a, EEXIST,
@@ -529,7 +541,7 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 		 * Without the following check, a/b/../b/c/d fails at
 		 * the second visit to 'b', so 'd' can't be created.
 		 */
-		if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode))
+		if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
 			return (ARCHIVE_OK);
 	}
 	archive_set_error(a, errno, "Failed to create dir '%s'", path);
@@ -537,13 +549,14 @@ mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
 }
 
 static int
-archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
-    int flags)
+extract_hard_link(struct archive *a, struct archive_entry *entry, int flags)
 {
+	struct extract *extract;
 	int r;
 	const char *pathname;
 	const char *linkname;
 
+	extract = a->extract;
 	pathname = archive_entry_pathname(entry);
 	linkname = archive_entry_hardlink(entry);
 
@@ -552,6 +565,7 @@ archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
 		unlink(pathname);
 
 	r = link(linkname, pathname);
+	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
@@ -567,22 +581,19 @@ archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
 	}
 
 	/* Set ownership, time, permission information. */
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	set_perm(a, entry, archive_entry_stat(entry)->st_mode, flags);
-	set_extended_perm(a, entry, flags);
-
-	return (ARCHIVE_OK);
+	r = restore_metadata(a, entry, flags);
+	return (r);
 }
 
 static int
-archive_read_extract_symbolic_link(struct archive *a,
-    struct archive_entry *entry, int flags)
+extract_symlink(struct archive *a, struct archive_entry *entry, int flags)
 {
+	struct extract *extract;
 	int r;
 	const char *pathname;
 	const char *linkname;
 
+	extract = a->extract;
 	pathname = archive_entry_pathname(entry);
 	linkname = archive_entry_symlink(entry);
 
@@ -591,6 +602,7 @@ archive_read_extract_symbolic_link(struct archive *a,
 		unlink(pathname);
 
 	r = symlink(linkname, pathname);
+	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
@@ -605,27 +617,25 @@ archive_read_extract_symbolic_link(struct archive *a,
 		return (ARCHIVE_WARN);
 	}
 
-	/* Set ownership, time, permission information. */
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	set_perm(a, entry, archive_entry_stat(entry)->st_mode, flags);
-	set_extended_perm(a, entry, flags);
-
-	return (ARCHIVE_OK);
+	r = restore_metadata(a, entry, flags);
+	return (r);
 }
 
 static int
-archive_read_extract_device(struct archive *a, struct archive_entry *entry,
+extract_device(struct archive *a, struct archive_entry *entry,
     int flags, mode_t mode)
 {
+	struct extract *extract;
 	int r;
 
+	extract = a->extract;
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(archive_entry_pathname(entry));
 
 	r = mknod(archive_entry_pathname(entry), mode,
 	    archive_entry_rdev(entry));
+	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
@@ -635,57 +645,52 @@ archive_read_extract_device(struct archive *a, struct archive_entry *entry,
 	}
 
 	if (r != 0) {
-		archive_set_error(a, errno, "Can't recreate device node");
+		archive_set_error(a, errno, "Can't restore device node");
 		return (ARCHIVE_WARN);
 	}
 
-	/* Set ownership, time, permission information. */
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	set_perm(a, entry, archive_entry_stat(entry)->st_mode, flags);
-	set_extended_perm(a, entry, flags);
-
-	return (ARCHIVE_OK);
+	r = restore_metadata(a, entry, flags);
+	return (r);
 }
 
 static int
-archive_read_extract_char_device(struct archive *a,
-    struct archive_entry *entry, int flags)
+extract_char_device(struct archive *a, struct archive_entry *entry, int flags)
 {
 	mode_t mode;
 
 	mode = (archive_entry_mode(entry) & ~S_IFMT) | S_IFCHR;
-	return (archive_read_extract_device(a, entry, flags, mode));
+	return (extract_device(a, entry, flags, mode));
 }
 
 static int
-archive_read_extract_block_device(struct archive *a,
-    struct archive_entry *entry, int flags)
+extract_block_device(struct archive *a, struct archive_entry *entry, int flags)
 {
 	mode_t mode;
 
 	mode = (archive_entry_mode(entry) & ~S_IFMT) | S_IFBLK;
-	return (archive_read_extract_device(a, entry, flags, mode));
+	return (extract_device(a, entry, flags, mode));
 }
 
 static int
-archive_read_extract_fifo(struct archive *a,
-    struct archive_entry *entry, int flags)
+extract_fifo(struct archive *a, struct archive_entry *entry, int flags)
 {
+	struct extract *extract;
 	int r;
 
+	extract = a->extract;
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(archive_entry_pathname(entry));
 
 	r = mkfifo(archive_entry_pathname(entry),
-	    archive_entry_stat(entry)->st_mode);
+	    archive_entry_mode(entry));
+	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
 		mkdirpath(a, archive_entry_pathname(entry));
 		r = mkfifo(archive_entry_pathname(entry),
-		    archive_entry_stat(entry)->st_mode);
+		    archive_entry_mode(entry));
 	}
 
 	if (r != 0) {
@@ -693,19 +698,22 @@ archive_read_extract_fifo(struct archive *a,
 		return (ARCHIVE_WARN);
 	}
 
-	/* Set ownership, time, permission information. */
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	/* Done by mkfifo. */
-	/* set_perm(a, entry, archive_entry_stat(entry)->st_mode, flags); */
-	set_extended_perm(a, entry, flags);
-
-	return (ARCHIVE_OK);
+	r = restore_metadata(a, entry, flags);
+	return (r);
 }
 
-/*
- * Returns 0 if UID/GID successfully restored; ARCHIVE_WARN otherwise.
- */
+static int
+restore_metadata(struct archive *a, struct archive_entry *entry, int flags)
+{
+	int r, r2;
+
+	r = set_ownership(a, entry, flags);
+	r2 = set_time(a, entry, flags);
+	r = err_combine(r, r2);
+	r2 = set_perm(a, entry, archive_entry_mode(entry), flags);
+	return (err_combine(r, r2));
+}
+
 static int
 set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 {
@@ -714,21 +722,16 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 
 	/* Not changed. */
 	if ((flags & ARCHIVE_EXTRACT_OWNER) == 0)
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_OK);
 
 	uid = lookup_uid(a, archive_entry_uname(entry),
-	    archive_entry_stat(entry)->st_uid);
+	    archive_entry_uid(entry));
 	gid = lookup_gid(a, archive_entry_gname(entry),
-	    archive_entry_stat(entry)->st_gid);
+	    archive_entry_gid(entry));
 
-	/*
-	 * Root can change owner/group; owner can change group;
-	 * otherwise, bail out now.
-	 */
-	if (a->user_uid != 0  &&  a->user_uid != uid) {
-		/* XXXX archive_set_error( XXXX ) ; XXX */
-		return (ARCHIVE_WARN);
-	}
+	/* If we know we can't change it, don't bother trying. */
+	if (a->user_uid != 0  &&  a->user_uid != uid)
+		return (ARCHIVE_OK);
 
 	if (lchown(archive_entry_pathname(entry), uid, gid)) {
 		archive_set_error(a, errno,
@@ -749,6 +752,9 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 	st = archive_entry_stat(entry);
 
 	if ((flags & ARCHIVE_EXTRACT_TIME) == 0)
+		return (ARCHIVE_OK);
+	/* It's a waste of time to mess with dir timestamps here. */
+	if (S_ISDIR(archive_entry_mode(entry)))
 		return (ARCHIVE_OK);
 
 	times[1].tv_sec = st->st_mtime;
@@ -783,14 +789,35 @@ static int
 set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 {
 	struct extract *extract;
+	struct fixup_entry *le;
 	const char *name;
-
-	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
-		return (ARCHIVE_OK);
+	unsigned long	 set, clear;
+	int		 r;
+	int		 critical_flags;
 
 	extract = a->extract;
-	mode &= ~extract->umask; /* Enforce umask. */
+
+	/* Obey umask unless ARCHIVE_EXTRACT_PERM. */
+	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
+		mode &= ~extract->umask; /* Enforce umask. */
 	name = archive_entry_pathname(entry);
+
+	if (mode & (S_ISUID | S_ISGID)) {
+		if (extract->pst == NULL && stat(name, &extract->st) != 0) {
+			archive_set_error(a, errno, "Can't check ownership");
+			return (ARCHIVE_WARN);
+		}
+		extract->pst = &extract->st;
+		/*
+		 * TODO: Use the uid/gid looked up in set_ownership
+		 * above rather than the uid/gid stored in the entry.
+		 */
+		if (extract->pst->st_uid != archive_entry_uid(entry))
+			mode &= ~ S_ISUID;
+		if (extract->pst->st_gid != archive_entry_gid(entry))
+			mode &= ~ S_ISGID;
+	}
+
 #ifdef HAVE_LCHMOD
 	if (lchmod(name, mode) != 0) {
 #else
@@ -800,19 +827,12 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 		archive_set_error(a, errno, "Can't set permissions");
 		return (ARCHIVE_WARN);
 	}
-	return (0);
-}
 
-static int
-set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
-{
-	struct fixup_entry *le;
-	struct extract	*extract;
-	unsigned long	 set, clear;
-	int		 ret, ret2;
-	int		 critical_flags;
-
-	extract = a->extract;
+	if (flags & ARCHIVE_EXTRACT_ACL) {
+		r = set_acls(a, entry);
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
 
 	/*
 	 * Make 'critical_flags' hold all file flags that can't be
@@ -822,8 +842,9 @@ set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 	 * preserve some semblance of portability, this uses #ifdef
 	 * extensively.  Ugly, but it works.
 	 *
-	 * Yes, Virginia, this does create a barn-door-sized security
-	 * race.  If you see any way to avoid it, please let me know.
+	 * Yes, Virginia, this does create a security race.  It's mitigated
+	 * somewhat by the practice of creating dirs 0700 until the extract
+	 * is done, but it would be nice if we could do more than that.
 	 * People restoring critical file systems should be wary of
 	 * other programs that might try to muck with files as they're
 	 * being restored.
@@ -849,45 +870,44 @@ set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 	critical_flags |= EXT2_IMMUTABLE_FL;
 #endif
 
-	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
-		return (ARCHIVE_OK);
+	if (flags & ARCHIVE_EXTRACT_FFLAGS) {
+		archive_entry_fflags(entry, &set, &clear);
 
-	archive_entry_fflags(entry, &set, &clear);
-
-	/*
-	 * The first test encourages the compiler to eliminate all of
-	 * this if it's not necessary.
-	 */
-	if ((critical_flags != 0)  &&  (set & critical_flags)) {
-		le = malloc(sizeof(struct fixup_entry));
-		le->fixup = FIXUP_FFLAGS;
-		le->next = extract->fixup_list;
-		extract->fixup_list = le;
-		le->name = strdup(archive_entry_pathname(entry));
-		le->mode = archive_entry_mode(entry);
-		le->fflags_set = set;
-		ret = ARCHIVE_OK;
-	} else
-		ret = set_fflags(a, archive_entry_pathname(entry),
-		    archive_entry_mode(entry), set, clear);
-
-	ret2 = set_acls(a, entry);
-
-	return (err_combine(ret,ret2));
+		/*
+		 * The first test encourages the compiler to eliminate
+		 * all of this if it's not necessary.
+		 */
+		if ((critical_flags != 0)  &&  (set & critical_flags)) {
+			le = malloc(sizeof(struct fixup_entry));
+			le->fixup = FIXUP_FFLAGS;
+			le->next = extract->fixup_list;
+			extract->fixup_list = le;
+			le->name = strdup(archive_entry_pathname(entry));
+			le->mode = archive_entry_mode(entry);
+			le->fflags_set = set;
+		} else {
+			r = set_fflags(a, archive_entry_pathname(entry),
+			    archive_entry_mode(entry), set, clear);
+			if (r != ARCHIVE_OK)
+				return (r);
+		}
+	}
+	return (ARCHIVE_OK);
 }
 
 static int
 set_fflags(struct archive *a, const char *name, mode_t mode,
     unsigned long set, unsigned long clear)
 {
+	struct extract *extract;
 	int		 ret;
-	struct stat	 st;
 #ifdef LINUX
 	int		 fd;
 	int		 err;
 	unsigned long newflags, oldflags;
 #endif
 
+	extract = a->extract;
 	ret = ARCHIVE_OK;
 	if (set == 0  && clear == 0)
 		return (ret);
@@ -900,14 +920,15 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 	 * about the correct approach if we're overwriting an existing
 	 * file that already has flags on it. XXX
 	 */
-	if (stat(name, &st) == 0) {
-		st.st_flags &= ~clear;
-		st.st_flags |= set;
-		if (chflags(name, st.st_flags) != 0) {
+	if (stat(name, &extract->st) == 0) {
+		extract->st.st_flags &= ~clear;
+		extract->st.st_flags |= set;
+		if (chflags(name, extract->pst->st_flags) != 0) {
 			archive_set_error(a, errno,
 			    "Failed to set file flags");
 			ret = ARCHIVE_WARN;
 		}
+		extract->pst = &extract->st;
 	}
 #endif
 	/* Linux has flags too, but no chflags syscall */
