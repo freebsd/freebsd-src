@@ -1,0 +1,9 @@
+This version of NTP was converted to the BSD-style Makefile system by
+Garrett Wollman (wollman@freefall.cdrom.com); it is based on version
+3.3b (beta) from the University of Delaware.
+
+Besides the Makefile changes, the DES code has been completely removed
+in order to make this code exportable.  If you have a legal copy of
+`authdes.c', you can just add it to the lib/ directory and add `-DDES'
+to the AUTHDEFS in Makefile.inc.
+
