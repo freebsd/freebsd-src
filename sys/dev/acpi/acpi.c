@@ -37,6 +37,7 @@
 #include <sys/sysctl.h>
 
 #include <sys/eventhandler.h>		/* for EVENTHANDLER_REGISTER */
+#include <sys/reboot.h>			/* for RB_POWEROFF */
 #include <machine/clock.h>		/* for DELAY */
 
 #include <machine/bus.h>
@@ -877,9 +878,11 @@ acpi_soft_off(void *data, int howto)
 {
 	acpi_softc_t	*sc;
 
+	if (!(howto & RB_POWEROFF)) {
+		return;
+	}
 	sc = (acpi_softc_t *) data;
-	/* wait 1sec before turning off the system power */
-	DELAY(1000*1000);
+	acpi_execute_pts(sc, ACPI_S_STATE_S5);
 	acpi_trans_sleeping_state(sc, ACPI_S_STATE_S5);
 }
 
@@ -887,15 +890,6 @@ static void
 acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 {
 	u_int8_t	slp_typ_a, slp_typ_b;
-
-	/* Prepare to sleep */
-	acpi_execute_pts(sc, state);
-
-	/* PowerResource manipulation */
-	acpi_powerres_set_sleeping_state(sc, state);
-	if (acpi_debug) {
-		acpi_powerres_debug(sc);
-	}
 
 	if (!sc->system_state_initialized) {
 		return;
@@ -909,6 +903,17 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 		return;	/* unsupported sleeping type */
 	}
 
+	if (state < ACPI_S_STATE_S5) {
+		/* Prepare to sleep */
+		acpi_execute_pts(sc, state);
+
+		/* PowerResource manipulation */
+		acpi_powerres_set_sleeping_state(sc, state);
+		if (acpi_debug) {
+			acpi_powerres_debug(sc);
+		}
+	}
+
 	/*
 	 * XXX currently supported S1 and S5 only.
 	 */
@@ -916,19 +921,17 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	case ACPI_S_STATE_S0:
 	case ACPI_S_STATE_S1:
 		acpi_trans_sleeping_state(sc, state);
-		acpi_execute_wak(sc, state);
 		break;
 	case ACPI_S_STATE_S5:
 		/* Power the system off using ACPI */
-		EVENTHANDLER_REGISTER(shutdown_final, acpi_soft_off, sc,
-		    SHUTDOWN_PRI_LAST);
-		shutdown_nice();	/* XXX */
+		shutdown_nice(RB_POWEROFF);
 		break;
 	default:
 		break;
 	}
 
 	if (state < ACPI_S_STATE_S5) {
+		acpi_execute_wak(sc, state);
 		acpi_powerres_set_sleeping_state(sc, 0);
 		if (acpi_debug) {
 			acpi_powerres_debug(sc);
@@ -1329,6 +1332,9 @@ acpi_attach(device_t dev)
 	if (acpi_debug) {
 		acpi_powerres_debug(sc);
 	}
+
+	EVENTHANDLER_REGISTER(shutdown_final, acpi_soft_off, sc,
+	    SHUTDOWN_PRI_LAST);
 
 	acpi_pmap_release();
 
